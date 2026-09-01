@@ -1166,7 +1166,7 @@ const handlers: { [T in JobType]: Handler<T> } = {
    * een lege regel (plan 9.4, regel 2).
    */
   sales_contact_find: async ({ admin }, payload) => {
-    await zoekContact(admin, payload.marketId, payload.companyId);
+    await zoekContact(admin, payload.marketId, payload.companyId, payload.outreachId);
 
     await enqueue(admin, {
       type: "sales_outreach_draft",

@@ -98,7 +98,83 @@ export interface OntvangerOordeel {
  * knop die verborgen is, is geen garantie: er staat straks een lijst met een
  * knop "concept openen" naast, en die route hoort hetzelfde antwoord te geven.
  */
-export function magOntvangerZijn(contact: Contactpersoon): OntvangerOordeel {
+/**
+ * Postbussen waar geen mens achter zit.
+ *
+ * ⚠️ Toegevoegd op 1 september 2026, na de eerste echte markt. Het onderzoek
+ * vond bij Coolvent `info@coolvent.nl` op de pagina met leveringsvoorwaarden en
+ * gaf hem het label "gevonden", want hij stond er echt. Daarmee glipte hij door
+ * elke controle heen, terwijl plan 16.1 juist zegt dat een mail aan `info@` geen
+ * persoonlijk eerste contact is. Gevonden is dus niet hetzelfde als persoonlijk.
+ *
+ * Het adres blijft wél staan, want om te bellen is het prima.
+ */
+const ALGEMENE_POSTBUSSEN = [
+  "info",
+  "contact",
+  "office",
+  "administratie",
+  "boekhouding",
+  "verkoop",
+  "sales",
+  "mail",
+  "welkom",
+  "hallo",
+  "planning",
+  "service",
+  "support",
+  "helpdesk",
+  "receptie",
+  "no-reply",
+  "noreply",
+];
+
+/** Is dit een algemene postbus in plaats van het adres van een persoon? */
+export function isAlgemeenAdres(email: string | null | undefined): boolean {
+  const lokaal = (email ?? "").trim().toLowerCase().split("@")[0] ?? "";
+  if (!lokaal) return false;
+  return ALGEMENE_POSTBUSSEN.includes(lokaal);
+}
+
+/**
+ * Hoort deze functie bij dít bedrijf?
+ *
+ * ⚠️ Ook uit de eerste echte markt. Bij Coolvent kwam er een persoon uit met de
+ * functie "eigenaar van JS Montage Eindhoven", gevonden op de pagina met
+ * leveringsvoorwaarden. `rolPast()` keurde die goed, want er staat "eigenaar"
+ * in. Maar het is de eigenaar van een ánder bedrijf, en een mail die begint met
+ * "als eigenaar van Coolvent" is dan meteen fout.
+ *
+ * De toets is bewust smal: alleen als de functie zelf een bedrijfsnaam noemt met
+ * "van" of "bij" ervoor, en die naam deelt geen enkel woord met de naam van dit
+ * bedrijf, valt hij af. Bij twijfel blijft de persoon staan; dit vangt de
+ * gevallen die aantoonbaar over iemand anders gaan.
+ */
+export function rolHoortBijBedrijf(
+  rol: string | null | undefined,
+  bedrijfsnaam: string,
+): boolean {
+  const tekst = (rol ?? "").trim();
+  if (tekst.length === 0) return true;
+
+  const match = tekst.match(/\b(?:van|bij)\s+(.+)$/i);
+  if (!match) return true;
+
+  const genoemd = match[1].toLowerCase();
+  const woorden = (bedrijfsnaam ?? "")
+    .toLowerCase()
+    .replace(/\b(b\.?v\.?|v\.?o\.?f\.?|nv|holding|group|installaties?|installatietechniek)\b/g, " ")
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 3);
+
+  if (woorden.length === 0) return true;
+  return woorden.some((w) => genoemd.includes(w));
+}
+
+export function magOntvangerZijn(
+  contact: Contactpersoon,
+  bedrijfsnaam: string = "",
+): OntvangerOordeel {
   const email = (contact.email ?? "").trim();
   if (!email || !email.includes("@")) {
     return {
@@ -120,6 +196,16 @@ export function magOntvangerZijn(contact: Contactpersoon): OntvangerOordeel {
     };
   }
 
+  if (isAlgemeenAdres(email)) {
+    return {
+      ok: false,
+      melding:
+        `${email} is de algemene postbus van het bedrijf en niet het adres van een persoon. Een ` +
+        "mail daarheen is geen persoonlijk eerste contact. Zoek het adres van degene die over de " +
+        "commercie gaat, of bel dit nummer in plaats van te mailen.",
+    };
+  }
+
   if (!rolPast(contact.rol)) {
     return {
       ok: false,
@@ -127,6 +213,16 @@ export function magOntvangerZijn(contact: Contactpersoon): OntvangerOordeel {
         `De functie "${contact.rol ?? "onbekend"}" past niet bij dit gesprek. Zoek de eigenaar of ` +
         "degene die over de commercie gaat: een mail bij de verkeerde persoon binnen het bedrijf " +
         "komt zelden bij de juiste terecht.",
+    };
+  }
+
+  if (!rolHoortBijBedrijf(contact.rol, bedrijfsnaam)) {
+    return {
+      ok: false,
+      melding:
+        `De functie "${contact.rol ?? ""}" gaat over een ander bedrijf dan ${bedrijfsnaam}. ` +
+        "Controleer eerst wie deze persoon hier is, want een mail die hem de verkeerde pet " +
+        "opzet, is meteen voorbij.",
     };
   }
 

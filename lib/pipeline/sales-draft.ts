@@ -48,7 +48,7 @@ export async function schrijfConcept(admin: Admin, outreachId: string): Promise<
   const { data } = await admin
     .from("sales_outreach")
     .select(
-      "id, company_id, opportunity_id, market_id, owner_user_id, body_draft, " +
+      "id, company_id, opportunity_id, market_id, owner_user_id, body_draft, contact_id, " +
         "sales_companies(name), sales_markets(label, slug, is_public), " +
         "sales_opportunities(type, evidence, hook_text)",
     )
@@ -61,6 +61,7 @@ export async function schrijfConcept(admin: Admin, outreachId: string): Promise<
     opportunity_id: string | null;
     market_id: string | null;
     owner_user_id: string | null;
+    contact_id: string | null;
     body_draft: string | null;
     sales_companies: { name: string } | null;
     sales_markets: { label: string; slug: string; is_public: boolean } | null;
@@ -102,6 +103,20 @@ export async function schrijfConcept(admin: Admin, outreachId: string): Promise<
   };
 
   const bedrijf = rij.sales_companies?.name ?? "dit bedrijf";
+
+  // De gevonden contactpersoon, als hij de controle van `magOntvangerZijn()`
+  // gehaald heeft (`lib/pipeline/sales-contact.ts` hangt hem daar aan de
+  // outreach). Zonder naam blijft de aanhef "Beste,", en dat is beter dan een
+  // gegokte naam.
+  let ontvanger: string | null = null;
+  if (rij.contact_id) {
+    const { data: contact } = await admin
+      .from("sales_contacts")
+      .select("name")
+      .eq("id", rij.contact_id)
+      .maybeSingle();
+    ontvanger = ((contact?.name as string) ?? "").trim() || null;
+  }
   const markt = rij.sales_markets?.label ?? "deze markt";
   const haak = rij.sales_opportunities.hook_text ?? "";
   const afzender = await afzenderNaam(admin, rij.owner_user_id);
@@ -120,7 +135,7 @@ export async function schrijfConcept(admin: Admin, outreachId: string): Promise<
       "Je schrijft de openingsmail van een verkoper aan een ondernemer, op basis van een meting. " +
       "Je gebruikt uitsluitend de cijfers die je krijgt en verzint er nooit één bij. Je legt niets " +
       "uit over AI of over ons bedrijf: de mail gaat over hen. Antwoord in het Nederlands.",
-    user: bouwMailVraag(kans, bedrijf, markt, haak, afzender, publiekeLink),
+    user: bouwMailVraag(kans, bedrijf, markt, haak, afzender, publiekeLink, ontvanger),
     schema: SalesOutreachDraft,
     schemaName: "sales_outreach_draft",
     webSearch: false,
@@ -142,7 +157,7 @@ export async function schrijfConcept(admin: Admin, outreachId: string): Promise<
     }
   }
   const bron: "model" | "sjabloon" = concept ? "model" : "sjabloon";
-  if (!concept) concept = sjabloonConcept(kans, bedrijf, markt, haak, afzender);
+  if (!concept) concept = sjabloonConcept(kans, bedrijf, markt, haak, afzender, ontvanger);
 
   // De voorbereiding gaat door dezelfde controle. Haalt hij hem niet, dan wordt
   // hij niet opgeslagen: een halve voorbereiding met één fout cijfer erin is
@@ -201,6 +216,20 @@ async function cijfersVanVandaag(admin: Admin, userId: string): Promise<DagCijfe
 async function afzenderNaam(admin: Admin, userId: string | null): Promise<string> {
   if (!userId) return "[jouw naam]";
   const { data } = await admin.auth.admin.getUserById(userId);
-  const email = data?.user?.email ?? "";
-  return email ? `[jouw naam] (${email})` : "[jouw naam]";
+
+  // De naam als hij bekend is, anders een plaatshouder die schreeuwt dat er nog
+  // iets moet gebeuren.
+  //
+  // ⚠️ Het mailadres stond hier tot 1 september 2026 tussen haakjes achter, en
+  // dat is precies het soort detail dat ongemerkt meegaat: het concept sloot af
+  // met "[jouw naam] (e2e-consultant@orbit-test.nl)". Een interne afzender in een
+  // mail aan een prospect is een lek, en een plaatshouder mét adres leest als
+  // een half ingevuld formulier. Wie zijn naam nergens heeft staan, vult hem
+  // zelf in, en dat ziet hij ook.
+  const meta = (data?.user?.user_metadata ?? {}) as Record<string, unknown>;
+  const naam = [meta.full_name, meta.name, meta.naam]
+    .map((v) => (typeof v === "string" ? v.trim() : ""))
+    .find((v) => v.length > 0);
+
+  return naam || "[jouw naam]";
 }

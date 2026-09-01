@@ -5495,3 +5495,66 @@ sterkst bij het marktonderzoek (42 keer). Bijstellen kan pas na een tweede markt
 waarneming.
 
 Vier controles groen: typecheck, 3349 unittests, 549 ketentests, de productiebuild.
+
+## 1 september 2026: de eerste vier P1's uit de live test, en de verificatiemeting
+
+**De verificatiemeting.** Na de vier P0-reparaties is er een verse markt doorheen gegaan:
+Warmtepomp Tilburg, 26 bedrijven, 40 vragen, $0,60. Het verschil met de meting van diezelfde ochtend
+is het hele punt van die reparaties:
+
+| | Warmtepomp Eindhoven (voor) | Warmtepomp Tilburg (na) |
+|---|---|---|
+| Vragen die de plaats noemen | 3 van de 40 | 22 van de 40, en alle 21 in de fases selecteren en contact |
+| Antwoorden met een bedrijf uit de markt erin | 2 van de 40 | 16 van de 40 |
+| Bedrijven die genoemd worden | 1 van de 43 | 12 van de 26 |
+| Soorten kansen | 43 keer "Onzichtbaar" | 17 concurrent gap, 1 source gap, 1 information gap |
+| Hoogste scores | zeven bedrijven op exact 76 | 93, 93, 90, 90, 86, 82, 77 |
+| Haak geschreven door | 43 keer het sjabloon | het model, met de concurrent bij naam |
+| Zekerheid | middel | hoog |
+| Schrijftaken | 16 van de 16 mislukt | 18 van de 18 gelukt |
+
+De haak die eruit komt is nu een verkoopargument in plaats van een constatering: "In een meting van
+40 vragen over warmtepompen in Tilburg werd Struycken Installaties 7 keer genoemd en Van Oers
+Installaties B.V. 0 keer." En de cijfers zijn met de hand na te rekenen: voor alle twaalf genoemde
+bedrijven komt het aantal in `sales_company_scores` exact overeen met het aantal rijen in
+`sales_mentions`. Deze markt had 1040 vermeldingsrijen, dus zonder de paginering van vanochtend
+waren er opnieuw 40 stilletjes weggevallen.
+
+**Wat er daarna gerepareerd is.** Vier punten uit dezelfde test, allemaal rond de mail.
+
+1. **De contactpersoon kwam niet in de mail terecht.** Er wérd iemand gevonden, maar `contact_id`
+   bleef leeg en elk concept begon met "Beste,". `zoekContact()` hangt de gevonden persoon nu aan de
+   outreach, maar alleen als hij door `magOntvangerZijn()` komt, en de conceptstap gebruikt die naam
+   in de aanhef en in de opdracht aan het model.
+2. **Een algemene postbus telde als persoonlijk adres.** `info@coolvent.nl` stond op de pagina met
+   leveringsvoorwaarden, kreeg daarom het label "gevonden", en glipte zo door elke controle. Twintig
+   postbusnamen (`info`, `contact`, `verkoop`, `administratie` en zo verder) zijn nu geen ontvanger
+   meer. Het adres blijft staan, want om te bellen is het prima.
+3. **Een functie die over een ander bedrijf gaat.** Het onderzoek leverde bij Coolvent "eigenaar van
+   JS Montage Eindhoven" op. `rolPast()` keurde die goed, want er staat "eigenaar" in.
+   `rolHoortBijBedrijf()` kijkt nu of de bedrijfsnaam ín de functie iets deelt met de naam van dit
+   bedrijf, en anders gaat er geen mail naartoe.
+4. **De belvoorbereiding werd nooit opgeslagen.** Twee markten, twee keer afgekeurd, en de reden
+   was steeds dezelfde: de opdracht aan het model vroeg alleen om een mail, terwijl de verwachte
+   uitvoer ook de vier blokken uit plan 16.5 bevat. Het model leverde ze dus leeg en de controle
+   verwierp ze terecht. De opdracht vraagt er nu om, met de aantallen erbij, in dezelfde aanroep en
+   dus zonder extra kosten. En als de voorbereiding alsnog afvalt, staat op het dossier waarom: die
+   reden zat in een notitieveld dat geen enkel scherm toonde.
+
+**Twee dingen erbij die uit dezelfde markt kwamen.** De afzender van een concept was
+"[jouw naam] (e2e-consultant@orbit-test.nl)": een intern mailadres in een bericht aan een prospect.
+Dat is nu de naam van de medewerker als die bekend is, en anders alleen de plaatshouder. En de
+ontdekking nam de tekst van een link over als bedrijfsnaam, waardoor twee echte installateurs "Open
+website" heetten in de kans, de score en de conceptmail. Een naam die aantoonbaar een linktekst is
+("Open website", "Lees meer", een telefoonnummer) telt niet meer als naam; het bedrijf blijft staan
+en heet dan naar zijn domein. De uitsluitingslijst kreeg er de bronnen bij die beide markten
+opleverden: `rvo.nl`, `mkb.nl`, `knmi.nl`, `cookiedatabase.org`, `fraudehelpdesk.nl`,
+`openstreetmap.org`, `wa.me` en een handvol andere.
+
+**Het Overzicht-scherm bestaat nu echt.** `/sales` was een vaste lege staat die "Er is nog geen
+markt gemeten" zei, ook nadat er twee markten gemeten waren. Er staan nu vier blokken: jouw werk
+vandaag met de volgende stap per regel, de hoogste kansen die niemand heeft opgepakt (getoetst tegen
+de actieve outreach van iedereen, niet alleen die van jezelf), waar een reactie op kwam, en je eigen
+cijfers deze maand. Geen vergelijking met collega's, conform plan §5.1.
+
+Vier controles groen: typecheck, 3396 unittests, 549 ketentests, de productiebuild.

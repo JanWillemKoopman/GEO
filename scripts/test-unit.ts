@@ -114,6 +114,7 @@ import {
   normaliseerDomein,
   voegKandidatenSamen,
   zekerheidUitBronnen,
+  isGeenBedrijfsnaam,
   type Kandidaat,
 } from "@/lib/sales/discovery";
 import {
@@ -213,6 +214,8 @@ import {
 import {
   magOntvangerZijn,
   rolPast,
+  isAlgemeenAdres,
+  rolHoortBijBedrijf,
   leidAdresAf,
   bouwContactVraag,
 } from "@/lib/sales/contact";
@@ -15105,6 +15108,112 @@ group("wie mag er een mail krijgen, en wie zeker niet", () => {
   });
   ok("zonder adres gaat er niets uit", !zonderAdres.ok);
   ok("en er wordt er geen gegokt", (zonderAdres.melding ?? "").includes("gokt er geen"));
+
+  // ⚠️ Uit de eerste echte markt (1 september 2026). Bij Coolvent kwam
+  // `info@coolvent.nl` uit de leveringsvoorwaarden met het label "gevonden",
+  // want hij stond er echt. Daarmee glipte hij door elke controle, terwijl plan
+  // 16.1 juist zegt dat een mail aan info@ geen persoonlijk eerste contact is.
+  const algemeen = magOntvangerZijn(
+    { naam: "D. Satram", rol: "Eigenaar", email: "info@coolvent.nl", emailKind: "gevonden", zekerheid: "middel" },
+    "Coolvent",
+  );
+  ok("een algemene postbus is geen persoon", !algemeen.ok);
+  ok("en de melding zegt waarom", (algemeen.melding ?? "").includes("algemene postbus"));
+  ok("info@ is algemeen", isAlgemeenAdres("info@coolvent.nl"));
+  ok("verkoop@ ook", isAlgemeenAdres("verkoop@coolvent.nl"));
+  ok("maar een persoonsadres niet", !isAlgemeenAdres("d.satram@coolvent.nl"));
+  ok("en een adres met een punt erin ook niet", !isAlgemeenAdres("info.jansen@coolvent.nl"));
+
+  // Ook uit die markt: de gevonden functie was "eigenaar van JS Montage
+  // Eindhoven", op de site van Coolvent. `rolPast()` keurde die goed, want er
+  // staat "eigenaar" in. Het is alleen de eigenaar van een ander bedrijf.
+  ok(
+    "een functie bij een ander bedrijf valt af",
+    !rolHoortBijBedrijf("eigenaar van JS Montage Eindhoven", "Coolvent"),
+  );
+  ok(
+    "dezelfde naam mag wel, ook met een rechtsvorm erachter",
+    rolHoortBijBedrijf("eigenaar van Coolvent B.V.", "Coolvent"),
+  );
+  ok("een kale functie blijft gewoon staan", rolHoortBijBedrijf("Commercieel directeur", "Coolvent"));
+  ok("en zonder functie ook", rolHoortBijBedrijf(null, "Coolvent"));
+
+  const andereFirma = magOntvangerZijn(
+    {
+      naam: "D. Satram",
+      rol: "eigenaar van JS Montage Eindhoven",
+      email: "d.satram@coolvent.nl",
+      emailKind: "gevonden",
+      zekerheid: "middel",
+    },
+    "Coolvent",
+  );
+  ok("en dan gaat er geen mail naartoe", !andereFirma.ok);
+});
+
+group("de mail gebruikt de naam van de ontvanger", () => {
+  // ⚠️ De hele module draait om een persoonlijk eerste contact (plan 9.4). Tot
+  // 1 september 2026 begon elk concept met "Beste,", ook als er iemand gevonden
+  // was: de contactpersoon werd nooit aan de outreach gehangen.
+  const kans: Kans = {
+    type: "concurrent_gap",
+    vragen: ["v1", "v2"],
+    antwoorden: ["a1"],
+    cijfers: { vermeldingen: 0, concurrent_vermeldingen: 7 },
+    rivalCompanyId: "r1",
+  };
+
+  const metNaam = sjabloonConcept(kans, "Van Oers", "Warmtepomp Tilburg", "De haak.", "Jan", "M. de Vries");
+  ok("met een gevonden naam begint de mail persoonlijk", metNaam.tekst.startsWith("Beste M. de Vries,"));
+
+  const zonderNaam = sjabloonConcept(kans, "Van Oers", "Warmtepomp Tilburg", "De haak.", "Jan");
+  ok("zonder naam blijft het Beste,", zonderNaam.tekst.startsWith("Beste,"));
+  ok("en er wordt er geen verzonnen", !zonderNaam.tekst.includes("Beste ["));
+
+  const vraagMet = bouwMailVraag(kans, "Van Oers", "Warmtepomp Tilburg", "De haak.", "Jan", null, "M. de Vries");
+  ok("de opdracht noemt de ontvanger", vraagMet.includes("Beste M. de Vries,"));
+  const vraagZonder = bouwMailVraag(kans, "Van Oers", "Warmtepomp Tilburg", "De haak.", "Jan", null);
+  ok("en zonder ontvanger staat er dat je er geen verzint", vraagZonder.includes("verzin geen naam"));
+
+  // ⚠️ De opdracht vroeg tot 1 september 2026 alleen om een mail, terwijl de
+  // verwachte uitvoer ook de vier blokken van de belvoorbereiding bevat. Het
+  // model leverde ze dus leeg, de controle verwierp ze terecht, en er stond op
+  // twee markten geen enkele voorbereiding op het dossier.
+  ok("de opdracht vraagt om de gespreksvoorbereiding", vraagZonder.includes("gespreksvoorbereiding"));
+  ok("met precies twee cijfers", vraagZonder.includes("cijfers: precies twee"));
+  ok("en precies drie openingen", vraagZonder.includes("openingen: precies drie"));
+  ok("en de grens van wat de meting draagt", vraagZonder.includes("niet_zeggen"));
+});
+
+group("een linktekst is geen bedrijfsnaam", () => {
+  // ⚠️ Onze eigen crawler leest bronpagina's uit en nam de tekst van een link
+  // over als naam. Twee ECHTE installateurs heetten daardoor "Open website", in
+  // de kans, in de score en in de conceptmail.
+  ok('"Open website" is geen naam', isGeenBedrijfsnaam("Open website"));
+  ok('"Lees meer over deze doeleinden" ook niet', isGeenBedrijfsnaam("Lees meer over deze doeleinden"));
+  ok('"Update mijn webbrowser" ook niet', isGeenBedrijfsnaam("Update mijn webbrowser"));
+  ok('"Website door Bonsai media" ook niet', isGeenBedrijfsnaam("Website door Bonsai media"));
+  ok("een telefoonnummer ook niet", isGeenBedrijfsnaam("+31 6 13818383"));
+  ok("een leeg veld ook niet", isGeenBedrijfsnaam("  "));
+  ok("maar een echt bedrijf wel", !isGeenBedrijfsnaam("Coolvent"));
+  ok("ook met een rechtsvorm", !isGeenBedrijfsnaam("Van Oers Installaties B.V."));
+
+  // Het bedrijf gaat er niet uit: met een domein erbij levert de naam uit het
+  // domein een bruikbare naam op, en dat is te zien aan de herkomst.
+  const uit = voegKandidatenSamen(
+    [
+      { name: "Open website", domain: "klima-techniek.nl", city: null, bron: "bronpagina:nvkl.nl", naamHerkomst: "bronpagina", evidenceUrl: null },
+    ],
+    (n) => n.toLowerCase(),
+  );
+  eq2("het bedrijf blijft staan", uit.length, 1);
+  eq("en heet naar zijn domein", uit[0].name, "Klima techniek");
+  eq("met de herkomst erbij", uit[0].naamHerkomst, "domein");
+
+  // De bronnen zelf horen er niet in, ook niet als de crawler ze aandraagt.
+  for (const domein of ["rvo.nl", "mkb.nl", "knmi.nl", "cookiedatabase.org", "fraudehelpdesk.nl", "openstreetmap.org", "wa.me"]) {
+    ok(`${domein} is geen prospect`, isGeenProspect(domein));
+  }
 });
 
 group("een adres afleiden mag alleen met een echt patroon", () => {

@@ -121,7 +121,7 @@ export default async function ProspectDossierPage({
   // anders heen te navigeren.
   const { data: outreachRij } = await supabase
     .from("sales_outreach")
-    .select("id, status, subject, body_draft, call_prep, contact_id")
+    .select("id, status, subject, body_draft, call_prep, contact_id, notes")
     .eq("company_id", id)
     .not("status", "in", "(afgewezen,klant,niet_nu)")
     .maybeSingle();
@@ -138,6 +138,7 @@ export default async function ProspectDossierPage({
       nietZeggen?: string[];
     } | null;
     contact_id: string | null;
+    notes: string | null;
   };
   const outreach = outreachRij as unknown as OutreachRij | null;
 
@@ -172,7 +173,7 @@ export default async function ProspectDossierPage({
         emailKind: contactData.email_kind,
         zekerheid: contactData.confidence,
         verifiedAt: contactData.verified_at,
-      })
+      }, bedrijf.name as string)
     : null;
 
   let rivaalNaam: string | null = null;
@@ -266,6 +267,7 @@ export default async function ProspectDossierPage({
                     subject: outreach.subject,
                     bodyDraft: outreach.body_draft,
                     callPrep: outreach.call_prep,
+                    prepMelding: outreach.notes,
                     contact: contactData
                       ? {
                           naam: contactData.name,

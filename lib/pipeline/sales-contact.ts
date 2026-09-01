@@ -44,6 +44,8 @@ export async function zoekContact(
   admin: Admin,
   marketId: string,
   companyId: string,
+  /** De outreach waar de gevonden persoon aan gehangen wordt, als die er is. */
+  outreachId: string | null = null,
 ): Promise<ContactUitkomst> {
   const { data: bedrijf } = await admin
     .from("sales_companies")
@@ -123,21 +125,59 @@ export async function zoekContact(
     };
   }
 
-  const { error } = await admin.from("sales_contacts").insert(
-    kandidaten.map((p) => ({
-      company_id: companyId,
-      name: p.naam,
-      role: p.rol,
-      email: p.email,
-      email_kind: p.emailKind,
-      phone: p.telefoon,
-      source_url: p.bron,
-      confidence: p.zekerheid,
-    })),
-  );
+  const { data: opgeslagen, error } = await admin
+    .from("sales_contacts")
+    .insert(
+      kandidaten.map((p) => ({
+        company_id: companyId,
+        name: p.naam,
+        role: p.rol,
+        email: p.email,
+        email_kind: p.emailKind,
+        phone: p.telefoon,
+        source_url: p.bron,
+        confidence: p.zekerheid,
+      })),
+    )
+    .select("id, name, role, email, email_kind");
   if (error) throw new Error(`Opslaan van de contactpersonen mislukt: ${error.message}`);
 
-  const bruikbaar = kandidaten.some((p) => magOntvangerZijn(p).ok);
+  const bruikbaar = kandidaten.some((p) => magOntvangerZijn(p, bedrijf.name as string).ok);
+
+  // ⚠️ DE GEVONDEN PERSOON WORDT AAN DE OUTREACH GEHANGEN (1 september 2026).
+  //
+  // Zonder deze regel bleef `contact_id` leeg, ook als er iemand gevonden was,
+  // en begon de conceptmail met "Beste,". Dat is precies de mail die deze hele
+  // module niet wil zijn: plan 9.4 opent met "de hele module draait om een
+  // persoonlijk eerste contact, en een mail aan info@ is dat niet".
+  //
+  // Alleen wie de controle van `magOntvangerZijn()` haalt, komt hier terecht.
+  // Iemand die hem niet haalt, blijft wel staan op het dossier (met de reden
+  // erbij), want om te bellen is hij prima.
+  const rijen = (opgeslagen ?? []) as {
+    id: string;
+    name: string;
+    role: string | null;
+    email: string | null;
+    email_kind: string | null;
+  }[];
+  const ontvanger = rijen.find(
+    (r) =>
+      magOntvangerZijn(
+        {
+          naam: r.name,
+          rol: r.role,
+          email: r.email,
+          emailKind: (r.email_kind as "gevonden" | "afgeleid") ?? "afgeleid",
+          zekerheid: "middel" as const,
+          verifiedAt: null,
+        },
+        bedrijf.name as string,
+      ).ok,
+  );
+  if (ontvanger && outreachId) {
+    await admin.from("sales_outreach").update({ contact_id: ontvanger.id }).eq("id", outreachId);
+  }
 
   return {
     gevonden: kandidaten.length,

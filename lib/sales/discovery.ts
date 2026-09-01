@@ -110,7 +110,53 @@ export const GEEN_PROSPECT_DOMEINEN = [
   "thuisbezorgd.nl", "booking.com", "tripadvisor.com", "iens.nl",
   // Nieuws en generieke uitgevers
   "nu.nl", "telegraaf.nl", "ad.nl", "volkskrant.nl", "nrc.nl", "rtlnieuws.nl",
+  // ⚠️ Wat de eerste twee echte markten opleverden (1 september 2026). Elk van
+  // deze stond als "bedrijf" in de lijst, met een score en al: de voorlichting
+  // van de overheid, twee ondernemersorganisaties, het weerbericht, de
+  // cookiedatabase van een plugin, de meldknop voor fraude, de kaartendienst
+  // onderaan een gemeentegids, de webbouwer in de voettekst, en de
+  // browserwaarschuwing van een verouderde site.
+  "rvo.nl", "mkb.nl", "mkbservicedesk.nl", "ondernemersplein.nl",
+  "knmi.nl", "buienradar.nl", "cookiedatabase.org", "cookiebot.com",
+  "fraudehelpdesk.nl", "openstreetmap.org", "outdatedbrowser.com",
+  "wa.me", "api.whatsapp.com", "milieucentraal.nl", "verbeterjehuis.nl",
+  "eigenhuis.nl", "consumentenbond.nl", "techniekbedrijven.nl", "nvkl.nl",
+  "installq.nl", "warmtepompgids.nl", "mkb-bedrijvengids.nl",
 ];
+
+/**
+ * Namen die geen bedrijfsnaam kunnen zijn, maar de tekst van een link.
+ *
+ * ⚠️ Ook uit de eerste twee markten. Onze eigen crawler leest de bronpagina's
+ * uit en neemt de tekst van een link als naam over. Dat levert bedrijven op die
+ * "Open website", "Lees meer over deze doeleinden" of "+31 6 13818383" heten, en
+ * bij twee ECHTE installateurs stond letterlijk "Open website" als bedrijfsnaam
+ * in de kans, in de score en in de conceptmail.
+ *
+ * Een naam die hierop lijkt, is geen naam. Het bedrijf gaat er niet uit: als er
+ * een domein bij zit, wordt de naam uit het domein afgeleid (`naamUitDomein`),
+ * en dat is te zien aan de herkomst.
+ */
+const GEEN_NAAM_PATRONEN = [
+  /^open (de )?website$/i,
+  /^lees meer/i,
+  /^meer (informatie|lezen|weten)/i,
+  /^bekijk /i,
+  /^klik hier/i,
+  /^(update|vernieuw) (mijn |je )?(web)?browser/i,
+  /^website (door|van) /i,
+  /^(bezoek|ga naar) /i,
+  /^(volgende|vorige|terug|verder)$/i,
+  /^\+?[\d\s()-]{7,}$/,
+  /^(e-?mail|bel|telefoon|contact)$/i,
+];
+
+/** Is dit de tekst van een link in plaats van de naam van een bedrijf? */
+export function isGeenBedrijfsnaam(naam: string | null | undefined): boolean {
+  const tekst = (naam ?? "").trim();
+  if (tekst.length === 0) return true;
+  return GEEN_NAAM_PATRONEN.some((p) => p.test(tekst));
+}
 
 /**
  * Een adres terugbrengen tot een schone hostnaam, of `null`.
@@ -215,7 +261,11 @@ export function voegKandidatenSamen(
   const perSleutel = new Map<string, SamengevoegdBedrijf>();
 
   for (const k of kandidaten) {
-    const naam = k.name?.trim();
+    // ⚠️ De tekst van een link is geen bedrijfsnaam (zie `isGeenBedrijfsnaam`).
+    // Hij wordt weggegooid en niet het bedrijf: is er een domein, dan levert
+    // `naamUitDomein()` hieronder een bruikbare naam, en dat is precies waarom
+    // twee echte installateurs niet langer "Open website" heten.
+    const naam = isGeenBedrijfsnaam(k.name) ? undefined : k.name?.trim();
     const domein = normaliseerDomein(k.domain);
 
     // Een kandidaat zonder naam én zonder domein is geen kandidaat. Dat is geen

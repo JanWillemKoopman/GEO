@@ -45,6 +45,8 @@ export interface WerkpaneelProps {
       nietZeggen?: string[];
     } | null;
     contact: { naam: string; rol: string | null; email: string | null; magMailen: boolean; melding: string | null } | null;
+    /** Waarom er geen belvoorbereiding staat, als die er niet is. */
+    prepMelding: string | null;
   } | null;
 }
 
@@ -200,6 +202,22 @@ export function Werkpaneel({ opportunityId, outreach }: WerkpaneelProps) {
               </button>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ⚠️ Een ontbrekende voorbereiding zonder uitleg is een leeg vlak, en een
+          leeg vlak leest als "hier komt nog iets". Op 1 september 2026 werd de
+          voorbereiding twee keer op rij afgekeurd omdat er een cijfer in stond
+          dat niet gemeten was, en dat stond alleen in een notitieveld dat geen
+          enkel scherm toonde. De verkoper zag dus niets en wist niet waarom. */}
+      {!outreach.callPrep && outreach.prepMelding && (
+        <div className="card flex flex-col gap-2">
+          <h3 className="font-semibold">Er staat geen belvoorbereiding</h3>
+          <p className="text-secondary">{outreach.prepMelding}</p>
+          <p className="text-secondary">
+            Bel gerust, maar bereid het gesprek zelf voor: gebruik de cijfers uit het bewijs
+            hieronder en beweer niets wat daar niet staat.
+          </p>
         </div>
       )}
 

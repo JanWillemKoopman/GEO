@@ -148,11 +148,18 @@ export function sjabloonConcept(
   markt: string,
   haak: string,
   afzender: string,
+  /** De naam van de ontvanger, als er iemand gevonden is die gemaild mag worden. */
+  ontvanger: string | null = null,
 ): MailConcept {
   return {
     onderwerp: `${bedrijf} in AI-antwoorden over ${markt}`,
     tekst: [
-      "Beste,",
+      // ⚠️ "Beste," zonder naam was tot 1 september 2026 de vaste aanhef, ook
+      // als er een contactpersoon gevonden was. Een module die om een
+      // persoonlijk eerste contact draait, hoort de naam te gebruiken zodra hij
+      // hem heeft (plan 9.4). Staat er niemand, dan blijft het "Beste,": een
+      // verzonnen naam is erger dan geen naam.
+      ontvanger ? `Beste ${ontvanger},` : "Beste,",
       "",
       `Wij hebben gemeten wat AI-assistenten antwoorden op vragen over ${markt}. ${haak}`,
       "",
@@ -180,6 +187,8 @@ export function bouwMailVraag(
   haak: string,
   afzender: string,
   publiekeLink: string | null,
+  /** De naam van de ontvanger, als er iemand gevonden is die gemaild mag worden. */
+  ontvanger: string | null = null,
 ): string {
   const cijfers = Object.entries(kans.cijfers)
     .map(([sleutel, waarde]) => `- ${sleutel}: ${waarde <= 1 && waarde > 0 ? `${Math.round(waarde * 100)}%` : waarde}`)
@@ -189,6 +198,9 @@ export function bouwMailVraag(
     `Bedrijf: ${bedrijf}`,
     `Markt: ${markt}`,
     `Afzender: ${afzender}`,
+    ontvanger
+      ? `Ontvanger: ${ontvanger}. Begin de mail met "Beste ${ontvanger},".`
+      : 'Ontvanger: onbekend. Begin de mail met "Beste," en verzin geen naam.',
     "",
     "De observatie waar de mail op staat of valt:",
     haak,
@@ -209,6 +221,30 @@ export function bouwMailVraag(
     `Wat er niet in hoort: ${VERBODEN_IN_MAIL.join(", ")}.`,
     "Gebruik geen enkel getal dat hierboven niet staat, ook geen afronding.",
     "Hooguit 150 woorden.",
+    "",
+    // ⚠️ DIT BLOK ONTBRAK TOT 1 SEPTEMBER 2026, EN DAT KOSTTE DE HELE
+    // BELVOORBEREIDING. De aanvraag vroeg alleen om een mail, terwijl de
+    // verwachte uitvoer ook de vier blokken uit plan 16.5 bevat. Het model
+    // leverde die dus leeg of half, de controle verwierp ze terecht, en op het
+    // dossier stond geen enkele voorbereiding. Twee keer op twee markten.
+    //
+    // Het is dezelfde aanroep en dus geen extra geld: de mail en het gesprek
+    // rusten op hetzelfde dossier (plan 16.5, "één goedkope aanroep op een
+    // dossier dat al bestaat").
+    "Schrijf daarna de gespreksvoorbereiding die de verkoper openhoudt terwijl hij belt.",
+    "Vier blokken, en houd je precies aan de aantallen:",
+    "- cijfers: precies twee. Niet meer, want een verkoper onthoudt er twee. Neem ze " +
+      "letterlijk uit de lijst hierboven, met de naam van het bedrijf of de concurrent erbij.",
+    "- openingen: precies drie zinnen, in deze volgorde. Eén voor 'hij heeft niet gereageerd', " +
+      "één voor 'hij reageerde geïnteresseerd', één voor 'hij reageerde sceptisch'. Dat zijn drie " +
+      "verschillende gesprekken en één openingszin dekt ze niet.",
+    "- bezwaren: drie bezwaren die bij dit soort kans horen, elk met het antwoord erop. Het " +
+      "antwoord verwijst naar de meting, nooit naar een verkoopargument.",
+    "- niet_zeggen: minstens één zin over wat je bij dit bedrijf niet moet beweren. Dat is de " +
+      "grens van wat de meting draagt. Weten we niet hoeveel omzet dit misloopt, dan zeg je dat " +
+      "niet, ook niet als het gesprek erom vraagt.",
+    "In de voorbereiding gelden dezelfde cijfers als in de mail: geen enkel getal dat hierboven " +
+      "niet staat.",
   ]
     .filter(Boolean)
     .join("\n");
