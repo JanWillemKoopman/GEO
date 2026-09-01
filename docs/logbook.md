@@ -5652,3 +5652,45 @@ productie. Vier controles groen: typecheck, 3455 unittests, 557 ketentests, de p
 **Nog niet geverifieerd tegen een echte klant** (conventie 10): het contract, de dekkingspoort en de
 reparatielus zijn getoetst tegen de stub en tegen opgeslagen data, niet tegen een verse pagina op
 productie. Dat is de eerstvolgende praktijktoets, en pas daarna mag hier staan dat het werkt.
+
+## 1 september 2026: de eerste echte contentronde, en wat daaruit viel
+
+De herbouwde schrijfpijplijn is voor het eerst tegen een echte klant gedraaid, op productie, met
+echte betaalde aanroepen: Gasservice Brabant, nieuw cluster "Hybride warmtepomp"
+(`c22f7d96-ce1b-405f-901f-c473826a8710`), 30 vragen, 46 metingen, vier geschreven pagina's. Het
+volledige verslag met de twaalf geprioriteerde verbeteringen staat in
+`docs/tasks/contentronde-gasservice-brabant-1-september-2026.md`. Er is niets gepubliceerd.
+
+**Het oordeel: het contract en de poorten werken, de uitkomst niet.** Alle vier de pagina's halen
+hun dekking (86, 88, 90 en 98) en drie ervan een GEO-score van 100. En toch: twee pagina's schrijven
+in hun eerste alinea dat het bedrijf niet kan worden aanbevolen, een derde eindigt zijn openingszin
+op `[F1, F2, F5, F14]`, en de pagina over prijzen opent met "Er is geen gecontroleerde, concrete
+prijs ... beschikbaar in dit dossier" terwijl de pagina die hij moest verbeteren zelf "maximaal
+€6000" noemt. Gemiddelde kwaliteitsscore 44,5; alle vier op "check nodig" tegen 15 van de 29 (52%)
+bij de oude pijplijn.
+
+**Drie oorzaken, alle drie in code, alle drie klein te repareren.** Ten eerste worden antwoorden met
+reikwijdte "pagina" nergens gelezen: `factbase.ts:138` en `content.ts:800` filteren ze allebei weg,
+en `content_piece_ids` wordt alleen gebruikt om vragen te groeperen. Deze ronde waren 9 van de 16
+briefingvragen paginagebonden en verdwenen 4 van de 8 antwoorden. Ten tweede stelt `content-plan.ts`
+het contract op met de bevroren feitenkaart zonder `mergeAnsweredFacts`: de antwoorden stonden er 25
+seconden eerder, het contract plande er dwars doorheen. Ten derde staat `PAGE_MAX_CHARS` op 1500
+tekens voor elke meerpagina-crawl, en bij deze site is dat precies het navigatiemenu: 139 van de 148
+opgeslagen pagina's (94%) lopen tegen die grens aan terwijl het menu er nog twee keer in staat.
+Diezelfde grens laat de bronverificatie 18 van de 35 uitleggen afkeuren; nagerekend voorbeeld: het
+citaat staat op teken 10.696 van 21.141.
+
+**De kosten kloppen niet met het advies.** Gemeten $1,131 per pagina tegen de voorspelde $0,24, over
+191 aanroepen $5,4011 voor de hele ronde. De schrijfaanroep groeide van 5.599 naar 23.649
+invoertokens (contract, dossier en uitleg komen er allemaal bij) en kost $0,3045. De grootste post
+is de "gerichte reparatie": drie rondes van $0,2525 met gemiddeld 6.245 uitvoertokens, dus méér dan
+de oorspronkelijke schrijfaanroep. Gericht is hij niet, en hij helpt ook niet: de kwaliteitsscore
+van de eerste pagina liep 67, 74, 68, 48. De lus stopt op `REPAIR_MAX` en niet omdat er iets is
+opgelost.
+
+**Wat wél werkte.** De doorlooptijd (A10): vier pagina's parallel, 19 minuten voor de hele batch.
+Het wegschrijven vóór de redactieronde: één schrijfaanroep werd afgebroken op de limiet van 150
+seconden en kostte geen tweede dure aanroep. Het itemdossier levert precies de vragen die een koper
+stelt. En de feitenkaart doet exact wat hij moet doen: er is geen enkel verzonnen feit over
+Gasservice Brabant op de vier pagina's terechtgekomen. Het probleem is niet dat er te veel wordt
+beweerd, het is dat er te weinig te beweren viel.
