@@ -150,7 +150,14 @@ import {
 import { koppelNaam, koppelAntwoord, domeinSleutel } from "@/lib/sales/match";
 import { rekenScores, marktBronnen, ENGINE_ALLE } from "@/lib/sales/measure-math";
 import { raamMeetronde, beoordeelRonde as beoordeelMeetronde } from "@/lib/sales/budget";
-import { koppelVragen, bouwVragenVraag } from "@/lib/sales/questions";
+import {
+  koppelVragen,
+  bouwVragenVraag,
+  zetPlaatsInVraag,
+  plaatsInKoopvragen,
+  KOOPFASES,
+} from "@/lib/sales/questions";
+import { alleRijen } from "@/lib/supabase/pagineer";
 import { bouwIntentieVraag } from "@/lib/sales/intents";
 import { bouwBeoordeelVraag, SIMULATIE_SYSTEM } from "@/lib/sales/measure-prompt";
 // Sprint 4: de acht types, de score en de haak.
@@ -768,6 +775,21 @@ function tsOnder(map: string): string[] {
 function group(name: string, fn: () => void) {
   const before = failed;
   fn();
+  const mark = failed === before ? "✓" : "✗";
+  console.log(`  ${mark} ${name}`);
+}
+
+/**
+ * Zoals `group()`, voor een controle die moet wachten op een belofte.
+ *
+ * Bijna alles in dit bestand is een pure functie en dus synchroon. De
+ * paginering (`lib/supabase/pagineer.ts`) is dat niet: hij haalt pagina's op tot
+ * er een niet vol is, en dat is precies het gedrag dat getest moet worden.
+ * Vandaar deze tweeling, en de asynchrone staart onderaan dit bestand.
+ */
+async function groupAsync(name: string, fn: () => Promise<void>) {
+  const before = failed;
+  await fn();
   const mark = failed === before ? "✓" : "✗";
   console.log(`  ${mark} ${name}`);
 }
@@ -13893,6 +13915,170 @@ group("een geleverde vraag hoort op de plek waar hij thuishoort", () => {
   eq2("dezelfde vraag telt één keer", dubbel.vragen.length, 1);
 });
 
+group("een koopvraag noemt altijd de plaats", () => {
+  // ⚠️ De duurste les van 1 september 2026. Drie van de veertig vragen noemden
+  // Eindhoven, en op "Welke installateur kan bij mij in de buurt een warmtepomp
+  // goed installeren?" antwoordde de assistent letterlijk dat hij eerst een
+  // postcode nodig had. Twee van de veertig antwoorden noemden een bedrijf uit
+  // de markt, en 42 van de 43 bedrijven kwamen daardoor op nul uit.
+  eq(
+    "een buurtzin wordt de plaats en blijft één zin",
+    zetPlaatsInVraag("Welke installateur kan bij mij in de buurt een warmtepomp installeren?", "Eindhoven"),
+    "Welke installateur kan in Eindhoven een warmtepomp installeren?",
+  );
+  eq(
+    "bij mij thuis ook",
+    zetPlaatsInVraag("Wie kan een hybride warmtepomp bij mij thuis vakkundig plaatsen?", "Eindhoven"),
+    "Wie kan een hybride warmtepomp in Eindhoven vakkundig plaatsen?",
+  );
+  eq(
+    "zonder buurtzin komt de plaats achteraan, vóór het vraagteken",
+    zetPlaatsInVraag("Waar moet ik op letten bij het kiezen van een installateur?", "Eindhoven"),
+    "Waar moet ik op letten bij het kiezen van een installateur in Eindhoven?",
+  );
+  eq(
+    "een vraag die de plaats al noemt, blijft precies zoals hij is",
+    zetPlaatsInVraag("Wie kan in Eindhoven een airco netjes installeren?", "Eindhoven"),
+    "Wie kan in Eindhoven een airco netjes installeren?",
+  );
+  eq(
+    "hoofdletters tellen niet mee bij het herkennen",
+    zetPlaatsInVraag("Wie plaatst er warmtepompen in eindhoven?", "Eindhoven"),
+    "Wie plaatst er warmtepompen in eindhoven?",
+  );
+  eq("zonder plaats gebeurt er niets", zetPlaatsInVraag("Wat kost een warmtepomp?", ""), "Wat kost een warmtepomp?");
+
+  const vragen = [
+    { text: "Wat kost een warmtepomp inclusief installatie?", intentLabel: "wp", stage: "orientatie" as const, weight: 1, position: 0 },
+    { text: "Wat is het verschil tussen hybride en all-electric?", intentLabel: "wp", stage: "vergelijken" as const, weight: 1, position: 1 },
+    { text: "Welke installateur kan bij mij in de buurt een warmtepomp installeren?", intentLabel: "wp", stage: "selecteren" as const, weight: 1, position: 2 },
+    { text: "Kan iemand langskomen om te kijken welke warmtepomp past?", intentLabel: "wp", stage: "contact" as const, weight: 1, position: 3 },
+  ];
+  const bijgestuurd = plaatsInKoopvragen(vragen, "Eindhoven");
+  eq2("twee koopvragen krijgen de plaats erbij", bijgestuurd.aangepast, 2);
+  ok(
+    "de oriëntatievraag mag algemeen blijven",
+    bijgestuurd.vragen[0].text === "Wat kost een warmtepomp inclusief installatie?",
+  );
+  ok(
+    "de vergelijkvraag ook",
+    bijgestuurd.vragen[1].text === "Wat is het verschil tussen hybride en all-electric?",
+  );
+  ok(
+    "en elke selecteer- en contactvraag noemt Eindhoven",
+    bijgestuurd.vragen
+      .filter((v) => KOOPFASES.includes(v.stage))
+      .every((v) => v.text.includes("Eindhoven")),
+  );
+
+  // De prompt vraagt erom én de code garandeert het. Zonder de eerste krijg je
+  // houterige zinnen, zonder de tweede krijg je de meting van 1 september.
+  const prompt = bouwVragenVraag(
+    { label: "Warmtepomp Eindhoven", industry: "Warmtepomp", location: "Eindhoven", radius_km: 15 },
+    [{ label: "wp", naam: "Warmtepomp", uitleg: "", waarde: "hoog", frequentie: "hoog" }],
+    verdeelVragen([{ label: "wp", naam: "Warmtepomp", uitleg: "", waarde: "hoog", frequentie: "hoog" }], 4),
+  );
+  ok(
+    "de prompt eist de plaats in de fases selecteren en contact",
+    prompt.includes("selecteren en contact noem je Eindhoven altijd"),
+  );
+  ok("en verbiedt bij mij in de buurt", prompt.includes('"bij mij in de buurt"'));
+});
+
+async function paginatieControles() {
+  await groupAsync("alle rijen ophalen, en niet de eerste duizend", async () => {
+  // ⚠️ 1 september 2026: 1720 vermeldingen, een select die er duizend gaf, en
+  // een bedrijf dat wél genoemd was maar overal op "0 van de 40" stond. Deze
+  // test bouwt precies die situatie na, met een bron die net als PostgREST
+  // maximaal een pagina per keer teruggeeft.
+  const bron = Array.from({ length: 1720 }, (_, i) => ({ i }));
+  const paginas: number[] = [];
+  const haal = async (van: number, tot: number) => {
+    paginas.push(van);
+    return { data: bron.slice(van, tot + 1), error: null };
+  };
+
+  const alles = await alleRijen<{ i: number }>(haal);
+  eq2("alle 1720 rijen komen mee", alles.length, 1720);
+  ok("de laatste rij hoort erbij", alles[alles.length - 1]?.i === 1719);
+  eq2("dat kostte twee pagina's", paginas.length, 2);
+
+  // Precies één volle pagina: dan is er nog een tweede nodig om te weten dat het
+  // op is. Anders stopt hij te vroeg zodra een tabel toevallig op duizend staat.
+  const preciesVol = Array.from({ length: 20 }, (_, i) => ({ i }));
+  let rondes = 0;
+  const alles2 = await alleRijen<{ i: number }>(
+    async (van, tot) => {
+      rondes++;
+      return { data: preciesVol.slice(van, tot + 1), error: null };
+    },
+    20,
+  );
+  eq2("twintig rijen bij een pagina van twintig", alles2.length, 20);
+  eq2("en er wordt nog één keer gekeken of er meer is", rondes, 2);
+
+  // Een fout wordt gegooid en niet ingeslikt. Een halve lijst wordt een cijfer
+  // waar niemand meer aan twijfelt; een mislukte taak probeert het opnieuw.
+  let gegooid = false;
+  try {
+    await alleRijen<{ i: number }>(async () => ({ data: null, error: { message: "stuk" } }));
+  } catch {
+    gegooid = true;
+  }
+  ok("een fout halverwege stopt de optelling", gegooid);
+  });
+}
+
+group("een uitvraag zegt welke verwijzing hij bedoelt", () => {
+  // ⚠️ `sales_opportunities` wijst twee keer naar `sales_companies` (het bedrijf
+  // en de concurrent). Wie dat niet uitschrijft, krijgt PGRST201 terug en niets
+  // anders. Op 1 september 2026 stond het Opportunities-scherm daardoor een dag
+  // leeg terwijl er 43 kansen in de database stonden, gaf de knop "Kans
+  // oppakken" een 404, en mislukten alle zestien schrijftaken definitief.
+  const bestanden = [
+    "app/(app)/sales/opportunities/page.tsx",
+    "app/api/sales/opportunities/[id]/assign/route.ts",
+    "lib/pipeline/sales-explain.ts",
+  ];
+  for (const pad of bestanden) {
+    const bron = leesBestand(pad);
+    ok(`${pad} is te lezen`, bron.length > 0);
+    ok(
+      `${pad} noemt de verwijzing bij naam`,
+      bron.includes("KANS_BEDRIJF"),
+      "gebruik KANS_BEDRIJF uit lib/sales/relaties.ts",
+    );
+    ok(
+      `${pad} vraagt sales_companies niet zonder verwijzing op`,
+      !/[^!]sales_companies\(/.test(bron.replace(/from\("sales_companies"\)/g, "")),
+      "een kale sales_companies(...) op sales_opportunities geeft PGRST201",
+    );
+  }
+
+  // En de fout wordt uitgelezen. Zonder deze regel werd elke storing gemeld als
+  // "deze kans bestaat niet", en dat is de melding die het zoeken een dag koste.
+  for (const pad of bestanden) {
+    const bron = leesBestand(pad);
+    ok(`${pad} leest de foutmelding uit`, /error/.test(bron));
+  }
+});
+
+group("de optelling van een meting pagineert", () => {
+  // Dezelfde grens, twee plekken. Beide lezen `sales_mentions`, en beide zouden
+  // stil te laag tellen zodra een markt over de duizend vermeldingen gaat.
+  for (const pad of ["lib/pipeline/sales-aggregate.ts", "lib/pipeline/sales-detect.ts"]) {
+    const bron = leesBestand(pad);
+    ok(`${pad} is te lezen`, bron.length > 0);
+    ok(`${pad} haalt de vermeldingen met alleRijen op`, bron.includes("alleRijen"));
+    ok(
+      `${pad} leest sales_mentions niet zonder bereik`,
+      !/from\("sales_mentions"\)[\s\S]{0,400}?;/.test(bron.replace(/\.range\([^)]*\)/g, ".range()")) ||
+        bron.includes(".range("),
+      "een select zonder .range() stopt na duizend rijen",
+    );
+  }
+});
+
 group("een genoemde naam koppelen aan een bedrijf uit de markt", () => {
   const bedrijven = [
     { id: "a", name: "Van X Makelaars", nameVariants: ["Van X"], domain: "vanx.nl" },
@@ -15359,6 +15545,44 @@ group("een te dunne markt wordt niet gepubliceerd", () => {
 
   const zonderEngine = magPubliceren(rapportInvoer({ engines: [] }));
   ok("en zonder engine is er niets gemeten", !zonderEngine.ok);
+
+  // ⚠️ De markt van 1 september 2026: 43 bedrijven op de pagina, waarvan er één
+  // één keer genoemd werd. Die pagina was publiceerbaar en zou over 42 echte
+  // bedrijven hebben gezegd dat een AI-assistent ze nooit noemt, terwijl de
+  // meting hun stad niet eens bevroeg. Een lijst nullen is geen marktbeeld.
+  const nullen = magPubliceren(
+    rapportInvoer({
+      bedrijven: Array.from({ length: 43 }, (_, i) => ({
+        companyId: `n${i}`,
+        naam: `Bedrijf ${i}`,
+        aandeel: i === 0 ? 0.025 : 0,
+        vermeldingen: i === 0 ? 1 : 0,
+        vragen: 40,
+        verborgen: false,
+      })),
+    }),
+  );
+  ok("een markt waarin bijna niemand genoemd wordt, mag niet online", !nullen.ok);
+  ok(
+    "en de reden wijst naar de meting en niet naar de markt",
+    nullen.bezwaren.join(" ").includes("meten"),
+  );
+
+  // Genoeg bedrijven, maar te weinig ervan genoemd: vier op zeventig is geen
+  // markt met winnaars en verliezers maar een meting die niet gewerkt heeft.
+  const scheef = magPubliceren(
+    rapportInvoer({
+      bedrijven: Array.from({ length: 70 }, (_, i) => ({
+        companyId: `s${i}`,
+        naam: `Bedrijf ${i}`,
+        aandeel: i < 4 ? 0.2 : 0,
+        vermeldingen: i < 4 ? 8 : 0,
+        vragen: 40,
+        verborgen: false,
+      })),
+    }),
+  );
+  ok("vier genoemde bedrijven op zeventig is ook te weinig", !scheef.ok);
 });
 
 group("op een publieke pagina telt elk getal en elk woord", () => {
@@ -15499,9 +15723,13 @@ group("van prospect naar klant is de enige brug naar de klantomgeving", () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-console.log(`\n${passed} geslaagd, ${failed} mislukt`);
-if (failures.length > 0) {
-  console.log("\nMislukt:");
-  for (const f of failures) console.log(`  ✗ ${f}`);
-}
-process.exit(failed === 0 ? 0 : 1);
+void (async () => {
+  await paginatieControles();
+
+  console.log(`\n${passed} geslaagd, ${failed} mislukt`);
+  if (failures.length > 0) {
+    console.log("\nMislukt:");
+    for (const f of failures) console.log(`  ✗ ${f}`);
+  }
+  process.exit(failed === 0 ? 0 : 1);
+})();

@@ -72,6 +72,23 @@ export interface RapportOordeel {
 }
 
 /**
+ * Hoeveel bedrijven er minstens genoemd moeten zijn voordat een markt publiek
+ * mag. Drie, want onder dat aantal is er geen rangorde om te laten zien: er is
+ * hooguit één uitschieter met een rij nullen eronder.
+ */
+export const MIN_GENOEMD_VOOR_PUBLICATIE = 3;
+
+/**
+ * En welk deel van de lijst dat minstens moet zijn.
+ *
+ * Het absolute aantal alleen is niet genoeg. Vier genoemde bedrijven op negen is
+ * een markt met winnaars en verliezers; vier op zeventig is een meting die niet
+ * gewerkt heeft. Een vijfde is bewust ruim: het gaat om het uitsluiten van een
+ * mislukte meting, niet om het bewaken van een mooi plaatje.
+ */
+export const MIN_AANDEEL_GENOEMD = 0.2;
+
+/**
  * Mag deze markt gepubliceerd worden?
  *
  * Drie voorwaarden, en de derde is de minst voor de hand liggende: onder de vijf
@@ -97,6 +114,31 @@ export function magPubliceren(invoer: RapportInvoer): RapportOordeel {
       `Er blijven ${zichtbaar.length} bedrijven over voor de publieke pagina. Onder de vijf is elk ` +
         "bedrijf herkenbaar aan zijn plek in de lijst, en dan is verwijderen op verzoek een " +
         "loze belofte.",
+    );
+  }
+
+  // ⚠️ EEN LIJST NULLEN IS GEEN MARKTBEELD (toegevoegd 1 september 2026).
+  //
+  // De regel hierboven telt hoeveel bedrijven er op de pagina komen. Hij zegt
+  // niets over de vraag of de meting iets gevonden heeft. Bij de eerste echte
+  // markt was dat verschil groot: 43 bedrijven op de pagina, waarvan er één één
+  // keer genoemd werd. Die pagina was publiceerbaar, en hij zou over 42 echte
+  // bedrijven hebben gezegd dat een AI-assistent ze nooit noemt, terwijl 37 van
+  // de 40 vragen niet eens over hun stad gingen.
+  //
+  // Zo'n uitkomst is geen marktbeeld maar een storingsmelding, en die hoort niet
+  // met naam en toenaam online te staan. Dat is dezelfde regel als conventie 3:
+  // onbekend is een betere waarde dan een verkeerde.
+  const genoemd = zichtbaar.filter((b) => b.vermeldingen > 0);
+  const aandeelGenoemd = zichtbaar.length > 0 ? genoemd.length / zichtbaar.length : 0;
+  if (
+    genoemd.length < MIN_GENOEMD_VOOR_PUBLICATIE ||
+    aandeelGenoemd < MIN_AANDEEL_GENOEMD
+  ) {
+    bezwaren.push(
+      `In deze meting worden ${genoemd.length} van de ${zichtbaar.length} bedrijven genoemd. Dan ` +
+        "toont de pagina vooral nullen, en dat zegt meer over de meting dan over de markt. " +
+        "Controleer eerst of de vragen deze markt echt meten.",
     );
   }
 

@@ -1436,10 +1436,20 @@ een prospect geopend heeft, en moet een hermeting van de pilotmarkt belaanleidin
 verandering zelf opleveren. Tot dat gebeurd is tellen ze niet als af, ook al werkt alles
 (conventie 10).
 
-⚠️ **Alles is gebouwd, niets is geverifieerd.** Dat is de stand van de hele module: de keten loopt
-van een branche plus een plaats tot een conceptmail met bewijs eronder, en er is geen enkele echte
-markt doorheen gegaan. Het verificatiewerk is daarmee het enige dat nog tussen deze module en het
-eerste gesprek staat, en het is werk dat niet in code te doen is.
+⚠️ **Stand op 1 september 2026: één echte markt is er doorheen gegaan, en die haalde de
+verificatiecriteria niet.** Warmtepomp Eindhoven, 43 bedrijven, 40 vragen, $0,60 voor de hele markt.
+De keten liep van begin tot eind, en er kwamen vier blokkerende fouten uit die alle vier gerepareerd
+zijn (`docs/tasks/bevindingen-live-test-sales-1-september-2026.md`, en de reparatie staat onderaan
+`docs/logbook.md`): een dubbelzinnige verwijzing die het Opportunities-scherm leeg liet, vragen zonder
+plaatsnaam waardoor de meting Nederland mat in plaats van Eindhoven, een optelling die na duizend
+rijen stopte, en een publicatiedrempel die bedrijven telde in plaats van zichtbaarheid.
+
+**Wat dat betekent voor de criteria hieronder:** geen enkel criterium is gehaald, want ze rusten
+allemaal op een meting die de verkeerde vraag stelde. Sprint 3 tot en met 7 moeten opnieuw langs één
+echte markt, nu met de gecorrigeerde vragen. Sprint 2 is wel echt gedraaid: de ontdekking vond 52
+partijen inclusief bedrijven zonder website, waarvan er 9 geen bedrijf waren maar een bronpagina of
+een linktekst. Dat is de eerstvolgende verbetering, en het oordeel van New business over die lijst
+staat nog open.
 
 ⚠️ **De migratienummers in dit plan liepen achter.** Sprint 1 tot en met 3 kregen `0065`, `0066` en
 `0067`, maar die drie nummers waren op 25 en 26 augustus al door ander werk gebruikt. De

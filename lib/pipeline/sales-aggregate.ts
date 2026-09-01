@@ -27,6 +27,7 @@ import {
 } from "@/lib/sales/measure-math";
 import { isIntentStage } from "@/lib/sales/intents";
 import { bedrijvenVanMarkt } from "@/lib/pipeline/sales-measure";
+import { alleRijen } from "@/lib/supabase/pagineer";
 
 type Admin = SupabaseClient;
 
@@ -75,10 +76,19 @@ export async function aggregeerRonde(admin: Admin, runId: string): Promise<Aggre
     sources: Array.isArray(a.cited_sources) ? (a.cited_sources as string[]) : [],
   }));
 
-  const { data: vermeldingRijen } = await admin
-    .from("sales_mentions")
-    .select("answer_id, company_id, mentioned, position, mention_role")
-    .eq("run_id", runId);
+  // ⚠️ PAGINEREN, en dat is hier geen netheid maar de kern van de optelling.
+  // Eén rij per bedrijf per antwoord: 43 bedrijven maal 40 antwoorden is 1720
+  // rijen, en een `select` zonder bereik geeft er duizend. Bij de eerste echte
+  // markt (1 september 2026) viel de vermelding van DBS Installatietechniek op
+  // rij 1652 daarbuiten, en stond dat bedrijf overal op "0 van de 40" terwijl
+  // het fragment gewoon opgeslagen was. Zie `lib/supabase/pagineer.ts`.
+  const vermeldingRijen = await alleRijen<Record<string, unknown>>((van, tot) =>
+    admin
+      .from("sales_mentions")
+      .select("answer_id, company_id, mentioned, position, mention_role")
+      .eq("run_id", runId)
+      .range(van, tot),
+  );
 
   // De bronnen per vermelding zitten op het antwoord en niet op de vermelding:
   // een engine zegt welke bronnen hij gebruikte voor het hele antwoord, niet per
@@ -86,7 +96,7 @@ export async function aggregeerRonde(admin: Admin, runId: string): Promise<Aggre
   // door die bronnen gedragen, en dat is precies wat opportunitytype 6 nodig
   // heeft: staat dit bedrijf in de bronnen die deze markt bepalen.
   const bronPerAntwoord = new Map(antwoorden.map((a) => [a.id, a.sources ?? []]));
-  const vermeldingen: MeetVermelding[] = ((vermeldingRijen ?? []) as Record<string, unknown>[]).map(
+  const vermeldingen: MeetVermelding[] = vermeldingRijen.map(
     (m) => ({
       answerId: m.answer_id as string,
       companyId: m.company_id as string,

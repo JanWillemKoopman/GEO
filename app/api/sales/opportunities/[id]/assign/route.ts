@@ -3,6 +3,7 @@ import { getUser } from "@/lib/auth";
 import { isSales } from "@/lib/sales/access";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
+import { KANS_BEDRIJF } from "@/lib/sales/relaties";
 
 /**
  * POST /api/sales/opportunities/[id]/assign, een kans oppakken
@@ -39,11 +40,22 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   const admin = createAdminClient();
 
-  const { data: kans } = await admin
+  // ⚠️ `KANS_BEDRIJF` en niet `sales_companies`: zie `lib/sales/relaties.ts`.
+  const { data: kans, error: leesFout } = await admin
     .from("sales_opportunities")
-    .select("id, company_id, market_id, superseded_by, sales_companies(do_not_contact, name)")
+    .select(`id, company_id, market_id, superseded_by, ${KANS_BEDRIJF}(do_not_contact, name)`)
     .eq("id", id)
     .maybeSingle();
+
+  // Een storing is geen "bestaat niet". Dat verschil kostte de module een dag:
+  // de knop zei tegen iedereen dat de kans niet bestond, terwijl er 43 stonden.
+  if (leesFout) {
+    console.error(`Kans ${id} lezen mislukt:`, leesFout.message);
+    return NextResponse.json(
+      { error: "De kans kon niet gelezen worden. Probeer het zo opnieuw." },
+      { status: 500 },
+    );
+  }
 
   type Rij = {
     id: string;

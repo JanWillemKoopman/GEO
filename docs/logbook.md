@@ -5440,3 +5440,58 @@ match betekent geen pagina's, het gat vervalt in plaats van te verspreiden.
 
 Drie nieuwe unittests op `scoreTermOverlap()`. Vier controles groen: typecheck, 3319 unittests, 549
 ketentests, de productiebuild.
+## 1 september 2026: de vier blokkerende fouten uit de eerste echte marktmeting
+
+De Sales-module is voor het eerst live op één echte markt gedraaid: Warmtepomp Eindhoven, 43
+bedrijven, 40 vragen aan ChatGPT, kosten $0,60 voor de hele markt. Dat is 6% van het plafond van tien
+euro. De bevindingen staan in `docs/tasks/bevindingen-live-test-sales-1-september-2026.md`; hieronder
+staat wat er daarna gerepareerd is en waarom.
+
+**1. Twee verwijzingen naar dezelfde tabel, en een uitvraag die niet zei welke.**
+`sales_opportunities` wijst naar `sales_companies` via `company_id` én via `rival_company_id`.
+PostgREST weigert zo'n geneste select met PGRST201. Gevolg op productie: het Opportunities-scherm
+toonde "Nog geen kansen gevonden" terwijl er 43 kansen stonden, de knop "Kans oppakken" gaf 404 met
+"Deze kans bestaat niet", en alle 16 taken die de haak moesten schrijven mislukten definitief. Op alle
+drie de plekken werd alleen `data` uitgelezen en niet `error`, dus een storing werd gerapporteerd als
+"bestaat niet". De verwijzing staat nu bij naam in `lib/sales/relaties.ts`, de fout wordt overal
+uitgelezen, en het scherm zegt "de kansen konden niet geladen worden" in plaats van te doen alsof de
+lijst leeg is.
+
+**Waarom geen enkele test dit ving:** `scripts/chain/supabase-shim.ts` zocht de foreign key op met
+`limit 1` en pakte stilletjes de eerste van de twee. De shim was dus makkelijker dan het echte ding,
+en keurde code goed die productie weigert. Hij is nu net zo streng: twee verwijzingen zonder
+constraintnaam is een fout, met dezelfde tekst die PostgREST geeft. Teruggezet in de oude vorm valt de
+ketentest nu om op precies de melding die op productie stond.
+
+**2. De meting mat Nederland en niet Eindhoven.** Van de 40 vragen noemden er 3 de plaats, want de
+prompt zei "de plaats mag erin, niet in elke vraag" en het model volgde dat netjes. Op "Welke
+installateur kan bij mij in de buurt een warmtepomp goed installeren?" antwoordt een AI-assistent
+letterlijk dat hij eerst een postcode nodig heeft. Uitkomst: 2 van de 40 antwoorden noemden een
+bedrijf uit de markt, 42 van de 43 bedrijven kwamen op nul, en alle 43 kansen werden type
+"Onzichtbaar" met dezelfde zin eronder. Zeven bedrijven stonden bovenaan met exact score 76.
+`plaatsInKoopvragen()` garandeert nu dat elke vraag in de fases Selecteren en Contact opnemen de
+plaats noemt, met "bij mij in de buurt" vervangen door de plaatsnaam in plaats van eraan geplakt. De
+prompt vraagt hetzelfde, maar de code garandeert het: conventie 1.
+
+**3. De optelling stopte na duizend rijen.** 43 bedrijven maal 40 antwoorden is 1720 vermeldingen, en
+een `select` zonder bereik geeft er duizend. De vermelding van DBS Installatietechniek stond op rij
+1652: het fragment was opgeslagen, en op het scherm, in de kans en in het rapport stond dat bedrijf op
+"0 van de 40". Dat is het ergste soort fout in dit product: geen storing, gewoon een cijfer dat te
+laag is, waarmee een verkoper een ondernemer iets vertelt dat ons eigen systeem tegenspreekt.
+`lib/supabase/pagineer.ts` haalt nu alle rijen op, in `sales-aggregate.ts` en in `sales-detect.ts`.
+Het patroon stond al in `lib/spend-limit.ts`, waar dezelfde grens de kostenrem liet lekken.
+
+**4. De publicatiedrempel telde bedrijven en geen zichtbaarheid.** De grens van vijf ging over
+herkenbaarheid bij verwijdering, niet over de vraag of de meting iets gevonden heeft. Deze markt, met
+43 bedrijven waarvan er één één keer genoemd werd, was publiceerbaar. Er komt nu een tweede grens bij:
+minstens 3 genoemde bedrijven én minstens een vijfde van de lijst. Vier op negen is een markt met
+winnaars en verliezers, vier op zeventig is een mislukte meting, en die hoort niet met naam en
+toenaam online te staan.
+
+**Wat de kostenraming werkelijk werd.** `STAP_KOSTEN_USD` is nog niet bijgesteld, maar de cijfers
+liggen er nu: marktonderzoek $0,02 tegen een raming van $0,85, intenties $0,0009 tegen $0,06, vragen
+$0,0017 tegen $0,10, meten $0,014 per vraag tegen $0,03. De raming is dus structureel te hoog, het
+sterkst bij het marktonderzoek (42 keer). Bijstellen kan pas na een tweede markt: één meting is één
+waarneming.
+
+Vier controles groen: typecheck, 3349 unittests, 549 ketentests, de productiebuild.

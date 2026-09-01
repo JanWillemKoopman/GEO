@@ -22,6 +22,7 @@ import { callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
 import { SalesOpportunityText } from "@/lib/schemas/sales";
 import { beoordeelBudget, besteedAanMarkt } from "@/lib/sales/budget";
+import { KANS_BEDRIJF } from "@/lib/sales/relaties";
 import { bouwHookVraag, kiesHook, MAX_HOOK_POGINGEN } from "@/lib/sales/hook";
 import type { Kans } from "@/lib/sales/opportunity";
 
@@ -38,14 +39,19 @@ export async function schrijfUitleg(
   admin: Admin,
   opportunityId: string,
 ): Promise<UitlegUitkomst> {
-  const { data } = await admin
+  // ⚠️ `KANS_BEDRIJF` en niet `sales_companies`: zie `lib/sales/relaties.ts`.
+  // En de foutmelding wordt uitgelezen, want zonder dat werd elke storing hier
+  // gerapporteerd als "deze kans bestaat niet".
+  const { data, error } = await admin
     .from("sales_opportunities")
     .select(
       "id, market_id, run_id, company_id, type, evidence, hook_text, hook_source, rival_company_id, " +
-        "sales_companies(name), sales_markets(label)",
+        `${KANS_BEDRIJF}(name), sales_markets(label)`,
     )
     .eq("id", opportunityId)
     .maybeSingle();
+
+  if (error) throw new Error(`Kans ${opportunityId} lezen mislukt: ${error.message}`);
 
   type Rij = {
     id: string;
