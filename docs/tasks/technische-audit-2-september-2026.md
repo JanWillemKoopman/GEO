@@ -1,7 +1,7 @@
 # Technische audit van de keten, 2 september 2026
 
 Van klant aanmaken tot opgeleverde content, live op productie doorlopen als externe partij.
-Totale kosten van deze audit: **$2,18** over 148 AI-aanroepen.
+Totale kosten van deze audit: **$2,85** over 176 AI-aanroepen, ongeveer €2,60.
 
 > **Eén ding vooraf over de opzet.** De opdracht was om zonder de documentatie te kijken. Die was in
 > deze sessie al gelezen voordat die instructie kwam, en dat valt niet terug te draaien. Alles wat
@@ -98,25 +98,35 @@ domeinen, zonder dat iemand het merkt tot de rekening komt.
 dit bewust opengezet? Zo ja, haal dan het tegenstrijdige commentaar en de dode weigertekst weg. Dit
 is de enige bevinding waarbij ik niet zeker weet wat de bedoeling is.
 
-### B2. Publiceren accepteert elk adres, ook een vreemd domein
+### B2. Publiceren accepteert elk adres, en de controle die het opmerkt verandert niets
 
-**Wat er mis is.** De app controleert bij het publiceren alleen de vorm van het adres, niet of de
-pagina bestaat en niet of het adres van de klant is.
+> **Bijgesteld op 2 september 2026, na doormeten.** Hier stond eerst dat de app helemaal niet
+> controleert of de pagina bestaat. Dat klopte niet: er loopt wél een controle, alleen gebeurt er
+> niets met de uitkomst. Het punt is daardoor kleiner dan het eerst leek, en het staat er nog steeds.
 
-**Het bewijs.** Twee aanroepen op de zojuist geschreven pagina:
+**Wat er mis is.** Bij het vastleggen wordt alleen de vorm van het adres gecontroleerd. De pagina
+komt meteen op `published`. Ongeveer veertig seconden later draait er een achtergrondcontrole die
+wel echt kijkt, en die uitkomst verandert niets aan de stand.
 
-- `https://www.tandartspraktijkdekroon.nl/deze-pagina-bestaat-niet-test/` gaf **202**;
-- `https://www.example.com/` gaf **202**, en de rij staat nu op
-  `published_url = 'https://www.example.com/'`, `status = 'published'`,
-  `publish_checked_at = null`, `publish_check_json = null`.
+**Het bewijs.** De net geschreven pagina vastgelegd op `https://www.example.com/`: **202**, status
+`published`. De controle draaide daarna en schreef dit weg in `publish_check_json`:
 
-**Het gevolg.** Fase vijf is de kern van de belofte: hermeten en aantonen dat het gewerkt heeft. Een
-typefout of een verkeerd geplakt adres betekent weken wachten op een effect dat nooit komt, en
-niemand ziet het. Het commentaar in de route zegt zelf dat de app controleert of de pagina er echt
-staat. Dat gebeurt niet.
+```
+"reachable": true, "textFound": false, "textMatchRatio": 0,
+"problems": ["De pagina bestaat, maar we vinden er geen enkele zin uit onze tekst op. ..."]
+```
 
-**Wat er moet gebeuren.** Bij het vastleggen ophalen of de pagina bestaat, en controleren dat het
-adres op het domein van het merk staat. Bestaat hij niet, dan een melding en geen `published`.
+De constatering klopt dus precies. Wat er niet gebeurt: de stand blijft `published`, er is geen
+controle dat het adres op het domein van het merk staat, en een adres dat helemaal niet bestaat
+werd net zo goed geaccepteerd (**202**).
+
+**Het gevolg.** Een verkeerd geplakt adres levert een merk op dat als gepubliceerd geldt terwijl er
+niets staat. De app weet het, en niemand wordt gedwongen er iets mee te doen. Of het scherm die
+melding toont is niet vast te stellen zonder browser, zie "wat niet onderzocht is".
+
+**Wat er moet gebeuren.** Het adres moet op het domein van het merk staan, anders weigeren. En een
+mislukte controle hoort de stand terug te zetten naar "nog niet gepubliceerd", niet alleen een
+opmerking achter te laten.
 
 ### B3. Een pagina met 71 openstaande opmerkingen krijgt de stand "klaar"
 
@@ -302,11 +312,86 @@ schrijfregels nergens mogen staan.
 
 ---
 
+---
+
+# Vervolg, 2 september 2026, tweede ronde
+
+Na de eerste oplevering is doorgetest op de gaten die overbleven. Kosten van de hele audit staan nu
+op **$2,85** over 176 aanroepen, ongeveer €2,60.
+
+## Wat deze ronde aantoonbaar goed bleek
+
+1. **De gesloten lus werkt.** De nieuwe pagina is vastgelegd op een adres dat wél bestaat, en de app
+   plande meteen twee hermetingen in: `measure_impact` golf 1 op 16 september en golf 2 op 30
+   september, plus een controle van de publicatie. Dat is precies de belofte van fase vijf, en hij
+   wordt nagekomen zodra er doelvragen aan de pagina hangen.
+2. **Het contentplan zet niets in het verleden.** Plan opgesteld op 2 september: vijf pagina's
+   tussen 3 en 28 september, nul datums in het verleden. De reparatie van 31 augustus houdt stand.
+3. **Het pakket is dicht.** Zonder pakket weigert het plan met een begrijpelijke melding. Maat 33
+   wordt geweigerd, maat 10 geaccepteerd, de klant krijgt een 403 op zijn eigen account en een 404
+   op dat van een ander.
+4. **De technische controle is eerlijk over wat hij niet weet.** Bij een site die niet op te halen
+   was: "We konden je homepage niet ophalen, dus dit konden we niet controleren", met de stand
+   onbekend in plaats van een gokje.
+
+## Nieuwe bevindingen
+
+### V1. Een pagina stopt na één reparatieronde terwijl hij er drie mag hebben (blokkerend)
+
+De nieuwe pagina `db76cb57-2689-4a7e-8c4a-93fff417e1b5` staat op `ready` met een kwaliteitsscore van
+**68**, terwijl de drempel in `lib/pipeline/content.ts` op **80** staat, met 72 openstaande
+opmerkingen en `needs_review = true`. Er draaide precies één reparatieronde: er is geen taak met de
+sleutel `content_revise:db76cb57...:r1`, terwijl de verbeterpagina van dezelfde middag netjes een
+`:r1` en een `:r2` kreeg.
+
+Volgens de regel op regel 2136 hoort de lus door te gaan zolang de score te laag is en er nog rondes
+over zijn. Bij score 68 en ronde 1 van 3 gebeurde dat niet. De oorzaak heb ik niet kunnen vaststellen
+zonder verder te graven, dus dit is een waarneming met een tegenspraak in de code eronder, geen
+diagnose. Wat er wel vaststaat: de duurste stap van de app stopt soms te vroeg en levert dan een
+pagina op die de app zelf afkeurt.
+
+### V2. Een merk waarvan geen enkele pagina gelezen kon worden, komt op "klaar" te staan (moet snel)
+
+Een merk aangemaakt op een site die de crawler niet binnenlaat (`schildersbedrijfdejong.nl`).
+Resultaat: **nul** gecrawlde pagina's, **nul** aanbodregels, **nul** onderwerpen, **nul** feiten, en
+toch `status = 'klaar'` en $0,0545 uitgegeven. Het profiel ziet er ondertussen gevuld uit: branche,
+vijf werkgebieden, acht concurrenten en vijf sterke punten, allemaal uit web-zoekacties en niet uit
+de site.
+
+Voor een consultant die dit merk vóór een demogesprek klaarzet is dat de gevaarlijkste vorm: het
+oogt af, en precies de drie dingen die je nodig hebt om te meten en te schrijven ontbreken. In de
+gegevens staat nergens een vlag dat de crawl niets opleverde.
+
+### V3. "Geen enkele van de 0 gecontroleerde pagina's heeft schema.org-opmaak" (moet snel)
+
+Diezelfde technische controle meldt bij nul pagina's een **waarschuwing** over ontbrekende
+schema.org-opmaak. Twee dingen mis in één regel: de zin klopt niet als Nederlands, en het oordeel
+hoort onbekend te zijn in plaats van een waarschuwing. De controle ernaast doet het bij precies
+dezelfde situatie wél goed, dus het is een randgeval dat één keer vergeten is.
+
+### V4. Een pakket van tien pagina's levert een plan van vijf, zonder uitleg (moet snel)
+
+Het account staat op tien pagina's per maand, de meting leverde vijf aanbevelingen, en het plan zet
+er vijf in maand 1. In de gegevens staat nergens dat er vijf ontbreken en waarom. Of het scherm er
+iets over zegt is niet vast te stellen zonder browser. Voor een klant die voor tien betaalt is dit
+het eerste wat hij telt.
+
+### V5. De klant kan ook zelf een cluster starten (aanvulling op B1)
+
+Ingelogd als klant een nieuw cluster aangemaakt op zijn eigen merk: **201**, en het
+onderzoek liep. Samen met B1 betekent dat: een klant kan zelfstandig merken aanmaken, clusters
+starten en volgens `lib/cost-rules.ts` ook de meting bevestigen. Die laatste knop heb ik niet
+ingedrukt, want daar hangt de rekening aan; de coderegel laat er geen twijfel over bestaan.
+
+
 ## Wat niet onderzocht is
 
-- **Het schrijven van een geheel nieuwe pagina.** Alle vijf de aanbevelingen uit deze meting waren
-  een verbetering van een bestaande pagina, dus het pad "nieuw" is niet live gedraaid.
-- **De hermeting na veertien en achtentwintig dagen.** Die vraagt echte tijd.
+- **De hermeting na veertien en achtentwintig dagen.** Die vraagt echte tijd. De twee golven staan
+  wel ingepland en zijn te controleren op 16 en 30 september.
+- **De oorzaak van V1.** Vastgesteld is dat de reparatielus te vroeg stopt; waaróm is niet
+  uitgezocht.
+- **De meting die een klant zelf bevestigt.** De coderegel laat zien dat het mag; de knop is niet
+  ingedrukt om de rekening niet nog eens met bijna een dollar te belasten.
 - **De Sales-module.** Buiten de opdracht, op de mislukte taken uit S8 na.
 - **De schermen zelf.** Er is via de serverroutes gewerkt, niet via de browser: de omgeving kon geen
   browser naar productie openen. Alles hierboven gaat over gedrag en gegevens, niet over weergave.
@@ -322,6 +407,10 @@ schrijfregels nergens mogen staan.
 | Vier verzonnen antwoorden op feitenvragen, elk beginnend met "TESTANTWOORD (niet feitelijk)" | `fact_requests` bij dat profiel |
 | Pagina die als gepubliceerd staat op `https://www.example.com/` | stuk `3517f87e-b030-4f25-ba07-5a45857f56e3` |
 | Merk "Test" op example.com, aangemaakt vanaf het klantaccount om B1 aan te tonen | profiel `a15fecfc-cb71-4ad4-82d8-3b669c6aff9f` |
+| Merk "AUDITTEST geweigerde site" (schildersbedrijfdejong.nl), 0 pagina's | profiel `79fd089e-74ba-40ab-bad5-ebae7ead4ae9` |
+| Cluster "AUDITTEST kostencontrole klant" op Wouter Warmtepomp, vanaf het klantaccount | analyse `a0d9426f-1d43-4b5a-86d2-d1baaf4ebdbf` |
+| Tweede pagina, vastgelegd als gepubliceerd op de echte pagina /angst/, met twee hermetingen ingepland op 16 en 30 september | stuk `db76cb57-2689-4a7e-8c4a-93fff417e1b5` |
+| Contentpakket van het consultantaccount op 10 pagina's per maand gezet | account `0f0c0adf-a98f-422c-83ae-b6830187c7a5` |
 | Wachtwoord van beide testaccounts opnieuw gezet | `e2e-consultant@orbit-test.nl`, `e2e-klant@orbit-test.nl` |
 
 ⚠️ Tandartspraktijk de Kroon is een echt bedrijf dat geen klant is en dat hier niet om gevraagd
