@@ -6116,3 +6116,56 @@ logt voortaan hoeveel secties dat zijn, met een waarschuwing bij nul, zodat meet
 instructie werkt in plaats van dat het opnieuw met de hand ontdekt moet worden.
 
 Vier controles groen: typecheck, 3635 unittests (6 nieuw), 576 ketentests, de productiebuild.
+
+## Analytics doorgelicht: vier leesschermen voor één breed scherm (2 september 2026)
+
+De vier pagina's onder Analytics zijn tegen het licht gehouden op wat er waar staat en waarom. Het
+meetwerk eronder bleek in orde en is niet aangeraakt; wat ontbrak was hiërarchie. Vier cijfers uit
+die doorlichting, allemaal tegen productie nagerekend en niet uit documentatie overgenomen.
+
+**Concurrenten is 37.857 pixels hoog, en 34.000 daarvan is beheerwerk.** De analyse zelf, de
+ranglijst en het bronnenlandschap, past in de eerste 3.000. Daaronder staan 329 merken met elk een
+uitklapmenu en drie keuzes. Dat blok stond daar met een goed argument, het bepaalt de noemer van de
+ranglijst erboven, maar dat argument hield stand bij dertig merken en niet bij 329. Het verhuist
+naar een stafscherm: het is bovendien nooit werk voor de klant geweest (§15).
+
+**Op Zichtbaarheid gaan de eerste 700 pixels over de meting en de resterende 2.500 over de
+techniek.** Zeventien controles staan volledig uitgeschreven onder elkaar, waarvan er twaalf "in
+orde" zeggen, en één bevinding somt 149 afwijkende paginatitels op in één alinea van bijna
+vierhonderd woorden. Wat in orde is hoeft niet gelezen te worden, alleen geteld.
+
+**Bij de reputatiemeting van 23 augustus kregen 22 van de 22 bruikbare antwoorden hetzelfde label:
+`gemengd`.** Dat label scoort 0, dus de toonindex is 0 en de meter staat exact in het midden met een
+marge van 3,1. Het grootste en eerste element van dat scherm kan bij dit merk dus niet bewegen.
+Ondertussen zit de uitkomst die wél verschilt weggeklapt achter een uitklapper: de vier criteria uit
+`reputation_ranks`, met plaats 1 van 4 op kwaliteit, 1 van 3 op betrouwbaarheid, 2 van 4 op
+dienstverlening en geen oordeel op prijs tegenover kwaliteit. Dat is letterlijk het antwoord op de
+vraag die de pagina stelt. De criteria worden het hoofdbeeld, de toon wordt een verdeling met een
+duidende zin. Dat 22 van de 22 hetzelfde label krijgen blijft een meetkwestie en geen
+ontwerpkwestie; het is genoteerd, niet weggewerkt.
+
+**Er staan drie gepubliceerde contentpagina's in de hele database, en `content_impact` telt vijf
+metingen die nergens getoond worden.** Zoekverkeer rekent vandaag over de hele website, waarvan het
+grootste deel bestond voordat ORBIT ENGINE begon, terwijl de enige tabel die met een controlegroep
+oorzaak en gevolg verbindt onzichtbaar is.
+
+**Drie besluiten die het ontwerp vastleggen.** (1) De vier pagina's worden **puur informatief**: geen
+knoppen naar Strategie, wel per pagina één duidende zin die uit de cijfers zelf gerekend wordt. Bij
+een sales-led product doet de consultant het werk, de klant leest. (2) Analytics wordt **uitsluitend
+voor desktop** ontworpen, 1440 tot 1920 met 1280 als ondergrens, en de inhoud loopt door tot
+ongeveer 1600 pixels in plaats van de huidige 850. Dat is bijna een verdubbeling van het werkvlak en
+de enige reden waarom een tabel van negen kolommen en een detailpaneel tegelijk passen. Onder 1280
+schuift de pagina, en dat is een keuze en geen omissie. (3) De filterbalk krijgt **Periode, Label,
+Cluster, Fase** in die volgorde, op alle vier de schermen op dezelfde plek. Label en Cluster kunnen
+meteen, want migratie 0083 gaf clusters een label en `lib/cluster-labels.ts` filtert er al op; Fase
+niet, want die is in de opgeslagen cijfers weggerekend en moet uit de 770 ruwe metingen in
+`tracking_runs` worden opgeteld.
+
+⚠️ Twee dingen heten nu "label": de clustergroep uit 0083 en het labelveld van
+`profile_funnel_stages` dat de contentfasen draagt. Bovendien lopen de fasenlijsten uiteen, drie
+categorieën aan de meetkant tegenover vier aan de contentkant. In de schermen heet de clustergroep
+Label en de klantreis Fase, nooit allebei hetzelfde, en die twee lijsten gelijktrekken staat als
+eigen stap in het plan.
+
+Het bouwplan staat in `docs/tasks/analytics-herontwerp.md`, in drie rondes die elk op zichzelf op te
+leveren zijn. Er is bij deze doorlichting geen productiecode gewijzigd.
