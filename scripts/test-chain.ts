@@ -1799,7 +1799,9 @@ async function main(): Promise<void> {
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // Het budgetplafond (F1, migratie 0053)
+    // Het budgetplafond (F1, migratie 0053; herstelplan na audit T5, migratie
+    // 0089: het accountplafond is een dagplafond geworden, `daily_budget_eur`
+    // in plaats van `monthly_budget_eur`)
     //
     // ⚠️ Hoort hier en niet in test-unit.ts, want de helft van dit mechanisme
     // is databasegedrag: de trigger `ai_calls_set_account` leidt het account af
@@ -1847,16 +1849,16 @@ async function main(): Promise<void> {
       viaAnalyse[0]?.account_id !== null && viaAnalyse[0]?.account_id !== undefined,
     );
 
-    // Nu de rem zelf. Het account krijgt een plafond van €1; er staat $2 op,
-    // oftewel ~€1,85, dus het is op.
+    // Nu de rem zelf. Het account krijgt een dagplafond van €1; er staat $2
+    // op, oftewel ~€1,85, dus het is op.
     const budgetAccount = viaProfiel[0].account_id as string;
     await db.client.query(
-      "update public.accounts set monthly_budget_eur = 1 where id = $1",
+      "update public.accounts set daily_budget_eur = 1 where id = $1",
       [budgetAccount],
     );
     const geblokkeerd = await checkBudget(budgetAccount);
-    ok("boven het maandplafond blokkeert het", !geblokkeerd.ok);
-    ok("en het zegt welk plafond", geblokkeerd.scope === "maand");
+    ok("boven het dagplafond blokkeert het", !geblokkeerd.ok);
+    ok("en het zegt welk plafond", geblokkeerd.scope === "account");
     ok(
       "en de melding noemt een bedrag in euro's",
       (geblokkeerd.message ?? "").includes("€"),
@@ -1865,21 +1867,21 @@ async function main(): Promise<void> {
     // ⚠️ Nul is een echte waarde en geen "niet ingesteld". Zonder deze regel
     // zou `?? standaard` of `||` een account op slot stilletjes weer openzetten.
     await db.client.query(
-      "update public.accounts set monthly_budget_eur = 0 where id = $1",
+      "update public.accounts set daily_budget_eur = 0 where id = $1",
       [budgetAccount],
     );
     ok("een plafond van nul zet het account op slot", !(await checkBudget(budgetAccount)).ok);
 
     // Ruim plafond: het mag weer.
     await db.client.query(
-      "update public.accounts set monthly_budget_eur = 500 where id = $1",
+      "update public.accounts set daily_budget_eur = 500 where id = $1",
       [budgetAccount],
     );
     ok("met een ruim plafond mag het weer", (await checkBudget(budgetAccount)).ok);
 
     // De route-ingang loopt via het profiel en hoort hetzelfde te zeggen.
     await db.client.query(
-      "update public.accounts set monthly_budget_eur = 1 where id = $1",
+      "update public.accounts set daily_budget_eur = 1 where id = $1",
       [budgetAccount],
     );
     ok(

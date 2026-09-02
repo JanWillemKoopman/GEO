@@ -6515,3 +6515,46 @@ periodeselectie, de gewogen score, de audit-groepen, de kans-lijst op Concurrent
 content_impact-koppeling op Zoekverkeer en de criteria-gemiddelden op Reputatie zijn stuk voor stuk
 met echte rijen doorgerekend, niet alleen gebouwd. Vier controles groen: typecheck, 3670 unittests
 (6 nieuw, de V5-toets in `lib/search-console/metrics.ts`), 576 ketentests, de productiebuild.
+
+## 2 september 2026: het herstelplan na de audit, T1 tot en met T5
+
+`docs/tasks/herstelplan-na-audit.md`. Vier taken af, nagerekend tegen productiedata en niet alleen
+gebouwd (conventie 10); T2 (de beoordelingsset voor contentkwaliteit) ligt stil omdat deze sessie
+geen netwerktoegang tot productie heeft (de agent-proxy weigert `*.supabase.co` en `*.vercel.app`)
+en dus geen verse teksten kan laten schrijven.
+
+**T1, de reparatielus.** De audit van 2 september dacht dat de lus bij pagina db76cb57 ten onrechte
+na één ronde stopte (score 68) en bij 3517f87e drie rondes draaide terwijl de score daalde (78 → 68
+→ 78 → 52). Nagerekend met de echte cijfers uit `ai_calls` en `content_pieces.critique_raw_json`:
+de regel die dit had moeten voorkomen (`beterDanVorige`/`nietSlechter`) stond al sinds 06:35 uur
+diezelfde ochtend op `main` (commit 20f6b5d), en verklaart het eerste geval precies. Het tweede geval
+kan niet met die code hebben gedraaid; de test liep vermoedelijk tegen een productiedeploy van vóór
+die ochtendreparatie. De regel is nu een pure, apart testbare functie
+(`lib/pipeline/content-repair-decision.ts`) met beide gevallen als regressietest, zodat dit niet
+opnieuw onopgemerkt kan wegzakken. Losstaand gerepareerd: de bibliotheektelling en de
+publiceerherinnering telden een pagina met `needs_review = true` nog mee als "klaar" (niet aangeraakt
+sinds 26 augustus), en `ai_calls.content_piece_id` (migratie 0088) maakt het budget per pagina nu een
+query (gemeten: €0,26 per reparatieronde, dus al 60% boven de oude volledige herschrijving van
+€0,162, niet goedkoper zoals het commentaar beweerde).
+
+**T3, publiceren.** Geen domeincontrole (een adres als `https://www.example.com/` kreeg een 202),
+geen gevolg aan een mislukte `verify_publication` (de pagina bleef `published` staan), en geen
+blokkade op `needs_review`. Alle drie gedicht: `isOnBrandDomain()` in `lib/url.ts`, een terugval naar
+"nog niet gepubliceerd" met de reden in `review_notes` zodra de controle een onbereikbare pagina of
+ontbrekende tekst vindt, en een 409 bij het publiceren van een pagina die nog nagekeken moet worden.
+
+**T4, de kostenpoort.** Tussen 27 en 30 augustus stonden vijf van de zeven betaalde handelingen open
+voor de klant zelf; op productie kon een ingelogde klant zelf een merk aanmaken en een cluster
+starten. De eigenaar heeft dat op 2 september teruggedraaid: alle zeven staan weer op slot
+(`lib/cost-rules.ts`), de knoppen blijven zichtbaar en klikbaar (bevestigd: geen enkel scherm
+gebruikt `staff` om ze te verbergen), en `COST_DENIED` noemt overal de customer success manager bij
+Outer Orbit in plaats van "je consultant".
+
+**T5, de plafonds.** Het accountplafond was een maandplafond van €50; de eigenaar wil €20 per klant
+per dag en €50 over alle klanten samen per dag (was €150). Nieuwe kolom `accounts.daily_budget_eur`
+(migratie 0089, de oude `monthly_budget_eur` blijft ongebruikt staan, conventie 4: niemand had hem
+ingevuld). Nagerekend: een drukke klantdag (onboarding ~$0,25 + meting ~$0,85 + twee pagina's
+à ~$0,51) komt met ~$2,45 niet in de buurt van €20; het totaalplafond van €50 vangt nog twee klanten
+die op dezelfde dag hun eigen plafond volmaken, maar geen derde.
+
+Vier controles groen na elke taak: typecheck, `test:unit`, `test:chain`, de productiebuild.

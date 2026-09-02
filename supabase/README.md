@@ -262,3 +262,18 @@ tegengesproken mag worden.
 
 Additief en idempotent, geen enkele bestaande waarde verandert. De array-velden krijgen
 `default '{}'`, de rest is nullable zonder default (conventie 3, zelfde regel als `0048`).
+
+## 0088 · kosten per contentpagina meetbaar maken
+
+`ai_calls.content_piece_id`, herstelplan na audit T1.5. Zonder deze kolom was het budget per pagina
+("een euro of minder") alleen na te rekenen door op tijdstip te gokken; met deze kolom is het een
+`select sum(cost_usd) from ai_calls where content_piece_id = ...`. Nullable: de allereerste
+schrijfaanroep van een pagina zonder briefingrij kent zijn eigen paginanummer nog niet.
+
+## 0089 · het budgetplafond per klant wordt een dagplafond
+
+`accounts.daily_budget_eur`, herstelplan na audit T5. Vervangt `accounts.monthly_budget_eur`
+(migratie 0053) als het accountplafond, niet als hetzelfde veld met een nieuw getal: het plafond per
+account is een DAGplafond geworden (€20), geen maandplafond, en het totaalplafond over alle accounts
+ging van €150 naar €50 per dag. De oude kolom blijft staan (conventie 4); geen enkel account had hem
+ingevuld.

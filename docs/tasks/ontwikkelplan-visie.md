@@ -475,8 +475,9 @@ klant het plafond ontdekt in plaats van jij.
   pg_cron-taak, meerdere werker-aanroepen naast elkaar.
 - **Meetcadans per cluster.** Niet elk onderwerp hoeft maandelijks. Een stabiel onderwerp per
   kwartaal meten scheelt direct geld en zegt niets minder.
-- **Migratie `0065`:** pakketten met eigen plafonds. `MONTHLY_BUDGET_EUR` van €50 is een MKB-getal.
-  Bij 50 clusters kost alleen de meting al ~€43 per maand, en dan is er nog niets geschreven.
+- **Migratie `0065`:** pakketten met eigen plafonds. `DAILY_BUDGET_PER_ACCOUNT_EUR` van €20 is een
+  MKB-getal. Bij 50 clusters kost alleen de meting al ~€43 per maand, en dan is er nog niets
+  geschreven; een groot account loopt dan dagelijks tegen het huidige dagplafond aan.
 - **Bulkacties nakijken.** Ze bestaan, maar zijn op tien pagina's getest en niet op honderd.
 
 **Jij doet:**
