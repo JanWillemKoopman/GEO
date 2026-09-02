@@ -5971,3 +5971,52 @@ met meer dan de 1500 tekens uit de crawl.
 
 Vier controles groen: typecheck, 3622 unittests (10 nieuw, allemaal op echte productiegevallen),
 576 ketentests, de productiebuild.
+
+## 2 september 2026: de eerste echte verbeterpagina, en wat die liet zien
+
+De laatste openstaande verificatie van conventie 10: één pagina daadwerkelijk laten schrijven met
+handeling `verbeteren`, op productie, met echte betaalde aanroepen. Testmerk Wouter Warmtepomp,
+cluster "Warmtepomp laten installeren in een bestaande woning", aanbeveling "Maak van de
+hybride-pagina een praktische kostenpagina" tegenover `https://wouterwarmtepomp.nl/hybride-warmtepomp/`.
+Er is niets gepubliceerd. Kosten: $0,32 (planstap $0,024, schrijven $0,287, beoordelaars $0,006).
+
+**Wat aantoonbaar werkt.** De pagina werd vers opgehaald: **3493 tekens tegenover de 1500 uit de
+crawl**, met tijdstempel, en beide kolommen uit migratie `0086` staan gevuld op de geschreven
+pagina. Het adres koppelde zonder ingrijpen, de handeling bleef `verbeteren` en `related_url` bleef
+leeg (juist, want bij een verbetering ís de bestaande pagina de pagina zelf). Het contract leverde
+een verbeterplan van 20 onderdelen, elk met een oordeel en een zin in gewone taal: 12 "wordt
+aangevuld", 8 "is nieuw", nul zonder uitleg. De dekkingspoort gaf 92. Twintig secties is geen
+uitschieter: eerdere contracten telden er 11, 13, 25 en 25.
+
+**Wat er misging, en het is een regressie van dit werk.** De pagina opende zo:
+
+> "Voor Dongen en Oosterhout is op basis van de beschikbare informatie geen betrouwbaar totaalbedrag
+> vast te stellen: **de bestaande pagina** noemt wel systemen en enkele installatieonderdelen, maar
+> geen prijzen."
+
+Zes van zulke zinnen stonden erin. Dat gaat niet over warmtepompen maar over ons werkproces, en het
+zou op de site van de klant belanden; een bezoeker van wouterwarmtepomp.nl weet niet wat "de
+bestaande pagina" is, hij LEEST die pagina. De oorzaak is begrijpelijk en had voorzien kunnen
+worden: geef een model materiaal plus de opdracht "verbeter dit", en het gaat verslag doen van het
+verschil. De redactie zag het overigens wél (de bevindingen noemen elk van die zinnen), maar als
+"bewering zonder bron", niet als categorie.
+
+Gerepareerd op twee plekken, zoals conventie 1 voorschrijft. De schrijfinstructie zegt nu expliciet
+dat de bestaande tekst materiaal is en nooit onderwerp, met de opdracht om bij een ontbrekend
+gegeven op te schrijven wat er WEL geldt in plaats van wat wij niet konden vinden. Daarnaast meldt
+`checkSourceTalk()` (`content-gate.ts`) elke zin die naar de bestaande pagina, de feitenkaart of
+"de beschikbare informatie" verwijst, en die bevindingen gaan de gerichte reparatie in. ⚠️ De
+controle kijkt alleen naar woordcombinaties die een TEKST aanwijzen: "de bestaande cv-ketel" en "de
+huidige situatie in je woning" zijn gewone zinnen op zo'n pagina en blijven staan. De unittest
+gebruikt de echte productiezin als geval.
+
+**Twee dingen die open blijven staan.** Nul van de 20 secties kreeg het oordeel "staat er al", dus
+de klant krijgt nooit de geruststelling "dit blijft zoals het is". Dat kan kloppen voor deze dunne
+pagina, maar het is niet aangetoond, en het vangnet kan alleen strenger corrigeren (van "aanwezig"
+naar "ontbreekt"), nooit soepeler. En de opgehaalde tekst bevatte het navigatiemenu, twee keer: van
+de 3493 tekens is ongeveer een derde ruis. De oplossing daarvoor bestaat al in een andere tak
+(`page-text.ts`, alleen semantische tags) die nog niet op `main` staat; die twee keer bouwen is
+precies wat dit project niet wil. Beide staan in
+`docs/tasks/paginakeuze-nieuw-of-verbeteren.md`.
+
+Vier controles groen: typecheck, 3629 unittests (7 nieuw), 576 ketentests, de productiebuild.

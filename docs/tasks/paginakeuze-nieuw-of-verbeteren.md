@@ -14,13 +14,31 @@
 > koppelen: `/`, `:`, `:null` en `.` (rommel die het model bij een nieuwe pagina invulde) en één
 > pagina die niet in de inventaris staat.
 >
-> **Nog niet geverifieerd:** de verse ophaling (O3) tegen echte klantsites. De ontwikkelcontainer
-> weert uitgaand verkeer naar die domeinen (de proxy geeft 403 op de CONNECT-tunnel), dus alle tien
-> de adressen faalden daar om een reden die niets met de code te maken heeft. Op Vercel bestaat die
-> beperking niet. Het bewijs komt bij de eerste echte planstap: dan hoort `existing_page_text`
-> gevuld te raken met meer dan de 1500 tekens uit de crawl. Ook nog open: één pagina laten schrijven
-> met handeling `verbeteren` om te zien of het verbeterplan op het scherm klopt met wat er
-> werkelijk op die pagina staat.
+> **O3 tot en met O5 zijn op productie geverifieerd** met één echte pagina (Wouter Warmtepomp,
+> hybride warmtepomp, 2 september, $0,32, niets gepubliceerd; zie `docs/logbook.md`). De pagina werd
+> vers opgehaald met **3493 tekens tegenover 1500 uit de crawl**, het adres koppelde zonder
+> ingrijpen, en het contract leverde een verbeterplan van 20 onderdelen met per onderdeel een
+> oordeel en een zin in gewone taal.
+>
+> **Die ronde bracht ook een regressie aan het licht**, inmiddels gerepareerd: de schrijver ging
+> verslag doen van het verschil ("de bestaande pagina noemt wel systemen, maar geen prijzen"), zes
+> keer in één tekst, en dat zou op de site van de klant belanden. De instructie zegt nu dat de
+> bestaande tekst materiaal is en nooit onderwerp, met `checkSourceTalk()` als vangnet ernaast.
+>
+> **Wat nog open staat**, allebei uit diezelfde ronde:
+>
+> 1. **Nul van de 20 secties kreeg "staat er al".** De klant krijgt daardoor nooit de geruststelling
+>    dat een onderdeel blijft zoals het is, terwijl dat juist de bedoeling van die lijst was. Het
+>    vangnet kan alleen strenger corrigeren, nooit soepeler, dus als het model structureel te streng
+>    oordeelt, ziet niemand dat. Te meten door dezelfde pagina te vergelijken met een dikke,
+>    complete bestaande pagina: komt daar wél "staat er al" uit, dan is het oordeel gezond.
+> 2. **Het navigatiemenu zit in de opgehaalde tekst**, twee keer, ongeveer een derde van de 3493
+>    tekens. Dat vervuilt zowel het oordeel per sectie als het verschilscherm. De oplossing bestaat
+>    al in de tak `claude/gasservice-brabant-content-fe9g07` (`page-text.ts`: alleen semantische
+>    tags, met terugval op het origineel, plus een cap van 4000 in plaats van 1500). Die tak is nog
+>    niet op `main`. Dit hier een tweede keer bouwen is precies de wildgroei die dit project
+>    vermijdt, dus dit wacht op die merge; daarna moet `fetchExistingPage()` diezelfde extractie
+>    gebruiken.
 
 **Onderzoek van 1 september 2026.** Aanleiding: de vraag hoe ORBIT ENGINE besluit of een
 aanbeveling een nieuwe pagina wordt of een verbetering van een bestaande, of dat betrouwbaarder

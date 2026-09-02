@@ -102,7 +102,7 @@ import {
   describeImprovements,
   describeImprovementCount,
 } from "@/lib/pipeline/contract-format";
-import { checkContentGate, openingVan, geoRegels } from "@/lib/pipeline/content-gate";
+import { checkContentGate, openingVan, geoRegels, checkSourceTalk } from "@/lib/pipeline/content-gate";
 import {
   brandNav,
   generalNav,
@@ -16877,6 +16877,39 @@ group("Het contract als verbeterplan (O4/O5)", () => {
   ok("en wat er ontbreekt", opdracht.includes("ONTBREEKT op de bestaande pagina"));
   // `docs/schrijfstijl.md` §10 geldt ook voor prompts.
   ok("zonder gedachtestreepje in de opdracht", !opdracht.includes("\u2014"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Schrijven over onze eigen bronnen wordt gemeld (2 september 2026)", () => {
+  // ⚠️ De eerste zin hieronder staat LETTERLIJK zo op productie, in de eerste
+  // pagina die met een bestaande tekst geschreven is (Wouter Warmtepomp,
+  // hybride warmtepomp). Hij gaat over ons werkproces en zou op de site van de
+  // klant belanden.
+  const echt = checkSourceTalk(
+    "Voor Dongen en Oosterhout is op basis van de beschikbare informatie geen betrouwbaar " +
+      "totaalbedrag vast te stellen: de bestaande pagina noemt wel systemen en enkele " +
+      "installatieonderdelen, maar geen prijzen.",
+  );
+  ok("de zin uit productie wordt gevonden", echt.sentences.length === 1);
+  ok("en de melding citeert hem letterlijk", echt.issues[0].includes("bestaande pagina noemt"));
+
+  // ⚠️ Het onderscheid dat deze controle bruikbaar maakt: een zin over de
+  // SITUATIE van de lezer is gewoon goed. "De bestaande cv-ketel" mag nooit
+  // sneuvelen, anders is de controle na één ronde onbruikbaar.
+  const schoon = checkSourceTalk(
+    "De bestaande cv-ketel blijft hangen en verwarmt mee op koude dagen. " +
+      "In de huidige situatie is je woning daarmee vaak al geschikt.",
+  );
+  ok("een zin over de woning van de lezer blijft staan", schoon.sentences.length === 0);
+  ok("en levert geen melding op", schoon.issues.length === 0);
+
+  ok("koppen tellen niet mee", checkSourceTalk("## De bestaande pagina").sentences.length === 0);
+  ok("lege tekst levert niets op", checkSourceTalk("").sentences.length === 0);
+
+  const meerdere = checkSourceTalk(
+    "Wat kost het? De feitenkaart noemt hier geen bedrag.\n\nDe huidige pagina vermeldt alleen systemen.",
+  );
+  ok("meerdere zinnen worden allemaal gemeld", meerdere.sentences.length === 2);
 });
 
 // ════════════════════════════════════════════════════════════════════════════

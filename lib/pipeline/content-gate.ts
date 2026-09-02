@@ -636,3 +636,89 @@ export function checkForbiddenTopics(
     ],
   };
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// SCHRIJVEN OVER ONZE EIGEN BRONNEN: het vangnet (2 september 2026)
+// ════════════════════════════════════════════════════════════════════════════
+//
+// ── DE FOUT, GEMETEN OP PRODUCTIE ───────────────────────────────────────────
+//
+// Sinds migratie 0086 krijgt de schrijver bij een verbetering de bestaande
+// pagina mee. Dat maakt de tekst beter, maar het bracht een nieuwe fout mee. De
+// eerste pagina die er op productie mee geschreven is (Wouter Warmtepomp,
+// hybride warmtepomp, 2 september) begon zo:
+//
+//   "Voor Dongen en Oosterhout is op basis van de beschikbare informatie geen
+//    betrouwbaar totaalbedrag vast te stellen: DE BESTAANDE PAGINA noemt wel
+//    systemen en enkele installatieonderdelen, maar geen prijzen."
+//
+// Dat gaat niet over warmtepompen maar over ons werkproces, en het staat op de
+// site van de klant. Een bezoeker van wouterwarmtepomp.nl weet niet wat "de
+// bestaande pagina" is; hij LEEST die pagina. Zes van zulke zinnen stonden in
+// die ene tekst.
+//
+// De oorzaak is begrijpelijk: geef een model materiaal en een opdracht om te
+// verbeteren, en het gaat verslag doen van het verschil. De instructie in
+// `CONTENT_SYSTEM` zegt nu expliciet dat de bestaande pagina materiaal is en
+// nooit onderwerp; dit is de garantie ernaast (conventie 1).
+//
+// ⚠️ ALLEEN ZINNEN OVER HET DOCUMENT, niet over de situatie van de lezer. "De
+// bestaande cv-ketel" en "de huidige situatie in je woning" zijn gewone,
+// bruikbare zinnen op zo'n pagina en mogen niet sneuvelen. Daarom staan hier
+// alleen woordcombinaties die naar een TEKST verwijzen.
+
+/**
+ * Woordcombinaties die verraden dat de tekst over onze bronnen praat in plaats
+ * van over het onderwerp. Klein gehouden en op echte fouten gebaseerd; de
+ * gevonden zinnen worden altijd gemeld, zodat de lijst op data groeit in plaats
+ * van op gevoel.
+ */
+const BRONVERWIJZINGEN = [
+  "bestaande pagina",
+  "huidige pagina",
+  "deze pagina noemt",
+  "deze pagina vermeldt",
+  "de pagina noemt",
+  "de pagina vermeldt",
+  "beschikbare informatie",
+  "beschikbare gegevens",
+  "feitenkaart",
+  "bevestigd feit",
+  "bevestigde feiten",
+];
+
+export interface SourceTalkResult {
+  /** De zinnen die over onze bronnen gaan. Leeg = schoon. */
+  sentences: string[];
+  issues: string[];
+}
+
+/**
+ * Zinnen die over de bestaande pagina of onze feitenkaart gaan.
+ *
+ * Puur en testbaar (conventie 2). Geeft hele zinnen terug en geen posities: de
+ * gerichte reparatie (`content-patch`) werkt op secties en zinnen, en een
+ * bevinding die de zin letterlijk noemt is voor het model direct bruikbaar.
+ */
+export function checkSourceTalk(bodyMarkdown: string): SourceTalkResult {
+  const zinnen = (bodyMarkdown ?? "")
+    // Koppen eruit: "## Wat kost het" is geen zin met een bewering erin.
+    .replace(/^#{1,6} .*$/gm, " ")
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map((z) => z.trim())
+    .filter(Boolean);
+
+  const gevonden = zinnen.filter((zin) => {
+    const laag = zin.toLowerCase();
+    return BRONVERWIJZINGEN.some((term) => laag.includes(term));
+  });
+
+  return {
+    sentences: gevonden,
+    issues: gevonden.map(
+      (zin) =>
+        `Deze zin gaat over onze bronnen in plaats van over het onderwerp, en staat straks op de ` +
+        `site van de klant: "${zin}". Schrijf op wat er WEL geldt, of laat de zin weg.`,
+    ),
+  };
+}

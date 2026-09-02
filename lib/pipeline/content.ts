@@ -45,6 +45,7 @@ import { formatExplainerBlock, type VerifiedExplainer } from "@/lib/pipeline/exp
 import {
   checkContentGate,
   checkQuality,
+  checkSourceTalk,
   checkTabooWords,
   checkForbiddenTopics,
 } from "@/lib/pipeline/content-gate";
@@ -563,7 +564,18 @@ function buildContentInput(args: {
       return (
         `\nBESTAANDE PAGINA om te verbeteren of aan te vullen (${existingPage.url}). Bouw hierop voort, ` +
         `herschrijf niet vanaf nul, behoud wat al goed is en vul alleen de ontbrekende delen aan.` +
-        `${waarschuwing}\n"""\n${gekozen.text}\n"""`
+        `${waarschuwing}\n"""\n${gekozen.text}\n"""\n` +
+        // ⚠️ Gemeten op productie, 2 september 2026: zonder deze regel gaat het
+        // model VERSLAG DOEN van het verschil. De eerste pagina die met een
+        // bestaande tekst geschreven werd, opende met "de bestaande pagina noemt
+        // wel systemen, maar geen prijzen": een zin over ons werkproces, op de
+        // site van de klant. Zes van zulke zinnen in één tekst. Het vangnet
+        // ernaast staat in `content-gate.ts` (`checkSourceTalk`).
+        `⚠️ DIE BESTAANDE TEKST IS MATERIAAL, GEEN ONDERWERP. Je schrijft de pagina zoals de ` +
+        `bezoeker hem straks leest, en die weet niet dat er een oudere versie was. Schrijf dus ` +
+        `NOOIT over "de bestaande pagina", "de huidige tekst", "de beschikbare informatie" of over ` +
+        `wat er nu wel of niet op staat. Ontbreekt een gegeven, schrijf dan op wat er WEL geldt en ` +
+        `wat de lezer kan doen, niet dat wij het niet konden vinden.`
       );
     })(),
     // Er staat al een pagina over dit onderwerp, en dit wordt er een NAAST
@@ -1790,6 +1802,16 @@ export async function draftContentPiece(args: {
   // Bewust NIET in `geo_score` verrekend. Zie de toelichting bij `checkQuality`:
   // twee checks erbij zou de score van vorige maand onvergelijkbaar maken met
   // die van vandaag, terwijl de app trends toont.
+  // Zinnen die over de bestaande pagina of onze feitenkaart praten in plaats van
+  // over het onderwerp (2 september 2026). Gaat als bevinding de gerichte
+  // reparatie in, net als de andere kwaliteitsbevindingen.
+  const bronpraat = checkSourceTalk(draft.parsed.bodyMarkdown);
+  if (bronpraat.sentences.length > 0) {
+    console.info(
+      `Contentpagina ${pieceId}: ${bronpraat.sentences.length} zin(nen) over onze eigen bronnen.`,
+    );
+  }
+
   const quality = checkQuality({
     bodyMarkdown: draft.parsed.bodyMarkdown,
     mostSimilar: mostSimilar(
@@ -1840,6 +1862,7 @@ export async function draftContentPiece(args: {
     ...gate.issues,
     ...coverage.issues,
     ...quality.issues,
+    ...bronpraat.issues,
     ...brononderbouwing,
     ...taboo.issues,
     ...verbodenOnderwerpen.issues,
@@ -2026,6 +2049,13 @@ export async function reviseContentPiece(args: {
     claims: final.claims ?? [],
   });
 
+  const bronpraat = checkSourceTalk(final.bodyMarkdown);
+  if (bronpraat.sentences.length > 0) {
+    console.info(
+      `Contentpagina ${contentPieceId}: ${bronpraat.sentences.length} zin(nen) over onze eigen bronnen.`,
+    );
+  }
+
   const quality = checkQuality({
     bodyMarkdown: final.bodyMarkdown,
     mostSimilar: mostSimilar(
@@ -2086,6 +2116,7 @@ export async function reviseContentPiece(args: {
     ...gate.issues,
     ...dekking.issues,
     ...quality.issues,
+    ...bronpraat.issues,
     ...bronNotitie,
     ...taboo.issues,
     ...verbodenOnderwerpen.issues,
