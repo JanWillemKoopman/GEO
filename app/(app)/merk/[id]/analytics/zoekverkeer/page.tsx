@@ -17,6 +17,8 @@ import {
 } from "@/lib/analytics-filters";
 import { sorteerLabels } from "@/lib/cluster-labels";
 import {
+  ctr,
+  gewogenPositie,
   normaliseerUrl,
   perDag,
   vergelijk,
@@ -210,11 +212,6 @@ export default async function ZoekverkeerPage({
     const eigenRijen = perUrl.get(stuk.published_url) ?? [];
     const totClicks = eigenRijen.reduce((s, r) => s + r.clicks, 0);
     const totImpr = eigenRijen.reduce((s, r) => s + r.impressions, 0);
-    const gewogenPos =
-      eigenRijen.filter((r) => r.position !== null && r.impressions > 0).length > 0
-        ? eigenRijen.reduce((s, r) => s + (r.position ?? 0) * r.impressions, 0) /
-          Math.max(1, eigenRijen.filter((r) => r.position !== null).reduce((s, r) => s + r.impressions, 0))
-        : null;
     const sindsPublicatie = stuk.published_at
       ? eigenRijen
           .filter((r) => r.day >= stuk.published_at!.slice(0, 10))
@@ -225,8 +222,8 @@ export default async function ZoekverkeerPage({
       page: stuk.published_url,
       clicks: totClicks,
       impressions: totImpr,
-      ctr: totImpr > 0 ? totClicks / totImpr : null,
-      position: gewogenPos,
+      ctr: ctr(totClicks, totImpr),
+      position: gewogenPositie(eigenRijen),
       type: typePerUrl.get(normaliseerUrl(stuk.published_url)) ?? null,
       effectOpAi: verdictPerStuk.get(stuk.id)?.verdict ?? null,
       sindsPublicatie,
