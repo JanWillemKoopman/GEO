@@ -31,6 +31,9 @@ import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { parseRobots, isAllowed, sitemapsFrom } from "@/lib/audit/robots";
 import { splitByTerms } from "@/lib/highlight";
 import { redactCompetitors, containsCompetitor } from "@/lib/pipeline/redact";
+import { stripProseDashes } from "@/lib/pipeline/dash-guard";
+import { publicFactRequest } from "@/lib/fact-request-public";
+import { rateLimitWindowStart, rateLimitVerdict } from "@/lib/rate-limit-rules";
 import {
   resolveTargets,
   readRecommendations,
@@ -116,6 +119,10 @@ import { answerBelongsHere } from "@/lib/pipeline/answer-scope";
 import { stripChrome } from "@/lib/pipeline/page-text";
 import { prioriteerBevindingen, MAX_BEVINDINGEN_PER_RONDE } from "@/lib/pipeline/content-issues";
 import { beslisReparatieRonde } from "@/lib/pipeline/content-repair-decision";
+import { duplicatePromptIds } from "@/lib/pipeline/prompt-dedupe";
+import { dedupeCompetitorNames } from "@/lib/pipeline/competitor-dedupe";
+import { htmlToText } from "@/lib/pipeline/html-text";
+import { identifyEmptyProfiles } from "@/lib/profile-status";
 import { ontwijkendeZinnen } from "@/lib/pipeline/content-gate";
 import { isRapportageVorm } from "@/lib/pipeline/factcard";
 import { describePronoun } from "@/lib/pipeline/tone-sliders";
@@ -1085,6 +1092,40 @@ group("concurrentnamen verwijderen", () => {
   ok("losse zinnen blijven los", (redactCompetitors("Coolblue is snel. MediaMarkt heeft winkels.", names).match(/een andere aanbieder/g) ?? []).length === 2);
   ok("tekst zonder namen ongewijzigd", redactCompetitors("Geen naam hier.", names) === "Geen naam hier.");
   ok("lege namenlijst laat met rust", redactCompetitors("Coolblue", []) === "Coolblue");
+
+  // Herstelplan na audit T8.8: het echte geval uit de audit. De naam ging weg,
+  // de gedachtestreepjes eromheen bleven staan: "een andere aanbieder –
+  // Noordwijkerhout — heeft een speciale angsttandarts".
+  const tandartsNamen = ["Cleyburch Tandartsen"];
+  const kapotteZin = redactCompetitors(
+    "Cleyburch Tandartsen – Noordwijkerhout — heeft een speciale angsttandarts.",
+    tandartsNamen,
+  );
+  ok(
+    "geen gedachtestreepje meer over, ook niet het exemplaar naast de weggehaalde naam",
+    !/[—–]/.test(kapotteZin),
+    kapotteZin,
+  );
+  ok("de zin blijft leesbaar (geen dubbele komma)", !kapotteZin.includes(",,") && !/,\s*,/.test(kapotteZin));
+});
+
+// Herstelplan na audit T8.8: docs/schrijfstijl.md §10 verbiedt een
+// gedachtestreepje in lopende tekst, met uitzondering van een getalbereik
+// zonder spaties ("5–8").
+group("stripProseDashes: gedachtestreepjes eruit, getalbereiken blijven staan (T8.8)", () => {
+  ok(
+    "een streepje met spaties wordt een komma",
+    stripProseDashes("Dit is een zin — met een bijzin — erin.") === "Dit is een zin, met een bijzin, erin.",
+  );
+  ok(
+    "en-dash met spaties ook",
+    stripProseDashes("Een andere aanbieder – Noordwijkerhout — heeft iets.") ===
+      "Een andere aanbieder, Noordwijkerhout, heeft iets.",
+  );
+  ok("een getalbereik zonder spaties blijft staan", stripProseDashes("5–8 onderwerpen") === "5–8 onderwerpen");
+  ok("een paragraafbereik blijft staan", stripProseDashes("§2–§3") === "§2–§3");
+  ok("tekst zonder streepje blijft ongewijzigd", stripProseDashes("Een gewone zin.") === "Een gewone zin.");
+  ok("lege tekst blijft leeg", stripProseDashes("") === "");
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -3870,6 +3911,39 @@ group("entiteitsconsistentie: heet het bedrijf overal hetzelfde?", () => {
     "geen naam gevonden = onbekend, niet fout",
     entityConsistencyChecks({ ...basis, foundNames: [] }).find((c) => c.id === "entity.name")
       ?.severity === "unknown",
+  );
+
+  // Herstelplan na audit T8.6: bij een site die niet te crawlen was meldde dit
+  // "geen enkele van de 0 gecontroleerde pagina's heeft schema.org-opmaak" als
+  // WAARSCHUWING. Nul pagina's bekeken is geen bevinding over de site.
+  const nietTeCrawlen = entityConsistencyChecks({
+    ...basis,
+    foundNames: ["Jansen Bouw B.V."],
+    pagesCrawled: 0,
+    pagesWithSchema: 0,
+  });
+  const schemaCheck = nietTeCrawlen.find((c) => c.id === "entity.schema");
+  ok(
+    "nul gecontroleerde pagina's = onbekend, niet een waarschuwing",
+    schemaCheck?.severity === "unknown",
+    schemaCheck?.severity,
+  );
+  ok(
+    "en de melding zegt dat er niets bekeken kon worden, niet 'geen opmaak'",
+    !(schemaCheck?.finding ?? "").includes("schema.org-opmaak."),
+  );
+
+  // Ter onderscheid: WEL pagina's bekeken maar nul met schema-opmaak blijft
+  // een echte waarschuwing.
+  const welGecrawldGeenSchema = entityConsistencyChecks({
+    ...basis,
+    foundNames: ["Jansen Bouw B.V."],
+    pagesCrawled: 25,
+    pagesWithSchema: 0,
+  });
+  ok(
+    "wel pagina's, maar geen enkele met schema-opmaak blijft een waarschuwing",
+    welGecrawldGeenSchema.find((c) => c.id === "entity.schema")?.severity === "warning",
   );
 });
 
@@ -18306,6 +18380,242 @@ group("periode: onbekend valt terug op actueel, en per cluster de juiste stand",
   const opJuli = selecteerPerCluster(rijen, "2026-07-01");
   eq2("op de datum van juli doet alleen cluster 1 mee", opJuli.length, 1);
   eq("en dat is de meting van juli, niet die van augustus", opJuli[0].computed_at, "2026-07-01T09:00:00Z");
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nDubbele vragen over de funnelfasen heen (herstelplan na audit T8.1)");
+
+group("duplicatePromptIds: de oudste blijft, latere duplicaten gaan weg", () => {
+  const r = (id: string, text: string, createdAt: string) => ({ id, text, createdAt });
+
+  ok("geen vragen, geen duplicaten", duplicatePromptIds([]).length === 0);
+  ok(
+    "verschillende vragen blijven allemaal staan",
+    duplicatePromptIds([
+      r("1", "Wat kost een cv-ketel onderhoud?", "2026-09-01T10:00:00Z"),
+      r("2", "Hoe vaak moet een cv-ketel onderhouden worden?", "2026-09-01T10:00:01Z"),
+    ]).length === 0,
+  );
+
+  // ⚠️ Het echte geval: dertig vragen over drie funnelfasen, twee daarvan
+  // letterlijk identiek maar in een andere fase gegenereerd (dus met een later
+  // tijdstip, want de fasen draaien parallel maar ronden niet gelijktijdig af).
+  const dubbel = duplicatePromptIds([
+    r("orientatie-1", "Wat kost cv-ketel onderhoud?", "2026-09-01T10:00:00Z"),
+    r("overweging-1", "Wat kost cv-ketel onderhoud?", "2026-09-01T10:00:03Z"),
+  ]);
+  ok("de latere van de twee identieke vragen gaat weg", dubbel.length === 1 && dubbel[0] === "overweging-1");
+
+  ok(
+    "hoofdletters en spaties maken geen verschil",
+    duplicatePromptIds([
+      r("1", "Wat kost cv-ketel onderhoud?", "2026-09-01T10:00:00Z"),
+      r("2", "  wat KOST cv-ketel onderhoud? ", "2026-09-01T10:00:02Z"),
+    ]).length === 1,
+  );
+
+  // Drie identieke vragen: alleen de oudste blijft, de andere twee gaan weg.
+  const drieDubbel = duplicatePromptIds([
+    r("a", "Welke aanbieder is het beste?", "2026-09-01T10:00:02Z"),
+    r("b", "Welke aanbieder is het beste?", "2026-09-01T10:00:00Z"),
+    r("c", "Welke aanbieder is het beste?", "2026-09-01T10:00:01Z"),
+  ]);
+  ok("de oudste (b) blijft, a en c gaan weg", drieDubbel.length === 2 && !drieDubbel.includes("b"));
+});
+
+// Herstelplan na audit T8.2: een vraag wijzigen of verwijderen tijdens een
+// lopende meting gaf een 200. Route-logica met `getUser()`/cookies is hier
+// niet los te draaien (zelfde reden als T3.1/T3.3), dus gelezen als bedrading.
+group("een vraag wijzigen of verwijderen terwijl de meting loopt wordt geweigerd (T8.2)", () => {
+  const route = leesBestand("app/api/analyses/[id]/prompts/[promptId]/route.ts");
+  const patchStart = route.indexOf("export async function PATCH");
+  const deleteStart = route.indexOf("export async function DELETE");
+  ok("PATCH bestaat", patchStart >= 0);
+  ok("DELETE bestaat", deleteStart >= 0);
+
+  const patchBody = route.slice(patchStart, deleteStart);
+  const deleteBody = route.slice(deleteStart);
+  ok("PATCH weigert zolang de analyse op 'meten' staat", patchBody.includes('owned.status === "meten"'));
+  ok(
+    "en dat gebeurt vóór de eigenlijke update",
+    patchBody.indexOf('owned.status === "meten"') < patchBody.indexOf('.from("prompts").update('),
+  );
+  ok("DELETE weigert hetzelfde", deleteBody.includes('owned.status === "meten"'));
+  ok(
+    "en dat gebeurt vóór de eigenlijke delete",
+    deleteBody.indexOf('owned.status === "meten"') < deleteBody.indexOf('.from("prompts").delete('),
+  );
+});
+
+// Herstelplan na audit T8.3: na één onboarding stonden er negen concurrenten
+// in het profiel waarvan er vier dubbel waren, telkens dezelfde naam met en
+// zonder plaatsnaam erachter.
+group("concurrentnamen ontdubbelen op meer dan de exacte tekst (T8.3)", () => {
+  ok("lege lijst blijft leeg", dedupeCompetitorNames([]).length === 0);
+  ok(
+    "verschillende namen blijven allemaal staan",
+    dedupeCompetitorNames(["Dental4U", "MondCleanic", "De Voorstraat"]).length === 3,
+  );
+
+  // Het echte geval uit de audit.
+  const namen = dedupeCompetitorNames([
+    "Cleyburch Tandartsen",
+    "Dental4U",
+    "MondCleanic",
+    "De Voorstraat",
+    "Cleyburch Tandartsen in Noordwijk",
+    "Dental4U in Noordwijk",
+    "MondCleanic in Noordwijk",
+    "De Voorstraat in Noordwijk",
+    "Praktijk Verweij",
+  ]);
+  ok("van negen blijven er vijf over", namen.length === 5, String(namen.length));
+  ok("de generieke naam blijft, niet de vorm met plaatsnaam", namen.includes("Cleyburch Tandartsen"));
+  ok("de vorm met plaatsnaam is weg", !namen.includes("Cleyburch Tandartsen in Noordwijk"));
+  ok("een naam zonder tegenhanger blijft gewoon staan", namen.includes("Praktijk Verweij"));
+
+  // Volgorde van aanleveren maakt niet uit: staat de lange vorm eerst, dan
+  // wint de korte vorm alsnog.
+  const omgekeerd = dedupeCompetitorNames(["Dental4U in Noordwijk", "Dental4U"]);
+  ok("de korte vorm wint ook als hij als tweede komt", omgekeerd[0] === "Dental4U");
+
+  ok(
+    "lege en dubbel witruimte tellen niet als aparte naam",
+    dedupeCompetitorNames(["Dental4U", "  Dental4U  ", "", "   "]).length === 1,
+  );
+});
+
+// Herstelplan na audit T8.5: htmlToText() decodeerde zes namen en geen enkele
+// numerieke code. Op productie: 76 van de 790 gecrawlde pagina's bleven met
+// een letterlijke entiteit zitten, ook in evidence_quote.
+group("htmlToText decodeert meer dan zes entiteiten (T8.5)", () => {
+  ok("de zes bestaande namen blijven werken", htmlToText("Tom &amp; Jerry") === "Tom & Jerry");
+  ok(
+    "het echte geval: een typografisch aanhalingsteken, numeriek gecodeerd",
+    htmlToText("Hij zei &#8220;ja&#8221;.") === "Hij zei “ja”.",
+  );
+  ok("numerieke entiteiten in hex ook", htmlToText("&#x20AC;100") === "€100");
+  ok("de veelgebruikte typografische namen", htmlToText("wachten&hellip;") === "wachten…");
+  ok("een gedachtestreepje uit de bron blijft een teken, geen entiteit", htmlToText("2020&mdash;2024") === "2020—2024");
+  ok(
+    "een onzinnig hoge codepoint crasht niet en levert geen teken op",
+    htmlToText("voor&#99999999;na") === "voorna",
+  );
+  ok("gewone tekst blijft ongemoeid", htmlToText("<p>Gewoon een zin.</p>") === "Gewoon een zin.");
+});
+
+// Herstelplan na audit T8.7: een merk waarvan de site niet te crawlen was
+// kreeg status 'klaar' met nul gecrawlde pagina's, terwijl het profiel er
+// gevuld uitzag. Gevaarlijkste vorm: een consultant die dit vóór een
+// demogesprek klaarzet, ziet "klaar" en kijkt niet verder.
+group("een leeg merk heet niet zomaar 'klaar' (T8.7)", () => {
+  const merken = [
+    { id: "a", status: "klaar" as const },
+    { id: "b", status: "klaar" as const },
+    { id: "c", status: "bezig" as const },
+    { id: "d", status: "mislukt" as const },
+  ];
+
+  const metenPagina = new Map([
+    ["a", 42],
+    // "b" ontbreekt bewust: nul pagina's, net als de echte bug.
+  ]);
+  const leeg = identifyEmptyProfiles(merken, metenPagina);
+  ok("merk b (klaar, nul pagina's) wordt gemeld", leeg.has("b"));
+  ok("merk a (klaar, wél pagina's) niet", !leeg.has("a"));
+  ok(
+    "merk c ('bezig', nog geen pagina's) niet: dat is normaal, geen bevinding",
+    !leeg.has("c"),
+  );
+  ok("merk d ('mislukt') niet: dat heeft al zijn eigen melding", !leeg.has("d"));
+});
+
+// Herstelplan na audit T8.9: PATCH /api/profiles/[id]/facts en de "Werk"-tab
+// stuurden de volledige databaserij van een feitenvraag terug, inclusief
+// raw_json (het complete ruwe antwoord van OpenAI, met het antwoord-id).
+group("publicFactRequest houdt raw_json buiten de browser (T8.9)", () => {
+  const rij = {
+    id: "f1",
+    profile_id: "p1",
+    analysis_id: null,
+    question: "In welk jaar opgericht?",
+    reason: "de tekst noemt het",
+    answer: "1998",
+    status: "beantwoord",
+    answered_at: "2026-09-02T10:00:00Z",
+    created_at: "2026-09-01T10:00:00Z",
+    scope: "merk",
+    // Het echte geval: geen klein herkomst-object, maar het volledige
+    // OpenAI-antwoord.
+    raw_json: {
+      id: "resp_086925cedc1a38c5006a9845a71cf087d1ab2e2027a0772c74",
+      model: "gpt-5.6-luna",
+      output: [{ type: "message", content: [{ text: "1998" }] }],
+    },
+    section_id: "oud-en-ongebruikt",
+    section_refs: ["stuk-1:s3"],
+  };
+
+  const veilig = publicFactRequest(rij);
+  ok("raw_json is weg", !("raw_json" in veilig));
+  ok("section_id is weg", !("section_id" in veilig));
+  ok("section_refs is weg", !("section_refs" in veilig));
+  ok("het antwoord blijft staan", veilig.answer === "1998");
+  ok("de vraag blijft staan", veilig.question === "In welk jaar opgericht?");
+  ok("de status blijft staan", veilig.status === "beantwoord");
+  ok(
+    "geen spoor van het OpenAI-antwoord-id in de JSON-serialisatie",
+    !JSON.stringify(veilig).includes("resp_086925cedc1a38c5006a9845a71cf087d1ab2e2027a0772c74"),
+  );
+});
+
+// Herstelplan na audit T8.11: de tabel rate_limits bestond, was leeg, en het
+// woord kwam in de hele code niet voor. Inloggen en een uitnodiging
+// verzilveren waren onbegrensd.
+group("rateLimitWindowStart en rateLimitVerdict (T8.11)", () => {
+  const vensterMs = 15 * 60 * 1000;
+  const t1 = new Date("2026-09-02T10:07:00Z");
+  const t2 = new Date("2026-09-02T10:14:59Z");
+  const t3 = new Date("2026-09-02T10:15:00Z");
+  ok(
+    "twee momenten in hetzelfde kwartier vallen in hetzelfde venster",
+    rateLimitWindowStart(t1, vensterMs).getTime() === rateLimitWindowStart(t2, vensterMs).getTime(),
+  );
+  ok(
+    "het volgende kwartier is een nieuw venster",
+    rateLimitWindowStart(t1, vensterMs).getTime() !== rateLimitWindowStart(t3, vensterMs).getTime(),
+  );
+  ok(
+    "het venster begint op een veelvoud van de vensterduur",
+    rateLimitWindowStart(t1, vensterMs).getTime() % vensterMs === 0,
+  );
+
+  const windowStart = rateLimitWindowStart(t1, vensterMs);
+  ok("onder het plafond mag door", rateLimitVerdict(5, 10, windowStart, vensterMs).ok);
+  ok("precies op het plafond mag nog net", rateLimitVerdict(10, 10, windowStart, vensterMs).ok);
+  ok("erover blokkeert", !rateLimitVerdict(11, 10, windowStart, vensterMs).ok);
+  ok(
+    "het venster gaat weer open na de vensterduur",
+    rateLimitVerdict(11, 10, windowStart, vensterMs).resetAt.getTime() ===
+      windowStart.getTime() + vensterMs,
+  );
+});
+
+group("inloggen en een uitnodiging verzilveren zijn begrensd (T8.11)", () => {
+  const login = leesBestand("app/(auth)/actions.ts");
+  ok("inloggen roept de snelheidsbegrenzing aan", login.includes("hitRateLimit("));
+  ok(
+    "en dat gebeurt vóórdat het wachtwoord gecontroleerd wordt",
+    login.indexOf("hitRateLimit(") < login.indexOf("signInWithPassword("),
+  );
+  ok("zowel per e-mailadres als per IP-adres", login.includes("login:e:") && login.includes("login:ip:"));
+
+  const invite = leesBestand("app/api/invites/accept/route.ts");
+  ok("het verzilveren van een uitnodiging roept de snelheidsbegrenzing aan", invite.includes("hitRateLimit("));
+  ok(
+    "en dat gebeurt vóórdat de token gecontroleerd wordt",
+    invite.indexOf("hitRateLimit(") < invite.indexOf("await acceptInvite("),
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════

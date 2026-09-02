@@ -71,6 +71,7 @@ import {
   type OrganizationInfo,
 } from "@/lib/schema-jsonld";
 import { redactCompetitors, containsCompetitor } from "@/lib/pipeline/redact";
+import { stripProseDashes } from "@/lib/pipeline/dash-guard";
 import { analyzeCitedSources } from "@/lib/pipeline/source-analysis";
 import { topicTerms, scoreTermOverlap } from "@/lib/pipeline/page-relevance";
 import { contentWebSearchEnabled, minProofPointsForConcreteContent } from "@/lib/config";
@@ -1542,7 +1543,10 @@ function buildDraftRow(args: {
     cluster: draft.parsed.cluster,
     // Versheid in de opmaak die de bezoeker niet ziet, is de helft van het
     // signaal: een assistent citeert uit de lopende tekst, niet uit de JSON-LD.
-    body_markdown: withFreshnessLine(draft.parsed.bodyMarkdown, nu),
+    //
+    // T8.8: het gedachtestreepje-vangnet (regel 9 van de schrijfprompt is een
+    // belofte, geen garantie) ná de versheidsregel, die zet geen streepjes.
+    body_markdown: withFreshnessLine(stripProseDashes(draft.parsed.bodyMarkdown), nu),
     meta_title: draft.parsed.metaTitle,
     meta_description: draft.parsed.metaDescription,
     schema_jsonld: validateOrRebuildJsonLd(draft.parsed.schemaJsonLd, {
@@ -1557,7 +1561,7 @@ function buildDraftRow(args: {
       datePublished: nu,
       dateModified: nu,
     }),
-    faq_json: draft.parsed.faq as never,
+    faq_json: draft.parsed.faq.map((f) => ({ ...f, a: stripProseDashes(f.a) })) as never,
     raw_json: draft.raw as never,
     // Traceerbaarheid (R5.3): per bewering het F-nummer, zodat bij een klacht
     // per zin aanwijsbaar is waar hij vandaan komt, en zodat bij een nieuw
@@ -2236,7 +2240,9 @@ export async function reviseContentPiece(args: {
     // het invoegen in draftContentPiece).
     // `withFreshnessLine` is idempotent: hij vervangt een bestaande regel in
     // plaats van er een tweede onder te zetten.
-    body_markdown: withFreshnessLine(final.bodyMarkdown, herzienOp),
+    //
+    // T8.8: hetzelfde gedachtestreepje-vangnet als bij de eerste versie.
+    body_markdown: withFreshnessLine(stripProseDashes(final.bodyMarkdown), herzienOp),
     meta_title: final.metaTitle,
     meta_description: final.metaDescription,
     schema_jsonld: validateOrRebuildJsonLd(final.schemaJsonLd, {
@@ -2253,7 +2259,7 @@ export async function reviseContentPiece(args: {
       datePublished: bestaandePublicatie,
       dateModified: herzienOp,
     }),
-    faq_json: final.faq as never,
+    faq_json: final.faq.map((f) => ({ ...f, a: stripProseDashes(f.a) })) as never,
     raw_json: patch.raw as never,
     claims_json: (final.claims ?? []).map((c) => ({
       ...c,

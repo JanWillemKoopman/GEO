@@ -59,7 +59,9 @@ export function CreatePlanBox({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ strategyNote: note }),
       });
-      const j = (await res.json().catch(() => null)) as { error?: string } | null;
+      const j = (await res.json().catch(() => null)) as
+        | { error?: string; plannedCount?: number; requestedCount?: number }
+        | null;
       if (!res.ok) {
         toast({
           intent: "fout",
@@ -68,10 +70,20 @@ export function CreatePlanBox({
         });
         return;
       }
+      // ⚠️ Herstelplan na audit T8.10: op productie kreeg een account van tien
+      // pagina's per maand een eerste maand van vijf, zonder dat deze melding
+      // dat liet weten. De voorraad had simpelweg niet meer dan vijf gemeten
+      // kansen. Nu zegt de melding wat er écht in de maand staat.
+      const gepland = j?.plannedCount ?? quota ?? 0;
+      const tekort = (j?.requestedCount ?? quota ?? 0) - gepland;
       toast({
-        intent: "succes",
+        intent: tekort > 0 ? "info" : "succes",
         title: "Het contentplan staat klaar",
-        description: `${MONTHS_AHEAD} maanden, ${quota} pagina's per maand. Maand 1 wacht op vrijgave.`,
+        description:
+          tekort > 0
+            ? `${MONTHS_AHEAD} maanden. Maand 1 begint met ${gepland} van de ${quota} pagina's: er zijn nog niet ` +
+              `genoeg gemeten kansen voor de rest. Meet een cluster erbij, dan vult de voorraad zich aan.`
+            : `${MONTHS_AHEAD} maanden, ${quota} pagina's per maand. Maand 1 wacht op vrijgave.`,
       });
       refresh();
     } catch {

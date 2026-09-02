@@ -34,6 +34,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateTopicResearch } from "@/lib/pipeline/topic-research";
 import { generatePromptsForStage, calibrateVolumes, type BrandContext } from "@/lib/pipeline/prompts";
+import { duplicatePromptIds } from "@/lib/pipeline/prompt-dedupe";
 import { resolveMix, DEFAULT_STAGE_COUNT, type FunnelStage } from "@/lib/prompt-mix";
 import { bandFromEstimate } from "@/lib/pipeline/volume";
 import { PROMPT_CATEGORIES } from "@/lib/types/database";
@@ -329,6 +330,40 @@ export async function generateAnalysisPrompts(
  */
 export async function finishPromptGeneration(id: string): Promise<AnalysisStatus> {
   const admin = createAdminClient();
+
+  // ── T8.1: ontdubbelen over de funnelfasen heen ────────────────────────────
+  //
+  // `generateForFunnelStage()` dedupliceert alleen BINNEN één fase; de drie
+  // fasen draaien parallel als eigen taken en delen geen geheugen. Dit is de
+  // ene plek die gegarandeerd pas draait als alle drie klaar zijn (zie de
+  // telling in `lib/jobs/handlers.ts`), dus hier en niet daar. Er is op dit
+  // moment nog geen meting geweest (die begint pas na goedkeuring door de
+  // klant), dus een duplicaat verwijderen raakt geen opgeslagen resultaat.
+  const { data: alleVragen } = await admin
+    .from("prompts")
+    .select("id, text, created_at")
+    .eq("analysis_id", id)
+    .eq("active", true);
+  const duplicaten = duplicatePromptIds(
+    (alleVragen ?? []).map((r) => ({
+      id: r.id as string,
+      text: r.text as string,
+      // `new Date(...).toISOString()` in plaats van een kale cast: de echte
+      // Supabase-client geeft hier een ISO-string terug, de testshim in
+      // scripts/test-chain.ts (rechtstreeks op de Postgres-driver) een
+      // `Date`-object. Dit normaliseert allebei naar dezelfde, sorteerbare vorm.
+      createdAt: new Date(r.created_at as string | Date).toISOString(),
+    })),
+  );
+  if (duplicaten.length > 0) {
+    const { error: verwijderError } = await admin.from("prompts").delete().in("id", duplicaten);
+    if (verwijderError) {
+      throw new Error(`Dubbele vragen opruimen mislukt voor analyse ${id}: ${verwijderError.message}`);
+    }
+    console.info(
+      `Analyse ${id}: ${duplicaten.length} dubbele ${duplicaten.length === 1 ? "vraag" : "vragen"} over de funnelfasen heen verwijderd.`,
+    );
+  }
 
   // Laatste controle vóór de poort: er MOET minstens één vraag staan. Zonder
   // dat is 'concept_klaar' een belofte die de meting niet kan waarmaken.

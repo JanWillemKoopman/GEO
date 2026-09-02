@@ -268,7 +268,21 @@ export async function ensureFunnels(
 }
 
 export type CreatePlanResult =
-  | { ok: true; planId: string }
+  | {
+      ok: true;
+      planId: string;
+      /**
+       * Hoeveel pagina's er echt in maand 1 (of 2, bij een volle maand 1)
+       * terechtkwamen, tegenover het pakket (herstelplan na audit T8.10).
+       *
+       * Op productie kreeg een account van tien pagina's per maand een plan
+       * van vijf, zonder dat ergens gemeld werd dat de andere vijf ontbraken:
+       * de voorraad had simpelweg niet meer dan vijf gemeten kansen. De klant
+       * zag "10 pagina's per maand" in de melding terwijl er vijf stonden.
+       */
+      plannedCount: number;
+      requestedCount: number;
+    }
   | { ok: false; problems: string[] };
 
 /**
@@ -472,7 +486,7 @@ export async function createPlan(
     }
   }
 
-  return { ok: true, planId };
+  return { ok: true, planId, plannedCount: voorzet.length, requestedCount: input.pagesPerMonth };
 }
 
 /**

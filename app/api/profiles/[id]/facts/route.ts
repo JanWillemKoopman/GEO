@@ -3,6 +3,7 @@ import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { answerFact } from "@/lib/facts";
+import { publicFactRequest } from "@/lib/fact-request-public";
 
 /**
  * PATCH /api/profiles/[id]/facts, de klant beantwoordt (of slaat over) een
@@ -69,7 +70,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       .eq("id", factId)
       .select("*")
       .single();
-    return NextResponse.json(data);
+    return NextResponse.json(data ? publicFactRequest(data) : data);
   }
 
   const answer = typeof body.answer === "string" ? body.answer.trim().slice(0, MAX_ANSWER_LENGTH) : "";
@@ -86,5 +87,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   const { fact, needsEvidence, evidenceHint } = resultaat.outcome;
-  return NextResponse.json(needsEvidence ? { ...fact, needsEvidence, evidenceHint } : fact);
+  const veilig = publicFactRequest(fact as unknown as Record<string, unknown>);
+  return NextResponse.json(needsEvidence ? { ...veilig, needsEvidence, evidenceHint } : veilig);
 }

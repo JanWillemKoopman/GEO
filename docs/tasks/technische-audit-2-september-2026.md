@@ -208,6 +208,9 @@ plaats van 14,94. Het rapport eronder schrijft ondertussen "In 29 onderzochte vr
 rapport en het cijfer gebruiken een verschillende noemer.
 Zit in `app/api/analyses/[id]/prompts/[promptId]/route.ts`: geen standcontrole en een harde delete.
 
+**Stand (2 september 2026):** opgelost. `PATCH` en `DELETE` geven nu een 409 zodra de meting al
+loopt (herstelplan T8.2).
+
 ### S2. Vragen worden niet ontdubbeld over de funnelfases heen
 
 Van de 30 vragen waren er twee **letterlijk identiek**: "Welke tandarts in Noordwijk is geschikt
@@ -216,12 +219,18 @@ voor mensen met ernstige tandartsangst?" stond zowel bij Overweging als bij Besl
 fase weet niet wat de eerste al vroeg. De klant betaalt twee keer voor dezelfde vraag en die vraag
 weegt dubbel in zijn score.
 
+**Stand (2 september 2026):** opgelost. `lib/pipeline/prompt-dedupe.ts` ontdubbelt over de hele
+analyse, de oudste vraag blijft staan (herstelplan T8.1).
+
 ### S3. De concurrentenlijst dubbelt zichzelf
 
 Na de onboarding stonden er **negen** concurrenten in het profiel, waarvan **vier dubbel**:
 "Cleyburch Tandartsen" naast "Cleyburch Tandartsen in Noordwijk", en zo ook Dental4U, MondCleanic en
 De Voorstraat. `lib/pipeline/market.ts` regel 241 voegt samen met `new Set` op de exacte tekst, dus
 elke variatie in schrijfwijze blijft staan. Die lijst stuurt de beoordeling van elke meting aan.
+
+**Stand (2 september 2026):** opgelost. `lib/pipeline/competitor-dedupe.ts` ontdubbelt op een
+genormaliseerde naam, inclusief de vorm "Naam in Plaats" (herstelplan T8.3).
 
 ### S4. Bijna de helft van elke gecrawlde pagina is het navigatiemenu
 
@@ -230,6 +239,10 @@ Gemeten op alle 51 pagina's van het testmerk: het menu eindigt gemiddeld op teke
 inventaris die het rapport, de gap-analyse en de paginakoppeling voedt. De oplossing bestaat al
 (`lib/pipeline/page-text.ts`) maar wordt alleen gebruikt bij het ophalen van een bestaande pagina,
 niet in de crawl zelf.
+
+**Stand (2 september 2026):** bleek al opgelost bij het nalopen voor herstelplan T8.4: de crawl in
+`lib/crawler.ts` gebruikt `stripChrome()` inmiddels al vóór het afkappen op `PAGE_MAX_CHARS`. Geen
+wijziging nodig geweest.
 
 ### S5. De wachttijd zit in de wachtrij, niet in het model
 
@@ -280,6 +293,10 @@ Het antwoord van `PATCH /api/profiles/[id]/facts` bevat de complete `raw_json` v
 inclusief het antwoord-id van OpenAI en de instellingen van de aanroep. Dat is precies wat de klant
 volgens de opzet nooit hoort te zien.
 
+**Stand (2 september 2026):** opgelost. `lib/fact-request-public.ts` haalt `raw_json`,
+`section_id` en `section_refs` weg voordat een factverzoek de browser bereikt, op de API-route én in
+`werk.tsx` (herstelplan T8.9).
+
 ### S11. Het weglaten van een concurrentnaam laat kapotte zinnen achter
 
 Een van de vragen die de klant te zien krijgt luidt: *"Een AI-assistent noemt bij deze vragen nu
@@ -287,6 +304,10 @@ andere aanbieders, met argumenten als 'een andere aanbieder – Noordwijkerhout 
 angsttandarts'..."*. De naam is weggehaald, de gedachtestreepjes en de plaatsnaam zijn blijven
 staan. Twee dingen tegelijk: een onleesbare zin, en gedachtestreepjes die volgens de eigen
 schrijfregels nergens mogen staan.
+
+**Stand (2 september 2026):** opgelost. `stripProseDashes()` (`lib/pipeline/dash-guard.ts`) haalt
+gedachtestreepjes weg ná `redactCompetitors()` en in de contentpijplijn zelf, niet alleen in de
+schrijfprompt (herstelplan T8.8).
 
 ---
 
@@ -296,12 +317,21 @@ schrijfregels nergens mogen staan.
   numerieke code, dus `&#8220;` blijft staan. Op productie: **76 van de 790** gecrawlde pagina's.
   Het staat ook in `evidence_quote`, en dat is de tekst waarmee een bewering letterlijk onderbouwd
   moet worden.
+  **Stand (2 september 2026):** opgelost. `lib/pipeline/html-text.ts` decodeert nu ook decimale en
+  hexadecimale numerieke entiteiten en meer namen (`&hellip;`, aanhalingstekens, gedachtestreepjes,
+  `&copy;`, `&reg;`, `&trade;`) (herstelplan T8.5).
 - **Geen enkele snelheidsbegrenzing.** De tabel `rate_limits` bestaat, is leeg, en het woord komt in
   de hele code niet voor. Inloggen, uitnodigingen verzilveren en elke route zijn onbegrensd.
+  **Stand (2 september 2026):** deels opgelost. Inloggen (per e-mailadres en per IP-adres) en het
+  verzilveren van een uitnodiging (per IP-adres) zijn nu begrensd (migratie 0090, herstelplan
+  T8.11); andere routes nog niet.
 - **De tabel `_backup_20260729` staat nog op productie**, met 51 rijen en zonder leesregels.
 - **58 foreign keys zonder index en 142 dubbele leesregels** volgens de Supabase-adviseur. Bij deze
   hoeveelheid data merkt niemand het; bij tien klanten wel.
 - **De controle op gelekte wachtwoorden staat uit** in Supabase Auth.
+  **Stand (2 september 2026):** nog open (herstelplan T8.12). Kan niet vanuit een sessie: alleen via
+  het Supabase-dashboard of de Management API met een persoonlijk token, en vereist minimaal het
+  Pro-plan. Actie voor de eigenaar.
 - **Twee controles met hetzelfde label** in de technische audit: `structured-data` en
   `entity.schema` heten allebei "Gestructureerde data" en zeggen bijna hetzelfde.
 - **Geen ontdubbeling van merken op webadres**: `udenhout.nl` staat er drie keer in, elk met een
@@ -362,6 +392,10 @@ Voor een consultant die dit merk vóór een demogesprek klaarzet is dat de gevaa
 oogt af, en precies de drie dingen die je nodig hebt om te meten en te schrijven ontbreken. In de
 gegevens staat nergens een vlag dat de crawl niets opleverde.
 
+**Stand (2 september 2026):** opgelost. `identifyEmptyProfiles()` (`lib/profile-status.ts`) merkt
+een "klaar" merk zonder gecrawlde pagina's, en `app/(app)/merk/page.tsx` toont daar een
+waarschuwing bij op het overzicht (herstelplan T8.7).
+
 ### V3. "Geen enkele van de 0 gecontroleerde pagina's heeft schema.org-opmaak" (moet snel)
 
 Diezelfde technische controle meldt bij nul pagina's een **waarschuwing** over ontbrekende
@@ -369,12 +403,18 @@ schema.org-opmaak. Twee dingen mis in één regel: de zin klopt niet als Nederla
 hoort onbekend te zijn in plaats van een waarschuwing. De controle ernaast doet het bij precies
 dezelfde situatie wél goed, dus het is een randgeval dat één keer vergeten is.
 
+**Stand (2 september 2026):** opgelost. `lib/audit/entity-consistency.ts` geeft bij nul gecrawlde
+pagina's nu `severity: "unknown"` in plaats van een waarschuwing (herstelplan T8.6).
+
 ### V4. Een pakket van tien pagina's levert een plan van vijf, zonder uitleg (moet snel)
 
 Het account staat op tien pagina's per maand, de meting leverde vijf aanbevelingen, en het plan zet
 er vijf in maand 1. In de gegevens staat nergens dat er vijf ontbreken en waarom. Of het scherm er
 iets over zegt is niet vast te stellen zonder browser. Voor een klant die voor tien betaalt is dit
 het eerste wat hij telt.
+
+**Stand (2 september 2026):** opgelost. `createPlan()` (`lib/plans.ts`) geeft `plannedCount` en
+`requestedCount` terug, en het scherm toont het tekort in de melding (herstelplan T8.10).
 
 ### V5. De klant kan ook zelf een cluster starten (aanvulling op B1)
 

@@ -277,3 +277,13 @@ schrijfaanroep van een pagina zonder briefingrij kent zijn eigen paginanummer no
 account is een DAGplafond geworden (€20), geen maandplafond, en het totaalplafond over alle accounts
 ging van €150 naar €50 per dag. De oude kolom blijft staan (conventie 4); geen enkel account had hem
 ingevuld.
+
+## 0090 · de snelheidsbegrenzing die er al lag, eindelijk aangezet
+
+`rate_limits (key, window_start, count)` en `rate_limit_hit()`, herstelplan na audit T8.11. De tabel
+stond al op productie, buiten een migratie om aangemaakt en leeg; deze migratie legt hem voor het
+eerst vast (`create table if not exists`) en voegt de atomaire ophoogfunctie toe die inloggen
+(`app/(auth)/actions.ts`, per e-mailadres én per IP) en het verzilveren van een uitnodiging
+(`app/api/invites/accept/route.ts`, per IP) tegen onbeperkt gokken beschermt. Deny-all RLS, alleen
+de service-role mag erin via `rate_limit_hit()`. Geen opruimtaak: oude vensters (vijftien minuten)
+groeien traag genoeg om geen probleem te zijn.

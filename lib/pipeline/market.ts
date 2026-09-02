@@ -36,6 +36,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { webSearchEnabled } from "@/lib/config";
 import { remainingBudgetUsd } from "@/lib/pipeline/onboarding-budget";
 import { domainOf } from "@/lib/offsite/domain";
+import { dedupeCompetitorNames } from "@/lib/pipeline/competitor-dedupe";
 import type { Profile, ProfileOffering } from "@/lib/types/database";
 
 export const MarketResearch = z.object({
@@ -238,12 +239,14 @@ export async function researchMarket(profileId: string): Promise<MarketResult> {
   // De namen als unie terug naar `profiles.competitors`, want dáár leest de rest
   // van de pijplijn ze. Een unie en geen vervanging: wat de klant zelf opgaf of
   // wat een eerdere ronde vond, blijft staan.
-  const unie = Array.from(
-    new Set([
-      ...profile.competitors,
-      ...concurrenten.map((c) => c.name.trim()),
-    ]),
-  );
+  //
+  // T8.3: ontdubbelen op meer dan de exacte tekst. "Cleyburch Tandartsen" en
+  // "Cleyburch Tandartsen in Noordwijk" zijn dezelfde concurrent met en zonder
+  // meegeplakte plaatsnaam; `new Set` zag ze eerder als twee.
+  const unie = dedupeCompetitorNames([
+    ...profile.competitors,
+    ...concurrenten.map((c) => c.name.trim()),
+  ]);
   if (unie.length !== profile.competitors.length) {
     await admin
       .from("profiles")

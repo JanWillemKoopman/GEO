@@ -58,6 +58,19 @@ export async function PATCH(
   const owned = await assertOwnedPrompt(admin, id, promptId, user.id);
   if (!owned) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
 
+  // ── T8.2: niet wijzigen zolang de meting loopt ────────────────────────────
+  //
+  // Op productie werd een vraag tijdens 'meten' gewoon gewijzigd, en de al
+  // ingeplande of lopende meettaken bleven de OUDE vraag meten: de klant zag
+  // straks een antwoord op een vraag die niet meer bestond. Wijzigen mag weer
+  // zodra de ronde klaar is (`gemeten`/`gereed`), voor de volgende ronde.
+  if (owned.status === "meten") {
+    return NextResponse.json(
+      { error: "Deze vraag kan niet gewijzigd worden terwijl de meting loopt. Wacht tot de ronde klaar is." },
+      { status: 409 },
+    );
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await request.json();
@@ -110,8 +123,19 @@ export async function DELETE(
   if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
-  if (!(await assertOwnedPrompt(admin, id, promptId, user.id))) {
+  const owned = await assertOwnedPrompt(admin, id, promptId, user.id);
+  if (!owned) {
     return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
+  }
+
+  // T8.2, zelfde regel als bij PATCH: niet verwijderen terwijl de meting
+  // loopt. Op productie bleven al betaalde meettaken achter zonder vraag, en
+  // de score werd berekend over meer groepen dan de klant vragen had.
+  if (owned.status === "meten") {
+    return NextResponse.json(
+      { error: "Deze vraag kan niet verwijderd worden terwijl de meting loopt. Wacht tot de ronde klaar is." },
+      { status: 409 },
+    );
   }
 
   const { error } = await admin.from("prompts").delete().eq("id", promptId);

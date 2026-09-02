@@ -152,7 +152,21 @@ export function entityConsistencyChecks(input: EntityConsistencyInput): AuditChe
   // ── 3. Dekking van de gestructureerde data ───────────────────────────────
   const dekking =
     input.pagesCrawled > 0 ? Math.round((input.pagesWithSchema / input.pagesCrawled) * 100) : 0;
-  if (input.pagesWithSchema === 0) {
+  // ⚠️ Herstelplan na audit T8.6: bij een site die niet te crawlen was (0
+  // pagina's gecontroleerd) meldde dit "geen enkele van de 0 pagina's heeft
+  // schema.org-opmaak" als WAARSCHUWING. Dat is geen bevinding over de site,
+  // want er is niets bekeken; het is onbekend, zoals check 1 hierboven dat ook
+  // doet zodra `foundNames` leeg is. Conventie 3.
+  if (input.pagesCrawled === 0) {
+    checks.push({
+      id: "entity.schema",
+      label: "Gestructureerde data",
+      severity: "unknown",
+      finding: "We konden geen pagina's bekijken, dus is onbekend of er schema.org-opmaak staat.",
+      fix: "Zorg dat de site bereikbaar is voor de volgende controle.",
+      who: null,
+    });
+  } else if (input.pagesWithSchema === 0) {
     checks.push({
       id: "entity.schema",
       label: "Gestructureerde data",

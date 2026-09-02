@@ -7,7 +7,12 @@ import "server-only";
  * aan de profiel-/onderwerp-onderzoekscalls.
  */
 
-import { sanitizeForPostgres } from "@/lib/pg-text";
+// T8.5, herstelplan na audit: verplaatst naar een pure module zonder
+// `server-only` (conventie 2), zodat de entiteitdecodering testbaar is vanuit
+// scripts/test-unit.ts. Her-exporteren zodat bestaande imports vanuit
+// "@/lib/crawler" blijven werken.
+import { htmlToText } from "@/lib/pipeline/html-text";
+export { htmlToText };
 import { stripChrome } from "@/lib/pipeline/page-text";
 import {
   harvestStructuredData,
@@ -113,32 +118,6 @@ const LINK_FALLBACK_SEEDS = 10;
 function extractTitle(html: string): string | null {
   const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
   return match ? htmlToText(match[1]).trim() || null : null;
-}
-
-/** Ruwe HTML → platte tekst: scripts/styles weg, tags → spaties, whitespace inklappen. */
-export function htmlToText(html: string): string {
-  const withoutScripts = html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
-    .replace(/<!--[\s\S]*?-->/g, " ");
-
-  // Meteen hier schonen, niet pas bij de insert: ALLES wat de app aan platte
-  // tekst uit een externe pagina haalt loopt via deze functie, dus dit is de
-  // enige plek waar een NUL-byte of losse surrogate kan binnenkomen. Zie
-  // lib/pg-text.ts voor wat er misging toen dat niet gebeurde.
-  const text = sanitizeForPostgres(withoutScripts)
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  return text;
 }
 
 export interface CrawlResult {

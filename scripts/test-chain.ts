@@ -2914,6 +2914,11 @@ async function main(): Promise<void> {
       planResultaat.ok,
       planResultaat.ok ? "" : JSON.stringify((planResultaat as { problems: string[] }).problems),
     );
+    // T8.10: hier is geen tekort (1 gevraagd, 2 beschikbaar), dus geen regressie.
+    ok(
+      "T8.10: geen tekort als de voorraad groot genoeg is",
+      planResultaat.ok && planResultaat.plannedCount === planResultaat.requestedCount,
+    );
 
     const { rows: maand1Paginas } = await db.client.query(
       `select pp.topic_id, pp.sort_order, pp.scheduled_for, pp.source, pp.potential
@@ -3303,6 +3308,20 @@ async function main(): Promise<void> {
         "het plan wordt gemaakt, ook als maand 1 vol is",
         planResultaat.ok,
         planResultaat.ok ? "" : JSON.stringify((planResultaat as { problems: string[] }).problems),
+      );
+
+      // ⚠️ Herstelplan na audit T8.10: dit profiel heeft maar één gemeten kans,
+      // terwijl er vijf per maand gevraagd zijn. Op productie meldde niets dat
+      // de andere vier ontbraken; nu draagt het resultaat zelf de twee tellingen.
+      ok(
+        "T8.10: het resultaat meldt hoeveel er écht gepland zijn",
+        planResultaat.ok && planResultaat.plannedCount === 1,
+        planResultaat.ok ? String(planResultaat.plannedCount) : "",
+      );
+      ok(
+        "T8.10: en hoeveel er gevraagd waren, zodat het tekort zichtbaar is",
+        planResultaat.ok && planResultaat.requestedCount === 5,
+        planResultaat.ok ? String(planResultaat.requestedCount) : "",
       );
 
       const { rows: teLaatMaanden } = await db.client.query(
@@ -6238,6 +6257,65 @@ async function main(): Promise<void> {
     }
 
     await db.client.query("delete from public.profiles where id = $1", [t3Profiel]);
+
+    // ══════════════════════════════════════════════════════════════════════
+    // HERSTELPLAN NA AUDIT T8.1: dubbele vragen over de funnelfasen heen
+    //
+    // Op productie zaten er in één meting van dertig vragen twee letterlijk
+    // identieke, in twee verschillende funnelfasen: de dedup binnen
+    // `generateForFunnelStage` ziet alleen zijn eigen fase. Deze test simuleert
+    // precies dat (twee fasen die toevallig dezelfde vraag bedachten) en toont
+    // aan dat `finishPromptGeneration` de latere kopie opruimt vóórdat de poort
+    // naar 'concept_klaar' opengaat.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nDubbele vragen over de funnelfasen heen worden opgeruimd (T8.1)");
+
+    const t81Profiel = randomUUID();
+    await db.client.query(
+      `insert into public.profiles (id, user_id, name, url, status)
+       values ($1, $2, 'T8.1-merk', 'https://t81-merk.nl', 'klaar')`,
+      [t81Profiel, userId],
+    );
+    const { rows: t81Analyses } = await db.client.query(
+      `insert into public.analyses (user_id, profile_id, url, topic, name, status)
+       values ($1, $2, 'https://t81-merk.nl', 'onderhoud', 'Onderhoud', 'bezig') returning id`,
+      [userId, t81Profiel],
+    );
+    const t81AnalysisId = t81Analyses[0].id as string;
+
+    await db.client.query(
+      `insert into public.prompts (analysis_id, text, category, created_at)
+       values
+         ($1, 'Wat kost cv-ketel onderhoud?', 'Oriëntatie', now() - interval '2 seconds'),
+         ($1, 'Wat kost cv-ketel onderhoud?', 'Overweging', now()),
+         ($1, 'Welke aanbieder is het beste?', 'Beslissing', now())`,
+      [t81AnalysisId],
+    );
+
+    const { finishPromptGeneration } = await import("@/lib/pipeline/prepare");
+    await finishPromptGeneration(t81AnalysisId);
+
+    const { rows: t81Na } = await db.client.query(
+      `select text, category from public.prompts where analysis_id = $1 order by created_at`,
+      [t81AnalysisId],
+    );
+    ok("de dubbele vraag is weg, twee vragen blijven over", t81Na.length === 2, String(t81Na.length));
+    ok(
+      "de OUDSTE van de twee identieke vragen (Oriëntatie) bleef staan",
+      t81Na.some((r: { text: string; category: string }) => r.category === "Oriëntatie"),
+    );
+    ok(
+      "de latere kopie (Overweging) is verwijderd",
+      !t81Na.some((r: { text: string; category: string }) => r.category === "Overweging"),
+    );
+
+    const { rows: t81Status } = await db.client.query(
+      "select status from public.analyses where id = $1",
+      [t81AnalysisId],
+    );
+    ok("de poort ging alsnog open naar concept_klaar", t81Status[0]?.status === "concept_klaar");
+
+    await db.client.query("delete from public.profiles where id = $1", [t81Profiel]);
 
     // ══════════════════════════════════════════════════════════════════════
     console.log("\nDe Sales-module: de scheiding met de klantomgeving (migratie 0068)");
