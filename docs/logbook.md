@@ -6033,9 +6033,13 @@ opende de pagina met "Voor een hybride warmtepomp van Wouter Warmtepomp kan hier
 Oosterhout geen betrouwbaar totaalbedrag worden genoemd zonder woninggegevens en een actuele
 offerte." Dat is een goede zin: hij noemt het merk, hij is eerlijk, en hij gaat over de lezer in
 plaats van over ons. De poorten deden dus hun werk; wat ze niet deden is de fout als categorie
-herkennen, en dat is precies wat `checkSourceTalk()` toevoegt. Eindstand van de pagina: dekking 95,
-GEO-score 100, kwaliteitsscore 42, 1268 woorden, status `draft` met "check nodig". Die
-kwaliteitsscore is niet best en hoort bij het bredere beeld van de vorige ronde (gemiddeld 44,5 over
-vier pagina's); dat staat los van dit werk.
+herkennen, en dat is precies wat `checkSourceTalk()` toevoegt.
+
+**Eindstand na de derde reparatieronde:** dekking 96, GEO-score 100, kwaliteitsscore 61, 1268
+woorden, status `ready`. De kwaliteitsscore liep tijdens de rondes op en neer (58 → 42 → 61): de
+tweede ronde ruilde bevindingen tegen nieuwe bevindingen voordat de derde hem over de drempel
+trok. Ter vergelijking: de vorige contentronde van 1 september haalde gemiddeld 44,5 over vier
+pagina's en al die vier bleven op "check nodig" staan. Deze pagina haalt de poort wél, met de
+volledige tekst van de bestaande pagina als basis. Totale kosten van de ronde: $1,25.
 
 Vier controles groen: typecheck, 3629 unittests (7 nieuw), 576 ketentests, de productiebuild.
