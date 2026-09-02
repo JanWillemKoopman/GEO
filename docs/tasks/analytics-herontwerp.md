@@ -1,12 +1,27 @@
 # Herontwerp van Analytics (implementatieplan, 2 september 2026)
 
-> **Voortgang.** Ronde 1 (§6, het fundament: F2, F3, Z3, Z5, C1, C2, C3) is gebouwd en gecontroleerd
-> tegen productie; de alinea's staan in `docs/logbook.md` bij 2 september 2026. **F1 (de verruiming
-> naar 1600px) is teruggedraaid op verzoek van de eigenaar**: Analytics blijft op de standaardbreedte
-> van de rest van de app. De tabellen uit F3 draaien dus binnen 1024px in plaats van de 1280 tot
-> 1600px waar dit plan ze voor ontwierp; §1.3 en de bijbehorende stukken tekst hieronder gelden
-> daarmee niet meer als bouwopdracht. Ronde 2 en ronde 3 staan nog open. Dit bestand blijft de
-> bouwopdracht voor wat resteert en verdwijnt zodra alle drie de rondes af zijn (§10).
+> **Voortgang (2 september 2026).** Ronde 1, 2 en 3 zijn vrijwel allemaal gebouwd en tegen productie
+> gecontroleerd; de alinea's staan in `docs/logbook.md`. **F1 (de verruiming naar 1600px) is
+> teruggedraaid op verzoek van de eigenaar**: Analytics blijft op de standaardbreedte van de rest van
+> de app (1024px), en §1.3 hieronder geldt daarmee niet meer als bouwopdracht.
+>
+> **Vier punten staan nog open, met een reden erbij**, en dit bestand blijft daarom staan tot ze
+> ingevuld zijn (§10):
+> - **F5, de fase-optelling, en daarmee het Fase-filter overal.** Rust op dezelfde gewogen
+>   rekenkunde als `computeAggregates()` in `lib/pipeline/measure.ts`; dat vraagt eigen verificatie
+>   en de snelheidsmeting die het plan zelf al noemt vóórdat hij aanstaat.
+> - **Z6, naamconsistentie als telling met kopieerknop.** `AuditCheck.finding` is voorgeformatteerde
+>   tekst zonder een array met naamvarianten; dat vraagt een schemawijziging in
+>   `lib/audit/entity-consistency.ts` die alleen toekomstige audits raakt.
+> - **Z7, de clusternaam zonder merk-URL ervoor.** Stond al buiten scope volgens het plan zelf
+>   (§5.1: "dit raakt meer dan Analytics, dus het gaat als losse stap").
+> - **R4, de producttabel náást een altijd-zichtbare, klikbare bezwarenkolom.** Gebouwd als
+>   detailpaneel (F4) in plaats daarvan: dat is het patroon dat Z8, C6 en V8 elders op Analytics ook
+>   gebruiken, en een tweede "meer lezen"-patroon ernaast zou de inconsistentie terugbrengen die dit
+>   plan wegwerkt.
+>
+> Ook de admin-schermen voor entiteitenbeheer (C1) hebben nu alleen een zoekveld; filteren op
+> ingedeeld/niet en meerdere rijen tegelijk bewerken staat niet in dit bestand maar is wel nog open.
 
 Opdracht van de eigenaar: de vier schermen onder Analytics zo herontwerpen dat elk scherm één
 duidelijke vraag beantwoordt, zonder overlap, met inzichten die de gebruiker echt verder helpen. Er

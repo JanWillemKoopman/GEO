@@ -9522,6 +9522,32 @@ group("het vorige, even lange venster", () => {
   ok("en de positieverandering ook", zonderVorige.verschil.positieVerbetert === null);
 });
 
+group("V5: geen delta bij een onvolledig eerste venster", () => {
+  const venster = { start: "2026-08-01", eind: "2026-08-10" };
+
+  // Data begint pas op 5 augustus: het vorige venster (22 juli tot 31 juli)
+  // is dus een gat en geen meting. Zonder de correctie zou "0 klikken toen"
+  // een schijnstijging van precies 100 klikken opleveren.
+  const onvolledig: GscDag[] = [
+    { day: "2026-08-05", page: "/a", clicks: 100, impressions: 1000, position: 10 },
+  ];
+  const vOnvolledig = vergelijk(onvolledig, venster);
+  ok("het venster is niet vergelijkbaar", !vOnvolledig.vergelijkbaar);
+  ok("dus geen kliksverschil", vOnvolledig.verschil.clicks === null);
+  ok("geen vertoningenverschil", vOnvolledig.verschil.impressions === null);
+  ok("geen ctr-verschil", vOnvolledig.verschil.ctr === null);
+
+  // Data reikt tot vóór het begin van het vorige venster: nu is een lege dag
+  // daarbinnen een echte nul, en telt het verschil gewoon.
+  const volledig: GscDag[] = [
+    { day: "2026-06-01", page: "/a", clicks: 1, impressions: 10, position: 5 },
+    { day: "2026-08-05", page: "/a", clicks: 100, impressions: 1000, position: 10 },
+  ];
+  const vVolledig = vergelijk(volledig, venster);
+  ok("dit venster is wél vergelijkbaar", vVolledig.vergelijkbaar);
+  eq2("en het kliksverschil is het echte verschil", vVolledig.verschil.clicks, 100);
+});
+
 group("per dag, per pagina, en wat nog niet definitief is", () => {
   const rijen: GscDag[] = [
     { day: "2026-08-10", page: "/a", clicks: 5, impressions: 50, position: 10 },

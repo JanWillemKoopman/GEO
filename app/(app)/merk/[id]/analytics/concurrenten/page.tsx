@@ -4,9 +4,8 @@ import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
 import { InfoHint } from "@/components/info-hint";
-import { ExternalLink } from "@/components/external-link";
 import { AnalyticsFilters } from "@/components/analytics-filters";
-import { AnalyticsRankingTable } from "@/components/analytics-ranking-table";
+import { ConcurrentenAnalyse, type BronRij, type ClusterVermelding } from "@/components/concurrenten-analyse";
 import { activeOnly } from "@/lib/archive";
 import { buildBrandRankings, ownMentionCount } from "@/lib/pipeline/brand-rankings";
 import {
@@ -174,6 +173,56 @@ export default async function ConcurrentenPage({
   const eigenPlaats =
     rankings && !rankings.fragmented ? rankings.rows.findIndex((r) => r.isOwnBrand) + 1 : null;
 
+  // ── C5: bronnenlandschap per domein aggregeren over de zichtbare clusters ──
+  // `source_landscape` heeft een rij per (cluster, domein); zonder aggregatie
+  // zou hetzelfde domein meerdere keren in de lijst staan zodra een merk meer
+  // dan één cluster heeft.
+  const bronnenBinnenFilter = bronnen.filter((b) => zichtbareClusterIds.has(b.analysis_id));
+  // Prioriteit bij het samenvoegen: bevestigd aanwezig (true) wint altijd,
+  // daarna onbekend (null), pas als álle clusters het eens zijn op "niet
+  // aanwezig" wordt het false. "Nog niet gecontroleerd" in cluster A mag
+  // "wél aanwezig" in cluster B niet overschrijven (conventie 3).
+  const AANWEZIGHEID_PRIORITEIT = { true: 2, null: 1, false: 0 } as const;
+  const perDomein = new Map<
+    string,
+    { citations: number; ownPresent: boolean | null; ownUrl: string | null; competitors: Set<string> }
+  >();
+  for (const b of bronnenBinnenFilter) {
+    const bestaand = perDomein.get(b.domain) ?? {
+      citations: 0,
+      ownPresent: false as boolean | null,
+      ownUrl: null as string | null,
+      competitors: new Set<string>(),
+    };
+    bestaand.citations += b.citations;
+    const huidigePrioriteit = AANWEZIGHEID_PRIORITEIT[String(bestaand.ownPresent) as "true" | "null" | "false"];
+    const nieuwePrioriteit = AANWEZIGHEID_PRIORITEIT[String(b.own_present) as "true" | "null" | "false"];
+    if (nieuwePrioriteit > huidigePrioriteit) bestaand.ownPresent = b.own_present;
+    if (!bestaand.ownUrl && b.own_url) bestaand.ownUrl = b.own_url;
+    for (const c of b.competitors ?? []) bestaand.competitors.add(c.trim().toLocaleLowerCase("nl"));
+    perDomein.set(b.domain, bestaand);
+  }
+  const bronRijen: BronRij[] = [...perDomein.entries()]
+    .map(([domain, v]) => ({
+      domain,
+      citations: v.citations,
+      ownPresent: v.ownPresent,
+      ownUrl: v.ownUrl,
+      competitorsGenormaliseerd: [...v.competitors],
+    }))
+    .sort((a, b) => b.citations - a.citations);
+
+  // ── C6: per concurrent in welke clusters hij voorkomt ───────────────────
+  const clusterNaamPerId = new Map(clusters.map((c) => [c.id, c.name]));
+  const vermeldingenPerConcurrent: Record<string, ClusterVermelding[]> = {};
+  for (const c of actueleBreakdown) {
+    const naam = clusterNaamPerId.get(c.analysis_id);
+    if (!naam) continue;
+    const lijst = vermeldingenPerConcurrent[c.competitor_name] ?? [];
+    lijst.push({ clusterName: naam, mentionsCount: c.mentions_count, avgPosition: c.avg_position });
+    vermeldingenPerConcurrent[c.competitor_name] = lijst;
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -229,67 +278,15 @@ export default async function ConcurrentenPage({
                 de eerlijke manier om jezelf tussen je concurrenten te zetten.
               </InfoHint>
             </span>
-            <AnalyticsRankingTable rows={rankings.rows} />
-            {rankings.omitted > 0 && (
-              <p className="text-sm text-muted">
-                {rankings.omitted === 1
-                  ? "Eén merk kwam maar één keer voor en staat er niet bij"
-                  : `${rankings.omitted} merken kwamen maar één keer voor en staan er niet bij`}
-                : één vermelding is toeval, geen patroon.
-              </p>
-            )}
+            <ConcurrentenAnalyse
+              rankingRows={rankings.rows}
+              bronnen={bronRijen}
+              vermeldingenPerConcurrent={vermeldingenPerConcurrent}
+              omitted={rankings.omitted}
+            />
           </div>
         </div>
       )}
-
-      {/* ── 2. Bronnenlandschap ────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-2">
-        <span className="mono-label">Bronnenlandschap</span>
-        <p className="text-sm text-muted">
-          De sites die een AI-assistent aanhaalt als hij over jouw onderwerpen praat. Sta je daar
-          niet op, dan is dat een plek waar je kunt beginnen.
-        </p>
-        {bronnen.length === 0 ? (
-          <div className="card flex flex-col gap-1">
-            <span className="mono-label">Nog niet in kaart</span>
-            <p className="text-secondary">
-              ORBIT ENGINE brengt dit in kaart tijdens de meting. Zodra de eerste ronde klaar is,
-              staat hier welke sites de AI aanhaalt.
-            </p>
-          </div>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {bronnen.slice(0, 15).map((b) => (
-              <li
-                key={b.id}
-                className="card flex flex-wrap items-center justify-between gap-3"
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="break-url block font-medium">{b.domain}</span>
-                  <span className="mono-label">
-                    {b.citations === 1 ? "1 keer aangehaald" : `${b.citations} keer aangehaald`}
-                  </span>
-                </span>
-                {/* Conventie 3: nog niet gecontroleerd is iets anders dan
-                    "je staat er niet op". */}
-                {b.own_present === null ? (
-                  <span className="chip chip-neutral">nog niet gecontroleerd</span>
-                ) : b.own_present ? (
-                  <span className="chip chip-success">
-                    {b.own_url ? (
-                      <ExternalLink href={b.own_url}>je staat erop</ExternalLink>
-                    ) : (
-                      "je staat erop"
-                    )}
-                  </span>
-                ) : (
-                  <span className="chip chip-warning">je staat er niet op</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
 
       {/* ── 3. Voetnoot over de noemer (plan C1) ─────────────────────────────
           Het indelen zelf is beheerwerk en geen analyse: dat verhuisde naar

@@ -621,6 +621,9 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 | `ThemeToggle` | De schakelaar licht/donker, rechtsboven in de balk. Eén exemplaar, in `workspace-chrome.tsx` |
 | `AnalyticsFilters` | De filterbalk van Analytics: Periode, Label, Cluster (en straks Fase). Plakt onder de bovenbalk, alleen op `/merk/[id]/analytics/*`. Zie `docs/tasks/analytics-herontwerp.md` F2 |
 | `AnalyticsTable` | De tabel van Analytics: sorteerbare kop, plakkende kop en eigen rij, groeperen op label. Vaste kolombreedtes, cijferkolommen met `tabular-nums`. Zie F3 |
+| `DetailPanel` | Het paneel rechts van een `AnalyticsTable`, opent bij een klik op een rij. Alleen lezen, geen knoppen. Zie F4 |
+| `ReputationToneDistribution`, `ReputationEvidence` | De verdelingsbalk: zes toonlabels resp. bronsoorten gestapeld, met de tellingen erbij. Zie R2, R5 |
+| `ReputationCriteria` | De criteriaschaal: vier assen met de eigen plaats en de concurrenten eronder. Zie R1 |
 
 ---
 

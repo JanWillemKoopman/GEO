@@ -8,6 +8,7 @@ import { AuditPanel } from "@/components/audit-panel";
 import { InfoHint } from "@/components/info-hint";
 import { AnalyticsFilters } from "@/components/analytics-filters";
 import { AnalyticsClusterTable } from "@/components/analytics-cluster-table";
+import { ClusterVisibilityGrid } from "@/components/cluster-visibility-grid";
 import { activeOnly } from "@/lib/archive";
 import { confidenceBand } from "@/lib/stats/uncertainty";
 import {
@@ -154,6 +155,30 @@ export default async function AnalyticsPage({
   const staleFactor = technicalAdviceStale(factors);
   const labelNaamPerId = new Map(labels.map((l) => [l.id, l.name]));
 
+  // ── Z1, Z2: het hoofdbeeld, per cluster ───────────────────────────────────
+  const visibilityGridData = perCluster.map((r) => ({
+    id: r.cluster.id,
+    name: r.cluster.name,
+    punten: r.reeks.map((s) => ({
+      waarde: leidend(s),
+      marge: confidenceBand(leidend(s), stderrVan(s)).margin,
+    })),
+    volgendeMeetronde: r.reeks.length < 3 ? volgendeMeetronde(r.laatste!.computed_at) : null,
+  }));
+
+  // ── Z4: de ene duidende zin boven de tabel ────────────────────────────────
+  const duidendeZin =
+    perCluster.length >= 2
+      ? (() => {
+          const zwakste = perCluster[perCluster.length - 1];
+          const sterkste = perCluster[0];
+          const verschil = Math.round(leidend(sterkste.laatste!) - leidend(zwakste.laatste!));
+          return verschil > 0
+            ? `${zwakste.cluster.name} blijft het meest achter: ${Math.round(leidend(zwakste.laatste!))}%, ${verschil} punten onder je sterkste cluster (${sterkste.cluster.name}).`
+            : null;
+        })()
+      : null;
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -198,9 +223,11 @@ export default async function AnalyticsPage({
         </div>
       )}
 
-      {/* ── 2. De score ─────────────────────────────────────────────────────
+      {/* ── 2. De score, met het hoofdbeeld ernaast (plan Z1, Z2) ────────────
           Eén hoofdgetal (`docs/ux-design.md` §1), met de onzekerheidsmarge
-          zichtbaar en niet alleen in een comment. */}
+          zichtbaar en niet alleen in een comment. Het raster ernaast groeit
+          zelf mee met de data: staven bij één of twee metingen, een lijn
+          vanaf drie (`components/cluster-visibility-grid.tsx`). */}
       {merkScore === null ? (
         <div className="card flex flex-col gap-2">
           <span className="mono-label">Nog niet gemeten</span>
@@ -213,26 +240,29 @@ export default async function AnalyticsPage({
           </p>
         </div>
       ) : (
-        // De stang links markeert het hoofdgetal van dit scherm, net als op het
-        // overzicht. Grijs en niet groen: hier staat geen zin bij die zegt of
-        // het cijfer echt gestegen is, en dan mag de kleur dat ook niet zeggen
-        // (`docs/designsystem.md` §5.5).
-        <div className="card card-rail flex flex-col gap-2">
-          <span className="mono-label flex items-center gap-1">
-            Zichtbaarheid over {merkScore.clusters === 1 ? "1 cluster" : `${merkScore.clusters} clusters`}
-            <InfoHint label="Hoe is dit gerekend?">
-              Het gemiddelde over je clusters, gewogen op het aantal vragen dat per cluster
-              gemeten is. Een cluster met vijf metingen telt dus lichter mee dan een met negentig.
-            </InfoHint>
-          </span>
-          <span className="stat-value text-5xl">{Math.round(merkScore.waarde)}%</span>
-          {band && band.margin > 0 && (
-            <span className="text-sm text-muted">
-              Onzekerheidsmarge {Math.max(0, Math.round(band.low))}% tot{" "}
-              {Math.min(100, Math.round(band.high))}%. Dat is geen slordigheid: het is een
-              steekproef, en dit is hoe breed hij is.
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[16rem_minmax(0,1fr)]">
+          {/* De stang links markeert het hoofdgetal van dit scherm, net als op
+              het overzicht. Grijs en niet groen: hier staat geen zin bij die
+              zegt of het cijfer echt gestegen is, en dan mag de kleur dat ook
+              niet zeggen (`docs/designsystem.md` §5.5). */}
+          <div className="card card-rail flex flex-col gap-2">
+            <span className="mono-label flex items-center gap-1">
+              Zichtbaarheid over {merkScore.clusters === 1 ? "1 cluster" : `${merkScore.clusters} clusters`}
+              <InfoHint label="Hoe is dit gerekend?">
+                Het gemiddelde over je clusters, gewogen op het aantal vragen dat per cluster
+                gemeten is. Een cluster met vijf metingen telt dus lichter mee dan een met negentig.
+              </InfoHint>
             </span>
-          )}
+            <span className="stat-value text-5xl">{Math.round(merkScore.waarde)}%</span>
+            {band && band.margin > 0 && (
+              <span className="text-sm text-muted">
+                Onzekerheidsmarge {Math.max(0, Math.round(band.low))}% tot{" "}
+                {Math.min(100, Math.round(band.high))}%. Dat is geen slordigheid: het is een
+                steekproef, en dit is hoe breed hij is.
+              </span>
+            )}
+          </div>
+          <ClusterVisibilityGrid clusters={visibilityGridData} />
         </div>
       )}
 
@@ -244,6 +274,8 @@ export default async function AnalyticsPage({
       {perCluster.length > 0 && (
         <div className="flex flex-col gap-2">
           <span className="mono-label">Per cluster</span>
+          {/* ── Z4: de ene duidende zin, uit de cijfers zelf gerekend ────── */}
+          {duidendeZin && <p className="text-secondary">{duidendeZin}</p>}
           <AnalyticsClusterTable rows={perCluster} labelNaamPerId={labelNaamPerId} />
         </div>
       )}
@@ -289,6 +321,18 @@ function leidend(s: VisibilityScore): number {
 /** De onzekerheid die bij `leidend()` hoort. De twee horen altijd bij elkaar. */
 function stderrVan(s: VisibilityScore): number {
   return (s.weighted_score != null ? s.weighted_stderr : s.score_stderr) ?? 0;
+}
+
+/**
+ * Een schatting van de volgende meetronde (plan Z1), voor de belofte bij één
+ * of twee metingen. De maandronde draait op de eerste van de maand
+ * (`app/api/cron/tracking/route.ts`), dus de eerste van de maand ná de
+ * laatste meting is geen gok maar het echte cronritme.
+ */
+function volgendeMeetronde(laatsteMeting: string | null): string | null {
+  if (!laatsteMeting) return null;
+  const datum = new Date(laatsteMeting);
+  return new Date(Date.UTC(datum.getUTCFullYear(), datum.getUTCMonth() + 1, 1)).toISOString();
 }
 
 /** Het merkcijfer, gewogen op het aantal gemeten vragen per cluster. */

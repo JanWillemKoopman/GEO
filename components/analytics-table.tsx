@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 /**
  * De ene tabel voor alle vier de Analytics-schermen (plan
@@ -38,7 +38,8 @@ export function AnalyticsTable<T>({
   rowKey,
   groupOf,
   isOwnRow,
-  expandedContent,
+  onRowClick,
+  selectedKey,
   defaultSortKey,
   defaultSortDir = "asc",
   emptyLabel = "Niets te tonen bij deze filters.",
@@ -51,8 +52,11 @@ export function AnalyticsTable<T>({
   groupOf?: (row: T) => AnalyticsGroup | null;
   /** Deze rij blijft zichtbaar boven- of onderaan zijn groep bij het scrollen. */
   isOwnRow?: (row: T) => boolean;
-  /** Inhoud onder een rij die openklapt bij een klik erop. */
-  expandedContent?: (row: T) => React.ReactNode | null;
+  /** Een rij is klikbaar zodra dit meegegeven is: de aanroeper opent er
+   * meestal een `DetailPanel` mee (plan F4), zonder de lijst te verlaten. */
+  onRowClick?: (row: T) => void;
+  /** De rij die nu in het detailpaneel staat, voor de gemarkeerde stand. */
+  selectedKey?: string | null;
   defaultSortKey?: string;
   defaultSortDir?: "asc" | "desc";
   emptyLabel?: string;
@@ -61,7 +65,6 @@ export function AnalyticsTable<T>({
 }) {
   const [sortKey, setSortKey] = useState<string | undefined>(defaultSortKey);
   const [sortDir, setSortDir] = useState<"asc" | "desc">(defaultSortDir);
-  const [open, setOpen] = useState<string | null>(null);
 
   const sortColumn = columns.find((c) => c.key === sortKey && c.sortValue);
 
@@ -156,9 +159,8 @@ export function AnalyticsTable<T>({
               columns={columns}
               rowKey={rowKey}
               isOwnRow={isOwnRow}
-              expandedContent={expandedContent}
-              open={open}
-              setOpen={setOpen}
+              onRowClick={onRowClick}
+              selectedKey={selectedKey}
               stickyOffset={stickyOffset}
             />
           ))}
@@ -174,9 +176,8 @@ function GroupBody<T>({
   columns,
   rowKey,
   isOwnRow,
-  expandedContent,
-  open,
-  setOpen,
+  onRowClick,
+  selectedKey,
   stickyOffset,
 }: {
   groep: AnalyticsGroup | null;
@@ -184,9 +185,8 @@ function GroupBody<T>({
   columns: AnalyticsColumn<T>[];
   rowKey: (row: T) => string;
   isOwnRow?: (row: T) => boolean;
-  expandedContent?: (row: T) => React.ReactNode | null;
-  open: string | null;
-  setOpen: (key: string | null) => void;
+  onRowClick?: (row: T) => void;
+  selectedKey?: string | null;
   stickyOffset: string;
 }) {
   return (
@@ -204,42 +204,34 @@ function GroupBody<T>({
       {rijen.map((row) => {
         const key = rowKey(row);
         const eigen = isOwnRow?.(row) ?? false;
-        const uitklap = expandedContent?.(row) ?? null;
-        const isOpen = open === key;
+        const geselecteerd = selectedKey === key;
         return (
-          <Fragment key={key}>
-            <tr
-              onClick={uitklap ? () => setOpen(isOpen ? null : key) : undefined}
-              className={`border-t border-[var(--border-subtle)] ${uitklap ? "cursor-pointer hover:bg-[var(--bg-elevated)]" : ""} ${
-                eigen ? "sticky z-[5]" : ""
-              }`}
-              style={
-                eigen
-                  ? {
-                      top: `calc(${stickyOffset} + 2.25rem)`,
-                      background: "var(--bg-elevated)",
-                      boxShadow: "0 1px 0 var(--border-subtle)",
-                    }
-                  : undefined
-              }
-            >
-              {columns.map((col) => (
-                <td
-                  key={col.key}
-                  className={`py-1.5 pr-4 align-top ${col.numeriek ? "text-right tabular-nums" : ""}`}
-                >
-                  {col.render(row)}
-                </td>
-              ))}
-            </tr>
-            {isOpen && uitklap && (
-              <tr className="border-t border-[var(--border-subtle)]">
-                <td colSpan={columns.length} className="bg-[var(--bg-elevated)] py-3 pr-4 pl-2">
-                  {uitklap}
-                </td>
-              </tr>
-            )}
-          </Fragment>
+          <tr
+            key={key}
+            onClick={onRowClick ? () => onRowClick(row) : undefined}
+            aria-selected={onRowClick ? geselecteerd : undefined}
+            className={`border-t border-[var(--border-subtle)] ${onRowClick ? "cursor-pointer hover:bg-[var(--bg-elevated)]" : ""} ${
+              eigen ? "sticky z-[5]" : ""
+            }`}
+            style={{
+              ...(eigen
+                ? {
+                    top: `calc(${stickyOffset} + 2.25rem)`,
+                    boxShadow: "0 1px 0 var(--border-subtle)",
+                  }
+                : undefined),
+              background: geselecteerd ? "var(--intent-intelligence-surface)" : eigen ? "var(--bg-elevated)" : undefined,
+            }}
+          >
+            {columns.map((col) => (
+              <td
+                key={col.key}
+                className={`py-1.5 pr-4 align-top ${col.numeriek ? "text-right tabular-nums" : ""}`}
+              >
+                {col.render(row)}
+              </td>
+            ))}
+          </tr>
         );
       })}
     </>

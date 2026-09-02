@@ -110,9 +110,19 @@ export interface Vergelijking {
   nu: Kerncijfers;
   vorige: Kerncijfers;
   /**
-   * Het verschil per grootheid. `null` als een van beide onbekend is: een
-   * verandering ten opzichte van niets is geen verandering maar een start
-   * (conventie 3).
+   * Is het vorige venster volledig gedekt door data? `false` zolang de
+   * vroegste dag die we hebben ná het begin van het vorige venster ligt: dan
+   * is "0 klikken toen" geen meting maar een gat, en zou elk verschil een
+   * schijnstijging zijn ter grootte van `nu` zelf (plan analytics-herontwerp.md,
+   * V5). Het scherm toont dan "eerste volledige periode" in plaats van een
+   * pijl.
+   */
+  vergelijkbaar: boolean;
+  /**
+   * Het verschil per grootheid. `null` als een van beide onbekend is, óf als
+   * het vorige venster niet volledig gedekt is (`vergelijkbaar === false`):
+   * een verandering ten opzichte van niets, of ten opzichte van een gat, is
+   * geen verandering maar een start (conventie 3).
    *
    * ⚠️ Bij de positie is **lager beter**. Het scherm moet dat weten, want een
    * daling van 14,6 naar 9,2 is een verbetering en hoort een pijl omhoog te
@@ -120,8 +130,8 @@ export interface Vergelijking {
    * dat teken zelf te laten omdraaien.
    */
   verschil: {
-    clicks: number;
-    impressions: number;
+    clicks: number | null;
+    impressions: number | null;
     ctr: number | null;
     position: number | null;
     positieVerbetert: boolean | null;
@@ -140,6 +150,11 @@ export function vergelijk(rijen: GscDag[], venster: Venster): Vergelijking {
   const nu = totalen(rijen.filter((r) => inVenster(r.day, venster)));
   const toen = totalen(rijen.filter((r) => inVenster(r.day, vorige)));
 
+  // De vroegste dag die we ooit ontvingen: ligt die ná het begin van het
+  // vorige venster, dan is dat venster gedeeltelijk een gat en geen meting.
+  const volledig = volledigVenster(rijen);
+  const vergelijkbaar = volledig !== null && volledig.start <= vorige.start;
+
   const ctrVerschil = nu.ctr !== null && toen.ctr !== null ? nu.ctr - toen.ctr : null;
   const posVerschil =
     nu.position !== null && toen.position !== null ? nu.position - toen.position : null;
@@ -147,12 +162,13 @@ export function vergelijk(rijen: GscDag[], venster: Venster): Vergelijking {
   return {
     nu,
     vorige: toen,
+    vergelijkbaar,
     verschil: {
-      clicks: nu.clicks - toen.clicks,
-      impressions: nu.impressions - toen.impressions,
-      ctr: ctrVerschil,
-      position: posVerschil,
-      positieVerbetert: posVerschil === null ? null : posVerschil < 0,
+      clicks: vergelijkbaar ? nu.clicks - toen.clicks : null,
+      impressions: vergelijkbaar ? nu.impressions - toen.impressions : null,
+      ctr: vergelijkbaar ? ctrVerschil : null,
+      position: vergelijkbaar ? posVerschil : null,
+      positieVerbetert: vergelijkbaar && posVerschil !== null ? posVerschil < 0 : null,
     },
   };
 }

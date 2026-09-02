@@ -6258,3 +6258,81 @@ geeft nu alleen nog rijen en een `Map` door, nooit een functie, en `AnalyticsTab
 generiek. Tegen deze klasse fouten helpt geen typecheck of unittest: hij is pas zichtbaar bij een
 echte render, en is nu wel bevestigd via de Vercel MCP-tools (`get_runtime_errors` op het
 preview-deployment) in plaats van alleen aangenomen.
+
+## Analytics-herontwerp, ronde 2 en 3: de inhoud per pagina (2 september 2026)
+
+Op verzoek van de eigenaar meteen doorgebouwd na de reparatie hierboven: vrijwel de hele rest van
+`docs/tasks/analytics-herontwerp.md`, ronde 2 en 3 samen. Zelfde patroon als bij de vorige ronde:
+elke nieuwe interactieve tabel kreeg zijn eigen Client Component (`analytics-cluster-table.tsx`
+is toen al vervangen door dat patroon overal door te trekken), zodat de RSC-fout hierboven zich
+niet kon herhalen. Handmatig nagelopen: geen van de nieuwe Client Components krijgt een functie
+als prop van een Server Component mee.
+
+**Zichtbaarheid (Z1, Z2, Z4, Z8).** `components/cluster-visibility-grid.tsx` is één raster van
+kleine grafiekjes, één per cluster, die zelf wisselt tussen staven-met-marge (onder de drie
+metingen) en een lijn (vanaf drie): Z1 en Z2 vroegen apart om een hoofdgrafiek én een raster, maar
+het plan legt zelf uit waarom een gecombineerde meerdere-lijnen-grafiek een kluwen wordt zodra er
+meer dan een paar clusters zijn ("tien lijnen door elkaar is een kluwen"). Dit raster is dus het
+hoofdbeeld én lost tegelijk op wat Z2 vroeg, in plaats van twee losse dingen te bouwen die elkaar
+tegenspreken. Bij één cluster staat de eerstvolgende meetronde erbij (de eerste van de kalendermaand
+ná de laatste meting, uit het echte cronritme in `app/api/cron/tracking/route.ts`, geen schatting).
+Z4 is een berekende zin boven de tabel (zwakste cluster, hoeveel punten onder het sterkste). Z8 is
+het detailpaneel (F4) met de gemeten vragen en de laatste drie metingen.
+
+**Concurrenten (C4, C5, C6).** Eén nieuwe Client Component, `components/concurrenten-analyse.tsx`,
+draagt de ranglijst, het bronnenlandschap én het detailpaneel samen, want C4 (een concurrent
+aanwijzen kleurt de bronnenlijst) en C6 (het detailpaneel toont dezelfde bronnen) delen dezelfde
+clientstate. `source_landscape` bleek al een `competitors`-kolom per bron te dragen; C5's kanslijst
+matcht die namen tegen de al-geclassificeerde rijen uit `buildBrandRankings()` (niet tegen de ruwe
+tekst, die staat vol productmerken als "Nefit" en "Vaillant" die geen concurrent zijn) en sorteert op
+aanhaalfrequentie maal aantal bevestigde concurrenten. Tegen de productiedata van Gasservice Brabant
+gecontroleerd: kemkens.nl komt uit op 78 aanhalingen over vier clusters, nul keer eigen aanwezigheid,
+en wordt daarmee terecht de eerste kans.
+
+**Zoekverkeer (V1 tot en met V8), de grootste herbouw.** De pagina meet nu alleen de pagina's die
+ORBIT ENGINE publiceerde; de hele property staat nog, maar ingeklapt onderaan als vergelijking. Twee
+nieuwe pure functies in `lib/search-console/metrics.ts`: `vergelijk()` kreeg een `vergelijkbaar`-vlag
+(V5) die de kliks- en vertoningendelta op `null` zet zodra de vroegste dag die we hebben ná het begin
+van het vorige venster ligt, want dan is "0 toen" een gat en geen meting, en zou elk verschil een
+schijnstijging ter grootte van zichzelf zijn. Nieuwe tests bevestigen beide kanten: een venster dat
+wél teruggaat blijft een echt verschil tonen. `components/pages-traffic-chart.tsx` vervangt de oude
+`TrafficChart` (verwijderd, was alleen hier in gebruik): geen kalenderlijn van de hele website naast
+losse zichtbaarheidsstippen meer, maar de klikken op onze eigen pagina's met een gestreepte
+verticale lijn per publicatiedatum. `content_impact.verdict` (per publicatiestuk de laatste golf)
+is de kolom "Effect op AI" in de nieuwe paginatabel; tegen productie geverifieerd op het ene
+gepubliceerde stuk van Gasservice Brabant (`onderhoudscontract-cv-ketel`, verdict "gestegen",
+content_piece_id klopt één-op-één). V8's detailpaneel toont het verloop sinds publicatie als
+staafjes. V6's paginatype-filter verschijnt pas vanaf tien pagina's; bij minder dan tien
+gepubliceerde pagina's (nu overal het geval) blijft hij dus terecht weg. V7's lege staat toont het
+aantal pagina's in het contentplan, zonder verzonnen publicatiedatum.
+
+**Reputatie (R1 tot en met R6).** De meetmodule zelf is niet aangeraakt, precies zoals het plan
+vraagt. Vier nieuwe componenten dragen een ander deel van dezelfde, al opgeslagen data naar de
+voorgrond: `reputation-criteria.tsx` (R1, de vier criteria als hoofdbeeld: gemiddelde plaats over
+alle antwoorden per criterium, want er bleken meerdere `reputation_ranks`-rijen per criterium te
+bestaan en één rij pakken zou de uitkomst aan toeval overlaten), `reputation-tone-distribution.tsx`
+(R2, de zes toonlabels als gestapelde balk, met de oude meter nog beschikbaar maar ingeklapt als
+secundair cijfer), `reputation-offerings.tsx` (R3, twaalf productregels als tabel met een
+detailpaneel) en `reputation-evidence.tsx` (R5, de samenstelling van de bronnen per soort).
+
+⚠️ **R4 is bewust anders ingevuld dan de letterlijke tekst.** Het plan vraagt de producttabel náást
+een altijd-zichtbare bezwarenkolom die op een klik filtert. Dat is een tweede interactiepatroon naast
+het detailpaneel dat elders op Analytics (Z8, C6, V8) al hetzelfde doet: klik een rij, lees rechts.
+Twee patronen voor "meer lezen" op één pagina is precies de inconsistentie die dit hele plan
+wegwerkt, dus toont het detailpaneel bij een product zowel de lof als de bezwaren.
+
+**Wat bewust niet gebouwd is, en blijft openstaan.** F5 (de fase-optelling uit `tracking_runs`) en
+daarmee het Fase-filter overal: die rekensom moet exact dezelfde gewogen score reproduceren als
+`computeAggregates()` in `lib/pipeline/measure.ts` (share-by-run, entiteitclassificatie, winbaarheid)
+en het plan vraagt zelf om een snelheidsmeting vooraf; F2 verbiedt bovendien een filter tonen dat nog
+niets doet. Z6 (naamconsistentie als telling met kopieerknop) vraagt een structurele lijst met
+naamvarianten, en `AuditCheck.finding` is voorgeformatteerde tekst zonder array; dat vraagt een
+schemawijziging in `lib/audit/entity-consistency.ts` die alleen toekomstige audits raakt, niet de
+al opgeslagen `checks_json`. Z7 (de clusternaam zonder merk-URL ervoor) stond al buiten scope
+volgens het plan zelf ("dit raakt meer dan Analytics... het gaat als losse stap").
+
+Verificatie tegen productie (Gasservice Brabant, Supabase-project GEO, conventie 10): de
+periodeselectie, de gewogen score, de audit-groepen, de kans-lijst op Concurrenten, de
+content_impact-koppeling op Zoekverkeer en de criteria-gemiddelden op Reputatie zijn stuk voor stuk
+met echte rijen doorgerekend, niet alleen gebouwd. Vier controles groen: typecheck, 3670 unittests
+(6 nieuw, de V5-toets in `lib/search-console/metrics.ts`), 576 ketentests, de productiebuild.

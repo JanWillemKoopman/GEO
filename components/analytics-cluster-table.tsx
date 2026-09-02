@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { AnalyticsTable, type AnalyticsColumn } from "@/components/analytics-table";
+import { DetailPanel } from "@/components/detail-panel";
 import { Icon } from "@/components/icon";
 import { confidenceBand, changeIsMeaningful } from "@/lib/stats/uncertainty";
 import type { VisibilityScore } from "@/lib/types/database";
@@ -40,15 +42,59 @@ export function AnalyticsClusterTable({
   rows: ClusterRij[];
   labelNaamPerId: Map<string, string>;
 }) {
+  const [geselecteerd, setGeselecteerd] = useState<string | null>(null);
+  const gekozenRij = rows.find((r) => r.cluster.id === geselecteerd) ?? null;
+
   return (
-    <AnalyticsTable
-      rows={rows}
-      rowKey={(r) => r.cluster.id}
-      defaultSortKey="zichtbaarheid"
-      defaultSortDir="asc"
-      columns={clusterKolommen(labelNaamPerId)}
-      stickyOffset="calc(var(--header-h) + 3.5rem)"
-    />
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <AnalyticsTable
+        rows={rows}
+        rowKey={(r) => r.cluster.id}
+        defaultSortKey="zichtbaarheid"
+        defaultSortDir="asc"
+        columns={clusterKolommen(labelNaamPerId)}
+        stickyOffset="calc(var(--header-h) + 3.5rem)"
+        onRowClick={(r) => setGeselecteerd(r.cluster.id === geselecteerd ? null : r.cluster.id)}
+        selectedKey={geselecteerd}
+      />
+      {gekozenRij && (
+        <DetailPanel title={gekozenRij.cluster.name} onClose={() => setGeselecteerd(null)}>
+          <ClusterDetail rij={gekozenRij} />
+        </DetailPanel>
+      )}
+    </div>
+  );
+}
+
+/** De inhoud van het detailpaneel (plan Z8): de gemeten vragen en de laatste
+ * drie metingen. De verdeling over de drie fasen staat hier bewust niet bij:
+ * die rust op een optelling uit `tracking_runs` die nog niet gebouwd is
+ * (F5, zie `docs/tasks/analytics-herontwerp.md`). */
+function ClusterDetail({ rij }: { rij: ClusterRij }) {
+  const laatsteDrie = [...rij.reeks].reverse().slice(0, 3);
+  return (
+    <div className="flex flex-col gap-3">
+      <div>
+        <span className="mono-label">Gemeten vragen</span>
+        <p className="stat-value text-lg">{rij.laatste?.judged_runs ?? "-"}</p>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <span className="mono-label">Laatste metingen</span>
+        {laatsteDrie.map((s) => (
+          <div key={s.week_no} className="flex items-baseline justify-between gap-2 text-sm">
+            <span className="text-muted">
+              {s.computed_at
+                ? new Date(s.computed_at).toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" })
+                : "-"}
+            </span>
+            <span className="stat-value">{Math.round(leidend(s))}%</span>
+          </div>
+        ))}
+      </div>
+      <Link href={`/analyses/${rij.cluster.id}`} className="text-sm underline">
+        Naar het clusterdossier
+      </Link>
+    </div>
   );
 }
 

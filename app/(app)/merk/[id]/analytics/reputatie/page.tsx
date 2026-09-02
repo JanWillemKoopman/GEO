@@ -28,8 +28,11 @@ import {
 import { StartReputationButton } from "./_components/start-reputation-button";
 import { ChangeBlock } from "./_components/change-block";
 import { ToneMeter } from "./_components/tone-meter";
-import { OfferingList } from "./_components/offering-list";
 import { RivalTable } from "./_components/rival-table";
+import { ReputationCriteria } from "@/components/reputation-criteria";
+import { ReputationToneDistribution } from "@/components/reputation-tone-distribution";
+import { ReputationOfferings } from "@/components/reputation-offerings";
+import { ReputationEvidence } from "@/components/reputation-evidence";
 import type {
   ReputationAnswer,
   ReputationMarketRow,
@@ -330,11 +333,18 @@ export default async function ReputatiePage({
               {verdeeldheid && <p className="text-secondary">{verdeeldheid}</p>}
             </div>
 
-            <ToneMeter
-              index={laatste.tone_index}
-              stderr={laatste.tone_stderr}
-              woord={kop.woord}
-            />
+            {/* ── R2: de toon als verdeling, het hoofdbeeld ─────────────────
+                De toonindex blijft bestaan, alleen niet meer als grootste
+                element: 22 van de 22 antwoorden op "gemengd" zet de meter per
+                definitie in het midden, terwijl deze balk dat in één oogopslag
+                toont. */}
+            <ReputationToneDistribution verdeling={verdeling} />
+            <details className="type-caption">
+              <summary className="cursor-pointer text-muted">De toonindex, voor de vergelijking over de tijd</summary>
+              <div className="mt-2">
+                <ToneMeter index={laatste.tone_index} stderr={laatste.tone_stderr} woord={kop.woord} />
+              </div>
+            </details>
 
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <span className="mono-label">
@@ -376,6 +386,12 @@ export default async function ReputatiePage({
             )}
           </div>
 
+          {/* ── R1: de vier criteria als hoofdbeeld ───────────────────────
+              Letterlijk het antwoord op "hoe positioneert AI mij tegenover
+              mijn concurrenten"; stond weggeklapt achter "Naast je
+              concurrenten gelegd" (nu op niveau 3, iets verderop). */}
+          {merkbredeRanks.length > 0 && <ReputationCriteria ranks={merkbredeRanks} />}
+
           {/* De twee steunfeiten. Niet vijf chips op één rij, maar de twee vragen
               die een ondernemer echt stelt: kiest AI mij, en waar rust dit op? */}
           <div className="grid gap-3 sm:grid-cols-2">
@@ -398,9 +414,11 @@ export default async function ReputatiePage({
                   opgeslagen in `market_position` voor de vergelijking over de tijd. */}
             </div>
 
-            <div className="card flex flex-col gap-1">
+            <div className="card flex flex-col gap-2">
               <span className="mono-label">Waar dit beeld op rust</span>
               <span className="stat-value text-2xl">{evidenceWord(laatste.evidence_score)}</span>
+              {/* ── R5: de samenstelling, niet alleen het woord ───────────── */}
+              <ReputationEvidence sources={sources} />
               <p className="type-compact text-secondary">
                 {sourceMixSentence(sources.map((s) => ({ domain: s.domain, kind: s.kind })))}
                 {cijfers.length > 0 && (
@@ -419,11 +437,11 @@ export default async function ReputatiePage({
         </section>
       </SectionErrorBoundary>
 
-      {/* ══ 02 · PER PRODUCT EN DIENST ══════════════════════════════════════ */}
+      {/* ══ 02 · PER PRODUCT EN DIENST (R3, R4) ═════════════════════════════ */}
       <SectionErrorBoundary label="Per product en dienst">
         <section className="flex flex-col gap-3">
           <SectionHeading title="Per product en dienst" />
-          <OfferingList views={views} brand={merk} />
+          <ReputationOfferings views={views} brand={merk} />
         </section>
       </SectionErrorBoundary>
 

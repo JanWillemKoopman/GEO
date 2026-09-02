@@ -5,49 +5,56 @@ import { requireUser } from "@/lib/auth";
 import { isStaff } from "@/lib/staff";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/page-header";
-import { TrafficChart, type ScorePunt } from "@/components/traffic-chart";
+import { PagesTrafficChart } from "@/components/pages-traffic-chart";
+import { ZoekverkeerPaginas, type OnzePaginaRij } from "@/components/zoekverkeer-paginas";
+import { AnalyticsFilters } from "@/components/analytics-filters";
 import { InfoHint } from "@/components/info-hint";
-import { ExternalLink } from "@/components/external-link";
 import { activeOnly } from "@/lib/archive";
 import {
-  besteEnZwakste,
-  klikkenPerType,
+  clustersVoorFilter,
+  leesClusterfilter,
+  leesLabelfilter,
+} from "@/lib/analytics-filters";
+import { sorteerLabels } from "@/lib/cluster-labels";
+import {
   normaliseerUrl,
   perDag,
-  perPagina,
   vergelijk,
   volledigVenster,
   type GscDag,
 } from "@/lib/search-console/metrics";
-import type { VisibilityScore } from "@/lib/types/database";
+import type { ClusterLabel, ImpactVerdict } from "@/lib/types/database";
 import { Icon } from "@/components/icon";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Zoekverkeer" };
 
 /**
- * ZOEKVERKEER: de klikken uit Google naast de zichtbaarheid in AI-antwoorden.
+ * ZOEKVERKEER: levert de content die ORBIT ENGINE publiceerde bezoekers op uit
+ * Google? (plan analytics-herontwerp.md, V1 tot en met V8)
  *
- * Besluit 4: AI-zichtbaarheid is het verhaal, Google is het bewijsstuk. Besluit
- * 3b: dit scherm wordt volledig gebouwd, ook zolang de Google-sleutel er nog
- * niet is. Die sleutel is een losse to-do en blokkeert de bouw niet.
+ * ── DE KERNVERANDERING VAN 2 SEPTEMBER 2026 ─────────────────────────────────
  *
- * ⚠️ **Wat er in de tabel zit bepaalt wat hier kan staan.** `search_console_days`
- * heeft `day`, `page`, `clicks`, `impressions` en `position`. Géén
- * zoekopdrachten, apparaten of landen. Een zoekwoordgrafiek is dus geen
- * schermwerk maar een uitbreiding van de koppeling met een nieuwe tabel.
+ * Dit scherm mat de hele website: het grootste deel daarvan bestond al vóórdat
+ * ORBIT ENGINE begon, en de kliklijn naast losse zichtbaarheidspunten
+ * suggereerde een verband dat met één meetpunt niet te tonen is. Het scherm
+ * gaat nu over onze eigen pagina's; de rest van de site staat er nog wel,
+ * maar ingeklapt en met de nadruk erbij dat het een vergelijking is en geen
+ * resultaat.
  *
- * De rekenkant staat in `lib/search-console/metrics.ts`, met tests. Alles op dit
- * scherm is een getal dat de klant als bewijs voorgeschoteld krijgt, en een fout
- * daarin is niet zichtbaar op het scherm maar alleen in het gesprek waarin
- * iemand hem gelooft.
+ * ⚠️ **Wat er in `search_console_days` zit bepaalt wat hier kan staan.** Geen
+ * zoekopdrachten, apparaten of landen. De rekenkant staat in
+ * `lib/search-console/metrics.ts`, met tests.
  */
 export default async function ZoekverkeerPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ label?: string; cluster?: string }>;
 }) {
   const { id } = await params;
+  const { label: labelUitAdres, cluster: clusterUitAdres } = await searchParams;
   const profile = await getProfile(id);
   if (!profile) notFound();
   const user = await requireUser();
@@ -63,35 +70,23 @@ export default async function ZoekverkeerPage({
   const rijen = (dagRijen ?? []) as GscDag[];
 
   // ── Geen koppeling: geen lege grafiek maar uitleg ────────────────────────
-  //
-  // Twee verschillende situaties, en de klant hoort te weten welke van de twee
-  // hij heeft. Op productie stonden ze op 17 augustus 2026 allebei in de
-  // database: het ene merk had geen property, het andere had er wel een en een
-  // foutmelding erbij.
   if (!profile.gsc_property || rijen.length === 0) {
     return (
       <div className="flex flex-col gap-6">
-        <Kop id={id} />
+        <Kop />
         <div className="card flex flex-col gap-3">
           <span className="mono-label">
             {profile.gsc_property ? "Nog geen cijfers binnen" : "Nog niet gekoppeld"}
           </span>
           <p className="text-secondary">
-            Koppel je Google Search Console en ORBIT ENGINE zet de klikken uit Google naast je
-            zichtbaarheid in AI-antwoorden. Dat is het enige beeld dat laat zien of genoemd worden
-            ook bezoekers oplevert.
+            Koppel je Google Search Console en ORBIT ENGINE laat zien of de pagina&apos;s die hij
+            publiceerde ook bezoekers opleveren.
           </p>
           {profile.gsc_last_error && (
             <p className="text-sm text-[var(--status-error)]">
               De laatste synchronisatie liep vast: {profile.gsc_last_error}
             </p>
           )}
-          {/* ⚠️ Hier stond tot 27 augustus 2026 een hoofdknop naar
-              `/instellingen/koppelingen`. Dat scherm is afgeschermd voor de
-              beheerder en gaf de klant een pagina-niet-gevonden: de enige knop
-              op dit scherm was dus ook de enige uitweg, en die was stuk. Het
-              koppelen zelf blijft beheerwerk, want het vraagt om toegang tot
-              het Google-account van de klant. */}
           {staff ? (
             <Link href="/instellingen/koppelingen" className="btn-primary w-fit">
               Naar de koppeling
@@ -107,243 +102,246 @@ export default async function ZoekverkeerPage({
     );
   }
 
-  // ── De vensters ──────────────────────────────────────────────────────────
-  const venster = volledigVenster(rijen)!;
-  const vergelijking = vergelijk(rijen, venster);
-  const dagen = perDag(rijen);
+  // ── F2: labels en clusters, voor de filterbalk (V2) ─────────────────────
+  const [{ data: clusterRijen }, { data: labelRijen }] = await Promise.all([
+    activeOnly(admin.from("analyses").select("id, name, label_id").eq("profile_id", id)),
+    admin.from("cluster_labels").select("*").eq("profile_id", id),
+  ]);
+  const clusters = (clusterRijen ?? []) as { id: string; name: string; label_id: string | null }[];
+  const labels = sorteerLabels((labelRijen ?? []) as ClusterLabel[]);
+  const clusterIds = clusters.map((c) => c.id);
 
-  // ── De pagina's die ORBIT ENGINE schreef, en hun paginatype ──────────────
-  //
-  // Twee bronnen: `content_pieces.published_url` zegt wélke pagina's van ons
-  // zijn, `planned_pages` zegt welk type ze hebben. Het type komt bewust uit het
-  // plan en niet uit `content_pieces.type`, zie de waarschuwing in
-  // `lib/search-console/metrics.ts` bij `klikkenPerType`.
-  const { data: clusterRijen } = await activeOnly(
-    admin.from("analyses").select("id").eq("profile_id", id),
+  const labelfilter = leesLabelfilter(labelUitAdres, labels);
+  const clustersBijLabel = clustersVoorFilter(clusters, labelfilter);
+  const clusterfilter = leesClusterfilter(clusterUitAdres, clustersBijLabel);
+  const zichtbareClusterIds = new Set(
+    (clusterfilter === "alles" ? clustersBijLabel : clustersBijLabel.filter((c) => c.id === clusterfilter)).map(
+      (c) => c.id,
+    ),
   );
-  const clusterIds = ((clusterRijen ?? []) as { id: string }[]).map((c) => c.id);
 
-  const [{ data: pieceRijen }, { data: planRijen }, { data: scoreRijen }] = await Promise.all([
+  // ── V1, V2: de pagina's die ORBIT ENGINE publiceerde ──────────────────────
+  // De koppeling loopt via het cluster: een gepubliceerde pagina hangt via
+  // `content_pieces.analysis_id` aan zijn cluster en daarmee aan zijn label.
+  const [{ data: pieceRijen }, { data: planRijen }] = await Promise.all([
     clusterIds.length > 0
       ? admin
           .from("content_pieces")
-          .select("published_url")
+          .select("id, analysis_id, published_url, published_at, type")
           .in("analysis_id", clusterIds)
           .not("published_url", "is", null)
       : Promise.resolve({ data: [] }),
-    admin
-      .from("planned_pages")
-      .select("page_type, url_path, posted_url")
-      .eq("profile_id", id),
-    clusterIds.length > 0
-      ? admin
-          .from("visibility_scores")
-          .select("analysis_id, week_no, score, weighted_score, computed_at")
-          .in("analysis_id", clusterIds)
-          .order("week_no")
-      : Promise.resolve({ data: [] }),
+    admin.from("planned_pages").select("page_type, url_path, posted_url").eq("profile_id", id),
   ]);
 
-  const onzeUrls = new Set(
-    ((pieceRijen ?? []) as { published_url: string }[]).map((p) => normaliseerUrl(p.published_url)),
-  );
+  const alleStukken = (pieceRijen ?? []) as {
+    id: string;
+    analysis_id: string;
+    published_url: string;
+    published_at: string | null;
+    type: string;
+  }[];
+  const stukken = alleStukken.filter((p) => zichtbareClusterIds.has(p.analysis_id));
+
+  // ── V3: content_impact ernaast, de laatste golf per pagina ────────────────
+  const stukIds = stukken.map((s) => s.id);
+  const { data: impactRijen } =
+    stukIds.length > 0
+      ? await admin
+          .from("content_impact")
+          .select("content_piece_id, wave, verdict")
+          .in("content_piece_id", stukIds)
+      : { data: [] };
+  const verdictPerStuk = new Map<string, { wave: number; verdict: ImpactVerdict }>();
+  for (const r of (impactRijen ?? []) as { content_piece_id: string; wave: number; verdict: ImpactVerdict }[]) {
+    const bestaand = verdictPerStuk.get(r.content_piece_id);
+    if (!bestaand || r.wave > bestaand.wave) verdictPerStuk.set(r.content_piece_id, r);
+  }
 
   const typePerUrl = new Map<string, string>();
-  for (const p of (planRijen ?? []) as {
-    page_type: string;
-    url_path: string | null;
-    posted_url: string | null;
-  }[]) {
+  for (const p of (planRijen ?? []) as { page_type: string; url_path: string | null; posted_url: string | null }[]) {
     const adres = p.posted_url ?? p.url_path;
     if (adres) typePerUrl.set(normaliseerUrl(adres), p.page_type);
   }
 
-  const paginas = perPagina(rijen, onzeUrls);
-  const { beste, zwakste } = besteEnZwakste(paginas);
-  const perType = klikkenPerType(paginas, typePerUrl);
+  // ── V7: de lege staat is de normale staat ─────────────────────────────────
+  if (stukken.length === 0) {
+    const totaalGepland = (planRijen ?? []).length;
+    return (
+      <div className="flex flex-col gap-6">
+        <Kop />
+        <AnalyticsFilters
+          periodes={[]}
+          labels={labels}
+          clustersBijLabel={clustersBijLabel}
+          periodefilter="actueel"
+          labelfilter={labelfilter}
+          clusterfilter={clusterfilter}
+        />
+        <div className="card flex flex-col gap-1">
+          <span className="mono-label">Nog geen pagina&apos;s live</span>
+          <p className="text-secondary">
+            {totaalGepland > 0
+              ? `Er ${totaalGepland === 1 ? "staat 1 pagina" : `staan ${totaalGepland} pagina's`} in je contentplan. Zodra de eerste live gaat, staat het verkeer erop hier.`
+              : "Er staat nog niets in je contentplan."}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
-  // De metingen als losse punten op de tijdlijn, gemiddeld per meetmoment over
-  // de clusters heen. Bewust punten en geen dagcurve: er is tussen twee
-  // metingen niets gemeten.
-  const scorePunten = meetpunten((scoreRijen ?? []) as ScoreRij[]);
+  const onzeUrlPerStuk = new Map(stukken.map((s) => [normaliseerUrl(s.published_url), s]));
+  const rijenVoorOns = rijen.filter((r) => onzeUrlPerStuk.has(normaliseerUrl(r.page)));
+
+  // ── V1: vier kerncijfers, alleen over onze pagina's, V5-bewust ───────────
+  const vensterOns = volledigVenster(rijenVoorOns);
+  const vergelijkingOns = vensterOns ? vergelijk(rijenVoorOns, vensterOns) : null;
+  const dagenOns = perDag(rijenVoorOns);
+  const publicatiedata = [...new Set(stukken.map((s) => s.published_at?.slice(0, 10)).filter((d): d is string => !!d))];
+
+  // ── V3, V6, V8: per pagina ─────────────────────────────────────────────
+  const perUrl = new Map<string, GscDag[]>();
+  for (const r of rijenVoorOns) {
+    const lijst = perUrl.get(r.page) ?? [];
+    lijst.push(r);
+    perUrl.set(r.page, lijst);
+  }
+  const onzePaginas: OnzePaginaRij[] = [...onzeUrlPerStuk.entries()].map(([, stuk]) => {
+    const eigenRijen = perUrl.get(stuk.published_url) ?? [];
+    const totClicks = eigenRijen.reduce((s, r) => s + r.clicks, 0);
+    const totImpr = eigenRijen.reduce((s, r) => s + r.impressions, 0);
+    const gewogenPos =
+      eigenRijen.filter((r) => r.position !== null && r.impressions > 0).length > 0
+        ? eigenRijen.reduce((s, r) => s + (r.position ?? 0) * r.impressions, 0) /
+          Math.max(1, eigenRijen.filter((r) => r.position !== null).reduce((s, r) => s + r.impressions, 0))
+        : null;
+    const sindsPublicatie = stuk.published_at
+      ? eigenRijen
+          .filter((r) => r.day >= stuk.published_at!.slice(0, 10))
+          .sort((a, b) => a.day.localeCompare(b.day))
+          .map((r) => ({ day: r.day, clicks: r.clicks }))
+      : [];
+    return {
+      page: stuk.published_url,
+      clicks: totClicks,
+      impressions: totImpr,
+      ctr: totImpr > 0 ? totClicks / totImpr : null,
+      position: gewogenPos,
+      type: typePerUrl.get(normaliseerUrl(stuk.published_url)) ?? null,
+      effectOpAi: verdictPerStuk.get(stuk.id)?.verdict ?? null,
+      sindsPublicatie,
+      publishedAt: stuk.published_at,
+    };
+  });
+
+  // ── De rest van de site, ter vergelijking (V1, ingeklapt) ────────────────
+  const vensterHeleSite = volledigVenster(rijen)!;
+  const vergelijkingHeleSite = vergelijk(rijen, vensterHeleSite);
 
   return (
     <div className="flex flex-col gap-6">
-      <Kop id={id} />
+      <Kop />
 
-      {/* ── 1. Vier kerncijfers ────────────────────────────────────────────
-          Elk met de verandering ten opzichte van het vorige, even lange
-          venster. Nova's regel: nooit een kaal getal (`schrijfstijl.md` 7). */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Cijfer
-          label="Klikken"
-          waarde={vergelijking.nu.clicks.toLocaleString("nl-NL")}
-          delta={vergelijking.verschil.clicks}
-          beterIsHoger
-        />
-        <Cijfer
-          label="Vertoningen"
-          waarde={vergelijking.nu.impressions.toLocaleString("nl-NL")}
-          delta={vergelijking.verschil.impressions}
-          beterIsHoger
-        />
-        <Cijfer
-          label="Doorklikratio"
-          waarde={procent(vergelijking.nu.ctr)}
-          delta={
-            vergelijking.verschil.ctr === null
-              ? null
-              : Number((vergelijking.verschil.ctr * 100).toFixed(1))
-          }
-          eenheid="pp"
-          beterIsHoger
-        />
-        <Cijfer
-          label="Gemiddelde positie"
-          waarde={vergelijking.nu.position === null ? "-" : vergelijking.nu.position.toFixed(1)}
-          delta={
-            vergelijking.verschil.position === null
-              ? null
-              : Number(vergelijking.verschil.position.toFixed(1))
-          }
-          // ⚠️ Bij de positie is lager beter: van 14,6 naar 9,2 is een
-          // verbetering en hoort een pijl omhoog te krijgen.
-          beterIsHoger={false}
-        />
-      </div>
-      <p className="text-sm text-muted">
-        Vergeleken met de {dagenIn(venster.start, venster.eind)} dagen daarvóór. De laatste twee
-        dagen zijn nog niet definitief: Google corrigeert die na.
-      </p>
+      <AnalyticsFilters
+        periodes={[]}
+        labels={labels}
+        clustersBijLabel={clustersBijLabel}
+        periodefilter="actueel"
+        labelfilter={labelfilter}
+        clusterfilter={clusterfilter}
+      />
 
-      {/* ── 2 en 3. Verloop, met de zichtbaarheidslijn erdoorheen ───────────
-          Eén grafiek en niet twee: het verloop van de klikken en de lijn van de
-          metingen naast elkaar is precies het beeld dat het verhaal vertelt. */}
-      <TrafficChart dagen={dagen} scores={scorePunten} />
-
-      {/* ── 4. Beste en zwakste pagina ─────────────────────────────────────
-          De zwakste is de actiegerichte helft: dat is de pagina die een
-          herschrijving verdient. */}
-      {(beste || zwakste) && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {beste && (
-            <PaginaKaart
-              titel="Beste pagina"
-              uitleg="De pagina die de meeste klikken uit Google haalt."
-              pagina={beste}
-              accent="card-success"
-            />
-          )}
-          {zwakste ? (
-            <PaginaKaart
-              titel="Zwakste pagina"
-              uitleg="Veel gezien, weinig geklikt. Dit is de pagina waar een herschrijving het meeste oplevert."
-              pagina={zwakste}
-              accent="card-warning"
-            />
-          ) : (
-            <div className="card flex flex-col gap-1">
-              <span className="mono-label">Zwakste pagina</span>
-              <p className="text-secondary">
-                Nog geen pagina met genoeg vertoningen om iets over te zeggen. Onder de vijftig
-                vertoningen is een lage doorklikratio toeval, geen signaal.
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── 5. Klikken per paginatype ──────────────────────────────────────
-          Het cijfer dat het contentplan van volgend jaar hoort te sturen. */}
+      {/* ── 1. Onze pagina's bovenaan (V1) ──────────────────────────────────── */}
       <div className="flex flex-col gap-2">
-        <span className="mono-label flex items-center gap-1">
-          Klikken per paginatype
-          <InfoHint label="Welke types zijn dit?">
-            De indeling uit je contentplan: informatief, categorie en dienst. Dat is de as waarop
-            het plan zelf verdeelt, dus een conclusie hier levert meteen een bijstelling op.
-            Pagina&apos;s die niet in je plan staan tellen niet mee.
-          </InfoHint>
-        </span>
-        {perType.length === 0 ? (
-          <div className="card flex flex-col gap-1">
-            <span className="mono-label">Nog niets te verdelen</span>
-            <p className="text-secondary">
-              Zodra er pagina&apos;s uit je contentplan live staan en Google er verkeer op meet,
-              staat hier welk soort content het meeste oplevert.
+        <span className="mono-label">Wat ORBIT ENGINE publiceerde</span>
+        {vergelijkingOns ? (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Cijfer label="Klikken" waarde={vergelijkingOns.nu.clicks.toLocaleString("nl-NL")} delta={vergelijkingOns.verschil.clicks} beterIsHoger />
+              <Cijfer label="Vertoningen" waarde={vergelijkingOns.nu.impressions.toLocaleString("nl-NL")} delta={vergelijkingOns.verschil.impressions} beterIsHoger />
+              <Cijfer
+                label="Doorklikratio"
+                waarde={procent(vergelijkingOns.nu.ctr)}
+                delta={vergelijkingOns.verschil.ctr === null ? null : Number((vergelijkingOns.verschil.ctr * 100).toFixed(1))}
+                eenheid="pp"
+                beterIsHoger
+              />
+              <Cijfer
+                label="Gemiddelde positie"
+                waarde={vergelijkingOns.nu.position === null ? "-" : vergelijkingOns.nu.position.toFixed(1)}
+                delta={vergelijkingOns.verschil.position === null ? null : Number(vergelijkingOns.verschil.position.toFixed(1))}
+                beterIsHoger={false}
+              />
+            </div>
+            {/* ── V5: geen delta bij een onvolledig eerste venster ────────── */}
+            <p className="text-sm text-muted">
+              {vergelijkingOns.vergelijkbaar
+                ? `Vergeleken met de ${dagenIn(vensterOns!.start, vensterOns!.eind)} dagen daarvóór. De laatste twee dagen zijn nog niet definitief.`
+                : `Eerste volledige periode, vanaf ${new Date(vensterOns!.start).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })} vergelijkbaar.`}
             </p>
-          </div>
+          </>
         ) : (
-          <ul className="flex flex-col gap-2">
-            {perType.map((t) => {
-              const totaalKlikken = perType.reduce((s, x) => s + x.clicks, 0);
-              const aandeel = totaalKlikken > 0 ? (t.clicks / totaalKlikken) * 100 : 0;
-              return (
-                <li key={t.type} className="card flex flex-col gap-2">
-                  <span className="flex flex-wrap items-baseline justify-between gap-2">
-                    <span className="font-medium capitalize">{t.type}</span>
-                    <span className="mono-label">
-                      {t.clicks.toLocaleString("nl-NL")} klikken over{" "}
-                      {t.paginas === 1 ? "1 pagina" : `${t.paginas} pagina's`}
-                    </span>
-                  </span>
-                  <span
-                    className="h-2 w-full overflow-hidden rounded-[var(--radius-pill)]"
-                    style={{ background: "var(--bg-elevated)" }}
-                  >
-                    <span
-                      className="block h-full rounded-[var(--radius-pill)]"
-                      style={{ width: `${aandeel}%`, background: "var(--chart-2)" }}
-                    />
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+          <p className="text-secondary">Nog geen klikken gemeten op onze pagina&apos;s.</p>
         )}
       </div>
 
-      {/* ── 6. Alle pagina's ───────────────────────────────────────────────
-          Op mobiel gestapelde kaarten en geen tabel met vijf kolommen
-          (`docs/ux-design.md` §7). */}
+      {/* ── 2. Levensloop, geen kalender (V4) ─────────────────────────────── */}
+      <PagesTrafficChart dagen={dagenOns} publicatiedata={publicatiedata} />
+
+      {/* ── 3, 6, 8. Onze pagina's als tabel ─────────────────────────────── */}
       <div className="flex flex-col gap-2">
-        <span className="mono-label">Alle pagina&apos;s ({paginas.length})</span>
-        <ul className="flex flex-col gap-2">
-          {paginas.map((p) => (
-            <li
-              key={p.page}
-              className="card flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <span className="min-w-0 flex-1">
-                <ExternalLink href={p.page} className="break-url text-sm hover:underline">
-                  {p.page}
-                </ExternalLink>
-                {p.vanOns && (
-                  <span className="chip chip-info ml-2 align-middle">door ORBIT ENGINE</span>
-                )}
-              </span>
-              <span className="flex shrink-0 flex-wrap gap-4">
-                <Kolom label="klikken" waarde={p.clicks.toLocaleString("nl-NL")} />
-                <Kolom label="vertoningen" waarde={p.impressions.toLocaleString("nl-NL")} />
-                <Kolom label="ctr" waarde={procent(p.ctr)} />
-                <Kolom
-                  label="positie"
-                  waarde={p.position === null ? "-" : p.position.toFixed(1)}
-                />
-              </span>
-            </li>
-          ))}
-        </ul>
+        <span className="mono-label flex items-center gap-1">
+          Onze pagina&apos;s ({onzePaginas.length})
+          <InfoHint label="Wat is 'Effect op AI'?">
+            {"content_impact"} vergelijkt hoe vaak AI je noemde vóór en ná publicatie, tegen een
+            controlegroep clusters die niets veranderde. Het enige cijfer op dit scherm dat oorzaak
+            en gevolg verbindt.
+          </InfoHint>
+        </span>
+        <ZoekverkeerPaginas rows={onzePaginas} />
       </div>
+
+      {/* ── De rest van de site, ingeklapt (V1) ─────────────────────────── */}
+      <details className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
+        <summary className="cursor-pointer text-sm text-secondary">De rest van je site, ter vergelijking</summary>
+        <div className="mt-3 flex flex-col gap-2">
+          <p className="text-sm text-muted">
+            De hele website in Google, inclusief pagina&apos;s die er al stonden vóór ORBIT ENGINE.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Cijfer label="Klikken" waarde={vergelijkingHeleSite.nu.clicks.toLocaleString("nl-NL")} delta={vergelijkingHeleSite.verschil.clicks} beterIsHoger />
+            <Cijfer label="Vertoningen" waarde={vergelijkingHeleSite.nu.impressions.toLocaleString("nl-NL")} delta={vergelijkingHeleSite.verschil.impressions} beterIsHoger />
+            <Cijfer
+              label="Doorklikratio"
+              waarde={procent(vergelijkingHeleSite.nu.ctr)}
+              delta={vergelijkingHeleSite.verschil.ctr === null ? null : Number((vergelijkingHeleSite.verschil.ctr * 100).toFixed(1))}
+              eenheid="pp"
+              beterIsHoger
+            />
+            <Cijfer
+              label="Gemiddelde positie"
+              waarde={vergelijkingHeleSite.nu.position === null ? "-" : vergelijkingHeleSite.nu.position.toFixed(1)}
+              delta={vergelijkingHeleSite.verschil.position === null ? null : Number(vergelijkingHeleSite.verschil.position.toFixed(1))}
+              beterIsHoger={false}
+            />
+          </div>
+          {!vergelijkingHeleSite.vergelijkbaar && (
+            <p className="text-sm text-muted">
+              Eerste volledige periode, vanaf {new Date(vensterHeleSite.start).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })} vergelijkbaar.
+            </p>
+          )}
+        </div>
+      </details>
     </div>
   );
 }
 
-function Kop({ id }: { id: string }) {
+function Kop() {
   return (
     <PageHeader
       eyebrow="Analytics"
       title="Zoekverkeer"
-      description="De klikken uit Google naast je zichtbaarheid in AI-antwoorden. Het bewijsstuk onder het verhaal."
+      description="Levert de content die ORBIT ENGINE publiceerde ook bezoekers op uit Google?"
     />
   );
 }
@@ -361,7 +359,6 @@ function Cijfer({
   eenheid?: string;
   beterIsHoger: boolean;
 }) {
-  // Richting én kleur, nooit kleur alleen (`docs/ux-design.md` §2 regel 4).
   const beter = delta === null || delta === 0 ? null : beterIsHoger ? delta > 0 : delta < 0;
   return (
     <div className="card flex flex-col gap-1">
@@ -370,53 +367,13 @@ function Cijfer({
       {delta === null || delta === 0 ? (
         <span className="mono-label text-muted">{delta === 0 ? "gelijk" : "geen vergelijking"}</span>
       ) : (
-        <span
-          className="mono-label"
-          style={{
-            color: beter ? "var(--intent-growth-text)" : "var(--intent-danger-text)",
-          }}
-        >
+        <span className="mono-label" style={{ color: beter ? "var(--intent-growth-text)" : "var(--intent-danger-text)" }}>
           <Icon naam={delta > 0 ? "stijging" : "daling"} size={12} />
           {Math.abs(delta).toLocaleString("nl-NL")}
           {eenheid ? ` ${eenheid}` : ""}
         </span>
       )}
     </div>
-  );
-}
-
-function PaginaKaart({
-  titel,
-  uitleg,
-  pagina,
-  accent,
-}: {
-  titel: string;
-  uitleg: string;
-  pagina: { page: string; clicks: number; impressions: number; ctr: number | null };
-  accent: string;
-}) {
-  return (
-    <div className={`card ${accent} flex flex-col gap-2`}>
-      <span className="mono-label">{titel}</span>
-      <ExternalLink href={pagina.page} className="break-url text-sm font-medium hover:underline">
-        {pagina.page}
-      </ExternalLink>
-      <p className="text-sm text-muted">{uitleg}</p>
-      <span className="mono-label">
-        {pagina.clicks.toLocaleString("nl-NL")} klikken uit{" "}
-        {pagina.impressions.toLocaleString("nl-NL")} vertoningen · {procent(pagina.ctr)}
-      </span>
-    </div>
-  );
-}
-
-function Kolom({ label, waarde }: { label: string; waarde: string }) {
-  return (
-    <span className="flex flex-col">
-      <span className="mono-label">{label}</span>
-      <span className="stat-value text-sm">{waarde}</span>
-    </span>
   );
 }
 
@@ -428,36 +385,4 @@ function procent(waarde: number | null): string {
 function dagenIn(start: string, eind: string): number {
   const ms = new Date(`${eind}T00:00:00Z`).getTime() - new Date(`${start}T00:00:00Z`).getTime();
   return Math.round(ms / 86400000) + 1;
-}
-
-interface ScoreRij {
-  analysis_id: string;
-  week_no: number;
-  score: number;
-  weighted_score: number | null;
-  computed_at: string | null;
-}
-
-/**
- * De metingen als punten op de tijdlijn: per meetmoment het gemiddelde over de
- * clusters die op dat moment gemeten zijn.
- *
- * Bewust op de dag van meten en niet op periodenummer: de kliklijn loopt op
- * kalenderdagen, en twee tijdschalen in één grafiek werken alleen als ze
- * dezelfde as delen. Een meting zonder datum valt weg, want die kun je nergens
- * neerzetten (conventie 3).
- */
-function meetpunten(rijen: ScoreRij[]): ScorePunt[] {
-  const perDag = new Map<string, number[]>();
-  for (const r of rijen) {
-    if (!r.computed_at) continue;
-    const day = r.computed_at.slice(0, 10);
-    perDag.set(day, [...(perDag.get(day) ?? []), r.weighted_score ?? r.score]);
-  }
-  return [...perDag.entries()]
-    .map(([day, waarden]) => ({
-      day,
-      score: waarden.reduce((s, v) => s + v, 0) / waarden.length,
-    }))
-    .sort((a, b) => a.day.localeCompare(b.day));
 }
