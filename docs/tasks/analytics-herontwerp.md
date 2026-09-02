@@ -1,9 +1,12 @@
 # Herontwerp van Analytics (implementatieplan, 2 september 2026)
 
-> **Voortgang.** Ronde 1 (§6, het fundament: F1 tot en met F3, Z3, Z5, C1, C2, C3) is gebouwd en
-> gecontroleerd tegen productie; de alinea staat in `docs/logbook.md` bij 2 september 2026. Ronde 2 en
-> ronde 3 staan nog open. Dit bestand blijft de bouwopdracht voor wat resteert en verdwijnt zodra alle
-> drie de rondes af zijn (§10).
+> **Voortgang.** Ronde 1 (§6, het fundament: F2, F3, Z3, Z5, C1, C2, C3) is gebouwd en gecontroleerd
+> tegen productie; de alinea's staan in `docs/logbook.md` bij 2 september 2026. **F1 (de verruiming
+> naar 1600px) is teruggedraaid op verzoek van de eigenaar**: Analytics blijft op de standaardbreedte
+> van de rest van de app. De tabellen uit F3 draaien dus binnen 1024px in plaats van de 1280 tot
+> 1600px waar dit plan ze voor ontwierp; §1.3 en de bijbehorende stukken tekst hieronder gelden
+> daarmee niet meer als bouwopdracht. Ronde 2 en ronde 3 staan nog open. Dit bestand blijft de
+> bouwopdracht voor wat resteert en verdwijnt zodra alle drie de rondes af zijn (§10).
 
 Opdracht van de eigenaar: de vier schermen onder Analytics zo herontwerpen dat elk scherm één
 duidelijke vraag beantwoordt, zonder overlap, met inzichten die de gebruiker echt verder helpen. Er

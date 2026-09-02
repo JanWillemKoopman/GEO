@@ -7,9 +7,9 @@ import { PageHeader } from "@/components/page-header";
 import { AuditPanel } from "@/components/audit-panel";
 import { InfoHint } from "@/components/info-hint";
 import { AnalyticsFilters } from "@/components/analytics-filters";
-import { AnalyticsTable, type AnalyticsColumn } from "@/components/analytics-table";
+import { AnalyticsClusterTable } from "@/components/analytics-cluster-table";
 import { activeOnly } from "@/lib/archive";
-import { confidenceBand, changeIsMeaningful } from "@/lib/stats/uncertainty";
+import { confidenceBand } from "@/lib/stats/uncertainty";
 import {
   bepaalPeriodes,
   clustersVoorFilter,
@@ -30,7 +30,6 @@ import type {
   TechnicalAudit as TechnicalAuditRow,
   VisibilityScore,
 } from "@/lib/types/database";
-import { Icon } from "@/components/icon";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Zichtbaarheid in AI" };
@@ -245,14 +244,7 @@ export default async function AnalyticsPage({
       {perCluster.length > 0 && (
         <div className="flex flex-col gap-2">
           <span className="mono-label">Per cluster</span>
-          <AnalyticsTable
-            rows={perCluster}
-            rowKey={(r) => r.cluster.id}
-            defaultSortKey="zichtbaarheid"
-            defaultSortDir="asc"
-            columns={clusterKolommen(labelNaamPerId)}
-            stickyOffset="calc(var(--header-h) + 3.5rem)"
-          />
+          <AnalyticsClusterTable rows={perCluster} labelNaamPerId={labelNaamPerId} />
         </div>
       )}
 
@@ -297,108 +289,6 @@ function leidend(s: VisibilityScore): number {
 /** De onzekerheid die bij `leidend()` hoort. De twee horen altijd bij elkaar. */
 function stderrVan(s: VisibilityScore): number {
   return (s.weighted_score != null ? s.weighted_stderr : s.score_stderr) ?? 0;
-}
-
-interface ClusterRij {
-  cluster: { id: string; name: string; label_id: string | null };
-  reeks: VisibilityScore[];
-  laatste: VisibilityScore | null;
-  vorige: VisibilityScore | null;
-}
-
-/** De kolommen van de clustertabel (plan Z3): label, cluster, zichtbaarheid,
- * marge, verandering, gemeten vragen, laatst gemeten. Gesorteerd op zwakste
- * eerst (`page.tsx` zet `defaultSortDir="asc"` op de zichtbaarheidskolom). */
-function clusterKolommen(labelNaamPerId: Map<string, string>): AnalyticsColumn<ClusterRij>[] {
-  return [
-    {
-      key: "label",
-      header: "Label",
-      width: "9rem",
-      sortValue: (r) => (r.cluster.label_id ? labelNaamPerId.get(r.cluster.label_id) ?? null : null),
-      render: (r) =>
-        r.cluster.label_id ? (
-          labelNaamPerId.get(r.cluster.label_id) ?? "Onbekend label"
-        ) : (
-          <span className="text-muted">Zonder label</span>
-        ),
-    },
-    {
-      key: "cluster",
-      header: "Cluster",
-      sortValue: (r) => r.cluster.name,
-      render: (r) => (
-        <Link href={`/analyses/${r.cluster.id}`} className="font-medium hover:underline">
-          {r.cluster.name}
-        </Link>
-      ),
-    },
-    {
-      key: "zichtbaarheid",
-      header: "Zichtbaarheid",
-      numeriek: true,
-      width: "8rem",
-      sortValue: (r) => leidend(r.laatste!),
-      render: (r) => `${Math.round(leidend(r.laatste!))}%`,
-    },
-    {
-      key: "marge",
-      header: "Marge",
-      numeriek: true,
-      width: "7rem",
-      sortValue: (r) => confidenceBand(leidend(r.laatste!), stderrVan(r.laatste!)).margin,
-      render: (r) => {
-        const band = confidenceBand(leidend(r.laatste!), stderrVan(r.laatste!));
-        return band.margin > 0 ? `± ${band.margin}` : "-";
-      },
-    },
-    {
-      key: "verandering",
-      header: "Verandering",
-      numeriek: true,
-      width: "9rem",
-      sortValue: (r) => (r.vorige ? leidend(r.laatste!) - leidend(r.vorige) : null),
-      render: (r) => {
-        if (!r.vorige) return <span className="chip chip-neutral">eerste meting</span>;
-        const nu = leidend(r.laatste!);
-        const toen = leidend(r.vorige);
-        const betekenisvol = changeIsMeaningful(
-          { score: nu, stderr: stderrVan(r.laatste!) },
-          { score: toen, stderr: stderrVan(r.vorige) },
-        ).changed;
-        const delta = nu - toen;
-        if (!betekenisvol) return <span className="chip chip-neutral">gelijk</span>;
-        return (
-          <span className={delta > 0 ? "chip chip-success" : "chip chip-danger"}>
-            <Icon naam={delta > 0 ? "stijging" : "daling"} size={12} />
-            {Math.abs(Math.round(delta))}
-          </span>
-        );
-      },
-    },
-    {
-      key: "gemeten",
-      header: "Gemeten vragen",
-      numeriek: true,
-      width: "8rem",
-      sortValue: (r) => r.laatste!.judged_runs ?? null,
-      render: (r) => r.laatste!.judged_runs ?? "-",
-    },
-    {
-      key: "laatstgemeten",
-      header: "Laatst gemeten",
-      width: "9rem",
-      sortValue: (r) => r.laatste!.computed_at ?? null,
-      render: (r) =>
-        r.laatste!.computed_at
-          ? new Date(r.laatste!.computed_at).toLocaleDateString("nl-NL", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            })
-          : "-",
-    },
-  ];
 }
 
 /** Het merkcijfer, gewogen op het aantal gemeten vragen per cluster. */

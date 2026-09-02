@@ -6209,10 +6209,12 @@ Ronde 1 van `docs/tasks/analytics-herontwerp.md` is gebouwd: het rooster (F1), d
 de tabelcomponent (F3), en de vier ingrepen die volgens het plan samen de meeste hoogte weghalen en
 de meeste breedte teruggeven (Z3, Z5, C1, C3), plus C2 omdat die op dezelfde tabel meelift.
 
-**F1.** `components/workspace-chrome.tsx` verruimt de inhoud tot 1600 pixels, alleen op
-`/merk/[id]/analytics/*`-routes (via `usePathname()`, geen aparte instelling); de rest van de app
-blijft op 1024. Een nieuwe `app/(app)/merk/[id]/analytics/layout.tsx` zet daaronder een
-`min-width: 1280px` met een regel die verschijnt zodra het venster smaller is.
+**F1, teruggedraaid dezelfde dag.** De verruiming naar 1600 pixels is gebouwd geweest
+(`components/workspace-chrome.tsx`, `app/(app)/merk/[id]/analytics/layout.tsx`) en na feedback van
+de eigenaar weer verwijderd: Analytics blijft op de standaardbreedte van 1024 pixels, net als de rest
+van de app. F3 (`components/analytics-table.tsx`) laat elke cijferkolom daardoor krapper staan dan
+het plan voorzag; de tabel comprimeert zichzelf binnen die breedte (`table { max-width: 100% }` staat
+al globaal in `app/globals.css`) in plaats van te verbreden of te scrollen.
 
 **F2 en F3.** `lib/analytics-filters.ts` (pure functies, getest) plus `components/analytics-filters.tsx`
 geven Zichtbaarheid en Concurrenten dezelfde filterbalk: Periode, Label, Cluster. Periode is nieuw
@@ -6243,3 +6245,16 @@ rijen tegelijk bewerken is niet gebouwd. Ronde 2 (V1 tot en met V5, R1 tot en me
 C2 zat al in deze ronde) en ronde 3 (F4, F5 met het fasefilter, Z4, Z6, Z7, V6 tot en met V8, C4, C6,
 R4 tot en met R6) staan nog open in `docs/tasks/analytics-herontwerp.md`. Vier controles groen:
 typecheck, 3664 unittests (16 nieuw), 576 ketentests, de productiebuild.
+
+**Directe reparatie: Zichtbaarheid crashte in productie.** ⚠️ De eerste versie gaf `AnalyticsTable`
+zijn kolommen (met `render`/`sortValue`-functies erin) rechtstreeks mee vanuit `page.tsx`, een
+Server Component. Dat mag niet: React kan geen functies serialiseren over de grens naar een Client
+Component, en Next.js gooide dat op elke paginalading om, zichtbaar in de Vercel-runtimelogs als
+"Functions cannot be passed directly to Client Components". Beide tabellen (Zichtbaarheid én
+Concurrenten, alleen de eerste was opgevallen) crashten hierdoor. Opgelost door de kolomdefinities
+in twee nieuwe Client Components te zetten die zelf pure data binnenkrijgen:
+`components/analytics-cluster-table.tsx` en `components/analytics-ranking-table.tsx`. `page.tsx`
+geeft nu alleen nog rijen en een `Map` door, nooit een functie, en `AnalyticsTable` zelf blijft
+generiek. Tegen deze klasse fouten helpt geen typecheck of unittest: hij is pas zichtbaar bij een
+echte render, en is nu wel bevestigd via de Vercel MCP-tools (`get_runtime_errors` op het
+preview-deployment) in plaats van alleen aangenomen.
