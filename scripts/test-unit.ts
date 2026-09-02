@@ -16296,6 +16296,32 @@ group("de prullenbak stopt de metingen, en dat staat in de code", () => {
   ok("de labelroute controleert het eigenaarschap", labels.includes("getOwnedProfile"));
 });
 
+group("een label hernoemen raakt één rij, weggooien raakt geen cluster", () => {
+  const beheer = leesBestand("app/api/profiles/[id]/labels/[labelId]/route.ts");
+  ok("hernoemen kan", beheer.includes("export async function PATCH"));
+  ok("weggooien kan", beheer.includes("export async function DELETE"));
+  ok("allebei via het eigen merk", beheer.includes("getOwnedProfile"));
+  // ⚠️ Zonder het merk IN de query kan iemand met twee merken een label-id van
+  // merk B meesturen op het adres van merk A.
+  ok("het merk staat in de query", beheer.includes('.eq("profile_id", profileId)'));
+  // Hernoemen is één update op `cluster_labels`, nooit een ronde langs de
+  // clusters: die wijzen naar het id en verhuizen vanzelf mee.
+  ok("hernoemen raakt de clusters niet aan", !beheer.includes('from("analyses")'));
+
+  // De belofte van de bevestiging: geen cluster gaat mee. Dat is `on delete set
+  // null` in migratie 0083, en die vorm hoort er te blijven staan.
+  const migratie = leesBestand("supabase/migrations/0083_clusterlabels.sql");
+  ok(
+    "een label weggooien laat de clusters staan",
+    migratie.includes("references public.cluster_labels (id) on delete set null"),
+  );
+
+  const paneel = leesBestand("app/(app)/merk/[id]/strategie/clusters/label-beheer.tsx");
+  ok("de bevestiging zegt dat de clusters blijven staan", paneel.includes("blijven gewoon staan"));
+  // Wél terug te draaien, dus niet in het rode kader dat zegt van niet.
+  ok("en gebruikt het onomkeerbaar-blok niet", !paneel.includes("irreversible={"));
+});
+
 // ════════════════════════════════════════════════════════════════════════════
 void (async () => {
   await paginatieControles();

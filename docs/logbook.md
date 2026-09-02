@@ -5730,8 +5730,17 @@ lege lijst zonder uitleg leest als "mijn clusters zijn weg".
 Het kaartje in het overzicht is daarmee geen `<Link>` meer om zijn geheel: een keuzelijst binnen een
 link is niet met het toetsenbord te bedienen. De kop is nu de link, de bediening staat eronder.
 
-Vier controles groen: typecheck, 3492 unittests (29 nieuw), 562 ketentests (5 nieuw, waaronder de
-controle dat een gearchiveerd cluster echt uit de maandronde valt en dat een verwijderd label zijn
-clusters laat staan), de productiebuild. De migratie is toegepast op productie. **Nog niet
-geverifieerd met een echte klant** (conventie 10): er is nog geen productieprofiel waar iemand
-labels op heeft gezet.
+**Labels beheren.** Achter het filter staat "Labels beheren", dat een lijstje openklapt waarin een
+label te hernoemen en weg te gooien is. Achter het filter en niet ervoor: filteren doe je elke keer
+dat je hier komt, hernoemen een enkele keer. Hernoemen is één update op één rij, en de clusters
+verhuizen vanzelf mee omdat ze naar het id wijzen; met een tekstkolom op `analyses` was dit een
+update over alle clusters heen geweest die halverwege kon stranden. Weggooien haalt alleen het label
+eraf, want `on delete set null`, en dat staat ook letterlijk in de bevestiging: zonder die zin durft
+niemand de knop te gebruiken. Het aantal naast een label telt over de actieve clusters én de
+prullenbak heen, anders zegt het paneel "0 clusters" bij een label waar er tien onder hangen.
+
+Vier controles groen: typecheck, 3501 unittests (38 nieuw), 563 ketentests (6 nieuw, waaronder de
+controle dat een gearchiveerd cluster echt uit de maandronde valt, dat een verwijderd label zijn
+clusters laat staan en dat hernoemen het cluster meeneemt zonder het aan te raken), de
+productiebuild. De migratie is toegepast op productie. **Nog niet geverifieerd met een echte klant**
+(conventie 10): er is nog geen productieprofiel waar iemand labels op heeft gezet.

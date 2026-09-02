@@ -117,6 +117,9 @@ export default async function ClustersPage({
   const labelfilter = leesLabelfilter(labelUitAdres, labels);
   const zichtbaar = filterOpLabel(inPrullenbak ? gearchiveerd : analyses, labelfilter);
   const telling = telPerLabel(inPrullenbak ? gearchiveerd : analyses);
+  // Het beheerpaneel telt over beide lijsten heen: een label dat alleen nog
+  // clusters in de prullenbak heeft, is niet leeg.
+  const tellingTotaal = telPerLabel([...analyses, ...gearchiveerd]);
 
   // ── Blok 3: de voorstellen uit de nulmeting ──────────────────────────────
   // Besluit 6: dit stond op een eigen adres ("Voorgestelde clusters"), en dat
@@ -189,6 +192,7 @@ export default async function ClustersPage({
           labels={labels}
           filter={labelfilter}
           aantalPerLabel={telling.perLabel}
+          aantalPerLabelTotaal={tellingTotaal.perLabel}
           aantalZonderLabel={telling.zonderLabel}
           aantalActief={analyses.length}
           aantalPrullenbak={gearchiveerd.length}

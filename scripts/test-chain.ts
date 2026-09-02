@@ -2199,8 +2199,37 @@ async function main(): Promise<void> {
     await db.client.query("update public.analyses set archived_at = null where id = $1", [gelabeld]);
     ok("en terugzetten laat het meten weer meedoen", await inDeMaandronde());
 
+    // ── Hernoemen raakt één rij en verhuist de clusters mee ────────────────
+    //
+    // Precies waarvoor `cluster_labels` een tabel is en geen tekstkolom: het
+    // cluster wijst naar het id, dus de naam wijzigt op één plek.
+    const { rows: hernoemRij } = await db.client.query(
+      "insert into public.cluster_labels (profile_id, name) values ($1, 'Storing') returning id",
+      [profileId],
+    );
+    const hernoemId = hernoemRij[0].id as string;
+    await db.client.query("update public.analyses set label_id = $1 where id = $2", [
+      hernoemId,
+      gelabeld,
+    ]);
+    await db.client.query("update public.cluster_labels set name = 'Storing en spoed' where id = $1", [
+      hernoemId,
+    ]);
+    const { rows: naHernoemen } = await db.client.query(
+      `select l.name from public.analyses a
+         join public.cluster_labels l on l.id = a.label_id
+        where a.id = $1`,
+      [gelabeld],
+    );
+    ok(
+      "hernoemen verhuist het cluster mee, zonder het cluster aan te raken",
+      naHernoemen[0]?.name === "Storing en spoed",
+      `naam was ${naHernoemen[0]?.name}`,
+    );
+
     // Opruimen: dit cluster hoort niet mee te tellen in de scenario's hierna.
     await db.client.query("delete from public.analyses where id = $1", [gelabeld]);
+    await db.client.query("delete from public.cluster_labels where id = $1", [hernoemId]);
 
     // ══════════════════════════════════════════════════════════════════════
     // De promptgeneratie per funnelfase (migratie 0054)
