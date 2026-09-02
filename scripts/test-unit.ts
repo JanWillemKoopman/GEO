@@ -16583,6 +16583,8 @@ group("De dekkingspoort op het contentcontract (A3)", () => {
         explainerTerms: ["runnersknie"],
         targetWords: 100,
         needsBrandFact: false,
+        importance: "ondersteunend" as const,
+        successCriterion: "",
         presentOnExisting: "niet_van_toepassing" as const,
         whatToChange: "",
       },
@@ -16595,11 +16597,16 @@ group("De dekkingspoort op het contentcontract (A3)", () => {
         explainerTerms: [],
         targetWords: 100,
         needsBrandFact: false,
+        importance: "ondersteunend" as const,
+        successCriterion: "",
         presentOnExisting: "niet_van_toepassing" as const,
         whatToChange: "",
       },
     ],
     faqQuestions: ["Heb ik een verwijzing nodig?"],
+    pageObjective: "",
+    targetAudience: "",
+    avoid: [],
     reasoning: "",
   };
 
@@ -16700,15 +16707,20 @@ group("Het contract opschonen en als opdracht formuleren (A2)", () => {
         explainerTerms: [""],
         targetWords: 0,
         needsBrandFact: false,
+        importance: "ondersteunend" as const,
+        successCriterion: "",
         presentOnExisting: "niet_van_toepassing" as const,
         whatToChange: "",
       },
       // Een sectie zonder kop of zonder deelvraag kan de poort niet toetsen en
       // de schrijver niet uitvoeren: die hoort te vervallen.
-      { id: "s2", heading: "  ", subQuestion: "iets", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 100, needsBrandFact: false, presentOnExisting: "niet_van_toepassing", whatToChange: "" },
-      { id: "s3", heading: "Kop", subQuestion: "  ", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 9999, needsBrandFact: false, presentOnExisting: "niet_van_toepassing", whatToChange: "" },
+      { id: "s2", heading: "  ", subQuestion: "iets", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 100, needsBrandFact: false, importance: "ondersteunend" as const, successCriterion: "", presentOnExisting: "niet_van_toepassing" as const, whatToChange: "" },
+      { id: "s3", heading: "Kop", subQuestion: "  ", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 9999, needsBrandFact: false, importance: "ondersteunend" as const, successCriterion: "", presentOnExisting: "niet_van_toepassing" as const, whatToChange: "" },
     ],
     faqQuestions: ["", "Heb ik een verwijzing nodig?"],
+    pageObjective: "",
+    targetAudience: "",
+    avoid: [],
     reasoning: "",
   };
   const schoon = normaliseerContract(rommelig);
@@ -16759,7 +16771,12 @@ group("De bedrading van de nieuwe contentpijplijn", () => {
 
   // ── Het panel beoordeelt, niet één generalist (A5) ───────────────────────
   const panel = leesBestand("lib/pipeline/content-panel.ts");
-  ok("er zijn drie beoordelaars", panel.includes("content_factuality") && panel.includes("content_citability"));
+  ok(
+    "er zijn vier beoordelaars",
+    panel.includes("content_factuality") &&
+      panel.includes("content_citability") &&
+      panel.includes("content_craft"),
+  );
   ok("ze draaien tegelijk", panel.includes("Promise.all"));
   ok("op de goedkope tier", panel.includes("MODELS.quality") && !panel.includes("MODELS.content"));
   ok("met redeneertijd", panel.includes('work: "judging"'));
@@ -16777,7 +16794,9 @@ group("De bedrading van de nieuwe contentpijplijn", () => {
 
   // ── De dekkingspoort hangt aan de eindstand (A3) ─────────────────────────
   ok("de dekking bepaalt mee of er gerepareerd wordt", content.includes("COVERAGE_THRESHOLD"));
-  ok("en wordt bewaard bij de pagina", content.includes("coverage_score"));
+  // Sinds migratie 0091 schrijft `quality-run.ts` de kolommen weg: één keuring
+  // voor de eerste versie én de reparatierondes, zodat ze niet uit elkaar lopen.
+  ok("en wordt bewaard bij de pagina", leesBestand("lib/pipeline/quality-run.ts").includes("coverage_score"));
 
   // ── De bronanalyse wordt hergebruikt (A9) ────────────────────────────────
   const bron = leesBestand("lib/pipeline/source-analysis.ts");
@@ -16906,11 +16925,16 @@ group("De opening van een pagina bevat geen interne notities (verbetering 3)", (
         explainerTerms: [],
         targetWords: 120,
         needsBrandFact: false,
+        importance: "ondersteunend" as const,
+        successCriterion: "",
         presentOnExisting: "niet_van_toepassing" as const,
         whatToChange: "",
       },
     ],
     faqQuestions: ["Werkt u in Tilburg?"],
+    pageObjective: "",
+    targetAudience: "",
+    avoid: [],
     reasoning: "",
   };
   const opgeschoond = normaliseerContract(metaContract);
@@ -16996,7 +17020,10 @@ group("De reparatie krijgt de zwaarste punten eerst (verbetering 5)", () => {
   ok("lege regels tellen niet mee", prioriteerBevindingen(["", "  ", "iets"]).length === 1);
 
   const content = leesBestand("lib/pipeline/content.ts");
-  ok("de reparatieprompt krijgt de geordende lijst", content.includes("prioriteerBevindingen(issues"));
+  // Sinds migratie 0091 zijn de bevindingen getypeerd en ordent `prioriteerIssues`
+  // op ernst maal zekerheid in plaats van op woordpatronen. `prioriteerBevindingen`
+  // blijft bestaan voor bevindingen die nog als losse tekst binnenkomen.
+  ok("de reparatieprompt krijgt de geordende lijst", content.includes("prioriteerIssues(teRepareren"));
   ok("een slechtere versie wordt niet opgeslagen", content.includes("...(nietSlechter ? nieuweVersie : {})"));
   // Verbetering 10.
   ok("het aantal woorden wordt bijgewerkt", content.includes("word_count: countWords(final.bodyMarkdown)"));
@@ -17108,6 +17135,8 @@ group("Het contract past in de doellengte (verbetering 6)", () => {
     explainerTerms: [],
     targetWords: woorden,
     needsBrandFact: false,
+    importance: "ondersteunend" as const,
+    successCriterion: "",
     presentOnExisting: "niet_van_toepassing" as const,
     whatToChange: "",
   });
@@ -17117,6 +17146,9 @@ group("Het contract past in de doellengte (verbetering 6)", () => {
     openingAnswer: "Gasservice Brabant plaatst hybride warmtepompen in Tilburg.",
     sections: Array.from({ length: 25 }, (_, i) => sectie(i + 1, 40)),
     faqQuestions: Array.from({ length: 16 }, (_, i) => `Vraag ${i + 1}?`),
+    pageObjective: "",
+    targetAudience: "",
+    avoid: [],
     reasoning: "",
   };
   const gesnoeid = normaliseerContract(teGroot, { maxWoorden: 700 });
@@ -17132,6 +17164,9 @@ group("Het contract past in de doellengte (verbetering 6)", () => {
     openingAnswer: "Ja, dat kan.",
     sections: [sectie(1, 120), sectie(2, 120), sectie(3, 120)],
     faqQuestions: ["Een?"],
+    pageObjective: "",
+    targetAudience: "",
+    avoid: [],
     reasoning: "",
   };
   ok("een passend contract blijft heel", normaliseerContract(past, { maxWoorden: 700 }).sections.length === 3);
@@ -17262,11 +17297,16 @@ group("De dekkingspoort leest verwijzingen zoals de citaatcontrole (verbetering 
         explainerTerms: [],
         targetWords: 120,
         needsBrandFact: false,
+        importance: "ondersteunend" as const,
+        successCriterion: "",
         presentOnExisting: "niet_van_toepassing" as const,
         whatToChange: "",
       },
     ],
     faqQuestions: [],
+    pageObjective: "",
+    targetAudience: "",
+    avoid: [],
     reasoning: "",
   };
   const body =
@@ -17309,6 +17349,8 @@ group("Een vakterm telt pas als hij echt is uitgelegd (verbetering 12)", () => {
         explainerTerms: termen,
         targetWords: 120,
         needsBrandFact: false,
+        importance: "ondersteunend" as const,
+        successCriterion: "",
         presentOnExisting: "niet_van_toepassing" as const,
         whatToChange: "",
       },
@@ -17321,11 +17363,16 @@ group("Een vakterm telt pas als hij echt is uitgelegd (verbetering 12)", () => {
         explainerTerms: [],
         targetWords: 120,
         needsBrandFact: false,
+        importance: "ondersteunend" as const,
+        successCriterion: "",
         presentOnExisting: "niet_van_toepassing" as const,
         whatToChange: "",
       },
     ],
     faqQuestions: [],
+    pageObjective: "",
+    targetAudience: "",
+    avoid: [],
     reasoning: "",
   });
 
@@ -17396,6 +17443,8 @@ group("De onderbouwingsgraad per pagina (vragen-voor-het-schrijven §4)", () => 
     explainerTerms: [],
     targetWords: 100,
     needsBrandFact,
+    importance: "ondersteunend" as const,
+    successCriterion: "",
     presentOnExisting: "niet_van_toepassing",
     whatToChange: "",
   });
@@ -17404,6 +17453,9 @@ group("De onderbouwingsgraad per pagina (vragen-voor-het-schrijven §4)", () => 
     openingAnswer: "Ja.",
     sections: secties,
     faqQuestions: [],
+    pageObjective: "",
+    targetAudience: "",
+    avoid: [],
     reasoning: "",
   });
 
@@ -17472,6 +17524,8 @@ group("Overslaan haalt de sectie eruit (vragen-voor-het-schrijven §6)", () => {
     explainerTerms: [],
     targetWords: 100,
     needsBrandFact: true,
+    importance: "ondersteunend" as const,
+    successCriterion: "",
     presentOnExisting: "niet_van_toepassing" as const,
     whatToChange: "",
   });
@@ -17479,6 +17533,9 @@ group("Overslaan haalt de sectie eruit (vragen-voor-het-schrijven §6)", () => {
     openingAnswer: "Ja.",
     sections: ["s1", "s2", "s3", "s4", "s5"].map(sectie),
     faqQuestions: [],
+    pageObjective: "",
+    targetAudience: "",
+    avoid: [],
     reasoning: "",
   };
 
@@ -17999,6 +18056,8 @@ group("Het contract als verbeterplan (O4/O5)", () => {
     explainerTerms: [],
     targetWords: 100,
     needsBrandFact: false,
+    importance: "ondersteunend" as const,
+    successCriterion: "",
     presentOnExisting: "ontbreekt",
     whatToChange: "",
     ...over,
@@ -18007,6 +18066,9 @@ group("Het contract als verbeterplan (O4/O5)", () => {
     openingAnswer: "Ja.",
     sections: secties,
     faqQuestions: [],
+    pageObjective: "",
+    targetAudience: "",
+    avoid: [],
     reasoning: "",
   });
 
@@ -18039,6 +18101,8 @@ group("Het contract als verbeterplan (O4/O5)", () => {
       sectie({
         heading: "Persoonlijk behandelplan",
         subQuestion: "Wat houdt het behandelplan in?",
+        importance: "ondersteunend" as const,
+        successCriterion: "",
         presentOnExisting: "aanwezig",
         whatToChange: "",
       }),
@@ -18058,6 +18122,8 @@ group("Het contract als verbeterplan (O4/O5)", () => {
         id: "s2",
         heading: "Persoonlijk behandelplan",
         subQuestion: "Wat houdt het plan in?",
+        importance: "ondersteunend" as const,
+        successCriterion: "",
         presentOnExisting: "aanwezig",
       }),
       sectie({ id: "s3", heading: "Hoe lang duurt het", subQuestion: "Hoe lang duurt het herstel?", presentOnExisting: "deels" }),
