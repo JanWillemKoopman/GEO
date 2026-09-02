@@ -6116,3 +6116,36 @@ logt voortaan hoeveel secties dat zijn, met een waarschuwing bij nul, zodat meet
 instructie werkt in plaats van dat het opnieuw met de hand ontdekt moet worden.
 
 Vier controles groen: typecheck, 3635 unittests (6 nieuw), 576 ketentests, de productiebuild.
+
+## 2 september 2026: het menu uit de opgehaalde pagina, met de module die er al was
+
+Het laatste punt uit de verificatieronde: van de 3493 tekens die van
+`wouterwarmtepomp.nl/hybride-warmtepomp/` werden opgehaald, was ongeveer een derde het
+navigatiemenu, twee keer achter elkaar, vóór de eerste zin over hybride warmtepompen. Dat vervuilde
+twee dingen tegelijk: het oordeel per sectie in het contract (het model beoordeelt inhoud die geen
+inhoud is) en het verschilscherm, waar het menu als "dit verdwijnt van je pagina" verscheen.
+
+**De oplossing bestond al en is overgenomen, niet nagebouwd.** `lib/pipeline/page-text.ts` komt
+letterlijk uit de tak `claude/gasservice-brabant-content-fe9g07`, die op 1 september hetzelfde
+probleem in de CRAWL oploste (daar bestond 94% van de opgeslagen fragmenten uit menu). Die tak staat
+nog niet op `main`. Hem hier een tweede keer bouwen zou twee plekken opleveren die het oneens kunnen
+worden over dezelfde vraag; nu zijn de bestanden identiek en is het samenvoegen straks triviaal. De
+tests zijn mee overgenomen, met één geval erbij: het dubbele menu zoals het op deze site stond.
+
+⚠️ Wat NIET is overgenomen: diezelfde tak verhoogt ook `PAGE_MAX_CHARS` van 1500 naar 4000 en
+gebruikt het schonen in de crawl zelf. Dat raakt de volledige content-inventaris van elke klant en
+heeft zijn eigen verificatie nodig. Dat hoort bij die tak.
+
+`fetchExistingPage()` schoont nu vóór het afkappen, wat de volgorde is die telt: zonder dat is het
+begin van elke pagina het menu, en precies dat begin valt binnen de grens van 6000 tekens. Er is een
+logregel bij die meldt hoeveel tekens het schonen scheelde, ook als het niets deed. Zonder die reeks
+is nooit vast te stellen of dit op andere sites ook werkt, dezelfde reden waarom `similarity.ts` zijn
+gemeten gelijkenis altijd logt.
+
+⚠️ **Getest, niet gemeten.** De unittests dekken de structuur af, maar of dit op de echte HTML van
+wouterwarmtepomp.nl werkt is niet vastgesteld: de ontwikkelcontainer mag die site niet ophalen (403
+op de proxytunnel). De aanwijzing is sterk, want "Skip to content Skip to footer" en een dubbel menu
+wijzen op een thema met echte `<nav>`-elementen, maar een aanwijzing is geen meting. De
+eerstvolgende echte verbetering levert het cijfer via die logregel.
+
+Vier controles groen: typecheck, 3648 unittests (13 nieuw), 576 ketentests, de productiebuild.

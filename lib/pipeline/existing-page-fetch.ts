@@ -36,6 +36,7 @@ import "server-only";
  * `factcard.ts` en `factbase.ts`.
  */
 import { fetchText, htmlToText } from "@/lib/crawler";
+import { stripChrome } from "@/lib/pipeline/page-text";
 import { EXISTING_PAGE_MAX_CHARS } from "@/lib/pipeline/existing-page-match";
 
 export interface ExistingPageFetch {
@@ -69,9 +70,33 @@ export async function fetchExistingPage(url: string): Promise<ExistingPageFetch>
     return { text: null, probleem: "pagina niet op te halen", fetchedAt };
   }
 
-  const tekst = htmlToText(html).slice(0, EXISTING_PAGE_MAX_CHARS).trim();
+  // ── Eerst het menu eruit, dan pas afkappen (2 september 2026) ────────────
+  //
+  // Zonder deze stap is het begin van elke pagina het navigatiemenu, en dat is
+  // precies wat er binnen de cap valt. Gemeten op de eerste echte verbetering
+  // (wouterwarmtepomp.nl/hybride-warmtepomp/): van de 3493 opgehaalde tekens
+  // was ongeveer een derde menu, twee keer achter elkaar, vóór de eerste zin
+  // over hybride warmtepompen. Dat vervuilde zowel het oordeel per sectie in
+  // het contract als het verschilscherm, waar het menu als "dit verdwijnt van
+  // je pagina" verscheen.
+  //
+  // `stripChrome()` heeft zijn eigen vangnet: houdt het schonen te weinig over,
+  // dan komt de originele HTML terug. Minder tekst is erger dan ruis.
+  const schoon = stripChrome(html);
+  const tekst = htmlToText(schoon).slice(0, EXISTING_PAGE_MAX_CHARS).trim();
   if (tekst.length === 0) {
     return { text: null, probleem: "pagina bevat geen leesbare tekst", fetchedAt };
+  }
+
+  // Hoeveel het schonen scheelde. Altijd meten, ook als het niets deed: zonder
+  // die reeks is nooit vast te stellen of de aanpak op andere sites werkt (zelfde
+  // reden als de gelogde gelijkenis in `similarity.ts`).
+  const ruw = htmlToText(html).slice(0, EXISTING_PAGE_MAX_CHARS).trim().length;
+  if (ruw > tekst.length) {
+    console.info(
+      `Bestaande pagina ${adres}: ${ruw - tekst.length} tekens menu en voettekst weggelaten ` +
+        `(${tekst.length} van ${ruw} over).`,
+    );
   }
 
   return { text: tekst, probleem: null, fetchedAt };

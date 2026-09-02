@@ -32,13 +32,20 @@
 >    vangnet kan alleen strenger corrigeren, nooit soepeler, dus als het model structureel te streng
 >    oordeelt, ziet niemand dat. Te meten door dezelfde pagina te vergelijken met een dikke,
 >    complete bestaande pagina: komt daar wél "staat er al" uit, dan is het oordeel gezond.
-> 2. **Het navigatiemenu zit in de opgehaalde tekst**, twee keer, ongeveer een derde van de 3493
->    tekens. Dat vervuilt zowel het oordeel per sectie als het verschilscherm. De oplossing bestaat
->    al in de tak `claude/gasservice-brabant-content-fe9g07` (`page-text.ts`: alleen semantische
->    tags, met terugval op het origineel, plus een cap van 4000 in plaats van 1500). Die tak is nog
->    niet op `main`. Dit hier een tweede keer bouwen is precies de wildgroei die dit project
->    vermijdt, dus dit wacht op die merge; daarna moet `fetchExistingPage()` diezelfde extractie
->    gebruiken.
+> 2. **Het navigatiemenu zat in de opgehaalde tekst**, twee keer, ongeveer een derde van de 3493
+>    tekens. ✅ **Opgelost op 2 september 2026**: `lib/pipeline/page-text.ts` is LETTERLIJK
+>    overgenomen uit de tak `claude/gasservice-brabant-content-fe9g07` (waar het op 1 september is
+>    geschreven en nog niet gemerged is), en `fetchExistingPage()` schoont de HTML daarmee vóór het
+>    afkappen. Eén implementatie, dus bij het samenvoegen zijn de twee bestanden gelijk. Wat NIET is
+>    overgenomen: die tak past ook `PAGE_MAX_CHARS` aan en gebruikt het in de crawl zelf; dat raakt
+>    de hele inventaris en heeft eigen verificatie nodig.
+>
+>    ⚠️ **Getest, niet gemeten.** De unittests dekken de structuur af (dubbel menu, koptekst met en
+>    zonder menu, het vangnet bij een te gretige knip), maar of het op de échte HTML van
+>    wouterwarmtepomp.nl werkt is niet vastgesteld: de ontwikkelcontainer mag die site niet ophalen.
+>    De aanwijzing is sterk ("Skip to content Skip to footer" en een dubbel menu wijzen op een thema
+>    met echte `<nav>`-elementen), maar een aanwijzing is geen meting. `fetchExistingPage()` logt nu
+>    hoeveel tekens het schonen scheelde, dus de eerstvolgende echte verbetering levert het cijfer.
 
 **Onderzoek van 1 september 2026.** Aanleiding: de vraag hoe ORBIT ENGINE besluit of een
 aanbeveling een nieuwe pagina wordt of een verbetering van een bestaande, of dat betrouwbaarder
