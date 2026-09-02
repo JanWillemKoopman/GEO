@@ -34,6 +34,7 @@
 import { splitRefs, type FactItem, type WrittenClaim } from "@/lib/pipeline/factcard";
 import type { ContentContract, ContractSection } from "@/lib/schemas/content-contract";
 import type { AuditedClaim } from "@/lib/schemas/claim-audit";
+import { GOED_GENOEG } from "@/lib/content-input-gate";
 
 /** Hoe zwaar een sectie meetelt in de gewogen dekking. */
 export const BELANG_GEWICHT = { kern: 3, ondersteunend: 2, optioneel: 1 } as const;
@@ -224,23 +225,38 @@ export function bewijsDimensie(dekking: GewogenDekking): number | null {
 }
 
 /**
- * De inputpoort, nu met de kritieke dekking erbij
+ * De graad die de inputpoort moet wegen
  * (punt 5 van de opdracht: maak de drempels van 70 en 40 niet blind leidend).
  *
  * ── DE REGEL ────────────────────────────────────────────────────────────────
  *
  * Een pagina met 90 procent dekking waarvan de kernsectie ontbreekt, is
- * slechter af dan een pagina met 60 procent waarvan de kern staat. Deze functie
- * levert de graad die de bestaande `inputpoort()` moet wegen: is de kern niet
- * volledig gedekt, dan telt de kritieke dekking, anders de gewogen dekking.
+ * slechter af dan een pagina met 60 procent waarvan de kern staat. Staat de kern
+ * niet volledig, dan zakt de graad daarom onder `GOED_GENOEG`: deze pagina mag
+ * nooit als "schrijven zonder voorbehoud" gelden, hoe hoog de rest ook scoort.
  *
- * Zo blijven de bestaande standen (70 / 40 / drie uitwegen) precies zoals ze
- * zijn, en verandert alleen wát er gewogen wordt. Dat is de kleinste ingreep
- * die het probleem oplost, en hij houdt één poort in plaats van twee.
+ * ── ⚠️ EN WAAROM HIJ NIET NAAR NUL ZAKT ─────────────────────────────────────
+ *
+ * De eerste vorm hiervan gaf gewoon de kritieke dekking terug. Bij één
+ * kernsectie is dat 0 of 100, en dan wordt de poort een schakelaar: één sectie
+ * zonder feit hield de hele pagina tegen. Dat is precies de muur die
+ * `release-panel.tsx` verbiedt ("een gate die je niet kunt passeren levert
+ * afgehaakte klanten op in plaats van betere content"), en het klopt ook
+ * inhoudelijk niet: de rest van de pagina is er nog steeds.
+ *
+ * Nu is het een plafond in plaats van een vervanging. De pagina komt in de
+ * waarschuwingsstand terecht, de melding zegt welke kernsectie het is en wat het
+ * kost, en de drie uitwegen blijven bestaan. Zakt de dekking daarnaast ook nog
+ * onder de 40, dan houdt de poort hem alsnog tegen, en dat is dan om de gewone
+ * reden en niet om deze.
  */
 export function poortGraad(dekking: GewogenDekking): number | null {
-  if (dekking.kritiek !== null && dekking.kritiek < 100) return dekking.kritiek;
-  return dekking.gewogen ?? dekking.graad;
+  const basis = dekking.gewogen ?? dekking.graad;
+  if (basis === null) return null;
+  if (dekking.kritiek !== null && dekking.kritiek < 100) {
+    return Math.min(basis, GOED_GENOEG - 1);
+  }
+  return basis;
 }
 
 /**

@@ -34,6 +34,57 @@ import { redactCompetitors, containsCompetitor } from "@/lib/pipeline/redact";
 import { stripProseDashes } from "@/lib/pipeline/dash-guard";
 import { publicFactRequest } from "@/lib/fact-request-public";
 import { rateLimitWindowStart, rateLimitVerdict } from "@/lib/rate-limit-rules";
+// ── Het kwaliteitsraamwerk (migratie 0091) ─────────────────────────────────
+import {
+  QUALITY_DIMENSIONS,
+  QUALITY_DIMENSION_SOURCES,
+  DIMENSION_LABELS,
+} from "@/lib/pipeline/quality-dimensions";
+import {
+  QUALITY_PROFILES,
+  UNIVERSELE_REGELS,
+  checkTypeRegels,
+  profielVoorType,
+  profielMistUniverseleDimensie,
+} from "@/lib/pipeline/quality-profile";
+import {
+  beoordeelKwaliteit,
+  weegDimensies,
+  kiesBesteVersie,
+  nietSlechterDan,
+  klantOordeel,
+  adviseurOordeel,
+} from "@/lib/pipeline/quality-score";
+import {
+  issueTekst,
+  issueTeksten,
+  issueUitTekst,
+  issuesUitJson,
+  issuesPerSectie,
+  prioriteerIssues,
+  blokkerendeIssues,
+} from "@/lib/pipeline/quality-issue";
+import type { QualityIssue } from "@/lib/pipeline/quality-issue";
+import {
+  berekenGewogenDekking,
+  berekenClaimDekking,
+  bewijsDimensie,
+  claimSoortVan,
+  poortGraad,
+} from "@/lib/pipeline/evidence-weight";
+import {
+  faseVanIssue,
+  analyseerRootCause,
+  beschrijfRootCause,
+  reparatieHeeftZin,
+} from "@/lib/pipeline/root-cause";
+import {
+  bouwReparatieOpdracht,
+  bouwBlokkadeKop,
+  issuesUitTekstOfType,
+} from "@/lib/pipeline/quality-repair";
+import { begrensKernsecties } from "@/lib/pipeline/contract-format";
+import type { AuditedClaim } from "@/lib/schemas/claim-audit";
 import {
   resolveTargets,
   readRecommendations,
@@ -18682,6 +18733,639 @@ group("inloggen en een uitnodiging verzilveren zijn begrensd (T8.11)", () => {
     "en dat gebeurt vóórdat de token gecontroleerd wordt",
     invite.indexOf("hitRateLimit(") < invite.indexOf("await acceptInvite("),
   );
+});
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// HET KWALITEITSRAAMWERK (migratie 0091, docs/tasks/contentkwaliteit-framework.md)
+// ════════════════════════════════════════════════════════════════════════════
+
+group("Elke kwaliteitsdimensie heeft een bron die hem kan vullen", () => {
+  // Een dimensie zonder bron is een cijfer dat iemand verzint. Deze controle
+  // hoort bij het bouwen af te gaan en niet op productie.
+  for (const dimensie of QUALITY_DIMENSIONS) {
+    ok(`${dimensie} heeft een bron`, Boolean(QUALITY_DIMENSION_SOURCES[dimensie]?.bron?.trim()));
+    ok(`${dimensie} heeft een label in klanttaal`, Boolean(DIMENSION_LABELS[dimensie]?.trim()));
+  }
+  ok("er zijn twaalf dimensies", QUALITY_DIMENSIONS.length === 12);
+});
+
+group("Elk contenttype heeft een profiel dat de universele dimensies meeweegt", () => {
+  for (const type of ["article", "faq", "landing", "comparison"] as const) {
+    const profiel = QUALITY_PROFILES[type];
+    ok(`${type} heeft een profiel`, profiel?.type === type);
+    // Een profiel dat `feitelijkheid` vergeet, kan een onware pagina goedkeuren.
+    const mist = profielMistUniverseleDimensie(profiel);
+    ok(`${type} weegt alle universele dimensies mee`, mist.length === 0, mist.join(", "));
+    ok(`${type} heeft een ondergrens`, profiel.minimumTotaal > 0);
+    ok(`${type} eist volledige dekking van zijn kern`, profiel.minimumKritiekeDekking === 100);
+  }
+  // De gemeten verschillen op productie (2 september 2026): een FAQ haalde 0,7
+  // procent bronherleidbaarheid en een landingspagina 77,1. Eén lat over allebei
+  // is per definitie fout voor één van de twee.
+  ok("een FAQ heeft geen bewijsvereiste", QUALITY_PROFILES.faq.minimumBewijsdekking === null);
+  ok("een landingspagina wel", (QUALITY_PROFILES.landing.minimumBewijsdekking ?? 0) >= 70);
+  ok(
+    "en die is strenger dan bij een artikel",
+    (QUALITY_PROFILES.landing.minimumBewijsdekking ?? 0) >
+      (QUALITY_PROFILES.article.minimumBewijsdekking ?? 0),
+  );
+  ok("overtuiging telt alleen bij een landingspagina", (QUALITY_PROFILES.landing.gewichten.overtuiging ?? 0) > 0);
+  ok("en niet bij een FAQ", (QUALITY_PROFILES.faq.gewichten.overtuiging ?? 0) === 0);
+  ok("een onbekend type valt terug op het artikelprofiel", profielVoorType("onzin").type === "article");
+  ok("en null ook", profielVoorType(null).type === "article");
+});
+
+group("De type-eigen regels tellen, ze oordelen niet", () => {
+  const meting = {
+    secties: 5,
+    faqParen: 6,
+    langsteFaqAntwoord: 40,
+    heeftVervolgstap: true,
+    gebruikteFeiten: 6,
+    woorden: 600,
+  };
+  ok("een gezonde landingspagina overtreedt niets", checkTypeRegels(QUALITY_PROFILES.landing, meting).length === 0);
+  ok(
+    "zonder vervolgstap valt de landingsregel",
+    checkTypeRegels(QUALITY_PROFILES.landing, { ...meting, heeftVervolgstap: false }).some(
+      (r) => r.id === "landing_geen_vervolgstap",
+    ),
+  );
+  // De vier pagina's van 1 september 2026 hadden samen vijf concrete getallen
+  // over 3400 woorden. Die zouden hier alle vier op vallen.
+  ok(
+    "te weinig concrete gegevens valt op",
+    checkTypeRegels(QUALITY_PROFILES.landing, { ...meting, gebruikteFeiten: 1, woorden: 900 }).some(
+      (r) => r.id === "landing_te_algemeen",
+    ),
+  );
+  ok(
+    "maar een korte pagina wordt er niet op afgerekend",
+    checkTypeRegels(QUALITY_PROFILES.landing, { ...meting, gebruikteFeiten: 0, woorden: 100 }).length === 0,
+  );
+  ok(
+    "een FAQ met te weinig paren valt op",
+    checkTypeRegels(QUALITY_PROFILES.faq, { ...meting, faqParen: 2 }).some(
+      (r) => r.id === "faq_te_weinig_vragen",
+    ),
+  );
+  ok(
+    "een FAQ zonder paren nog niet: die is nog niet geschreven",
+    checkTypeRegels(QUALITY_PROFILES.faq, { ...meting, faqParen: 0 }).length === 0,
+  );
+  ok(
+    "een te lang FAQ-antwoord valt op",
+    checkTypeRegels(QUALITY_PROFILES.faq, { ...meting, langsteFaqAntwoord: 200 }).some(
+      (r) => r.id === "faq_antwoord_te_lang",
+    ),
+  );
+  ok(
+    "een dun artikel valt op",
+    checkTypeRegels(QUALITY_PROFILES.article, { ...meting, secties: 2 }).some(
+      (r) => r.id === "artikel_te_dun",
+    ),
+  );
+  ok("alle universele regels blokkeren", UNIVERSELE_REGELS.every((r) => r.blokkeert));
+  ok("en het zijn er zes", UNIVERSELE_REGELS.length === 6);
+});
+
+group("Score, zekerheid en blokkade blijven drie getallen (punt 15)", () => {
+  const profiel = QUALITY_PROFILES.landing;
+  const goed = {
+    feitelijkheid: 90,
+    bewijs: 85,
+    relevantie: 88,
+    specificiteit: 80,
+    volledigheid: 85,
+    structuur: 90,
+    leesbaarheid: 85,
+    toon: 80,
+    overtuiging: 82,
+    originaliteit: 75,
+    expertise: 75,
+  };
+  const alles = { geslaagd: 4, gevraagd: 4 };
+
+  const pass = beoordeelKwaliteit({ profiel, dimensies: goed, issues: [], beoordelaars: alles });
+  eq("een goede pagina komt door", pass.verdict, "pass");
+  ok("met een hoge zekerheid", pass.confidence === 100);
+  ok("en een cijfer", (pass.score ?? 0) > profiel.minimumTotaal);
+
+  // ⚠️ Het geval uit de opdracht: 91 punten, één kritieke claim zonder bewijs,
+  // niet publiceren. Zonder drie losse getallen is dat niet uit te drukken.
+  const blokkade: QualityIssue = {
+    dimension: "bewijs",
+    severity: "blokkerend",
+    section: "Wat kost het",
+    finding: "Deze sectie draagt de pagina en we kunnen hem niet onderbouwen.",
+    evidence: null,
+    expected: null,
+    recommendation: "Beantwoord de vraag hierover.",
+    blocking: true,
+    confidence: 1,
+    phase: "kennis",
+    bron: "bewijsdekking",
+  };
+  const geblokkeerd = beoordeelKwaliteit({
+    profiel,
+    dimensies: goed,
+    issues: [blokkade],
+    beoordelaars: alles,
+  });
+  eq("een blokkade wint van een hoog cijfer", geblokkeerd.verdict, "block");
+  ok("het cijfer blijft gewoon staan", geblokkeerd.score === pass.score);
+  ok("en de reden noemt de blokkade", geblokkeerd.redenen[0] === blokkade.finding);
+
+  // Twee gevallen beoordelaars: de helft van het oordeel is een gok, en dan zegt
+  // de app dat in plaats van te doen alsof de pagina gekeurd is (scenario 11).
+  const onzeker = beoordeelKwaliteit({
+    profiel,
+    dimensies: { ...goed, expertise: null, toon: null, overtuiging: null, originaliteit: null },
+    issues: [],
+    beoordelaars: { geslaagd: 2, gevraagd: 4 },
+  });
+  ok("een gevallen beoordelaar verlaagt de zekerheid", onzeker.confidence < 60);
+  ok("maar niet de score", (onzeker.score ?? 0) >= (pass.score ?? 0) - 5);
+  ok(
+    "en de app zegt dat ze niet alles kon beoordelen",
+    onzeker.redenen.some((r) => r.includes("deel van deze pagina")),
+  );
+
+  // Een dimensie zonder cijfer verlaagt het gemiddelde niet (conventie 3).
+  const zonderBewijs = weegDimensies(profiel, { ...goed, bewijs: null });
+  ok("een ontbrekend cijfer telt niet als nul", (zonderBewijs.score ?? 0) > 80);
+  ok("maar hij telt wel in het gemeten gewicht", zonderBewijs.gewichtGemeten < zonderBewijs.gewichtTotaal);
+
+  // Een dimensie onder haar eigen ondergrens is een reparatie, geen blokkade.
+  const zwak = beoordeelKwaliteit({
+    profiel,
+    dimensies: { ...goed, feitelijkheid: 50 },
+    issues: [],
+    beoordelaars: alles,
+  });
+  eq("een dimensie onder de ondergrens levert repair op", zwak.verdict, "repair");
+  ok("en noemt welke", zwak.onderDeMaat.includes("feitelijkheid"));
+});
+
+group("De versiekeuze zet blokkades vóór de score (punt 20)", () => {
+  const v = (ronde: number, score: number, blokkades = 0, confidence = 100) => ({
+    ronde,
+    score,
+    verdict: (blokkades > 0 ? "block" : "pass") as "pass" | "repair" | "block",
+    blokkades,
+    confidence,
+  });
+
+  // Precies het voorbeeld uit de opdracht: 74, 81, 79 en versie 2 blijft de beste.
+  const beste = kiesBesteVersie([v(0, 74), v(1, 81), v(2, 79)]);
+  ok("de hoogste score wint bij gelijke blokkades", beste?.ronde === 1);
+
+  // En het geval dat de opdracht daarnaast noemt: een iets lagere score zonder
+  // blokkade is beter dan een hogere score met een feitelijkheidsblokkade.
+  const zonderBlokkade = kiesBesteVersie([v(0, 88, 1), v(1, 84, 0)]);
+  ok("minder blokkades wint van een hogere score", zonderBlokkade?.ronde === 1);
+
+  ok("bij gelijke stand wint de oudste versie", kiesBesteVersie([v(0, 80), v(1, 80)])?.ronde === 0);
+  ok("een lege lijst geeft niets", kiesBesteVersie([]) === null);
+
+  // ⚠️ Bewaren is een ANDERE vraag dan kiezen: een gelijk gebleven score is geen
+  // verlies, anders gooien we elke reparatie weg die een punt oplost zonder het
+  // cijfer te bewegen.
+  ok("een gelijke score mag bewaard worden", nietSlechterDan(v(1, 80), v(0, 80)));
+  ok("een lagere score niet", !nietSlechterDan(v(1, 76), v(0, 80)));
+  ok("een blokkade minder wint van een lagere score", nietSlechterDan(v(1, 76, 0), v(0, 90, 1)));
+  ok("een blokkade erbij verliest van een hogere score", !nietSlechterDan(v(1, 95, 1), v(0, 80, 0)));
+  ok("zonder eerdere versie mag alles", nietSlechterDan(v(0, 40), null));
+});
+
+group("De gewogen bewijsdekking weegt de kern zwaarder (punt 5)", () => {
+  const sectie = (
+    id: string,
+    importance: "kern" | "ondersteunend" | "optioneel",
+    factRefs: string[],
+  ) => ({
+    id,
+    heading: `Kop ${id}`,
+    subQuestion: `Vraag ${id}?`,
+    mustCover: [],
+    factRefs,
+    explainerTerms: [],
+    targetWords: 100,
+    needsBrandFact: true,
+    importance,
+    successCriterion: "",
+    presentOnExisting: "niet_van_toepassing" as const,
+    whatToChange: "",
+  });
+  const contract = (secties: ReturnType<typeof sectie>[]) => ({
+    openingAnswer: "",
+    pageObjective: "",
+    targetAudience: "",
+    sections: secties,
+    faqQuestions: [],
+    avoid: [],
+    reasoning: "",
+  });
+  const feiten = [
+    { ref: "F1", text: "iets", source: "site", allowed: true, citable: true },
+    { ref: "F2", text: "iets anders", source: "site", allowed: true, citable: true },
+  ];
+
+  // ⚠️ Het geval uit de opdracht: negen randsecties gedekt, de ene kernsectie
+  // niet. Ongewogen is dat 90 procent en dus ruim door de poort van 70.
+  const negenPlusEen = contract([
+    ...Array.from({ length: 9 }, (_, i) => sectie(`s${i + 1}`, "ondersteunend", ["F1"])),
+    sectie("s10", "kern", []),
+  ]);
+  const scheef = berekenGewogenDekking(negenPlusEen, feiten);
+  ok("de ongewogen graad is 90", scheef.graad === 90);
+  ok("de kritieke dekking is 0", scheef.kritiek === 0);
+  // ⚠️ Geen nul maar een PLAFOND: de pagina komt in de waarschuwingsstand en
+  // niet tegen een muur. De rest van de pagina is er nog steeds, en de drie
+  // uitwegen hebben alleen zin als de poort te passeren is.
+  ok("de poort zet een plafond onder 70", (poortGraad(scheef) ?? 100) < 70);
+  ok("maar niet op nul", (poortGraad(scheef) ?? 0) > 0);
+  ok("en noemt de kernsectie", scheef.ongedekteKern.length === 1);
+  ok("de ongedekte lijst begint bij de zwaarste", scheef.ongedekt[0]?.id === "s10");
+
+  // Andersom: de kern staat, de rand niet. Dan telt de gewogen dekking.
+  const kernStaat = contract([
+    sectie("s1", "kern", ["F1"]),
+    sectie("s2", "ondersteunend", []),
+    sectie("s3", "optioneel", []),
+  ]);
+  const gezond = berekenGewogenDekking(kernStaat, feiten);
+  ok("de kritieke dekking is volledig", gezond.kritiek === 100);
+  ok("de poort weegt dan de gewogen dekking", poortGraad(gezond) === gezond.gewogen);
+  ok("en die is hoger dan de ongewogen", (gezond.gewogen ?? 0) > (gezond.graad ?? 0));
+
+  // Geen merkgebonden sectie: null, niet nul (conventie 3).
+  const leeg = berekenGewogenDekking(contract([]), feiten);
+  ok("zonder merksectie is de dekking onbekend", leeg.graad === null && leeg.gewogen === null);
+  ok("en de bewijsdimensie ook", bewijsDimensie(leeg) === null);
+
+  // Een contract van vóór deze migratie: geen `importance`, dus alles
+  // ondersteunend, dus gewogen == ongewogen en geen enkele blokkade.
+  const oud = {
+    ...contract([]),
+    sections: [
+      { ...sectie("s1", "ondersteunend", ["F1"]), importance: undefined as never },
+      { ...sectie("s2", "ondersteunend", []), importance: undefined as never },
+    ],
+  };
+  const terugval = berekenGewogenDekking(oud, feiten);
+  ok("een oud contract verandert niet van oordeel", terugval.graad === terugval.gewogen);
+  ok("en levert geen blokkade op", terugval.kritiek === null);
+});
+
+group("Over algemene vakkennis stelt de app geen vraag (punt 7)", () => {
+  const claim = (over: Partial<AuditedClaim>): AuditedClaim => ({
+    claim: "iets",
+    neededFor: "een vraag",
+    supported: false,
+    sourceRef: null,
+    supportQuote: null,
+    importance: "kern",
+    claimClass: "bedrijfsspecifiek",
+    questionIfMissing: "Klopt dit?",
+    reason: "omdat",
+    kind: "verificatie",
+    answerType: "ja_nee",
+    options: [],
+    suggestedAnswer: null,
+    scope: "analyse",
+    sectionId: null,
+    ...over,
+  });
+
+  eq("een bedrijfsclaim vraagt om bewijs", claimSoortVan(claim({})), "bedrijfsspecifiek");
+  eq("algemene vakkennis niet", claimSoortVan(claim({ claimClass: "algemeen" })), "algemeen");
+  // ⚠️ De terugval is hier de STRENGE kant, anders dan bij het sectiebelang: een
+  // claim waarvan we het soort niet kennen, is een claim waarvan we niet weten
+  // of hij verzonnen is.
+  eq(
+    "een claim zonder label geldt als bedrijfsspecifiek",
+    claimSoortVan(claim({ claimClass: undefined as never })),
+    "bedrijfsspecifiek",
+  );
+
+  const dekking = berekenClaimDekking(
+    [
+      claim({ claim: "wij leveren binnen 24 uur", importance: "kern" }),
+      claim({ claim: "wij hebben 3 vestigingen", importance: "ondersteunend" }),
+      claim({ claim: "een warmtepomp werkt op elektriciteit", claimClass: "algemeen" }),
+    ],
+    (c) => c.claim.includes("vestigingen"),
+  );
+  ok("algemene claims tellen niet mee in de dekking", dekking.bedrijfsspecifiek === 2);
+  ok("de dekking is de helft", dekking.dekking === 50);
+  ok("en de kritieke onbewezen claim staat er los bij", dekking.kritiekOnbewezen.length === 1);
+  ok(
+    "zonder bedrijfsclaims is de dekking onbekend en geen nul",
+    berekenClaimDekking([claim({ claimClass: "algemeen" })], () => false).dekking === null,
+  );
+});
+
+group("Een bevinding is een diagnose, geen zin", () => {
+  const issue = (over: Partial<QualityIssue>): QualityIssue => ({
+    dimension: "feitelijkheid",
+    severity: "midden",
+    section: null,
+    finding: "Er staat iets mis.",
+    evidence: null,
+    expected: null,
+    recommendation: "Los het op.",
+    blocking: false,
+    confidence: 0.7,
+    phase: "schrijven",
+    bron: "redactie",
+    ...over,
+  });
+
+  eq(
+    "een bevinding met sectie leest als voorheen",
+    issueTekst(issue({ section: "Prijs" })),
+    'In de sectie "Prijs": Er staat iets mis. Los het op.',
+  );
+  eq(
+    "een bevinding zonder sectie noemt geen onbekende sectie",
+    issueTekst(issue({})),
+    "Er staat iets mis. Los het op.",
+  );
+  ok("dubbele regels verdwijnen", issueTeksten([issue({}), issue({})]).length === 1);
+
+  // De reparatie krijgt de zwaarste eerst: blokkades bovenaan, en een
+  // deterministische bevinding weegt zwaarder dan hetzelfde modeloordeel.
+  const geordend = prioriteerIssues(
+    [
+      issue({ finding: "laag", severity: "laag" }),
+      issue({ finding: "model", severity: "hoog", confidence: 0.7 }),
+      issue({ finding: "blok", severity: "blokkerend", blocking: true, confidence: 1 }),
+      issue({ finding: "code", severity: "hoog", confidence: 1 }),
+    ],
+    10,
+  );
+  eq("de blokkade staat vooraan", geordend[0].finding, "blok");
+  eq("dan de zekere bevinding", geordend[1].finding, "code");
+  eq("dan het modeloordeel", geordend[2].finding, "model");
+  eq("en het detail achteraan", geordend[3].finding, "laag");
+  ok("de grens kapt af", prioriteerIssues([issue({}), issue({}), issue({})], 2).length === 2);
+  ok("de blokkades zijn apart op te vragen", blokkerendeIssues([issue({ blocking: true }), issue({})]).length === 1);
+
+  // Groeperen per sectie: dat is wat de reparatieopdracht bruikbaar maakt.
+  const perSectie = issuesPerSectie([
+    issue({ section: "Prijs" }),
+    issue({ section: "Prijs" }),
+    issue({ section: null }),
+  ]);
+  ok("twee bevindingen in één sectie komen samen", perSectie.get("Prijs")?.length === 2);
+  ok("en de paginabrede staat apart", perSectie.get("")?.length === 1);
+
+  // Een pagina van vóór dit werk levert losse zinnen; die moeten blijven werken.
+  const uitTekst = issueUitTekst("Er staat een fout in.");
+  ok("een losse zin wordt een bevinding", uitTekst.finding === "Er staat een fout in.");
+  ok("met halve zekerheid, want we weten het niet", uitTekst.confidence === 0.5);
+  ok("en die blokkeert nooit", !uitTekst.blocking);
+
+  // Opgeslagen JSON terugleze, met de rommel eruit.
+  const gelezen = issuesUitJson([
+    { finding: "goed", severity: "hoog", blocking: true, phase: "kennis" },
+    { finding: "" },
+    "onzin",
+    null,
+  ]);
+  ok("alleen bruikbare bevindingen komen terug", gelezen.length === 1);
+  ok("met hun ernst", gelezen[0].severity === "hoog" && gelezen[0].blocking);
+  ok("en hun ketenfase", gelezen[0].phase === "kennis");
+});
+
+group("De root cause wijst naar de stap waar het ontstond (punt 14)", () => {
+  const issue = (over: Partial<QualityIssue>): QualityIssue => ({
+    dimension: "specificiteit",
+    severity: "hoog",
+    section: null,
+    finding: "De pagina is generiek.",
+    evidence: null,
+    expected: null,
+    recommendation: "",
+    blocking: false,
+    confidence: 1,
+    phase: "schrijven",
+    bron: "vakmanschap",
+    ...over,
+  });
+
+  // ⚠️ Dezelfde bevinding, twee oorzaken. Lag er bewijs, dan is een lege sectie
+  // een schrijfprobleem; lag er niets, dan helpt herschrijven niet.
+  eq(
+    "een generieke pagina zonder feiten is een kennisprobleem",
+    faseVanIssue(issue({}), { bewijsAanwezig: false, contractAanwezig: true }),
+    "kennis",
+  );
+  eq(
+    "een onbewezen bewering terwijl er feiten lagen is een schrijfprobleem",
+    faseVanIssue(issue({ bron: "feitelijkheid", dimension: "feitelijkheid" }), {
+      bewijsAanwezig: true,
+      contractAanwezig: true,
+    }),
+    "schrijven",
+  );
+  eq(
+    "een onvolledige pagina zonder contract is een contractprobleem",
+    faseVanIssue(issue({ bron: "contractdekking", dimension: "volledigheid" }), {
+      bewijsAanwezig: true,
+      contractAanwezig: false,
+    }),
+    "contract",
+  );
+
+  const oorzaken = analyseerRootCause([
+    issue({ phase: "kennis", blocking: true }),
+    issue({ phase: "kennis" }),
+    issue({ phase: "schrijven" }),
+  ]);
+  eq("de zwaarste oorzaak staat vooraan", oorzaken[0].fase, "kennis");
+  ok("met het aantal erbij", oorzaken[0].aantal === 2 && oorzaken[0].blokkerend === 1);
+  ok("de zin noemt de handeling", beschrijfRootCause(oorzaken).includes("vraag aan de klant"));
+  ok("zonder bevindingen is er niets mis", beschrijfRootCause([]).includes("geen kwaliteitsproblemen"));
+
+  // ⚠️ De duurste regel van het hele raamwerk. Gemeten op productie kostten de
+  // rondes van 1 september 0,78 dollar van de 1,08 per pagina en ging de
+  // kwaliteit van 78 naar 52, terwijl alle drie de pagina's een
+  // bronherleidbaarheid onder de 40 procent hadden: een kennisprobleem.
+  ok("bij een kennisprobleem heeft herschrijven geen zin", !reparatieHeeftZin(oorzaken));
+  ok(
+    "bij een schrijfprobleem wel",
+    reparatieHeeftZin(analyseerRootCause([issue({ phase: "schrijven" })])),
+  );
+  ok("zonder bevindingen ook niet", !reparatieHeeftZin([]));
+});
+
+group("De reparatieopdracht zegt wat, waarom en waarmee (punt 17)", () => {
+  const sectie = {
+    id: "s1",
+    heading: "Wat kost het",
+    subQuestion: "Wat kost een hybride warmtepomp?",
+    mustCover: [],
+    factRefs: ["F1"],
+    explainerTerms: [],
+    targetWords: 120,
+    needsBrandFact: true,
+    importance: "kern" as const,
+    successCriterion: "Er staat een bedrag of een bandbreedte.",
+    presentOnExisting: "niet_van_toepassing" as const,
+    whatToChange: "",
+  };
+  const contract = {
+    openingAnswer: "",
+    pageObjective: "",
+    targetAudience: "",
+    sections: [sectie],
+    faqQuestions: [],
+    avoid: [],
+    reasoning: "",
+  };
+  const facts = [
+    { ref: "F1", text: "Een hybride warmtepomp kost vanaf 4500 euro.", source: "klant", allowed: true, citable: true },
+    { ref: "", text: "Wij doen geen nachtservice.", source: "klant", allowed: false, citable: true },
+  ];
+  const issue: QualityIssue = {
+    dimension: "bewijs",
+    severity: "hoog",
+    section: "Wat kost het",
+    finding: "Deze sectie noemt geen bedrag.",
+    evidence: null,
+    expected: null,
+    recommendation: "Noem het bedrag uit F1.",
+    blocking: false,
+    confidence: 1,
+    phase: "schrijven",
+    bron: "bewijsdekking",
+  };
+
+  const opdracht = bouwReparatieOpdracht({
+    issues: [issue],
+    contract,
+    facts,
+    verboden: facts.filter((f) => !f.allowed).map((f) => f.text),
+  });
+  ok("de sectie staat erin", opdracht.includes('SECTIE "Wat kost het"'));
+  ok("het probleem staat erin", opdracht.includes("noemt geen bedrag"));
+  ok("het succescriterium staat erin", opdracht.includes("Er staat een bedrag of een bandbreedte"));
+  ok("het toegestane bewijs staat erin, met F-nummer", opdracht.includes("F1: Een hybride warmtepomp kost"));
+  ok("wat de klant verboden heeft staat erin", opdracht.includes("nachtservice"));
+  ok("en het verbod op omheen praten", opdracht.includes("vraag de lezer niet om contact op te nemen"));
+
+  // Een sectie zonder bewijs krijgt geen opdracht om iets te verzinnen.
+  const zonder = bouwReparatieOpdracht({
+    issues: [{ ...issue, section: "Onbekende sectie" }],
+    contract,
+    facts: [],
+  });
+  ok("zonder bewijs staat dat er letterlijk", zonder.includes("TOEGESTAAN BEWIJS: geen"));
+
+  ok(
+    "zonder bevindingen blijft de pagina met rust",
+    bouwReparatieOpdracht({ issues: [], contract, facts }).includes("laat de pagina dan ongewijzigd"),
+  );
+
+  // De blokkades staan bovenaan: dat is wat publicatie tegenhoudt.
+  const kop = bouwBlokkadeKop([{ ...issue, blocking: true, severity: "blokkerend" }]);
+  ok("de blokkadekop noemt de blokkade", kop.includes("HOUDT PUBLICATIE TEGEN"));
+  ok("en is leeg zonder blokkades", bouwBlokkadeKop([issue]) === "");
+
+  // Losse zinnen uit een oude taak blijven werken; getypeerde bevindingen winnen.
+  ok("getypeerde bevindingen winnen", issuesUitTekstOfType([issue], ["oude zin"])[0].section === "Wat kost het");
+  ok("en zonder die vorm vallen we terug op de zinnen", issuesUitTekstOfType([], ["oude zin"])[0].finding === "oude zin");
+});
+
+group("Het contract begrenst zijn eigen kernsecties (conventie 1)", () => {
+  const s = (id: string, importance: "kern" | "ondersteunend" | "optioneel") => ({ id, importance });
+  // Een model dat alles 'kern' noemt zet elke pagina dicht waarvan één sectie
+  // een feit mist. Vandaar een derde als bovengrens.
+  const zes = [s("1", "kern"), s("2", "kern"), s("3", "kern"), s("4", "kern"), s("5", "kern"), s("6", "kern")];
+  const begrensd = begrensKernsecties(zes);
+  ok("hoogstens een derde blijft kern", begrensd.filter((x) => x.importance === "kern").length === 2);
+  ok("en dat zijn de eerste", begrensd[0].importance === "kern" && begrensd[2].importance === "ondersteunend");
+  ok(
+    "er blijft altijd minstens één kern over",
+    begrensKernsecties([s("1", "kern"), s("2", "kern")]).filter((x) => x.importance === "kern").length === 1,
+  );
+  ok(
+    "een contract dat de grens al haalt blijft ongemoeid",
+    begrensKernsecties([s("1", "kern"), s("2", "ondersteunend"), s("3", "optioneel")]).filter(
+      (x) => x.importance === "kern",
+    ).length === 1,
+  );
+});
+
+group("De inputpoort weegt de kern zwaarder dan het percentage", () => {
+  // Boven de 70 en tóch een waarschuwing, want de kern staat niet.
+  const kern = inputpoort({
+    graad: 85,
+    ongedekteSecties: 1,
+    ongedekteKoppen: ["Wat kost het"],
+    kritiekeSectiesZonderBewijs: 1,
+  });
+  eq("een ongedekte kernsectie waarschuwt", kern.stand, "waarschuwing");
+  ok("de pagina mag wel geschreven worden", kern.mag);
+  ok("de melding noemt de sectie", kern.melding.includes("Wat kost het"));
+  ok("en zegt wat het kost", kern.melding.includes("klaar voor publicatie"));
+
+  // Zonder kernprobleem verandert er niets aan het bestaande gedrag.
+  const normaal = inputpoort({ graad: 85, ongedekteSecties: 1, ongedekteKoppen: ["Iets"] });
+  eq("zonder kernprobleem blijft het gedrag zoals het was", normaal.stand, "schrijven");
+});
+
+group("Wat de klant leest en wat de adviseur leest, zijn twee dingen (punt 24)", () => {
+  const profiel = QUALITY_PROFILES.landing;
+  const alles = { geslaagd: 4, gevraagd: 4 };
+  const goed = beoordeelKwaliteit({
+    profiel,
+    dimensies: { feitelijkheid: 90, bewijs: 88, relevantie: 90, specificiteit: 85, volledigheid: 88, structuur: 90, leesbaarheid: 88, toon: 85, overtuiging: 85, originaliteit: 80, expertise: 80 },
+    issues: [],
+    beoordelaars: alles,
+  });
+  const klant = klantOordeel(goed, 96);
+  ok("de klant leest of hij kan publiceren", klant.includes("klaar voor publicatie"));
+  ok("met de dekking erbij", klant.includes("96%"));
+  ok("en zonder één dimensiescore", !klant.includes("specificiteit"));
+
+  const adviseur = adviseurOordeel(goed, {
+    bewijsdekking: 88,
+    kritiekeDekking: 100,
+    ronde: 2,
+    besteRonde: 1,
+  });
+  ok("de adviseur ziet de zekerheid", adviseur.some((r) => r.startsWith("Zekerheid")));
+  ok("en welke versie behouden is", adviseur.some((r) => r.includes("ronde 1 was beter")));
+  ok("en het aantal blokkades", adviseur.some((r) => r.startsWith("Blokkerend")));
+
+  const geblokkeerd = beoordeelKwaliteit({
+    profiel,
+    dimensies: { feitelijkheid: 90 },
+    issues: [
+      {
+        dimension: "feitelijkheid",
+        severity: "blokkerend",
+        section: null,
+        finding: "Er staat een ander bedrijf bij naam in de tekst.",
+        evidence: null,
+        expected: null,
+        recommendation: "Haal de naam weg.",
+        blocking: true,
+        confidence: 1,
+        phase: "schrijven",
+        bron: "feitelijkheid",
+      },
+    ],
+    beoordelaars: alles,
+  });
+  const melding = klantOordeel(geblokkeerd, null);
+  ok("een geblokkeerde pagina zegt wat er mis is", melding.includes("ander bedrijf"));
+  // ⚠️ Geen muur: de melding noemt de uitweg in dezelfde zin als de blokkade.
+  ok("en noemt de uitweg", melding.includes("Pas de tekst zelf aan"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════
