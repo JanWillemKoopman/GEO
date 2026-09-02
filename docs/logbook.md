@@ -6043,3 +6043,25 @@ pagina's en al die vier bleven op "check nodig" staan. Deze pagina haalt de poor
 volledige tekst van de bestaande pagina als basis. Totale kosten van de ronde: $1,25.
 
 Vier controles groen: typecheck, 3629 unittests (7 nieuw), 576 ketentests, de productiebuild.
+
+## 2 september 2026: het clusteroverzicht subtieler, na de eerste dag met labels en prullenbak
+
+Migratie 0083 (1 september) zette de labelkeuzelijst en de prullenbakknop op een eigen regel onder
+elke clusterkaart. Na een dag gebruiken bleek dat te zwaar: bij drie clusters was het al een derde
+extra hoogte per kaart, en bij dertig zou het een muur van keuzelijsten worden die niemand elke dag
+aanraakt. Twee aanpassingen, geen van beide raakt de meting of de database.
+
+**Label en prullenbak achter één menu.** `cluster-kaart.tsx` verliest de hele regel; beide acties
+zitten nu achter het drie-puntjes-icoon naast de statusbadge, naar hetzelfde patroon als
+`components/profile-menu.tsx` (een paneel dat sluit op een klik erbuiten of op Escape). Het label
+dat al gekozen is blijft als chip in de kop staan, want dat is een cijfer over het cluster en geen
+bediening. De prullenbakknop in de prullenbak zelf ("Terugzetten") bleef ongemoeid: die stond al op
+één regel met één knop.
+
+**De voorgestelde onderwerpen staan standaard dicht.** `topics-panel.tsx` gebruikte een vaste,
+altijd open kaart voor "Onderwerpen om op te meten", en dat blok stond onderaan de pagina vaak
+langer dan "Mijn clusters" erboven, terwijl dat de reden is waarop iemand deze pagina opent. Het
+blok is nu een `CollapsibleSection` met `defaultOpen={false}`: titel en aantal ("6 voorgesteld")
+blijven zichtbaar, de onderwerpen zelf pas na een klik.
+
+Vier controles groen: typecheck, 3629 unittests, 576 ketentests, de productiebuild.
