@@ -143,6 +143,10 @@ export async function synthesiseProfile(
     `teken voor teken, in de tekst van díe pagina staat. Dit wordt nagelopen; wat niet klopt ` +
     `vervalt.\n` +
     `   - Geen marketingtaal. "Al 25 jaar actief" is een feit, "de beste van de regio" niet.\n` +
+    `   - Schrijf de BEWERING zelf op, niet dat de site hem doet. Dus "Het bedrijf is 24 uur per ` +
+    `dag bereikbaar", niet "De website vermeldt dat het bedrijf 24 uur per dag bereikbaar is". De ` +
+    `vindplaats zetten wij er zelf bij. Deze feiten gaan letterlijk de pagina's van de klant op, ` +
+    `en een site die over zichzelf in de derde persoon praat leest als een rapport.\n` +
     `   - Liever tien scherpe dan veertig vage.\n\n` +
     `Antwoord in het Nederlands.`;
 

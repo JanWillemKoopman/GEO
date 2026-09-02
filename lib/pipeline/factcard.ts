@@ -399,6 +399,42 @@ export function isSupported(
 const MIN_QUOTE_CHARS = 4;
 
 /**
+ * Praat deze zin OVER de site in plaats van namens het bedrijf?
+ * (contentronde-gasservice-brabant-1-september-2026.md, verbetering 8)
+ *
+ * ── WAT ER MIS GAAT ─────────────────────────────────────────────────────────
+ *
+ * De feitenkaart bevat zinnen als "De website presenteert de onderneming als
+ * Gasservice Brabant B.V." en "Gasservice Brabant vermeldt dat het 24/7
+ * bereikbaar is". Regel 2 van `CONTENT_SYSTEM` eist dat de schrijver het
+ * dekkende fragment letterlijk kan aanwijzen, dus neemt hij die vorm over. Op de
+ * pagina van de klant kwam daardoor te staan: "De website van Gasservice Brabant
+ * noemt ervaren vakmannen, meer dan 90 jaar ervaring, erkenning als installateur
+ * en een BRL6000-25-certificaat." Een site die in de derde persoon over zichzelf
+ * praat.
+ *
+ * ── WAAROM DIT EEN CONTROLE IS EN GEEN HERSCHRIJVING ────────────────────────
+ *
+ * De eerste opzet knipte de aanloop eraf. Dat werkt niet in het Nederlands: na
+ * "vermeldt dat" volgt een bijzin met het werkwoord achteraan, dus "Gasservice
+ * Brabant vermeldt dat het 24/7 bereikbaar is" wordt "Het 24/7 bereikbaar is".
+ * Een half feit is erger dan een omslachtig feit (conventie 3).
+ *
+ * De verdeling is daarmee zoals hij hoort: het MODEL levert de bewering in de
+ * goede vorm aan (de instructie staat in `synthesis.ts`), en de CODE garandeert
+ * dat de rapportagevorm nooit op de PAGINA belandt (`content-gate.ts`). Een
+ * promptinstructie is een intentie, code is een garantie, en de garantie zit
+ * waar de schade zou ontstaan.
+ */
+const RAPPORTAGE_OVER_ZICHZELF =
+  /\b(de|onze|zijn|haar)\s+(website|site|homepage|webpagina)\b[^.]{0,60}\b(vermeldt|vermeldt dat|noemt|zegt|meldt|geeft aan|presenteert|toont|schrijft)\b/i;
+
+/** Staat er in deze tekst een zin die over de eigen site praat in plaats van namens het bedrijf? */
+export function isRapportageVorm(tekst: string): boolean {
+  return RAPPORTAGE_OVER_ZICHZELF.test(tekst ?? "");
+}
+
+/**
  * "F1, F2" / "F4; F5" / "F1 en F2" → ["F1", "F2"].
  *
  * Het model krijgt geen strak formaat opgelegd voor `factRef` (dat is een vrij
@@ -407,7 +443,7 @@ const MIN_QUOTE_CHARS = 4;
  * over: losse woorden als "en" mogen de "elk nummer moet bestaan"-eis niet
  * laten klappen.
  */
-function splitRefs(raw: string): string[] {
+export function splitRefs(raw: string): string[] {
   return Array.from(new Set(raw.toUpperCase().match(/F\s*\d+/g) ?? [])).map((r) =>
     r.replace(/\s+/g, ""),
   );

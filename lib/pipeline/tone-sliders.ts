@@ -92,3 +92,38 @@ export function clampEmotional(value: unknown): 1 | 2 | 3 | 4 | null {
   if (n >= 4) return 4;
   return n as 2 | 3;
 }
+
+/**
+ * De aanspreekvorm als promptregel
+ * (contentronde-gasservice-brabant-1-september-2026.md, verbetering 11).
+ *
+ * ⚠️ `profiles.pronoun_preference` werd verzameld en was bewerkbaar, maar kwam
+ * in de schrijfprompt nooit voor. Gemeten op 1 september 2026: het veld stond
+ * voor Gasservice Brabant op "wij", en van twee pagina's uit dezelfde batch
+ * schreef de ene "Leg vooraf uw adres, woningtype en bouwjaar klaar" en de
+ * andere "of jouw woning". Twee aanspreekvormen bij één merk.
+ *
+ * De harde GEO-regel blijft onaangetast: over het BEDRIJF schrijven we de naam
+ * en niet "wij", want een model dat "wij" leest weet niet wie het moet noemen.
+ * Deze regel gaat over hoe de LEZER wordt aangesproken.
+ */
+export function describePronoun(voorkeur: string | null | undefined): string {
+  switch ((voorkeur ?? "").trim()) {
+    case "je":
+      return (
+        "AANSPREEKVORM: spreek de lezer aan met 'je' en 'jouw'. Gebruik nergens 'u' of 'uw'."
+      );
+    case "u":
+      return (
+        "AANSPREEKVORM: spreek de lezer aan met 'u' en 'uw'. Gebruik nergens 'je', 'jij' of 'jouw'."
+      );
+    case "wij":
+      return (
+        "AANSPREEKVORM: spreek de lezer aan met 'je' en 'jouw', en schrijf over het bedrijf in de " +
+        "wij-vorm waar een persoonlijke formulering nodig is. Blijf het bedrijf bij NAAM noemen " +
+        "zodra je er iets feitelijks over zegt; 'wij' alleen is voor een AI-assistent onbruikbaar."
+      );
+    default:
+      return "";
+  }
+}

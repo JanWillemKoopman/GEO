@@ -537,7 +537,7 @@ export const BRAND_FIELDS: BrandField[] = [
     options: ["je en jij", "u en uw", "wij en ons"],
     values: ["je", "u", "wij"],
     derivable: false,
-    usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment niet in de teksten toegepast.",
+    usage: "Gaat mee in de schrijfprompt: ORBIT ENGINE spreekt de lezer aan zoals je hier kiest.",
     priority: "optioneel",
   },
   {

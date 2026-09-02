@@ -97,13 +97,33 @@ import {
 import { checkContractCoverage } from "@/lib/pipeline/content-coverage";
 import type { ContentContract, ContractSection } from "@/lib/schemas/content-contract";
 import {
+  berekenInputCoverage,
+  leesSectieVerwijzing,
+  sectiesVanPagina,
+  sectieVerwijzing,
+  zetContractVast,
+} from "@/lib/pipeline/input-coverage";
+import { inputpoort, GOED_GENOEG, TE_WEINIG } from "@/lib/content-input-gate";
+import {
   normaliseerContract,
   formatContract,
+  stripFactRefs,
+  openingIsMeta,
   describeImprovements,
   describeImprovementCount,
 } from "@/lib/pipeline/contract-format";
-import { checkContentGate, openingVan, geoRegels, checkSourceTalk } from "@/lib/pipeline/content-gate";
+import { answerBelongsHere } from "@/lib/pipeline/answer-scope";
 import { stripChrome } from "@/lib/pipeline/page-text";
+import { prioriteerBevindingen, MAX_BEVINDINGEN_PER_RONDE } from "@/lib/pipeline/content-issues";
+import { ontwijkendeZinnen } from "@/lib/pipeline/content-gate";
+import { isRapportageVorm } from "@/lib/pipeline/factcard";
+import { describePronoun } from "@/lib/pipeline/tone-sliders";
+import {
+  checkContentGate,
+  openingVan,
+  geoRegels,
+  checkSourceTalk,
+} from "@/lib/pipeline/content-gate";
 import {
   brandNav,
   generalNav,
@@ -2482,8 +2502,12 @@ group("Scorekaart leest beide formaten (implementatieplan.md R8.7)", () => {
       onderscheidGebruikt: null,
     },
   });
-  ok("nieuwe vorm gebruikt de deterministische uitkomst", nieuw.length === 7);
-  ok("niet-uitgevoerde controles blijven null", nieuw.filter((r) => r.ok === null).length === 2);
+  ok("nieuwe vorm gebruikt de deterministische uitkomst", nieuw.length === 8);
+  // Twee controles stonden hier op null, en de derde is de controle op de
+  // rapportagevorm (verbetering 8): die bestond nog niet toen deze pagina
+  // geschreven werd. Een controle die niet gedraaid heeft, hoort geen kruisje te
+  // krijgen (conventie 3).
+  ok("niet-uitgevoerde controles blijven null", nieuw.filter((r) => r.ok === null).length === 3);
   ok("een gezakte controle blijft zichtbaar", nieuw.some((r) => r.ok === false));
 
   // Een leeg veld mag niet crashen en niet doen alsof alles goed is.
@@ -2770,7 +2794,13 @@ group("de vraag die 0 van de 62 keer gesteld werd", () => {
 
 group("de gereserveerde plek", () => {
   // Acht inhoudelijk verschillende, verplichte vragen die alle pagina's raken,
-  // precies de soort die in productie alle acht plekken innam.
+  // precies de soort die in productie alle plekken innam.
+  //
+  // ⚠️ De aantallen hieronder tellen op ACHT en niet op MAX_QUESTIONS. Dat was
+  // tot 2 september 2026 hetzelfde getal; sinds het plafond op twaalf staat
+  // (docs/tasks/vragen-voor-het-schrijven.md §5) is het dat niet meer, en de
+  // vraag die deze groep stelt gaat over verplichte vragen die de ruimte
+  // vullen, niet over de hoogte van het plafond.
   const onderwerpen = [
     "tarieven vergoeding zorgverzekeraar",
     "wachttijd eerste afspraak inplannen",
@@ -2801,26 +2831,28 @@ group("de gereserveerde plek", () => {
   })!;
 
   ok(
-    "acht verplichte vragen vullen de lijst",
-    selectBriefingQuestions({ candidates: vulling, alreadyKnown: new Set() }).length === MAX_QUESTIONS,
+    "acht verplichte vragen gaan alle acht mee",
+    selectBriefingQuestions({ candidates: vulling, alreadyKnown: new Set() }).length ===
+      onderwerpen.length,
   );
 
   const met = selectBriefingQuestions({
     candidates: [...vulling, positionering],
     alreadyKnown: new Set(),
   });
-  // Negen en niet acht (sinds 30 augustus 2026, werkpakket A §3.3): de acht
-  // verplichte vragen laten geen optionele ruimte over om de positioneringsvraag
-  // te ruilen, dus komt hij erbovenop in plaats van dat een `kern`-vraag
-  // sneuvelt. Zie de aantekening bij `selectBriefingQuestions()`.
-  ok("acht verplicht plus de positioneringsvraag erbovenop", met.length === MAX_QUESTIONS + 1);
+  // Negen en niet acht: de positioneringsvraag komt erbij zonder dat er een
+  // verplichte vraag voor sneuvelt. Met een plafond van twaalf past hij in de
+  // optionele ruimte; stond het plafond op acht, dan kwam hij erbovenop. Beide
+  // uitkomsten zijn goed, en dát is wat deze regel bewaakt: een `kern`-vraag
+  // wordt er nooit voor geruild (werkpakket A §3.3).
+  ok("acht verplicht plus de positioneringsvraag erbij", met.length === onderwerpen.length + 1);
   // Zonder reservering verliest deze vraag altijd: hij is nooit `kern` en raakt
   // zelden alle pagina's, dus de sortering op impact duwt hem er structureel uit.
   // Dat is precies waarom hij 0 van de 62 keer gesteld werd.
   ok("de positioneringsvraag haalt de lijst", met.some((v) => v.kind === "onderscheid"));
   ok(
     "geen enkele verplichte vraag sneuvelt ervoor",
-    met.filter((v) => v.required).length === MAX_QUESTIONS,
+    met.filter((v) => v.required).length === onderwerpen.length,
     String(met.filter((v) => v.required).length),
   );
 });
@@ -16386,7 +16418,8 @@ group("De dekkingspoort op het contentcontract (A3)", () => {
         factRefs: ["F2"],
         explainerTerms: ["runnersknie"],
         targetWords: 100,
-        presentOnExisting: "niet_van_toepassing",
+        needsBrandFact: false,
+        presentOnExisting: "niet_van_toepassing" as const,
         whatToChange: "",
       },
       {
@@ -16397,7 +16430,8 @@ group("De dekkingspoort op het contentcontract (A3)", () => {
         factRefs: [],
         explainerTerms: [],
         targetWords: 100,
-        presentOnExisting: "niet_van_toepassing",
+        needsBrandFact: false,
+        presentOnExisting: "niet_van_toepassing" as const,
         whatToChange: "",
       },
     ],
@@ -16501,13 +16535,14 @@ group("Het contract opschonen en als opdracht formuleren (A2)", () => {
         factRefs: ["", "F1"],
         explainerTerms: [""],
         targetWords: 0,
-        presentOnExisting: "niet_van_toepassing",
+        needsBrandFact: false,
+        presentOnExisting: "niet_van_toepassing" as const,
         whatToChange: "",
       },
       // Een sectie zonder kop of zonder deelvraag kan de poort niet toetsen en
       // de schrijver niet uitvoeren: die hoort te vervallen.
-      { id: "s2", heading: "  ", subQuestion: "iets", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 100, presentOnExisting: "niet_van_toepassing", whatToChange: "" },
-      { id: "s3", heading: "Kop", subQuestion: "  ", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 9999, presentOnExisting: "niet_van_toepassing", whatToChange: "" },
+      { id: "s2", heading: "  ", subQuestion: "iets", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 100, needsBrandFact: false, presentOnExisting: "niet_van_toepassing", whatToChange: "" },
+      { id: "s3", heading: "Kop", subQuestion: "  ", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 9999, needsBrandFact: false, presentOnExisting: "niet_van_toepassing", whatToChange: "" },
     ],
     faqQuestions: ["", "Heb ik een verwijzing nodig?"],
     reasoning: "",
@@ -16587,6 +16622,801 @@ group("De bedrading van de nieuwe contentpijplijn", () => {
   // dezelfde bronnen dezelfde analyse, en dat is precies de clusterbrede
   // vervlakking die S9 en S10 kwamen repareren.
   ok("met de doelvragen in de sleutel", bron.includes("vragen:"));
+});
+
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Antwoorden van de klant komen bij de juiste pagina (verbetering 1)", () => {
+  const analyse = "a-1";
+  const pagina = "p-1";
+
+  ok(
+    "een merkbreed antwoord telt altijd",
+    answerBelongsHere({ scope: "merk", analysis_id: null }, analyse, [pagina]),
+  );
+  ok(
+    "en ook zonder pagina in beeld",
+    answerBelongsHere({ scope: "merk", analysis_id: null }, analyse, []),
+  );
+  ok(
+    "een analyse-antwoord telt binnen die analyse",
+    answerBelongsHere({ scope: "analyse", analysis_id: analyse }, analyse, [pagina]),
+  );
+  ok(
+    "maar niet bij een andere analyse",
+    !answerBelongsHere({ scope: "analyse", analysis_id: "a-2" }, analyse, [pagina]),
+  );
+
+  // ⚠️ De kern van verbetering 1. Op 1 september 2026 had 9 van de 16
+  // briefingvragen reikwijdte "pagina", en van de 8 gegeven antwoorden
+  // bereikten er 4 de feitenkaart. De vier die verdwenen waren precies de
+  // antwoorden over Tilburg, Eindhoven en de vraag of het bedrijf zelf
+  // installeert.
+  ok(
+    "een paginagebonden antwoord telt bij zijn eigen pagina",
+    answerBelongsHere(
+      { scope: "pagina", analysis_id: analyse, content_piece_ids: [pagina] },
+      analyse,
+      [pagina],
+    ),
+  );
+  ok(
+    "en niet bij een andere pagina",
+    !answerBelongsHere(
+      { scope: "pagina", analysis_id: analyse, content_piece_ids: ["p-2"] },
+      analyse,
+      [pagina],
+    ),
+  );
+  ok(
+    "zonder pagina in beeld telt hij niet mee",
+    !answerBelongsHere(
+      { scope: "pagina", analysis_id: analyse, content_piece_ids: [pagina] },
+      analyse,
+      [],
+    ),
+  );
+  ok(
+    "een onbekende reikwijdte telt niet mee",
+    !answerBelongsHere({ scope: "iets-nieuws", analysis_id: analyse }, analyse, [pagina]),
+  );
+
+  // De bedrading: beide plekken die antwoorden inlezen gebruiken dezelfde regel.
+  const basis = leesBestand("lib/pipeline/factbase.ts");
+  ok("de feitenkaart gebruikt de gedeelde regel", basis.includes("answerBelongsHere"));
+  ok("en vraagt de gekoppelde pagina's op", basis.includes("content_piece_ids"));
+  const contentBron = leesBestand("lib/pipeline/content.ts");
+  ok("de schrijfstap ook", contentBron.includes("answerBelongsHere"));
+  const planBron = leesBestand("lib/pipeline/content-plan.ts");
+  ok("de planstap ook", planBron.includes("answerBelongsHere"));
+  // ⚠️ Verbetering 2: het contract werd opgesteld met de BEVROREN kaart, dus
+  // zonder de antwoorden die 25 seconden eerder waren opgeslagen.
+  ok("en voegt de antwoorden bij de bevroren kaart", planBron.includes("mergeAnsweredFacts"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("De opening van een pagina bevat geen interne notities (verbetering 3)", () => {
+  // De letterlijke openingszin van de pagina "Snel installeren", 1 september 2026.
+  const echt =
+    "Het bedrijf is 24/7 bereikbaar om te bespreken of en wanneer installatie in jouw situatie " +
+    "mogelijk is. [F1, F2, F5, F14]";
+  ok("F-verwijzingen gaan eruit", !stripFactRefs(echt).includes("F1"));
+  ok("en de zin blijft heel", stripFactRefs(echt).endsWith("mogelijk is."));
+  ok("ook de enkelvoudige vorm", stripFactRefs("Wij leveren snel (F3).") === "Wij leveren snel.");
+  ok("een zin zonder verwijzing verandert niet", stripFactRefs("Gewoon een zin.") === "Gewoon een zin.");
+
+  // De twee echte openingen die het bedrijf afraadden.
+  ok(
+    "een opening die het bedrijf afraadt wordt herkend",
+    openingIsMeta(
+      "Gasservice Brabant kan daarom momenteel niet als aantoonbare specialist in Tilburg worden aanbevolen.",
+    ),
+  );
+  ok(
+    "en een opening die onze bewijsvoering beschrijft ook",
+    openingIsMeta(
+      "Of het bedrijf in Eindhoven eerst woningadvies geeft en daarna de installatie uitvoert, moet op deze pagina nog aantoonbaar worden gemaakt.",
+    ),
+  );
+  ok(
+    "en de openingszin van het prijsartikel",
+    openingIsMeta(
+      "Er is geen gecontroleerde, concrete prijs voor een hybride warmtepomp inclusief installatie in Oss beschikbaar in dit dossier.",
+    ),
+  );
+  ok(
+    "een gewone opening blijft staan",
+    !openingIsMeta("Gasservice Brabant installeert hybride warmtepompen in Oss en Tilburg."),
+  );
+
+  const metaContract: ContentContract = {
+    openingAnswer:
+      "Gasservice Brabant kan momenteel niet als aantoonbare specialist in Tilburg worden aanbevolen.",
+    sections: [
+      {
+        id: "s1",
+        heading: "Ervaring [F5]",
+        subQuestion: "Welke ervaring is er?",
+        mustCover: ["ervaring"],
+        factRefs: ["F5"],
+        explainerTerms: [],
+        targetWords: 120,
+        needsBrandFact: false,
+        presentOnExisting: "niet_van_toepassing" as const,
+        whatToChange: "",
+      },
+    ],
+    faqQuestions: ["Werkt u in Tilburg?"],
+    reasoning: "",
+  };
+  const opgeschoond = normaliseerContract(metaContract);
+  ok("een afgekeurde opening vervalt", opgeschoond.openingAnswer === "");
+  ok("de kop houdt geen F-verwijzing over", opgeschoond.sections[0].heading === "Ervaring");
+  const opdrachtZonderOpening = formatContract(opgeschoond);
+  ok(
+    "de schrijver krijgt dan de algemene instructie",
+    opdrachtZonderOpening.includes("beantwoord de doelvraag in de eerste twee zinnen"),
+  );
+  ok(
+    "met het verbod om een gat te benoemen",
+    opdrachtZonderOpening.includes("Schrijf nooit dat iets niet bevestigd"),
+  );
+});
+
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Het menu gaat uit de opgeslagen sitetekst (verbetering 4)", () => {
+  const menu = "<nav><ul><li>Cv-ketel</li><li>Onderhoud</li><li>Warmtepomp</li></ul></nav>";
+  const inhoud =
+    "<p>De kosten van een hybride warmtepomp kunnen oplopen tot maximaal 6000 euro. " +
+    "Deze kosten hangen af van het vermogen en van het soort hybride warmtepomp. " +
+    "Het vermogen hangt af van de grootte van je woning en het bouwjaar van de woning.</p>";
+  const voet = "<footer>Alle rechten voorbehouden. Bel ons op 073.</footer>";
+
+  const geschoond = stripChrome(`${menu}${inhoud}${voet}`);
+  ok("het menu gaat eruit", !geschoond.includes("Cv-ketel"));
+  ok("de voettekst ook", !geschoond.includes("Alle rechten"));
+  ok("en de inhoud blijft", geschoond.includes("maximaal 6000 euro"));
+
+  // Een koptekst met menu erin gaat eruit, een koptekst met de H1 blijft.
+  const metMenu = stripChrome(`<header><nav>Menu hier</nav></header>${inhoud}`);
+  ok("een koptekst met menu gaat eruit", !metMenu.includes("Menu hier"));
+  const metTitel = stripChrome(`<header><h1>Wat kost een warmtepomp?</h1></header>${inhoud}`);
+  ok("een koptekst met de titel blijft", metTitel.includes("Wat kost een warmtepomp?"));
+
+  // De hoofdinhoud wint als hij er is.
+  const metMain = stripChrome(`<div>zijbalk met van alles erin</div><main>${inhoud}</main>`);
+  ok("de hoofdinhoud wint", metMain.includes("maximaal 6000 euro") && !metMain.includes("zijbalk"));
+
+  // ⚠️ Het vangnet. Een pagina die álles in een header zet mag niet leeg raken:
+  // minder tekst is erger dan ruis (conventie 3).
+  const allesInHeader = `<header><nav>Menu</nav>${inhoud}</header>`;
+  ok("een te gretige knip wordt teruggedraaid", stripChrome(allesInHeader).includes("maximaal 6000 euro"));
+  ok("lege invoer blijft leeg", stripChrome("") === "");
+
+  // ⚠️ Zonder script- en stijlblokken meetellen zou het vangnet altijd afgaan:
+  // een pagina van 257 kB met 4 kB tekst meet dan als 200.000 tekens. Dat
+  // gebeurde bij de kennisbankpagina met het bedrag dat we misten.
+  const metScript = `<script>${"x=1;".repeat(4000)}</script>${menu}${inhoud}`;
+  ok("JavaScript telt niet mee als tekst", !stripChrome(metScript).includes("Cv-ketel"));
+
+  const crawler = leesBestand("lib/crawler.ts");
+  ok("de crawler schoont vóór het knippen", crawler.includes("stripChrome"));
+  ok("en bewaart meer dan het menu", crawler.includes("const PAGE_MAX_CHARS = 4000"));
+  const uitleg = leesBestand("lib/pipeline/explainer-verify.ts");
+  ok("de citaatcontrole leest de volledige bron", uitleg.includes("fullText: true"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("De reparatie krijgt de zwaarste punten eerst (verbetering 5)", () => {
+  // Precies de soorten bevindingen die de ronde van 1 september 2026 opleverde.
+  const bevindingen = [
+    'Een lezer houdt deze vraag over na het lezen: "Wat kost het?". Behandel hem.',
+    'De sectie "Prijs" is te dun (minder dan 25 woorden). Werk hem uit.',
+    'In de sectie "Ervaring" staat een bewering zonder bevestigd feit: "Wij plaatsten er 500."',
+    "GEO: de pagina noemt het bedrijf expliciet nog niet.",
+    'De sectie "Onderhoud" ontbreekt. Voeg hem toe; hij moet deze vraag beantwoorden: "..."',
+  ];
+  const geordend = prioriteerBevindingen(bevindingen, 10);
+  ok("de onbewezen bewering staat vooraan", geordend[0].includes("zonder bevestigd feit"));
+  ok("de ontbrekende sectie komt vóór de dunne", geordend.indexOf(bevindingen[4]) < geordend.indexOf(bevindingen[1]));
+  ok("de restvraag van de lezer staat achteraan", geordend[geordend.length - 1] === bevindingen[0]);
+  ok("er raakt niets kwijt binnen de grens", geordend.length === bevindingen.length);
+
+  // ⚠️ De kern: 119 bevindingen in één reparatieprompt maakt van een gerichte
+  // sectiereparatie een volledige herschrijving. Gemeten kostte die $0,2525 per
+  // ronde met méér uitvoertokens dan het schrijven zelf.
+  const veel = Array.from({ length: 119 }, (_, i) => `In de sectie "S${i}": punt ${i}.`);
+  ok("een lange lijst wordt afgekapt", prioriteerBevindingen(veel).length === MAX_BEVINDINGEN_PER_RONDE);
+  ok("de grens staat op tien", MAX_BEVINDINGEN_PER_RONDE === 10);
+  ok("lege regels tellen niet mee", prioriteerBevindingen(["", "  ", "iets"]).length === 1);
+
+  const content = leesBestand("lib/pipeline/content.ts");
+  ok("de reparatieprompt krijgt de geordende lijst", content.includes("prioriteerBevindingen(issues"));
+  // ⚠️ Verbetering 5, tweede helft: de lus stopte alleen op REPAIR_MAX. De
+  // kwaliteitsscore liep 67, 74, 68, 48 en de klant kreeg de laatste.
+  ok("de lus stopt als het niet beter wordt", content.includes("beterDanVorige"));
+  ok("en dat weegt mee in de vraag of er nog een ronde komt", content.includes("&& beterDanVorige"));
+  ok("een slechtere versie wordt niet opgeslagen", content.includes("...(nietSlechter ? nieuweVersie : {})"));
+  ok(
+    "bewaren en doorgaan zijn twee verschillende grenzen",
+    content.includes("const nietSlechter") && content.includes("const beterDanVorige"),
+  );
+  // Verbetering 10.
+  ok("het aantal woorden wordt bijgewerkt", content.includes("word_count: countWords(final.bodyMarkdown)"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Het contract past in de doellengte (verbetering 6)", () => {
+  const sectie = (i: number, woorden: number) => ({
+    id: `s${i}`,
+    heading: `Kop ${i}`,
+    subQuestion: `Vraag ${i}?`,
+    mustCover: ["iets"],
+    factRefs: [],
+    explainerTerms: [],
+    targetWords: woorden,
+    needsBrandFact: false,
+    presentOnExisting: "niet_van_toepassing" as const,
+    whatToChange: "",
+  });
+
+  // De Tilburg-pagina: 25 secties van 40 woorden bij een maximum van 700.
+  const teGroot: ContentContract = {
+    openingAnswer: "Gasservice Brabant plaatst hybride warmtepompen in Tilburg.",
+    sections: Array.from({ length: 25 }, (_, i) => sectie(i + 1, 40)),
+    faqQuestions: Array.from({ length: 16 }, (_, i) => `Vraag ${i + 1}?`),
+    reasoning: "",
+  };
+  const gesnoeid = normaliseerContract(teGroot, { maxWoorden: 700 });
+  const som = gesnoeid.sections.reduce((t, s) => t + s.targetWords, 0);
+  ok("de secties passen binnen de doellengte", som <= 700);
+  ok("en er blijft ruimte voor de opening", som <= 700 - 40);
+  ok("er blijven er genoeg over", gesnoeid.sections.length >= 3);
+  ok("de eerste sectie blijft altijd staan", gesnoeid.sections[0].heading === "Kop 1");
+  ok("de FAQ wordt begrensd op acht", gesnoeid.faqQuestions.length === 8);
+
+  // Een contract dat past, verandert niet.
+  const past: ContentContract = {
+    openingAnswer: "Ja, dat kan.",
+    sections: [sectie(1, 120), sectie(2, 120), sectie(3, 120)],
+    faqQuestions: ["Een?"],
+    reasoning: "",
+  };
+  ok("een passend contract blijft heel", normaliseerContract(past, { maxWoorden: 700 }).sections.length === 3);
+
+  // ⚠️ Nooit onder de drie secties, ook niet bij een krappe doellengte: een
+  // pagina met één sectie is geen pagina.
+  const krap = normaliseerContract(
+    { ...past, sections: [sectie(1, 400), sectie(2, 400), sectie(3, 400), sectie(4, 400)] },
+    { maxWoorden: 500 },
+  );
+  ok("minstens drie secties blijven staan", krap.sections.length === 3);
+  ok("zonder grens wordt er niet gesnoeid", normaliseerContract(teGroot).sections.length === 25);
+
+  const bouwer = leesBestand("lib/pipeline/content-contract.ts");
+  ok("de bouwer geeft de doellengte mee", bouwer.includes("maxWoorden: input.targetWords.max"));
+});
+
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Een pagina die de lezer wegstuurt, wordt afgekeurd (verbetering 7)", () => {
+  // Letterlijke zinnen van de pagina "Snel installeren", 1 september 2026.
+  const echt = [
+    "Een concrete wachttijd is niet beschikbaar.",
+    "Vraag wanneer advies mogelijk is.",
+    "Laat andere woonplaatsen en de beschikbaarheid per moment vooraf controleren.",
+    "Vraag vóór akkoord om bedragen per onderdeel.",
+    "Bespreek vooraf welke werkzaamheden nodig zijn.",
+    "Controleer vóór akkoord het actuele bedrag, de meldcode en de voorwaarden bij RVO.",
+  ].join(" ");
+  ok("alle zes de vormen worden herkend", ontwijkendeZinnen(echt).length === 6);
+  ok(
+    "een gewone zin niet",
+    ontwijkendeZinnen("Gasservice Brabant installeert hybride warmtepompen in Oss en Tilburg.").length === 0,
+  );
+
+  // ⚠️ Een oproep tot actie aan het eind van een landingspagina hoort erbij.
+  // Daarom telt het AANDEEL en niet het bestaan.
+  const gezond =
+    "Gasservice Brabant installeert hybride warmtepompen in Oss. " +
+    "Een hybride warmtepomp werkt samen met de cv-ketel en verlaagt het gasverbruik. " +
+    "De installatie kost bij Gasservice Brabant tot 6000 euro, afhankelijk van het vermogen. " +
+    "Het vermogen volgt uit de oppervlakte van de woning en het bouwjaar. " +
+    "De subsidie ligt gemiddeld tussen 500 en 2500 euro. " +
+    "Een monteur van Gasservice Brabant komt de woning vooraf beoordelen. " +
+    "De montage duurt bij een gemiddelde woning een dag. " +
+    "Gasservice Brabant is 24 uur per dag bereikbaar bij een storing. " +
+    "Vraag een offerte aan bij Gasservice Brabant.";
+  const gezondePoort = checkContentGate({
+    bodyMarkdown: gezond,
+    faq: [],
+    brandName: "Gasservice Brabant",
+    targetQuestions: ["Wie installeert een hybride warmtepomp in Oss?"],
+    distinctiveAnswers: [],
+  });
+  ok("één oproep tot actie is geen ontwijking", gezondePoort.checks.geenOntwijking === true);
+
+  const ziekePoort = checkContentGate({
+    bodyMarkdown:
+      "Gasservice Brabant installeert hybride warmtepompen in Oost-Brabant. " + echt,
+    faq: [],
+    brandName: "Gasservice Brabant",
+    targetQuestions: ["Wie installeert een hybride warmtepomp in Oost-Brabant?"],
+    distinctiveAnswers: [],
+  });
+  ok("een pagina vol doorverwijzingen wordt afgekeurd", ziekePoort.checks.geenOntwijking === false);
+  ok(
+    "en de bevinding noemt hoeveel zinnen het zijn",
+    ziekePoort.issues.some((i) => i.includes("sturen de lezer weg")),
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("De pagina praat niet over zijn eigen website (verbetering 8)", () => {
+  // De echte zin van de pagina "Snel installeren", 1 september 2026.
+  ok(
+    "de rapportagevorm wordt herkend",
+    isRapportageVorm(
+      "De website van Gasservice Brabant noemt ervaren vakmannen, meer dan 90 jaar ervaring, " +
+        "erkenning als installateur en een BRL6000-25-certificaat.",
+    ),
+  );
+  ok(
+    "ook zonder merknaam ertussen",
+    isRapportageVorm("De site vermeldt dat het bedrijf 24 uur per dag bereikbaar is."),
+  );
+  ok(
+    "een gewone bewering niet",
+    !isRapportageVorm("Gasservice Brabant is 24 uur per dag bereikbaar en werkt vanuit Den Bosch."),
+  );
+  // ⚠️ Verwijzen naar de site van iemand anders mag wel: dat is een bron.
+  ok(
+    "een verwijzing naar een externe bron blijft toegestaan",
+    !isRapportageVorm("Op rvo.nl staat welke bedragen voor de ISDE gelden."),
+  );
+
+  const poort = checkContentGate({
+    bodyMarkdown:
+      "Gasservice Brabant installeert hybride warmtepompen in Oss. De website van Gasservice " +
+      "Brabant noemt ervaren vakmannen en meer dan 90 jaar ervaring.",
+    faq: [],
+    brandName: "Gasservice Brabant",
+    targetQuestions: ["Wie installeert een hybride warmtepomp in Oss?"],
+    distinctiveAnswers: [],
+  });
+  ok("de poort keurt hem af", poort.checks.geenRapportageOverZichzelf === false);
+  ok(
+    "en zegt wat er moet gebeuren",
+    poort.issues.some((i) => i.includes("Deze pagina IS die website")),
+  );
+
+  // Het modelhalf van deze verbetering: de instructie bij het onderzoek.
+  const synthese = leesBestand("lib/pipeline/synthesis.ts");
+  ok("het onderzoek vraagt om de bewering zelf", synthese.includes("Schrijf de BEWERING zelf op"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("De dekkingspoort leest verwijzingen zoals de citaatcontrole (verbetering 9)", () => {
+  const contract: ContentContract = {
+    openingAnswer: "Gasservice Brabant installeert hybride warmtepompen in Oss.",
+    sections: [
+      {
+        id: "s1",
+        heading: "Werkgebied",
+        subQuestion: "Waar installeert Gasservice Brabant hybride warmtepompen?",
+        mustCover: ["werkgebied"],
+        // Drie feiten, waarvan het model er één samengestelde verwijzing van maakt.
+        factRefs: ["F1", "F5", "F18"],
+        explainerTerms: [],
+        targetWords: 120,
+        needsBrandFact: false,
+        presentOnExisting: "niet_van_toepassing" as const,
+        whatToChange: "",
+      },
+    ],
+    faqQuestions: [],
+    reasoning: "",
+  };
+  const body =
+    "Gasservice Brabant installeert hybride warmtepompen in Oss.\n\n## Werkgebied\n\n" +
+    "Gasservice Brabant installeert hybride warmtepompen in Oss en werkt vanuit Den Bosch in " +
+    "de regio Oost-Brabant. Waar Gasservice Brabant hybride warmtepompen installeert staat hier.";
+
+  const uitslag = checkContractCoverage({
+    contract,
+    bodyMarkdown: body,
+    faq: [],
+    // ⚠️ Precies de vorm die op 1 september 2026 op de pagina stond.
+    claims: [{ factRef: "F1, F5, F18" }],
+  });
+  ok(
+    "een samengestelde verwijzing dekt alle genoemde feiten",
+    uitslag.secties[0].ongebruikteFeiten.length === 0,
+  );
+
+  const losse = checkContractCoverage({
+    contract,
+    bodyMarkdown: body,
+    faq: [],
+    claims: [{ factRef: "F1" }],
+  });
+  ok("en een enkele verwijzing dekt alleen zichzelf", losse.secties[0].ongebruikteFeiten.length === 2);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Een vakterm telt pas als hij echt is uitgelegd (verbetering 12)", () => {
+  const maakContract = (termen: string[]): ContentContract => ({
+    openingAnswer: "",
+    sections: [
+      {
+        id: "s1",
+        heading: "De buitenunit",
+        subQuestion: "Waar komt de buitenunit te staan?",
+        mustCover: ["plek"],
+        factRefs: [],
+        explainerTerms: termen,
+        targetWords: 120,
+        needsBrandFact: false,
+        presentOnExisting: "niet_van_toepassing" as const,
+        whatToChange: "",
+      },
+      {
+        id: "s2",
+        heading: "De installatie",
+        subQuestion: "Hoe verloopt de installatie?",
+        mustCover: ["stappen"],
+        factRefs: [],
+        explainerTerms: [],
+        targetWords: 120,
+        needsBrandFact: false,
+        presentOnExisting: "niet_van_toepassing" as const,
+        whatToChange: "",
+      },
+    ],
+    faqQuestions: [],
+    reasoning: "",
+  });
+
+  // De term wordt in de TWEEDE sectie uitgelegd. Dat telde vroeger niet mee voor
+  // de eerste, en daarom plakte het model in elke sectie een definitiezin.
+  const elders =
+    "## De buitenunit\n\nDe buitenunit komt in de tuin of aan de gevel te staan, op afstand van " +
+    "de buren en met ruimte voor onderhoud eromheen.\n\n" +
+    "## De installatie\n\nEen buitenunit is het deel van de warmtepomp dat buiten staat en warmte " +
+    "uit de lucht haalt. De monteur plaatst hem en sluit hem aan op de binnenunit.";
+  const metUitleg = checkContractCoverage({
+    contract: maakContract(["buitenunit"]),
+    bodyMarkdown: elders,
+    faq: [],
+    claims: [],
+  });
+  ok(
+    "uitleg elders op de pagina telt mee",
+    metUitleg.secties[0].ontbrekendeUitleg.length === 0,
+  );
+
+  // Alleen noemen is niet uitleggen.
+  const alleenGenoemd =
+    "## De buitenunit\n\nDe buitenunit komt in de tuin te staan. Vraag naar de buitenunit bij de " +
+    "offerte, want de buitenunit bepaalt mede de prijs.\n\n## De installatie\n\nDe monteur komt langs.";
+  const zonderUitleg = checkContractCoverage({
+    contract: maakContract(["buitenunit"]),
+    bodyMarkdown: alleenGenoemd,
+    faq: [],
+    claims: [],
+  });
+  ok(
+    "een term drie keer noemen is geen uitleg",
+    zonderUitleg.secties[0].ontbrekendeUitleg.includes("buitenunit"),
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("De aanspreekvorm gaat mee naar de schrijver (verbetering 11)", () => {
+  ok("je-vorm wordt een regel", describePronoun("je").includes("'je' en 'jouw'"));
+  ok("u-vorm ook", describePronoun("u").includes("'u' en 'uw'"));
+  ok("wij-vorm noemt de merknaam-regel", describePronoun("wij").includes("bij NAAM"));
+  ok("niets ingevuld levert geen regel op", describePronoun(null) === "");
+  ok("een onbekende waarde ook niet", describePronoun("hen") === "");
+
+  const content = leesBestand("lib/pipeline/content.ts");
+  ok("de schrijfprompt gebruikt hem", content.includes("describePronoun(profile?.pronoun_preference"));
+  const velden = leesBestand("lib/pipeline/brand-fields.ts");
+  ok(
+    "en het merkprofiel belooft niet meer dat het veld ongebruikt blijft",
+    !velden.includes("Wordt op dit moment niet in de teksten toegepast"),
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("De onderbouwingsgraad per pagina (vragen-voor-het-schrijven §4)", () => {
+  const sectie = (
+    id: string,
+    needsBrandFact: boolean,
+    factRefs: string[] = [],
+    heading = `Kop ${id}`,
+  ): ContractSection => ({
+    id,
+    heading,
+    subQuestion: `Wat over ${id}?`,
+    mustCover: [],
+    factRefs,
+    explainerTerms: [],
+    targetWords: 100,
+    needsBrandFact,
+    presentOnExisting: "niet_van_toepassing",
+    whatToChange: "",
+  });
+
+  const contract = (secties: ContractSection[]): ContentContract => ({
+    openingAnswer: "Ja.",
+    sections: secties,
+    faqQuestions: [],
+    reasoning: "",
+  });
+
+  const feit = (ref: string) => ({
+    ref,
+    text: `Feit ${ref}`,
+    source: "site",
+    citable: true,
+    confidence: "hoog" as const,
+  });
+
+  const kaart = [feit("F1"), feit("F2")];
+
+  // Het geval van de Tilburg-pagina, verkleind: vier secties, twee gaan over het
+  // bedrijf, en één daarvan heeft een feit.
+  const gemengd = contract([
+    sectie("s1", false),
+    sectie("s2", true, ["F1"]),
+    sectie("s3", true, []),
+    sectie("s4", false),
+  ]);
+  const gemeten = berekenInputCoverage(gemengd, kaart as never);
+  ok("alleen merkgebonden secties tellen mee", gemeten.merksecties === 2);
+  ok("en de graad is het deel dat gedekt is", gemeten.graad === 50, `${gemeten.graad}`);
+  ok("de ongedekte sectie komt eruit, want daar komt de vraag uit", gemeten.ongedekt.length === 1);
+  ok("en het is de juiste", gemeten.ongedekt[0]?.id === "s3");
+
+  // ⚠️ Conventie 3: geen merkgebonden sectie is NIET nul procent. Een pagina die
+  // volledig uit algemene uitleg bestaat is een goede pagina waarvoor de klant
+  // niets hoeft aan te leveren; een 0 zou de inputpoort ten onrechte dichtzetten.
+  const algemeen = berekenInputCoverage(contract([sectie("s1", false), sectie("s2", false)]), kaart as never);
+  ok("een pagina zonder merkgebonden sectie krijgt geen cijfer", algemeen.graad === null);
+  ok("en heeft dus ook geen gaten", algemeen.ongedekt.length === 0);
+
+  // Een samengestelde verwijzing ("F1, F2") is de vorm die vóór R8.3 als
+  // onbewezen telde. Zou hij hier ook falen, dan krijgt de klant een vraag
+  // waarvan het antwoord al op de kaart staat.
+  const samengesteld = berekenInputCoverage(contract([sectie("s1", true, ["F1, F2"])]), kaart as never);
+  ok("een samengestelde verwijzing telt als gedekt", samengesteld.graad === 100);
+
+  // Een F-nummer dat niet bestaat mag niet meetellen: het model mag zichzelf
+  // niet vrijpleiten uit de vraag die het gat moest dichten (conventie 1).
+  const verzonnen = berekenInputCoverage(contract([sectie("s1", true, ["F99"])]), kaart as never);
+  ok("een verzonnen F-nummer dekt niets", verzonnen.graad === 0);
+
+  // Een contract van vóór migratie 0087 heeft het veld niet. Dat telt als "niet
+  // merkgebonden", zodat een oude pagina niet ineens door de poort wordt
+  // tegengehouden op een veld dat destijds niet bestond.
+  const oud = berekenInputCoverage(
+    { ...contract([{ ...sectie("s1", true) }]), sections: [{ ...sectie("s1", true), needsBrandFact: undefined } as never] },
+    kaart as never,
+  );
+  ok("een contract van vóór dit veld levert geen gat op", oud.graad === null);
+
+  ok("zonder contract is er niets te meten", berekenInputCoverage(null, kaart as never).graad === null);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Overslaan haalt de sectie eruit (vragen-voor-het-schrijven §6)", () => {
+  const sectie = (id: string): ContractSection => ({
+    id,
+    heading: `Kop ${id}`,
+    subQuestion: "?",
+    mustCover: [],
+    factRefs: [],
+    explainerTerms: [],
+    targetWords: 100,
+    needsBrandFact: true,
+    presentOnExisting: "niet_van_toepassing" as const,
+    whatToChange: "",
+  });
+  const vijf: ContentContract = {
+    openingAnswer: "Ja.",
+    sections: ["s1", "s2", "s3", "s4", "s5"].map(sectie),
+    faqQuestions: [],
+    reasoning: "",
+  };
+
+  const na = zetContractVast(vijf, ["s2", "s4"]);
+  ok("de overgeslagen secties vervallen", na?.sections.length === 3);
+  ok("en het zijn de juiste die blijven", na?.sections.map((s) => s.id).join(",") === "s1,s3,s5");
+  ok("zonder overgeslagen vraag verandert er niets", zetContractVast(vijf, []) === vijf);
+
+  // De ondergrens. Slaat de klant alles over, dan is dat werk voor de
+  // INPUTPOORT (die houdt de pagina tegen vóór het geld), niet voor deze
+  // functie. Een pagina van één sectie is geen pagina.
+  ok("onder drie secties blijft het contract staan", zetContractVast(vijf, ["s1", "s2", "s3"]) === vijf);
+
+  ok("geen contract blijft geen contract", zetContractVast(null, ["s1"]) === null);
+
+  // De verwijzingen: het sectie-id alleen wijst nergens heen, want elke pagina
+  // nummert vanaf s1.
+  ok("een verwijzing bevat de pagina", sectieVerwijzing("abc", "s3") === "abc:s3");
+  ok("en is per pagina te lezen", sectiesVanPagina(["abc:s3", "def:s1"], "abc").join(",") === "s3");
+  ok("een andere pagina krijgt niets", sectiesVanPagina(["abc:s3"], "def").length === 0);
+  ok("en een lege lijst ook niet", sectiesVanPagina(null, "abc").length === 0);
+
+  ok("de opdrachtcode wordt gelezen", leesSectieVerwijzing("P2-s5")?.paginaIndex === 1);
+  ok("met het sectie-id erbij", leesSectieVerwijzing("P2-s5")?.sectionId === "s5");
+  ok("onzin levert niets op", leesSectieVerwijzing("sectie twee") === null);
+  ok("en leeg ook niet", leesSectieVerwijzing(null) === null);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("De inputpoort: kan deze pagina goed worden? (vragen-voor-het-schrijven §4)", () => {
+  const poort = (graad: number | null, ongedekt = 2, koppen: string[] = ["de prijs", "het werkgebied"]) =>
+    inputpoort({ graad, ongedekteSecties: ongedekt, ongedekteKoppen: koppen });
+
+  ok("boven de bovengrens wordt er geschreven", poort(GOED_GENOEG).stand === "schrijven");
+  ok("en dat mag", poort(85).mag === true);
+  ok("tussen de grenzen komt er een waarschuwing", poort(55).stand === "waarschuwing");
+  ok("maar schrijven mag nog steeds", poort(55).mag === true);
+  ok("onder de ondergrens wordt de pagina tegengehouden", poort(TE_WEINIG - 1).stand === "tegenhouden");
+  ok("en dan mag het niet", poort(10).mag === false);
+
+  // ⚠️ Conventie 3: null is geen nul. Een pagina zonder merkgebonden sectie
+  // vraagt niets van de klant en hoort gewoon geschreven te worden.
+  ok("zonder merkgebonden sectie gaat de poort open", poort(null).mag === true);
+  ok("en zegt hij dat er niets gevraagd wordt", poort(null).melding.includes("vraagt niets van jou"));
+
+  // De derde uitweg. Zonder deze zin is de poort een muur, en muren leveren
+  // afgehaakte klanten op in plaats van betere content (`release-panel.tsx`).
+  const tegengehouden = poort(10);
+  ok("de melding noemt alle drie de uitwegen", tegengehouden.melding.includes("beantwoorden"));
+  ok("waaronder de algemene pagina", tegengehouden.melding.includes("algemene uitleg"));
+  ok("en hem laten vallen", tegengehouden.melding.includes("laten vallen"));
+  ok("en hij noemt wat er mist", tegengehouden.melding.includes("de prijs en het werkgebied"));
+
+  const gekozen = inputpoort({ graad: 10, ongedekteSecties: 5, writeMode: "algemeen" });
+  ok("wie kiest voor een algemene pagina komt er altijd door", gekozen.mag === true);
+  ok("en krijgt niet nog eens dezelfde vraag", gekozen.stand === "schrijven");
+
+  // De grenzen zijn een startwaarde en worden per pagina bewaard, zodat ze op
+  // data bijgesteld kunnen worden in plaats van op gevoel.
+  const migratie = leesBestand("supabase/migrations/0087_inputpoort.sql");
+  ok("het cijfer heeft een kolom", migratie.includes("input_coverage"));
+  ok("de keuze van de klant ook", migratie.includes("write_mode"));
+  ok("en de secties achter een vraag", migratie.includes("section_refs"));
+  ok("additief, nooit droppen (conventie 4)", !/\bdrop\b/i.test(migratie));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Het vraagbudget gaat van de batch naar de pagina (§5)", () => {
+  const vraag = (
+    sleutel: string,
+    paginas: string[],
+    extra: Partial<BriefingQuestion> = {},
+  ): BriefingQuestion => ({
+    claimKey: sleutel,
+    question: `Vraag over ${sleutel}?`,
+    reason: "r",
+    kind: "verificatie",
+    answerType: "tekst_kort",
+    options: [],
+    suggestedAnswer: null,
+    required: false,
+    scope: "analyse",
+    contentPieceIds: paginas,
+    priority: 1,
+    ...extra,
+  });
+
+  // ⚠️ DE OMKERING. Vroeger won bereik altijd: een vraag die vier pagina's een
+  // beetje helpt stond boven de vraag die één pagina van dun naar goed tilt.
+  // Nu telt hoeveel de ZWAKSTE pagina die de vraag dient erop vooruitgaat.
+  const breed = vraag("bereik heeft vier sterke pagina", ["a", "b", "c", "d"]);
+  const diep = vraag("prijs tilt de zwakke pagina", ["z"]);
+  const graden = new Map<string, number | null>([
+    ["a", 90],
+    ["b", 90],
+    ["c", 90],
+    ["d", 90],
+    ["z", 20],
+  ]);
+
+  const zonder = selectBriefingQuestions({
+    candidates: [breed, diep],
+    alreadyKnown: new Set(),
+  });
+  ok("zonder cijfers wint bereik, zoals vroeger", zonder[0]?.claimKey === breed.claimKey);
+
+  const met = selectBriefingQuestions({
+    candidates: [vraag(breed.claimKey, ["a", "b", "c", "d"]), vraag(diep.claimKey, ["z"])],
+    alreadyKnown: new Set(),
+    graadPerPagina: graden,
+  });
+  ok(
+    "met cijfers wint de vraag die de zwakste pagina redt",
+    met[0]?.claimKey === diep.claimKey,
+    met.map((v) => v.claimKey).join(" | "),
+  );
+
+  // Onbekend is 0,5 en niet 0: een vraag voor een pagina zonder contract mag
+  // niet stilzwijgend onderaan belanden en dus vervallen (conventie 3).
+  const onbekend = selectBriefingQuestions({
+    candidates: [vraag("pagina zonder contract", ["onbekend"]), vraag("sterke pagina helpen", ["a"])],
+    alreadyKnown: new Set(),
+    graadPerPagina: graden,
+  });
+  ok(
+    "een pagina zonder cijfer verliest niet automatisch",
+    onbekend[0]?.claimKey === "pagina zonder contract",
+  );
+
+  // De secties van beide vragen gaan mee bij het samenvoegen: slaat de klant de
+  // ene vraag over, dan hoort élke sectie die erop wachtte te vervallen.
+  const samen = selectBriefingQuestions({
+    candidates: [
+      vraag("zelfde onderwerp", ["a"], { sectionRefs: ["a:s1"] }),
+      vraag("zelfde onderwerp", ["b"], { sectionRefs: ["b:s4"] }),
+    ],
+    alreadyKnown: new Set(),
+  });
+  ok("twee samengevoegde vragen houden allebei hun sectie", samen.length === 1);
+  ok(
+    "en die staan allebei op de overgebleven vraag",
+    (samen[0]?.sectionRefs ?? []).sort().join(",") === "a:s1,b:s4",
+    (samen[0]?.sectionRefs ?? []).join(","),
+  );
+
+  ok("het plafond staat op twaalf", MAX_QUESTIONS === 12);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("De bedrading van de inputpoort", () => {
+  // Conventie 1: een promptinstructie is een intentie, code is een garantie.
+  // Deze controles bewaken dat de nieuwe regels ook echt aangesloten zijn.
+  const contract = leesBestand("lib/pipeline/content-contract.ts");
+  // ⚠️ Op het BLOK dat naar het model gaat, niet op het hele bestand: de kop
+  // van dat bestand citeert de oude regel met opzet, om vast te leggen wat er
+  // veranderd is en waarom.
+  ok(
+    "de feitenlijst verbiedt geen sectie meer",
+    !contract.includes("plan er geen sectie omheen"),
+  );
+  ok(
+    "maar plant de pagina die de vraag echt beantwoordt",
+    contract.includes("Plan de pagina die de doelvraag ECHT beantwoordt"),
+  );
+  ok("en vraagt per sectie of hij over het bedrijf gaat", contract.includes("needsBrandFact: true"));
+
+  const jobs = leesBestand("lib/jobs/content-jobs.ts");
+  ok("de briefing start eerst de plantaken", jobs.includes('type: "content_plan"'));
+  ok("met de vlag dat ze vóór de briefing draaien", jobs.includes("voorBriefing"));
+
+  const handlers = leesBestand("lib/jobs/handlers.ts");
+  ok(
+    "en de laatste plantaak start de briefing",
+    handlers.includes("scheduleBriefingIfLastPlan"),
+  );
+  ok(
+    "een plantaak vóór de briefing schrijft nog niet",
+    handlers.includes("if (payload.voorBriefing) {"),
+  );
+
+  const route = leesBestand("app/api/analyses/[id]/briefing/route.ts");
+  ok("de schrijfroute vraagt de poort om toestemming", route.includes("beoordeelPagina"));
+  ok("en weigert met dezelfde code als de eindpoort", route.includes("INPUTPOORT_STATUS"));
+  ok("de klant kan een pagina algemeen laten schrijven", route.includes('"algemeen"'));
+  ok("of hem laten vallen", route.includes('"laten_vallen"'));
+
+  const plan = leesBestand("lib/pipeline/content-plan.ts");
+  ok("het contract wordt vastgezet vóór het schrijven", plan.includes("zetVastEnMeet"));
+  ok("en het cijfer gaat mee naar de pagina", plan.includes("input_coverage"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -16917,6 +17747,7 @@ group("Het contract als verbeterplan (O4/O5)", () => {
     factRefs: [],
     explainerTerms: [],
     targetWords: 100,
+    needsBrandFact: false,
     presentOnExisting: "ontbreekt",
     whatToChange: "",
     ...over,
@@ -16931,7 +17762,7 @@ group("Het contract als verbeterplan (O4/O5)", () => {
   // ── Zonder bestaande pagina geen oordeel (conventie 3) ───────────────────
   const nieuw = normaliseerContract(
     contract([sectie({ presentOnExisting: "aanwezig", whatToChange: "staat er al" })]),
-    null,
+    { existingText: null },
   );
   ok(
     "een nieuwe pagina krijgt geen oordeel over wat er al staat",
@@ -16944,7 +17775,7 @@ group("Het contract als verbeterplan (O4/O5)", () => {
   const bestaandeTekst = "Wij behandelen hardloopblessures met een persoonlijk behandelplan.";
   const overdreven = normaliseerContract(
     contract([sectie({ presentOnExisting: "aanwezig" })]),
-    bestaandeTekst,
+    { existingText: bestaandeTekst },
   );
   ok(
     "een sectie die volgens het model al op de pagina staat maar er nergens in voorkomt, ontbreekt",
@@ -16961,7 +17792,7 @@ group("Het contract als verbeterplan (O4/O5)", () => {
         whatToChange: "",
       }),
     ]),
-    bestaandeTekst,
+    { existingText: bestaandeTekst },
   );
   ok(
     "een sectie die er echt op staat blijft aanwezig",
@@ -16980,7 +17811,7 @@ group("Het contract als verbeterplan (O4/O5)", () => {
       }),
       sectie({ id: "s3", heading: "Hoe lang duurt het", subQuestion: "Hoe lang duurt het herstel?", presentOnExisting: "deels" }),
     ]),
-    bestaandeTekst,
+    { existingText: bestaandeTekst },
   );
   const lijst = describeImprovements(plan);
   ok("de lijst bevat alle drie de onderdelen", lijst.length === 3);

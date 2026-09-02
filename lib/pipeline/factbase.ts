@@ -50,6 +50,7 @@ import { offlineProofFacts } from "@/lib/pipeline/commercial-context";
 import { selectRelevantPages, topicTerms, type CandidatePage } from "@/lib/pipeline/page-relevance";
 import { atomiseSitePages } from "@/lib/pipeline/fact-atomise";
 import { syncBrandFacts } from "@/lib/pipeline/factstore";
+import { answerBelongsHere } from "@/lib/pipeline/answer-scope";
 import type { Contradiction } from "@/lib/pipeline/fact-merge";
 
 type Admin = SupabaseClient;
@@ -100,6 +101,16 @@ export async function buildFactBase(
    * dan telt alleen het analyse-onderwerp, maar levert een bredere selectie op.
    */
   targetQuestions: string[] = [],
+  /**
+   * De pagina('s) waarvoor deze kaart gebouwd wordt.
+   *
+   * Nodig voor antwoorden met reikwijdte `pagina`: die horen bij één
+   * content_piece en mogen niet bij een andere pagina belanden. Leeg meegeven
+   * werkt (dan tellen alleen merk- en analyse-antwoorden mee), maar dan gaat
+   * precies het antwoord verloren dat de klant voor DEZE pagina gaf. Zie
+   * `answer-scope.ts` voor wat dat in de ronde van 1 september 2026 kostte.
+   */
+  contentPieceIds: readonly string[] = [],
 ): Promise<FactItem[]> {
   const [{ data: analysis }, { data: profile }, { data: topic }, { data: pages }, { data: answers }] =
     await Promise.all([
@@ -119,12 +130,13 @@ export async function buildFactBase(
         .select("url, title, text_excerpt")
         .eq("profile_id", profileId)
         .limit(PAGE_POOL),
-      // Merkbrede antwoorden gelden altijd; analyse-antwoorden alleen bij deze
-      // analyse. Een 'pagina'-antwoord hoort bij één content_piece en gaat daar
-      // apart mee, hier zou het bij de verkeerde pagina kunnen belanden.
+      // Welk antwoord bij deze kaart hoort, staat in `answer-scope.ts`: merkbreed
+      // altijd, analyse-breed binnen deze analyse, paginagebonden alleen bij de
+      // pagina waaraan de vraag hing. Die derde laag ontbrak, en daardoor
+      // verdween de helft van wat de klant invulde.
       admin
         .from("fact_requests")
-        .select("question, answer, answer_type, answered_at, scope, analysis_id")
+        .select("question, answer, answer_type, answered_at, scope, analysis_id, content_piece_ids")
         .eq("profile_id", profileId)
         .eq("status", "beantwoord")
         .not("answer", "is", null),
@@ -132,13 +144,26 @@ export async function buildFactBase(
 
   const rauw: RawFact[] = [];
 
+  // ⚠️ Antwoorden die aan ÉÉN pagina hangen gaan NIET de feitenbank in.
+  //
+  // `syncBrandFacts` leest ná het schrijven alles terug wat merkbreed is óf bij
+  // deze analyse hoort, en geeft dat als kaart terug. Een paginagebonden
+  // antwoord dat we daar zouden opslaan, zou dus alsnog op de kaart van élke
+  // andere pagina in hetzelfde cluster belanden: precies het "bij de verkeerde
+  // pagina" waar de oude regel bang voor was, alleen een stap later.
+  //
+  // Ze komen wel op de kaart van hun eigen pagina terecht, via de
+  // `ontbrekend`-route hieronder, met `id: null`. Dat kost de traceerbaarheid
+  // van het bank-id, en dat is de goede ruil: liever een kaart zonder
+  // identiteit dan een feit bij de verkeerde pagina.
+  const paginaAntwoorden = new Set<string>();
+
   for (const row of answers ?? []) {
-    const scope = row.scope as string;
-    const hoortErbij =
-      scope === "merk" || (scope === "analyse" && row.analysis_id === analysisId);
-    if (!hoortErbij) continue;
+    if (!answerBelongsHere(row as never, analysisId, contentPieceIds)) continue;
     const feit = factFromAnswer(row as never);
-    if (feit) rauw.push(feit);
+    if (!feit) continue;
+    if ((row.scope as string) === "pagina") paginaAntwoorden.add(feit.text);
+    rauw.push(feit);
   }
 
   const siteUrl = (profile?.url as string | null) ?? "de eigen site";
@@ -243,8 +268,12 @@ export async function buildFactBase(
   const { facts: uitBank, contradictions } = await syncBrandFacts(admin, {
     profileId,
     analysisId,
-    brandWide: citeerbaar.filter((f) => f.kind === "klant" || isProofPoint(f.text, proofPoints)),
-    topicScoped: citeerbaar.filter((f) => f.kind !== "klant" && !isProofPoint(f.text, proofPoints)),
+    brandWide: citeerbaar.filter(
+      (f) => (f.kind === "klant" || isProofPoint(f.text, proofPoints)) && !paginaAntwoorden.has(f.text),
+    ),
+    topicScoped: citeerbaar.filter(
+      (f) => f.kind !== "klant" && !isProofPoint(f.text, proofPoints) && !paginaAntwoorden.has(f.text),
+    ),
   });
 
   laatsteTegenspraken = contradictions;

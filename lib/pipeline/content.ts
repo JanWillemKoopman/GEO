@@ -39,6 +39,8 @@ import type { ContentContract } from "@/lib/schemas/content-contract";
 import type { ItemDossier } from "@/lib/schemas/item-dossier";
 import { formatContract } from "@/lib/pipeline/contract-format";
 import { checkContractCoverage } from "@/lib/pipeline/content-coverage";
+import { answerBelongsHere } from "@/lib/pipeline/answer-scope";
+import { prioriteerBevindingen, MAX_BEVINDINGEN_PER_RONDE } from "@/lib/pipeline/content-issues";
 import { applySectionPatch, splitSections } from "@/lib/pipeline/content-sections";
 import { runPanel } from "@/lib/pipeline/content-panel";
 import { formatExplainerBlock, type VerifiedExplainer } from "@/lib/pipeline/explainer-verify";
@@ -49,7 +51,7 @@ import {
   checkTabooWords,
   checkForbiddenTopics,
 } from "@/lib/pipeline/content-gate";
-import { describeToneSliders } from "@/lib/pipeline/tone-sliders";
+import { describeToneSliders, describePronoun } from "@/lib/pipeline/tone-sliders";
 import { objectionsRule } from "@/lib/pipeline/commercial-context";
 import { mostSimilar } from "@/lib/pipeline/similarity";
 import {
@@ -469,6 +471,10 @@ function buildContentInput(args: {
         });
         return schuiven ? ` (${schuiven})` : "";
       })(),
+    // ✅ De aanspreekvorm uit het merkprofiel (verbetering 11). Werd verzameld,
+    // was bewerkbaar, en kwam nooit in de prompt: twee pagina's uit dezelfde
+    // batch spraken de lezer met "u" en met "jouw" aan.
+    describePronoun(profile?.pronoun_preference ?? null),
     `Diensten/producten: ${(profile?.products ?? []).join(", ") || "onbekend"}`,
     // ✅ Migratie 0045, verboden woorden (C.29). Een VERBOD, geen suggestie, zelfde
     // toon als de feitenkaart hierboven: gesloten lijst voor wat niet mag, in
@@ -818,6 +824,7 @@ async function loadContentContext(
     { data: topicResearchRow },
     { data: factRows },
     { data: techniekFacet },
+    { data: pieceRow },
   ] = await Promise.all([
     admin.from("profiles").select("*").eq("id", analysis.profile_id).maybeSingle(),
     admin.from("topic_research").select("*").eq("analysis_id", analysisId).maybeSingle(),
@@ -828,7 +835,7 @@ async function loadContentContext(
     admin
       .from("fact_requests")
       .select(
-        "id, question, answer, answer_type, answered_at, status, required, scope, analysis_id, kind",
+        "id, question, answer, answer_type, answered_at, status, required, scope, analysis_id, kind, content_piece_ids",
       )
       .eq("profile_id", analysis.profile_id),
     // De externe profielen die fase 0 uit de opmaak van de klant oogstte. Geen
@@ -839,6 +846,17 @@ async function loadContentContext(
       .select("raw_json")
       .eq("profile_id", analysis.profile_id)
       .eq("facet", "techniek")
+      .maybeSingle(),
+    // De huidige versie van DEZE pagina. Stond hier vroeger honderd regels
+    // lager, en dat was precies het probleem: de antwoorden van de klant werden
+    // gefilterd voordat bekend was om welke pagina het ging, dus kon een
+    // paginagebonden antwoord er niet bij horen (verbetering 1).
+    admin
+      .from("content_pieces")
+      .select("id, briefing_snapshot_json, contract_json, dossier_json, existing_page_text, existing_page_fetched_at")
+      .eq("analysis_id", analysisId)
+      .eq("title", recommendation.title)
+      .eq("is_current", true)
       .maybeSingle(),
   ]);
   const profile = profileRow as Profile | null;
@@ -851,18 +869,20 @@ async function loadContentContext(
   // de briefing bevroren was. Precies daardoor werd een met bron bevestigd
   // "nee" alsnog als "ja" gepubliceerd (zie mergeAnsweredFacts).
   //
-  // Dezelfde scope-regel als buildFactBase: merkbrede antwoorden gelden altijd,
-  // analyse-antwoorden alleen bij deze analyse. Een 'pagina'-antwoord hoort bij
-  // één content_piece en zou hier bij de verkeerde pagina kunnen belanden.
+  // Dezelfde scope-regel als buildFactBase, en sinds verbetering 1 staat hij op
+  // één plek: `answer-scope.ts`. Merkbreed geldt altijd, analyse-breed binnen
+  // deze analyse, en paginagebonden bij de pagina waaraan de vraag hing. Die
+  // derde laag ontbrak hier, en daarmee verdween in de ronde van 1 september
+  // 2026 de helft van wat de klant had ingevuld.
   // De extra velden dienen alleen het wegschrijven naar de feitenbank hieronder;
   // `mergeAnsweredFacts` kijkt er niet naar.
+  const dezePagina = pieceRow?.id ? [pieceRow.id as string] : [];
   const answeredFacts: (AnsweredFactInput & { scope: string; requestId: string })[] = (
     factRows ?? []
   )
     .filter((f) => {
       if (f.status !== "beantwoord" || !(f.answer as string | null)?.trim()) return false;
-      const scope = f.scope as string;
-      return scope === "merk" || (scope === "analyse" && f.analysis_id === analysisId);
+      return answerBelongsHere(f as never, analysisId, dezePagina);
     })
     .flatMap((f) => {
       const fact = factFromAnswer(f as never);
@@ -1065,15 +1085,6 @@ async function loadContentContext(
   // herschrijfronde zonder briefing. Dan bouwen we hem alsnog op. Zonder kaart
   // schrijven is geen optie: dat is precies de open context waarin het model
   // ging invullen.
-  const { data: pieceRow } = await admin
-    .from("content_pieces")
-    .select(
-      "briefing_snapshot_json, contract_json, dossier_json, existing_page_text, existing_page_fetched_at",
-    )
-    .eq("analysis_id", analysisId)
-    .eq("title", recommendation.title)
-    .eq("is_current", true)
-    .maybeSingle();
 
   // ── Het contract van deze pagina (A2, migratie 0082) ─────────────────────
   //
@@ -1111,6 +1122,7 @@ async function loadContentContext(
           analysis.profile_id,
           analysisId,
           targets.map((t) => t.text),
+          dezePagina,
         );
 
   // Het paginaplan uit de audit (S2). Wordt in `buildPlanBlock()` opnieuw
@@ -1152,7 +1164,13 @@ async function loadContentContext(
     profileId: analysis.profile_id,
     analysisId,
     brandWide: answeredFacts.filter((a) => a.scope === "merk").map((a) => a.fact),
-    topicScoped: answeredFacts.filter((a) => a.scope !== "merk").map((a) => a.fact),
+    // ⚠️ Paginagebonden antwoorden gaan er NIET in. De bank leest terug wat
+    // merkbreed is of bij deze analyse hoort, dus een antwoord dat aan één
+    // pagina hangt zou daarna op de kaart van élke andere pagina in dit cluster
+    // staan. Zie de toelichting in `factbase.ts`.
+    topicScoped: answeredFacts
+      .filter((a) => a.scope !== "merk" && a.scope !== "pagina")
+      .map((a) => a.fact),
     origins: antwoordHerkomst,
   });
 
@@ -1986,7 +2004,12 @@ export async function reviseContentPiece(args: {
     system: REPAIR_SYSTEM,
     user: buildRepairInput({
       piece: huidig,
-      issues,
+      // ⚠️ Niet alle bevindingen (verbetering 5). Met 119 opdrachten over 25
+      // secties raakt het model vrijwel de hele pagina aan, en dan is er niets
+      // gerichts meer aan een sectiereparatie. `review_notes` hieronder houdt
+      // wél de volledige lijst: de klant hoort alles te zien, het model hoort
+      // per ronde één handvol te krijgen.
+      issues: prioriteerBevindingen(issues, MAX_BEVINDINGEN_PER_RONDE),
       facts: ctx.facts,
       contract: ctx.contract,
       explainerBlock: formatExplainerBlock(ctx.explainers),
@@ -2128,69 +2151,119 @@ export async function reviseContentPiece(args: {
     geo_score < GEO_THRESHOLD ||
     (dekking.score !== null && dekking.score < COVERAGE_THRESHOLD);
 
+  // ── Werd de pagina hier beter van? (verbetering 5) ───────────────────────
+  //
+  // ⚠️ Dit is de belangrijkste toevoeging uit de eerste echte contentronde. De
+  // lus stopte alleen op REPAIR_MAX, en niet omdat er iets was opgelost. Gemeten
+  // op 1 september 2026, kwaliteitsscore per ronde:
+  //
+  //   pagina "Snel installeren": 67 (concept), 74, 68, 48 (eindstand)
+  //   pagina "Tilburg":          48 (concept), 52, 35, 48 (eindstand)
+  //
+  // De klant kreeg dus de LAATSTE versie terwijl de tweede 26 punten beter was.
+  // Vanaf nu geldt: een ronde die de kwaliteit niet verhoogt, wordt niet
+  // opgeslagen en is meteen de laatste. De vorige tekst blijft dan staan, met
+  // zijn eigen scores en zijn eigen bevindingen, want die horen bij die tekst.
+  //
+  // Bij de allereerste reparatie is er nog geen vorige score (een pagina van
+  // vóór deze wijziging): dan telt de ronde als verbetering, want zonder
+  // meetpunt is "niet beter" een gok en geen vaststelling (conventie 3).
+  //
+  // Twee grenzen, en het verschil doet ertoe. BEWAREN doen we zolang de ronde
+  // niet slechter is: een reparatie die een onbewezen bewering weghaalt terwijl
+  // de rubriekscore gelijk blijft, is echte winst die geen cijfer laat zien.
+  // DOORGAAN doen we alleen als de score echt stijgt: blijft hij gelijk, dan
+  // heeft de volgende ronde niets nieuws te pakken en betalen we voor niets.
+  const vorigeKwaliteit = pieceRow.quality_score === null ? null : Number(pieceRow.quality_score);
+  const geenMeetpunt = vorigeKwaliteit === null || !Number.isFinite(vorigeKwaliteit);
+  const nietSlechter = geenMeetpunt || critique.qualityScore >= (vorigeKwaliteit as number);
+  const beterDanVorige = geenMeetpunt || critique.qualityScore > (vorigeKwaliteit as number);
+
   // ── Nog een ronde, of is dit de eindstand? ───────────────────────────────
   //
-  // Doorgaan zolang er iets te repareren is EN er nog rondes over zijn. Zonder
-  // die tweede voorwaarde zou een pagina waarvan het laatste punt een ontbrekend
-  // FEIT is eindeloos herschreven worden: dat punt lost geen tekst op.
-  const nogEenRonde = (scoresTeLaag || openstaand.length > 0) && ronde < REPAIR_MAX;
+  // Doorgaan zolang er iets te repareren is, er nog rondes over zijn, ÉN deze
+  // ronde iets opleverde. Zonder de tweede voorwaarde zou een pagina waarvan het
+  // laatste punt een ontbrekend FEIT is eindeloos herschreven worden; zonder de
+  // derde blijven we betalen voor rondes die de tekst slechter maken.
+  const nogEenRonde = (scoresTeLaag || openstaand.length > 0) && ronde < REPAIR_MAX && beterDanVorige;
 
   // Ruwe beoordelingen van ALLE rondes bewaren (§5: we bewaren alles).
   const previousCritiques = Array.isArray(pieceRow.critique_raw_json) ? pieceRow.critique_raw_json : [];
 
+  // ── Wat er wordt weggeschreven (verbetering 5) ───────────────────────────
+  //
+  // Werd de pagina niet slechter, dan gaat de nieuwe versie erin met haar eigen
+  // scores en bevindingen. Werd hij slechter, dan blijft de VORIGE tekst staan en
+  // raken we alleen de administratie aan: de ronde is verbruikt en de pagina is
+  // af. De oude scores en bevindingen blijven ook staan, want die horen bij die
+  // tekst; ze overschrijven met de cijfers van een versie die we weggooien zou
+  // de reeks onnavolgbaar maken.
+  const nieuweVersie = {
+    // `title` bewust NIET bijwerken: de titel uit het rapport is de sleutel
+    // waarop de rest van de app deze pagina terugvindt (zie de toelichting bij
+    // het invoegen in draftContentPiece).
+    // `withFreshnessLine` is idempotent: hij vervangt een bestaande regel in
+    // plaats van er een tweede onder te zetten.
+    body_markdown: withFreshnessLine(final.bodyMarkdown, herzienOp),
+    meta_title: final.metaTitle,
+    meta_description: final.metaDescription,
+    schema_jsonld: validateOrRebuildJsonLd(final.schemaJsonLd, {
+      type: recommendation.type,
+      title: recommendation.title,
+      description: final.metaDescription,
+      url: analysis.url,
+      faq: final.faq,
+      businessModel: ctx.profile?.business_model ?? null,
+      organization: ctx.schemaOrg,
+      // De publicatiedatum blijft van de eerste versie; alleen de
+      // wijzigingsdatum schuift op. Andersom zou elke herziening de pagina
+      // als "nieuw" presenteren en de opgebouwde ouderdom weggooien.
+      datePublished: bestaandePublicatie,
+      dateModified: herzienOp,
+    }),
+    faq_json: final.faq as never,
+    raw_json: patch.raw as never,
+    claims_json: (final.claims ?? []).map((c) => ({
+      ...c,
+      factId: resolveFactId(c.factRef, ctx.facts),
+    })) as never,
+    source_coverage: coverage,
+    // ⚠️ Werd hier niet bijgewerkt, en dat scheelde meer dan het lijkt
+    // (verbetering 10). Op 1 september 2026 stond de Tilburg-pagina in de app
+    // als 896 woorden terwijl de tekst er 1331 telde, ruim het dubbele van het
+    // maximum van 700 voor een landingspagina. Elke uitspraak over "de
+    // gemiddelde pagina telt 548 woorden" mat dus het eerste concept en niet de
+    // pagina die de klant leest.
+    word_count: countWords(final.bodyMarkdown),
+    quality_score: critique.qualityScore,
+    geo_score,
+    coverage_score: dekking.score,
+    geo_json: {
+      zelfrapportage: geo,
+      deterministisch: gate.checks,
+      kwaliteit: quality.checks,
+      gemeten: quality.gemeten,
+      dekking: { score: dekking.score, secties: dekking.secties },
+    } as never,
+    review_notes: openstaand,
+    // Een onherleidbare bewering telt, en sinds S3 ook een bewerende zin
+    // zónder claim: dat is precies de vorm waarin de twee fabricages van
+    // 31 juli aan elke controle ontsnapten.
+    needs_review:
+      scoresTeLaag ||
+      openstaand.length > 0 ||
+      unsupported.length > 0 ||
+      untagged.length > 0,
+  };
+
   await admin
     .from("content_pieces")
     .update({
-      // `title` bewust NIET bijwerken: de titel uit het rapport is de sleutel
-      // waarop de rest van de app deze pagina terugvindt (zie de toelichting bij
-      // het invoegen in draftContentPiece).
-      // `withFreshnessLine` is idempotent: hij vervangt een bestaande regel in
-      // plaats van er een tweede onder te zetten.
-      body_markdown: withFreshnessLine(final.bodyMarkdown, herzienOp),
-      meta_title: final.metaTitle,
-      meta_description: final.metaDescription,
-      schema_jsonld: validateOrRebuildJsonLd(final.schemaJsonLd, {
-        type: recommendation.type,
-        title: recommendation.title,
-        description: final.metaDescription,
-        url: analysis.url,
-        faq: final.faq,
-        businessModel: ctx.profile?.business_model ?? null,
-        organization: ctx.schemaOrg,
-        // De publicatiedatum blijft van de eerste versie; alleen de
-        // wijzigingsdatum schuift op. Andersom zou elke herziening de pagina
-        // als "nieuw" presenteren en de opgebouwde ouderdom weggooien.
-        datePublished: bestaandePublicatie,
-        dateModified: herzienOp,
-      }),
-      faq_json: final.faq as never,
-      raw_json: patch.raw as never,
-      claims_json: (final.claims ?? []).map((c) => ({
-        ...c,
-        factId: resolveFactId(c.factRef, ctx.facts),
-      })) as never,
-      source_coverage: coverage,
-      critique_raw_json: [...previousCritiques, ...panel.raw] as never,
-      quality_score: critique.qualityScore,
-      geo_score,
-      coverage_score: dekking.score,
+      ...(nietSlechter ? nieuweVersie : {}),
+      // Deze drie gelden altijd: de ronde is verbruikt, de ruwe beoordelingen
+      // bewaren we van élke ronde (§5), en de status hangt aan de lus.
       repair_round: ronde,
-      geo_json: {
-        zelfrapportage: geo,
-        deterministisch: gate.checks,
-        kwaliteit: quality.checks,
-        gemeten: quality.gemeten,
-        dekking: { score: dekking.score, secties: dekking.secties },
-      } as never,
-      review_notes: openstaand,
-      // Een onherleidbare bewering telt, en sinds S3 ook een bewerende zin
-      // zónder claim: dat is precies de vorm waarin de twee fabricages van
-      // 31 juli aan elke controle ontsnapten.
-      needs_review:
-        scoresTeLaag ||
-        openstaand.length > 0 ||
-        unsupported.length > 0 ||
-        untagged.length > 0,
+      critique_raw_json: [...previousCritiques, ...panel.raw] as never,
       // Zolang er nog een ronde komt blijft de pagina 'draft': dan pakt de
       // volgende taak hem op. Anders is dit de eindstand.
       status: nogEenRonde ? ("draft" as const) : ("ready" as const),

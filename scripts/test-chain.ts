@@ -5639,6 +5639,56 @@ async function main(): Promise<void> {
         ptNa.includes("runnersknie") && ptVoorReparatie.includes("runnersknie"),
       );
 
+      // ── Verbetering 1: een paginagebonden antwoord bereikt zijn eigen kaart ──
+      //
+      // ⚠️ DE SAMENHANG DIE HIER FOUT GING. De briefing stelt vragen met drie
+      // reikwijdtes, en `scope = 'pagina'` hangt aan één content_piece via
+      // `content_piece_ids`. Beide plekken die antwoorden inlazen filterden die
+      // reikwijdte weg, en het commentaar zei dat zo'n antwoord "daar apart mee
+      // gaat" terwijl niets dat deed. Gemeten op 1 september 2026: 9 van de 16
+      // briefingvragen waren paginagebonden en 4 van de 8 gegeven antwoorden
+      // verdwenen. Eén ervan was "Werken jullie momenteel in Tilburg en plaatsen
+      // jullie daar hybride warmtepompen: ja", terwijl de pagina die eruit kwam
+      // schreef dat het bedrijf daar niet kon worden aanbevolen.
+      await db.client.query(
+        `insert into public.fact_requests
+           (profile_id, analysis_id, question, reason, answer, status, answered_at, scope, kind,
+            answer_type, required, claim_key, content_piece_ids)
+         values ($1, $2, 'Werken jullie in Tilburg en plaatsen jullie daar warmtepompen?',
+                 'verificatie', 'Ja, Tilburg valt binnen het werkgebied', 'beantwoord', now(),
+                 'pagina', 'verificatie', 'ja_nee', true, 'werkgebied-tilburg', $3)`,
+        [ptProfileId, ptAnalysisId, [ptContentPieceId]],
+      );
+
+      const { buildFactBase } = await import("@/lib/pipeline/factbase");
+      const kaartMetPagina = await buildFactBase(admin as never, ptProfileId, ptAnalysisId, [], [
+        ptContentPieceId as string,
+      ]);
+      // Een ja-of-nee-antwoord wordt "vraag: ja" (zie `factFromAnswer`): los is
+      // "ja" nietszeggend, dus de vraag hoort erbij.
+      ok(
+        "een paginagebonden antwoord staat op de kaart van díe pagina",
+        kaartMetPagina.some((f) => f.text.includes("Werken jullie in Tilburg")),
+      );
+      ok(
+        "en het is citeerbaar, dus de schrijver mag het gebruiken",
+        kaartMetPagina.some((f) => f.text.includes("Werken jullie in Tilburg") && f.citable),
+      );
+
+      const kaartAnderePagina = await buildFactBase(admin as never, ptProfileId, ptAnalysisId, [], [
+        randomUUID(),
+      ]);
+      ok(
+        "maar niet op de kaart van een andere pagina",
+        !kaartAnderePagina.some((f) => f.text.includes("Werken jullie in Tilburg")),
+      );
+
+      const kaartZonderPagina = await buildFactBase(admin as never, ptProfileId, ptAnalysisId, []);
+      ok(
+        "en niet als er helemaal geen pagina in beeld is",
+        !kaartZonderPagina.some((f) => f.text.includes("Werken jullie in Tilburg")),
+      );
+
       await db.client.query(`update public.content_pieces set status = 'ready' where id = $1`, [
         ptContentPieceId,
       ]);
@@ -7385,6 +7435,238 @@ async function main(): Promise<void> {
       } finally {
         globalThis.fetch = origineleFetch;
       }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // De vragen komen NA het plan, en overslaan haalt de sectie eruit
+    // (docs/tasks/vragen-voor-het-schrijven.md)
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT GING. De briefing stelde zijn vragen vóórdat
+    // de app wist wat de pagina moest behandelen: de claim-audit draaide zonder
+    // inhoudsopgave, en het contract werd pas daarna opgesteld, met een prompt
+    // die letterlijk zei "daar mag je omheen plannen, niet doorheen". Gemeten op
+    // 1 september 2026 rustten daardoor 18 van de 25 secties van één pagina op
+    // geen enkel feit over het bedrijf, en verdween een overgeslagen vraag
+    // spoorloos: de sectie bleef staan en werd volgeschreven met zinnen die de
+    // lezer opdragen iets na te vragen.
+    //
+    // Deze test volgt de nieuwe volgorde helemaal door, want geen van de
+    // schakels is in isolatie te zien: plannen, dan vragen uit het gat, dan
+    // overslaan, dan de sectie die vervalt.
+    {
+      console.log("\nDe juiste vragen vóór het schrijven (plan, briefing, overslaan)");
+      const vpUserId = randomUUID();
+      const vpProfileId = randomUUID();
+      const vpAnalysisId = randomUUID();
+
+      await db.client.query(`insert into auth.users (id, email) values ($1, $2)`, [
+        vpUserId,
+        `vragen-${vpUserId.slice(0, 8)}@voorbeeld.nl`,
+      ]);
+      // Hetzelfde bewijspunt als het hoofdscenario, want daar leunt F1 op: de
+      // eerste sectie van het contract van de stub verwijst ernaar en telt
+      // daardoor als gedekt.
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, proof_points, status)
+         values ($1, $2, 'Fysi-Unique', 'https://fysi-unique.nl', 'Fysi-Unique',
+                 array['Wordt met een 9,4 beoordeeld op Zorgkaart'], 'klaar')`,
+        [vpProfileId, vpUserId],
+      );
+      await db.client.query(
+        `insert into public.profile_pages (profile_id, url, title, text_excerpt) values
+         ($1, 'https://fysi-unique.nl/hardloopklachten', 'Hardloopklachten Amersfoort',
+          'Fysi-Unique behandelt hardloopblessures zoals runnersknie en shin splints. Wij zitten in Amersfoort.')`,
+        [vpProfileId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'Fysi-Unique hardloopblessures', 'https://fysi-unique.nl',
+                 'hardloopblessure behandelen', 'gereed')`,
+        [vpAnalysisId, vpUserId, vpProfileId],
+      );
+
+      const vpAanbeveling = {
+        title: "Pagina over hardloopblessures",
+        type: "article" as const,
+        targetIntent: "Waar kan ik in Amersfoort terecht voor een hardloopblessure?",
+        why: "De AI noemt hier andere praktijken.",
+        action: "nieuw" as const,
+        existingUrl: null,
+        reportId: null,
+        targets: [
+          {
+            promptId: null,
+            runId: null,
+            text: "Waar kan ik in Amersfoort terecht voor een hardloopblessure?",
+            cluster: "hardloop",
+            weight: 1,
+          },
+        ],
+        revisionNote: null,
+      };
+
+      // ── 1. De briefing inplannen start het PLAN, niet de vragen ───────────
+      const { planContentBriefing } = await import("@/lib/jobs/content-jobs");
+      await planContentBriefing(admin as never, {
+        analysisId: vpAnalysisId,
+        userId: vpUserId,
+        recommendations: [vpAanbeveling],
+      });
+
+      const { rows: vpTaken } = await db.client.query(
+        `select id, type, payload_json from public.jobs where analysis_id = $1 order by created_at`,
+        [vpAnalysisId],
+      );
+      ok(
+        "er staat een plantaak in de rij en nog geen briefing",
+        vpTaken.length === 1 && vpTaken[0].type === "content_plan",
+        vpTaken.map((t: { type: string }) => t.type).join(", "),
+      );
+      ok(
+        "die plantaak weet dat hij vóór de briefing draait",
+        Boolean((vpTaken[0].payload_json as { voorBriefing?: unknown })?.voorBriefing),
+      );
+
+      const { rows: vpRijen } = await db.client.query(
+        `select id, status from public.content_pieces where analysis_id = $1`,
+        [vpAnalysisId],
+      );
+      ok(
+        "de pagina bestaat al, zodat de plantaak zijn contract kwijt kan",
+        vpRijen.length === 1 && vpRijen[0].status === "briefing",
+      );
+      const vpPieceId = vpRijen[0].id as string;
+
+      // ── 2. De plantaak draaien: contract eerst, dan pas de briefing ───────
+      const { runJob } = await import("@/lib/jobs/handlers");
+      await runJob({
+        admin: admin as never,
+        job: {
+          id: vpTaken[0].id as string,
+          analysis_id: vpAnalysisId,
+          type: "content_plan",
+          payload_json: vpTaken[0].payload_json,
+          attempts: 0,
+        } as never,
+      });
+
+      const { rows: vpNaPlan } = await db.client.query(
+        `select type from public.jobs where analysis_id = $1 and type = 'content_brief'`,
+        [vpAnalysisId],
+      );
+      ok(
+        "de laatste plantaak start de briefing",
+        vpNaPlan.length === 1,
+        "zonder deze stap wacht de klant op vragen die nooit komen",
+      );
+
+      const { rows: vpContractRijen } = await db.client.query(
+        `select contract_json, input_coverage from public.content_pieces where id = $1`,
+        [vpPieceId],
+      );
+      const vpContract = vpContractRijen[0]?.contract_json as {
+        sections: { id: string; needsBrandFact: boolean }[];
+      };
+      ok(
+        "het contract ligt er vóór de briefing",
+        (vpContract?.sections ?? []).length === 2,
+        `${vpContract?.sections?.length ?? 0} secties`,
+      );
+
+      // ── 3. De briefing meet het gat en vraagt naar de juiste sectie ───────
+      const { runBriefing: vpRunBriefing } = await import("@/lib/pipeline/briefing");
+      await vpRunBriefing({ analysisId: vpAnalysisId, recommendations: [vpAanbeveling] });
+
+      const { rows: vpDekking } = await db.client.query(
+        `select input_coverage from public.content_pieces where id = $1`,
+        [vpPieceId],
+      );
+      // Twee merkgebonden secties, waarvan er één een bestaand F-nummer heeft:
+      // de onderbouwingsgraad is dus 50%. Dat cijfer is wat de inputpoort weegt.
+      ok(
+        "de onderbouwingsgraad is gemeten en bewaard",
+        Number(vpDekking[0]?.input_coverage) === 50,
+        `${vpDekking[0]?.input_coverage}`,
+      );
+
+      const { rows: vpVragen } = await db.client.query(
+        `select id, question, section_refs from public.fact_requests
+          where profile_id = $1 and status = 'open'`,
+        [vpProfileId],
+      );
+      const vpSectieVraag = vpVragen.find((v: { section_refs: string[] }) =>
+        (v.section_refs ?? []).includes(`${vpPieceId}:s2`),
+      );
+      ok(
+        "de vraag hangt aan de sectie die hem nodig heeft",
+        Boolean(vpSectieVraag),
+        vpVragen.map((v: { section_refs: string[] }) => (v.section_refs ?? []).join("|")).join(" / "),
+      );
+
+      // ── 4. Overslaan haalt de sectie eruit ────────────────────────────────
+      //
+      // De ondergrens van drie secties uit `zetContractVast` geldt hier niet:
+      // dit contract heeft er twee, dus we toetsen de snoeifunctie los op een
+      // contract dat groot genoeg is, en daarna de keten met de echte grens.
+      const { zetContractVast } = await import("@/lib/pipeline/input-coverage");
+      const vpRuim = {
+        ...vpContract,
+        sections: [
+          ...vpContract.sections,
+          { ...vpContract.sections[0], id: "s3" },
+          { ...vpContract.sections[0], id: "s4" },
+        ],
+      } as never;
+      ok(
+        "een overgeslagen vraag laat zijn sectie vervallen",
+        (zetContractVast(vpRuim, ["s2"])?.sections ?? []).every(
+          (sec: { id: string }) => sec.id !== "s2",
+        ),
+      );
+      ok(
+        "maar een pagina wordt nooit kleiner dan drie secties",
+        (zetContractVast(vpRuim, ["s1", "s2", "s3"])?.sections ?? []).length === 4,
+      );
+
+      // ── 5. De inputpoort houdt een te dunne pagina tegen ──────────────────
+      const { beoordeelPagina } = await import("@/lib/pipeline/input-gate");
+      const { rows: vpPoortRij } = await db.client.query(
+        `select id, title, contract_json, write_mode, briefing_snapshot_json, target_intent
+           from public.content_pieces where id = $1`,
+        [vpPieceId],
+      );
+      const vpOordeel = await beoordeelPagina(admin as never, {
+        analysisId: vpAnalysisId,
+        profileId: vpProfileId,
+        piece: vpPoortRij[0] as never,
+      });
+      ok(
+        "bij 50% mag de pagina geschreven worden, met een waarschuwing",
+        vpOordeel.mag && vpOordeel.stand === "waarschuwing",
+        `${vpOordeel.stand} bij ${vpOordeel.graad}%`,
+      );
+      ok(
+        "en de melding noemt de sectie die eruit valt",
+        vpOordeel.melding.includes("Afspraak maken"),
+        vpOordeel.melding,
+      );
+
+      // Kiest de klant voor een algemene pagina, dan gaat de poort open en
+      // vervalt de sectie waar hij niets voor heeft.
+      await db.client.query(
+        `update public.content_pieces set write_mode = 'algemeen' where id = $1`,
+        [vpPieceId],
+      );
+      const vpAlgemeen = await beoordeelPagina(admin as never, {
+        analysisId: vpAnalysisId,
+        profileId: vpProfileId,
+        piece: { ...(vpPoortRij[0] as object), write_mode: "algemeen" } as never,
+      });
+      ok(
+        "wie kiest voor een algemene pagina komt door de poort",
+        vpAlgemeen.mag && vpAlgemeen.stand === "schrijven",
+        vpAlgemeen.stand,
+      );
     }
 
     __setTestAdminClient(null);

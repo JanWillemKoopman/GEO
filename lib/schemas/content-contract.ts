@@ -47,6 +47,24 @@ export const ContractSection = z.object({
   /** Richtlengte van deze sectie. Sturen per sectie werkt, sturen per pagina niet. */
   targetWords: z.number(),
   /**
+   * Vraagt deze sectie om een uitspraak over DIT bedrijf, of is hij algemeen?
+   * (docs/tasks/vragen-voor-het-schrijven.md §4)
+   *
+   * "Wat kost een hybride warmtepomp bij dit bedrijf" vraagt erom. "Hoe werkt
+   * een hybride warmtepomp" niet: dat is uitleg over het onderwerp, en een
+   * pagina zonder één zo'n sectie is geen slechte pagina.
+   *
+   * Dit is het veld waarmee de app eindelijk het verschil kan zien tussen "deze
+   * sectie is van nature algemeen" en "deze sectie zou iets over het bedrijf
+   * moeten zeggen en kan dat niet". Zonder dat verschil is er geen maat voor
+   * "hebben we hier genoeg voor" en dus geen reden om een vraag te stellen.
+   *
+   * Het MODEL oordeelt hier, want het is een inhoudelijk oordeel en geen
+   * telling. De CODE rekent na of er een bestaand F-nummer bij staat
+   * (`lib/pipeline/input-coverage.ts`), precies de verdeling van conventie 1.
+   */
+  needsBrandFact: z.boolean(),
+  /**
    * Staat deze sectie al op de BESTAANDE pagina? (O4, migratie 0083)
    *
    * Alleen betekenisvol als deze pagina een bestaande pagina verbetert. Bij een

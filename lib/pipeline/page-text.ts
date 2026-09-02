@@ -40,20 +40,14 @@
  * vanuit `scripts/test-unit.ts`. `lib/crawler.ts` begint wél met `server-only`,
  * en dat is precies waarom deze regels hier staan en niet daar.
  *
- * ⚠️ DIT BESTAND IS LETTERLIJK OVERGENOMEN uit de tak
- * `claude/gasservice-brabant-content-fe9g07`, die het op 1 september 2026
- * schreef en nog niet op `main` staat. Op 2 september bleek hetzelfde probleem
- * de VERSE ophaling van een te verbeteren pagina te raken
- * (`existing-page-fetch.ts`): van de 3493 opgehaalde tekens van
- * wouterwarmtepomp.nl was ongeveer een derde het menu, twee keer achter elkaar.
- * Het een tweede keer bouwen zou twee plekken opleveren die het oneens kunnen
- * worden over dezelfde vraag, dus staat hier de identieke code. Komt die tak
- * binnen, dan zijn de twee bestanden gelijk en is het samenvoegen triviaal.
+ * ── TWEE AANROEPERS, ÉÉN REGEL ──────────────────────────────────────────────
  *
- * ⚠️ Wat NIET is overgenomen: die tak past ook `PAGE_MAX_CHARS` in
- * `lib/crawler.ts` aan (1500 naar 4000) en gebruikt `stripChrome()` in de crawl
- * zelf. Dat raakt de hele content-inventaris en heeft zijn eigen verificatie
- * nodig; het hoort bij die tak en niet hier.
+ * Op 2 september 2026 bleek hetzelfde probleem ook de VERSE ophaling van een te
+ * verbeteren pagina te raken (`existing-page-fetch.ts`): van de 3493 opgehaalde
+ * tekens van wouterwarmtepomp.nl was ongeveer een derde het menu, twee keer
+ * achter elkaar. Die stap gebruikt dezelfde functie. Twee eigen versies zouden
+ * het oneens kunnen worden over dezelfde vraag, en dan verschilt de tekst die
+ * de app beoordeelt van de tekst die ze opslaat.
  */
 
 /** Hoeveel tekst er minstens moet overblijven voordat we het schonen vertrouwen. */

@@ -71,18 +71,46 @@ const KIND_HEADING: Record<string, { title: string; hint: string }> = {
 
 const KIND_ORDER = ["verificatie", "onderscheid", "aanvulling", "bewijs", "praktisch", "grenzen"];
 
+/**
+ * De stand van één pagina vóór het schrijven
+ * (docs/tasks/vragen-voor-het-schrijven.md §7).
+ *
+ * Zonder dit blok was de briefing één lijst vragen die niet zei welke pagina er
+ * klaar voor was en welke niet. De klant kon dus niet zien dat drie van zijn
+ * vier pagina's konden en de vierde niet, en dus ook niet wat de twee minuten
+ * invullen hem opleverden.
+ */
+export interface PaginaStandView {
+  id: string;
+  title: string;
+  stand: "schrijven" | "waarschuwing" | "tegenhouden";
+  /** Onderbouwingsgraad van 0 tot 100, of null als de pagina niets van je vraagt. */
+  graad: number | null;
+  melding: string;
+  /** De koppen van de secties die nog op een antwoord wachten. */
+  ongedekteKoppen: string[];
+}
+
 type Draft = Record<string, { value: string; skipped: boolean }>;
+
+/** De keuze die de klant maakt bij een pagina die niet zonder meer kan. */
+type PaginaKeuze = "algemeen" | "laten_vallen";
 
 export function BriefingForm({
   analysisId,
   questions,
   pageCount,
+  pages = [],
 }: {
   analysisId: string;
   questions: BriefingQuestionView[];
   pageCount: number;
+  /** De stand per pagina. Leeg bij een batch van vóór 2 september 2026. */
+  pages?: PaginaStandView[];
 }) {
   const router = useRouter();
+  const [keuzes, setKeuzes] = useState<Record<string, PaginaKeuze>>({});
+  const [geblokkeerd, setGeblokkeerd] = useState<{ title: string; melding: string }[]>([]);
   const [draft, setDraft] = useState<Draft>(() =>
     Object.fromEntries(
       questions.map((q) => [
@@ -125,17 +153,39 @@ export function BriefingForm({
             answer: draft[q.id]?.value ?? "",
             skip: draft[q.id]?.skipped ?? false,
           })),
+          pageChoices: Object.entries(keuzes).map(([id, mode]) => ({ id, mode })),
         }),
       });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        queued?: number;
+        blocked?: { title: string; melding: string }[];
+      };
+
+      // ⚠️ De inputpoort hield alles tegen (409). Dat is geen fout maar een
+      // uitkomst, en de klant hoort te lezen wélke pagina en waarom, met de
+      // uitwegen ernaast. Een kale foutmelding zou hier een dood einde zijn
+      // (`docs/ux-design.md` §4).
+      if (res.status === 409 && (data.blocked ?? []).length > 0) {
+        setGeblokkeerd(data.blocked ?? []);
+        return;
+      }
       if (!res.ok) {
         // A.5: server- en netwerkfouten apart afhandelen, anders komt een
         // weggevallen verbinding op het scherm als "Failed to fetch".
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
         setError(data.error ?? "Opslaan is niet gelukt. Probeer het opnieuw.");
         return;
       }
-      if (action === "write") router.push(`/analyses/${analysisId}/bibliotheek`);
-      else router.refresh();
+
+      // Deels doorgekomen: sommige pagina's worden geschreven, andere wachten
+      // nog op input. Dan blijft de klant hier, want anders ziet hij die
+      // achterblijvers nooit.
+      setGeblokkeerd(data.blocked ?? []);
+      if (action === "write" && (data.blocked ?? []).length === 0) {
+        router.push(`/analyses/${analysisId}/bibliotheek`);
+      } else {
+        router.refresh();
+      }
     } catch {
       setError("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding en probeer het opnieuw.");
     } finally {
@@ -149,6 +199,16 @@ export function BriefingForm({
 
   function toggleSkip(id: string) {
     setDraft((d) => ({ ...d, [id]: { value: "", skipped: !d[id]?.skipped } }));
+  }
+
+  /** Nog een keer klikken zet de keuze weer uit: niets is hier onomkeerbaar. */
+  function kies(pieceId: string, keuze: PaginaKeuze) {
+    setKeuzes((k) => {
+      const nieuw = { ...k };
+      if (nieuw[pieceId] === keuze) delete nieuw[pieceId];
+      else nieuw[pieceId] = keuze;
+      return nieuw;
+    });
   }
 
   return (
@@ -185,6 +245,23 @@ export function BriefingForm({
           </span>
         </div>
       </header>
+
+      <PaginaStanden pages={pages} keuzes={keuzes} onKies={kies} />
+
+      {geblokkeerd.length > 0 && (
+        <div className="card card-warning flex flex-col gap-2" role="status">
+          <span className="mono-label">Nog niet geschreven</span>
+          <ul className="flex flex-col gap-2 text-sm">
+            {geblokkeerd.map((b) => (
+              <li key={b.title}>
+                <strong>{b.title}</strong>
+                <br />
+                <span style={{ color: "var(--text-secondary)" }}>{b.melding}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {gegroepeerd.map((groep) => (
         <section key={groep.kind} className="flex flex-col gap-3">
@@ -433,5 +510,94 @@ function Choices({
         );
       })}
     </div>
+  );
+}
+
+/**
+ * Wat er per pagina nog nodig is, en welke uitwegen er zijn
+ * (docs/tasks/vragen-voor-het-schrijven.md §7).
+ *
+ * ── DRIE DINGEN DIE DIT BLOK DOET EN DE VRAGENLIJST NIET ────────────────────
+ *
+ *   1. het cijfer per pagina tonen, zodat zichtbaar is dat de ene pagina
+ *      klaarstaat en de andere niet;
+ *   2. de consequentie in dezelfde zin als de vraag noemen, dus niet "deze vraag
+ *      staat open" maar "zonder dit blijft het stuk over de prijs leeg";
+ *   3. een derde uitweg bieden naast beantwoorden en overslaan: de pagina bewust
+ *      algemeen laten schrijven. Dat is een legitieme keuze voor een
+ *      kennisbankartikel en hij mag niet als falen voelen.
+ *
+ * Elke stand heeft minstens twee knoppen of geen enkele. Een scherm dat alleen
+ * zegt wat er niet kan is een dood einde (`docs/ux-design.md` §4).
+ */
+function PaginaStanden({
+  pages,
+  keuzes,
+  onKies,
+}: {
+  pages: PaginaStandView[];
+  keuzes: Record<string, PaginaKeuze>;
+  onKies: (pieceId: string, keuze: PaginaKeuze) => void;
+}) {
+  if (pages.length === 0) return null;
+
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1 border-b border-[var(--border-subtle)] pb-2">
+        <h2 className="text-lg font-medium">Wat er per pagina nog nodig is</h2>
+        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+          Hoe meer je hieronder invult, hoe concreter de tekst wordt. Wat leeg blijft, komt er niet
+          op te staan.
+        </p>
+      </div>
+
+      {pages.map((pagina) => {
+        const keuze = keuzes[pagina.id];
+        return (
+          <div
+            key={pagina.id}
+            className={pagina.stand === "tegenhouden" ? "card card-warning flex flex-col gap-2" : "card flex flex-col gap-2"}
+            style={keuze === "laten_vallen" ? { opacity: 0.55 } : undefined}
+          >
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <strong>{pagina.title}</strong>
+              <span className="mono-label whitespace-nowrap">
+                {pagina.graad === null ? "vraagt niets van jou" : `${Math.round(pagina.graad)}% onderbouwd`}
+              </span>
+            </div>
+
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+              {pagina.melding}
+            </p>
+
+            {/* Alleen als er echt iets te kiezen valt. Een pagina die gewoon
+                geschreven kan worden hoort geen knoppen te krijgen: dan vraagt
+                het scherm een besluit waar geen besluit nodig is. */}
+            {pagina.stand !== "schrijven" && (
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className={keuze === "algemeen" ? "btn-outline" : "btn-ghost"}
+                  aria-pressed={keuze === "algemeen"}
+                  onClick={() => onKies(pagina.id, "algemeen")}
+                >
+                  {keuze === "algemeen"
+                    ? "Wordt algemeen geschreven"
+                    : "Schrijf hem algemeen, zonder onze cijfers"}
+                </button>
+                <button
+                  type="button"
+                  className={keuze === "laten_vallen" ? "btn-outline" : "btn-ghost"}
+                  aria-pressed={keuze === "laten_vallen"}
+                  onClick={() => onKies(pagina.id, "laten_vallen")}
+                >
+                  {keuze === "laten_vallen" ? "Wordt overgeslagen" : "Laat deze pagina vallen"}
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </section>
   );
 }

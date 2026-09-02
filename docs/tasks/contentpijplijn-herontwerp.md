@@ -8,8 +8,22 @@ verzameling onderbouwde zinnen. Kosten zijn geen beperking zolang de pagina er b
 **Stand op 1 september 2026: de "nu"-variant is gebouwd** (A1, A2, A3, A5, A6, A7, A8, A9, A10),
 migratie `0082` staat op productie. Zie het logboek van diezelfde datum voor wat er precies gebeurd
 is. Wat nog openstaat: A4 (sectiegewijs schrijven, bewust uitgesteld omdat het als enige de kosten
-echt verhoogt), A11 (evaluatieset) en A12 (regenereren met behoud), plus de praktijktoets op een
-echte klant, want gebouwd is niet geverifieerd (conventie 10).
+echt verhoogt), A11 (evaluatieset) en A12 (regenereren met behoud).
+
+> **De praktijktoets is gedraaid, en de uitkomst wijkt af van dit advies.** Op 1 september 2026 zijn
+> vier pagina's geschreven voor Gasservice Brabant, cluster Hybride warmtepomp. Zie
+> `docs/tasks/contentronde-gasservice-brabant-1-september-2026.md` voor het verslag en de twaalf
+> verbeteringen die eruit volgen. Twee cijfers in dit advies zijn door die ronde achterhaald:
+>
+> - **De kosten.** Dit advies rekende op ongeveer $0,24 per pagina voor de "nu"-variant. Gemeten:
+>   **$1,131**. De schrijfaanroep groeide van 5.599 naar 23.649 invoertokens en kost $0,3045, en de
+>   gerichte sectiereparatie kost $0,2525 per ronde in plaats van de geraamde $0,06, met méér
+>   uitvoertokens (6.245) dan de oorspronkelijke schrijfaanroep (6.042).
+> - **Minder pagina's met "check nodig".** A6 beloofde dat. Gemeten staan alle vier de pagina's op
+>   "check nodig", tegen 15 van de 29 (52%) bij de oude pijplijn.
+>
+> Wat wél uitkwam: de doorlooptijd (A10) en de hallucinatierem. Er staat geen enkel verzonnen feit
+> over de klant op de vier pagina's.
 
 De kosten in §3 zijn nagerekend tegen `ai_calls` op productie en niet geschat; de kwaliteitscijfers
 komen uit `content_pieces`.

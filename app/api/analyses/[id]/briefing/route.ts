@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
 import { planContentDraft } from "@/lib/jobs/content-jobs";
 import { recommendationFromSnapshot } from "@/lib/pipeline/briefing";
+import { beoordeelPagina, POORT_VELDEN } from "@/lib/pipeline/input-gate";
+import { INPUTPOORT_STATUS } from "@/lib/content-input-gate";
 import { describeError, classifyError } from "@/lib/errors";
 import type { RecommendationPayload } from "@/lib/jobs/types";
 import type { ContentAction, ContentType } from "@/lib/types/database";
@@ -82,6 +84,34 @@ function recommendationFor(piece: {
   };
 }
 
+/**
+ * De keuze van de klant bij een pagina die de inputpoort tegenhoudt
+ * (docs/tasks/vragen-voor-het-schrijven.md §7).
+ *
+ * Twee van de drie uitwegen komen hier binnen; de derde is gewoon de vragen
+ * beantwoorden, en die loopt over `answers` hierboven. Zonder deze twee is de
+ * poort een muur, en muren leveren afgehaakte klanten op in plaats van betere
+ * content (`release-panel.tsx`).
+ */
+interface PaginaKeuze {
+  id: string;
+  /** 'algemeen' = schrijf hem zonder onze cijfers. 'laten_vallen' = niet schrijven. */
+  mode: "algemeen" | "laten_vallen";
+}
+
+function readPageChoices(value: unknown): PaginaKeuze[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((c) => {
+      const input = (c ?? {}) as Partial<PaginaKeuze>;
+      return {
+        id: typeof input.id === "string" ? input.id : "",
+        mode: input.mode === "algemeen" || input.mode === "laten_vallen" ? input.mode : null,
+      };
+    })
+    .filter((c): c is PaginaKeuze => c.id.length > 0 && c.mode !== null);
+}
+
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
@@ -92,7 +122,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const analysis = await getOwnedAnalysis(admin, id, user.id);
   if (!analysis) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
 
-  let body: { answers?: unknown; action?: string };
+  let body: { answers?: unknown; action?: string; pageChoices?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -116,6 +146,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const answers = readAnswers(body.answers);
+  const pageChoices = readPageChoices(body.pageChoices);
   const wilSchrijven = body.action === "write";
 
   try {
@@ -160,15 +191,49 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
     }
 
-    if (!wilSchrijven) {
-      return NextResponse.json({ saved: opgeslagen, queued: 0 });
+    // ── 2. De keuze per pagina vastleggen ───────────────────────────────────
+    //
+    // Ook zonder `action: "write"`, want de klant kan zijn keuze maken en later
+    // pas op de knop drukken. Eerst weer de eigenaarscontrole: de id's komen van
+    // de client (abcplan.md §5).
+    if (pageChoices.length > 0) {
+      const { data: eigenPieces } = await admin
+        .from("content_pieces")
+        .select("id")
+        .eq("analysis_id", id)
+        .in(
+          "id",
+          pageChoices.map((c) => c.id),
+        );
+      const toegestaan = new Set((eigenPieces ?? []).map((r) => r.id as string));
+
+      for (const keuze of pageChoices) {
+        if (!toegestaan.has(keuze.id)) continue;
+        // "Laten vallen" gooit niets weg: de rij verdwijnt alleen uit de
+        // huidige batch, zodat hij niet meegeschreven wordt en niet meer als
+        // "wacht op jouw input" in de bibliotheek staat. De tekst en de vragen
+        // blijven achterhaalbaar, net als bij versiebeheer (4.7).
+        await admin
+          .from("content_pieces")
+          .update(
+            keuze.mode === "laten_vallen"
+              ? { is_current: false }
+              : { write_mode: "algemeen" },
+          )
+          .eq("id", keuze.id);
+      }
     }
 
-    // ── 2. Het schrijven starten ────────────────────────────────────────────
+    if (!wilSchrijven) {
+      return NextResponse.json({ saved: opgeslagen, queued: 0, choices: pageChoices.length });
+    }
+
+    // ── 3. Het schrijven starten, pagina voor pagina langs de inputpoort ─────
     const { data: pieces } = await admin
       .from("content_pieces")
       .select(
-        "id, title, type, action, existing_url, report_id, brief_instruction, target_intent, briefing_snapshot_json",
+        `id, title, type, action, existing_url, report_id, brief_instruction, target_intent, ` +
+          `briefing_snapshot_json, contract_json, write_mode`,
       )
       .eq("analysis_id", id)
       .eq("status", "briefing")
@@ -179,8 +244,39 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ saved: opgeslagen, queued: 0, nothingToWrite: true });
     }
 
+    // ⚠️ De poort staat HIER en niet alleen op het scherm. Conventie 1: de knop
+    // is een intentie, de route is de garantie. Een pagina waar we te weinig van
+    // weten kost $1,13 aan schrijfwerk en levert een tekst op die de lezer 20
+    // keer opdraagt iets na te vragen; dat is de meting van 1 september 2026.
     let queued = 0;
+    const geblokkeerd: { id: string; title: string; melding: string; graad: number | null }[] = [];
+    const gewaarschuwd: { id: string; title: string; melding: string; graad: number | null }[] = [];
+
     for (const piece of wachtend) {
+      const oordeel = await beoordeelPagina(admin, {
+        analysisId: id,
+        profileId: analysis.profile_id,
+        piece: piece as never,
+      });
+
+      if (!oordeel.mag) {
+        geblokkeerd.push({
+          id: oordeel.pieceId,
+          title: oordeel.title,
+          melding: oordeel.melding,
+          graad: oordeel.graad,
+        });
+        continue;
+      }
+      if (oordeel.stand === "waarschuwing") {
+        gewaarschuwd.push({
+          id: oordeel.pieceId,
+          title: oordeel.title,
+          melding: oordeel.melding,
+          graad: oordeel.graad,
+        });
+      }
+
       const { created } = await planContentDraft(admin, {
         analysisId: id,
         userId: user.id,
@@ -189,7 +285,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       if (created) queued++;
     }
 
-    return NextResponse.json({ saved: opgeslagen, queued, pages: wachtend.length }, { status: 202 });
+    // Alles tegengehouden: dan is dit geen half geslaagde opdracht maar een
+    // opdracht die niet uitgevoerd is, en dat hoort de client aan de status te
+    // kunnen zien. Zelfde code als de eindpoort gebruikt.
+    const status = queued === 0 && geblokkeerd.length > 0 ? INPUTPOORT_STATUS : 202;
+
+    return NextResponse.json(
+      { saved: opgeslagen, queued, pages: wachtend.length, blocked: geblokkeerd, warned: gewaarschuwd },
+      { status },
+    );
   } catch (err) {
     console.error(`briefing verwerken mislukt voor ${id}:`, err);
     return NextResponse.json(

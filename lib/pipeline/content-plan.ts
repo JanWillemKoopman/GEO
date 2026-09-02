@@ -37,7 +37,14 @@ import { buildContentContract } from "@/lib/pipeline/content-contract";
 import { fetchExistingPage } from "@/lib/pipeline/existing-page-fetch";
 import { matchExistingPage } from "@/lib/pipeline/existing-page-match";
 import { factsFromSnapshot, planFromSnapshot } from "@/lib/pipeline/briefing";
+import { factFromAnswer, mergeAnsweredFacts, type AnsweredFactInput } from "@/lib/pipeline/factcard";
+import { answerBelongsHere } from "@/lib/pipeline/answer-scope";
 import { buildFactBase } from "@/lib/pipeline/factbase";
+import {
+  berekenInputCoverage,
+  sectiesVanPagina,
+  zetContractVast,
+} from "@/lib/pipeline/input-coverage";
 import { TARGET_WORDS, TYPE_GUIDANCE, type RecommendationInput } from "@/lib/pipeline/content";
 import type { ContentContract } from "@/lib/schemas/content-contract";
 import type { ItemDossier } from "@/lib/schemas/item-dossier";
@@ -101,12 +108,21 @@ export async function planContentPiece(args: {
   const analysis = analysisRow as Analysis;
 
   const piece = await currentPiece(admin, analysisId, recommendation.title);
+  const targets = recommendation.targets ?? [];
 
   // ── Ligt het er al? ───────────────────────────────────────────────────────
+  //
+  // Sinds de planstap ook VÓÓR de briefing draait, is dit de normale route bij
+  // de tweede aanroep: de klant drukt op "Schrijf mijn pagina's" en het contract
+  // van de briefing ligt er dan al. Geen enkele nieuwe AI-aanroep, maar wél het
+  // vastzetten hieronder, want de klant heeft er intussen vragen bij
+  // beantwoord en overgeslagen.
   if (piece && !force) {
     const { data: row } = await admin
       .from("content_pieces")
-      .select("contract_json, dossier_json, existing_page_text, existing_page_fetched_at")
+      .select(
+        "contract_json, dossier_json, write_mode, existing_page_text, existing_page_fetched_at",
+      )
       .eq("id", piece.id)
       .maybeSingle();
     const bestaand = (row?.contract_json ?? null) as ContentContract | null;
@@ -114,8 +130,11 @@ export async function planContentPiece(args: {
       const opgeslagen = (row?.dossier_json ?? null) as
         | { dossier?: ItemDossier; explainers?: VerifiedExplainer[] }
         | null;
+      const vast = await zetVastEnMeet(admin, analysisId, analysis.profile_id, piece.id, bestaand, targets, {
+        alleenAlgemeen: row?.write_mode === "algemeen",
+      });
       return {
-        contract: bestaand,
+        contract: vast,
         dossier: opgeslagen?.dossier ?? null,
         explainers: opgeslagen?.explainers ?? [],
         hergebruikt: true,
@@ -134,8 +153,6 @@ export async function planContentPiece(args: {
     .eq("id", analysis.profile_id)
     .maybeSingle();
   const profile = profileRow as Profile | null;
-
-  const targets = recommendation.targets ?? [];
 
   // Het winnende antwoord uit de meting: dat is wat de lat laat zien. Dezelfde
   // bron als `loadContentContext` gebruikt, hier alleen om het onderzoek te
@@ -178,13 +195,15 @@ export async function planContentPiece(args: {
   const { data: pieceRow } = piece
     ? await admin
         .from("content_pieces")
-        .select("briefing_snapshot_json")
+        .select("briefing_snapshot_json, write_mode")
         .eq("id", piece.id)
         .maybeSingle()
     : { data: null };
 
+  const dezePagina = piece ? [piece.id] : [];
+
   const bevroren = factsFromSnapshot(pieceRow?.briefing_snapshot_json);
-  const facts =
+  const basis =
     bevroren.length > 0
       ? bevroren
       : await buildFactBase(
@@ -192,7 +211,40 @@ export async function planContentPiece(args: {
           analysis.profile_id,
           analysisId,
           targets.map((t) => t.text),
+          dezePagina,
         );
+
+  // ── De bevroren kaart is een MOMENTOPNAME, ook hier (verbetering 2) ───────
+  //
+  // De snapshot is gemaakt tijdens de BRIEFING, dus per definitie voordat de
+  // klant ook maar één vraag beantwoord had. `loadContentContext` voegt de
+  // antwoorden er daarom alsnog bij (R8.1); deze planstap deed dat niet, en dat
+  // is precies dezelfde fout op een nieuwe plek.
+  //
+  // Wat dat kostte, gemeten op 1 september 2026: de antwoorden stonden om
+  // 16:52:35 in de database, deze stap begon om 16:53:00, en het contract dat
+  // eruit kwam schreef als openingszin van de pagina "De beschikbare informatie
+  // onderbouwt nog niet dat het bedrijf specifiek in Tilburg hybride
+  // warmtepompen plaatst" terwijl de klant net "ja" had geantwoord.
+  //
+  // Bij de terugvalroute hierboven zitten de antwoorden al in `buildFactBase`;
+  // `mergeAnsweredFacts` ontdubbelt daarop, dus die route verandert niet van
+  // uitkomst.
+  const { data: antwoordRijen } = await admin
+    .from("fact_requests")
+    .select("question, answer, answer_type, answered_at, status, scope, analysis_id, content_piece_ids")
+    .eq("profile_id", analysis.profile_id)
+    .eq("status", "beantwoord")
+    .not("answer", "is", null);
+
+  const antwoorden: AnsweredFactInput[] = (antwoordRijen ?? [])
+    .filter((rij) => answerBelongsHere(rij as never, analysisId, dezePagina))
+    .flatMap((rij) => {
+      const fact = factFromAnswer(rij as never);
+      return fact ? [{ question: rij.question as string, fact }] : [];
+    });
+
+  const facts = mergeAnsweredFacts(basis, antwoorden);
   const plan = planFromSnapshot(pieceRow?.briefing_snapshot_json);
 
   // ── 3. De bestaande pagina, vers (O3, migratie 0083) ──────────────────────
@@ -322,5 +374,115 @@ export async function planContentPiece(args: {
     }
   }
 
-  return { contract, dossier, explainers, hergebruikt: false, existingText, existingFetchedAt };
+  // Vlak vóór het schrijven vervallen de secties waarvan de klant de vraag
+  // oversloeg. Bij een verse plantaak (vóór de briefing) is er nog niets
+  // overgeslagen en verandert er dus niets; dit is de route die telt zodra de
+  // klant op "Schrijf mijn pagina's" drukt nadat hij een contract al eerder
+  // kreeg maar het onderzoek opnieuw draaide.
+  const definitief = piece
+    ? await zetVastEnMeet(admin, analysisId, analysis.profile_id, piece.id, contract, targets, {
+        alleenAlgemeen: pieceRow?.write_mode === "algemeen",
+      })
+    : contract;
+
+  return {
+    contract: definitief,
+    dossier,
+    explainers,
+    hergebruikt: false,
+    existingText,
+    existingFetchedAt,
+  };
+}
+
+/**
+ * Het contract vastzetten op wat er nu wél kan, en de graad opnieuw meten.
+ * (docs/tasks/vragen-voor-het-schrijven.md §6)
+ *
+ * ── WAT HIER GEBEURT ────────────────────────────────────────────────────────
+ *
+ *   1. de feitenkaart opnieuw opbouwen, inclusief de antwoorden van de klant;
+ *   2. de secties laten vervallen waarvan de vraag is OVERGESLAGEN;
+ *   3. de onderbouwingsgraad van wat overblijft bewaren.
+ *
+ * ── WAAROM DIT DE PAGINA KORTER MAAKT IN PLAATS VAN VAGER ───────────────────
+ *
+ * Tot 2 september 2026 werd een overgeslagen vraag stilzwijgend niets: de
+ * schrijver kreeg nog steeds de opdracht die sectie te vullen, en deed dat door
+ * om het gat heen te praten of het te benoemen. Over de vier pagina's van
+ * 1 september samen stonden er 80 zinnen die de lezer opdragen iets na te
+ * vragen. Nu valt de sectie eruit, en dat is eerlijk: minder input is minder
+ * pagina.
+ *
+ * ── WAAROM ALLEEN OVERGESLAGEN EN NIET OOK OPENSTAAND ───────────────────────
+ *
+ * Zie de toelichting bij `zetContractVast()`. Een open vraag is geen besluit van
+ * de klant; een overgeslagen vraag wel.
+ *
+ * Faalt de meting, dan blijft het contract zoals het was. Een pagina niet
+ * kunnen schrijven omdat een telling niet lukte is erger dan een pagina met een
+ * sectie te veel.
+ */
+async function zetVastEnMeet(
+  admin: ReturnType<typeof createAdminClient>,
+  analysisId: string,
+  profileId: string,
+  pieceId: string,
+  contract: ContentContract,
+  targets: { text: string }[],
+  opties: { alleenAlgemeen?: boolean } = {},
+): Promise<ContentContract> {
+  const { data: overgeslagen } = await admin
+    .from("fact_requests")
+    .select("section_refs")
+    .eq("profile_id", profileId)
+    .eq("status", "overgeslagen");
+
+  const teSnoeien = ((overgeslagen ?? []) as { section_refs: string[] | null }[]).flatMap((r) =>
+    sectiesVanPagina(r.section_refs, pieceId),
+  );
+
+  // De kaart zoals hij NU is, inclusief de antwoorden van de klant. Hij dient
+  // twee doelen: het cijfer dat we straks bewaren, en hieronder de vraag welke
+  // merkgebonden secties nog leeg zouden blijven.
+  const kaart = await buildFactBase(
+    admin,
+    profileId,
+    analysisId,
+    targets.map((t) => t.text),
+    [pieceId],
+  );
+
+  // ── "Schrijf hem algemeen, zonder onze cijfers" (migratie 0087) ───────────
+  //
+  // De derde uitweg bij de inputpoort. Kiest de klant die, dan mag de pagina
+  // niet alsnog secties bevatten die om een uitspraak over zijn bedrijf vragen
+  // en die niemand kan waarmaken: dan schrijft het model daar weer omheen, en
+  // dat is precies de tekst die deze keuze moest voorkomen. Alle ongedekte
+  // merksecties vervallen, niet alleen die van een overgeslagen vraag.
+  const ongedekteMerksecties = opties.alleenAlgemeen
+    ? berekenInputCoverage(contract, kaart).ongedekt.map((sec) => sec.id)
+    : [];
+
+  const vast = zetContractVast(contract, [...teSnoeien, ...ongedekteMerksecties]) ?? contract;
+  if (teSnoeien.length > 0) {
+    console.info(
+      `Contract van pagina ${pieceId}: ${contract.sections.length - vast.sections.length} van de ` +
+        `${contract.sections.length} secties vervallen, de klant sloeg hun vraag over.`,
+    );
+  }
+
+  // De graad opnieuw meten op de kaart zoals hij NU is: de antwoorden die de
+  // klant gaf zitten erin, dus het cijfer hoort gestegen te zijn. Dat is precies
+  // het moment waarop de app kan laten zien dat de input verschil maakte.
+  const { error } = await admin
+    .from("content_pieces")
+    .update({
+      contract_json: vast as never,
+      input_coverage: berekenInputCoverage(vast, kaart).graad,
+    })
+    .eq("id", pieceId);
+  if (error) console.warn(`Vastgezet contract niet kunnen bewaren bij ${pieceId}: ${error.message}`);
+
+  return vast;
 }

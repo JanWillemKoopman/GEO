@@ -34,6 +34,12 @@ import { MODELS } from "@/lib/openai/models";
 import { ClaimAudit } from "@/lib/schemas/claim-audit";
 import type { AuditedClaim, GeneralContextGap } from "@/lib/schemas/claim-audit";
 import { buildFactBase, lastContradictions } from "@/lib/pipeline/factbase";
+import {
+  berekenInputCoverage,
+  leesSectieVerwijzing,
+  sectieVerwijzing,
+} from "@/lib/pipeline/input-coverage";
+import type { ContentContract } from "@/lib/schemas/content-contract";
 import { describeContradictions } from "@/lib/pipeline/fact-merge";
 import { formatFactCard, isSupported, claimKey, type FactItem } from "@/lib/pipeline/factcard";
 import {
@@ -63,8 +69,10 @@ const AUDIT_SYSTEM =
   "Je bent een kritische redacteur die vóór het schrijven controleert of een pagina waargemaakt " +
   "kan worden. Je schrijft GEEN tekst. " +
   "Je krijgt: (a) welke pagina's geschreven gaan worden en welke vraag elke pagina moet winnen, " +
-  "(b) wat een AI-assistent nu antwoordt op die vragen, en (c) een FEITENKAART met alles wat we " +
-  "met bron over dit bedrijf weten. " +
+  "(b) de INHOUDSOPGAVE die elke pagina nodig heeft, sectie voor sectie, met per sectie of hij " +
+  "een uitspraak over dit bedrijf vraagt en of we die al hebben, (c) wat een AI-assistent nu " +
+  "antwoordt op die vragen, en (d) een FEITENKAART met alles wat we met bron over dit bedrijf " +
+  "weten. " +
   "OPDRACHT: noem de concrete BEWERINGEN die deze pagina's moeten doen om hun vraag geloofwaardig " +
   "te beantwoorden. Per bewering: wordt hij gedekt door een feit op de kaart (geef dan het " +
   "F-nummer), of niet? " +
@@ -90,9 +98,17 @@ const AUDIT_SYSTEM =
   "(8) ÉÉN VRAAG PER ONDERWERP. Staat er een lijst 'AL GESTELDE VRAGEN', dan stel je die niet " +
   "opnieuw, ook niet net anders geformuleerd, ook niet als deelvraag. En stel binnen je eigen " +
   "antwoord nooit twee vragen die met hetzelfde antwoord beantwoord zouden worden: kies dan de " +
-  "kortste. De klant krijgt er maximaal acht te zien; drie varianten van dezelfde vraag kosten " +
-  "hem drie van die acht plekken en leveren één antwoord op. " +
-  "(9) NAAST de beweringen: vul ook generalContextGaps. Dat zijn GEEN beweringen over dit bedrijf, " +
+  "kortste. De klant krijgt er maar een handvol te zien; drie varianten van dezelfde vraag kosten " +
+  "hem drie van die plekken en leveren één antwoord op. " +
+  "(9) BEGIN BIJ DE INHOUDSOPGAVE. Elke sectie die gemarkeerd staat als 'GAAT OVER DIT BEDRIJF EN " +
+  "WE HEBBEN ER NIETS VOOR' is een gat, en voor élk van die secties formuleer je precies één " +
+  "bewering met de vraag die hem dicht. Zet in sectionId de code die bij die sectie staat, " +
+  "letterlijk, dus bijvoorbeeld 'P2-s5'. Zeg in reason wat er met die sectie gebeurt zonder " +
+  "antwoord, in gewone taal: 'zonder een bedrag blijft het stuk over de prijs leeg'. Een sectie " +
+  "die als algemene uitleg staat gemarkeerd levert GEEN vraag op, en een sectie die al gedekt is " +
+  "ook niet. Heb je daarnaast een bewering die niet uit een sectie komt, zet sectionId dan op " +
+  "null. Verzin nooit een sectiecode die niet in de opdracht staat. " +
+  "(10) NAAST de beweringen: vul ook generalContextGaps. Dat zijn GEEN beweringen over dit bedrijf, " +
   "dus geen F-nummer nodig, maar TERMEN die in een doelvraag, titel of feit van een pagina " +
   "voorkomen zonder dat hun betekenis ergens wordt uitgelegd (een keurmerk, een norm, een " +
   "technische of wettelijke term), en die de pagina aantoonbaar sterker maken als ze kort worden " +
@@ -101,12 +117,50 @@ const AUDIT_SYSTEM =
   "de norm, geen uitzondering. En blijf hier ALGEMEEN: nooit een uitleg die eigenlijk een " +
   "bewering over dit specifieke bedrijf is, die hoort bij de beweringen hierboven.";
 
+/**
+ * De inhoudsopgave van één pagina, met per sectie of hij op een feit wacht.
+ *
+ * Dit is het blok dat de audit van een generieke claimlijst een gerichte
+ * vragenlijst maakt (docs/tasks/vragen-voor-het-schrijven.md §5). Het model ziet
+ * niet meer alleen "welke pagina moet gemaakt worden" maar "welke secties heeft
+ * die pagina, welke daarvan gaan over dit bedrijf, en voor welke daarvan hebben
+ * we niets". Daar hoort per ongedekte sectie precies één vraag bij.
+ *
+ * De secties krijgen een paginavoorvoegsel ("P2-s5"): elke pagina nummert zijn
+ * eigen secties vanaf s1, dus zonder dat voorvoegsel wijst een teruggegeven
+ * sectie-id nergens heen zodra er meer dan één pagina in de batch zit.
+ */
+function contractBlok(
+  contract: ContentContract | null,
+  paginaNummer: number,
+  ongedekt: ReadonlySet<string>,
+): string {
+  const secties = contract?.sections ?? [];
+  if (secties.length === 0) return "";
+  return [
+    "  De inhoudsopgave die deze pagina nodig heeft:",
+    ...secties.map((sec) => {
+      const stand = !sec.needsBrandFact
+        ? "algemene uitleg, hier is geen feit over het bedrijf voor nodig"
+        : ongedekt.has(sec.id)
+          ? "GAAT OVER DIT BEDRIJF EN WE HEBBEN ER NIETS VOOR"
+          : "gaat over dit bedrijf en is gedekt";
+      return `    [P${paginaNummer}-${sec.id}] "${sec.heading}" (${stand})\n` +
+        `        beantwoordt: ${sec.subQuestion}`;
+    }),
+  ].join("\n");
+}
+
 /** De doelvragen en het winnende antwoord per gekozen pagina. */
 async function buildPageBlocks(
   admin: Admin,
   recommendations: RecommendationPayload[],
   pieceIds: string[],
   competitors: string[],
+  /** Het contract per pagina, in dezelfde volgorde als `pieceIds`. */
+  contracten: (ContentContract | null)[],
+  /** De ongedekte sectie-id's per pagina, in dezelfde volgorde. */
+  ongedekteSecties: ReadonlySet<string>[],
 ): Promise<string> {
   const runIds = recommendations
     .flatMap((rec) => rec.targets ?? [])
@@ -147,6 +201,7 @@ async function buildPageBlocks(
         `  Achtergrond: ${rec.why || "onbekend"}`,
         `  Moet deze vragen gaan winnen:`,
         doelvragen,
+        contractBlok(contracten[i] ?? null, i + 1, ongedekteSecties[i] ?? new Set()),
         winnend ? `  Wat een AI-assistent nu antwoordt (concurrentnamen weggehaald):\n    """${winnend}"""` : "",
       ]
         .filter(Boolean)
@@ -162,8 +217,17 @@ async function buildPageBlocks(
  * hun id's zijn waar de vragen aan hangen (`fact_requests.content_piece_ids`).
  * Bestaat er al een rij met deze titel die nog niet geschreven is, dan wordt die
  * hergebruikt. Twee keer op "genereer" drukken mag geen twee pagina's opleveren.
+ *
+ * ── WAAROM DIT NU BUITEN `runBriefing` AANGEROEPEN WORDT ────────────────────
+ *
+ * Sinds de planstap vóór de briefing draait (docs/tasks/vragen-voor-het-schrijven.md
+ * §3) moeten deze rijen er al zijn vóórdat de eerste plantaak begint: de
+ * plantaak zoekt zijn pagina op met `currentPiece()` en hangt het contract
+ * eraan. `planContentBriefing()` roept hem daarom aan, en `runBriefing` roept
+ * hem daarna nóg eens aan. Dat is geen dubbel werk maar de idempotentie waar
+ * deze functie voor gemaakt is: de tweede aanroep vindt dezelfde rijen terug.
  */
-async function ensureBriefingPieces(
+export async function ensureBriefingPieces(
   admin: Admin,
   analysisId: string,
   recommendations: RecommendationPayload[],
@@ -369,7 +433,58 @@ export async function runBriefing(args: {
     .maybeSingle();
   const competitors = ((topic?.competitors as string[] | null) ?? []).filter(Boolean);
 
-  const pageBlocks = await buildPageBlocks(admin, recommendations, pieceIds, competitors);
+  // ── De contracten van de plantaken (docs/tasks/vragen-voor-het-schrijven.md §3) ──
+  //
+  // Ze liggen er al: `planContentBriefing()` start één `content_plan` per pagina
+  // en de laatste daarvan start deze briefing. Een pagina zonder contract is
+  // geen fout maar een terugval: de plantaak kan bij de laatste poging bewust
+  // doorgaan zonder contract. Die pagina krijgt dan geen dekkingsmeting en geen
+  // sectiegerichte vragen, precies het gedrag van vóór 2 september 2026.
+  const { data: contractRijen } = await admin
+    .from("content_pieces")
+    .select("id, contract_json")
+    .in("id", pieceIds);
+
+  const contractPerPagina = new Map<string, ContentContract | null>(
+    ((contractRijen ?? []) as { id: string; contract_json: unknown }[]).map((r) => [
+      r.id,
+      (r.contract_json ?? null) as ContentContract | null,
+    ]),
+  );
+  const contracten = pieceIds.map((id) => contractPerPagina.get(id) ?? null);
+
+  // ── De onderbouwingsgraad per pagina ──────────────────────────────────────
+  //
+  // Welk deel van de secties dat iets over dit bedrijf moet zeggen, dat ook kan.
+  // Dit getal doet vanaf hier drie dingen: het bepaalt welke secties een vraag
+  // opleveren, het weegt mee in welke vragen de klant te zien krijgt, en het is
+  // wat de inputpoort straks afweegt.
+  const dekking = contracten.map((c) => berekenInputCoverage(c, facts));
+  const ongedekteSecties = dekking.map((d) => new Set(d.ongedekt.map((sec) => sec.id)));
+  const graadPerPagina = new Map<string, number | null>(
+    pieceIds.map((id, i) => [id, dekking[i].graad]),
+  );
+
+  for (const [i, pieceId] of pieceIds.entries()) {
+    console.log(
+      `Briefing ${analysisId}: pagina "${recommendations[i].title}" heeft ` +
+        `${dekking[i].merksecties} secties over dit bedrijf, waarvan ${dekking[i].gedekt} gedekt ` +
+        `(onderbouwingsgraad ${dekking[i].graad === null ? "niet van toepassing" : `${dekking[i].graad}%`}).`,
+    );
+    await admin
+      .from("content_pieces")
+      .update({ input_coverage: dekking[i].graad })
+      .eq("id", pieceId);
+  }
+
+  const pageBlocks = await buildPageBlocks(
+    admin,
+    recommendations,
+    pieceIds,
+    competitors,
+    contracten,
+    ongedekteSecties,
+  );
 
   // Wat er al gevraagd is, moet de audit weten (R8.4). Zonder deze lijst kan het
   // model niet zien dat het bezig is een variant te formuleren van een vraag die
@@ -460,19 +575,48 @@ export async function runBriefing(args: {
   // plaats van te verspreiden. Onbekend is hier de veilige kant, niet overal.
   const paginaVanGat = (neededFor: string): string[] => treffersVoor(neededFor);
 
-  const kandidaten: BriefingQuestion[] = ongedekt.map((c) => ({
-    claimKey: claimKey(c.claim),
-    question: c.questionIfMissing!.trim(),
-    reason: c.reason,
-    kind: c.kind,
-    answerType: c.answerType,
-    options: c.options,
-    suggestedAnswer: c.suggestedAnswer,
-    required: c.importance === "kern",
-    scope: c.scope,
-    contentPieceIds: paginaVanClaim(c.neededFor),
-    priority: c.importance === "kern" ? 2 : 1,
-  }));
+  // ── De SECTIE achter een vraag (docs/tasks/vragen-voor-het-schrijven.md §5) ──
+  //
+  // Het model geeft "P2-s5" terug: pagina 2, sectie s5. Dat is een veel hardere
+  // koppeling dan `neededFor`, want die matcht op de eerste dertig tekens van
+  // een doelvraag en kan er dus naast zitten. Klopt de code niet (een verzonnen
+  // sectie, een pagina die niet bestaat, een sectie die niet in dat contract
+  // staat), dan negeren we hem en valt de koppeling terug op `neededFor`:
+  // liever geen sectie dan de verkeerde, want de verkeerde sectie zou bij
+  // overslaan uit een pagina verdwijnen die er niets mee te maken had
+  // (conventie 3).
+  const sectieVanClaim = (
+    ruw: string | null,
+  ): { pieceId: string; sectionId: string } | null => {
+    const gelezen = leesSectieVerwijzing(ruw);
+    if (!gelezen) return null;
+    const pieceId = pieceIds[gelezen.paginaIndex];
+    if (!pieceId) return null;
+    const contract = contractPerPagina.get(pieceId) ?? null;
+    const bestaat = (contract?.sections ?? []).some((sec) => sec.id === gelezen.sectionId);
+    return bestaat ? { pieceId, sectionId: gelezen.sectionId } : null;
+  };
+
+  const kandidaten: BriefingQuestion[] = ongedekt.map((c) => {
+    const sectie = sectieVanClaim(c.sectionId);
+    return {
+      claimKey: claimKey(c.claim),
+      question: c.questionIfMissing!.trim(),
+      reason: c.reason,
+      kind: c.kind,
+      answerType: c.answerType,
+      options: c.options,
+      suggestedAnswer: c.suggestedAnswer,
+      required: c.importance === "kern",
+      scope: c.scope,
+      // Wijst de sectie naar één pagina, dan is dát de pagina. Dat is preciezer
+      // dan de tekstvergelijking op `neededFor`, die bij geen match op ALLE
+      // pagina's van de batch terugvalt.
+      contentPieceIds: sectie ? [sectie.pieceId] : paginaVanClaim(c.neededFor),
+      sectionRefs: sectie ? [sectieVerwijzing(sectie.pieceId, sectie.sectionId)] : [],
+      priority: c.importance === "kern" ? 2 : 1,
+    };
+  });
 
   // De vaste slots per type erbij (contentbriefing.md §3.3), afgestemd op het
   // bedrijfsmodel (R8.5): een platform of keten krijgt geen adres-/telefoonvraag
@@ -490,7 +634,11 @@ export async function runBriefing(args: {
   const positionering = await buildPositioningQuestion(admin, analysisId, pieceIds, competitors);
   if (positionering) kandidaten.push(positionering);
 
-  const gekozen = selectBriefingQuestions({ candidates: kandidaten, alreadyKnown: bekend.keys });
+  const gekozen = selectBriefingQuestions({
+    candidates: kandidaten,
+    alreadyKnown: bekend.keys,
+    graadPerPagina,
+  });
 
   if (kandidaten.length > gekozen.length + bekend.keys.size) {
     console.log(
@@ -521,6 +669,10 @@ export async function runBriefing(args: {
       suggested_answer: vraag.suggestedAnswer,
       required: vraag.required,
       claim_key: vraag.claimKey,
+      // De secties die op dit antwoord wachten (migratie 0087). Slaat de klant
+      // de vraag over, dan vervallen precies deze secties en wordt de pagina
+      // korter in plaats van vager.
+      section_refs: vraag.sectionRefs ?? [],
       raw_json: audit.raw as never,
     });
     if (!error) geschreven++;

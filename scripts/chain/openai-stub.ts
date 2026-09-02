@@ -591,6 +591,7 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
         options: [],
         suggestedAnswer: null,
         scope: "merk",
+        sectionId: null,
       },
       {
         claim: "Fysi-Unique biedt een preventief nazorgprogramma na herstel.",
@@ -606,6 +607,12 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
         options: [],
         suggestedAnswer: "ja",
         scope: "analyse",
+        // De sectie waar deze vraag bij hoort (migratie 0087). "P1-s2" is de
+        // tweede sectie van de eerste pagina van de batch, en dat is precies
+        // wat het contract van de stub hieronder ook aanlevert. Zonder deze
+        // koppeling valt de vraag terug op de tekstvergelijking met
+        // `neededFor`, en dan raakt overslaan geen enkele sectie.
+        sectionId: "P1-s2",
       },
     ],
     // Leeg is de norm (S9): dit testgeval noemt geen term die algemene,
@@ -721,9 +728,12 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
         heading: "Welke klachten",
         subQuestion: "Welke hardloopblessures behandelt Fysi-Unique?",
         mustCover: ["de klachten die behandeld worden"],
-        factRefs: [],
+        factRefs: ["F1"],
         explainerTerms: [],
         targetWords: 120,
+        // Gedekt: er staat een F-nummer bij dat op de kaart bestaat, dus deze
+        // sectie levert geen vraag op.
+        needsBrandFact: true,
         // O4: bij een NIEUWE pagina is er geen bestaande pagina om tegen af te
         // zetten. `normaliseerContract()` dwingt dit deterministisch af, maar de
         // stub hoort te leveren wat het schema vraagt (zie de kop van dit
@@ -740,6 +750,10 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
         factRefs: [],
         explainerTerms: [],
         targetWords: 100,
+        // ONGEDEKT en merkgebonden: dit is het gat waar de briefing zijn vraag
+        // uit haalt, en de sectie die vervalt als de klant hem overslaat
+        // (docs/tasks/vragen-voor-het-schrijven.md §4 en §6).
+        needsBrandFact: true,
         presentOnExisting: "niet_van_toepassing",
         whatToChange: "",
       },

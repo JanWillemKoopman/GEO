@@ -6203,6 +6203,185 @@ eigen stap in het plan.
 Het bouwplan staat in `docs/tasks/analytics-herontwerp.md`, in drie rondes die elk op zichzelf op te
 leveren zijn. Er is bij deze doorlichting geen productiecode gewijzigd.
 
+## 1 september 2026: de eerste echte contentronde, en wat daaruit viel
+
+De herbouwde schrijfpijplijn is voor het eerst tegen een echte klant gedraaid, op productie, met
+echte betaalde aanroepen: Gasservice Brabant, nieuw cluster "Hybride warmtepomp"
+(`c22f7d96-ce1b-405f-901f-c473826a8710`), 30 vragen, 46 metingen, vier geschreven pagina's. Het
+volledige verslag met de twaalf geprioriteerde verbeteringen staat in
+`docs/tasks/contentronde-gasservice-brabant-1-september-2026.md`. Er is niets gepubliceerd.
+
+**Het oordeel: het contract en de poorten werken, de uitkomst niet.** Alle vier de pagina's halen
+hun dekking (86, 88, 90 en 98) en drie ervan een GEO-score van 100. En toch: twee pagina's schrijven
+in hun eerste alinea dat het bedrijf niet kan worden aanbevolen, een derde eindigt zijn openingszin
+op `[F1, F2, F5, F14]`, en de pagina over prijzen opent met "Er is geen gecontroleerde, concrete
+prijs ... beschikbaar in dit dossier" terwijl de pagina die hij moest verbeteren zelf "maximaal
+€6000" noemt. Gemiddelde kwaliteitsscore 44,5; alle vier op "check nodig" tegen 15 van de 29 (52%)
+bij de oude pijplijn.
+
+**Drie oorzaken, alle drie in code, alle drie klein te repareren.** Ten eerste worden antwoorden met
+reikwijdte "pagina" nergens gelezen: `factbase.ts:138` en `content.ts:800` filteren ze allebei weg,
+en `content_piece_ids` wordt alleen gebruikt om vragen te groeperen. Deze ronde waren 9 van de 16
+briefingvragen paginagebonden en verdwenen 4 van de 8 antwoorden. Ten tweede stelt `content-plan.ts`
+het contract op met de bevroren feitenkaart zonder `mergeAnsweredFacts`: de antwoorden stonden er 25
+seconden eerder, het contract plande er dwars doorheen. Ten derde staat `PAGE_MAX_CHARS` op 1500
+tekens voor elke meerpagina-crawl, en bij deze site is dat precies het navigatiemenu: 139 van de 148
+opgeslagen pagina's (94%) lopen tegen die grens aan terwijl het menu er nog twee keer in staat.
+Diezelfde grens laat de bronverificatie 18 van de 35 uitleggen afkeuren; nagerekend voorbeeld: het
+citaat staat op teken 10.696 van 21.141.
+
+**De kosten kloppen niet met het advies.** Gemeten $1,131 per pagina tegen de voorspelde $0,24, over
+191 aanroepen $5,4011 voor de hele ronde. De schrijfaanroep groeide van 5.599 naar 23.649
+invoertokens (contract, dossier en uitleg komen er allemaal bij) en kost $0,3045. De grootste post
+is de "gerichte reparatie": drie rondes van $0,2525 met gemiddeld 6.245 uitvoertokens, dus méér dan
+de oorspronkelijke schrijfaanroep. Gericht is hij niet, en hij helpt ook niet: de kwaliteitsscore
+van de eerste pagina liep 67, 74, 68, 48. De lus stopt op `REPAIR_MAX` en niet omdat er iets is
+opgelost.
+
+**Wat wél werkte.** De doorlooptijd (A10): vier pagina's parallel, 19 minuten voor de hele batch.
+Het wegschrijven vóór de redactieronde: één schrijfaanroep werd afgebroken op de limiet van 150
+seconden en kostte geen tweede dure aanroep. Het itemdossier levert precies de vragen die een koper
+stelt. En de feitenkaart doet exact wat hij moet doen: er is geen enkel verzonnen feit over
+Gasservice Brabant op de vier pagina's terechtgekomen. Het probleem is niet dat er te veel wordt
+beweerd, het is dat er te weinig te beweren viel.
+
+## 1 september 2026: de twaalf verbeteringen uit de eerste contentronde gebouwd
+
+Alles uit `docs/tasks/contentronde-gasservice-brabant-1-september-2026.md` is doorgevoerd, in de
+volgorde van die lijst. Geen migratie nodig: er is geen kolom bij gekomen. Vier controles groen:
+typecheck, 3539 unittests (82 nieuwe), 561 ketentests (4 nieuwe), de productiebuild.
+
+**De drie die de ergste fout wegnemen.** Antwoorden van de klant met reikwijdte `pagina` werden
+nergens gelezen; die regel staat nu op één plek (`lib/pipeline/answer-scope.ts`) en wordt door de
+feitenkaart, de schrijfstap en de planstap gedeeld. De planstap stelde het contract op met de
+BEVROREN kaart en voert nu `mergeAnsweredFacts` uit, net als `loadContentContext` al deed sinds
+R8.1. En `normaliseerContract` weigert een opening die over onze eigen bewijsvoering gaat en
+verwijdert F-verwijzingen uit de openingszin en uit de koppen. Dat laatste is het vangnet dat
+conventie 1 vraagt: ook met een gat in de feitenkaart mag "Gasservice Brabant kan niet als
+aantoonbare specialist worden aanbevolen" nooit de eerste zin van een klantpagina worden.
+
+**Eén cap die drie stappen tegelijk beschadigde.** `PAGE_MAX_CHARS` stond op 1500 tekens voor elke
+meerpagina-crawl, en bij deze site was dat precies het menu: 139 van de 148 opgeslagen pagina's
+(94%) liepen tegen die grens aan terwijl het navigatiemenu er nog twee keer in stond. Nu gaat eerst
+het menu eruit (`lib/pipeline/page-text.ts`, alleen op `<nav>`, `<footer>` en een `<header>` mét
+menu, met een vangnet dat terugvalt op het origineel als er te weinig overblijft) en pas daarna
+knippen we, op 4000. Nagemeten op de echte kennisbankpagina: 4690 naar 1782 tekens, en het bedrag
+"maximaal €6000" staat nu in de eerste 260 tekens in plaats van na 1757. De bronverificatie van de
+algemene uitleg leest voortaan de VOLLEDIGE brontekst (`fullText`), want het citaat dat op
+1 september werd afgekeurd stond op teken 10.696 van 21.141; `MAX_BRONNEN` van 6 naar 12.
+
+**De reparatielus stopt nu op verbetering in plaats van op drie rondes.** De kwaliteitsscore liep
+67, 74, 68, 48 en de klant kreeg de laatste. Twee grenzen, en het verschil doet ertoe: BEWAREN
+gebeurt zolang de ronde niet slechter is (een reparatie die een onbewezen bewering weghaalt terwijl
+het cijfer gelijk blijft, is winst zonder cijfer), DOORGAAN alleen als de score stijgt. Op de
+gemeten reeks levert dat 74 in plaats van 48 en vervallen twee van de drie rondes, dus ongeveer
+$0,50 per pagina. De reparatieprompt krijgt bovendien hooguit tien bevindingen, gesorteerd van
+"bewering zonder bevestigd feit" naar "vraag die de lezer overhoudt"
+(`lib/pipeline/content-issues.ts`): met 119 opdrachten over 25 secties was er niets gerichts meer
+aan een sectiereparatie, en de uitvoer werd groter dan die van het schrijven zelf.
+
+**En het contract past nu in de doellengte.** De schrijfprompt zei tegelijk "je mag er niets uit
+weglaten" en "ga niet over het maximum heen"; bij 25 secties van samen 1000 woorden op een
+doelbereik van 400 tot 700 kan het model niet allebei. `normaliseerContract` snoeit van achteren
+tot de som past, houdt altijd minstens drie secties, en begrenst de FAQ op acht vragen.
+
+**Zes kleinere ingrepen.** De ontwijkingscontrole keek alleen naar de opening en gaf daarom een
+GEO-score van 100 aan een pagina met 15 zinnen die de lezer wegsturen; hij telt nu het aandeel over
+de hele pagina, met een tweede, bredere patroonlijst naast de harde. De poort keurt af als de
+pagina over zijn eigen website in de derde persoon praat. `factNummers` in de dekkingspoort leest
+een samengestelde verwijzing nu net zo als `isSupported` dat al deed (3 van de 18 claims hadden er
+een). `word_count` wordt bij reparatie bijgewerkt (stond op 896 terwijl de tekst 1331 woorden had).
+`pronoun_preference` gaat mee naar de schrijver, een veld dat we verzamelden en nergens gebruikten.
+En de uitleg-eis toetst op een echte definitiezin, ergens op de pagina, in plaats van op
+woordoverlap per sectie: dat laatste maakte van vier opeenvolgende secties een woordenlijst.
+
+**Twee dingen liepen anders dan het advies zei, en die staan in het verslag.** Een feit herschrijven
+van "De website vermeldt dat X" naar "X" werkt niet in het Nederlands, want na "dat" volgt een
+bijzin; het is een controle op de pagina geworden in plaats van een bewerking van de kaart. En een
+paginagebonden antwoord gaat NIET de feitenbank in: die leest merkbrede en analysebrede feiten
+terug, dus het antwoord over Tilburg zou alsnog op de Eindhoven-pagina belanden. Het staat nu op de
+kaart van zijn eigen pagina zonder bank-id. De ketentest ving dat.
+
+**Nog niet geverifieerd tegen een echte klant** (conventie 10). De impactcijfers in het verslag zijn
+voorspellingen; de volgende contentronde is de toets die telt.
+
+## 2 september 2026: de app vraagt nu wat ze mist, in plaats van eromheen te schrijven
+
+De twaalf verbeteringen van 1 september repareerden de pijplijn. Wat ze niet raakten, was de reden
+dat die pagina's dun waren: de app plande **om haar eigen kennisgaten heen**. Regel (d) van de
+contractprompt zei letterlijk *"Plan NOOIT een sectie die alleen waar te maken is met een feit dat
+we niet hebben. Onder 'NIET ONDERBOUWD' staat wat er ontbreekt; daar mag je omheen plannen, niet
+doorheen."* De app verlaagde dus haar ambitie tot wat ze toevallig al wist, en niemand hoorde ervan.
+Een gat werd stilzwijgend een dunnere pagina in plaats van een vraag aan de ondernemer. Gemeten op
+1 september: van de 25 secties van de Tilburg-pagina rustten er 18 op geen enkel feit over het
+bedrijf, en de app schreef ze alle 25 toch.
+
+Het plan staat in `docs/tasks/vragen-voor-het-schrijven.md`, in één zin: **het contract is het
+ideaal, de feitenkaart is de werkelijkheid, en het verschil is de vragenlijst.**
+
+**De volgorde is omgedraaid.** Was: de klant kiest pagina's, de briefing verzint welke beweringen
+nodig zijn, de klant antwoordt, en pas dáárna zoekt de app uit wat de pagina echt moet behandelen.
+De vragen kwamen dus uit een stap die de pagina nog niet kende. Nu draait `content_plan` eerst, per
+pagina, en de laatste plantaak van de batch start de briefing
+(`scheduleBriefingIfLastPlan` in `lib/jobs/handlers.ts`, dezelfde constructie als
+`scheduleAggregateIfLastPrompt` inclusief de uitsluiting van de eigen taak). Dat kost het
+itemdossier en het contract ook voor pagina's die de klant alsnog laat liggen: $0,0172 plus $0,0047
+per pagina, negen cent voor vier pagina's, tegenover $4,52 voor het schrijven.
+
+**Er is voor het eerst een maat voor "hebben we hier genoeg voor".** `ContractSection` krijgt
+`needsBrandFact`: vraagt deze sectie om een uitspraak over dit bedrijf, of is het algemene uitleg?
+Dat is een oordeel van het model; of het F-nummer erbij écht bestaat, is een telling en die doet de
+code (`lib/pipeline/input-coverage.ts`, conventie 1). De **onderbouwingsgraad** is `gedekt /
+merksecties`, en `null` bij nul merksecties, want een pagina die volledig uit algemene uitleg
+bestaat is geen slechte pagina (conventie 3). In de ketentest komt hij op 50% uit: twee
+merkgebonden secties, één met een bestaand feit.
+
+**De inputpoort staat vóór het geld.** `lib/content-input-gate.ts`, drie standen: boven 70%
+schrijven, tussen 40 en 70 schrijven met een waarschuwing die de vervallende secties noemt, onder
+40% niet schrijven. Geen muur: er zijn altijd drie uitwegen, en de melding noemt ze in dezelfde zin
+als de blokkade. Twee poorten met twee vragen, en ze vervangen elkaar niet: deze vraagt "kan dit
+goed worden?" vóór de dure schrijfaanroep, `content-final-gate.ts` vraagt "is dit af?" erna. De
+grenzen 40 en 70 zijn een startwaarde en geen wet; ze worden per pagina bewaard
+(`content_pieces.input_coverage`) zodat ze na tien echte pagina's op data bijgesteld kunnen worden,
+dezelfde afspraak als bij `DUPLICATE_THRESHOLD`.
+
+**Overslaan kost nu iets dat je ziet.** Elke vraag draagt de secties die op haar antwoord wachten
+(`fact_requests.section_refs`, als `<pagina-id>:<sectie-id>`, want elke pagina nummert vanaf s1 en
+de ontdubbeling voegt vragen van verschillende pagina's samen). Slaat de klant de vraag over, dan
+vervalt die sectie vlak vóór het schrijven en wordt de pagina korter in plaats van vager. Tot nu toe
+kreeg de schrijver nog steeds de opdracht die sectie te vullen, en deed dat door om het gat heen te
+praten: over de vier pagina's van 1 september samen stonden 80 zinnen die de lezer opdragen iets na
+te vragen. Ondergrens van drie secties, net als bij `snoeiOpDoellengte`: slaat de klant echt alles
+over, dan is dat werk voor de inputpoort en niet voor de snoeifunctie.
+
+**Het vraagbudget ging van de batch naar de pagina.** Het plafond van 8 naar 12, en de sortering was
+`aantal pagina's × kern(2) × prioriteit`, dus puur bereik: een vraag die vier pagina's van 85% naar
+88% helpt won altijd van de vraag die één pagina van 30% naar 60% tilt. Er komt een factor bij voor
+hoeveel de zwakste bediende pagina erop vooruitgaat, met 0,5 bij onbekend (niet 0, want dan
+verdwijnt zo'n vraag stilzwijgend, en niet 1, conventie 3). Zonder cijfers gedraagt de sortering
+zich exact als voorheen, en dat is wat de bestaande tests beschrijven.
+
+**Het briefingscherm toont de stand per pagina.** Eén lijst vragen zei niet welke pagina eraan toe
+was; nu staat per pagina het cijfer, wat er zonder antwoord wegvalt, en bij een pagina die niet
+zonder meer kan twee knoppen: hem bewust algemeen laten schrijven (`content_pieces.write_mode`) of
+hem laten vallen. Kiest de klant voor algemeen, dan vervallen ALLE ongedekte merksecties, anders
+schrijft het model daar alsnog omheen en is de keuze een woord zonder gevolg.
+
+**Vier controles groen**: typecheck, 3599 unittests (60 nieuwe), 573 ketentests (12 nieuwe, in één
+scenario dat de hele nieuwe volgorde doorloopt), de productiebuild. Migratie 0087, additief.
+
+⚠️ **Bij het samenvoegen met `main` is deze migratie hernummerd van 0083 naar 0087.** Hij was op
+1 september als 0083 op productie gezet, en op `main` was dat nummer intussen bezet door
+`0083_clusterlabels.sql`. De kolommen zelf zijn niet aangeraakt (dat zou data kosten); alleen hun
+`comment` is bijgewerkt, zodat het nummer in de database hetzelfde is als in de map. De vier
+controles zijn ná het samenvoegen opnieuw gedraaid: 3790 unittests, 592 ketentests.
+
+**Nog niet geverifieerd tegen een echte klant** (conventie 10). De ketentest bewijst de samenhang op
+de stub; wat er in een echte ronde uit `needsBrandFact` komt, is nog niet gemeten. De eerste toets
+die telt is de volgende contentronde, en de meetlat staat in
+`docs/tasks/vragen-voor-het-schrijven.md` §12. De meest contra-intuïtieve regel daarvan: als de
+inputpoort in die ronde nooit afgaat, staat de drempel te laag en is hij decoratief.
+
 ## Analytics-herontwerp, ronde 1: het fundament (2 september 2026)
 
 Ronde 1 van `docs/tasks/analytics-herontwerp.md` is gebouwd: het rooster (F1), de filterbalk (F2),
