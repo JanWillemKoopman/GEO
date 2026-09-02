@@ -5978,7 +5978,15 @@ De laatste openstaande verificatie van conventie 10: één pagina daadwerkelijk 
 handeling `verbeteren`, op productie, met echte betaalde aanroepen. Testmerk Wouter Warmtepomp,
 cluster "Warmtepomp laten installeren in een bestaande woning", aanbeveling "Maak van de
 hybride-pagina een praktische kostenpagina" tegenover `https://wouterwarmtepomp.nl/hybride-warmtepomp/`.
-Er is niets gepubliceerd. Kosten: $0,32 (planstap $0,024, schrijven $0,287, beoordelaars $0,006).
+Er is niets gepubliceerd.
+
+⚠️ **Kosten: circa $1,25, niet de $0,20 die vooraf begroot was.** De planstap kostte $0,024 en de
+schrijfronde $0,287, maar daarna volgden DRIE gerichte reparatierondes van ongeveer $0,30 per stuk
+(`REPAIR_MAX`). Die rondes zijn voor een deel door de fout hieronder uitgelokt: elk van de zes
+zinnen over de bestaande pagina kwam als bevinding terug, en bevindingen zijn precies wat een
+reparatieronde start. De reparatie hieronder is dus niet alleen een kwaliteitskwestie maar ook een
+kostenkwestie: een fout die in de eerste ronde wordt voorkomen, scheelt hier het duurste model drie
+keer.
 
 **Wat aantoonbaar werkt.** De pagina werd vers opgehaald: **3493 tekens tegenover de 1500 uit de
 crawl**, met tijdstempel, en beide kolommen uit migratie `0086` staan gevuld op de geschreven
@@ -6018,5 +6026,16 @@ de 3493 tekens is ongeveer een derde ruis. De oplossing daarvoor bestaat al in e
 (`page-text.ts`, alleen semantische tags) die nog niet op `main` staat; die twee keer bouwen is
 precies wat dit project niet wil. Beide staan in
 `docs/tasks/paginakeuze-nieuw-of-verbeteren.md`.
+
+**Hoe het afliep.** De bestaande redactie hééft die zinnen uiteindelijk weggewerkt, in de categorie
+"bewering zonder bevestigd feit": na twee reparatierondes stond er geen enkele meer in de tekst en
+opende de pagina met "Voor een hybride warmtepomp van Wouter Warmtepomp kan hier voor Dongen en
+Oosterhout geen betrouwbaar totaalbedrag worden genoemd zonder woninggegevens en een actuele
+offerte." Dat is een goede zin: hij noemt het merk, hij is eerlijk, en hij gaat over de lezer in
+plaats van over ons. De poorten deden dus hun werk; wat ze niet deden is de fout als categorie
+herkennen, en dat is precies wat `checkSourceTalk()` toevoegt. Eindstand van de pagina: dekking 95,
+GEO-score 100, kwaliteitsscore 42, 1268 woorden, status `draft` met "check nodig". Die
+kwaliteitsscore is niet best en hoort bij het bredere beeld van de vorige ronde (gemiddeld 44,5 over
+vier pagina's); dat staat los van dit werk.
 
 Vier controles groen: typecheck, 3629 unittests (7 nieuw), 576 ketentests, de productiebuild.
