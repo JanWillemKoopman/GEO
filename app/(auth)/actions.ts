@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signupsEnabled } from "@/lib/config";
+import { hitRateLimit } from "@/lib/rate-limit";
 
 export interface AuthState {
   error: string | null;
@@ -15,9 +16,32 @@ function readCredentials(formData: FormData) {
   return { email, password };
 }
 
+/** Het eerste adres uit `x-forwarded-for`, of "onbekend" zonder proxy-header. */
+async function clientIp(): Promise<string> {
+  const forwarded = (await headers()).get("x-forwarded-for");
+  return forwarded?.split(",")[0]?.trim() || "onbekend";
+}
+
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+
 export async function signIn(_prev: AuthState, formData: FormData): Promise<AuthState> {
   const { email, password } = readCredentials(formData);
   if (!email || !password) return { error: "Vul je e-mailadres en wachtwoord in." };
+
+  // ── T8.11: geen onbegrensd wachtwoorden raden ─────────────────────────────
+  //
+  // Twee tellers, want ze vangen twee verschillende aanvallen. Per e-mailadres
+  // stopt iemand die op ÉÉN account wachtwoorden blijft proberen; per IP-adres
+  // stopt iemand die vanaf ÉÉN plek veel accounts afgaat. Ruimer voor IP (60)
+  // dan voor e-mail (10): een kantoor achter dezelfde NAT-uitgang mag niet door
+  // een collega op slot gezet worden.
+  const [perEmail, perIp] = await Promise.all([
+    hitRateLimit(`login:e:${email.toLowerCase()}`, { max: 10, windowMs: LOGIN_WINDOW_MS }),
+    hitRateLimit(`login:ip:${await clientIp()}`, { max: 60, windowMs: LOGIN_WINDOW_MS }),
+  ]);
+  if (!perEmail.ok || !perIp.ok) {
+    return { error: "Te veel inlogpogingen. Probeer het over een kwartier opnieuw." };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });

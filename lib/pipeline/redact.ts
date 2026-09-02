@@ -14,6 +14,7 @@
  * Bewust ZONDER `server-only`: pure tekstbewerking, testbaar in een kaal script.
  */
 import { splitByTerms } from "@/lib/highlight";
+import { stripProseDashes } from "@/lib/pipeline/dash-guard";
 
 /**
  * Waar een concurrentnaam stond. Bewust generiek en niet "[CONCURRENT]": het
@@ -50,7 +51,7 @@ export function redactCompetitors(text: string, names: string[]): string {
     .map((part) => (part.term ? PLACEHOLDER : part.text))
     .join("");
 
-  return replaced
+  const opgeschoond = replaced
     // Rijtjes eerst inklappen, anders blijft "X, X en X" staan.
     .replace(RUN_OF_PLACEHOLDERS, PLACEHOLDER_PLURAL)
     // Wat er van de interpunctie scheef komt te staan rechttrekken. Geen
@@ -59,6 +60,11 @@ export function redactCompetitors(text: string, names: string[]): string {
     .replace(/\s+([,.;:])/g, "$1")
     .replace(/\s{2,}/g, " ")
     .trim();
+
+  // T8.8: een weggehaalde naam laat het gedachtestreepje eromheen soms staan
+  // ("een andere aanbieder – Noordwijkerhout — heeft..."), en dat leestteken
+  // mag nergens in klanttekst staan (docs/schrijfstijl.md §10).
+  return stripProseDashes(opgeschoond);
 }
 
 /**

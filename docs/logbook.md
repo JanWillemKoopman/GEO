@@ -6558,3 +6558,39 @@ ingevuld). Nagerekend: een drukke klantdag (onboarding ~$0,25 + meting ~$0,85 + 
 die op dezelfde dag hun eigen plafond volmaken, maar geen derde.
 
 Vier controles groen na elke taak: typecheck, `test:unit`, `test:chain`, de productiebuild.
+
+## 2 september 2026: het herstelplan na de audit, T8, de twaalf kleinere correcties
+
+Elf van de twaalf punten uit `docs/tasks/herstelplan-na-audit.md` T8 zijn gebouwd, nagerekend met een
+eigen test in `test-unit.ts` of `test-chain.ts`, dan gecommit; het twaalfde (T8.12, uitgelekte
+wachtwoorden blokkeren) kan niet vanuit deze sessie: dat staat alleen in het Supabase-dashboard of
+achter een persoonlijk toegangstoken voor de Management API, en vereist bovendien minimaal het
+Pro-plan. Blijft open als eigen actie voor de eigenaar.
+
+Kort per punt: dubbele vragen bij een funnelfase-overgang worden nu opgeruimd
+(`lib/pipeline/prompt-dedupe.ts`, de oudste blijft staan); een vraag wijzigen of verwijderen terwijl
+de meting al loopt geeft een 409 in plaats van een cijfer dat niet meer bij de vraag past;
+concurrentnamen ontdubbelen nu ook op "Naam in Plaats" tegenover "Naam" (`competitor-dedupe.ts`); het
+menu in een gecrawlde pagina bleek al eerder gerepareerd, geen wijziging nodig; `htmlToText` decodeert
+nu ook `&hellip;`, aanhalingstekens en numerieke entiteiten in plaats van zes vaste namen; een merk
+zonder gecrawlde pagina's krijgt een waarschuwing op het overzicht in plaats van stilzwijgend als
+"klaar" te tellen; gedachtestreepjes in lopende tekst (`docs/schrijfstijl.md` §10) worden nu ook na
+`redactCompetitors()` en in de contentpijplijn zelf weggehaald, niet alleen beloofd in de
+schrijfprompt; een reparatieverzoek verwijderde nooit `raw_json` en de sectieverwijzingen uit een
+factverzoek voordat het naar de browser ging (`lib/fact-request-public.ts`, twee plekken: de
+API-route en `werk.tsx`); een pagina-plan dat minder pagina's oplevert dan gevraagd (te weinig
+onderwerpen over) zei dat nergens, nu staat het tekort in de melding; en inloggen plus het
+verzilveren van een uitnodiging waren onbegrensd, nu begrensd per e-mailadres en per IP-adres
+(migratie 0090, `rate_limits` bestond al op productie buiten een migratie om).
+
+**Eén regressie, gevonden vóór het commit door de vier controles zelf.** De nieuwe
+`stripProseDashes()` (voor het gedachtestreepje-punt hierboven) verving alle witruimte van twee
+tekens of meer door één spatie, en `\s` in JavaScript matcht ook een regeleinde. Toegepast op een
+hele pagina in plaats van op één zin veegde dat de lege regels tussen alinea's en koppen weg, waarna
+`splitSections()` geen `### kop` meer herkende (die moet aan het begin van een regel staan) en een
+bestaande, al langer werkende ketentest ("de genoemde sectie is herschreven") op deze branch begon te
+falen terwijl hij op `main` nog groen was. Bevestigd door de wijziging tijdelijk terug te draaien
+(`git stash`) en de test opnieuw te draaien: zonder de wijziging 598 geslaagd/0 mislukt, mét de fout
+1 mislukt. Gerepareerd door alleen spatie en tab te collabsen, nooit een regeleinde
+(`lib/pipeline/dash-guard.ts`). Dit is precies waarom conventie 10 (nagerekend, niet alleen gebouwd)
+een reparatielus in de eigen werkwijze is en niet alleen een eis aan het product.

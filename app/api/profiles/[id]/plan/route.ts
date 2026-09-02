@@ -96,5 +96,9 @@ export async function POST(
     return NextResponse.json({ error: result.problems.join(" ") }, { status: 422 });
   }
 
-  return NextResponse.json({ planId: result.planId });
+  return NextResponse.json({
+    planId: result.planId,
+    plannedCount: result.plannedCount,
+    requestedCount: result.requestedCount,
+  });
 }

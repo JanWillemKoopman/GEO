@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { isStaff } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileStatusBadge } from "@/components/profile-status-badge";
+import { identifyEmptyProfiles } from "@/lib/profile-status";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { activeOnly } from "@/lib/archive";
@@ -26,6 +27,28 @@ export default async function ProfielenPage() {
   );
 
   let profiles = (data ?? []) as Profile[];
+
+  // ── T8.7: een leeg merk mag niet "klaar" lijken ──────────────────────────
+  //
+  // Op productie kreeg een merk waarvan de site niet te crawlen was
+  // `status = 'klaar'` met nul gecrawlde pagina's, nul aanbodregels en nul
+  // onderwerpen, terwijl het profiel er gevuld uitzag (branche, werkgebied en
+  // concurrenten kwamen uit algemene web-zoekacties, niet van de site zelf).
+  // Voor een consultant die dit vóór een demogesprek klaarzet is dat de
+  // gevaarlijkste vorm: hij ziet "klaar" en heeft geen reden om verder te
+  // kijken. Eén gegroepeerde telling in plaats van een aparte query per merk.
+  const { data: pageRows } =
+    profiles.length > 0
+      ? await supabase
+          .from("profile_pages")
+          .select("profile_id")
+          .in("profile_id", profiles.map((p) => p.id))
+      : { data: [] };
+  const paginasPerMerk = new Map<string, number>();
+  for (const row of (pageRows ?? []) as { profile_id: string }[]) {
+    paginasPerMerk.set(row.profile_id, (paginasPerMerk.get(row.profile_id) ?? 0) + 1);
+  }
+  const legeMerken = identifyEmptyProfiles(profiles, paginasPerMerk);
 
   // E, "centrale foutmeldingenplek": mislukte merkonderzoeken bovenaan, zelfde
   // reden als bij "Mijn analyses". Stabiele sort, dus binnen elke groep blijft
@@ -94,6 +117,11 @@ export default async function ProfielenPage() {
                   <p className="mono-label break-url mt-1">
                     {p.url} · <LastUpdated at={p.updated_at} className="" />
                   </p>
+                  {legeMerken.has(p.id) && (
+                    <p className="mono-label mt-1" style={{ color: "var(--intent-warning-text)" }}>
+                      De site kon niet gelezen worden, dit dossier is leeg
+                    </p>
+                  )}
                 </div>
                 <ProfileStatusBadge status={p.status} />
               </Link>

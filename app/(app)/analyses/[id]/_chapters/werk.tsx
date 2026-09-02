@@ -14,9 +14,9 @@ import { GenerateButton } from "../_work/generate-button";
 import { GenerateAllButton } from "../_work/generate-all-button";
 import { OffsitePanel } from "../_work/offsite-panel";
 import { FactRequests } from "@/app/(app)/merk/[id]/_components/fact-requests";
+import { publicFactRequest } from "@/lib/fact-request-public";
 import type {
   Analysis,
-  FactRequest,
   OffsiteTask,
   Report,
   SourceLandscapeRow,
@@ -130,7 +130,14 @@ export async function WerkChapter({
           hierheen omdat het antwoord rechtstreeks de content hieronder scherper
           maakt, niet het merk in het algemeen. */}
       {(factRows ?? []).length > 0 && (
-        <FactRequests profileId={analysis.profile_id} initial={(factRows ?? []) as FactRequest[]} />
+        // T8.9: `factRows` komt uit `select("*")` en bevat `raw_json` (het
+        // volledige ruwe antwoord van OpenAI, audit-trail conventie 8). Dat
+        // veld gaat als prop mee de RSC-payload in als we de rij ongefilterd
+        // doorgeven, dus ook een server component moet dit filteren.
+        <FactRequests
+          profileId={analysis.profile_id}
+          initial={(factRows ?? []).map((r) => publicFactRequest(r as Record<string, unknown>))}
+        />
       )}
 
       {openRecommendations.length > 0 && (

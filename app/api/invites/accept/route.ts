@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { acceptInvite, lookupInvite } from "@/lib/invites";
 import { createClient } from "@/lib/supabase/server";
+import { hitRateLimit } from "@/lib/rate-limit";
 
 /**
  * POST /api/invites/accept, een uitnodiging verzilveren.
@@ -27,6 +28,20 @@ const MELDING: Record<string, string> = {
 };
 
 export async function POST(request: Request) {
+  // ── T8.11: dit maakt een gebruiker aan zonder dat er ingelogd is, dus is
+  // per definitie onbeschermd (zie de toelichting bovenaan). Een aanvaller kon
+  // hier onbeperkt uitnodigingstokens raden; de sleutel is het IP-adres, want
+  // het token verandert bij elke gok en een e-mailadres is op dit punt nog
+  // niet bekend.
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "onbekend";
+  const limiet = await hitRateLimit(`invite-accept:${ip}`, { max: 20, windowMs: 15 * 60 * 1000 });
+  if (!limiet.ok) {
+    return NextResponse.json(
+      { error: "Te veel pogingen. Probeer het over een kwartier opnieuw." },
+      { status: 429 },
+    );
+  }
+
   let body: { token?: string; password?: string };
   try {
     body = (await request.json()) as { token?: string; password?: string };
