@@ -69,9 +69,13 @@ const SYSTEM =
   "op uit te komen, niet erboven. " +
   "(f) Gebruik GEEN gedachtestreepjes en GEEN schuine streep tussen twee woorden. " +
   "(g) Nederlands, gewone taal, geen jargon in de koppen. " +
-  "(h) Bij een BESTAANDE pagina: gooi niets weg wat er al goed op staat. Een sectie die er al op " +
-  "staat blijft in het contract, met presentOnExisting 'aanwezig'; hem weglaten betekent dat de " +
-  "klant hem kwijtraakt zodra hij de pagina vervangt. " +
+  "(h) Bij een BESTAANDE pagina: gooi niets weg wat er al goed op staat. LOOP DIE PAGINA EERST " +
+  "LANGS en maak een sectie voor elk onderwerp dat er nu op staat en dat de lezer nodig heeft, ook " +
+  "als het niet over de doelvraag gaat; markeer die met presentOnExisting 'aanwezig'. Pas daarna " +
+  "vul je aan met wat ontbreekt. Deze tekst VERVANGT de bestaande pagina, dus wat je niet opneemt " +
+  "raakt de klant kwijt. Nagerekend op de eerste echte verbetering (2 september 2026): daar kregen " +
+  "20 van de 20 secties 'deels' of 'ontbreekt' en geen enkele 'aanwezig', terwijl de pagina wel " +
+  "degelijk onderwerpen bevatte die de moeite waard waren. " +
   "(i) whatToChange is voor de ONDERNEMER, niet voor ons: geen vaktermen, geen sectienummers, één " +
   "zin die zegt wat er anders wordt en waarom dat helpt.";
 

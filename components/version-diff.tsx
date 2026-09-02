@@ -101,7 +101,15 @@ export function VersionDiff({
               Deze tekst is lang, dus vergeleken per alinea in plaats van per woord.
             </p>
           )}
-          <p style={{ whiteSpace: "pre-wrap" }}>
+          {/* ⚠️ Op alineaniveau krijgt elk blok zijn eigen regel. Inline achter
+              elkaar plakken de oude en de nieuwe tekst aan elkaar
+              ("...Onderhoud inplannenVoor Dongen en Oosterhout..."), en dan is
+              precies de overgang die de klant moet zien onleesbaar. Gemeten op
+              de eerste echte vergelijking, 2 september 2026. */}
+          <p
+            style={{ whiteSpace: "pre-wrap" }}
+            className={granularity === "alinea" ? "flex flex-col gap-2" : undefined}
+          >
             {ops.map((op, i) => {
               if (op.type === "gelijk") {
                 return (

@@ -275,6 +275,29 @@ export async function planContentPiece(args: {
     existingUrl: recommendation.existingUrl ?? null,
   });
 
+  // ⚠️ Nul secties "aanwezig" bij een pagina die WEL bestaat, is een signaal.
+  // Deze tekst vervangt die pagina, dus alles wat niet in het contract staat
+  // raakt de klant kwijt. Bij de eerste echte verbetering (2 september 2026) was
+  // dat 0 van de 20, en dat viel alleen op omdat er met de hand naar gekeken
+  // werd. De instructie vraagt het model nu expliciet om die secties op te
+  // nemen; deze regel maakt meetbaar of dat ook gebeurt. Geen harde correctie:
+  // wij weten niet wat er op die pagina staat, het model heeft hem gelezen.
+  if (existingText) {
+    const aanwezig = contract.sections.filter((s) => s.presentOnExisting === "aanwezig").length;
+    if (aanwezig === 0) {
+      console.warn(
+        `Contentplan voor "${recommendation.title}": geen enkele van de ` +
+          `${contract.sections.length} secties staat volgens het model al op de bestaande pagina. ` +
+          `Alles wat daar nu staat verdwijnt dus bij vervanging.`,
+      );
+    } else {
+      console.info(
+        `Contentplan voor "${recommendation.title}": ${aanwezig} van de ` +
+          `${contract.sections.length} secties staat al op de bestaande pagina.`,
+      );
+    }
+  }
+
   console.info(
     `Contentplan voor "${recommendation.title}": ${contract.sections.length} secties, ` +
       `${dossier.subQuestions.length} deelvragen, ` +

@@ -113,11 +113,32 @@ export function diffContent(
   oud: string,
   nieuw: string,
   maxProduct: number = DEFAULT_MAX_PRODUCT,
+  /**
+   * Woordniveau overslaan en meteen op alinea's vergelijken (2 september 2026).
+   *
+   * ── WAAROM DIT NODIG BLEEK ──────────────────────────────────────────────
+   *
+   * Woord-voor-woord werkt prachtig tussen twee VERSIES van onze eigen tekst:
+   * daar verandert een zin en blijft de rest staan. Tussen de pagina van de
+   * klant en de vervangende tekst werkt het averechts, want die twee delen
+   * alleen hun kleine woorden. De eerste echte vergelijking, met de pagina van
+   * Wouter Warmtepomp, leverde dit op:
+   *
+   *   "Hybride Warmtepomp ~~Wouter Warmtepomp B.V.~~ Voor ~~Airco~~ Dongen en
+   *    ~~warmtepomp installateur~~ Oosterhout ~~to is footer~~ op ~~Home~~ basis"
+   *
+   * Doorgestreepte en nieuwe woorden om beurten, uit twee teksten die niets met
+   * elkaar te maken hebben. Dat is geen vergelijking maar ruis, en het
+   * suggereert bovendien een precisie die er niet is: een verbetering is een
+   * herschrijving, geen bewerking. Op alineaniveau staat er wat er staat: dit
+   * blok gaat eruit, dit blok komt erin.
+   */
+  granulariteit: "auto" | "alinea" = "auto",
 ): DiffResult {
   const oudWoorden = tokenizeWords(oud);
   const nieuwWoorden = tokenizeWords(nieuw);
 
-  if (oudWoorden.length * nieuwWoorden.length <= maxProduct) {
+  if (granulariteit !== "alinea" && oudWoorden.length * nieuwWoorden.length <= maxProduct) {
     return { ops: runDiff(oudWoorden, nieuwWoorden), granularity: "woord" };
   }
 

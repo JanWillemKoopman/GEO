@@ -16785,6 +16785,40 @@ group("De bestaande pagina als bron (O3, existing-page-fetch.ts)", () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
+group("De vergelijking met de bestaande pagina staat op alineaniveau (2 september 2026)", () => {
+  // ⚠️ Deze twee teksten delen alleen hun kleine woorden, net als de pagina van
+  // de klant en de tekst die hem vervangt. Woord-voor-woord levert dan gehakt
+  // op: doorgestreepte en nieuwe woorden om beurten, uit twee teksten die niets
+  // met elkaar te maken hebben. Gemeten op de eerste echte vergelijking.
+  const oud = "Home Over ons Ons werk Contact Onze merken en de service op maat";
+  const nieuw = "Voor Dongen en Oosterhout is de prijs van een warmtepomp op maat";
+
+  const perWoord = diffContent(oud, nieuw);
+  ok("zonder opgave vergelijkt hij per woord", perWoord.granularity === "woord");
+  ok(
+    "en dat versnippert twee losse teksten",
+    perWoord.ops.filter((o) => o.type !== "gelijk").length > 4,
+  );
+
+  const perAlinea = diffContent(oud, nieuw, undefined, "alinea");
+  ok("op alineaniveau blijft het bij twee blokken", perAlinea.granularity === "alinea");
+  ok(
+    "één blok eruit en één blok erin",
+    perAlinea.ops.filter((o) => o.type === "verwijderd").length === 1 &&
+      perAlinea.ops.filter((o) => o.type === "toegevoegd").length === 1,
+  );
+
+  // De route die met de bestaande pagina vergelijkt, moet die stand ook echt
+  // vragen. Anders staat de keuze wel in de module en niet in het product.
+  const route = leesBestand("app/api/analyses/[id]/content/[pieceId]/diff/route.ts");
+  ok('de diff-route vraagt "alinea" bij de huidige pagina', route.includes('"alinea"'));
+  // En het scherm moet die blokken onder elkaar zetten, anders plakken rood en
+  // groen aan elkaar en is juist de overgang onleesbaar.
+  const weergave = leesBestand("components/version-diff.tsx");
+  ok("het scherm zet alineablokken onder elkaar", weergave.includes('granularity === "alinea" ? "flex flex-col'));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
 group("Het contract als verbeterplan (O4/O5)", () => {
   const sectie = (over: Partial<ContractSection>): ContractSection => ({
     id: "s1",

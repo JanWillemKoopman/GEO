@@ -6027,13 +6027,18 @@ de 3493 tekens is ongeveer een derde ruis. De oplossing daarvoor bestaat al in e
 precies wat dit project niet wil. Beide staan in
 `docs/tasks/paginakeuze-nieuw-of-verbeteren.md`.
 
-**Hoe het afliep.** De bestaande redactie hééft die zinnen uiteindelijk weggewerkt, in de categorie
-"bewering zonder bevestigd feit": na twee reparatierondes stond er geen enkele meer in de tekst en
-opende de pagina met "Voor een hybride warmtepomp van Wouter Warmtepomp kan hier voor Dongen en
+**Hoe het afliep, en dit is een correctie op wat hier eerst stond.** Na twee reparatierondes was de
+opening keurig ("Voor een hybride warmtepomp van Wouter Warmtepomp kan hier voor Dongen en
 Oosterhout geen betrouwbaar totaalbedrag worden genoemd zonder woninggegevens en een actuele
-offerte." Dat is een goede zin: hij noemt het merk, hij is eerlijk, en hij gaat over de lezer in
-plaats van over ons. De poorten deden dus hun werk; wat ze niet deden is de fout als categorie
-herkennen, en dat is precies wat `checkSourceTalk()` toevoegt.
+offerte") en stond er geen enkele meta-zin meer in. Op dat moment is hier genoteerd dat de redactie
+de fout had weggewerkt. **Dat klopte niet.** De DERDE reparatieronde draaide de opening terug, en de
+pagina staat nu op `ready` met **vijf** zinnen over "de bestaande pagina" en "de beschikbare
+informatie" erin. Nagerekend op de rij zelf, niet op een tussenstand.
+
+Dat maakt `checkSourceTalk()` geen luxe maar een noodzaak: de bestaande poorten zien deze zinnen
+alleen als losse "bewering zonder bevestigd feit", een reparatieronde kan ze net zo goed opnieuw
+introduceren, en niets houdt de pagina dan tegen. Met de nieuwe controle blijft zo'n pagina op
+"check nodig" staan in plaats van op `ready` te belanden.
 
 **Eindstand na de derde reparatieronde:** dekking 96, GEO-score 100, kwaliteitsscore 61, 1268
 woorden, status `ready`. De kwaliteitsscore liep tijdens de rondes op en neer (58 → 42 → 61): de
@@ -6043,3 +6048,49 @@ pagina's en al die vier bleven op "check nodig" staan. Deze pagina haalt de poor
 volledige tekst van de bestaande pagina als basis. Totale kosten van de ronde: $1,25.
 
 Vier controles groen: typecheck, 3629 unittests (7 nieuw), 576 ketentests, de productiebuild.
+
+## 2 september 2026: het scherm één keer echt bekeken, en twee fouten die geen test zag
+
+De verbeterlijst en de vergelijking waren gebouwd, getest en gemerged, maar nooit met eigen ogen
+bekeken. Dat is nu gedaan, met de ECHTE productiedata van de hybride-pagina: de componenten
+gerenderd, de Tailwind-CSS van het project erover, en een screenshot in Chromium.
+
+**De lijst klopt.** Per onderdeel de kop, het label ("wordt aangevuld" of "is nieuw") en de zin in
+gewone taal eronder, met de telling "Van de 7 onderdelen op deze pagina: 3 onderdelen zijn nieuw en
+4 worden aangevuld." Leesbaar, geen afgebroken tekst, het adres klikbaar.
+
+**De vergelijking was onbruikbaar.** `diffContent()` vergelijkt woord voor woord, en dat werkt
+prachtig tussen twee versies van onze eigen tekst: daar verandert een zin en blijft de rest staan.
+Tussen de pagina van de klant en de vervangende tekst werkt het averechts, want die twee delen
+alleen hun kleine woorden. Wat de klant te zien kreeg:
+
+> Hybride Warmtepomp ~~Wouter Warmtepomp B.V.~~ Voor ~~Airco~~ Dongen en ~~warmtepomp installateur~~
+> Oosterhout ~~to is footer~~ op ~~Home~~ basis ~~Over~~ van ~~ons~~ de ~~Ons~~ beschikbare
+
+Doorgestreepte en nieuwe woorden om beurten, uit twee teksten die niets met elkaar te maken hebben.
+Het suggereert bovendien een precisie die er niet is: een verbetering is een herschrijving, geen
+bewerking. `diffContent()` heeft er een derde parameter bij gekregen waarmee de aanroeper
+alineaniveau kan afdwingen, en de route die met de bestaande pagina vergelijkt doet dat. Nu staat er
+één rood blok ("dit verdwijnt van je pagina") en één groen blok ("dit komt ervoor in de plaats").
+
+**En die twee blokken plakten aan elkaar**: "...Onderhoud inplannenVoor Dongen en Oosterhout...".
+Precies de overgang die de klant moet zien, onleesbaar door een ontbrekende regelafbreking. Op
+alineaniveau krijgt elk blok nu zijn eigen regel.
+
+⚠️ **Geen van beide fouten was met een test te vinden.** De unittests controleerden dat de diff de
+juiste bewerkingen teruggeeft, en dat deed hij; dat het resultaat voor een mens onleesbaar was, zie
+je alleen door te kijken. Er staan nu wel tests op: dat twee losse teksten op woordniveau
+versnipperen, dat alineaniveau er twee blokken van maakt, en dat de route en het scherm die stand
+ook echt gebruiken.
+
+**Bijvangst, over het oordeel per sectie.** De vraag was of ons vangnet te streng was, want nul van
+de 20 secties kreeg "staat er al". Uit de bewaarde ruwe modeluitvoer (conventie 8) blijkt dat het
+MODEL zelf al nul "aanwezig" gaf: 12 "deels", 8 "ontbreekt", en het vangnet heeft niets omgezet. Het
+echte risico is daarmee scherper dan gedacht: deze tekst vervangt de pagina, dus alles wat niet in
+het contract staat raakt de klant kwijt, en de productlijst op die pagina (Remeha, Daikin) stond er
+niet in. Instructie (h) vraagt het model nu expliciet om eerst de bestaande pagina langs te lopen en
+elk onderwerp dat de lezer nodig heeft over te nemen als sectie met 'aanwezig'. `content-plan.ts`
+logt voortaan hoeveel secties dat zijn, met een waarschuwing bij nul, zodat meetbaar is of de
+instructie werkt in plaats van dat het opnieuw met de hand ontdekt moet worden.
+
+Vier controles groen: typecheck, 3635 unittests (6 nieuw), 576 ketentests, de productiebuild.

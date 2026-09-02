@@ -65,7 +65,11 @@ export async function GET(
       );
     }
     return NextResponse.json({
-      ...diffContent(bestaand, pieceRow.body_markdown ?? ""),
+      // ⚠️ Op ALINEANIVEAU, niet woord voor woord. Zie de toelichting bij
+      // `diffContent`: tussen de pagina van de klant en de vervangende tekst
+      // levert een woord-diff gehakt op, want die twee delen alleen hun kleine
+      // woorden. Gemeten op de eerste echte vergelijking, 2 september 2026.
+      ...diffContent(bestaand, pieceRow.body_markdown ?? "", undefined, "alinea"),
       // ⚠️ De klant moet weten dat de linkerkant een MOMENTOPNAME is. Heeft hij
       // zijn pagina sindsdien zelf aangepast, dan toont dit scherm een verschil
       // met een versie die niet meer bestaat, en dan is "dit verdwijnt" onjuist.
