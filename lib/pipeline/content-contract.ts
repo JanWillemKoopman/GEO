@@ -146,5 +146,12 @@ export async function buildContentContract(input: ContractInput): Promise<{
     meta: { kind: "content_contract", analysisId: input.analysisId, profileId: input.profileId },
   });
 
-  return { contract: normaliseerContract(result.parsed), raw: result.raw };
+  // De doellengte gaat mee naar het opschonen: promptregel (e) vraagt erom, maar
+  // een promptinstructie is een intentie en code is een garantie (conventie 1).
+  // Op 1 september 2026 vroeg het contract van een landingspagina 25 secties met
+  // samen 1000 woorden bij een maximum van 700.
+  return {
+    contract: normaliseerContract(result.parsed, { maxWoorden: input.targetWords.max }),
+    raw: result.raw,
+  };
 }

@@ -83,7 +83,18 @@ import {
 } from "@/lib/pipeline/content-sections";
 import { checkContractCoverage } from "@/lib/pipeline/content-coverage";
 import type { ContentContract } from "@/lib/schemas/content-contract";
-import { normaliseerContract, formatContract } from "@/lib/pipeline/contract-format";
+import {
+  normaliseerContract,
+  formatContract,
+  stripFactRefs,
+  openingIsMeta,
+} from "@/lib/pipeline/contract-format";
+import { answerBelongsHere } from "@/lib/pipeline/answer-scope";
+import { stripChrome } from "@/lib/pipeline/page-text";
+import { prioriteerBevindingen, MAX_BEVINDINGEN_PER_RONDE } from "@/lib/pipeline/content-issues";
+import { ontwijkendeZinnen } from "@/lib/pipeline/content-gate";
+import { isRapportageVorm } from "@/lib/pipeline/factcard";
+import { describePronoun } from "@/lib/pipeline/tone-sliders";
 import { checkContentGate, openingVan, geoRegels } from "@/lib/pipeline/content-gate";
 import {
   brandNav,
@@ -2288,8 +2299,12 @@ group("Scorekaart leest beide formaten (implementatieplan.md R8.7)", () => {
       onderscheidGebruikt: null,
     },
   });
-  ok("nieuwe vorm gebruikt de deterministische uitkomst", nieuw.length === 7);
-  ok("niet-uitgevoerde controles blijven null", nieuw.filter((r) => r.ok === null).length === 2);
+  ok("nieuwe vorm gebruikt de deterministische uitkomst", nieuw.length === 8);
+  // Twee controles stonden hier op null, en de derde is de controle op de
+  // rapportagevorm (verbetering 8): die bestond nog niet toen deze pagina
+  // geschreven werd. Een controle die niet gedraaid heeft, hoort geen kruisje te
+  // krijgen (conventie 3).
+  ok("niet-uitgevoerde controles blijven null", nieuw.filter((r) => r.ok === null).length === 3);
   ok("een gezakte controle blijft zichtbaar", nieuw.some((r) => r.ok === false));
 
   // Een leeg veld mag niet crashen en niet doen alsof alles goed is.
@@ -16172,6 +16187,496 @@ group("De bedrading van de nieuwe contentpijplijn", () => {
   // dezelfde bronnen dezelfde analyse, en dat is precies de clusterbrede
   // vervlakking die S9 en S10 kwamen repareren.
   ok("met de doelvragen in de sleutel", bron.includes("vragen:"));
+});
+
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Antwoorden van de klant komen bij de juiste pagina (verbetering 1)", () => {
+  const analyse = "a-1";
+  const pagina = "p-1";
+
+  ok(
+    "een merkbreed antwoord telt altijd",
+    answerBelongsHere({ scope: "merk", analysis_id: null }, analyse, [pagina]),
+  );
+  ok(
+    "en ook zonder pagina in beeld",
+    answerBelongsHere({ scope: "merk", analysis_id: null }, analyse, []),
+  );
+  ok(
+    "een analyse-antwoord telt binnen die analyse",
+    answerBelongsHere({ scope: "analyse", analysis_id: analyse }, analyse, [pagina]),
+  );
+  ok(
+    "maar niet bij een andere analyse",
+    !answerBelongsHere({ scope: "analyse", analysis_id: "a-2" }, analyse, [pagina]),
+  );
+
+  // ⚠️ De kern van verbetering 1. Op 1 september 2026 had 9 van de 16
+  // briefingvragen reikwijdte "pagina", en van de 8 gegeven antwoorden
+  // bereikten er 4 de feitenkaart. De vier die verdwenen waren precies de
+  // antwoorden over Tilburg, Eindhoven en de vraag of het bedrijf zelf
+  // installeert.
+  ok(
+    "een paginagebonden antwoord telt bij zijn eigen pagina",
+    answerBelongsHere(
+      { scope: "pagina", analysis_id: analyse, content_piece_ids: [pagina] },
+      analyse,
+      [pagina],
+    ),
+  );
+  ok(
+    "en niet bij een andere pagina",
+    !answerBelongsHere(
+      { scope: "pagina", analysis_id: analyse, content_piece_ids: ["p-2"] },
+      analyse,
+      [pagina],
+    ),
+  );
+  ok(
+    "zonder pagina in beeld telt hij niet mee",
+    !answerBelongsHere(
+      { scope: "pagina", analysis_id: analyse, content_piece_ids: [pagina] },
+      analyse,
+      [],
+    ),
+  );
+  ok(
+    "een onbekende reikwijdte telt niet mee",
+    !answerBelongsHere({ scope: "iets-nieuws", analysis_id: analyse }, analyse, [pagina]),
+  );
+
+  // De bedrading: beide plekken die antwoorden inlezen gebruiken dezelfde regel.
+  const basis = leesBestand("lib/pipeline/factbase.ts");
+  ok("de feitenkaart gebruikt de gedeelde regel", basis.includes("answerBelongsHere"));
+  ok("en vraagt de gekoppelde pagina's op", basis.includes("content_piece_ids"));
+  const contentBron = leesBestand("lib/pipeline/content.ts");
+  ok("de schrijfstap ook", contentBron.includes("answerBelongsHere"));
+  const planBron = leesBestand("lib/pipeline/content-plan.ts");
+  ok("de planstap ook", planBron.includes("answerBelongsHere"));
+  // ⚠️ Verbetering 2: het contract werd opgesteld met de BEVROREN kaart, dus
+  // zonder de antwoorden die 25 seconden eerder waren opgeslagen.
+  ok("en voegt de antwoorden bij de bevroren kaart", planBron.includes("mergeAnsweredFacts"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("De opening van een pagina bevat geen interne notities (verbetering 3)", () => {
+  // De letterlijke openingszin van de pagina "Snel installeren", 1 september 2026.
+  const echt =
+    "Het bedrijf is 24/7 bereikbaar om te bespreken of en wanneer installatie in jouw situatie " +
+    "mogelijk is. [F1, F2, F5, F14]";
+  ok("F-verwijzingen gaan eruit", !stripFactRefs(echt).includes("F1"));
+  ok("en de zin blijft heel", stripFactRefs(echt).endsWith("mogelijk is."));
+  ok("ook de enkelvoudige vorm", stripFactRefs("Wij leveren snel (F3).") === "Wij leveren snel.");
+  ok("een zin zonder verwijzing verandert niet", stripFactRefs("Gewoon een zin.") === "Gewoon een zin.");
+
+  // De twee echte openingen die het bedrijf afraadden.
+  ok(
+    "een opening die het bedrijf afraadt wordt herkend",
+    openingIsMeta(
+      "Gasservice Brabant kan daarom momenteel niet als aantoonbare specialist in Tilburg worden aanbevolen.",
+    ),
+  );
+  ok(
+    "en een opening die onze bewijsvoering beschrijft ook",
+    openingIsMeta(
+      "Of het bedrijf in Eindhoven eerst woningadvies geeft en daarna de installatie uitvoert, moet op deze pagina nog aantoonbaar worden gemaakt.",
+    ),
+  );
+  ok(
+    "en de openingszin van het prijsartikel",
+    openingIsMeta(
+      "Er is geen gecontroleerde, concrete prijs voor een hybride warmtepomp inclusief installatie in Oss beschikbaar in dit dossier.",
+    ),
+  );
+  ok(
+    "een gewone opening blijft staan",
+    !openingIsMeta("Gasservice Brabant installeert hybride warmtepompen in Oss en Tilburg."),
+  );
+
+  const metaContract: ContentContract = {
+    openingAnswer:
+      "Gasservice Brabant kan momenteel niet als aantoonbare specialist in Tilburg worden aanbevolen.",
+    sections: [
+      {
+        id: "s1",
+        heading: "Ervaring [F5]",
+        subQuestion: "Welke ervaring is er?",
+        mustCover: ["ervaring"],
+        factRefs: ["F5"],
+        explainerTerms: [],
+        targetWords: 120,
+      },
+    ],
+    faqQuestions: ["Werkt u in Tilburg?"],
+    reasoning: "",
+  };
+  const opgeschoond = normaliseerContract(metaContract);
+  ok("een afgekeurde opening vervalt", opgeschoond.openingAnswer === "");
+  ok("de kop houdt geen F-verwijzing over", opgeschoond.sections[0].heading === "Ervaring");
+  const opdrachtZonderOpening = formatContract(opgeschoond);
+  ok(
+    "de schrijver krijgt dan de algemene instructie",
+    opdrachtZonderOpening.includes("beantwoord de doelvraag in de eerste twee zinnen"),
+  );
+  ok(
+    "met het verbod om een gat te benoemen",
+    opdrachtZonderOpening.includes("Schrijf nooit dat iets niet bevestigd"),
+  );
+});
+
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Het menu gaat uit de opgeslagen sitetekst (verbetering 4)", () => {
+  const menu = "<nav><ul><li>Cv-ketel</li><li>Onderhoud</li><li>Warmtepomp</li></ul></nav>";
+  const inhoud =
+    "<p>De kosten van een hybride warmtepomp kunnen oplopen tot maximaal 6000 euro. " +
+    "Deze kosten hangen af van het vermogen en van het soort hybride warmtepomp. " +
+    "Het vermogen hangt af van de grootte van je woning en het bouwjaar van de woning.</p>";
+  const voet = "<footer>Alle rechten voorbehouden. Bel ons op 073.</footer>";
+
+  const geschoond = stripChrome(`${menu}${inhoud}${voet}`);
+  ok("het menu gaat eruit", !geschoond.includes("Cv-ketel"));
+  ok("de voettekst ook", !geschoond.includes("Alle rechten"));
+  ok("en de inhoud blijft", geschoond.includes("maximaal 6000 euro"));
+
+  // Een koptekst met menu erin gaat eruit, een koptekst met de H1 blijft.
+  const metMenu = stripChrome(`<header><nav>Menu hier</nav></header>${inhoud}`);
+  ok("een koptekst met menu gaat eruit", !metMenu.includes("Menu hier"));
+  const metTitel = stripChrome(`<header><h1>Wat kost een warmtepomp?</h1></header>${inhoud}`);
+  ok("een koptekst met de titel blijft", metTitel.includes("Wat kost een warmtepomp?"));
+
+  // De hoofdinhoud wint als hij er is.
+  const metMain = stripChrome(`<div>zijbalk met van alles erin</div><main>${inhoud}</main>`);
+  ok("de hoofdinhoud wint", metMain.includes("maximaal 6000 euro") && !metMain.includes("zijbalk"));
+
+  // ⚠️ Het vangnet. Een pagina die álles in een header zet mag niet leeg raken:
+  // minder tekst is erger dan ruis (conventie 3).
+  const allesInHeader = `<header><nav>Menu</nav>${inhoud}</header>`;
+  ok("een te gretige knip wordt teruggedraaid", stripChrome(allesInHeader).includes("maximaal 6000 euro"));
+  ok("lege invoer blijft leeg", stripChrome("") === "");
+
+  // ⚠️ Zonder script- en stijlblokken meetellen zou het vangnet altijd afgaan:
+  // een pagina van 257 kB met 4 kB tekst meet dan als 200.000 tekens. Dat
+  // gebeurde bij de kennisbankpagina met het bedrag dat we misten.
+  const metScript = `<script>${"x=1;".repeat(4000)}</script>${menu}${inhoud}`;
+  ok("JavaScript telt niet mee als tekst", !stripChrome(metScript).includes("Cv-ketel"));
+
+  const crawler = leesBestand("lib/crawler.ts");
+  ok("de crawler schoont vóór het knippen", crawler.includes("stripChrome"));
+  ok("en bewaart meer dan het menu", crawler.includes("const PAGE_MAX_CHARS = 4000"));
+  const uitleg = leesBestand("lib/pipeline/explainer-verify.ts");
+  ok("de citaatcontrole leest de volledige bron", uitleg.includes("fullText: true"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("De reparatie krijgt de zwaarste punten eerst (verbetering 5)", () => {
+  // Precies de soorten bevindingen die de ronde van 1 september 2026 opleverde.
+  const bevindingen = [
+    'Een lezer houdt deze vraag over na het lezen: "Wat kost het?". Behandel hem.',
+    'De sectie "Prijs" is te dun (minder dan 25 woorden). Werk hem uit.',
+    'In de sectie "Ervaring" staat een bewering zonder bevestigd feit: "Wij plaatsten er 500."',
+    "GEO: de pagina noemt het bedrijf expliciet nog niet.",
+    'De sectie "Onderhoud" ontbreekt. Voeg hem toe; hij moet deze vraag beantwoorden: "..."',
+  ];
+  const geordend = prioriteerBevindingen(bevindingen, 10);
+  ok("de onbewezen bewering staat vooraan", geordend[0].includes("zonder bevestigd feit"));
+  ok("de ontbrekende sectie komt vóór de dunne", geordend.indexOf(bevindingen[4]) < geordend.indexOf(bevindingen[1]));
+  ok("de restvraag van de lezer staat achteraan", geordend[geordend.length - 1] === bevindingen[0]);
+  ok("er raakt niets kwijt binnen de grens", geordend.length === bevindingen.length);
+
+  // ⚠️ De kern: 119 bevindingen in één reparatieprompt maakt van een gerichte
+  // sectiereparatie een volledige herschrijving. Gemeten kostte die $0,2525 per
+  // ronde met méér uitvoertokens dan het schrijven zelf.
+  const veel = Array.from({ length: 119 }, (_, i) => `In de sectie "S${i}": punt ${i}.`);
+  ok("een lange lijst wordt afgekapt", prioriteerBevindingen(veel).length === MAX_BEVINDINGEN_PER_RONDE);
+  ok("de grens staat op tien", MAX_BEVINDINGEN_PER_RONDE === 10);
+  ok("lege regels tellen niet mee", prioriteerBevindingen(["", "  ", "iets"]).length === 1);
+
+  const content = leesBestand("lib/pipeline/content.ts");
+  ok("de reparatieprompt krijgt de geordende lijst", content.includes("prioriteerBevindingen(issues"));
+  // ⚠️ Verbetering 5, tweede helft: de lus stopte alleen op REPAIR_MAX. De
+  // kwaliteitsscore liep 67, 74, 68, 48 en de klant kreeg de laatste.
+  ok("de lus stopt als het niet beter wordt", content.includes("beterDanVorige"));
+  ok("en dat weegt mee in de vraag of er nog een ronde komt", content.includes("&& beterDanVorige"));
+  ok("een slechtere versie wordt niet opgeslagen", content.includes("...(nietSlechter ? nieuweVersie : {})"));
+  ok(
+    "bewaren en doorgaan zijn twee verschillende grenzen",
+    content.includes("const nietSlechter") && content.includes("const beterDanVorige"),
+  );
+  // Verbetering 10.
+  ok("het aantal woorden wordt bijgewerkt", content.includes("word_count: countWords(final.bodyMarkdown)"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Het contract past in de doellengte (verbetering 6)", () => {
+  const sectie = (i: number, woorden: number) => ({
+    id: `s${i}`,
+    heading: `Kop ${i}`,
+    subQuestion: `Vraag ${i}?`,
+    mustCover: ["iets"],
+    factRefs: [],
+    explainerTerms: [],
+    targetWords: woorden,
+  });
+
+  // De Tilburg-pagina: 25 secties van 40 woorden bij een maximum van 700.
+  const teGroot: ContentContract = {
+    openingAnswer: "Gasservice Brabant plaatst hybride warmtepompen in Tilburg.",
+    sections: Array.from({ length: 25 }, (_, i) => sectie(i + 1, 40)),
+    faqQuestions: Array.from({ length: 16 }, (_, i) => `Vraag ${i + 1}?`),
+    reasoning: "",
+  };
+  const gesnoeid = normaliseerContract(teGroot, { maxWoorden: 700 });
+  const som = gesnoeid.sections.reduce((t, s) => t + s.targetWords, 0);
+  ok("de secties passen binnen de doellengte", som <= 700);
+  ok("en er blijft ruimte voor de opening", som <= 700 - 40);
+  ok("er blijven er genoeg over", gesnoeid.sections.length >= 3);
+  ok("de eerste sectie blijft altijd staan", gesnoeid.sections[0].heading === "Kop 1");
+  ok("de FAQ wordt begrensd op acht", gesnoeid.faqQuestions.length === 8);
+
+  // Een contract dat past, verandert niet.
+  const past: ContentContract = {
+    openingAnswer: "Ja, dat kan.",
+    sections: [sectie(1, 120), sectie(2, 120), sectie(3, 120)],
+    faqQuestions: ["Een?"],
+    reasoning: "",
+  };
+  ok("een passend contract blijft heel", normaliseerContract(past, { maxWoorden: 700 }).sections.length === 3);
+
+  // ⚠️ Nooit onder de drie secties, ook niet bij een krappe doellengte: een
+  // pagina met één sectie is geen pagina.
+  const krap = normaliseerContract(
+    { ...past, sections: [sectie(1, 400), sectie(2, 400), sectie(3, 400), sectie(4, 400)] },
+    { maxWoorden: 500 },
+  );
+  ok("minstens drie secties blijven staan", krap.sections.length === 3);
+  ok("zonder grens wordt er niet gesnoeid", normaliseerContract(teGroot).sections.length === 25);
+
+  const bouwer = leesBestand("lib/pipeline/content-contract.ts");
+  ok("de bouwer geeft de doellengte mee", bouwer.includes("maxWoorden: input.targetWords.max"));
+});
+
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Een pagina die de lezer wegstuurt, wordt afgekeurd (verbetering 7)", () => {
+  // Letterlijke zinnen van de pagina "Snel installeren", 1 september 2026.
+  const echt = [
+    "Een concrete wachttijd is niet beschikbaar.",
+    "Vraag wanneer advies mogelijk is.",
+    "Laat andere woonplaatsen en de beschikbaarheid per moment vooraf controleren.",
+    "Vraag vóór akkoord om bedragen per onderdeel.",
+    "Bespreek vooraf welke werkzaamheden nodig zijn.",
+    "Controleer vóór akkoord het actuele bedrag, de meldcode en de voorwaarden bij RVO.",
+  ].join(" ");
+  ok("alle zes de vormen worden herkend", ontwijkendeZinnen(echt).length === 6);
+  ok(
+    "een gewone zin niet",
+    ontwijkendeZinnen("Gasservice Brabant installeert hybride warmtepompen in Oss en Tilburg.").length === 0,
+  );
+
+  // ⚠️ Een oproep tot actie aan het eind van een landingspagina hoort erbij.
+  // Daarom telt het AANDEEL en niet het bestaan.
+  const gezond =
+    "Gasservice Brabant installeert hybride warmtepompen in Oss. " +
+    "Een hybride warmtepomp werkt samen met de cv-ketel en verlaagt het gasverbruik. " +
+    "De installatie kost bij Gasservice Brabant tot 6000 euro, afhankelijk van het vermogen. " +
+    "Het vermogen volgt uit de oppervlakte van de woning en het bouwjaar. " +
+    "De subsidie ligt gemiddeld tussen 500 en 2500 euro. " +
+    "Een monteur van Gasservice Brabant komt de woning vooraf beoordelen. " +
+    "De montage duurt bij een gemiddelde woning een dag. " +
+    "Gasservice Brabant is 24 uur per dag bereikbaar bij een storing. " +
+    "Vraag een offerte aan bij Gasservice Brabant.";
+  const gezondePoort = checkContentGate({
+    bodyMarkdown: gezond,
+    faq: [],
+    brandName: "Gasservice Brabant",
+    targetQuestions: ["Wie installeert een hybride warmtepomp in Oss?"],
+    distinctiveAnswers: [],
+  });
+  ok("één oproep tot actie is geen ontwijking", gezondePoort.checks.geenOntwijking === true);
+
+  const ziekePoort = checkContentGate({
+    bodyMarkdown:
+      "Gasservice Brabant installeert hybride warmtepompen in Oost-Brabant. " + echt,
+    faq: [],
+    brandName: "Gasservice Brabant",
+    targetQuestions: ["Wie installeert een hybride warmtepomp in Oost-Brabant?"],
+    distinctiveAnswers: [],
+  });
+  ok("een pagina vol doorverwijzingen wordt afgekeurd", ziekePoort.checks.geenOntwijking === false);
+  ok(
+    "en de bevinding noemt hoeveel zinnen het zijn",
+    ziekePoort.issues.some((i) => i.includes("sturen de lezer weg")),
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("De pagina praat niet over zijn eigen website (verbetering 8)", () => {
+  // De echte zin van de pagina "Snel installeren", 1 september 2026.
+  ok(
+    "de rapportagevorm wordt herkend",
+    isRapportageVorm(
+      "De website van Gasservice Brabant noemt ervaren vakmannen, meer dan 90 jaar ervaring, " +
+        "erkenning als installateur en een BRL6000-25-certificaat.",
+    ),
+  );
+  ok(
+    "ook zonder merknaam ertussen",
+    isRapportageVorm("De site vermeldt dat het bedrijf 24 uur per dag bereikbaar is."),
+  );
+  ok(
+    "een gewone bewering niet",
+    !isRapportageVorm("Gasservice Brabant is 24 uur per dag bereikbaar en werkt vanuit Den Bosch."),
+  );
+  // ⚠️ Verwijzen naar de site van iemand anders mag wel: dat is een bron.
+  ok(
+    "een verwijzing naar een externe bron blijft toegestaan",
+    !isRapportageVorm("Op rvo.nl staat welke bedragen voor de ISDE gelden."),
+  );
+
+  const poort = checkContentGate({
+    bodyMarkdown:
+      "Gasservice Brabant installeert hybride warmtepompen in Oss. De website van Gasservice " +
+      "Brabant noemt ervaren vakmannen en meer dan 90 jaar ervaring.",
+    faq: [],
+    brandName: "Gasservice Brabant",
+    targetQuestions: ["Wie installeert een hybride warmtepomp in Oss?"],
+    distinctiveAnswers: [],
+  });
+  ok("de poort keurt hem af", poort.checks.geenRapportageOverZichzelf === false);
+  ok(
+    "en zegt wat er moet gebeuren",
+    poort.issues.some((i) => i.includes("Deze pagina IS die website")),
+  );
+
+  // Het modelhalf van deze verbetering: de instructie bij het onderzoek.
+  const synthese = leesBestand("lib/pipeline/synthesis.ts");
+  ok("het onderzoek vraagt om de bewering zelf", synthese.includes("Schrijf de BEWERING zelf op"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("De dekkingspoort leest verwijzingen zoals de citaatcontrole (verbetering 9)", () => {
+  const contract: ContentContract = {
+    openingAnswer: "Gasservice Brabant installeert hybride warmtepompen in Oss.",
+    sections: [
+      {
+        id: "s1",
+        heading: "Werkgebied",
+        subQuestion: "Waar installeert Gasservice Brabant hybride warmtepompen?",
+        mustCover: ["werkgebied"],
+        // Drie feiten, waarvan het model er één samengestelde verwijzing van maakt.
+        factRefs: ["F1", "F5", "F18"],
+        explainerTerms: [],
+        targetWords: 120,
+      },
+    ],
+    faqQuestions: [],
+    reasoning: "",
+  };
+  const body =
+    "Gasservice Brabant installeert hybride warmtepompen in Oss.\n\n## Werkgebied\n\n" +
+    "Gasservice Brabant installeert hybride warmtepompen in Oss en werkt vanuit Den Bosch in " +
+    "de regio Oost-Brabant. Waar Gasservice Brabant hybride warmtepompen installeert staat hier.";
+
+  const uitslag = checkContractCoverage({
+    contract,
+    bodyMarkdown: body,
+    faq: [],
+    // ⚠️ Precies de vorm die op 1 september 2026 op de pagina stond.
+    claims: [{ factRef: "F1, F5, F18" }],
+  });
+  ok(
+    "een samengestelde verwijzing dekt alle genoemde feiten",
+    uitslag.secties[0].ongebruikteFeiten.length === 0,
+  );
+
+  const losse = checkContractCoverage({
+    contract,
+    bodyMarkdown: body,
+    faq: [],
+    claims: [{ factRef: "F1" }],
+  });
+  ok("en een enkele verwijzing dekt alleen zichzelf", losse.secties[0].ongebruikteFeiten.length === 2);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Een vakterm telt pas als hij echt is uitgelegd (verbetering 12)", () => {
+  const maakContract = (termen: string[]): ContentContract => ({
+    openingAnswer: "",
+    sections: [
+      {
+        id: "s1",
+        heading: "De buitenunit",
+        subQuestion: "Waar komt de buitenunit te staan?",
+        mustCover: ["plek"],
+        factRefs: [],
+        explainerTerms: termen,
+        targetWords: 120,
+      },
+      {
+        id: "s2",
+        heading: "De installatie",
+        subQuestion: "Hoe verloopt de installatie?",
+        mustCover: ["stappen"],
+        factRefs: [],
+        explainerTerms: [],
+        targetWords: 120,
+      },
+    ],
+    faqQuestions: [],
+    reasoning: "",
+  });
+
+  // De term wordt in de TWEEDE sectie uitgelegd. Dat telde vroeger niet mee voor
+  // de eerste, en daarom plakte het model in elke sectie een definitiezin.
+  const elders =
+    "## De buitenunit\n\nDe buitenunit komt in de tuin of aan de gevel te staan, op afstand van " +
+    "de buren en met ruimte voor onderhoud eromheen.\n\n" +
+    "## De installatie\n\nEen buitenunit is het deel van de warmtepomp dat buiten staat en warmte " +
+    "uit de lucht haalt. De monteur plaatst hem en sluit hem aan op de binnenunit.";
+  const metUitleg = checkContractCoverage({
+    contract: maakContract(["buitenunit"]),
+    bodyMarkdown: elders,
+    faq: [],
+    claims: [],
+  });
+  ok(
+    "uitleg elders op de pagina telt mee",
+    metUitleg.secties[0].ontbrekendeUitleg.length === 0,
+  );
+
+  // Alleen noemen is niet uitleggen.
+  const alleenGenoemd =
+    "## De buitenunit\n\nDe buitenunit komt in de tuin te staan. Vraag naar de buitenunit bij de " +
+    "offerte, want de buitenunit bepaalt mede de prijs.\n\n## De installatie\n\nDe monteur komt langs.";
+  const zonderUitleg = checkContractCoverage({
+    contract: maakContract(["buitenunit"]),
+    bodyMarkdown: alleenGenoemd,
+    faq: [],
+    claims: [],
+  });
+  ok(
+    "een term drie keer noemen is geen uitleg",
+    zonderUitleg.secties[0].ontbrekendeUitleg.includes("buitenunit"),
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("De aanspreekvorm gaat mee naar de schrijver (verbetering 11)", () => {
+  ok("je-vorm wordt een regel", describePronoun("je").includes("'je' en 'jouw'"));
+  ok("u-vorm ook", describePronoun("u").includes("'u' en 'uw'"));
+  ok("wij-vorm noemt de merknaam-regel", describePronoun("wij").includes("bij NAAM"));
+  ok("niets ingevuld levert geen regel op", describePronoun(null) === "");
+  ok("een onbekende waarde ook niet", describePronoun("hen") === "");
+
+  const content = leesBestand("lib/pipeline/content.ts");
+  ok("de schrijfprompt gebruikt hem", content.includes("describePronoun(profile?.pronoun_preference"));
+  const velden = leesBestand("lib/pipeline/brand-fields.ts");
+  ok(
+    "en het merkprofiel belooft niet meer dat het veld ongebruikt blijft",
+    !velden.includes("Wordt op dit moment niet in de teksten toegepast"),
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════

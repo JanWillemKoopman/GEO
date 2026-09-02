@@ -15,6 +15,40 @@ komt uit `ai_calls`, `jobs` en `content_pieces` van analyse
 
 ---
 
+> ## Stand op 1 september 2026: alle twaalf zijn gebouwd
+>
+> De hele lijst hieronder is doorgevoerd, in de volgorde waarin hij staat. Vier controles groen:
+> typecheck, 3539 unittests (82 nieuwe), 561 ketentests (4 nieuwe), de productiebuild. Er was geen
+> migratie nodig; er is geen enkele database-kolom bij gekomen.
+>
+> **Nog niet geverifieerd tegen een echte klant** (conventie 10). De cijfers in de impactkolom
+> hieronder zijn dus voorspellingen, geen metingen. Wat er getoetst is: elke ingreep heeft een
+> unittest op de letterlijke zinnen en getallen uit deze ronde, en de samenhang tussen briefing,
+> feitenkaart en pagina heeft een scenario in de ketentest. De volgende contentronde is de toets
+> die telt.
+>
+> Twee dingen zijn tijdens het bouwen anders uitgepakt dan de tabel beschrijft:
+>
+> - **Verbetering 8: feiten herschrijven werkt niet in het Nederlands.** Het plan was de aanloop "De website
+>   vermeldt dat ..." van een feit af te knippen. Na "vermeldt dat" volgt een bijzin met het
+>   werkwoord achteraan, dus "Gasservice Brabant vermeldt dat het 24/7 bereikbaar is" wordt "Het
+>   24/7 bereikbaar is". Een half feit is erger dan een omslachtig feit (conventie 3). Het is
+>   daarom een CONTROLE op de pagina geworden in plaats van een bewerking van de kaart: het model
+>   krijgt de instructie (in `synthesis.ts`), de code garandeert dat de rapportagevorm nooit
+>   gepubliceerd wordt (in `content-gate.ts`).
+> - **Verbetering 1: paginagebonden antwoorden gaan niet de feitenbank in.** `syncBrandFacts` leest ná het
+>   schrijven alles terug wat merkbreed is of bij deze analyse hoort. Een antwoord over Tilburg dat
+>   we daar zouden opslaan, zou dus alsnog op de kaart van de Eindhoven-pagina staan. Ze komen nu
+>   op de kaart van hun eigen pagina zonder bank-id. Dat kost de traceerbaarheid van dat id, en dat
+>   is de goede ruil.
+>
+> Eén ingreep is bij het bouwen bewust anders begrensd dan de tabel zei: de reparatielus BEWAART
+> een ronde die niet slechter is, en STOPT pas als de score niet meer stijgt. Een reparatie die een
+> onbewezen bewering weghaalt terwijl het cijfer gelijk blijft, is echte winst die geen cijfer laat
+> zien. De ketentest ving dat randgeval.
+
+---
+
 ## 1. De verbeterlijst
 
 Gesorteerd op wat als eerste gebouwd moet worden. "Soort" zegt of het een tekortkoming van de

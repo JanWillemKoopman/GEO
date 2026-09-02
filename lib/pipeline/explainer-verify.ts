@@ -33,11 +33,15 @@ import type { DossierExplainer } from "@/lib/schemas/item-dossier";
 /**
  * Hoeveel bronpagina's we hoogstens ophalen.
  *
- * Zes: het itemdossier levert er zelden meer, en elke pagina is een HTTP-verzoek
- * binnen dezelfde taak. De crawler haalt ze in batches op en faalt per pagina
- * zacht, dus een trage bron kost de rest niets.
+ * ⚠️ Stond op zes, met als reden dat het itemdossier er zelden meer levert. Dat
+ * klopte niet: op 1 september 2026 had de Eindhoven-pagina acht unieke
+ * bron-URL's, en de uitleg bij bron zeven en acht kreeg de melding "bron niet op
+ * te halen" terwijl er nooit een poging is gedaan. Twaalf dekt wat het dossier
+ * in de praktijk oplevert. Elke pagina is een HTTP-verzoek binnen dezelfde taak,
+ * de crawler haalt ze in batches op en faalt per pagina zacht, dus een trage
+ * bron kost de rest niets.
  */
-const MAX_BRONNEN = 6;
+const MAX_BRONNEN = 12;
 
 /**
  * Hoeveel van het citaat er letterlijk terug moet zijn te vinden.
@@ -75,17 +79,31 @@ export async function verifyExplainers(
   const bruikbaar = explainers.filter((e) => e.term?.trim() && e.explanation?.trim());
   if (bruikbaar.length === 0) return [];
 
-  const urls = Array.from(
+  const alleUrls = Array.from(
     new Set(bruikbaar.map((e) => e.sourceUrl?.trim()).filter((u): u is string => /^https?:\/\//i.test(u ?? ""))),
-  ).slice(0, MAX_BRONNEN);
+  );
+  const urls = alleUrls.slice(0, MAX_BRONNEN);
+  // Wat er buiten de grens valt krijgt een eigen reden. "Bron niet op te halen"
+  // suggereert dat de site plat lag; "te veel bronnen" zegt dat wij niet gekeken
+  // hebben, en dat is een ander gesprek.
+  const buitenGrens = new Set(alleUrls.slice(MAX_BRONNEN));
 
-  const paginas = urls.length > 0 ? await crawlPages(urls) : [];
+  // ⚠️ `fullText`: de standaardstand van `crawlPages` knipt op 4000 tekens, en
+  // een citaat kan overal staan. Zonder deze vlag keurde de controle op
+  // 1 september 2026 18 van de 35 uitleggen af met "citaat staat niet op de
+  // bron", terwijl minstens één daarvan gewoon klopte: het citaat "De meeste
+  // hybride warmtepompen halen warmte uit de buitenlucht" staat op teken 10.696
+  // van een pagina van 21.141 tekens bij Milieu Centraal.
+  const paginas = urls.length > 0 ? await crawlPages(urls, { fullText: true }) : [];
   const tekstPerUrl = new Map(paginas.map((p) => [p.url, p.text ?? ""]));
 
   return bruikbaar.map((uitleg) => {
     const url = uitleg.sourceUrl?.trim() ?? "";
     if (!/^https?:\/\//i.test(url)) {
       return { ...uitleg, verified: false, reason: "geen geldige bron-URL" };
+    }
+    if (buitenGrens.has(url)) {
+      return { ...uitleg, verified: false, reason: `meer dan ${MAX_BRONNEN} bronnen, niet gecontroleerd` };
     }
     const tekst = tekstPerUrl.get(url);
     if (!tekst) {

@@ -5539,6 +5539,56 @@ async function main(): Promise<void> {
         ptNa.includes("runnersknie") && ptVoorReparatie.includes("runnersknie"),
       );
 
+      // ── Verbetering 1: een paginagebonden antwoord bereikt zijn eigen kaart ──
+      //
+      // ⚠️ DE SAMENHANG DIE HIER FOUT GING. De briefing stelt vragen met drie
+      // reikwijdtes, en `scope = 'pagina'` hangt aan één content_piece via
+      // `content_piece_ids`. Beide plekken die antwoorden inlazen filterden die
+      // reikwijdte weg, en het commentaar zei dat zo'n antwoord "daar apart mee
+      // gaat" terwijl niets dat deed. Gemeten op 1 september 2026: 9 van de 16
+      // briefingvragen waren paginagebonden en 4 van de 8 gegeven antwoorden
+      // verdwenen. Eén ervan was "Werken jullie momenteel in Tilburg en plaatsen
+      // jullie daar hybride warmtepompen: ja", terwijl de pagina die eruit kwam
+      // schreef dat het bedrijf daar niet kon worden aanbevolen.
+      await db.client.query(
+        `insert into public.fact_requests
+           (profile_id, analysis_id, question, reason, answer, status, answered_at, scope, kind,
+            answer_type, required, claim_key, content_piece_ids)
+         values ($1, $2, 'Werken jullie in Tilburg en plaatsen jullie daar warmtepompen?',
+                 'verificatie', 'Ja, Tilburg valt binnen het werkgebied', 'beantwoord', now(),
+                 'pagina', 'verificatie', 'ja_nee', true, 'werkgebied-tilburg', $3)`,
+        [ptProfileId, ptAnalysisId, [ptContentPieceId]],
+      );
+
+      const { buildFactBase } = await import("@/lib/pipeline/factbase");
+      const kaartMetPagina = await buildFactBase(admin as never, ptProfileId, ptAnalysisId, [], [
+        ptContentPieceId as string,
+      ]);
+      // Een ja-of-nee-antwoord wordt "vraag: ja" (zie `factFromAnswer`): los is
+      // "ja" nietszeggend, dus de vraag hoort erbij.
+      ok(
+        "een paginagebonden antwoord staat op de kaart van díe pagina",
+        kaartMetPagina.some((f) => f.text.includes("Werken jullie in Tilburg")),
+      );
+      ok(
+        "en het is citeerbaar, dus de schrijver mag het gebruiken",
+        kaartMetPagina.some((f) => f.text.includes("Werken jullie in Tilburg") && f.citable),
+      );
+
+      const kaartAnderePagina = await buildFactBase(admin as never, ptProfileId, ptAnalysisId, [], [
+        randomUUID(),
+      ]);
+      ok(
+        "maar niet op de kaart van een andere pagina",
+        !kaartAnderePagina.some((f) => f.text.includes("Werken jullie in Tilburg")),
+      );
+
+      const kaartZonderPagina = await buildFactBase(admin as never, ptProfileId, ptAnalysisId, []);
+      ok(
+        "en niet als er helemaal geen pagina in beeld is",
+        !kaartZonderPagina.some((f) => f.text.includes("Werken jullie in Tilburg")),
+      );
+
       await db.client.query(`update public.content_pieces set status = 'ready' where id = $1`, [
         ptContentPieceId,
       ]);

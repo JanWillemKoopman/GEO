@@ -8,6 +8,7 @@ import "server-only";
  */
 
 import { sanitizeForPostgres } from "@/lib/pg-text";
+import { stripChrome } from "@/lib/pipeline/page-text";
 import {
   harvestStructuredData,
   assessRendering,
@@ -63,7 +64,22 @@ export function requestHeaders(opts: { asBrowser?: boolean; referer?: string } =
 }
 
 const MAX_CHARS = 6000; // genoeg context, houdt de tokenkost laag
-const PAGE_MAX_CHARS = 1500; // kleinere cap per pagina bij de content-inventaris (meerdere pagina's tegelijk)
+/**
+ * Hoeveel tekst we per pagina bewaren bij de content-inventaris.
+ *
+ * ⚠️ Stond op 1500, en dat was bij een site met een groot menu precies het menu.
+ * Gemeten op Gasservice Brabant (1 september 2026): 139 van de 148 opgeslagen
+ * pagina's liepen tegen die grens aan terwijl het navigatiemenu er nog twee keer
+ * in stond, dus de app had van 94% van de site alleen het menu. De pagina met
+ * "maximaal €6000" leverde daardoor geen enkel bedrag op de feitenkaart.
+ *
+ * Twee dingen veranderd, in deze volgorde: het menu gaat er eerst uit
+ * (`stripChrome`), en pas daarna knippen we, nu op 4000 tekens. De atomisering
+ * stuurt er hoe dan ook maar 1500 naar het model (`fact-atomise.ts`), dus dit
+ * kost geen extra tokens; het bepaalt alleen WELKE 1500 dat zijn. De rest is
+ * voor de schrijver, die bij "verbeteren" de bestaande pagina meekrijgt.
+ */
+const PAGE_MAX_CHARS = 4000;
 const FETCH_TIMEOUT_MS = 12000;
 /** Korter dan een gewone fetch: dit blokkeert een formulier, dus snel antwoord telt. */
 const REACHABLE_TIMEOUT_MS = 6000;
@@ -430,6 +446,20 @@ export interface CrawledPage {
 export interface CrawlPagesOptions {
   /** Gestructureerde data en renderbaarheid meenemen (fase 0). Kost geen netwerk. */
   harvest?: boolean;
+  /**
+   * De VOLLEDIGE tekst teruggeven, ongeknipt en ongeschoond.
+   *
+   * Voor de bronverificatie van de algemene uitleg (`explainer-verify.ts`): daar
+   * zoeken we een letterlijk citaat terug, en dat kan overal op de pagina staan.
+   * Met de standaardgrens van 1500 tekens keurde die controle op 1 september
+   * 2026 18 van de 35 uitleggen af, terwijl er minstens één bij zat waarvan het
+   * citaat gewoon klopte: het stond op teken 10.696 van 21.141.
+   *
+   * Ongeschoond, en dat is bewust: het menu wegknippen maakt de tekst leesbaarder
+   * maar kan in het slechtste geval net het stuk raken waar het citaat staat. Bij
+   * zoeken telt volledigheid, bij bewaren leesbaarheid.
+   */
+  fullText?: boolean;
 }
 
 /**
@@ -448,10 +478,14 @@ export async function crawlPages(
         const html = await fetchText(url);
         if (!html) return null;
         const volledigeTekst = htmlToText(html);
+        // Wat we BEWAREN is de tekst zonder menu, koptekst en voettekst; wat we
+        // METEN (renderbaarheid, telefoonnummers) blijft de volledige tekst,
+        // anders verschuift de drempel van 600 tekens onder ons vandaan.
+        const inhoudTekst = htmlToText(stripChrome(html));
         const page: CrawledPage = {
           url,
           title: extractTitle(html),
-          text: volledigeTekst.slice(0, PAGE_MAX_CHARS),
+          text: opts.fullText ? volledigeTekst : inhoudTekst.slice(0, PAGE_MAX_CHARS),
         };
         if (opts.harvest) {
           page.harvest = harvestStructuredData(html);
@@ -628,9 +662,10 @@ export async function crawlInventory(
         continue;
       }
       if (r.html) {
-        const volledigeTekst = htmlToText(r.html);
-        if (volledigeTekst.length > 0) {
-          gehaald.set(url, { title: extractTitle(r.html), text: volledigeTekst.slice(0, PAGE_MAX_CHARS) });
+        // Zelfde keuze als in `crawlPages`: het menu eruit vóór het knippen.
+        const inhoudTekst = htmlToText(stripChrome(r.html));
+        if (inhoudTekst.length > 0) {
+          gehaald.set(url, { title: extractTitle(r.html), text: inhoudTekst.slice(0, PAGE_MAX_CHARS) });
         }
       }
     }

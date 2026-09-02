@@ -5694,3 +5694,63 @@ seconden en kostte geen tweede dure aanroep. Het itemdossier levert precies de v
 stelt. En de feitenkaart doet exact wat hij moet doen: er is geen enkel verzonnen feit over
 Gasservice Brabant op de vier pagina's terechtgekomen. Het probleem is niet dat er te veel wordt
 beweerd, het is dat er te weinig te beweren viel.
+
+## 1 september 2026: de twaalf verbeteringen uit de eerste contentronde gebouwd
+
+Alles uit `docs/tasks/contentronde-gasservice-brabant-1-september-2026.md` is doorgevoerd, in de
+volgorde van die lijst. Geen migratie nodig: er is geen kolom bij gekomen. Vier controles groen:
+typecheck, 3539 unittests (82 nieuwe), 561 ketentests (4 nieuwe), de productiebuild.
+
+**De drie die de ergste fout wegnemen.** Antwoorden van de klant met reikwijdte `pagina` werden
+nergens gelezen; die regel staat nu op één plek (`lib/pipeline/answer-scope.ts`) en wordt door de
+feitenkaart, de schrijfstap en de planstap gedeeld. De planstap stelde het contract op met de
+BEVROREN kaart en voert nu `mergeAnsweredFacts` uit, net als `loadContentContext` al deed sinds
+R8.1. En `normaliseerContract` weigert een opening die over onze eigen bewijsvoering gaat en
+verwijdert F-verwijzingen uit de openingszin en uit de koppen. Dat laatste is het vangnet dat
+conventie 1 vraagt: ook met een gat in de feitenkaart mag "Gasservice Brabant kan niet als
+aantoonbare specialist worden aanbevolen" nooit de eerste zin van een klantpagina worden.
+
+**Eén cap die drie stappen tegelijk beschadigde.** `PAGE_MAX_CHARS` stond op 1500 tekens voor elke
+meerpagina-crawl, en bij deze site was dat precies het menu: 139 van de 148 opgeslagen pagina's
+(94%) liepen tegen die grens aan terwijl het navigatiemenu er nog twee keer in stond. Nu gaat eerst
+het menu eruit (`lib/pipeline/page-text.ts`, alleen op `<nav>`, `<footer>` en een `<header>` mét
+menu, met een vangnet dat terugvalt op het origineel als er te weinig overblijft) en pas daarna
+knippen we, op 4000. Nagemeten op de echte kennisbankpagina: 4690 naar 1782 tekens, en het bedrag
+"maximaal €6000" staat nu in de eerste 260 tekens in plaats van na 1757. De bronverificatie van de
+algemene uitleg leest voortaan de VOLLEDIGE brontekst (`fullText`), want het citaat dat op
+1 september werd afgekeurd stond op teken 10.696 van 21.141; `MAX_BRONNEN` van 6 naar 12.
+
+**De reparatielus stopt nu op verbetering in plaats van op drie rondes.** De kwaliteitsscore liep
+67, 74, 68, 48 en de klant kreeg de laatste. Twee grenzen, en het verschil doet ertoe: BEWAREN
+gebeurt zolang de ronde niet slechter is (een reparatie die een onbewezen bewering weghaalt terwijl
+het cijfer gelijk blijft, is winst zonder cijfer), DOORGAAN alleen als de score stijgt. Op de
+gemeten reeks levert dat 74 in plaats van 48 en vervallen twee van de drie rondes, dus ongeveer
+$0,50 per pagina. De reparatieprompt krijgt bovendien hooguit tien bevindingen, gesorteerd van
+"bewering zonder bevestigd feit" naar "vraag die de lezer overhoudt"
+(`lib/pipeline/content-issues.ts`): met 119 opdrachten over 25 secties was er niets gerichts meer
+aan een sectiereparatie, en de uitvoer werd groter dan die van het schrijven zelf.
+
+**En het contract past nu in de doellengte.** De schrijfprompt zei tegelijk "je mag er niets uit
+weglaten" en "ga niet over het maximum heen"; bij 25 secties van samen 1000 woorden op een
+doelbereik van 400 tot 700 kan het model niet allebei. `normaliseerContract` snoeit van achteren
+tot de som past, houdt altijd minstens drie secties, en begrenst de FAQ op acht vragen.
+
+**Zes kleinere ingrepen.** De ontwijkingscontrole keek alleen naar de opening en gaf daarom een
+GEO-score van 100 aan een pagina met 15 zinnen die de lezer wegsturen; hij telt nu het aandeel over
+de hele pagina, met een tweede, bredere patroonlijst naast de harde. De poort keurt af als de
+pagina over zijn eigen website in de derde persoon praat. `factNummers` in de dekkingspoort leest
+een samengestelde verwijzing nu net zo als `isSupported` dat al deed (3 van de 18 claims hadden er
+een). `word_count` wordt bij reparatie bijgewerkt (stond op 896 terwijl de tekst 1331 woorden had).
+`pronoun_preference` gaat mee naar de schrijver, een veld dat we verzamelden en nergens gebruikten.
+En de uitleg-eis toetst op een echte definitiezin, ergens op de pagina, in plaats van op
+woordoverlap per sectie: dat laatste maakte van vier opeenvolgende secties een woordenlijst.
+
+**Twee dingen liepen anders dan het advies zei, en die staan in het verslag.** Een feit herschrijven
+van "De website vermeldt dat X" naar "X" werkt niet in het Nederlands, want na "dat" volgt een
+bijzin; het is een controle op de pagina geworden in plaats van een bewerking van de kaart. En een
+paginagebonden antwoord gaat NIET de feitenbank in: die leest merkbrede en analysebrede feiten
+terug, dus het antwoord over Tilburg zou alsnog op de Eindhoven-pagina belanden. Het staat nu op de
+kaart van zijn eigen pagina zonder bank-id. De ketentest ving dat.
+
+**Nog niet geverifieerd tegen een echte klant** (conventie 10). De impactcijfers in het verslag zijn
+voorspellingen; de volgende contentronde is de toets die telt.

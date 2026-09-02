@@ -83,14 +83,69 @@ const ONTWIJKING = [
   /voor (de )?(actuele|meest actuele|laatste|exacte|precieze) (mogelijkheden|informatie|voorwaarden|prijzen|details)/i,
   /kijk (dan )?(voor .{0,40})?op (de )?(website|site|onze site)/i,
   /raadpleeg (de|onze|je)/i,
-  /neem (dan )?contact (met ons )?op voor (meer|de juiste|actuele)/i,
+  /neem (dan |rechtstreeks )?contact (met ons )?op voor (meer|de juiste|actuele)/i,
   /informeer (naar|bij)/i,
   /vraag (dit )?na (bij|in)/i,
   /(dit|dat) (kan )?verschill(en|t) per/i,
 ];
 
+/**
+ * De vormen uit de ronde van 1 september 2026, waarin de pagina de lezer
+ * opdraagt het bedrijf zelf uit te horen.
+ *
+ * ── WAAROM DIT EEN TWEEDE LIJST IS ──────────────────────────────────────────
+ *
+ * `ONTWIJKING` hierboven is HARD: één zo'n formulering in de opening of in een
+ * FAQ-antwoord op de doelvraag is al fout, want dat is de tekst die een
+ * AI-assistent overneemt. Deze lijst is BREDER en daarmee ook grover: "vraag om
+ * een offerte" onderaan een landingspagina is een prima oproep tot actie.
+ * Daarom telt hij alleen mee in het AANDEEL over de hele pagina, en keurt hij
+ * niet in zijn eentje af. Twee verschillende fouten, twee verschillende maten.
+ *
+ * Alle patronen hieronder staan letterlijk in de teksten van die ronde. Over
+ * vier pagina's ging het om 80 zinnen.
+ */
+const WEGSTUREN = [
+  ...ONTWIJKING,
+  /\bvraag\b[^.]{0,60}\b(op|aan|om|naar|of|wanneer|hoe|wat|welke|hoeveel)\b/i,
+  /\blaat\b[^.]{0,80}\b(vastleggen|bevestigen|controleren|opnemen|vermelden|adviseren|beoordelen|prioriteren)\b/i,
+  /\bcontroleer\b[^.]{0,40}\b(vóór|voor|bij|de|het)\b/i,
+  /\bbespreek\b[^.]{0,40}\b(vooraf|met|of|welke)\b/i,
+  /\bmoet(en)?\b[^.]{0,60}\bworden\b[^.]{0,20}\b(getoetst|bevestigd|nagevraagd|opgevraagd|beoordeeld|vastgesteld)\b/i,
+  /\bis (er )?(geen|niet) (concrete |gecontroleerde |bevestigde )?(prijs|bedrag|termijn|datum|wachttijd|informatie)?[^.]{0,20}(beschikbaar|bekend|vastgelegd|bevestigd|vastgesteld)/i,
+  /\bniet (bevestigd|vastgesteld|vastgelegd|gecontroleerd|beschikbaar)\b/i,
+  /\bkan deze pagina niet\b/i,
+];
+
+/**
+ * Vanaf welk deel van de bewerende zinnen de pagina als ontwijkend geldt.
+ *
+ * Eén doorverwijzing aan het eind van een landingspagina is een oproep tot
+ * actie en hoort erbij; een pagina waarvan een op de tien zinnen de lezer
+ * wegstuurt, beantwoordt zijn vraag niet. Gemeten op 1 september 2026 zat de
+ * pagina "Snel installeren" op 15 van ongeveer 80 zinnen, de Tilburg-pagina op
+ * 31. Beide kregen van de poort een GEO-score van 100.
+ */
+const ONTWIJKING_AANDEEL = 0.1;
+
+/** En een ondergrens in aantal, zodat een korte pagina niet op één zin sneuvelt. */
+const ONTWIJKING_MINIMUM = 3;
+
+/**
+ * De zinnen die de vraag doorschuiven in plaats van hem te beantwoorden.
+ *
+ * Puur en geëxporteerd, zodat `scripts/test-unit.ts` hem op de echte zinnen van
+ * 1 september 2026 kan vastleggen.
+ */
+export function ontwijkendeZinnen(tekst: string): string[] {
+  return bewerendeZinnen(stripMarkdown(tekst ?? "")).filter((zin) =>
+    WEGSTUREN.some((patroon) => patroon.test(zin)),
+  );
+}
+
 /** Eén uitgevoerde controle. `null` = niet van toepassing, telt niet mee. */
 import { DUPLICATE_THRESHOLD, describeDuplicate, type SimilarPage } from "@/lib/pipeline/similarity";
+import { isRapportageVorm } from "@/lib/pipeline/factcard";
 import { assessReadability, describeReadability } from "@/lib/pipeline/readability";
 import { forbiddenTopicHits } from "@/lib/pipeline/commercial-context";
 
@@ -111,6 +166,8 @@ export interface GateChecks {
   citeerbareZin: CheckUitkomst;
   /** R8.8, is het onderscheidende antwoord van de klant echt gebruikt? */
   onderscheidGebruikt: CheckUitkomst;
+  /** Verbetering 8, praat de pagina over de eigen site in plaats van namens het bedrijf? */
+  geenRapportageOverZichzelf: CheckUitkomst;
 }
 
 export interface GateResult {
@@ -277,14 +334,39 @@ export function checkContentGate(input: GateInput): GateResult {
       return woorden.filter((w) => bevatWoord(q, w)).length / woorden.length >= ECHO_DREMPEL;
     }),
   );
-  const teToetsenOpOntwijking = [opening, ...relevanteFaq.map((f) => f.a)].join("\n");
-  const ontwijking = ONTWIJKING.find((p) => p.test(teToetsenOpOntwijking));
-  const geenOntwijking: CheckUitkomst = !ontwijking;
-  if (ontwijking) {
+  // ── Twee metingen, want het zijn twee verschillende fouten ───────────────
+  //
+  // ⚠️ Dit keek alleen naar de OPENING en naar de FAQ-antwoorden die bij een
+  // doelvraag hoorden. Daardoor gaf de poort op 1 september 2026 een GEO-score
+  // van 100 aan een pagina die zegt: "Een concrete wachttijd is niet
+  // beschikbaar. Vraag wanneer advies mogelijk is." en "Vraag vóór akkoord om
+  // bedragen per onderdeel." De body werd nooit getoetst.
+  //
+  // Nu allebei: in de opening is één doorverwijzing al fout, want dat is de zin
+  // die een AI-assistent overneemt. In de rest van de pagina telt het AANDEEL,
+  // want een oproep tot actie aan het eind hoort er gewoon bij.
+  const openingEnFaq = [opening, ...relevanteFaq.map((f) => f.a)].join("\n");
+  const ontwijkingVooraan = ONTWIJKING.find((p) => p.test(openingEnFaq));
+
+  const alleZinnen = bewerendeZinnen(stripMarkdown(bodyMarkdown));
+  const ontweken = ontwijkendeZinnen(`${bodyMarkdown}\n${faq.map((f) => f.a).join("\n")}`);
+  const aandeel = alleZinnen.length > 0 ? ontweken.length / alleZinnen.length : 0;
+  const teVeelOntwijking = ontweken.length >= ONTWIJKING_MINIMUM && aandeel > ONTWIJKING_AANDEEL;
+
+  const geenOntwijking: CheckUitkomst = !ontwijkingVooraan && !teVeelOntwijking;
+  if (ontwijkingVooraan) {
     issues.push(
       "De pagina verwijst voor het antwoord door naar de website of naar contact opnemen, " +
         "in plaats van de vraag zelf te beantwoorden. Schrijf op wat er wél geldt, of laat " +
         "de passage weg als het feit ontbreekt.",
+    );
+  }
+  if (teVeelOntwijking) {
+    issues.push(
+      `${ontweken.length} van de ${alleZinnen.length} zinnen sturen de lezer weg in plaats van ` +
+        `zijn vraag te beantwoorden, bijvoorbeeld: "${ontweken[0]}". Schrijf op wat er wél geldt, ` +
+        `of laat de passage weg. Een pagina die de lezer opdraagt alles na te vragen, wordt niet ` +
+        `geciteerd.`,
     );
   }
 
@@ -355,6 +437,24 @@ export function checkContentGate(input: GateInput): GateResult {
     }
   }
 
+  // ── Verbetering 8 — praat de pagina over de eigen site? ──────────────────
+  //
+  // De feitenkaart bevat waarnemingen ("De website vermeldt dat ..."), en de
+  // schrijver moet het dekkende fragment letterlijk kunnen aanwijzen. Op de
+  // pagina van 1 september 2026 kwam daardoor te staan: "De website van
+  // Gasservice Brabant noemt ervaren vakmannen, meer dan 90 jaar ervaring,
+  // erkenning als installateur en een BRL6000-25-certificaat." Deze pagina IS
+  // de website; hij hoort de bewering te doen, niet te rapporteren.
+  const rapportage = isRapportageVorm(stripMarkdown(bodyMarkdown));
+  const geenRapportageOverZichzelf: CheckUitkomst = !rapportage;
+  if (rapportage) {
+    issues.push(
+      "De pagina schrijft over de eigen website in de derde persoon, bijvoorbeeld \"de website " +
+        "vermeldt dat ...\". Deze pagina IS die website: doe de bewering zelf, zonder de vindplaats " +
+        "erbij te noemen.",
+    );
+  }
+
   const checks: GateChecks = {
     doelvraagInOpening,
     directAntwoord,
@@ -363,6 +463,7 @@ export function checkContentGate(input: GateInput): GateResult {
     concreteFeiten,
     citeerbareZin,
     onderscheidGebruikt,
+    geenRapportageOverZichzelf,
   };
 
   const uitvoerbaar = Object.values(checks).filter((v): v is boolean => v !== null);
@@ -385,6 +486,7 @@ export const GATE_LABELS: Record<keyof GateChecks, string> = {
   concreteFeiten: "gebruikt concrete cijfers of feiten",
   citeerbareZin: "bevat losstaand citeerbare zinnen",
   onderscheidGebruikt: "gebruikt wat jou onderscheidt van de rest",
+  geenRapportageOverZichzelf: "schrijft namens je bedrijf, niet over je eigen website",
 };
 
 /** Waaróm het uitmaakt. Alleen getoond bij een controle die niet geslaagd is. */
@@ -403,6 +505,8 @@ export const GATE_UITLEG: Record<keyof GateChecks, string> = {
     "AI-assistenten knippen zinnen uit een pagina. Een zin die alleen klopt als je de rest gelezen hebt, is onbruikbaar om te citeren.",
   onderscheidGebruikt:
     "Wat je in de briefing als onderscheidend opgaf, is het enige dat een concurrent niet kan overschrijven. Staat het er niet in, dan had elke concurrent deze pagina kunnen publiceren.",
+  geenRapportageOverZichzelf:
+    "\"De website van ons bedrijf noemt ervaren vakmannen\" leest als een rapport over je site in plaats van als je site. Doe de bewering zelf, dan kan een AI-assistent hem overnemen.",
 };
 
 /** Eén regel op de scorekaart. `ok: null` = niet van toepassing, geen onvoldoende. */

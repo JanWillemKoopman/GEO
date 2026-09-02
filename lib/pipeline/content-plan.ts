@@ -35,6 +35,8 @@ import { currentPiece } from "@/lib/jobs/content-jobs";
 import { researchItem } from "@/lib/pipeline/item-dossier";
 import { buildContentContract } from "@/lib/pipeline/content-contract";
 import { factsFromSnapshot, planFromSnapshot } from "@/lib/pipeline/briefing";
+import { factFromAnswer, mergeAnsweredFacts, type AnsweredFactInput } from "@/lib/pipeline/factcard";
+import { answerBelongsHere } from "@/lib/pipeline/answer-scope";
 import { buildFactBase } from "@/lib/pipeline/factbase";
 import { TARGET_WORDS, TYPE_GUIDANCE, type RecommendationInput } from "@/lib/pipeline/content";
 import type { ContentContract } from "@/lib/schemas/content-contract";
@@ -160,8 +162,10 @@ export async function planContentPiece(args: {
         .maybeSingle()
     : { data: null };
 
+  const dezePagina = piece ? [piece.id] : [];
+
   const bevroren = factsFromSnapshot(pieceRow?.briefing_snapshot_json);
-  const facts =
+  const basis =
     bevroren.length > 0
       ? bevroren
       : await buildFactBase(
@@ -169,7 +173,40 @@ export async function planContentPiece(args: {
           analysis.profile_id,
           analysisId,
           targets.map((t) => t.text),
+          dezePagina,
         );
+
+  // ── De bevroren kaart is een MOMENTOPNAME, ook hier (verbetering 2) ───────
+  //
+  // De snapshot is gemaakt tijdens de BRIEFING, dus per definitie voordat de
+  // klant ook maar één vraag beantwoord had. `loadContentContext` voegt de
+  // antwoorden er daarom alsnog bij (R8.1); deze planstap deed dat niet, en dat
+  // is precies dezelfde fout op een nieuwe plek.
+  //
+  // Wat dat kostte, gemeten op 1 september 2026: de antwoorden stonden om
+  // 16:52:35 in de database, deze stap begon om 16:53:00, en het contract dat
+  // eruit kwam schreef als openingszin van de pagina "De beschikbare informatie
+  // onderbouwt nog niet dat het bedrijf specifiek in Tilburg hybride
+  // warmtepompen plaatst" terwijl de klant net "ja" had geantwoord.
+  //
+  // Bij de terugvalroute hierboven zitten de antwoorden al in `buildFactBase`;
+  // `mergeAnsweredFacts` ontdubbelt daarop, dus die route verandert niet van
+  // uitkomst.
+  const { data: antwoordRijen } = await admin
+    .from("fact_requests")
+    .select("question, answer, answer_type, answered_at, status, scope, analysis_id, content_piece_ids")
+    .eq("profile_id", analysis.profile_id)
+    .eq("status", "beantwoord")
+    .not("answer", "is", null);
+
+  const antwoorden: AnsweredFactInput[] = (antwoordRijen ?? [])
+    .filter((rij) => answerBelongsHere(rij as never, analysisId, dezePagina))
+    .flatMap((rij) => {
+      const fact = factFromAnswer(rij as never);
+      return fact ? [{ question: rij.question as string, fact }] : [];
+    });
+
+  const facts = mergeAnsweredFacts(basis, antwoorden);
   const plan = planFromSnapshot(pieceRow?.briefing_snapshot_json);
 
   // ── 3. Het contract (A2) ──────────────────────────────────────────────────
