@@ -63,6 +63,15 @@ export interface LoggedCall {
   webSearch: boolean;
   costUsd: number;
   responseId: string | null;
+  /**
+   * De uitvoer van het model, ruw (conventie 8 en plan 15.3).
+   *
+   * ⚠️ Bewust de GEPARSTE uitvoer en niet het hele antwoordobject van OpenAI.
+   * Dat laatste bevat de volledige reasoning-blokken en loopt bij een meting met
+   * web-zoeken in de tientallen kilobytes per aanroep. Wat je later wilt kunnen
+   * nalezen is wat het model beweerde, en dat is precies dit.
+   */
+  raw?: unknown;
 }
 
 export async function logAiCall(meta: CallMeta, call: LoggedCall): Promise<void> {
@@ -83,6 +92,7 @@ export async function logAiCall(meta: CallMeta, call: LoggedCall): Promise<void>
       reputation_run_id: meta.reputationRunId ?? null,
       sales_market_id: meta.salesMarketId ?? null,
       sales_run_id: meta.salesRunId ?? null,
+      raw_json: call.raw === undefined ? null : (call.raw as never),
     });
   } catch (err) {
     // Bewust alleen loggen: zie de best-effort-regel bovenaan dit bestand.

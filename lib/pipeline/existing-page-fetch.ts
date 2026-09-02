@@ -30,13 +30,13 @@ import "server-only";
  * schrijfaanroep van tot 150 seconden doet.
  *
  * ⚠️ De KEUZE tussen de verse tekst en het crawl-excerpt staat bewust niet hier
- * maar in `page-match.ts` (`chooseExistingText`). Die keuze bepaalt de uitkomst
+ * maar in `existing-page-match.ts` (`chooseExistingText`). Die keuze bepaalt de uitkomst
  * en hoort dus puur en testbaar te zijn (conventie 2); dit bestand doet het
  * netwerkwerk en kan dat per definitie niet zijn. Zelfde scheiding als tussen
  * `factcard.ts` en `factbase.ts`.
  */
 import { fetchText, htmlToText } from "@/lib/crawler";
-import { EXISTING_PAGE_MAX_CHARS } from "@/lib/pipeline/page-match";
+import { EXISTING_PAGE_MAX_CHARS } from "@/lib/pipeline/existing-page-match";
 
 export interface ExistingPageFetch {
   /** De opgehaalde tekst, of `null` als de pagina niet te lezen was. */

@@ -201,7 +201,7 @@ export async function syncBacklog(
         handeling: handelingVoor(ruw?.action),
         existingUrl: schoonAdres(ruw?.existingUrl),
         // Migratie 0083: alleen zinnig bij een nieuwe pagina, want bij
-        // `verbeteren` ís de bestaande pagina de pagina zelf. `page-match.ts`
+        // `verbeteren` ís de bestaande pagina de pagina zelf. `existing-page-match.ts`
         // vult hem in het rapport al zo in; dit is de tweede sluis, want een
         // rapport van vóór 2 september 2026 kent die regel niet.
         relatedUrl:

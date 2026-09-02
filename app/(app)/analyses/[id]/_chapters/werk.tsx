@@ -196,7 +196,7 @@ export async function WerkChapter({
                 </div>
 
                 {/* Er staat al een pagina over dit onderwerp, en dit wordt er
-                    een NAAST (O2, `page-match.ts`). Nagerekend op productie op
+                    een NAAST (`existing-page-match.ts`). Nagerekend op productie op
                     1 september 2026 wees het rapportmodel 13 keer zo'n pagina
                     aan zonder dat de klant hem ooit te zien kreeg. Twee pagina's
                     over dezelfde vraag concurreren met elkaar, dus dit is precies

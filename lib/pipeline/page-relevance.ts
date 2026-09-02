@@ -142,7 +142,7 @@ export function canonicalPath(url: string): string {
  * tweede dekking meetellen.
  *
  * Stond tot 2 september 2026 privé in `structure-gap.ts`. Verhuisd hierheen toen
- * `page-match.ts` dezelfde vraag moest beantwoorden voor een aanbeveling: dat is
+ * `existing-page-match.ts` dezelfde vraag moest beantwoorden voor een aanbeveling: dat is
  * precies de tweede plek die de kop van dit bestand wil voorkomen.
  */
 export function coversTopic(page: CandidatePage, terms: string[]): boolean {

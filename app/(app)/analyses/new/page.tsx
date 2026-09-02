@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { emailsEnabled } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
-import type { Profile } from "@/lib/types/database";
+import type { ClusterLabel, Profile } from "@/lib/types/database";
 import { NewAnalysisForm } from "./new-analysis-form";
 import { Icon } from "@/components/icon";
 
@@ -23,6 +23,23 @@ export default async function NewAnalysisPage({
     .eq("status", "klaar")
     .order("name");
   const profiles = (data ?? []) as Profile[];
+
+  // De bestaande labels (migratie 0083), per merk gebundeld. In één query voor
+  // alle merken tegelijk: het formulier laat het merk wisselen zonder de pagina
+  // opnieuw te laden, dus de labels van elk merk moeten al klaarstaan.
+  const labelsPerMerk: Record<string, ClusterLabel[]> = {};
+  if (profiles.length > 0) {
+    const { data: labelRijen } = await supabase
+      .from("cluster_labels")
+      .select("*")
+      .in(
+        "profile_id",
+        profiles.map((p) => p.id),
+      );
+    for (const label of (labelRijen ?? []) as ClusterLabel[]) {
+      labelsPerMerk[label.profile_id] = [...(labelsPerMerk[label.profile_id] ?? []), label];
+    }
+  }
 
   // Kwam hij van een merk, dan gaat hij daar ook naar terug. Zonder merk in de
   // link is `/analyses` de doorverwijzing naar het actieve merk, dus die weg
@@ -62,6 +79,7 @@ export default async function NewAnalysisPage({
            erger dan hem niet aanbieden. */
         <NewAnalysisForm
           profiles={profiles}
+          labelsPerMerk={labelsPerMerk}
           initialProfileId={vanMerk?.id}
           emailsEnabled={emailsEnabled()}
         />

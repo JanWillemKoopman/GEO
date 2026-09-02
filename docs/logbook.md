@@ -5689,13 +5689,177 @@ Vier controles groen: typecheck, 3462 unittests (7 nieuw, `isConfident`), 557 ke
 productiebuild. **Nog niet geverifieerd tegen een echte klant** (conventie 10): geen productieprofiel
 is nagelopen op of een kans met bekend weinig doelvragen het label ook echt krijgt.
 
-## 2 september 2026: nieuw of verbeteren was een gok, en een verbetering zag de pagina nauwelijks
+## 1 september 2026: geen aanbeveling meer voor wat de klant al heeft (existingUrl-conventie afdwingen)
+
+Aanleiding: de vraag of de app zelf al voorkomt dat een voorgestelde content-item (bijna) identiek
+is aan een bestaande pagina van de klant. Onderzoek liet zien van niet, op één punt na: het model
+achter het periodieke rapport (`REPORT_SYSTEM`, `lib/pipeline/report.ts`) krijgt bij elke
+aanbeveling de instructie "verbeteren" te kiezen met een bestaande URL als een pagina het onderwerp
+al dekt, en "nieuw" met `existingUrl: null` als dat niet zo is. Dat is een instructie, geen garantie
+(conventie 1), en in productie ging hij op twee manieren mis: bij Gasservice Brabant gaf het model
+bij een NIEUWE aanbeveling toch een URL op (letterlijk `":"`, opgevangen door `schoonAdres()` in
+`lib/plan-backlog-data.ts`), en bij Udenhout claimde het `action: "verbeteren"` met een verzonnen
+pad (`/udenhout.nl/skoda`) dat nergens in de crawl voorkomt (`lib/pipeline/briefing-select.ts`). Het
+omgekeerde geval, het model zegt "nieuw" terwijl de site het onderwerp al dekt, werd nergens
+gecontroleerd: dat is precies het scenario waarin de klant een pagina voorgesteld krijgt die hij al
+heeft. Dit stond ook los aangemerkt in `docs/tasks/roadmap.md` §7 ("existingUrl-conventie
+afdwingen"), als hygiëne die niets blokkeerde, dus nooit gebouwd.
+
+**Wat er gebouwd is.** `lib/pipeline/existing-page-match.ts`, puur en zonder AI-aanroep: rekent per
+aanbeveling de onderwerptermen uit (`topicTerms()` uit `page-relevance.ts`, hergebruikt in plaats
+van opnieuw uitgevonden) en scoort daarmee elke gecrawlde pagina (`profile_pages`, titel drie keer
+zo zwaar als de body, dezelfde weging als `scorePage()`). Bij minder dan drie bruikbare
+onderwerptermen volgt geen oordeel (conventie 3, "prijzen" alleen zegt te weinig om een pagina als
+duplicaat aan te merken). Bij 70% dekking of meer (`EXISTING_PAGE_COVERAGE_THRESHOLD`, net als
+`DUPLICATE_THRESHOLD` bewust ruim en met de gemeten waarde altijd teruggegeven, dus later op data
+bij te stellen) geldt het onderwerp als al gedekt.
+
+`reconcileExistingPageActions()` past dit toe direct na `mergeOverlappingRecommendations()` in
+`report.ts`, vóór opslag in `reports.recommendations_json`: zegt het model "nieuw" terwijl een
+gecrawlde pagina het onderwerp al ruim dekt, dan wordt het alsnog "verbeteren" met die URL. Zegt het
+model "verbeteren" met een URL die niet in de crawl voorkomt, dan vervangt de zelf gevonden pagina de
+onbevestigde URL, of valt de aanbeveling terug op "nieuw" zonder adres als ook wij niets vinden
+(nooit een niet te bevestigen link tonen, dezelfde afweging als `schoonAdres()`). Beide correcties
+gaan naar de logs, zodat zichtbaar blijft hoe vaak het model dit mis had. Geen migratie nodig: de
+correctie grijpt in vóórdat `action`/`existingUrl` worden opgeslagen, en het scherm
+(`plan-view.tsx`) toonde die twee velden al.
+
+Vier controles groen: typecheck, 3478 unittests (16 nieuw), 557 ketentests, de productiebuild.
+**Nog niet geverifieerd tegen een echte klant** (conventie 10): de dekkingsdrempel van 70% is getoetst
+tegen verzonnen voorbeeldpagina's, niet tegen een crawl van duizenden pagina's van een bestaande
+klant, waar de verhouding tussen een terechte en een onterechte "dit staat er al" nog moet blijken.
+## 1 september 2026: labels en een prullenbak op het clusteroverzicht (migratie 0083)
+
+**De aanleiding.** Het clusteroverzicht van een merk is één platte lijst. Bij vier clusters werkt
+dat, bij dertig niet: de vraag is dan niet "welk cluster staat hier" maar "waar staan mijn clusters
+over onderhoud". De product owner vroeg om een label per cluster, een filter erop, en de
+mogelijkheid een cluster weg te halen. Bij dat laatste stond de eis er meteen bij: dan moeten de
+metingen van dat cluster in de toekomst per definitie stoppen.
+
+**Wat er gebouwd is.** Migratie `0083` voegt de tabel `cluster_labels` toe (één rij per label per
+merk, unieke index op `lower(name)`) en `analyses.label_id` met `on delete set null`. Een tabel en
+geen tekstkolom op `analyses`, want "Onderhoud", "onderhoud" en "Onderhoud " zouden dan drie groepen
+in het uitklapmenu zijn waar de gebruiker er één bedoelde. `on delete set null` en geen cascade,
+want een label weggooien mag nooit een cluster meenemen: het cluster draagt maanden meetdata, het
+label draagt een woord. De rekenkunde eromheen staat in `lib/cluster-labels.ts`, zonder
+`server-only`, want zowel het serverscherm als het uitklapmenu in de browser leest hem (conventie 2).
+
+Een label is in te vullen op drie plekken: bij het aanmaken van een cluster (`/analyses/new`, kies
+een bestaand label of typ er een nieuwe), op de kaart in het overzicht, en er weer af te halen. De
+route is bewust "vind of maak": wie "Onderhoud" typt terwijl dat label al bestaat, komt bij het
+bestaande label uit en niet bij een tweede groep met dezelfde naam. De unieke index van 0083 is het
+vangnet daaronder voor twee tabbladen tegelijk (conventie 1).
+
+**De prullenbak voegde geen kolom toe, en dat is de conclusie.** `analyses.archived_at` bestaat
+sinds migratie `0044`, `lib/archive.ts` houdt gearchiveerde clusters uit elke lijst, en
+`/api/cron/tracking` trekt zijn maandlijst via `activeOnly()`. Het meten stopt dus per definitie
+zodra een cluster in de prullenbak gaat, en `lib/jobs/worker.ts` slaat bovendien de taken over die
+al klaarstonden. Wat ontbrak was niet de kolom maar de knop. Er komt daarom ook geen tweede
+schakelaar naast `tracking_enabled`: twee schakelaars voor één gevolg lopen uit elkaar. Verwijderen
+is bewust archiveren gebleven, niet wissen: onder een cluster hangen de vragen, elke meetronde, elke
+vermelding, de rapporten en de geschreven pagina's, en dat komt alleen terug door er opnieuw voor te
+betalen (~$0,82 per ronde).
+
+De twee knoppen staan boven de lijst, "Alle clusters" links en "Prullenbak" rechts daarvan, met het
+filter rechts op dezelfde regel. De stand zit in het adres (`?weergave=prullenbak&label=<id>`), dus
+het filteren gebeurt op de server en de lijst die terugkomt is de lijst die klopt. Een `?label=` dat
+niet bij dit merk hoort valt terug op "alle labels" in plaats van een leeg scherm te tonen, want een
+lege lijst zonder uitleg leest als "mijn clusters zijn weg".
+
+Het kaartje in het overzicht is daarmee geen `<Link>` meer om zijn geheel: een keuzelijst binnen een
+link is niet met het toetsenbord te bedienen. De kop is nu de link, de bediening staat eronder.
+
+**Labels beheren.** Achter het filter staat "Labels beheren", dat een lijstje openklapt waarin een
+label te hernoemen en weg te gooien is. Achter het filter en niet ervoor: filteren doe je elke keer
+dat je hier komt, hernoemen een enkele keer. Hernoemen is één update op één rij, en de clusters
+verhuizen vanzelf mee omdat ze naar het id wijzen; met een tekstkolom op `analyses` was dit een
+update over alle clusters heen geweest die halverwege kon stranden. Weggooien haalt alleen het label
+eraf, want `on delete set null`, en dat staat ook letterlijk in de bevestiging: zonder die zin durft
+niemand de knop te gebruiken. Het aantal naast een label telt over de actieve clusters én de
+prullenbak heen, anders zegt het paneel "0 clusters" bij een label waar er tien onder hangen.
+
+Vier controles groen: typecheck, 3517 unittests (38 nieuw), 563 ketentests (6 nieuw, waaronder de
+controle dat een gearchiveerd cluster echt uit de maandronde valt, dat een verwijderd label zijn
+clusters laat staan en dat hernoemen het cluster meeneemt zonder het aan te raken), de
+productiebuild. De migratie is toegepast op productie. **Nog niet geverifieerd met een echte klant**
+(conventie 10): er is nog geen productieprofiel waar iemand labels op heeft gezet.
+## 1 september 2026: de acht besluiten van de eigenaar, en het proces zichtbaar gemaakt
+
+Na de live test heeft de eigenaar de openstaande keuzes beslist. Wat hij koos, en wat er daarna
+gebouwd is.
+
+**De besluiten.** (1) De gewichten van de score blijven een aanname: New business beoordeelt de lijst
+niet eerst. (2) Een klant in de markt blokkeert niets, maar geeft wel een melding. (3) De openbare
+marktpagina gaat aan, zodat de link in de mail kan staan; we zitten in de fase waarin de hele app
+doorgetest wordt. (4) Voorlopig alleen ChatGPT, de Gemini-sleutel komt later. (5) Het plafond voor
+concepten gaat van 20 naar 100 per persoon per dag. (6) Naast de knop komt een datumkiezer waarmee je
+een eenmalige hermeting vooruit kunt zetten. (7) De bewaartermijn blijft voorlopig open, er wordt nog
+niets opgeruimd. (8) De testbenadering op Coolvent mag weg.
+
+⚠️ **Wat bij besluit 5 openstaat en zwaarder weegt dan dat getal**: er is nog geen apart subdomein
+voor acquisitiemail (plan 16.6, vierde maatregel). Zolang koude mail over hetzelfde domein loopt als
+de facturatie, is honderd per persoon per dag een bewuste gok en geen veilige stand. Dat besluit
+hoort bij de eigenaar en niet bij engineering.
+
+**Het proces is zichtbaar geworden, en dat was de grootste klacht.** De pijplijn doet negen dingen
+achter elkaar en de gebruiker zag er één zin van: "ORBIT ENGINE stelt de vragen aan de
+AI-assistenten." Dertien minuten lang, zonder teller, en zonder iets over de zestien schrijftaken die
+stilletjes mislukt waren. Dat is niet alleen ongemakkelijk maar duur: wie niet ziet dat een stap
+hangt, drukt nog een keer op de knop, en elke druk is een rekening.
+
+Bovenaan het marktscherm staat nu een procesbalk met negen stappen, elk met een stand (klaar, bezig,
+wacht op jou, liep vast), een cijfer ("18 van de 40 vragen gemeten") en bij een vastloper of een
+poort een zin over wat jij moet doen. De rekenkant zit in `lib/sales/proces.ts`, een pure module
+zonder database, dus elke overgang is getest zonder API-sleutel (conventie 2). Het scherm ververst
+zichzelf elke tien seconden, maar alleen zolang er echt iets draait.
+
+⚠️ **De vierde kolom die je zou willen ("hoe lang duurt het nog") staat er bewust niet.** Dat weten we
+niet, en een verzonnen schatting is erger dan geen schatting. Wat er wél bij staat is wat de markt tot
+nu toe gekost heeft, en dat stond nergens terwijl elke knop op dat scherm geld uitgeeft.
+
+**De geplande hermeting.** Een datum per markt, die één keer afgaat, uitgevoerd door de werker die
+toch al elke minuut draait. Op die dag wordt er echt gemeten zonder tweede bevestiging, en dat staat
+er met zoveel woorden bij: wie de datum zet, ziet op dat moment de raming en geeft daarmee het akkoord
+van poort 2 op een ander moment. `remeasure_done_at` gaat vóór het werk, anders meet de werker
+dezelfde markt elke minuut opnieuw. De logica van hermeten en goedkeuren is uit de twee routes gehaald
+naar `lib/pipeline/sales-remeasure.ts`, want de knop en de planning moeten exact hetzelfde doen.
+
+**De gemiste bedrijven zijn bruikbaar geworden.** Het blok "genoemd, maar niet in onze lijst" toonde
+een ongesorteerde rij chips waarin Feenstra, drie keer genoemd en de best zichtbare partij van die
+markt, tussen Daikin en Werkspot stond. Nu staat wie het vaakst genoemd is bovenaan, staan fabrikanten
+en platforms apart met uitleg, en neemt één klik zo'n bedrijf mee in de markt. Vanaf de volgende ronde,
+niet halverwege deze: een bedrijf dat op minder vragen gemeten is, hoort niet in dezelfde ranglijst.
+Een verkeerde naam is nu ook te corrigeren, want "Open website" liep door tot in de conceptmail.
+
+**De kosten kloppen nu.** `STAP_KOSTEN_USD` was een set schattingen van vóór de eerste markt en zat er
+overal te hoog naast: marktonderzoek $0,85 geraamd tegen $0,019 gemeten, de mail $0,15 tegen $0,0007.
+De nieuwe bedragen liggen op ongeveer het dubbele van het gemeten gemiddelde, want een raming is een
+rem en geen prijskaartje: hij hoort de duurste markt te dekken, niet de gemiddelde. `besteedAanMarkt()`
+pagineert nu ook, om dezelfde reden als de vermeldingen vanochtend.
+
+**Gelijke scores worden niet meer als rangorde gepresenteerd.** Bij de eerste markt stonden zeven
+bedrijven op exact 76 met exact dezelfde opbouw. Dat was geen fout in de formule: de meting gaf over
+die zeven hetzelfde beeld, en elke formule geeft dan hetzelfde cijfer. Wat wél fout was, is dat het
+scherm ze onder elkaar zette alsof de bovenste de beste was. Er staat nu één zin boven de lijst als
+drie of meer bedrijven hetzelfde cijfer delen, en de volgorde binnen zo'n groep ligt vast op
+bewijssterkte, dan commerciële relevantie, dan naam, zodat de lijst niet schuift bij elke verversing.
+
+Vier controles groen: typecheck, 3497 unittests, 557 ketentests, de productiebuild.
+
+## 2 september 2026: een verbetering zag de pagina die hij verbeterde nauwelijks
 
 De vraag was simpel: hoe besluit ORBIT ENGINE of een aanbeveling een nieuwe pagina wordt of een
 verbetering van een bestaande, en pakt hij bij een verbetering de echte pagina van de klant erbij?
 Het antwoord op de tweede vraag was nee. Het onderzoek staat in
 `docs/tasks/paginakeuze-nieuw-of-verbeteren.md`, nagerekend op productie over 20 rapporten met 129
 aanbevelingen en 738 gecrawlde pagina's.
+
+⚠️ **Dit bouwt voort op de alinea van 1 september hierboven** (`existing-page-match.ts`,
+"existingUrl-conventie afdwingen"), die parallel is ontstaan en het eerst op `main` stond. Dat werk
+zette het vangnet neer: het rekent zelf na of een onderwerp al gedekt wordt en corrigeert de
+handeling. Wat hieronder staat is er bovenop gebouwd en heeft het niet vervangen; de twee zijn bij
+het samenvoegen tot één module geworden, want twee plekken die dezelfde vraag beantwoorden kunnen
+het oneens worden.
 
 **Wat er stuk was.** De keuze viel volledig in de rapportaanroep, op één zin instructie, zonder
 vangnet in code: de uitzondering die conventie 1 verbiedt. Het model kreeg de pagina's van de klant
@@ -5722,17 +5886,21 @@ als adres plus titel, nooit als inhoud. Wat dat opleverde:
   vervangende tekst plus de instructie "houd dezelfde URL aan", en nergens stond wat er nu eigenlijk
   aan schortte of wat hij zou weggooien.
 
-**Wat er gebouwd is** (migratie `0083`). `page-match.ts` lost het adres deterministisch op tegen de
-inventaris, op canoniek PAD in plaats van op letterlijke tekst: dat brengt de koppeling van 51 naar
-56 van de 59 verbeter-adressen, en de resterende drie degraderen naar `nieuw` in plaats van stil te
-falen. Diezelfde module zoekt bij een nieuwe pagina zelf of er al een pagina over het onderwerp
-bestaat, met de matcher van `page-relevance.ts` (`coversTopic` is daarheen verhuisd uit
-`structure-gap.ts`, zodat er één matcher blijft). Vindt hij er een, dan draagt de aanbeveling die
-pagina mee als `related_url`, en zien de schrijver én de klant dat er al iets staat. Bewust geen
-automatische omzetting naar `verbeteren`: het rapportmodel heeft die tekst niet gezien, dus dat is
-een vermoeden en geen oordeel.
+**Wat er gebouwd is** (migratie `0086`, op productie toegepast onder het label `0083`; zie
+`supabase/README.md`). `existing-page-match.ts` kreeg er twee dingen bij. **Het adres wordt
+genormaliseerd**: zei het model "verbeteren" met een adres dat wél bestaat, dan bleef dat adres
+staan zoals het model het gaf, en dat was 5 van de 59 keer een pad zonder domein
+(`/tarieven-2026/` waar de inventaris `https://fysi-unique.nl/tarieven-2026/` bevat). Dezelfde
+pagina, maar onbruikbaar voor de schrijfstap en niet klikbaar op het scherm. Nu wint altijd de URL
+uit de crawl. En **onder de omzetdrempel waarschuwen we in plaats van te zwijgen**: haalt een pagina
+de 70% dekking niet maar raakt hij het onderwerp duidelijk (`EXISTING_PAGE_RELATED_THRESHOLD`, 40%,
+plus de eis dat minstens één term in de titel of het adres staat), dan blijft de aanbeveling `nieuw`
+en draagt hij die pagina mee als `related_url`. Zo ziet de schrijver dat hij zich moet
+onderscheiden, en de klant dat hij al iets in die richting heeft. `coversTopic` is uit
+`structure-gap.ts` naar `page-relevance.ts` verhuisd, zodat er één matcher blijft voor de vraag
+"gaat deze pagina hierover".
 
-`existing-page.ts` haalt de te verbeteren pagina vers op tijdens de planstap, tot 6000 tekens, met
+`existing-page-fetch.ts` haalt de te verbeteren pagina vers op tijdens de planstap, tot 6000 tekens, met
 één HTTP-verzoek en zonder AI. Lukt dat niet, dan valt de schrijfstap terug op het crawl-excerpt en
 zegt de prompt erbij dat het een oudere en afgekapte versie is. Het contentcontract krijgt die tekst
 als invoer en beoordeelt per sectie of hij er al op staat, half op staat of ontbreekt, met een zin
@@ -5753,7 +5921,8 @@ pagina bij" in plaats van "voeg ze samen".
 invoer; de ophaling is één HTTP-verzoek in een taak die verderop een schrijfaanroep van tot 150
 seconden doet.
 
-Vier controles groen: typecheck, 3513 unittests (52 nieuw), 570 ketentests (13 nieuw, een scenario
-dat de hele keten met een gestubde site doorloopt), de productiebuild. **Nog niet geverifieerd tegen
-een echte klant** (conventie 10): er is nog geen rapport herdraaid op productie, dus de 8 mislukte
-koppelingen en de 13 genegeerde pagina's zijn in de database nog niet zichtbaar veranderd.
+Vier controles groen na het samenvoegen met `main`: typecheck, unittests, ketentests (met een
+scenario dat de hele keten met een gestubde site doorloopt) en de productiebuild. **Nog niet
+geverifieerd tegen een echte klant** (conventie 10): er is nog geen rapport herdraaid op productie,
+dus de 8 mislukte koppelingen en de 13 genegeerde pagina's zijn in de database nog niet zichtbaar
+veranderd.

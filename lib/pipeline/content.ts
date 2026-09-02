@@ -55,7 +55,7 @@ import {
   chooseExistingText,
   matchExistingPage,
   relatedPageWarning,
-} from "@/lib/pipeline/page-match";
+} from "@/lib/pipeline/existing-page-match";
 import { canonicalPath } from "@/lib/pipeline/page-relevance";
 import { detectClaimSentences, detectedCoverage, resolveFactId } from "@/lib/pipeline/claim-extract";
 import type { AuditedClaim } from "@/lib/schemas/claim-audit";
@@ -281,7 +281,7 @@ export interface RecommendationInput {
   existingUrl?: string | null;
   /**
    * Een bestaande pagina die dit onderwerp al raakt terwijl dit tóch een NIEUWE
-   * pagina is (`page-match.ts`, migratie 0083). Geen pagina die vervangen wordt:
+   * pagina is (`existing-page-match.ts`, migratie 0086). Geen pagina die vervangen wordt:
    * juist een pagina die naast deze moet blijven bestaan, en waar deze zich dus
    * van moet onderscheiden.
    */
@@ -547,7 +547,7 @@ function buildContentInput(args: {
     // stonden precies op die 1500 tekens, dus alles wat verderop op de pagina
     // stond, prijzen, veelgestelde vragen, voorwaarden, bestond voor de schrijver
     // niet. Terwijl de klant wél te horen kreeg dat deze tekst zijn pagina
-    // vervangt. Zie `existing-page.ts`.
+    // vervangt. Zie `existing-page-fetch.ts`.
     (() => {
       if (!existingPage) return "";
       const gekozen = chooseExistingText({
@@ -890,7 +890,7 @@ async function loadContentContext(
   const action = recommendation.action ?? "nieuw";
   let existingPage: ProfilePage | null = null;
   if (action === "verbeteren" && recommendation.existingUrl) {
-    // ⚠️ Op PAD vergelijken en niet op de letterlijke tekst (O1, `page-match.ts`).
+    // ⚠️ Op PAD vergelijken en niet op de letterlijke tekst (`existing-page-match.ts`).
     //
     // Dit was tot 2 september 2026 een gelijkheidsfilter op de hele URL. Van
     // de 59 verbeter-adressen in productie matchten er zo 51; op pad worden het

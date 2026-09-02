@@ -34,8 +34,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { currentPiece } from "@/lib/jobs/content-jobs";
 import { researchItem } from "@/lib/pipeline/item-dossier";
 import { buildContentContract } from "@/lib/pipeline/content-contract";
-import { fetchExistingPage } from "@/lib/pipeline/existing-page";
-import { matchExistingPage } from "@/lib/pipeline/page-match";
+import { fetchExistingPage } from "@/lib/pipeline/existing-page-fetch";
+import { matchExistingPage } from "@/lib/pipeline/existing-page-match";
 import { factsFromSnapshot, planFromSnapshot } from "@/lib/pipeline/briefing";
 import { buildFactBase } from "@/lib/pipeline/factbase";
 import { TARGET_WORDS, TYPE_GUIDANCE, type RecommendationInput } from "@/lib/pipeline/content";
@@ -198,7 +198,7 @@ export async function planContentPiece(args: {
   // ── 3. De bestaande pagina, vers (O3, migratie 0083) ──────────────────────
   //
   // Alleen bij `verbeteren`, en alleen als het adres echt in de inventaris
-  // staat. Die tweede voorwaarde is geen dubbelop met `page-match.ts` in de
+  // staat. Die tweede voorwaarde is geen dubbelop met `existing-page-match.ts` in de
   // rapportstap maar de tweede sluis: een aanbeveling kan ook via het
   // contentplan of een handmatige aanroep binnenkomen, en dan is hij nooit langs
   // die controle geweest. Zonder deze regel zou een verzonnen adres alsnog

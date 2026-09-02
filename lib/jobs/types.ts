@@ -264,7 +264,7 @@ export interface RecommendationPayload {
   existingUrl: string | null;
   /**
    * Een bestaande pagina die dit onderwerp al raakt terwijl dit een NIEUWE
-   * pagina is (migratie 0083, `page-match.ts`). Waarschuwing tegen twee pagina's
+   * pagina is (migratie 0086, `existing-page-match.ts`). Waarschuwing tegen twee pagina's
    * die om dezelfde vraag concurreren.
    */
   relatedUrl?: string | null;

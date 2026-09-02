@@ -37,19 +37,24 @@ import {
   mergeOverlappingRecommendations,
   describeActionRatio,
 } from "@/lib/pipeline/recommendation";
-import {
-  matchExistingPage,
-  reconcileRecommendations,
-  relatedPageWarning,
-  chooseExistingText,
-  EXISTING_PAGE_MAX_CHARS,
-} from "@/lib/pipeline/page-match";
+
 
 import type {
   RawRecommendation,
   CodedMissedPrompt,
   StoredRecommendation,
 } from "@/lib/pipeline/recommendation";
+import {
+  findExistingPageMatch,
+  reconcileExistingPageActions,
+  matchExistingPage,
+  relatedPageWarning,
+  chooseExistingText,
+  EXISTING_PAGE_MAX_CHARS,
+  EXISTING_PAGE_RELATED_THRESHOLD,
+  EXISTING_PAGE_COVERAGE_THRESHOLD,
+} from "@/lib/pipeline/existing-page-match";
+import type { ExistingPageCandidate } from "@/lib/pipeline/existing-page-match";
 import { geoScore, geoIssues } from "@/lib/schemas/critique";
 import type { GeoCriteria } from "@/lib/schemas/critique";
 import { compare, deltaOf, thresholdOf, verdictOf, minQuestionsForSignal } from "@/lib/pipeline/impact-math";
@@ -181,6 +186,8 @@ import {
   KOOPFASES,
 } from "@/lib/sales/questions";
 import { alleRijen } from "@/lib/supabase/pagineer";
+import { bouwFases, procesSamenvatting, loopterIets, type ProcesMoment } from "@/lib/sales/proces";
+import { groepeerOnbekend, isMerkOfBron } from "@/lib/sales/onbekend";
 import { bouwIntentieVraag } from "@/lib/sales/intents";
 import { bouwBeoordeelVraag, SIMULATIE_SYSTEM } from "@/lib/sales/measure-prompt";
 // Sprint 4: de acht types, de score en de haak.
@@ -201,6 +208,8 @@ import {
 } from "@/lib/sales/opportunity";
 import {
   rekenScore,
+  grootsteGelijkspel,
+  vergelijkKansen,
   GEWICHTEN,
   SCHERPTE,
   BEWEGING_BONUS,
@@ -456,7 +465,7 @@ import {
   versheidsregel,
   volgendeMeting,
 } from "@/lib/overview";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import {
   containsRegion,
@@ -642,6 +651,18 @@ import {
   packageLabel,
 } from "@/lib/package-sizes";
 import { formatDateShort, formatDateLong, formatRelativeTime, formatNumber, formatUsd, enkelOfMeervoud } from "@/lib/format";
+import {
+  normaliseerLabelnaam,
+  zelfdeLabelnaam,
+  vindLabel,
+  sorteerLabels,
+  leesLabelfilter,
+  filterOpLabel,
+  telPerLabel,
+  MAX_LABELNAAM,
+  LABELFILTER_ALLES,
+  LABELFILTER_GEEN,
+} from "@/lib/cluster-labels";
 import { describeToneSliders, clampToneSlider } from "@/lib/pipeline/tone-sliders";
 import { versionReasonLabel } from "@/lib/pipeline/version-reason";
 import { checkTabooWords } from "@/lib/pipeline/content-gate";
@@ -719,6 +740,7 @@ import type {
   ProfileTopic,
   Entity,
   PlannedPageStatus,
+  ContentAction,
 } from "@/lib/types/database";
 
 let passed = 0;
@@ -763,6 +785,15 @@ function leesBestand(pad: string): string {
   } catch {
     return "";
   }
+}
+
+/**
+ * Bestaat dit bestand? Voor de omgekeerde controle: een module die is opgeheven
+ * mag niet terugkeren. `leesBestand()` kan dat niet zeggen, want een leeg
+ * bestand en een ontbrekend bestand geven daar allebei een lege string.
+ */
+function bestaatBestand(pad: string): boolean {
+  return existsSync(pad);
 }
 
 /** Alle `.tsx`-bestanden onder een map, recursief. */
@@ -1110,6 +1141,142 @@ group("Geen twee aanbevelingen op dezelfde zwaarste vraag (werkpakket B §4.2)",
   ]);
   ok("drie dubbele aanbevelingen worden er één", drieDubbel.length === 1, String(drieDubbel.length));
   ok("en de belangrijkste van de drie wint", drieDubbel[0].title === "B");
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nStelt het rapport niets voor dat de klant al heeft? (docs/logbook.md 1 sept 2026)");
+
+group("herkent een bestaande pagina die het onderwerp al dekt", () => {
+  const topic = {
+    title: "Wasmachine kopen: waar op letten",
+    targetIntent: "Praktisch advies voor wie een wasmachine wil kopen",
+    why: "Bezoekers zoeken advies over het kopen van een wasmachine",
+  };
+  const dekkendePagina: ExistingPageCandidate = {
+    url: "https://voorbeeld.nl/advies/wasmachine-kopen-waar-op-letten",
+    title: "Wasmachine kopen: waar moet je op letten",
+    text:
+      "Praktisch advies voor wie een wasmachine wil kopen. Bezoekers zoeken vaak advies " +
+      "over het kopen van de juiste wasmachine, en letten dan op prijs, capaciteit en " +
+      "energielabel.",
+  };
+  const onverwantePagina: ExistingPageCandidate = {
+    url: "https://voorbeeld.nl/klantenservice",
+    title: "Klantenservice",
+    text: "Neem contact op met onze klantenservice voor vragen over bezorging en retourneren.",
+  };
+
+  const match = findExistingPageMatch(topic, [onverwantePagina, dekkendePagina]);
+  ok("de dekkende pagina wordt gevonden", match?.url === dekkendePagina.url, JSON.stringify(match));
+  ok(
+    "de dekking zit boven de drempel",
+    (match?.coverage ?? 0) >= EXISTING_PAGE_COVERAGE_THRESHOLD,
+    String(match?.coverage),
+  );
+
+  ok(
+    "een onverwante pagina levert geen match op",
+    findExistingPageMatch(topic, [onverwantePagina]) === null,
+  );
+
+  // Te weinig onderwerptermen om te kunnen oordelen: dan liever geen oordeel
+  // dan een vals alarm (conventie 3).
+  ok(
+    "een te dun onderwerp levert geen oordeel op",
+    findExistingPageMatch({ title: "Prijzen", targetIntent: "", why: "" }, [dekkendePagina]) === null,
+  );
+
+  ok(
+    "geen enkele pagina levert geen oordeel op",
+    findExistingPageMatch(topic, []) === null,
+  );
+});
+
+group("corrigeert action/existingUrl tegen de echte crawl", () => {
+  // Expliciet getypeerd op `ContentAction` (niet de letterlijke `"nieuw"`):
+  // anders leidt TypeScript uit één testinvoer een te smal type af, en
+  // rapporteert de build straks ten onrechte dat de vergelijking hieronder
+  // met "verbeteren" nooit waar kan zijn.
+  type ProefAanbeveling = {
+    title: string;
+    targetIntent: string;
+    why: string;
+    action: ContentAction;
+    existingUrl: string | null;
+  };
+  const topic = {
+    title: "Wasmachine kopen: waar op letten",
+    targetIntent: "Praktisch advies voor wie een wasmachine wil kopen",
+    why: "Bezoekers zoeken advies over het kopen van een wasmachine",
+  };
+  const dekkendePagina: ExistingPageCandidate = {
+    url: "https://voorbeeld.nl/advies/wasmachine-kopen-waar-op-letten",
+    title: "Wasmachine kopen: waar moet je op letten",
+    text:
+      "Praktisch advies voor wie een wasmachine wil kopen. Bezoekers zoeken vaak advies " +
+      "over het kopen van de juiste wasmachine, en letten dan op prijs, capaciteit en " +
+      "energielabel.",
+  };
+  const onverwantePagina: ExistingPageCandidate = {
+    url: "https://voorbeeld.nl/klantenservice",
+    title: "Klantenservice",
+    text: "Neem contact op met onze klantenservice voor vragen over bezorging en retourneren.",
+  };
+
+  // Het model zegt "nieuw" terwijl de site het onderwerp al ruim dekt: dit is
+  // precies het geval dat de klant niet wil, een voorstel voor iets dat hij al
+  // heeft. Moet omslaan naar "verbeteren" met de echt gevonden URL.
+  const gemist = reconcileExistingPageActions<ProefAanbeveling>(
+    [{ ...topic, action: "nieuw", existingUrl: null }],
+    [onverwantePagina, dekkendePagina],
+  );
+  ok("nieuw wordt verbeteren", gemist.recommendations[0].action === "verbeteren");
+  ok("met de echt gevonden URL", gemist.recommendations[0].existingUrl === dekkendePagina.url);
+  ok("en de correctie wordt gelogd", gemist.overrides.length === 1 && gemist.overrides[0].reason === "gevonden_gelijkenis");
+
+  // Het model zegt "verbeteren" met een URL die nergens in de crawl voorkomt
+  // (Udenhout, /udenhout.nl/skoda), maar we vinden zelf de echte pagina.
+  const verzonnenMaarVindbaar = reconcileExistingPageActions<ProefAanbeveling>(
+    [{ ...topic, action: "verbeteren", existingUrl: "https://voorbeeld.nl/skoda" }],
+    [onverwantePagina, dekkendePagina],
+  );
+  ok(
+    "de verzonnen URL wordt vervangen door de echte pagina",
+    verzonnenMaarVindbaar.recommendations[0].existingUrl === dekkendePagina.url,
+  );
+  ok(
+    "de correctie meldt een onbevestigde URL",
+    verzonnenMaarVindbaar.overrides[0]?.reason === "onbevestigde_url",
+  );
+
+  // Het model zegt "verbeteren" met een verzonnen URL, en er is ook geen
+  // pagina te vinden die het onderwerp dekt. Dan liever "nieuw" zonder adres
+  // dan een niet te bevestigen link tonen (conventie 3, net als schoonAdres()
+  // in lib/plan-backlog-data.ts).
+  const verzonnenEnOnvindbaar = reconcileExistingPageActions<ProefAanbeveling>(
+    [{ ...topic, action: "verbeteren", existingUrl: ":" }],
+    [onverwantePagina],
+  );
+  ok("valt terug op nieuw", verzonnenEnOnvindbaar.recommendations[0].action === "nieuw");
+  ok("zonder adres", verzonnenEnOnvindbaar.recommendations[0].existingUrl === null);
+
+  // Het model zegt "verbeteren" met een URL die echt in de crawl staat: die
+  // aanbeveling blijft ongemoeid.
+  const bevestigd = reconcileExistingPageActions<ProefAanbeveling>(
+    [{ ...topic, action: "verbeteren", existingUrl: dekkendePagina.url }],
+    [dekkendePagina],
+  );
+  ok("een bevestigde URL blijft staan", bevestigd.recommendations[0].existingUrl === dekkendePagina.url);
+  ok("en levert geen correctie op", bevestigd.overrides.length === 0);
+
+  // Het model zegt "nieuw" en er is ook echt niets dat erop lijkt: geen
+  // correctie nodig.
+  const terecht = reconcileExistingPageActions<ProefAanbeveling>(
+    [{ ...topic, action: "nieuw", existingUrl: null }],
+    [onverwantePagina],
+  );
+  ok("terecht 'nieuw' blijft onaangeroerd", terecht.recommendations[0].action === "nieuw");
+  ok("en levert geen correctie op", terecht.overrides.length === 0);
 });
 
 group("De verhouding nieuw/verbeteren in een zin (werkpakket B §4.3)", () => {
@@ -14086,6 +14253,143 @@ group("een koopvraag noemt altijd de plaats", () => {
   ok("en verbiedt bij mij in de buurt", prompt.includes('"bij mij in de buurt"'));
 });
 
+group("het marktscherm laat zien waar het op wacht", () => {
+  // ⚠️ De pijplijn doet negen dingen en de gebruiker zag er één zin van, dertien
+  // minuten lang, zonder teller en zonder de zestien mislukte schrijftaken.
+  const leeg: ProcesMoment = {
+    marktStatus: "concept",
+    rondeStatus: null,
+    rondeNr: 1,
+    bedrijvenGevonden: 0,
+    bedrijvenMee: 0,
+    bedrijvenOnbeoordeeld: 0,
+    crawlKlaar: 0,
+    crawlMislukt: 0,
+    vragen: 0,
+    antwoorden: 0,
+    antwoordenVerwacht: 0,
+    kansen: 0,
+    kansenGeschreven: 0,
+    taken: {},
+    isPublic: false,
+    heeftRapport: false,
+  };
+
+  const nieuweMarkt = bouwFases(leeg);
+  eq2("negen stappen, altijd", nieuweMarkt.length, 9);
+  eq("de eerste is klaar zodra de markt bestaat", nieuweMarkt[0].stand, "klaar");
+  eq("en het wacht op jou om te starten", nieuweMarkt[1].stand, "wacht_op_jou");
+  ok("de samenvatting zegt dat ook", procesSamenvatting(nieuweMarkt).includes("wacht op jou"));
+  ok("er draait niets", !loopterIets(nieuweMarkt));
+
+  // Halverwege de meting: de teller is het hele punt.
+  const metend = bouwFases({
+    ...leeg,
+    marktStatus: "meet",
+    rondeStatus: "meet",
+    bedrijvenGevonden: 26,
+    bedrijvenMee: 26,
+    vragen: 40,
+    antwoorden: 18,
+    antwoordenVerwacht: 40,
+    taken: {
+      sales_measure_question: { wachtend: 10, bezig: 5, klaar: 18, mislukt: 0 },
+      sales_company_enrich: { wachtend: 0, bezig: 0, klaar: 26, mislukt: 0 },
+    },
+  });
+  const meten = metend.find((f) => f.sleutel === "meten");
+  eq("de meetstap is bezig", meten?.stand ?? "", "bezig");
+  eq("met een teller erbij", meten?.detail ?? "", "18 van de 40 vragen gemeten");
+  ok("en het scherm mag zichzelf verversen", loopterIets(metend));
+
+  // Een mislukte schrijfstap is zichtbaar, met de geruststelling erbij.
+  const naSchrijven = bouwFases({
+    ...leeg,
+    marktStatus: "klaar",
+    rondeStatus: "klaar",
+    bedrijvenGevonden: 43,
+    bedrijvenMee: 43,
+    vragen: 40,
+    antwoorden: 40,
+    antwoordenVerwacht: 40,
+    kansen: 43,
+    kansenGeschreven: 0,
+    taken: { sales_opportunity_explain: { wachtend: 0, bezig: 0, klaar: 0, mislukt: 16 } },
+  });
+  const teksten = naSchrijven.find((f) => f.sleutel === "teksten");
+  eq("zestien mislukte schrijftaken zijn zichtbaar", teksten?.stand ?? "", "mislukt");
+  ok("en er staat wat dat betekent", (teksten?.actie ?? "").includes("sjabloonzin"));
+  ok("de samenvatting wijst naar de vastloper", procesSamenvatting(naSchrijven).includes("liep vast"));
+
+  // Poort 2 is geen stilstand maar een vraag aan jou.
+  const bijPoort2 = bouwFases({
+    ...leeg,
+    marktStatus: "vragen_klaar",
+    rondeStatus: "vragen_klaar",
+    bedrijvenGevonden: 26,
+    bedrijvenMee: 26,
+    vragen: 40,
+  });
+  const poort2 = bijPoort2.find((f) => f.sleutel === "poort2");
+  eq("poort 2 wacht op jou", poort2?.stand ?? "", "wacht_op_jou");
+  ok("en zegt dat dit de stap is die geld kost", (poort2?.actie ?? "").includes("geld kost"));
+});
+
+group("een gemiste naam is bruikbaar in plaats van een rijtje", () => {
+  // ⚠️ Feenstra werd in de eerste markt drie keer genoemd en stond niet in onze
+  // lijst. Daarmee was de best zichtbare partij onzichtbaar voor de detectie.
+  const uit = groepeerOnbekend([
+    "Feenstra",
+    "Daikin",
+    "Feenstra",
+    "Werkspot",
+    "Kemkens",
+    "Feenstra",
+    "Milieu Centraal",
+    "Daikin",
+  ]);
+
+  eq("de vaakst genoemde staat bovenaan", uit[0].naam, "Feenstra");
+  eq2("met het aantal erbij", uit[0].keer, 3);
+  eq("en hij telt als mogelijk bedrijf", uit[0].soort, "mogelijk_bedrijf");
+  eq("daarna de andere installateur", uit[1].naam, "Kemkens");
+  ok(
+    "fabrikanten en platforms staan onderaan",
+    uit.slice(2).every((n) => n.soort === "merk_of_bron"),
+  );
+
+  ok("Daikin is een merk", isMerkOfBron("Daikin"));
+  ok("Werkspot een platform", isMerkOfBron("Werkspot"));
+  ok("Milieu Centraal voorlichting", isMerkOfBron("milieu centraal"));
+  ok("maar een installateur niet", !isMerkOfBron("Van Oers Installaties"));
+});
+
+group("gelijke scores worden niet als rangorde gepresenteerd", () => {
+  // Zeven bedrijven op exact 76, zoals bij de eerste echte markt.
+  const zeven = grootsteGelijkspel([76, 76, 76, 76, 76, 76, 76, 69, 65]);
+  eq2("zeven delen dezelfde score", zeven.aantal, 7);
+  eq2("en dat is 76", zeven.score, 76);
+
+  const verschillend = grootsteGelijkspel([93, 90, 86, 82]);
+  eq2("bij verschillende scores is er geen gelijkspel", verschillend.aantal, 0);
+
+  // ⚠️ Het scherm geeft alleen de BOVENSTE tien mee. Onderaan een lijst staan
+  // altijd groepen met hetzelfde lage cijfer (26 bedrijven zonder website op 29,
+  // om precies te zijn), en daar hoeft niemand voor gewaarschuwd te worden.
+  const alleenTop = grootsteGelijkspel([93, 93, 90, 86, 82, 77, 63, 61, 55, 46]);
+  eq2("bovenaan delen er twee dezelfde score", alleenTop.aantal, 2);
+  eq2("en dat is 93", alleenTop.score, 93);
+
+  // De volgorde binnen dezelfde score is vast: bewijs, dan commercieel, dan naam.
+  const a = { score: 76, breakdown: { bewijssterkte: 20, commercieel: 16 }, naam: "Bakker" };
+  const b = { score: 76, breakdown: { bewijssterkte: 12, commercieel: 20 }, naam: "Alders" };
+  ok("meer bewijs wint van meer commercieel", vergelijkKansen(a, b) < 0);
+
+  const c = { score: 76, breakdown: { bewijssterkte: 20, commercieel: 16 }, naam: "Alders" };
+  ok("en bij gelijke opbouw beslist de naam", vergelijkKansen(a, c) > 0);
+  ok("een hogere score wint altijd", vergelijkKansen({ ...a, score: 80 }, b) < 0);
+});
+
 async function paginatieControles() {
   await groupAsync("alle rijen ophalen, en niet de eerste duizend", async () => {
   // ⚠️ 1 september 2026: 1720 vermeldingen, een select die er duizend gaf, en
@@ -15008,7 +15312,7 @@ group("het plafond beschermt het maildomein en niet het budget", () => {
   // Plan 16.6, eerste maatregel. Omdat de medewerker zelf verstuurt kan de app
   // het versturen niet tegenhouden, maar wel de AANVOER van concepten.
   const rustig = beoordeelPlafond({ verstuurd: 5, bounces: 0, klachten: 0, afmeldingen: 0 });
-  ok("vijf van de twintig laat ruimte", rustig.ok);
+  ok("vijf van het plafond laat ruimte", rustig.ok);
   eq2("en zegt hoeveel", rustig.ruimte, CONCEPTEN_PER_DAG - 5);
 
   const vol = beoordeelPlafond({ verstuurd: CONCEPTEN_PER_DAG, bounces: 0, klachten: 0, afmeldingen: 0 });
@@ -15017,9 +15321,25 @@ group("het plafond beschermt het maildomein en niet het budget", () => {
 
   // ⚠️ De tweede rem: loopt het aandeel bounces en klachten op, dan halveert het
   // plafond. Meer volume is dan precies de verkeerde reactie, want het domein is
-  // al aan het beschadigen.
-  const slecht = beoordeelPlafond({ verstuurd: 10, bounces: 2, klachten: 0, afmeldingen: 0 });
-  ok("twee bounces op tien halveert het plafond", !slecht.ok);
+  // al aan het beschadigen. De aantallen staan bewust in verhouding tot het
+  // plafond, zodat deze test blijft kloppen als de eigenaar dat getal verzet
+  // (op 1 september 2026 ging het van 20 naar 100).
+  const helft = Math.floor(CONCEPTEN_PER_DAG / 2);
+  const slechtMaarRuimte = beoordeelPlafond({
+    verstuurd: helft - 1,
+    bounces: helft,
+    klachten: 0,
+    afmeldingen: 0,
+  });
+  eq2("bij veel bounces is er nog één plek over", slechtMaarRuimte.ruimte, 1);
+
+  const slecht = beoordeelPlafond({
+    verstuurd: helft,
+    bounces: helft,
+    klachten: 0,
+    afmeldingen: 0,
+  });
+  ok("en op de helft van het plafond stopt de aanvoer", !slecht.ok);
   ok("en dat wordt gezegd", (slecht.melding ?? "").includes("gehalveerd"));
 });
 
@@ -15562,6 +15882,7 @@ group("geen haakjesmeervoud meer in klanttekst (punt 9)", () => {
     "Engine(s) overgeslagen", // console.warn, lib/engines/registry.ts
     "gelijknamige partij(en) voorgesteld", // console.info, lib/pipeline/llm-baseline.ts
     "niet-onderbouwde bewering(en)", // console.warn, lib/pipeline/report.ts
+    "aanbeveling(en) ", // console.warn, lib/pipeline/report.ts (bestaande-paginacheck)
     "onderwerp(en) hersteld", // console.info, lib/pipeline/offering.ts
   ];
 
@@ -15887,8 +16208,15 @@ group("een hermeting gebruikt exact dezelfde vragen", () => {
   // aan de markt ligt en niet aan de vraag. Zou de hermeting nieuwe vragen
   // genereren, dan meet je het verschil tussen twee vragenlijsten en presenteer
   // je dat als een daling van het bedrijf.
-  const bron = leesBestand("app/api/sales/markets/[id]/remeasure/route.ts");
-  ok("de route bestaat", bron.length > 0);
+  // Sinds 1 september 2026 staat het werk in een module en niet meer in de
+  // route: de geplande hermeting moet exact hetzelfde doen vanuit de wachtrij,
+  // en twee keer hetzelfde opschrijven loopt op een dag uit elkaar.
+  const route = leesBestand("app/api/sales/markets/[id]/remeasure/route.ts");
+  ok("de route bestaat", route.length > 0);
+  ok("en leunt op de gedeelde module", route.includes("maakHermeting"));
+
+  const bron = leesBestand("lib/pipeline/sales-remeasure.ts");
+  ok("de module bestaat", bron.length > 0);
   ok("hij leest de vragen van de vorige ronde", bron.includes("sales_questions"));
   ok("en schrijft ze over naar de nieuwe ronde", bron.includes("run_id: runId"));
   // Geen intentie- of vragenstap: die zouden andere vragen opleveren.
@@ -15896,6 +16224,13 @@ group("een hermeting gebruikt exact dezelfde vragen", () => {
   // ⚠️ Maar poort 2 blijft staan: meten kost geld, ook de tweede keer.
   ok("en de ronde wacht weer op goedkeuring", bron.includes("vragen_klaar"));
   ok("het rondenummer telt door", bron.includes("round_no: vorige.round_no + 1"));
+
+  // ⚠️ De geplande hermeting zet het slot vóór het werk. Zonder die volgorde
+  // pakt de werker dezelfde markt een minuut later opnieuw op, en dat is de
+  // duurste lus die dit systeem kan maken: veertig betaalde vragen per keer.
+  const slot = bron.indexOf("remeasure_done_at: nu");
+  const werk = bron.indexOf("await maakHermeting(admin, markt.id");
+  ok("het slot gaat vóór het meten", slot > 0 && werk > 0 && slot < werk);
 });
 
 group("het rapport wordt niet vanzelf geschreven en niet vanzelf gepubliceerd", () => {
@@ -16216,7 +16551,7 @@ group("De bedrading van de nieuwe contentpijplijn", () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-group("Nieuw of verbeteren: de handeling narekenen (O1/O2, page-match.ts)", () => {
+group("Het adres oplossen en de verwante pagina meedragen (2 september 2026)", () => {
   const paginas = [
     {
       url: "https://fysi-unique.nl/tarieven-2026/",
@@ -16231,12 +16566,12 @@ group("Nieuw of verbeteren: de handeling narekenen (O1/O2, page-match.ts)", () =
     { url: "https://fysi-unique.nl/", title: "Home", text: "Welkom bij Fysi-Unique." },
   ];
 
-  // ── Het adres oplossen (O1) ──────────────────────────────────────────────
+  // ── Het adres oplossen op PAD in plaats van op letterlijke tekst ─────────
   //
   // Dit is de fout van 1 september 2026: 5 van de 8 mislukte koppelingen waren
   // geen verzinsel maar notatie. Het model gaf het pad zonder domein terug, de
-  // code vergeleek op de letterlijke tekst, en de pagina werd geschreven zonder
-  // één woord van zijn eigen bestaande tekst.
+  // schrijfstap vergeleek op de letterlijke tekst, en de pagina werd geschreven
+  // zonder één woord van zijn eigen bestaande tekst.
   ok(
     "een pad zonder domein vindt de pagina alsnog",
     matchExistingPage("/tarieven-2026/", paginas)?.url === "https://fysi-unique.nl/tarieven-2026/",
@@ -16253,64 +16588,95 @@ group("Nieuw of verbeteren: de handeling narekenen (O1/O2, page-match.ts)", () =
   ok("een punt wijst niet naar de homepage", matchExistingPage(".", paginas) === null);
   ok("de homepage zelf mag wel", matchExistingPage("https://fysi-unique.nl/", paginas)?.title === "Home");
 
-  const rec = (over: Partial<StoredRecommendation>): StoredRecommendation => ({
+  // ── Een bevestigd adres wordt de vorm uit de crawl ──────────────────────
+  //
+  // `reconcileExistingPageActions()` liet een bevestigd adres tot 2 september
+  // staan zoals het model het gaf. Dat is dezelfde pagina, maar wat er in de
+  // database belandde was een pad zonder domein: onbruikbaar voor de
+  // schrijfstap en niet klikbaar op het scherm.
+  type Proef = {
+    title: string;
+    targetIntent: string;
+    why: string;
+    action: ContentAction;
+    existingUrl: string | null;
+    relatedUrl?: string | null;
+  };
+  const onderwerp = {
     title: "Hardloopblessure behandelen in Amersfoort",
-    type: "article",
     targetIntent: "hardlopers met een blessure",
-    why: "w",
-    priority: 1,
-    action: "nieuw",
-    existingUrl: null,
-    relatedUrl: null,
-    targets: [],
-    ...over,
-  });
+    why: "De AI noemt ons niet bij deze vraag over hardloopblessures",
+  };
 
-  // ── Verbeteren met een adres dat op pad matcht ───────────────────────────
-  const genormaliseerd = reconcileRecommendations({
-    recommendations: [rec({ action: "verbeteren", existingUrl: "/tarieven-2026/" })],
-    pages: paginas,
-  });
+  const genormaliseerd = reconcileExistingPageActions<Proef>(
+    [{ ...onderwerp, action: "verbeteren", existingUrl: "/tarieven-2026/" }],
+    paginas,
+  );
   ok(
-    "een verbeter-adres wordt de echte URL uit de inventaris",
+    "een pad zonder domein wordt de volledige URL uit de crawl",
     genormaliseerd.recommendations[0].existingUrl === "https://fysi-unique.nl/tarieven-2026/",
   );
-  ok("en dat wordt gemeld", genormaliseerd.fixes.length === 1);
-
-  // ── Verbeteren zonder bestaande pagina wordt nieuw ───────────────────────
-  const verzonnen = reconcileRecommendations({
-    recommendations: [rec({ action: "verbeteren", existingUrl: "/udenhout.nl/leasen/private-lease" })],
-    pages: paginas,
-  });
-  ok("verbeteren van een pagina die niet bestaat wordt nieuw", verzonnen.recommendations[0].action === "nieuw");
-  ok("en het adres verdwijnt", verzonnen.recommendations[0].existingUrl === null);
-
-  // ── Nieuw naast een pagina die het onderwerp al draagt (O2) ──────────────
-  //
-  // De titel bevat "hardloopblessure" en "amersfoort"; die pagina staat er al.
-  // Bewust GEEN automatische omzetting naar verbeteren: het rapportmodel heeft
-  // de tekst van die pagina niet gezien, dus dit is een vermoeden. Wat het wel
-  // moet doen is de pagina meedragen.
-  const naast = reconcileRecommendations({
-    recommendations: [rec({})],
-    pages: paginas,
-  });
-  ok("een nieuwe pagina naast een bestaande blijft nieuw", naast.recommendations[0].action === "nieuw");
   ok(
-    "maar draagt die bestaande pagina mee",
-    naast.recommendations[0].relatedUrl ===
-      "https://fysi-unique.nl/fysiotherapie-bij-hardloopklachten-in-amersfoort/",
+    "en dat wordt gemeld als normalisatie, niet als correctie van de handeling",
+    genormaliseerd.overrides[0]?.reason === "adres_genormaliseerd" &&
+      genormaliseerd.recommendations[0].action === "verbeteren",
   );
 
-  // ── Een echt nieuw onderwerp raakt niets ─────────────────────────────────
-  const echtNieuw = reconcileRecommendations({
-    recommendations: [rec({ title: "Bedrijfsfitness voor werkgevers" })],
-    pages: paginas,
-  });
-  ok("een onderwerp dat nergens staat blijft schoon", echtNieuw.recommendations[0].relatedUrl === null);
-  ok("en levert geen melding op", echtNieuw.fixes.length === 0);
+  // ── Onder de omzetdrempel: waarschuwen in plaats van zwijgen ────────────
+  //
+  // De hardloopklachten-pagina dekt dit onderwerp deels. Dekt hij het ruim, dan
+  // zet `reconcileExistingPageActions()` de aanbeveling om naar `verbeteren`
+  // (de test daarvoor staat hierboven). Daaronder blijft hij `nieuw`, maar
+  // draagt hij de pagina mee zodat de schrijver en de klant hem zien.
+  // Dekking 0,50: boven de waarschuwdrempel (0,40), onder de omzetdrempel
+  // (0,70). Precies het gebied waarvoor `relatedUrl` bestaat.
+  const verwant = reconcileExistingPageActions<Proef>(
+    [
+      {
+        title: "Hardloopblessure voorkomen",
+        targetIntent: "hardlopers in Amersfoort",
+        why: "Vraag over het voorkomen van een hardloopblessure",
+        action: "nieuw",
+        existingUrl: null,
+      },
+    ],
+    paginas,
+  );
+  ok(
+    "een nieuwe pagina naast een verwante pagina blijft nieuw",
+    verwant.recommendations[0].action === "nieuw",
+  );
+  ok(
+    "maar draagt die pagina mee",
+    verwant.recommendations[0].relatedUrl ===
+      "https://fysi-unique.nl/fysiotherapie-bij-hardloopklachten-in-amersfoort/",
+  );
+  ok("en meldt dat als verwante pagina", verwant.overrides[0]?.reason === "verwante_pagina");
 
-  // ── De waarschuwing voor de schrijver ────────────────────────────────────
+  // ── Een echt nieuw onderwerp raakt niets ────────────────────────────────
+  const echtNieuw = reconcileExistingPageActions<Proef>(
+    [
+      {
+        title: "Bedrijfsfitness voor werkgevers",
+        targetIntent: "werkgevers",
+        why: "Werkgevers zoeken bedrijfsfitness voor personeel",
+        action: "nieuw",
+        existingUrl: null,
+      },
+    ],
+    paginas,
+  );
+  ok("een onderwerp dat nergens staat blijft schoon", echtNieuw.recommendations[0].relatedUrl === null);
+  ok("en levert geen melding op", echtNieuw.overrides.length === 0);
+
+  // ⚠️ De drempel voor waarschuwen ligt onder die voor omzetten: daartussen zit
+  // het gebied waarin omzetten te ver gaat en zwijgen ook.
+  ok(
+    "de waarschuwdrempel ligt onder de omzetdrempel",
+    EXISTING_PAGE_RELATED_THRESHOLD < EXISTING_PAGE_COVERAGE_THRESHOLD,
+  );
+
+  // ── De waarschuwing voor de schrijver ───────────────────────────────────
   ok("zonder pagina geen waarschuwing", relatedPageWarning(null) === "");
   ok(
     "met pagina wel, mét het adres",
@@ -16320,7 +16686,7 @@ group("Nieuw of verbeteren: de handeling narekenen (O1/O2, page-match.ts)", () =
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-group("De bestaande pagina als bron (O3, existing-page.ts)", () => {
+group("De bestaande pagina als bron (O3, existing-page-fetch.ts)", () => {
   ok(
     "de verse tekst wint van het crawl-excerpt",
     chooseExistingText({ fresh: "verse tekst", excerpt: "oude afgekapte tekst" })?.bron === "vers",
@@ -16459,8 +16825,15 @@ group("De duplicatiecheck kijkt ook naar de echte site (O6)", () => {
 group("De bedrading van de paginakeuze (O1 tot en met O6)", () => {
   // ── Het vangnet draait in de rapportstap, vóór opslag ────────────────────
   const report = leesBestand("lib/pipeline/report.ts");
-  ok("de handeling wordt nagerekend", report.includes("reconcileRecommendations"));
-  ok("en dat gebeurt vóór het wegschrijven", report.indexOf("reconcileRecommendations") < report.indexOf("recommendations_json: recommendations"));
+  ok("de handeling wordt nagerekend", report.includes("reconcileExistingPageActions"));
+  ok(
+    "en dat gebeurt vóór het wegschrijven",
+    report.indexOf("reconcileExistingPageActions") < report.indexOf("recommendations_json: recommendations"),
+  );
+  // ⚠️ Eén beslisser, niet twee. Twee modules die dezelfde vraag beantwoorden
+  // kunnen het oneens worden; dat is precies wat er op 2 september dreigde toen
+  // twee takken parallel hetzelfde vangnet bouwden.
+  ok("en er is maar één module die dat doet", !bestaatBestand("lib/pipeline/page-match.ts"));
 
   // ── De koppeling is niet meer een exacte stringvergelijking ──────────────
   const content = leesBestand("lib/pipeline/content.ts");
@@ -16474,6 +16847,7 @@ group("De bedrading van de paginakeuze (O1 tot en met O6)", () => {
   ok("de schrijver kiest de verse tekst als die er is", content.includes("chooseExistingText"));
   const plan = leesBestand("lib/pipeline/content-plan.ts");
   ok("de planstap haalt de pagina zelf op", plan.includes("fetchExistingPage"));
+  ok("uit de ophaalmodule", plan.includes("existing-page-fetch"));
   ok("en bewaart hem bij de pagina", plan.includes("existing_page_text"));
 
   // ── De duplicatiecheck ziet de site ──────────────────────────────────────
@@ -16487,6 +16861,122 @@ group("De bedrading van de paginakeuze (O1 tot en met O6)", () => {
   ok("de contentpagina toont het verbeterplan", scherm.includes("ImprovementList"));
   const gids = leesBestand("components/publish-guide.tsx");
   ok("en de publicatiegids verwijst ernaar", gids.includes("Wat er aan je pagina verandert"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nLabels en de prullenbak op het clusteroverzicht (migratie 0083)");
+
+group("een labelnaam wordt opgeschoond voordat hij een groep wordt", () => {
+  eq("spaties aan de randen gaan eraf", normaliseerLabelnaam("  Onderhoud  ") ?? "", "Onderhoud");
+  eq("dubbele spaties binnenin worden er één", normaliseerLabelnaam("cv  ketel") ?? "", "cv ketel");
+  eq("een regeleinde telt als spatie", normaliseerLabelnaam("cv\nketel") ?? "", "cv ketel");
+  // Conventie 3: onbruikbare invoer wordt null, nooit een leeg label dat
+  // daarna als groep in het uitklapmenu staat.
+  ok("alleen spaties levert niets op", normaliseerLabelnaam("   ") === null);
+  ok("leeg levert niets op", normaliseerLabelnaam("") === null);
+  ok("niet-tekst levert niets op", normaliseerLabelnaam(undefined) === null);
+  eq2(
+    `langer dan ${MAX_LABELNAAM} tekens wordt afgekapt`,
+    (normaliseerLabelnaam("x".repeat(80)) ?? "").length,
+    MAX_LABELNAAM,
+  );
+});
+
+group("hoofdletters maken geen tweede label", () => {
+  ok("Onderhoud is onderhoud", zelfdeLabelnaam("Onderhoud", "onderhoud"));
+  ok("maar onderhoud is geen vervanging", !zelfdeLabelnaam("Onderhoud", "vervanging"));
+
+  const labels = [
+    { id: "a", name: "Onderhoud" },
+    { id: "b", name: "Vervanging" },
+  ];
+  eq("een bestaand label wordt hergebruikt", vindLabel(labels, "ONDERHOUD")?.id ?? "geen", "a");
+  ok("een nieuw label wordt niet verzonnen", vindLabel(labels, "Storing") === null);
+});
+
+group("het uitklapmenu staat op alfabet", () => {
+  const gesorteerd = sorteerLabels([
+    { id: "1", name: "vervanging" },
+    { id: "2", name: "Onderhoud" },
+    { id: "3", name: "Advies" },
+  ]);
+  eq("op alfabet, hoofdletters tellen niet mee", gesorteerd.map((l) => l.name).join(", "), "Advies, Onderhoud, vervanging");
+});
+
+group("een label uit het adres wordt gewantrouwd", () => {
+  const labels = [{ id: "abc", name: "Onderhoud" }];
+  eq("een bekend label mag", leesLabelfilter("abc", labels), "abc");
+  eq("zonder label ook", leesLabelfilter(LABELFILTER_GEEN, labels), LABELFILTER_GEEN);
+  // ⚠️ Een label-id van een ander merk zou anders een leeg scherm geven zonder
+  // uitleg, en dat leest als "mijn clusters zijn weg".
+  eq("een onbekend label valt terug op alles", leesLabelfilter("van-een-ander-merk", labels), LABELFILTER_ALLES);
+  eq("geen label in het adres is alles", leesLabelfilter(undefined, labels), LABELFILTER_ALLES);
+});
+
+group("filteren toont precies de clusters van dat label", () => {
+  const clusters = [
+    { id: "1", label_id: "a" },
+    { id: "2", label_id: "b" },
+    { id: "3", label_id: null },
+    { id: "4", label_id: "a" },
+  ];
+  eq("alles laat alles staan", filterOpLabel(clusters, LABELFILTER_ALLES).length.toString(), "4");
+  eq("één label toont er twee", filterOpLabel(clusters, "a").map((c) => c.id).join(","), "1,4");
+  // Zonder deze stand is cluster 3 nergens meer te vinden zodra er labels zijn.
+  eq("zonder label toont er één", filterOpLabel(clusters, LABELFILTER_GEEN).map((c) => c.id).join(","), "3");
+
+  const telling = telPerLabel(clusters);
+  eq2("label a heeft er twee", telling.perLabel.a, 2);
+  eq2("label b heeft er één", telling.perLabel.b, 1);
+  eq2("en er is er één zonder label", telling.zonderLabel, 1);
+});
+
+group("de prullenbak stopt de metingen, en dat staat in de code", () => {
+  // ⚠️ Dit is de belofte van de knop. Zou `activeOnly()` uit de maandronde
+  // verdwijnen, dan blijft een weggehaald cluster elke maand geld kosten
+  // zonder dat iemand het ziet: de uitkomst staat in geen enkele lijst.
+  const cron = leesBestand("app/api/cron/tracking/route.ts");
+  ok("de maandronde slaat gearchiveerde clusters over", cron.includes("activeOnly("));
+
+  const route = leesBestand("app/api/analyses/[id]/archief/route.ts");
+  ok("de prullenbakroute controleert het eigenaarschap", route.includes("getOwnedAnalysis"));
+  ok("en schrijft via de service-role", route.includes("createAdminClient"));
+  // Archiveren en niet verwijderen: onder een cluster hangt maanden meetdata
+  // die alleen terugkomt door er opnieuw voor te betalen (migratie 0044).
+  ok("de prullenbak archiveert en verwijdert niet", route.includes("archived_at") && !route.includes(".delete("));
+  ok("en terugzetten kan ook", route.includes("archived_at: body.archived ?"));
+
+  // Het label mag nooit een cluster van een ander merk oppikken.
+  const patch = leesBestand("app/api/analyses/[id]/route.ts");
+  ok("een label moet bij hetzelfde merk horen", patch.includes('.eq("profile_id", analysis.profile_id)'));
+  const labels = leesBestand("app/api/profiles/[id]/labels/route.ts");
+  ok("de labelroute controleert het eigenaarschap", labels.includes("getOwnedProfile"));
+});
+
+group("een label hernoemen raakt één rij, weggooien raakt geen cluster", () => {
+  const beheer = leesBestand("app/api/profiles/[id]/labels/[labelId]/route.ts");
+  ok("hernoemen kan", beheer.includes("export async function PATCH"));
+  ok("weggooien kan", beheer.includes("export async function DELETE"));
+  ok("allebei via het eigen merk", beheer.includes("getOwnedProfile"));
+  // ⚠️ Zonder het merk IN de query kan iemand met twee merken een label-id van
+  // merk B meesturen op het adres van merk A.
+  ok("het merk staat in de query", beheer.includes('.eq("profile_id", profileId)'));
+  // Hernoemen is één update op `cluster_labels`, nooit een ronde langs de
+  // clusters: die wijzen naar het id en verhuizen vanzelf mee.
+  ok("hernoemen raakt de clusters niet aan", !beheer.includes('from("analyses")'));
+
+  // De belofte van de bevestiging: geen cluster gaat mee. Dat is `on delete set
+  // null` in migratie 0083, en die vorm hoort er te blijven staan.
+  const migratie = leesBestand("supabase/migrations/0083_clusterlabels.sql");
+  ok(
+    "een label weggooien laat de clusters staan",
+    migratie.includes("references public.cluster_labels (id) on delete set null"),
+  );
+
+  const paneel = leesBestand("app/(app)/merk/[id]/strategie/clusters/label-beheer.tsx");
+  ok("de bevestiging zegt dat de clusters blijven staan", paneel.includes("blijven gewoon staan"));
+  // Wél terug te draaien, dus niet in het rode kader dat zegt van niet.
+  ok("en gebruikt het onomkeerbaar-blok niet", !paneel.includes("irreversible={"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

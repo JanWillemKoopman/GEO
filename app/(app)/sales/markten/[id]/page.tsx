@@ -11,7 +11,13 @@ import { StartOnderzoek } from "./start-onderzoek";
 import { Vragenlijst, type VraagRegel } from "./vragenlijst";
 import { Meetuitkomst, type ScoreRegel } from "./meetuitkomst";
 import { Marktacties } from "./marktacties";
-import { EUR_TO_USD } from "@/lib/sales/budget";
+import { Procesbalk } from "./procesbalk";
+import { HermetingPlannen } from "./hermeting-plannen";
+import { OnbekendeNamen } from "./onbekende-namen";
+import { EUR_TO_USD, besteedAanMarkt, raamMeetronde } from "@/lib/sales/budget";
+import { bouwFases, procesSamenvatting, loopterIets, type TaakTelling } from "@/lib/sales/proces";
+import { groepeerOnbekend } from "@/lib/sales/onbekend";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { Intentie } from "@/lib/sales/intents";
 
 export const dynamic = "force-dynamic";
@@ -42,7 +48,7 @@ export default async function SalesMarktPage({
   const { data: markt } = await supabase
     .from("sales_markets")
     .select(
-      "id, slug, label, industry, location, radius_km, status, approved_at, conflict_note, discovery_note, failure_reason, is_public, published_run_id",
+      "id, slug, label, industry, location, radius_km, status, approved_at, conflict_note, discovery_note, failure_reason, is_public, published_run_id, remeasure_at, remeasure_note",
     )
     .eq("id", id)
     .maybeSingle();
@@ -200,14 +206,60 @@ export default async function SalesMarktPage({
       stderr: Number(s.stderr ?? 0),
     }));
 
-    onbekendeNamen = Array.from(
-      new Set(
-        ((antwoordRijen ?? []) as { unknown_names: string[] | null }[]).flatMap(
-          (a) => a.unknown_names ?? [],
-        ),
-      ),
-    ).slice(0, 40);
+    // ⚠️ NIET ontdubbeld: hoe vaak een naam genoemd is, is het signaal.
+    // `groepeerOnbekend()` telt en sorteert, en zet fabrikanten en platforms
+    // apart. Feenstra werd drie keer genoemd en verdween tussen de rest.
+    onbekendeNamen = ((antwoordRijen ?? []) as { unknown_names: string[] | null }[]).flatMap(
+      (a) => a.unknown_names ?? [],
+    );
   }
+
+  // ── Wat er op dit moment draait ─────────────────────────────────────────
+  //
+  // De taken staan in `jobs`, en die tabel heeft nul leesregels: hij is alleen
+  // via de service-role te lezen (migratie 0013). Dat is hier geen omweg maar
+  // precies de bedoeling: een klant hoort nooit te kunnen zien welke taken er
+  // draaien, en dit scherm zit al achter de salespoort in de layout.
+  const service = createAdminClient();
+  const [{ data: taakRijen }, kostenUsd] = await Promise.all([
+    service.from("jobs").select("type, status").eq("sales_market_id", id).limit(2000),
+    besteedAanMarkt(service, id),
+  ]);
+
+  const taken: Record<string, TaakTelling> = {};
+  for (const rij of (taakRijen ?? []) as { type: string; status: string }[]) {
+    const t = (taken[rij.type] ??= { wachtend: 0, bezig: 0, klaar: 0, mislukt: 0 });
+    if (rij.status === "queued") t.wachtend++;
+    else if (rij.status === "running") t.bezig++;
+    else if (rij.status === "done") t.klaar++;
+    else if (rij.status === "failed") t.mislukt++;
+  }
+
+  const kansenTotaal = scores.length > 0 || run?.status === "klaar" ? await telKansen(service, id) : null;
+  const antwoordenTeller =
+    run && (run.status === "meet" || run.status === "klaar")
+      ? await telAntwoorden(service, run.id)
+      : 0;
+
+  const fases = bouwFases({
+    marktStatus: markt.status as string,
+    rondeStatus: run?.status ?? null,
+    rondeNr: run?.round_no ?? 1,
+    bedrijvenGevonden: bedrijven.length,
+    bedrijvenMee: bedrijven.filter((b) => b.included !== false).length,
+    bedrijvenOnbeoordeeld: bedrijven.filter((b) => b.included === null).length,
+    crawlKlaar: bedrijven.filter((b) => b.crawlStatus === "gelukt").length,
+    crawlMislukt: bedrijven.filter((b) => b.crawlStatus === "niet_gelukt").length,
+    vragen: run?.question_count ?? 0,
+    antwoorden: antwoordenTeller,
+    antwoordenVerwacht:
+      (run?.question_count ?? 0) * Math.max(1, (run?.engines ?? []).filter((e) => e !== "alle").length),
+    kansen: kansenTotaal?.totaal ?? 0,
+    kansenGeschreven: kansenTotaal?.geschreven ?? 0,
+    taken,
+    isPublic: Boolean(markt.is_public),
+    heeftRapport,
+  });
 
   const status = markt.status as string;
   const fase = marktFase({ status, approved_at: markt.approved_at as string | null });
@@ -220,6 +272,16 @@ export default async function SalesMarktPage({
         eyebrow={fase.label}
         title={markt.label as string}
         description={`${markt.industry as string} in ${markt.location as string}, ${markt.radius_km as number} km eromheen. ${fase.uitleg}`}
+      />
+
+      {/* Wat er nu gebeurt, en waar het op wacht. Bovenaan, want dat is de
+          vraag waarmee iemand dit scherm opent. */}
+      <Procesbalk
+        fases={fases}
+        samenvatting={procesSamenvatting(fases)}
+        actief={loopterIets(fases)}
+        kostenUsd={kostenUsd}
+        ronde={run?.round_no ?? 1}
       />
 
       {/* ⚠️ Bovenaan, vóór de lijst. Wie onderaan begint met afvinken, leest de
@@ -259,13 +321,34 @@ export default async function SalesMarktPage({
       )}
 
       {run?.status === "klaar" && (
-        <Marktacties
-          marketId={id}
-          slug={markt.slug as string}
-          isPublic={Boolean(markt.is_public)}
-          heeftRapport={heeftRapport}
-          magHermeten={Boolean(admin)}
-        />
+        <div className="flex flex-col gap-4">
+          <Marktacties
+            marketId={id}
+            slug={markt.slug as string}
+            isPublic={Boolean(markt.is_public)}
+            heeftRapport={heeftRapport}
+            magHermeten={Boolean(admin)}
+          />
+          {admin && (
+            <div className="card">
+              <HermetingPlannen
+                marketId={id}
+                gepland={
+                  markt.remeasure_at ? (markt.remeasure_at as string).slice(0, 10) : null
+                }
+                notitie={(markt.remeasure_note as string | null) ?? null}
+                ramingEur={Number(
+                  (
+                    raamMeetronde(
+                      run.question_count ?? 0,
+                      Math.max(1, (run.engines ?? []).filter((e) => e !== "alle").length),
+                    ) / EUR_TO_USD
+                  ).toFixed(2),
+                )}
+              />
+            </div>
+          )}
+        </div>
       )}
 
       {scores.length > 0 && (
@@ -273,9 +356,13 @@ export default async function SalesMarktPage({
           scores={scores}
           engines={(run?.engines ?? []).filter((e) => e !== "alle")}
           notitie={run?.notes ?? null}
-          onbekendeNamen={onbekendeNamen}
+          onbekendeNamen={[]}
         />
       )}
+
+      {/* Apart van de meetuitkomst, want hier valt iets te DOEN: een gemist
+          bedrijf alsnog meenemen. */}
+      <OnbekendeNamen marketId={id} namen={groepeerOnbekend(onbekendeNamen)} />
 
       {bedrijven.length === 0 ? (
         <EmptyState title="Nog geen bedrijven">
@@ -296,4 +383,34 @@ export default async function SalesMarktPage({
       )}
     </div>
   );
+}
+
+/** Hoeveel kansen heeft deze markt, en hoeveel daarvan hebben een geschreven reden? */
+async function telKansen(
+  service: ReturnType<typeof createAdminClient>,
+  marketId: string,
+): Promise<{ totaal: number; geschreven: number }> {
+  const { data } = await service
+    .from("sales_opportunities")
+    .select("hook_source")
+    .eq("market_id", marketId)
+    .is("superseded_by", null);
+
+  const rijen = (data ?? []) as { hook_source: string | null }[];
+  return {
+    totaal: rijen.length,
+    geschreven: rijen.filter((r) => r.hook_source === "model").length,
+  };
+}
+
+/** Hoeveel antwoorden zijn er al binnen voor deze ronde? */
+async function telAntwoorden(
+  service: ReturnType<typeof createAdminClient>,
+  runId: string,
+): Promise<number> {
+  const { count } = await service
+    .from("sales_answers")
+    .select("id", { count: "exact", head: true })
+    .eq("run_id", runId);
+  return count ?? 0;
 }

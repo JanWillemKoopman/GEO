@@ -1,4 +1,13 @@
--- 0083: de bestaande pagina als bron, en het verbeterplan dat eruit volgt
+-- 0086: de bestaande pagina als bron, en het verbeterplan dat eruit volgt
+--
+-- ⚠️ DIT BESTAND HEETTE 0083 TOEN HET WERD TOEGEPAST. Op 2 september 2026 waren
+-- er drie takken tegelijk die 0083 claimden (clusterlabels, sales-procesinzicht
+-- en deze), en de andere twee waren als eerste op `main`. Op productie draait
+-- deze migratie daarom onder het label `0083_verbeterplan_bestaande_pagina`; het
+-- bestandsnummer is bij het samenvoegen opgeschoven naar 0086, achter
+-- `0085_sales_bewijs_en_conceptbron`. Zelfde soort verschuiving als bij
+-- `0081_sales_publiceren`, dat tot 31 augustus 0074 heette. De inhoud is
+-- ongewijzigd en idempotent, dus opnieuw toepassen is een no-op.
 --
 -- ── WAT DIT OPLOST ──────────────────────────────────────────────────────────
 --

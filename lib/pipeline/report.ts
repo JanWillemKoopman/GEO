@@ -14,7 +14,7 @@ import { GapAnalysis } from "@/lib/schemas/gap-analysis";
 import { Report } from "@/lib/schemas/report";
 import { NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { resolveTargets, mergeOverlappingRecommendations } from "@/lib/pipeline/recommendation";
-import { reconcileRecommendations } from "@/lib/pipeline/page-match";
+import { reconcileExistingPageActions } from "@/lib/pipeline/existing-page-match";
 import { correctQuestionCount, questionCountLine } from "@/lib/pipeline/report-summary";
 import {
   buildEvidenceDossier,
@@ -91,7 +91,7 @@ const REPORT_SYSTEM =
   'alleen "verbeteren" als een pagina uit de lijst daadwerkelijk over hetzelfde onderwerp gaat. ' +
   // 2 september 2026: 32 van de 70 nieuw-aanbevelingen droegen tóch een adres,
   // en 3 verbeter-adressen waren verzonnen paden die nooit bestaan hebben. Het
-  // vangnet staat in `page-match.ts`; deze twee zinnen zijn de instructie
+  // vangnet staat in `existing-page-match.ts`; deze twee zinnen zijn de instructie
   // ervoor, want een vangnet dat elke ronde moet repareren is een pleister.
   "NEEM HET ADRES LETTERLIJK OVER uit de paginalijst hieronder, teken voor teken, inclusief " +
   "https:// en het domein. Verzin nooit een pad, en kies geen pagina die niet in die lijst staat. " +
@@ -853,16 +853,36 @@ export async function generateReport(
       resolveTargets(report.parsed.recommendations, missed),
     );
 
+    // ── Bestaat dit al op de website? (docs/logbook.md 1 september 2026) ───
+    // Het deterministische vangnet onder de nieuw/verbeteren-instructie in
+    // REPORT_SYSTEM: rekent zelf na tegen de crawl in plaats van te vertrouwen
+    // op wat het model beweert (conventie 1). Voorkomt zowel een verzonnen
+    // `existingUrl` als een "nieuwe" pagina die de site al ruim dekt.
+    const { recommendations: gecontroleerd, overrides: paginaCorrecties } =
+      reconcileExistingPageActions(
+        enriched,
+        pages.map((p) => ({ url: p.url, title: p.title, text: p.text_excerpt })),
+      );
+    if (paginaCorrecties.length > 0) {
+      console.warn(
+        `Analyse ${id} periode ${weekNo}: ${paginaCorrecties.length} aanbeveling(en) ` +
+          `gecorrigeerd tegen de bestaande website: ` +
+          paginaCorrecties
+            .map((o) => `"${o.title}" (${o.from} → ${o.to}, ${o.reason})`)
+            .join("; "),
+      );
+    }
+
     // ── Claimvalidatie (implementatieplan.md R1.3) ─────────────────────────
     // Het deterministische vangnet onder R1.1/R1.2: elke concurrentnaam moet
     // voorkomen in het bewijs van de vraag waaraan hij hangt. Wat dat niet
     // haalt, gaat eruit, en wordt bewaard, zodat te zien is of de instructie
     // uit R1.2 streng genoeg is.
-    const { recommendations: validated, gaps, stripped } = await validateReportClaims(
+    const { recommendations, gaps, stripped } = await validateReportClaims(
       admin,
       {
         profileId: analysis.profile_id,
-        recommendations: enriched,
+        recommendations: gecontroleerd,
         gaps: report.parsed.gaps,
         dossier,
       },
@@ -871,30 +891,6 @@ export async function generateReport(
       console.warn(
         `Analyse ${id} periode ${weekNo}: ${stripped.length} niet-onderbouwde bewering(en) ` +
           `uit het rapport verwijderd. Zie reports.stripped_claims_json.`,
-      );
-    }
-
-    // ── De handeling nieuw of verbeteren narekenen (conventie 1) ───────────
-    //
-    // Zie `page-match.ts` voor de cijfers waarop dit rust. Dit is het vangnet
-    // onder de instructie in `REPORT_SYSTEM`: een verbeter-adres wordt opgelost
-    // tegen de echte inventaris (op pad, niet op letterlijke tekst), een adres
-    // dat niet bestaat degradeert naar `nieuw`, en een nieuwe pagina die naast
-    // een bestaande pagina over hetzelfde onderwerp komt, draagt die pagina
-    // voortaan mee.
-    const nagerekend = reconcileRecommendations({
-      recommendations: validated,
-      pages: pages.map((p) => ({
-        url: p.url,
-        title: p.title,
-        text: p.text_excerpt ?? "",
-      })),
-    });
-    const recommendations = nagerekend.recommendations;
-    for (const fix of nagerekend.fixes) {
-      console.info(
-        `Analyse ${id} periode ${weekNo}: aanbeveling "${fix.title}" van ${fix.van} naar ` +
-          `${fix.naar}, ${fix.reden}.`,
       );
     }
 

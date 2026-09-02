@@ -35,7 +35,7 @@ export interface StoredRecommendation {
   existingUrl: string | null;
   /**
    * Een bestaande pagina die dit onderwerp AL raakt, terwijl de handeling toch
-   * `nieuw` is (`page-match.ts`, O2).
+   * `nieuw` is (`existing-page-match.ts`).
    *
    * Dit is geen tweede `existingUrl`. `existingUrl` zegt "deze pagina wordt
    * vervangen"; `relatedUrl` zegt "hier staat al iets, doe het niet nog eens

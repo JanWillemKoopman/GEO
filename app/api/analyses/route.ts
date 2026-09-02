@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { buildAnalysisName } from "@/lib/url";
+import { normaliseerLabelnaam, vindLabel } from "@/lib/cluster-labels";
+import type { ClusterLabel } from "@/lib/types/database";
 
 /**
  * POST /api/analyses, nieuwe analyse aanmaken (abcplan.md §6 A0, na de
@@ -18,7 +20,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
   }
 
-  let body: { profileId?: string; topic?: string; content_brief?: string; notify_by_email?: boolean };
+  let body: {
+    profileId?: string;
+    topic?: string;
+    content_brief?: string;
+    notify_by_email?: boolean;
+    label_id?: string;
+    label_name?: string;
+  };
   try {
     body = await request.json();
   } catch {
@@ -50,6 +59,49 @@ export async function POST(request: Request) {
     );
   }
 
+  // ── Het label (migratie 0083) ────────────────────────────────────────────
+  //
+  // Twee wegen naar dezelfde uitkomst: een bestaand label kiezen (`label_id`)
+  // of er hier één bedenken (`label_name`). Die tweede is "vind of maak", zodat
+  // wie "Onderhoud" typt terwijl dat label al bestaat bij het bestaande label
+  // uitkomt en niet bij een tweede groep met dezelfde naam.
+  //
+  // Een label dat niet lukt, blokkeert het aanmaken van het cluster niet: het
+  // cluster is wat de klant wilde, het label is ordening. Vandaar `null` bij
+  // twijfel (conventie 3) in plaats van een foutmelding over een woord.
+  let labelId: string | null = null;
+  if (typeof body.label_id === "string" && body.label_id) {
+    const { data: label } = await admin
+      .from("cluster_labels")
+      .select("id")
+      .eq("id", body.label_id)
+      .eq("profile_id", profile.id)
+      .maybeSingle();
+    if (!label) {
+      return NextResponse.json({ error: "Dit label hoort niet bij dit merk." }, { status: 400 });
+    }
+    labelId = body.label_id;
+  } else {
+    const naam = normaliseerLabelnaam(body.label_name);
+    if (naam) {
+      const { data: bestaand } = await admin
+        .from("cluster_labels")
+        .select("*")
+        .eq("profile_id", profile.id);
+      const alDaar = vindLabel((bestaand ?? []) as ClusterLabel[], naam);
+      if (alDaar) {
+        labelId = alDaar.id;
+      } else {
+        const { data: nieuw } = await admin
+          .from("cluster_labels")
+          .insert({ profile_id: profile.id, name: naam })
+          .select("id")
+          .single();
+        labelId = (nieuw?.id as string | undefined) ?? null;
+      }
+    }
+  }
+
   const name = buildAnalysisName(profile.url, topic);
 
   const { data, error } = await admin
@@ -63,6 +115,7 @@ export async function POST(request: Request) {
       name,
       status: "bezig",
       content_brief: contentBrief,
+      label_id: labelId,
     })
     .select("id")
     .single();

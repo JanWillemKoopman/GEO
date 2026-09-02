@@ -89,7 +89,7 @@ export interface ContractInput {
   analysisId: string;
   profileId: string;
   /**
-   * De tekst van de pagina die verbeterd wordt (O3, `existing-page.ts`). Vers
+   * De tekst van de pagina die verbeterd wordt (O3, `existing-page-fetch.ts`). Vers
    * opgehaald bij het plannen, tot 6000 tekens. `null` bij een nieuwe pagina, en
    * dan blijft het oordeel per sectie op `niet_van_toepassing` staan.
    */
