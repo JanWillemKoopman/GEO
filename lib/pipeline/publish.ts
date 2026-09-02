@@ -79,11 +79,14 @@ export async function markPublished(
 export async function verifyPublication(admin: Admin, contentPieceId: string): Promise<PublishCheck | null> {
   const { data } = await admin
     .from("content_pieces")
-    .select("published_url, body_markdown, schema_jsonld")
+    .select("analysis_id, published_url, body_markdown, schema_jsonld")
     .eq("id", contentPieceId)
     .maybeSingle();
 
-  const piece = data as Pick<ContentPiece, "published_url" | "body_markdown" | "schema_jsonld"> | null;
+  const piece = data as Pick<
+    ContentPiece,
+    "analysis_id" | "published_url" | "body_markdown" | "schema_jsonld"
+  > | null;
   if (!piece?.published_url) {
     console.warn(`Pagina ${contentPieceId} heeft geen publicatie-URL; controle overgeslagen.`);
     return null;
@@ -95,12 +98,55 @@ export async function verifyPublication(admin: Admin, contentPieceId: string): P
     schemaJsonLd: piece.schema_jsonld,
   });
 
+  // ── T3.2: de uitkomst van de controle iets laten doen ────────────────────
+  //
+  // Op 2 september 2026 schreef deze controle voor `https://www.example.com/`
+  // netjes op dat de pagina onbereikbaar was of onze tekst er niet op stond, en
+  // gebeurde er daarna niets: de stand bleef `published`. Een pagina die niet
+  // aantoonbaar live staat, staat niet aantoonbaar live: terug naar "nog niet
+  // gepubliceerd", met de reden in de opmerkingen zodat de klant weet wat hij
+  // moet rechtzetten.
+  if (!check.reachable || !check.textFound) {
+    await admin
+      .from("content_pieces")
+      .update({
+        status: "ready" as const,
+        published_at: null,
+        // Het geprobeerde adres blijft staan (in plaats van `markUnpublished`,
+        // dat het wist): de klant hoeft het dan niet opnieuw te typen om de
+        // fout te herstellen.
+        publish_check_json: check as never,
+        publish_checked_at: check.checkedAt,
+        needs_review: true,
+        review_notes: check.problems.map((p) => `Publicatie mislukt: ${p}`),
+      })
+      .eq("id", contentPieceId);
+
+    if (piece.analysis_id) await removeQueuedImpactJobs(admin, piece.analysis_id, contentPieceId);
+    return check;
+  }
+
   await admin
     .from("content_pieces")
     .update({ publish_check_json: check as never, publish_checked_at: check.checkedAt })
     .eq("id", contentPieceId);
 
   return check;
+}
+
+/**
+ * De geplande hermetingen weghalen: meten wat een pagina doet die er niet
+ * staat, is geld uitgeven aan ruis. Alleen wat nog niet gedraaid heeft,
+ * metingen die er al zijn, blijven staan als historie.
+ */
+async function removeQueuedImpactJobs(admin: Admin, analysisId: string, contentPieceId: string): Promise<void> {
+  await admin
+    .from("jobs")
+    .delete()
+    .eq("analysis_id", analysisId)
+    .eq("status", "queued")
+    .in("type", ["measure_impact", "compute_impact"])
+    .contains("payload_json", { contentPieceId });
 }
 
 /** Publicatie terugdraaien, de klant heeft zich vergist of de pagina is offline. */
@@ -120,14 +166,5 @@ export async function markUnpublished(
     .eq("id", args.contentPieceId)
     .eq("analysis_id", args.analysisId);
 
-  // De geplande hermetingen weghalen: meten wat een pagina doet die er niet
-  // staat, is geld uitgeven aan ruis. Alleen wat nog niet gedraaid heeft,
-  // metingen die er al zijn, blijven staan als historie.
-  await admin
-    .from("jobs")
-    .delete()
-    .eq("analysis_id", args.analysisId)
-    .eq("status", "queued")
-    .in("type", ["measure_impact", "compute_impact"])
-    .contains("payload_json", { contentPieceId: args.contentPieceId });
+  await removeQueuedImpactJobs(admin, args.analysisId, args.contentPieceId);
 }

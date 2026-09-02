@@ -6152,6 +6152,92 @@ async function main(): Promise<void> {
     await db.client.query("delete from public.profiles where id = $1", [poortProfiel]);
 
     // ══════════════════════════════════════════════════════════════════════
+    // HERSTELPLAN NA AUDIT T3.2: de controle op de publicatie grijpt in
+    //
+    // Op 2 september 2026 schreef `verify_publication` voor een onbereikbare
+    // pagina netjes op wat er mis was, en gebeurde er daarna niets: de stand
+    // bleef 'published'. Deze test toont aan dat de pagina nu terugvalt op
+    // 'nog niet gepubliceerd', met de reden in `review_notes`, en dat de nog
+    // niet gedraaide hermetingen worden opgeruimd (meten wat een pagina doet
+    // die er niet staat, is geld uitgeven aan ruis).
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nDe publicatiecontrole zet een mislukte publicatie terug (T3.2)");
+
+    const t3Profiel = randomUUID();
+    await db.client.query(
+      `insert into public.profiles (id, user_id, name, url, status)
+       values ($1, $2, 'T3-merk', 'https://t3-merk.nl', 'klaar')`,
+      [t3Profiel, userId],
+    );
+    const { rows: t3Analyses } = await db.client.query(
+      `insert into public.analyses (user_id, profile_id, url, topic, name, status)
+       values ($1, $2, 'https://t3-merk.nl', 'onderhoud', 'Onderhoud', 'gereed') returning id`,
+      [userId, t3Profiel],
+    );
+    const t3AnalysisId = t3Analyses[0].id as string;
+
+    const t3PublishedUrl = "https://t3-merk.nl/onderhoud";
+    const { rows: t3Pagina } = await db.client.query(
+      `insert into public.content_pieces
+         (analysis_id, type, title, status, action, body_markdown, needs_review,
+          published_at, published_url)
+       values ($1, 'article', 'Onderhoud aan je installatie', 'published', 'nieuw',
+               'Dit is de eerste zin die lang genoeg is om als controlezin te dienen bij het testen.',
+               false, now(), $2)
+       returning id`,
+      [t3AnalysisId, t3PublishedUrl],
+    );
+    const t3PieceId = t3Pagina[0].id as string;
+
+    // Een hermeting die nog moet draaien: die hoort te verdwijnen zodra de
+    // publicatie mislukt blijkt (meten wat er niet staat is geld voor ruis).
+    await db.client.query(
+      `insert into public.jobs (analysis_id, type, payload_json, dedupe_key, status)
+       values ($1, 'measure_impact', $2, $3, 'queued')`,
+      [t3AnalysisId, { contentPieceId: t3PieceId }, `impact:${t3PieceId}:w1`],
+    );
+
+    const { verifyPublication } = await import("@/lib/pipeline/publish");
+
+    const t3OrigineleFetch = globalThis.fetch;
+    globalThis.fetch = (async (_input: RequestInfo | URL) => ({
+      ok: false,
+      status: 404,
+      headers: new Headers(),
+      text: async () => "",
+    })) as typeof globalThis.fetch;
+
+    try {
+      const t3Check = await verifyPublication(admin as never, t3PieceId);
+      ok("de controle meldt onbereikbaar", t3Check?.reachable === false);
+
+      const { rows: t3Na } = await db.client.query(
+        `select status, published_at, needs_review, review_notes
+           from public.content_pieces where id = $1`,
+        [t3PieceId],
+      );
+      ok("de pagina valt terug op 'nog niet gepubliceerd'", t3Na[0]?.status === "ready");
+      ok("de publicatiedatum is weg", t3Na[0]?.published_at === null);
+      ok("de pagina staat weer op nakijken", t3Na[0]?.needs_review === true);
+      const t3Notes = (t3Na[0]?.review_notes ?? []) as string[];
+      ok(
+        "de reden staat in de opmerkingen",
+        t3Notes.some((n) => n.includes("Publicatie mislukt")),
+        t3Notes.join(" | "),
+      );
+
+      const { rows: t3Jobs } = await db.client.query(
+        `select id from public.jobs where analysis_id = $1 and type = 'measure_impact' and status = 'queued'`,
+        [t3AnalysisId],
+      );
+      ok("de nog niet gedraaide hermeting is opgeruimd", t3Jobs.length === 0);
+    } finally {
+      globalThis.fetch = t3OrigineleFetch;
+    }
+
+    await db.client.query("delete from public.profiles where id = $1", [t3Profiel]);
+
+    // ══════════════════════════════════════════════════════════════════════
     console.log("\nDe Sales-module: de scheiding met de klantomgeving (migratie 0068)");
 
     {

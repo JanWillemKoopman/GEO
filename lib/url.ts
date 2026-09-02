@@ -69,6 +69,26 @@ export function checkUrlFormat(input: string): UrlCheck {
   return { ok: true };
 }
 
+/**
+ * ── Publiceren op het juiste domein (herstelplan na audit T3.1) ─────────────
+ *
+ * Op 2 september 2026 gaf de publiceerroute een 202 voor `https://www.example.com/`
+ * bij een pagina die niets met dat merk te maken had: er werd alleen de VORM van
+ * het adres gecontroleerd (`checkUrlFormat`), nooit of het adres bij het merk
+ * hoort. Deze functie toetst dat wél: het gepubliceerde adres moet het domein
+ * van het merk zijn, of een subdomein daarvan (bv. `blog.merk.nl` mag,
+ * `merk.nl.evil.com` en `nietmerk.nl` niet).
+ *
+ * `www` telt niet als subdomein: `normalizeUrl` strippt die al, dus
+ * `www.merk.nl` en `merk.nl` zijn voor deze vergelijking hetzelfde adres.
+ */
+export function isOnBrandDomain(publishedUrl: string, profileUrl: string): boolean {
+  const publishedHost = normalizeUrl(publishedUrl)?.split("/")[0] ?? null;
+  const brandHost = normalizeUrl(profileUrl)?.split("/")[0] ?? null;
+  if (!publishedHost || !brandHost) return false;
+  return publishedHost === brandHost || publishedHost.endsWith(`.${brandHost}`);
+}
+
 /** Bouwt de auto-gegenereerde analysenaam (abcplan.md §3.4). */
 export function buildAnalysisName(url: string, topic: string | null): string {
   return topic && topic.trim() ? `${url} · ${topic.trim()}` : `${url} (hele site)`;

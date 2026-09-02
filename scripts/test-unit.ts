@@ -61,7 +61,7 @@ import { compare, deltaOf, thresholdOf, verdictOf, minQuestionsForSignal } from 
 import { buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change-format";
 import type { PeriodChange } from "@/lib/pipeline/period-change-format";
 import { domainOf } from "@/lib/offsite/domain";
-import { checkUrlFormat } from "@/lib/url";
+import { checkUrlFormat, isOnBrandDomain } from "@/lib/url";
 import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import { formatEvidenceDossier, excerpt } from "@/lib/pipeline/evidence-format";
@@ -1549,6 +1549,43 @@ group("webadres controleren", () => {
   ok("leeg wordt geweigerd", !checkUrlFormat("").ok);
   ok("spaties worden geweigerd", !checkUrlFormat("voor beeld.nl").ok);
   ok("e-mailadres wordt geweigerd", !checkUrlFormat("jan@voorbeeld.nl").ok);
+});
+
+// Herstelplan na audit T3.1: op 2 september 2026 gaf de publiceerroute een 202
+// voor https://www.example.com/, een adres dat niets met het merk te maken had.
+group("publiceren mag alleen op het domein van het merk (T3.1)", () => {
+  ok("hetzelfde domein mag", isOnBrandDomain("https://voorbeeld.nl/pagina", "voorbeeld.nl"));
+  ok("www telt niet als ander domein", isOnBrandDomain("https://www.voorbeeld.nl/pagina", "voorbeeld.nl"));
+  ok(
+    "en andersom: het merk staat met www, de pagina niet",
+    isOnBrandDomain("https://voorbeeld.nl/pagina", "www.voorbeeld.nl"),
+  );
+  ok("een subdomein van het merk mag", isOnBrandDomain("https://blog.voorbeeld.nl/pagina", "voorbeeld.nl"));
+
+  ok("een heel ander domein mag niet", !isOnBrandDomain("https://www.example.com/", "voorbeeld.nl"));
+  ok(
+    "een domein dat het merk alleen als achtervoegsel bevat mag niet",
+    !isOnBrandDomain("https://nietvoorbeeld.nl", "voorbeeld.nl"),
+  );
+  ok(
+    "een domein dat het merk als voorvoegsel misbruikt mag niet",
+    !isOnBrandDomain("https://voorbeeld.nl.evil.com", "voorbeeld.nl"),
+  );
+  ok("zonder bekend merkdomein mag niets", !isOnBrandDomain("https://voorbeeld.nl", ""));
+});
+
+// De domeincontrole en de needs_review-blokkade zitten in de route zelf (niet
+// in een pure functie): een Next.js routehandler met `getUser()`/cookies is in
+// deze codebase niet los te draaien in een test, dus deze bedrading wordt
+// gelezen, net als bij de `mayTriggerCost`-controles (T4).
+group("de publiceerroute weigert een fout domein en een pagina die nog nagekeken moet worden (T3.1/T3.3)", () => {
+  const route = leesBestand("app/api/analyses/[id]/content/[pieceId]/publish/route.ts");
+  ok("de route kent het profiel op via de analyse", route.includes("analysis.profile_id"));
+  ok("en toetst het adres aan het domein van het merk", route.includes("isOnBrandDomain(url, brandUrl)"));
+  ok(
+    "een pagina die nog nagekeken moet worden wordt geweigerd, vóór de domeincontrole",
+    route.indexOf("piece.needs_review") < route.indexOf("isOnBrandDomain("),
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════
