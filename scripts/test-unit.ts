@@ -14350,6 +14350,13 @@ group("gelijke scores worden niet als rangorde gepresenteerd", () => {
   const verschillend = grootsteGelijkspel([93, 90, 86, 82]);
   eq2("bij verschillende scores is er geen gelijkspel", verschillend.aantal, 0);
 
+  // ⚠️ Het scherm geeft alleen de BOVENSTE tien mee. Onderaan een lijst staan
+  // altijd groepen met hetzelfde lage cijfer (26 bedrijven zonder website op 29,
+  // om precies te zijn), en daar hoeft niemand voor gewaarschuwd te worden.
+  const alleenTop = grootsteGelijkspel([93, 93, 90, 86, 82, 77, 63, 61, 55, 46]);
+  eq2("bovenaan delen er twee dezelfde score", alleenTop.aantal, 2);
+  eq2("en dat is 93", alleenTop.score, 93);
+
   // De volgorde binnen dezelfde score is vast: bewijs, dan commercieel, dan naam.
   const a = { score: 76, breakdown: { bewijssterkte: 20, commercieel: 16 }, naam: "Bakker" };
   const b = { score: 76, breakdown: { bewijssterkte: 12, commercieel: 20 }, naam: "Alders" };

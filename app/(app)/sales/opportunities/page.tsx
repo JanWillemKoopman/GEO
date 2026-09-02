@@ -84,10 +84,11 @@ export default async function SalesOpportunitiesPage() {
     ),
   );
 
-  // Hoeveel bedrijven delen de meest voorkomende score? Bij de eerste echte
-  // markt waren dat er zeven op exact 76, en het scherm zette ze onder elkaar
-  // alsof de bovenste de beste was.
-  const gelijkspel = grootsteGelijkspel(kansen.map((k) => k.score));
+  // Hoeveel bedrijven delen dezelfde score BOVENAAN? Alleen de eerste tien
+  // tellen mee: daar begint een verkoper, en daar doet een schijnbare rangorde
+  // kwaad. Onderaan de lijst staan altijd groepen met hetzelfde lage cijfer, en
+  // daar hoeft niemand voor gewaarschuwd te worden.
+  const gelijkspel = grootsteGelijkspel(kansen.slice(0, 10).map((k) => k.score));
 
   // De markten waar een klant van ons in zit. Geen blokkade, wel een melding
   // (besluit van de eigenaar, 1 september 2026).
@@ -128,9 +129,9 @@ export default async function SalesOpportunitiesPage() {
               suggereerde een rangorde die er niet was. */}
           {gelijkspel.aantal >= 3 && (
             <p className="card text-secondary">
-              {gelijkspel.aantal} bedrijven delen score {gelijkspel.score}. De meting geeft over
-              deze bedrijven hetzelfde beeld, dus de volgorde daarbinnen zegt niets. Kies op wat je
-              zelf van het bedrijf weet.
+              Bovenaan delen {gelijkspel.aantal} bedrijven score {gelijkspel.score}. De meting
+              geeft over die bedrijven hetzelfde beeld, dus de volgorde daarbinnen zegt niets. Kies
+              op wat je zelf van het bedrijf weet.
             </p>
           )}
 
