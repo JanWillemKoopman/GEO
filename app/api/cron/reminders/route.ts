@@ -53,12 +53,18 @@ export async function GET(request: Request) {
   const sent: { id: string; waiting: number }[] = [];
 
   for (const row of (analysisRows ?? []) as Analysis[]) {
+    // ⚠️ Herstelplan na audit T1.2: `status: "ready"` alleen is niet genoeg. Een
+    // pagina waarvan de eindredactie nog iets zag (`needs_review = true`) is
+    // niet klaar om te publiceren, en een herinnering "je hebt pagina's die
+    // wachten op publiceren" zou de klant dan naar iets sturen dat een mens nog
+    // moet nakijken (zie §S6 in de approve-route).
     const { data: waitingRows } = await admin
       .from("content_pieces")
       .select("id")
       .eq("analysis_id", row.id)
       .eq("is_current", true)
       .eq("status", "ready")
+      .eq("needs_review", false)
       .is("published_at", null)
       .lt("created_at", cutoff);
 

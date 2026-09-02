@@ -29,6 +29,13 @@ export interface LibraryRow {
   title: string;
   type: string;
   status: string;
+  /**
+   * Herstelplan na audit T1.2: `status: "ready"` betekent "de pijplijn is
+   * klaar", niet "een mens hoeft niets meer te doen" (zie de toelichting bij
+   * `app/api/analyses/[id]/content/[pieceId]/approve/route.ts`, §S6). Zonder
+   * dit veld telde de kerncijferbalk zo'n pagina toch mee als vrijgavereerd.
+   */
+  needsReview: boolean;
   geoScore: number | null;
   publishedUrl: string | null;
   createdAt: string;
@@ -115,11 +122,16 @@ export interface LibraryTotals {
  * het totaal vormen zou suggereren dat het drie losse stapels zijn, en dan telt
  * een klant ze op en komt uit op meer pagina's dan hij heeft. Dit is een trechter:
  * geschreven → klaar → live.
+ *
+ * ⚠️ "Klaar voor vrijgave" telt bewust niet elke `status: "ready"` mee: een
+ * pagina waarvan de eindredactie nog iets zag (`needsReview`) is niet vrij te
+ * geven zonder dat een mens hem eerst nakijkt (T1.2). Vóór deze wijziging telde
+ * zo'n pagina toch mee, en zag de klant een hoger cijfer dan er echt klaarstond.
  */
 export function libraryTotals(rows: LibraryRow[]): LibraryTotals {
   return {
     geschreven: rows.length,
-    klaarVoorVrijgave: rows.filter((r) => r.status === "ready").length,
+    klaarVoorVrijgave: rows.filter((r) => r.status === "ready" && !r.needsReview).length,
     gepubliceerd: rows.filter((r) => r.status === "published").length,
   };
 }

@@ -41,6 +41,8 @@ import { formatContract } from "@/lib/pipeline/contract-format";
 import { checkContractCoverage } from "@/lib/pipeline/content-coverage";
 import { answerBelongsHere } from "@/lib/pipeline/answer-scope";
 import { prioriteerBevindingen, MAX_BEVINDINGEN_PER_RONDE } from "@/lib/pipeline/content-issues";
+import { beslisReparatieRonde } from "@/lib/pipeline/content-repair-decision";
+import { usdToEur } from "@/lib/spend-rules";
 import { applySectionPatch, splitSections } from "@/lib/pipeline/content-sections";
 import { runPanel } from "@/lib/pipeline/content-panel";
 import { formatExplainerBlock, type VerifiedExplainer } from "@/lib/pipeline/explainer-verify";
@@ -129,12 +131,48 @@ const COVERAGE_THRESHOLD = 85;
  *
  * Drie. Er was er één, en die herschreef de HELE pagina: op productie kostte
  * dat $0,162 per keer en kregen alle vijf de pagina's van 26 augustus er één.
- * Een gerichte reparatie raakt alleen de secties met een bevinding, dus drie
- * ervan kosten samen minder dan die ene volledige herschrijving. Meer dan drie
- * heeft geen zin: wat er dan nog staat, is meestal een ontbrekend FEIT, en dat
- * lost geen herschrijving op maar een vraag aan de klant.
+ *
+ * ⚠️ Herstelplan na audit, T1.4: de aanname dat drie gerichte reparaties
+ * daardoor SAMEN goedkoper zouden zijn dan die ene volledige herschrijving
+ * klopt niet. Gemeten op `ai_calls` (2 september 2026): één gerichte
+ * reparatieronde kost gemiddeld **$0,26**, dus al 60% meer dan de $0,162 van
+ * de oude volledige herschrijving, en drie rondes kosten samen ruim het
+ * viervoudige. De winst van deze aanpak zit dus niet in de kosten maar in de
+ * kwaliteit (beneden): het model kan de secties die al goed waren niet meer
+ * stukmaken. Drie blijft de grens omdat wat er na drie rondes nog staat meestal
+ * een ontbrekend FEIT is, en dat lost geen herschrijving op maar een vraag aan
+ * de klant, niet omdat een vierde ronde geld zou verspillen.
  */
 const REPAIR_MAX = 3;
+
+/**
+ * Herstelplan na audit, T1.5: "Eén contentpagina kost een euro of minder."
+ * Gemeten via `ai_calls.content_piece_id` (migratie 0088) zodra een pagina zijn
+ * eindstand bereikt (klaar in één keer, of na de reparatielus). Alleen loggen,
+ * geen blokkade: dit is een signaal voor het verslag, niet een kostenpoort (die
+ * staat al vóór het schrijven, in `lib/cost-guard.ts`).
+ */
+const PAGE_BUDGET_EUR = 1;
+
+async function bewaakPaginaBudget(
+  admin: ReturnType<typeof createAdminClient>,
+  contentPieceId: string,
+): Promise<void> {
+  const { data, error } = await admin
+    .from("ai_calls")
+    .select("cost_usd")
+    .eq("content_piece_id", contentPieceId);
+  if (error || !data) return; // best-effort: boekhouding mag de pijplijn nooit laten falen.
+
+  const totaalUsd = data.reduce((som, rij) => som + (Number(rij.cost_usd) || 0), 0);
+  const totaalEur = usdToEur(totaalUsd);
+  if (totaalEur > PAGE_BUDGET_EUR) {
+    console.warn(
+      `Contentpagina ${contentPieceId}: kosten €${totaalEur.toFixed(2)}, ` +
+        `boven het budget van €${PAGE_BUDGET_EUR} per pagina (T1.5).`,
+    );
+  }
+}
 
 /**
  * Hoeveel concurrenten we ophalen vóór het herrangschikken op relevantie voor
@@ -1737,7 +1775,16 @@ export async function draftContentPiece(args: {
       schemaName: "content_piece",
       webSearch: ctx.needsFactFinding,
       work: "content",
-      meta: { kind: "content_draft", analysisId, profileId: analysis.profile_id },
+      // `resumeId`/`current?.id` bestaan zodra deze pagina al een briefingrij
+      // had (het gewone pad sinds R5.1). Leeg is geldig: de allereerste
+      // schrijfaanroep van een pagina zonder briefingrij kent zijn eigen id nog
+      // niet (conventie 3, migratie 0088).
+      meta: {
+        kind: "content_draft",
+        analysisId,
+        profileId: analysis.profile_id,
+        contentPieceId: resumeId ?? current?.id ?? null,
+      },
     }));
 
   // ── Wegschrijven vóór de redactieronde ───────────────────────────────────
@@ -1946,6 +1993,11 @@ export async function draftContentPiece(args: {
 
   await saveTargets(admin, pieceId, targets);
 
+  // Komt de eerste versie al door de poort, dan is dit de eindstand: meet het
+  // budget nu (T1.5). Moet de pagina nog een reparatieronde in, dan gebeurt dat
+  // pas ná die ronde, in `reviseContentPiece`.
+  if (!needsRevise) await bewaakPaginaBudget(admin, pieceId);
+
   return { contentPieceId: pieceId, needsRevise, issues };
 }
 
@@ -2020,7 +2072,7 @@ export async function reviseContentPiece(args: {
     schemaName: "content_patch",
     webSearch: false,
     work: "content",
-    meta: { kind: "content_revise", analysisId, profileId: analysis.profile_id },
+    meta: { kind: "content_revise", analysisId, profileId: analysis.profile_id, contentPieceId },
   });
 
   // ── De patch toepassen, in code ──────────────────────────────────────────
@@ -2151,41 +2203,21 @@ export async function reviseContentPiece(args: {
     geo_score < GEO_THRESHOLD ||
     (dekking.score !== null && dekking.score < COVERAGE_THRESHOLD);
 
-  // ── Werd de pagina hier beter van? (verbetering 5) ───────────────────────
+  // ── Werd de pagina hier beter van? (verbetering 5, herstelplan T1.1/T1.3) ──
   //
-  // ⚠️ Dit is de belangrijkste toevoeging uit de eerste echte contentronde. De
-  // lus stopte alleen op REPAIR_MAX, en niet omdat er iets was opgelost. Gemeten
-  // op 1 september 2026, kwaliteitsscore per ronde:
-  //
-  //   pagina "Snel installeren": 67 (concept), 74, 68, 48 (eindstand)
-  //   pagina "Tilburg":          48 (concept), 52, 35, 48 (eindstand)
-  //
-  // De klant kreeg dus de LAATSTE versie terwijl de tweede 26 punten beter was.
-  // Vanaf nu geldt: een ronde die de kwaliteit niet verhoogt, wordt niet
-  // opgeslagen en is meteen de laatste. De vorige tekst blijft dan staan, met
-  // zijn eigen scores en zijn eigen bevindingen, want die horen bij die tekst.
-  //
-  // Bij de allereerste reparatie is er nog geen vorige score (een pagina van
-  // vóór deze wijziging): dan telt de ronde als verbetering, want zonder
-  // meetpunt is "niet beter" een gok en geen vaststelling (conventie 3).
-  //
-  // Twee grenzen, en het verschil doet ertoe. BEWAREN doen we zolang de ronde
-  // niet slechter is: een reparatie die een onbewezen bewering weghaalt terwijl
-  // de rubriekscore gelijk blijft, is echte winst die geen cijfer laat zien.
-  // DOORGAAN doen we alleen als de score echt stijgt: blijft hij gelijk, dan
-  // heeft de volgende ronde niets nieuws te pakken en betalen we voor niets.
+  // Uitbesteed aan `beslisReparatieRonde` (lib/pipeline/content-repair-decision.ts,
+  // conventie 2): puur en met eigen unittests op de echte cijfers van 2
+  // september 2026, want dit is precies de regel waarvan de audit van die dag
+  // dacht dat hij niet klopte. Zie dat bestand voor de volledige toelichting.
   const vorigeKwaliteit = pieceRow.quality_score === null ? null : Number(pieceRow.quality_score);
-  const geenMeetpunt = vorigeKwaliteit === null || !Number.isFinite(vorigeKwaliteit);
-  const nietSlechter = geenMeetpunt || critique.qualityScore >= (vorigeKwaliteit as number);
-  const beterDanVorige = geenMeetpunt || critique.qualityScore > (vorigeKwaliteit as number);
-
-  // ── Nog een ronde, of is dit de eindstand? ───────────────────────────────
-  //
-  // Doorgaan zolang er iets te repareren is, er nog rondes over zijn, ÉN deze
-  // ronde iets opleverde. Zonder de tweede voorwaarde zou een pagina waarvan het
-  // laatste punt een ontbrekend FEIT is eindeloos herschreven worden; zonder de
-  // derde blijven we betalen voor rondes die de tekst slechter maken.
-  const nogEenRonde = (scoresTeLaag || openstaand.length > 0) && ronde < REPAIR_MAX && beterDanVorige;
+  const { bewaarNieuweVersie: nietSlechter, nogEenRonde } = beslisReparatieRonde({
+    vorigeKwaliteit,
+    nieuweKwaliteit: critique.qualityScore,
+    ronde,
+    repairMax: REPAIR_MAX,
+    scoresTeLaag,
+    openstaandeBevindingen: openstaand.length,
+  });
 
   // Ruwe beoordelingen van ALLE rondes bewaren (§5: we bewaren alles).
   const previousCritiques = Array.isArray(pieceRow.critique_raw_json) ? pieceRow.critique_raw_json : [];
@@ -2273,6 +2305,9 @@ export async function reviseContentPiece(args: {
   // De titel kan in de reparatie veranderd zijn; de koppeling met de
   // doelvragen moet blijven staan.
   await saveTargets(admin, contentPieceId, targets);
+
+  // Eindstand bereikt: meet het budget over alle rondes samen (T1.5).
+  if (!nogEenRonde) await bewaakPaginaBudget(admin, contentPieceId);
 
   return { klaar: !nogEenRonde, ronde, issues: openstaand };
 }

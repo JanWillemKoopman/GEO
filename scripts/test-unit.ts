@@ -115,6 +115,7 @@ import {
 import { answerBelongsHere } from "@/lib/pipeline/answer-scope";
 import { stripChrome } from "@/lib/pipeline/page-text";
 import { prioriteerBevindingen, MAX_BEVINDINGEN_PER_RONDE } from "@/lib/pipeline/content-issues";
+import { beslisReparatieRonde } from "@/lib/pipeline/content-repair-decision";
 import { ontwijkendeZinnen } from "@/lib/pipeline/content-gate";
 import { isRapportageVorm } from "@/lib/pipeline/factcard";
 import { describePronoun } from "@/lib/pipeline/tone-sliders";
@@ -9344,6 +9345,7 @@ group("filteren, zoeken en de kerncijfers", () => {
     status: string,
     geoScore: number | null,
     publishedUrl: string | null,
+    needsReview = false,
   ): LibraryRow {
     return {
       id,
@@ -9352,11 +9354,53 @@ group("filteren, zoeken en de kerncijfers", () => {
       title,
       type,
       status,
+      needsReview,
       geoScore,
       publishedUrl,
       createdAt: "2026-08-01T00:00:00Z",
     };
   }
+});
+
+// ⚠️ Herstelplan na audit T1.2: `status: "ready"` betekent "de pijplijn is
+// klaar", niet "een mens hoeft niets meer te doen". Een pagina met
+// `needsReview: true` telde vóór deze wijziging toch mee als "klaar voor
+// vrijgave", en gaf de klant zo een te hoog cijfer.
+group("'klaar voor vrijgave' telt geen pagina's die nog nagekeken moeten worden (T1.2)", () => {
+  const rijen: LibraryRow[] = [
+    {
+      id: "1",
+      analysisId: "a",
+      cluster: "Cluster A",
+      title: "Onderhoud aan je CV-ketel",
+      type: "article",
+      status: "ready",
+      needsReview: false,
+      geoScore: 82,
+      publishedUrl: null,
+      createdAt: "2026-08-01T00:00:00Z",
+    },
+    {
+      id: "2",
+      analysisId: "a",
+      cluster: "Cluster A",
+      title: "Kennismakingsafspraak bij de tandarts",
+      type: "landing",
+      status: "ready",
+      needsReview: true,
+      geoScore: 68,
+      publishedUrl: null,
+      createdAt: "2026-08-01T00:00:00Z",
+    },
+  ];
+
+  const t = libraryTotals(rijen);
+  ok("geschreven telt allebei", t.geschreven === 2);
+  ok(
+    "klaar voor vrijgave telt niet de pagina die nog nagekeken moet worden",
+    t.klaarVoorVrijgave === 1,
+    String(t.klaarVoorVrijgave),
+  );
 });
 
 group("pagineren klemt in plaats van af te kappen", () => {
@@ -16833,17 +16877,104 @@ group("De reparatie krijgt de zwaarste punten eerst (verbetering 5)", () => {
 
   const content = leesBestand("lib/pipeline/content.ts");
   ok("de reparatieprompt krijgt de geordende lijst", content.includes("prioriteerBevindingen(issues"));
-  // ⚠️ Verbetering 5, tweede helft: de lus stopte alleen op REPAIR_MAX. De
-  // kwaliteitsscore liep 67, 74, 68, 48 en de klant kreeg de laatste.
-  ok("de lus stopt als het niet beter wordt", content.includes("beterDanVorige"));
-  ok("en dat weegt mee in de vraag of er nog een ronde komt", content.includes("&& beterDanVorige"));
   ok("een slechtere versie wordt niet opgeslagen", content.includes("...(nietSlechter ? nieuweVersie : {})"));
-  ok(
-    "bewaren en doorgaan zijn twee verschillende grenzen",
-    content.includes("const nietSlechter") && content.includes("const beterDanVorige"),
-  );
   // Verbetering 10.
   ok("het aantal woorden wordt bijgewerkt", content.includes("word_count: countWords(final.bodyMarkdown)"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Herstelplan na audit T1.1/T1.3: de reparatielus stopt als een ronde niet
+// beter wordt, en bewaart de beste versie in plaats van de laatste. Uitbesteed
+// aan `beslisReparatieRonde` (lib/pipeline/content-repair-decision.ts) zodat
+// dit met de ECHTE cijfers van twee verschillende contentrondes na te rekenen
+// is, in plaats van met een tekstzoekopdracht op de broncode.
+group("De reparatielus stopt zodra een ronde niet beter wordt (T1.1/T1.3)", () => {
+  // Verbetering 5 (1 september 2026): "Snel installeren" 67 → 74 → 68 → 48.
+  // De klant kreeg toen de LAATSTE versie (48) terwijl ronde 1 (74) beter was.
+  const r1 = beslisReparatieRonde({
+    vorigeKwaliteit: 67,
+    nieuweKwaliteit: 74,
+    ronde: 1,
+    repairMax: 3,
+    scoresTeLaag: true,
+    openstaandeBevindingen: 5,
+  });
+  ok("ronde 1 (74, beter dan 67) wordt bewaard", r1.bewaarNieuweVersie);
+  ok("en er volgt nog een ronde", r1.nogEenRonde);
+
+  const r2 = beslisReparatieRonde({
+    vorigeKwaliteit: 74,
+    nieuweKwaliteit: 68,
+    ronde: 2,
+    repairMax: 3,
+    scoresTeLaag: true,
+    openstaandeBevindingen: 3,
+  });
+  ok("ronde 2 (68, slechter dan 74) wordt NIET bewaard", !r2.bewaarNieuweVersie);
+  ok("en de lus stopt, ronde 3 komt er niet meer", !r2.nogEenRonde);
+
+  // Herstelplan na audit T1.1 (2 september 2026): pagina db76cb57,
+  // "Kennismakingsafspraak bij de tandarts". Concept 68, ronde 1 scoorde 66:
+  // twee punten slechter. De audit dacht dat de lus hier ten onrechte stopte;
+  // nagerekend met de echte cijfers doet hij precies wat verbetering 5 vraagt.
+  const kennismaking = beslisReparatieRonde({
+    vorigeKwaliteit: 68,
+    nieuweKwaliteit: 66,
+    ronde: 1,
+    repairMax: 3,
+    scoresTeLaag: true,
+    openstaandeBevindingen: 11,
+  });
+  ok("de mindere ronde 1 (66) wordt niet bewaard", !kennismaking.bewaarNieuweVersie);
+  ok("het concept (68) blijft dus staan", true);
+  ok(
+    "en de lus stopt na ronde 1, ook al mochten er nog twee",
+    !kennismaking.nogEenRonde,
+  );
+
+  // Dezelfde audit, andere pagina (3517f87e, "Tandartsangst startpagina"):
+  // 78 (concept) → 68 → 78 → 52 op productie. Die uitkomst kan niet meer met
+  // deze regel: ronde 1 (68) is al slechter dan het concept (78), dus stopt de
+  // huidige code na ronde 1 met het concept bewaard. Zie de toelichting boven
+  // `beslisReparatieRonde` voor waarom dat op 2 september anders liep (een
+  // productiedeploy die de reparatie van dezelfde ochtend nog niet had).
+  const tandartsangst = beslisReparatieRonde({
+    vorigeKwaliteit: 78,
+    nieuweKwaliteit: 68,
+    ronde: 1,
+    repairMax: 3,
+    scoresTeLaag: true,
+    openstaandeBevindingen: 71,
+  });
+  ok("ronde 1 (68) wordt niet bewaard, het concept (78) blijft staan", !tandartsangst.bewaarNieuweVersie);
+  ok("de huidige code stopt hier na ronde 1", !tandartsangst.nogEenRonde);
+
+  // Zonder meetpunt (een pagina van vóór dit veld bestond) telt een ronde
+  // altijd als verbetering: conventie 3, onbekend is geen "niet beter".
+  const zonderMeetpunt = beslisReparatieRonde({
+    vorigeKwaliteit: null,
+    nieuweKwaliteit: 40,
+    ronde: 1,
+    repairMax: 3,
+    scoresTeLaag: true,
+    openstaandeBevindingen: 4,
+  });
+  ok("zonder meetpunt wordt de ronde bewaard", zonderMeetpunt.bewaarNieuweVersie);
+  ok("en mag de lus doorgaan", zonderMeetpunt.nogEenRonde);
+
+  // Aan REPAIR_MAX komt de lus nooit voorbij, ook niet als elke ronde beter werd.
+  const laatsteRonde = beslisReparatieRonde({
+    vorigeKwaliteit: 70,
+    nieuweKwaliteit: 90,
+    ronde: 3,
+    repairMax: 3,
+    scoresTeLaag: false,
+    openstaandeBevindingen: 0,
+  });
+  ok("op REPAIR_MAX stopt de lus altijd", !laatsteRonde.nogEenRonde);
+
+  const content = leesBestand("lib/pipeline/content.ts");
+  ok("content.ts gebruikt de pure beslisfunctie", content.includes("beslisReparatieRonde("));
 });
 
 // ════════════════════════════════════════════════════════════════════════════
