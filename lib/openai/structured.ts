@@ -226,7 +226,13 @@ export async function callStructured<T>(
     );
   }
 
-  const usage = await recordUsage(opts.model, Boolean(opts.webSearch), response, opts.meta);
+  const usage = await recordUsage(
+    opts.model,
+    Boolean(opts.webSearch),
+    response,
+    opts.meta,
+    parsed,
+  );
 
   return { parsed: parsed as T, raw: response, ...usage };
 }
@@ -241,6 +247,16 @@ async function recordUsage(
   webSearch: boolean,
   response: { id?: string | null; usage?: unknown },
   meta?: CallMeta,
+  /**
+   * Wat het model teruggaf, ruw. Gaat mee het kostenlogboek in (conventie 8).
+   *
+   * ⚠️ Toegevoegd op 1 september 2026, en de aanleiding was een conceptmail die
+   * werd afgekeurd omdat er een cijfer in stond dat niet gemeten was. Wat er
+   * precies stond, was daarna nergens meer terug te lezen: we bewaarden wel wat
+   * de aanroep kostte, niet wat hij opleverde. Bij een bericht dat naar een
+   * ondernemer gaat, is dat het verkeerde moment om je bron kwijt te zijn.
+   */
+  ruw?: unknown,
 ): Promise<CallUsage> {
   const { inputTokens, outputTokens, totalTokens } = readUsage(response.usage);
   const costUsd = estimateCostUsd({ model, inputTokens, outputTokens, webSearch });
@@ -255,6 +271,7 @@ async function recordUsage(
       webSearch,
       costUsd,
       responseId,
+      raw: ruw ?? null,
     });
   }
 
@@ -348,7 +365,13 @@ export async function callPlain(opts: PlainCallOptions): Promise<PlainCallResult
     ),
   );
 
-  const usage = await recordUsage(opts.model, Boolean(opts.webSearch), response, opts.meta);
+  const usage = await recordUsage(
+    opts.model,
+    Boolean(opts.webSearch),
+    response,
+    opts.meta,
+    response.output_text ?? "",
+  );
 
   return { text: response.output_text ?? "", raw: response, ...usage };
 }

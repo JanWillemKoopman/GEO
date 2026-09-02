@@ -174,6 +174,8 @@ import {
   KOOPFASES,
 } from "@/lib/sales/questions";
 import { alleRijen } from "@/lib/supabase/pagineer";
+import { bouwFases, procesSamenvatting, loopterIets, type ProcesMoment } from "@/lib/sales/proces";
+import { groepeerOnbekend, isMerkOfBron } from "@/lib/sales/onbekend";
 import { bouwIntentieVraag } from "@/lib/sales/intents";
 import { bouwBeoordeelVraag, SIMULATIE_SYSTEM } from "@/lib/sales/measure-prompt";
 // Sprint 4: de acht types, de score en de haak.
@@ -194,6 +196,8 @@ import {
 } from "@/lib/sales/opportunity";
 import {
   rekenScore,
+  grootsteGelijkspel,
+  vergelijkKansen,
   GEWICHTEN,
   SCHERPTE,
   BEWEGING_BONUS,
@@ -14226,6 +14230,136 @@ group("een koopvraag noemt altijd de plaats", () => {
   ok("en verbiedt bij mij in de buurt", prompt.includes('"bij mij in de buurt"'));
 });
 
+group("het marktscherm laat zien waar het op wacht", () => {
+  // ⚠️ De pijplijn doet negen dingen en de gebruiker zag er één zin van, dertien
+  // minuten lang, zonder teller en zonder de zestien mislukte schrijftaken.
+  const leeg: ProcesMoment = {
+    marktStatus: "concept",
+    rondeStatus: null,
+    rondeNr: 1,
+    bedrijvenGevonden: 0,
+    bedrijvenMee: 0,
+    bedrijvenOnbeoordeeld: 0,
+    crawlKlaar: 0,
+    crawlMislukt: 0,
+    vragen: 0,
+    antwoorden: 0,
+    antwoordenVerwacht: 0,
+    kansen: 0,
+    kansenGeschreven: 0,
+    taken: {},
+    isPublic: false,
+    heeftRapport: false,
+  };
+
+  const nieuweMarkt = bouwFases(leeg);
+  eq2("negen stappen, altijd", nieuweMarkt.length, 9);
+  eq("de eerste is klaar zodra de markt bestaat", nieuweMarkt[0].stand, "klaar");
+  eq("en het wacht op jou om te starten", nieuweMarkt[1].stand, "wacht_op_jou");
+  ok("de samenvatting zegt dat ook", procesSamenvatting(nieuweMarkt).includes("wacht op jou"));
+  ok("er draait niets", !loopterIets(nieuweMarkt));
+
+  // Halverwege de meting: de teller is het hele punt.
+  const metend = bouwFases({
+    ...leeg,
+    marktStatus: "meet",
+    rondeStatus: "meet",
+    bedrijvenGevonden: 26,
+    bedrijvenMee: 26,
+    vragen: 40,
+    antwoorden: 18,
+    antwoordenVerwacht: 40,
+    taken: {
+      sales_measure_question: { wachtend: 10, bezig: 5, klaar: 18, mislukt: 0 },
+      sales_company_enrich: { wachtend: 0, bezig: 0, klaar: 26, mislukt: 0 },
+    },
+  });
+  const meten = metend.find((f) => f.sleutel === "meten");
+  eq("de meetstap is bezig", meten?.stand ?? "", "bezig");
+  eq("met een teller erbij", meten?.detail ?? "", "18 van de 40 vragen gemeten");
+  ok("en het scherm mag zichzelf verversen", loopterIets(metend));
+
+  // Een mislukte schrijfstap is zichtbaar, met de geruststelling erbij.
+  const naSchrijven = bouwFases({
+    ...leeg,
+    marktStatus: "klaar",
+    rondeStatus: "klaar",
+    bedrijvenGevonden: 43,
+    bedrijvenMee: 43,
+    vragen: 40,
+    antwoorden: 40,
+    antwoordenVerwacht: 40,
+    kansen: 43,
+    kansenGeschreven: 0,
+    taken: { sales_opportunity_explain: { wachtend: 0, bezig: 0, klaar: 0, mislukt: 16 } },
+  });
+  const teksten = naSchrijven.find((f) => f.sleutel === "teksten");
+  eq("zestien mislukte schrijftaken zijn zichtbaar", teksten?.stand ?? "", "mislukt");
+  ok("en er staat wat dat betekent", (teksten?.actie ?? "").includes("sjabloonzin"));
+  ok("de samenvatting wijst naar de vastloper", procesSamenvatting(naSchrijven).includes("liep vast"));
+
+  // Poort 2 is geen stilstand maar een vraag aan jou.
+  const bijPoort2 = bouwFases({
+    ...leeg,
+    marktStatus: "vragen_klaar",
+    rondeStatus: "vragen_klaar",
+    bedrijvenGevonden: 26,
+    bedrijvenMee: 26,
+    vragen: 40,
+  });
+  const poort2 = bijPoort2.find((f) => f.sleutel === "poort2");
+  eq("poort 2 wacht op jou", poort2?.stand ?? "", "wacht_op_jou");
+  ok("en zegt dat dit de stap is die geld kost", (poort2?.actie ?? "").includes("geld kost"));
+});
+
+group("een gemiste naam is bruikbaar in plaats van een rijtje", () => {
+  // ⚠️ Feenstra werd in de eerste markt drie keer genoemd en stond niet in onze
+  // lijst. Daarmee was de best zichtbare partij onzichtbaar voor de detectie.
+  const uit = groepeerOnbekend([
+    "Feenstra",
+    "Daikin",
+    "Feenstra",
+    "Werkspot",
+    "Kemkens",
+    "Feenstra",
+    "Milieu Centraal",
+    "Daikin",
+  ]);
+
+  eq("de vaakst genoemde staat bovenaan", uit[0].naam, "Feenstra");
+  eq2("met het aantal erbij", uit[0].keer, 3);
+  eq("en hij telt als mogelijk bedrijf", uit[0].soort, "mogelijk_bedrijf");
+  eq("daarna de andere installateur", uit[1].naam, "Kemkens");
+  ok(
+    "fabrikanten en platforms staan onderaan",
+    uit.slice(2).every((n) => n.soort === "merk_of_bron"),
+  );
+
+  ok("Daikin is een merk", isMerkOfBron("Daikin"));
+  ok("Werkspot een platform", isMerkOfBron("Werkspot"));
+  ok("Milieu Centraal voorlichting", isMerkOfBron("milieu centraal"));
+  ok("maar een installateur niet", !isMerkOfBron("Van Oers Installaties"));
+});
+
+group("gelijke scores worden niet als rangorde gepresenteerd", () => {
+  // Zeven bedrijven op exact 76, zoals bij de eerste echte markt.
+  const zeven = grootsteGelijkspel([76, 76, 76, 76, 76, 76, 76, 69, 65]);
+  eq2("zeven delen dezelfde score", zeven.aantal, 7);
+  eq2("en dat is 76", zeven.score, 76);
+
+  const verschillend = grootsteGelijkspel([93, 90, 86, 82]);
+  eq2("bij verschillende scores is er geen gelijkspel", verschillend.aantal, 0);
+
+  // De volgorde binnen dezelfde score is vast: bewijs, dan commercieel, dan naam.
+  const a = { score: 76, breakdown: { bewijssterkte: 20, commercieel: 16 }, naam: "Bakker" };
+  const b = { score: 76, breakdown: { bewijssterkte: 12, commercieel: 20 }, naam: "Alders" };
+  ok("meer bewijs wint van meer commercieel", vergelijkKansen(a, b) < 0);
+
+  const c = { score: 76, breakdown: { bewijssterkte: 20, commercieel: 16 }, naam: "Alders" };
+  ok("en bij gelijke opbouw beslist de naam", vergelijkKansen(a, c) > 0);
+  ok("een hogere score wint altijd", vergelijkKansen({ ...a, score: 80 }, b) < 0);
+});
+
 async function paginatieControles() {
   await groupAsync("alle rijen ophalen, en niet de eerste duizend", async () => {
   // ⚠️ 1 september 2026: 1720 vermeldingen, een select die er duizend gaf, en
@@ -15148,7 +15282,7 @@ group("het plafond beschermt het maildomein en niet het budget", () => {
   // Plan 16.6, eerste maatregel. Omdat de medewerker zelf verstuurt kan de app
   // het versturen niet tegenhouden, maar wel de AANVOER van concepten.
   const rustig = beoordeelPlafond({ verstuurd: 5, bounces: 0, klachten: 0, afmeldingen: 0 });
-  ok("vijf van de twintig laat ruimte", rustig.ok);
+  ok("vijf van het plafond laat ruimte", rustig.ok);
   eq2("en zegt hoeveel", rustig.ruimte, CONCEPTEN_PER_DAG - 5);
 
   const vol = beoordeelPlafond({ verstuurd: CONCEPTEN_PER_DAG, bounces: 0, klachten: 0, afmeldingen: 0 });
@@ -15157,9 +15291,25 @@ group("het plafond beschermt het maildomein en niet het budget", () => {
 
   // ⚠️ De tweede rem: loopt het aandeel bounces en klachten op, dan halveert het
   // plafond. Meer volume is dan precies de verkeerde reactie, want het domein is
-  // al aan het beschadigen.
-  const slecht = beoordeelPlafond({ verstuurd: 10, bounces: 2, klachten: 0, afmeldingen: 0 });
-  ok("twee bounces op tien halveert het plafond", !slecht.ok);
+  // al aan het beschadigen. De aantallen staan bewust in verhouding tot het
+  // plafond, zodat deze test blijft kloppen als de eigenaar dat getal verzet
+  // (op 1 september 2026 ging het van 20 naar 100).
+  const helft = Math.floor(CONCEPTEN_PER_DAG / 2);
+  const slechtMaarRuimte = beoordeelPlafond({
+    verstuurd: helft - 1,
+    bounces: helft,
+    klachten: 0,
+    afmeldingen: 0,
+  });
+  eq2("bij veel bounces is er nog één plek over", slechtMaarRuimte.ruimte, 1);
+
+  const slecht = beoordeelPlafond({
+    verstuurd: helft,
+    bounces: helft,
+    klachten: 0,
+    afmeldingen: 0,
+  });
+  ok("en op de helft van het plafond stopt de aanvoer", !slecht.ok);
   ok("en dat wordt gezegd", (slecht.melding ?? "").includes("gehalveerd"));
 });
 
@@ -16028,8 +16178,15 @@ group("een hermeting gebruikt exact dezelfde vragen", () => {
   // aan de markt ligt en niet aan de vraag. Zou de hermeting nieuwe vragen
   // genereren, dan meet je het verschil tussen twee vragenlijsten en presenteer
   // je dat als een daling van het bedrijf.
-  const bron = leesBestand("app/api/sales/markets/[id]/remeasure/route.ts");
-  ok("de route bestaat", bron.length > 0);
+  // Sinds 1 september 2026 staat het werk in een module en niet meer in de
+  // route: de geplande hermeting moet exact hetzelfde doen vanuit de wachtrij,
+  // en twee keer hetzelfde opschrijven loopt op een dag uit elkaar.
+  const route = leesBestand("app/api/sales/markets/[id]/remeasure/route.ts");
+  ok("de route bestaat", route.length > 0);
+  ok("en leunt op de gedeelde module", route.includes("maakHermeting"));
+
+  const bron = leesBestand("lib/pipeline/sales-remeasure.ts");
+  ok("de module bestaat", bron.length > 0);
   ok("hij leest de vragen van de vorige ronde", bron.includes("sales_questions"));
   ok("en schrijft ze over naar de nieuwe ronde", bron.includes("run_id: runId"));
   // Geen intentie- of vragenstap: die zouden andere vragen opleveren.
@@ -16037,6 +16194,13 @@ group("een hermeting gebruikt exact dezelfde vragen", () => {
   // ⚠️ Maar poort 2 blijft staan: meten kost geld, ook de tweede keer.
   ok("en de ronde wacht weer op goedkeuring", bron.includes("vragen_klaar"));
   ok("het rondenummer telt door", bron.includes("round_no: vorige.round_no + 1"));
+
+  // ⚠️ De geplande hermeting zet het slot vóór het werk. Zonder die volgorde
+  // pakt de werker dezelfde markt een minuut later opnieuw op, en dat is de
+  // duurste lus die dit systeem kan maken: veertig betaalde vragen per keer.
+  const slot = bron.indexOf("remeasure_done_at: nu");
+  const werk = bron.indexOf("await maakHermeting(admin, markt.id");
+  ok("het slot gaat vóór het meten", slot > 0 && werk > 0 && slot < werk);
 });
 
 group("het rapport wordt niet vanzelf geschreven en niet vanzelf gepubliceerd", () => {

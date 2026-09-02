@@ -178,8 +178,16 @@ export function beoordeelStatus(
  *
  * Begin laag en verhoog pas als de cijfers laten zien dat er nauwelijks
  * stuiterende adressen en klachten zijn (plan 16.6, eerste maatregel).
+ *
+ * ⚠️ **Op 1 september 2026 door de eigenaar op 100 gezet**, tijdens de fase
+ * waarin de hele app doorgetest wordt. Twintig bleek te laag om een dag werk mee
+ * te doen. Wat daarbij nog openstaat, en wat belangrijker is dan dit getal: er
+ * is nog geen apart subdomein voor acquisitiemail (plan 16.6, vierde
+ * maatregel). Zolang dat er niet is, loopt koude mail over hetzelfde domein als
+ * de facturatie, en dan is honderd per persoon per dag een bewuste gok in
+ * plaats van een veilige stand.
  */
-export const CONCEPTEN_PER_DAG = 20;
+export const CONCEPTEN_PER_DAG = 100;
 
 /**
  * Vanaf welk aandeel bounces en klachten het plafond automatisch omlaag gaat.

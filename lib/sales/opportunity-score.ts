@@ -267,3 +267,66 @@ function bepaalConfidence(invoer: ScoreInvoer): "hoog" | "middel" | "laag" {
 function rond(waarde: number): number {
   return Number(waarde.toFixed(2));
 }
+
+// ── Gelijke scores: eerlijk zijn in plaats van precies doen ────────────────
+
+/**
+ * Hoeveel bedrijven delen de hoogste score, en welke score is dat?
+ *
+ * ⚠️ **Dit lost geen rekenprobleem op maar een eerlijkheidsprobleem** (bevinding
+ * P1-9 van 1 september 2026). Bij de eerste echte markt stonden er zeven
+ * bedrijven op exact 76, met exact dezelfde opbouw. Dat was geen fout in de
+ * formule: de meting gaf over die zeven precies hetzelfde beeld, namelijk nul
+ * vermeldingen op veertig vragen. Elke formule geeft dan hetzelfde cijfer.
+ *
+ * Wat er wél fout was, is dat het scherm die zeven onder elkaar zette alsof de
+ * bovenste de beste was. Een verkoper begint dan bovenaan en denkt dat daar een
+ * reden voor is. Deze functie levert het cijfer waarmee het scherm kan zeggen
+ * hoeveel bedrijven er gelijk staan, zodat hij zelf kan kiezen op iets wat hij
+ * wél weet.
+ */
+export function grootsteGelijkspel(scores: readonly number[]): {
+  score: number | null;
+  aantal: number;
+} {
+  const teller = new Map<number, number>();
+  for (const s of scores) teller.set(s, (teller.get(s) ?? 0) + 1);
+
+  let score: number | null = null;
+  let aantal = 0;
+  for (const [waarde, keer] of teller) {
+    // Bij gelijk aantal wint de hoogste score: dat is de groep die bovenaan
+    // staat, en dus de groep waar de verkoper als eerste in kijkt.
+    if (keer > aantal || (keer === aantal && score !== null && waarde > score)) {
+      score = waarde;
+      aantal = keer;
+    }
+  }
+
+  return aantal >= 2 ? { score, aantal } : { score: null, aantal: 0 };
+}
+
+/**
+ * De volgorde binnen dezelfde score, zodat de lijst niet willekeurig schuift.
+ *
+ * Bewijssterkte eerst (op hoeveel vragen rust de conclusie), dan of het bedrijf
+ * klant kan worden, dan de naam. Geen van drieën maakt de score anders; ze maken
+ * de VOLGORDE herhaalbaar, en dat is precies wat ontbrak toen zeven bedrijven
+ * hetzelfde cijfer hadden.
+ */
+export function vergelijkKansen(
+  a: { score: number; breakdown?: Record<string, number> | null; naam: string },
+  b: { score: number; breakdown?: Record<string, number> | null; naam: string },
+): number {
+  if (b.score !== a.score) return b.score - a.score;
+
+  const bewijsA = Number(a.breakdown?.bewijssterkte ?? 0);
+  const bewijsB = Number(b.breakdown?.bewijssterkte ?? 0);
+  if (bewijsB !== bewijsA) return bewijsB - bewijsA;
+
+  const commA = Number(a.breakdown?.commercieel ?? 0);
+  const commB = Number(b.breakdown?.commercieel ?? 0);
+  if (commB !== commA) return commB - commA;
+
+  return a.naam.localeCompare(b.naam, "nl");
+}

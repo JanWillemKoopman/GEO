@@ -121,23 +121,11 @@ export function Meetuitkomst({
         </div>
       </div>
 
-      {onbekendeNamen.length > 0 && (
-        <div className="card flex flex-col gap-2">
-          <h3 className="font-semibold">Genoemd, maar niet in onze lijst</h3>
-          <p className="text-secondary">
-            De AI noemde deze bedrijven, en wij vonden ze niet bij het in kaart brengen van de
-            markt. Dat betekent één van twee dingen: onze lijst mist een bedrijf, of de AI verzint
-            een naam. Allebei is het het nakijken waard.
-          </p>
-          <ul className="flex flex-wrap gap-2">
-            {onbekendeNamen.map((n) => (
-              <li key={n} className="chip chip-neutral">
-                {n}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {/* ⚠️ Het blok "genoemd, maar niet in onze lijst" stond hier en is op
+          1 september 2026 verhuisd naar `onbekende-namen.tsx`. Reden: daar valt
+          iets te DOEN. Hier was het een rijtje chips waarin Feenstra, drie keer
+          genoemd en de best zichtbare partij van die markt, tussen Daikin en
+          Werkspot stond zonder knop om hem alsnog mee te nemen. */}
     </div>
   );
 }

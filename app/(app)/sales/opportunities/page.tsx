@@ -5,7 +5,12 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { KANS_LABEL, type KansType } from "@/lib/sales/opportunity";
-import { TIER_HOOG, TIER_GEMIDDELD } from "@/lib/sales/opportunity-score";
+import {
+  TIER_HOOG,
+  TIER_GEMIDDELD,
+  grootsteGelijkspel,
+  vergelijkKansen,
+} from "@/lib/sales/opportunity-score";
 import { KANS_BEDRIJF } from "@/lib/sales/relaties";
 
 export const dynamic = "force-dynamic";
@@ -44,7 +49,8 @@ export default async function SalesOpportunitiesPage() {
     .from("sales_opportunities")
     .select(
       "id, type, score, tier, confidence, hook_text, hook_source, market_id, company_id, " +
-        `${KANS_BEDRIJF}(name, domain, city), sales_markets(label)`,
+        "score_breakdown, " +
+        `${KANS_BEDRIJF}(name, domain, city), sales_markets(label, conflict_note)`,
     )
     .is("superseded_by", null)
     .order("score", { ascending: false })
@@ -62,11 +68,34 @@ export default async function SalesOpportunitiesPage() {
     hook_source: string | null;
     market_id: string;
     company_id: string;
+    score_breakdown: Record<string, number> | null;
     sales_companies: { name: string; domain: string | null; city: string | null } | null;
-    sales_markets: { label: string } | null;
+    sales_markets: { label: string; conflict_note: string | null } | null;
   };
 
-  const kansen = (data ?? []) as unknown as Rij[];
+  // ⚠️ De volgorde binnen dezelfde score staat vast en is niet willekeurig:
+  // bewijssterkte, dan of het bedrijf klant kan worden, dan de naam. Zonder die
+  // regel schuift de lijst bij elke verversing, en dan lijkt de bovenste elke
+  // keer een andere "beste".
+  const kansen = ((data ?? []) as unknown as Rij[]).slice().sort((a, b) =>
+    vergelijkKansen(
+      { score: a.score, breakdown: a.score_breakdown, naam: a.sales_companies?.name ?? "" },
+      { score: b.score, breakdown: b.score_breakdown, naam: b.sales_companies?.name ?? "" },
+    ),
+  );
+
+  // Hoeveel bedrijven delen de meest voorkomende score? Bij de eerste echte
+  // markt waren dat er zeven op exact 76, en het scherm zette ze onder elkaar
+  // alsof de bovenste de beste was.
+  const gelijkspel = grootsteGelijkspel(kansen.map((k) => k.score));
+
+  // De markten waar een klant van ons in zit. Geen blokkade, wel een melding
+  // (besluit van de eigenaar, 1 september 2026).
+  const conflicten = new Map(
+    kansen
+      .filter((k) => k.sales_markets?.conflict_note)
+      .map((k) => [k.market_id, k.sales_markets!.conflict_note as string] as const),
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -92,6 +121,19 @@ export default async function SalesOpportunitiesPage() {
         </EmptyState>
       ) : (
         <div className="flex flex-col gap-3">
+          {/* ⚠️ Eerlijk zijn over wat de score NIET weet. Delen meerdere
+              bedrijven hetzelfde cijfer, dan geeft de meting over die bedrijven
+              precies hetzelfde beeld en zegt de volgorde daarbinnen niets. Bij
+              de eerste echte markt stonden er zeven op 76, en het scherm
+              suggereerde een rangorde die er niet was. */}
+          {gelijkspel.aantal >= 3 && (
+            <p className="card text-secondary">
+              {gelijkspel.aantal} bedrijven delen score {gelijkspel.score}. De meting geeft over
+              deze bedrijven hetzelfde beeld, dus de volgorde daarbinnen zegt niets. Kies op wat je
+              zelf van het bedrijf weet.
+            </p>
+          )}
+
           {kansen.map((kans) => (
             <article key={kans.id} className="card flex flex-col gap-2">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -123,6 +165,15 @@ export default async function SalesOpportunitiesPage() {
                 )}
                 {kans.sales_companies?.city && (
                   <span className="mono-label">{kans.sales_companies.city}</span>
+                )}
+                {/* Geen blokkade, wel een melding: in deze markt zit een klant
+                    van ons (plan 9.5, en het besluit van de eigenaar op
+                    1 september 2026). Wat je hier vertelt over concurrenten,
+                    gaat in een kleine markt rond. */}
+                {conflicten.has(kans.market_id) && (
+                  <span className="chip chip-warning" title={conflicten.get(kans.market_id)}>
+                    klant in deze markt
+                  </span>
                 )}
                 <Link href={`/sales/prospects/${kans.company_id}`} className="ml-auto btn-ghost">
                   Bekijk het dossier

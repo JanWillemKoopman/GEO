@@ -5783,3 +5783,65 @@ controle dat een gearchiveerd cluster echt uit de maandronde valt, dat een verwi
 clusters laat staan en dat hernoemen het cluster meeneemt zonder het aan te raken), de
 productiebuild. De migratie is toegepast op productie. **Nog niet geverifieerd met een echte klant**
 (conventie 10): er is nog geen productieprofiel waar iemand labels op heeft gezet.
+## 1 september 2026: de acht besluiten van de eigenaar, en het proces zichtbaar gemaakt
+
+Na de live test heeft de eigenaar de openstaande keuzes beslist. Wat hij koos, en wat er daarna
+gebouwd is.
+
+**De besluiten.** (1) De gewichten van de score blijven een aanname: New business beoordeelt de lijst
+niet eerst. (2) Een klant in de markt blokkeert niets, maar geeft wel een melding. (3) De openbare
+marktpagina gaat aan, zodat de link in de mail kan staan; we zitten in de fase waarin de hele app
+doorgetest wordt. (4) Voorlopig alleen ChatGPT, de Gemini-sleutel komt later. (5) Het plafond voor
+concepten gaat van 20 naar 100 per persoon per dag. (6) Naast de knop komt een datumkiezer waarmee je
+een eenmalige hermeting vooruit kunt zetten. (7) De bewaartermijn blijft voorlopig open, er wordt nog
+niets opgeruimd. (8) De testbenadering op Coolvent mag weg.
+
+⚠️ **Wat bij besluit 5 openstaat en zwaarder weegt dan dat getal**: er is nog geen apart subdomein
+voor acquisitiemail (plan 16.6, vierde maatregel). Zolang koude mail over hetzelfde domein loopt als
+de facturatie, is honderd per persoon per dag een bewuste gok en geen veilige stand. Dat besluit
+hoort bij de eigenaar en niet bij engineering.
+
+**Het proces is zichtbaar geworden, en dat was de grootste klacht.** De pijplijn doet negen dingen
+achter elkaar en de gebruiker zag er één zin van: "ORBIT ENGINE stelt de vragen aan de
+AI-assistenten." Dertien minuten lang, zonder teller, en zonder iets over de zestien schrijftaken die
+stilletjes mislukt waren. Dat is niet alleen ongemakkelijk maar duur: wie niet ziet dat een stap
+hangt, drukt nog een keer op de knop, en elke druk is een rekening.
+
+Bovenaan het marktscherm staat nu een procesbalk met negen stappen, elk met een stand (klaar, bezig,
+wacht op jou, liep vast), een cijfer ("18 van de 40 vragen gemeten") en bij een vastloper of een
+poort een zin over wat jij moet doen. De rekenkant zit in `lib/sales/proces.ts`, een pure module
+zonder database, dus elke overgang is getest zonder API-sleutel (conventie 2). Het scherm ververst
+zichzelf elke tien seconden, maar alleen zolang er echt iets draait.
+
+⚠️ **De vierde kolom die je zou willen ("hoe lang duurt het nog") staat er bewust niet.** Dat weten we
+niet, en een verzonnen schatting is erger dan geen schatting. Wat er wél bij staat is wat de markt tot
+nu toe gekost heeft, en dat stond nergens terwijl elke knop op dat scherm geld uitgeeft.
+
+**De geplande hermeting.** Een datum per markt, die één keer afgaat, uitgevoerd door de werker die
+toch al elke minuut draait. Op die dag wordt er echt gemeten zonder tweede bevestiging, en dat staat
+er met zoveel woorden bij: wie de datum zet, ziet op dat moment de raming en geeft daarmee het akkoord
+van poort 2 op een ander moment. `remeasure_done_at` gaat vóór het werk, anders meet de werker
+dezelfde markt elke minuut opnieuw. De logica van hermeten en goedkeuren is uit de twee routes gehaald
+naar `lib/pipeline/sales-remeasure.ts`, want de knop en de planning moeten exact hetzelfde doen.
+
+**De gemiste bedrijven zijn bruikbaar geworden.** Het blok "genoemd, maar niet in onze lijst" toonde
+een ongesorteerde rij chips waarin Feenstra, drie keer genoemd en de best zichtbare partij van die
+markt, tussen Daikin en Werkspot stond. Nu staat wie het vaakst genoemd is bovenaan, staan fabrikanten
+en platforms apart met uitleg, en neemt één klik zo'n bedrijf mee in de markt. Vanaf de volgende ronde,
+niet halverwege deze: een bedrijf dat op minder vragen gemeten is, hoort niet in dezelfde ranglijst.
+Een verkeerde naam is nu ook te corrigeren, want "Open website" liep door tot in de conceptmail.
+
+**De kosten kloppen nu.** `STAP_KOSTEN_USD` was een set schattingen van vóór de eerste markt en zat er
+overal te hoog naast: marktonderzoek $0,85 geraamd tegen $0,019 gemeten, de mail $0,15 tegen $0,0007.
+De nieuwe bedragen liggen op ongeveer het dubbele van het gemeten gemiddelde, want een raming is een
+rem en geen prijskaartje: hij hoort de duurste markt te dekken, niet de gemiddelde. `besteedAanMarkt()`
+pagineert nu ook, om dezelfde reden als de vermeldingen vanochtend.
+
+**Gelijke scores worden niet meer als rangorde gepresenteerd.** Bij de eerste markt stonden zeven
+bedrijven op exact 76 met exact dezelfde opbouw. Dat was geen fout in de formule: de meting gaf over
+die zeven hetzelfde beeld, en elke formule geeft dan hetzelfde cijfer. Wat wél fout was, is dat het
+scherm ze onder elkaar zette alsof de bovenste de beste was. Er staat nu één zin boven de lijst als
+drie of meer bedrijven hetzelfde cijfer delen, en de volgorde binnen zo'n groep ligt vast op
+bewijssterkte, dan commerciële relevantie, dan naam, zodat de lijst niet schuift bij elke verversing.
+
+Vier controles groen: typecheck, 3497 unittests, 557 ketentests, de productiebuild.
