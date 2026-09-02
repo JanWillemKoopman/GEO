@@ -5754,3 +5754,74 @@ kaart van zijn eigen pagina zonder bank-id. De ketentest ving dat.
 
 **Nog niet geverifieerd tegen een echte klant** (conventie 10). De impactcijfers in het verslag zijn
 voorspellingen; de volgende contentronde is de toets die telt.
+
+## 2 september 2026: de app vraagt nu wat ze mist, in plaats van eromheen te schrijven
+
+De twaalf verbeteringen van 1 september repareerden de pijplijn. Wat ze niet raakten, was de reden
+dat die pagina's dun waren: de app plande **om haar eigen kennisgaten heen**. Regel (d) van de
+contractprompt zei letterlijk *"Plan NOOIT een sectie die alleen waar te maken is met een feit dat
+we niet hebben. Onder 'NIET ONDERBOUWD' staat wat er ontbreekt; daar mag je omheen plannen, niet
+doorheen."* De app verlaagde dus haar ambitie tot wat ze toevallig al wist, en niemand hoorde ervan.
+Een gat werd stilzwijgend een dunnere pagina in plaats van een vraag aan de ondernemer. Gemeten op
+1 september: van de 25 secties van de Tilburg-pagina rustten er 18 op geen enkel feit over het
+bedrijf, en de app schreef ze alle 25 toch.
+
+Het plan staat in `docs/tasks/vragen-voor-het-schrijven.md`, in één zin: **het contract is het
+ideaal, de feitenkaart is de werkelijkheid, en het verschil is de vragenlijst.**
+
+**De volgorde is omgedraaid.** Was: de klant kiest pagina's, de briefing verzint welke beweringen
+nodig zijn, de klant antwoordt, en pas dáárna zoekt de app uit wat de pagina echt moet behandelen.
+De vragen kwamen dus uit een stap die de pagina nog niet kende. Nu draait `content_plan` eerst, per
+pagina, en de laatste plantaak van de batch start de briefing
+(`scheduleBriefingIfLastPlan` in `lib/jobs/handlers.ts`, dezelfde constructie als
+`scheduleAggregateIfLastPrompt` inclusief de uitsluiting van de eigen taak). Dat kost het
+itemdossier en het contract ook voor pagina's die de klant alsnog laat liggen: $0,0172 plus $0,0047
+per pagina, negen cent voor vier pagina's, tegenover $4,52 voor het schrijven.
+
+**Er is voor het eerst een maat voor "hebben we hier genoeg voor".** `ContractSection` krijgt
+`needsBrandFact`: vraagt deze sectie om een uitspraak over dit bedrijf, of is het algemene uitleg?
+Dat is een oordeel van het model; of het F-nummer erbij écht bestaat, is een telling en die doet de
+code (`lib/pipeline/input-coverage.ts`, conventie 1). De **onderbouwingsgraad** is `gedekt /
+merksecties`, en `null` bij nul merksecties, want een pagina die volledig uit algemene uitleg
+bestaat is geen slechte pagina (conventie 3). In de ketentest komt hij op 50% uit: twee
+merkgebonden secties, één met een bestaand feit.
+
+**De inputpoort staat vóór het geld.** `lib/content-input-gate.ts`, drie standen: boven 70%
+schrijven, tussen 40 en 70 schrijven met een waarschuwing die de vervallende secties noemt, onder
+40% niet schrijven. Geen muur: er zijn altijd drie uitwegen, en de melding noemt ze in dezelfde zin
+als de blokkade. Twee poorten met twee vragen, en ze vervangen elkaar niet: deze vraagt "kan dit
+goed worden?" vóór de dure schrijfaanroep, `content-final-gate.ts` vraagt "is dit af?" erna. De
+grenzen 40 en 70 zijn een startwaarde en geen wet; ze worden per pagina bewaard
+(`content_pieces.input_coverage`) zodat ze na tien echte pagina's op data bijgesteld kunnen worden,
+dezelfde afspraak als bij `DUPLICATE_THRESHOLD`.
+
+**Overslaan kost nu iets dat je ziet.** Elke vraag draagt de secties die op haar antwoord wachten
+(`fact_requests.section_refs`, als `<pagina-id>:<sectie-id>`, want elke pagina nummert vanaf s1 en
+de ontdubbeling voegt vragen van verschillende pagina's samen). Slaat de klant de vraag over, dan
+vervalt die sectie vlak vóór het schrijven en wordt de pagina korter in plaats van vager. Tot nu toe
+kreeg de schrijver nog steeds de opdracht die sectie te vullen, en deed dat door om het gat heen te
+praten: over de vier pagina's van 1 september samen stonden 80 zinnen die de lezer opdragen iets na
+te vragen. Ondergrens van drie secties, net als bij `snoeiOpDoellengte`: slaat de klant echt alles
+over, dan is dat werk voor de inputpoort en niet voor de snoeifunctie.
+
+**Het vraagbudget ging van de batch naar de pagina.** Het plafond van 8 naar 12, en de sortering was
+`aantal pagina's × kern(2) × prioriteit`, dus puur bereik: een vraag die vier pagina's van 85% naar
+88% helpt won altijd van de vraag die één pagina van 30% naar 60% tilt. Er komt een factor bij voor
+hoeveel de zwakste bediende pagina erop vooruitgaat, met 0,5 bij onbekend (niet 0, want dan
+verdwijnt zo'n vraag stilzwijgend, en niet 1, conventie 3). Zonder cijfers gedraagt de sortering
+zich exact als voorheen, en dat is wat de bestaande tests beschrijven.
+
+**Het briefingscherm toont de stand per pagina.** Eén lijst vragen zei niet welke pagina eraan toe
+was; nu staat per pagina het cijfer, wat er zonder antwoord wegvalt, en bij een pagina die niet
+zonder meer kan twee knoppen: hem bewust algemeen laten schrijven (`content_pieces.write_mode`) of
+hem laten vallen. Kiest de klant voor algemeen, dan vervallen ALLE ongedekte merksecties, anders
+schrijft het model daar alsnog omheen en is de keuze een woord zonder gevolg.
+
+**Vier controles groen**: typecheck, 3599 unittests (60 nieuwe), 573 ketentests (12 nieuwe, in één
+scenario dat de hele nieuwe volgorde doorloopt), de productiebuild. Migratie 0083, additief.
+
+**Nog niet geverifieerd tegen een echte klant** (conventie 10). De ketentest bewijst de samenhang op
+de stub; wat er in een echte ronde uit `needsBrandFact` komt, is nog niet gemeten. De eerste toets
+die telt is de volgende contentronde, en de meetlat staat in
+`docs/tasks/vragen-voor-het-schrijven.md` §12. De meest contra-intuïtieve regel daarvan: als de
+inputpoort in die ronde nooit afgaat, staat de drempel te laag en is hij decoratief.

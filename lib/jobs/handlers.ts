@@ -181,6 +181,68 @@ async function scheduleAggregateIfLastPrompt(
 }
 
 /**
+ * Was dit de laatste plantaak van de batch? Zo ja, dan mag de briefing draaien.
+ * (docs/tasks/vragen-voor-het-schrijven.md §3)
+ *
+ * ── DEZELFDE CONSTRUCTIE ALS `scheduleAggregateIfLastPrompt()` ──────────────
+ *
+ * Inclusief dezelfde valkuil, die daar één keer ingelopen is: de taak die dit
+ * aanroept staat ZÉLF nog op 'running'. Zonder de uitsluiting op `currentJobId`
+ * is het aantal openstaande plantaken altijd minstens één en wordt de briefing
+ * nooit ingepland. De klant blijft dan wachten op vragen die niet komen.
+ *
+ * ── WAAROM DE BRIEFING PAS NA ALLE CONTRACTEN MAG ───────────────────────────
+ *
+ * De briefing haalt zijn vragen uit het VERSCHIL tussen het contract (wat de
+ * pagina nodig heeft) en de feitenkaart (wat we hebben). Draait hij nadat er
+ * pas twee van de vier contracten liggen, dan krijgen die twee andere pagina's
+ * geen enkele vraag, en dat zijn juist de pagina's waarvan nog niemand weet hoe
+ * dun ze zijn.
+ *
+ * ── WAAROM DIT OP TAKEN TELT EN NIET OP CONTRACTEN ─────────────────────────
+ *
+ * Een plantaak kan legitiem ZONDER contract eindigen: het onderzoek blijft
+ * hangen op een externe bron, of het schema parst niet, en dan gaat hij bij de
+ * laatste poging bewust door (zie de vangst in `content_plan` hierboven). Zou
+ * de afteller op contracten tellen, dan komt hij in precies dat geval nooit op
+ * nul uit en krijgt de klant nooit een vraag te zien. Een pagina zonder
+ * contract levert straks een briefing zonder dekkingsmeting voor díé pagina op,
+ * en dat is precies het oude gedrag: minder goed, niet stuk.
+ *
+ * De dedupe-sleutel op de briefing zorgt dat er hoe dan ook maar één ontstaat.
+ */
+async function scheduleBriefingIfLastPlan(
+  admin: Admin,
+  analysisId: string,
+  currentJobId: string,
+  userId: string,
+  recommendations: RecommendationPayload[],
+): Promise<void> {
+  const { data: openJobs } = await admin
+    .from("jobs")
+    .select("id, payload_json")
+    .eq("analysis_id", analysisId)
+    .eq("type", "content_plan")
+    .in("status", ["queued", "running"])
+    .neq("id", currentJobId);
+
+  const nogBezig = ((openJobs ?? []) as { payload_json: { voorBriefing?: unknown } | null }[]).filter(
+    (j) => Boolean(j.payload_json?.voorBriefing),
+  ).length;
+  if (nogBezig > 0) return;
+
+  await enqueue(admin, {
+    type: "content_brief",
+    payload: { userId, recommendations },
+    analysisId,
+    dedupeKey: dedupe.contentBrief(
+      analysisId,
+      recommendations.map((r) => r.title),
+    ),
+  });
+}
+
+/**
  * Was dit de laatste reputatietaak? Zo ja, dan mag de synthese draaien (§7).
  *
  * ── DEZELFDE CONSTRUCTIE ALS `scheduleAggregateIfLastPrompt()` ──────────────
@@ -692,6 +754,24 @@ const handlers: { [T in JobType]: Handler<T> } = {
         `Contentplan voor "${payload.recommendation.title}" bleef mislukken, ` +
           `we schrijven zonder contract: ${describeError(err)}`,
       );
+    }
+
+    // ── Draaide dit vóór de briefing? Dan schrijven we nog niet ─────────────
+    //
+    // Het contract is hier het IDEAAL waar de briefing zijn vragen uit haalt
+    // (docs/tasks/vragen-voor-het-schrijven.md §3). De klant heeft nog niets
+    // beantwoord en beslist zelf wanneer er geschreven wordt. Meteen schrijven
+    // zou precies de pagina opleveren die dit werk moest voorkomen: een pagina
+    // die om zijn eigen gaten heen praat.
+    if (payload.voorBriefing) {
+      await scheduleBriefingIfLastPlan(
+        admin,
+        job.analysis_id,
+        job.id,
+        payload.userId,
+        payload.voorBriefing.recommendations,
+      );
+      return;
     }
 
     await enqueue(admin, {

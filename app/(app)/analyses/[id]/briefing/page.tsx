@@ -2,8 +2,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getAnalysis } from "@/lib/analyses";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { beoordeelPagina, POORT_VELDEN } from "@/lib/pipeline/input-gate";
 import { EmptyState } from "@/components/empty-state";
-import { BriefingForm, type BriefingQuestionView } from "./briefing-form";
+import { BriefingForm, type BriefingQuestionView, type PaginaStandView } from "./briefing-form";
 import { contradictionsFromSnapshot } from "@/lib/pipeline/briefing";
 
 export const metadata = { title: "Contentbriefing" };
@@ -55,7 +57,7 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
   const [{ data: pieceRows }, { data: questionRows }] = await Promise.all([
     supabase
       .from("content_pieces")
-      .select("id, title, briefing_snapshot_json")
+      .select(POORT_VELDEN)
       .eq("analysis_id", id)
       .eq("status", "briefing")
       .eq("is_current", true),
@@ -76,6 +78,35 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
   const pieces = pieceRows ?? [];
   const titleById = new Map(pieces.map((p) => [p.id as string, p.title as string]));
   const pieceIds = new Set(pieces.map((p) => p.id as string));
+
+  // ── De stand per pagina (docs/tasks/vragen-voor-het-schrijven.md §7) ───────
+  //
+  // Eén lijst vragen zei niet welke pagina eraan toe was en welke niet. Nu staat
+  // per pagina wat er nog mist en wat dat kost, met dezelfde functie die de
+  // schrijfroute als garantie gebruikt. Zouden ze het los uitrekenen, dan zegt
+  // het scherm "deze pagina kan geschreven worden" terwijl de route hem weigert.
+  //
+  // `bewaar: false`: dit is een leesscherm en een RSC hoort geen kolom bij te
+  // werken bij het bekijken. De schrijfroute zet het cijfer, want die weegt het.
+  const admin = createAdminClient();
+  const standen: PaginaStandView[] = await Promise.all(
+    pieces.map(async (p) => {
+      const oordeel = await beoordeelPagina(admin, {
+        analysisId: id,
+        profileId: analysis.profile_id,
+        piece: p as never,
+        bewaar: false,
+      });
+      return {
+        id: oordeel.pieceId,
+        title: oordeel.title,
+        stand: oordeel.stand,
+        graad: oordeel.graad,
+        melding: oordeel.melding,
+        ongedekteKoppen: oordeel.ongedekteKoppen,
+      };
+    }),
+  );
 
   // ── Wat er sinds de vorige keer omging (S8) ───────────────────────────────
   //
@@ -125,7 +156,14 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
     );
   }
 
-  if (questions.length === 0) {
+  // ⚠️ "Weet genoeg" mag alleen als er ook geen pagina tegengehouden wordt. Een
+  // batch zonder openstaande vragen kán een pagina bevatten die de inputpoort
+  // dichthoudt, bijvoorbeeld als de klant alles oversloeg. Groen melden terwijl
+  // de schrijfroute weigert, is precies de tegenspraak die dit scherm moet
+  // vermijden.
+  const alleenGroen = standen.every((p) => p.stand === "schrijven");
+
+  if (questions.length === 0 && alleenGroen) {
     return (
       <div className="card card-success flex flex-col gap-3">
         <h1 className="text-xl font-semibold">ORBIT ENGINE weet genoeg</h1>
@@ -138,7 +176,7 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
           eerder cluster beantwoord.
         </p>
         <Tegenspraken regels={tegenspraken} />
-        <BriefingForm analysisId={id} questions={[]} pageCount={pieces.length} />
+        <BriefingForm analysisId={id} questions={[]} pageCount={pieces.length} pages={standen} />
         <Link href={`/analyses/${id}/bibliotheek`} className="mono-label">
           Naar de bibliotheek
         </Link>
@@ -149,7 +187,7 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
   return (
     <div className="flex flex-col gap-4">
       <Tegenspraken regels={tegenspraken} />
-      <BriefingForm analysisId={id} questions={questions} pageCount={pieces.length} />
+      <BriefingForm analysisId={id} questions={questions} pageCount={pieces.length} pages={standen} />
     </div>
   );
 }

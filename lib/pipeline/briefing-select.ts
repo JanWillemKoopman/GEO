@@ -28,8 +28,23 @@ import { claimKey, topicKey } from "@/lib/pipeline/factcard";
 import type { AnswerType, QuestionKind } from "@/lib/schemas/claim-audit";
 import type { BusinessModel, ContentType } from "@/lib/types/database";
 
-/** Harde bovengrens per briefing (contentbriefing.md §3.4). */
-export const MAX_QUESTIONS = 8;
+/**
+ * Harde bovengrens per briefing (contentbriefing.md §3.4).
+ *
+ * ── VAN 8 NAAR 12 (2 SEPTEMBER 2026) ────────────────────────────────────────
+ *
+ * Acht was gekozen op "liever een korte lijst die iemand invult dan een lange
+ * die iemand wegklikt" (README.md §2), en dat blijft het uitgangspunt. Maar de
+ * briefing van 1 september leverde er 16 op voor vier pagina's, en die pasten
+ * redelijk in één scherm zodra ze per pagina gegroepeerd staan. Twaalf is de
+ * ruimte die nodig is om één pagina met veel gaten écht te helpen zonder de
+ * andere drie leeg te laten (docs/tasks/vragen-voor-het-schrijven.md §5).
+ *
+ * Wordt de lijst in de praktijk toch te lang, dan gaat dit getal terug naar acht
+ * en krijgt de klant de rest bij een volgende versie. Dat is een cijfer, geen
+ * verbouwing.
+ */
+export const MAX_QUESTIONS = 12;
 
 /**
  * Hoeveel plekken er gereserveerd zijn voor de vraagsoort `onderscheid` (S4).
@@ -64,6 +79,17 @@ export interface BriefingQuestion {
   scope: "merk" | "analyse" | "pagina";
   /** Welke pagina's beter worden van het antwoord, de klant ziet dit. */
   contentPieceIds: string[];
+  /**
+   * De contractsecties die dit antwoord nodig hebben, als
+   * "<content_piece_id>:s3" (migratie 0083).
+   *
+   * Wordt de vraag overgeslagen, dan vervallen precies deze secties. Een lijst
+   * en geen enkel veld, want de ontdubbeling hieronder voegt vragen van
+   * verschillende pagina's samen, en dan hoort het overslaan ze allebei te
+   * raken. Leeg bij de vaste slots en de positioneringsvraag: die komen niet
+   * uit een sectie.
+   */
+  sectionRefs?: string[];
   /** Alleen voor de sortering; wordt niet opgeslagen. */
   priority: number;
   /**
@@ -329,8 +355,17 @@ export function selectBriefingQuestions(args: {
   /** Claim-sleutels die al beantwoord zijn of al als open vraag klaarstaan. */
   alreadyKnown: Set<string>;
   max?: number;
+  /**
+   * De onderbouwingsgraad per pagina (0 tot 100, of null als de pagina geen
+   * merkgebonden sectie heeft). Zie `berekenInputCoverage`.
+   *
+   * Leeg meegeven laat de sortering zich precies zo gedragen als vóór
+   * 2 september 2026: dan telt alleen bereik. Dat is wat de bestaande tests
+   * beschrijven en wat een pagina zonder contract krijgt.
+   */
+  graadPerPagina?: ReadonlyMap<string, number | null>;
 }): BriefingQuestion[] {
-  const { candidates, alreadyKnown, max = MAX_QUESTIONS } = args;
+  const { candidates, alreadyKnown, max = MAX_QUESTIONS, graadPerPagina } = args;
 
   const samengevoegd = new Map<string, BriefingQuestion>();
   for (const kandidaat of candidates) {
@@ -346,6 +381,12 @@ export function selectBriefingQuestions(args: {
     bestaand.contentPieceIds = Array.from(
       new Set([...bestaand.contentPieceIds, ...kandidaat.contentPieceIds]),
     );
+    // ⚠️ De secties van de VERLIEZER gaan mee. Slaat de klant deze ene vraag
+    // over, dan horen alle secties die op dat antwoord wachtten te vervallen,
+    // en niet alleen die van de pagina die toevallig als eerste langskwam.
+    bestaand.sectionRefs = Array.from(
+      new Set([...(bestaand.sectionRefs ?? []), ...(kandidaat.sectionRefs ?? [])]),
+    );
     bestaand.required = bestaand.required || kandidaat.required;
     bestaand.suggestedAnswer = bestaand.suggestedAnswer ?? kandidaat.suggestedAnswer;
     if (bestaand.options.length === 0) bestaand.options = kandidaat.options;
@@ -355,7 +396,11 @@ export function selectBriefingQuestions(args: {
   const gesorteerd = dedupeOpOnderwerp(Array.from(samengevoegd.values()))
     .map((vraag) => ({
       ...vraag,
-      priority: vraag.contentPieceIds.length * (vraag.required ? 2 : 1) * vraag.priority,
+      priority:
+        winstVoorZwakstePagina(vraag, graadPerPagina) *
+        vraag.contentPieceIds.length *
+        (vraag.required ? 2 : 1) *
+        vraag.priority,
     }))
     .sort(
       (a, b) =>
@@ -444,6 +489,55 @@ export function selectBriefingQuestions(args: {
 }
 
 /**
+ * Hoeveel gaat de ZWAKSTE pagina die deze vraag dient erop vooruit?
+ * (docs/tasks/vragen-voor-het-schrijven.md §5)
+ *
+ * ── WAAROM DIT ERBIJ MOET ───────────────────────────────────────────────────
+ *
+ * De sortering was `aantal pagina's × kern(2) × prioriteit`: puur bereik. Een
+ * vraag die vier pagina's van 85% naar 88% helpt, won daarmee altijd van de
+ * vraag die één pagina van 30% naar 60% tilt, terwijl juist die tweede het
+ * verschil maakt tussen een bruikbare en een lege pagina.
+ *
+ * De uitkomst is een factor tussen 0 en 1, dus bereik telt nog steeds mee; het
+ * weegt alleen niet langer als enige. Een pagina op 30% levert factor 0,7 op,
+ * een pagina op 90% factor 0,1.
+ *
+ * ── ONBEKEND IS 0,5, NIET 0 EN NIET 1 ───────────────────────────────────────
+ *
+ * Drie gevallen leveren geen getal op: een pagina zonder contract (de plantaak
+ * strandde), een pagina zonder merkgebonden sectie (graad `null`), en een
+ * vraag die aan geen enkele bekende pagina hangt. Alle drie krijgen 0,5.
+ *
+ * Nul zou zo'n vraag stilzwijgend onderaan zetten en dus laten vervallen, één
+ * zou hem boven alles zetten. Onbekend is een betere waarde dan een verkeerde
+ * (conventie 3), en het midden is hier de enige eerlijke plek.
+ *
+ * Zonder `graadPerPagina` geeft deze functie voor élke vraag 0,5, en dan is de
+ * volgorde exact die van vóór 2 september: de factor valt tegen elkaar weg.
+ */
+function winstVoorZwakstePagina(
+  vraag: BriefingQuestion,
+  graadPerPagina: ReadonlyMap<string, number | null> | undefined,
+): number {
+  const ONBEKEND = 0.5;
+  if (!graadPerPagina || graadPerPagina.size === 0) return ONBEKEND;
+
+  const winsten = vraag.contentPieceIds.map((id) => {
+    if (!graadPerPagina.has(id)) return ONBEKEND;
+    const graad = graadPerPagina.get(id);
+    if (graad === null || graad === undefined || !Number.isFinite(graad)) return ONBEKEND;
+    // Begrensd op 0 tot 1: een graad buiten 0 tot 100 hoort niet te bestaan,
+    // maar een negatieve factor zou de sortering omkeren in plaats van hem te
+    // negeren, en dat is een stille fout.
+    return Math.min(1, Math.max(0, 1 - graad / 100));
+  });
+
+  // De ZWAKSTE pagina bepaalt: die heeft de meeste winst, dus de hoogste factor.
+  return winsten.length > 0 ? Math.max(...winsten) : ONBEKEND;
+}
+
+/**
  * Tweede ontdubbelronde, nu op ONDERWERP in plaats van op formulering (R8.4).
  *
  * `claimKey` vangt dezelfde vraag in andere woordvolgorde, maar niet dezelfde
@@ -492,6 +586,11 @@ function dedupeOpOnderwerp(vragen: BriefingQuestion[]): BriefingQuestion[] {
     const verliezer = winnaar === bestaand ? vraag : bestaand;
     winnaar.contentPieceIds = Array.from(
       new Set([...winnaar.contentPieceIds, ...verliezer.contentPieceIds]),
+    );
+    // Ook hier gaan de secties van de verliezer mee: overslaan hoort élke
+    // sectie te raken die op dit antwoord wachtte (migratie 0083).
+    winnaar.sectionRefs = Array.from(
+      new Set([...(winnaar.sectionRefs ?? []), ...(verliezer.sectionRefs ?? [])]),
     );
     winnaar.required = winnaar.required || verliezer.required;
     winnaar.suggestedAnswer = winnaar.suggestedAnswer ?? verliezer.suggestedAnswer;

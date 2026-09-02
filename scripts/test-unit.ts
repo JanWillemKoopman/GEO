@@ -82,7 +82,15 @@ import {
   normalizeHeading,
 } from "@/lib/pipeline/content-sections";
 import { checkContractCoverage } from "@/lib/pipeline/content-coverage";
-import type { ContentContract } from "@/lib/schemas/content-contract";
+import type { ContentContract, ContractSection } from "@/lib/schemas/content-contract";
+import {
+  berekenInputCoverage,
+  leesSectieVerwijzing,
+  sectiesVanPagina,
+  sectieVerwijzing,
+  zetContractVast,
+} from "@/lib/pipeline/input-coverage";
+import { inputpoort, GOED_GENOEG, TE_WEINIG } from "@/lib/content-input-gate";
 import {
   normaliseerContract,
   formatContract,
@@ -2591,7 +2599,13 @@ group("de vraag die 0 van de 62 keer gesteld werd", () => {
 
 group("de gereserveerde plek", () => {
   // Acht inhoudelijk verschillende, verplichte vragen die alle pagina's raken,
-  // precies de soort die in productie alle acht plekken innam.
+  // precies de soort die in productie alle plekken innam.
+  //
+  // ⚠️ De aantallen hieronder tellen op ACHT en niet op MAX_QUESTIONS. Dat was
+  // tot 2 september 2026 hetzelfde getal; sinds het plafond op twaalf staat
+  // (docs/tasks/vragen-voor-het-schrijven.md §5) is het dat niet meer, en de
+  // vraag die deze groep stelt gaat over verplichte vragen die de ruimte
+  // vullen, niet over de hoogte van het plafond.
   const onderwerpen = [
     "tarieven vergoeding zorgverzekeraar",
     "wachttijd eerste afspraak inplannen",
@@ -2622,26 +2636,28 @@ group("de gereserveerde plek", () => {
   })!;
 
   ok(
-    "acht verplichte vragen vullen de lijst",
-    selectBriefingQuestions({ candidates: vulling, alreadyKnown: new Set() }).length === MAX_QUESTIONS,
+    "acht verplichte vragen gaan alle acht mee",
+    selectBriefingQuestions({ candidates: vulling, alreadyKnown: new Set() }).length ===
+      onderwerpen.length,
   );
 
   const met = selectBriefingQuestions({
     candidates: [...vulling, positionering],
     alreadyKnown: new Set(),
   });
-  // Negen en niet acht (sinds 30 augustus 2026, werkpakket A §3.3): de acht
-  // verplichte vragen laten geen optionele ruimte over om de positioneringsvraag
-  // te ruilen, dus komt hij erbovenop in plaats van dat een `kern`-vraag
-  // sneuvelt. Zie de aantekening bij `selectBriefingQuestions()`.
-  ok("acht verplicht plus de positioneringsvraag erbovenop", met.length === MAX_QUESTIONS + 1);
+  // Negen en niet acht: de positioneringsvraag komt erbij zonder dat er een
+  // verplichte vraag voor sneuvelt. Met een plafond van twaalf past hij in de
+  // optionele ruimte; stond het plafond op acht, dan kwam hij erbovenop. Beide
+  // uitkomsten zijn goed, en dát is wat deze regel bewaakt: een `kern`-vraag
+  // wordt er nooit voor geruild (werkpakket A §3.3).
+  ok("acht verplicht plus de positioneringsvraag erbij", met.length === onderwerpen.length + 1);
   // Zonder reservering verliest deze vraag altijd: hij is nooit `kern` en raakt
   // zelden alle pagina's, dus de sortering op impact duwt hem er structureel uit.
   // Dat is precies waarom hij 0 van de 62 keer gesteld werd.
   ok("de positioneringsvraag haalt de lijst", met.some((v) => v.kind === "onderscheid"));
   ok(
     "geen enkele verplichte vraag sneuvelt ervoor",
-    met.filter((v) => v.required).length === MAX_QUESTIONS,
+    met.filter((v) => v.required).length === onderwerpen.length,
     String(met.filter((v) => v.required).length),
   );
 });
@@ -15992,6 +16008,7 @@ group("De dekkingspoort op het contentcontract (A3)", () => {
         factRefs: ["F2"],
         explainerTerms: ["runnersknie"],
         targetWords: 100,
+        needsBrandFact: false,
       },
       {
         id: "s2",
@@ -16001,6 +16018,7 @@ group("De dekkingspoort op het contentcontract (A3)", () => {
         factRefs: [],
         explainerTerms: [],
         targetWords: 100,
+        needsBrandFact: false,
       },
     ],
     faqQuestions: ["Heb ik een verwijzing nodig?"],
@@ -16103,11 +16121,12 @@ group("Het contract opschonen en als opdracht formuleren (A2)", () => {
         factRefs: ["", "F1"],
         explainerTerms: [""],
         targetWords: 0,
+        needsBrandFact: false,
       },
       // Een sectie zonder kop of zonder deelvraag kan de poort niet toetsen en
       // de schrijver niet uitvoeren: die hoort te vervallen.
-      { id: "s2", heading: "  ", subQuestion: "iets", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 100 },
-      { id: "s3", heading: "Kop", subQuestion: "  ", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 9999 },
+      { id: "s2", heading: "  ", subQuestion: "iets", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 100, needsBrandFact: false },
+      { id: "s3", heading: "Kop", subQuestion: "  ", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 9999, needsBrandFact: false },
     ],
     faqQuestions: ["", "Heb ik een verwijzing nodig?"],
     reasoning: "",
@@ -16306,6 +16325,7 @@ group("De opening van een pagina bevat geen interne notities (verbetering 3)", (
         factRefs: ["F5"],
         explainerTerms: [],
         targetWords: 120,
+        needsBrandFact: false,
       },
     ],
     faqQuestions: ["Werkt u in Tilburg?"],
@@ -16418,6 +16438,7 @@ group("Het contract past in de doellengte (verbetering 6)", () => {
     factRefs: [],
     explainerTerms: [],
     targetWords: woorden,
+    needsBrandFact: false,
   });
 
   // De Tilburg-pagina: 25 secties van 40 woorden bij een maximum van 700.
@@ -16569,6 +16590,7 @@ group("De dekkingspoort leest verwijzingen zoals de citaatcontrole (verbetering 
         factRefs: ["F1", "F5", "F18"],
         explainerTerms: [],
         targetWords: 120,
+        needsBrandFact: false,
       },
     ],
     faqQuestions: [],
@@ -16613,6 +16635,7 @@ group("Een vakterm telt pas als hij echt is uitgelegd (verbetering 12)", () => {
         factRefs: [],
         explainerTerms: termen,
         targetWords: 120,
+        needsBrandFact: false,
       },
       {
         id: "s2",
@@ -16622,6 +16645,7 @@ group("Een vakterm telt pas als hij echt is uitgelegd (verbetering 12)", () => {
         factRefs: [],
         explainerTerms: [],
         targetWords: 120,
+        needsBrandFact: false,
       },
     ],
     faqQuestions: [],
@@ -16677,6 +16701,292 @@ group("De aanspreekvorm gaat mee naar de schrijver (verbetering 11)", () => {
     "en het merkprofiel belooft niet meer dat het veld ongebruikt blijft",
     !velden.includes("Wordt op dit moment niet in de teksten toegepast"),
   );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("De onderbouwingsgraad per pagina (vragen-voor-het-schrijven §4)", () => {
+  const sectie = (
+    id: string,
+    needsBrandFact: boolean,
+    factRefs: string[] = [],
+    heading = `Kop ${id}`,
+  ): ContractSection => ({
+    id,
+    heading,
+    subQuestion: `Wat over ${id}?`,
+    mustCover: [],
+    factRefs,
+    explainerTerms: [],
+    targetWords: 100,
+    needsBrandFact,
+  });
+
+  const contract = (secties: ContractSection[]): ContentContract => ({
+    openingAnswer: "Ja.",
+    sections: secties,
+    faqQuestions: [],
+    reasoning: "",
+  });
+
+  const feit = (ref: string) => ({
+    ref,
+    text: `Feit ${ref}`,
+    source: "site",
+    citable: true,
+    confidence: "hoog" as const,
+  });
+
+  const kaart = [feit("F1"), feit("F2")];
+
+  // Het geval van de Tilburg-pagina, verkleind: vier secties, twee gaan over het
+  // bedrijf, en één daarvan heeft een feit.
+  const gemengd = contract([
+    sectie("s1", false),
+    sectie("s2", true, ["F1"]),
+    sectie("s3", true, []),
+    sectie("s4", false),
+  ]);
+  const gemeten = berekenInputCoverage(gemengd, kaart as never);
+  ok("alleen merkgebonden secties tellen mee", gemeten.merksecties === 2);
+  ok("en de graad is het deel dat gedekt is", gemeten.graad === 50, `${gemeten.graad}`);
+  ok("de ongedekte sectie komt eruit, want daar komt de vraag uit", gemeten.ongedekt.length === 1);
+  ok("en het is de juiste", gemeten.ongedekt[0]?.id === "s3");
+
+  // ⚠️ Conventie 3: geen merkgebonden sectie is NIET nul procent. Een pagina die
+  // volledig uit algemene uitleg bestaat is een goede pagina waarvoor de klant
+  // niets hoeft aan te leveren; een 0 zou de inputpoort ten onrechte dichtzetten.
+  const algemeen = berekenInputCoverage(contract([sectie("s1", false), sectie("s2", false)]), kaart as never);
+  ok("een pagina zonder merkgebonden sectie krijgt geen cijfer", algemeen.graad === null);
+  ok("en heeft dus ook geen gaten", algemeen.ongedekt.length === 0);
+
+  // Een samengestelde verwijzing ("F1, F2") is de vorm die vóór R8.3 als
+  // onbewezen telde. Zou hij hier ook falen, dan krijgt de klant een vraag
+  // waarvan het antwoord al op de kaart staat.
+  const samengesteld = berekenInputCoverage(contract([sectie("s1", true, ["F1, F2"])]), kaart as never);
+  ok("een samengestelde verwijzing telt als gedekt", samengesteld.graad === 100);
+
+  // Een F-nummer dat niet bestaat mag niet meetellen: het model mag zichzelf
+  // niet vrijpleiten uit de vraag die het gat moest dichten (conventie 1).
+  const verzonnen = berekenInputCoverage(contract([sectie("s1", true, ["F99"])]), kaart as never);
+  ok("een verzonnen F-nummer dekt niets", verzonnen.graad === 0);
+
+  // Een contract van vóór migratie 0083 heeft het veld niet. Dat telt als "niet
+  // merkgebonden", zodat een oude pagina niet ineens door de poort wordt
+  // tegengehouden op een veld dat destijds niet bestond.
+  const oud = berekenInputCoverage(
+    { ...contract([{ ...sectie("s1", true) }]), sections: [{ ...sectie("s1", true), needsBrandFact: undefined } as never] },
+    kaart as never,
+  );
+  ok("een contract van vóór dit veld levert geen gat op", oud.graad === null);
+
+  ok("zonder contract is er niets te meten", berekenInputCoverage(null, kaart as never).graad === null);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Overslaan haalt de sectie eruit (vragen-voor-het-schrijven §6)", () => {
+  const sectie = (id: string): ContractSection => ({
+    id,
+    heading: `Kop ${id}`,
+    subQuestion: "?",
+    mustCover: [],
+    factRefs: [],
+    explainerTerms: [],
+    targetWords: 100,
+    needsBrandFact: true,
+  });
+  const vijf: ContentContract = {
+    openingAnswer: "Ja.",
+    sections: ["s1", "s2", "s3", "s4", "s5"].map(sectie),
+    faqQuestions: [],
+    reasoning: "",
+  };
+
+  const na = zetContractVast(vijf, ["s2", "s4"]);
+  ok("de overgeslagen secties vervallen", na?.sections.length === 3);
+  ok("en het zijn de juiste die blijven", na?.sections.map((s) => s.id).join(",") === "s1,s3,s5");
+  ok("zonder overgeslagen vraag verandert er niets", zetContractVast(vijf, []) === vijf);
+
+  // De ondergrens. Slaat de klant alles over, dan is dat werk voor de
+  // INPUTPOORT (die houdt de pagina tegen vóór het geld), niet voor deze
+  // functie. Een pagina van één sectie is geen pagina.
+  ok("onder drie secties blijft het contract staan", zetContractVast(vijf, ["s1", "s2", "s3"]) === vijf);
+
+  ok("geen contract blijft geen contract", zetContractVast(null, ["s1"]) === null);
+
+  // De verwijzingen: het sectie-id alleen wijst nergens heen, want elke pagina
+  // nummert vanaf s1.
+  ok("een verwijzing bevat de pagina", sectieVerwijzing("abc", "s3") === "abc:s3");
+  ok("en is per pagina te lezen", sectiesVanPagina(["abc:s3", "def:s1"], "abc").join(",") === "s3");
+  ok("een andere pagina krijgt niets", sectiesVanPagina(["abc:s3"], "def").length === 0);
+  ok("en een lege lijst ook niet", sectiesVanPagina(null, "abc").length === 0);
+
+  ok("de opdrachtcode wordt gelezen", leesSectieVerwijzing("P2-s5")?.paginaIndex === 1);
+  ok("met het sectie-id erbij", leesSectieVerwijzing("P2-s5")?.sectionId === "s5");
+  ok("onzin levert niets op", leesSectieVerwijzing("sectie twee") === null);
+  ok("en leeg ook niet", leesSectieVerwijzing(null) === null);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("De inputpoort: kan deze pagina goed worden? (vragen-voor-het-schrijven §4)", () => {
+  const poort = (graad: number | null, ongedekt = 2, koppen: string[] = ["de prijs", "het werkgebied"]) =>
+    inputpoort({ graad, ongedekteSecties: ongedekt, ongedekteKoppen: koppen });
+
+  ok("boven de bovengrens wordt er geschreven", poort(GOED_GENOEG).stand === "schrijven");
+  ok("en dat mag", poort(85).mag === true);
+  ok("tussen de grenzen komt er een waarschuwing", poort(55).stand === "waarschuwing");
+  ok("maar schrijven mag nog steeds", poort(55).mag === true);
+  ok("onder de ondergrens wordt de pagina tegengehouden", poort(TE_WEINIG - 1).stand === "tegenhouden");
+  ok("en dan mag het niet", poort(10).mag === false);
+
+  // ⚠️ Conventie 3: null is geen nul. Een pagina zonder merkgebonden sectie
+  // vraagt niets van de klant en hoort gewoon geschreven te worden.
+  ok("zonder merkgebonden sectie gaat de poort open", poort(null).mag === true);
+  ok("en zegt hij dat er niets gevraagd wordt", poort(null).melding.includes("vraagt niets van jou"));
+
+  // De derde uitweg. Zonder deze zin is de poort een muur, en muren leveren
+  // afgehaakte klanten op in plaats van betere content (`release-panel.tsx`).
+  const tegengehouden = poort(10);
+  ok("de melding noemt alle drie de uitwegen", tegengehouden.melding.includes("beantwoorden"));
+  ok("waaronder de algemene pagina", tegengehouden.melding.includes("algemene uitleg"));
+  ok("en hem laten vallen", tegengehouden.melding.includes("laten vallen"));
+  ok("en hij noemt wat er mist", tegengehouden.melding.includes("de prijs en het werkgebied"));
+
+  const gekozen = inputpoort({ graad: 10, ongedekteSecties: 5, writeMode: "algemeen" });
+  ok("wie kiest voor een algemene pagina komt er altijd door", gekozen.mag === true);
+  ok("en krijgt niet nog eens dezelfde vraag", gekozen.stand === "schrijven");
+
+  // De grenzen zijn een startwaarde en worden per pagina bewaard, zodat ze op
+  // data bijgesteld kunnen worden in plaats van op gevoel.
+  const migratie = leesBestand("supabase/migrations/0083_inputpoort.sql");
+  ok("het cijfer heeft een kolom", migratie.includes("input_coverage"));
+  ok("de keuze van de klant ook", migratie.includes("write_mode"));
+  ok("en de secties achter een vraag", migratie.includes("section_refs"));
+  ok("additief, nooit droppen (conventie 4)", !/\bdrop\b/i.test(migratie));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Het vraagbudget gaat van de batch naar de pagina (§5)", () => {
+  const vraag = (
+    sleutel: string,
+    paginas: string[],
+    extra: Partial<BriefingQuestion> = {},
+  ): BriefingQuestion => ({
+    claimKey: sleutel,
+    question: `Vraag over ${sleutel}?`,
+    reason: "r",
+    kind: "verificatie",
+    answerType: "tekst_kort",
+    options: [],
+    suggestedAnswer: null,
+    required: false,
+    scope: "analyse",
+    contentPieceIds: paginas,
+    priority: 1,
+    ...extra,
+  });
+
+  // ⚠️ DE OMKERING. Vroeger won bereik altijd: een vraag die vier pagina's een
+  // beetje helpt stond boven de vraag die één pagina van dun naar goed tilt.
+  // Nu telt hoeveel de ZWAKSTE pagina die de vraag dient erop vooruitgaat.
+  const breed = vraag("bereik heeft vier sterke pagina", ["a", "b", "c", "d"]);
+  const diep = vraag("prijs tilt de zwakke pagina", ["z"]);
+  const graden = new Map<string, number | null>([
+    ["a", 90],
+    ["b", 90],
+    ["c", 90],
+    ["d", 90],
+    ["z", 20],
+  ]);
+
+  const zonder = selectBriefingQuestions({
+    candidates: [breed, diep],
+    alreadyKnown: new Set(),
+  });
+  ok("zonder cijfers wint bereik, zoals vroeger", zonder[0]?.claimKey === breed.claimKey);
+
+  const met = selectBriefingQuestions({
+    candidates: [vraag(breed.claimKey, ["a", "b", "c", "d"]), vraag(diep.claimKey, ["z"])],
+    alreadyKnown: new Set(),
+    graadPerPagina: graden,
+  });
+  ok(
+    "met cijfers wint de vraag die de zwakste pagina redt",
+    met[0]?.claimKey === diep.claimKey,
+    met.map((v) => v.claimKey).join(" | "),
+  );
+
+  // Onbekend is 0,5 en niet 0: een vraag voor een pagina zonder contract mag
+  // niet stilzwijgend onderaan belanden en dus vervallen (conventie 3).
+  const onbekend = selectBriefingQuestions({
+    candidates: [vraag("pagina zonder contract", ["onbekend"]), vraag("sterke pagina helpen", ["a"])],
+    alreadyKnown: new Set(),
+    graadPerPagina: graden,
+  });
+  ok(
+    "een pagina zonder cijfer verliest niet automatisch",
+    onbekend[0]?.claimKey === "pagina zonder contract",
+  );
+
+  // De secties van beide vragen gaan mee bij het samenvoegen: slaat de klant de
+  // ene vraag over, dan hoort élke sectie die erop wachtte te vervallen.
+  const samen = selectBriefingQuestions({
+    candidates: [
+      vraag("zelfde onderwerp", ["a"], { sectionRefs: ["a:s1"] }),
+      vraag("zelfde onderwerp", ["b"], { sectionRefs: ["b:s4"] }),
+    ],
+    alreadyKnown: new Set(),
+  });
+  ok("twee samengevoegde vragen houden allebei hun sectie", samen.length === 1);
+  ok(
+    "en die staan allebei op de overgebleven vraag",
+    (samen[0]?.sectionRefs ?? []).sort().join(",") === "a:s1,b:s4",
+    (samen[0]?.sectionRefs ?? []).join(","),
+  );
+
+  ok("het plafond staat op twaalf", MAX_QUESTIONS === 12);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("De bedrading van de inputpoort", () => {
+  // Conventie 1: een promptinstructie is een intentie, code is een garantie.
+  // Deze controles bewaken dat de nieuwe regels ook echt aangesloten zijn.
+  const contract = leesBestand("lib/pipeline/content-contract.ts");
+  // ⚠️ Op het BLOK dat naar het model gaat, niet op het hele bestand: de kop
+  // van dat bestand citeert de oude regel met opzet, om vast te leggen wat er
+  // veranderd is en waarom.
+  ok(
+    "de feitenlijst verbiedt geen sectie meer",
+    !contract.includes("plan er geen sectie omheen"),
+  );
+  ok(
+    "maar plant de pagina die de vraag echt beantwoordt",
+    contract.includes("Plan de pagina die de doelvraag ECHT beantwoordt"),
+  );
+  ok("en vraagt per sectie of hij over het bedrijf gaat", contract.includes("needsBrandFact: true"));
+
+  const jobs = leesBestand("lib/jobs/content-jobs.ts");
+  ok("de briefing start eerst de plantaken", jobs.includes('type: "content_plan"'));
+  ok("met de vlag dat ze vóór de briefing draaien", jobs.includes("voorBriefing"));
+
+  const handlers = leesBestand("lib/jobs/handlers.ts");
+  ok(
+    "en de laatste plantaak start de briefing",
+    handlers.includes("scheduleBriefingIfLastPlan"),
+  );
+  ok(
+    "een plantaak vóór de briefing schrijft nog niet",
+    handlers.includes("if (payload.voorBriefing) {"),
+  );
+
+  const route = leesBestand("app/api/analyses/[id]/briefing/route.ts");
+  ok("de schrijfroute vraagt de poort om toestemming", route.includes("beoordeelPagina"));
+  ok("en weigert met dezelfde code als de eindpoort", route.includes("INPUTPOORT_STATUS"));
+  ok("de klant kan een pagina algemeen laten schrijven", route.includes('"algemeen"'));
+  ok("of hem laten vallen", route.includes('"laten_vallen"'));
+
+  const plan = leesBestand("lib/pipeline/content-plan.ts");
+  ok("het contract wordt vastgezet vóór het schrijven", plan.includes("zetVastEnMeet"));
+  ok("en het cijfer gaat mee naar de pagina", plan.includes("input_coverage"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

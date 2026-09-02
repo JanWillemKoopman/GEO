@@ -12,6 +12,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { requireCount } from "@/lib/require-count";
+import { ensureBriefingPieces } from "@/lib/pipeline/briefing";
 import type { RecommendationPayload } from "@/lib/jobs/types";
 import type { StoredRecommendation } from "@/lib/pipeline/recommendation";
 import type { ContentType, ContentAction } from "@/lib/types/database";
@@ -173,14 +174,34 @@ export async function planContentDraft(
  * Plant de CONTENTBRIEFING in voor een batch gekozen pagina's
  * (contentbriefing.md §2, implementatieplan.md R5.1).
  *
- * Dit vervangt de directe sprong naar `content_draft`. De briefing maakt de
- * pagina's aan met status 'briefing', bouwt de feitenkaart en stelt de vragen,
- * daarna stopt de pijplijn en beslist de klant wanneer er geschreven wordt.
+ * Dit vervangt de directe sprong naar `content_draft`. De briefing bouwt de
+ * feitenkaart en stelt de vragen, daarna stopt de pijplijn en beslist de klant
+ * wanneer er geschreven wordt.
  *
  * Eén briefing voor de hele batch, niet per pagina. Kiest de klant drie
  * pagina's, dan krijgt hij één vragenlijst waarin overlappende vragen zijn
  * samengevoegd. Drie keer los "wat is er inbegrepen?" beantwoorden is precies
  * het soort wrijving dat README.md §2 verbiedt.
+ *
+ * ── ⚠️ EERST PLANNEN, DAN PAS VRAGEN (docs/tasks/vragen-voor-het-schrijven.md) ──
+ *
+ * Tot 2 september 2026 startte deze functie meteen de briefing. De vragen kwamen
+ * dus uit een stap die de pagina nog niet kende: de claim-audit bedacht welke
+ * beweringen nodig waren zónder de inhoudsopgave, en pas dáárna onderzocht de
+ * app wat de pagina echt moest behandelen. Gemeten op 1 september 2026 leverde
+ * dat 16 vragen op voor vier pagina's, terwijl 18 van de 25 secties van één van
+ * die pagina's op geen enkel feit over het bedrijf rustten.
+ *
+ * Nu start deze functie eerst één `content_plan` per pagina. Elke plantaak
+ * levert het CONTRACT: de inhoudsopgave zoals de pagina hem écht nodig heeft,
+ * met per sectie of daar een uitspraak over dit bedrijf voor nodig is. De
+ * LAATSTE plantaak van de batch start de briefing, en die kan zijn vragen dan
+ * uit het verschil tussen contract en feitenkaart halen.
+ *
+ * Wat dat kost: het itemdossier en het contract draaien nu ook voor pagina's die
+ * de klant alsnog laat liggen. Gemeten op 1 september: $0,0172 plus $0,0047 per
+ * pagina, samen negen cent voor vier pagina's, tegenover $4,52 voor het
+ * schrijven. Dat is de investering die de dure stap goedkoper maakt.
  */
 export async function planContentBriefing(
   admin: Admin,
@@ -193,15 +214,29 @@ export async function planContentBriefing(
   const recommendations = args.recommendations.filter((r) => r.title?.trim());
   if (recommendations.length === 0) return { created: false, pages: 0 };
 
-  const { created } = await enqueue(admin, {
-    type: "content_brief",
-    payload: { userId: args.userId, recommendations },
-    analysisId: args.analysisId,
-    dedupeKey: dedupe.contentBrief(
-      args.analysisId,
-      recommendations.map((r) => r.title),
-    ),
-  });
+  // De rijen moeten er zijn vóór de eerste plantaak: die zoekt zijn pagina op
+  // met `currentPiece()` en hangt het contract eraan. Idempotent, dus opnieuw
+  // proberen levert dezelfde id's op.
+  await ensureBriefingPieces(admin, args.analysisId, recommendations);
+
+  let created = false;
+  for (const rec of recommendations) {
+    const uitkomst = await enqueue(admin, {
+      type: "content_plan",
+      payload: {
+        userId: args.userId,
+        recommendation: rec,
+        voorBriefing: { recommendations },
+      },
+      analysisId: args.analysisId,
+      // Een eigen achtervoegsel, zodat een plantaak vóór de briefing nooit
+      // botst met de plantaak die de klant later start door op "Schrijf mijn
+      // pagina's" te drukken. Dat zijn twee verschillende opdrachten: de eerste
+      // maakt het ideaal, de tweede schrijft wat daarvan haalbaar bleek.
+      dedupeKey: `${dedupe.contentPlan(args.analysisId, rec.title)}:briefing`,
+    });
+    if (uitkomst.created) created = true;
+  }
 
   return { created, pages: recommendations.length };
 }

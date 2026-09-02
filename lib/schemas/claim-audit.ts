@@ -92,6 +92,34 @@ export const AuditedClaim = z.object({
    * één keer te veel vragen.
    */
   scope: z.enum(["merk", "analyse", "pagina"]),
+  /**
+   * De sectie van het contentcontract waar deze bewering bij hoort, zoals hij in
+   * de opdracht staat: "P2-s5" (docs/tasks/vragen-voor-het-schrijven.md §5).
+   *
+   * ── WAAROM DIT ER IS ────────────────────────────────────────────────────────
+   *
+   * Het maakt de vraag concreet en de reden zichtbaar. Vergelijk:
+   *
+   *   nu:     "Wat is de richtprijs voor een hybride warmtepomp inclusief
+   *            installatie in Oss en welke onderdelen zitten daarin?"
+   *   straks: "Voor de sectie 'Wat kost het inclusief installatie' heb ik een
+   *            bedrag nodig. Zonder dat blijft die sectie leeg."
+   *
+   * En het is wat OVERSLAAN een zichtbare prijs geeft: zonder deze koppeling is
+   * een overgeslagen vraag niet aan een sectie te verbinden, verdwijnt het gat
+   * uit beeld en blijft alleen een dunne pagina over waarvan niemand meer weet
+   * waarom hij dun is.
+   *
+   * ── WAAROM MET EEN PAGINAVOORVOEGSEL ────────────────────────────────────────
+   *
+   * Elke pagina nummert zijn eigen secties vanaf s1, dus "s5" alleen wijst
+   * nergens heen zodra er meer dan één pagina in de batch zit. De P-nummers in
+   * de opdracht zijn dezelfde als bij "PAGINA 1", "PAGINA 2".
+   *
+   * Null is normaal: een bewering die niet uit een sectie komt (of een pagina
+   * zonder contract) heeft er geen. De koppeling valt dan terug op `neededFor`.
+   */
+  sectionId: z.string().nullable(),
 });
 
 /**

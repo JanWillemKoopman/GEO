@@ -335,6 +335,19 @@ export interface JobPayloads {
     regenerate?: boolean;
     /** Zie `content_draft.plannedPageId`; gaat ongewijzigd door naar die taak. */
     plannedPageId?: string;
+    /**
+     * Draait deze plantaak VÓÓR de briefing?
+     * (docs/tasks/vragen-voor-het-schrijven.md §3)
+     *
+     * Dan plant hij geen schrijftaak in. Het contract is hier het IDEAAL waar de
+     * briefing zijn vragen uit haalt, en de klant beslist daarna zelf of en
+     * wanneer er geschreven wordt. De hele batch reist mee, zodat de laatste
+     * plantaak van de batch de briefing kan starten; zonder die lijst zou de
+     * briefing niet weten welke pagina's erbij horen.
+     */
+    voorBriefing?: {
+      recommendations: RecommendationPayload[];
+    };
   };
   content_draft: {
     userId: string;

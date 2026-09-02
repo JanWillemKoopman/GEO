@@ -9,8 +9,23 @@ import "server-only";
  *   • het ITEMDOSSIER (A1): welke deelvragen, vervolgvragen en twijfels horen
  *     bij dit onderwerp, plus de geverifieerde algemene uitleg;
  *   • het PAGINAPLAN uit de claim-audit (S2): welke beweringen moet de pagina
- *     doen, en welke daarvan zijn gedekt;
+ *     doen, en welke daarvan zijn gedekt. Meestal leeg, zie `planBlok` hieronder;
  *   • de FEITENKAART (R5.3): welke F-nummers er beschikbaar zijn.
+ *
+ * ── HET CONTRACT IS HET IDEAAL, NIET HET HAALBARE (1 SEPTEMBER 2026) ────────
+ *
+ * Regel (d) zei tot vandaag: "Plan NOOIT een sectie die alleen waar te maken is
+ * met een feit dat we niet hebben ... daar mag je omheen plannen, niet
+ * doorheen." Daarmee verlaagde de app haar ambitie tot wat ze toevallig al wist,
+ * en hoorde niemand er ooit van: het gat werd stilzwijgend een dunnere pagina in
+ * plaats van een vraag aan de ondernemer. Gemeten in de contentronde van
+ * 1 september 2026 rustten 18 van de 25 secties van de Tilburg-pagina op geen
+ * enkel feit over het bedrijf, en schreef de app ze alle 25 toch.
+ *
+ * De regel is omgedraaid. Het contract beschrijft nu de pagina die de doelvraag
+ * echt beantwoordt, en markeert per sectie of daar een uitspraak over dit
+ * bedrijf voor nodig is (`needsBrandFact`). Het verschil tussen dat ideaal en de
+ * feitenkaart is de vragenlijst (docs/tasks/vragen-voor-het-schrijven.md).
  *
  * Daaruit komt één lijst secties. Die lijst gaat naar de schrijver ÉN naar de
  * dekkingspoort (`content-coverage.ts`). Dat is de kern van het ontwerp:
@@ -46,7 +61,11 @@ const SYSTEM =
   "een ja-of-nee-vraag, dan begint dit antwoord met ja of nee. " +
   "(2) SECTIES. Maak per deelvraag één sectie: een kop zoals hij op de pagina komt, de ENE vraag " +
   "die de sectie beantwoordt, wat er inhoudelijk in moet, welke F-nummers erin thuishoren, welke " +
-  "vaktermen erin uitgelegd worden, en een richtlengte in woorden. " +
+  "vaktermen erin uitgelegd worden, en een richtlengte in woorden. Zet bij elke sectie ook " +
+  "needsBrandFact: true als de sectie pas klopt met een uitspraak over DIT bedrijf (zijn prijs, " +
+  "zijn werkgebied, zijn werkwijze, zijn ervaring), en false als het algemene uitleg over het " +
+  "onderwerp is die voor elke aanbieder hetzelfde is. Wees hier streng en eerlijk: markeer een " +
+  "sectie alleen als merkgebonden wanneer een lezer er echt iets over DIT bedrijf verwacht. " +
   "(3) FAQ. De vragen die als veelgestelde vragen op de pagina horen, in de woorden van de lezer. " +
   "HARDE REGELS: " +
   "(a) De pagina moet COMPLEET aanvoelen: een lezer mag na afloop geen voor de hand liggende vraag " +
@@ -55,8 +74,11 @@ const SYSTEM =
   "(b) Elke sectie beantwoordt precies ÉÉN vraag. Twee vragen in één sectie betekent twee secties. " +
   "(c) Zet een F-nummer alleen bij een sectie als dat feit er echt thuishoort. Een sectie zonder " +
   "F-nummer is normaal: algemene uitleg over het onderwerp heeft er geen. " +
-  "(d) Plan NOOIT een sectie die alleen waar te maken is met een feit dat we niet hebben. Onder " +
-  "'NIET ONDERBOUWD' staat wat er ontbreekt; daar mag je omheen plannen, niet doorheen. " +
+  "(d) Plan de pagina die de doelvraag ECHT beantwoordt, niet de pagina die je toevallig kunt " +
+  "onderbouwen. Ontbreekt er een feit, plan de sectie dan toch en markeer hem als merkgebonden: " +
+  "wij vragen dat feit aan de ondernemer en beslissen daarna wat haalbaar is. Laat een sectie " +
+  "dus NIET weg omdat het bewijs ontbreekt, en schrijf ook nooit IN het contract dat iets niet " +
+  "bevestigd of niet beschikbaar is. " +
   "(e) Blijf binnen de totale doellengte die je krijgt. De som van de secties hoort daar ongeveer " +
   "op uit te komen, niet erboven. " +
   "(f) Gebruik GEEN gedachtestreepjes en GEEN schuine streep tussen twee woorden. " +
@@ -77,7 +99,21 @@ export interface ContractInput {
   profileId: string;
 }
 
-/** Het plan uit de claim-audit als twee lijsten: wat we kunnen dragen en wat niet. */
+/**
+ * Het plan uit de claim-audit als twee lijsten.
+ *
+ * ⚠️ Meestal LEEG sinds de planstap vóór de briefing draait
+ * (docs/tasks/vragen-voor-het-schrijven.md §3): de claim-audit heeft dan nog
+ * niet gelopen. Dat is de bedoeling. Het contract hoort de pagina te beschrijven
+ * die de doelvraag echt beantwoordt, en niet de pagina die toevallig al
+ * onderbouwd is.
+ *
+ * Bij opnieuw genereren ná een briefing staat er wél iets in. De ongedekte
+ * beweringen gaan dan mee als AANDACHTSPUNT en niet meer als verbod: een sectie
+ * eromheen laten vallen is precies de uitwijking die dit werk opheft. Wat er
+ * met een gat gebeurt, beslist de code (`input-coverage.ts` meet het, de
+ * inputpoort weegt het, en een overgeslagen vraag laat zijn sectie vervallen).
+ */
 function planBlok(plan: AuditedClaim[]): string {
   if (plan.length === 0) return "";
   const gedekt = plan.filter((c) => c.supported);
@@ -88,7 +124,8 @@ function planBlok(plan: AuditedClaim[]): string {
         gedekt.map((c) => `- ${c.claim}${c.sourceRef ? ` [${c.sourceRef}]` : ""}`).join("\n")
       : "",
     ongedekt.length
-      ? `NIET ONDERBOUWD (hier hebben we GEEN feit voor; plan er geen sectie omheen):\n` +
+      ? `NOG NIET ONDERBOUWD (hier hebben we nu geen feit voor; plan de sectie toch als de pagina ` +
+        `hem nodig heeft, en markeer hem als merkgebonden zodat wij ernaar vragen):\n` +
         ongedekt.map((c) => `- ${c.claim}`).join("\n")
       : "",
   ]

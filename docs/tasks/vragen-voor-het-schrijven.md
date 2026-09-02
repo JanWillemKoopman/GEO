@@ -6,8 +6,47 @@ Ontbreekt die kennis, dan moet de app ernaar vragen. De ene pagina heeft twee vr
 andere twaalf. Dat verschil moet de app zelf bepalen, per pagina, vóórdat er één woord geschreven
 wordt.
 
-Dit plan beschrijft hoe dat werkt, wat ervoor gebouwd moet worden en in welke volgorde. Het is nog
-niets gebouwd; wat hieronder staat is ontwerp.
+Dit plan beschrijft hoe dat werkt, wat ervoor gebouwd moet worden en in welke volgorde.
+
+---
+
+> ## Stand op 2 september 2026: stap 1 tot en met 10 zijn gebouwd
+>
+> Vier controles groen: typecheck, 3599 unittests (60 nieuwe), 573 ketentests (12 nieuwe), de
+> productiebuild. Migratie 0083, additief. Eén ketentestscenario loopt de hele nieuwe volgorde door:
+> plannen, dan de vragen uit het gat, dan overslaan, dan de sectie die vervalt.
+>
+> **Wat er staat**: `needsBrandFact` op elke contractsectie, de omgedraaide contractregel (d), de
+> onderbouwingsgraad in `lib/pipeline/input-coverage.ts`, de planstap vóór de briefing, de
+> claim-audit die per sectie werkt, het vraagbudget per pagina met plafond 12, de inputpoort in
+> `lib/content-input-gate.ts`, het vervallen van een sectie waarvan de vraag is overgeslagen, het
+> briefingscherm met de stand per pagina en de drie uitwegen, en het cijfer in
+> `content_pieces.input_coverage`.
+>
+> **Wat er nog niet staat**: stap 11, het hergebruik zichtbaar maken ("zes van de negen wist ik al
+> uit eerdere clusters"). De feitenbank doet het werk al; alleen de zin op het scherm ontbreekt.
+>
+> **Drie dingen zijn anders uitgepakt dan hierboven beschreven staat:**
+>
+> - **De sectie achter een vraag is een LIJST geworden, geen enkel veld.** Het plan noemde één
+>   sectie per vraag. Maar de ontdubbeling voegt twee vragen over hetzelfde onderwerp samen tot
+>   één, en die dekt dan sectie s3 van pagina A én sectie s5 van pagina B. Met één veld zou
+>   overslaan maar één van die twee secties laten vervallen, en bleef de andere pagina achter met
+>   precies de dunne sectie die dit werk opheft. Vandaar `fact_requests.section_refs` met
+>   `<pagina-id>:<sectie-id>`: het sectie-id alleen wijst nergens heen, want elke pagina nummert
+>   vanaf s1.
+> - **"Schrijf hem algemeen" snoeit meer weg dan overslaan doet.** Het plan liet die keuze in het
+>   midden. Kiest de klant hem, dan vervallen ALLE ongedekte merksecties en niet alleen die van een
+>   overgeslagen vraag. Anders schrijft het model alsnog om de gaten heen en is de keuze een woord
+>   zonder gevolg.
+> - **De laatste plantaak start de briefing, en dat telt op TAKEN en niet op contracten.** Een
+>   plantaak kan legitiem zonder contract eindigen (het onderzoek strandt, het schema parst niet, en
+>   dan gaat hij bij de laatste poging bewust door). Zou de afteller op contracten tellen, dan komt
+>   hij in precies dat geval nooit op nul uit en krijgt de klant nooit een vraag te zien.
+>
+> **Nog niet geverifieerd tegen een echte klant** (conventie 10). De ketentest bewijst de samenhang
+> op de stub; wat er in een echte ronde uit `needsBrandFact` komt is nog niet gemeten, en de
+> drempels van 40 en 70 rusten nog op geen enkele meting. §12 hieronder is de meetlat.
 
 ---
 
