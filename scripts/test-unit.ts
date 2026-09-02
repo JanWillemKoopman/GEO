@@ -7470,30 +7470,29 @@ group("de ronde: zes stappen, precies één aan de beurt", () => {
 });
 
 group("wie mag betaald werk starten", () => {
-  // ⚠️ Het besluit van 27 augustus 2026: de klant doet zijn eigen groeiwerk,
-  // helemaal. Tot die dag stonden alle zes op slot en zag hij vier volle
-  // knoppen die pas ná de klik weigerden, waarvan er één als taak in zijn eigen
-  // werklijst stond.
+  // ⚠️ Herstelplan na audit T4 (2 september 2026): alle zeven handelingen zijn
+  // van de beheerder. Tussen 27 en 30 augustus 2026 stonden vijf ervan open
+  // voor de klant zelf ("hij doet zijn eigen groeiwerk"), maar dat botste met
+  // de sales-led strategie (docs/logbook.md §15): op productie kon een
+  // ingelogde klant zelf een merk aanmaken en een cluster starten. De eigenaar
+  // heeft dat teruggedraaid.
   //
-  // De reputatieanalyse is de uitzondering, en het is er precies één: dat is
-  // geen stap in de maandelijkse ronde maar een los product dat apart gekocht
-  // wordt. De knop blijft zichtbaar met een uitnodiging ernaast, want een
-  // verborgen knop verkoopt niets.
+  // Wat NIET teruggedraaid is: de knoppen blijven zichtbaar en klikbaar (kader
+  // 2 van het herstelplan). Alleen `clusters_aanvullen` is een regieknop die de
+  // klant niet eens mag zien (toegevoegd 30 augustus 2026,
+  // optimalisatielab-orbit-engine.md §3.5); de andere zes mag hij zien en
+  // aanklikken, en krijgt hij een uitnodigende melding.
+  ok("een nieuw merk onderzoeken is van de beheerder", actionNeedsStaff("merk_onderzoeken"));
+  ok("de meting bevestigen is van de beheerder", actionNeedsStaff("meting_starten"));
+  ok("een cluster starten is van de beheerder", actionNeedsStaff("analyse_starten"));
+  ok("content laten schrijven is van de beheerder", actionNeedsStaff("content_schrijven"));
+  ok("een maand vrijgeven is van de beheerder", actionNeedsStaff("plan_goedkeuren"));
   ok("een reputatieanalyse blijft van de beheerder", actionNeedsStaff("reputatie_starten"));
-  ok("een nieuw merk onderzoeken doet de klant zelf", !actionNeedsStaff("merk_onderzoeken"));
-  ok("de meting bevestigen doet de klant zelf", !actionNeedsStaff("meting_starten"));
-  ok("een cluster starten doet de klant zelf", !actionNeedsStaff("analyse_starten"));
-  ok("content laten schrijven doet de klant zelf", !actionNeedsStaff("content_schrijven"));
-  ok("een maand vrijgeven doet de klant zelf", !actionNeedsStaff("plan_goedkeuren"));
-  // Toegevoegd 30 augustus 2026 (optimalisatielab-orbit-engine.md §3.5): de
-  // knop "Stel nieuwe clusters voor" is een regieknop, geen apart product, en
-  // mag bij de klant niet eens zichtbaar zijn.
   ok("nieuwe clusters aanvullen blijft ook van de beheerder", actionNeedsStaff("clusters_aanvullen"));
-  ok("precies twee handelingen staan op slot", STAFF_ONLY_ACTIONS.length === 2, String(STAFF_ONLY_ACTIONS.length));
+  ok("alle zeven handelingen staan op slot", STAFF_ONLY_ACTIONS.length === 7, String(STAFF_ONLY_ACTIONS.length));
 
   // K2: elke melding is specifiek en klinkt als een uitnodiging, niet als een
-  // dichte deur. Ze horen er ook te zijn voor de handelingen die nu open staan,
-  // want het slot zit per handeling en kan terug.
+  // dichte deur.
   ok(
     "elke handeling heeft een eigen zin",
     new Set(Object.values(COST_DENIED)).size === Object.keys(COST_DENIED).length,
@@ -7501,6 +7500,10 @@ group("wie mag betaald werk starten", () => {
   ok(
     "en geen enkele zin klinkt als geen toegang",
     Object.values(COST_DENIED).every((z) => !/geen toegang|niet toegestaan|mag niet/i.test(z)),
+  );
+  ok(
+    "en elke zin noemt de customer success manager, niet 'je consultant'",
+    Object.values(COST_DENIED).every((z) => /customer success manager/i.test(z) && !/je consultant/i.test(z)),
   );
 });
 
@@ -8209,7 +8212,7 @@ group("elke dure route vraagt het aan dezelfde functie", () => {
   // hij niet dat dit product er is, en dan verkoop je het nooit.
   ok(
     "en de reputatiemelding zegt bij wie de klant moet zijn",
-    /consultant/i.test(COST_DENIED.reputatie_starten),
+    /customer success manager/i.test(COST_DENIED.reputatie_starten),
     COST_DENIED.reputatie_starten,
   );
 });

@@ -58,9 +58,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
   }
 
-  // ⚠️ Betaald werk start alleen de beheerder (besluit 18). Zie lib/cost-guard.ts
-  // voor de rekensom eronder: zonder deze regel kan een klant op één middag
-  // dollars uitgeven zonder dat iemand het merkt.
+  // ⚠️ Betaald werk start alleen de beheerder (herstelplan na audit T4, 2
+  // september 2026; zie lib/cost-guard.ts voor de volledige geschiedenis).
+  // Zonder deze regel kan een ingelogde klant zelf een merk aanmaken en op één
+  // middag dollars uitgeven zonder dat iemand het merkt, precies wat op
+  // productie is aangetoond.
   if (!(await mayTriggerCost(user.id, "merk_onderzoeken"))) {
     return NextResponse.json({ error: COST_DENIED.merk_onderzoeken }, { status: 403 });
   }

@@ -67,8 +67,30 @@ export type CostlyAction =
  * ziet wél de onderwerpen die eruit komen, maar niet de knop die ze aanmaakt
  * (het scherm verbergt hem voor niet-beheerders; deze lijst is de garantie op
  * de achterkant, conventie 1).
+ *
+ * ── DE TERUGDRAAI, 2 SEPTEMBER 2026 (herstelplan na audit, T4) ──────────────
+ *
+ * De vier hierboven zijn op verzoek van de eigenaar weer op slot gezet, en nu
+ * gaat het niet meer om welke handeling een apart product of een regieknop is:
+ * ALLE zeven horen van de beheerder te zijn. Op productie kon een klant met een
+ * gewoon inlogaccount zelf een merk aanmaken en een cluster starten
+ * (`POST /api/profiles` en `POST /api/analyses` gaven allebei een 201), en dat
+ * is precies wat sales-led (`docs/logbook.md` §15) uitsluit: de klant koopt,
+ * de pijplijn doet het onderzoek, niet andersom.
+ *
+ * Wat NIET terugdraait: de knoppen blijven zichtbaar en klikbaar (kader 2 van
+ * het herstelplan). Anders dan bij `clusters_aanvullen` is dit geen regieknop
+ * die de klant niet hoort te zien; hij mag weten dat de functie bestaat en
+ * krijgt bij het klikken de melding dat zijn customer success manager dit voor
+ * hem doet. Dat is ook waarom er geen `staff &&` terugkwam in de schermen:
+ * alleen deze lijst, en dus deze ene plek, bepaalt het slot.
  */
 export const STAFF_ONLY_ACTIONS: readonly CostlyAction[] = [
+  "merk_onderzoeken",
+  "analyse_starten",
+  "meting_starten",
+  "content_schrijven",
+  "plan_goedkeuren",
   "reputatie_starten",
   "clusters_aanvullen",
 ] as const;
@@ -78,27 +100,32 @@ export function actionNeedsStaff(action: CostlyAction): boolean {
   return STAFF_ONLY_ACTIONS.includes(action);
 }
 
+/**
+ * Herstelplan na audit T4.2: "je consultant" is de customer success manager bij
+ * Outer Orbit geworden, in alle zeven zinnen. Uitnodigend, niet afwijzend: de
+ * klant mag weten dat de functie bestaat, en bij wie hij moet zijn.
+ */
 export const COST_DENIED: Record<CostlyAction, string> = {
   merk_onderzoeken:
-    "Een nieuw merk onderzoeken doet je consultant voor je. Neem contact op, dan zetten we het klaar.",
+    "Een nieuw merk onderzoeken doet je customer success manager bij Outer Orbit voor je. Neem contact op, dan zetten we het klaar.",
   analyse_starten:
-    "Een nieuw onderwerp meten doet je consultant voor je. Laat weten welk onderwerp je erbij wilt, dan starten we het.",
+    "Een nieuw onderwerp meten doet je customer success manager bij Outer Orbit voor je. Laat weten welk onderwerp je erbij wilt, dan starten we het.",
   meting_starten:
-    "De meting wordt door je consultant gestart. Zo weet je zeker dat hij op het juiste moment draait.",
+    "De meting wordt door je customer success manager bij Outer Orbit gestart. Zo weet je zeker dat hij op het juiste moment draait.",
   content_schrijven:
-    "Het schrijven wordt door je consultant in gang gezet. Jij bepaalt wél wat er geschreven wordt: keur de maand goed en de rest gaat vanzelf.",
+    "Het schrijven wordt door je customer success manager bij Outer Orbit in gang gezet. Jij bepaalt wél wat er geschreven wordt: kies de pagina's en de rest gaat vanzelf.",
   plan_goedkeuren:
-    "Deze maand goedkeuren doet je consultant samen met jou. Laat weten dat je akkoord bent.",
-  // ⚠️ Dit is de belangrijkste van de zes, want het is de enige handeling die
+    "Deze maand goedkeuren doet je customer success manager bij Outer Orbit samen met jou. Laat weten dat je akkoord bent.",
+  // ⚠️ Dit is de belangrijkste van de zeven, want het is de enige handeling die
   // een LOS PRODUCT in gang zet dat de klant apart koopt. De toon is dus geen
   // afwijzing maar een uitnodiging: hij mag het zien, hij weet nu dat het
   // bestaat, en hij weet bij wie hij moet zijn. Zou de knop verborgen zijn, dan
   // wist hij niet dat dit product er is, en dan verkoop je het nooit.
   reputatie_starten:
-    "Een reputatieanalyse zet je consultant voor je in gang. Laat weten dat je hem wilt, dan plannen we hem in.",
+    "Een reputatieanalyse zet je customer success manager bij Outer Orbit voor je in gang. Laat weten dat je hem wilt, dan plannen we hem in.",
   // Deze melding komt de klant normaal nooit te zien: de knop staat niet op
   // zijn scherm. Ze is de garantie voor als iemand de route rechtstreeks
   // aanroept, niet de eerste verdedigingslinie.
   clusters_aanvullen:
-    "Nieuwe onderwerpen voorstellen doet je consultant voor je, op het moment dat hij kiest.",
+    "Nieuwe onderwerpen voorstellen doet je customer success manager bij Outer Orbit voor je, op het moment dat hij kiest.",
 };
