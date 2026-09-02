@@ -183,10 +183,10 @@ export function findExistingPageMatch(
  * het scherm er geen werkende link van maken (2 september 2026).
  */
 function knownUrl(url: string | null, pages: ExistingPageCandidate[]): string | null {
-  if (!url?.trim()) return null;
-  const canon = canonicalPath(url);
-  const treffer = pages.find((p) => p.url?.trim() && canonicalPath(p.url) === canon);
-  return treffer?.url ?? null;
+  // Bewust dezelfde oplosser als de schrijfstap gebruikt (`matchExistingPage`),
+  // en geen eigen vergelijking: anders koppelt het rapport een adres dat de
+  // schrijfstap niet terugvindt, of andersom.
+  return matchExistingPage(url, pages.filter((p) => p.url?.trim()))?.url ?? null;
 }
 
 export interface ActionOverride {
@@ -301,6 +301,29 @@ export function reconcileExistingPageActions<
       };
     }
 
+    // ── Het adres dat het model zelf opgaf ────────────────────────────────
+    //
+    // Bij `nieuw` hoort `existingUrl` leeg te zijn, maar in productie is hij 32
+    // van de 70 keer tóch gevuld, en 13 daarvan wijzen naar een pagina die echt
+    // bestaat (2 september 2026). Dat is geen ruis: het model heeft die pagina
+    // in de lijst zien staan en aangewezen. Als directe aanwijzing weegt dat
+    // zwaarder dan onze eigen termmeting hieronder, dus hij gaat vóór.
+    //
+    // De handeling blijft `nieuw`: de omzetting hierboven is de plek waar dat
+    // besloten wordt, op dekking, en die heeft nee gezegd.
+    const aangewezen = knownUrl(r.existingUrl, pages);
+    if (aangewezen) {
+      overrides.push({
+        title: r.title,
+        from: "nieuw",
+        to: "nieuw",
+        reason: "verwante_pagina",
+        url: aangewezen,
+        coverage: null,
+      });
+      return { ...r, existingUrl: null, relatedUrl: aangewezen };
+    }
+
     // ── Onder de omzetdrempel: waarschuwen in plaats van zwijgen ──────────
     //
     // Deze pagina blijft nieuw, maar er staat al iets dat het onderwerp raakt.
@@ -321,7 +344,11 @@ export function reconcileExistingPageActions<
       return { ...r, relatedUrl: verwant.url };
     }
 
-    return { ...r, relatedUrl: null };
+    // Een adres bij een nieuwe pagina dat nergens naar wijst, hoort niet mee te
+    // reizen: de instructie zegt dat het veld dan leeg is, en `schoonAdres()` in
+    // `plan-backlog-data.ts` gooide zulke waarden ("`:`", "`.`", "`:null`", alle
+    // drie letterlijk uit productie) verderop toch al weg.
+    return { ...r, existingUrl: null, relatedUrl: null };
   });
 
   return { recommendations: result, overrides };
@@ -351,7 +378,58 @@ export function matchExistingPage<T extends { url: string }>(
   // driemaal precies zo'n waarde in `existingUrl`.
   if (pad === "/" && !/^(https?:\/\/[^/]+)?\/?$/i.test(gezocht)) return null;
 
-  return pages.find((p) => canonicalPath(p.url) === pad) ?? null;
+  const recht = pages.find((p) => canonicalPath(p.url) === pad);
+  if (recht) return recht;
+
+  return metDomeinInHetPad(pad, pages);
+}
+
+/**
+ * De tweede poging: het model schreef het DOMEIN in het pad
+ * (2 september 2026, nagerekend op productie).
+ *
+ * ── WAAROM DIT GEEN GOK IS ──────────────────────────────────────────────────
+ *
+ * `/udenhout.nl/skoda` is geen verzonnen pagina. De pagina `https://udenhout.nl/skoda`
+ * bestaat gewoon, en het model heeft alleen het domein in het pad gezet in
+ * plaats van ervoor. Migratie `0025` heeft dat ooit met de hand rechtgezet en
+ * `briefing-select.ts` noemt het bij naam als bekende fout, maar niets in de
+ * keten repareerde hem.
+ *
+ * Nagerekend over de 91 aanbevelingen die in productie een adres dragen: 8
+ * hebben deze vorm, allemaal bij Van den Udenhout, en alle 8 verwijzen naar een
+ * pagina die echt bestaat. Zonder deze reparatie gaat het bij twee van die acht
+ * om een verbetering die naar `nieuw` degradeert, en dus om een tweede pagina
+ * naast een pagina die de klant al heeft.
+ *
+ * ⚠️ Er wordt niets geraden. Het eerste padsegment moet exact de host van een
+ * gecrawlde pagina zijn (met of zonder `www.`), en wat er daarna overblijft moet
+ * nog steeds een bestaande pagina aanwijzen. Is dat niet zo, dan is er geen
+ * match, precies als voorheen.
+ */
+function metDomeinInHetPad<T extends { url: string }>(pad: string, pages: T[]): T | null {
+  const segmenten = pad.split("/").filter(Boolean);
+  if (segmenten.length < 2) return null;
+
+  const eerste = segmenten[0].toLowerCase();
+  // Zonder punt is het geen domein maar een gewone map, en dan is er niets te
+  // repareren: `/diensten/onderhoud` moet `/diensten/onderhoud` blijven.
+  if (!eerste.includes(".")) return null;
+
+  const hosts = new Set<string>();
+  for (const p of pages) {
+    try {
+      const host = new URL(p.url).host.toLowerCase();
+      hosts.add(host);
+      hosts.add(host.replace(/^www\./, ""));
+    } catch {
+      // Een crawlrij die geen geldige URL is telt niet mee als domein.
+    }
+  }
+  if (!hosts.has(eerste)) return null;
+
+  const zonderDomein = canonicalPath("/" + segmenten.slice(1).join("/"));
+  return pages.find((p) => canonicalPath(p.url) === zonderDomein) ?? null;
 }
 
 /**

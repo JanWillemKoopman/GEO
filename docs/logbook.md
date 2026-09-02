@@ -5926,3 +5926,48 @@ scenario dat de hele keten met een gestubde site doorloopt) en de productiebuild
 geverifieerd tegen een echte klant** (conventie 10): er is nog geen rapport herdraaid op productie,
 dus de 8 mislukte koppelingen en de 13 genegeerde pagina's zijn in de database nog niet zichtbaar
 veranderd.
+
+## 2 september 2026: de verificatie vond wat de code niet liet zien (domein in het pad)
+
+Conventie 10 in de praktijk. De alinea hierboven eindigde met "nog niet geverifieerd tegen een echte
+klant", dus is de echte `matchExistingPage()` over echte productiedata gedraaid: een doorsnede van
+de 91 aanbevelingen die in `reports.recommendations_json` een adres dragen, met per adres de
+pagina's uit de inventaris die hetzelfde laatste padsegment hebben. Dat filter kan geen match
+missen, want `canonicalPath()` raakt het laatste segment nooit aan.
+
+**Uitkomst: 18 van de 31 gekoppeld.** Dertien niet, en acht daarvan bleken hetzelfde patroon te
+hebben: `/udenhout.nl/skoda`, `/udenhout.nl/leasen/private-lease`. Het model had het DOMEIN in het
+pad gezet. Dat leest als een verzinsel en is het niet: `https://udenhout.nl/skoda` bestaat gewoon,
+en alle acht wezen naar een pagina die echt bestaat. Ze werden alle acht weggegooid, en bij twee
+ervan was dat een verbetering die naar `nieuw` degradeerde: een tweede pagina naast een pagina die
+de klant al heeft, precies wat dit werk moest voorkomen.
+
+Dit was bekend en nooit gerepareerd. Migratie `0025` zette dit adres in juli met de hand recht
+(`update content_pieces set existing_url = ...`), en `briefing-select.ts` noemt het bij naam als de
+fout waarvoor het link-slot bestaat. Beide keren is het geval opgelost, niet de oorzaak.
+
+**Wat er gebouwd is.** `matchExistingPage()` doet een tweede poging als het eerste padsegment exact
+de host van een gecrawlde pagina is (met of zonder `www.`). Er wordt niets geraden: het segment moet
+écht een bekende host zijn, en wat er daarna overblijft moet nog steeds een bestaande pagina
+aanwijzen. Een map met een punt erin (`/v1.2/handleiding`) blijft dus staan, en een ander domein in
+het pad levert geen match op. `knownUrl()` in `reconcileExistingPageActions()` rust nu op diezelfde
+oplosser, zodat het rapport en de schrijfstap niet uit elkaar kunnen lopen.
+
+Tegelijk kreeg de `nieuw`-tak er een tweede signaal bij: draagt zo'n aanbeveling een adres dat wél
+bestaat (32 van de 70 keer gevuld, 13 daarvan echt), dan wordt dat de `related_url`. Het model heeft
+die pagina zelf in de lijst aangewezen, en dat weegt zwaarder dan onze eigen termmeting. Het veld
+`existing_url` wordt daarbij leeggemaakt: dat betekent "deze pagina wordt vervangen", en dat is hier
+juist niet aan de orde.
+
+**Hermeting op dezelfde data: 26 van de 31.** De vijf die overblijven horen niet te koppelen: `/`,
+`:`, `:null` en `.` (rommel die het model bij een nieuwe pagina invulde) plus één pagina die niet in
+de inventaris staat.
+
+⚠️ **Wat hier NIET mee geverifieerd is**: de verse ophaling (O3). De ontwikkelcontainer weert
+uitgaand verkeer naar klantdomeinen (403 op de CONNECT-tunnel van de proxy), dus alle tien de
+adressen faalden daar om een reden die niets met de code te maken heeft. Op Vercel bestaat die
+beperking niet; het bewijs komt bij de eerste echte planstap, als `existing_page_text` gevuld raakt
+met meer dan de 1500 tekens uit de crawl.
+
+Vier controles groen: typecheck, 3622 unittests (10 nieuw, allemaal op echte productiegevallen),
+576 ketentests, de productiebuild.

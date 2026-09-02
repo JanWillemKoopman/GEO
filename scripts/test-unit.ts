@@ -16581,6 +16581,43 @@ group("Het adres oplossen en de verwante pagina meedragen (2 september 2026)", (
     matchExistingPage("https://fysi-unique.nl/tarieven-2026", paginas)?.url ===
       "https://fysi-unique.nl/tarieven-2026/",
   );
+  // ⚠️ HET DOMEIN IN HET PAD (nagerekend op productie, 2 september 2026).
+  //
+  // `/udenhout.nl/skoda` is geen verzonnen pagina: `https://udenhout.nl/skoda`
+  // bestaat, en het model zette alleen het domein op de verkeerde plek. Van de
+  // 91 aanbevelingen die in productie een adres dragen hebben er 8 deze vorm,
+  // allemaal wijzend naar een pagina die echt bestaat. Ze werden alle 8
+  // weggegooid, waarvan twee verbeteringen die daardoor een tweede pagina naast
+  // een bestaande pagina zouden zijn geworden.
+  const udenhout = [
+    { url: "https://udenhout.nl/skoda", title: "Škoda" },
+    { url: "https://udenhout.nl/leasen/private-lease", title: "Private lease" },
+  ];
+  ok(
+    "het domein in het pad wordt herkend en gerepareerd",
+    matchExistingPage("/udenhout.nl/skoda", udenhout)?.url === "https://udenhout.nl/skoda",
+  );
+  ok(
+    "ook bij een dieper pad",
+    matchExistingPage("/udenhout.nl/leasen/private-lease", udenhout)?.url ===
+      "https://udenhout.nl/leasen/private-lease",
+  );
+  // ⚠️ En er wordt niets geraden: het eerste segment moet écht de host zijn, en
+  // wat er daarna staat moet nog steeds een bestaande pagina aanwijzen.
+  ok(
+    "een ander domein in het pad blijft onbekend",
+    matchExistingPage("/concurrent.nl/skoda", udenhout) === null,
+  );
+  ok(
+    "en een bestaand domein met een pad dat niet bestaat ook",
+    matchExistingPage("/udenhout.nl/bestaat-niet", udenhout) === null,
+  );
+  // Een gewone map met een punt erin is geen domein: `/v1.2/handleiding` mag
+  // niet stilletjes zijn eerste segment verliezen.
+  ok(
+    "een map die geen host is blijft staan",
+    matchExistingPage("/diensten/skoda", udenhout) === null,
+  );
   ok("een verzonnen pad vindt niets", matchExistingPage("/udenhout.nl/leasen/private-lease", paginas) === null);
   ok("een leeg adres ook niet", matchExistingPage("", paginas) === null);
   // ⚠️ "." en "/" stonden in productie letterlijk als existingUrl. Die mogen
@@ -16652,6 +16689,49 @@ group("Het adres oplossen en de verwante pagina meedragen (2 september 2026)", (
       "https://fysi-unique.nl/fysiotherapie-bij-hardloopklachten-in-amersfoort/",
   );
   ok("en meldt dat als verwante pagina", verwant.overrides[0]?.reason === "verwante_pagina");
+
+  // ── Het adres dat het model zelf opgaf, bij een nieuwe pagina ───────────
+  //
+  // In productie draagt 32 van de 70 `nieuw`-aanbevelingen tóch een adres, en 13
+  // daarvan bestaan echt. Dat is een directe aanwijzing van het model en weegt
+  // zwaarder dan onze eigen termmeting.
+  const aangewezen = reconcileExistingPageActions<Proef>(
+    [
+      {
+        title: "Bedrijfsfitness voor werkgevers",
+        targetIntent: "werkgevers",
+        why: "Werkgevers zoeken bedrijfsfitness voor personeel",
+        action: "nieuw",
+        existingUrl: "/tarieven-2026/",
+      },
+    ],
+    paginas,
+  );
+  ok("de handeling blijft nieuw", aangewezen.recommendations[0].action === "nieuw");
+  ok(
+    "de aangewezen pagina wordt de verwante pagina",
+    aangewezen.recommendations[0].relatedUrl === "https://fysi-unique.nl/tarieven-2026/",
+  );
+  // ⚠️ En niet als `existingUrl` blijven staan: dat veld betekent "deze pagina
+  // wordt vervangen", en dat is hier juist niet aan de orde.
+  ok("en niet als te vervangen pagina", aangewezen.recommendations[0].existingUrl === null);
+
+  // Rommel die het model bij een nieuwe pagina invulde ("`:`", "`.`", "`:null`",
+  // alle drie letterlijk uit productie) verdwijnt.
+  const rommel = reconcileExistingPageActions<Proef>(
+    [
+      {
+        title: "Bedrijfsfitness voor werkgevers",
+        targetIntent: "werkgevers",
+        why: "Werkgevers zoeken bedrijfsfitness voor personeel",
+        action: "nieuw",
+        existingUrl: ":",
+      },
+    ],
+    paginas,
+  );
+  ok("een onbruikbaar adres verdwijnt", rommel.recommendations[0].existingUrl === null);
+  ok("en levert geen waarschuwing op", rommel.recommendations[0].relatedUrl === null);
 
   // ── Een echt nieuw onderwerp raakt niets ────────────────────────────────
   const echtNieuw = reconcileExistingPageActions<Proef>(

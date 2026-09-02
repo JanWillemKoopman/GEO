@@ -1,16 +1,25 @@
 # Nieuw of verbeteren: hoe die keuze valt, en waar hij lekt
 
-> **Stand op 2 september 2026: alle zes de optimalisaties zijn gebouwd** (migratie `0083`,
-> `docs/logbook.md`, alinea van 2 september). Typecheck, 3513 unittests, 570 ketentests en de
-> productiebuild staan groen.
+> **Stand op 2 september 2026: alle zes de optimalisaties zijn gebouwd en staan op `main`**
+> (migratie `0086`, op productie toegepast onder het label `0083`; zie `docs/logbook.md`, alinea van
+> 2 september). Bij het samenvoegen zijn ze verweven met `existing-page-match.ts`, dat op 1
+> september parallel op `main` landde en dezelfde beslissing narekent.
 >
-> Wat er nog open staat, en dat is conventie 10: **niets hiervan is tegen een echte klant
-> nagerekend.** Er is nog geen rapport herdraaid op productie, dus de cijfers hieronder beschrijven
-> de situatie zoals hij op 1 september gemeten is, en niet wat de reparatie ervan gemaakt heeft. Wat
-> daarvoor nodig is: één merk opnieuw door de rapportstap halen en dan tellen hoeveel
-> verbeter-adressen nog steeds niet koppelen (verwacht: 3 in plaats van 8), hoeveel nieuwe pagina's
-> een `related_url` krijgen (verwacht: minstens 13 over de bestaande rapporten), en één pagina laten
-> schrijven met handeling `verbeteren` om te zien of het verbeterplan op het scherm klopt met wat er
+> **De adreskoppeling is tegen productiedata geverifieerd** (conventie 10). De echte
+> `matchExistingPage()` is gedraaid over een doorsnede van de 91 aanbevelingen die in productie een
+> adres dragen, met per adres de pagina's uit de inventaris die hetzelfde laatste padsegment hebben
+> (`canonicalPath()` raakt dat segment nooit aan, dus dat filter kan geen match missen). Uitkomst op
+> 31 gevallen: **18 gekoppeld vóór de verificatie, 26 erna**. Die meting bracht een gat aan het licht
+> dat in de code niet zichtbaar was, zie hieronder bij O1. De vijf die overblijven horen niet te
+> koppelen: `/`, `:`, `:null` en `.` (rommel die het model bij een nieuwe pagina invulde) en één
+> pagina die niet in de inventaris staat.
+>
+> **Nog niet geverifieerd:** de verse ophaling (O3) tegen echte klantsites. De ontwikkelcontainer
+> weert uitgaand verkeer naar die domeinen (de proxy geeft 403 op de CONNECT-tunnel), dus alle tien
+> de adressen faalden daar om een reden die niets met de code te maken heeft. Op Vercel bestaat die
+> beperking niet. Het bewijs komt bij de eerste echte planstap: dan hoort `existing_page_text`
+> gevuld te raken met meer dan de 1500 tekens uit de crawl. Ook nog open: één pagina laten schrijven
+> met handeling `verbeteren` om te zien of het verbeterplan op het scherm klopt met wat er
 > werkelijk op die pagina staat.
 
 **Onderzoek van 1 september 2026.** Aanleiding: de vraag hoe ORBIT ENGINE besluit of een
@@ -196,6 +205,16 @@ Draait direct na `resolveTargets()` in `report.ts`, vóór opslag:
 
 Repareert nu meteen 5 van de 59 verbeteringen en haalt 3 verzonnen adressen weg. Kosten: nul,
 puur rekenwerk. Test in `test-unit.ts`, want dit is pure logica (conventie 2).
+
+**Wat de verificatie daar bovenop vond (2 september 2026).** Acht van de 91 adressen in productie
+hebben de vorm `/udenhout.nl/skoda`: het model zette het DOMEIN in het pad. Dat leest als een
+verzinsel en is het niet, want `https://udenhout.nl/skoda` bestaat gewoon. Alle acht wezen naar een
+pagina die echt bestaat, en alle acht werden weggegooid; bij twee ervan was dat een verbetering die
+naar `nieuw` degradeerde, en dus een tweede pagina naast een pagina die de klant al heeft. Migratie
+`0025` heeft precies dit adres ooit met de hand rechtgezet en `briefing-select.ts` noemt het bij
+naam, maar niets repareerde het. `matchExistingPage()` doet nu een tweede poging als het eerste
+padsegment exact de host van een gecrawlde pagina is. Er wordt niets geraden: wat er na dat segment
+overblijft moet nog steeds een bestaande pagina aanwijzen.
 
 ### O2. Laat het model niet meer alleen beslissen: leg de structurele dekking ernaast
 
