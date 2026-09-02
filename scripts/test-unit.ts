@@ -42,6 +42,12 @@ import type {
   CodedMissedPrompt,
   StoredRecommendation,
 } from "@/lib/pipeline/recommendation";
+import {
+  findExistingPageMatch,
+  reconcileExistingPageActions,
+  EXISTING_PAGE_COVERAGE_THRESHOLD,
+} from "@/lib/pipeline/existing-page-match";
+import type { ExistingPageCandidate } from "@/lib/pipeline/existing-page-match";
 import { geoScore, geoIssues } from "@/lib/schemas/critique";
 import type { GeoCriteria } from "@/lib/schemas/critique";
 import { compare, deltaOf, thresholdOf, verdictOf, minQuestionsForSignal } from "@/lib/pipeline/impact-math";
@@ -706,6 +712,7 @@ import type {
   ProfileTopic,
   Entity,
   PlannedPageStatus,
+  ContentAction,
 } from "@/lib/types/database";
 
 let passed = 0;
@@ -1096,6 +1103,142 @@ group("Geen twee aanbevelingen op dezelfde zwaarste vraag (werkpakket B §4.2)",
   ]);
   ok("drie dubbele aanbevelingen worden er één", drieDubbel.length === 1, String(drieDubbel.length));
   ok("en de belangrijkste van de drie wint", drieDubbel[0].title === "B");
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nStelt het rapport niets voor dat de klant al heeft? (docs/logbook.md 1 sept 2026)");
+
+group("herkent een bestaande pagina die het onderwerp al dekt", () => {
+  const topic = {
+    title: "Wasmachine kopen: waar op letten",
+    targetIntent: "Praktisch advies voor wie een wasmachine wil kopen",
+    why: "Bezoekers zoeken advies over het kopen van een wasmachine",
+  };
+  const dekkendePagina: ExistingPageCandidate = {
+    url: "https://voorbeeld.nl/advies/wasmachine-kopen-waar-op-letten",
+    title: "Wasmachine kopen: waar moet je op letten",
+    text:
+      "Praktisch advies voor wie een wasmachine wil kopen. Bezoekers zoeken vaak advies " +
+      "over het kopen van de juiste wasmachine, en letten dan op prijs, capaciteit en " +
+      "energielabel.",
+  };
+  const onverwantePagina: ExistingPageCandidate = {
+    url: "https://voorbeeld.nl/klantenservice",
+    title: "Klantenservice",
+    text: "Neem contact op met onze klantenservice voor vragen over bezorging en retourneren.",
+  };
+
+  const match = findExistingPageMatch(topic, [onverwantePagina, dekkendePagina]);
+  ok("de dekkende pagina wordt gevonden", match?.url === dekkendePagina.url, JSON.stringify(match));
+  ok(
+    "de dekking zit boven de drempel",
+    (match?.coverage ?? 0) >= EXISTING_PAGE_COVERAGE_THRESHOLD,
+    String(match?.coverage),
+  );
+
+  ok(
+    "een onverwante pagina levert geen match op",
+    findExistingPageMatch(topic, [onverwantePagina]) === null,
+  );
+
+  // Te weinig onderwerptermen om te kunnen oordelen: dan liever geen oordeel
+  // dan een vals alarm (conventie 3).
+  ok(
+    "een te dun onderwerp levert geen oordeel op",
+    findExistingPageMatch({ title: "Prijzen", targetIntent: "", why: "" }, [dekkendePagina]) === null,
+  );
+
+  ok(
+    "geen enkele pagina levert geen oordeel op",
+    findExistingPageMatch(topic, []) === null,
+  );
+});
+
+group("corrigeert action/existingUrl tegen de echte crawl", () => {
+  // Expliciet getypeerd op `ContentAction` (niet de letterlijke `"nieuw"`):
+  // anders leidt TypeScript uit één testinvoer een te smal type af, en
+  // rapporteert de build straks ten onrechte dat de vergelijking hieronder
+  // met "verbeteren" nooit waar kan zijn.
+  type ProefAanbeveling = {
+    title: string;
+    targetIntent: string;
+    why: string;
+    action: ContentAction;
+    existingUrl: string | null;
+  };
+  const topic = {
+    title: "Wasmachine kopen: waar op letten",
+    targetIntent: "Praktisch advies voor wie een wasmachine wil kopen",
+    why: "Bezoekers zoeken advies over het kopen van een wasmachine",
+  };
+  const dekkendePagina: ExistingPageCandidate = {
+    url: "https://voorbeeld.nl/advies/wasmachine-kopen-waar-op-letten",
+    title: "Wasmachine kopen: waar moet je op letten",
+    text:
+      "Praktisch advies voor wie een wasmachine wil kopen. Bezoekers zoeken vaak advies " +
+      "over het kopen van de juiste wasmachine, en letten dan op prijs, capaciteit en " +
+      "energielabel.",
+  };
+  const onverwantePagina: ExistingPageCandidate = {
+    url: "https://voorbeeld.nl/klantenservice",
+    title: "Klantenservice",
+    text: "Neem contact op met onze klantenservice voor vragen over bezorging en retourneren.",
+  };
+
+  // Het model zegt "nieuw" terwijl de site het onderwerp al ruim dekt: dit is
+  // precies het geval dat de klant niet wil, een voorstel voor iets dat hij al
+  // heeft. Moet omslaan naar "verbeteren" met de echt gevonden URL.
+  const gemist = reconcileExistingPageActions<ProefAanbeveling>(
+    [{ ...topic, action: "nieuw", existingUrl: null }],
+    [onverwantePagina, dekkendePagina],
+  );
+  ok("nieuw wordt verbeteren", gemist.recommendations[0].action === "verbeteren");
+  ok("met de echt gevonden URL", gemist.recommendations[0].existingUrl === dekkendePagina.url);
+  ok("en de correctie wordt gelogd", gemist.overrides.length === 1 && gemist.overrides[0].reason === "gevonden_gelijkenis");
+
+  // Het model zegt "verbeteren" met een URL die nergens in de crawl voorkomt
+  // (Udenhout, /udenhout.nl/skoda), maar we vinden zelf de echte pagina.
+  const verzonnenMaarVindbaar = reconcileExistingPageActions<ProefAanbeveling>(
+    [{ ...topic, action: "verbeteren", existingUrl: "https://voorbeeld.nl/skoda" }],
+    [onverwantePagina, dekkendePagina],
+  );
+  ok(
+    "de verzonnen URL wordt vervangen door de echte pagina",
+    verzonnenMaarVindbaar.recommendations[0].existingUrl === dekkendePagina.url,
+  );
+  ok(
+    "de correctie meldt een onbevestigde URL",
+    verzonnenMaarVindbaar.overrides[0]?.reason === "onbevestigde_url",
+  );
+
+  // Het model zegt "verbeteren" met een verzonnen URL, en er is ook geen
+  // pagina te vinden die het onderwerp dekt. Dan liever "nieuw" zonder adres
+  // dan een niet te bevestigen link tonen (conventie 3, net als schoonAdres()
+  // in lib/plan-backlog-data.ts).
+  const verzonnenEnOnvindbaar = reconcileExistingPageActions<ProefAanbeveling>(
+    [{ ...topic, action: "verbeteren", existingUrl: ":" }],
+    [onverwantePagina],
+  );
+  ok("valt terug op nieuw", verzonnenEnOnvindbaar.recommendations[0].action === "nieuw");
+  ok("zonder adres", verzonnenEnOnvindbaar.recommendations[0].existingUrl === null);
+
+  // Het model zegt "verbeteren" met een URL die echt in de crawl staat: die
+  // aanbeveling blijft ongemoeid.
+  const bevestigd = reconcileExistingPageActions<ProefAanbeveling>(
+    [{ ...topic, action: "verbeteren", existingUrl: dekkendePagina.url }],
+    [dekkendePagina],
+  );
+  ok("een bevestigde URL blijft staan", bevestigd.recommendations[0].existingUrl === dekkendePagina.url);
+  ok("en levert geen correctie op", bevestigd.overrides.length === 0);
+
+  // Het model zegt "nieuw" en er is ook echt niets dat erop lijkt: geen
+  // correctie nodig.
+  const terecht = reconcileExistingPageActions<ProefAanbeveling>(
+    [{ ...topic, action: "nieuw", existingUrl: null }],
+    [onverwantePagina],
+  );
+  ok("terecht 'nieuw' blijft onaangeroerd", terecht.recommendations[0].action === "nieuw");
+  ok("en levert geen correctie op", terecht.overrides.length === 0);
 });
 
 group("De verhouding nieuw/verbeteren in een zin (werkpakket B §4.3)", () => {
@@ -15547,6 +15690,7 @@ group("geen haakjesmeervoud meer in klanttekst (punt 9)", () => {
     "Engine(s) overgeslagen", // console.warn, lib/engines/registry.ts
     "gelijknamige partij(en) voorgesteld", // console.info, lib/pipeline/llm-baseline.ts
     "niet-onderbouwde bewering(en)", // console.warn, lib/pipeline/report.ts
+    "aanbeveling(en) ", // console.warn, lib/pipeline/report.ts (bestaande-paginacheck)
     "onderwerp(en) hersteld", // console.info, lib/pipeline/offering.ts
   ];
 

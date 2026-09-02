@@ -206,7 +206,8 @@ De losse bouwspec is 17 augustus 2026 verwijderd: nul codebestanden verwezen ern
 stappen zijn nooit gebouwd. Wat eronder stond, staat hier.
 
 Hygiëne die in de praktijk niets blokkeerde; R4 bleek prima te bouwen zonder R0.5. Zes stappen:
-`existingUrl`-conventie afdwingen · volumekalibratie normaliseren · clusters bruikbaar maken ·
+~~`existingUrl`-conventie afdwingen~~ (gebouwd, zie docs/logbook.md 1 september 2026,
+`lib/pipeline/existing-page-match.ts`) · volumekalibratie normaliseren · clusters bruikbaar maken ·
 meetbasis-krimp zichtbaar maken · entiteitclassificatie (bedrijfsmodel + productlijnen) · off-site
 repareren of uitzetten.
 
