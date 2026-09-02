@@ -262,6 +262,12 @@ export interface RecommendationPayload {
   why: string;
   action: ContentAction;
   existingUrl: string | null;
+  /**
+   * Een bestaande pagina die dit onderwerp al raakt terwijl dit een NIEUWE
+   * pagina is (migratie 0086, `existing-page-match.ts`). Waarschuwing tegen twee pagina's
+   * die om dezelfde vraag concurreren.
+   */
+  relatedUrl?: string | null;
   reportId: string | null;
   /** De gemiste vragen die deze pagina moet winnen (optimalisatie.md 4.1). */
   targets?: RecommendationTarget[];
@@ -377,6 +383,18 @@ export interface JobPayloads {
       contract: unknown;
       dossier: unknown;
       explainers: unknown[];
+      /**
+       * De verse tekst van de te verbeteren pagina (O3). Zelfde reden als de
+       * andere drie: lukt het wegschrijven in `content_plan` niet, dan schrijft
+       * deze taak alsnog tegen de pagina die de klant vandaag heeft staan.
+       *
+       * ⚠️ Bij een NIEUWE pagina bestaat de rij in `content_pieces` tijdens de
+       * planstap nog niet: die wordt pas hier aangemaakt. Deze payload is dan de
+       * enige plek waar de opgehaalde tekst staat.
+       */
+      existingText?: string | null;
+      /** Wanneer die tekst is opgehaald (migratie 0083). */
+      existingFetchedAt?: string | null;
     } | null;
   };
   content_revise: {

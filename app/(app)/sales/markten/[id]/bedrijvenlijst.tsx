@@ -85,6 +85,40 @@ export function Bedrijvenlijst({
     }
   }
 
+  /**
+   * De naam corrigeren.
+   *
+   * ⚠️ Bij de eerste echte markt heetten twee ECHTE installateurs "Open
+   * website", omdat de crawler de tekst van een link als naam overnam. Die naam
+   * liep door tot in de kans, de score en de conceptmail. Nieuwe markten hebben
+   * er geen last meer van (`isGeenBedrijfsnaam()`), maar wat er al staat moet
+   * ook te repareren zijn.
+   */
+  async function hernoem(companyId: string, huidig: string) {
+    const nieuw = window.prompt("Hoe heet dit bedrijf?", huidig);
+    if (!nieuw || nieuw.trim() === huidig) return;
+
+    setBezig(companyId);
+    try {
+      const res = await fetch(`/api/sales/markets/${marketId}/add-company`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyId, naam: nieuw.trim() }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        toast({ title: "Niet gelukt", description: data.error, intent: "fout" });
+        return;
+      }
+      toast({ title: "De naam is aangepast", intent: "succes" });
+      router.refresh();
+    } catch {
+      toast({ title: "De verbinding viel weg", intent: "fout" });
+    } finally {
+      setBezig(null);
+    }
+  }
+
   async function keurGoed() {
     setKeurBezig(true);
     try {
@@ -169,7 +203,7 @@ export function Bedrijvenlijst({
             )}
 
             {magBewerken && !b.geblokkeerd && (
-              <div>
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   className="btn-outline btn-sm"
@@ -177,6 +211,14 @@ export function Bedrijvenlijst({
                   onClick={() => zet(b.companyId, b.included === false)}
                 >
                   {b.included === false ? "Toch meenemen" : "Weghalen"}
+                </button>
+                <button
+                  type="button"
+                  className="btn-ghost btn-sm"
+                  disabled={bezig === b.companyId}
+                  onClick={() => hernoem(b.companyId, b.naam)}
+                >
+                  Naam aanpassen
                 </button>
               </div>
             )}

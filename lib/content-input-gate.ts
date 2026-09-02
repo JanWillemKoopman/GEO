@@ -31,7 +31,7 @@
  * muur, en muren leveren afgehaakte klanten op in plaats van betere content."
  * Deze poort houdt daarom niet de KLANT tegen maar het SCHRIJVEN, en er zijn
  * altijd drie uitwegen: de vragen beantwoorden, de pagina bewust algemeen laten
- * schrijven (`write_mode = 'algemeen'`, migratie 0083), of hem laten vallen. De
+ * schrijven (`write_mode = 'algemeen'`, migratie 0087), of hem laten vallen. De
  * melding noemt ze in dezelfde zin als de blokkade, want een scherm dat alleen
  * zegt wat er niet kan is een dood einde (`docs/ux-design.md` §4).
  *
@@ -54,7 +54,7 @@ export const GOED_GENOEG = 70;
 /** Onder deze graad schrijft de app niet uit zichzelf. */
 export const TE_WEINIG = 40;
 
-/** Wat de klant koos toen de poort deze pagina tegenhield (migratie 0083). */
+/** Wat de klant koos toen de poort deze pagina tegenhield (migratie 0087). */
 export type WriteMode = "algemeen" | null;
 
 export type InputStand = "schrijven" | "waarschuwing" | "tegenhouden";

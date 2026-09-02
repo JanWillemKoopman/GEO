@@ -93,6 +93,8 @@ import {
   RotateCcw,
   Shield,
   SlidersHorizontal,
+  Tag,
+  Trash2,
   Sun,
   TriangleAlert,
   Upload,
@@ -131,6 +133,8 @@ export type IcoonNaam =
   | "profiel"
   | "meer"
   | "versleep"
+  | "label"
+  | "prullenbak"
   // ── Standen ─────────────────────────────────────────────────────────────
   | "klaar"
   | "loopt"
@@ -218,6 +222,14 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // greep is niet te zien dát een rij versleepbaar is, met een altijd zichtbare
   // greep staat er op elke regel een teken dat niets zegt zolang je niet sleept.
   versleep: GripVertical,
+  // Een kaartlabel: een woord dat je ergens aan hangt om het terug te vinden.
+  // Geen map en geen bookmark, want dit is geen plek en geen leeswijzer maar
+  // een groep waar iets bij hoort (`lib/cluster-labels.ts`).
+  label: Tag,
+  // De prullenbak zegt "hier gaat het heen" en niet "hier is het weg": wat de
+  // knop doet is archiveren (migratie 0044), en terugzetten kan altijd. Geen
+  // kruis, want een kruis betekent in deze set "mislukt".
+  prullenbak: Trash2,
 
   // ── STANDEN ─────────────────────────────────────────────────────────────
   //

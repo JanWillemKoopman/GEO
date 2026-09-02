@@ -64,6 +64,25 @@ export const ContractSection = z.object({
    * (`lib/pipeline/input-coverage.ts`), precies de verdeling van conventie 1.
    */
   needsBrandFact: z.boolean(),
+  /**
+   * Staat deze sectie al op de BESTAANDE pagina? (O4, migratie 0083)
+   *
+   * Alleen betekenisvol als deze pagina een bestaande pagina verbetert. Bij een
+   * nieuwe pagina staat hier `niet_van_toepassing`, en dat wordt deterministisch
+   * afgedwongen in `normaliseerContract()`: een oordeel over een pagina die niet
+   * bestaat is per definitie verzonnen.
+   *
+   * Dit is wat de klant uiteindelijk leest als "wat er aan je pagina verandert".
+   * Tot 2 september 2026 bestond die lijst niet: de app leverde een vervangende
+   * tekst zonder één woord over wat er nu aan schortte.
+   */
+  presentOnExisting: z.enum(["aanwezig", "deels", "ontbreekt", "niet_van_toepassing"]),
+  /**
+   * Wat er aan de bestaande pagina moet veranderen voor deze sectie, in één zin
+   * en in gewone taal. Leeg bij een nieuwe pagina en bij een sectie die er al
+   * volledig op staat.
+   */
+  whatToChange: z.string(),
 });
 
 export type ContractSection = z.infer<typeof ContractSection>;

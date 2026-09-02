@@ -83,7 +83,7 @@ function sectieIsGedekt(sectie: ContractSection, beschikbaar: Set<string>): bool
 /**
  * Vraagt deze sectie om een uitspraak over dit bedrijf?
  *
- * ⚠️ Een contract van vóór migratie 0083 heeft dit veld niet. `undefined` telt
+ * ⚠️ Een contract van vóór migratie 0087 heeft dit veld niet. `undefined` telt
  * dan als "niet merkgebonden", en dus als een pagina zonder gat. Dat is de
  * veilige kant: een oude pagina hoort niet ineens door de inputpoort tegen
  * gehouden te worden op een veld dat destijds niet bestond (conventie 3,
@@ -178,7 +178,7 @@ export function zetContractVast(
 /**
  * Eén sectie van één pagina, als tekst: "<content_piece_id>:s3".
  *
- * `fact_requests.section_refs` (migratie 0083) bewaart deze vorm. Het sectie-id
+ * `fact_requests.section_refs` (migratie 0087) bewaart deze vorm. Het sectie-id
  * alleen zou niet volstaan: elke pagina nummert zijn secties vanaf s1, dus "s3"
  * bestaat op elke pagina van de batch.
  */

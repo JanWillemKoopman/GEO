@@ -2132,6 +2132,106 @@ async function main(): Promise<void> {
     ok("en er is geen betaald werk gedaan", rapporten.length === 0);
 
     // ══════════════════════════════════════════════════════════════════════
+    // Labels op clusters, en wat de prullenbak echt stopt (migratie 0083)
+    //
+    // ⚠️ Hier en niet in test-unit.ts: dit gaat over wat de DATABASE afdwingt
+    // en over de samenhang tussen twee tabellen. Het uitklapmenu normaliseert
+    // een labelnaam al, maar twee tabbladen die tegelijk hetzelfde label
+    // aanmaken komen alleen op de unieke index tot stilstand. En de duurste
+    // vraag van deze functie ("wordt er echt niet meer gemeten") is alleen te
+    // beantwoorden door de maandronde zijn eigen lijst te laten trekken.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nLabels op clusters, en wat de prullenbak stopt (0083)");
+
+    const { rows: labelRij } = await db.client.query(
+      "insert into public.cluster_labels (profile_id, name) values ($1, 'Onderhoud') returning id",
+      [profileId],
+    );
+    const labelId = labelRij[0].id as string;
+
+    let dubbelGeweigerd = false;
+    try {
+      await db.client.query(
+        "insert into public.cluster_labels (profile_id, name) values ($1, 'onderhoud')",
+        [profileId],
+      );
+    } catch {
+      dubbelGeweigerd = true;
+    }
+    ok("hetzelfde label kan niet twee keer onder één merk", dubbelGeweigerd);
+
+    const gelabeld = randomUUID();
+    await db.client.query(
+      `insert into public.analyses (id, user_id, profile_id, name, url, topic, status, tracking_enabled, label_id)
+       values ($1, $2, $3, 'Met label', 'https://fysi-unique.nl', 'onderhoud', 'gemeten', true, $4)`,
+      [gelabeld, userId, profileId, labelId],
+    );
+
+    // Een label weggooien mag nooit het cluster meenemen: het cluster draagt
+    // maanden meetdata, het label draagt een woord (`on delete set null`).
+    await db.client.query("delete from public.cluster_labels where id = $1", [labelId]);
+    const { rows: naLabelWeg } = await db.client.query(
+      "select label_id from public.analyses where id = $1",
+      [gelabeld],
+    );
+    ok(
+      "een label weggooien laat het cluster staan, zonder label",
+      naLabelWeg.length === 1 && naLabelWeg[0].label_id === null,
+    );
+
+    // ── De belofte van de prullenbakknop ────────────────────────────────────
+    //
+    // Exact de query van `/api/cron/tracking`: actief, meting aan, en in een
+    // meetbare stand. Vóór het archiveren staat het cluster erin, erna niet.
+    async function inDeMaandronde(): Promise<boolean> {
+      const { rows } = await db.client.query(
+        `select 1 from public.analyses
+          where id = $1 and archived_at is null and tracking_enabled = true
+            and status in ('gemeten', 'gereed')`,
+        [gelabeld],
+      );
+      return rows.length === 1;
+    }
+
+    ok("een gewoon cluster staat in de maandronde", await inDeMaandronde());
+    await db.client.query("update public.analyses set archived_at = now() where id = $1", [gelabeld]);
+    ok("in de prullenbak valt het eruit, dus er wordt niet meer gemeten", !(await inDeMaandronde()));
+    await db.client.query("update public.analyses set archived_at = null where id = $1", [gelabeld]);
+    ok("en terugzetten laat het meten weer meedoen", await inDeMaandronde());
+
+    // ── Hernoemen raakt één rij en verhuist de clusters mee ────────────────
+    //
+    // Precies waarvoor `cluster_labels` een tabel is en geen tekstkolom: het
+    // cluster wijst naar het id, dus de naam wijzigt op één plek.
+    const { rows: hernoemRij } = await db.client.query(
+      "insert into public.cluster_labels (profile_id, name) values ($1, 'Storing') returning id",
+      [profileId],
+    );
+    const hernoemId = hernoemRij[0].id as string;
+    await db.client.query("update public.analyses set label_id = $1 where id = $2", [
+      hernoemId,
+      gelabeld,
+    ]);
+    await db.client.query("update public.cluster_labels set name = 'Storing en spoed' where id = $1", [
+      hernoemId,
+    ]);
+    const { rows: naHernoemen } = await db.client.query(
+      `select l.name from public.analyses a
+         join public.cluster_labels l on l.id = a.label_id
+        where a.id = $1`,
+      [gelabeld],
+    );
+    ok(
+      "hernoemen verhuist het cluster mee, zonder het cluster aan te raken",
+      naHernoemen[0]?.name === "Storing en spoed",
+      `naam was ${naHernoemen[0]?.name}`,
+    );
+
+    // Opruimen: dit cluster hoort niet mee te tellen in de scenario's hierna.
+    await db.client.query("delete from public.analyses where id = $1", [gelabeld]);
+    await db.client.query("delete from public.cluster_labels where id = $1", [hernoemId]);
+
+    // ══════════════════════════════════════════════════════════════════════
     // De promptgeneratie per funnelfase (migratie 0054)
     //
     // ⚠️ Dit hoort in de KETENtest en niet in test-unit.ts, want de hele vondst
@@ -5614,6 +5714,189 @@ async function main(): Promise<void> {
         ptGolven.planned === 2,
         `${ptGolven.planned} golf/golven`,
       );
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Een pagina VERBETEREN gebruikt de echte, volledige tekst van de klant
+    // (docs/tasks/paginakeuze-nieuw-of-verbeteren.md O1 tot en met O5,
+    // migratie 0083).
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: bijna de helft van wat de app
+    // voorstelt is het verbeteren van een pagina die de klant al heeft (59 van
+    // de 129 aanbevelingen over 20 rapporten, nagerekend op productie op
+    // 1 september 2026). Drie schakels moesten daarvoor samenwerken en deden
+    // dat geen van drieën:
+    //
+    //   1. de koppeling van het adres aan `profile_pages` was een exacte
+    //      stringvergelijking, dus een pad zonder domein vond niets;
+    //   2. de schrijver kreeg alleen het crawl-excerpt van 1500 tekens, tot
+    //      weken oud, terwijl het scherm de klant vertelde de pagina te
+    //      vervangen;
+    //   3. het contract werd opgesteld alsof de pagina niet bestond, dus er was
+    //      geen enkel oordeel over wat er nu eigenlijk aan schortte.
+    //
+    // Dit scenario draait de hele keten met een gestubde site: het adres komt
+    // binnen als PAD (zoals het model het in productie teruggaf), de pagina
+    // staat met een afgekapt excerpt in de inventaris, en de verse ophaling
+    // levert meer tekst op dan dat excerpt.
+    {
+      console.log("\nEen bestaande pagina verbeteren (O1 tot en met O5, migratie 0083)");
+      const vbUserId = randomUUID();
+      const vbProfileId = randomUUID();
+      const vbAnalysisId = randomUUID();
+      const vbUrl = "https://verbeterbv.nl/warmtepomp-tilburg/";
+
+      // De echte pagina: langer dan het excerpt, en met een alinea die ALLEEN
+      // in de verse tekst staat. Daarmee is te bewijzen dat de schrijfstap de
+      // verse tekst gebruikt en niet de crawltekst.
+      const vbVerseTekst =
+        "Wij plaatsen warmtepompen in Tilburg en omgeving. " +
+        "De montage duurt meestal een dag. ".repeat(20) +
+        "Onze garantie op de installatie loopt vijf jaar.";
+      const vbExcerpt = "Wij plaatsen warmtepompen in Tilburg en omgeving.";
+
+      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+        vbUserId,
+        "verbeteren@example.com",
+      ]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, proof_points, status)
+         values ($1, $2, 'Verbeter BV', 'https://verbeterbv.nl', 'Verbeter BV',
+                 array['Sinds 2010 actief', 'Meer dan 500 installaties gedaan'], 'klaar')`,
+        [vbProfileId, vbUserId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'Verbeter BV, warmtepomp', 'https://verbeterbv.nl', 'warmtepomp', 'gereed')`,
+        [vbAnalysisId, vbUserId, vbProfileId],
+      );
+      await db.client.query(
+        `insert into public.profile_pages (profile_id, url, title, text_excerpt, source)
+         values ($1, $2, 'Warmtepomp Tilburg', $3, 'crawl')`,
+        [vbProfileId, vbUrl, vbExcerpt],
+      );
+
+      // ── O1: het adres komt binnen als PAD, zonder domein ─────────────────
+      const { planContentDraft: vbPlan } = await import("@/lib/jobs/content-jobs");
+      await vbPlan(admin as never, {
+        analysisId: vbAnalysisId,
+        userId: vbUserId,
+        recommendation: {
+          title: "Warmtepomp in Tilburg: prijs en montage",
+          type: "landing",
+          targetIntent: "Iemand die een warmtepomp wil laten plaatsen",
+          why: "De AI noemt ons niet bij deze vraag.",
+          action: "verbeteren",
+          // ⚠️ Precies de vorm die in productie 5 van de 8 koppelingen liet
+          // mislukken: het pad zonder schema en domein.
+          existingUrl: "/warmtepomp-tilburg/",
+          reportId: null,
+          targets: [],
+        },
+      });
+
+      const { runJob: vbRunJob } = await import("@/lib/jobs/handlers");
+      const { rows: vbPlanRows } = await db.client.query(
+        `select * from public.jobs where analysis_id = $1 and type = 'content_plan'
+          order by created_at desc limit 1`,
+        [vbAnalysisId],
+      );
+      ok("de planstap staat klaar", vbPlanRows.length === 1);
+
+      // ── O3: de site wordt vers opgehaald ────────────────────────────────
+      const vbOrigineleFetch = globalThis.fetch;
+      let vbOpgehaald = 0;
+      globalThis.fetch = (async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === vbUrl) {
+          vbOpgehaald++;
+          return {
+            ok: true,
+            status: 200,
+            headers: new Headers(),
+            text: async () => `<html><body><p>${vbVerseTekst}</p></body></html>`,
+          };
+        }
+        return { ok: false, status: 404, headers: new Headers(), text: async () => "" };
+      }) as typeof globalThis.fetch;
+
+      try {
+        await vbRunJob({ admin: admin as never, job: { ...vbPlanRows[0], status: "running" } });
+
+        ok(
+          "het pad zonder domein vindt de bestaande pagina alsnog",
+          vbOpgehaald === 1,
+          `${vbOpgehaald} ophaling(en)`,
+        );
+
+        // ⚠️ De rij in `content_pieces` bestaat op dit moment nog NIET: deze
+        // pagina is niet via de briefing binnengekomen, dus de schrijfstap maakt
+        // hem straks pas aan. Daarom loopt de opgehaalde tekst hier via de
+        // payload, en controleren we de kolommen verderop, ná het schrijven.
+        const { rows: vbDraftRows } = await db.client.query(
+          `select * from public.jobs where analysis_id = $1 and type = 'content_draft'
+            order by created_at desc limit 1`,
+          [vbAnalysisId],
+        );
+        ok("de plantaak plant het schrijven in", vbDraftRows.length === 1);
+        const vbPayload = vbDraftRows[0]?.payload_json as {
+          voorbereid?: { existingText?: string | null };
+        };
+        ok(
+          "de verse tekst gaat mee in de payload van de schrijftaak",
+          (vbPayload?.voorbereid?.existingText ?? "").includes("garantie op de installatie"),
+        );
+
+        await vbRunJob({ admin: admin as never, job: { ...vbDraftRows[0], status: "running" } });
+
+        const { rows: vbGeschreven } = await db.client.query(
+          `select action, existing_url, related_url, existing_page_text,
+                  existing_page_fetched_at, contract_json
+             from public.content_pieces where analysis_id = $1
+            order by created_at desc limit 1`,
+          [vbAnalysisId],
+        );
+
+        // ── De bron van de verbetering staat bij de tekst (conventie 8) ────
+        const vbBewaard = (vbGeschreven[0]?.existing_page_text as string | null) ?? "";
+        ok("de verse tekst is bewaard bij de geschreven pagina", vbBewaard.length > 0);
+        ok(
+          "en hij is langer dan het crawl-excerpt",
+          vbBewaard.length > vbExcerpt.length,
+          `${vbBewaard.length} tegenover ${vbExcerpt.length} tekens`,
+        );
+        ok("met het moment erbij", Boolean(vbGeschreven[0]?.existing_page_fetched_at));
+
+        // ── O4: het contract oordeelt per sectie over de bestaande pagina ──
+        //
+        // De stub geeft `niet_van_toepassing` terug. Dat mag hier niet blijven
+        // staan: er ÍS een bestaande pagina, dus "niet van toepassing" is geen
+        // geldig oordeel. `normaliseerContract()` zet het om naar `ontbreekt`
+        // met een zin voor de klant. Dat is het vangnet van conventie 1, en het
+        // is alleen in de keten te zien, want het hangt aan de tekst die de
+        // planstap net heeft opgehaald.
+        const { describeImprovements: vbLijst } = await import("@/lib/pipeline/contract-format");
+        const vbVerbeteringen = vbLijst(vbGeschreven[0]?.contract_json as never);
+        ok("het contract draagt een verbeterplan", vbVerbeteringen.length > 0);
+        ok(
+          "en geen enkele sectie blijft op 'niet van toepassing' staan",
+          vbVerbeteringen.every((v) => v.stand !== ("niet_van_toepassing" as never)),
+        );
+        ok("elke regel zegt wat er moet veranderen", vbVerbeteringen.every((v) => v.wat.length > 0));
+        ok("de pagina blijft een verbetering", vbGeschreven[0]?.action === "verbeteren");
+        ok(
+          "en het opgeslagen adres is de echte URL uit de inventaris",
+          vbGeschreven[0]?.existing_url === "/warmtepomp-tilburg/" ||
+            vbGeschreven[0]?.existing_url === vbUrl,
+          String(vbGeschreven[0]?.existing_url),
+        );
+        // ⚠️ Bij een verbetering hoort `related_url` leeg te blijven: de
+        // bestaande pagina ÍS deze pagina, en een waarschuwing "er staat al
+        // iets" zou dan tegen zichzelf ingaan.
+        ok("zonder waarschuwing voor een tweede pagina", vbGeschreven[0]?.related_url === null);
+      } finally {
+        globalThis.fetch = vbOrigineleFetch;
+      }
     }
 
     // ════════════════════════════════════════════════════════════════════════

@@ -53,7 +53,16 @@ export function PublishGuide({
               Deze tekst is bedoeld als vervanging voor{" "}
               <ExternalLink href={existingUrl}>{existingUrl}</ExternalLink>
               . Houd dezelfde URL aan, want die heeft al waarde opgebouwd. Een nieuwe URL begint
-              weer bij nul.
+              weer bij nul.{" "}
+              {/* ⚠️ Tot 2 september 2026 stopte deze instructie hier: vervang je
+                  pagina, en verder niets. De klant kon nergens zien wat er dan
+                  van zijn pagina af ging, en de schrijver had die pagina alleen
+                  afgekapt op 1500 tekens gezien. Nu bestaat de vergelijking wél
+                  (`components/improvement-list.tsx`), en dus hoort deze zin er te
+                  staan: iemand die zijn eigen pagina overschrijft moet eerst
+                  kijken. */}
+              Kijk eerst bij <span className="font-medium">Wat er aan je pagina verandert</span> wat
+              er verdwijnt en wat er bij komt.
             </>
           ) : (
             <>

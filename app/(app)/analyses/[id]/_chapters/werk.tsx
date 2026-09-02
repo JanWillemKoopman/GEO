@@ -195,6 +195,28 @@ export async function WerkChapter({
                   )}
                 </div>
 
+                {/* Er staat al een pagina over dit onderwerp, en dit wordt er
+                    een NAAST (`existing-page-match.ts`). Nagerekend op productie op
+                    1 september 2026 wees het rapportmodel 13 keer zo'n pagina
+                    aan zonder dat de klant hem ooit te zien kreeg. Twee pagina's
+                    over dezelfde vraag concurreren met elkaar, dus dit is precies
+                    het moment om het te weten. */}
+                {r.action !== "verbeteren" && r.relatedUrl && (
+                  <p className="text-sm text-secondary">
+                    Je hebt al een pagina over dit onderwerp:{" "}
+                    <a
+                      href={r.relatedUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="break-url underline"
+                    >
+                      {r.relatedUrl}
+                    </a>
+                    . Deze nieuwe pagina moet duidelijk iets anders doen, anders vragen ze allebei
+                    dezelfde aandacht.
+                  </p>
+                )}
+
                 <PotentialInline triple={potenties[i]} />
 
                 {/* ⚠️ Dezelfde tekst als op het overzicht, en dus hetzelfde
@@ -249,6 +271,7 @@ export async function WerkChapter({
                     why: r.why,
                     action: r.action,
                     existingUrl: r.existingUrl,
+                    relatedUrl: r.relatedUrl,
                     targets: r.targets,
                   }}
                 />

@@ -607,7 +607,7 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
         options: [],
         suggestedAnswer: "ja",
         scope: "analyse",
-        // De sectie waar deze vraag bij hoort (migratie 0083). "P1-s2" is de
+        // De sectie waar deze vraag bij hoort (migratie 0087). "P1-s2" is de
         // tweede sectie van de eerste pagina van de batch, en dat is precies
         // wat het contract van de stub hieronder ook aanlevert. Zonder deze
         // koppeling valt de vraag terug op de tekstvergelijking met
@@ -734,6 +734,13 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
         // Gedekt: er staat een F-nummer bij dat op de kaart bestaat, dus deze
         // sectie levert geen vraag op.
         needsBrandFact: true,
+        // O4: bij een NIEUWE pagina is er geen bestaande pagina om tegen af te
+        // zetten. `normaliseerContract()` dwingt dit deterministisch af, maar de
+        // stub hoort te leveren wat het schema vraagt (zie de kop van dit
+        // bestand: een stub die stilletjes van het schema afwijkt verbergt
+        // precies de fout die de keten moet vinden).
+        presentOnExisting: "niet_van_toepassing",
+        whatToChange: "",
       },
       {
         id: "s2",
@@ -747,6 +754,8 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
         // uit haalt, en de sectie die vervalt als de klant hem overslaat
         // (docs/tasks/vragen-voor-het-schrijven.md §4 en §6).
         needsBrandFact: true,
+        presentOnExisting: "niet_van_toepassing",
+        whatToChange: "",
       },
     ],
     faqQuestions: ["Heb ik een verwijzing nodig?"],

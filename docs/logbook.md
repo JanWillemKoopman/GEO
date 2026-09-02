@@ -5653,6 +5653,556 @@ productie. Vier controles groen: typecheck, 3455 unittests, 557 ketentests, de p
 reparatielus zijn getoetst tegen de stub en tegen opgeslagen data, niet tegen een verse pagina op
 productie. Dat is de eerstvolgende praktijktoets, en pas daarna mag hier staan dat het werkt.
 
+## 1 september 2026: een label voor een kans die op te weinig metingen steunt (potentiescore fase 4)
+
+Aanleiding: bij Gasservice Brabant sprong de score van cluster "Cv-ketel onderhoud" van 30 naar 60
+tussen twee metingen, verklaard in een eerder gesprek als wisselende web_search-antwoorden, geen
+bug. Een Teamsessie (skill `team-session`, vijf experts plus Devil's Advocate) boog zich over de
+vraag hoe de app hiermee om moet gaan. Bevinding, bevestigd door de Devil's Advocate na eigen
+naleeswerk: `visibility_scores.score_stderr` wordt al berekend en opgeslagen (`lib/stats/
+uncertainty.ts`), en gebruikt om de trendtekst in het rapport te temperen
+(`lib/pipeline/period-change.ts`), maar `lib/potential-data.ts` gebruikte hem nergens. Een kans of
+pagina-aanbeveling op 1 of 2 doelvragen kon zo als hard cijfer (0 of 100) getoond worden zonder dat
+er een marge bij stond.
+
+**Wat er gebouwd is.** `PotentialTriple` (`lib/potential.ts`) kreeg een vierde veld, `confident:
+boolean`. `isConfident(stderr)` zet de 95%-marge (`Z95 × stderr`) af tegen een vaste grens van 25
+punten: een volledig gemeten onderwerp (~30 vragen) heeft van zichzelf al een marge van ±16,4 punten
+(docs/architecture.md §6) en haalt die grens dus niet, een kans op een handvol doelvragen wel. Geen
+nieuwe AI-aanroep, geen tweede meetronde nodig, de standaardfout ligt al in de database
+(`score_stderr` op analyse-niveau, een verse `binomialStderr()` over de doelvragen op kansniveau).
+Op het scherm (`components/potential-metrics.tsx`): het label "Nog een meetronde nodig".
+
+**Expliciet géén filter.** De product owner was hier duidelijk over: het label mag een kans nooit
+onbruikbaar maken. Een net gestarte klant met weinig metingen zou anders precies op het moment dat
+hij moet zien wat de app oplevert, een leger contentplan krijgen, het risico dat de Devil's Advocate
+in de Teamsessie benoemde. `lib/opportunities.ts`, `lib/plan-backlog.ts` en het schrijven van een
+pagina zijn dan ook ongewijzigd: een kans met een laag `confident` blijft even bruikbaar als
+daarvoor.
+
+Bewust NIET meegenomen uit dezelfde Teamsessie: de bredere vraag of kansen over meerdere
+meetperiodes gemiddeld zouden moeten worden. Dat wachtte op een telling van hoeveel analyses
+daadwerkelijk twee of meer periodieke metingen hebben, die telling is niet gedaan, dus dat blijft
+openstaand (`docs/tasks/potentiescore.md` §4b).
+
+Vier controles groen: typecheck, 3462 unittests (7 nieuw, `isConfident`), 557 ketentests, de
+productiebuild. **Nog niet geverifieerd tegen een echte klant** (conventie 10): geen productieprofiel
+is nagelopen op of een kans met bekend weinig doelvragen het label ook echt krijgt.
+
+## 1 september 2026: geen aanbeveling meer voor wat de klant al heeft (existingUrl-conventie afdwingen)
+
+Aanleiding: de vraag of de app zelf al voorkomt dat een voorgestelde content-item (bijna) identiek
+is aan een bestaande pagina van de klant. Onderzoek liet zien van niet, op één punt na: het model
+achter het periodieke rapport (`REPORT_SYSTEM`, `lib/pipeline/report.ts`) krijgt bij elke
+aanbeveling de instructie "verbeteren" te kiezen met een bestaande URL als een pagina het onderwerp
+al dekt, en "nieuw" met `existingUrl: null` als dat niet zo is. Dat is een instructie, geen garantie
+(conventie 1), en in productie ging hij op twee manieren mis: bij Gasservice Brabant gaf het model
+bij een NIEUWE aanbeveling toch een URL op (letterlijk `":"`, opgevangen door `schoonAdres()` in
+`lib/plan-backlog-data.ts`), en bij Udenhout claimde het `action: "verbeteren"` met een verzonnen
+pad (`/udenhout.nl/skoda`) dat nergens in de crawl voorkomt (`lib/pipeline/briefing-select.ts`). Het
+omgekeerde geval, het model zegt "nieuw" terwijl de site het onderwerp al dekt, werd nergens
+gecontroleerd: dat is precies het scenario waarin de klant een pagina voorgesteld krijgt die hij al
+heeft. Dit stond ook los aangemerkt in `docs/tasks/roadmap.md` §7 ("existingUrl-conventie
+afdwingen"), als hygiëne die niets blokkeerde, dus nooit gebouwd.
+
+**Wat er gebouwd is.** `lib/pipeline/existing-page-match.ts`, puur en zonder AI-aanroep: rekent per
+aanbeveling de onderwerptermen uit (`topicTerms()` uit `page-relevance.ts`, hergebruikt in plaats
+van opnieuw uitgevonden) en scoort daarmee elke gecrawlde pagina (`profile_pages`, titel drie keer
+zo zwaar als de body, dezelfde weging als `scorePage()`). Bij minder dan drie bruikbare
+onderwerptermen volgt geen oordeel (conventie 3, "prijzen" alleen zegt te weinig om een pagina als
+duplicaat aan te merken). Bij 70% dekking of meer (`EXISTING_PAGE_COVERAGE_THRESHOLD`, net als
+`DUPLICATE_THRESHOLD` bewust ruim en met de gemeten waarde altijd teruggegeven, dus later op data
+bij te stellen) geldt het onderwerp als al gedekt.
+
+`reconcileExistingPageActions()` past dit toe direct na `mergeOverlappingRecommendations()` in
+`report.ts`, vóór opslag in `reports.recommendations_json`: zegt het model "nieuw" terwijl een
+gecrawlde pagina het onderwerp al ruim dekt, dan wordt het alsnog "verbeteren" met die URL. Zegt het
+model "verbeteren" met een URL die niet in de crawl voorkomt, dan vervangt de zelf gevonden pagina de
+onbevestigde URL, of valt de aanbeveling terug op "nieuw" zonder adres als ook wij niets vinden
+(nooit een niet te bevestigen link tonen, dezelfde afweging als `schoonAdres()`). Beide correcties
+gaan naar de logs, zodat zichtbaar blijft hoe vaak het model dit mis had. Geen migratie nodig: de
+correctie grijpt in vóórdat `action`/`existingUrl` worden opgeslagen, en het scherm
+(`plan-view.tsx`) toonde die twee velden al.
+
+Vier controles groen: typecheck, 3478 unittests (16 nieuw), 557 ketentests, de productiebuild.
+**Nog niet geverifieerd tegen een echte klant** (conventie 10): de dekkingsdrempel van 70% is getoetst
+tegen verzonnen voorbeeldpagina's, niet tegen een crawl van duizenden pagina's van een bestaande
+klant, waar de verhouding tussen een terechte en een onterechte "dit staat er al" nog moet blijken.
+## 1 september 2026: labels en een prullenbak op het clusteroverzicht (migratie 0083)
+
+**De aanleiding.** Het clusteroverzicht van een merk is één platte lijst. Bij vier clusters werkt
+dat, bij dertig niet: de vraag is dan niet "welk cluster staat hier" maar "waar staan mijn clusters
+over onderhoud". De product owner vroeg om een label per cluster, een filter erop, en de
+mogelijkheid een cluster weg te halen. Bij dat laatste stond de eis er meteen bij: dan moeten de
+metingen van dat cluster in de toekomst per definitie stoppen.
+
+**Wat er gebouwd is.** Migratie `0083` voegt de tabel `cluster_labels` toe (één rij per label per
+merk, unieke index op `lower(name)`) en `analyses.label_id` met `on delete set null`. Een tabel en
+geen tekstkolom op `analyses`, want "Onderhoud", "onderhoud" en "Onderhoud " zouden dan drie groepen
+in het uitklapmenu zijn waar de gebruiker er één bedoelde. `on delete set null` en geen cascade,
+want een label weggooien mag nooit een cluster meenemen: het cluster draagt maanden meetdata, het
+label draagt een woord. De rekenkunde eromheen staat in `lib/cluster-labels.ts`, zonder
+`server-only`, want zowel het serverscherm als het uitklapmenu in de browser leest hem (conventie 2).
+
+Een label is in te vullen op drie plekken: bij het aanmaken van een cluster (`/analyses/new`, kies
+een bestaand label of typ er een nieuwe), op de kaart in het overzicht, en er weer af te halen. De
+route is bewust "vind of maak": wie "Onderhoud" typt terwijl dat label al bestaat, komt bij het
+bestaande label uit en niet bij een tweede groep met dezelfde naam. De unieke index van 0083 is het
+vangnet daaronder voor twee tabbladen tegelijk (conventie 1).
+
+**De prullenbak voegde geen kolom toe, en dat is de conclusie.** `analyses.archived_at` bestaat
+sinds migratie `0044`, `lib/archive.ts` houdt gearchiveerde clusters uit elke lijst, en
+`/api/cron/tracking` trekt zijn maandlijst via `activeOnly()`. Het meten stopt dus per definitie
+zodra een cluster in de prullenbak gaat, en `lib/jobs/worker.ts` slaat bovendien de taken over die
+al klaarstonden. Wat ontbrak was niet de kolom maar de knop. Er komt daarom ook geen tweede
+schakelaar naast `tracking_enabled`: twee schakelaars voor één gevolg lopen uit elkaar. Verwijderen
+is bewust archiveren gebleven, niet wissen: onder een cluster hangen de vragen, elke meetronde, elke
+vermelding, de rapporten en de geschreven pagina's, en dat komt alleen terug door er opnieuw voor te
+betalen (~$0,82 per ronde).
+
+De twee knoppen staan boven de lijst, "Alle clusters" links en "Prullenbak" rechts daarvan, met het
+filter rechts op dezelfde regel. De stand zit in het adres (`?weergave=prullenbak&label=<id>`), dus
+het filteren gebeurt op de server en de lijst die terugkomt is de lijst die klopt. Een `?label=` dat
+niet bij dit merk hoort valt terug op "alle labels" in plaats van een leeg scherm te tonen, want een
+lege lijst zonder uitleg leest als "mijn clusters zijn weg".
+
+Het kaartje in het overzicht is daarmee geen `<Link>` meer om zijn geheel: een keuzelijst binnen een
+link is niet met het toetsenbord te bedienen. De kop is nu de link, de bediening staat eronder.
+
+**Labels beheren.** Achter het filter staat "Labels beheren", dat een lijstje openklapt waarin een
+label te hernoemen en weg te gooien is. Achter het filter en niet ervoor: filteren doe je elke keer
+dat je hier komt, hernoemen een enkele keer. Hernoemen is één update op één rij, en de clusters
+verhuizen vanzelf mee omdat ze naar het id wijzen; met een tekstkolom op `analyses` was dit een
+update over alle clusters heen geweest die halverwege kon stranden. Weggooien haalt alleen het label
+eraf, want `on delete set null`, en dat staat ook letterlijk in de bevestiging: zonder die zin durft
+niemand de knop te gebruiken. Het aantal naast een label telt over de actieve clusters én de
+prullenbak heen, anders zegt het paneel "0 clusters" bij een label waar er tien onder hangen.
+
+Vier controles groen: typecheck, 3517 unittests (38 nieuw), 563 ketentests (6 nieuw, waaronder de
+controle dat een gearchiveerd cluster echt uit de maandronde valt, dat een verwijderd label zijn
+clusters laat staan en dat hernoemen het cluster meeneemt zonder het aan te raken), de
+productiebuild. De migratie is toegepast op productie. **Nog niet geverifieerd met een echte klant**
+(conventie 10): er is nog geen productieprofiel waar iemand labels op heeft gezet.
+## 1 september 2026: de acht besluiten van de eigenaar, en het proces zichtbaar gemaakt
+
+Na de live test heeft de eigenaar de openstaande keuzes beslist. Wat hij koos, en wat er daarna
+gebouwd is.
+
+**De besluiten.** (1) De gewichten van de score blijven een aanname: New business beoordeelt de lijst
+niet eerst. (2) Een klant in de markt blokkeert niets, maar geeft wel een melding. (3) De openbare
+marktpagina gaat aan, zodat de link in de mail kan staan; we zitten in de fase waarin de hele app
+doorgetest wordt. (4) Voorlopig alleen ChatGPT, de Gemini-sleutel komt later. (5) Het plafond voor
+concepten gaat van 20 naar 100 per persoon per dag. (6) Naast de knop komt een datumkiezer waarmee je
+een eenmalige hermeting vooruit kunt zetten. (7) De bewaartermijn blijft voorlopig open, er wordt nog
+niets opgeruimd. (8) De testbenadering op Coolvent mag weg.
+
+⚠️ **Wat bij besluit 5 openstaat en zwaarder weegt dan dat getal**: er is nog geen apart subdomein
+voor acquisitiemail (plan 16.6, vierde maatregel). Zolang koude mail over hetzelfde domein loopt als
+de facturatie, is honderd per persoon per dag een bewuste gok en geen veilige stand. Dat besluit
+hoort bij de eigenaar en niet bij engineering.
+
+**Het proces is zichtbaar geworden, en dat was de grootste klacht.** De pijplijn doet negen dingen
+achter elkaar en de gebruiker zag er één zin van: "ORBIT ENGINE stelt de vragen aan de
+AI-assistenten." Dertien minuten lang, zonder teller, en zonder iets over de zestien schrijftaken die
+stilletjes mislukt waren. Dat is niet alleen ongemakkelijk maar duur: wie niet ziet dat een stap
+hangt, drukt nog een keer op de knop, en elke druk is een rekening.
+
+Bovenaan het marktscherm staat nu een procesbalk met negen stappen, elk met een stand (klaar, bezig,
+wacht op jou, liep vast), een cijfer ("18 van de 40 vragen gemeten") en bij een vastloper of een
+poort een zin over wat jij moet doen. De rekenkant zit in `lib/sales/proces.ts`, een pure module
+zonder database, dus elke overgang is getest zonder API-sleutel (conventie 2). Het scherm ververst
+zichzelf elke tien seconden, maar alleen zolang er echt iets draait.
+
+⚠️ **De vierde kolom die je zou willen ("hoe lang duurt het nog") staat er bewust niet.** Dat weten we
+niet, en een verzonnen schatting is erger dan geen schatting. Wat er wél bij staat is wat de markt tot
+nu toe gekost heeft, en dat stond nergens terwijl elke knop op dat scherm geld uitgeeft.
+
+**De geplande hermeting.** Een datum per markt, die één keer afgaat, uitgevoerd door de werker die
+toch al elke minuut draait. Op die dag wordt er echt gemeten zonder tweede bevestiging, en dat staat
+er met zoveel woorden bij: wie de datum zet, ziet op dat moment de raming en geeft daarmee het akkoord
+van poort 2 op een ander moment. `remeasure_done_at` gaat vóór het werk, anders meet de werker
+dezelfde markt elke minuut opnieuw. De logica van hermeten en goedkeuren is uit de twee routes gehaald
+naar `lib/pipeline/sales-remeasure.ts`, want de knop en de planning moeten exact hetzelfde doen.
+
+**De gemiste bedrijven zijn bruikbaar geworden.** Het blok "genoemd, maar niet in onze lijst" toonde
+een ongesorteerde rij chips waarin Feenstra, drie keer genoemd en de best zichtbare partij van die
+markt, tussen Daikin en Werkspot stond. Nu staat wie het vaakst genoemd is bovenaan, staan fabrikanten
+en platforms apart met uitleg, en neemt één klik zo'n bedrijf mee in de markt. Vanaf de volgende ronde,
+niet halverwege deze: een bedrijf dat op minder vragen gemeten is, hoort niet in dezelfde ranglijst.
+Een verkeerde naam is nu ook te corrigeren, want "Open website" liep door tot in de conceptmail.
+
+**De kosten kloppen nu.** `STAP_KOSTEN_USD` was een set schattingen van vóór de eerste markt en zat er
+overal te hoog naast: marktonderzoek $0,85 geraamd tegen $0,019 gemeten, de mail $0,15 tegen $0,0007.
+De nieuwe bedragen liggen op ongeveer het dubbele van het gemeten gemiddelde, want een raming is een
+rem en geen prijskaartje: hij hoort de duurste markt te dekken, niet de gemiddelde. `besteedAanMarkt()`
+pagineert nu ook, om dezelfde reden als de vermeldingen vanochtend.
+
+**Gelijke scores worden niet meer als rangorde gepresenteerd.** Bij de eerste markt stonden zeven
+bedrijven op exact 76 met exact dezelfde opbouw. Dat was geen fout in de formule: de meting gaf over
+die zeven hetzelfde beeld, en elke formule geeft dan hetzelfde cijfer. Wat wél fout was, is dat het
+scherm ze onder elkaar zette alsof de bovenste de beste was. Er staat nu één zin boven de lijst als
+drie of meer bedrijven hetzelfde cijfer delen, en de volgorde binnen zo'n groep ligt vast op
+bewijssterkte, dan commerciële relevantie, dan naam, zodat de lijst niet schuift bij elke verversing.
+
+Vier controles groen: typecheck, 3497 unittests, 557 ketentests, de productiebuild.
+
+## 2 september 2026: een verbetering zag de pagina die hij verbeterde nauwelijks
+
+De vraag was simpel: hoe besluit ORBIT ENGINE of een aanbeveling een nieuwe pagina wordt of een
+verbetering van een bestaande, en pakt hij bij een verbetering de echte pagina van de klant erbij?
+Het antwoord op de tweede vraag was nee. Het onderzoek staat in
+`docs/tasks/paginakeuze-nieuw-of-verbeteren.md`, nagerekend op productie over 20 rapporten met 129
+aanbevelingen en 738 gecrawlde pagina's.
+
+⚠️ **Dit bouwt voort op de alinea van 1 september hierboven** (`existing-page-match.ts`,
+"existingUrl-conventie afdwingen"), die parallel is ontstaan en het eerst op `main` stond. Dat werk
+zette het vangnet neer: het rekent zelf na of een onderwerp al gedekt wordt en corrigeert de
+handeling. Wat hieronder staat is er bovenop gebouwd en heeft het niet vervangen; de twee zijn bij
+het samenvoegen tot één module geworden, want twee plekken die dezelfde vraag beantwoorden kunnen
+het oneens worden.
+
+**Wat er stuk was.** De keuze viel volledig in de rapportaanroep, op één zin instructie, zonder
+vangnet in code: de uitzondering die conventie 1 verbiedt. Het model kreeg de pagina's van de klant
+als adres plus titel, nooit als inhoud. Wat dat opleverde:
+
+- **32 van de 70 `nieuw`-aanbevelingen droegen tóch een adres**, tegen de instructie in, en bij 13
+  daarvan bestond die pagina echt. Niets in de keten las dat adres: `content.ts` keek er alleen naar
+  bij `verbeteren`, het scherm toonde bij `nieuw` alleen de chip "Nieuwe pagina". Drie losse
+  aanbevelingen van Van den Udenhout wezen alle drie naar dezelfde bestaande private-leasepagina en
+  werden alle drie een nieuwe pagina ernaast.
+- **8 van de 59 `verbeteren`-adressen matchten niet** op `profile_pages.url`, want dat was een
+  exacte stringvergelijking. Vijf daarvan waren geen verzinsel maar notatie: het model gaf
+  `/tarieven-2026/` waar de inventaris `https://fysi-unique.nl/tarieven-2026/` bevat. Die pagina's
+  zijn geschreven zonder één woord van hun eigen bestaande tekst, terwijl het scherm de klant
+  vertelde ze te overschrijven. De drie overige waren echte verzinsels, waaronder tweemaal
+  `/udenhout.nl/leasen/private-lease`, hetzelfde pad dat migratie `0025` met de hand opruimde.
+- **De verbetering zelf rustte op 1500 tekens.** `profile_pages.text_excerpt` is afgekapt op
+  `PAGE_MAX_CHARS`; 667 van de 738 gecrawlde pagina's staan op die grens en 9 van de 10
+  daadwerkelijk verbeterde pagina's ook. Dat is ongeveer 230 woorden, terwijl de vervangende tekst
+  er 400 tot 1200 telt. Alles wat verderop op de pagina stond bestond voor de schrijver niet. En de
+  tekst was oud: tot 20 dagen tussen de crawl en het schrijven.
+- **Er was geen verbeteranalyse.** Het contentcontract, de inhoudsopgave die de tekst stuurt en
+  achteraf nagerekend wordt, kreeg de bestaande pagina niet te zien. De klant kreeg dus een
+  vervangende tekst plus de instructie "houd dezelfde URL aan", en nergens stond wat er nu eigenlijk
+  aan schortte of wat hij zou weggooien.
+
+**Wat er gebouwd is** (migratie `0086`, op productie toegepast onder het label `0083`; zie
+`supabase/README.md`). `existing-page-match.ts` kreeg er twee dingen bij. **Het adres wordt
+genormaliseerd**: zei het model "verbeteren" met een adres dat wél bestaat, dan bleef dat adres
+staan zoals het model het gaf, en dat was 5 van de 59 keer een pad zonder domein
+(`/tarieven-2026/` waar de inventaris `https://fysi-unique.nl/tarieven-2026/` bevat). Dezelfde
+pagina, maar onbruikbaar voor de schrijfstap en niet klikbaar op het scherm. Nu wint altijd de URL
+uit de crawl. En **onder de omzetdrempel waarschuwen we in plaats van te zwijgen**: haalt een pagina
+de 70% dekking niet maar raakt hij het onderwerp duidelijk (`EXISTING_PAGE_RELATED_THRESHOLD`, 40%,
+plus de eis dat minstens één term in de titel of het adres staat), dan blijft de aanbeveling `nieuw`
+en draagt hij die pagina mee als `related_url`. Zo ziet de schrijver dat hij zich moet
+onderscheiden, en de klant dat hij al iets in die richting heeft. `coversTopic` is uit
+`structure-gap.ts` naar `page-relevance.ts` verhuisd, zodat er één matcher blijft voor de vraag
+"gaat deze pagina hierover".
+
+`existing-page-fetch.ts` haalt de te verbeteren pagina vers op tijdens de planstap, tot 6000 tekens, met
+één HTTP-verzoek en zonder AI. Lukt dat niet, dan valt de schrijfstap terug op het crawl-excerpt en
+zegt de prompt erbij dat het een oudere en afgekapte versie is. Het contentcontract krijgt die tekst
+als invoer en beoordeelt per sectie of hij er al op staat, half op staat of ontbreekt, met een zin
+in gewone taal over wat er moet veranderen. Twee deterministische vangnetten eronder: zonder
+bestaande pagina staat er `niet_van_toepassing` (een oordeel over een pagina die niet bestaat is per
+definitie verzonnen), en een sectie die volgens het model "al op de pagina staat" terwijl geen enkel
+kernwoord ervan in die tekst voorkomt, gaat terug naar `ontbreekt`.
+
+Op het scherm: een blok "Wat er aan je pagina verandert" met per onderdeel of het nieuw is,
+aangevuld wordt of blijft zoals het is, plus een echte woord-voor-woordvergelijking met de tekst die
+er nu staat. Rood verdwijnt, groen komt erbij. Wat er al goed op stond gaat bewust mee in de lijst:
+dat is de geruststelling die iemand nodig heeft voordat hij zijn eigen pagina overschrijft. En de
+duplicatiecheck kijkt nu ook naar `profile_pages` en niet alleen naar wat de app zelf schreef; lijkt
+een nieuwe pagina te sterk op een pagina die al op de site staat, dan zegt de melding "werk die
+pagina bij" in plaats van "voeg ze samen".
+
+**Kosten: nul extra AI-aanroepen.** Het contract werd toch al opgesteld en krijgt alleen betere
+invoer; de ophaling is één HTTP-verzoek in een taak die verderop een schrijfaanroep van tot 150
+seconden doet.
+
+Vier controles groen na het samenvoegen met `main`: typecheck, unittests, ketentests (met een
+scenario dat de hele keten met een gestubde site doorloopt) en de productiebuild. **Nog niet
+geverifieerd tegen een echte klant** (conventie 10): er is nog geen rapport herdraaid op productie,
+dus de 8 mislukte koppelingen en de 13 genegeerde pagina's zijn in de database nog niet zichtbaar
+veranderd.
+
+## 2 september 2026: de verificatie vond wat de code niet liet zien (domein in het pad)
+
+Conventie 10 in de praktijk. De alinea hierboven eindigde met "nog niet geverifieerd tegen een echte
+klant", dus is de echte `matchExistingPage()` over echte productiedata gedraaid: een doorsnede van
+de 91 aanbevelingen die in `reports.recommendations_json` een adres dragen, met per adres de
+pagina's uit de inventaris die hetzelfde laatste padsegment hebben. Dat filter kan geen match
+missen, want `canonicalPath()` raakt het laatste segment nooit aan.
+
+**Uitkomst: 18 van de 31 gekoppeld.** Dertien niet, en acht daarvan bleken hetzelfde patroon te
+hebben: `/udenhout.nl/skoda`, `/udenhout.nl/leasen/private-lease`. Het model had het DOMEIN in het
+pad gezet. Dat leest als een verzinsel en is het niet: `https://udenhout.nl/skoda` bestaat gewoon,
+en alle acht wezen naar een pagina die echt bestaat. Ze werden alle acht weggegooid, en bij twee
+ervan was dat een verbetering die naar `nieuw` degradeerde: een tweede pagina naast een pagina die
+de klant al heeft, precies wat dit werk moest voorkomen.
+
+Dit was bekend en nooit gerepareerd. Migratie `0025` zette dit adres in juli met de hand recht
+(`update content_pieces set existing_url = ...`), en `briefing-select.ts` noemt het bij naam als de
+fout waarvoor het link-slot bestaat. Beide keren is het geval opgelost, niet de oorzaak.
+
+**Wat er gebouwd is.** `matchExistingPage()` doet een tweede poging als het eerste padsegment exact
+de host van een gecrawlde pagina is (met of zonder `www.`). Er wordt niets geraden: het segment moet
+écht een bekende host zijn, en wat er daarna overblijft moet nog steeds een bestaande pagina
+aanwijzen. Een map met een punt erin (`/v1.2/handleiding`) blijft dus staan, en een ander domein in
+het pad levert geen match op. `knownUrl()` in `reconcileExistingPageActions()` rust nu op diezelfde
+oplosser, zodat het rapport en de schrijfstap niet uit elkaar kunnen lopen.
+
+Tegelijk kreeg de `nieuw`-tak er een tweede signaal bij: draagt zo'n aanbeveling een adres dat wél
+bestaat (32 van de 70 keer gevuld, 13 daarvan echt), dan wordt dat de `related_url`. Het model heeft
+die pagina zelf in de lijst aangewezen, en dat weegt zwaarder dan onze eigen termmeting. Het veld
+`existing_url` wordt daarbij leeggemaakt: dat betekent "deze pagina wordt vervangen", en dat is hier
+juist niet aan de orde.
+
+**Hermeting op dezelfde data: 26 van de 31.** De vijf die overblijven horen niet te koppelen: `/`,
+`:`, `:null` en `.` (rommel die het model bij een nieuwe pagina invulde) plus één pagina die niet in
+de inventaris staat.
+
+⚠️ **Wat hier NIET mee geverifieerd is**: de verse ophaling (O3). De ontwikkelcontainer weert
+uitgaand verkeer naar klantdomeinen (403 op de CONNECT-tunnel van de proxy), dus alle tien de
+adressen faalden daar om een reden die niets met de code te maken heeft. Op Vercel bestaat die
+beperking niet; het bewijs komt bij de eerste echte planstap, als `existing_page_text` gevuld raakt
+met meer dan de 1500 tekens uit de crawl.
+
+Vier controles groen: typecheck, 3622 unittests (10 nieuw, allemaal op echte productiegevallen),
+576 ketentests, de productiebuild.
+
+## 2 september 2026: de eerste echte verbeterpagina, en wat die liet zien
+
+De laatste openstaande verificatie van conventie 10: één pagina daadwerkelijk laten schrijven met
+handeling `verbeteren`, op productie, met echte betaalde aanroepen. Testmerk Wouter Warmtepomp,
+cluster "Warmtepomp laten installeren in een bestaande woning", aanbeveling "Maak van de
+hybride-pagina een praktische kostenpagina" tegenover `https://wouterwarmtepomp.nl/hybride-warmtepomp/`.
+Er is niets gepubliceerd.
+
+⚠️ **Kosten: circa $1,25, niet de $0,20 die vooraf begroot was.** De planstap kostte $0,024 en de
+schrijfronde $0,287, maar daarna volgden DRIE gerichte reparatierondes van ongeveer $0,30 per stuk
+(`REPAIR_MAX`). Die rondes zijn voor een deel door de fout hieronder uitgelokt: elk van de zes
+zinnen over de bestaande pagina kwam als bevinding terug, en bevindingen zijn precies wat een
+reparatieronde start. De reparatie hieronder is dus niet alleen een kwaliteitskwestie maar ook een
+kostenkwestie: een fout die in de eerste ronde wordt voorkomen, scheelt hier het duurste model drie
+keer.
+
+**Wat aantoonbaar werkt.** De pagina werd vers opgehaald: **3493 tekens tegenover de 1500 uit de
+crawl**, met tijdstempel, en beide kolommen uit migratie `0086` staan gevuld op de geschreven
+pagina. Het adres koppelde zonder ingrijpen, de handeling bleef `verbeteren` en `related_url` bleef
+leeg (juist, want bij een verbetering ís de bestaande pagina de pagina zelf). Het contract leverde
+een verbeterplan van 20 onderdelen, elk met een oordeel en een zin in gewone taal: 12 "wordt
+aangevuld", 8 "is nieuw", nul zonder uitleg. De dekkingspoort gaf 92. Twintig secties is geen
+uitschieter: eerdere contracten telden er 11, 13, 25 en 25.
+
+**Wat er misging, en het is een regressie van dit werk.** De pagina opende zo:
+
+> "Voor Dongen en Oosterhout is op basis van de beschikbare informatie geen betrouwbaar totaalbedrag
+> vast te stellen: **de bestaande pagina** noemt wel systemen en enkele installatieonderdelen, maar
+> geen prijzen."
+
+Zes van zulke zinnen stonden erin. Dat gaat niet over warmtepompen maar over ons werkproces, en het
+zou op de site van de klant belanden; een bezoeker van wouterwarmtepomp.nl weet niet wat "de
+bestaande pagina" is, hij LEEST die pagina. De oorzaak is begrijpelijk en had voorzien kunnen
+worden: geef een model materiaal plus de opdracht "verbeter dit", en het gaat verslag doen van het
+verschil. De redactie zag het overigens wél (de bevindingen noemen elk van die zinnen), maar als
+"bewering zonder bron", niet als categorie.
+
+Gerepareerd op twee plekken, zoals conventie 1 voorschrijft. De schrijfinstructie zegt nu expliciet
+dat de bestaande tekst materiaal is en nooit onderwerp, met de opdracht om bij een ontbrekend
+gegeven op te schrijven wat er WEL geldt in plaats van wat wij niet konden vinden. Daarnaast meldt
+`checkSourceTalk()` (`content-gate.ts`) elke zin die naar de bestaande pagina, de feitenkaart of
+"de beschikbare informatie" verwijst, en die bevindingen gaan de gerichte reparatie in. ⚠️ De
+controle kijkt alleen naar woordcombinaties die een TEKST aanwijzen: "de bestaande cv-ketel" en "de
+huidige situatie in je woning" zijn gewone zinnen op zo'n pagina en blijven staan. De unittest
+gebruikt de echte productiezin als geval.
+
+**Twee dingen die open blijven staan.** Nul van de 20 secties kreeg het oordeel "staat er al", dus
+de klant krijgt nooit de geruststelling "dit blijft zoals het is". Dat kan kloppen voor deze dunne
+pagina, maar het is niet aangetoond, en het vangnet kan alleen strenger corrigeren (van "aanwezig"
+naar "ontbreekt"), nooit soepeler. En de opgehaalde tekst bevatte het navigatiemenu, twee keer: van
+de 3493 tekens is ongeveer een derde ruis. De oplossing daarvoor bestaat al in een andere tak
+(`page-text.ts`, alleen semantische tags) die nog niet op `main` staat; die twee keer bouwen is
+precies wat dit project niet wil. Beide staan in
+`docs/tasks/paginakeuze-nieuw-of-verbeteren.md`.
+
+**Hoe het afliep, en dit is een correctie op wat hier eerst stond.** Na twee reparatierondes was de
+opening keurig ("Voor een hybride warmtepomp van Wouter Warmtepomp kan hier voor Dongen en
+Oosterhout geen betrouwbaar totaalbedrag worden genoemd zonder woninggegevens en een actuele
+offerte") en stond er geen enkele meta-zin meer in. Op dat moment is hier genoteerd dat de redactie
+de fout had weggewerkt. **Dat klopte niet.** De DERDE reparatieronde draaide de opening terug, en de
+pagina staat nu op `ready` met **vijf** zinnen over "de bestaande pagina" en "de beschikbare
+informatie" erin. Nagerekend op de rij zelf, niet op een tussenstand.
+
+Dat maakt `checkSourceTalk()` geen luxe maar een noodzaak: de bestaande poorten zien deze zinnen
+alleen als losse "bewering zonder bevestigd feit", een reparatieronde kan ze net zo goed opnieuw
+introduceren, en niets houdt de pagina dan tegen. Met de nieuwe controle blijft zo'n pagina op
+"check nodig" staan in plaats van op `ready` te belanden.
+
+**Eindstand na de derde reparatieronde:** dekking 96, GEO-score 100, kwaliteitsscore 61, 1268
+woorden, status `ready`. De kwaliteitsscore liep tijdens de rondes op en neer (58 → 42 → 61): de
+tweede ronde ruilde bevindingen tegen nieuwe bevindingen voordat de derde hem over de drempel
+trok. Ter vergelijking: de vorige contentronde van 1 september haalde gemiddeld 44,5 over vier
+pagina's en al die vier bleven op "check nodig" staan. Deze pagina haalt de poort wél, met de
+volledige tekst van de bestaande pagina als basis. Totale kosten van de ronde: $1,25.
+
+Vier controles groen: typecheck, 3629 unittests (7 nieuw), 576 ketentests, de productiebuild.
+
+## 2 september 2026: het clusteroverzicht subtieler, na de eerste dag met labels en prullenbak
+
+Migratie 0083 (1 september) zette de labelkeuzelijst en de prullenbakknop op een eigen regel onder
+elke clusterkaart. Na een dag gebruiken bleek dat te zwaar: bij drie clusters was het al een derde
+extra hoogte per kaart, en bij dertig zou het een muur van keuzelijsten worden die niemand elke dag
+aanraakt. Twee aanpassingen, geen van beide raakt de meting of de database.
+
+**Label en prullenbak achter één menu.** `cluster-kaart.tsx` verliest de hele regel; beide acties
+zitten nu achter het drie-puntjes-icoon naast de statusbadge, naar hetzelfde patroon als
+`components/profile-menu.tsx` (een paneel dat sluit op een klik erbuiten of op Escape). Het label
+dat al gekozen is blijft als chip in de kop staan, want dat is een cijfer over het cluster en geen
+bediening. De prullenbakknop in de prullenbak zelf ("Terugzetten") bleef ongemoeid: die stond al op
+één regel met één knop.
+
+**De voorgestelde onderwerpen staan standaard dicht.** `topics-panel.tsx` gebruikte een vaste,
+altijd open kaart voor "Onderwerpen om op te meten", en dat blok stond onderaan de pagina vaak
+langer dan "Mijn clusters" erboven, terwijl dat de reden is waarop iemand deze pagina opent. Het
+blok is nu een `CollapsibleSection` met `defaultOpen={false}`: titel en aantal ("6 voorgesteld")
+blijven zichtbaar, de onderwerpen zelf pas na een klik.
+
+Vier controles groen: typecheck, 3629 unittests, 576 ketentests, de productiebuild.
+
+## 2 september 2026: het scherm één keer echt bekeken, en twee fouten die geen test zag
+
+De verbeterlijst en de vergelijking waren gebouwd, getest en gemerged, maar nooit met eigen ogen
+bekeken. Dat is nu gedaan, met de ECHTE productiedata van de hybride-pagina: de componenten
+gerenderd, de Tailwind-CSS van het project erover, en een screenshot in Chromium.
+
+**De lijst klopt.** Per onderdeel de kop, het label ("wordt aangevuld" of "is nieuw") en de zin in
+gewone taal eronder, met de telling "Van de 7 onderdelen op deze pagina: 3 onderdelen zijn nieuw en
+4 worden aangevuld." Leesbaar, geen afgebroken tekst, het adres klikbaar.
+
+**De vergelijking was onbruikbaar.** `diffContent()` vergelijkt woord voor woord, en dat werkt
+prachtig tussen twee versies van onze eigen tekst: daar verandert een zin en blijft de rest staan.
+Tussen de pagina van de klant en de vervangende tekst werkt het averechts, want die twee delen
+alleen hun kleine woorden. Wat de klant te zien kreeg:
+
+> Hybride Warmtepomp ~~Wouter Warmtepomp B.V.~~ Voor ~~Airco~~ Dongen en ~~warmtepomp installateur~~
+> Oosterhout ~~to is footer~~ op ~~Home~~ basis ~~Over~~ van ~~ons~~ de ~~Ons~~ beschikbare
+
+Doorgestreepte en nieuwe woorden om beurten, uit twee teksten die niets met elkaar te maken hebben.
+Het suggereert bovendien een precisie die er niet is: een verbetering is een herschrijving, geen
+bewerking. `diffContent()` heeft er een derde parameter bij gekregen waarmee de aanroeper
+alineaniveau kan afdwingen, en de route die met de bestaande pagina vergelijkt doet dat. Nu staat er
+één rood blok ("dit verdwijnt van je pagina") en één groen blok ("dit komt ervoor in de plaats").
+
+**En die twee blokken plakten aan elkaar**: "...Onderhoud inplannenVoor Dongen en Oosterhout...".
+Precies de overgang die de klant moet zien, onleesbaar door een ontbrekende regelafbreking. Op
+alineaniveau krijgt elk blok nu zijn eigen regel.
+
+⚠️ **Geen van beide fouten was met een test te vinden.** De unittests controleerden dat de diff de
+juiste bewerkingen teruggeeft, en dat deed hij; dat het resultaat voor een mens onleesbaar was, zie
+je alleen door te kijken. Er staan nu wel tests op: dat twee losse teksten op woordniveau
+versnipperen, dat alineaniveau er twee blokken van maakt, en dat de route en het scherm die stand
+ook echt gebruiken.
+
+**Bijvangst, over het oordeel per sectie.** De vraag was of ons vangnet te streng was, want nul van
+de 20 secties kreeg "staat er al". Uit de bewaarde ruwe modeluitvoer (conventie 8) blijkt dat het
+MODEL zelf al nul "aanwezig" gaf: 12 "deels", 8 "ontbreekt", en het vangnet heeft niets omgezet. Het
+echte risico is daarmee scherper dan gedacht: deze tekst vervangt de pagina, dus alles wat niet in
+het contract staat raakt de klant kwijt, en de productlijst op die pagina (Remeha, Daikin) stond er
+niet in. Instructie (h) vraagt het model nu expliciet om eerst de bestaande pagina langs te lopen en
+elk onderwerp dat de lezer nodig heeft over te nemen als sectie met 'aanwezig'. `content-plan.ts`
+logt voortaan hoeveel secties dat zijn, met een waarschuwing bij nul, zodat meetbaar is of de
+instructie werkt in plaats van dat het opnieuw met de hand ontdekt moet worden.
+
+Vier controles groen: typecheck, 3635 unittests (6 nieuw), 576 ketentests, de productiebuild.
+
+## 2 september 2026: het menu uit de opgehaalde pagina, met de module die er al was
+
+Het laatste punt uit de verificatieronde: van de 3493 tekens die van
+`wouterwarmtepomp.nl/hybride-warmtepomp/` werden opgehaald, was ongeveer een derde het
+navigatiemenu, twee keer achter elkaar, vóór de eerste zin over hybride warmtepompen. Dat vervuilde
+twee dingen tegelijk: het oordeel per sectie in het contract (het model beoordeelt inhoud die geen
+inhoud is) en het verschilscherm, waar het menu als "dit verdwijnt van je pagina" verscheen.
+
+**De oplossing bestond al en is overgenomen, niet nagebouwd.** `lib/pipeline/page-text.ts` komt
+letterlijk uit de tak `claude/gasservice-brabant-content-fe9g07`, die op 1 september hetzelfde
+probleem in de CRAWL oploste (daar bestond 94% van de opgeslagen fragmenten uit menu). Die tak staat
+nog niet op `main`. Hem hier een tweede keer bouwen zou twee plekken opleveren die het oneens kunnen
+worden over dezelfde vraag; nu zijn de bestanden identiek en is het samenvoegen straks triviaal. De
+tests zijn mee overgenomen, met één geval erbij: het dubbele menu zoals het op deze site stond.
+
+⚠️ Wat NIET is overgenomen: diezelfde tak verhoogt ook `PAGE_MAX_CHARS` van 1500 naar 4000 en
+gebruikt het schonen in de crawl zelf. Dat raakt de volledige content-inventaris van elke klant en
+heeft zijn eigen verificatie nodig. Dat hoort bij die tak.
+
+`fetchExistingPage()` schoont nu vóór het afkappen, wat de volgorde is die telt: zonder dat is het
+begin van elke pagina het menu, en precies dat begin valt binnen de grens van 6000 tekens. Er is een
+logregel bij die meldt hoeveel tekens het schonen scheelde, ook als het niets deed. Zonder die reeks
+is nooit vast te stellen of dit op andere sites ook werkt, dezelfde reden waarom `similarity.ts` zijn
+gemeten gelijkenis altijd logt.
+
+⚠️ **Getest, niet gemeten.** De unittests dekken de structuur af, maar of dit op de echte HTML van
+wouterwarmtepomp.nl werkt is niet vastgesteld: de ontwikkelcontainer mag die site niet ophalen (403
+op de proxytunnel). De aanwijzing is sterk, want "Skip to content Skip to footer" en een dubbel menu
+wijzen op een thema met echte `<nav>`-elementen, maar een aanwijzing is geen meting. De
+eerstvolgende echte verbetering levert het cijfer via die logregel.
+
+Vier controles groen: typecheck, 3648 unittests (13 nieuw), 576 ketentests, de productiebuild.
+
+## Analytics doorgelicht: vier leesschermen voor één breed scherm (2 september 2026)
+
+De vier pagina's onder Analytics zijn tegen het licht gehouden op wat er waar staat en waarom. Het
+meetwerk eronder bleek in orde en is niet aangeraakt; wat ontbrak was hiërarchie. Vier cijfers uit
+die doorlichting, allemaal tegen productie nagerekend en niet uit documentatie overgenomen.
+
+**Concurrenten is 37.857 pixels hoog, en 34.000 daarvan is beheerwerk.** De analyse zelf, de
+ranglijst en het bronnenlandschap, past in de eerste 3.000. Daaronder staan 329 merken met elk een
+uitklapmenu en drie keuzes. Dat blok stond daar met een goed argument, het bepaalt de noemer van de
+ranglijst erboven, maar dat argument hield stand bij dertig merken en niet bij 329. Het verhuist
+naar een stafscherm: het is bovendien nooit werk voor de klant geweest (§15).
+
+**Op Zichtbaarheid gaan de eerste 700 pixels over de meting en de resterende 2.500 over de
+techniek.** Zeventien controles staan volledig uitgeschreven onder elkaar, waarvan er twaalf "in
+orde" zeggen, en één bevinding somt 149 afwijkende paginatitels op in één alinea van bijna
+vierhonderd woorden. Wat in orde is hoeft niet gelezen te worden, alleen geteld.
+
+**Bij de reputatiemeting van 23 augustus kregen 22 van de 22 bruikbare antwoorden hetzelfde label:
+`gemengd`.** Dat label scoort 0, dus de toonindex is 0 en de meter staat exact in het midden met een
+marge van 3,1. Het grootste en eerste element van dat scherm kan bij dit merk dus niet bewegen.
+Ondertussen zit de uitkomst die wél verschilt weggeklapt achter een uitklapper: de vier criteria uit
+`reputation_ranks`, met plaats 1 van 4 op kwaliteit, 1 van 3 op betrouwbaarheid, 2 van 4 op
+dienstverlening en geen oordeel op prijs tegenover kwaliteit. Dat is letterlijk het antwoord op de
+vraag die de pagina stelt. De criteria worden het hoofdbeeld, de toon wordt een verdeling met een
+duidende zin. Dat 22 van de 22 hetzelfde label krijgen blijft een meetkwestie en geen
+ontwerpkwestie; het is genoteerd, niet weggewerkt.
+
+**Er staan drie gepubliceerde contentpagina's in de hele database, en `content_impact` telt vijf
+metingen die nergens getoond worden.** Zoekverkeer rekent vandaag over de hele website, waarvan het
+grootste deel bestond voordat ORBIT ENGINE begon, terwijl de enige tabel die met een controlegroep
+oorzaak en gevolg verbindt onzichtbaar is.
+
+**Drie besluiten die het ontwerp vastleggen.** (1) De vier pagina's worden **puur informatief**: geen
+knoppen naar Strategie, wel per pagina één duidende zin die uit de cijfers zelf gerekend wordt. Bij
+een sales-led product doet de consultant het werk, de klant leest. (2) Analytics wordt **uitsluitend
+voor desktop** ontworpen, 1440 tot 1920 met 1280 als ondergrens, en de inhoud loopt door tot
+ongeveer 1600 pixels in plaats van de huidige 850. Dat is bijna een verdubbeling van het werkvlak en
+de enige reden waarom een tabel van negen kolommen en een detailpaneel tegelijk passen. Onder 1280
+schuift de pagina, en dat is een keuze en geen omissie. (3) De filterbalk krijgt **Periode, Label,
+Cluster, Fase** in die volgorde, op alle vier de schermen op dezelfde plek. Label en Cluster kunnen
+meteen, want migratie 0083 gaf clusters een label en `lib/cluster-labels.ts` filtert er al op; Fase
+niet, want die is in de opgeslagen cijfers weggerekend en moet uit de 770 ruwe metingen in
+`tracking_runs` worden opgeteld.
+
+⚠️ Twee dingen heten nu "label": de clustergroep uit 0083 en het labelveld van
+`profile_funnel_stages` dat de contentfasen draagt. Bovendien lopen de fasenlijsten uiteen, drie
+categorieën aan de meetkant tegenover vier aan de contentkant. In de schermen heet de clustergroep
+Label en de klantreis Fase, nooit allebei hetzelfde, en die twee lijsten gelijktrekken staat als
+eigen stap in het plan.
+
+Het bouwplan staat in `docs/tasks/analytics-herontwerp.md`, in drie rondes die elk op zichzelf op te
+leveren zijn. Er is bij deze doorlichting geen productiecode gewijzigd.
+
 ## 1 september 2026: de eerste echte contentronde, en wat daaruit viel
 
 De herbouwde schrijfpijplijn is voor het eerst tegen een echte klant gedraaid, op productie, met
@@ -5818,7 +6368,13 @@ hem laten vallen. Kiest de klant voor algemeen, dan vervallen ALLE ongedekte mer
 schrijft het model daar alsnog omheen en is de keuze een woord zonder gevolg.
 
 **Vier controles groen**: typecheck, 3599 unittests (60 nieuwe), 573 ketentests (12 nieuwe, in één
-scenario dat de hele nieuwe volgorde doorloopt), de productiebuild. Migratie 0083, additief.
+scenario dat de hele nieuwe volgorde doorloopt), de productiebuild. Migratie 0087, additief.
+
+⚠️ **Bij het samenvoegen met `main` is deze migratie hernummerd van 0083 naar 0087.** Hij was op
+1 september als 0083 op productie gezet, en op `main` was dat nummer intussen bezet door
+`0083_clusterlabels.sql`. De kolommen zelf zijn niet aangeraakt (dat zou data kosten); alleen hun
+`comment` is bijgewerkt, zodat het nummer in de database hetzelfde is als in de map. De vier
+controles zijn ná het samenvoegen opnieuw gedraaid: 3790 unittests, 592 ketentests.
 
 **Nog niet geverifieerd tegen een echte klant** (conventie 10). De ketentest bewijst de samenhang op
 de stub; wat er in een echte ronde uit `needsBrandFact` komt, is nog niet gemeten. De eerste toets

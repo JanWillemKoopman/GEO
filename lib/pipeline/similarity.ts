@@ -90,6 +90,18 @@ export function similarity(a: string, b: string): number {
 export interface SimilarPage {
   title: string;
   score: number;
+  /**
+   * Waar die pagina staat (O6, 2 september 2026).
+   *
+   * `eigen_content` is een pagina die ORBIT ENGINE zelf schreef; `site` is een
+   * pagina die al op de website van de klant stond. Het verschil bepaalt wat de
+   * klant moet doen, en daarom staat het hier en niet alleen in de tekst: bij
+   * de eerste kies je welke van de twee je publiceert, bij de tweede was het
+   * waarschijnlijk een verbetering en geen nieuwe pagina.
+   */
+  origin: "eigen_content" | "site";
+  /** Het adres, alleen bij `site`. Daar kan de klant naartoe klikken. */
+  url?: string | null;
 }
 
 /**
@@ -102,20 +114,46 @@ export interface SimilarPage {
  */
 export function mostSimilar(
   text: string,
-  others: { title: string; body: string }[],
+  others: { title: string; body: string; origin?: "eigen_content" | "site"; url?: string | null }[],
 ): SimilarPage | null {
   let beste: SimilarPage | null = null;
   for (const other of others) {
     const score = similarity(text, other.body);
-    if (!beste || score > beste.score) beste = { title: other.title, score };
+    if (!beste || score > beste.score) {
+      beste = {
+        title: other.title,
+        score,
+        origin: other.origin ?? "eigen_content",
+        url: other.url ?? null,
+      };
+    }
   }
   return beste;
 }
 
-/** Het verbeterpunt dat de klant leest. Met het percentage, want dat is te wegen. */
+/**
+ * Het verbeterpunt dat de klant leest. Met het percentage, want dat is te wegen.
+ *
+ * Twee teksten, want het zijn twee verschillende problemen (O6). Lijkt de pagina
+ * op een andere pagina die WIJ schreven, dan is dat een keuze tussen twee
+ * concepten en is er nog niets misgegaan. Lijkt hij op een pagina die al op de
+ * site van de klant staat, dan hebben we een tweede pagina gemaakt naast een
+ * pagina die er al was, en dat had een verbetering moeten zijn. Die tweede zin
+ * zegt dat ook, want anders gaat de klant twee concurrerende pagina's
+ * publiceren zonder te weten dat het er twee zijn.
+ */
 export function describeDuplicate(match: SimilarPage): string {
+  const percentage = Math.round(match.score * 100);
+  if (match.origin === "site") {
+    return (
+      `Deze pagina lijkt voor ${percentage}% op een pagina die al op je site staat` +
+      `${match.url ? ` (${match.url})` : ""}. Werk die pagina bij in plaats van er een tweede naast ` +
+      `te zetten: twee pagina's die hetzelfde zeggen concurreren om dezelfde vraag, en dan wordt ` +
+      `geen van beide de duidelijke bron.`
+    );
+  }
   return (
-    `Deze pagina lijkt voor ${Math.round(match.score * 100)}% op "${match.title}". ` +
+    `Deze pagina lijkt voor ${percentage}% op "${match.title}". ` +
     `Overweeg ze samen te voegen, of maak scherper waarin ze van elkaar verschillen. ` +
     `Twee pagina's die hetzelfde zeggen concurreren om dezelfde vraag.`
   );

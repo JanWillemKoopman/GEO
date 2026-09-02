@@ -249,6 +249,34 @@ uit te leggen) die deze bouwronde niet vanzelf mag meenemen.
 
 ---
 
+## 4b. Fase 4 (gebouwd, 1 september 2026): een label voor te weinig metingen
+
+**Aanleiding.** Een Teamsessie over de betrouwbaarheid van meetrondes (zie `docs/logbook.md`, 1
+september 2026) legde bloot dat `visibility_scores.score_stderr` allang berekend en opgeslagen
+wordt, maar nergens gebruikt werd vóórdat een score in de potentiescore of de kansenvoorraad
+belandde. Een kans op maar 1 of 2 doelvragen kon zo als vaststaand cijfer (0 of 100) op het scherm
+staan, terwijl die net zo goed toeval kon zijn.
+
+**Wat er gebouwd is.** `PotentialTriple` (`lib/potential.ts`) kreeg er een vierde veld bij,
+`confident: boolean`. `isConfident(stderr)` rekent de 95%-marge uit (`Z95 × stderr`, dezelfde
+constante als `lib/stats/uncertainty.ts`) en zet die af tegen `CONFIDENCE_MARGIN_LIMIT` (25
+punten, zie de toelichting in de code voor waarom precies dit getal). `stderr` komt op
+analyse-niveau uit de al opgeslagen `visibility_scores.score_stderr`, op pagina-/kansniveau uit een
+verse `binomialStderr()` over de specifieke doelvragen van die kans. Geen nieuwe AI-aanroep, geen
+tweede meetronde nodig: de cijfers liggen er al.
+
+**Waar de klant het ziet.** `components/potential-metrics.tsx`, in beide varianten
+(`PotentialMetrics` en `PotentialInline`), het label `CONFIDENCE_LOW_LABEL` ("Nog een meetronde
+nodig"). Uitsluitend zichtbaar als er wél een zichtbaarheidscijfer is (anders staat er al een
+streepje, conventie 3) en dat cijfer een brede marge heeft.
+
+⚠️ **Bewust géén filter.** Dit raakt alleen de weergave. `lib/opportunities.ts`,
+`lib/plan-backlog.ts`, `lib/pipeline/plan-build.ts` en het schrijven van een pagina zijn ongewijzigd:
+een kans met een laag `confident` is even bruikbaar als daarvoor, wordt niet weggelaten uit een
+lijst en blokkeert niets. Dat was een expliciete eis van de product owner: een label die kansen
+zou verbergen, zou een net gestarte klant met weinig metingen juist een leger contentplan geven op
+het moment dat hij moet zien wat de app oplevert (bezwaar van de Devil's Advocate in de Teamsessie).
+
 ## 5. Keuzes die ik al gemaakt heb, en waarom
 
 Vier plekken waar een andere keuze ook verdedigbaar was. Ik leg ze hier neer met de reden, zeg het als
@@ -281,6 +309,7 @@ je een van de vier anders wilt, dan pas ik het ontwerp aan vóór de bouw begint
 | 2 | De Kansen-lijst (`opportunities.ts`) sorteert op potentiescore, met `share` als vangnet | **Af, 13 augustus** | `lib/opportunities.ts`, `lib/insights-data.ts`, `components/loop-blocks.tsx` |
 | 3 | Contentplanvolgorde (`plan-build.ts`) sorteert op potentiescore, met `priority` als vangnet én tiebreaker. Onderwerpenlijst op de profielpagina toont en sorteert hetzelfde | **Af, 13 augustus** | `lib/pipeline/plan-build.ts`, `lib/plans.ts`, `topics-panel.tsx`, `app/(app)/profielen/[id]/page.tsx` |
 | 3b (apart besluit) | De gewogen zichtbaarheidsscore/`promptWeight()` laten overstappen van de 3-bandenschatting naar de nieuwe index | **Bewust niet gebouwd**, zie §4a | `lib/pipeline/prompt-weight.ts`, `lib/pipeline/volume.ts` |
+| 4 | Label "Nog een meetronde nodig" bij een te brede onzekerheidsmarge, puur weergave, geen filter | **Af, 1 september 2026** | `lib/potential.ts`, `lib/potential-data.ts`, `components/potential-metrics.tsx` |
 
 ## 7. Verificatiecriteria
 
@@ -300,3 +329,4 @@ je een van de vier anders wilt, dan pas ik het ontwerp aan vóór de bouw begint
 | 11 | Fase 3: een onderwerp met een lagere `priority` maar een hogere potentiescore komt eerder in het contentplan | **Bewezen**, tweemaal: als pure functie (unittest `buildPlan`) én end-to-end tegen echte Postgres via de echte `createPlan()` (ketentest "Het contentplan volgt de potentiescore") |
 | 12 | Fase 3: zonder ENIGE potentiescore in de onderwerpenlijst geeft `buildPlan()` precies hetzelfde plan als vóór deze wijziging | **Bewezen**, zelfde unittest |
 | 13 | Kansen van hetzelfde onderwerp met een identieke potentiescore (zoekvolume is per onderwerp, en bij een nieuwe klant is de zichtbaarheid overal nul) worden alsnog onderscheiden, naar rato van het gewicht van hun doelvragen | **Bewezen, 26 augustus 2026** (doorloop-huyberts.md punt 4). `distributePotentialByWeight()` in `lib/potential.ts`, aangeroepen vanuit `syncBacklog()`. Nagerekend op de zeven kansen van Huyberts Keukens: 58, 58, 58, 58, 58, 58, 58 → 58, 33, 29, 25, 25, 21, 6. Raakt nooit een kans die al een eigen, gemeten verschil in zichtbaarheid heeft (zoals een deel van Gasservice Brabant). Zie `docs/logbook.md` voor de volledige afweging |
+| 14 | Een kans of pagina waarvan de zichtbaarheid op weinig doelvragen steunt, toont het label "Nog een meetronde nodig" in plaats van het cijfer als vaststaand te tonen, en blijft ondertussen net zo bruikbaar (geen enkele filter, geen blokkade op het schrijven van een pagina) | **Bewezen, 1 september 2026**, zie §4b hieronder |

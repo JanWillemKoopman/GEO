@@ -13,7 +13,7 @@ Dit plan beschrijft hoe dat werkt, wat ervoor gebouwd moet worden en in welke vo
 > ## Stand op 2 september 2026: stap 1 tot en met 10 zijn gebouwd
 >
 > Vier controles groen: typecheck, 3599 unittests (60 nieuwe), 573 ketentests (12 nieuwe), de
-> productiebuild. Migratie 0083, additief. Eén ketentestscenario loopt de hele nieuwe volgorde door:
+> productiebuild. Migratie 0087, additief. Eén ketentestscenario loopt de hele nieuwe volgorde door:
 > plannen, dan de vragen uit het gat, dan overslaan, dan de sectie die vervalt.
 >
 > **Wat er staat**: `needsBrandFact` op elke contractsectie, de omgedraaide contractregel (d), de

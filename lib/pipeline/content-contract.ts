@@ -67,6 +67,14 @@ const SYSTEM =
   "onderwerp is die voor elke aanbieder hetzelfde is. Wees hier streng en eerlijk: markeer een " +
   "sectie alleen als merkgebonden wanneer een lezer er echt iets over DIT bedrijf verwacht. " +
   "(3) FAQ. De vragen die als veelgestelde vragen op de pagina horen, in de woorden van de lezer. " +
+  // O4 (2 september 2026): tot nu toe kreeg deze stap de bestaande pagina niet
+  // te zien, ook niet als de opdracht was om hem te verbeteren. De inhoudsopgave
+  // werd dus opgesteld alsof de pagina nog niet bestond, en pas de schrijfcall
+  // kreeg er 1500 tekens bij met de vraag om er rekening mee te houden.
+  "(4) VERGELIJK MET DE BESTAANDE PAGINA, als je die krijgt. Zet per sectie in presentOnExisting of " +
+  "hij er al op staat ('aanwezig'), er half op staat ('deels') of ontbreekt ('ontbreekt'), en zet in " +
+  "whatToChange in één zin wat er moet veranderen. Krijg je geen bestaande pagina, vul dan overal " +
+  "'niet_van_toepassing' in en laat whatToChange leeg. " +
   "HARDE REGELS: " +
   "(a) De pagina moet COMPLEET aanvoelen: een lezer mag na afloop geen voor de hand liggende vraag " +
   "meer overhouden. Neem daarom ook de vervolgvragen en de twijfels uit het dossier op, en niet " +
@@ -82,7 +90,16 @@ const SYSTEM =
   "(e) Blijf binnen de totale doellengte die je krijgt. De som van de secties hoort daar ongeveer " +
   "op uit te komen, niet erboven. " +
   "(f) Gebruik GEEN gedachtestreepjes en GEEN schuine streep tussen twee woorden. " +
-  "(g) Nederlands, gewone taal, geen jargon in de koppen.";
+  "(g) Nederlands, gewone taal, geen jargon in de koppen. " +
+  "(h) Bij een BESTAANDE pagina: gooi niets weg wat er al goed op staat. LOOP DIE PAGINA EERST " +
+  "LANGS en maak een sectie voor elk onderwerp dat er nu op staat en dat de lezer nodig heeft, ook " +
+  "als het niet over de doelvraag gaat; markeer die met presentOnExisting 'aanwezig'. Pas daarna " +
+  "vul je aan met wat ontbreekt. Deze tekst VERVANGT de bestaande pagina, dus wat je niet opneemt " +
+  "raakt de klant kwijt. Nagerekend op de eerste echte verbetering (2 september 2026): daar kregen " +
+  "20 van de 20 secties 'deels' of 'ontbreekt' en geen enkele 'aanwezig', terwijl de pagina wel " +
+  "degelijk onderwerpen bevatte die de moeite waard waren. " +
+  "(i) whatToChange is voor de ONDERNEMER, niet voor ons: geen vaktermen, geen sectienummers, één " +
+  "zin die zegt wat er anders wordt en waarom dat helpt.";
 
 export interface ContractInput {
   title: string;
@@ -97,6 +114,14 @@ export interface ContractInput {
   typeGuidance: string;
   analysisId: string;
   profileId: string;
+  /**
+   * De tekst van de pagina die verbeterd wordt (O3, `existing-page-fetch.ts`). Vers
+   * opgehaald bij het plannen, tot 6000 tekens. `null` bij een nieuwe pagina, en
+   * dan blijft het oordeel per sectie op `niet_van_toepassing` staan.
+   */
+  existingText?: string | null;
+  /** Het adres erbij, zodat de opdracht kan zeggen om welke pagina het gaat. */
+  existingUrl?: string | null;
 }
 
 /**
@@ -151,6 +176,23 @@ function dossierBlok(dossier: ItemDossier | null): string {
     .join("\n\n");
 }
 
+/**
+ * De bestaande pagina als invoer voor het contract (O4).
+ *
+ * Bewust ONDERAAN de invoer en niet bovenaan: de opdracht is wat de pagina moet
+ * worden, niet wat hij is. Stond de huidige tekst bovenaan, dan wordt hij het
+ * uitgangspunt en schrijft het model de bestaande indeling over, inclusief de
+ * gaten waarvoor de klant ons juist inschakelde.
+ */
+function bestaandePaginaBlok(text: string | null | undefined, url: string | null | undefined): string {
+  const tekst = (text ?? "").trim();
+  if (!tekst) return "";
+  return (
+    `DE BESTAANDE PAGINA${url ? ` (${url})` : ""}. Dit staat er vandaag. Beoordeel per sectie of hij ` +
+    `er al op staat, en houd wat goed is:\n"""\n${tekst}\n"""`
+  );
+}
+
 /** Stelt het contract op. Eén goedkope aanroep, geen web-zoekactie. */
 export async function buildContentContract(input: ContractInput): Promise<{
   contract: ContentContract;
@@ -168,6 +210,7 @@ export async function buildContentContract(input: ContractInput): Promise<{
     formatExplainerBlock(input.explainers),
     formatFactCard(input.facts),
     planBlok(input.plan),
+    bestaandePaginaBlok(input.existingText, input.existingUrl),
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -183,12 +226,16 @@ export async function buildContentContract(input: ContractInput): Promise<{
     meta: { kind: "content_contract", analysisId: input.analysisId, profileId: input.profileId },
   });
 
-  // De doellengte gaat mee naar het opschonen: promptregel (e) vraagt erom, maar
-  // een promptinstructie is een intentie en code is een garantie (conventie 1).
-  // Op 1 september 2026 vroeg het contract van een landingspagina 25 secties met
-  // samen 1000 woorden bij een maximum van 700.
+  // Twee grenzen gaan mee naar het opschonen, allebei omdat een promptinstructie
+  // een intentie is en code een garantie (conventie 1). De DOELLENGTE, want op
+  // 1 september 2026 vroeg het contract van een landingspagina 25 secties met
+  // samen 1000 woorden bij een maximum van 700. En de BESTAANDE TEKST, want
+  // zonder die tekst is een oordeel over wat er al op de pagina staat verzonnen.
   return {
-    contract: normaliseerContract(result.parsed, { maxWoorden: input.targetWords.max }),
+    contract: normaliseerContract(result.parsed, {
+      maxWoorden: input.targetWords.max,
+      existingText: input.existingText ?? null,
+    }),
     raw: result.raw,
   };
 }

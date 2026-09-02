@@ -110,6 +110,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     why: body.why ?? "",
     action: (body.action === "verbeteren" ? "verbeteren" : "nieuw") as ContentAction,
     existingUrl: body.existingUrl ?? null,
+    relatedUrl: typeof body.relatedUrl === "string" ? body.relatedUrl : null,
     reportId: body.reportId ?? null,
     targets: readTargets(body.targets),
     revisionNote: typeof body.revisionNote === "string" ? body.revisionNote : null,

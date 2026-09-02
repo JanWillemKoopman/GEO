@@ -53,6 +53,7 @@ interface PageRow {
   target_intent: string | null;
   recommendation_action: string | null;
   existing_url: string | null;
+  related_url: string | null;
   /** "<rapport-id>#<volgnummer>", wijst naar de aanbeveling met de doelvragen. */
   source_ref: string | null;
   plan_months: { month_number: number; status: PlanMonthStatus } | null;
@@ -84,7 +85,7 @@ export async function GET(request: Request) {
     .from("planned_pages")
     .select(
       `id, profile_id, title, page_type, status, scheduled_for, is_buffer, topic_id,
-       source, why, target_intent, recommendation_action, existing_url, source_ref,
+       source, why, target_intent, recommendation_action, existing_url, related_url, source_ref,
        plan_months!inner(month_number, status),
        profile_funnel_stages(label),
        profile_topics(title, analysis_id, analyses(status, user_id))`,
@@ -190,6 +191,11 @@ export async function GET(request: Request) {
             uitKans && page.target_intent ? page.target_intent : briefing.targetIntent,
           action: page.recommendation_action === "verbeteren" ? "verbeteren" : "nieuw",
           existingUrl: page.recommendation_action === "verbeteren" ? page.existing_url : null,
+          // Migratie 0083: bij een nieuwe pagina de bestaande pagina die het
+          // onderwerp al raakt. Zonder deze regel verdwijnt die waarschuwing op
+          // precies de route die de meeste pagina's aflegt (sinds 0065 loopt het
+          // normale pad via de contentvoorraad).
+          relatedUrl: page.recommendation_action === "verbeteren" ? null : page.related_url,
           reportId,
           targets,
         },

@@ -39,6 +39,15 @@
  * Bewust ZONDER `server-only` (conventie 2): pure tekstbewerking, testbaar
  * vanuit `scripts/test-unit.ts`. `lib/crawler.ts` begint wél met `server-only`,
  * en dat is precies waarom deze regels hier staan en niet daar.
+ *
+ * ── TWEE AANROEPERS, ÉÉN REGEL ──────────────────────────────────────────────
+ *
+ * Op 2 september 2026 bleek hetzelfde probleem ook de VERSE ophaling van een te
+ * verbeteren pagina te raken (`existing-page-fetch.ts`): van de 3493 opgehaalde
+ * tekens van wouterwarmtepomp.nl was ongeveer een derde het menu, twee keer
+ * achter elkaar. Die stap gebruikt dezelfde functie. Twee eigen versies zouden
+ * het oneens kunnen worden over dezelfde vraag, en dan verschilt de tekst die
+ * de app beoordeelt van de tekst die ze opslaat.
  */
 
 /** Hoeveel tekst er minstens moet overblijven voordat we het schonen vertrouwen. */

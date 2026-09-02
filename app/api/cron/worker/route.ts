@@ -32,8 +32,24 @@ export async function GET(request: Request) {
   }
 
   try {
+    // ⚠️ Eerst de geplande hermetingen, dan pas de wachtrij. Een hermeting die
+    // vandaag aan de beurt is, zet veertig meettaken klaar; die worden dan in
+    // dezelfde ronde van de werker meteen opgepakt in plaats van een minuut te
+    // wachten. Het is één query op een gedeeltelijke index, dus als er niets
+    // gepland staat, kost dit niets.
+    let hermetingen = 0;
+    try {
+      const { createAdminClient } = await import("@/lib/supabase/admin");
+      const { draaiGeplandeHermetingen } = await import("@/lib/pipeline/sales-remeasure");
+      hermetingen = await draaiGeplandeHermetingen(createAdminClient());
+    } catch (err) {
+      // Een storing hier mag de wachtrij niet platleggen: de werker draait elke
+      // minuut en doet veel meer dan dit.
+      console.error("Geplande hermetingen mislukt:", err);
+    }
+
     const result = await runWorker();
-    return NextResponse.json(result);
+    return NextResponse.json({ ...result, hermetingen });
   } catch (err) {
     console.error("Werker mislukt:", err);
     return NextResponse.json({ error: "De achtergrondwerker liep vast.", detail: describeError(err) }, { status: 500 });

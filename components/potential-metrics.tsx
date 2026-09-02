@@ -2,6 +2,7 @@ import { InfoHint } from "@/components/info-hint";
 import {
   potentialBand,
   POTENTIAL_BAND_LABEL,
+  CONFIDENCE_LOW_LABEL,
   potentialExplanation,
   type PotentialTriple,
 } from "@/lib/potential";
@@ -26,6 +27,9 @@ export function PotentialMetrics({
 }) {
   const band = potentialBand(triple.potential);
   const toon = triple.potential === null ? undefined : band === "hoog" ? "up" : undefined;
+  // Alleen tonen als er ook echt een cijfer staat: een `null`-zichtbaarheid
+  // laat MetricTile al een streepje zien, dat heeft geen apart label nodig.
+  const nogOnzeker = triple.visibility !== null && !triple.confident;
 
   return (
     <div className="flex flex-col gap-2">
@@ -33,6 +37,7 @@ export function PotentialMetrics({
         <MetricTile
           label="Zichtbaarheid"
           value={triple.visibility}
+          badge={nogOnzeker ? CONFIDENCE_LOW_LABEL : undefined}
           hint={
             level === "analyse"
               ? "Van de gemeten vragen van dit onderwerp: bij welk aandeel wordt dit merk in de laatste " +
@@ -67,6 +72,13 @@ export function PotentialMetrics({
           <span className="font-medium text-[var(--text-primary)]">{POTENTIAL_BAND_LABEL[band]}. </span>
         )}
         {potentialExplanation(triple.visibility, triple.volume)}
+        {nogOnzeker && (
+          <>
+            {" "}
+            {CONFIDENCE_LOW_LABEL}: dit cijfer is nog op weinig metingen gebaseerd en kan nog
+            veranderen. De kans blijft intussen gewoon te gebruiken.
+          </>
+        )}
       </p>
     </div>
   );
@@ -80,11 +92,15 @@ export function PotentialMetrics({
 export function PotentialInline({ triple }: { triple: PotentialTriple }) {
   const band = potentialBand(triple.potential);
   if (triple.visibility === null && triple.volume === null) return null;
+  const nogOnzeker = triple.visibility !== null && !triple.confident;
 
   return (
     <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-secondary">
       <span>
         Zichtbaarheid <strong className="text-[var(--text-primary)]">{fmt(triple.visibility)}</strong>
+        {nogOnzeker && (
+          <span style={{ color: "var(--status-warning)" }}> ({CONFIDENCE_LOW_LABEL.toLowerCase()})</span>
+        )}
       </span>
       <span>
         Zoekvolume <strong className="text-[var(--text-primary)]">{fmt(triple.volume)}</strong>
@@ -112,11 +128,14 @@ function MetricTile({
   value,
   hint,
   tone,
+  badge,
 }: {
   label: string;
   value: number | null;
   hint: string;
   tone?: "up";
+  /** Klein label naast het getal, bijvoorbeeld CONFIDENCE_LOW_LABEL. */
+  badge?: string;
 }) {
   return (
     <div className="card flex flex-col gap-1">
@@ -136,6 +155,11 @@ function MetricTile({
           </span>
         )}
       </span>
+      {badge && (
+        <span className="mono-label" style={{ fontSize: "0.6rem", color: "var(--status-warning)" }}>
+          {badge}
+        </span>
+      )}
     </div>
   );
 }

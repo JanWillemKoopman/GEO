@@ -669,7 +669,7 @@ export async function runBriefing(args: {
       suggested_answer: vraag.suggestedAnswer,
       required: vraag.required,
       claim_key: vraag.claimKey,
-      // De secties die op dit antwoord wachten (migratie 0083). Slaat de klant
+      // De secties die op dit antwoord wachten (migratie 0087). Slaat de klant
       // de vraag over, dan vervallen precies deze secties en wordt de pagina
       // korter in plaats van vager.
       section_refs: vraag.sectionRefs ?? [],

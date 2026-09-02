@@ -39,6 +39,7 @@ interface RuweAanbeveling {
   type?: unknown;
   action?: unknown;
   existingUrl?: unknown;
+  relatedUrl?: unknown;
   targetIntent?: unknown;
   targets?: unknown;
 }
@@ -171,6 +172,7 @@ export async function syncBacklog(
     pageType: PageType;
     handeling: BacklogHandeling;
     existingUrl: string | null;
+    relatedUrl: string | null;
     vragen: Doelvraag[];
   }[] = [];
 
@@ -198,6 +200,12 @@ export async function syncBacklog(
         pageType: pageTypeVoor(ruw?.type),
         handeling: handelingVoor(ruw?.action),
         existingUrl: schoonAdres(ruw?.existingUrl),
+        // Migratie 0083: alleen zinnig bij een nieuwe pagina, want bij
+        // `verbeteren` ís de bestaande pagina de pagina zelf. `existing-page-match.ts`
+        // vult hem in het rapport al zo in; dit is de tweede sluis, want een
+        // rapport van vóór 2 september 2026 kent die regel niet.
+        relatedUrl:
+          handelingVoor(ruw?.action) === "verbeteren" ? null : schoonAdres(ruw?.relatedUrl),
         vragen: doelvragen(ruw?.targets),
       });
     }
@@ -265,6 +273,7 @@ export async function syncBacklog(
       source_ref: k.sourceRef,
       recommendation_action: k.handeling,
       existing_url: k.existingUrl,
+      related_url: k.relatedUrl,
       why: k.why,
       target_intent: k.targetIntent,
       target_count: raakt,

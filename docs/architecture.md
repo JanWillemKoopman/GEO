@@ -704,6 +704,8 @@ berekenen is, is geld uitgeven aan een slechter antwoord.
 | Pagina-relevantie (`page-relevance.ts`) | Termmatching op het onderwerp. |
 | Entiteitscontrole (`offsite/entity-presence.ts`) | Wikidata en Wikipedia hebben gratis open API's. Een model laten raden wat je exact kunt opzoeken is geld uitgeven aan een slechter antwoord. |
 | Publicatiecontrole (`publish-check.ts`) | Pagina ophalen en tekst vergelijken. |
+| De te verbeteren pagina ophalen (`existing-page.ts`) | Eén HTTP-verzoek, tot 6000 tekens, op het moment van plannen. Vervangt het crawl-excerpt van 1500 tekens dat tot weken oud kon zijn (migratie `0083`). |
+| Nieuw of verbeteren narekenen (`page-match.ts`) | Het adres van het rapportmodel oplossen tegen `profile_pages` op canoniek PAD, en zoeken of er al een pagina over het onderwerp bestaat. Dezelfde matcher als `structure-gap.ts`. |
 | Aggregatie en impact (`measure.ts` 3c, `impact-math.ts`) | Rekenkunde hoort in een pure, testbare module (conventie 2). |
 | Periodeverschil (`period-change.ts`) | Het model verwoordt het verschil, het berekent het niet. Dat ging mis. |
 | Fase 0 van de onboarding (`discover.ts`) | Crawl plus JSON-LD en OpenGraph oogsten, telefoon, adres en KvK uit de lopende tekst, inventariskwaliteit, renderbaarheid. Het adres staat letterlijk in de HTML. |
@@ -914,6 +916,10 @@ De briefing komt sinds `0065` uit de kans zelf als die er is: bij handeling `ver
 bestaande URL mee de schrijfstap in, zodat er een pagina wordt aangevuld in plaats van een tweede
 pagina naast de eerste gezet. Hiervoor stond er onvoorwaardelijk `action: "nieuw"`, en dat zou bij
 Gasservice Brabant vier van de zeven kansen verkeerd hebben uitgevoerd.
+Sinds migratie `0083` gaat niet alleen de URL mee maar ook de PAGINA: de planstap haalt hem vers op
+(`existing-page.ts`, tot 6000 tekens in plaats van het crawl-excerpt van 1500), het contentcontract
+beoordeelt per sectie of hij er al op staat, en de klant ziet op het contentscherm wat er verandert
+en wat er verdwijnt.
 Wat er níet geschreven kan worden telt de route apart en verzwijgt hij niet: schrijven leunt op een
 gemeten analyse, en bij Van den Udenhout hebben zes van de acht onderwerpen er nog geen. De regel
 staat in `lib/plan-writing.ts` (`writeDecision`), de reden per pagina staat in het scherm. De brug

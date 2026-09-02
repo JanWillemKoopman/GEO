@@ -19,6 +19,7 @@
  * Bewust ZONDER `server-only`: puur rekenwerk, testbaar vanuit
  * `scripts/test-unit.ts`. Het ophalen staat in `lib/potential-data.ts`.
  */
+import { Z95 } from "@/lib/stats/uncertainty";
 
 /** De drie getallen samen, zoals ze op het scherm komen. */
 export interface PotentialTriple {
@@ -28,6 +29,52 @@ export interface PotentialTriple {
   volume: number | null;
   /** 0-100, of null zolang één van beide helften onbekend is. */
   potential: number | null;
+  /**
+   * Staat `visibility` stevig genoeg, of is hij nog op te weinig metingen
+   * gebaseerd om als vaststaand te tonen (Teamsessie 1 september 2026)?
+   *
+   * `true` zolang onbekend: een `null`-zichtbaarheid toont toch al een
+   * streepje (conventie 3), dus dit veld hoeft daar niets aan toe te voegen.
+   */
+  confident: boolean;
+}
+
+/**
+ * Boven welke foutmarge (procentpunten, 95%-band) een zichtbaarheidscijfer als
+ * "nog een meetronde nodig" geldt, in plaats van als stevig genoeg om er een
+ * kans of een pagina-aanbeveling op te bouwen.
+ *
+ * ── WAAROM 25 ────────────────────────────────────────────────────────────────
+ *
+ * Een volledig gemeten onderwerp (~30 vragen) heeft van zichzelf al een band
+ * van ±16,4 punten (docs/architecture.md §6), dat is de gewone onzekerheid van
+ * één meetronde en geen reden om iets als onzeker te bestempelen. Een
+ * voorgestelde pagina die maar 1 tot 3 specifieke doelvragen target, heeft een
+ * veel kleinere steekproef en dus een veel bredere band (rond de 100 punten bij
+ * 1 vraag, rond de 40 bij 5). 25 punten ligt tussen die twee in: een volledig
+ * gemeten onderwerp haalt hem niet, een kans op een handvol doelvragen wel.
+ *
+ * Bewust géén AI-aanroep en géén tweede meetronde nodig: de onderliggende
+ * standaardfout (`binomialStderr`/`score_stderr`) ligt al in de database.
+ */
+export const CONFIDENCE_MARGIN_LIMIT = 25;
+
+/** Tekst voor op het scherm, één plek zodat hij overal hetzelfde is. */
+export const CONFIDENCE_LOW_LABEL = "Nog een meetronde nodig";
+
+/**
+ * Is de standaardfout achter een zichtbaarheidscijfer smal genoeg om het als
+ * stevig te tonen? `stderr` is `null` zolang er niets gemeten is; dan is er
+ * ook geen `visibility`-getal om iets van te beweren, dus telt dat als
+ * "voldoende" in plaats van als een ongefundeerde waarschuwing.
+ *
+ * ⚠️ Dit filtert nooit een kans weg en blokkeert nooit het schrijven van een
+ * pagina: het is uitsluitend een label. Een kans met een lage `confident`
+ * blijft even bruikbaar als daarvoor (Teamsessie 1 september 2026).
+ */
+export function isConfident(stderr: number | null): boolean {
+  if (stderr === null) return true;
+  return Z95 * stderr <= CONFIDENCE_MARGIN_LIMIT;
 }
 
 /**

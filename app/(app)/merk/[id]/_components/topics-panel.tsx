@@ -17,6 +17,7 @@ import {
 import { PotentialInline } from "@/components/potential-metrics";
 import type { PotentialTriple } from "@/lib/potential";
 import { Icon } from "@/components/icon";
+import { CollapsibleSection } from "@/components/collapsible-section";
 import { TopicRefreshButton } from "./topic-refresh-button";
 
 /**
@@ -34,6 +35,15 @@ import { TopicRefreshButton } from "./topic-refresh-button";
  * Ingeklapt, maar niet weg. Een topic dat vandaag niet relevant is, is dat over
  * een half jaar misschien wel, en opnieuw laten voorstellen kan niet, want de
  * generatie is idempotent (anders zou hij de keuzes van de klant overschrijven).
+ *
+ * ── WAAROM HET HELE BLOK STANDAARD DICHT STAAT (2 september 2026) ──────────
+ *
+ * Dit blok stond onderaan de pagina altijd volledig open: op een merk met veel
+ * voorstellen was dat de langste lijst van het scherm, onder "Mijn clusters",
+ * dat net de reden is waarom iemand deze pagina opent. `CollapsibleSection`
+ * met `defaultOpen={false}` (in plaats van zijn eigen desktop/mobiel-gedrag)
+ * houdt alleen de titel en het aantal zichtbaar: genoeg om te weten dát er
+ * iets voorgesteld is, niet genoeg om de pagina te laten domineren.
  */
 export function TopicsPanel({
   profileId,
@@ -468,11 +478,11 @@ export function TopicsPanel({
   }
 
   return (
-    <div className="card flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="mono-label">Onderwerpen om op te meten</span>
-        <span className="mono-label text-muted">{open.length} voorgesteld</span>
-      </div>
+    <CollapsibleSection
+      title="Onderwerpen om op te meten"
+      badge={`${open.length} voorgesteld`}
+      defaultOpen={false}
+    >
       <p className="text-sm text-secondary">
         Afgeleid uit de diensten en producten die ORBIT ENGINE op je website vond. Kies waarop je wilt
         meten, of start een cluster met een eigen onderwerp.
@@ -496,6 +506,6 @@ export function TopicsPanel({
       )}
 
       {staff && <TopicRefreshButton profileId={profileId} />}
-    </div>
+    </CollapsibleSection>
   );
 }

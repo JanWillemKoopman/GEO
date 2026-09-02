@@ -1,4 +1,4 @@
--- 0083: de inputpoort, de onderbouwingsgraad en de sectie achter een vraag
+-- 0087: de inputpoort, de onderbouwingsgraad en de sectie achter een vraag
 --
 -- ── WAT DIT OPLOST ──────────────────────────────────────────────────────────
 --
@@ -75,17 +75,17 @@ alter table public.content_pieces
   add column if not exists write_mode text;
 
 comment on column public.content_pieces.input_coverage is
-  '(0083) Onderbouwingsgraad: percentage van de merkgebonden contractsecties dat een bestaand F-nummer heeft. NULL = deze pagina heeft geen merkgebonden sectie, er valt niets te onderbouwen. Zie lib/pipeline/input-coverage.ts.';
+  '(0087) Onderbouwingsgraad: percentage van de merkgebonden contractsecties dat een bestaand F-nummer heeft. NULL = deze pagina heeft geen merkgebonden sectie, er valt niets te onderbouwen. Zie lib/pipeline/input-coverage.ts.';
 
 comment on column public.content_pieces.write_mode is
-  '(0083) Keuze van de klant bij de inputpoort. NULL = normaal schrijven. ''algemeen'' = bewust zonder uitspraken over dit bedrijf. Zie lib/content-input-gate.ts.';
+  '(0087) Keuze van de klant bij de inputpoort. NULL = normaal schrijven. ''algemeen'' = bewust zonder uitspraken over dit bedrijf. Zie lib/content-input-gate.ts.';
 
 alter table public.fact_requests
   add column if not exists section_id text,
   add column if not exists section_refs text[] not null default '{}';
 
 comment on column public.fact_requests.section_id is
-  '(0083) NIET IN GEBRUIK. Binnen dezelfde migratie vervangen door section_refs, omdat één vraag bij secties van meerdere pagina''s kan horen. Blijft staan omdat migraties niets weggooien (conventie 4).';
+  '(0087) NIET IN GEBRUIK. Binnen dezelfde migratie vervangen door section_refs, omdat één vraag bij secties van meerdere pagina''s kan horen. Blijft staan omdat migraties niets weggooien (conventie 4).';
 
 comment on column public.fact_requests.section_refs is
-  '(0083) De contractsecties waar deze vraag bij hoort, als ''<content_piece_id>:<sectie-id>''. Wordt de vraag overgeslagen, dan vervallen die secties. Leeg bij vaste slots en bij vragen van vóór 0083. Zie lib/pipeline/input-coverage.ts.';
+  '(0087) De contractsecties waar deze vraag bij hoort, als ''<content_piece_id>:<sectie-id>''. Wordt de vraag overgeslagen, dan vervallen die secties. Leeg bij vaste slots en bij vragen van vóór 0087. Zie lib/pipeline/input-coverage.ts.';

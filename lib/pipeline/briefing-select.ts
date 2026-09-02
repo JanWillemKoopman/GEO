@@ -81,7 +81,7 @@ export interface BriefingQuestion {
   contentPieceIds: string[];
   /**
    * De contractsecties die dit antwoord nodig hebben, als
-   * "<content_piece_id>:s3" (migratie 0083).
+   * "<content_piece_id>:s3" (migratie 0087).
    *
    * Wordt de vraag overgeslagen, dan vervallen precies deze secties. Een lijst
    * en geen enkel veld, want de ontdubbeling hieronder voegt vragen van
@@ -588,7 +588,7 @@ function dedupeOpOnderwerp(vragen: BriefingQuestion[]): BriefingQuestion[] {
       new Set([...winnaar.contentPieceIds, ...verliezer.contentPieceIds]),
     );
     // Ook hier gaan de secties van de verliezer mee: overslaan hoort élke
-    // sectie te raken die op dit antwoord wachtte (migratie 0083).
+    // sectie te raken die op dit antwoord wachtte (migratie 0087).
     winnaar.sectionRefs = Array.from(
       new Set([...(winnaar.sectionRefs ?? []), ...(verliezer.sectionRefs ?? [])]),
     );

@@ -26,6 +26,7 @@
  * Alleen het optellen zelf heeft de database nodig, en dat is de laatste functie.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { alleRijen } from "@/lib/supabase/pagineer";
 
 /** Het plafond per markt, in euro. Hard in code, zoals plan hoofdstuk 21 vraagt. */
 export const MARKT_BUDGET_EUR = 10;
@@ -52,19 +53,44 @@ export function budgetUsd(eur: number = MARKT_BUDGET_EUR): number {
  * horen deze bedragen tegen `ai_calls` nagerekend te worden, precies zoals dat
  * bij de reputatieanalyse is gebeurd.
  */
+/**
+ * ⚠️ BIJGESTELD OP 1 SEPTEMBER 2026, NA TWEE ECHTE MARKTEN.
+ *
+ * De bedragen hieronder waren schattingen: er was nog geen markt gedraaid toen
+ * ze opgeschreven werden, en ze zaten er allemaal te hoog naast. Wat twee
+ * markten (Warmtepomp Eindhoven en Warmtepomp Tilburg, samen 191 aanroepen) in
+ * het kostenlogboek achterlieten:
+ *
+ * | stap | geraamd | gemeten gemiddeld |
+ * |---|---|---|
+ * | marktonderzoek | $0,85 | $0,019 |
+ * | intenties | $0,06 | $0,0008 |
+ * | vragen | $0,10 | $0,0017 |
+ * | meten, per vraag per engine | $0,03 | $0,0146 (zoekactie plus beoordeling) |
+ * | uitleg en haak | $0,03 | $0,0002 |
+ * | contactpersoon | $0,05 | $0,0146 |
+ * | conceptmail | $0,15 | $0,0007 |
+ * | rapport | $0,35 | $0,0004 |
+ *
+ * De nieuwe bedragen liggen bewust een stuk BOVEN het gemeten gemiddelde, tot
+ * ongeveer het dubbele. Een raming is een rem en geen prijskaartje: hij hoort de
+ * duurste markt te dekken en niet de gemiddelde, anders slaat het plafond aan
+ * halverwege een ronde die al betaald is. Twee markten zijn bovendien twee
+ * waarnemingen, en een branche met langere antwoorden kost meer.
+ */
 export const STAP_KOSTEN_USD = {
-  /** Eén onderzoeksaanroep mét web-zoeken die de markt opsomt. Plan 21.2: €0,75. */
-  discover: 0.85,
+  /** Eén onderzoeksaanroep mét web-zoeken die de markt opsomt. Gemeten: $0,019. */
+  discover: 0.05,
   /** Ontdubbelen en bronpagina's uitlezen. Geen model, alleen netwerkverkeer. */
   verify: 0,
   /** De uitsluitingen. Twee query's, geen model. */
   suppress: 0,
   /** De crawl per bedrijf. Geen model, dus gratis (plan 21.2, tweede regel). */
   enrich: 0,
-  /** Eén aanroep die de commerciële intenties van de markt voorstelt. */
-  intents: 0.06,
-  /** Eén aanroep die de veertig vragen schrijft. */
-  questions: 0.1,
+  /** Eén aanroep die de commerciële intenties van de markt voorstelt. Gemeten: $0,0008. */
+  intents: 0.005,
+  /** Eén aanroep die de veertig vragen schrijft. Gemeten: $0,0017. */
+  questions: 0.01,
   /**
    * Eén vraag op één engine: de dure zoekactie plus de goedkope beoordeling.
    *
@@ -78,7 +104,7 @@ export const STAP_KOSTEN_USD = {
    * wat een klantmeting per vraag kost (`docs/architecture.md` §6). De
    * beoordeling erna is verwaarloosbaar naast die zoekactie.
    */
-  measure: 0.03,
+  measure: 0.02,
   /** De aggregatie. Geen model, dus gratis. */
   aggregate: 0,
   /** De detectie van de kansen. Deterministisch, dus geen model en gratis. */
@@ -90,7 +116,7 @@ export const STAP_KOSTEN_USD = {
    * Bij dertig bedrijven is dat ~€0,90 voor de hele markt, precies de post
    * "opportunities verklaren en hooks schrijven" uit de begroting in plan 21.2.
    */
-  explain: 0.03,
+  explain: 0.005,
   /**
    * Eén onderzoeksaanroep mét web-zoeken die de contactpersoon zoekt.
    *
@@ -98,11 +124,11 @@ export const STAP_KOSTEN_USD = {
    * bedrijven een contactpersoon uitzoeken terwijl er acht benaderd worden, is
    * werk en geld dat niemand gebruikt.
    */
-  contact: 0.05,
-  /** De conceptmail plus de gespreksvoorbereiding. Eén aanroep, geen web-zoeken. */
-  draft: 0.15,
-  /** Het publieke marktrapport. Eén aanroep, alleen bij publicatie (plan 21.2). */
-  report: 0.35,
+  contact: 0.03,
+  /** De conceptmail plus de gespreksvoorbereiding. Eén aanroep, geen web-zoeken. Gemeten: $0,0007. */
+  draft: 0.01,
+  /** Het publieke marktrapport. Eén aanroep, alleen bij publicatie. Gemeten: $0,0004. */
+  report: 0.01,
 } as const;
 
 export type SalesStap = keyof typeof STAP_KOSTEN_USD;
@@ -243,15 +269,18 @@ export async function besteedAanMarkt(
   marketId: string,
 ): Promise<number> {
   try {
-    const { data, error } = await admin
-      .from("ai_calls")
-      .select("cost_usd")
-      .eq("sales_market_id", marketId);
-    if (error) {
-      console.error(`Kosten per markt optellen mislukt (${marketId}):`, error.message);
-      return 0;
-    }
-    return (data ?? []).reduce((som, r) => som + Number(r.cost_usd ?? 0), 0);
+    // Pagineren: een markt met twee engines en een paar hermetingen gaat over de
+    // duizend aanroepen heen, en dan zou de rem stilletjes te laag tellen. Dat
+    // is precies de fout die de vermeldingen op 1 september 2026 maakten
+    // (`lib/supabase/pagineer.ts`).
+    const rijen = await alleRijen<{ cost_usd: number | null }>((van, tot) =>
+      admin
+        .from("ai_calls")
+        .select("cost_usd")
+        .eq("sales_market_id", marketId)
+        .range(van, tot),
+    );
+    return rijen.reduce((som, r) => som + Number(r.cost_usd ?? 0), 0);
   } catch (err) {
     console.error(`Kosten per markt optellen mislukt (${marketId}):`, err);
     return 0;
