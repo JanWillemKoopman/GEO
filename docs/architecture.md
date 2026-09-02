@@ -288,10 +288,10 @@ voor iedereen.
 toewijzen, alle merken, koppelingen) is een aparte vraag: die vijf schermen staan achter `isStaff`
 met een `notFound()`, en de zijbalk toont het hele hoofdstuk Admin alleen aan staf (`lib/nav.ts`).
 
-Vraag 2 zijn twee plafonds, €50 per account per maand en
-€150 per dag over alle accounts samen, allebei instelbaar (`MONTHLY_BUDGET_EUR`, `DAILY_BUDGET_EUR`)
-en per account te overschrijven via `accounts.monthly_budget_eur`. De regels en bedragen staan puur
-en testbaar in `lib/spend-rules.ts`.
+Vraag 2 zijn twee plafonds, allebei per kalenderdag (UTC): €20 per account en €50 over alle accounts
+samen, allebei instelbaar (`DAILY_BUDGET_PER_ACCOUNT_EUR`, `DAILY_BUDGET_EUR`) en per account te
+overschrijven via `accounts.daily_budget_eur` (migratie 0089, herstelplan na audit T5). De regels en
+bedragen staan puur en testbaar in `lib/spend-rules.ts`.
 
 ⚠️ **De twee remmen falen expres de andere kant op.** Vraag 1 faalt naar "nee": gaat de controle
 stuk, dan kan iemand even niets, en dat is het veiligste. Vraag 2 faalt naar "ja": zou die naar

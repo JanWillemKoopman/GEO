@@ -3,20 +3,23 @@ import "server-only";
 /**
  * Wie mag een handeling starten die geld kost?
  *
- * ── HET BESLUIT, HERZIEN OP 27 AUGUSTUS 2026 ────────────────────────────────
+ * ── HET BESLUIT, HERZIEN OP 2 SEPTEMBER 2026 (herstelplan na audit, T4) ─────
  *
- * Het antwoord hangt sinds vandaag van de handeling af, en niet meer van de
- * persoon alleen. Twee handelingen blijven van de beheerder, de rest is van de
- * klant. Welke twee en waarom staat bij `STAFF_ONLY_ACTIONS` in
- * `lib/cost-rules.ts`, want dat is data en hoort in een pure module.
+ * Alle zeven handelingen in `CostlyAction` zijn van de beheerder. Tussen 27 en
+ * 30 augustus 2026 stonden vijf ervan open voor de klant zelf ("hij doet zijn
+ * eigen groeiwerk"), maar dat botste met de sales-led strategie
+ * (`docs/logbook.md` §15): op productie kon een ingelogde klant zelf een merk
+ * aanmaken en een cluster starten, geld uitgeven zonder dat iemand het merkte.
+ * De eigenaar heeft dat op 2 september 2026 teruggedraaid. Welke handelingen
+ * dat zijn en waarom staat bij `STAFF_ONLY_ACTIONS` in `lib/cost-rules.ts`,
+ * want dat is data en hoort in een pure module.
  *
- * Kort: een nieuw merk onderzoeken en een reputatieanalyse zijn een verkoop.
- * Een cluster starten, de meting bevestigen, content laten schrijven en een
- * maand vrijgeven zijn het werk waarvoor de klant al betaalt.
- *
- * Tot vandaag stond alles op slot (besluit 18, 11 augustus 2026). Dat hield de
- * rekening klein maar liep de klant vast: hij zag vier volle knoppen die pas ná
- * de klik weigerden, en één ervan stond als taak in zijn eigen werklijst.
+ * Vóór 27 augustus 2026 stond alles al eens op slot (besluit 18, 11 augustus
+ * 2026), en dat liep de klant vast: hij zag vier volle knoppen die pas ná de
+ * klik weigerden, en één ervan stond als taak in zijn eigen werklijst. Die fout
+ * komt nu niet terug: de knoppen blijven zichtbaar en klikbaar, de melding
+ * nodigt uit ("je customer success manager regelt dit") in plaats van af te
+ * wijzen.
  *
  * ── WAAROM ÉÉN FUNCTIE EN GEEN CONTROLE PER ROUTE ───────────────────────────
  *
@@ -52,9 +55,8 @@ export { COST_DENIED, type CostlyAction } from "@/lib/cost-rules";
 /**
  * Mag deze gebruiker deze betaalde handeling starten?
  *
- * Faalt zacht naar `false` bij de twee handelingen die op slot staan: een
- * storing in de controle mag nooit iemand onbedoeld een verkoop laten starten.
- * Dezelfde kant op als `isStaff` zelf.
+ * Faalt zacht naar `false`: een storing in de controle mag nooit iemand
+ * onbedoeld betaald werk laten starten. Dezelfde kant op als `isStaff` zelf.
  */
 export async function mayTriggerCost(
   userId: string,

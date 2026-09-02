@@ -5,7 +5,7 @@ import "server-only";
  *
  * De regels, de bedragen en de meldingen staan in `lib/spend-rules.ts`, want dat
  * bepaalt de uitkomst en hoort dus puur en testbaar te zijn (conventie 2). Hier
- * staat alleen het opzoekwerk: wat is er deze maand op dit account gezet, en wat
+ * staat alleen het opzoekwerk: wat is er vandaag op dit account gezet, en wat
  * is er vandaag over alle accounts samen gezet.
  *
  * ── DE TWEEDE REM, NAAST DIE VAN BESLUIT 18 ─────────────────────────────────
@@ -33,17 +33,12 @@ import {
   spendVerdict,
   combinedVerdict,
   limitFromEnv,
-  DEFAULT_MONTHLY_LIMIT_EUR,
-  DEFAULT_DAILY_LIMIT_EUR,
+  DEFAULT_ACCOUNT_DAILY_LIMIT_EUR,
+  DEFAULT_TOTAL_DAILY_LIMIT_EUR,
   type SpendVerdict,
 } from "@/lib/spend-rules";
 
 type Admin = ReturnType<typeof createAdminClient>;
-
-/** Het begin van de huidige kalendermaand in UTC, als ISO-string. */
-export function startOfMonthUtc(now: Date = new Date()): string {
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
-}
 
 /** Het begin van vandaag in UTC, als ISO-string. */
 export function startOfDayUtc(now: Date = new Date()): string {
@@ -88,15 +83,21 @@ async function sumCostUsd(
   return totaal;
 }
 
-/** Het maandplafond van dit account: eigen instelling, anders de standaard. */
-async function monthlyLimitEur(admin: Admin, accountId: string): Promise<number> {
-  const standaard = limitFromEnv(process.env.MONTHLY_BUDGET_EUR, DEFAULT_MONTHLY_LIMIT_EUR);
+/**
+ * Het dagplafond van dit account: eigen instelling, anders de standaard.
+ *
+ * Leest `accounts.daily_budget_eur` (migratie 0089, herstelplan T5). Niet meer
+ * `monthly_budget_eur`: dat was een MAANDplafond en is een andere grootheid,
+ * geen synoniem met een ander getal.
+ */
+async function accountDailyLimitEur(admin: Admin, accountId: string): Promise<number> {
+  const standaard = limitFromEnv(process.env.DAILY_BUDGET_PER_ACCOUNT_EUR, DEFAULT_ACCOUNT_DAILY_LIMIT_EUR);
   const { data } = await admin
     .from("accounts")
-    .select("monthly_budget_eur")
+    .select("daily_budget_eur")
     .eq("id", accountId)
     .maybeSingle();
-  const eigen = data?.monthly_budget_eur as number | null | undefined;
+  const eigen = data?.daily_budget_eur as number | null | undefined;
   // Alleen `null`/`undefined` valt terug op de standaard. Nul is een echte
   // waarde en betekent "dit account op slot", en die mag niet weggerekend
   // worden door een `||`.
@@ -106,30 +107,34 @@ async function monthlyLimitEur(admin: Admin, accountId: string): Promise<number>
 /**
  * Mag er nog geld uit voor dit account?
  *
- * `accountId` mag `null` zijn: dan geldt alleen het dagplafond. Dat is geen
+ * `accountId` mag `null` zijn: dan geldt alleen het totaalplafond. Dat is geen
  * uitzonderingsgeval maar de normale toestand voor werk dat nog geen account
  * heeft, zoals het onderzoek naar een merk dat net is aangemaakt.
+ *
+ * Beide plafonds tellen sinds T5 over DEZELFDE periode (vandaag, UTC), alleen
+ * over een andere groep: dit ene account, of alle accounts samen.
  */
 export async function checkBudget(accountId: string | null): Promise<SpendVerdict> {
   const admin = createAdminClient();
-  const dagLimiet = limitFromEnv(process.env.DAILY_BUDGET_EUR, DEFAULT_DAILY_LIMIT_EUR);
+  const totaalLimiet = limitFromEnv(process.env.DAILY_BUDGET_EUR, DEFAULT_TOTAL_DAILY_LIMIT_EUR);
 
   try {
-    const dagUsd = await sumCostUsd(admin, startOfDayUtc(), null);
-    const dag = spendVerdict("dag", dagUsd, dagLimiet);
+    const sindsVandaag = startOfDayUtc();
+    const totaalUsd = await sumCostUsd(admin, sindsVandaag, null);
+    const totaal = spendVerdict("totaal", totaalUsd, totaalLimiet);
 
-    if (!accountId) return dag;
+    if (!accountId) return totaal;
 
-    const [maandUsd, maandLimiet] = await Promise.all([
-      sumCostUsd(admin, startOfMonthUtc(), accountId),
-      monthlyLimitEur(admin, accountId),
+    const [accountUsd, accountLimiet] = await Promise.all([
+      sumCostUsd(admin, sindsVandaag, accountId),
+      accountDailyLimitEur(admin, accountId),
     ]);
-    return combinedVerdict(dag, spendVerdict("maand", maandUsd, maandLimiet));
+    return combinedVerdict(totaal, spendVerdict("account", accountUsd, accountLimiet));
   } catch (err) {
     // Zie de kop van dit bestand: doorlaten, maar hoorbaar. Zonder deze regel
     // zou een kapotte rem niet van een werkende te onderscheiden zijn.
     console.error("Budgetcontrole mislukt, handeling gaat door zonder rem:", err);
-    return { ok: true, scope: null, message: null, spentEur: 0, limitEur: dagLimiet };
+    return { ok: true, scope: null, message: null, spentEur: 0, limitEur: totaalLimiet };
   }
 }
 

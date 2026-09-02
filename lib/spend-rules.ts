@@ -54,29 +54,37 @@ export function usdToEur(usd: number): number {
 }
 
 /**
- * De twee plafonds, allebei in euro's.
+ * De twee plafonds, allebei in euro's, allebei per KALENDERDAG (UTC).
  *
  * ── WAAROM ER TWEE ZIJN EN NIET ÉÉN ─────────────────────────────────────────
  *
- * Ze vangen verschillende rampen. Het maandplafond per account vangt de klant
- * die structureel te veel kost: acht onderwerpen, elke maand opnieuw gemeten en
- * geschreven. Het dagplafond over alle accounts samen vangt het ongeluk: een
- * lus die doordraait, een cron die twintig keer vuurt, een fout die pas
+ * Ze vangen verschillende rampen. Het dagplafond per account vangt de klant die
+ * structureel te veel kost op één dag: een drukke onboarding, een maand in één
+ * keer goedgekeurd. Het dagplafond over alle accounts samen vangt het ongeluk:
+ * een lus die doordraait, een cron die twintig keer vuurt, een fout die pas
  * zichtbaar wordt op de rekening. Eén plafond zou altijd één van die twee
  * missen.
  *
- * De standaardbedragen zijn gekozen op de echte cijfers van 11 augustus 2026.
- * Een klant met vier onderwerpen kost ~$3,30 per maand aan metingen plus ~$2,80
- * aan tien pagina's, dus ruwweg €6. Het plafond van €50 laat daarmee een factor
- * acht ruimte: het raakt een normale klant nooit en stopt een ontspoorde wel.
+ * ── HERSTELPLAN NA AUDIT T5 (2 september 2026): VAN MAAND NAAR DAG ─────────
  *
- * Het dagplafond van €150 is bewust hoger dan het maandplafond van één account:
- * het gaat over alle klanten samen, en het hoort een ramp te vangen, geen drukke
- * dag. Twintig klanten die tegelijk hun maand goedgekeurd krijgen is ~€52 en
- * moet gewoon door kunnen.
+ * Tot vandaag was het accountplafond een MAANDplafond van €50, gekozen op de
+ * cijfers van 11 augustus 2026: een klant met vier onderwerpen kost ~€6 per
+ * maand, dus €50 liet een factor acht ruimte. De eigenaar wil per klant een
+ * DAGplafond van €20 in plaats daarvan: strenger op één dag, maar met tien
+ * pagina's op ~$0,26 per reparatieronde (herstelplan T1.4) en een meting van
+ * dertig vragen op ~€0,85 past een normale werkdag daar ruim onder, en een
+ * onboarding van ~€0,25 al helemaal. Structureel tegen dit plafond aanlopen is
+ * dus een teken dat er iets anders aan de hand is, niet dat de klant gewoon
+ * druk is.
+ *
+ * Het totaalplafond was al een dagplafond en gaat van €150 naar €50: bij een
+ * accountplafond van €20 per dag zou €150 zeventien klanten tegelijk tegen hun
+ * eigen plafond aan moeten laten lopen voor het ooit zou raken. €50 vangt nog
+ * altijd twee klanten die op dezelfde dag tegen hun plafond zitten, en blijft
+ * daarmee de rem die een ontspoorde lus of cron eerder aanslaat dan voorheen.
  */
-export const DEFAULT_MONTHLY_LIMIT_EUR = 50;
-export const DEFAULT_DAILY_LIMIT_EUR = 150;
+export const DEFAULT_ACCOUNT_DAILY_LIMIT_EUR = 20;
+export const DEFAULT_TOTAL_DAILY_LIMIT_EUR = 50;
 
 /** Leest een plafond uit een omgevingsvariabele, met de standaard als terugval. */
 export function limitFromEnv(raw: string | undefined, fallback: number): number {
@@ -89,7 +97,11 @@ export function limitFromEnv(raw: string | undefined, fallback: number): number 
   return n;
 }
 
-export type SpendScope = "maand" | "dag";
+/**
+ * Welk plafond geraakt is. Allebei een dagplafond sinds T5 (herstelplan na
+ * audit); het onderscheid is WIE het plafond draagt, niet meer de periode.
+ */
+export type SpendScope = "account" | "totaal";
 
 export interface SpendVerdict {
   ok: boolean;
@@ -116,12 +128,18 @@ function round2(n: number): number {
 /**
  * Past deze uitgave nog binnen het plafond?
  *
- * `spentUsd` is wat er in de periode al staat, `limitEur` het plafond. De
+ * `spentUsd` is wat er vandaag al staat, `limitEur` het plafond. De
  * vergelijking is `>=`, niet `>`: staat er precies het plafond op, dan is het op.
  *
- * De melding noemt drie dingen, en alle drie met opzet (K2, zie `docs/logbook.md`,
- * elke foutmelding is specifiek): het bedrag dat er staat, het plafond, en waar
- * je het verhoogt. Een blokkade zonder die derde zin is een doodlopende weg.
+ * ── DE MELDING (T5.2, herstelplan na audit) ─────────────────────────────────
+ *
+ * Niet alleen "geweigerd", maar ook wat er nu moet gebeuren: allebei de
+ * plafonds resetten om middernacht UTC, dus "wacht tot morgen" is voor beide
+ * een geldig antwoord. Het verschil zit in het ANDERE antwoord. Bij het
+ * accountplafond is dat "verhoog het voor dit ene account in het beheerscherm";
+ * bij het totaalplafond, de noodrem tegen een ontspoorde taak, is dat "bel
+ * iemand" zodra het overdag raakt, want dan is er vermoedelijk iets kapot en
+ * geen klant die toevallig veel werk laat doen.
  */
 export function spendVerdict(
   scope: SpendScope,
@@ -134,25 +152,28 @@ export function spendVerdict(
   }
 
   const message =
-    scope === "maand"
-      ? `Het maandbudget van dit account is op: ${euro(spentEur)} van ${euro(limitEur)} gebruikt. ` +
-        `Nieuw betaald werk start pas weer volgende maand, of zodra je het plafond verhoogt in het beheerscherm.`
-      : `Het dagbudget van ORBIT ENGINE is op: ${euro(spentEur)} van ${euro(limitEur)} gebruikt over alle klanten samen. ` +
-        `Dit is de noodrem tegen een taak die doordraait. Kijk in het beheerscherm wat er vandaag gedraaid heeft ` +
+    scope === "account"
+      ? `Het dagbudget van dit account is op: ${euro(spentEur)} van ${euro(limitEur)} gebruikt. ` +
+        `Nieuw betaald werk start vanzelf weer morgen (00:00 uur), of meteen zodra je het dagplafond ` +
+        `voor dit account verhoogt in het beheerscherm.`
+      : `Het dagbudget van ORBIT ENGINE is op: ${euro(spentEur)} van ${euro(limitEur)} gebruikt over alle ` +
+        `klanten samen. Dit is de noodrem tegen een taak die doordraait, geen normale drukte. Kijk in het ` +
+        `beheerscherm wat er vandaag gedraaid heeft: is dat verklaarbaar, dan mag je het plafond verhogen en ` +
+        `morgen (00:00 uur) gaat de teller vanzelf weer op nul; lijkt er iets vast te lopen, bel dan iemand ` +
         `voordat je het plafond verhoogt.`;
 
   return { ok: false, scope, message, spentEur, limitEur };
 }
 
 /**
- * Beide plafonds achter elkaar, en het dagplafond gaat voor.
+ * Beide plafonds achter elkaar, en het totaalplafond gaat voor.
  *
  * ⚠️ De volgorde is niet willekeurig. Zit je tegen allebei aan, dan is het
- * dagplafond het interessantere bericht: dat betekent dat er iets aan de hand is
- * over alle klanten heen, en dat wil je weten vóór je het maandplafond van één
- * account gaat verhogen.
+ * totaalplafond het interessantere bericht: dat betekent dat er iets aan de
+ * hand is over alle klanten heen, en dat wil je weten vóór je het dagplafond
+ * van één account gaat verhogen.
  */
-export function combinedVerdict(dag: SpendVerdict, maand: SpendVerdict): SpendVerdict {
-  if (!dag.ok) return dag;
-  return maand;
+export function combinedVerdict(totaal: SpendVerdict, account: SpendVerdict): SpendVerdict {
+  if (!totaal.ok) return totaal;
+  return account;
 }

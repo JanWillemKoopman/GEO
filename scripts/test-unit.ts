@@ -61,7 +61,7 @@ import { compare, deltaOf, thresholdOf, verdictOf, minQuestionsForSignal } from 
 import { buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change-format";
 import type { PeriodChange } from "@/lib/pipeline/period-change-format";
 import { domainOf } from "@/lib/offsite/domain";
-import { checkUrlFormat } from "@/lib/url";
+import { checkUrlFormat, isOnBrandDomain } from "@/lib/url";
 import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import { formatEvidenceDossier, excerpt } from "@/lib/pipeline/evidence-format";
@@ -532,8 +532,8 @@ import {
   spendVerdict,
   combinedVerdict,
   limitFromEnv,
-  DEFAULT_MONTHLY_LIMIT_EUR,
-  DEFAULT_DAILY_LIMIT_EUR,
+  DEFAULT_ACCOUNT_DAILY_LIMIT_EUR,
+  DEFAULT_TOTAL_DAILY_LIMIT_EUR,
 } from "@/lib/spend-rules";
 import { EDITABLE_ACCOUNT_FIELDS } from "@/lib/account-editable";
 import { checkNewEmail, checkNewPassword } from "@/lib/account-security";
@@ -1549,6 +1549,43 @@ group("webadres controleren", () => {
   ok("leeg wordt geweigerd", !checkUrlFormat("").ok);
   ok("spaties worden geweigerd", !checkUrlFormat("voor beeld.nl").ok);
   ok("e-mailadres wordt geweigerd", !checkUrlFormat("jan@voorbeeld.nl").ok);
+});
+
+// Herstelplan na audit T3.1: op 2 september 2026 gaf de publiceerroute een 202
+// voor https://www.example.com/, een adres dat niets met het merk te maken had.
+group("publiceren mag alleen op het domein van het merk (T3.1)", () => {
+  ok("hetzelfde domein mag", isOnBrandDomain("https://voorbeeld.nl/pagina", "voorbeeld.nl"));
+  ok("www telt niet als ander domein", isOnBrandDomain("https://www.voorbeeld.nl/pagina", "voorbeeld.nl"));
+  ok(
+    "en andersom: het merk staat met www, de pagina niet",
+    isOnBrandDomain("https://voorbeeld.nl/pagina", "www.voorbeeld.nl"),
+  );
+  ok("een subdomein van het merk mag", isOnBrandDomain("https://blog.voorbeeld.nl/pagina", "voorbeeld.nl"));
+
+  ok("een heel ander domein mag niet", !isOnBrandDomain("https://www.example.com/", "voorbeeld.nl"));
+  ok(
+    "een domein dat het merk alleen als achtervoegsel bevat mag niet",
+    !isOnBrandDomain("https://nietvoorbeeld.nl", "voorbeeld.nl"),
+  );
+  ok(
+    "een domein dat het merk als voorvoegsel misbruikt mag niet",
+    !isOnBrandDomain("https://voorbeeld.nl.evil.com", "voorbeeld.nl"),
+  );
+  ok("zonder bekend merkdomein mag niets", !isOnBrandDomain("https://voorbeeld.nl", ""));
+});
+
+// De domeincontrole en de needs_review-blokkade zitten in de route zelf (niet
+// in een pure functie): een Next.js routehandler met `getUser()`/cookies is in
+// deze codebase niet los te draaien in een test, dus deze bedrading wordt
+// gelezen, net als bij de `mayTriggerCost`-controles (T4).
+group("de publiceerroute weigert een fout domein en een pagina die nog nagekeken moet worden (T3.1/T3.3)", () => {
+  const route = leesBestand("app/api/analyses/[id]/content/[pieceId]/publish/route.ts");
+  ok("de route kent het profiel op via de analyse", route.includes("analysis.profile_id"));
+  ok("en toetst het adres aan het domein van het merk", route.includes("isOnBrandDomain(url, brandUrl)"));
+  ok(
+    "een pagina die nog nagekeken moet worden wordt geweigerd, vóór de domeincontrole",
+    route.indexOf("piece.needs_review") < route.indexOf("isOnBrandDomain("),
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -7433,30 +7470,29 @@ group("de ronde: zes stappen, precies één aan de beurt", () => {
 });
 
 group("wie mag betaald werk starten", () => {
-  // ⚠️ Het besluit van 27 augustus 2026: de klant doet zijn eigen groeiwerk,
-  // helemaal. Tot die dag stonden alle zes op slot en zag hij vier volle
-  // knoppen die pas ná de klik weigerden, waarvan er één als taak in zijn eigen
-  // werklijst stond.
+  // ⚠️ Herstelplan na audit T4 (2 september 2026): alle zeven handelingen zijn
+  // van de beheerder. Tussen 27 en 30 augustus 2026 stonden vijf ervan open
+  // voor de klant zelf ("hij doet zijn eigen groeiwerk"), maar dat botste met
+  // de sales-led strategie (docs/logbook.md §15): op productie kon een
+  // ingelogde klant zelf een merk aanmaken en een cluster starten. De eigenaar
+  // heeft dat teruggedraaid.
   //
-  // De reputatieanalyse is de uitzondering, en het is er precies één: dat is
-  // geen stap in de maandelijkse ronde maar een los product dat apart gekocht
-  // wordt. De knop blijft zichtbaar met een uitnodiging ernaast, want een
-  // verborgen knop verkoopt niets.
+  // Wat NIET teruggedraaid is: de knoppen blijven zichtbaar en klikbaar (kader
+  // 2 van het herstelplan). Alleen `clusters_aanvullen` is een regieknop die de
+  // klant niet eens mag zien (toegevoegd 30 augustus 2026,
+  // optimalisatielab-orbit-engine.md §3.5); de andere zes mag hij zien en
+  // aanklikken, en krijgt hij een uitnodigende melding.
+  ok("een nieuw merk onderzoeken is van de beheerder", actionNeedsStaff("merk_onderzoeken"));
+  ok("de meting bevestigen is van de beheerder", actionNeedsStaff("meting_starten"));
+  ok("een cluster starten is van de beheerder", actionNeedsStaff("analyse_starten"));
+  ok("content laten schrijven is van de beheerder", actionNeedsStaff("content_schrijven"));
+  ok("een maand vrijgeven is van de beheerder", actionNeedsStaff("plan_goedkeuren"));
   ok("een reputatieanalyse blijft van de beheerder", actionNeedsStaff("reputatie_starten"));
-  ok("een nieuw merk onderzoeken doet de klant zelf", !actionNeedsStaff("merk_onderzoeken"));
-  ok("de meting bevestigen doet de klant zelf", !actionNeedsStaff("meting_starten"));
-  ok("een cluster starten doet de klant zelf", !actionNeedsStaff("analyse_starten"));
-  ok("content laten schrijven doet de klant zelf", !actionNeedsStaff("content_schrijven"));
-  ok("een maand vrijgeven doet de klant zelf", !actionNeedsStaff("plan_goedkeuren"));
-  // Toegevoegd 30 augustus 2026 (optimalisatielab-orbit-engine.md §3.5): de
-  // knop "Stel nieuwe clusters voor" is een regieknop, geen apart product, en
-  // mag bij de klant niet eens zichtbaar zijn.
   ok("nieuwe clusters aanvullen blijft ook van de beheerder", actionNeedsStaff("clusters_aanvullen"));
-  ok("precies twee handelingen staan op slot", STAFF_ONLY_ACTIONS.length === 2, String(STAFF_ONLY_ACTIONS.length));
+  ok("alle zeven handelingen staan op slot", STAFF_ONLY_ACTIONS.length === 7, String(STAFF_ONLY_ACTIONS.length));
 
   // K2: elke melding is specifiek en klinkt als een uitnodiging, niet als een
-  // dichte deur. Ze horen er ook te zijn voor de handelingen die nu open staan,
-  // want het slot zit per handeling en kan terug.
+  // dichte deur.
   ok(
     "elke handeling heeft een eigen zin",
     new Set(Object.values(COST_DENIED)).size === Object.keys(COST_DENIED).length,
@@ -7464,6 +7500,10 @@ group("wie mag betaald werk starten", () => {
   ok(
     "en geen enkele zin klinkt als geen toegang",
     Object.values(COST_DENIED).every((z) => !/geen toegang|niet toegestaan|mag niet/i.test(z)),
+  );
+  ok(
+    "en elke zin noemt de customer success manager, niet 'je consultant'",
+    Object.values(COST_DENIED).every((z) => /customer success manager/i.test(z) && !/je consultant/i.test(z)),
   );
 });
 
@@ -8172,7 +8212,7 @@ group("elke dure route vraagt het aan dezelfde functie", () => {
   // hij niet dat dit product er is, en dan verkoop je het nooit.
   ok(
     "en de reputatiemelding zegt bij wie de klant moet zijn",
-    /consultant/i.test(COST_DENIED.reputatie_starten),
+    /customer success manager/i.test(COST_DENIED.reputatie_starten),
     COST_DENIED.reputatie_starten,
   );
 });
@@ -8773,54 +8813,56 @@ group("er is nog maar één plek met de drie lagen", () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-console.log("\nHet budgetplafond (F1)");
+console.log("\nHet budgetplafond (F1, herstelplan na audit T5)");
 
-group("spendVerdict: onder, op en over het plafond", () => {
-  // €50 plafond bij koers 1,08 is $54. De grens is `>=`: staat er precies het
-  // plafond op, dan is het op.
-  const onder = spendVerdict("maand", 40, 50);
+group("spendVerdict: onder, op en over het accountplafond", () => {
+  // €20 plafond bij koers 1,08 is $21,60. De grens is `>=`: staat er precies
+  // het plafond op, dan is het op.
+  const onder = spendVerdict("account", 16.2, 20);
   ok("ruim onder het plafond mag door", onder.ok);
   ok("en er is geen melding", onder.message === null);
-  ok("het bedrag staat in euro's, niet in dollars", Math.abs(onder.spentEur - 37.04) < 0.01);
+  ok("het bedrag staat in euro's, niet in dollars", Math.abs(onder.spentEur - 15.0) < 0.01);
 
-  const precies = spendVerdict("maand", 54, 50);
+  const precies = spendVerdict("account", 21.6, 20);
   ok("precies op het plafond is op", !precies.ok);
 
-  const over = spendVerdict("maand", 60, 50);
+  const over = spendVerdict("account", 23.76, 20);
   ok("erover blokkeert", !over.ok);
-  ok("en noemt de maand", over.scope === "maand");
+  ok("en noemt het account", over.scope === "account");
 
-  // K2 (docs/logbook.md): elke foutmelding is specifiek. Drie dingen horen
-  // erin, en de derde het meest: een blokkade zonder uitweg is een storing.
+  // T5.2: niet alleen "geweigerd", ook wat de beheerder eraan doet, en of dat
+  // wachten tot morgen is of iets verhogen.
   const m = over.message ?? "";
-  ok("de melding noemt het bedrag dat er staat", m.includes("55,56"));
-  ok("en het plafond", m.includes("50,00"));
-  ok("en waar je het verhoogt", m.includes("beheerscherm"));
+  ok("de melding noemt het bedrag dat er staat", m.includes("22,00"));
+  ok("en het plafond", m.includes("20,00"));
+  ok("en dat morgen de teller weer op nul staat", m.includes("morgen"));
+  ok("en waar je het voor dit account verhoogt", m.includes("beheerscherm"));
 
   // Nederlandse notatie, met een vaste locale: de server in Vercel staat niet
   // op Nederlands en het bedrag hoort er voor iedereen hetzelfde uit te zien.
-  ok("komma als decimaalteken", m.includes("€50,00") && !m.includes("€50.00"));
+  ok("komma als decimaalteken", m.includes("€20,00") && !m.includes("€20.00"));
 });
 
-group("spendVerdict: het dagplafond heeft een eigen verhaal", () => {
-  const dag = spendVerdict("dag", 200, 150);
-  ok("het dagplafond blokkeert ook", !dag.ok);
-  ok("en zegt dat het over alle klanten samen gaat", (dag.message ?? "").includes("alle klanten"));
-  ok(
-    "en dat dit de noodrem is, niet een normale grens",
-    (dag.message ?? "").includes("noodrem"),
-  );
+group("spendVerdict: het totaalplafond heeft een eigen verhaal", () => {
+  const totaal = spendVerdict("totaal", 60, 50);
+  ok("het totaalplafond blokkeert ook", !totaal.ok);
+  ok("en zegt dat het over alle klanten samen gaat", (totaal.message ?? "").includes("alle klanten"));
+  ok("en dat dit de noodrem is, niet een normale grens", (totaal.message ?? "").includes("noodrem"));
+  // T5.2: bij het totaalplafond is "bel iemand" het andere antwoord naast
+  // "wacht tot morgen", want dit hoort geen normale drukte te zijn.
+  ok("en dat je kunt bellen als het vastloopt", (totaal.message ?? "").includes("bel"));
+  ok("en ook hier: morgen staat de teller weer op nul", (totaal.message ?? "").includes("morgen"));
 
-  // ⚠️ Zit je tegen allebei aan, dan gaat het dagplafond voor: dat betekent dat
-  // er iets aan de hand is over alle klanten heen, en dat wil je weten vóór je
-  // het maandplafond van één account gaat verhogen.
-  const beide = combinedVerdict(spendVerdict("dag", 200, 150), spendVerdict("maand", 60, 50));
-  ok("het dagplafond wint van het maandplafond", beide.scope === "dag");
+  // ⚠️ Zit je tegen allebei aan, dan gaat het totaalplafond voor: dat betekent
+  // dat er iets aan de hand is over alle klanten heen, en dat wil je weten
+  // vóór je het dagplafond van één account gaat verhogen.
+  const beide = combinedVerdict(spendVerdict("totaal", 60, 50), spendVerdict("account", 23.76, 20));
+  ok("het totaalplafond wint van het accountplafond", beide.scope === "totaal");
 
-  const alleenMaand = combinedVerdict(spendVerdict("dag", 10, 150), spendVerdict("maand", 60, 50));
-  ok("gaat de dag goed, dan telt de maand", alleenMaand.scope === "maand");
+  const alleenAccount = combinedVerdict(spendVerdict("totaal", 10, 50), spendVerdict("account", 23.76, 20));
+  ok("gaat het totaal goed, dan telt het account", alleenAccount.scope === "account");
 
-  const allebeiGoed = combinedVerdict(spendVerdict("dag", 10, 150), spendVerdict("maand", 10, 50));
+  const allebeiGoed = combinedVerdict(spendVerdict("totaal", 10, 50), spendVerdict("account", 5, 20));
   ok("en gaan ze allebei goed, dan mag het door", allebeiGoed.ok);
 });
 
@@ -8838,26 +8880,30 @@ group("limitFromEnv: een typefout mag geen open kraan zijn", () => {
 
   // Nul is wél een echte waarde: dat is "alles op slot".
   ok("nul is geldig en betekent op slot", limitFromEnv("0", 50) === 0);
-  ok("en blokkeert dan ook echt alles", !spendVerdict("maand", 0, 0).ok);
+  ok("en blokkeert dan ook echt alles", !spendVerdict("account", 0, 0).ok);
 });
 
-group("de standaardbedragen staan waar ze op gekozen zijn", () => {
-  // Gekozen op de echte cijfers van 11 augustus 2026: een klant met vier
-  // onderwerpen kost ~$3,30 per maand aan metingen plus ~$2,80 aan tien
-  // pagina's, ruwweg €6. Het plafond hoort daar een veelvoud boven te liggen,
-  // anders raakt het een normale klant.
-  ok("het maandplafond staat op €50", DEFAULT_MONTHLY_LIMIT_EUR === 50);
-  ok("het dagplafond op €150", DEFAULT_DAILY_LIMIT_EUR === 150);
+group("de standaardbedragen staan waar ze op gekozen zijn (T5)", () => {
+  // Herstelplan na audit T5: €20 per klant per dag, €50 over alle klanten
+  // samen per dag. Nagerekend tegen de echte kosten uit T1.4/T2: een
+  // onboarding ~$0,25, een meting van dertig vragen ~$0,85, een contentpagina
+  // met een reparatieronde erbij ~$0,51 (concept + één ronde à $0,26). Een
+  // normale werkdag voor één klant blijft daar ruim onder.
+  ok("het accountplafond staat op €20", DEFAULT_ACCOUNT_DAILY_LIMIT_EUR === 20);
+  ok("het totaalplafond op €50", DEFAULT_TOTAL_DAILY_LIMIT_EUR === 50);
   ok(
-    "en een normale klantmaand van ~€6 komt er niet in de buurt",
-    spendVerdict("maand", 6 * 1.08, DEFAULT_MONTHLY_LIMIT_EUR).ok,
+    "een drukke klantdag (onboarding + meting + twee pagina's, ~$2,45) komt er niet in de buurt",
+    spendVerdict("account", 0.25 + 0.85 + 2 * 0.51, DEFAULT_ACCOUNT_DAILY_LIMIT_EUR).ok,
   );
-  // Het dagplafond gaat over alle klanten samen en hoort een ramp te vangen,
-  // geen drukke dag: twintig klanten die tegelijk hun maand goedgekeurd krijgen
-  // is ~€52 en moet gewoon door kunnen.
+  // Het totaalplafond vangt nog altijd twee klanten die op dezelfde dag allebei
+  // hun eigen dagplafond volmaken (2 × €20 = €40), maar geen derde (€60).
   ok(
-    "twintig goedkeuringen op één dag mag gewoon",
-    spendVerdict("dag", 20 * 2.8, DEFAULT_DAILY_LIMIT_EUR).ok,
+    "twee klanten die allebei hun dagplafond volmaken past nog",
+    spendVerdict("totaal", 2 * DEFAULT_ACCOUNT_DAILY_LIMIT_EUR * 1.08, DEFAULT_TOTAL_DAILY_LIMIT_EUR).ok,
+  );
+  ok(
+    "een derde klant die hetzelfde doet niet meer",
+    !spendVerdict("totaal", 3 * DEFAULT_ACCOUNT_DAILY_LIMIT_EUR * 1.08, DEFAULT_TOTAL_DAILY_LIMIT_EUR).ok,
   );
 });
 
