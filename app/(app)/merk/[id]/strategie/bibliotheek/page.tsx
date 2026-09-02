@@ -55,7 +55,9 @@ export default async function BibliotheekPage({
     const naamVan = new Map(clusters.map((c) => [c.id, c.name]));
     const { data: pieceRows } = await supabase
       .from("content_pieces")
-      .select("id, analysis_id, title, meta_title, type, status, geo_score, published_url, created_at")
+      .select(
+        "id, analysis_id, title, meta_title, type, status, needs_review, geo_score, published_url, created_at",
+      )
       .in(
         "analysis_id",
         clusters.map((c) => c.id),
@@ -71,6 +73,7 @@ export default async function BibliotheekPage({
       title: displayTitle({ title: p.title as string, meta_title: (p.meta_title as string | null) ?? null }),
       type: p.type as string,
       status: p.status as string,
+      needsReview: Boolean(p.needs_review),
       geoScore: (p.geo_score as number | null) ?? null,
       publishedUrl: (p.published_url as string | null) ?? null,
       createdAt: p.created_at as string,

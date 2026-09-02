@@ -7,10 +7,12 @@ import { z } from "zod";
  * model krijgt de bevindingen per sectie en levert alleen die secties terug;
  * `applySectionPatch()` (lib/pipeline/content-sections.ts) zet ze op hun plek.
  *
- * Twee winsten, en de tweede is de belangrijkste. Kosten: een volledige
- * herschrijving kostte op productie $0,162 aan uitvoertokens, een sectie kost
- * er een fractie van. En kwaliteit: het model kan de passages die al goed waren
- * niet meer stukmaken, omdat het ze niet terugstuurt.
+ * Ooit was het idee dat dit ook goedkoper zou zijn: een volledige herschrijving
+ * kostte op productie $0,162 aan uitvoertokens, een sectie leek een fractie
+ * daarvan. Gemeten op `ai_calls` (2 september 2026, herstelplan T1.4) klopt dat
+ * niet: één reparatieronde kost gemiddeld $0,26, meer dan de volledige
+ * herschrijving van vroeger. De echte winst is kwaliteit: het model kan de
+ * secties die al goed waren niet meer stukmaken, omdat het ze niet terugstuurt.
  */
 export const ContentPatch = z.object({
   /** De secties die je herschrijft. Kop = de bestaande kop, leeg = de aanhef. */

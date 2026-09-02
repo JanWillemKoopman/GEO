@@ -53,6 +53,15 @@ export interface CallMeta {
    * na te rekenen zolang alle rondes van een markt op één hoop liggen.
    */
   salesRunId?: string | null;
+  /**
+   * Bij welke contentpagina hoort deze aanroep (migratie 0088, herstelplan T1.5)?
+   *
+   * Zonder dit veld is het budget per pagina ("een euro of minder") niet na te
+   * rekenen zonder op tijdstip te gokken: een analyse heeft meerdere pagina's.
+   * Leeg mag: de allereerste schrijfaanroep van een pagina zonder briefingrij
+   * kent zijn eigen paginanummer nog niet (conventie 3).
+   */
+  contentPieceId?: string | null;
 }
 
 export interface LoggedCall {
@@ -92,6 +101,7 @@ export async function logAiCall(meta: CallMeta, call: LoggedCall): Promise<void>
       reputation_run_id: meta.reputationRunId ?? null,
       sales_market_id: meta.salesMarketId ?? null,
       sales_run_id: meta.salesRunId ?? null,
+      content_piece_id: meta.contentPieceId ?? null,
       raw_json: call.raw === undefined ? null : (call.raw as never),
     });
   } catch (err) {
