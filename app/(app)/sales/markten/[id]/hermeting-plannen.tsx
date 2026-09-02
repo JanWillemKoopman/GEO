@@ -78,7 +78,7 @@ export function HermetingPlannen({
         <p className="mt-1 text-secondary">
           Kies een datum, dan meet ORBIT ENGINE deze markt op die dag zelf opnieuw, met exact
           dezelfde vragen. Je hoeft er dan niet bij te zijn. Het kost op die dag ongeveer{" "}
-          {`€ ${ramingEur.toFixed(2).replace(".", ",")}`}.
+          {`€ ${ramingEur.toFixed(2).replace(".", ",")}.`}
         </p>
       </div>
 

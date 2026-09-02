@@ -265,7 +265,7 @@ export function bouwFases(m: ProcesMoment): Fase[] {
             : "klaar",
     detail:
       m.kansen > 0
-        ? `${m.kansenGeschreven} van de ${m.kansen} kansen heeft een geschreven reden` +
+        ? `${m.kansenGeschreven} van de ${m.kansen} kansen ${m.kansen === 1 ? "heeft" : "hebben"} een geschreven reden` +
           (schrijven.mislukt > 0 ? `, ${schrijven.mislukt} mislukt` : "")
         : null,
     actie:
