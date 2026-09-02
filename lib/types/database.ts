@@ -964,6 +964,22 @@ export interface ContentPiece {
   word_count: number | null;
   action: ContentAction;
   existing_url: string | null;
+  /**
+   * De bestaande pagina zoals hij was op het moment van plannen (migratie 0083).
+   *
+   * Vers opgehaald, tot 6000 tekens, in plaats van het op 1500 tekens afgekapte
+   * `profile_pages.text_excerpt` uit de laatste crawl. Bewaard omdat het
+   * verschilscherm hem nodig heeft en omdat een herschrijfronde een week later
+   * niet stilletjes een andere bron mag krijgen.
+   */
+  existing_page_text: string | null;
+  existing_page_fetched_at: string | null;
+  /**
+   * Een bestaande pagina die dit onderwerp al raakt terwijl dit tóch een NIEUWE
+   * pagina is (migratie 0083). Geen tweede `existing_url`: die wordt vervangen,
+   * deze moet juist blijven bestaan naast de nieuwe pagina.
+   */
+  related_url: string | null;
   /** Versiebeheer (optimalisatie.md 4.7, migratie 0019). */
   version: number;
   is_current: boolean;

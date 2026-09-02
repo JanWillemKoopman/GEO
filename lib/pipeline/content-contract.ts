@@ -48,6 +48,14 @@ const SYSTEM =
   "die de sectie beantwoordt, wat er inhoudelijk in moet, welke F-nummers erin thuishoren, welke " +
   "vaktermen erin uitgelegd worden, en een richtlengte in woorden. " +
   "(3) FAQ. De vragen die als veelgestelde vragen op de pagina horen, in de woorden van de lezer. " +
+  // O4 (2 september 2026): tot nu toe kreeg deze stap de bestaande pagina niet
+  // te zien, ook niet als de opdracht was om hem te verbeteren. De inhoudsopgave
+  // werd dus opgesteld alsof de pagina nog niet bestond, en pas de schrijfcall
+  // kreeg er 1500 tekens bij met de vraag om er rekening mee te houden.
+  "(4) VERGELIJK MET DE BESTAANDE PAGINA, als je die krijgt. Zet per sectie in presentOnExisting of " +
+  "hij er al op staat ('aanwezig'), er half op staat ('deels') of ontbreekt ('ontbreekt'), en zet in " +
+  "whatToChange in één zin wat er moet veranderen. Krijg je geen bestaande pagina, vul dan overal " +
+  "'niet_van_toepassing' in en laat whatToChange leeg. " +
   "HARDE REGELS: " +
   "(a) De pagina moet COMPLEET aanvoelen: een lezer mag na afloop geen voor de hand liggende vraag " +
   "meer overhouden. Neem daarom ook de vervolgvragen en de twijfels uit het dossier op, en niet " +
@@ -60,7 +68,12 @@ const SYSTEM =
   "(e) Blijf binnen de totale doellengte die je krijgt. De som van de secties hoort daar ongeveer " +
   "op uit te komen, niet erboven. " +
   "(f) Gebruik GEEN gedachtestreepjes en GEEN schuine streep tussen twee woorden. " +
-  "(g) Nederlands, gewone taal, geen jargon in de koppen.";
+  "(g) Nederlands, gewone taal, geen jargon in de koppen. " +
+  "(h) Bij een BESTAANDE pagina: gooi niets weg wat er al goed op staat. Een sectie die er al op " +
+  "staat blijft in het contract, met presentOnExisting 'aanwezig'; hem weglaten betekent dat de " +
+  "klant hem kwijtraakt zodra hij de pagina vervangt. " +
+  "(i) whatToChange is voor de ONDERNEMER, niet voor ons: geen vaktermen, geen sectienummers, één " +
+  "zin die zegt wat er anders wordt en waarom dat helpt.";
 
 export interface ContractInput {
   title: string;
@@ -75,6 +88,14 @@ export interface ContractInput {
   typeGuidance: string;
   analysisId: string;
   profileId: string;
+  /**
+   * De tekst van de pagina die verbeterd wordt (O3, `existing-page.ts`). Vers
+   * opgehaald bij het plannen, tot 6000 tekens. `null` bij een nieuwe pagina, en
+   * dan blijft het oordeel per sectie op `niet_van_toepassing` staan.
+   */
+  existingText?: string | null;
+  /** Het adres erbij, zodat de opdracht kan zeggen om welke pagina het gaat. */
+  existingUrl?: string | null;
 }
 
 /** Het plan uit de claim-audit als twee lijsten: wat we kunnen dragen en wat niet. */
@@ -114,6 +135,23 @@ function dossierBlok(dossier: ItemDossier | null): string {
     .join("\n\n");
 }
 
+/**
+ * De bestaande pagina als invoer voor het contract (O4).
+ *
+ * Bewust ONDERAAN de invoer en niet bovenaan: de opdracht is wat de pagina moet
+ * worden, niet wat hij is. Stond de huidige tekst bovenaan, dan wordt hij het
+ * uitgangspunt en schrijft het model de bestaande indeling over, inclusief de
+ * gaten waarvoor de klant ons juist inschakelde.
+ */
+function bestaandePaginaBlok(text: string | null | undefined, url: string | null | undefined): string {
+  const tekst = (text ?? "").trim();
+  if (!tekst) return "";
+  return (
+    `DE BESTAANDE PAGINA${url ? ` (${url})` : ""}. Dit staat er vandaag. Beoordeel per sectie of hij ` +
+    `er al op staat, en houd wat goed is:\n"""\n${tekst}\n"""`
+  );
+}
+
 /** Stelt het contract op. Eén goedkope aanroep, geen web-zoekactie. */
 export async function buildContentContract(input: ContractInput): Promise<{
   contract: ContentContract;
@@ -131,6 +169,7 @@ export async function buildContentContract(input: ContractInput): Promise<{
     formatExplainerBlock(input.explainers),
     formatFactCard(input.facts),
     planBlok(input.plan),
+    bestaandePaginaBlok(input.existingText, input.existingUrl),
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -146,5 +185,8 @@ export async function buildContentContract(input: ContractInput): Promise<{
     meta: { kind: "content_contract", analysisId: input.analysisId, profileId: input.profileId },
   });
 
-  return { contract: normaliseerContract(result.parsed), raw: result.raw };
+  return {
+    contract: normaliseerContract(result.parsed, input.existingText ?? null),
+    raw: result.raw,
+  };
 }

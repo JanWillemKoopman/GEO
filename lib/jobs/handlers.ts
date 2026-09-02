@@ -135,6 +135,7 @@ function toRecommendation(r: RecommendationPayload) {
     why: r.why,
     action: r.action,
     existingUrl: r.existingUrl,
+    relatedUrl: r.relatedUrl ?? null,
     // Sinds fase 4 draagt de aanbeveling zijn doelvragen mee: welke gemiste
     // vraag deze pagina moet winnen (4.1) en wat de klant zelf anders wil (4.8).
     targets: r.targets ?? [],
@@ -662,6 +663,8 @@ const handlers: { [T in JobType]: Handler<T> } = {
       contract: unknown;
       dossier: unknown;
       explainers: unknown[];
+      existingText?: string | null;
+      existingFetchedAt?: string | null;
     } | null = null;
 
     try {
@@ -675,6 +678,8 @@ const handlers: { [T in JobType]: Handler<T> } = {
         contract: result.contract,
         dossier: result.dossier,
         explainers: result.explainers,
+        existingText: result.existingText,
+        existingFetchedAt: result.existingFetchedAt,
       };
       console.log(
         `Contentplan "${payload.recommendation.title}": ` +
@@ -722,6 +727,8 @@ const handlers: { [T in JobType]: Handler<T> } = {
             contract: (payload.voorbereid.contract ?? null) as never,
             dossier: (payload.voorbereid.dossier ?? null) as never,
             explainers: (payload.voorbereid.explainers ?? []) as never,
+            existingText: payload.voorbereid.existingText ?? null,
+            existingFetchedAt: payload.voorbereid.existingFetchedAt ?? null,
           }
         : null,
     });

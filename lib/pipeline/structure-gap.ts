@@ -33,6 +33,7 @@
  */
 import {
   canonicalPath,
+  coversTopic,
   scorePage,
   topicTerms,
   type CandidatePage,
@@ -77,20 +78,6 @@ export interface StructureCoverage {
 const WEAK_TERM_RATIO = 0.5;
 
 /**
- * Heeft deze pagina de dienstnaam in zijn URL of titel staan? Dan is het een
- * eigen pagina en geen vermelding in een opsomming.
- *
- * Bewust op de canonieke slug en niet op de hele URL: `/en/services/massage` en
- * `/diensten/massage` zijn dezelfde pagina, en de taalvariant mag niet als
- * tweede dekking meetellen.
- */
-function isOwnPage(page: CandidatePage, terms: string[]): boolean {
-  if (terms.length === 0) return false;
-  const kop = new Set(topicTerms(page.title, canonicalPath(page.url)));
-  return terms.every((t) => kop.has(t));
-}
-
-/**
  * Beoordeelt per aanbodknoop of de site er een pagina voor heeft.
  *
  * ⚠️ HET VANGNET: EEN CATEGORIE MET KINDEREN TELT ÉÉN KEER
@@ -126,7 +113,7 @@ export function assessStructureCoverage(
     const terms = topicTerms(o.name);
 
     // 1. Een eigen pagina: de naam staat compleet in de titel of de slug.
-    const eigen = pages.find((p) => isOwnPage(p, terms));
+    const eigen = pages.find((p) => coversTopic(p, terms));
     if (eigen) {
       return {
         offeringId: o.id,

@@ -1,5 +1,18 @@
 # Nieuw of verbeteren: hoe die keuze valt, en waar hij lekt
 
+> **Stand op 2 september 2026: alle zes de optimalisaties zijn gebouwd** (migratie `0083`,
+> `docs/logbook.md`, alinea van 2 september). Typecheck, 3513 unittests, 570 ketentests en de
+> productiebuild staan groen.
+>
+> Wat er nog open staat, en dat is conventie 10: **niets hiervan is tegen een echte klant
+> nagerekend.** Er is nog geen rapport herdraaid op productie, dus de cijfers hieronder beschrijven
+> de situatie zoals hij op 1 september gemeten is, en niet wat de reparatie ervan gemaakt heeft. Wat
+> daarvoor nodig is: één merk opnieuw door de rapportstap halen en dan tellen hoeveel
+> verbeter-adressen nog steeds niet koppelen (verwacht: 3 in plaats van 8), hoeveel nieuwe pagina's
+> een `related_url` krijgen (verwacht: minstens 13 over de bestaande rapporten), en één pagina laten
+> schrijven met handeling `verbeteren` om te zien of het verbeterplan op het scherm klopt met wat er
+> werkelijk op die pagina staat.
+
 **Onderzoek van 1 september 2026.** Aanleiding: de vraag hoe ORBIT ENGINE besluit of een
 aanbeveling een nieuwe pagina wordt of een verbetering van een bestaande, of dat betrouwbaarder
 kan, en of bij een verbetering de echte huidige tekst van de klant erbij gepakt wordt.

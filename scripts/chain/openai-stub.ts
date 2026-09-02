@@ -724,6 +724,13 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
         factRefs: [],
         explainerTerms: [],
         targetWords: 120,
+        // O4: bij een NIEUWE pagina is er geen bestaande pagina om tegen af te
+        // zetten. `normaliseerContract()` dwingt dit deterministisch af, maar de
+        // stub hoort te leveren wat het schema vraagt (zie de kop van dit
+        // bestand: een stub die stilletjes van het schema afwijkt verbergt
+        // precies de fout die de keten moet vinden).
+        presentOnExisting: "niet_van_toepassing",
+        whatToChange: "",
       },
       {
         id: "s2",
@@ -733,6 +740,8 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
         factRefs: [],
         explainerTerms: [],
         targetWords: 100,
+        presentOnExisting: "niet_van_toepassing",
+        whatToChange: "",
       },
     ],
     faqQuestions: ["Heb ik een verwijzing nodig?"],

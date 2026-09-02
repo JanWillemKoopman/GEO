@@ -51,6 +51,8 @@ export function GenerateButton({
     why: string;
     action: ContentAction;
     existingUrl: string | null;
+    /** Een bestaande pagina die dit onderwerp al raakt (migratie 0083, O2). */
+    relatedUrl?: string | null;
     /** De gemiste vragen die deze pagina moet winnen (optimalisatie.md 4.1). */
     targets?: RecommendationTarget[];
   };

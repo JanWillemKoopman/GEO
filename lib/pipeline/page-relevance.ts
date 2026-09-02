@@ -134,6 +134,24 @@ export function canonicalPath(url: string): string {
 }
 
 /**
+ * Staat de naam van het onderwerp compleet in de titel of het adres van deze
+ * pagina? Dan is het een eigen pagina en geen vermelding in een opsomming.
+ *
+ * Bewust op de canonieke slug en niet op de hele URL: `/en/services/massage` en
+ * `/diensten/massage` zijn dezelfde pagina, en de taalvariant mag niet als
+ * tweede dekking meetellen.
+ *
+ * Stond tot 2 september 2026 privé in `structure-gap.ts`. Verhuisd hierheen toen
+ * `page-match.ts` dezelfde vraag moest beantwoorden voor een aanbeveling: dat is
+ * precies de tweede plek die de kop van dit bestand wil voorkomen.
+ */
+export function coversTopic(page: CandidatePage, terms: string[]): boolean {
+  if (terms.length === 0) return false;
+  const kop = new Set(topicTerms(page.title, canonicalPath(page.url)));
+  return terms.every((t) => kop.has(t));
+}
+
+/**
  * Hoeveel van de onderwerptermen raakt deze pagina?
  *
  * Geteld wordt het aantal VERSCHILLENDE termen dat voorkomt, niet hoe vaak.

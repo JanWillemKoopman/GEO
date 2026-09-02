@@ -33,6 +33,7 @@ export function toPayload(
     why: rec.why,
     action: (rec.action === "verbeteren" ? "verbeteren" : "nieuw") as ContentAction,
     existingUrl: rec.existingUrl,
+    relatedUrl: rec.relatedUrl ?? null,
     reportId,
     targets: rec.targets,
     revisionNote,

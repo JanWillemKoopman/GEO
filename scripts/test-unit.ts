@@ -37,6 +37,14 @@ import {
   mergeOverlappingRecommendations,
   describeActionRatio,
 } from "@/lib/pipeline/recommendation";
+import {
+  matchExistingPage,
+  reconcileRecommendations,
+  relatedPageWarning,
+  chooseExistingText,
+  EXISTING_PAGE_MAX_CHARS,
+} from "@/lib/pipeline/page-match";
+
 import type {
   RawRecommendation,
   CodedMissedPrompt,
@@ -82,8 +90,13 @@ import {
   normalizeHeading,
 } from "@/lib/pipeline/content-sections";
 import { checkContractCoverage } from "@/lib/pipeline/content-coverage";
-import type { ContentContract } from "@/lib/schemas/content-contract";
-import { normaliseerContract, formatContract } from "@/lib/pipeline/contract-format";
+import type { ContentContract, ContractSection } from "@/lib/schemas/content-contract";
+import {
+  normaliseerContract,
+  formatContract,
+  describeImprovements,
+  describeImprovementCount,
+} from "@/lib/pipeline/contract-format";
 import { checkContentGate, openingVan, geoRegels } from "@/lib/pipeline/content-gate";
 import {
   brandNav,
@@ -599,7 +612,7 @@ import {
   withFreshnessLine,
   bestaandeDatePublished,
 } from "@/lib/schema-jsonld";
-import { similarity, mostSimilar } from "@/lib/pipeline/similarity";
+import { similarity, mostSimilar, describeDuplicate } from "@/lib/pipeline/similarity";
 import { assessReadability, describeReadability } from "@/lib/pipeline/readability";
 import { checkQuality } from "@/lib/pipeline/content-gate";
 import { buildSteps, researchRunning, displaySteps } from "@/lib/pipeline/research-steps";
@@ -1053,6 +1066,7 @@ group("Geen twee aanbevelingen op dezelfde zwaarste vraag (werkpakket B §4.2)",
     type: "article",
     targetIntent: "i",
     why: "w",
+    relatedUrl: null,
     priority: 1,
     action: "nieuw",
     existingUrl: null,
@@ -1104,6 +1118,7 @@ group("De verhouding nieuw/verbeteren in een zin (werkpakket B §4.3)", () => {
     type: "article",
     targetIntent: "i",
     why: "w",
+    relatedUrl: null,
     priority: 1,
     action,
     existingUrl: null,
@@ -4718,7 +4733,7 @@ group("de kwaliteitspoort staat NAAST de GEO-score, niet erin", () => {
 
   const dubbel = checkQuality({
     bodyMarkdown: tekst,
-    mostSimilar: { title: "Heupklachten behandelen", score: 0.62 },
+    mostSimilar: { title: "Heupklachten behandelen", score: 0.62, origin: "eigen_content" },
   });
   ok("boven de drempel is het een duplicaat", dubbel.checks.nietDubbel === false);
   ok(
@@ -4729,7 +4744,7 @@ group("de kwaliteitspoort staat NAAST de GEO-score, niet erin", () => {
 
   const onderDrempel = checkQuality({
     bodyMarkdown: tekst,
-    mostSimilar: { title: "Iets anders", score: 0.2 },
+    mostSimilar: { title: "Iets anders", score: 0.2, origin: "eigen_content" },
   });
   ok("onder de drempel is het geen duplicaat", onderDrempel.checks.nietDubbel === true);
   // De gemeten waarde wordt altijd teruggegeven, ook onder de drempel. Anders
@@ -15997,6 +16012,8 @@ group("De dekkingspoort op het contentcontract (A3)", () => {
         factRefs: ["F2"],
         explainerTerms: ["runnersknie"],
         targetWords: 100,
+        presentOnExisting: "niet_van_toepassing",
+        whatToChange: "",
       },
       {
         id: "s2",
@@ -16006,6 +16023,8 @@ group("De dekkingspoort op het contentcontract (A3)", () => {
         factRefs: [],
         explainerTerms: [],
         targetWords: 100,
+        presentOnExisting: "niet_van_toepassing",
+        whatToChange: "",
       },
     ],
     faqQuestions: ["Heb ik een verwijzing nodig?"],
@@ -16108,11 +16127,13 @@ group("Het contract opschonen en als opdracht formuleren (A2)", () => {
         factRefs: ["", "F1"],
         explainerTerms: [""],
         targetWords: 0,
+        presentOnExisting: "niet_van_toepassing",
+        whatToChange: "",
       },
       // Een sectie zonder kop of zonder deelvraag kan de poort niet toetsen en
       // de schrijver niet uitvoeren: die hoort te vervallen.
-      { id: "s2", heading: "  ", subQuestion: "iets", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 100 },
-      { id: "s3", heading: "Kop", subQuestion: "  ", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 9999 },
+      { id: "s2", heading: "  ", subQuestion: "iets", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 100, presentOnExisting: "niet_van_toepassing", whatToChange: "" },
+      { id: "s3", heading: "Kop", subQuestion: "  ", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 9999, presentOnExisting: "niet_van_toepassing", whatToChange: "" },
     ],
     faqQuestions: ["", "Heb ik een verwijzing nodig?"],
     reasoning: "",
@@ -16192,6 +16213,280 @@ group("De bedrading van de nieuwe contentpijplijn", () => {
   // dezelfde bronnen dezelfde analyse, en dat is precies de clusterbrede
   // vervlakking die S9 en S10 kwamen repareren.
   ok("met de doelvragen in de sleutel", bron.includes("vragen:"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Nieuw of verbeteren: de handeling narekenen (O1/O2, page-match.ts)", () => {
+  const paginas = [
+    {
+      url: "https://fysi-unique.nl/tarieven-2026/",
+      title: "Tarieven 2026",
+      text: "Onze tarieven voor fysiotherapie en manuele therapie.",
+    },
+    {
+      url: "https://fysi-unique.nl/fysiotherapie-bij-hardloopklachten-in-amersfoort/",
+      title: "Fysiotherapie bij hardloopklachten in Amersfoort",
+      text: "Wij behandelen hardloopblessures met een persoonlijk behandelplan.",
+    },
+    { url: "https://fysi-unique.nl/", title: "Home", text: "Welkom bij Fysi-Unique." },
+  ];
+
+  // ── Het adres oplossen (O1) ──────────────────────────────────────────────
+  //
+  // Dit is de fout van 1 september 2026: 5 van de 8 mislukte koppelingen waren
+  // geen verzinsel maar notatie. Het model gaf het pad zonder domein terug, de
+  // code vergeleek op de letterlijke tekst, en de pagina werd geschreven zonder
+  // één woord van zijn eigen bestaande tekst.
+  ok(
+    "een pad zonder domein vindt de pagina alsnog",
+    matchExistingPage("/tarieven-2026/", paginas)?.url === "https://fysi-unique.nl/tarieven-2026/",
+  );
+  ok(
+    "een afsluitende schuine streep maakt niet uit",
+    matchExistingPage("https://fysi-unique.nl/tarieven-2026", paginas)?.url ===
+      "https://fysi-unique.nl/tarieven-2026/",
+  );
+  ok("een verzonnen pad vindt niets", matchExistingPage("/udenhout.nl/leasen/private-lease", paginas) === null);
+  ok("een leeg adres ook niet", matchExistingPage("", paginas) === null);
+  // ⚠️ "." en "/" stonden in productie letterlijk als existingUrl. Die mogen
+  // nooit de homepage aanwijzen: dat is geen keuze van het model maar een gok.
+  ok("een punt wijst niet naar de homepage", matchExistingPage(".", paginas) === null);
+  ok("de homepage zelf mag wel", matchExistingPage("https://fysi-unique.nl/", paginas)?.title === "Home");
+
+  const rec = (over: Partial<StoredRecommendation>): StoredRecommendation => ({
+    title: "Hardloopblessure behandelen in Amersfoort",
+    type: "article",
+    targetIntent: "hardlopers met een blessure",
+    why: "w",
+    priority: 1,
+    action: "nieuw",
+    existingUrl: null,
+    relatedUrl: null,
+    targets: [],
+    ...over,
+  });
+
+  // ── Verbeteren met een adres dat op pad matcht ───────────────────────────
+  const genormaliseerd = reconcileRecommendations({
+    recommendations: [rec({ action: "verbeteren", existingUrl: "/tarieven-2026/" })],
+    pages: paginas,
+  });
+  ok(
+    "een verbeter-adres wordt de echte URL uit de inventaris",
+    genormaliseerd.recommendations[0].existingUrl === "https://fysi-unique.nl/tarieven-2026/",
+  );
+  ok("en dat wordt gemeld", genormaliseerd.fixes.length === 1);
+
+  // ── Verbeteren zonder bestaande pagina wordt nieuw ───────────────────────
+  const verzonnen = reconcileRecommendations({
+    recommendations: [rec({ action: "verbeteren", existingUrl: "/udenhout.nl/leasen/private-lease" })],
+    pages: paginas,
+  });
+  ok("verbeteren van een pagina die niet bestaat wordt nieuw", verzonnen.recommendations[0].action === "nieuw");
+  ok("en het adres verdwijnt", verzonnen.recommendations[0].existingUrl === null);
+
+  // ── Nieuw naast een pagina die het onderwerp al draagt (O2) ──────────────
+  //
+  // De titel bevat "hardloopblessure" en "amersfoort"; die pagina staat er al.
+  // Bewust GEEN automatische omzetting naar verbeteren: het rapportmodel heeft
+  // de tekst van die pagina niet gezien, dus dit is een vermoeden. Wat het wel
+  // moet doen is de pagina meedragen.
+  const naast = reconcileRecommendations({
+    recommendations: [rec({})],
+    pages: paginas,
+  });
+  ok("een nieuwe pagina naast een bestaande blijft nieuw", naast.recommendations[0].action === "nieuw");
+  ok(
+    "maar draagt die bestaande pagina mee",
+    naast.recommendations[0].relatedUrl ===
+      "https://fysi-unique.nl/fysiotherapie-bij-hardloopklachten-in-amersfoort/",
+  );
+
+  // ── Een echt nieuw onderwerp raakt niets ─────────────────────────────────
+  const echtNieuw = reconcileRecommendations({
+    recommendations: [rec({ title: "Bedrijfsfitness voor werkgevers" })],
+    pages: paginas,
+  });
+  ok("een onderwerp dat nergens staat blijft schoon", echtNieuw.recommendations[0].relatedUrl === null);
+  ok("en levert geen melding op", echtNieuw.fixes.length === 0);
+
+  // ── De waarschuwing voor de schrijver ────────────────────────────────────
+  ok("zonder pagina geen waarschuwing", relatedPageWarning(null) === "");
+  ok(
+    "met pagina wel, mét het adres",
+    relatedPageWarning("https://x.nl/a").includes("https://x.nl/a") &&
+      relatedPageWarning("https://x.nl/a").includes("ANDERS"),
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("De bestaande pagina als bron (O3, existing-page.ts)", () => {
+  ok(
+    "de verse tekst wint van het crawl-excerpt",
+    chooseExistingText({ fresh: "verse tekst", excerpt: "oude afgekapte tekst" })?.bron === "vers",
+  );
+  ok(
+    "zonder verse tekst valt hij terug op de crawl",
+    chooseExistingText({ fresh: null, excerpt: "oude tekst" })?.bron === "crawl",
+  );
+  ok(
+    "en zonder allebei is er niets",
+    chooseExistingText({ fresh: "   ", excerpt: null }) === null,
+  );
+  // ⚠️ 6000 tekens en niet 1500: 667 van de 738 gecrawlde pagina's op productie
+  // staan op de crawlgrens, en 9 van de 10 daadwerkelijk verbeterde pagina's ook.
+  ok("de ophaalgrens ligt op 6000 tekens", EXISTING_PAGE_MAX_CHARS === 6000);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Het contract als verbeterplan (O4/O5)", () => {
+  const sectie = (over: Partial<ContractSection>): ContractSection => ({
+    id: "s1",
+    heading: "Wat kost een behandeling",
+    subQuestion: "Wat kost een behandeling bij Fysi-Unique?",
+    mustCover: [],
+    factRefs: [],
+    explainerTerms: [],
+    targetWords: 100,
+    presentOnExisting: "ontbreekt",
+    whatToChange: "",
+    ...over,
+  });
+  const contract = (secties: ContractSection[]): ContentContract => ({
+    openingAnswer: "Ja.",
+    sections: secties,
+    faqQuestions: [],
+    reasoning: "",
+  });
+
+  // ── Zonder bestaande pagina geen oordeel (conventie 3) ───────────────────
+  const nieuw = normaliseerContract(
+    contract([sectie({ presentOnExisting: "aanwezig", whatToChange: "staat er al" })]),
+    null,
+  );
+  ok(
+    "een nieuwe pagina krijgt geen oordeel over wat er al staat",
+    nieuw.sections[0].presentOnExisting === "niet_van_toepassing",
+  );
+  ok("en geen verbeterzin", nieuw.sections[0].whatToChange === "");
+  ok("dus ook geen verbeterlijst", describeImprovements(nieuw).length === 0);
+
+  // ── "Staat er al" moet in de tekst terug te vinden zijn (conventie 1) ────
+  const bestaandeTekst = "Wij behandelen hardloopblessures met een persoonlijk behandelplan.";
+  const overdreven = normaliseerContract(
+    contract([sectie({ presentOnExisting: "aanwezig" })]),
+    bestaandeTekst,
+  );
+  ok(
+    "een sectie die volgens het model al op de pagina staat maar er nergens in voorkomt, ontbreekt",
+    overdreven.sections[0].presentOnExisting === "ontbreekt",
+  );
+  ok("en krijgt alsnog een zin voor de klant", overdreven.sections[0].whatToChange.length > 0);
+
+  const terecht = normaliseerContract(
+    contract([
+      sectie({
+        heading: "Persoonlijk behandelplan",
+        subQuestion: "Wat houdt het behandelplan in?",
+        presentOnExisting: "aanwezig",
+        whatToChange: "",
+      }),
+    ]),
+    bestaandeTekst,
+  );
+  ok(
+    "een sectie die er echt op staat blijft aanwezig",
+    terecht.sections[0].presentOnExisting === "aanwezig",
+  );
+
+  // ── De lijst die de klant leest ──────────────────────────────────────────
+  const plan = normaliseerContract(
+    contract([
+      sectie({ id: "s1", presentOnExisting: "ontbreekt", whatToChange: "Zet de prijs erbij." }),
+      sectie({
+        id: "s2",
+        heading: "Persoonlijk behandelplan",
+        subQuestion: "Wat houdt het plan in?",
+        presentOnExisting: "aanwezig",
+      }),
+      sectie({ id: "s3", heading: "Hoe lang duurt het", subQuestion: "Hoe lang duurt het herstel?", presentOnExisting: "deels" }),
+    ]),
+    bestaandeTekst,
+  );
+  const lijst = describeImprovements(plan);
+  ok("de lijst bevat alle drie de onderdelen", lijst.length === 3);
+  // ⚠️ Wat er al goed op staat hoort er ook in: dat is de geruststelling die
+  // iemand nodig heeft voordat hij zijn eigen pagina overschrijft.
+  ok("inclusief wat blijft zoals het is", lijst.some((i) => i.stand === "aanwezig"));
+  ok("elke regel die niet af is heeft een zin", lijst.every((i) => i.stand === "aanwezig" || i.wat.length > 0));
+
+  const telling = describeImprovementCount(lijst);
+  ok("de telling noemt de noemer", telling.includes("3 onderdelen"));
+  ok("en wat er nieuw is", telling.includes("nieuw"));
+  ok("zonder lijst geen telling", describeImprovementCount([]) === "");
+
+  // ── De opdracht aan de schrijver ─────────────────────────────────────────
+  const opdracht = formatContract(plan);
+  ok("de schrijver ziet wat er al op de pagina staat", opdracht.includes("staat AL op de bestaande pagina"));
+  ok("en wat er ontbreekt", opdracht.includes("ONTBREEKT op de bestaande pagina"));
+  // `docs/schrijfstijl.md` §10 geldt ook voor prompts.
+  ok("zonder gedachtestreepje in de opdracht", !opdracht.includes("\u2014"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("De duplicatiecheck kijkt ook naar de echte site (O6)", () => {
+  const eigen = mostSimilar("de kat zat op de mat en keek naar buiten door het raam", [
+    { title: "Andere pagina", body: "de kat zat op de mat en keek naar buiten door het raam", origin: "eigen_content" as const },
+  ]);
+  ok("een eigen pagina wordt als eigen content herkend", eigen?.origin === "eigen_content");
+  ok("en de melding gaat over samenvoegen", describeDuplicate(eigen!).includes("samen te voegen"));
+
+  const site = mostSimilar("de kat zat op de mat en keek naar buiten door het raam", [
+    {
+      title: "Bestaande pagina",
+      body: "de kat zat op de mat en keek naar buiten door het raam",
+      origin: "site" as const,
+      url: "https://klant.nl/kat",
+    },
+  ]);
+  ok("een sitepagina wordt als site herkend", site?.origin === "site");
+  const melding = describeDuplicate(site!);
+  ok("en de melding zegt: werk die pagina bij", melding.includes("Werk die pagina bij"));
+  ok("met het adres erin", melding.includes("https://klant.nl/kat"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("De bedrading van de paginakeuze (O1 tot en met O6)", () => {
+  // ── Het vangnet draait in de rapportstap, vóór opslag ────────────────────
+  const report = leesBestand("lib/pipeline/report.ts");
+  ok("de handeling wordt nagerekend", report.includes("reconcileRecommendations"));
+  ok("en dat gebeurt vóór het wegschrijven", report.indexOf("reconcileRecommendations") < report.indexOf("recommendations_json: recommendations"));
+
+  // ── De koppeling is niet meer een exacte stringvergelijking ──────────────
+  const content = leesBestand("lib/pipeline/content.ts");
+  ok("de bestaande pagina wordt op pad gezocht", content.includes("matchExistingPage"));
+  ok(
+    "en niet meer op de letterlijke tekst",
+    !content.includes('.eq("url", recommendation.existingUrl)'),
+  );
+
+  // ── De verse tekst gaat vóór het crawl-excerpt ───────────────────────────
+  ok("de schrijver kiest de verse tekst als die er is", content.includes("chooseExistingText"));
+  const plan = leesBestand("lib/pipeline/content-plan.ts");
+  ok("de planstap haalt de pagina zelf op", plan.includes("fetchExistingPage"));
+  ok("en bewaart hem bij de pagina", plan.includes("existing_page_text"));
+
+  // ── De duplicatiecheck ziet de site ──────────────────────────────────────
+  ok("de gelijkenis wordt ook tegen profile_pages gemeten", content.includes('.from("profile_pages")'));
+  // ⚠️ De pagina die we vervangen hoort er niet in: een verbetering lijkt per
+  // definitie op zijn eigen origineel, en dat is de bedoeling.
+  ok("behalve de pagina die verbeterd wordt", content.includes("excludeUrl"));
+
+  // ── Het scherm laat zien wat er verandert ────────────────────────────────
+  const scherm = leesBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/page.tsx");
+  ok("de contentpagina toont het verbeterplan", scherm.includes("ImprovementList"));
+  const gids = leesBestand("components/publish-guide.tsx");
+  ok("en de publicatiegids verwijst ernaar", gids.includes("Wat er aan je pagina verandert"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

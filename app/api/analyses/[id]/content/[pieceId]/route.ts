@@ -228,6 +228,10 @@ export async function POST(
     priority: 1,
     action: piece.action,
     existingUrl: piece.existing_url,
+    // Migratie 0083: de pagina die dit onderwerp al raakt, bewaard bij de tekst
+    // zelf. Bij het opnieuw schrijven moet die waarschuwing blijven staan, ook
+    // als het rapport intussen vervangen is.
+    relatedUrl: piece.related_url ?? null,
     targets,
   };
 

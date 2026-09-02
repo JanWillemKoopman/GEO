@@ -28,6 +28,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { loadContentPotential } from "@/lib/potential-data";
 import { SearchPreview } from "@/components/search-preview";
 import { VersionDiff } from "@/components/version-diff";
+import { ImprovementList } from "@/components/improvement-list";
+import { describeImprovements, describeImprovementCount } from "@/lib/pipeline/contract-format";
+import type { ContentContract } from "@/lib/schemas/content-contract";
 import { buildTemplateExport } from "@/lib/pipeline/content-export";
 import type { SiteTemplateProfile } from "@/lib/pipeline/template-detect";
 import { leesHerkomst, terugLink } from "@/lib/origin";
@@ -212,6 +215,14 @@ export default async function ContentDetailPage({
 
   const terug = terugLink(herkomst, id, analysis.profile_id);
 
+  // Het verbeterplan uit het contract (O5). Puur afgeleid, geen extra query: de
+  // contractkolom staat al op de rij die hierboven is opgehaald. Leeg bij een
+  // nieuwe pagina en bij pagina's van vóór 2 september 2026, en dan verdwijnt
+  // het blok vanzelf.
+  const verbeteringen = describeImprovements(
+    (piece.contract_json ?? null) as ContentContract | null,
+  );
+
   return (
     <div className="flex flex-col gap-5">
       <Link
@@ -302,6 +313,19 @@ export default async function ContentDetailPage({
         action={piece.action}
         existingUrl={piece.existing_url}
         potentie={potentie}
+      />
+
+      {/* Wat er aan de bestaande pagina verandert (O5). Alleen bij een
+          verbetering, en alleen als het contract die vergelijking bevat: bij een
+          nieuwe pagina valt er niets te vergelijken, en dan is een lege lijst
+          eerlijker dan een lijst met "niet van toepassing". */}
+      <ImprovementList
+        improvements={verbeteringen}
+        samenvatting={describeImprovementCount(verbeteringen)}
+        existingUrl={piece.existing_url}
+        analysisId={id}
+        pieceId={pieceId}
+        heeftHuidigeTekst={Boolean(piece.existing_page_text?.trim())}
       />
 
       {/* "Check nodig" uitleggen (optimalisatie.md 4.13). Het gele label zei

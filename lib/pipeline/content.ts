@@ -51,6 +51,12 @@ import {
 import { describeToneSliders } from "@/lib/pipeline/tone-sliders";
 import { objectionsRule } from "@/lib/pipeline/commercial-context";
 import { mostSimilar } from "@/lib/pipeline/similarity";
+import {
+  chooseExistingText,
+  matchExistingPage,
+  relatedPageWarning,
+} from "@/lib/pipeline/page-match";
+import { canonicalPath } from "@/lib/pipeline/page-relevance";
 import { detectClaimSentences, detectedCoverage, resolveFactId } from "@/lib/pipeline/claim-extract";
 import type { AuditedClaim } from "@/lib/schemas/claim-audit";
 import {
@@ -273,6 +279,13 @@ export interface RecommendationInput {
   /** Uit het rapport (abcplan.md §12.23): bestaande pagina verbeteren of nieuw? */
   action?: ContentAction;
   existingUrl?: string | null;
+  /**
+   * Een bestaande pagina die dit onderwerp al raakt terwijl dit tóch een NIEUWE
+   * pagina is (`page-match.ts`, migratie 0083). Geen pagina die vervangen wordt:
+   * juist een pagina die naast deze moet blijven bestaan, en waar deze zich dus
+   * van moet onderscheiden.
+   */
+  relatedUrl?: string | null;
   /** De gemiste vragen die deze pagina moet winnen (optimalisatie.md 4.1/4.2). */
   targets?: RecommendationTarget[];
   /** Wat de klant zelf anders wil (optimalisatie.md 4.8). */
@@ -385,6 +398,8 @@ function buildContentInput(args: {
   profile: Profile | null;
   topicResearch: TopicResearch | null;
   existingPage: ProfilePage | null;
+  /** De VERSE tekst van die pagina (O3). Leeg = terugval op het crawl-excerpt. */
+  existingText: string | null;
   competitors: string[];
   rec: RecommendationInput;
   targets: RecommendationTarget[];
@@ -408,6 +423,7 @@ function buildContentInput(args: {
     profile,
     topicResearch,
     existingPage,
+    existingText,
     competitors,
     rec,
     targets,
@@ -523,10 +539,37 @@ function buildContentInput(args: {
     // opbouw in loadContentContext), de harde regel blijft dat klantcontent
     // nooit een concurrent noemt.
     competitorEdge,
-    existingPage
-      ? `\nBESTAANDE PAGINA om te verbeteren of aan te vullen (${existingPage.url}). Bouw hierop voort, herschrijf ` +
-        `niet vanaf nul, behoud wat al goed is en vul alleen de ontbrekende delen aan:\n"""\n${existingPage.text_excerpt ?? ""}\n"""`
-      : "",
+    // ── De bestaande pagina (O3) ────────────────────────────────────────────
+    //
+    // Bij voorkeur de VERSE tekst uit de planstap (tot 6000 tekens, van
+    // vandaag), anders het crawl-excerpt (1500 tekens, tot weken oud). Dat
+    // verschil is niet cosmetisch: 9 van de 10 verbeterde pagina's in productie
+    // stonden precies op die 1500 tekens, dus alles wat verderop op de pagina
+    // stond, prijzen, veelgestelde vragen, voorwaarden, bestond voor de schrijver
+    // niet. Terwijl de klant wél te horen kreeg dat deze tekst zijn pagina
+    // vervangt. Zie `existing-page.ts`.
+    (() => {
+      if (!existingPage) return "";
+      const gekozen = chooseExistingText({
+        fresh: existingText,
+        excerpt: existingPage.text_excerpt,
+      });
+      if (!gekozen) return "";
+      const waarschuwing =
+        gekozen.bron === "crawl"
+          ? ` LET OP: dit is een oudere en afgekapte versie van de pagina, dus er kan meer op staan ` +
+            `dan je hier ziet. Gooi niets weg waarvan je niet zeker weet dat het er niet meer toe doet.`
+          : "";
+      return (
+        `\nBESTAANDE PAGINA om te verbeteren of aan te vullen (${existingPage.url}). Bouw hierop voort, ` +
+        `herschrijf niet vanaf nul, behoud wat al goed is en vul alleen de ontbrekende delen aan.` +
+        `${waarschuwing}\n"""\n${gekozen.text}\n"""`
+      );
+    })(),
+    // Er staat al een pagina over dit onderwerp, en dit wordt er een NAAST
+    // (O2). Zonder deze regel schrijft het model zijn tweede pagina over
+    // hetzelfde onderwerp zonder het te weten.
+    relatedPageWarning(rec.relatedUrl ?? null),
     "",
     `Schrijf de volledige pagina in Markdown (zonder concurrentnamen), plus meta-title (max 60 tekens), ` +
       `meta-description (max 160 tekens), FAQ en schema.org JSON-LD. Noem "${brandName}" expliciet bij naam ` +
@@ -656,6 +699,13 @@ interface ContentContext {
   contract: ContentContract | null;
   /** Het itemdossier waaruit dat contract kwam (A1). Alleen voor de audit-trail. */
   dossier: ItemDossier | null;
+  /**
+   * De pagina die verbeterd wordt, met de tekst waarop dat gebeurt (O3).
+   * `page` is `null` bij een nieuwe pagina; `text` is `null` als de site op het
+   * moment van plannen niet te lezen was, en dan is er teruggevallen op het
+   * crawl-excerpt.
+   */
+  existing: { page: ProfilePage | null; text: string | null; fetchedAt: string | null };
   /** De algemene uitleg mét nagerekende bron (A7). Alleen geverifieerde gaat mee. */
   explainers: VerifiedExplainer[];
   /**
@@ -742,6 +792,9 @@ async function loadContentContext(
     contract: ContentContract | null;
     dossier: ItemDossier | null;
     explainers: VerifiedExplainer[];
+    /** De verse tekst van de te verbeteren pagina (O3, migratie 0083). */
+    existingText?: string | null;
+    existingFetchedAt?: string | null;
   } | null,
 ): Promise<ContentContext> {
   const { data: analysisRow } = await admin.from("analyses").select("*").eq("id", analysisId).single();
@@ -837,13 +890,29 @@ async function loadContentContext(
   const action = recommendation.action ?? "nieuw";
   let existingPage: ProfilePage | null = null;
   if (action === "verbeteren" && recommendation.existingUrl) {
-    const { data: pageRow } = await admin
+    // ⚠️ Op PAD vergelijken en niet op de letterlijke tekst (O1, `page-match.ts`).
+    //
+    // Dit was tot 2 september 2026 een gelijkheidsfilter op de hele URL. Van
+    // de 59 verbeter-adressen in productie matchten er zo 51; op pad worden het
+    // er 56. De vijf die tussenwal vielen waren geen verzinsels maar notatie:
+    // het model gaf `/tarieven-2026/` terug waar de inventaris
+    // `https://fysi-unique.nl/tarieven-2026/` bevat. Die pagina's zijn geschreven
+    // zonder één woord van hun eigen bestaande tekst, terwijl het scherm de
+    // klant vertelde ze te overschrijven.
+    const { data: pageRows } = await admin
       .from("profile_pages")
       .select("*")
-      .eq("profile_id", analysis.profile_id)
-      .eq("url", recommendation.existingUrl)
-      .maybeSingle();
-    existingPage = (pageRow as ProfilePage | null) ?? null;
+      .eq("profile_id", analysis.profile_id);
+    existingPage = matchExistingPage(
+      recommendation.existingUrl,
+      (pageRows ?? []) as ProfilePage[],
+    );
+    if (!existingPage) {
+      console.warn(
+        `Contentpagina "${recommendation.title}": ${recommendation.existingUrl} staat niet in de ` +
+          `inventaris van dit merk. Er wordt geschreven zonder de bestaande tekst.`,
+      );
+    }
   }
 
   const targets = recommendation.targets ?? [];
@@ -986,7 +1055,9 @@ async function loadContentContext(
   // ging invullen.
   const { data: pieceRow } = await admin
     .from("content_pieces")
-    .select("briefing_snapshot_json, contract_json, dossier_json")
+    .select(
+      "briefing_snapshot_json, contract_json, dossier_json, existing_page_text, existing_page_fetched_at",
+    )
     .eq("analysis_id", analysisId)
     .eq("title", recommendation.title)
     .eq("is_current", true)
@@ -1002,6 +1073,15 @@ async function loadContentContext(
     | { dossier?: ItemDossier; explainers?: VerifiedExplainer[] }
     | null;
   const contract = voorbereid?.contract ?? ((pieceRow?.contract_json ?? null) as ContentContract | null);
+
+  // De verse tekst van de bestaande pagina (O3). Eerst wat de planstap net
+  // ophaalde, anders wat er bij de pagina bewaard is. Dezelfde volgorde en
+  // dezelfde reden als bij het contract hierboven: een mislukte update mag niet
+  // betekenen dat er alsnog tegen de afgekapte crawltekst geschreven wordt.
+  const existingText =
+    voorbereid?.existingText ?? ((pieceRow?.existing_page_text ?? null) as string | null);
+  const existingFetchedAt =
+    voorbereid?.existingFetchedAt ?? ((pieceRow?.existing_page_fetched_at ?? null) as string | null);
   const dossier = voorbereid?.dossier ?? opgeslagenDossier?.dossier ?? null;
   const explainers = (voorbereid?.explainers ?? opgeslagenDossier?.explainers ?? []).filter(
     (e) => e.verified,
@@ -1099,6 +1179,7 @@ async function loadContentContext(
     contract,
     dossier,
     explainers,
+    existing: { page: existingPage, text: existingText, fetchedAt: existingFetchedAt },
     needsFactFinding:
       contentWebSearchEnabled &&
       (proofCount < minProofPointsForConcreteContent || generalContextGaps.length > 0),
@@ -1107,6 +1188,7 @@ async function loadContentContext(
       profile,
       topicResearch,
       existingPage,
+      existingText,
       competitors,
       rec: recommendation,
       targets,
@@ -1274,7 +1356,13 @@ async function loadSiblingPages(
   admin: ReturnType<typeof createAdminClient>,
   profileId: string,
   excludePieceId: string | null,
-): Promise<{ title: string; body: string }[]> {
+  /**
+   * De pagina die deze tekst gaat vervangen (O6). Die moet buiten de
+   * vergelijking blijven: een verbetering hoort op zijn eigen origineel te
+   * lijken, dat is de bedoeling en geen duplicaat.
+   */
+  excludeUrl: string | null = null,
+): Promise<{ title: string; body: string; origin: "eigen_content" | "site"; url?: string | null }[]> {
   // Twee queries en geen join: de ketentest-shim ondersteunt geen ingebedde
   // selects, en dat is hier geen beperking maar een gunst. Twee expliciete
   // stappen zijn beter na te lezen dan `analyses!inner(profile_id)`.
@@ -1292,9 +1380,45 @@ async function loadSiblingPages(
     .in("analysis_id", analyseIds)
     .eq("is_current", true);
 
-  return ((data ?? []) as { id: string; title: string; body_markdown: string | null }[])
+  const eigen = ((data ?? []) as { id: string; title: string; body_markdown: string | null }[])
     .filter((r) => r.id !== excludePieceId && (r.body_markdown ?? "").trim().length > 0)
-    .map((r) => ({ title: r.title, body: r.body_markdown as string }));
+    .map((r) => ({
+      title: r.title,
+      body: r.body_markdown as string,
+      origin: "eigen_content" as const,
+      url: null,
+    }));
+
+  // ── En de pagina's die de klant zelf al heeft (O6) ────────────────────────
+  //
+  // Tot 2 september 2026 vergeleek deze controle alleen met wat ORBIT ENGINE
+  // zelf schreef. Koos het rapport onterecht "nieuw" terwijl de klant al een
+  // pagina over het onderwerp had, dan merkte geen enkele poort dat, en leverde
+  // de app twee pagina's die om dezelfde vraag concurreren. `similarity.ts`
+  // schrijft zelf op waarom dat schadelijk is.
+  //
+  // ⚠️ Het crawl-excerpt is afgekapt op 1500 tekens, dus de gemeten gelijkenis
+  // met een sitepagina is een ONDERGRENS: hij vergelijkt onze hele tekst met het
+  // begin van die pagina. Dat is precies de goede kant om op te falen. Een
+  // gemiste waarschuwing kost een controle die de klant zelf ook kan doen, een
+  // valse waarschuwing kost het vertrouwen in alle andere.
+  const { data: siteRows } = await admin
+    .from("profile_pages")
+    .select("url, title, text_excerpt")
+    .eq("profile_id", profileId);
+
+  const uitgesloten = excludeUrl ? canonicalPath(excludeUrl) : null;
+  const site = ((siteRows ?? []) as { url: string; title: string | null; text_excerpt: string | null }[])
+    .filter((r) => (r.text_excerpt ?? "").trim().length > 0)
+    .filter((r) => !uitgesloten || canonicalPath(r.url) !== uitgesloten)
+    .map((r) => ({
+      title: r.title?.trim() || r.url,
+      body: r.text_excerpt as string,
+      origin: "site" as const,
+      url: r.url,
+    }));
+
+  return [...eigen, ...site];
 }
 
 /** De kolommen die uit de SCHRIJFronde komen, los van het oordeel dat erna volgt. */
@@ -1396,6 +1520,10 @@ function buildDraftRow(args: {
     word_count: countWords(draft.parsed.bodyMarkdown),
     action,
     existing_url: recommendation.existingUrl ?? null,
+    // Migratie 0083: een bestaande pagina die dit onderwerp al raakt terwijl dit
+    // tóch een nieuwe pagina is. Alleen zinnig bij `nieuw`; bij `verbeteren` is
+    // de bestaande pagina de pagina zelf.
+    related_url: action === "verbeteren" ? null : (recommendation.relatedUrl ?? null),
     version,
     is_current: true,
     supersedes_id: supersedesId,
@@ -1500,6 +1628,9 @@ export async function draftContentPiece(args: {
     contract: ContentContract | null;
     dossier: ItemDossier | null;
     explainers: VerifiedExplainer[];
+    /** De verse tekst van de te verbeteren pagina (O3, migratie 0083). */
+    existingText?: string | null;
+    existingFetchedAt?: string | null;
   } | null;
 }): Promise<DraftResult> {
   const { analysisId, userId, reportId, recommendation, regenerate = false } = args;
@@ -1663,7 +1794,7 @@ export async function draftContentPiece(args: {
     bodyMarkdown: draft.parsed.bodyMarkdown,
     mostSimilar: mostSimilar(
       draft.parsed.bodyMarkdown,
-      await loadSiblingPages(admin, analysis.profile_id, pieceId),
+      await loadSiblingPages(admin, analysis.profile_id, pieceId, ctx.existing.page?.url ?? null),
     ),
   });
   // De gemeten waarde altijd loggen, ook onder de drempel: zonder die reeks kan
@@ -1735,6 +1866,13 @@ export async function draftContentPiece(args: {
       // moet naast "waarop rustte deze zin" ook "wat had deze pagina moeten
       // behandelen" terug te vinden zijn, ook als het contract later verandert.
       contract_json: (ctx.contract ?? null) as never,
+      // De bestaande pagina waartegen deze tekst geschreven is (migratie 0083).
+      // Hier en niet in de planstap: bij een nieuwe pagina bestaat de rij op dat
+      // moment nog niet, want die wordt precies hier aangemaakt. Zonder deze twee
+      // kolommen kan het verschilscherm de klant niet laten zien wat er van zijn
+      // pagina af gaat, en dat is de hele reden dat de tekst opgehaald wordt.
+      existing_page_text: ctx.existing.text,
+      existing_page_fetched_at: ctx.existing.fetchedAt,
       // Dossier én de geverifieerde uitleg samen, in de vorm die
       // `loadContentContext` terugleest. De uitleg apart laten staan zou hem bij
       // de reparatieronde kwijtmaken, en dan repareert het model met minder
@@ -1892,7 +2030,12 @@ export async function reviseContentPiece(args: {
     bodyMarkdown: final.bodyMarkdown,
     mostSimilar: mostSimilar(
       final.bodyMarkdown,
-      await loadSiblingPages(admin, analysis.profile_id, contentPieceId),
+      await loadSiblingPages(
+        admin,
+        analysis.profile_id,
+        contentPieceId,
+        ctx.existing.page?.url ?? null,
+      ),
     ),
   });
   if (quality.gemeten.gelijkenis !== null) {

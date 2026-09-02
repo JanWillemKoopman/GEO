@@ -34,6 +34,19 @@ export interface StoredRecommendation {
   action: ContentAction;
   existingUrl: string | null;
   /**
+   * Een bestaande pagina die dit onderwerp AL raakt, terwijl de handeling toch
+   * `nieuw` is (`page-match.ts`, O2).
+   *
+   * Dit is geen tweede `existingUrl`. `existingUrl` zegt "deze pagina wordt
+   * vervangen"; `relatedUrl` zegt "hier staat al iets, doe het niet nog eens
+   * over". Het verschil bepaalt wat de schrijver moet doen: voortbouwen tegenover
+   * onderscheiden. Nagerekend op productie op 1 september 2026 wees het
+   * rapportmodel 13 keer zo'n pagina aan zonder dat iets in de keten hem las.
+   *
+   * `null` bij `verbeteren`: dan is de bestaande pagina de pagina zelf.
+   */
+  relatedUrl: string | null;
+  /**
    * Opgelost uit de vraagcodes. Leeg betekent dat het model geen enkele vraag
    * aanwees of alleen onbekende codes noemde. Dan valt de schrijver terug op
    * het oude gedrag (thematische inspiratie), wat minder goed is maar niet stuk.
@@ -103,6 +116,9 @@ export function resolveTargets(
       priority: r.priority,
       action: r.action,
       existingUrl: r.existingUrl,
+      // Wordt door `reconcileRecommendations()` gevuld, ná deze stap: het model
+      // levert hem niet, hij komt uit de vergelijking met de inventaris.
+      relatedUrl: null,
       // Zwaarste vraag eerst: die bepaalt waar de pagina over moet gaan.
       targets: targets.sort((a, b) => b.weight - a.weight),
     };
@@ -240,6 +256,9 @@ export function readRecommendations(value: unknown): StoredRecommendation[] {
       priority: typeof rec.priority === "number" ? rec.priority : 99,
       action: (rec.action ?? "nieuw") as ContentAction,
       existingUrl: rec.existingUrl ?? null,
+      // Rapporten van vóór 2 september 2026 hebben dit veld niet. Dan gedraagt
+      // de keten zich als voorheen in plaats van te struikelen.
+      relatedUrl: rec.relatedUrl ?? null,
       targets: Array.isArray(rec.targets) ? rec.targets : [],
     };
   });

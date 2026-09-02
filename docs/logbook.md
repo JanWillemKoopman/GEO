@@ -5688,3 +5688,72 @@ openstaand (`docs/tasks/potentiescore.md` §4b).
 Vier controles groen: typecheck, 3462 unittests (7 nieuw, `isConfident`), 557 ketentests, de
 productiebuild. **Nog niet geverifieerd tegen een echte klant** (conventie 10): geen productieprofiel
 is nagelopen op of een kans met bekend weinig doelvragen het label ook echt krijgt.
+
+## 2 september 2026: nieuw of verbeteren was een gok, en een verbetering zag de pagina nauwelijks
+
+De vraag was simpel: hoe besluit ORBIT ENGINE of een aanbeveling een nieuwe pagina wordt of een
+verbetering van een bestaande, en pakt hij bij een verbetering de echte pagina van de klant erbij?
+Het antwoord op de tweede vraag was nee. Het onderzoek staat in
+`docs/tasks/paginakeuze-nieuw-of-verbeteren.md`, nagerekend op productie over 20 rapporten met 129
+aanbevelingen en 738 gecrawlde pagina's.
+
+**Wat er stuk was.** De keuze viel volledig in de rapportaanroep, op één zin instructie, zonder
+vangnet in code: de uitzondering die conventie 1 verbiedt. Het model kreeg de pagina's van de klant
+als adres plus titel, nooit als inhoud. Wat dat opleverde:
+
+- **32 van de 70 `nieuw`-aanbevelingen droegen tóch een adres**, tegen de instructie in, en bij 13
+  daarvan bestond die pagina echt. Niets in de keten las dat adres: `content.ts` keek er alleen naar
+  bij `verbeteren`, het scherm toonde bij `nieuw` alleen de chip "Nieuwe pagina". Drie losse
+  aanbevelingen van Van den Udenhout wezen alle drie naar dezelfde bestaande private-leasepagina en
+  werden alle drie een nieuwe pagina ernaast.
+- **8 van de 59 `verbeteren`-adressen matchten niet** op `profile_pages.url`, want dat was een
+  exacte stringvergelijking. Vijf daarvan waren geen verzinsel maar notatie: het model gaf
+  `/tarieven-2026/` waar de inventaris `https://fysi-unique.nl/tarieven-2026/` bevat. Die pagina's
+  zijn geschreven zonder één woord van hun eigen bestaande tekst, terwijl het scherm de klant
+  vertelde ze te overschrijven. De drie overige waren echte verzinsels, waaronder tweemaal
+  `/udenhout.nl/leasen/private-lease`, hetzelfde pad dat migratie `0025` met de hand opruimde.
+- **De verbetering zelf rustte op 1500 tekens.** `profile_pages.text_excerpt` is afgekapt op
+  `PAGE_MAX_CHARS`; 667 van de 738 gecrawlde pagina's staan op die grens en 9 van de 10
+  daadwerkelijk verbeterde pagina's ook. Dat is ongeveer 230 woorden, terwijl de vervangende tekst
+  er 400 tot 1200 telt. Alles wat verderop op de pagina stond bestond voor de schrijver niet. En de
+  tekst was oud: tot 20 dagen tussen de crawl en het schrijven.
+- **Er was geen verbeteranalyse.** Het contentcontract, de inhoudsopgave die de tekst stuurt en
+  achteraf nagerekend wordt, kreeg de bestaande pagina niet te zien. De klant kreeg dus een
+  vervangende tekst plus de instructie "houd dezelfde URL aan", en nergens stond wat er nu eigenlijk
+  aan schortte of wat hij zou weggooien.
+
+**Wat er gebouwd is** (migratie `0083`). `page-match.ts` lost het adres deterministisch op tegen de
+inventaris, op canoniek PAD in plaats van op letterlijke tekst: dat brengt de koppeling van 51 naar
+56 van de 59 verbeter-adressen, en de resterende drie degraderen naar `nieuw` in plaats van stil te
+falen. Diezelfde module zoekt bij een nieuwe pagina zelf of er al een pagina over het onderwerp
+bestaat, met de matcher van `page-relevance.ts` (`coversTopic` is daarheen verhuisd uit
+`structure-gap.ts`, zodat er één matcher blijft). Vindt hij er een, dan draagt de aanbeveling die
+pagina mee als `related_url`, en zien de schrijver én de klant dat er al iets staat. Bewust geen
+automatische omzetting naar `verbeteren`: het rapportmodel heeft die tekst niet gezien, dus dat is
+een vermoeden en geen oordeel.
+
+`existing-page.ts` haalt de te verbeteren pagina vers op tijdens de planstap, tot 6000 tekens, met
+één HTTP-verzoek en zonder AI. Lukt dat niet, dan valt de schrijfstap terug op het crawl-excerpt en
+zegt de prompt erbij dat het een oudere en afgekapte versie is. Het contentcontract krijgt die tekst
+als invoer en beoordeelt per sectie of hij er al op staat, half op staat of ontbreekt, met een zin
+in gewone taal over wat er moet veranderen. Twee deterministische vangnetten eronder: zonder
+bestaande pagina staat er `niet_van_toepassing` (een oordeel over een pagina die niet bestaat is per
+definitie verzonnen), en een sectie die volgens het model "al op de pagina staat" terwijl geen enkel
+kernwoord ervan in die tekst voorkomt, gaat terug naar `ontbreekt`.
+
+Op het scherm: een blok "Wat er aan je pagina verandert" met per onderdeel of het nieuw is,
+aangevuld wordt of blijft zoals het is, plus een echte woord-voor-woordvergelijking met de tekst die
+er nu staat. Rood verdwijnt, groen komt erbij. Wat er al goed op stond gaat bewust mee in de lijst:
+dat is de geruststelling die iemand nodig heeft voordat hij zijn eigen pagina overschrijft. En de
+duplicatiecheck kijkt nu ook naar `profile_pages` en niet alleen naar wat de app zelf schreef; lijkt
+een nieuwe pagina te sterk op een pagina die al op de site staat, dan zegt de melding "werk die
+pagina bij" in plaats van "voeg ze samen".
+
+**Kosten: nul extra AI-aanroepen.** Het contract werd toch al opgesteld en krijgt alleen betere
+invoer; de ophaling is één HTTP-verzoek in een taak die verderop een schrijfaanroep van tot 150
+seconden doet.
+
+Vier controles groen: typecheck, 3513 unittests (52 nieuw), 570 ketentests (13 nieuw, een scenario
+dat de hele keten met een gestubde site doorloopt), de productiebuild. **Nog niet geverifieerd tegen
+een echte klant** (conventie 10): er is nog geen rapport herdraaid op productie, dus de 8 mislukte
+koppelingen en de 13 genegeerde pagina's zijn in de database nog niet zichtbaar veranderd.
