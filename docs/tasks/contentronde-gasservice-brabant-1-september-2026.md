@@ -46,6 +46,12 @@ komt uit `ai_calls`, `jobs` en `content_pieces` van analyse
 > een ronde die niet slechter is, en STOPT pas als de score niet meer stijgt. Een reparatie die een
 > onbewezen bewering weghaalt terwijl het cijfer gelijk blijft, is echte winst die geen cijfer laat
 > zien. De ketentest ving dat randgeval.
+>
+> **Wat deze twaalf niet oplossen.** Verbetering 7 keurt een pagina af die de lezer alleen maar
+> opdraagt dingen na te vragen. Dat is een poort, geen antwoord: hij zegt dat de pagina te weinig
+> heeft, niet waar dat vandaan moet komen. Het antwoord is de klant er vóór het schrijven de juiste
+> vragen over stellen, per pagina, in het aantal dat die pagina nodig heeft. Dat is uitgewerkt in
+> `docs/tasks/vragen-voor-het-schrijven.md`. Daar is nog niets van gebouwd.
 
 ---
 
