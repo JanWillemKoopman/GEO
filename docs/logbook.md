@@ -5728,3 +5728,58 @@ Vier controles groen: typecheck, 3478 unittests (16 nieuw), 557 ketentests, de p
 **Nog niet geverifieerd tegen een echte klant** (conventie 10): de dekkingsdrempel van 70% is getoetst
 tegen verzonnen voorbeeldpagina's, niet tegen een crawl van duizenden pagina's van een bestaande
 klant, waar de verhouding tussen een terechte en een onterechte "dit staat er al" nog moet blijken.
+## 1 september 2026: labels en een prullenbak op het clusteroverzicht (migratie 0083)
+
+**De aanleiding.** Het clusteroverzicht van een merk is één platte lijst. Bij vier clusters werkt
+dat, bij dertig niet: de vraag is dan niet "welk cluster staat hier" maar "waar staan mijn clusters
+over onderhoud". De product owner vroeg om een label per cluster, een filter erop, en de
+mogelijkheid een cluster weg te halen. Bij dat laatste stond de eis er meteen bij: dan moeten de
+metingen van dat cluster in de toekomst per definitie stoppen.
+
+**Wat er gebouwd is.** Migratie `0083` voegt de tabel `cluster_labels` toe (één rij per label per
+merk, unieke index op `lower(name)`) en `analyses.label_id` met `on delete set null`. Een tabel en
+geen tekstkolom op `analyses`, want "Onderhoud", "onderhoud" en "Onderhoud " zouden dan drie groepen
+in het uitklapmenu zijn waar de gebruiker er één bedoelde. `on delete set null` en geen cascade,
+want een label weggooien mag nooit een cluster meenemen: het cluster draagt maanden meetdata, het
+label draagt een woord. De rekenkunde eromheen staat in `lib/cluster-labels.ts`, zonder
+`server-only`, want zowel het serverscherm als het uitklapmenu in de browser leest hem (conventie 2).
+
+Een label is in te vullen op drie plekken: bij het aanmaken van een cluster (`/analyses/new`, kies
+een bestaand label of typ er een nieuwe), op de kaart in het overzicht, en er weer af te halen. De
+route is bewust "vind of maak": wie "Onderhoud" typt terwijl dat label al bestaat, komt bij het
+bestaande label uit en niet bij een tweede groep met dezelfde naam. De unieke index van 0083 is het
+vangnet daaronder voor twee tabbladen tegelijk (conventie 1).
+
+**De prullenbak voegde geen kolom toe, en dat is de conclusie.** `analyses.archived_at` bestaat
+sinds migratie `0044`, `lib/archive.ts` houdt gearchiveerde clusters uit elke lijst, en
+`/api/cron/tracking` trekt zijn maandlijst via `activeOnly()`. Het meten stopt dus per definitie
+zodra een cluster in de prullenbak gaat, en `lib/jobs/worker.ts` slaat bovendien de taken over die
+al klaarstonden. Wat ontbrak was niet de kolom maar de knop. Er komt daarom ook geen tweede
+schakelaar naast `tracking_enabled`: twee schakelaars voor één gevolg lopen uit elkaar. Verwijderen
+is bewust archiveren gebleven, niet wissen: onder een cluster hangen de vragen, elke meetronde, elke
+vermelding, de rapporten en de geschreven pagina's, en dat komt alleen terug door er opnieuw voor te
+betalen (~$0,82 per ronde).
+
+De twee knoppen staan boven de lijst, "Alle clusters" links en "Prullenbak" rechts daarvan, met het
+filter rechts op dezelfde regel. De stand zit in het adres (`?weergave=prullenbak&label=<id>`), dus
+het filteren gebeurt op de server en de lijst die terugkomt is de lijst die klopt. Een `?label=` dat
+niet bij dit merk hoort valt terug op "alle labels" in plaats van een leeg scherm te tonen, want een
+lege lijst zonder uitleg leest als "mijn clusters zijn weg".
+
+Het kaartje in het overzicht is daarmee geen `<Link>` meer om zijn geheel: een keuzelijst binnen een
+link is niet met het toetsenbord te bedienen. De kop is nu de link, de bediening staat eronder.
+
+**Labels beheren.** Achter het filter staat "Labels beheren", dat een lijstje openklapt waarin een
+label te hernoemen en weg te gooien is. Achter het filter en niet ervoor: filteren doe je elke keer
+dat je hier komt, hernoemen een enkele keer. Hernoemen is één update op één rij, en de clusters
+verhuizen vanzelf mee omdat ze naar het id wijzen; met een tekstkolom op `analyses` was dit een
+update over alle clusters heen geweest die halverwege kon stranden. Weggooien haalt alleen het label
+eraf, want `on delete set null`, en dat staat ook letterlijk in de bevestiging: zonder die zin durft
+niemand de knop te gebruiken. Het aantal naast een label telt over de actieve clusters én de
+prullenbak heen, anders zegt het paneel "0 clusters" bij een label waar er tien onder hangen.
+
+Vier controles groen: typecheck, 3517 unittests (38 nieuw), 563 ketentests (6 nieuw, waaronder de
+controle dat een gearchiveerd cluster echt uit de maandronde valt, dat een verwijderd label zijn
+clusters laat staan en dat hernoemen het cluster meeneemt zonder het aan te raken), de
+productiebuild. De migratie is toegepast op productie. **Nog niet geverifieerd met een echte klant**
+(conventie 10): er is nog geen productieprofiel waar iemand labels op heeft gezet.

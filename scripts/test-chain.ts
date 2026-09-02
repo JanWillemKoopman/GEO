@@ -2132,6 +2132,106 @@ async function main(): Promise<void> {
     ok("en er is geen betaald werk gedaan", rapporten.length === 0);
 
     // ══════════════════════════════════════════════════════════════════════
+    // Labels op clusters, en wat de prullenbak echt stopt (migratie 0083)
+    //
+    // ⚠️ Hier en niet in test-unit.ts: dit gaat over wat de DATABASE afdwingt
+    // en over de samenhang tussen twee tabellen. Het uitklapmenu normaliseert
+    // een labelnaam al, maar twee tabbladen die tegelijk hetzelfde label
+    // aanmaken komen alleen op de unieke index tot stilstand. En de duurste
+    // vraag van deze functie ("wordt er echt niet meer gemeten") is alleen te
+    // beantwoorden door de maandronde zijn eigen lijst te laten trekken.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nLabels op clusters, en wat de prullenbak stopt (0083)");
+
+    const { rows: labelRij } = await db.client.query(
+      "insert into public.cluster_labels (profile_id, name) values ($1, 'Onderhoud') returning id",
+      [profileId],
+    );
+    const labelId = labelRij[0].id as string;
+
+    let dubbelGeweigerd = false;
+    try {
+      await db.client.query(
+        "insert into public.cluster_labels (profile_id, name) values ($1, 'onderhoud')",
+        [profileId],
+      );
+    } catch {
+      dubbelGeweigerd = true;
+    }
+    ok("hetzelfde label kan niet twee keer onder één merk", dubbelGeweigerd);
+
+    const gelabeld = randomUUID();
+    await db.client.query(
+      `insert into public.analyses (id, user_id, profile_id, name, url, topic, status, tracking_enabled, label_id)
+       values ($1, $2, $3, 'Met label', 'https://fysi-unique.nl', 'onderhoud', 'gemeten', true, $4)`,
+      [gelabeld, userId, profileId, labelId],
+    );
+
+    // Een label weggooien mag nooit het cluster meenemen: het cluster draagt
+    // maanden meetdata, het label draagt een woord (`on delete set null`).
+    await db.client.query("delete from public.cluster_labels where id = $1", [labelId]);
+    const { rows: naLabelWeg } = await db.client.query(
+      "select label_id from public.analyses where id = $1",
+      [gelabeld],
+    );
+    ok(
+      "een label weggooien laat het cluster staan, zonder label",
+      naLabelWeg.length === 1 && naLabelWeg[0].label_id === null,
+    );
+
+    // ── De belofte van de prullenbakknop ────────────────────────────────────
+    //
+    // Exact de query van `/api/cron/tracking`: actief, meting aan, en in een
+    // meetbare stand. Vóór het archiveren staat het cluster erin, erna niet.
+    async function inDeMaandronde(): Promise<boolean> {
+      const { rows } = await db.client.query(
+        `select 1 from public.analyses
+          where id = $1 and archived_at is null and tracking_enabled = true
+            and status in ('gemeten', 'gereed')`,
+        [gelabeld],
+      );
+      return rows.length === 1;
+    }
+
+    ok("een gewoon cluster staat in de maandronde", await inDeMaandronde());
+    await db.client.query("update public.analyses set archived_at = now() where id = $1", [gelabeld]);
+    ok("in de prullenbak valt het eruit, dus er wordt niet meer gemeten", !(await inDeMaandronde()));
+    await db.client.query("update public.analyses set archived_at = null where id = $1", [gelabeld]);
+    ok("en terugzetten laat het meten weer meedoen", await inDeMaandronde());
+
+    // ── Hernoemen raakt één rij en verhuist de clusters mee ────────────────
+    //
+    // Precies waarvoor `cluster_labels` een tabel is en geen tekstkolom: het
+    // cluster wijst naar het id, dus de naam wijzigt op één plek.
+    const { rows: hernoemRij } = await db.client.query(
+      "insert into public.cluster_labels (profile_id, name) values ($1, 'Storing') returning id",
+      [profileId],
+    );
+    const hernoemId = hernoemRij[0].id as string;
+    await db.client.query("update public.analyses set label_id = $1 where id = $2", [
+      hernoemId,
+      gelabeld,
+    ]);
+    await db.client.query("update public.cluster_labels set name = 'Storing en spoed' where id = $1", [
+      hernoemId,
+    ]);
+    const { rows: naHernoemen } = await db.client.query(
+      `select l.name from public.analyses a
+         join public.cluster_labels l on l.id = a.label_id
+        where a.id = $1`,
+      [gelabeld],
+    );
+    ok(
+      "hernoemen verhuist het cluster mee, zonder het cluster aan te raken",
+      naHernoemen[0]?.name === "Storing en spoed",
+      `naam was ${naHernoemen[0]?.name}`,
+    );
+
+    // Opruimen: dit cluster hoort niet mee te tellen in de scenario's hierna.
+    await db.client.query("delete from public.analyses where id = $1", [gelabeld]);
+    await db.client.query("delete from public.cluster_labels where id = $1", [hernoemId]);
+
+    // ══════════════════════════════════════════════════════════════════════
     // De promptgeneratie per funnelfase (migratie 0054)
     //
     // ⚠️ Dit hoort in de KETENtest en niet in test-unit.ts, want de hele vondst
