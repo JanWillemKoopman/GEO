@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { BrandSwitcher } from "@/components/brand-switcher";
 import { Icon } from "@/components/icon";
@@ -53,6 +54,8 @@ export function WorkspaceChrome({
   children: React.ReactNode;
 }) {
   const [ladeOpen, setLadeOpen] = useState(false);
+  const pathname = usePathname();
+  const isAnalyticsRoute = /^\/merk\/[^/]+\/analytics(\/|$)/.test(pathname ?? "");
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -121,7 +124,13 @@ export function WorkspaceChrome({
             een fijn stippenpatroon overheen dat naar het midden toe wegvalt,
             alleen in de lichte stand: zie de toelichting bij die klasse. */}
         <main className="workspace-canvas min-w-0 flex-1">
-          <div className="mx-auto w-full max-w-5xl px-6 py-10">{children}</div>
+          {/* Analytics loopt tot ~1600px in plaats van de 1024px (`max-w-5xl`)
+              van de rest van de app (plan analytics-herontwerp.md, F1). Alleen
+              deze routes: de leesbreedte van de andere schermen is met opzet
+              smaller, dus dit verruimt niet globaal. */}
+          <div className={isAnalyticsRoute ? "mx-auto w-full max-w-[1600px] px-6 py-10" : "mx-auto w-full max-w-5xl px-6 py-10"}>
+            {children}
+          </div>
         </main>
       </div>
 

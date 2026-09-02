@@ -664,6 +664,15 @@ import {
   LABELFILTER_ALLES,
   LABELFILTER_GEEN,
 } from "@/lib/cluster-labels";
+import {
+  clustersVoorFilter,
+  leesClusterfilter,
+  CLUSTERFILTER_ALLES,
+  bepaalPeriodes,
+  leesPeriodefilter,
+  selecteerPerCluster,
+  PERIODEFILTER_ACTUEEL,
+} from "@/lib/analytics-filters";
 import { describeToneSliders, clampToneSlider } from "@/lib/pipeline/tone-sliders";
 import { versionReasonLabel } from "@/lib/pipeline/version-reason";
 import { checkTabooWords } from "@/lib/pipeline/content-gate";
@@ -10126,9 +10135,12 @@ group("de zijbalk verraadt niets aan een klant", () => {
   // per ongeluk tijdens een gedeeld scherm op een interne pagina klikt.
   const staffItems = [...brandNav(merkId, true), ...generalNav(true), ...salesNav(true)];
   const adminItems = staffItems.filter((i) => i.hoofdstuk === "Admin");
-  // Vijf over dít merk (Onboardinggesprek, 0-meting, Aanbodboom, Diagnose,
-  // Toewijzen) plus "Alle merken" en "Koppelingen" over de app als geheel.
-  ok("een beheerder heeft zeven Admin-bestemmingen", adminItems.length === 7);
+  // Zes over dít merk (Onboardinggesprek, 0-meting, Aanbodboom, Diagnose,
+  // Concurrenten indelen, Toewijzen) plus "Alle merken" en "Koppelingen" over
+  // de app als geheel. "Concurrenten indelen" kwam er op 2 september 2026 bij
+  // (plan analytics-herontwerp.md, C1): zie de uitzondering bij
+  // `GRENS_PER_HOOFDSTUK` in `lib/nav.ts`.
+  ok("een beheerder heeft acht Admin-bestemmingen", adminItems.length === 8);
   ok(
     "en Search Console staat erbij",
     adminItems.some((i) => i.href === "/instellingen/koppelingen" && i.label === "Search Console"),
@@ -17175,6 +17187,91 @@ group("een label hernoemen raakt één rij, weggooien raakt geen cluster", () =>
   ok("de bevestiging zegt dat de clusters blijven staan", paneel.includes("blijven gewoon staan"));
   // Wél terug te draaien, dus niet in het rode kader dat zegt van niet.
   ok("en gebruikt het onomkeerbaar-blok niet", !paneel.includes("irreversible={"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nDe filterbalk van Analytics (plan analytics-herontwerp.md, F2)");
+
+group("label beperkt de clusterlijst, cluster laat het label met rust", () => {
+  const clusters = [
+    { id: "1", name: "CV-ketel onderhoud", label_id: "a" },
+    { id: "2", name: "CV-ketel vervangen", label_id: "a" },
+    { id: "3", name: "Zonnepanelen", label_id: "b" },
+    { id: "4", name: "Warmtepomp", label_id: null },
+  ];
+
+  eq(
+    "een label beperkt de clusterlijst",
+    clustersVoorFilter(clusters, "a").map((c) => c.id).join(","),
+    "1,2",
+  );
+  // Zonder label is een gewone keuze, geen restcategorie.
+  eq(
+    "'zonder label' levert de clusters zonder label_id",
+    clustersVoorFilter(clusters, LABELFILTER_GEEN).map((c) => c.id).join(","),
+    "4",
+  );
+  eq(
+    "alles laat alles staan",
+    clustersVoorFilter(clusters, LABELFILTER_ALLES).map((c) => c.id).join(","),
+    "1,2,3,4",
+  );
+
+  // Een cluster-keuze raakt het labelfilter zelf niet: dat zijn twee losse
+  // URL-parameters, en `leesClusterfilter` leest alleen de clusterlijst die
+  // het labelfilter al opleverde, hij verandert die niet.
+  const bijLabelA = clustersVoorFilter(clusters, "a");
+  eq("een geldig cluster binnen dat label mag", leesClusterfilter("2", bijLabelA), "2");
+  eq(
+    "een onbekende waarde in het adres valt terug op alles",
+    leesClusterfilter("van-een-ander-merk", bijLabelA),
+    CLUSTERFILTER_ALLES,
+  );
+  eq(
+    "een cluster dat niet bij dit label hoort valt ook terug op alles",
+    leesClusterfilter("3", bijLabelA),
+    CLUSTERFILTER_ALLES,
+  );
+  eq("niets in het adres is ook alles", leesClusterfilter(undefined, bijLabelA), CLUSTERFILTER_ALLES);
+});
+
+group("periode: onbekend valt terug op actueel, en per cluster de juiste stand", () => {
+  const rijen = [
+    { analysis_id: "1", computed_at: "2026-07-01T09:00:00Z" },
+    { analysis_id: "1", computed_at: "2026-08-01T09:00:00Z" },
+    { analysis_id: "2", computed_at: "2026-08-02T09:00:00Z" },
+  ];
+
+  const periodes = bepaalPeriodes(rijen);
+  eq("elke meetdatum wordt één periode", periodes.length.toString(), "3");
+  eq("nieuwste eerst", periodes[0].id, "2026-08-02");
+
+  eq(
+    "een bekende datum mag",
+    leesPeriodefilter("2026-07-01", periodes),
+    "2026-07-01",
+  );
+  eq(
+    "een onbekende datum valt terug op actueel",
+    leesPeriodefilter("2099-01-01", periodes),
+    PERIODEFILTER_ACTUEEL,
+  );
+
+  // Bij "actueel" krijgt elk cluster zijn nieuwste rij.
+  const actueel = selecteerPerCluster(rijen, PERIODEFILTER_ACTUEEL);
+  eq(
+    "actueel neemt de nieuwste van elk cluster",
+    actueel.map((r) => r.computed_at).sort().join(","),
+    "2026-08-01T09:00:00Z,2026-08-02T09:00:00Z",
+  );
+
+  // Bij een gekozen periode: de laatste rij op of vóór die datum, nooit een
+  // latere. Cluster 2 heeft dan nog niets, en levert dus niets op (conventie
+  // 3: geen terugval op de nieuwste, dat zou een meting van later tonen als
+  // een stand van toen).
+  const opJuli = selecteerPerCluster(rijen, "2026-07-01");
+  eq2("op de datum van juli doet alleen cluster 1 mee", opJuli.length, 1);
+  eq("en dat is de meting van juli, niet die van augustus", opJuli[0].computed_at, "2026-07-01T09:00:00Z");
 });
 
 // ════════════════════════════════════════════════════════════════════════════

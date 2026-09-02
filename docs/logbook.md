@@ -6202,3 +6202,44 @@ eigen stap in het plan.
 
 Het bouwplan staat in `docs/tasks/analytics-herontwerp.md`, in drie rondes die elk op zichzelf op te
 leveren zijn. Er is bij deze doorlichting geen productiecode gewijzigd.
+
+## Analytics-herontwerp, ronde 1: het fundament (2 september 2026)
+
+Ronde 1 van `docs/tasks/analytics-herontwerp.md` is gebouwd: het rooster (F1), de filterbalk (F2),
+de tabelcomponent (F3), en de vier ingrepen die volgens het plan samen de meeste hoogte weghalen en
+de meeste breedte teruggeven (Z3, Z5, C1, C3), plus C2 omdat die op dezelfde tabel meelift.
+
+**F1.** `components/workspace-chrome.tsx` verruimt de inhoud tot 1600 pixels, alleen op
+`/merk/[id]/analytics/*`-routes (via `usePathname()`, geen aparte instelling); de rest van de app
+blijft op 1024. Een nieuwe `app/(app)/merk/[id]/analytics/layout.tsx` zet daaronder een
+`min-width: 1280px` met een regel die verschijnt zodra het venster smaller is.
+
+**F2 en F3.** `lib/analytics-filters.ts` (pure functies, getest) plus `components/analytics-filters.tsx`
+geven Zichtbaarheid en Concurrenten dezelfde filterbalk: Periode, Label, Cluster. Periode is nieuw
+ten opzichte van het plan zoals opgeschreven: clusters delen geen `week_no` (die telt per analyse,
+zie `app/api/cron/tracking/route.ts`), dus een periode is hier een meetdatum, en de keuze selecteert
+per cluster de laatste meting op of vóór die datum (`selecteerPerCluster()`). Tegen de echte data van
+Gasservice Brabant gecontroleerd: vijf clusters, vijf verschillende meetdata, een gekozen datum van
+15 augustus laat precies het ene cluster zien dat toen al gemeten was. `components/analytics-table.tsx`
+sorteert, plakt zijn kop en zijn eigen rij, en groepeert desgewenst op label.
+
+**Z3 en Z5.** De clusterkaarten op Zichtbaarheid zijn een tabel geworden (label, cluster,
+zichtbaarheid, marge, verandering, gemeten vragen, laatst gemeten), zwakste eerst.
+`components/audit-panel.tsx` toont nu één regel ("11 van de 17 controles in orde" bij Gasservice
+Brabant vandaag) met drie groepen die uitklappen; een goedgekeurde controle wordt daarbinnen één
+regel met een vinkje. De groepsindeling (`groepVoorCheck()`) is tegen de echte `checks_json` van dat
+merk gecontroleerd: 17 controles, verdeeld over toegang (8), begrijpen (4) en identiteit (5), precies
+zoals het plan voorspelde.
+
+**C1, C2, C3.** Het entiteitenbeheer is verhuisd naar `app/(app)/merk/[id]/admin/concurrenten`, met
+een zoekveld (402 rijen bij dit merk, te veel om doorheen te scrollen); Concurrenten houdt alleen een
+voetnoot over die de noemer verklaart. Admin gaat daarmee van zeven naar acht bestemmingen, met de
+uitzondering uitgeschreven bij `GRENS_PER_HOOFDSTUK` in `lib/nav.ts`. Het hoofdcijfer op Concurrenten
+is een plaats ("Plaats X van Y merken"), de ranglijst is de volle breedte met een staafje achter
+"Genoemd" en een vastgezette eigen rij.
+
+**Wat nog niet is gedaan.** Het admin-scherm heeft alleen een zoekveld; filteren op ingedeeld/niet en
+rijen tegelijk bewerken is niet gebouwd. Ronde 2 (V1 tot en met V5, R1 tot en met R3, Z1, Z2, C5;
+C2 zat al in deze ronde) en ronde 3 (F4, F5 met het fasefilter, Z4, Z6, Z7, V6 tot en met V8, C4, C6,
+R4 tot en met R6) staan nog open in `docs/tasks/analytics-herontwerp.md`. Vier controles groen:
+typecheck, 3664 unittests (16 nieuw), 576 ketentests, de productiebuild.

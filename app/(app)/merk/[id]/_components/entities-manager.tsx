@@ -23,20 +23,28 @@ export function EntitiesManager({ profileId, initial }: { profileId: string; ini
   const [problem, setProblem] = useState<UserFacingError | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [showDismissed, setShowDismissed] = useState(false);
+  // Bij 329 rijen op het grootste merk is scrollen geen manier om een naam te
+  // vinden. Client-side, want alles staat al in de browser (plan
+  // analytics-herontwerp.md, C1).
+  const [zoekterm, setZoekterm] = useState("");
 
   // Sinds migratie 0026 bepaalt de ROL wie meetelt, niet het bevestigingsvinkje.
   // 'pending' is daarom niet meer "wacht op de klant" maar "de classificatie is
   // er nog niet aan toegekomen", een tussenstand van seconden, geen werklijst.
   const { pending, competitors, others, dismissed } = useMemo(() => {
     const sorted = [...entities].sort((a, b) => a.canonical_name.localeCompare(b.canonical_name, "nl"));
-    const live = sorted.filter((e) => !e.dismissed);
+    const genormaliseerd = zoekterm.trim().toLocaleLowerCase("nl");
+    const gefilterd = genormaliseerd
+      ? sorted.filter((e) => e.canonical_name.toLocaleLowerCase("nl").includes(genormaliseerd))
+      : sorted;
+    const live = gefilterd.filter((e) => !e.dismissed);
     return {
       pending: live.filter((e) => e.role_source === "onbepaald"),
       competitors: live.filter((e) => e.role_source !== "onbepaald" && e.entity_role === "concurrent"),
       others: live.filter((e) => e.role_source !== "onbepaald" && e.entity_role !== "concurrent"),
-      dismissed: sorted.filter((e) => e.dismissed),
+      dismissed: gefilterd.filter((e) => e.dismissed),
     };
-  }, [entities]);
+  }, [entities, zoekterm]);
 
   async function patch(id: string, body: Record<string, unknown>) {
     setBusy(id);
@@ -102,6 +110,15 @@ export function EntitiesManager({ profileId, initial }: { profileId: string; ini
         </span>
         <span className="mono-label">{competitors.length} concurrenten</span>
       </div>
+
+      <input
+        className="field"
+        type="search"
+        value={zoekterm}
+        onChange={(e) => setZoekterm(e.target.value)}
+        placeholder="Zoek op naam…"
+        aria-label="Zoek een merk"
+      />
 
       {problem && <ErrorNotice error={problem} />}
 

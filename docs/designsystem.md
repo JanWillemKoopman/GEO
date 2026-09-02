@@ -619,6 +619,8 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 | `Icon` | Het enige icoon-component. `<Icon naam="klaar" />`, nooit een los teken en nooit een eigen SVG. Zie §6b |
 | `PageHeader`, `EmptyState`, `Narrow`, `ConfidenceChip` | Eén variant per patroon |
 | `ThemeToggle` | De schakelaar licht/donker, rechtsboven in de balk. Eén exemplaar, in `workspace-chrome.tsx` |
+| `AnalyticsFilters` | De filterbalk van Analytics: Periode, Label, Cluster (en straks Fase). Plakt onder de bovenbalk, alleen op `/merk/[id]/analytics/*`. Zie `docs/tasks/analytics-herontwerp.md` F2 |
+| `AnalyticsTable` | De tabel van Analytics: sorteerbare kop, plakkende kop en eigen rij, groeperen op label. Vaste kolombreedtes, cijferkolommen met `tabular-nums`. Zie F3 |
 
 ---
 

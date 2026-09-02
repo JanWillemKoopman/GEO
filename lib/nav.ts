@@ -106,13 +106,25 @@ export type Hoofdstuk = (typeof HOOFDSTUKKEN)[number];
  * genoemde uitzonderingen op vier. Dát is de regel die overeind moet blijven,
  * en die is met deze tabel scherper dan eerst.
  */
+/**
+ * ⚠️ **Admin staat sinds 2 september 2026 op acht, en dat is de vierde
+ * uitzondering.** Het herontwerp van Analytics (`docs/tasks/analytics-herontwerp.md`,
+ * C1) haalt het entiteitenbeheer (329 rijen bij het grootste merk) van
+ * Concurrenten af: dat was beheerwerk in een leesscherm, en zoeken/filteren op
+ * die schaal hoort niet tussen een ranglijst. "Concurrenten indelen" is
+ * daarmee de zesde bestemming die over dít merk gaat, naast Onboardinggesprek,
+ * 0-meting, Aanbodboom, Diagnose en Toewijzen. Dezelfde onderbouwing als bij
+ * de vorige drie: dit is stafgereedschap, geen klantscherm, en de acht blijven
+ * vijf soorten werk plus twee uitgangen plus deze ene toevoeging, geen
+ * vergaarbak.
+ */
 export const GRENS_PER_HOOFDSTUK: Record<Hoofdstuk, number> = {
   Overzicht: 3,
   Strategie: 4,
   Analytics: 4,
   Merkprofiel: 3,
   Sales: 5,
-  Admin: 7,
+  Admin: 8,
 };
 
 /**
@@ -348,6 +360,15 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
           {
             href: `/merk/${brandId}/admin`,
             label: "Diagnose",
+            hoofdstuk: "Admin" as const,
+            staffOnly: true,
+          },
+          // Verhuisd van Concurrenten (plan analytics-herontwerp.md, C1): het
+          // indelen van merken bepaalt de noemer van het aandeel, maar is zelf
+          // beheerwerk en geen analyse.
+          {
+            href: `/merk/${brandId}/admin/concurrenten`,
+            label: "Concurrenten indelen",
             hoofdstuk: "Admin" as const,
             staffOnly: true,
           },

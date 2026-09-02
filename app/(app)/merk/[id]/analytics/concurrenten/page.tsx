@@ -5,10 +5,21 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
 import { InfoHint } from "@/components/info-hint";
 import { ExternalLink } from "@/components/external-link";
-import { EntitiesManager } from "../../_components/entities-manager";
+import { AnalyticsFilters } from "@/components/analytics-filters";
+import { AnalyticsTable, type AnalyticsColumn } from "@/components/analytics-table";
 import { activeOnly } from "@/lib/archive";
-import { buildBrandRankings, ownMentionCount } from "@/lib/pipeline/brand-rankings";
+import { buildBrandRankings, ownMentionCount, type BrandRankingRow } from "@/lib/pipeline/brand-rankings";
+import {
+  bepaalPeriodes,
+  clustersVoorFilter,
+  leesClusterfilter,
+  leesLabelfilter,
+  leesPeriodefilter,
+  selecteerPerCluster,
+} from "@/lib/analytics-filters";
+import { sorteerLabels } from "@/lib/cluster-labels";
 import type {
+  ClusterLabel,
   CompetitorBreakdown,
   Entity,
   SourceLandscapeRow,
@@ -38,21 +49,26 @@ export const metadata = { title: "Concurrenten" };
  */
 export default async function ConcurrentenPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ periode?: string; label?: string; cluster?: string }>;
 }) {
   const { id } = await params;
+  const { periode: periodeUitAdres, label: labelUitAdres, cluster: clusterUitAdres } = await searchParams;
   const profile = await getProfile(id);
   if (!profile) notFound();
   await requireUser();
 
   const supabase = await createClient();
-  const [{ data: entityRows }, { data: analysisRows }] = await Promise.all([
+  const [{ data: entityRows }, { data: analysisRows }, { data: labelRows }] = await Promise.all([
     supabase.from("entities").select("*").eq("profile_id", id).order("canonical_name"),
-    activeOnly(supabase.from("analyses").select("id, name").eq("profile_id", id)),
+    activeOnly(supabase.from("analyses").select("id, name, label_id").eq("profile_id", id)),
+    supabase.from("cluster_labels").select("*").eq("profile_id", id),
   ]);
 
-  const clusters = (analysisRows ?? []) as { id: string; name: string }[];
+  const clusters = (analysisRows ?? []) as { id: string; name: string; label_id: string | null }[];
+  const labels = sorteerLabels((labelRows ?? []) as ClusterLabel[]);
   const clusterIds = clusters.map((c) => c.id);
 
   let scores: VisibilityScore[] = [];
@@ -73,16 +89,27 @@ export default async function ConcurrentenPage({
     bronnen = (sourceRows ?? []) as SourceLandscapeRow[];
   }
 
-  // Per cluster de laatste periode. Oudere periodes optellen zou hetzelfde merk
-  // meerdere keren tellen en het beeld naar het verleden trekken.
-  const laatstePerCluster = new Map<string, number>();
-  for (const s of scores) {
-    const huidig = laatstePerCluster.get(s.analysis_id);
-    if (huidig === undefined || s.week_no > huidig) laatstePerCluster.set(s.analysis_id, s.week_no);
-  }
-  const actueleScores = scores.filter((s) => laatstePerCluster.get(s.analysis_id) === s.week_no);
+  // ── F2: de filterbalk ────────────────────────────────────────────────────
+  const periodes = bepaalPeriodes(scores.map((s) => ({ analysis_id: s.analysis_id, computed_at: s.computed_at })));
+  const periodefilter = leesPeriodefilter(periodeUitAdres, periodes);
+  const labelfilter = leesLabelfilter(labelUitAdres, labels);
+  const clustersBijLabel = clustersVoorFilter(clusters, labelfilter);
+  const clusterfilter = leesClusterfilter(clusterUitAdres, clustersBijLabel);
+  const zichtbareClusterIds = new Set(
+    (clusterfilter === "alles" ? clustersBijLabel : clustersBijLabel.filter((c) => c.id === clusterfilter)).map(
+      (c) => c.id,
+    ),
+  );
+
+  // Per cluster één periode, bepaald door de filterbalk. Oudere periodes
+  // optellen zou hetzelfde merk meerdere keren tellen en het beeld naar het
+  // verleden trekken; `selecteerPerCluster` kiest daarom precies één rij per
+  // cluster (`lib/analytics-filters.ts`).
+  const scoresBinnenFilter = scores.filter((s) => zichtbareClusterIds.has(s.analysis_id));
+  const actueleScores = selecteerPerCluster(scoresBinnenFilter, periodefilter);
+  const weekPerCluster = new Map(actueleScores.map((s) => [s.analysis_id, s.week_no]));
   const actueleBreakdown = breakdown.filter(
-    (c) => laatstePerCluster.get(c.analysis_id) === c.week_no,
+    (c) => weekPerCluster.get(c.analysis_id) === c.week_no,
   );
 
   // ── Optellen op tellingen, nooit op percentages ─────────────────────────
@@ -141,12 +168,27 @@ export default async function ConcurrentenPage({
         })
       : null;
 
+  const alleEntities = (entityRows ?? []) as Entity[];
+  const meetellend = alleEntities.filter((e) => !e.dismissed && e.entity_role === "concurrent").length;
+  const nietMeetellend = alleEntities.length - meetellend;
+  const eigenPlaats =
+    rankings && !rankings.fragmented ? rankings.rows.findIndex((r) => r.isOwnBrand) + 1 : null;
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Analytics"
         title="Concurrenten"
         description="Wie er nog meer genoemd wordt als je klanten een AI-assistent iets vragen."
+      />
+
+      <AnalyticsFilters
+        periodes={periodes}
+        labels={labels}
+        clustersBijLabel={clustersBijLabel}
+        periodefilter={periodefilter}
+        labelfilter={labelfilter}
+        clusterfilter={clusterfilter}
       />
 
       {/* ── 1. Ranglijst ───────────────────────────────────────────────────── */}
@@ -162,59 +204,47 @@ export default async function ConcurrentenPage({
           </p>
         </div>
       ) : (
-        <div className="card flex flex-col gap-3">
-          <span className="mono-label flex items-center gap-1">
-            Merken op een rij
-            <InfoHint label="Hoe is dit geteld?">
-              Elk merk op dezelfde manier: als percentage van de {gemetenVragen} vragen die deze
-              periode over al je clusters gesteld zijn, ook de vragen waarin de AI niemand noemde.
-              Dat is een strengere noemer dan het hoofdcijfer op Zichtbaarheid, en precies daarom
-              de eerlijke manier om jezelf tussen je concurrenten te zetten.
-            </InfoHint>
-          </span>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="text-muted">
-                  <th className="py-1 pr-4 font-normal">Merk</th>
-                  <th className="py-1 pr-4 font-normal">Genoemd</th>
-                  <th className="py-1 pr-4 font-normal">Positie</th>
-                  <th className="py-1 pr-4 font-normal">Als eerste</th>
-                  <th className="py-1 font-normal">Bron</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rankings.rows.map((r) => (
-                  <tr
-                    key={r.name}
-                    className="border-t border-[var(--border-subtle)]"
-                    style={r.isOwnBrand ? { background: "var(--bg-elevated)" } : undefined}
-                  >
-                    <td className="py-1.5 pr-4 font-medium">{r.name}</td>
-                    <td className="py-1.5 pr-4">
-                      <span className="stat-value">{pct(r.mentionRate)}</span>
-                      <span className="text-muted"> ({r.mentions})</span>
-                    </td>
-                    <td className="py-1.5 pr-4 stat-value">
-                      {r.avgPosition === null ? "-" : r.avgPosition.toFixed(1)}
-                    </td>
-                    <td className="py-1.5 pr-4 stat-value">{pct(r.recommendationRate)}</td>
-                    <td className="py-1.5 stat-value">{pct(r.citationRate)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="flex flex-col gap-3">
+          {/* ── C2: het hoofdcijfer is een plaats, geen tweede percentage
+              naast Zichtbaarheid. De percentages blijven staan, maar dan in de
+              tabel eronder, als vergelijkingsmaat tussen merken. */}
+          <div className="card card-rail flex flex-col gap-1">
+            <span className="mono-label">Jouw plaats</span>
+            <span className="stat-value text-5xl">
+              {eigenPlaats} van de {rankings.rows.length}
+            </span>
+            <span className="text-sm text-muted">
+              {rankings.rows.length === 1 ? "1 merk" : `${rankings.rows.length} merken`} kwam terug in de{" "}
+              {gemetenVragen} vragen die deze periode gesteld zijn.
+            </span>
           </div>
 
-          {rankings.omitted > 0 && (
-            <p className="text-sm text-muted">
-              {rankings.omitted === 1
-                ? "Eén merk kwam maar één keer voor en staat er niet bij"
-                : `${rankings.omitted} merken kwamen maar één keer voor en staan er niet bij`}
-              : één vermelding is toeval, geen patroon.
-            </p>
-          )}
+          <div className="flex flex-col gap-2">
+            <span className="mono-label flex items-center gap-1">
+              Merken op een rij
+              <InfoHint label="Hoe is dit geteld?">
+                Elk merk op dezelfde manier: als percentage van de {gemetenVragen} vragen die deze
+                periode over al je clusters gesteld zijn, ook de vragen waarin de AI niemand noemde.
+                Dat is een strengere noemer dan het hoofdcijfer op Zichtbaarheid, en precies daarom
+                de eerlijke manier om jezelf tussen je concurrenten te zetten.
+              </InfoHint>
+            </span>
+            <AnalyticsTable
+              rows={rankings.rows}
+              rowKey={(r) => r.name}
+              isOwnRow={(r) => r.isOwnBrand}
+              columns={rankingKolommen}
+              stickyOffset="calc(var(--header-h) + 3.5rem)"
+            />
+            {rankings.omitted > 0 && (
+              <p className="text-sm text-muted">
+                {rankings.omitted === 1
+                  ? "Eén merk kwam maar één keer voor en staat er niet bij"
+                  : `${rankings.omitted} merken kwamen maar één keer voor en staan er niet bij`}
+                : één vermelding is toeval, geen patroon.
+              </p>
+            )}
+          </div>
         </div>
       )}
 
@@ -267,17 +297,17 @@ export default async function ConcurrentenPage({
         )}
       </div>
 
-      {/* ── 3. Entiteitenbeheer ────────────────────────────────────────────
-          Verhuisd van het merkdossier: dit bepaalt de noemer van je aandeel
-          hierboven, dus het hoort op hetzelfde scherm als dat aandeel. */}
-      <div className="flex flex-col gap-2">
-        <span className="mono-label">Welke merken tellen mee</span>
-        <p className="text-sm text-muted">
-          Elk merk dat een AI-assistent noemt, deelt ORBIT ENGINE automatisch in. Alleen echte
-          concurrenten tellen mee in je aandeel; een marktplaats of brancheorganisatie niet.
+      {/* ── 3. Voetnoot over de noemer (plan C1) ─────────────────────────────
+          Het indelen zelf is beheerwerk en geen analyse: dat verhuisde naar
+          een stafscherm onder Admin. Hier blijft alleen de uitleg staan die
+          het percentage hierboven verklaart. */}
+      {alleEntities.length > 0 && (
+        <p className="type-caption text-muted">
+          {meetellend === 1 ? "1 merk telt" : `${meetellend} merken tellen`} mee in je aandeel,{" "}
+          {nietMeetellend === 1 ? "1 merk is" : `${nietMeetellend} zijn`} ingedeeld als marktplaats,
+          vakblad, leverancier of niet relevant.
         </p>
-        <EntitiesManager profileId={id} initial={(entityRows ?? []) as Entity[]} />
-      </div>
+      )}
     </div>
   );
 }
@@ -285,6 +315,63 @@ export default async function ConcurrentenPage({
 function pct(waarde: number | null): string {
   return waarde === null ? "-" : `${waarde}%`;
 }
+
+/** De kolommen van de ranglijst (plan C3): merk, genoemd met staafje, positie,
+ * als eerste, bron. Vaste breedtes over de volle breedte van het scherm. */
+const rankingKolommen: AnalyticsColumn<BrandRankingRow>[] = [
+  {
+    key: "merk",
+    header: "Merk",
+    render: (r) => <span className="font-medium">{r.name}</span>,
+  },
+  {
+    key: "genoemd",
+    header: "Genoemd",
+    numeriek: true,
+    width: "16rem",
+    sortValue: (r) => r.mentionRate,
+    render: (r) => (
+      <span className="flex items-center justify-end gap-2">
+        <span
+          className="h-2 w-24 overflow-hidden rounded-[var(--radius-pill)]"
+          style={{ background: "var(--bg-elevated)" }}
+          aria-hidden
+        >
+          <span
+            className="block h-full rounded-[var(--radius-pill)]"
+            style={{ width: `${r.mentionRate ?? 0}%`, background: "var(--chart-2)" }}
+          />
+        </span>
+        <span className="stat-value">{pct(r.mentionRate)}</span>
+        <span className="text-muted">({r.mentions})</span>
+      </span>
+    ),
+  },
+  {
+    key: "positie",
+    header: "Positie",
+    numeriek: true,
+    width: "7rem",
+    sortValue: (r) => r.avgPosition,
+    render: (r) => (r.avgPosition === null ? "-" : r.avgPosition.toFixed(1)),
+  },
+  {
+    key: "alseerste",
+    header: "Als eerste",
+    numeriek: true,
+    width: "8rem",
+    sortValue: (r) => r.recommendationRate,
+    render: (r) => pct(r.recommendationRate),
+  },
+  {
+    key: "bron",
+    header: "Bron",
+    numeriek: true,
+    width: "7rem",
+    sortValue: (r) => r.citationRate,
+    render: (r) => pct(r.citationRate),
+  },
+];
 
 /** Gewogen gemiddelde van waarde-gewichtparen. `null` als er niets te wegen valt. */
 function gewogen(paren: [number | null, number][]): number | null {

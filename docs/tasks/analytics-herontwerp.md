@@ -1,5 +1,10 @@
 # Herontwerp van Analytics (implementatieplan, 2 september 2026)
 
+> **Voortgang.** Ronde 1 (§6, het fundament: F1 tot en met F3, Z3, Z5, C1, C2, C3) is gebouwd en
+> gecontroleerd tegen productie; de alinea staat in `docs/logbook.md` bij 2 september 2026. Ronde 2 en
+> ronde 3 staan nog open. Dit bestand blijft de bouwopdracht voor wat resteert en verdwijnt zodra alle
+> drie de rondes af zijn (§10).
+
 Opdracht van de eigenaar: de vier schermen onder Analytics zo herontwerpen dat elk scherm één
 duidelijke vraag beantwoordt, zonder overlap, met inzichten die de gebruiker echt verder helpen. Er
 komt geen nieuwe diepliggende techniek bij; dit gaat over wat er waar staat en waarom.

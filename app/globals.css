@@ -875,6 +875,29 @@ body {
   word-break: break-word;
 }
 
+/* Analytics is uitsluitend voor 1280 tot 1600px gebouwd (plan
+   analytics-herontwerp.md, F1); onder 1280 krijgt de pagina één horizontale
+   schuifbalk in plaats van een tweede, smallere compositie.
+
+   ⚠️ `overflow-x` staat hier BEWUST alleen ONDER 1280px aan, en niet gewoon
+   altijd. `html { overflow-x: hidden }` hierboven blokkeert anders elke
+   schuifbalk (het venster kan dan simpelweg niet zijwaarts scrollen); zonder
+   die regel had dit element zelf mogen schuiven. Zet je hem toch altijd aan,
+   dan wordt dit element de scroll-context voor `position: sticky` in plaats
+   van het venster, en plakt de filterbalk (`analytics-filters.tsx`) en de
+   tabelkop (`analytics-table.tsx`) niet meer onder de bovenbalk maar aan deze
+   doos, die zelf nooit beweegt. Boven 1280px staat hier dus niets, en blijft
+   sticky gewoon aan het venster hangen; onder 1280px is dat plakken de kleine
+   prijs voor de ene schuifbalk die daar wél moet werken. */
+.analytics-shell {
+  min-width: 1280px;
+}
+@media (max-width: 1279px) {
+  .analytics-shell {
+    overflow-x: auto;
+  }
+}
+
 /* Alles wat van nature een eigen breedte meebrengt, krimpt mee. De grafiek in
    `trend-chart.tsx` houdt zijn `min-width: 480` (min-width wint van max-width)
    en scrolt in zijn eigen `overflow-x-auto`, zoals bedoeld. */

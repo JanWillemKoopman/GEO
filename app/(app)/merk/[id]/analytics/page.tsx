@@ -5,10 +5,20 @@ import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
 import { AuditPanel } from "@/components/audit-panel";
-import { Sparkline } from "@/components/sparkline";
 import { InfoHint } from "@/components/info-hint";
+import { AnalyticsFilters } from "@/components/analytics-filters";
+import { AnalyticsTable, type AnalyticsColumn } from "@/components/analytics-table";
 import { activeOnly } from "@/lib/archive";
 import { confidenceBand, changeIsMeaningful } from "@/lib/stats/uncertainty";
+import {
+  bepaalPeriodes,
+  clustersVoorFilter,
+  leesClusterfilter,
+  leesLabelfilter,
+  leesPeriodefilter,
+  PERIODEFILTER_ACTUEEL,
+} from "@/lib/analytics-filters";
+import { sorteerLabels } from "@/lib/cluster-labels";
 import {
   parseContextFactors,
   technicalAdviceStale,
@@ -16,6 +26,7 @@ import {
 } from "@/lib/pipeline/context-factors";
 import type { AuditCheck } from "@/lib/audit/technical";
 import type {
+  ClusterLabel,
   TechnicalAudit as TechnicalAuditRow,
   VisibilityScore,
 } from "@/lib/types/database";
@@ -45,35 +56,41 @@ export const metadata = { title: "Zichtbaarheid in AI" };
  */
 export default async function AnalyticsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ periode?: string; label?: string; cluster?: string }>;
 }) {
   const { id } = await params;
+  const { periode: periodeUitAdres, label: labelUitAdres, cluster: clusterUitAdres } = await searchParams;
   const profile = await getProfile(id);
   if (!profile) notFound();
   await requireUser();
 
   const supabase = await createClient();
-  const [{ data: auditRow }, { data: strategyRow }, { data: analysisRows }] = await Promise.all([
-    // Kolommen bij naam: `technical_audits.raw_json` is de ruwe uitvoer van de
-    // audit en hoort op Admin (besluit 4). Met een `*` reist hij mee naar de
-    // browser, ook al toont dit scherm alleen de nette checklijst.
-    supabase
-      .from("technical_audits")
-      .select("checks_json, checked_at, site_url, blockers")
-      .eq("profile_id", id)
-      .order("checked_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from("profile_strategy")
-      .select("context_factors")
-      .eq("profile_id", id)
-      .maybeSingle(),
-    activeOnly(supabase.from("analyses").select("id, name").eq("profile_id", id)),
-  ]);
+  const [{ data: auditRow }, { data: strategyRow }, { data: analysisRows }, { data: labelRows }] =
+    await Promise.all([
+      // Kolommen bij naam: `technical_audits.raw_json` is de ruwe uitvoer van de
+      // audit en hoort op Admin (besluit 4). Met een `*` reist hij mee naar de
+      // browser, ook al toont dit scherm alleen de nette checklijst.
+      supabase
+        .from("technical_audits")
+        .select("checks_json, checked_at, site_url, blockers")
+        .eq("profile_id", id)
+        .order("checked_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("profile_strategy")
+        .select("context_factors")
+        .eq("profile_id", id)
+        .maybeSingle(),
+      activeOnly(supabase.from("analyses").select("id, name, label_id").eq("profile_id", id)),
+      supabase.from("cluster_labels").select("*").eq("profile_id", id),
+    ]);
 
-  const clusters = (analysisRows ?? []) as { id: string; name: string }[];
+  const clusters = (analysisRows ?? []) as { id: string; name: string; label_id: string | null }[];
+  const labels = sorteerLabels((labelRows ?? []) as ClusterLabel[]);
 
   let scores: VisibilityScore[] = [];
   if (clusters.length > 0) {
@@ -88,15 +105,34 @@ export default async function AnalyticsPage({
     scores = (scoreRows ?? []) as VisibilityScore[];
   }
 
-  // Per cluster de reeks op periodevolgorde, en daaruit de laatste stand.
+  // ── F2: de filterbalk ────────────────────────────────────────────────────
+  const periodes = bepaalPeriodes(scores.map((s) => ({ analysis_id: s.analysis_id, computed_at: s.computed_at })));
+  const periodefilter = leesPeriodefilter(periodeUitAdres, periodes);
+  const labelfilter = leesLabelfilter(labelUitAdres, labels);
+  const clustersBijLabel = clustersVoorFilter(clusters, labelfilter);
+  const clusterfilter = leesClusterfilter(clusterUitAdres, clustersBijLabel);
+  const zichtbareClusterIds = new Set(
+    (clusterfilter === "alles" ? clustersBijLabel : clustersBijLabel.filter((c) => c.id === clusterfilter)).map(
+      (c) => c.id,
+    ),
+  );
+
+  // Per cluster de reeks op periodevolgorde, en daaruit de stand die bij de
+  // gekozen periode hoort: bij "actueel" de laatste meting, anders de laatste
+  // op of vóór die datum (`lib/analytics-filters.ts`).
   const perCluster = clusters
+    .filter((c) => zichtbareClusterIds.has(c.id))
     .map((c) => {
       const reeks = scores
         .filter((s) => s.analysis_id === c.id)
         .sort((a, b) => a.week_no - b.week_no);
-      const laatste = reeks[reeks.length - 1] ?? null;
-      const vorige = reeks[reeks.length - 2] ?? null;
-      return { cluster: c, reeks, laatste, vorige };
+      const totAanPeriode =
+        periodefilter === PERIODEFILTER_ACTUEEL
+          ? reeks
+          : reeks.filter((s) => s.computed_at !== null && s.computed_at.slice(0, 10) <= periodefilter);
+      const laatste = totAanPeriode[totAanPeriode.length - 1] ?? null;
+      const vorige = totAanPeriode[totAanPeriode.length - 2] ?? null;
+      return { cluster: c, reeks: totAanPeriode, laatste, vorige };
     })
     .filter((r) => r.laatste !== null)
     .sort((a, b) => leidend(b.laatste!) - leidend(a.laatste!));
@@ -117,6 +153,7 @@ export default async function AnalyticsPage({
     (strategyRow as { context_factors?: unknown } | null)?.context_factors,
   );
   const staleFactor = technicalAdviceStale(factors);
+  const labelNaamPerId = new Map(labels.map((l) => [l.id, l.name]));
 
   return (
     <div className="flex flex-col gap-6">
@@ -124,6 +161,15 @@ export default async function AnalyticsPage({
         eyebrow="Analytics"
         title="Zichtbaarheid in AI"
         description="Hoe vaak AI-assistenten je noemen, over al je clusters heen, en wat dat cijfer verklaart."
+      />
+
+      <AnalyticsFilters
+        periodes={periodes}
+        labels={labels}
+        clustersBijLabel={clustersBijLabel}
+        periodefilter={periodefilter}
+        labelfilter={labelfilter}
+        clusterfilter={clusterfilter}
       />
 
       {/* ── 1. Blokkade, alleen als die er is ───────────────────────────────
@@ -191,66 +237,22 @@ export default async function AnalyticsPage({
         </div>
       )}
 
-      {/* ── 3 en 4. Per cluster, met het verloop ────────────────────────────
-          De trendlijn en de tabel zijn hier één blok: acht clusters met elk een
-          volle grafiek onder elkaar is geen overzicht meer. De sparkline toont
-          de richting, het cijfer de stand, en de doorklik het cluster zelf. */}
+      {/* ── 3. Per cluster, als tabel (plan Z3) ──────────────────────────────
+          Was een lijst kaarten, één grafiek per stuk. Bij 329 rijen in de
+          beheerlijst op Concurrenten en soortgelijke aantallen elders is een
+          kaart per rij geen overzicht meer maar een muur; een tabel met vaste
+          kolommen wél. */}
       {perCluster.length > 0 && (
         <div className="flex flex-col gap-2">
           <span className="mono-label">Per cluster</span>
-          <ul className="flex flex-col gap-2">
-            {perCluster.map(({ cluster, reeks, laatste, vorige }) => {
-              const nu = leidend(laatste!);
-              const toen = vorige ? leidend(vorige) : null;
-              const betekenisvol =
-                vorige !== null &&
-                changeIsMeaningful(
-                  { score: nu, stderr: stderrVan(laatste!) },
-                  { score: toen!, stderr: stderrVan(vorige) },
-                ).changed;
-              const delta = toen === null ? null : nu - toen;
-
-              return (
-                <li key={cluster.id}>
-                  <Link
-                    href={`/analyses/${cluster.id}`}
-                    className="card card-interactive flex flex-wrap items-center justify-between gap-3"
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold">{cluster.name}</span>
-                      <span className="mono-label">
-                        {reeks.length === 1 ? "1 meting" : `${reeks.length} metingen`}
-                      </span>
-                    </span>
-
-                    <Sparkline
-                      values={reeks.map((s) => leidend(s))}
-                      label={`Zichtbaarheid van ${cluster.name}`}
-                    />
-
-                    <span className="flex shrink-0 items-baseline gap-2">
-                      <span className="stat-value text-lg">{Math.round(nu)}%</span>
-                      {/* Een verandering binnen de onzekerheidsmarge is geen
-                          verandering. Hem tonen als winst is de belofte die het
-                          product niet kan waarmaken. */}
-                      {delta !== null && betekenisvol ? (
-                        <span
-                          className={delta > 0 ? "chip chip-success" : "chip chip-danger"}
-                        >
-                          <Icon naam={delta > 0 ? "stijging" : "daling"} size={12} />
-                          {Math.abs(Math.round(delta))}
-                        </span>
-                      ) : (
-                        <span className="chip chip-neutral">
-                          {delta === null ? "eerste meting" : "gelijk"}
-                        </span>
-                      )}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+          <AnalyticsTable
+            rows={perCluster}
+            rowKey={(r) => r.cluster.id}
+            defaultSortKey="zichtbaarheid"
+            defaultSortDir="asc"
+            columns={clusterKolommen(labelNaamPerId)}
+            stickyOffset="calc(var(--header-h) + 3.5rem)"
+          />
         </div>
       )}
 
@@ -295,6 +297,108 @@ function leidend(s: VisibilityScore): number {
 /** De onzekerheid die bij `leidend()` hoort. De twee horen altijd bij elkaar. */
 function stderrVan(s: VisibilityScore): number {
   return (s.weighted_score != null ? s.weighted_stderr : s.score_stderr) ?? 0;
+}
+
+interface ClusterRij {
+  cluster: { id: string; name: string; label_id: string | null };
+  reeks: VisibilityScore[];
+  laatste: VisibilityScore | null;
+  vorige: VisibilityScore | null;
+}
+
+/** De kolommen van de clustertabel (plan Z3): label, cluster, zichtbaarheid,
+ * marge, verandering, gemeten vragen, laatst gemeten. Gesorteerd op zwakste
+ * eerst (`page.tsx` zet `defaultSortDir="asc"` op de zichtbaarheidskolom). */
+function clusterKolommen(labelNaamPerId: Map<string, string>): AnalyticsColumn<ClusterRij>[] {
+  return [
+    {
+      key: "label",
+      header: "Label",
+      width: "9rem",
+      sortValue: (r) => (r.cluster.label_id ? labelNaamPerId.get(r.cluster.label_id) ?? null : null),
+      render: (r) =>
+        r.cluster.label_id ? (
+          labelNaamPerId.get(r.cluster.label_id) ?? "Onbekend label"
+        ) : (
+          <span className="text-muted">Zonder label</span>
+        ),
+    },
+    {
+      key: "cluster",
+      header: "Cluster",
+      sortValue: (r) => r.cluster.name,
+      render: (r) => (
+        <Link href={`/analyses/${r.cluster.id}`} className="font-medium hover:underline">
+          {r.cluster.name}
+        </Link>
+      ),
+    },
+    {
+      key: "zichtbaarheid",
+      header: "Zichtbaarheid",
+      numeriek: true,
+      width: "8rem",
+      sortValue: (r) => leidend(r.laatste!),
+      render: (r) => `${Math.round(leidend(r.laatste!))}%`,
+    },
+    {
+      key: "marge",
+      header: "Marge",
+      numeriek: true,
+      width: "7rem",
+      sortValue: (r) => confidenceBand(leidend(r.laatste!), stderrVan(r.laatste!)).margin,
+      render: (r) => {
+        const band = confidenceBand(leidend(r.laatste!), stderrVan(r.laatste!));
+        return band.margin > 0 ? `± ${band.margin}` : "-";
+      },
+    },
+    {
+      key: "verandering",
+      header: "Verandering",
+      numeriek: true,
+      width: "9rem",
+      sortValue: (r) => (r.vorige ? leidend(r.laatste!) - leidend(r.vorige) : null),
+      render: (r) => {
+        if (!r.vorige) return <span className="chip chip-neutral">eerste meting</span>;
+        const nu = leidend(r.laatste!);
+        const toen = leidend(r.vorige);
+        const betekenisvol = changeIsMeaningful(
+          { score: nu, stderr: stderrVan(r.laatste!) },
+          { score: toen, stderr: stderrVan(r.vorige) },
+        ).changed;
+        const delta = nu - toen;
+        if (!betekenisvol) return <span className="chip chip-neutral">gelijk</span>;
+        return (
+          <span className={delta > 0 ? "chip chip-success" : "chip chip-danger"}>
+            <Icon naam={delta > 0 ? "stijging" : "daling"} size={12} />
+            {Math.abs(Math.round(delta))}
+          </span>
+        );
+      },
+    },
+    {
+      key: "gemeten",
+      header: "Gemeten vragen",
+      numeriek: true,
+      width: "8rem",
+      sortValue: (r) => r.laatste!.judged_runs ?? null,
+      render: (r) => r.laatste!.judged_runs ?? "-",
+    },
+    {
+      key: "laatstgemeten",
+      header: "Laatst gemeten",
+      width: "9rem",
+      sortValue: (r) => r.laatste!.computed_at ?? null,
+      render: (r) =>
+        r.laatste!.computed_at
+          ? new Date(r.laatste!.computed_at).toLocaleDateString("nl-NL", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })
+          : "-",
+    },
+  ];
 }
 
 /** Het merkcijfer, gewogen op het aantal gemeten vragen per cluster. */
