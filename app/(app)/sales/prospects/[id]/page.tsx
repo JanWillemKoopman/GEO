@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -56,7 +57,7 @@ export default async function ProspectDossierPage({
     .select(
       "id, type, alle_types, score, tier, confidence, hook_text, hook_source, why_text, " +
         "score_breakdown, evidence, top_intent_labels, rival_company_id, run_id, market_id, " +
-        "sales_markets(label), sales_runs(round_no, finished_at, engines)",
+        "sales_markets(label, slug, is_public), sales_runs(round_no, finished_at, engines)",
     )
     .eq("company_id", id)
     .is("superseded_by", null)
@@ -80,7 +81,7 @@ export default async function ProspectDossierPage({
     rival_company_id: string | null;
     run_id: string;
     market_id: string;
-    sales_markets: { label: string } | null;
+    sales_markets: { label: string; slug: string; is_public: boolean } | null;
     sales_runs: { round_no: number; finished_at: string | null; engines: string[] } | null;
   };
 
@@ -303,6 +304,24 @@ export default async function ProspectDossierPage({
               ))}
             </ul>
           </section>
+
+          {/* ⚠️ De openbare pagina, als die er is. Plan §5.3 noemt dit "openbaar
+              bewijs": de link die in de mail kan staan en die de prospect zelf
+              kan nalezen. Zolang de markt niet gepubliceerd is, staat er niets,
+              want een link naar een pagina die nog niet bestaat is de snelste
+              manier om het vertrouwen kwijt te raken dat de mail net won. */}
+          {kans.sales_markets?.is_public && kans.sales_markets.slug && (
+            <section className="card flex flex-col gap-1">
+              <h2 className="text-lg font-semibold">Openbaar bewijs</h2>
+              <p className="text-secondary">
+                De uitkomst van deze markt staat online. Deze link mag in je mail: de prospect kan
+                er zelf nalezen wat er gemeten is.
+              </p>
+              <Link href={`/markt/${kans.sales_markets.slug}`} className="btn-ghost self-start">
+                orbitengine.nl/markt/{kans.sales_markets.slug}
+              </Link>
+            </section>
+          )}
 
           <section className="flex flex-col gap-3">
             <div>
