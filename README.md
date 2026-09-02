@@ -93,4 +93,5 @@ een document af van wat de code doet, dan is het document fout.
 | Bestand | Waarvoor |
 |---|---|
 | [`docs/logbook.md`](./docs/logbook.md) | **Waarom het is zoals het is.** Elke beslissing met datum en het cijfer eronder. Kijk hier vóór je iets terugdraait: de kans is groot dat het met reden zo staat |
+| [`docs/processtappen-nieuwe-pagina.md`](./docs/processtappen-nieuwe-pagina.md) | **Wat er precies gebeurt, stap voor stap.** Genummerde checklist van klant aanmaken tot een opgeleverde pagina, zonder technische kennis nodig |
 | [`docs/tasks/`](./docs/tasks/) | Wat er nog open staat. Af is weg, samengevat in het logboek |
