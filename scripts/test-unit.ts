@@ -103,6 +103,7 @@ import {
   describeImprovementCount,
 } from "@/lib/pipeline/contract-format";
 import { checkContentGate, openingVan, geoRegels, checkSourceTalk } from "@/lib/pipeline/content-gate";
+import { stripChrome } from "@/lib/pipeline/page-text";
 import {
   brandNav,
   generalNav,
@@ -16763,6 +16764,56 @@ group("Het adres oplossen en de verwante pagina meedragen (2 september 2026)", (
     relatedPageWarning("https://x.nl/a").includes("https://x.nl/a") &&
       relatedPageWarning("https://x.nl/a").includes("ANDERS"),
   );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Het menu gaat uit de opgehaalde sitetekst (2 september 2026)", () => {
+  // Overgenomen uit de tak `claude/gasservice-brabant-content-fe9g07`, samen met
+  // de module zelf: één implementatie, één set tests.
+  const menu = "<nav><ul><li>Cv-ketel</li><li>Onderhoud</li><li>Warmtepomp</li></ul></nav>";
+  const inhoud =
+    "<p>De kosten van een hybride warmtepomp kunnen oplopen tot maximaal 6000 euro. " +
+    "Deze kosten hangen af van het vermogen en van het soort hybride warmtepomp. " +
+    "Het vermogen hangt af van de grootte van je woning en het bouwjaar van de woning.</p>";
+  const voet = "<footer>Alle rechten voorbehouden. Bel ons op 073.</footer>";
+
+  const geschoond = stripChrome(`${menu}${inhoud}${voet}`);
+  ok("het menu gaat eruit", !geschoond.includes("Cv-ketel"));
+  ok("de voettekst ook", !geschoond.includes("Alle rechten"));
+  ok("en de inhoud blijft", geschoond.includes("maximaal 6000 euro"));
+
+  const metMenu = stripChrome(`<header><nav>Menu hier</nav></header>${inhoud}`);
+  ok("een koptekst met menu gaat eruit", !metMenu.includes("Menu hier"));
+  const metTitel = stripChrome(`<header><h1>Wat kost een warmtepomp?</h1></header>${inhoud}`);
+  ok("een koptekst met de titel blijft", metTitel.includes("Wat kost een warmtepomp?"));
+
+  const metMain = stripChrome(`<div>zijbalk met van alles erin</div><main>${inhoud}</main>`);
+  ok("de hoofdinhoud wint", metMain.includes("maximaal 6000 euro") && !metMain.includes("zijbalk"));
+
+  // ⚠️ Het vangnet. Een pagina die álles in een header zet mag niet leeg raken:
+  // minder tekst is erger dan ruis (conventie 3).
+  const allesInHeader = `<header><nav>Menu</nav>${inhoud}</header>`;
+  ok("een te gretige knip wordt teruggedraaid", stripChrome(allesInHeader).includes("maximaal 6000 euro"));
+  ok("lege invoer blijft leeg", stripChrome("") === "");
+
+  const metScript = `<script>${"x=1;".repeat(4000)}</script>${menu}${inhoud}`;
+  ok("JavaScript telt niet mee als tekst", !stripChrome(metScript).includes("Cv-ketel"));
+
+  // ── Het echte geval: het menu stond er TWEE keer, vóór de eerste zin ──────
+  //
+  // Zo zag wouterwarmtepomp.nl/hybride-warmtepomp/ eruit: dezelfde
+  // navigatieregel dubbel, gevolgd door de inhoud. Van de 3493 opgehaalde
+  // tekens was ongeveer een derde menu.
+  const dubbelMenu = `${menu}${menu}<main>${inhoud}</main>`;
+  const na = stripChrome(dubbelMenu);
+  ok("een dubbel menu verdwijnt helemaal", !na.includes("Onderhoud"));
+  ok("en de inhoud staat vooraan", na.trim().startsWith("<p>De kosten"));
+
+  // ⚠️ De ophaalstap moet dit ook echt gebruiken, anders staat de reparatie in
+  // de module en niet in het product.
+  const ophalen = leesBestand("lib/pipeline/existing-page-fetch.ts");
+  ok("de verse ophaling schoont de pagina", ophalen.includes("stripChrome(html)"));
+  ok("en doet dat vóór het afkappen", ophalen.indexOf("stripChrome(html)") < ophalen.indexOf("EXISTING_PAGE_MAX_CHARS)"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════
