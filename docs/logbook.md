@@ -6841,9 +6841,27 @@ via de eigen keuze, verschilt op **48 van de 1.296.000 pixels met een grootste k
 `none`, het paneel op een eigen tekenlaag zet. Onzichtbaar, maar het staat hier omdat "byte-identiek"
 en "bijna byte-identiek" niet hetzelfde zijn.
 
-**Wat er niet is gebeurd:** niets naar productie, geen samenvoeging naar `main`, en geen tweede
-ronde. De eigenaar beoordeelt eerst de vergelijkingsbeelden en zegt daarna of het effect sterker of
-zwakker moet.
+**Wat er precies veranderde, en wat er stond.** Deze tabel is het terugkijkpunt: links de staat
+vóór 3 september 2026, rechts wat er nu staat. Alles wat er niet in staat is ongewijzigd, en dat is
+verreweg het meeste.
+
+| Onderdeel | Was | Is nu |
+|---|---|---|
+| Vulling van `.card` | `--bg-surface`, dus volledig dekkend wit | `--glass-surface` (wit op 0,72) in licht, `--bg-surface` in donker |
+| Vervaging achter `.card` | geen | `blur(12px) saturate(1.06)` in licht, `none` in donker |
+| Schaduw van `.card` | geen, de kaart was plat | `--glass-shadow`, één pixel op 3% inkt, in licht; `none` in donker |
+| Vulling van `.modal-panel` | `--bg-surface` | `--glass-surface-strong` (0,86) plus vervaging, in licht |
+| Vulling van `.toast-card` | `--bg-surface` | idem |
+| De vijf zwevende menu's | elk hun eigen `bg-[var(--bg-surface)]` in de component: `brand-switcher`, `profile-menu`, `info-hint`, `cluster-kaart`, `plan-view` | één gedeelde klasse `.menu-surface` in `globals.css` |
+| Tokens in het lichte blok | 116 | 120: `--glass-surface`, `--glass-surface-strong`, `--glass-filter`, `--glass-shadow` |
+| Dezelfde vier in beide donkere blokken | bestonden niet | wijzen terug naar het opake origineel, dus donker tekent hetzelfde als hiervoor |
+| Hover op `.card-interactive` | `--shadow-overlay` | ongewijzigd, die wint van de glaspixel |
+| Randen, radius, padding, typografie, kleuren, zijbalk, knoppen, velden, chips, tabellen, voortgangsbalken | | **alle ongewijzigd** |
+
+**Goedgekeurd op 3 september 2026.** De eigenaar heeft de vergelijkingsbeelden bekeken, het effect
+goed bevonden zonder wijzigingen, en opdracht gegeven om naar `main` samen te voegen. Er is dus geen
+tweede ronde geweest: wat hierboven staat is wat er live staat. Mocht het effect later toch te sterk
+of te zwak blijken, dan is het vier tokens in `app/globals.css` en geen enkel component.
 
 ## 3 september 2026: elke as zegt wat hij toont, en de lijnen zijn vloeiend
 
@@ -6891,6 +6909,26 @@ pixels zie je niet.
 tússen twee metingen iets bekend is, en dat is niet zo. De grafiek toont de metingen, de bocht
 ertussen is vormgeving. Daarom blijven de meetpunten als stip zichtbaar en blijft de tabel met de
 echte cijfers onder `TrendChart` staan.
+
+**Wat er precies veranderde, en wat er stond.**
+
+| Onderdeel | Was | Is nu |
+|---|---|---|
+| Verticale as `TrendChart` | alleen de cijfers 0, 25, 50, 75 en 100 langs de as | daarboven "Zichtbaarheid: 0 is nooit genoemd, 100 is altijd" |
+| Horizontale as `TrendChart` | alleen de datums per meting | daaronder "Wanneer er gemeten is" |
+| Ruimte in `TrendChart` | `top: 16, bottom: 34` | `top: 32, bottom: 48`, voor die twee regels |
+| Verticale as `PagesTrafficChart` | alleen het hoogste aantal klikken | daarboven "Aantal klikken per dag" |
+| Horizontale as `PagesTrafficChart` | alleen de eerste en de laatste datum | daaronder "Dag" |
+| Ruimte in `PagesTrafficChart` | `top: 16, bottom: 30` | `top: 32, bottom: 46` |
+| `aria-label` van beide grafieken | noemde de assen niet | noemt ze allebei, voor wie voorleest |
+| Aslabel op `Sparkline` | geen | **bewust nog steeds geen**, zie hierboven |
+| Lijn in `TrendChart` | `M`/`L`, rechte stukken tussen de punten | `vloeiendPad()`, monotone Bézier |
+| Onzekerheidsband | rechte stukken heen en terug | `vloeiendPad()` heen, `vloeiendPadTerug()` terug |
+| Lijn in `PagesTrafficChart` | `<polyline>` met rechte stukken | `<path>` met `vloeiendPad()` |
+| Lijn in `Sparkline` | `<polyline>` met rechte stukken | `<path>` met `vloeiendPad()` |
+| Waar de rondingsregel woont | drie keer los in drie componenten | één keer in `lib/chart-curve.ts` |
+| Controles in `test-unit.ts` | 4076 | 4087 |
+| Kleuren, lijndiktes, legenda, publicatiestrepen, hover, de tabel onder de grafiek | | **alle ongewijzigd** |
 
 **Nagemeten** met dezelfde methode als de glaslaag, maar een stap beter: de screenshots hieronder
 zijn niet meer nagebouwd. `renderToStaticMarkup` rendert de échte componenten met verzonnen data
