@@ -6595,6 +6595,53 @@ falen terwijl hij op `main` nog groen was. Bevestigd door de wijziging tijdelijk
 (`lib/pipeline/dash-guard.ts`). Dit is precies waarom conventie 10 (nagerekend, niet alleen gebouwd)
 een reparatielus in de eigen werkwijze is en niet alleen een eis aan het product.
 
+## 2 september 2026: het herstelplan na de audit, T7, de database leeggemaakt
+
+**Het plan noemde zestien merken, het waren er zeventien**: er kwam na het schrijven van het plan nog
+een testmerk bij ("AUDITTEST geweigerde site", 15:46 uur). Eerst een volledige telling gemaakt en aan
+de eigenaar laten zien voordat er iets verwijderd is (onomkeerbaar, conventie in de werkwijze bij
+zulke acties), met expliciet akkoord per account: het account van de eigenaar zelf
+(`koopman.janwillem@gmail.com`) en de twee testaccounts (`e2e-consultant@orbit-test.nl`,
+`e2e-klant@orbit-test.nl`) blijven bestaan met hun inlog, alleen de merken erin zijn weg;
+`huyberts@example.com` had geen naam in het plan staan als "blijft staan" en is op verzoek van de
+eigenaar volledig verwijderd, account én inlog.
+
+Weg: 17 merken, 23 analyses, 839 metingen, 53 geschreven pagina's, 286 taken, 2270 betaalde
+AI-aanroepen, 262 feitverzoeken, 22 rapporten, en de 51 restrijen in `_backup_20260729` die bij deze
+merken hoorden (nu 0 over). Tandartspraktijk de Kroon, het echte bedrijf dat geen klant is en hier
+nooit om gevraagd heeft, is mee verwijderd inclusief de vier verzonnen testantwoorden en de twee
+ingeplande hermetingen van 16 en 30 september (die anders tegen een verwijderd merk waren aangelopen).
+
+Gebruikt: de bestaande route `lib/deletion.ts` voor het account `huyberts@example.com`
+(profielen, account en inlog in één stap, zoals de app het zelf ook zou doen); voor de drie te
+behouden accounts een verwijdering op profielniveau, want `deleteAccount()` verwijdert het account
+zelf en dat mocht daar juist niet. Dezelfde volgorde als de bestaande route: eerst de momentopnamen
+in `_backup_20260729` opruimen, dan de merken (cascade neemt de rest mee), dan pas het account of de
+inlog.
+
+Nagerekend na afloop: 0 merken over, 0 restrijen in `_backup_20260729`, 0 taken die nog naar een
+verwijderd merk wijzen, en precies de drie verwachte accounts met inlog. De schermen die een lege
+database moeten laten zien (`/merk`, `/beheer`) zijn in de code nagelopen: beide hebben een expliciete
+lege staat en geen optelling die op een lege lijst breekt. Niet in een browser getest, deze sessie
+heeft geen netwerktoegang tot Vercel; dat is de ene stap uit het plan die nog met eigen ogen bevestigd
+moet worden.
+
+## 2 september 2026: het herstelplan na de audit, T6, het vangnet op de mention-classificatie geborgd
+
+De controlequery uit T6 gaf na T7 op alle drie de tellingen 0: er was niets meer om te herbeoordelen,
+want de elf en zes foutgemeten antwoorden uit de audit hoorden allemaal bij testmerken die net
+verwijderd zijn. Geen enkele betaalde aanroep nodig geweest, precies zoals het plan voorzag.
+
+Wat overbleef was de les uit het plan zelf: een reparatie aan de meting moet ook tegen wegvallen
+beschermd zijn. Het vangnet zelf (`m.mentioned && candidateNames.some(...)` in
+`lib/pipeline/measure.ts`) had geen enkele test, alleen de tekstcontrole eronder
+(`textContainsName`) was al gedekt. Losgetrokken naar `mentionSurvivesTextGuard()` in
+`lib/entities/normalize.ts` (puur, conventie 2) en getest op precies het scenario uit de audit: het
+model zegt "genoemd" maar de naam staat niet in de tekst, moet toch niet genoemd tellen, en het
+omgekeerde (model zegt "niet genoemd" terwijl de naam er wél staat) moet niet genoemd blijven. Een
+latere refactor die `m.mentioned` weer rechtstreeks doorgeeft, laat deze test nu falen in plaats van
+stil te verdwijnen.
+
 ---
 
 ## Een pagina met 91 punten kan onpubliceerbaar zijn (3 september 2026, migratie 0091)
