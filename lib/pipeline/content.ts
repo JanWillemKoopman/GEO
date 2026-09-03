@@ -2250,3 +2250,113 @@ export async function reviseContentPiece(args: {
 
   return { klaar: !nogEenRonde, ronde, issues: openstaand };
 }
+
+/**
+ * DEZELFDE TEKST OPNIEUW KEUREN, ZONDER HERSCHRIJVEN (migratie 0092)
+ *
+ * ── WAAROM DIT BESTAAT ──────────────────────────────────────────────────────
+ *
+ * Tot 3 september 2026 draaide `keurPagina()` alleen binnen `content_draft` en
+ * `content_revise`. Een oordeel bijstellen betekende dus de pagina opnieuw laten
+ * schrijven, en dat kost ongeveer $1,00 per pagina tegen ongeveer $0,013 voor de
+ * vier beoordelaars. Bijna honderd keer zoveel voor iets wat de tekst niet eens
+ * verandert.
+ *
+ * Dat was geen theoretisch bezwaar. Toen R0 en R0b gerepareerd waren, moesten de
+ * twaalf benchmarkpagina's opnieuw beoordeeld worden om te zien wat de reparatie
+ * opleverde; via herschrijven zou dat ongeveer $12 kosten en zou de tekst
+ * bovendien veranderen, waardoor de vergelijking nergens meer over ging.
+ *
+ * ⚠️ De tweede reden weegt zwaarder dan de eerste: de klant kan zijn eigen tekst
+ * aanpassen (`PATCH .../content/[pieceId]`), en dan bleef het oordeel staan op
+ * de tekst van vóór die bewerking. Er stond dus "klaar voor publicatie" onder
+ * een tekst die niemand beoordeeld had.
+ *
+ * ── WAT HIJ NIET DOET ───────────────────────────────────────────────────────
+ *
+ * Niets aan de tekst, de versie of het rondenummer. Alleen de kwaliteitskolommen
+ * en `needs_review`. De reparatielus blijft daarmee waar hij was: een herkeuring
+ * kan geen nieuwe reparatieronde uitlokken, en dat is precies de bedoeling, want
+ * dan zou een goedkope stap alsnog een dure aftrappen.
+ */
+export async function herkeurContentPiece(args: {
+  analysisId: string;
+  userId: string;
+  contentPieceId: string;
+  recommendation: RecommendationInput;
+}): Promise<{ verdict: string; score: number | null; blokkades: number; ronde: number }> {
+  const { analysisId, userId, contentPieceId, recommendation } = args;
+  const admin = createAdminClient();
+
+  const { data: pieceRow } = await admin
+    .from("content_pieces")
+    .select("*")
+    .eq("id", contentPieceId)
+    .maybeSingle();
+  if (!pieceRow) throw new Error(`Contentpagina ${contentPieceId} niet gevonden.`);
+
+  const ctx = await loadContentContext(admin, analysisId, userId, recommendation);
+  const huidig = pieceFromRow(pieceRow as ContentPieceRow);
+
+  const keuring = await keurPagina({
+    piece: huidig,
+    title: (pieceRow.title as string) ?? recommendation.title,
+    type: recommendation.type,
+    brandName: ctx.brandName,
+    targetQuestions: ctx.targets.map((t) => t.text),
+    contract: ctx.contract,
+    facts: ctx.facts,
+    profile: ctx.profile,
+    competitors: ctx.competitors,
+    distinctiveAnswers: ctx.distinctiveAnswers,
+    siblingPages: await loadSiblingPages(
+      admin,
+      ctx.analysis.profile_id,
+      contentPieceId,
+      ctx.existing.page?.url ?? null,
+    ),
+    analysisId,
+    profileId: ctx.analysis.profile_id,
+    plan: ctx.plan,
+    bewijsAanwezig: ctx.facts.some((f) => f.citable && f.allowed),
+  });
+
+  // Alleen het oordeel. `body_markdown`, `version`, `repair_round` en `status`
+  // blijven precies zoals ze stonden.
+  await admin
+    .from("content_pieces")
+    .update({
+      ...keuring.kolommen,
+      needs_review: keuring.evaluatie.verdict !== "pass",
+    })
+    .eq("id", contentPieceId);
+
+  // Een eigen, opvolgend rondenummer: zo overschrijft de herkeuring nooit de rij
+  // van een echte reparatieronde, en blijft opzoekbaar dat deze pagina ooit
+  // tegengehouden werd.
+  const rondes = await leesKwaliteitsrondes(admin, contentPieceId);
+  const ronde = Math.max(0, ...rondes.map((r) => r.ronde)) + 1;
+
+  await bewaarKwaliteitsronde(admin, {
+    contentPieceId,
+    analysisId,
+    ronde,
+    keuring,
+    retained: true,
+    wordCount: countWords(huidig.bodyMarkdown),
+    herkeuring: true,
+  });
+
+  console.info(
+    `Contentpagina ${contentPieceId} herkeurd: kwaliteit ${keuring.evaluatie.score ?? "?"}, ` +
+      `zekerheid ${keuring.evaluatie.confidence}%, oordeel ${keuring.evaluatie.verdict}, ` +
+      `${keuring.evaluatie.blokkades.length} blokkerend.`,
+  );
+
+  return {
+    verdict: keuring.evaluatie.verdict,
+    score: keuring.evaluatie.score,
+    blokkades: keuring.evaluatie.blokkades.length,
+    ronde,
+  };
+}

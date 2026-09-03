@@ -6762,3 +6762,33 @@ tegengehouden.
 Dat is bewust niet in dezelfde beweging gerepareerd. Het raakt de bescherming die na de twee
 fabricages van 31 juli is gebouwd, en die verdient een eigen toets tegen die tien pagina's in plaats
 van een snelle aanpassing. Het staat als R0b in `docs/tasks/contentkwaliteit-framework.md` §10.
+
+**R0b gerepareerd, en de eerste poging was fout.** Twee regels erbij in `claim-extract.ts`:
+contactgegevens (telefoonnummer, e-mailadres, postcode) tellen niet meer als getal, en
+toezeggingswoorden matchen aan het woordbegin in plaats van ergens midden in een woord.
+
+Die tweede regel ging bij de eerste poging mis, en de bestaande test ving het: een woordgrens aan
+BEIDE kanten eisen lijkt netter, maar de lijst bevat stammen. "reserveer" matcht dan niet meer op
+"reserveert", en precies die zin ("Op valk.com reserveert u direct online") was de Van der
+Valk-fabricage waar deze hele controle voor bestaat. Nederlandse vervoeging plakt er hooguit een
+paar letters achter; een afleiding die de betekenis verandert is langer ("beschikbaarheid" is +4,
+"mogelijkheden" +5). Vandaar drie letters speling.
+
+Nagemeten op de teksten van deze ronde: van de 62 blokkerende bevindingen van MJB blijven er 37
+over. Wat verdwijnt zijn oproepen tot actie en telefoonnummers; wat blijft staan is "MJB Dakservice
+reageert binnen 24 uur op de aanvraag".
+
+**De herkeuring is een eigen stap geworden (migratie 0092).** `keurPagina()` draaide alleen binnen
+`content_draft` en `content_revise`, dus een oordeel bijstellen betekende de pagina opnieuw laten
+schrijven: ongeveer $1,00 per pagina tegen ongeveer $0,013 voor de vier beoordelaars. Bijna honderd
+keer zoveel voor iets wat de tekst niet eens verandert, en de vergelijking gaat er ook nog door
+verloren omdat de tekst dan een andere is.
+
+Drie regels eromheen, en ze zijn alle drie een rem. Een herkeuring kan geen reparatieronde
+aftrappen, want dan kan één goedkope knop een dure lus starten. Hij overschrijft de geschiedenis
+niet, want de rij die zegt dat een pagina ooit tegengehouden werd is precies waar de ijking op
+rust. En de versiekeuze slaat herkeuringen over, want er is niets herschreven om tussen te kiezen.
+
+Dit was ook los van R0 nodig: de klant kan zijn eigen tekst aanpassen, en dan bleef het oordeel
+staan op de tekst van vóór die bewerking. Er stond "klaar voor publicatie" onder een tekst die
+niemand beoordeeld had.

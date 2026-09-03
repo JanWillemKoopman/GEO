@@ -35,7 +35,7 @@ import {
 import { runBriefing } from "@/lib/pipeline/briefing";
 import { generateReport } from "@/lib/pipeline/report";
 import { profileCompetitors } from "@/lib/pipeline/competitor-intel";
-import { draftContentPiece, reviseContentPiece } from "@/lib/pipeline/content";
+import { draftContentPiece, reviseContentPiece, herkeurContentPiece } from "@/lib/pipeline/content";
 import { planContentPiece } from "@/lib/pipeline/content-plan";
 import { runAuditForProfile } from "@/lib/audit/store";
 import { planImpactMeasurements, computeImpact } from "@/lib/pipeline/impact";
@@ -839,6 +839,25 @@ const handlers: { [T in JobType]: Handler<T> } = {
   },
 
   // ── Content stap 2: herschrijven + herbeoordelen ──────────────────────────
+  /**
+   * Herkeuren: dezelfde tekst, nieuw oordeel (migratie 0092).
+   *
+   * Ketent bewust NIET door naar `content_revise`. Een herkeuring is goedkoop
+   * (de vier beoordelaars, ongeveer $0,013) en een reparatieronde is dat niet
+   * (ongeveer $0,14). Zou een herkeuring een reparatie mogen aftrappen, dan kan
+   * één goedkope knop een rekening van tientallen dollars opleveren, en dat is
+   * precies het patroon waar de kostenremmen voor bestaan.
+   */
+  content_recheck: async ({ job }, payload) => {
+    if (!job.analysis_id) throw new Error("content_recheck zonder analysis_id.");
+    await herkeurContentPiece({
+      analysisId: job.analysis_id,
+      userId: payload.userId,
+      contentPieceId: payload.contentPieceId,
+      recommendation: toRecommendation(payload.recommendation),
+    });
+  },
+
   content_revise: async ({ admin, job }, payload) => {
     if (!job.analysis_id) throw new Error("content_revise zonder analysis_id.");
     const result = await reviseContentPiece({

@@ -77,6 +77,8 @@ export const JOB_TYPES = [
   "content_draft",
   /** Contentgeneratie stap 2: herschrijven + herbeoordelen. */
   "content_revise",
+  /** Dezelfde tekst opnieuw keuren, zonder herschrijven (migratie 0092). */
+  "content_recheck",
   /** Technische GEO-audit: mag een AI-crawler de site überhaupt bezoeken? */
   "technical_audit",
   /** Controleren of een gepubliceerde pagina er echt staat (optimalisatie.md 5.2). */
@@ -406,6 +408,16 @@ export interface JobPayloads {
     /** Zie `content_draft.plannedPageId`; de herschrijfstap meldt hetzelfde terug. */
     plannedPageId?: string;
   };
+  /**
+   * Herkeuren: dezelfde tekst, nieuw oordeel. Geen `issues` en geen
+   * `plannedPageId`, want er wordt niets herschreven en er verandert niets aan
+   * de planning.
+   */
+  content_recheck: {
+    userId: string;
+    contentPieceId: string;
+    recommendation: RecommendationPayload;
+  };
   technical_audit: Record<string, never>;
   verify_publication: { contentPieceId: string };
   measure_impact: { contentPieceId: string; wave: number };
@@ -516,6 +528,7 @@ export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "content_plan", // itemdossier met web_search plus het contract
   "content_draft", // het premium model schrijft een volledige pagina
   "content_revise", // idem
+  "content_recheck", // geen schrijfaanroep, wel de vier beoordelaars
   "offsite_scan", // crawlt niets maar doet wel een gegroundde AI-aanroep + externe API's
   // Mijn reputatie. `reputation_start` staat er bewust NIET bij: die doet geen
   // enkele AI-aanroep en leest alleen wat er al staat.
@@ -604,6 +617,7 @@ export const PARALLEL_CONTENT_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "content_plan",
   "content_draft",
   "content_revise",
+  "content_recheck",
 ]);
 
 export const CONTENT_PARALLELISM = 3;

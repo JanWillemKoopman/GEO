@@ -552,7 +552,7 @@ R0 haalt er dus 31 van de 123 weg, een kwart. **De twaalf pagina's worden hierdo
 92 overgebleven blokkades over 28 keuringsrondes houdt vrijwel elke ronde er minstens één over, en
 `quality-collect.ts` maakt van elke ongetagde zin een blokkade met `confidence: ZEKER`.
 
-### R0b. Een oproep tot actie is geen bewering (volgt uit R0, nog niet gerepareerd)
+### R0b. Een oproep tot actie is geen bewering (gerepareerd 3 september 2026)
 
 Van die 92 zijn er 32 een instructie aan de lezer of een verwijzing naar het contact, geen uitspraak
 over het bedrijf. Letterlijk uit de ronde:
@@ -569,26 +569,61 @@ allemaal net zo goed in een gewone instructie staan.
 Een oproep tot actie belooft niets over het bedrijf en valt dus niet te onderbouwen met een feit.
 Hem blokkerend maken betekent dat elke pagina met een telefoonnummer eronder tegengehouden wordt.
 
-⚠️ **Dit is bewust nog niet gerepareerd.** Het raakt de bescherming die na de twee fabricages van
-31 juli is gebouwd, en die is te belangrijk om er ongevraagd aan te sleutelen. De denkrichting: een
-zin waarvan het enige signaal een telefoonnummer, een postcode of een e-mailadres is, en die in de
-gebiedende wijs begint, is geen bewering. Dat moet met de tien pagina's van 31 juli erbij getoetst
-worden, want die moeten blijven vallen.
+**De reparatie.** Twee regels in `claim-extract.ts`:
 
-De resterende ongeveer 60 zijn wél echte, ongetagde uitspraken over het bedrijf. Dat is een derde
-vraag: het schrijvende model tagt maar een deel van wat het beweert, en de reparatieronde krijgt
-daar geen grip op.
+1. **Contactgegevens tellen niet als getal.** Een telefoonnummer, een e-mailadres en een postcode
+   gaan uit de zin voordat `GETAL` erop losgelaten wordt. Alleen die drie; "wij staan binnen 24 uur
+   op het dak" houdt zijn 24 en blijft dus een bewering, want dát is wel een belofte. Een webadres
+   blijft ook staan, want "Op valk.com reserveert u direct online" was een van de twee fabricages.
+2. **Toezeggingswoorden matchen aan het woordbegin**, met hooguit drie letters speling aan het eind.
+
+⚠️ Punt 2 is bij de eerste poging fout gegaan, en de bestaande test ving het. Een woordgrens aan
+BEIDE kanten eisen lijkt netter, maar de lijst bevat stammen: "reserveer" matcht dan niet meer op
+"reserveert", en precies die zin was de Van der Valk-fabricage. Nederlandse vervoeging plakt er
+hooguit een paar letters achter ("reserveert", "biedt", "leveren"), terwijl een afleiding die de
+betekenis verandert langer is ("beschikbaarheid" is +4, "mogelijkheden" +5). Vandaar drie.
+
+**Nagemeten op de teksten van deze ronde**, niet op oudere pagina's: van de 62 blokkerende
+bevindingen van MJB blijven er 37 over. De verdwenen 25 zijn oproepen tot actie, telefoonnummers en
+woorden als "beschikbaarheid" en "contactmogelijkheden". Wat blijft staan is wat er moet blijven
+staan: "MJB Dakservice reageert binnen 24 uur op de aanvraag", "Niet elke vochtplek vereist
+24-uursservice".
+
+De resterende zinnen zijn wél echte, ongetagde uitspraken over het bedrijf. Dat is een derde vraag:
+het schrijvende model tagt maar een deel van wat het beweert.
+
+### De goedkope herkeuring (gebouwd 3 september 2026, migratie 0092)
+
+`keurPagina()` draaide alleen binnen `content_draft` en `content_revise`. Een oordeel bijstellen
+betekende dus de pagina opnieuw laten schrijven: ongeveer $1,00 per pagina tegen ongeveer $0,013
+voor de vier beoordelaars. Bijna honderd keer zoveel voor iets wat de tekst niet eens verandert, en
+de vergelijking gaat er ook nog door verloren, want de tekst is dan een andere.
+
+`POST /api/analyses/[id]/recheck` zet nu per afgeronde pagina een `content_recheck`-taak klaar.
+`herkeurContentPiece()` draait dezelfde `keurPagina()` over de opgeslagen tekst en schrijft alleen
+de kwaliteitskolommen en `needs_review`. Niets aan de tekst, de versie of het rondenummer.
+
+Drie regels die eromheen bewaakt worden:
+
+- **Een herkeuring kan geen reparatieronde aftrappen.** Anders kan één goedkope knop een dure lus
+  starten, en dat is precies het patroon waar de kostenremmen voor bestaan.
+- **Hij overschrijft de geschiedenis niet.** Migratie 0092 geeft `content_quality_runs` een kolom
+  `herkeuring`; de rij krijgt een eigen, opvolgend rondenummer. Zonder die regel zou de eerste
+  herkeuring het bewijs uitwissen dat de pagina ooit tegengehouden werd, en dat bewijs is waar de
+  ijking op rust.
+- **De versiekeuze slaat herkeuringen over** (`leesKwaliteitsrondes`), want er is niets herschreven
+  om tussen te kiezen.
+
+Dit was ook los van R0 nodig: de klant kan zijn eigen tekst aanpassen, en dan bleef het oordeel
+staan op de tekst van vóór die bewerking. Er stond "klaar voor publicatie" onder een tekst die
+niemand beoordeeld had. Dat was de uitzondering die in R5 al genoteerd stond.
 
 **Nog te doen.**
 
-- R0b beslissen en toetsen tegen de pagina's van 31 juli.
 - De drie splitsers samenvoegen tot één, mét een test die bewijst dat de andere twee call sites
   dezelfde uitkomst houden.
-- De twaalf pagina's opnieuw laten keuren zodra R0 op `main` staat, en dan opnieuw tellen. Let op:
-  er is geen goedkope herkeuring. `keurPagina()` draait alleen binnen `content_draft` en
-  `content_revise`, dus opnieuw keuren betekent opnieuw laten schrijven, ongeveer $1 per pagina.
-  Een aparte herkeurstap over de opgeslagen tekst zou hier ongeveer $12 besparen en is verder ook
-  nuttig, want de klant kan de tekst zelf bewerken (zie R5, de uitzondering).
+- De herkeuring automatisch aftrappen zodra de klant zijn tekst bewerkt (`PATCH .../content/[pieceId]`).
+  De stap bestaat nu, hij wordt alleen nog met de hand gestart.
 
 ### R5. Fase F: ijking, caching en incrementele evaluatie (punt 19 en 28)
 

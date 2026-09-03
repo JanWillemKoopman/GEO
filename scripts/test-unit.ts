@@ -2914,6 +2914,62 @@ group("de noemer die de code bepaalt", () => {
   );
 });
 
+// ── R0b: een oproep tot actie belooft niets ─────────────────────────────────
+//
+// Alle zinnen hieronder komen uit de benchmarkronde van 3 september 2026 en
+// werden daar allemaal BLOKKEREND afgekeurd, terwijl er niets te onderbouwen
+// valt. Ze blokkeerden om twee redenen: `GETAL` zag een telefoonnummer als een
+// getal, en de toezeggingslijst matchte midden in langere woorden.
+group("R0b: contactgegevens en woordmidden zijn geen belofte", () => {
+  const geen = (zin: string, merk: string) =>
+    detectClaimSentences({ bodyMarkdown: zin }, merk).length === 0;
+
+  ok(
+    "een telefoonnummer maakt van een oproep geen bewering",
+    geen("Bel 0578 234 502 of stuur via WhatsApp de locatie en de schade door.", "MJB Dakservice"),
+  );
+  ok(
+    "ook niet met een e-mailadres erbij",
+    geen(
+      "Bellen kan via 030 227 04 37 en mailen via info@fysiocentrumutrecht.nl.",
+      "Fysio Centrum Utrecht",
+    ),
+  );
+  ok(
+    "mogelijk in contactmogelijkheden is geen toezegging",
+    geen(
+      "De adressen en contactmogelijkheden van beide vestigingen staan op de contactpagina.",
+      "Fysio Centrum Utrecht",
+    ),
+  );
+  ok(
+    "beschikbaar in beschikbaarheid is geen toezegging",
+    geen("Beschikbaarheid kan per plaats en per moment verschillen.", "MJB Dakservice"),
+  );
+
+  // De tegenproef, en die weegt zwaarder dan de vier hierboven: wat wél een
+  // belofte is, moet een bewering blijven.
+  const wel = (zin: string, merk: string) =>
+    detectClaimSentences({ bodyMarkdown: zin }, merk).length === 1;
+
+  ok(
+    "een getal dat geen contactgegeven is, blijft tellen",
+    wel("Wij staan binnen 24 uur op het dak bij een actieve lekkage.", "MJB Dakservice"),
+  );
+  ok(
+    "een zin met de merknaam blijft altijd tellen",
+    wel("MJB Dakservice reageert binnen 24 uur op de aanvraag.", "MJB Dakservice"),
+  );
+  ok(
+    "een vervoegde toezegging blijft tellen",
+    wel("Op valk.com reserveert u direct online een zaal.", "Van der Valk"),
+  );
+  ok(
+    "een verbogen toezegging ook",
+    wel("Wij leveren de offerte binnen twee werkdagen.", "MJB Dakservice"),
+  );
+});
+
 group("dekking over de gedetecteerde noemer", () => {
   const facts = numberFacts([
     { text: "Meer dan 100 hotels en restaurants wereldwijd", source: "site", allowed: true, citable: true },
