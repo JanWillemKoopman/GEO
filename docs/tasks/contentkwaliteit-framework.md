@@ -593,6 +593,49 @@ staan: "MJB Dakservice reageert binnen 24 uur op de aanvraag", "Niet elke vochtp
 De resterende zinnen zijn wél echte, ongetagde uitspraken over het bedrijf. Dat is een derde vraag:
 het schrijvende model tagt maar een deel van wat het beweert.
 
+### R0c. Een ongetagde zin die de kaart wél draagt, blokkeerde toch (gerepareerd 3 september 2026)
+
+**De derde vraag hierboven, nagemeten in plaats van vermoed.** Na R0 en R0b zijn de twaalf
+benchmarkpagina's opnieuw gekeurd (`POST /api/analyses/[id]/recheck`, dus zonder herschrijven).
+Uitkomst: 144 blokkerende bevindingen werden er 56, maar alle twaalf pagina's stonden nog steeds op
+`block`. 54 van die 56 kwamen uit `bronherleidbaarheid`. Een steekproef liet twee dingen zien:
+
+- **Zinnen die kloppen en waarvan het bewijs er is, blokkeerden alsnog.** "MJB Dakservice kan bij
+  een daklekkage in Zutphen binnen 24 uur ter plaatse zijn" staat vrijwel letterlijk in
+  `offline_proof` ("binnen 24 uur ter plaatse bij een lekkage"), maar het schrijvende model had die
+  zin niet op zijn eigen lijstje met beweringen gezet. `detectedCoverage()` in `claim-extract.ts`
+  keek alleen naar dat lijstje, dus gold de zin als onbewezen terwijl het feit gewoon op de kaart
+  staat. Dezelfde denkfout die R1 (3 september) al één keer eerder repareerde voor de claim-audit,
+  hier in een tweede, onafhankelijke controle.
+- **Instructiezinnen aan de lezer werden voor een belofte aangezien.** "Maak foto's en video's van
+  de mogelijke waterschade" en "Controleer of de hoofdkraan beschikbaar is" bevatten
+  toezeggingswoorden ("mogelijke", "beschikbaar") maar zeggen niets over het bedrijf.
+
+**De reparatie, allebei in `lib/pipeline/claim-extract.ts`:**
+
+1. `zinIsOnderbouwdDoorKaart()`: een ongetagde zin telt nu ook als gedekt wanneer minstens 60% van de
+   betekenisvolle woorden van een toegestaan, citeerbaar feit letterlijk in de zin terugkomen
+   (dezelfde `claimMatchesSentence()` en dezelfde drempel als bij een getagde bewering, nu blind over
+   de hele kaart). Een feit van minder dan drie betekenisvolle woorden telt niet mee, anders bewijst
+   bijna elk kort feit bijna elke zin. Dit verzwakt de fabricageherkenning niet: een verzonnen
+   bewering heeft per definitie geen feit dat hem draagt, dus blind zoeken vindt daar niets. Zie de
+   uitgebreide toelichting in de code voor de volledige redenering.
+2. `isInstructieAanLezer()`: een zin die begint met een kort, bewust behoudend lijstje
+   veiligheids-/stappenwerkwoorden (maken, controleren, sluiten, …) telt niet meer als toezegging,
+   tenzij hij ook de merknaam of een getal bevat. Woorden die een oproep tot actie met een
+   onbewezen claim kunnen inleiden ("bel", "vraag", "boek") staan er bewust NIET op: "Bel voor een
+   gratis inspectie" moet blijven blokkeren.
+
+⚠️ **Dit lost niet elke instructiezin op.** "Dit kun je zelf doen terwijl je wacht" begint niet met
+een werkwoord uit de lijst en glipt er nog doorheen. Dat onderscheid (advies aan de lezer versus een
+belofte, ergens middenin de zin) vraagt begrip van de zin en niet van het eerste woord.
+
+**Getest, nog niet herverifieerd tegen de echte benchmarkronde** (conventie 10). Vier nieuwe
+testgroepen in `scripts/test-unit.ts`, inclusief de tegenproef dat een fabricage zonder
+onderliggend feit blijft blokkeren en dat een verboden feit (`allowed: false`) nooit meetelt. Het
+werkelijke effect op de twaalf benchmarkpagina's is pas bekend na een volgende herkeuring op
+productie.
+
 ### De goedkope herkeuring (gebouwd 3 september 2026, migratie 0092)
 
 `keurPagina()` draaide alleen binnen `content_draft` en `content_revise`. Een oordeel bijstellen

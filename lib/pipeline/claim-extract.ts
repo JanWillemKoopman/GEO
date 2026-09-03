@@ -159,6 +159,48 @@ function bevatToezegging(sleutel: string): boolean {
   });
 }
 
+/**
+ * Werkwoorden waarmee een zin een OPDRACHT AAN DE LEZER is, geen belofte van
+ * het bedrijf. (gevonden bij de herkeuring van de benchmarkronde, 3 september
+ * 2026, ná R0 en R0b)
+ *
+ * ── WAT HIER MISGING ────────────────────────────────────────────────────────
+ *
+ * "Maak foto's en video's van de lekkage" en "Sluit de hoofdkraan af" bevatten
+ * een toezeggingswoord ("mogelijke", "beschikbaar") of worden er per ongeluk
+ * mee verward, terwijl de zin niets over het bedrijf zegt: het is een
+ * veiligheids- of stappeninstructie aan de lezer. Zulke zinnen kunnen niet
+ * naar een feit op de kaart wijzen, dus blokkeerden ze zonder dat er iets fout
+ * was aan de tekst.
+ *
+ * ⚠️ Bewust een KORTE, conservatieve lijst van werkwoorden die vrijwel nooit
+ * een commerciële belofte inleiden. "Bel", "vraag" en "boek" staan er expres
+ * NIET op: die kunnen een oproep tot actie inleiden die zelf een onbewezen
+ * claim draagt ("Bel voor een gratis inspectie"), en dat moet blijven
+ * blokkeren. Bij twijfel dus niet op de lijst (dezelfde regel als bovenaan dit
+ * bestand: vals-positieven zijn goedkoper dan vals-negatieven).
+ *
+ * ⚠️ Dit lost niet elke instructiezin op. "Dit kun je zelf doen terwijl je
+ * wacht" begint niet met een gebiedende wijs en glipt hier nog doorheen; dat
+ * onderscheid (advies aan de lezer versus een belofte, zonder aan het begin
+ * van de zin te herkennen) vraagt begrip van de zin en niet van het eerste
+ * woord. Zie `docs/tasks/contentkwaliteit-framework.md` §10.
+ *
+ * Alleen van toepassing op het `toezegging`-signaal: een zin met de merknaam
+ * of een getal blijft altijd een kandidaat, ook als hij met deze werkwoorden
+ * begint.
+ */
+const INSTRUCTIE_WERKWOORDEN = [
+  "maak", "doe", "controleer", "kijk", "sluit", "open", "zet", "leg", "houd",
+  "meld", "spoel", "was", "dek", "plaats",
+];
+
+/** Begint deze zin met een instructie aan de lezer, geen belofte van het bedrijf? */
+function isInstructieAanLezer(zin: string): boolean {
+  const eersteWoord = normalizeForQuote(zin).split(" ")[0] ?? "";
+  return INSTRUCTIE_WERKWOORDEN.includes(eersteWoord);
+}
+
 /** Woordgrens-veilige merknaamcontrole, ongevoelig voor koppeltekens en accenten. */
 function bevatMerknaam(zin: string, brandName: string): boolean {
   const merk = normalizeForQuote(brandName);
@@ -207,7 +249,8 @@ export function detectClaimSentences(
       let signal: ClaimSignal | null = null;
       if (bevatMerknaam(zin, brandName)) signal = "merknaam";
       else if (GETAL.test(zonderContact)) signal = "getal";
-      else if (bevatToezegging(normalizeForQuote(zonderContact))) signal = "toezegging";
+      else if (bevatToezegging(normalizeForQuote(zonderContact)) && !isInstructieAanLezer(zin))
+        signal = "toezegging";
       if (!signal) continue;
 
       gezien.add(sleutel);
@@ -236,6 +279,71 @@ export function claimMatchesSentence(claim: string, sentence: string): boolean {
   const zin = ` ${normalizeForQuote(sentence)} `;
   const raak = woorden.filter((w) => zin.includes(` ${w} `)).length;
   return raak / woorden.length >= 0.6;
+}
+
+/**
+ * Minimaal aantal betekenisvolle woorden dat een feit moet hebben om via
+ * `zinIsOnderbouwdDoorKaart()` als bewijs te tellen.
+ *
+ * Zelfde soort grens als `MIN_CITAAT_TEKENS` in `evidence-weight.ts`, en om
+ * dezelfde reden: een feit van twee woorden ("gratis parkeren") deelt met
+ * bijna elke zin genoeg overlap om "bewezen" te lijken, en dan bewijst het
+ * feit niets meer specifieks.
+ */
+const MIN_FEIT_WOORDEN = 3;
+
+function feitWoordenAantal(tekst: string): number {
+  return normalizeForQuote(tekst).split(" ").filter((w) => w.length > 2).length;
+}
+
+/**
+ * Is deze GEDETECTEERDE zin, die het model niet zelf getagd heeft, toch te
+ * herleiden naar een feit op de kaart?
+ * (gevonden bij de herkeuring van de benchmarkronde, 3 september 2026, ná R0
+ * en R0b: `docs/tasks/contentkwaliteit-framework.md` §10)
+ *
+ * ── HET GAT ──────────────────────────────────────────────────────────────
+ *
+ * `detectedCoverage()` hieronder keek tot nu toe alleen naar het lijstje
+ * beweringen dat het SCHRIJVENDE model zelf meelevert (`claims`). Schreef het
+ * model een kloppende, onderbouwde zin maar vergat hij die op zijn eigen
+ * lijstje te zetten, dan gold de zin als onbewezen terwijl het feit er gewoon
+ * stond: "MJB Dakservice kan bij een daklekkage in Zutphen binnen 24 uur ter
+ * plaatse zijn" blokkeerde, terwijl `offline_proof` letterlijk "binnen 24 uur
+ * ter plaatse bij een lekkage" bevat. Op de twaalf herkeurde benchmarkpagina's
+ * kwamen 52 van de 56 resterende blokkades hieruit.
+ *
+ * ── WAAROM NIET GEWOON `isSupported()` OF `claimIsOnderbouwd()` ────────────
+ *
+ * Die twee hebben een `sourceRef` nodig: een concreet feit om tegen te
+ * toetsen. Een ONgetagde zin heeft dat per definitie niet, dat is het hele
+ * probleem. Deze functie zoekt daarom BLIND over de hele kaart, met dezelfde
+ * `claimMatchesSentence()` als bij een getagde bewering, alleen nu andersom:
+ * het FEIT is de korte kant die moet passen, de ZIN de lange kant waarin hij
+ * moet passen.
+ *
+ * ── WAAROM DIT DE FABRICAGE-BESCHERMING NIET AFZWAKT ────────────────────────
+ *
+ * Een verzonnen bewering ("reserveer direct online" bij Van der Valk) heeft
+ * per definitie geen feit op de kaart dat hem draagt: er bestaat geen feit
+ * met inhoud over een boekingsmodule. Blind zoeken vindt daar dus niets, en de
+ * zin blijft terecht geblokkeerd. Wat deze functie verandert is alleen het
+ * geval waarin het bewijs er wél is, maar het model het simpelweg niet apart
+ * heeft aangevinkt.
+ *
+ * ⚠️ `MIN_FEIT_WOORDEN` is de rem tegen een vals gevoel van dekking, en
+ * `allowed`/`citable` zijn dezelfde twee poorten als overal elders: een
+ * verboden feit (de klant heeft het ontkend) of een niet-citeerbaar
+ * achtergrondblok mag nooit als bewijs tellen.
+ */
+function zinIsOnderbouwdDoorKaart(sentence: string, facts: readonly FactItem[]): boolean {
+  return facts.some(
+    (f) =>
+      f.allowed &&
+      f.citable &&
+      feitWoordenAantal(f.text) >= MIN_FEIT_WOORDEN &&
+      claimMatchesSentence(f.text, sentence),
+  );
 }
 
 /**
@@ -278,8 +386,12 @@ export interface CoverageResult {
  * De bronnendekking, met een noemer die de code bepaalt.
  *
  * Een gedetecteerde zin telt als gedekt wanneer er een getagde claim bij hoort
- * die `isSupported()` overleeft. Een zin zonder claim telt als ONgedekt. Dat is
- * het hele punt: niet-taggen mag geen manier zijn om aan de meting te ontsnappen.
+ * die `isSupported()` overleeft, óf wanneer de zin zelf (ongetagd) toch
+ * letterlijk overlapt met een feit op de kaart (`zinIsOnderbouwdDoorKaart()`,
+ * 3 september 2026). Alleen dan telt een zin als ONgedekt: niet-taggen mag
+ * geen manier zijn om aan de meting te ontsnappen, maar het is ook geen straf
+ * voor een zin die het model gewoon vergat aan te vinken terwijl het bewijs er
+ * wél is.
  *
  * Nul gedetecteerde zinnen geeft `null` en niet 100. "Ik heb niets beweerd" is
  * geen perfecte dekking maar een ontbrekend oordeel, en `null` is daar de enige
@@ -301,7 +413,9 @@ export function detectedCoverage(args: {
   }
 
   const untagged = detected.filter(
-    (d) => !gedekteClaims.some((c) => claimMatchesSentence(c.claim, d.sentence)),
+    (d) =>
+      !gedekteClaims.some((c) => claimMatchesSentence(c.claim, d.sentence)) &&
+      !zinIsOnderbouwdDoorKaart(d.sentence, facts),
   );
 
   const gedekt = detected.length - untagged.length;
