@@ -35,6 +35,7 @@ import {
   checkForbiddenTopics,
   checkQuality,
   checkAanspreekvorm,
+  checkAdresinstructie,
   checkSourceTalk,
   checkTabooWords,
 } from "@/lib/pipeline/content-gate";
@@ -59,6 +60,7 @@ import { analyseerRootCause, beschrijfRootCause, type RootCause } from "@/lib/pi
 import { issueTeksten, type QualityIssue } from "@/lib/pipeline/quality-issue";
 import { geoScore as geoScoreVanModel } from "@/lib/schemas/critique";
 import { kiesAanspreekvorm } from "@/lib/pipeline/tone-sliders";
+import { vindKlantinstructies, verbiedtAdres } from "@/lib/klantinstructies";
 import type { AuditedClaim } from "@/lib/schemas/claim-audit";
 import type { ContentContract } from "@/lib/schemas/content-contract";
 import type { ContentPiece } from "@/lib/schemas/content-piece";
@@ -208,6 +210,13 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
       bestaandeTekst: input.bestaandeTekst ?? null,
     }).vorm,
   );
+  // ── V5: heeft de klant om iets gevraagd wat de pagina negeert? ───────────
+  const instructies = vindKlantinstructies(input.facts.map((f) => f.text));
+  const adres = checkAdresinstructie(
+    [body, ...faq.map((f) => `${f.q} ${f.a}`)].join("\n\n"),
+    verbiedtAdres(instructies),
+  );
+
   const taboo = checkTabooWords(body, faq, input.profile?.taboo_phrases ?? []);
   const verbodenOnderwerpen = checkForbiddenTopics(
     body,
@@ -280,6 +289,7 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
     quality,
     bronpraat,
     aanspreekvorm,
+    adres,
     taboo,
     verbodenOnderwerpen,
     typeOvertredingen,

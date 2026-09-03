@@ -7267,3 +7267,34 @@ woordenlijst te zien.
 
 Vier controles groen: typecheck, 4177 unittests (17 nieuwe, waarvan zeven zinnen die hij moet vinden
 en zeven die hij met rust moet laten), 639 ketentests, build.
+
+## 3 september 2026: V5, wat de klant vroeg staat niet meer tussen wat hij vertelde
+
+Vier van de zes FCU-pagina's kregen woordelijk mee: "Zet er geen adres bij, want we hebben twee
+vestigingen (...) Verwijs voor de adressen naar de contactpagina." Twee van die vier zetten er toch
+een adres bij, en de Leidsche Rijn-pagina zelfs twee keer.
+
+**Waarom het misging.** Zo'n antwoord komt binnen als één feit op de feitenkaart, in de vorm
+"vraag: antwoord", tussen de andere feiten. Het model leest daar een MEDEDELING waar een OPDRACHT
+staat, en een mededeling mag je negeren als er iets beters te melden is. `taboo_phrases` en
+`forbidden_topics` staan wél als gesloten verbod bovenaan de prompt, en die worden wel nageleefd.
+
+**`lib/klantinstructies.ts`** (puur) haalt de opdrachtzinnen uit de feitentekst met een gesloten
+lijst opdrachtwoorden, en zet ze in `instructieblok()` bovenaan de prompt, met de reden erbij dat de
+ondernemer het zelf zo vroeg. Het onderscheid tussen een verbod en een opdracht komt uit de zin
+zelf. Het antwoord hierboven levert er twee op, het telefoonnummer in dezelfde zin blijft een gewoon
+feit, en een antwoord als "een gemiddelde noemen we liever niet, want het hangt af van wat we
+aantreffen" blijft óók een feit: dat is geen instructie over de pagina maar informatie over het werk.
+
+**Het vangnet** is `checkAdresinstructie()` in `content-gate.ts`, blokkerend, en het draait alleen
+als de klant er expliciet om vroeg. Twee patronen naast elkaar, want geen van beide dekt alles: een
+straatnaam met achtervoegsel plus huisnummer ("Pablo Picassostraat 216", "Moreelsehoek 2") en een
+postcode ("7317BL"), zodat ook "Hommel 37" gevonden wordt. Bewust geen los patroon "hoofdletterwoord
+gevolgd door een getal", want dat vindt ook "Apeldoorn 2026" en "Rc 6,0". Alle drie de adressen die
+op 3 september ten onrechte op een pagina stonden, worden gevonden; op vijf gewone zinnen met
+getallen uit dezelfde pagina's slaat hij niet aan.
+
+Dit is de enige klantinstructie met een harde controle. De rest gaat als gesloten verbodslijst de
+prompt in en heeft geen vangnet, en dat staat er expliciet bij: instructies automatisch herkennen is
+lastig, en het algemene geval verdient eerst meer data. Vier controles groen: typecheck, 4196
+unittests (19 nieuwe), 639 ketentests, build.

@@ -33,6 +33,7 @@ import type { CitabilityVerdict, FactualityVerdict } from "@/lib/schemas/content
 import type { CraftVerdict } from "@/lib/schemas/content-craft";
 import type {
   AanspreekvormResult,
+  AdresResult,
   GateResult,
   QualityResult,
   SourceTalkResult,
@@ -69,6 +70,8 @@ export interface KwaliteitsInvoer {
   bronpraat: SourceTalkResult;
   /** V2: spreekt de pagina de lezer overal hetzelfde aan? */
   aanspreekvorm?: AanspreekvormResult;
+  /** V5: negeert de pagina een instructie die de klant zelf gaf? */
+  adres?: AdresResult;
   taboo: TabooCheckResult;
   verbodenOnderwerpen: TabooCheckResult;
   typeOvertredingen: TypeRegel[];
@@ -585,6 +588,28 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
         blocking: true,
         confidence: ZEKER,
         bron: "aanspreekvorm",
+      }),
+    );
+  }
+
+  // ── V5: een instructie van de klant is genegeerd ──────────────────────────
+  //
+  // Blokkerend, en zonder aarzeling: dit stond woordelijk in de invoer. Een
+  // klant die ziet dat zijn eigen antwoord genegeerd is, vertrouwt de volgende
+  // vraag niet meer.
+  if (invoer.adres && invoer.adres.issues.length > 0) {
+    issues.push(
+      maak(invoer, {
+        dimension: "feitelijkheid",
+        severity: "hoog",
+        section: null,
+        finding: invoer.adres.issues[0],
+        evidence: invoer.adres.adressen[0] ?? null,
+        expected: "Geen adres op deze pagina, met een verwijzing naar de contactpagina.",
+        recommendation: "Haal het adres weg en verwijs naar de contactpagina.",
+        blocking: true,
+        confidence: ZEKER,
+        bron: "klantinstructie",
       }),
     );
   }

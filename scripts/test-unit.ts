@@ -164,7 +164,8 @@ import {
 import { inputpoort, GOED_GENOEG, TE_WEINIG } from "@/lib/content-input-gate";
 import { bepaalLezersopdracht, lezersblok, noemtPersoon, MIN_WOORDEN } from "@/lib/lezersopdracht";
 import { kiesAanspreekvorm, telAanspreekvormen } from "@/lib/pipeline/tone-sliders";
-import { checkAanspreekvorm } from "@/lib/pipeline/content-gate";
+import { checkAanspreekvorm, checkAdresinstructie } from "@/lib/pipeline/content-gate";
+import { vindKlantinstructies, instructieblok, verbiedtAdres } from "@/lib/klantinstructies";
 import {
   normaliseerContract,
   formatContract,
@@ -17940,6 +17941,75 @@ group("de lezersopdracht ziet het verschil tussen een onderwerp en een persoon",
   ok("en zegt: begin bij zijn situatie", blok.includes("niet bij het bedrijf"));
   ok("en zegt wat er weg mag", blok.includes("laat je weg"));
   ok("zonder lezer is er geen blok", lezersblok(bepaalLezersopdracht({})) === "");
+});
+
+console.log("\nV5: een instructie van de klant is een verbod, geen feit");
+
+group("instructiezinnen worden uit een klantantwoord gehaald", () => {
+  // ⚠️ Dit is het letterlijke antwoord dat vier FCU-pagina's meekregen op
+  // 3 september 2026. Twee van die vier zetten er toch een adres bij.
+  const echt =
+    "Welk telefoonnummer en adres moeten er op deze pagina staan: Het telefoonnummer is " +
+    "030-2270437. Zet er geen adres bij, want we hebben twee vestigingen, bij Utrecht Centraal " +
+    "en in Leidsche Rijn, en welke van de twee het wordt hangt af van waar iemand woont. " +
+    "Verwijs voor de adressen naar de contactpagina.";
+
+  const gevonden = vindKlantinstructies([echt]);
+  ok("twee instructies gevonden", gevonden.length === 2, JSON.stringify(gevonden.map((g) => g.soort)));
+  ok("het verbod op het adres", gevonden.some((g) => g.soort === "verbod" && g.zin.includes("geen adres")));
+  ok("en de opdracht om te verwijzen", gevonden.some((g) => g.soort === "opdracht" && g.zin.includes("contactpagina")));
+  ok("en dat is een adresverbod", verbiedtAdres(gevonden) === true);
+
+  // Het telefoonnummer blijft een gewoon feit en wordt geen verbod.
+  ok(
+    "het telefoonnummer wordt niet als instructie gelezen",
+    !gevonden.some((g) => g.zin.includes("030-2270437")),
+  );
+
+  // Een gewoon antwoord is geen instructie, ook niet als er "geen" in staat.
+  const gewoon = vindKlantinstructies([
+    "Duurt een noodreparatie gemiddeld 2 tot 6 uur: Meestal korter. Een gemiddelde noemen we " +
+      "liever niet, want het hangt echt af van wat we aantreffen.",
+  ]);
+  ok("een gewoon antwoord blijft een feit", gewoon.length === 0, JSON.stringify(gewoon));
+
+  const blok = instructieblok(gevonden);
+  ok("het promptblok noemt de opdrachten", blok.includes("geen adres"));
+  ok("en zegt dat de ondernemer het zelf vroeg", blok.includes("ondernemer"));
+  ok("zonder instructies is er geen blok", instructieblok([]) === "");
+});
+
+group("een adres op een pagina die er geen mocht hebben, blokkeert", () => {
+  // De drie adressen die op 3 september ten onrechte op een pagina stonden.
+  const straat = checkAdresinstructie(
+    "De twee Utrechtse vestigingsadressen zijn Pablo Picassostraat 216 en Moreelsehoek 2.",
+    true,
+  );
+  ok("een straat met huisnummer wordt gevonden", straat.adressen.length >= 1, JSON.stringify(straat.adressen));
+  ok("de bevinding citeert het adres", straat.issues[0]?.includes("Picassostraat") === true);
+  ok("en zegt waar het wel hoort", straat.issues[0]?.includes("contactpagina") === true);
+
+  const postcode = checkAdresinstructie("MJB Dakservice, Hommel 37, 7317BL Apeldoorn.", true);
+  ok("een adres zonder straatachtervoegsel wordt via de postcode gevonden", postcode.adressen.length >= 1);
+
+  // ⚠️ Zonder instructie geen controle: de meeste klanten willen hun adres
+  // juist op de pagina, en dan is dit geen fout maar het punt van de pagina.
+  ok(
+    "zonder verbod slaat de controle nooit aan",
+    checkAdresinstructie("Pablo Picassostraat 216", false).issues.length === 0,
+  );
+
+  // Geen vals alarm op gewone getallen uit de twaalf pagina's.
+  const schoon = [
+    "Een dakdekker in Apeldoorn rekent gemiddeld 45 tot 65 euro per uur.",
+    "Bel 0578 234 502 of gebruik WhatsApp.",
+    "Bij EPDM wordt een levensduur van 40 tot 50 jaar genoemd.",
+    "PIR of Resol isolatie naar Rc 6,0.",
+    "Binnen vijf behandelingen heeft 86% de doelen behaald.",
+  ];
+  for (const zin of schoon) {
+    ok(`geen vals alarm: "${zin.slice(0, 40)}..."`, checkAdresinstructie(zin, true).issues.length === 0, zin);
+  }
 });
 
 console.log("\nV3: ons werkproces lekt niet meer de klantpagina in");

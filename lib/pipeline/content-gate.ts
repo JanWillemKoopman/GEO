@@ -935,3 +935,54 @@ export function checkAanspreekvorm(
 
   return { je, u, gemengd, zinnen, issues };
 }
+
+/** Wat de adrescontrole teruggeeft. */
+export interface AdresResult {
+  /** De gevonden adressen, hooguit de eerste drie. */
+  adressen: string[];
+  issues: string[];
+}
+
+/**
+ * Een straatnaam met huisnummer, of een postcode.
+ *
+ * Twee patronen naast elkaar, want geen van de twee dekt alles. "Pablo
+ * Picassostraat 216" en "Moreelsehoek 2" hebben een straatachtervoegsel;
+ * "Hommel 37" niet, maar die staat altijd naast een postcode ("7317BL"). Alle
+ * drie de adressen die op 3 september ten onrechte op een pagina stonden,
+ * worden zo gevonden.
+ *
+ * Bewust GEEN los patroon "hoofdletterwoord gevolgd door een getal": dat vindt
+ * ook "Apeldoorn 2026" en "Rc 6,0".
+ */
+const STRAAT_MET_NUMMER =
+  /\b[A-Z][\wàâéèêëîïôûùüÿç'\-]*(?:straat|laan|weg|plein|kade|hoek|dijk|singel|gracht|park|baan|pad|dreef|steeg|markt|wal)\s+\d+[a-zA-Z]?\b/g;
+const POSTCODE = /\b\d{4}\s?[A-Z]{2}\b/g;
+
+/**
+ * Staat er een adres op de pagina terwijl de klant er expliciet om vroeg dat
+ * niet te doen? (V5 uit docs/tasks/contentkwaliteit-copywriterronde.md)
+ *
+ * ⚠️ Gemeten op 3 september 2026: vier pagina's kregen "Zet er geen adres bij"
+ * mee, en twee ervan zetten er toch een op, één daarvan twee keer. Dit is de
+ * enige klantinstructie waarvoor een harde controle bestaat; de rest gaat als
+ * gesloten verbodslijst de prompt in (`lib/klantinstructies.ts`).
+ */
+export function checkAdresinstructie(tekst: string, verboden: boolean): AdresResult {
+  if (!verboden) return { adressen: [], issues: [] };
+
+  const veilig = tekst ?? "";
+  const adressen = Array.from(
+    new Set([...(veilig.match(STRAAT_MET_NUMMER) ?? []), ...(veilig.match(POSTCODE) ?? [])]),
+  ).slice(0, 3);
+
+  if (adressen.length === 0) return { adressen: [], issues: [] };
+
+  return {
+    adressen,
+    issues: [
+      `De klant heeft gevraagd om geen adres op deze pagina te zetten, en er staat er toch een: ` +
+        `"${adressen[0]}". Haal hem weg en verwijs naar de contactpagina.`,
+    ],
+  };
+}

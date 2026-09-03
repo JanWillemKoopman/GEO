@@ -90,6 +90,7 @@ export const ISSUE_BRONNEN = [
   "typeregel",
   "bewijsdekking",
   "aanspreekvorm",
+  "klantinstructie",
 ] as const;
 export type IssueBron = (typeof ISSUE_BRONNEN)[number];
 

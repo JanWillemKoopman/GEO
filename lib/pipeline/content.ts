@@ -62,6 +62,7 @@ import { formatExplainerBlock, type VerifiedExplainer } from "@/lib/pipeline/exp
 import { describeToneSliders, describePronoun, kiesAanspreekvorm } from "@/lib/pipeline/tone-sliders";
 import { bepaalLezersopdracht, lezersblok } from "@/lib/lezersopdracht";
 import { objectionsRule } from "@/lib/pipeline/commercial-context";
+import { vindKlantinstructies, instructieblok, verbiedtAdres } from "@/lib/klantinstructies";
 import {
   chooseExistingText,
   matchExistingPage,
@@ -556,6 +557,15 @@ function buildContentInput(args: {
     // vaak precies de vorm van een bezwaar, en de pagina die het bezwaar
     // benoemt en weerlegt is de pagina die geciteerd wordt.
     objectionsRule({ sales_objections: profile?.sales_objections ?? [] }),
+    // ✅ V5: wat de klant VROEG, apart van wat hij VERTELDE.
+    //
+    // Een antwoord als "Zet er geen adres bij, verwijs naar de contactpagina"
+    // kwam tot 3 september binnen als gewoon feit op de kaart, tussen de andere
+    // feiten. Het model leest daar een mededeling waar een opdracht staat, en
+    // twee van de vier pagina's die dit antwoord kregen zetten er toch een adres
+    // op. Nu staat het bij de verboden, in dezelfde vorm als `taboo_phrases`,
+    // en met de reden erbij dat de ONDERNEMER het zo vroeg.
+    instructieblok(vindKlantinstructies(facts.map((f) => f.text))),
     // ✅ De gesloten feitenkaart (R5.3). Geen uitnodiging maar een grens.
     formatFactCard(facts),
     // ✅ HET CONTRACT (A2): de inhoudsopgave van deze pagina. Staat bewust vóór
