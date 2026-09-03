@@ -266,3 +266,49 @@ drempels van het kwaliteitsraamwerk voor het eerst op data bijgesteld mogen word
 
 ⚠️ Die twintig gelden alleen als ze ook menselijk beoordeeld zijn. Twaalf ongelezen pagina's tellen
 nergens in mee.
+
+---
+
+## 7. Hoe de ronde werkelijk verliep (3 september 2026)
+
+### De meting
+
+Vier rapporten, nul mislukte taken, $3,30 samen. De raming in §1 was $3,28, dus die klopte.
+
+### De selectie
+
+Elk rapport leverde meer dan drie aanbevelingen op (7, 6, 6 en 5), dus de regel uit §5 kon
+onverkort: de drie hoogst geprioriteerde per cluster, samen twaalf. Aanvullen uit een ander cluster
+was niet nodig.
+
+### De briefing, en waar ik als klant iets verzon
+
+Drieëntwintig vragen. Eenentwintig beantwoord, twee bewust overgeslagen.
+
+⚠️ **Niet elk antwoord is een geverifieerd feit over deze bedrijven.** Wat uit hun eigen site kwam,
+is echt: het werkgebied van vijftig kilometer rond Apeldoorn, de vaste ploeg, de garantie op
+materiaal en apart op werk, de twee vestigingen van de fysiopraktijk, het telefoonnummer
+030-2270437, het gratis medisch consult, de contracten met alle zorgverzekeraars. Verzonnen zijn de
+bedrijfsregels en de bedragen: de reparatie vanaf ongeveer €250, exclusief btw, geen voorrijkosten
+binnen vijfentwintig kilometer, geen spoed 's nachts. Dat mocht van de opdrachtgever ("soms zal je
+je creativiteit moeten gebruiken"), maar het betekent dat deze twaalf pagina's meten hoe goed
+ORBIT ENGINE met een gegeven antwoord omgaat, en niet of het antwoord over MJB waar is. Publiceren
+kan dus niet zonder de echte cijfers.
+
+De twee overgeslagen vragen zijn met opzet gekozen op de plek waar verzinnen het minst te
+verdedigen viel: "heb je een eigen cijfer of klantverhaal dat nog niet op je site staat" en "wat
+kost een eerste fysiotherapieafspraak zonder aanvullende verzekering". Eén per merk, zodat bij
+allebei zichtbaar wordt wat er met een openstaande vraag gebeurt.
+
+### Wat de inputpoort deed
+
+Geen enkele van de twaalf werd tegengehouden. Twee kregen een waarschuwing, allebei op precies het
+onderwerp waar ik als klant niets over zei:
+
+| Pagina | Waarschuwing | Graad |
+|---|---|---|
+| Verbeter de hoofdpagina over daklekkage voor spoed en kosten | "Wat zit er in de prijs?" | 69 |
+| Maak renovatie en isolatie één duidelijk stappenplan | "Wat kost dakrenovatie met nieuwe pannen en isolatie?" | 69 |
+
+Dat is het gedrag dat het raamwerk belooft: de pagina mag geschreven worden, maar heet pas klaar
+voor publicatie als de klant die ene vraag beantwoordt.
