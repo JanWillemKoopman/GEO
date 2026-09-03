@@ -665,6 +665,14 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
       schemaJsonLd: '{"@context":"https://schema.org","@type":"WebPage"}',
       targetIntent: "Waar kan ik in Amersfoort terecht voor een hardloopblessure?",
       cluster: "hardloopblessure",
+      // V9 (migratie 0093): per gekozen feit wat het voor de lezer betekent.
+      // De betekeniszinnen staan hierboven ook echt in `bodyMarkdown`, want de
+      // controle rekent dat na.
+      proofPoints: [
+        { factRef: eerste.ref, betekenis: zin1 },
+        { factRef: tweede.ref, betekenis: zin2 },
+        { factRef: tweede.ref, betekenis: "Bij Fysi-Unique kun je binnen 24 uur terecht voor een intake" },
+      ],
       claims: [
         {
           claim: zin1,
@@ -715,6 +723,12 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
       why: "Geen standaardzinnen, wel een gangbare opzet.",
     },
     toon: { score: 80, evidence: "Afspraak maken", why: "Past bij de stijlvoorbeelden." },
+    // V11: het cijfer bestaat en telt nog niet mee in het profiel.
+    herkenning: {
+      score: 55,
+      evidence: "Bij Fysi-Unique kun je binnen 24 uur terecht voor een intake.",
+      why: "De pagina begint bij het aanbod en niet bij wat de lezer meemaakt.",
+    },
     overtuiging: {
       score: 68,
       evidence: "Afspraak maken",

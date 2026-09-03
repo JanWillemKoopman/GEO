@@ -778,6 +778,7 @@ export function checkForbiddenTopics(
  * van op gevoel.
  */
 const BRONVERWIJZINGEN = [
+  // ── Familie 1: onze bronnen (de oorspronkelijke lijst) ────────────────────
   "bestaande pagina",
   "huidige pagina",
   "deze pagina noemt",
@@ -789,6 +790,58 @@ const BRONVERWIJZINGEN = [
   "feitenkaart",
   "bevestigd feit",
   "bevestigde feiten",
+
+  // ── Familie 2: redactie-instructies aan onszelf (V3) ──────────────────────
+  //
+  // "Controleer vóór publicatie en vóór je afspraak ook de actuele inschrijving
+  // van de behandelaar" stond op de bekkenbodempagina van 3 september. Dat is
+  // een opdracht aan ons, in de tweede persoon, gericht aan iemand die op het
+  // punt staat te bellen.
+  "voor publicatie",
+  "vóór publicatie",
+  "voor het publiceren",
+  "vóór het publiceren",
+  "deze pagina beschrijft",
+  "op deze pagina niet",
+  "op deze pagina staan geen",
+  "in deze tekst",
+  "deze tekst gaat",
+
+  // ── Familie 3: bezwaarsjablonen die niet omgezet zijn (V3) ────────────────
+  //
+  // "Dit beantwoordt het bezwaar: 'Ik hoor pas achteraf wat het kost.'" en
+  // "Bang dat u achteraf pas hoort wat een reparatie kost?" zijn allebei een
+  // regel uit de werkinstructie die is blijven staan in plaats van omgezet.
+  "beantwoordt het bezwaar",
+  "dit bezwaar",
+  "het bezwaar dat",
+
+  // ── Familie 4: onze verificatiestatus als zin op de site (V3) ─────────────
+  //
+  // "Een bevestigde totaalprijs of vanafprijs inclusief btw is niet
+  // beschikbaar" en "Hulp buiten deze tijden is niet bevestigd" staan vier keer
+  // op de spoedpagina van 3 september. Dat is de schrijver die opschrijft wat
+  // hij zelf niet zeker weet, en de lezer met water door zijn plafond leest er
+  // iets heel anders in.
+  "is niet bevestigd",
+  "zijn niet bevestigd",
+  "niet bevestigd.",
+  "is niet beschikbaar",
+  "zijn niet beschikbaar",
+  "niet gespecificeerd",
+  "is niet vastgelegd",
+  "kon niet worden vastgesteld",
+
+  // ── Familie 5: zelfrelativering over ons eigen bewijs (V3) ────────────────
+  //
+  // "Deze bedrijfsgegevens vervangen nooit de inspectie van uw specifieke dak"
+  // is de laatste zin van een pagina van 1600 woorden. Een tekst die eindigt
+  // met een voorbehoud bij zijn eigen bewijs.
+  "bedrijfsgegevens vervangen",
+  "deze gegevens vervangen",
+  "vervangen nooit",
+  "is geen persoonlijke voorspelling",
+  "geen persoonlijke voorspelling",
 ];
 
 export interface SourceTalkResult {
@@ -824,5 +877,112 @@ export function checkSourceTalk(bodyMarkdown: string): SourceTalkResult {
         `Deze zin gaat over onze bronnen in plaats van over het onderwerp, en staat straks op de ` +
         `site van de klant: "${zin}". Schrijf op wat er WEL geldt, of laat de zin weg.`,
     ),
+  };
+}
+
+/** Wat de controle op de aanspreekvorm teruggeeft. */
+export interface AanspreekvormResult {
+  je: number;
+  u: number;
+  /** Gemengd? Dan staan beide vormen op één pagina. */
+  gemengd: boolean;
+  /** De zinnen met de vorm die er niet hoort, hooguit de eerste drie. */
+  zinnen: string[];
+  issues: string[];
+}
+
+/**
+ * Spreekt deze pagina de lezer overal op dezelfde manier aan?
+ * (V2 uit docs/tasks/contentkwaliteit-copywriterronde.md)
+ *
+ * ⚠️ Gemeten op de twaalf benchmarkpagina's van 3 september 2026: 95 keer "je"
+ * naast 81 keer "u", bij allebei de klanten door elkaar. Op de contactpagina van
+ * Fysio Centrum Utrecht slaat het binnen twee zinnen om. Dat is niet een
+ * stijlkeuze die je kunt verdedigen maar een fout die iedere corrector er in
+ * tien seconden uithaalt, en tot vandaag zag geen enkele controle hem.
+ *
+ * `gewenst` is de vorm die `kiesAanspreekvorm()` koos. "wij" gaat over hoe we
+ * het BEDRIJF noemen en niet over hoe we de LEZER aanspreken; die klant
+ * tutoyeert (zie `describePronoun`), dus hij wordt hier als "je" gewogen.
+ *
+ * Puur en testbaar (conventie 2). Geeft hele zinnen terug en geen posities: de
+ * gerichte reparatie werkt op secties en zinnen.
+ */
+export function checkAanspreekvorm(
+  bodyMarkdown: string,
+  gewenst: "je" | "u" | "wij",
+): AanspreekvormResult {
+  const tekst = bodyMarkdown ?? "";
+  const je = (tekst.match(/\b(je|jij|jou|jouw)\b/gi) ?? []).length;
+  const u = (tekst.match(/\b(u|uw)\b/gi) ?? []).length;
+  const gemengd = je > 0 && u > 0;
+
+  const fout = gewenst === "u" ? /\b(je|jij|jou|jouw)\b/i : /\b(u|uw)\b/i;
+  const zinnen = (tekst.replace(/^#{1,6} .*$/gm, " ").match(/[^.!?\n]+[.!?]/g) ?? [])
+    .map((z) => z.trim())
+    .filter((z) => fout.test(z))
+    .slice(0, 3);
+
+  const issues: string[] = [];
+  if (gemengd) {
+    const vorm = gewenst === "u" ? "u en uw" : "je en jouw";
+    issues.push(
+      `Deze pagina spreekt de lezer op twee manieren aan: ${je} keer met "je" en ${u} keer met ` +
+        `"u". Dat kan niet allebei. Gebruik overal ${vorm}.` +
+        (zinnen.length > 0 ? ` Bijvoorbeeld hier: "${zinnen[0]}"` : ""),
+    );
+  }
+
+  return { je, u, gemengd, zinnen, issues };
+}
+
+/** Wat de adrescontrole teruggeeft. */
+export interface AdresResult {
+  /** De gevonden adressen, hooguit de eerste drie. */
+  adressen: string[];
+  issues: string[];
+}
+
+/**
+ * Een straatnaam met huisnummer, of een postcode.
+ *
+ * Twee patronen naast elkaar, want geen van de twee dekt alles. "Pablo
+ * Picassostraat 216" en "Moreelsehoek 2" hebben een straatachtervoegsel;
+ * "Hommel 37" niet, maar die staat altijd naast een postcode ("7317BL"). Alle
+ * drie de adressen die op 3 september ten onrechte op een pagina stonden,
+ * worden zo gevonden.
+ *
+ * Bewust GEEN los patroon "hoofdletterwoord gevolgd door een getal": dat vindt
+ * ook "Apeldoorn 2026" en "Rc 6,0".
+ */
+const STRAAT_MET_NUMMER =
+  /\b[A-Z][\wàâéèêëîïôûùüÿç'\-]*(?:straat|laan|weg|plein|kade|hoek|dijk|singel|gracht|park|baan|pad|dreef|steeg|markt|wal)\s+\d+[a-zA-Z]?\b/g;
+const POSTCODE = /\b\d{4}\s?[A-Z]{2}\b/g;
+
+/**
+ * Staat er een adres op de pagina terwijl de klant er expliciet om vroeg dat
+ * niet te doen? (V5 uit docs/tasks/contentkwaliteit-copywriterronde.md)
+ *
+ * ⚠️ Gemeten op 3 september 2026: vier pagina's kregen "Zet er geen adres bij"
+ * mee, en twee ervan zetten er toch een op, één daarvan twee keer. Dit is de
+ * enige klantinstructie waarvoor een harde controle bestaat; de rest gaat als
+ * gesloten verbodslijst de prompt in (`lib/klantinstructies.ts`).
+ */
+export function checkAdresinstructie(tekst: string, verboden: boolean): AdresResult {
+  if (!verboden) return { adressen: [], issues: [] };
+
+  const veilig = tekst ?? "";
+  const adressen = Array.from(
+    new Set([...(veilig.match(STRAAT_MET_NUMMER) ?? []), ...(veilig.match(POSTCODE) ?? [])]),
+  ).slice(0, 3);
+
+  if (adressen.length === 0) return { adressen: [], issues: [] };
+
+  return {
+    adressen,
+    issues: [
+      `De klant heeft gevraagd om geen adres op deze pagina te zetten, en er staat er toch een: ` +
+        `"${adressen[0]}". Haal hem weg en verwijs naar de contactpagina.`,
+    ],
   };
 }

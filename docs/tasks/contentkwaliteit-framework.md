@@ -675,7 +675,8 @@ Bewust uitgesteld en nog steeds terecht uitgesteld, met één uitzondering.
 
 - **IJking.** De drempels rusten op zeven pagina's. Pas bij twintig menselijk beoordeelde pagina's
   (`IJKING_MINIMUM`) kan er iets bijgesteld worden. Dit is geen bouwwerk maar een meetronde, en het
-  is de volgende stap voor de eigenaar, en er liggen er nu twaalf. ⚠️ Bijgesteld op 3 september,
+  is de volgende stap voor de eigenaar, en er liggen er nu twaalf in `content_quality_reviews`
+  onder `benchmark_set = 'benchmark-3-september-2026'`. ⚠️ Bijgesteld op 3 september,
   ná de beoordeling door een echte copywriter: de vakmanschapsbeoordelaar zit qua NIVEAU goed
   (0,05 tot 0,32 punt van het menselijke oordeel op specificiteit, toon en overtuiging), maar zijn
   RANGSCHIKKING van de twaalf pagina's correleert nauwelijks met de menselijke (+0,19). De ijking

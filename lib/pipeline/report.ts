@@ -339,7 +339,19 @@ function buildReportInput(
       // `lib/recommendation-text.ts` (conventie 1).
       "Schrijf de toelichting bij een aanbeveling in gewone taal: NOOIT een vraagcode (V1, V2) " +
       "en NOOIT een gewicht in de lopende tekst. Beschrijf de vraag in woorden, dus niet " +
-      "\"V5 heeft gewicht 0,50\" maar \"wie in Breda een occasion zoekt\".",
+      "\"V5 heeft gewicht 0,50\" maar \"wie in Breda een occasion zoekt\". " +
+      // ✅ V7 (docs/tasks/contentkwaliteit-copywriterronde.md). Bij acht van de
+      // twaalf pagina's van 3 september 2026 was `targetIntent` leeg, en de
+      // externe copywriter noemde precies dat zijn belangrijkste punt: zonder
+      // aangewezen lezer schrijft een pagina voor iedereen en dus voor niemand.
+      // Het vangnet staat in `lib/lezersopdracht.ts` en `content-input-gate.ts`;
+      // dit is de instructie ernaast (conventie 1).
+      "In `targetIntent` beschrijf je de LEZER van die pagina in één zin, in deze vorm: welk type " +
+      "persoon het is, welk probleem die persoon heeft, en welke beslissing hij daarna moet nemen. " +
+      "Dus niet \"Daklekkage Apeldoorn\" of \"informatie over dakisolatie\", maar \"iemand met water " +
+      "door zijn plafond die vandaag hulp zoekt en wil weten wat een reparatie kost\". Een " +
+      "onderwerp is geen lezer. Laat dit veld nooit leeg en schrijf er nooit \"onbekend\" in: kun je " +
+      "de lezer niet benoemen, doe dan geen aanbeveling.",
   ].join("\n");
 }
 

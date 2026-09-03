@@ -34,6 +34,8 @@ import {
   checkContentGate,
   checkForbiddenTopics,
   checkQuality,
+  checkAanspreekvorm,
+  checkAdresinstructie,
   checkSourceTalk,
   checkTabooWords,
 } from "@/lib/pipeline/content-gate";
@@ -41,7 +43,11 @@ import { checkContractCoverage } from "@/lib/pipeline/content-coverage";
 import { splitSections } from "@/lib/pipeline/content-sections";
 import { containsCompetitor } from "@/lib/pipeline/redact";
 import { splitByTerms } from "@/lib/highlight";
-import { mostSimilar as vindGelijkende, type SimilarPage } from "@/lib/pipeline/similarity";
+import {
+  checkHerhaling,
+  mostSimilar as vindGelijkende,
+  type SimilarPage,
+} from "@/lib/pipeline/similarity";
 import { sourceCoverage, type FactItem, type WrittenClaim } from "@/lib/pipeline/factcard";
 import { detectClaimSentences, detectedCoverage } from "@/lib/pipeline/claim-extract";
 import {
@@ -57,6 +63,12 @@ import { beoordeelKwaliteit, type QualityEvaluation } from "@/lib/pipeline/quali
 import { analyseerRootCause, beschrijfRootCause, type RootCause } from "@/lib/pipeline/root-cause";
 import { issueTeksten, type QualityIssue } from "@/lib/pipeline/quality-issue";
 import { geoScore as geoScoreVanModel } from "@/lib/schemas/critique";
+import { kiesAanspreekvorm } from "@/lib/pipeline/tone-sliders";
+import { vindKlantinstructies, verbiedtAdres } from "@/lib/klantinstructies";
+import { checkBewijspunten } from "@/lib/pipeline/bewijspunten";
+import { checkKlantcitaten, vindCiteerbareAntwoorden } from "@/lib/pipeline/klantcitaten";
+import { checkOpening, checkMerkstem, checkVraagkoppen } from "@/lib/pipeline/paginavorm";
+import { checkAdviestoon, checkZelfondermijning } from "@/lib/pipeline/adviestoon";
 import type { AuditedClaim } from "@/lib/schemas/claim-audit";
 import type { ContentContract } from "@/lib/schemas/content-contract";
 import type { ContentPiece } from "@/lib/schemas/content-piece";
@@ -64,7 +76,10 @@ import type { ContentType, Profile } from "@/lib/types/database";
 
 export interface KeuringInput {
   /** De tekst zoals hij nu is. */
-  piece: Pick<ContentPiece, "bodyMarkdown" | "faq" | "claims">;
+  piece: Pick<ContentPiece, "bodyMarkdown" | "faq" | "claims"> & {
+    /** V9, migratie 0093. Ontbreekt bij een pagina van vóór die migratie. */
+    proofPoints?: ContentPiece["proofPoints"];
+  };
   title: string;
   type: ContentType;
   brandName: string;
@@ -89,6 +104,14 @@ export interface KeuringInput {
   plan: readonly AuditedClaim[];
   /** Lag er bewijs voor deze pagina? Bepaalt de root-cause-toewijzing. */
   bewijsAanwezig: boolean;
+  /**
+   * De tekst van de bestaande pagina, als die er is (V2).
+   *
+   * Alleen om de aanspreekvorm van het merk af te leiden wanneer het profiel
+   * hem niet vastlegt: wat de klant op zijn eigen site doet, weegt zwaarder dan
+   * onze standaard. Weglaten werkt en verandert niets (conventie 3).
+   */
+  bestaandeTekst?: string | null;
 }
 
 export interface Keuring {
@@ -184,6 +207,55 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
   const quality = checkQuality({ bodyMarkdown: body, mostSimilar: gelijkenis });
 
   const bronpraat = checkSourceTalk(body);
+
+  // ── V2: de aanspreekvorm, over de body én de vraag-en-antwoordblokken ─────
+  //
+  // Samen en niet apart: de contactpagina van 3 september tutoyeert in de
+  // opening en vousvoyeert in het FAQ-blok eronder, en los gemeten was elk deel
+  // op zichzelf consistent.
+  const aanspreekvorm = checkAanspreekvorm(
+    [body, ...faq.map((f) => `${f.q} ${f.a}`)].join("\n\n"),
+    kiesAanspreekvorm({
+      voorkeur: input.profile?.pronoun_preference ?? null,
+      formaliteit: (input.profile?.tone_formality ?? null) as 1 | 2 | 3 | null,
+      bestaandeTekst: input.bestaandeTekst ?? null,
+    }).vorm,
+  );
+  // ── V5: heeft de klant om iets gevraagd wat de pagina negeert? ───────────
+  const instructies = vindKlantinstructies(input.facts.map((f) => f.text));
+  const adres = checkAdresinstructie(
+    [body, ...faq.map((f) => `${f.q} ${f.a}`)].join("\n\n"),
+    verbiedtAdres(instructies),
+  );
+
+  // ── V9 en V4: is het materiaal van de klant een argument geworden? ───────
+  const heleTekstVoorBewijs = [body, ...faq.map((f) => `${f.q} ${f.a}`)].join("\n\n");
+  const bewijspunten = checkBewijspunten({
+    punten: input.piece.proofPoints,
+    tekst: heleTekstVoorBewijs,
+    factIds: input.facts.map((f) => f.id).filter((id): id is string => Boolean(id)),
+  });
+  const klantcitaten = checkKlantcitaten({
+    citaten: vindCiteerbareAntwoorden(input.facts.map((f) => f.text)),
+    tekst: heleTekstVoorBewijs,
+  });
+
+  // ── V8, V1 en V10: de vorm van de pagina ─────────────────────────────────
+  const opening = checkOpening(body, input.brandName);
+  const merkstem = checkMerkstem(body, input.brandName);
+  const vraagkoppen = checkVraagkoppen(body, profiel.type === "faq");
+
+  // ── V6: adviseert de pagina in plaats van te helpen kiezen? ──────────────
+  const adviestoon = checkAdviestoon(body);
+  const zelfondermijning = checkZelfondermijning(body);
+
+  // ── V12: staat op elke pagina van deze ronde hetzelfde rijtje feiten? ────
+  const herhaling = checkHerhaling({
+    feiten: input.facts.filter((f) => f.citable && f.allowed).map((f) => f.text),
+    tekst: body,
+    anderePaginas: input.siblingPages.map((p) => p.body),
+  });
+
   const taboo = checkTabooWords(body, faq, input.profile?.taboo_phrases ?? []);
   const verbodenOnderwerpen = checkForbiddenTopics(
     body,
@@ -255,6 +327,16 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
     coverage,
     quality,
     bronpraat,
+    aanspreekvorm,
+    adres,
+    bewijspunten,
+    klantcitaten,
+    opening,
+    merkstem,
+    vraagkoppen,
+    adviestoon,
+    zelfondermijning,
+    herhaling,
     taboo,
     verbodenOnderwerpen,
     typeOvertredingen,

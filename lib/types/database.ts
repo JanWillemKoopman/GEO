@@ -970,6 +970,8 @@ export interface ContentPiece {
   type: ContentType;
   title: string;
   target_intent: string | null;
+  /** V9, migratie 0093: per gekozen feit wat het voor de lezer betekent. */
+  proof_points_json: unknown;
   cluster: string | null;
   body_markdown: string | null;
   meta_title: string | null;

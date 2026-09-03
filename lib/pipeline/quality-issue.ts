@@ -89,6 +89,13 @@ export const ISSUE_BRONNEN = [
   "verboden_onderwerp",
   "typeregel",
   "bewijsdekking",
+  "aanspreekvorm",
+  "klantinstructie",
+  "bewijspunt",
+  "klantcitaat",
+  "paginavorm",
+  "adviestoon",
+  "herhaling",
 ] as const;
 export type IssueBron = (typeof ISSUE_BRONNEN)[number];
 

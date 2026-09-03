@@ -107,6 +107,80 @@ export function clampEmotional(value: unknown): 1 | 2 | 3 | 4 | null {
  * en niet "wij", want een model dat "wij" leest weet niet wie het moet noemen.
  * Deze regel gaat over hoe de LEZER wordt aangesproken.
  */
+export type Aanspreekvorm = "je" | "u" | "wij";
+
+export interface AanspreekvormKeuze {
+  vorm: Aanspreekvorm;
+  /** Waar de keuze vandaan komt. Voor de logregel en voor het narekenen. */
+  bron: "profiel" | "toon" | "bestaande pagina" | "standaard";
+}
+
+/**
+ * Kies ALTIJD een aanspreekvorm (V2 uit contentkwaliteit-copywriterronde.md).
+ *
+ * ⚠️ `describePronoun` bestond al, maar schreef alleen een promptregel als
+ * `profiles.pronoun_preference` gevuld was. Bij de twee klanten van de
+ * benchmarkronde was dat niet zo, en het gevolg is geteld: over twaalf
+ * pagina's 95 keer "je" naast 81 keer "u", bij ALLEBEI de klanten door elkaar,
+ * en op de contactpagina van Fysio Centrum Utrecht slaat het binnen twee zinnen
+ * om ("kun je rechtstreeks contact opnemen" gevolgd door "Wilt u meteen
+ * boeken"). Zonder regel kiest het model per pagina opnieuw.
+ *
+ * Vier bronnen, in deze volgorde:
+ *
+ * 1. `profiel`           De klant koos zelf. Gaat altijd voor.
+ * 2. `toon`              De formaliteitsschuif staat op 1 of 3, en die labels
+ *                        noemen de vorm letterlijk ("informeel, je en jij" /
+ *                        "formeel, u en uw"). Stand 2 zegt niets over de vorm
+ *                        en telt hier dus niet mee.
+ * 3. `bestaande pagina`  Wat er op de site van de klant zelf staat. Niet wat
+ *                        hij zei, maar wat hij doet.
+ * 4. `standaard`         Niets bekend: "u". Een ongevraagd "je" leest op een
+ *                        zakelijke site als te amicaal, andersom is het hooguit
+ *                        wat afstandelijk. En van de twee klanten die op
+ *                        3 september gemeten zijn, schrijven ze allebei op hun
+ *                        eigen site overwegend "u".
+ */
+export function kiesAanspreekvorm(input: {
+  voorkeur?: string | null;
+  formaliteit?: 1 | 2 | 3 | null;
+  bestaandeTekst?: string | null;
+}): AanspreekvormKeuze {
+  const voorkeur = (input.voorkeur ?? "").trim();
+  if (voorkeur === "je" || voorkeur === "u" || voorkeur === "wij") {
+    return { vorm: voorkeur, bron: "profiel" };
+  }
+
+  if (input.formaliteit === 3) return { vorm: "u", bron: "toon" };
+  if (input.formaliteit === 1) return { vorm: "je", bron: "toon" };
+
+  const tekst = (input.bestaandeTekst ?? "").trim();
+  if (tekst) {
+    const { je, u } = telAanspreekvormen(tekst);
+    // Een duidelijk verschil, geen nek-aan-nekrace: bij twee tegen drie zegt de
+    // tekst niets en is de standaard eerlijker dan een muntje opgooien.
+    if (je >= u * 2 && je >= 3) return { vorm: "je", bron: "bestaande pagina" };
+    if (u >= je * 2 && u >= 3) return { vorm: "u", bron: "bestaande pagina" };
+  }
+
+  return { vorm: "u", bron: "standaard" };
+}
+
+/**
+ * Tel beide aanspreekvormen in een tekst.
+ *
+ * Losse woorden, hoofdletterongevoelig. "u" en "je" zijn in het Nederlands
+ * nauwelijks iets anders dan een aanspreekvorm, dus dit is nauwkeurig genoeg om
+ * op te sturen, en het is te controleren door het zelf na te tellen.
+ */
+export function telAanspreekvormen(tekst: string): { je: number; u: number } {
+  const veilig = tekst ?? "";
+  return {
+    je: (veilig.match(/\b(je|jij|jou|jouw)\b/gi) ?? []).length,
+    u: (veilig.match(/\b(u|uw)\b/gi) ?? []).length,
+  };
+}
+
 export function describePronoun(voorkeur: string | null | undefined): string {
   switch ((voorkeur ?? "").trim()) {
     case "je":

@@ -127,6 +127,35 @@ const VAKMANSCHAP_SYSTEM =
   "rond de 50 en niet rond de 80. Zinnen die de lezer opdragen iets na te vragen ('neem contact op " +
   "voor de actuele prijs') zijn een teken van een LAGE score op specificiteit: een copywriter met " +
   "genoeg informatie schrijft die zin niet. " +
+  "(7) HERKENNING: begint de pagina bij een situatie die de lezer herkent, of bij het bedrijf en " +
+  "het onderwerp? Een pagina die opent met 'Bij [bedrijf] kun je terecht voor' scoort hier laag; " +
+  "een pagina die opent met wat de lezer op dat moment meemaakt, hoog. " +
+  // ── V13: menselijke ijkpunten ────────────────────────────────────────────
+  //
+  // ⚠️ Gemeten op 3 september 2026 over twaalf pagina's: het NIVEAU van deze
+  // beoordelaar klopt (0,14 punt van het menselijke oordeel), maar de VOLGORDE
+  // niet: de rangcorrelatie met de echte copywriter was +0,29, en van de vier
+  // pagina's die hij als zwakste aanwees waren er twee de verkeerde. De pagina
+  // die de copywriter gedeeld slechtste noemde ("absoluut niet versturen"),
+  // stond bij deze beoordelaar op de derde plaats van boven.
+  //
+  // Daarom hieronder de ijkpunten uit die ronde: wat een mens laag vond en
+  // waarom, en wat hij hoog vond. Invoertekst, dus vrijwel gratis.
+  "IJKPUNTEN VAN EEN ECHTE COPYWRITER (over twaalf pagina's van 3 september 2026). Gebruik deze om " +
+  "je cijfers te richten, niet om ze te kopiëren: " +
+  "LAAG scoorden pagina's die juridisch dichtgetimmerd zijn ('een eerste beoordeling is een " +
+  "globale inschatting', 'dit is geen persoonlijke voorspelling'), pagina's die de lezer huiswerk " +
+  "geven in plaats van antwoord ('vraag vooraf om een schriftelijke prijsopgave waarin ... zijn " +
+  "opgenomen'), en pagina's die administratief zijn waar ze eenvoudig moeten zijn ('een " +
+  "afspraakaanvraag is een verzoek om een moment in te plannen'). Een gratis aanbod dat als een " +
+  "risico klinkt, is het duidelijkste voorbeeld van een lage score: dat is de sterkste propositie " +
+  "die er is, en de tekst haalt hem onderuit. " +
+  "HOOG scoorden pagina's die de lezer een echte keuze helpen maken ('kan ik mijn oude dak " +
+  "isoleren zonder de pannen te vervangen') en pagina's die de schaamte of de twijfel van de lezer " +
+  "benoemen ('schaamte komt voor, maar maakt de klacht niet minder belangrijk'). " +
+  "Zijn oordeel over de hele stapel: 'de teksten weten wat het bedrijf doet en wat de lezer wil " +
+  "weten, maar nog onvoldoende waarom deze lezer dit bedrijf zou moeten kiezen.' Dat is precies " +
+  "wat OVERTUIGING meet, en dat was met 2,6 van 5 zijn laagste cijfer. " +
   "ZEG DAARNA of je deze tekst zonder aanpassing naar een klant zou sturen, en wat je als EERSTE " +
   "zou veranderen, met de kop van de sectie waar dat op slaat. Eén punt, niet vijf: het punt dat " +
   "het meeste oplevert. " +

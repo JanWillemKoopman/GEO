@@ -426,6 +426,32 @@ async function main(): Promise<void> {
       JSON.stringify(claims.map((c) => ({ ref: c.factRef, id: c.factId ? "ja" : "nee" }))),
     );
 
+    // ── V9 (migratie 0093): de bewijspunten komen mee tot in de kolom ────────
+    //
+    // Eind tot eind, want dit is de schakel die het verschil maakt tussen
+    // "het feit staat er" en "het feit is een argument geworden". Blijft hij
+    // onderweg liggen, dan meet de keuring straks een lege lijst en verdwijnt
+    // de bevinding zonder dat iemand het ziet.
+    const metBewijs = await db.client.query(
+      `select proof_points_json from public.content_pieces
+         where analysis_id = $1 and is_current = true`,
+      [analysisId],
+    );
+    const bewijspunten = (metBewijs.rows[0]?.proof_points_json ?? []) as {
+      factRef: string;
+      betekenis: string;
+    }[];
+    ok(
+      "0093: de bewijspunten staan in hun eigen kolom",
+      bewijspunten.length >= 3,
+      JSON.stringify(bewijspunten.map((b) => b.factRef)),
+    );
+    ok(
+      "en elk punt draagt een F-nummer en een betekeniszin",
+      bewijspunten.every((b) => Boolean(b.factRef?.trim()) && Boolean(b.betekenis?.trim())),
+      JSON.stringify(bewijspunten),
+    );
+
     ok(
       "de unieke index laat maar één huidige versie toe",
       (
@@ -7832,6 +7858,46 @@ async function main(): Promise<void> {
         "wie kiest voor een algemene pagina komt door de poort",
         vpAlgemeen.mag && vpAlgemeen.stand === "schrijven",
         vpAlgemeen.stand,
+      );
+
+      // ── 6. V7: een pagina zonder lezer wordt niet geschreven ─────────────
+      //
+      // Deze pagina heeft geen `target_intent`, maar wel doelvragen in zijn
+      // bevroren aanbeveling, en die vullen de lezersopdracht. Dat is precies
+      // de terugval die `bepaalLezersopdracht()` bedoelt, en hij is hier eind
+      // tot eind te zien: dezelfde pagina zonder doelvragen komt er niet door.
+      const { bepaalLezersopdracht } = await import("@/lib/lezersopdracht");
+      const { recommendationFromSnapshot } = await import("@/lib/pipeline/briefing");
+      const vpSnapshot = recommendationFromSnapshot(
+        (vpPoortRij[0] as { briefing_snapshot_json: unknown }).briefing_snapshot_json,
+      );
+      const vpDoelvragen = (vpSnapshot?.targets ?? []).map((t) => t.text).filter(Boolean);
+      ok(
+        "zonder doelomschrijving valt de lezer terug op de gemeten vraag",
+        bepaalLezersopdracht({ targetIntent: null, doelvragen: vpDoelvragen }).bron === "meting",
+        `doelvragen: ${vpDoelvragen.length}`,
+      );
+
+      const vpZonderVragen = await beoordeelPagina(admin as never, {
+        analysisId: vpAnalysisId,
+        profileId: vpProfileId,
+        piece: {
+          ...(vpPoortRij[0] as object),
+          write_mode: null,
+          target_intent: null,
+          briefing_snapshot_json: null,
+        } as never,
+        bewaar: false,
+      });
+      ok(
+        "maar zonder doelomschrijving én zonder gemeten vraag gaat de poort dicht",
+        vpZonderVragen.mag === false && vpZonderVragen.stand === "tegenhouden",
+        `${vpZonderVragen.stand} bij ${vpZonderVragen.graad}%`,
+      );
+      ok(
+        "en de melding zegt dat we niet weten voor wie de pagina is",
+        vpZonderVragen.melding.includes("voor wie deze pagina is"),
+        vpZonderVragen.melding,
       );
     }
 

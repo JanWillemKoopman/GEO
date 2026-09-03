@@ -6,8 +6,8 @@ import { isStaff } from "@/lib/staff";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
-import { loadLabPaginas, loadBenchmarkSets } from "@/lib/quality-lab";
-import { vergelijkMetMens, ijkingStand } from "@/lib/quality-benchmark";
+import { loadLabPaginas, loadBenchmarkSets, type LabPagina } from "@/lib/quality-lab";
+import { vergelijkMetMens, ijkingStand, berekenIjking } from "@/lib/quality-benchmark";
 import { formatDateShort } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -62,6 +62,25 @@ export default async function KwaliteitslabPage({
   );
   const beoordeeld = paginas.filter((p) => p.review !== null).length;
 
+  // ── V13: volgt de app ook de VOLGORDE van het menselijke oordeel? ─────────
+  //
+  // Het cijfer hierboven zegt of de app gemiddeld even streng is. Dit zegt of
+  // hij dezelfde pagina's onderaan zet, en dat is wat de reparatie stuurt.
+  // Gemeten op 3 september 2026 lagen die twee ver uiteen: het niveau klopte
+  // (0,14 punt verschil) terwijl de volgorde nauwelijks overeenkwam. Zonder dit
+  // getal op het scherm was dat vier weken onzichtbaar.
+  const ijking = berekenIjking(
+    paginas
+      .filter((p) => p.score !== null && p.review !== null)
+      .map((p) => ({
+        pieceId: p.pieceId,
+        model: p.score as number,
+        mens: gemiddeldMenselijkCijfer(p.review),
+      }))
+      .filter((p) => p.mens !== null)
+      .map((p) => ({ ...p, mens: p.mens as number })),
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -99,6 +118,27 @@ export default async function KwaliteitslabPage({
             </span>
           )}
         </div>
+        {ijking.paren > 0 && (
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+            {ijking.niveauverschil !== null && (
+              <span>
+                <span className="text-muted">Verschil in niveau: </span>
+                <span className="font-medium">
+                  {ijking.niveauverschil > 0 ? "+" : ""}
+                  {ijking.niveauverschil.toFixed(2)} punt
+                </span>
+              </span>
+            )}
+            {ijking.rangcorrelatie !== null && (
+              <span>
+                <span className="text-muted">Zelfde volgorde als de mens: </span>
+                <span className="font-medium">{ijking.rangcorrelatie.toFixed(2)}</span>
+              </span>
+            )}
+          </div>
+        )}
+        {ijking.paren > 0 && <p className="text-sm text-secondary">{ijking.melding}</p>}
+
         {benchmark.onderscheidendVermogen !== null && benchmark.onderscheidendVermogen < 5 && (
           <p className="text-sm text-secondary">
             Het cijfer van de app onderscheidt goede content nauwelijks van slechte. Zolang dat zo is,
@@ -190,4 +230,26 @@ export default async function KwaliteitslabPage({
       )}
     </div>
   );
+}
+
+/**
+ * Het menselijke oordeel als één cijfer, om naast de score van de app te leggen.
+ *
+ * Het gemiddelde van de vijf maten, en niet één ervan: de copywriter van
+ * 3 september scoorde ze los en ze liepen uiteen van 2,58 (overtuiging) tot 3,92
+ * (specificiteit). Eén maat eruit lichten zou de ijking laten afhangen van welke
+ * dimensie je toevallig kiest. `null` zodra er geen enkele maat is ingevuld: een
+ * half ingevulde beoordeling telt mee met wat er staat, een lege niet.
+ */
+function gemiddeldMenselijkCijfer(review: LabPagina["review"]): number | null {
+  if (!review) return null;
+  const cijfers = [
+    review.copywriter_equivalence,
+    review.company_specificity,
+    review.generic_ai_feel,
+    review.persuasiveness,
+    review.brand_representation,
+  ].filter((c): c is number => typeof c === "number");
+  if (cijfers.length === 0) return null;
+  return cijfers.reduce((s, c) => s + c, 0) / cijfers.length;
 }

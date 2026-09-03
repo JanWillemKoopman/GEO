@@ -162,6 +162,38 @@ import {
   zetContractVast,
 } from "@/lib/pipeline/input-coverage";
 import { inputpoort, GOED_GENOEG, TE_WEINIG } from "@/lib/content-input-gate";
+import { bepaalLezersopdracht, lezersblok, noemtPersoon, MIN_WOORDEN } from "@/lib/lezersopdracht";
+import { kiesAanspreekvorm, telAanspreekvormen } from "@/lib/pipeline/tone-sliders";
+import { checkAanspreekvorm, checkAdresinstructie } from "@/lib/pipeline/content-gate";
+import { vindKlantinstructies, instructieblok, verbiedtAdres } from "@/lib/klantinstructies";
+import { checkBewijspunten, betekenisStaatInTekst, MIN_BEWIJSPUNTEN } from "@/lib/pipeline/bewijspunten";
+import {
+  vindCiteerbareAntwoorden,
+  checkKlantcitaten,
+  overlapMetTekst,
+  citatenblok,
+} from "@/lib/pipeline/klantcitaten";
+import {
+  checkOpening,
+  checkMerkstem,
+  checkVraagkoppen,
+  eersteZin,
+  MERK_PER_HONDERD_MAX,
+  VRAAGKOPPEN_MAX,
+} from "@/lib/pipeline/paginavorm";
+import {
+  checkAdviestoon,
+  checkZelfondermijning,
+  GEBIEDEND_PER_HONDERD_MAX,
+  SLAP_PER_HONDERD_MAX,
+} from "@/lib/pipeline/adviestoon";
+import { checkHerhaling } from "@/lib/pipeline/similarity";
+import {
+  rangcorrelatie,
+  berekenIjking,
+  RANGCORRELATIE_NORM,
+  RANG_MINIMUM,
+} from "@/lib/quality-benchmark";
 import {
   normaliseerContract,
   formatContract,
@@ -17717,7 +17749,15 @@ group("De aanspreekvorm gaat mee naar de schrijver (verbetering 11)", () => {
   ok("een onbekende waarde ook niet", describePronoun("hen") === "");
 
   const content = leesBestand("lib/pipeline/content.ts");
-  ok("de schrijfprompt gebruikt hem", content.includes("describePronoun(profile?.pronoun_preference"));
+  // ⚠️ Bijgesteld op 3 september 2026 (V2). De prompt roept `describePronoun`
+  // niet meer rechtstreeks met het profielveld aan, want dan blijft hij leeg
+  // zodra de klant niets invulde, en dat was precies de bug. Hij gaat nu langs
+  // `kiesAanspreekvorm()`, die altijd een vorm oplevert.
+  ok("de schrijfprompt gebruikt hem", content.includes("describePronoun(\n      kiesAanspreekvorm({"));
+  ok(
+    "en de vorm wordt altijd gekozen, ook zonder profielveld",
+    content.includes("voorkeur: profile?.pronoun_preference"),
+  );
   const velden = leesBestand("lib/pipeline/brand-fields.ts");
   ok(
     "en het merkprofiel belooft niet meer dat het veld ongebruikt blijft",
@@ -17863,6 +17903,636 @@ group("Overslaan haalt de sectie eruit (vragen-voor-het-schrijven §6)", () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
+console.log("\nV7: voor wie is deze pagina? (contentkwaliteit-copywriterronde.md)");
+
+group("de lezersopdracht kiest zijn bron in de goede volgorde", () => {
+  // De doelomschrijving van de aanbeveling gaat voor: die is voor DEZE pagina
+  // bedacht. Dit is de echte tekst van de hoofdpagina over daklekkage,
+  // 3 september 2026.
+  const vanKlant = bepaalLezersopdracht({
+    targetIntent:
+      "Mensen in Apeldoorn die vandaag hulp zoeken bij water door het dak en vooraf " +
+      "duidelijkheid over de kosten willen",
+    doelvragen: ["Mijn dak lekt in Apeldoorn; hoe vind ik een dakdekker die vandaag nog kan komen?"],
+  });
+  ok("een echte doelomschrijving wordt gebruikt", vanKlant.bron === "klant", vanKlant.bron);
+  ok("en hij noemt een persoon", vanKlant.noemtPersoon === true);
+
+  // Is die leeg, dan de zwaarste gemeten vraag. Minder scherp, maar wel echt.
+  const vanMeting = bepaalLezersopdracht({
+    targetIntent: "",
+    doelvragen: ["Kan ik in De Meern zonder lange wachttijd terecht voor een pijnlijke knie?"],
+  });
+  ok("zonder doelomschrijving valt hij terug op de meting", vanMeting.bron === "meting");
+  ok("en dan staat de vraag er letterlijk in", vanMeting.zin?.includes("De Meern") === true);
+  ok("ook die opdracht noemt een persoon", vanMeting.noemtPersoon === true);
+
+  // ⚠️ Dit is het geval dat op 3 september acht van de twaalf pagina's trof:
+  // geen doelomschrijving én geen gemeten vraag.
+  const geen = bepaalLezersopdracht({ targetIntent: "", doelvragen: [] });
+  ok("zonder allebei is er geen lezer", geen.bron === "geen");
+  ok("en dus geen opdracht", geen.zin === null);
+
+  // Een model dat een verplicht veld moet vullen en niets weet, schrijft
+  // "onbekend". Dat mag niet als lezer doorgaan.
+  ok("\"onbekend\" telt niet als lezer", bepaalLezersopdracht({ targetIntent: "onbekend" }).bron === "geen");
+  ok("een leeg streepje ook niet", bepaalLezersopdracht({ targetIntent: "-" }).bron === "geen");
+
+  // Een onderwerp is geen opdracht.
+  ok(
+    "een label van twee woorden is geen lezersopdracht",
+    bepaalLezersopdracht({ targetIntent: "Daklekkage Apeldoorn" }).bron === "geen",
+  );
+  ok("de grens staat op vier woorden", MIN_WOORDEN === 4);
+});
+
+group("de lezersopdracht ziet het verschil tussen een onderwerp en een persoon", () => {
+  ok("\"iemand die\" is een persoon", noemtPersoon("Iemand die water door zijn plafond ziet komen"));
+  ok("\"mensen die\" ook", noemtPersoon("Mensen die vandaag hulp zoeken"));
+
+  // De echte doelomschrijving van de bekkenbodempagina van 3 september. Vier
+  // woorden lang genoeg, maar het is een onderwerp met een plaatsnaam.
+  const onderwerp = bepaalLezersopdracht({
+    targetIntent: "Bekkenfysiotherapie in Utrecht bij urineverlies, met of zonder verwijzing",
+  });
+  ok("een onderwerp komt er wel door", onderwerp.bron === "klant");
+  ok("maar telt niet als persoon", onderwerp.noemtPersoon === false);
+  ok(
+    "en dan vraagt de prompt om er eerst een persoon van te maken",
+    lezersblok(onderwerp).includes("nog geen persoon"),
+  );
+
+  // Het blok zelf: de opdracht staat erin en de instructie om bij de lezer te
+  // beginnen, want dat is regel 1 van de copywriter.
+  const blok = lezersblok(bepaalLezersopdracht({ targetIntent: "Iemand die zijn oude dak wil isoleren zonder de pannen te vervangen" }));
+  ok("het blok noemt de lezer", blok.includes("DE LEZER VAN DEZE PAGINA"));
+  ok("en zegt: begin bij zijn situatie", blok.includes("niet bij het bedrijf"));
+  ok("en zegt wat er weg mag", blok.includes("laat je weg"));
+  ok("zonder lezer is er geen blok", lezersblok(bepaalLezersopdracht({})) === "");
+});
+
+console.log("\nV13: volgt de beoordelaar ook de VOLGORDE van het menselijke oordeel?");
+
+group("de rangcorrelatie meet de volgorde en niet de hoogte", () => {
+  const paar = (model: number, mens: number, i: number) => ({ pieceId: `p${i}`, model, mens });
+
+  // Zelfde volgorde, heel andere schaal: dat is precies het geval waarvoor deze
+  // maat bestaat. De app scoort 0 tot 100, een mens 1 tot 5.
+  const zelfdeVolgorde = [60, 65, 70, 75, 80, 85].map((m, i) => paar(m, i + 1, i));
+  ok("gelijke volgorde levert 1,00 op", rangcorrelatie(zelfdeVolgorde) === 1);
+
+  const omgekeerd = [60, 65, 70, 75, 80, 85].map((m, i) => paar(m, 6 - i, i));
+  ok("omgekeerde volgorde levert -1,00 op", rangcorrelatie(omgekeerd) === -1);
+
+  // ⚠️ Onder vijf paren zegt een rangcorrelatie te weinig om op te sturen.
+  ok("met vier paren wordt er niets gemeten", rangcorrelatie(zelfdeVolgorde.slice(0, 4)) === null);
+  ok("de ondergrens staat op vijf", RANG_MINIMUM === 5);
+
+  // Alle cijfers gelijk: dan is er geen volgorde om te vergelijken.
+  ok(
+    "zonder spreiding is er geen oordeel",
+    rangcorrelatie([70, 70, 70, 70, 70].map((m, i) => paar(m, 3, i))) === null,
+  );
+});
+
+group("de ijking zegt of het cijfer klopt én of de volgorde klopt", () => {
+  // ⚠️ Dit is de echte stand van 3 september 2026, na het invoeren van de twaalf
+  // menselijke oordelen: het niveau klopt (0,14 punt verschil) en de volgorde
+  // niet. Precies de combinatie die de reparatie naar de verkeerde pagina
+  // stuurt, en die vier weken onzichtbaar bleef omdat het getal nergens stond.
+  const echt = [
+    { pieceId: "a", model: 61.2, mens: 3.0 },
+    { pieceId: "b", model: 61.7, mens: 2.8 },
+    { pieceId: "c", model: 72.0, mens: 3.2 },
+    { pieceId: "d", model: 67.5, mens: 3.2 },
+    { pieceId: "e", model: 64.0, mens: 3.6 },
+    { pieceId: "f", model: 65.9, mens: 3.4 },
+    { pieceId: "g", model: 68.9, mens: 3.4 },
+    { pieceId: "h", model: 71.1, mens: 2.8 },
+    { pieceId: "i", model: 62.0, mens: 3.0 },
+    { pieceId: "j", model: 68.7, mens: 3.6 },
+    { pieceId: "k", model: 72.8, mens: 3.4 },
+    { pieceId: "l", model: 69.3, mens: 3.4 },
+  ];
+  const ijk = berekenIjking(echt);
+  ok("alle twaalf paren tellen mee", ijk.paren === 12);
+  ok(
+    "het niveau ligt dicht bij het menselijke oordeel",
+    Math.abs(ijk.niveauverschil ?? 9) < 0.5,
+    String(ijk.niveauverschil),
+  );
+  ok("de melding zegt dat het niveau dichtbij is", ijk.melding.includes("dichtbij"));
+  ok(
+    "maar de volgorde haalt de norm niet",
+    (ijk.rangcorrelatie ?? 1) < RANGCORRELATIE_NORM,
+    String(ijk.rangcorrelatie),
+  );
+  ok("en de melding waarschuwt daarvoor", ijk.melding.includes("verkeerde pagina"));
+  ok("er zijn er nog acht nodig voor een volledige ijking", ijk.nogNodig === 8);
+
+  // De goede uitkomst: allebei in orde.
+  const goed = [61, 64, 67, 70, 73, 76].map((m, i) => ({ pieceId: `x${i}`, model: m, mens: 3 + i * 0.15 }));
+  const gezond = berekenIjking(goed);
+  ok("bij dezelfde volgorde zegt de melding dat het goed zit", gezond.melding.includes("dezelfde pagina's onderaan"));
+
+  // Zonder menselijke oordelen weten we niets, en dat zegt hij ook.
+  const leeg = berekenIjking([]);
+  ok("zonder oordelen is er geen ijking", leeg.rangcorrelatie === null && leeg.niveauverschil === null);
+  ok("en de melding zegt dat we niets weten", leeg.melding.includes("nog geen enkele pagina"));
+});
+
+console.log("\nV6 en V12: adviseren, en hetzelfde rijtje feiten op elke pagina");
+
+group("de pagina geeft geen huiswerk en stuurt niemand weg", () => {
+  // ⚠️ De hoofdpagina over daklekkage had 23 gebiedende zinnen op 1536 woorden,
+  // 1,50 per honderd. Dat is de uitschieter waar de grens op geijkt is.
+  const huiswerk =
+    Array.from({ length: 12 }, (_, i) => `Vraag vooraf naar onderdeel ${i} van de offerte.`).join(" ") +
+    " " +
+    Array.from({ length: 60 }, (_, i) => `Een dak bestaat uit meerdere lagen en onderdelen nummer ${i}.`).join(" ");
+  const zwaar = checkAdviestoon(huiswerk);
+  ok("een pagina vol gebiedende zinnen wordt gezien", zwaar.gebiedend >= 12, String(zwaar.gebiedend));
+  ok("en levert een bevinding op", zwaar.issues.some((i) => i.includes("huiswerk")));
+  ok("die zegt dat dit de site van de aanbieder zelf is", zwaar.issues[0].includes("aanbieder zelf"));
+
+  // ⚠️ De grenzen zijn geijkt zodat ze de uitschieters vinden en niet alles.
+  // Een pagina met een paar gebiedende zinnen hoort er niet tegenaan te lopen.
+  const normaal =
+    "Vraag bij twijfel je huisarts om advies. " +
+    Array.from({ length: 80 }, (_, i) => `Wij behandelen klachten aan knie en enkel, geval ${i}.`).join(" ");
+  ok("een enkele gebiedende zin mag gewoon", checkAdviestoon(normaal).issues.length === 0);
+  ok("de grenzen staan waar de uitschieters beginnen", GEBIEDEND_PER_HONDERD_MAX === 0.6 && SLAP_PER_HONDERD_MAX === 0.8);
+
+  // ⚠️ De twee echte zinnen van 3 september die de bezoeker wegsturen.
+  const checklist = checkZelfondermijning(
+    "Zo vergelijk je dakdekkers eerlijk. Controleer acht punten. Gebruik in Zutphen en Deventer " +
+      "dezelfde checklist.",
+  );
+  ok("de vergelijkingschecklist wordt gevonden", checklist.zinnen.length >= 1, JSON.stringify(checklist.zinnen));
+  ok("en dat is blokkerend materiaal", checklist.issues[0].includes("vergelijkingssite"));
+
+  const register = checkZelfondermijning(
+    "Die algemene inschrijving is niet automatisch hetzelfde als registratie in een deelregister " +
+      "bekkenfysiotherapie, dus vraag bij het plannen naar de controleerbare registratie van je " +
+      "behandelaar.",
+  );
+  ok("de oproep om de eigen therapeut na te trekken ook", register.zinnen.length >= 1);
+
+  // Gewone zinnen uit dezelfde pagina's slaan niet aan.
+  ok(
+    "geen vals alarm op een gewone zin",
+    checkZelfondermijning("Wij zijn VCA-gecertificeerd en volledig verzekerd.").zinnen.length === 0,
+  );
+});
+
+group("niet elke pagina hetzelfde rijtje feiten", () => {
+  // ⚠️ De echte verhouding van 3 september: bij MJB stonden gratis inspectie,
+  // binnen 24 uur en het fotorapport op alle zes de pagina's.
+  const feiten = [
+    "Onze gratis dakinspectie omvat een fotorapport en is vrijblijvend",
+    "Binnen 24 uur ter plaatse bij een lekkage",
+    "Wij hebben 25 jaar ervaring",
+    "Wij hebben meer dan 500 klanten geholpen",
+    "Wij zijn VCA-gecertificeerd",
+  ];
+  const overal =
+    "Onze gratis dakinspectie omvat een fotorapport en is vrijblijvend. Binnen 24 uur ter plaatse " +
+    "bij een lekkage. Wij hebben 25 jaar ervaring en meer dan 500 klanten geholpen. Wij zijn " +
+    "VCA-gecertificeerd.";
+  const herhaald = checkHerhaling({
+    feiten,
+    tekst: overal,
+    anderePaginas: [overal, overal, overal, overal, overal],
+  });
+  ok("de feiten die overal staan worden gevonden", herhaald.overal.length >= 4, JSON.stringify(herhaald.overal));
+  ok("en dat levert een bevinding op", herhaald.issues.length === 1);
+  ok("die zegt dat elke pagina dezelfde stem krijgt", herhaald.issues[0].includes("dezelfde stem"));
+
+  // Een pagina die zijn eigen feiten kiest, slaat niet aan.
+  const eigen = "Wij zijn VCA-gecertificeerd en werken met vier eigen dakdekkers.";
+  ok(
+    "een eigen selectie is geen bevinding",
+    checkHerhaling({ feiten, tekst: eigen, anderePaginas: [overal, overal, overal] }).issues.length === 0,
+  );
+
+  // ⚠️ Met minder dan twee andere pagina's valt er niets te vergelijken.
+  ok(
+    "bij één andere pagina wordt er niets gemeten",
+    checkHerhaling({ feiten, tekst: overal, anderePaginas: [overal] }).issues.length === 0,
+  );
+});
+
+console.log("\nV8, V1 en V10: de opening, de merkstem en de koppen");
+
+group("de opening begint bij de lezer, de alinea noemt het merk", () => {
+  // ⚠️ De echte openingen van 3 september. Elf van de twaalf begonnen zo.
+  const bijMerk = checkOpening(
+    "In Apeldoorn kun je MJB Dakservice bellen of WhatsAppen voor hulp bij daklekkage. Vraag " +
+      "vóór de start om een schriftelijke prijsopgave.",
+    "MJB Dakservice",
+  );
+  ok("een opening die bij het merk begint, wordt gezien", bijMerk.begintBijMerk === true);
+  ok("en de bevinding citeert de zin", bijMerk.issues.some((i) => i.includes("In Apeldoorn")));
+
+  const metJa = checkOpening(
+    "Ja. MJB Dakservice kan bij een daklekkage in Zutphen binnen 24 uur ter plaatse zijn.",
+    "MJB Dakservice",
+  );
+  ok("het 'Ja' erboven wordt apart gezien", metJa.begintMetJa === true);
+  ok("en levert een eigen bevinding op", metJa.issues.some((i) => i.includes("geen vraag boven")));
+
+  // Zoals het wél moet: eerste zin over de lezer, merknaam in dezelfde alinea.
+  const goed = checkOpening(
+    "Lekt uw dak en staat er water op zolder? Dan wilt u vooral weten hoe snel er iemand komt " +
+      "en wat het gaat kosten. MJB Dakservice staat binnen 24 uur op uw dak.",
+    "MJB Dakservice",
+  );
+  ok("een opening die bij de lezer begint is schoon", goed.issues.length === 0, JSON.stringify(goed.issues));
+  ok("de merknaam staat wel in de alinea", goed.merkInAlinea === true);
+
+  // ⚠️ De andere kant: V8 mag de citeerbaarheid niet slopen. Een opening zónder
+  // merknaam in de hele alinea is óók fout.
+  const zonderMerk = checkOpening(
+    "Lekt uw dak? Dan wilt u weten hoe snel er iemand komt. Bel ons vandaag nog.",
+    "MJB Dakservice",
+  );
+  ok("een alinea zonder merknaam levert een bevinding op", zonderMerk.issues.length === 1);
+  ok("en die zegt waarom dat erg is", zonderMerk.issues[0].includes("AI-assistent citeert"));
+
+  ok(
+    "de eerste zin wordt goed geknipt",
+    eersteZin("Lekt uw dak? Dan wilt u weten hoe snel.") === "Lekt uw dak?",
+  );
+});
+
+group("het bedrijf spreekt weer zelf op zijn eigen pagina", () => {
+  // ⚠️ Dit is de gemeten verhouding van 3 september: nul wij-zinnen en één
+  // merkvermelding per 83 woorden.
+  const derdePersoon = Array.from(
+    { length: 8 },
+    (_, i) => `MJB Dakservice vermeldt dat het onderdeel ${i} binnen 24 uur ter plaatse kan zijn.`,
+  ).join(" ");
+  const stil = checkMerkstem(derdePersoon, "MJB Dakservice");
+  ok("nul wij-zinnen wordt gezien", stil.wijZinnen === 0);
+  ok("met de merkdichtheid erbij", stil.perHonderd > MERK_PER_HONDERD_MAX, String(stil.perHonderd));
+  ok("en dat levert een bevinding op", stil.issues.length === 1);
+  ok("die zegt dat het als een beschrijving óver het bedrijf leest", stil.issues[0].includes("óver het bedrijf"));
+
+  // Zoals het wél moet: de merknaam in de citeerbare zin, de rest in wij-vorm.
+  const metStem =
+    "MJB Dakservice staat binnen 24 uur op uw dak. Wij komen met onze eigen ploeg van vier " +
+    "dakdekkers, dus u weet wie er komt. Wij zoeken eerst uit waar het water vandaan komt en " +
+    "vertellen u daarna wat het kost. Doorwerken over houtrot heen doen wij niet.";
+  ok("met wij-zinnen erbij is er geen bevinding", checkMerkstem(metStem, "MJB Dakservice").issues.length === 0);
+
+  // Veel merknaam mag, zolang het bedrijf ook zelf praat.
+  ok(
+    "de twee eisen gelden samen en niet los",
+    checkMerkstem("MJB Dakservice helpt. Wij komen langs. MJB Dakservice belt u.", "MJB Dakservice")
+      .issues.length === 0,
+  );
+});
+
+group("een verhaal in plaats van een vragenlijst", () => {
+  // ⚠️ Vier van de twaalf pagina's van 3 september hadden alleen vraagkoppen.
+  const alleenVragen =
+    "## Wat houdt het consult in?\n\ntekst\n\n## Past het bij mij?\n\ntekst\n\n" +
+    "## Wanneer naar de huisarts?\n\ntekst\n\n## Wat kost het?\n\ntekst\n";
+  const vragenlijst = checkVraagkoppen(alleenVragen, false);
+  ok("vier van de vier koppen is een vraag", vragenlijst.vragen === 4 && vragenlijst.koppen === 4);
+  ok("en dat is boven de grens", vragenlijst.aandeel > VRAAGKOPPEN_MAX);
+  ok("de bevinding noemt de verhouding", vragenlijst.issues[0]?.includes("4 van de 4"));
+
+  const verhaal =
+    "## Zo herkent u een schoorsteenlekkage\n\ntekst\n\n## Wij zoeken eerst de oorzaak\n\n" +
+    "tekst\n\n## Wat het kost\n\ntekst\n\n## Kan het ook morgen?\n\ntekst\n";
+  ok("de helft mag wel", checkVraagkoppen(verhaal, false).issues.length === 0);
+
+  // ⚠️ Bij een FAQ zijn vragen juist het punt.
+  ok("een FAQ mag alleen vragen hebben", checkVraagkoppen(alleenVragen, true).issues.length === 0);
+
+  // Een korte pagina met drie koppen is geen vragenlijst maar een korte pagina.
+  ok(
+    "onder de vier koppen slaat hij niet aan",
+    checkVraagkoppen("## Wat?\n\na\n\n## Hoe?\n\nb\n", false).issues.length === 0,
+  );
+});
+
+console.log("\nV9 en V4: van feit naar betekenis, in de woorden van de ondernemer");
+
+group("bewijspunten: is een feit omgezet naar een argument?", () => {
+  // De drie voorbeelden die de externe copywriter zelf gaf.
+  const tekst =
+    "Wij komen met onze eigen ploeg. U weet dus wie er op uw dak komt. Vinden wij extra werk, " +
+    "dan hoort u dat eerst: geen onverwachte werkzaamheden zonder dat u akkoord geeft. Na de " +
+    "inspectie ziet u zelf wat we aantreffen en wat er eerst moet gebeuren.";
+  const goed = checkBewijspunten({
+    punten: [
+      { factRef: "F1", betekenis: "u weet wie er op uw dak komt" },
+      { factRef: "F2", betekenis: "geen onverwachte werkzaamheden zonder dat u akkoord geeft" },
+      { factRef: "F3", betekenis: "u ziet zelf wat we aantreffen" },
+    ],
+    tekst,
+    factIds: ["F1", "F2", "F3", "F4"],
+  });
+  ok("drie omgezette feiten is genoeg", goed.issues.length === 0, JSON.stringify(goed.issues));
+  ok("en dat zijn er drie", goed.aantal === MIN_BEWIJSPUNTEN);
+
+  // Te weinig: dan is er geen keuze gemaakt.
+  const teWeinig = checkBewijspunten({
+    punten: [{ factRef: "F1", betekenis: "u weet wie er op uw dak komt" }],
+    tekst,
+    factIds: ["F1"],
+  });
+  ok("één bewijspunt is te weinig", teWeinig.issues.length === 1);
+  ok("en de bevinding zegt hoeveel er zijn", teWeinig.issues[0].includes("1 van de"));
+
+  // Een verzonnen F-nummer is geen bewijs.
+  const verzonnen = checkBewijspunten({
+    punten: [
+      { factRef: "F9", betekenis: "u weet wie er op uw dak komt" },
+      { factRef: "F2", betekenis: "geen onverwachte werkzaamheden zonder dat u akkoord geeft" },
+      { factRef: "F3", betekenis: "u ziet zelf wat we aantreffen" },
+    ],
+    tekst,
+    factIds: ["F1", "F2", "F3"],
+  });
+  ok("een onbekend F-nummer wordt gevonden", verzonnen.onbekend.length === 1);
+  ok("en genoemd in de bevinding", verzonnen.issues.some((i) => i.includes("F9")));
+
+  // ⚠️ De kern van V9: een mooie zin aanleveren en hem niet opschrijven.
+  const nietGeschreven = checkBewijspunten({
+    punten: [
+      { factRef: "F1", betekenis: "u weet wie er op uw dak komt" },
+      { factRef: "F2", betekenis: "wij bellen u binnen een kwartier terug na uw melding" },
+      { factRef: "F3", betekenis: "u ziet zelf wat we aantreffen" },
+    ],
+    tekst,
+    factIds: ["F1", "F2", "F3"],
+  });
+  ok("een niet-opgeschreven bewijspunt wordt gevonden", nietGeschreven.nietGeschreven.length === 1);
+  ok(
+    "en de bevinding citeert hem",
+    nietGeschreven.issues.some((i) => i.includes("binnen een kwartier")),
+  );
+
+  ok("een herformulering telt wel mee", betekenisStaatInTekst("u weet wie er op uw dak komt", tekst));
+  ok(
+    "een heel andere zin niet",
+    !betekenisStaatInTekst("wij hebben tweehonderd vestigingen in Duitsland", tekst),
+  );
+
+  // ⚠️ Conventie 3: een pagina van vóór migratie 0093 verandert niet van oordeel.
+  const oud = checkBewijspunten({ punten: undefined, tekst, factIds: ["F1"] });
+  ok("zonder het veld verandert er niets", oud.issues.length === 0);
+});
+
+group("de eigen woorden van de ondernemer moeten de parafrase overleven", () => {
+  // ⚠️ De vier antwoorden hieronder zijn letterlijk wat de twee klanten op
+  // 3 september gaven. Alle vier bevatten een reden, en van alle vier is die
+  // reden op de pagina gesneuveld.
+  const antwoorden = [
+    "Wat doen jullie als jullie tijdens dakisolatie houtrot vinden: Dan leggen we het werk stil " +
+      "en maken we foto's. Doorwerken over houtrot heen doen we niet, ook niet als de klant erom " +
+      "vraagt, want dan kunnen we onze garantie op het werk niet waarmaken.",
+    "Wat moet iemand meenemen naar de eerste afspraak: Een identiteitsbewijs en de pas van de " +
+      "zorgverzekering. Voor hardlopers: neem de schoenen mee waar je het meest op loopt, want " +
+      "daar zien we vaak aan waar de belasting zit.",
+    "Binnen 24 uur ter plaatse bij een lekkage",
+    "Contracten met alle zorgverzekeraars",
+  ];
+
+  const citaten = vindCiteerbareAntwoorden(antwoorden);
+  ok("de twee antwoorden met een reden worden gevonden", citaten.length === 2, String(citaten.length));
+  ok("het langste staat vooraan", citaten[0].tekst.includes("houtrot"), citaten[0].tekst.slice(0, 40));
+  ok("een kort feit telt niet mee", !citaten.some((c) => c.tekst.includes("Contracten")));
+
+  // De echte parafrase van 3 september: de procedure bleef, de reden verdween.
+  const parafrase =
+    "Wordt tijdens isolatiewerk schade gevonden, dan legt MJB Dakservice het werk stil, maakt " +
+    "foto's en meldt eerst de herstelkosten. Het werk gaat pas verder na akkoord.";
+  const weg = checkKlantcitaten({ citaten, tekst: parafrase });
+  ok("de weggeparafraseerde reden wordt gezien", weg.issues.length === 1, JSON.stringify(weg));
+  ok("en de bevinding toont het antwoord van de ondernemer", weg.issues[0].includes("houtrot"));
+
+  // Zoals het wél moet: de reden staat er.
+  const goed =
+    "Vinden wij houtrot, dan leggen wij het werk stil en bellen wij u. Doorwerken over houtrot " +
+    "heen doen wij niet, ook niet als u erom vraagt, want dan kunnen wij onze garantie op ons " +
+    "werk niet waarmaken.";
+  ok("met de reden erin is er geen bevinding", checkKlantcitaten({ citaten, tekst: goed }).issues.length === 0);
+  ok(
+    "en de overlap is hoog",
+    overlapMetTekst(citaten[0].tekst, goed) > 0.6,
+    String(overlapMetTekst(citaten[0].tekst, goed)),
+  );
+
+  // Zonder citeerbare antwoorden geen eis: niet elke klant praat zo.
+  ok("zonder citaten geen bevinding", checkKlantcitaten({ citaten: [], tekst: parafrase }).issues.length === 0);
+
+  const blok = citatenblok(citaten);
+  ok("het promptblok noemt de reden als het punt", blok.includes("mét die reden"));
+  ok("en waarschuwt voor de procedurezin", blok.includes("procedurezin"));
+  ok("zonder citaten is er geen blok", citatenblok([]) === "");
+});
+
+console.log("\nV5: een instructie van de klant is een verbod, geen feit");
+
+group("instructiezinnen worden uit een klantantwoord gehaald", () => {
+  // ⚠️ Dit is het letterlijke antwoord dat vier FCU-pagina's meekregen op
+  // 3 september 2026. Twee van die vier zetten er toch een adres bij.
+  const echt =
+    "Welk telefoonnummer en adres moeten er op deze pagina staan: Het telefoonnummer is " +
+    "030-2270437. Zet er geen adres bij, want we hebben twee vestigingen, bij Utrecht Centraal " +
+    "en in Leidsche Rijn, en welke van de twee het wordt hangt af van waar iemand woont. " +
+    "Verwijs voor de adressen naar de contactpagina.";
+
+  const gevonden = vindKlantinstructies([echt]);
+  ok("twee instructies gevonden", gevonden.length === 2, JSON.stringify(gevonden.map((g) => g.soort)));
+  ok("het verbod op het adres", gevonden.some((g) => g.soort === "verbod" && g.zin.includes("geen adres")));
+  ok("en de opdracht om te verwijzen", gevonden.some((g) => g.soort === "opdracht" && g.zin.includes("contactpagina")));
+  ok("en dat is een adresverbod", verbiedtAdres(gevonden) === true);
+
+  // Het telefoonnummer blijft een gewoon feit en wordt geen verbod.
+  ok(
+    "het telefoonnummer wordt niet als instructie gelezen",
+    !gevonden.some((g) => g.zin.includes("030-2270437")),
+  );
+
+  // Een gewoon antwoord is geen instructie, ook niet als er "geen" in staat.
+  const gewoon = vindKlantinstructies([
+    "Duurt een noodreparatie gemiddeld 2 tot 6 uur: Meestal korter. Een gemiddelde noemen we " +
+      "liever niet, want het hangt echt af van wat we aantreffen.",
+  ]);
+  ok("een gewoon antwoord blijft een feit", gewoon.length === 0, JSON.stringify(gewoon));
+
+  const blok = instructieblok(gevonden);
+  ok("het promptblok noemt de opdrachten", blok.includes("geen adres"));
+  ok("en zegt dat de ondernemer het zelf vroeg", blok.includes("ondernemer"));
+  ok("zonder instructies is er geen blok", instructieblok([]) === "");
+});
+
+group("een adres op een pagina die er geen mocht hebben, blokkeert", () => {
+  // De drie adressen die op 3 september ten onrechte op een pagina stonden.
+  const straat = checkAdresinstructie(
+    "De twee Utrechtse vestigingsadressen zijn Pablo Picassostraat 216 en Moreelsehoek 2.",
+    true,
+  );
+  ok("een straat met huisnummer wordt gevonden", straat.adressen.length >= 1, JSON.stringify(straat.adressen));
+  ok("de bevinding citeert het adres", straat.issues[0]?.includes("Picassostraat") === true);
+  ok("en zegt waar het wel hoort", straat.issues[0]?.includes("contactpagina") === true);
+
+  const postcode = checkAdresinstructie("MJB Dakservice, Hommel 37, 7317BL Apeldoorn.", true);
+  ok("een adres zonder straatachtervoegsel wordt via de postcode gevonden", postcode.adressen.length >= 1);
+
+  // ⚠️ Zonder instructie geen controle: de meeste klanten willen hun adres
+  // juist op de pagina, en dan is dit geen fout maar het punt van de pagina.
+  ok(
+    "zonder verbod slaat de controle nooit aan",
+    checkAdresinstructie("Pablo Picassostraat 216", false).issues.length === 0,
+  );
+
+  // Geen vals alarm op gewone getallen uit de twaalf pagina's.
+  const schoon = [
+    "Een dakdekker in Apeldoorn rekent gemiddeld 45 tot 65 euro per uur.",
+    "Bel 0578 234 502 of gebruik WhatsApp.",
+    "Bij EPDM wordt een levensduur van 40 tot 50 jaar genoemd.",
+    "PIR of Resol isolatie naar Rc 6,0.",
+    "Binnen vijf behandelingen heeft 86% de doelen behaald.",
+  ];
+  for (const zin of schoon) {
+    ok(`geen vals alarm: "${zin.slice(0, 40)}..."`, checkAdresinstructie(zin, true).issues.length === 0, zin);
+  }
+});
+
+console.log("\nV3: ons werkproces lekt niet meer de klantpagina in");
+
+group("de verbrede bronpraatcontrole vindt de echte zinnen van 3 september", () => {
+  // ⚠️ Alle zeven hieronder stonden LETTERLIJK op de twaalf benchmarkpagina's,
+  // en de oude lijst van elf zoektermen vond er nul van. Vijf families, elk met
+  // zijn eigen manier om het mis te laten gaan.
+  const echt = [
+    // Familie: een redactie-instructie aan onszelf, in de tweede persoon.
+    "Controleer vóór publicatie en vóór je afspraak ook de actuele inschrijving van de " +
+      "behandelaar in het Register bekkenfysiotherapie.",
+    // Familie: een zin over onze eigen tekst.
+    "De locaties worden op deze pagina niet inhoudelijk van elkaar onderscheiden.",
+    // Familie: een bezwaarsjabloon dat niet omgezet is.
+    "Dit beantwoordt het bezwaar: \u201cIk hoor pas achteraf wat het kost.\u201d",
+    // Familie: onze verificatiestatus als mededeling aan de klant. Vier van
+    // deze soort stonden op één spoedpagina.
+    "Hulp buiten deze tijden is niet bevestigd.",
+    "Een bevestigde totaalprijs of vanafprijs inclusief btw is niet beschikbaar.",
+    "Een vaste reparatieduur en uitvoering in één bezoek zijn niet bevestigd.",
+    // Familie: zelfrelativering over ons eigen bewijs, als slotzin.
+    "Deze bedrijfsgegevens vervangen nooit de inspectie van uw specifieke dak.",
+  ];
+  for (const zin of echt) {
+    ok(
+      `gevonden: "${zin.slice(0, 46)}..."`,
+      checkSourceTalk(zin).sentences.length === 1,
+      zin,
+    );
+  }
+
+  // ⚠️ Even belangrijk als wat hij vindt: waar hij NIET op aanslaat. Deze zinnen
+  // komen uit dezelfde twaalf pagina's en zijn gewone, goede zinnen.
+  const schoon = [
+    "MJB Dakservice kan bij een lekkage binnen 24 uur ter plaatse zijn.",
+    "Vang water op en verplaats meubels en andere spullen.",
+    "Water kan onder dakbedekking of langs een dakdoorvoer en loodslab lopen voordat het binnen " +
+      "zichtbaar wordt.",
+    "Een eerste consult is volgens de praktijk binnen 24 uur mogelijk.",
+    "Bekkenfysiotherapie is gespecialiseerde fysiotherapie voor het bekken en de bekkenbodem.",
+    "De prijs hangt onder meer af van de oorzaak, het daktype en de omvang van de schade.",
+    "Bel 0578 234 502 of stuur via WhatsApp de locatie en zichtbare schade door.",
+  ];
+  for (const zin of schoon) {
+    ok(`geen vals alarm: "${zin.slice(0, 40)}..."`, checkSourceTalk(zin).sentences.length === 0, zin);
+  }
+
+  // De bevinding moet de zin letterlijk noemen, anders kan de reparatie hem
+  // niet vinden en weet de klant niet wat er weg moet.
+  const bevinding = checkSourceTalk("Hulp buiten deze tijden is niet bevestigd.").issues[0] ?? "";
+  ok("de bevinding citeert de zin", bevinding.includes("niet bevestigd"));
+  ok("en zegt wat er in de plaats moet", bevinding.includes("wat er WEL geldt"));
+
+  // Koppen tellen niet mee: "## Wat is niet bevestigd" is geen bewering.
+  ok(
+    "een kop telt niet mee",
+    checkSourceTalk("## Deze pagina beschrijft het aanbod").sentences.length === 0,
+  );
+});
+
+console.log("\nV2: één aanspreekvorm per pagina (contentkwaliteit-copywriterronde.md)");
+
+group("de aanspreekvorm wordt altijd gekozen, en de bron is na te rekenen", () => {
+  ok(
+    "wat de klant zelf koos gaat voor",
+    kiesAanspreekvorm({ voorkeur: "je", formaliteit: 3 }).vorm === "je",
+  );
+  ok("en dan is de bron het profiel", kiesAanspreekvorm({ voorkeur: "u" }).bron === "profiel");
+
+  // De formaliteitsschuif noemt de vorm letterlijk in zijn labels.
+  ok("stand 3 is formeel", kiesAanspreekvorm({ formaliteit: 3 }).vorm === "u");
+  ok("stand 1 is informeel", kiesAanspreekvorm({ formaliteit: 1 }).vorm === "je");
+  ok("en de bron is dan de toon", kiesAanspreekvorm({ formaliteit: 1 }).bron === "toon");
+
+  // ⚠️ Stand 2 zegt niets over de aanspreekvorm, alleen over de formaliteit.
+  // Dan telt wat er op de site van de klant staat.
+  const uitSite = kiesAanspreekvorm({
+    formaliteit: 2,
+    bestaandeTekst:
+      "MJB Dakservice is al 25 jaar uw vaste dakdekker. Of u nu tobt met uw dak of uw goot, " +
+      "wij hebben voor u een passende oplossing. Vindt u hieronder de richtprijzen.",
+  });
+  ok("wat de klant op zijn eigen site doet, telt", uitSite.vorm === "u", uitSite.vorm);
+  ok("en de bron is dan de bestaande pagina", uitSite.bron === "bestaande pagina");
+
+  // Nek aan nek zegt niets: dan is de standaard eerlijker dan een muntje.
+  const gelijkspel = kiesAanspreekvorm({ bestaandeTekst: "Kom je langs? Dan helpen wij u graag." });
+  ok("bij twijfel valt hij terug op de standaard", gelijkspel.bron === "standaard");
+  ok("en die standaard is 'u'", gelijkspel.vorm === "u");
+
+  // Nooit meer leeg: dat was de hele bug. Geen enkele invoer levert 'geen keuze'.
+  ok("zonder enige aanwijzing is er tóch een vorm", Boolean(kiesAanspreekvorm({}).vorm));
+
+  const geteld = telAanspreekvormen("Jij belt ons, en dan helpen wij u met uw dak. Jouw dak.");
+  ok("beide vormen zijn te tellen", geteld.je === 2 && geteld.u === 2, JSON.stringify(geteld));
+});
+
+group("een pagina die twee aanspreekvormen mengt, wordt geblokkeerd", () => {
+  // ⚠️ Dit is de echte opening van de contactpagina van Fysio Centrum Utrecht,
+  // 3 september 2026. Eerste zin "je", tweede alinea "u", en daarna twintig keer
+  // "u". Geen enkele controle zag dit tot vandaag.
+  const echt =
+    "Ja. Bij Fysio Centrum Utrecht kun je rechtstreeks contact opnemen of online een afspraak " +
+    "aanvragen voor een hardloopblessure.\n\n" +
+    "## Hoe neem ik snel contact op?\n\n" +
+    "Wilt u meteen boeken, vraag dan online een afspraak aan. Voor een korte vraag gebruikt u " +
+    "het contactformulier.";
+  const gemengd = checkAanspreekvorm(echt, "u");
+  ok("de menging wordt gezien", gemengd.gemengd === true);
+  ok("met beide tellingen erbij", gemengd.je >= 1 && gemengd.u >= 2, JSON.stringify(gemengd));
+  ok("de bevinding noemt de aantallen", gemengd.issues[0]?.includes("keer") === true);
+  ok(
+    "en wijst de zin aan die er niet hoort",
+    gemengd.zinnen.some((z) => z.includes("kun je rechtstreeks")),
+    JSON.stringify(gemengd.zinnen),
+  );
+
+  // Consequente pagina's slaan niet aan, welke vorm ze ook kiezen.
+  const alleenU = checkAanspreekvorm("U belt ons. Wij komen bij u langs en bekijken uw dak.", "u");
+  ok("een consequente u-pagina is schoon", alleenU.gemengd === false);
+  const alleenJe = checkAanspreekvorm("Je belt ons. Wij komen bij jou langs en bekijken je dak.", "je");
+  ok("een consequente je-pagina ook", alleenJe.gemengd === false);
+  ok("en dan is er geen bevinding", alleenJe.issues.length === 0);
+
+  // De vorm "wij" gaat over hoe we het BEDRIJF noemen; die klant tutoyeert.
+  const wij = checkAanspreekvorm("Je belt ons en wij komen langs.", "wij");
+  ok("bij 'wij' wordt de lezer getutoyeerd", wij.gemengd === false, JSON.stringify(wij));
+});
+
 group("De inputpoort: kan deze pagina goed worden? (vragen-voor-het-schrijven §4)", () => {
   const poort = (graad: number | null, ongedekt = 2, koppen: string[] = ["de prijs", "het werkgebied"]) =>
     inputpoort({ graad, ongedekteSecties: ongedekt, ongedekteKoppen: koppen });
@@ -17890,6 +18560,27 @@ group("De inputpoort: kan deze pagina goed worden? (vragen-voor-het-schrijven §
   const gekozen = inputpoort({ graad: 10, ongedekteSecties: 5, writeMode: "algemeen" });
   ok("wie kiest voor een algemene pagina komt er altijd door", gekozen.mag === true);
   ok("en krijgt niet nog eens dezelfde vraag", gekozen.stand === "schrijven");
+
+  // ── V7: een pagina zonder lezer wordt niet geschreven ─────────────────────
+  //
+  // Ook niet bij een volle onderbouwing, want dat is een andere vraag. Van de
+  // twaalf pagina's van 3 september haalden er elf de graad en misten er acht
+  // een lezer.
+  const zonderLezer = inputpoort({ graad: 100, ongedekteSecties: 0, heeftLezer: false });
+  ok("zonder lezer gaat de poort dicht", zonderLezer.mag === false);
+  ok("ook bij een volledig onderbouwde pagina", zonderLezer.stand === "tegenhouden");
+  ok("de melding zegt waaróm", zonderLezer.melding.includes("voor wie deze pagina is"));
+  ok("en noemt de uitweg: beschrijf de lezer", zonderLezer.melding.includes("in één zin"));
+  ok("of koppel er een gemeten vraag aan", zonderLezer.melding.includes("gemeten vraag"));
+  ok("of laat hem vallen", zonderLezer.melding.includes("laten vallen"));
+
+  // De keuze voor een algemene pagina beantwoordt een ANDERE vraag: mag het
+  // zonder eigen cijfers. Ook een algemene uitleg heeft een lezer nodig.
+  const algemeenZonderLezer = inputpoort({ graad: 80, ongedekteSecties: 0, writeMode: "algemeen", heeftLezer: false });
+  ok("een algemene pagina zonder lezer wordt ook tegengehouden", algemeenZonderLezer.mag === false);
+
+  // ⚠️ Conventie 3: wie het veld niet meegeeft, krijgt exact het oude oordeel.
+  ok("weglaten verandert niets", inputpoort({ graad: 85, ongedekteSecties: 0 }).mag === true);
 
   // De grenzen zijn een startwaarde en worden per pagina bewaard, zodat ze op
   // data bijgesteld kunnen worden in plaats van op gevoel.

@@ -59,8 +59,13 @@ import {
 import type { QualityIssue } from "@/lib/pipeline/quality-issue";
 import { issuesUitJson } from "@/lib/pipeline/quality-issue";
 import { formatExplainerBlock, type VerifiedExplainer } from "@/lib/pipeline/explainer-verify";
-import { describeToneSliders, describePronoun } from "@/lib/pipeline/tone-sliders";
+import { describeToneSliders, describePronoun, kiesAanspreekvorm } from "@/lib/pipeline/tone-sliders";
+import { bepaalLezersopdracht, lezersblok } from "@/lib/lezersopdracht";
 import { objectionsRule } from "@/lib/pipeline/commercial-context";
+import { vindKlantinstructies, instructieblok, verbiedtAdres } from "@/lib/klantinstructies";
+import { bewijspuntenblok } from "@/lib/pipeline/bewijspunten";
+import { vindCiteerbareAntwoorden, citatenblok } from "@/lib/pipeline/klantcitaten";
+import { adviestoonblok } from "@/lib/pipeline/adviestoon";
 import {
   chooseExistingText,
   matchExistingPage,
@@ -245,11 +250,23 @@ const CONTENT_SYSTEM =
   "en dekt dus niets: dat is losse sitetekst om de context te begrijpen, geen bevestigd feit. " +
   "(3) Schrijf in dezelfde stijl als de meegegeven voorbeeldzinnen van de site. " +
   "REGELS VOOR VINDBAARHEID IN AI-ASSISTENTEN (net zo belangrijk als de rest): " +
-  "(4) Beantwoord de DOELVRAAG letterlijk en volledig in de eerste twee zinnen van de pagina, vóór " +
-  "elke inleiding. Een AI die een antwoord zoekt, leest de opwarmer niet uit. " +
-  "(5) Noem het BEDRIJF EXPLICIET bij naam op de plekken waar je iets over jezelf zegt, in plaats van " +
-  "'wij' en 'ons'. Schrijf dus niet 'wij leveren binnen 24 uur' maar '[Bedrijfsnaam] levert binnen 24 uur'. " +
-  "Een AI-assistent die 'wij' leest, weet niet wie hij moet noemen in zijn antwoord, en noemt je dus niet. " +
+  // ⚠️ Regel 4 en 5 zijn op 3 september 2026 begrensd (V8 en V1). Ze stonden er
+  // absoluut, en dat kostte de merkstem: over twaalf pagina's stond de merknaam
+  // 164 keer in de derde persoon tegenover twee keer "wij", allebei in een kop.
+  // Elf van de twaalf openingen begon bij het bedrijf. De reden achter de
+  // regels blijft kloppen (een assistent die "wij" leest, weet niet wie hij
+  // moet noemen), maar hij geldt voor de CITEERBARE zinnen en niet voor elke
+  // zin. Het vangnet staat in `paginavorm.ts`.
+  "(4) De EERSTE ZIN gaat over de lezer: wat hij meemaakt, waar hij mee zit, wat hij wil weten. " +
+  "NOOIT beginnen met de bedrijfsnaam en nooit met 'Ja' als er geen vraag boven staat. Beantwoord " +
+  "de DOELVRAAG daarna volledig, nog in diezelfde eerste alinea en vóór elke verdere inleiding: " +
+  "een AI die een antwoord zoekt, leest de opwarmer niet uit. " +
+  "(5) In die eerste alinea en in de eerste zin van elke sectie noem je het BEDRIJF EXPLICIET bij " +
+  "naam, want dat zijn de zinnen die een AI-assistent oppakt, en een assistent die alleen 'wij' " +
+  "leest weet niet wie hij moet noemen. In de RÉST van de tekst schrijf je gewoon in de wij-vorm, " +
+  "zoals een ondernemer op zijn eigen site praat: 'wij komen binnen 24 uur' in plaats van " +
+  "'[Bedrijfsnaam] kan binnen 24 uur ter plaatse zijn'. Schrijf ook nooit over 'de klant' in de " +
+  "derde persoon: de lezer IS de klant. " +
   "(6) Zorg dat elke sectie minstens één zin bevat die LOSSTAAND te begrijpen is, zonder de rest van de " +
   "pagina: één zin die het complete antwoord op één deelvraag geeft. Dat is de eenheid waarin een " +
   "AI-assistent knipt. " +
@@ -522,10 +539,21 @@ function buildContentInput(args: {
         });
         return schuiven ? ` (${schuiven})` : "";
       })(),
-    // ✅ De aanspreekvorm uit het merkprofiel (verbetering 11). Werd verzameld,
-    // was bewerkbaar, en kwam nooit in de prompt: twee pagina's uit dezelfde
-    // batch spraken de lezer met "u" en met "jouw" aan.
-    describePronoun(profile?.pronoun_preference ?? null),
+    // ✅ De aanspreekvorm (verbetering 11, aangescherpt als V2 op 3 september).
+    //
+    // Stond eerst alleen in de prompt als `profiles.pronoun_preference` gevuld
+    // was, en bij de twee klanten van de benchmarkronde was dat niet zo. Geteld
+    // over twaalf pagina's: 95 keer "je" naast 81 keer "u", bij allebei de
+    // klanten door elkaar. `kiesAanspreekvorm()` kiest er nu altijd een, desnoods
+    // uit de tekst die al op de site van de klant staat, en `checkAanspreekvorm`
+    // in `content-gate.ts` is het vangnet ernaast (conventie 1).
+    describePronoun(
+      kiesAanspreekvorm({
+        voorkeur: profile?.pronoun_preference ?? null,
+        formaliteit: (profile?.tone_formality ?? null) as 1 | 2 | 3 | null,
+        bestaandeTekst: existingText ?? existingPage?.text_excerpt ?? null,
+      }).vorm,
+    ),
     `Diensten/producten: ${(profile?.products ?? []).join(", ") || "onbekend"}`,
     // ✅ Migratie 0045, verboden woorden (C.29). Een VERBOD, geen suggestie, zelfde
     // toon als de feitenkaart hierboven: gesloten lijst voor wat niet mag, in
@@ -544,8 +572,28 @@ function buildContentInput(args: {
     // vaak precies de vorm van een bezwaar, en de pagina die het bezwaar
     // benoemt en weerlegt is de pagina die geciteerd wordt.
     objectionsRule({ sales_objections: profile?.sales_objections ?? [] }),
+    // ✅ V5: wat de klant VROEG, apart van wat hij VERTELDE.
+    //
+    // Een antwoord als "Zet er geen adres bij, verwijs naar de contactpagina"
+    // kwam tot 3 september binnen als gewoon feit op de kaart, tussen de andere
+    // feiten. Het model leest daar een mededeling waar een opdracht staat, en
+    // twee van de vier pagina's die dit antwoord kregen zetten er toch een adres
+    // op. Nu staat het bij de verboden, in dezelfde vorm als `taboo_phrases`,
+    // en met de reden erbij dat de ONDERNEMER het zo vroeg.
+    instructieblok(vindKlantinstructies(facts.map((f) => f.text))),
     // ✅ De gesloten feitenkaart (R5.3). Geen uitnodiging maar een grens.
     formatFactCard(facts),
+    // ✅ V4: de antwoorden waarin de ondernemer zelf uitlegt WAAROM hij iets
+    // doet. Op vier pagina's van 3 september werd zo'n antwoord tot een
+    // procedurezin geparafraseerd, waarbij telkens de reden wegviel. Precies het
+    // deel dat geen concurrent kan kopiëren.
+    citatenblok(vindCiteerbareAntwoorden(facts.map((f) => f.text))),
+    // ✅ V9: van feit naar betekenis, met de voorbeelden van de copywriter erin.
+    bewijspuntenblok(),
+    // ✅ V6: dit is de site van de ondernemer, geen consumentengids. Op drie
+    // pagina's van 3 september sloeg het advies door tot tekst die de bezoeker
+    // wegstuurde om de klant zelf te controleren.
+    adviestoonblok(),
     // ✅ HET CONTRACT (A2): de inhoudsopgave van deze pagina. Staat bewust vóór
     // het paginaplan en direct onder de feitenkaart: dit is de opdracht, en
     // wat bovenaan een prompt staat wordt het best gevolgd. Wij rekenen hem
@@ -580,7 +628,12 @@ function buildContentInput(args: {
     competitors.length ? `NIET noemen op deze pagina (concurrenten): ${competitors.join(", ")}` : "",
     "",
     `Te maken pagina: "${rec.title}" (type: ${rec.type})`,
-    `Doel: ${rec.targetIntent}`,
+    // ✅ V7: de lezersopdracht in plaats van een kaal "Doel:"-veld. De externe
+    // copywriter van 3 september noemde dit zijn belangrijkste van drie punten,
+    // en bij acht van de twaalf beoordeelde pagina's was dit veld leeg. De
+    // poort in `content-input-gate.ts` houdt zo'n pagina nu tegen; dit blok
+    // zorgt ervoor dat de schrijver hem gebruikt als hij er wel is.
+    lezersblok(bepaalLezersopdracht({ targetIntent: rec.targetIntent, doelvragen: targets.map((t) => t.text) })),
     `Achtergrond: ${rec.why}`,
     TYPE_GUIDANCE[rec.type],
     // 4.10, lengte sturen in plaats van achteraf tellen.
@@ -641,9 +694,12 @@ function buildContentInput(args: {
     relatedPageWarning(rec.relatedUrl ?? null),
     "",
     `Schrijf de volledige pagina in Markdown (zonder concurrentnamen), plus meta-title (max 60 tekens), ` +
-      `meta-description (max 160 tekens), FAQ en schema.org JSON-LD. Noem "${brandName}" expliciet bij naam ` +
-      `waar je iets over het bedrijf zegt. Vul daarna \`claims\` met elke concrete bewering die je over ` +
-      `${brandName} hebt gedaan, het F-nummer dat hem dekt, en de letterlijke zin uit dat feit.`,
+      `meta-description (max 160 tekens), FAQ en schema.org JSON-LD. Noem "${brandName}" bij naam in de ` +
+      `eerste alinea en in de eerste zin van elke sectie; daarbuiten schrijf je in de wij-vorm. ` +
+      `Maak van de meeste koppen een MEDEDELING en niet een vraag: een pagina waarvan elke kop een ` +
+      `vraag is, is een vragenlijst en geen verhaal. Vul daarna \`claims\` met elke concrete bewering ` +
+      `die je over ${brandName} hebt gedaan, het F-nummer dat hem dekt, en de letterlijke zin uit dat ` +
+      `feit, en \`proofPoints\` met de feiten die je hebt omgezet naar een reden voor de lezer.`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -671,7 +727,11 @@ const REPAIR_SYSTEM =
   "(2) De FEITENKAART is de ENIGE toegestane bron van concrete beweringen over dit bedrijf. Los een " +
   "bevinding NOOIT op door een feit te verzinnen: kun je hem niet oplossen met wat er op de kaart " +
   "staat, laat de passage dan weg of schrijf hem algemener. " +
-  "(3) Noem het bedrijf expliciet bij naam waar je iets over hem zegt, niet 'wij'. " +
+  // ⚠️ Begrensd op 3 september 2026 (V1), zelfde reden als regel 5 hierboven:
+  // absoluut toegepast kostte deze regel de hele merkstem.
+  "(3) Noem het bedrijf bij naam in de eerste zin van elke sectie, want die zinnen pakt een " +
+  "AI-assistent op. In de rest van de sectie schrijf je in de wij-vorm, zoals een ondernemer op " +
+  "zijn eigen site praat. " +
   "(4) Elke sectie bevat minstens één zin die LOSSTAAND te begrijpen is. " +
   "(5) Raak niets aan wat niet in een bevinding genoemd wordt. Een sectie die je niet teruggeeft, " +
   "blijft letterlijk staan, en dat is de bedoeling. " +
@@ -1313,6 +1373,11 @@ function pieceFromRow(row: ContentPieceRow): ContentPiece {
     claims: ((row.claims_json ?? []) as WrittenClaim[])
       .filter((c) => typeof c?.claim === "string" && typeof c?.factRef === "string")
       .map((c) => ({ claim: c.claim, factRef: c.factRef, quote: c.quote ?? "" })),
+    // V9 (migratie 0093). Een rij van vóór die migratie levert een lege lijst,
+    // en dan telt de bewijspuntencontrole niet mee (conventie 3).
+    proofPoints: ((row.proof_points_json ?? []) as { factRef?: string; betekenis?: string }[])
+      .filter((p) => typeof p?.factRef === "string" && typeof p?.betekenis === "string")
+      .map((p) => ({ factRef: p.factRef as string, betekenis: p.betekenis as string })),
   };
 }
 
@@ -1373,7 +1438,7 @@ async function loadSavedDraft(
 ): Promise<DraftOutput | null> {
   const { data } = await admin
     .from("content_pieces")
-    .select("target_intent, cluster, body_markdown, meta_title, meta_description, schema_jsonld, faq_json, raw_json, claims_json")
+    .select("target_intent, cluster, body_markdown, meta_title, meta_description, schema_jsonld, faq_json, raw_json, claims_json, proof_points_json")
     .eq("id", pieceId)
     .maybeSingle();
 
@@ -1393,6 +1458,10 @@ async function loadSavedDraft(
       // strandde zijn traceerbaarheid kwijtraken en op dekking 0 uitkomen,
       // terwijl de tekst gewoon onderbouwd was.
       claims: (data.claims_json ?? []) as ContentPiece["claims"],
+      // V9: net als `claims` meenemen bij hervatten. Een pagina van vóór
+      // migratie 0093 heeft een lege lijst, en dan slaat de controle niet aan
+      // (conventie 3).
+      proofPoints: (data.proof_points_json ?? []) as ContentPiece["proofPoints"],
     } as ContentPiece,
     raw: data.raw_json,
   };
@@ -1563,6 +1632,7 @@ function buildDraftRow(args: {
     // premium-kosten. Eén bron van waarheid, en dat is het rapport.
     title: recommendation.title,
     target_intent: draft.parsed.targetIntent,
+    proof_points_json: draft.parsed.proofPoints ?? [],
     cluster: draft.parsed.cluster,
     // Versheid in de opmaak die de bezoeker niet ziet, is de helft van het
     // signaal: een assistent citeert uit de lopende tekst, niet uit de JSON-LD.
@@ -1874,6 +1944,9 @@ export async function draftContentPiece(args: {
     // Lag er bewijs voor deze pagina? Bepaalt of een lege sectie een
     // schrijfprobleem is of een kennisprobleem (`root-cause.ts`).
     bewijsAanwezig: ctx.facts.some((f) => f.citable && f.allowed),
+    // V2: de tekst die al op de site van de klant staat, alleen om de
+    // aanspreekvorm van te kunnen aflezen als het profiel hem niet vastlegt.
+    bestaandeTekst: ctx.existing.text ?? ctx.existing.page?.text_excerpt ?? null,
   });
 
   // De gemeten waarden altijd loggen, ook onder de drempel: zonder die reeks kan
@@ -2087,6 +2160,7 @@ export async function reviseContentPiece(args: {
     profileId: analysis.profile_id,
     plan: ctx.plan,
     bewijsAanwezig: ctx.facts.some((f) => f.citable && f.allowed),
+    bestaandeTekst: ctx.existing.text ?? ctx.existing.page?.text_excerpt ?? null,
   });
 
   const openstaand = keuring.teksten;
@@ -2319,6 +2393,7 @@ export async function herkeurContentPiece(args: {
     profileId: ctx.analysis.profile_id,
     plan: ctx.plan,
     bewijsAanwezig: ctx.facts.some((f) => f.citable && f.allowed),
+    bestaandeTekst: ctx.existing.text ?? ctx.existing.page?.text_excerpt ?? null,
   });
 
   // Alleen het oordeel. `body_markdown`, `version`, `repair_round` en `status`

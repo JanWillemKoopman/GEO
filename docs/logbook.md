@@ -7174,3 +7174,275 @@ tellingen kunnen groen worden zonder dat die vraag beantwoord is. Verder blijven
 buiten schot (tien van de twaalf pagina's hebben er acht, sommige een woordelijke kopie van een
 sectie erboven) en blijft de reparatiestap ongemoeid, terwijl die per sectie werkt en dat precies de
 manier is om een tekst verder in losse antwoorden uiteen te laten vallen.
+
+## 3 september 2026: V7, een pagina zonder lezer wordt niet meer geschreven
+
+Het eerste voorstel uit de copywriterronde is gebouwd. De externe copywriter noemde "schrijf vanuit
+de situatie van de lezer" zijn belangrijkste van drie punten, en bij ACHT van de twaalf beoordeelde
+pagina's stond zowel "Geen doelomschrijving vastgelegd" als "Er waren geen specifiek gemeten vragen
+aan deze pagina gekoppeld", steeds allebei bij dezelfde acht. Zijn hoofdpunt faalde dus niet bij het
+schrijven maar bij de invoer.
+
+**De nieuwe module** `lib/lezersopdracht.ts` (puur, conventie 2) bepaalt uit drie bronnen voor wie
+een pagina is, in deze volgorde: de doelomschrijving van de aanbeveling (`klant`), anders de
+zwaarste gemeten vraag omgezet naar "Iemand die aan een AI-assistent vraagt: ..." (`meting`), anders
+niets (`geen`). Hij weigert waarden die ingevuld lijken maar niets zeggen ("onbekend", "-", "n.v.t.")
+en labels van minder dan vier woorden, want "Daklekkage Apeldoorn" is een onderwerp en geen lezer.
+Daarnaast telt hij of de opdracht een PERSOON noemt, met een gesloten lijst persoonswoorden. Dat
+blokkeert niet: "Bekkenfysiotherapie in Utrecht bij urineverlies" is een echte doelomschrijving uit
+de ronde van 3 september die wél door de poort komt maar geen persoon noemt, en dan vraagt de
+schrijfprompt het model om er eerst zelf een lezer bij te bedenken.
+
+**Het vangnet** zit in `inputpoort()`, vóór de dure schrijfaanroep: `heeftLezer: false` levert
+"tegenhouden" op. Die staat bewust vóór de keuze voor een algemene pagina, want die keuze
+beantwoordt een andere vraag (mag het zonder eigen cijfers) en ook een algemene uitleg heeft een
+lezer nodig. En vóór de graad, want een pagina kan volledig onderbouwd zijn en nog steeds voor
+niemand geschreven worden: van de twaalf pagina's haalden er elf de graad en misten er acht een
+lezer. Geen muur: de melding noemt drie uitwegen, net als de ondergrens. Weglaten van het veld
+verandert niets aan het oordeel (conventie 3).
+
+**De prompts.** De schrijfprompt kreeg `lezersblok()` op de plek van het kale "Doel:"-veld, mét de
+instructie om bij de situatie van de lezer te beginnen en weg te laten wat die persoon nu niet nodig
+heeft. Het rapportmodel krijgt de vorm nu expliciet opgedragen: welk type persoon, welk probleem,
+welke beslissing, met "een onderwerp is geen lezer" erbij en het verbod om er "onbekend" in te
+zetten.
+
+⚠️ **Dit houdt pagina's tegen die vandaag geschreven worden.** Op de ronde van 3 september waren dat
+er acht van de twaalf. Dat is de bedoeling, en het is wel een gedragswijziging op levende data: een
+ronde kan minder pagina's opleveren totdat het rapportmodel de doelomschrijving vult. Vier controles
+groen: typecheck, 4140 unittests (28 nieuwe), 639 ketentests (3 nieuwe), build. Het ketenscenario
+laat de terugval eind tot eind zien: dezelfde pagina zonder doelomschrijving komt er via zijn
+gemeten vragen wél door, en zonder allebei niet.
+
+## 3 september 2026: V2, de aanspreekvorm wordt nu altijd gekozen
+
+`describePronoun` bestond sinds verbetering 11, maar schreef alleen een promptregel als
+`profiles.pronoun_preference` gevuld was. Bij de twee klanten van de benchmarkronde was dat niet zo,
+en het gevolg is geteld: over twaalf pagina's 95 keer "je" naast 81 keer "u", bij ALLEBEI de klanten
+door elkaar. Op de contactpagina van Fysio Centrum Utrecht slaat het binnen twee zinnen om, van "kun
+je rechtstreeks contact opnemen" naar "Wilt u meteen boeken", gevolgd door twintig keer "u".
+
+**`kiesAanspreekvorm()`** in `tone-sliders.ts` levert nu altijd een vorm, uit vier bronnen in
+volgorde: wat de klant zelf koos, anders de formaliteitsschuif als die op 1 of 3 staat (die labels
+noemen de vorm letterlijk, stand 2 zegt er niets over), anders wat er op de site van de klant zelf
+staat, anders "u". Die laatste standaard is een keuze en geen meting: een ongevraagd "je" leest op
+een zakelijke site als te amicaal en andersom is het hooguit wat afstandelijk, en de twee klanten
+van 3 september schrijven allebei overwegend "u" op hun eigen site. Bij een gelijkspel in de
+bestaande tekst (minder dan twee keer zoveel, of minder dan drie vindplaatsen) telt die tekst niet
+mee, want dan is een muntje opgooien eerlijker gepresenteerd als standaard.
+
+**Het vangnet** is `checkAanspreekvorm()` in `content-gate.ts`, en die meet de body samen met de
+vraag-en-antwoordblokken. Samen en niet apart, want de contactpagina tutoyeert in de opening en
+vousvoyeert in het blok eronder, en los gemeten was elk deel op zichzelf consistent. Een gemengde
+pagina levert een BLOKKERENDE bevinding op de dimensie toon, zwaarder dan de meeste redactionele
+bevindingen: dit is geen smaak maar een fout die iedere corrector er in tien seconden uithaalt.
+Nieuwe bevindingsbron `aanspreekvorm`, in de root-cause toegewezen aan de schrijffase, want het
+profiel levert de vorm aan en wie hem niet volhoudt is de schrijver.
+
+Vier controles groen: typecheck, 4160 unittests (20 nieuwe), 639 ketentests, build. De testtekst is
+de echte opening van de contactpagina van 3 september, dus de controle slaat er vandaag op aan.
+
+## 3 september 2026: V3, van nul naar elf gevonden werkproceszinnen
+
+`checkSourceTalk` had elf zoektermen en vond op de twaalf benchmarkpagina's precies NUL zinnen,
+terwijl er zes gevallen bekend waren waarin ons eigen werkproces de klantpagina in lekte. De lijst
+is uitgebreid met vier families, elk met een eigen manier om het mis te laten gaan: een
+redactie-instructie aan onszelf ("Controleer vóór publicatie ..."), een zin over onze eigen tekst
+("De locaties worden op deze pagina niet inhoudelijk van elkaar onderscheiden"), een bezwaarsjabloon
+dat niet omgezet is ("Dit beantwoordt het bezwaar: ..."), onze verificatiestatus als mededeling aan
+de klant ("Hulp buiten deze tijden is niet bevestigd") en zelfrelativering over ons eigen bewijs
+("Deze bedrijfsgegevens vervangen nooit de inspectie van uw specifieke dak").
+
+**Nagerekend tegen dezelfde twaalf pagina's, 13.605 woorden: van 0 naar 11 gevonden zinnen, met nul
+vals alarm.** Zes ervan staan op één spoedpagina, waarvan vier van de soort "is niet bevestigd". Dat
+is de schrijver die opschrijft wat hij zelf niet zeker weet, op de pagina van iemand met water door
+zijn plafond.
+
+⚠️ Eén van de zes bekende gevallen wordt bewust NIET gevonden: "Bang dat u achteraf pas hoort wat
+een reparatie kost?" op de renovatiepagina. Dat is een bezwaarsjabloon dat is blijven staan, maar
+dezelfde formulering is als openingszin juist góed en precies wat de copywriter aanraadt (begin bij
+wat de lezer voelt). Een zoekterm erop zetten zou goede copy bestraffen, en dat weegt zwaarder dan
+dit ene geval. Het probleem daar is de plaatsing midden in een sectie, en dat is niet met een
+woordenlijst te zien.
+
+Vier controles groen: typecheck, 4177 unittests (17 nieuwe, waarvan zeven zinnen die hij moet vinden
+en zeven die hij met rust moet laten), 639 ketentests, build.
+
+## 3 september 2026: V5, wat de klant vroeg staat niet meer tussen wat hij vertelde
+
+Vier van de zes FCU-pagina's kregen woordelijk mee: "Zet er geen adres bij, want we hebben twee
+vestigingen (...) Verwijs voor de adressen naar de contactpagina." Twee van die vier zetten er toch
+een adres bij, en de Leidsche Rijn-pagina zelfs twee keer.
+
+**Waarom het misging.** Zo'n antwoord komt binnen als één feit op de feitenkaart, in de vorm
+"vraag: antwoord", tussen de andere feiten. Het model leest daar een MEDEDELING waar een OPDRACHT
+staat, en een mededeling mag je negeren als er iets beters te melden is. `taboo_phrases` en
+`forbidden_topics` staan wél als gesloten verbod bovenaan de prompt, en die worden wel nageleefd.
+
+**`lib/klantinstructies.ts`** (puur) haalt de opdrachtzinnen uit de feitentekst met een gesloten
+lijst opdrachtwoorden, en zet ze in `instructieblok()` bovenaan de prompt, met de reden erbij dat de
+ondernemer het zelf zo vroeg. Het onderscheid tussen een verbod en een opdracht komt uit de zin
+zelf. Het antwoord hierboven levert er twee op, het telefoonnummer in dezelfde zin blijft een gewoon
+feit, en een antwoord als "een gemiddelde noemen we liever niet, want het hangt af van wat we
+aantreffen" blijft óók een feit: dat is geen instructie over de pagina maar informatie over het werk.
+
+**Het vangnet** is `checkAdresinstructie()` in `content-gate.ts`, blokkerend, en het draait alleen
+als de klant er expliciet om vroeg. Twee patronen naast elkaar, want geen van beide dekt alles: een
+straatnaam met achtervoegsel plus huisnummer ("Pablo Picassostraat 216", "Moreelsehoek 2") en een
+postcode ("7317BL"), zodat ook "Hommel 37" gevonden wordt. Bewust geen los patroon "hoofdletterwoord
+gevolgd door een getal", want dat vindt ook "Apeldoorn 2026" en "Rc 6,0". Alle drie de adressen die
+op 3 september ten onrechte op een pagina stonden, worden gevonden; op vijf gewone zinnen met
+getallen uit dezelfde pagina's slaat hij niet aan.
+
+Dit is de enige klantinstructie met een harde controle. De rest gaat als gesloten verbodslijst de
+prompt in en heeft geen vangnet, en dat staat er expliciet bij: instructies automatisch herkennen is
+lastig, en het algemene geval verdient eerst meer data. Vier controles groen: typecheck, 4196
+unittests (19 nieuwe), 639 ketentests, build.
+
+## 3 september 2026: V9 en V4, van feit naar argument en terug naar de woorden van de klant
+
+De tweede aanbeveling van de externe copywriter: "Het probleem is niet dat de schrijver onvoldoende
+informatie heeft. Het probleem is dat de informatie onvoldoende wordt omgezet in een overtuigend
+argument." Zijn voorbeeld: "vaste ploeg van vier eigen dakdekkers" moet "u weet wie er op uw dak
+komt" worden.
+
+**Migratie 0093** voegt `content_pieces.proof_points_json` toe, additief met default `'[]'`. Per
+gekozen feit één zin die zegt wat het voor de lezer betekent, met het F-nummer erbij. ⚠️ Dat is een
+ANDERE vraag dan `claims_json`: die kolom bewijst dat een zin mág staan, deze bewijst dat een feit
+IS OMGEZET. Op de twaalf pagina's liepen die twee het verst uiteen van alle maten, met een
+bronherleidbaarheid van 23 tot 92 procent naast een overtuigingskracht van 2,6 van 5. Ze in één
+kolom schuiven zou van "onderbouwd" en "overtuigend" één cijfer maken.
+
+**`lib/pipeline/bewijspunten.ts`** rekent drie dingen na, geen ervan een smaakoordeel: zijn het er
+minstens drie (onder de drie is er geen keuze gemaakt), bestaat het F-nummer, en staat de
+betekeniszin ook echt in de tekst. Dat laatste is de kern: een model dat een mooie zin aanlevert en
+hem niet opschrijft, heeft het werk niet gedaan. De overlapdrempel is 0,6, dezelfde als
+`claimMatchesSentence()` en om dezelfde reden: een schrijver mag zijn eigen zin herformuleren, niet
+vervangen. De bevinding valt op de dimensie OVERTUIGING en niet op bewijs, want de feiten stáán er.
+Niet blokkerend: een pagina met te weinig bewijspunten is niet onwaar, alleen minder overtuigend.
+
+**`lib/pipeline/klantcitaten.ts`** is de mechanische kant ervan (V4). Op vier pagina's werd een
+letterlijk klantantwoord tot een procedurezin geparafraseerd waarbij de reden wegviel: "Doorwerken
+over houtrot heen doen we niet, ook niet als de klant erom vraagt, want dan kunnen we onze garantie
+op het werk niet waarmaken" werd "dan legt MJB Dakservice het werk stil, maakt foto's en meldt eerst
+de herstelkosten". De module herkent antwoorden met een motivering ("want", "omdat", "daarom") van
+minstens vijftien woorden, biedt ze apart aan als CITEERBAAR, en meet achteraf de woordoverlap. Eén
+antwoord hoeft er maar te halen: een pagina die uit citaten bestaat is ook geen pagina. Drempel 0,4,
+losser dan bij de bewijspunten omdat het daar om één zin gaat die er letterlijk hoort te staan en
+hier om de vraag of er íets van is blijven hangen.
+
+De vier antwoorden die op 3 september sneuvelden waren 19, 21, 24 en 31 woorden lang; daar komt de
+grens van vijftien vandaan. Vier controles groen: typecheck, 4218 unittests (22 nieuwe), 641
+ketentests (2 nieuwe, die de bewijspunten eind tot eind tot in de kolom volgen), build. Migratie
+0093 staat op productie.
+
+## 3 september 2026: V8, V1 en V10, de opening begint weer bij de lezer
+
+Drie voorstellen in één ronde, want ze trekken aan hetzelfde touw: alle drie verschuiven ze iets aan
+wat een AI-assistent uit de pagina oppakt. Los invoeren zou betekenen dat de ene de andere ongemerkt
+onderuit haalt.
+
+**De spanning die opgelost moest worden.** De copywriter, regel 1: "Begin niet met het bedrijf.
+Begin met de situatie waarin de lezer zich bevindt." Elf van de twaalf openingen deden het
+andersom. Tegelijk is precies die eerste alinea het blok dat een AI-assistent citeert, en daar hoort
+de merknaam in. Die twee sluiten elkaar niet uit, maar wel als je ze allebei op dezelfde ZIN legt.
+De regel is nu: **de eerste zin gaat over de lezer, de eerste ALINEA noemt het merk.** De controle
+meet allebei, dus een opening die de merknaam helemaal uit de alinea gooit, is óók een bevinding.
+
+**De wij-vorm is terug, begrensd.** Regel 5 van de systeemprompt ("noem het bedrijf bij naam in
+plaats van 'wij'") stond er absoluut, en dat kostte de hele merkstem: 164 merkvermeldingen in de
+derde persoon tegenover twee keer "wij", allebei in een kop. De reden achter de regel klopt nog
+steeds, maar hij geldt nu voor de CITEERBARE zinnen (de eerste alinea en de eerste zin van elke
+sectie) en niet voor élke zin. Daarbuiten schrijft de pagina in de wij-vorm, zoals een ondernemer op
+zijn eigen site praat. Dezelfde begrenzing in `REPAIR_SYSTEM` regel 3, anders draait de
+reparatieronde het terug. De controle slaat pas aan als het allebei mis is: nul wij-zinnen én meer
+dan 1,5 merkvermeldingen per honderd woorden. Die grens is gekozen en niet gemeten; hij ligt ruim
+onder de 1,2 van deze twaalf pagina's en laat een pagina van duizend woorden vijftien keer de naam
+noemen, genoeg voor het openingsantwoord plus elke sectiestart.
+
+**Van vragenlijst naar verhaal.** 169 van de 228 koppen was een vraag, 74 procent, en op vier
+pagina's élke kop. `checkVraagkoppen` staat op hoogstens de helft, behalve bij een FAQ, waar vragen
+juist het punt zijn, en slaat pas aan vanaf vier koppen: onder de vier is het geen vragenlijst maar
+een korte pagina.
+
+Alle drie de bevindingen zijn niet-blokkerend en vallen op de dimensie die ze raken: overtuiging
+voor de opening, toon voor de merkstem, structuur voor de koppen. Vier controles groen: typecheck,
+4239 unittests (21 nieuwe), 641 ketentests, build.
+
+⚠️ Deze drie horen samen te worden nagemeten op citeerbaarheid, precies zoals het plan zegt. Dat kan
+pas na een echte ronde.
+
+## 3 september 2026: V6 en V12, de pagina geeft geen huiswerk meer en stuurt niemand weg
+
+**De adviestoon, met een grens die eerst verkeerd stond.** Over de twaalf pagina's: 72 gebiedende
+zinnen ("Vraag ...", "Controleer ...", "Laat ... vastleggen"), waarvan 23 op één pagina, plus 120
+slappe formuleringen op 13.605 woorden. ⚠️ Mijn eerste grenzen (0,35 en 0,5 per honderd woorden)
+sloegen aan op ELF van de twaalf pagina's, en een controle die overal afgaat is ruis: hij zou de
+reparatie van elke pagina met dezelfde bevinding vullen. De grenzen liggen nu waar de uitschieters
+beginnen. Gebiedende zinnen lopen van 0,19 tot 1,50 per honderd woorden met een mediaan rond 0,39;
+boven 0,6 zitten er drie, waaronder de hoofdpagina over daklekkage met 1,50. Slappe formuleringen
+lopen van 0,10 tot 1,12 met een mediaan rond 0,58; boven 0,8 zitten er twee, en dat zijn precies de
+twee pagina's die de copywriter als te voorzichtig aanwees, waarvan hij er één "ABSOLUUT NIET" gaf.
+Met 0,6 en 0,8 slaat de controle op vijf van de twaalf aan in plaats van op elf.
+
+**Zelfondermijning heeft géén grens**, want één zin is er al één te veel. Op de site van MJB stond
+een checklist om dakdekkers eerlijk te vergelijken, met de tip hem in twee plaatsen te gebruiken; op
+twee FCU-pagina's stond dat de bezoeker de registratie van de eigen behandelaar moest natrekken, met
+een link naar de beroepsvereniging erbij. Uitstekende consumentenvoorlichting, en de verkeerde
+pagina ervoor. Dit is de enige blokkerende bevinding van deze twee voorstellen.
+
+**V12, hetzelfde rijtje feiten op elke pagina.** `checkHerhaling()` staat in `similarity.ts`, naast
+`similarity()` maar met een andere vraag: die meet of twee pagina's over hetzelfde GAAN, deze of ze
+hetzelfde BEWIJS gebruiken. Twee pagina's mogen over verschillende onderwerpen gaan en toch allebei
+met dezelfde zes feiten aankomen, en dan krijgen ze precies dezelfde stem. Gemeten per klant over
+zes pagina's: bij MJB stonden de gratis inspectie, de 24 uur en het fotorapport op alle zes, bij FCU
+vijf feiten op alle zes. De bevinding valt op originaliteit, is niet blokkerend, en de root cause
+wijst naar de BRIEFING en niet naar het schrijven: de feitenkaart is per pagina hetzelfde, dus daar
+zit de oorzaak.
+
+Vier controles groen: typecheck, 4253 unittests (14 nieuwe), 641 ketentests, build.
+
+## 3 september 2026: V13 en V11, de keuring wordt zelf gemeten
+
+Het laatste voorstel, en het enige dat niet over schrijven gaat maar over keuren. Drie stappen, alle
+drie gedaan.
+
+**Stap 1: de twaalf menselijke oordelen staan in `content_quality_reviews`**, met
+`benchmark_set = 'benchmark-3-september-2026'` en de cijfers van de externe copywriter ongewijzigd
+overgenomen. De telrichting is nagerekend en klopt; in `notes` staat bij elke rij dat hij
+"menselijk" als natuurlijkheid van de stem scoorde, met 5 als beste, want het formulier vraagt bij
+dat veld naar eigenheid en dat is verwant maar niet hetzelfde. Daarmee staan er twaalf van de
+twintig uit `IJKING_MINIMUM`.
+
+**Stap 2: de ijking is nu een getal dat de app bijhoudt.** `berekenIjking()` in
+`quality-benchmark.ts` (naast `vergelijkMetMens`, want één feit één eigenaar) levert twee dingen: het
+verschil in NIVEAU en de rangcorrelatie voor de VOLGORDE. Nagerekend op productie over de twaalf
+zojuist ingevoerde oordelen: **niveauverschil 0,14 punt en een correlatie van 0,29.** Het gemiddelde
+klopt dus bijna precies, en de volgorde niet. Dat is de erge helft, want de score bepaalt per pagina
+klaar, repareren of geblokkeerd: van de vier pagina's die de beoordelaar als zwakste aanwijst zijn er
+twee de verkeerde, en de pagina die de copywriter gedeeld slechtste noemde ("absoluut niet
+versturen") stond bij hem op de derde plaats van boven. Beide getallen staan nu op
+`/beheer/kwaliteit`, met een zin die zegt wat het betekent. Dat dit vier weken onzichtbaar kon
+blijven, kwam doordat het cijfer nergens stond.
+
+Voor de vergelijking telt het GEMIDDELDE van de vijf menselijke maten en niet één ervan: de
+copywriter scoorde ze los en ze liepen uiteen van 2,58 (overtuiging) tot 3,92 (specificiteit), dus
+één maat eruit lichten zou de ijking laten afhangen van welke dimensie je toevallig kiest. De
+rangcorrelatie werkt op rangen en niet op ruwe cijfers, want de twee schalen lopen niet gelijk (0
+tot 100 tegenover 1 tot 5) en het gaat hier niet om de hoogte maar om de ordening. Onder vijf paren
+levert hij `null`: dan zegt hij te weinig om op te sturen.
+
+**Stap 3: de beoordelaar krijgt menselijke ijkpunten mee.** In `VAKMANSCHAP_SYSTEM` staan nu de
+concrete voorbeelden uit de ronde van wat een mens laag vond en waarom (juridisch dichtgetimmerd,
+huiswerk in plaats van antwoord, administratief waar het eenvoudig moest) en wat hij hoog vond (een
+echte keuze helpen maken, de schaamte van de lezer benoemen). Invoertekst, dus vrijwel gratis.
+
+**V11, als laatste en bewust half.** De beoordelaar scoort nu ook `herkenning`: begint de pagina bij
+een situatie die de lezer herkent, of bij het bedrijf. ⚠️ Dat cijfer telt NOG NIET mee in het
+profiel en bepaalt dus niets. Dit is het enige voorstel uit de copywriterronde dat niet te tellen
+valt, dus het enige zonder deterministisch vangnet, en het zou code-conventie 1 schenden om er nu al
+op te sturen. Het cijfer wordt verzameld zodat de ijking hem later naast een menselijk oordeel kan
+leggen; pas dán mag hij meewegen. Meten voordat je stuurt, dezelfde volgorde als bij de drempels van
+de inputpoort.
+
+Vier controles groen: typecheck, 4267 unittests (14 nieuwe), 641 ketentests, build.

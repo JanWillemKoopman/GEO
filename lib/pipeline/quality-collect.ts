@@ -31,7 +31,23 @@ import type { Critique } from "@/lib/schemas/critique";
 import { GEO_CRITERIA_LABELS } from "@/lib/schemas/critique";
 import type { CitabilityVerdict, FactualityVerdict } from "@/lib/schemas/content-panel";
 import type { CraftVerdict } from "@/lib/schemas/content-craft";
-import type { GateResult, QualityResult, SourceTalkResult, TabooCheckResult } from "@/lib/pipeline/content-gate";
+import type { BewijspuntenResult } from "@/lib/pipeline/bewijspunten";
+import type { KlantcitatenResult } from "@/lib/pipeline/klantcitaten";
+import type {
+  MerkstemResult,
+  OpeningResult,
+  VraagkoppenResult,
+} from "@/lib/pipeline/paginavorm";
+import type { AdviestoonResult, ZelfondermijningResult } from "@/lib/pipeline/adviestoon";
+import type { HerhalingResult } from "@/lib/pipeline/similarity";
+import type {
+  AanspreekvormResult,
+  AdresResult,
+  GateResult,
+  QualityResult,
+  SourceTalkResult,
+  TabooCheckResult,
+} from "@/lib/pipeline/content-gate";
 import { GATE_LABELS, GATE_UITLEG } from "@/lib/pipeline/content-gate";
 import type { CoverageResult } from "@/lib/pipeline/content-coverage";
 import type { ClaimDekking, GewogenDekking } from "@/lib/pipeline/evidence-weight";
@@ -61,6 +77,26 @@ export interface KwaliteitsInvoer {
   coverage: CoverageResult;
   quality: QualityResult;
   bronpraat: SourceTalkResult;
+  /** V2: spreekt de pagina de lezer overal hetzelfde aan? */
+  aanspreekvorm?: AanspreekvormResult;
+  /** V5: negeert de pagina een instructie die de klant zelf gaf? */
+  adres?: AdresResult;
+  /** V9: is een feit omgezet naar een argument voor de lezer? */
+  bewijspunten?: BewijspuntenResult;
+  /** V4: is er iets van de eigen woorden van de ondernemer blijven staan? */
+  klantcitaten?: KlantcitatenResult;
+  /** V8: begint de pagina bij de lezer of bij het bedrijf? */
+  opening?: OpeningResult;
+  /** V1: spreekt het bedrijf ergens zelf op zijn eigen pagina? */
+  merkstem?: MerkstemResult;
+  /** V10: is dit een verhaal of een vragenlijst? */
+  vraagkoppen?: VraagkoppenResult;
+  /** V6: geeft de pagina huiswerk in plaats van antwoord? */
+  adviestoon?: AdviestoonResult;
+  /** V6: stuurt de pagina de bezoeker weg om de klant te controleren? */
+  zelfondermijning?: ZelfondermijningResult;
+  /** V12: staat op elke pagina van deze ronde hetzelfde rijtje feiten? */
+  herhaling?: HerhalingResult;
   taboo: TabooCheckResult;
   verbodenOnderwerpen: TabooCheckResult;
   typeOvertredingen: TypeRegel[];
@@ -550,6 +586,226 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
         blocking: false,
         confidence: ZEKER,
         bron: "bronpraat",
+      }),
+    );
+  }
+
+  // ── V2: één aanspreekvorm per pagina ──────────────────────────────────────
+  //
+  // Blokkerend, en dat is zwaarder dan de meeste redactionele bevindingen. Reden:
+  // dit is geen smaak maar een fout, hij is in tien seconden te zien, en hij
+  // stond op de contactpagina van 3 september binnen twee zinnen ("kun je
+  // rechtstreeks contact opnemen" gevolgd door "Wilt u meteen boeken"). Een
+  // pagina die de lezer half tutoyeert gaat niet naar een klant.
+  if (invoer.aanspreekvorm?.gemengd) {
+    const a = invoer.aanspreekvorm;
+    issues.push(
+      maak(invoer, {
+        dimension: "toon",
+        severity: "hoog",
+        section: null,
+        finding: a.issues[0] ?? "Deze pagina spreekt de lezer op twee manieren aan.",
+        evidence: a.zinnen[0] ?? `${a.je} keer "je", ${a.u} keer "u"`,
+        expected: "Eén aanspreekvorm op de hele pagina.",
+        recommendation:
+          "Kies de vorm die bij dit merk hoort en trek hem overal gelijk, ook in de " +
+          "vraag-en-antwoordblokken.",
+        blocking: true,
+        confidence: ZEKER,
+        bron: "aanspreekvorm",
+      }),
+    );
+  }
+
+  // ── V5: een instructie van de klant is genegeerd ──────────────────────────
+  //
+  // Blokkerend, en zonder aarzeling: dit stond woordelijk in de invoer. Een
+  // klant die ziet dat zijn eigen antwoord genegeerd is, vertrouwt de volgende
+  // vraag niet meer.
+  if (invoer.adres && invoer.adres.issues.length > 0) {
+    issues.push(
+      maak(invoer, {
+        dimension: "feitelijkheid",
+        severity: "hoog",
+        section: null,
+        finding: invoer.adres.issues[0],
+        evidence: invoer.adres.adressen[0] ?? null,
+        expected: "Geen adres op deze pagina, met een verwijzing naar de contactpagina.",
+        recommendation: "Haal het adres weg en verwijs naar de contactpagina.",
+        blocking: true,
+        confidence: ZEKER,
+        bron: "klantinstructie",
+      }),
+    );
+  }
+
+  // ── V9: feiten die geen argument geworden zijn ────────────────────────────
+  //
+  // Op de dimensie OVERTUIGING en niet op bewijs: de feiten stáán er, ze zijn
+  // alleen niet omgezet. Dat is precies wat de externe copywriter aanwees als
+  // het verschil tussen informatie en copy, en het is de laagste van zijn vijf
+  // cijfers (2,6 van 5). Niet blokkerend: een pagina met te weinig
+  // bewijspunten is niet onwaar, hij is alleen minder overtuigend, en een
+  // blokkade hier zou elke pagina tegenhouden zolang het model dit nog leert.
+  for (const zin of (invoer.bewijspunten?.issues ?? []).slice(0, 3)) {
+    issues.push(
+      maak(invoer, {
+        dimension: "overtuiging",
+        severity: "midden",
+        section: null,
+        finding: zin,
+        evidence: invoer.bewijspunten?.nietGeschreven[0]?.betekenis ?? null,
+        expected: "Elk gekozen feit staat er met wat het voor deze lezer betekent.",
+        recommendation:
+          "Schrijf per gekozen feit één zin die zegt wat de lezer eraan heeft, en zet die zin op " +
+          "de plek waar hij dat argument nodig heeft.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "bewijspunt",
+      }),
+    );
+  }
+
+  // ── V4: de eigen woorden van de ondernemer zijn weggeparafraseerd ─────────
+  for (const zin of invoer.klantcitaten?.issues ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "originaliteit",
+        severity: "midden",
+        section: null,
+        finding: zin,
+        evidence: null,
+        expected: "Minstens één antwoord van de ondernemer staat er vrijwel letterlijk in.",
+        recommendation:
+          "Neem één van zijn antwoorden over inclusief de reden erachter, in plaats van er een " +
+          "procedurezin van te maken.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "klantcitaat",
+      }),
+    );
+  }
+
+  // ── V8: de opening begint bij het bedrijf in plaats van bij de lezer ──────
+  //
+  // Op de dimensie OVERTUIGING: dit is de zin die bepaalt of iemand doorleest.
+  // Elf van de twaalf pagina's van 3 september deden het verkeerd om.
+  for (const zin of invoer.opening?.issues ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "overtuiging",
+        severity: "hoog",
+        section: null,
+        finding: zin,
+        evidence: invoer.opening?.eersteZin ?? null,
+        expected: "De eerste zin gaat over de lezer, de eerste alinea noemt het merk.",
+        recommendation:
+          "Herschrijf de opening: begin bij wat de lezer meemaakt en noem het bedrijf in de " +
+          "tweede of derde zin als de oplossing.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "paginavorm",
+      }),
+    );
+  }
+
+  // ── V1: het bedrijf spreekt nergens zelf ──────────────────────────────────
+  for (const zin of invoer.merkstem?.issues ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "toon",
+        severity: "midden",
+        section: null,
+        finding: zin,
+        evidence: `${invoer.merkstem?.merkvermeldingen ?? 0} merkvermeldingen, ${invoer.merkstem?.wijZinnen ?? 0} zinnen in de wij-vorm`,
+        expected: "Het bedrijf praat zelf, met de merknaam in de citeerbare zinnen.",
+        recommendation:
+          "Zet de zinnen die over het werk gaan in de wij-vorm en houd de merknaam in het " +
+          "openingsantwoord en de eerste zin van elke sectie.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "paginavorm",
+      }),
+    );
+  }
+
+  // ── V10: een vragenlijst in plaats van een verhaal ────────────────────────
+  for (const zin of invoer.vraagkoppen?.issues ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "structuur",
+        severity: "midden",
+        section: null,
+        finding: zin,
+        evidence: `${invoer.vraagkoppen?.vragen ?? 0} van ${invoer.vraagkoppen?.koppen ?? 0} koppen`,
+        expected: "Hooguit de helft van de koppen is een vraag.",
+        recommendation:
+          "Maak van de meeste koppen een mededeling die zegt wat er in die sectie staat.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "paginavorm",
+      }),
+    );
+  }
+
+  // ── V6: de pagina geeft huiswerk in plaats van antwoord ───────────────────
+  for (const zin of invoer.adviestoon?.issues ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "overtuiging",
+        severity: "midden",
+        section: null,
+        finding: zin,
+        evidence: invoer.adviestoon?.voorbeelden.join(", ") || null,
+        expected: "De pagina zegt wat dit bedrijf doet, niet wat de lezer moet navragen.",
+        recommendation: "Draai de gebiedende zinnen om naar wat het bedrijf zelf regelt.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "adviestoon",
+      }),
+    );
+  }
+
+  // ── V6: de pagina stuurt de bezoeker weg ──────────────────────────────────
+  //
+  // Blokkerend, als enige in deze familie. Eén zin is er al één te veel: een
+  // checklist om de eigen aanbieder mee te beoordelen hoort op een
+  // vergelijkingssite en niet op de site van die aanbieder.
+  for (const zin of invoer.zelfondermijning?.issues ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "overtuiging",
+        severity: "hoog",
+        section: null,
+        finding: zin,
+        evidence: invoer.zelfondermijning?.zinnen[0] ?? null,
+        expected: "Geen vergelijkingsadvies en geen twijfel over de eigen deskundigheid.",
+        recommendation:
+          "Haal de zin weg en zet er de reden voor in de plaats waarom de lezer verder niet hoeft " +
+          "te kijken.",
+        blocking: true,
+        confidence: ZEKER,
+        bron: "adviestoon",
+      }),
+    );
+  }
+
+  // ── V12: elke pagina hetzelfde rijtje feiten ──────────────────────────────
+  for (const zin of invoer.herhaling?.issues ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "originaliteit",
+        severity: "laag",
+        section: null,
+        finding: zin,
+        evidence: invoer.herhaling?.overal.slice(0, 3).join(" | ") || null,
+        expected: "Elke pagina heeft één eigen reden om te bestaan.",
+        recommendation:
+          "Kies per pagina de feiten die voor die ene lezer het meeste betekenen, en laat de rest " +
+          "aan de pagina waar ze thuishoren.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "herhaling",
       }),
     );
   }
