@@ -61,6 +61,8 @@ import { issueTeksten, type QualityIssue } from "@/lib/pipeline/quality-issue";
 import { geoScore as geoScoreVanModel } from "@/lib/schemas/critique";
 import { kiesAanspreekvorm } from "@/lib/pipeline/tone-sliders";
 import { vindKlantinstructies, verbiedtAdres } from "@/lib/klantinstructies";
+import { checkBewijspunten } from "@/lib/pipeline/bewijspunten";
+import { checkKlantcitaten, vindCiteerbareAntwoorden } from "@/lib/pipeline/klantcitaten";
 import type { AuditedClaim } from "@/lib/schemas/claim-audit";
 import type { ContentContract } from "@/lib/schemas/content-contract";
 import type { ContentPiece } from "@/lib/schemas/content-piece";
@@ -68,7 +70,10 @@ import type { ContentType, Profile } from "@/lib/types/database";
 
 export interface KeuringInput {
   /** De tekst zoals hij nu is. */
-  piece: Pick<ContentPiece, "bodyMarkdown" | "faq" | "claims">;
+  piece: Pick<ContentPiece, "bodyMarkdown" | "faq" | "claims"> & {
+    /** V9, migratie 0093. Ontbreekt bij een pagina van vóór die migratie. */
+    proofPoints?: ContentPiece["proofPoints"];
+  };
   title: string;
   type: ContentType;
   brandName: string;
@@ -217,6 +222,18 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
     verbiedtAdres(instructies),
   );
 
+  // ── V9 en V4: is het materiaal van de klant een argument geworden? ───────
+  const heleTekstVoorBewijs = [body, ...faq.map((f) => `${f.q} ${f.a}`)].join("\n\n");
+  const bewijspunten = checkBewijspunten({
+    punten: input.piece.proofPoints,
+    tekst: heleTekstVoorBewijs,
+    factIds: input.facts.map((f) => f.id).filter((id): id is string => Boolean(id)),
+  });
+  const klantcitaten = checkKlantcitaten({
+    citaten: vindCiteerbareAntwoorden(input.facts.map((f) => f.text)),
+    tekst: heleTekstVoorBewijs,
+  });
+
   const taboo = checkTabooWords(body, faq, input.profile?.taboo_phrases ?? []);
   const verbodenOnderwerpen = checkForbiddenTopics(
     body,
@@ -290,6 +307,8 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
     bronpraat,
     aanspreekvorm,
     adres,
+    bewijspunten,
+    klantcitaten,
     taboo,
     verbodenOnderwerpen,
     typeOvertredingen,

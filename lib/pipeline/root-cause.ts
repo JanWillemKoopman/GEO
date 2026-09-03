@@ -64,6 +64,10 @@ const BRON_FASE: Record<IssueBron, PipelinePhase> = {
   // V5: de klant heeft het gevraagd en het stond in de invoer. Wie het toch
   // doet, is de schrijver.
   klantinstructie: "schrijven",
+  // V9 en V4: het materiaal lag er, de tekst gebruikt het niet als argument.
+  // Een schrijfprobleem, niet een kennisprobleem.
+  bewijspunt: "schrijven",
+  klantcitaat: "schrijven",
   // Onherleidbare beweringen wijzen op een te dunne feitenkaart.
   bronherleidbaarheid: "kennis",
   // Een verboden woord of onderwerp is een schrijffout: de regel stond in de

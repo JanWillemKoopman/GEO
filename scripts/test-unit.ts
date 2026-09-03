@@ -166,6 +166,13 @@ import { bepaalLezersopdracht, lezersblok, noemtPersoon, MIN_WOORDEN } from "@/l
 import { kiesAanspreekvorm, telAanspreekvormen } from "@/lib/pipeline/tone-sliders";
 import { checkAanspreekvorm, checkAdresinstructie } from "@/lib/pipeline/content-gate";
 import { vindKlantinstructies, instructieblok, verbiedtAdres } from "@/lib/klantinstructies";
+import { checkBewijspunten, betekenisStaatInTekst, MIN_BEWIJSPUNTEN } from "@/lib/pipeline/bewijspunten";
+import {
+  vindCiteerbareAntwoorden,
+  checkKlantcitaten,
+  overlapMetTekst,
+  citatenblok,
+} from "@/lib/pipeline/klantcitaten";
 import {
   normaliseerContract,
   formatContract,
@@ -17941,6 +17948,124 @@ group("de lezersopdracht ziet het verschil tussen een onderwerp en een persoon",
   ok("en zegt: begin bij zijn situatie", blok.includes("niet bij het bedrijf"));
   ok("en zegt wat er weg mag", blok.includes("laat je weg"));
   ok("zonder lezer is er geen blok", lezersblok(bepaalLezersopdracht({})) === "");
+});
+
+console.log("\nV9 en V4: van feit naar betekenis, in de woorden van de ondernemer");
+
+group("bewijspunten: is een feit omgezet naar een argument?", () => {
+  // De drie voorbeelden die de externe copywriter zelf gaf.
+  const tekst =
+    "Wij komen met onze eigen ploeg. U weet dus wie er op uw dak komt. Vinden wij extra werk, " +
+    "dan hoort u dat eerst: geen onverwachte werkzaamheden zonder dat u akkoord geeft. Na de " +
+    "inspectie ziet u zelf wat we aantreffen en wat er eerst moet gebeuren.";
+  const goed = checkBewijspunten({
+    punten: [
+      { factRef: "F1", betekenis: "u weet wie er op uw dak komt" },
+      { factRef: "F2", betekenis: "geen onverwachte werkzaamheden zonder dat u akkoord geeft" },
+      { factRef: "F3", betekenis: "u ziet zelf wat we aantreffen" },
+    ],
+    tekst,
+    factIds: ["F1", "F2", "F3", "F4"],
+  });
+  ok("drie omgezette feiten is genoeg", goed.issues.length === 0, JSON.stringify(goed.issues));
+  ok("en dat zijn er drie", goed.aantal === MIN_BEWIJSPUNTEN);
+
+  // Te weinig: dan is er geen keuze gemaakt.
+  const teWeinig = checkBewijspunten({
+    punten: [{ factRef: "F1", betekenis: "u weet wie er op uw dak komt" }],
+    tekst,
+    factIds: ["F1"],
+  });
+  ok("één bewijspunt is te weinig", teWeinig.issues.length === 1);
+  ok("en de bevinding zegt hoeveel er zijn", teWeinig.issues[0].includes("1 van de"));
+
+  // Een verzonnen F-nummer is geen bewijs.
+  const verzonnen = checkBewijspunten({
+    punten: [
+      { factRef: "F9", betekenis: "u weet wie er op uw dak komt" },
+      { factRef: "F2", betekenis: "geen onverwachte werkzaamheden zonder dat u akkoord geeft" },
+      { factRef: "F3", betekenis: "u ziet zelf wat we aantreffen" },
+    ],
+    tekst,
+    factIds: ["F1", "F2", "F3"],
+  });
+  ok("een onbekend F-nummer wordt gevonden", verzonnen.onbekend.length === 1);
+  ok("en genoemd in de bevinding", verzonnen.issues.some((i) => i.includes("F9")));
+
+  // ⚠️ De kern van V9: een mooie zin aanleveren en hem niet opschrijven.
+  const nietGeschreven = checkBewijspunten({
+    punten: [
+      { factRef: "F1", betekenis: "u weet wie er op uw dak komt" },
+      { factRef: "F2", betekenis: "wij bellen u binnen een kwartier terug na uw melding" },
+      { factRef: "F3", betekenis: "u ziet zelf wat we aantreffen" },
+    ],
+    tekst,
+    factIds: ["F1", "F2", "F3"],
+  });
+  ok("een niet-opgeschreven bewijspunt wordt gevonden", nietGeschreven.nietGeschreven.length === 1);
+  ok(
+    "en de bevinding citeert hem",
+    nietGeschreven.issues.some((i) => i.includes("binnen een kwartier")),
+  );
+
+  ok("een herformulering telt wel mee", betekenisStaatInTekst("u weet wie er op uw dak komt", tekst));
+  ok(
+    "een heel andere zin niet",
+    !betekenisStaatInTekst("wij hebben tweehonderd vestigingen in Duitsland", tekst),
+  );
+
+  // ⚠️ Conventie 3: een pagina van vóór migratie 0093 verandert niet van oordeel.
+  const oud = checkBewijspunten({ punten: undefined, tekst, factIds: ["F1"] });
+  ok("zonder het veld verandert er niets", oud.issues.length === 0);
+});
+
+group("de eigen woorden van de ondernemer moeten de parafrase overleven", () => {
+  // ⚠️ De vier antwoorden hieronder zijn letterlijk wat de twee klanten op
+  // 3 september gaven. Alle vier bevatten een reden, en van alle vier is die
+  // reden op de pagina gesneuveld.
+  const antwoorden = [
+    "Wat doen jullie als jullie tijdens dakisolatie houtrot vinden: Dan leggen we het werk stil " +
+      "en maken we foto's. Doorwerken over houtrot heen doen we niet, ook niet als de klant erom " +
+      "vraagt, want dan kunnen we onze garantie op het werk niet waarmaken.",
+    "Wat moet iemand meenemen naar de eerste afspraak: Een identiteitsbewijs en de pas van de " +
+      "zorgverzekering. Voor hardlopers: neem de schoenen mee waar je het meest op loopt, want " +
+      "daar zien we vaak aan waar de belasting zit.",
+    "Binnen 24 uur ter plaatse bij een lekkage",
+    "Contracten met alle zorgverzekeraars",
+  ];
+
+  const citaten = vindCiteerbareAntwoorden(antwoorden);
+  ok("de twee antwoorden met een reden worden gevonden", citaten.length === 2, String(citaten.length));
+  ok("het langste staat vooraan", citaten[0].tekst.includes("houtrot"), citaten[0].tekst.slice(0, 40));
+  ok("een kort feit telt niet mee", !citaten.some((c) => c.tekst.includes("Contracten")));
+
+  // De echte parafrase van 3 september: de procedure bleef, de reden verdween.
+  const parafrase =
+    "Wordt tijdens isolatiewerk schade gevonden, dan legt MJB Dakservice het werk stil, maakt " +
+    "foto's en meldt eerst de herstelkosten. Het werk gaat pas verder na akkoord.";
+  const weg = checkKlantcitaten({ citaten, tekst: parafrase });
+  ok("de weggeparafraseerde reden wordt gezien", weg.issues.length === 1, JSON.stringify(weg));
+  ok("en de bevinding toont het antwoord van de ondernemer", weg.issues[0].includes("houtrot"));
+
+  // Zoals het wél moet: de reden staat er.
+  const goed =
+    "Vinden wij houtrot, dan leggen wij het werk stil en bellen wij u. Doorwerken over houtrot " +
+    "heen doen wij niet, ook niet als u erom vraagt, want dan kunnen wij onze garantie op ons " +
+    "werk niet waarmaken.";
+  ok("met de reden erin is er geen bevinding", checkKlantcitaten({ citaten, tekst: goed }).issues.length === 0);
+  ok(
+    "en de overlap is hoog",
+    overlapMetTekst(citaten[0].tekst, goed) > 0.6,
+    String(overlapMetTekst(citaten[0].tekst, goed)),
+  );
+
+  // Zonder citeerbare antwoorden geen eis: niet elke klant praat zo.
+  ok("zonder citaten geen bevinding", checkKlantcitaten({ citaten: [], tekst: parafrase }).issues.length === 0);
+
+  const blok = citatenblok(citaten);
+  ok("het promptblok noemt de reden als het punt", blok.includes("mét die reden"));
+  ok("en waarschuwt voor de procedurezin", blok.includes("procedurezin"));
+  ok("zonder citaten is er geen blok", citatenblok([]) === "");
 });
 
 console.log("\nV5: een instructie van de klant is een verbod, geen feit");

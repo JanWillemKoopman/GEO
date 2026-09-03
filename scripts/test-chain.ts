@@ -426,6 +426,32 @@ async function main(): Promise<void> {
       JSON.stringify(claims.map((c) => ({ ref: c.factRef, id: c.factId ? "ja" : "nee" }))),
     );
 
+    // ── V9 (migratie 0093): de bewijspunten komen mee tot in de kolom ────────
+    //
+    // Eind tot eind, want dit is de schakel die het verschil maakt tussen
+    // "het feit staat er" en "het feit is een argument geworden". Blijft hij
+    // onderweg liggen, dan meet de keuring straks een lege lijst en verdwijnt
+    // de bevinding zonder dat iemand het ziet.
+    const metBewijs = await db.client.query(
+      `select proof_points_json from public.content_pieces
+         where analysis_id = $1 and is_current = true`,
+      [analysisId],
+    );
+    const bewijspunten = (metBewijs.rows[0]?.proof_points_json ?? []) as {
+      factRef: string;
+      betekenis: string;
+    }[];
+    ok(
+      "0093: de bewijspunten staan in hun eigen kolom",
+      bewijspunten.length >= 3,
+      JSON.stringify(bewijspunten.map((b) => b.factRef)),
+    );
+    ok(
+      "en elk punt draagt een F-nummer en een betekeniszin",
+      bewijspunten.every((b) => Boolean(b.factRef?.trim()) && Boolean(b.betekenis?.trim())),
+      JSON.stringify(bewijspunten),
+    );
+
     ok(
       "de unieke index laat maar één huidige versie toe",
       (

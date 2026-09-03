@@ -31,6 +31,8 @@ import type { Critique } from "@/lib/schemas/critique";
 import { GEO_CRITERIA_LABELS } from "@/lib/schemas/critique";
 import type { CitabilityVerdict, FactualityVerdict } from "@/lib/schemas/content-panel";
 import type { CraftVerdict } from "@/lib/schemas/content-craft";
+import type { BewijspuntenResult } from "@/lib/pipeline/bewijspunten";
+import type { KlantcitatenResult } from "@/lib/pipeline/klantcitaten";
 import type {
   AanspreekvormResult,
   AdresResult,
@@ -72,6 +74,10 @@ export interface KwaliteitsInvoer {
   aanspreekvorm?: AanspreekvormResult;
   /** V5: negeert de pagina een instructie die de klant zelf gaf? */
   adres?: AdresResult;
+  /** V9: is een feit omgezet naar een argument voor de lezer? */
+  bewijspunten?: BewijspuntenResult;
+  /** V4: is er iets van de eigen woorden van de ondernemer blijven staan? */
+  klantcitaten?: KlantcitatenResult;
   taboo: TabooCheckResult;
   verbodenOnderwerpen: TabooCheckResult;
   typeOvertredingen: TypeRegel[];
@@ -610,6 +616,53 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
         blocking: true,
         confidence: ZEKER,
         bron: "klantinstructie",
+      }),
+    );
+  }
+
+  // ── V9: feiten die geen argument geworden zijn ────────────────────────────
+  //
+  // Op de dimensie OVERTUIGING en niet op bewijs: de feiten stáán er, ze zijn
+  // alleen niet omgezet. Dat is precies wat de externe copywriter aanwees als
+  // het verschil tussen informatie en copy, en het is de laagste van zijn vijf
+  // cijfers (2,6 van 5). Niet blokkerend: een pagina met te weinig
+  // bewijspunten is niet onwaar, hij is alleen minder overtuigend, en een
+  // blokkade hier zou elke pagina tegenhouden zolang het model dit nog leert.
+  for (const zin of (invoer.bewijspunten?.issues ?? []).slice(0, 3)) {
+    issues.push(
+      maak(invoer, {
+        dimension: "overtuiging",
+        severity: "midden",
+        section: null,
+        finding: zin,
+        evidence: invoer.bewijspunten?.nietGeschreven[0]?.betekenis ?? null,
+        expected: "Elk gekozen feit staat er met wat het voor deze lezer betekent.",
+        recommendation:
+          "Schrijf per gekozen feit één zin die zegt wat de lezer eraan heeft, en zet die zin op " +
+          "de plek waar hij dat argument nodig heeft.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "bewijspunt",
+      }),
+    );
+  }
+
+  // ── V4: de eigen woorden van de ondernemer zijn weggeparafraseerd ─────────
+  for (const zin of invoer.klantcitaten?.issues ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "originaliteit",
+        severity: "midden",
+        section: null,
+        finding: zin,
+        evidence: null,
+        expected: "Minstens één antwoord van de ondernemer staat er vrijwel letterlijk in.",
+        recommendation:
+          "Neem één van zijn antwoorden over inclusief de reden erachter, in plaats van er een " +
+          "procedurezin van te maken.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "klantcitaat",
       }),
     );
   }

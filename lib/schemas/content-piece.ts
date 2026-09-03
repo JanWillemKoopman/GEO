@@ -30,6 +30,28 @@ export const ContentPiece = z.object({
    * uitleg over het onderwerp hoeft hier niet in; die bevat geen belofte van
    * deze klant.
    */
+  /**
+   * DE BEWIJSPUNTEN (V9, migratie 0093): per gekozen feit wat het voor de lezer
+   * betekent.
+   *
+   * ⚠️ Dit is een ANDERE vraag dan `claims` hieronder. `claims` bewijst dat een
+   * zin MAG staan (welk feit dekt hem). Dit bewijst dat een feit IS OMGEZET van
+   * bedrijfsgegeven naar argument. De externe copywriter van 3 september noemde
+   * dat zijn tweede aanbeveling van drie, met dit voorbeeld: "vaste ploeg van
+   * vier eigen dakdekkers" moet "u weet wie er op uw dak komt" worden.
+   *
+   * Drie tot vijf, en niet meer: van twintig feiten er twintig noemen is precies
+   * de redactionele luiheid die hij aanwees. De code rekent na dat het F-nummer
+   * bestaat en dat de betekeniszin ook echt in de tekst staat.
+   */
+  proofPoints: z.array(
+    z.object({
+      /** Het F-nummer van het feit dat dit punt draagt. */
+      factRef: z.string(),
+      /** Eén zin: wat dit feit voor DEZE lezer betekent. Geen bedrijfsgegeven. */
+      betekenis: z.string(),
+    }),
+  ),
   claims: z.array(
     z.object({
       claim: z.string(),

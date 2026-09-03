@@ -7298,3 +7298,40 @@ Dit is de enige klantinstructie met een harde controle. De rest gaat als geslote
 prompt in en heeft geen vangnet, en dat staat er expliciet bij: instructies automatisch herkennen is
 lastig, en het algemene geval verdient eerst meer data. Vier controles groen: typecheck, 4196
 unittests (19 nieuwe), 639 ketentests, build.
+
+## 3 september 2026: V9 en V4, van feit naar argument en terug naar de woorden van de klant
+
+De tweede aanbeveling van de externe copywriter: "Het probleem is niet dat de schrijver onvoldoende
+informatie heeft. Het probleem is dat de informatie onvoldoende wordt omgezet in een overtuigend
+argument." Zijn voorbeeld: "vaste ploeg van vier eigen dakdekkers" moet "u weet wie er op uw dak
+komt" worden.
+
+**Migratie 0093** voegt `content_pieces.proof_points_json` toe, additief met default `'[]'`. Per
+gekozen feit één zin die zegt wat het voor de lezer betekent, met het F-nummer erbij. ⚠️ Dat is een
+ANDERE vraag dan `claims_json`: die kolom bewijst dat een zin mág staan, deze bewijst dat een feit
+IS OMGEZET. Op de twaalf pagina's liepen die twee het verst uiteen van alle maten, met een
+bronherleidbaarheid van 23 tot 92 procent naast een overtuigingskracht van 2,6 van 5. Ze in één
+kolom schuiven zou van "onderbouwd" en "overtuigend" één cijfer maken.
+
+**`lib/pipeline/bewijspunten.ts`** rekent drie dingen na, geen ervan een smaakoordeel: zijn het er
+minstens drie (onder de drie is er geen keuze gemaakt), bestaat het F-nummer, en staat de
+betekeniszin ook echt in de tekst. Dat laatste is de kern: een model dat een mooie zin aanlevert en
+hem niet opschrijft, heeft het werk niet gedaan. De overlapdrempel is 0,6, dezelfde als
+`claimMatchesSentence()` en om dezelfde reden: een schrijver mag zijn eigen zin herformuleren, niet
+vervangen. De bevinding valt op de dimensie OVERTUIGING en niet op bewijs, want de feiten stáán er.
+Niet blokkerend: een pagina met te weinig bewijspunten is niet onwaar, alleen minder overtuigend.
+
+**`lib/pipeline/klantcitaten.ts`** is de mechanische kant ervan (V4). Op vier pagina's werd een
+letterlijk klantantwoord tot een procedurezin geparafraseerd waarbij de reden wegviel: "Doorwerken
+over houtrot heen doen we niet, ook niet als de klant erom vraagt, want dan kunnen we onze garantie
+op het werk niet waarmaken" werd "dan legt MJB Dakservice het werk stil, maakt foto's en meldt eerst
+de herstelkosten". De module herkent antwoorden met een motivering ("want", "omdat", "daarom") van
+minstens vijftien woorden, biedt ze apart aan als CITEERBAAR, en meet achteraf de woordoverlap. Eén
+antwoord hoeft er maar te halen: een pagina die uit citaten bestaat is ook geen pagina. Drempel 0,4,
+losser dan bij de bewijspunten omdat het daar om één zin gaat die er letterlijk hoort te staan en
+hier om de vraag of er íets van is blijven hangen.
+
+De vier antwoorden die op 3 september sneuvelden waren 19, 21, 24 en 31 woorden lang; daar komt de
+grens van vijftien vandaan. Vier controles groen: typecheck, 4218 unittests (22 nieuwe), 641
+ketentests (2 nieuwe, die de bewijspunten eind tot eind tot in de kolom volgen), build. Migratie
+0093 staat op productie.

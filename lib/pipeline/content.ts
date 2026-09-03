@@ -63,6 +63,8 @@ import { describeToneSliders, describePronoun, kiesAanspreekvorm } from "@/lib/p
 import { bepaalLezersopdracht, lezersblok } from "@/lib/lezersopdracht";
 import { objectionsRule } from "@/lib/pipeline/commercial-context";
 import { vindKlantinstructies, instructieblok, verbiedtAdres } from "@/lib/klantinstructies";
+import { bewijspuntenblok } from "@/lib/pipeline/bewijspunten";
+import { vindCiteerbareAntwoorden, citatenblok } from "@/lib/pipeline/klantcitaten";
 import {
   chooseExistingText,
   matchExistingPage,
@@ -568,6 +570,13 @@ function buildContentInput(args: {
     instructieblok(vindKlantinstructies(facts.map((f) => f.text))),
     // ✅ De gesloten feitenkaart (R5.3). Geen uitnodiging maar een grens.
     formatFactCard(facts),
+    // ✅ V4: de antwoorden waarin de ondernemer zelf uitlegt WAAROM hij iets
+    // doet. Op vier pagina's van 3 september werd zo'n antwoord tot een
+    // procedurezin geparafraseerd, waarbij telkens de reden wegviel. Precies het
+    // deel dat geen concurrent kan kopiëren.
+    citatenblok(vindCiteerbareAntwoorden(facts.map((f) => f.text))),
+    // ✅ V9: van feit naar betekenis, met de voorbeelden van de copywriter erin.
+    bewijspuntenblok(),
     // ✅ HET CONTRACT (A2): de inhoudsopgave van deze pagina. Staat bewust vóór
     // het paginaplan en direct onder de feitenkaart: dit is de opdracht, en
     // wat bovenaan een prompt staat wordt het best gevolgd. Wij rekenen hem
@@ -1340,6 +1349,11 @@ function pieceFromRow(row: ContentPieceRow): ContentPiece {
     claims: ((row.claims_json ?? []) as WrittenClaim[])
       .filter((c) => typeof c?.claim === "string" && typeof c?.factRef === "string")
       .map((c) => ({ claim: c.claim, factRef: c.factRef, quote: c.quote ?? "" })),
+    // V9 (migratie 0093). Een rij van vóór die migratie levert een lege lijst,
+    // en dan telt de bewijspuntencontrole niet mee (conventie 3).
+    proofPoints: ((row.proof_points_json ?? []) as { factRef?: string; betekenis?: string }[])
+      .filter((p) => typeof p?.factRef === "string" && typeof p?.betekenis === "string")
+      .map((p) => ({ factRef: p.factRef as string, betekenis: p.betekenis as string })),
   };
 }
 
@@ -1400,7 +1414,7 @@ async function loadSavedDraft(
 ): Promise<DraftOutput | null> {
   const { data } = await admin
     .from("content_pieces")
-    .select("target_intent, cluster, body_markdown, meta_title, meta_description, schema_jsonld, faq_json, raw_json, claims_json")
+    .select("target_intent, cluster, body_markdown, meta_title, meta_description, schema_jsonld, faq_json, raw_json, claims_json, proof_points_json")
     .eq("id", pieceId)
     .maybeSingle();
 
@@ -1420,6 +1434,10 @@ async function loadSavedDraft(
       // strandde zijn traceerbaarheid kwijtraken en op dekking 0 uitkomen,
       // terwijl de tekst gewoon onderbouwd was.
       claims: (data.claims_json ?? []) as ContentPiece["claims"],
+      // V9: net als `claims` meenemen bij hervatten. Een pagina van vóór
+      // migratie 0093 heeft een lege lijst, en dan slaat de controle niet aan
+      // (conventie 3).
+      proofPoints: (data.proof_points_json ?? []) as ContentPiece["proofPoints"],
     } as ContentPiece,
     raw: data.raw_json,
   };
@@ -1590,6 +1608,7 @@ function buildDraftRow(args: {
     // premium-kosten. Eén bron van waarheid, en dat is het rapport.
     title: recommendation.title,
     target_intent: draft.parsed.targetIntent,
+    proof_points_json: draft.parsed.proofPoints ?? [],
     cluster: draft.parsed.cluster,
     // Versheid in de opmaak die de bezoeker niet ziet, is de helft van het
     // signaal: een assistent citeert uit de lopende tekst, niet uit de JSON-LD.

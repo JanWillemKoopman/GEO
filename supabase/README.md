@@ -335,3 +335,22 @@ tegengehouden werd, en juist dat bewijs is waar de ijking van het kwaliteitsraam
 alleen echte rondes vergelijken.
 
 Additief en idempotent: de kolom heeft een default en geen bestaande rij verandert van betekenis.
+
+## 0093 — de bewijspunten van een pagina (V9)
+
+`content_pieces.proof_points_json`, additief met default `'[]'`. Per gekozen feit één zin die zegt
+wat het voor de LEZER betekent, met het F-nummer erbij:
+
+```json
+[{ "factRef": "F3", "betekenis": "u weet wie er op uw dak komt" }]
+```
+
+⚠️ Dit is een andere vraag dan `claims_json`. Die kolom bewijst dat een zin MAG staan (welk feit
+dekt hem). Deze bewijst dat een feit IS OMGEZET van bedrijfsgegeven naar reden om te bellen. Op de
+twaalf benchmarkpagina's van 3 september 2026 liepen die twee het verst uiteen van alle maten:
+bronherleidbaarheid 23 tot 92 procent naast overtuigingskracht 2,6 van 5 volgens de externe
+copywriter. Ze in één kolom schuiven zou van "onderbouwd" en "overtuigend" één cijfer maken.
+
+De controle staat in `lib/pipeline/bewijspunten.ts` en rekent drie dingen na: zijn het er minstens
+drie, bestaat het F-nummer, en staat de betekeniszin ook echt in de tekst. Een pagina van vóór deze
+migratie heeft een lege lijst en verandert niet van oordeel (conventie 3).

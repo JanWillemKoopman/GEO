@@ -91,6 +91,8 @@ export const ISSUE_BRONNEN = [
   "bewijsdekking",
   "aanspreekvorm",
   "klantinstructie",
+  "bewijspunt",
+  "klantcitaat",
 ] as const;
 export type IssueBron = (typeof ISSUE_BRONNEN)[number];
 
