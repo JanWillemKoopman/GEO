@@ -117,6 +117,16 @@ export type Hoofdstuk = (typeof HOOFDSTUKKEN)[number];
  * de vorige drie: dit is stafgereedschap, geen klantscherm, en de acht blijven
  * vijf soorten werk plus twee uitgangen plus deze ene toevoeging, geen
  * vergaarbak.
+ *
+ * ⚠️ **En sinds migratie 0091 op negen**, voor het Kwaliteitslab. Dat is de
+ * vijfde uitzondering en hij verdient dezelfde toets als de vorige: is dit een
+ * soort werk dat er nog niet stond? Ja. Alle acht bestaande bestemmingen gaan
+ * over het KLAARZETTEN van een merk (onderzoek, aanbod, concurrenten,
+ * toewijzen) of over de app als geheel. Het lab gaat over het NAREKENEN van wat
+ * de app schrijft, en het is het enige scherm waar het oordeel van de app naast
+ * dat van een mens ligt. Zonder dat scherm is elke wijziging aan de
+ * schrijfinstructie een gok met een verhaal eromheen (herstelplan T2), en dat
+ * is precies wat het kwaliteitsraamwerk moest vervangen.
  */
 export const GRENS_PER_HOOFDSTUK: Record<Hoofdstuk, number> = {
   Overzicht: 3,
@@ -124,7 +134,7 @@ export const GRENS_PER_HOOFDSTUK: Record<Hoofdstuk, number> = {
   Analytics: 4,
   Merkprofiel: 3,
   Sales: 5,
-  Admin: 8,
+  Admin: 9,
 };
 
 /**
@@ -413,6 +423,16 @@ export function generalNav(staff = false): NavItem[] {
           {
             href: "/beheer",
             label: "Alle merken",
+            hoofdstuk: "Admin" as const,
+            staffOnly: true,
+          },
+          // Het kwaliteitslab (migratie 0091): wat de app van elke geschreven
+          // pagina vond, wat een mens ervan vond, en waar die twee uit elkaar
+          // lopen. Onder Admin en niet onder Strategie: dit is het gereedschap
+          // waarmee wij de contentmotor bijstellen, en de klant ziet het nooit.
+          {
+            href: "/beheer/kwaliteit",
+            label: "Kwaliteitslab",
             hoofdstuk: "Admin" as const,
             staffOnly: true,
           },

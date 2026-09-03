@@ -28,6 +28,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildFactBase } from "@/lib/pipeline/factbase";
 import { berekenInputCoverage } from "@/lib/pipeline/input-coverage";
+import { berekenGewogenDekking, poortGraad } from "@/lib/pipeline/evidence-weight";
 import { inputpoort, type InputOordeel, type WriteMode } from "@/lib/content-input-gate";
 import { recommendationFromSnapshot } from "@/lib/pipeline/briefing";
 import type { ContentContract } from "@/lib/schemas/content-contract";
@@ -72,20 +73,42 @@ export async function beoordeelPagina(
   const doelvragen = (bevroren?.targets ?? []).map((t) => t.text).filter(Boolean);
 
   const facts = await buildFactBase(admin, profileId, analysisId, doelvragen, [piece.id]);
+
+  // ── De GEWOGEN dekking bepaalt het oordeel (migratie 0091) ───────────────
+  //
+  // `berekenInputCoverage()` telt elke merkgebonden sectie even zwaar. Negen
+  // randsecties onderbouwd en de ene sectie over de prijs niet, levert 90
+  // procent op, en 90 gaat vlot door de poort van 70. Gemeten op de zeven
+  // pagina's van 1 en 2 september 2026 gebeurde dat ook: alle zeven haalden 86
+  // tot 98 procent contractdekking terwijl hun bronherleidbaarheid tussen de 28
+  // en 39 procent lag.
+  //
+  // `poortGraad()` weegt nu wat er ontbreekt: staat de kern niet volledig, dan
+  // telt de kritieke dekking; anders de gewogen. De standen zelf (70, 40, de
+  // drie uitwegen) blijven precies zoals ze waren, en `input_coverage` blijft de
+  // ONGEWOGEN graad, zodat die reeks vergelijkbaar blijft.
+  const gewogen = berekenGewogenDekking(contract, facts);
   const dekking = berekenInputCoverage(contract, facts);
 
   if (bewaar) {
     await admin
       .from("content_pieces")
-      .update({ input_coverage: dekking.graad })
+      .update({
+        input_coverage: dekking.graad,
+        weighted_evidence_coverage: gewogen.gewogen,
+        critical_evidence_coverage: gewogen.kritiek,
+      })
       .eq("id", piece.id);
   }
 
-  const ongedekteKoppen = dekking.ongedekt.map((s) => s.heading).filter(Boolean);
+  // De koppen die de melding noemt komen uit de GEWOGEN lijst: die staat op
+  // belang gesorteerd, dus de klant leest eerst de sectie die het meeste kost.
+  const ongedekteKoppen = gewogen.ongedekt.map((s) => s.heading).filter(Boolean);
   const oordeel = inputpoort({
-    graad: dekking.graad,
-    ongedekteSecties: dekking.ongedekt.length,
+    graad: poortGraad(gewogen),
+    ongedekteSecties: gewogen.ongedekt.length,
     ongedekteKoppen,
+    kritiekeSectiesZonderBewijs: gewogen.ongedekteKern.length,
     writeMode: (piece.write_mode === "algemeen" ? "algemeen" : null) as WriteMode,
   });
 

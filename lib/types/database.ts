@@ -1050,6 +1050,32 @@ export interface ContentPiece {
   contract_json?: unknown | null;
   coverage_score?: number | null;
   repair_round?: number;
+  /**
+   * Het kwaliteitsraamwerk (migratie 0091,
+   * `docs/tasks/contentkwaliteit-framework.md`).
+   *
+   * `quality_json` = de volledige evaluatie: dimensiescores, alle bevindingen
+   * als getypeerde objecten, de blokkades en de root-cause-analyse.
+   * `quality_verdict` = `pass`, `repair` of `block`; bewust naast en niet in
+   * plaats van `needs_review`, want die boolean staat in zes schermen.
+   * `quality_confidence` = hoe zeker de app van dat oordeel is (0-100); daalt
+   * zodra een beoordelaar uitvalt, zodat een gevallen keuring niet als
+   * goedkeuring leest.
+   * `weighted_evidence_coverage` en `critical_evidence_coverage` staan naast
+   * `input_coverage`, dat ongewogen is en vergelijkbaar moet blijven.
+   *
+   * Alle zes optioneel: een pagina van vóór 0091 heeft ze niet, en krijgt geen
+   * oordeel dat op ontbrekende data rust (conventie 3).
+   */
+  quality_json?: unknown | null;
+  quality_verdict?: "pass" | "repair" | "block" | null;
+  quality_confidence?: number | null;
+  weighted_evidence_coverage?: number | null;
+  critical_evidence_coverage?: number | null;
+  quality_profile?: string | null;
+  /** De onderbouwingsgraad vóór het schrijven (migratie 0087). */
+  input_coverage?: number | null;
+  write_mode?: string | null;
   /** Heeft de klant de tekst zelf bijgewerkt? (4.12) */
   edited_by_user: boolean;
   /** Publicatie (optimalisatie.md 5.1/5.2, migratie 0020). */
@@ -1073,6 +1099,71 @@ export interface ContentPieceTarget {
   prompt_text: string;
   cluster: string | null;
   created_at: string;
+}
+
+/**
+ * Eén kwaliteitsbeoordeling van één ronde (migratie 0091).
+ *
+ * `repair_round` 0 is het eerste concept. De rij bestaat om drie vragen te
+ * kunnen beantwoorden die tot nu toe alleen in een ongestructureerde blob
+ * stonden: welke versie was de beste, waarom, en werd de pagina van elke ronde
+ * beter of slechter.
+ */
+export interface ContentQualityRun {
+  id: string;
+  content_piece_id: string;
+  analysis_id: string | null;
+  repair_round: number;
+  quality_profile: string | null;
+  score: number | null;
+  confidence: number | null;
+  verdict: "pass" | "repair" | "block" | null;
+  dimensions_json: unknown | null;
+  issues_json: unknown | null;
+  root_cause_json: unknown | null;
+  blocking_count: number;
+  issue_count: number;
+  /** Is de tekst van DEZE ronde bewaard, of bleef een eerdere versie staan? */
+  retained: boolean;
+  word_count: number | null;
+  cost_usd: number | null;
+  created_at: string;
+}
+
+/** Hoeveel handmatig werk een pagina nog kost volgens de beoordelaar. */
+export type CorrectionEffort = "geen" | "licht" | "zwaar" | "opnieuw";
+
+/**
+ * De menselijke beoordeling van een gegenereerde pagina (migratie 0091).
+ *
+ * Voor de meting bestaat een evaluatieset (`npm run eval:mention`); voor het
+ * schrijven bestond niets, en daardoor was elke wijziging aan de
+ * schrijfinstructie een gok. Deze rijen zijn de meetlat, en met
+ * `benchmark_set` vormen ze een benchmark zonder dat er een aparte structuur
+ * naast merk, cluster en pagina hoeft te bestaan.
+ */
+export interface ContentQualityReview {
+  id: string;
+  content_piece_id: string;
+  reviewer_id: string | null;
+  reviewer_name: string | null;
+  benchmark_set: string | null;
+  /** De zes maten uit het raamwerk, elk 1 tot 5. `null` = niet beoordeeld. */
+  copywriter_equivalence: number | null;
+  company_specificity: number | null;
+  /** Hoe generiek de tekst aanvoelt. 1 = heel generiek, 5 = helemaal eigen. */
+  generic_ai_feel: number | null;
+  persuasiveness: number | null;
+  brand_representation: number | null;
+  correction_effort: CorrectionEffort | null;
+  would_send: boolean | null;
+  first_thing_to_change: string | null;
+  notes: string | null;
+  /** De gouden referentie: hoe een mens deze pagina geschreven zou hebben. */
+  reference_markdown: string | null;
+  reference_source: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export type FactRequestStatus = "open" | "beantwoord" | "overgeslagen";

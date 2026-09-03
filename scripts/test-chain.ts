@@ -7835,6 +7835,386 @@ async function main(): Promise<void> {
       );
     }
 
+
+    // ════════════════════════════════════════════════════════════════════════
+    // HET KWALITEITSRAAMWERK, EIND TOT EIND (migratie 0091)
+    // ════════════════════════════════════════════════════════════════════════
+    //
+    // De scenario's uit docs/tasks/contentkwaliteit-framework.md §7. Ze draaien
+    // op een EIGEN merk, zodat elke schakel in isolatie te zien is: een
+    // kernsectie zonder bewijs, een gevallen beoordelaar, en de rondes die de
+    // versiekeuze voeden.
+    {
+      console.log("\nHet kwaliteitsraamwerk: blokkade, zekerheid en versiekeuze");
+      const kwUserId = randomUUID();
+      const kwProfileId = randomUUID();
+      const kwAnalysisId = randomUUID();
+
+      await db.client.query(`insert into auth.users (id, email) values ($1, $2)`, [
+        kwUserId,
+        `kwaliteit-${kwUserId.slice(0, 8)}@voorbeeld.nl`,
+      ]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, proof_points, status)
+         values ($1, $2, 'Fysi-Unique', 'https://fysi-unique.nl', 'Fysi-Unique',
+                 array['Wordt met een 9,4 beoordeeld op Zorgkaart'], 'klaar')`,
+        [kwProfileId, kwUserId],
+      );
+      await db.client.query(
+        `insert into public.profile_pages (profile_id, url, title, text_excerpt) values
+         ($1, 'https://fysi-unique.nl/hardloopklachten', 'Hardloopklachten Amersfoort',
+          'Fysi-Unique behandelt hardloopblessures zoals runnersknie en shin splints. Wij zitten in Amersfoort.')`,
+        [kwProfileId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'Fysi-Unique hardloopblessures', 'https://fysi-unique.nl',
+                 'hardloopblessure behandelen', 'gereed')`,
+        [kwAnalysisId, kwUserId, kwProfileId],
+      );
+
+      const kwAanbeveling = {
+        title: "Kwaliteitspagina hardloopblessures",
+        type: "article" as const,
+        targetIntent: "Waar kan ik in Amersfoort terecht voor een hardloopblessure?",
+        why: "De AI noemt hier andere praktijken.",
+        action: "nieuw" as const,
+        existingUrl: null,
+        reportId: null,
+        targets: [
+          {
+            promptId: null,
+            runId: null,
+            text: "Waar kan ik in Amersfoort terecht voor een hardloopblessure?",
+            cluster: "hardloop",
+            weight: 1,
+          },
+        ],
+        revisionNote: null,
+      };
+
+      // ── Het contract klaarzetten via de echte planstap ────────────────────
+      const { planContentBriefing } = await import("@/lib/jobs/content-jobs");
+      await planContentBriefing(admin as never, {
+        analysisId: kwAnalysisId,
+        userId: kwUserId,
+        recommendations: [kwAanbeveling],
+      });
+      const { rows: kwPlanTaken } = await db.client.query(
+        `select id, payload_json from public.jobs
+          where analysis_id = $1 and type = 'content_plan' order by created_at limit 1`,
+        [kwAnalysisId],
+      );
+      const { runJob } = await import("@/lib/jobs/handlers");
+      await runJob({
+        admin: admin as never,
+        job: {
+          id: kwPlanTaken[0].id as string,
+          analysis_id: kwAnalysisId,
+          type: "content_plan",
+          payload_json: kwPlanTaken[0].payload_json,
+          attempts: 0,
+        } as never,
+      });
+
+      const { rows: kwContractRij } = await db.client.query(
+        `select id, contract_json from public.content_pieces where analysis_id = $1`,
+        [kwAnalysisId],
+      );
+      const kwPieceId = kwContractRij[0].id as string;
+      const kwSecties = (kwContractRij[0].contract_json as { sections: { importance: string }[] })
+        ?.sections ?? [];
+      ok(
+        "het contract draagt het belang per sectie",
+        kwSecties.length > 0 && kwSecties.every((s) => Boolean(s.importance)),
+      );
+      ok(
+        "en er staat precies één kernsectie in",
+        kwSecties.filter((s) => s.importance === "kern").length === 1,
+        `${kwSecties.filter((s) => s.importance === "kern").length} kernsecties`,
+      );
+
+      // ── De briefing draaien: zonder claim-audit is er geen paginaplan ─────
+      //
+      // De echte volgorde is plannen, dan de briefing, dan schrijven. De
+      // claim-audit uit de briefing levert het PAGINAPLAN, en dat is waar de
+      // kernbeweringen in staan. Sla je hem over, dan is er geen plan en telt
+      // de claimdekking nergens in mee: correct gedrag, maar dan toetst dit
+      // scenario R1 niet.
+      const { rows: kwBriefTaken } = await db.client.query(
+        `select id, payload_json from public.jobs
+          where analysis_id = $1 and type = 'content_brief' order by created_at limit 1`,
+        [kwAnalysisId],
+      );
+      ok("de plantaak heeft de briefing ingepland", kwBriefTaken.length === 1);
+      await runJob({
+        admin: admin as never,
+        job: {
+          id: kwBriefTaken[0].id as string,
+          analysis_id: kwAnalysisId,
+          type: "content_brief",
+          payload_json: kwBriefTaken[0].payload_json,
+          attempts: 0,
+        } as never,
+      });
+
+      const { rows: kwPlanRij } = await db.client.query(
+        `select briefing_snapshot_json from public.content_pieces where id = $1`,
+        [kwPieceId],
+      );
+      const kwPaginaplan = (kwPlanRij[0].briefing_snapshot_json as { plan?: unknown[] } | null)?.plan ?? [];
+      ok(
+        "en het paginaplan staat bij de pagina",
+        kwPaginaplan.length > 0,
+        `${kwPaginaplan.length} beweringen`,
+      );
+
+      // ══ SCENARIO 3: kritieke claim zonder bewijs → de pagina wordt geblokkeerd
+      //
+      // De kernsectie van het contract ("Afspraak maken") heeft geen F-nummer,
+      // dus er is geen enkel feit dat hem kan waarmaken. Dat is precies het
+      // geval uit punt 15 van de opdracht: de pagina kan verder prima scoren en
+      // hoort tóch niet naar de site van de klant.
+      await db.client.query(`update public.content_pieces set status = 'draft' where id = $1`, [
+        kwPieceId,
+      ]);
+      const { draftContentPiece } = await import("@/lib/pipeline/content");
+      const kwDraft = await draftContentPiece({
+        analysisId: kwAnalysisId,
+        userId: kwUserId,
+        reportId: null,
+        recommendation: kwAanbeveling,
+      });
+
+      const { rows: kwNa } = await db.client.query(
+        `select quality_verdict, quality_confidence, quality_json, needs_review, status,
+                critical_evidence_coverage, weighted_evidence_coverage, quality_profile
+           from public.content_pieces where id = $1`,
+        [kwDraft.contentPieceId],
+      );
+      const kwOordeel = kwNa[0];
+      const kwJson = kwOordeel.quality_json as {
+        issues?: { blocking?: boolean; dimension?: string; section?: string; phase?: string; finding?: string }[];
+        rootCause?: { fase: string }[];
+        score?: number | null;
+      };
+      const kwBlokkades = (kwJson.issues ?? []).filter((i) => i.blocking);
+
+      ok("scenario 3: het oordeel is 'block'", kwOordeel.quality_verdict === "block", String(kwOordeel.quality_verdict));
+      ok(
+        "scenario 3: de blokkade wijst naar de kernsectie zonder bewijs",
+        kwBlokkades.some((i) => i.dimension === "bewijs"),
+        kwBlokkades.map((i) => i.dimension).join(", "),
+      );
+      ok(
+        "scenario 3: de kritieke dekking staat op nul en niet op leeg",
+        Number(kwOordeel.critical_evidence_coverage) === 0,
+        String(kwOordeel.critical_evidence_coverage),
+      );
+      // ⚠️ Een geblokkeerde pagina mag NOOIT als "klaar om te publiceren" op het
+      // scherm komen. Vóór dit raamwerk kwam hij op `ready` met needs_review, en
+      // dat las in de bibliotheek als af.
+      ok("scenario 3: de pagina heet niet klaar", kwOordeel.needs_review === true);
+      ok("scenario 3: en blijft in concept staan", kwOordeel.status === "draft");
+      ok(
+        "scenario 3: het cijfer staat er gewoon naast",
+        kwJson.score !== null && kwJson.score !== undefined,
+        "score en blokkade zijn twee getallen, geen één",
+      );
+
+      // ══ R1: de KERNBEWERING blokkeert, ook zonder eigen sectie ════════════
+      //
+      // De claim-audit van de stub levert een kernbewering ("Fysi-Unique biedt
+      // een preventief nazorgprogramma") die door geen enkel feit gedekt wordt.
+      // Tot 3 september 2026 bereikte dat gegeven de kwaliteitspoort nooit: de
+      // audit wist het, en de poort keek alleen naar SECTIES. Een kernbewering
+      // die aan geen enkele sectie hangt, glipte er dus langs.
+      const kwClaimBlokkades = kwBlokkades.filter((i) =>
+        (i as { finding?: string }).finding?.includes("leunt op een bewering"),
+      );
+      ok(
+        "R1: een kernbewering zonder bewijs levert een eigen blokkade op",
+        kwClaimBlokkades.length > 0,
+        kwBlokkades.map((i) => (i as { finding?: string }).finding ?? "").join(" | "),
+      );
+      ok(
+        "R1: en die noemt de bewering letterlijk",
+        kwClaimBlokkades.some((i) =>
+          (i as { finding?: string }).finding?.includes("nazorgprogramma"),
+        ),
+      );
+      const kwClaimdekking = (
+        kwOordeel.quality_json as { claimdekking?: { kritiekOnbewezen?: number } }
+      ).claimdekking;
+      ok(
+        "R1: de claimdekking staat in de opgeslagen evaluatie",
+        (kwClaimdekking?.kritiekOnbewezen ?? 0) > 0,
+        JSON.stringify(kwClaimdekking),
+      );
+
+      // ══ SCENARIO 5: het profiel van het contenttype heeft gewogen ══════════
+      ok(
+        "scenario 5: het gewogen profiel staat bij de pagina",
+        kwOordeel.quality_profile === "article",
+        String(kwOordeel.quality_profile),
+      );
+
+      // ══ ROOT CAUSE: dit is een kennisprobleem en geen schrijfprobleem ══════
+      //
+      // De feitenkaart heeft niets voor deze sectie. Herschrijven levert dan
+      // dezelfde pagina in andere woorden op, en dat is precies wat de rondes
+      // van 1 september 2026 deden: 0,78 dollar per pagina, kwaliteit van 78
+      // naar 52.
+      ok(
+        "de root cause noemt een fase",
+        (kwJson.rootCause ?? []).length > 0,
+        JSON.stringify(kwJson.rootCause ?? []),
+      );
+
+      // ══ De ronde is bewaard, zodat de versiekeuze hem kan wegen ════════════
+      const { rows: kwRondes } = await db.client.query(
+        `select repair_round, score, verdict, blocking_count, retained
+           from public.content_quality_runs where content_piece_id = $1 order by repair_round`,
+        [kwDraft.contentPieceId],
+      );
+      ok("de eerste keuring staat als ronde 0 in de geschiedenis", kwRondes.length === 1);
+      ok("met het aantal blokkades erbij", Number(kwRondes[0]?.blocking_count) > 0);
+      ok("en gemarkeerd als behouden", kwRondes[0]?.retained === true);
+
+      // ══ SCENARIO 10: de klant beantwoordt de vraag, de dekking stijgt ══════
+      //
+      // Hetzelfde feit, nu wél op de kaart. De kritieke dekking hoort dan op
+      // honderd te staan en de blokkade op bewijs hoort te verdwijnen.
+      await db.client.query(
+        `insert into public.brand_facts
+           (profile_id, analysis_id, text, source, kind, citable, allowed, fact_key)
+         values ($1, $2, 'Bij Fysi-Unique kun je binnen 24 uur terecht voor een intake.',
+                 'klant, bevestigd', 'klant', true, true, 'intaketermijn')`,
+        [kwProfileId, kwAnalysisId],
+      );
+      const { berekenGewogenDekking } = await import("@/lib/pipeline/evidence-weight");
+      const { buildFactBase } = await import("@/lib/pipeline/factbase");
+      const kwFeiten = await buildFactBase(
+        admin as never,
+        kwProfileId,
+        kwAnalysisId,
+        [kwAanbeveling.targetIntent],
+        [kwPieceId],
+      );
+      // Het contract van de stub hangt zijn kernsectie aan géén F-nummer, dus de
+      // dekking stijgt pas zodra het contract er ook naar verwijst. Dat is
+      // precies de bedoeling: een feit dat nergens aan een sectie hangt maakt
+      // die sectie niet onderbouwd, en dat is wat `isSupported` al afdwong.
+      const { rows: kwContract2 } = await db.client.query(
+        `select contract_json from public.content_pieces where id = $1`,
+        [kwPieceId],
+      );
+      const kwContractObj = kwContract2[0].contract_json as {
+        sections: { importance: string; factRefs: string[] }[];
+      };
+      const kwKernFeit = kwFeiten.find((f) => f.text.includes("binnen 24 uur"));
+      const kwMetVerwijzing = {
+        ...kwContractObj,
+        sections: kwContractObj.sections.map((s) =>
+          s.importance === "kern" ? { ...s, factRefs: [kwKernFeit?.ref ?? "F1"] } : s,
+        ),
+      };
+      const kwNieuweDekking = berekenGewogenDekking(kwMetVerwijzing as never, kwFeiten);
+      ok(
+        "scenario 10: zodra het feit aan de kernsectie hangt, is de kritieke dekking volledig",
+        kwNieuweDekking.kritiek === 100,
+        String(kwNieuweDekking.kritiek),
+      );
+      ok(
+        "en de gewogen dekking stijgt mee",
+        (kwNieuweDekking.gewogen ?? 0) > (kwNieuweDekking.graad ?? 0) - 0.01,
+      );
+
+      // ══ SCENARIO 11: een beoordelaar valt uit ═════════════════════════════
+      //
+      // Het gevaarlijkste geval van allemaal: als een keuring stilletjes
+      // wegvalt, mag de pagina nooit als goedgekeurd lezen. Vóór dit raamwerk
+      // werd de feitelijkheidsbeoordelaar bij een fout `null` en verdween hij
+      // uit de bevindingen; daarna kon de pagina op `ready` eindigen alsof hij
+      // gekeurd was.
+      const { __setTestTransport: zetTransport } = await import("@/lib/openai/structured");
+      const kwHeelStub = createOpenAiStub(log);
+      zetTransport(async (opts: { schemaName: string }) => {
+        if (opts.schemaName === "content_factuality" || opts.schemaName === "content_craft") {
+          throw new Error("beoordelaar tijdelijk niet bereikbaar");
+        }
+        return kwHeelStub(opts as never);
+      });
+
+      await db.client.query(
+        `update public.content_pieces set status = 'draft', quality_json = null,
+                quality_verdict = null, quality_confidence = null
+          where id = $1`,
+        [kwPieceId],
+      );
+      const kwDraft2 = await draftContentPiece({
+        analysisId: kwAnalysisId,
+        userId: kwUserId,
+        reportId: null,
+        recommendation: kwAanbeveling,
+      });
+      zetTransport(kwHeelStub);
+
+      const { rows: kwNa2 } = await db.client.query(
+        `select quality_verdict, quality_confidence, quality_json
+           from public.content_pieces where id = $1`,
+        [kwDraft2.contentPieceId],
+      );
+      const kwJson2 = kwNa2[0].quality_json as {
+        beoordelaars?: { geslaagd: number; gevraagd: number };
+      };
+      ok(
+        "scenario 11: twee van de vier beoordelaars vielen uit",
+        kwJson2.beoordelaars?.geslaagd === 2 && kwJson2.beoordelaars?.gevraagd === 4,
+        JSON.stringify(kwJson2.beoordelaars),
+      );
+      ok(
+        "scenario 11: de zekerheid daalt daardoor onder de honderd",
+        Number(kwNa2[0].quality_confidence) < 100,
+        String(kwNa2[0].quality_confidence),
+      );
+      ok(
+        "scenario 11: en de pagina heet niet goedgekeurd",
+        kwNa2[0].quality_verdict !== "pass",
+        String(kwNa2[0].quality_verdict),
+      );
+
+      // ══ SCENARIO 12: het kostenplafond ════════════════════════════════════
+      //
+      // Loopt de pagina over haar budget, dan wordt dat gemeld en niet verzwegen.
+      // De kwaliteitsstand blijft daarbij staan zoals hij is: een pagina die
+      // duur was, is niet daarom slecht, en andersom.
+      await db.client.query(
+        `insert into public.ai_calls (kind, model, input_tokens, output_tokens, cost_usd,
+                                      analysis_id, content_piece_id)
+         values ('content_draft', 'gpt-5.6-sol', 20000, 6000, 2.50, $1, $2)`,
+        [kwAnalysisId, kwPieceId],
+      );
+      const { rows: kwKosten } = await db.client.query(
+        `select coalesce(sum(cost_usd), 0)::float as totaal from public.ai_calls
+          where content_piece_id = $1`,
+        [kwPieceId],
+      );
+      ok(
+        "scenario 12: de kosten van een pagina zijn per pagina op te tellen",
+        Number(kwKosten[0].totaal) >= 2.5,
+        String(kwKosten[0].totaal),
+      );
+      const { rows: kwNa3 } = await db.client.query(
+        `select quality_verdict from public.content_pieces where id = $1`,
+        [kwPieceId],
+      );
+      ok(
+        "en het kwaliteitsoordeel verandert daar niet van",
+        kwNa3[0].quality_verdict === kwNa2[0].quality_verdict,
+      );
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

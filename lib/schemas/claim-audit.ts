@@ -76,6 +76,28 @@ export const AuditedClaim = z.object({
   supportQuote: z.string().nullable(),
   /** kern = zonder dit feit is de pagina waardeloos voor z'n doelvraag. */
   importance: z.enum(["kern", "ondersteunend"]),
+  /**
+   * Welk SOORT bewering dit is (punt 7 van de opdracht).
+   *
+   * ── WAAROM DIT NAAST `importance` STAAT ─────────────────────────────────
+   *
+   * `importance` zegt hoe zwaar de bewering weegt voor DEZE pagina. Deze zegt
+   * of er überhaupt klantspecifiek bewijs voor nodig is, en dat is een andere
+   * vraag. "Een warmtepomp werkt het zuinigst bij lage aanvoertemperatuur" is
+   * belangrijk voor de pagina én algemene kennis: daar hoeft de ondernemer
+   * niets voor aan te leveren.
+   *
+   * Zonder dat onderscheid gaat de app vragen stellen over algemene kennis, en
+   * dat is precies de geloofwaardigheid die `contentbriefing.md` §4 regel 6
+   * beschermt: een vraag waarvan het antwoord op internet staat, kost meer
+   * vertrouwen dan hij oplevert.
+   *
+   *   `bedrijfsspecifiek` = alleen dit bedrijf kan dit bevestigen. Vraag erom.
+   *   `controleerbaar`    = feitelijk na te gaan, maar niet bij de klant (een
+   *                         norm, een wettelijke termijn). Onderbouw met een bron.
+   *   `algemeen`          = vakkennis. Geen bewijs van de klant nodig.
+   */
+  claimClass: z.enum(["bedrijfsspecifiek", "controleerbaar", "algemeen"]),
   /** De vraag die dit gat dicht. Null als de claim al gedekt is. */
   questionIfMissing: z.string().nullable(),
   /** In gewone taal: wat levert het antwoord op? Geen jargon. */

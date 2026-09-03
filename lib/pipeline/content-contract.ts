@@ -67,6 +67,12 @@ const SYSTEM =
   "onderwerp is die voor elke aanbieder hetzelfde is. Wees hier streng en eerlijk: markeer een " +
   "sectie alleen als merkgebonden wanneer een lezer er echt iets over DIT bedrijf verwacht. " +
   "(3) FAQ. De vragen die als veelgestelde vragen op de pagina horen, in de woorden van de lezer. " +
+  // ── Het contract als SPECIFICATIE, niet alleen als inhoudsopgave (0091) ──
+  // Zonder doel en doelgroep kan de citeerbaarheidsbeoordelaar wel zien of elke
+  // deelvraag beantwoord wordt, maar niet of de pagina daarmee bereikt waarvoor
+  // hij bedoeld was. Zonder sectiebelang telt elke ongedekte sectie even zwaar,
+  // en dan komt een pagina waarvan alleen de prijssectie ontbreekt op negentig
+  // procent uit en gaat hij vlot door de inputpoort.
   // O4 (2 september 2026): tot nu toe kreeg deze stap de bestaande pagina niet
   // te zien, ook niet als de opdracht was om hem te verbeteren. De inhoudsopgave
   // werd dus opgesteld alsof de pagina nog niet bestond, en pas de schrijfcall
@@ -75,6 +81,17 @@ const SYSTEM =
   "hij er al op staat ('aanwezig'), er half op staat ('deels') of ontbreekt ('ontbreekt'), en zet in " +
   "whatToChange in één zin wat er moet veranderen. Krijg je geen bestaande pagina, vul dan overal " +
   "'niet_van_toepassing' in en laat whatToChange leeg. " +
+  "(5) DOEL EN DOELGROEP. Zeg in één zin wat deze pagina moet bereiken en voor wie hij geschreven " +
+  "is. Zet daarnaast in avoid wat er juist NIET op mag, als je dat uit de opdracht kunt afleiden; " +
+  "leeg is de norm. " +
+  "(6) BELANG PER SECTIE. Zet importance op 'kern' als de pagina zijn doel niet bereikt zonder deze " +
+  "sectie, 'ondersteunend' als hij de pagina sterker maakt, en 'optioneel' als hij mooi meegenomen " +
+  "is. Wees streng: hoogstens een derde van de secties is 'kern'. Een kernsectie waarvoor het " +
+  "bewijs ontbreekt, houdt publicatie tegen, dus dit label bepaalt wat wij aan de ondernemer " +
+  "vragen en wat wij laten lopen. " +
+  "(7) SUCCESCRITERIUM PER SECTIE. Zet in successCriterion in één zin waaraan je ziet dat de sectie " +
+  "geslaagd is, zo concreet mogelijk: 'er staat een bedrag of een bandbreedte' is bruikbaar, " +
+  "'de sectie is goed' niet. Dit is wat een herstelronde als opdracht meekrijgt. " +
   "HARDE REGELS: " +
   "(a) De pagina moet COMPLEET aanvoelen: een lezer mag na afloop geen voor de hand liggende vraag " +
   "meer overhouden. Neem daarom ook de vervolgvragen en de twijfels uit het dossier op, en niet " +

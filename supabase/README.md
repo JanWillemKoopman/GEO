@@ -287,3 +287,33 @@ eerst vast (`create table if not exists`) en voegt de atomaire ophoogfunctie toe
 (`app/api/invites/accept/route.ts`, per IP) tegen onbeperkt gokken beschermt. Deny-all RLS, alleen
 de service-role mag erin via `rate_limit_hit()`. Geen opruimtaak: oude vensters (vijftien minuten)
 groeien traag genoeg om geen probleem te zijn.
+
+## 0091 · het kwaliteitsraamwerk voor content
+
+`docs/tasks/contentkwaliteit-framework.md`. Zes kolommen op `content_pieces` plus twee tabellen.
+
+**De zes kolommen.** `quality_json` draagt de volledige evaluatie: de twaalf dimensiescores, alle
+bevindingen als getypeerde objecten (dimensie, ernst, sectie, bewijs, verwachting, aanbeveling,
+blokkade, zekerheid, ketenfase), en de root-cause-analyse. `quality_verdict` is `pass`, `repair` of
+`block`. `quality_confidence` zegt hoe zeker de app van dat oordeel is en daalt zodra een beoordelaar
+uitvalt. `weighted_evidence_coverage` en `critical_evidence_coverage` staan náást `input_coverage`
+(0087), dat ongewogen is en vergelijkbaar moet blijven. `quality_profile` legt vast welk profiel
+gewogen heeft, want de drempels verschillen per contenttype en zijn nog niet geijkt.
+
+⚠️ Alle zes staan náást `needs_review` en vervangen die boolean niet. Zes schermen, `lib/work.ts` en
+de eindpoort lezen hem, en een pagina van vóór deze migratie moet blijven werken.
+
+**`content_quality_runs`**, één rij per beoordeling per ronde (0 is het eerste concept). Maakt "welke
+versie was de beste en waarom" opzoekbaar: de scores per ronde stonden alleen in
+`critique_raw_json` als ongestructureerde blob, dus de vergelijking wérd gemaakt maar was nergens
+terug te vinden. Dezelfde rijen leveren de benchmarkdata. Nul policies, net als `jobs`.
+
+**`content_quality_reviews`**, de menselijke beoordeling plus een optionele gouden referentie. Voor
+de meting bestond een evaluatieset (`npm run eval:mention`), voor het schrijven niets, en daardoor
+was elke wijziging aan de schrijfinstructie een gok (herstelplan T2). `benchmark_set` is een LABEL
+waarmee losse beoordelingen een benchmark vormen: merk is `profiles`, cluster is `analyses`, pagina
+is `content_pieces`, en een vierde structuur ernaast zou een tweede bron van waarheid zijn. Twintig
+pagina's of duizend maakt daarmee geen verschil. Nul policies: dit is intern materiaal, geen
+klantdata, en `/api/beheer/kwaliteit/[pieceId]` is de enige schrijfingang.
+
+Additief en idempotent: geen bestaande rij verandert en alle nieuwe kolommen mogen NULL zijn.

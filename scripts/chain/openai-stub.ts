@@ -584,6 +584,9 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
         sourceRef: "F1",
         supportQuote: "Wordt met een 9,4 beoordeeld op Zorgkaart",
         importance: "ondersteunend",
+        // Migratie 0091: welk SOORT bewering dit is. Bedrijfsspecifiek, dus er
+        // hoort bewijs van de klant achter te zitten.
+        claimClass: "bedrijfsspecifiek",
         questionIfMissing: null,
         reason: "Een cijfer maakt de pagina geloofwaardig.",
         kind: "verificatie",
@@ -600,6 +603,7 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
         sourceRef: null,
         supportQuote: null,
         importance: "kern",
+        claimClass: "bedrijfsspecifiek",
         questionIfMissing: "Biedt Fysi-Unique een preventief nazorgprogramma na herstel?",
         reason: "Zonder dit kan de pagina zijn eigen vraag niet beantwoorden.",
         kind: "verificatie",
@@ -685,6 +689,42 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
     issues: [],
   }),
 
+  /**
+   * De vierde beoordelaar: vakmanschap (migratie 0091).
+   *
+   * Bewust ruim voldoende en niet perfect: de keten moet kunnen aantonen dat een
+   * pagina die op alle vier de beoordelaars goed scoort tóch geblokkeerd wordt
+   * zodra een KERNsectie geen bewijs heeft. Zou deze stub laag scoren, dan zou
+   * die blokkade ook uit de score kunnen komen en bewijst de test niets.
+   */
+  content_craft: () => ({
+    specificiteit: {
+      score: 78,
+      evidence: "Bij Fysi-Unique kun je binnen 24 uur terecht voor een intake.",
+      why: "De pagina noemt het bedrijf met naam en geeft een concrete termijn.",
+    },
+    expertise: {
+      score: 74,
+      evidence: "Welke klachten",
+      why: "De uitleg is correct maar niet uitgebreid.",
+    },
+    diepgang: { score: 70, evidence: "Welke klachten", why: "Twee secties, beide kort." },
+    originaliteit: {
+      score: 72,
+      evidence: "Afspraak maken",
+      why: "Geen standaardzinnen, wel een gangbare opzet.",
+    },
+    toon: { score: 80, evidence: "Afspraak maken", why: "Past bij de stijlvoorbeelden." },
+    overtuiging: {
+      score: 68,
+      evidence: "Afspraak maken",
+      why: "Er staat een vervolgstap in, zonder aandrang.",
+    },
+    wouldSendToClient: true,
+    firstThingToChange: "",
+    firstThingSection: "",
+  }),
+
   source_analysis: () => ({ sources: [], whatIsMissing: null }),
 
   /**
@@ -734,6 +774,10 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
         // Gedekt: er staat een F-nummer bij dat op de kaart bestaat, dus deze
         // sectie levert geen vraag op.
         needsBrandFact: true,
+        // Migratie 0091: ondersteunend, dus een ontbrekend feit hier is een
+        // verbeterpunt en geen blokkade. Zie lib/pipeline/evidence-weight.ts.
+        importance: "ondersteunend",
+        successCriterion: "Er staat welke blessures behandeld worden.",
         // O4: bij een NIEUWE pagina is er geen bestaande pagina om tegen af te
         // zetten. `normaliseerContract()` dwingt dit deterministisch af, maar de
         // stub hoort te leveren wat het schema vraagt (zie de kop van dit
@@ -754,11 +798,19 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
         // uit haalt, en de sectie die vervalt als de klant hem overslaat
         // (docs/tasks/vragen-voor-het-schrijven.md §4 en §6).
         needsBrandFact: true,
+        // KERN en ongedekt: dit is precies het geval uit punt 15 van de
+        // opdracht. De pagina kan hoog scoren en toch niet publiceerbaar zijn,
+        // want zonder dit feit bereikt hij zijn doel niet.
+        importance: "kern",
+        successCriterion: "Er staat een concrete termijn voor de intake.",
         presentOnExisting: "niet_van_toepassing",
         whatToChange: "",
       },
     ],
     faqQuestions: ["Heb ik een verwijzing nodig?"],
+    pageObjective: "Iemand met een hardloopblessure in Amersfoort laten zien waar hij terechtkan.",
+    targetAudience: "Een hardloper met een blessure die een fysiotherapeut zoekt.",
+    avoid: [],
     reasoning: "Twee deelvragen, plus de vraag over de verwijzing als FAQ.",
   }),
 

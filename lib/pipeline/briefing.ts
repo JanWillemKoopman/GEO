@@ -42,6 +42,7 @@ import {
 import type { ContentContract } from "@/lib/schemas/content-contract";
 import { describeContradictions } from "@/lib/pipeline/fact-merge";
 import { formatFactCard, isSupported, claimKey, type FactItem } from "@/lib/pipeline/factcard";
+import { claimSoortVan } from "@/lib/pipeline/evidence-weight";
 import {
   selectBriefingQuestions,
   slotQuestions,
@@ -95,6 +96,17 @@ const AUDIT_SYSTEM =
   "en maak er een verificatievraag van. Bevestigen is voor de klant veel goedkoper dan formuleren. " +
   "(7) importance 'kern' betekent: zonder dit feit kan de pagina zijn vraag niet eerlijk " +
   "beantwoorden. Wees streng: als alles kern is, is niets het. " +
+  // ── claimClass (migratie 0091, punt 7 van de opdracht) ──────────────────
+  // Zonder dit onderscheid gaat de app vragen stellen over algemene vakkennis,
+  // en dat is precies de geloofwaardigheid die contentbriefing.md §4 regel 6
+  // beschermt: een vraag waarvan het antwoord op internet staat, kost meer
+  // vertrouwen dan hij oplevert.
+  "(7b) claimClass zegt WIE deze bewering kan bevestigen, en dat is een andere vraag dan hoe zwaar " +
+  "hij weegt. 'bedrijfsspecifiek' = alleen deze ondernemer weet dit (zijn prijs, zijn werkgebied, " +
+  "zijn werkwijze, zijn ervaring): hier stellen wij een vraag over. 'controleerbaar' = feitelijk " +
+  "na te gaan maar niet bij hem (een norm, een wettelijke termijn, een subsidiebedrag): hier hoort " +
+  "een bron bij, geen vraag. 'algemeen' = vakkennis die voor elke aanbieder geldt: hier is geen " +
+  "bewijs voor nodig. Stel NOOIT een vraag over een 'algemene' bewering. " +
   "(8) ÉÉN VRAAG PER ONDERWERP. Staat er een lijst 'AL GESTELDE VRAGEN', dan stel je die niet " +
   "opnieuw, ook niet net anders geformuleerd, ook niet als deelvraag. En stel binnen je eigen " +
   "antwoord nooit twee vragen die met hetzelfde antwoord beantwoord zouden worden: kies dan de " +
@@ -532,6 +544,26 @@ export async function runBriefing(args: {
   const ongedekt = audit.parsed.claims.filter(
     (c) => !isSupported(c.sourceRef, facts, c.supportQuote) && Boolean(c.questionIfMissing?.trim()),
   );
+
+  // ── Over algemene vakkennis stellen we geen vraag (migratie 0091) ────────
+  //
+  // Punt 7 van de opdracht: voorkom dat ORBIT ENGINE onnodig vragen aan klanten
+  // gaat stellen over triviale algemene informatie. "Een warmtepomp werkt het
+  // zuinigst bij lage aanvoertemperatuur" hoort niet bij de ondernemer
+  // nagevraagd te worden, ook al draagt hij de pagina.
+  //
+  // De prompt vraagt het model om dit te labelen; deze filter is het
+  // deterministische vangnet ernaast (conventie 1). `claimSoortVan()` valt bij
+  // een ontbrekend of onbekend label terug op 'bedrijfsspecifiek', dus een
+  // audit van vóór deze migratie verandert niet van gedrag.
+  const teVragen = ongedekt.filter((c) => claimSoortVan(c) !== "algemeen");
+  const algemeen = ongedekt.length - teVragen.length;
+  if (algemeen > 0) {
+    console.log(
+      `Briefing ${analysisId}: ${algemeen} ${algemeen === 1 ? "bewering ging" : "beweringen gingen"} ` +
+        `over algemene vakkennis; daar vragen we de klant niet naar.`,
+    );
+  }
   const zelfverklaard = audit.parsed.claims.filter(
     (c) => c.supported && !isSupported(c.sourceRef, facts, c.supportQuote),
   ).length;
@@ -597,8 +629,16 @@ export async function runBriefing(args: {
     return bestaat ? { pieceId, sectionId: gelezen.sectionId } : null;
   };
 
-  const kandidaten: BriefingQuestion[] = ongedekt.map((c) => {
+  const kandidaten: BriefingQuestion[] = teVragen.map((c) => {
     const sectie = sectieVanClaim(c.sectionId);
+    // Hangt deze vraag aan een KERNsectie, dan is hij niet optioneel: zonder dat
+    // antwoord blokkeert de pagina straks (`quality-score.ts`). Het belang staat
+    // op de sectie en niet op de claim, dus het wordt hier opgezocht.
+    const sectieBelang = sectie
+      ? (contractPerPagina.get(sectie.pieceId)?.sections ?? []).find((sec) => sec.id === sectie.sectionId)
+          ?.importance
+      : undefined;
+    const kernSectie = sectieBelang === "kern";
     return {
       claimKey: claimKey(c.claim),
       question: c.questionIfMissing!.trim(),
@@ -607,14 +647,17 @@ export async function runBriefing(args: {
       answerType: c.answerType,
       options: c.options,
       suggestedAnswer: c.suggestedAnswer,
-      required: c.importance === "kern",
+      required: c.importance === "kern" || kernSectie,
       scope: c.scope,
       // Wijst de sectie naar één pagina, dan is dát de pagina. Dat is preciezer
       // dan de tekstvergelijking op `neededFor`, die bij geen match op ALLE
       // pagina's van de batch terugvalt.
       contentPieceIds: sectie ? [sectie.pieceId] : paginaVanClaim(c.neededFor),
       sectionRefs: sectie ? [sectieVerwijzing(sectie.pieceId, sectie.sectionId)] : [],
-      priority: c.importance === "kern" ? 2 : 1,
+      // Een vraag die een kernsectie dekt weegt het zwaarst: zonder dat antwoord
+      // is de pagina niet publiceerbaar, terwijl een ondersteunende sectie
+      // hooguit een verbeterpunt oplevert.
+      priority: (c.importance === "kern" ? 2 : 1) * (kernSectie ? 2 : 1),
     };
   });
 
