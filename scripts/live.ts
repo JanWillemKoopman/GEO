@@ -21,7 +21,8 @@
  *   npm run live -- POST /api/profiles payload.json
  *   npm run live -- POST /api/analyses/<id>/confirm
  *
- * De omgeving levert de inloggegevens:
+ * De inloggegevens komen uit `.env.local`, net als bij `test:openai` en
+ * `eval:mention`, of anders uit de omgeving:
  *
  *   LIVE_EMAIL=...      het account waarmee je wilt handelen
  *   LIVE_PASSWORD=...   het wachtwoord daarvan
@@ -29,7 +30,9 @@
  *
  * ⚠️ Er staat met opzet GEEN standaardwachtwoord in dit bestand en er komt er
  * ook nooit een in. Een wachtwoord in de repo is een wachtwoord dat je niet meer
- * kunt intrekken zonder de geschiedenis te herschrijven.
+ * kunt intrekken zonder de geschiedenis te herschrijven. `.env.local` staat in
+ * `.gitignore` en is daarom de juiste plek; een wachtwoord in de commandoregel
+ * belandt in de geschiedenis van je shell en is dat niet.
  *
  * ── DE SESSIE WORDT HERGEBRUIKT ─────────────────────────────────────────────
  *
@@ -43,8 +46,13 @@
  * voor de klant. Lees `docs/tasks/benchmarkronde-twee-klanten.md` §1 voordat je
  * een ronde start.
  */
+import "dotenv/config";
+import { config as loadEnv } from "dotenv";
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
+
+// .env.local heeft voorrang op .env, zoals Next.js dat ook doet.
+loadEnv({ path: ".env.local", override: true });
 
 /** De productieomgeving. Zie `docs/tasks/herstelplan-na-audit.md` §3. */
 const STANDAARD_BASE_URL = "https://geo-ten-blush.vercel.app";
@@ -167,7 +175,10 @@ docs/tasks/benchmarkronde-twee-klanten.md §1.
   const wachtwoord = process.env.LIVE_PASSWORD;
   if (!email || !wachtwoord) {
     toon(`
-LIVE_EMAIL en LIVE_PASSWORD moeten in de omgeving staan.
+LIVE_EMAIL en LIVE_PASSWORD ontbreken. Zet ze in .env.local:
+
+  LIVE_EMAIL=e2e-consultant@orbit-test.nl
+  LIVE_PASSWORD=...
 
 Ze staan met opzet niet in de repo: een wachtwoord dat je commit, kun je niet
 meer intrekken zonder de geschiedenis te herschrijven.
