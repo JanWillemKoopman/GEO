@@ -1,5 +1,9 @@
 # Content reviews: input voor een externe kwaliteitscheck
 
+> **3 september 2026:** deze twaalf zijn inmiddels beoordeeld door een AI in de rol van copywriter,
+> in afwachting van een echte. Die beoordelingen staan apart in [`feedback/`](feedback/README.md) en
+> tellen bewust niet mee voor de ijking van het raamwerk. Lees daar eerst het waarom.
+
 Twaalf pagina's uit de benchmarkronde van 3 september 2026 (twee klanten, vier onderwerpclusters), elk in een eigen bestand. Elk bestand bevat precies wat er beschikbaar was toen de pagina geschreven werd: de aanleiding uit de meting, het doel van de pagina, de feiten en klantantwoorden, en de uiteindelijk geschreven tekst. Er staat bewust geen kwaliteitsoordeel van ORBIT ENGINE zelf in (geen scores, geen blokkades): het doel is dat een copywriter blanco naar de tekst kijkt.
 
 - [Maak de pagina voor Leidsche Rijn concreet voor klachten na een bevalling](fysio-centrum-utrecht-maak-de-pagina-voor-leidsche-rijn-concreet-voor-klachten-na-.md) — Fysio Centrum Utrecht, bekkenfysiotherapie
