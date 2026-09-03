@@ -675,7 +675,11 @@ Bewust uitgesteld en nog steeds terecht uitgesteld, met één uitzondering.
 
 - **IJking.** De drempels rusten op zeven pagina's. Pas bij twintig menselijk beoordeelde pagina's
   (`IJKING_MINIMUM`) kan er iets bijgesteld worden. Dit is geen bouwwerk maar een meetronde, en het
-  is de volgende stap voor de eigenaar.
+  is de volgende stap voor de eigenaar. ⚠️ Sinds 3 september is dit niet langer alleen een
+  afronding: de vakmanschapsbeoordelaar en een blanco copywriterronde over dezelfde twaalf pagina's
+  liggen 20 tot 39 punten uit elkaar op specificiteit, toon en overtuiging, en zonder mens is niet
+  vast te stellen wie dichter bij de waarheid zit. Cijfers en gevolgen in
+  `contentkwaliteit-copywriterronde.md`.
 - **Incrementele evaluatie.** De opdracht vraagt: is alleen sectie 4 gewijzigd, evalueer dan niet de
   hele pagina opnieuw. Nagerekend loont dat weinig: de vier beoordelaars kosten samen ongeveer
   $0,013 per pagina tegenover $0,071 voor de schrijfaanroep en $0,139 per reparatieronde. Een

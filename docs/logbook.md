@@ -7054,3 +7054,39 @@ lijst en glipt er nog doorheen, want dat onderscheid vraagt begrip van de zin, n
 woord. Vier controles groen: typecheck, 4112 unittests (9 nieuwe), 636 ketentests, build. Nog niet
 herverifieerd tegen de echte twaalf pagina's op productie (conventie 10), dat is de volgende
 herkeuring. Staat als R0c in `docs/tasks/contentkwaliteit-framework.md` §10.
+
+## 3 september 2026: de keuring blokkeert op herleidbaarheid en laat de stem ongemoeid
+
+Na R0, R0b en R0c blokkeren nog steeds alle twaalf benchmarkpagina's. Om te weten of dat aan de
+keuring ligt of aan de tekst, is `content-reviews/` (de twaalf pagina's, blanco, zonder ons eigen
+oordeel erbij) beoordeeld in de rol van copywriter. Niet door een mens: door hetzelfde soort model
+dat de pagina's schreef. Die beoordelingen staan daarom apart in `content-reviews/feedback/` en
+bewust NIET in `content_quality_reviews`, want de ijking van het raamwerk wacht op twintig
+MENSELIJK beoordeelde pagina's (`IJKING_MINIMUM`) en een AI die zijn eigen werk nakijkt is geen
+meetlat. De keuze wat er verder mee gebeurt ligt bij de eigenaar, in
+`docs/tasks/contentkwaliteit-copywriterronde.md`.
+
+**Wat de tellingen laten zien**, over de twaalf geschreven pagina's samen, ongeveer 13.600 woorden.
+Twee keer "wij" of "we", beide in een kop, nul keer in een zin, tegenover 164 keer de merknaam in de
+derde persoon: op de eigen site van de klant spreekt het bedrijf nergens zelf. 95 keer "je" naast 81
+keer "u", bij twee klanten die allebei beide vormen kregen, op één pagina binnen twee zinnen
+omslaand: `describePronoun` bestaat sinds verbetering 11 maar schrijft alleen een promptregel als
+`profiles.pronoun_preference` gevuld is, en dat was hier niet zo. Zes zinnen over ons eigen
+werkproces die op de site van de klant terechtkwamen ("Controleer vóór publicatie ...", "De locaties
+worden op deze pagina niet inhoudelijk van elkaar onderscheiden"), geen ervan gevonden door de elf
+zoektermen van `checkSourceTalk`. En op vier pagina's een letterlijk klantantwoord dat tot een
+procedurezin is geparafraseerd, waarbij telkens de motivering wegviel: "Doorwerken over houtrot heen
+doen we niet, ook niet als de klant erom vraagt, want dan kunnen we onze garantie op het werk niet
+waarmaken" werd "dan legt MJB Dakservice het werk stil, maakt foto's en meldt eerst de
+herstelkosten".
+
+**Het cijfer dat ertoe doet.** Naast deze beoordelingsronde gaf de vakmanschapsbeoordelaar op
+dezelfde twaalf pagina's gemiddeld 71,9 voor specificiteit tegen 33,3 hier, 57,3 voor toon tegen
+30,0, en 56,4 voor overtuiging tegen 36,7. Verschillen van 20 tot bijna 40 punten op precies de
+dimensies waarvoor de vierde beoordelaar gebouwd is. Ondertussen scoren die vier dimensies bij alle
+twaalf ruim voldoende en zit de blokkade volledig in feitelijkheid (8 tot 47). De keuring blokkeert
+dus op herleidbaarheid en laat stem, durf en eigenheid door: het percentage herleidbare zinnen kan
+naar 100 zonder dat één van deze pagina's beter wordt om te lezen. Welke van de twee beoordelaars
+dichter bij de waarheid zit, is zonder mens niet vast te stellen, en daarmee zijn de twintig
+menselijk beoordeelde pagina's niet langer een afronding maar de blokkerende stap. Zes
+geprioriteerde verbetervoorstellen staan in het taakbestand; er is nog niets gebouwd.
