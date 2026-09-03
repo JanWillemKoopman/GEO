@@ -7136,3 +7136,41 @@ die kunnen er ongewijzigd in. ⚠️ Wel vraagt het formulier bij `generic_ai_fe
 ("zegt iets wat je nergens anders leest") terwijl hij natuurlijkheid beoordeelde ("klinkt alsof een
 goede copywriter het schreef"); verwant, niet hetzelfde, dus dat hoort in `notes` en de vraagstelling
 van het formulier hoort bij de ijking gelijkgetrokken te worden met wat er gemeten wordt.
+
+## 3 september 2026: het plan had geen eindstreep, en keurde alleen de schrijver
+
+Bij het nalezen van het plan uit de copywriterronde vielen er drie gaten op, alle drie van het soort
+dat je pas ziet als je het geheel overziet. Ze zijn toegevoegd, en het plan telt daarmee twaalf
+voorstellen in drie lagen in plaats van elf in twee.
+
+**Gat 1: alle voorstellen verbeterden het schrijven, geen ervan het keuren.** Dat is scheef, want de
+keuring blokkeert op herleidbaarheid en stuurt de reparatie naar de verkeerde pagina: op deze twaalf
+zou hij pagina 1 en 12 aanpakken terwijl de copywriter pagina 2 en 8 aanwijst, dus twee van de vier
+verkeerd. Een pagina die onterecht "klaar" heet gaat naar de klant, en dat is niet minder erg dan een
+slechte tekst. De ijking stond als losse zin onderaan en is nu voorstel V13, met de rangcorrelatie
+(+0,19 vandaag, voorstel voor de norm +0,60) als het getal dat de app zelf hoort bij te houden. Nu
+staat dat cijfer nergens, en juist daardoor kon dit onopgemerkt blijven.
+
+**Gat 2: er was geen nulmeting en dus geen eindstreep.** Toegevoegd als §4: twaalf tellingen met hun
+startwaarde en een voorgestelde norm (8 van 12 pagina's zonder aangewezen lezer naar 0, 74 procent
+vraagkoppen naar hoogstens 50, 120 slappe formuleringen naar hoogstens 1 per 250 woorden, en zo
+verder), plus de enige meting die zegt of de tekst echt beter is: dezelfde twaalf onderwerpen
+opnieuw laten schrijven en opnieuw blanco voorleggen aan dezelfde copywriter. Zijn overtuigingskracht
+van 2,6 is daarbij het cijfer dat telt, want dat is de laagste van de vijf en de enige waarvan een
+klant het gevolg merkt. Kosten van die nameting: twaalf pagina's herschrijven komt met de
+gedocumenteerde tarieven ($0,071 schrijven, $0,013 beoordelen, $0,139 per reparatieronde) bij twee
+rondes op ongeveer $4,30 uit. De echte kostenpost is een dagdeel van de copywriter.
+
+**Gat 3: V11 schond code-conventie 1 en dat stond er niet bij.** Het voorstel voor een herkenbaar
+scenario in de opening is niet te tellen, dus het vangnet zou een cijfer van de
+vakmanschapsbeoordelaar zijn, precies de beoordelaar die de pagina's niet uit elkaar kan houden. Dat
+is een promptinstructie zonder controle. V11 gaat daarom als laatste, ná V13.
+
+Daarbij staat nu ook expliciet wat dit plan NIET oplost, want dat hoort de eigenaar te weten voordat
+er een dag werk in gaat. Het eindoordeel van de copywriter, "waarom zou deze lezer dit bedrijf
+kiezen", blijft grotendeels open: V9 en V4 verplaatsen die keuze naar het model, en of een model van
+twintig feiten de drie kan kiezen die vandaag tellen weten we pas als het gebouwd is. Alle twaalf
+tellingen kunnen groen worden zonder dat die vraag beantwoord is. Verder blijven de FAQ-blokken
+buiten schot (tien van de twaalf pagina's hebben er acht, sommige een woordelijke kopie van een
+sectie erboven) en blijft de reparatiestap ongemoeid, terwijl die per sectie werkt en dat precies de
+manier is om een tekst verder in losse antwoorden uiteen te laten vallen.
