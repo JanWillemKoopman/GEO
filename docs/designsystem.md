@@ -357,6 +357,54 @@ Zes categorische kleuren, gebonden aan dezelfde betekenissen. Nova doet dit ook 
 **De as, het raster en de referentielijn zijn óók tokens.** Dat is het deel dat iedereen vergeet, en
 de reden dat een grafiek er altijd nét naast ligt zodra de rest van het systeem verandert.
 
+### 4.1 Elke as zegt in gewone taal wat hij toont (3 september 2026)
+
+Een grafiek waarvan je moet raden wat de hoogte betekent, kun je niet gebruiken. Beide grote
+grafieken dragen daarom een zin bij de as, in de taal van de klant en niet in die van de database.
+
+| Grafiek | Verticaal | Horizontaal |
+|---|---|---|
+| `TrendChart` | Zichtbaarheid: 0 is nooit genoemd, 100 is altijd | Wanneer er gemeten is |
+| `PagesTrafficChart` | Aantal klikken per dag | Dag |
+
+**Horizontaal en niet gekanteld.** Het label van de verticale as staat bóven de as en niet gedraaid
+langs de zijkant: een gekantelde regel leest slechter, en boven de as is ruimte genoeg. Dat kost
+16 pixels extra bovenmarge en 14 onder, en die staan in `PAD` van beide componenten.
+
+**De y-as van `TrendChart` noemt met opzet geen percentage.** Het leidende getal is de gewogen
+zichtbaarheidsscore (`lib/pipeline/trend.ts`) en niet het rauwe aandeel vragen waarin het merk
+voorkwam. "0 is nooit genoemd, 100 is altijd" klopt met wat de schaal doet, zonder een rekensom te
+beloven die er niet onder ligt. Regel 3 van `CLAUDE.md` in één zin op een as.
+
+**De `Sparkline` krijgt er geen.** Die is 96 bij 24 pixels en heeft geen as om te labelen; wat hij
+voorstelt staat in de kop van zijn kaartje en in het getal ernaast. Zie de toelichting in het
+component zelf.
+
+**Er is geen derde as.** Alle grafieken zijn vlak: hoogte en breedte, verder niets. Waar een derde
+gegeven meespeelt, is dat een aparte vorm en geen diepte: de kleur van een lijn is de naam van het
+merk (§4), en de lichte band om de eigen lijn is de meetonzekerheid.
+
+### 4.2 Lijnen zijn vloeiend, en de ronding mag niet liegen (3 september 2026)
+
+De drie lijngrafieken (`TrendChart`, `PagesTrafficChart`, `Sparkline`) tekenen hun lijn met
+`vloeiendPad()` uit `lib/chart-curve.ts`, niet met rechte stukken tussen de punten.
+
+> ⚠️ **Dit is de enige toegestane ronding, en dat is geen stijlregel.** De voor de hand liggende
+> manier om een hoekige lijn rond te maken is een gewone spline, en die **schiet door**: op de
+> testreeks 40 → 95 → 90 → 92 klimt hij tot **97,8** terwijl de hoogste meting 95 is. Op een schaal
+> van 0 tot 100 tekent dat een zichtbaarheid die niet bestaat, en tussen twee gelijke metingen legt
+> hij een kuiltje dat een daling suggereert die er niet was. `vloeiendPad()` gebruikt daarom
+> monotone interpolatie: de bocht blijft altijd tussen de twee metingen die hij verbindt, en een
+> stijgend stuk daalt nergens. Elf controles in `scripts/test-unit.ts` bewaken dat, want een bult
+> van twee pixels zie je niet en hij liegt wel.
+
+De onzekerheidsband van `TrendChart` krijgt dezelfde ronding op zijn boven- én onderrand
+(`vloeiendPadTerug()`), anders hangt hij scheef om de lijn.
+
+**Wat de ronding niet oplost:** ook een monotone kromme suggereert dat er tússen twee metingen iets
+bekend is, en dat is niet zo. Daarom blijven de meetpunten als stip zichtbaar en staat er onder
+`TrendChart` een tabel met de echte cijfers.
+
 > ⚠️ **Openstaand:** de zes kleuren zijn **niet opnieuw gevalideerd op kleurenblindheid** na de
 > overstap. De vorige set (paars, oranje, aqua, blauw) haalde ΔE 9,2 op het slechtste aangrenzende
 > paar. Paars naast roze is het paar dat er nu als eerste doorheen zakt. Zolang dat niet nagemeten

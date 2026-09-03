@@ -31,6 +31,7 @@ import { bandFromEstimate, volumeBandOf, isVolumeBand, VOLUME_BANDS, VOLUME_FACT
 import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { parseRobots, isAllowed, sitemapsFrom } from "@/lib/audit/robots";
 import { splitByTerms } from "@/lib/highlight";
+import { vloeiendPad, vloeiendPadTerug } from "@/lib/chart-curve";
 import { redactCompetitors, containsCompetitor } from "@/lib/pipeline/redact";
 import { stripProseDashes } from "@/lib/pipeline/dash-guard";
 import { publicFactRequest } from "@/lib/fact-request-public";
@@ -19520,6 +19521,129 @@ group("Wat de klant leest en wat de adviseur leest, zijn twee dingen (punt 24)",
   ok("een geblokkeerde pagina zegt wat er mis is", melding.includes("ander bedrijf"));
   // ⚠️ Geen muur: de melding noemt de uitweg in dezelfde zin als de blokkade.
   ok("en noemt de uitweg", melding.includes("Pas de tekst zelf aan"));
+});
+
+// ── De vloeiende lijn in de grafieken ───────────────────────────────────────
+//
+// Waarom dit getest wordt en niet alleen bekeken: de reden om monotone
+// interpolatie te nemen in plaats van een gewone spline is dat een gewone
+// spline doorschiet, en doorschieten is op deze grafieken een verkeerd getal
+// tekenen (zichtbaarheid boven de 100, of een daling in een week waarin niets
+// daalde). Dat is met het oog niet betrouwbaar te controleren: een bult van
+// twee pixels zie je niet en hij liegt wel.
+//
+// Elke controle hieronder loopt over de kromme heen door hem in stapjes uit te
+// rekenen, en kijkt dan naar de uiterste waarden. Zonder dat kun je alleen de
+// stuurpunten controleren, en die liggen per definitie buiten de kromme.
+
+/** Rekent de punten van een Bézier-pad uit, zodat je ertussen kunt kijken. */
+function padWaarden(d: string, stappen = 40): { x: number; y: number }[] {
+  const getallen = d.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+  const uit: { x: number; y: number }[] = [];
+  // Het pad is "M x,y" gevolgd door groepjes van zes getallen per C-segment.
+  let px = getallen[0];
+  let py = getallen[1];
+  for (let i = 2; i + 5 < getallen.length; i += 6) {
+    const [c1x, c1y, c2x, c2y, qx, qy] = getallen.slice(i, i + 6);
+    for (let s = 0; s <= stappen; s++) {
+      const t = s / stappen;
+      const u = 1 - t;
+      uit.push({
+        x: u * u * u * px + 3 * u * u * t * c1x + 3 * u * t * t * c2x + t * t * t * qx,
+        y: u * u * u * py + 3 * u * u * t * c1y + 3 * u * t * t * c2y + t * t * t * qy,
+      });
+    }
+    px = qx;
+    py = qy;
+  }
+  return uit;
+}
+
+group("de vloeiende lijn in de grafieken", () => {
+  ok("nul punten geeft een leeg pad", vloeiendPad([]) === "");
+  ok("één punt geeft alleen het beginpunt", vloeiendPad([{ x: 0, y: 5 }]) === "M0.0,5.0");
+  ok(
+    "twee punten geven een rechte lijn, geen kromme",
+    vloeiendPad([
+      { x: 0, y: 0 },
+      { x: 10, y: 10 },
+    ]) === "M0.0,0.0 L10.0,10.0",
+  );
+
+  // ⚠️ DE KERNCONTROLE. Een Catmull-Rom-spline zwiept hier boven de 95 uit; op
+  // een zichtbaarheidsgrafiek van 0 tot 100 is dat een percentage tekenen dat
+  // niet bestaat.
+  const sprong = [
+    { x: 0, y: 40 },
+    { x: 1, y: 95 },
+    { x: 2, y: 90 },
+    { x: 3, y: 92 },
+  ];
+  const waarden = padWaarden(vloeiendPad(sprong)).map((p) => p.y);
+  ok(
+    "de kromme komt nooit boven de hoogste meting uit",
+    Math.max(...waarden) <= 95 + 1e-6,
+    `hoogste punt op de lijn: ${Math.max(...waarden).toFixed(2)}`,
+  );
+  ok(
+    "en nooit onder de laagste",
+    Math.min(...waarden) >= 40 - 1e-6,
+    `laagste punt op de lijn: ${Math.min(...waarden).toFixed(2)}`,
+  );
+
+  // Een vlak stuk blijft vlak: tussen twee gelijke metingen hoort geen bult of
+  // kuil te ontstaan, want er is niets veranderd en de grafiek zegt dat dan ook.
+  const vlak = padWaarden(
+    vloeiendPad([
+      { x: 0, y: 20 },
+      { x: 1, y: 60 },
+      { x: 2, y: 60 },
+      { x: 3, y: 10 },
+    ]),
+  ).filter((p) => p.x >= 1 && p.x <= 2);
+  ok(
+    "tussen twee gelijke metingen blijft de lijn vlak",
+    vlak.every((p) => Math.abs(p.y - 60) < 0.05),
+    `grootste afwijking: ${Math.max(...vlak.map((p) => Math.abs(p.y - 60))).toFixed(3)}`,
+  );
+
+  // Een stijgende reeks mag nergens dalen. Dat is wat "monotoon" betekent, en
+  // het is het verschil tussen een ronding en een verzonnen dip.
+  const klim = padWaarden(
+    vloeiendPad([
+      { x: 0, y: 10 },
+      { x: 1, y: 12 },
+      { x: 2, y: 70 },
+      { x: 3, y: 72 },
+    ]),
+  );
+  let daalt = false;
+  for (let i = 1; i < klim.length; i++) if (klim[i].y < klim[i - 1].y - 1e-6) daalt = true;
+  ok("een lijn die alleen maar stijgt, daalt nergens", !daalt);
+
+  // De lijn gaat door de metingen heen en niet er langs: de stippen op de
+  // grafiek staan op de echte waarden, dus de lijn moet ze raken.
+  const pad = vloeiendPad(sprong);
+  ok("de lijn raakt elke meting", sprong.every((p) => pad.includes(`${p.x.toFixed(1)},${p.y.toFixed(1)}`)));
+
+  // De onderrand van de onzekerheidsband loopt terug en moet aan de bovenrand
+  // vastzitten: begint hij met een M, dan wordt het een tweede losse vorm en
+  // valt de band uit elkaar.
+  const terug = vloeiendPadTerug(sprong);
+  ok("de terugweg van de band sluit aan en begint niet opnieuw", terug.startsWith("L"));
+  ok("en hij begint bij de laatste meting", terug.startsWith("L3.0,92.0"));
+
+  // Twee metingen op hetzelfde moment horen niet voor te komen, maar ze mogen
+  // de grafiek niet stukmaken: delen door nul geeft NaN, en een pad met NaN
+  // erin tekent helemaal niets meer.
+  ok(
+    "dubbele meetmomenten geven geen kapot pad",
+    !vloeiendPad([
+      { x: 0, y: 10 },
+      { x: 0, y: 20 },
+      { x: 1, y: 30 },
+    ]).includes("NaN"),
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════

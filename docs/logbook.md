@@ -6844,3 +6844,55 @@ en "bijna byte-identiek" niet hetzelfde zijn.
 **Wat er niet is gebeurd:** niets naar productie, geen samenvoeging naar `main`, en geen tweede
 ronde. De eigenaar beoordeelt eerst de vergelijkingsbeelden en zegt daarna of het effect sterker of
 zwakker moet.
+
+## 3 september 2026: elke as zegt wat hij toont, en de lijnen zijn vloeiend
+
+Twee wensen van de eigenaar op dezelfde plek: laat in elke grafiek zien wat er op de assen staat, in
+duidelijke taal, en maak de lijnen rond in plaats van hoekig.
+
+**De assen.** `TrendChart` en `PagesTrafficChart` dragen nu allebei een zin bij de verticale en de
+horizontale as. Ze staan horizontaal boven respectievelijk onder de as en niet gekanteld langs de
+zijkant, want een gedraaide regel leest slechter en boven de as is ruimte genoeg. De volledige
+tekst per as staat in `designsystem.md` §4.1.
+
+Eén keuze daarin is de moeite van het vastleggen waard: **de y-as van `TrendChart` noemt geen
+percentage.** Dat was de eerste ingeving, en het klopt niet. Het leidende getal daar is de gewogen
+zichtbaarheidsscore uit `lib/pipeline/trend.ts` en niet het rauwe aandeel vragen waarin het merk
+voorkwam; "68% van de vragen" zou dus een rekensom beloven die er niet onder ligt. Er staat nu
+"Zichtbaarheid: 0 is nooit genoemd, 100 is altijd". Dat is regel 3 van `CLAUDE.md` op een as: liever
+een grens benoemen dan een precisie suggereren die er niet is.
+
+De `Sparkline` krijgt er geen. Die is 96 bij 24 pixels, heeft per ontwerp geen as, en zijn eigen
+toelichting legt al uit waarom dat zo is. Wat hij voorstelt staat in de kop van zijn kaartje en in
+het getal ernaast.
+
+Er is ook nergens een derde as. De vraag noemde er een; alle grafieken hier zijn vlak. Waar een
+derde gegeven meespeelt is dat een aparte vorm en geen diepte: de kleur van een lijn is de naam van
+het merk, de lichte band om de eigen lijn is de meetonzekerheid.
+
+**De ronding, en waarom hij een eigen module met elf tests heeft.** De drie lijnen liepen via losse
+stukjes code in drie componenten. Ze lopen nu alle drie door `vloeiendPad()` in
+`lib/chart-curve.ts`, één pure module, conform conventie 2.
+
+Het echte punt zit in wélke ronding. De gebruikelijke keuze is een Catmull-Rom-spline, en die
+**schiet door**. Nagerekend op de reeks 40, 95, 90, 92: die spline klimt tot **97,8** terwijl de
+hoogste meting 95 is. Op een schaal van 0 tot 100 tekent dat een zichtbaarheid die niet bestaat, en
+tussen twee gelijke metingen legt hij een kuiltje dat een daling suggereert die er niet was. Een
+mooiere lijn die een verkeerd getal laat zien is precies wat regel 3 verbiedt.
+
+De monotone variant (Fritsch en Carlson) knijpt de raaklijn in elk punt af zodat de bocht altijd
+tussen de twee metingen blijft die hij verbindt, en zodat een stijgend stuk nergens daalt. Elf
+controles in `scripts/test-unit.ts` bewaken dat, en ze doen dat door de kromme in veertig stapjes uit
+te rekenen en naar de uiterste waarden te kijken: alleen de stuurpunten controleren zegt niets, want
+die liggen per definitie buiten de kromme. Met het oog is dit niet te controleren, een bult van twee
+pixels zie je niet.
+
+**Wat de ronding niet oplost, en dat blijft staan:** ook een monotone kromme suggereert dat er
+tússen twee metingen iets bekend is, en dat is niet zo. De grafiek toont de metingen, de bocht
+ertussen is vormgeving. Daarom blijven de meetpunten als stip zichtbaar en blijft de tabel met de
+echte cijfers onder `TrendChart` staan.
+
+**Nagemeten** met dezelfde methode als de glaslaag, maar een stap beter: de screenshots hieronder
+zijn niet meer nagebouwd. `renderToStaticMarkup` rendert de échte componenten met verzonnen data
+naar HTML, en die HTML gaat door de echte `app/globals.css`. Wat op het beeld staat is dus letterlijk
+`TrendChart`, `PagesTrafficChart` en `ClusterVisibilityGrid` zoals de klant ze krijgt.
