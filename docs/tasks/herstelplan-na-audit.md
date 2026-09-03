@@ -73,15 +73,26 @@ Dit zijn geen aannames maar besluiten. Ze sturen de taken hieronder.
   en idempotent, nooit `drop`.
 - **De motor is een wachtrij.** `/api/cron/worker` wordt elke minuut aangeroepen door pg_cron in
   Supabase, niet door Vercel. Code draait pas mee op productie als hij op `main` staat.
-- **Testaccounts**: `e2e-consultant@orbit-test.nl` (beheerder) en `e2e-klant@orbit-test.nl` (klant),
-  wachtwoord `OrbitAudit!2026-x7`. Werkt dat niet, zet het opnieuw via Supabase.
+- **Testaccounts**: `e2e-consultant@orbit-test.nl` (beheerder) en `e2e-klant@orbit-test.nl` (klant).
+  Het wachtwoord staat met opzet niet meer in dit document: het stond hier vanaf 31 augustus en is
+  daarmee onherroepelijk in de geschiedenis van deze repo terechtgekomen, want een commit
+  terugdraaien haalt de tekst niet uit de oude commits. Zet een nieuw wachtwoord via Supabase en
+  geef het mee in de omgeving als `LIVE_PASSWORD`, niet in een bestand.
 - **Live testen kost geld**: onboarding ongeveer $0,25, meting van dertig vragen ongeveer $0,85,
   contentpagina ongeveer $1,00. Houd het totaal onder de €10.
 
-**De app bedienen zonder browser.** Log in bij de Supabase Auth-API met wachtwoord, zet de sessie in
-een cookie met de naam `sb-kosauqzjbpweluiqgmwv-auth-token` en de waarde
-`base64-<sessie-JSON in base64url>`, en stuur die mee met curl. Zo zijn alle serverroutes te testen
-als beheerder én als klant.
+**De app bedienen zonder browser.** Dat gaat met `npm run live`, zie `scripts/live.ts`. Het script
+logt in bij de Supabase Auth-API, zet de sessie in de cookie die de app terugleest en stuurt die mee
+met het verzoek, zodat elke serverroute te bedienen is als beheerder en als klant:
+
+```bash
+LIVE_EMAIL=e2e-consultant@orbit-test.nl LIVE_PASSWORD=... npm run live -- GET /api/analyses/<id>/content
+LIVE_EMAIL=e2e-klant@orbit-test.nl      LIVE_PASSWORD=... npm run live -- POST /api/profiles payload.json
+```
+
+Deze werkwijze stond hier eerst als losse instructie en werd daardoor elke sessie opnieuw met de
+hand nagebouwd. Nu is het één commando, en komt het wachtwoord uit de omgeving in plaats van uit
+een bestand dat in git staat.
 
 ---
 

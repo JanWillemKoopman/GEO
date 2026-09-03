@@ -36,3 +36,6 @@ yarn-error.log*
 # supabase (lokale CLI-state)
 /supabase/.branches
 /supabase/.temp
+
+# sessie van scripts/live.ts — bevat een geldig toegangstoken voor productie
+.live-session.json
