@@ -17942,6 +17942,65 @@ group("de lezersopdracht ziet het verschil tussen een onderwerp en een persoon",
   ok("zonder lezer is er geen blok", lezersblok(bepaalLezersopdracht({})) === "");
 });
 
+console.log("\nV3: ons werkproces lekt niet meer de klantpagina in");
+
+group("de verbrede bronpraatcontrole vindt de echte zinnen van 3 september", () => {
+  // ⚠️ Alle zeven hieronder stonden LETTERLIJK op de twaalf benchmarkpagina's,
+  // en de oude lijst van elf zoektermen vond er nul van. Vijf families, elk met
+  // zijn eigen manier om het mis te laten gaan.
+  const echt = [
+    // Familie: een redactie-instructie aan onszelf, in de tweede persoon.
+    "Controleer vóór publicatie en vóór je afspraak ook de actuele inschrijving van de " +
+      "behandelaar in het Register bekkenfysiotherapie.",
+    // Familie: een zin over onze eigen tekst.
+    "De locaties worden op deze pagina niet inhoudelijk van elkaar onderscheiden.",
+    // Familie: een bezwaarsjabloon dat niet omgezet is.
+    "Dit beantwoordt het bezwaar: \u201cIk hoor pas achteraf wat het kost.\u201d",
+    // Familie: onze verificatiestatus als mededeling aan de klant. Vier van
+    // deze soort stonden op één spoedpagina.
+    "Hulp buiten deze tijden is niet bevestigd.",
+    "Een bevestigde totaalprijs of vanafprijs inclusief btw is niet beschikbaar.",
+    "Een vaste reparatieduur en uitvoering in één bezoek zijn niet bevestigd.",
+    // Familie: zelfrelativering over ons eigen bewijs, als slotzin.
+    "Deze bedrijfsgegevens vervangen nooit de inspectie van uw specifieke dak.",
+  ];
+  for (const zin of echt) {
+    ok(
+      `gevonden: "${zin.slice(0, 46)}..."`,
+      checkSourceTalk(zin).sentences.length === 1,
+      zin,
+    );
+  }
+
+  // ⚠️ Even belangrijk als wat hij vindt: waar hij NIET op aanslaat. Deze zinnen
+  // komen uit dezelfde twaalf pagina's en zijn gewone, goede zinnen.
+  const schoon = [
+    "MJB Dakservice kan bij een lekkage binnen 24 uur ter plaatse zijn.",
+    "Vang water op en verplaats meubels en andere spullen.",
+    "Water kan onder dakbedekking of langs een dakdoorvoer en loodslab lopen voordat het binnen " +
+      "zichtbaar wordt.",
+    "Een eerste consult is volgens de praktijk binnen 24 uur mogelijk.",
+    "Bekkenfysiotherapie is gespecialiseerde fysiotherapie voor het bekken en de bekkenbodem.",
+    "De prijs hangt onder meer af van de oorzaak, het daktype en de omvang van de schade.",
+    "Bel 0578 234 502 of stuur via WhatsApp de locatie en zichtbare schade door.",
+  ];
+  for (const zin of schoon) {
+    ok(`geen vals alarm: "${zin.slice(0, 40)}..."`, checkSourceTalk(zin).sentences.length === 0, zin);
+  }
+
+  // De bevinding moet de zin letterlijk noemen, anders kan de reparatie hem
+  // niet vinden en weet de klant niet wat er weg moet.
+  const bevinding = checkSourceTalk("Hulp buiten deze tijden is niet bevestigd.").issues[0] ?? "";
+  ok("de bevinding citeert de zin", bevinding.includes("niet bevestigd"));
+  ok("en zegt wat er in de plaats moet", bevinding.includes("wat er WEL geldt"));
+
+  // Koppen tellen niet mee: "## Wat is niet bevestigd" is geen bewering.
+  ok(
+    "een kop telt niet mee",
+    checkSourceTalk("## Deze pagina beschrijft het aanbod").sentences.length === 0,
+  );
+});
+
 console.log("\nV2: één aanspreekvorm per pagina (contentkwaliteit-copywriterronde.md)");
 
 group("de aanspreekvorm wordt altijd gekozen, en de bron is na te rekenen", () => {

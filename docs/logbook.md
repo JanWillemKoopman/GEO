@@ -7241,3 +7241,29 @@ profiel levert de vorm aan en wie hem niet volhoudt is de schrijver.
 
 Vier controles groen: typecheck, 4160 unittests (20 nieuwe), 639 ketentests, build. De testtekst is
 de echte opening van de contactpagina van 3 september, dus de controle slaat er vandaag op aan.
+
+## 3 september 2026: V3, van nul naar elf gevonden werkproceszinnen
+
+`checkSourceTalk` had elf zoektermen en vond op de twaalf benchmarkpagina's precies NUL zinnen,
+terwijl er zes gevallen bekend waren waarin ons eigen werkproces de klantpagina in lekte. De lijst
+is uitgebreid met vier families, elk met een eigen manier om het mis te laten gaan: een
+redactie-instructie aan onszelf ("Controleer vóór publicatie ..."), een zin over onze eigen tekst
+("De locaties worden op deze pagina niet inhoudelijk van elkaar onderscheiden"), een bezwaarsjabloon
+dat niet omgezet is ("Dit beantwoordt het bezwaar: ..."), onze verificatiestatus als mededeling aan
+de klant ("Hulp buiten deze tijden is niet bevestigd") en zelfrelativering over ons eigen bewijs
+("Deze bedrijfsgegevens vervangen nooit de inspectie van uw specifieke dak").
+
+**Nagerekend tegen dezelfde twaalf pagina's, 13.605 woorden: van 0 naar 11 gevonden zinnen, met nul
+vals alarm.** Zes ervan staan op één spoedpagina, waarvan vier van de soort "is niet bevestigd". Dat
+is de schrijver die opschrijft wat hij zelf niet zeker weet, op de pagina van iemand met water door
+zijn plafond.
+
+⚠️ Eén van de zes bekende gevallen wordt bewust NIET gevonden: "Bang dat u achteraf pas hoort wat
+een reparatie kost?" op de renovatiepagina. Dat is een bezwaarsjabloon dat is blijven staan, maar
+dezelfde formulering is als openingszin juist góed en precies wat de copywriter aanraadt (begin bij
+wat de lezer voelt). Een zoekterm erop zetten zou goede copy bestraffen, en dat weegt zwaarder dan
+dit ene geval. Het probleem daar is de plaatsing midden in een sectie, en dat is niet met een
+woordenlijst te zien.
+
+Vier controles groen: typecheck, 4177 unittests (17 nieuwe, waarvan zeven zinnen die hij moet vinden
+en zeven die hij met rust moet laten), 639 ketentests, build.

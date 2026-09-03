@@ -778,6 +778,7 @@ export function checkForbiddenTopics(
  * van op gevoel.
  */
 const BRONVERWIJZINGEN = [
+  // ── Familie 1: onze bronnen (de oorspronkelijke lijst) ────────────────────
   "bestaande pagina",
   "huidige pagina",
   "deze pagina noemt",
@@ -789,6 +790,58 @@ const BRONVERWIJZINGEN = [
   "feitenkaart",
   "bevestigd feit",
   "bevestigde feiten",
+
+  // ── Familie 2: redactie-instructies aan onszelf (V3) ──────────────────────
+  //
+  // "Controleer vóór publicatie en vóór je afspraak ook de actuele inschrijving
+  // van de behandelaar" stond op de bekkenbodempagina van 3 september. Dat is
+  // een opdracht aan ons, in de tweede persoon, gericht aan iemand die op het
+  // punt staat te bellen.
+  "voor publicatie",
+  "vóór publicatie",
+  "voor het publiceren",
+  "vóór het publiceren",
+  "deze pagina beschrijft",
+  "op deze pagina niet",
+  "op deze pagina staan geen",
+  "in deze tekst",
+  "deze tekst gaat",
+
+  // ── Familie 3: bezwaarsjablonen die niet omgezet zijn (V3) ────────────────
+  //
+  // "Dit beantwoordt het bezwaar: 'Ik hoor pas achteraf wat het kost.'" en
+  // "Bang dat u achteraf pas hoort wat een reparatie kost?" zijn allebei een
+  // regel uit de werkinstructie die is blijven staan in plaats van omgezet.
+  "beantwoordt het bezwaar",
+  "dit bezwaar",
+  "het bezwaar dat",
+
+  // ── Familie 4: onze verificatiestatus als zin op de site (V3) ─────────────
+  //
+  // "Een bevestigde totaalprijs of vanafprijs inclusief btw is niet
+  // beschikbaar" en "Hulp buiten deze tijden is niet bevestigd" staan vier keer
+  // op de spoedpagina van 3 september. Dat is de schrijver die opschrijft wat
+  // hij zelf niet zeker weet, en de lezer met water door zijn plafond leest er
+  // iets heel anders in.
+  "is niet bevestigd",
+  "zijn niet bevestigd",
+  "niet bevestigd.",
+  "is niet beschikbaar",
+  "zijn niet beschikbaar",
+  "niet gespecificeerd",
+  "is niet vastgelegd",
+  "kon niet worden vastgesteld",
+
+  // ── Familie 5: zelfrelativering over ons eigen bewijs (V3) ────────────────
+  //
+  // "Deze bedrijfsgegevens vervangen nooit de inspectie van uw specifieke dak"
+  // is de laatste zin van een pagina van 1600 woorden. Een tekst die eindigt
+  // met een voorbehoud bij zijn eigen bewijs.
+  "bedrijfsgegevens vervangen",
+  "deze gegevens vervangen",
+  "vervangen nooit",
+  "is geen persoonlijke voorspelling",
+  "geen persoonlijke voorspelling",
 ];
 
 export interface SourceTalkResult {
