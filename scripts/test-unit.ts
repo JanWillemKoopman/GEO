@@ -68,6 +68,7 @@ import type { QualityIssue } from "@/lib/pipeline/quality-issue";
 import {
   berekenGewogenDekking,
   berekenClaimDekking,
+  claimIsOnderbouwd,
   bewijsDimensie,
   claimSoortVan,
   poortGraad,
@@ -85,6 +86,7 @@ import {
 } from "@/lib/pipeline/quality-repair";
 import { begrensKernsecties } from "@/lib/pipeline/contract-format";
 import type { AuditedClaim } from "@/lib/schemas/claim-audit";
+import type { FactItem } from "@/lib/pipeline/factcard";
 import {
   resolveTargets,
   readRecommendations,
@@ -19067,6 +19069,106 @@ group("Over algemene vakkennis stelt de app geen vraag (punt 7)", () => {
   ok(
     "zonder bedrijfsclaims is de dekking onbekend en geen nul",
     berekenClaimDekking([claim({ claimClass: "algemeen" })], () => false).dekking === null,
+  );
+});
+
+group("Een kernbewering zonder bewijs blokkeert, ook als het F-nummer schoof (R1)", () => {
+  const claim = (over: Partial<AuditedClaim>): AuditedClaim => ({
+    claim: "Bij Fysi-Unique kun je binnen 24 uur terecht.",
+    neededFor: "Hoe snel kan ik terecht?",
+    supported: true,
+    sourceRef: "F2",
+    supportQuote: "binnen 24 uur terecht",
+    importance: "kern",
+    claimClass: "bedrijfsspecifiek",
+    questionIfMissing: null,
+    reason: "omdat",
+    kind: "verificatie",
+    answerType: "ja_nee",
+    options: [],
+    suggestedAnswer: null,
+    scope: "analyse",
+    sectionId: null,
+    ...over,
+  });
+  const feit = (ref: string, text: string, over: Partial<FactItem> = {}): FactItem => ({
+    ref,
+    text,
+    source: "klant",
+    allowed: true,
+    citable: true,
+    ...over,
+  });
+
+  // De kaart zoals hij was tijdens de briefing: het feit stond op F2.
+  const tijdensBriefing = [feit("F1", "Iets anders"), feit("F2", "Je kunt binnen 24 uur terecht.")];
+  ok("op de oorspronkelijke kaart is de bewering onderbouwd", claimIsOnderbouwd(claim({}), tijdensBriefing));
+
+  // ⚠️ De klant beantwoordt een vraag. Dat antwoord komt vooraan te staan
+  // (SOURCE_ORDER), dus élk volgend nummer schuift op: het feit dat de bewering
+  // dekt heet nu F3 in plaats van F2. De bewering is niet veranderd en het
+  // bewijs is er nog steeds.
+  const naAntwoord = [
+    feit("F1", "Nieuw klantantwoord over iets anders"),
+    feit("F2", "Iets anders"),
+    feit("F3", "Je kunt binnen 24 uur terecht."),
+  ];
+  ok(
+    "de positiegebonden controle verliest het spoor",
+    !isSupported("F2", naAntwoord, "binnen 24 uur terecht"),
+  );
+  ok(
+    "maar de bewering geldt nog steeds als onderbouwd",
+    claimIsOnderbouwd(claim({}), naAntwoord),
+    "anders blokkeert de app een pagina om een nummer dat verschoven is",
+  );
+
+  // Is het bewijs er echt niet, dan blijft het onbewezen.
+  ok(
+    "zonder bewijs blijft hij onbewezen",
+    !claimIsOnderbouwd(claim({}), [feit("F1", "Iets heel anders")]),
+  );
+  // Een verbod onderbouwt niets: de klant heeft dit juist ontkend.
+  ok(
+    "een ontkend feit onderbouwt niets",
+    !claimIsOnderbouwd(claim({}), [feit("F1", "Je kunt binnen 24 uur terecht.", { allowed: false })]),
+  );
+  // Een citaat van drie tekens komt in elke tekst voor en wijst dus niets aan.
+  ok(
+    "een te kort citaat telt niet",
+    !claimIsOnderbouwd(claim({ sourceRef: null, supportQuote: "de" }), naAntwoord),
+  );
+
+  // ── De blokkade zelf ─────────────────────────────────────────────────────
+  const dekking = berekenClaimDekking(
+    [
+      claim({ claim: "kern zonder bewijs", importance: "kern", supportQuote: "bestaat niet" }),
+      claim({ claim: "kern met bewijs" }),
+      claim({ claim: "ondersteunend zonder bewijs", importance: "ondersteunend", supportQuote: "bestaat niet" }),
+      claim({ claim: "algemene kennis", claimClass: "algemeen", supportQuote: "bestaat niet" }),
+    ],
+    (c) => claimIsOnderbouwd(c, naAntwoord),
+  );
+  ok("alleen de kernbewering zonder bewijs blokkeert", dekking.kritiekOnbewezen.length === 1);
+  eq("en dat is de juiste", dekking.kritiekOnbewezen[0].claim, "kern zonder bewijs");
+  // ⚠️ Algemene vakkennis telt nergens in mee: daar hoeft de ondernemer niets
+  // voor aan te leveren, dus een ontbrekend citaat is daar geen probleem.
+  ok("algemene kennis telt niet mee in de dekking", dekking.bedrijfsspecifiek === 3);
+
+  // De bewijsdimensie zakt mee zodra de beweringen niet onderbouwd zijn.
+  const sectiesGoed = {
+    graad: 100,
+    gewogen: 100,
+    kritiek: 100,
+    aantallen: { kern: { totaal: 1, gedekt: 1 }, ondersteunend: { totaal: 0, gedekt: 0 }, optioneel: { totaal: 0, gedekt: 0 } },
+    ongedekteKern: [],
+    ongedekt: [],
+  };
+  ok("zonder claimdekking blijft de bewijsdimensie op honderd", bewijsDimensie(sectiesGoed) === 100);
+  ok(
+    "met een slechte claimdekking zakt hij, ook al staan alle secties",
+    (bewijsDimensie(sectiesGoed, dekking) ?? 100) < 100,
+    "een sectie kan een feit hebben terwijl de dragende bewering er niet aan hangt",
   );
 });
 

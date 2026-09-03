@@ -44,13 +44,20 @@ import { splitByTerms } from "@/lib/highlight";
 import { mostSimilar as vindGelijkende, type SimilarPage } from "@/lib/pipeline/similarity";
 import { sourceCoverage, type FactItem, type WrittenClaim } from "@/lib/pipeline/factcard";
 import { detectClaimSentences, detectedCoverage } from "@/lib/pipeline/claim-extract";
-import { berekenGewogenDekking, type GewogenDekking } from "@/lib/pipeline/evidence-weight";
+import {
+  berekenGewogenDekking,
+  berekenClaimDekking,
+  claimIsOnderbouwd,
+  type ClaimDekking,
+  type GewogenDekking,
+} from "@/lib/pipeline/evidence-weight";
 import { checkTypeRegels, profielVoorType, type ContentQualityProfile } from "@/lib/pipeline/quality-profile";
 import { verzamelKwaliteit } from "@/lib/pipeline/quality-collect";
 import { beoordeelKwaliteit, type QualityEvaluation } from "@/lib/pipeline/quality-score";
 import { analyseerRootCause, beschrijfRootCause, type RootCause } from "@/lib/pipeline/root-cause";
 import { issueTeksten, type QualityIssue } from "@/lib/pipeline/quality-issue";
 import { geoScore as geoScoreVanModel } from "@/lib/schemas/critique";
+import type { AuditedClaim } from "@/lib/schemas/claim-audit";
 import type { ContentContract } from "@/lib/schemas/content-contract";
 import type { ContentPiece } from "@/lib/schemas/content-piece";
 import type { ContentType, Profile } from "@/lib/types/database";
@@ -71,6 +78,15 @@ export interface KeuringInput {
   siblingPages: { title: string; body: string }[];
   analysisId: string;
   profileId: string | null;
+  /**
+   * Het PAGINAPLAN uit de claim-audit (R1, 3 september 2026): welke beweringen
+   * heeft deze pagina nodig, en welke daarvan zijn kern.
+   *
+   * Leeg is geldig, en dat is de terugval voor een pagina zonder claim-audit.
+   * Dan telt de claimdekking nergens in mee en verandert er niets aan het
+   * oordeel (conventie 3).
+   */
+  plan: readonly AuditedClaim[];
   /** Lag er bewijs voor deze pagina? Bepaalt de root-cause-toewijzing. */
   bewijsAanwezig: boolean;
 }
@@ -82,6 +98,8 @@ export interface Keuring {
   /** Dezelfde bevindingen als tekstregels, voor `review_notes`. */
   teksten: string[];
   dekking: GewogenDekking;
+  /** De dekking van de beweringen uit de claim-audit. `null` zonder audit. */
+  claimDekking: ClaimDekking | null;
   bronherleidbaarheid: number | null;
   onbewezen: WrittenClaim[];
   ongetagd: { sentence: string }[];
@@ -184,6 +202,18 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
   // ── 3. De bewijskant ──────────────────────────────────────────────────────
   const dekking = berekenGewogenDekking(input.contract, input.facts);
 
+  // ── De dekking van de BEWERINGEN, naast die van de secties (R1) ──────────
+  //
+  // Tegen de HUIDIGE feitenkaart, want de klant kan sinds de briefing vragen
+  // beantwoord hebben en dan is een bewering die toen onbewezen was dat nu niet
+  // meer. `claimIsOnderbouwd()` is daarbij positie-onafhankelijk: de F-nummers
+  // schuiven op zodra er een klantantwoord bijkomt, en een blokkade op een
+  // verschoven nummer zou een pagina tegenhouden die niets mankeert.
+  const claimDekking =
+    input.plan.length > 0
+      ? berekenClaimDekking(input.plan, (c) => claimIsOnderbouwd(c, input.facts))
+      : null;
+
   // ── ⚠️ Bronherleidbaarheid meet de ZINNEN, niet de aangemelde beweringen ──
   //
   // `sourceCoverage()` telt alleen wat het model zelf als bewering aanmeldde, en
@@ -229,6 +259,7 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
     verbodenOnderwerpen,
     typeOvertredingen,
     dekking,
+    claimDekking,
     bronherleidbaarheid,
     onbewezenBeweringen: unsupported,
     ongetagdeZinnen: untagged,
@@ -282,6 +313,16 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
         aantallen: dekking.aantallen,
       },
       bronherleidbaarheid,
+      // De claimdekking apart van de sectiedekking: een sectie kan een feit
+      // hebben terwijl de bewering die de pagina draagt er niet aan hangt (R1).
+      claimdekking: claimDekking
+        ? {
+            bedrijfsspecifiek: claimDekking.bedrijfsspecifiek,
+            onderbouwd: claimDekking.onderbouwd,
+            dekking: claimDekking.dekking,
+            kritiekOnbewezen: claimDekking.kritiekOnbewezen.length,
+          }
+        : null,
     },
     geo_json: {
       zelfrapportage: panel.critique?.geo ?? null,
@@ -300,6 +341,7 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
     issues,
     teksten,
     dekking,
+    claimDekking,
     bronherleidbaarheid,
     onbewezen: unsupported,
     ongetagd: untagged,

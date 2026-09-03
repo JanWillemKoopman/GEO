@@ -354,3 +354,157 @@ ze fout gaan.
    uitkomen. Dat is de bedoeling: ze staan nu op `ready` terwijl de app zelf 45 tot 96 redenen
    opschreef waarom ze het niet zijn. Blokkeren is hier geen muur, want de klant kan de tekst zelf
    bewerken en zelf publiceren; wat op slot gaat, is dat ORBIT ENGINE hem "klaar" noemt.
+
+---
+
+## 10. Wat er ná de eerste oplevering nog openstaat (3 september 2026)
+
+De opdracht van de eigenaar bestaat uit 32 punten. Na de merge van #48 is het grootste deel gebouwd
+en staat het op productie. Deze lijst is de eerlijke rest: vijf punten die niet, half of alleen als
+losse functie geïmplementeerd zijn. Ze staan op volgorde van wat ze de kwaliteit opleveren, niet op
+volgorde van hoeveel werk ze zijn.
+
+### ~~R1. De claimdekking is gebouwd maar nergens aangesloten~~ (gebouwd 3 september 2026)
+
+> **Af.** De claim-audit bereikt de kwaliteitspoort nu wel: elke kernbewering die niet onderbouwd
+> kan worden, is een blokkade met de bewering letterlijk erin en met de bijbehorende vraag als
+> aanbeveling. De claimdekking weegt daarnaast mee in de bewijsdimensie, zodat een pagina waarvan
+> alle secties een feit hebben maar de dragende bewering niet, ook in het CIJFER zakt.
+>
+> **Er kwam één bug uit die er al zat.** Zie hieronder bij "de valkuil": `buildPlanBlock()`
+> vertelde de schrijver "GEEN BRON: laat deze passage weg" over beweringen die wél onderbouwd
+> waren, en juist bij de klant die net een vraag had beantwoord. Ook gerepareerd.
+>
+> 11 nieuwe unittests en 4 nieuwe ketenasserties. Vier controles groen: typecheck, 4071 unittests,
+> 630 ketentests, build.
+
+### R1. De claimdekking is gebouwd maar nergens aangesloten (punt 5 en 7)
+
+`berekenClaimDekking()` in `evidence-weight.ts` telt hoeveel van de bedrijfsspecifieke beweringen uit
+de claim-audit onderbouwd zijn, en zet de kritieke onbewezen beweringen apart. Nagekeken met grep:
+de functie wordt alleen door `scripts/test-unit.ts` aangeroepen. Hij beïnvloedt dus geen enkele
+beslissing.
+
+Dat is precies de "Claim Support Coverage" uit punt 5 van de opdracht, en hij mist op de plek waar
+hij het meeste zou doen: de claim-audit weet wél welke beweringen kern zijn en welke onbewezen, maar
+dat gegeven bereikt de kwaliteitspoort niet. Nu komt een kritieke onbewezen bewering alleen als
+blokkade binnen via de SECTIE die hem draagt; een kernbewering die aan geen enkele sectie hangt,
+glipt erdoor.
+
+**Wat er moet gebeuren.** De claim-audit bewaart al een momentopname in
+`content_pieces.briefing_snapshot_json` (`planFromSnapshot()`). `keurPagina()` leest die snapshot al
+niet; dat moet hij wel gaan doen, en `berekenClaimDekking()` erop draaien met dezelfde
+`isSupported()` die de rest van de app gebruikt. Elke kritieke onbewezen bewering wordt dan een
+blokkerende bevinding met de bewering letterlijk erin, naast de bestaande sectieblokkade. Eén extra
+databaselezing, geen AI-aanroep.
+
+**Waarom dit als eerste moet.** Dit is het enige openstaande punt dat een onwaarheid kan tegenhouden.
+De andere vier maken de app slimmer of goedkoper; deze maakt hem veiliger.
+
+**⚠️ De valkuil, gevonden tijdens het bouwen.** Een F-nummer is een POSITIE en geen identiteit:
+"F3" betekent "het derde citeerbare feit op deze kaart" (`numberFacts`). De kaart is gesorteerd op
+betrouwbaarheid met de klantantwoorden vooraan (`SOURCE_ORDER`), dus zodra de klant één vraag
+beantwoordt schuift élk volgend nummer één op. De claim-audit is bevroren op het moment van de
+briefing, dus vóór die antwoorden.
+
+Het bevroren nummer blind opnieuw opzoeken zou dus een bewering als onbewezen aanmerken terwijl het
+bewijs er gewoon is, en precies bij de klant die net iets had aangeleverd. Voor een BLOKKADE is dat
+onacceptabel. `claimIsOnderbouwd()` doet daarom twee stappen: eerst de strenge positiegebonden
+controle, en als die niets vindt, de vraag of het letterlijke citaat in ÉÉN van de bruikbare feiten
+op de huidige kaart staat, ongeacht het nummer. Blokkeren mag alleen als er nergens bewijs is, niet
+als het bewijs verhuisd is.
+
+Diezelfde valkuil zat al in `buildPlanBlock()`, de tekst die de schrijver meekrijgt: die zei "GEEN
+BRON: laat deze passage weg" over een bewering die wél gedekt was. Gevolg: de klant beantwoordt een
+vraag, en juist daardoor verdwijnt informatie uit zijn pagina. Ook omgezet naar
+`claimIsOnderbouwd()`.
+
+### R2. Betrouwbaarheid per bron ontbreekt (punt 6 en 7)
+
+De opdracht vraagt bij elke bewering: "hoe betrouwbaar is die evidence?" Vandaag kent de feitenkaart
+wel een HERKOMST (`brand_facts.kind`: klant, site, onderzoek) en gebruikt hij die om te sorteren
+(`SOURCE_ORDER`), maar de kwaliteitsweging behandelt alle drie gelijk. Een bewering die op een door
+de klant bevestigd feit rust, telt dus even zwaar als een bewering die op een zin uit een gecrawlde
+pagina rust.
+
+Dat is niet hetzelfde risico. Een klantantwoord is bevestigd; een gecrawlde zin kan verouderd zijn,
+uit een ander verband komen, of uit een menu geplukt zijn.
+
+**Wat er moet gebeuren.** Een gewicht per bronsoort in `evidence-weight.ts` (klant zwaarder dan site
+zwaarder dan onderzoek), meegewogen in de bewijsdimensie. Puur, geen migratie: `kind` staat al op
+elk feit. Daarnaast `brand_facts.verify_after` benutten, dat al bestaat maar nergens gelezen wordt:
+een feit waarvan de houdbaarheidsdatum verstreken is, hoort minder zwaar te tellen dan een vers feit.
+
+### R3. Herbruikbaarheid weegt niet mee in de vraagselectie (punt 8)
+
+De opdracht noemt zes prioriteiten voor de briefing. Vijf ervan zitten erin (impact op de
+belangrijkste sectie, commerciële relevantie, bedrijfsspecificiteit, bewijs, en sinds #48 het belang
+van de sectie). De zesde niet: "een vraag die voor vijf toekomstige pagina's relevant is, kan
+belangrijker zijn dan een vraag die alleen voor één zin nodig is".
+
+De sortering in `briefing-select.ts` is nu `winst voor de zwakste pagina × aantal pagina's × kern ×
+prioriteit`. Het aantal pagina's telt alleen de pagina's in DEZE batch, niet de toekomstige.
+
+**Wat er moet gebeuren.** `BriefingQuestion.scope` bestaat al met drie standen (merk, analyse,
+pagina) en zegt precies dit: een merkbreed antwoord geldt voor élke toekomstige pagina van deze
+klant. Dat als factor in de sortering opnemen is één regel plus een unittest. ⚠️ Voorzichtig wegen:
+te zwaar en de briefing wordt een merkinterview in plaats van een paginavoorbereiding, en dan
+verdwijnt juist de vraag die déze pagina scherp maakt.
+
+### R4. Vijf van de twaalf testscenario's zijn expliciet eind tot eind gedekt (punt 29)
+
+Nagekeken met grep op de scenarionummers: 3, 5, 10, 11 en 12 staan als zodanig in `test-chain.ts`.
+De andere zeven zijn wel gedekt, maar verspreid en zonder dat iemand kan opzoeken wélk scenario
+waar getoetst wordt:
+
+| Scenario | Stand |
+|---|---|
+| 1 veel informatie → goede pagina | via het hoofdscenario, niet als zodanig benoemd |
+| 2 weinig informatie → relevante vragen | via "De juiste vragen vóór het schrijven" |
+| 4 FAQ → juiste rubric | unittest op de profielen, niet eind tot eind |
+| 6 reparatie verbetert → nieuwe versie | unittest op `nietSlechterDan`, niet eind tot eind |
+| 7 reparatie verslechtert → vorige versie | idem |
+| 8 één sectie fout → alleen die herschreven | bestaande ketentest, niet als zodanig benoemd |
+| 9 vergelijkbare content → duplicatie voorkomen | unittest op de drempel, blokkade niet eind tot eind |
+
+**Wat er moet gebeuren.** De zeven aanvullen in dezelfde vorm als 3, 5, 10, 11 en 12, met het
+scenarionummer in de assertie. Dat is geen cosmetiek: een scenario dat niemand kan terugvinden, is
+een scenario waarvan niemand merkt dat het wegvalt. Scenario 6 en 7 zijn het belangrijkst, want die
+raken de versiekeuze en die beslist welke tekst de klant leest.
+
+### R5. Fase F: ijking, caching en incrementele evaluatie (punt 19 en 28)
+
+Bewust uitgesteld en nog steeds terecht uitgesteld, met één uitzondering.
+
+- **IJking.** De drempels rusten op zeven pagina's. Pas bij twintig menselijk beoordeelde pagina's
+  (`IJKING_MINIMUM`) kan er iets bijgesteld worden. Dit is geen bouwwerk maar een meetronde, en het
+  is de volgende stap voor de eigenaar.
+- **Incrementele evaluatie.** De opdracht vraagt: is alleen sectie 4 gewijzigd, evalueer dan niet de
+  hele pagina opnieuw. Nagerekend loont dat weinig: de vier beoordelaars kosten samen ongeveer
+  $0,013 per pagina tegenover $0,071 voor de schrijfaanroep en $0,139 per reparatieronde. Een
+  beoordeling overslaan bespaart dus hooguit een cent en kost het overzicht over de hele pagina, en
+  juist die samenhang is wat de citeerbaarheidsbeoordelaar meet.
+- **Caching.** Zelfde rekensom, zelfde conclusie.
+- **De uitzondering: automatische herbeoordeling na een bewerking door de klant.** Past de klant de
+  tekst zelf aan (`PATCH .../content/[pieceId]`), dan blijft het kwaliteitsoordeel staan op de tekst
+  van vóór die bewerking. Dat is misleidend: er staat "klaar voor publicatie" onder een tekst die
+  daarna veranderd is. De tien deterministische controles kosten niets en kunnen daar gewoon
+  opnieuw draaien; de vier beoordelaars niet, want die kosten geld bij elke toetsaanslag. Voorstel:
+  na een bewerking alleen de gratis controles opnieuw, en het oordeel zichtbaar markeren als
+  "opnieuw beoordeeld op je eigen tekst, zonder de inhoudelijke keuring".
+
+### Wat er NIET op deze lijst staat, en waarom
+
+- **Nieuwe contenttypes** (SERVICE_PAGE, LOCAL_LANDING_PAGE, CASE_STUDY, ABOUT_PAGE uit punt 2). De
+  app kent er vier (`article`, `faq`, `landing`, `comparison`) en die komen uit de aanbeveling in
+  fase 6. Een vijfde type toevoegen raakt de rapportstap, de aanbevelingslogica, het contentplan en
+  de exportsjablonen, en levert pas iets op als het rapport dat type ook echt voorstelt. ⚠️ Eén
+  ervan verdient wel aandacht: de pagina's van Gasservice Brabant (Tilburg, Oss, Eindhoven) zijn
+  feitelijk LOKALE landingspagina's en worden nu als gewone `landing` beoordeeld. Een lokale pagina
+  heeft een eigen eis die de andere niet hebben, namelijk dat de plaats en het werkgebied
+  onderbouwd zijn. Dat is een profiel erbij zodra het rapport het type kan afgeven, niet eerder.
+- **Kwaliteitsprofielen in de database in plaats van in code.** De opdracht verbiedt hardgecodeerde
+  logica die VERSPREID staat; die is nu op één plek verzameld (`quality-profile.ts`) met de reden
+  per getal erbij. Ze in de database zetten maakt ze aanpasbaar zonder deploy, en dat is precies wat
+  je niet wilt zolang ze niet geijkt zijn: dan verandert iemand een drempel en is achteraf niet meer
+  na te rekenen welk cijfer waarop rustte. Dit hoort ná de ijking, niet ervoor.

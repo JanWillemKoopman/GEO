@@ -6660,3 +6660,45 @@ heeft. Conventie 10: gebouwd en op ketentests geverifieerd, nog niet tegen een e
 nagerekend.
 
 Vier controles groen: typecheck, 4060 unittests, 625 ketentests, de productiebuild.
+
+---
+
+## Een verschoven F-nummer liet informatie uit de pagina verdwijnen (3 september 2026)
+
+R1 uit de restlijst van het kwaliteitsraamwerk (`tasks/contentkwaliteit-framework.md` §10): de
+claimdekking was gebouwd maar nergens aangesloten. Nagekeken met grep werd
+`berekenClaimDekking()` alleen door `scripts/test-unit.ts` aangeroepen, dus hij beïnvloedde geen
+enkele beslissing. Gevolg: een kernbewering die aan géén enkele contractsectie hing, glipte langs de
+kwaliteitspoort. De claim-audit wíst dat hij onbewezen was; dat gegeven kwam alleen nooit ergens aan.
+
+**Bij het aansluiten kwam een bug boven water die er al zat**, en die is erger dan het gat zelf.
+
+Een F-nummer is een POSITIE en geen identiteit: "F3" betekent "het derde citeerbare feit op deze
+kaart" (`numberFacts` in `factcard.ts`). De kaart staat gesorteerd op betrouwbaarheid met de
+klantantwoorden vooraan (`SOURCE_ORDER`). Beantwoordt een klant dus één vraag, dan komt dat antwoord
+op F1 te staan en schuift élk volgend nummer één op.
+
+De claim-audit is bevroren op het moment van de briefing, dus vóór die antwoorden. `buildPlanBlock()`
+zocht die bevroren nummers op tegen de HUIDIGE kaart. De citaatplicht in `isSupported()` ving de
+verschuiving netjes op (het citaat staat niet in dat andere feit), maar de uitkomst was dan
+"onbewezen", en het paginaplan zegt daarover letterlijk tegen de schrijver: **"GEEN BRON: laat deze
+passage weg"**.
+
+Het gedrag dat daaruit volgt is precies verkeerd om: de klant beantwoordt een vraag om zijn pagina
+beter te maken, en juist door dat antwoord verdwijnt er informatie uit. Hoe meer hij aanlevert, hoe
+meer er wegvalt.
+
+**De oplossing is twee stappen in plaats van één** (`claimIsOnderbouwd()` in `evidence-weight.ts`):
+eerst de strenge, positiegebonden controle zoals overal, en als die niets vindt de vraag of het
+letterlijke citaat in één van de bruikbare feiten op de huidige kaart staat, ongeacht welk nummer
+dat feit heeft. Losser dan `isSupported()`, en dat is hier precies goed: blokkeren mag alleen als er
+nergens bewijs is, niet als het bewijs verhuisd is. Een feit met `allowed: false` telt nooit mee,
+want een verbod onderbouwt niets.
+
+Wat er verder bij kwam: elke kernbewering zonder bewijs is nu een blokkade met de bewering letterlijk
+erin en met de bijbehorende vraag als aanbeveling, en de claimdekking weegt mee in de
+bewijsdimensie. Een pagina waarvan alle secties een feit hebben maar de dragende bewering niet, zakt
+daardoor ook in het cijfer en niet alleen in de blokkadelijst.
+
+Vier controles groen: typecheck, 4071 unittests (11 nieuwe), 630 ketentests (5 nieuwe), de
+productiebuild.
