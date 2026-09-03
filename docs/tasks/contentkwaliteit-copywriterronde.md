@@ -65,10 +65,19 @@ De cijfers van de copywriter passen één op één op de kolommen van `content_q
 migratie voor nodig. Wat wel moet: `reviewer_name` en `benchmark_set` invullen, en de twaalf
 `content_piece_id`'s opzoeken.
 
-⚠️ Eén kanttekening bij het invoeren: `generic_ai_feel` telt in de app vermoedelijk andersom dan de
-copywriter het bedoelde. Hij scoorde "menselijk" waarbij 5 het beste is. Dat moet nagerekend worden
-vóór het invoeren, anders komen de twaalf pagina's er als bijna-perfect in te staan op precies de
-dimensie waar ze het slechtst scoren.
+**Nagerekend op 3 september: de telrichting klopt.** Ik vermoedde eerder dat `generic_ai_feel`
+andersom zou tellen dan de copywriter bedoelde. Dat is niet zo. Het invoerformulier
+(`app/(app)/beheer/kwaliteit/[pieceId]/review-form.tsx`) zegt bij dat veld "1 = het bekende
+AI-verhaal, 5 = zegt iets wat je nergens anders leest", en alle vijf de maten lopen zo: 1 is het
+slechtst, 5 het beste. De copywriter scoorde "menselijk" op dezelfde manier, dus zijn cijfers kunnen
+er ongewijzigd in.
+
+⚠️ Wat wél opvalt en kleiner is: het formulier vraagt bij dat veld naar **eigenheid** ("zegt iets wat
+je nergens anders leest") en de copywriter beoordeelde **natuurlijkheid** ("klinkt alsof een goede
+menselijke copywriter het schreef"). Dat is verwant maar niet hetzelfde. Zijn 2,92 gemiddeld hoort
+dus bij natuurlijkheid; wie het later als eigenheid teruggeleest, leest er net iets anders in. Bij
+het invoeren in `notes` vermelden welke vraag hij beantwoord heeft, en bij de ijking de vraagstelling
+van het formulier gelijktrekken met wat er gemeten wordt.
 
 ## 3. Keuze 2: welke verbeteringen bouwen we
 

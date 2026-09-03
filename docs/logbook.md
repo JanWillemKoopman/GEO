@@ -7130,6 +7130,9 @@ Het plan telt daarmee elf voorstellen in twee lagen, redactionele keuze en mecha
 elk met promptwijziging en deterministisch vangnet, in
 `docs/tasks/contentkwaliteit-copywriterronde.md`. Er is nog niets gebouwd. Twee keuzes liggen bij de
 eigenaar: de twaalf menselijke oordelen wel in `content_quality_reviews` zetten en de twaalf uit de
-AI-ronde niet, en de volgorde van bouwen. ⚠️ Bij het invoeren eerst nagaan hoe `generic_ai_feel`
-telt: de copywriter scoorde "menselijk" met 5 als beste, en als de kolom andersom bedoeld is komen
-deze pagina's er bijna perfect in te staan op precies de dimensie waar ze het slechtst scoren.
+AI-ronde niet, en de volgorde van bouwen. De telrichting is nagerekend en klopt: alle vijf de maten
+in `review-form.tsx` lopen van 1 (slechtst) naar 5 (beste), net als de cijfers van de copywriter, dus
+die kunnen er ongewijzigd in. ⚠️ Wel vraagt het formulier bij `generic_ai_feel` naar eigenheid
+("zegt iets wat je nergens anders leest") terwijl hij natuurlijkheid beoordeelde ("klinkt alsof een
+goede copywriter het schreef"); verwant, niet hetzelfde, dus dat hoort in `notes` en de vraagstelling
+van het formulier hoort bij de ijking gelijkgetrokken te worden met wat er gemeten wordt.
