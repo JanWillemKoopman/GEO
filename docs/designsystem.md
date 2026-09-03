@@ -357,6 +357,54 @@ Zes categorische kleuren, gebonden aan dezelfde betekenissen. Nova doet dit ook 
 **De as, het raster en de referentielijn zijn óók tokens.** Dat is het deel dat iedereen vergeet, en
 de reden dat een grafiek er altijd nét naast ligt zodra de rest van het systeem verandert.
 
+### 4.1 Elke as zegt in gewone taal wat hij toont (3 september 2026)
+
+Een grafiek waarvan je moet raden wat de hoogte betekent, kun je niet gebruiken. Beide grote
+grafieken dragen daarom een zin bij de as, in de taal van de klant en niet in die van de database.
+
+| Grafiek | Verticaal | Horizontaal |
+|---|---|---|
+| `TrendChart` | Zichtbaarheid: 0 is nooit genoemd, 100 is altijd | Wanneer er gemeten is |
+| `PagesTrafficChart` | Aantal klikken per dag | Dag |
+
+**Horizontaal en niet gekanteld.** Het label van de verticale as staat bóven de as en niet gedraaid
+langs de zijkant: een gekantelde regel leest slechter, en boven de as is ruimte genoeg. Dat kost
+16 pixels extra bovenmarge en 14 onder, en die staan in `PAD` van beide componenten.
+
+**De y-as van `TrendChart` noemt met opzet geen percentage.** Het leidende getal is de gewogen
+zichtbaarheidsscore (`lib/pipeline/trend.ts`) en niet het rauwe aandeel vragen waarin het merk
+voorkwam. "0 is nooit genoemd, 100 is altijd" klopt met wat de schaal doet, zonder een rekensom te
+beloven die er niet onder ligt. Regel 3 van `CLAUDE.md` in één zin op een as.
+
+**De `Sparkline` krijgt er geen.** Die is 96 bij 24 pixels en heeft geen as om te labelen; wat hij
+voorstelt staat in de kop van zijn kaartje en in het getal ernaast. Zie de toelichting in het
+component zelf.
+
+**Er is geen derde as.** Alle grafieken zijn vlak: hoogte en breedte, verder niets. Waar een derde
+gegeven meespeelt, is dat een aparte vorm en geen diepte: de kleur van een lijn is de naam van het
+merk (§4), en de lichte band om de eigen lijn is de meetonzekerheid.
+
+### 4.2 Lijnen zijn vloeiend, en de ronding mag niet liegen (3 september 2026)
+
+De drie lijngrafieken (`TrendChart`, `PagesTrafficChart`, `Sparkline`) tekenen hun lijn met
+`vloeiendPad()` uit `lib/chart-curve.ts`, niet met rechte stukken tussen de punten.
+
+> ⚠️ **Dit is de enige toegestane ronding, en dat is geen stijlregel.** De voor de hand liggende
+> manier om een hoekige lijn rond te maken is een gewone spline, en die **schiet door**: op de
+> testreeks 40 → 95 → 90 → 92 klimt hij tot **97,8** terwijl de hoogste meting 95 is. Op een schaal
+> van 0 tot 100 tekent dat een zichtbaarheid die niet bestaat, en tussen twee gelijke metingen legt
+> hij een kuiltje dat een daling suggereert die er niet was. `vloeiendPad()` gebruikt daarom
+> monotone interpolatie: de bocht blijft altijd tussen de twee metingen die hij verbindt, en een
+> stijgend stuk daalt nergens. Elf controles in `scripts/test-unit.ts` bewaken dat, want een bult
+> van twee pixels zie je niet en hij liegt wel.
+
+De onzekerheidsband van `TrendChart` krijgt dezelfde ronding op zijn boven- én onderrand
+(`vloeiendPadTerug()`), anders hangt hij scheef om de lijn.
+
+**Wat de ronding niet oplost:** ook een monotone kromme suggereert dat er tússen twee metingen iets
+bekend is, en dat is niet zo. Daarom blijven de meetpunten als stip zichtbaar en staat er onder
+`TrendChart` een tabel met de echte cijfers.
+
 > ⚠️ **Openstaand:** de zes kleuren zijn **niet opnieuw gevalideerd op kleurenblindheid** na de
 > overstap. De vorige set (paars, oranje, aqua, blauw) haalde ΔE 9,2 op het slechtste aangrenzende
 > paar. Paars naast roze is het paar dat er nu als eerste doorheen zakt. Zolang dat niet nagemeten
@@ -484,6 +532,48 @@ volgt in plaats van hem af te snijden.
 **Eén stang per scherm.** Twee gemarkeerde kaarten onder elkaar markeren niets meer, en dat is
 hetzelfde argument als bij de iconen in de zijbalk (§6b.3, regel 4).
 
+### 5.6 De glaslaag, alleen in de lichte stand (3 september 2026)
+
+`--glass-surface` · `--glass-surface-strong` · `--glass-filter` · `--glass-shadow`
+
+**Wat het is.** Vier oppervlakken laten sinds die datum een klein beetje door wat eronder ligt, en
+vervagen dat een beetje. Een kaart op de werkruimte komt met 0,72 wit op ongeveer `#fcfdfe` uit: één
+stap van wit af, genoeg om de stippen van `.workspace-canvas` naar de randen toe te laten meelezen,
+te weinig om als effect op te vallen. Op een witte pagina zonder zijbalk is het verschil nul, en dat
+is de bedoeling: het glas volgt de grond en dringt zich niet op.
+
+| Token | Licht | Donker | Waarvoor |
+|---|---|---|---|
+| `--glass-surface` | `rgba(255,255,255,.72)` | `var(--bg-surface)` | De vulling van `.card` |
+| `--glass-surface-strong` | `rgba(255,255,255,.86)` | `var(--bg-surface)` | Wat écht boven de pagina hangt |
+| `--glass-filter` | `blur(12px) saturate(1.06)` | `none` | De vervaging erachter |
+| `--glass-shadow` | `0 1px 2px rgba(23,33,43,.03)` | `none` | Alleen op `.card` |
+
+**Dit is geen tweede schaduwstand.** §8 regel 2 ("plat, niet gloeiend") blijft staan: de gelaagdheid
+komt uit wat er dóórheen schemert en niet uit een halo eromheen. `--glass-shadow` is één pixel op 3%
+inkt, ruim onder `--shadow-overlay`, dat gereserveerd blijft voor wat zweeft (§5.3). Wie hem te veel
+vindt zet dat ene token op `none`; er staat geen schaduwwaarde in een component.
+
+**Waar het glas zit:** `.card`, `.modal-panel`, `.toast-card` en `.menu-surface`. **Waar bewust
+niet:** de zijbalk, knoppen, velden, chips, tabelcellen en voortgangsbalken. Als élk vlak glas is
+zegt glas niets meer; het contrast tussen glas en opaak draagt hier de hiërarchie, dezelfde
+redenering als bij de iconen in de zijbalk (§6b.3, regel 4).
+
+**De randen blijven een echte tint** en worden niet doorschijnend. Dat is de voor de hand liggende
+glaskeuze en hij is bewust niet gemaakt: §2.1 legt uit dat doorschijnend zwart vuil wordt zodra het
+op een gekleurd vlak ligt, en `.card-accent` en zijn drie broertjes leggen daar juist een getinte
+rand overheen.
+
+> ⚠️ **In de donkere stand staat het glas uit, en dat moet zo blijven.** Alle vier de tokens wijzen
+> in **allebei** de donkere blokken terug naar het opake origineel. Een token dat daar ontbreekt
+> houdt zijn lichte waarde, en dan komt er wit glas op een bijna zwarte pagina te liggen. De vijfde
+> controle van §11 vangt dat.
+
+**Drie plekken waar het glas eraf gaat**, alle drie door de tokens terug te zetten en niet door de
+regels te overschrijven: geen ondersteuning voor `backdrop-filter`, `prefers-reduced-transparency:
+reduce`, en schermen smaller dan 640 pixels. Op papier ook. De reden per uitzondering staat bij de
+regel zelf in `app/globals.css`.
+
 ---
 
 ## 6. Motion
@@ -603,6 +693,7 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 | `.card-interactive` | Alleen op wat écht klikbaar is. Krijgt de rand-plus-schaduw bij hover |
 | `.card-accent` / `-success` / `-warning` / `-danger` | Getinte kaartrand, uit de betekenislaag |
 | `.card-rail` / `-success` / `-warning` | De 4px-stang links op de kaart met het hoofdgetal. Eén per scherm, tint volgt de trend. Zie §5.5 |
+| `.menu-surface` | Het vlak van alles wat zwevend is en géén dialoog: uitklapmenu, keuzelijst, toelichting. Draagt de glaslaag en niets anders; rand, radius en schaduw blijven van de gebruiksplek. Zie §5.6 |
 | `.btn-primary` | **De handeling.** 40px, `--radius-md`, inkt met omgekeerde tekst. Zie §2.4 |
 | `.btn-outline` | De keuze ernaast: rand, geen vlak. Zelfde maat |
 | `.btn-ghost` | **De uitweg.** Zelfde maat, geen vlak en geen rand, bij hover 5% inktwaas. Voor "Wachtwoord vergeten?", "Terug naar inloggen", "Annuleren" |
@@ -633,7 +724,10 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
    nooit een hexwaarde of rauwe `rgba()` in een component. Zie §11 voor de controle. **Sinds er twee
    standen zijn is dit geen nettigheid meer maar een voorwaarde:** een hexwaarde in een component
    draait niet mee met de donkere stand en levert daar gegarandeerd wit op wit of zwart op zwart op.
-2. **Plat, niet gloeiend.** Rand en vlak dragen de hiërarchie. De ene schaduw is voor wat zweeft.
+2. **Plat, niet gloeiend.** Rand en vlak dragen de hiërarchie. De ene schaduw is voor wat
+   zweeft. Sinds 3 september 2026 laat een deel van die vlakken in de **lichte** stand een klein
+   beetje door wat eronder ligt (§5.6); dat is materiaal en geen gloed, en het verandert niets aan
+   het verbod op een tweede schaduwstand.
 3. **De pil is voor wat rond moet zijn**: voortgangsbalken, stippen, de `live-dot`. Chips staan op
    `--radius-sm`, knoppen en velden en navigatie op `--radius-md` (§5.1).
 4. **Status is kleur plus vorm, nooit kleur alleen.** Een dot, een pijl, een chip met tekst.

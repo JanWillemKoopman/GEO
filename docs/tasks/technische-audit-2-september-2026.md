@@ -259,6 +259,17 @@ seconden werk. Ook in mijn eigen onboarding was 215 van de 317 seconden wachten 
 werkerronde. De werker claimt vijf taken per ronde (`CLAIM_BATCH`) en houdt 200 van de 240 seconden
 vrij voor een zware taak.
 
+**Stand (3 september 2026):** bleek al opgelost, ván vóór deze audit. `content_draft` en
+`content_revise` staan sinds 1 september 14:27 uur (commit `0ab729c`, ruim voor deze audit) niet meer
+alleen in `HEAVY_JOB_TYPES` maar ook in de nieuwe `PARALLEL_CONTENT_TYPES`
+(`lib/jobs/types.ts`/`worker.ts`, docs/tasks/contentpijplijn-herontwerp.md A10): de werker draait ze
+per drie tegelijk, met de volle reservering per groep in plaats van per taak. De 2533 seconden
+hierboven zijn dus vermoedelijk het gemiddelde over voornamelijk taken van vóór die reparatie (de
+query telt de hele geschiedenis, niet alleen de recente). Herstelplan T9 kon dit niet met een eigen
+vóór/ná-meting bevestigen: T7 heeft de hele taakgeschiedenis inmiddels leeggemaakt en er is sindsdien
+nog geen nieuwe productieronde geweest om "ná" te meten. Dat cijfer volgt vanzelf zodra er weer een
+klant een pagina laat schrijven.
+
 ### S6. De pagina draagt de interne opdrachtzin als titel
 
 `content_pieces.title` is "Maak de pagina over tandartsangst de duidelijke startpagina voor angst".
@@ -441,7 +452,13 @@ ingedrukt, want daar hangt de rekening aan; de coderegel laat er geen twijfel ov
 
 ## Wat er van deze audit op productie staat
 
-| Wat | Waar |
+**Stand (2 september 2026):** opgeruimd via herstelplan T7. Alle rijen in de tabel hieronder, en de
+overige vijftien testmerken die niet uit deze audit kwamen, zijn verwijderd (zeventien merken in
+totaal, zie `docs/logbook.md`). De twee testaccounts en het account van de eigenaar blijven bestaan
+met hun inlog, alleen leeg; het account waar geen naam voor stond in het herstelplan
+(`huyberts@example.com`) is volledig weg, account en inlog.
+
+| Wat (verwijderd) | Waar |
 |---|---|
 | Merk Tandartspraktijk de Kroon, met meting, rapport en pagina | profiel `cdff2bca-e567-44c0-ad12-3c183ba1aa3b` |
 | Vier verzonnen antwoorden op feitenvragen, elk beginnend met "TESTANTWOORD (niet feitelijk)" | `fact_requests` bij dat profiel |
@@ -450,9 +467,8 @@ ingedrukt, want daar hangt de rekening aan; de coderegel laat er geen twijfel ov
 | Merk "AUDITTEST geweigerde site" (schildersbedrijfdejong.nl), 0 pagina's | profiel `79fd089e-74ba-40ab-bad5-ebae7ead4ae9` |
 | Cluster "AUDITTEST kostencontrole klant" op Wouter Warmtepomp, vanaf het klantaccount | analyse `a0d9426f-1d43-4b5a-86d2-d1baaf4ebdbf` |
 | Tweede pagina, vastgelegd als gepubliceerd op de echte pagina /angst/, met twee hermetingen ingepland op 16 en 30 september | stuk `db76cb57-2689-4a7e-8c4a-93fff417e1b5` |
-| Contentpakket van het consultantaccount op 10 pagina's per maand gezet | account `0f0c0adf-a98f-422c-83ae-b6830187c7a5` |
-| Wachtwoord van beide testaccounts opnieuw gezet | `e2e-consultant@orbit-test.nl`, `e2e-klant@orbit-test.nl` |
+| Contentpakket van het consultantaccount op 10 pagina's per maand gezet | account `0f0c0adf-a98f-422c-83ae-b6830187c7a5`, staat nu weer leeg |
 
-⚠️ Tandartspraktijk de Kroon is een echt bedrijf dat geen klant is en dat hier niet om gevraagd
-heeft. De vier antwoorden op de feitenvragen zijn verzonnen om de keten te kunnen testen. Behandel
-ze niet als feiten over dat bedrijf. Zeg wat weg mag, dan ruimt een volgende sessie het op.
+⚠️ Tandartspraktijk de Kroon was een echt bedrijf dat geen klant is en hier niet om gevraagd heeft.
+De vier verzonnen antwoorden op de feitenvragen zijn met het merk mee verwijderd. Het bedrijf is niet
+benaderd.

@@ -73,7 +73,7 @@ export function ProfileMenu({
         <div
           role="menu"
           aria-label="Menu"
-          className="absolute right-0 z-40 mt-1 w-56 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
+          className="menu-surface absolute right-0 z-40 mt-1 w-56 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)]"
           style={{ boxShadow: "var(--shadow-overlay)" }}
         >
           <div className="border-b border-[var(--border-subtle)] px-3 py-2">
