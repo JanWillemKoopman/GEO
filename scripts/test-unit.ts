@@ -182,6 +182,13 @@ import {
   VRAAGKOPPEN_MAX,
 } from "@/lib/pipeline/paginavorm";
 import {
+  checkAdviestoon,
+  checkZelfondermijning,
+  GEBIEDEND_PER_HONDERD_MAX,
+  SLAP_PER_HONDERD_MAX,
+} from "@/lib/pipeline/adviestoon";
+import { checkHerhaling } from "@/lib/pipeline/similarity";
+import {
   normaliseerContract,
   formatContract,
   stripFactRefs,
@@ -17956,6 +17963,87 @@ group("de lezersopdracht ziet het verschil tussen een onderwerp en een persoon",
   ok("en zegt: begin bij zijn situatie", blok.includes("niet bij het bedrijf"));
   ok("en zegt wat er weg mag", blok.includes("laat je weg"));
   ok("zonder lezer is er geen blok", lezersblok(bepaalLezersopdracht({})) === "");
+});
+
+console.log("\nV6 en V12: adviseren, en hetzelfde rijtje feiten op elke pagina");
+
+group("de pagina geeft geen huiswerk en stuurt niemand weg", () => {
+  // ⚠️ De hoofdpagina over daklekkage had 23 gebiedende zinnen op 1536 woorden,
+  // 1,50 per honderd. Dat is de uitschieter waar de grens op geijkt is.
+  const huiswerk =
+    Array.from({ length: 12 }, (_, i) => `Vraag vooraf naar onderdeel ${i} van de offerte.`).join(" ") +
+    " " +
+    Array.from({ length: 60 }, (_, i) => `Een dak bestaat uit meerdere lagen en onderdelen nummer ${i}.`).join(" ");
+  const zwaar = checkAdviestoon(huiswerk);
+  ok("een pagina vol gebiedende zinnen wordt gezien", zwaar.gebiedend >= 12, String(zwaar.gebiedend));
+  ok("en levert een bevinding op", zwaar.issues.some((i) => i.includes("huiswerk")));
+  ok("die zegt dat dit de site van de aanbieder zelf is", zwaar.issues[0].includes("aanbieder zelf"));
+
+  // ⚠️ De grenzen zijn geijkt zodat ze de uitschieters vinden en niet alles.
+  // Een pagina met een paar gebiedende zinnen hoort er niet tegenaan te lopen.
+  const normaal =
+    "Vraag bij twijfel je huisarts om advies. " +
+    Array.from({ length: 80 }, (_, i) => `Wij behandelen klachten aan knie en enkel, geval ${i}.`).join(" ");
+  ok("een enkele gebiedende zin mag gewoon", checkAdviestoon(normaal).issues.length === 0);
+  ok("de grenzen staan waar de uitschieters beginnen", GEBIEDEND_PER_HONDERD_MAX === 0.6 && SLAP_PER_HONDERD_MAX === 0.8);
+
+  // ⚠️ De twee echte zinnen van 3 september die de bezoeker wegsturen.
+  const checklist = checkZelfondermijning(
+    "Zo vergelijk je dakdekkers eerlijk. Controleer acht punten. Gebruik in Zutphen en Deventer " +
+      "dezelfde checklist.",
+  );
+  ok("de vergelijkingschecklist wordt gevonden", checklist.zinnen.length >= 1, JSON.stringify(checklist.zinnen));
+  ok("en dat is blokkerend materiaal", checklist.issues[0].includes("vergelijkingssite"));
+
+  const register = checkZelfondermijning(
+    "Die algemene inschrijving is niet automatisch hetzelfde als registratie in een deelregister " +
+      "bekkenfysiotherapie, dus vraag bij het plannen naar de controleerbare registratie van je " +
+      "behandelaar.",
+  );
+  ok("de oproep om de eigen therapeut na te trekken ook", register.zinnen.length >= 1);
+
+  // Gewone zinnen uit dezelfde pagina's slaan niet aan.
+  ok(
+    "geen vals alarm op een gewone zin",
+    checkZelfondermijning("Wij zijn VCA-gecertificeerd en volledig verzekerd.").zinnen.length === 0,
+  );
+});
+
+group("niet elke pagina hetzelfde rijtje feiten", () => {
+  // ⚠️ De echte verhouding van 3 september: bij MJB stonden gratis inspectie,
+  // binnen 24 uur en het fotorapport op alle zes de pagina's.
+  const feiten = [
+    "Onze gratis dakinspectie omvat een fotorapport en is vrijblijvend",
+    "Binnen 24 uur ter plaatse bij een lekkage",
+    "Wij hebben 25 jaar ervaring",
+    "Wij hebben meer dan 500 klanten geholpen",
+    "Wij zijn VCA-gecertificeerd",
+  ];
+  const overal =
+    "Onze gratis dakinspectie omvat een fotorapport en is vrijblijvend. Binnen 24 uur ter plaatse " +
+    "bij een lekkage. Wij hebben 25 jaar ervaring en meer dan 500 klanten geholpen. Wij zijn " +
+    "VCA-gecertificeerd.";
+  const herhaald = checkHerhaling({
+    feiten,
+    tekst: overal,
+    anderePaginas: [overal, overal, overal, overal, overal],
+  });
+  ok("de feiten die overal staan worden gevonden", herhaald.overal.length >= 4, JSON.stringify(herhaald.overal));
+  ok("en dat levert een bevinding op", herhaald.issues.length === 1);
+  ok("die zegt dat elke pagina dezelfde stem krijgt", herhaald.issues[0].includes("dezelfde stem"));
+
+  // Een pagina die zijn eigen feiten kiest, slaat niet aan.
+  const eigen = "Wij zijn VCA-gecertificeerd en werken met vier eigen dakdekkers.";
+  ok(
+    "een eigen selectie is geen bevinding",
+    checkHerhaling({ feiten, tekst: eigen, anderePaginas: [overal, overal, overal] }).issues.length === 0,
+  );
+
+  // ⚠️ Met minder dan twee andere pagina's valt er niets te vergelijken.
+  ok(
+    "bij één andere pagina wordt er niets gemeten",
+    checkHerhaling({ feiten, tekst: overal, anderePaginas: [overal] }).issues.length === 0,
+  );
 });
 
 console.log("\nV8, V1 en V10: de opening, de merkstem en de koppen");

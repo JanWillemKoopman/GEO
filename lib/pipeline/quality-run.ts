@@ -43,7 +43,11 @@ import { checkContractCoverage } from "@/lib/pipeline/content-coverage";
 import { splitSections } from "@/lib/pipeline/content-sections";
 import { containsCompetitor } from "@/lib/pipeline/redact";
 import { splitByTerms } from "@/lib/highlight";
-import { mostSimilar as vindGelijkende, type SimilarPage } from "@/lib/pipeline/similarity";
+import {
+  checkHerhaling,
+  mostSimilar as vindGelijkende,
+  type SimilarPage,
+} from "@/lib/pipeline/similarity";
 import { sourceCoverage, type FactItem, type WrittenClaim } from "@/lib/pipeline/factcard";
 import { detectClaimSentences, detectedCoverage } from "@/lib/pipeline/claim-extract";
 import {
@@ -64,6 +68,7 @@ import { vindKlantinstructies, verbiedtAdres } from "@/lib/klantinstructies";
 import { checkBewijspunten } from "@/lib/pipeline/bewijspunten";
 import { checkKlantcitaten, vindCiteerbareAntwoorden } from "@/lib/pipeline/klantcitaten";
 import { checkOpening, checkMerkstem, checkVraagkoppen } from "@/lib/pipeline/paginavorm";
+import { checkAdviestoon, checkZelfondermijning } from "@/lib/pipeline/adviestoon";
 import type { AuditedClaim } from "@/lib/schemas/claim-audit";
 import type { ContentContract } from "@/lib/schemas/content-contract";
 import type { ContentPiece } from "@/lib/schemas/content-piece";
@@ -240,6 +245,17 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
   const merkstem = checkMerkstem(body, input.brandName);
   const vraagkoppen = checkVraagkoppen(body, profiel.type === "faq");
 
+  // ── V6: adviseert de pagina in plaats van te helpen kiezen? ──────────────
+  const adviestoon = checkAdviestoon(body);
+  const zelfondermijning = checkZelfondermijning(body);
+
+  // ── V12: staat op elke pagina van deze ronde hetzelfde rijtje feiten? ────
+  const herhaling = checkHerhaling({
+    feiten: input.facts.filter((f) => f.citable && f.allowed).map((f) => f.text),
+    tekst: body,
+    anderePaginas: input.siblingPages.map((p) => p.body),
+  });
+
   const taboo = checkTabooWords(body, faq, input.profile?.taboo_phrases ?? []);
   const verbodenOnderwerpen = checkForbiddenTopics(
     body,
@@ -318,6 +334,9 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
     opening,
     merkstem,
     vraagkoppen,
+    adviestoon,
+    zelfondermijning,
+    herhaling,
     taboo,
     verbodenOnderwerpen,
     typeOvertredingen,

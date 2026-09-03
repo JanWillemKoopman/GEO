@@ -7371,3 +7371,33 @@ voor de opening, toon voor de merkstem, structuur voor de koppen. Vier controles
 
 ⚠️ Deze drie horen samen te worden nagemeten op citeerbaarheid, precies zoals het plan zegt. Dat kan
 pas na een echte ronde.
+
+## 3 september 2026: V6 en V12, de pagina geeft geen huiswerk meer en stuurt niemand weg
+
+**De adviestoon, met een grens die eerst verkeerd stond.** Over de twaalf pagina's: 72 gebiedende
+zinnen ("Vraag ...", "Controleer ...", "Laat ... vastleggen"), waarvan 23 op één pagina, plus 120
+slappe formuleringen op 13.605 woorden. ⚠️ Mijn eerste grenzen (0,35 en 0,5 per honderd woorden)
+sloegen aan op ELF van de twaalf pagina's, en een controle die overal afgaat is ruis: hij zou de
+reparatie van elke pagina met dezelfde bevinding vullen. De grenzen liggen nu waar de uitschieters
+beginnen. Gebiedende zinnen lopen van 0,19 tot 1,50 per honderd woorden met een mediaan rond 0,39;
+boven 0,6 zitten er drie, waaronder de hoofdpagina over daklekkage met 1,50. Slappe formuleringen
+lopen van 0,10 tot 1,12 met een mediaan rond 0,58; boven 0,8 zitten er twee, en dat zijn precies de
+twee pagina's die de copywriter als te voorzichtig aanwees, waarvan hij er één "ABSOLUUT NIET" gaf.
+Met 0,6 en 0,8 slaat de controle op vijf van de twaalf aan in plaats van op elf.
+
+**Zelfondermijning heeft géén grens**, want één zin is er al één te veel. Op de site van MJB stond
+een checklist om dakdekkers eerlijk te vergelijken, met de tip hem in twee plaatsen te gebruiken; op
+twee FCU-pagina's stond dat de bezoeker de registratie van de eigen behandelaar moest natrekken, met
+een link naar de beroepsvereniging erbij. Uitstekende consumentenvoorlichting, en de verkeerde
+pagina ervoor. Dit is de enige blokkerende bevinding van deze twee voorstellen.
+
+**V12, hetzelfde rijtje feiten op elke pagina.** `checkHerhaling()` staat in `similarity.ts`, naast
+`similarity()` maar met een andere vraag: die meet of twee pagina's over hetzelfde GAAN, deze of ze
+hetzelfde BEWIJS gebruiken. Twee pagina's mogen over verschillende onderwerpen gaan en toch allebei
+met dezelfde zes feiten aankomen, en dan krijgen ze precies dezelfde stem. Gemeten per klant over
+zes pagina's: bij MJB stonden de gratis inspectie, de 24 uur en het fotorapport op alle zes, bij FCU
+vijf feiten op alle zes. De bevinding valt op originaliteit, is niet blokkerend, en de root cause
+wijst naar de BRIEFING en niet naar het schrijven: de feitenkaart is per pagina hetzelfde, dus daar
+zit de oorzaak.
+
+Vier controles groen: typecheck, 4253 unittests (14 nieuwe), 641 ketentests, build.

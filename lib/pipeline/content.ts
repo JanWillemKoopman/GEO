@@ -65,6 +65,7 @@ import { objectionsRule } from "@/lib/pipeline/commercial-context";
 import { vindKlantinstructies, instructieblok, verbiedtAdres } from "@/lib/klantinstructies";
 import { bewijspuntenblok } from "@/lib/pipeline/bewijspunten";
 import { vindCiteerbareAntwoorden, citatenblok } from "@/lib/pipeline/klantcitaten";
+import { adviestoonblok } from "@/lib/pipeline/adviestoon";
 import {
   chooseExistingText,
   matchExistingPage,
@@ -589,6 +590,10 @@ function buildContentInput(args: {
     citatenblok(vindCiteerbareAntwoorden(facts.map((f) => f.text))),
     // ✅ V9: van feit naar betekenis, met de voorbeelden van de copywriter erin.
     bewijspuntenblok(),
+    // ✅ V6: dit is de site van de ondernemer, geen consumentengids. Op drie
+    // pagina's van 3 september sloeg het advies door tot tekst die de bezoeker
+    // wegstuurde om de klant zelf te controleren.
+    adviestoonblok(),
     // ✅ HET CONTRACT (A2): de inhoudsopgave van deze pagina. Staat bewust vóór
     // het paginaplan en direct onder de feitenkaart: dit is de opdracht, en
     // wat bovenaan een prompt staat wordt het best gevolgd. Wij rekenen hem

@@ -70,6 +70,10 @@ const BRON_FASE: Record<IssueBron, PipelinePhase> = {
   klantcitaat: "schrijven",
   // V8, V1 en V10: opening, merkstem en koppen zijn alle drie schrijfkeuzes.
   paginavorm: "schrijven",
+  adviestoon: "schrijven",
+  // V12: dat elke pagina hetzelfde rijtje feiten pakt, komt door de SELECTIE
+  // vooraf en niet door het schrijven. De kaart is per pagina hetzelfde.
+  herhaling: "briefing",
   // Onherleidbare beweringen wijzen op een te dunne feitenkaart.
   bronherleidbaarheid: "kennis",
   // Een verboden woord of onderwerp is een schrijffout: de regel stond in de

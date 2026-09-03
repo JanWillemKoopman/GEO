@@ -38,6 +38,8 @@ import type {
   OpeningResult,
   VraagkoppenResult,
 } from "@/lib/pipeline/paginavorm";
+import type { AdviestoonResult, ZelfondermijningResult } from "@/lib/pipeline/adviestoon";
+import type { HerhalingResult } from "@/lib/pipeline/similarity";
 import type {
   AanspreekvormResult,
   AdresResult,
@@ -89,6 +91,12 @@ export interface KwaliteitsInvoer {
   merkstem?: MerkstemResult;
   /** V10: is dit een verhaal of een vragenlijst? */
   vraagkoppen?: VraagkoppenResult;
+  /** V6: geeft de pagina huiswerk in plaats van antwoord? */
+  adviestoon?: AdviestoonResult;
+  /** V6: stuurt de pagina de bezoeker weg om de klant te controleren? */
+  zelfondermijning?: ZelfondermijningResult;
+  /** V12: staat op elke pagina van deze ronde hetzelfde rijtje feiten? */
+  herhaling?: HerhalingResult;
   taboo: TabooCheckResult;
   verbodenOnderwerpen: TabooCheckResult;
   typeOvertredingen: TypeRegel[];
@@ -736,6 +744,68 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
         blocking: false,
         confidence: ZEKER,
         bron: "paginavorm",
+      }),
+    );
+  }
+
+  // ── V6: de pagina geeft huiswerk in plaats van antwoord ───────────────────
+  for (const zin of invoer.adviestoon?.issues ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "overtuiging",
+        severity: "midden",
+        section: null,
+        finding: zin,
+        evidence: invoer.adviestoon?.voorbeelden.join(", ") || null,
+        expected: "De pagina zegt wat dit bedrijf doet, niet wat de lezer moet navragen.",
+        recommendation: "Draai de gebiedende zinnen om naar wat het bedrijf zelf regelt.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "adviestoon",
+      }),
+    );
+  }
+
+  // ── V6: de pagina stuurt de bezoeker weg ──────────────────────────────────
+  //
+  // Blokkerend, als enige in deze familie. Eén zin is er al één te veel: een
+  // checklist om de eigen aanbieder mee te beoordelen hoort op een
+  // vergelijkingssite en niet op de site van die aanbieder.
+  for (const zin of invoer.zelfondermijning?.issues ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "overtuiging",
+        severity: "hoog",
+        section: null,
+        finding: zin,
+        evidence: invoer.zelfondermijning?.zinnen[0] ?? null,
+        expected: "Geen vergelijkingsadvies en geen twijfel over de eigen deskundigheid.",
+        recommendation:
+          "Haal de zin weg en zet er de reden voor in de plaats waarom de lezer verder niet hoeft " +
+          "te kijken.",
+        blocking: true,
+        confidence: ZEKER,
+        bron: "adviestoon",
+      }),
+    );
+  }
+
+  // ── V12: elke pagina hetzelfde rijtje feiten ──────────────────────────────
+  for (const zin of invoer.herhaling?.issues ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "originaliteit",
+        severity: "laag",
+        section: null,
+        finding: zin,
+        evidence: invoer.herhaling?.overal.slice(0, 3).join(" | ") || null,
+        expected: "Elke pagina heeft één eigen reden om te bestaan.",
+        recommendation:
+          "Kies per pagina de feiten die voor die ene lezer het meeste betekenen, en laat de rest " +
+          "aan de pagina waar ze thuishoren.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "herhaling",
       }),
     );
   }

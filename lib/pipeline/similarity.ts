@@ -158,3 +158,77 @@ export function describeDuplicate(match: SimilarPage): string {
     `Twee pagina's die hetzelfde zeggen concurreren om dezelfde vraag.`
   );
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// V12: HETZELFDE RIJTJE FEITEN OP ELKE PAGINA
+// ════════════════════════════════════════════════════════════════════════════
+//
+// `similarity()` hierboven meet of twee pagina's over hetzelfde GAAN. Dit meet
+// iets anders: of ze hetzelfde BEWIJS gebruiken. Twee pagina's mogen over
+// verschillende onderwerpen gaan en toch alle twaalf keer met dezelfde zes
+// feiten aankomen, en dan krijgen ze precies dezelfde stem.
+//
+// ⚠️ Gemeten per klant over de zes pagina's van 3 september 2026:
+//
+//   MJB Dakservice: gratis inspectie 6/6, binnen 24 uur 6/6, fotorapport 6/6,
+//                   25 jaar ervaring 5/6, 500+ klanten 5/6, VCA 5/6.
+//   Fysio Centrum:  twee locaties 6/6, binnen 24 uur 6/6, geen verwijzing 6/6,
+//                   gratis consult 6/6, alle zorgverzekeraars 6/6.
+//
+// De copywriter, patroon 9: "Iedere pagina moet één eigen reden hebben om te
+// bestaan."
+
+/** Boven dit aandeel van de andere pagina's is een feit een sjabloon geworden. */
+export const HERHALING_DREMPEL = 0.5;
+
+/** Hoeveel van zulke feiten er mogen zijn voordat het een bevinding wordt. */
+export const HERHALING_MAX = 3;
+
+export interface HerhalingResult {
+  /** De feiten die op deze pagina én op de meeste andere staan. */
+  overal: string[];
+  /** Hoeveel andere pagina's er meegewogen zijn. */
+  vergeleken: number;
+  issues: string[];
+}
+
+/**
+ * Welke feiten staan op élke pagina van deze ronde?
+ *
+ * `feiten` zijn de citeerbare feiten van de kaart. Een feit telt als "gebruikt"
+ * wanneer zijn onderscheidende woorden in de tekst staan; dezelfde ruwe maat als
+ * `similarity()`, en om dezelfde reden: exact vergelijken zou elke herformulering
+ * missen.
+ */
+export function checkHerhaling(input: {
+  feiten: readonly string[];
+  tekst: string;
+  anderePaginas: readonly string[];
+}): HerhalingResult {
+  const anderen = input.anderePaginas.filter((t) => (t ?? "").trim().length > 0);
+  if (anderen.length < 2) return { overal: [], vergeleken: anderen.length, issues: [] };
+
+  const staatIn = (feit: string, tekst: string): boolean => {
+    const woorden = Array.from(new Set(words(feit))).filter((w) => w.length > 4);
+    if (woorden.length === 0) return false;
+    const laag = tekst.toLowerCase();
+    return woorden.filter((w) => laag.includes(w)).length / woorden.length >= 0.6;
+  };
+
+  const overal = input.feiten.filter((feit) => {
+    if (!staatIn(feit, input.tekst)) return false;
+    const elders = anderen.filter((t) => staatIn(feit, t)).length;
+    return elders / anderen.length > HERHALING_DREMPEL;
+  });
+
+  const issues: string[] = [];
+  if (overal.length > HERHALING_MAX) {
+    issues.push(
+      `${overal.length} van de feiten op deze pagina staan ook op de meeste andere pagina's van ` +
+        `deze klant. Daardoor krijgt elke pagina dezelfde stem. Kies per pagina de feiten die voor ` +
+        `déze lezer het meeste betekenen, en laat de rest aan de pagina waar ze thuishoren.`,
+    );
+  }
+
+  return { overal: overal.slice(0, 6), vergeleken: anderen.length, issues };
+}
