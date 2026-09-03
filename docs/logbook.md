@@ -34,6 +34,7 @@ verwijzing in de code straks nergens meer heen.
 | `Nova.md` | InSpace Nova gereconstrueerd, de gap-analyse en het achtfasenbouwplan dat daaruit volgde | Bouwplan afgebouwd, zie de secties hieronder per fase. Zelf verwijderd op 17 augustus 2026, de citaten die er verderop in dit logboek nog naar verwijzen zijn historisch en blijven staan zoals ze geschreven zijn. De richting daarna staat in `visie.md` |
 | `tasks/mijn-reputatie.md` (en de leesbare versie ernaast, `tasks/mijn-reputatie.html`) | Het product- en implementatieplan voor de reputatieanalyse: waarom een los product, de vier vragen aan ChatGPT, de oordeelslaag, het datamodel en de rekensom over de kosten | Alle vijf sprints (R1 t/m R5) gebouwd en op drie echte runs geverifieerd, zie de zeven secties hieronder van 22 en 23 augustus 2026. Het datamodel zelf staat in de migraties `0062` t/m `0064`, de pijplijnstap in `architecture.md` §6 rij 21, de code in `lib/reputation/` en `lib/pipeline/reputation-*.ts`. Verwijderd 23 augustus 2026, toen R5 geverifieerd was |
 | `tasks/doorloop-huyberts.md` | De zes punten uit de eerste volledige klantdoorloop van 26 augustus 2026, met per punt de bestanden, de aanpak en het verificatiecriterium, testklant Huyberts Keukens als bewijsmateriaal | Alle zes punten en de twee kleinere punten afgehandeld, zie "26 augustus 2026: de zes punten uit de doorloop afgewerkt" hieronder. Migratie `0066`, `docs/architecture.md` §9 (opnieuw doorgerekend), `docs/tasks/roadmap.md` (het opengebleven structurele vervolg op punt 6). Verwijderd 26 augustus 2026 |
+| `tasks/herstelplan-na-audit.md` T1 t/m T9 | Het herstelplan na de technische audit van 2 september 2026: negen taken, van de contentkwaliteit-lus tot de wachttijd | T1, T3 t/m T9 gebouwd en nagerekend, zie de acht alinea's van 2 en 3 september 2026 hieronder ("het herstelplan na de audit, T1" t/m "..., T9"). T2 (de beoordelingsset voor contentkwaliteit) is door de eigenaar geschrapt, zie de alinea eronder. Verwijderd 3 september 2026 |
 
 De volledige originelen staan in de git-historie (laatste versie: de commit vóór de
 documentatie-herstructurering).
@@ -6777,3 +6778,17 @@ opgeleverd.
 
 Met T9 is het herstelplan na de audit van 2 september 2026 klaar op T2 na (de beoordelingsset voor
 contentkwaliteit, stilliggend zolang deze sessie geen netwerktoegang tot Supabase/Vercel heeft).
+
+## 3 september 2026: T2 geschrapt, het herstelplan na de audit is af
+
+De eigenaar heeft T2 (de beoordelingsset voor contentkwaliteit, `eval:content`) geschrapt: dit wordt
+niet meer uitgevoerd. Reden niet toegelicht in deze sessie; de meetlat voor schrijfkwaliteit
+waarnaar T2 zocht blijft dus voorlopig ontbreken, en promptwijzigingen aan de schrijfstap blijven
+zonder eigen evaluatieset (zie ook `tasks/contentkwaliteit-framework.md` §T9, die naar dit punt
+verwees als "herstelplan T2").
+
+Met T1, T3 t/m T9 gebouwd en T2 geschrapt heeft het herstelplan niets meer openstaan.
+`docs/tasks/herstelplan-na-audit.md` is verwijderd; de tabel bovenaan dit logboek wijst terug naar de
+negen alinea's hierboven. Code-commentaar dat naar "herstelplan na audit" verwijst (tientallen
+plekken, T1 t/m T9) blijft ongewijzigd staan: dat draagt het waarom van de code, niet het bestaan van
+het plandocument.
