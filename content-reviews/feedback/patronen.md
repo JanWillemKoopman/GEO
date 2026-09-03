@@ -199,5 +199,13 @@ pagina's beter wordt om te lezen.** De twee grootste problemen, dat het bedrijf 
 en dat de sterkste zinnen van de ondernemer in parafrase sneuvelen, maken een pagina zelfs
 herleidbaarder naarmate ze erger worden.
 
-Wat ik daaraan zou doen staat in `docs/tasks/contentkwaliteit-copywriterronde.md`, met de twee
-keuzes die eerst bij de eigenaar liggen.
+⚠️ **Bijgesteld op 3 september, ná de beoordeling door een echte copywriter.** Hij komt op dezelfde
+diagnose uit ("de teksten informeren beter dan ze overtuigen", op 12 van de 12) maar op hogere
+cijfers dan deze ronde, en op één punt kijkt hij scherper: waar ik tel wat er misgaat, wijst hij aan
+wat er ontbreekt. Zijn drie zwaarstwegende punten zijn schrijven vanuit de situatie van de lezer,
+feiten omzetten naar betekenis, en 25 tot 40 procent van de informatie schrappen. Geen daarvan is
+een telling en alle drie wegen ze zwaarder dan de negen patronen hierboven. Zijn volledige oordeel
+staat in [`copywriter-extern-3-september-2026.md`](copywriter-extern-3-september-2026.md).
+
+Wat er met allebei de rondes gedaan wordt staat in `docs/tasks/contentkwaliteit-copywriterronde.md`,
+met de twee keuzes die eerst bij de eigenaar liggen.
