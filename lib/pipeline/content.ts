@@ -59,7 +59,7 @@ import {
 import type { QualityIssue } from "@/lib/pipeline/quality-issue";
 import { issuesUitJson } from "@/lib/pipeline/quality-issue";
 import { formatExplainerBlock, type VerifiedExplainer } from "@/lib/pipeline/explainer-verify";
-import { describeToneSliders, describePronoun } from "@/lib/pipeline/tone-sliders";
+import { describeToneSliders, describePronoun, kiesAanspreekvorm } from "@/lib/pipeline/tone-sliders";
 import { bepaalLezersopdracht, lezersblok } from "@/lib/lezersopdracht";
 import { objectionsRule } from "@/lib/pipeline/commercial-context";
 import {
@@ -523,10 +523,21 @@ function buildContentInput(args: {
         });
         return schuiven ? ` (${schuiven})` : "";
       })(),
-    // ✅ De aanspreekvorm uit het merkprofiel (verbetering 11). Werd verzameld,
-    // was bewerkbaar, en kwam nooit in de prompt: twee pagina's uit dezelfde
-    // batch spraken de lezer met "u" en met "jouw" aan.
-    describePronoun(profile?.pronoun_preference ?? null),
+    // ✅ De aanspreekvorm (verbetering 11, aangescherpt als V2 op 3 september).
+    //
+    // Stond eerst alleen in de prompt als `profiles.pronoun_preference` gevuld
+    // was, en bij de twee klanten van de benchmarkronde was dat niet zo. Geteld
+    // over twaalf pagina's: 95 keer "je" naast 81 keer "u", bij allebei de
+    // klanten door elkaar. `kiesAanspreekvorm()` kiest er nu altijd een, desnoods
+    // uit de tekst die al op de site van de klant staat, en `checkAanspreekvorm`
+    // in `content-gate.ts` is het vangnet ernaast (conventie 1).
+    describePronoun(
+      kiesAanspreekvorm({
+        voorkeur: profile?.pronoun_preference ?? null,
+        formaliteit: (profile?.tone_formality ?? null) as 1 | 2 | 3 | null,
+        bestaandeTekst: existingText ?? existingPage?.text_excerpt ?? null,
+      }).vorm,
+    ),
     `Diensten/producten: ${(profile?.products ?? []).join(", ") || "onbekend"}`,
     // ✅ Migratie 0045, verboden woorden (C.29). Een VERBOD, geen suggestie, zelfde
     // toon als de feitenkaart hierboven: gesloten lijst voor wat niet mag, in
@@ -1880,6 +1891,9 @@ export async function draftContentPiece(args: {
     // Lag er bewijs voor deze pagina? Bepaalt of een lege sectie een
     // schrijfprobleem is of een kennisprobleem (`root-cause.ts`).
     bewijsAanwezig: ctx.facts.some((f) => f.citable && f.allowed),
+    // V2: de tekst die al op de site van de klant staat, alleen om de
+    // aanspreekvorm van te kunnen aflezen als het profiel hem niet vastlegt.
+    bestaandeTekst: ctx.existing.text ?? ctx.existing.page?.text_excerpt ?? null,
   });
 
   // De gemeten waarden altijd loggen, ook onder de drempel: zonder die reeks kan
@@ -2093,6 +2107,7 @@ export async function reviseContentPiece(args: {
     profileId: analysis.profile_id,
     plan: ctx.plan,
     bewijsAanwezig: ctx.facts.some((f) => f.citable && f.allowed),
+    bestaandeTekst: ctx.existing.text ?? ctx.existing.page?.text_excerpt ?? null,
   });
 
   const openstaand = keuring.teksten;
@@ -2325,6 +2340,7 @@ export async function herkeurContentPiece(args: {
     profileId: ctx.analysis.profile_id,
     plan: ctx.plan,
     bewijsAanwezig: ctx.facts.some((f) => f.citable && f.allowed),
+    bestaandeTekst: ctx.existing.text ?? ctx.existing.page?.text_excerpt ?? null,
   });
 
   // Alleen het oordeel. `body_markdown`, `version`, `repair_round` en `status`

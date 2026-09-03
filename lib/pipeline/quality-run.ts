@@ -34,6 +34,7 @@ import {
   checkContentGate,
   checkForbiddenTopics,
   checkQuality,
+  checkAanspreekvorm,
   checkSourceTalk,
   checkTabooWords,
 } from "@/lib/pipeline/content-gate";
@@ -57,6 +58,7 @@ import { beoordeelKwaliteit, type QualityEvaluation } from "@/lib/pipeline/quali
 import { analyseerRootCause, beschrijfRootCause, type RootCause } from "@/lib/pipeline/root-cause";
 import { issueTeksten, type QualityIssue } from "@/lib/pipeline/quality-issue";
 import { geoScore as geoScoreVanModel } from "@/lib/schemas/critique";
+import { kiesAanspreekvorm } from "@/lib/pipeline/tone-sliders";
 import type { AuditedClaim } from "@/lib/schemas/claim-audit";
 import type { ContentContract } from "@/lib/schemas/content-contract";
 import type { ContentPiece } from "@/lib/schemas/content-piece";
@@ -89,6 +91,14 @@ export interface KeuringInput {
   plan: readonly AuditedClaim[];
   /** Lag er bewijs voor deze pagina? Bepaalt de root-cause-toewijzing. */
   bewijsAanwezig: boolean;
+  /**
+   * De tekst van de bestaande pagina, als die er is (V2).
+   *
+   * Alleen om de aanspreekvorm van het merk af te leiden wanneer het profiel
+   * hem niet vastlegt: wat de klant op zijn eigen site doet, weegt zwaarder dan
+   * onze standaard. Weglaten werkt en verandert niets (conventie 3).
+   */
+  bestaandeTekst?: string | null;
 }
 
 export interface Keuring {
@@ -184,6 +194,20 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
   const quality = checkQuality({ bodyMarkdown: body, mostSimilar: gelijkenis });
 
   const bronpraat = checkSourceTalk(body);
+
+  // ── V2: de aanspreekvorm, over de body én de vraag-en-antwoordblokken ─────
+  //
+  // Samen en niet apart: de contactpagina van 3 september tutoyeert in de
+  // opening en vousvoyeert in het FAQ-blok eronder, en los gemeten was elk deel
+  // op zichzelf consistent.
+  const aanspreekvorm = checkAanspreekvorm(
+    [body, ...faq.map((f) => `${f.q} ${f.a}`)].join("\n\n"),
+    kiesAanspreekvorm({
+      voorkeur: input.profile?.pronoun_preference ?? null,
+      formaliteit: (input.profile?.tone_formality ?? null) as 1 | 2 | 3 | null,
+      bestaandeTekst: input.bestaandeTekst ?? null,
+    }).vorm,
+  );
   const taboo = checkTabooWords(body, faq, input.profile?.taboo_phrases ?? []);
   const verbodenOnderwerpen = checkForbiddenTopics(
     body,
@@ -255,6 +279,7 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
     coverage,
     quality,
     bronpraat,
+    aanspreekvorm,
     taboo,
     verbodenOnderwerpen,
     typeOvertredingen,

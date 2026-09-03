@@ -58,6 +58,9 @@ const BRON_FASE: Record<IssueBron, PipelinePhase> = {
   contractdekking: "schrijven",
   kwaliteitspoort: "schrijven",
   bronpraat: "schrijven",
+  // V2: twee aanspreekvormen op één pagina is puur een schrijffout. Het
+  // merkprofiel levert de vorm aan; wie hem niet volhoudt, is de schrijver.
+  aanspreekvorm: "schrijven",
   // Onherleidbare beweringen wijzen op een te dunne feitenkaart.
   bronherleidbaarheid: "kennis",
   // Een verboden woord of onderwerp is een schrijffout: de regel stond in de

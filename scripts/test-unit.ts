@@ -163,6 +163,8 @@ import {
 } from "@/lib/pipeline/input-coverage";
 import { inputpoort, GOED_GENOEG, TE_WEINIG } from "@/lib/content-input-gate";
 import { bepaalLezersopdracht, lezersblok, noemtPersoon, MIN_WOORDEN } from "@/lib/lezersopdracht";
+import { kiesAanspreekvorm, telAanspreekvormen } from "@/lib/pipeline/tone-sliders";
+import { checkAanspreekvorm } from "@/lib/pipeline/content-gate";
 import {
   normaliseerContract,
   formatContract,
@@ -17718,7 +17720,15 @@ group("De aanspreekvorm gaat mee naar de schrijver (verbetering 11)", () => {
   ok("een onbekende waarde ook niet", describePronoun("hen") === "");
 
   const content = leesBestand("lib/pipeline/content.ts");
-  ok("de schrijfprompt gebruikt hem", content.includes("describePronoun(profile?.pronoun_preference"));
+  // ⚠️ Bijgesteld op 3 september 2026 (V2). De prompt roept `describePronoun`
+  // niet meer rechtstreeks met het profielveld aan, want dan blijft hij leeg
+  // zodra de klant niets invulde, en dat was precies de bug. Hij gaat nu langs
+  // `kiesAanspreekvorm()`, die altijd een vorm oplevert.
+  ok("de schrijfprompt gebruikt hem", content.includes("describePronoun(\n      kiesAanspreekvorm({"));
+  ok(
+    "en de vorm wordt altijd gekozen, ook zonder profielveld",
+    content.includes("voorkeur: profile?.pronoun_preference"),
+  );
   const velden = leesBestand("lib/pipeline/brand-fields.ts");
   ok(
     "en het merkprofiel belooft niet meer dat het veld ongebruikt blijft",
@@ -17930,6 +17940,75 @@ group("de lezersopdracht ziet het verschil tussen een onderwerp en een persoon",
   ok("en zegt: begin bij zijn situatie", blok.includes("niet bij het bedrijf"));
   ok("en zegt wat er weg mag", blok.includes("laat je weg"));
   ok("zonder lezer is er geen blok", lezersblok(bepaalLezersopdracht({})) === "");
+});
+
+console.log("\nV2: één aanspreekvorm per pagina (contentkwaliteit-copywriterronde.md)");
+
+group("de aanspreekvorm wordt altijd gekozen, en de bron is na te rekenen", () => {
+  ok(
+    "wat de klant zelf koos gaat voor",
+    kiesAanspreekvorm({ voorkeur: "je", formaliteit: 3 }).vorm === "je",
+  );
+  ok("en dan is de bron het profiel", kiesAanspreekvorm({ voorkeur: "u" }).bron === "profiel");
+
+  // De formaliteitsschuif noemt de vorm letterlijk in zijn labels.
+  ok("stand 3 is formeel", kiesAanspreekvorm({ formaliteit: 3 }).vorm === "u");
+  ok("stand 1 is informeel", kiesAanspreekvorm({ formaliteit: 1 }).vorm === "je");
+  ok("en de bron is dan de toon", kiesAanspreekvorm({ formaliteit: 1 }).bron === "toon");
+
+  // ⚠️ Stand 2 zegt niets over de aanspreekvorm, alleen over de formaliteit.
+  // Dan telt wat er op de site van de klant staat.
+  const uitSite = kiesAanspreekvorm({
+    formaliteit: 2,
+    bestaandeTekst:
+      "MJB Dakservice is al 25 jaar uw vaste dakdekker. Of u nu tobt met uw dak of uw goot, " +
+      "wij hebben voor u een passende oplossing. Vindt u hieronder de richtprijzen.",
+  });
+  ok("wat de klant op zijn eigen site doet, telt", uitSite.vorm === "u", uitSite.vorm);
+  ok("en de bron is dan de bestaande pagina", uitSite.bron === "bestaande pagina");
+
+  // Nek aan nek zegt niets: dan is de standaard eerlijker dan een muntje.
+  const gelijkspel = kiesAanspreekvorm({ bestaandeTekst: "Kom je langs? Dan helpen wij u graag." });
+  ok("bij twijfel valt hij terug op de standaard", gelijkspel.bron === "standaard");
+  ok("en die standaard is 'u'", gelijkspel.vorm === "u");
+
+  // Nooit meer leeg: dat was de hele bug. Geen enkele invoer levert 'geen keuze'.
+  ok("zonder enige aanwijzing is er tóch een vorm", Boolean(kiesAanspreekvorm({}).vorm));
+
+  const geteld = telAanspreekvormen("Jij belt ons, en dan helpen wij u met uw dak. Jouw dak.");
+  ok("beide vormen zijn te tellen", geteld.je === 2 && geteld.u === 2, JSON.stringify(geteld));
+});
+
+group("een pagina die twee aanspreekvormen mengt, wordt geblokkeerd", () => {
+  // ⚠️ Dit is de echte opening van de contactpagina van Fysio Centrum Utrecht,
+  // 3 september 2026. Eerste zin "je", tweede alinea "u", en daarna twintig keer
+  // "u". Geen enkele controle zag dit tot vandaag.
+  const echt =
+    "Ja. Bij Fysio Centrum Utrecht kun je rechtstreeks contact opnemen of online een afspraak " +
+    "aanvragen voor een hardloopblessure.\n\n" +
+    "## Hoe neem ik snel contact op?\n\n" +
+    "Wilt u meteen boeken, vraag dan online een afspraak aan. Voor een korte vraag gebruikt u " +
+    "het contactformulier.";
+  const gemengd = checkAanspreekvorm(echt, "u");
+  ok("de menging wordt gezien", gemengd.gemengd === true);
+  ok("met beide tellingen erbij", gemengd.je >= 1 && gemengd.u >= 2, JSON.stringify(gemengd));
+  ok("de bevinding noemt de aantallen", gemengd.issues[0]?.includes("keer") === true);
+  ok(
+    "en wijst de zin aan die er niet hoort",
+    gemengd.zinnen.some((z) => z.includes("kun je rechtstreeks")),
+    JSON.stringify(gemengd.zinnen),
+  );
+
+  // Consequente pagina's slaan niet aan, welke vorm ze ook kiezen.
+  const alleenU = checkAanspreekvorm("U belt ons. Wij komen bij u langs en bekijken uw dak.", "u");
+  ok("een consequente u-pagina is schoon", alleenU.gemengd === false);
+  const alleenJe = checkAanspreekvorm("Je belt ons. Wij komen bij jou langs en bekijken je dak.", "je");
+  ok("een consequente je-pagina ook", alleenJe.gemengd === false);
+  ok("en dan is er geen bevinding", alleenJe.issues.length === 0);
+
+  // De vorm "wij" gaat over hoe we het BEDRIJF noemen; die klant tutoyeert.
+  const wij = checkAanspreekvorm("Je belt ons en wij komen langs.", "wij");
+  ok("bij 'wij' wordt de lezer getutoyeerd", wij.gemengd === false, JSON.stringify(wij));
 });
 
 group("De inputpoort: kan deze pagina goed worden? (vragen-voor-het-schrijven §4)", () => {

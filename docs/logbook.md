@@ -7213,3 +7213,31 @@ ronde kan minder pagina's opleveren totdat het rapportmodel de doelomschrijving 
 groen: typecheck, 4140 unittests (28 nieuwe), 639 ketentests (3 nieuwe), build. Het ketenscenario
 laat de terugval eind tot eind zien: dezelfde pagina zonder doelomschrijving komt er via zijn
 gemeten vragen wél door, en zonder allebei niet.
+
+## 3 september 2026: V2, de aanspreekvorm wordt nu altijd gekozen
+
+`describePronoun` bestond sinds verbetering 11, maar schreef alleen een promptregel als
+`profiles.pronoun_preference` gevuld was. Bij de twee klanten van de benchmarkronde was dat niet zo,
+en het gevolg is geteld: over twaalf pagina's 95 keer "je" naast 81 keer "u", bij ALLEBEI de klanten
+door elkaar. Op de contactpagina van Fysio Centrum Utrecht slaat het binnen twee zinnen om, van "kun
+je rechtstreeks contact opnemen" naar "Wilt u meteen boeken", gevolgd door twintig keer "u".
+
+**`kiesAanspreekvorm()`** in `tone-sliders.ts` levert nu altijd een vorm, uit vier bronnen in
+volgorde: wat de klant zelf koos, anders de formaliteitsschuif als die op 1 of 3 staat (die labels
+noemen de vorm letterlijk, stand 2 zegt er niets over), anders wat er op de site van de klant zelf
+staat, anders "u". Die laatste standaard is een keuze en geen meting: een ongevraagd "je" leest op
+een zakelijke site als te amicaal en andersom is het hooguit wat afstandelijk, en de twee klanten
+van 3 september schrijven allebei overwegend "u" op hun eigen site. Bij een gelijkspel in de
+bestaande tekst (minder dan twee keer zoveel, of minder dan drie vindplaatsen) telt die tekst niet
+mee, want dan is een muntje opgooien eerlijker gepresenteerd als standaard.
+
+**Het vangnet** is `checkAanspreekvorm()` in `content-gate.ts`, en die meet de body samen met de
+vraag-en-antwoordblokken. Samen en niet apart, want de contactpagina tutoyeert in de opening en
+vousvoyeert in het blok eronder, en los gemeten was elk deel op zichzelf consistent. Een gemengde
+pagina levert een BLOKKERENDE bevinding op de dimensie toon, zwaarder dan de meeste redactionele
+bevindingen: dit is geen smaak maar een fout die iedere corrector er in tien seconden uithaalt.
+Nieuwe bevindingsbron `aanspreekvorm`, in de root-cause toegewezen aan de schrijffase, want het
+profiel levert de vorm aan en wie hem niet volhoudt is de schrijver.
+
+Vier controles groen: typecheck, 4160 unittests (20 nieuwe), 639 ketentests, build. De testtekst is
+de echte opening van de contactpagina van 3 september, dus de controle slaat er vandaag op aan.

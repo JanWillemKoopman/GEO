@@ -826,3 +826,59 @@ export function checkSourceTalk(bodyMarkdown: string): SourceTalkResult {
     ),
   };
 }
+
+/** Wat de controle op de aanspreekvorm teruggeeft. */
+export interface AanspreekvormResult {
+  je: number;
+  u: number;
+  /** Gemengd? Dan staan beide vormen op één pagina. */
+  gemengd: boolean;
+  /** De zinnen met de vorm die er niet hoort, hooguit de eerste drie. */
+  zinnen: string[];
+  issues: string[];
+}
+
+/**
+ * Spreekt deze pagina de lezer overal op dezelfde manier aan?
+ * (V2 uit docs/tasks/contentkwaliteit-copywriterronde.md)
+ *
+ * ⚠️ Gemeten op de twaalf benchmarkpagina's van 3 september 2026: 95 keer "je"
+ * naast 81 keer "u", bij allebei de klanten door elkaar. Op de contactpagina van
+ * Fysio Centrum Utrecht slaat het binnen twee zinnen om. Dat is niet een
+ * stijlkeuze die je kunt verdedigen maar een fout die iedere corrector er in
+ * tien seconden uithaalt, en tot vandaag zag geen enkele controle hem.
+ *
+ * `gewenst` is de vorm die `kiesAanspreekvorm()` koos. "wij" gaat over hoe we
+ * het BEDRIJF noemen en niet over hoe we de LEZER aanspreken; die klant
+ * tutoyeert (zie `describePronoun`), dus hij wordt hier als "je" gewogen.
+ *
+ * Puur en testbaar (conventie 2). Geeft hele zinnen terug en geen posities: de
+ * gerichte reparatie werkt op secties en zinnen.
+ */
+export function checkAanspreekvorm(
+  bodyMarkdown: string,
+  gewenst: "je" | "u" | "wij",
+): AanspreekvormResult {
+  const tekst = bodyMarkdown ?? "";
+  const je = (tekst.match(/\b(je|jij|jou|jouw)\b/gi) ?? []).length;
+  const u = (tekst.match(/\b(u|uw)\b/gi) ?? []).length;
+  const gemengd = je > 0 && u > 0;
+
+  const fout = gewenst === "u" ? /\b(je|jij|jou|jouw)\b/i : /\b(u|uw)\b/i;
+  const zinnen = (tekst.replace(/^#{1,6} .*$/gm, " ").match(/[^.!?\n]+[.!?]/g) ?? [])
+    .map((z) => z.trim())
+    .filter((z) => fout.test(z))
+    .slice(0, 3);
+
+  const issues: string[] = [];
+  if (gemengd) {
+    const vorm = gewenst === "u" ? "u en uw" : "je en jouw";
+    issues.push(
+      `Deze pagina spreekt de lezer op twee manieren aan: ${je} keer met "je" en ${u} keer met ` +
+        `"u". Dat kan niet allebei. Gebruik overal ${vorm}.` +
+        (zinnen.length > 0 ? ` Bijvoorbeeld hier: "${zinnen[0]}"` : ""),
+    );
+  }
+
+  return { je, u, gemengd, zinnen, issues };
+}

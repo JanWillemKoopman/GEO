@@ -31,7 +31,13 @@ import type { Critique } from "@/lib/schemas/critique";
 import { GEO_CRITERIA_LABELS } from "@/lib/schemas/critique";
 import type { CitabilityVerdict, FactualityVerdict } from "@/lib/schemas/content-panel";
 import type { CraftVerdict } from "@/lib/schemas/content-craft";
-import type { GateResult, QualityResult, SourceTalkResult, TabooCheckResult } from "@/lib/pipeline/content-gate";
+import type {
+  AanspreekvormResult,
+  GateResult,
+  QualityResult,
+  SourceTalkResult,
+  TabooCheckResult,
+} from "@/lib/pipeline/content-gate";
 import { GATE_LABELS, GATE_UITLEG } from "@/lib/pipeline/content-gate";
 import type { CoverageResult } from "@/lib/pipeline/content-coverage";
 import type { ClaimDekking, GewogenDekking } from "@/lib/pipeline/evidence-weight";
@@ -61,6 +67,8 @@ export interface KwaliteitsInvoer {
   coverage: CoverageResult;
   quality: QualityResult;
   bronpraat: SourceTalkResult;
+  /** V2: spreekt de pagina de lezer overal hetzelfde aan? */
+  aanspreekvorm?: AanspreekvormResult;
   taboo: TabooCheckResult;
   verbodenOnderwerpen: TabooCheckResult;
   typeOvertredingen: TypeRegel[];
@@ -550,6 +558,33 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
         blocking: false,
         confidence: ZEKER,
         bron: "bronpraat",
+      }),
+    );
+  }
+
+  // ── V2: één aanspreekvorm per pagina ──────────────────────────────────────
+  //
+  // Blokkerend, en dat is zwaarder dan de meeste redactionele bevindingen. Reden:
+  // dit is geen smaak maar een fout, hij is in tien seconden te zien, en hij
+  // stond op de contactpagina van 3 september binnen twee zinnen ("kun je
+  // rechtstreeks contact opnemen" gevolgd door "Wilt u meteen boeken"). Een
+  // pagina die de lezer half tutoyeert gaat niet naar een klant.
+  if (invoer.aanspreekvorm?.gemengd) {
+    const a = invoer.aanspreekvorm;
+    issues.push(
+      maak(invoer, {
+        dimension: "toon",
+        severity: "hoog",
+        section: null,
+        finding: a.issues[0] ?? "Deze pagina spreekt de lezer op twee manieren aan.",
+        evidence: a.zinnen[0] ?? `${a.je} keer "je", ${a.u} keer "u"`,
+        expected: "Eén aanspreekvorm op de hele pagina.",
+        recommendation:
+          "Kies de vorm die bij dit merk hoort en trek hem overal gelijk, ook in de " +
+          "vraag-en-antwoordblokken.",
+        blocking: true,
+        confidence: ZEKER,
+        bron: "aanspreekvorm",
       }),
     );
   }
