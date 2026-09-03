@@ -1,7 +1,25 @@
 # De copywriterronde: twaalf verbetervoorstellen, en twee keuzes
 
-**Status:** de voorstellen liggen bij de eigenaar, er is nog niets gebouwd. Bijgewerkt 3 september
-2026 na de beoordeling door een echte copywriter.
+**Status: alle twaalf voorstellen zijn gebouwd op 3 september 2026.** Wat er nog openstaat, staat
+in §7 onderaan, en dat is de belangrijkste sectie van dit document: gebouwd is niet geverifieerd
+(conventie 10).
+
+| | Wat er staat |
+|---|---|
+| V7 | `lib/lezersopdracht.ts`, poort vóór de schrijfaanroep, rapportprompt |
+| V2 | `kiesAanspreekvorm()`, `checkAanspreekvorm()`, blokkerend |
+| V3 | `checkSourceTalk` van 11 naar 42 zoektermen in vijf families |
+| V5 | `lib/klantinstructies.ts`, `checkAdresinstructie()`, blokkerend |
+| V9 | migratie 0093, `lib/pipeline/bewijspunten.ts` |
+| V4 | `lib/pipeline/klantcitaten.ts` |
+| V8, V1, V10 | `lib/pipeline/paginavorm.ts`, plus begrensde promptregels 4, 5 en `REPAIR_SYSTEM` 3 |
+| V6 | `lib/pipeline/adviestoon.ts`, zelfondermijning blokkerend |
+| V12 | `checkHerhaling()` in `similarity.ts` |
+| V13 | `berekenIjking()` in `quality-benchmark.ts`, zichtbaar op `/beheer/kwaliteit` |
+| V11 | dimensie `herkenning` bij de beoordelaar, telt bewust nog niet mee |
+
+Vier controles groen bij elke commit: typecheck, 4267 unittests, 641 ketentests, build. Migratie
+0093 staat op productie.
 
 Op 3 september zijn de twaalf pagina's uit `content-reviews/` twee keer beoordeeld: eerst door een
 AI in de rol van copywriter (`content-reviews/feedback/`, twaalf bestanden en `patronen.md`), daarna
@@ -456,3 +474,61 @@ leren onderscheiden.
 Samengevat als volgorde: V7, dan V13 stap 1, dan V2 en V3 en V5, dan V9 en V4, dan V8 en V1 en V10
 met nameting, dan V6 en V12, dan V13 stap 2 en 3, dan V11. En daarna de nameting uit §4, want dat is
 het enige cijfer dat zegt of dit alles gewerkt heeft.
+
+## 7. Wat er NA het bouwen openstaat
+
+Alle twaalf voorstellen zijn gebouwd en alle twaalf zijn getest tegen de pagina's van 3 september.
+**Geen van twaalven is geverifieerd tegen een nieuwe, echte ronde** (conventie 10: gebouwd is niet
+geverifieerd). Dit is wat er openstaat, op volgorde van belang.
+
+### 7.1 De nameting, en dat is de enige die telt
+
+Alles uit §4 staat nog open. Twaalf tellingen kunnen groen worden zonder dat de tekst beter wordt,
+en de enige meting die dat wél zegt is: dezelfde twaalf onderwerpen opnieuw laten schrijven en
+opnieuw blanco voorleggen aan dezelfde copywriter. Zijn overtuigingskracht van 2,6 is het cijfer dat
+telt. Kosten: ongeveer $4,30 aan modelaanroepen plus een dagdeel van hem.
+
+### 7.2 De citeerbaarheid na V8, V1 en V10
+
+Die drie verschuiven alle drie waar de merknaam staat en welke vorm de koppen hebben, en dat is
+precies wat een AI-assistent oppakt. De regel is nu "eerste zin over de lezer, eerste alinea noemt
+het merk", en dat hoort te betekenen dat de citeerbaarheid gelijk blijft. **Dat is een verwachting
+en geen meting.** Zakt `bronherleidbaarheid` of de GEO-score na de eerste echte ronde, dan is deze
+drie-eenheid de eerste verdachte.
+
+### 7.3 V7 houdt pagina's tegen die vandaag geschreven worden
+
+Op de ronde van 3 september waren dat er acht van de twaalf. Dat is de bedoeling, maar het betekent
+dat een ronde minder pagina's kan opleveren zolang het rapportmodel de doelomschrijving niet vult.
+De promptinstructie ernaast hoort dat op te lossen; of dat werkt, blijkt pas bij het eerste echte
+rapport.
+
+### 7.4 De grenzen zijn gekozen, niet geijkt
+
+Zeven getallen sturen nu gedrag en zijn alle zeven op één ronde van twaalf pagina's gekozen:
+`MIN_WOORDEN` (4), `MERK_PER_HONDERD_MAX` (1,5), `VRAAGKOPPEN_MAX` (0,5),
+`GEBIEDEND_PER_HONDERD_MAX` (0,6), `SLAP_PER_HONDERD_MAX` (0,8), `MIN_BEWIJSPUNTEN` (3) en
+`CITAAT_DREMPEL` (0,4). Ze staan alle zeven als constante met hun meting erbij in het commentaar,
+zodat ze bij te stellen zijn zodra er een tweede ronde ligt. Zelfde afspraak als bij `GOED_GENOEG`.
+
+### 7.5 V11 stuurt nog niets
+
+De dimensie `herkenning` wordt gescoord en telt niet mee. Dat blijft zo tot de ijking hem naast een
+menselijk oordeel heeft gelegd. Zolang dat niet gebeurd is, is "begin bij een herkenbare situatie"
+alleen een promptinstructie, en dat is precies wat conventie 1 niet genoeg vindt.
+
+### 7.6 Wat helemaal buiten dit werk is gebleven
+
+- **De FAQ-blokken.** Tien van de twaalf pagina's hebben er acht, sommige een woordelijke kopie van
+  een sectie erboven. Niemand heeft gevraagd of ze er moeten zijn.
+- **De reparatiestap.** Alle twaalf voorstellen grijpen aan op het eerste concept of op de keuring.
+  Wat er gebeurt in de een tot drie reparatierondes daarna is niet onderzocht, terwijl die per
+  sectie werkt en dat precies de manier is om een tekst verder in losse antwoorden uiteen te laten
+  vallen.
+- **Het contract als verhaalboog.** V10 dwingt af dat de koppen mededelingen worden, maar de
+  inhoudsopgave die de schrijver meekrijgt (`content-contract.ts`) wordt nog steeds als vragenlijst
+  opgesteld. De volgorde probleem, herkenning, gevolg, oplossing, bewijs, bezwaar, zekerheid, actie
+  zit nu alleen in de promptinstructie en niet in het contract zelf.
+- **Het eindoordeel van de copywriter.** "Waarom zou deze lezer dit bedrijf kiezen" blijft de vraag
+  die V9 en V4 bij het model neerleggen. Of een model van twintig feiten de drie kan kiezen die
+  vandaag tellen, weten we pas na 7.1.
