@@ -10,26 +10,31 @@ ingevuld wordt, welke clusters, en hoe de twaalf pagina's tot stand komen.
 
 ---
 
-## 0. ⚠️ Wat deze ronde blokkeert
+## 0. Hoe deze ronde uitgevoerd wordt
 
-**De live app is vanuit deze sessie niet bereikbaar.** `https://geo-janwillemkoopmans-projects.vercel.app`
-staat achter Vercel Deployment Protection: elke route, ook `/login` en `/api/health`, geeft een 302
-naar `vercel.com/sso-api`. Er is dus geen enkel adres waar een verzoek de app zelf bereikt.
+Via `npm run live` (`scripts/live.ts`), dat inlogt als `e2e-consultant@orbit-test.nl` en de gewone
+serverroutes aanroept. Dus precies de weg die een klant met een browser ook aflegt, alleen zonder
+browser.
 
-Daar komt bij dat deze sessie geen `OPENAI_API_KEY` en geen `SUPABASE_SERVICE_ROLE_KEY` heeft, dus de
-app is hier ook niet lokaal tegen de productiedatabase te draaien.
-
-Wat er nodig is om deze ronde uit te voeren, in volgorde van voorkeur:
-
-1. **De eigenaar voert hem zelf uit**, met dit dossier als script. Alles wat hieronder staat is
-   letterlijk in te vullen; er valt niets meer te bedenken.
-2. **Vercel Protection Bypass for Automation** aanzetten voor dit project, plus een inlog voor een
-   stafaccount. Dan kan de ronde vanuit een sessie als deze gedraaid worden.
+Er stond hier eerst dat de live app onbereikbaar was. Dat klopte niet: het adres dat toen getest
+werd (`geo-janwillemkoopmans-projects.vercel.app`) staat achter Vercel Deployment Protection, maar
+productie is `https://geo-ten-blush.vercel.app` en die is gewoon bereikbaar.
 
 ⚠️ Rechtstreeks rijen in de database zetten is bewust GEEN optie. De eigenaar vroeg expliciet om de
 gewone weg, en terecht: een merk dat via SQL ontstaat heeft geen crawl, geen onderzoekstaken, geen
 feitenkaart en dus geen enkele van de dingen waar de kwaliteitsmeting straks over gaat. Dan meet de
 benchmark zichzelf.
+
+### Wat er staat (3 september 2026)
+
+| Merk | Profiel-id |
+|---|---|
+| MJB Dakservice | `e1fe7b94-ead1-4020-a8ed-216905c042c8` |
+| Fysio Centrum Utrecht | `58f2da3a-b068-479c-82a3-a7952e32e9ee` |
+
+Allebei aangemaakt via `POST /api/profiles` (HTTP 201), de vijftien velden uit §3 daarna gezet via
+`PATCH /api/profiles/<id>` met bron `gesprek`. De contactpersoon is bewust leeg gelaten: een naam en
+een e-mailadres verzinnen bij een echt bestaand bedrijf hoort niet in een testronde thuis.
 
 ---
 
@@ -177,8 +182,22 @@ soort vraag opleveren.
 | Fysio Centrum Utrecht | bekkenfysiotherapie | De specialisatie die de praktijk onderscheidt. Toetst of ORBIT ENGINE die onderscheidende informatie ook echt gebruikt. |
 | Fysio Centrum Utrecht | hardloopblessure behandelen | Breed en concurrerend. Toetst het tegenovergestelde: kan de app opvallen op een onderwerp waar iedereen over schrijft. |
 
-Content-brief per cluster: de eerste twee zinnen van de kolom "waarom dit cluster" hierboven, plus
-het werkgebied. Dat is genoeg sturing zonder de aanbevelingen vooraf dicht te timmeren.
+Content-brief per cluster: wat de klant zelf over dit onderwerp zou zeggen, plus het werkgebied en
+de onderwerpen die hij niet wil. Dat is genoeg sturing zonder de aanbevelingen vooraf dicht te
+timmeren.
+
+⚠️ Hier stond eerst dat de kolom "waarom dit cluster" letterlijk overgenomen moest worden. Dat is bij
+het uitvoeren niet gedaan, met opzet: die zinnen ("toetst of ORBIT ENGINE ...") zijn testtaal, en
+een klant typt dat nooit. Ze zouden bovendien als context de prompt in gaan waarmee de meetvragen
+gemaakt worden, en dan meet de benchmark deels zijn eigen bedoeling. De ingevulde briefs staan
+hieronder.
+
+| Cluster | Content-brief zoals ingevuld |
+|---|---|
+| daklekkage verhelpen | Dit is onze belangrijkste spoedvraag. Mensen zoeken hierop met een emmer onder het lek, dus ze willen vooral weten hoe snel we er kunnen zijn en wat het ongeveer gaat kosten. Werkgebied is Apeldoorn met een straal van ongeveer vijftig kilometer. Niets over asbest en niets over subsidies. |
+| dakrenovatie en dakisolatie | Hier denken mensen langer over na. Ze willen eerst begrijpen waar ze aan beginnen: wanneer een dak echt vervangen moet worden, wat isolatie oplevert en wat het verschil is tussen de materialen. Werkgebied is Apeldoorn met een straal van ongeveer vijftig kilometer. Niets over asbest en niets over subsidies. |
+| bekkenfysiotherapie | Hier onderscheiden we ons echt: we hebben een bekkenfysiotherapeut met een eigen aantekening en dat is in deze regio zeldzaam. Veel mensen weten niet dat deze behandeling bestaat, of denken dat ze een verwijzing van de huisarts nodig hebben. Vestigingen zijn Utrecht Centraal en Leidsche Rijn. Doe geen uitspraken over hoe lang herstel duurt. |
+| hardloopblessure behandelen | Hier schrijft iedereen over, dus we moeten iets te vertellen hebben dat een ander niet heeft. Denk aan het gratis medisch consult voor de eerste afspraak en aan de psycholoog die bij ons in het team zit. Vestigingen zijn Utrecht Centraal en Leidsche Rijn. Doe geen uitspraken over hersteltermijnen. |
 
 ---
 
