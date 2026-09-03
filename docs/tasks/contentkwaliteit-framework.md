@@ -12,7 +12,7 @@ hieronder is geschat.
 
 > ## Stand op 3 september 2026: fase A tot en met E zijn gebouwd
 >
-> Vier controles groen: typecheck, 4060 unittests (162 nieuwe), 625 ketentests (20 nieuwe), de
+> Vier controles groen: typecheck, 4060 unittests (160 nieuwe), 625 ketentests (20 nieuwe), de
 > productiebuild. Migratie `0091` staat op productie, additief.
 >
 > **Wat er staat**: de twaalf dimensies met per dimensie een bron die hem kan vullen
