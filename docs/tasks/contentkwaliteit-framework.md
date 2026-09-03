@@ -473,6 +473,159 @@ scenarionummer in de assertie. Dat is geen cosmetiek: een scenario dat niemand k
 een scenario waarvan niemand merkt dat het wegvalt. Scenario 6 en 7 zijn het belangrijkst, want die
 raken de versiekeuze en die beslist welke tekst de klant leest.
 
+### R0. De zinnenknipper maakt van koppen en lijsten valse blokkades (gevonden 3 september 2026)
+
+**Dit staat vooraan omdat het de poort onbruikbaar maakt en de ijking van R5 blokkeert.** Gevonden
+door de benchmarkronde van twaalf pagina's echt te draaien
+(`docs/tasks/benchmarkronde-twee-klanten.md`), niet door erover na te denken.
+
+**Wat er gebeurde.** Alle twaalf pagina's kregen `verdict: block`. Alle twaalf. Een poort die
+honderd procent tegenhoudt zegt niets meer, en hij liet ondertussen zestien reparatierondes draaien
+tegen bevindingen die geen enkele herschrijving kan oplossen.
+
+**De oorzaak, nagerekend en niet vermoed.** Van de 144 blokkerende bevindingen komen er 123 uit
+`bronherleidbaarheid`, en daarvan zijn er aantoonbaar 30 geen zin. `splitSentences()` en
+`stripMarkdown()` in `lib/pipeline/sentences.ts` hebben twee gaten:
+
+1. **Een kop wordt aan de volgende alinea geplakt.** `stripMarkdown` haalt de `#` weg maar laat geen
+   zinseinde achter, en een kop eindigt niet op een punt. Gevolg: kop plus eerste zin is één "zin".
+   27 van de 123.
+2. **Een opsomming binnen één regel wordt op de cijfers geknipt.** `stripMarkdown` haalt alleen aan
+   het BEGIN van een regel `1. ` weg (`^\s{0,3}\d+\.\s+` met `gm`). Staat de opsomming achter een
+   dubbele punt op dezelfde regel, dan blijft "1." staan, en `splitSentences` ziet in "1. " een
+   punt met witruimte erachter, dus een zinseinde. Elk lijstitem wordt een fragment dat eindigt op
+   het cijfer van het VOLGENDE item. 3 van de 123.
+
+Reproductie met de echte functies, op tekst uit de ronde:
+
+```
+splitSentences(stripMarkdown("## Snel hulp bij daklekkage in Zutphen\n\nBel MJB ..."))
+  → "Snel hulp bij daklekkage in Zutphen\n\nBel MJB Dakservice op 0578 234 502 ..."   ← één "zin"
+  → "Zo verloopt een spoedreparatie\n\nSpreek bij spoed deze volgorde af: 1. "
+  → "meld de lekkage, 2. "
+  → "laat de situatie inspecteren en de mogelijke oorzaak vastleggen, 4. "
+```
+
+Die fragmenten gaan naar `detectClaimSentences()`, die een cijfer of de merknaam als signaal neemt
+en ze dus als bewering aanmerkt. Een fragment kan nooit naar een feit op de kaart wijzen, dus het
+wordt een blokkerende `feitelijkheid`-bevinding met `confidence: ZEKER`. Zeker over een zin die
+niet bestaat.
+
+⚠️ **De ondergrens is 30, niet het echte aantal.** `quality-collect.ts` neemt per ronde maar de
+eerste vijf ongetagde zinnen mee (`.slice(0, 5)`), en de meeste rondes zitten met vier of vijf tegen
+die grens aan. Er zijn er dus meer dan we zien.
+
+**Wat het niet is.** De ontwerpkeuze "vals-positieven zijn goedkoper dan vals-negatieven"
+(`claim-extract.ts`) staat niet ter discussie en is juist. Dit is iets anders: de invoer van die
+regel is stuk, niet de regel zelf. Een kop is geen bewering en een half lijstitem is geen zin.
+
+**De reparatie (gedaan 3 september 2026).** In `sentences.ts`, niet in de claimregels:
+
+- `stripMarkdown` laat achter een kopregel een witregel staan, en `splitSentences` telt een witregel
+  als zinsgrens. Een kop versmelt daardoor nooit meer met de alinea eronder.
+- `splitSentences` telt een punt achter een hooguit tweecijferig getal niet als zinseinde wanneer
+  dat getal op een regelbegin of op `:`, `;` of `,` volgt én er een kleine letter achter komt. Dat
+  is een opsommingsnummer. Dezelfde soort uitzondering als die er al was voor "Bol.com" en "3.5".
+- Acht tests in `scripts/test-unit.ts`, met de zinnen uit de ronde zelf. Twee daarvan zijn
+  tegenproef: "Wij bestaan sinds 1995. Daarom…" moet nog steeds splitsen, en "Stap 1. Bel ons." ook.
+  Zonder die twee zou de reparatie een echte zinsgrens wegnemen, en dat is erger dan de fout die hij
+  oplost.
+
+**Wat er bij het repareren nog boven water kwam.** De toelichting van `sentences.ts` beloofde dat
+drie controles op dezelfde manier knippen. Dat was niet zo: `geo-check.ts` bestaat niet, en
+`content-gate.ts` en `validate-claims.ts` hebben elk hun eigen kopie. De fout zat dus in twee van de
+drie kopieën tegelijk, en niets dwong af dat ze gelijk bleven.
+
+De kopie in `content-gate.ts` is bewust niet meeveranderd: daar voedt het knippen alleen een noemer
+(het aandeel ontwijkende zinnen) en de vraag of er een citeerbare zin met de merknaam is. Geen van
+beide blokkeert, en ze meeveranderen verschuift de poortuitkomst van élke bestaande pagina. Dat is
+een aparte ingreep met een eigen meetronde.
+
+**⚠️ Wat de reparatie NIET oplost, nagerekend op de 123 bevindingen zelf.**
+
+| Soort | Aantal | Weg door R0? |
+|---|---|---|
+| Kop aan de alinea geplakt (bevat een regelovergang) | 27 | ja |
+| Fragment van een opsomming (begint klein of eindigt niet op een leesteken) | 4 | ja |
+| Ziet eruit als een hele, normale zin | 92 | **nee** |
+
+R0 haalt er dus 31 van de 123 weg, een kwart. **De twaalf pagina's worden hierdoor niet groen.** Met
+92 overgebleven blokkades over 28 keuringsrondes houdt vrijwel elke ronde er minstens één over, en
+`quality-collect.ts` maakt van elke ongetagde zin een blokkade met `confidence: ZEKER`.
+
+### R0b. Een oproep tot actie is geen bewering (gerepareerd 3 september 2026)
+
+Van die 92 zijn er 32 een instructie aan de lezer of een verwijzing naar het contact, geen uitspraak
+over het bedrijf. Letterlijk uit de ronde:
+
+- "Bel 030-2270437 of stel eerst een vraag."
+- "Neem contact op om de actuele beschikbaarheid te bespreken."
+- "Vraag via de contactpagina welke tijden vandaag, deze week of op zaterdag beschikbaar zijn."
+- "De adressen en contactmogelijkheden van beide vestigingen staan op de contactpagina."
+
+Waarom ze blokkeren: `GETAL` in `claim-extract.ts` is `/(\d|€|%)/`, dus een telefoonnummer maakt van
+elke zin een bewering. En `TOEZEGGINGEN` bevat "kun je", "beschikbaar", "binnen" en "altijd", die
+allemaal net zo goed in een gewone instructie staan.
+
+Een oproep tot actie belooft niets over het bedrijf en valt dus niet te onderbouwen met een feit.
+Hem blokkerend maken betekent dat elke pagina met een telefoonnummer eronder tegengehouden wordt.
+
+**De reparatie.** Twee regels in `claim-extract.ts`:
+
+1. **Contactgegevens tellen niet als getal.** Een telefoonnummer, een e-mailadres en een postcode
+   gaan uit de zin voordat `GETAL` erop losgelaten wordt. Alleen die drie; "wij staan binnen 24 uur
+   op het dak" houdt zijn 24 en blijft dus een bewering, want dát is wel een belofte. Een webadres
+   blijft ook staan, want "Op valk.com reserveert u direct online" was een van de twee fabricages.
+2. **Toezeggingswoorden matchen aan het woordbegin**, met hooguit drie letters speling aan het eind.
+
+⚠️ Punt 2 is bij de eerste poging fout gegaan, en de bestaande test ving het. Een woordgrens aan
+BEIDE kanten eisen lijkt netter, maar de lijst bevat stammen: "reserveer" matcht dan niet meer op
+"reserveert", en precies die zin was de Van der Valk-fabricage. Nederlandse vervoeging plakt er
+hooguit een paar letters achter ("reserveert", "biedt", "leveren"), terwijl een afleiding die de
+betekenis verandert langer is ("beschikbaarheid" is +4, "mogelijkheden" +5). Vandaar drie.
+
+**Nagemeten op de teksten van deze ronde**, niet op oudere pagina's: van de 62 blokkerende
+bevindingen van MJB blijven er 37 over. De verdwenen 25 zijn oproepen tot actie, telefoonnummers en
+woorden als "beschikbaarheid" en "contactmogelijkheden". Wat blijft staan is wat er moet blijven
+staan: "MJB Dakservice reageert binnen 24 uur op de aanvraag", "Niet elke vochtplek vereist
+24-uursservice".
+
+De resterende zinnen zijn wél echte, ongetagde uitspraken over het bedrijf. Dat is een derde vraag:
+het schrijvende model tagt maar een deel van wat het beweert.
+
+### De goedkope herkeuring (gebouwd 3 september 2026, migratie 0092)
+
+`keurPagina()` draaide alleen binnen `content_draft` en `content_revise`. Een oordeel bijstellen
+betekende dus de pagina opnieuw laten schrijven: ongeveer $1,00 per pagina tegen ongeveer $0,013
+voor de vier beoordelaars. Bijna honderd keer zoveel voor iets wat de tekst niet eens verandert, en
+de vergelijking gaat er ook nog door verloren, want de tekst is dan een andere.
+
+`POST /api/analyses/[id]/recheck` zet nu per afgeronde pagina een `content_recheck`-taak klaar.
+`herkeurContentPiece()` draait dezelfde `keurPagina()` over de opgeslagen tekst en schrijft alleen
+de kwaliteitskolommen en `needs_review`. Niets aan de tekst, de versie of het rondenummer.
+
+Drie regels die eromheen bewaakt worden:
+
+- **Een herkeuring kan geen reparatieronde aftrappen.** Anders kan één goedkope knop een dure lus
+  starten, en dat is precies het patroon waar de kostenremmen voor bestaan.
+- **Hij overschrijft de geschiedenis niet.** Migratie 0092 geeft `content_quality_runs` een kolom
+  `herkeuring`; de rij krijgt een eigen, opvolgend rondenummer. Zonder die regel zou de eerste
+  herkeuring het bewijs uitwissen dat de pagina ooit tegengehouden werd, en dat bewijs is waar de
+  ijking op rust.
+- **De versiekeuze slaat herkeuringen over** (`leesKwaliteitsrondes`), want er is niets herschreven
+  om tussen te kiezen.
+
+Dit was ook los van R0 nodig: de klant kan zijn eigen tekst aanpassen, en dan bleef het oordeel
+staan op de tekst van vóór die bewerking. Er stond "klaar voor publicatie" onder een tekst die
+niemand beoordeeld had. Dat was de uitzondering die in R5 al genoteerd stond.
+
+**Nog te doen.**
+
+- De drie splitsers samenvoegen tot één, mét een test die bewijst dat de andere twee call sites
+  dezelfde uitkomst houden.
+- De herkeuring automatisch aftrappen zodra de klant zijn tekst bewerkt (`PATCH .../content/[pieceId]`).
+  De stap bestaat nu, hij wordt alleen nog met de hand gestart.
+
 ### R5. Fase F: ijking, caching en incrementele evaluatie (punt 19 en 28)
 
 Bewust uitgesteld en nog steeds terecht uitgesteld, met één uitzondering.

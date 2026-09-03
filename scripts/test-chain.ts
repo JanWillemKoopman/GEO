@@ -8081,6 +8081,65 @@ async function main(): Promise<void> {
       ok("met het aantal blokkades erbij", Number(kwRondes[0]?.blocking_count) > 0);
       ok("en gemarkeerd als behouden", kwRondes[0]?.retained === true);
 
+      // ══ HERKEURING: hetzelfde stuk tekst, een nieuw oordeel (migratie 0092) ═
+      //
+      // De aanleiding was R0: alle twaalf benchmarkpagina's van 3 september 2026
+      // werden geblokkeerd op zinnen die geen zin waren, en nameten kon alleen
+      // door ze opnieuw te laten schrijven. Dat kost ongeveer $1,00 per pagina
+      // tegen ongeveer $0,013 voor de vier beoordelaars, en het verandert de
+      // tekst, waardoor de vergelijking nergens meer over gaat.
+      const kwTekstVoor = (
+        await db.client.query(`select body_markdown, repair_round, version from public.content_pieces where id = $1`, [
+          kwDraft.contentPieceId,
+        ])
+      ).rows[0];
+
+      const { herkeurContentPiece } = await import("@/lib/pipeline/content");
+      const kwHerkeuring = await herkeurContentPiece({
+        analysisId: kwAnalysisId,
+        userId: kwUserId,
+        contentPieceId: kwDraft.contentPieceId,
+        recommendation: kwAanbeveling,
+      });
+
+      const kwTekstNa = (
+        await db.client.query(`select body_markdown, repair_round, version from public.content_pieces where id = $1`, [
+          kwDraft.contentPieceId,
+        ])
+      ).rows[0];
+
+      ok(
+        "een herkeuring laat de tekst met rust",
+        kwTekstNa.body_markdown === kwTekstVoor.body_markdown,
+      );
+      ok(
+        "en ook het rondenummer en de versie",
+        kwTekstNa.repair_round === kwTekstVoor.repair_round && kwTekstNa.version === kwTekstVoor.version,
+      );
+
+      const { rows: kwNaHerkeuring } = await db.client.query(
+        `select repair_round, herkeuring, blocking_count
+           from public.content_quality_runs where content_piece_id = $1 order by repair_round`,
+        [kwDraft.contentPieceId],
+      );
+      ok("de herkeuring komt ernaast te staan", kwNaHerkeuring.length === 2);
+      ok(
+        "de oorspronkelijke ronde 0 blijft ongemoeid",
+        kwNaHerkeuring[0]?.herkeuring === false &&
+          Number(kwNaHerkeuring[0]?.blocking_count) === Number(kwRondes[0]?.blocking_count),
+      );
+      ok(
+        "en de nieuwe rij is als herkeuring gemarkeerd",
+        kwNaHerkeuring[1]?.herkeuring === true && Number(kwNaHerkeuring[1]?.repair_round) === kwHerkeuring.ronde,
+      );
+
+      // ⚠️ Het belangrijkste van deze vier: de versiekeuze mag een herkeuring
+      // niet als extra versie zien. Zou hij dat wel doen, dan zou een goedkope
+      // herbeoordeling de dure reparatielus kunnen aftrappen.
+      const { leesKwaliteitsrondes } = await import("@/lib/pipeline/quality-run");
+      const kwZichtbaar = await leesKwaliteitsrondes(admin as never, kwDraft.contentPieceId);
+      ok("de versiekeuze telt alleen echte rondes", kwZichtbaar.length === 1);
+
       // ══ SCENARIO 10: de klant beantwoordt de vraag, de dekking stijgt ══════
       //
       // Hetzelfde feit, nu wél op de kaart. De kritieke dekking hoort dan op

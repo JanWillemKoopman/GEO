@@ -317,3 +317,21 @@ pagina's of duizend maakt daarmee geen verschil. Nul policies: dit is intern mat
 klantdata, en `/api/beheer/kwaliteit/[pieceId]` is de enige schrijfingang.
 
 Additief en idempotent: geen bestaande rij verandert en alle nieuwe kolommen mogen NULL zijn.
+
+## 0092 · een herkeuring is geen reparatieronde
+
+`docs/tasks/contentkwaliteit-framework.md` R0. Eén kolom: `content_quality_runs.herkeuring`.
+
+Een reparatieronde betekent dat de TEKST veranderd is, en de versiekeuze rekent daarop. Bij een
+herkeuring verandert de tekst niet: alleen het oordeel wordt opnieuw gemaakt, omdat er een controle
+gerepareerd is of omdat de klant zijn eigen tekst heeft aangepast.
+
+De unieke sleutel `(content_piece_id, repair_round)` blijft ongemoeid. Een herkeuring krijgt een
+eigen, opvolgend rondenummer en overschrijft dus nooit de geschiedenis van een echte
+reparatieronde. Zonder die regel zou de eerste herkeuring het bewijs uitwissen dat een pagina ooit
+tegengehouden werd, en juist dat bewijs is waar de ijking van het kwaliteitsraamwerk op rust.
+
+`leesKwaliteitsrondes()` slaat deze rijen over, zodat de versiekeuze en `beslisReparatieRonde()`
+alleen echte rondes vergelijken.
+
+Additief en idempotent: de kolom heeft een default en geen bestaande rij verandert van betekenis.

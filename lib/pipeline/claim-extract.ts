@@ -73,6 +73,92 @@ const GETAL = /(\d|€|%)/;
 /** Losse woorden en koppen zijn geen bewering; hieronder wordt het ruis. */
 const MIN_WOORDEN = 5;
 
+/**
+ * Contactgegevens: een telefoonnummer, een e-mailadres of een postcode.
+ * (R0b, gemeten op de benchmarkronde van 3 september 2026)
+ *
+ * ── WAAROM DEZE ERUIT MOETEN VÓÓR `GETAL` ───────────────────────────────────
+ *
+ * `GETAL` is `/(\d|€|%)/`: één cijfer maakt van een zin een bewering. Dat is
+ * bewust ruim, want elk getal op een klantpagina kan iemand natrekken. Maar een
+ * telefoonnummer is geen belofte, en zo werd élke oproep tot actie een
+ * onbewijsbare bewering:
+ *
+ *   "Bel 030-2270437 of stel eerst een vraag."
+ *   "Bellen kan via 030 227 04 37 en mailen via info@fysiocentrumutrecht.nl."
+ *
+ * Die zinnen kunnen per definitie niet naar een feit op de kaart wijzen, dus ze
+ * blokkeerden de pagina. Elke pagina met een telefoonnummer eronder liep erin
+ * vast.
+ *
+ * ⚠️ Alleen de contactgegevens gaan eruit, niet elk getal. "Wij staan binnen 24
+ * uur op het dak" houdt zijn 24 en blijft dus een bewering, want dát is wel een
+ * belofte. Een webadres blijft ook staan: "Op valk.com reserveert u direct
+ * online" was een van de twee fabricages van 31 juli.
+ */
+const CONTACTGEGEVEN: RegExp[] = [
+  // E-mailadres.
+  /[\w.+-]+@[\w-]+\.[\w.-]+/g,
+  // Nederlands telefoonnummer, met spaties of streepjes op willekeurige plek.
+  /(?:\+31[\s-]?|\b0)\d(?:[\s-]?\d){7,9}\b/g,
+  // Postcode.
+  /\b\d{4}\s?[A-Z]{2}\b/g,
+];
+
+function zonderContactgegevens(zin: string): string {
+  return CONTACTGEGEVEN.reduce((tekst, patroon) => tekst.replace(patroon, " "), zin);
+}
+
+/**
+ * Hoeveel letters een toezeggingswoord langer mag worden en toch hetzelfde
+ * woord blijven.
+ *
+ * Nederlandse vervoeging plakt er hooguit een paar letters achter:
+ * "reserveer" wordt "reserveert", "bied" wordt "biedt", "lever" wordt
+ * "leveren". Een AFLEIDING die de betekenis verandert is langer:
+ * "beschikbaar" wordt "beschikbaarheid" (+4), "mogelijk" wordt
+ * "mogelijkheden" (+5). Het eerste is nog steeds een toezegging, het tweede is
+ * een zelfstandig naamwoord en belooft niets.
+ */
+const TOEZEGGING_SUFFIX_MAX = 3;
+
+/**
+ * Staat er een toezeggingswoord in, aan het BEGIN van een woord? (R0b)
+ *
+ * ── WAT HIER MISGING ────────────────────────────────────────────────────────
+ *
+ * Dit was een kale `includes()`, en die matchte midden in langere woorden.
+ * "mogelijk" zat in "contactmogelijkheden", "beschikbaar" in "beschikbaarheid",
+ * "binnen" in "binnendringt". Zinnen als "De adressen en contactmogelijkheden
+ * van beide vestigingen staan op de contactpagina" golden daardoor als een
+ * toezegging, terwijl er niets wordt toegezegd, en ze blokkeerden de pagina.
+ *
+ * ⚠️ Een woordgrens aan BEIDE kanten eisen is te streng, en dat is geen theorie:
+ * die versie liet "Op valk.com … reserveert u direct online" vallen, precies een
+ * van de twee fabricages van 31 juli waar deze hele controle voor bestaat. De
+ * lijst bevat stammen, geen volledige vormen. Vandaar: woordbegin vast,
+ * woordeinde met hooguit `TOEZEGGING_SUFFIX_MAX` letters speling.
+ *
+ * De meerwoordige ingangen ("kunt u", "zonder afspraak") werken hier gewoon in
+ * mee: `normalizeForQuote` maakt van alle scheidingstekens spaties.
+ */
+function bevatToezegging(sleutel: string): boolean {
+  const zin = ` ${sleutel} `;
+  return TOEZEGGINGEN.some((toezegging) => {
+    const t = normalizeForQuote(toezegging);
+    let vanaf = 0;
+    for (;;) {
+      const i = zin.indexOf(` ${t}`, vanaf);
+      if (i === -1) return false;
+      // Waar loopt het woord af waar de treffer in begon?
+      const eindeWoord = zin.indexOf(" ", i + 1 + t.length);
+      const staart = (eindeWoord === -1 ? zin.length : eindeWoord) - (i + 1 + t.length);
+      if (staart <= TOEZEGGING_SUFFIX_MAX) return true;
+      vanaf = i + 1;
+    }
+  });
+}
+
 /** Woordgrens-veilige merknaamcontrole, ongevoelig voor koppeltekens en accenten. */
 function bevatMerknaam(zin: string, brandName: string): boolean {
   const merk = normalizeForQuote(brandName);
@@ -114,10 +200,14 @@ export function detectClaimSentences(
       // Volgorde is de sterkte van het signaal: een zin mét de merknaam is een
       // bewering over deze klant, ook zonder getal. Dat is de categorie waarin
       // beide gemiste fabricages van 31 juli vielen.
+      // R0b: contactgegevens tellen niet mee als signaal. De merknaam wordt op
+      // de HELE zin gezocht, want die staat nooit in een telefoonnummer.
+      const zonderContact = zonderContactgegevens(zin);
+
       let signal: ClaimSignal | null = null;
       if (bevatMerknaam(zin, brandName)) signal = "merknaam";
-      else if (GETAL.test(zin)) signal = "getal";
-      else if (TOEZEGGINGEN.some((t) => sleutel.includes(normalizeForQuote(t)))) signal = "toezegging";
+      else if (GETAL.test(zonderContact)) signal = "getal";
+      else if (bevatToezegging(normalizeForQuote(zonderContact))) signal = "toezegging";
       if (!signal) continue;
 
       gezien.add(sleutel);

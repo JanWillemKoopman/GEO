@@ -368,6 +368,11 @@ export async function bewaarKwaliteitsronde(
     keuring: Keuring;
     retained: boolean;
     wordCount: number;
+    /**
+     * Dezelfde tekst, opnieuw beoordeeld (migratie 0092). De versiekeuze slaat
+     * deze rij over, want er is niets herschreven om tussen te kiezen.
+     */
+    herkeuring?: boolean;
   },
 ): Promise<void> {
   const { keuring } = args;
@@ -376,6 +381,7 @@ export async function bewaarKwaliteitsronde(
       content_piece_id: args.contentPieceId,
       analysis_id: args.analysisId,
       repair_round: args.ronde,
+      herkeuring: args.herkeuring === true,
       quality_profile: keuring.profiel.type,
       score: keuring.evaluatie.score,
       confidence: keuring.evaluatie.confidence,
@@ -407,10 +413,15 @@ export async function leesKwaliteitsrondes(
   admin: SupabaseClient,
   contentPieceId: string,
 ): Promise<{ ronde: number; score: number | null; verdict: string | null; blokkades: number; confidence: number }[]> {
+  // ⚠️ Herkeuringen blijven buiten de vergelijking (migratie 0092). De
+  // versiekeuze weegt versies van de TEKST tegen elkaar af; een herkeuring is
+  // dezelfde tekst met een nieuw oordeel, en die als "ronde" meetellen zou de
+  // keuze laten geloven dat er een versie bijgekomen is.
   const { data, error } = await admin
     .from("content_quality_runs")
     .select("repair_round, score, verdict, blocking_count, confidence")
     .eq("content_piece_id", contentPieceId)
+    .eq("herkeuring", false)
     .order("repair_round", { ascending: true });
   if (error || !data) return [];
   return data.map((rij) => ({

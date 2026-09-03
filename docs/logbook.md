@@ -6934,3 +6934,92 @@ echte cijfers onder `TrendChart` staan.
 zijn niet meer nagebouwd. `renderToStaticMarkup` rendert de échte componenten met verzonnen data
 naar HTML, en die HTML gaat door de echte `app/globals.css`. Wat op het beeld staat is dus letterlijk
 `TrendChart`, `PagesTrafficChart` en `ClusterVisibilityGrid` zoals de klant ze krijgt.
+## 3 september 2026: een kop is geen zin, en dat blokkeerde twaalf van de twaalf pagina's
+
+De benchmarkronde van twee klanten liep helemaal door: twee merken, vier clusters, 119 meetvragen,
+twaalf geschreven pagina's, $10,97. En alle twaalf kwamen uit de kwaliteitspoort met `block`.
+
+Een poort die honderd procent tegenhoudt zegt niets meer. Erger: hij had er zestien betaalde
+reparatierondes op laten draaien tegen bevindingen die geen enkele herschrijving kon oplossen.
+
+Van de 144 blokkerende bevindingen kwamen er 123 uit `bronherleidbaarheid`, en daarvan waren er
+aantoonbaar 30 helemaal geen zin. Twee gaten in `lib/pipeline/sentences.ts`, allebei nagespeeld met
+de echte functies op tekst uit de ronde:
+
+- `stripMarkdown` haalde de hekjes van een kop weg maar liet geen zinseinde achter. Een kop eindigt
+  niet op een punt, dus "## Snel hulp bij daklekkage in Zutphen" plus de alinea eronder werd één
+  "zin". Die bevatte de merknaam, gold dus als bewering, en kon per definitie niet onderbouwd
+  worden. 27 gevallen.
+- `stripMarkdown` haalde "1. " alleen weg aan het begin van een regel. Zette het model de opsomming
+  achter een dubbele punt op dezelfde regel, dan bleef het cijfer staan en zag `splitSentences` daar
+  een zinseinde. Elk lijstitem werd een fragment dat eindigde op het cijfer van het vólgende item.
+  3 gevallen.
+
+30 is de ondergrens en niet het aantal: `quality-collect.ts` neemt per ronde maar de eerste vijf
+ongetagde zinnen mee, en de meeste rondes zaten met vier of vijf tegen die grens aan.
+
+De ontwerpkeuze eronder blijft staan en is juist: vals-positieven zijn goedkoper dan vals-negatieven
+(`claim-extract.ts`, na de twee gemiste fabricages van 31 juli). Dit was iets anders. Niet de regel
+was te streng, de invoer van die regel was stuk.
+
+Bij het repareren kwam er nog iets boven water. De toelichting van `sentences.ts` beloofde dat drie
+controles op dezelfde manier knippen. `geo-check.ts` bestaat niet, en `content-gate.ts` en
+`validate-claims.ts` hebben elk hun eigen kopie. De fout zat dus in twee van de drie tegelijk, en
+niets dwong af dat ze gelijk bleven. Een "één plek"-belofte in commentaar is geen garantie; alleen
+een import is dat.
+
+**Wat dit kost als je het niet doet.** Twaalf pagina's maal ongeveer $0,14 aan reparatierondes is
+ruim anderhalve dollar weggegooid per ronde, en de klant ziet twaalf keer "nog niet klaar" zonder
+dat er iets aan te doen valt. Dat is precies de situatie waarin iemand de poort uitzet, en dan is de
+bescherming van 31 juli ook weg.
+
+**Wat dit zegt over de werkwijze.** Deze fout was met nadenken niet te vinden. Hij kwam eruit door
+conventie 10 letterlijk te nemen: de ronde echt draaien, op echte teksten, en dan naar de uitkomst
+kijken in plaats van naar de bedoeling.
+
+**Nagerekend wat de reparatie oplost, en dat is een kwart.** Van de 123 blokkerende bevindingen zijn
+er 27 een kop die vastgeplakt zat en 4 een fragment van een opsomming. Die 31 zijn weg. De andere 92
+zien eruit als hele, normale zinnen, en die blijven dus blokkeren. De twaalf pagina's worden door
+deze reparatie niet groen.
+
+Van die 92 zijn er 32 een oproep tot actie of een verwijzing naar het contact: "Bel 030-2270437 of
+stel eerst een vraag", "Neem contact op om de actuele beschikbaarheid te bespreken". Ze blokkeren
+omdat `GETAL` in `claim-extract.ts` elk cijfer als signaal neemt, dus een telefoonnummer maakt van
+elke zin een bewering, en omdat `TOEZEGGINGEN` woorden bevat ("kun je", "beschikbaar", "binnen")
+die net zo goed in een gewone instructie staan. Een oproep tot actie belooft niets over het bedrijf
+en valt dus niet met een feit te onderbouwen. Elke pagina met een telefoonnummer eronder wordt zo
+tegengehouden.
+
+Dat is bewust niet in dezelfde beweging gerepareerd. Het raakt de bescherming die na de twee
+fabricages van 31 juli is gebouwd, en die verdient een eigen toets tegen die tien pagina's in plaats
+van een snelle aanpassing. Het staat als R0b in `docs/tasks/contentkwaliteit-framework.md` §10.
+
+**R0b gerepareerd, en de eerste poging was fout.** Twee regels erbij in `claim-extract.ts`:
+contactgegevens (telefoonnummer, e-mailadres, postcode) tellen niet meer als getal, en
+toezeggingswoorden matchen aan het woordbegin in plaats van ergens midden in een woord.
+
+Die tweede regel ging bij de eerste poging mis, en de bestaande test ving het: een woordgrens aan
+BEIDE kanten eisen lijkt netter, maar de lijst bevat stammen. "reserveer" matcht dan niet meer op
+"reserveert", en precies die zin ("Op valk.com reserveert u direct online") was de Van der
+Valk-fabricage waar deze hele controle voor bestaat. Nederlandse vervoeging plakt er hooguit een
+paar letters achter; een afleiding die de betekenis verandert is langer ("beschikbaarheid" is +4,
+"mogelijkheden" +5). Vandaar drie letters speling.
+
+Nagemeten op de teksten van deze ronde: van de 62 blokkerende bevindingen van MJB blijven er 37
+over. Wat verdwijnt zijn oproepen tot actie en telefoonnummers; wat blijft staan is "MJB Dakservice
+reageert binnen 24 uur op de aanvraag".
+
+**De herkeuring is een eigen stap geworden (migratie 0092).** `keurPagina()` draaide alleen binnen
+`content_draft` en `content_revise`, dus een oordeel bijstellen betekende de pagina opnieuw laten
+schrijven: ongeveer $1,00 per pagina tegen ongeveer $0,013 voor de vier beoordelaars. Bijna honderd
+keer zoveel voor iets wat de tekst niet eens verandert, en de vergelijking gaat er ook nog door
+verloren omdat de tekst dan een andere is.
+
+Drie regels eromheen, en ze zijn alle drie een rem. Een herkeuring kan geen reparatieronde
+aftrappen, want dan kan één goedkope knop een dure lus starten. Hij overschrijft de geschiedenis
+niet, want de rij die zegt dat een pagina ooit tegengehouden werd is precies waar de ijking op
+rust. En de versiekeuze slaat herkeuringen over, want er is niets herschreven om tussen te kiezen.
+
+Dit was ook los van R0 nodig: de klant kan zijn eigen tekst aanpassen, en dan bleef het oordeel
+staan op de tekst van vóór die bewerking. Er stond "klaar voor publicatie" onder een tekst die
+niemand beoordeeld had.

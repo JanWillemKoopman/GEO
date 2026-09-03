@@ -57,6 +57,7 @@ export const TAAK_TEKST: Record<JobType, string | null> = {
   content_plan: "uitgezocht wat er op een pagina moet staan",
   content_draft: "een pagina geschreven",
   content_revise: "een pagina herschreven",
+  content_recheck: "een pagina opnieuw beoordeeld",
   technical_audit: "gecontroleerd of AI-assistenten je site mogen lezen",
   verify_publication: "gecontroleerd of je pagina echt live staat",
   measure_impact: "een hermeting ingepland",

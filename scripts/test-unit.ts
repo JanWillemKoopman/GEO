@@ -2703,6 +2703,58 @@ group("zinnen knippen en markdown strippen", () => {
   ok("derde zin blijft buiten", !opening.includes("verder nog dit"));
 });
 
+// ── R0: een kop is geen zin, en een lijstnummer is geen zinseinde ───────────
+//
+// Alle twaalf pagina's van de benchmarkronde van 3 september 2026 werden
+// geblokkeerd. 30 van de 123 blokkerende bevindingen gingen over tekst die
+// helemaal geen zin was: 27 keer een kop die aan de alinea eronder vastgeplakt
+// zat, 3 keer een half lijstitem. De zinnen hieronder komen letterlijk uit die
+// ronde.
+group("R0: koppen en opsommingen breken de zinsgrens niet meer", () => {
+  const kop = splitSentences(
+    stripMarkdown("## Snel hulp bij daklekkage in Zutphen\nBel MJB Dakservice op 0578 234 502."),
+  ).map((z) => z.trim());
+  ok("kop en alinea zijn twee zinnen", kop.length === 2);
+  ok("de kop staat op zichzelf", kop[0] === "Snel hulp bij daklekkage in Zutphen");
+  ok("de alinea bevat geen kop meer", kop[1] === "Bel MJB Dakservice op 0578 234 502.");
+
+  const lijst = splitSentences(
+    "Spreek bij spoed deze volgorde af: 1. meld de lekkage, 2. beperk de schade, " +
+      "3. laat de oorzaak vastleggen.",
+  );
+  ok("een opsomming op één regel blijft één zin", lijst.length === 1);
+
+  // De tegenproef. Zonder deze twee zou de reparatie een echte zinsgrens
+  // wegnemen, en dat is erger dan de fout die hij oplost.
+  ok(
+    "een jaartal aan het eind van een zin splitst wél",
+    splitSentences("Wij bestaan sinds 1995. Daarom kennen we deze daken.").length === 2,
+  );
+  ok(
+    "een genummerde stap met een hoofdletter erna splitst wél",
+    splitSentences("Stap 1. Bel ons meteen.").length === 2,
+  );
+
+  // Een kop die zelf iets over het bedrijf beweert, blijft een bewering. Het
+  // gaat erom dat hij niet ONGEMERKT met de volgende alinea versmelt.
+  const beweringen = detectClaimSentences(
+    {
+      bodyMarkdown:
+        "## Snel hulp bij daklekkage in Zutphen\nBel MJB Dakservice op 0578 234 502.\n\n" +
+        "Spreek bij spoed deze volgorde af: 1. meld de lekkage, 2. beperk de schade.",
+    },
+    "MJB Dakservice",
+  ).map((c) => c.sentence);
+  ok(
+    "geen enkele bewering draagt nog een kop met zich mee",
+    beweringen.every((z) => !z.includes("\n")),
+  );
+  ok(
+    "geen enkele bewering eindigt op het cijfer van het volgende lijstitem",
+    beweringen.every((z) => !/,\s*\d+\.$/.test(z)),
+  );
+});
+
 group("kop-ankers voor de inhoudsopgave (H.68)", () => {
   const md = "## Wat het kost\n\ntekst\n\n## Veelgestelde vragen\n\n### Hoe lang duurt het\n\ntekst\n\n## Veelgestelde vragen\n\ntekst";
   const headings = extractHeadings(md);
@@ -2893,6 +2945,62 @@ group("de noemer die de code bepaalt", () => {
   ok(
     "een andere bewering hoort er niet bij",
     !claimMatchesSentence("Van der Valk biedt gratis wifi", "Van der Valk heeft meer dan 100 hotels wereldwijd."),
+  );
+});
+
+// ── R0b: een oproep tot actie belooft niets ─────────────────────────────────
+//
+// Alle zinnen hieronder komen uit de benchmarkronde van 3 september 2026 en
+// werden daar allemaal BLOKKEREND afgekeurd, terwijl er niets te onderbouwen
+// valt. Ze blokkeerden om twee redenen: `GETAL` zag een telefoonnummer als een
+// getal, en de toezeggingslijst matchte midden in langere woorden.
+group("R0b: contactgegevens en woordmidden zijn geen belofte", () => {
+  const geen = (zin: string, merk: string) =>
+    detectClaimSentences({ bodyMarkdown: zin }, merk).length === 0;
+
+  ok(
+    "een telefoonnummer maakt van een oproep geen bewering",
+    geen("Bel 0578 234 502 of stuur via WhatsApp de locatie en de schade door.", "MJB Dakservice"),
+  );
+  ok(
+    "ook niet met een e-mailadres erbij",
+    geen(
+      "Bellen kan via 030 227 04 37 en mailen via info@fysiocentrumutrecht.nl.",
+      "Fysio Centrum Utrecht",
+    ),
+  );
+  ok(
+    "mogelijk in contactmogelijkheden is geen toezegging",
+    geen(
+      "De adressen en contactmogelijkheden van beide vestigingen staan op de contactpagina.",
+      "Fysio Centrum Utrecht",
+    ),
+  );
+  ok(
+    "beschikbaar in beschikbaarheid is geen toezegging",
+    geen("Beschikbaarheid kan per plaats en per moment verschillen.", "MJB Dakservice"),
+  );
+
+  // De tegenproef, en die weegt zwaarder dan de vier hierboven: wat wél een
+  // belofte is, moet een bewering blijven.
+  const wel = (zin: string, merk: string) =>
+    detectClaimSentences({ bodyMarkdown: zin }, merk).length === 1;
+
+  ok(
+    "een getal dat geen contactgegeven is, blijft tellen",
+    wel("Wij staan binnen 24 uur op het dak bij een actieve lekkage.", "MJB Dakservice"),
+  );
+  ok(
+    "een zin met de merknaam blijft altijd tellen",
+    wel("MJB Dakservice reageert binnen 24 uur op de aanvraag.", "MJB Dakservice"),
+  );
+  ok(
+    "een vervoegde toezegging blijft tellen",
+    wel("Op valk.com reserveert u direct online een zaal.", "Van der Valk"),
+  );
+  ok(
+    "een verbogen toezegging ook",
+    wel("Wij leveren de offerte binnen twee werkdagen.", "MJB Dakservice"),
   );
 });
 

@@ -75,6 +75,15 @@ export const dedupe = {
     `brief:${analysisId}:${[...titles].sort().join("|")}`,
   contentRevise: (contentPieceId: string) => `content_revise:${contentPieceId}`,
   /**
+   * Een herkeuring (migratie 0092). De REDEN zit in de sleutel, want dezelfde
+   * pagina mag meerdere keren herkeurd worden: één keer omdat een controle
+   * gerepareerd is, later nog eens omdat de klant zijn tekst aanpaste. Zonder
+   * die reden zou de tweede herkeuring als duplicaat van de eerste wegvallen en
+   * stil niets doen.
+   */
+  contentRecheck: (contentPieceId: string, reden: string) =>
+    `content_recheck:${contentPieceId}:${reden}`,
+  /**
    * De planstap vóór het schrijven (A1/A2, migratie 0082).
    *
    * Zelfde vorm als `contentDraft`, met een eigen voorvoegsel: de plantaak en de

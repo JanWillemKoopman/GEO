@@ -49,6 +49,9 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   content_plan: 35, // onderzoek met web_search plus het contract, twee goedkope aanroepen
   content_draft: 50, // het premium model schrijft een volledige pagina
   content_revise: 50,
+  // Alleen de vier beoordelaars, geen schrijfaanroep. Die draaien parallel, dus
+  // dit is de traagste van de vier plus wat marge.
+  content_recheck: 20,
   technical_audit: 10, // een handvol HTTP-verzoeken, geen AI
   verify_publication: 8, // één pagina ophalen en vergelijken
   measure_impact: 2, // plant alleen taken in
