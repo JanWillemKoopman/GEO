@@ -1,3 +1,19 @@
+> ## Aan de copywriter
+>
+> Dit is een pagina die automatisch geschreven is voor een klant, op basis van een meting van welke vragen mensen aan een AI-assistent stellen over dit onderwerp. Hieronder staat eerst waarom deze pagina gekozen is, wat het doel ervan is, en welke informatie er beschikbaar was toen hij geschreven werd. Daarna staat de geschreven pagina zelf.
+>
+> We willen weten of deze pagina qua kwaliteit gelijk is aan wat een goede copywriter voor deze klant zou hebben geschreven. Beoordeel de pagina zoals je het concept van een collega zou beoordelen, met deze vragen in gedachten:
+>
+> 1. Zou je deze pagina zo naar de klant durven sturen? Ja of nee.
+> 2. Hoeveel werk zou het kosten om hem publicatieklaar te maken: geen, licht, zwaar, of zou je hem liever helemaal opnieuw schrijven?
+> 3. Geef een cijfer van 1 tot 5 op: hoe dicht dit bij het niveau van een professionele copywriter komt, hoe specifiek voor dit bedrijf de tekst is in plaats van generiek, hoe erg de tekst als AI-geschreven aanvoelt, hoe overtuigend hij is, en hoe goed het bedrijf erin naar voren komt.
+> 4. Wat zou je als eerste veranderen?
+> 5. Herschrijf, als je er tijd voor hebt, een stuk van de pagina zoals jij het zelf zou schrijven, bijvoorbeeld de opening. Dat maakt het verschil concreet zichtbaar.
+>
+> Beoordeel de pagina op basis van de informatie die hieronder staat: dat is precies wat er beschikbaar was toen de pagina geschreven werd. Ontbreekt er iets waarvan je vindt dat het er wel in had gehoord, zeg dat er dan ook bij.
+
+---
+
 # Maak een aparte pagina voor hardloopblessures en terugkeer naar hardlopen
 
 **Klant:** Fysio Centrum Utrecht  
