@@ -20,7 +20,11 @@ import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { volumeBandOf } from "@/lib/pipeline/volume";
 import { Mention } from "@/lib/schemas/mention";
 import { loadEntityIndex, resolveEntity } from "@/lib/entities/resolve";
-import { looksLikeBrandName, textContainsName, citesOwnSite } from "@/lib/entities/normalize";
+import {
+  looksLikeBrandName,
+  citesOwnSite,
+  mentionSurvivesTextGuard,
+} from "@/lib/entities/normalize";
 import { domainOf } from "@/lib/offsite/domain";
 import { normalizePosition, weightedAveragePosition } from "@/lib/pipeline/position";
 import { shareByRun, sumShare, roundQuestions } from "@/lib/pipeline/question-share";
@@ -312,7 +316,7 @@ export async function measureOnePrompt(
     // de merknaam letterlijk niet in de tekst). Bronnen/URL's tellen hier
     // bewust niet mee, alleen of de naam daadwerkelijk in de tekst staat.
     const candidateNames = m.isOwnBrand ? [ownBrandName, ...ownAliases] : [m.entity];
-    const mentioned = m.mentioned && candidateNames.some((name) => textContainsName(rawText, name));
+    const mentioned = mentionSurvivesTextGuard(m.mentioned, candidateNames, rawText);
     return {
       tracking_run_id: run!.id,
       entity_name: m.entity,

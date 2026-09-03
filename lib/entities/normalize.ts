@@ -225,3 +225,22 @@ export function textContainsName(text: string, name: string): boolean {
   const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`(^|\\s)${escaped}($|\\s)`).test(haystack);
 }
+
+/**
+ * Het vangnet zelf (herstelplan na audit T6): `mentioned` telt alleen als het
+ * model het ZEGT én minstens één kandidaatnaam ook echt in de tekst staat.
+ *
+ * Losgetrokken uit `lib/pipeline/measure.ts` zodat dit los van een echte
+ * OpenAI-aanroep getest kan worden (conventie 2). Op 30 augustus 2026 bleek dit
+ * al nodig, maar de metingen van daarvóór zijn er nooit opnieuw doorheen
+ * gehaald; deze functie plus zijn test moeten voorkomen dat de regel zelf ooit
+ * weer stilzwijgend wegvalt (bijvoorbeeld bij een refactor die `mentioned`
+ * rechtstreeks van het model overneemt).
+ */
+export function mentionSurvivesTextGuard(
+  modelZegtGenoemd: boolean,
+  kandidaatNamen: string[],
+  ruweTekst: string,
+): boolean {
+  return modelZegtGenoemd && kandidaatNamen.some((naam) => textContainsName(ruweTekst, naam));
+}

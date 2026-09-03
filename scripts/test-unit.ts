@@ -25,6 +25,7 @@ import {
   looksLikeBrandName,
   textContainsName,
   citesOwnSite,
+  mentionSurvivesTextGuard,
 } from "@/lib/entities/normalize";
 import { bandFromEstimate, volumeBandOf, isVolumeBand, VOLUME_BANDS, VOLUME_FACTOR } from "@/lib/pipeline/volume";
 import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
@@ -992,6 +993,38 @@ group("staat de naam echt in de tekst? (vangnet op de mention-classificatie)", (
     !textContainsName("De vakantie naar Kaapstad was geweldig.", "Aap"),
   );
   ok("lege naam matcht nooit", !textContainsName("Swapfiets is top.", ""));
+});
+
+group("mentionSurvivesTextGuard: het vangnet zelf (herstelplan na audit T6)", () => {
+  // Precies het gat uit de audit: op productie telden 11 van de 774 metingen
+  // als vermelding terwijl de merknaam nergens in het antwoord stond, en 6
+  // andersom. Deze test toetst de samenstelling (model-oordeel + tekstcontrole)
+  // in plaats van alleen de tekstcontrole zelf, want dat is waar de regel eerder
+  // ongemerkt kon wegvallen (bijvoorbeeld een refactor die `m.mentioned`
+  // rechtstreeks doorgeeft).
+  const geenNaamInTekst = "De belangrijkste voordelen zijn lagere kosten en onderhoud inbegrepen.";
+  const welNaamInTekst = "Swapfiets is een populaire aanbieder van fietsabonnementen.";
+
+  ok(
+    "model zegt genoemd, naam ontbreekt in de tekst → toch niet genoemd",
+    !mentionSurvivesTextGuard(true, ["Swapfiets"], geenNaamInTekst),
+  );
+  ok(
+    "model zegt genoemd, naam staat er echt → genoemd",
+    mentionSurvivesTextGuard(true, ["Swapfiets"], welNaamInTekst),
+  );
+  ok(
+    "model zegt NIET genoemd, ook al staat de naam er → blijft niet genoemd",
+    !mentionSurvivesTextGuard(false, ["Swapfiets"], welNaamInTekst),
+  );
+  ok(
+    "een alias telt ook mee als kandidaatnaam",
+    mentionSurvivesTextGuard(true, ["Swap Fiets B.V.", "Swapfiets"], welNaamInTekst),
+  );
+  ok(
+    "geen enkele kandidaatnaam in de tekst → niet genoemd",
+    !mentionSurvivesTextGuard(true, ["Swap Fiets B.V.", "Andere Naam"], geenNaamInTekst),
+  );
 });
 
 group("citesOwnSite: de site van een concurrent herkennen zonder opgeslagen domein", () => {

@@ -6625,3 +6625,19 @@ database moeten laten zien (`/merk`, `/beheer`) zijn in de code nagelopen: beide
 lege staat en geen optelling die op een lege lijst breekt. Niet in een browser getest, deze sessie
 heeft geen netwerktoegang tot Vercel; dat is de ene stap uit het plan die nog met eigen ogen bevestigd
 moet worden.
+
+## 2 september 2026: het herstelplan na de audit, T6, het vangnet op de mention-classificatie geborgd
+
+De controlequery uit T6 gaf na T7 op alle drie de tellingen 0: er was niets meer om te herbeoordelen,
+want de elf en zes foutgemeten antwoorden uit de audit hoorden allemaal bij testmerken die net
+verwijderd zijn. Geen enkele betaalde aanroep nodig geweest, precies zoals het plan voorzag.
+
+Wat overbleef was de les uit het plan zelf: een reparatie aan de meting moet ook tegen wegvallen
+beschermd zijn. Het vangnet zelf (`m.mentioned && candidateNames.some(...)` in
+`lib/pipeline/measure.ts`) had geen enkele test, alleen de tekstcontrole eronder
+(`textContainsName`) was al gedekt. Losgetrokken naar `mentionSurvivesTextGuard()` in
+`lib/entities/normalize.ts` (puur, conventie 2) en getest op precies het scenario uit de audit: het
+model zegt "genoemd" maar de naam staat niet in de tekst, moet toch niet genoemd tellen, en het
+omgekeerde (model zegt "niet genoemd" terwijl de naam er wél staat) moet niet genoemd blijven. Een
+latere refactor die `m.mentioned` weer rechtstreeks doorgeeft, laat deze test nu falen in plaats van
+stil te verdwijnen.
