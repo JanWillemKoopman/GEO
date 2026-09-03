@@ -6749,3 +6749,31 @@ daardoor ook in het cijfer en niet alleen in de blokkadelijst.
 
 Vier controles groen: typecheck, 4071 unittests (11 nieuwe), 630 ketentests (5 nieuwe), de
 productiebuild.
+
+## 3 september 2026: het herstelplan na de audit, T9, de wachttijd, al opgelost vóór de audit
+
+T9 vroeg uit te zoeken of contentgeneratie (`content_draft`/`content_revise`) net als de
+reputatietaken meer dan één tegelijk mag draaien, met een meting vooraf en achteraf als bewijs. Bij
+het nalopen bleek dat al gebouwd: sinds 1 september 14:27 uur (commit `0ab729c`, "De contentpijplijn:
+een contract per item, een beoordelaarspanel en gerichte reparatie", ruim vóór deze audit) staan
+`content_draft`, `content_revise` en `content_plan` in een nieuwe `PARALLEL_CONTENT_TYPES`
+(`lib/jobs/types.ts`), en `lib/jobs/worker.ts` draait ze per drie tegelijk met de volle reservering
+per groep (docs/tasks/contentpijplijn-herontwerp.md A10). Precies de richting die T9 vroeg, en al met
+een eigen test (`scripts/test-unit.ts`).
+
+Het cijfer uit de audit (2533 seconden gemiddeld wachten) is dus vermoedelijk het gemiddelde over
+vooral taken van vóór die reparatie: de controlequery telt de hele geschiedenis. Een "ná"-meting met
+dezelfde query kon deze sessie niet leveren: T7 heeft de taakgeschiedenis inmiddels leeggemaakt, en er
+is sindsdien geen nieuwe productieronde geweest om te meten. Dat cijfer komt vanzelf zodra een klant
+weer een pagina laat schrijven.
+
+Eén kanttekening zonder wijziging: de toelichting bij `CONTENT_PARALLELISM = 3` rekent nog met "drie
+beoordelaars" per pagina; sinds gisteren (migratie 0091, het kwaliteitsraamwerk) zijn dat er vier
+(`runPanel()` in `lib/pipeline/content-panel.ts`). De rekensom komt toevallig nog steeds op hetzelfde
+maximum uit (de vier beoordelaars draaien gelijktijdig ná het schrijven, nooit ermee samen, dus het
+echte piekgebruik blijft drie pagina's × vier beoordelaars), maar de tekst zelf is achterhaald. Niet
+aangepast: dat bestand hoort niet bij dit herstelplan en is gisteren door een andere sessie
+opgeleverd.
+
+Met T9 is het herstelplan na de audit van 2 september 2026 klaar op T2 na (de beoordelingsset voor
+contentkwaliteit, stilliggend zolang deze sessie geen netwerktoegang tot Supabase/Vercel heeft).
