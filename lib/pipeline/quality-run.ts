@@ -183,8 +183,22 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
 
   // ── 3. De bewijskant ──────────────────────────────────────────────────────
   const dekking = berekenGewogenDekking(input.contract, input.facts);
-  const { coverage: bronherleidbaarheid, unsupported } = sourceCoverage(claims, input.facts);
-  const { untagged } = detectedCoverage({
+
+  // ── ⚠️ Bronherleidbaarheid meet de ZINNEN, niet de aangemelde beweringen ──
+  //
+  // `sourceCoverage()` telt alleen wat het model zelf als bewering aanmeldde, en
+  // dat is precies de maat die S3 verving: een zin die iets over het bedrijf
+  // beweert zónder aangemeld te worden, was daarin onzichtbaar, en dat is de
+  // vorm waarin beide fabricages van 31 juli aan élke controle ontsnapten.
+  // `detectedCoverage()` telt over de gedetecteerde bewerende zinnen en is dus
+  // strenger. `content_pieces.source_coverage` draagt die strengere reeks sinds
+  // S3, en die moet vergelijkbaar blijven.
+  //
+  // `unsupported` komt wél uit `sourceCoverage()`: dat is de lijst aangemelde
+  // beweringen waarvan het F-nummer nergens naar wijst, en die lijst noemt de
+  // bewering letterlijk. Daar kan de reparatie iets mee; een percentage niet.
+  const { unsupported } = sourceCoverage(claims, input.facts);
+  const { coverage: bronherleidbaarheid, untagged } = detectedCoverage({
     detected: detectClaimSentences({ bodyMarkdown: body, faq }, input.brandName),
     claims,
     facts: input.facts,
