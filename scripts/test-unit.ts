@@ -2669,6 +2669,58 @@ group("zinnen knippen en markdown strippen", () => {
   ok("derde zin blijft buiten", !opening.includes("verder nog dit"));
 });
 
+// ── R0: een kop is geen zin, en een lijstnummer is geen zinseinde ───────────
+//
+// Alle twaalf pagina's van de benchmarkronde van 3 september 2026 werden
+// geblokkeerd. 30 van de 123 blokkerende bevindingen gingen over tekst die
+// helemaal geen zin was: 27 keer een kop die aan de alinea eronder vastgeplakt
+// zat, 3 keer een half lijstitem. De zinnen hieronder komen letterlijk uit die
+// ronde.
+group("R0: koppen en opsommingen breken de zinsgrens niet meer", () => {
+  const kop = splitSentences(
+    stripMarkdown("## Snel hulp bij daklekkage in Zutphen\nBel MJB Dakservice op 0578 234 502."),
+  ).map((z) => z.trim());
+  ok("kop en alinea zijn twee zinnen", kop.length === 2);
+  ok("de kop staat op zichzelf", kop[0] === "Snel hulp bij daklekkage in Zutphen");
+  ok("de alinea bevat geen kop meer", kop[1] === "Bel MJB Dakservice op 0578 234 502.");
+
+  const lijst = splitSentences(
+    "Spreek bij spoed deze volgorde af: 1. meld de lekkage, 2. beperk de schade, " +
+      "3. laat de oorzaak vastleggen.",
+  );
+  ok("een opsomming op één regel blijft één zin", lijst.length === 1);
+
+  // De tegenproef. Zonder deze twee zou de reparatie een echte zinsgrens
+  // wegnemen, en dat is erger dan de fout die hij oplost.
+  ok(
+    "een jaartal aan het eind van een zin splitst wél",
+    splitSentences("Wij bestaan sinds 1995. Daarom kennen we deze daken.").length === 2,
+  );
+  ok(
+    "een genummerde stap met een hoofdletter erna splitst wél",
+    splitSentences("Stap 1. Bel ons meteen.").length === 2,
+  );
+
+  // Een kop die zelf iets over het bedrijf beweert, blijft een bewering. Het
+  // gaat erom dat hij niet ONGEMERKT met de volgende alinea versmelt.
+  const beweringen = detectClaimSentences(
+    {
+      bodyMarkdown:
+        "## Snel hulp bij daklekkage in Zutphen\nBel MJB Dakservice op 0578 234 502.\n\n" +
+        "Spreek bij spoed deze volgorde af: 1. meld de lekkage, 2. beperk de schade.",
+    },
+    "MJB Dakservice",
+  ).map((c) => c.sentence);
+  ok(
+    "geen enkele bewering draagt nog een kop met zich mee",
+    beweringen.every((z) => !z.includes("\n")),
+  );
+  ok(
+    "geen enkele bewering eindigt op het cijfer van het volgende lijstitem",
+    beweringen.every((z) => !/,\s*\d+\.$/.test(z)),
+  );
+});
+
 group("kop-ankers voor de inhoudsopgave (H.68)", () => {
   const md = "## Wat het kost\n\ntekst\n\n## Veelgestelde vragen\n\n### Hoe lang duurt het\n\ntekst\n\n## Veelgestelde vragen\n\ntekst";
   const headings = extractHeadings(md);

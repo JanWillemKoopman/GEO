@@ -7,14 +7,67 @@
  * dus de claimvalidator zag hem niet en liet de onjuiste bewering staan. Precies
  * het geval dat hij moest vangen (gevonden op de echte rapporttekst van Coolblue).
  *
- * Sinds S3 knippen ook `claim-extract.ts` (welke zinnen zijn een bewering?) en
- * `geo-check.ts` (staat het antwoord in de eerste twee zinnen?) op zinsgrenzen.
- * Zouden die hun eigen splitser meenemen, dan zou "de eerste twee zinnen" voor de
- * ene controle iets anders betekenen dan voor de andere, en dan meten twee
- * cijfers over dezelfde tekst iets verschillends zonder dat iemand dat ziet.
+ * ⚠️ **Die ene plek is het niet.** Hier stond dat `claim-extract.ts` en
+ * `geo-check.ts` hier ook op knippen. Nagerekend op 3 september 2026:
+ * `geo-check.ts` bestaat niet, en van de rest gebruikt alleen
+ * `claim-extract.ts` deze module. `content-gate.ts` (`stripMarkdown`,
+ * `bewerendeZinnen`) en `validate-claims.ts` hebben elk hun eigen kopie. De
+ * belofte hierboven werd dus door niets afgedwongen, en de fout van R0 zat
+ * daardoor in twee van de drie kopieën tegelijk.
+ *
+ * De kopie in `content-gate.ts` is bij die reparatie bewust niet meegenomen:
+ * daar voedt het knippen alleen een noemer en een "is er een citeerbare zin",
+ * dus geen blokkade, en hem meeveranderen verschuift de poortuitkomst van elke
+ * bestaande pagina. Het samenvoegen staat als open werk in
+ * `docs/tasks/contentkwaliteit-framework.md` §10, R0.
  *
  * Bewust ZONDER `server-only`: pure tekstbewerking, testbaar in een kaal script.
  */
+
+/**
+ * Is de punt op positie `i` het nummer van een opsommingsteken, en dus géén
+ * zinseinde? (R0, gevonden 3 september 2026)
+ *
+ * ── WAAROM DIT MOET ─────────────────────────────────────────────────────────
+ *
+ * `stripMarkdown` haalt "1. " alleen weg aan het BEGIN van een regel. Zet het
+ * schrijvende model de opsomming achter een dubbele punt op dezelfde regel, dan
+ * blijft het cijfer staan:
+ *
+ *   "Spreek deze volgorde af: 1. meld de lekkage, 2. beperk de schade, 3. laat…"
+ *
+ * De oude splitser zag in "1. " een punt met witruimte erachter, dus een
+ * zinseinde, en knipte de opsomming in fragmenten die eindigen op het cijfer van
+ * het VOLGENDE item ("meld de lekkage, 2."). Die fragmenten gingen als bewering
+ * naar `detectClaimSentences()` en werden daar blokkerend afgekeurd, want een
+ * fragment kan nooit naar een feit op de kaart wijzen. Op de benchmarkronde van
+ * 3 september 2026 leverde dat, samen met de koppen hieronder, 30 van de 123
+ * blokkerende bevindingen op, en alle twaalf pagina's op `block`.
+ *
+ * ── WAAROM ZO SMAL ──────────────────────────────────────────────────────────
+ *
+ * "Wij bestaan sinds 1995. Daarom…" moet WEL splitsen. Twee eisen houden die
+ * heel: het getal is hooguit tweecijferig (een opsommingsnummer, geen jaartal),
+ * en er volgt een kleine letter (een lijstitem loopt door, een nieuwe zin begint
+ * met een hoofdletter).
+ */
+function isOpsommingsnummer(text: string, punt: number): boolean {
+  // Terug over de cijfers vlak vóór de punt.
+  let cijferStart = punt;
+  while (cijferStart > 0 && /\d/.test(text[cijferStart - 1])) cijferStart--;
+
+  const cijfers = punt - cijferStart;
+  if (cijfers < 1 || cijfers > 2) return false;
+
+  // Ervoor moet een grens staan: regelbegin, of witruimte na een leesteken dat
+  // een opsomming inleidt. Zonder deze eis zou "versie 2." ook meetellen.
+  const ervoor = text.slice(0, cijferStart).replace(/[ \t]+$/, "");
+  if (ervoor !== "" && !/[:;,\n]$/.test(ervoor)) return false;
+
+  // Erna een kleine letter: het lijstitem loopt door.
+  const erna = text.slice(punt + 1).match(/^\s*(\S)/);
+  return erna !== null && erna[1] === erna[1].toLowerCase() && /\p{L}/u.test(erna[1]);
+}
 
 /**
  * Splitst op zinsgrenzen, met de interpunctie en de witruimte eraan vast.
@@ -24,13 +77,32 @@
  * met een punt gevolgd door een spatie ("bijv. ") splitsen nog steeds ten
  * onrechte; dat is hier het lichtste kwaad, want een zin te veel meenemen is
  * minder erg dan een onjuiste bewering missen.
+ *
+ * Een WITREGEL is óók een zinsgrens (R0). Een kop eindigt niet op een punt, dus
+ * zonder die regel plakte "## Snel hulp in Zutphen" aan de alinea eronder vast
+ * en werd het samen één "zin". Die zin bevatte de merknaam, gold dus als
+ * bewering, en kon per definitie niet onderbouwd worden. 27 van de 123
+ * blokkerende bevindingen van 3 september 2026 waren dit.
  */
 export function splitSentences(text: string): string[] {
   const out: string[] = [];
   let start = 0;
 
   for (let i = 0; i < text.length; i++) {
+    // ── Een witregel: paragraafgrens, dus zinsgrens ────────────────────────
+    if (text[i] === "\n") {
+      const witregel = /^\n[ \t]*\n\s*/.exec(text.slice(i));
+      if (witregel) {
+        out.push(text.slice(start, i + witregel[0].length));
+        start = i + witregel[0].length;
+        i = start - 1;
+        continue;
+      }
+    }
+
     if (!".!?".includes(text[i])) continue;
+
+    if (text[i] === "." && isOpsommingsnummer(text, i)) continue;
 
     // Doorlopende interpunctie meenemen ("…", "?!").
     let end = i;
@@ -73,7 +145,13 @@ export function stripMarkdown(markdown: string): string {
     // Links en afbeeldingen: houd het label, gooi het doel weg.
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
     // Kopregels, blokcitaten, lijstbullets en horizontale lijnen.
-    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+    //
+    // ⚠️ De kop houdt een WITREGEL achter zich (R0). Alleen de hekjes weghalen
+    // liet een kop achter zonder eindpunt, en `splitSentences` plakte hem dan
+    // aan de alinea eronder vast. Staat er in de markdown al een witregel, dan
+    // wordt het er één te veel en dat maakt niets uit: de splitser slikt
+    // meerdere lege regels als één grens.
+    .replace(/^\s{0,3}#{1,6}\s+(.*)$/gm, "$1\n")
     .replace(/^\s{0,3}>\s?/gm, "")
     .replace(/^\s{0,3}[-*+]\s+/gm, "")
     .replace(/^\s{0,3}\d+\.\s+/gm, "")

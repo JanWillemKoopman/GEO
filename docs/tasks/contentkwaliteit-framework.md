@@ -518,17 +518,34 @@ die grens aan. Er zijn er dus meer dan we zien.
 (`claim-extract.ts`) staat niet ter discussie en is juist. Dit is iets anders: de invoer van die
 regel is stuk, niet de regel zelf. Een kop is geen bewering en een half lijstitem is geen zin.
 
-**De reparatie.** In `sentences.ts`, niet in de claimregels:
+**De reparatie (gedaan 3 september 2026).** In `sentences.ts`, niet in de claimregels:
 
-- `stripMarkdown` zet achter een kopregel een punt (of laat de regelovergang als zinsgrens gelden),
-  zodat een kop nooit met de volgende alinea versmelt.
-- `splitSentences` telt een punt die volgt op alleen cijfers, voorafgegaan door witruimte of een
-  dubbele punt of een komma, niet als zinseinde. Dat is dezelfde soort uitzondering die er al is
-  voor "Bol.com" en "3.5".
-- Beide krijgen een test in `scripts/test-unit.ts` met precies de vier zinnen hierboven.
+- `stripMarkdown` laat achter een kopregel een witregel staan, en `splitSentences` telt een witregel
+  als zinsgrens. Een kop versmelt daardoor nooit meer met de alinea eronder.
+- `splitSentences` telt een punt achter een hooguit tweecijferig getal niet als zinseinde wanneer
+  dat getal op een regelbegin of op `:`, `;` of `,` volgt én er een kleine letter achter komt. Dat
+  is een opsommingsnummer. Dezelfde soort uitzondering als die er al was voor "Bol.com" en "3.5".
+- Acht tests in `scripts/test-unit.ts`, met de zinnen uit de ronde zelf. Twee daarvan zijn
+  tegenproef: "Wij bestaan sinds 1995. Daarom…" moet nog steeds splitsen, en "Stap 1. Bel ons." ook.
+  Zonder die twee zou de reparatie een echte zinsgrens wegnemen, en dat is erger dan de fout die hij
+  oplost.
 
-Daarna moet de ronde opnieuw gekeurd worden om te zien wat er van de 123 overblijft. Pas dan is te
-zeggen of de drempels te streng staan of dat ze nooit eerlijk gemeten zijn.
+**Wat er bij het repareren nog boven water kwam.** De toelichting van `sentences.ts` beloofde dat
+drie controles op dezelfde manier knippen. Dat was niet zo: `geo-check.ts` bestaat niet, en
+`content-gate.ts` en `validate-claims.ts` hebben elk hun eigen kopie. De fout zat dus in twee van de
+drie kopieën tegelijk, en niets dwong af dat ze gelijk bleven.
+
+De kopie in `content-gate.ts` is bewust niet meeveranderd: daar voedt het knippen alleen een noemer
+(het aandeel ontwijkende zinnen) en de vraag of er een citeerbare zin met de merknaam is. Geen van
+beide blokkeert, en ze meeveranderen verschuift de poortuitkomst van élke bestaande pagina. Dat is
+een aparte ingreep met een eigen meetronde.
+
+**Nog te doen.**
+
+- De drie splitsers samenvoegen tot één, mét een test die bewijst dat de andere twee call sites
+  dezelfde uitkomst houden.
+- De twaalf pagina's van de benchmarkronde opnieuw keuren en tellen wat er van de 123 overblijft.
+  Pas dan is te zeggen of de drempels te streng staan of dat ze nooit eerlijk gemeten zijn.
 
 ### R5. Fase F: ijking, caching en incrementele evaluatie (punt 19 en 28)
 

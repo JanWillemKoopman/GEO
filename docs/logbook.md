@@ -6702,3 +6702,46 @@ daardoor ook in het cijfer en niet alleen in de blokkadelijst.
 
 Vier controles groen: typecheck, 4071 unittests (11 nieuwe), 630 ketentests (5 nieuwe), de
 productiebuild.
+
+## 3 september 2026: een kop is geen zin, en dat blokkeerde twaalf van de twaalf pagina's
+
+De benchmarkronde van twee klanten liep helemaal door: twee merken, vier clusters, 119 meetvragen,
+twaalf geschreven pagina's, $10,97. En alle twaalf kwamen uit de kwaliteitspoort met `block`.
+
+Een poort die honderd procent tegenhoudt zegt niets meer. Erger: hij had er zestien betaalde
+reparatierondes op laten draaien tegen bevindingen die geen enkele herschrijving kon oplossen.
+
+Van de 144 blokkerende bevindingen kwamen er 123 uit `bronherleidbaarheid`, en daarvan waren er
+aantoonbaar 30 helemaal geen zin. Twee gaten in `lib/pipeline/sentences.ts`, allebei nagespeeld met
+de echte functies op tekst uit de ronde:
+
+- `stripMarkdown` haalde de hekjes van een kop weg maar liet geen zinseinde achter. Een kop eindigt
+  niet op een punt, dus "## Snel hulp bij daklekkage in Zutphen" plus de alinea eronder werd één
+  "zin". Die bevatte de merknaam, gold dus als bewering, en kon per definitie niet onderbouwd
+  worden. 27 gevallen.
+- `stripMarkdown` haalde "1. " alleen weg aan het begin van een regel. Zette het model de opsomming
+  achter een dubbele punt op dezelfde regel, dan bleef het cijfer staan en zag `splitSentences` daar
+  een zinseinde. Elk lijstitem werd een fragment dat eindigde op het cijfer van het vólgende item.
+  3 gevallen.
+
+30 is de ondergrens en niet het aantal: `quality-collect.ts` neemt per ronde maar de eerste vijf
+ongetagde zinnen mee, en de meeste rondes zaten met vier of vijf tegen die grens aan.
+
+De ontwerpkeuze eronder blijft staan en is juist: vals-positieven zijn goedkoper dan vals-negatieven
+(`claim-extract.ts`, na de twee gemiste fabricages van 31 juli). Dit was iets anders. Niet de regel
+was te streng, de invoer van die regel was stuk.
+
+Bij het repareren kwam er nog iets boven water. De toelichting van `sentences.ts` beloofde dat drie
+controles op dezelfde manier knippen. `geo-check.ts` bestaat niet, en `content-gate.ts` en
+`validate-claims.ts` hebben elk hun eigen kopie. De fout zat dus in twee van de drie tegelijk, en
+niets dwong af dat ze gelijk bleven. Een "één plek"-belofte in commentaar is geen garantie; alleen
+een import is dat.
+
+**Wat dit kost als je het niet doet.** Twaalf pagina's maal ongeveer $0,14 aan reparatierondes is
+ruim anderhalve dollar weggegooid per ronde, en de klant ziet twaalf keer "nog niet klaar" zonder
+dat er iets aan te doen valt. Dat is precies de situatie waarin iemand de poort uitzet, en dan is de
+bescherming van 31 juli ook weg.
+
+**Wat dit zegt over de werkwijze.** Deze fout was met nadenken niet te vinden. Hij kwam eruit door
+conventie 10 letterlijk te nemen: de ronde echt draaien, op echte teksten, en dan naar de uitkomst
+kijken in plaats van naar de bedoeling.
