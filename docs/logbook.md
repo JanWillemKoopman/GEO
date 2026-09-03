@@ -7023,3 +7023,34 @@ rust. En de versiekeuze slaat herkeuringen over, want er is niets herschreven om
 Dit was ook los van R0 nodig: de klant kan zijn eigen tekst aanpassen, en dan bleef het oordeel
 staan op de tekst van vóór die bewerking. Er stond "klaar voor publicatie" onder een tekst die
 niemand beoordeeld had.
+
+## 3 september 2026: een ongetagde, kloppende zin blokkeerde ook (R0c)
+
+Met R0 en R0b op productie zijn de twaalf benchmarkpagina's opnieuw gekeurd via de nieuwe
+herkeuring, zonder ze te herschrijven. 144 blokkerende bevindingen werden er 56, maar alle twaalf
+pagina's stonden nog steeds op `block`. 54 van de 56 kwamen uit `bronherleidbaarheid`.
+
+Een steekproef liet twee dingen zien. Ten eerste: zinnen die kloppen en waarvan het bewijs op de
+kaart staat, blokkeerden alsnog. "MJB Dakservice kan bij een daklekkage in Zutphen binnen 24 uur ter
+plaatse zijn" staat vrijwel letterlijk in `offline_proof`, maar het schrijvende model had de zin
+niet op zijn eigen lijstje met beweringen gezet, en `detectedCoverage()` in `claim-extract.ts` keek
+alleen naar dat lijstje. Dezelfde denkfout die R1 (eerder vandaag) al repareerde voor de
+claim-audit, nu gevonden in een tweede, onafhankelijke controle. Ten tweede: instructiezinnen aan de
+lezer ("Maak foto's van de mogelijke waterschade", "Controleer of de hoofdkraan beschikbaar is")
+bevatten toezeggingswoorden zonder iets over het bedrijf te zeggen.
+
+**De reparatie, allebei in `claim-extract.ts`.** Een ongetagde zin telt nu ook als gedekt wanneer
+minstens 60% van de betekenisvolle woorden van een toegestaan, citeerbaar feit letterlijk in de zin
+terugkomen, dezelfde `claimMatchesSentence()` en drempel als bij een getagde bewering, nu blind over
+de hele kaart. Een feit van minder dan drie betekenisvolle woorden telt niet mee. Dit verzwakt de
+fabricageherkenning niet: een verzonnen bewering heeft per definitie geen feit dat hem draagt, dus
+blind zoeken vindt daar niets, precies nagerekend met de Van der Valk-fabricage als tegenproef.
+Daarnaast telt een zin die begint met een kort, behoudend lijstje veiligheids-/stappenwerkwoorden
+niet meer als toezegging, tenzij hij ook de merknaam of een getal bevat; woorden die een oproep tot
+actie met een onbewezen claim kunnen inleiden ("bel", "vraag", "boek") staan er bewust niet op.
+
+⚠️ Lost niet alles op: "Dit kun je zelf doen terwijl je wacht" begint niet met een werkwoord uit de
+lijst en glipt er nog doorheen, want dat onderscheid vraagt begrip van de zin, niet van het eerste
+woord. Vier controles groen: typecheck, 4112 unittests (9 nieuwe), 636 ketentests, build. Nog niet
+herverifieerd tegen de echte twaalf pagina's op productie (conventie 10), dat is de volgende
+herkeuring. Staat als R0c in `docs/tasks/contentkwaliteit-framework.md` §10.

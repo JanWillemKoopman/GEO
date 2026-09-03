@@ -3019,8 +3019,15 @@ group("dekking over de gedetecteerde noemer", () => {
   );
 
   const zonderTag = detectedCoverage({ detected, claims: [], facts });
-  ok("niets taggen geeft geen 100 meer", zonderTag.coverage === 0);
-  ok("beide zinnen staan als ongetagd", zonderTag.untagged.length === 2);
+  ok("niets taggen geeft geen 100 meer", zonderTag.coverage === 50);
+  ok(
+    "de ware, niet-getagde zin krijgt alsnog krediet via de kaart zelf",
+    zonderTag.untagged.length === 1,
+  );
+  ok(
+    "en de fabricage is het exemplaar dat overblijft",
+    zonderTag.untagged[0]?.sentence.includes("reserveert u direct online"),
+  );
 
   const metTag = detectedCoverage({
     detected,
@@ -3043,6 +3050,99 @@ group("dekking over de gedetecteerde noemer", () => {
   ok(
     "een pagina zonder beweringen geeft null, niet 100",
     detectedCoverage({ detected: [], claims: [], facts }).coverage === null,
+  );
+});
+
+// ── Ongetagd maar wel bewezen: het gat dat de herkeuring van 3 september
+// 2026 blootlegde (docs/tasks/contentkwaliteit-framework.md §10) ────────────
+group("een ongetagde zin die de kaart zelf wél draagt", () => {
+  const facts = numberFacts([
+    {
+      text: "Binnen 24 uur ter plaatse bij een lekkage",
+      source: "klant, bevestigd 3 september",
+      allowed: true,
+      citable: true,
+    },
+  ]);
+
+  const detected = detectClaimSentences(
+    {
+      bodyMarkdown:
+        "MJB Dakservice kan bij een daklekkage in Zutphen binnen 24 uur ter plaatse zijn. " +
+        "Vraag daarom altijd naar een gratis vervolginspectie.",
+    },
+    "MJB Dakservice",
+  );
+
+  const dekking = detectedCoverage({ detected, claims: [], facts });
+  ok(
+    "de zin die het feit parafraseert telt als gedekt, ook zonder tag",
+    !dekking.untagged.some((d) => d.sentence.includes("binnen 24 uur ter plaatse")),
+  );
+  ok(
+    "een onbewezen belofte blijft gewoon blokkeren",
+    dekking.untagged.some((d) => d.sentence.includes("gratis vervolginspectie")),
+  );
+
+  ok(
+    "een kort, generiek feit geeft geen krediet aan een willekeurige zin",
+    detectedCoverage({
+      detected: detectClaimSentences(
+        { bodyMarkdown: "MJB Dakservice is gevestigd in Apeldoorn en werkt in de hele regio." },
+        "MJB Dakservice",
+      ),
+      claims: [],
+      facts: numberFacts([{ text: "gratis", source: "site", allowed: true, citable: true }]),
+    }).untagged.length === 1,
+  );
+
+  ok(
+    "een verboden feit telt nooit mee, ook niet blind",
+    detectedCoverage({
+      detected: detectClaimSentences(
+        { bodyMarkdown: "MJB Dakservice kan bij een daklekkage binnen 24 uur ter plaatse zijn." },
+        "MJB Dakservice",
+      ),
+      claims: [],
+      facts: numberFacts([
+        {
+          text: "Binnen 24 uur ter plaatse bij een lekkage",
+          source: "klant",
+          allowed: false,
+          citable: true,
+        },
+      ]),
+    }).untagged.length === 1,
+  );
+});
+
+// ── Een instructie aan de lezer is geen belofte van het bedrijf, gevonden bij
+// dezelfde herkeuring ────────────────────────────────────────────────────────
+group("instructiezinnen blokkeren niet meer als een belofte", () => {
+  const geen = (zin: string, merk: string) =>
+    detectClaimSentences({ bodyMarkdown: zin }, merk).length === 0;
+  const wel = (zin: string, merk: string) =>
+    detectClaimSentences({ bodyMarkdown: zin }, merk).length === 1;
+
+  ok(
+    "maak foto's van mogelijke schade is een instructie, geen belofte",
+    geen("Maak foto's en video's van de mogelijke waterschade aan het plafond.", "MJB Dakservice"),
+  );
+  ok(
+    "controleer de meterstand is ook een instructie",
+    geen("Controleer of de hoofdkraan beschikbaar en bereikbaar is.", "MJB Dakservice"),
+  );
+
+  ok(
+    "dezelfde instructie mét de merknaam blijft gewoon tellen",
+    wel(
+      "Maak foto's en stuur ze naar MJB Dakservice voor een eerste inschatting.",
+      "MJB Dakservice",
+    ),
+  );
+  ok(
+    "een oproep tot actie met een onbewezen claim blijft blokkeren",
+    wel("Bel ons voor een gratis inspectie.", "MJB Dakservice"),
   );
 });
 
