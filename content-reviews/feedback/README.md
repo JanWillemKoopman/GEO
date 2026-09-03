@@ -26,7 +26,15 @@ voorligt staat in `../../docs/tasks/contentkwaliteit-copywriterronde.md`.
 Dat zijn feiten uit de tekst, geen smaak. Ze zijn per punt met een citaat onderbouwd.
 
 **Niet te vertrouwen zonder mens**: de cijfers 1 tot 5 en het oordeel "zou ik dit versturen".
-Dat is precies het deel waarvoor een echte copywriter nodig is, en dat deel blijft openstaan.
+Dat is precies het deel waarvoor een echte copywriter nodig is.
+
+⚠️ **Dat oordeel is er inmiddels**, en het corrigeert deze ronde:
+[`copywriter-extern-3-september-2026.md`](copywriter-extern-3-september-2026.md). De echte
+copywriter komt op dezelfde diagnose uit, maar op hogere cijfers: gemiddeld 3,9 voor specificiteit
+tegen 1,7 hier, 2,9 voor menselijkheid tegen 1,5, en 2,6 voor overtuigingskracht tegen 1,8. Deze
+ronde was dus 0,75 tot 2,25 punt te streng. Wat wél standhoudt is de volgorde: welke pagina's de
+zwakste zijn, ziet deze ronde ongeveer hetzelfde als de copywriter (rangcorrelatie +0,70). Lees de
+cijfers hier daarom als een rangschikking en niet als een rapportcijfer.
 
 ## Wat de cijfers betekenen
 
@@ -54,5 +62,9 @@ Fysio Centrum Utrecht:
 - [Leidsche Rijn, klachten na een bevalling](fcu-leidsche-rijn-na-bevalling.md)
 - [Bekkenbodempagina Utrecht, urineverlies](fcu-bekkenbodem-urineverlies.md)
 
-En daarna: [de patronen over alle twaalf heen](patronen.md), het enige bestand dat over de
-schrijfpijplijn gaat in plaats van over één tekst.
+En daarna:
+
+- [De patronen over alle twaalf heen](patronen.md), het enige bestand uit deze ronde dat over de
+  schrijfpijplijn gaat in plaats van over één tekst.
+- [De beoordeling door de echte copywriter](copywriter-extern-3-september-2026.md), letterlijk
+  overgenomen. Dat is de menselijke meetlat, en die weegt zwaarder dan alles hierboven.

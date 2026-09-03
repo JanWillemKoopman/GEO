@@ -7090,3 +7090,46 @@ naar 100 zonder dat één van deze pagina's beter wordt om te lezen. Welke van d
 dichter bij de waarheid zit, is zonder mens niet vast te stellen, en daarmee zijn de twintig
 menselijk beoordeelde pagina's niet langer een afronding maar de blokkerende stap. Zes
 geprioriteerde verbetervoorstellen staan in het taakbestand; er is nog niets gebouwd.
+
+## 3 september 2026: de echte copywriter corrigeert mij, en de beoordelaar kan niet rangschikken
+
+De twaalf benchmarkpagina's zijn dezelfde dag nóg een keer beoordeeld, nu door een echte copywriter
+(`content-reviews/feedback/copywriter-extern-3-september-2026.md`). Dat maakt drie oordelen over
+dezelfde twaalf pagina's mogelijk: de vakmanschapsbeoordelaar uit de app, de AI-copywriterronde van
+eerder vandaag, en een mens. Dat is de eerste keer dat er een menselijke meetlat ligt.
+
+**Twee dingen kloppen niet aan wat ik eerder vandaag opschreef.** De vorige alinea zei dat de
+vakmanschapsbeoordelaar 20 tot 39 punten te hoog scoorde. Omgerekend naar dezelfde schaal van 1 tot
+5 geeft de copywriter gemiddeld 3,92 voor specificiteit, 2,92 voor menselijkheid en 2,58 voor
+overtuigingskracht; de beoordelaar geeft 3,60 / 2,87 / 2,82 en de AI-ronde 1,67 / 1,50 / 1,83. De
+beoordelaar zit dus op 0,05 tot 0,32 punt van de mens en de AI-ronde zat er 0,75 tot 2,25 naast, te
+streng. Qua NIVEAU is de vierde beoordelaar goed geijkt.
+
+**Wat hij wél mist is het onderscheid.** De rangcorrelatie van zijn twaalf oordelen met die van de
+copywriter is +0,19; die van de AI-ronde is +0,70. De copywriter noemt als vier zwakste pagina's 2,
+8, 1 en 4, de beoordelaar noemt 1, 12, 4 en 9. Pagina 8 (het gratis medisch consult) is voor de
+copywriter gedeeld slechtste van de twaalf, "ABSOLUUT NIET, liever grotendeels opnieuw schrijven",
+en voor de beoordelaar de op twee na beste. Dat is operationeel de erge helft: de score bepaalt per
+pagina klaar, repareren of geblokkeerd, dus een beoordelaar die het gemiddelde goed schat maar
+binnen een batch de slechtste pagina niet aanwijst, stuurt de reparatie naar de verkeerde tekst. De
+ijking blijft dus nodig, maar om hem te leren onderscheiden en niet om de hoogte bij te stellen. Er
+liggen nu twaalf menselijk beoordeelde pagina's van de twintig uit `IJKING_MINIMUM`.
+
+**Het scherpste cijfer uit de menselijke beoordeling is er een dat wij zelf konden natellen.** Zijn
+belangrijkste aanbeveling van drie is "schrijf vanuit de situatie van de lezer", en bij ACHT van de
+twaalf pagina's stond in de opdracht letterlijk "Geen doelomschrijving vastgelegd" en "Er waren geen
+specifiek gemeten vragen aan deze pagina gekoppeld", steeds allebei bij dezelfde acht. Zijn
+belangrijkste punt faalt dus niet bij het schrijven maar bij de invoer: de schrijver kreeg bij twee
+derde van de pagina's geen lezer en geen vraag mee. Verder nageteld naar aanleiding van zijn
+patronen: 169 van de 228 koppen is een vraag (74 procent, op vier pagina's alle koppen), 11 van de
+12 openingen begint bij het merk of bij de beschikbaarheid in plaats van bij de lezer, 120 slappe
+formuleringen op 13.605 woorden (één per 113 woorden, waarvan "mogelijk" 43 keer en "hangt af van"
+26 keer), en per klant staan dezelfde vijf tot zeven feiten op vijf of zes van de zes pagina's.
+
+Het plan telt daarmee elf voorstellen in twee lagen, redactionele keuze en mechanische hygiëne,
+elk met promptwijziging en deterministisch vangnet, in
+`docs/tasks/contentkwaliteit-copywriterronde.md`. Er is nog niets gebouwd. Twee keuzes liggen bij de
+eigenaar: de twaalf menselijke oordelen wel in `content_quality_reviews` zetten en de twaalf uit de
+AI-ronde niet, en de volgorde van bouwen. ⚠️ Bij het invoeren eerst nagaan hoe `generic_ai_feel`
+telt: de copywriter scoorde "menselijk" met 5 als beste, en als de kolom andersom bedoeld is komen
+deze pagina's er bijna perfect in te staan op precies de dimensie waar ze het slechtst scoren.
