@@ -1199,12 +1199,11 @@ function RijMenu({
             role="menu"
             /* z-40 is de laag van uitklapmenu's uit de ladder in `docs/ux-design.md`:
                boven de navigatiebalken, onder de dialogen. */
-            className="fixed z-40 flex w-60 flex-col overflow-y-auto rounded-[var(--radius-md)] py-1"
+            className="menu-surface fixed z-40 flex w-60 flex-col overflow-y-auto rounded-[var(--radius-md)] py-1"
             style={{
               top: plek.top,
               right: plek.right,
               maxHeight: plek.hoogte,
-              background: "var(--bg-surface)",
               border: "var(--border-width-xs) solid var(--border-subtle)",
               boxShadow: "var(--shadow-overlay)",
             }}

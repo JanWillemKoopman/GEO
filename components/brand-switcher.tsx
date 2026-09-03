@@ -98,7 +98,7 @@ export function BrandSwitcher({
 
       {open && (
         <div
-          className="absolute left-0 z-40 mt-1 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
+          className="menu-surface absolute left-0 z-40 mt-1 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)]"
           style={{ boxShadow: "var(--shadow-overlay)" }}
           role="listbox"
         >

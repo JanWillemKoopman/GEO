@@ -6792,3 +6792,55 @@ Met T1, T3 t/m T9 gebouwd en T2 geschrapt heeft het herstelplan niets meer opens
 negen alinea's hierboven. Code-commentaar dat naar "herstelplan na audit" verwijst (tientallen
 plekken, T1 t/m T9) blijft ongewijzigd staan: dat draagt het waarom van de code, niet het bestaan van
 het plandocument.
+
+## 3 september 2026: een glaslaag over de lichte stand, vier tokens diep
+
+De eigenaar vroeg om een zeer subtiele glas- of materiaalbehandeling van de bestaande vormgeving,
+uitdrukkelijk geen herontwerp, en uitdrukkelijk alleen in de lichte stand.
+
+**Dat botst met §8 regel 2 ("plat, niet gloeiend"), en die botsing is met open ogen opgelost.** Het
+systeem hier is bewust vlak: rand en vlak dragen de hiërarchie, er is één schaduw en die is voor wat
+zweeft. Een glaslaag hoort daar niet vanzelf in thuis. Wat er nu ligt kiest daarom voor de ene helft
+van glas die géén tweede schaduwstand nodig heeft: de **doorschijnendheid**. Een kaart laat 28% van
+de grond eronder door, en op de werkruimte is dat het lichtgrijs met de stippen van
+`.workspace-canvas` (28 augustus 2026). De gelaagdheid komt dus uit wat er dóórheen schemert en niet
+uit een halo eromheen. Het enige nieuwe schaduwtje is één pixel op 3% inkt, en dat staat in een eigen
+token zodat het met één regel weer nul kan worden.
+
+**Vier tokens, geen losse waarden.** `--glass-surface` (0,72 wit), `--glass-surface-strong` (0,86,
+voor wat écht boven de pagina hangt), `--glass-filter` (`blur(12px) saturate(1.06)`) en
+`--glass-shadow`. Ze staan alle vier in het lichte blok van `app/globals.css` en worden in **allebei**
+de donkere blokken teruggezet naar het opake origineel: `--glass-surface: var(--bg-surface)` en
+`--glass-filter: none`. Dat is de reden dat de donkere stand hier niets van merkt, en het is
+nagemeten en niet aangenomen (zie hieronder).
+
+**Waar het glas wél zit, en waar bewust niet.** Wél: `.card`, `.modal-panel`, `.toast-card` en de
+nieuwe `.menu-surface`. Die laatste vervangt de vier losse Tailwind-klassen waarmee de merkkiezer,
+het accountmenu, `InfoHint`, het clustermenu en het plan-menu elk hun eigen zwevende vlak
+nabouwden: vijf kopieën van dezelfde keuze zijn vijf plekken die uit elkaar gaan lopen. Niet: de
+zijbalk, de knoppen, de velden, de chips, de tabelcellen en de voortgangsbalken. Die blijven opaak,
+en dat is geen vergetelheid maar het contrast dat de hiërarchie draagt: als élk vlak glas is, zegt
+glas niets meer. Dezelfde redenering als bij de iconen in de zijbalk (§6b.3 regel 4) en bij de
+kleuren (§8 regel 1). De randen blijven een echte tint en worden niet doorschijnend, om de reden die
+al in §2.1 staat: doorschijnend zwart wordt vuil zodra het op een gekleurd vlak ligt, en
+`.card-accent` legt daar juist een getinte rand overheen.
+
+**Drie plekken waar het glas eraf gaat**, alle drie door de tokens terug te zetten in plaats van de
+regels te overschrijven: geen ondersteuning voor `backdrop-filter`, `prefers-reduced-transparency:
+reduce` (doorschijnende vlakken zijn voor sommige mensen letterlijk moeilijker te lezen), en
+schermen smaller dan 640 pixels, waar kaarten onder elkaar op een vlakke grond liggen en er dus
+niets te zien is voor de rekentijd die de vervaging kost. Op papier gaat het er ook af.
+
+**Nagemeten in plaats van aangenomen** (regel 10 van `CLAUDE.md`). De ingelogde schermen zijn zonder
+Supabase-inlog niet te fotograferen, dus is er een harnas gebouwd dat vier schermen nabouwt uit de
+echte componentmarkup en de échte `app/globals.css` met Tailwind compileert. Daarmee zijn beide
+standen vóór en ná naast elkaar gezet. Uitkomst voor donker: van de acht vergelijkingen (vier
+schermen × de eigen keuze en de systeemvoorkeur) zijn er zeven byte-identiek. De achtste, de dialoog
+via de eigen keuze, verschilt op **48 van de 1.296.000 pixels met een grootste kanaalafwijking van
+1 op 255**: dat is de afronding die ontstaat doordat een `backdrop-filter`-regel, ook met waarde
+`none`, het paneel op een eigen tekenlaag zet. Onzichtbaar, maar het staat hier omdat "byte-identiek"
+en "bijna byte-identiek" niet hetzelfde zijn.
+
+**Wat er niet is gebeurd:** niets naar productie, geen samenvoeging naar `main`, en geen tweede
+ronde. De eigenaar beoordeelt eerst de vergelijkingsbeelden en zegt daarna of het effect sterker of
+zwakker moet.
