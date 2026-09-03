@@ -7833,6 +7833,46 @@ async function main(): Promise<void> {
         vpAlgemeen.mag && vpAlgemeen.stand === "schrijven",
         vpAlgemeen.stand,
       );
+
+      // ── 6. V7: een pagina zonder lezer wordt niet geschreven ─────────────
+      //
+      // Deze pagina heeft geen `target_intent`, maar wel doelvragen in zijn
+      // bevroren aanbeveling, en die vullen de lezersopdracht. Dat is precies
+      // de terugval die `bepaalLezersopdracht()` bedoelt, en hij is hier eind
+      // tot eind te zien: dezelfde pagina zonder doelvragen komt er niet door.
+      const { bepaalLezersopdracht } = await import("@/lib/lezersopdracht");
+      const { recommendationFromSnapshot } = await import("@/lib/pipeline/briefing");
+      const vpSnapshot = recommendationFromSnapshot(
+        (vpPoortRij[0] as { briefing_snapshot_json: unknown }).briefing_snapshot_json,
+      );
+      const vpDoelvragen = (vpSnapshot?.targets ?? []).map((t) => t.text).filter(Boolean);
+      ok(
+        "zonder doelomschrijving valt de lezer terug op de gemeten vraag",
+        bepaalLezersopdracht({ targetIntent: null, doelvragen: vpDoelvragen }).bron === "meting",
+        `doelvragen: ${vpDoelvragen.length}`,
+      );
+
+      const vpZonderVragen = await beoordeelPagina(admin as never, {
+        analysisId: vpAnalysisId,
+        profileId: vpProfileId,
+        piece: {
+          ...(vpPoortRij[0] as object),
+          write_mode: null,
+          target_intent: null,
+          briefing_snapshot_json: null,
+        } as never,
+        bewaar: false,
+      });
+      ok(
+        "maar zonder doelomschrijving én zonder gemeten vraag gaat de poort dicht",
+        vpZonderVragen.mag === false && vpZonderVragen.stand === "tegenhouden",
+        `${vpZonderVragen.stand} bij ${vpZonderVragen.graad}%`,
+      );
+      ok(
+        "en de melding zegt dat we niet weten voor wie de pagina is",
+        vpZonderVragen.melding.includes("voor wie deze pagina is"),
+        vpZonderVragen.melding,
+      );
     }
 
 

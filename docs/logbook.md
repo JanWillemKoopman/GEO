@@ -7174,3 +7174,42 @@ tellingen kunnen groen worden zonder dat die vraag beantwoord is. Verder blijven
 buiten schot (tien van de twaalf pagina's hebben er acht, sommige een woordelijke kopie van een
 sectie erboven) en blijft de reparatiestap ongemoeid, terwijl die per sectie werkt en dat precies de
 manier is om een tekst verder in losse antwoorden uiteen te laten vallen.
+
+## 3 september 2026: V7, een pagina zonder lezer wordt niet meer geschreven
+
+Het eerste voorstel uit de copywriterronde is gebouwd. De externe copywriter noemde "schrijf vanuit
+de situatie van de lezer" zijn belangrijkste van drie punten, en bij ACHT van de twaalf beoordeelde
+pagina's stond zowel "Geen doelomschrijving vastgelegd" als "Er waren geen specifiek gemeten vragen
+aan deze pagina gekoppeld", steeds allebei bij dezelfde acht. Zijn hoofdpunt faalde dus niet bij het
+schrijven maar bij de invoer.
+
+**De nieuwe module** `lib/lezersopdracht.ts` (puur, conventie 2) bepaalt uit drie bronnen voor wie
+een pagina is, in deze volgorde: de doelomschrijving van de aanbeveling (`klant`), anders de
+zwaarste gemeten vraag omgezet naar "Iemand die aan een AI-assistent vraagt: ..." (`meting`), anders
+niets (`geen`). Hij weigert waarden die ingevuld lijken maar niets zeggen ("onbekend", "-", "n.v.t.")
+en labels van minder dan vier woorden, want "Daklekkage Apeldoorn" is een onderwerp en geen lezer.
+Daarnaast telt hij of de opdracht een PERSOON noemt, met een gesloten lijst persoonswoorden. Dat
+blokkeert niet: "Bekkenfysiotherapie in Utrecht bij urineverlies" is een echte doelomschrijving uit
+de ronde van 3 september die wél door de poort komt maar geen persoon noemt, en dan vraagt de
+schrijfprompt het model om er eerst zelf een lezer bij te bedenken.
+
+**Het vangnet** zit in `inputpoort()`, vóór de dure schrijfaanroep: `heeftLezer: false` levert
+"tegenhouden" op. Die staat bewust vóór de keuze voor een algemene pagina, want die keuze
+beantwoordt een andere vraag (mag het zonder eigen cijfers) en ook een algemene uitleg heeft een
+lezer nodig. En vóór de graad, want een pagina kan volledig onderbouwd zijn en nog steeds voor
+niemand geschreven worden: van de twaalf pagina's haalden er elf de graad en misten er acht een
+lezer. Geen muur: de melding noemt drie uitwegen, net als de ondergrens. Weglaten van het veld
+verandert niets aan het oordeel (conventie 3).
+
+**De prompts.** De schrijfprompt kreeg `lezersblok()` op de plek van het kale "Doel:"-veld, mét de
+instructie om bij de situatie van de lezer te beginnen en weg te laten wat die persoon nu niet nodig
+heeft. Het rapportmodel krijgt de vorm nu expliciet opgedragen: welk type persoon, welk probleem,
+welke beslissing, met "een onderwerp is geen lezer" erbij en het verbod om er "onbekend" in te
+zetten.
+
+⚠️ **Dit houdt pagina's tegen die vandaag geschreven worden.** Op de ronde van 3 september waren dat
+er acht van de twaalf. Dat is de bedoeling, en het is wel een gedragswijziging op levende data: een
+ronde kan minder pagina's opleveren totdat het rapportmodel de doelomschrijving vult. Vier controles
+groen: typecheck, 4140 unittests (28 nieuwe), 639 ketentests (3 nieuwe), build. Het ketenscenario
+laat de terugval eind tot eind zien: dezelfde pagina zonder doelomschrijving komt er via zijn
+gemeten vragen wél door, en zonder allebei niet.

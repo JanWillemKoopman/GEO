@@ -60,6 +60,7 @@ import type { QualityIssue } from "@/lib/pipeline/quality-issue";
 import { issuesUitJson } from "@/lib/pipeline/quality-issue";
 import { formatExplainerBlock, type VerifiedExplainer } from "@/lib/pipeline/explainer-verify";
 import { describeToneSliders, describePronoun } from "@/lib/pipeline/tone-sliders";
+import { bepaalLezersopdracht, lezersblok } from "@/lib/lezersopdracht";
 import { objectionsRule } from "@/lib/pipeline/commercial-context";
 import {
   chooseExistingText,
@@ -580,7 +581,12 @@ function buildContentInput(args: {
     competitors.length ? `NIET noemen op deze pagina (concurrenten): ${competitors.join(", ")}` : "",
     "",
     `Te maken pagina: "${rec.title}" (type: ${rec.type})`,
-    `Doel: ${rec.targetIntent}`,
+    // ✅ V7: de lezersopdracht in plaats van een kaal "Doel:"-veld. De externe
+    // copywriter van 3 september noemde dit zijn belangrijkste van drie punten,
+    // en bij acht van de twaalf beoordeelde pagina's was dit veld leeg. De
+    // poort in `content-input-gate.ts` houdt zo'n pagina nu tegen; dit blok
+    // zorgt ervoor dat de schrijver hem gebruikt als hij er wel is.
+    lezersblok(bepaalLezersopdracht({ targetIntent: rec.targetIntent, doelvragen: targets.map((t) => t.text) })),
     `Achtergrond: ${rec.why}`,
     TYPE_GUIDANCE[rec.type],
     // 4.10, lengte sturen in plaats van achteraf tellen.

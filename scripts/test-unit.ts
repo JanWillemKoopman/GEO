@@ -162,6 +162,7 @@ import {
   zetContractVast,
 } from "@/lib/pipeline/input-coverage";
 import { inputpoort, GOED_GENOEG, TE_WEINIG } from "@/lib/content-input-gate";
+import { bepaalLezersopdracht, lezersblok, noemtPersoon, MIN_WOORDEN } from "@/lib/lezersopdracht";
 import {
   normaliseerContract,
   formatContract,
@@ -17863,6 +17864,74 @@ group("Overslaan haalt de sectie eruit (vragen-voor-het-schrijven §6)", () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
+console.log("\nV7: voor wie is deze pagina? (contentkwaliteit-copywriterronde.md)");
+
+group("de lezersopdracht kiest zijn bron in de goede volgorde", () => {
+  // De doelomschrijving van de aanbeveling gaat voor: die is voor DEZE pagina
+  // bedacht. Dit is de echte tekst van de hoofdpagina over daklekkage,
+  // 3 september 2026.
+  const vanKlant = bepaalLezersopdracht({
+    targetIntent:
+      "Mensen in Apeldoorn die vandaag hulp zoeken bij water door het dak en vooraf " +
+      "duidelijkheid over de kosten willen",
+    doelvragen: ["Mijn dak lekt in Apeldoorn; hoe vind ik een dakdekker die vandaag nog kan komen?"],
+  });
+  ok("een echte doelomschrijving wordt gebruikt", vanKlant.bron === "klant", vanKlant.bron);
+  ok("en hij noemt een persoon", vanKlant.noemtPersoon === true);
+
+  // Is die leeg, dan de zwaarste gemeten vraag. Minder scherp, maar wel echt.
+  const vanMeting = bepaalLezersopdracht({
+    targetIntent: "",
+    doelvragen: ["Kan ik in De Meern zonder lange wachttijd terecht voor een pijnlijke knie?"],
+  });
+  ok("zonder doelomschrijving valt hij terug op de meting", vanMeting.bron === "meting");
+  ok("en dan staat de vraag er letterlijk in", vanMeting.zin?.includes("De Meern") === true);
+  ok("ook die opdracht noemt een persoon", vanMeting.noemtPersoon === true);
+
+  // ⚠️ Dit is het geval dat op 3 september acht van de twaalf pagina's trof:
+  // geen doelomschrijving én geen gemeten vraag.
+  const geen = bepaalLezersopdracht({ targetIntent: "", doelvragen: [] });
+  ok("zonder allebei is er geen lezer", geen.bron === "geen");
+  ok("en dus geen opdracht", geen.zin === null);
+
+  // Een model dat een verplicht veld moet vullen en niets weet, schrijft
+  // "onbekend". Dat mag niet als lezer doorgaan.
+  ok("\"onbekend\" telt niet als lezer", bepaalLezersopdracht({ targetIntent: "onbekend" }).bron === "geen");
+  ok("een leeg streepje ook niet", bepaalLezersopdracht({ targetIntent: "-" }).bron === "geen");
+
+  // Een onderwerp is geen opdracht.
+  ok(
+    "een label van twee woorden is geen lezersopdracht",
+    bepaalLezersopdracht({ targetIntent: "Daklekkage Apeldoorn" }).bron === "geen",
+  );
+  ok("de grens staat op vier woorden", MIN_WOORDEN === 4);
+});
+
+group("de lezersopdracht ziet het verschil tussen een onderwerp en een persoon", () => {
+  ok("\"iemand die\" is een persoon", noemtPersoon("Iemand die water door zijn plafond ziet komen"));
+  ok("\"mensen die\" ook", noemtPersoon("Mensen die vandaag hulp zoeken"));
+
+  // De echte doelomschrijving van de bekkenbodempagina van 3 september. Vier
+  // woorden lang genoeg, maar het is een onderwerp met een plaatsnaam.
+  const onderwerp = bepaalLezersopdracht({
+    targetIntent: "Bekkenfysiotherapie in Utrecht bij urineverlies, met of zonder verwijzing",
+  });
+  ok("een onderwerp komt er wel door", onderwerp.bron === "klant");
+  ok("maar telt niet als persoon", onderwerp.noemtPersoon === false);
+  ok(
+    "en dan vraagt de prompt om er eerst een persoon van te maken",
+    lezersblok(onderwerp).includes("nog geen persoon"),
+  );
+
+  // Het blok zelf: de opdracht staat erin en de instructie om bij de lezer te
+  // beginnen, want dat is regel 1 van de copywriter.
+  const blok = lezersblok(bepaalLezersopdracht({ targetIntent: "Iemand die zijn oude dak wil isoleren zonder de pannen te vervangen" }));
+  ok("het blok noemt de lezer", blok.includes("DE LEZER VAN DEZE PAGINA"));
+  ok("en zegt: begin bij zijn situatie", blok.includes("niet bij het bedrijf"));
+  ok("en zegt wat er weg mag", blok.includes("laat je weg"));
+  ok("zonder lezer is er geen blok", lezersblok(bepaalLezersopdracht({})) === "");
+});
+
 group("De inputpoort: kan deze pagina goed worden? (vragen-voor-het-schrijven §4)", () => {
   const poort = (graad: number | null, ongedekt = 2, koppen: string[] = ["de prijs", "het werkgebied"]) =>
     inputpoort({ graad, ongedekteSecties: ongedekt, ongedekteKoppen: koppen });
@@ -17890,6 +17959,27 @@ group("De inputpoort: kan deze pagina goed worden? (vragen-voor-het-schrijven §
   const gekozen = inputpoort({ graad: 10, ongedekteSecties: 5, writeMode: "algemeen" });
   ok("wie kiest voor een algemene pagina komt er altijd door", gekozen.mag === true);
   ok("en krijgt niet nog eens dezelfde vraag", gekozen.stand === "schrijven");
+
+  // ── V7: een pagina zonder lezer wordt niet geschreven ─────────────────────
+  //
+  // Ook niet bij een volle onderbouwing, want dat is een andere vraag. Van de
+  // twaalf pagina's van 3 september haalden er elf de graad en misten er acht
+  // een lezer.
+  const zonderLezer = inputpoort({ graad: 100, ongedekteSecties: 0, heeftLezer: false });
+  ok("zonder lezer gaat de poort dicht", zonderLezer.mag === false);
+  ok("ook bij een volledig onderbouwde pagina", zonderLezer.stand === "tegenhouden");
+  ok("de melding zegt waaróm", zonderLezer.melding.includes("voor wie deze pagina is"));
+  ok("en noemt de uitweg: beschrijf de lezer", zonderLezer.melding.includes("in één zin"));
+  ok("of koppel er een gemeten vraag aan", zonderLezer.melding.includes("gemeten vraag"));
+  ok("of laat hem vallen", zonderLezer.melding.includes("laten vallen"));
+
+  // De keuze voor een algemene pagina beantwoordt een ANDERE vraag: mag het
+  // zonder eigen cijfers. Ook een algemene uitleg heeft een lezer nodig.
+  const algemeenZonderLezer = inputpoort({ graad: 80, ongedekteSecties: 0, writeMode: "algemeen", heeftLezer: false });
+  ok("een algemene pagina zonder lezer wordt ook tegengehouden", algemeenZonderLezer.mag === false);
+
+  // ⚠️ Conventie 3: wie het veld niet meegeeft, krijgt exact het oude oordeel.
+  ok("weglaten verandert niets", inputpoort({ graad: 85, ongedekteSecties: 0 }).mag === true);
 
   // De grenzen zijn een startwaarde en worden per pagina bewaard, zodat ze op
   // data bijgesteld kunnen worden in plaats van op gevoel.

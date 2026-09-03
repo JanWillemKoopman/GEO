@@ -31,6 +31,7 @@ import { berekenInputCoverage } from "@/lib/pipeline/input-coverage";
 import { berekenGewogenDekking, poortGraad } from "@/lib/pipeline/evidence-weight";
 import { inputpoort, type InputOordeel, type WriteMode } from "@/lib/content-input-gate";
 import { recommendationFromSnapshot } from "@/lib/pipeline/briefing";
+import { bepaalLezersopdracht } from "@/lib/lezersopdracht";
 import type { ContentContract } from "@/lib/schemas/content-contract";
 
 export interface PaginaOordeel extends InputOordeel {
@@ -104,12 +105,23 @@ export async function beoordeelPagina(
   // De koppen die de melding noemt komen uit de GEWOGEN lijst: die staat op
   // belang gesorteerd, dus de klant leest eerst de sectie die het meeste kost.
   const ongedekteKoppen = gewogen.ongedekt.map((s) => s.heading).filter(Boolean);
+  // ── Voor wie is deze pagina? (V7) ─────────────────────────────────────────
+  //
+  // `target_intent` stond al in POORT_VELDEN maar werd nergens gelezen. De
+  // doelvragen komen uit dezelfde bevroren aanbeveling die hierboven de
+  // feitenkaart stuurt, dus dit kost geen extra query.
+  const lezer = bepaalLezersopdracht({
+    targetIntent: piece.target_intent ?? null,
+    doelvragen: doelvragen,
+  });
+
   const oordeel = inputpoort({
     graad: poortGraad(gewogen),
     ongedekteSecties: gewogen.ongedekt.length,
     ongedekteKoppen,
     kritiekeSectiesZonderBewijs: gewogen.ongedekteKern.length,
     writeMode: (piece.write_mode === "algemeen" ? "algemeen" : null) as WriteMode,
+    heeftLezer: lezer.bron !== "geen",
   });
 
   return { ...oordeel, pieceId: piece.id, title: piece.title, ongedekteKoppen };

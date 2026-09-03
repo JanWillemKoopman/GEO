@@ -91,6 +91,19 @@ export interface InputPoortInput {
   kritiekeSectiesZonderBewijs?: number;
   /** Heeft de klant gekozen voor een algemene pagina zonder eigen cijfers? */
   writeMode?: WriteMode;
+  /**
+   * Is er een LEZER voor deze pagina? (V7, `lib/lezersopdracht.ts`)
+   *
+   * Onwaar betekent: geen doelomschrijving en geen enkele gemeten vraag, dus
+   * niemand om voor te schrijven. Gemeten op de twaalf benchmarkpagina's van
+   * 3 september 2026 was dat acht van de twaalf, en de externe copywriter wees
+   * precies dat aan als het grootste probleem: teksten die alle mogelijke
+   * lezers tegelijk bedienen en daardoor niemand.
+   *
+   * Weglaten werkt en verandert niets (conventie 3): een aanroeper die dit nog
+   * niet meegeeft, krijgt exact het oordeel van voorheen.
+   */
+  heeftLezer?: boolean;
 }
 
 /** "de prijs, het werkgebied en de garantie" */
@@ -115,7 +128,33 @@ export function inputpoort(input: InputPoortInput): InputOordeel {
     ongedekteKoppen = [],
     kritiekeSectiesZonderBewijs = 0,
     writeMode = null,
+    heeftLezer = true,
   } = input;
+
+  // ── Geen lezer: dan valt er niets te schrijven (V7) ───────────────────────
+  //
+  // Deze staat bewust VÓÓR de keuze voor een algemene pagina. Die keuze
+  // beantwoordt een andere vraag ("mag het zonder eigen cijfers"), niet deze
+  // ("voor wie is het"), en een algemene uitleg heeft net zo goed een lezer
+  // nodig. Ook vóór de graad, want een pagina kan 100 procent onderbouwd zijn
+  // en nog steeds voor niemand geschreven worden. Dat is geen theorie: van de
+  // twaalf pagina's van 3 september haalden er elf de graad en misten er acht
+  // een lezer.
+  //
+  // Dit is geen muur (`release-panel.tsx`): de melding noemt drie uitwegen,
+  // net als de ondergrens hieronder.
+  if (!heeftLezer) {
+    return {
+      stand: "tegenhouden",
+      mag: false,
+      graad,
+      melding:
+        "Ik weet nog niet voor wie deze pagina is. Er staat geen omschrijving van de lezer bij, " +
+        "en er hangt ook geen gemeten vraag aan. Dan wordt het een pagina die alles een beetje " +
+        "behandelt en niemand verder helpt. Je kunt in één zin beschrijven wie hier komt en wat " +
+        "die persoon wil weten, er een gemeten vraag aan koppelen, of deze pagina laten vallen.",
+    };
+  }
 
   // ── De klant heeft al gekozen ─────────────────────────────────────────────
   //
