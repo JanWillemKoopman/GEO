@@ -36,6 +36,17 @@ Allebei aangemaakt via `POST /api/profiles` (HTTP 201), de vijftien velden uit �
 `PATCH /api/profiles/<id>` met bron `gesprek`. De contactpersoon is bewust leeg gelaten: een naam en
 een e-mailadres verzinnen bij een echt bestaand bedrijf hoort niet in een testronde thuis.
 
+Het onderzoek liep voor allebei helemaal door, acht taken, nul mislukt. MJB: 64 pagina's gecrawld,
+14 diensten, 7 onderwerpen, dossier compleet, $0,30. Fysio: 78 pagina's, 24 diensten, 6 onderwerpen,
+dossier compleet, $0,25.
+
+| Cluster | Analyse-id |
+|---|---|
+| MJB, daklekkage verhelpen | `8f301aef-8a5c-4130-91ae-5be720601448` |
+| MJB, dakrenovatie en dakisolatie | `467968f3-ab2e-413c-8f2a-c94357f497bd` |
+| Fysio, bekkenfysiotherapie | `9013d0fd-ee98-4dce-92b2-35c6a440c8ff` |
+| Fysio, hardloopblessure behandelen | `ec7d3329-4893-4ee3-9034-cbdf611cfdf5` |
+
 ---
 
 ## 1. ⚠️ Wat "alleen aanmaken, het onderzoek komt later" in de praktijk betekent
