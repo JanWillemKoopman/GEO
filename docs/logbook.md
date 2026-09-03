@@ -6594,3 +6594,69 @@ falen terwijl hij op `main` nog groen was. Bevestigd door de wijziging tijdelijk
 1 mislukt. Gerepareerd door alleen spatie en tab te collabsen, nooit een regeleinde
 (`lib/pipeline/dash-guard.ts`). Dit is precies waarom conventie 10 (nagerekend, niet alleen gebouwd)
 een reparatielus in de eigen werkwijze is en niet alleen een eis aan het product.
+
+---
+
+## Een pagina met 91 punten kan onpubliceerbaar zijn (3 september 2026, migratie 0091)
+
+**De opdracht.** Richt ORBIT ENGINE zo in dat een gegenereerde pagina kwalitatief vergelijkbaar is
+met wat een goede copywriter voor déze klant zou schrijven, en zorg dat de app kan uitleggen wáárom
+een pagina goed of onvoldoende is en wáár in de keten het misging. Nadrukkelijk geen losstaande
+"AI content checker": het volledige advies en de analyse staan in
+[`tasks/contentkwaliteit-framework.md`](tasks/contentkwaliteit-framework.md).
+
+**Wat de meting liet zien.** De zeven pagina's die de nieuwe pijplijn op 1 en 2 september schreef,
+eindstand uit `content_pieces`:
+
+| | waarde |
+|---|---|
+| contractdekking | 86 tot 98 procent |
+| bronherleidbaarheid | 28 tot 39 procent |
+| GEO-score, over alle 43 pagina's | gemiddeld 97,4 |
+| losse opmerkingen per pagina | 45 tot 96 |
+| eindstand | alle zeven `ready` met "check nodig" |
+
+Drie dingen tegelijk. De poort die volledigheid meet, meet woordoverlap met een deelvraag en kan
+niet zien dat de sectie die er staat niets over dit bedrijf zegt. De GEO-score staat zo vaak vol dat
+hij niets meer onderscheidt. En de app schreef zelf tientallen redenen op waarom een pagina niet af
+was, en bood hem aan als af.
+
+**De kern van de ingreep.** Score, zekerheid en blokkade zijn drie getallen geworden die niet
+samengevoegd mogen worden. Een pagina met 91 punten en één kritieke claim zonder bewijs komt niet op
+"klaar om te publiceren" te staan; een pagina met 74 punten en geen blokkade wel. Dat verschil was
+in één boolean (`needs_review`) niet uit te drukken, en die boolean stond aan bij vier verschillende
+situaties met vier verschillende gevolgen.
+
+**Wat er verder staat.** Twaalf kwaliteitsdimensies, elk met een bron die hem kan vullen, en vier
+profielen per contenttype die bepalen welke dimensies meetellen en hoe zwaar (gemeten: een FAQ haalt
+0,7 procent bronherleidbaarheid en een landingspagina 77,1, dus één lat over allebei is per definitie
+fout voor één van de twee). Eén type voor elke bevinding, met de sectie, het bewijs, de verwachting
+en de ketenfase erin. Bewijsdekking die het belang van de sectie weegt in plaats van alleen te
+tellen. Een vierde beoordelaar die als enige meet wat een copywriter onderscheidt, voor ongeveer
+$0,004 per pagina naast de $0,071 van de schrijfaanroep. En een kwaliteitslab waarin het oordeel van
+de app naast dat van een mens ligt.
+
+**Twee dingen zijn tijdens het bouwen anders uitgepakt dan het plan beschreef.**
+
+- **De inputpoort werd bijna een muur.** De eerste vorm van `poortGraad()` gaf bij een ongedekte
+  kernsectie gewoon de kritieke dekking terug. Bij één kernsectie is dat 0 of 100, dus werd de poort
+  een schakelaar: één sectie zonder feit hield de hele pagina tegen. De ketentest viel daarop om, en
+  terecht. Het is een PLAFOND geworden: de graad zakt onder de 70 en de pagina komt in de
+  waarschuwingsstand, met de kernsectie in de melding en de drie uitwegen intact.
+- **De root cause koos de verkeerde oorzaak bij een gelijkspel.** Een pagina met één blokkade uit de
+  kennis (een kernsectie zonder feit) en één uit het schrijven, met drie gewone schrijfbevindingen
+  ernaast, kwam uit op "dit is een schrijfprobleem". Dat is de verkeerde conclusie met een dure
+  staart: `reparatieHeeftZin()` leest de zwaarste oorzaak, dus de app zou drie reparatierondes
+  betalen voor een pagina die geblokkeerd blijft tot de ondernemer zijn vraag beantwoordt. Bij een
+  gelijk aantal blokkades wint nu de fase die een herschrijving NIET kan oplossen. Gemeten op de
+  ronde van 1 september: die rondes kostten $0,78 van de $1,08 per pagina en brachten de kwaliteit
+  van 78 naar 52.
+
+**Wat er nog niet is.** De drempels rusten op zeven pagina's en zijn gedifferentieerd, niet geijkt.
+Daarvoor zijn twintig menselijk beoordeelde pagina's nodig (`IJKING_MINIMUM` in
+`lib/quality-benchmark.ts`), en die verzamelt het kwaliteitslab. Tot die tijd staat op het scherm
+zelf wat er nog aan ontbreekt, in plaats van dat het cijfer een precisie suggereert die het niet
+heeft. Conventie 10: gebouwd en op ketentests geverifieerd, nog niet tegen een echte klantronde
+nagerekend.
+
+Vier controles groen: typecheck, 4060 unittests, 625 ketentests, de productiebuild.

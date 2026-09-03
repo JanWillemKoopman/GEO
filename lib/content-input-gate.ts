@@ -76,6 +76,19 @@ export interface InputPoortInput {
   ongedekteSecties: number;
   /** De koppen van die secties, voor de melding. Hooguit de eerste drie tellen. */
   ongedekteKoppen?: readonly string[];
+  /**
+   * Hoeveel KERNsecties er nog geen bewijs hebben (migratie 0091).
+   *
+   * Een kernsectie is een sectie waarzonder de pagina zijn doel niet bereikt.
+   * Ontbreekt daar het bewijs, dan is het niet meer de vraag of de pagina wat
+   * dunner wordt: hij kan dan niet gepubliceerd worden. De melding zegt dat, ook
+   * als de graad zelf ruim boven de drempel ligt.
+   *
+   * Weglaten werkt en verandert niets, en dat is bewust: een aanroeper die geen
+   * gewogen dekking heeft (een pagina van vóór deze migratie) krijgt precies het
+   * oordeel van voorheen (conventie 3).
+   */
+  kritiekeSectiesZonderBewijs?: number;
   /** Heeft de klant gekozen voor een algemene pagina zonder eigen cijfers? */
   writeMode?: WriteMode;
 }
@@ -96,7 +109,13 @@ function somOp(koppen: readonly string[]): string {
  * `eindpoort()`.
  */
 export function inputpoort(input: InputPoortInput): InputOordeel {
-  const { graad, ongedekteSecties, ongedekteKoppen = [], writeMode = null } = input;
+  const {
+    graad,
+    ongedekteSecties,
+    ongedekteKoppen = [],
+    kritiekeSectiesZonderBewijs = 0,
+    writeMode = null,
+  } = input;
 
   // ── De klant heeft al gekozen ─────────────────────────────────────────────
   //
@@ -128,6 +147,28 @@ export function inputpoort(input: InputPoortInput): InputOordeel {
 
   const koppen = somOp(ongedekteKoppen);
   const watMist = koppen ? ` Het gaat om: ${koppen}.` : "";
+
+  // ── Een KERNsectie zonder bewijs weegt zwaarder dan het percentage ────────
+  //
+  // Punt 5 van de opdracht: 90 procent dekking kan alsnog slecht zijn wanneer
+  // juist de belangrijkste claim niet onderbouwd is. `poortGraad()` levert in
+  // dat geval al de kritieke dekking in plaats van de gewogen, dus de stand
+  // klopt vanzelf; deze regel zorgt ervoor dat de MELDING het ook zegt, in
+  // plaats van "er staat nog een vraag open die hem sterker maakt".
+  if (kritiekeSectiesZonderBewijs > 0 && graad >= TE_WEINIG) {
+    const aantal =
+      kritiekeSectiesZonderBewijs === 1
+        ? "Eén onderdeel dat deze pagina draagt"
+        : `${kritiekeSectiesZonderBewijs} onderdelen die deze pagina dragen`;
+    return {
+      stand: "waarschuwing",
+      mag: true,
+      graad,
+      melding:
+        `${aantal} kan ik nog niet onderbouwen.${watMist} De pagina kan wel geschreven worden, ` +
+        `maar hij is pas klaar voor publicatie als je hier antwoord op geeft.`,
+    };
+  }
 
   if (graad >= GOED_GENOEG) {
     return {

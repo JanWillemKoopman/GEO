@@ -114,6 +114,57 @@ export interface ContractGrenzen {
   existingText?: string | null;
 }
 
+/**
+ * Hoeveel van de secties hoogstens 'kern' mogen zijn.
+ *
+ * Een derde, en dat is een vangnet en geen streefwaarde. Een kernsectie zonder
+ * bewijs is een BLOKKADE (`quality-score.ts`), dus een model dat het label
+ * royaal uitdeelt zet elke pagina dicht waarvan één sectie een feit mist. De
+ * prompt vraagt om terughoudendheid; deze grens garandeert hem.
+ *
+ * Bij vier secties zijn er dus hoogstens één kern, bij negen drie. Er blijft
+ * altijd minstens één kernsectie over: een pagina zonder enige kern heeft geen
+ * doel meer waaraan de bewijsdekking te meten valt.
+ */
+export const KERN_AANDEEL_MAX = 1 / 3;
+
+const BELANGEN = ["kern", "ondersteunend", "optioneel"] as const;
+
+/** Het belang van een sectie, met terugval naar 'ondersteunend' (conventie 3). */
+function geldigBelang(ruw: unknown): "kern" | "ondersteunend" | "optioneel" {
+  return (BELANGEN as readonly string[]).includes(ruw as string)
+    ? (ruw as "kern" | "ondersteunend" | "optioneel")
+    : "ondersteunend";
+}
+
+/**
+ * Snoeit het aantal kernsecties terug tot `KERN_AANDEEL_MAX` van het totaal.
+ *
+ * Welke kernsecties blijven staan: de EERSTE, want een contract staat in
+ * leesvolgorde en de secties die de doelvraag dragen staan vooraan. Alternatief
+ * zou zijn om op woordlengte of op het aantal F-nummers te kiezen, en allebei
+ * meten iets anders dan belang.
+ *
+ * Puur en geëxporteerd, zodat `scripts/test-unit.ts` de verhouding kan narekenen.
+ */
+export function begrensKernsecties<T extends { importance: "kern" | "ondersteunend" | "optioneel" }>(
+  secties: T[],
+): T[] {
+  const kernen = secties.filter((s) => s.importance === "kern").length;
+  const maximum = Math.max(1, Math.floor(secties.length * KERN_AANDEEL_MAX));
+  if (kernen <= maximum) return secties;
+
+  let over = maximum;
+  return secties.map((s) => {
+    if (s.importance !== "kern") return s;
+    if (over > 0) {
+      over--;
+      return s;
+    }
+    return { ...s, importance: "ondersteunend" as const };
+  });
+}
+
 export function normaliseerContract(
   contract: ContentContract,
   grenzen?: ContractGrenzen,
@@ -148,12 +199,28 @@ export function normaliseerContract(
         factRefs: (s.factRefs ?? []).filter((f) => f?.trim()),
         explainerTerms: (s.explainerTerms ?? []).filter((t) => t?.trim()),
         mustCover: (s.mustCover ?? []).filter((m) => m?.trim()),
+        // ── Het sectiebelang, met een vangnet (migratie 0091) ─────────────
+        //
+        // Het model bepaalt het belang; de code bewaakt de verhouding. Zonder
+        // die bewaking is "kern" het label dat het model op alles plakt, en dan
+        // blokkeert elke pagina waarvan één sectie geen feit heeft. De grens
+        // staat in `KERN_AANDEEL_MAX` hieronder; wat erboven uitkomt zakt naar
+        // 'ondersteunend', de sterkste eerst. Precies conventie 1: een
+        // promptinstructie krijgt een deterministisch vangnet.
+        importance: geldigBelang(s.importance),
+        successCriterion: (s.successCriterion ?? "").trim(),
         ...beoordeelSectie(s, bestaand),
       })),
+    pageObjective: (contract.pageObjective ?? "").trim(),
+    targetAudience: (contract.targetAudience ?? "").trim(),
+    avoid: (contract.avoid ?? []).filter((a) => a?.trim()),
     faqQuestions: (contract.faqQuestions ?? []).filter((v) => v?.trim()),
   };
 
-  return snoeiOpDoellengte(opgeschoond, grenzen);
+  return snoeiOpDoellengte(
+    { ...opgeschoond, sections: begrensKernsecties(opgeschoond.sections) },
+    grenzen,
+  );
 }
 
 /**
@@ -267,6 +334,14 @@ export function formatContract(contract: ContentContract | null): string {
   return [
     `DIT IS HET CONTRACT VOOR DEZE PAGINA. Alles wat hier staat MOET erop komen, in deze volgorde. ` +
       `Wij rekenen na of dat gelukt is, sectie voor sectie.`,
+    // Doel, doelgroep en verboden onderwerpen (migratie 0091). De schrijver
+    // kreeg de secties wel en het doel niet, dus hij kon een contract volmaken
+    // zonder te weten waarvoor de pagina bedoeld was.
+    contract.pageObjective?.trim() ? `DOEL VAN DEZE PAGINA: ${contract.pageObjective.trim()}` : "",
+    contract.targetAudience?.trim() ? `GESCHREVEN VOOR: ${contract.targetAudience.trim()}` : "",
+    contract.avoid?.length
+      ? `WAT ER NIET OP MAG (dit is een verbod, geen voorkeur):\n- ${contract.avoid.join("\n- ")}`
+      : "",
     contract.openingAnswer.trim()
       ? `OPENING (de eerste twee zinnen van de pagina, vóór elke inleiding): "${contract.openingAnswer}"`
       : `OPENING: beantwoord de doelvraag in de eerste twee zinnen, vóór elke inleiding, met wat je ` +
@@ -279,6 +354,12 @@ export function formatContract(contract: ContentContract | null): string {
         // model dat het niet mag gebruiken.
         `SECTIE ${i + 1}, kop: "${s.heading}" (ongeveer ${s.targetWords} woorden)`,
         `  beantwoordt: ${s.subQuestion}`,
+        // Het succescriterium is concreter dan de deelvraag en zegt waaraan de
+        // sectie AFGEMETEN wordt; een herstelronde krijgt precies deze zin mee.
+        s.successCriterion?.trim() ? `  geslaagd als: ${s.successCriterion.trim()}` : "",
+        s.importance === "kern"
+          ? `  DIT IS EEN KERNSECTIE: zonder deze sectie bereikt de pagina zijn doel niet`
+          : "",
         s.mustCover.length ? `  moet behandelen: ${s.mustCover.join("; ")}` : "",
         s.factRefs.length ? `  gebruik hier deze feiten: ${s.factRefs.join(", ")}` : "",
         s.explainerTerms.length ? `  leg hier kort uit: ${s.explainerTerms.join(", ")}` : "",

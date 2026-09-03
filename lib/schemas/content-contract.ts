@@ -65,6 +65,40 @@ export const ContractSection = z.object({
    */
   needsBrandFact: z.boolean(),
   /**
+   * Hoe zwaar weegt deze sectie voor het DOEL van de pagina?
+   * (docs/tasks/contentkwaliteit-framework.md §5, punt 5 van de opdracht)
+   *
+   * ── WAAROM DIT ERBIJ MOEST ──────────────────────────────────────────────
+   *
+   * `berekenInputCoverage()` telde elke merkgebonden sectie even zwaar. Een
+   * pagina waarvan negen randsecties onderbouwd zijn en de ene sectie over de
+   * prijs niet, kwam daarmee op 90 procent uit en ging vrolijk door de
+   * inputpoort. Gemeten op de zeven pagina's van 1 en 2 september 2026: alle
+   * zeven haalden 86 tot 98 procent CONTRACTdekking terwijl hun
+   * bronherleidbaarheid tussen de 28 en 39 procent lag. Het percentage klopte
+   * en zei niets.
+   *
+   * `kern` = zonder deze sectie bereikt de pagina zijn doel niet. Ontbreekt hier
+   * het bewijs, dan is dat een blokkade en geen verbeterpunt.
+   * `ondersteunend` = maakt de pagina sterker, is niet fataal.
+   * `optioneel` = mooi meegenomen.
+   *
+   * ⚠️ Een contract van vóór migratie 0091 heeft dit veld niet. `undefined`
+   * telt dan als `ondersteunend`, en dan is de gewogen dekking gelijk aan de
+   * ongewogen dekking van voorheen: een oude pagina verandert niet van oordeel
+   * door een veld dat destijds niet bestond (conventie 3).
+   */
+  importance: z.enum(["kern", "ondersteunend", "optioneel"]),
+  /**
+   * Waaraan je ziet dat deze sectie geslaagd is, in één zin.
+   *
+   * Gaat mee naar de reparatie als `expected` (punt 17 van de opdracht): het
+   * model krijgt niet "maak dit beter" maar "deze sectie hoort te eindigen met
+   * een bedrag of een bandbreedte". Leeg mag: dan valt de reparatie terug op de
+   * deelvraag, en dat is wat er vóór dit veld gebeurde.
+   */
+  successCriterion: z.string(),
+  /**
    * Staat deze sectie al op de BESTAANDE pagina? (O4, migratie 0083)
    *
    * Alleen betekenisvol als deze pagina een bestaande pagina verbetert. Bij een
@@ -95,9 +129,31 @@ export const ContentContract = z.object({
    * hoe het eruit moet zien, en de poort kan er dus op controleren.
    */
   openingAnswer: z.string(),
+  /**
+   * Wat deze pagina moet bereiken, in één zin.
+   * (docs/tasks/contentkwaliteit-framework.md §5, punt 9 van de opdracht)
+   *
+   * Het contract was een inhoudsopgave; het is nu ook de SPECIFICATIE waartegen
+   * de pagina getoetst wordt. Daar hoort het doel bij, want zonder doel is
+   * "beantwoordt deze pagina de goede vraag" niet te beoordelen. De
+   * citeerbaarheidsbeoordelaar krijgt deze zin mee.
+   */
+  pageObjective: z.string(),
+  /** Voor wie deze pagina geschreven is, in één zin. */
+  targetAudience: z.string(),
   sections: z.array(ContractSection),
   /** De vragen die als FAQ op de pagina horen, in de woorden van de lezer. */
   faqQuestions: z.array(z.string()),
+  /**
+   * Wat deze pagina NIET moet doen.
+   *
+   * Bijvoorbeeld: geen prijzen noemen als de klant die niet openbaar wil, of
+   * niet over een dienst beginnen die net gestopt is. Komt uit het onderzoek en
+   * uit de commerciële laag van het merkprofiel. Leeg is de norm; wat hier staat
+   * gaat als expliciet verbod de schrijfopdracht in en wordt achteraf
+   * deterministisch nagerekend door `checkForbiddenTopics()`.
+   */
+  avoid: z.array(z.string()),
   /** Waarom deze opzet bij deze doelvraag past. Alleen voor de audit-trail. */
   reasoning: z.string(),
 });

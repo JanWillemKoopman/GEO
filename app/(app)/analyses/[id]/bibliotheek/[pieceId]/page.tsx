@@ -36,6 +36,15 @@ import type { SiteTemplateProfile } from "@/lib/pipeline/template-detect";
 import { leesHerkomst, terugLink } from "@/lib/origin";
 import type { ContentPiece, ContentPieceTarget } from "@/lib/types/database";
 import { Icon } from "@/components/icon";
+import { requireUser } from "@/lib/auth";
+import { isStaff } from "@/lib/staff";
+import {
+  QualityPanel,
+  QualityInternalPanel,
+  leesQualityJson,
+} from "@/components/quality-panel";
+import { klantOordeel } from "@/lib/pipeline/quality-score";
+import { issuesUitJson } from "@/lib/pipeline/quality-issue";
 
 interface Faq {
   q: string;
@@ -78,6 +87,7 @@ export default async function ContentDetailPage({
   const analysis = await getAnalysis(id);
   if (!analysis) notFound();
 
+  const gebruiker = await requireUser();
   const supabase = await createClient();
   const { data } = await supabase
     .from("content_pieces")
@@ -101,7 +111,14 @@ export default async function ContentDetailPage({
   // Waar deze pagina voor gemaakt is (optimalisatie.md 4.1) en welke versies er
   // eerder waren (4.7).
   const admin = createAdminClient();
-  const [{ data: targetRows }, { data: versionRows }, potentie, { data: templateFacet }] = await Promise.all([
+  const [
+    { data: targetRows },
+    { data: versionRows },
+    potentie,
+    { data: templateFacet },
+    { data: kwaliteitsRondes },
+    magInterneCijfersZien,
+  ] = await Promise.all([
     supabase.from("content_piece_targets").select("*").eq("content_piece_id", pieceId),
     supabase
       .from("content_pieces")
@@ -118,7 +135,47 @@ export default async function ContentDetailPage({
       .eq("profile_id", analysis.profile_id)
       .eq("facet", "sjabloon")
       .maybeSingle(),
+    // De kwaliteitsrondes van deze pagina (migratie 0091). Via de admin-client:
+    // `content_quality_runs` heeft nul policies, net als `jobs`, want dit is
+    // afgeleide data die alleen intern gelezen wordt (conventie 6).
+    admin
+      .from("content_quality_runs")
+      .select("repair_round, score, verdict, blocking_count, retained")
+      .eq("content_piece_id", pieceId)
+      .order("repair_round", { ascending: true }),
+    isStaff(gebruiker.id),
   ]);
+
+  // ── Het kwaliteitsraamwerk (migratie 0091) ────────────────────────────────
+  //
+  // De klant leest één zin en de blokkades; de adviseur ziet de dimensies, de
+  // zekerheid, de ketenfase waar de problemen ontstonden en welke versie
+  // behouden is. Staat er niets in `quality_json` (een pagina van vóór deze
+  // migratie), dan renderen beide blokken niets en blijven de bestaande kaarten
+  // eronder het beeld bepalen (conventie 3).
+  const kwaliteit = leesQualityJson(piece.quality_json);
+  const rondes = (kwaliteitsRondes ?? []).map((rij) => ({
+    ronde: Number(rij.repair_round) || 0,
+    score: rij.score === null ? null : Number(rij.score),
+    verdict: (rij.verdict as string | null) ?? null,
+    blokkades: Number(rij.blocking_count) || 0,
+    retained: rij.retained === true,
+  }));
+  const klantzin = kwaliteit?.verdict
+    ? klantOordeel(
+        {
+          score: kwaliteit.score ?? null,
+          dimensies: kwaliteit.dimensies ?? {},
+          confidence: kwaliteit.confidence ?? 0,
+          verdict: kwaliteit.verdict,
+          blokkades: issuesUitJson(kwaliteit.issues).filter((i) => i.blocking),
+          redenen: kwaliteit.redenen ?? [],
+          onderDeMaat: [],
+          profiel: piece.quality_profile ?? piece.type,
+        },
+        kwaliteit.dekking?.gewogen ?? kwaliteit.dekking?.graad ?? null,
+      )
+    : "";
 
   const templateProfile = (templateFacet?.raw_json as SiteTemplateProfile | null) ?? null;
   const templateExport = buildTemplateExport(
@@ -328,6 +385,11 @@ export default async function ContentDetailPage({
         heeftHuidigeTekst={Boolean(piece.existing_page_text?.trim())}
       />
 
+      {/* Kan deze pagina naar de site van de klant? Eén alinea, de blokkades en
+          de dekking (punt 24 en 30 van de opdracht). Bewust bovenaan: dat is de
+          vraag waarmee iemand dit scherm opent. */}
+      <QualityPanel quality={kwaliteit} klantzin={klantzin} />
+
       {/* "Check nodig" uitleggen (optimalisatie.md 4.13). Het gele label zei
           niet WÁT er gecheckt moest worden; die punten stonden alleen in de ruwe
           API-respons, en die laat je een klant niet lezen. */}
@@ -377,6 +439,17 @@ export default async function ContentDetailPage({
       {/* Kwaliteitscontrole: de GEO-score, het vrijgavepaneel en de
           redactionele samenvatting, als groep vóór het bewerken. */}
       {geo && <GeoScorecard geo={geo} score={piece.geo_score} />}
+
+      {/* De interne analyse. Alleen voor een beheerder, en dus automatisch weg
+          zodra hij de klantweergave aanzet (`lib/staff.ts`): die cookie kan
+          rechten wegnemen en nooit geven. */}
+      {magInterneCijfersZien && (
+        <QualityInternalPanel
+          quality={kwaliteit}
+          rondes={rondes}
+          bronherleidbaarheid={piece.source_coverage}
+        />
+      )}
 
       <ReleasePanel
         analysisId={id}

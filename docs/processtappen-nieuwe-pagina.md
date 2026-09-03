@@ -10,7 +10,7 @@
 > document beantwoordt "wat gebeurt er precies, in welke volgorde". Klopt er iets niet meer, dan is
 > de code leidend: `lib/pipeline/` en `lib/jobs/` zijn de bron waar dit overzicht uit is opgebouwd.
 >
-> **Peildatum: 2 september 2026.**
+> **Peildatum: 3 september 2026.**
 
 ---
 
@@ -159,28 +159,39 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
 58. Het systeem verifieert die gevonden uitleg: alleen wat aantoonbaar klopt, gaat door naar de
     volgende stap.
 59. Het systeem stelt het contentcontract op: de inhoudsopgave die deze pagina echt nodig heeft, met
-    per sectie de vraag of daar een uitspraak over dit specifieke bedrijf bij hoort.
+    per sectie de vraag of daar een uitspraak over dit specifieke bedrijf bij hoort, hoe zwaar die
+    sectie weegt voor het doel van de pagina (kern, ondersteunend of mooi meegenomen), en waaraan je
+    ziet dat hij geslaagd is. Het contract legt ook vast wat de pagina moet bereiken, voor wie hij
+    geschreven is, en wat er juist niet op mag.
 60. Het systeem checkt of er al een vergelijkbare pagina op de site van de klant staat en haalt die
     op, zodat de nieuwe tekst zich daartegen kan afzetten in plaats van hem te herhalen.
 61. Het systeem bouwt de feitenkaart: alles wat met een bron bekend is over dit bedrijf, uit het
     onderzoek, uit het gesprek en uit eerder beantwoorde vragen.
 62. Het systeem berekent welk deel van de secties uit het contract met een feit onderbouwd kan
-    worden.
+    worden. Dat gebeurt op drie manieren tegelijk: het kale percentage, hetzelfde percentage met de
+    kernsecties drie keer zo zwaar, en het percentage over alleen de kernsecties. Die drie zeggen
+    verschillende dingen, en het gemiddelde ervan zegt niets: negen randsecties onderbouwd en de ene
+    sectie over de prijs niet, levert negentig procent op terwijl juist het onmisbare stuk ontbreekt.
 63. Dat percentage bepaalt of er al geschreven mag worden: bij 70 procent of hoger gaat het schrijven
     gewoon door, tussen de 40 en 70 procent mag het schrijven door met een zichtbare waarschuwing
     welke secties eruit vallen, en onder de 40 procent schrijft het systeem nog niet, tenzij de klant
-    zelf kiest om de pagina bewust algemeen te laten schrijven of te laten vallen.
+    zelf kiest om de pagina bewust algemeen te laten schrijven of te laten vallen. Staat er een
+    kernsectie zonder onderbouwing, dan komt de pagina altijd minstens in de waarschuwingsstand, hoe
+    hoog het percentage verder ook is, en de melding noemt precies die sectie.
 
 ## Fase 8. De vragen aan de klant (de briefing)
 
 64. Zodra de laatste pagina uit de gekozen groep zijn contract heeft, start het systeem de
     briefingstap voor de hele groep in één keer.
 65. Het systeem voert een claim-audit uit: welke beweringen heeft elke pagina nodig, en welke
-    daarvan kunnen nog niet onderbouwd worden met de feitenkaart.
+    daarvan kunnen nog niet onderbouwd worden met de feitenkaart. Per bewering legt het systeem ook
+    vast wie hem kan bevestigen. Over algemene vakkennis wordt geen vraag gesteld: een vraag
+    waarvan het antwoord op internet staat, kost meer vertrouwen dan hij oplevert.
 66. Van elk zo'n gat maakt het systeem een korte, begrijpelijke vraag.
-67. Overlappende vragen over meerdere gekozen pagina's worden samengevoegd tot één vraag, tot een
-    maximum van acht vragen in totaal. Zo hoeft de klant niet drie keer los "wat is er inbegrepen"
-    te beantwoorden.
+67. Overlappende vragen over meerdere gekozen pagina's worden samengevoegd tot één vraag. Er geldt
+    een plafond voor de optionele vragen; een vraag die een kernsectie dekt is verplicht en gaat
+    altijd mee, hoeveel het er ook zijn. Zo hoeft de klant niet drie keer los "wat is er inbegrepen"
+    te beantwoorden, en verdwijnt de vraag die de pagina draagt nooit stilzwijgend uit de lijst.
 68. De klant beantwoordt de vragen. Een vraag overslaan mag ook, en telt dan zelf als antwoord.
 69. Elk antwoord wordt losstaand opgeslagen als bevestigd feit: geldt het voor het hele merk, dan
     is het meteen bruikbaar voor alle toekomstige pagina's van dat merk, geldt het alleen voor deze
@@ -204,8 +215,16 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
 75. Een tweede beoordelaar checkt welke zinnen iets over het bedrijf beweren zonder dat de
     feitenkaart die dekking biedt.
 76. Een derde beoordelaar checkt of elke deelvraag uit het contract echt beantwoord wordt, en of een
-    AI-assistent deze pagina zou citeren. Deze drie draaien los van elkaar, zodat één gunstig
-    zelfoordeel de andere twee niet kan overstemmen.
+    AI-assistent deze pagina zou citeren.
+76a. Een vierde beoordelaar kijkt naar vakmanschap: gaat deze pagina over dit bedrijf of zou hij op
+    elke concurrentensite kunnen staan, laat hij vakkennis zien, gaat hij verder dan de oppervlakte,
+    zegt hij iets eigens, klinkt hij als dit bedrijf, en zet hij aan tot contact. Elk cijfer komt
+    met de zin uit de pagina waarop het rust, want een cijfer zonder aanwijsbare zin is een mening.
+    Deze vier draaien los van elkaar, zodat één gunstig zelfoordeel de andere drie niet kan
+    overstemmen.
+76b. Valt een beoordelaar uit, dan telt dat mee als onzekerheid en niet als goedkeuring. Het systeem
+    zegt dan hoeveel van de keuring echt gedaan is, in plaats van de pagina stilzwijgend door te
+    laten.
 77. Het systeem checkt daarnaast de dekking van het contentcontract: hoeveel van de vereiste secties
     staan er echt in.
 78. Het systeem checkt op verboden onderwerpen, verboden woorden, en of de tekst niet "over de
@@ -217,18 +236,35 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
 
 ## Fase 11. De kwaliteitspoort en eventueel herstellen
 
-82. Scoort de tekst onder de redactionele drempel, of overtreedt hij een harde regel, dan gaat de
-    pagina naar "moet nog nagekeken worden" in plaats van meteen door.
+81a. Het systeem vertaalt alle uitkomsten van fase 10 naar één soort bevinding, met per bevinding de
+    sectie, waarop hij rust, wat er had moeten staan, wat eraan te doen is, of hij publicatie
+    tegenhoudt, en uit welke stap van de keten hij voortkomt.
+81b. Uit die bevindingen komen drie getallen die het systeem bewust niet samenvoegt: hoe goed de
+    pagina is, hoe zeker het systeem van dat oordeel is, en of er een reden is om niet te
+    publiceren. Een pagina van 91 punten met één onderbouwde belofte die ontbreekt, is niet
+    publiceerbaar; een pagina van 74 punten zonder zo'n punt wel.
+81c. Wat "goed" is, verschilt per soort pagina. Een FAQ wordt op andere dingen beoordeeld dan een
+    dienstenpagina, met andere gewichten en een andere ondergrens.
+82. Scoort de tekst onder de drempel die bij dit soort pagina hoort, of overtreedt hij een harde
+    regel, dan gaat de pagina naar "moet nog nagekeken worden" in plaats van meteen door.
 83. Scoort de tekst onder de citeerbaarheidsdrempel, dan stuurt het systeem de gevonden bevindingen
     terug voor een herstelronde.
 84. Het systeem geeft bij zo'n herstelronde alleen de secties met een concrete bevinding terug aan
-    het model, niet de hele pagina.
+    het model, niet de hele pagina. Per sectie krijgt het model het probleem, waaraan je ziet dat de
+    sectie geslaagd is, welk bewijs het mag gebruiken, en wat de klant expliciet niet beweerd wil
+    hebben. Is er voor een sectie geen bewijs, dan staat dat er letterlijk bij, met het verbod om er
+    iets bij te verzinnen of om de lezer op te dragen het na te vragen.
 85. Het model herschrijft alleen die secties.
 86. De drie beoordelaars beoordelen de nieuwe versie opnieuw.
 87. Het systeem vergelijkt de nieuwe score met de beste score tot nu toe. Alleen bij een echte
     verbetering blijft de nieuwe versie staan en volgt er nog een ronde; blijft de score gelijk of
     zakt hij, dan blijft de vorige, betere versie staan en stopt de lus.
 88. Dit herhaalt zich tot maximaal drie herstelrondes.
+88a. Het systeem stopt eerder zodra het probleem niet met herschrijven op te lossen is. Ontbreekt er
+    een feit over het bedrijf, dan levert een nieuwe ronde dezelfde pagina in andere woorden op; dan
+    gaat het punt naar de klant als vraag in plaats van naar het model als opdracht.
+88b. Van elke ronde blijft vastliggen wat hij scoorde, hoeveel er blokkeerde en of zijn tekst
+    behouden is. Daarmee is achteraf op te zoeken welke versie de beste was en waarom.
 
 ## Fase 12. De eindcontrole
 

@@ -33,29 +33,33 @@ import { currentPiece } from "@/lib/jobs/content-jobs";
 import { callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
 import { ContentPiece } from "@/lib/schemas/content-piece";
-import { geoScore, geoIssues } from "@/lib/schemas/critique";
 import { ContentPatch } from "@/lib/schemas/content-patch";
 import type { ContentContract } from "@/lib/schemas/content-contract";
 import type { ItemDossier } from "@/lib/schemas/item-dossier";
 import { formatContract } from "@/lib/pipeline/contract-format";
-import { checkContractCoverage } from "@/lib/pipeline/content-coverage";
 import { answerBelongsHere } from "@/lib/pipeline/answer-scope";
-import { prioriteerBevindingen, MAX_BEVINDINGEN_PER_RONDE } from "@/lib/pipeline/content-issues";
+import { MAX_BEVINDINGEN_PER_RONDE } from "@/lib/pipeline/content-issues";
 import { beslisReparatieRonde } from "@/lib/pipeline/content-repair-decision";
 import { usdToEur } from "@/lib/spend-rules";
 import { applySectionPatch, splitSections } from "@/lib/pipeline/content-sections";
-import { runPanel } from "@/lib/pipeline/content-panel";
-import { formatExplainerBlock, type VerifiedExplainer } from "@/lib/pipeline/explainer-verify";
 import {
-  checkContentGate,
-  checkQuality,
-  checkSourceTalk,
-  checkTabooWords,
-  checkForbiddenTopics,
-} from "@/lib/pipeline/content-gate";
+  keurPagina,
+  bewaarKwaliteitsronde,
+  leesKwaliteitsrondes,
+} from "@/lib/pipeline/quality-run";
+import { kiesBesteVersie, nietSlechterDan } from "@/lib/pipeline/quality-score";
+import { beschrijfRootCause, reparatieHeeftZin } from "@/lib/pipeline/root-cause";
+import {
+  prioriteerIssues,
+  issuesUitTekstOfType,
+  bouwReparatieOpdracht,
+  bouwBlokkadeKop,
+} from "@/lib/pipeline/quality-repair";
+import type { QualityIssue } from "@/lib/pipeline/quality-issue";
+import { issuesUitJson } from "@/lib/pipeline/quality-issue";
+import { formatExplainerBlock, type VerifiedExplainer } from "@/lib/pipeline/explainer-verify";
 import { describeToneSliders, describePronoun } from "@/lib/pipeline/tone-sliders";
 import { objectionsRule } from "@/lib/pipeline/commercial-context";
-import { mostSimilar } from "@/lib/pipeline/similarity";
 import {
   chooseExistingText,
   matchExistingPage,
@@ -680,7 +684,15 @@ const REPAIR_SYSTEM =
  */
 function buildRepairInput(args: {
   piece: ContentPiece;
-  issues: string[];
+  /**
+   * De bevindingen als TYPE en niet als losse zinnen (migratie 0091).
+   *
+   * Het verschil zit in wat het model ermee kan: een zin zegt wat er mis is, een
+   * bevinding zegt daarnaast in welke sectie, met welk bewijs, en wat er in de
+   * plaats moet komen. Zie `lib/pipeline/quality-repair.ts` voor waarom de
+   * rondes zonder dat verschil op productie niets opleverden.
+   */
+  issues: QualityIssue[];
   facts: FactItem[];
   contract: ContentContract | null;
   explainerBlock: string;
@@ -689,6 +701,10 @@ function buildRepairInput(args: {
 }): string {
   const { piece, issues, facts, contract, explainerBlock, brandName, revisionNote } = args;
   const secties = splitSections(piece.bodyMarkdown);
+  // Wat de klant expliciet NIET beweerd wil hebben. Staat als verbod op de
+  // feitenkaart (`allowed: false`) en hoort in de opdracht, want een reparatie
+  // die een gat vult met precies het verboden antwoord is erger dan het gat.
+  const verboden = facts.filter((f) => !f.allowed).map((f) => f.text);
 
   return [
     `Bedrijf: ${brandName}`,
@@ -711,9 +727,8 @@ function buildRepairInput(args: {
       : "",
     "",
     "── TE REPAREREN ──",
-    issues.length
-      ? issues.map((i) => `- ${i}`).join("\n")
-      : "- Geen concrete bevindingen; laat de pagina dan ongewijzigd en geef een lege sectielijst terug.",
+    bouwBlokkadeKop(issues),
+    bouwReparatieOpdracht({ issues, contract, facts, verboden }),
     "",
     `Huidige metatitel: "${piece.metaTitle}"`,
     `Huidige metabeschrijving: "${piece.metaDescription}"`,
@@ -1818,141 +1833,69 @@ export async function draftContentPiece(args: {
     ? resumeId!
     : await persistDraft(admin, draftRow, { resumeId, currentId: current?.id ?? null });
 
-  // ── Het beoordelaarspanel (A5) ───────────────────────────────────────────
+  // ── De keuring (A5, migratie 0091) ───────────────────────────────────────
   //
-  // Drie beoordelaars tegelijk in plaats van één die alles deed: redactie,
-  // feitelijkheid en citeerbaarheid. Alle drie op de goedkope tier, maar mét
-  // redeneertijd; samen kosten ze minder dan een cent, tegenover $0,15 voor de
-  // schrijfaanroep hierboven. Zie lib/pipeline/content-panel.ts voor waarom één
-  // beoordelaar hier niet volstond.
-  const panel = await runPanel({
-    bodyMarkdown: draft.parsed.bodyMarkdown,
-    faq: draft.parsed.faq ?? [],
+  // Vier beoordelaars parallel plus tien deterministische controles, en daarna
+  // het wegen tot score, zekerheid en oordeel. Alles staat in
+  // `lib/pipeline/quality-run.ts`, zodat de reparatieronde hieronder letterlijk
+  // dezelfde keuring draait: ze liepen uit elkaar toen ze allebei hun eigen
+  // kopie hadden.
+  const keuring = await keurPagina({
+    piece: draft.parsed,
     title: recommendation.title,
+    type: recommendation.type,
     brandName,
     targetQuestions: targets.map((t) => t.text),
     contract: ctx.contract,
     facts: ctx.facts,
+    profile: ctx.profile,
+    competitors: ctx.competitors,
+    distinctiveAnswers: ctx.distinctiveAnswers,
+    siblingPages: await loadSiblingPages(
+      admin,
+      analysis.profile_id,
+      pieceId,
+      ctx.existing.page?.url ?? null,
+    ),
     analysisId,
     profileId: analysis.profile_id,
-  });
-  const critique = panel.critique;
-
-  const geo = critique.geo;
-  // ── De deterministische poort (R8.2/R8.7/R8.8) ───────────────────────────
-  //
-  // Niet ná maar NAAST de zelfrapportage van het model, en zijn oordeel wint.
-  // In de contentronde gaven de vijf zelfbeoordeelde booleans 100/100 op alle
-  // tien de pagina's, óók op de pagina waarvan dezelfde aanroep in z'n eigen
-  // verbeterpunten schreef dat de hoofdvraag niet beantwoord werd.
-  const gate = checkContentGate({
-    bodyMarkdown: draft.parsed.bodyMarkdown,
-    faq: draft.parsed.faq ?? [],
-    brandName,
-    targetQuestions: targets.map((t) => t.text),
-    distinctiveAnswers: ctx.distinctiveAnswers,
-  });
-  const geo_score = gate.score ?? geoScore(geo);
-
-  // ── De dekkingspoort op het contract (A3) ────────────────────────────────
-  //
-  // De enige controle die weet wat "compleet" voor DEZE pagina betekent, omdat
-  // hij tegen dezelfde lijst rekent die de opdracht gaf. Zonder contract levert
-  // hij `null` en telt hij nergens in mee (conventie 3).
-  const coverage = checkContractCoverage({
-    contract: ctx.contract,
-    bodyMarkdown: draft.parsed.bodyMarkdown,
-    faq: draft.parsed.faq ?? [],
-    claims: draft.parsed.claims ?? [],
+    // Lag er bewijs voor deze pagina? Bepaalt of een lege sectie een
+    // schrijfprobleem is of een kennisprobleem (`root-cause.ts`).
+    bewijsAanwezig: ctx.facts.some((f) => f.citable && f.allowed),
   });
 
-  // ── De tweede poort: kwaliteit, los van de GEO-score ─────────────────────
-  //
-  // Bewust NIET in `geo_score` verrekend. Zie de toelichting bij `checkQuality`:
-  // twee checks erbij zou de score van vorige maand onvergelijkbaar maken met
-  // die van vandaag, terwijl de app trends toont.
-  // Zinnen die over de bestaande pagina of onze feitenkaart praten in plaats van
-  // over het onderwerp (2 september 2026). Gaat als bevinding de gerichte
-  // reparatie in, net als de andere kwaliteitsbevindingen.
-  const bronpraat = checkSourceTalk(draft.parsed.bodyMarkdown);
-  if (bronpraat.sentences.length > 0) {
+  // De gemeten waarden altijd loggen, ook onder de drempel: zonder die reeks kan
+  // geen enkele drempel ooit op echte data bijgesteld worden.
+  if (keuring.gelijkenis !== null) {
     console.info(
-      `Contentpagina ${pieceId}: ${bronpraat.sentences.length} zin(nen) over onze eigen bronnen.`,
+      `Contentpagina ${pieceId}: gelijkenis ${keuring.gelijkenis.score.toFixed(2)} ` +
+        `met "${keuring.gelijkenis.title}".`,
     );
   }
-
-  const quality = checkQuality({
-    bodyMarkdown: draft.parsed.bodyMarkdown,
-    mostSimilar: mostSimilar(
-      draft.parsed.bodyMarkdown,
-      await loadSiblingPages(admin, analysis.profile_id, pieceId, ctx.existing.page?.url ?? null),
-    ),
-  });
-  // De gemeten waarde altijd loggen, ook onder de drempel: zonder die reeks kan
-  // de drempel van 0,35 nooit op echte data bijgesteld worden.
-  if (quality.gemeten.gelijkenis !== null) {
-    console.info(
-      `Contentpagina ${pieceId}: gelijkenis ${quality.gemeten.gelijkenis.toFixed(2)} ` +
-        `met "${quality.gemeten.gelijkenisMet}", ` +
-        `gemiddelde zinslengte ${quality.gemeten.gemiddeldeZinslengte}.`,
-    );
-  }
-
-  // Zinnen die een uitspraak doen over het bedrijf zonder dat het model ze als
-  // bewering aanmeldde (S3). Dat is de categorie waarin beide fabricages van
-  // 31 juli vielen, en de herschrijfronde kan er iets mee: de zin staat erbij.
-  const { untagged } = assessClaims(draft.parsed, ctx.facts, brandName);
-  const brononderbouwing =
-    untagged.length > 0
-      ? [
-          `${untagged.length} zin(nen) doen een uitspraak over het bedrijf zonder bron: ` +
-            `${untagged.slice(0, 2).map((d) => `"${d.sentence}"`).join(", ")}` +
-            `${untagged.length > 2 ? ` (en nog ${untagged.length - 2})` : ""}. ` +
-            `Onderbouw ze met een F-nummer of haal ze weg.`,
-        ]
-      : [];
-
-  // ✅ Migratie 0045 (C.29): verboden woorden, deterministisch teruggecontroleerd.
-  // Nooit een gok of de prompt gewerkt heeft; nagemeten op de daadwerkelijke tekst.
-  const taboo = checkTabooWords(draft.parsed.bodyMarkdown, draft.parsed.faq ?? [], ctx.profile?.taboo_phrases ?? []);
-  // Migratie 0060: hetzelfde vangnet, maar dan voor hele onderwerpen waar de
-  // klant juridisch of concurrentiegevoelig niet over mag publiceren.
-  const verbodenOnderwerpen = checkForbiddenTopics(
-    draft.parsed.bodyMarkdown,
-    draft.parsed.faq ?? [],
-    ctx.profile?.forbidden_topics ?? [],
+  console.info(
+    `Contentpagina ${pieceId}: kwaliteit ${keuring.evaluatie.score ?? "?"}, ` +
+      `zekerheid ${keuring.evaluatie.confidence}%, oordeel ${keuring.evaluatie.verdict}, ` +
+      `${keuring.evaluatie.blokkades.length} blokkerend van ${keuring.issues.length} bevindingen. ` +
+      beschrijfRootCause(keuring.rootCause),
   );
 
-  // De GEO-tekortkomingen worden gewone verbeterpunten: de herschrijfronde weet
-  // dan precies wát er moet veranderen in plaats van "beter maken".
-  const issues = [
-    ...panel.issues,
-    ...geoIssues(geo),
-    ...gate.issues,
-    ...coverage.issues,
-    ...quality.issues,
-    ...bronpraat.issues,
-    ...brononderbouwing,
-    ...taboo.issues,
-    ...verbodenOnderwerpen.issues,
-  ];
+  const issues = keuring.teksten;
 
-  const needsRevise =
-    !critique.followsRules ||
-    critique.qualityScore < REVIEW_THRESHOLD ||
-    geo_score < GEO_THRESHOLD ||
-    (coverage.score !== null && coverage.score < COVERAGE_THRESHOLD) ||
-    issues.length > 0;
+  // ── Wat er met deze pagina gebeurt ───────────────────────────────────────
+  //
+  // `pass` is de enige stand waarin de pagina zonder voorbehoud klaar is.
+  // `repair` gaat de reparatielus in. `block` óók, want een blokkade is soms wél
+  // te repareren (een verboden woord, een zin over onze eigen bronnen); is hij
+  // dat niet, dan stopt `reparatieHeeftZin()` de lus na de eerste ronde en
+  // blijft de blokkade als reden staan.
+  const needsRevise = keuring.evaluatie.verdict !== "pass";
 
   // De tekst staat er al (hierboven weggeschreven); dit vult alleen het oordeel
   // aan en zet de eindstatus.
   const { error: critiqueError } = await admin
     .from("content_pieces")
     .update({
-      critique_raw_json: panel.raw as never,
-      quality_score: critique.qualityScore,
-      geo_score,
-      coverage_score: coverage.score,
+      ...keuring.kolommen,
       // Het contract en het dossier bewaren bij de tekst die eruit voortkwam
       // (migratie 0082). Zelfde principe als `briefing_snapshot_json`: achteraf
       // moet naast "waarop rustte deze zin" ook "wat had deze pagina moeten
@@ -1960,40 +1903,35 @@ export async function draftContentPiece(args: {
       contract_json: (ctx.contract ?? null) as never,
       // De bestaande pagina waartegen deze tekst geschreven is (migratie 0083).
       // Hier en niet in de planstap: bij een nieuwe pagina bestaat de rij op dat
-      // moment nog niet, want die wordt precies hier aangemaakt. Zonder deze twee
-      // kolommen kan het verschilscherm de klant niet laten zien wat er van zijn
-      // pagina af gaat, en dat is de hele reden dat de tekst opgehaald wordt.
+      // moment nog niet, want die wordt precies hier aangemaakt.
       existing_page_text: ctx.existing.text,
       existing_page_fetched_at: ctx.existing.fetchedAt,
       // Dossier én de geverifieerde uitleg samen, in de vorm die
-      // `loadContentContext` terugleest. De uitleg apart laten staan zou hem bij
-      // de reparatieronde kwijtmaken, en dan repareert het model met minder
-      // materiaal dan waarmee het schreef.
+      // `loadContentContext` terugleest.
       dossier_json: (ctx.dossier || ctx.explainers.length > 0
         ? { dossier: ctx.dossier, explainers: ctx.explainers }
         : null) as never,
-      // Beide oordelen bewaren: `zelfrapportage` is wat het model ervan vond,
-      // `deterministisch` is wat de code kon vaststellen. Uit elkaar houden
-      // maakt achteraf zichtbaar wannéér die twee gingen afwijken. Precies het
-      // signaal dat deze poort nodig maakte.
-      geo_json: {
-        zelfrapportage: geo,
-        deterministisch: gate.checks,
-        kwaliteit: quality.checks,
-        gemeten: quality.gemeten,
-        dekking: { score: coverage.score, secties: coverage.secties },
-      } as never,
-      // Wat er nog aan schort, in gewone taal (4.13). Stond alleen in de ruwe
-      // API-respons, en die laat je een klant niet lezen.
-      review_notes: issues,
+      // ⚠️ `needs_review` blijft de boolean die zes schermen lezen, en hij staat
+      // nu aan bij álles wat geen `pass` is. Eerder kon een pagina met
+      // tientallen openstaande bevindingen op `ready` eindigen met
+      // `needs_review` false zodra het model toevallig `followsRules` gaf.
+      needs_review: needsRevise,
       // Komt de eerste versie al door de poort, dan is dit meteen de eindstand.
-      needs_review: needsRevise ? true : !critique.followsRules,
       status: needsRevise ? ("draft" as const) : ("ready" as const),
     })
     .eq("id", pieceId);
   if (critiqueError) {
     throw new Error(`Opslaan van de beoordeling mislukt: ${critiqueError.message}`);
   }
+
+  await bewaarKwaliteitsronde(admin, {
+    contentPieceId: pieceId,
+    analysisId,
+    ronde: 0,
+    keuring,
+    retained: true,
+    wordCount: countWords(draft.parsed.bodyMarkdown),
+  });
 
   await saveTargets(admin, pieceId, targets);
 
@@ -2047,6 +1985,18 @@ export async function reviseContentPiece(args: {
   const huidig = pieceFromRow(pieceRow as ContentPieceRow);
   const ronde = ((pieceRow.repair_round as number | null) ?? 0) + 1;
 
+  // ── De bevindingen van de vorige keuring, mét hun structuur ──────────────
+  //
+  // De taakpayload draagt ze als losse zinnen (`lib/jobs/types.ts`), en dat
+  // blijft zo: een taak die vóór een deploy in de wachtrij stond, moet erna nog
+  // werken. Maar de getypeerde vorm staat sinds migratie 0091 op de pagina zelf,
+  // en die draagt de sectie, het bewijs en de verwachting. Die wint, want daar
+  // kan het reparatiemodel iets mee.
+  const opgeslagenIssues = issuesUitJson(
+    (pieceRow.quality_json as { issues?: unknown } | null)?.issues,
+  );
+  const teRepareren = issuesUitTekstOfType(opgeslagenIssues, issues);
+
   // De publicatiedatum van de eerste versie behouden (optimalisatie 2). Staat
   // hij er nog niet, een pagina van vóór deze wijziging. Dan valt hij terug op
   // wanneer de rij is aangemaakt, en dat is precies wat hij moet zijn.
@@ -2065,7 +2015,7 @@ export async function reviseContentPiece(args: {
       // gerichts meer aan een sectiereparatie. `review_notes` hieronder houdt
       // wél de volledige lijst: de klant hoort alles te zien, het model hoort
       // per ronde één handvol te krijgen.
-      issues: prioriteerBevindingen(issues, MAX_BEVINDINGEN_PER_RONDE),
+      issues: prioriteerIssues(teRepareren, MAX_BEVINDINGEN_PER_RONDE),
       facts: ctx.facts,
       contract: ctx.contract,
       explainerBlock: formatExplainerBlock(ctx.explainers),
@@ -2097,131 +2047,114 @@ export async function reviseContentPiece(args: {
       `${issues.length} ${enkelOfMeervoud(issues.length, "bevinding", "bevindingen")} meegegeven.`,
   );
 
-  // ── Opnieuw beoordelen: dezelfde poorten als bij ronde 1 ─────────────────
-  const panel = await runPanel({
-    bodyMarkdown: final.bodyMarkdown,
-    faq: final.faq ?? [],
+  // ── Opnieuw keuren: letterlijk dezelfde keuring als bij de eerste versie ──
+  //
+  // Eén functie (`keurPagina`), zodat de twee paden niet uit elkaar kunnen
+  // lopen. Dat gebeurde eerder wél: de reparatieronde controleerde de
+  // onherleidbare beweringen en de eerste ronde niet, dus een pagina die in één
+  // keer door de poort kwam werd op minder gecontroleerd dan een die gerepareerd
+  // moest worden.
+  const keuring = await keurPagina({
+    piece: final,
     title: recommendation.title,
+    type: recommendation.type,
     brandName,
     targetQuestions: targets.map((t) => t.text),
     contract: ctx.contract,
     facts: ctx.facts,
+    profile: ctx.profile,
+    competitors: ctx.competitors,
+    distinctiveAnswers: ctx.distinctiveAnswers,
+    siblingPages: await loadSiblingPages(
+      admin,
+      analysis.profile_id,
+      contentPieceId,
+      ctx.existing.page?.url ?? null,
+    ),
     analysisId,
     profileId: analysis.profile_id,
-  });
-  const critique = panel.critique;
-  const geo = critique.geo;
-
-  const gate = checkContentGate({
-    bodyMarkdown: final.bodyMarkdown,
-    faq: final.faq ?? [],
-    brandName,
-    targetQuestions: targets.map((t) => t.text),
-    distinctiveAnswers: ctx.distinctiveAnswers,
-  });
-  const geo_score = gate.score ?? geoScore(geo);
-
-  const dekking = checkContractCoverage({
-    contract: ctx.contract,
-    bodyMarkdown: final.bodyMarkdown,
-    faq: final.faq ?? [],
-    claims: final.claims ?? [],
+    bewijsAanwezig: ctx.facts.some((f) => f.citable && f.allowed),
   });
 
-  const bronpraat = checkSourceTalk(final.bodyMarkdown);
-  if (bronpraat.sentences.length > 0) {
-    console.info(
-      `Contentpagina ${contentPieceId}: ${bronpraat.sentences.length} zin(nen) over onze eigen bronnen.`,
-    );
-  }
+  const openstaand = keuring.teksten;
 
-  const quality = checkQuality({
-    bodyMarkdown: final.bodyMarkdown,
-    mostSimilar: mostSimilar(
-      final.bodyMarkdown,
-      await loadSiblingPages(
-        admin,
-        analysis.profile_id,
-        contentPieceId,
-        ctx.existing.page?.url ?? null,
-      ),
-    ),
-  });
-  if (quality.gemeten.gelijkenis !== null) {
-    console.info(
-      `Contentpagina ${contentPieceId}: gelijkenis ${quality.gemeten.gelijkenis.toFixed(2)} ` +
-        `met "${quality.gemeten.gelijkenisMet}", ` +
-        `gemiddelde zinslengte ${quality.gemeten.gemiddeldeZinslengte}.`,
-    );
-  }
-
-  // ✅ Migratie 0045 (C.29), ook op de eindstand: er volgt geen ronde meer zodra
-  // REPAIR_MAX bereikt is, dus een verboden woord dat de reparatie er alsnog in
-  // liet staan, moet nu gevonden worden, niet later door de klant.
-  const taboo = checkTabooWords(final.bodyMarkdown, final.faq ?? [], ctx.profile?.taboo_phrases ?? []);
-  const verbodenOnderwerpen = checkForbiddenTopics(
-    final.bodyMarkdown,
-    final.faq ?? [],
-    ctx.profile?.forbidden_topics ?? [],
+  console.info(
+    `Contentpagina ${contentPieceId}, na ronde ${ronde}: kwaliteit ${keuring.evaluatie.score ?? "?"}, ` +
+      `zekerheid ${keuring.evaluatie.confidence}%, oordeel ${keuring.evaluatie.verdict}, ` +
+      `${keuring.evaluatie.blokkades.length} blokkerend. ` +
+      beschrijfRootCause(keuring.rootCause),
   );
-
-  const { coverage, unsupported, untagged } = assessClaims(final, ctx.facts, brandName);
-  const bronNotitie = [
-    ...(unsupported.length > 0
-      ? [
-          `${unsupported.length} ${enkelOfMeervoud(unsupported.length, "bewering", "beweringen")} konden we niet herleiden tot een bevestigd feit: ` +
-            `${unsupported.slice(0, 3).map((c) => `"${c.claim}"`).join(", ")}` +
-            `${unsupported.length > 3 ? ` (en nog ${unsupported.length - 3})` : ""}. ` +
-            `Controleer of ze kloppen voordat je publiceert.`,
-        ]
-      : []),
-    // De categorie waarin beide fabricages van 31 juli vielen (S3): een zin die
-    // een uitspraak doet over het bedrijf zonder dat het model hem als bewering
-    // aanmeldde. Vóór S3 was zo'n zin onzichtbaar voor élke controle; nu staat
-    // hij letterlijk in de notitie die de klant leest.
-    ...(untagged.length > 0
-      ? [
-          `${untagged.length} zin(nen) doen een uitspraak over het bedrijf zonder bron: ` +
-            `${untagged.slice(0, 2).map((d) => `"${d.sentence}"`).join(", ")}` +
-            `${untagged.length > 2 ? ` (en nog ${untagged.length - 2})` : ""}. ` +
-            `Klopt dit? Zo niet, haal de zin weg.`,
-        ]
-      : []),
-  ];
-
-  const openstaand = [
-    ...panel.issues,
-    ...geoIssues(geo),
-    ...gate.issues,
-    ...dekking.issues,
-    ...quality.issues,
-    ...bronpraat.issues,
-    ...bronNotitie,
-    ...taboo.issues,
-    ...verbodenOnderwerpen.issues,
-  ];
-
-  const scoresTeLaag =
-    !critique.followsRules ||
-    critique.qualityScore < REVIEW_THRESHOLD ||
-    geo_score < GEO_THRESHOLD ||
-    (dekking.score !== null && dekking.score < COVERAGE_THRESHOLD);
 
   // ── Werd de pagina hier beter van? (verbetering 5, herstelplan T1.1/T1.3) ──
   //
-  // Uitbesteed aan `beslisReparatieRonde` (lib/pipeline/content-repair-decision.ts,
-  // conventie 2): puur en met eigen unittests op de echte cijfers van 2
-  // september 2026, want dit is precies de regel waarvan de audit van die dag
-  // dacht dat hij niet klopte. Zie dat bestand voor de volledige toelichting.
+  // Twee vragen, en sinds migratie 0091 wegen ze allebei de BLOKKADES mee:
+  //
+  //  1. `beslisReparatieRonde()` (ongewijzigd) vergelijkt de redactionele score
+  //     met de vorige. Die reeks blijft bestaan en blijft vergelijkbaar.
+  //  2. `nietSlechterDan()` vergelijkt de hele versie, en zet blokkades vóór de
+  //     score: een versie met een punt minder en één blokkade minder is de
+  //     betere, en een hogere score met een nieuwe feitelijkheidsblokkade is een
+  //     verslechtering (punt 20 van de opdracht). Een gelijk gebleven score
+  //     blijft, net als voorheen, geen verlies.
+  //
+  // Bewaren mag alleen als BEIDE het goedvinden. De strengste van de twee wint,
+  // want een tekst die we niet bewaren kost niets en een tekst die we ten
+  // onrechte bewaren staat op de site van de klant.
   const vorigeKwaliteit = pieceRow.quality_score === null ? null : Number(pieceRow.quality_score);
-  const { bewaarNieuweVersie: nietSlechter, nogEenRonde } = beslisReparatieRonde({
-    vorigeKwaliteit,
-    nieuweKwaliteit: critique.qualityScore,
+  const scoresTeLaag = keuring.evaluatie.verdict !== "pass";
+
+  const eerdereRondes = await leesKwaliteitsrondes(admin, contentPieceId);
+  const besteTotNuToe = kiesBesteVersie(
+    eerdereRondes.map((r) => ({
+      ronde: r.ronde,
+      score: r.score,
+      verdict: (r.verdict as "pass" | "repair" | "block" | null) ?? "repair",
+      blokkades: r.blokkades,
+      confidence: r.confidence,
+    })),
+  );
+  const dezeVersie = {
     ronde,
-    repairMax: REPAIR_MAX,
-    scoresTeLaag,
-    openstaandeBevindingen: openstaand.length,
-  });
+    score: keuring.evaluatie.score,
+    verdict: keuring.evaluatie.verdict,
+    blokkades: keuring.evaluatie.blokkades.length,
+    confidence: keuring.evaluatie.confidence,
+  };
+  const gewogenNietSlechter = nietSlechterDan(dezeVersie, besteTotNuToe);
+
+  const { bewaarNieuweVersie: nietSlechterRedactioneel, nogEenRonde: redactioneelDoor } =
+    beslisReparatieRonde({
+      vorigeKwaliteit,
+      nieuweKwaliteit: keuring.panel.critique?.qualityScore ?? (vorigeKwaliteit ?? 0),
+      ronde,
+      repairMax: REPAIR_MAX,
+      scoresTeLaag,
+      openstaandeBevindingen: openstaand.length,
+    });
+
+  const nietSlechter = nietSlechterRedactioneel && gewogenNietSlechter;
+
+  // ── Heeft nog een ronde zin? (punt 19 van de opdracht) ────────────────────
+  //
+  // Herschrijven verandert niets aan een ontbrekend feit: het model krijgt
+  // hetzelfde materiaal en levert dezelfde pagina in andere woorden. Gemeten op
+  // productie kostten de rondes van 1 september $0,78 van de $1,08 per pagina
+  // en ging de kwaliteit van 78 naar 52. Alle drie die pagina's hadden een
+  // bronherleidbaarheid onder de 40 procent, dus alle drie een kennisprobleem.
+  //
+  // `reparatieHeeftZin()` kijkt naar de zwaarste root cause: alleen bij
+  // `schrijven`, `keuring` of `briefing` valt er met een herschrijving iets te
+  // winnen. Ligt het probleem in de kennis, het contract of de kans, dan stopt
+  // de lus en blijft het als benoemd punt naar de klant gaan, want dat lost een
+  // vraag op en geen herschrijving.
+  const heeftZin = reparatieHeeftZin(keuring.rootCause);
+  const nogEenRonde = redactioneelDoor && heeftZin;
+  if (redactioneelDoor && !heeftZin) {
+    console.info(
+      `Contentpagina ${contentPieceId}: geen volgende reparatieronde. ` +
+        beschrijfRootCause(keuring.rootCause),
+    );
+  }
 
   // Ruwe beoordelingen van ALLE rondes bewaren (§5: we bewaren alles).
   const previousCritiques = Array.isArray(pieceRow.critique_raw_json) ? pieceRow.critique_raw_json : [];
@@ -2236,12 +2169,7 @@ export async function reviseContentPiece(args: {
   // de reeks onnavolgbaar maken.
   const nieuweVersie = {
     // `title` bewust NIET bijwerken: de titel uit het rapport is de sleutel
-    // waarop de rest van de app deze pagina terugvindt (zie de toelichting bij
-    // het invoegen in draftContentPiece).
-    // `withFreshnessLine` is idempotent: hij vervangt een bestaande regel in
-    // plaats van er een tweede onder te zetten.
-    //
-    // T8.8: hetzelfde gedachtestreepje-vangnet als bij de eerste versie.
+    // waarop de rest van de app deze pagina terugvindt.
     body_markdown: withFreshnessLine(stripProseDashes(final.bodyMarkdown), herzienOp),
     meta_title: final.metaTitle,
     meta_description: final.metaDescription,
@@ -2254,8 +2182,7 @@ export async function reviseContentPiece(args: {
       businessModel: ctx.profile?.business_model ?? null,
       organization: ctx.schemaOrg,
       // De publicatiedatum blijft van de eerste versie; alleen de
-      // wijzigingsdatum schuift op. Andersom zou elke herziening de pagina
-      // als "nieuw" presenteren en de opgebouwde ouderdom weggooien.
+      // wijzigingsdatum schuift op.
       datePublished: bestaandePublicatie,
       dateModified: herzienOp,
     }),
@@ -2265,33 +2192,17 @@ export async function reviseContentPiece(args: {
       ...c,
       factId: resolveFactId(c.factRef, ctx.facts),
     })) as never,
-    source_coverage: coverage,
     // ⚠️ Werd hier niet bijgewerkt, en dat scheelde meer dan het lijkt
     // (verbetering 10). Op 1 september 2026 stond de Tilburg-pagina in de app
-    // als 896 woorden terwijl de tekst er 1331 telde, ruim het dubbele van het
-    // maximum van 700 voor een landingspagina. Elke uitspraak over "de
-    // gemiddelde pagina telt 548 woorden" mat dus het eerste concept en niet de
-    // pagina die de klant leest.
+    // als 896 woorden terwijl de tekst er 1331 telde.
     word_count: countWords(final.bodyMarkdown),
-    quality_score: critique.qualityScore,
-    geo_score,
-    coverage_score: dekking.score,
-    geo_json: {
-      zelfrapportage: geo,
-      deterministisch: gate.checks,
-      kwaliteit: quality.checks,
-      gemeten: quality.gemeten,
-      dekking: { score: dekking.score, secties: dekking.secties },
-    } as never,
-    review_notes: openstaand,
-    // Een onherleidbare bewering telt, en sinds S3 ook een bewerende zin
-    // zónder claim: dat is precies de vorm waarin de twee fabricages van
-    // 31 juli aan elke controle ontsnapten.
-    needs_review:
-      scoresTeLaag ||
-      openstaand.length > 0 ||
-      unsupported.length > 0 ||
-      untagged.length > 0,
+    // Alle kwaliteitskolommen van de keuring, inclusief `review_notes`,
+    // `quality_json` en de drie dekkingsgetallen.
+    ...keuring.kolommen,
+    // `needs_review` staat aan bij alles wat geen `pass` is. Zie de toelichting
+    // bij de eerste versie: een pagina met tientallen openstaande bevindingen
+    // hoort niet als "klaar om te publiceren" op het scherm te komen.
+    needs_review: keuring.evaluatie.verdict !== "pass",
   };
 
   await admin
@@ -2301,12 +2212,21 @@ export async function reviseContentPiece(args: {
       // Deze drie gelden altijd: de ronde is verbruikt, de ruwe beoordelingen
       // bewaren we van élke ronde (§5), en de status hangt aan de lus.
       repair_round: ronde,
-      critique_raw_json: [...previousCritiques, ...panel.raw] as never,
+      critique_raw_json: [...previousCritiques, ...keuring.panel.raw] as never,
       // Zolang er nog een ronde komt blijft de pagina 'draft': dan pakt de
       // volgende taak hem op. Anders is dit de eindstand.
       status: nogEenRonde ? ("draft" as const) : ("ready" as const),
     })
     .eq("id", contentPieceId);
+
+  await bewaarKwaliteitsronde(admin, {
+    contentPieceId,
+    analysisId,
+    ronde,
+    keuring,
+    retained: nietSlechter,
+    wordCount: countWords(final.bodyMarkdown),
+  });
 
   // De titel kan in de reparatie veranderd zijn; de koppeling met de
   // doelvragen moet blijven staan.
