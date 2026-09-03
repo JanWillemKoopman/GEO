@@ -259,6 +259,17 @@ seconden werk. Ook in mijn eigen onboarding was 215 van de 317 seconden wachten 
 werkerronde. De werker claimt vijf taken per ronde (`CLAIM_BATCH`) en houdt 200 van de 240 seconden
 vrij voor een zware taak.
 
+**Stand (3 september 2026):** bleek al opgelost, ván vóór deze audit. `content_draft` en
+`content_revise` staan sinds 1 september 14:27 uur (commit `0ab729c`, ruim voor deze audit) niet meer
+alleen in `HEAVY_JOB_TYPES` maar ook in de nieuwe `PARALLEL_CONTENT_TYPES`
+(`lib/jobs/types.ts`/`worker.ts`, docs/tasks/contentpijplijn-herontwerp.md A10): de werker draait ze
+per drie tegelijk, met de volle reservering per groep in plaats van per taak. De 2533 seconden
+hierboven zijn dus vermoedelijk het gemiddelde over voornamelijk taken van vóór die reparatie (de
+query telt de hele geschiedenis, niet alleen de recente). Herstelplan T9 kon dit niet met een eigen
+vóór/ná-meting bevestigen: T7 heeft de hele taakgeschiedenis inmiddels leeggemaakt en er is sindsdien
+nog geen nieuwe productieronde geweest om "ná" te meten. Dat cijfer volgt vanzelf zodra er weer een
+klant een pagina laat schrijven.
+
 ### S6. De pagina draagt de interne opdrachtzin als titel
 
 `content_pieces.title` is "Maak de pagina over tandartsangst de duidelijke startpagina voor angst".
