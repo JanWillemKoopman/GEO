@@ -143,8 +143,36 @@ export function analyseerRootCause(
   }
 
   return [...perFase.values()].sort(
-    (a, b) => b.blokkerend - a.blokkerend || b.aantal - a.aantal || a.fase.localeCompare(b.fase),
+    (a, b) =>
+      b.blokkerend - a.blokkerend ||
+      // ⚠️ Bij een gelijk aantal blokkades wint de fase die een HERSCHRIJVING
+      // NIET kan oplossen, ook als daar minder bevindingen uit komen.
+      //
+      // Gemeten in de ketentest: een pagina met één blokkade uit de kennis
+      // (een kernsectie zonder feit) en één uit het schrijven, plus drie gewone
+      // schrijfbevindingen, kwam op "dit is een schrijfprobleem" uit. Dat is de
+      // verkeerde conclusie met een dure staart: `reparatieHeeftZin()` leest de
+      // zwaarste oorzaak, dus de app zou drie reparatierondes betalen voor een
+      // pagina die geblokkeerd blijft tot de ondernemer zijn vraag beantwoordt.
+      //
+      // De volgorde is dus niet "waar zitten de meeste bevindingen" maar "wat
+      // houdt deze pagina tegen": een ontbrekend feit lost geen herschrijving
+      // op, vier stroeve zinnen wel.
+      Number(herschrijvingHelpt(a.fase)) - Number(herschrijvingHelpt(b.fase)) ||
+      b.aantal - a.aantal ||
+      a.fase.localeCompare(b.fase),
   );
+}
+
+/**
+ * Valt deze fase met een herschrijving op te lossen?
+ *
+ * Drie van de zeven: het schrijven zelf, de keuring, en de briefing (daar is de
+ * vraag al gesteld en kan de tekst er alsnog omheen). De andere vier vragen om
+ * een handeling buiten de schrijfronde, en die staat in `FASE_HANDELING`.
+ */
+function herschrijvingHelpt(fase: PipelinePhase): boolean {
+  return fase === "schrijven" || fase === "keuring" || fase === "briefing";
 }
 
 /**
@@ -205,7 +233,7 @@ export function beschrijfRootCause(oorzaken: readonly RootCause[]): string {
 export function reparatieHeeftZin(oorzaken: readonly RootCause[]): boolean {
   const zwaarste = oorzaken[0];
   if (!zwaarste) return false;
-  return zwaarste.fase === "schrijven" || zwaarste.fase === "keuring" || zwaarste.fase === "briefing";
+  return herschrijvingHelpt(zwaarste.fase);
 }
 
 /** De dimensies die op een kennisprobleem wijzen in plaats van op een schrijfprobleem. */

@@ -19190,6 +19190,22 @@ group("De root cause wijst naar de stap waar het ontstond (punt 14)", () => {
   ]);
   eq("de zwaarste oorzaak staat vooraan", oorzaken[0].fase, "kennis");
   ok("met het aantal erbij", oorzaken[0].aantal === 2 && oorzaken[0].blokkerend === 1);
+
+  // ⚠️ Bij een gelijk aantal blokkades wint de fase die een herschrijving NIET
+  // kan oplossen, ook als daar minder bevindingen uit komen. Gemeten in de
+  // ketentest: één kennisblokkade plus één schrijfblokkade met drie gewone
+  // schrijfbevindingen ernaast kwam anders uit op "schrijfprobleem", en dan
+  // betaalt de app drie reparatierondes voor een pagina die geblokkeerd blijft
+  // tot de ondernemer zijn vraag beantwoordt.
+  const gemengd = analyseerRootCause([
+    issue({ phase: "kennis", blocking: true }),
+    issue({ phase: "schrijven", blocking: true }),
+    issue({ phase: "schrijven" }),
+    issue({ phase: "schrijven" }),
+    issue({ phase: "schrijven" }),
+  ]);
+  eq("een kennisblokkade wint van schrijfruis", gemengd[0].fase, "kennis");
+  ok("en dan heeft herschrijven geen zin", !reparatieHeeftZin(gemengd));
   ok("de zin noemt de handeling", beschrijfRootCause(oorzaken).includes("vraag aan de klant"));
   ok("zonder bevindingen is er niets mis", beschrijfRootCause([]).includes("geen kwaliteitsproblemen"));
 

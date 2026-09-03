@@ -10,6 +10,40 @@ hieronder is geschat.
 
 ---
 
+> ## Stand op 3 september 2026: fase A tot en met E zijn gebouwd
+>
+> Vier controles groen: typecheck, 4060 unittests (162 nieuwe), 625 ketentests (20 nieuwe), de
+> productiebuild. Migratie `0091` staat op productie, additief.
+>
+> **Wat er staat**: de twaalf dimensies met per dimensie een bron die hem kan vullen
+> (`quality-dimensions.ts`), vier kwaliteitsprofielen per contenttype (`quality-profile.ts`), één
+> type voor elke bevinding met sectie, bewijs, verwachting, blokkade, zekerheid en ketenfase
+> (`quality-issue.ts`), de weging tot score, zekerheid en oordeel als drie losse getallen
+> (`quality-score.ts`), de gewogen bewijsdekking met de kernsecties driemaal zo zwaar
+> (`evidence-weight.ts`), de root-cause-analyse (`root-cause.ts`), één keuring voor de eerste versie
+> én de reparatierondes (`quality-run.ts`), een vierde beoordelaar voor vakmanschap
+> (`content-craft.ts`), de reparatieopdracht per sectie met toegestaan bewijs en verboden aannames
+> (`quality-repair.ts`), de klant- en adviseursweergave (`components/quality-panel.tsx`) en het
+> Kwaliteitslab met de menselijke beoordeling en de gouden referentie (`/beheer/kwaliteit`).
+>
+> **Wat er nog niet staat**: fase F. De drempels rusten op zeven pagina's en zijn gedifferentieerd
+> langs gemeten verschillen, niet geijkt; daarvoor zijn twintig menselijk beoordeelde pagina's nodig
+> (`IJKING_MINIMUM`). Incrementele evaluatie per gewijzigde sectie en caching van beoordelingen zijn
+> bewust uitgesteld: de vier beoordelaars kosten samen ongeveer $0,013 per pagina tegenover $0,071
+> voor de schrijfaanroep, dus daar valt weinig te besparen zolang de reparatierondes ($0,139 per
+> ronde) de echte kostenpost zijn.
+>
+> **Twee dingen zijn anders uitgepakt dan hieronder beschreven staat**, allebei gevonden doordat een
+> test omviel. Ze staan in `docs/logbook.md` bij 3 september 2026: de inputpoort werd bijna een muur
+> (een ongedekte kernsectie zette de graad op nul in plaats van onder een plafond), en de root cause
+> koos bij een gelijk aantal blokkades de fase met de meeste bevindingen in plaats van de fase die
+> een herschrijving niet kan oplossen.
+>
+> **Nog niet geverifieerd tegen een echte klantronde** (conventie 10). De ketentest bewijst de
+> samenhang op de stub; wat er in een echte ronde uit de dimensiescores komt is nog niet gemeten.
+
+---
+
 ## 1. Architectuuroverzicht: waar de veertien fases in de code staan
 
 | Fase (uit `processtappen-nieuwe-pagina.md`) | Waar het staat | AI? |
@@ -20,7 +54,7 @@ hieronder is geschat.
 | 7 Pagina uitzoeken | `content-plan.ts` → `item-dossier.ts`, `explainer-verify.ts`, `content-contract.ts`, `existing-page-match.ts`, `factbase.ts`, `input-coverage.ts`, `content-input-gate.ts` | ja, twee aanroepen |
 | 8 Briefing | `briefing.ts` (claim-audit) → `briefing-select.ts` (selectie, geen AI) | ja, één aanroep |
 | 9 Concept schrijven | `content.ts` `draftContentPiece()`, model `sol` | ja, de duurste |
-| 10 Drie keuringen | `content-panel.ts` (redactie, feitelijkheid, citeerbaarheid) plus zeven deterministische controles in `content-gate.ts`, `content-coverage.ts`, `similarity.ts`, `readability.ts`, `schema-jsonld.ts` | drie goedkope aanroepen |
+| 10 Keuringen | `content-panel.ts` plus de deterministische controles in `content-gate.ts`, `content-coverage.ts`, `similarity.ts`, `readability.ts`, `schema-jsonld.ts`. Sinds `0091` staan ze samen in `quality-run.ts` en is er een vierde beoordelaar (vakmanschap) | vier goedkope aanroepen |
 | 11 Kwaliteitspoort en herstel | `content.ts` `reviseContentPiece()`, `content-repair-decision.ts`, `content-issues.ts`, `content-sections.ts` | ja, per ronde |
 | 12 Eindcontrole | `content-final-gate.ts`, `open-questions.ts` | nee |
 | 13-14 Vrijgeven en publiceren | `content-export.ts`, `publish.ts`, `publish-check.ts` | nee |
