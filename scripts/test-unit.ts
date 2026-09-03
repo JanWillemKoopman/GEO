@@ -189,6 +189,12 @@ import {
 } from "@/lib/pipeline/adviestoon";
 import { checkHerhaling } from "@/lib/pipeline/similarity";
 import {
+  rangcorrelatie,
+  berekenIjking,
+  RANGCORRELATIE_NORM,
+  RANG_MINIMUM,
+} from "@/lib/quality-benchmark";
+import {
   normaliseerContract,
   formatContract,
   stripFactRefs,
@@ -17963,6 +17969,76 @@ group("de lezersopdracht ziet het verschil tussen een onderwerp en een persoon",
   ok("en zegt: begin bij zijn situatie", blok.includes("niet bij het bedrijf"));
   ok("en zegt wat er weg mag", blok.includes("laat je weg"));
   ok("zonder lezer is er geen blok", lezersblok(bepaalLezersopdracht({})) === "");
+});
+
+console.log("\nV13: volgt de beoordelaar ook de VOLGORDE van het menselijke oordeel?");
+
+group("de rangcorrelatie meet de volgorde en niet de hoogte", () => {
+  const paar = (model: number, mens: number, i: number) => ({ pieceId: `p${i}`, model, mens });
+
+  // Zelfde volgorde, heel andere schaal: dat is precies het geval waarvoor deze
+  // maat bestaat. De app scoort 0 tot 100, een mens 1 tot 5.
+  const zelfdeVolgorde = [60, 65, 70, 75, 80, 85].map((m, i) => paar(m, i + 1, i));
+  ok("gelijke volgorde levert 1,00 op", rangcorrelatie(zelfdeVolgorde) === 1);
+
+  const omgekeerd = [60, 65, 70, 75, 80, 85].map((m, i) => paar(m, 6 - i, i));
+  ok("omgekeerde volgorde levert -1,00 op", rangcorrelatie(omgekeerd) === -1);
+
+  // ⚠️ Onder vijf paren zegt een rangcorrelatie te weinig om op te sturen.
+  ok("met vier paren wordt er niets gemeten", rangcorrelatie(zelfdeVolgorde.slice(0, 4)) === null);
+  ok("de ondergrens staat op vijf", RANG_MINIMUM === 5);
+
+  // Alle cijfers gelijk: dan is er geen volgorde om te vergelijken.
+  ok(
+    "zonder spreiding is er geen oordeel",
+    rangcorrelatie([70, 70, 70, 70, 70].map((m, i) => paar(m, 3, i))) === null,
+  );
+});
+
+group("de ijking zegt of het cijfer klopt én of de volgorde klopt", () => {
+  // ⚠️ Dit is de echte stand van 3 september 2026, na het invoeren van de twaalf
+  // menselijke oordelen: het niveau klopt (0,14 punt verschil) en de volgorde
+  // niet. Precies de combinatie die de reparatie naar de verkeerde pagina
+  // stuurt, en die vier weken onzichtbaar bleef omdat het getal nergens stond.
+  const echt = [
+    { pieceId: "a", model: 61.2, mens: 3.0 },
+    { pieceId: "b", model: 61.7, mens: 2.8 },
+    { pieceId: "c", model: 72.0, mens: 3.2 },
+    { pieceId: "d", model: 67.5, mens: 3.2 },
+    { pieceId: "e", model: 64.0, mens: 3.6 },
+    { pieceId: "f", model: 65.9, mens: 3.4 },
+    { pieceId: "g", model: 68.9, mens: 3.4 },
+    { pieceId: "h", model: 71.1, mens: 2.8 },
+    { pieceId: "i", model: 62.0, mens: 3.0 },
+    { pieceId: "j", model: 68.7, mens: 3.6 },
+    { pieceId: "k", model: 72.8, mens: 3.4 },
+    { pieceId: "l", model: 69.3, mens: 3.4 },
+  ];
+  const ijk = berekenIjking(echt);
+  ok("alle twaalf paren tellen mee", ijk.paren === 12);
+  ok(
+    "het niveau ligt dicht bij het menselijke oordeel",
+    Math.abs(ijk.niveauverschil ?? 9) < 0.5,
+    String(ijk.niveauverschil),
+  );
+  ok("de melding zegt dat het niveau dichtbij is", ijk.melding.includes("dichtbij"));
+  ok(
+    "maar de volgorde haalt de norm niet",
+    (ijk.rangcorrelatie ?? 1) < RANGCORRELATIE_NORM,
+    String(ijk.rangcorrelatie),
+  );
+  ok("en de melding waarschuwt daarvoor", ijk.melding.includes("verkeerde pagina"));
+  ok("er zijn er nog acht nodig voor een volledige ijking", ijk.nogNodig === 8);
+
+  // De goede uitkomst: allebei in orde.
+  const goed = [61, 64, 67, 70, 73, 76].map((m, i) => ({ pieceId: `x${i}`, model: m, mens: 3 + i * 0.15 }));
+  const gezond = berekenIjking(goed);
+  ok("bij dezelfde volgorde zegt de melding dat het goed zit", gezond.melding.includes("dezelfde pagina's onderaan"));
+
+  // Zonder menselijke oordelen weten we niets, en dat zegt hij ook.
+  const leeg = berekenIjking([]);
+  ok("zonder oordelen is er geen ijking", leeg.rangcorrelatie === null && leeg.niveauverschil === null);
+  ok("en de melding zegt dat we niets weten", leeg.melding.includes("nog geen enkele pagina"));
 });
 
 console.log("\nV6 en V12: adviseren, en hetzelfde rijtje feiten op elke pagina");

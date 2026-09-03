@@ -723,6 +723,12 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
       why: "Geen standaardzinnen, wel een gangbare opzet.",
     },
     toon: { score: 80, evidence: "Afspraak maken", why: "Past bij de stijlvoorbeelden." },
+    // V11: het cijfer bestaat en telt nog niet mee in het profiel.
+    herkenning: {
+      score: 55,
+      evidence: "Bij Fysi-Unique kun je binnen 24 uur terecht voor een intake.",
+      why: "De pagina begint bij het aanbod en niet bij wat de lezer meemaakt.",
+    },
     overtuiging: {
       score: 68,
       evidence: "Afspraak maken",

@@ -7401,3 +7401,48 @@ wijst naar de BRIEFING en niet naar het schrijven: de feitenkaart is per pagina 
 zit de oorzaak.
 
 Vier controles groen: typecheck, 4253 unittests (14 nieuwe), 641 ketentests, build.
+
+## 3 september 2026: V13 en V11, de keuring wordt zelf gemeten
+
+Het laatste voorstel, en het enige dat niet over schrijven gaat maar over keuren. Drie stappen, alle
+drie gedaan.
+
+**Stap 1: de twaalf menselijke oordelen staan in `content_quality_reviews`**, met
+`benchmark_set = 'benchmark-3-september-2026'` en de cijfers van de externe copywriter ongewijzigd
+overgenomen. De telrichting is nagerekend en klopt; in `notes` staat bij elke rij dat hij
+"menselijk" als natuurlijkheid van de stem scoorde, met 5 als beste, want het formulier vraagt bij
+dat veld naar eigenheid en dat is verwant maar niet hetzelfde. Daarmee staan er twaalf van de
+twintig uit `IJKING_MINIMUM`.
+
+**Stap 2: de ijking is nu een getal dat de app bijhoudt.** `berekenIjking()` in
+`quality-benchmark.ts` (naast `vergelijkMetMens`, want één feit één eigenaar) levert twee dingen: het
+verschil in NIVEAU en de rangcorrelatie voor de VOLGORDE. Nagerekend op productie over de twaalf
+zojuist ingevoerde oordelen: **niveauverschil 0,14 punt en een correlatie van 0,29.** Het gemiddelde
+klopt dus bijna precies, en de volgorde niet. Dat is de erge helft, want de score bepaalt per pagina
+klaar, repareren of geblokkeerd: van de vier pagina's die de beoordelaar als zwakste aanwijst zijn er
+twee de verkeerde, en de pagina die de copywriter gedeeld slechtste noemde ("absoluut niet
+versturen") stond bij hem op de derde plaats van boven. Beide getallen staan nu op
+`/beheer/kwaliteit`, met een zin die zegt wat het betekent. Dat dit vier weken onzichtbaar kon
+blijven, kwam doordat het cijfer nergens stond.
+
+Voor de vergelijking telt het GEMIDDELDE van de vijf menselijke maten en niet één ervan: de
+copywriter scoorde ze los en ze liepen uiteen van 2,58 (overtuiging) tot 3,92 (specificiteit), dus
+één maat eruit lichten zou de ijking laten afhangen van welke dimensie je toevallig kiest. De
+rangcorrelatie werkt op rangen en niet op ruwe cijfers, want de twee schalen lopen niet gelijk (0
+tot 100 tegenover 1 tot 5) en het gaat hier niet om de hoogte maar om de ordening. Onder vijf paren
+levert hij `null`: dan zegt hij te weinig om op te sturen.
+
+**Stap 3: de beoordelaar krijgt menselijke ijkpunten mee.** In `VAKMANSCHAP_SYSTEM` staan nu de
+concrete voorbeelden uit de ronde van wat een mens laag vond en waarom (juridisch dichtgetimmerd,
+huiswerk in plaats van antwoord, administratief waar het eenvoudig moest) en wat hij hoog vond (een
+echte keuze helpen maken, de schaamte van de lezer benoemen). Invoertekst, dus vrijwel gratis.
+
+**V11, als laatste en bewust half.** De beoordelaar scoort nu ook `herkenning`: begint de pagina bij
+een situatie die de lezer herkent, of bij het bedrijf. ⚠️ Dat cijfer telt NOG NIET mee in het
+profiel en bepaalt dus niets. Dit is het enige voorstel uit de copywriterronde dat niet te tellen
+valt, dus het enige zonder deterministisch vangnet, en het zou code-conventie 1 schenden om er nu al
+op te sturen. Het cijfer wordt verzameld zodat de ijking hem later naast een menselijk oordeel kan
+leggen; pas dán mag hij meewegen. Meten voordat je stuurt, dezelfde volgorde als bij de drempels van
+de inputpoort.
+
+Vier controles groen: typecheck, 4267 unittests (14 nieuwe), 641 ketentests, build.

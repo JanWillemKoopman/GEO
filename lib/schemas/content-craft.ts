@@ -71,6 +71,18 @@ export const CraftVerdict = z.object({
   /** Klinkt de tekst zoals dit bedrijf klinkt, gemeten aan de meegegeven stijl? */
   toon: Beoordeling,
   /**
+   * Begint de pagina bij een situatie die de lezer herkent? (V11)
+   *
+   * ⚠️ Dit cijfer telt NOG NIET mee in het profiel (`quality-profile.ts`) en
+   * bepaalt dus niets. Het bestaat omdat V11 het enige voorstel uit de
+   * copywriterronde is dat niet te tellen valt: "gebruik minimaal één concreet
+   * herkenbaar scenario voordat je technische uitleg geeft" is een oordeel, geen
+   * telling. Het cijfer wordt nu verzameld zodat de ijking hem later naast een
+   * menselijk oordeel kan leggen; pas dán mag hij meewegen. Meten voordat je
+   * stuurt, dezelfde volgorde als bij de drempels van de inputpoort.
+   */
+  herkenning: Beoordeling,
+  /**
    * Zet de pagina een lezer aan tot de volgende stap?
    *
    * Alleen zinvol bij een commerciële pagina. Bij een kennisartikel of een FAQ
