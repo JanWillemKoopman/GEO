@@ -7934,6 +7934,41 @@ async function main(): Promise<void> {
         `${kwSecties.filter((s) => s.importance === "kern").length} kernsecties`,
       );
 
+      // ── De briefing draaien: zonder claim-audit is er geen paginaplan ─────
+      //
+      // De echte volgorde is plannen, dan de briefing, dan schrijven. De
+      // claim-audit uit de briefing levert het PAGINAPLAN, en dat is waar de
+      // kernbeweringen in staan. Sla je hem over, dan is er geen plan en telt
+      // de claimdekking nergens in mee: correct gedrag, maar dan toetst dit
+      // scenario R1 niet.
+      const { rows: kwBriefTaken } = await db.client.query(
+        `select id, payload_json from public.jobs
+          where analysis_id = $1 and type = 'content_brief' order by created_at limit 1`,
+        [kwAnalysisId],
+      );
+      ok("de plantaak heeft de briefing ingepland", kwBriefTaken.length === 1);
+      await runJob({
+        admin: admin as never,
+        job: {
+          id: kwBriefTaken[0].id as string,
+          analysis_id: kwAnalysisId,
+          type: "content_brief",
+          payload_json: kwBriefTaken[0].payload_json,
+          attempts: 0,
+        } as never,
+      });
+
+      const { rows: kwPlanRij } = await db.client.query(
+        `select briefing_snapshot_json from public.content_pieces where id = $1`,
+        [kwPieceId],
+      );
+      const kwPaginaplan = (kwPlanRij[0].briefing_snapshot_json as { plan?: unknown[] } | null)?.plan ?? [];
+      ok(
+        "en het paginaplan staat bij de pagina",
+        kwPaginaplan.length > 0,
+        `${kwPaginaplan.length} beweringen`,
+      );
+
       // ══ SCENARIO 3: kritieke claim zonder bewijs → de pagina wordt geblokkeerd
       //
       // De kernsectie van het contract ("Afspraak maken") heeft geen F-nummer,
@@ -7959,7 +7994,7 @@ async function main(): Promise<void> {
       );
       const kwOordeel = kwNa[0];
       const kwJson = kwOordeel.quality_json as {
-        issues?: { blocking?: boolean; dimension?: string; section?: string; phase?: string }[];
+        issues?: { blocking?: boolean; dimension?: string; section?: string; phase?: string; finding?: string }[];
         rootCause?: { fase: string }[];
         score?: number | null;
       };
@@ -7985,6 +8020,36 @@ async function main(): Promise<void> {
         "scenario 3: het cijfer staat er gewoon naast",
         kwJson.score !== null && kwJson.score !== undefined,
         "score en blokkade zijn twee getallen, geen één",
+      );
+
+      // ══ R1: de KERNBEWERING blokkeert, ook zonder eigen sectie ════════════
+      //
+      // De claim-audit van de stub levert een kernbewering ("Fysi-Unique biedt
+      // een preventief nazorgprogramma") die door geen enkel feit gedekt wordt.
+      // Tot 3 september 2026 bereikte dat gegeven de kwaliteitspoort nooit: de
+      // audit wist het, en de poort keek alleen naar SECTIES. Een kernbewering
+      // die aan geen enkele sectie hangt, glipte er dus langs.
+      const kwClaimBlokkades = kwBlokkades.filter((i) =>
+        (i as { finding?: string }).finding?.includes("leunt op een bewering"),
+      );
+      ok(
+        "R1: een kernbewering zonder bewijs levert een eigen blokkade op",
+        kwClaimBlokkades.length > 0,
+        kwBlokkades.map((i) => (i as { finding?: string }).finding ?? "").join(" | "),
+      );
+      ok(
+        "R1: en die noemt de bewering letterlijk",
+        kwClaimBlokkades.some((i) =>
+          (i as { finding?: string }).finding?.includes("nazorgprogramma"),
+        ),
+      );
+      const kwClaimdekking = (
+        kwOordeel.quality_json as { claimdekking?: { kritiekOnbewezen?: number } }
+      ).claimdekking;
+      ok(
+        "R1: de claimdekking staat in de opgeslagen evaluatie",
+        (kwClaimdekking?.kritiekOnbewezen ?? 0) > 0,
+        JSON.stringify(kwClaimdekking),
       );
 
       // ══ SCENARIO 5: het profiel van het contenttype heeft gewogen ══════════

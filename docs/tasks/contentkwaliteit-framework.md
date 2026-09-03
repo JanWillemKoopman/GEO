@@ -364,6 +364,20 @@ en staat het op productie. Deze lijst is de eerlijke rest: vijf punten die niet,
 losse functie geïmplementeerd zijn. Ze staan op volgorde van wat ze de kwaliteit opleveren, niet op
 volgorde van hoeveel werk ze zijn.
 
+### ~~R1. De claimdekking is gebouwd maar nergens aangesloten~~ (gebouwd 3 september 2026)
+
+> **Af.** De claim-audit bereikt de kwaliteitspoort nu wel: elke kernbewering die niet onderbouwd
+> kan worden, is een blokkade met de bewering letterlijk erin en met de bijbehorende vraag als
+> aanbeveling. De claimdekking weegt daarnaast mee in de bewijsdimensie, zodat een pagina waarvan
+> alle secties een feit hebben maar de dragende bewering niet, ook in het CIJFER zakt.
+>
+> **Er kwam één bug uit die er al zat.** Zie hieronder bij "de valkuil": `buildPlanBlock()`
+> vertelde de schrijver "GEEN BRON: laat deze passage weg" over beweringen die wél onderbouwd
+> waren, en juist bij de klant die net een vraag had beantwoord. Ook gerepareerd.
+>
+> 11 nieuwe unittests en 4 nieuwe ketenasserties. Vier controles groen: typecheck, 4071 unittests,
+> 630 ketentests, build.
+
 ### R1. De claimdekking is gebouwd maar nergens aangesloten (punt 5 en 7)
 
 `berekenClaimDekking()` in `evidence-weight.ts` telt hoeveel van de bedrijfsspecifieke beweringen uit
@@ -386,6 +400,24 @@ databaselezing, geen AI-aanroep.
 
 **Waarom dit als eerste moet.** Dit is het enige openstaande punt dat een onwaarheid kan tegenhouden.
 De andere vier maken de app slimmer of goedkoper; deze maakt hem veiliger.
+
+**⚠️ De valkuil, gevonden tijdens het bouwen.** Een F-nummer is een POSITIE en geen identiteit:
+"F3" betekent "het derde citeerbare feit op deze kaart" (`numberFacts`). De kaart is gesorteerd op
+betrouwbaarheid met de klantantwoorden vooraan (`SOURCE_ORDER`), dus zodra de klant één vraag
+beantwoordt schuift élk volgend nummer één op. De claim-audit is bevroren op het moment van de
+briefing, dus vóór die antwoorden.
+
+Het bevroren nummer blind opnieuw opzoeken zou dus een bewering als onbewezen aanmerken terwijl het
+bewijs er gewoon is, en precies bij de klant die net iets had aangeleverd. Voor een BLOKKADE is dat
+onacceptabel. `claimIsOnderbouwd()` doet daarom twee stappen: eerst de strenge positiegebonden
+controle, en als die niets vindt, de vraag of het letterlijke citaat in ÉÉN van de bruikbare feiten
+op de huidige kaart staat, ongeacht het nummer. Blokkeren mag alleen als er nergens bewijs is, niet
+als het bewijs verhuisd is.
+
+Diezelfde valkuil zat al in `buildPlanBlock()`, de tekst die de schrijver meekrijgt: die zei "GEEN
+BRON: laat deze passage weg" over een bewering die wél gedekt was. Gevolg: de klant beantwoordt een
+vraag, en juist daardoor verdwijnt informatie uit zijn pagina. Ook omgezet naar
+`claimIsOnderbouwd()`.
 
 ### R2. Betrouwbaarheid per bron ontbreekt (punt 6 en 7)
 

@@ -48,6 +48,7 @@ import {
   leesKwaliteitsrondes,
 } from "@/lib/pipeline/quality-run";
 import { kiesBesteVersie, nietSlechterDan } from "@/lib/pipeline/quality-score";
+import { claimIsOnderbouwd } from "@/lib/pipeline/evidence-weight";
 import { beschrijfRootCause, reparatieHeeftZin } from "@/lib/pipeline/root-cause";
 import {
   prioriteerIssues,
@@ -86,7 +87,6 @@ import { enkelOfMeervoud } from "@/lib/format";
 import {
   formatFactCard,
   sourceCoverage,
-  isSupported,
   factFromAnswer,
   mergeAnsweredFacts,
   normalizeForQuote,
@@ -406,7 +406,15 @@ function buildPlanBlock(plan: AuditedClaim[], facts: FactItem[]): string {
   if (plan.length === 0) return "";
 
   const regels = plan.map((claim) => {
-    const gedekt = isSupported(claim.sourceRef, facts, claim.supportQuote);
+    // ⚠️ `claimIsOnderbouwd` en niet `isSupported` (R1, 3 september 2026).
+    //
+    // Het plan is bevroren op het moment van de briefing. Beantwoordt de klant
+    // daarna een vraag, dan komt dat antwoord vooraan op de kaart te staan
+    // (`SOURCE_ORDER`) en schuift élk volgend F-nummer één op. De positiegebonden
+    // controle zei dan "GEEN BRON: laat deze passage weg" over een bewering die
+    // wél onderbouwd was, dus precies bij de klant die net iets had aangeleverd
+    // verdween die informatie uit zijn pagina.
+    const gedekt = claimIsOnderbouwd(claim, facts);
     // Een feit met `allowed: false` is een VERBOD, geen ontbrekend feit: de
     // klant heeft "nee" geantwoord. Dat onderscheid weglaten zou het model laten
     // redeneren dat het waarschijnlijk tóch wel zo is. Precies de fout uit de
@@ -1859,6 +1867,10 @@ export async function draftContentPiece(args: {
     ),
     analysisId,
     profileId: analysis.profile_id,
+    // Het paginaplan uit de claim-audit (R1): welke beweringen deze pagina
+    // nodig heeft en welke daarvan kern zijn. Zonder dit blijft een
+    // kernbewering die aan geen enkele sectie hangt onzichtbaar voor de poort.
+    plan: ctx.plan,
     // Lag er bewijs voor deze pagina? Bepaalt of een lege sectie een
     // schrijfprobleem is of een kennisprobleem (`root-cause.ts`).
     bewijsAanwezig: ctx.facts.some((f) => f.citable && f.allowed),
@@ -2073,6 +2085,7 @@ export async function reviseContentPiece(args: {
     ),
     analysisId,
     profileId: analysis.profile_id,
+    plan: ctx.plan,
     bewijsAanwezig: ctx.facts.some((f) => f.citable && f.allowed),
   });
 

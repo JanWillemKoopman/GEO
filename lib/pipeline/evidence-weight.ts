@@ -31,7 +31,13 @@
  * Bewust ZONDER `server-only` (conventie 2): pure rekenkunde, testbaar vanuit
  * `scripts/test-unit.ts`.
  */
-import { splitRefs, type FactItem, type WrittenClaim } from "@/lib/pipeline/factcard";
+import {
+  splitRefs,
+  isSupported,
+  normalizeForQuote,
+  type FactItem,
+  type WrittenClaim,
+} from "@/lib/pipeline/factcard";
 import type { ContentContract, ContractSection } from "@/lib/schemas/content-contract";
 import type { AuditedClaim } from "@/lib/schemas/claim-audit";
 import { GOED_GENOEG } from "@/lib/content-input-gate";
@@ -179,12 +185,67 @@ export function claimSoortVan(claim: AuditedClaim): "bedrijfsspecifiek" | "contr
 }
 
 /**
+ * Is deze bewering onderbouwd door de feitenkaart zoals hij NU is?
+ *
+ * ── ⚠️ WAAROM DIT NIET GEWOON `isSupported()` IS ────────────────────────────
+ *
+ * Een F-nummer is een POSITIE en geen identiteit: "F3" betekent "het derde
+ * citeerbare feit op deze kaart" (`numberFacts` in factcard.ts). De kaart is
+ * gesorteerd op betrouwbaarheid, met de klantantwoorden vooraan
+ * (`SOURCE_ORDER`), dus zodra de klant één vraag beantwoordt schuift élk
+ * volgend nummer één op.
+ *
+ * De claim-audit is bevroren op het moment van de briefing, dus vóór die
+ * antwoorden. Zijn `sourceRef` opnieuw opzoeken op de HUIDIGE kaart wijst
+ * daarna naar een ander feit. De citaatplicht in `isSupported()` vangt dat op
+ * (het citaat staat dan niet in dat andere feit), maar de uitkomst is dan
+ * "onbewezen" terwijl het bewijs er gewoon is. Voor de schrijfprompt is dat
+ * hooguit jammer; voor een BLOKKADE is het onacceptabel, want dan houdt de app
+ * een pagina tegen om een nummer dat verschoven is.
+ *
+ * Daarom twee stappen, en de tweede is de vangnetstap:
+ *
+ *   1. de strenge, positiegebonden controle (`isSupported`), zoals overal;
+ *   2. staat het letterlijke citaat in ÉÉN van de bruikbare feiten op de
+ *      huidige kaart, ongeacht welk nummer dat feit heeft?
+ *
+ * Stap 2 is losser dan stap 1 en dat is hier precies goed: blokkeren mag alleen
+ * als er nergens bewijs is, niet als het bewijs verhuisd is.
+ *
+ * ⚠️ Een feit met `allowed: false` telt nooit mee. Dat is een VERBOD (de klant
+ * heeft dit ontkend), en een verbod onderbouwt niets.
+ */
+export function claimIsOnderbouwd(
+  claim: Pick<AuditedClaim, "sourceRef" | "supportQuote">,
+  facts: readonly FactItem[],
+): boolean {
+  if (isSupported(claim.sourceRef, facts as FactItem[], claim.supportQuote)) return true;
+
+  const citaat = (claim.supportQuote ?? "").trim();
+  if (citaat.length < MIN_CITAAT_TEKENS) return false;
+
+  const genormaliseerd = normalizeForQuote(citaat);
+  return facts.some(
+    (f) => f.allowed && f.citable && normalizeForQuote(f.text).includes(genormaliseerd),
+  );
+}
+
+/**
+ * Een citaat korter dan dit wijst niets aan.
+ *
+ * Zelfde grens als `MIN_QUOTE_CHARS` in `factcard.ts`, en om dezelfde reden:
+ * een fragment van drie tekens komt in vrijwel elke tekst voor en zou elke
+ * bewering onderbouwd laten lijken.
+ */
+const MIN_CITAAT_TEKENS = 4;
+
+/**
  * Hoeveel van de bedrijfsspecifieke beweringen uit de claim-audit een bestaand
  * feit achter zich hebben.
  *
- * `gedekteKeys` zijn de claim-sleutels waarvoor bewijs bestaat: uit de
- * feitenkaart, of doordat de klant de vraag beantwoordde. De aanroeper bepaalt
- * dat, want die kent de kaart; deze functie telt.
+ * `isOnderbouwd` is standaard `claimIsOnderbouwd` tegen de meegegeven kaart. De
+ * aanroeper mag hem overschrijven; de tests doen dat, zodat de telling los van
+ * de dekkingscontrole te toetsen is.
  */
 export function berekenClaimDekking(
   claims: readonly AuditedClaim[],
@@ -214,10 +275,23 @@ export function berekenClaimDekking(
  * wat er wel is; ontbreken ze allebei, dan is er niets te scoren en is het
  * antwoord `null` (conventie 3: geen 0 en geen gok).
  */
-export function bewijsDimensie(dekking: GewogenDekking): number | null {
+export function bewijsDimensie(
+  dekking: GewogenDekking,
+  /**
+   * De dekking van de BEWERINGEN uit de claim-audit (R1, 3 september 2026).
+   *
+   * Naast de sectiedekking en niet in plaats daarvan: een sectie kan een feit
+   * hebben terwijl de bewering die de pagina moet dragen er niet aan hangt. Dat
+   * verschil was er wel en woog nergens in mee.
+   */
+  claimDekking?: ClaimDekking | null,
+): number | null {
   const delen: { waarde: number; gewicht: number }[] = [];
   if (dekking.kritiek !== null) delen.push({ waarde: dekking.kritiek, gewicht: 2 });
   if (dekking.gewogen !== null) delen.push({ waarde: dekking.gewogen, gewicht: 1 });
+  if (claimDekking?.dekking !== null && claimDekking?.dekking !== undefined) {
+    delen.push({ waarde: claimDekking.dekking, gewicht: 2 });
+  }
   if (delen.length === 0) return null;
   const som = delen.reduce((t, d) => t + d.waarde * d.gewicht, 0);
   const gewicht = delen.reduce((t, d) => t + d.gewicht, 0);

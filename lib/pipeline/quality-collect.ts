@@ -34,7 +34,7 @@ import type { CraftVerdict } from "@/lib/schemas/content-craft";
 import type { GateResult, QualityResult, SourceTalkResult, TabooCheckResult } from "@/lib/pipeline/content-gate";
 import { GATE_LABELS, GATE_UITLEG } from "@/lib/pipeline/content-gate";
 import type { CoverageResult } from "@/lib/pipeline/content-coverage";
-import type { GewogenDekking } from "@/lib/pipeline/evidence-weight";
+import type { ClaimDekking, GewogenDekking } from "@/lib/pipeline/evidence-weight";
 import type { ContentQualityProfile, TypeRegel } from "@/lib/pipeline/quality-profile";
 import type { DimensionScores } from "@/lib/pipeline/quality-score";
 import { faseVanIssue } from "@/lib/pipeline/root-cause";
@@ -67,6 +67,14 @@ export interface KwaliteitsInvoer {
 
   /** De bewijskant. */
   dekking: GewogenDekking;
+  /**
+   * De dekking van de BEWERINGEN uit de claim-audit (R1, 3 september 2026).
+   *
+   * `null` bij een pagina zonder claim-audit (een pagina van vóór R5.1, of een
+   * pagina waarvan de briefing niet gedraaid heeft). Dan telt hij nergens in mee
+   * en verandert er niets aan het oordeel (conventie 3).
+   */
+  claimDekking: ClaimDekking | null;
   /** Welk deel van de beweringen in de tekst herleidbaar is (`sourceCoverage`). */
   bronherleidbaarheid: number | null;
   /** Beweringen die het model deed en die geen bestaand feit dekt. */
@@ -205,6 +213,37 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
           : null,
         recommendation:
           "Beantwoord de vraag hierover, of laat deze sectie vervallen. Herschrijven helpt hier niet.",
+        blocking: true,
+        confidence: ZEKER,
+        bron: "bewijsdekking",
+      }),
+    );
+  }
+
+  // ── De KERNBEWERINGEN zonder bewijs (R1) ─────────────────────────────────
+  //
+  // Naast de kernSECTIE hierboven, en dat is geen dubbeling. Een sectie is een
+  // stuk van de pagina; een bewering is wat die pagina waarmaakt. Een
+  // kernbewering die aan géén enkele sectie hangt, glipte tot 3 september 2026
+  // langs elke poort: de claim-audit wist dat hij onbewezen was, maar dat
+  // gegeven bereikte de kwaliteitspoort nooit.
+  //
+  // ⚠️ Alleen `kern` én `bedrijfsspecifiek` komt hier terecht
+  // (`berekenClaimDekking`). Algemene vakkennis blokkeert niets, want daar hoeft
+  // de ondernemer niets voor aan te leveren.
+  for (const claim of invoer.claimDekking?.kritiekOnbewezen ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "bewijs",
+        severity: "blokkerend",
+        section: null,
+        finding: `Deze pagina leunt op een bewering die we niet kunnen onderbouwen: "${claim.claim}".`,
+        evidence: claim.neededFor ? `nodig voor: ${claim.neededFor}` : null,
+        expected: "Een bevestigd feit dat deze bewering dekt, of de bewering weglaten.",
+        recommendation:
+          claim.questionIfMissing?.trim()
+            ? `Beantwoord deze vraag: "${claim.questionIfMissing.trim()}"`
+            : "Onderbouw hem, of haal hem uit de pagina.",
         blocking: true,
         confidence: ZEKER,
         bron: "bewijsdekking",
@@ -622,7 +661,7 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
 
   const dimensies: DimensionScores = {
     feitelijkheid,
-    bewijs: bewijsDimensie(invoer.dekking),
+    bewijs: bewijsDimensie(invoer.dekking, invoer.claimDekking),
     relevantie,
     volledigheid,
     structuur,
