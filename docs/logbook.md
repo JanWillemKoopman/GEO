@@ -6745,3 +6745,20 @@ bescherming van 31 juli ook weg.
 **Wat dit zegt over de werkwijze.** Deze fout was met nadenken niet te vinden. Hij kwam eruit door
 conventie 10 letterlijk te nemen: de ronde echt draaien, op echte teksten, en dan naar de uitkomst
 kijken in plaats van naar de bedoeling.
+
+**Nagerekend wat de reparatie oplost, en dat is een kwart.** Van de 123 blokkerende bevindingen zijn
+er 27 een kop die vastgeplakt zat en 4 een fragment van een opsomming. Die 31 zijn weg. De andere 92
+zien eruit als hele, normale zinnen, en die blijven dus blokkeren. De twaalf pagina's worden door
+deze reparatie niet groen.
+
+Van die 92 zijn er 32 een oproep tot actie of een verwijzing naar het contact: "Bel 030-2270437 of
+stel eerst een vraag", "Neem contact op om de actuele beschikbaarheid te bespreken". Ze blokkeren
+omdat `GETAL` in `claim-extract.ts` elk cijfer als signaal neemt, dus een telefoonnummer maakt van
+elke zin een bewering, en omdat `TOEZEGGINGEN` woorden bevat ("kun je", "beschikbaar", "binnen")
+die net zo goed in een gewone instructie staan. Een oproep tot actie belooft niets over het bedrijf
+en valt dus niet met een feit te onderbouwen. Elke pagina met een telefoonnummer eronder wordt zo
+tegengehouden.
+
+Dat is bewust niet in dezelfde beweging gerepareerd. Het raakt de bescherming die na de twee
+fabricages van 31 juli is gebouwd, en die verdient een eigen toets tegen die tien pagina's in plaats
+van een snelle aanpassing. Het staat als R0b in `docs/tasks/contentkwaliteit-framework.md` §10.

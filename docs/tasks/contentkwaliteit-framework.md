@@ -540,12 +540,55 @@ De kopie in `content-gate.ts` is bewust niet meeveranderd: daar voedt het knippe
 beide blokkeert, en ze meeveranderen verschuift de poortuitkomst van élke bestaande pagina. Dat is
 een aparte ingreep met een eigen meetronde.
 
+**⚠️ Wat de reparatie NIET oplost, nagerekend op de 123 bevindingen zelf.**
+
+| Soort | Aantal | Weg door R0? |
+|---|---|---|
+| Kop aan de alinea geplakt (bevat een regelovergang) | 27 | ja |
+| Fragment van een opsomming (begint klein of eindigt niet op een leesteken) | 4 | ja |
+| Ziet eruit als een hele, normale zin | 92 | **nee** |
+
+R0 haalt er dus 31 van de 123 weg, een kwart. **De twaalf pagina's worden hierdoor niet groen.** Met
+92 overgebleven blokkades over 28 keuringsrondes houdt vrijwel elke ronde er minstens één over, en
+`quality-collect.ts` maakt van elke ongetagde zin een blokkade met `confidence: ZEKER`.
+
+### R0b. Een oproep tot actie is geen bewering (volgt uit R0, nog niet gerepareerd)
+
+Van die 92 zijn er 32 een instructie aan de lezer of een verwijzing naar het contact, geen uitspraak
+over het bedrijf. Letterlijk uit de ronde:
+
+- "Bel 030-2270437 of stel eerst een vraag."
+- "Neem contact op om de actuele beschikbaarheid te bespreken."
+- "Vraag via de contactpagina welke tijden vandaag, deze week of op zaterdag beschikbaar zijn."
+- "De adressen en contactmogelijkheden van beide vestigingen staan op de contactpagina."
+
+Waarom ze blokkeren: `GETAL` in `claim-extract.ts` is `/(\d|€|%)/`, dus een telefoonnummer maakt van
+elke zin een bewering. En `TOEZEGGINGEN` bevat "kun je", "beschikbaar", "binnen" en "altijd", die
+allemaal net zo goed in een gewone instructie staan.
+
+Een oproep tot actie belooft niets over het bedrijf en valt dus niet te onderbouwen met een feit.
+Hem blokkerend maken betekent dat elke pagina met een telefoonnummer eronder tegengehouden wordt.
+
+⚠️ **Dit is bewust nog niet gerepareerd.** Het raakt de bescherming die na de twee fabricages van
+31 juli is gebouwd, en die is te belangrijk om er ongevraagd aan te sleutelen. De denkrichting: een
+zin waarvan het enige signaal een telefoonnummer, een postcode of een e-mailadres is, en die in de
+gebiedende wijs begint, is geen bewering. Dat moet met de tien pagina's van 31 juli erbij getoetst
+worden, want die moeten blijven vallen.
+
+De resterende ongeveer 60 zijn wél echte, ongetagde uitspraken over het bedrijf. Dat is een derde
+vraag: het schrijvende model tagt maar een deel van wat het beweert, en de reparatieronde krijgt
+daar geen grip op.
+
 **Nog te doen.**
 
+- R0b beslissen en toetsen tegen de pagina's van 31 juli.
 - De drie splitsers samenvoegen tot één, mét een test die bewijst dat de andere twee call sites
   dezelfde uitkomst houden.
-- De twaalf pagina's van de benchmarkronde opnieuw keuren en tellen wat er van de 123 overblijft.
-  Pas dan is te zeggen of de drempels te streng staan of dat ze nooit eerlijk gemeten zijn.
+- De twaalf pagina's opnieuw laten keuren zodra R0 op `main` staat, en dan opnieuw tellen. Let op:
+  er is geen goedkope herkeuring. `keurPagina()` draait alleen binnen `content_draft` en
+  `content_revise`, dus opnieuw keuren betekent opnieuw laten schrijven, ongeveer $1 per pagina.
+  Een aparte herkeurstap over de opgeslagen tekst zou hier ongeveer $12 besparen en is verder ook
+  nuttig, want de klant kan de tekst zelf bewerken (zie R5, de uitzondering).
 
 ### R5. Fase F: ijking, caching en incrementele evaluatie (punt 19 en 28)
 
