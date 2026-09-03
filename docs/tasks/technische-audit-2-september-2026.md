@@ -441,7 +441,13 @@ ingedrukt, want daar hangt de rekening aan; de coderegel laat er geen twijfel ov
 
 ## Wat er van deze audit op productie staat
 
-| Wat | Waar |
+**Stand (2 september 2026):** opgeruimd via herstelplan T7. Alle rijen in de tabel hieronder, en de
+overige vijftien testmerken die niet uit deze audit kwamen, zijn verwijderd (zeventien merken in
+totaal, zie `docs/logbook.md`). De twee testaccounts en het account van de eigenaar blijven bestaan
+met hun inlog, alleen leeg; het account waar geen naam voor stond in het herstelplan
+(`huyberts@example.com`) is volledig weg, account en inlog.
+
+| Wat (verwijderd) | Waar |
 |---|---|
 | Merk Tandartspraktijk de Kroon, met meting, rapport en pagina | profiel `cdff2bca-e567-44c0-ad12-3c183ba1aa3b` |
 | Vier verzonnen antwoorden op feitenvragen, elk beginnend met "TESTANTWOORD (niet feitelijk)" | `fact_requests` bij dat profiel |
@@ -450,9 +456,8 @@ ingedrukt, want daar hangt de rekening aan; de coderegel laat er geen twijfel ov
 | Merk "AUDITTEST geweigerde site" (schildersbedrijfdejong.nl), 0 pagina's | profiel `79fd089e-74ba-40ab-bad5-ebae7ead4ae9` |
 | Cluster "AUDITTEST kostencontrole klant" op Wouter Warmtepomp, vanaf het klantaccount | analyse `a0d9426f-1d43-4b5a-86d2-d1baaf4ebdbf` |
 | Tweede pagina, vastgelegd als gepubliceerd op de echte pagina /angst/, met twee hermetingen ingepland op 16 en 30 september | stuk `db76cb57-2689-4a7e-8c4a-93fff417e1b5` |
-| Contentpakket van het consultantaccount op 10 pagina's per maand gezet | account `0f0c0adf-a98f-422c-83ae-b6830187c7a5` |
-| Wachtwoord van beide testaccounts opnieuw gezet | `e2e-consultant@orbit-test.nl`, `e2e-klant@orbit-test.nl` |
+| Contentpakket van het consultantaccount op 10 pagina's per maand gezet | account `0f0c0adf-a98f-422c-83ae-b6830187c7a5`, staat nu weer leeg |
 
-⚠️ Tandartspraktijk de Kroon is een echt bedrijf dat geen klant is en dat hier niet om gevraagd
-heeft. De vier antwoorden op de feitenvragen zijn verzonnen om de keten te kunnen testen. Behandel
-ze niet als feiten over dat bedrijf. Zeg wat weg mag, dan ruimt een volgende sessie het op.
+⚠️ Tandartspraktijk de Kroon was een echt bedrijf dat geen klant is en hier niet om gevraagd heeft.
+De vier verzonnen antwoorden op de feitenvragen zijn met het merk mee verwijderd. Het bedrijf is niet
+benaderd.
