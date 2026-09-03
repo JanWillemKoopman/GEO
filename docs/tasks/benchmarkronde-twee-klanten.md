@@ -312,3 +312,17 @@ onderwerp waar ik als klant niets over zei:
 
 Dat is het gedrag dat het raamwerk belooft: de pagina mag geschreven worden, maar heet pas klaar
 voor publicatie als de klant die ene vraag beantwoordt.
+
+### De uitkomst: twaalf pagina's, twaalf keer geblokkeerd
+
+Twaalf concepten, zestien reparatierondes, nul mislukte taken, $10,97 voor de hele ronde (raming
+$16). Scores tussen 62 en 88.
+
+En alle twaalf staan op `verdict: block`. Dat is geen strenge poort maar een kapotte: hij houdt
+alles tegen en zegt daarmee niets. De oorzaak is nagerekend en staat als **R0** in
+`docs/tasks/contentkwaliteit-framework.md` §10: de zinnenknipper plakt koppen aan alinea's vast en
+knipt opsommingen op de cijfers doormidden, waarna die fragmenten als onbewezen bewering blokkeren.
+
+⚠️ **Deze twaalf pagina's zijn daarom nog geen ijkset.** Ze moeten opnieuw gekeurd worden nadat R0
+gerepareerd is. De TEKSTEN blijven bruikbaar, want die zijn niet door de fout beïnvloed; alleen de
+oordelen erover zijn dat wel.

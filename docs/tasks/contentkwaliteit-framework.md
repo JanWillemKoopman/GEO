@@ -472,6 +472,64 @@ scenarionummer in de assertie. Dat is geen cosmetiek: een scenario dat niemand k
 een scenario waarvan niemand merkt dat het wegvalt. Scenario 6 en 7 zijn het belangrijkst, want die
 raken de versiekeuze en die beslist welke tekst de klant leest.
 
+### R0. De zinnenknipper maakt van koppen en lijsten valse blokkades (gevonden 3 september 2026)
+
+**Dit staat vooraan omdat het de poort onbruikbaar maakt en de ijking van R5 blokkeert.** Gevonden
+door de benchmarkronde van twaalf pagina's echt te draaien
+(`docs/tasks/benchmarkronde-twee-klanten.md`), niet door erover na te denken.
+
+**Wat er gebeurde.** Alle twaalf pagina's kregen `verdict: block`. Alle twaalf. Een poort die
+honderd procent tegenhoudt zegt niets meer, en hij liet ondertussen zestien reparatierondes draaien
+tegen bevindingen die geen enkele herschrijving kan oplossen.
+
+**De oorzaak, nagerekend en niet vermoed.** Van de 144 blokkerende bevindingen komen er 123 uit
+`bronherleidbaarheid`, en daarvan zijn er aantoonbaar 30 geen zin. `splitSentences()` en
+`stripMarkdown()` in `lib/pipeline/sentences.ts` hebben twee gaten:
+
+1. **Een kop wordt aan de volgende alinea geplakt.** `stripMarkdown` haalt de `#` weg maar laat geen
+   zinseinde achter, en een kop eindigt niet op een punt. Gevolg: kop plus eerste zin is één "zin".
+   27 van de 123.
+2. **Een opsomming binnen één regel wordt op de cijfers geknipt.** `stripMarkdown` haalt alleen aan
+   het BEGIN van een regel `1. ` weg (`^\s{0,3}\d+\.\s+` met `gm`). Staat de opsomming achter een
+   dubbele punt op dezelfde regel, dan blijft "1." staan, en `splitSentences` ziet in "1. " een
+   punt met witruimte erachter, dus een zinseinde. Elk lijstitem wordt een fragment dat eindigt op
+   het cijfer van het VOLGENDE item. 3 van de 123.
+
+Reproductie met de echte functies, op tekst uit de ronde:
+
+```
+splitSentences(stripMarkdown("## Snel hulp bij daklekkage in Zutphen\n\nBel MJB ..."))
+  → "Snel hulp bij daklekkage in Zutphen\n\nBel MJB Dakservice op 0578 234 502 ..."   ← één "zin"
+  → "Zo verloopt een spoedreparatie\n\nSpreek bij spoed deze volgorde af: 1. "
+  → "meld de lekkage, 2. "
+  → "laat de situatie inspecteren en de mogelijke oorzaak vastleggen, 4. "
+```
+
+Die fragmenten gaan naar `detectClaimSentences()`, die een cijfer of de merknaam als signaal neemt
+en ze dus als bewering aanmerkt. Een fragment kan nooit naar een feit op de kaart wijzen, dus het
+wordt een blokkerende `feitelijkheid`-bevinding met `confidence: ZEKER`. Zeker over een zin die
+niet bestaat.
+
+⚠️ **De ondergrens is 30, niet het echte aantal.** `quality-collect.ts` neemt per ronde maar de
+eerste vijf ongetagde zinnen mee (`.slice(0, 5)`), en de meeste rondes zitten met vier of vijf tegen
+die grens aan. Er zijn er dus meer dan we zien.
+
+**Wat het niet is.** De ontwerpkeuze "vals-positieven zijn goedkoper dan vals-negatieven"
+(`claim-extract.ts`) staat niet ter discussie en is juist. Dit is iets anders: de invoer van die
+regel is stuk, niet de regel zelf. Een kop is geen bewering en een half lijstitem is geen zin.
+
+**De reparatie.** In `sentences.ts`, niet in de claimregels:
+
+- `stripMarkdown` zet achter een kopregel een punt (of laat de regelovergang als zinsgrens gelden),
+  zodat een kop nooit met de volgende alinea versmelt.
+- `splitSentences` telt een punt die volgt op alleen cijfers, voorafgegaan door witruimte of een
+  dubbele punt of een komma, niet als zinseinde. Dat is dezelfde soort uitzondering die er al is
+  voor "Bol.com" en "3.5".
+- Beide krijgen een test in `scripts/test-unit.ts` met precies de vier zinnen hierboven.
+
+Daarna moet de ronde opnieuw gekeurd worden om te zien wat er van de 123 overblijft. Pas dan is te
+zeggen of de drempels te streng staan of dat ze nooit eerlijk gemeten zijn.
+
 ### R5. Fase F: ijking, caching en incrementele evaluatie (punt 19 en 28)
 
 Bewust uitgesteld en nog steeds terecht uitgesteld, met één uitzondering.
