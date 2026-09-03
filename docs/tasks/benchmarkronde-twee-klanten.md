@@ -47,6 +47,16 @@ dossier compleet, $0,25.
 | Fysio, bekkenfysiotherapie | `9013d0fd-ee98-4dce-92b2-35c6a440c8ff` |
 | Fysio, hardloopblessure behandelen | `ec7d3329-4893-4ee3-9034-cbdf611cfdf5` |
 
+Alle vier de clusters kregen dertig meetvragen. Bij het nalopen is er één uitgezet, in het cluster
+daklekkage: "Welke dakdekker in Zutphen kan een lekkage aan een bedrijfspand snel beoordelen en
+repareren?" MJB richt zich blijkens `target_segments` op particuliere woningeigenaren en op VvE's,
+niet op bedrijfspanden. De meting draait dus op 29, 30, 30 en 30 vragen.
+
+Wat opviel bij het nalopen, en wat de moeite van het onthouden waard is: geen van de honderdtwintig
+vragen ging over asbest of over subsidie, terwijl dat de twee verboden onderwerpen van MJB zijn. De
+vragen namen ook de plaatsnamen uit de groeiregio's over (Deventer, Zutphen, Zwolle bij MJB;
+Nieuwegein, Vleuten, Overvecht bij Fysio), dus het gesprek werkt aantoonbaar door in de meting.
+
 ---
 
 ## 1. ⚠️ Wat "alleen aanmaken, het onderzoek komt later" in de praktijk betekent
