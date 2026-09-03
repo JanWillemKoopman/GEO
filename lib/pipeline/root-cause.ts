@@ -68,6 +68,8 @@ const BRON_FASE: Record<IssueBron, PipelinePhase> = {
   // Een schrijfprobleem, niet een kennisprobleem.
   bewijspunt: "schrijven",
   klantcitaat: "schrijven",
+  // V8, V1 en V10: opening, merkstem en koppen zijn alle drie schrijfkeuzes.
+  paginavorm: "schrijven",
   // Onherleidbare beweringen wijzen op een te dunne feitenkaart.
   bronherleidbaarheid: "kennis",
   // Een verboden woord of onderwerp is een schrijffout: de regel stond in de

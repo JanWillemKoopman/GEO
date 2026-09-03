@@ -7335,3 +7335,39 @@ De vier antwoorden die op 3 september sneuvelden waren 19, 21, 24 en 31 woorden 
 grens van vijftien vandaan. Vier controles groen: typecheck, 4218 unittests (22 nieuwe), 641
 ketentests (2 nieuwe, die de bewijspunten eind tot eind tot in de kolom volgen), build. Migratie
 0093 staat op productie.
+
+## 3 september 2026: V8, V1 en V10, de opening begint weer bij de lezer
+
+Drie voorstellen in één ronde, want ze trekken aan hetzelfde touw: alle drie verschuiven ze iets aan
+wat een AI-assistent uit de pagina oppakt. Los invoeren zou betekenen dat de ene de andere ongemerkt
+onderuit haalt.
+
+**De spanning die opgelost moest worden.** De copywriter, regel 1: "Begin niet met het bedrijf.
+Begin met de situatie waarin de lezer zich bevindt." Elf van de twaalf openingen deden het
+andersom. Tegelijk is precies die eerste alinea het blok dat een AI-assistent citeert, en daar hoort
+de merknaam in. Die twee sluiten elkaar niet uit, maar wel als je ze allebei op dezelfde ZIN legt.
+De regel is nu: **de eerste zin gaat over de lezer, de eerste ALINEA noemt het merk.** De controle
+meet allebei, dus een opening die de merknaam helemaal uit de alinea gooit, is óók een bevinding.
+
+**De wij-vorm is terug, begrensd.** Regel 5 van de systeemprompt ("noem het bedrijf bij naam in
+plaats van 'wij'") stond er absoluut, en dat kostte de hele merkstem: 164 merkvermeldingen in de
+derde persoon tegenover twee keer "wij", allebei in een kop. De reden achter de regel klopt nog
+steeds, maar hij geldt nu voor de CITEERBARE zinnen (de eerste alinea en de eerste zin van elke
+sectie) en niet voor élke zin. Daarbuiten schrijft de pagina in de wij-vorm, zoals een ondernemer op
+zijn eigen site praat. Dezelfde begrenzing in `REPAIR_SYSTEM` regel 3, anders draait de
+reparatieronde het terug. De controle slaat pas aan als het allebei mis is: nul wij-zinnen én meer
+dan 1,5 merkvermeldingen per honderd woorden. Die grens is gekozen en niet gemeten; hij ligt ruim
+onder de 1,2 van deze twaalf pagina's en laat een pagina van duizend woorden vijftien keer de naam
+noemen, genoeg voor het openingsantwoord plus elke sectiestart.
+
+**Van vragenlijst naar verhaal.** 169 van de 228 koppen was een vraag, 74 procent, en op vier
+pagina's élke kop. `checkVraagkoppen` staat op hoogstens de helft, behalve bij een FAQ, waar vragen
+juist het punt zijn, en slaat pas aan vanaf vier koppen: onder de vier is het geen vragenlijst maar
+een korte pagina.
+
+Alle drie de bevindingen zijn niet-blokkerend en vallen op de dimensie die ze raken: overtuiging
+voor de opening, toon voor de merkstem, structuur voor de koppen. Vier controles groen: typecheck,
+4239 unittests (21 nieuwe), 641 ketentests, build.
+
+⚠️ Deze drie horen samen te worden nagemeten op citeerbaarheid, precies zoals het plan zegt. Dat kan
+pas na een echte ronde.

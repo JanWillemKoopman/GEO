@@ -63,6 +63,7 @@ import { kiesAanspreekvorm } from "@/lib/pipeline/tone-sliders";
 import { vindKlantinstructies, verbiedtAdres } from "@/lib/klantinstructies";
 import { checkBewijspunten } from "@/lib/pipeline/bewijspunten";
 import { checkKlantcitaten, vindCiteerbareAntwoorden } from "@/lib/pipeline/klantcitaten";
+import { checkOpening, checkMerkstem, checkVraagkoppen } from "@/lib/pipeline/paginavorm";
 import type { AuditedClaim } from "@/lib/schemas/claim-audit";
 import type { ContentContract } from "@/lib/schemas/content-contract";
 import type { ContentPiece } from "@/lib/schemas/content-piece";
@@ -234,6 +235,11 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
     tekst: heleTekstVoorBewijs,
   });
 
+  // ── V8, V1 en V10: de vorm van de pagina ─────────────────────────────────
+  const opening = checkOpening(body, input.brandName);
+  const merkstem = checkMerkstem(body, input.brandName);
+  const vraagkoppen = checkVraagkoppen(body, profiel.type === "faq");
+
   const taboo = checkTabooWords(body, faq, input.profile?.taboo_phrases ?? []);
   const verbodenOnderwerpen = checkForbiddenTopics(
     body,
@@ -309,6 +315,9 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
     adres,
     bewijspunten,
     klantcitaten,
+    opening,
+    merkstem,
+    vraagkoppen,
     taboo,
     verbodenOnderwerpen,
     typeOvertredingen,

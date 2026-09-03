@@ -34,6 +34,11 @@ import type { CraftVerdict } from "@/lib/schemas/content-craft";
 import type { BewijspuntenResult } from "@/lib/pipeline/bewijspunten";
 import type { KlantcitatenResult } from "@/lib/pipeline/klantcitaten";
 import type {
+  MerkstemResult,
+  OpeningResult,
+  VraagkoppenResult,
+} from "@/lib/pipeline/paginavorm";
+import type {
   AanspreekvormResult,
   AdresResult,
   GateResult,
@@ -78,6 +83,12 @@ export interface KwaliteitsInvoer {
   bewijspunten?: BewijspuntenResult;
   /** V4: is er iets van de eigen woorden van de ondernemer blijven staan? */
   klantcitaten?: KlantcitatenResult;
+  /** V8: begint de pagina bij de lezer of bij het bedrijf? */
+  opening?: OpeningResult;
+  /** V1: spreekt het bedrijf ergens zelf op zijn eigen pagina? */
+  merkstem?: MerkstemResult;
+  /** V10: is dit een verhaal of een vragenlijst? */
+  vraagkoppen?: VraagkoppenResult;
   taboo: TabooCheckResult;
   verbodenOnderwerpen: TabooCheckResult;
   typeOvertredingen: TypeRegel[];
@@ -663,6 +674,68 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
         blocking: false,
         confidence: ZEKER,
         bron: "klantcitaat",
+      }),
+    );
+  }
+
+  // ── V8: de opening begint bij het bedrijf in plaats van bij de lezer ──────
+  //
+  // Op de dimensie OVERTUIGING: dit is de zin die bepaalt of iemand doorleest.
+  // Elf van de twaalf pagina's van 3 september deden het verkeerd om.
+  for (const zin of invoer.opening?.issues ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "overtuiging",
+        severity: "hoog",
+        section: null,
+        finding: zin,
+        evidence: invoer.opening?.eersteZin ?? null,
+        expected: "De eerste zin gaat over de lezer, de eerste alinea noemt het merk.",
+        recommendation:
+          "Herschrijf de opening: begin bij wat de lezer meemaakt en noem het bedrijf in de " +
+          "tweede of derde zin als de oplossing.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "paginavorm",
+      }),
+    );
+  }
+
+  // ── V1: het bedrijf spreekt nergens zelf ──────────────────────────────────
+  for (const zin of invoer.merkstem?.issues ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "toon",
+        severity: "midden",
+        section: null,
+        finding: zin,
+        evidence: `${invoer.merkstem?.merkvermeldingen ?? 0} merkvermeldingen, ${invoer.merkstem?.wijZinnen ?? 0} zinnen in de wij-vorm`,
+        expected: "Het bedrijf praat zelf, met de merknaam in de citeerbare zinnen.",
+        recommendation:
+          "Zet de zinnen die over het werk gaan in de wij-vorm en houd de merknaam in het " +
+          "openingsantwoord en de eerste zin van elke sectie.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "paginavorm",
+      }),
+    );
+  }
+
+  // ── V10: een vragenlijst in plaats van een verhaal ────────────────────────
+  for (const zin of invoer.vraagkoppen?.issues ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "structuur",
+        severity: "midden",
+        section: null,
+        finding: zin,
+        evidence: `${invoer.vraagkoppen?.vragen ?? 0} van ${invoer.vraagkoppen?.koppen ?? 0} koppen`,
+        expected: "Hooguit de helft van de koppen is een vraag.",
+        recommendation:
+          "Maak van de meeste koppen een mededeling die zegt wat er in die sectie staat.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "paginavorm",
       }),
     );
   }

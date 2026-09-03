@@ -174,6 +174,14 @@ import {
   citatenblok,
 } from "@/lib/pipeline/klantcitaten";
 import {
+  checkOpening,
+  checkMerkstem,
+  checkVraagkoppen,
+  eersteZin,
+  MERK_PER_HONDERD_MAX,
+  VRAAGKOPPEN_MAX,
+} from "@/lib/pipeline/paginavorm";
+import {
   normaliseerContract,
   formatContract,
   stripFactRefs,
@@ -17948,6 +17956,102 @@ group("de lezersopdracht ziet het verschil tussen een onderwerp en een persoon",
   ok("en zegt: begin bij zijn situatie", blok.includes("niet bij het bedrijf"));
   ok("en zegt wat er weg mag", blok.includes("laat je weg"));
   ok("zonder lezer is er geen blok", lezersblok(bepaalLezersopdracht({})) === "");
+});
+
+console.log("\nV8, V1 en V10: de opening, de merkstem en de koppen");
+
+group("de opening begint bij de lezer, de alinea noemt het merk", () => {
+  // ⚠️ De echte openingen van 3 september. Elf van de twaalf begonnen zo.
+  const bijMerk = checkOpening(
+    "In Apeldoorn kun je MJB Dakservice bellen of WhatsAppen voor hulp bij daklekkage. Vraag " +
+      "vóór de start om een schriftelijke prijsopgave.",
+    "MJB Dakservice",
+  );
+  ok("een opening die bij het merk begint, wordt gezien", bijMerk.begintBijMerk === true);
+  ok("en de bevinding citeert de zin", bijMerk.issues.some((i) => i.includes("In Apeldoorn")));
+
+  const metJa = checkOpening(
+    "Ja. MJB Dakservice kan bij een daklekkage in Zutphen binnen 24 uur ter plaatse zijn.",
+    "MJB Dakservice",
+  );
+  ok("het 'Ja' erboven wordt apart gezien", metJa.begintMetJa === true);
+  ok("en levert een eigen bevinding op", metJa.issues.some((i) => i.includes("geen vraag boven")));
+
+  // Zoals het wél moet: eerste zin over de lezer, merknaam in dezelfde alinea.
+  const goed = checkOpening(
+    "Lekt uw dak en staat er water op zolder? Dan wilt u vooral weten hoe snel er iemand komt " +
+      "en wat het gaat kosten. MJB Dakservice staat binnen 24 uur op uw dak.",
+    "MJB Dakservice",
+  );
+  ok("een opening die bij de lezer begint is schoon", goed.issues.length === 0, JSON.stringify(goed.issues));
+  ok("de merknaam staat wel in de alinea", goed.merkInAlinea === true);
+
+  // ⚠️ De andere kant: V8 mag de citeerbaarheid niet slopen. Een opening zónder
+  // merknaam in de hele alinea is óók fout.
+  const zonderMerk = checkOpening(
+    "Lekt uw dak? Dan wilt u weten hoe snel er iemand komt. Bel ons vandaag nog.",
+    "MJB Dakservice",
+  );
+  ok("een alinea zonder merknaam levert een bevinding op", zonderMerk.issues.length === 1);
+  ok("en die zegt waarom dat erg is", zonderMerk.issues[0].includes("AI-assistent citeert"));
+
+  ok(
+    "de eerste zin wordt goed geknipt",
+    eersteZin("Lekt uw dak? Dan wilt u weten hoe snel.") === "Lekt uw dak?",
+  );
+});
+
+group("het bedrijf spreekt weer zelf op zijn eigen pagina", () => {
+  // ⚠️ Dit is de gemeten verhouding van 3 september: nul wij-zinnen en één
+  // merkvermelding per 83 woorden.
+  const derdePersoon = Array.from(
+    { length: 8 },
+    (_, i) => `MJB Dakservice vermeldt dat het onderdeel ${i} binnen 24 uur ter plaatse kan zijn.`,
+  ).join(" ");
+  const stil = checkMerkstem(derdePersoon, "MJB Dakservice");
+  ok("nul wij-zinnen wordt gezien", stil.wijZinnen === 0);
+  ok("met de merkdichtheid erbij", stil.perHonderd > MERK_PER_HONDERD_MAX, String(stil.perHonderd));
+  ok("en dat levert een bevinding op", stil.issues.length === 1);
+  ok("die zegt dat het als een beschrijving óver het bedrijf leest", stil.issues[0].includes("óver het bedrijf"));
+
+  // Zoals het wél moet: de merknaam in de citeerbare zin, de rest in wij-vorm.
+  const metStem =
+    "MJB Dakservice staat binnen 24 uur op uw dak. Wij komen met onze eigen ploeg van vier " +
+    "dakdekkers, dus u weet wie er komt. Wij zoeken eerst uit waar het water vandaan komt en " +
+    "vertellen u daarna wat het kost. Doorwerken over houtrot heen doen wij niet.";
+  ok("met wij-zinnen erbij is er geen bevinding", checkMerkstem(metStem, "MJB Dakservice").issues.length === 0);
+
+  // Veel merknaam mag, zolang het bedrijf ook zelf praat.
+  ok(
+    "de twee eisen gelden samen en niet los",
+    checkMerkstem("MJB Dakservice helpt. Wij komen langs. MJB Dakservice belt u.", "MJB Dakservice")
+      .issues.length === 0,
+  );
+});
+
+group("een verhaal in plaats van een vragenlijst", () => {
+  // ⚠️ Vier van de twaalf pagina's van 3 september hadden alleen vraagkoppen.
+  const alleenVragen =
+    "## Wat houdt het consult in?\n\ntekst\n\n## Past het bij mij?\n\ntekst\n\n" +
+    "## Wanneer naar de huisarts?\n\ntekst\n\n## Wat kost het?\n\ntekst\n";
+  const vragenlijst = checkVraagkoppen(alleenVragen, false);
+  ok("vier van de vier koppen is een vraag", vragenlijst.vragen === 4 && vragenlijst.koppen === 4);
+  ok("en dat is boven de grens", vragenlijst.aandeel > VRAAGKOPPEN_MAX);
+  ok("de bevinding noemt de verhouding", vragenlijst.issues[0]?.includes("4 van de 4"));
+
+  const verhaal =
+    "## Zo herkent u een schoorsteenlekkage\n\ntekst\n\n## Wij zoeken eerst de oorzaak\n\n" +
+    "tekst\n\n## Wat het kost\n\ntekst\n\n## Kan het ook morgen?\n\ntekst\n";
+  ok("de helft mag wel", checkVraagkoppen(verhaal, false).issues.length === 0);
+
+  // ⚠️ Bij een FAQ zijn vragen juist het punt.
+  ok("een FAQ mag alleen vragen hebben", checkVraagkoppen(alleenVragen, true).issues.length === 0);
+
+  // Een korte pagina met drie koppen is geen vragenlijst maar een korte pagina.
+  ok(
+    "onder de vier koppen slaat hij niet aan",
+    checkVraagkoppen("## Wat?\n\na\n\n## Hoe?\n\nb\n", false).issues.length === 0,
+  );
 });
 
 console.log("\nV9 en V4: van feit naar betekenis, in de woorden van de ondernemer");

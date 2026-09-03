@@ -249,11 +249,23 @@ const CONTENT_SYSTEM =
   "en dekt dus niets: dat is losse sitetekst om de context te begrijpen, geen bevestigd feit. " +
   "(3) Schrijf in dezelfde stijl als de meegegeven voorbeeldzinnen van de site. " +
   "REGELS VOOR VINDBAARHEID IN AI-ASSISTENTEN (net zo belangrijk als de rest): " +
-  "(4) Beantwoord de DOELVRAAG letterlijk en volledig in de eerste twee zinnen van de pagina, vóór " +
-  "elke inleiding. Een AI die een antwoord zoekt, leest de opwarmer niet uit. " +
-  "(5) Noem het BEDRIJF EXPLICIET bij naam op de plekken waar je iets over jezelf zegt, in plaats van " +
-  "'wij' en 'ons'. Schrijf dus niet 'wij leveren binnen 24 uur' maar '[Bedrijfsnaam] levert binnen 24 uur'. " +
-  "Een AI-assistent die 'wij' leest, weet niet wie hij moet noemen in zijn antwoord, en noemt je dus niet. " +
+  // ⚠️ Regel 4 en 5 zijn op 3 september 2026 begrensd (V8 en V1). Ze stonden er
+  // absoluut, en dat kostte de merkstem: over twaalf pagina's stond de merknaam
+  // 164 keer in de derde persoon tegenover twee keer "wij", allebei in een kop.
+  // Elf van de twaalf openingen begon bij het bedrijf. De reden achter de
+  // regels blijft kloppen (een assistent die "wij" leest, weet niet wie hij
+  // moet noemen), maar hij geldt voor de CITEERBARE zinnen en niet voor elke
+  // zin. Het vangnet staat in `paginavorm.ts`.
+  "(4) De EERSTE ZIN gaat over de lezer: wat hij meemaakt, waar hij mee zit, wat hij wil weten. " +
+  "NOOIT beginnen met de bedrijfsnaam en nooit met 'Ja' als er geen vraag boven staat. Beantwoord " +
+  "de DOELVRAAG daarna volledig, nog in diezelfde eerste alinea en vóór elke verdere inleiding: " +
+  "een AI die een antwoord zoekt, leest de opwarmer niet uit. " +
+  "(5) In die eerste alinea en in de eerste zin van elke sectie noem je het BEDRIJF EXPLICIET bij " +
+  "naam, want dat zijn de zinnen die een AI-assistent oppakt, en een assistent die alleen 'wij' " +
+  "leest weet niet wie hij moet noemen. In de RÉST van de tekst schrijf je gewoon in de wij-vorm, " +
+  "zoals een ondernemer op zijn eigen site praat: 'wij komen binnen 24 uur' in plaats van " +
+  "'[Bedrijfsnaam] kan binnen 24 uur ter plaatse zijn'. Schrijf ook nooit over 'de klant' in de " +
+  "derde persoon: de lezer IS de klant. " +
   "(6) Zorg dat elke sectie minstens één zin bevat die LOSSTAAND te begrijpen is, zonder de rest van de " +
   "pagina: één zin die het complete antwoord op één deelvraag geeft. Dat is de eenheid waarin een " +
   "AI-assistent knipt. " +
@@ -677,9 +689,12 @@ function buildContentInput(args: {
     relatedPageWarning(rec.relatedUrl ?? null),
     "",
     `Schrijf de volledige pagina in Markdown (zonder concurrentnamen), plus meta-title (max 60 tekens), ` +
-      `meta-description (max 160 tekens), FAQ en schema.org JSON-LD. Noem "${brandName}" expliciet bij naam ` +
-      `waar je iets over het bedrijf zegt. Vul daarna \`claims\` met elke concrete bewering die je over ` +
-      `${brandName} hebt gedaan, het F-nummer dat hem dekt, en de letterlijke zin uit dat feit.`,
+      `meta-description (max 160 tekens), FAQ en schema.org JSON-LD. Noem "${brandName}" bij naam in de ` +
+      `eerste alinea en in de eerste zin van elke sectie; daarbuiten schrijf je in de wij-vorm. ` +
+      `Maak van de meeste koppen een MEDEDELING en niet een vraag: een pagina waarvan elke kop een ` +
+      `vraag is, is een vragenlijst en geen verhaal. Vul daarna \`claims\` met elke concrete bewering ` +
+      `die je over ${brandName} hebt gedaan, het F-nummer dat hem dekt, en de letterlijke zin uit dat ` +
+      `feit, en \`proofPoints\` met de feiten die je hebt omgezet naar een reden voor de lezer.`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -707,7 +722,11 @@ const REPAIR_SYSTEM =
   "(2) De FEITENKAART is de ENIGE toegestane bron van concrete beweringen over dit bedrijf. Los een " +
   "bevinding NOOIT op door een feit te verzinnen: kun je hem niet oplossen met wat er op de kaart " +
   "staat, laat de passage dan weg of schrijf hem algemener. " +
-  "(3) Noem het bedrijf expliciet bij naam waar je iets over hem zegt, niet 'wij'. " +
+  // ⚠️ Begrensd op 3 september 2026 (V1), zelfde reden als regel 5 hierboven:
+  // absoluut toegepast kostte deze regel de hele merkstem.
+  "(3) Noem het bedrijf bij naam in de eerste zin van elke sectie, want die zinnen pakt een " +
+  "AI-assistent op. In de rest van de sectie schrijf je in de wij-vorm, zoals een ondernemer op " +
+  "zijn eigen site praat. " +
   "(4) Elke sectie bevat minstens één zin die LOSSTAAND te begrijpen is. " +
   "(5) Raak niets aan wat niet in een bevinding genoemd wordt. Een sectie die je niet teruggeeft, " +
   "blijft letterlijk staan, en dat is de bedoeling. " +
