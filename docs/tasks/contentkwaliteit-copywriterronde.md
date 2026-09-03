@@ -1,4 +1,4 @@
-# De copywriterronde: elf verbetervoorstellen, en twee keuzes
+# De copywriterronde: twaalf verbetervoorstellen, en twee keuzes
 
 **Status:** de voorstellen liggen bij de eigenaar, er is nog niets gebouwd. Bijgewerkt 3 september
 2026 na de beoordeling door een echte copywriter.
@@ -81,9 +81,10 @@ van het formulier gelijktrekken met wat er gemeten wordt.
 
 ## 3. Keuze 2: welke verbeteringen bouwen we
 
-Elf voorstellen in twee lagen. De eerste laag komt van de copywriter en gaat over redactionele
-keuze; daar zit volgens hem "verreweg het meeste" in. De tweede laag komt uit de AI-ronde en gaat
-over mechanische hygiëne; goedkoop, hard te controleren, en losstaand van smaak.
+Twaalf voorstellen in drie lagen. Laag A komt van de copywriter en gaat over redactionele keuze;
+daar zit volgens hem "verreweg het meeste" in. Laag B komt uit de AI-ronde en gaat over mechanische
+hygiëne; goedkoop, hard te controleren, en losstaand van smaak. Laag C is er één en gaat niet over
+schrijven maar over keuren, en zonder die ene weten we van de rest niet of hij geholpen heeft.
 
 Elk voorstel heeft een promptwijziging én een deterministisch vangnet (code-conventie 1), en elk is
 te verifiëren tegen de twaalf bestaande pagina's, want die liggen er al.
@@ -209,7 +210,13 @@ de lezer. Dit hangt vast aan V7: zonder aangewezen lezer valt er geen scenario t
 
 **Vangnet.** Zwak, en dat moet erbij gezegd. Dit is niet te tellen. Wat wel kan: de
 vakmanschapsbeoordelaar er een aparte dimensie voor geven ("herkenning"), zodat het cijfer bestaat
-en de ijking hem later kan bijstellen. Dit is het enige voorstel zonder harde controle.
+en de ijking hem later kan bijstellen.
+
+⚠️ **Dit is het enige voorstel zonder harde controle, en daarmee het enige dat code-conventie 1
+schendt** ("elke promptinstructie krijgt een deterministisch vangnet, nooit alleen vertrouwen op wat
+het model belooft"). Het cijfer dat als vangnet moet dienen komt van een beoordelaar die de pagina's
+op dit moment niet uit elkaar kan houden (+0,19). **Bouw V11 daarom pas ná V13**, anders voegen we
+een instructie toe die niemand kan controleren.
 
 #### V12. Niet elke pagina hetzelfde rijtje feiten
 
@@ -314,7 +321,112 @@ en de eerste zin van elke sectie, wij-vorm toegestaan in de rest. **Vangnet:** b
 zinnen in de eerste persoon én meer dan één merknaamvermelding per honderd woorden. **Risico:**
 middel, hoort samen met V8 en met dezelfde nameting.
 
-## 4. Wat ik zou doen
+---
+
+### Laag C. De keuring zelf (en dit stond er ten onrechte niet in)
+
+#### V13. De vakmanschapsbeoordelaar leren onderscheiden
+
+**Waarom dit een voorstel is en geen voetnoot.** Laag A en B verbeteren alle twaalf het SCHRIJVEN.
+Geen van de twaalf raakt het KEUREN. Als we alleen laag A en B bouwen, wordt de tekst beter en blijft
+de app onbetrouwbaar in wat hij ervan vindt, want de keuring blokkeert op herleidbaarheid en stuurt
+de reparatie naar de verkeerde pagina. Dat is niet minder erg dan een slechte tekst: een pagina die
+onterecht "klaar" heet, gaat naar de klant.
+
+**Wat er nu gebeurt.** Zie §1. Het niveau klopt (0,05 tot 0,32 punt van de mens), de rangschikking
+niet (+0,19). Concreet: de reparatiestap richt zich op de pagina met de laagste score, en op deze
+twaalf zou hij pagina 1 en 12 gaan repareren terwijl de copywriter pagina 2 en 8 aanwijst. Van de vier
+pagina's die hij zou aanpakken, zijn er twee de verkeerde.
+
+**Wat ik voorstel.** Drie dingen, in deze volgorde:
+
+1. **De twaalf menselijke oordelen invoeren** (keuze 1 hierboven). Zonder dat materiaal kan er niets
+   geijkt worden. Dit is handwerk van een uur, geen bouwwerk.
+2. **De drempels herijken op onderscheid in plaats van op hoogte.** De huidige drempels rusten op
+   zeven pagina's en zijn nooit tegen een mens gelegd. Wat er gemeten moet worden is niet "geeft de
+   beoordelaar gemiddeld het goede cijfer" maar "zet hij dezelfde pagina's onderaan". De maat daarvoor
+   is de rangcorrelatie, en die is nu +0,19.
+3. **De beoordelaar de menselijke voorbeelden meegeven.** Vier tot zes beoordeelde pagina's met het
+   cijfer én de reden erbij, als ijkpunten in zijn opdracht. Dat is de goedkoopste manier om een
+   oordeel te verankeren, en het kost per keuring vrijwel niets extra omdat het invoertekst is.
+
+**Vangnet.** De rangcorrelatie zelf, als getal dat de app bijhoudt. Zodra er twintig menselijk
+beoordeelde pagina's liggen, hoort er in `/beheer/kwaliteit` te staan hoe goed de beoordelaar het
+menselijke oordeel volgt. Nu staat daar niets, en daardoor kon dit vier weken onopgemerkt blijven.
+
+**Risico.** Laag qua techniek, hoog qua afhankelijkheid: dit hangt op menselijke beoordelingen en
+die zijn schaars. Er liggen er twaalf, er zijn er twintig nodig.
+
+## 4. De nulmeting, en hoe we straks weten of het geholpen heeft
+
+Dit ontbrak in de vorige versie en dat was een gat: zonder eindstreep wordt "beter" opnieuw een
+gevoel. Alle startwaarden hieronder zijn gemeten op dezelfde twaalf pagina's van 3 september 2026 en
+zijn na te tellen.
+
+| Wat | Nu | Voorstel voor de norm | Waar het bij hoort |
+|---|---|---|---|
+| Pagina's zonder aangewezen lezer | 8 van 12 | 0 van 12 | V7 |
+| Openingen die bij het merk beginnen | 11 van 12 | hoogstens 2 van 12 | V8 |
+| Koppen die een vraag zijn | 169 van 228 (74%) | hoogstens 50%, behalve bij een FAQ | V10 |
+| Zinnen in de eerste persoon | 0 | minstens 1 per sectie | V1 |
+| Merknaam in de derde persoon | 164 (1 per 83 woorden) | hoogstens 1 per 200 woorden | V1 |
+| Pagina's die "je" en "u" mengen | 1 van 12 | 0 van 12 | V2 |
+| Zinnen over ons eigen werkproces | 6, waarvan `checkSourceTalk` er 0 vindt | 0, en alle 6 gevonden door de controle | V3 |
+| Genegeerde klantinstructies | 2 van 4 | 0 van 4 | V5 |
+| Slappe formuleringen | 120 (1 per 113 woorden) | hoogstens 1 per 250 woorden | V6 |
+| Gebiedende zinnen | 72 (1 per 189 woorden) | hoogstens 1 per 400 woorden | V6 |
+| Feiten die op 5 of 6 van de 6 pagina's staan | 5 tot 7 per klant | hoogstens 2 per klant | V12 |
+| Rangcorrelatie beoordelaar met mens | +0,19 | minstens +0,60 | V13 |
+
+Die twaalf zijn allemaal te tellen en kosten niets. Ze zeggen alleen niet of de tekst BETER is
+geworden, alleen of de gemeten fout weg is. Daarvoor is één meting nodig die wél iets kost:
+
+**De nameting.** Dezelfde twaalf onderwerpen opnieuw laten schrijven na laag A en B, en opnieuw
+blanco voorleggen aan dezelfde copywriter, met exact dezelfde vijf vragen. Zijn cijfers van vandaag
+zijn de nulmeting:
+
+| Dimensie | Nu | Wat ik als geslaagd zou beschouwen |
+|---|---|---|
+| professioneel copywritingniveau | 3,2 | 4,0 |
+| specificiteit | 3,9 | 4,2 |
+| menselijkheid | 2,9 | 3,8 |
+| overtuigingskracht | 2,6 | 3,8 |
+| bedrijfsprofilering | 3,6 | 4,2 |
+| "zou ik hem zo versturen" | 0 van 12 | minstens 6 van 12 |
+
+**Overtuigingskracht is de dimensie die telt.** Die staat het laagst, het is de dimensie die het
+verschil tussen informatie en copy meet, en het is de enige waarvan een klant het gevolg merkt. Gaat
+die van 2,6 naar 3,8, dan heeft dit werk gewerkt. Blijft die staan terwijl de tellingen wel groen
+worden, dan hebben wij twaalf fouten opgelost en het probleem niet.
+
+**Wat de nameting kost.** Twaalf pagina's opnieuw schrijven met de gedocumenteerde tarieven, $0,071
+per schrijfaanroep, $0,013 voor de vier beoordelaars en $0,139 per reparatieronde, komt bij twee
+rondes uit op ongeveer $4,30 in totaal. De echte kostenpost is een dagdeel van de copywriter. Dat is
+goedkoop voor het enige cijfer dat zegt of het gelukt is.
+
+## 5. Wat dit plan NIET oplost
+
+Drie dingen, en ze horen erbij voordat er een dag werk in gaat.
+
+**Het eindoordeel van de copywriter blijft grotendeels open.** Zijn conclusie is dat de teksten weten
+wat het bedrijf doet en wat de lezer wil weten, maar niet "waarom deze lezer dit bedrijf zou moeten
+kiezen". V9 en V4 komen daar het dichtst bij, maar die verplaatsen de keuze naar het model: van
+twintig feiten de drie kiezen die vandaag tellen, en er de betekenis bij bedenken. Of een model dat
+werkelijk kan, weten we pas als het gebouwd is. **Dit is het echte risico van dit plan.** Alle
+tellingen kunnen groen worden zonder dat die vraag beantwoord is.
+
+**Er zit niets in over de FAQ-blokken onderaan.** Tien van de twaalf pagina's hebben er acht, de
+andere twee hebben er twee. Ze staan buiten de tellingen hierboven, en de copywriter noemt ze in zijn
+patroon 3 en zijn ondergrens 3 als onderdeel van het probleem ("een FAQ is geen vervanging voor een
+goed verhaal"). Sommige zijn bovendien een woordelijke kopie van een sectie die twintig regels hoger
+staat. Of er acht blokken onder elke pagina moeten hangen, is een vraag die niemand heeft gesteld.
+
+**De reparatiestap is ongemoeid gebleven.** Alle twaalf voorstellen grijpen aan op het eerste concept
+of op de keuring. Wat er gebeurt in de een tot drie reparatierondes daarna, en of die het probleem
+verergeren (de reparatieopdracht is per sectie, en dat is precies de manier om een tekst nog verder
+in losse antwoorden uiteen te laten vallen), is niet onderzocht. Dat verdient een eigen ronde.
+
+## 6. Wat ik zou doen
 
 **Eerst V7.** Acht van de twaalf pagina's zijn geschreven zonder aangewezen lezer, terwijl de
 copywriter "schrijf vanuit de situatie van de lezer" zijn belangrijkste punt noemt. Dit is de enige
@@ -334,6 +446,13 @@ worden, niet los.
 
 **V6 en V12 het laatst**, want die vragen het meeste oordeel over waar de grens ligt.
 
-En doorlopend: **de vakmanschapsbeoordelaar leren onderscheiden.** Zijn niveau klopt, zijn
-rangschikking niet (+0,19). De twaalf oordelen van de copywriter zijn daarvoor het materiaal, en
-dat is de eerste keer dat dat materiaal er is.
+**En V13 loopt er parallel aan mee, niet erna.** Zijn niveau klopt, zijn rangschikking niet
+(+0,19). De twaalf oordelen van de copywriter zijn daarvoor het materiaal, en dat is de eerste keer
+dat dat materiaal er is. Stap 1 ervan (de twaalf invoeren) is een uur handwerk en kan vandaag.
+
+**V11 als laatste**, ná V13, want zijn vangnet is het oordeel van een beoordelaar die eerst moet
+leren onderscheiden.
+
+Samengevat als volgorde: V7, dan V13 stap 1, dan V2 en V3 en V5, dan V9 en V4, dan V8 en V1 en V10
+met nameting, dan V6 en V12, dan V13 stap 2 en 3, dan V11. En daarna de nameting uit §4, want dat is
+het enige cijfer dat zegt of dit alles gewerkt heeft.
