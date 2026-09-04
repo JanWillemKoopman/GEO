@@ -83,7 +83,7 @@ Vercel: Next.js 15 op Node.js  (code: GitHub, deploy op push naar main)
  ├─ /api/cron/worker: de motor, elke MINUUT aangeroepen door Supabase pg_cron
  └─ /api/cron/plan:   de schrijfronde van het contentplan, DAGELIJKS via pg_cron
    │
-   ├──────► OpenAI Responses API (gpt-5.6-luna / gpt-5.6-sol, + web_search)
+   ├──────► OpenAI Responses API (gpt-5.6-luna / gpt-5.6-terra, + web_search)
    ▼
 Supabase (Postgres + Auth)
  ├─ auth.users
@@ -531,7 +531,7 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 | 4b | Core topics | luna | `propose-topics.ts`: 5–8 onderwerpen uit de aanbodboom, elk met verwijzing naar de knopen waar ze uit volgen. Voorstel, geen meting, goedkeuring is een aparte handeling. |
 | 4c | Markt | luna, web_search | `market.ts`: per concurrent wáárom die wint, plus het bronnenlandschap van de markt. |
 | 4d | LLM-kennisbasislijn | luna, deels web_search | `llm-baseline.ts`: vijf blokken (`kent`, `klopt`, `citeert`, `verwarring`, `categorie`). `kent` stelt **zes** formuleringen en levert een verhouding, niet een ja of nee; `categorie` kiest zijn koopvragen via de topics en krijgt een eigen oordeel (word je genoemd, en wie wél). Alle oordelen worden in code geveld (`baseline-verdict.ts`), nooit door het model over zichzelf. |
-| 4e | Synthese | **sol** (`SYNTHESIS_PREMIUM`) | `synthesis.ts`: dossier, gespreksagenda en `brand_facts`, alleen feiten waarvan het citaat letterlijk op de bronpagina staat. ⚠️ Sinds 24 augustus 2026 wordt de gespreksagenda ook wegschreven als merkbrede rijen in `fact_requests` (`gap-questions.ts`), zodat de klant ze op "Openstaande vragen" kan beantwoorden in plaats van alleen lezen. Idempotent via de unieke index op (`profile_id`, `question`). |
+| 4e | Synthese | **contenttier** (`SYNTHESIS_PREMIUM`) | `synthesis.ts`: dossier, gespreksagenda en `brand_facts`, alleen feiten waarvan het citaat letterlijk op de bronpagina staat. ⚠️ Sinds 24 augustus 2026 wordt de gespreksagenda ook wegschreven als merkbrede rijen in `fact_requests` (`gap-questions.ts`), zodat de klant ze op "Openstaande vragen" kan beantwoorden in plaats van alleen lezen. Idempotent via de unieke index op (`profile_id`, `question`). |
 | 4f | **Onboardingsessie** |, | `/merk/[id]/admin/onboarding`, staf-only en het enige stafscherm dat gedeeld wordt. De consultant loopt het dossier mét de klant na, vult de commerciële laag in (migratie `0060`) en legt het gesprek vast. Opslaan gaat per veld, met bron `gesprek`. Nul AI-aanroepen: het scherm leest wat er ligt. |
 | 4g | **Het onderzoek bijwerken** |, | `POST /api/profiles/[id]/refresh`, achter `mayTriggerCost` en het budgetplafond. `onboarding-refresh.ts` bepaalt per gewijzigd veld welke stappen opnieuw draaien: bereik of werkgebied → promptgeneratie plus kennistest, commerciële sturing → onderwerpen, concurrenten → markt. Tien van de vijftien velden leveren nul stappen op. Een stap die zo wordt ingepland krijgt `chain: false` en sleept zijn opvolger niet mee. |
 | 5 | Analyse aanmaken |, | Verplicht onderwerp + optionele content-brief. |
@@ -731,7 +731,7 @@ berekenen is, is geld uitgeven aan een slechter antwoord.
 |---|---|---|---|
 | `MODELS.volume` | `gpt-5.6-luna` | $0,20 / $1,20 | Mention-beoordeling (3b) |
 | `MODELS.quality` | `gpt-5.6-luna` | $0,20 / $1,20 | Research, prompts, kalibratie, simulatie (3a), gap-analyse, rapport, entiteiten, de vier contentbeoordelaars, bronanalyse |
-| `MODELS.content` | `gpt-5.6-sol` | $5 / $30 | Uitsluitend content schrijven/herschrijven |
+| `MODELS.content` | `gpt-5.6-terra` | $2 / $12 | Uitsluitend content schrijven/herschrijven |
 
 `volume` en `quality` wijzen sinds augustus 2026 naar hetzelfde model; de tiers blijven bestaan
 omdat ze vastleggen wélke keuze per stap bewust gemaakt is. Het onderscheid dat vroeger in het
@@ -802,9 +802,17 @@ verschilt in hoeveel pagina's het ophaalt. De verdeling binnen een ronde is nog 
 kostenknop die telt, en dat is web_search bij het stellen van de vraag.
 
 Dit is conventie 10 in de praktijk: de schatting stond er ruim een week met de eigen waarschuwing
-erbij, en week bij narekenen ruim een factor twee af. Contentgeneratie (`gpt-5.6-sol`) blijft de
-enige duurdere post per pagina en werd ~5× duurder: Sol is 2,5×/3,75× het tarief van gpt-4.1 en de
-redeneertokens tellen als output.
+erbij, en week bij narekenen ruim een factor twee af. Contentgeneratie blijft de enige duurdere post
+per pagina.
+
+**De contenttier ging op 4 september 2026 van Sol naar Terra** ($5/$30 naar $2/$12 per miljoen
+tokens). Aanleiding is de nameting over de twaalf pagina's van 3 september 2026: 12 schrijfaanroepen
+$3,0936 en 16 herschrijfrondes $3,3252, samen 86% van de $7,4293 die die twaalf pagina's kostten,
+tegenover $0,62 voor alle 208 beoordelingen samen. Op Terra zakken diezelfde 28 schrijfaanroepen
+naar ongeveer $2,57, een besparing van ~$0,32 per pagina. De onderbouwing waarom dat geen
+kwaliteitsverlies hoeft te zijn staat in `lib/openai/models.ts`; dat het dat ook niet is, is nog
+niet nagemeten (conventie 10, de nameting staat in
+`docs/tasks/contentkwaliteit-copywriterronde.md` §7).
 
 ### De AI-aanroepen van Mijn reputatie (22 augustus 2026, migratie `0062`)
 
@@ -871,7 +879,7 @@ iets de deur uit gaat.
 
 ## 8. Lokaal draaien
 
-Vereist: Node ≥ 20, een Supabase-project, een OpenAI-key met toegang tot `gpt-5.6-luna` én `gpt-5.6-sol`.
+Vereist: Node ≥ 20, een Supabase-project, een OpenAI-key met toegang tot `gpt-5.6-luna` én `gpt-5.6-terra`.
 
 ```bash
 npm install

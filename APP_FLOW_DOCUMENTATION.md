@@ -110,7 +110,7 @@ staan. De eerdere schatting in dit document was $0,40 en dat bleek ruim twee kee
 | Profielonderzoek | eenmalig ~$0,25 | Gemeten over drie onboardings. Hergebruikt door alle analyses van dat merk |
 | **Meetronde (30 vragen)** | **gemiddeld $0,855** | Laagste gemeten $0,50, hoogste $1,56. De spreiding komt doordat web_search per vraag verschilt in hoeveel pagina's het ophaalt |
 | Meetronde mét herhalingen | $0,855 plus 8 zwaarste vragen × 3 | Verhoogt de betrouwbaarheid waar het gewicht zit |
-| Contentpagina | enkele dubbeltjes | Enige post op het duurste model (`gpt-5.6-sol`), ~5× duurder dan op de vorige modelgeneratie |
+| Contentpagina | ~$0,19 schrijven plus ~$0,08 herschrijven | Enige post op de contenttier (`gpt-5.6-terra`, $2/$12). Stond tot 4 september 2026 op `gpt-5.6-sol` ($5/$30) en kostte toen $0,2578 plus $0,2078; gemeten over de twaalf pagina's van 3 september 2026 |
 
 **Er is precies één kostenknop die telt.** Van een meetronde zit **98,8%** in het stellen van de
 vraag mét web_search (`measure_simulate`); het beoordelen van het antwoord is 1,2%. Zet

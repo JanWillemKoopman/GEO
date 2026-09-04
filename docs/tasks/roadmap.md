@@ -223,7 +223,9 @@ als concurrent meetellen.** De helft van R0.5 is intussen meegelift op R8.5: de 
 - **De drempels van de kwaliteitspoort afstellen op data.** `DUPLICATE_THRESHOLD` staat op 0,35 en
   de leesbaarheidsgrenzen op 20/25 woorden per zin; allebei ruim gekozen. De gemeten waarden worden
   gelogd, dus na tien echte pagina's kan dit op data in plaats van op gevoel.
-- **`SYNTHESIS_PREMIUM` narekenen.** De synthese op Sol is met $0,127 goed voor 52% van de
+- **`SYNTHESIS_PREMIUM` narekenen.** De synthese was op Sol met $0,127 goed voor 52% van de
+  onboardingkosten. Sinds 4 september 2026 draait de contenttier op Terra ($2/$12 in plaats van
+  $5/$30), dus diezelfde synthese kost nu ongeveer $0,05 en is nog maar ruwweg een kwart van de
   onboardingkosten. De schakelaar bestaat; de vergelijking met Luna vraagt vijf profielen.
 
 ## 9. Eén taak per onboarding viel terug van `running` naar `queued`

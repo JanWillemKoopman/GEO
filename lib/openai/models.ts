@@ -5,11 +5,14 @@
  *
  * **Augustus 2026: over van de GPT-4.1-familie naar GPT-5.6.** Alles wat meet,
  * onderzoekt en beoordeelt draait op `gpt-5.6-luna`; alleen het schrijven van de
- * content zelf staat op het duurste model dat OpenAI levert (`gpt-5.6-sol`).
+ * content zelf staat op een duurder model.
  * De drie tiers hieronder blijven bestaan omdat de pijplijn ze op 21 plekken
  * gebruikt, het verschil tussen `volume` en `quality` zit nu niet meer in een
  * ander model, maar in de redeneerinspanning per soort werk
  * (`lib/openai/sampling.ts`).
+ *
+ * **4 september 2026: de contenttier van Sol naar Terra.** Zie de toelichting
+ * bij `content` hieronder voor de nagerekende reden.
  */
 export const MODELS = {
   /**
@@ -29,19 +32,41 @@ export const MODELS = {
   quality: "gpt-5.6-luna",
   /**
    * Premium, uitsluitend het schrijven/herschrijven van de content zelf
-   * (Fase C, §8). Content ís het betaalde product; hier weegt kwaliteit zwaarder
-   * dan de paar cent per pagina extra. Zie contentkwaliteit-analyse.md (C4).
+   * (Fase C, §8). Content ís het betaalde product, dus dit is de enige tier die
+   * boven Luna uitkomt. Zie contentkwaliteit-analyse.md (C4).
    *
-   * Sol is het duurste model van de GPT-5.6-familie ($5/$30 per miljoen tokens,
-   * tegen $2/$12 voor Terra). Bewuste keuze: dit is de enige stap waar de klant
-   * de uitkomst letterlijk publiceert. Reken wel op de kosten: Sol is 2,5× de
-   * input- en 3,75× de outputprijs van gpt-4.1, en de redeneertokens tellen als
-   * output. Een pagina wordt daarmee grofweg vijf keer zo duur, bij de ~$0,08
-   * die twee calls op gpt-4.1 kostten dus enkele dubbeltjes per pagina. Dat is
-   * nog steeds klein t.o.v. een meetronde ($0,82), en het is de enige post waar
-   * de klant het verschil ziet.
+   * ⚠️ **Van Sol naar Terra op 4 september 2026.** Terra kost $2/$12 per miljoen
+   * tokens tegen $5/$30 voor Sol: 2,5× goedkoper op zowel input als output.
+   * De aanleiding is een nameting op `ai_calls` over de twaalf pagina's van
+   * 3 september 2026 (MJB Dakservice en Fysio Centrum Utrecht):
+   *
+   *   12 schrijfaanroepen (`content_draft`)      $3,0936   $0,2578 per stuk
+   *   16 herschrijfaanroepen (`content_revise`)  $3,3252   $0,2078 per stuk
+   *   alles wat onderzoekt en beoordeelt          $1,0105
+   *   ─────────────────────────────────────────────────
+   *   twaalf pagina's, 328 aanroepen              $7,4293
+   *
+   * Het schrijven was daarmee 86% van de rekening, en de vier beoordelaars
+   * samen kostten $0,62 voor 208 aanroepen. Op Terra zakken dezelfde 28
+   * schrijfaanroepen naar ongeveer $2,57: een besparing van ~$3,85 per twaalf
+   * pagina's, ofwel ~$0,32 per pagina, bij gelijkblijvend tokengebruik.
+   *
+   * Waarom dit verdedigbaar is en niet gewoon bezuinigen: de zwakke plek van
+   * deze twaalf pagina's zat niet in het model maar in de opdracht. De externe
+   * copywriter wees geen enkele keer op iets wat een groter model had opgelost
+   * (geen redeneerfouten, geen onlogische opbouw) en wél elf keer op een
+   * ontbrekende lezer, een ontbrekende stem en een ontbrekend eigen woord.
+   * Precies daarvoor zijn op 3 september de blokken in `content.ts` gebouwd.
+   * Het geld dat hier vrijkomt is bovendien meer waard bij de beoordelaars: één
+   * vermeden herschrijfronde ($0,2078) betaalt zeventien volledige keuringen
+   * ($0,0119 per stuk).
+   *
+   * ⚠️ Ongeverifieerd (conventie 10): dat Terra dezelfde tekstkwaliteit haalt is
+   * een aanname tot de nameting uit `docs/tasks/contentkwaliteit-copywriterronde.md`
+   * §7 is gedraaid. Terugdraaien is één regel: zet `content` terug op
+   * `"gpt-5.6-sol"`, dat tarief staat nog in `lib/openai/pricing.ts`.
    */
-  content: "gpt-5.6-sol",
+  content: "gpt-5.6-terra",
 } as const;
 
 export type ModelName = (typeof MODELS)[keyof typeof MODELS];

@@ -7483,3 +7483,47 @@ invoertokens die elke aanroep meebetaalt. Hoeveel dat scheelt is niet te ramen z
 ⚠️ Waar de oude $0,071 vandaan kwam is niet meer na te gaan: `ai_calls` bevat voor
 `content_draft` en `content_revise` alleen nog rijen van 3 september. De meting van 2 september is er
 dus niet meer om naast te leggen.
+
+### 4 september 2026, de contenttier van Sol naar Terra
+
+`MODELS.content` staat niet meer op `gpt-5.6-sol` ($5/$30 per miljoen tokens) maar op
+`gpt-5.6-terra` ($2/$12). Dat is 2,5 keer goedkoper op zowel invoer als uitvoer, en het raakt de
+twee duurste aanroepen van de hele app plus de profielsynthese achter `SYNTHESIS_PREMIUM`.
+
+**Wat het scheelt.** Gerekend op de gemeten tokenaantallen van de vorige alinea, bij gelijkblijvend
+gebruik:
+
+| | Op Sol | Op Terra |
+|---|---|---|
+| Eén schrijfaanroep (15.845 in / 5.925 uit, mét zoekactie) | $0,258 | $0,113 |
+| Eén reparatieronde (13.625 in / 4.657 uit) | $0,208 | $0,083 |
+| Twaalf pagina's schrijven en repareren (28 aanroepen) | $6,42 | $2,68 |
+| Eén profielsynthese | $0,125 | $0,050 |
+
+Een besparing van ongeveer $3,74 per twaalf pagina's, ofwel $0,31 per pagina. De rest van de
+contentpijplijn verandert niet: die stond al op Luna en kostte over dezelfde ronde $1,01.
+
+**Waarom dit geen verkapte bezuiniging is.** De externe copywriter die deze twaalf pagina's
+beoordeelde wees geen enkele keer op iets wat een groter model had opgelost. Geen redeneerfout, geen
+onlogische opbouw, geen gemiste samenhang. Wat hij elf keer aanwees was een ontbrekende lezer, een
+merk dat nergens zelf sprak en een tekst zonder één eigen woord van de ondernemer. Dat zijn
+gebreken in de OPDRACHT en niet in het denkvermogen, en daar zijn op 3 september de vijf promptblokken
+en de zeven deterministische controles voor gebouwd. Het geld dat hier vrijkomt is bovendien meer
+waard aan de andere kant van de pijplijn: één vermeden reparatieronde ($0,083 op Terra, $0,208 op
+Sol) betaalt zeven tot zeventien volledige keuringen van $0,0119.
+
+**Wat er meeveranderde.** De budgetdrempel van de synthese ging van $0,60 naar $0,25, dezelfde marge
+boven een schatting die zelf van $0,49 naar $0,20 zakte; de synthese valt daardoor mínder vaak terug
+op Luna dan voorheen. `ESTIMATED_COST_SOL` heet nu `ESTIMATED_COST_PREMIUM`, want de naam wees naar
+een model in plaats van naar een tier. Het Sol-tarief blijft in `lib/openai/pricing.ts` staan, want
+de rijen in `ai_calls` van vóór vandaag zijn ermee berekend en moeten narekenbaar blijven, en de
+terugval voor een onbekend model blijft er ook op staan: bij het onbekende is te hoog schatten de
+veilige kant.
+
+⚠️ **Ongeverifieerd (conventie 10).** Dat Terra dezelfde tekstkwaliteit levert is een beredeneerde
+aanname en geen meting. De nameting die dat moet uitwijzen staat in
+`docs/tasks/contentkwaliteit-copywriterronde.md` §7: dezelfde twaalf onderwerpen opnieuw schrijven en
+blanco voor dezelfde copywriter leggen. Valt die tegen, dan is terugdraaien één regel in
+`lib/openai/models.ts`. De unittest "de contenttier staat op Terra" legt de keuze vast met de
+bedragen erbij, zodat een stille terugval een rode test oplevert in plaats van een verrassing op de
+factuur.

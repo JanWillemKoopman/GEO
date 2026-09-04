@@ -5,7 +5,7 @@ import "server-only";
  * kant-en-klare pagina per aanbeveling, als een kleine REDACTIONELE PIJPLIJN
  * i.p.v. één blinde call:
  *
- *   1. Draft        , premium model (`gpt-5.6-sol`), on-brand, geground op de
+ *   1. Draft        , premium model (`MODELS.content`), on-brand, geground op de
  *                      concrete feiten uit het klantprofiel.
  *   2. Redactie     , goedkope call (quality-tier) scoort de draft op een rubric,
  *                      checkt de harde regels én de GEO-criteria.

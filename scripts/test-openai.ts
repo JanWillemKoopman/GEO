@@ -25,7 +25,7 @@ loadEnv({ path: ".env.local", override: true });
 // `quality` wijzen sinds GPT-5.6 naar hetzelfde model; het verschil zit in de
 // redeneerinspanning, en die testen we hieronder apart.
 const LUNA = "gpt-5.6-luna";
-const SOL = "gpt-5.6-sol";
+const TERRA = "gpt-5.6-terra";
 
 function assertKey() {
   if (!process.env.OPENAI_API_KEY) {
@@ -84,7 +84,7 @@ async function main() {
 
   console.log("── ORBIT ENGINE · OpenAI rooktest ─────────────────────────────");
   console.log(`   volume/quality-model: ${LUNA}`);
-  console.log(`   content-model       : ${SOL}\n`);
+  console.log(`   content-model       : ${TERRA}\n`);
 
   // De combinatie die het meest kan breken: temperatuur mag alleen mee bij
   // effort `none`. Faalt dit met een unsupported-parameter-fout, dan valt de app
@@ -99,7 +99,7 @@ async function main() {
     label: "structured output (analytical: effort low)",
     effort: "low",
   });
-  await testStructured(client, SOL, {
+  await testStructured(client, TERRA, {
     label: "structured output (content: effort high)",
     effort: "high",
   });

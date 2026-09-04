@@ -436,15 +436,28 @@ De twee zware stappen zijn dus 3,6 en 1,5 keer duurder dan de documentatie zei (
 Wat wél klopte is het cijfer voor de beoordelaars: ongeveer een cent per keuring, en dus nog steeds
 niets vergeleken met het schrijven.
 
-**Voor de nameting reken ik daarom op ongeveer $7,50**, met twee kanttekeningen die de andere kant
+⚠️ **Deze tabel is de laatste ronde op `gpt-5.6-sol`.** Op 4 september 2026 is de contenttier naar
+`gpt-5.6-terra` gegaan ($2/$12 in plaats van $5/$30, zie `docs/logbook.md`). Dezelfde 28 zware
+aanroepen kosten daarmee ongeveer $2,68 in plaats van $6,42, en de hele ronde ongeveer $3,69 in
+plaats van $7,43.
+
+**Voor de nameting reken ik daarom op ongeveer $3,70**, met twee kanttekeningen die de andere kant
 op werken. Omlaag: V7 houdt pagina's zonder aangewezen lezer tegen vóór de dure aanroep, en op deze
 ronde waren dat er acht van de twaalf, dus als het rapportmodel de doelomschrijving niet vult wordt
 de ronde goedkoper én kleiner. Omhoog: de prompt is met vijf blokken uitgebreid (lezersopdracht,
 bewijspunten, klantcitaten, adviestoon, instructies), en dat zijn invoertokens die elke
 schrijfaanroep meebetaalt.
 
-De echte kostenpost blijft een dagdeel van de copywriter. Ook tegen $7,50 is dit goedkoop voor het
-enige cijfer dat zegt of het gelukt is.
+De echte kostenpost blijft een dagdeel van de copywriter. Ook tegen $7,50 was dit goedkoop voor het
+enige cijfer dat zegt of het gelukt is; tegen $3,70 is er helemaal geen reden meer om erop te
+beknibbelen.
+
+**De nameting krijgt er wel een tweede vraag bij.** Hij toetste eerst alleen of de twaalf
+verbeteringen werken. Nu toetst hij twee dingen tegelijk: die verbeteringen én een goedkoper model.
+Zakt de overtuigingskracht van 2,6, dan is niet meteen duidelijk welke van de twee de oorzaak is.
+Dat is bewust geaccepteerd, want de twee kunnen niet los: een tussenronde op Sol kost het dubbele
+en nog een dagdeel van de copywriter. Valt de nameting tegen, dan is de eerste stap terug naar
+Sol met dezelfde prompts, en dat is één regel in `lib/openai/models.ts`.
 
 ## 5. Wat dit plan NIET oplost
 
@@ -510,7 +523,9 @@ geverifieerd). Dit is wat er openstaat, op volgorde van belang.
 Alles uit §4 staat nog open. Twaalf tellingen kunnen groen worden zonder dat de tekst beter wordt,
 en de enige meting die dat wél zegt is: dezelfde twaalf onderwerpen opnieuw laten schrijven en
 opnieuw blanco voorleggen aan dezelfde copywriter. Zijn overtuigingskracht van 2,6 is het cijfer dat
-telt. Kosten: ongeveer $4,30 aan modelaanroepen plus een dagdeel van hem.
+telt. Kosten: ongeveer $3,70 aan modelaanroepen plus een dagdeel van hem. Die ronde draait op
+`gpt-5.6-terra` en toetst dus ook de modelwissel van 4 september mee; zie §4 voor wat dat betekent
+als het cijfer tegenvalt.
 
 ### 7.2 De citeerbaarheid na V8, V1 en V10
 
