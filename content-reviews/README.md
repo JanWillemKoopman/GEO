@@ -4,6 +4,16 @@
 > in afwachting van een echte. Die beoordelingen staan apart in [`feedback/`](feedback/README.md) en
 > tellen bewust niet mee voor de ijking van het raamwerk. Lees daar eerst het waarom.
 
+## De twee sets
+
+- [`copywriter-opdracht-alle-twaalf.md`](copywriter-opdracht-alle-twaalf.md) — twaalf pagina's,
+  geschreven 3 september 2026, met de oude contentpijplijn.
+- [`copywriter-opdracht-zes-artikelen.md`](copywriter-opdracht-zes-artikelen.md) — zes nieuwe
+  pagina's, geschreven 4 september 2026 met de pijplijn ná de optimalisaties uit de expertronde
+  van diezelfde dag (de schrijfopdracht en de versievergelijking). Beide sets hebben dezelfde
+  opbouw: per pagina de aanleiding, het doel, de beschikbare informatie en de geschreven tekst,
+  zonder eigen kwaliteitsoordeel van ORBIT ENGINE.
+
 **Wil je alles in één bestand?** [`copywriter-opdracht-alle-twaalf.md`](copywriter-opdracht-alle-twaalf.md) bevat de opdracht en alle twaalf pagina's achter elkaar, met de vraag om ze stuk voor stuk te beoordelen en daarna één samenvatting te maken van de gemeenschappelijke delers. Dat is het bestand dat je aan een copywriter geeft. De losse bestanden hieronder zijn dezelfde inhoud, per pagina.
 
 Twaalf pagina's uit de benchmarkronde van 3 september 2026 (twee klanten, vier onderwerpclusters), elk in een eigen bestand. Elk bestand bevat precies wat er beschikbaar was toen de pagina geschreven werd: de aanleiding uit de meting, het doel van de pagina, de feiten en klantantwoorden, en de uiteindelijk geschreven tekst. Er staat bewust geen kwaliteitsoordeel van ORBIT ENGINE zelf in (geen scores, geen blokkades): het doel is dat een copywriter blanco naar de tekst kijkt.

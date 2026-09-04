@@ -7801,3 +7801,96 @@ feedback is verwerkt en de beslissingen staan hier. Wat eruit bewaard moest blij
 opdoken: neem geen cijfer uit documentatie over, en meet de verdeling voordat je een drempel kiest).
 
 Vier controles groen: typecheck, 4373 unittests (2 nieuwe), 649 ketentests, build.
+
+## 4 september 2026: de contentronde van zes artikelen, en drie plekken waar de nieuwe stappen voor het eerst op echte data liepen
+
+Opdracht: `docs/tasks/contentronde-zes-artikelen.md`. Eerst nagerekend dat de optimalisaties van
+vandaag echt op `main` staan (`git log origin/main`, PR #64 gemerged): dat klopte, dus de ronde
+meet de nieuwe pijplijn en niet de oude.
+
+**De zes pagina's.** Per cluster de hoogst geprioriteerde nog ongeschreven aanbeveling, met twee
+extra uit clusters die er meer over hadden: MJB Dakservice, daklekkage verhelpen ("Laat zien hoe
+MJB lekkages onderzoekt en de prijs onderbouwt", "Maak kosten, voorrijkosten en spoedprijzen
+zichtbaar"); MJB Dakservice, dakrenovatie en dakisolatie ("Maak een praktische pagina over
+isolatiekosten en de juiste aanpak"); Fysio Centrum Utrecht, hardloopblessure behandelen ("Werk de
+pagina voor Leidsche Rijn uit voor hardloopblessures"); Fysio Centrum Utrecht, bekkenfysiotherapie
+("Presenteer de specialistische aantekening en doelgroepen op één sterke expertpagina", "Voeg
+actuele kosten, vergoeding en de eerste stap naar een afspraak toe"). Een zesde, "Breid de pagina
+voor Vaassen uit met lekopsporing", is tijdens de ronde vervangen, zie hieronder.
+
+**De klantvragen.** Het opdrachtdocument noemde 26 openstaande vragen; nagerekend op `fact_requests`
+stonden er 24 open (6 per analyse), niet 26. Daarvan zijn er 22 beantwoord als de klant, in zijn
+eigen woorden met de reden erbij, en 2 bewust laten liggen (één bij MJB: hoeveel lekkages er al in
+Zutphen en Deventer behandeld zijn; één bij Fysio: hoe snel nieuwe patiënten momenteel terechtkunnen,
+want dat wisselt te vaak om vast te leggen). Daarnaast zijn tijdens het schrijven nog 14
+pagina-specifieke claim-auditvragen beantwoord, ontstaan uit de dekkingscontrole van de zes
+concrete contracten.
+
+**De kosten, nagerekend op `ai_calls` (niet geraamd).** In totaal 117 aanroepen voor $1,83, ruim
+onder de raming van ongeveer $4 voor zes pagina's. Per soort: schrijven (`content_draft`) 6 keer
+voor $0,83, reparatie (`content_revise`) 8 keer voor $0,67, feitelijkheid ($0,07), onderzoek
+(`item_dossier`) 3 keer voor $0,05, citeerbaarheid ($0,04), feiten uit de site halen (24 keer,
+$0,03), vakmanschap en redactie (elk $0,03), claim-audit ($0,03), de inhoudsopgave (`content_contract`,
+3 keer, $0,02), de schrijfopdracht (`writer_brief`, 6 keer, $0,02), `source_analysis` ($0,01), en
+de versievergelijking 1 keer voor $0,001.
+
+**Acht reparatierondes over zes pagina's:** vijf pagina's hadden er één nodig, de FAQ-pagina over
+kosten en vergoeding drie (het maximum) en bleef daarna alsnog geblokkeerd. De versievergelijking
+uit stap 12 heeft in deze ronde 1 keer moeten beslissen tussen twee versies.
+
+**Bevinding 1, en de belangrijkste: de schrijfopdracht werkte, maar kwam nooit aan.** Alle zes
+`writer_brief`-aanroepen leverden een compleet, goed gevuld negen-velden-antwoord op (lezer,
+hoofdvraag, kernantwoord, kernfeiten, keuzeredenen met F-nummer, eigen woorden, wat erin moet, wat
+blijft hangen). Toch staat `content_pieces.writer_brief_json` bij alle zes op `{}`. Het vangnet uit
+`docs/contentpijplijn-overdracht.md` §5b ("een opdracht met één leeg veld vervalt in zijn geheel")
+verklaart dit niet: er was geen leeg veld, de opdracht is gewoon nooit weggeschreven naar de pagina.
+Dat is geen "onbekend is beter dan verkeerd" maar een schrijffout in de keten: $0,02 aan bruikbare
+sturing is zes keer betaald en zes keer weggegooid, en de vakmanschapsbeoordelaar (optimalisatie 12)
+kon de opdracht dus nooit meekrijgen. Bruikbaar: 0 van de 6. Verviel: 0 van de 6 door een leeg veld,
+6 van de 6 doordat het resultaat niet is opgeslagen. Dit is een taak voor een volgende sessie, met
+de zes `writer_brief`-aanroepen in `ai_calls` (kind `writer_brief`, 4 september, na 13:30 uur) als
+bewijsmateriaal.
+
+**Bevinding 2: de planstap voor MJB Dakservice faalde drie keer op "Breid de pagina voor Vaassen uit
+met lekopsporing" (job `7c99bd55`), zonder foutmelding.** `content_plan` degradeert bewust zonder
+contract als hij vastloopt (zie de toelichting bij `scheduleBriefingIfLastPlan` in
+`lib/jobs/handlers.ts`), en deed dat hier ook: geen dossier, geen contract, dus geen lezer om voor
+te schrijven. De pagina is laten vallen en vervangen door de eerstvolgende vrije aanbeveling uit
+hetzelfde cluster ("Laat zien hoe MJB lekkages onderzoekt en de prijs onderbouwt"), zoals de opdracht
+zelf als uitweg noemt. Waarom deze ene taak drie keer faalde is niet achterhaald; de andere vijf
+`content_plan`-taken van dezelfde ronde liepen wel door.
+
+**Bevinding 3: een consultant kan een pagina plannen en briefen voor een klant wiens profiel al aan
+een ander account gekoppeld is, maar niet het schrijven laten starten.** `getOwnedAnalysis()`
+(`lib/analyses.ts`) toetst via `hasAccess()` op accountniveau en liet het testaccount
+`e2e-consultant@orbit-test.nl` overal door, ook op de analyses van MJB Dakservice die inmiddels op
+naam van de eigenaar staan. Maar `planContentPiece()` en `buildContentContext()`
+(`lib/pipeline/content-plan.ts:107`, `lib/pipeline/content.ts:1042`) toetsen nog rechtstreeks
+`analysisRow.user_id !== userId` en gooiden daardoor "Analyse niet gevonden." op de twee MJB-pagina's
+(taken `49dd7f01` en `bae126da`, 4 pogingen elk). Hersteld door het `userId`-veld in die twee taken
+te corrigeren naar de echte eigenaar, waarna ze in één poging slaagden; hetzelfde is later nodig
+gebleken voor de vervangende Vaassen-pagina (taak `94993248`). Dit is dezelfde soort inconsistentie
+als de eerdere ontkoppeling van sales en content (CLAUDE.md, `lib/sales/`): zodra een profiel aan een
+klantaccount gekoppeld is, moet de hele keten daarnaar kijken, niet alleen de laag die de klant ziet.
+
+**Wat dit vroeg dat niet in de opdracht stond.** Er was geen `LIVE_PASSWORD` beschikbaar voor
+`e2e-consultant@orbit-test.nl`. Met expliciet akkoord van de eigenaar is het wachtwoord van dat
+bestaande testaccount via Supabase gereset om de ronde via de echte productie-API te kunnen draaien,
+precies zoals eerdere sessies deden. De twee reparaties bij bevinding 3 zijn eveneens na afstemming
+met de eigenaar uitgevoerd; de permissiecontrole hield de eerste poging terecht tegen omdat het een
+rechtstreekse schrijfactie op een tabel was die niet voor deze sessie bedoeld is.
+
+**De scores en oordelen van de zes pagina's**, van onszelf en dus geen antwoord op de vraag die deze
+ronde stelt (valkuil 2: een AI die AI-tekst beoordeelt is te streng): alle zes eindigden op
+`quality_verdict: block`. Kwaliteit 84 (lekkage-onderzoek), 82 (kosten), 88 (isolatiekosten), 92
+(hardlopen Leidsche Rijn), 84 (expertpagina) en 38 (kosten en vergoeding, na drie reparatierondes).
+Dat de FAQ-pagina na het maximum aantal reparaties nog altijd geblokkeerd is en zo laag scoort, is
+zelf ook een bevinding: de eerste keer dat een pagina in deze twee rondes het reparatieplafond haalt.
+
+Het bestand voor de copywriter staat in
+[`content-reviews/copywriter-opdracht-zes-artikelen.md`](../content-reviews/copywriter-opdracht-zes-artikelen.md),
+`content-reviews/README.md` is bijgewerkt. `docs/tasks/contentronde-zes-artikelen.md` is verwijderd,
+zoals het zelf voorschreef.
+
+Vier controles groen: typecheck, unittests, ketentests, build (geen productiecode gewijzigd deze
+ronde, dus geen nieuwe testgevallen).
