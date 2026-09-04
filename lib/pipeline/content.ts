@@ -39,7 +39,7 @@ import type { ItemDossier } from "@/lib/schemas/item-dossier";
 import { formatContract } from "@/lib/pipeline/contract-format";
 import { answerBelongsHere } from "@/lib/pipeline/answer-scope";
 import { MAX_BEVINDINGEN_PER_RONDE } from "@/lib/pipeline/content-issues";
-import { beslisReparatieRonde } from "@/lib/pipeline/content-repair-decision";
+import { beslisReparatieRonde, binnenRuis } from "@/lib/pipeline/content-repair-decision";
 import { usdToEur } from "@/lib/spend-rules";
 import { applySectionPatch, splitSections } from "@/lib/pipeline/content-sections";
 import {
@@ -63,7 +63,11 @@ import { describeToneSliders, describePronoun, kiesAanspreekvorm } from "@/lib/p
 import { bepaalLezersopdracht, lezersblok } from "@/lib/lezersopdracht";
 import { objectionsRule } from "@/lib/pipeline/commercial-context";
 import { vindKlantinstructies, instructieblok, verbiedtAdres } from "@/lib/klantinstructies";
-import { bewijspuntenblok } from "@/lib/pipeline/bewijspunten";
+import { bewijspuntenblok, bewijspuntenBehoudblok } from "@/lib/pipeline/bewijspunten";
+import { maakSchrijfopdracht } from "@/lib/pipeline/writer-brief";
+import { vergelijkVersies } from "@/lib/pipeline/version-compare";
+import { bruikbareOpdracht, opdrachtblok } from "@/lib/schrijfopdracht";
+import type { WriterBrief } from "@/lib/schemas/writer-brief";
 import { vindCiteerbareAntwoorden, citatenblok } from "@/lib/pipeline/klantcitaten";
 import { adviestoonblok } from "@/lib/pipeline/adviestoon";
 import {
@@ -300,21 +304,11 @@ const CONTENT_SYSTEM =
 // testbaar, en sinds S9 (gesprek van 1 september) gericht op de concrete
 // termen die DEZE pagina nodig heeft in plaats van alleen op "weinig feiten".
 
-/** Redacteur-rol voor de kritiek-stap, redactioneel én GEO (optimalisatie.md 4.5). */
-const CRITIQUE_SYSTEM =
-  "Je bent een strenge eindredacteur én GEO-specialist. Beoordeel de aangeleverde webpagina voor de " +
-  "EIGEN site van een ondernemer. " +
-  "REDACTIONEEL: scoor 0-100 op begint-met-het-directe-antwoord, on-brand, concreet-waar-mogelijk " +
-  "(zonder verzinsels), scanbaar, en waardevol (geen AI-slop/vulzinnen). " +
-  "HARDE REGELS: zet followsRules op false als de tekst een concurrent/ander bedrijf bij naam noemt, " +
-  "feiten lijkt te verzinnen, of niet met het directe antwoord begint. " +
-  "GEO: zou een AI-assistent deze pagina CITEREN? Beoordeel elk criterium streng en apart: " +
-  "wordt de DOELVRAAG hierboven letterlijk beantwoord in de eerste twee zinnen; bevat elke sectie een zin " +
-  "die LOSSTAAND te begrijpen is; wordt het bedrijf EXPLICIET bij naam genoemd in plaats van 'wij'/'ons'; " +
-  "staan er concrete cijfers/jaartallen/feiten in; worden de logische vervolgvragen beantwoord. " +
-  "Bij twijfel: false. Een te milde beoordeling levert een pagina op die niemand citeert. " +
-  "Geef concrete, korte verbeterpunten. Antwoord in het Nederlands.";
-
+// ⚠️ Hier stond tot 4 september 2026 `CRITIQUE_SYSTEM`, een tweede kopie van de
+// redactieprompt. Hij werd nergens aangeroepen: de beoordelaar die echt draait
+// is `REDACTIE_SYSTEM` in `content-panel.ts`. Twee kopieën van dezelfde prompt
+// betekent dat de helft van de wijzigingen aan de verkeerde wordt gedaan, en
+// dat was hier al gebeurd (optimalisatie 18).
 /** Type-specifieke instructie, bepaalt wat voor pagina er echt uitkomt. */
 export const TYPE_GUIDANCE: Record<ContentType, string> = {
   faq:
@@ -488,6 +482,11 @@ function buildContentInput(args: {
   contract: ContentContract | null;
   /** Algemene uitleg met nagerekende bron (A7). Leeg = niets te gebruiken. */
   explainerBlock: string;
+  /**
+   * DE SCHRIJFOPDRACHT (optimalisatie 5 en 6, migratie 0094). `null` = geen
+   * opdracht, en dan is deze prompt letterlijk die van vóór 4 september 2026.
+   */
+  opdracht: WriterBrief | null;
 }): string {
   const {
     analysis,
@@ -506,6 +505,7 @@ function buildContentInput(args: {
     unansweredRequired,
     contract,
     explainerBlock,
+    opdracht,
   } = args;
 
   const styleSamples = profile?.style_samples ?? [];
@@ -513,6 +513,15 @@ function buildContentInput(args: {
   const brandName = profile?.brand_name ?? analysis.url;
 
   return [
+    // ── DE SCHRIJFOPDRACHT STAAT BOVENAAN (optimalisatie 5) ────────────────
+    //
+    // Beide externe experts wezen op 4 september 2026 hetzelfde aan: de
+    // schrijver krijgt achttien blokken die allemaal dezelfde status hebben, en
+    // een copywriter maakt juist eerst een hiërarchie. Dit blok IS die
+    // hiërarchie. Het staat vóór alles, want wat bovenaan een prompt staat wordt
+    // het best gevolgd, en de feitenkaart blijft er compleet onder staan: minder
+    // informatie was uitdrukkelijk niet het advies.
+    opdrachtblok(opdracht),
     `Bedrijf: ${brandName}`,
     `Website: ${analysis.url}`,
     // S10: gelabeld als CLUSTER en niet als "onderwerp/scope" van deze pagina.
@@ -749,6 +758,25 @@ const REPAIR_SYSTEM =
  * precies wat we hier niet willen: hij nodigde het model uit alles opnieuw te
  * doen. Wat er wél in moet, is alles wat de grenzen bepaalt: de feitenkaart,
  * het contract en de geverifieerde uitleg.
+ *
+ * ── ⚠️ 4 SEPTEMBER 2026: DE GRENZEN ZATEN ER MAAR HALF IN (optimalisatie 4) ──
+ *
+ * Nagerekend na de expertronde: van de vijf promptblokken die op 3 september aan
+ * de SCHRIJFopdracht zijn toegevoegd, zat er geen enkele in de REPARATIEopdracht.
+ * De reparatie wist dus niet wie de lezer was, welke aanspreekvorm gekozen was,
+ * welke woorden verboden zijn, wat de ondernemer zelf gevraagd had, en welke
+ * zinnen als bewijspunt in de tekst stonden.
+ *
+ * Vier van die vijf hebben een BLOKKERENDE controle achter zich (aanspreekvorm,
+ * verboden woorden, de adresinstructie, zelfondermijnend advies). Een
+ * reparatieronde die een van die grenzen niet kende, kon dus een pagina die
+ * doorkwam alsnog onpubliceerbaar maken. En bij de bewijspunten liep het rond:
+ * de keuring controleert of de betekeniszin nog in de tekst staat, de reparatie
+ * mocht hem herschrijven, en de ronde daarna kreeg dezelfde bevinding opnieuw.
+ *
+ * Wat er NIET bij komt: het contract als verhaal, de doellengte, de
+ * stijlvoorbeelden, het winnende antwoord en de bestaande pagina. Dat is
+ * schrijfopdracht en geen grens, en dat is precies wat deze stap niet moet doen.
  */
 function buildRepairInput(args: {
   piece: ContentPiece;
@@ -766,8 +794,37 @@ function buildRepairInput(args: {
   explainerBlock: string;
   brandName: string;
   revisionNote?: string | null;
+  /** Voor de grenzen die anders blokkeren: aanspreekvorm en verboden woorden. */
+  profile: Profile | null;
+  /** De tekst waaruit de aanspreekvorm afgeleid wordt, zelfde bron als bij het schrijven. */
+  existingText?: string | null;
+  /** De lezer van deze pagina, in dezelfde vorm als de schrijfopdracht hem kreeg. */
+  targetIntent?: string;
+  /** De gemeten vragen, als terugval voor de lezersopdracht. */
+  doelvragen?: string[];
+  /**
+   * De schrijfopdracht waarop deze pagina geschreven is (optimalisatie 5).
+   *
+   * Vervangt het lezersblok als hij er is: de opdracht noemt de lezer zelf, en
+   * twee keer dezelfde persoon beschrijven maakt de prompt langer zonder iets
+   * toe te voegen.
+   */
+  opdracht?: WriterBrief | null;
 }): string {
-  const { piece, issues, facts, contract, explainerBlock, brandName, revisionNote } = args;
+  const {
+    piece,
+    issues,
+    facts,
+    contract,
+    explainerBlock,
+    brandName,
+    revisionNote,
+    profile,
+    existingText,
+    targetIntent,
+    doelvragen,
+    opdracht,
+  } = args;
   const secties = splitSections(piece.bodyMarkdown);
   // Wat de klant expliciet NIET beweerd wil hebben. Staat als verbod op de
   // feitenkaart (`allowed: false`) en hoort in de opdracht, want een reparatie
@@ -776,6 +833,34 @@ function buildRepairInput(args: {
 
   return [
     `Bedrijf: ${brandName}`,
+    // ── De grenzen die blokkeren (optimalisatie 4) ──────────────────────────
+    //
+    // Deze vier stonden alleen in de schrijfopdracht, terwijl de controle
+    // erachter een pagina tegenhoudt. De reparatie kon ze dus stukmaken zonder
+    // ze ooit gezien te hebben.
+    describePronoun(
+      kiesAanspreekvorm({
+        voorkeur: profile?.pronoun_preference ?? null,
+        formaliteit: (profile?.tone_formality ?? null) as 1 | 2 | 3 | null,
+        bestaandeTekst: existingText ?? null,
+      }).vorm,
+    ),
+    profile?.taboo_phrases?.length
+      ? `VERBODEN WOORDEN EN CLAIMS. Gebruik deze woorden of formuleringen NERGENS, ` +
+        `ook niet in een andere vervoeging: ${profile.taboo_phrases.join(", ")}.`
+      : "",
+    instructieblok(vindKlantinstructies(facts.map((f) => f.text))),
+    adviestoonblok(),
+    // De lezer, want een reparatie zonder lezer maakt de pagina algemener en
+    // dat is precies de bevinding die hij hoort op te lossen. Ligt er een
+    // schrijfopdracht, dan gaat die mee en staat de lezer daar al in.
+    opdracht
+      ? opdrachtblok(opdracht)
+      : lezersblok(bepaalLezersopdracht({ targetIntent: targetIntent ?? "", doelvragen: doelvragen ?? [] })),
+    // Wat er blijft staan: de omgezette feiten en de eigen woorden van de
+    // ondernemer. Allebei worden ze na afloop nagerekend.
+    bewijspuntenBehoudblok(piece.proofPoints),
+    citatenblok(vindCiteerbareAntwoorden(facts.map((f) => f.text))),
     formatFactCard(facts),
     formatContract(contract),
     explainerBlock,
@@ -848,6 +933,13 @@ interface ContentContext {
   existing: { page: ProfilePage | null; text: string | null; fetchedAt: string | null };
   /** De algemene uitleg mét nagerekende bron (A7). Alleen geverifieerde gaat mee. */
   explainers: VerifiedExplainer[];
+  /**
+   * DE SCHRIJFOPDRACHT (migratie 0094, optimalisatie 5 en 6): de redactionele
+   * keuze vóór het schrijven. `null` betekent dat er geen bruikbare opdracht
+   * ligt, en dan schrijft de pijplijn precies zoals hij het vóór deze stap deed
+   * (conventie 3).
+   */
+  opdracht: WriterBrief | null;
   /**
    * Wat de klant als ONDERSCHEIDEND heeft opgegeven (R8.8). De briefing vraagt
    * er expliciet naar (contentbriefing.md §5, vraagsoort 3) omdat het de enige
@@ -936,6 +1028,15 @@ async function loadContentContext(
     existingText?: string | null;
     existingFetchedAt?: string | null;
   } | null,
+  /**
+   * Mag deze aanroep een SCHRIJFOPDRACHT maken als er nog geen ligt?
+   *
+   * Alleen de schrijfstap zet die aan. De reparatiestap leest de opdracht die
+   * er al ligt en maakt er nooit een nieuwe: hij repareert de pagina die op de
+   * oude opdracht geschreven is, en een verse opdracht halverwege zou de
+   * bevindingen op een andere pagina laten slaan dan die er staat.
+   */
+  maakOpdracht = false,
 ): Promise<ContentContext> {
   const { data: analysisRow } = await admin.from("analyses").select("*").eq("id", analysisId).single();
   if (!analysisRow || analysisRow.user_id !== userId) throw new Error("Analyse niet gevonden.");
@@ -975,7 +1076,7 @@ async function loadContentContext(
     // paginagebonden antwoord er niet bij horen (verbetering 1).
     admin
       .from("content_pieces")
-      .select("id, briefing_snapshot_json, contract_json, dossier_json, existing_page_text, existing_page_fetched_at")
+      .select("id, briefing_snapshot_json, contract_json, dossier_json, existing_page_text, existing_page_fetched_at, writer_brief_json")
       .eq("analysis_id", analysisId)
       .eq("title", recommendation.title)
       .eq("is_current", true)
@@ -1308,8 +1409,50 @@ async function loadContentContext(
 
   const proofCount = facts.filter((f) => f.allowed).length;
 
+  // ── DE SCHRIJFOPDRACHT (optimalisatie 5 en 6, migratie 0094) ─────────────
+  //
+  // Ligt hij er al, dan wordt hij hergebruikt en kost deze stap niets
+  // (conventie 9). Anders maakt de schrijfstap hem, één keer, vlak voordat de
+  // dure aanroep begint: hij moet de antwoorden van de klant meenemen, en die
+  // staan pas op dit punt op de kaart.
+  //
+  // Mislukt de aanroep, dan gaat het schrijven gewoon door zonder opdracht. Een
+  // pagina zonder redactionele keuze is de pagina die we tot 4 september 2026
+  // schreven; die kwaliteit is de ondergrens en geen reden om de klant een
+  // foutmelding te geven.
+  let opdracht = bruikbareOpdracht(
+    (pieceRow?.writer_brief_json ?? null) as Partial<WriterBrief> | null,
+  );
+  if (!opdracht && maakOpdracht) {
+    try {
+      opdracht = await maakSchrijfopdracht({
+        title: recommendation.title,
+        type: recommendation.type,
+        targetIntent: recommendation.targetIntent,
+        why: recommendation.why,
+        targets,
+        facts,
+        contract,
+        valueProps: profile?.value_props ?? [],
+        objections: profile?.sales_objections ?? [],
+        analysisId,
+        profileId: analysis.profile_id,
+      });
+    } catch (err) {
+      console.warn(`De schrijfopdracht kon niet gemaakt worden, de pagina gaat door: ${String(err)}`);
+      opdracht = null;
+    }
+    if (opdracht && pieceRow?.id) {
+      await admin
+        .from("content_pieces")
+        .update({ writer_brief_json: opdracht })
+        .eq("id", pieceRow.id as string);
+    }
+  }
+
   return {
     analysis,
+    opdracht,
     facts,
     plan,
     profile,
@@ -1338,6 +1481,7 @@ async function loadContentContext(
     baseInput: buildContentInput({
       analysis,
       profile,
+      opdracht,
       topicResearch,
       existingPage,
       existingText,
@@ -1375,9 +1519,17 @@ function pieceFromRow(row: ContentPieceRow): ContentPiece {
       .map((c) => ({ claim: c.claim, factRef: c.factRef, quote: c.quote ?? "" })),
     // V9 (migratie 0093). Een rij van vóór die migratie levert een lege lijst,
     // en dan telt de bewijspuntencontrole niet mee (conventie 3).
-    proofPoints: ((row.proof_points_json ?? []) as { factRef?: string; betekenis?: string }[])
+    proofPoints: (
+      (row.proof_points_json ?? []) as { factRef?: string; betekenis?: string; relevantie?: string }[]
+    )
       .filter((p) => typeof p?.factRef === "string" && typeof p?.betekenis === "string")
-      .map((p) => ({ factRef: p.factRef as string, betekenis: p.betekenis as string })),
+      .map((p) => ({
+        factRef: p.factRef as string,
+        betekenis: p.betekenis as string,
+        // Leeg bij een pagina van vóór optimalisatie 7: het veld bestond toen
+        // niet, en dat mag geen lege plek in de tekst opleveren (conventie 3).
+        relevantie: typeof p.relevantie === "string" ? p.relevantie : "",
+      })),
   };
 }
 
@@ -1598,6 +1750,14 @@ function buildDraftRow(args: {
   /** Bepaalt het `@type` van een landingspagina (optimalisatie 2). */
   businessModel: BusinessModel | null;
   schemaOrg: OrganizationInfo | null;
+  /**
+   * De schrijfopdracht waarop deze versie geschreven is (migratie 0094).
+   *
+   * Gaat mee de rij in en niet alleen naar de briefingrij, want bij opnieuw
+   * genereren is dit een NIEUWE rij: zonder dit veld zou de reparatie van die
+   * versie de opdracht niet meer kunnen vinden.
+   */
+  opdracht: WriterBrief | null;
 }) {
   const {
     analysisId,
@@ -1633,6 +1793,7 @@ function buildDraftRow(args: {
     title: recommendation.title,
     target_intent: draft.parsed.targetIntent,
     proof_points_json: draft.parsed.proofPoints ?? [],
+    writer_brief_json: args.opdracht ?? {},
     cluster: draft.parsed.cluster,
     // Versheid in de opmaak die de bezoeker niet ziet, is de helft van het
     // signaal: een assistent citeert uit de lopende tekst, niet uit de JSON-LD.
@@ -1848,7 +2009,9 @@ export async function draftContentPiece(args: {
   const resumeId = hergebruikt ? current!.id : null;
   const nextVersion = hergebruikt ? current!.version : (current?.version ?? 0) + 1;
 
-  const ctx = await loadContentContext(admin, analysisId, userId, recommendation, args.voorbereid);
+  // `true`: alleen de schrijfstap mag een schrijfopdracht laten maken
+  // (optimalisatie 5). De reparatiestap leest hem en maakt er nooit een nieuwe.
+  const ctx = await loadContentContext(admin, analysisId, userId, recommendation, args.voorbereid, true);
   const { analysis, targets, baseInput, brandName } = ctx;
 
   // ── Draft (premium model) ────────────────────────────────────────────────
@@ -1903,6 +2066,7 @@ export async function draftContentPiece(args: {
     brandName,
     businessModel: ctx.profile?.business_model ?? null,
     schemaOrg: ctx.schemaOrg,
+    opdracht: ctx.opdracht,
     version: nextVersion,
     supersedesId: resumeId ? null : (current?.id ?? null),
   });
@@ -1947,6 +2111,8 @@ export async function draftContentPiece(args: {
     // V2: de tekst die al op de site van de klant staat, alleen om de
     // aanspreekvorm van te kunnen aflezen als het profiel hem niet vastlegt.
     bestaandeTekst: ctx.existing.text ?? ctx.existing.page?.text_excerpt ?? null,
+    // De schrijfopdracht waarop deze pagina geschreven is (optimalisatie 5).
+    opdracht: ctx.opdracht,
   });
 
   // De gemeten waarden altijd loggen, ook onder de drempel: zonder die reeks kan
@@ -2106,6 +2272,14 @@ export async function reviseContentPiece(args: {
       explainerBlock: formatExplainerBlock(ctx.explainers),
       brandName,
       revisionNote: recommendation.revisionNote,
+      // De grenzen die anders blokkeren, plus de lezer (optimalisatie 4).
+      // Dezelfde bronnen als de schrijfopdracht ze gebruikt, zodat de
+      // aanspreekvorm in beide rondes op dezelfde vorm uitkomt.
+      profile: ctx.profile,
+      existingText: ctx.existing.text ?? ctx.existing.page?.text_excerpt ?? null,
+      targetIntent: recommendation.targetIntent,
+      doelvragen: targets.map((t) => t.text),
+      opdracht: ctx.opdracht,
     }),
     schema: ContentPatch,
     schemaName: "content_patch",
@@ -2161,6 +2335,8 @@ export async function reviseContentPiece(args: {
     plan: ctx.plan,
     bewijsAanwezig: ctx.facts.some((f) => f.citable && f.allowed),
     bestaandeTekst: ctx.existing.text ?? ctx.existing.page?.text_excerpt ?? null,
+    // De schrijfopdracht waarop deze pagina geschreven is (optimalisatie 5).
+    opdracht: ctx.opdracht,
   });
 
   const openstaand = keuring.teksten;
@@ -2207,16 +2383,55 @@ export async function reviseContentPiece(args: {
     blokkades: keuring.evaluatie.blokkades.length,
     confidence: keuring.evaluatie.confidence,
   };
-  const gewogenNietSlechter = nietSlechterDan(dezeVersie, besteTotNuToe);
+  // ── Bij een gelijkspel beslist een vergelijkend oordeel (optimalisatie 11) ─
+  //
+  // Twee cijfers van dezelfde beoordelaar die binnen drie punten van elkaar
+  // liggen, zeggen niets: zijn niveau klopt (0,14 punt van het menselijke
+  // oordeel) en zijn ordening niet (rangcorrelatie 0,29). Dan stellen we de
+  // vraag die hij wél betrouwbaar beantwoordt: welke van deze twee zou een
+  // copywriter eerder versturen?
+  //
+  // De aanroep gebeurt alleen bij dat gelijkspel. Verschillen de blokkades, dan
+  // beslist code en wordt er niets gevraagd; ligt het verschil buiten de ruis,
+  // dan telt de score. Zo kost deze stap alleen iets waar hij iets toevoegt,
+  // ongeveer $0,004.
+  const nieuweRedactioneel = keuring.panel.critique?.qualityScore ?? (vorigeKwaliteit ?? 0);
+  const gelijkeBlokkades =
+    besteTotNuToe === null || dezeVersie.blokkades === besteTotNuToe.blokkades;
+  const gelijkspel =
+    gelijkeBlokkades &&
+    (binnenRuis(vorigeKwaliteit, nieuweRedactioneel) ||
+      binnenRuis(dezeVersie.score, besteTotNuToe?.score ?? null));
+
+  const vergelijking = gelijkspel
+    ? await vergelijkVersies({
+        huidig: huidig.bodyMarkdown,
+        nieuw: final.bodyMarkdown,
+        opdracht: ctx.opdracht,
+        analysisId,
+        profileId: analysis.profile_id,
+        contentPieceId,
+      })
+    : null;
+  if (vergelijking) {
+    console.info(
+      `Contentpagina ${contentPieceId}, ronde ${ronde}: de scores liggen binnen de ruis, ` +
+        `het vergelijkende oordeel kiest de ${vergelijking.beter === "nieuw" ? "nieuwe" : "bestaande"} ` +
+        `versie. ${vergelijking.waarom}`,
+    );
+  }
+
+  const gewogenNietSlechter = nietSlechterDan(dezeVersie, besteTotNuToe, vergelijking?.beter ?? null);
 
   const { bewaarNieuweVersie: nietSlechterRedactioneel, nogEenRonde: redactioneelDoor } =
     beslisReparatieRonde({
       vorigeKwaliteit,
-      nieuweKwaliteit: keuring.panel.critique?.qualityScore ?? (vorigeKwaliteit ?? 0),
+      nieuweKwaliteit: nieuweRedactioneel,
       ronde,
       repairMax: REPAIR_MAX,
       scoresTeLaag,
       openstaandeBevindingen: openstaand.length,
+      vergelijking: vergelijking?.beter ?? null,
     });
 
   const nietSlechter = nietSlechterRedactioneel && gewogenNietSlechter;
@@ -2394,6 +2609,8 @@ export async function herkeurContentPiece(args: {
     plan: ctx.plan,
     bewijsAanwezig: ctx.facts.some((f) => f.citable && f.allowed),
     bestaandeTekst: ctx.existing.text ?? ctx.existing.page?.text_excerpt ?? null,
+    // De schrijfopdracht waarop deze pagina geschreven is (optimalisatie 5).
+    opdracht: ctx.opdracht,
   });
 
   // Alleen het oordeel. `body_markdown`, `version`, `repair_round` en `status`

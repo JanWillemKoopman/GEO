@@ -53,18 +53,41 @@ import { CraftVerdict } from "@/lib/schemas/content-craft";
 import { formatFactCard, type FactItem } from "@/lib/pipeline/factcard";
 import type { ContentContract } from "@/lib/schemas/content-contract";
 import type { ContentQualityProfile } from "@/lib/pipeline/quality-profile";
+import type { WriterBrief } from "@/lib/schemas/writer-brief";
 
 const REDACTIE_SYSTEM =
   "Je bent een strenge eindredacteur én GEO-specialist. Beoordeel de aangeleverde webpagina voor de " +
   "EIGEN site van een ondernemer. " +
   "REDACTIONEEL: scoor 0-100 op begint-met-het-directe-antwoord, on-brand, concreet-waar-mogelijk " +
   "(zonder verzinsels), scanbaar, en waardevol (geen AI-slop/vulzinnen). " +
-  "HARDE REGELS: zet followsRules op false als de tekst een concurrent/ander bedrijf bij naam noemt, " +
-  "feiten lijkt te verzinnen, of niet met het directe antwoord begint. " +
+  "HARDE REGELS: zet followsRules op false als de tekst een concurrent of een ander bedrijf bij naam " +
+  "noemt, feiten lijkt te verzinnen, of de doelvraag niet in de eerste alinea beantwoordt. " +
   "GEO: zou een AI-assistent deze pagina CITEREN? Beoordeel elk criterium streng en apart: " +
-  "wordt de DOELVRAAG hierboven letterlijk beantwoord in de eerste twee zinnen; bevat elke sectie een zin " +
-  "die LOSSTAAND te begrijpen is; wordt het bedrijf EXPLICIET bij naam genoemd in plaats van 'wij'/'ons'; " +
-  "staan er concrete cijfers/jaartallen/feiten in; worden de logische vervolgvragen beantwoord. " +
+  // ⚠️ Twee criteria zijn op 4 september 2026 herschreven, omdat ze de
+  // schrijfopdracht van 3 september tegenwerkten (optimalisatie 1 en 2 uit
+  // docs/tasks/optimalisaties-expertronde-4-september-2026.md).
+  //
+  // Het eerste stond op "de eerste twee zinnen". De schrijver moet sinds V8 de
+  // EERSTE ZIN aan de lezer geven, dus bleef er één zin over voor het antwoord
+  // en viel elke goede opening af. Het meet nu de eerste ALINEA, net als
+  // `eersteAlinea()` in `paginavorm.ts` (600 tekens).
+  //
+  // Het derde stond op "het bedrijf EXPLICIET bij naam in plaats van wij of
+  // ons". Dat is precies wat V1 heeft afgeschaft: de merknaam hoort in de
+  // citeerbare zinnen, de rest van de pagina praat in de wij-vorm zoals een
+  // ondernemer op zijn eigen site doet. De beoordelaar strafte dus af wat de
+  // schrijver net was opgedragen, en die bevinding ging als verbeterpunt de
+  // reparatieronde in. Een reparatieronde kost $0,083 en draaide hier iets
+  // terug dat goed was.
+  "wordt de DOELVRAAG hierboven beantwoord in de EERSTE ALINEA; bevat elke sectie een zin " +
+  "die LOSSTAAND te begrijpen is; is in de citeerbare passages (de openingsalinea en de eerste zin " +
+  "van elke sectie) ondubbelzinnig te zien over WELK bedrijf het gaat, zodat een assistent het merk " +
+  "kan noemen; staan er concrete cijfers, jaartallen of feiten in; worden de logische vervolgvragen " +
+  "beantwoord. " +
+  "⚠️ DE WIJ-VORM IS GOED. Buiten die citeerbare passages hoort deze pagina in de wij-vorm te staan, " +
+  "want het is de site van de ondernemer zelf. Reken het de pagina dus NOOIT aan dat er 'wij' staat " +
+  "in plaats van de bedrijfsnaam, en schrijf dat ook nooit als verbeterpunt op. Alleen als de " +
+  "openingsalinea zelf niet duidelijk maakt om welk bedrijf het gaat, is dit criterium false. " +
   "Bij twijfel: false. Een te milde beoordeling levert een pagina op die niemand citeert. " +
   "Geef concrete, korte verbeterpunten en noem daarin ALTIJD de kop van de sectie waar het punt op " +
   "slaat, zodat er gericht gerepareerd kan worden. Antwoord in het Nederlands.";
@@ -130,32 +153,38 @@ const VAKMANSCHAP_SYSTEM =
   "(7) HERKENNING: begint de pagina bij een situatie die de lezer herkent, of bij het bedrijf en " +
   "het onderwerp? Een pagina die opent met 'Bij [bedrijf] kun je terecht voor' scoort hier laag; " +
   "een pagina die opent met wat de lezer op dat moment meemaakt, hoog. " +
-  // ── V13: menselijke ijkpunten ────────────────────────────────────────────
+  // ── V13: ijkpunten, sinds 4 september 2026 als PRINCIPES ─────────────────
   //
   // ⚠️ Gemeten op 3 september 2026 over twaalf pagina's: het NIVEAU van deze
   // beoordelaar klopt (0,14 punt van het menselijke oordeel), maar de VOLGORDE
-  // niet: de rangcorrelatie met de echte copywriter was +0,29, en van de vier
-  // pagina's die hij als zwakste aanwees waren er twee de verkeerde. De pagina
-  // die de copywriter gedeeld slechtste noemde ("absoluut niet versturen"),
-  // stond bij deze beoordelaar op de derde plaats van boven.
+  // niet: de rangcorrelatie met de echte copywriter was +0,29.
   //
-  // Daarom hieronder de ijkpunten uit die ronde: wat een mens laag vond en
-  // waarom, en wat hij hoog vond. Invoertekst, dus vrijwel gratis.
-  "IJKPUNTEN VAN EEN ECHTE COPYWRITER (over twaalf pagina's van 3 september 2026). Gebruik deze om " +
-  "je cijfers te richten, niet om ze te kopiëren: " +
-  "LAAG scoorden pagina's die juridisch dichtgetimmerd zijn ('een eerste beoordeling is een " +
-  "globale inschatting', 'dit is geen persoonlijke voorspelling'), pagina's die de lezer huiswerk " +
-  "geven in plaats van antwoord ('vraag vooraf om een schriftelijke prijsopgave waarin ... zijn " +
-  "opgenomen'), en pagina's die administratief zijn waar ze eenvoudig moeten zijn ('een " +
-  "afspraakaanvraag is een verzoek om een moment in te plannen'). Een gratis aanbod dat als een " +
-  "risico klinkt, is het duidelijkste voorbeeld van een lage score: dat is de sterkste propositie " +
-  "die er is, en de tekst haalt hem onderuit. " +
-  "HOOG scoorden pagina's die de lezer een echte keuze helpen maken ('kan ik mijn oude dak " +
-  "isoleren zonder de pannen te vervangen') en pagina's die de schaamte of de twijfel van de lezer " +
-  "benoemen ('schaamte komt voor, maar maakt de klacht niet minder belangrijk'). " +
-  "Zijn oordeel over de hele stapel: 'de teksten weten wat het bedrijf doet en wat de lezer wil " +
-  "weten, maar nog onvoldoende waarom deze lezer dit bedrijf zou moeten kiezen.' Dat is precies " +
-  "wat OVERTUIGING meet, en dat was met 2,6 van 5 zijn laagste cijfer. " +
+  // De eerste poging daarop zette de oordelen van díe ene copywriter in deze
+  // prompt, mét zijn eindcijfer ("2,6 van 5") en met de herkomst erbij. Beide
+  // externe experts wezen dat af, en om twee redenen die allebei kloppen. Een
+  // beoordelaar die één mens leert nadoen, beoordeelt die mens en niet de
+  // tekst. En een cijfer in een prompt is een anker: het trekt elk oordeel naar
+  // hetzelfde midden, en juist het uit elkaar houden van pagina's is wat hier
+  // ontbreekt.
+  //
+  // Wat overblijft zijn REGELS zonder cijfer en zonder afzender. De concrete
+  // zinnen staan er nog als illustratie van de regel, niet als voorbeeld om na
+  // te doen.
+  "IJKPUNTEN. Dit zijn regels over wat commerciële webtekst goed of slecht maakt. Gebruik ze om je " +
+  "cijfers te richten, niet om ze te kopiëren, en oordeel over de tekst die je nu leest: " +
+  "LAAG scoort een pagina die juridisch is dichtgetimmerd, zodat het voorbehoud de dominante stem " +
+  "wordt in plaats van het aanbod (bijvoorbeeld 'een eerste beoordeling is een globale " +
+  "inschatting'). LAAG scoort een pagina die de lezer huiswerk geeft in plaats van antwoord " +
+  "(bijvoorbeeld 'vraag vooraf om een schriftelijke prijsopgave'). LAAG scoort een pagina die " +
+  "administratief schrijft waar het eenvoudig kan (bijvoorbeeld 'een afspraakaanvraag is een " +
+  "verzoek om een moment in te plannen'). En het duidelijkste geval van een lage score: een sterk " +
+  "aanbod dat als een risico klinkt. Een gratis eerste consult is de sterkste propositie die er " +
+  "is, en een tekst die hem omringt met voorbehouden haalt hem onderuit. " +
+  "HOOG scoort een pagina die de lezer helpt een echte keuze te maken, en een pagina die de twijfel " +
+  "of de schaamte benoemt die bij dit onderwerp hoort, omdat de lezer zich daarin herkent. " +
+  "De kern van alle vijf: een pagina kan alle vragen beantwoorden en tóch middelmatig zijn. De " +
+  "vraag die telt is of de lezer na het lezen weet waarom hij juist DIT bedrijf zou kiezen. Dat is " +
+  "wat OVERTUIGING meet. " +
   "ZEG DAARNA of je deze tekst zonder aanpassing naar een klant zou sturen, en wat je als EERSTE " +
   "zou veranderen, met de kop van de sectie waar dat op slaat. Eén punt, niet vijf: het punt dat " +
   "het meeste oplevert. " +
@@ -180,6 +209,18 @@ export interface PanelInput {
   profiel?: ContentQualityProfile | null;
   /** Voorbeeldzinnen van de site, voor het oordeel over de toon. */
   styleSamples?: string[];
+  /**
+   * DE SCHRIJFOPDRACHT waarop deze pagina geschreven is (optimalisatie 12,
+   * migratie 0094).
+   *
+   * ⚠️ Zonder dit oordeelde de vakmanschapsbeoordelaar of dit "de pagina is die
+   * een goede copywriter geschreven zou hebben" zonder te weten wat de pagina
+   * moest bereiken. Hij vergeleek de tekst dus met een ideaal dat hij zelf
+   * verzon, en dat is een van de verklaringen voor zijn zwakke ORDENING
+   * (rangcorrelatie 0,29): twee pagina's werden aan twee verschillende
+   * maatstaven gemeten. Weglaten mag en verandert niets (conventie 3).
+   */
+  opdracht?: WriterBrief | null;
 }
 
 export interface PanelResult {
@@ -207,7 +248,11 @@ export interface PanelResult {
 function paginaBlok(input: PanelInput): string {
   return [
     `Titel: ${input.title}`,
-    `Bedrijfsnaam die expliciet genoemd moet worden: ${input.brandName}`,
+    // ⚠️ Stond tot 4 september 2026 op "Bedrijfsnaam die expliciet genoemd moet
+    // worden". Dat is een instructie aan de beoordelaar bovenop het criterium
+    // dat hierboven al herschreven is, en samen maakten ze van elke wij-zin een
+    // tekortkoming. Zie optimalisatie 1.
+    `Bedrijfsnaam: ${input.brandName}`,
     input.targetQuestions.length
       ? `DOELVRAGEN die deze pagina moet beantwoorden:\n- ${input.targetQuestions.join("\n- ")}`
       : "DOELVRAAG: niet opgegeven. Beoordeel dan of de pagina zijn eigen titel als vraag beantwoordt.",
@@ -244,7 +289,24 @@ function contractBlok(contract: ContentContract | null): string {
 /** Wat de vakmanschapsbeoordelaar naast de pagina zelf nodig heeft. */
 function vakmanschapBlok(input: PanelInput): string {
   const profiel = input.profiel;
+  const opdracht = input.opdracht;
   return [
+    // De maatstaf staat vooraan: dit is waaraan deze pagina gemeten hoort te
+    // worden (optimalisatie 12).
+    opdracht
+      ? [
+          "DE OPDRACHT DIE DEZE PAGINA MEEKREEG. Beoordeel de tekst hieraan, en niet aan een pagina",
+          "die je zelf zou bedenken:",
+          `- geschreven voor: ${opdracht.lezer}`,
+          `- de vraag die hij beantwoordt: ${opdracht.hoofdvraag}`,
+          `- wat de lezer moet begrijpen: ${opdracht.kernantwoord}`,
+          `- waarom deze lezer juist dit bedrijf zou kiezen: ${opdracht.keuzeredenen
+              .map((k) => k.reden)
+              .join("; ")}`,
+          `- wat er na het lezen moet blijven hangen: ${opdracht.blijftHangen}`,
+          "Staat dat er niet, dan is dat het punt dat je als EERSTE zou veranderen.",
+        ].join("\n")
+      : "",
     profiel
       ? [
           `SOORT PAGINA: ${profiel.type}.`,

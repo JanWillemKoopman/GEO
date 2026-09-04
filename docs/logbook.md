@@ -7549,3 +7549,255 @@ nodig: het schema had dit al, alleen de UI niet.
 Zolang een merk nog geen account heeft (`profiles.account_id` is `null`), toont de toewijspagina
 een verwijzing naar het toewijsblok erboven in plaats van het teamblok: uitnodigen voor een account
 dat er nog niet is, kan niet.
+
+## 4 september 2026: de keuring werkte de schrijfopdracht tegen (optimalisatie 1 tot en met 4)
+
+Twee externe experts, een copywriter en een AI-expert, hebben de contentpijplijn doorgelicht. Hun
+ruwe oordeel staat in `content-reviews/feedback/expertronde-copywriter-en-ai-4-september-2026.md`,
+de negentien optimalisaties die eruit volgen in
+`docs/tasks/optimalisaties-expertronde-4-september-2026.md`. Dit is het eerste blok: vier plekken
+waar een instructie een andere instructie tegenwerkte. Geen van de vier kwam uit de feedback zelf;
+ze kwamen uit het narekenen dat de feedback uitlokte.
+
+**De redactionele beoordelaar strafte de merkstem af.** Op 3 september is regel 5 van de
+schrijfprompt begrensd: de merknaam hoort in de citeerbare zinnen, de rest van de pagina praat in de
+wij-vorm. Diezelfde dag bleef in `REDACTIE_SYSTEM` staan dat de beoordelaar moest kijken of "het
+bedrijf EXPLICIET bij naam genoemd wordt in plaats van 'wij'/'ons'". De pagina die de nieuwe regel
+netjes volgde, verloor dus punten bij de keuring, en zijn vrije verbeterpunten gaan als bevinding de
+reparatieronde in (`quality-collect.ts` regel 358). Een reparatieronde kost $0,083 op Terra, en die
+werd hier besteed aan het terugdraaien van iets dat goed was. Het criterium meet nu of in de
+citeerbare passages ondubbelzinnig te zien is over welk bedrijf het gaat, met er expliciet bij dat de
+wij-vorm daarbuiten goed is en nooit als verbeterpunt opgeschreven mag worden.
+
+**De opening moest twee dingen tegelijk zijn.** De schrijver moet de eerste zin aan de lezer geven
+(V8), de beoordelaar controleerde of de doelvraag "in de eerste twee zinnen" beantwoord werd. Dan
+blijft er één zin over voor het antwoord en valt elke goede opening af. Het criterium meet nu de
+eerste ALINEA, dezelfde eenheid als `eersteAlinea()` in `paginavorm.ts` (600 tekens).
+
+**De ijkpunten waren de cijfers van één mens.** In de vakmanschapsprompt stond letterlijk "dat was
+met 2,6 van 5 zijn laagste cijfer", met de herkomst erbij. Beide experts wezen dat af, en om twee
+redenen die allebei kloppen: een beoordelaar die één copywriter leert nadoen beoordeelt die
+copywriter en niet de tekst, en een cijfer in een prompt is een anker dat elk oordeel naar hetzelfde
+midden trekt. Juist het uit elkaar houden van pagina's is wat hier ontbreekt (rangcorrelatie 0,29).
+De ijkpunten staan er nu als regels zonder cijfer en zonder afzender, met de concrete zinnen als
+illustratie.
+
+**En de reparatieronde kende de grenzen niet.** Nagerekend: van de vijf promptblokken die op
+3 september aan de SCHRIJFopdracht zijn toegevoegd, zat er geen enkele in de REPARATIEopdracht. Vier
+ervan hebben een BLOKKERENDE controle achter zich: de aanspreekvorm, de verboden woorden, de
+adresinstructie en zelfondermijnend advies. Een reparatieronde die die grenzen niet kende, kon dus
+een pagina die door de keuring kwam alsnog onpubliceerbaar maken. Bij de bewijspunten liep het
+bovendien rond: de keuring controleert of de betekeniszin nog in de tekst staat, de reparatie mocht
+hem herschrijven, en de ronde daarna kreeg dezelfde bevinding opnieuw. `buildRepairInput()` krijgt nu
+de aanspreekvorm, de verboden woorden, de klantinstructies, de adviestoon, de lezersopdracht, de
+citeerbare klantantwoorden en `bewijspuntenBehoudblok()`. Wat er bewust NIET bij komt: de doellengte,
+de stijlvoorbeelden, het winnende antwoord en de bestaande pagina. Dat is schrijfopdracht en geen
+grens, en de gerichte reparatie is precies wat we niet in een tweede schrijfronde willen laten
+omslaan. De extra invoer is ongeveer 400 tokens, ofwel $0,0008 per ronde; één vermeden ronde betaalt
+er honderd.
+
+**En er stond een tweede, ongebruikte kopie van de redactieprompt in `content.ts`.**
+`CRITIQUE_SYSTEM` werd nergens aangeroepen en was een oudere versie van de prompt die wél draait. Wie
+de prompts bijwerkt, werkt de helft van de tijd de verkeerde bij, en dat was hier al gebeurd. Weg.
+
+Vier controles groen: typecheck, 4302 unittests (24 nieuwe, allemaal broncodecontroles op de prompts
+plus het nieuwe blok puur getest), 645 ketentests (4 nieuwe, die nameten wat de reparatietaak van de
+schrijftaak meekrijgt), build.
+
+⚠️ Ongeverifieerd (conventie 10). Dat deze vier wijzigingen de tekst beter maken is niet gemeten. Wat
+wél vaststaat is dat de instructies elkaar niet meer tegenspreken, en dat is na te lezen in de
+prompts zelf.
+
+## 4 september 2026: de app kiest nu wat er gezegd moet worden (optimalisatie 5, 6, 7 en 12)
+
+Het tweede blok uit de expertronde, en het blok waar beide experts het meeste van verwachtten. Hun
+scherpste zin: ORBIT ENGINE heeft geleerd hoe je voorkomt dat AI onzin schrijft, en de volgende stap
+is leren wat het belangrijkste is om te zeggen. Negentien controles bewaken wat er niet mag; niets in
+de keten besliste wat er per se wél moest komen.
+
+**De schrijfopdracht (migratie 0094).** Eén goedkope stap tussen de voorbereiding en het schrijven,
+op de goedkope tier, naar verwachting ongeveer een cent per pagina. Hij doet geen onderzoek en vat
+niets samen, want een samenvatting is een negentiende promptblok. Hij KIEST: voor wie deze pagina is,
+welke ene vraag hij beantwoordt, wat de lezer moet begrijpen als hij alleen de eerste alinea leest,
+welke drie tot vijf F-nummers deze pagina dragen, wat de ondernemer kan zeggen wat een concurrent
+niet kan kopiëren, en wat er blijft hangen. De feitenkaart blijft er compleet onder staan: minder
+informatie was uitdrukkelijk niet het advies, een hiërarchie eroverheen wel.
+
+**En het veld dat er nooit was: waarom zou juist deze lezer dit bedrijf kiezen.** Eén tot drie
+redenen, gekozen vanuit de lezer en niet vanuit het bedrijf, elk met een F-nummer. Het verschil dat
+de expert benoemt: "deze lezer heeft haast, dus dat wij binnen 24 uur ter plaatse zijn telt voor
+hem" is een reden, "het bedrijf heeft vier dakdekkers" is een feit. Dit is de vraag waarmee de
+externe copywriter op 3 september zijn hele beoordeling samenvatte, en overtuigingskracht was met
+2,6 van 5 zijn laagste cijfer.
+
+**Het vangnet, en dat is hier het belangrijkste deel.** Een opdracht die het schrijfmodel negeert, is
+precies het extra promptblok dat de experts afraadden. `lib/schrijfopdracht.ts` rekent daarom na of
+hij is uitgevoerd: komen de gekozen kernfeiten terug in de beweringen of de bewijspunten, staat het
+kernantwoord in de eerste alinea (dezelfde woordoverlap van 0,6 als bij de bewijspunten), en staat de
+reden om juist dit bedrijf te kiezen in de eerste twintig procent van de tekst. Dat laatste getal is
+regel 4 van de externe copywriter en niet het onze; het staat als constante met die herkomst erbij.
+Een opdracht met één leeg veld vervalt in zijn geheel, en dan schrijft de pijplijn precies zoals hij
+het gisteren deed (conventie 3). De bevinding valt op de dimensie overtuiging, niet blokkerend,
+behalve dat de ontbrekende keuzereden zwaarder weegt dan de andere twee.
+
+**Bewijspunten kregen een derde stap (optimalisatie 7).** Feit naar betekenis was één stap te kort:
+"u weet wie er op uw dak komt" is betekenis, maar waarom dat voor DEZE lezer iets uitmaakt stond
+nergens. Het veld `relevantie` dwingt die keuze hardop af. Feit, betekenis, relevantie; pas bij de
+derde stap wordt een bewijsstuk een argument.
+
+**En de vakmanschapsbeoordelaar krijgt de opdracht als maatstaf (optimalisatie 12).** Hij oordeelde
+of dit "de pagina is die een goede copywriter geschreven zou hebben" zonder te weten wat de pagina
+moest bereiken, dus vergeleek hij elke tekst met een ideaal dat hij zelf verzon. Dat is een van de
+verklaringen voor zijn zwakke ORDENING (rangcorrelatie 0,29): twee pagina's werden aan twee
+verschillende maatstaven gemeten.
+
+⚠️ **En onderweg viel een echte fout op.** `checkBewijspunten()` kreeg vanuit `quality-run.ts` de
+IDENTITEITEN van de feiten mee (de uuids uit de feitenbank), terwijl een bewijspunt naar het
+F-NUMMER verwijst dat het model in de prompt zag. Op productie gold daardoor elk bewijspunt als een
+verwijzing naar een niet-bestaand feit, en kreeg elke pagina tot drie bevindingen die nergens op
+sloegen. De unittest gaf F-nummers mee en dekte de fout dus toe. De parameter heet nu `factRefs`,
+zodat de volgende aanroeper de vergissing niet herhaalt. Dit is de tweede keer in twee dagen dat een
+controle iets anders meette dan hij dacht te meten, en allebei de keren kwam het aan het licht door
+de aanroep na te lopen in plaats van de test te vertrouwen.
+
+De klant ziet de opdracht terug op de paginaweergave, onder "Waarom deze pagina": voor wie de tekst
+geschreven is, wat die persoon moet begrijpen, en waarom hij voor dit bedrijf zou kiezen.
+
+Vier controles groen: typecheck, 4332 unittests (30 nieuwe), 649 ketentests (4 nieuwe, die de
+opdracht van de plan- tot de schrijfstap volgen en tot in de kolom), build. Migratie 0094 staat op
+productie.
+
+⚠️ Ongeverifieerd (conventie 10). Dat de schrijfopdracht de tekst beter maakt en reparatierondes
+bespaart, is de verwachting van twee experts en van deze sessie, en geen meting.
+
+## 4 september 2026: bij een gelijkspel beslist niet langer de ruis (optimalisatie 11)
+
+Beide externe experts stelden voor om de beoordelaar vergelijkend te laten werken: welke van deze
+twee zou een goede copywriter eerder naar de klant sturen? Dat is voor een taalmodel een natuurlijker
+vraag dan een absoluut cijfer, en het sluit aan op wat we van onze beoordelaar weten. Zijn niveau
+klopt (0,14 punt van het menselijke oordeel), zijn ordening niet (rangcorrelatie 0,29).
+
+⚠️ **Zij dachten daarbij aan het kiezen tussen PAGINA'S** ("welke pagina verdient mijn dure
+reparatie"). Die keuze bestaat in deze app niet. `beslisReparatieRonde()` werkt per pagina, en de
+reparatie start zodra de score onder de drempel van het paginatype ligt of er een openstaande
+bevinding is. Er is geen wachtrij die pagina's tegen elkaar afweegt.
+
+Waar een vergelijkend oordeel wél rechtstreeks iets stuurt, is de keuze tussen twee VERSIES van
+dezelfde pagina, en die werd tot vandaag gemaakt door twee absolute cijfers van elkaar af te trekken
+die allebei van diezelfde beoordelaar komen. Twee punten verschil is bij die betrouwbaarheid ruis, en
+toch besliste het over welke tekst de klant krijgt en of er nog een ronde van $0,083 volgt.
+
+**De marge is 3 punten,** herleid uit de enige meting die er is: 0,14 punt op een schaal van 1 tot 5
+is 2,8 punt op de schaal van 0 tot 100 waarop hier gerekend wordt. Alles daarbinnen is ruis van de
+beoordelaar zelf. Gekozen op één meting, net als de zeven drempels van 3 september, dus het getal
+staat als constante met die herkomst erbij.
+
+**De aanroep draait alleen bij dat gelijkspel.** Verschillen de blokkades, dan beslist code en wordt
+er niets gevraagd: een versie met één blokkade minder is de betere, wat een model er ook van vindt.
+Ligt het verschil buiten de marge, dan telt de score. Daardoor kost deze stap alleen iets waar hij
+iets toevoegt, ongeveer $0,004, en dat is twintig keer minder dan de reparatieronde waarover hij
+beslist.
+
+Wat er hierdoor kan gebeuren en voorheen niet kon: een reparatie die twee punten LAGER scoort maar
+een concreet punt oplost, mag blijven staan. Dat is precies de reparatie die je wilt houden, en die
+werd tot vandaag weggegooid omdat het cijfer een fractie zakte.
+
+Vier controles groen: typecheck, 4345 unittests (13 nieuwe), 649 ketentests, build.
+
+⚠️ Ongeverifieerd (conventie 10). Dat het vergelijkende oordeel betrouwbaarder is dan het verschil
+tussen twee cijfers, is de verwachting van beide experts en volgt uit de gemeten rangcorrelatie. Het
+is niet nagemeten, en dat kan pas als er menselijke oordelen over versieparen liggen.
+
+## 4 september 2026: het verhaal, de FAQ en de lezer (optimalisatie 8, 9, 10, 13 en 16)
+
+Het derde blok uit de expertronde. Kleiner werk dan de schrijfopdracht, en het raakt drie dingen die
+al maanden onaangeroerd waren.
+
+**Het contract plant nu een verhaal (optimalisatie 8).** Elke sectie krijgt een `rol`: probleem,
+herkenning, gevolg, oplossing, bewijs, bezwaar, zekerheid, actie of uitleg. Dat is de boog in acht
+stappen die de externe copywriter voorstelde, en hij zat tot nu toe alleen in een promptregel bij de
+schrijver, niet in de inhoudsopgave die hij meekreeg. **Het deterministische deel is bewust klein:**
+code garandeert alleen dat er hoogstens één sectie is die tot actie oproept en dat die achteraan
+staat. De rest van de volgorde hangt van het onderwerp af, en een boog forceren zou het contract
+slechter maken dan het model hem plant. Een oproep om te bellen halverwege een uitleg is wél altijd
+fout. De koppen worden in het contract nu ook al mededelingen in plaats van vragen; die instructie
+stond alleen bij de schrijver, die er dus een vragenlijst als verhaal van moest maken.
+
+**En er passen minder secties in.** De woordenbegroting hield al iets tegen, maar met een
+richtlengte van veertig woorden past een landingspagina van 700 woorden zeventien secties. Onder de
+tachtig woorden is een sectie twee zinnen met een kop erboven, en een pagina die daaruit bestaat is
+de FAQ-dump die de copywriter als ondergrens 3 benoemde. Gemeten over de twaalf pagina's: 850 tot
+1650 woorden met tot 26 secties, ongeveer 55 woorden per sectie.
+
+**De FAQ-blokken zijn voor het eerst bekeken (optimalisatie 9).** Tien van de twaalf pagina's hebben
+er acht, sommige een woordelijke kopie van een sectie twintig regels hoger. Niets keek ernaar, en
+erger: `content-coverage.ts` telt de FAQ mee als DEKKING, dus een pagina die zichzelf herhaalde
+scoorde beter dan een die dat niet deed. `lib/pipeline/faqblokken.ts` meet nu de woordoverlap met de
+tekst erboven. Drempel 0,7, strenger dan de 0,6 van de bewijspunten en om een andere vraag: daar is
+het "heeft de schrijver deze zin opgeschreven" en telt een herformulering mee, hier is het "staat dit
+er al". De bevinding valt pas als méér dan de helft van de blokken herhaalt: één herhaling is
+verdedigbaar voor een lezer die naar beneden scrolt. Op een FAQ-pagina geldt de regel niet, want daar
+zijn de vragen het product.
+
+**Een doelgroep is nog geen lezer (optimalisatie 10).** V7 blokkeerde een pagina zonder lezer, maar
+accepteerde elke gevulde zin van vier woorden. "Mensen die dakisolatie zoeken" haalde die poort, en
+dat is precies het voorbeeld dat de AI-expert als ONVOLDOENDE aanwees. `noemtSituatie()` kijkt nu of
+er ook een probleem of een beslissing in staat. Dit blokkeert niet, net als `noemtPersoon`: het
+stuurt de promptregel die het model vraagt de opdracht eerst af te maken. Wat het wél verandert, is
+dat de nulmeting "0 van 12 pagina's zonder lezer" nu pas iets zegt.
+
+**En `herkenning` telt eindelijk mee (optimalisatie 13).** Die dimensie werd sinds 3 september
+gescoord en woog nergens in mee, want conventie 1 verbiedt sturen op een cijfer zonder
+deterministisch vangnet. Dat vangnet is er nu: `checkOpening()` telt of de eerste zin bij het bedrijf
+begint in plaats van bij de lezer. Beide wegen half zo zwaar als overtuiging zelf, want ze meten één
+alinea en niet de hele pagina.
+
+**Een bevinding over huiswerk wijst nu de sectie aan (optimalisatie 16).** De telling stond op de
+hele pagina, en van de 72 gebiedende zinnen van 3 september stonden er 23 op één pagina en daarbinnen
+in een handvol secties. Een bevinding zonder sectie stuurt de reparatie naar de pagina als geheel, en
+dan raakt hij precies de alinea's die goed waren.
+
+### ⚠️ Optimalisatie 17 gaat NIET door, en dat is gemeten
+
+Het voorstel was om de reparatie hoogstens drie bevindingen per ronde te geven in plaats van tien,
+omdat tien bevindingen "de halve pagina" zouden raken. Nagerekend op productie over de twaalf
+pagina's met een keuring, met dezelfde prioritering die de reparatie gebruikt (ernst maal zekerheid):
+
+| Wat | Gemeten |
+|---|---|
+| bevindingen per pagina | 46 tot 78 |
+| secties die de top tien raakt | 0 tot 3, mediaan 1 |
+| secties die de top vijf raakt | 0 of 1 |
+
+De aanname klopt dus niet. De zwaarste bevindingen hebben meestal helemaal geen sectie (ze gelden
+voor de hele pagina) en de rest zit in één tot drie secties. Het verlagen naar drie zou bevindingen
+weggooien zonder de reparatie gerichter te maken. De grens blijft op tien.
+
+Vier controles groen: typecheck, 4371 unittests (26 nieuwe), 649 ketentests, build.
+
+## 4 september 2026: de richtlengte per sectie wordt eindelijk nagerekend (optimalisatie 15)
+
+Het contract spreekt per sectie een lengte af, en dat is de hele reden dat `targetWords` per sectie
+staat en niet per pagina: een bandbreedte voor een hele pagina stuurt niets. Niets rekende die
+afspraak na. De dekkingspoort noemde een sectie "te dun" onder de 25 woorden, absoluut, wat het
+contract ook plande. Een sectie met een richtlengte van 200 woorden die er 30 haalde, ging daar dus
+gewoon doorheen terwijl de inhoudsopgave hem als dragende sectie plande.
+
+De ondergrens is nu de helft van wat het contract voor DIE sectie afsprak, met 25 woorden als
+absolute bodem. De helft is bewust ruim: een schrijver mag een sectie compacter maken dan gepland,
+want korter is vaak beter. Onder de helft is het geen keuze meer maar een sectie die niet geschreven
+is. De bevinding noemt allebei de getallen, zodat de reparatie weet hoeveel er bij moet.
+
+## 4 september 2026: de documentatie is bijgewerkt, en het overdrachtsdocument is weg
+
+`docs/contentpijplijn-overdracht.md` beschrijft de pijplijn zoals hij is, en die is vandaag op vier
+plekken veranderd: de schrijfopdracht als stap 5b, de versievergelijking als stap 12, drie nieuwe
+codecontroles in paragraaf 8, en twee openstaande punten in paragraaf 12.3 die nu gebouwd zijn. Zo
+klopt het document weer bij de volgende doorlichting, en dat was de reden dat het bestond.
+
+`docs/tasks/overdracht-expertfeedback.md` is verwijderd, zoals het bestand zelf voorschreef: de
+feedback is verwerkt en de beslissingen staan hier. Wat eruit bewaard moest blijven, staat in
+`CLAUDE.md` (de werkregels) en in dit logboek (de vier valkuilen, waarvan er vandaag twee opnieuw
+opdoken: neem geen cijfer uit documentatie over, en meet de verdeling voordat je een drempel kiest).
+
+Vier controles groen: typecheck, 4373 unittests (2 nieuwe), 649 ketentests, build.

@@ -32,6 +32,7 @@ import { GEO_CRITERIA_LABELS } from "@/lib/schemas/critique";
 import type { CitabilityVerdict, FactualityVerdict } from "@/lib/schemas/content-panel";
 import type { CraftVerdict } from "@/lib/schemas/content-craft";
 import type { BewijspuntenResult } from "@/lib/pipeline/bewijspunten";
+import type { OpdrachtResult } from "@/lib/schrijfopdracht";
 import type { KlantcitatenResult } from "@/lib/pipeline/klantcitaten";
 import type {
   MerkstemResult,
@@ -39,6 +40,7 @@ import type {
   VraagkoppenResult,
 } from "@/lib/pipeline/paginavorm";
 import type { AdviestoonResult, ZelfondermijningResult } from "@/lib/pipeline/adviestoon";
+import type { FaqResult } from "@/lib/pipeline/faqblokken";
 import type { HerhalingResult } from "@/lib/pipeline/similarity";
 import type {
   AanspreekvormResult,
@@ -83,6 +85,8 @@ export interface KwaliteitsInvoer {
   adres?: AdresResult;
   /** V9: is een feit omgezet naar een argument voor de lezer? */
   bewijspunten?: BewijspuntenResult;
+  /** Is de schrijfopdracht uitgevoerd? (optimalisatie 5 en 6, migratie 0094) */
+  schrijfopdracht?: OpdrachtResult;
   /** V4: is er iets van de eigen woorden van de ondernemer blijven staan? */
   klantcitaten?: KlantcitatenResult;
   /** V8: begint de pagina bij de lezer of bij het bedrijf? */
@@ -93,6 +97,8 @@ export interface KwaliteitsInvoer {
   vraagkoppen?: VraagkoppenResult;
   /** V6: geeft de pagina huiswerk in plaats van antwoord? */
   adviestoon?: AdviestoonResult;
+  /** Herhaalt de FAQ onderaan de tekst erboven? (optimalisatie 9) */
+  faqBlokken?: FaqResult;
   /** V6: stuurt de pagina de bezoeker weg om de klant te controleren? */
   zelfondermijning?: ZelfondermijningResult;
   /** V12: staat op elke pagina van deze ronde hetzelfde rijtje feiten? */
@@ -666,6 +672,39 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
     );
   }
 
+  // ── De schrijfopdracht is niet uitgevoerd (optimalisatie 5 en 6) ─────────
+  //
+  // Op de dimensie OVERTUIGING, net als de bewijspunten en om dezelfde reden:
+  // het materiaal ligt er en de keuze is gemaakt, alleen niet opgeschreven. De
+  // reden om juist dit bedrijf te kiezen is de vraag waarmee de externe
+  // copywriter zijn hele beoordeling samenvatte, dus die weegt zwaarder dan de
+  // andere twee.
+  //
+  // Niet blokkerend: een pagina die zijn opdracht half uitvoert is niet onwaar,
+  // en een blokkade hier zou elke pagina tegenhouden zolang het model dit nog
+  // leert. Zelfde afweging als bij V9 hierboven.
+  for (const zin of invoer.schrijfopdracht?.issues ?? []) {
+    const isKeuzereden = invoer.schrijfopdracht?.keuzeredenVroeg === false && zin.includes("juist dit bedrijf");
+    issues.push(
+      maak(invoer, {
+        dimension: "overtuiging",
+        severity: isKeuzereden ? "hoog" : "midden",
+        section: null,
+        finding: zin,
+        evidence: null,
+        expected:
+          "De pagina voert de schrijfopdracht uit: het kernantwoord in de opening, de gekozen " +
+          "feiten in de tekst, en vroeg de reden om juist dit bedrijf te kiezen.",
+        recommendation:
+          "Zet het ontbrekende deel op de plek die de opdracht noemt, zonder de rest van de " +
+          "pagina aan te raken.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "schrijfopdracht",
+      }),
+    );
+  }
+
   // ── V4: de eigen woorden van de ondernemer zijn weggeparafraseerd ─────────
   for (const zin of invoer.klantcitaten?.issues ?? []) {
     issues.push(
@@ -748,13 +787,39 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
     );
   }
 
+  // ── De FAQ herhaalt de tekst erboven (optimalisatie 9) ───────────────────
+  //
+  // Op de dimensie STRUCTUUR: de informatie klopt en staat er, hij staat er
+  // alleen twee keer. Niet blokkerend, want een dubbele vraag maakt een pagina
+  // niet onwaar.
+  for (const zin of invoer.faqBlokken?.issues ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "structuur",
+        severity: "midden",
+        section: null,
+        finding: zin,
+        evidence: invoer.faqBlokken?.herhalingen.slice(0, 3).join(" | ") || null,
+        expected: "Elk vraag-en-antwoordblok voegt iets toe dat nog niet in de tekst staat.",
+        recommendation:
+          "Haal de herhalende vragen weg, of vervang ze door vragen die de lezer na het lezen nog " +
+          "overhoudt.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "faq",
+      }),
+    );
+  }
+
   // ── V6: de pagina geeft huiswerk in plaats van antwoord ───────────────────
   for (const zin of invoer.adviestoon?.issues ?? []) {
+    // Optimalisatie 16: de sectie waar het huiswerk zich ophoopt, zodat de
+    // reparatie daar begint en niet de hele pagina aanraakt.
     issues.push(
       maak(invoer, {
         dimension: "overtuiging",
         severity: "midden",
-        section: null,
+        section: invoer.adviestoon?.zwaarsteSectie ?? null,
         finding: zin,
         evidence: invoer.adviestoon?.voorbeelden.join(", ") || null,
         expected: "De pagina zegt wat dit bedrijf doet, niet wat de lezer moet navragen.",
@@ -939,7 +1004,26 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
       },
     ]),
     toon: invoer.craft?.toon.score ?? null,
-    overtuiging: invoer.craft?.overtuiging.score ?? null,
+    // ── V11 telt eindelijk mee (optimalisatie 13) ─────────────────────────
+    //
+    // `herkenning` werd sinds 3 september 2026 wel gescoord en woog nergens in
+    // mee, want conventie 1 verbiedt sturen op een cijfer zonder deterministisch
+    // vangnet ernaast. Dat vangnet is er nu: `checkOpening()` telt of de eerste
+    // zin bij het bedrijf begint in plaats van bij de lezer, en dat is precies
+    // wat deze dimensie beoordeelt. Het cijfer weegt half zo zwaar als
+    // overtuiging zelf, want het meet één alinea en niet de hele pagina.
+    overtuiging: combineer([
+      { waarde: invoer.craft?.overtuiging.score ?? null, gewicht: 2 },
+      { waarde: invoer.craft?.herkenning?.score ?? null, gewicht: 1 },
+      // De deterministische tegenhanger, met hetzelfde gewicht als het
+      // menselijke oordeel over herkenning: een opening die bij het bedrijf
+      // begint, is geteld en niet beoordeeld.
+      {
+        waarde:
+          invoer.opening === undefined ? null : invoer.opening.begintBijMerk ? 45 : 100,
+        gewicht: 1,
+      },
+    ]),
   };
 
   return { issues, dimensies, beoordelaars: { geslaagd, gevraagd } };

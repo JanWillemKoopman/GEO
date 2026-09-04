@@ -78,14 +78,47 @@ export interface AdviestoonResult {
   woorden: number;
   /** De eerste gevonden slappe formuleringen, voor de bevinding. */
   voorbeelden: string[];
+  /**
+   * De kop van de sectie waar het huiswerk zich ophoopt (optimalisatie 16).
+   *
+   * `null` als er geen secties zijn meegegeven of als er niets te wijzen valt.
+   * ⚠️ Waarom dit erbij hoort: de telling stond op de hele pagina, en van de 72
+   * gebiedende zinnen van 3 september stonden er 23 op één pagina en daarbinnen
+   * in een handvol secties. Een bevinding zonder sectie stuurt de reparatie naar
+   * de pagina als geheel, en dan raakt hij precies de alinea's die goed waren.
+   */
+  zwaarsteSectie: string | null;
   issues: string[];
 }
 
-export function checkAdviestoon(tekst: string): AdviestoonResult {
+export interface AdviestoonInput {
+  tekst: string;
+  /** De pagina in secties, om de bevinding een adres te geven (optimalisatie 16). */
+  secties?: readonly { heading: string; body: string }[];
+}
+
+/** Hoeveel gebiedende zinnen staan er in deze tekst? */
+function telGebiedend(tekst: string): number {
+  return ((tekst ?? "").match(GEBIEDEND) ?? []).length;
+}
+
+export function checkAdviestoon(invoer: string | AdviestoonInput): AdviestoonResult {
+  const tekst = typeof invoer === "string" ? invoer : invoer.tekst;
+  const secties = typeof invoer === "string" ? [] : (invoer.secties ?? []);
   const veilig = tekst ?? "";
   const woorden = veilig.split(/\s+/).filter((w) => /[a-zA-Z0-9]/.test(w)).length;
 
-  const gebiedend = (veilig.match(GEBIEDEND) ?? []).length;
+  const gebiedend = telGebiedend(veilig);
+
+  // Waar zit het huiswerk? De sectie met de meeste gebiedende zinnen, en alleen
+  // als het er meer dan één zijn: bij één zin is "de sectie aanwijzen" toeval.
+  const perSectie = secties
+    .map((sectie) => ({ heading: sectie.heading, aantal: telGebiedend(sectie.body) }))
+    .sort((a, b) => b.aantal - a.aantal);
+  const zwaarsteSectie =
+    perSectie[0] && perSectie[0].aantal > 1 && perSectie[0].heading.trim()
+      ? perSectie[0].heading
+      : null;
 
   const laag = veilig.toLowerCase();
   const voorbeelden: string[] = [];
@@ -106,7 +139,9 @@ export function checkAdviestoon(tekst: string): AdviestoonResult {
     if (gPer > GEBIEDEND_PER_HONDERD_MAX) {
       issues.push(
         `${gebiedend} zinnen op deze pagina geven de lezer huiswerk ("Vraag ...", "Controleer ...", ` +
-          `"Laat ... vastleggen"). Dat is advies over hoe je een aanbieder beoordeelt, en dit is de ` +
+          `"Laat ... vastleggen")` +
+          (zwaarsteSectie ? `, de meeste in "${zwaarsteSectie}"` : "") +
+          `. Dat is advies over hoe je een aanbieder beoordeelt, en dit is de ` +
           `pagina van de aanbieder zelf. Zeg wat jullie doen in plaats van wat de lezer moet navragen.`,
       );
     }
@@ -119,7 +154,7 @@ export function checkAdviestoon(tekst: string): AdviestoonResult {
     }
   }
 
-  return { gebiedend, slap, woorden, voorbeelden: voorbeelden.slice(0, 5), issues };
+  return { gebiedend, slap, woorden, voorbeelden: voorbeelden.slice(0, 5), zwaarsteSectie, issues };
 }
 
 /**

@@ -16,13 +16,18 @@ import { z } from "zod";
  * De GEO-criteria: wordt deze pagina door een AI-assistent aangehaald?
  *
  * Bewust booleans en geen scores. "7 op citeerbaarheid" is een getal waar
- * niemand iets mee kan; "de doelvraag wordt niet in de eerste twee zinnen
+ * niemand iets mee kan; "de doelvraag wordt niet in de eerste alinea
  * beantwoord" is een instructie voor de herschrijfronde.
  */
 export const GeoCriteria = z.object({
   /**
-   * Wordt de doelvraag LETTERLIJK en binnen de eerste twee zinnen beantwoord?
+   * Wordt de doelvraag beantwoord binnen de EERSTE ALINEA?
    * Een AI die een antwoord zoekt, leest de inleiding niet uit.
+   *
+   * ⚠️ Stond tot 4 september 2026 op "de eerste twee zinnen". Sinds V8 gaat de
+   * eerste zin over de lezer, dus bleef er één zin over voor het antwoord en
+   * viel elke goede opening af op dit criterium. Dezelfde eenheid als
+   * `eersteAlinea()` in `paginavorm.ts`.
    */
   answersTargetQuestionUpFront: z.boolean(),
   /**
@@ -32,9 +37,18 @@ export const GeoCriteria = z.object({
    */
   hasStandaloneCitableSentences: z.boolean(),
   /**
-   * Worden het bedrijf en zijn eigenschappen EXPLICIET benoemd, in plaats van
-   * "wij" en "ons"? Een model dat "wij leveren binnen 24 uur" leest, weet niet
-   * wie "wij" is en kan het bedrijf dus niet noemen in z'n antwoord.
+   * Is in de CITEERBARE passages ondubbelzinnig te zien over welk bedrijf het
+   * gaat? Een model dat alleen "wij leveren binnen 24 uur" leest, weet niet wie
+   * "wij" is en kan het bedrijf dus niet noemen in zijn antwoord.
+   *
+   * ⚠️ Dit criterium vroeg tot 4 september 2026 om de bedrijfsnaam "in plaats
+   * van wij en ons", overal op de pagina. Dat is precies wat V1 op 3 september
+   * heeft afgeschaft: buiten de openingsalinea en de eerste zin van elke sectie
+   * hoort de pagina in de wij-vorm te staan, zoals een ondernemer op zijn eigen
+   * site praat. De beoordelaar strafte dus af wat de schrijver was opgedragen,
+   * en die bevinding ging als verbeterpunt de reparatieronde in. De veldnaam
+   * blijft staan: hij staat in `critique_raw_json` van elke pagina die er al
+   * ligt, en een hernoeming maakt die rijen onleesbaar.
    */
   namesTheBusinessExplicitly: z.boolean(),
   /** Zijn er concrete cijfers, jaartallen of feiten verwerkt uit de feitenlijst? */
@@ -64,9 +78,9 @@ export type Critique = z.infer<typeof Critique>;
 
 /** Alle GEO-criteria op een rij, met een leesbare naam voor de UI en de feedback. */
 export const GEO_CRITERIA_LABELS: Record<keyof GeoCriteria, string> = {
-  answersTargetQuestionUpFront: "beantwoordt de doelvraag meteen",
+  answersTargetQuestionUpFront: "beantwoordt de doelvraag in de eerste alinea",
   hasStandaloneCitableSentences: "bevat losstaand citeerbare zinnen",
-  namesTheBusinessExplicitly: "noemt het bedrijf expliciet",
+  namesTheBusinessExplicitly: "koppelt het bedrijf aan het antwoord",
   usesConcreteFacts: "gebruikt concrete feiten",
   answersFollowUpQuestions: "beantwoordt vervolgvragen",
 };

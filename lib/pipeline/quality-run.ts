@@ -66,11 +66,14 @@ import { geoScore as geoScoreVanModel } from "@/lib/schemas/critique";
 import { kiesAanspreekvorm } from "@/lib/pipeline/tone-sliders";
 import { vindKlantinstructies, verbiedtAdres } from "@/lib/klantinstructies";
 import { checkBewijspunten } from "@/lib/pipeline/bewijspunten";
+import { checkSchrijfopdracht } from "@/lib/schrijfopdracht";
 import { checkKlantcitaten, vindCiteerbareAntwoorden } from "@/lib/pipeline/klantcitaten";
-import { checkOpening, checkMerkstem, checkVraagkoppen } from "@/lib/pipeline/paginavorm";
+import { checkOpening, checkMerkstem, checkVraagkoppen, eersteAlinea } from "@/lib/pipeline/paginavorm";
 import { checkAdviestoon, checkZelfondermijning } from "@/lib/pipeline/adviestoon";
+import { checkFaqBlokken } from "@/lib/pipeline/faqblokken";
 import type { AuditedClaim } from "@/lib/schemas/claim-audit";
 import type { ContentContract } from "@/lib/schemas/content-contract";
+import type { WriterBrief } from "@/lib/schemas/writer-brief";
 import type { ContentPiece } from "@/lib/schemas/content-piece";
 import type { ContentType, Profile } from "@/lib/types/database";
 
@@ -112,6 +115,12 @@ export interface KeuringInput {
    * onze standaard. Weglaten werkt en verandert niets (conventie 3).
    */
   bestaandeTekst?: string | null;
+  /**
+   * DE SCHRIJFOPDRACHT waarop deze pagina geschreven is (migratie 0094,
+   * optimalisatie 5). `null` of weglaten betekent geen opdracht, en dan
+   * verandert er niets aan het oordeel (conventie 3).
+   */
+  opdracht?: WriterBrief | null;
 }
 
 export interface Keuring {
@@ -185,6 +194,9 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
     profileId: input.profileId,
     profiel,
     styleSamples: input.profile?.style_samples ?? [],
+    // Optimalisatie 12: de vakmanschapsbeoordelaar meet de pagina aan de
+    // opdracht die hij meekreeg, en niet aan een pagina die hij zelf bedenkt.
+    opdracht: input.opdracht ?? null,
   });
 
   // ── 2. De deterministische controles ──────────────────────────────────────
@@ -233,11 +245,31 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
   const bewijspunten = checkBewijspunten({
     punten: input.piece.proofPoints,
     tekst: heleTekstVoorBewijs,
-    factIds: input.facts.map((f) => f.id).filter((id): id is string => Boolean(id)),
+    // ⚠️ Op `ref` en niet op `id`. Hier stond `f.id`, de identiteit uit de
+    // feitenbank, terwijl een bewijspunt naar het F-NUMMER verwijst dat het
+    // model in de prompt zag. Daardoor gold op productie elk bewijspunt als een
+    // verwijzing naar een niet-bestaand feit. Gevonden op 4 september 2026.
+    factRefs: input.facts.map((f) => f.ref).filter(Boolean),
   });
   const klantcitaten = checkKlantcitaten({
     citaten: vindCiteerbareAntwoorden(input.facts.map((f) => f.text)),
     tekst: heleTekstVoorBewijs,
+  });
+
+  // ── Is de SCHRIJFOPDRACHT uitgevoerd? (optimalisatie 5 en 6) ─────────────
+  //
+  // Het vangnet onder de duurste nieuwe stap. Een opdracht die het schrijfmodel
+  // negeert, is een negentiende promptblok en dus precies het probleem dat de
+  // experts aanwezen. Drie dingen worden nageteld: komen de gekozen kernfeiten
+  // terug in de beweringen of de bewijspunten, staat het kernantwoord in de
+  // eerste alinea, en staat de reden om juist dit bedrijf te kiezen in de
+  // eerste twintig procent van de tekst.
+  const schrijfopdracht = checkSchrijfopdracht({
+    opdracht: input.opdracht ?? null,
+    bodyMarkdown: body,
+    eersteAlinea: eersteAlinea(body),
+    claims: input.piece.claims ?? [],
+    proofPoints: input.piece.proofPoints,
   });
 
   // ── V8, V1 en V10: de vorm van de pagina ─────────────────────────────────
@@ -245,9 +277,26 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
   const merkstem = checkMerkstem(body, input.brandName);
   const vraagkoppen = checkVraagkoppen(body, profiel.type === "faq");
 
+  // De pagina in secties, één keer geknipt: de adviestooncontrole wijst er de
+  // zwaarste sectie mee aan (optimalisatie 16) en de typeregels tellen ze.
+  const paginaSecties = splitSections(body);
+
   // ── V6: adviseert de pagina in plaats van te helpen kiezen? ──────────────
-  const adviestoon = checkAdviestoon(body);
+  // Optimalisatie 16: met de secties erbij wijst de bevinding naar de plek waar
+  // het huiswerk zich ophoopt, in plaats van naar de pagina als geheel.
+  const adviestoon = checkAdviestoon({ tekst: body, secties: paginaSecties });
   const zelfondermijning = checkZelfondermijning(body);
+
+  // ── Herhaalt de FAQ de tekst erboven? (optimalisatie 9) ─────────────────
+  //
+  // Tien van de twaalf pagina's van 3 september hadden acht blokken onderaan,
+  // sommige een woordelijke kopie van een sectie erboven. Niets keek ernaar, en
+  // de dekkingspoort telde die herhaling zelfs als DEKKING mee.
+  const faqBlokken = checkFaqBlokken({
+    faq,
+    bodyMarkdown: body,
+    isFaqPagina: profiel.type === "faq",
+  });
 
   // ── V12: staat op elke pagina van deze ronde hetzelfde rijtje feiten? ────
   const herhaling = checkHerhaling({
@@ -306,7 +355,7 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
     facts: input.facts,
   });
 
-  const secties = splitSections(body);
+  const secties = paginaSecties;
   const typeOvertredingen = checkTypeRegels(profiel, {
     secties: secties.length,
     faqParen: faq.length,
@@ -330,6 +379,8 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
     aanspreekvorm,
     adres,
     bewijspunten,
+    schrijfopdracht,
+    faqBlokken,
     klantcitaten,
     opening,
     merkstem,

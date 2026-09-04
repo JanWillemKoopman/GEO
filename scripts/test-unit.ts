@@ -166,7 +166,22 @@ import { bepaalLezersopdracht, lezersblok, noemtPersoon, MIN_WOORDEN } from "@/l
 import { kiesAanspreekvorm, telAanspreekvormen } from "@/lib/pipeline/tone-sliders";
 import { checkAanspreekvorm, checkAdresinstructie } from "@/lib/pipeline/content-gate";
 import { vindKlantinstructies, instructieblok, verbiedtAdres } from "@/lib/klantinstructies";
-import { checkBewijspunten, betekenisStaatInTekst, MIN_BEWIJSPUNTEN } from "@/lib/pipeline/bewijspunten";
+import { checkFaqBlokken, overlapMetBody, FAQ_OVERLAP_MAX } from "@/lib/pipeline/faqblokken";
+import { zetActieAchteraan, MIN_WOORDEN_PER_SECTIE } from "@/lib/pipeline/contract-format";
+import { noemtSituatie } from "@/lib/lezersopdracht";
+import {
+  bruikbareOpdracht,
+  opdrachtblok,
+  checkSchrijfopdracht,
+  vroegeDeel,
+  MIN_KERNFEITEN,
+} from "@/lib/schrijfopdracht";
+import {
+  checkBewijspunten,
+  betekenisStaatInTekst,
+  bewijspuntenBehoudblok,
+  MIN_BEWIJSPUNTEN,
+} from "@/lib/pipeline/bewijspunten";
 import {
   vindCiteerbareAntwoorden,
   checkKlantcitaten,
@@ -205,7 +220,7 @@ import {
 import { answerBelongsHere } from "@/lib/pipeline/answer-scope";
 import { stripChrome } from "@/lib/pipeline/page-text";
 import { prioriteerBevindingen, MAX_BEVINDINGEN_PER_RONDE } from "@/lib/pipeline/content-issues";
-import { beslisReparatieRonde } from "@/lib/pipeline/content-repair-decision";
+import { beslisReparatieRonde, binnenRuis } from "@/lib/pipeline/content-repair-decision";
 import { duplicatePromptIds } from "@/lib/pipeline/prompt-dedupe";
 import { dedupeCompetitorNames } from "@/lib/pipeline/competitor-dedupe";
 import { htmlToText } from "@/lib/pipeline/html-text";
@@ -1564,7 +1579,12 @@ group("GEO-score", () => {
   ok("drie van vijf = 60", geoScore({ ...all(false), answersTargetQuestionUpFront: true, usesConcreteFacts: true, answersFollowUpQuestions: true }) === 60);
   ok("geen issues bij alles goed", geoIssues(all(true)).length === 0);
   ok("elk gemist criterium wordt een verbeterpunt", geoIssues(all(false)).length === 5);
-  ok("issue is leesbaar", geoIssues({ ...all(true), namesTheBusinessExplicitly: false })[0].includes("noemt het bedrijf expliciet"));
+  ok(
+    "issue is leesbaar",
+    geoIssues({ ...all(true), namesTheBusinessExplicitly: false })[0].includes(
+      "koppelt het bedrijf aan het antwoord",
+    ),
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -16984,7 +17004,13 @@ group("De dekkingspoort op het contentcontract (A3)", () => {
         mustCover: [],
         factRefs: ["F2"],
         explainerTerms: ["runnersknie"],
-        targetWords: 100,
+        // ⚠️ Stond op 100 en de sectie hieronder telt er 40. Sinds
+        // optimalisatie 15 rekent de poort de richtlengte per sectie na (de
+        // helft ervan is de ondergrens), dus een fixture met een richtlengte
+        // die vier keer zo hoog is als de tekst, toetst iets anders dan hij
+        // bedoelde. Deze twee lengtes horen bij deze twee secties.
+        targetWords: 60,
+        rol: "uitleg" as const,
         needsBrandFact: false,
         importance: "ondersteunend" as const,
         successCriterion: "",
@@ -16998,7 +17024,8 @@ group("De dekkingspoort op het contentcontract (A3)", () => {
         mustCover: [],
         factRefs: [],
         explainerTerms: [],
-        targetWords: 100,
+        targetWords: 50,
+        rol: "uitleg" as const,
         needsBrandFact: false,
         importance: "ondersteunend" as const,
         successCriterion: "",
@@ -17046,6 +17073,32 @@ group("De dekkingspoort op het contentcontract (A3)", () => {
     claims: [{ factRef: "F2" }],
   });
   ok("een ontbrekende sectie drukt de score", (mist.score ?? 100) < 100);
+
+  // ── Optimalisatie 15: de richtlengte van de sectie zelf telt ─────────────
+  //
+  // De ondergrens stond op 25 woorden, wat het contract ook afsprak. Een sectie
+  // met een richtlengte van 200 woorden die er 30 haalt, ging daar dus gewoon
+  // doorheen terwijl de inhoudsopgave hem als dragende sectie plande.
+  const ruimGepland: ContentContract = {
+    ...contract,
+    sections: contract.sections.map((sec) => ({ ...sec, targetWords: 200 })),
+  };
+  const teDun = checkContractCoverage({
+    contract: ruimGepland,
+    bodyMarkdown: compleet,
+    faq: [{ q: "Heb ik een verwijzing nodig?", a: "Nee, dat hoeft niet." }],
+    claims: [{ factRef: "F2" }],
+  });
+  ok(
+    "een sectie van 40 woorden op een afspraak van 200 is te dun",
+    teDun.issues.some((i) => i.includes("te dun")),
+    teDun.issues.join(" | "),
+  );
+  ok(
+    "en de bevinding noemt allebei de getallen",
+    teDun.issues.some((i) => i.includes("100 woorden") && i.includes("200 afsprak")),
+    teDun.issues.join(" | "),
+  );
   ok("en wordt met kop en al benoemd",
     mist.issues.some((i) => i.includes("Wat kost het")),
     mist.issues.join(" | "));
@@ -17109,6 +17162,7 @@ group("Het contract opschonen en als opdracht formuleren (A2)", () => {
         factRefs: ["", "F1"],
         explainerTerms: [""],
         targetWords: 0,
+        rol: "uitleg" as const,
         needsBrandFact: false,
         importance: "ondersteunend" as const,
         successCriterion: "",
@@ -17117,8 +17171,8 @@ group("Het contract opschonen en als opdracht formuleren (A2)", () => {
       },
       // Een sectie zonder kop of zonder deelvraag kan de poort niet toetsen en
       // de schrijver niet uitvoeren: die hoort te vervallen.
-      { id: "s2", heading: "  ", subQuestion: "iets", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 100, needsBrandFact: false, importance: "ondersteunend" as const, successCriterion: "", presentOnExisting: "niet_van_toepassing" as const, whatToChange: "" },
-      { id: "s3", heading: "Kop", subQuestion: "  ", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 9999, needsBrandFact: false, importance: "ondersteunend" as const, successCriterion: "", presentOnExisting: "niet_van_toepassing" as const, whatToChange: "" },
+      { id: "s2", heading: "  ", subQuestion: "iets", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 100, rol: "uitleg" as const, needsBrandFact: false, importance: "ondersteunend" as const, successCriterion: "", presentOnExisting: "niet_van_toepassing" as const, whatToChange: "" },
+      { id: "s3", heading: "Kop", subQuestion: "  ", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 9999, rol: "uitleg" as const, needsBrandFact: false, importance: "ondersteunend" as const, successCriterion: "", presentOnExisting: "niet_van_toepassing" as const, whatToChange: "" },
     ],
     faqQuestions: ["", "Heb ik een verwijzing nodig?"],
     pageObjective: "",
@@ -17327,6 +17381,7 @@ group("De opening van een pagina bevat geen interne notities (verbetering 3)", (
         factRefs: ["F5"],
         explainerTerms: [],
         targetWords: 120,
+        rol: "uitleg" as const,
         needsBrandFact: false,
         importance: "ondersteunend" as const,
         successCriterion: "",
@@ -17537,6 +17592,7 @@ group("Het contract past in de doellengte (verbetering 6)", () => {
     factRefs: [],
     explainerTerms: [],
     targetWords: woorden,
+    rol: "uitleg" as const,
     needsBrandFact: false,
     importance: "ondersteunend" as const,
     successCriterion: "",
@@ -17699,6 +17755,7 @@ group("De dekkingspoort leest verwijzingen zoals de citaatcontrole (verbetering 
         factRefs: ["F1", "F5", "F18"],
         explainerTerms: [],
         targetWords: 120,
+        rol: "uitleg" as const,
         needsBrandFact: false,
         importance: "ondersteunend" as const,
         successCriterion: "",
@@ -17751,6 +17808,7 @@ group("Een vakterm telt pas als hij echt is uitgelegd (verbetering 12)", () => {
         factRefs: [],
         explainerTerms: termen,
         targetWords: 120,
+        rol: "uitleg" as const,
         needsBrandFact: false,
         importance: "ondersteunend" as const,
         successCriterion: "",
@@ -17765,6 +17823,7 @@ group("Een vakterm telt pas als hij echt is uitgelegd (verbetering 12)", () => {
         factRefs: [],
         explainerTerms: [],
         targetWords: 120,
+        rol: "uitleg" as const,
         needsBrandFact: false,
         importance: "ondersteunend" as const,
         successCriterion: "",
@@ -17853,6 +17912,7 @@ group("De onderbouwingsgraad per pagina (vragen-voor-het-schrijven §4)", () => 
     factRefs,
     explainerTerms: [],
     targetWords: 100,
+    rol: "uitleg" as const,
     needsBrandFact,
     importance: "ondersteunend" as const,
     successCriterion: "",
@@ -17934,6 +17994,7 @@ group("Overslaan haalt de sectie eruit (vragen-voor-het-schrijven §6)", () => {
     factRefs: [],
     explainerTerms: [],
     targetWords: 100,
+    rol: "uitleg" as const,
     needsBrandFact: true,
     importance: "ondersteunend" as const,
     successCriterion: "",
@@ -18306,7 +18367,7 @@ group("bewijspunten: is een feit omgezet naar een argument?", () => {
       { factRef: "F3", betekenis: "u ziet zelf wat we aantreffen" },
     ],
     tekst,
-    factIds: ["F1", "F2", "F3", "F4"],
+    factRefs: ["F1", "F2", "F3", "F4"],
   });
   ok("drie omgezette feiten is genoeg", goed.issues.length === 0, JSON.stringify(goed.issues));
   ok("en dat zijn er drie", goed.aantal === MIN_BEWIJSPUNTEN);
@@ -18315,7 +18376,7 @@ group("bewijspunten: is een feit omgezet naar een argument?", () => {
   const teWeinig = checkBewijspunten({
     punten: [{ factRef: "F1", betekenis: "u weet wie er op uw dak komt" }],
     tekst,
-    factIds: ["F1"],
+    factRefs: ["F1"],
   });
   ok("één bewijspunt is te weinig", teWeinig.issues.length === 1);
   ok("en de bevinding zegt hoeveel er zijn", teWeinig.issues[0].includes("1 van de"));
@@ -18328,7 +18389,7 @@ group("bewijspunten: is een feit omgezet naar een argument?", () => {
       { factRef: "F3", betekenis: "u ziet zelf wat we aantreffen" },
     ],
     tekst,
-    factIds: ["F1", "F2", "F3"],
+    factRefs: ["F1", "F2", "F3"],
   });
   ok("een onbekend F-nummer wordt gevonden", verzonnen.onbekend.length === 1);
   ok("en genoemd in de bevinding", verzonnen.issues.some((i) => i.includes("F9")));
@@ -18341,7 +18402,7 @@ group("bewijspunten: is een feit omgezet naar een argument?", () => {
       { factRef: "F3", betekenis: "u ziet zelf wat we aantreffen" },
     ],
     tekst,
-    factIds: ["F1", "F2", "F3"],
+    factRefs: ["F1", "F2", "F3"],
   });
   ok("een niet-opgeschreven bewijspunt wordt gevonden", nietGeschreven.nietGeschreven.length === 1);
   ok(
@@ -18356,7 +18417,7 @@ group("bewijspunten: is een feit omgezet naar een argument?", () => {
   );
 
   // ⚠️ Conventie 3: een pagina van vóór migratie 0093 verandert niet van oordeel.
-  const oud = checkBewijspunten({ punten: undefined, tekst, factIds: ["F1"] });
+  const oud = checkBewijspunten({ punten: undefined, tekst, factRefs: ["F1"] });
   ok("zonder het veld verandert er niets", oud.issues.length === 0);
 });
 
@@ -19117,6 +19178,7 @@ group("Het contract als verbeterplan (O4/O5)", () => {
     factRefs: [],
     explainerTerms: [],
     targetWords: 100,
+    rol: "uitleg" as const,
     needsBrandFact: false,
     importance: "ondersteunend" as const,
     successCriterion: "",
@@ -19963,6 +20025,7 @@ group("De gewogen bewijsdekking weegt de kern zwaarder (punt 5)", () => {
     factRefs,
     explainerTerms: [],
     targetWords: 100,
+    rol: "uitleg" as const,
     needsBrandFact: true,
     importance,
     successCriterion: "",
@@ -20338,6 +20401,7 @@ group("De reparatieopdracht zegt wat, waarom en waarmee (punt 17)", () => {
     factRefs: ["F1"],
     explainerTerms: [],
     targetWords: 120,
+    rol: "uitleg" as const,
     needsBrandFact: true,
     importance: "kern" as const,
     successCriterion: "Er staat een bedrag of een bandbreedte.",
@@ -20616,6 +20680,446 @@ group("de vloeiende lijn in de grafieken", () => {
       { x: 1, y: 30 },
     ]).includes("NaN"),
   );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nExpertronde 4 september 2026: blok A, de tegenstrijdigheden");
+// (docs/tasks/optimalisaties-expertronde-4-september-2026.md, optimalisatie
+// 1 tot en met 4 en 18). Broncodecontroles, want deze prompts staan in modules
+// met `server-only` en zijn niet uit een test te importeren.
+// ════════════════════════════════════════════════════════════════════════════
+
+group("optimalisatie 1 en 2: de beoordelaar werkt de schrijfopdracht niet meer tegen", () => {
+  const kaal = (bron: string) =>
+    bron.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const panel = kaal(leesBestand("lib/pipeline/content-panel.ts"));
+
+  ok(
+    "de wij-vorm mag niet meer als tekortkoming gelden",
+    panel.includes("DE WIJ-VORM IS GOED"),
+  );
+  ok(
+    "en het oude criterium 'de bedrijfsnaam in plaats van wij' is weg",
+    !panel.includes("in plaats van 'wij'"),
+  );
+  ok(
+    "het antwoord wordt in de eerste ALINEA gezocht, niet in de eerste twee zinnen",
+    panel.includes("EERSTE ALINEA") && !panel.includes("eerste twee zinnen"),
+  );
+  ok(
+    "de bedrijfsnaam gaat mee als gegeven, niet als eis aan de tekst",
+    panel.includes("`Bedrijfsnaam: ${input.brandName}`") &&
+      !panel.includes("die expliciet genoemd moet worden"),
+  );
+});
+
+group("optimalisatie 3: de ijkpunten zijn regels en geen cijfers van één mens", () => {
+  const kaal = (bron: string) =>
+    bron.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const panel = kaal(leesBestand("lib/pipeline/content-panel.ts"));
+
+  ok("er staat geen menselijk eindcijfer meer in de prompt", !panel.includes("2,6 van 5"));
+  ok(
+    "en geen verwijzing naar de ronde waaruit die cijfers kwamen",
+    !panel.includes("twaalf pagina's van 3 september"),
+  );
+  ok("de ijkpunten staan er nog wel", panel.includes("IJKPUNTEN"));
+  ok(
+    "en de kernvraag van de copywriter staat er als regel",
+    panel.includes("waarom hij juist DIT bedrijf zou kiezen"),
+  );
+});
+
+group("optimalisatie 4: de reparatieronde kent de grenzen die blokkeren", () => {
+  const bron = leesBestand("lib/pipeline/content.ts");
+  const begin = bron.indexOf("function buildRepairInput");
+  const eind = bron.indexOf("DE HUIDIGE PAGINA, PER SECTIE", begin);
+  const opdracht = bron.slice(begin, eind > begin ? eind : undefined);
+
+  ok("de reparatie kent de gekozen aanspreekvorm", opdracht.includes("kiesAanspreekvorm("));
+  ok("en de verboden woorden", opdracht.includes("taboo_phrases"));
+  ok("en wat de ondernemer zelf gevraagd heeft", opdracht.includes("instructieblok("));
+  ok("en de regel dat dit geen consumentengids is", opdracht.includes("adviestoonblok("));
+  ok("en voor wie de pagina geschreven is", opdracht.includes("lezersblok("));
+  ok("en welke zinnen moeten blijven staan", opdracht.includes("bewijspuntenBehoudblok("));
+  ok("en de eigen woorden van de ondernemer", opdracht.includes("citatenblok("));
+
+  // Wat er bewust NIET bij komt: dit blijft een reparatie en geen tweede
+  // schrijfronde.
+  ok("maar niet de doellengte", !opdracht.includes("Doellengte"));
+  ok("en niet de stijlvoorbeelden", !opdracht.includes("styleSamples"));
+
+  // Het blok zelf, puur getest.
+  ok("zonder bewijspunten valt het blok weg", bewijspuntenBehoudblok(undefined) === "");
+  ok("een lege lijst levert ook niets op", bewijspuntenBehoudblok([]) === "");
+  const behoud = bewijspuntenBehoudblok([
+    { factRef: "F3", betekenis: "u weet wie er op uw dak komt" },
+    { factRef: "F7", betekenis: " " },
+  ]);
+  ok("de betekeniszin staat erin", behoud.includes("u weet wie er op uw dak komt"));
+  ok("met het F-nummer erbij", behoud.includes("(F3)"));
+  ok("en een leeg punt telt niet mee", !behoud.includes("F7"));
+});
+
+group("optimalisatie 18: er is nog maar één redactieprompt", () => {
+  const bron = leesBestand("lib/pipeline/content.ts");
+  ok("de ongebruikte kopie in content.ts is weg", !bron.includes("const CRITIQUE_SYSTEM"));
+  ok(
+    "en de beoordelaar die wel draait staat in content-panel.ts",
+    leesBestand("lib/pipeline/content-panel.ts").includes("const REDACTIE_SYSTEM"),
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nExpertronde 4 september 2026: blok B, de schrijfopdracht");
+// (optimalisatie 5, 6, 7 en 12, migratie 0094)
+// ════════════════════════════════════════════════════════════════════════════
+
+const heleOpdracht = {
+  lezer: "Iemand met water door zijn plafond die vandaag hulp zoekt",
+  hoofdvraag: "Kan er vandaag iemand komen en wat kost dat?",
+  kernantwoord: "Wij zijn er binnen 24 uur en u hoort het bedrag voordat wij beginnen",
+  waaromDezePagina: "De assistent noemt bij deze vraag alleen andere partijen.",
+  kernfeiten: ["F2", "F3", "F7"],
+  keuzeredenen: [{ factRef: "F2", reden: "deze lezer heeft haast en wij komen binnen 24 uur" }],
+  eigenWoorden: "Over houtrot werken we niet heen, want dan kunnen we onze garantie niet waarmaken.",
+  moetErIn: ["het bedrag vooraf"],
+  nietDoen: ["geen checklist om dakdekkers te vergelijken"],
+  blijftHangen: "dit bedrijf begrijpt mijn situatie en komt vandaag",
+};
+
+group("optimalisatie 5: een halve schrijfopdracht telt niet", () => {
+  ok("een complete opdracht komt erdoor", bruikbareOpdracht(heleOpdracht) !== null);
+  ok("niets is geen opdracht", bruikbareOpdracht(null) === null);
+
+  // Conventie 3: liever geen opdracht dan een halve.
+  ok(
+    "zonder kernantwoord vervalt de hele opdracht",
+    bruikbareOpdracht({ ...heleOpdracht, kernantwoord: "  " }) === null,
+  );
+  ok(
+    "zonder reden om dit bedrijf te kiezen ook",
+    bruikbareOpdracht({ ...heleOpdracht, keuzeredenen: [] }) === null,
+  );
+  ok(
+    `onder ${MIN_KERNFEITEN} kernfeiten is er geen keuze gemaakt`,
+    bruikbareOpdracht({ ...heleOpdracht, kernfeiten: ["F2", "F3"] }) === null,
+  );
+
+  // Dezelfde meetlat als V7: een onderwerp is geen lezer.
+  ok(
+    "een onderwerp in plaats van een lezer vervalt",
+    bruikbareOpdracht({ ...heleOpdracht, lezer: "Daklekkage Apeldoorn" }) === null,
+  );
+  ok(
+    "en 'onbekend' ook",
+    bruikbareOpdracht({ ...heleOpdracht, lezer: "onbekend" }) === null,
+  );
+
+  // Lijsten die leeg mogen zijn, want een lege lijst is een geldig antwoord.
+  ok(
+    "zonder eigen woorden van de ondernemer blijft de opdracht geldig",
+    bruikbareOpdracht({ ...heleOpdracht, eigenWoorden: "", moetErIn: [], nietDoen: [] }) !== null,
+  );
+
+  const blok = opdrachtblok(bruikbareOpdracht(heleOpdracht));
+  ok("het promptblok noemt de lezer", blok.includes("Iemand met water door zijn plafond"));
+  ok("de kernfeiten", blok.includes("F2, F3, F7"));
+  ok("en de vraag waar dit hele blok voor gebouwd is", blok.includes("WAAROM DEZE LEZER JUIST DIT BEDRIJF"));
+  ok("zonder opdracht is het blok leeg", opdrachtblok(null) === "");
+});
+
+group("optimalisatie 5 en 6: het vangnet rekent na of de opdracht is uitgevoerd", () => {
+  const opdracht = bruikbareOpdracht(heleOpdracht)!;
+  const goedeTekst =
+    "Staat er water door uw plafond, dan zijn wij er binnen 24 uur en hoort u het bedrag " +
+    "voordat wij beginnen. Deze lezer heeft haast en wij komen binnen 24 uur ter plaatse.\n\n" +
+    "## Wat het kost\nWij rekenen vooraf voor.";
+
+  const goed = checkSchrijfopdracht({
+    opdracht,
+    bodyMarkdown: goedeTekst,
+    eersteAlinea: goedeTekst.split("\n\n")[0],
+    claims: [{ factRef: "F2" }, { factRef: "F3" }],
+    proofPoints: [{ factRef: "F7" }],
+  });
+  ok("een uitgevoerde opdracht levert geen bevinding op", goed.issues.length === 0, JSON.stringify(goed.issues));
+  ok("het kernantwoord staat in de opening", goed.kernantwoordInOpening === true);
+  ok("en de keuzereden staat vroeg", goed.keuzeredenVroeg === true);
+
+  // Het kernantwoord ontbreekt in de opening.
+  const zonderAntwoord = checkSchrijfopdracht({
+    opdracht,
+    bodyMarkdown: "Een daklekkage kan erg vervelend zijn. Deze lezer heeft haast en wij komen binnen 24 uur.",
+    eersteAlinea: "Een daklekkage kan erg vervelend zijn.",
+    claims: [{ factRef: "F2" }, { factRef: "F3" }, { factRef: "F7" }],
+    proofPoints: [],
+  });
+  ok("een opening zonder het kernantwoord wordt gevonden", zonderAntwoord.kernantwoordInOpening === false);
+  ok("en genoemd in de bevinding", zonderAntwoord.issues.some((i) => i.includes("eerste alinea")));
+
+  // De reden om dit bedrijf te kiezen staat er niet, of pas onderaan.
+  const laat = checkSchrijfopdracht({
+    opdracht,
+    bodyMarkdown:
+      "Wij zijn er binnen 24 uur en u hoort het bedrag voordat wij beginnen. " +
+      "x".repeat(4000) +
+      " Deze lezer heeft haast en wij komen binnen 24 uur ter plaatse.",
+    eersteAlinea: "Wij zijn er binnen 24 uur en u hoort het bedrag voordat wij beginnen.",
+    claims: [{ factRef: "F2" }, { factRef: "F3" }, { factRef: "F7" }],
+    proofPoints: [],
+  });
+  ok("een reden die pas onderaan staat telt niet", laat.keuzeredenVroeg === false);
+  ok(
+    "en de bevinding zegt waar hij hoort",
+    laat.issues.some((i) => i.includes("eerste twintig procent")),
+  );
+
+  // De gekozen feiten worden genegeerd.
+  const genegeerd = checkSchrijfopdracht({
+    opdracht,
+    bodyMarkdown: goedeTekst,
+    eersteAlinea: goedeTekst.split("\n\n")[0],
+    claims: [{ factRef: "F1" }],
+    proofPoints: [],
+  });
+  ok("drie genegeerde kernfeiten is een bevinding", genegeerd.ongebruikteFeiten.length === 3);
+  ok("en de bevinding noemt ze", genegeerd.issues.some((i) => i.includes("F2, F3, F7")));
+
+  // Eén van de drie missen mag: dat is een keuze van de schrijver.
+  const bijna = checkSchrijfopdracht({
+    opdracht,
+    bodyMarkdown: goedeTekst,
+    eersteAlinea: goedeTekst.split("\n\n")[0],
+    claims: [{ factRef: "F2" }, { factRef: "F3" }],
+    proofPoints: [],
+  });
+  ok("één ongebruikt feit levert geen bevinding op", bijna.issues.length === 0, JSON.stringify(bijna.issues));
+
+  // Conventie 3: een pagina van vóór migratie 0094 verandert niet van oordeel.
+  const oud = checkSchrijfopdracht({
+    opdracht: null,
+    bodyMarkdown: goedeTekst,
+    eersteAlinea: goedeTekst,
+    claims: [],
+    proofPoints: undefined,
+  });
+  ok("zonder opdracht geen bevindingen", oud.issues.length === 0);
+  ok("en geen oordeel", oud.kernantwoordInOpening === null && oud.keuzeredenVroeg === null);
+
+  // Het vroege deel is een aandeel met een bodem, zodat een korte pagina niet
+  // op twee zinnen wordt afgerekend.
+  ok("op een korte pagina telt minstens 400 tekens als vroeg", vroegeDeel("a".repeat(300)).length === 300);
+  ok("op een lange pagina is het een vijfde", vroegeDeel("a".repeat(5000)).length === 1000);
+});
+
+group("optimalisatie 11: bij een gelijkspel beslist het vergelijkende oordeel", () => {
+  const basis = {
+    vorigeKwaliteit: 74,
+    ronde: 1,
+    repairMax: 3,
+    scoresTeLaag: true,
+    openstaandeBevindingen: 2,
+  };
+
+  // Zonder oordeel blijft alles precies zoals het was.
+  ok(
+    "twee punten hoger zonder oordeel: bewaren en doorgaan, net als voorheen",
+    beslisReparatieRonde({ ...basis, nieuweKwaliteit: 76 }).bewaarNieuweVersie &&
+      beslisReparatieRonde({ ...basis, nieuweKwaliteit: 76 }).nogEenRonde,
+  );
+
+  // Binnen de ruis wint het oordeel, in allebei de richtingen.
+  const ruisNieuw = beslisReparatieRonde({ ...basis, nieuweKwaliteit: 76, vergelijking: "nieuw" });
+  ok("het oordeel kiest de nieuwe versie", ruisNieuw.bewaarNieuweVersie && ruisNieuw.nogEenRonde);
+
+  const ruisHuidig = beslisReparatieRonde({ ...basis, nieuweKwaliteit: 76, vergelijking: "huidig" });
+  ok(
+    "twee punten hoger telt niet als het oordeel de oude tekst beter vindt",
+    !ruisHuidig.bewaarNieuweVersie,
+  );
+  ok("en dan volgt er geen ronde meer op dezelfde bevindingen", !ruisHuidig.nogEenRonde);
+
+  // ⚠️ De omgekeerde kant, en die is het punt van deze optimalisatie: een
+  // reparatie die twee punten LAGER scoort werd altijd weggegooid.
+  const lagerMaarBeter = beslisReparatieRonde({ ...basis, nieuweKwaliteit: 72, vergelijking: "nieuw" });
+  ok("twee punten lager mag blijven als het oordeel hem beter vindt", lagerMaarBeter.bewaarNieuweVersie);
+
+  // Buiten de marge beslist de score, wat het oordeel ook zegt.
+  const ruimHoger = beslisReparatieRonde({ ...basis, nieuweKwaliteit: 84, vergelijking: "huidig" });
+  ok("tien punten hoger is geen ruis meer, dus de score wint", ruimHoger.bewaarNieuweVersie);
+  const ruimLager = beslisReparatieRonde({ ...basis, nieuweKwaliteit: 60, vergelijking: "nieuw" });
+  ok("en veertien punten lager blijft een verslechtering", !ruimLager.bewaarNieuweVersie);
+
+  ok("drie punten is nog ruis", binnenRuis(74, 77) && binnenRuis(77, 74));
+  ok("vier punten niet meer", !binnenRuis(74, 78));
+  ok("en zonder meetpunt is er geen gelijkspel", !binnenRuis(null, 74) && !binnenRuis(74, null));
+
+  // Blokkades gaan altijd vóór het oordeel: die zijn geteld, niet beoordeeld.
+  const versie = (score: number, blokkades: number) => ({
+    ronde: 2,
+    score,
+    verdict: "repair" as const,
+    blokkades,
+    confidence: 90,
+  });
+  ok(
+    "een versie met een blokkade erbij verliest, ook als het oordeel hem beter vindt",
+    !nietSlechterDan(versie(76, 1), versie(74, 0), "nieuw"),
+  );
+  ok(
+    "en een blokkade minder wint, ook als het oordeel de oude tekst kiest",
+    nietSlechterDan(versie(70, 0), versie(80, 1), "huidig"),
+  );
+  ok(
+    "binnen de ruis en met gelijke blokkades beslist het oordeel",
+    !nietSlechterDan(versie(76, 0), versie(74, 0), "huidig"),
+  );
+});
+
+group("optimalisatie 7: een bewijspunt zegt ook waarom het voor deze lezer telt", () => {
+  const bron = leesBestand("lib/pipeline/bewijspunten.ts");
+  ok("de prompt vraagt om de derde stap", bron.includes("waarom telt dit voor JUIST DEZE lezer"));
+  ok(
+    "en het veld staat in het schema van de pagina",
+    leesBestand("lib/schemas/content-piece.ts").includes("relevantie: z.string()"),
+  );
+});
+
+group("optimalisatie 12: de vakmanschapsbeoordelaar meet aan de opdracht", () => {
+  const panel = leesBestand("lib/pipeline/content-panel.ts");
+  ok("de opdracht gaat mee naar de beoordelaar", panel.includes("DE OPDRACHT DIE DEZE PAGINA MEEKREEG"));
+  ok(
+    "en hij weet dat hij daaraan moet meten",
+    panel.includes("Beoordeel de tekst hieraan"),
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nExpertronde 4 september 2026: blok C, verhaal, FAQ en lezer");
+// (optimalisatie 8, 9, 10, 13 en 16)
+// ════════════════════════════════════════════════════════════════════════════
+
+group("optimalisatie 8: hoogstens één oproep tot actie, en die staat achteraan", () => {
+  const s = (id: string, rol: string) => ({ id, rol });
+
+  const verplaatst = zetActieAchteraan([
+    s("s1", "probleem"),
+    s("s2", "actie"),
+    s("s3", "bewijs"),
+  ]);
+  ok("de actiesectie schuift naar achteren", verplaatst.at(-1)?.id === "s2");
+  ok("en de rest houdt zijn volgorde", verplaatst[0].id === "s1" && verplaatst[1].id === "s3");
+
+  const twee = zetActieAchteraan([s("s1", "actie"), s("s2", "uitleg"), s("s3", "actie")]);
+  ok("van twee oproepen blijft er één over", twee.filter((x) => x.rol === "actie").length === 1);
+  ok("en dat is de eerste, achteraan gezet", twee.at(-1)?.id === "s1");
+  ok("de tweede wordt gewone uitleg", twee.find((x) => x.id === "s3")?.rol === "uitleg");
+
+  const zonder = zetActieAchteraan([s("s1", "probleem"), s("s2", "bewijs")]);
+  ok("zonder actiesectie verandert er niets", zonder.map((x) => x.id).join() === "s1,s2");
+
+  ok("een sectie is minstens tachtig woorden waard", MIN_WOORDEN_PER_SECTIE === 80);
+});
+
+group("optimalisatie 9: de FAQ mag de tekst erboven niet herhalen", () => {
+  const body =
+    "## Wat kost een spoedreparatie\n" +
+    "Een eenvoudige spoedreparatie begint bij 250 euro, inclusief voorrijkosten, arbeid en " +
+    "materiaal. Extra werk voeren wij alleen uit nadat u akkoord heeft gegeven.\n";
+
+  const herhaalt = checkFaqBlokken({
+    faq: [
+      {
+        q: "Wat kost een spoedreparatie?",
+        a: "Een eenvoudige spoedreparatie begint bij 250 euro, inclusief voorrijkosten, arbeid en materiaal.",
+      },
+      {
+        q: "Voert u extra werk zomaar uit?",
+        a: "Extra werk voeren wij alleen uit nadat u akkoord heeft gegeven.",
+      },
+    ],
+    bodyMarkdown: body,
+    isFaqPagina: false,
+  });
+  ok("twee herhalende blokken worden gevonden", herhaalt.herhalingen.length === 2);
+  ok("en dat levert een bevinding op", herhaalt.issues.length === 1);
+  ok("met de eerste vraag erin", herhaalt.issues[0].includes("Wat kost een spoedreparatie?"));
+
+  const aanvullend = checkFaqBlokken({
+    faq: [
+      {
+        q: "Werken jullie ook in het weekend?",
+        a: "Ook op zaterdag en zondag staat er een ploeg klaar voor noodgevallen op het dak.",
+      },
+      {
+        q: "Wat kost een spoedreparatie?",
+        a: "Een eenvoudige spoedreparatie begint bij 250 euro, inclusief voorrijkosten, arbeid en materiaal.",
+      },
+    ],
+    bodyMarkdown: body,
+    isFaqPagina: false,
+  });
+  ok("één herhaling van twee is geen bevinding", aanvullend.issues.length === 0);
+  ok("maar hij wordt wel geteld", aanvullend.herhalingen.length === 1);
+
+  // Bij een FAQ-pagina zijn de vragen juist het product.
+  const faqPagina = checkFaqBlokken({
+    faq: [{ q: "Wat kost het?", a: "Een eenvoudige spoedreparatie begint bij 250 euro." }],
+    bodyMarkdown: body,
+    isFaqPagina: true,
+  });
+  ok("op een FAQ-pagina geldt deze regel niet", faqPagina.issues.length === 0);
+
+  ok("een letterlijke kopie overlapt volledig", overlapMetBody("de spoedreparatie kost 250 euro", body) >= FAQ_OVERLAP_MAX);
+  ok(
+    "en een echt nieuw antwoord niet",
+    overlapMetBody("Wij plaatsen zonnepanelen op elk type dakbedekking", body) < FAQ_OVERLAP_MAX,
+  );
+});
+
+group("optimalisatie 10: een doelgroep is nog geen lezer", () => {
+  const opdracht = (zin: string) => bepaalLezersopdracht({ targetIntent: zin });
+
+  const heel = opdracht(
+    "Een huiseigenaar die merkt dat zijn huis moeilijk warm blijft en wil weten of isoleren kan",
+  );
+  ok("persoon en situatie: compleet", heel.noemtPersoon && heel.noemtSituatie);
+
+  const doelgroep = opdracht("Mensen die dakisolatie zoeken in Apeldoorn");
+  ok("een doelgroep noemt wel een persoon", doelgroep.noemtPersoon);
+  ok("maar geen situatie", !doelgroep.noemtSituatie);
+  ok(
+    "en de prompt vraagt om die situatie erbij",
+    lezersblok(doelgroep).includes("nog geen situatie"),
+  );
+
+  ok("de vraag uit de meting telt als situatie", opdracht("").bron === "geen");
+  const uitMeting = bepaalLezersopdracht({ doelvragen: ["wie repareert mijn dak vandaag"] });
+  ok("een gemeten vraag levert persoon en situatie", uitMeting.noemtPersoon && uitMeting.noemtSituatie);
+
+  ok("losse woorden zijn geen situatie", !noemtSituatie("dakisolatie Apeldoorn"));
+  ok("en 'twijfelt over' wel", noemtSituatie("iemand die twijfelt over de kosten"));
+});
+
+group("optimalisatie 16: de bevinding wijst de sectie aan waar het huiswerk zit", () => {
+  const secties = [
+    { heading: "Wat wij doen", body: "Wij komen binnen 24 uur langs en melden wat wij aantreffen." },
+    {
+      heading: "Waar u op moet letten",
+      body:
+        "Vraag altijd om een schriftelijke offerte. Controleer of het bedrijf verzekerd is. " +
+        "Laat de afspraken vastleggen. Bespreek de planning vooraf.",
+    },
+  ];
+  const tekst = secties.map((s) => `## ${s.heading}\n${s.body}`).join("\n\n");
+  const uitkomst = checkAdviestoon({ tekst, secties });
+  ok("de zwaarste sectie wordt aangewezen", uitkomst.zwaarsteSectie === "Waar u op moet letten");
+
+  // Zonder secties blijft alles werken zoals voorheen (conventie 3).
+  const zonder = checkAdviestoon(tekst);
+  ok("zonder secties geen aanwijzing", zonder.zwaarsteSectie === null);
+  ok("en dezelfde telling", zonder.gebiedend === uitkomst.gebiedend);
 });
 
 // ════════════════════════════════════════════════════════════════════════════

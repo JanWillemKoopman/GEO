@@ -54,6 +54,29 @@ const DEELVRAAG_DREMPEL = 0.5;
 /** Zo veel woorden moet een sectie minstens hebben om als geschreven te tellen. */
 const MIN_WOORDEN_PER_SECTIE = 25;
 
+/**
+ * Welk deel van zijn eigen richtlengte een sectie minstens moet halen
+ * (optimalisatie 15, 4 september 2026).
+ *
+ * ⚠️ De ondergrens hierboven is ABSOLUUT: 25 woorden, wat het contract ook
+ * afsprak. Een sectie met een richtlengte van 200 woorden die er 30 haalt, ging
+ * daar dus gewoon doorheen, terwijl de inhoudsopgave hem als dragende sectie
+ * plande. Het contract spreekt per sectie een lengte af (dat is de hele reden
+ * dat `targetWords` per sectie staat en niet per pagina), en niets rekende die
+ * afspraak na.
+ *
+ * De helft, en dat is bewust ruim: een schrijver mag een sectie compacter maken
+ * dan gepland, want korter is vaak beter. Onder de helft is het geen keuze meer
+ * maar een sectie die niet geschreven is.
+ */
+const DEEL_VAN_RICHTLENGTE = 0.5;
+
+/** Hoeveel woorden deze sectie minstens moet hebben, gegeven zijn eigen afspraak. */
+function ondergrensVoor(sectie: ContractSection): number {
+  const richt = Number.isFinite(sectie.targetWords) ? sectie.targetWords : 0;
+  return Math.max(MIN_WOORDEN_PER_SECTIE, Math.round(richt * DEEL_VAN_RICHTLENGTE));
+}
+
 export interface SectionCoverage {
   id: string;
   heading: string;
@@ -200,7 +223,7 @@ function toetsSectie(
     heading: sectie.heading,
     aanwezig: Boolean(gevonden),
     beantwoordt: Boolean(gevonden) && dekkingsgraad(sectie.subQuestion, tekst) >= DEELVRAAG_DREMPEL,
-    uitgewerkt: Boolean(gevonden) && woorden(gevonden!.body) >= MIN_WOORDEN_PER_SECTIE,
+    uitgewerkt: Boolean(gevonden) && woorden(gevonden!.body) >= ondergrensVoor(sectie),
     ongebruikteFeiten,
     ontbrekendeUitleg,
   };
@@ -285,9 +308,12 @@ export function checkContractCoverage(input: CoverageInput): CoverageResult {
       );
     }
     if (!s.uitgewerkt) {
+      const gepland = contract.sections.find((c) => c.id === s.id);
+      const grens = gepland ? ondergrensVoor(gepland) : MIN_WOORDEN_PER_SECTIE;
       issues.push(
-        `De sectie "${s.heading}" is te dun (minder dan ${MIN_WOORDEN_PER_SECTIE} woorden). ` +
-          `Werk hem uit of voeg hem samen met een andere sectie.`,
+        `De sectie "${s.heading}" is te dun (minder dan ${grens} woorden, terwijl de inhoudsopgave ` +
+          `er ${gepland?.targetWords ?? MIN_WOORDEN_PER_SECTIE} afsprak). Werk hem uit of voeg hem ` +
+          `samen met een andere sectie.`,
       );
     }
     if (s.ongebruikteFeiten.length > 0) {

@@ -354,3 +354,38 @@ copywriter. Ze in één kolom schuiven zou van "onderbouwd" en "overtuigend" é�
 De controle staat in `lib/pipeline/bewijspunten.ts` en rekent drie dingen na: zijn het er minstens
 drie, bestaat het F-nummer, en staat de betekeniszin ook echt in de tekst. Een pagina van vóór deze
 migratie heeft een lege lijst en verandert niet van oordeel (conventie 3).
+
+## 0094 — de schrijfopdracht van een pagina (optimalisatie 5 en 6)
+
+`content_pieces.writer_brief_json`, additief met default `'{}'`. De redactionele keuze die vlak
+vóór de dure schrijfaanroep gemaakt wordt: voor wie deze pagina is, wat die persoon moet begrijpen,
+welke F-nummers de pagina dragen, en waarom juist deze lezer dit bedrijf zou kiezen.
+
+```json
+{
+  "lezer": "iemand met water door zijn plafond die vandaag hulp zoekt",
+  "hoofdvraag": "kan er vandaag iemand komen en wat kost dat",
+  "kernantwoord": "wij zijn er binnen 24 uur en u hoort het bedrag vooraf",
+  "waaromDezePagina": "de assistent noemt bij deze vraag alleen andere partijen",
+  "kernfeiten": ["F2", "F3", "F7"],
+  "keuzeredenen": [{ "factRef": "F2", "reden": "deze lezer heeft haast" }],
+  "eigenWoorden": "wij werken niet over houtrot heen, want ...",
+  "moetErIn": ["het bedrag vooraf"],
+  "nietDoen": ["geen checklist om dakdekkers te vergelijken"],
+  "blijftHangen": "dit bedrijf begrijpt mijn situatie en komt vandaag"
+}
+```
+
+⚠️ Dit is geen samenvatting van de voorbereiding. Beide externe experts waarschuwden daarvoor: een
+samenvatting is een negentiende promptblok en dus precies het probleem. Deze kolom bewaart een
+KEUZE uit materiaal dat er al ligt, en de feitenkaart blijft er compleet naast staan.
+
+Het veld `keuzeredenen` is de vraag die tot 4 september 2026 nergens in de pijplijn gesteld werd:
+waarom zou juist deze lezer dit bedrijf kiezen. Dat is waarmee de externe copywriter zijn hele
+beoordeling van 3 september samenvatte.
+
+De opdracht wordt gemaakt in `lib/pipeline/writer-brief.ts` en beoordeeld in `lib/schrijfopdracht.ts`.
+Die tweede rekent na of de opdracht is uitgevoerd: komen de kernfeiten terug in de beweringen of de
+bewijspunten, staat het kernantwoord in de eerste alinea, en staat de keuzereden in de eerste
+twintig procent van de tekst. Een opdracht met een leeg veld vervalt in zijn geheel, en dan schrijft
+de pijplijn precies zoals hij het vóór deze migratie deed (conventie 3).

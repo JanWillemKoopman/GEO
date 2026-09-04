@@ -972,6 +972,8 @@ export interface ContentPiece {
   target_intent: string | null;
   /** V9, migratie 0093: per gekozen feit wat het voor de lezer betekent. */
   proof_points_json: unknown;
+  /** Migratie 0094: de redactionele keuze vóór het schrijven (optimalisatie 5). */
+  writer_brief_json: unknown;
   cluster: string | null;
   body_markdown: string | null;
   meta_title: string | null;

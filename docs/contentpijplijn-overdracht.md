@@ -1,8 +1,16 @@
 # De contentpijplijn van ORBIT ENGINE
 
 **Overdrachtsdocument voor een externe copywriter en een externe AI-expert**
-Stand van zaken op 4 september 2026. Alle cijfers in dit document zijn nagemeten op de
-productiedatabase, niet overgenomen uit oudere documentatie.
+Stand van zaken op 4 september 2026, bijgewerkt aan het eind van diezelfde dag met wat er uit hun
+feedback gebouwd is. Alle cijfers in dit document zijn nagemeten op de productiedatabase, niet
+overgenomen uit oudere documentatie.
+
+> **Wat er sinds de doorlichting veranderd is.** De feedback van beide experts staat letterlijk in
+> `content-reviews/feedback/expertronde-copywriter-en-ai-4-september-2026.md`, de negentien
+> optimalisaties die eruit volgden in `docs/tasks/optimalisaties-expertronde-4-september-2026.md`,
+> en de beslissingen in `docs/logbook.md`. De belangrijkste wijziging in de pijplijn hieronder is
+> **de schrijfopdracht** (paragraaf 5b): een goedkope stap vlak vóór het schrijven die kiest wat er
+> gezegd moet worden, met als kernvraag waarom juist deze lezer dit bedrijf zou kiezen.
 
 ---
 
@@ -114,6 +122,7 @@ De overige drie draaien per batch of per analyse en worden dus over meerdere pag
 |  | **Vragenlijst aan de ondernemer** | mens |  |  |  |  |
 |  | **Inputpoort**: mag deze pagina geschreven worden? | code |  |  |  | gratis |
 | 5 | `source_analysis`, waarom won de concurrent | AI (per analyse) | Luna | low | nee | $0,0020 |
+| 5b | **`writer_brief`, de schrijfopdracht** | AI | Luna | low | nee | ongeveer $0,01 |
 | 6 | **`content_draft`, de pagina schrijven** | AI | **Terra** | medium | soms | **$0,113** |
 | 7 | `content_critique`, redactie | AI | Luna | medium | nee | $0,0019 |
 | 8 | `content_factuality`, feitelijkheid | AI | Luna | medium | nee | $0,0046 |
@@ -122,6 +131,7 @@ De overige drie draaien per batch of per analyse en worden dus over meerdere pag
 |  | **De deterministische controles** | code |  |  |  | gratis |
 |  | **Weging**: score, zekerheid, oordeel | code |  |  |  | gratis |
 | 11 | `content_revise`, gerichte reparatie (max 3x) | AI | **Terra** | medium | nee | **$0,083** |
+| 12 | `version_compare`, welke versie is beter (alleen bij een gelijkspel) | AI | Luna | medium | nee | ongeveer $0,004 |
 
 Stap 7 tot en met 10 draaien **parallel**, dus ze kosten samen evenveel tijd als de traagste.
 
@@ -292,6 +302,44 @@ uitwegen, want een poort die je niet kunt passeren is een muur.
 
 De grenzen 40 en 70 zijn **gekozen, niet geijkt**. Ze worden per pagina bewaard naast de
 uiteindelijke kwaliteitsscore, zodat ze na genoeg echte pagina's op data bijgesteld kunnen worden.
+
+---
+
+## 5b. De schrijfopdracht: de redactionele keuze vóór het schrijven
+
+**Nieuw op 4 september 2026, en het directe antwoord op de belangrijkste kritiek van beide experts.**
+Hun samenvatting: de pijplijn is goed in het voorkomen van slechte tekst en nog niet goed in het
+veroorzaken van uitstekende tekst. De schrijver kreeg achttien blokken die allemaal dezelfde status
+hadden, en niets in de keten koos welke zes daarvan er voor DEZE pagina toe deden.
+
+Deze stap doet geen onderzoek en voegt niets toe. Hij vat ook niet samen, want een samenvatting is
+een negentiende blok en dus precies het probleem. Hij KIEST, uit materiaal dat er al ligt, en levert
+negen velden:
+
+| Veld | Wat erin staat |
+|---|---|
+| de lezer | één concrete persoon in één concrete situatie |
+| de hoofdvraag | de ENE vraag die deze pagina beantwoordt |
+| het kernantwoord | wat de lezer moet begrijpen als hij alleen de eerste alinea leest |
+| waarom deze pagina bestaat | bij welke vraag een assistent dit bedrijf nu niet noemt |
+| de kernfeiten | drie tot vijf F-nummers waar deze pagina op staat of valt |
+| **de keuzeredenen** | **waarom juist deze lezer dit bedrijf zou kiezen, met het F-nummer erbij** |
+| de eigen woorden | wat alleen deze ondernemer kan zeggen |
+| wat er in moet, wat niet | de prioriteiten en de valkuilen van deze pagina |
+| wat blijft hangen | de ene gedachte na het lezen |
+
+Het vetgedrukte veld is de vraag waarmee de externe copywriter op 3 september zijn hele beoordeling
+samenvatte, en er was tot vandaag geen enkele stap in de pijplijn die hem stelde.
+
+**De feitenkaart blijft compleet.** Beide experts raadden af om de schrijver minder informatie te
+geven; wat eroverheen komt is een hiërarchie. De opdracht staat bovenaan de prompt en zegt welke
+F-nummers deze pagina dragen.
+
+**Het vangnet.** Een opdracht die het model negeert is een duur promptblok dat niets stuurt, dus code
+rekent na of hij is uitgevoerd: komen de gekozen kernfeiten terug in de beweringen of de
+bewijspunten, staat het kernantwoord in de eerste alinea, en staat de keuzereden in de eerste twintig
+procent van de tekst (regel 4 van de copywriter). Een opdracht met één leeg veld vervalt in zijn
+geheel, en dan schrijft de pijplijn precies zoals hij het vóór deze stap deed.
 
 ---
 
@@ -621,7 +669,17 @@ uitputtend.
     (Geldt niet voor een FAQ, daar zijn vragen het punt.)
 19. Adviseert de pagina in plaats van te helpen kiezen? Twee tellingen per honderd woorden:
     gebiedende zinnen ("Vraag ...", "Controleer ...") boven 0,6 en slappe formuleringen ("hangt af
-    van", "doorgaans", "kan passend zijn") boven 0,8.
+    van", "doorgaans", "kan passend zijn") boven 0,8. De bevinding noemt sinds 4 september de sectie
+    waar het huiswerk zich ophoopt, zodat de reparatie daar begint.
+
+**Nieuw op 4 september 2026**
+20. Is de SCHRIJFOPDRACHT uitgevoerd? Komen de gekozen kernfeiten terug in de beweringen of de
+    bewijspunten, staat het kernantwoord in de eerste alinea, en staat de reden om juist dit bedrijf
+    te kiezen in de eerste twintig procent van de tekst?
+21. Herhaalt de FAQ onderaan de tekst erboven? Boven 0,7 woordoverlap telt een blok als herhaling,
+    en herhaalt meer dan de helft van de blokken, dan is er een bevinding. Niet bij een FAQ-pagina.
+22. Haalt elke sectie de helft van de richtlengte die het contract voor hém afsprak? De ondergrens
+    stond op 25 woorden voor elke sectie, wat het contract ook plande.
 
 Plus: leesbaarheid (gemiddelde zinslengte), gelijkenis met bestaande pagina's van hetzelfde merk, en
 herhaling van hetzelfde rijtje feiten over meerdere pagina's van dezelfde ronde.
@@ -759,6 +817,13 @@ dan een die gerepareerd moest worden.
 nieuwe versie de oude vervangt, en blokkades wegen zwaarder dan de score: een versie met één punt
 minder en één blokkade minder is de betere.
 
+**En sinds 4 september beslist bij een gelijkspel niet langer de ruis.** Liggen de twee scores binnen
+drie punten van elkaar en zijn de blokkades gelijk, dan wordt er één goedkope vraag gesteld: welke
+van deze twee zou een goede copywriter eerder naar de klant sturen? Drie punten is herleid uit de
+enige meting die er is: 0,14 punt op een schaal van 1 tot 5 is 2,8 punt op de schaal van 0 tot 100.
+Daarbuiten telt de score, en bij ongelijke blokkades beslist code. Gevolg: een reparatie die twee
+punten lager scoort maar een concreet punt oplost, mag blijven staan.
+
 ---
 
 ## 11. Modellen, instellingen en kosten
@@ -865,12 +930,14 @@ geverifieerd tegen een nieuwe ronde.**
 - **Het kalibratielab is leeg.** De app heeft een scherm waar echte mensen pagina's beoordelen, zodat
   onze beoordelaars daaraan geijkt kunnen worden. Er zijn twintig menselijke beoordelingen nodig en
   die zijn er nog niet.
-- **De FAQ-blokken zijn niet aangeraakt.** Op de meeste pagina's staat er een FAQ onderaan die
-  inhoudelijk overlapt met de tekst erboven. Niemand heeft daar nog naar gekeken.
-- **De vraag van de copywriter is nog niet beantwoord.** Hij vatte de hele stapel samen als: "de
-  teksten weten wat het bedrijf doet en wat de lezer wil weten, maar nog onvoldoende waarom deze
-  lezer dit bedrijf zou moeten kiezen." Er is nog geen enkele stap in de pijplijn die die vraag
-  expliciet stelt.
+- ~~De FAQ-blokken zijn niet aangeraakt.~~ **Opgelost op 4 september 2026** (optimalisatie 9): de
+  overlap met de tekst erboven wordt nu gemeten. Wat nog niet gemeten is, is of er acht blokken
+  onder een pagina moeten hangen.
+- ~~De vraag van de copywriter is nog niet beantwoord.~~ **Gebouwd op 4 september 2026**
+  (optimalisatie 6): de schrijfopdracht uit paragraaf 5b stelt de vraag expliciet, met het F-nummer
+  erbij en met een controle die nameet of het antwoord in de eerste twintig procent van de tekst
+  staat. ⚠️ Gebouwd is niet geverifieerd: of de teksten er beter van worden, weet niemand tot de
+  nameting gedaan is.
 
 ---
 
