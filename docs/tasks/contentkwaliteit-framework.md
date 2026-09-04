@@ -29,9 +29,10 @@ hieronder is geschat.
 > **Wat er nog niet staat**: fase F. De drempels rusten op zeven pagina's en zijn gedifferentieerd
 > langs gemeten verschillen, niet geijkt; daarvoor zijn twintig menselijk beoordeelde pagina's nodig
 > (`IJKING_MINIMUM`). Incrementele evaluatie per gewijzigde sectie en caching van beoordelingen zijn
-> bewust uitgesteld: de vier beoordelaars kosten samen ongeveer $0,013 per pagina tegenover $0,071
-> voor de schrijfaanroep, dus daar valt weinig te besparen zolang de reparatierondes ($0,139 per
-> ronde) de echte kostenpost zijn.
+> bewust uitgesteld: de vier beoordelaars kosten samen ongeveer een cent per keuring tegenover
+> $0,26 voor de schrijfaanroep, dus daar valt weinig te besparen zolang de reparatierondes ($0,21
+> per ronde) de echte kostenpost zijn. ⚠️ Die twee bedragen zijn op 3 september bijgesteld; §6 legt
+> uit waarom de eerdere $0,071 en $0,139 te laag waren.
 >
 > **Twee dingen zijn anders uitgepakt dan hieronder beschreven staat**, allebei gevonden doordat een
 > test omviel. Ze staan in `docs/logbook.md` bij 3 september 2026: de inputpoort werd bijna een muur
@@ -267,7 +268,13 @@ specificiteit, originaliteit, toon en overtuiging vragen semantisch begrip en zi
 
 ### 4.6 Kosten
 
-Gemeten op `ai_calls`: `content_draft` $0,071 gemiddeld, `content_revise` $0,139, de drie
+⚠️ Bijgesteld op 3 september 2026, opnieuw gemeten op `ai_calls` over de twaalf pagina's van die
+dag: `content_draft` $0,2578 gemiddeld (spreiding $0,229 tot $0,349) en `content_revise` $0,2078
+($0,184 tot $0,241). Dat is 3,6 en 1,5 keer hoger dan hieronder staat. De verhouding met de
+beoordelaars verandert daardoor niet, alleen het absolute bedrag: een pagina kost van dossier tot
+en met reparatie ongeveer $0,62 in plaats van $0,21.
+
+Gemeten op 2 september op `ai_calls`: `content_draft` $0,071 gemiddeld, `content_revise` $0,139, de drie
 beoordelaars samen $0,009. De vierde beoordelaar draait op dezelfde tier met dezelfde
 redeneerinspanning en kost naar verwachting ongeveer $0,004, dus circa drie procent van een pagina.
 Hij draait parallel met de andere drie en kost dus geen extra doorlooptijd.
@@ -685,7 +692,8 @@ Bewust uitgesteld en nog steeds terecht uitgesteld, met één uitzondering.
   geblokkeerd. Cijfers en gevolgen in `contentkwaliteit-copywriterronde.md`.
 - **Incrementele evaluatie.** De opdracht vraagt: is alleen sectie 4 gewijzigd, evalueer dan niet de
   hele pagina opnieuw. Nagerekend loont dat weinig: de vier beoordelaars kosten samen ongeveer
-  $0,013 per pagina tegenover $0,071 voor de schrijfaanroep en $0,139 per reparatieronde. Een
+  ongeveer een cent per keuring tegenover $0,26 voor de schrijfaanroep en $0,21 per reparatieronde
+  (bijgesteld 3 september, zie §6). Een
   beoordeling overslaan bespaart dus hooguit een cent en kost het overzicht over de hele pagina, en
   juist die samenhang is wat de citeerbaarheidsbeoordelaar meet.
 - **Caching.** Zelfde rekensom, zelfde conclusie.

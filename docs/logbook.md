@@ -7446,3 +7446,40 @@ leggen; pas dán mag hij meewegen. Meten voordat je stuurt, dezelfde volgorde al
 de inputpoort.
 
 Vier controles groen: typecheck, 4267 unittests (14 nieuwe), 641 ketentests, build.
+
+## 3 september 2026: de schrijfaanroep kost 3,6 keer meer dan de documentatie zei
+
+Op de vraag waar de geraamde $4,30 voor de nameting uit bestond, bleek dat cijfer niet na te
+rekenen. Het rustte op de tarieven uit `contentkwaliteit-framework.md` §6 ($0,071 per schrijfaanroep,
+$0,139 per reparatieronde, $0,013 voor de vier beoordelaars), en die zijn overgenomen zonder te
+controleren of ze nog gelden. Precies wat CLAUDE.md verbiedt: neem een cijfer uit documentatie nooit
+zonder verificatie over.
+
+**Opnieuw gemeten op `ai_calls`, over de twaalf pagina's van 3 september:**
+
+| Stap | Aanroepen | Per aanroep | Totaal |
+|---|---|---|---|
+| Itemdossier | 12 | $0,0161 | $0,19 |
+| Contract | 12 | $0,0064 | $0,08 |
+| Schrijven (`content_draft`) | 12 | $0,2578 | $3,09 |
+| Reparatierondes (`content_revise`) | 16 | $0,2078 | $3,33 |
+| De vier beoordelaars samen | 208 | $0,0030 | $0,62 |
+| Feiten atomiseren en bronanalyse | 80 | | $0,12 |
+| **Totaal** | **328** | | **$7,43** |
+
+Schrijven is dus 3,6 keer duurder dan gedocumenteerd en een reparatieronde 1,5 keer. De spreiding is
+klein ($0,229 tot $0,349 per schrijfaanroep), dus dit is geen uitschieter maar het echte tarief.
+Wat wél klopte is het cijfer voor de beoordelaars: ongeveer een cent per keuring, en dus nog steeds
+verwaarloosbaar naast het schrijven. De conclusie van §6 dat caching en incrementele evaluatie
+weinig opleveren blijft daarmee staan; alleen de absolute bedragen kloppen niet meer. Eén pagina
+kost van dossier tot en met reparatie ongeveer $0,62 in plaats van $0,21.
+
+De raming voor de nameting gaat daarmee van $4,30 naar ongeveer $7,50, met twee dingen die de andere
+kant op werken. Omlaag: V7 houdt een pagina zonder aangewezen lezer tegen vóór de dure aanroep, en
+op deze ronde waren dat er acht van de twaalf. Omhoog: de schrijfprompt is met vijf blokken
+uitgebreid (lezersopdracht, bewijspunten, klantcitaten, adviestoon, klantinstructies), en dat zijn
+invoertokens die elke aanroep meebetaalt. Hoeveel dat scheelt is niet te ramen zonder te draaien.
+
+⚠️ Waar de oude $0,071 vandaan kwam is niet meer na te gaan: `ai_calls` bevat voor
+`content_draft` en `content_revise` alleen nog rijen van 3 september. De meting van 2 september is er
+dus niet meer om naast te leggen.
