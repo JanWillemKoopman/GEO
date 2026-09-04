@@ -556,6 +556,22 @@ De dimensie `herkenning` wordt gescoord en telt niet mee. Dat blijft zo tot de i
 menselijk oordeel heeft gelegd. Zolang dat niet gebeurd is, is "begin bij een herkenbare situatie"
 alleen een promptinstructie, en dat is precies wat conventie 1 niet genoeg vindt.
 
+### 7.7 Wat er op 4 september 2026 alsnog gebeurd is
+
+Twee externe experts hebben de pijplijn doorgelicht, en uit hun feedback is een reeks optimalisaties
+gebouwd (`docs/tasks/optimalisaties-expertronde-4-september-2026.md`). Drie punten uit deze paragraaf
+zijn daarmee van tafel:
+
+- **V11 stuurt nu wel.** De dimensie `herkenning` telt mee, met `checkOpening()` als deterministische
+  tegenhanger ernaast.
+- **De FAQ-blokken zijn bekeken.** De overlap met de tekst erboven wordt gemeten.
+- **"Waarom zou deze lezer dit bedrijf kiezen" is een verplicht veld geworden** in de
+  schrijfopdracht, met een controle die nameet of het antwoord vroeg in de tekst staat.
+
+Wat blijft staan: de nameting (7.1), de citeerbaarheid na V8, V1 en V10 (7.2), en de zeven gekozen
+drempels (7.4). Daar zijn er sinds 4 september vijf bij gekomen, allemaal met dezelfde afspraak: het
+getal staat als constante met zijn herkomst in het commentaar.
+
 ### 7.6 Wat helemaal buiten dit werk is gebleven
 
 - **De FAQ-blokken.** Tien van de twaalf pagina's hebben er acht, sommige een woordelijke kopie van

@@ -1,15 +1,30 @@
 # Optimalisaties uit de expertronde van 4 september 2026
 
-**Status: dit is een keuzelijst, er is nog niets van gebouwd.** De product owner kiest welke
-nummers doorgaan. Effort telt niet mee in die keuze en staat er alleen bij zodat de volgorde te
-plannen is.
+**Status op 4 september 2026, eind van de dag: de product owner heeft alles gekozen, en alles is
+gebouwd behalve nummer 17.** Wat er van elk nummer geworden is, staat in de statusregel eronder en
+uitgebreider in `docs/logbook.md`. Nummer 17 is afgevallen op een meting, en die staat hieronder bij
+het nummer zelf.
+
+| Blok | Nummers | Status |
+|---|---|---|
+| A, de tegenstrijdigheden | 1, 2, 3, 4, 18 | gebouwd |
+| B, de redactionele beslislaag | 5, 6, 7, 12 | gebouwd, migratie 0094 staat op productie |
+| C, de keuring | 11, 13 | gebouwd |
+| D, vorm en volledigheid | 8, 9, 10, 15, 16, 19 | gebouwd |
+| Afgevallen | 17 | niet gedaan, zie de meting bij dat nummer |
+| Bewust ongemoeid | 14 | geen werk, en dat is de keuze |
+
+⚠️ **Gebouwd is niet geverifieerd (conventie 10).** Geen van deze wijzigingen is tegen een nieuwe
+echte ronde gelegd. Wat vaststaat is dat de instructies elkaar niet meer tegenspreken en dat de
+controles doen wat ze zeggen; of de teksten beter worden, zegt alleen de nameting.
 
 De ruwe feedback van de externe copywriter en de externe AI-expert staat letterlijk in
 [`content-reviews/feedback/expertronde-copywriter-en-ai-4-september-2026.md`](../../content-reviews/feedback/expertronde-copywriter-en-ai-4-september-2026.md).
-Dit document is de interpretatie ernaast, volgens stap 2 van
-[`overdracht-expertfeedback.md`](overdracht-expertfeedback.md): elk punt gesorteerd in een
-instructie die anders moet, een stap die ontbreekt, een aanname die niet klopt, of iets dat al
-gebouwd is en dat de expert niet kon zien.
+Dit document is de interpretatie ernaast: elk punt gesorteerd in een instructie die anders moet, een
+stap die ontbreekt, een aanname die niet klopt, of iets dat al gebouwd is en dat de expert niet kon
+zien. Die werkwijze stond in `docs/tasks/overdracht-expertfeedback.md`, het overdrachtsdocument dat
+deze ronde inleidde; dat bestand is verwijderd toen de feedback verwerkt was, zoals het zelf
+voorschreef. Wat eruit bewaard moest blijven, staat in `docs/logbook.md` en in `CLAUDE.md`.
 
 ## 0. Wat de experts samen zeggen, in één alinea
 
@@ -301,10 +316,19 @@ wijst de reparatie naar de plek waar het misgaat in plaats van naar de pagina al
 
 ### 17. De reparatieopdracht krijgt hoogstens drie bevindingen in plaats van tien
 
-De expert vindt tien nog steeds veel voor een gerichte reparatie. Tien bevindingen over vijf secties
-is de halve pagina opnieuw. Dit is een getal dat op de spreiding gekozen moet worden en niet op
-gevoel, dus eerst meten hoeveel secties er bij tien bevindingen geraakt worden.
-**Effort:** klein. **Impact:** middel, en het maakt reparaties goedkoper.
+**GAAT NIET DOOR, en dat is gemeten.** Het voorstel rustte op de aanname dat tien bevindingen over
+vijf secties de halve pagina opnieuw laten schrijven. Nagerekend op productie over de twaalf
+pagina's met een keuring, met dezelfde prioritering die de reparatie gebruikt (ernst maal zekerheid):
+
+| Wat | Gemeten |
+|---|---|
+| bevindingen per pagina | 46 tot 78 |
+| secties die de top tien raakt | 0 tot 3, mediaan 1 |
+| secties die de top vijf raakt | 0 of 1 |
+
+De zwaarste bevindingen hebben meestal helemaal geen sectie (ze gelden voor de hele pagina) en de
+rest zit in één tot drie secties. Verlagen naar drie zou bevindingen weggooien zonder de reparatie
+gerichter te maken. De grens blijft op tien.
 
 ### 18. De dode kopie van de redactieprompt verdwijnt
 

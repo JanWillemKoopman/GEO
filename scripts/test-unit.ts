@@ -17004,7 +17004,12 @@ group("De dekkingspoort op het contentcontract (A3)", () => {
         mustCover: [],
         factRefs: ["F2"],
         explainerTerms: ["runnersknie"],
-        targetWords: 100,
+        // ⚠️ Stond op 100 en de sectie hieronder telt er 40. Sinds
+        // optimalisatie 15 rekent de poort de richtlengte per sectie na (de
+        // helft ervan is de ondergrens), dus een fixture met een richtlengte
+        // die vier keer zo hoog is als de tekst, toetst iets anders dan hij
+        // bedoelde. Deze twee lengtes horen bij deze twee secties.
+        targetWords: 60,
         rol: "uitleg" as const,
         needsBrandFact: false,
         importance: "ondersteunend" as const,
@@ -17019,7 +17024,7 @@ group("De dekkingspoort op het contentcontract (A3)", () => {
         mustCover: [],
         factRefs: [],
         explainerTerms: [],
-        targetWords: 100,
+        targetWords: 50,
         rol: "uitleg" as const,
         needsBrandFact: false,
         importance: "ondersteunend" as const,
@@ -17068,6 +17073,32 @@ group("De dekkingspoort op het contentcontract (A3)", () => {
     claims: [{ factRef: "F2" }],
   });
   ok("een ontbrekende sectie drukt de score", (mist.score ?? 100) < 100);
+
+  // ── Optimalisatie 15: de richtlengte van de sectie zelf telt ─────────────
+  //
+  // De ondergrens stond op 25 woorden, wat het contract ook afsprak. Een sectie
+  // met een richtlengte van 200 woorden die er 30 haalt, ging daar dus gewoon
+  // doorheen terwijl de inhoudsopgave hem als dragende sectie plande.
+  const ruimGepland: ContentContract = {
+    ...contract,
+    sections: contract.sections.map((sec) => ({ ...sec, targetWords: 200 })),
+  };
+  const teDun = checkContractCoverage({
+    contract: ruimGepland,
+    bodyMarkdown: compleet,
+    faq: [{ q: "Heb ik een verwijzing nodig?", a: "Nee, dat hoeft niet." }],
+    claims: [{ factRef: "F2" }],
+  });
+  ok(
+    "een sectie van 40 woorden op een afspraak van 200 is te dun",
+    teDun.issues.some((i) => i.includes("te dun")),
+    teDun.issues.join(" | "),
+  );
+  ok(
+    "en de bevinding noemt allebei de getallen",
+    teDun.issues.some((i) => i.includes("100 woorden") && i.includes("200 afsprak")),
+    teDun.issues.join(" | "),
+  );
   ok("en wordt met kop en al benoemd",
     mist.issues.some((i) => i.includes("Wat kost het")),
     mist.issues.join(" | "));

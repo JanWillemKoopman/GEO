@@ -7752,3 +7752,30 @@ voor de hele pagina) en de rest zit in één tot drie secties. Het verlagen naar
 weggooien zonder de reparatie gerichter te maken. De grens blijft op tien.
 
 Vier controles groen: typecheck, 4371 unittests (26 nieuwe), 649 ketentests, build.
+
+## 4 september 2026: de richtlengte per sectie wordt eindelijk nagerekend (optimalisatie 15)
+
+Het contract spreekt per sectie een lengte af, en dat is de hele reden dat `targetWords` per sectie
+staat en niet per pagina: een bandbreedte voor een hele pagina stuurt niets. Niets rekende die
+afspraak na. De dekkingspoort noemde een sectie "te dun" onder de 25 woorden, absoluut, wat het
+contract ook plande. Een sectie met een richtlengte van 200 woorden die er 30 haalde, ging daar dus
+gewoon doorheen terwijl de inhoudsopgave hem als dragende sectie plande.
+
+De ondergrens is nu de helft van wat het contract voor DIE sectie afsprak, met 25 woorden als
+absolute bodem. De helft is bewust ruim: een schrijver mag een sectie compacter maken dan gepland,
+want korter is vaak beter. Onder de helft is het geen keuze meer maar een sectie die niet geschreven
+is. De bevinding noemt allebei de getallen, zodat de reparatie weet hoeveel er bij moet.
+
+## 4 september 2026: de documentatie is bijgewerkt, en het overdrachtsdocument is weg
+
+`docs/contentpijplijn-overdracht.md` beschrijft de pijplijn zoals hij is, en die is vandaag op vier
+plekken veranderd: de schrijfopdracht als stap 5b, de versievergelijking als stap 12, drie nieuwe
+codecontroles in paragraaf 8, en twee openstaande punten in paragraaf 12.3 die nu gebouwd zijn. Zo
+klopt het document weer bij de volgende doorlichting, en dat was de reden dat het bestond.
+
+`docs/tasks/overdracht-expertfeedback.md` is verwijderd, zoals het bestand zelf voorschreef: de
+feedback is verwerkt en de beslissingen staan hier. Wat eruit bewaard moest blijven, staat in
+`CLAUDE.md` (de werkregels) en in dit logboek (de vier valkuilen, waarvan er vandaag twee opnieuw
+opdoken: neem geen cijfer uit documentatie over, en meet de verdeling voordat je een drempel kiest).
+
+Vier controles groen: typecheck, 4373 unittests (2 nieuwe), 649 ketentests, build.
