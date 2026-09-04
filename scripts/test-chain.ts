@@ -8317,7 +8317,7 @@ async function main(): Promise<void> {
       await db.client.query(
         `insert into public.ai_calls (kind, model, input_tokens, output_tokens, cost_usd,
                                       analysis_id, content_piece_id)
-         values ('content_draft', 'gpt-5.6-sol', 20000, 6000, 2.50, $1, $2)`,
+         values ('content_draft', 'gpt-5.6-terra', 20000, 6000, 2.50, $1, $2)`,
         [kwAnalysisId, kwPieceId],
       );
       const { rows: kwKosten } = await db.client.query(

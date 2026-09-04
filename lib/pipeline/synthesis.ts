@@ -11,9 +11,14 @@ import "server-only";
  * is de enige die ze naast elkaar legt, en die uitkomst werkt door in élke
  * latere analyse van deze klant.
  *
- * `gpt-5.6-sol` kost hier ~$0,49 van een plafond van $2,15. Achter
+ * De contenttier kost hier ~$0,20 van een plafond van $2,15. Achter
  * `SYNTHESIS_PREMIUM` (standaard aan) zodat de keuze meetbaar blijft in plaats
  * van definitief te zijn: uit betekent terugvallen op Luna voor ~$0,02.
+ *
+ * ⚠️ Die ~$0,20 was ~$0,49 zolang de contenttier op Sol stond. Sinds
+ * 4 september 2026 draait hij op Terra ($2/$12 in plaats van $5/$30), en de
+ * twee echte syntheses op `ai_calls` van 3 september kostten $0,1245 per stuk
+ * op Sol, dus ongeveer $0,05 op Terra.
  *
  * ── WAAR DE INVESTERING TERUGKOMT ───────────────────────────────────────────
  *
@@ -49,11 +54,17 @@ import type {
 const MAX_FACTS = 25;
 
 /**
- * Wat de synthese minimaal aan budget nodig heeft. Sol op ~50k invoer en 8k
- * uitvoer komt op ~$0,49; met marge erboven, want een te krappe schatting laat
- * de duurste stap alsnog over het plafond gaan.
+ * Wat de synthese minimaal aan budget nodig heeft. De contenttier op ~50k
+ * invoer en 8k uitvoer komt op ~$0,20; met marge erboven, want een te krappe
+ * schatting laat de duurste stap alsnog over het plafond gaan.
+ *
+ * Stond op $0,60 toen de contenttier nog Sol was ($5/$30, dus ~$0,49 voor
+ * diezelfde aanroep). Op Terra ($2/$12) is dezelfde marge $0,25: ruim een
+ * factor 1,2 boven de schatting, net als daarvoor. Een lagere drempel betekent
+ * dat de synthese vaker op het betere model mag draaien in plaats van terug te
+ * vallen op Luna.
  */
-const ESTIMATED_COST_SOL = 0.6;
+const ESTIMATED_COST_PREMIUM = 0.25;
 
 export interface SynthesisResult {
   facts: number;
@@ -118,10 +129,10 @@ export async function synthesiseProfile(
     profileId,
     profile.onboarding_budget_usd,
   );
-  const gebruikSol = synthesisPremium && over >= ESTIMATED_COST_SOL;
-  const model = gebruikSol ? MODELS.content : MODELS.quality;
+  const gebruikPremium = synthesisPremium && over >= ESTIMATED_COST_PREMIUM;
+  const model = gebruikPremium ? MODELS.content : MODELS.quality;
 
-  if (synthesisPremium && !gebruikSol) {
+  if (synthesisPremium && !gebruikPremium) {
     console.info(
       `Profiel ${profileId}: synthese op het goedkope model, er is nog $${over.toFixed(3)} budget over.`,
     );
@@ -185,7 +196,7 @@ export async function synthesiseProfile(
     schema: ProfileSynthesis,
     schemaName: "profile_synthesis",
     webSearch: false,
-    work: gebruikSol ? "content" : "analytical",
+    work: gebruikPremium ? "content" : "analytical",
     meta: { kind: "profile_synthesis", profileId },
   });
 
@@ -356,7 +367,7 @@ async function storeBrandFacts(
   return rijen.length;
 }
 
-/** Hoeveel sitetekst er de aanroep in gaat. Sol is duur; dit is de knop. */
+/** Hoeveel sitetekst er de aanroep in gaat. De contenttier is duur; dit is de knop. */
 const MAX_PAGE_CHARS = 45_000;
 
 function buildPageBlock(

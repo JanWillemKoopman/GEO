@@ -40,8 +40,10 @@ const RATES: Record<string, ModelRate> = {
   "gpt-5.6-sol": { inputPerMillion: 5.0, outputPerMillion: 30.0 },
   "gpt-5.6-terra": { inputPerMillion: 2.0, outputPerMillion: 12.0 },
   "gpt-5.6-luna": { inputPerMillion: 0.2, outputPerMillion: 1.2 },
-  // `gpt-5.6` is de alias van Sol; komt hij ergens ongesuffixt voorbij, dan mag
-  // hij niet stilletjes op de terugval belanden.
+  // `gpt-5.6` is bij OpenAI de alias van Sol; komt hij ergens ongesuffixt
+  // voorbij, dan mag hij niet stilletjes op de terugval belanden. Sol zelf
+  // blijft in deze tabel staan voor de historische rijen in `ai_calls`: die
+  // zijn met dít tarief berekend en moeten narekenbaar blijven.
   "gpt-5.6": { inputPerMillion: 5.0, outputPerMillion: 30.0 },
   // GPT-4.1, blijft staan voor de historische rijen in `ai_calls`: die zijn met
   // déze tarieven berekend en moeten narekenbaar blijven.
@@ -67,9 +69,13 @@ const RATES: Record<string, ModelRate> = {
 
 /**
  * Terugval voor een model dat (nog) niet in de tabel staat, bewust aan de dure
- * kant, en dus gelijk aan het duurste model dat we draaien (Sol). Stond op het
+ * kant, en dus gelijk aan het duurste tarief dat we kennen (Sol). Stond op het
  * gpt-4.1-tarief; dat zou een onbekend GPT-5.6-model 2,5× te goedkoop schatten,
  * en een te lage schatting is precies wat je in een budgetberekening niet wilt.
+ *
+ * ⚠️ Blijft op het Sol-tarief staan, ook nu de contenttier sinds 4 september
+ * 2026 op Terra draait (`lib/openai/models.ts`). Dit is een terugval voor het
+ * ONBEKENDE, en dan is te hoog schatten de veilige kant.
  */
 const FALLBACK_RATE: ModelRate = { inputPerMillion: 5.0, outputPerMillion: 30.0 };
 

@@ -67,10 +67,12 @@ interface WorkProfile {
  *   passen (150s, lib/openai/client.ts, opgehoogd 26 augustus 2026,
  *   doorloop-huyberts.md punt 5, nagemeten op 26 echte productieaanroepen: de
  *   traagste geslaagde poging duurde 98,8s en hing niet netjes samen met het
- *   aantal woorden), en een volledige pagina op de Sol-tier mét zware
+ *   aantal woorden), en een volledige pagina op de contenttier mét zware
  *   redeneertijd zit daar bij `high` alsnog tegenaan. Een timeout kost hier het
  *   dubbele van gewoon falen, de taak wordt opnieuw gedraaid en de duurste
- *   tokens van de app zijn dan twee keer betaald. `high` is de knop om aan te
+ *   tokens van de app zijn dan twee keer betaald. Dat de contenttier op
+ *   4 september 2026 van Sol naar Terra ging maakt dit goedkoper, niet sneller:
+ *   de tijdsgrens blijft de reden om op `medium` te blijven. `high` is de knop om aan te
  *   draaien zodra iemand de werkelijke doorlooptijd van DIE stand op productie
  *   heeft nagemeten en de tijdsconstanten in lib/jobs/worker.ts daar opnieuw op
  *   zijn bijgesteld.
@@ -85,9 +87,11 @@ interface WorkProfile {
  *   reproduceerbaar moet zijn. Een beoordeling van een hele pagina is iets
  *   anders: die draait één keer per pagina, moet tegenstrijdigheden in een lange
  *   tekst opmerken, en is nagemeten op `ai_calls` de goedkoopste stap van de
- *   hele contentpijplijn (ongeveer $0,0008). Effort `medium` maakt drie van die
- *   beoordelingen samen nog geen cent, tegenover $0,15 voor de schrijfaanroep
- *   ernaast. De temperatuur vervalt daarmee, zoals bij elke stand boven `none`:
+ *   hele contentpijplijn. Over de twaalf pagina's van 3 september 2026 kostten
+ *   alle vier de beoordelaars samen $0,0119 per volledige keuring, tegenover
+ *   $0,2078 voor één herschrijfronde ernaast: één vermeden herschrijfronde
+ *   betaalt zeventien keuringen. Meer redeneertijd hier is dus vrijwel gratis
+ *   en de goedkoopste manier om een dure ronde te voorkomen. De temperatuur vervalt daarmee, zoals bij elke stand boven `none`:
  *   de reproduceerbaarheid komt hier van de deterministische poorten die
  *   naast het panel draaien, niet van de sampling.
  * - `simulation`, halte 3a. Niets meegeven, in beide kolommen. We willen weten

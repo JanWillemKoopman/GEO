@@ -3569,6 +3569,7 @@ group("herkennen van een geweigerde temperatuur", () => {
 group("kosten per model", () => {
   ok("luna staat in de tabel", hasKnownRate("gpt-5.6-luna"));
   ok("sol staat in de tabel", hasKnownRate("gpt-5.6-sol"));
+  ok("terra staat in de tabel", hasKnownRate("gpt-5.6-terra"));
   ok("gpt-4.1 blijft narekenbaar", hasKnownRate("gpt-4.1"));
 
   // 1M in + 1M uit op Luna = $0,20 + $1,20.
@@ -3577,6 +3578,9 @@ group("kosten per model", () => {
 
   const sol = estimateCostUsd({ model: "gpt-5.6-sol", inputTokens: 1e6, outputTokens: 1e6, webSearch: false });
   ok("sol 1M+1M = $35", Math.abs(sol - 35) < 1e-6, `${sol}`);
+
+  const terra = estimateCostUsd({ model: "gpt-5.6-terra", inputTokens: 1e6, outputTokens: 1e6, webSearch: false });
+  ok("terra 1M+1M = $14", Math.abs(terra - 14) < 1e-6, `${terra}`);
 
   // Een zoekactie kost op een redeneermodel $0,010 en op de niet-redeneerpreview
   // $0,025. Dit is de grootste kostenpost van de meting, dus het verschil telt:
@@ -3589,6 +3593,75 @@ group("kosten per model", () => {
   // Onbekend model → de dure terugval (Sol-tarief), nooit stil een te laag bedrag.
   const onbekend = estimateCostUsd({ model: "gpt-6-mystery", inputTokens: 1e6, outputTokens: 0, webSearch: false });
   ok("onbekend model rekent duur", Math.abs(onbekend - 5) < 1e-6, `${onbekend}`);
+});
+
+/**
+ * De contenttier is de duurste post van de hele app en de enige stap waarvan de
+ * klant de uitkomst publiceert. Sinds 4 september 2026 staat hij op Terra in
+ * plaats van Sol. Deze groep legt die keuze vast met de nagerekende cijfers uit
+ * `ai_calls`, zodat een terugval naar Sol niet stil gebeurt maar een rode test
+ * oplevert die uitlegt wat het kost.
+ */
+group("de contenttier staat op Terra (4 september 2026)", () => {
+  ok("content-tier is terra", MODELS.content === "gpt-5.6-terra", MODELS.content);
+  ok("meten en beoordelen blijven op luna", MODELS.quality === "gpt-5.6-luna");
+
+  // Gemeten op ai_calls over de twaalf pagina's van 3 september 2026:
+  // content_draft 15.845 invoer / 5.925 uitvoer, mét web_search ($0,01).
+  const draftSol = estimateCostUsd({
+    model: "gpt-5.6-sol",
+    inputTokens: 15_845,
+    outputTokens: 5_925,
+    webSearch: true,
+  });
+  const draftTerra = estimateCostUsd({
+    model: MODELS.content,
+    inputTokens: 15_845,
+    outputTokens: 5_925,
+    webSearch: true,
+  });
+  // Op deze gemiddelde tokenaantallen: $0,267 op Sol tegen $0,113 op Terra. De
+  // echt gefactureerde gemiddelde was $0,2578, iets lager dan de $0,267 die
+  // hier uitkomt, want cached invoertokens worden goedkoper afgerekend en die
+  // splitsing zit niet in `estimateCostUsd` (zie de kop van pricing.ts).
+  ok("een schrijfaanroep kostte ~$0,267 op sol", Math.abs(draftSol - 0.267) < 5e-3, `${draftSol}`);
+  ok("dezelfde aanroep kost ~$0,113 op terra", Math.abs(draftTerra - 0.1128) < 5e-3, `${draftTerra}`);
+  ok("terra is 2,5x goedkoper dan sol", Math.abs((draftSol - 0.01) / (draftTerra - 0.01) - 2.5) < 0.01);
+
+  // content_revise: 13.625 invoer / 4.657 uitvoer, zonder web_search.
+  const reviseTerra = estimateCostUsd({
+    model: MODELS.content,
+    inputTokens: 13_625,
+    outputTokens: 4_657,
+    webSearch: false,
+  });
+  ok("een herschrijfronde kost ~$0,083 op terra", Math.abs(reviseTerra - 0.0831) < 5e-4, `${reviseTerra}`);
+
+  // Deze klopt wél op de cent met de factuur: content_revise draaide zonder
+  // web_search en zonder noemenswaardige cache, en kostte $0,2078 per stuk.
+  const reviseSol = estimateCostUsd({
+    model: "gpt-5.6-sol",
+    inputTokens: 13_625,
+    outputTokens: 4_657,
+    webSearch: false,
+  });
+  ok("dezelfde ronde kostte $0,2078 op sol", Math.abs(reviseSol - 0.2078) < 5e-4, `${reviseSol}`);
+
+  // De hele ronde: 12 drafts + 16 herschrijfrondes was $6,4188 op Sol.
+  const rondeTerra = 12 * draftTerra + 16 * reviseTerra;
+  ok(
+    "twaalf pagina's schrijven zakt van $6,42 naar onder de $3",
+    rondeTerra < 3 && rondeTerra > 2,
+    `$${rondeTerra.toFixed(2)}`,
+  );
+
+  // De kern van de afweging: beoordelen blijft verwaarloosbaar naast schrijven.
+  // Vier beoordelaars samen kostten $0,0119 per keuring op 3 september.
+  ok(
+    "één vermeden herschrijfronde betaalt bijna zeven keuringen",
+    reviseTerra / 0.0119 >= 6,
+    `${(reviseTerra / 0.0119).toFixed(1)} keuringen`,
+  );
 });
 
 group("gestructureerde data oogsten (fase 0, nul API-kosten)", () => {

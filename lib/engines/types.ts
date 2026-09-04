@@ -5,7 +5,7 @@
  *
  * Een "engine" is een AI-assistent zoals een échte gebruiker hem zou
  * raadplegen: ChatGPT, Gemini. Het is uitdrukkelijk NIET hetzelfde als een
- * model. `gpt-5.6-luna` en `gpt-5.6-sol` zijn twee modellen van één engine.
+ * model. `gpt-5.6-luna` en `gpt-5.6-terra` zijn twee modellen van één engine.
  *
  * Dat onderscheid is de kern van het product. De meting simuleert wat een koper
  * te zien krijgt, en die koper kiest een assistent. Geen model. Vandaar dat
