@@ -77,14 +77,16 @@ export function ReputationOfferings({ views, brand }: { views: OfferingView[]; b
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-      <AnalyticsTable
-        rows={gesorteerd}
-        rowKey={(v) => v.name}
-        columns={kolommen}
-        onRowClick={(v) => setGeselecteerd(v.name === geselecteerd ? null : v.name)}
-        selectedKey={geselecteerd}
-      />
+    <div className={`grid grid-cols-1 gap-4 ${gekozenView ? "lg:grid-cols-[minmax(0,1fr)_20rem]" : ""}`}>
+      <div className="card">
+        <AnalyticsTable
+          rows={gesorteerd}
+          rowKey={(v) => v.name}
+          columns={kolommen}
+          onRowClick={(v) => setGeselecteerd(v.name === geselecteerd ? null : v.name)}
+          selectedKey={geselecteerd}
+        />
+      </div>
       {gekozenView && (
         <DetailPanel title={gekozenView.name} onClose={() => setGeselecteerd(null)}>
           <OfferingDetail view={gekozenView} brand={brand} />
