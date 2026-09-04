@@ -136,8 +136,8 @@ cluster. Zijn die er ook niet, dan wordt de pagina niet geschreven maar teruggel
 zonder aanwijsbare lezer is precies de pagina die alles probeert te zeggen.
 
 **Vangnet.** Een blokkade vóór de dure schrijfaanroep, niet erna: geen paginaopdracht in die vorm,
-geen schrijfopdracht. Dat scheelt ook geld, want een pagina zonder lezer kost nu $0,071 aan
-schrijven plus reparatierondes.
+geen schrijfopdracht. Dat scheelt ook geld: een pagina zonder lezer kost nu $0,26 aan schrijven
+plus $0,21 per reparatieronde (gemeten op `ai_calls`, 3 september 2026).
 
 **Risico.** Middel, en het raakt de planstap en niet de schrijfstap. Het kan betekenen dat een ronde
 minder pagina's oplevert. Dat is wat de copywriter aanraadt: liever minder en gerichter.
@@ -417,10 +417,34 @@ verschil tussen informatie en copy meet, en het is de enige waarvan een klant he
 die van 2,6 naar 3,8, dan heeft dit werk gewerkt. Blijft die staan terwijl de tellingen wel groen
 worden, dan hebben wij twaalf fouten opgelost en het probleem niet.
 
-**Wat de nameting kost.** Twaalf pagina's opnieuw schrijven met de gedocumenteerde tarieven, $0,071
-per schrijfaanroep, $0,013 voor de vier beoordelaars en $0,139 per reparatieronde, komt bij twee
-rondes uit op ongeveer $4,30 in totaal. De echte kostenpost is een dagdeel van de copywriter. Dat is
-goedkoop voor het enige cijfer dat zegt of het gelukt is.
+**Wat de nameting kost.** ⚠️ Hier stond eerst ongeveer $4,30, gerekend met de tarieven uit
+`contentkwaliteit-framework.md`. Dat cijfer is op 3 september nagerekend op `ai_calls` en het klopt
+niet: de tarieven daar zijn verouderd. De echte kosten van de ronde die deze twaalf pagina's
+opleverde:
+
+| Stap | Aanroepen | Per aanroep | Totaal |
+|---|---|---|---|
+| Itemdossier (het onderzoek per pagina) | 12 | $0,0161 | $0,19 |
+| Contract (de inhoudsopgave) | 12 | $0,0064 | $0,08 |
+| **Schrijven** | 12 | **$0,2578** | **$3,09** |
+| **Reparatierondes** | 16 | **$0,2078** | **$3,33** |
+| De vier beoordelaars samen | 208 | $0,0030 | $0,62 |
+| Feiten atomiseren en bronanalyse | 80 | | $0,12 |
+| **Totaal** | **328** | | **$7,43** |
+
+De twee zware stappen zijn dus 3,6 en 1,5 keer duurder dan de documentatie zei ($0,071 en $0,139).
+Wat wél klopte is het cijfer voor de beoordelaars: ongeveer een cent per keuring, en dus nog steeds
+niets vergeleken met het schrijven.
+
+**Voor de nameting reken ik daarom op ongeveer $7,50**, met twee kanttekeningen die de andere kant
+op werken. Omlaag: V7 houdt pagina's zonder aangewezen lezer tegen vóór de dure aanroep, en op deze
+ronde waren dat er acht van de twaalf, dus als het rapportmodel de doelomschrijving niet vult wordt
+de ronde goedkoper én kleiner. Omhoog: de prompt is met vijf blokken uitgebreid (lezersopdracht,
+bewijspunten, klantcitaten, adviestoon, instructies), en dat zijn invoertokens die elke
+schrijfaanroep meebetaalt.
+
+De echte kostenpost blijft een dagdeel van de copywriter. Ook tegen $7,50 is dit goedkoop voor het
+enige cijfer dat zegt of het gelukt is.
 
 ## 5. Wat dit plan NIET oplost
 
