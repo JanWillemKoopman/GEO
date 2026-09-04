@@ -75,6 +75,9 @@ const BRON_FASE: Record<IssueBron, PipelinePhase> = {
   // een schrijfprobleem; klopt de opdracht zelf niet, dan valt dat op bij de
   // lezersopdracht en de feitenkaart, en die wijzen naar hun eigen fase.
   schrijfopdracht: "schrijven",
+  // Optimalisatie 9: het contract vraagt de FAQ-vragen aan, dus een FAQ die de
+  // tekst erboven herhaalt is daar bedacht en niet bij het schrijven.
+  faq: "contract",
   // V12: dat elke pagina hetzelfde rijtje feiten pakt, komt door de SELECTIE
   // vooraf en niet door het schrijven. De kaart is per pagina hetzelfde.
   herhaling: "briefing",

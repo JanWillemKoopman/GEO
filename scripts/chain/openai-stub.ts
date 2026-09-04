@@ -832,6 +832,7 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
         factRefs: ["F1"],
         explainerTerms: [],
         targetWords: 120,
+        rol: "uitleg",
         // Gedekt: er staat een F-nummer bij dat op de kaart bestaat, dus deze
         // sectie levert geen vraag op.
         needsBrandFact: true,
@@ -855,6 +856,7 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
         factRefs: [],
         explainerTerms: [],
         targetWords: 100,
+        rol: "uitleg",
         // ONGEDEKT en merkgebonden: dit is het gat waar de briefing zijn vraag
         // uit haalt, en de sectie die vervalt als de klant hem overslaat
         // (docs/tasks/vragen-voor-het-schrijven.md §4 en §6).

@@ -70,6 +70,7 @@ import { checkSchrijfopdracht } from "@/lib/schrijfopdracht";
 import { checkKlantcitaten, vindCiteerbareAntwoorden } from "@/lib/pipeline/klantcitaten";
 import { checkOpening, checkMerkstem, checkVraagkoppen, eersteAlinea } from "@/lib/pipeline/paginavorm";
 import { checkAdviestoon, checkZelfondermijning } from "@/lib/pipeline/adviestoon";
+import { checkFaqBlokken } from "@/lib/pipeline/faqblokken";
 import type { AuditedClaim } from "@/lib/schemas/claim-audit";
 import type { ContentContract } from "@/lib/schemas/content-contract";
 import type { WriterBrief } from "@/lib/schemas/writer-brief";
@@ -276,9 +277,26 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
   const merkstem = checkMerkstem(body, input.brandName);
   const vraagkoppen = checkVraagkoppen(body, profiel.type === "faq");
 
+  // De pagina in secties, één keer geknipt: de adviestooncontrole wijst er de
+  // zwaarste sectie mee aan (optimalisatie 16) en de typeregels tellen ze.
+  const paginaSecties = splitSections(body);
+
   // ── V6: adviseert de pagina in plaats van te helpen kiezen? ──────────────
-  const adviestoon = checkAdviestoon(body);
+  // Optimalisatie 16: met de secties erbij wijst de bevinding naar de plek waar
+  // het huiswerk zich ophoopt, in plaats van naar de pagina als geheel.
+  const adviestoon = checkAdviestoon({ tekst: body, secties: paginaSecties });
   const zelfondermijning = checkZelfondermijning(body);
+
+  // ── Herhaalt de FAQ de tekst erboven? (optimalisatie 9) ─────────────────
+  //
+  // Tien van de twaalf pagina's van 3 september hadden acht blokken onderaan,
+  // sommige een woordelijke kopie van een sectie erboven. Niets keek ernaar, en
+  // de dekkingspoort telde die herhaling zelfs als DEKKING mee.
+  const faqBlokken = checkFaqBlokken({
+    faq,
+    bodyMarkdown: body,
+    isFaqPagina: profiel.type === "faq",
+  });
 
   // ── V12: staat op elke pagina van deze ronde hetzelfde rijtje feiten? ────
   const herhaling = checkHerhaling({
@@ -337,7 +355,7 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
     facts: input.facts,
   });
 
-  const secties = splitSections(body);
+  const secties = paginaSecties;
   const typeOvertredingen = checkTypeRegels(profiel, {
     secties: secties.length,
     faqParen: faq.length,
@@ -362,6 +380,7 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
     adres,
     bewijspunten,
     schrijfopdracht,
+    faqBlokken,
     klantcitaten,
     opening,
     merkstem,

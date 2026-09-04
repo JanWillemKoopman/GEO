@@ -128,7 +128,41 @@ export interface ContractGrenzen {
  */
 export const KERN_AANDEEL_MAX = 1 / 3;
 
+/**
+ * Hoeveel woorden een sectie minstens waard moet zijn (optimalisatie 8 en 15).
+ *
+ * Tachtig. Daaronder is een sectie twee zinnen met een kop erboven, en een
+ * pagina die daaruit bestaat is de "FAQ-dump" die de externe copywriter als
+ * ondergrens 3 benoemde. Gemeten over de twaalf pagina's van 3 september 2026:
+ * 850 tot 1650 woorden met tot 26 secties, dus ongeveer 55 woorden per sectie.
+ *
+ * Dit getal doet twee dingen tegelijk. Het begrenst hoeveel secties er in de
+ * doellengte passen, en het is de ondergrens waaronder een richtlengte per
+ * sectie niet meer serieus te nemen is. ⚠️ Gekozen op één ronde, net als de
+ * zeven drempels van 3 september.
+ */
+export const MIN_WOORDEN_PER_SECTIE = 80;
+
 const BELANGEN = ["kern", "ondersteunend", "optioneel"] as const;
+
+const ROLLEN = [
+  "probleem",
+  "herkenning",
+  "gevolg",
+  "oplossing",
+  "bewijs",
+  "bezwaar",
+  "zekerheid",
+  "actie",
+  "uitleg",
+] as const;
+
+/** De verhaalrol van een sectie, met terugval op "uitleg" (conventie 3). */
+function geldigeRol(ruw: unknown): (typeof ROLLEN)[number] {
+  return (ROLLEN as readonly string[]).includes(ruw as string)
+    ? (ruw as (typeof ROLLEN)[number])
+    : "uitleg";
+}
 
 /** Het belang van een sectie, met terugval naar 'ondersteunend' (conventie 3). */
 function geldigBelang(ruw: unknown): "kern" | "ondersteunend" | "optioneel" {
@@ -208,6 +242,11 @@ export function normaliseerContract(
         // 'ondersteunend', de sterkste eerst. Precies conventie 1: een
         // promptinstructie krijgt een deterministisch vangnet.
         importance: geldigBelang(s.importance),
+        // De verhaalrol, met terugval op "uitleg" (optimalisatie 8). Een
+        // contract van vóór 4 september 2026 heeft dit veld niet, en dan is
+        // "uitleg" de eerlijke waarde: we weten niet welke stap deze sectie zet
+        // (conventie 3).
+        rol: geldigeRol(s.rol),
         successCriterion: (s.successCriterion ?? "").trim(),
         ...beoordeelSectie(s, bestaand),
       })),
@@ -247,6 +286,29 @@ export function normaliseerContract(
  * daarmee alsnog over de doellengte, dan is dat een beter probleem dan een
  * pagina zonder inhoudsopgave.
  */
+/**
+ * Hoogstens één sectie roept op tot actie, en die staat achteraan
+ * (optimalisatie 8).
+ *
+ * Dit is het deterministische deel van de verhaalboog. De volgorde van de rest
+ * laten we met rust: die hangt van het onderwerp af, en een boog forceren zou
+ * het contract slechter maken dan het model hem plande. Maar een oproep om te
+ * bellen halverwege een uitleg is altijd fout, en twee van die oproepen op één
+ * pagina ook. De eerste actiesectie verhuist naar achteren, de rest wordt
+ * gewone uitleg.
+ *
+ * Puur en geëxporteerd, zodat de volgorde na te rekenen is.
+ */
+export function zetActieAchteraan<T extends { rol?: string }>(secties: T[]): T[] {
+  const eerste = secties.findIndex((s) => s.rol === "actie");
+  if (eerste === -1) return secties;
+
+  const rest = secties
+    .filter((_, i) => i !== eerste)
+    .map((s) => (s.rol === "actie" ? { ...s, rol: "uitleg" as const } : s));
+  return [...rest, secties[eerste]];
+}
+
 function snoeiOpDoellengte(
   contract: ContentContract,
   grenzen: ContractGrenzen | undefined,
@@ -258,16 +320,26 @@ function snoeiOpDoellengte(
   }
 
   const ruimte = Math.max(maxWoorden - OPENING_WOORDEN, 0);
+
+  // ── Hoeveel secties passen hier ZINVOL in? (optimalisatie 8) ─────────────
+  //
+  // De woordenbegroting hieronder hield al iets tegen, maar niet genoeg: met een
+  // richtlengte van veertig woorden past een landingspagina van 700 woorden
+  // zeventien secties, en dan is elke sectie twee zinnen. Dat is precies de
+  // pagina waarvan de copywriter zei dat er waarschijnlijk geen verhaal in zit.
+  const maxSecties = Math.max(MIN_SECTIES, Math.floor(ruimte / MIN_WOORDEN_PER_SECTIE));
+
   const behouden: typeof contract.sections = [];
   let som = 0;
   for (const sectie of contract.sections) {
     const past = som + sectie.targetWords <= ruimte;
+    if (behouden.length >= maxSecties) break;
     if (!past && behouden.length >= MIN_SECTIES) break;
     behouden.push(sectie);
     som += sectie.targetWords;
   }
 
-  return { ...contract, sections: behouden, faqQuestions };
+  return { ...contract, sections: zetActieAchteraan(behouden), faqQuestions };
 }
 
 /**

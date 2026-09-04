@@ -47,6 +47,31 @@ export const ContractSection = z.object({
   /** Richtlengte van deze sectie. Sturen per sectie werkt, sturen per pagina niet. */
   targetWords: z.number(),
   /**
+   * Welke stap in het VERHAAL deze sectie zet (optimalisatie 8, 4 september 2026).
+   *
+   * De externe copywriter schreef op 3 september dat een pagina waarvan bijna
+   * elke alinea een losse vraag beantwoordt, waarschijnlijk geen verhaal heeft.
+   * Gemeten: 169 van de 228 koppen was een vraag, op vier pagina's élke kop. Zijn
+   * tegenvoorstel is een boog in acht stappen, en die staat hier.
+   *
+   * ⚠️ Dit veld dwingt geen volgorde af die de inhoud in de weg zit: het contract
+   * blijft in leesvolgorde staan zoals het model hem plant. Wat de code er wél
+   * mee garandeert, is dat er hoogstens één sectie is die tot actie oproept en
+   * dat die achteraan staat. Een oproep om te bellen halverwege een uitleg is
+   * de klassieke fout die deze boog voorkomt.
+   */
+  rol: z.enum([
+    "probleem",
+    "herkenning",
+    "gevolg",
+    "oplossing",
+    "bewijs",
+    "bezwaar",
+    "zekerheid",
+    "actie",
+    "uitleg",
+  ]),
+  /**
    * Vraagt deze sectie om een uitspraak over DIT bedrijf, of is hij algemeen?
    * (docs/tasks/vragen-voor-het-schrijven.md §4)
    *

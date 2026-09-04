@@ -53,6 +53,20 @@ export interface Lezersopdracht {
    * waarschuwing toont. Een halve opdracht is beter dan geen.
    */
   noemtPersoon: boolean;
+  /**
+   * Beschrijft de opdracht ook een SITUATIE, dus een probleem of een beslissing?
+   * (optimalisatie 10)
+   *
+   * "Mensen die dakisolatie zoeken" noemt wel een persoon en geen situatie.
+   * "Een huiseigenaar die merkt dat zijn huis moeilijk warm blijft en wil weten
+   * of isoleren kan zonder de pannen te vervangen" noemt allebei.
+   *
+   * Dit BLOKKEERT niet, net als `noemtPersoon`. Het stuurt de promptregel die
+   * het model vraagt de opdracht eerst af te maken, en het is de maat waarmee
+   * de nulmeting "0 van 12 pagina's zonder lezer" pas iets zegt: een veld dat
+   * gevuld is met een doelgroep is nog steeds geen lezer.
+   */
+  noemtSituatie: boolean;
 }
 
 /**
@@ -121,6 +135,53 @@ function woorden(tekst: string): number {
   return tekst.split(/\s+/).filter((w) => /[a-zA-Z0-9À-ÿ]/.test(w)).length;
 }
 
+/**
+ * Woorden waaraan je een PROBLEEM of een BESLISSING herkent (optimalisatie 10).
+ *
+ * De vorm die de externe copywriter vroeg heeft drie delen: welk type persoon,
+ * welk probleem, welke beslissing. `noemtPersoon` dekt het eerste deel;
+ * hieronder staat de rest. Zonder deze controle haalde "mensen die dakisolatie
+ * zoeken" de poort, en dat is precies het voorbeeld dat de AI-expert als
+ * ONVOLDOENDE aanwees: een doelgroep met een onderwerp erachter, geen situatie.
+ *
+ * Ook hier een gesloten lijst, om dezelfde reden als bij `PERSOONSWOORDEN`.
+ */
+const SITUATIEWOORDEN = [
+  "wil weten",
+  "wil kiezen",
+  "wil begrijpen",
+  "wil laten",
+  "moet ",
+  "zoekt ",
+  "zoeken naar",
+  "twijfelt",
+  "twijfelen",
+  "vraagt zich af",
+  "heeft last",
+  "hebben last",
+  "loopt vast",
+  "komt erachter",
+  "merkt dat",
+  "merken dat",
+  "overweegt",
+  "beslist",
+  "beslissen",
+  "vergelijkt",
+  "kan niet",
+  "durft niet",
+  "weet niet",
+  "bang",
+  "haast",
+  "vandaag",
+  "met spoed",
+];
+
+/** Beschrijft de zin een SITUATIE, of alleen een doelgroep? */
+export function noemtSituatie(zin: string): boolean {
+  const laag = ` ${zin.toLowerCase()} `;
+  return SITUATIEWOORDEN.some((w) => laag.includes(w));
+}
+
 /** Staat er een persoon in de zin, of alleen een onderwerp? */
 export function noemtPersoon(zin: string): boolean {
   const laag = ` ${zin.toLowerCase()} `;
@@ -146,7 +207,12 @@ export function bepaalLezersopdracht(input: {
     woorden(intent) >= MIN_WOORDEN;
 
   if (bruikbaar) {
-    return { zin: intent, bron: "klant", noemtPersoon: noemtPersoon(intent) };
+    return {
+      zin: intent,
+      bron: "klant",
+      noemtPersoon: noemtPersoon(intent),
+      noemtSituatie: noemtSituatie(intent),
+    };
   }
 
   const vraag = (input.doelvragen ?? []).map((v) => (v ?? "").trim()).find(Boolean);
@@ -158,10 +224,12 @@ export function bepaalLezersopdracht(input: {
       zin: `Iemand die aan een AI-assistent vraagt: "${vraag}"`,
       bron: "meting",
       noemtPersoon: true,
+      // De vraag zelf IS de situatie: iemand die hem stelt, wil iets weten.
+      noemtSituatie: true,
     };
   }
 
-  return { zin: null, bron: "geen", noemtPersoon: false };
+  return { zin: null, bron: "geen", noemtPersoon: false, noemtSituatie: false };
 }
 
 /**
@@ -183,6 +251,19 @@ export function lezersblok(opdracht: Lezersopdracht): string {
       "onderwerp. Alles wat hij op dit moment niet nodig heeft om zijn volgende stap te zetten, " +
       "laat je weg, ook als het klopt en ook als het op de feitenkaart staat.",
   ];
+
+  if (opdracht.noemtPersoon && !opdracht.noemtSituatie) {
+    // Wel een persoon, geen situatie (optimalisatie 10). "Mensen die dakisolatie
+    // zoeken" is een doelgroep en geen lezer: er staat niet wat die persoon op
+    // dit moment meemaakt of moet beslissen, en juist daar hoort de pagina te
+    // beginnen.
+    regels.push(
+      "",
+      "⚠️ Hierboven staat wel een type persoon, maar nog geen situatie. Bedenk eerst wat die " +
+        "persoon op dit moment meemaakt, waar hij mee zit, en welke beslissing hij daarna moet " +
+        "nemen. Schrijf pas daarna, en begin bij die situatie.",
+    );
+  }
 
   if (!opdracht.noemtPersoon) {
     // De opdracht is een onderwerp en geen persoon. Niet blokkeren, wel

@@ -75,6 +75,11 @@ export function bruikbareOpdracht(brief: Partial<WriterBrief> | null | undefined
   // "onbekend" al helemaal niet.
   const lezerOordeel = bepaalLezersopdracht({ targetIntent: lezer });
   if (lezerOordeel.bron !== "klant") return null;
+  // Optimalisatie 10: een doelgroep zonder situatie is geen lezer, en een
+  // situatie zonder persoon ook niet. Eén van de twee is het minimum, en dat is
+  // ruimer dan de opdracht vraagt: de prompt vraagt om allebei, de code houdt
+  // alleen het onbruikbare tegen.
+  if (!lezerOordeel.noemtPersoon && !lezerOordeel.noemtSituatie) return null;
 
   const kernfeiten = (brief.kernfeiten ?? [])
     .map((f) => tekst(f).toUpperCase())

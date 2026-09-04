@@ -40,6 +40,7 @@ import type {
   VraagkoppenResult,
 } from "@/lib/pipeline/paginavorm";
 import type { AdviestoonResult, ZelfondermijningResult } from "@/lib/pipeline/adviestoon";
+import type { FaqResult } from "@/lib/pipeline/faqblokken";
 import type { HerhalingResult } from "@/lib/pipeline/similarity";
 import type {
   AanspreekvormResult,
@@ -96,6 +97,8 @@ export interface KwaliteitsInvoer {
   vraagkoppen?: VraagkoppenResult;
   /** V6: geeft de pagina huiswerk in plaats van antwoord? */
   adviestoon?: AdviestoonResult;
+  /** Herhaalt de FAQ onderaan de tekst erboven? (optimalisatie 9) */
+  faqBlokken?: FaqResult;
   /** V6: stuurt de pagina de bezoeker weg om de klant te controleren? */
   zelfondermijning?: ZelfondermijningResult;
   /** V12: staat op elke pagina van deze ronde hetzelfde rijtje feiten? */
@@ -784,13 +787,39 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
     );
   }
 
+  // ── De FAQ herhaalt de tekst erboven (optimalisatie 9) ───────────────────
+  //
+  // Op de dimensie STRUCTUUR: de informatie klopt en staat er, hij staat er
+  // alleen twee keer. Niet blokkerend, want een dubbele vraag maakt een pagina
+  // niet onwaar.
+  for (const zin of invoer.faqBlokken?.issues ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "structuur",
+        severity: "midden",
+        section: null,
+        finding: zin,
+        evidence: invoer.faqBlokken?.herhalingen.slice(0, 3).join(" | ") || null,
+        expected: "Elk vraag-en-antwoordblok voegt iets toe dat nog niet in de tekst staat.",
+        recommendation:
+          "Haal de herhalende vragen weg, of vervang ze door vragen die de lezer na het lezen nog " +
+          "overhoudt.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "faq",
+      }),
+    );
+  }
+
   // ── V6: de pagina geeft huiswerk in plaats van antwoord ───────────────────
   for (const zin of invoer.adviestoon?.issues ?? []) {
+    // Optimalisatie 16: de sectie waar het huiswerk zich ophoopt, zodat de
+    // reparatie daar begint en niet de hele pagina aanraakt.
     issues.push(
       maak(invoer, {
         dimension: "overtuiging",
         severity: "midden",
-        section: null,
+        section: invoer.adviestoon?.zwaarsteSectie ?? null,
         finding: zin,
         evidence: invoer.adviestoon?.voorbeelden.join(", ") || null,
         expected: "De pagina zegt wat dit bedrijf doet, niet wat de lezer moet navragen.",
@@ -975,7 +1004,26 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
       },
     ]),
     toon: invoer.craft?.toon.score ?? null,
-    overtuiging: invoer.craft?.overtuiging.score ?? null,
+    // ── V11 telt eindelijk mee (optimalisatie 13) ─────────────────────────
+    //
+    // `herkenning` werd sinds 3 september 2026 wel gescoord en woog nergens in
+    // mee, want conventie 1 verbiedt sturen op een cijfer zonder deterministisch
+    // vangnet ernaast. Dat vangnet is er nu: `checkOpening()` telt of de eerste
+    // zin bij het bedrijf begint in plaats van bij de lezer, en dat is precies
+    // wat deze dimensie beoordeelt. Het cijfer weegt half zo zwaar als
+    // overtuiging zelf, want het meet één alinea en niet de hele pagina.
+    overtuiging: combineer([
+      { waarde: invoer.craft?.overtuiging.score ?? null, gewicht: 2 },
+      { waarde: invoer.craft?.herkenning?.score ?? null, gewicht: 1 },
+      // De deterministische tegenhanger, met hetzelfde gewicht als het
+      // menselijke oordeel over herkenning: een opening die bij het bedrijf
+      // begint, is geteld en niet beoordeeld.
+      {
+        waarde:
+          invoer.opening === undefined ? null : invoer.opening.begintBijMerk ? 45 : 100,
+        gewicht: 1,
+      },
+    ]),
   };
 
   return { issues, dimensies, beoordelaars: { geslaagd, gevraagd } };

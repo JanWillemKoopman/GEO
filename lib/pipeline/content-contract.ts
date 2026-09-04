@@ -66,7 +66,19 @@ const SYSTEM =
   "zijn werkgebied, zijn werkwijze, zijn ervaring), en false als het algemene uitleg over het " +
   "onderwerp is die voor elke aanbieder hetzelfde is. Wees hier streng en eerlijk: markeer een " +
   "sectie alleen als merkgebonden wanneer een lezer er echt iets over DIT bedrijf verwacht. " +
+  "(2b) HET VERHAAL. Zet bij elke sectie in `rol` welke stap hij in het verhaal zet: probleem, " +
+  "herkenning, gevolg, oplossing, bewijs, bezwaar, zekerheid of actie. Is een sectie pure uitleg " +
+  "over het onderwerp, dan is `uitleg` de juiste rol. Een pagina waarvan elke sectie een losse " +
+  "vraag beantwoordt is een vragenlijst en geen verhaal, en die volgorde is precies wat een lezer " +
+  "van herkenning naar vertrouwen naar actie brengt. Er is hoogstens ÉÉN sectie met de rol `actie`, " +
+  "en die staat achteraan; wij zetten hem daar desnoods zelf neer. " +
+  "(2c) DE KOPPEN ZIJN MEDEDELINGEN. Maak van de meeste koppen een uitspraak en niet een vraag. " +
+  "De deelvraag staat er los bij, dus de kop hoeft hem niet te herhalen: \"Wij zijn er binnen 24 " +
+  "uur\" is een betere kop dan \"Hoe snel bent u er?\". Bij een FAQ-pagina zijn vragen juist wel " +
+  "het punt. " +
   "(3) FAQ. De vragen die als veelgestelde vragen op de pagina horen, in de woorden van de lezer. " +
+  "Vraag NIET na wat er in de secties hierboven al beantwoord wordt: een FAQ die de tekst erboven " +
+  "herhaalt, maakt de pagina langer en niet completer. " +
   // ── Het contract als SPECIFICATIE, niet alleen als inhoudsopgave (0091) ──
   // Zonder doel en doelgroep kan de citeerbaarheidsbeoordelaar wel zien of elke
   // deelvraag beantwoord wordt, maar niet of de pagina daarmee bereikt waarvoor

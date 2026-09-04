@@ -7685,3 +7685,70 @@ Vier controles groen: typecheck, 4345 unittests (13 nieuwe), 649 ketentests, bui
 ⚠️ Ongeverifieerd (conventie 10). Dat het vergelijkende oordeel betrouwbaarder is dan het verschil
 tussen twee cijfers, is de verwachting van beide experts en volgt uit de gemeten rangcorrelatie. Het
 is niet nagemeten, en dat kan pas als er menselijke oordelen over versieparen liggen.
+
+## 4 september 2026: het verhaal, de FAQ en de lezer (optimalisatie 8, 9, 10, 13 en 16)
+
+Het derde blok uit de expertronde. Kleiner werk dan de schrijfopdracht, en het raakt drie dingen die
+al maanden onaangeroerd waren.
+
+**Het contract plant nu een verhaal (optimalisatie 8).** Elke sectie krijgt een `rol`: probleem,
+herkenning, gevolg, oplossing, bewijs, bezwaar, zekerheid, actie of uitleg. Dat is de boog in acht
+stappen die de externe copywriter voorstelde, en hij zat tot nu toe alleen in een promptregel bij de
+schrijver, niet in de inhoudsopgave die hij meekreeg. **Het deterministische deel is bewust klein:**
+code garandeert alleen dat er hoogstens één sectie is die tot actie oproept en dat die achteraan
+staat. De rest van de volgorde hangt van het onderwerp af, en een boog forceren zou het contract
+slechter maken dan het model hem plant. Een oproep om te bellen halverwege een uitleg is wél altijd
+fout. De koppen worden in het contract nu ook al mededelingen in plaats van vragen; die instructie
+stond alleen bij de schrijver, die er dus een vragenlijst als verhaal van moest maken.
+
+**En er passen minder secties in.** De woordenbegroting hield al iets tegen, maar met een
+richtlengte van veertig woorden past een landingspagina van 700 woorden zeventien secties. Onder de
+tachtig woorden is een sectie twee zinnen met een kop erboven, en een pagina die daaruit bestaat is
+de FAQ-dump die de copywriter als ondergrens 3 benoemde. Gemeten over de twaalf pagina's: 850 tot
+1650 woorden met tot 26 secties, ongeveer 55 woorden per sectie.
+
+**De FAQ-blokken zijn voor het eerst bekeken (optimalisatie 9).** Tien van de twaalf pagina's hebben
+er acht, sommige een woordelijke kopie van een sectie twintig regels hoger. Niets keek ernaar, en
+erger: `content-coverage.ts` telt de FAQ mee als DEKKING, dus een pagina die zichzelf herhaalde
+scoorde beter dan een die dat niet deed. `lib/pipeline/faqblokken.ts` meet nu de woordoverlap met de
+tekst erboven. Drempel 0,7, strenger dan de 0,6 van de bewijspunten en om een andere vraag: daar is
+het "heeft de schrijver deze zin opgeschreven" en telt een herformulering mee, hier is het "staat dit
+er al". De bevinding valt pas als méér dan de helft van de blokken herhaalt: één herhaling is
+verdedigbaar voor een lezer die naar beneden scrolt. Op een FAQ-pagina geldt de regel niet, want daar
+zijn de vragen het product.
+
+**Een doelgroep is nog geen lezer (optimalisatie 10).** V7 blokkeerde een pagina zonder lezer, maar
+accepteerde elke gevulde zin van vier woorden. "Mensen die dakisolatie zoeken" haalde die poort, en
+dat is precies het voorbeeld dat de AI-expert als ONVOLDOENDE aanwees. `noemtSituatie()` kijkt nu of
+er ook een probleem of een beslissing in staat. Dit blokkeert niet, net als `noemtPersoon`: het
+stuurt de promptregel die het model vraagt de opdracht eerst af te maken. Wat het wél verandert, is
+dat de nulmeting "0 van 12 pagina's zonder lezer" nu pas iets zegt.
+
+**En `herkenning` telt eindelijk mee (optimalisatie 13).** Die dimensie werd sinds 3 september
+gescoord en woog nergens in mee, want conventie 1 verbiedt sturen op een cijfer zonder
+deterministisch vangnet. Dat vangnet is er nu: `checkOpening()` telt of de eerste zin bij het bedrijf
+begint in plaats van bij de lezer. Beide wegen half zo zwaar als overtuiging zelf, want ze meten één
+alinea en niet de hele pagina.
+
+**Een bevinding over huiswerk wijst nu de sectie aan (optimalisatie 16).** De telling stond op de
+hele pagina, en van de 72 gebiedende zinnen van 3 september stonden er 23 op één pagina en daarbinnen
+in een handvol secties. Een bevinding zonder sectie stuurt de reparatie naar de pagina als geheel, en
+dan raakt hij precies de alinea's die goed waren.
+
+### ⚠️ Optimalisatie 17 gaat NIET door, en dat is gemeten
+
+Het voorstel was om de reparatie hoogstens drie bevindingen per ronde te geven in plaats van tien,
+omdat tien bevindingen "de halve pagina" zouden raken. Nagerekend op productie over de twaalf
+pagina's met een keuring, met dezelfde prioritering die de reparatie gebruikt (ernst maal zekerheid):
+
+| Wat | Gemeten |
+|---|---|
+| bevindingen per pagina | 46 tot 78 |
+| secties die de top tien raakt | 0 tot 3, mediaan 1 |
+| secties die de top vijf raakt | 0 of 1 |
+
+De aanname klopt dus niet. De zwaarste bevindingen hebben meestal helemaal geen sectie (ze gelden
+voor de hele pagina) en de rest zit in één tot drie secties. Het verlagen naar drie zou bevindingen
+weggooien zonder de reparatie gerichter te maken. De grens blijft op tien.
+
+Vier controles groen: typecheck, 4371 unittests (26 nieuwe), 649 ketentests, build.
