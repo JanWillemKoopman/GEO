@@ -68,6 +68,8 @@ import {
   ArrowRight,
   ArrowUp,
   ArrowUpRight,
+  BookOpen,
+  CalendarRange,
   Check,
   ChevronDown,
   ChevronRight,
@@ -85,6 +87,7 @@ import {
   FingerprintPattern,
   Globe,
   Menu,
+  MessageCircle,
   Minus,
   Moon,
   Orbit,
@@ -92,6 +95,9 @@ import {
   PanelLeftOpen,
   Radar,
   RotateCcw,
+  RotateCw,
+  Scale,
+  Search,
   Shield,
   SlidersHorizontal,
   Tag,
@@ -155,6 +161,19 @@ export type IcoonNaam =
   | "feit"
   | "herstel"
   | "offsite"
+  // ── Onderwerpen in de Support-handleiding ────────────────────────────────
+  // Eén tekening per bestemming uit de zijbalk, zodat een lijst van tien
+  // uitlegblokken niet leest als tien keer hetzelfde blok met een andere
+  // titel (`docs/designsystem.md` §6b.3, regel 5: een icoon zodra de SOORT
+  // verschilt). Vier bestemmingen lenen het icoon van hun eigen hoofdstuk
+  // (`overzicht`, `analytics`, `merkprofiel`, en `meten` voor Clusters), de
+  // rest krijgt hier zijn eerste tekening.
+  | "zoekmachine"
+  | "opnieuw"
+  | "plannen"
+  | "bibliotheek"
+  | "concurrenten"
+  | "reputatie"
   // ── De weergave van de app zelf ─────────────────────────────────────────
   | "licht"
   | "donker"
@@ -288,6 +307,32 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   herstel: RotateCcw,
   // Werk buiten de eigen site: een vermelding, een profiel, een bron elders.
   offsite: Globe,
+
+  // ── ONDERWERPEN IN DE SUPPORT-HANDLEIDING ───────────────────────────────
+  //
+  // Toegevoegd bij de bouw van `/support`. Vier van de tien uitlegblokken
+  // lenen hun tekening van het hoofdstuk waarin ze de enige of de eerste
+  // bestemming zijn (`overzicht`, `analytics`, `merkprofiel`, `meten`); deze
+  // zes zijn nieuw.
+  //
+  // Een vergrootglas: het klassieke teken voor zoeken, en Zoekverkeer gaat
+  // over precies dat, zichtbaarheid in Google.
+  zoekmachine: Search,
+  // Met de klok mee ronddraaien: een nieuwe ronde die weer bij stap 01
+  // begint. Bewust een andere tekening dan `herstel` (tegen de klok in): dat
+  // is een pijplijn die opnieuw moet na een storing, dit is de cyclus die
+  // gewoon doorgaat (regel 3: de naam is de betekenis, niet de tekening).
+  opnieuw: RotateCw,
+  // Een kalenderblad met een reeks erin: het contentplan zet pagina's in de
+  // tijd, geen los kruisje op één dag.
+  plannen: CalendarRange,
+  // Een open boek: waar de geschreven teksten zelf staan, geen taak erover.
+  bibliotheek: BookOpen,
+  // Een weegschaal: Concurrenten zet merken tegen elkaar af.
+  concurrenten: Scale,
+  // Een spraakballon: Mijn reputatie gaat over wat een AI-assistent over je
+  // ZEGT, niet over of je genoemd wordt.
+  reputatie: MessageCircle,
 
   // De themaschakelaar. Het icoon toont waar je heen gaat en niet waar je bent:
   // sta je in de lichte stand, dan zie je de maan. Dat is de conventie in vrijwel
