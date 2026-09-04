@@ -158,3 +158,29 @@ export function bewijspuntenblok(): string {
     `twintig feiten er twintig noemen is geen keuze maken.`
   );
 }
+
+/**
+ * Het promptblok voor de REPARATIERONDE: deze zinnen blijven staan.
+ *
+ * ⚠️ Toegevoegd op 4 september 2026 (optimalisatie 4). De reparatieopdracht
+ * kreeg tot dan alleen de feitenkaart, het contract en de bevindingen. De
+ * bewijspunten zaten er niet bij, terwijl de keuring er wél op controleert of de
+ * betekeniszin nog in de tekst staat. Een reparatie die zo'n zin herschrijft,
+ * levert dus een nieuwe bevinding op in de ronde erna, en die ronde weet nog
+ * steeds niet dat hij van die zin af moet blijven. Dat is een lus die niet
+ * afloopt en die per ronde $0,083 kost.
+ *
+ * Leeg bij een pagina zonder bewijspunten (van vóór migratie 0093): dan valt
+ * het blok weg in plaats van een lege kop op te leveren.
+ */
+export function bewijspuntenBehoudblok(punten: readonly Bewijspunt[] | undefined): string {
+  const bruikbaar = (punten ?? []).filter((p) => p?.betekenis?.trim());
+  if (bruikbaar.length === 0) return "";
+  return (
+    `\nDEZE ZINNEN BLIJVEN STAAN. Dit zijn de bewijspunten van deze pagina: feiten die al zijn ` +
+    `omgezet naar een reden voor de lezer. Raak ze niet aan, tenzij een bevinding er zelf over ` +
+    `gaat. Herschrijf je de sectie waarin zo'n zin staat, neem hem dan mee in vrijwel dezelfde ` +
+    `woorden:\n` +
+    bruikbaar.map((p) => `- "${p.betekenis.trim()}" (${p.factRef.trim()})`).join("\n")
+  );
+}

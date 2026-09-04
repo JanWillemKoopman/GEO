@@ -7527,3 +7527,61 @@ blanco voor dezelfde copywriter leggen. Valt die tegen, dan is terugdraaien éé
 `lib/openai/models.ts`. De unittest "de contenttier staat op Terra" legt de keuze vast met de
 bedragen erbij, zodat een stille terugval een rode test oplevert in plaats van een verrassing op de
 factuur.
+
+## 4 september 2026: de keuring werkte de schrijfopdracht tegen (optimalisatie 1 tot en met 4)
+
+Twee externe experts, een copywriter en een AI-expert, hebben de contentpijplijn doorgelicht. Hun
+ruwe oordeel staat in `content-reviews/feedback/expertronde-copywriter-en-ai-4-september-2026.md`,
+de negentien optimalisaties die eruit volgen in
+`docs/tasks/optimalisaties-expertronde-4-september-2026.md`. Dit is het eerste blok: vier plekken
+waar een instructie een andere instructie tegenwerkte. Geen van de vier kwam uit de feedback zelf;
+ze kwamen uit het narekenen dat de feedback uitlokte.
+
+**De redactionele beoordelaar strafte de merkstem af.** Op 3 september is regel 5 van de
+schrijfprompt begrensd: de merknaam hoort in de citeerbare zinnen, de rest van de pagina praat in de
+wij-vorm. Diezelfde dag bleef in `REDACTIE_SYSTEM` staan dat de beoordelaar moest kijken of "het
+bedrijf EXPLICIET bij naam genoemd wordt in plaats van 'wij'/'ons'". De pagina die de nieuwe regel
+netjes volgde, verloor dus punten bij de keuring, en zijn vrije verbeterpunten gaan als bevinding de
+reparatieronde in (`quality-collect.ts` regel 358). Een reparatieronde kost $0,083 op Terra, en die
+werd hier besteed aan het terugdraaien van iets dat goed was. Het criterium meet nu of in de
+citeerbare passages ondubbelzinnig te zien is over welk bedrijf het gaat, met er expliciet bij dat de
+wij-vorm daarbuiten goed is en nooit als verbeterpunt opgeschreven mag worden.
+
+**De opening moest twee dingen tegelijk zijn.** De schrijver moet de eerste zin aan de lezer geven
+(V8), de beoordelaar controleerde of de doelvraag "in de eerste twee zinnen" beantwoord werd. Dan
+blijft er één zin over voor het antwoord en valt elke goede opening af. Het criterium meet nu de
+eerste ALINEA, dezelfde eenheid als `eersteAlinea()` in `paginavorm.ts` (600 tekens).
+
+**De ijkpunten waren de cijfers van één mens.** In de vakmanschapsprompt stond letterlijk "dat was
+met 2,6 van 5 zijn laagste cijfer", met de herkomst erbij. Beide experts wezen dat af, en om twee
+redenen die allebei kloppen: een beoordelaar die één copywriter leert nadoen beoordeelt die
+copywriter en niet de tekst, en een cijfer in een prompt is een anker dat elk oordeel naar hetzelfde
+midden trekt. Juist het uit elkaar houden van pagina's is wat hier ontbreekt (rangcorrelatie 0,29).
+De ijkpunten staan er nu als regels zonder cijfer en zonder afzender, met de concrete zinnen als
+illustratie.
+
+**En de reparatieronde kende de grenzen niet.** Nagerekend: van de vijf promptblokken die op
+3 september aan de SCHRIJFopdracht zijn toegevoegd, zat er geen enkele in de REPARATIEopdracht. Vier
+ervan hebben een BLOKKERENDE controle achter zich: de aanspreekvorm, de verboden woorden, de
+adresinstructie en zelfondermijnend advies. Een reparatieronde die die grenzen niet kende, kon dus
+een pagina die door de keuring kwam alsnog onpubliceerbaar maken. Bij de bewijspunten liep het
+bovendien rond: de keuring controleert of de betekeniszin nog in de tekst staat, de reparatie mocht
+hem herschrijven, en de ronde daarna kreeg dezelfde bevinding opnieuw. `buildRepairInput()` krijgt nu
+de aanspreekvorm, de verboden woorden, de klantinstructies, de adviestoon, de lezersopdracht, de
+citeerbare klantantwoorden en `bewijspuntenBehoudblok()`. Wat er bewust NIET bij komt: de doellengte,
+de stijlvoorbeelden, het winnende antwoord en de bestaande pagina. Dat is schrijfopdracht en geen
+grens, en de gerichte reparatie is precies wat we niet in een tweede schrijfronde willen laten
+omslaan. De extra invoer is ongeveer 400 tokens, ofwel $0,0008 per ronde; één vermeden ronde betaalt
+er honderd.
+
+**En er stond een tweede, ongebruikte kopie van de redactieprompt in `content.ts`.**
+`CRITIQUE_SYSTEM` werd nergens aangeroepen en was een oudere versie van de prompt die wél draait. Wie
+de prompts bijwerkt, werkt de helft van de tijd de verkeerde bij, en dat was hier al gebeurd. Weg.
+
+Vier controles groen: typecheck, 4302 unittests (24 nieuwe, allemaal broncodecontroles op de prompts
+plus het nieuwe blok puur getest), 645 ketentests (4 nieuwe, die nameten wat de reparatietaak van de
+schrijftaak meekrijgt), build.
+
+⚠️ Ongeverifieerd (conventie 10). Dat deze vier wijzigingen de tekst beter maken is niet gemeten. Wat
+wél vaststaat is dat de instructies elkaar niet meer tegenspreken, en dat is na te lezen in de
+prompts zelf.

@@ -5680,6 +5680,34 @@ async function main(): Promise<void> {
       );
       const ptNa = (ptNaRows[0]?.body_markdown as string) ?? "";
       ok("de reparatieronde is geteld", ptNaRows[0]?.repair_round === 1 && ptReparatie.ronde === 1);
+
+      // ── Optimalisatie 4 (4 september 2026): de reparatie kent de grenzen ──
+      //
+      // ⚠️ De samenhang die hier fout ging. Van de vijf blokken die op
+      // 3 september aan de SCHRIJFopdracht zijn toegevoegd, zat er geen enkele
+      // in de REPARATIEopdracht. Vier ervan hebben een blokkerende controle
+      // achter zich (aanspreekvorm, verboden woorden, de adresinstructie,
+      // zelfondermijnend advies), dus een reparatieronde kon een pagina die
+      // door de keuring kwam alsnog onpubliceerbaar maken. Alleen in de keten te
+      // zien, want het gaat om wat de tweede taak van de eerste meekrijgt.
+      const ptReparatiePrompt = log.filter((l) => l.schemaName === "content_patch").at(-1)?.user ?? "";
+      ok(
+        "de reparatieopdracht noemt de gekozen aanspreekvorm",
+        /aanspreekvorm|spreek de lezer/i.test(ptReparatiePrompt),
+        ptReparatiePrompt.slice(0, 200),
+      );
+      ok(
+        "en zegt voor wie de pagina geschreven is",
+        ptReparatiePrompt.includes("DE LEZER VAN DEZE PAGINA"),
+      );
+      ok(
+        "en dat dit de site van de ondernemer is en geen consumentengids",
+        ptReparatiePrompt.includes("geen consumentengids"),
+      );
+      ok(
+        "en hij krijgt nog steeds niet de doellengte, want dit is geen tweede schrijfronde",
+        !ptReparatiePrompt.includes("Doellengte"),
+      );
       ok("de genoemde sectie is herschreven", ptNa.includes("Bel of mail voor een afspraak"));
       ok(
         "de andere sectie staat er letterlijk nog",

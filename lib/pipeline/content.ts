@@ -63,7 +63,7 @@ import { describeToneSliders, describePronoun, kiesAanspreekvorm } from "@/lib/p
 import { bepaalLezersopdracht, lezersblok } from "@/lib/lezersopdracht";
 import { objectionsRule } from "@/lib/pipeline/commercial-context";
 import { vindKlantinstructies, instructieblok, verbiedtAdres } from "@/lib/klantinstructies";
-import { bewijspuntenblok } from "@/lib/pipeline/bewijspunten";
+import { bewijspuntenblok, bewijspuntenBehoudblok } from "@/lib/pipeline/bewijspunten";
 import { vindCiteerbareAntwoorden, citatenblok } from "@/lib/pipeline/klantcitaten";
 import { adviestoonblok } from "@/lib/pipeline/adviestoon";
 import {
@@ -300,21 +300,11 @@ const CONTENT_SYSTEM =
 // testbaar, en sinds S9 (gesprek van 1 september) gericht op de concrete
 // termen die DEZE pagina nodig heeft in plaats van alleen op "weinig feiten".
 
-/** Redacteur-rol voor de kritiek-stap, redactioneel én GEO (optimalisatie.md 4.5). */
-const CRITIQUE_SYSTEM =
-  "Je bent een strenge eindredacteur én GEO-specialist. Beoordeel de aangeleverde webpagina voor de " +
-  "EIGEN site van een ondernemer. " +
-  "REDACTIONEEL: scoor 0-100 op begint-met-het-directe-antwoord, on-brand, concreet-waar-mogelijk " +
-  "(zonder verzinsels), scanbaar, en waardevol (geen AI-slop/vulzinnen). " +
-  "HARDE REGELS: zet followsRules op false als de tekst een concurrent/ander bedrijf bij naam noemt, " +
-  "feiten lijkt te verzinnen, of niet met het directe antwoord begint. " +
-  "GEO: zou een AI-assistent deze pagina CITEREN? Beoordeel elk criterium streng en apart: " +
-  "wordt de DOELVRAAG hierboven letterlijk beantwoord in de eerste twee zinnen; bevat elke sectie een zin " +
-  "die LOSSTAAND te begrijpen is; wordt het bedrijf EXPLICIET bij naam genoemd in plaats van 'wij'/'ons'; " +
-  "staan er concrete cijfers/jaartallen/feiten in; worden de logische vervolgvragen beantwoord. " +
-  "Bij twijfel: false. Een te milde beoordeling levert een pagina op die niemand citeert. " +
-  "Geef concrete, korte verbeterpunten. Antwoord in het Nederlands.";
-
+// ⚠️ Hier stond tot 4 september 2026 `CRITIQUE_SYSTEM`, een tweede kopie van de
+// redactieprompt. Hij werd nergens aangeroepen: de beoordelaar die echt draait
+// is `REDACTIE_SYSTEM` in `content-panel.ts`. Twee kopieën van dezelfde prompt
+// betekent dat de helft van de wijzigingen aan de verkeerde wordt gedaan, en
+// dat was hier al gebeurd (optimalisatie 18).
 /** Type-specifieke instructie, bepaalt wat voor pagina er echt uitkomt. */
 export const TYPE_GUIDANCE: Record<ContentType, string> = {
   faq:
@@ -749,6 +739,25 @@ const REPAIR_SYSTEM =
  * precies wat we hier niet willen: hij nodigde het model uit alles opnieuw te
  * doen. Wat er wél in moet, is alles wat de grenzen bepaalt: de feitenkaart,
  * het contract en de geverifieerde uitleg.
+ *
+ * ── ⚠️ 4 SEPTEMBER 2026: DE GRENZEN ZATEN ER MAAR HALF IN (optimalisatie 4) ──
+ *
+ * Nagerekend na de expertronde: van de vijf promptblokken die op 3 september aan
+ * de SCHRIJFopdracht zijn toegevoegd, zat er geen enkele in de REPARATIEopdracht.
+ * De reparatie wist dus niet wie de lezer was, welke aanspreekvorm gekozen was,
+ * welke woorden verboden zijn, wat de ondernemer zelf gevraagd had, en welke
+ * zinnen als bewijspunt in de tekst stonden.
+ *
+ * Vier van die vijf hebben een BLOKKERENDE controle achter zich (aanspreekvorm,
+ * verboden woorden, de adresinstructie, zelfondermijnend advies). Een
+ * reparatieronde die een van die grenzen niet kende, kon dus een pagina die
+ * doorkwam alsnog onpubliceerbaar maken. En bij de bewijspunten liep het rond:
+ * de keuring controleert of de betekeniszin nog in de tekst staat, de reparatie
+ * mocht hem herschrijven, en de ronde daarna kreeg dezelfde bevinding opnieuw.
+ *
+ * Wat er NIET bij komt: het contract als verhaal, de doellengte, de
+ * stijlvoorbeelden, het winnende antwoord en de bestaande pagina. Dat is
+ * schrijfopdracht en geen grens, en dat is precies wat deze stap niet moet doen.
  */
 function buildRepairInput(args: {
   piece: ContentPiece;
@@ -766,8 +775,28 @@ function buildRepairInput(args: {
   explainerBlock: string;
   brandName: string;
   revisionNote?: string | null;
+  /** Voor de grenzen die anders blokkeren: aanspreekvorm en verboden woorden. */
+  profile: Profile | null;
+  /** De tekst waaruit de aanspreekvorm afgeleid wordt, zelfde bron als bij het schrijven. */
+  existingText?: string | null;
+  /** De lezer van deze pagina, in dezelfde vorm als de schrijfopdracht hem kreeg. */
+  targetIntent?: string;
+  /** De gemeten vragen, als terugval voor de lezersopdracht. */
+  doelvragen?: string[];
 }): string {
-  const { piece, issues, facts, contract, explainerBlock, brandName, revisionNote } = args;
+  const {
+    piece,
+    issues,
+    facts,
+    contract,
+    explainerBlock,
+    brandName,
+    revisionNote,
+    profile,
+    existingText,
+    targetIntent,
+    doelvragen,
+  } = args;
   const secties = splitSections(piece.bodyMarkdown);
   // Wat de klant expliciet NIET beweerd wil hebben. Staat als verbod op de
   // feitenkaart (`allowed: false`) en hoort in de opdracht, want een reparatie
@@ -776,6 +805,31 @@ function buildRepairInput(args: {
 
   return [
     `Bedrijf: ${brandName}`,
+    // ── De grenzen die blokkeren (optimalisatie 4) ──────────────────────────
+    //
+    // Deze vier stonden alleen in de schrijfopdracht, terwijl de controle
+    // erachter een pagina tegenhoudt. De reparatie kon ze dus stukmaken zonder
+    // ze ooit gezien te hebben.
+    describePronoun(
+      kiesAanspreekvorm({
+        voorkeur: profile?.pronoun_preference ?? null,
+        formaliteit: (profile?.tone_formality ?? null) as 1 | 2 | 3 | null,
+        bestaandeTekst: existingText ?? null,
+      }).vorm,
+    ),
+    profile?.taboo_phrases?.length
+      ? `VERBODEN WOORDEN EN CLAIMS. Gebruik deze woorden of formuleringen NERGENS, ` +
+        `ook niet in een andere vervoeging: ${profile.taboo_phrases.join(", ")}.`
+      : "",
+    instructieblok(vindKlantinstructies(facts.map((f) => f.text))),
+    adviestoonblok(),
+    // De lezer, want een reparatie zonder lezer maakt de pagina algemener en
+    // dat is precies de bevinding die hij hoort op te lossen.
+    lezersblok(bepaalLezersopdracht({ targetIntent: targetIntent ?? "", doelvragen: doelvragen ?? [] })),
+    // Wat er blijft staan: de omgezette feiten en de eigen woorden van de
+    // ondernemer. Allebei worden ze na afloop nagerekend.
+    bewijspuntenBehoudblok(piece.proofPoints),
+    citatenblok(vindCiteerbareAntwoorden(facts.map((f) => f.text))),
     formatFactCard(facts),
     formatContract(contract),
     explainerBlock,
@@ -2106,6 +2160,13 @@ export async function reviseContentPiece(args: {
       explainerBlock: formatExplainerBlock(ctx.explainers),
       brandName,
       revisionNote: recommendation.revisionNote,
+      // De grenzen die anders blokkeren, plus de lezer (optimalisatie 4).
+      // Dezelfde bronnen als de schrijfopdracht ze gebruikt, zodat de
+      // aanspreekvorm in beide rondes op dezelfde vorm uitkomt.
+      profile: ctx.profile,
+      existingText: ctx.existing.text ?? ctx.existing.page?.text_excerpt ?? null,
+      targetIntent: recommendation.targetIntent,
+      doelvragen: targets.map((t) => t.text),
     }),
     schema: ContentPatch,
     schemaName: "content_patch",

@@ -166,7 +166,12 @@ import { bepaalLezersopdracht, lezersblok, noemtPersoon, MIN_WOORDEN } from "@/l
 import { kiesAanspreekvorm, telAanspreekvormen } from "@/lib/pipeline/tone-sliders";
 import { checkAanspreekvorm, checkAdresinstructie } from "@/lib/pipeline/content-gate";
 import { vindKlantinstructies, instructieblok, verbiedtAdres } from "@/lib/klantinstructies";
-import { checkBewijspunten, betekenisStaatInTekst, MIN_BEWIJSPUNTEN } from "@/lib/pipeline/bewijspunten";
+import {
+  checkBewijspunten,
+  betekenisStaatInTekst,
+  bewijspuntenBehoudblok,
+  MIN_BEWIJSPUNTEN,
+} from "@/lib/pipeline/bewijspunten";
 import {
   vindCiteerbareAntwoorden,
   checkKlantcitaten,
@@ -1564,7 +1569,12 @@ group("GEO-score", () => {
   ok("drie van vijf = 60", geoScore({ ...all(false), answersTargetQuestionUpFront: true, usesConcreteFacts: true, answersFollowUpQuestions: true }) === 60);
   ok("geen issues bij alles goed", geoIssues(all(true)).length === 0);
   ok("elk gemist criterium wordt een verbeterpunt", geoIssues(all(false)).length === 5);
-  ok("issue is leesbaar", geoIssues({ ...all(true), namesTheBusinessExplicitly: false })[0].includes("noemt het bedrijf expliciet"));
+  ok(
+    "issue is leesbaar",
+    geoIssues({ ...all(true), namesTheBusinessExplicitly: false })[0].includes(
+      "koppelt het bedrijf aan het antwoord",
+    ),
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -20615,6 +20625,94 @@ group("de vloeiende lijn in de grafieken", () => {
       { x: 0, y: 20 },
       { x: 1, y: 30 },
     ]).includes("NaN"),
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nExpertronde 4 september 2026: blok A, de tegenstrijdigheden");
+// (docs/tasks/optimalisaties-expertronde-4-september-2026.md, optimalisatie
+// 1 tot en met 4 en 18). Broncodecontroles, want deze prompts staan in modules
+// met `server-only` en zijn niet uit een test te importeren.
+// ════════════════════════════════════════════════════════════════════════════
+
+group("optimalisatie 1 en 2: de beoordelaar werkt de schrijfopdracht niet meer tegen", () => {
+  const kaal = (bron: string) =>
+    bron.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const panel = kaal(leesBestand("lib/pipeline/content-panel.ts"));
+
+  ok(
+    "de wij-vorm mag niet meer als tekortkoming gelden",
+    panel.includes("DE WIJ-VORM IS GOED"),
+  );
+  ok(
+    "en het oude criterium 'de bedrijfsnaam in plaats van wij' is weg",
+    !panel.includes("in plaats van 'wij'"),
+  );
+  ok(
+    "het antwoord wordt in de eerste ALINEA gezocht, niet in de eerste twee zinnen",
+    panel.includes("EERSTE ALINEA") && !panel.includes("eerste twee zinnen"),
+  );
+  ok(
+    "de bedrijfsnaam gaat mee als gegeven, niet als eis aan de tekst",
+    panel.includes("`Bedrijfsnaam: ${input.brandName}`") &&
+      !panel.includes("die expliciet genoemd moet worden"),
+  );
+});
+
+group("optimalisatie 3: de ijkpunten zijn regels en geen cijfers van één mens", () => {
+  const kaal = (bron: string) =>
+    bron.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const panel = kaal(leesBestand("lib/pipeline/content-panel.ts"));
+
+  ok("er staat geen menselijk eindcijfer meer in de prompt", !panel.includes("2,6 van 5"));
+  ok(
+    "en geen verwijzing naar de ronde waaruit die cijfers kwamen",
+    !panel.includes("twaalf pagina's van 3 september"),
+  );
+  ok("de ijkpunten staan er nog wel", panel.includes("IJKPUNTEN"));
+  ok(
+    "en de kernvraag van de copywriter staat er als regel",
+    panel.includes("waarom hij juist DIT bedrijf zou kiezen"),
+  );
+});
+
+group("optimalisatie 4: de reparatieronde kent de grenzen die blokkeren", () => {
+  const bron = leesBestand("lib/pipeline/content.ts");
+  const begin = bron.indexOf("function buildRepairInput");
+  const eind = bron.indexOf("DE HUIDIGE PAGINA, PER SECTIE", begin);
+  const opdracht = bron.slice(begin, eind > begin ? eind : undefined);
+
+  ok("de reparatie kent de gekozen aanspreekvorm", opdracht.includes("kiesAanspreekvorm("));
+  ok("en de verboden woorden", opdracht.includes("taboo_phrases"));
+  ok("en wat de ondernemer zelf gevraagd heeft", opdracht.includes("instructieblok("));
+  ok("en de regel dat dit geen consumentengids is", opdracht.includes("adviestoonblok("));
+  ok("en voor wie de pagina geschreven is", opdracht.includes("lezersblok("));
+  ok("en welke zinnen moeten blijven staan", opdracht.includes("bewijspuntenBehoudblok("));
+  ok("en de eigen woorden van de ondernemer", opdracht.includes("citatenblok("));
+
+  // Wat er bewust NIET bij komt: dit blijft een reparatie en geen tweede
+  // schrijfronde.
+  ok("maar niet de doellengte", !opdracht.includes("Doellengte"));
+  ok("en niet de stijlvoorbeelden", !opdracht.includes("styleSamples"));
+
+  // Het blok zelf, puur getest.
+  ok("zonder bewijspunten valt het blok weg", bewijspuntenBehoudblok(undefined) === "");
+  ok("een lege lijst levert ook niets op", bewijspuntenBehoudblok([]) === "");
+  const behoud = bewijspuntenBehoudblok([
+    { factRef: "F3", betekenis: "u weet wie er op uw dak komt" },
+    { factRef: "F7", betekenis: " " },
+  ]);
+  ok("de betekeniszin staat erin", behoud.includes("u weet wie er op uw dak komt"));
+  ok("met het F-nummer erbij", behoud.includes("(F3)"));
+  ok("en een leeg punt telt niet mee", !behoud.includes("F7"));
+});
+
+group("optimalisatie 18: er is nog maar één redactieprompt", () => {
+  const bron = leesBestand("lib/pipeline/content.ts");
+  ok("de ongebruikte kopie in content.ts is weg", !bron.includes("const CRITIQUE_SYSTEM"));
+  ok(
+    "en de beoordelaar die wel draait staat in content-panel.ts",
+    leesBestand("lib/pipeline/content-panel.ts").includes("const REDACTIE_SYSTEM"),
   );
 });
 
