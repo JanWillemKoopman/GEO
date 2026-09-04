@@ -2,9 +2,12 @@ import { notFound } from "next/navigation";
 import { getProfile } from "@/lib/profiles";
 import { requireUser } from "@/lib/auth";
 import { isStaff } from "@/lib/staff";
+import { membersOf } from "@/lib/accounts";
+import { listPendingInvites } from "@/lib/invites";
 import { PageHeader } from "@/components/page-header";
 import { AssignBox } from "../../_components/assign-box";
 import { PackageBox } from "../../_components/package-box";
+import { TeamBox } from "@/app/(app)/instellingen/team-box";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -44,6 +47,18 @@ export default async function ToewijzenPage({
       ).data
     : null;
 
+  // Meerdere mensen bij hetzelfde merk: dat loopt via het account eronder
+  // (`account_users`, migratie 0046), niet via het merk zelf. `AssignBox`
+  // hierboven kiest de hoofdeigenaar en het account; dit blok laat de
+  // beheerder daarna extra mensen bij dát account uitnodigen, met dezelfde
+  // route als `/instellingen` (`POST /api/accounts/[id]/invites`), die een
+  // beheerder van ORBIT ENGINE altijd toelaat (`mayInvite` in
+  // lib/invite-rules.ts).
+  const accountId = (account?.id as string | undefined) ?? null;
+  const [members, pending] = accountId
+    ? await Promise.all([membersOf(accountId, user.id), listPendingInvites(accountId)])
+    : [[], []];
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -58,8 +73,26 @@ export default async function ToewijzenPage({
         assignedAt={profile.assigned_at}
       />
 
+      {accountId ? (
+        <TeamBox
+          accountId={accountId}
+          accountName={(account?.name as string | undefined) ?? "dit account"}
+          members={members}
+          pending={pending}
+          mayInvite
+        />
+      ) : (
+        <div className="card flex flex-col gap-2">
+          <span className="mono-label">Wie er bij dit merk kan</span>
+          <p className="text-sm text-secondary">
+            Wijs dit merk eerst toe aan een klantaccount hierboven. Daarna kun je hier extra
+            mensen voor dat account uitnodigen.
+          </p>
+        </div>
+      )}
+
       <PackageBox
-        accountId={(account?.id as string | undefined) ?? null}
+        accountId={accountId}
         accountName={(account?.name as string | undefined) ?? null}
         current={(account?.package_pages_per_month as number | null | undefined) ?? null}
       />
