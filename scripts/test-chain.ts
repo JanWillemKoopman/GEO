@@ -340,6 +340,19 @@ async function main(): Promise<void> {
       ),
       JSON.stringify(na.rows[0]?.writer_brief_json ?? null).slice(0, 160),
     );
+    // ⚠️ 4 september 2026: de stub levert de kernfeiten in het formaat dat het
+    // echte model teruggaf ("F1: het hele feit"). Blijft er hier een lege lijst
+    // over, dan valt de hele opdracht om en schrijft de app zonder, precies
+    // zoals op productie gebeurde bij alle zes de pagina's.
+    ok(
+      "de kernfeiten zijn teruggebracht tot hun nummer",
+      ((na.rows[0]?.writer_brief_json as { kernfeiten?: string[] } | null)?.kernfeiten ?? []).every(
+        (f) => /^F\d+$/.test(f),
+      ) &&
+        ((na.rows[0]?.writer_brief_json as { kernfeiten?: string[] } | null)?.kernfeiten ?? [])
+          .length >= 3,
+      JSON.stringify((na.rows[0]?.writer_brief_json as { kernfeiten?: string[] } | null)?.kernfeiten),
+    );
 
     // ── Haalt een gecorrigeerd merkveld de schrijfprompt? (17 aug 2026) ───
     //

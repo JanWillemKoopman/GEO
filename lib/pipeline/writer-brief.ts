@@ -56,9 +56,10 @@ const SYSTEM =
   "(4) WAAROM DEZE PAGINA BESTAAT. Bij welke vraag noemt een AI-assistent dit bedrijf nu niet? " +
   `(5) DE KERNFEITEN. Kies ${MIN_KERNFEITEN} tot ${MAX_KERNFEITEN} F-nummers van de feitenkaart ` +
   "waar deze pagina op staat of valt. Niet de eerste van de kaart en niet de sterkste in het " +
-  "algemeen: die welke voor DEZE lezer bij DEZE vraag tellen. " +
-  "(6) WAAROM DEZE LEZER JUIST DIT BEDRIJF ZOU KIEZEN. Eén tot drie redenen, elk met het F-nummer " +
-  "erbij, en elk geschreven VANUIT DE LEZER. Het verschil: 'deze lezer heeft haast, dus dat wij " +
+  "algemeen: die welke voor DEZE lezer bij DEZE vraag tellen. Zet er ALLEEN het nummer neer, dus " +
+  "\"F7\" en niet de hele zin die erbij hoort. " +
+  "(6) WAAROM DEZE LEZER JUIST DIT BEDRIJF ZOU KIEZEN. Eén tot drie redenen, elk met ÉÉN F-nummer " +
+  "erbij (dus \"F9\" en niet \"F9 en F10\"), en elk geschreven VANUIT DE LEZER. Het verschil: 'deze lezer heeft haast, dus dat wij " +
   "binnen 24 uur ter plaatse zijn telt voor hem' is een reden; 'het bedrijf heeft vier dakdekkers' " +
   "is een feit. Een bedrijf kan twintig sterke eigenschappen hebben en er voor deze pagina maar " +
   "drie relevante. Zoek de eigenschap die deze lezer bij deze vraag nodig heeft. " +
@@ -157,21 +158,14 @@ export async function maakSchrijfopdracht(input: OpdrachtInput): Promise<WriterB
   // Een kernfeit dat nergens naar wijst, is een opdracht om iets te schrijven
   // dat niet onderbouwd kan worden. Hetzelfde vangnet als bij `claims` en bij
   // de bewijspunten: een nummer noemen is niet genoeg.
-  // Op `ref` en niet op `id`: het F-nummer is wat het model ziet en teruggeeft.
-  // `id` is de identiteit in de feitenbank, en die staat nergens in de prompt.
-  const geldig = new Set(input.facts.map((f) => (f.ref ?? "").trim().toUpperCase()).filter(Boolean));
-  const opgeschoond =
-    geldig.size > 0
-      ? {
-          ...result.parsed,
-          kernfeiten: (result.parsed.kernfeiten ?? []).filter((f) =>
-            geldig.has((f ?? "").trim().toUpperCase()),
-          ),
-          keuzeredenen: (result.parsed.keuzeredenen ?? []).filter((k) =>
-            geldig.has((k?.factRef ?? "").trim().toUpperCase()),
-          ),
-        }
-      : result.parsed;
-
-  return bruikbareOpdracht(opgeschoond);
+  //
+  // De vergelijking zelf staat in `bruikbareOpdracht()`, samen met het
+  // opschonen van het formaat. ⚠️ Dat stond hier, met een LETTERLIJKE
+  // vergelijking, en dat wierp op 4 september 2026 alle zes de opdrachten van
+  // de eerste echte ronde weg: het model geeft "F7: het hele feit" terug waar
+  // de code "F7" verwachtte. Eén plek, één definitie.
+  return bruikbareOpdracht(
+    result.parsed,
+    input.facts.map((f) => f.ref).filter(Boolean),
+  );
 }

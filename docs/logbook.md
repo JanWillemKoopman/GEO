@@ -7894,3 +7894,54 @@ zoals het zelf voorschreef.
 
 Vier controles groen: typecheck, unittests, ketentests, build (geen productiecode gewijzigd deze
 ronde, dus geen nieuwe testgevallen).
+
+## 4 september 2026: de schrijfopdracht werd zes keer weggegooid op een opmaakverschil
+
+De eerste echte ronde met de nieuwe pijplijn (zes pagina's, `content-reviews/copywriter-opdracht-zes-artikelen.md`)
+liet zien dat de schrijfopdracht wel gemaakt werd maar nergens aankwam. Nagerekend op productie:
+zes aanroepen `writer_brief` in `ai_calls` voor $0,0219, en `writer_brief_json` leeg bij alle zes de
+pagina's. De opdracht is dus zes keer betaald en zes keer weggegooid.
+
+**De oorzaak, uit de ruwe modeluitvoer in `ai_calls`.** De prompt vraagt om F-nummers. Het model gaf
+het hele feit terug:
+
+```
+"kernfeiten": ["F7: Bij zelf betalen kost de intake ongeveer 70 euro en een
+                vervolgbehandeling ongeveer 60 euro.", ...]
+"keuzeredenen": [{ "factRef": "F9 en F10", ... }]
+```
+
+`maakSchrijfopdracht()` vergeleek die strings LETTERLIJK met de nummers van de feitenkaart. Geen
+enkele kwam voor in de verzameling, dus bleven er nul kernfeiten over, en `bruikbareOpdracht()`
+liet de hele opdracht vervallen op de eis van minstens drie. Het vangnet werkte zoals bedoeld, alleen
+op de verkeerde grond: de opdrachten waren inhoudelijk prima.
+
+**De reparatie is één regel denkwerk en geen nieuwe machinerie.** `splitRefs()` in `factcard.ts`
+haalt elk voorkomen van F gevolgd door een getal uit een string en ontdubbelt ze, en de
+reparatieopdracht gebruikt hem al. `bruikbareOpdracht()` schoont het formaat nu met diezelfde functie
+op vóórdat er geoordeeld wordt, en bij een samengestelde verwijzing wint het eerste deel dat op de
+kaart staat, dezelfde regel als in `resolveFactId()`. De geldigheidscontrole is meeverhuisd naar die
+ene plek: één definitie van "welk feit bedoel je" in plaats van twee.
+
+De kaart gaat als parameter mee en is optioneel. Bij het TERUGLEZEN van een opgeslagen opdracht wordt
+alleen het formaat opgeschoond, want de kaart van toen bestaat niet meer en filteren op geldigheid
+zou daar een opdracht wegwerpen die destijds klopte.
+
+**En de prompt zegt het nu ook**, want dat is de intentie naast de garantie: alleen het nummer in
+`kernfeiten`, en één nummer per keuzereden.
+
+⚠️ **Dit is de derde keer deze week dat een test iets anders mat dan productie.** De ketentest gaf in
+de stub keurige F-nummers terug, precies zoals de code ze verwachtte, en dekte de fout daarmee toe.
+Dezelfde vorm als bij `checkBewijspunten()` (die kreeg uuids waar F-nummers hoorden) en bij de
+kostenraming van 3 september. De stub levert nu het formaat dat het echte model teruggaf, en de
+ketentest valt om zodra de normalisatie verdwijnt; nagerekend door de reparatie tijdelijk terug te
+draaien, waarna vijf controles rood werden.
+
+**Wat dit voor de zes geschreven pagina's betekent.** Ze zijn geschreven zoals de pijplijn dat vóór
+4 september deed: zonder schrijfopdracht en dus zonder de expliciete keuzereden. De beoordeling die
+er nu ligt, meet de rest van het werk van die dag wel (de keuring die de merkstem niet meer afstraft,
+de reparatie die de grenzen kent, de FAQ-controle) en de schrijfopdracht niet. Wie de opdracht wil
+beoordelen, heeft een nieuwe ronde nodig.
+
+Vier controles groen: typecheck, 4382 unittests (8 nieuwe, met de echte productie-uitvoer als
+invoer), 650 ketentests (1 nieuwe), build.
