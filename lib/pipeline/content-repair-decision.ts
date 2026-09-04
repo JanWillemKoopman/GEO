@@ -39,6 +39,30 @@
  * afhandelen: beide pagina's zouden na ronde 1 stoppen met het concept bewaard.
  */
 
+/**
+ * Binnen hoeveel punten twee scores hetzelfde betekenen (optimalisatie 11).
+ *
+ * Drie punten. Herleid uit de enige meting die we hebben: het NIVEAU van de
+ * vakmanschapsbeoordelaar zit 0,14 punt van het menselijke oordeel af op een
+ * schaal van 1 tot 5, en dat is 2,8 punt op de schaal van 0 tot 100 waarop hier
+ * gerekend wordt. Alles binnen die marge is ruis van de beoordelaar zelf, en
+ * daar hoort geen beslissing op te rusten over welke tekst de klant krijgt.
+ *
+ * ⚠️ Gekozen op één meting, net als de zeven drempels van 3 september. Zodra er
+ * een tweede ronde ligt, hoort dit getal opnieuw tegen de spreiding gelegd te
+ * worden.
+ */
+export const GELIJKSPEL_MARGE = 3;
+
+/** Betekenen deze twee scores hetzelfde? `null` telt nooit als gelijkspel. */
+export function binnenRuis(a: number | null, b: number | null): boolean {
+  if (a === null || b === null || !Number.isFinite(a) || !Number.isFinite(b)) return false;
+  return Math.abs(a - b) <= GELIJKSPEL_MARGE;
+}
+
+/** Welke van twee versies een vergelijkend oordeel beter vindt. */
+export type VersieVoorkeur = "huidig" | "nieuw";
+
 export interface RepairRoundInput {
   /** Kwaliteitsscore die nu op de rij staat (van de beste eerdere versie). */
   vorigeKwaliteit: number | null;
@@ -52,6 +76,15 @@ export interface RepairRoundInput {
   scoresTeLaag: boolean;
   /** Aantal openstaande bevindingen na deze ronde. */
   openstaandeBevindingen: number;
+  /**
+   * Het VERGELIJKENDE oordeel tussen de vorige en deze versie (optimalisatie 11).
+   *
+   * Telt alleen mee bij een gelijkspel, dus wanneer de twee scores binnen
+   * `GELIJKSPEL_MARGE` van elkaar liggen. Daarbuiten beslist de score, want dan
+   * is het verschil groter dan de ruis van de beoordelaar. `null` of weglaten
+   * betekent geen oordeel, en dan geldt de regel van vóór 4 september 2026.
+   */
+  vergelijking?: VersieVoorkeur | null;
 }
 
 export interface RepairRoundDecision {
@@ -62,13 +95,41 @@ export interface RepairRoundDecision {
 }
 
 export function beslisReparatieRonde(input: RepairRoundInput): RepairRoundDecision {
-  const { vorigeKwaliteit, nieuweKwaliteit, ronde, repairMax, scoresTeLaag, openstaandeBevindingen } =
-    input;
+  const {
+    vorigeKwaliteit,
+    nieuweKwaliteit,
+    ronde,
+    repairMax,
+    scoresTeLaag,
+    openstaandeBevindingen,
+    vergelijking = null,
+  } = input;
 
   // Bij de allereerste reparatie van een pagina van vóór dit veld bestond is er
   // geen meetpunt: dan telt de ronde als verbetering, want zonder meetpunt is
   // "niet beter" een gok en geen vaststelling (conventie 3).
   const geenMeetpunt = vorigeKwaliteit === null || !Number.isFinite(vorigeKwaliteit);
+
+  // ── Gelijkspel: dan beslist het vergelijkende oordeel (optimalisatie 11) ──
+  //
+  // Twee cijfers van dezelfde beoordelaar die binnen drie punten van elkaar
+  // liggen, zeggen niets over welke tekst beter is: zijn niveau klopt, zijn
+  // ordening niet. In dat geval telt het antwoord op de vraag die hij wél
+  // betrouwbaar beantwoordt, namelijk welke van de twee een copywriter eerder
+  // zou versturen. Ligt het verschil buiten de marge, dan is het geen ruis meer
+  // en beslist de score, ook als het oordeel iets anders zegt.
+  const gelijkspel = !geenMeetpunt && binnenRuis(vorigeKwaliteit, nieuweKwaliteit);
+  if (gelijkspel && vergelijking) {
+    const beter = vergelijking === "nieuw";
+    return {
+      bewaarNieuweVersie: beter,
+      // Een volgende ronde alleen als deze ronde iets opleverde. Zei het
+      // oordeel dat de oude tekst beter was, dan heeft nog een poging op
+      // dezelfde bevindingen geen nieuwe informatie.
+      nogEenRonde: beter && (scoresTeLaag || openstaandeBevindingen > 0) && ronde < repairMax,
+    };
+  }
+
   const nietSlechter = geenMeetpunt || nieuweKwaliteit >= vorigeKwaliteit;
   const beterDanVorige = geenMeetpunt || nieuweKwaliteit > vorigeKwaliteit;
 

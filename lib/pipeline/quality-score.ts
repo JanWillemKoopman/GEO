@@ -41,6 +41,7 @@ import {
 } from "@/lib/pipeline/quality-dimensions";
 import { blokkerendeIssues, type QualityIssue } from "@/lib/pipeline/quality-issue";
 import { dimensiesVan, type ContentQualityProfile } from "@/lib/pipeline/quality-profile";
+import { binnenRuis, type VersieVoorkeur } from "@/lib/pipeline/content-repair-decision";
 
 export type QualityVerdict = "pass" | "repair" | "block";
 
@@ -299,10 +300,22 @@ export function kiesBesteVersie(kandidaten: readonly VersieKandidaat[]): VersieK
  * Geen meetpunt (score `null`) telt als "niet slechter": onbekend is geen
  * onvoldoende (conventie 3).
  */
-export function nietSlechterDan(nieuw: VersieKandidaat, beste: VersieKandidaat | null): boolean {
+export function nietSlechterDan(
+  nieuw: VersieKandidaat,
+  beste: VersieKandidaat | null,
+  /**
+   * Het vergelijkende oordeel tussen de twee versies (optimalisatie 11).
+   *
+   * Telt alleen bij een gelijkspel: gelijke blokkades én twee scores die binnen
+   * de ruismarge van de beoordelaar liggen. Blokkades gaan er altijd vóór, want
+   * die zijn geteld en niet beoordeeld.
+   */
+  vergelijking: VersieVoorkeur | null = null,
+): boolean {
   if (!beste) return true;
   if (nieuw.blokkades !== beste.blokkades) return nieuw.blokkades < beste.blokkades;
   if (nieuw.score === null || beste.score === null) return true;
+  if (vergelijking && binnenRuis(nieuw.score, beste.score)) return vergelijking === "nieuw";
   return nieuw.score >= beste.score;
 }
 

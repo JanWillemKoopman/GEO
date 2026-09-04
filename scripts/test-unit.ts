@@ -217,7 +217,7 @@ import {
 import { answerBelongsHere } from "@/lib/pipeline/answer-scope";
 import { stripChrome } from "@/lib/pipeline/page-text";
 import { prioriteerBevindingen, MAX_BEVINDINGEN_PER_RONDE } from "@/lib/pipeline/content-issues";
-import { beslisReparatieRonde } from "@/lib/pipeline/content-repair-decision";
+import { beslisReparatieRonde, binnenRuis } from "@/lib/pipeline/content-repair-decision";
 import { duplicatePromptIds } from "@/lib/pipeline/prompt-dedupe";
 import { dedupeCompetitorNames } from "@/lib/pipeline/competitor-dedupe";
 import { htmlToText } from "@/lib/pipeline/html-text";
@@ -20864,6 +20864,70 @@ group("optimalisatie 5 en 6: het vangnet rekent na of de opdracht is uitgevoerd"
   // op twee zinnen wordt afgerekend.
   ok("op een korte pagina telt minstens 400 tekens als vroeg", vroegeDeel("a".repeat(300)).length === 300);
   ok("op een lange pagina is het een vijfde", vroegeDeel("a".repeat(5000)).length === 1000);
+});
+
+group("optimalisatie 11: bij een gelijkspel beslist het vergelijkende oordeel", () => {
+  const basis = {
+    vorigeKwaliteit: 74,
+    ronde: 1,
+    repairMax: 3,
+    scoresTeLaag: true,
+    openstaandeBevindingen: 2,
+  };
+
+  // Zonder oordeel blijft alles precies zoals het was.
+  ok(
+    "twee punten hoger zonder oordeel: bewaren en doorgaan, net als voorheen",
+    beslisReparatieRonde({ ...basis, nieuweKwaliteit: 76 }).bewaarNieuweVersie &&
+      beslisReparatieRonde({ ...basis, nieuweKwaliteit: 76 }).nogEenRonde,
+  );
+
+  // Binnen de ruis wint het oordeel, in allebei de richtingen.
+  const ruisNieuw = beslisReparatieRonde({ ...basis, nieuweKwaliteit: 76, vergelijking: "nieuw" });
+  ok("het oordeel kiest de nieuwe versie", ruisNieuw.bewaarNieuweVersie && ruisNieuw.nogEenRonde);
+
+  const ruisHuidig = beslisReparatieRonde({ ...basis, nieuweKwaliteit: 76, vergelijking: "huidig" });
+  ok(
+    "twee punten hoger telt niet als het oordeel de oude tekst beter vindt",
+    !ruisHuidig.bewaarNieuweVersie,
+  );
+  ok("en dan volgt er geen ronde meer op dezelfde bevindingen", !ruisHuidig.nogEenRonde);
+
+  // ⚠️ De omgekeerde kant, en die is het punt van deze optimalisatie: een
+  // reparatie die twee punten LAGER scoort werd altijd weggegooid.
+  const lagerMaarBeter = beslisReparatieRonde({ ...basis, nieuweKwaliteit: 72, vergelijking: "nieuw" });
+  ok("twee punten lager mag blijven als het oordeel hem beter vindt", lagerMaarBeter.bewaarNieuweVersie);
+
+  // Buiten de marge beslist de score, wat het oordeel ook zegt.
+  const ruimHoger = beslisReparatieRonde({ ...basis, nieuweKwaliteit: 84, vergelijking: "huidig" });
+  ok("tien punten hoger is geen ruis meer, dus de score wint", ruimHoger.bewaarNieuweVersie);
+  const ruimLager = beslisReparatieRonde({ ...basis, nieuweKwaliteit: 60, vergelijking: "nieuw" });
+  ok("en veertien punten lager blijft een verslechtering", !ruimLager.bewaarNieuweVersie);
+
+  ok("drie punten is nog ruis", binnenRuis(74, 77) && binnenRuis(77, 74));
+  ok("vier punten niet meer", !binnenRuis(74, 78));
+  ok("en zonder meetpunt is er geen gelijkspel", !binnenRuis(null, 74) && !binnenRuis(74, null));
+
+  // Blokkades gaan altijd vóór het oordeel: die zijn geteld, niet beoordeeld.
+  const versie = (score: number, blokkades: number) => ({
+    ronde: 2,
+    score,
+    verdict: "repair" as const,
+    blokkades,
+    confidence: 90,
+  });
+  ok(
+    "een versie met een blokkade erbij verliest, ook als het oordeel hem beter vindt",
+    !nietSlechterDan(versie(76, 1), versie(74, 0), "nieuw"),
+  );
+  ok(
+    "en een blokkade minder wint, ook als het oordeel de oude tekst kiest",
+    nietSlechterDan(versie(70, 0), versie(80, 1), "huidig"),
+  );
+  ok(
+    "binnen de ruis en met gelijke blokkades beslist het oordeel",
+    !nietSlechterDan(versie(76, 0), versie(74, 0), "huidig"),
+  );
 });
 
 group("optimalisatie 7: een bewijspunt zegt ook waarom het voor deze lezer telt", () => {

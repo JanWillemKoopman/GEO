@@ -39,7 +39,7 @@ import type { ItemDossier } from "@/lib/schemas/item-dossier";
 import { formatContract } from "@/lib/pipeline/contract-format";
 import { answerBelongsHere } from "@/lib/pipeline/answer-scope";
 import { MAX_BEVINDINGEN_PER_RONDE } from "@/lib/pipeline/content-issues";
-import { beslisReparatieRonde } from "@/lib/pipeline/content-repair-decision";
+import { beslisReparatieRonde, binnenRuis } from "@/lib/pipeline/content-repair-decision";
 import { usdToEur } from "@/lib/spend-rules";
 import { applySectionPatch, splitSections } from "@/lib/pipeline/content-sections";
 import {
@@ -65,6 +65,7 @@ import { objectionsRule } from "@/lib/pipeline/commercial-context";
 import { vindKlantinstructies, instructieblok, verbiedtAdres } from "@/lib/klantinstructies";
 import { bewijspuntenblok, bewijspuntenBehoudblok } from "@/lib/pipeline/bewijspunten";
 import { maakSchrijfopdracht } from "@/lib/pipeline/writer-brief";
+import { vergelijkVersies } from "@/lib/pipeline/version-compare";
 import { bruikbareOpdracht, opdrachtblok } from "@/lib/schrijfopdracht";
 import type { WriterBrief } from "@/lib/schemas/writer-brief";
 import { vindCiteerbareAntwoorden, citatenblok } from "@/lib/pipeline/klantcitaten";
@@ -2382,16 +2383,55 @@ export async function reviseContentPiece(args: {
     blokkades: keuring.evaluatie.blokkades.length,
     confidence: keuring.evaluatie.confidence,
   };
-  const gewogenNietSlechter = nietSlechterDan(dezeVersie, besteTotNuToe);
+  // ── Bij een gelijkspel beslist een vergelijkend oordeel (optimalisatie 11) ─
+  //
+  // Twee cijfers van dezelfde beoordelaar die binnen drie punten van elkaar
+  // liggen, zeggen niets: zijn niveau klopt (0,14 punt van het menselijke
+  // oordeel) en zijn ordening niet (rangcorrelatie 0,29). Dan stellen we de
+  // vraag die hij wél betrouwbaar beantwoordt: welke van deze twee zou een
+  // copywriter eerder versturen?
+  //
+  // De aanroep gebeurt alleen bij dat gelijkspel. Verschillen de blokkades, dan
+  // beslist code en wordt er niets gevraagd; ligt het verschil buiten de ruis,
+  // dan telt de score. Zo kost deze stap alleen iets waar hij iets toevoegt,
+  // ongeveer $0,004.
+  const nieuweRedactioneel = keuring.panel.critique?.qualityScore ?? (vorigeKwaliteit ?? 0);
+  const gelijkeBlokkades =
+    besteTotNuToe === null || dezeVersie.blokkades === besteTotNuToe.blokkades;
+  const gelijkspel =
+    gelijkeBlokkades &&
+    (binnenRuis(vorigeKwaliteit, nieuweRedactioneel) ||
+      binnenRuis(dezeVersie.score, besteTotNuToe?.score ?? null));
+
+  const vergelijking = gelijkspel
+    ? await vergelijkVersies({
+        huidig: huidig.bodyMarkdown,
+        nieuw: final.bodyMarkdown,
+        opdracht: ctx.opdracht,
+        analysisId,
+        profileId: analysis.profile_id,
+        contentPieceId,
+      })
+    : null;
+  if (vergelijking) {
+    console.info(
+      `Contentpagina ${contentPieceId}, ronde ${ronde}: de scores liggen binnen de ruis, ` +
+        `het vergelijkende oordeel kiest de ${vergelijking.beter === "nieuw" ? "nieuwe" : "bestaande"} ` +
+        `versie. ${vergelijking.waarom}`,
+    );
+  }
+
+  const gewogenNietSlechter = nietSlechterDan(dezeVersie, besteTotNuToe, vergelijking?.beter ?? null);
 
   const { bewaarNieuweVersie: nietSlechterRedactioneel, nogEenRonde: redactioneelDoor } =
     beslisReparatieRonde({
       vorigeKwaliteit,
-      nieuweKwaliteit: keuring.panel.critique?.qualityScore ?? (vorigeKwaliteit ?? 0),
+      nieuweKwaliteit: nieuweRedactioneel,
       ronde,
       repairMax: REPAIR_MAX,
       scoresTeLaag,
       openstaandeBevindingen: openstaand.length,
+      vergelijking: vergelijking?.beter ?? null,
     });
 
   const nietSlechter = nietSlechterRedactioneel && gewogenNietSlechter;

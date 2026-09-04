@@ -7647,3 +7647,41 @@ productie.
 
 ⚠️ Ongeverifieerd (conventie 10). Dat de schrijfopdracht de tekst beter maakt en reparatierondes
 bespaart, is de verwachting van twee experts en van deze sessie, en geen meting.
+
+## 4 september 2026: bij een gelijkspel beslist niet langer de ruis (optimalisatie 11)
+
+Beide externe experts stelden voor om de beoordelaar vergelijkend te laten werken: welke van deze
+twee zou een goede copywriter eerder naar de klant sturen? Dat is voor een taalmodel een natuurlijker
+vraag dan een absoluut cijfer, en het sluit aan op wat we van onze beoordelaar weten. Zijn niveau
+klopt (0,14 punt van het menselijke oordeel), zijn ordening niet (rangcorrelatie 0,29).
+
+⚠️ **Zij dachten daarbij aan het kiezen tussen PAGINA'S** ("welke pagina verdient mijn dure
+reparatie"). Die keuze bestaat in deze app niet. `beslisReparatieRonde()` werkt per pagina, en de
+reparatie start zodra de score onder de drempel van het paginatype ligt of er een openstaande
+bevinding is. Er is geen wachtrij die pagina's tegen elkaar afweegt.
+
+Waar een vergelijkend oordeel wél rechtstreeks iets stuurt, is de keuze tussen twee VERSIES van
+dezelfde pagina, en die werd tot vandaag gemaakt door twee absolute cijfers van elkaar af te trekken
+die allebei van diezelfde beoordelaar komen. Twee punten verschil is bij die betrouwbaarheid ruis, en
+toch besliste het over welke tekst de klant krijgt en of er nog een ronde van $0,083 volgt.
+
+**De marge is 3 punten,** herleid uit de enige meting die er is: 0,14 punt op een schaal van 1 tot 5
+is 2,8 punt op de schaal van 0 tot 100 waarop hier gerekend wordt. Alles daarbinnen is ruis van de
+beoordelaar zelf. Gekozen op één meting, net als de zeven drempels van 3 september, dus het getal
+staat als constante met die herkomst erbij.
+
+**De aanroep draait alleen bij dat gelijkspel.** Verschillen de blokkades, dan beslist code en wordt
+er niets gevraagd: een versie met één blokkade minder is de betere, wat een model er ook van vindt.
+Ligt het verschil buiten de marge, dan telt de score. Daardoor kost deze stap alleen iets waar hij
+iets toevoegt, ongeveer $0,004, en dat is twintig keer minder dan de reparatieronde waarover hij
+beslist.
+
+Wat er hierdoor kan gebeuren en voorheen niet kon: een reparatie die twee punten LAGER scoort maar
+een concreet punt oplost, mag blijven staan. Dat is precies de reparatie die je wilt houden, en die
+werd tot vandaag weggegooid omdat het cijfer een fractie zakte.
+
+Vier controles groen: typecheck, 4345 unittests (13 nieuwe), 649 ketentests, build.
+
+⚠️ Ongeverifieerd (conventie 10). Dat het vergelijkende oordeel betrouwbaarder is dan het verschil
+tussen twee cijfers, is de verwachting van beide experts en volgt uit de gemeten rangcorrelatie. Het
+is niet nagemeten, en dat kan pas als er menselijke oordelen over versieparen liggen.

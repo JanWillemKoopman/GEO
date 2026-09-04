@@ -748,6 +748,18 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
   source_analysis: () => ({ sources: [], whatIsMissing: null }),
 
   /**
+   * Het vergelijkende oordeel tussen twee versies (optimalisatie 11).
+   *
+   * Kiest B, de gerepareerde versie: dat is het pad waarin de reparatie bewaard
+   * wordt, en dus het pad dat de keten moet kunnen laten zien. Draait alleen bij
+   * een gelijkspel, dus deze stub wordt niet in elke ronde aangeroepen.
+   */
+  version_compare: () => ({
+    beter: "B",
+    waarom: "De gerepareerde versie beantwoordt de vraag concreter en blijft even zorgvuldig.",
+  }),
+
+  /**
    * De schrijfopdracht (optimalisatie 5 en 6, migratie 0094).
    *
    * De F-nummers worden uit de feitenkaart in de prompt gelezen, net als bij
