@@ -74,6 +74,7 @@ import {
   ChartNoAxesCombined,
   Circle,
   CircleDashed,
+  CircleHelp,
   ClipboardCheck,
   Copy,
   Eye,
@@ -131,6 +132,7 @@ export type IcoonNaam =
   | "extern"
   | "kopieer"
   | "profiel"
+  | "help"
   | "meer"
   | "versleep"
   | "label"
@@ -213,6 +215,10 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   extern: ArrowUpRight,
   kopieer: Copy,
   profiel: UserRound,
+  // Een vraagteken in een cirkel: de standaardtekening voor hulp, en de enige
+  // in deze set die dat woord letterlijk uitbeeldt. Voor Support, rechtsboven
+  // in de bovenbalk, naast de andere iconen die over "jou" en het scherm gaan.
+  help: CircleHelp,
   // Drie puntjes: alles wat een rij kan, maar niet vaak genoeg om er ruimte
   // voor op te eisen. Het contentplan had per regel vijf zichtbare bedieningen
   // (twee pijlen, een keuzelijst, twee tekstlinks) en dat woog zwaarder dan de
