@@ -776,11 +776,18 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
       hoofdvraag: "Kan ik hiermee doorlopen of moet ik langskomen?",
       kernantwoord: "Kom langs voor een intake, dan weet je binnen een week waar je aan toe bent.",
       waaromDezePagina: "Een AI-assistent noemt bij deze vraag nu alleen andere praktijken.",
-      kernfeiten: kaart.slice(0, 3).map((f) => f.ref),
-      keuzeredenen: kaart.slice(0, 1).map((f) => ({
-        factRef: f.ref,
-        reden: "deze lezer wil snel duidelijkheid en kan daarom binnen 24 uur terecht",
-      })),
+      // ⚠️ Met OPZET in het formaat dat het echte model op 4 september 2026
+      // teruggaf: het hele feit in plaats van alleen het nummer, en een
+      // samengestelde verwijzing bij de keuzereden. De eerste versie van deze
+      // stub gaf keurige F-nummers terug en dekte daarmee de fout toe die alle
+      // zes de opdrachten van de eerste echte ronde weggooide.
+      kernfeiten: kaart.slice(0, 3).map((f) => `${f.ref}: ${f.text}`),
+      keuzeredenen: [
+        {
+          factRef: kaart.length > 1 ? `${kaart[0].ref} en ${kaart[1].ref}` : (kaart[0]?.ref ?? ""),
+          reden: "deze lezer wil snel duidelijkheid en kan daarom binnen 24 uur terecht",
+        },
+      ],
       eigenWoorden: "",
       moetErIn: ["wat de intake kost"],
       nietDoen: ["geen checklist om fysiotherapeuten te vergelijken"],

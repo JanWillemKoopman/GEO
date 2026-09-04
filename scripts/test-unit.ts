@@ -20829,6 +20829,66 @@ group("optimalisatie 5: een halve schrijfopdracht telt niet", () => {
   ok("zonder opdracht is het blok leeg", opdrachtblok(null) === "");
 });
 
+group("de schrijfopdracht overleeft het formaat dat het model echt teruggeeft", () => {
+  // ⚠️ Dit is de uitvoer van productie, 4 september 2026, letterlijk overgenomen
+  // uit `ai_calls`. De prompt vraagt om F-nummers en het model geeft het hele
+  // feit terug. De code vergeleek die string letterlijk met de nummers van de
+  // kaart, dus viel alles af en verviel de hele opdracht: zes van de zes
+  // pagina's van de eerste echte ronde schreven zonder opdracht.
+  const echteUitvoer = {
+    ...heleOpdracht,
+    kernfeiten: [
+      "F7: Bij zelf betalen kost de intake ongeveer 70 euro en een vervolgbehandeling ongeveer 60 euro.",
+      "F3: De praktijk heeft contracten met alle zorgverzekeraars.",
+      "F10: Of een behandeling wordt vergoed, hangt af van de polis.",
+    ],
+    keuzeredenen: [
+      { factRef: "F9 en F5", reden: "deze lezer wil vooraf weten waar hij aan toe is" },
+    ],
+  };
+
+  const kaart = ["F3", "F5", "F7", "F9", "F10"];
+  const hersteld = bruikbareOpdracht(echteUitvoer, kaart);
+  ok("de opdracht overleeft het nu", hersteld !== null);
+  ok(
+    "en de kernfeiten zijn teruggebracht tot hun nummer",
+    hersteld?.kernfeiten.join(",") === "F7,F3,F10",
+    JSON.stringify(hersteld?.kernfeiten),
+  );
+  ok(
+    "een samengestelde verwijzing valt terug op het eerste feit dat bestaat",
+    hersteld?.keuzeredenen[0]?.factRef === "F9",
+  );
+
+  // Het vangnet zelf blijft staan: een nummer dat niet op de kaart staat, telt
+  // niet mee, en onder de drie kernfeiten vervalt de opdracht alsnog.
+  ok(
+    "een verzonnen nummer telt niet mee",
+    bruikbareOpdracht({ ...echteUitvoer, kernfeiten: ["F7", "F800", "F900"] }, kaart) === null,
+  );
+  ok(
+    "en een reden op een verzonnen nummer vervalt",
+    bruikbareOpdracht(
+      { ...echteUitvoer, keuzeredenen: [{ factRef: "F900", reden: "iets" }] },
+      kaart,
+    ) === null,
+  );
+
+  // Zonder kaart wordt alleen het formaat opgeschoond. Dat is het pad waarlangs
+  // een opgeslagen opdracht wordt teruggelezen: de kaart van toen is er niet
+  // meer, en dan is filteren op geldigheid niet mogelijk en ook niet nodig.
+  const teruggelezen = bruikbareOpdracht(echteUitvoer);
+  ok("zonder kaart blijft de opdracht bruikbaar", teruggelezen !== null);
+  ok("en is het formaat nog steeds opgeschoond", teruggelezen?.kernfeiten[0] === "F7");
+
+  // Dubbele nummers over twee regels leveren geen dubbel kernfeit op.
+  const dubbel = bruikbareOpdracht(
+    { ...echteUitvoer, kernfeiten: ["F7: iets", "F7 nogmaals", "F3", "F10"] },
+    kaart,
+  );
+  ok("hetzelfde feit twee keer telt één keer", dubbel?.kernfeiten.join(",") === "F7,F3,F10");
+});
+
 group("optimalisatie 5 en 6: het vangnet rekent na of de opdracht is uitgevoerd", () => {
   const opdracht = bruikbareOpdracht(heleOpdracht)!;
   const goedeTekst =

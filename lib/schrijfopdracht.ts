@@ -27,6 +27,7 @@
  */
 import { betekenisStaatInTekst } from "@/lib/pipeline/bewijspunten";
 import { bepaalLezersopdracht } from "@/lib/lezersopdracht";
+import { splitRefs } from "@/lib/pipeline/factcard";
 import type { WriterBrief } from "@/lib/schemas/writer-brief";
 
 /**
@@ -60,7 +61,17 @@ const VROEG_MINIMUM = 400;
  * "wat moet erin" en "wat niet" zijn prioriteiten, en een lege lijst is daar
  * een geldig antwoord (zelfde afspraak als bij het itemdossier).
  */
-export function bruikbareOpdracht(brief: Partial<WriterBrief> | null | undefined): WriterBrief | null {
+export function bruikbareOpdracht(
+  brief: Partial<WriterBrief> | null | undefined,
+  /**
+   * De F-nummers die op de feitenkaart staan (optimalisatie 5, hersteld op
+   * 4 september 2026). Meegeven betekent: gooi verwijzingen weg die nergens
+   * naar wijzen. Weglaten betekent: alleen het formaat opschonen, en dat is wat
+   * je wilt bij het TERUGLEZEN van een opgeslagen opdracht, want de kaart van
+   * toen is er niet meer.
+   */
+  geldigeRefs?: readonly string[],
+): WriterBrief | null {
   if (!brief || typeof brief !== "object") return null;
 
   const tekst = (v: unknown) => (typeof v === "string" ? v.trim() : "");
@@ -81,13 +92,40 @@ export function bruikbareOpdracht(brief: Partial<WriterBrief> | null | undefined
   // alleen het onbruikbare tegen.
   if (!lezerOordeel.noemtPersoon && !lezerOordeel.noemtSituatie) return null;
 
-  const kernfeiten = (brief.kernfeiten ?? [])
-    .map((f) => tekst(f).toUpperCase())
-    .filter(Boolean)
+  // ── ⚠️ HET FORMAAT EERST OPSCHONEN, DAN PAS OORDELEN ────────────────────
+  //
+  // Dit ging op 4 september 2026 mis op productie, bij alle zes de pagina's van
+  // de eerste echte ronde. De prompt vraagt om F-nummers, en het model gaf het
+  // hele feit terug: "F7: Bij zelf betalen kost de intake ongeveer 70 euro".
+  // Bij `keuzeredenen` stond er soms een samengestelde verwijzing, "F9 en F10".
+  //
+  // De code vergeleek die strings LETTERLIJK met de nummers van de kaart, dus
+  // viel elke verwijzing af, bleven er nul kernfeiten over, en verviel de hele
+  // opdracht op de eis van minstens drie. Zes keer een aanroep betaald, zes
+  // keer een bruikbare opdracht weggegooid op een opmaakverschil.
+  //
+  // `splitRefs()` uit `factcard.ts` doet precies wat hier nodig is en bestond
+  // al: hij haalt elk voorkomen van F gevolgd door een getal uit een string en
+  // ontdubbelt ze. Dezelfde functie die de reparatieopdracht gebruikt, dus één
+  // definitie van "welk feit bedoel je" in plaats van twee.
+  const geldig = new Set((geldigeRefs ?? []).map((r) => (r ?? "").trim().toUpperCase()).filter(Boolean));
+  const bestaat = (ref: string) => geldig.size === 0 || geldig.has(ref);
+
+  const kernfeiten = Array.from(
+    new Set((brief.kernfeiten ?? []).flatMap((f) => splitRefs(tekst(f)))),
+  )
+    .filter(bestaat)
     .slice(0, MAX_KERNFEITEN);
+
   const keuzeredenen = (brief.keuzeredenen ?? [])
-    .filter((k) => tekst(k?.factRef) && tekst(k?.reden))
-    .map((k) => ({ factRef: tekst(k.factRef).toUpperCase(), reden: tekst(k.reden) }))
+    .map((k) => ({
+      // Bij een samengestelde verwijzing wint het eerste deel dat bestaat,
+      // dezelfde regel als in `resolveFactId()`: dat is het feit waar de reden
+      // op rust.
+      factRef: splitRefs(tekst(k?.factRef)).find(bestaat) ?? "",
+      reden: tekst(k?.reden),
+    }))
+    .filter((k) => k.factRef && k.reden)
     .slice(0, 3);
 
   if (!hoofdvraag || !kernantwoord || !waaromDezePagina || !blijftHangen) return null;
