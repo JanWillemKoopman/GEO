@@ -6,10 +6,10 @@
  * Elke echte doorloop op productie tot nu toe (de klantreis van 31 augustus, de
  * contentronde van Gasservice Brabant op 1 september, de technische audit van
  * 2 september) is gedaan door met de hand in te loggen bij de Auth-API, de
- * sessie in een cookie te frommelen en die met `curl` mee te sturen. Die
- * werkwijze stond als één alinea in `docs/tasks/herstelplan-na-audit.md`, en
- * werd daardoor elke sessie opnieuw uitgevonden, met het wachtwoord erbij in de
- * repo omdat dat de makkelijkste plek leek.
+ * sessie in een cookie te zetten en die met `curl` mee te sturen. Die werkwijze
+ * stond als één alinea in een takenbestand dat inmiddels weg is, en werd
+ * daardoor elke sessie opnieuw uitgevonden, met het wachtwoord erbij in de repo
+ * omdat dat de makkelijkste plek leek.
  *
  * Twee dingen worden hier beter van. Het is één commando in plaats van vier
  * stappen die je fout kunt doen, en het wachtwoord komt uit de omgeving in
@@ -54,7 +54,15 @@ import { join } from "node:path";
 // .env.local heeft voorrang op .env, zoals Next.js dat ook doet.
 loadEnv({ path: ".env.local", override: true });
 
-/** De productieomgeving. Zie `docs/tasks/herstelplan-na-audit.md` §3. */
+/**
+ * De productieomgeving.
+ *
+ * ⚠️ Niet `geo-janwillemkoopmans-projects.vercel.app`: dat adres bestaat, maar
+ * staat achter Vercel Deployment Protection en geeft op élke route een 302 naar
+ * `vercel.com/sso-api`. Wie dat test, concludeert ten onrechte dat de app
+ * onbereikbaar is. Dat is op 3 september 2026 gebeurd en heeft een hele
+ * benchmarkronde opgehouden.
+ */
 const STANDAARD_BASE_URL = "https://geo-ten-blush.vercel.app";
 const STANDAARD_SUPABASE_URL = "https://kosauqzjbpweluiqgmwv.supabase.co";
 
