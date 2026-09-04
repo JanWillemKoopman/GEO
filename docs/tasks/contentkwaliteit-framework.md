@@ -44,6 +44,27 @@ hieronder is geschat.
 
 ---
 
+> ## ⚠️ Stand op 3 september 2026, ná de echte ronde: de poort hield alles tegen
+>
+> De ronde is wél gedraaid, met twee echte bedrijven, vier clusters en twaalf pagina's ($10,97, nul
+> mislukte taken). **Alle twaalf pagina's kwamen eruit met `verdict: block`.** Een poort die honderd
+> procent tegenhoudt zegt niets meer, en hij liet ondertussen zestien betaalde reparatierondes
+> draaien tegen bevindingen die geen enkele herschrijving kon oplossen.
+>
+> Twee oorzaken zijn gerepareerd (**R0** en **R0b** in §10 hieronder), één staat nog open
+> (**R0c**: het schrijfmodel tagt maar een deel van wat het beweert, en wat het niet tagt,
+> blokkeert). Er is ook een goedkope **herkeuring** bijgekomen (migratie 0092): dezelfde tekst
+> opnieuw beoordelen kost ongeveer $0,013 in plaats van ongeveer $1,00 voor opnieuw schrijven.
+>
+> **De twaalf pagina's zijn nog niet herkeurd**, want de reparaties staan op een branch en de werker
+> draait alleen wat op `main` staat. Nagemeten op de opgeslagen bevindingen blijven er van de 62
+> blokkades bij MJB 37 over, dus verwacht niet dat ze na de herkeuring groen zijn.
+>
+> **Begin bij `docs/tasks/overdracht-contentkwaliteit.md`**: daar staat de volgorde van de
+> eerstvolgende stappen.
+
+---
+
 ## 1. Architectuuroverzicht: waar de veertien fases in de code staan
 
 | Fase (uit `processtappen-nieuwe-pagina.md`) | Waar het staat | AI? |
@@ -590,8 +611,35 @@ woorden als "beschikbaarheid" en "contactmogelijkheden". Wat blijft staan is wat
 staan: "MJB Dakservice reageert binnen 24 uur op de aanvraag", "Niet elke vochtplek vereist
 24-uursservice".
 
-De resterende zinnen zijn wél echte, ongetagde uitspraken over het bedrijf. Dat is een derde vraag:
-het schrijvende model tagt maar een deel van wat het beweert.
+De resterende zinnen zijn wél echte, ongetagde uitspraken over het bedrijf. Dat is R0c hieronder.
+
+### R0c. Elke ongetagde zin is een blokkade, en dat is de derde oorzaak (open)
+
+Na R0 en R0b blijven er bij MJB 37 van de 62 blokkades staan. Dat zijn geen fragmenten en geen
+oproepen tot actie, maar zinnen die echt iets over het bedrijf zeggen en die het schrijvende model
+nooit als bewering heeft aangemeld. Bijvoorbeeld "MJB Dakservice reageert binnen 24 uur op de
+aanvraag" en "Niet elke vochtplek vereist 24-uursservice".
+
+Dat de code die zinnen ziet, is precies het punt van S3 en moet zo blijven: de twee fabricages van
+31 juli ontsnapten aan élke controle door níet aangemeld te worden. Wat ter discussie staat is niet
+het detecteren maar de **strafmaat**. `quality-collect.ts` maakt van elke ongetagde bewerende zin een
+BLOKKADE met `confidence: ZEKER`, en met tientallen zulke zinnen per pagina is het oordeel daarmee
+altijd `block`.
+
+Twee richtingen, en de tweede lijkt de betere:
+
+1. **Het schrijfmodel meer laten taggen.** Maar een promptinstructie is een intentie en code is een
+   garantie (conventie 1). Dit leunt op precies wat de rest van dit raamwerk niet wil.
+2. **Onderscheid maken naar signaal.** Een ongetagde zin mét de merknaam erin is de gevaarlijke
+   categorie, want dat is de vorm waarin beide fabricages vielen: die blijft blokkerend. Een zin
+   waarvan het enige signaal een cijfer of een toezeggingswoord is, wordt `hoog` zonder te
+   blokkeren. Dan blijft hij zichtbaar voor de klant en voor de reparatieronde, maar houdt hij de
+   pagina niet tegen.
+
+⚠️ **Eerst meten, dan beslissen.** Na de herkeuring van de twaalf pagina's is bekend hoeveel er
+werkelijk overblijft en welk aandeel daarvan de merknaam draagt. Die verdeling bepaalt of richting 2
+genoeg is. Toets elke wijziging tegen de bestaande test op de Van der Valk- en Fysi-Unique-zinnen:
+de eerste poging tot R0b brak die bescherming, en alleen die test ving het.
 
 ### De goedkope herkeuring (gebouwd 3 september 2026, migratie 0092)
 
@@ -619,12 +667,17 @@ Dit was ook los van R0 nodig: de klant kan zijn eigen tekst aanpassen, en dan bl
 staan op de tekst van vóór die bewerking. Er stond "klaar voor publicatie" onder een tekst die
 niemand beoordeeld had. Dat was de uitzondering die in R5 al genoteerd stond.
 
-**Nog te doen.**
+**Nog te doen**, op volgorde. De uitgeschreven versie staat in
+`docs/tasks/overdracht-contentkwaliteit.md` §5.
 
-- De drie splitsers samenvoegen tot één, mét een test die bewijst dat de andere twee call sites
-  dezelfde uitkomst houden.
-- De herkeuring automatisch aftrappen zodra de klant zijn tekst bewerkt (`PATCH .../content/[pieceId]`).
-  De stap bestaat nu, hij wordt alleen nog met de hand gestart.
+1. Deze branch naar `main`, anders draait de werker de oude code.
+2. De twaalf pagina's herkeuren (vier aanroepen, ongeveer $0,16) en tellen wat er overblijft.
+3. R0c beslissen op basis van die telling.
+4. Pas daarna ijken (R5).
+5. De drie splitsers samenvoegen tot één, mét een test die bewijst dat de andere twee call sites
+   dezelfde uitkomst houden.
+6. De herkeuring automatisch aftrappen zodra de klant zijn tekst bewerkt (`PATCH .../content/[pieceId]`).
+   De stap bestaat nu, hij wordt alleen nog met de hand gestart.
 
 ### R5. Fase F: ijking, caching en incrementele evaluatie (punt 19 en 28)
 

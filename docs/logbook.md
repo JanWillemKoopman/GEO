@@ -7023,3 +7023,27 @@ echte cijfers onder `TrendChart` staan.
 zijn niet meer nagebouwd. `renderToStaticMarkup` rendert de échte componenten met verzonnen data
 naar HTML, en die HTML gaat door de echte `app/globals.css`. Wat op het beeld staat is dus letterlijk
 `TrendChart`, `PagesTrafficChart` en `ClusterVisibilityGrid` zoals de klant ze krijgt.
+
+## 3 september 2026: de overdracht van het kwaliteitsraamwerk
+
+De sessie eindigt met een poort die alle twaalf benchmarkpagina's tegenhoudt, twee gerepareerde
+oorzaken en één open oorzaak. Dat is een toestand die je niet in een chatgeschiedenis moet laten
+zitten, dus staat hij in `docs/tasks/overdracht-contentkwaliteit.md`: wat er is, wat aantoonbaar
+niet werkt, de vier profiel- en cluster-id's op productie, en de volgorde van de eerstvolgende
+stappen. `README.md` wijst er als startpunt naar.
+
+Drie dingen die in die overdracht staan en makkelijk verloren gaan:
+
+- **De twaalf pagina's zijn nog niet herkeurd.** De reparaties staan op een branch, en de werker
+  draait alleen wat op `main` staat. Zolang dat zo is, staan de oude oordelen er nog.
+- **Verwacht na de herkeuring geen groene pagina's.** Nagemeten blijven er van de 62 blokkades bij
+  MJB 37 over. Het doel van de herkeuring is meten hoeveel, niet hopen op nul.
+- **De bedragen in die twaalf pagina's zijn verzonnen** door de plaatsvervangende klant. Het
+  werkgebied, de garanties en het telefoonnummer komen echt van de sites van die twee bedrijven, de
+  prijzen niet. Ze meten dus hoe de app met een gegeven antwoord omgaat, niet of het antwoord klopt.
+
+`herstelplan-na-audit.md` is op `main` verwijderd terwijl deze branch hem nog bijwerkte. De
+verwijdering is overgenomen; de twee verwijzingen in `scripts/live.ts` zijn vervangen door de feiten
+zelf, waaronder de waarschuwing dat `geo-janwillemkoopmans-projects.vercel.app` achter Vercel
+Deployment Protection staat en dus niet het productieadres is. Dat adres testen heeft op 3 september
+een halve ronde opgehouden.
