@@ -191,7 +191,7 @@ export function ClusterKaart({
                 <div
                   role="menu"
                   aria-label={`Acties voor ${analyse.name}`}
-                  className="absolute right-0 top-full z-30 mt-1 w-64 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-1 text-left"
+                  className="menu-surface absolute right-0 top-full z-30 mt-1 w-64 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)] p-1 text-left"
                   style={{ boxShadow: "var(--shadow-overlay)" }}
                 >
                   <div className="px-2 pb-1 pt-1.5">

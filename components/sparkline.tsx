@@ -1,3 +1,5 @@
+import { vloeiendPad } from "@/lib/chart-curve";
+
 /**
  * Een lijntje van een handvol punten, zonder assen.
  *
@@ -21,6 +23,14 @@
  * De schaal is vast 0 tot 100, net als bij `TrendChart`. De score ís een
  * percentage, en een meeschalende y-as maakt van een verschil van drie punten
  * een dramatische klim.
+ *
+ * ── GEEN ASLABEL, OM DEZELFDE REDEN (3 september 2026) ──────────────────────
+ *
+ * De twee grote grafieken kregen op die datum een zin bij de as die zegt wat de
+ * hoogte betekent. Hier komt die niet: dit lijntje is 96 bij 24 pixels en heeft
+ * geen as om te labelen. Wat het voorstelt staat naast het lijntje, in de kop
+ * van het kaartje (de clusternaam) en in het getal ernaast, en voor wie
+ * voorleest staat het voluit in `aria-label`.
  */
 const W = 96;
 const H = 24;
@@ -46,11 +56,15 @@ export function Sparkline({
   }
 
   const stap = (W - PAD * 2) / (values.length - 1);
-  const punten = values.map((v, i) => {
-    const x = PAD + i * stap;
-    const y = PAD + (1 - Math.min(100, Math.max(0, v)) / 100) * (H - PAD * 2);
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  });
+  const punten = values.map((v, i) => ({
+    x: PAD + i * stap,
+    y: PAD + (1 - Math.min(100, Math.max(0, v)) / 100) * (H - PAD * 2),
+  }));
+  // Vloeiend en niet hoekig, zelfde ronding als de grote grafieken. Op 24 pixels
+  // hoogte is dit het verschil tussen een zigzagje en een verloop, en omdat de
+  // ronding monotoon is (`lib/chart-curve.ts`) kan hij hier niet buiten het
+  // vlakje van 0 tot 100 klimmen.
+  const lijn = vloeiendPad(punten);
 
   const laatste = values[values.length - 1];
   const laatsteY = PAD + (1 - Math.min(100, Math.max(0, laatste)) / 100) * (H - PAD * 2);
@@ -64,8 +78,8 @@ export function Sparkline({
       aria-label={`${label}: verloop over ${values.length} periodes, nu ${Math.round(laatste)}`}
       className="shrink-0"
     >
-      <polyline
-        points={punten.join(" ")}
+      <path
+        d={lijn}
         fill="none"
         stroke="var(--chart-own)"
         strokeWidth={1.5}

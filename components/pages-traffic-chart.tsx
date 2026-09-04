@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import type { DagPunt } from "@/lib/search-console/metrics";
+import { vloeiendPad } from "@/lib/chart-curve";
 
 /**
  * Klikken op onze eigen pagina's, met een verticale markering per
@@ -22,7 +23,15 @@ import type { DagPunt } from "@/lib/search-console/metrics";
  */
 const W = 760;
 const H = 220;
-const PAD = { top: 16, right: 20, bottom: 30, left: 44 };
+// Ruimer aan de boven- en onderkant dan de grafiek zelf nodig heeft: daar staan
+// sinds 3 september 2026 de twee aslabels in gewone taal.
+const PAD = { top: 32, right: 20, bottom: 46, left: 44 };
+
+/* Wat de hoogte en de breedte betekenen, in de taal van de klant. Welke
+   pagina's het zijn staat al in de kop van de kaart ("Klikken op onze
+   pagina's"); wat hier ontbrak is de eenheid, dus die zegt dit label. */
+const Y_AS_LABEL = "Aantal klikken per dag";
+const X_AS_LABEL = "Dag";
 
 export function PagesTrafficChart({
   dagen,
@@ -55,13 +64,16 @@ export function PagesTrafficChart({
   }
 
   const { x, y, maxKlik, eerste, laatste } = meetkunde;
-  const punten = dagen.map((d) => `${x(d.day).toFixed(1)},${y(d.clicks).toFixed(1)}`).join(" ");
+  // Vloeiend en niet hoekig, met dezelfde monotone ronding als de trendlijn:
+  // zie `lib/chart-curve.ts`. Hier telt dat extra, want klikken kunnen niet
+  // onder nul en een doorschietende bocht zou dat wel tekenen.
+  const lijn = vloeiendPad(dagen.map((d) => ({ x: x(d.day), y: y(d.clicks) })));
   const markeringen = publicatiedata.filter((p) => dag(p) >= eerste && dag(p) <= laatste);
 
   return (
     <div className="card flex flex-col gap-2">
       <span className="mono-label">Klikken op onze pagina&apos;s</span>
-      <svg width="100%" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Klikken per dag op de pagina's die ORBIT ENGINE publiceerde, met een streep per publicatiemoment">
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Klikken per dag op de pagina's die ORBIT ENGINE publiceerde, met een streep per publicatiemoment. Horizontaal: ${X_AS_LABEL.toLowerCase()}. Verticaal: ${Y_AS_LABEL.toLowerCase()}.`}>
         {[0, 0.5, 1].map((f) => (
           <line
             key={f}
@@ -83,15 +95,42 @@ export function PagesTrafficChart({
             strokeDasharray="3 3"
           />
         ))}
-        <polyline points={punten} fill="none" stroke="var(--chart-2)" strokeWidth={2} strokeLinejoin="round" />
-        <text x={PAD.left} y={H - 8} className="fill-[var(--text-muted)] text-[10px]">
+        <path
+          d={lijn}
+          fill="none"
+          stroke="var(--chart-2)"
+          strokeWidth={2}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        <text x={PAD.left} y={H - PAD.bottom + 16} className="fill-[var(--text-muted)] text-[10px]">
           {formatKort(dagen[0].day)}
         </text>
-        <text x={W - PAD.right} y={H - 8} textAnchor="end" className="fill-[var(--text-muted)] text-[10px]">
+        <text
+          x={W - PAD.right}
+          y={H - PAD.bottom + 16}
+          textAnchor="end"
+          className="fill-[var(--text-muted)] text-[10px]"
+        >
           {formatKort(dagen[dagen.length - 1].day)}
         </text>
         <text x={PAD.left - 6} y={PAD.top + 4} textAnchor="end" className="fill-[var(--text-muted)] text-[10px]">
           {maxKlik}
+        </text>
+
+        {/* De twee aslabels. `aria-hidden` omdat de aria-label van de svg
+            hetzelfde al voorleest. */}
+        <text x={PAD.left - 26} y={14} className="fill-[var(--text-muted)] text-[10px]" aria-hidden>
+          {Y_AS_LABEL}
+        </text>
+        <text
+          x={PAD.left + (W - PAD.left - PAD.right) / 2}
+          y={H - 8}
+          textAnchor="middle"
+          className="fill-[var(--text-muted)] text-[10px]"
+          aria-hidden
+        >
+          {X_AS_LABEL}
         </text>
       </svg>
       {markeringen.length > 0 && (

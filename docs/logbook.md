@@ -34,6 +34,7 @@ verwijzing in de code straks nergens meer heen.
 | `Nova.md` | InSpace Nova gereconstrueerd, de gap-analyse en het achtfasenbouwplan dat daaruit volgde | Bouwplan afgebouwd, zie de secties hieronder per fase. Zelf verwijderd op 17 augustus 2026, de citaten die er verderop in dit logboek nog naar verwijzen zijn historisch en blijven staan zoals ze geschreven zijn. De richting daarna staat in `visie.md` |
 | `tasks/mijn-reputatie.md` (en de leesbare versie ernaast, `tasks/mijn-reputatie.html`) | Het product- en implementatieplan voor de reputatieanalyse: waarom een los product, de vier vragen aan ChatGPT, de oordeelslaag, het datamodel en de rekensom over de kosten | Alle vijf sprints (R1 t/m R5) gebouwd en op drie echte runs geverifieerd, zie de zeven secties hieronder van 22 en 23 augustus 2026. Het datamodel zelf staat in de migraties `0062` t/m `0064`, de pijplijnstap in `architecture.md` §6 rij 21, de code in `lib/reputation/` en `lib/pipeline/reputation-*.ts`. Verwijderd 23 augustus 2026, toen R5 geverifieerd was |
 | `tasks/doorloop-huyberts.md` | De zes punten uit de eerste volledige klantdoorloop van 26 augustus 2026, met per punt de bestanden, de aanpak en het verificatiecriterium, testklant Huyberts Keukens als bewijsmateriaal | Alle zes punten en de twee kleinere punten afgehandeld, zie "26 augustus 2026: de zes punten uit de doorloop afgewerkt" hieronder. Migratie `0066`, `docs/architecture.md` §9 (opnieuw doorgerekend), `docs/tasks/roadmap.md` (het opengebleven structurele vervolg op punt 6). Verwijderd 26 augustus 2026 |
+| `tasks/herstelplan-na-audit.md` T1 t/m T9 | Het herstelplan na de technische audit van 2 september 2026: negen taken, van de contentkwaliteit-lus tot de wachttijd | T1, T3 t/m T9 gebouwd en nagerekend, zie de acht alinea's van 2 en 3 september 2026 hieronder ("het herstelplan na de audit, T1" t/m "..., T9"). T2 (de beoordelingsset voor contentkwaliteit) is door de eigenaar geschrapt, zie de alinea eronder. Verwijderd 3 september 2026 |
 
 De volledige originelen staan in de git-historie (laatste versie: de commit vóór de
 documentatie-herstructurering).
@@ -6595,6 +6596,53 @@ falen terwijl hij op `main` nog groen was. Bevestigd door de wijziging tijdelijk
 (`lib/pipeline/dash-guard.ts`). Dit is precies waarom conventie 10 (nagerekend, niet alleen gebouwd)
 een reparatielus in de eigen werkwijze is en niet alleen een eis aan het product.
 
+## 2 september 2026: het herstelplan na de audit, T7, de database leeggemaakt
+
+**Het plan noemde zestien merken, het waren er zeventien**: er kwam na het schrijven van het plan nog
+een testmerk bij ("AUDITTEST geweigerde site", 15:46 uur). Eerst een volledige telling gemaakt en aan
+de eigenaar laten zien voordat er iets verwijderd is (onomkeerbaar, conventie in de werkwijze bij
+zulke acties), met expliciet akkoord per account: het account van de eigenaar zelf
+(`koopman.janwillem@gmail.com`) en de twee testaccounts (`e2e-consultant@orbit-test.nl`,
+`e2e-klant@orbit-test.nl`) blijven bestaan met hun inlog, alleen de merken erin zijn weg;
+`huyberts@example.com` had geen naam in het plan staan als "blijft staan" en is op verzoek van de
+eigenaar volledig verwijderd, account én inlog.
+
+Weg: 17 merken, 23 analyses, 839 metingen, 53 geschreven pagina's, 286 taken, 2270 betaalde
+AI-aanroepen, 262 feitverzoeken, 22 rapporten, en de 51 restrijen in `_backup_20260729` die bij deze
+merken hoorden (nu 0 over). Tandartspraktijk de Kroon, het echte bedrijf dat geen klant is en hier
+nooit om gevraagd heeft, is mee verwijderd inclusief de vier verzonnen testantwoorden en de twee
+ingeplande hermetingen van 16 en 30 september (die anders tegen een verwijderd merk waren aangelopen).
+
+Gebruikt: de bestaande route `lib/deletion.ts` voor het account `huyberts@example.com`
+(profielen, account en inlog in één stap, zoals de app het zelf ook zou doen); voor de drie te
+behouden accounts een verwijdering op profielniveau, want `deleteAccount()` verwijdert het account
+zelf en dat mocht daar juist niet. Dezelfde volgorde als de bestaande route: eerst de momentopnamen
+in `_backup_20260729` opruimen, dan de merken (cascade neemt de rest mee), dan pas het account of de
+inlog.
+
+Nagerekend na afloop: 0 merken over, 0 restrijen in `_backup_20260729`, 0 taken die nog naar een
+verwijderd merk wijzen, en precies de drie verwachte accounts met inlog. De schermen die een lege
+database moeten laten zien (`/merk`, `/beheer`) zijn in de code nagelopen: beide hebben een expliciete
+lege staat en geen optelling die op een lege lijst breekt. Niet in een browser getest, deze sessie
+heeft geen netwerktoegang tot Vercel; dat is de ene stap uit het plan die nog met eigen ogen bevestigd
+moet worden.
+
+## 2 september 2026: het herstelplan na de audit, T6, het vangnet op de mention-classificatie geborgd
+
+De controlequery uit T6 gaf na T7 op alle drie de tellingen 0: er was niets meer om te herbeoordelen,
+want de elf en zes foutgemeten antwoorden uit de audit hoorden allemaal bij testmerken die net
+verwijderd zijn. Geen enkele betaalde aanroep nodig geweest, precies zoals het plan voorzag.
+
+Wat overbleef was de les uit het plan zelf: een reparatie aan de meting moet ook tegen wegvallen
+beschermd zijn. Het vangnet zelf (`m.mentioned && candidateNames.some(...)` in
+`lib/pipeline/measure.ts`) had geen enkele test, alleen de tekstcontrole eronder
+(`textContainsName`) was al gedekt. Losgetrokken naar `mentionSurvivesTextGuard()` in
+`lib/entities/normalize.ts` (puur, conventie 2) en getest op precies het scenario uit de audit: het
+model zegt "genoemd" maar de naam staat niet in de tekst, moet toch niet genoemd tellen, en het
+omgekeerde (model zegt "niet genoemd" terwijl de naam er wél staat) moet niet genoemd blijven. Een
+latere refactor die `m.mentioned` weer rechtstreeks doorgeeft, laat deze test nu falen in plaats van
+stil te verdwijnen.
+
 ---
 
 ## Een pagina met 91 punten kan onpubliceerbaar zijn (3 september 2026, migratie 0091)
@@ -6792,3 +6840,186 @@ rust. En de versiekeuze slaat herkeuringen over, want er is niets herschreven om
 Dit was ook los van R0 nodig: de klant kan zijn eigen tekst aanpassen, en dan bleef het oordeel
 staan op de tekst van vóór die bewerking. Er stond "klaar voor publicatie" onder een tekst die
 niemand beoordeeld had.
+## 3 september 2026: het herstelplan na de audit, T9, de wachttijd, al opgelost vóór de audit
+
+T9 vroeg uit te zoeken of contentgeneratie (`content_draft`/`content_revise`) net als de
+reputatietaken meer dan één tegelijk mag draaien, met een meting vooraf en achteraf als bewijs. Bij
+het nalopen bleek dat al gebouwd: sinds 1 september 14:27 uur (commit `0ab729c`, "De contentpijplijn:
+een contract per item, een beoordelaarspanel en gerichte reparatie", ruim vóór deze audit) staan
+`content_draft`, `content_revise` en `content_plan` in een nieuwe `PARALLEL_CONTENT_TYPES`
+(`lib/jobs/types.ts`), en `lib/jobs/worker.ts` draait ze per drie tegelijk met de volle reservering
+per groep (docs/tasks/contentpijplijn-herontwerp.md A10). Precies de richting die T9 vroeg, en al met
+een eigen test (`scripts/test-unit.ts`).
+
+Het cijfer uit de audit (2533 seconden gemiddeld wachten) is dus vermoedelijk het gemiddelde over
+vooral taken van vóór die reparatie: de controlequery telt de hele geschiedenis. Een "ná"-meting met
+dezelfde query kon deze sessie niet leveren: T7 heeft de taakgeschiedenis inmiddels leeggemaakt, en er
+is sindsdien geen nieuwe productieronde geweest om te meten. Dat cijfer komt vanzelf zodra een klant
+weer een pagina laat schrijven.
+
+Eén kanttekening zonder wijziging: de toelichting bij `CONTENT_PARALLELISM = 3` rekent nog met "drie
+beoordelaars" per pagina; sinds gisteren (migratie 0091, het kwaliteitsraamwerk) zijn dat er vier
+(`runPanel()` in `lib/pipeline/content-panel.ts`). De rekensom komt toevallig nog steeds op hetzelfde
+maximum uit (de vier beoordelaars draaien gelijktijdig ná het schrijven, nooit ermee samen, dus het
+echte piekgebruik blijft drie pagina's × vier beoordelaars), maar de tekst zelf is achterhaald. Niet
+aangepast: dat bestand hoort niet bij dit herstelplan en is gisteren door een andere sessie
+opgeleverd.
+
+Met T9 is het herstelplan na de audit van 2 september 2026 klaar op T2 na (de beoordelingsset voor
+contentkwaliteit, stilliggend zolang deze sessie geen netwerktoegang tot Supabase/Vercel heeft).
+
+## 3 september 2026: T2 geschrapt, het herstelplan na de audit is af
+
+De eigenaar heeft T2 (de beoordelingsset voor contentkwaliteit, `eval:content`) geschrapt: dit wordt
+niet meer uitgevoerd. Reden niet toegelicht in deze sessie; de meetlat voor schrijfkwaliteit
+waarnaar T2 zocht blijft dus voorlopig ontbreken, en promptwijzigingen aan de schrijfstap blijven
+zonder eigen evaluatieset (zie ook `tasks/contentkwaliteit-framework.md` §T9, die naar dit punt
+verwees als "herstelplan T2").
+
+Met T1, T3 t/m T9 gebouwd en T2 geschrapt heeft het herstelplan niets meer openstaan.
+`docs/tasks/herstelplan-na-audit.md` is verwijderd; de tabel bovenaan dit logboek wijst terug naar de
+negen alinea's hierboven. Code-commentaar dat naar "herstelplan na audit" verwijst (tientallen
+plekken, T1 t/m T9) blijft ongewijzigd staan: dat draagt het waarom van de code, niet het bestaan van
+het plandocument.
+
+## 3 september 2026: een glaslaag over de lichte stand, vier tokens diep
+
+De eigenaar vroeg om een zeer subtiele glas- of materiaalbehandeling van de bestaande vormgeving,
+uitdrukkelijk geen herontwerp, en uitdrukkelijk alleen in de lichte stand.
+
+**Dat botst met §8 regel 2 ("plat, niet gloeiend"), en die botsing is met open ogen opgelost.** Het
+systeem hier is bewust vlak: rand en vlak dragen de hiërarchie, er is één schaduw en die is voor wat
+zweeft. Een glaslaag hoort daar niet vanzelf in thuis. Wat er nu ligt kiest daarom voor de ene helft
+van glas die géén tweede schaduwstand nodig heeft: de **doorschijnendheid**. Een kaart laat 28% van
+de grond eronder door, en op de werkruimte is dat het lichtgrijs met de stippen van
+`.workspace-canvas` (28 augustus 2026). De gelaagdheid komt dus uit wat er dóórheen schemert en niet
+uit een halo eromheen. Het enige nieuwe schaduwtje is één pixel op 3% inkt, en dat staat in een eigen
+token zodat het met één regel weer nul kan worden.
+
+**Vier tokens, geen losse waarden.** `--glass-surface` (0,72 wit), `--glass-surface-strong` (0,86,
+voor wat écht boven de pagina hangt), `--glass-filter` (`blur(12px) saturate(1.06)`) en
+`--glass-shadow`. Ze staan alle vier in het lichte blok van `app/globals.css` en worden in **allebei**
+de donkere blokken teruggezet naar het opake origineel: `--glass-surface: var(--bg-surface)` en
+`--glass-filter: none`. Dat is de reden dat de donkere stand hier niets van merkt, en het is
+nagemeten en niet aangenomen (zie hieronder).
+
+**Waar het glas wél zit, en waar bewust niet.** Wél: `.card`, `.modal-panel`, `.toast-card` en de
+nieuwe `.menu-surface`. Die laatste vervangt de vier losse Tailwind-klassen waarmee de merkkiezer,
+het accountmenu, `InfoHint`, het clustermenu en het plan-menu elk hun eigen zwevende vlak
+nabouwden: vijf kopieën van dezelfde keuze zijn vijf plekken die uit elkaar gaan lopen. Niet: de
+zijbalk, de knoppen, de velden, de chips, de tabelcellen en de voortgangsbalken. Die blijven opaak,
+en dat is geen vergetelheid maar het contrast dat de hiërarchie draagt: als élk vlak glas is, zegt
+glas niets meer. Dezelfde redenering als bij de iconen in de zijbalk (§6b.3 regel 4) en bij de
+kleuren (§8 regel 1). De randen blijven een echte tint en worden niet doorschijnend, om de reden die
+al in §2.1 staat: doorschijnend zwart wordt vuil zodra het op een gekleurd vlak ligt, en
+`.card-accent` legt daar juist een getinte rand overheen.
+
+**Drie plekken waar het glas eraf gaat**, alle drie door de tokens terug te zetten in plaats van de
+regels te overschrijven: geen ondersteuning voor `backdrop-filter`, `prefers-reduced-transparency:
+reduce` (doorschijnende vlakken zijn voor sommige mensen letterlijk moeilijker te lezen), en
+schermen smaller dan 640 pixels, waar kaarten onder elkaar op een vlakke grond liggen en er dus
+niets te zien is voor de rekentijd die de vervaging kost. Op papier gaat het er ook af.
+
+**Nagemeten in plaats van aangenomen** (regel 10 van `CLAUDE.md`). De ingelogde schermen zijn zonder
+Supabase-inlog niet te fotograferen, dus is er een harnas gebouwd dat vier schermen nabouwt uit de
+echte componentmarkup en de échte `app/globals.css` met Tailwind compileert. Daarmee zijn beide
+standen vóór en ná naast elkaar gezet. Uitkomst voor donker: van de acht vergelijkingen (vier
+schermen × de eigen keuze en de systeemvoorkeur) zijn er zeven byte-identiek. De achtste, de dialoog
+via de eigen keuze, verschilt op **48 van de 1.296.000 pixels met een grootste kanaalafwijking van
+1 op 255**: dat is de afronding die ontstaat doordat een `backdrop-filter`-regel, ook met waarde
+`none`, het paneel op een eigen tekenlaag zet. Onzichtbaar, maar het staat hier omdat "byte-identiek"
+en "bijna byte-identiek" niet hetzelfde zijn.
+
+**Wat er precies veranderde, en wat er stond.** Deze tabel is het terugkijkpunt: links de staat
+vóór 3 september 2026, rechts wat er nu staat. Alles wat er niet in staat is ongewijzigd, en dat is
+verreweg het meeste.
+
+| Onderdeel | Was | Is nu |
+|---|---|---|
+| Vulling van `.card` | `--bg-surface`, dus volledig dekkend wit | `--glass-surface` (wit op 0,72) in licht, `--bg-surface` in donker |
+| Vervaging achter `.card` | geen | `blur(12px) saturate(1.06)` in licht, `none` in donker |
+| Schaduw van `.card` | geen, de kaart was plat | `--glass-shadow`, één pixel op 3% inkt, in licht; `none` in donker |
+| Vulling van `.modal-panel` | `--bg-surface` | `--glass-surface-strong` (0,86) plus vervaging, in licht |
+| Vulling van `.toast-card` | `--bg-surface` | idem |
+| De vijf zwevende menu's | elk hun eigen `bg-[var(--bg-surface)]` in de component: `brand-switcher`, `profile-menu`, `info-hint`, `cluster-kaart`, `plan-view` | één gedeelde klasse `.menu-surface` in `globals.css` |
+| Tokens in het lichte blok | 116 | 120: `--glass-surface`, `--glass-surface-strong`, `--glass-filter`, `--glass-shadow` |
+| Dezelfde vier in beide donkere blokken | bestonden niet | wijzen terug naar het opake origineel, dus donker tekent hetzelfde als hiervoor |
+| Hover op `.card-interactive` | `--shadow-overlay` | ongewijzigd, die wint van de glaspixel |
+| Randen, radius, padding, typografie, kleuren, zijbalk, knoppen, velden, chips, tabellen, voortgangsbalken | | **alle ongewijzigd** |
+
+**Goedgekeurd op 3 september 2026.** De eigenaar heeft de vergelijkingsbeelden bekeken, het effect
+goed bevonden zonder wijzigingen, en opdracht gegeven om naar `main` samen te voegen. Er is dus geen
+tweede ronde geweest: wat hierboven staat is wat er live staat. Mocht het effect later toch te sterk
+of te zwak blijken, dan is het vier tokens in `app/globals.css` en geen enkel component.
+
+## 3 september 2026: elke as zegt wat hij toont, en de lijnen zijn vloeiend
+
+Twee wensen van de eigenaar op dezelfde plek: laat in elke grafiek zien wat er op de assen staat, in
+duidelijke taal, en maak de lijnen rond in plaats van hoekig.
+
+**De assen.** `TrendChart` en `PagesTrafficChart` dragen nu allebei een zin bij de verticale en de
+horizontale as. Ze staan horizontaal boven respectievelijk onder de as en niet gekanteld langs de
+zijkant, want een gedraaide regel leest slechter en boven de as is ruimte genoeg. De volledige
+tekst per as staat in `designsystem.md` §4.1.
+
+Eén keuze daarin is de moeite van het vastleggen waard: **de y-as van `TrendChart` noemt geen
+percentage.** Dat was de eerste ingeving, en het klopt niet. Het leidende getal daar is de gewogen
+zichtbaarheidsscore uit `lib/pipeline/trend.ts` en niet het rauwe aandeel vragen waarin het merk
+voorkwam; "68% van de vragen" zou dus een rekensom beloven die er niet onder ligt. Er staat nu
+"Zichtbaarheid: 0 is nooit genoemd, 100 is altijd". Dat is regel 3 van `CLAUDE.md` op een as: liever
+een grens benoemen dan een precisie suggereren die er niet is.
+
+De `Sparkline` krijgt er geen. Die is 96 bij 24 pixels, heeft per ontwerp geen as, en zijn eigen
+toelichting legt al uit waarom dat zo is. Wat hij voorstelt staat in de kop van zijn kaartje en in
+het getal ernaast.
+
+Er is ook nergens een derde as. De vraag noemde er een; alle grafieken hier zijn vlak. Waar een
+derde gegeven meespeelt is dat een aparte vorm en geen diepte: de kleur van een lijn is de naam van
+het merk, de lichte band om de eigen lijn is de meetonzekerheid.
+
+**De ronding, en waarom hij een eigen module met elf tests heeft.** De drie lijnen liepen via losse
+stukjes code in drie componenten. Ze lopen nu alle drie door `vloeiendPad()` in
+`lib/chart-curve.ts`, één pure module, conform conventie 2.
+
+Het echte punt zit in wélke ronding. De gebruikelijke keuze is een Catmull-Rom-spline, en die
+**schiet door**. Nagerekend op de reeks 40, 95, 90, 92: die spline klimt tot **97,8** terwijl de
+hoogste meting 95 is. Op een schaal van 0 tot 100 tekent dat een zichtbaarheid die niet bestaat, en
+tussen twee gelijke metingen legt hij een kuiltje dat een daling suggereert die er niet was. Een
+mooiere lijn die een verkeerd getal laat zien is precies wat regel 3 verbiedt.
+
+De monotone variant (Fritsch en Carlson) knijpt de raaklijn in elk punt af zodat de bocht altijd
+tussen de twee metingen blijft die hij verbindt, en zodat een stijgend stuk nergens daalt. Elf
+controles in `scripts/test-unit.ts` bewaken dat, en ze doen dat door de kromme in veertig stapjes uit
+te rekenen en naar de uiterste waarden te kijken: alleen de stuurpunten controleren zegt niets, want
+die liggen per definitie buiten de kromme. Met het oog is dit niet te controleren, een bult van twee
+pixels zie je niet.
+
+**Wat de ronding niet oplost, en dat blijft staan:** ook een monotone kromme suggereert dat er
+tússen twee metingen iets bekend is, en dat is niet zo. De grafiek toont de metingen, de bocht
+ertussen is vormgeving. Daarom blijven de meetpunten als stip zichtbaar en blijft de tabel met de
+echte cijfers onder `TrendChart` staan.
+
+**Wat er precies veranderde, en wat er stond.**
+
+| Onderdeel | Was | Is nu |
+|---|---|---|
+| Verticale as `TrendChart` | alleen de cijfers 0, 25, 50, 75 en 100 langs de as | daarboven "Zichtbaarheid: 0 is nooit genoemd, 100 is altijd" |
+| Horizontale as `TrendChart` | alleen de datums per meting | daaronder "Wanneer er gemeten is" |
+| Ruimte in `TrendChart` | `top: 16, bottom: 34` | `top: 32, bottom: 48`, voor die twee regels |
+| Verticale as `PagesTrafficChart` | alleen het hoogste aantal klikken | daarboven "Aantal klikken per dag" |
+| Horizontale as `PagesTrafficChart` | alleen de eerste en de laatste datum | daaronder "Dag" |
+| Ruimte in `PagesTrafficChart` | `top: 16, bottom: 30` | `top: 32, bottom: 46` |
+| `aria-label` van beide grafieken | noemde de assen niet | noemt ze allebei, voor wie voorleest |
+| Aslabel op `Sparkline` | geen | **bewust nog steeds geen**, zie hierboven |
+| Lijn in `TrendChart` | `M`/`L`, rechte stukken tussen de punten | `vloeiendPad()`, monotone Bézier |
+| Onzekerheidsband | rechte stukken heen en terug | `vloeiendPad()` heen, `vloeiendPadTerug()` terug |
+| Lijn in `PagesTrafficChart` | `<polyline>` met rechte stukken | `<path>` met `vloeiendPad()` |
+| Lijn in `Sparkline` | `<polyline>` met rechte stukken | `<path>` met `vloeiendPad()` |
+| Waar de rondingsregel woont | drie keer los in drie componenten | één keer in `lib/chart-curve.ts` |
+| Controles in `test-unit.ts` | 4076 | 4087 |
+| Kleuren, lijndiktes, legenda, publicatiestrepen, hover, de tabel onder de grafiek | | **alle ongewijzigd** |
+
+**Nagemeten** met dezelfde methode als de glaslaag, maar een stap beter: de screenshots hieronder
+zijn niet meer nagebouwd. `renderToStaticMarkup` rendert de échte componenten met verzonnen data
+naar HTML, en die HTML gaat door de echte `app/globals.css`. Wat op het beeld staat is dus letterlijk
+`TrendChart`, `PagesTrafficChart` en `ClusterVisibilityGrid` zoals de klant ze krijgt.

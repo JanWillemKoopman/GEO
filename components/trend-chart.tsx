@@ -4,6 +4,7 @@ import { useId, useMemo, useState } from "react";
 import { InfoHint } from "@/components/info-hint";
 import type { TrendData } from "@/lib/pipeline/trend";
 import { formatDateShort, formatDateLong } from "@/lib/format";
+import { vloeiendPad, vloeiendPadTerug } from "@/lib/chart-curve";
 
 /**
  * De trendlijn (optimalisatie.md 6.5/6.6).
@@ -38,7 +39,23 @@ const W = 760;
 const H = 260;
 // Rechts ruimte voor de directe labels. Bij 12 tekens op 11px is dat ~78px plus
 // de stip en de tussenruimte; 130 geeft lucht zonder de grafiek te knijpen.
-const PAD = { top: 16, right: 130, bottom: 34, left: 34 };
+// `top` en `bottom` zijn ruimer dan de grafiek zelf nodig heeft: daar staan de
+// twee aslabels in gewone taal (3 september 2026). Zonder die ruimte schuift het
+// label over de bovenste rasterlijn of over de datums heen.
+const PAD = { top: 32, right: 130, bottom: 48, left: 34 };
+
+/* ── Wat staat er op de assen (3 september 2026) ─────────────────────────────
+   Een grafiek waarvan je moet raden wat de hoogte betekent, is een grafiek die
+   je niet kunt gebruiken. Deze twee zinnen staan er daarom altijd bij, in de
+   taal van de klant en niet in die van de database.
+
+   De y-as noemt geen percentage, en dat is met opzet: het leidende getal is de
+   gewogen zichtbaarheidsscore (`lib/pipeline/trend.ts`) en niet het rauwe
+   aandeel vragen waarin het merk voorkwam. "0 is nooit genoemd, 100 is altijd"
+   klopt wél met wat de schaal doet, zonder een rekensom te beloven die er niet
+   onder ligt. */
+const Y_AS_LABEL = "Zichtbaarheid: 0 is nooit genoemd, 100 is altijd";
+const X_AS_LABEL = "Wanneer er gemeten is";
 
 /** Bij hoeveel tekens we een naam afkappen zodat hij binnen PAD.right past. */
 const LABEL_MAX_CHARS = 12;
@@ -110,17 +127,21 @@ export function TrendChart({ data, ownLabel }: { data: TrendData; ownLabel: stri
   }
 
   const { x, y } = geometry;
+  // Vloeiend in plaats van hoekig sinds 3 september 2026. De ronding is
+  // monotoon en schiet dus niet door: zie `lib/chart-curve.ts` voor waarom dat
+  // hier geen sierdetail is maar een voorwaarde om geen score boven de 100 te
+  // tekenen.
   const line = (pts: { weekNo: number; value: number }[]) =>
-    pts.map((p, i) => `${i === 0 ? "M" : "L"}${x(p.weekNo).toFixed(1)},${y(p.value).toFixed(1)}`).join(" ");
+    vloeiendPad(pts.map((p) => ({ x: x(p.weekNo), y: y(p.value) })));
 
   const ownPath = line(points.map((p) => ({ weekNo: p.weekNo, value: p.score })));
+  // De band is één gesloten vorm: de bovenrand heen, de onderrand terug. Allebei
+  // met dezelfde ronding, anders krijgt hij een vloeiende bovenkant op een
+  // hoekige onderkant en hangt hij scheef om de lijn.
   const bandPath =
-    points.map((p, i) => `${i === 0 ? "M" : "L"}${x(p.weekNo).toFixed(1)},${y(p.high).toFixed(1)}`).join(" ") +
+    vloeiendPad(points.map((p) => ({ x: x(p.weekNo), y: y(p.high) }))) +
     " " +
-    [...points]
-      .reverse()
-      .map((p) => `L${x(p.weekNo).toFixed(1)},${y(p.low).toFixed(1)}`)
-      .join(" ") +
+    vloeiendPadTerug(points.map((p) => ({ x: x(p.weekNo), y: y(p.low) }))) +
     " Z";
 
   const publicationWeeks = new Map(publications.map((p) => [p.weekNo, p.titles]));
@@ -174,7 +195,7 @@ export function TrendChart({ data, ownLabel }: { data: TrendData; ownLabel: stri
           className="w-full"
           style={{ minWidth: 480 }}
           role="img"
-          aria-label={`Verloop van de zichtbaarheid van ${ownLabel} over ${points.length} metingen`}
+          aria-label={`Verloop van de zichtbaarheid van ${ownLabel} over ${points.length} metingen. Horizontaal: ${X_AS_LABEL.toLowerCase()}. Verticaal: ${Y_AS_LABEL.toLowerCase()}.`}
           onMouseLeave={() => setHover(null)}
         >
           <defs>
@@ -183,6 +204,24 @@ export function TrendChart({ data, ownLabel }: { data: TrendData; ownLabel: stri
               <stop offset="100%" stopColor={OWN_COLOR} stopOpacity="0.04" />
             </linearGradient>
           </defs>
+
+          {/* De aslabels. Horizontaal en niet gedraaid: een gekantelde regel
+              leest slechter, en boven de as is er ruimte genoeg. `aria-hidden`
+              omdat de `aria-label` van de svg hierboven hetzelfde al zegt, en
+              een schermlezer anders twee keer hetzelfde voorleest. */}
+          <text x={PAD.left - 26} y={14} fontSize="10" fill="var(--chart-axis)" aria-hidden>
+            {Y_AS_LABEL}
+          </text>
+          <text
+            x={PAD.left + (W - PAD.left - PAD.right) / 2}
+            y={H - 8}
+            textAnchor="middle"
+            fontSize="10"
+            fill="var(--chart-axis)"
+            aria-hidden
+          >
+            {X_AS_LABEL}
+          </text>
 
           {/* Rasterlijnen: haarlijn, doorgetrokken, terugtredend. */}
           {[0, 25, 50, 75, 100].map((v) => (

@@ -339,6 +339,45 @@
   /* Doorschijnende paginakleur onder de sticky balken met backdrop-blur.
      Volgt --bg-base: die werd wit op 24 augustus 2026, dus deze ook. */
   --bg-base-blur: rgba(255, 255, 255, 0.85);
+
+  /* ── Glas, alleen in de lichte stand (3 september 2026) ───────────────────
+     Een oppervlak dat een klein beetje doorlaat wat eronder ligt. Vier tokens,
+     en ze zitten hier bij elkaar zodat er geen losse rgba() in een component
+     hoeft te staan: regel 1 van §8 geldt ook voor een doorschijnende kleur.
+
+     ⚠️ Dit is GEEN tweede schaduwstand en geen gloed. §8 regel 2 ("plat, niet
+     gloeiend") blijft staan: de gelaagdheid komt uit wat er doorheen schemert,
+     niet uit een halo eromheen. Het enige nieuwe schaduwtje is
+     --glass-shadow, en dat is één pixel op 3% inkt, ruim onder de
+     --shadow-overlay die voor zwevende dingen gereserveerd blijft.
+
+     De waarden zijn bewust laag gekozen. Een kaart op de werkruimte
+     (--bg-muted, #f8fafc) komt met 0,72 wit uit op ongeveer #fcfdfe: dat is
+     één stap van wit af, precies genoeg om de stippen van .workspace-canvas
+     naar de randen toe te laten meelezen en te weinig om als effect op te
+     vallen. Op een witte pagina zonder zijbalk is het verschil nul, en dat is
+     de bedoeling: het glas volgt de grond en dringt zich niet op.
+
+     ⚠️ ALLE VIER WORDEN IN DE DONKERE STAND TERUGGEZET naar het opake
+     origineel, in allebei de donkere blokken. Zoek op "Glas" verderop. De
+     donkere stand is daardoor tot op de pixel onveranderd, en dat is een
+     harde eis: een doorschijnend vlak op een bijna zwarte grond levert
+     grijze modder op in plaats van materiaal. */
+  --glass-surface: rgba(255, 255, 255, 0.72);
+  /* Wat écht boven de pagina hangt (menu, dialoog, melding) laat minder door:
+     daar staat leesbare tekst op een willekeurige achtergrond, en die mag
+     nooit met de inhoud eronder gaan concurreren. */
+  --glass-surface-strong: rgba(255, 255, 255, 0.86);
+  /* De vervaging achter een glasvlak. 12px is te weinig om als "wazig" te
+     lezen en genoeg om een rand te verzachten. Op een telefoon staat hij uit,
+     zie de mediaquery bij .card: daar liggen kaarten onder elkaar en kost hij
+     alleen maar rekentijd. `saturate` iets boven 1 houdt de kleur die
+     doorschemert levend; zonder die correctie trekt blur alles naar grijs. */
+  --glass-filter: blur(12px) saturate(1.06);
+  /* Eén pixel op 3% inkt, afgeleid van --text-primary (#17212b) en niet van
+     zwart, om dezelfde reden als --overlay-scrim: zwart oogt vuil op een koel
+     leiblauwe pagina. */
+  --glass-shadow: 0 1px 2px rgba(23, 33, 43, 0.03);
   /* Het waas achter een dialoog. Afgeleid van --text-primary (#17212b), niet van
      zwart: zwart oogt vuil op een koel leiblauwe pagina. */
   --overlay-scrim: rgba(23, 33, 43, 0.4);
@@ -542,6 +581,19 @@
     --chart-6: var(--intent-premium-text);
 
     --bg-base-blur: rgba(18, 26, 34, 0.85);
+
+    /* ── Glas staat in de donkere stand UIT (3 september 2026) ───────────────
+       De glaslaag is uitdrukkelijk alleen voor de lichte stand gebouwd. Hier
+       wijzen alle vier de tokens terug naar het opake origineel, zodat élke
+       regel die ze gebruikt in donker exact hetzelfde tekent als vóór de
+       glaslaag. Niet weglaten: een token dat hier ontbreekt houdt zijn lichte
+       waarde, en dan komt er wit glas op een bijna zwarte pagina te liggen.
+       `--glass-filter: none` maakt de `backdrop-filter` een lege regel in
+       plaats van een bewerking, dus er wordt in donker ook geen laag berekend. */
+    --glass-surface: var(--bg-surface);
+    --glass-surface-strong: var(--bg-surface);
+    --glass-filter: none;
+    --glass-shadow: none;
     /* Het waas achter een dialoog moet in donker dieper zijn dan in licht:
        0,4 op een donkere pagina scheidt de dialoog niet meer van wat eronder
        ligt. Afgeleid van --bg-base, niet van zwart. */
@@ -678,6 +730,19 @@
   --chart-6: var(--intent-premium-text);
 
   --bg-base-blur: rgba(18, 26, 34, 0.85);
+
+  /* ── Glas staat in de donkere stand UIT (3 september 2026) ───────────────
+     De glaslaag is uitdrukkelijk alleen voor de lichte stand gebouwd. Hier
+     wijzen alle vier de tokens terug naar het opake origineel, zodat élke
+     regel die ze gebruikt in donker exact hetzelfde tekent als vóór de
+     glaslaag. Niet weglaten: een token dat hier ontbreekt houdt zijn lichte
+     waarde, en dan komt er wit glas op een bijna zwarte pagina te liggen.
+     `--glass-filter: none` maakt de `backdrop-filter` een lege regel in
+     plaats van een bewerking, dus er wordt in donker ook geen laag berekend. */
+  --glass-surface: var(--bg-surface);
+  --glass-surface-strong: var(--bg-surface);
+  --glass-filter: none;
+  --glass-shadow: none;
   /* Het waas achter een dialoog moet in donker dieper zijn dan in licht:
      0,4 op een donkere pagina scheidt de dialoog niet meer van wat eronder
      ligt. Afgeleid van --bg-base, niet van zwart. */
@@ -1080,9 +1145,29 @@ table {
   font-weight: 700;
 }
 
-/* Kaart: wit, één rand, PLAT. Geen schaduw, geen hover-lift. */
+/* Kaart: wit, één rand, PLAT. Geen hover-lift.
+   ── DE GLASLAAG (3 september 2026) ──────────────────────────────────────────
+   De vulling is sinds die datum `--glass-surface` in plaats van
+   `--bg-surface`. In de donkere stand wijst dat token terug naar
+   `--bg-surface` zelf, dus daar staat er letterlijk hetzelfde als hiervoor.
+   In de lichte stand laat de kaart 28% van de grond eronder door: op de
+   werkruimte is dat het lichtgrijs met de stippen van `.workspace-canvas`,
+   op een witte pagina is het wit en verandert er niets.
+
+   De rand blijft `--border-subtle` en dus een echte tint. Een doorschijnende
+   rand was de voor de hand liggende glaskeuze en is bewust niet gedaan:
+   §2.1 legt uit dat doorschijnend zwart vuil wordt zodra het op een gekleurd
+   vlak ligt, en `.card-accent` en de drie broertjes leggen daar een getinte
+   rand overheen.
+
+   De schaduw is één pixel op 3% inkt en geen tweede schaduwstand: §8 regel 2
+   blijft "plat, niet gloeiend". Wie hem te veel vindt, zet `--glass-shadow`
+   op `none`; dat is één regel en het raakt geen enkel component. */
 .card {
-  background-color: var(--bg-surface);
+  background-color: var(--glass-surface);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  box-shadow: var(--glass-shadow);
   border: var(--border-width-xs) solid var(--border-subtle);
   border-radius: var(--radius-lg);
   padding: 20px;
@@ -1099,6 +1184,8 @@ table {
 }
 .card-interactive:hover {
   border-color: var(--border-strong);
+  /* Vervangt --glass-shadow uit .card: wat je aanwijst tilt op naar de ene
+     schaduw van §5.3, en zakt bij het weggaan terug naar de glaspixel. */
   box-shadow: var(--shadow-overlay);
 }
 
@@ -1440,7 +1527,9 @@ textarea.field {
   gap: 2px;
   padding: 12px 14px;
   border-radius: var(--radius-lg);
-  background-color: var(--bg-surface);
+  background-color: var(--glass-surface-strong);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
   border: var(--border-width-xs) solid var(--border-subtle);
   box-shadow: var(--shadow-overlay);
   animation: toast-in var(--duration-base) var(--ease-standard);
@@ -1509,7 +1598,11 @@ textarea.field {
   animation: modal-overlay-in var(--duration-base) var(--ease-standard);
 }
 .modal-panel {
-  background-color: var(--bg-surface);
+  /* De sterke glasvariant: een dialoog draagt de tekst waar je op klikt, dus
+     hij laat minder door dan een kaart. Zie het tokenblok in de kop. */
+  background-color: var(--glass-surface-strong);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
   border: var(--border-width-xs) solid var(--border-subtle);
   border-radius: var(--radius-lg);
   padding: 20px;
@@ -1532,6 +1625,63 @@ textarea.field {
   to {
     opacity: 1;
     scale: 1;
+  }
+}
+
+/* ── Zwevend menu (3 september 2026) ─────────────────────────────────────────
+   Eén klasse voor alles wat als los vlak bóven de pagina hangt en géén dialoog
+   is: de merkkiezer, het accountmenu, de toelichting van `InfoHint`. Die drie
+   bouwden hun vlak elk met dezelfde vier losse Tailwind-klassen na, en dat is
+   precies het soort herhaling waar §8 regel 1 voor bedoeld is: nu staat de
+   glaslaag op één plek en niet drie keer in een component.
+
+   De sterke variant, om dezelfde reden als bij de dialoog: hier staat tekst
+   waar je op klikt, en die mag niet met een kaartrand eronder gaan wedijveren.
+   De schaduw blijft --shadow-overlay, want dit is wat §5.3 "zweeft boven de
+   pagina" noemt. Er komt dus geen schaduw bij, alleen materiaal. */
+.menu-surface {
+  background-color: var(--glass-surface-strong);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+}
+
+/* ── De drie grenzen van de glaslaag ─────────────────────────────────────────
+   Glas is een verfijning en nooit een voorwaarde. Op deze drie plekken gaat
+   het eraf, en dan blijft precies het opake ontwerp van vóór 3 september 2026
+   over. Alle drie zetten ze de tokens terug in plaats van de regels te
+   overschrijven: dan hoeft er per uitzondering maar één blok bij te komen,
+   hoeveel klassen het glas later ook gebruiken.
+
+   1. GEEN ONDERSTEUNING. `backdrop-filter` bestaat niet overal. Zonder deze
+      regel blijft de doorschijnende vulling staan zonder de vervaging die hem
+      leesbaar houdt, en dan schemert er een scherpe stip door een kaart.
+   2. WIE MINDER DOORZICHTIGHEID VRAAGT. Een besturingssysteem-instelling, en
+      hij bestaat omdat doorschijnende vlakken voor sommige mensen letterlijk
+      moeilijker te lezen zijn. §9 van de opdracht: inhoud gaat vóór effect.
+   3. OP EEN TELEFOON. Daar liggen de kaarten onder elkaar op een vlakke grond,
+      is er dus niets interessants om doorheen te laten schemeren, en kost elke
+      vervagingslaag rekentijd op het toestel dat er het minst van heeft. De
+      lichte doorschijnendheid blijft wél staan: die is gratis. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --glass-surface: var(--bg-surface);
+    --glass-surface-strong: var(--bg-surface);
+    --glass-filter: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass-surface: var(--bg-surface);
+    --glass-surface-strong: var(--bg-surface);
+    --glass-filter: none;
+    --glass-shadow: none;
+  }
+}
+
+@media (max-width: 639px) {
+  :root {
+    --glass-filter: none;
   }
 }
 
@@ -1952,6 +2102,12 @@ textarea.field {
     --text-muted: #788795;
     --border-subtle: #e7edf2;
     --border-strong: #c2ccd6;
+    /* Papier laat niets door. De `* { backdrop-filter: none }` verderop haalt
+       de vervaging al weg; zonder deze twee regels blijft de doorschijnende
+       vulling staan en drukt een kaart lichter af dan hij hoort. */
+    --glass-surface: #ffffff;
+    --glass-surface-strong: #ffffff;
+    --glass-shadow: none;
   }
 
   .no-print,

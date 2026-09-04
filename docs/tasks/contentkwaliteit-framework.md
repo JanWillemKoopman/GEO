@@ -147,8 +147,9 @@ versie, maar de scores per ronde staan alleen in `critique_raw_json` als ongestr
 "Versie 2 blijft de beste" is niet op te zoeken en niet te tonen.
 
 **T9. Er is geen menselijke meetlat en geen benchmark.** Voor de meting bestaat `eval:mention`; voor
-het schrijven, het duurste onderdeel, bestaat niets (herstelplan T2). Elke promptwijziging is een
-gok met een verhaal eromheen.
+het schrijven, het duurste onderdeel, bestaat niets. Het herstelplan na de audit had hier een eigen
+punt voor (T2, `eval:content`), maar de eigenaar heeft dat geschrapt (`docs/logbook.md`, 3 september
+2026); dit gat blijft dus open. Elke promptwijziging is een gok met een verhaal eromheen.
 
 **T10. Root cause is niet af te leiden.** Een generieke pagina kan komen uit een dunne crawl, een
 onvolledige aanbodboom, een verkeerd contract of een zwakke schrijfronde. De app legt de uitkomst
