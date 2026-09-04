@@ -118,16 +118,18 @@ export function ZoekverkeerPaginas({ rows }: { rows: OnzePaginaRij[] }) {
           </select>
         </label>
       )}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <AnalyticsTable
-          rows={zichtbareRijen}
-          rowKey={(r) => r.page}
-          defaultSortKey="klikken"
-          defaultSortDir="desc"
-          columns={kolommen}
-          onRowClick={(r) => setGeselecteerd(r.page === geselecteerd ? null : r.page)}
-          selectedKey={geselecteerd}
-        />
+      <div className={`grid grid-cols-1 gap-4 ${gekozenRij ? "lg:grid-cols-[minmax(0,1fr)_20rem]" : ""}`}>
+        <div className="card">
+          <AnalyticsTable
+            rows={zichtbareRijen}
+            rowKey={(r) => r.page}
+            defaultSortKey="klikken"
+            defaultSortDir="desc"
+            columns={kolommen}
+            onRowClick={(r) => setGeselecteerd(r.page === geselecteerd ? null : r.page)}
+            selectedKey={geselecteerd}
+          />
+        </div>
         {gekozenRij && (
           <DetailPanel title={gekozenRij.page} subtitle="sinds publicatie" onClose={() => setGeselecteerd(null)}>
             <PaginaDetail rij={gekozenRij} />
