@@ -30,6 +30,8 @@ import { SearchPreview } from "@/components/search-preview";
 import { VersionDiff } from "@/components/version-diff";
 import { ImprovementList } from "@/components/improvement-list";
 import { describeImprovements, describeImprovementCount } from "@/lib/pipeline/contract-format";
+import { bruikbareOpdracht } from "@/lib/schrijfopdracht";
+import type { WriterBrief } from "@/lib/schemas/writer-brief";
 import type { ContentContract } from "@/lib/schemas/content-contract";
 import { buildTemplateExport } from "@/lib/pipeline/content-export";
 import type { SiteTemplateProfile } from "@/lib/pipeline/template-detect";
@@ -276,6 +278,9 @@ export default async function ContentDetailPage({
   // contractkolom staat al op de rij die hierboven is opgehaald. Leeg bij een
   // nieuwe pagina en bij pagina's van vóór 2 september 2026, en dan verdwijnt
   // het blok vanzelf.
+  // De schrijfopdracht (migratie 0094). Puur afgeleid uit een kolom die al
+  // opgehaald is; `bruikbareOpdracht()` levert `null` zodra hij niet compleet
+  // is, en dan verdwijnt het blok in plaats van half te vullen.
   const verbeteringen = describeImprovements(
     (piece.contract_json ?? null) as ContentContract | null,
   );
@@ -370,6 +375,9 @@ export default async function ContentDetailPage({
         action={piece.action}
         existingUrl={piece.existing_url}
         potentie={potentie}
+        opdracht={bruikbareOpdracht(
+          (piece.writer_brief_json ?? null) as Partial<WriterBrief> | null,
+        )}
       />
 
       {/* Wat er aan de bestaande pagina verandert (O5). Alleen bij een

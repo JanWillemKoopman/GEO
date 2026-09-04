@@ -279,7 +279,7 @@ async function main(): Promise<void> {
 
     const na = await db.client.query(
       `select id, version, is_current, status, body_markdown, source_coverage, needs_review,
-              briefing_snapshot_json
+              briefing_snapshot_json, writer_brief_json
          from public.content_pieces where analysis_id = $1 order by version`,
       [analysisId],
     );
@@ -310,6 +310,35 @@ async function main(): Promise<void> {
       "bug 7: het paginaplan gaat mee de schrijfprompt in",
       schrijfprompt.includes("PAGINAPLAN"),
       "het plan werd na de briefing weggegooid",
+    );
+
+    // ── De schrijfopdracht gaat vóór het schrijven (optimalisatie 5) ─────
+    //
+    // Alleen in de keten te zien: de opdracht wordt gemaakt in de stap die de
+    // feitenkaart samenstelt, en moet daarna bovenaan de schrijfprompt landen
+    // én naast de pagina bewaard worden. Blijft hij hangen, dan is dit een
+    // negentiende promptblok dat niets stuurt, en dat is precies wat de experts
+    // afraadden.
+    ok(
+      "de schrijfopdracht is gemaakt vóór het schrijven",
+      log.some((l) => l.schemaName === "writer_brief"),
+      "er is geen schrijfopdracht aangevraagd",
+    );
+    ok(
+      "en hij staat bovenaan de schrijfprompt",
+      schrijfprompt.includes("DE SCHRIJFOPDRACHT VOOR DEZE PAGINA"),
+      schrijfprompt.slice(0, 200),
+    );
+    ok(
+      "de opdracht noemt waarom deze lezer juist dit bedrijf zou kiezen",
+      schrijfprompt.includes("WAAROM DEZE LEZER JUIST DIT BEDRIJF ZOU KIEZEN"),
+    );
+    ok(
+      "en hij is bewaard naast de pagina, zodat de reparatie hem later ook heeft",
+      Boolean(
+        (na.rows[0]?.writer_brief_json as { lezer?: string } | null)?.lezer,
+      ),
+      JSON.stringify(na.rows[0]?.writer_brief_json ?? null).slice(0, 160),
     );
 
     // ── Haalt een gecorrigeerd merkveld de schrijfprompt? (17 aug 2026) ───

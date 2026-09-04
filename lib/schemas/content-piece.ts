@@ -50,6 +50,20 @@ export const ContentPiece = z.object({
       factRef: z.string(),
       /** Eén zin: wat dit feit voor DEZE lezer betekent. Geen bedrijfsgegeven. */
       betekenis: z.string(),
+      /**
+       * Waarom dat voor DEZE lezer telt (optimalisatie 7, 4 september 2026).
+       *
+       * De externe AI-expert wees op een stap die ontbrak: "vier eigen
+       * dakdekkers" wordt "u weet wie er op uw dak komt", en dat is de vertaling
+       * van feit naar betekenis. De vraag daarna is waarom die betekenis voor
+       * deze ene lezer iets uitmaakt. Feit, betekenis, relevantie: pas bij de
+       * derde stap wordt een bewijsstuk een argument.
+       *
+       * Dit veld stuurt niets af: het dwingt de schrijver de keuze hardop te
+       * maken, en het is terug te lezen naast de tekst. Mag leeg bij een pagina
+       * die vóór deze wijziging geschreven is.
+       */
+      relevantie: z.string(),
     }),
   ),
   claims: z.array(

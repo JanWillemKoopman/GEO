@@ -7585,3 +7585,65 @@ schrijftaak meekrijgt), build.
 ⚠️ Ongeverifieerd (conventie 10). Dat deze vier wijzigingen de tekst beter maken is niet gemeten. Wat
 wél vaststaat is dat de instructies elkaar niet meer tegenspreken, en dat is na te lezen in de
 prompts zelf.
+
+## 4 september 2026: de app kiest nu wat er gezegd moet worden (optimalisatie 5, 6, 7 en 12)
+
+Het tweede blok uit de expertronde, en het blok waar beide experts het meeste van verwachtten. Hun
+scherpste zin: ORBIT ENGINE heeft geleerd hoe je voorkomt dat AI onzin schrijft, en de volgende stap
+is leren wat het belangrijkste is om te zeggen. Negentien controles bewaken wat er niet mag; niets in
+de keten besliste wat er per se wél moest komen.
+
+**De schrijfopdracht (migratie 0094).** Eén goedkope stap tussen de voorbereiding en het schrijven,
+op de goedkope tier, naar verwachting ongeveer een cent per pagina. Hij doet geen onderzoek en vat
+niets samen, want een samenvatting is een negentiende promptblok. Hij KIEST: voor wie deze pagina is,
+welke ene vraag hij beantwoordt, wat de lezer moet begrijpen als hij alleen de eerste alinea leest,
+welke drie tot vijf F-nummers deze pagina dragen, wat de ondernemer kan zeggen wat een concurrent
+niet kan kopiëren, en wat er blijft hangen. De feitenkaart blijft er compleet onder staan: minder
+informatie was uitdrukkelijk niet het advies, een hiërarchie eroverheen wel.
+
+**En het veld dat er nooit was: waarom zou juist deze lezer dit bedrijf kiezen.** Eén tot drie
+redenen, gekozen vanuit de lezer en niet vanuit het bedrijf, elk met een F-nummer. Het verschil dat
+de expert benoemt: "deze lezer heeft haast, dus dat wij binnen 24 uur ter plaatse zijn telt voor
+hem" is een reden, "het bedrijf heeft vier dakdekkers" is een feit. Dit is de vraag waarmee de
+externe copywriter op 3 september zijn hele beoordeling samenvatte, en overtuigingskracht was met
+2,6 van 5 zijn laagste cijfer.
+
+**Het vangnet, en dat is hier het belangrijkste deel.** Een opdracht die het schrijfmodel negeert, is
+precies het extra promptblok dat de experts afraadden. `lib/schrijfopdracht.ts` rekent daarom na of
+hij is uitgevoerd: komen de gekozen kernfeiten terug in de beweringen of de bewijspunten, staat het
+kernantwoord in de eerste alinea (dezelfde woordoverlap van 0,6 als bij de bewijspunten), en staat de
+reden om juist dit bedrijf te kiezen in de eerste twintig procent van de tekst. Dat laatste getal is
+regel 4 van de externe copywriter en niet het onze; het staat als constante met die herkomst erbij.
+Een opdracht met één leeg veld vervalt in zijn geheel, en dan schrijft de pijplijn precies zoals hij
+het gisteren deed (conventie 3). De bevinding valt op de dimensie overtuiging, niet blokkerend,
+behalve dat de ontbrekende keuzereden zwaarder weegt dan de andere twee.
+
+**Bewijspunten kregen een derde stap (optimalisatie 7).** Feit naar betekenis was één stap te kort:
+"u weet wie er op uw dak komt" is betekenis, maar waarom dat voor DEZE lezer iets uitmaakt stond
+nergens. Het veld `relevantie` dwingt die keuze hardop af. Feit, betekenis, relevantie; pas bij de
+derde stap wordt een bewijsstuk een argument.
+
+**En de vakmanschapsbeoordelaar krijgt de opdracht als maatstaf (optimalisatie 12).** Hij oordeelde
+of dit "de pagina is die een goede copywriter geschreven zou hebben" zonder te weten wat de pagina
+moest bereiken, dus vergeleek hij elke tekst met een ideaal dat hij zelf verzon. Dat is een van de
+verklaringen voor zijn zwakke ORDENING (rangcorrelatie 0,29): twee pagina's werden aan twee
+verschillende maatstaven gemeten.
+
+⚠️ **En onderweg viel een echte fout op.** `checkBewijspunten()` kreeg vanuit `quality-run.ts` de
+IDENTITEITEN van de feiten mee (de uuids uit de feitenbank), terwijl een bewijspunt naar het
+F-NUMMER verwijst dat het model in de prompt zag. Op productie gold daardoor elk bewijspunt als een
+verwijzing naar een niet-bestaand feit, en kreeg elke pagina tot drie bevindingen die nergens op
+sloegen. De unittest gaf F-nummers mee en dekte de fout dus toe. De parameter heet nu `factRefs`,
+zodat de volgende aanroeper de vergissing niet herhaalt. Dit is de tweede keer in twee dagen dat een
+controle iets anders meette dan hij dacht te meten, en allebei de keren kwam het aan het licht door
+de aanroep na te lopen in plaats van de test te vertrouwen.
+
+De klant ziet de opdracht terug op de paginaweergave, onder "Waarom deze pagina": voor wie de tekst
+geschreven is, wat die persoon moet begrijpen, en waarom hij voor dit bedrijf zou kiezen.
+
+Vier controles groen: typecheck, 4332 unittests (30 nieuwe), 649 ketentests (4 nieuwe, die de
+opdracht van de plan- tot de schrijfstap volgen en tot in de kolom), build. Migratie 0094 staat op
+productie.
+
+⚠️ Ongeverifieerd (conventie 10). Dat de schrijfopdracht de tekst beter maakt en reparatierondes
+bespaart, is de verwachting van twee experts en van deze sessie, en geen meting.

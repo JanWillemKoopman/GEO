@@ -33,6 +33,13 @@
 export interface Bewijspunt {
   factRef: string;
   betekenis: string;
+  /**
+   * Waarom die betekenis voor DEZE lezer telt (optimalisatie 7).
+   *
+   * Optioneel, want een pagina van vóór 4 september 2026 heeft dit veld niet en
+   * mag daar niet op afgerekend worden.
+   */
+  relevantie?: string;
 }
 
 /** Hoeveel bewijspunten een pagina minstens hoort te hebben. */
@@ -84,14 +91,23 @@ export interface BewijspuntenResult {
 /**
  * Reken de bewijspunten na.
  *
- * `factIds` is de lijst geldige F-nummers van de feitenkaart. Leeg betekent
- * "geen kaart bekend", en dan wordt de F-nummercontrole overgeslagen in plaats
- * van alles af te keuren: dat is dezelfde afspraak als bij `claimIsOnderbouwd`.
+ * `factRefs` is de lijst geldige F-NUMMERS van de feitenkaart, dus wat het model
+ * in de prompt ziet staan. Leeg betekent "geen kaart bekend", en dan wordt de
+ * F-nummercontrole overgeslagen in plaats van alles af te keuren: dezelfde
+ * afspraak als bij `claimIsOnderbouwd`.
+ *
+ * ⚠️ Het heette `factIds` en de aanroep in `quality-run.ts` gaf inderdaad de
+ * IDENTITEITEN uit de feitenbank mee (uuids), terwijl een bewijspunt naar "F3"
+ * verwijst. Daardoor gold op productie elk bewijspunt als een verwijzing naar
+ * een niet-bestaand feit, en kreeg elke pagina tot drie bevindingen die nergens
+ * op sloegen. De unittest gaf F-nummers mee en dekte de fout dus toe. Gevonden
+ * op 4 september 2026, zie het logboek. De naam is nu `factRefs`, zodat de
+ * volgende aanroeper de vergissing niet herhaalt.
  */
 export function checkBewijspunten(input: {
   punten: readonly Bewijspunt[] | undefined;
   tekst: string;
-  factIds: readonly string[];
+  factRefs: readonly string[];
 }): BewijspuntenResult {
   // ⚠️ Ontbreekt het veld helemaal, dan is dit een pagina van vóór migratie
   // 0093 en verandert er niets aan zijn oordeel (conventie 3).
@@ -100,7 +116,7 @@ export function checkBewijspunten(input: {
   }
 
   const punten = input.punten.filter((p) => p?.factRef?.trim() && p?.betekenis?.trim());
-  const geldig = new Set(input.factIds.map((f) => f.trim().toUpperCase()));
+  const geldig = new Set(input.factRefs.map((f) => f.trim().toUpperCase()));
 
   const onbekend =
     geldig.size > 0
@@ -155,7 +171,17 @@ export function bewijspuntenblok(): string {
     `gebeuren"\n` +
     `Die zinnen zet je ook echt IN de tekst, op de plek waar de lezer dat argument nodig heeft, en ` +
     `je vult ze daarnaast in \`proofPoints\` met het F-nummer erbij. Kies er niet meer dan vijf: van ` +
-    `twintig feiten er twintig noemen is geen keuze maken.`
+    `twintig feiten er twintig noemen is geen keuze maken.\n` +
+    // ── Optimalisatie 7 (4 september 2026): de derde stap ──────────────────
+    //
+    // De externe AI-expert wees erop dat feit naar betekenis één stap te kort
+    // is: "u weet wie er op uw dak komt" is betekenis, maar waarom dat voor
+    // DEZE lezer iets uitmaakt staat er nergens. Een bewijsstuk zegt "dit is
+    // aantoonbaar waar"; een argument zegt "en daarom telt het voor u".
+    `Vul per bewijspunt ook \`relevantie\` in: waarom telt dit voor JUIST DEZE lezer, gezien zijn ` +
+    `situatie en zijn vraag? Heeft hij haast, dan telt dat wij er binnen 24 uur zijn; is hij bang ` +
+    `voor onverwachte kosten, dan telt dat hij vooraf een bedrag hoort. Kun je die vraag voor een ` +
+    `feit niet beantwoorden, kies dan een ander feit: dan is het wel waar, maar niet van belang.`
   );
 }
 

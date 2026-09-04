@@ -32,6 +32,7 @@ import { GEO_CRITERIA_LABELS } from "@/lib/schemas/critique";
 import type { CitabilityVerdict, FactualityVerdict } from "@/lib/schemas/content-panel";
 import type { CraftVerdict } from "@/lib/schemas/content-craft";
 import type { BewijspuntenResult } from "@/lib/pipeline/bewijspunten";
+import type { OpdrachtResult } from "@/lib/schrijfopdracht";
 import type { KlantcitatenResult } from "@/lib/pipeline/klantcitaten";
 import type {
   MerkstemResult,
@@ -83,6 +84,8 @@ export interface KwaliteitsInvoer {
   adres?: AdresResult;
   /** V9: is een feit omgezet naar een argument voor de lezer? */
   bewijspunten?: BewijspuntenResult;
+  /** Is de schrijfopdracht uitgevoerd? (optimalisatie 5 en 6, migratie 0094) */
+  schrijfopdracht?: OpdrachtResult;
   /** V4: is er iets van de eigen woorden van de ondernemer blijven staan? */
   klantcitaten?: KlantcitatenResult;
   /** V8: begint de pagina bij de lezer of bij het bedrijf? */
@@ -662,6 +665,39 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
         blocking: false,
         confidence: ZEKER,
         bron: "bewijspunt",
+      }),
+    );
+  }
+
+  // ── De schrijfopdracht is niet uitgevoerd (optimalisatie 5 en 6) ─────────
+  //
+  // Op de dimensie OVERTUIGING, net als de bewijspunten en om dezelfde reden:
+  // het materiaal ligt er en de keuze is gemaakt, alleen niet opgeschreven. De
+  // reden om juist dit bedrijf te kiezen is de vraag waarmee de externe
+  // copywriter zijn hele beoordeling samenvatte, dus die weegt zwaarder dan de
+  // andere twee.
+  //
+  // Niet blokkerend: een pagina die zijn opdracht half uitvoert is niet onwaar,
+  // en een blokkade hier zou elke pagina tegenhouden zolang het model dit nog
+  // leert. Zelfde afweging als bij V9 hierboven.
+  for (const zin of invoer.schrijfopdracht?.issues ?? []) {
+    const isKeuzereden = invoer.schrijfopdracht?.keuzeredenVroeg === false && zin.includes("juist dit bedrijf");
+    issues.push(
+      maak(invoer, {
+        dimension: "overtuiging",
+        severity: isKeuzereden ? "hoog" : "midden",
+        section: null,
+        finding: zin,
+        evidence: null,
+        expected:
+          "De pagina voert de schrijfopdracht uit: het kernantwoord in de opening, de gekozen " +
+          "feiten in de tekst, en vroeg de reden om juist dit bedrijf te kiezen.",
+        recommendation:
+          "Zet het ontbrekende deel op de plek die de opdracht noemt, zonder de rest van de " +
+          "pagina aan te raken.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "schrijfopdracht",
       }),
     );
   }

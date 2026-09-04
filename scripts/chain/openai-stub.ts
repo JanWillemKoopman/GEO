@@ -669,9 +669,15 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
       // De betekeniszinnen staan hierboven ook echt in `bodyMarkdown`, want de
       // controle rekent dat na.
       proofPoints: [
-        { factRef: eerste.ref, betekenis: zin1 },
-        { factRef: tweede.ref, betekenis: zin2 },
-        { factRef: tweede.ref, betekenis: "Bij Fysi-Unique kun je binnen 24 uur terecht voor een intake" },
+        // `relevantie` is de derde stap van optimalisatie 7 (4 september 2026):
+        // feit, betekenis, en waarom dat voor DEZE lezer telt.
+        { factRef: eerste.ref, betekenis: zin1, relevantie: "deze lezer wil weten waar hij aan toe is" },
+        { factRef: tweede.ref, betekenis: zin2, relevantie: "hij wil snel verder kunnen met hardlopen" },
+        {
+          factRef: tweede.ref,
+          betekenis: "Bij Fysi-Unique kun je binnen 24 uur terecht voor een intake",
+          relevantie: "wachten is precies waar deze lezer bang voor is",
+        },
       ],
       claims: [
         {
@@ -740,6 +746,35 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
   }),
 
   source_analysis: () => ({ sources: [], whatIsMissing: null }),
+
+  /**
+   * De schrijfopdracht (optimalisatie 5 en 6, migratie 0094).
+   *
+   * De F-nummers worden uit de feitenkaart in de prompt gelezen, net als bij
+   * `content_piece`: een stub met hardgecodeerde nummers zou testen of we goed
+   * geraden hebben in plaats van of de opdracht bij de kaart past. Levert de
+   * kaart te weinig feiten, dan blijft de lijst korter dan drie en levert
+   * `bruikbareOpdracht()` terecht `null`: ook dat pad hoort de keten te kunnen
+   * laten zien.
+   */
+  writer_brief: (user: string) => {
+    const kaart = leesFeitenkaart(user);
+    return {
+      lezer: "Iemand die na het hardlopen pijn aan de buitenkant van zijn knie houdt",
+      hoofdvraag: "Kan ik hiermee doorlopen of moet ik langskomen?",
+      kernantwoord: "Kom langs voor een intake, dan weet je binnen een week waar je aan toe bent.",
+      waaromDezePagina: "Een AI-assistent noemt bij deze vraag nu alleen andere praktijken.",
+      kernfeiten: kaart.slice(0, 3).map((f) => f.ref),
+      keuzeredenen: kaart.slice(0, 1).map((f) => ({
+        factRef: f.ref,
+        reden: "deze lezer wil snel duidelijkheid en kan daarom binnen 24 uur terecht",
+      })),
+      eigenWoorden: "",
+      moetErIn: ["wat de intake kost"],
+      nietDoen: ["geen checklist om fysiotherapeuten te vergelijken"],
+      blijftHangen: "deze praktijk begrijpt mijn klacht en ik kan er snel terecht",
+    };
+  },
 
   /**
    * Het itemdossier (A1, migratie 0082).

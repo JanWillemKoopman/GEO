@@ -96,6 +96,8 @@ export const ISSUE_BRONNEN = [
   "paginavorm",
   "adviestoon",
   "herhaling",
+  /** Optimalisatie 5 en 6: is de redactionele keuze ook echt opgeschreven? */
+  "schrijfopdracht",
 ] as const;
 export type IssueBron = (typeof ISSUE_BRONNEN)[number];
 

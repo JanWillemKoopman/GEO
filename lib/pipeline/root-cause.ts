@@ -71,6 +71,10 @@ const BRON_FASE: Record<IssueBron, PipelinePhase> = {
   // V8, V1 en V10: opening, merkstem en koppen zijn alle drie schrijfkeuzes.
   paginavorm: "schrijven",
   adviestoon: "schrijven",
+  // Optimalisatie 5: de opdracht lag er, de tekst voert hem niet uit. Dat is
+  // een schrijfprobleem; klopt de opdracht zelf niet, dan valt dat op bij de
+  // lezersopdracht en de feitenkaart, en die wijzen naar hun eigen fase.
+  schrijfopdracht: "schrijven",
   // V12: dat elke pagina hetzelfde rijtje feiten pakt, komt door de SELECTIE
   // vooraf en niet door het schrijven. De kaart is per pagina hetzelfde.
   herhaling: "briefing",

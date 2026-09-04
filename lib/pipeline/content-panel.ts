@@ -53,6 +53,7 @@ import { CraftVerdict } from "@/lib/schemas/content-craft";
 import { formatFactCard, type FactItem } from "@/lib/pipeline/factcard";
 import type { ContentContract } from "@/lib/schemas/content-contract";
 import type { ContentQualityProfile } from "@/lib/pipeline/quality-profile";
+import type { WriterBrief } from "@/lib/schemas/writer-brief";
 
 const REDACTIE_SYSTEM =
   "Je bent een strenge eindredacteur én GEO-specialist. Beoordeel de aangeleverde webpagina voor de " +
@@ -208,6 +209,18 @@ export interface PanelInput {
   profiel?: ContentQualityProfile | null;
   /** Voorbeeldzinnen van de site, voor het oordeel over de toon. */
   styleSamples?: string[];
+  /**
+   * DE SCHRIJFOPDRACHT waarop deze pagina geschreven is (optimalisatie 12,
+   * migratie 0094).
+   *
+   * ⚠️ Zonder dit oordeelde de vakmanschapsbeoordelaar of dit "de pagina is die
+   * een goede copywriter geschreven zou hebben" zonder te weten wat de pagina
+   * moest bereiken. Hij vergeleek de tekst dus met een ideaal dat hij zelf
+   * verzon, en dat is een van de verklaringen voor zijn zwakke ORDENING
+   * (rangcorrelatie 0,29): twee pagina's werden aan twee verschillende
+   * maatstaven gemeten. Weglaten mag en verandert niets (conventie 3).
+   */
+  opdracht?: WriterBrief | null;
 }
 
 export interface PanelResult {
@@ -276,7 +289,24 @@ function contractBlok(contract: ContentContract | null): string {
 /** Wat de vakmanschapsbeoordelaar naast de pagina zelf nodig heeft. */
 function vakmanschapBlok(input: PanelInput): string {
   const profiel = input.profiel;
+  const opdracht = input.opdracht;
   return [
+    // De maatstaf staat vooraan: dit is waaraan deze pagina gemeten hoort te
+    // worden (optimalisatie 12).
+    opdracht
+      ? [
+          "DE OPDRACHT DIE DEZE PAGINA MEEKREEG. Beoordeel de tekst hieraan, en niet aan een pagina",
+          "die je zelf zou bedenken:",
+          `- geschreven voor: ${opdracht.lezer}`,
+          `- de vraag die hij beantwoordt: ${opdracht.hoofdvraag}`,
+          `- wat de lezer moet begrijpen: ${opdracht.kernantwoord}`,
+          `- waarom deze lezer juist dit bedrijf zou kiezen: ${opdracht.keuzeredenen
+              .map((k) => k.reden)
+              .join("; ")}`,
+          `- wat er na het lezen moet blijven hangen: ${opdracht.blijftHangen}`,
+          "Staat dat er niet, dan is dat het punt dat je als EERSTE zou veranderen.",
+        ].join("\n")
+      : "",
     profiel
       ? [
           `SOORT PAGINA: ${profiel.type}.`,
