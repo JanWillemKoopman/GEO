@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Sidebar } from "@/components/sidebar";
 import { BrandSwitcher } from "@/components/brand-switcher";
 import { Icon } from "@/components/icon";
@@ -87,10 +88,23 @@ export function WorkspaceChrome({
               over jou en niet over dit merk, en het accountmenu blijft de
               buitenste plek omdat daar het uitloggen achter zit. De
               wisselknop staat er nog eens links van, want die gaat over wie je
-              nu bent en niet over hoe het scherm eruitziet. */}
+              nu bent en niet over hoe het scherm eruitziet.
+
+              ── HET HULP-ICOON (support-sectie) ─────────────────────────────
+              Rechts van de wisselknop en links van de themaschakelaar: dit
+              gaat, net als die twee, over jou en niet over dit merk. Een
+              gewone link en geen uitklapmenu, want de bestemming is één vaste
+              pagina en geen keuze. */}
           <div className="flex shrink-0 items-center gap-1">
             {openQuestions}
             {previewToggle}
+            <Link
+              href="/support"
+              aria-label="Support: hoe ORBIT ENGINE werkt"
+              className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
+            >
+              <Icon naam="help" size={20} />
+            </Link>
             <ThemeToggle />
             {accountMenu}
           </div>

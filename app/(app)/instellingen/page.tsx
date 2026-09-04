@@ -3,12 +3,10 @@ import { PageHeader } from "@/components/page-header";
 import { TeamBox } from "./team-box";
 import { AccountBox } from "./account-box";
 import { SecurityBox } from "./security-box";
-import { accountsOf, membershipsOf } from "@/lib/accounts";
+import { accountsOf, membershipsOf, membersOf } from "@/lib/accounts";
 import { isStaff } from "@/lib/staff";
 import { mayInvite } from "@/lib/invite-rules";
 import { listPendingInvites } from "@/lib/invites";
-import { createAdminClient } from "@/lib/supabase/admin";
-import type { AccountRole } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Mijn instellingen" };
@@ -31,7 +29,7 @@ export default async function InstellingenPage() {
       return {
         account,
         rol,
-        members: await listMembers(account.id, user.id),
+        members: await membersOf(account.id, user.id),
         pending: await listPendingInvites(account.id),
         magUitnodigen: mayInvite(rol, staff),
       };
@@ -69,34 +67,4 @@ export default async function InstellingenPage() {
       ))}
     </div>
   );
-}
-
-/**
- * Wie zitten er in dit account?
- *
- * Loopt over de auth-gebruikers omdat `account_users` alleen id's kent en er
- * geen leesbaar profiel naast staat. Bij twintig klanten (besluit 11) is dat
- * één pagina; wordt het groter, dan hoort er een eigen gebruikerstabel te komen.
- */
-async function listMembers(
-  accountId: string,
-  currentUserId: string,
-): Promise<{ email: string; role: AccountRole; isYou: boolean }[]> {
-  const admin = createAdminClient();
-  const { data } = await admin
-    .from("account_users")
-    .select("user_id, role")
-    .eq("account_id", accountId);
-  if (!data || data.length === 0) return [];
-
-  const { data: users } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
-  const opId = new Map((users?.users ?? []).map((u) => [u.id, u.email ?? ""]));
-
-  return data
-    .map((r) => ({
-      email: opId.get(r.user_id as string) ?? "onbekend adres",
-      role: r.role as AccountRole,
-      isYou: r.user_id === currentUserId,
-    }))
-    .sort((a, b) => a.email.localeCompare(b.email));
 }

@@ -124,16 +124,18 @@ export function ConcurrentenAnalyse({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <AnalyticsTable
-          rows={rankingRows}
-          rowKey={(r) => r.name}
-          isOwnRow={(r) => r.isOwnBrand}
-          columns={kolommen}
-          stickyOffset="calc(var(--header-h) + 3.5rem)"
-          onRowClick={(r) => !r.isOwnBrand && setGeselecteerd(r.name === geselecteerd ? null : r.name)}
-          selectedKey={geselecteerd}
-        />
+      <div className={`grid grid-cols-1 gap-4 ${gekozenRij ? "lg:grid-cols-[minmax(0,1fr)_20rem]" : ""}`}>
+        <div className="card">
+          <AnalyticsTable
+            rows={rankingRows}
+            rowKey={(r) => r.name}
+            isOwnRow={(r) => r.isOwnBrand}
+            columns={kolommen}
+            stickyOffset="calc(var(--header-h) + 3.5rem)"
+            onRowClick={(r) => !r.isOwnBrand && setGeselecteerd(r.name === geselecteerd ? null : r.name)}
+            selectedKey={geselecteerd}
+          />
+        </div>
         {gekozenRij && (
           <DetailPanel title={gekozenRij.name} onClose={() => setGeselecteerd(null)}>
             <ConcurrentDetail

@@ -81,6 +81,41 @@ export async function isMember(userId: string, accountId: string | null): Promis
   return (await accountIdsOf(userId)).includes(accountId);
 }
 
+/**
+ * Wie zitten er in dit account?
+ *
+ * Loopt over de auth-gebruikers omdat `account_users` alleen id's kent en er
+ * geen leesbaar profiel naast staat. Bij twintig klanten (besluit 11) is dat
+ * één pagina; wordt het groter, dan hoort er een eigen gebruikerstabel te komen.
+ *
+ * Gebruikt door `/instellingen` (de klant zelf) en `/merk/[id]/admin/toewijzen`
+ * (de beheerder namens de klant): eigenaarschap van een merk loopt via het
+ * account eronder, dus "meerdere eigenaren" is hier al opgelost via
+ * `account_users` en niet iets dat op het merk zelf hoeft te worden gebouwd.
+ */
+export async function membersOf(
+  accountId: string,
+  currentUserId: string,
+): Promise<{ email: string; role: AccountRole; isYou: boolean }[]> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("account_users")
+    .select("user_id, role")
+    .eq("account_id", accountId);
+  if (!data || data.length === 0) return [];
+
+  const { data: users } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
+  const opId = new Map((users?.users ?? []).map((u) => [u.id, u.email ?? ""]));
+
+  return data
+    .map((r) => ({
+      email: opId.get(r.user_id as string) ?? "onbekend adres",
+      role: r.role as AccountRole,
+      isYou: r.user_id === currentUserId,
+    }))
+    .sort((a, b) => a.email.localeCompare(b.email));
+}
+
 /** De accounts zelf, voor de kiezer in de shell. Opgezegde accounts blijven zichtbaar. */
 export const accountsOf = cache(async (userId: string): Promise<Account[]> => {
   const ids = await accountIdsOf(userId);

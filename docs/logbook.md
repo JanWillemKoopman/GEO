@@ -7528,6 +7528,28 @@ blanco voor dezelfde copywriter leggen. Valt die tegen, dan is terugdraaien éé
 bedragen erbij, zodat een stille terugval een rode test oplevert in plaats van een verrassing op de
 factuur.
 
+## 4 september 2026: meerdere mensen bij één merk, via `/admin/toewijzen`
+
+Wens: een klant met meerdere collega's die willen meekijken op één merk. Uitgezocht of `profiles`
+(het merk) daarvoor een many-to-many-koppeling met eigenaren nodig had. Dat bleek niet zo: die
+laag bestaat al. `profiles.account_id` wijst naar precies één account (migratie 0046), maar dat
+account zelf kent al een echte many-to-many via `account_users` en de uitnodigingsroute
+(`account_invites`, migratie 0047) die `/instellingen` gebruikt. "Meerdere eigenaren per merk" is
+dus "meerdere mensen bij het account onder dat merk", en dat mechanisme stond er al, alleen niet
+op het scherm waar de eigenaar het nodig had: `/merk/[id]/admin/toewijzen`.
+
+`TeamBox` (`app/(app)/instellingen/team-box.tsx`) en de bijbehorende route
+(`/api/accounts/[id]/invites`) staan nu ook op de toewijspagina, met dezelfde route en dezelfde
+regel (`mayInvite` in `lib/invite-rules.ts` laat een beheerder van ORBIT ENGINE altijd toe, ook als
+hij zelf geen lid van dat klantaccount is). De ledenlijst-functie die `/instellingen` al had
+(`listMembers`) is verplaatst naar `lib/accounts.ts` als `membersOf()`, zodat beide schermen
+dezelfde functie gebruiken in plaats van twee kopieën (één feit, één eigenaar). Geen migratie
+nodig: het schema had dit al, alleen de UI niet.
+
+Zolang een merk nog geen account heeft (`profiles.account_id` is `null`), toont de toewijspagina
+een verwijzing naar het toewijsblok erboven in plaats van het teamblok: uitnodigen voor een account
+dat er nog niet is, kan niet.
+
 ## 4 september 2026: de keuring werkte de schrijfopdracht tegen (optimalisatie 1 tot en met 4)
 
 Twee externe experts, een copywriter en een AI-expert, hebben de contentpijplijn doorgelicht. Hun

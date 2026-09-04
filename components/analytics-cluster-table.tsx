@@ -46,17 +46,19 @@ export function AnalyticsClusterTable({
   const gekozenRij = rows.find((r) => r.cluster.id === geselecteerd) ?? null;
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-      <AnalyticsTable
-        rows={rows}
-        rowKey={(r) => r.cluster.id}
-        defaultSortKey="zichtbaarheid"
-        defaultSortDir="asc"
-        columns={clusterKolommen(labelNaamPerId)}
-        stickyOffset="calc(var(--header-h) + 3.5rem)"
-        onRowClick={(r) => setGeselecteerd(r.cluster.id === geselecteerd ? null : r.cluster.id)}
-        selectedKey={geselecteerd}
-      />
+    <div className={`grid grid-cols-1 gap-4 ${gekozenRij ? "lg:grid-cols-[minmax(0,1fr)_20rem]" : ""}`}>
+      <div className="card">
+        <AnalyticsTable
+          rows={rows}
+          rowKey={(r) => r.cluster.id}
+          defaultSortKey="zichtbaarheid"
+          defaultSortDir="asc"
+          columns={clusterKolommen(labelNaamPerId)}
+          stickyOffset="calc(var(--header-h) + 3.5rem)"
+          onRowClick={(r) => setGeselecteerd(r.cluster.id === geselecteerd ? null : r.cluster.id)}
+          selectedKey={geselecteerd}
+        />
+      </div>
       {gekozenRij && (
         <DetailPanel title={gekozenRij.cluster.name} onClose={() => setGeselecteerd(null)}>
           <ClusterDetail rij={gekozenRij} />
