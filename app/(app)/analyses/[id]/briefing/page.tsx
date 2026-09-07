@@ -104,6 +104,7 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
         graad: oordeel.graad,
         melding: oordeel.melding,
         ongedekteKoppen: oordeel.ongedekteKoppen,
+        zonderLezer: oordeel.zonderLezer,
       };
     }),
   );

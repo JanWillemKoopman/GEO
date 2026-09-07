@@ -37,9 +37,16 @@ export function AnalysisNav({
   const pathname = usePathname();
   const base = `/analyses/${analysisId}`;
 
-  const onDossier = pathname === base;
   const onLibrary = pathname.startsWith(`${base}/bibliotheek`);
   const onSettings = pathname.startsWith(`${base}/instellingen`);
+  // ⚠️ De briefing (`/analyses/[id]/briefing`) is geen los scherm, hij bereidt
+  // pagina's van dit cluster voor om te schrijven (Teamsessie 7 september
+  // 2026). Vóór deze regel lichtte hier geen enkel tabblad op: `onDossier` was
+  // alleen waar op het exacte basisadres, dus de klant verliet zonder het te
+  // merken de Cluster/Bibliotheek/Instellingen-navigatie zodra hij op
+  // "voorbereiden" klikte. Nu blijft "Cluster" actief op elke route van dit
+  // cluster die niet expliciet Bibliotheek of Instellingen is.
+  const onDossier = !onLibrary && !onSettings;
 
   return (
     <div className="no-print flex flex-wrap items-center gap-2 border-b border-[var(--border-subtle)] pb-3">

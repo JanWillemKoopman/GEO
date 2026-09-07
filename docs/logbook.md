@@ -8012,3 +8012,79 @@ conventie 1 ontbreekt hier ook: `Number.isFinite()` vangt alleen een niet-getal 
 buiten het bereik. Voor dit merk is de volgorde met de hand gezet (7 tot en met 1, de commerciële
 prioriteit uit het gesprek) en zijn de drie gespreksvelden per onderwerp gevuld. De reparatie in de
 code staat nog open.
+
+## 7 september 2026: de knop "schrijf hem algemeen" loste "geen lezer" niet op, en de bibliotheek zei niet dat er niets gebeurt
+
+Bij Van den Udenhout stond de pagina "Maak de pagina over wagenparkbeheer tot een duidelijke
+regionale oplossing voor mkb-wagenparken" na het klikken op "Schrijf mijn pagina" nog steeds in de
+bibliotheek onder "Wacht op jouw input". De klant had wel alle feitenvragen beantwoord (32 van de 32
+in `fact_requests`), dus het leek stuk.
+
+**De echte oorzaak was de andere poort, de lezerspoort (V7, `lib/lezersopdracht.ts`).** Deze pagina
+had geen `target_intent` en geen gekoppelde gemeten vraag, dus `heeftLezer` stond op onwaar. De
+melding op het briefingscherm noemt drie uitwegen ("in één zin de lezer beschrijven", "een gemeten
+vraag koppelen", "laten vallen"), maar het scherm bood er maar twee knoppen voor: "Schrijf hem
+algemeen" en "Laat deze pagina vallen". Erger: de eerste knop deed hier niets. In
+`lib/content-input-gate.ts` staat de `!heeftLezer`-check VÓÓR de `writeMode === "algemeen"`-check,
+met opzet (het commentaar zegt het letterlijk: "een algemene uitleg heeft net zo goed een lezer
+nodig"), dus wie "algemeen" koos en opnieuw op "Schrijf mijn pagina" klikte, kreeg gewoon opnieuw
+"tegenhouden" te zien, zonder dat het scherm zei waarom die knop niet hielp.
+
+**De reparatie is tweeledig.** Eén, `inputpoort()` geeft nu een `zonderLezer`-vlag mee op het
+oordeel, zodat het scherm de twee soorten "tegenhouden" uit elkaar kan houden. Bij `zonderLezer` valt
+de knop "algemeen" weg en staat er in plaats daarvan een tekstveld waarin de klant in één zin de
+lezer kan beschrijven; dat antwoord gaat naar `content_pieces.target_intent`, dezelfde kolom die
+`bepaalLezersopdracht()` leest. Twee, de bibliotheek (`library-list.tsx`) opent nu met een eigen
+kaart die met zoveel woorden zegt "ORBIT ENGINE schrijft nu niets" zolang er een pagina op input
+wacht, in plaats van diezelfde melding pas verderop in de gewone groepenlijst te tonen. Dat is de
+conventie-1-toepassing hier: de instructie "de klant kan altijd door" bestond al in de prompt van de
+melding, maar zonder een werkende knop en zonder een onmiskenbare "er gebeurt niets"-melding was dat
+alleen een belofte, geen vangnet.
+
+Getest: `scripts/test-unit.ts` kreeg negen nieuwe asserties die `zonderLezer` op elk van de zes
+oordelen van `inputpoort()` narekenen. `tsc --noEmit`, `test:unit` (4388 geslaagd), `test:chain` (650
+geslaagd) en `build` zijn alle vier groen gedraaid.
+
+## 7 september 2026: Teamsessie over de journey van cluster tot geschreven pagina, en vier van de zes aanbevelingen doorgevoerd
+
+Vijf experts (UX 30%, Product 20%, Engineering 20%, AI 15%, Growth 15%) onderzochten onafhankelijk
+de flow van `/merk/[id]/strategie/clusters` tot een gepubliceerde pagina, gevolgd door een Devil's
+Advocate-ronde die elke bevinding zelf natrok. Beeld: de klant ervaart één taak ("laat ORBIT ENGINE
+deze pagina schrijven"), de app bouwt hem telkens als een nieuw scherm met een nieuwe naam en, bij
+de feitenvragen, een nieuwe datalaag. Het volledige uitvoeringsplan met de status per punt staat in
+`docs/tasks/customer-journey-cluster-tot-schrijven.md`.
+
+**Een echte bug kwam pas tijdens het doorvoeren aan het licht.** `GenerateAllButton` ("Schrijf alle
+N pagina's") las het `briefing`-veld van `generate-all/route.ts` nooit: die route plant altijd
+eerst de contentbriefing in (`contentbriefing.md` §2, om dezelfde vraag niet drie keer apart te
+stellen bij drie pagina's) en schrijft nooit meteen. De knop toonde na elke geslaagde aanroep
+"ORBIT ENGINE schrijft N pagina's" met een pulserend live-bolletje, alsof het schrijven al liep,
+terwijl er nog geen letter tekst stond totdat de klant zelf de briefing invulde. Precies de klacht
+waarmee deze klant de sessie begon, alleen nu voor de "alles"-knop in plaats van voor één pagina.
+`generate-button.tsx` (de knop per pagina) had deze vertakking al; nu ook `generate-all-button.tsx`.
+
+**Vier van de zes aanbevelingen zijn doorgevoerd:**
+1. De bug hierboven.
+2. Eén taalgebruik voor de hele stap: **voorbereiden** (feiten en vragen klaarzetten), **vragen
+   beantwoorden**, **schrijven**. Vijf verschillende knopteksten ("Start het onderzoek voor deze
+   pagina", "Laat ORBIT ENGINE alles schrijven", "Briefing invullen") zijn hierop aangepast.
+3. `tabs.tsx` markeerde op `/analyses/[id]/briefing` geen enkel tabblad: `onDossier` was alleen waar
+   op het exacte basisadres. Nu is "Cluster" actief op elke route van het cluster die niet expliciet
+   Bibliotheek of Instellingen is, dus ook op de briefing, `/antwoorden` en `/rapport`.
+4. De voortgangsbalk op het briefingscherm telde alleen beantwoorde vragen, los van het oordeel van
+   `inputpoort()`. Een klant kon op "12 van de 12" staan en alsnog een blokkade tegenkomen. Er staat
+   nu een aparte regel die telt hoeveel pagina's al mogen (`stand !== "tegenhouden"`), naast het
+   aantal beantwoorde vragen.
+
+**Twee aanbevelingen zijn bewust niet doorgevoerd.** De briefing laten hergebruiken wat er al bestaat
+(`FactRequests`, de derde eigen datamapper) is de grootste en risicovolste van de zes: Engineering en
+de Devil's Advocate wezen allebei op hetzelfde, dit is een datamodel-fusie (`BriefingQuestionView`
+heeft velden die `FactRequests` niet kent, en `FactRequests` filtert niet op `content_piece_ids`
+zoals de briefing dat wél moet). Dat in dezelfde sessie erbij doen is precies het haastwerk waar
+§15 hierboven voor waarschuwt; het blijft open in het taakdocument. Het filteren van het
+briefingscherm op de aangeklikte pagina (in plaats van alle wachtende pagina's) is niet opgepakt
+omdat de frequentie niet gemeten is: eerst loggen hoe vaak een klant meerdere pagina's tegelijk in
+briefing heeft staan.
+
+Getest: `tsc --noEmit`, `test:unit` (4388 geslaagd), `test:chain` (650 geslaagd) en `build` zijn
+alle vier groen gedraaid na de vier wijzigingen.

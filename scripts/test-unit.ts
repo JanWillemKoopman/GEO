@@ -18707,11 +18707,26 @@ group("De inputpoort: kan deze pagina goed worden? (vragen-voor-het-schrijven §
   ok("en noemt de uitweg: beschrijf de lezer", zonderLezer.melding.includes("in één zin"));
   ok("of koppel er een gemeten vraag aan", zonderLezer.melding.includes("gemeten vraag"));
   ok("of laat hem vallen", zonderLezer.melding.includes("laten vallen"));
+  // Het scherm moet dit oordeel kunnen onderscheiden van elke andere
+  // "tegenhouden": alleen dan weet het dat de knop "schrijf hem algemeen"
+  // hier een doodlopend eind is (briefing-form.tsx).
+  ok("het oordeel zegt zelf dat dit de lezer-blokkade is", zonderLezer.zonderLezer === true);
 
   // De keuze voor een algemene pagina beantwoordt een ANDERE vraag: mag het
   // zonder eigen cijfers. Ook een algemene uitleg heeft een lezer nodig.
   const algemeenZonderLezer = inputpoort({ graad: 80, ongedekteSecties: 0, writeMode: "algemeen", heeftLezer: false });
   ok("een algemene pagina zonder lezer wordt ook tegengehouden", algemeenZonderLezer.mag === false);
+  ok("en dat blijft de lezer-blokkade, niet een gewone tegenhouden", algemeenZonderLezer.zonderLezer === true);
+
+  // Elke andere "tegenhouden" of "waarschuwing" is GEEN lezer-blokkade: daar
+  // helpt "schrijf hem algemeen" wél, en dat moet het scherm ook zo tonen.
+  ok("een gewone waarschuwing is geen lezer-blokkade", poort(55).zonderLezer === false);
+  ok("een gewone tegenhouden is geen lezer-blokkade", poort(10).zonderLezer === false);
+  ok("schrijven zonder lezerprobleem is geen lezer-blokkade", poort(GOED_GENOEG).zonderLezer === false);
+  ok(
+    "een pagina zonder merkgebonden sectie is geen lezer-blokkade",
+    poort(null).zonderLezer === false,
+  );
 
   // ⚠️ Conventie 3: wie het veld niet meegeeft, krijgt exact het oude oordeel.
   ok("weglaten verandert niets", inputpoort({ graad: 85, ongedekteSecties: 0 }).mag === true);
