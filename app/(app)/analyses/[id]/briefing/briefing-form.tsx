@@ -615,8 +615,19 @@ function PaginaStanden({
           >
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <strong>{pagina.title}</strong>
+              {/* ⚠️ "Vraagt niets van jou" gaat over ÉÉN as: de feiten-onderbouwing
+                  (`graad`). Een pagina kan daar `null` op staan (geen enkele
+                  merkgebonden sectie) en toch tegengehouden worden op een
+                  ANDERE as, bijvoorbeeld `zonderLezer`. Dat label naast een
+                  gele blokkade-kaart tonen spreekt zichzelf tegen: "vraagt
+                  niets van jou" boven een tekstveld dat wél iets van je
+                  vraagt. Vandaar dat het label nu ook naar `stand` kijkt. */}
               <span className="mono-label whitespace-nowrap">
-                {pagina.graad === null ? "vraagt niets van jou" : `${Math.round(pagina.graad)}% onderbouwd`}
+                {pagina.graad === null
+                  ? pagina.stand === "schrijven"
+                    ? "vraagt niets van jou"
+                    : "nog niet compleet"
+                  : `${Math.round(pagina.graad)}% onderbouwd`}
               </span>
             </div>
 
