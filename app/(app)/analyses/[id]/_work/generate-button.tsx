@@ -9,7 +9,7 @@ import type { UserFacingError } from "@/lib/errors";
 import { Icon } from "@/components/icon";
 
 /**
- * "Genereer deze pagina" (Fase C, expliciet op klik).
+ * "Pagina voorbereiden om te schrijven" (Fase C, expliciet op klik).
  *
  * ⚠️ Deze knop schrijft NOOIT meteen. Hij plant de briefing in (contentbriefing.md
  * §8): ORBIT ENGINE bouwt eerst de feitenkaart en de vragen die de klant nog
@@ -166,11 +166,11 @@ export function GenerateButton({
     return (
       <div className="flex flex-col gap-2">
         <span className="text-sm text-secondary">
-          De briefing staat klaar. Vul aan wat ORBIT ENGINE niet van je website kan halen, dan
-          schrijft het de pagina.
+          Deze pagina staat klaar voor jouw vragen. Vul aan wat ORBIT ENGINE niet van je website kan
+          halen, dan schrijft het de pagina.
         </span>
         <Link href={`/analyses/${analysisId}/briefing`} className="btn-primary w-fit">
-          Briefing invullen
+          Beantwoord de vragen
         </Link>
       </div>
     );
@@ -195,7 +195,7 @@ export function GenerateButton({
 
   return (
     <button onClick={() => void generate()} className="btn-primary w-fit">
-      Start het onderzoek voor deze pagina
+      Pagina voorbereiden om te schrijven
     </button>
   );
 }

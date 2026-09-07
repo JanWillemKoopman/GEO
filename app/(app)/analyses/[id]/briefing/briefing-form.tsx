@@ -264,6 +264,29 @@ export function BriefingForm({
             {beantwoord} van de {questions.length}
           </span>
         </div>
+
+        {/* ⚠️ DEZE REGEL BESTAAT OMDAT DE BALK HIERBOVEN NIET HET HELE VERHAAL
+            VERTELT (Teamsessie 7 september 2026). De balk telt alleen vragen,
+            terwijl de schrijfknop op een ANDER oordeel beslist: de paginastand
+            uit `lib/content-input-gate.ts` (onderbouwing, en of er een lezer
+            is). Een klant kon op "12 van de 12" staan en alsnog op "Schrijf
+            mijn pagina's" een blokkade tegenkomen, want die twee tellingen
+            liepen nergens samen. Deze regel telt daarom apart hoeveel
+            pagina's al mógen, zodat 100% vragen beantwoord en "klaar om te
+            schrijven" niet langer twee onzichtbare, losse getallen zijn. */}
+        {pages.length > 0 && (
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            {(() => {
+              const klaar = pages.filter((p) => p.stand !== "tegenhouden").length;
+              if (klaar === pages.length) {
+                return pages.length === 1
+                  ? "Deze pagina kan al geschreven worden."
+                  : `Alle ${pages.length} pagina's kunnen al geschreven worden.`;
+              }
+              return `${klaar} van de ${pages.length} ${pages.length === 1 ? "pagina kan" : "pagina's kunnen"} al geschreven worden. De rest heeft eerst een antwoord nodig, hieronder.`;
+            })()}
+          </p>
+        )}
       </header>
 
       <PaginaStanden
