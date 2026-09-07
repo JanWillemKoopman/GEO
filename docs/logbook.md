@@ -7945,3 +7945,43 @@ beoordelen, heeft een nieuwe ronde nodig.
 
 Vier controles groen: typecheck, 4382 unittests (8 nieuwe, met de echte productie-uitvoer als
 invoer), 650 ketentests (1 nieuwe), build.
+
+## 7 september 2026: het demomerk Van den Udenhout is volledig door de onboarding gehaald
+
+Van den Udenhout (`udenhout.nl`, profiel `e0e61ce8`) is aangemaakt als demoaccount. De pre-boarding
+(naam, schrijfwijzen, webadres) stond klaar; de rest van het onboardinggesprek is nagespeeld alsof
+de klant aan tafel zat, zodat er één merk is waarmee elk scherm en elke keten getoond kan worden.
+
+**Wat er nu staat.** Van de 60 velden in de catalogus zijn er 54 gevuld met herkomst `gesprek`, 3 op
+niet van toepassing gezet (sitemap, Facebook, extra profiel) en 3 bewust open gelaten: de foto en
+het LinkedIn-adres van de auteur, en het telefoonnummer van het aanspreekpunt. Die drie zijn niet te
+verzinnen zonder de echte klant. Daarnaast: 12 van de 12 feitvragen uit de synthese beantwoord, het
+gesprek vastgelegd met 2 contextfactoren, en 4 knopen aan de aanbodboom toegevoegd voor
+laadoplossingen, die op de site wel bestaan maar in de boom ontbraken.
+
+**Twee correcties die het onderzoek niet zelf kon maken, en die allebei de meting raken.**
+
+Het profielonderzoek zette het bereik op `landelijk`, op grond van de leasepagina die zegt dat
+klanten door heel Nederland bediend worden. Dat klopt voor lease en verhuur, maar de zes
+dealervestigingen (Eindhoven, Veldhoven, 's-Hertogenbosch tweemaal, Oss en Boxtel) verkopen en
+onderhouden regionaal, en daar zit vrijwel de hele omzet. Het bereik staat nu op `lokaal` met tien
+plaatsen erbij. Dat is precies het geval waarvoor `geo-share.ts` bestaat: zonder plaatsnaam gaan
+alle vragen landelijk, en dan meet je een Brabantse dealer af tegen Van Mossel in heel Nederland.
+Dezelfde fout als bij Fysi-Unique, alleen andersom gemotiveerd.
+
+De aanbodboom noemde tien vestigingen, waaronder Breda, Roosendaal, Halsteren en Oud Gastel. Dat
+zijn locaties van Den Elzen Schade, het schadebedrijf van de groep, niet van de dealer. Ze staan er
+nog, met een notitie erbij, maar tellen niet als werkgebied. `name_exclusions` heeft daarnaast vijf
+regels gekregen, waarvan er twee de vervelendste soort meetfout voorkomen: het dorp Udenhout bij
+Tilburg (ongeveer 8.700 inwoners) en Van Uden Group uit Rotterdam lijken in een AI-antwoord op dit
+merk, en zonder uitsluiting valt de score te hoog uit. Om dezelfde reden is de kale schrijfwijze
+"Udenhout" uit `aliases` gehaald.
+
+**Wat er nog moet gebeuren.** Het vastleggen van het gesprek hoort de definitieve onderwerpronde te
+starten (migratie 0074), en de gewijzigde velden vragen om een nieuwe kennistest, want de oude is
+op landelijke vragen gemeten. Beide taken staan in de wachtrij en beide liepen op 7 september vast
+op `[429] You have no credits remaining` van de OpenAI-API. Ze zijn 30 minuten vooruit gezet met de
+teller op 0, zodat ze niet op hun vier pogingen opbranden. Tot die twee gedraaid hebben blijven de
+8 onderwerpen op `stage: concept` staan en is er dus nog geen cluster te starten.
+
+Geen code gewijzigd, dus geen controles gedraaid.
