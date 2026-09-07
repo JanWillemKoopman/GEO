@@ -8012,3 +8012,40 @@ conventie 1 ontbreekt hier ook: `Number.isFinite()` vangt alleen een niet-getal 
 buiten het bereik. Voor dit merk is de volgorde met de hand gezet (7 tot en met 1, de commerciële
 prioriteit uit het gesprek) en zijn de drie gespreksvelden per onderwerp gevuld. De reparatie in de
 code staat nog open.
+
+## 7 september 2026: de rangorde van voorgestelde onderwerpen is gerepareerd
+
+De bevinding van vanmiddag is opgelost. `propose-topics.ts` sloeg de rangorde op met
+
+```
+priority: Math.max(0, MAX_TOPICS - (Number.isFinite(t.priority) ? t.priority : i + 1))
+```
+
+en `MAX_TOPICS` is 8, dus elk rangnummer van 8 of hoger viel terug op 0. Bij Van den Udenhout gaf
+het model 10, 20, 30, 40, 50, 60 en 70 terug: alle zeven onderwerpen kwamen op 0 en de clusterlijst,
+die op `priority desc` sorteert, stond in willekeurige volgorde. Dat is precies het scherm waarop de
+consultant kiest welk cluster als eerste een betaalde meetronde krijgt.
+
+**De oorzaak was niet de rekenregel maar de aanname eronder.** Het model kreeg nergens te horen wat
+`priority` betekende. De regel "1 is het belangrijkste" stond als TypeScript-commentaar boven
+`priority: z.number()`, en commentaar gaat niet mee in het schema dat naar de API gaat. De
+systeemprompt noemde de rangorde in het geheel niet. `Number.isFinite()` ving alleen een niet-getal
+af en niet een getal buiten het bereik: een halve controle, en die is hier erger dan geen, want hij
+levert stil een geldig ogende 0 op in plaats van een fout.
+
+**De reparatie is conventie 1, allebei de helften.** De intentie: regel 5 in de systeemprompt zegt nu
+wat de rangorde is en waar hij op gebaseerd hoort te zijn (omzet en groei, niet het aantal pagina's),
+en het schemaveld heeft een `.describe()` gekregen zodat de uitleg meegaat naar de API. Het vangnet:
+`topicPriorities()` in de nieuwe pure module `lib/pipeline/topic-order.ts` neemt het
+rangnummer van het model alleen over als het een heel getal van 1 tot en met 8 is, en valt anders
+terug op de volgorde waarin het model de onderwerpen teruggaf. De uitkomst is voor n onderwerpen
+altijd n tot en met 1, elk precies één keer. Dus nooit twee onderwerpen op dezelfde plek en nooit
+meer een 0, en daardoor blijft 0 betekenen wat het hoort te betekenen: hier heeft nooit iemand een
+rangorde gezet.
+
+Diezelfde vorm stond al in `propose-more-topics.ts` (`voorstellen.length - i`), die de rangorde puur
+op de volgorde van het model baseert. De twee schrijvers van deze kolom zijn nu gelijk, met als enig
+verschil dat de eerste ronde de rangorde van het model gebruikt als die bruikbaar is.
+
+Vier controles groen: typecheck, 4392 unittests (10 nieuwe, met de echte productie-uitvoer van
+7 september als invoer), 650 ketentests, build.

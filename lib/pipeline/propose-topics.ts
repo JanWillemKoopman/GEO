@@ -46,7 +46,12 @@ import { MODELS } from "@/lib/openai/models";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { discontinuedNames, parseContextFactors } from "@/lib/pipeline/context-factors";
 import { activeOfferings } from "@/lib/offerings";
+import { topicPriorities } from "@/lib/pipeline/topic-order";
 import type { Profile, ProfileOffering } from "@/lib/types/database";
+
+/** Onder de vijf is het geen keuze meer, boven de acht kiest niemand. */
+const MIN_TOPICS = 5;
+const MAX_TOPICS = 8;
 
 export const TopicProposals = z.object({
   topics: z.array(
@@ -57,17 +62,25 @@ export const TopicProposals = z.object({
       rationale: z.string(),
       /** De namen uit de aanbodboom waar dit topic uit voortkomt. */
       offerings: z.array(z.string()),
-      /** 1 = het belangrijkste. Bepaalt alleen de volgorde. */
-      priority: z.number(),
+      /**
+       * 1 = het belangrijkste. Bepaalt alleen de volgorde.
+       *
+       * ⚠️ De uitleg staat in `.describe()` en niet alleen hier: een
+       * TypeScript-commentaar gaat niet mee in het schema dat naar de API gaat,
+       * dus het model wist tot 7 september 2026 niet wat het bereik was. Het
+       * vangnet erachter staat in `lib/pipeline/topic-order.ts`.
+       */
+      priority: z
+        .number()
+        .describe(
+          "Rangorde van dit onderwerp: 1 is het belangrijkste, daarna 2, 3, enzovoort. " +
+            `Gebruik elk nummer hooguit één keer en blijf tussen 1 en ${MAX_TOPICS}.`,
+        ),
     }),
   ),
 });
 
 export type TopicProposals = z.infer<typeof TopicProposals>;
-
-/** Onder de vijf is het geen keuze meer, boven de acht kiest niemand. */
-const MIN_TOPICS = 5;
-const MAX_TOPICS = 8;
 
 export interface TopicResult {
   proposed: number;
@@ -191,6 +204,14 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
     `3. Geen twee onderwerpen die op hetzelfde neerkomen. Liever vijf scherpe dan acht vage.\n` +
     `4. Schrijf de onderbouwing voor een ondernemer, zonder vaktermen. Zeg wat het oplevert, niet ` +
     `wat het is.\n` +
+    // ⚠️ Deze regel stond er niet, en het model wist dus niet wat 'priority'
+    // moest betekenen. Het gaf getallen buiten het bereik terug, waarna de
+    // clamp ze allemaal op 0 zette en de clusterlijst willekeurig sorteerde
+    // (7 september 2026, Van den Udenhout). Het vangnet staat in
+    // `lib/pipeline/topic-order.ts`; dit is de intentie ernaast (conventie 1).
+    `5. Zet in 'priority' de RANGORDE: 1 voor het belangrijkste onderwerp, dan 2, dan 3, tot en ` +
+    `met hooguit ${MAX_TOPICS}. Elk nummer hooguit één keer. Het belangrijkste is het onderwerp ` +
+    `waar de meeste omzet of de meeste groei zit, niet het onderwerp met de meeste pagina's.\n` +
     `Antwoord in het Nederlands.`;
 
   const user =
@@ -285,6 +306,13 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
     }
   }
 
+  // De rangorde: wat het model gaf als dat bruikbaar is, anders zijn eigen
+  // volgorde. Levert n tot en met 1 op, elk één keer (`topic-order.ts`).
+  const prioriteiten = topicPriorities(
+    voorstellen.map((t) => t.priority),
+    MAX_TOPICS,
+  );
+
   const { error } = await admin.from("profile_topics").insert(
     voorstellen.map((t, i) => ({
       profile_id: profileId,
@@ -314,7 +342,10 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
         ),
       ],
       // Aflopend: hoogste prioriteit bovenaan bij `order by priority desc`.
-      priority: Math.max(0, MAX_TOPICS - (Number.isFinite(t.priority) ? t.priority : i + 1)),
+      // Berekend door `topicPriorities()`, want een rangnummer buiten het
+      // bereik viel hier stil op 0 terug en dan staat de clusterlijst in
+      // willekeurige volgorde (zie topic-order.ts).
+      priority: prioriteiten[i],
       status: "voorgesteld",
       stage: nieuweStage,
       origin: nieuweOorsprong,

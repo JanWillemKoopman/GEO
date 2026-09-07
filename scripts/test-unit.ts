@@ -720,6 +720,7 @@ import {
   goalRule,
 } from "@/lib/pipeline/commercial-context";
 import { buildTopicBrief } from "@/lib/pipeline/topic-brief";
+import { topicPriorities } from "@/lib/pipeline/topic-order";
 import {
   beoordeelRonde,
   snapshotsGelijk,
@@ -11806,6 +11807,65 @@ function onderwerp(
     updated_at: "",
   };
 }
+
+group("De rangorde van voorgestelde onderwerpen (topic-order.ts, 7 september 2026)", () => {
+  // De echte uitvoer van 7 september 2026 bij Van den Udenhout: het model gaf
+  // zeven onderwerpen terug met rangnummers buiten het afgesproken bereik. De
+  // oude regel `Math.max(0, 8 - rang)` zette ze allemaal op 0, en de
+  // clusterlijst (`order by priority desc`) stond daardoor willekeurig.
+  const uitProductie = [10, 20, 30, 40, 50, 60, 70];
+  const hersteld = topicPriorities(uitProductie, 8);
+  ok(
+    "rangnummers buiten het bereik vallen terug op de volgorde van het model",
+    JSON.stringify(hersteld) === JSON.stringify([7, 6, 5, 4, 3, 2, 1]),
+  );
+  ok("en dan staat er nergens meer een 0", !hersteld.includes(0));
+
+  ok(
+    "een nette rangorde blijft gewoon staan",
+    JSON.stringify(topicPriorities([1, 2, 3], 8)) === JSON.stringify([3, 2, 1]),
+  );
+
+  ok(
+    "een omgekeerde rangorde wordt omgedraaid, want 1 is het belangrijkste",
+    JSON.stringify(topicPriorities([3, 2, 1], 8)) === JSON.stringify([1, 2, 3]),
+  );
+
+  ok(
+    "een gat in de nummering verandert niets aan de volgorde",
+    JSON.stringify(topicPriorities([1, 5, 8], 8)) === JSON.stringify([3, 2, 1]),
+  );
+
+  // Het model zet er soms één die het niet kan plaatsen; die hoort achteraan en
+  // niet vooraan, want vooraan kost een betaalde meetronde.
+  ok(
+    "een onbruikbare waarde zakt naar achteren",
+    JSON.stringify(topicPriorities([2, "eerste", 1], 8)) === JSON.stringify([2, 1, 3]),
+  );
+  ok(
+    "en dat geldt ook voor 0, een halve rang en een te hoog getal",
+    JSON.stringify(topicPriorities([0, 1.5, 99, 1], 8)) === JSON.stringify([3, 2, 1, 4]),
+  );
+
+  // Twee keer hetzelfde nummer mag de uitkomst niet laten omvallen: dan
+  // beslist de volgorde waarin het model ze teruggaf.
+  const dubbel = topicPriorities([1, 1, 2], 8);
+  ok(
+    "een dubbel rangnummer levert nog steeds drie verschillende plekken op",
+    new Set(dubbel).size === 3 && JSON.stringify(dubbel) === JSON.stringify([3, 2, 1]),
+  );
+
+  ok("een lege lijst levert een lege lijst op", topicPriorities([], 8).length === 0);
+
+  // De garantie waar de clusterlijst op leunt: elk onderwerp een eigen plek.
+  const vanAlles = topicPriorities([5, null, 1, 1, undefined, 8, "x", -2], 8);
+  ok(
+    "acht onderwerpen leveren altijd acht verschillende prioriteiten op, van 8 tot en met 1",
+    new Set(vanAlles).size === 8 &&
+      Math.min(...vanAlles) === 1 &&
+      Math.max(...vanAlles) === 8,
+  );
+});
 
 group("De clusterlaag smelt tot één tekst (topic-brief.ts, migratie 0075)", () => {
   const leeg = {
