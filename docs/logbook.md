@@ -7985,3 +7985,30 @@ teller op 0, zodat ze niet op hun vier pogingen opbranden. Tot die twee gedraaid
 8 onderwerpen op `stage: concept` staan en is er dus nog geen cluster te starten.
 
 Geen code gewijzigd, dus geen controles gedraaid.
+
+## 7 september 2026: de twee wachtende taken van Van den Udenhout zijn gedraaid, en de rangorde van onderwerpen bleek nergens op te slaan
+
+Het tegoed op de OpenAI-API is aangevuld en beide taken zijn alsnog gedraaid.
+
+**De definitieve onderwerpronde leverde 7 onderwerpen**, allemaal met herkomst `aanbod_en_gesprek`,
+en ze volgen het gesprek: zakelijke lease, wagenparkbeheer, bedrijfswagens voor installatie- en
+bouwbedrijven, elektrisch rijden en laden, onderhoud voor auto's van vijf jaar en ouder, private
+lease en occasions. Fietsen via VELOO staat er terecht niet bij, want dat is in het gesprek
+gedeprioriteerd. Het knooppunt "Laden voor zakelijke wagenparken" dat met de hand aan de aanbodboom
+is toegevoegd komt terug in twee van de zeven onderwerpen, dus die handmatige toevoeging werkt door
+zoals bedoeld.
+
+**De kennistest is aangevuld met 9 regionale vragen** (van 12 naar 18 vragen, kosten ongeveer
+$0,09). De oude landelijke vragen blijven staan, want de test is idempotent op de vraagtekst zelf.
+
+⚠️ **Alle zeven onderwerpen kwamen binnen met `priority = 0`.** De clusterlijst sorteert op
+`priority desc`, dus de volgorde waarin de consultant de voorstellen ziet was willekeurig, precies
+op het moment dat hij moet kiezen welk cluster als eerste draait. De oorzaak staat in
+`propose-topics.ts` regel 317: `Math.max(0, MAX_TOPICS - t.priority)` met `MAX_TOPICS = 8`, dus elke
+waarde van 8 of hoger valt terug op 0. Het model kreeg nergens te horen wat het bereik is: de regel
+"1 is het belangrijkste" staat als TypeScript-commentaar boven `priority: z.number()` en gaat dus
+niet mee in het schema, en de systeemprompt noemt de rangorde helemaal niet. Het vangnet uit
+conventie 1 ontbreekt hier ook: `Number.isFinite()` vangt alleen een niet-getal af, niet een getal
+buiten het bereik. Voor dit merk is de volgorde met de hand gezet (7 tot en met 1, de commerciële
+prioriteit uit het gesprek) en zijn de drie gespreksvelden per onderwerp gevuld. De reparatie in de
+code staat nog open.
