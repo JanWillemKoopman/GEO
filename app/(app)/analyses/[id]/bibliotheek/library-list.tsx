@@ -109,6 +109,32 @@ export function LibraryList({ analysisId, pieces }: { analysisId: string; pieces
 
   return (
     <div className="flex flex-col gap-6">
+      {/* ⚠️ DE KOPMELDING: dit blok bestaat om precies één misverstand te
+          voorkomen. "Ik heb net op schrijven geklikt, dus hij is nu ergens op
+          de achtergrond aan het schrijven" is een aanname die deze pagina
+          eerder stilzwijgend tegensprak: de gewone "wacht op jouw input"-groep
+          stond verderop, in dezelfde toon als "Even nakijken" of "Live", en
+          zei niet dat er op dit moment NIETS gebeurt. Voor iedere andere groep
+          klopt "later terugkomen" als houding; voor deze ene niet, want er
+          verandert niets vanzelf. Vandaar een eigen blok, vóór de rest, dat
+          met zoveel woorden zegt dat ORBIT ENGINE stilstaat totdat de klant
+          klikt. */}
+      {wachtend > 0 && (
+        <div className="card card-warning flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-col gap-1">
+            <span className="mono-label">ORBIT ENGINE schrijft nu niets</span>
+            <p className="text-sm text-secondary">
+              {wachtend === 1
+                ? "Er wacht 1 pagina op een paar antwoorden van jou. Zonder die antwoorden gebeurt er niets, ook niet op de achtergrond."
+                : `Er wachten ${wachtend} pagina's op een paar antwoorden van jou. Zonder die antwoorden gebeurt er niets, ook niet op de achtergrond.`}
+            </p>
+          </div>
+          <Link href={`/analyses/${analysisId}/briefing`} className="btn-primary w-fit shrink-0">
+            Beantwoord de vragen
+          </Link>
+        </div>
+      )}
+
       <div className="card flex flex-wrap items-end justify-between gap-4">
         <div>
           <span className="mono-label">Je bibliotheek</span>

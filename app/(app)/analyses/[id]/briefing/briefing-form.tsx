@@ -89,6 +89,16 @@ export interface PaginaStandView {
   melding: string;
   /** De koppen van de secties die nog op een antwoord wachten. */
   ongedekteKoppen: string[];
+  /**
+   * Blokkeert deze pagina specifiek omdat er geen lezer is? (V7)
+   *
+   * ⚠️ Bepaalt welke knop(pen) hieronder verschijnen. "Schrijf hem algemeen"
+   * lost dit NIET op (`lib/content-input-gate.ts`: die keuze wordt vóór de
+   * writeMode-vertakking al tegengehouden), dus die knop mag hier niet staan.
+   * De enige knoppen die wél iets doen zijn: een lezer in één zin opgeven, of
+   * de pagina laten vallen.
+   */
+  zonderLezer: boolean;
 }
 
 type Draft = Record<string, { value: string; skipped: boolean }>;
@@ -110,6 +120,10 @@ export function BriefingForm({
 }) {
   const router = useRouter();
   const [keuzes, setKeuzes] = useState<Record<string, PaginaKeuze>>({});
+  // De lezer die de klant intypt bij een pagina zonder lezer (V7). Los van
+  // `keuzes`: dat is een knop, dit is vrije tekst, en ze gaan naar een ander
+  // veld (`content_pieces.target_intent` in plaats van `write_mode`).
+  const [lezers, setLezers] = useState<Record<string, string>>({});
   const [geblokkeerd, setGeblokkeerd] = useState<{ title: string; melding: string }[]>([]);
   const [draft, setDraft] = useState<Draft>(() =>
     Object.fromEntries(
@@ -153,7 +167,13 @@ export function BriefingForm({
             answer: draft[q.id]?.value ?? "",
             skip: draft[q.id]?.skipped ?? false,
           })),
-          pageChoices: Object.entries(keuzes).map(([id, mode]) => ({ id, mode })),
+          pageChoices: [
+            ...Object.entries(keuzes).map(([id, mode]) => ({ id, mode })),
+            // Alleen meesturen als er echt iets staat: een leeg veld is geen keuze.
+            ...Object.entries(lezers)
+              .filter(([, tekst]) => tekst.trim().length > 0)
+              .map(([id, tekst]) => ({ id, mode: "lezer" as const, tekst: tekst.trim() })),
+          ],
         }),
       });
       const data = (await res.json().catch(() => ({}))) as {
@@ -246,7 +266,13 @@ export function BriefingForm({
         </div>
       </header>
 
-      <PaginaStanden pages={pages} keuzes={keuzes} onKies={kies} />
+      <PaginaStanden
+        pages={pages}
+        keuzes={keuzes}
+        onKies={kies}
+        lezers={lezers}
+        onLezerChange={(pieceId, tekst) => setLezers((l) => ({ ...l, [pieceId]: tekst }))}
+      />
 
       {geblokkeerd.length > 0 && (
         <div className="card card-warning flex flex-col gap-2" role="status">
@@ -534,10 +560,15 @@ function PaginaStanden({
   pages,
   keuzes,
   onKies,
+  lezers,
+  onLezerChange,
 }: {
   pages: PaginaStandView[];
   keuzes: Record<string, PaginaKeuze>;
   onKies: (pieceId: string, keuze: PaginaKeuze) => void;
+  /** Wat de klant per pagina intypte bij "voor wie is deze pagina" (V7). */
+  lezers: Record<string, string>;
+  onLezerChange: (pieceId: string, tekst: string) => void;
 }) {
   if (pages.length === 0) return null;
 
@@ -573,7 +604,35 @@ function PaginaStanden({
             {/* Alleen als er echt iets te kiezen valt. Een pagina die gewoon
                 geschreven kan worden hoort geen knoppen te krijgen: dan vraagt
                 het scherm een besluit waar geen besluit nodig is. */}
-            {pagina.stand !== "schrijven" && (
+            {/* ⚠️ "Schrijf hem algemeen" lost "geen lezer" niet op (zie het
+                commentaar bij `PaginaStandView.zonderLezer`): die knop hier
+                tonen is een knop die niets doet als je hem indient. In
+                plaats daarvan staat hier het veld dat de melding hierboven
+                letterlijk noemt: in één zin de lezer beschrijven. */}
+            {pagina.stand !== "schrijven" && pagina.zonderLezer && (
+              <div className="flex flex-col gap-2">
+                <input
+                  type="text"
+                  className="field w-full"
+                  placeholder="bijv. een mkb-ondernemer met 10 tot 30 bedrijfswagens die op zoek is naar minder gedoe met onderhoud"
+                  value={lezers[pagina.id] ?? ""}
+                  onChange={(e) => onLezerChange(pagina.id, e.target.value)}
+                  aria-label={`Voor wie is de pagina "${pagina.title}"?`}
+                />
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className={keuze === "laten_vallen" ? "btn-outline" : "btn-ghost"}
+                    aria-pressed={keuze === "laten_vallen"}
+                    onClick={() => onKies(pagina.id, "laten_vallen")}
+                  >
+                    {keuze === "laten_vallen" ? "Wordt overgeslagen" : "Laat deze pagina vallen"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {pagina.stand !== "schrijven" && !pagina.zonderLezer && (
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"

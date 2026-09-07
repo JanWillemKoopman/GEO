@@ -67,6 +67,18 @@ export interface InputOordeel {
   graad: number | null;
   /** Wat de klant leest. Altijd gevuld, ook als het mag. */
   melding: string;
+  /**
+   * Blokkeert dit oordeel specifiek omdat er geen lezer is? (V7)
+   *
+   * ⚠️ Waarom het scherm dit apart moet weten en niet aan `stand` genoeg heeft:
+   * bij élke andere "tegenhouden" helpt de knop "schrijf hem algemeen" (hij zet
+   * `writeMode`, en de poort laat de pagina dan door). Bij déze reden helpt hij
+   * NIET: "geen lezer" wordt hierboven vóór de `writeMode`-vertakking
+   * afgehandeld, dus dezelfde knop nogmaals indienen levert opnieuw
+   * "tegenhouden" op. Een scherm dat dat verschil niet kent, biedt een knop aan
+   * die niets doet en dat is een doodlopend eind (`docs/ux-design.md` §4).
+   */
+  zonderLezer: boolean;
 }
 
 export interface InputPoortInput {
@@ -148,6 +160,7 @@ export function inputpoort(input: InputPoortInput): InputOordeel {
       stand: "tegenhouden",
       mag: false,
       graad,
+      zonderLezer: true,
       melding:
         "Ik weet nog niet voor wie deze pagina is. Er staat geen omschrijving van de lezer bij, " +
         "en er hangt ook geen gemeten vraag aan. Dan wordt het een pagina die alles een beetje " +
@@ -166,6 +179,7 @@ export function inputpoort(input: InputPoortInput): InputOordeel {
       stand: "schrijven",
       mag: true,
       graad,
+      zonderLezer: false,
       melding:
         "Deze pagina wordt geschreven als algemene uitleg over het onderwerp, zonder cijfers of " +
         "claims over jouw bedrijf. Beantwoord je later alsnog een vraag, dan kan hij scherper.",
@@ -178,6 +192,7 @@ export function inputpoort(input: InputPoortInput): InputOordeel {
       stand: "schrijven",
       mag: true,
       graad: null,
+      zonderLezer: false,
       melding:
         "Deze pagina legt het onderwerp uit en vraagt niets van jou. Hij kan meteen geschreven " +
         "worden.",
@@ -203,6 +218,7 @@ export function inputpoort(input: InputPoortInput): InputOordeel {
       stand: "waarschuwing",
       mag: true,
       graad,
+      zonderLezer: false,
       melding:
         `${aantal} kan ik nog niet onderbouwen.${watMist} De pagina kan wel geschreven worden, ` +
         `maar hij is pas klaar voor publicatie als je hier antwoord op geeft.`,
@@ -214,6 +230,7 @@ export function inputpoort(input: InputPoortInput): InputOordeel {
       stand: "schrijven",
       mag: true,
       graad,
+      zonderLezer: false,
       melding:
         ongedekteSecties > 0
           ? `Deze pagina kan geschreven worden. Er staat nog een vraag open die hem sterker ` +
@@ -232,6 +249,7 @@ export function inputpoort(input: InputPoortInput): InputOordeel {
       stand: "waarschuwing",
       mag: true,
       graad,
+      zonderLezer: false,
       melding:
         `${aantal} kan ik nu niet met jouw gegevens vullen, dus die laat ik weg. De pagina wordt ` +
         `daardoor korter.${watMist} Beantwoord je de vragen eerst, dan komen ze er wel op.`,
@@ -245,6 +263,7 @@ export function inputpoort(input: InputPoortInput): InputOordeel {
     stand: "tegenhouden",
     mag: false,
     graad,
+    zonderLezer: false,
     melding:
       `Deze pagina gaat bijna helemaal over jouw bedrijf, en daar heb ik nu te weinig van.${watMist} ` +
       "Met wat ik nu heb wordt het een algemeen artikel zonder één cijfer, en dat citeert geen " +

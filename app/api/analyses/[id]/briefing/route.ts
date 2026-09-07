@@ -93,10 +93,21 @@ function recommendationFor(piece: {
  * poort een muur, en muren leveren afgehaakte klanten op in plaats van betere
  * content (`release-panel.tsx`).
  */
+/** Boven dit aantal tekens knippen we de doelomschrijving af (praktisch: het is één zin). */
+const MAX_LEZER_LENGTH = 300;
+
 interface PaginaKeuze {
   id: string;
-  /** 'algemeen' = schrijf hem zonder onze cijfers. 'laten_vallen' = niet schrijven. */
-  mode: "algemeen" | "laten_vallen";
+  /**
+   * 'algemeen' = schrijf hem zonder onze cijfers. 'laten_vallen' = niet
+   * schrijven. 'lezer' = de klant beschreef in één zin voor wie de pagina is
+   * (V7, `lib/lezersopdracht.ts`); dat is de enige van de drie die de
+   * "geen lezer"-blokkade in `lib/content-input-gate.ts` echt opheft, want
+   * 'algemeen' wordt daar vóór die vertakking al afgehandeld.
+   */
+  mode: "algemeen" | "laten_vallen" | "lezer";
+  /** Alleen gevuld bij mode 'lezer': de doelomschrijving zelf. Anders leeg. */
+  tekst: string;
 }
 
 function readPageChoices(value: unknown): PaginaKeuze[] {
@@ -104,12 +115,20 @@ function readPageChoices(value: unknown): PaginaKeuze[] {
   return value
     .map((c) => {
       const input = (c ?? {}) as Partial<PaginaKeuze>;
+      const mode =
+        input.mode === "algemeen" || input.mode === "laten_vallen" || input.mode === "lezer"
+          ? input.mode
+          : null;
       return {
         id: typeof input.id === "string" ? input.id : "",
-        mode: input.mode === "algemeen" || input.mode === "laten_vallen" ? input.mode : null,
+        mode,
+        tekst: typeof input.tekst === "string" ? input.tekst.trim().slice(0, MAX_LEZER_LENGTH) : "",
       };
     })
-    .filter((c): c is PaginaKeuze => c.id.length > 0 && c.mode !== null);
+    .filter(
+      (c): c is PaginaKeuze =>
+        c.id.length > 0 && c.mode !== null && (c.mode !== "lezer" || c.tekst.length > 0),
+    );
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -213,14 +232,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         // huidige batch, zodat hij niet meegeschreven wordt en niet meer als
         // "wacht op jouw input" in de bibliotheek staat. De tekst en de vragen
         // blijven achterhaalbaar, net als bij versiebeheer (4.7).
-        await admin
-          .from("content_pieces")
-          .update(
-            keuze.mode === "laten_vallen"
-              ? { is_current: false }
-              : { write_mode: "algemeen" },
-          )
-          .eq("id", keuze.id);
+        //
+        // 'lezer' zet `target_intent`: dezelfde kolom die `bepaalLezersopdracht()`
+        // leest (`lib/lezersopdracht.ts`). Zodra die niet meer leeg is, ziet de
+        // poort bij de volgende beoordeling vanzelf `heeftLezer: true`.
+        const update =
+          keuze.mode === "laten_vallen"
+            ? { is_current: false }
+            : keuze.mode === "lezer"
+              ? { target_intent: keuze.tekst }
+              : { write_mode: "algemeen" };
+        await admin.from("content_pieces").update(update).eq("id", keuze.id);
       }
     }
 

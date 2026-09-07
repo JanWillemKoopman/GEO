@@ -8012,3 +8012,35 @@ conventie 1 ontbreekt hier ook: `Number.isFinite()` vangt alleen een niet-getal 
 buiten het bereik. Voor dit merk is de volgorde met de hand gezet (7 tot en met 1, de commerciële
 prioriteit uit het gesprek) en zijn de drie gespreksvelden per onderwerp gevuld. De reparatie in de
 code staat nog open.
+
+## 7 september 2026: de knop "schrijf hem algemeen" loste "geen lezer" niet op, en de bibliotheek zei niet dat er niets gebeurt
+
+Bij Van den Udenhout stond de pagina "Maak de pagina over wagenparkbeheer tot een duidelijke
+regionale oplossing voor mkb-wagenparken" na het klikken op "Schrijf mijn pagina" nog steeds in de
+bibliotheek onder "Wacht op jouw input". De klant had wel alle feitenvragen beantwoord (32 van de 32
+in `fact_requests`), dus het leek stuk.
+
+**De echte oorzaak was de andere poort, de lezerspoort (V7, `lib/lezersopdracht.ts`).** Deze pagina
+had geen `target_intent` en geen gekoppelde gemeten vraag, dus `heeftLezer` stond op onwaar. De
+melding op het briefingscherm noemt drie uitwegen ("in één zin de lezer beschrijven", "een gemeten
+vraag koppelen", "laten vallen"), maar het scherm bood er maar twee knoppen voor: "Schrijf hem
+algemeen" en "Laat deze pagina vallen". Erger: de eerste knop deed hier niets. In
+`lib/content-input-gate.ts` staat de `!heeftLezer`-check VÓÓR de `writeMode === "algemeen"`-check,
+met opzet (het commentaar zegt het letterlijk: "een algemene uitleg heeft net zo goed een lezer
+nodig"), dus wie "algemeen" koos en opnieuw op "Schrijf mijn pagina" klikte, kreeg gewoon opnieuw
+"tegenhouden" te zien, zonder dat het scherm zei waarom die knop niet hielp.
+
+**De reparatie is tweeledig.** Eén, `inputpoort()` geeft nu een `zonderLezer`-vlag mee op het
+oordeel, zodat het scherm de twee soorten "tegenhouden" uit elkaar kan houden. Bij `zonderLezer` valt
+de knop "algemeen" weg en staat er in plaats daarvan een tekstveld waarin de klant in één zin de
+lezer kan beschrijven; dat antwoord gaat naar `content_pieces.target_intent`, dezelfde kolom die
+`bepaalLezersopdracht()` leest. Twee, de bibliotheek (`library-list.tsx`) opent nu met een eigen
+kaart die met zoveel woorden zegt "ORBIT ENGINE schrijft nu niets" zolang er een pagina op input
+wacht, in plaats van diezelfde melding pas verderop in de gewone groepenlijst te tonen. Dat is de
+conventie-1-toepassing hier: de instructie "de klant kan altijd door" bestond al in de prompt van de
+melding, maar zonder een werkende knop en zonder een onmiskenbare "er gebeurt niets"-melding was dat
+alleen een belofte, geen vangnet.
+
+Getest: `scripts/test-unit.ts` kreeg negen nieuwe asserties die `zonderLezer` op elk van de zes
+oordelen van `inputpoort()` narekenen. `tsc --noEmit`, `test:unit` (4388 geslaagd), `test:chain` (650
+geslaagd) en `build` zijn alle vier groen gedraaid.
