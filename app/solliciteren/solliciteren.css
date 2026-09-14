@@ -38,9 +38,20 @@
   --sol-accent: #b64f24;
   --sol-accent-zacht: #f6e5db;
 
-  /* Vorm en ruimte. */
+  /* Twee signaalkleuren, alleen voor de controles op een geschreven brief:
+     groen als er geen standaardzinnen in staan, amber als er wel een paar in
+     staan. Amber en niet rood, want een standaardzin is geen fout maar iets om
+     nog even naar te kijken. */
+  --sol-goed: #3f6b3a;
+  --sol-let-op: #9a6414;
+  --sol-let-op-zacht: #fbf0dc;
+
+  /* Vorm en ruimte. `--sol-maat` is de leesbreedte van een tekstpagina;
+     `--sol-maat-breed` is voor het werkblad, waar het bronmateriaal en het
+     gesprek naast elkaar staan. */
   --sol-radius: 4px;
   --sol-maat: 46rem;
+  --sol-maat-breed: 76rem;
 
   /* Letters. Systeemletters, geen extra download: het zijproject hoort de
      bouw van ORBIT ENGINE niet zwaarder te maken. */
@@ -228,4 +239,414 @@
   .sol-skelet {
     animation: none;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DE SOLLICITATIEASSISTENT (14 september 2026)
+
+   Alles hieronder hoort bij het werkblad: bronmateriaal links, gesprek rechts.
+   Zelfde afspraak als hierboven, geen enkel token en geen enkele klasse uit
+   ORBIT ENGINE, alles begint met `--sol-` en `sol-`.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Het werkblad is breder dan een leespagina: twee kolommen naast elkaar passen
+   niet in 46rem zonder dat de brief op een kolomstrookje eindigt. */
+.sol-binnen--breed {
+  max-width: var(--sol-maat-breed);
+}
+
+/* ── De gesprekken ────────────────────────────────────────────────────────── */
+
+.sol-gesprekken {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.sol-gesprekken__lijst {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sol-gesprekken__lijst li {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.sol-tab {
+  display: block;
+  max-width: 16rem;
+  overflow: hidden;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--sol-rand);
+  border-radius: var(--sol-radius);
+  background-color: var(--sol-kaart);
+  color: var(--sol-inkt-zacht);
+  font-size: 0.82rem;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sol-tab:hover {
+  border-color: var(--sol-accent);
+  color: var(--sol-inkt);
+}
+
+.sol-tab--actief {
+  background-color: var(--sol-accent-zacht);
+  border-color: var(--sol-accent);
+  color: var(--sol-inkt);
+  font-weight: 600;
+}
+
+.sol-tab__weg {
+  border: 0;
+  background: none;
+  padding: 0 0.3rem;
+  color: var(--sol-inkt-licht);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sol-tab__weg:hover {
+  color: var(--sol-accent);
+}
+
+/* ── Het werkblad ─────────────────────────────────────────────────────────── */
+
+.sol-werkblad {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+/* Pas naast elkaar zodra een kolom van 22rem én een gesprek van 34rem allebei
+   passen. Daaronder onder elkaar, want een tekstvak van 15rem breed is geen
+   tekstvak meer. */
+@media (min-width: 64rem) {
+  .sol-werkblad {
+    grid-template-columns: minmax(0, 23rem) minmax(0, 1fr);
+  }
+}
+
+.sol-kolom {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* De kaarten in een kolom staan onder elkaar met dezelfde tussenruimte als het
+   raster zelf, en niet met de losse marge van `.sol-kaart`. */
+.sol-paneel,
+.sol-gesprek {
+  margin-top: 1rem;
+}
+
+/* ── Velden en knoppen ────────────────────────────────────────────────────── */
+
+.sol-veld {
+  margin-top: 1rem;
+}
+
+.sol-veld__label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.sol-veld__uitleg {
+  margin: 0.1rem 0 0.4rem;
+  font-size: 0.78rem;
+  color: var(--sol-inkt-licht);
+}
+
+.sol-veld__teller {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  color: var(--sol-inkt-licht);
+}
+
+.sol-invoer {
+  display: block;
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--sol-rand);
+  border-radius: var(--sol-radius);
+  background-color: var(--sol-papier);
+  color: var(--sol-inkt);
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.sol-invoer:focus-visible {
+  outline: 2px solid var(--sol-accent);
+  outline-offset: 1px;
+}
+
+.sol-invoer--tekstvak {
+  resize: vertical;
+  min-height: 4rem;
+}
+
+.sol-knop {
+  align-self: flex-start;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--sol-accent);
+  border-radius: var(--sol-radius);
+  background-color: var(--sol-accent);
+  color: var(--sol-papier);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+
+.sol-knop:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.sol-knop:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sol-knop--klein {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.82rem;
+}
+
+/* De stille knop staat naast een tekst en mag die niet overstemmen. */
+.sol-knop--stil {
+  padding: 0.2rem 0.55rem;
+  border-color: var(--sol-rand);
+  background-color: var(--sol-kaart);
+  color: var(--sol-inkt-zacht);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.sol-knop--stil:hover:not(:disabled) {
+  border-color: var(--sol-accent);
+  color: var(--sol-accent);
+  opacity: 1;
+}
+
+.sol-kaart__tekst--klein {
+  font-size: 0.85rem;
+}
+
+.sol-paneel__voet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--sol-rand);
+}
+
+.sol-paneel__voet .sol-veld__teller {
+  margin: 0;
+}
+
+.sol-keuzes {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 30rem) {
+  .sol-keuzes {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ── De sleutelwoorden ────────────────────────────────────────────────────── */
+
+.sol-woorden {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Ontbrekend is de opvallende stand en niet andersom: die woorden zijn waar
+   iemand iets aan heeft. Een vinkje erbij, want kleur alleen is geen verschil
+   voor wie het niet ziet. */
+.sol-woord {
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--sol-let-op);
+  border-radius: var(--sol-radius);
+  background-color: var(--sol-let-op-zacht);
+  color: var(--sol-let-op);
+  font-size: 0.78rem;
+}
+
+.sol-woord--raak {
+  border-color: var(--sol-rand);
+  background-color: var(--sol-papier-diep);
+  color: var(--sol-inkt-licht);
+}
+
+.sol-woord--raak::before {
+  content: "✓ ";
+}
+
+.sol-woord__aantal {
+  margin-left: 0.3rem;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Het gesprek ──────────────────────────────────────────────────────────── */
+
+.sol-gesprek {
+  display: flex;
+  flex-direction: column;
+}
+
+.sol-leeg {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  margin-top: 0.75rem;
+  padding: 1.25rem;
+  border: 1px dashed var(--sol-rand);
+  border-radius: var(--sol-radius);
+  background-color: var(--sol-papier-diep);
+}
+
+.sol-berichten {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.sol-bericht {
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--sol-rand);
+  border-radius: var(--sol-radius);
+  background-color: var(--sol-papier);
+}
+
+/* De eigen aanwijzing staat ingesprongen en smaller: zo is in één oogopslag te
+   zien waar jij iets zei en waar de assistent antwoordde, zonder dat er een
+   tweede kleur bij hoeft. */
+.sol-bericht--gebruiker {
+  margin-left: auto;
+  max-width: 90%;
+  background-color: var(--sol-accent-zacht);
+  border-color: var(--sol-accent-zacht);
+}
+
+.sol-bericht--assistent {
+  border-left: 3px solid var(--sol-accent);
+  background-color: var(--sol-kaart);
+}
+
+.sol-bericht__kop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.sol-bericht__wie {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sol-inkt-zacht);
+}
+
+.sol-bericht__meta {
+  font-size: 0.74rem;
+  color: var(--sol-inkt-licht);
+}
+
+.sol-bericht__meta--goed {
+  color: var(--sol-goed);
+}
+
+.sol-bericht__meta--let-op {
+  color: var(--sol-let-op);
+}
+
+/* `pre-wrap`: de assistent levert platte tekst met lege regels ertussen, en dat
+   is precies wat er in een e-mail geplakt wordt. Zie de toelichting in
+   `bericht.tsx` voor waarom er geen opmaak overheen gaat. */
+.sol-bericht__tekst {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  font-size: 0.92rem;
+}
+
+.sol-bericht__voet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--sol-rand);
+}
+
+.sol-cliches {
+  margin: 0.6rem 0 0;
+  padding: 0.6rem 0.8rem 0.6rem 1.6rem;
+  border-radius: var(--sol-radius);
+  background-color: var(--sol-let-op-zacht);
+  color: var(--sol-let-op);
+  font-size: 0.78rem;
+}
+
+.sol-cliches li + li {
+  margin-top: 0.25rem;
+}
+
+/* ── Het invoerveld onderaan ──────────────────────────────────────────────── */
+
+.sol-opsteller {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--sol-rand);
+}
+
+.sol-opsteller__voet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.6rem;
+}
+
+.sol-opsteller__voet .sol-veld__teller {
+  margin: 0;
+}
+
+.sol-fout {
+  margin: 0.8rem 0 0;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--sol-accent);
+  border-radius: var(--sol-radius);
+  background-color: var(--sol-accent-zacht);
+  color: var(--sol-accent);
+  font-size: 0.82rem;
 }

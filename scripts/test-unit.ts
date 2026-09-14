@@ -457,6 +457,31 @@ import { planFactMerge, describeContradictions } from "@/lib/pipeline/fact-merge
 import type { IncomingFact, StoredFact } from "@/lib/pipeline/fact-merge";
 import { detectClaimSentences, claimMatchesSentence, detectedCoverage } from "@/lib/pipeline/claim-extract";
 import { resolveTuning, isReasoningModel, isUnsupportedTemperatureError } from "@/lib/openai/sampling";
+import { zoekCliches, telCliches } from "@/lib/solliciteren/cliches";
+import {
+  MAX_SLEUTELWOORDEN,
+  dekkingspercentage,
+  vergelijkSleutelwoorden,
+} from "@/lib/solliciteren/sleutelwoorden";
+import {
+  MODELLEN,
+  REDENEERSTANDEN,
+  STANDAARD_MODEL,
+  STANDAARD_STAND,
+  TEMPERATUUR_ZONDER_REDENEREN,
+  bepaalParameters,
+  isGeldigModel,
+  isGeldigeStand,
+} from "@/lib/solliciteren/modellen";
+import {
+  EERSTE_VRAAG,
+  MAX_BERICHTEN_IN_HISTORIE,
+  MAX_CONTEXT_TEKENS,
+  bouwContextbericht,
+  bouwInvoer,
+  bouwSysteemprompt,
+  kapAf,
+} from "@/lib/solliciteren/prompt";
 import { estimateCostUsd, hasKnownRate } from "@/lib/openai/pricing";
 import { MODELS } from "@/lib/openai/models";
 import {
@@ -14029,6 +14054,252 @@ group("het zijproject staat los van ORBIT ENGINE, en zit wel achter dezelfde inl
     "de shell geeft dat recht ook door",
     leesBestand("components/app-shell.tsx").includes("solliciteren={staff}"),
   );
+});
+
+// ── De sollicitatieassistent van het zijproject ────────────────────────────
+//
+// ⚠️ Alles hieronder gaat over `app/solliciteren/` en `lib/solliciteren/`, de
+// eigen app achter dezelfde inlog. De groep hierboven bewaakt de SCHEIDING; deze
+// groepen bewaken wat de assistent zelf doet.
+
+group("de assistent: de standaardzinnen worden geteld en niet weggehaald", () => {
+  const brief =
+    "In een wereld waarin alles verandert, schrijf ik u met veel enthousiasme. " +
+    "Ik ben ervan overtuigd dat mijn ervaring naadloos aansluit op deze functie. " +
+    "Als echte teamspeler en proactieve collega ben ik de ideale kandidaat. " +
+    "Ik zie er naar uit om dit toe te lichten.";
+
+  const vondsten = zoekCliches(brief);
+  ok("er komen vondsten uit", vondsten.length >= 6, `${vondsten.length}`);
+  ok(
+    "de opening wordt herkend",
+    vondsten.some((v) => /in een wereld waarin/i.test(v.gevonden)),
+  );
+  ok(
+    "en het enthousiasme ook",
+    vondsten.some((v) => /met veel enthousiasme/i.test(v.gevonden)),
+  );
+  ok("elke vondst zegt waarom", vondsten.every((v) => v.waarom.length > 10));
+
+  // Het gedachtestreepje is het sterkste signaal van AI-tekst
+  // (docs/schrijfstijl.md §10), dus dat moet er sowieso uit komen.
+  const metStreepje = zoekCliches("Ik werkte drie jaar in de zorg — en dat beviel goed.");
+  ok("een gedachtestreepje wordt gevonden", metStreepje.length === 1, `${metStreepje.length}`);
+  ok(
+    "en een schuine streep in en/of ook",
+    zoekCliches("Ik werk met bouwers en/of installateurs.").length === 1,
+  );
+
+  // ⚠️ De valkuil van een globale RegExp: `lastIndex` blijft staan tussen twee
+  // teksten door, en dan mist de tweede brief precies wat de eerste wel vond.
+  // Dat valt in productie pas op bij het tweede bericht en dus nooit.
+  const eerste = telCliches(brief);
+  const tweede = telCliches(brief);
+  ok("twee keer dezelfde tekst geeft twee keer hetzelfde antwoord", eerste === tweede, `${eerste} en ${tweede}`);
+  ok("een lege tekst levert niets op", zoekCliches("").length === 0);
+
+  // Een normale, concrete zin mag niet aanslaan. Een controle die overal iets
+  // vindt, wordt weggeklikt en doet daarna niets meer.
+  const schoon = zoekCliches(
+    "Bij Van Dijk Installatie deed ik in 2024 de planning voor zeven monteurs. " +
+      "Ik ken de storingsdienst van binnenuit, want ik draaide er zelf in mee.",
+  );
+  ok("een concrete zin blijft schoon", schoon.length === 0, schoon.map((v) => v.gevonden).join(", "));
+});
+
+// ⚠️ Conventie 1 in zijn zuiverste vorm: de systeemprompt VERBIEDT een aantal
+// standaardzinnen bij naam, en `cliches.ts` is het vangnet eronder. Lopen die
+// twee lijsten uit elkaar, dan verbiedt de prompt iets dat niemand nakijkt, of
+// wijst het scherm iets aan wat nooit gevraagd is. Dit is de enige controle die
+// dat kan zien.
+group("de assistent: prompt en vangnet verbieden hetzelfde", () => {
+  const prompt = bouwSysteemprompt();
+
+  ok("de prompt verbiedt gedachtestreepjes", /gedachtestreepjes/i.test(prompt));
+  ok("en noemt de tekens zelf, anders is het verbod niet te volgen", /"—"/.test(prompt));
+  ok("de prompt verbiedt de schuine streep", /en\/of/.test(prompt));
+  ok("de prompt zet ontleden vóór schrijven", prompt.indexOf("Ontleed") < prompt.indexOf("Schrijf pas daarna"));
+  ok("de prompt verbiedt verzinnen", /nooit verzint/i.test(prompt));
+  ok("en zegt wat er dan wél moet gebeuren", prompt.includes("[dit weet ik niet:"));
+  ok("de prompt is Nederlands", prompt.includes("Je antwoordt in het Nederlands."));
+
+  // Elke zin die de prompt bij naam verbiedt, moet het vangnet ook echt
+  // vinden. Alleen het blok met de standaardzinnen, want de tekens erboven
+  // staan in dezelfde prompt tussen dezelfde aanhalingstekens.
+  const blokStart = prompt.indexOf("Concreet verboden");
+  const blokEind = prompt.indexOf("Geen opsomming");
+  ok("het blok met standaardzinnen staat in de prompt", blokStart > 0 && blokEind > blokStart);
+  const blok = prompt.slice(blokStart, blokEind);
+  const verboden = [...blok.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  ok("de prompt noemt standaardzinnen bij naam", verboden.length >= 8, `${verboden.length}`);
+  const gemist = verboden.filter((zin) => zoekCliches(`Zin vooraf. ${zin} en verder nog wat tekst.`).length === 0);
+  ok("en het vangnet vindt ze allemaal terug", gemist.length === 0, gemist.join(" | "));
+});
+
+group("de assistent: de sleutelwoorden zijn tellen en geen gok", () => {
+  const vacature =
+    "Wij zoeken een ervaren projectleider installatietechniek. Je stuurt monteurs aan, " +
+    "bewaakt de planning en spreekt met opdrachtgevers. Kennis van warmtepompen is een pre. " +
+    "De projectleider rapporteert aan de directie.";
+  const cv = "Als projectleider stuurde ik monteurs aan bij een installatiebedrijf. Planning en inkoop.";
+
+  const woorden = vergelijkSleutelwoorden(vacature, cv);
+  const namen = woorden.map((w) => w.woord);
+  ok("er komen sleutelwoorden uit", woorden.length > 0, `${woorden.length}`);
+  ok("stopwoorden vallen weg", !namen.includes("wordt") && !namen.includes("wij"));
+  ok("korte woorden vallen weg", namen.every((w) => w.length >= 4));
+  ok("warmtepompen mist in het CV", woorden.some((w) => w.woord === "warmtepompen" && !w.staatInCv));
+  ok("projectleider staat er wel in", woorden.some((w) => w.woord === "projectleider" && w.staatInCv));
+
+  // "monteurs" in de vacature tegen "monteurs" in het CV, en "planning" tegen
+  // "planning": meervoud en enkelvoud horen hetzelfde te zijn.
+  ok("planning telt als gevonden", woorden.some((w) => w.woord === "planning" && w.staatInCv));
+
+  // Wat mist staat vooraan: dat is waar iemand iets aan heeft.
+  const eersteRaak = woorden.findIndex((w) => w.staatInCv);
+  const laatsteMis = woorden.map((w) => w.staatInCv).lastIndexOf(false);
+  ok("het ontbrekende staat bovenaan", eersteRaak === -1 || laatsteMis < eersteRaak, `${eersteRaak} en ${laatsteMis}`);
+
+  ok("de lijst is begrensd", vergelijkSleutelwoorden(vacature.repeat(40), cv).length <= MAX_SLEUTELWOORDEN);
+
+  // Conventie 3: onbekend is een betere waarde dan een verkeerde. Zonder CV is
+  // er geen percentage, en 0% naast een leeg veld leest als een oordeel.
+  ok("zonder CV geen percentage", dekkingspercentage(vacature, "") === null);
+  ok("zonder vacature geen percentage", dekkingspercentage("", cv) === null);
+  const dekking = dekkingspercentage(vacature, cv);
+  ok("met allebei wel een percentage", typeof dekking === "number" && dekking > 0 && dekking <= 100, `${dekking}`);
+});
+
+// ⚠️ Deze groep bestaat om één reden: `bepaalParameters()` in het zijproject en
+// `resolveTuning()` in de pijplijn volgen dezelfde regel van de API (temperatuur
+// mag alleen als er niet geredeneerd wordt), maar zijn twee stukken code. Lopen
+// ze uit elkaar, dan faalt elke aanroep van dit scherm op een 400 zonder dat er
+// iets aan dit scherm veranderd is.
+group("de assistent: de modelkeuze volgt dezelfde regel als de pijplijn", () => {
+  ok("het vlaggenschip is de standaard", STANDAARD_MODEL === "gpt-5.6-sol");
+  ok("de standaardkeuzes bestaan", isGeldigModel(STANDAARD_MODEL) && isGeldigeStand(STANDAARD_STAND));
+  ok("een verzonnen model wordt geweigerd", !isGeldigModel("gpt-6-astra"));
+  ok("een verzonnen stand wordt geweigerd", !isGeldigeStand("heel-hoog"));
+  ok("elk model heeft een tarief", MODELLEN.every((m) => hasKnownRate(m.id)), MODELLEN.map((m) => m.id).join(", "));
+  ok("elk model zegt waar het voor is", MODELLEN.every((m) => m.waarvoor.length > 20));
+  ok("elke stand zegt wanneer je hem wilt", REDENEERSTANDEN.every((s) => s.wanneer.length > 20));
+
+  for (const model of MODELLEN) {
+    // Zonder redeneren: temperatuur mee, zoals de API hem daar toestaat.
+    const zonder = bepaalParameters(model.id, "none");
+    ok(`${model.id} zonder redeneren krijgt een temperatuur`, zonder.temperature === TEMPERATUUR_ZONDER_REDENEREN);
+    ok(`${model.id} zonder redeneren staat op none`, zonder.reasoningEffort === "none");
+
+    // Mét redeneren: geen temperatuur, want dan weigert de API de hele aanroep.
+    for (const stand of ["low", "medium", "high"] as const) {
+      const met = bepaalParameters(model.id, stand);
+      ok(`${model.id} op ${stand} stuurt geen temperatuur mee`, met.temperature === undefined);
+      ok(`${model.id} op ${stand} stuurt die stand mee`, met.reasoningEffort === stand);
+    }
+
+    // Dezelfde regel, langs de andere kant gemeten: de pijplijn laat de
+    // temperatuur ook vallen zodra er geredeneerd wordt.
+    ok(
+      `${model.id} wordt door de pijplijn als redeneermodel gezien`,
+      isReasoningModel(model.id),
+    );
+    ok(
+      `de pijplijn laat bij ${model.id} de temperatuur ook vallen`,
+      resolveTuning(model.id, "content").temperature === undefined,
+    );
+  }
+});
+
+group("de assistent: wat er de aanroep in gaat", () => {
+  const bron = { cv: "Mijn CV", brieven: "", vacature: "De vacature" };
+
+  const context = bouwContextbericht(bron);
+  ok("het contextblok noemt alle drie de velden", Boolean(context?.includes("=== CV ===") && context?.includes("=== EERDERE BRIEVEN EN ACHTERGROND ===") && context?.includes("=== VACATURETEKST ===")));
+  ok("een leeg veld wordt benoemd en niet weggelaten", Boolean(context?.includes("[nog niet ingevuld]")));
+  ok(
+    "zonder enige bron is er geen contextblok",
+    bouwContextbericht({ cv: "", brieven: "  ", vacature: "" }) === null,
+  );
+
+  const lang = "a".repeat(MAX_CONTEXT_TEKENS + 500);
+  const gekapt = kapAf(lang);
+  ok("een te lange tekst wordt afgekapt", gekapt.length < lang.length);
+  ok("en zegt dat hij afgekapt is", gekapt.includes("afgekapt"));
+
+  const invoer = bouwInvoer({ bron, historie: [], vraag: EERSTE_VRAAG });
+  ok("de instructie staat vooraan", invoer[0].role === "system");
+  ok("het bronmateriaal is een bericht van de gebruiker, geen instructie", invoer[1].role === "user");
+  ok("de vraag staat achteraan", invoer[invoer.length - 1].content === EERSTE_VRAAG);
+
+  // De historie wordt afgekapt, anders betaal je bij elke vervolgvraag opnieuw
+  // voor een analyse van drie brieven geleden.
+  const historie = Array.from({ length: MAX_BERICHTEN_IN_HISTORIE + 10 }, (_, i) => ({
+    rol: (i % 2 === 0 ? "gebruiker" : "assistent") as "gebruiker" | "assistent",
+    inhoud: `bericht ${i}`,
+  }));
+  const lange = bouwInvoer({ bron, historie, vraag: "en nu korter" });
+  // instructie + contextblok + historie + vraag
+  ok(
+    "de historie wordt afgekapt op de laatste beurten",
+    lange.length === MAX_BERICHTEN_IN_HISTORIE + 3,
+    `${lange.length}`,
+  );
+  ok("de oudste beurt valt eruit", !lange.some((b) => b.content === "bericht 0"));
+  ok("de nieuwste blijft staan", lange.some((b) => b.content === `bericht ${historie.length - 1}`));
+
+  // Een leeg bericht (een mislukt antwoord uit de database) hoort niet mee de
+  // aanroep in: de API weigert een lege inhoud.
+  const metLeeg = bouwInvoer({
+    bron,
+    historie: [{ rol: "assistent", inhoud: "" }, { rol: "gebruiker", inhoud: "hallo" }],
+    vraag: "en?",
+  });
+  ok("een leeg bericht gaat niet mee", metLeeg.every((b) => b.content.trim().length > 0));
+  ok("de rollen zijn vertaald naar wat de API kent", metLeeg.every((b) => ["system", "user", "assistant"].includes(b.role)));
+});
+
+group("de assistent: schrijven loopt via een route met een eigenaarscontrole", () => {
+  // Conventie 6, en de reden dat migratie 0095 wel een selectpolicy heeft en
+  // geen insertpolicy: de client schrijft nooit rechtstreeks.
+  const routes = [
+    "app/api/solliciteren/chats/route.ts",
+    "app/api/solliciteren/chats/[id]/route.ts",
+    "app/api/solliciteren/chats/[id]/berichten/route.ts",
+  ];
+  for (const route of routes) {
+    const bron = leesBestand(route);
+    ok(`${route} bestaat`, bron.length > 0);
+    ok(
+      `${route} controleert wie er binnenkomt`,
+      bron.includes("laadEigenGesprek(") || bron.includes("eisBeheerder("),
+    );
+  }
+
+  const toegang = leesBestand("lib/solliciteren/toegang.ts");
+  ok("de controle kijkt naar het beheerdersrecht", toegang.includes("isStaff("));
+  ok("en naar de eigenaar van het gesprek", toegang.includes("chat.user_id !== user.id"));
+  ok("een gesprek van iemand anders geeft 404 en geen 403", toegang.includes("status: 404"));
+
+  // Een scherm in de browser praat nooit zelf met de database: het stuurt zijn
+  // wijziging naar een route hierboven. De pagina zelf is een server component
+  // en leest wél, met een controle op `user_id` ernaast.
+  for (const bestand of tsxOnder("app/solliciteren")) {
+    const bron = leesBestand(bestand);
+    if (!bron.includes('"use client"')) continue;
+    ok(`${bestand} praat niet zelf met de database`, !bron.includes("@/lib/supabase/"));
+  }
+  const pagina = leesBestand("app/solliciteren/page.tsx");
+  ok("de pagina leest alleen de gesprekken van deze gebruiker", pagina.includes('.eq("user_id", user.id)'));
+
+  // En het zijproject raakt geen enkele tabel van ORBIT ENGINE aan.
+  const eigenBestanden = [...tsxOnder("app/solliciteren")];
+  for (const bestand of [...eigenBestanden, ...routes, "lib/solliciteren/toegang.ts"]) {
+    const bron = leesBestand(bestand);
+    const vreemdeTabellen = [...bron.matchAll(/\.from\("([a-z_]+)"\)/g)]
+      .map((m) => m[1])
+      .filter((tabel) => !tabel.startsWith("sollicitatie_"));
+    ok(`${bestand} raakt alleen de eigen tabellen`, vreemdeTabellen.length === 0, vreemdeTabellen.join(", "));
+  }
 });
 
 // ── Elke route heeft een wachtvorm ─────────────────────────────────────────

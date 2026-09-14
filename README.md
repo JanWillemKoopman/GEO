@@ -105,12 +105,24 @@ in die map thuis. ORBIT ENGINE blijft er ongemoeid bij, op de S in de bovenbalk 
 (`components/workspace-chrome.tsx`), en een opdracht die toch aan allebei raakt wordt eerst als
 zodanig benoemd.
 
-Het is een eigen app van één pagina in dezelfde codebase, opgezet op 14 september 2026. Wat hij
-deelt: de inlog van Supabase en het project bij Vercel, dus hij publiceert mee met `main`. Wat hij
-niet deelt: de vormgeving. Die staat in `app/solliciteren/solliciteren.css`, met eigen tokens die
-allemaal met `--sol-` beginnen, en de map gebruikt geen enkel component uit `components/`.
-`scripts/test-unit.ts` bewaakt die scheiding, dus één geleende kleur of één geleend component valt
-meteen op.
+Het is een eigen app van één pagina in dezelfde codebase, opgezet op 14 september 2026. Wat er staat
+is een **sollicitatieassistent**: je plakt je CV, je eerdere brieven en de vacaturetekst in drie
+vakken, koppelt ze aan een gesprek, en de assistent ontleedt de vacature, legt hem naast je CV en
+schrijft een brief die je daarna bijstuurt ("enthousiaster", "kort deze alinea in"). Het antwoord
+komt woord voor woord binnen. Per bericht kies je het model en hoeveel het mag nadenken, en per
+bericht wordt bewaard wat die keuze was en wat hij kostte.
+
+Twee dingen eromheen rekenen zonder AI, dus zonder kosten en met elke keer dezelfde uitkomst: welke
+woorden uit de vacature nog niet in je CV staan, en welke standaardzinnen er in een geschreven brief
+staan. Dat tweede is het vangnet onder de promptinstructie "geen AI-taal" (conventie 1).
+
+Wat hij deelt: de inlog van Supabase en het project bij Vercel, dus hij publiceert mee met `main`.
+Wat hij niet deelt: de vormgeving en de data. De vormgeving staat in
+`app/solliciteren/solliciteren.css`, met eigen tokens die allemaal met `--sol-` beginnen, en de map
+gebruikt geen enkel component uit `components/`. De data staat in twee eigen tabellen (migratie
+0095) die aan `auth.users` hangen en geen enkele join hebben met het datamodel van ORBIT ENGINE.
+`scripts/test-unit.ts` bewaakt allebei die scheidingen, dus één geleende kleur, één geleend
+component of één query naar een tabel van het hoofdproduct valt meteen op.
 
 Alleen een account van ORBIT ENGINE zelf komt erin: de S hangt aan `isStaff`, en de pagina
 controleert datzelfde recht nog een keer op de server. Een klant ziet de knop niet en de pagina

@@ -1580,3 +1580,51 @@ export interface ReputationSource {
   first_seen_block: string | null;
   created_at: string;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HET ZIJPROJECT "SOLLICITEREN" (migratie 0095)
+
+   Deze twee vormen hangen aan `auth.users` en aan niets anders in dit bestand.
+   Ze staan hier omdat één feit één eigenaar heeft en dat bestand voor elke
+   tabelvorm dít bestand is; ze horen verder nergens bij. Zie
+   `supabase/migrations/0095_solliciteren.sql` voor waarom de scheiding in de
+   database zit en niet alleen in de schermen.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/** Eén sollicitatiegesprek, met de drie bronteksten erin (migratie 0095). */
+export interface SollicitatieChat {
+  id: string;
+  user_id: string;
+  titel: string;
+  cv_tekst: string;
+  brieven_tekst: string;
+  vacature_tekst: string;
+  /** Null = de bronteksten zijn nog nooit aan het gesprek gekoppeld. */
+  context_bijgewerkt_op: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Eén bericht in zo'n gesprek (migratie 0095).
+ *
+ * De kolommen vanaf `model` zijn alleen gevuld bij een antwoord van de
+ * assistent. Bij een bericht van de gebruiker zijn ze null, en dat is de juiste
+ * waarde: er is geen model aan te pas gekomen (conventie 3).
+ */
+export interface SollicitatieBericht {
+  id: string;
+  chat_id: string;
+  rol: "gebruiker" | "assistent";
+  inhoud: string;
+  model: string | null;
+  reasoning_effort: string | null;
+  temperatuur: number | null;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  cost_usd: number | null;
+  raw_json: unknown;
+  /** Ging het antwoord halverwege stuk, dan staat hier waarom. */
+  fout: string | null;
+  created_at: string;
+}
