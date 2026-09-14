@@ -8,9 +8,9 @@ Alle letterlijke Engelse teksten hieronder komen uit die catalogus (secties `onb
 sleutelvolgorde en voorwaardelijke teksten blijkt. Waar ik iets afleid in plaats van letterlijk
 citeer, staat dat er expliciet bij.
 
-Nova is zelf **sales-led, niet self-serve**: net als bij ORBIT ENGINE zet een account manager
-(hier "customer service manager"/CSM genoemd) het traject klaar, en de klant vult pas ná verkoop
-zijn eigen onboarding in.
+Nova is zelf **sales-led, niet self-serve**: een account manager (hier "customer service
+manager"/CSM genoemd) zet het traject klaar, en de klant vult pas ná verkoop zijn eigen
+onboarding in.
 
 ---
 
@@ -230,10 +230,8 @@ De zes stappen, met wat er letterlijk gevraagd wordt:
    to say."*
    - Kenmerkende uitdrukkingen ("Powered by innovation", "Built for growth", …)
    - Woorden die NOVA nooit mag gebruiken ("cheap", "guarantee results", "number one")
-   - Compliance-notities voor content (bv. "Must include disclaimer for medical claims") — dit is
-     de plek waar juridische/regelgevende eisen worden vastgelegd, vergelijkbaar met wat wij in
-     de Sales-module bedoelen met "elk getal dat naar buiten gaat wordt gecontroleerd", hier is
-     het een vrij invulveld, geen automatische toetsing.
+   - Compliance-notities voor content (bv. "Must include disclaimer for medical claims") — een
+     vrij invulveld, geen automatische toetsing zichtbaar in de teksten.
 
 6. **Author — "Who signs it"**
    *"Articles get published under someone's name. This is usually you."*
@@ -304,11 +302,50 @@ zelf / CMS-concept / volledig handmatig) vóórdat er ooit een pagina live gaat.
 | 7 | Review & genereren | Bevestigen, evt. edits | Genereert definitief profiel (async job), downloadbaar, herhaalbaar |
 | 8 | Overdracht naar strategie | — | CSM vult funnels/paginatypes in, bouwt eerste contentstrategie, meldt klant wanneer klaar |
 
-## Wat dit betekent voor ORBIT ENGINE (observatie, geen letterlijke Nova-tekst)
+---
 
-Het patroon "de klant hoeft niets in te vullen wat Nova zelf van de website kan halen, en alles
-wat overblijft wordt in expliciete, kleine stappen met live voortgangsfeedback gevraagd" is het
-sterkste onderscheidende element van deze flow. Dat is direct vergelijkbaar met hoe wij het
-merkprofiel voor ORBIT ENGINE willen laten voor-invullen vóór het demogesprek (zie
-`docs/logbook.md` §15) — Nova doet dat nog een stap verder door de scan pas ná contractondertekening
-en vóór het eerste merkprofielgesprek te draaien, gekoppeld aan een concrete CMS-toegangsvraag.
+## Timeline: schermen, velden en techniek per stap
+
+Deze tabel legt de flow chronologisch naast elkaar: welk scherm de klant ziet, welke velden erop
+staan, en welke techniek er vermoedelijk achter zit. Techniek die letterlijk uit de teksten blijkt
+(bv. Stripe, SEPA, Search Console) staat zonder voorbehoud; techniek die ik afleid uit wat een
+scherm doét (bv. "crawlt de homepage" → webscraping) staat gemarkeerd als **(afgeleid)**. Niets
+hiervan is bevestigd door InSpace zelf of door broncode buiten de i18n-teksten.
+
+| # | Scherm | Velden op het scherm | Techniek erachter |
+|---|--------|----------------------|--------------------|
+| 0 | (geen scherm — interne sales-fase) | Contract/agreement, abonnementsvorm, factuurgegevens, CSM-toewijzing | CRM/contractbeheer, e-mail met tijdgebonden uitnodigingslink **(afgeleid: een link met vervaltermijn en eenmalig gebruik wijst op een getekende, verlopende JWT- of tokenlink, geen wachtwoord)** |
+| 1 | **Activatiescherm** ("Welcome to NOVA", badge "Secured invitation") | Werk-e-mail (readonly, al "VERIFIED"), wachtwoord, wachtwoordbevestiging (afgeleid uit de aanwezige validatieregels) | Tokenvalidatie van de uitnodigingslink; wachtwoordsterkte-check client-side (lengte, cijfer, hoofdletter — zie `passwordRules` in de catalogus) |
+| 2 | **"Confirm your company details"** | Bedrijfsnaam, adres, plaats, postcode, land, btw-nummer; factuur-e-mail; contactpersoon (naam, e-mail, telefoon, primair-vinkje) | Voor-ingevulde formuliervelden uit het CRM/contract, geen externe lookup zichtbaar; mogelijk een btw-validatieservice op het btw-veld **(afgeleid, niet bevestigd)** |
+| 3a | **"Connect your website(s)" — domeincontrole** | Domeinnaam per website | Live HTTP-bereikbaarheidscheck van het domein (server-side `fetch`/ping met foutafhandeling voor bot-bescherming — status "unconfirmed" wijst op een user-agent- of Cloudflare-blokkade) |
+| 3b | **Scanscherm (voortgangsbalk, geen invoervelden)** | — (alleen statustekst, geen input) | **Webscraping/crawling (afgeleid uit de scanberichten zelf)**: een crawler doorloopt de homepage en interne links, parseert HTML voor `<title>`/meta-descriptions, checkt `robots.txt`/`noindex` voor indexeerbaarheid, analyseert de kop- en paginastructuur (H1–H3), classificeert product-/dienstpagina's, en voedt een taalmodel met de geëxtraheerde tekst om toon van stem, bestaande rankingsonderwerpen en concurrenten te destilleren. Vermoedelijk gecombineerd met een externe rank-tracking- of SERP-databron voor het "bestaande rankings"- en "concurrenten"-onderdeel, aangezien dat niet uit de eigen site te halen is **(afgeleid)** |
+| 3c | **CMS-koppelmodal** | CMS-platform (dropdown), CMS-inlog-URL | Geen API-koppeling op dit moment: de klant nodigt een door Nova opgegeven e-mailadres uit als Editor-gebruiker in zijn eigen CMS. Techniek is dus **handmatige gebruikersuitnodiging**, geen OAuth/API-key-koppeling in dit scherm (die kan er later wel zijn, ligt buiten wat de teksten laten zien) |
+| 3d | **Search Console-koppelmodal (optioneel)** | Getoonde Nova-e-mailadressen (full/restricted access, kopieerbaar) | Google Search Console-gebruikersrechten (geen OAuth-koppeling zichtbaar in deze stap, wél een "Check connection"-actie die vermoedelijk de Search Console API bevraagt op toegang) |
+| 4 | **"Set up your direct debit"** | Rekeninghouder, IBAN; of factuuradres als alternatief; btw-nummer | **Stripe** voor SEPA-incasso-machtiging (expliciet genoemd: "Secured by Stripe", bankgegevens versleuteld bij Stripe opgeslagen, niet bij Nova zelf) |
+| 5 | **"Welcome to NOVA" (accountCreated)** | — (alleen een CTA-knop) | Vermoedelijk een achtergrondjob die de scan-resultaten uit stap 3b al heeft omgezet in een concept-merkprofiel via een taalmodel, klaar om te tonen **(afgeleid uit de aankondigingstekst)** |
+| 6.1 | **Brand — "Who you are"** | Branche/categorie, merkmissie, positionering | Voor-ingevulde tekstvelden uit de scan van stap 3b (LLM-gegenereerde samenvatting), door klant te overschrijven |
+| 6.2 | **Values — "What you stand for"** | Kernwaarden/pijlers, bewijspunten, identiteitskeywords (chips) | Idem: LLM-concept op basis van scan, aangevuld met keyword-chips die de klant los toevoegt |
+| 6.3 | **Audience — "Who you serve"** | Primaire doelgroep, secundaire doelgroep, "us vs. them", geografische markt | LLM-concept op basis van scan; geen externe doelgroepdata (bv. geen social-media-scraping van volgers) zichtbaar in de teksten |
+| 6.4 | **Voice — "How you sound"** | Tone-of-voice-keuze (Conversational/Formal/Authoritative/Custom) met voorbeeldzin per stijl, merkpersoonlijkheid in vrije tekst | Voorbeeldzinnen zijn vermoedelijk template-tekst per stijl (dezelfde tekst getoond in verschillende toon), geen live LLM-call per keuze **(afgeleid, want de voorbeeldzin is telkens identiek)** |
+| 6.5 | **Vocabulary — "Words to use and avoid"** | Signatuurzinnen, verboden woorden, compliance-notities (vrije tekstvelden + "add"-knoppen) | Puur handmatige invoer, geen automatische detectie zichtbaar |
+| 6.6 | **Author — "Who signs it"** | Naam, functie, korte bio, LinkedIn/Facebook/overig social-profiel, foto-upload (PNG/JPEG/WebP, max 2 MB) | Foto-upload naar object storage; **geen bewijs van automatische social-media-scraping** van het LinkedIn/Facebook-profiel — het zijn losse tekstvelden die de klant zelf invult/plakt |
+| 7 | **Review & generatiescherm** | Samenvatting van alle 6 secties (readonly, met "Edit"-links), voortgangsstatus (queued/files/writing) | Asynchrone achtergrondjob (waarschijnlijk een LLM-aanroep die het geverifieerde profiel plus geüploade bestanden verwerkt tot het definitieve merkprofieldocument), met job-status-polling in de UI |
+| 8 | **Strategiewachtscherm** | — | Handmatige verwerking door de CSM (funnels/paginatypes invullen), geen zichtbare automatisering in deze stap |
+
+**Samenvatting van de vermoedelijke technologiestapel** (voor zover af te leiden uit de teksten,
+niets hiervan is bevestigd buiten de i18n-catalogus):
+- **Webscraping/crawling** van de eigen website van de klant (homepage + interne links, meta's,
+  structuur, producten/diensten) als basis voor het automatisch voor-ingevulde merkprofiel.
+- **Een taalmodel (LLM)** dat de gescrapete tekst omzet in de concepttekst per merkprofielveld
+  (missie, positionering, doelgroep, tone of voice) en later het definitieve profieldocument
+  schrijft.
+- **Een externe rank-/SERP-bron** voor "bestaande rankings" en "concurrenten" (niet uit de eigen
+  site te halen, dus vermoedelijk een SEO-databron of zoekmachine-API) — **afgeleid, niet
+  bevestigd**.
+- **Stripe** voor SEPA-incassomachtigingen.
+- **Google Search Console** (gebruikersrechten, geen zichtbare OAuth-flow in deze schermen) voor
+  zoekprestatie-data.
+- **Geen aanwijzing voor social-media-scraping**: het auteur-profiel met LinkedIn/Facebook-links
+  is een vrij invulveld, geen geautomatiseerde profielverrijking.
+- CMS-koppeling verloopt via **handmatige gebruikersuitnodiging** (Editor-rol), niet via een
+  API-key of OAuth-koppeling op dit punt in de flow.
