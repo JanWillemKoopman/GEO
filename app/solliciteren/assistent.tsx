@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { brievenUit, feitenmateriaalUit, pasDossierIn } from "@/lib/solliciteren/dossier";
+import type { Feitcategorie } from "@/lib/solliciteren/feiten";
 import {
   MODELLEN,
   REDENEERSTANDEN,
@@ -19,9 +20,11 @@ import type {
   SollicitatieChat,
   SollicitatieDocument,
   SollicitatieDocumentSoort,
+  SollicitatieFeit,
 } from "@/lib/types/database";
 import { Bericht } from "./bericht";
 import { Dossierpaneel } from "./dossierpaneel";
+import { Feitenpaneel } from "./feitenpaneel";
 import { Sleutelwoordenpaneel } from "./sleutelwoordenpaneel";
 import { Stempaneel } from "./stempaneel";
 import { Vacaturepaneel } from "./vacaturepaneel";
@@ -54,16 +57,25 @@ export function Assistent({
   chat,
   berichten: beginberichten,
   documenten: begindocumenten,
+  feiten: beginfeiten,
 }: {
   chat: SollicitatieChat | null;
   berichten: SollicitatieBericht[];
   documenten: SollicitatieDocument[];
+  feiten: SollicitatieFeit[];
 }) {
   const router = useRouter();
 
   const [chatId, setChatId] = useState<string | null>(chat?.id ?? null);
   const [documenten, setDocumenten] = useState<SollicitatieDocument[]>(begindocumenten);
   const [dossierBezig, setDossierBezig] = useState(false);
+  const [feiten, setFeiten] = useState<SollicitatieFeit[]>(beginfeiten);
+  const [uitlezen, setUitlezen] = useState(false);
+  const [laatsteRonde, setLaatsteRonde] = useState<{
+    aangeleverd: number;
+    aangenomen: number;
+    behouden: number;
+  } | null>(null);
 
   const [vacature, setVacature] = useState(chat?.vacature_tekst ?? "");
   const [gekoppeld, setGekoppeld] = useState({
@@ -95,6 +107,21 @@ export function Assistent({
   const stem = useMemo(() => meetStem(brievenUit(stukken)), [stukken]);
   const omvang = useMemo(() => pasDossierIn(stukken).omvang, [stukken]);
   const feitenmateriaal = useMemo(() => feitenmateriaalUit(stukken), [stukken]);
+  // Dezelfde vorm als de server meestuurt, zodat het scherm precies naast de
+  // kaart narekent die de brief heeft gekregen.
+  const kaart = useMemo(
+    () =>
+      feiten.map((f) => ({
+        id: f.id,
+        nummer: f.nummer,
+        categorie: f.categorie,
+        tekst: f.tekst,
+        periode: f.periode,
+        bronzin: f.bronzin,
+        handmatig: f.handmatig,
+      })),
+    [feiten],
+  );
 
   const vacatureGewijzigd = vacature !== gekoppeld.vacature;
   const heeftVacature = Boolean(gekoppeld.vacature.trim()) || Boolean(vacature.trim());
@@ -190,6 +217,118 @@ export function Assistent({
         return;
       }
       setDocumenten((eerder) => eerder.filter((d) => d.id !== id));
+      router.refresh();
+    } catch {
+      setFout("De verbinding viel weg. Probeer het opnieuw.");
+    } finally {
+      setDossierBezig(false);
+    }
+  }
+
+  async function leesDossierUit() {
+    setUitlezen(true);
+    setFout(null);
+    try {
+      const res = await fetch("/api/solliciteren/feiten/uitlezen", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model }),
+      });
+      const data = (await res.json()) as {
+        feiten?: SollicitatieFeit[];
+        aangeleverd?: number;
+        aangenomen?: number;
+        behouden?: number;
+        error?: string;
+      };
+      if (!res.ok || !data.feiten) {
+        setFout(data.error ?? "Het uitlezen is niet gelukt.");
+        return;
+      }
+      setFeiten(data.feiten);
+      setLaatsteRonde({
+        aangeleverd: data.aangeleverd ?? 0,
+        aangenomen: data.aangenomen ?? 0,
+        behouden: data.behouden ?? 0,
+      });
+      router.refresh();
+    } catch {
+      setFout("De verbinding viel weg tijdens het uitlezen.");
+    } finally {
+      setUitlezen(false);
+    }
+  }
+
+  async function voegFeitToe(feit: {
+    categorie: Feitcategorie;
+    tekst: string;
+    periode: string;
+  }): Promise<boolean> {
+    setDossierBezig(true);
+    setFout(null);
+    try {
+      const res = await fetch("/api/solliciteren/feiten", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(feit),
+      });
+      const data = (await res.json()) as { feit?: SollicitatieFeit; error?: string };
+      if (!res.ok || !data.feit) {
+        setFout(data.error ?? "Het opslaan is niet gelukt.");
+        return false;
+      }
+      const nieuw = data.feit;
+      setFeiten((eerder) => [...eerder, nieuw].sort((a, b) => a.nummer - b.nummer));
+      router.refresh();
+      return true;
+    } catch {
+      setFout("De verbinding viel weg. Probeer het opnieuw.");
+      return false;
+    } finally {
+      setDossierBezig(false);
+    }
+  }
+
+  async function wijzigFeit(
+    id: string,
+    feit: { tekst: string; periode: string },
+  ): Promise<boolean> {
+    setDossierBezig(true);
+    setFout(null);
+    try {
+      const res = await fetch(`/api/solliciteren/feiten/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(feit),
+      });
+      const data = (await res.json()) as { feit?: SollicitatieFeit; error?: string };
+      if (!res.ok || !data.feit) {
+        setFout(data.error ?? "Het opslaan is niet gelukt.");
+        return false;
+      }
+      const bewaard = data.feit;
+      setFeiten((eerder) => eerder.map((f) => (f.id === bewaard.id ? bewaard : f)));
+      router.refresh();
+      return true;
+    } catch {
+      setFout("De verbinding viel weg. Probeer het opnieuw.");
+      return false;
+    } finally {
+      setDossierBezig(false);
+    }
+  }
+
+  async function verwijderFeit(id: string) {
+    setDossierBezig(true);
+    setFout(null);
+    try {
+      const res = await fetch(`/api/solliciteren/feiten/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        setFout(data.error ?? "Het verwijderen is niet gelukt.");
+        return;
+      }
+      setFeiten((eerder) => eerder.filter((f) => f.id !== id));
       router.refresh();
     } catch {
       setFout("De verbinding viel weg. Probeer het opnieuw.");
@@ -315,6 +454,16 @@ export function Assistent({
           onOpslaan={bewaarStuk}
           onVerwijderen={verwijderStuk}
         />
+        <Feitenpaneel
+          feiten={feiten}
+          bezig={dossierBezig || bezig}
+          uitlezen={uitlezen}
+          laatsteRonde={laatsteRonde}
+          onUitlezen={() => void leesDossierUit()}
+          onToevoegen={voegFeitToe}
+          onWijzigen={wijzigFeit}
+          onVerwijderen={verwijderFeit}
+        />
         <Stempaneel documenten={documenten} />
       </div>
 
@@ -406,6 +555,11 @@ export function Assistent({
                   Je dossier is nog leeg. Het werkt ook zonder, maar dan heeft de assistent niets
                   over jou om mee te schrijven.
                 </p>
+              ) : feiten.length === 0 ? (
+                <p className="sol-veld__teller">
+                  Je feitenkaart is nog leeg. Lees eerst je dossier uit, dan staat elke zin in de
+                  brief straks op een feit dat je kunt aanwijzen.
+                </p>
               ) : null}
             </div>
           ) : null}
@@ -425,6 +579,7 @@ export function Assistent({
                 kosten={bericht.cost_usd}
                 fout={bericht.fout}
                 stem={stem}
+                feiten={kaart}
               />
             ))}
 
@@ -437,6 +592,7 @@ export function Assistent({
                 kosten={null}
                 fout={null}
                 stem={stem}
+                feiten={kaart}
                 bezig
               />
             ) : null}

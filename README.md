@@ -113,6 +113,12 @@ schrijft een brief die je daarna bijstuurt ("enthousiaster", "kort deze alinea i
 komt woord voor woord binnen. Per bericht kies je het model en hoeveel het mag nadenken, en per
 bericht wordt bewaard wat die keuze was en wat hij kostte.
 
+Het hart ervan is de **feitenkaart**: je dossier wordt één keer uitgelezen tot een genummerde,
+gesloten lijst van wat een brief over je mag beweren, met per feit de zin uit je dossier waar het op
+steunt. Alles wat er niet op staat, komt er niet in. De brief zet achter elke bewerende zin het
+nummer waarop hij steunt, code rekent na of dat nummer bestaat, en bij het kopiëren gaan de nummers
+er automatisch uit.
+
 Drie dingen eromheen rekenen zonder AI, dus zonder kosten en met elke keer dezelfde uitkomst: welke
 woorden uit de vacature nog niet in je materiaal staan, welke standaardzinnen er in een geschreven
 brief staan, en **hoe jij zelf schrijft**. Dat laatste wordt gemeten aan je eigen eerdere brieven,
@@ -123,8 +129,8 @@ promptinstructie (conventie 1): een instructie is een verzoek, een meting niet.
 Wat hij deelt: de inlog van Supabase en het project bij Vercel, dus hij publiceert mee met `main`.
 Wat hij niet deelt: de vormgeving en de data. De vormgeving staat in
 `app/solliciteren/solliciteren.css`, met eigen tokens die allemaal met `--sol-` beginnen, en de map
-gebruikt geen enkel component uit `components/`. De data staat in drie eigen tabellen (migraties
-0095 en 0096) die aan `auth.users` hangen en geen enkele join hebben met het datamodel van
+gebruikt geen enkel component uit `components/`. De data staat in vier eigen tabellen (migraties
+0095 tot en met 0097) die aan `auth.users` hangen en geen enkele join hebben met het datamodel van
 ORBIT ENGINE.
 `scripts/test-unit.ts` bewaakt allebei die scheidingen, dus één geleende kleur, één geleend
 component of één query naar een tabel van het hoofdproduct valt meteen op.

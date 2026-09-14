@@ -31,6 +31,7 @@ import { getOpenAI } from "@/lib/openai/client";
 import { estimateCostUsd } from "@/lib/openai/pricing";
 import type { Aanroepparameters } from "@/lib/solliciteren/modellen";
 import type { Dossierstuk } from "@/lib/solliciteren/dossier";
+import type { Feit } from "@/lib/solliciteren/feiten";
 import { bouwInvoer, type Gespreksbericht } from "@/lib/solliciteren/prompt";
 import type { Stemprofiel } from "@/lib/solliciteren/stem";
 
@@ -85,6 +86,7 @@ export interface AntwoordResultaat {
  */
 export async function streamAntwoord(opts: {
   dossier: readonly Dossierstuk[];
+  feiten: readonly Feit[];
   vacature: string;
   stem: Stemprofiel | null;
   historie: readonly Gespreksbericht[];
@@ -95,6 +97,7 @@ export async function streamAntwoord(opts: {
   const openai = getOpenAI();
   const invoer = bouwInvoer({
     dossier: opts.dossier,
+    feiten: opts.feiten,
     vacature: opts.vacature,
     stem: opts.stem,
     historie: opts.historie,

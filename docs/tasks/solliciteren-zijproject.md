@@ -1,8 +1,8 @@
 # Zijproject "Solliciteren"
 
 Een eigen app in de codebase van ORBIT ENGINE, opgezet op 14 september 2026 en dezelfde dag gevuld
-met zijn functie: een sollicitatieassistent. Op 15 september ging het dossier los van de vacature en
-werd de schrijfstijl meetbaar. De achtergrond en de gemaakte keuzes staan in `docs/logbook.md`
+met zijn functie: een sollicitatieassistent. Op 15 september ging het dossier los van de vacature, werd de
+schrijfstijl meetbaar en kwam de feitenkaart erbij. De achtergrond en de gemaakte keuzes staan in `docs/logbook.md`
 (14 en 15 september 2026); dit document gaat alleen over wat er nog open staat.
 
 ## Wat er staat
@@ -12,10 +12,11 @@ werd de schrijfstijl meetbaar. De achtergrond en de gemaakte keuzes staan in `do
 | De assistent | `app/solliciteren/assistent.tsx` en zes onderdelen ernaast | Werkt, nog niet tegen een echte aanroep gedraaid |
 | Het dossier | `sollicitatie_documenten` (0096) plus `dossierpaneel.tsx` | Hangt aan de persoon, blijft staan over gesprekken heen |
 | De gemeten stem | `lib/solliciteren/stem.ts` plus `stempaneel.tsx` | Meet aan je eigen brieven, toetst elk antwoord terug |
+| De feitenkaart | Migratie 0097, `lib/solliciteren/feiten.ts`, `feitenpaneel.tsx` | Gesloten lijst, bronzin per feit, elke brief nagerekend |
 | Bestanden inlezen | `lib/solliciteren/bestand.ts`, pakket `unpdf` | PDF en tekst, gedraaid op een echte PDF |
-| De rekenmodules | `lib/solliciteren/` (modellen, prompt, dossier, stem, cliches, sleutelwoorden, woorden) | Puur en getest, 169 controles in `test-unit.ts` |
+| De rekenmodules | `lib/solliciteren/` (modellen, prompt, dossier, feiten, stem, cliches, sleutelwoorden, woorden) | Puur en getest, 231 controles in `test-unit.ts` |
 | Het schrijven | `app/api/solliciteren/` | Service-role plus eigenaarscontrole, streamt per regel JSON |
-| De opslag | Migraties 0095 en 0096 | Toegepast op productie en nagerekend |
+| De opslag | Migraties 0095, 0096 en 0097 | Toegepast op productie en nagerekend |
 | De inlog | `app/solliciteren/layout.tsx` plus `lib/supabase/middleware.ts` | Werkt, zonder sessie een 307 naar `/login` |
 | De ingang | De S rechtsboven, `components/workspace-chrome.tsx` | Werkt, alleen zichtbaar voor een account van ORBIT ENGINE zelf |
 | De opmaak | `app/solliciteren/solliciteren.css` | Eigen tokens en klassen, bewaakt door `scripts/test-unit.ts` |
@@ -23,19 +24,27 @@ werd de schrijfstijl meetbaar. De achtergrond en de gemaakte keuzes staan in `do
 
 ## Wat er nog niet is
 
-**1. Eén echt gesprek, van begin tot eind** (conventie 10). Er is in de bouwomgeving geen
-`OPENAI_API_KEY` geweest, dus er is geen enkele echte aanroep gedaan vanaf dit scherm. Drie dingen
-zijn daarmee gebouwd en niet gemeten: dat het streamen op Vercel doorkomt zonder dat een
-tussenliggende laag het antwoord opspaart, dat `cost_usd` per bericht klopt tegenover de factuur van
-OpenAI, en dat een antwoord op redeneerstand `hoog` binnen de 240 seconden van
-`lib/solliciteren/gesprek.ts` blijft. Dit is de eerste stap na de eerstvolgende publicatie.
+**1. Eén echte ronde, van uitlezen tot brief** (conventie 10). Er is in de bouwomgeving geen
+`OPENAI_API_KEY` geweest, dus er is geen enkele echte aanroep gedaan vanaf dit scherm. Vier dingen
+zijn daarmee gebouwd en niet gemeten:
 
-**2. Een feitenkaart van de loopbaan.** Het voorstel dat in september is blijven liggen, en nog
-steeds de grootste sprong in kwaliteit: het CV en de projecten eenmalig uitsplitsen naar genummerde
-feiten, en elke bewering in de brief laten verwijzen naar een feitnummer dat code kan nakijken.
-Precies het patroon van `lib/pipeline/factcard.ts`, `claim-extract.ts` en `validate-claims.ts` in
-het hoofdproduct. Gevolg: geen verzonnen jaartal, en de brief wordt concreet in plaats van
-bijvoeglijk.
+- dat het streamen op Vercel doorkomt zonder dat een tussenliggende laag het antwoord opspaart;
+- dat `cost_usd` per bericht klopt tegenover de factuur van OpenAI;
+- dat een antwoord op redeneerstand `hoog`, nu de standaard, binnen de 240 seconden van
+  `lib/solliciteren/gesprek.ts` blijft;
+- **hoeveel van de aangeleverde feiten sneuvelen op hun bronzin.** Dat is het cijfer dat zegt of het
+  vangnet uit `zeefFeiten()` iets doet of alleen maar bestaat. Het scherm toont het na elke ronde;
+  het hoort na de eerste echte ronde in `docs/logbook.md` te staan.
+
+Dit is de eerste stap na de eerstvolgende publicatie.
+
+**2. Een oordeel over de brief, naast de controles.** De vier controles onder een antwoord
+(standaardzinnen, stem, feiten, sleutelwoorden) bewaken allemaal wat er NIET mag. Niets beoordeelt
+of de brief overtuigt. Het hoofdproduct heeft daar een beoordelaarspanel voor
+(`docs/tasks/contentpijplijn-herontwerp.md` A5) dat nagemeten de goedkoopste stap van de hele
+pijplijn is. Hier zou dat een tweede aanroep zijn na de brief, en dat botst niet met de keuze van
+15 september: die ging over het schrijven zelf in één aanroep, niet over wat erna komt. Wel eerst
+één echte ronde draaien, anders bouw je een beoordelaar zonder te weten wat hij moet afkeuren.
 
 **3. Onthouden wat werkte.** Per gesprek één veld: geen reactie, uitgenodigd, afgewezen. Na vijftien
 brieven weet de app welke drie een uitnodiging opleverden. Het enige punt dat beter wordt naarmate

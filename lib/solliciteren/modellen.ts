@@ -118,7 +118,22 @@ export const REDENEERSTANDEN: readonly Redeneerstand[] = [
   },
 ] as const;
 
-export const STANDAARD_STAND: ReasoningEffort = "medium";
+/**
+ * `high` en niet `medium`, sinds 15 september 2026.
+ *
+ * In de pijplijn van ORBIT ENGINE staat het schrijven bewust op `medium`, en
+ * daar is een goede reden voor: een schrijfaanroep moet daar binnen
+ * `CALL_BUDGET_MS` passen, en een timeout kost het dubbele omdat de taak
+ * opnieuw draait (`lib/openai/sampling.ts`). Die rekensom geldt hier niet. Dit
+ * scherm is geen taak in de wachtrij, het heeft een eigen budget van 240
+ * seconden, en het antwoord komt woord voor woord binnen, dus wachten is
+ * zichtbaar in plaats van stil.
+ *
+ * De eigenaar heeft op 15 september 2026 gezegd: kwaliteit van de brief gaat
+ * boven alles. Dan is de duurste en traagste stand de juiste standaard, en is
+ * lager zetten iets wat je bewust doet als je haast hebt.
+ */
+export const STANDAARD_STAND: ReasoningEffort = "high";
 
 /**
  * De temperatuur die meegaat zodra er niet geredeneerd wordt.

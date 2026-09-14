@@ -28,6 +28,14 @@
  * plaats van in te vullen, zodat het opvalt waar iemand zelf nog moet kijken.
  */
 import { bouwDossierblok, type Dossierstuk } from "@/lib/solliciteren/dossier";
+import {
+  KOP_BRIEF,
+  KOP_OPDRACHT,
+  KOP_VACATURE,
+  MINIMUM_FEITEN_IN_BRIEF,
+  bouwFeitenblok,
+  type Feit,
+} from "@/lib/solliciteren/feiten";
 import { formuleerStemregels, type Stemprofiel } from "@/lib/solliciteren/stem";
 
 /**
@@ -64,25 +72,67 @@ export function kapAf(tekst: string, max: number): string {
  * niet van. De stemregels komen er wél bij in, want die zijn gemeten aan deze
  * persoon en horen bij wie de assistent voor hem moet zijn.
  */
-export function bouwSysteemprompt(stem: Stemprofiel | null = null): string {
+export function bouwSysteemprompt(opts: { stem?: Stemprofiel | null; feiten?: number } = {}): string {
+  const stem = opts.stem ?? null;
+  const heeftFeiten = (opts.feiten ?? 0) > 0;
+
   const regels = [
     "Je bent een ervaren Nederlandse loopbaanadviseur en tekstschrijver. Je helpt één persoon aan",
     "één sollicitatiebrief die klinkt alsof hij hem zelf geschreven heeft.",
     "",
-    "WERKWIJZE",
-    "1. Ontleed eerst de vacature: wat is het echte probleem waarvoor ze iemand zoeken, welke eisen",
-    "   zijn hard en welke zijn een wens, en welke woorden gebruikt de werkgever zelf.",
-    "2. Leg daarnaast het dossier en stel vast waar de overlap zit. Noem ook waar hij ontbreekt,",
-    "   want dat is wat er in het gesprek opgelost moet worden.",
-    "3. Schrijf pas daarna. Vraag het niet eerst, maar zet je analyse kort boven de brief zodat de",
-    "   lezer ziet waar de keuzes vandaan komen.",
+    "DE VORM VAN JE ANTWOORD",
+    "Je antwoord heeft altijd deze drie kopjes, in deze volgorde, letterlijk zo geschreven:",
+    "",
+    KOP_VACATURE,
+    "Wat is het echte probleem waarvoor ze iemand zoeken, welke eisen zijn hard en welke zijn een",
+    "wens, en welke woorden gebruikt de werkgever zelf. Zeg er ook bij waar het dossier niet",
+    "aansluit, want dat is wat er in het gesprek opgelost moet worden. Kort, hoogstens tien regels.",
+    "",
+    KOP_OPDRACHT,
+    "De keuze die je maakt vóór je schrijft, in vier regels:",
+    "Lezer: wie leest deze brief, en wat moet die persoon na één alinea begrijpen.",
+    "Waarom jij: waarom zou deze werkgever juist deze kandidaat kiezen boven de zestig anderen.",
+    heeftFeiten
+      ? "Kernfeiten: de F-nummers die de brief gaan dragen, tussen de drie en de zes."
+      : "Kern: de twee of drie dingen uit het dossier die de brief gaan dragen.",
+    "Weglaten: wat er verleidelijk in zou kunnen, maar niet in deze brief hoort.",
+    "",
+    "Deze vier regels zijn het belangrijkste deel van je werk. Een schrijver met veertig feiten kiest",
+    "er zes uit; die keuze maak je hier, expliciet, en daarna schrijf je hem uit. Sla dit kopje nooit",
+    "over en vul het nooit met algemeenheden.",
+    "",
+    KOP_BRIEF,
+    "De brief zelf, en verder niets. Geen aanhef van jou over de brief, geen toelichting eronder.",
     "",
     "HOE DE BRIEF KLINKT",
     "Korte zinnen. Gewone woorden. Eén gedachte per zin. De eerste alinea zegt waarom deze persoon",
     "bij deze vacature past, en niet dat hij de vacature met interesse gelezen heeft.",
     "Vier alinea's is genoeg, 300 tot 400 woorden.",
     "Gebruik de woorden uit het dossier zelf, ook als die minder mooi zijn dan wat jij zou kiezen.",
+    "Elke alinea draagt één punt en bewijst het met iets concreets. Een alinea zonder bewijs is een",
+    "alinea die geschrapt kan worden.",
   ];
+
+  // ⚠️ De feitenkaart is een GESLOTEN lijst, en dat is het hele punt. Een
+  // dossier meegeven met "gebruik dit waar het past" is een uitnodiging;
+  // "alleen wat hieronder staat, met het nummer erbij" is een grens, en
+  // `controleerAntwoord()` in lib/solliciteren/feiten.ts rekent hem na.
+  if (heeftFeiten) {
+    regels.push(
+      "",
+      "DE FEITENKAART IS GESLOTEN",
+      "Je krijgt hieronder een genummerde feitenkaart. Dat is ALLES wat je over deze persoon mag",
+      "beweren. Staat iets er niet op, dan bestaat het voor deze brief niet, ook niet als het in het",
+      "dossier tussen de regels door te lezen is.",
+      "Zet achter elke zin in de brief die op een feit steunt het nummer ervan, tussen blokhaken, zo:",
+      "\"Ik bracht de doorlooptijd terug van negen naar vijf dagen. [F12]\"",
+      "Meerdere feiten in één zin: [F3, F12].",
+      `De brief steunt op minstens ${MINIMUM_FEITEN_IN_BRIEF} verschillende feiten. Lukt dat niet, zeg dat dan onder de brief.`,
+      "Verbindende zinnen en zinnen over de werkgever hoeven geen nummer. Een zin die iets beweert",
+      "over wat deze persoon heeft gedaan of kan, altijd wel.",
+      "De nummers blijven in de brief staan. Ze worden er bij het kopiëren automatisch uitgehaald.",
+    );
+  }
 
   // ⚠️ Deze regels zijn gemeten aan de eerdere brieven van deze persoon
   // (lib/solliciteren/stem.ts) en worden na afloop nagemeten met `toetsStem()`.
@@ -109,16 +159,18 @@ export function bouwSysteemprompt(stem: Stemprofiel | null = null): string {
     "Geen opsomming met bolletjes in de brief zelf. Een brief is lopende tekst.",
     "",
     "WAT JE NOOIT VERZINT",
-    "Je gebruikt alleen wat in het dossier of de vacature staat. Mist er iets wat de brief nodig",
-    "heeft, dan zet je er [dit weet ik niet: ...] neer en vraag je er onder de brief naar. Een",
-    "verzonnen jaartal, werkgever of resultaat is erger dan een gat, want een gat ziet de schrijver",
-    "zelf en een verzinsel niet.",
+    heeftFeiten
+      ? "Je beweert alleen wat op de feitenkaart staat. Mist er iets wat de brief nodig heeft, dan zet je er [dit weet ik niet: ...] neer en vraag je er onder de brief naar."
+      : "Je gebruikt alleen wat in het dossier of de vacature staat. Mist er iets wat de brief nodig heeft, dan zet je er [dit weet ik niet: ...] neer en vraag je er onder de brief naar.",
+    "Een verzonnen jaartal, werkgever of resultaat is erger dan een gat, want een gat ziet de",
+    "schrijver zelf en een verzinsel niet.",
     "",
     "IN HET GESPREK",
     "Doe wat er gevraagd wordt en niets erbij. Vraagt iemand om een enthousiastere toon, verander",
     "dan de toon en niet de inhoud. Vraagt iemand om een alinea in te korten, laat de rest dan",
     "letterlijk staan. Geef de hele brief opnieuw als er iets in verandert, zodat er altijd één",
-    "versie is om te kopiëren.",
+    `versie is om te kopiëren, en houd daarbij het kopje "${KOP_BRIEF}" aan.`,
+    "Verandert er niets aan de analyse of de keuze, laat die kopjes dan weg en geef alleen de brief.",
     "Je antwoordt in het Nederlands.",
   );
 
@@ -171,14 +223,20 @@ function rolVoorApi(rol: Gespreksbericht["rol"]): "user" | "assistant" {
  */
 export function bouwInvoer(opts: {
   dossier: readonly Dossierstuk[];
+  feiten: readonly Feit[];
   vacature: string;
   stem: Stemprofiel | null;
   historie: readonly Gespreksbericht[];
   vraag: string;
 }): { role: "system" | "user" | "assistant"; content: string }[] {
   const invoer: { role: "system" | "user" | "assistant"; content: string }[] = [
-    { role: "system", content: bouwSysteemprompt(opts.stem) },
+    { role: "system", content: bouwSysteemprompt({ stem: opts.stem, feiten: opts.feiten.length }) },
   ];
+
+  // De feitenkaart vóór het dossier: hij is korter, hij is de grens, en hij
+  // verandert minder vaak dan het dossier zelf.
+  const feiten = bouwFeitenblok(opts.feiten);
+  if (feiten) invoer.push({ role: "user", content: feiten });
 
   const dossier = bouwDossierblok(opts.dossier);
   if (dossier) invoer.push({ role: "user", content: dossier });
@@ -204,5 +262,5 @@ export function bouwInvoer(opts: {
  * levert een antwoord op dat naast de bedoeling zit.
  */
 export const EERSTE_VRAAG =
-  "Ontleed de vacature en zet ernaast waar mijn dossier aansluit en waar niet. Schrijf daarna een " +
-  "eerste versie van de brief.";
+  "Ontleed de vacature, kies welke feiten deze brief gaan dragen, en schrijf daarna een eerste " +
+  "versie van de brief.";

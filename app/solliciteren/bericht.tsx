@@ -2,6 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { zoekCliches } from "@/lib/solliciteren/cliches";
+import {
+  controleerAntwoord,
+  splitsAntwoord,
+  stripVerwijzingen,
+  type Feit,
+} from "@/lib/solliciteren/feiten";
 import { isGeldigModel, vindModel } from "@/lib/solliciteren/modellen";
 import { toetsStem, type Stemprofiel } from "@/lib/solliciteren/stem";
 
@@ -23,7 +29,16 @@ import { toetsStem, type Stemprofiel } from "@/lib/solliciteren/stem";
  * De cliché-strook telt de standaardzinnen die de prompt bij naam verbiedt
  * (`lib/solliciteren/cliches.ts`). De stemtoets legt de brief naast de maten
  * die aan jouw eigen eerdere brieven zijn gemeten
- * (`lib/solliciteren/stem.ts`): zinslengte, lange zinnen, aanspreekvorm.
+ * (`lib/solliciteren/stem.ts`): zinslengte, lange zinnen, aanspreekvorm. En de
+ * feitencontrole (`lib/solliciteren/feiten.ts`) rekent na of de brief alleen
+ * beweert wat op je feitenkaart staat, en of hij doet wat zijn eigen
+ * schrijfopdracht beloofde.
+ *
+ * ── DE NUMMERS STAAN IN DE TEKST EN NIET IN DE KOPIE ───────────────────────
+ *
+ * De brief draagt zijn verwijzingen ([F12]) omdat dat de enige manier is om per
+ * zin te kunnen nakijken waar hij op steunt. In de mail aan de werkgever horen
+ * ze niet, dus de kopieerknop haalt ze eruit. Zelfde tekst, één ding minder.
  *
  * Er wordt niets weggehaald en niets herschreven. Of "met veel enthousiasme" in
  * jouw brief een cliché is of gewoon waar, bepaal jij, en of een langere zin
@@ -37,6 +52,7 @@ export function Bericht({
   kosten,
   fout,
   stem,
+  feiten,
   bezig,
 }: {
   rol: "gebruiker" | "assistent";
@@ -47,6 +63,8 @@ export function Bericht({
   fout: string | null;
   /** De gemeten stem van deze persoon, of null als er te weinig brieven liggen. */
   stem: Stemprofiel | null;
+  /** De feitenkaart waartegen dit antwoord wordt nagerekend. */
+  feiten: readonly Feit[];
   /** Staat dit antwoord nog te komen? Dan geen telling, die is dan nog niet af. */
   bezig?: boolean;
 }) {
@@ -60,13 +78,23 @@ export function Bericht({
     [inhoud],
   );
   const stemafwijkingen = useMemo(
-    () => (rol === "assistent" && !bezig ? toetsStem(inhoud, stem) : []),
+    () => (rol === "assistent" && !bezig ? toetsStem(splitsAntwoord(inhoud).brief || inhoud, stem) : []),
     [rol, inhoud, stem, bezig],
   );
+  const feitcontrole = useMemo(
+    () => (rol === "assistent" && !bezig ? controleerAntwoord(inhoud, feiten) : null),
+    [rol, inhoud, feiten, bezig],
+  );
+  // De stemtoets hoort over de BRIEF te gaan en niet over de analyse erboven:
+  // een opsomming van vacature-eisen heeft nu eenmaal andere zinnen dan een
+  // brief, en die als stijlafwijking aanwijzen zou de meting onbruikbaar maken.
+  const brief = useMemo(() => splitsAntwoord(inhoud).brief, [inhoud]);
 
   async function kopieer() {
     try {
-      await navigator.clipboard.writeText(inhoud);
+      // Alleen de brief als het antwoord er een heeft, en zonder de nummers:
+      // dat is wat je in de mail plakt.
+      await navigator.clipboard.writeText(stripVerwijzingen(brief || inhoud));
       setGekopieerd(true);
       window.setTimeout(() => setGekopieerd(false), 2000);
     } catch {
@@ -103,7 +131,7 @@ export function Bericht({
       {rol === "assistent" && !bezig && inhoud ? (
         <footer className="sol-bericht__voet">
           <button type="button" className="sol-knop sol-knop--stil" onClick={kopieer}>
-            {gekopieerd ? "Gekopieerd" : "Kopieer"}
+            {gekopieerd ? "Gekopieerd" : brief ? "Kopieer de brief" : "Kopieer"}
           </button>
           <span className="sol-bericht__meta">{woorden} woorden</span>
           {cliches.length === 0 ? (
@@ -113,6 +141,15 @@ export function Bericht({
               {cliches.length === 1 ? "1 standaardzin" : `${cliches.length} standaardzinnen`}
             </span>
           )}
+          {feitcontrole && feiten.length > 0 ? (
+            feitcontrole.bevindingen.length === 0 && feitcontrole.gebruikt.length > 0 ? (
+              <span className="sol-bericht__meta sol-bericht__meta--goed">
+                {feitcontrole.gebruikt.length} feiten, allemaal van je kaart
+              </span>
+            ) : feitcontrole.bevindingen.some((b) => b.ernst === "blokkerend") ? (
+              <span className="sol-bericht__meta sol-bericht__meta--fout">Onbewezen bewering</span>
+            ) : null
+          ) : null}
           {stem ? (
             stemafwijkingen.length === 0 ? (
               <span className="sol-bericht__meta sol-bericht__meta--goed">Klinkt als jij</span>
@@ -125,6 +162,14 @@ export function Bericht({
             )
           ) : null}
         </footer>
+      ) : null}
+
+      {feitcontrole && feitcontrole.bevindingen.length > 0 ? (
+        <ul className={`sol-cliches${feitcontrole.bevindingen.some((b) => b.ernst === "blokkerend") ? " sol-cliches--fout" : ""}`}>
+          {feitcontrole.bevindingen.map((bevinding) => (
+            <li key={bevinding.melding}>{bevinding.melding}</li>
+          ))}
+        </ul>
       ) : null}
 
       {stemafwijkingen.length > 0 ? (

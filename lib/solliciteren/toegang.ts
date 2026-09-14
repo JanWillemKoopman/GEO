@@ -20,7 +20,11 @@ import "server-only";
 import { getUser } from "@/lib/auth";
 import { isStaff } from "@/lib/staff";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { SollicitatieChat, SollicitatieDocument } from "@/lib/types/database";
+import type {
+  SollicitatieChat,
+  SollicitatieDocument,
+  SollicitatieFeit,
+} from "@/lib/types/database";
 
 export type Toegangsuitkomst =
   | { ok: true; userId: string; chat: SollicitatieChat }
@@ -99,4 +103,31 @@ export async function laadEigenDocument(documentId: string): Promise<Documenttoe
   }
 
   return { ok: true, userId: user.id, document };
+}
+
+export type Feittoegang =
+  | { ok: true; userId: string; feit: SollicitatieFeit }
+  | { ok: false; status: 401 | 404; melding: string };
+
+/** Hetzelfde voor één feit van de kaart (migratie 0097). */
+export async function laadEigenFeit(feitId: string): Promise<Feittoegang> {
+  const user = await getUser();
+  if (!user) return { ok: false, status: 401, melding: "Je bent niet ingelogd." };
+  if (!(await isStaff(user.id))) {
+    return { ok: false, status: 404, melding: "Dit feit bestaat niet." };
+  }
+
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("sollicitatie_feiten")
+    .select("*")
+    .eq("id", feitId)
+    .maybeSingle();
+
+  const feit = data as SollicitatieFeit | null;
+  if (!feit || feit.user_id !== user.id) {
+    return { ok: false, status: 404, melding: "Dit feit bestaat niet." };
+  }
+
+  return { ok: true, userId: user.id, feit };
 }

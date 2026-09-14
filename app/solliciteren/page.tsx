@@ -5,6 +5,7 @@ import type {
   SollicitatieBericht,
   SollicitatieChat,
   SollicitatieDocument,
+  SollicitatieFeit,
 } from "@/lib/types/database";
 import { Assistent } from "./assistent";
 import { Gesprekkenbalk } from "./gesprekkenbalk";
@@ -53,6 +54,14 @@ export default async function SolliciterenPagina({
     .eq("user_id", user.id);
   const documenten = (documentData ?? []) as SollicitatieDocument[];
 
+  // De feitenkaart hangt net als het dossier aan de persoon (migratie 0097).
+  const { data: feitData } = await admin
+    .from("sollicitatie_feiten")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("nummer", { ascending: true });
+  const feiten = (feitData ?? []) as SollicitatieFeit[];
+
   let berichten: SollicitatieBericht[] = [];
   if (actief) {
     const { data } = await admin
@@ -88,6 +97,7 @@ export default async function SolliciterenPagina({
         chat={actief}
         berichten={berichten}
         documenten={documenten}
+        feiten={feiten}
       />
     </div>
   );

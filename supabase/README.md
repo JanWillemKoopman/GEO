@@ -451,3 +451,37 @@ gesprekken en nul berichten, dus er viel niets over te zetten.
 **RLS**: select-only, dezelfde twee sloten als 0095 (`user_id = auth.uid()` én `is_staff()`).
 Schrijven loopt via `app/api/solliciteren/documenten/` met de service-role en een expliciete
 eigenaarscontrole in `laadEigenDocument()` (conventie 6).
+
+## 0097 — de feitenkaart van een loopbaan
+
+`sollicitatie_feiten`: de gesloten lijst beweringen die een sollicitatiebrief mag doen over één
+persoon. Elk feit heeft een vast `nummer` (het F-nummer waarnaar de brief verwijst), een
+`categorie`, de `tekst` in één zin, een optionele `periode`, en de `bronzin` waaruit het komt.
+
+**Waarom dit het belangrijkste stuk van het zijproject is.** Het hoofdproduct heeft dit patroon al,
+en de aanleiding staat in `lib/pipeline/factcard.ts`: bij de eerste echte contentronde waren van de
+16 beweringen op een gegenereerde pagina er 5 verzonnen. Een model verzint niet willekeurig, het
+verzint precies daar waar een tekst een concreet feit nodig heeft en het materiaal het niet levert.
+Een sollicitatiebrief is die tekst bij uitstek. Een dossier meegeven met "gebruik dit waar het past"
+is een uitnodiging; een genummerde lijst met "alles wat hier niet op staat bestaat niet" is een
+grens, en `lib/solliciteren/feiten.ts` rekent na of hij is aangehouden.
+
+**Het nummer is vast en geen positie.** In het hoofdproduct is "F3" de derde regel in een lijst, en
+schuift alles op als er een feit bij komt. Dat kan daar, want die kaart wordt per pagina gemaakt.
+Hier leeft de kaart maanden met bewaarde brieven ernaast, dus krijgt elk feit een eigen `nummer` dat
+nooit verschuift. Een verwijderd feit geeft zijn nummer niet terug. De unieke index op
+`(user_id, nummer)` is het vangnet onder het toekennen in de route (conventie 1).
+
+**`bronzin` is de reden dat de kaart te vertrouwen is.** Het model krijgt de opdracht de zin uit het
+dossier letterlijk over te schrijven, en `zeefFeiten()` gooit elk feit weg waarvan die zin niet
+letterlijk in het dossier voorkomt (op genormaliseerde witruimte, want een PDF breekt regels af
+waar geen regel hoort). Zonder dat vangnet mag het model zijn bron samenvatten, en dan bewijst de
+bron niets meer.
+
+**`handmatig` betekent: een mens wint van het model.** Een feit dat jij zet of corrigeert blijft bij
+elke volgende uitleesronde staan en wordt nooit overschreven. Zelfde afspraak als
+`profile_field_sources` in migratie 0035: een correctie die bij de volgende ronde verdwijnt maak je
+één keer, en daarna vertrouw je de kaart niet meer.
+
+**RLS**: select-only, dezelfde twee sloten als 0095 en 0096. Schrijven via
+`app/api/solliciteren/feiten/` met een expliciete eigenaarscontrole in `laadEigenFeit()`.

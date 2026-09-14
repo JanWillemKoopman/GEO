@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { brievenUit, pasDossierIn, type Dossierstuk } from "@/lib/solliciteren/dossier";
+import type { Feit } from "@/lib/solliciteren/feiten";
 import { streamAntwoord, type Gespreksbericht } from "@/lib/solliciteren/gesprek";
 import {
   STANDAARD_MODEL,
@@ -119,6 +120,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // (conventie 3).
   const stem = meetStem(brievenUit(dossier));
 
+  // De feitenkaart: de gesloten lijst van wat de brief mag beweren (migratie
+  // 0097). Is hij leeg, dan schrijft de assistent zoals hij dat vóór 0097 deed,
+  // rechtstreeks uit het dossier; de prompt past zich daarop aan in plaats van
+  // te doen alsof er een kaart is (conventie 3).
+  const { data: feitData } = await admin
+    .from("sollicitatie_feiten")
+    .select("id, nummer, categorie, tekst, periode, bronzin, handmatig")
+    .eq("user_id", toegang.userId)
+    .order("nummer", { ascending: true });
+  const feiten = (feitData ?? []) as Feit[];
+
   // Eerst het gespreksverloop lezen, dan pas de nieuwe vraag wegschrijven: die
   // vraag gaat los mee de aanroep in en hoort er niet twee keer in te staan.
   const { data: eerder } = await admin
@@ -169,6 +181,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       try {
         const antwoord = await streamAntwoord({
           dossier,
+          feiten,
           vacature: chat.vacature_tekst,
           stem,
           historie,

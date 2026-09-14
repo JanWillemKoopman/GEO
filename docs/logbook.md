@@ -8273,3 +8273,78 @@ nagerekend, en `tsc --noEmit`, `test:unit` (4577 geslaagd), `test:chain` (650 ge
 zijn alle vier groen. Het inlezen van een PDF is echt gedraaid. Wat nog steeds niet gemeten is: er
 is in deze omgeving geen OpenAI-sleutel geweest, dus er is nog geen enkele echte aanroep gedaan
 vanaf dit scherm.
+
+---
+
+## 15 september 2026: de feitenkaart, elke zin in de brief wijst naar iets dat je kunt aanwijzen
+
+De eigenaar gaf één richtlijn mee: kwaliteit van de brief boven alles. Dit is wat daar het meest
+aan doet, en het is niet nieuw bedacht maar overgenomen van het hoofdproduct. Migratie 0097, 62
+controles erbij (4577 naar 4639).
+
+**De aanleiding staat al in `lib/pipeline/factcard.ts`.** Bij de eerste echte contentronde waren van
+de 16 beweringen op een gegenereerde pagina er 5 verzonnen, en het patroon was duidelijk: een model
+verzint niet willekeurig, het verzint precies daar waar de tekst een concreet feit NODIG heeft en
+het materiaal het niet levert. Een sollicitatiebrief is die tekst bij uitstek. "Ik bracht de
+doorlooptijd terug van negen naar vijf dagen" is de zin die werkt, en het is ook de zin die een
+model invult als hij er niet staat. Een dossier meegeven met "gebruik dit waar het past" is een
+uitnodiging, geen grens.
+
+**Wat er nu gebeurt.** Je leest je dossier één keer uit tot een genummerde kaart: per feit één zin,
+een categorie, een periode waar die er is, en de zin uit je dossier waar het op steunt. Die kaart
+gaat als GESLOTEN lijst de prompt in: alles wat er niet op staat, bestaat voor de brief niet. De
+brief zet achter elke bewerende zin het nummer waarop hij steunt, en `lib/solliciteren/feiten.ts`
+rekent na of dat nummer bestaat. Bij het kopiëren gaan de nummers er automatisch uit, dus wat je in
+de mail plakt is gewoon een brief.
+
+**De bronzin is de helft van het idee.** Het model krijgt de opdracht de zin uit het dossier
+letterlijk over te schrijven, en `zeefFeiten()` gooit elk feit weg waarvan die zin niet letterlijk
+terug te vinden is. Zonder dat vangnet mag het model zijn bron samenvatten of net iets mooier maken,
+en dan bewijst de bron niets meer (conventie 1). Op het scherm staat na elke uitleesronde hoeveel
+feiten het model aanleverde en hoeveel er door die controle kwamen; dat verschil is de enige manier
+om te zien dat het vangnet werkt.
+
+**Het F-nummer is vast en geen positie.** In het hoofdproduct is "F3" de derde regel in een lijst en
+schuift alles op als er iets bij komt. Dat kan daar, want die kaart wordt per pagina gemaakt. Hier
+leeft de kaart maanden met bewaarde brieven ernaast, dus krijgt elk feit een eigen nummer dat nooit
+verschuift, en een verwijderd feit geeft zijn nummer niet terug. De unieke index op
+`(user_id, nummer)` is het vangnet onder het toekennen in de route.
+
+**De schrijfopdracht is in het antwoord gekomen, niet in een eigen aanroep.** Het voorstel was
+oorspronkelijk een aparte goedkope stap, zoals `lib/pipeline/writer-brief.ts` in het hoofdproduct.
+Dat botste met de keuze van de eigenaar om een brief in één aanroep te schrijven. Het is nu een
+verplicht kopje IN het antwoord: wie leest deze brief, waarom zou juist deze werkgever jou kiezen
+boven de zestig anderen, welke F-nummers dragen de brief, en wat laat je bewust weg. Daarmee blijft
+het één aanroep en is het toch de expliciete keuze die het moest zijn. En het is nu controleerbaar:
+`controleerAntwoord()` rekent na of de feiten die de schrijfopdracht uitkoos ook echt in de brief
+terugkomen. Dat kon de losse stap in het hoofdproduct niet.
+
+De vraag "waarom zou deze werkgever juist jou kiezen" is dezelfde vraag die de externe copywriter op
+3 september 2026 miste in de contentpijplijn, en waar migratie 0094 voor gemaakt is. Hij blijkt in
+dit domein nog directer te vertalen: een sollicitatiebrief IS het antwoord op die vraag.
+
+**Het uitlezen is wél een eigen aanroep, en dat is geen tegenspraak.** Conventie 7 zegt: een nieuwe
+zware stap wordt een eigen stap. Je dossier uitlezen doe je één keer en gebruik je maanden; een
+brief schrijven doe je per vacature. Twee taken, twee aanroepen, en de tweede wordt er niet trager
+of duurder van. Het uitlezen draait bovendien op het model dat de gebruiker heeft gekozen en niet
+stilletjes op een kleiner model: de kwaliteit van die lijst bepaalt de kwaliteit van elke brief die
+erna komt, en een gemist resultaat op de kaart is een zin die nooit in een brief terechtkomt.
+
+**De standaard redeneerstand van `medium` naar `high`.** In de pijplijn staat het schrijven bewust
+op `medium`, omdat een schrijfaanroep daar binnen `CALL_BUDGET_MS` moet passen en een timeout het
+dubbele kost. Die rekensom geldt hier niet: dit scherm is geen taak in de wachtrij, heeft een eigen
+budget van 240 seconden, en het antwoord komt woord voor woord binnen, dus wachten is zichtbaar in
+plaats van stil. Bij "kwaliteit boven alles" is de duurste stand de juiste standaard.
+
+**Wat de controle wel en niet kan, en waarom dat op het scherm staat.** Wel: of een genoemd nummer
+bestaat, of de uitgekozen feiten terugkomen, en hoeveel verschillende feiten de brief draagt (onder
+de vier gaat een brief meestal over houding in plaats van over wat je gedaan hebt). Niet: of de zin
+die naar F7 verwijst ook echt over F7 gaat. Dat kan code niet zien. Daarom staat de bronzin per feit
+op het scherm: de controle die een mens in twee seconden doet, hoeft de code niet te kunnen.
+
+**Geverifieerd, niet aangenomen** (conventie 10): migratie 0097 is toegepast op productie en
+nagerekend, en `tsc --noEmit`, `test:unit` (4639 geslaagd), `test:chain` (650 geslaagd) en `build`
+zijn alle vier groen. Nog steeds ongemeten, en dat wordt met elke ronde belangrijker: er is in deze
+omgeving geen OpenAI-sleutel, dus er is nog geen enkele echte uitleesronde en geen enkele echte
+brief gedraaid. Wat het vangnet in de praktijk tegenhoudt, hoeveel van de aangeleverde feiten
+sneuvelen op hun bronzin, is precies het cijfer dat na de eerste ronde in dit logboek hoort te staan.

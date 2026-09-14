@@ -775,3 +775,98 @@
   background-color: var(--sol-papier-diep);
   color: var(--sol-inkt-zacht);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DE FEITENKAART (15 september 2026)
+
+   De gesloten lijst van wat een brief mag beweren. Het F-nummer is hier het
+   belangrijkste teken op het scherm: het staat in de kaart én in de brief, en
+   dat is wat de twee aan elkaar knoopt.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.sol-feitgroep {
+  margin-top: 1.1rem;
+}
+
+.sol-feitgroep__titel {
+  margin: 0 0 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sol-inkt-licht);
+}
+
+.sol-feiten {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sol-feit {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-top: 1px solid var(--sol-rand);
+}
+
+.sol-feit:first-child {
+  border-top: 0;
+}
+
+/* Het nummer in tabelcijfers en op vaste breedte, zodat de kolom uitlijnt en
+   je hem naast een brief kunt leggen zonder te zoeken. */
+.sol-feit__ref {
+  flex: 0 0 auto;
+  min-width: 2.4rem;
+  padding: 0.05rem 0.35rem;
+  border: 1px solid var(--sol-accent);
+  border-radius: var(--sol-radius);
+  color: var(--sol-accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.sol-feit__tekst {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.sol-feit__eigen {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.3rem;
+  border-radius: var(--sol-radius);
+  background-color: var(--sol-accent-zacht);
+  color: var(--sol-accent);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+/* De bronzin: waar dit feit letterlijk vandaan komt. Ingesprongen en in de
+   schreefletter, zodat je ziet dat het een citaat is en geen toelichting. */
+.sol-feit__bron {
+  display: block;
+  margin-top: 0.3rem;
+  padding-left: 0.6rem;
+  border-left: 2px solid var(--sol-rand);
+  color: var(--sol-inkt-zacht);
+  font-family: var(--sol-schreef);
+  font-size: 0.82rem;
+}
+
+/* Een onbewezen bewering is geen "let op" maar een fout: die zin steunt
+   nergens op en hoort de brief niet uit. */
+.sol-bericht__meta--fout {
+  color: var(--sol-accent);
+  font-weight: 600;
+}
+
+.sol-cliches--fout {
+  background-color: var(--sol-accent-zacht);
+  color: var(--sol-accent);
+}

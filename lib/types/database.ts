@@ -1660,3 +1660,21 @@ export interface SollicitatieBericht {
   fout: string | null;
   created_at: string;
 }
+
+/** Eén feit op de kaart van één persoon (migratie 0097). */
+export interface SollicitatieFeit {
+  id: string;
+  user_id: string;
+  document_id: string | null;
+  /** Het F-nummer, vast per persoon: verschuift nooit als een ander feit weggaat. */
+  nummer: number;
+  categorie: "werk" | "resultaat" | "vaardigheid" | "opleiding" | "drijfveer" | "overig";
+  tekst: string;
+  periode: string | null;
+  /** De zin uit het dossier waar dit feit op steunt. */
+  bronzin: string;
+  /** Door een mens gezet of gecorrigeerd? Dan overleeft hij een nieuwe uitleesronde. */
+  handmatig: boolean;
+  created_at: string;
+  updated_at: string;
+}
