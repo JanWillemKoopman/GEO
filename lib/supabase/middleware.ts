@@ -35,9 +35,19 @@ export async function updateSession(request: NextRequest) {
   // `/merk`, en dat viel buiten deze controle. De pagina's zelf roepen
   // `requireUser()` aan, dus er lekte niets, maar een bezoeker zonder sessie
   // kreeg een omweg via een server-render in plaats van meteen het inlogscherm.
-  const isProtected = ["/analyses", "/merk", "/instellingen", "/beheer", "/sales"].some(
-    (p) => path === p || path.startsWith(`${p}/`),
-  );
+  // `/solliciteren` is het zijproject (14 september 2026): een eigen app van
+  // één pagina, achter dezelfde inlog. Hij hoort in deze lijst om dezelfde
+  // reden als de rest: de pagina zelf roept `requireUser()` aan, dus er lekt
+  // niets, maar zonder deze regel krijgt een bezoeker zonder sessie eerst een
+  // server-render en pas daarna het inlogscherm.
+  const isProtected = [
+    "/analyses",
+    "/merk",
+    "/instellingen",
+    "/beheer",
+    "/sales",
+    "/solliciteren",
+  ].some((p) => path === p || path.startsWith(`${p}/`));
   const isAuthPage = path === "/login" || path === "/register";
 
   // Niet ingelogd + beschermde route → naar login.

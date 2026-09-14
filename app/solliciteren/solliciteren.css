@@ -1,0 +1,231 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SOLLICITEREN, eigen opmaak
+
+   Dit is de stijl van het zijproject en niet die van ORBIT ENGINE. Er staat
+   bewust geen enkel token uit `app/globals.css` in: alles begint hier met
+   `--sol-` en alle klassen beginnen met `sol-`. Zo kan deze pagina veranderen
+   zonder dat er iets aan het hoofdproduct verschuift, en andersom.
+
+   ── WAT ER TOCH VAN ORBIT ENGINE BINNENKOMT (14 september 2026) ─────────────
+
+   Eén ding valt niet weg te nemen: `app/layout.tsx` is in Next.js het
+   wortelelement van de hele site en laadt `globals.css`. Dat bestand levert
+   hier alleen de Tailwind-basis (marges op nul, afbeeldingen schalen mee, de
+   standaard randkleur). Elke zichtbare waarde, kleur, letter, vorm en ruimte,
+   wordt hieronder opnieuw gezet op `.sol-app`, dus het resultaat op het scherm
+   komt volledig uit dit bestand. Een tweede wortelelement zou betekenen dat
+   alle 60 schermen van ORBIT ENGINE naar een andere map verhuizen, en dat is
+   een veel te grote ingreep voor een zijproject van één pagina.
+
+   ── DE KEUZES ──────────────────────────────────────────────────────────────
+
+   ORBIT ENGINE is koel leiblauw, Geist, hoeken van 6 tot 12 pixels, twee
+   standen (licht en donker). Dit is met opzet het tegenovergestelde: warm
+   papier, een schreefletter voor de koppen, hoeken van 4 pixels, één vaste
+   stand. Wie tussen de twee schermen wisselt, ziet in een oogopslag dat hij
+   ergens anders is.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.sol-app {
+  /* Kleuren. Warm papier met inkt erop, één accent in terracotta. */
+  --sol-papier: #faf6ef;
+  --sol-papier-diep: #f2ebdf;
+  --sol-kaart: #ffffff;
+  --sol-inkt: #16130f;
+  --sol-inkt-zacht: #605747;
+  --sol-inkt-licht: #8c8375;
+  --sol-rand: #e3dac9;
+  --sol-accent: #b64f24;
+  --sol-accent-zacht: #f6e5db;
+
+  /* Vorm en ruimte. */
+  --sol-radius: 4px;
+  --sol-maat: 46rem;
+
+  /* Letters. Systeemletters, geen extra download: het zijproject hoort de
+     bouw van ORBIT ENGINE niet zwaarder te maken. */
+  --sol-schreef: ui-serif, Georgia, "Times New Roman", serif;
+  --sol-schreefloos: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* Deze pagina heeft geen donkere stand. Zonder deze regel tekent de browser
+     zijn eigen onderdelen (scrollbalk, keuzelijst) donker zodra het
+     besturingssysteem donker staat, terwijl het papier hier altijd licht is. */
+  color-scheme: light;
+
+  min-height: 100dvh;
+  background-color: var(--sol-papier);
+  color: var(--sol-inkt);
+  font-family: var(--sol-schreefloos);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.sol-app *,
+.sol-app *::before,
+.sol-app *::after {
+  box-sizing: border-box;
+  border-color: var(--sol-rand);
+}
+
+.sol-binnen {
+  margin: 0 auto;
+  width: 100%;
+  max-width: var(--sol-maat);
+  padding: 2.5rem 1.25rem 4rem;
+}
+
+/* ── De kop ───────────────────────────────────────────────────────────────── */
+
+.sol-kop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 2px solid var(--sol-inkt);
+}
+
+.sol-kop__label {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sol-accent);
+}
+
+.sol-titel {
+  margin: 0;
+  font-family: var(--sol-schreef);
+  font-size: clamp(2rem, 6vw, 2.75rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+
+.sol-kop__rechts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--sol-inkt-licht);
+}
+
+.sol-terug {
+  color: var(--sol-accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--sol-accent-zacht);
+  transition: border-color 120ms ease;
+}
+
+.sol-terug:hover {
+  border-bottom-color: var(--sol-accent);
+}
+
+/* ── De blokken ───────────────────────────────────────────────────────────── */
+
+.sol-kaart {
+  margin-top: 1.75rem;
+  padding: 1.5rem;
+  background-color: var(--sol-kaart);
+  border: 1px solid var(--sol-rand);
+  border-radius: var(--sol-radius);
+}
+
+.sol-kaart--leeg {
+  background-color: var(--sol-papier-diep);
+  border-style: dashed;
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+}
+
+.sol-kaart__titel {
+  margin: 0 0 0.5rem;
+  font-family: var(--sol-schreef);
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.sol-kaart__tekst {
+  margin: 0;
+  color: var(--sol-inkt-zacht);
+  max-width: 34rem;
+}
+
+.sol-kaart--leeg .sol-kaart__tekst {
+  margin: 0 auto;
+}
+
+.sol-raster {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 40rem) {
+  .sol-raster {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* Op een breed scherm hangt de regel met het account aan de rechterkant van
+     de kop. Op een smal scherm valt hij onder de titel en hoort hij links uit
+     te lijnen met alles eronder. */
+  .sol-kop__rechts {
+    align-items: flex-end;
+    text-align: right;
+  }
+}
+
+.sol-punt {
+  padding: 1rem 1.1rem;
+  background-color: var(--sol-kaart);
+  border: 1px solid var(--sol-rand);
+  border-radius: var(--sol-radius);
+  border-top: 3px solid var(--sol-accent);
+}
+
+.sol-punt__titel {
+  margin: 0 0 0.3rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.sol-punt__tekst {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--sol-inkt-zacht);
+}
+
+/* ── De wachtvorm ─────────────────────────────────────────────────────────── */
+
+.sol-skelet {
+  border-radius: var(--sol-radius);
+  background-color: var(--sol-papier-diep);
+  animation: sol-pols 1.4s ease-in-out infinite;
+}
+
+.sol-skelet--titel {
+  height: 2.5rem;
+  width: 14rem;
+}
+
+.sol-skelet--blok {
+  height: 9rem;
+  margin-top: 1.75rem;
+}
+
+@keyframes sol-pols {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sol-skelet {
+    animation: none;
+  }
+}

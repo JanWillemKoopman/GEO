@@ -96,3 +96,27 @@ een document af van wat de code doet, dan is het document fout.
 | [`docs/processtappen-nieuwe-pagina.md`](./docs/processtappen-nieuwe-pagina.md) | **Wat er precies gebeurt, stap voor stap.** Genummerde checklist van klant aanmaken tot een opgeleverde pagina, zonder technische kennis nodig |
 | [`docs/contentpijplijn-overdracht.md`](./docs/contentpijplijn-overdracht.md) | **De contentpijplijn voor buitenstaanders.** Elke AI-aanroep in volgorde, met de prompts erin, geschreven om aan een externe copywriter of AI-expert te overhandigen |
 | [`docs/tasks/`](./docs/tasks/) | Wat er nog open staat. Af is weg, samengevat in het logboek |
+
+## Zijproject: Solliciteren
+
+**Zegt de eigenaar "het Zijproject", "het solliciteren project", "solliciteren" of "de S", dan gaat
+de opdracht over `app/solliciteren/` en nergens anders over.** De wijzigingen die eruit volgen horen
+in die map thuis. ORBIT ENGINE blijft er ongemoeid bij, op de S in de bovenbalk na
+(`components/workspace-chrome.tsx`), en een opdracht die toch aan allebei raakt wordt eerst als
+zodanig benoemd.
+
+Het is een eigen app van één pagina in dezelfde codebase, opgezet op 14 september 2026. Wat hij
+deelt: de inlog van Supabase en het project bij Vercel, dus hij publiceert mee met `main`. Wat hij
+niet deelt: de vormgeving. Die staat in `app/solliciteren/solliciteren.css`, met eigen tokens die
+allemaal met `--sol-` beginnen, en de map gebruikt geen enkel component uit `components/`.
+`scripts/test-unit.ts` bewaakt die scheiding, dus één geleende kleur of één geleend component valt
+meteen op.
+
+Alleen een account van ORBIT ENGINE zelf komt erin: de S hangt aan `isStaff`, en de pagina
+controleert datzelfde recht nog een keer op de server. Een klant ziet de knop niet en de pagina
+evenmin.
+
+| Waarvoor | Waar |
+|---|---|
+| Wat er nog open staat | [`docs/tasks/solliciteren-zijproject.md`](./docs/tasks/solliciteren-zijproject.md) |
+| Waarom het zo staat | [`docs/logbook.md`](./docs/logbook.md), 14 september 2026 |

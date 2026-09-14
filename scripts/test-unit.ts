@@ -13957,6 +13957,7 @@ group("de middleware draait waar hij moet, en nergens anders", () => {
     "/instellingen",
     "/instellingen/koppelingen",
     "/beheer",
+    "/solliciteren",
   ]) {
     ok(`draait op ${pad}`, patroon.test(pad));
   }
@@ -13974,6 +13975,60 @@ group("de middleware draait waar hij moet, en nergens anders", () => {
   ]) {
     ok(`draait NIET op ${pad}`, !patroon.test(pad));
   }
+});
+
+// ── Het zijproject "Solliciteren" ──────────────────────────────────────────
+//
+// ⚠️ `app/solliciteren/` is een eigen app van één pagina in dezelfde codebase
+// (14 september 2026). De afspraak is dat hij twee dingen deelt, de inlog en de
+// publicatie, en één ding juist niet: de opmaak. Zo'n afspraak slijt vanzelf,
+// want één import uit `components/` of één `var(--text-primary)` is genoeg om
+// de twee ontwerpen weer aan elkaar te knopen, en dat valt pas op als een
+// wijziging in ORBIT ENGINE ineens dit scherm verandert. Conventie 1: een
+// belofte in een document krijgt een vangnet in code.
+group("het zijproject staat los van ORBIT ENGINE, en zit wel achter dezelfde inlog", () => {
+  const layout = leesBestand("app/solliciteren/layout.tsx");
+  const stijl = leesBestand("app/solliciteren/solliciteren.css");
+
+  // De inlog: gedeeld, en twee keer gecontroleerd. De middleware stuurt een
+  // bezoeker zonder sessie meteen naar het inlogscherm, de layout controleert
+  // het op de server nog een keer plus het beheerdersrecht.
+  ok(
+    "de middleware beschermt /solliciteren",
+    leesBestand("lib/supabase/middleware.ts").includes('"/solliciteren"'),
+  );
+  ok("de layout vraagt om een ingelogde gebruiker", layout.includes("requireUser()"));
+  ok("en laat alleen een account van ORBIT ENGINE zelf binnen", layout.includes("isStaff("));
+  ok("een klant krijgt een 404 en geen foutmelding", layout.includes("notFound()"));
+
+  // De opmaak: niet gedeeld. Geen component van het hoofdproduct, geen token
+  // uit `globals.css`, en de eigen stijl gaat nergens anders heen.
+  const eigenBestanden = tsxOnder("app/solliciteren");
+  ok("er staan schermbestanden in de map", eigenBestanden.length >= 2, `${eigenBestanden.length}`);
+  for (const bestand of eigenBestanden) {
+    const bron = leesBestand(bestand);
+    ok(`${bestand} leent geen component van ORBIT ENGINE`, !bron.includes('from "@/components/'));
+  }
+
+  const vreemdeTokens = [...stijl.matchAll(/var\((--[a-z0-9-]+)/g)]
+    .map((m) => m[1])
+    .filter((naam) => !naam.startsWith("--sol-"));
+  ok("de stijl gebruikt alleen eigen tokens", vreemdeTokens.length === 0, vreemdeTokens.join(", "));
+  ok("en zet zelf een achtergrond", stijl.includes("background-color: var(--sol-papier)"));
+
+  const elders = [...tsxOnder("app/(app)"), ...tsxOnder("components")].filter((b) =>
+    leesBestand(b).includes("solliciteren.css"),
+  );
+  ok("het stijlblad wordt nergens anders geladen", elders.length === 0, elders.join(", "));
+
+  // De knop: precies één plek, en alleen zichtbaar voor wie er ook in mag.
+  const chrome = leesBestand("components/workspace-chrome.tsx");
+  ok("de S staat in de bovenbalk", chrome.includes('href="/solliciteren"'));
+  ok("en hangt aan het beheerdersrecht", chrome.includes("{solliciteren && ("));
+  ok(
+    "de shell geeft dat recht ook door",
+    leesBestand("components/app-shell.tsx").includes("solliciteren={staff}"),
+  );
 });
 
 // ── Elke route heeft een wachtvorm ─────────────────────────────────────────

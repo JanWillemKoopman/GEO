@@ -53,6 +53,12 @@ export function AppShell({
       activeBrand={workspace.active}
       staff={staff}
       sales={sales}
+      // Het zijproject "Solliciteren" hangt aan hetzelfde recht als de rest van
+      // wat alleen van ORBIT ENGINE zelf is: `staff`, dus het EFFECTIEVE recht.
+      // Staat de klantweergave aan, dan verdwijnt de S net als al het andere
+      // dat een klant niet ziet. Zie `app/solliciteren/layout.tsx`, dat
+      // hetzelfde nog eens op de server controleert.
+      solliciteren={staff}
       openVragen={openVragen}
       onSelectBrand={selectBrand}
       logo={

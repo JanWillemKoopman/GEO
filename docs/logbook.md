@@ -8088,3 +8088,50 @@ briefing heeft staan.
 
 Getest: `tsc --noEmit`, `test:unit` (4388 geslaagd), `test:chain` (650 geslaagd) en `build` zijn
 alle vier groen gedraaid na de vier wijzigingen.
+
+## 14 september 2026: een zijproject in dezelfde codebase, achter dezelfde inlog
+
+**Er staat sinds vandaag een tweede app in deze repo: `app/solliciteren/`, één pagina, met een S
+rechtsboven in de bovenbalk als ingang.** De opdracht van de eigenaar was precies afgebakend: wél
+de inlog en de publicatie van ORBIT ENGINE hergebruiken, níet de vormgeving, en niets veranderen bij
+Supabase of Vercel. Dat is ook wat er gebeurd is: 0 migraties, 0 nieuwe tabellen, 0 wijzigingen aan
+het project bij Vercel. Vier nieuwe bestanden in de nieuwe map, drie bestaande bestanden aangeraakt
+(`components/workspace-chrome.tsx` voor de S, `components/app-shell.tsx` voor het recht erachter,
+`lib/supabase/middleware.ts` voor de bescherming) en 15 controles erbij in `scripts/test-unit.ts`
+(4388 naar 4403).
+
+**Waarom hij buiten `app/(app)` staat.** Alles onder die groep krijgt de schil van ORBIT ENGINE
+eromheen: zijbalk, merkkiezer, bovenbalk, plus de vier parallelle queries van die layout. Een
+zijproject dat er anders uit moet zien, heeft aan alle vier niets. Vandaar een eigen map naast die
+groep, met een eigen layout die alleen `requireUser()` doet.
+
+**De vormgeving is echt gescheiden, en dat wordt bewaakt.** `app/solliciteren/solliciteren.css`
+gebruikt geen enkel token uit `globals.css`: alle 13 eigen tokens beginnen met `--sol-` en alle
+klassen met `sol-`. Warm papier, een schreefletter voor de koppen, terracotta als accent, hoeken van
+4 pixels en één vaste stand, tegenover het koele leiblauw, Geist, 6 tot 12 pixels en twee standen
+van het hoofdproduct. Een afspraak als deze slijt vanzelf, want één import uit `components/` of één
+`var(--text-primary)` knoopt de twee ontwerpen weer aan elkaar. De nieuwe testgroep leest daarom de
+map zelf uit: geen bestand eronder mag uit `@/components/` importeren, geen `var(--)` in het
+stijlblad mag buiten `--sol-` vallen, en het stijlblad mag nergens anders geladen worden.
+
+**Eén ding valt niet weg te nemen.** `app/layout.tsx` is in Next.js het wortelelement van de hele
+site en laadt `globals.css`, dus de Tailwind-basis (marges op nul, standaard randkleur) komt ook op
+deze pagina binnen. Een tweede wortelelement zou betekenen dat alle bestaande schermen naar een
+andere route group verhuizen, en dat is een te grote ingreep voor één pagina. Elke zichtbare waarde
+wordt daarom op `.sol-app` opnieuw gezet. Nagemeten in de browser met de donkere stand van ORBIT
+ENGINE aan: de pagina blijft warm papier, er lekt niets doorheen.
+
+**Alleen voor ORBIT ENGINE zelf.** De S hangt aan `isStaff`, het effectieve recht, dus hij verdwijnt
+ook tijdens de klantweergave, en `app/solliciteren/layout.tsx` controleert hetzelfde recht nog eens
+op de server met een `notFound()` erachter: een verborgen knop is geen slot. Van de 3 accounts in de
+database zijn er 2 staff, dus in de praktijk raakt dit vandaag niemand, maar de volgorde is
+belangrijker dan het aantal: een klant hoort nooit een knop te zien naar iets dat niet van hem is.
+
+**Geverifieerd, niet aangenomen** (conventie 10): `/solliciteren` geeft zonder sessie een 307 naar
+`/login` op de draaiende dev-server, de pagina rendert in de browser op 1280 en op 390 pixels breed,
+en de S staat in de bovenbalk links van het hulp-icoon. `tsc --noEmit`, `test:unit` (4403 geslaagd),
+`test:chain` (650 geslaagd) en `build` zijn alle vier groen.
+
+**Wat er nog niet is: de app zelf.** De pagina zegt dat met zoveel woorden ("Hier komt de app"),
+want er is geen functie gebouwd en geen data om te tonen. Wat de pagina moet gaan doen staat open in
+`docs/tasks/solliciteren-zijproject.md`.
