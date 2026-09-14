@@ -106,21 +106,26 @@ in die map thuis. ORBIT ENGINE blijft er ongemoeid bij, op de S in de bovenbalk 
 zodanig benoemd.
 
 Het is een eigen app van één pagina in dezelfde codebase, opgezet op 14 september 2026. Wat er staat
-is een **sollicitatieassistent**: je plakt je CV, je eerdere brieven en de vacaturetekst in drie
-vakken, koppelt ze aan een gesprek, en de assistent ontleedt de vacature, legt hem naast je CV en
+is een **sollicitatieassistent**: je zet één keer je dossier klaar (CV, eerdere brieven, motivaties,
+projecten, elk als eigen stuk met een naam, in te lezen uit een PDF), en daarna is elke sollicitatie
+nog één handeling: de vacature plakken. De assistent ontleedt hem, legt hem naast je dossier en
 schrijft een brief die je daarna bijstuurt ("enthousiaster", "kort deze alinea in"). Het antwoord
 komt woord voor woord binnen. Per bericht kies je het model en hoeveel het mag nadenken, en per
 bericht wordt bewaard wat die keuze was en wat hij kostte.
 
-Twee dingen eromheen rekenen zonder AI, dus zonder kosten en met elke keer dezelfde uitkomst: welke
-woorden uit de vacature nog niet in je CV staan, en welke standaardzinnen er in een geschreven brief
-staan. Dat tweede is het vangnet onder de promptinstructie "geen AI-taal" (conventie 1).
+Drie dingen eromheen rekenen zonder AI, dus zonder kosten en met elke keer dezelfde uitkomst: welke
+woorden uit de vacature nog niet in je materiaal staan, welke standaardzinnen er in een geschreven
+brief staan, en **hoe jij zelf schrijft**. Dat laatste wordt gemeten aan je eigen eerdere brieven,
+zinslengte, aanspreekvorm, hoe vaak je met "Ik" begint, en gaat als harde opdracht mee; elke
+geschreven brief wordt er daarna weer naast gelegd. Alle drie zijn ze het vangnet onder een
+promptinstructie (conventie 1): een instructie is een verzoek, een meting niet.
 
 Wat hij deelt: de inlog van Supabase en het project bij Vercel, dus hij publiceert mee met `main`.
 Wat hij niet deelt: de vormgeving en de data. De vormgeving staat in
 `app/solliciteren/solliciteren.css`, met eigen tokens die allemaal met `--sol-` beginnen, en de map
-gebruikt geen enkel component uit `components/`. De data staat in twee eigen tabellen (migratie
-0095) die aan `auth.users` hangen en geen enkele join hebben met het datamodel van ORBIT ENGINE.
+gebruikt geen enkel component uit `components/`. De data staat in drie eigen tabellen (migraties
+0095 en 0096) die aan `auth.users` hangen en geen enkele join hebben met het datamodel van
+ORBIT ENGINE.
 `scripts/test-unit.ts` bewaakt allebei die scheidingen, dus één geleende kleur, één geleend
 component of één query naar een tabel van het hoofdproduct valt meteen op.
 

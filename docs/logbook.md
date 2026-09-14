@@ -8208,3 +8208,68 @@ er is in deze omgeving geen `OPENAI_API_KEY` en geen Supabase-sleutel, dus er is
 aanroep gedaan vanaf dit scherm**. Het streamen, de kostenregistratie per bericht en het opslaan van
 de ruwe uitvoer zijn gebouwd en niet gemeten. Dat is de eerste stap na de eerstvolgende publicatie:
 één gesprek voeren, en daarna `sollicitatie_berichten` naast de factuur van OpenAI leggen.
+
+---
+
+## 15 september 2026: het dossier gaat los van de vacature, en de schrijfstijl wordt een getal
+
+Twee verbeteringen aan het zijproject, gekozen door de eigenaar uit vijf voorstellen, plus de drie
+kleinere dingen die erbij hoorden. De testtelling gaat van 4515 naar 4577.
+
+**De ontwerpfout van gisteren.** In migratie 0095 stonden het CV en de eerdere brieven als kolom op
+het gesprek, naast de vacature. Dat leest logisch en het werkt precies één keer: bij de tweede
+vacature plak je je hele loopbaan opnieuw, en verbeter je onderweg je projectbeschrijving, dan geldt
+dat alleen voor het gesprek waarin je toevallig zat. Migratie 0096 draait dat om. Het materiaal
+hangt aan de persoon (`sollicitatie_documenten`, per stuk een rij met een soort en een titel), de
+vacature blijft aan het gesprek hangen. Een tweede sollicitatie is daarmee: vacature plakken, knop.
+Het scherm maakt het gesprek zelf aan zodra dat nodig is, dus er is ook geen "nieuw gesprek" meer
+als aparte handeling.
+
+**Het soort van een stuk is geen kopje.** `brief` is het materiaal waar de schrijfstijl aan gemeten
+wordt, `cv` en `project` leveren de feiten. Die twee door elkaar meten zou de gemeten stem
+vervuilen met opsommingen en jaartallen, en dat is precies het register dat een brief niet moet
+hebben. Vandaar dat het onderscheid in de database staat en niet alleen op het scherm.
+
+**"Schrijf zoals deze persoon schrijft" was een bijvoeglijk naamwoord.** Het stond als zin in de
+systeemprompt, en een zin in een prompt is een verzoek: een model heeft een eigen register en dat
+wint zodra het gesprek langer wordt. `lib/solliciteren/stem.ts` meet nu aan de eigen brieven wat je
+niet zou opschrijven maar wel herkent: gemiddelde zinslengte, hoe lang je langere zinnen zijn (het
+90e percentiel, niet de langste, anders bepaalt één opsomming de grens), of je "u" of "je" schrijft,
+hoeveel zinnen je met "Ik" begint, hoe groot je alinea's zijn, en welke woorden echt van jou zijn.
+Die maten gaan als genummerde regels de systeemprompt in, en na afloop legt dezelfde module de
+geschreven brief er weer naast. Dat is conventie 1 zoals hij bedoeld is: een instructie die je kunt
+nameten. Onder de 150 woorden aan brieven komt er `null` uit en staat er geen stijlvoorschrift in de
+prompt, want een profiel gemeten op 40 woorden ziet er op het scherm precies zo betrouwbaar uit als
+een profiel op 4000 woorden (conventie 3).
+
+**De volgorde van de aanroep is een ontwerpkeuze geworden.** Instructie, dossier, vacature, gesprek,
+vraag: van meest naar minst stabiel. OpenAI hergebruikt het begin van een aanroep dat gelijk is aan
+de vorige. Het dossier is het grootste stuk en verandert zelden, dus het hoort vooraan; achteraan
+zetten laat dat hergebruik bij elke vervolgvraag wegvallen. Dat is hier geen bezuiniging maar
+doorlooptijd, want hoe sneller het eerste woord op het scherm staat, hoe bruikbaarder het scherm is.
+
+**Eén voorstel is bewust niet uitgevoerd.** Het plan had ook "de vacature ontleden als eigen
+goedkope stap" en "kies per vacature de drie relevante projecten in plaats van alles mee te sturen".
+De eigenaar heeft daar op 15 september 2026 expliciet tegen gekozen: kosten zijn niet de rem, het
+hele dossier gaat in één keer naar het beste model. Dat is een verdedigbare afweging voor dit
+scherm, waar één goede brief meer waard is dan een paar cent, en het staat hier omdat het de reden
+is dat de code er anders uitziet dan de tien conventies op het eerste gezicht doen vermoeden.
+Conventie 7 ("één zware aanroep per taak") wordt niet overtreden: het is nog steeds één aanroep, hij
+krijgt alleen meer mee. De grenzen staan er nog wel, maar ruim: 60.000 tekens per stuk en 240.000
+voor het hele dossier, tien keer een normaal dossier, en wat er afvalt wordt op het scherm bij naam
+genoemd in plaats van stil weggelaten.
+
+**Bestanden inlezen, met één pakket erbij.** `unpdf`, één afhankelijkheid zonder eigen
+afhankelijkheden, alleen geïmporteerd in een server-module dus er gaat geen byte naar de browser.
+De bekendere keuze (`pdf-parse`) leest bij het importeren een testbestand van schijf en breekt
+daarmee op een serverless omgeving. Nagemeten op een zelf samengestelde PDF van één pagina: de twee
+tekstregels kwamen compleet en in de juiste volgorde eruit. Een gescande PDF is een plaatje en
+levert niets op; het scherm zegt dat dan met zoveel woorden in plaats van te doen alsof het bestand
+stuk is. De ingelezen tekst gaat naar het VELD en niet naar de database: een PDF die half goed
+uitleest hoor je te zien voordat hij in je dossier staat.
+
+**Geverifieerd, niet aangenomen** (conventie 10): migratie 0096 is toegepast op productie en
+nagerekend, en `tsc --noEmit`, `test:unit` (4577 geslaagd), `test:chain` (650 geslaagd) en `build`
+zijn alle vier groen. Het inlezen van een PDF is echt gedraaid. Wat nog steeds niet gemeten is: er
+is in deze omgeving geen OpenAI-sleutel geweest, dus er is nog geen enkele echte aanroep gedaan
+vanaf dit scherm.

@@ -1591,14 +1591,46 @@ export interface ReputationSource {
    database zit en niet alleen in de schermen.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/** Eén sollicitatiegesprek, met de drie bronteksten erin (migratie 0095). */
+/**
+ * Waar een dossierstuk voor dient (migratie 0096).
+ *
+ * Geen ordening maar een functie: `brief` levert de gemeten schrijfstijl,
+ * `cv`, `project` en `motivatie` leveren de feiten. Zie
+ * `lib/solliciteren/dossier.ts`.
+ */
+export type SollicitatieDocumentSoort = "cv" | "brief" | "motivatie" | "project" | "overig";
+
+/** Eén stuk uit het dossier van één persoon (migratie 0096). */
+export interface SollicitatieDocument {
+  id: string;
+  user_id: string;
+  soort: SollicitatieDocumentSoort;
+  titel: string;
+  inhoud: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Welk dossierstuk ging er mee, op naam en omvang (migratie 0096). */
+export interface DossierSnapshotRegel {
+  id: string;
+  titel: string;
+  soort: SollicitatieDocumentSoort;
+  tekens: number;
+}
+
+/** Eén sollicitatiegesprek: de vacature plus het verloop (migraties 0095 en 0096). */
 export interface SollicitatieChat {
   id: string;
   user_id: string;
   titel: string;
+  /** ⚠️ Niet meer in gebruik sinds 0096: het CV staat in `sollicitatie_documenten`. */
   cv_tekst: string;
+  /** ⚠️ Niet meer in gebruik sinds 0096: eerdere brieven zijn documenten. */
   brieven_tekst: string;
   vacature_tekst: string;
+  /** Welke dossierstukken er bij het eerste bericht meegingen (0096). */
+  documenten_snapshot: DossierSnapshotRegel[];
   /** Null = de bronteksten zijn nog nooit aan het gesprek gekoppeld. */
   context_bijgewerkt_op: string | null;
   created_at: string;

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { brievenUit, feitenmateriaalUit, pasDossierIn } from "@/lib/solliciteren/dossier";
 import {
   MODELLEN,
   REDENEERSTANDEN,
@@ -11,14 +12,29 @@ import {
   type SollicitatieModelId,
 } from "@/lib/solliciteren/modellen";
 import { EERSTE_VRAAG, MAX_BERICHT_TEKENS } from "@/lib/solliciteren/prompt";
+import { meetStem } from "@/lib/solliciteren/stem";
 import type { ReasoningEffort } from "@/lib/openai/sampling";
-import type { SollicitatieBericht, SollicitatieChat } from "@/lib/types/database";
+import type {
+  SollicitatieBericht,
+  SollicitatieChat,
+  SollicitatieDocument,
+  SollicitatieDocumentSoort,
+} from "@/lib/types/database";
 import { Bericht } from "./bericht";
-import { Contextpaneel } from "./contextpaneel";
+import { Dossierpaneel } from "./dossierpaneel";
 import { Sleutelwoordenpaneel } from "./sleutelwoordenpaneel";
+import { Stempaneel } from "./stempaneel";
+import { Vacaturepaneel } from "./vacaturepaneel";
 
 /**
- * Het werkblad: links het bronmateriaal, rechts het gesprek.
+ * Het werkblad: links jouw dossier, rechts deze vacature en het gesprek.
+ *
+ * ── DE SNELSTE WEG NAAR EEN BRIEF ──────────────────────────────────────────
+ *
+ * Er hoeft geen gesprek te bestaan om te beginnen. Plak je de vacature en druk
+ * je op de knop, dan maakt deze component het gesprek aan, koppelt de vacature
+ * en stuurt de eerste vraag, in die volgorde. Dat scheelt twee handelingen bij
+ * elke sollicitatie, en dat is precies waar dit scherm voor is.
  *
  * ── HOE HET ANTWOORD BINNENKOMT ────────────────────────────────────────────
  *
@@ -37,22 +53,22 @@ import { Sleutelwoordenpaneel } from "./sleutelwoordenpaneel";
 export function Assistent({
   chat,
   berichten: beginberichten,
+  documenten: begindocumenten,
 }: {
-  chat: SollicitatieChat;
+  chat: SollicitatieChat | null;
   berichten: SollicitatieBericht[];
+  documenten: SollicitatieDocument[];
 }) {
   const router = useRouter();
 
-  // De teksten in de vakken, en daarnaast wat er gekoppeld IS. Het verschil
-  // tussen die twee is precies wat de knop "Koppel aan dit gesprek" oplost.
-  const [cv, setCv] = useState(chat.cv_tekst);
-  const [brieven, setBrieven] = useState(chat.brieven_tekst);
-  const [vacature, setVacature] = useState(chat.vacature_tekst);
+  const [chatId, setChatId] = useState<string | null>(chat?.id ?? null);
+  const [documenten, setDocumenten] = useState<SollicitatieDocument[]>(begindocumenten);
+  const [dossierBezig, setDossierBezig] = useState(false);
+
+  const [vacature, setVacature] = useState(chat?.vacature_tekst ?? "");
   const [gekoppeld, setGekoppeld] = useState({
-    cv: chat.cv_tekst,
-    brieven: chat.brieven_tekst,
-    vacature: chat.vacature_tekst,
-    op: chat.context_bijgewerkt_op,
+    vacature: chat?.vacature_tekst ?? "",
+    op: chat?.context_bijgewerkt_op ?? null,
   });
   const [koppelen, setKoppelen] = useState(false);
 
@@ -70,42 +86,115 @@ export function Assistent({
     onderkant.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [berichten.length, lopend]);
 
-  const gewijzigd =
-    cv !== gekoppeld.cv || brieven !== gekoppeld.brieven || vacature !== gekoppeld.vacature;
-  const heeftContext = Boolean(
-    gekoppeld.cv.trim() || gekoppeld.brieven.trim() || gekoppeld.vacature.trim(),
+  const stukken = useMemo(
+    () => documenten.map((d) => ({ id: d.id, soort: d.soort, titel: d.titel, inhoud: d.inhoud })),
+    [documenten],
   );
+  // Dezelfde meting die de server doet vlak vóór de aanroep, zodat het scherm
+  // toont wat de assistent werkelijk te horen krijgt (lib/solliciteren/stem.ts).
+  const stem = useMemo(() => meetStem(brievenUit(stukken)), [stukken]);
+  const omvang = useMemo(() => pasDossierIn(stukken).omvang, [stukken]);
+  const feitenmateriaal = useMemo(() => feitenmateriaalUit(stukken), [stukken]);
 
-  function wijzig(veld: "cv" | "brieven" | "vacature", waarde: string) {
-    if (veld === "cv") setCv(waarde);
-    if (veld === "brieven") setBrieven(waarde);
-    if (veld === "vacature") setVacature(waarde);
+  const vacatureGewijzigd = vacature !== gekoppeld.vacature;
+  const heeftVacature = Boolean(gekoppeld.vacature.trim()) || Boolean(vacature.trim());
+
+  /**
+   * Geeft het id van het huidige gesprek, en maakt er een aan als er nog geen
+   * is. Zo hoeft niemand eerst op "Nieuw gesprek" te drukken voordat hij een
+   * vacature kan plakken.
+   */
+  async function zorgVoorGesprek(): Promise<string | null> {
+    if (chatId) return chatId;
+    const res = await fetch("/api/solliciteren/chats", { method: "POST" });
+    const data = (await res.json()) as { chat?: SollicitatieChat; error?: string };
+    if (!res.ok || !data.chat) {
+      setFout(data.error ?? "Het gesprek aanmaken is niet gelukt.");
+      return null;
+    }
+    setChatId(data.chat.id);
+    return data.chat.id;
   }
 
-  async function koppel() {
+  async function koppelVacature(): Promise<string | null> {
     setKoppelen(true);
     setFout(null);
     try {
-      const res = await fetch(`/api/solliciteren/chats/${chat.id}`, {
+      const id = await zorgVoorGesprek();
+      if (!id) return null;
+
+      const res = await fetch(`/api/solliciteren/chats/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cv, brieven, vacature }),
+        body: JSON.stringify({ vacature }),
       });
       const data = (await res.json()) as { chat?: SollicitatieChat; error?: string };
       if (!res.ok || !data.chat) {
         setFout(data.error ?? "Het koppelen is niet gelukt.");
+        return null;
+      }
+      setGekoppeld({ vacature: data.chat.vacature_tekst, op: data.chat.context_bijgewerkt_op });
+      return id;
+    } catch {
+      setFout("De verbinding viel weg. Probeer het opnieuw.");
+      return null;
+    } finally {
+      setKoppelen(false);
+    }
+  }
+
+  async function bewaarStuk(stuk: {
+    id: string | null;
+    soort: SollicitatieDocumentSoort;
+    titel: string;
+    inhoud: string;
+  }): Promise<boolean> {
+    setDossierBezig(true);
+    setFout(null);
+    try {
+      const res = await fetch(
+        stuk.id ? `/api/solliciteren/documenten/${stuk.id}` : "/api/solliciteren/documenten",
+        {
+          method: stuk.id ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ soort: stuk.soort, titel: stuk.titel, inhoud: stuk.inhoud }),
+        },
+      );
+      const data = (await res.json()) as { document?: SollicitatieDocument; error?: string };
+      if (!res.ok || !data.document) {
+        setFout(data.error ?? "Het opslaan is niet gelukt.");
+        return false;
+      }
+      const bewaard = data.document;
+      setDocumenten((eerder) =>
+        stuk.id ? eerder.map((d) => (d.id === bewaard.id ? bewaard : d)) : [...eerder, bewaard],
+      );
+      router.refresh();
+      return true;
+    } catch {
+      setFout("De verbinding viel weg. Probeer het opnieuw.");
+      return false;
+    } finally {
+      setDossierBezig(false);
+    }
+  }
+
+  async function verwijderStuk(id: string) {
+    setDossierBezig(true);
+    setFout(null);
+    try {
+      const res = await fetch(`/api/solliciteren/documenten/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        setFout(data.error ?? "Het verwijderen is niet gelukt.");
         return;
       }
-      setGekoppeld({
-        cv: data.chat.cv_tekst,
-        brieven: data.chat.brieven_tekst,
-        vacature: data.chat.vacature_tekst,
-        op: data.chat.context_bijgewerkt_op,
-      });
+      setDocumenten((eerder) => eerder.filter((d) => d.id !== id));
+      router.refresh();
     } catch {
       setFout("De verbinding viel weg. Probeer het opnieuw.");
     } finally {
-      setKoppelen(false);
+      setDossierBezig(false);
     }
   }
 
@@ -115,13 +204,22 @@ export function Assistent({
 
     setBezig(true);
     setFout(null);
+
+    // Eerst zorgen dat er een gesprek is en dat de vacature erin staat. Anders
+    // zou de eerste brief geschreven worden zonder de tekst die je net plakte.
+    const id = vacatureGewijzigd ? await koppelVacature() : await zorgVoorGesprek();
+    if (!id) {
+      setBezig(false);
+      return;
+    }
+
     setLopend("");
 
     // De eigen vraag staat meteen op het scherm, met een tijdelijk id. De echte
     // rij komt bij het verversen mee; tot die tijd is dit wat je typte.
     const tijdelijk: SollicitatieBericht = {
       id: `nieuw-${Date.now()}`,
-      chat_id: chat.id,
+      chat_id: id,
       rol: "gebruiker",
       inhoud: schoon,
       model: null,
@@ -137,7 +235,7 @@ export function Assistent({
     setBerichten((eerder) => [...eerder, tijdelijk]);
 
     try {
-      const res = await fetch(`/api/solliciteren/chats/${chat.id}/berichten`, {
+      const res = await fetch(`/api/solliciteren/chats/${id}/berichten`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ vraag: schoon, model, stand }),
@@ -169,7 +267,12 @@ export function Assistent({
 
         for (const regel of regels) {
           if (!regel.trim()) continue;
-          let gebeurtenis: { t?: string; tekst?: string; bericht?: SollicitatieBericht; melding?: string };
+          let gebeurtenis: {
+            t?: string;
+            tekst?: string;
+            bericht?: SollicitatieBericht;
+            melding?: string;
+          };
           try {
             gebeurtenis = JSON.parse(regel);
           } catch {
@@ -193,8 +296,10 @@ export function Assistent({
     } finally {
       setLopend(null);
       setBezig(false);
-      // De lijst met gesprekken en de titel van dit gesprek kunnen veranderd
-      // zijn; die staan in de server component.
+      // Pas nu naar het gesprek navigeren, niet tijdens het streamen: een
+      // verversing halverwege zou deze component opnieuw opbouwen en de tekst
+      // die binnenkomt kwijtraken.
+      if (!chat || chat.id !== id) router.replace(`/solliciteren?gesprek=${id}`);
       router.refresh();
     }
   }
@@ -204,20 +309,27 @@ export function Assistent({
   return (
     <div className="sol-werkblad">
       <div className="sol-kolom">
-        <Contextpaneel
-          cv={cv}
-          brieven={brieven}
-          vacature={vacature}
-          gewijzigd={gewijzigd}
-          gekoppeldOp={gekoppeld.op}
-          bezig={koppelen}
-          onWijzig={wijzig}
-          onKoppel={koppel}
+        <Dossierpaneel
+          documenten={documenten}
+          bezig={dossierBezig || bezig}
+          onOpslaan={bewaarStuk}
+          onVerwijderen={verwijderStuk}
         />
-        <Sleutelwoordenpaneel cv={cv} vacature={vacature} />
+        <Stempaneel documenten={documenten} />
       </div>
 
       <div className="sol-kolom">
+        <Vacaturepaneel
+          vacature={vacature}
+          gewijzigd={vacatureGewijzigd}
+          gekoppeldOp={gekoppeld.op}
+          bezig={koppelen}
+          onWijzig={setVacature}
+          onKoppel={() => void koppelVacature()}
+        />
+
+        <Sleutelwoordenpaneel cv={feitenmateriaal} vacature={vacature} />
+
         <section className="sol-kaart sol-paneel">
           <h2 className="sol-kaart__titel">Model en redeneerstand</h2>
           <div className="sol-keuzes">
@@ -262,7 +374,12 @@ export function Assistent({
             </div>
           </div>
           <p className="sol-veld__teller">
-            Je kiest dit per bericht. Wat een antwoord gemaakt heeft, staat erboven zodra het er is.
+            Je hele dossier gaat elk bericht mee, {omvang.stukken}{" "}
+            {omvang.stukken === 1 ? "stuk" : "stukken"} en ongeveer{" "}
+            {omvang.tokens.toLocaleString("nl-NL")} tokens.
+            {omvang.afgevallen.length > 0
+              ? ` Te groot geworden, deze gaan niet mee: ${omvang.afgevallen.join(", ")}.`
+              : ""}
           </p>
         </section>
 
@@ -272,18 +389,24 @@ export function Assistent({
           {berichten.length === 0 && !lopend ? (
             <div className="sol-leeg">
               <p className="sol-kaart__tekst">
-                {heeftContext
-                  ? "Het bronmateriaal staat klaar. Laat de assistent de vacature ontleden en een eerste brief schrijven."
-                  : "Koppel eerst je CV en de vacature, dan heeft de assistent iets om mee te werken."}
+                {heeftVacature
+                  ? "De vacature staat klaar. Eén knop, en de assistent ontleedt hem, legt hem naast je dossier en schrijft een eerste brief."
+                  : "Plak hiernaast de vacature. Je dossier staat er al, dus meer is er niet nodig."}
               </p>
               <button
                 type="button"
                 className="sol-knop"
-                onClick={() => stuur(EERSTE_VRAAG)}
-                disabled={bezig || !heeftContext}
+                onClick={() => void stuur(EERSTE_VRAAG)}
+                disabled={bezig || !heeftVacature}
               >
                 Ontleed de vacature en schrijf een eerste brief
               </button>
+              {documenten.length === 0 ? (
+                <p className="sol-veld__teller">
+                  Je dossier is nog leeg. Het werkt ook zonder, maar dan heeft de assistent niets
+                  over jou om mee te schrijven.
+                </p>
+              ) : null}
             </div>
           ) : null}
 
@@ -301,6 +424,7 @@ export function Assistent({
                 stand={bericht.reasoning_effort}
                 kosten={bericht.cost_usd}
                 fout={bericht.fout}
+                stem={stem}
               />
             ))}
 
@@ -312,6 +436,7 @@ export function Assistent({
                 stand={stand}
                 kosten={null}
                 fout={null}
+                stem={stem}
                 bezig
               />
             ) : null}

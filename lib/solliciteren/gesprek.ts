@@ -30,11 +30,9 @@ import "server-only";
 import { getOpenAI } from "@/lib/openai/client";
 import { estimateCostUsd } from "@/lib/openai/pricing";
 import type { Aanroepparameters } from "@/lib/solliciteren/modellen";
-import {
-  bouwInvoer,
-  type Bronteksten,
-  type Gespreksbericht,
-} from "@/lib/solliciteren/prompt";
+import type { Dossierstuk } from "@/lib/solliciteren/dossier";
+import { bouwInvoer, type Gespreksbericht } from "@/lib/solliciteren/prompt";
+import type { Stemprofiel } from "@/lib/solliciteren/stem";
 
 export type { Gespreksbericht };
 
@@ -86,14 +84,22 @@ export interface AntwoordResultaat {
  * betaald.
  */
 export async function streamAntwoord(opts: {
-  bron: Bronteksten;
+  dossier: readonly Dossierstuk[];
+  vacature: string;
+  stem: Stemprofiel | null;
   historie: readonly Gespreksbericht[];
   vraag: string;
   parameters: Aanroepparameters;
   onDelta: (stukje: string) => void;
 }): Promise<AntwoordResultaat> {
   const openai = getOpenAI();
-  const invoer = bouwInvoer({ bron: opts.bron, historie: opts.historie, vraag: opts.vraag });
+  const invoer = bouwInvoer({
+    dossier: opts.dossier,
+    vacature: opts.vacature,
+    stem: opts.stem,
+    historie: opts.historie,
+    vraag: opts.vraag,
+  });
 
   const stream = await openai.responses.create(
     {

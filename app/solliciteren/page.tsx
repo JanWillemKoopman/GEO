@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { SollicitatieBericht, SollicitatieChat } from "@/lib/types/database";
+import type {
+  SollicitatieBericht,
+  SollicitatieChat,
+  SollicitatieDocument,
+} from "@/lib/types/database";
 import { Assistent } from "./assistent";
 import { Gesprekkenbalk } from "./gesprekkenbalk";
 
@@ -41,6 +45,14 @@ export default async function SolliciterenPagina({
   // vanzelf terug: de lijst is al op `user_id` gefilterd.
   const actief = chats.find((c) => c.id === gesprek) ?? chats[0] ?? null;
 
+  // Het dossier hangt aan de persoon en niet aan het gesprek (migratie 0096),
+  // dus het wordt één keer geladen en geldt voor elk gesprek.
+  const { data: documentData } = await admin
+    .from("sollicitatie_documenten")
+    .select("*")
+    .eq("user_id", user.id);
+  const documenten = (documentData ?? []) as SollicitatieDocument[];
+
   let berichten: SollicitatieBericht[] = [];
   if (actief) {
     const { data } = await admin
@@ -68,18 +80,15 @@ export default async function SolliciterenPagina({
 
       <Gesprekkenbalk chats={chats} actiefId={actief?.id ?? null} />
 
-      {actief ? (
-        <Assistent key={actief.id} chat={actief} berichten={berichten} />
-      ) : (
-        <section className="sol-kaart sol-kaart--leeg">
-          <h2 className="sol-kaart__titel">Begin met een vacature</h2>
-          <p className="sol-kaart__tekst">
-            Zet je CV, je eerdere brieven en de vacaturetekst in een gesprek. De assistent ontleedt
-            de vacature, zet ernaast waar je CV aansluit, en schrijft daarna een brief die je zelf
-            nog bijstuurt.
-          </p>
-        </section>
-      )}
+      {/* Ook zonder gesprek: je dossier staat er, en zodra je een vacature
+          plakt maakt het werkblad zelf een gesprek aan. Dat scheelt een
+          handeling bij elke sollicitatie. */}
+      <Assistent
+        key={actief?.id ?? "nieuw"}
+        chat={actief}
+        berichten={berichten}
+        documenten={documenten}
+      />
     </div>
   );
 }

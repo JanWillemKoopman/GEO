@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { zoekCliches } from "@/lib/solliciteren/cliches";
 import { isGeldigModel, vindModel } from "@/lib/solliciteren/modellen";
+import { toetsStem, type Stemprofiel } from "@/lib/solliciteren/stem";
 
 /**
  * Eén bericht in het gesprek.
@@ -14,13 +15,19 @@ import { isGeldigModel, vindModel } from "@/lib/solliciteren/modellen";
  * brief die er hier mooier uitziet dan na het kopiëren, is een brief die je twee
  * keer moet opmaken.
  *
- * ── DE CLICHÉ-STROOK ───────────────────────────────────────────────────────
+ * ── TWEE VANGNETTEN ONDER ÉÉN ANTWOORD ─────────────────────────────────────
  *
- * Het vangnet onder de promptinstructie "geen AI-taal" (conventie 1). De
- * instructie staat in `lib/solliciteren/prompt.ts`, de telling in
- * `lib/solliciteren/cliches.ts`, en wat eruit komt staat hieronder. Er wordt
- * niets weggehaald: of "met veel enthousiasme" in jouw brief een cliché is of
- * gewoon waar, bepaal jij.
+ * Allebei zijn ze conventie 1: een promptinstructie krijgt een controle in
+ * code, want een instructie is een verzoek en geen garantie.
+ *
+ * De cliché-strook telt de standaardzinnen die de prompt bij naam verbiedt
+ * (`lib/solliciteren/cliches.ts`). De stemtoets legt de brief naast de maten
+ * die aan jouw eigen eerdere brieven zijn gemeten
+ * (`lib/solliciteren/stem.ts`): zinslengte, lange zinnen, aanspreekvorm.
+ *
+ * Er wordt niets weggehaald en niets herschreven. Of "met veel enthousiasme" in
+ * jouw brief een cliché is of gewoon waar, bepaal jij, en of een langere zin
+ * hier juist goed valt ook.
  */
 export function Bericht({
   rol,
@@ -29,6 +36,7 @@ export function Bericht({
   stand,
   kosten,
   fout,
+  stem,
   bezig,
 }: {
   rol: "gebruiker" | "assistent";
@@ -37,6 +45,8 @@ export function Bericht({
   stand: string | null;
   kosten: number | null;
   fout: string | null;
+  /** De gemeten stem van deze persoon, of null als er te weinig brieven liggen. */
+  stem: Stemprofiel | null;
   /** Staat dit antwoord nog te komen? Dan geen telling, die is dan nog niet af. */
   bezig?: boolean;
 }) {
@@ -48,6 +58,10 @@ export function Bericht({
   const woorden = useMemo(
     () => (inhoud.trim() ? inhoud.trim().split(/\s+/).length : 0),
     [inhoud],
+  );
+  const stemafwijkingen = useMemo(
+    () => (rol === "assistent" && !bezig ? toetsStem(inhoud, stem) : []),
+    [rol, inhoud, stem, bezig],
   );
 
   async function kopieer() {
@@ -99,7 +113,28 @@ export function Bericht({
               {cliches.length === 1 ? "1 standaardzin" : `${cliches.length} standaardzinnen`}
             </span>
           )}
+          {stem ? (
+            stemafwijkingen.length === 0 ? (
+              <span className="sol-bericht__meta sol-bericht__meta--goed">Klinkt als jij</span>
+            ) : (
+              <span className="sol-bericht__meta sol-bericht__meta--let-op">
+                {stemafwijkingen.length === 1
+                  ? "1 afwijking van je stijl"
+                  : `${stemafwijkingen.length} afwijkingen van je stijl`}
+              </span>
+            )
+          ) : null}
         </footer>
+      ) : null}
+
+      {stemafwijkingen.length > 0 ? (
+        <ul className="sol-cliches">
+          {stemafwijkingen.map((afwijking) => (
+            <li key={afwijking.wat}>
+              <strong>{afwijking.wat}</strong>: {afwijking.deze}, jij schrijft {afwijking.jij}.
+            </li>
+          ))}
+        </ul>
       ) : null}
 
       {cliches.length > 0 ? (

@@ -20,7 +20,7 @@ import "server-only";
 import { getUser } from "@/lib/auth";
 import { isStaff } from "@/lib/staff";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { SollicitatieChat } from "@/lib/types/database";
+import type { SollicitatieChat, SollicitatieDocument } from "@/lib/types/database";
 
 export type Toegangsuitkomst =
   | { ok: true; userId: string; chat: SollicitatieChat }
@@ -65,4 +65,38 @@ export async function eisBeheerder(): Promise<
     return { ok: false, status: 404, melding: "Deze pagina bestaat niet." };
   }
   return { ok: true, userId: user.id };
+}
+
+export type Documenttoegang =
+  | { ok: true; userId: string; document: SollicitatieDocument }
+  | { ok: false; status: 401 | 404; melding: string };
+
+/**
+ * Hetzelfde voor één dossierstuk (migratie 0096).
+ *
+ * Een eigen functie en geen tweede argument aan `laadEigenGesprek()`: een
+ * gesprek en een dossierstuk hangen aan verschillende tabellen, en een controle
+ * die twee dingen tegelijk kan doen is een controle waarvan je bij het lezen
+ * niet meteen ziet wat hij deed.
+ */
+export async function laadEigenDocument(documentId: string): Promise<Documenttoegang> {
+  const user = await getUser();
+  if (!user) return { ok: false, status: 401, melding: "Je bent niet ingelogd." };
+  if (!(await isStaff(user.id))) {
+    return { ok: false, status: 404, melding: "Dit stuk bestaat niet." };
+  }
+
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("sollicitatie_documenten")
+    .select("*")
+    .eq("id", documentId)
+    .maybeSingle();
+
+  const document = data as SollicitatieDocument | null;
+  if (!document || document.user_id !== user.id) {
+    return { ok: false, status: 404, melding: "Dit stuk bestaat niet." };
+  }
+
+  return { ok: true, userId: user.id, document };
 }

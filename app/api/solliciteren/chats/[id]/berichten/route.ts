@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { brievenUit, pasDossierIn, type Dossierstuk } from "@/lib/solliciteren/dossier";
 import { streamAntwoord, type Gespreksbericht } from "@/lib/solliciteren/gesprek";
 import {
   STANDAARD_MODEL,
@@ -8,9 +9,14 @@ import {
   isGeldigeStand,
 } from "@/lib/solliciteren/modellen";
 import { MAX_BERICHT_TEKENS } from "@/lib/solliciteren/prompt";
+import { meetStem } from "@/lib/solliciteren/stem";
 import { laadEigenGesprek } from "@/lib/solliciteren/toegang";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { SollicitatieBericht } from "@/lib/types/database";
+import type {
+  DossierSnapshotRegel,
+  SollicitatieBericht,
+  SollicitatieDocument,
+} from "@/lib/types/database";
 
 /**
  * Een bericht sturen en het antwoord terugkrijgen terwijl het geschreven wordt.
@@ -32,6 +38,15 @@ import type { SollicitatieBericht } from "@/lib/types/database";
  *   {"t":"stukje","tekst":"..."}   een stukje antwoord
  *   {"t":"klaar","bericht":{...}}  het is af, met kosten en tokens
  *   {"t":"fout","melding":"..."}   het ging mis, met de reden
+ *
+ * ── HET DOSSIER GAAT VOLUIT MEE ────────────────────────────────────────────
+ *
+ * Sinds migratie 0096 hangt het materiaal aan de persoon en niet aan het
+ * gesprek. Het hele dossier gaat bij elk bericht mee, ongefilterd: er wordt
+ * niet vooraf uitgezocht welke drie projecten relevant zijn. Dat is een
+ * uitdrukkelijke keuze van de eigenaar (15 september 2026): liever alles in één
+ * keer naar het beste model dan een goedkopere voorselectie die net het stuk
+ * weglaat waar de brief op had moeten staan.
  *
  * ── WAT ER WORDT OPGESLAGEN, EN WANNEER ────────────────────────────────────
  *
@@ -86,6 +101,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const admin = createAdminClient();
 
+  // Het dossier van deze persoon, in één keer. Het hangt aan `user_id` en niet
+  // aan het gesprek, dus het is bij elk gesprek hetzelfde en altijd actueel.
+  const { data: documentData } = await admin
+    .from("sollicitatie_documenten")
+    .select("id, soort, titel, inhoud")
+    .eq("user_id", toegang.userId);
+  const dossier = ((documentData ?? []) as Pick<
+    SollicitatieDocument,
+    "id" | "soort" | "titel" | "inhoud"
+  >[]) as Dossierstuk[];
+
+  // De stem wordt gemeten aan de eerdere brieven, en aan niets anders: een CV
+  // is opsommingen en jaartallen, en dat register hoort een brief niet te
+  // hebben. Geen of te weinig brieven levert `null`, en dan staat er geen
+  // stijlvoorschrift in de prompt in plaats van een verzonnen voorschrift
+  // (conventie 3).
+  const stem = meetStem(brievenUit(dossier));
+
   // Eerst het gespreksverloop lezen, dan pas de nieuwe vraag wegschrijven: die
   // vraag gaat los mee de aanroep in en hoort er niet twee keer in te staan.
   const { data: eerder } = await admin
@@ -105,11 +138,25 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // Het gesprek heet naar de eerste vraag, zodat de lijst leesbaar is zonder dat
   // iemand iets hoeft in te typen. Alleen de eerste keer: een gesprek dat bij
   // elk bericht van naam verandert, is niet terug te vinden.
-  if (chat.titel === "Nieuw gesprek" && historie.length === 0) {
-    await admin
-      .from("sollicitatie_chats")
-      .update({ titel: vraag.slice(0, 80) })
-      .eq("id", id);
+  if (historie.length === 0) {
+    // Welke stukken dit gesprek gedragen hebben, op naam en omvang. Het dossier
+    // verandert onderweg; zonder deze regel is bij een brief die goed viel niet
+    // meer na te gaan wélke stukken erin zaten (migratie 0096).
+    const { mee } = pasDossierIn(dossier);
+    const snapshot: DossierSnapshotRegel[] = mee.map((stuk) => ({
+      id: stuk.id,
+      titel: stuk.titel,
+      soort: stuk.soort,
+      tekens: stuk.inhoud.length,
+    }));
+
+    const wijziging: Record<string, unknown> = { documenten_snapshot: snapshot };
+    // Het gesprek heet naar de eerste vraag, zodat de lijst leesbaar is zonder
+    // dat iemand iets hoeft in te typen. Alleen de eerste keer: een gesprek dat
+    // bij elk bericht van naam verandert, is niet terug te vinden.
+    if (chat.titel === "Nieuw gesprek") wijziging.titel = vraag.slice(0, 80);
+
+    await admin.from("sollicitatie_chats").update(wijziging).eq("id", id);
   }
 
   const encoder = new TextEncoder();
@@ -121,11 +168,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
       try {
         const antwoord = await streamAntwoord({
-          bron: {
-            cv: chat.cv_tekst,
-            brieven: chat.brieven_tekst,
-            vacature: chat.vacature_tekst,
-          },
+          dossier,
+          vacature: chat.vacature_tekst,
+          stem,
           historie,
           vraag,
           parameters,
