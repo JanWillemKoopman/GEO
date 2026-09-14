@@ -18,27 +18,21 @@
  * je CV". Een lijst die stellig klinkt en er soms naast zit, is erger dan een
  * lijst die zegt wat hij is.
  */
+import { STOPWOORDEN, splitsInWoorden } from "@/lib/solliciteren/woorden";
+
 
 /**
- * Woorden die in elke Nederlandse tekst staan en dus nooit een sleutelwoord
- * zijn. Bewust met de hand samengesteld en kort gehouden: het gaat om woorden
- * die een vacaturetekst aan elkaar praten.
+ * Woorden die wél in een vacature staan maar nooit een sleutelwoord zijn.
+ *
+ * Bovenop de algemene lijst uit `woorden.ts`, niet in plaats daarvan: dit zijn
+ * de woorden die een vacaturetekst aan elkaar praten ("wij zoeken een
+ * enthousiaste collega voor ons team"), en die horen niet in de algemene lijst
+ * thuis omdat ze in een CV of een brief juist wél iets kunnen betekenen.
  */
-const STOPWOORDEN = new Set([
-  "aan", "achter", "alle", "alleen", "allemaal", "als", "altijd", "ander", "andere", "bent",
-  "bepaalde", "beter", "bied", "bieden", "bij", "binnen", "daar", "daarbij", "daarnaast", "dan",
-  "dat", "deze", "die", "dit", "doen", "door", "eens", "elke", "een", "eerst", "eerste", "elkaar",
-  "en", "enkele", "ervaring", "ervoor", "functie", "gaan", "gaat", "geen", "genoeg", "goed",
-  "goede", "graag", "haar", "hebben", "heeft", "heel", "hem", "het", "hier", "hij", "hun", "iets",
-  "ieder", "iedere", "als", "jaar", "jij", "jou", "jouw", "juist", "kan", "kandidaat", "kom",
-  "komen", "krijg", "krijgen", "kun", "kunnen", "kunt", "maar", "maken", "meer", "meest", "met",
-  "mee", "mensen", "mijn", "moet", "moeten", "naar", "naast", "niet", "niets", "nieuwe", "nodig",
-  "nog", "ons", "onze", "ook", "op", "over", "per", "plek", "samen", "sluit", "sollicitatie",
-  "solliciteren", "staat", "steeds", "tot", "tussen", "uit", "van", "vanuit", "veel", "verder",
-  "voor", "vooral", "waar", "waarbij", "waarin", "wat", "wel", "welke", "werk", "werken", "wij",
-  "wil", "willen", "wordt", "worden", "zal", "zeer", "zelf", "zijn", "zoals", "zodat", "zoek",
-  "zoeken", "zorg", "zorgen", "zowel", "onder", "onze", "hebt", "deze", "daarom", "omdat", "door",
-  "vacature", "organisatie", "bedrijf", "team", "collega", "collega's", "week", "uur", "salaris",
+const VACATUREWOORDEN: ReadonlySet<string> = new Set([
+  "bedrijf", "collega", "collega's", "ervaring", "functie", "kandidaat", "mensen", "organisatie",
+  "plek", "salaris", "sluit", "sollicitatie", "solliciteren", "team", "uur", "vacature", "week",
+  "werk", "werken", "zorg", "zorgen",
 ]);
 
 /** Hoe kort een woord mag zijn om nog mee te tellen. */
@@ -56,14 +50,6 @@ export interface Sleutelwoord {
   aantalInVacature: number;
   /** Staat het (of een variant erop) ook in het CV? */
   staatInCv: boolean;
-}
-
-/**
- * Splits tekst in losse woorden, kleine letters, zonder leestekens.
- * `\p{L}` en niet `[a-z]`: anders vallen "financiën" en "coördinator" uit elkaar.
- */
-function splitsInWoorden(tekst: string): string[] {
-  return (tekst.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).filter(Boolean);
 }
 
 /**
@@ -98,7 +84,7 @@ export function vergelijkSleutelwoorden(vacature: string, cv: string): Sleutelwo
   const tellingen = new Map<string, number>();
   for (const woord of splitsInWoorden(vacature)) {
     if (woord.length < MINIMALE_LENGTE) continue;
-    if (STOPWOORDEN.has(woord)) continue;
+    if (STOPWOORDEN.has(woord) || VACATUREWOORDEN.has(woord)) continue;
     // Een los getal ("2026", "40") is geen sleutelwoord.
     if (/^\p{N}+$/u.test(woord)) continue;
     tellingen.set(woord, (tellingen.get(woord) ?? 0) + 1);

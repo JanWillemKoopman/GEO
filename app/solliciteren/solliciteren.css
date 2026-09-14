@@ -650,3 +650,128 @@
   color: var(--sol-accent);
   font-size: 0.82rem;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HET DOSSIER EN DE GEMETEN STEM (15 september 2026)
+
+   Bij migratie 0096 verhuisde het materiaal van het gesprek naar de persoon.
+   Links staat sindsdien wat blijft staan (je dossier, je schrijfstijl), rechts
+   wat per sollicitatie verandert (de vacature, het gesprek). Dat onderscheid
+   moet je zien zonder het te lezen, vandaar het accent op het vacaturepaneel.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.sol-paneel__kop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.sol-paneel__kop .sol-kaart__titel {
+  margin-bottom: 0;
+}
+
+/* Het enige paneel dat per sollicitatie verandert. Dezelfde streep als boven
+   een punt uit het raster, zodat het als "hier begin je" leest. */
+.sol-paneel--nadruk {
+  border-top: 3px solid var(--sol-accent);
+}
+
+/* ── De stukken in het dossier ────────────────────────────────────────────── */
+
+.sol-stukken {
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sol-stuk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--sol-rand);
+}
+
+.sol-stuk:first-child {
+  border-top: 0;
+}
+
+.sol-stuk__tekst {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.sol-stuk__soort {
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--sol-radius);
+  background-color: var(--sol-papier-diep);
+  color: var(--sol-inkt-licht);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sol-stuk__titel {
+  font-size: 0.9rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.sol-stuk__knoppen {
+  display: flex;
+  gap: 0.3rem;
+}
+
+/* ── De gemeten stem ──────────────────────────────────────────────────────── */
+
+.sol-maten {
+  display: grid;
+  gap: 0.5rem 1rem;
+  margin: 0.9rem 0 0;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+}
+
+.sol-maten div {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--sol-rand);
+  border-radius: var(--sol-radius);
+  background-color: var(--sol-papier);
+}
+
+.sol-maten dt {
+  font-size: 0.72rem;
+  color: var(--sol-inkt-licht);
+}
+
+.sol-maten dd {
+  margin: 0.1rem 0 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.sol-uitklap {
+  margin-top: 0.9rem;
+  font-size: 0.8rem;
+}
+
+.sol-uitklap summary {
+  cursor: pointer;
+  color: var(--sol-accent);
+}
+
+/* De regels die de assistent meekrijgt zijn een naslag en geen waarschuwing,
+   dus zonder de amber achtergrond van de cliché-strook. */
+.sol-cliches--stil {
+  background-color: var(--sol-papier-diep);
+  color: var(--sol-inkt-zacht);
+}

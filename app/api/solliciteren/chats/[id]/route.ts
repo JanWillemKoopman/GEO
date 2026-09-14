@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { MAX_CONTEXT_TEKENS } from "@/lib/solliciteren/prompt";
+import { MAX_VACATURE_TEKENS } from "@/lib/solliciteren/prompt";
 import { laadEigenGesprek } from "@/lib/solliciteren/toegang";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { SollicitatieChat } from "@/lib/types/database";
@@ -8,16 +8,20 @@ import type { SollicitatieChat } from "@/lib/types/database";
 const MAX_TITEL = 120;
 
 /**
- * De bronteksten van één gesprek bijwerken, of het gesprek weggooien.
+ * De vacature van één gesprek bijwerken, of het gesprek weggooien.
  *
- * ── WAAROM "KOPPELEN" EEN EIGEN HANDELING IS ───────────────────────────────
+ * ⚠️ Sinds migratie 0096 gaat deze route alleen nog over de VACATURE. Het CV,
+ * de eerdere brieven en de projecten zijn naar `sollicitatie_documenten`
+ * verhuisd en hangen aan de persoon; die lopen via
+ * `app/api/solliciteren/documenten/`. Dat is de hele reden van die migratie: je
+ * loopbaan hoort niet bij één vacature te staan.
  *
- * De drie tekstvakken zouden ook bij elke toetsaanslag kunnen opslaan. Dat is
- * hier verkeerd: de assistent krijgt de bronteksten bij elk bericht opnieuw
- * mee, dus half geplakte tekst zou meteen meetellen in het volgende antwoord.
- * Vandaar één knop en één moment, met `context_bijgewerkt_op` als het bewijs
- * dat het gebeurd is. Het scherm laat zien of wat er in de vakken staat
- * hetzelfde is als wat de assistent kent.
+ * ── WAAROM "KOPPELEN" EEN EIGEN HANDELING BLIJFT ───────────────────────────
+ *
+ * De vacature gaat bij elk bericht opnieuw mee de aanroep in. Zou het veld bij
+ * elke toetsaanslag opslaan, dan zou half geplakte tekst meteen meetellen in
+ * het volgende antwoord. Vandaar één knop en één moment, met
+ * `context_bijgewerkt_op` als het bewijs dat het gebeurd is.
  */
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -26,30 +30,23 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: toegang.melding }, { status: toegang.status });
   }
 
-  let body: { cv?: unknown; brieven?: unknown; vacature?: unknown; titel?: unknown };
+  let body: { vacature?: unknown; titel?: unknown };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Ongeldige aanvraag." }, { status: 400 });
   }
 
-  const tekst = (waarde: unknown): string | null =>
-    typeof waarde === "string" ? waarde.slice(0, MAX_CONTEXT_TEKENS) : null;
-
   const wijziging: Record<string, string> = {};
-  const cv = tekst(body.cv);
-  const brieven = tekst(body.brieven);
-  const vacature = tekst(body.vacature);
-  if (cv !== null) wijziging.cv_tekst = cv;
-  if (brieven !== null) wijziging.brieven_tekst = brieven;
-  if (vacature !== null) wijziging.vacature_tekst = vacature;
 
-  // De titel verandert los van de bronteksten, en dan hoort het moment van
+  if (typeof body.vacature === "string") {
+    wijziging.vacature_tekst = body.vacature.slice(0, MAX_VACATURE_TEKENS);
+    wijziging.context_bijgewerkt_op = new Date().toISOString();
+  }
+
+  // De titel verandert los van de vacature, en dan hoort het moment van
   // koppelen niet mee te verschuiven: dan zou hernoemen de melding "de
   // assistent kent je nieuwe tekst" opleveren zonder dat er iets gekoppeld is.
-  const raaktContext = Object.keys(wijziging).length > 0;
-  if (raaktContext) wijziging.context_bijgewerkt_op = new Date().toISOString();
-
   if (typeof body.titel === "string") {
     const titel = body.titel.trim().slice(0, MAX_TITEL);
     if (titel) wijziging.titel = titel;
@@ -76,10 +73,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
 /**
  * Weg is weg: de berichten gaan mee via `on delete cascade` (migratie 0095).
- *
- * Geen archiefkolom zoals `analyses.archived_at` in het hoofdproduct. Daar is
- * een cluster maanden meetdata waard en is weggooien onherstelbaar duur; hier is
- * het een gesprek over een brief die iemand zelf ook nog heeft.
+ * Je dossier blijft staan, dat hangt aan jou en niet aan dit gesprek.
  */
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

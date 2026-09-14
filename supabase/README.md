@@ -419,3 +419,35 @@ expliciete eigenaarscontrole in `lib/solliciteren/toegang.ts` (conventie 6).
 De kosten van dit zijproject staan bewust **niet** in `ai_calls`. Elke rij daar hangt aan een merk,
 een meetronde of een pagina, en de dagplafonds van 0089 worden erop gerekend. Een sollicitatiebrief
 van de eigenaar hoort in geen van die sommen thuis.
+
+## 0096 — het dossier gaat los van het gesprek
+
+`sollicitatie_documenten`: het materiaal van één persoon, elk stuk een eigen rij met een `soort`
+(`cv`, `brief`, `motivatie`, `project`, `overig`), een `titel` en de tekst. Hangt aan `auth.users`,
+niet aan een gesprek.
+
+**Wat dit repareert.** In 0095 stonden `cv_tekst` en `brieven_tekst` als kolom op het gesprek, naast
+de vacature. Dat is de verkeerde plek zodra je er een tweede keer mee werkt: een CV verandert twee
+keer per jaar en een vacature elke keer, dus wie op vijf vacatures reageert plakt zijn hele loopbaan
+vijf keer. Nu hangt het materiaal aan de persoon en alleen de vacature aan het gesprek.
+
+**Het soort is geen ordening maar een functie.** `brief` is het materiaal waar
+`lib/solliciteren/stem.ts` de schrijfstijl aan meet; `cv`, `project` en `motivatie` leveren de
+feiten waar de sleutelwoordvergelijking tegenaan legt. Die twee door elkaar meten zou de gemeten
+stem vervuilen met opsommingen en jaartallen uit een CV, en dat is precies het register dat een
+brief niet moet hebben. Vandaar dat het onderscheid in de database staat en niet alleen als kopje op
+het scherm.
+
+`sollicitatie_chats.documenten_snapshot` (jsonb, default `[]`) houdt bij welke stukken er bij het
+eerste bericht van dat gesprek meegingen, op naam en omvang. Alleen de namen, niet de inhoud: die
+staat al in `sollicitatie_documenten`, en twee keer bewaren zou een correctie daar stilletjes
+ongedaan maken. Zonder deze kolom is bij een brief die goed viel niet meer na te gaan wélke stukken
+hem gedragen hebben.
+
+`cv_tekst` en `brieven_tekst` op `sollicitatie_chats` blijven staan, ongebruikt, met een
+commentaarregel die dat zegt (conventie 4). Nagekeken op productie op 14 september 2026: nul
+gesprekken en nul berichten, dus er viel niets over te zetten.
+
+**RLS**: select-only, dezelfde twee sloten als 0095 (`user_id = auth.uid()` én `is_staff()`).
+Schrijven loopt via `app/api/solliciteren/documenten/` met de service-role en een expliciete
+eigenaarscontrole in `laadEigenDocument()` (conventie 6).
