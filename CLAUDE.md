@@ -27,6 +27,11 @@ er op 1 september 2026 doorheen gegaan; de vier blokkerende fouten daaruit zijn 
 verificatiecriteria zijn nog niet gehaald
 (`docs/tasks/bevindingen-live-test-sales-1-september-2026.md`).
 
+**Het zijproject "Solliciteren"** (`app/solliciteren/`) is een eigen app van één pagina achter
+dezelfde inlog, met een eigen stijlblad en een eigen layout. Gaat een opdracht over "het Zijproject",
+"het solliciteren project", "solliciteren" of "de S", dan wordt er in die map gewerkt en blijft
+ORBIT ENGINE ongemoeid. De afspraken en de grenzen staan in `README.md`.
+
 `main` is productie (Vercel). Werk op een feature-branch.
 
 ## Toegang
