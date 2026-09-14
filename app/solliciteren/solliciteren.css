@@ -870,3 +870,134 @@
   background-color: var(--sol-accent-zacht);
   color: var(--sol-accent);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DE LIJSTEN IN DE LINKERKOLOM, OPGERUIMD (15 september 2026)
+
+   Eerste versie had per regel de tekst met twee of drie knoppen ernaast. Op een
+   schermafbeelding van 1440 breed brak "Projectleider bij Van Dijk Installatie"
+   daardoor over vier regels, met de knoppen ertussendoor. Bij veertig feiten is
+   dat geen lijst meer.
+
+   Nu is de hele regel één knop, en komt wat je zelden doet pas tevoorschijn als
+   je hem openklapt. De kolom is bovendien van 23 naar 26rem gegaan.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (min-width: 64rem) {
+  .sol-werkblad {
+    grid-template-columns: minmax(0, 26rem) minmax(0, 1fr);
+  }
+}
+
+.sol-feit {
+  display: block;
+  padding: 0;
+}
+
+/* Een knop die eruitziet als een regel tekst: geen rand, geen achtergrond, wel
+   een duidelijke hover en een echte focusring voor wie met het toetsenbord
+   werkt. */
+.sol-feit__regel,
+.sol-stuk__regel {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.45rem 0.3rem;
+  border: 0;
+  border-radius: var(--sol-radius);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sol-feit__regel:hover,
+.sol-stuk__regel:hover {
+  background-color: var(--sol-papier-diep);
+}
+
+.sol-feit__regel:focus-visible,
+.sol-stuk__regel:focus-visible {
+  outline: 2px solid var(--sol-accent);
+  outline-offset: -2px;
+}
+
+.sol-feit__regel[aria-expanded="true"] {
+  background-color: var(--sol-papier-diep);
+}
+
+.sol-feit__open {
+  padding: 0 0.3rem 0.6rem 2.9rem;
+}
+
+.sol-feit__open .sol-stuk__knoppen {
+  margin-top: 0.5rem;
+}
+
+.sol-feit__open .sol-feit__bron {
+  margin-top: 0;
+  font-size: 0.8rem;
+}
+
+/* ── De dossierstukken ────────────────────────────────────────────────────── */
+
+/* `flex-wrap` staat hierboven op `wrap` en moet hier uit: bij een lange titel
+   wikkelde de × anders naar een eigen regel onder het stuk. De knop krimpt nu
+   mee en de × blijft ernaast staan. */
+.sol-stuk {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0;
+}
+
+/* `width: 100%` uit de gedeelde regel hierboven zou de × naar een eigen regel
+   duwen. Hier deelt hij de rij en krijgt de titel wat overblijft. */
+.sol-stuk__regel {
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+/* Een lange titel krijgt drie puntjes in plaats van een tweede regel. De hele
+   naam staat in de bewerker, één klik verder. */
+.sol-stuk__titel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sol-stuk__weg {
+  flex: 0 0 auto;
+  padding: 0.2rem 0.45rem;
+  border: 0;
+  border-radius: var(--sol-radius);
+  background: none;
+  color: var(--sol-inkt-licht);
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sol-stuk__weg:hover:not(:disabled) {
+  background-color: var(--sol-accent-zacht);
+  color: var(--sol-accent);
+}
+
+.sol-stuk__weg:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* De voetnoot onder een strook met bevindingen: zegt wat de controle NIET kan,
+   en hoort daarom zachter te staan dan de bevindingen zelf. */
+.sol-cliches__voetnoot {
+  margin-top: 0.5rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid currentColor;
+  opacity: 0.75;
+}

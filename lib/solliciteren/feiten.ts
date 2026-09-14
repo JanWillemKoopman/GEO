@@ -1,29 +1,30 @@
 /**
- * De feitenkaart: de gesloten lijst beweringen die een brief mag doen.
+ * De feitenkaart: het concreetste materiaal uit je dossier, uitgelicht.
  *
- * ── HET PATROON, EN WAAROM HET ER IS ───────────────────────────────────────
+ * ── DEZE KAART IS OP 15 SEPTEMBER 2026 VAN ROL VERANDERD ───────────────────
  *
- * Overgenomen van `lib/pipeline/factcard.ts`, waar de aanleiding meetbaar was:
- * van 16 beweringen op een gegenereerde pagina waren er 5 verzonnen. Een model
- * verzint niet willekeurig, het verzint precies daar waar de tekst een concreet
- * feit nodig heeft en het materiaal het niet levert. Een sollicitatiebrief is
- * die tekst bij uitstek: "ik bracht de doorlooptijd van negen naar vijf dagen"
- * is de zin die werkt, en het is ook de zin die een model invult als hij er niet
- * staat.
+ * Hij begon als GESLOTEN lijst, overgenomen uit `lib/pipeline/factcard.ts`:
+ * alles wat er niet op stond mocht een brief niet beweren. Daar is dat juist,
+ * want die tekst gaat zonder tussenkomst naar de site van een klant. Hier niet:
+ * de schrijver is zelf het onderwerp en leest elke brief na. De grens kocht dus
+ * weinig en kostte veel. Wat de uitleesronde miste was voor de brief weg, de
+ * kaart mocht niets afleiden dus de brief ook niet, en een model dat per zin
+ * moet verantwoorden schrijft vlakker. Daar komt bij dat het volledige dossier
+ * er toch al naast meeging, dus de instructie verbood materiaal dat er lag.
  *
- * Het dossier meegeven met "gebruik dit waar het past" is een uitnodiging, geen
- * grens. Een genummerde lijst met de opdracht "verwijs per bewering naar een
- * nummer" is wél een grens, want die is na te rekenen. Dat narekenen staat
- * hieronder, en is het halve punt van deze module: zonder controle is de
- * verwijzing zelf ook maar een belofte van het model.
+ * Wat de kaart nu is, en waarom hij blijft bestaan:
  *
- * ── WAT DE CONTROLE WEL EN NIET KAN ────────────────────────────────────────
+ * 1. **Een spiegel op je dossier.** Komen er na een uitleesronde drie punten
+ *    met een getal uit, dan weet je dat je dossier je te weinig munitie geeft.
+ *    Dat is informatie over jou, geen beperking van het model.
+ * 2. **Een zetje in de prompt.** Hij gaat mee als "dit is het concreetste
+ *    materiaal, gebruik het waar het past", naast het volledige dossier en
+ *    zonder verbod op de rest.
  *
- * Wel: of een genoemd nummer bestaat, of de feiten die de schrijfopdracht
- * uitkoos ook echt in de brief terugkomen, en hoeveel verschillende feiten de
- * brief draagt. Niet: of de zin die naar F7 verwijst ook echt over F7 gaat. Dat
- * laatste kan code niet zien, en daarom staat de bronzin per feit op het scherm:
- * de controle die een mens in twee seconden doet, hoeft de code niet te kunnen.
+ * De controle op verzinsels is verhuisd naar `lib/solliciteren/herkomst.ts`, die
+ * ná het schrijven opzoekt of de getallen en namen uit de brief ergens in je
+ * materiaal staan. Aanwijzen achteraf kost geen creativiteit; verbieden vooraf
+ * wel.
  *
  * Pure module zonder `server-only` (conventie 2).
  */
@@ -141,15 +142,20 @@ function normaliseer(tekst: string): string {
 }
 
 /**
- * De kaart als blok voor de prompt. Gesloten lijst, genummerd, met de periode
- * erbij waar die er is.
+ * De kaart als blok voor de prompt.
+ *
+ * ⚠️ ZONDER de F-nummers, sinds 15 september 2026. Die stonden erin omdat de
+ * brief per zin naar een nummer moest verwijzen, en dat is precies wat er is
+ * afgeschaft. Ze in het blok laten staan zou het model uitnodigen ze alsnog in
+ * de brief te plakken. Op het scherm blijft het nummer wél staan: daar is het
+ * een handvat om een feit aan te wijzen, en daar leest geen model mee.
  */
 export function bouwFeitenblok(feiten: readonly Feit[]): string | null {
   if (feiten.length === 0) return null;
 
   const regels: string[] = [
-    "Dit is de feitenkaart van deze persoon: de VOLLEDIGE lijst van wat je over hem mag beweren.",
-    "Alles wat hier niet op staat, bestaat voor deze brief niet.",
+    "De concreetste punten uit het dossier van deze persoon, uitgelicht. Geen afgesloten lijst:",
+    "het dossier zelf blijft de bron en alles daaruit mag gebruikt worden.",
     "",
   ];
 
@@ -159,7 +165,7 @@ export function bouwFeitenblok(feiten: readonly Feit[]): string | null {
     regels.push(`${categorie.naam.toUpperCase()}`);
     for (const feit of [...groep].sort((a, b) => a.nummer - b.nummer)) {
       const periode = feit.periode ? ` (${feit.periode})` : "";
-      regels.push(`${refVan(feit)}: ${feit.tekst}${periode}`);
+      regels.push(`- ${feit.tekst}${periode}`);
     }
     regels.push("");
   }
@@ -168,10 +174,10 @@ export function bouwFeitenblok(feiten: readonly Feit[]): string | null {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   HET ANTWOORD NAREKENEN
+   DE VORM VAN HET ANTWOORD
    ───────────────────────────────────────────────────────────────────────── */
 
-/** De drie kopjes die een antwoord moet hebben. Zie `bouwSysteemprompt()`. */
+/** De drie kopjes die een antwoord heeft. Zie `bouwSysteemprompt()`. */
 export const KOP_VACATURE = "## Vacature";
 export const KOP_OPDRACHT = "## Schrijfopdracht";
 export const KOP_BRIEF = "## Brief";
@@ -179,7 +185,7 @@ export const KOP_BRIEF = "## Brief";
 export interface Antwoorddelen {
   vacature: string;
   opdracht: string;
-  /** Leeg als het antwoord geen briefkopje had. Dan is er niets om na te rekenen. */
+  /** Leeg als het antwoord geen briefkopje had. */
   brief: string;
 }
 
@@ -187,17 +193,18 @@ export interface Antwoorddelen {
  * Knipt een antwoord in zijn drie delen.
  *
  * Werkt op de kopjes en niet op de betekenis: staat er geen `## Brief`, dan is
- * de brief leeg en zegt de controle dat, in plaats van de hele analyse als brief
- * aan te zien en er vervolgens van alles over te beweren.
+ * de brief leeg en zegt het scherm dat, in plaats van de hele analyse als brief
+ * aan te zien en er vervolgens van alles over te beweren. De controles die
+ * alleen over de BRIEF mogen gaan (de schrijfstijl, de herkomst van getallen)
+ * gebruiken dit: een opsomming van vacature-eisen heeft nu eenmaal andere
+ * zinnen dan een brief.
  */
 export function splitsAntwoord(antwoord: string): Antwoorddelen {
   const pak = (kop: string, volgende: string[]): string => {
     const start = antwoord.indexOf(kop);
     if (start < 0) return "";
     const na = start + kop.length;
-    const eindes = volgende
-      .map((k) => antwoord.indexOf(k, na))
-      .filter((i) => i >= 0);
+    const eindes = volgende.map((k) => antwoord.indexOf(k, na)).filter((i) => i >= 0);
     const eind = eindes.length > 0 ? Math.min(...eindes) : antwoord.length;
     return antwoord.slice(na, eind).trim();
   };
@@ -207,133 +214,4 @@ export function splitsAntwoord(antwoord: string): Antwoorddelen {
     opdracht: pak(KOP_OPDRACHT, [KOP_BRIEF]),
     brief: pak(KOP_BRIEF, []),
   };
-}
-
-/** Alle F-nummers die in een tekst genoemd worden, op volgorde en zonder dubbele. */
-export function leesVerwijzingen(tekst: string): number[] {
-  const gevonden = [...tekst.matchAll(/\[?\bF(\d{1,3})\b\]?/g)].map((m) => Number(m[1]));
-  return [...new Set(gevonden)];
-}
-
-/** Hoe een bevinding weegt. `blokkerend` betekent: dit moet je nakijken. */
-export type Feitbevinding = {
-  ernst: "blokkerend" | "let-op";
-  melding: string;
-};
-
-export interface Feitcontrole {
-  /** De feiten die de brief daadwerkelijk gebruikt. */
-  gebruikt: number[];
-  /** Nummers waar de brief naar verwijst en die niet bestaan. */
-  onbekend: number[];
-  /** Feiten die de schrijfopdracht uitkoos maar die de brief niet gebruikt. */
-  beloofdNietGebruikt: number[];
-  /** Zinnen in de brief zonder enige verwijzing, als aandeel van het geheel. */
-  zinnenZonderFeit: number;
-  totaalZinnen: number;
-  bevindingen: Feitbevinding[];
-}
-
-/**
- * Hoeveel verschillende feiten een brief minstens hoort te dragen.
- *
- * Vier: minder betekent dat de brief het over houding heeft in plaats van over
- * wat je gedaan hebt, en dat is precies de brief die op een stapel van zestig
- * niet opvalt. Geen hard verbod maar een melding, want een korte brief op een
- * open sollicitatie kan er terecht minder hebben.
- */
-export const MINIMUM_FEITEN_IN_BRIEF = 4;
-
-/**
- * Legt een antwoord naast de feitenkaart.
- *
- * ⚠️ Dit oordeelt niet over de tekst en verandert er niets aan. Het wijst aan
- * wat een mens anders zin voor zin zou moeten natellen: verwijst de brief naar
- * iets dat niet bestaat, en doet hij wat zijn eigen schrijfopdracht beloofde.
- */
-export function controleerAntwoord(antwoord: string, feiten: readonly Feit[]): Feitcontrole {
-  const delen = splitsAntwoord(antwoord);
-  const bestaande = new Set(feiten.map((f) => f.nummer));
-  const bevindingen: Feitbevinding[] = [];
-
-  // Zonder briefkopje valt er niets na te rekenen. Dat is zelf de bevinding:
-  // het antwoord volgde de afgesproken vorm niet.
-  if (!delen.brief) {
-    return {
-      gebruikt: [],
-      onbekend: [],
-      beloofdNietGebruikt: [],
-      zinnenZonderFeit: 0,
-      totaalZinnen: 0,
-      bevindingen:
-        feiten.length === 0
-          ? []
-          : [{ ernst: "let-op", melding: "Dit antwoord heeft geen apart briefdeel, dus er valt niets tegen je feitenkaart na te rekenen." }],
-    };
-  }
-
-  const gebruikt = leesVerwijzingen(delen.brief);
-  const onbekend = gebruikt.filter((n) => !bestaande.has(n));
-  const beloofd = leesVerwijzingen(delen.opdracht);
-  const beloofdNietGebruikt = beloofd.filter((n) => bestaande.has(n) && !gebruikt.includes(n));
-
-  const zinnen = splitsInZinnen(delen.brief);
-  const zonderFeit = zinnen.filter((zin) => leesVerwijzingen(zin).length === 0).length;
-
-  if (onbekend.length > 0) {
-    bevindingen.push({
-      ernst: "blokkerend",
-      melding: `De brief verwijst naar ${onbekend.map((n) => `F${n}`).join(", ")}, en dat staat niet op je feitenkaart. Die zin steunt dus nergens op.`,
-    });
-  }
-
-  if (feiten.length > 0 && gebruikt.length === 0) {
-    bevindingen.push({
-      ernst: "blokkerend",
-      melding: "De brief verwijst naar geen enkel feit. Alles wat erin staat is dus onbewezen.",
-    });
-  } else if (gebruikt.length > 0 && gebruikt.length < MINIMUM_FEITEN_IN_BRIEF) {
-    bevindingen.push({
-      ernst: "let-op",
-      melding: `De brief draagt op ${gebruikt.length} ${gebruikt.length === 1 ? "feit" : "feiten"}. Onder de ${MINIMUM_FEITEN_IN_BRIEF} gaat een brief meestal over houding in plaats van over wat je gedaan hebt.`,
-    });
-  }
-
-  if (beloofdNietGebruikt.length > 0) {
-    bevindingen.push({
-      ernst: "let-op",
-      melding: `De schrijfopdracht koos ${beloofdNietGebruikt.map((n) => `F${n}`).join(", ")} uit, maar de brief gebruikt die niet.`,
-    });
-  }
-
-  return {
-    gebruikt,
-    onbekend,
-    beloofdNietGebruikt,
-    zinnenZonderFeit: zonderFeit,
-    totaalZinnen: zinnen.length,
-    bevindingen,
-  };
-}
-
-/**
- * De brief zonder de verwijzingen, klaar om te plakken.
- *
- * De markering staat in de tekst omdat dat de enige manier is om per zin te
- * kunnen nakijken waar hij op steunt. Maar in de e-mail aan de werkgever hoort
- * hij niet, dus de kopieerknop gebruikt deze versie. Zelfde tekst, één ding
- * minder.
- */
-export function stripVerwijzingen(tekst: string): string {
-  return tekst
-    .replace(/\s*\[F\d{1,3}(?:\s*,\s*F?\d{1,3})*\]/g, "")
-    .replace(/[ \t]{2,}/g, " ")
-    .replace(/[ \t]+([,.;:!?])/g, "$1")
-    .trim();
-}
-
-/** Welke feiten van de kaart zijn in deze brief niet gebruikt? */
-export function ongebruikteFeiten(feiten: readonly Feit[], gebruikt: readonly number[]): Feit[] {
-  const set = new Set(gebruikt);
-  return feiten.filter((f) => !set.has(f.nummer));
 }

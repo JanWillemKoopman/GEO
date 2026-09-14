@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { brievenUit } from "@/lib/solliciteren/dossier";
 import { MINIMUM_WOORDEN, formuleerStemregels, meetStem } from "@/lib/solliciteren/stem";
+import { telWoorden } from "@/lib/solliciteren/woorden";
 import type { SollicitatieDocument } from "@/lib/types/database";
 
 /**
@@ -28,14 +29,16 @@ export function Stempaneel({ documenten }: { documenten: SollicitatieDocument[] 
   const profiel = useMemo(() => meetStem(brieven), [brieven]);
 
   if (!profiel) {
-    const woorden = brieven.join(" ").trim().split(/\s+/).filter(Boolean).length;
+    // Dezelfde telling als `meetStem()` gebruikt, anders staat er "149 woorden"
+    // naast een drempel van 150 die net wél gehaald is.
+    const woorden = telWoorden(brieven.join(" "));
     return (
       <section className="sol-kaart sol-paneel">
         <h2 className="sol-kaart__titel">Jouw schrijfstijl</h2>
         <p className="sol-kaart__tekst sol-kaart__tekst--klein">
           {brieven.length === 0
             ? "Zet een paar eerdere brieven in je dossier. Dan meet dit scherm hoe jij schrijft, en krijgt de assistent dat als harde opdracht mee."
-            : `Er ligt ${woorden} woord aan brieven. Vanaf ${MINIMUM_WOORDEN} woorden is de meting betrouwbaar genoeg om er iets op te baseren.`}
+            : `${woorden === 1 ? "Er ligt 1 woord" : `Er liggen ${woorden} woorden`} aan brieven. Vanaf ${MINIMUM_WOORDEN} woorden is de meting betrouwbaar genoeg om er iets op te baseren.`}
         </p>
       </section>
     );

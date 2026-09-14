@@ -12,9 +12,10 @@ schrijfstijl meetbaar en kwam de feitenkaart erbij. De achtergrond en de gemaakt
 | De assistent | `app/solliciteren/assistent.tsx` en zes onderdelen ernaast | Werkt, nog niet tegen een echte aanroep gedraaid |
 | Het dossier | `sollicitatie_documenten` (0096) plus `dossierpaneel.tsx` | Hangt aan de persoon, blijft staan over gesprekken heen |
 | De gemeten stem | `lib/solliciteren/stem.ts` plus `stempaneel.tsx` | Meet aan je eigen brieven, toetst elk antwoord terug |
-| De feitenkaart | Migratie 0097, `lib/solliciteren/feiten.ts`, `feitenpaneel.tsx` | Gesloten lijst, bronzin per feit, elke brief nagerekend |
+| De feitenkaart | Migratie 0097, `lib/solliciteren/feiten.ts`, `feitenpaneel.tsx` | Spiegel op je dossier, bronzin per feit. Geen gesloten lijst meer |
+| De herkomstcontrole | `lib/solliciteren/herkomst.ts` | Zoekt getallen en namen uit de brief op in dossier en vacature |
 | Bestanden inlezen | `lib/solliciteren/bestand.ts`, pakket `unpdf` | PDF en tekst, gedraaid op een echte PDF |
-| De rekenmodules | `lib/solliciteren/` (modellen, prompt, dossier, feiten, stem, cliches, sleutelwoorden, woorden) | Puur en getest, 231 controles in `test-unit.ts` |
+| De rekenmodules | `lib/solliciteren/` (modellen, prompt, dossier, feiten, herkomst, stem, cliches, sleutelwoorden, woorden) | Puur en getest, 238 controles in `test-unit.ts` |
 | Het schrijven | `app/api/solliciteren/` | Service-role plus eigenaarscontrole, streamt per regel JSON |
 | De opslag | Migraties 0095, 0096 en 0097 | Toegepast op productie en nagerekend |
 | De inlog | `app/solliciteren/layout.tsx` plus `lib/supabase/middleware.ts` | Werkt, zonder sessie een 307 naar `/login` |
@@ -32,14 +33,15 @@ zijn daarmee gebouwd en niet gemeten:
 - dat `cost_usd` per bericht klopt tegenover de factuur van OpenAI;
 - dat een antwoord op redeneerstand `hoog`, nu de standaard, binnen de 240 seconden van
   `lib/solliciteren/gesprek.ts` blijft;
-- **hoeveel van de aangeleverde feiten sneuvelen op hun bronzin.** Dat is het cijfer dat zegt of het
-  vangnet uit `zeefFeiten()` iets doet of alleen maar bestaat. Het scherm toont het na elke ronde;
-  het hoort na de eerste echte ronde in `docs/logbook.md` te staan.
+- **hoeveel van de aangeleverde feiten sneuvelen op hun bronzin**, en **hoe vaak de herkomstcontrole
+  na de eerste echte brief nog aanslaat.** Dat tweede is het cijfer dat zegt of de omkering van
+  15 september klopte: slaat hij zelden aan, dan schrijft Sol met het volledige dossier inderdaad
+  betrouwbaar en was de gesloten lijst onnodig. Slaat hij vaak aan, dan moeten we opnieuw kijken.
 
 Dit is de eerste stap na de eerstvolgende publicatie.
 
 **2. Een oordeel over de brief, naast de controles.** De vier controles onder een antwoord
-(standaardzinnen, stem, feiten, sleutelwoorden) bewaken allemaal wat er NIET mag. Niets beoordeelt
+(standaardzinnen, stem, herkomst, sleutelwoorden) wijzen allemaal aan wat er MIS kan zijn. Niets beoordeelt
 of de brief overtuigt. Het hoofdproduct heeft daar een beoordelaarspanel voor
 (`docs/tasks/contentpijplijn-herontwerp.md` A5) dat nagemeten de goedkoopste stap van de hele
 pijplijn is. Hier zou dat een tweede aanroep zijn na de brief, en dat botst niet met de keuze van
@@ -92,6 +94,10 @@ De negen groepen die met "de assistent" beginnen:
    eronder raakt een tabel van ORBIT ENGINE aan.
 9. Het dossier gaat in de aanroep vóór de vacature. Die volgorde bepaalt of OpenAI het begin van de
    aanroep kan hergebruiken, en dus hoe snel het eerste woord op het scherm staat.
+9b. **De feitenkaart is geen gesloten lijst.** Het feitenblok zegt niet dat de rest niet bestaat, er
+    staan geen F-nummers in, en de prompt vraagt niet om verwijzingen in de brief. Dat is op
+    15 september 2026 bewust teruggedraaid (zie het logboek); het terugzetten zou het beste model
+    weer vastzetten op wat de uitleesronde toevallig gevonden heeft.
 10. De gemeten stem staat in de systeeminstructie en niet bij het materiaal, en zonder gemeten
     brieven staat er niets over stijl in de prompt.
 11. Alleen documenten met soort `brief` leveren de stem; het CV en de projecten leveren de feiten.

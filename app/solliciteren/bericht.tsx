@@ -2,12 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { zoekCliches } from "@/lib/solliciteren/cliches";
-import {
-  controleerAntwoord,
-  splitsAntwoord,
-  stripVerwijzingen,
-  type Feit,
-} from "@/lib/solliciteren/feiten";
+import { splitsAntwoord } from "@/lib/solliciteren/feiten";
+import { zoekOnvindbaar } from "@/lib/solliciteren/herkomst";
 import { isGeldigModel, vindModel } from "@/lib/solliciteren/modellen";
 import { toetsStem, type Stemprofiel } from "@/lib/solliciteren/stem";
 
@@ -29,16 +25,18 @@ import { toetsStem, type Stemprofiel } from "@/lib/solliciteren/stem";
  * De cliché-strook telt de standaardzinnen die de prompt bij naam verbiedt
  * (`lib/solliciteren/cliches.ts`). De stemtoets legt de brief naast de maten
  * die aan jouw eigen eerdere brieven zijn gemeten
- * (`lib/solliciteren/stem.ts`): zinslengte, lange zinnen, aanspreekvorm. En de
- * feitencontrole (`lib/solliciteren/feiten.ts`) rekent na of de brief alleen
- * beweert wat op je feitenkaart staat, en of hij doet wat zijn eigen
- * schrijfopdracht beloofde.
+ * (`lib/solliciteren/stem.ts`). En de herkomstcontrole
+ * (`lib/solliciteren/herkomst.ts`) zoekt elk getal en elke naam uit de brief op
+ * in je dossier en de vacature.
  *
- * ── DE NUMMERS STAAN IN DE TEKST EN NIET IN DE KOPIE ───────────────────────
+ * ── ALLE DRIE WIJZEN AAN EN VERANDEREN NIETS ───────────────────────────────
  *
- * De brief draagt zijn verwijzingen ([F12]) omdat dat de enige manier is om per
- * zin te kunnen nakijken waar hij op steunt. In de mail aan de werkgever horen
- * ze niet, dus de kopieerknop haalt ze eruit. Zelfde tekst, één ding minder.
+ * Tot 15 september 2026 stond de feitenkaart als GESLOTEN lijst in de prompt:
+ * wat er niet op stond mocht de brief niet beweren. Dat is teruggedraaid, want
+ * het kostte de schrijver meer dan het opleverde. De controle is verhuisd naar
+ * hier, ná het schrijven, waar hij aanwijst zonder iets te verbieden. Of een
+ * langere zin hier juist goed valt, of "met veel enthousiasme" in jouw brief
+ * waar is, of dat getal klopt: dat bepaal jij, en jij leest de brief toch.
  *
  * Er wordt niets weggehaald en niets herschreven. Of "met veel enthousiasme" in
  * jouw brief een cliché is of gewoon waar, bepaal jij, en of een langere zin
@@ -52,7 +50,7 @@ export function Bericht({
   kosten,
   fout,
   stem,
-  feiten,
+  bronnen,
   bezig,
 }: {
   rol: "gebruiker" | "assistent";
@@ -63,8 +61,8 @@ export function Bericht({
   fout: string | null;
   /** De gemeten stem van deze persoon, of null als er te weinig brieven liggen. */
   stem: Stemprofiel | null;
-  /** De feitenkaart waartegen dit antwoord wordt nagerekend. */
-  feiten: readonly Feit[];
+  /** Je dossier plus de vacature, als één tekst: waar getallen en namen in opgezocht worden. */
+  bronnen: string;
   /** Staat dit antwoord nog te komen? Dan geen telling, die is dan nog niet af. */
   bezig?: boolean;
 }) {
@@ -81,20 +79,19 @@ export function Bericht({
     () => (rol === "assistent" && !bezig ? toetsStem(splitsAntwoord(inhoud).brief || inhoud, stem) : []),
     [rol, inhoud, stem, bezig],
   );
-  const feitcontrole = useMemo(
-    () => (rol === "assistent" && !bezig ? controleerAntwoord(inhoud, feiten) : null),
-    [rol, inhoud, feiten, bezig],
-  );
-  // De stemtoets hoort over de BRIEF te gaan en niet over de analyse erboven:
+  // De controles horen over de BRIEF te gaan en niet over de analyse erboven:
   // een opsomming van vacature-eisen heeft nu eenmaal andere zinnen dan een
-  // brief, en die als stijlafwijking aanwijzen zou de meting onbruikbaar maken.
+  // brief, en de eisen uit de vacature citeren is geen verzinsel.
   const brief = useMemo(() => splitsAntwoord(inhoud).brief, [inhoud]);
+  const onvindbaar = useMemo(
+    () => (rol === "assistent" && !bezig ? zoekOnvindbaar(brief || inhoud, bronnen) : []),
+    [rol, brief, inhoud, bronnen, bezig],
+  );
 
   async function kopieer() {
     try {
-      // Alleen de brief als het antwoord er een heeft, en zonder de nummers:
-      // dat is wat je in de mail plakt.
-      await navigator.clipboard.writeText(stripVerwijzingen(brief || inhoud));
+      // Alleen de brief als het antwoord er een heeft: dat is wat je plakt.
+      await navigator.clipboard.writeText(brief || inhoud);
       setGekopieerd(true);
       window.setTimeout(() => setGekopieerd(false), 2000);
     } catch {
@@ -141,14 +138,18 @@ export function Bericht({
               {cliches.length === 1 ? "1 standaardzin" : `${cliches.length} standaardzinnen`}
             </span>
           )}
-          {feitcontrole && feiten.length > 0 ? (
-            feitcontrole.bevindingen.length === 0 && feitcontrole.gebruikt.length > 0 ? (
+          {bronnen.trim() ? (
+            onvindbaar.length === 0 ? (
               <span className="sol-bericht__meta sol-bericht__meta--goed">
-                {feitcontrole.gebruikt.length} feiten, allemaal van je kaart
+                Alle getallen en namen staan in je materiaal
               </span>
-            ) : feitcontrole.bevindingen.some((b) => b.ernst === "blokkerend") ? (
-              <span className="sol-bericht__meta sol-bericht__meta--fout">Onbewezen bewering</span>
-            ) : null
+            ) : (
+              <span className="sol-bericht__meta sol-bericht__meta--fout">
+                {onvindbaar.length === 1
+                  ? "1 getal of naam om na te kijken"
+                  : `${onvindbaar.length} getallen of namen om na te kijken`}
+              </span>
+            )
           ) : null}
           {stem ? (
             stemafwijkingen.length === 0 ? (
@@ -164,11 +165,18 @@ export function Bericht({
         </footer>
       ) : null}
 
-      {feitcontrole && feitcontrole.bevindingen.length > 0 ? (
-        <ul className={`sol-cliches${feitcontrole.bevindingen.some((b) => b.ernst === "blokkerend") ? " sol-cliches--fout" : ""}`}>
-          {feitcontrole.bevindingen.map((bevinding) => (
-            <li key={bevinding.melding}>{bevinding.melding}</li>
+      {onvindbaar.length > 0 ? (
+        <ul className="sol-cliches sol-cliches--fout">
+          {onvindbaar.map((vondst) => (
+            <li key={`${vondst.soort}-${vondst.waarde}`}>
+              <strong>{vondst.waarde}</strong> staat niet in je dossier of de vacature. Klopt dit?
+            </li>
           ))}
+          <li className="sol-cliches__voetnoot">
+            Deze controle zoekt cijfers en namen op. Een getal dat voluit geschreven staat, zoals
+            {" "}
+            <q>van negen naar vijf</q>, vindt hij niet.
+          </li>
         </ul>
       ) : null}
 
