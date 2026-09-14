@@ -389,3 +389,33 @@ Die tweede rekent na of de opdracht is uitgevoerd: komen de kernfeiten terug in 
 bewijspunten, staat het kernantwoord in de eerste alinea, en staat de keuzereden in de eerste
 twintig procent van de tekst. Een opdracht met een leeg veld vervalt in zijn geheel, en dan schrijft
 de pijplijn precies zoals hij het vóór deze migratie deed (conventie 3).
+
+## 0095 — de sollicitatieassistent van het zijproject
+
+Twee tabellen, `sollicitatie_chats` en `sollicitatie_berichten`, voor de app onder
+`app/solliciteren/`. Ze hangen aan `auth.users` en aan niets anders in dit schema: er is geen enkele
+join met `profiles`, `accounts` of welke tabel van ORBIT ENGINE dan ook, en dat is de bedoeling. De
+scheiding van het zijproject zat tot deze migratie alleen in de opmaak; nu zit hij ook in de data.
+
+Het gesprek draagt de drie bronteksten (`cv_tekst`, `brieven_tekst`, `vacature_tekst`) plus
+`context_bijgewerkt_op`: het moment waarop ze aan het gesprek gekoppeld zijn. Null betekent nog
+nooit, en dat is wat het scherm laat zien in plaats van te doen alsof de assistent de teksten al
+kent.
+
+Per bericht staat erbij welk model, welke redeneerstand en welke temperatuur het gemaakt hebben,
+plus `input_tokens`, `output_tokens`, `cost_usd` en `raw_json` (conventie 8). Dat had ook een
+jsonb-lijst op het gesprek kunnen zijn; het is een eigen tabel geworden omdat je op die kolommen
+wilt kunnen rekenen ("wat kost een brief op het dure model tegenover het goedkope"), en rekenen door
+een jsonb-lijst heen is precies wat de Sales-module in 0069 al een keer heeft moeten terugdraaien.
+
+Een mislukt antwoord krijgt een eigen rij met `fout` gevuld en `inhoud` leeg. Anders is achteraf
+niet te zien of een gesprek stil is gevallen of nooit is begonnen.
+
+**RLS**: select-only, zoals overal. Twee sloten op dezelfde deur, `user_id = auth.uid()` én
+`is_staff()` uit 0038, dus wie uit `staff_users` verdwijnt kan langs deze kant ook niets meer lezen.
+Geen insert- of updatepolicy: schrijven loopt via `app/api/solliciteren/` met de service-role en een
+expliciete eigenaarscontrole in `lib/solliciteren/toegang.ts` (conventie 6).
+
+De kosten van dit zijproject staan bewust **niet** in `ai_calls`. Elke rij daar hangt aan een merk,
+een meetronde of een pagina, en de dagplafonds van 0089 worden erop gerekend. Een sollicitatiebrief
+van de eigenaar hoort in geen van die sommen thuis.

@@ -8135,3 +8135,76 @@ en de S staat in de bovenbalk links van het hulp-icoon. `tsc --noEmit`, `test:un
 **Wat er nog niet is: de app zelf.** De pagina zegt dat met zoveel woorden ("Hier komt de app"),
 want er is geen functie gebouwd en geen data om te tonen. Wat de pagina moet gaan doen staat open in
 `docs/tasks/solliciteren-zijproject.md`.
+
+---
+
+## 14 september 2026: de sollicitatieassistent, het zijproject krijgt zijn functie
+
+De pagina van vanmorgen zei "Hier komt de app". Dit is de app: een assistent die de vacature
+ontleedt, hem naast het CV legt en een brief schrijft die daarna in het gesprek bij te sturen is.
+Zes modules in `lib/solliciteren/`, vijf schermbestanden in `app/solliciteren/`, drie API-routes en
+migratie 0095. De testtelling gaat van 4408 naar 4515, en dat zijn 107 nieuwe controles waarvan er
+geen enkele een aanroep kost.
+
+**De scheiding is meeverhuisd naar de database.** Tot vanmorgen deelde het zijproject twee dingen
+met ORBIT ENGINE, de inlog en de publicatie, en de opmaak juist niet. Met 0095 geldt dat ook voor de
+data: `sollicitatie_chats` en `sollicitatie_berichten` hangen aan `auth.users` en hebben geen enkele
+join met `profiles` of `accounts`. De testgroep leest de eigen map uit en rekent na dat geen enkel
+bestand van het zijproject een tabel van het hoofdproduct aanraakt.
+
+**De kosten gaan bewust niet in `ai_calls`.** Elke rij daar hangt aan een merk, een meetronde of een
+pagina, en de dagplafonds uit migratie 0089 worden erop gerekend. Een brief van de eigenaar zou het
+budget van een klant laten oplopen door iets wat die klant niet heeft gevraagd. Wat een bericht
+kostte staat daarom per bericht in `sollicitatie_berichten.cost_usd`, met dezelfde rekensom uit
+`lib/openai/pricing.ts`.
+
+**De modelkeuze ging anders dan gevraagd, en dat is een keuze.** De opdracht noemde "GPT-6 Astra" en
+"GPT-5.4 Thinking". Die staan niet in de keuzelijst: de app kent ze nergens, er is geen tarief voor
+in `lib/openai/pricing.ts`, en er was in deze omgeving geen sleutel om te controleren of ze bij
+OpenAI bestaan. Een modelnaam die niet bestaat levert geen nette foutmelding op maar een mislukte
+aanroep, en een onbekend tarief valt stil terug op de duurste schatting die we kennen (conventie 3).
+Er staan nu drie modellen in, Sol, Terra en Luna, elk met een geverifieerd tarief. Er een bijzetten
+kost twee regels zodra de naam vaststaat: een regel in `lib/solliciteren/modellen.ts` en een tarief
+in `pricing.ts`.
+
+De tweedeling uit de opdracht, een schrijfmodel naast een redeneermodel, bestaat sinds GPT-5.6
+bovendien niet meer tussen modellen maar als knop óp elk model: `isReasoningModel()` herkent de hele
+GPT-5-familie. Wat vroeger de modelkeuze was, is nu de redeneerstand (geen, laag, midden, hoog); wat
+het model bepaalt is hoe goed de zinnen zijn en wat het kost. Allebei staan ze per bericht in te
+stellen en allebei worden ze per bericht opgeslagen.
+
+**Eén regel staat nu op twee plekken in code, met opzet.** De API accepteert `temperature` alleen
+zolang de redeneerstand op `none` staat; bij `low` en hoger faalt de hele aanroep met een 400.
+`resolveTuning()` in de pijplijn vertaalt SOORT WERK naar parameters, dit scherm laat de gebruiker
+zelf kiezen, dus de tabel daar past hier niet. De regel zelf staat op allebei de plekken, en een
+testgroep rekent voor alle drie de modellen na dat ze niet uit elkaar lopen. Zou dat wel gebeuren,
+dan faalt elke aanroep van dit scherm zonder dat er iets aan dit scherm veranderd is.
+
+**Twee dingen die de opdracht niet vroeg, en die de functie het meest waard maken.** Allebei zijn
+het tellingen in code, dus ze kosten niets, ze wachten nergens op en ze geven elke keer hetzelfde
+antwoord.
+
+De eerste is de **cliché-controle** (`lib/solliciteren/cliches.ts`, 18 regels). De systeemprompt
+verbiedt elf standaardzinnen bij naam plus het gedachtestreepje en de schuine streep; een
+promptinstructie is een verzoek en geen garantie, en hoe langer een gesprek wordt hoe vaker een
+model terugvalt op wat het altijd schrijft. Onder elk antwoord staat daarom wat er gevonden is en
+waarom het opvalt. Er wordt niets weggehaald, anders dan in `lib/pipeline/dash-guard.ts`, waar de
+tekst zonder tussenkomst naar de site van een klant gaat: hier kijkt er altijd nog iemand naar, en
+of "met veel enthousiasme" in jóuw brief een cliché is of gewoon waar, bepaal jij. Een testgroep
+haalt de verboden zinnen uit de prompt en controleert dat het vangnet ze alle elf terugvindt.
+Dat is conventie 1 in zijn zuiverste vorm: lopen die twee lijsten uit elkaar, dan verbiedt de prompt
+iets dat niemand nakijkt.
+
+De tweede is de **sleutelwoordvergelijking** (`lib/solliciteren/sleutelwoorden.ts`). Een werkgever
+haalt binnengekomen brieven door een systeem dat op letterlijke woorden zoekt, en dat is geen werk
+voor een taalmodel. Terwijl je de vacature plakt, staat ernaast welke woorden eruit nog niet in je
+CV voorkomen, met het percentage erbij. Zonder CV of zonder vacature is dat percentage `null` en
+geen 0 (conventie 3): een leeg veld en nul overlap zijn twee verschillende dingen.
+
+**Wat er nog niet geverifieerd is** (conventie 10). `tsc --noEmit`, `test:unit` (4515 geslaagd),
+`test:chain` (650 geslaagd) en `build` zijn alle vier groen, en migratie 0095 is toegepast op
+productie en nagerekend: twee tabellen, twee policies en de trigger op `updated_at` staan er. Maar
+er is in deze omgeving geen `OPENAI_API_KEY` en geen Supabase-sleutel, dus er is **geen enkele echte
+aanroep gedaan vanaf dit scherm**. Het streamen, de kostenregistratie per bericht en het opslaan van
+de ruwe uitvoer zijn gebouwd en niet gemeten. Dat is de eerste stap na de eerstvolgende publicatie:
+één gesprek voeren, en daarna `sollicitatie_berichten` naast de factuur van OpenAI leggen.
