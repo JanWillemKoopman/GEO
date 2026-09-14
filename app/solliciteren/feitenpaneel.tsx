@@ -5,21 +5,25 @@ import { CATEGORIEEN, refVan, vindCategorie, type Feitcategorie } from "@/lib/so
 import type { SollicitatieFeit } from "@/lib/types/database";
 
 /**
- * De feitenkaart: de gesloten lijst van wat een brief over jou mag beweren.
+ * De feitenkaart: het concreetste materiaal uit je dossier, uitgelicht.
  *
- * ── WAAROM DIT HET BELANGRIJKSTE PANEEL VAN DIT SCHERM IS ──────────────────
+ * ── DIT IS EEN SPIEGEL EN GEEN GRENS ───────────────────────────────────────
  *
- * Een dossier meegeven met "gebruik dit waar het past" is een uitnodiging, geen
- * grens. Precies daar waar een brief een concreet feit nodig heeft en het
- * materiaal het niet levert, vult een model het in. Deze kaart draait dat om:
- * alles wat er niet op staat, bestaat voor de brief niet, en elke zin in de
- * brief wijst naar het nummer waar hij op steunt.
+ * Tot 15 september 2026 was dit een GESLOTEN lijst: wat er niet op stond, mocht
+ * een brief niet beweren. Dat is teruggedraaid. Het model schrijft weer vrij uit
+ * het volledige dossier, en de controle op verzinsels gebeurt ná het schrijven
+ * (`lib/solliciteren/herkomst.ts`).
  *
- * ── DE BRONZIN STAAT EROP, EN DAAROM IS DE KAART TE VERTROUWEN ─────────────
+ * Waar deze kaart dan nog voor is, en dat is genoeg om hem te houden: hij laat
+ * zien wat er concreet in je dossier zit. Komen er na een uitleesronde drie
+ * punten met een getal uit, dan weet je dat je dossier je te weinig munitie
+ * geeft. Dat is informatie over jou en niet over het model. En hij gaat als
+ * zetje mee de prompt in: dit is het concreetste, gebruik het waar het past.
  *
- * Per feit staat de zin uit je dossier waar het uit komt. Code controleert dat
- * die zin er letterlijk in staat; of het feit ook klopt, zie jij in twee
- * seconden. Zonder die zin is een feit een bewering van een model over jou.
+ * ── DE BRONZIN STAAT EROP ──────────────────────────────────────────────────
+ *
+ * Per feit de zin uit je dossier waar het uit komt. Code controleert dat die zin
+ * er letterlijk in staat; of het feit ook klopt, zie jij in twee seconden.
  */
 export function Feitenpaneel({
   feiten,
@@ -80,8 +84,9 @@ export function Feitenpaneel({
         </span>
       </div>
       <p className="sol-kaart__tekst sol-kaart__tekst--klein">
-        Dit is alles wat een brief over je mag beweren. Staat het er niet op, dan komt het er niet
-        in, ook niet als het in je dossier tussen de regels te lezen is.
+        Het concreetste uit je dossier, uitgelicht. Geen afgesloten lijst: de assistent schrijft uit
+        je hele dossier. Staat hier weinig met een getal in, dan geeft je dossier je te weinig om
+        mee te werken.
       </p>
 
       <div className="sol-paneel__voet">
@@ -190,56 +195,74 @@ export function Feitenpaneel({
           <div key={groep.id} className="sol-feitgroep">
             <h3 className="sol-feitgroep__titel">{groep.naam}</h3>
             <ul className="sol-feiten">
-              {rij.map((feit) => (
-                <li key={feit.id} className="sol-feit">
-                  <span className="sol-feit__ref">{refVan(feit)}</span>
-                  <div className="sol-feit__tekst">
-                    <span>
-                      {feit.tekst}
-                      {feit.periode ? <span className="sol-bericht__meta"> ({feit.periode})</span> : null}
-                      {feit.handmatig ? <span className="sol-feit__eigen">van jou</span> : null}
-                    </span>
-                    {toonBron === feit.id && feit.bronzin ? (
-                      <q className="sol-feit__bron">{feit.bronzin}</q>
-                    ) : null}
-                  </div>
-                  <div className="sol-stuk__knoppen">
-                    {feit.bronzin ? (
-                      <button
-                        type="button"
-                        className="sol-knop sol-knop--stil"
-                        onClick={() => setToonBron(toonBron === feit.id ? null : feit.id)}
-                      >
-                        Bron
-                      </button>
-                    ) : null}
+              {rij.map((feit) => {
+                const uitgeklapt = toonBron === feit.id;
+                return (
+                  <li key={feit.id} className="sol-feit">
+                    {/* Eén knop over de hele regel in plaats van drie knoppen
+                        ernaast. In een kolom van 26rem brak de tekst anders over
+                        vier regels met de knoppen ertussendoor, en dan is een
+                        lijst van veertig feiten niet meer te overzien. Wat je
+                        zelden doet (bewerken, weggooien) komt tevoorschijn als
+                        je een feit openklapt; wat je altijd doet (lezen) staat
+                        er meteen. */}
                     <button
                       type="button"
-                      className="sol-knop sol-knop--stil"
-                      onClick={() => beginBewerken(feit)}
-                      disabled={bezig}
+                      className="sol-feit__regel"
+                      onClick={() => setToonBron(uitgeklapt ? null : feit.id)}
+                      aria-expanded={uitgeklapt}
                     >
-                      Bewerk
+                      <span className="sol-feit__ref">{refVan(feit)}</span>
+                      <span className="sol-feit__tekst">
+                        {feit.tekst}
+                        {feit.periode ? (
+                          <span className="sol-bericht__meta"> ({feit.periode})</span>
+                        ) : null}
+                        {feit.handmatig ? <span className="sol-feit__eigen">van jou</span> : null}
+                      </span>
                     </button>
-                    <button
-                      type="button"
-                      className="sol-knop sol-knop--stil"
-                      onClick={() => {
-                        if (window.confirm(`${refVan(feit)} van de kaart halen?`)) {
-                          void onVerwijderen(feit.id);
-                        }
-                      }}
-                      disabled={bezig}
-                    >
-                      Weg
-                    </button>
-                  </div>
-                </li>
-              ))}
+
+                    {uitgeklapt ? (
+                      <div className="sol-feit__open">
+                        {feit.bronzin ? (
+                          <q className="sol-feit__bron">{feit.bronzin}</q>
+                        ) : (
+                          <p className="sol-veld__teller">
+                            Dit feit heb je zelf gezet, dus er is geen bronzin uit je dossier.
+                          </p>
+                        )}
+                        <div className="sol-stuk__knoppen">
+                          <button
+                            type="button"
+                            className="sol-knop sol-knop--stil"
+                            onClick={() => beginBewerken(feit)}
+                            disabled={bezig}
+                          >
+                            Bewerk
+                          </button>
+                          <button
+                            type="button"
+                            className="sol-knop sol-knop--stil"
+                            onClick={() => {
+                              if (window.confirm(`${refVan(feit)} van de kaart halen?`)) {
+                                void onVerwijderen(feit.id);
+                              }
+                            }}
+                            disabled={bezig}
+                          >
+                            Weg
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         );
       })}
+
     </section>
   );
 }

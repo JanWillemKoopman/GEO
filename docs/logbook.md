@@ -8348,3 +8348,71 @@ zijn alle vier groen. Nog steeds ongemeten, en dat wordt met elke ronde belangri
 omgeving geen OpenAI-sleutel, dus er is nog geen enkele echte uitleesronde en geen enkele echte
 brief gedraaid. Wat het vangnet in de praktijk tegenhoudt, hoeveel van de aangeleverde feiten
 sneuvelen op hun bronzin, is precies het cijfer dat na de eerste ronde in dit logboek hoort te staan.
+
+---
+
+## 15 september 2026: de feitenkaart teruggedraaid van grens naar spiegel
+
+Een dag na het bouwen van de feitenkaart stelde de eigenaar de vraag die ik zelf had moeten stellen:
+is Sol met tien documenten en een vacaturetekst niet gewoon in staat een goede brief te schrijven,
+en ketenen we hem niet vast? Hij had gelijk. Dit is de correctie.
+
+**Wat er mis was.** Het patroon komt uit `lib/pipeline/factcard.ts`, en de aanleiding daar is echt
+gemeten: van 16 beweringen op een gegenereerde pagina waren er 5 verzonnen. Maar die tekst gaat
+zonder tussenkomst naar de site van een klant. Niemand leest hem na, en een verzinsel is een
+probleem van die klant. Hier is alles omgekeerd: de schrijver is zelf het onderwerp van de feiten,
+leest elke brief voor verzending, en ziet in twee seconden of iets klopt. De grens kocht dus weinig.
+
+Kostte wel veel, op drie manieren. Wat de uitleesronde miste was voor de brief weg, en er komen
+hoogstens 60 feiten uit een dossier van tien documenten. De uitleesprompt verbiedt afleiden ("staat
+er 2019 tot 2026, dan is zeven jaar ervaring een afleiding"), wat juist is voor het uitlezen maar
+via de gesloten lijst ook de bríef verbood om te combineren, terwijl "zeven jaar in dezelfde rol"
+precies de zin is die werkt. En een model dat per zin een nummer moet plaatsen, schrijft één
+bewering per zin, dus vlakker.
+
+**En het was erger dan ik dacht.** Bij het nakijken bleek dat `bouwInvoer()` het volledige dossier
+al meestuurde NAAST de kaart. De instructie verbood dus materiaal dat er gewoon bij lag. Dat is de
+slechtste van twee werelden: de volle prijs in tokens, en een rem op het beste model dat we hebben.
+
+**Wat er nu staat.** De kaart blijft, in een andere rol:
+
+- Uit de prompt: "de lijst is gesloten", "bestaat voor deze brief niet", en de [F]-nummers in de
+  brief. In het feitenblok staan de nummers ook niet meer, anders plakt het model ze er alsnog in.
+- In de prompt: dit is het concreetste materiaal, gebruik het waar het past, het dossier blijft je
+  bron, en combineren mag uitdrukkelijk wel.
+- De kaart is een spiegel op je dossier. Staan er na een uitleesronde drie punten met een getal in,
+  dan weet je dat je dossier je te weinig munitie geeft. Dat is informatie over jou.
+- De controle is verhuisd naar ná het schrijven: `lib/solliciteren/herkomst.ts` zoekt elk getal en
+  elke naam uit de brief op in het dossier en de vacature. Aanwijzen achteraf kost geen enkele zin
+  creativiteit; verbieden vooraf wel. Het vangt bovendien precies de categorie die echt misgaat: een
+  model verzint zelden een houding, het verzint een cijfer of een werkgever.
+
+**De controle is meteen op zijn eigen valse alarm gestuit, en dat is nuttig gebleken.** Op een
+proefbrief wees hij vier namen aan: "De Vries" uit de aanhef en "Jan Willem Koopman" uit de
+ondertekening. Alle vier terecht in de zin dat ze niet in het dossier staan, en alle vier volstrekt
+nutteloos: je eigen naam staat zelden in je eigen CV-tekst en de ontvanger typ je zelf. Vier valse
+treffers op een goede brief is genoeg om de hele controle weg te klikken, en dan vangt hij het
+verzonnen bedrag ook niet meer. De aanhef en alles vanaf de afsluiting tellen daarom niet mee voor
+de naamcontrole; getallen worden er wél geteld. Dat is nagemeten op de schermafbeelding en zit als
+controle in `test-unit.ts`.
+
+**Wat de controle niet vindt, staat op het scherm.** Een getal dat voluit geschreven is ("van negen
+naar vijf dagen") wordt niet gevonden, want het staat als woord in de brief en misschien als cijfer
+in het dossier. Een lijst die belooft alles te vinden is gevaarlijker dan een lijst die zegt wat hij
+doet, dus er staat een voetnoot onder.
+
+**Twee schermdingen die uit de schermafbeelding kwamen.** Er stond "Er ligt 119 woorden aan
+brieven", dat is nu "Er liggen". En de lijsten in de linkerkolom hadden per regel twee of drie
+knoppen naast de tekst, waardoor "Projectleider bij Van Dijk Installatie" over vier regels brak met
+de knoppen ertussendoor. De hele regel is nu één knop: een dossierstuk opent de bewerker, een feit
+klapt open met zijn bronzin en zijn acties. De kolom ging van 23 naar 26rem, en een te lange titel
+krijgt drie puntjes in plaats van een tweede regel.
+
+**Wat dit zegt over de tien conventies.** Conventie 1 (elke promptinstructie een vangnet in code)
+staat nog overeind, en dat was het misverstand niet. Het misverstand was het soort vangnet: een
+vangnet dat vooraf verbiedt kost kwaliteit, een vangnet dat achteraf aanwijst niet. Bij een tekst
+die automatisch publiceert is het eerste de enige optie. Bij een tekst met een mens ervoor is het
+tweede beter, en dat onderscheid stond nergens opgeschreven. Nu wel.
+
+`tsc --noEmit`, `test:unit` (4646 geslaagd), `test:chain` (650 geslaagd) en `build` zijn alle vier
+groen. De schermen zijn nagekeken op een echte weergave van 1440 pixels breed.

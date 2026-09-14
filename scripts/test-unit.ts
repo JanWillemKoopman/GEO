@@ -505,17 +505,18 @@ import {
   KOP_BRIEF,
   KOP_OPDRACHT,
   KOP_VACATURE,
-  MINIMUM_FEITEN_IN_BRIEF,
   bouwFeitenblok,
-  controleerAntwoord,
   isGeldigeCategorie,
-  leesVerwijzingen,
   refVan,
   splitsAntwoord,
-  stripVerwijzingen,
   zeefFeiten,
   type Feit,
 } from "@/lib/solliciteren/feiten";
+import {
+  MAX_ONVINDBAAR,
+  zoekOnvindbaar,
+  zonderAanhefEnOndertekening,
+} from "@/lib/solliciteren/herkomst";
 import { splitsInAlineas, splitsInZinnen, telWoorden } from "@/lib/solliciteren/woorden";
 import { estimateCostUsd, hasKnownRate } from "@/lib/openai/pricing";
 import { MODELS } from "@/lib/openai/models";
@@ -14461,110 +14462,31 @@ group("de assistent: wat er de aanroep in gaat", () => {
 // ook maar iets wat het model zegt te doen. Aanleiding staat in
 // `lib/pipeline/factcard.ts`: van 16 beweringen op een gegenereerde pagina waren
 // er 5 verzonnen, en precies daar waar de tekst een concreet feit nodig had.
-group("de assistent: de feitenkaart is gesloten en wordt nagerekend", () => {
+group("de assistent: de feitenkaart is een spiegel en geen grens", () => {
   const feiten: Feit[] = [
     { id: "a", nummer: 1, categorie: "werk", tekst: "Projectleider bij Van Dijk", periode: "2019 tot 2026", bronzin: "Projectleider bij Van Dijk, 2019 tot 2026.", handmatig: false },
     { id: "b", nummer: 3, categorie: "resultaat", tekst: "Doorlooptijd van negen naar vijf dagen", periode: null, bronzin: "De doorlooptijd ging van negen naar vijf dagen.", handmatig: false },
-    { id: "c", nummer: 7, categorie: "vaardigheid", tekst: "Stuurt zes monteurs aan", periode: null, bronzin: "Mijn ploeg telt zes monteurs.", handmatig: true },
-    { id: "d", nummer: 9, categorie: "opleiding", tekst: "MTS werktuigbouwkunde", periode: "2015", bronzin: "MTS werktuigbouwkunde, 2015.", handmatig: false },
   ];
 
-  ok("het nummer is het label", refVan(feiten[1]) === "F3");
+  ok("het nummer blijft een handvat op het scherm", refVan(feiten[1]) === "F3");
   ok("elke categorie zegt waarvoor hij is", CATEGORIEEN.every((c) => c.waarvoor.length > 20));
   ok("een verzonnen categorie wordt geweigerd", !isGeldigeCategorie("prestatie"));
   ok("en een echte niet", isGeldigeCategorie("resultaat"));
 
   const blok = bouwFeitenblok(feiten);
-  ok("het blok zegt dat de lijst volledig is", Boolean(blok?.includes("VOLLEDIGE lijst")));
-  ok("en dat de rest niet bestaat", Boolean(blok?.includes("bestaat voor deze brief niet")));
-  ok("de nummers staan erin zoals de brief ze gebruikt", Boolean(blok?.includes("F3: Doorlooptijd")));
+  ok("het blok bestaat", Boolean(blok));
+  ok("de feiten staan erin", Boolean(blok?.includes("Doorlooptijd van negen naar vijf dagen")));
   ok("een periode gaat mee waar hij er is", Boolean(blok?.includes("(2019 tot 2026)")));
   ok("zonder feiten is er geen blok", bouwFeitenblok([]) === null);
 
-  // ── Het antwoord in drie delen ──────────────────────────────────────────
-  const antwoord = [
-    KOP_VACATURE,
-    "Ze zoeken iemand die de planning bewaakt.",
-    "",
-    KOP_OPDRACHT,
-    "Lezer: de teamleider.",
-    "Waarom jij: je hebt dit precies zo gedaan.",
-    "Kernfeiten: F1, F3, F7",
-    "Weglaten: de studie.",
-    "",
-    KOP_BRIEF,
-    "Geachte heer De Vries,",
-    "Ik werk sinds 2019 als projectleider bij Van Dijk. [F1]",
-    "Daar bracht ik de doorlooptijd terug van negen naar vijf dagen. [F3]",
-    "Mijn ploeg telt zes monteurs. [F7]",
-    "Ik volgde de MTS werktuigbouwkunde. [F9]",
-    "Met vriendelijke groet,",
-  ].join("\n");
-
-  const delen = splitsAntwoord(antwoord);
-  ok("de vacature wordt eruit geknipt", delen.vacature.includes("planning bewaakt"));
-  ok("de schrijfopdracht ook", delen.opdracht.includes("Lezer: de teamleider"));
-  ok("en de brief ook", delen.brief.includes("Geachte heer De Vries"));
-  ok("de kopjes lekken niet naar elkaar", !delen.vacature.includes("Lezer:") && !delen.opdracht.includes("Geachte"));
-
-  const controle = controleerAntwoord(antwoord, feiten);
-  ok("de gebruikte feiten worden geteld", controle.gebruikt.length === 4, controle.gebruikt.join(", "));
-  ok("er zijn geen onbekende nummers", controle.onbekend.length === 0);
-  ok("de brief doet wat de opdracht beloofde", controle.beloofdNietGebruikt.length === 0);
-  ok("en er zijn dus geen bevindingen", controle.bevindingen.length === 0, controle.bevindingen.map((b) => b.melding).join(" | "));
-
-  // ── Een verwijzing naar iets dat niet bestaat ───────────────────────────
-  //
-  // Dit is de fout die het hele patroon moet vangen: een zin die overtuigend
-  // klinkt en nergens op steunt. Blokkerend, want die zin hoort de brief uit.
-  const verzonnen = antwoord.replace("[F9]", "[F42]");
-  const kapot = controleerAntwoord(verzonnen, feiten);
-  ok("een onbekend nummer wordt gevonden", kapot.onbekend.includes(42));
-  ok("en dat is blokkerend", kapot.bevindingen.some((b) => b.ernst === "blokkerend"));
-  ok("met het nummer in de melding", kapot.bevindingen.some((b) => b.melding.includes("F42")));
-
-  // ── Een brief zonder enkele verwijzing ──────────────────────────────────
-  const zonder = [KOP_BRIEF, "Ik ben een echte aanpakker en zoek een nieuwe uitdaging."].join("\n");
-  const leeg = controleerAntwoord(zonder, feiten);
-  ok("een brief zonder feiten is blokkerend", leeg.bevindingen.some((b) => b.ernst === "blokkerend"));
-  ok("zonder feitenkaart wordt er niets aangewezen", controleerAntwoord(zonder, []).bevindingen.length === 0);
-
-  // ── Te mager, en een gebroken belofte ───────────────────────────────────
-  const mager = [KOP_BRIEF, "Ik werk bij Van Dijk. [F1]", "Dat bevalt goed."].join("\n");
-  const magerControle = controleerAntwoord(mager, feiten);
-  ok(
-    "een brief op te weinig feiten valt op",
-    magerControle.bevindingen.some((b) => b.melding.includes(`${MINIMUM_FEITEN_IN_BRIEF}`)),
-  );
-
-  const gebroken = [
-    KOP_OPDRACHT, "Kernfeiten: F1, F3, F7", "",
-    KOP_BRIEF, "Ik werk bij Van Dijk. [F1]", "Mijn ploeg telt zes monteurs. [F7]", "En de MTS. [F9]", "Nog iets. [F3]",
-  ].join("\n");
-  ok("een nagekomen belofte geeft geen melding", controleerAntwoord(gebroken, feiten).beloofdNietGebruikt.length === 0);
-
-  const niet = gebroken.replace("Nog iets. [F3]", "Nog iets.");
-  const nietControle = controleerAntwoord(niet, feiten);
-  ok("een gebroken belofte wordt gevonden", nietControle.beloofdNietGebruikt.includes(3));
-  ok("en is een let-op en geen blokkade", nietControle.bevindingen.some((b) => b.ernst === "let-op" && b.melding.includes("F3")));
-
-  // Zonder briefkopje valt er niets na te rekenen, en dat is zelf de bevinding.
-  const vormloos = controleerAntwoord("Hier is je brief, veel succes.", feiten);
-  ok("een antwoord zonder briefkopje zegt dat", vormloos.bevindingen.some((b) => b.melding.includes("briefdeel")));
-
-  // ── De nummers gaan eruit bij het kopiëren ──────────────────────────────
-  ok(
-    "de verwijzing verdwijnt en de punt blijft",
-    stripVerwijzingen("Ik werk bij Van Dijk. [F1]") === "Ik werk bij Van Dijk.",
-  );
-  ok(
-    "ook midden in een zin",
-    stripVerwijzingen("Ik deed dit [F3] en dat.") === "Ik deed dit en dat.",
-  );
-  ok("meerdere nummers tegelijk", stripVerwijzingen("Zo. [F3, F12]") === "Zo.");
-  ok("gewone blokhaken blijven staan", stripVerwijzingen("[dit weet ik niet: salaris]") === "[dit weet ik niet: salaris]");
-
-  ok("verwijzingen worden ontdubbeld", leesVerwijzingen("[F3] en nog eens [F3] en [F7]").length === 2);
+  // ⚠️ Dit is de kern van de omkering van 15 september 2026. Stond hier nog een
+  // gesloten lijst of een F-nummer, dan zou het model die nummers in de brief
+  // gaan plakken en zou de schrijver weer vastzitten aan wat de uitleesronde
+  // toevallig gevonden heeft.
+  ok("het blok zegt NIET dat de lijst gesloten is", !blok?.includes("VOLLEDIGE lijst"));
+  ok("en niet dat de rest niet bestaat", !blok?.includes("bestaat voor deze brief niet"));
+  ok("het zegt juist dat het dossier de bron blijft", Boolean(blok?.includes("het dossier zelf blijft de bron")));
+  ok("er staan geen F-nummers in het blok", !/\bF\d/.test(blok ?? ""));
 });
 
 // ⚠️ De bronzin is de enige reden dat de kaart te vertrouwen is. Het model krijgt
@@ -14614,7 +14536,7 @@ group("de assistent: een feit zonder aanwijsbare bronzin haalt de kaart niet", (
   ok("hetzelfde feit staat er maar één keer op", dubbel.length === 1);
 });
 
-group("de assistent: de prompt legt de brief aan de kaart vast", () => {
+group("de assistent: de prompt nodigt uit en verbiedt niet", () => {
   const feiten: Feit[] = [
     { id: "a", nummer: 1, categorie: "werk", tekst: "Projectleider", periode: null, bronzin: "Projectleider.", handmatig: false },
   ];
@@ -14623,7 +14545,7 @@ group("de assistent: de prompt legt de brief aan de kaart vast", () => {
   const met = bouwSysteemprompt({ feiten: feiten.length });
 
   // De drie kopjes zijn de vorm waar `splitsAntwoord()` op knipt. Lopen die twee
-  // uit elkaar, dan valt er niets meer na te rekenen zonder dat er iets kapot
+  // uit elkaar, dan valt er niets meer te controleren zonder dat er iets kapot
   // lijkt te zijn.
   for (const kop of [KOP_VACATURE, KOP_OPDRACHT, KOP_BRIEF]) {
     ok(`de prompt schrijft "${kop}" voor`, met.includes(kop) && zonder.includes(kop));
@@ -14631,11 +14553,19 @@ group("de assistent: de prompt legt de brief aan de kaart vast", () => {
   ok("de schrijfopdracht vraagt waarom juist deze kandidaat", met.includes("Waarom jij:"));
   ok("en wat er weggelaten wordt", met.includes("Weglaten:"));
 
-  ok("met een kaart is de lijst gesloten", met.includes("GESLOTEN"));
-  ok("en wordt er om nummers gevraagd", met.includes("[F12]"));
-  ok("zonder kaart staat die opdracht er niet", !zonder.includes("FEITENKAART IS GESLOTEN"));
-  ok("en vraagt hij niet om nummers die niet bestaan", !zonder.includes("[F12]"));
-  ok("zonder kaart valt hij terug op het dossier", zonder.includes("alleen wat in het dossier"));
+  // ⚠️ De omkering van 15 september 2026, langs de kant van de prompt.
+  ok("de prompt sluit de lijst niet af", !met.includes("GESLOTEN"));
+  ok("en vraagt niet om nummers in de brief", !met.includes("[F12]"));
+  ok("hij zegt dat het dossier de bron blijft", met.includes("het dossier"));
+  ok("en staat combineren uitdrukkelijk toe", met.includes("Combineren mag"));
+  ok("zonder kaart staat dat blok er niet", !zonder.includes("HET CONCREETSTE MATERIAAL"));
+
+  // Verzinnen blijft verboden, met of zonder kaart. Dat is geen grens op het
+  // materiaal maar op het model, en die blijft staan.
+  for (const prompt of [met, zonder]) {
+    ok("verzinnen blijft verboden", prompt.includes("verzin je niet"));
+    ok("met de uitweg erbij", prompt.includes("[dit weet ik niet:"));
+  }
 
   const invoer = bouwInvoer({
     dossier: [{ id: "1", soort: "cv", titel: "CV", inhoud: "Projectleider." }],
@@ -14645,9 +14575,116 @@ group("de assistent: de prompt legt de brief aan de kaart vast", () => {
     historie: [],
     vraag: "?",
   });
-  // De kaart vóór het dossier: hij is korter, hij is de grens, en hij verandert
-  // minder vaak dan het dossier zelf.
-  ok("de feitenkaart staat vóór het dossier", invoer[1].content.includes("F1:") && invoer[2].content.includes("=== CV:"));
+  ok("de uitgelichte punten staan vóór het dossier", invoer[1].content.includes("concreetste") && invoer[2].content.includes("=== CV:"));
+  ok("en het dossier gaat nog steeds voluit mee", invoer[2].content.includes("Projectleider."));
+});
+
+// ⚠️ Deze groep verving op 15 september 2026 de controle op F-nummers. De
+// feitenkaart stond tot die dag als GESLOTEN lijst in de prompt: wat er niet op
+// stond mocht de brief niet beweren. Dat patroon komt uit het hoofdproduct, waar
+// de tekst zonder tussenkomst naar de site van een klant gaat. Hier leest de
+// schrijver elke brief na en is hij zelf het onderwerp, dus de grens kocht weinig
+// en kostte veel: wat de uitleesronde miste was voor de brief weg, en een model
+// dat per zin moet verantwoorden schrijft vlakker.
+//
+// De controle is verhuisd naar ná het schrijven. Hij zoekt op wat woordelijk op
+// te zoeken is, getallen en namen, en wijst aan zonder iets te verbieden.
+group("de assistent: getallen en namen uit de brief worden opgezocht in je materiaal", () => {
+  const bronnen = [
+    "Projectleider bij Van Dijk Installatie, 2019 tot 2026.",
+    "Mijn ploeg telt zes monteurs en drie leerlingen.",
+    "Vorig jaar leverden wij elf projecten op tijd op.",
+    "Van Beek Installatietechniek zoekt een projectleider in Utrecht.",
+  ].join("\n");
+
+  const klopt =
+    "Ik werk sinds 2019 bij Van Dijk Installatie. Bij Van Beek zou ik dat in Utrecht voortzetten.";
+  ok("wat in het materiaal staat wordt niet aangewezen", zoekOnvindbaar(klopt, bronnen).length === 0,
+    zoekOnvindbaar(klopt, bronnen).map((v) => v.waarde).join(", "));
+
+  // Dit is de fout die deze controle moet vangen: een cijfer dat nergens staat
+  // en dat de zin juist overtuigend maakt.
+  const verzonnen = "Ik bespaarde het bedrijf 40.000 euro per jaar.";
+  const geld = zoekOnvindbaar(verzonnen, bronnen);
+  ok("een verzonnen bedrag wordt gevonden", geld.length === 1, geld.map((v) => v.waarde).join(", "));
+  ok("en het is een getal", geld[0]?.soort === "getal");
+  ok("met de zin erbij, zodat je ziet waar het over gaat", Boolean(geld[0]?.zin.includes("bespaarde")));
+
+  const werkgever = zoekOnvindbaar("Daarvoor werkte ik bij Heijmans aan de spoorzone.", bronnen);
+  ok("een verzonnen werkgever wordt gevonden", werkgever.some((v) => v.waarde === "Heijmans"));
+  ok("en het is een naam", werkgever.find((v) => v.waarde === "Heijmans")?.soort === "naam");
+
+  // Een hoofdletter aan het begin van een zin is interpunctie en geen naam.
+  ok(
+    "het eerste woord van een zin telt niet als naam",
+    zoekOnvindbaar("Daarnaast stuurde ik een ploeg aan. Vervolgens ging het beter.", bronnen).length === 0,
+  );
+  // Zonder deze lijst wijst elke brief "Geachte" en "Met" aan, en dan klikt
+  // iemand de controle na twee keer weg.
+  ok(
+    "beleefdheidsvormen tellen niet als naam",
+    zoekOnvindbaar("Ik schrijf u, Geachte heer De Vries. Ik groet u, Met vriendelijke groet.", bronnen)
+      .every((v) => !["Geachte", "Met", "vriendelijke"].includes(v.waarde)),
+  );
+
+  // Een scheidingsteken in een getal mag niet uitmaken: 40.000 en 40000 zijn
+  // hetzelfde bedrag, en het dossier en de brief schrijven dat zelden gelijk.
+  ok(
+    "punten en komma's in een getal maken niet uit",
+    zoekOnvindbaar("Ik haalde 40.000 euro binnen.", "Hij haalde 40000 euro binnen.").length === 0,
+  );
+
+  // Eén cijfer is bijna altijd een opsomming of een spelling, en levert te veel
+  // loos alarm om bruikbaar te zijn.
+  ok("losse cijfers worden overgeslagen", zoekOnvindbaar("Ik deed 3 dingen.", bronnen).length === 0);
+
+  // ⚠️ Nagemeten op een proefbrief op 15 september 2026: de controle wees vier
+  // namen aan, en dat waren de aanhef en de ondertekening. Allebei terecht in de
+  // zin dat ze niet in het dossier staan, en allebei nutteloos: je eigen naam
+  // staat zelden in je eigen CV-tekst en de ontvanger typ je zelf. Vier valse
+  // treffers op een goede brief is genoeg om de controle weg te klikken, en dan
+  // vangt hij het verzonnen bedrag ook niet meer.
+  const heleBrief = [
+    "Geachte heer De Vries,",
+    "",
+    "Ik werk sinds 2019 bij Van Dijk Installatie.",
+    "",
+    "Met vriendelijke groet,",
+    "Jan Willem Koopman",
+  ].join("\n");
+  const opNaam = zoekOnvindbaar(heleBrief, bronnen);
+  ok("de aanhef levert geen valse treffer", !opNaam.some((v) => v.waarde === "Vries"), opNaam.map((v) => v.waarde).join(", "));
+  ok("de ondertekening ook niet", !opNaam.some((v) => ["Jan", "Willem", "Koopman"].includes(v.waarde)));
+  ok("en er blijft dus niets over", opNaam.length === 0, opNaam.map((v) => v.waarde).join(", "));
+
+  // Maar een verzonnen naam in de ROMP moet er nog steeds uit komen, anders is
+  // de uitzondering een gat.
+  const metVerzinsel = heleBrief.replace(
+    "Ik werk sinds 2019 bij Van Dijk Installatie.",
+    "Ik werk sinds 2019 bij Van Dijk Installatie. Daarvoor zat ik bij Heijmans.",
+  );
+  ok(
+    "een verzonnen naam in de romp komt er nog wel uit",
+    zoekOnvindbaar(metVerzinsel, bronnen).some((v) => v.waarde === "Heijmans"),
+  );
+
+  const ingekort = zonderAanhefEnOndertekening(heleBrief);
+  ok("de aanhef is eraf", !ingekort.includes("Geachte"));
+  ok("de ondertekening is eraf", !ingekort.includes("Koopman"));
+  ok("de romp blijft heel", ingekort.includes("Van Dijk Installatie"));
+  // Zonder herkenbare aanhef of afsluiting blijft alles staan: liever één naam
+  // te veel aangewezen dan de halve brief stilzwijgend overslaan.
+  ok("een brief zonder aanhef blijft compleet", zonderAanhefEnOndertekening("Zomaar een zin.").includes("Zomaar"));
+
+  ok("zonder bronmateriaal wordt er niets aangewezen", zoekOnvindbaar(verzonnen, "   ").length === 0);
+  ok("zonder brief ook niet", zoekOnvindbaar("", bronnen).length === 0);
+
+  const veel = zoekOnvindbaar(
+    Array.from({ length: 20 }, (_, i) => `Ik haalde ${1000 + i * 111} euro binnen.`).join(" "),
+    bronnen,
+  );
+  ok("de lijst is begrensd", veel.length <= MAX_ONVINDBAAR, `${veel.length}`);
+  ok("hetzelfde getal staat er maar één keer in", zoekOnvindbaar("Ik deed 25 en nog eens 25.", bronnen).length === 1);
 });
 
 group("de assistent: schrijven loopt via een route met een eigenaarscontrole", () => {

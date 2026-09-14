@@ -113,15 +113,16 @@ schrijft een brief die je daarna bijstuurt ("enthousiaster", "kort deze alinea i
 komt woord voor woord binnen. Per bericht kies je het model en hoeveel het mag nadenken, en per
 bericht wordt bewaard wat die keuze was en wat hij kostte.
 
-Het hart ervan is de **feitenkaart**: je dossier wordt één keer uitgelezen tot een genummerde,
-gesloten lijst van wat een brief over je mag beweren, met per feit de zin uit je dossier waar het op
-steunt. Alles wat er niet op staat, komt er niet in. De brief zet achter elke bewerende zin het
-nummer waarop hij steunt, code rekent na of dat nummer bestaat, en bij het kopiëren gaan de nummers
-er automatisch uit.
+De assistent schrijft vrij uit je volledige dossier. Er is een **feitenkaart** die je dossier
+uitleest tot de concreetste punten, met per feit de zin waar het op steunt, maar dat is een spiegel
+en geen grens: hij laat zien of je dossier genoeg concreets bevat, en gaat als zetje mee de prompt
+in. De controle op verzinsels gebeurt ná het schrijven, door elk getal en elke naam uit de brief op
+te zoeken in je materiaal. Aanwijzen achteraf kost geen creativiteit, verbieden vooraf wel.
 
-Drie dingen eromheen rekenen zonder AI, dus zonder kosten en met elke keer dezelfde uitkomst: welke
+Vier dingen eromheen rekenen zonder AI, dus zonder kosten en met elke keer dezelfde uitkomst: welke
 woorden uit de vacature nog niet in je materiaal staan, welke standaardzinnen er in een geschreven
-brief staan, en **hoe jij zelf schrijft**. Dat laatste wordt gemeten aan je eigen eerdere brieven,
+brief staan, welke getallen en namen nergens in je materiaal voorkomen, en **hoe jij zelf
+schrijft**. Dat laatste wordt gemeten aan je eigen eerdere brieven,
 zinslengte, aanspreekvorm, hoe vaak je met "Ik" begint, en gaat als harde opdracht mee; elke
 geschreven brief wordt er daarna weer naast gelegd. Alle drie zijn ze het vangnet onder een
 promptinstructie (conventie 1): een instructie is een verzoek, een meting niet.

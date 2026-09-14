@@ -32,7 +32,6 @@ import {
   KOP_BRIEF,
   KOP_OPDRACHT,
   KOP_VACATURE,
-  MINIMUM_FEITEN_IN_BRIEF,
   bouwFeitenblok,
   type Feit,
 } from "@/lib/solliciteren/feiten";
@@ -92,9 +91,7 @@ export function bouwSysteemprompt(opts: { stem?: Stemprofiel | null; feiten?: nu
     "De keuze die je maakt vóór je schrijft, in vier regels:",
     "Lezer: wie leest deze brief, en wat moet die persoon na één alinea begrijpen.",
     "Waarom jij: waarom zou deze werkgever juist deze kandidaat kiezen boven de zestig anderen.",
-    heeftFeiten
-      ? "Kernfeiten: de F-nummers die de brief gaan dragen, tussen de drie en de zes."
-      : "Kern: de twee of drie dingen uit het dossier die de brief gaan dragen.",
+    "Kern: de drie of vier dingen uit het dossier die de brief gaan dragen, in je eigen woorden.",
     "Weglaten: wat er verleidelijk in zou kunnen, maar niet in deze brief hoort.",
     "",
     "Deze vier regels zijn het belangrijkste deel van je werk. Een schrijver met veertig feiten kiest",
@@ -113,24 +110,35 @@ export function bouwSysteemprompt(opts: { stem?: Stemprofiel | null; feiten?: nu
     "alinea die geschrapt kan worden.",
   ];
 
-  // ⚠️ De feitenkaart is een GESLOTEN lijst, en dat is het hele punt. Een
-  // dossier meegeven met "gebruik dit waar het past" is een uitnodiging;
-  // "alleen wat hieronder staat, met het nummer erbij" is een grens, en
-  // `controleerAntwoord()` in lib/solliciteren/feiten.ts rekent hem na.
+  // ⚠️ DIT BLOK IS OP 15 SEPTEMBER 2026 OMGEDRAAID.
+  //
+  // Het stond er als GESLOTEN lijst: "alles wat hier niet op staat, bestaat
+  // voor deze brief niet". Dat patroon komt uit `lib/pipeline/factcard.ts`, en
+  // daar hoort het: die tekst gaat zonder tussenkomst naar de site van een
+  // klant, dus een onbewezen bewering is een probleem van die klant.
+  //
+  // Hier is het omgekeerd. De schrijver is zelf het onderwerp van de feiten,
+  // leest elke brief na, en ziet in twee seconden of iets klopt. De grens kocht
+  // dus weinig, en kostte veel: wat de uitleesronde miste was voor de brief
+  // weg, de kaart mocht niets afleiden dus de brief ook niet, en een model dat
+  // per zin moet verantwoorden schrijft vlakker. Het dossier ging bovendien
+  // voluit mee NAAST de kaart, dus de instructie verbood materiaal dat er wel
+  // degelijk lag.
+  //
+  // De kaart blijft, als uitnodiging in plaats van als grens: dit is het
+  // concreetste materiaal, gebruik het waar het past. De controle op verzinsels
+  // is verhuisd naar ná het schrijven (`lib/solliciteren/herkomst.ts`), waar hij
+  // aanwijst zonder iets te verbieden.
   if (heeftFeiten) {
     regels.push(
       "",
-      "DE FEITENKAART IS GESLOTEN",
-      "Je krijgt hieronder een genummerde feitenkaart. Dat is ALLES wat je over deze persoon mag",
-      "beweren. Staat iets er niet op, dan bestaat het voor deze brief niet, ook niet als het in het",
-      "dossier tussen de regels door te lezen is.",
-      "Zet achter elke zin in de brief die op een feit steunt het nummer ervan, tussen blokhaken, zo:",
-      "\"Ik bracht de doorlooptijd terug van negen naar vijf dagen. [F12]\"",
-      "Meerdere feiten in één zin: [F3, F12].",
-      `De brief steunt op minstens ${MINIMUM_FEITEN_IN_BRIEF} verschillende feiten. Lukt dat niet, zeg dat dan onder de brief.`,
-      "Verbindende zinnen en zinnen over de werkgever hoeven geen nummer. Een zin die iets beweert",
-      "over wat deze persoon heeft gedaan of kan, altijd wel.",
-      "De nummers blijven in de brief staan. Ze worden er bij het kopiëren automatisch uitgehaald.",
+      "HET CONCREETSTE MATERIAAL",
+      "Hieronder staat een lijst met de concreetste punten uit het dossier: rollen, resultaten,",
+      "getallen, jaartallen. Dat is geen afgesloten lijst en geen verbod op de rest; het dossier",
+      "eronder blijft je bron en je mag er alles uit gebruiken.",
+      "Waar het kan draagt een alinea een van deze punten, want dat is wat een brief onderscheidt",
+      "van een brief over houding. Combineren mag en is vaak beter: staat er \"2019 tot 2026 bij",
+      "Van Dijk\", dan mag je schrijven dat iemand daar zeven jaar werkte.",
     );
   }
 
@@ -138,6 +146,9 @@ export function bouwSysteemprompt(opts: { stem?: Stemprofiel | null; feiten?: nu
   // (lib/solliciteren/stem.ts) en worden na afloop nagemeten met `toetsStem()`.
   // Zonder gemeten brieven staat er niets: een verzonnen stijlvoorschrift is
   // erger dan geen, want het legt een register op dat van niemand is.
+  //
+  // Dit is de enige plek waar de prompt de schrijver wél iets oplegt, en dat is
+  // met opzet: het zijn zijn eigen maten, geen smaak van ons of van het model.
   if (stem) {
     regels.push(
       "",
@@ -159,9 +170,10 @@ export function bouwSysteemprompt(opts: { stem?: Stemprofiel | null; feiten?: nu
     "Geen opsomming met bolletjes in de brief zelf. Een brief is lopende tekst.",
     "",
     "WAT JE NOOIT VERZINT",
-    heeftFeiten
-      ? "Je beweert alleen wat op de feitenkaart staat. Mist er iets wat de brief nodig heeft, dan zet je er [dit weet ik niet: ...] neer en vraag je er onder de brief naar."
-      : "Je gebruikt alleen wat in het dossier of de vacature staat. Mist er iets wat de brief nodig heeft, dan zet je er [dit weet ik niet: ...] neer en vraag je er onder de brief naar.",
+    "Je gebruikt alleen wat in het dossier of de vacature staat. Mist er iets wat de brief nodig",
+    "heeft, dan zet je er [dit weet ik niet: ...] neer en vraag je er onder de brief naar.",
+    "Een getal, een jaartal of een werkgever die er niet staat, verzin je niet. Ook niet als de zin",
+    "er beter van wordt.",
     "Een verzonnen jaartal, werkgever of resultaat is erger dan een gat, want een gat ziet de",
     "schrijver zelf en een verzinsel niet.",
     "",

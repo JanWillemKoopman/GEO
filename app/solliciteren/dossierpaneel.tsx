@@ -144,37 +144,39 @@ export function Dossierpaneel({
           if (!document) return null;
           return (
             <li key={stuk.id} className="sol-stuk">
-              <div className="sol-stuk__tekst">
+              {/* De hele regel opent de bewerker. Twee knoppen ernaast pasten
+                  niet naast een lange titel in deze kolom, en "bewerken" is wat
+                  je hier vrijwel altijd wilt. Weggooien blijft een eigen knop,
+                  want dat wil je nooit per ongeluk. */}
+              <button
+                type="button"
+                className="sol-stuk__regel"
+                onClick={() => beginBewerken(document)}
+                disabled={bezig}
+              >
                 <span className="sol-stuk__soort">{vindSoort(stuk.soort).naam}</span>
                 <span className="sol-stuk__titel">{stuk.titel}</span>
-                <span className="sol-bericht__meta">
-                  {stuk.inhoud.length === 0
-                    ? "leeg"
-                    : `${stuk.inhoud.length.toLocaleString("nl-NL")} tekens`}
-                </span>
-              </div>
-              <div className="sol-stuk__knoppen">
-                <button
-                  type="button"
-                  className="sol-knop sol-knop--stil"
-                  onClick={() => beginBewerken(document)}
-                  disabled={bezig}
-                >
-                  Bewerk
-                </button>
-                <button
-                  type="button"
-                  className="sol-knop sol-knop--stil"
-                  onClick={() => {
-                    if (window.confirm(`"${stuk.titel}" uit je dossier halen?`)) {
-                      void onVerwijderen(stuk.id);
-                    }
-                  }}
-                  disabled={bezig}
-                >
-                  Weg
-                </button>
-              </div>
+                {/* Het aantal tekens staat er alleen als het iets betekent. Bij
+                    elk stuk een getal zetten duwde lange titels naar een tweede
+                    regel, en "351 tekens" vertelt je niets wat je wilt weten.
+                    "Leeg" wel: dat is een stuk dat niets bijdraagt. */}
+                {stuk.inhoud.length === 0 ? (
+                  <span className="sol-bericht__meta sol-bericht__meta--let-op">leeg</span>
+                ) : null}
+              </button>
+              <button
+                type="button"
+                className="sol-stuk__weg"
+                onClick={() => {
+                  if (window.confirm(`"${stuk.titel}" uit je dossier halen?`)) {
+                    void onVerwijderen(stuk.id);
+                  }
+                }}
+                disabled={bezig}
+                aria-label={`"${stuk.titel}" uit je dossier halen`}
+              >
+                ×
+              </button>
             </li>
           );
         })}

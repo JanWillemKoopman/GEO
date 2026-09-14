@@ -107,20 +107,13 @@ export function Assistent({
   const stem = useMemo(() => meetStem(brievenUit(stukken)), [stukken]);
   const omvang = useMemo(() => pasDossierIn(stukken).omvang, [stukken]);
   const feitenmateriaal = useMemo(() => feitenmateriaalUit(stukken), [stukken]);
-  // Dezelfde vorm als de server meestuurt, zodat het scherm precies naast de
-  // kaart narekent die de brief heeft gekregen.
-  const kaart = useMemo(
-    () =>
-      feiten.map((f) => ({
-        id: f.id,
-        nummer: f.nummer,
-        categorie: f.categorie,
-        tekst: f.tekst,
-        periode: f.periode,
-        bronzin: f.bronzin,
-        handmatig: f.handmatig,
-      })),
-    [feiten],
+  // Alles wat als bron telt, als één tekst: het dossier plus de vacature. Daarin
+  // zoekt `zoekOnvindbaar()` de getallen en namen uit een geschreven brief op.
+  // De vacature hoort erbij, want de bedrijfsnaam en de functietitel komen
+  // daarvandaan en zijn dus geen verzinsel.
+  const bronnen = useMemo(
+    () => [...stukken.map((s) => s.inhoud), vacature].join("\n\n"),
+    [stukken, vacature],
   );
 
   const vacatureGewijzigd = vacature !== gekoppeld.vacature;
@@ -579,7 +572,7 @@ export function Assistent({
                 kosten={bericht.cost_usd}
                 fout={bericht.fout}
                 stem={stem}
-                feiten={kaart}
+                bronnen={bronnen}
               />
             ))}
 
@@ -592,7 +585,7 @@ export function Assistent({
                 kosten={null}
                 fout={null}
                 stem={stem}
-                feiten={kaart}
+                bronnen={bronnen}
                 bezig
               />
             ) : null}
