@@ -10,12 +10,21 @@ import { toetsStem, type Stemprofiel } from "@/lib/solliciteren/stem";
 /**
  * Eén bericht in het gesprek.
  *
- * ── DE TEKST WORDT NIET OPGEMAAKT ──────────────────────────────────────────
+ * ── DE TEKST WORDT NIET OPGEMAAKT, OP DE DRIE KOPJES NA ────────────────────
  *
- * Geen markdown-omzetting. Een sollicitatiebrief gaat straks in een tekstvak of
- * een e-mail, en dan is wat hier op het scherm staat precies wat je plakt. Een
- * brief die er hier mooier uitziet dan na het kopiëren, is een brief die je twee
- * keer moet opmaken.
+ * Geen markdown-omzetting binnen de brief. Een sollicitatiebrief gaat straks in
+ * een tekstvak of een e-mail, en dan is wat hier op het scherm staat precies wat
+ * je plakt. Een brief die er hier mooier uitziet dan na het kopiëren, is een
+ * brief die je twee keer moet opmaken.
+ *
+ * De drie kopjes van het antwoord zijn de uitzondering. Die zijn geen opmaak
+ * maar structuur: de prompt schrijft ze letterlijk voor en `splitsAntwoord()`
+ * knipt het antwoord erop. Ze als "## Vacature" laten staan is niets anders dan
+ * de lezer de naad laten zien. Ze verdwijnen bovendien nooit in de kopie, want
+ * die pakt alleen het briefdeel, en daar staat geen kopje in.
+ *
+ * Tijdens het streamen blijft de ruwe tekst staan: het antwoord is dan nog niet
+ * compleet, en een kopje dat halverwege verschijnt laat de tekst verspringen.
  *
  * ── TWEE VANGNETTEN ONDER ÉÉN ANTWOORD ─────────────────────────────────────
  *
@@ -67,6 +76,14 @@ export function Bericht({
   bezig?: boolean;
 }) {
   const [gekopieerd, setGekopieerd] = useState(false);
+  // Alleen als het antwoord af is: tijdens het streamen zou een kopje dat
+  // halverwege verschijnt de tekst laten verspringen.
+  const delen = useMemo(
+    () => (rol === "assistent" && !bezig ? splitsAntwoord(inhoud) : null),
+    [rol, inhoud, bezig],
+  );
+  const brief = delen?.brief ?? "";
+
   const cliches = useMemo(
     () => (rol === "assistent" && !bezig ? zoekCliches(inhoud) : []),
     [rol, inhoud, bezig],
@@ -76,13 +93,12 @@ export function Bericht({
     [inhoud],
   );
   const stemafwijkingen = useMemo(
-    () => (rol === "assistent" && !bezig ? toetsStem(splitsAntwoord(inhoud).brief || inhoud, stem) : []),
+    () => (rol === "assistent" && !bezig ? toetsStem(brief || inhoud, stem) : []),
     [rol, inhoud, stem, bezig],
   );
   // De controles horen over de BRIEF te gaan en niet over de analyse erboven:
   // een opsomming van vacature-eisen heeft nu eenmaal andere zinnen dan een
   // brief, en de eisen uit de vacature citeren is geen verzinsel.
-  const brief = useMemo(() => splitsAntwoord(inhoud).brief, [inhoud]);
   const onvindbaar = useMemo(
     () => (rol === "assistent" && !bezig ? zoekOnvindbaar(brief || inhoud, bronnen) : []),
     [rol, brief, inhoud, bronnen, bezig],
@@ -121,6 +137,25 @@ export function Bericht({
 
       {fout ? (
         <p className="sol-fout">Dit antwoord is niet gelukt. Reden: {fout}</p>
+      ) : delen && brief ? (
+        <div className="sol-antwoord">
+          {delen.vacature ? (
+            <section className="sol-deel">
+              <h4 className="sol-deel__titel">Vacature</h4>
+              <div className="sol-bericht__tekst">{delen.vacature}</div>
+            </section>
+          ) : null}
+          {delen.opdracht ? (
+            <section className="sol-deel">
+              <h4 className="sol-deel__titel">Schrijfopdracht</h4>
+              <div className="sol-bericht__tekst">{delen.opdracht}</div>
+            </section>
+          ) : null}
+          <section className="sol-deel sol-deel--brief">
+            <h4 className="sol-deel__titel">Brief</h4>
+            <div className="sol-bericht__tekst">{brief}</div>
+          </section>
+        </div>
       ) : (
         <div className="sol-bericht__tekst">{inhoud}</div>
       )}

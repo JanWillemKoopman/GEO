@@ -129,8 +129,9 @@ promptinstructie (conventie 1): een instructie is een verzoek, een meting niet.
 
 Wat hij deelt: de inlog van Supabase en het project bij Vercel, dus hij publiceert mee met `main`.
 Wat hij niet deelt: de vormgeving en de data. De vormgeving staat in
-`app/solliciteren/solliciteren.css`, met eigen tokens die allemaal met `--sol-` beginnen, en de map
-gebruikt geen enkel component uit `components/`. De data staat in vier eigen tabellen (migraties
+`app/solliciteren/solliciteren.css` en is sinds 15 september 2026 een nabouw van de ontwerptaal van
+LinkedIn, met eigen tokens die allemaal met `--sol-` beginnen; de map gebruikt geen enkel component
+uit `components/`. De data staat in vier eigen tabellen (migraties
 0095 tot en met 0097) die aan `auth.users` hangen en geen enkele join hebben met het datamodel van
 ORBIT ENGINE.
 `scripts/test-unit.ts` bewaakt allebei die scheidingen, dus één geleende kleur, één geleend

@@ -14075,7 +14075,13 @@ group("het zijproject staat los van ORBIT ENGINE, en zit wel achter dezelfde inl
     .map((m) => m[1])
     .filter((naam) => !naam.startsWith("--sol-"));
   ok("de stijl gebruikt alleen eigen tokens", vreemdeTokens.length === 0, vreemdeTokens.join(", "));
-  ok("en zet zelf een achtergrond", stijl.includes("background-color: var(--sol-papier)"));
+  ok("en zet zelf een achtergrond", stijl.includes("background-color: var(--sol-achtergrond)"));
+  // ⚠️ Het stijlblad is op 15 september 2026 omgezet naar de ontwerptaal van
+  // LinkedIn. Deze twee controles bewaken niet hoe het eruitziet, maar dat het
+  // een eigen, volledig gezette stijl BLIJFT: een eigen letterstapel en een
+  // eigen maatvoering, zodat een wijziging aan `globals.css` hier niets doet.
+  ok("het stijlblad zet zijn eigen letter", stijl.includes("--sol-letter:"));
+  ok("en zijn eigen basismaat", /font-size:\s*14px/.test(stijl));
 
   const elders = [...tsxOnder("app/(app)"), ...tsxOnder("components")].filter((b) =>
     leesBestand(b).includes("solliciteren.css"),
