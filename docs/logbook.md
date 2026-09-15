@@ -8643,3 +8643,41 @@ en `test:chain` (652 geslaagd, geen scenario geraakt: alle bestaande testmerken 
 genoeg voorraad om hun maanden te vullen, zonder overschot voor een buffer) en `build` zijn alle
 vier groen. Geen migratie: `is_buffer` bestaat al sinds migratie 0049 en werd tot nu toe nooit
 geschreven.
+
+## 15 september 2026: nog nooit ingepland, of er bewust uitgehaald (blok A punt 4)
+
+Laatste punt van blok A, vervolg op de drie hierboven. Nova's precedent: een apart tabblad "Not
+included" met de zin "Pages you took out, and pages your ordering pushed past the monthly quota.
+None of them will be written, and none of them are gone." ORBIT ENGINE krijgt geen apart tabblad,
+maar hetzelfde onderscheid in dezelfde lijst: een klant opent nog altijd één voorraad, met per kaart
+een label als het er een is.
+
+**De tweede helft van Nova's zin was al gratis, en dat leidde tot de kleinste van de twee vlaggen.**
+"Buiten bereik" (voorbij de twaalf maanden × pakketquota, plus buffer) hoeft nergens te worden
+opgeslagen: `vulOpenMaanden()` vult sowieso elke openstaande maand tot aan zijn plafond, dus wat
+er na die ronde nog in de voorraad overblijft, past per definitie nergens meer. `bepaalVulling()`
+gaf dat al terug als een aantal (`restendeVoorraad`); nu geeft hij ook de bijbehorende id's
+(`restendeVoorraadIds`), die `vulOpenMaanden()` doorgeeft aan `loadPlan()` en die op de kaart
+uitkomen als het label "buiten bereik".
+
+**De eerste helft ("bewust uitgehaald") kon niet uit bestaande data komen, en kreeg een nieuwe
+kolom.** Migratie 0099, `planned_pages.taken_out`, additief met default `false`. `moveToBacklog()`
+is de enige plek in de hele app waar een klant een kaart uit een maand haalt zonder hem af te
+wijzen; die zet de vlag nu op `true`. Zodra de kaart weer ergens wordt toegewezen (`assignToMonth()`,
+of automatisch door `vulOpenMaanden()`), gaat hij weer op `false`: de reden is dan verouderd.
+
+**Bijvangst: een belofte uit migratie 0098 die nooit werd nagekomen.** Die migratie zei al
+"`false` = een mens sleepte hem daar (`assignToMonth()`)" over `auto_placed`, maar de aanroep die dat
+had moeten doen ontbrak. Elke kaart die een klant sinds 15 september handmatig verplaatste, bleef dus
+`auto_placed: true` dragen alsof het systeem hem daar zette. Rechtgezet in dezelfde ronde als deze
+migratie, `supabase/README.md` bij 0098 vermeldt de correctie.
+
+**Geen apart scherm.** Punt 4 vraagt om zichtbaarheid, niet om een nieuwe navigatiestructuur, en de
+bestaande kaart had al een opengeklapte stand met ruimte voor een extra regel (`why`, `raakt`,
+`existingUrl`). `redenChip()` zet een klein label in de metaregel ("eruit gehaald" / "buiten bereik"),
+`redenUitleg()` (beide `lib/plan-backlog.ts`, puur en getest) geeft bij het uitklappen de volzin,
+met Nova's kernboodschap vertaald: niet weg, wacht gewoon op ruimte.
+
+Getest: `tsc --noEmit`, `test:unit` (4694 geslaagd, zes nieuwe assertions) en `test:chain`
+(652 geslaagd, geen scenario geraakt) en `build` zijn alle vier groen. Migratie 0099 toegepast via
+de Supabase MCP-tool en nagekeken: de kolom staat er, `boolean not null default false`.

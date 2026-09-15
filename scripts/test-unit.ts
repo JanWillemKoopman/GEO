@@ -613,6 +613,8 @@ import {
   clusterCounts,
   potentieLabel,
   raaktLabel,
+  redenChip,
+  redenUitleg,
   estimateBacklogMonths,
   backlogDurationLabel,
   LEGE_BACKLOG_FILTERS,
@@ -5726,6 +5728,7 @@ function kans(over: Partial<BacklogItem> = {}): BacklogItem {
     raakt: null,
     gemeten: null,
     gewicht: null,
+    reden: null,
     ...over,
   };
 }
@@ -6112,6 +6115,23 @@ group("wat er op een voorraadkaart komt te staan (plan-backlog)", () => {
   );
   ok("geen doelvragen is geen regel", raaktLabel(kans({ raakt: null })) === null);
   ok("nul doelvragen ook niet", raaktLabel(kans({ raakt: 0, gemeten: 30 })) === null);
+
+  // Blok A, punt 4: waarom een kans nog in de voorraad staat.
+  ok("een gewone wachtrijkans krijgt geen label", redenChip(kans({ reden: null })) === null);
+  ok("en ook geen uitleg", redenUitleg(kans({ reden: null })) === null);
+  ok("bewust uitgehaald krijgt zijn eigen label", redenChip(kans({ reden: "uitgehaald" })) === "eruit gehaald");
+  ok(
+    "met een uitleg die zegt dat hij terug kan",
+    redenUitleg(kans({ reden: "uitgehaald" }))?.includes("sleep hem terug") === true,
+  );
+  ok(
+    "buiten bereik krijgt een ander label",
+    redenChip(kans({ reden: "buiten_bereik" })) === "buiten bereik",
+  );
+  ok(
+    "met een uitleg die zegt dat hij nog aan de beurt komt",
+    redenUitleg(kans({ reden: "buiten_bereik" }))?.includes("twaalf maanden") === true,
+  );
 });
 
 group("Hoe lang de voorraad meegaat (werkpakket C §5.2)", () => {

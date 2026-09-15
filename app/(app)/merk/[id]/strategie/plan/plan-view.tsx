@@ -21,6 +21,8 @@ import {
   clusterCounts,
   potentieLabel,
   raaktLabel,
+  redenChip,
+  redenUitleg,
   backlogDurationLabel,
   LEGE_BACKLOG_FILTERS,
   type BacklogItem,
@@ -1292,6 +1294,8 @@ function BacklogRij({
 }) {
   const potentie = potentieLabel(item);
   const raakt = raaktLabel(item);
+  const reden = redenChip(item);
+  const uitleg = redenUitleg(item);
 
   return (
     <li
@@ -1319,6 +1323,11 @@ function BacklogRij({
           {potentie && <span>{potentie}</span>}
           <span>·</span>
           <span>{item.handeling === "verbeteren" ? "verbeteren" : "nieuw"}</span>
+          {reden && (
+            <span className="chip chip-neutral" style={{ marginLeft: 2 }}>
+              {reden}
+            </span>
+          )}
         </span>
         {open && (
           <div className="flex flex-col gap-1 pt-1">
@@ -1333,6 +1342,7 @@ function BacklogRij({
                 {item.existingUrl}
               </span>
             )}
+            {uitleg && <p className="text-xs text-secondary" style={{ lineHeight: 1.5 }}>{uitleg}</p>}
           </div>
         )}
       </div>

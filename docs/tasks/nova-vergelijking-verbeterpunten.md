@@ -53,7 +53,7 @@ maand, bij het aanmaken van een plan én bij elke schermopening. Migratie 0098
 (`planned_pages.auto_placed`). Zie `docs/logbook.md`, 15 september 2026, voor de twee dingen die
 niet in de oorspronkelijke planningsronde stonden: de bevordering naar precies één
 "ter_goedkeuring"-maand tegelijk, en de correctie voor een maand zonder bruikbare kalenderdag meer.
-Nog niet gedaan: punt 4 hieronder, die op deze kapstok voortbouwt.
+Alle vier de punten van dit blok zijn nu live.
 
 **2. ~~Geef elke maand een vast formaat en houd dat vast bij elke wijziging.~~** (midden) ✅ **Live,
 15 september 2026.** `moveToBacklog()` en de "oude maand" van `assignToMonth()` roepen na hun
@@ -69,11 +69,14 @@ maanden, in een tweede ronde elke maand aan tot één buffer (`BUFFER_PER_MONTH`
 totdat hij verzilverd wordt. `lib/plan-writing.ts` slaat `is_buffer: true` al expliciet over, dus
 een buffer die nooit wordt opgevraagd, wordt ook nooit geschreven en kost geen schrijfronde.
 
-**4. Zet wat niet in het plan past in een zichtbare wachtrij, met uitleg waarom.** (klein)
-Nova's tab heet "Not included" met de zin: "Pages you took out, and pages your ordering pushed past
-the monthly quota. None of them will be written, and none of them are gone." ORBIT ENGINE's
-voorraad doet dit half: het is één bak zonder onderscheid tussen "nog nooit ingepland" en
-"er bewust uitgehaald". Dat onderscheid is precies wat een klant bij ronde drie niet meer weet.
+**4. ~~Zet wat niet in het plan past in een zichtbare wachtrij, met uitleg waarom.~~** (klein) ✅
+**Live, 15 september 2026.** Geen apart tabblad zoals Nova's "Not included": dezelfde voorraadlijst,
+met per kaart een label ("eruit gehaald" of "buiten bereik") en bij het uitklappen de uitleg
+(`redenChip()`/`redenUitleg()`, `lib/plan-backlog.ts`). Nieuwe kolom `planned_pages.taken_out`
+(migratie 0099) onthoudt de eerste helft; de tweede helft ("buiten bereik") is puur rekenwerk: wat
+`vulOpenMaanden()` ná een volledige vulronde nog in de voorraad overlaat, past per definitie nergens
+meer. Bijvangst: `assignToMonth()` zette `auto_placed` nooit terug op `false` bij een menselijke
+sleepactie, ondanks wat de migratie 0098 zelf al beloofde. Rechtgezet in dezelfde ronde.
 
 **5. Zeg op het planscherm hoeveel pagina's er nog bij moeten om het abonnement te halen.** (klein)
 Nova: "Add # more pages to reach your plan of {quota} pages a month". Eén zin, en de klant weet
@@ -324,10 +327,9 @@ in jouw app. Wij publiceren niet, dus de tekst gaat hoe dan ook door een CMS van
 15 september 2026, blok E is daarmee compleet)~~, 5 (hoeveel pagina's nog nodig), 19 (reden per
 regel), 16 (specifieke foutmeldingen), 13 (drempel voor handmatig bewerken).
 
-**Daarna, want het lost een echt probleem op dat groeit:** blok A, in de volgorde ~~1, 2, 3 (alle
-drie live sinds 15 september 2026)~~, 4. Dit is de voorwaarde om werkpakket B uit het
-optimalisatielab te kunnen opleveren: zodra het aantal kansen omhoog gaat, loopt het huidige
-planscherm vast.
+**Daarna, want het lost een echt probleem op dat groeit:** ~~blok A, alle vier de punten, live sinds
+15 september 2026~~. Dit was de voorwaarde om werkpakket B uit het optimalisatielab te kunnen
+opleveren: zodra het aantal kansen omhoog gaat, liep het oude planscherm vast.
 
 **Dan, omdat ze de kwaliteit bewaken die we al hebben:** 14, 15, 17, 21.
 

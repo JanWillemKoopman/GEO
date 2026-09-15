@@ -72,6 +72,13 @@ export interface VulUitkomst {
   opdrachten: VulOpdracht[];
   /** Hoeveel voorraadkansen nergens meer in pasten en dus in de voorraad blijven. */
   restendeVoorraad: number;
+  /**
+   * Welke kansen dat precies zijn (blok A, punt 4): ze pasten na twaalf
+   * maanden vol content plus buffer nog steeds niet. `lib/plans.ts` gebruikt
+   * dit om ze in de voorraad te merken als "buiten bereik", niet als
+   * "wachtrij". Zelfde volgorde als `voorraadIds`.
+   */
+  restendeVoorraadIds: string[];
   /** Welke maand naar "ter_goedkeuring" moet. `null` = niets te bevorderen. */
   bevorderMaand: string | null;
 }
@@ -146,6 +153,7 @@ export function bepaalVulling(input: {
   return {
     opdrachten: [...opdrachten.values()],
     restendeVoorraad: voorraad.length,
+    restendeVoorraadIds: voorraad,
     bevorderMaand,
   };
 }
