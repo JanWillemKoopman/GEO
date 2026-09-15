@@ -457,6 +457,67 @@ import { planFactMerge, describeContradictions } from "@/lib/pipeline/fact-merge
 import type { IncomingFact, StoredFact } from "@/lib/pipeline/fact-merge";
 import { detectClaimSentences, claimMatchesSentence, detectedCoverage } from "@/lib/pipeline/claim-extract";
 import { resolveTuning, isReasoningModel, isUnsupportedTemperatureError } from "@/lib/openai/sampling";
+import { zoekCliches, telCliches } from "@/lib/solliciteren/cliches";
+import {
+  MAX_SLEUTELWOORDEN,
+  dekkingspercentage,
+  vergelijkSleutelwoorden,
+} from "@/lib/solliciteren/sleutelwoorden";
+import {
+  MODELLEN,
+  REDENEERSTANDEN,
+  STANDAARD_MODEL,
+  STANDAARD_STAND,
+  TEMPERATUUR_ZONDER_REDENEREN,
+  bepaalParameters,
+  isGeldigModel,
+  isGeldigeStand,
+} from "@/lib/solliciteren/modellen";
+import {
+  EERSTE_VRAAG,
+  MAX_BERICHTEN_IN_HISTORIE,
+  MAX_VACATURE_TEKENS,
+  bouwInvoer,
+  bouwSysteemprompt,
+  bouwVacatureblok,
+  kapAf,
+} from "@/lib/solliciteren/prompt";
+import {
+  MAX_DOCUMENT_TEKENS,
+  MAX_DOSSIER_TEKENS,
+  SOORTEN,
+  bouwDossierblok,
+  brievenUit,
+  feitenmateriaalUit,
+  isGeldigeSoort,
+  pasDossierIn,
+  sorteerDossier,
+  type Dossierstuk,
+} from "@/lib/solliciteren/dossier";
+import {
+  MINIMUM_WOORDEN,
+  formuleerStemregels,
+  meetStem,
+  toetsStem,
+} from "@/lib/solliciteren/stem";
+import {
+  CATEGORIEEN,
+  KOP_BRIEF,
+  KOP_OPDRACHT,
+  KOP_VACATURE,
+  bouwFeitenblok,
+  isGeldigeCategorie,
+  refVan,
+  splitsAntwoord,
+  zeefFeiten,
+  type Feit,
+} from "@/lib/solliciteren/feiten";
+import {
+  MAX_ONVINDBAAR,
+  zoekOnvindbaar,
+  zonderAanhefEnOndertekening,
+} from "@/lib/solliciteren/herkomst";
+import { splitsInAlineas, splitsInZinnen, telWoorden } from "@/lib/solliciteren/woorden";
 import { estimateCostUsd, hasKnownRate } from "@/lib/openai/pricing";
 import { MODELS } from "@/lib/openai/models";
 import {
@@ -13958,6 +14019,7 @@ group("de middleware draait waar hij moet, en nergens anders", () => {
     "/instellingen",
     "/instellingen/koppelingen",
     "/beheer",
+    "/solliciteren",
   ]) {
     ok(`draait op ${pad}`, patroon.test(pad));
   }
@@ -13974,6 +14036,716 @@ group("de middleware draait waar hij moet, en nergens anders", () => {
     "/logo.svg",
   ]) {
     ok(`draait NIET op ${pad}`, !patroon.test(pad));
+  }
+});
+
+// ── Het zijproject "Solliciteren" ──────────────────────────────────────────
+//
+// ⚠️ `app/solliciteren/` is een eigen app van één pagina in dezelfde codebase
+// (14 september 2026). De afspraak is dat hij twee dingen deelt, de inlog en de
+// publicatie, en één ding juist niet: de opmaak. Zo'n afspraak slijt vanzelf,
+// want één import uit `components/` of één `var(--text-primary)` is genoeg om
+// de twee ontwerpen weer aan elkaar te knopen, en dat valt pas op als een
+// wijziging in ORBIT ENGINE ineens dit scherm verandert. Conventie 1: een
+// belofte in een document krijgt een vangnet in code.
+group("het zijproject staat los van ORBIT ENGINE, en zit wel achter dezelfde inlog", () => {
+  const layout = leesBestand("app/solliciteren/layout.tsx");
+  const stijl = leesBestand("app/solliciteren/solliciteren.css");
+
+  // De inlog: gedeeld, en twee keer gecontroleerd. De middleware stuurt een
+  // bezoeker zonder sessie meteen naar het inlogscherm, de layout controleert
+  // het op de server nog een keer plus het beheerdersrecht.
+  ok(
+    "de middleware beschermt /solliciteren",
+    leesBestand("lib/supabase/middleware.ts").includes('"/solliciteren"'),
+  );
+  ok("de layout vraagt om een ingelogde gebruiker", layout.includes("requireUser()"));
+  ok("en laat alleen een account van ORBIT ENGINE zelf binnen", layout.includes("isStaff("));
+  ok("een klant krijgt een 404 en geen foutmelding", layout.includes("notFound()"));
+
+  // De opmaak: niet gedeeld. Geen component van het hoofdproduct, geen token
+  // uit `globals.css`, en de eigen stijl gaat nergens anders heen.
+  const eigenBestanden = tsxOnder("app/solliciteren");
+  ok("er staan schermbestanden in de map", eigenBestanden.length >= 2, `${eigenBestanden.length}`);
+  for (const bestand of eigenBestanden) {
+    const bron = leesBestand(bestand);
+    ok(`${bestand} leent geen component van ORBIT ENGINE`, !bron.includes('from "@/components/'));
+  }
+
+  const vreemdeTokens = [...stijl.matchAll(/var\((--[a-z0-9-]+)/g)]
+    .map((m) => m[1])
+    .filter((naam) => !naam.startsWith("--sol-"));
+  ok("de stijl gebruikt alleen eigen tokens", vreemdeTokens.length === 0, vreemdeTokens.join(", "));
+  ok("en zet zelf een achtergrond", stijl.includes("background-color: var(--sol-achtergrond)"));
+  // ⚠️ Het stijlblad is op 15 september 2026 omgezet naar de ontwerptaal van
+  // LinkedIn. Deze twee controles bewaken niet hoe het eruitziet, maar dat het
+  // een eigen, volledig gezette stijl BLIJFT: een eigen letterstapel en een
+  // eigen maatvoering, zodat een wijziging aan `globals.css` hier niets doet.
+  ok("het stijlblad zet zijn eigen letter", stijl.includes("--sol-letter:"));
+  ok("en zijn eigen basismaat", /font-size:\s*14px/.test(stijl));
+
+  const elders = [...tsxOnder("app/(app)"), ...tsxOnder("components")].filter((b) =>
+    leesBestand(b).includes("solliciteren.css"),
+  );
+  ok("het stijlblad wordt nergens anders geladen", elders.length === 0, elders.join(", "));
+
+  // De knop: precies één plek, en alleen zichtbaar voor wie er ook in mag.
+  const chrome = leesBestand("components/workspace-chrome.tsx");
+  ok("de S staat in de bovenbalk", chrome.includes('href="/solliciteren"'));
+  ok("en hangt aan het beheerdersrecht", chrome.includes("{solliciteren && ("));
+  ok(
+    "de shell geeft dat recht ook door",
+    leesBestand("components/app-shell.tsx").includes("solliciteren={staff}"),
+  );
+});
+
+// ── De sollicitatieassistent van het zijproject ────────────────────────────
+//
+// ⚠️ Alles hieronder gaat over `app/solliciteren/` en `lib/solliciteren/`, de
+// eigen app achter dezelfde inlog. De groep hierboven bewaakt de SCHEIDING; deze
+// groepen bewaken wat de assistent zelf doet.
+
+group("de assistent: de standaardzinnen worden geteld en niet weggehaald", () => {
+  const brief =
+    "In een wereld waarin alles verandert, schrijf ik u met veel enthousiasme. " +
+    "Ik ben ervan overtuigd dat mijn ervaring naadloos aansluit op deze functie. " +
+    "Als echte teamspeler en proactieve collega ben ik de ideale kandidaat. " +
+    "Ik zie er naar uit om dit toe te lichten.";
+
+  const vondsten = zoekCliches(brief);
+  ok("er komen vondsten uit", vondsten.length >= 6, `${vondsten.length}`);
+  ok(
+    "de opening wordt herkend",
+    vondsten.some((v) => /in een wereld waarin/i.test(v.gevonden)),
+  );
+  ok(
+    "en het enthousiasme ook",
+    vondsten.some((v) => /met veel enthousiasme/i.test(v.gevonden)),
+  );
+  ok("elke vondst zegt waarom", vondsten.every((v) => v.waarom.length > 10));
+
+  // Het gedachtestreepje is het sterkste signaal van AI-tekst
+  // (docs/schrijfstijl.md §10), dus dat moet er sowieso uit komen.
+  const metStreepje = zoekCliches("Ik werkte drie jaar in de zorg — en dat beviel goed.");
+  ok("een gedachtestreepje wordt gevonden", metStreepje.length === 1, `${metStreepje.length}`);
+  ok(
+    "en een schuine streep in en/of ook",
+    zoekCliches("Ik werk met bouwers en/of installateurs.").length === 1,
+  );
+
+  // ⚠️ De valkuil van een globale RegExp: `lastIndex` blijft staan tussen twee
+  // teksten door, en dan mist de tweede brief precies wat de eerste wel vond.
+  // Dat valt in productie pas op bij het tweede bericht en dus nooit.
+  const eerste = telCliches(brief);
+  const tweede = telCliches(brief);
+  ok("twee keer dezelfde tekst geeft twee keer hetzelfde antwoord", eerste === tweede, `${eerste} en ${tweede}`);
+  ok("een lege tekst levert niets op", zoekCliches("").length === 0);
+
+  // Een normale, concrete zin mag niet aanslaan. Een controle die overal iets
+  // vindt, wordt weggeklikt en doet daarna niets meer.
+  const schoon = zoekCliches(
+    "Bij Van Dijk Installatie deed ik in 2024 de planning voor zeven monteurs. " +
+      "Ik ken de storingsdienst van binnenuit, want ik draaide er zelf in mee.",
+  );
+  ok("een concrete zin blijft schoon", schoon.length === 0, schoon.map((v) => v.gevonden).join(", "));
+});
+
+// ⚠️ Conventie 1 in zijn zuiverste vorm: de systeemprompt VERBIEDT een aantal
+// standaardzinnen bij naam, en `cliches.ts` is het vangnet eronder. Lopen die
+// twee lijsten uit elkaar, dan verbiedt de prompt iets dat niemand nakijkt, of
+// wijst het scherm iets aan wat nooit gevraagd is. Dit is de enige controle die
+// dat kan zien.
+group("de assistent: prompt en vangnet verbieden hetzelfde", () => {
+  const prompt = bouwSysteemprompt();
+
+  ok("de prompt verbiedt gedachtestreepjes", /gedachtestreepjes/i.test(prompt));
+  ok("en noemt de tekens zelf, anders is het verbod niet te volgen", /"—"/.test(prompt));
+  ok("de prompt verbiedt de schuine streep", /en\/of/.test(prompt));
+  // De volgorde van de drie kopjes is de werkwijze: eerst de vacature ontleden,
+  // dan kiezen wat de brief draagt, dan pas schrijven. Een model dat meteen
+  // begint te schrijven maakt altijd dezelfde brief, die van niemand.
+  ok(
+    "de prompt zet ontleden en kiezen vóór schrijven",
+    prompt.indexOf(KOP_VACATURE) < prompt.indexOf(KOP_OPDRACHT) &&
+      prompt.indexOf(KOP_OPDRACHT) < prompt.indexOf(KOP_BRIEF),
+  );
+  ok("de prompt verbiedt verzinnen", /nooit verzint/i.test(prompt));
+  ok("en zegt wat er dan wél moet gebeuren", prompt.includes("[dit weet ik niet:"));
+  ok("de prompt is Nederlands", prompt.includes("Je antwoordt in het Nederlands."));
+
+  // Elke zin die de prompt bij naam verbiedt, moet het vangnet ook echt
+  // vinden. Alleen het blok met de standaardzinnen, want de tekens erboven
+  // staan in dezelfde prompt tussen dezelfde aanhalingstekens.
+  const blokStart = prompt.indexOf("Concreet verboden");
+  const blokEind = prompt.indexOf("Geen opsomming");
+  ok("het blok met standaardzinnen staat in de prompt", blokStart > 0 && blokEind > blokStart);
+  const blok = prompt.slice(blokStart, blokEind);
+  const verboden = [...blok.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  ok("de prompt noemt standaardzinnen bij naam", verboden.length >= 8, `${verboden.length}`);
+  const gemist = verboden.filter((zin) => zoekCliches(`Zin vooraf. ${zin} en verder nog wat tekst.`).length === 0);
+  ok("en het vangnet vindt ze allemaal terug", gemist.length === 0, gemist.join(" | "));
+});
+
+group("de assistent: de sleutelwoorden zijn tellen en geen gok", () => {
+  const vacature =
+    "Wij zoeken een ervaren projectleider installatietechniek. Je stuurt monteurs aan, " +
+    "bewaakt de planning en spreekt met opdrachtgevers. Kennis van warmtepompen is een pre. " +
+    "De projectleider rapporteert aan de directie.";
+  const cv = "Als projectleider stuurde ik monteurs aan bij een installatiebedrijf. Planning en inkoop.";
+
+  const woorden = vergelijkSleutelwoorden(vacature, cv);
+  const namen = woorden.map((w) => w.woord);
+  ok("er komen sleutelwoorden uit", woorden.length > 0, `${woorden.length}`);
+  ok("stopwoorden vallen weg", !namen.includes("wordt") && !namen.includes("wij"));
+  ok("korte woorden vallen weg", namen.every((w) => w.length >= 4));
+  ok("warmtepompen mist in het CV", woorden.some((w) => w.woord === "warmtepompen" && !w.staatInCv));
+  ok("projectleider staat er wel in", woorden.some((w) => w.woord === "projectleider" && w.staatInCv));
+
+  // "monteurs" in de vacature tegen "monteurs" in het CV, en "planning" tegen
+  // "planning": meervoud en enkelvoud horen hetzelfde te zijn.
+  ok("planning telt als gevonden", woorden.some((w) => w.woord === "planning" && w.staatInCv));
+
+  // Wat mist staat vooraan: dat is waar iemand iets aan heeft.
+  const eersteRaak = woorden.findIndex((w) => w.staatInCv);
+  const laatsteMis = woorden.map((w) => w.staatInCv).lastIndexOf(false);
+  ok("het ontbrekende staat bovenaan", eersteRaak === -1 || laatsteMis < eersteRaak, `${eersteRaak} en ${laatsteMis}`);
+
+  ok("de lijst is begrensd", vergelijkSleutelwoorden(vacature.repeat(40), cv).length <= MAX_SLEUTELWOORDEN);
+
+  // Conventie 3: onbekend is een betere waarde dan een verkeerde. Zonder CV is
+  // er geen percentage, en 0% naast een leeg veld leest als een oordeel.
+  ok("zonder CV geen percentage", dekkingspercentage(vacature, "") === null);
+  ok("zonder vacature geen percentage", dekkingspercentage("", cv) === null);
+  const dekking = dekkingspercentage(vacature, cv);
+  ok("met allebei wel een percentage", typeof dekking === "number" && dekking > 0 && dekking <= 100, `${dekking}`);
+});
+
+// ⚠️ Deze groep bestaat om één reden: `bepaalParameters()` in het zijproject en
+// `resolveTuning()` in de pijplijn volgen dezelfde regel van de API (temperatuur
+// mag alleen als er niet geredeneerd wordt), maar zijn twee stukken code. Lopen
+// ze uit elkaar, dan faalt elke aanroep van dit scherm op een 400 zonder dat er
+// iets aan dit scherm veranderd is.
+group("de assistent: de modelkeuze volgt dezelfde regel als de pijplijn", () => {
+  ok("het vlaggenschip is de standaard", STANDAARD_MODEL === "gpt-5.6-sol");
+  ok("de standaardkeuzes bestaan", isGeldigModel(STANDAARD_MODEL) && isGeldigeStand(STANDAARD_STAND));
+  ok("een verzonnen model wordt geweigerd", !isGeldigModel("gpt-6-astra"));
+  ok("een verzonnen stand wordt geweigerd", !isGeldigeStand("heel-hoog"));
+  ok("elk model heeft een tarief", MODELLEN.every((m) => hasKnownRate(m.id)), MODELLEN.map((m) => m.id).join(", "));
+  ok("elk model zegt waar het voor is", MODELLEN.every((m) => m.waarvoor.length > 20));
+  ok("elke stand zegt wanneer je hem wilt", REDENEERSTANDEN.every((s) => s.wanneer.length > 20));
+
+  for (const model of MODELLEN) {
+    // Zonder redeneren: temperatuur mee, zoals de API hem daar toestaat.
+    const zonder = bepaalParameters(model.id, "none");
+    ok(`${model.id} zonder redeneren krijgt een temperatuur`, zonder.temperature === TEMPERATUUR_ZONDER_REDENEREN);
+    ok(`${model.id} zonder redeneren staat op none`, zonder.reasoningEffort === "none");
+
+    // Mét redeneren: geen temperatuur, want dan weigert de API de hele aanroep.
+    for (const stand of ["low", "medium", "high"] as const) {
+      const met = bepaalParameters(model.id, stand);
+      ok(`${model.id} op ${stand} stuurt geen temperatuur mee`, met.temperature === undefined);
+      ok(`${model.id} op ${stand} stuurt die stand mee`, met.reasoningEffort === stand);
+    }
+
+    // Dezelfde regel, langs de andere kant gemeten: de pijplijn laat de
+    // temperatuur ook vallen zodra er geredeneerd wordt.
+    ok(
+      `${model.id} wordt door de pijplijn als redeneermodel gezien`,
+      isReasoningModel(model.id),
+    );
+    ok(
+      `de pijplijn laat bij ${model.id} de temperatuur ook vallen`,
+      resolveTuning(model.id, "content").temperature === undefined,
+    );
+  }
+});
+
+group("de assistent: het dossier hangt aan de persoon en niet aan de vacature", () => {
+  const dossier: Dossierstuk[] = [
+    { id: "3", soort: "project", titel: "Warmtepompen Nieuwegein", inhoud: "Twaalf woningen." },
+    { id: "1", soort: "brief", titel: "Brief gemeente", inhoud: "Geachte mevrouw De Wit," },
+    { id: "2", soort: "cv", titel: "CV 2026", inhoud: "Projectleider, 2019 tot 2026." },
+    { id: "4", soort: "motivatie", titel: "Waarom techniek", inhoud: "Omdat het zichtbaar wordt." },
+  ];
+
+  // Het CV eerst, dan de brieven, dan de rest. Niet willekeurig: het CV is het
+  // skelet en de brieven leveren de toon.
+  const volgorde = sorteerDossier(dossier).map((s) => s.soort);
+  ok("het CV staat vooraan", volgorde[0] === "cv", volgorde.join(", "));
+  ok("de brieven komen daarna", volgorde[1] === "brief", volgorde.join(", "));
+
+  const blok = bouwDossierblok(dossier);
+  ok("elk stuk komt in het blok terug", Boolean(blok?.includes("CV 2026") && blok?.includes("Brief gemeente")));
+  ok("met zijn soort erbij", Boolean(blok?.includes("=== CV: CV 2026 ===")));
+  ok("zonder dossier is er geen blok", bouwDossierblok([]) === null);
+  ok("een leeg stuk telt niet mee", bouwDossierblok([{ id: "x", soort: "cv", titel: "Leeg", inhoud: "  " }]) === null);
+
+  // ⚠️ Het SOORT is geen ordening maar een functie: brieven leveren de stem,
+  // het CV en de projecten leveren de feiten. Die twee door elkaar halen zou de
+  // gemeten stem vervuilen met opsommingen uit een CV.
+  ok("alleen brieven leveren de stem", brievenUit(dossier).length === 1);
+  const feiten = feitenmateriaalUit(dossier);
+  ok("het CV levert feiten", feiten.includes("Projectleider"));
+  ok("een project ook", feiten.includes("Twaalf woningen"));
+  ok("een eerdere brief niet", !feiten.includes("Geachte mevrouw"));
+
+  ok("elk soort heeft een beschrijving", SOORTEN.every((s) => s.waarvoor.length > 20));
+  ok("een verzonnen soort wordt geweigerd", !isGeldigeSoort("cv-2"));
+  ok("en een echte niet", isGeldigeSoort("project"));
+
+  // De grens is er tegen een ongeluk, en hij kapt niet stil af: wat eraf valt
+  // wordt teruggegeven zodat het scherm het kan zeggen.
+  // Er zijn twee grenzen, en ze werken na elkaar: eerst wordt elk stuk zelf
+  // afgekapt op MAX_DOCUMENT_TEKENS, daarna vult het dossier zich tot
+  // MAX_DOSSIER_TEKENS. Vier volle stukken passen precies, het vijfde niet.
+  const vol = "x".repeat(MAX_DOCUMENT_TEKENS);
+  const aantalDatPast = Math.floor(MAX_DOSSIER_TEKENS / MAX_DOCUMENT_TEKENS);
+  const teGroot: Dossierstuk[] = [
+    { id: "a", soort: "cv", titel: "CV", inhoud: vol },
+    { id: "b", soort: "brief", titel: "Brief", inhoud: vol },
+    { id: "c", soort: "motivatie", titel: "Motivatie", inhoud: vol },
+    { id: "d", soort: "project", titel: "Aaa project", inhoud: vol },
+    { id: "e", soort: "project", titel: "Zzz project dat afvalt", inhoud: "y".repeat(500) },
+  ];
+  const { mee, omvang } = pasDossierIn(teGroot);
+  ok("wat past gaat mee", mee.length === aantalDatPast, `${mee.length} van ${aantalDatPast}`);
+  ok("wat niet past valt eraf", omvang.afgevallen.includes("Zzz project dat afvalt"));
+  // Het CV en de brieven vallen als laatste af: zonder CV is er geen brief,
+  // zonder het zesde project wel.
+  ok("het CV blijft", mee.some((stuk) => stuk.soort === "cv"));
+  ok("een te lang stuk wordt zelf ook afgekapt", mee[0].inhoud.length === MAX_DOCUMENT_TEKENS);
+  ok("de omvang wordt geteld", omvang.tekens > 0 && omvang.tokens > 0);
+});
+
+// ⚠️ Deze groep is het vangnet onder de belofte "de brief klinkt als jij". De
+// promptregels komen uit een METING aan de eigen brieven, en dezelfde meting
+// legt het antwoord er achteraf naast. Zonder deze controle is "schrijf zoals
+// deze persoon" weer een bijvoeglijk naamwoord in een prompt.
+group("de assistent: de stem wordt gemeten en niet gevraagd", () => {
+  // Korte zinnen, "u", zelden met "Ik" beginnen. Ruim boven MINIMUM_WOORDEN.
+  const kort = Array.from({ length: 12 }, () =>
+    [
+      "Uw vacature vraagt om iemand die de planning bewaakt.",
+      "Dat doe ik al zeven jaar bij een installatiebedrijf.",
+      "Mijn ploeg telt zes monteurs en drie leerlingen.",
+      "De doorlooptijd ging van negen naar vijf dagen.",
+      "Graag laat ik u zien hoe die aanpak werkt.",
+    ].join(" "),
+  );
+
+  const profiel = meetStem(kort);
+  ok("er komt een profiel uit", profiel !== null);
+  if (!profiel) return;
+
+  ok("de zinslengte is geteld", profiel.woordenPerZin >= 7 && profiel.woordenPerZin <= 11, `${profiel.woordenPerZin}`);
+  ok("de aanspreekvorm is herkend", profiel.aanspreekvorm === "u", `${profiel.aanspreekvorm}`);
+  ok("het aantal bronnen klopt", profiel.bronnen === 12, `${profiel.bronnen}`);
+  ok("er zijn eigen woorden gevonden", profiel.eigenWoorden.length > 0);
+  ok("de langere zin ligt boven het gemiddelde", profiel.langereZin >= profiel.woordenPerZin);
+
+  // Conventie 3: te weinig materiaal geeft `null` en geen slag in de lucht. Een
+  // profiel gemeten op 40 woorden ziet er precies zo betrouwbaar uit als een
+  // profiel op 4000 woorden, en dat is het niet.
+  ok("te weinig woorden levert geen profiel", meetStem(["Een korte zin. Nog een."]) === null);
+  ok("niets levert ook niets", meetStem([]) === null);
+  ok("de drempel staat op een getal dat iets betekent", MINIMUM_WOORDEN >= 100);
+
+  // De regels zijn getallen, want een model kan "gemiddeld 9 woorden per zin"
+  // volgen en "schrijf beknopt" niet, en code kan alleen het eerste nameten.
+  const regels = formuleerStemregels(profiel);
+  ok("de regels noemen de zinslengte met een getal", regels.some((r) => /\d+ woorden per zin/.test(r)));
+  ok("en de aanspreekvorm", regels.some((r) => r.includes('"u"')));
+
+  // De toets: hetzelfde materiaal valt binnen zijn eigen marges, een brief met
+  // veel langere zinnen en de verkeerde aanspreekvorm niet.
+  ok("de eigen brieven wijken niet van zichzelf af", toetsStem(kort[0], profiel).length === 0);
+
+  const anders =
+    "Jij zoekt een kandidaat die in staat is om binnen een complexe en voortdurend veranderende " +
+    "omgeving het overzicht te bewaren over alle betrokken partijen en hun onderlinge belangen, " +
+    "en die tegelijkertijd oog houdt voor de details die in zo'n traject nu eenmaal het verschil " +
+    "maken tussen slagen en falen. Jij wilt iemand die dat kan. Jij krijgt dat van mij.";
+  const afwijkingen = toetsStem(anders, profiel);
+  ok("een andere stem valt op", afwijkingen.length > 0, `${afwijkingen.length}`);
+  ok("de zinslengte wordt genoemd", afwijkingen.some((a) => a.wat === "Zinslengte" || a.wat === "Lange zinnen"));
+  ok("de aanspreekvorm ook", afwijkingen.some((a) => a.wat === "Aanspreekvorm"));
+  ok("elke afwijking zegt wat jij normaal doet", afwijkingen.every((a) => a.jij.length > 0));
+
+  // Zonder profiel wordt er niets getoetst: dan is er geen maat om aan af te
+  // meten, en iets aanwijzen zou een oordeel zijn dat nergens op steunt.
+  ok("zonder profiel geen oordeel", toetsStem(anders, null).length === 0);
+});
+
+group("de assistent: tekst knippen gebeurt overal hetzelfde", () => {
+  const tekst = "Eerste zin. Tweede zin!\n\nNieuwe alinea met een vraag? Ja.";
+  ok("zinnen worden geteld", splitsInZinnen(tekst).length === 4, `${splitsInZinnen(tekst).length}`);
+  ok("alinea's worden geteld", splitsInAlineas(tekst).length === 2);
+  ok("woorden worden geteld", telWoorden("drie losse woorden") === 3);
+  ok("leestekens tellen niet mee als woord", telWoorden("een, twee.") === 2);
+  ok("een lege tekst geeft niets", splitsInZinnen("   ").length === 0);
+  // Accenten horen bij het woord, anders valt "financiën" in tweeën uiteen.
+  ok("accenten blijven heel", telWoorden("financiën coördinator") === 2);
+});
+
+group("de assistent: wat er de aanroep in gaat", () => {
+  const dossier: Dossierstuk[] = [
+    { id: "1", soort: "cv", titel: "CV 2026", inhoud: "Projectleider sinds 2019." },
+    { id: "2", soort: "brief", titel: "Oude brief", inhoud: "Geachte heer De Vries," },
+  ];
+
+  const vacature = bouwVacatureblok("Wij zoeken een projectleider.");
+  ok("het vacatureblok noemt de tekst", Boolean(vacature?.includes("Wij zoeken een projectleider.")));
+  ok("zonder vacature is er geen blok", bouwVacatureblok("   ") === null);
+
+  const lang = "a".repeat(MAX_VACATURE_TEKENS + 500);
+  const gekapt = kapAf(lang, MAX_VACATURE_TEKENS);
+  ok("een te lange tekst wordt afgekapt", gekapt.length < lang.length);
+  ok("en zegt dat hij afgekapt is", gekapt.includes("afgekapt"));
+
+  const invoer = bouwInvoer({
+    dossier,
+    feiten: [],
+    vacature: "Wij zoeken een projectleider.",
+    stem: null,
+    historie: [],
+    vraag: EERSTE_VRAAG,
+  });
+
+  // ⚠️ De volgorde is een ontwerpkeuze en geen toeval: instructie, dossier,
+  // vacature, gesprek, vraag. Van meest naar minst stabiel, zodat OpenAI het
+  // begin van de aanroep kan hergebruiken. Zet je het dossier achteraan, dan
+  // valt dat hergebruik bij elke vervolgvraag weg.
+  ok("de instructie staat vooraan", invoer[0].role === "system");
+  ok("dan het dossier", invoer[1].content.includes("CV 2026"));
+  ok("dan de vacature", invoer[2].content.includes("Wij zoeken een projectleider."));
+  ok("het dossier staat vóór de vacature", invoer[1].content.indexOf("CV 2026") >= 0 && invoer[2].content.includes("VACATURETEKST"));
+  ok("het bronmateriaal is een bericht van de gebruiker, geen instructie", invoer[1].role === "user");
+  ok("de vraag staat achteraan", invoer[invoer.length - 1].content === EERSTE_VRAAG);
+
+  // De historie wordt afgekapt op de laatste beurten.
+  const historie = Array.from({ length: MAX_BERICHTEN_IN_HISTORIE + 10 }, (_, i) => ({
+    rol: (i % 2 === 0 ? "gebruiker" : "assistent") as "gebruiker" | "assistent",
+    inhoud: `bericht ${i}`,
+  }));
+  const lange = bouwInvoer({ dossier, feiten: [], vacature: "Iets.", stem: null, historie, vraag: "en nu korter" });
+  // instructie + dossier + vacature + historie + vraag (geen feitenkaart hier)
+  ok(
+    "de historie wordt afgekapt op de laatste beurten",
+    lange.length === MAX_BERICHTEN_IN_HISTORIE + 4,
+    `${lange.length}`,
+  );
+  ok("de oudste beurt valt eruit", !lange.some((b) => b.content === "bericht 0"));
+  ok("de nieuwste blijft staan", lange.some((b) => b.content === `bericht ${historie.length - 1}`));
+
+  // Een leeg bericht (een mislukt antwoord uit de database) hoort niet mee de
+  // aanroep in: de API weigert een lege inhoud.
+  const metLeeg = bouwInvoer({
+    dossier,
+    feiten: [],
+    vacature: "Iets.",
+    stem: null,
+    historie: [{ rol: "assistent", inhoud: "" }, { rol: "gebruiker", inhoud: "hallo" }],
+    vraag: "en?",
+  });
+  ok("een leeg bericht gaat niet mee", metLeeg.every((b) => b.content.trim().length > 0));
+  ok("de rollen zijn vertaald naar wat de API kent", metLeeg.every((b) => ["system", "user", "assistant"].includes(b.role)));
+
+  // De gemeten stem hoort in de INSTRUCTIE, want het is een opdracht en geen
+  // materiaal. Zonder gemeten brieven staat er niets, en dat is de juiste stand:
+  // een verzonnen stijlvoorschrift legt een register op dat van niemand is.
+  const brieven = Array.from({ length: 12 }, () =>
+    "Uw vacature vraagt om overzicht. Dat doe ik al zeven jaar. Mijn ploeg telt zes monteurs.",
+  );
+  const profiel = meetStem(brieven);
+  const metStem = bouwInvoer({ dossier, feiten: [], vacature: "Iets.", stem: profiel, historie: [], vraag: "?" });
+  ok("de stem staat in de systeeminstructie", metStem[0].content.includes("DE STEM VAN DEZE PERSOON"));
+  ok("met een getal erin", /\d+ woorden per zin/.test(metStem[0].content));
+  ok("zonder gemeten stem staat er niets over stijl", !invoer[0].content.includes("DE STEM VAN DEZE PERSOON"));
+});
+
+// ⚠️ Dit is de belangrijkste groep van het zijproject. De feitenkaart is een
+// GESLOTEN lijst: alles wat er niet op staat mag een brief niet beweren. Die
+// belofte is niets waard zonder de controle eronder, want de verwijzing zelf is
+// ook maar iets wat het model zegt te doen. Aanleiding staat in
+// `lib/pipeline/factcard.ts`: van 16 beweringen op een gegenereerde pagina waren
+// er 5 verzonnen, en precies daar waar de tekst een concreet feit nodig had.
+group("de assistent: de feitenkaart is een spiegel en geen grens", () => {
+  const feiten: Feit[] = [
+    { id: "a", nummer: 1, categorie: "werk", tekst: "Projectleider bij Van Dijk", periode: "2019 tot 2026", bronzin: "Projectleider bij Van Dijk, 2019 tot 2026.", handmatig: false },
+    { id: "b", nummer: 3, categorie: "resultaat", tekst: "Doorlooptijd van negen naar vijf dagen", periode: null, bronzin: "De doorlooptijd ging van negen naar vijf dagen.", handmatig: false },
+  ];
+
+  ok("het nummer blijft een handvat op het scherm", refVan(feiten[1]) === "F3");
+  ok("elke categorie zegt waarvoor hij is", CATEGORIEEN.every((c) => c.waarvoor.length > 20));
+  ok("een verzonnen categorie wordt geweigerd", !isGeldigeCategorie("prestatie"));
+  ok("en een echte niet", isGeldigeCategorie("resultaat"));
+
+  const blok = bouwFeitenblok(feiten);
+  ok("het blok bestaat", Boolean(blok));
+  ok("de feiten staan erin", Boolean(blok?.includes("Doorlooptijd van negen naar vijf dagen")));
+  ok("een periode gaat mee waar hij er is", Boolean(blok?.includes("(2019 tot 2026)")));
+  ok("zonder feiten is er geen blok", bouwFeitenblok([]) === null);
+
+  // ⚠️ Dit is de kern van de omkering van 15 september 2026. Stond hier nog een
+  // gesloten lijst of een F-nummer, dan zou het model die nummers in de brief
+  // gaan plakken en zou de schrijver weer vastzitten aan wat de uitleesronde
+  // toevallig gevonden heeft.
+  ok("het blok zegt NIET dat de lijst gesloten is", !blok?.includes("VOLLEDIGE lijst"));
+  ok("en niet dat de rest niet bestaat", !blok?.includes("bestaat voor deze brief niet"));
+  ok("het zegt juist dat het dossier de bron blijft", Boolean(blok?.includes("het dossier zelf blijft de bron")));
+  ok("er staan geen F-nummers in het blok", !/\bF\d/.test(blok ?? ""));
+});
+
+// ⚠️ De bronzin is de enige reden dat de kaart te vertrouwen is. Het model krijgt
+// de opdracht letterlijk te citeren, en deze zeef gooit weg wat niet letterlijk
+// in het dossier staat. Conventie 1: de promptinstructie krijgt een vangnet.
+group("de assistent: een feit zonder aanwijsbare bronzin haalt de kaart niet", () => {
+  const dossier = [
+    "=== CV: CV 2026 ===",
+    "Projectleider bij Van Dijk, 2019 tot 2026.",
+    "De doorlooptijd van offertes ging van negen naar vijf dagen.",
+  ].join("\n");
+
+  const gezeefd = zeefFeiten(
+    [
+      { categorie: "werk", tekst: "Projectleider bij Van Dijk", periode: "2019 tot 2026", bronzin: "Projectleider bij Van Dijk, 2019 tot 2026." },
+      { categorie: "resultaat", tekst: "Doorlooptijd bijna gehalveerd", periode: null, bronzin: "De doorlooptijd van offertes ging van negen naar vijf dagen." },
+      // Klinkt goed en staat nergens: dit is precies wat de zeef moet vangen.
+      { categorie: "resultaat", tekst: "Bespaarde het bedrijf 40.000 euro", periode: null, bronzin: "Hij bespaarde het bedrijf veertigduizend euro." },
+      // Een samengevatte bron telt ook niet: dan bewijst de bron niets meer.
+      { categorie: "werk", tekst: "Zeven jaar ervaring", periode: null, bronzin: "Zeven jaar bij Van Dijk gewerkt." },
+      { categorie: "werk", tekst: "", periode: null, bronzin: "Projectleider bij Van Dijk, 2019 tot 2026." },
+    ],
+    dossier,
+  );
+
+  ok("wat letterlijk in het dossier staat blijft", gezeefd.length === 2, `${gezeefd.length}`);
+  ok("een verzonnen bedrag valt af", !gezeefd.some((f) => f.tekst.includes("40.000")));
+  ok("een samengevatte bron valt af", !gezeefd.some((f) => f.tekst.includes("Zeven jaar")));
+  ok("een feit zonder tekst valt af", gezeefd.every((f) => f.tekst.length > 0));
+
+  // Een PDF levert regelafbrekingen midden in een zin. Die mogen een feit niet
+  // laten afvallen, want dan is de zeef strenger dan de bedoeling.
+  const metAfbreking = zeefFeiten(
+    [{ categorie: "werk", tekst: "Projectleider", periode: null, bronzin: "Projectleider bij\n  Van Dijk, 2019 tot 2026." }],
+    dossier,
+  );
+  ok("witruimte telt niet mee in de vergelijking", metAfbreking.length === 1);
+
+  // Twee keer hetzelfde feit is geen twee feiten.
+  const dubbel = zeefFeiten(
+    [
+      { categorie: "werk", tekst: "Projectleider bij Van Dijk", periode: null, bronzin: "Projectleider bij Van Dijk, 2019 tot 2026." },
+      { categorie: "werk", tekst: "projectleider bij van dijk", periode: null, bronzin: "Projectleider bij Van Dijk, 2019 tot 2026." },
+    ],
+    dossier,
+  );
+  ok("hetzelfde feit staat er maar één keer op", dubbel.length === 1);
+});
+
+group("de assistent: de prompt nodigt uit en verbiedt niet", () => {
+  const feiten: Feit[] = [
+    { id: "a", nummer: 1, categorie: "werk", tekst: "Projectleider", periode: null, bronzin: "Projectleider.", handmatig: false },
+  ];
+
+  const zonder = bouwSysteemprompt({ feiten: 0 });
+  const met = bouwSysteemprompt({ feiten: feiten.length });
+
+  // De drie kopjes zijn de vorm waar `splitsAntwoord()` op knipt. Lopen die twee
+  // uit elkaar, dan valt er niets meer te controleren zonder dat er iets kapot
+  // lijkt te zijn.
+  for (const kop of [KOP_VACATURE, KOP_OPDRACHT, KOP_BRIEF]) {
+    ok(`de prompt schrijft "${kop}" voor`, met.includes(kop) && zonder.includes(kop));
+  }
+  ok("de schrijfopdracht vraagt waarom juist deze kandidaat", met.includes("Waarom jij:"));
+  ok("en wat er weggelaten wordt", met.includes("Weglaten:"));
+
+  // ⚠️ De omkering van 15 september 2026, langs de kant van de prompt.
+  ok("de prompt sluit de lijst niet af", !met.includes("GESLOTEN"));
+  ok("en vraagt niet om nummers in de brief", !met.includes("[F12]"));
+  ok("hij zegt dat het dossier de bron blijft", met.includes("het dossier"));
+  ok("en staat combineren uitdrukkelijk toe", met.includes("Combineren mag"));
+  ok("zonder kaart staat dat blok er niet", !zonder.includes("HET CONCREETSTE MATERIAAL"));
+
+  // Verzinnen blijft verboden, met of zonder kaart. Dat is geen grens op het
+  // materiaal maar op het model, en die blijft staan.
+  for (const prompt of [met, zonder]) {
+    ok("verzinnen blijft verboden", prompt.includes("verzin je niet"));
+    ok("met de uitweg erbij", prompt.includes("[dit weet ik niet:"));
+  }
+
+  const invoer = bouwInvoer({
+    dossier: [{ id: "1", soort: "cv", titel: "CV", inhoud: "Projectleider." }],
+    feiten,
+    vacature: "Iets.",
+    stem: null,
+    historie: [],
+    vraag: "?",
+  });
+  ok("de uitgelichte punten staan vóór het dossier", invoer[1].content.includes("concreetste") && invoer[2].content.includes("=== CV:"));
+  ok("en het dossier gaat nog steeds voluit mee", invoer[2].content.includes("Projectleider."));
+});
+
+// ⚠️ Deze groep verving op 15 september 2026 de controle op F-nummers. De
+// feitenkaart stond tot die dag als GESLOTEN lijst in de prompt: wat er niet op
+// stond mocht de brief niet beweren. Dat patroon komt uit het hoofdproduct, waar
+// de tekst zonder tussenkomst naar de site van een klant gaat. Hier leest de
+// schrijver elke brief na en is hij zelf het onderwerp, dus de grens kocht weinig
+// en kostte veel: wat de uitleesronde miste was voor de brief weg, en een model
+// dat per zin moet verantwoorden schrijft vlakker.
+//
+// De controle is verhuisd naar ná het schrijven. Hij zoekt op wat woordelijk op
+// te zoeken is, getallen en namen, en wijst aan zonder iets te verbieden.
+group("de assistent: getallen en namen uit de brief worden opgezocht in je materiaal", () => {
+  const bronnen = [
+    "Projectleider bij Van Dijk Installatie, 2019 tot 2026.",
+    "Mijn ploeg telt zes monteurs en drie leerlingen.",
+    "Vorig jaar leverden wij elf projecten op tijd op.",
+    "Van Beek Installatietechniek zoekt een projectleider in Utrecht.",
+  ].join("\n");
+
+  const klopt =
+    "Ik werk sinds 2019 bij Van Dijk Installatie. Bij Van Beek zou ik dat in Utrecht voortzetten.";
+  ok("wat in het materiaal staat wordt niet aangewezen", zoekOnvindbaar(klopt, bronnen).length === 0,
+    zoekOnvindbaar(klopt, bronnen).map((v) => v.waarde).join(", "));
+
+  // Dit is de fout die deze controle moet vangen: een cijfer dat nergens staat
+  // en dat de zin juist overtuigend maakt.
+  const verzonnen = "Ik bespaarde het bedrijf 40.000 euro per jaar.";
+  const geld = zoekOnvindbaar(verzonnen, bronnen);
+  ok("een verzonnen bedrag wordt gevonden", geld.length === 1, geld.map((v) => v.waarde).join(", "));
+  ok("en het is een getal", geld[0]?.soort === "getal");
+  ok("met de zin erbij, zodat je ziet waar het over gaat", Boolean(geld[0]?.zin.includes("bespaarde")));
+
+  const werkgever = zoekOnvindbaar("Daarvoor werkte ik bij Heijmans aan de spoorzone.", bronnen);
+  ok("een verzonnen werkgever wordt gevonden", werkgever.some((v) => v.waarde === "Heijmans"));
+  ok("en het is een naam", werkgever.find((v) => v.waarde === "Heijmans")?.soort === "naam");
+
+  // Een hoofdletter aan het begin van een zin is interpunctie en geen naam.
+  ok(
+    "het eerste woord van een zin telt niet als naam",
+    zoekOnvindbaar("Daarnaast stuurde ik een ploeg aan. Vervolgens ging het beter.", bronnen).length === 0,
+  );
+  // Zonder deze lijst wijst elke brief "Geachte" en "Met" aan, en dan klikt
+  // iemand de controle na twee keer weg.
+  ok(
+    "beleefdheidsvormen tellen niet als naam",
+    zoekOnvindbaar("Ik schrijf u, Geachte heer De Vries. Ik groet u, Met vriendelijke groet.", bronnen)
+      .every((v) => !["Geachte", "Met", "vriendelijke"].includes(v.waarde)),
+  );
+
+  // Een scheidingsteken in een getal mag niet uitmaken: 40.000 en 40000 zijn
+  // hetzelfde bedrag, en het dossier en de brief schrijven dat zelden gelijk.
+  ok(
+    "punten en komma's in een getal maken niet uit",
+    zoekOnvindbaar("Ik haalde 40.000 euro binnen.", "Hij haalde 40000 euro binnen.").length === 0,
+  );
+
+  // Eén cijfer is bijna altijd een opsomming of een spelling, en levert te veel
+  // loos alarm om bruikbaar te zijn.
+  ok("losse cijfers worden overgeslagen", zoekOnvindbaar("Ik deed 3 dingen.", bronnen).length === 0);
+
+  // ⚠️ Nagemeten op een proefbrief op 15 september 2026: de controle wees vier
+  // namen aan, en dat waren de aanhef en de ondertekening. Allebei terecht in de
+  // zin dat ze niet in het dossier staan, en allebei nutteloos: je eigen naam
+  // staat zelden in je eigen CV-tekst en de ontvanger typ je zelf. Vier valse
+  // treffers op een goede brief is genoeg om de controle weg te klikken, en dan
+  // vangt hij het verzonnen bedrag ook niet meer.
+  const heleBrief = [
+    "Geachte heer De Vries,",
+    "",
+    "Ik werk sinds 2019 bij Van Dijk Installatie.",
+    "",
+    "Met vriendelijke groet,",
+    "Jan Willem Koopman",
+  ].join("\n");
+  const opNaam = zoekOnvindbaar(heleBrief, bronnen);
+  ok("de aanhef levert geen valse treffer", !opNaam.some((v) => v.waarde === "Vries"), opNaam.map((v) => v.waarde).join(", "));
+  ok("de ondertekening ook niet", !opNaam.some((v) => ["Jan", "Willem", "Koopman"].includes(v.waarde)));
+  ok("en er blijft dus niets over", opNaam.length === 0, opNaam.map((v) => v.waarde).join(", "));
+
+  // Maar een verzonnen naam in de ROMP moet er nog steeds uit komen, anders is
+  // de uitzondering een gat.
+  const metVerzinsel = heleBrief.replace(
+    "Ik werk sinds 2019 bij Van Dijk Installatie.",
+    "Ik werk sinds 2019 bij Van Dijk Installatie. Daarvoor zat ik bij Heijmans.",
+  );
+  ok(
+    "een verzonnen naam in de romp komt er nog wel uit",
+    zoekOnvindbaar(metVerzinsel, bronnen).some((v) => v.waarde === "Heijmans"),
+  );
+
+  const ingekort = zonderAanhefEnOndertekening(heleBrief);
+  ok("de aanhef is eraf", !ingekort.includes("Geachte"));
+  ok("de ondertekening is eraf", !ingekort.includes("Koopman"));
+  ok("de romp blijft heel", ingekort.includes("Van Dijk Installatie"));
+  // Zonder herkenbare aanhef of afsluiting blijft alles staan: liever één naam
+  // te veel aangewezen dan de halve brief stilzwijgend overslaan.
+  ok("een brief zonder aanhef blijft compleet", zonderAanhefEnOndertekening("Zomaar een zin.").includes("Zomaar"));
+
+  ok("zonder bronmateriaal wordt er niets aangewezen", zoekOnvindbaar(verzonnen, "   ").length === 0);
+  ok("zonder brief ook niet", zoekOnvindbaar("", bronnen).length === 0);
+
+  const veel = zoekOnvindbaar(
+    Array.from({ length: 20 }, (_, i) => `Ik haalde ${1000 + i * 111} euro binnen.`).join(" "),
+    bronnen,
+  );
+  ok("de lijst is begrensd", veel.length <= MAX_ONVINDBAAR, `${veel.length}`);
+  ok("hetzelfde getal staat er maar één keer in", zoekOnvindbaar("Ik deed 25 en nog eens 25.", bronnen).length === 1);
+});
+
+group("de assistent: schrijven loopt via een route met een eigenaarscontrole", () => {
+  // Conventie 6, en de reden dat migratie 0095 wel een selectpolicy heeft en
+  // geen insertpolicy: de client schrijft nooit rechtstreeks.
+  const routes = [
+    "app/api/solliciteren/chats/route.ts",
+    "app/api/solliciteren/chats/[id]/route.ts",
+    "app/api/solliciteren/chats/[id]/berichten/route.ts",
+    "app/api/solliciteren/documenten/route.ts",
+    "app/api/solliciteren/documenten/[id]/route.ts",
+    "app/api/solliciteren/documenten/inlezen/route.ts",
+    "app/api/solliciteren/feiten/route.ts",
+    "app/api/solliciteren/feiten/[id]/route.ts",
+    "app/api/solliciteren/feiten/uitlezen/route.ts",
+  ];
+  for (const route of routes) {
+    const bron = leesBestand(route);
+    ok(`${route} bestaat`, bron.length > 0);
+    ok(
+      `${route} controleert wie er binnenkomt`,
+      bron.includes("laadEigenGesprek(") ||
+        bron.includes("laadEigenDocument(") ||
+        bron.includes("laadEigenFeit(") ||
+        bron.includes("eisBeheerder("),
+    );
+  }
+
+  const toegang = leesBestand("lib/solliciteren/toegang.ts");
+  ok("de controle kijkt naar het beheerdersrecht", toegang.includes("isStaff("));
+  ok("en naar de eigenaar van het gesprek", toegang.includes("chat.user_id !== user.id"));
+  ok("en naar de eigenaar van een dossierstuk", toegang.includes("document.user_id !== user.id"));
+  ok("en naar de eigenaar van een feit", toegang.includes("feit.user_id !== user.id"));
+  ok("een gesprek van iemand anders geeft 404 en geen 403", toegang.includes("status: 404"));
+
+  // Een scherm in de browser praat nooit zelf met de database: het stuurt zijn
+  // wijziging naar een route hierboven. De pagina zelf is een server component
+  // en leest wél, met een controle op `user_id` ernaast.
+  for (const bestand of tsxOnder("app/solliciteren")) {
+    const bron = leesBestand(bestand);
+    if (!bron.includes('"use client"')) continue;
+    ok(`${bestand} praat niet zelf met de database`, !bron.includes("@/lib/supabase/"));
+  }
+  const pagina = leesBestand("app/solliciteren/page.tsx");
+  ok("de pagina leest alleen de gesprekken van deze gebruiker", pagina.includes('.eq("user_id", user.id)'));
+
+  // En het zijproject raakt geen enkele tabel van ORBIT ENGINE aan.
+  const eigenBestanden = [...tsxOnder("app/solliciteren")];
+  for (const bestand of [...eigenBestanden, ...routes, "lib/solliciteren/toegang.ts"]) {
+    const bron = leesBestand(bestand);
+    const vreemdeTabellen = [...bron.matchAll(/\.from\("([a-z_]+)"\)/g)]
+      .map((m) => m[1])
+      .filter((tabel) => !tabel.startsWith("sollicitatie_"));
+    ok(`${bestand} raakt alleen de eigen tabellen`, vreemdeTabellen.length === 0, vreemdeTabellen.join(", "));
   }
 });
 

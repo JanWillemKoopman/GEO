@@ -389,3 +389,99 @@ Die tweede rekent na of de opdracht is uitgevoerd: komen de kernfeiten terug in 
 bewijspunten, staat het kernantwoord in de eerste alinea, en staat de keuzereden in de eerste
 twintig procent van de tekst. Een opdracht met een leeg veld vervalt in zijn geheel, en dan schrijft
 de pijplijn precies zoals hij het vóór deze migratie deed (conventie 3).
+
+## 0095 — de sollicitatieassistent van het zijproject
+
+Twee tabellen, `sollicitatie_chats` en `sollicitatie_berichten`, voor de app onder
+`app/solliciteren/`. Ze hangen aan `auth.users` en aan niets anders in dit schema: er is geen enkele
+join met `profiles`, `accounts` of welke tabel van ORBIT ENGINE dan ook, en dat is de bedoeling. De
+scheiding van het zijproject zat tot deze migratie alleen in de opmaak; nu zit hij ook in de data.
+
+Het gesprek draagt de drie bronteksten (`cv_tekst`, `brieven_tekst`, `vacature_tekst`) plus
+`context_bijgewerkt_op`: het moment waarop ze aan het gesprek gekoppeld zijn. Null betekent nog
+nooit, en dat is wat het scherm laat zien in plaats van te doen alsof de assistent de teksten al
+kent.
+
+Per bericht staat erbij welk model, welke redeneerstand en welke temperatuur het gemaakt hebben,
+plus `input_tokens`, `output_tokens`, `cost_usd` en `raw_json` (conventie 8). Dat had ook een
+jsonb-lijst op het gesprek kunnen zijn; het is een eigen tabel geworden omdat je op die kolommen
+wilt kunnen rekenen ("wat kost een brief op het dure model tegenover het goedkope"), en rekenen door
+een jsonb-lijst heen is precies wat de Sales-module in 0069 al een keer heeft moeten terugdraaien.
+
+Een mislukt antwoord krijgt een eigen rij met `fout` gevuld en `inhoud` leeg. Anders is achteraf
+niet te zien of een gesprek stil is gevallen of nooit is begonnen.
+
+**RLS**: select-only, zoals overal. Twee sloten op dezelfde deur, `user_id = auth.uid()` én
+`is_staff()` uit 0038, dus wie uit `staff_users` verdwijnt kan langs deze kant ook niets meer lezen.
+Geen insert- of updatepolicy: schrijven loopt via `app/api/solliciteren/` met de service-role en een
+expliciete eigenaarscontrole in `lib/solliciteren/toegang.ts` (conventie 6).
+
+De kosten van dit zijproject staan bewust **niet** in `ai_calls`. Elke rij daar hangt aan een merk,
+een meetronde of een pagina, en de dagplafonds van 0089 worden erop gerekend. Een sollicitatiebrief
+van de eigenaar hoort in geen van die sommen thuis.
+
+## 0096 — het dossier gaat los van het gesprek
+
+`sollicitatie_documenten`: het materiaal van één persoon, elk stuk een eigen rij met een `soort`
+(`cv`, `brief`, `motivatie`, `project`, `overig`), een `titel` en de tekst. Hangt aan `auth.users`,
+niet aan een gesprek.
+
+**Wat dit repareert.** In 0095 stonden `cv_tekst` en `brieven_tekst` als kolom op het gesprek, naast
+de vacature. Dat is de verkeerde plek zodra je er een tweede keer mee werkt: een CV verandert twee
+keer per jaar en een vacature elke keer, dus wie op vijf vacatures reageert plakt zijn hele loopbaan
+vijf keer. Nu hangt het materiaal aan de persoon en alleen de vacature aan het gesprek.
+
+**Het soort is geen ordening maar een functie.** `brief` is het materiaal waar
+`lib/solliciteren/stem.ts` de schrijfstijl aan meet; `cv`, `project` en `motivatie` leveren de
+feiten waar de sleutelwoordvergelijking tegenaan legt. Die twee door elkaar meten zou de gemeten
+stem vervuilen met opsommingen en jaartallen uit een CV, en dat is precies het register dat een
+brief niet moet hebben. Vandaar dat het onderscheid in de database staat en niet alleen als kopje op
+het scherm.
+
+`sollicitatie_chats.documenten_snapshot` (jsonb, default `[]`) houdt bij welke stukken er bij het
+eerste bericht van dat gesprek meegingen, op naam en omvang. Alleen de namen, niet de inhoud: die
+staat al in `sollicitatie_documenten`, en twee keer bewaren zou een correctie daar stilletjes
+ongedaan maken. Zonder deze kolom is bij een brief die goed viel niet meer na te gaan wélke stukken
+hem gedragen hebben.
+
+`cv_tekst` en `brieven_tekst` op `sollicitatie_chats` blijven staan, ongebruikt, met een
+commentaarregel die dat zegt (conventie 4). Nagekeken op productie op 14 september 2026: nul
+gesprekken en nul berichten, dus er viel niets over te zetten.
+
+**RLS**: select-only, dezelfde twee sloten als 0095 (`user_id = auth.uid()` én `is_staff()`).
+Schrijven loopt via `app/api/solliciteren/documenten/` met de service-role en een expliciete
+eigenaarscontrole in `laadEigenDocument()` (conventie 6).
+
+## 0097 — de feitenkaart van een loopbaan
+
+`sollicitatie_feiten`: de gesloten lijst beweringen die een sollicitatiebrief mag doen over één
+persoon. Elk feit heeft een vast `nummer` (het F-nummer waarnaar de brief verwijst), een
+`categorie`, de `tekst` in één zin, een optionele `periode`, en de `bronzin` waaruit het komt.
+
+**Waarom dit het belangrijkste stuk van het zijproject is.** Het hoofdproduct heeft dit patroon al,
+en de aanleiding staat in `lib/pipeline/factcard.ts`: bij de eerste echte contentronde waren van de
+16 beweringen op een gegenereerde pagina er 5 verzonnen. Een model verzint niet willekeurig, het
+verzint precies daar waar een tekst een concreet feit nodig heeft en het materiaal het niet levert.
+Een sollicitatiebrief is die tekst bij uitstek. Een dossier meegeven met "gebruik dit waar het past"
+is een uitnodiging; een genummerde lijst met "alles wat hier niet op staat bestaat niet" is een
+grens, en `lib/solliciteren/feiten.ts` rekent na of hij is aangehouden.
+
+**Het nummer is vast en geen positie.** In het hoofdproduct is "F3" de derde regel in een lijst, en
+schuift alles op als er een feit bij komt. Dat kan daar, want die kaart wordt per pagina gemaakt.
+Hier leeft de kaart maanden met bewaarde brieven ernaast, dus krijgt elk feit een eigen `nummer` dat
+nooit verschuift. Een verwijderd feit geeft zijn nummer niet terug. De unieke index op
+`(user_id, nummer)` is het vangnet onder het toekennen in de route (conventie 1).
+
+**`bronzin` is de reden dat de kaart te vertrouwen is.** Het model krijgt de opdracht de zin uit het
+dossier letterlijk over te schrijven, en `zeefFeiten()` gooit elk feit weg waarvan die zin niet
+letterlijk in het dossier voorkomt (op genormaliseerde witruimte, want een PDF breekt regels af
+waar geen regel hoort). Zonder dat vangnet mag het model zijn bron samenvatten, en dan bewijst de
+bron niets meer.
+
+**`handmatig` betekent: een mens wint van het model.** Een feit dat jij zet of corrigeert blijft bij
+elke volgende uitleesronde staan en wordt nooit overschreven. Zelfde afspraak als
+`profile_field_sources` in migratie 0035: een correctie die bij de volgende ronde verdwijnt maak je
+één keer, en daarna vertrouw je de kaart niet meer.
+
+**RLS**: select-only, dezelfde twee sloten als 0095 en 0096. Schrijven via
+`app/api/solliciteren/feiten/` met een expliciete eigenaarscontrole in `laadEigenFeit()`.

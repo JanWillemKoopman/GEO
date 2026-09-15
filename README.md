@@ -96,3 +96,52 @@ een document af van wat de code doet, dan is het document fout.
 | [`docs/processtappen-nieuwe-pagina.md`](./docs/processtappen-nieuwe-pagina.md) | **Wat er precies gebeurt, stap voor stap.** Genummerde checklist van klant aanmaken tot een opgeleverde pagina, zonder technische kennis nodig |
 | [`docs/contentpijplijn-overdracht.md`](./docs/contentpijplijn-overdracht.md) | **De contentpijplijn voor buitenstaanders.** Elke AI-aanroep in volgorde, met de prompts erin, geschreven om aan een externe copywriter of AI-expert te overhandigen |
 | [`docs/tasks/`](./docs/tasks/) | Wat er nog open staat. Af is weg, samengevat in het logboek |
+
+## Zijproject: Solliciteren
+
+**Zegt de eigenaar "het Zijproject", "het solliciteren project", "solliciteren" of "de S", dan gaat
+de opdracht over `app/solliciteren/` en nergens anders over.** De wijzigingen die eruit volgen horen
+in die map thuis. ORBIT ENGINE blijft er ongemoeid bij, op de S in de bovenbalk na
+(`components/workspace-chrome.tsx`), en een opdracht die toch aan allebei raakt wordt eerst als
+zodanig benoemd.
+
+Het is een eigen app van één pagina in dezelfde codebase, opgezet op 14 september 2026. Wat er staat
+is een **sollicitatieassistent**: je zet één keer je dossier klaar (CV, eerdere brieven, motivaties,
+projecten, elk als eigen stuk met een naam, in te lezen uit een PDF), en daarna is elke sollicitatie
+nog één handeling: de vacature plakken. De assistent ontleedt hem, legt hem naast je dossier en
+schrijft een brief die je daarna bijstuurt ("enthousiaster", "kort deze alinea in"). Het antwoord
+komt woord voor woord binnen. Per bericht kies je het model en hoeveel het mag nadenken, en per
+bericht wordt bewaard wat die keuze was en wat hij kostte.
+
+De assistent schrijft vrij uit je volledige dossier. Er is een **feitenkaart** die je dossier
+uitleest tot de concreetste punten, met per feit de zin waar het op steunt, maar dat is een spiegel
+en geen grens: hij laat zien of je dossier genoeg concreets bevat, en gaat als zetje mee de prompt
+in. De controle op verzinsels gebeurt ná het schrijven, door elk getal en elke naam uit de brief op
+te zoeken in je materiaal. Aanwijzen achteraf kost geen creativiteit, verbieden vooraf wel.
+
+Vier dingen eromheen rekenen zonder AI, dus zonder kosten en met elke keer dezelfde uitkomst: welke
+woorden uit de vacature nog niet in je materiaal staan, welke standaardzinnen er in een geschreven
+brief staan, welke getallen en namen nergens in je materiaal voorkomen, en **hoe jij zelf
+schrijft**. Dat laatste wordt gemeten aan je eigen eerdere brieven,
+zinslengte, aanspreekvorm, hoe vaak je met "Ik" begint, en gaat als harde opdracht mee; elke
+geschreven brief wordt er daarna weer naast gelegd. Alle drie zijn ze het vangnet onder een
+promptinstructie (conventie 1): een instructie is een verzoek, een meting niet.
+
+Wat hij deelt: de inlog van Supabase en het project bij Vercel, dus hij publiceert mee met `main`.
+Wat hij niet deelt: de vormgeving en de data. De vormgeving staat in
+`app/solliciteren/solliciteren.css` en is sinds 15 september 2026 een nabouw van de ontwerptaal van
+LinkedIn, met eigen tokens die allemaal met `--sol-` beginnen; de map gebruikt geen enkel component
+uit `components/`. De data staat in vier eigen tabellen (migraties
+0095 tot en met 0097) die aan `auth.users` hangen en geen enkele join hebben met het datamodel van
+ORBIT ENGINE.
+`scripts/test-unit.ts` bewaakt allebei die scheidingen, dus één geleende kleur, één geleend
+component of één query naar een tabel van het hoofdproduct valt meteen op.
+
+Alleen een account van ORBIT ENGINE zelf komt erin: de S hangt aan `isStaff`, en de pagina
+controleert datzelfde recht nog een keer op de server. Een klant ziet de knop niet en de pagina
+evenmin.
+
+| Waarvoor | Waar |
+|---|---|
+| Wat er nog open staat | [`docs/tasks/solliciteren-zijproject.md`](./docs/tasks/solliciteren-zijproject.md) |
+| Waarom het zo staat | [`docs/logbook.md`](./docs/logbook.md), 14 september 2026 |

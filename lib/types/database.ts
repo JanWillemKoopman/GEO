@@ -1580,3 +1580,101 @@ export interface ReputationSource {
   first_seen_block: string | null;
   created_at: string;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HET ZIJPROJECT "SOLLICITEREN" (migratie 0095)
+
+   Deze twee vormen hangen aan `auth.users` en aan niets anders in dit bestand.
+   Ze staan hier omdat één feit één eigenaar heeft en dat bestand voor elke
+   tabelvorm dít bestand is; ze horen verder nergens bij. Zie
+   `supabase/migrations/0095_solliciteren.sql` voor waarom de scheiding in de
+   database zit en niet alleen in de schermen.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Waar een dossierstuk voor dient (migratie 0096).
+ *
+ * Geen ordening maar een functie: `brief` levert de gemeten schrijfstijl,
+ * `cv`, `project` en `motivatie` leveren de feiten. Zie
+ * `lib/solliciteren/dossier.ts`.
+ */
+export type SollicitatieDocumentSoort = "cv" | "brief" | "motivatie" | "project" | "overig";
+
+/** Eén stuk uit het dossier van één persoon (migratie 0096). */
+export interface SollicitatieDocument {
+  id: string;
+  user_id: string;
+  soort: SollicitatieDocumentSoort;
+  titel: string;
+  inhoud: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Welk dossierstuk ging er mee, op naam en omvang (migratie 0096). */
+export interface DossierSnapshotRegel {
+  id: string;
+  titel: string;
+  soort: SollicitatieDocumentSoort;
+  tekens: number;
+}
+
+/** Eén sollicitatiegesprek: de vacature plus het verloop (migraties 0095 en 0096). */
+export interface SollicitatieChat {
+  id: string;
+  user_id: string;
+  titel: string;
+  /** ⚠️ Niet meer in gebruik sinds 0096: het CV staat in `sollicitatie_documenten`. */
+  cv_tekst: string;
+  /** ⚠️ Niet meer in gebruik sinds 0096: eerdere brieven zijn documenten. */
+  brieven_tekst: string;
+  vacature_tekst: string;
+  /** Welke dossierstukken er bij het eerste bericht meegingen (0096). */
+  documenten_snapshot: DossierSnapshotRegel[];
+  /** Null = de bronteksten zijn nog nooit aan het gesprek gekoppeld. */
+  context_bijgewerkt_op: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Eén bericht in zo'n gesprek (migratie 0095).
+ *
+ * De kolommen vanaf `model` zijn alleen gevuld bij een antwoord van de
+ * assistent. Bij een bericht van de gebruiker zijn ze null, en dat is de juiste
+ * waarde: er is geen model aan te pas gekomen (conventie 3).
+ */
+export interface SollicitatieBericht {
+  id: string;
+  chat_id: string;
+  rol: "gebruiker" | "assistent";
+  inhoud: string;
+  model: string | null;
+  reasoning_effort: string | null;
+  temperatuur: number | null;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  cost_usd: number | null;
+  raw_json: unknown;
+  /** Ging het antwoord halverwege stuk, dan staat hier waarom. */
+  fout: string | null;
+  created_at: string;
+}
+
+/** Eén feit op de kaart van één persoon (migratie 0097). */
+export interface SollicitatieFeit {
+  id: string;
+  user_id: string;
+  document_id: string | null;
+  /** Het F-nummer, vast per persoon: verschuift nooit als een ander feit weggaat. */
+  nummer: number;
+  categorie: "werk" | "resultaat" | "vaardigheid" | "opleiding" | "drijfveer" | "overig";
+  tekst: string;
+  periode: string | null;
+  /** De zin uit het dossier waar dit feit op steunt. */
+  bronzin: string;
+  /** Door een mens gezet of gecorrigeerd? Dan overleeft hij een nieuwe uitleesronde. */
+  handmatig: boolean;
+  created_at: string;
+  updated_at: string;
+}

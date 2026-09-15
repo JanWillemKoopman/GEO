@@ -1,0 +1,1080 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SOLLICITEREN, eigen opmaak
+
+   Dit is de stijl van het zijproject en niet die van ORBIT ENGINE. Er staat
+   bewust geen enkel token uit `app/globals.css` in: alles begint hier met
+   `--sol-` en alle klassen beginnen met `sol-`. Zo kan deze pagina veranderen
+   zonder dat er iets aan het hoofdproduct verschuift, en andersom.
+
+   ── DE STIJL IS OP 15 SEPTEMBER 2026 OMGEZET NAAR DIE VAN LINKEDIN ─────────
+
+   Tot die dag was dit warm papier met een schreefletter en terracotta, met opzet
+   het tegenovergestelde van het koele leiblauw van ORBIT ENGINE. Op verzoek van
+   de eigenaar is dat vervangen door de ontwerptaal van LinkedIn: het warmgrijze
+   vlak, het blauw, pilvormige knoppen, kaarten met een haarlijnschaduw in plaats
+   van een rand, en de systeemletter. De reden is dat dit scherm over
+   solliciteren gaat en dat LinkedIn de omgeving is waarin dat gebeurt; het
+   scheelt een omschakeling in je hoofd.
+
+   ⚠️ DIT IS EEN NABOUW EN GEEN KOPIE. Hij is gemaakt op de publiek bekende
+   ontwerptaal van LinkedIn, niet op een inspectie van hun schermen. Hun eigen
+   huisletter is niet vrij te gebruiken, dus hieronder staat de systeemletter,
+   en dat is ook wat een deel van hun bezoekers ziet. Er staat bewust geen logo
+   of woordmerk van LinkedIn in deze app: de stijl overnemen is iets anders dan
+   hun merkteken voeren.
+
+   ── WAT ER TOCH VAN ORBIT ENGINE BINNENKOMT ────────────────────────────────
+
+   Eén ding valt niet weg te nemen: `app/layout.tsx` is in Next.js het
+   wortelelement van de hele site en laadt `globals.css`. Dat bestand levert
+   hier alleen de Tailwind-basis (marges op nul, afbeeldingen schalen mee, de
+   standaard randkleur). Elke zichtbare waarde, kleur, letter, vorm en ruimte,
+   wordt hieronder opnieuw gezet op `.sol-app`, dus het resultaat op het scherm
+   komt volledig uit dit bestand.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.sol-app {
+  /* ── Vlakken ──────────────────────────────────────────────────────────────
+     Het warmgrijs achter de tijdlijn, en het wit van de kaarten erop. Dit ene
+     paar doet bij LinkedIn het meeste werk: alles is een witte kaart op grijs. */
+  --sol-achtergrond: #f4f2ee;
+  --sol-vlak: #ffffff;
+  /* De hover op een aanklikbare regel binnen een kaart. */
+  --sol-vlak-hover: #f3f2ef;
+  /* Het vlak van een invoerveld dat nog niet actief is. */
+  --sol-vlak-invoer: #ffffff;
+
+  /* ── Blauw ────────────────────────────────────────────────────────────────
+     Eén blauw voor elke handeling, een donkere stand voor hover, en twee
+     lichte vlakken: het ene voor de hover van een omlijnde knop, het andere
+     voor een zachte mededeling. */
+  --sol-blauw: #0a66c2;
+  --sol-blauw-diep: #004182;
+  --sol-blauw-zacht: #d0e8ff;
+  --sol-blauw-licht: #e8f3ff;
+
+  /* ── Tekst ────────────────────────────────────────────────────────────────
+     Doorzichtig zwart en geen grijstinten: zo houdt tekst dezelfde verhouding
+     op elk vlak waarop hij landt. */
+  --sol-tekst: rgba(0, 0, 0, 0.9);
+  --sol-tekst-zacht: rgba(0, 0, 0, 0.6);
+  --sol-tekst-licht: rgba(0, 0, 0, 0.38);
+
+  /* ── Lijnen ───────────────────────────────────────────────────────────────
+     De haarlijn tussen twee rijen, en de zwaardere lijn om een invoerveld en
+     een omlijnde knop. */
+  --sol-rand: rgba(0, 0, 0, 0.08);
+  --sol-rand-sterk: rgba(0, 0, 0, 0.6);
+
+  /* ── Signaalkleuren ───────────────────────────────────────────────────────
+     Groen als iets klopt, amber als er iets te bekijken valt, rood als er iets
+     nagekeken moet worden. Alle drie in de verzadiging die naast blauw op wit
+     leesbaar blijft. */
+  --sol-groen: #01754f;
+  --sol-groen-zacht: #ddf5f2;
+  --sol-amber: #915907;
+  --sol-amber-zacht: #fdf7e3;
+  --sol-rood: #b24020;
+  --sol-rood-zacht: #fdf0ed;
+
+  /* ── Vorm ─────────────────────────────────────────────────────────────────
+     Kaarten 8 pixels, invoervelden 4, knoppen helemaal rond. Die drie naast
+     elkaar zijn het sterkste vormkenmerk van dit ontwerp. */
+  --sol-radius: 8px;
+  --sol-radius-klein: 4px;
+  --sol-pil: 999px;
+
+  /* Een kaart heeft geen rand maar een schaduw van precies één pixel. Dat leest
+     scherper dan een rand, want hij ligt buiten de kaart in plaats van erop. */
+  --sol-schaduw: 0 0 0 1px var(--sol-rand);
+  --sol-schaduw-diep: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  /* ── Ruimte ───────────────────────────────────────────────────────────────*/
+  --sol-maat: 46rem;
+  --sol-maat-breed: 76rem;
+
+  /* ── Letter ───────────────────────────────────────────────────────────────
+     De huisletter van LinkedIn is niet vrij te gebruiken. Dit is de stapel
+     systeemletters die hun eigen stijlblad als terugval hanteert, en die een
+     deel van hun bezoekers dus ook echt ziet. Geen schreefletter meer: die
+     hoorde bij de vorige stijl en past hier nergens. */
+  --sol-letter: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+
+  /* Deze pagina heeft geen donkere stand. Zonder deze regel tekent de browser
+     zijn eigen onderdelen (scrollbalk, keuzelijst) donker zodra het
+     besturingssysteem donker staat, terwijl het vlak hier altijd licht is. */
+  color-scheme: light;
+
+  min-height: 100dvh;
+  background-color: var(--sol-achtergrond);
+  color: var(--sol-tekst);
+  font-family: var(--sol-letter);
+  /* 14 pixels is de basismaat van dit ontwerp, niet 16. Dat is het verschil
+     tussen "een website" en "dit scherm". */
+  font-size: 14px;
+  line-height: 1.42857;
+  -webkit-font-smoothing: antialiased;
+}
+
+.sol-app *,
+.sol-app *::before,
+.sol-app *::after {
+  box-sizing: border-box;
+  border-color: var(--sol-rand);
+}
+
+.sol-binnen {
+  margin: 0 auto;
+  width: 100%;
+  max-width: var(--sol-maat);
+  padding: 1.5rem 1rem 3rem;
+}
+
+/* ── De kop ───────────────────────────────────────────────────────────────── */
+
+/* De kop is een kaart, net als alles hier. Bij LinkedIn is het bovenste blok
+   van een profiel precies dat: wit, 8 pixels rond, een haarlijnschaduw. */
+.sol-kop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  background-color: var(--sol-vlak);
+  border-radius: var(--sol-radius);
+  box-shadow: var(--sol-schaduw);
+}
+
+.sol-kop__label {
+  margin: 0 0 0.15rem;
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--sol-tekst-zacht);
+}
+
+.sol-titel {
+  margin: 0;
+  font-family: inherit;
+  /* 24 pixels, halfvet: de maat van een profielnaam. Geen clamp meer, want dit
+     ontwerp schaalt zijn koppen niet mee met het venster. */
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.005em;
+  color: var(--sol-tekst);
+}
+
+.sol-kop__rechts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  font-size: 0.875rem;
+  color: var(--sol-tekst-zacht);
+}
+
+/* Een verwijzing is blauw en halfvet, en onderstreept pas bij hover. */
+.sol-terug {
+  color: var(--sol-blauw);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 0;
+}
+
+.sol-terug:hover {
+  color: var(--sol-blauw-diep);
+  text-decoration: underline;
+}
+
+/* ── De kaarten ───────────────────────────────────────────────────────────── */
+
+.sol-kaart {
+  margin-top: 0.5rem;
+  padding: 1rem 1.5rem 1.25rem;
+  background-color: var(--sol-vlak);
+  border: 0;
+  border-radius: var(--sol-radius);
+  box-shadow: var(--sol-schaduw);
+}
+
+.sol-kaart--leeg {
+  background-color: var(--sol-vlak);
+  border-style: none;
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+}
+
+.sol-kaart__titel {
+  margin: 0 0 0.25rem;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--sol-tekst);
+}
+
+.sol-kaart__tekst {
+  margin: 0;
+  color: var(--sol-tekst-zacht);
+  max-width: 34rem;
+}
+
+.sol-kaart--leeg .sol-kaart__tekst {
+  margin: 0 auto;
+}
+
+.sol-kaart__tekst--klein {
+  font-size: 0.875rem;
+}
+
+.sol-raster {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 40rem) {
+  .sol-raster {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* Op een breed scherm hangt de regel met het account aan de rechterkant van
+     de kop. Op een smal scherm valt hij onder de titel en hoort hij links uit
+     te lijnen met alles eronder. */
+  .sol-kop__rechts {
+    align-items: flex-end;
+    text-align: right;
+  }
+}
+
+.sol-punt {
+  padding: 1rem 1.25rem;
+  background-color: var(--sol-vlak);
+  border: 0;
+  border-radius: var(--sol-radius);
+  box-shadow: var(--sol-schaduw);
+}
+
+.sol-punt__titel {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.sol-punt__tekst {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--sol-tekst-zacht);
+}
+
+/* ── De wachtvorm ─────────────────────────────────────────────────────────── */
+
+.sol-skelet {
+  border-radius: var(--sol-radius);
+  background-color: #e9e5df;
+  animation: sol-pols 1.4s ease-in-out infinite;
+}
+
+.sol-skelet--titel {
+  height: 2rem;
+  width: 14rem;
+}
+
+.sol-skelet--blok {
+  height: 9rem;
+  margin-top: 1rem;
+}
+
+@keyframes sol-pols {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sol-skelet {
+    animation: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HET WERKBLAD
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.sol-binnen--breed {
+  max-width: var(--sol-maat-breed);
+}
+
+/* ── De gesprekken ────────────────────────────────────────────────────────── */
+
+.sol-gesprekken {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.sol-gesprekken__lijst {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sol-gesprekken__lijst li {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+/* Een filterpil: wit met een dunne rand, en gevuld zodra hij aanstaat. */
+.sol-tab {
+  display: block;
+  max-width: 16rem;
+  overflow: hidden;
+  padding: 0.3rem 0.85rem;
+  border: 1px solid var(--sol-rand-sterk);
+  border-radius: var(--sol-pil);
+  background-color: transparent;
+  color: var(--sol-tekst-zacht);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sol-tab:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+  border-color: var(--sol-tekst);
+  color: var(--sol-tekst);
+  box-shadow: inset 0 0 0 1px var(--sol-tekst);
+}
+
+/* Een aangezette filterpil is in dit ontwerp donkergroen en niet blauw. Dat is
+   geen smaakkwestie: blauw is hier de kleur van een HANDELING, en "Nieuw
+   gesprek" staat er vlak naast. Twee blauwe pillen naast elkaar lopen in
+   elkaar over, en dan lijkt de naam van je gesprek ook een knop. */
+.sol-tab--actief {
+  background-color: var(--sol-groen);
+  border-color: var(--sol-groen);
+  color: #ffffff;
+}
+
+.sol-tab--actief:hover {
+  background-color: #014a33;
+  border-color: #014a33;
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px #014a33;
+}
+
+.sol-tab__weg {
+  border: 0;
+  background: none;
+  padding: 0.2rem 0.35rem;
+  border-radius: 50%;
+  color: var(--sol-tekst-zacht);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sol-tab__weg:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+  color: var(--sol-tekst);
+}
+
+/* ── De kolommen ──────────────────────────────────────────────────────────── */
+
+.sol-werkblad {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: 1fr;
+  align-items: start;
+  margin-top: 0.5rem;
+}
+
+/* Pas naast elkaar zodra een kolom van 26rem én een gesprek van 34rem allebei
+   passen. Daaronder onder elkaar, want een tekstvak van 15rem breed is geen
+   tekstvak meer. */
+@media (min-width: 64rem) {
+  .sol-werkblad {
+    grid-template-columns: minmax(0, 26rem) minmax(0, 1fr);
+  }
+}
+
+.sol-kolom {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sol-paneel,
+.sol-gesprek {
+  margin-top: 0.5rem;
+}
+
+.sol-paneel__kop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.sol-paneel__kop .sol-kaart__titel {
+  margin-bottom: 0;
+}
+
+/* Het enige paneel dat per sollicitatie verandert. Een gekleurde bovenrand zou
+   hier niet passen; in plaats daarvan een zachtblauw vlak, zoals LinkedIn een
+   blok gebruikt dat om aandacht vraagt. */
+.sol-paneel--nadruk {
+  background-color: var(--sol-blauw-licht);
+  box-shadow: 0 0 0 1px rgba(10, 102, 194, 0.25);
+}
+
+/* ── Velden ───────────────────────────────────────────────────────────────── */
+
+.sol-veld {
+  margin-top: 0.85rem;
+}
+
+.sol-veld__label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--sol-tekst);
+}
+
+.sol-veld__uitleg {
+  margin: 0.1rem 0 0.35rem;
+  font-size: 0.75rem;
+  color: var(--sol-tekst-zacht);
+}
+
+.sol-veld__teller {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  color: var(--sol-tekst-zacht);
+}
+
+/* Een invoerveld: 4 pixels rond, een zware rand, en bij focus een tweede
+   binnenrand in blauw in plaats van een gloed. */
+.sol-invoer {
+  display: block;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--sol-rand-sterk);
+  border-radius: var(--sol-radius-klein);
+  background-color: var(--sol-vlak-invoer);
+  color: var(--sol-tekst);
+  font-family: inherit;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.sol-invoer::placeholder {
+  color: var(--sol-tekst-licht);
+}
+
+.sol-invoer:focus {
+  outline: none;
+  border-color: var(--sol-blauw);
+  box-shadow: inset 0 0 0 1px var(--sol-blauw);
+}
+
+.sol-invoer:focus-visible {
+  outline: none;
+}
+
+.sol-invoer--tekstvak {
+  resize: vertical;
+  min-height: 4rem;
+}
+
+/* ── Knoppen ──────────────────────────────────────────────────────────────── */
+
+/* Volledig rond, halfvet, en met genoeg zijruimte om als knop te lezen. Dit is
+   het tweede sterke vormkenmerk van dit ontwerp, na de kaart. */
+.sol-knop {
+  align-self: flex-start;
+  padding: 0.4rem 1rem;
+  min-height: 2rem;
+  border: 1px solid var(--sol-blauw);
+  border-radius: var(--sol-pil);
+  background-color: var(--sol-blauw);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.sol-knop:hover:not(:disabled) {
+  background-color: var(--sol-blauw-diep);
+  border-color: var(--sol-blauw-diep);
+  box-shadow: inset 0 0 0 1px var(--sol-blauw-diep);
+}
+
+.sol-knop:focus-visible {
+  outline: 2px solid var(--sol-tekst);
+  outline-offset: 2px;
+}
+
+.sol-knop:disabled {
+  background-color: rgba(0, 0, 0, 0.08);
+  border-color: transparent;
+  color: var(--sol-tekst-licht);
+  cursor: not-allowed;
+}
+
+.sol-knop--klein {
+  padding: 0.25rem 0.75rem;
+  min-height: 1.75rem;
+  font-size: 0.8125rem;
+}
+
+/* De omlijnde stand: blauwe rand, blauwe letter, doorzichtig vlak. Bij hover
+   vult hij zachtblauw en wordt de rand optisch dubbel zo dik. */
+.sol-knop--stil {
+  padding: 0.25rem 0.75rem;
+  min-height: 1.75rem;
+  border-color: var(--sol-rand-sterk);
+  background-color: transparent;
+  color: var(--sol-tekst-zacht);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.sol-knop--stil:hover:not(:disabled) {
+  background-color: rgba(0, 0, 0, 0.08);
+  border-color: var(--sol-tekst);
+  color: var(--sol-tekst);
+  box-shadow: inset 0 0 0 1px var(--sol-tekst);
+}
+
+.sol-knop--stil:disabled {
+  background-color: transparent;
+  border-color: var(--sol-rand);
+  color: var(--sol-tekst-licht);
+}
+
+.sol-paneel__voet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--sol-rand);
+}
+
+.sol-paneel__voet .sol-veld__teller {
+  margin: 0;
+}
+
+.sol-keuzes {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 30rem) {
+  .sol-keuzes {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ── De sleutelwoorden ────────────────────────────────────────────────────── */
+
+.sol-woorden {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Vaardigheidspillen: rond, dunne rand, geen vulling. De ontbrekende woorden
+   krijgen de amberkleur, want dat is waar je iets mee kunt. Een vinkje erbij,
+   want kleur alleen is geen verschil voor wie het niet ziet. */
+.sol-woord {
+  padding: 0.2rem 0.7rem;
+  border: 1px solid var(--sol-amber);
+  border-radius: var(--sol-pil);
+  background-color: var(--sol-amber-zacht);
+  color: var(--sol-amber);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.sol-woord--raak {
+  border-color: var(--sol-rand-sterk);
+  background-color: transparent;
+  color: var(--sol-tekst-zacht);
+  font-weight: 400;
+}
+
+.sol-woord--raak::before {
+  content: "✓ ";
+}
+
+.sol-woord__aantal {
+  margin-left: 0.3rem;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Het gesprek ──────────────────────────────────────────────────────────── */
+
+.sol-gesprek {
+  display: flex;
+  flex-direction: column;
+}
+
+.sol-leeg {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.75rem;
+  padding: 1.25rem;
+  border: 0;
+  border-radius: var(--sol-radius);
+  background-color: var(--sol-blauw-licht);
+}
+
+.sol-berichten {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+.sol-bericht {
+  padding: 0.85rem 1rem;
+  border: 0;
+  border-radius: var(--sol-radius);
+  background-color: var(--sol-vlak);
+}
+
+/* Je eigen aanwijzing staat ingesprongen op een zachtblauw vlak, zoals een
+   verstuurd bericht. */
+.sol-bericht--gebruiker {
+  margin-left: auto;
+  max-width: 90%;
+  background-color: var(--sol-blauw-licht);
+}
+
+/* Het antwoord is een kaart binnen de kaart: een haarlijn eromheen in plaats
+   van een gekleurde zijrand, want gekleurde zijranden bestaan in dit ontwerp
+   niet. */
+.sol-bericht--assistent {
+  box-shadow: var(--sol-schaduw);
+}
+
+.sol-bericht__kop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.sol-bericht__wie {
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--sol-tekst);
+}
+
+.sol-bericht__meta {
+  font-size: 0.75rem;
+  color: var(--sol-tekst-zacht);
+}
+
+.sol-bericht__meta--goed {
+  color: var(--sol-groen);
+  font-weight: 600;
+}
+
+.sol-bericht__meta--let-op {
+  color: var(--sol-amber);
+  font-weight: 600;
+}
+
+.sol-bericht__meta--fout {
+  color: var(--sol-rood);
+  font-weight: 600;
+}
+
+/* `pre-wrap`: de assistent levert platte tekst met lege regels ertussen, en dat
+   is precies wat er in een e-mail geplakt wordt. Zie de toelichting in
+   `bericht.tsx` voor waarom er geen opmaak overheen gaat. */
+.sol-bericht__tekst {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--sol-tekst);
+}
+
+.sol-bericht__voet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--sol-rand);
+}
+
+/* Een strook met bevindingen onder een antwoord. Amber als standaard, rood bij
+   iets dat echt nagekeken moet worden. */
+.sol-cliches {
+  margin: 0.6rem 0 0;
+  padding: 0.7rem 0.9rem 0.7rem 1.6rem;
+  border-radius: var(--sol-radius-klein);
+  background-color: var(--sol-amber-zacht);
+  color: var(--sol-amber);
+  font-size: 0.8125rem;
+}
+
+.sol-cliches li + li {
+  margin-top: 0.3rem;
+}
+
+.sol-cliches--fout {
+  background-color: var(--sol-rood-zacht);
+  color: var(--sol-rood);
+}
+
+.sol-cliches--stil {
+  background-color: var(--sol-vlak-hover);
+  color: var(--sol-tekst-zacht);
+}
+
+.sol-cliches__voetnoot {
+  margin-top: 0.5rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid currentColor;
+  opacity: 0.75;
+}
+
+/* ── Het invoerveld onderaan ──────────────────────────────────────────────── */
+
+.sol-opsteller {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--sol-rand);
+}
+
+.sol-opsteller__voet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.6rem;
+}
+
+.sol-opsteller__voet .sol-veld__teller {
+  margin: 0;
+}
+
+.sol-fout {
+  margin: 0.8rem 0 0;
+  padding: 0.6rem 0.8rem;
+  border: 0;
+  border-radius: var(--sol-radius-klein);
+  background-color: var(--sol-rood-zacht);
+  color: var(--sol-rood);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HET DOSSIER EN DE GEMETEN STEM
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Het soort stuk als klein grijs etiket, zoals een functietitel onder een naam. */
+.sol-stuk__soort {
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--sol-pil);
+  background-color: var(--sol-vlak-hover);
+  color: var(--sol-tekst-zacht);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sol-stuk__titel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sol-stuk__knoppen {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.sol-stuk__tekst {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.sol-stukken,
+.sol-feiten {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sol-stuk,
+.sol-feit {
+  border-top: 1px solid var(--sol-rand);
+}
+
+.sol-stuk:first-child,
+.sol-feit:first-child {
+  border-top: 0;
+}
+
+.sol-stuk {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0;
+}
+
+.sol-feit {
+  display: block;
+  padding: 0;
+}
+
+/* Een knop die eruitziet als een regel: geen rand, geen vulling, wel een hover
+   over de hele breedte. Zo werkt elke aanklikbare rij in dit ontwerp. */
+.sol-feit__regel,
+.sol-stuk__regel {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.4rem;
+  border: 0;
+  border-radius: var(--sol-radius-klein);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sol-stuk__regel {
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+.sol-feit__regel:hover,
+.sol-stuk__regel:hover {
+  background-color: var(--sol-vlak-hover);
+}
+
+.sol-feit__regel:focus-visible,
+.sol-stuk__regel:focus-visible {
+  outline: 2px solid var(--sol-blauw);
+  outline-offset: -2px;
+}
+
+.sol-feit__regel[aria-expanded="true"] {
+  background-color: var(--sol-vlak-hover);
+}
+
+.sol-stuk__weg {
+  flex: 0 0 auto;
+  padding: 0.25rem 0.5rem;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--sol-tekst-zacht);
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sol-stuk__weg:hover:not(:disabled) {
+  background-color: rgba(0, 0, 0, 0.08);
+  color: var(--sol-tekst);
+}
+
+.sol-stuk__weg:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── De gemeten stem ──────────────────────────────────────────────────────── */
+
+.sol-maten {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+}
+
+.sol-maten div {
+  padding: 0.5rem 0.7rem;
+  border: 0;
+  border-radius: var(--sol-radius-klein);
+  background-color: var(--sol-vlak-hover);
+}
+
+.sol-maten dt {
+  font-size: 0.75rem;
+  color: var(--sol-tekst-zacht);
+}
+
+.sol-maten dd {
+  margin: 0.1rem 0 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.sol-uitklap {
+  margin-top: 0.85rem;
+  font-size: 0.8125rem;
+}
+
+.sol-uitklap summary {
+  cursor: pointer;
+  color: var(--sol-blauw);
+  font-weight: 600;
+}
+
+.sol-uitklap summary:hover {
+  text-decoration: underline;
+}
+
+/* ── De feitenkaart ───────────────────────────────────────────────────────── */
+
+.sol-feitgroep {
+  margin-top: 0.85rem;
+}
+
+.sol-feitgroep__titel {
+  margin: 0 0 0.2rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--sol-tekst-zacht);
+}
+
+/* Het nummer in tabelcijfers en op vaste breedte, zodat de kolom uitlijnt en je
+   hem naast een brief kunt leggen zonder te zoeken. */
+.sol-feit__ref {
+  flex: 0 0 auto;
+  min-width: 2.4rem;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--sol-rand-sterk);
+  border-radius: var(--sol-pil);
+  color: var(--sol-tekst-zacht);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.sol-feit__tekst {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.sol-feit__eigen {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: var(--sol-pil);
+  background-color: var(--sol-blauw-licht);
+  color: var(--sol-blauw);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.sol-feit__open {
+  padding: 0 0.4rem 0.6rem 3rem;
+}
+
+.sol-feit__open .sol-stuk__knoppen {
+  margin-top: 0.5rem;
+}
+
+/* De bronzin: waar dit feit letterlijk vandaan komt. Ingesprongen achter een
+   lijn, zodat je ziet dat het een citaat is en geen toelichting. */
+.sol-feit__bron {
+  display: block;
+  margin-top: 0;
+  padding-left: 0.7rem;
+  border-left: 2px solid var(--sol-rand-sterk);
+  color: var(--sol-tekst-zacht);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-style: italic;
+}
+
+/* ── De drie delen van een antwoord ───────────────────────────────────────── */
+
+/* De kopjes zijn structuur en geen opmaak: de prompt schrijft ze voor en
+   `splitsAntwoord()` knipt het antwoord erop. Ze als "## Vacature" laten staan
+   is de lezer de naad laten zien. */
+.sol-antwoord {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.sol-deel + .sol-deel {
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--sol-rand);
+}
+
+.sol-deel__titel {
+  margin: 0 0 0.3rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--sol-tekst-zacht);
+}
+
+/* De brief zelf is waar het om gaat, dus die staat op een eigen vlak in plaats
+   van als derde alinea onder de analyse. */
+.sol-deel--brief {
+  padding: 0.85rem 1rem;
+  border-top: 0;
+  border-radius: var(--sol-radius-klein);
+  background-color: var(--sol-vlak-hover);
+}

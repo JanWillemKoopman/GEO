@@ -8154,3 +8154,385 @@ alle vier groen gedraaid, ook `npm run build` met de nieuwe route erin gecontrol
 Blok E uit `docs/tasks/nova-vergelijking-verbeterpunten.md` is hiermee compleet. Blok A (het
 contentplan vooraf vullen) wacht op een planningsronde met de eigenaar over punt 1, zoals eerder
 afgesproken.
+
+## 14 september 2026: een zijproject in dezelfde codebase, achter dezelfde inlog
+
+**Er staat sinds vandaag een tweede app in deze repo: `app/solliciteren/`, één pagina, met een S
+rechtsboven in de bovenbalk als ingang.** De opdracht van de eigenaar was precies afgebakend: wél
+de inlog en de publicatie van ORBIT ENGINE hergebruiken, níet de vormgeving, en niets veranderen bij
+Supabase of Vercel. Dat is ook wat er gebeurd is: 0 migraties, 0 nieuwe tabellen, 0 wijzigingen aan
+het project bij Vercel. Vier nieuwe bestanden in de nieuwe map, drie bestaande bestanden aangeraakt
+(`components/workspace-chrome.tsx` voor de S, `components/app-shell.tsx` voor het recht erachter,
+`lib/supabase/middleware.ts` voor de bescherming) en 15 controles erbij in `scripts/test-unit.ts`
+(4388 naar 4403).
+
+**Waarom hij buiten `app/(app)` staat.** Alles onder die groep krijgt de schil van ORBIT ENGINE
+eromheen: zijbalk, merkkiezer, bovenbalk, plus de vier parallelle queries van die layout. Een
+zijproject dat er anders uit moet zien, heeft aan alle vier niets. Vandaar een eigen map naast die
+groep, met een eigen layout die alleen `requireUser()` doet.
+
+**De vormgeving is echt gescheiden, en dat wordt bewaakt.** `app/solliciteren/solliciteren.css`
+gebruikt geen enkel token uit `globals.css`: alle 13 eigen tokens beginnen met `--sol-` en alle
+klassen met `sol-`. Warm papier, een schreefletter voor de koppen, terracotta als accent, hoeken van
+4 pixels en één vaste stand, tegenover het koele leiblauw, Geist, 6 tot 12 pixels en twee standen
+van het hoofdproduct. Een afspraak als deze slijt vanzelf, want één import uit `components/` of één
+`var(--text-primary)` knoopt de twee ontwerpen weer aan elkaar. De nieuwe testgroep leest daarom de
+map zelf uit: geen bestand eronder mag uit `@/components/` importeren, geen `var(--)` in het
+stijlblad mag buiten `--sol-` vallen, en het stijlblad mag nergens anders geladen worden.
+
+**Eén ding valt niet weg te nemen.** `app/layout.tsx` is in Next.js het wortelelement van de hele
+site en laadt `globals.css`, dus de Tailwind-basis (marges op nul, standaard randkleur) komt ook op
+deze pagina binnen. Een tweede wortelelement zou betekenen dat alle bestaande schermen naar een
+andere route group verhuizen, en dat is een te grote ingreep voor één pagina. Elke zichtbare waarde
+wordt daarom op `.sol-app` opnieuw gezet. Nagemeten in de browser met de donkere stand van ORBIT
+ENGINE aan: de pagina blijft warm papier, er lekt niets doorheen.
+
+**Alleen voor ORBIT ENGINE zelf.** De S hangt aan `isStaff`, het effectieve recht, dus hij verdwijnt
+ook tijdens de klantweergave, en `app/solliciteren/layout.tsx` controleert hetzelfde recht nog eens
+op de server met een `notFound()` erachter: een verborgen knop is geen slot. Van de 3 accounts in de
+database zijn er 2 staff, dus in de praktijk raakt dit vandaag niemand, maar de volgorde is
+belangrijker dan het aantal: een klant hoort nooit een knop te zien naar iets dat niet van hem is.
+
+**Geverifieerd, niet aangenomen** (conventie 10): `/solliciteren` geeft zonder sessie een 307 naar
+`/login` op de draaiende dev-server, de pagina rendert in de browser op 1280 en op 390 pixels breed,
+en de S staat in de bovenbalk links van het hulp-icoon. `tsc --noEmit`, `test:unit` (4403 geslaagd),
+`test:chain` (650 geslaagd) en `build` zijn alle vier groen.
+
+**Wat er nog niet is: de app zelf.** De pagina zegt dat met zoveel woorden ("Hier komt de app"),
+want er is geen functie gebouwd en geen data om te tonen. Wat de pagina moet gaan doen staat open in
+`docs/tasks/solliciteren-zijproject.md`.
+
+---
+
+## 14 september 2026: de sollicitatieassistent, het zijproject krijgt zijn functie
+
+De pagina van vanmorgen zei "Hier komt de app". Dit is de app: een assistent die de vacature
+ontleedt, hem naast het CV legt en een brief schrijft die daarna in het gesprek bij te sturen is.
+Zes modules in `lib/solliciteren/`, vijf schermbestanden in `app/solliciteren/`, drie API-routes en
+migratie 0095. De testtelling gaat van 4408 naar 4515, en dat zijn 107 nieuwe controles waarvan er
+geen enkele een aanroep kost.
+
+**De scheiding is meeverhuisd naar de database.** Tot vanmorgen deelde het zijproject twee dingen
+met ORBIT ENGINE, de inlog en de publicatie, en de opmaak juist niet. Met 0095 geldt dat ook voor de
+data: `sollicitatie_chats` en `sollicitatie_berichten` hangen aan `auth.users` en hebben geen enkele
+join met `profiles` of `accounts`. De testgroep leest de eigen map uit en rekent na dat geen enkel
+bestand van het zijproject een tabel van het hoofdproduct aanraakt.
+
+**De kosten gaan bewust niet in `ai_calls`.** Elke rij daar hangt aan een merk, een meetronde of een
+pagina, en de dagplafonds uit migratie 0089 worden erop gerekend. Een brief van de eigenaar zou het
+budget van een klant laten oplopen door iets wat die klant niet heeft gevraagd. Wat een bericht
+kostte staat daarom per bericht in `sollicitatie_berichten.cost_usd`, met dezelfde rekensom uit
+`lib/openai/pricing.ts`.
+
+**De modelkeuze ging anders dan gevraagd, en dat is een keuze.** De opdracht noemde "GPT-6 Astra" en
+"GPT-5.4 Thinking". Die staan niet in de keuzelijst: de app kent ze nergens, er is geen tarief voor
+in `lib/openai/pricing.ts`, en er was in deze omgeving geen sleutel om te controleren of ze bij
+OpenAI bestaan. Een modelnaam die niet bestaat levert geen nette foutmelding op maar een mislukte
+aanroep, en een onbekend tarief valt stil terug op de duurste schatting die we kennen (conventie 3).
+Er staan nu drie modellen in, Sol, Terra en Luna, elk met een geverifieerd tarief. Er een bijzetten
+kost twee regels zodra de naam vaststaat: een regel in `lib/solliciteren/modellen.ts` en een tarief
+in `pricing.ts`.
+
+De tweedeling uit de opdracht, een schrijfmodel naast een redeneermodel, bestaat sinds GPT-5.6
+bovendien niet meer tussen modellen maar als knop óp elk model: `isReasoningModel()` herkent de hele
+GPT-5-familie. Wat vroeger de modelkeuze was, is nu de redeneerstand (geen, laag, midden, hoog); wat
+het model bepaalt is hoe goed de zinnen zijn en wat het kost. Allebei staan ze per bericht in te
+stellen en allebei worden ze per bericht opgeslagen.
+
+**Eén regel staat nu op twee plekken in code, met opzet.** De API accepteert `temperature` alleen
+zolang de redeneerstand op `none` staat; bij `low` en hoger faalt de hele aanroep met een 400.
+`resolveTuning()` in de pijplijn vertaalt SOORT WERK naar parameters, dit scherm laat de gebruiker
+zelf kiezen, dus de tabel daar past hier niet. De regel zelf staat op allebei de plekken, en een
+testgroep rekent voor alle drie de modellen na dat ze niet uit elkaar lopen. Zou dat wel gebeuren,
+dan faalt elke aanroep van dit scherm zonder dat er iets aan dit scherm veranderd is.
+
+**Twee dingen die de opdracht niet vroeg, en die de functie het meest waard maken.** Allebei zijn
+het tellingen in code, dus ze kosten niets, ze wachten nergens op en ze geven elke keer hetzelfde
+antwoord.
+
+De eerste is de **cliché-controle** (`lib/solliciteren/cliches.ts`, 18 regels). De systeemprompt
+verbiedt elf standaardzinnen bij naam plus het gedachtestreepje en de schuine streep; een
+promptinstructie is een verzoek en geen garantie, en hoe langer een gesprek wordt hoe vaker een
+model terugvalt op wat het altijd schrijft. Onder elk antwoord staat daarom wat er gevonden is en
+waarom het opvalt. Er wordt niets weggehaald, anders dan in `lib/pipeline/dash-guard.ts`, waar de
+tekst zonder tussenkomst naar de site van een klant gaat: hier kijkt er altijd nog iemand naar, en
+of "met veel enthousiasme" in jóuw brief een cliché is of gewoon waar, bepaal jij. Een testgroep
+haalt de verboden zinnen uit de prompt en controleert dat het vangnet ze alle elf terugvindt.
+Dat is conventie 1 in zijn zuiverste vorm: lopen die twee lijsten uit elkaar, dan verbiedt de prompt
+iets dat niemand nakijkt.
+
+De tweede is de **sleutelwoordvergelijking** (`lib/solliciteren/sleutelwoorden.ts`). Een werkgever
+haalt binnengekomen brieven door een systeem dat op letterlijke woorden zoekt, en dat is geen werk
+voor een taalmodel. Terwijl je de vacature plakt, staat ernaast welke woorden eruit nog niet in je
+CV voorkomen, met het percentage erbij. Zonder CV of zonder vacature is dat percentage `null` en
+geen 0 (conventie 3): een leeg veld en nul overlap zijn twee verschillende dingen.
+
+**Wat er nog niet geverifieerd is** (conventie 10). `tsc --noEmit`, `test:unit` (4515 geslaagd),
+`test:chain` (650 geslaagd) en `build` zijn alle vier groen, en migratie 0095 is toegepast op
+productie en nagerekend: twee tabellen, twee policies en de trigger op `updated_at` staan er. Maar
+er is in deze omgeving geen `OPENAI_API_KEY` en geen Supabase-sleutel, dus er is **geen enkele echte
+aanroep gedaan vanaf dit scherm**. Het streamen, de kostenregistratie per bericht en het opslaan van
+de ruwe uitvoer zijn gebouwd en niet gemeten. Dat is de eerste stap na de eerstvolgende publicatie:
+één gesprek voeren, en daarna `sollicitatie_berichten` naast de factuur van OpenAI leggen.
+
+---
+
+## 15 september 2026: het dossier gaat los van de vacature, en de schrijfstijl wordt een getal
+
+Twee verbeteringen aan het zijproject, gekozen door de eigenaar uit vijf voorstellen, plus de drie
+kleinere dingen die erbij hoorden. De testtelling gaat van 4515 naar 4577.
+
+**De ontwerpfout van gisteren.** In migratie 0095 stonden het CV en de eerdere brieven als kolom op
+het gesprek, naast de vacature. Dat leest logisch en het werkt precies één keer: bij de tweede
+vacature plak je je hele loopbaan opnieuw, en verbeter je onderweg je projectbeschrijving, dan geldt
+dat alleen voor het gesprek waarin je toevallig zat. Migratie 0096 draait dat om. Het materiaal
+hangt aan de persoon (`sollicitatie_documenten`, per stuk een rij met een soort en een titel), de
+vacature blijft aan het gesprek hangen. Een tweede sollicitatie is daarmee: vacature plakken, knop.
+Het scherm maakt het gesprek zelf aan zodra dat nodig is, dus er is ook geen "nieuw gesprek" meer
+als aparte handeling.
+
+**Het soort van een stuk is geen kopje.** `brief` is het materiaal waar de schrijfstijl aan gemeten
+wordt, `cv` en `project` leveren de feiten. Die twee door elkaar meten zou de gemeten stem
+vervuilen met opsommingen en jaartallen, en dat is precies het register dat een brief niet moet
+hebben. Vandaar dat het onderscheid in de database staat en niet alleen op het scherm.
+
+**"Schrijf zoals deze persoon schrijft" was een bijvoeglijk naamwoord.** Het stond als zin in de
+systeemprompt, en een zin in een prompt is een verzoek: een model heeft een eigen register en dat
+wint zodra het gesprek langer wordt. `lib/solliciteren/stem.ts` meet nu aan de eigen brieven wat je
+niet zou opschrijven maar wel herkent: gemiddelde zinslengte, hoe lang je langere zinnen zijn (het
+90e percentiel, niet de langste, anders bepaalt één opsomming de grens), of je "u" of "je" schrijft,
+hoeveel zinnen je met "Ik" begint, hoe groot je alinea's zijn, en welke woorden echt van jou zijn.
+Die maten gaan als genummerde regels de systeemprompt in, en na afloop legt dezelfde module de
+geschreven brief er weer naast. Dat is conventie 1 zoals hij bedoeld is: een instructie die je kunt
+nameten. Onder de 150 woorden aan brieven komt er `null` uit en staat er geen stijlvoorschrift in de
+prompt, want een profiel gemeten op 40 woorden ziet er op het scherm precies zo betrouwbaar uit als
+een profiel op 4000 woorden (conventie 3).
+
+**De volgorde van de aanroep is een ontwerpkeuze geworden.** Instructie, dossier, vacature, gesprek,
+vraag: van meest naar minst stabiel. OpenAI hergebruikt het begin van een aanroep dat gelijk is aan
+de vorige. Het dossier is het grootste stuk en verandert zelden, dus het hoort vooraan; achteraan
+zetten laat dat hergebruik bij elke vervolgvraag wegvallen. Dat is hier geen bezuiniging maar
+doorlooptijd, want hoe sneller het eerste woord op het scherm staat, hoe bruikbaarder het scherm is.
+
+**Eén voorstel is bewust niet uitgevoerd.** Het plan had ook "de vacature ontleden als eigen
+goedkope stap" en "kies per vacature de drie relevante projecten in plaats van alles mee te sturen".
+De eigenaar heeft daar op 15 september 2026 expliciet tegen gekozen: kosten zijn niet de rem, het
+hele dossier gaat in één keer naar het beste model. Dat is een verdedigbare afweging voor dit
+scherm, waar één goede brief meer waard is dan een paar cent, en het staat hier omdat het de reden
+is dat de code er anders uitziet dan de tien conventies op het eerste gezicht doen vermoeden.
+Conventie 7 ("één zware aanroep per taak") wordt niet overtreden: het is nog steeds één aanroep, hij
+krijgt alleen meer mee. De grenzen staan er nog wel, maar ruim: 60.000 tekens per stuk en 240.000
+voor het hele dossier, tien keer een normaal dossier, en wat er afvalt wordt op het scherm bij naam
+genoemd in plaats van stil weggelaten.
+
+**Bestanden inlezen, met één pakket erbij.** `unpdf`, één afhankelijkheid zonder eigen
+afhankelijkheden, alleen geïmporteerd in een server-module dus er gaat geen byte naar de browser.
+De bekendere keuze (`pdf-parse`) leest bij het importeren een testbestand van schijf en breekt
+daarmee op een serverless omgeving. Nagemeten op een zelf samengestelde PDF van één pagina: de twee
+tekstregels kwamen compleet en in de juiste volgorde eruit. Een gescande PDF is een plaatje en
+levert niets op; het scherm zegt dat dan met zoveel woorden in plaats van te doen alsof het bestand
+stuk is. De ingelezen tekst gaat naar het VELD en niet naar de database: een PDF die half goed
+uitleest hoor je te zien voordat hij in je dossier staat.
+
+**Geverifieerd, niet aangenomen** (conventie 10): migratie 0096 is toegepast op productie en
+nagerekend, en `tsc --noEmit`, `test:unit` (4577 geslaagd), `test:chain` (650 geslaagd) en `build`
+zijn alle vier groen. Het inlezen van een PDF is echt gedraaid. Wat nog steeds niet gemeten is: er
+is in deze omgeving geen OpenAI-sleutel geweest, dus er is nog geen enkele echte aanroep gedaan
+vanaf dit scherm.
+
+---
+
+## 15 september 2026: de feitenkaart, elke zin in de brief wijst naar iets dat je kunt aanwijzen
+
+De eigenaar gaf één richtlijn mee: kwaliteit van de brief boven alles. Dit is wat daar het meest
+aan doet, en het is niet nieuw bedacht maar overgenomen van het hoofdproduct. Migratie 0097, 62
+controles erbij (4577 naar 4639).
+
+**De aanleiding staat al in `lib/pipeline/factcard.ts`.** Bij de eerste echte contentronde waren van
+de 16 beweringen op een gegenereerde pagina er 5 verzonnen, en het patroon was duidelijk: een model
+verzint niet willekeurig, het verzint precies daar waar de tekst een concreet feit NODIG heeft en
+het materiaal het niet levert. Een sollicitatiebrief is die tekst bij uitstek. "Ik bracht de
+doorlooptijd terug van negen naar vijf dagen" is de zin die werkt, en het is ook de zin die een
+model invult als hij er niet staat. Een dossier meegeven met "gebruik dit waar het past" is een
+uitnodiging, geen grens.
+
+**Wat er nu gebeurt.** Je leest je dossier één keer uit tot een genummerde kaart: per feit één zin,
+een categorie, een periode waar die er is, en de zin uit je dossier waar het op steunt. Die kaart
+gaat als GESLOTEN lijst de prompt in: alles wat er niet op staat, bestaat voor de brief niet. De
+brief zet achter elke bewerende zin het nummer waarop hij steunt, en `lib/solliciteren/feiten.ts`
+rekent na of dat nummer bestaat. Bij het kopiëren gaan de nummers er automatisch uit, dus wat je in
+de mail plakt is gewoon een brief.
+
+**De bronzin is de helft van het idee.** Het model krijgt de opdracht de zin uit het dossier
+letterlijk over te schrijven, en `zeefFeiten()` gooit elk feit weg waarvan die zin niet letterlijk
+terug te vinden is. Zonder dat vangnet mag het model zijn bron samenvatten of net iets mooier maken,
+en dan bewijst de bron niets meer (conventie 1). Op het scherm staat na elke uitleesronde hoeveel
+feiten het model aanleverde en hoeveel er door die controle kwamen; dat verschil is de enige manier
+om te zien dat het vangnet werkt.
+
+**Het F-nummer is vast en geen positie.** In het hoofdproduct is "F3" de derde regel in een lijst en
+schuift alles op als er iets bij komt. Dat kan daar, want die kaart wordt per pagina gemaakt. Hier
+leeft de kaart maanden met bewaarde brieven ernaast, dus krijgt elk feit een eigen nummer dat nooit
+verschuift, en een verwijderd feit geeft zijn nummer niet terug. De unieke index op
+`(user_id, nummer)` is het vangnet onder het toekennen in de route.
+
+**De schrijfopdracht is in het antwoord gekomen, niet in een eigen aanroep.** Het voorstel was
+oorspronkelijk een aparte goedkope stap, zoals `lib/pipeline/writer-brief.ts` in het hoofdproduct.
+Dat botste met de keuze van de eigenaar om een brief in één aanroep te schrijven. Het is nu een
+verplicht kopje IN het antwoord: wie leest deze brief, waarom zou juist deze werkgever jou kiezen
+boven de zestig anderen, welke F-nummers dragen de brief, en wat laat je bewust weg. Daarmee blijft
+het één aanroep en is het toch de expliciete keuze die het moest zijn. En het is nu controleerbaar:
+`controleerAntwoord()` rekent na of de feiten die de schrijfopdracht uitkoos ook echt in de brief
+terugkomen. Dat kon de losse stap in het hoofdproduct niet.
+
+De vraag "waarom zou deze werkgever juist jou kiezen" is dezelfde vraag die de externe copywriter op
+3 september 2026 miste in de contentpijplijn, en waar migratie 0094 voor gemaakt is. Hij blijkt in
+dit domein nog directer te vertalen: een sollicitatiebrief IS het antwoord op die vraag.
+
+**Het uitlezen is wél een eigen aanroep, en dat is geen tegenspraak.** Conventie 7 zegt: een nieuwe
+zware stap wordt een eigen stap. Je dossier uitlezen doe je één keer en gebruik je maanden; een
+brief schrijven doe je per vacature. Twee taken, twee aanroepen, en de tweede wordt er niet trager
+of duurder van. Het uitlezen draait bovendien op het model dat de gebruiker heeft gekozen en niet
+stilletjes op een kleiner model: de kwaliteit van die lijst bepaalt de kwaliteit van elke brief die
+erna komt, en een gemist resultaat op de kaart is een zin die nooit in een brief terechtkomt.
+
+**De standaard redeneerstand van `medium` naar `high`.** In de pijplijn staat het schrijven bewust
+op `medium`, omdat een schrijfaanroep daar binnen `CALL_BUDGET_MS` moet passen en een timeout het
+dubbele kost. Die rekensom geldt hier niet: dit scherm is geen taak in de wachtrij, heeft een eigen
+budget van 240 seconden, en het antwoord komt woord voor woord binnen, dus wachten is zichtbaar in
+plaats van stil. Bij "kwaliteit boven alles" is de duurste stand de juiste standaard.
+
+**Wat de controle wel en niet kan, en waarom dat op het scherm staat.** Wel: of een genoemd nummer
+bestaat, of de uitgekozen feiten terugkomen, en hoeveel verschillende feiten de brief draagt (onder
+de vier gaat een brief meestal over houding in plaats van over wat je gedaan hebt). Niet: of de zin
+die naar F7 verwijst ook echt over F7 gaat. Dat kan code niet zien. Daarom staat de bronzin per feit
+op het scherm: de controle die een mens in twee seconden doet, hoeft de code niet te kunnen.
+
+**Geverifieerd, niet aangenomen** (conventie 10): migratie 0097 is toegepast op productie en
+nagerekend, en `tsc --noEmit`, `test:unit` (4639 geslaagd), `test:chain` (650 geslaagd) en `build`
+zijn alle vier groen. Nog steeds ongemeten, en dat wordt met elke ronde belangrijker: er is in deze
+omgeving geen OpenAI-sleutel, dus er is nog geen enkele echte uitleesronde en geen enkele echte
+brief gedraaid. Wat het vangnet in de praktijk tegenhoudt, hoeveel van de aangeleverde feiten
+sneuvelen op hun bronzin, is precies het cijfer dat na de eerste ronde in dit logboek hoort te staan.
+
+---
+
+## 15 september 2026: de feitenkaart teruggedraaid van grens naar spiegel
+
+Een dag na het bouwen van de feitenkaart stelde de eigenaar de vraag die ik zelf had moeten stellen:
+is Sol met tien documenten en een vacaturetekst niet gewoon in staat een goede brief te schrijven,
+en ketenen we hem niet vast? Hij had gelijk. Dit is de correctie.
+
+**Wat er mis was.** Het patroon komt uit `lib/pipeline/factcard.ts`, en de aanleiding daar is echt
+gemeten: van 16 beweringen op een gegenereerde pagina waren er 5 verzonnen. Maar die tekst gaat
+zonder tussenkomst naar de site van een klant. Niemand leest hem na, en een verzinsel is een
+probleem van die klant. Hier is alles omgekeerd: de schrijver is zelf het onderwerp van de feiten,
+leest elke brief voor verzending, en ziet in twee seconden of iets klopt. De grens kocht dus weinig.
+
+Kostte wel veel, op drie manieren. Wat de uitleesronde miste was voor de brief weg, en er komen
+hoogstens 60 feiten uit een dossier van tien documenten. De uitleesprompt verbiedt afleiden ("staat
+er 2019 tot 2026, dan is zeven jaar ervaring een afleiding"), wat juist is voor het uitlezen maar
+via de gesloten lijst ook de bríef verbood om te combineren, terwijl "zeven jaar in dezelfde rol"
+precies de zin is die werkt. En een model dat per zin een nummer moet plaatsen, schrijft één
+bewering per zin, dus vlakker.
+
+**En het was erger dan ik dacht.** Bij het nakijken bleek dat `bouwInvoer()` het volledige dossier
+al meestuurde NAAST de kaart. De instructie verbood dus materiaal dat er gewoon bij lag. Dat is de
+slechtste van twee werelden: de volle prijs in tokens, en een rem op het beste model dat we hebben.
+
+**Wat er nu staat.** De kaart blijft, in een andere rol:
+
+- Uit de prompt: "de lijst is gesloten", "bestaat voor deze brief niet", en de [F]-nummers in de
+  brief. In het feitenblok staan de nummers ook niet meer, anders plakt het model ze er alsnog in.
+- In de prompt: dit is het concreetste materiaal, gebruik het waar het past, het dossier blijft je
+  bron, en combineren mag uitdrukkelijk wel.
+- De kaart is een spiegel op je dossier. Staan er na een uitleesronde drie punten met een getal in,
+  dan weet je dat je dossier je te weinig munitie geeft. Dat is informatie over jou.
+- De controle is verhuisd naar ná het schrijven: `lib/solliciteren/herkomst.ts` zoekt elk getal en
+  elke naam uit de brief op in het dossier en de vacature. Aanwijzen achteraf kost geen enkele zin
+  creativiteit; verbieden vooraf wel. Het vangt bovendien precies de categorie die echt misgaat: een
+  model verzint zelden een houding, het verzint een cijfer of een werkgever.
+
+**De controle is meteen op zijn eigen valse alarm gestuit, en dat is nuttig gebleken.** Op een
+proefbrief wees hij vier namen aan: "De Vries" uit de aanhef en "Jan Willem Koopman" uit de
+ondertekening. Alle vier terecht in de zin dat ze niet in het dossier staan, en alle vier volstrekt
+nutteloos: je eigen naam staat zelden in je eigen CV-tekst en de ontvanger typ je zelf. Vier valse
+treffers op een goede brief is genoeg om de hele controle weg te klikken, en dan vangt hij het
+verzonnen bedrag ook niet meer. De aanhef en alles vanaf de afsluiting tellen daarom niet mee voor
+de naamcontrole; getallen worden er wél geteld. Dat is nagemeten op de schermafbeelding en zit als
+controle in `test-unit.ts`.
+
+**Wat de controle niet vindt, staat op het scherm.** Een getal dat voluit geschreven is ("van negen
+naar vijf dagen") wordt niet gevonden, want het staat als woord in de brief en misschien als cijfer
+in het dossier. Een lijst die belooft alles te vinden is gevaarlijker dan een lijst die zegt wat hij
+doet, dus er staat een voetnoot onder.
+
+**Twee schermdingen die uit de schermafbeelding kwamen.** Er stond "Er ligt 119 woorden aan
+brieven", dat is nu "Er liggen". En de lijsten in de linkerkolom hadden per regel twee of drie
+knoppen naast de tekst, waardoor "Projectleider bij Van Dijk Installatie" over vier regels brak met
+de knoppen ertussendoor. De hele regel is nu één knop: een dossierstuk opent de bewerker, een feit
+klapt open met zijn bronzin en zijn acties. De kolom ging van 23 naar 26rem, en een te lange titel
+krijgt drie puntjes in plaats van een tweede regel.
+
+**Wat dit zegt over de tien conventies.** Conventie 1 (elke promptinstructie een vangnet in code)
+staat nog overeind, en dat was het misverstand niet. Het misverstand was het soort vangnet: een
+vangnet dat vooraf verbiedt kost kwaliteit, een vangnet dat achteraf aanwijst niet. Bij een tekst
+die automatisch publiceert is het eerste de enige optie. Bij een tekst met een mens ervoor is het
+tweede beter, en dat onderscheid stond nergens opgeschreven. Nu wel.
+
+`tsc --noEmit`, `test:unit` (4646 geslaagd), `test:chain` (650 geslaagd) en `build` zijn alle vier
+groen. De schermen zijn nagekeken op een echte weergave van 1440 pixels breed.
+
+---
+
+## 15 september 2026: het zijproject krijgt de uitstraling van LinkedIn
+
+Op verzoek van de eigenaar is de vormgeving van `app/solliciteren/` vervangen door de ontwerptaal
+van LinkedIn. Alleen `solliciteren.css` en één component zijn geraakt; er is geen migratie en geen
+gedrag veranderd.
+
+**Waarom dit mag en de vorige keuze niet meer telt.** Op 14 september was de stijl met opzet het
+tegenovergestelde van ORBIT ENGINE: warm papier, een schreefletter, terracotta, zodat je in een
+oogopslag zag dat je ergens anders was. Die redenering blijft kloppen, maar hij is niet de enige
+mogelijke: LinkedIn is de omgeving waarin solliciteren gebeurt, en die uitstraling hier overnemen
+scheelt een omschakeling in je hoofd. Het onderscheid met ORBIT ENGINE blijft even scherp, want
+LinkedIn-blauw op warmgrijs lijkt net zo weinig op leiblauw op wit als papier dat deed.
+
+**Wat er is nagebouwd, en dat is met cijfers na te meten.** Nagerekend in de browser op de
+daadwerkelijk berekende stijl, niet op het oog: vlak `rgb(244, 242, 238)`, kaarten wit met
+`border-radius: 8px` en `box-shadow: 0 0 0 1px rgba(0,0,0,0.08)` in plaats van een rand, knoppen
+`rgb(10, 102, 194)` met `border-radius: 999px` en gewicht 600, invoervelden 4 pixels met een rand
+van `rgba(0,0,0,0.6)`, verwijzingen blauw en halfvet, en 14 pixels als basismaat in plaats van 16.
+Die laatste is het onopvallendste en het belangrijkste: hij bepaalt of een scherm leest als "een
+website" of als "dit product".
+
+**Twee dingen bewust niet overgenomen.** Er staat geen logo en geen woordmerk in de app: een stijl
+overnemen is iets anders dan een merkteken voeren. En de huisletter van LinkedIn is niet vrij te
+gebruiken, dus er staat de stapel systeemletters die hun eigen stijlblad als terugval hanteert. Dat
+is ook wat een deel van hun bezoekers werkelijk ziet. **Het is een nabouw op hun publiek bekende
+ontwerptaal en geen pixelkopie**; van hieruit is niet in hun schermen te kijken, dus "exact" is niet
+iets wat ik kan waarmaken of narekenen, en dat hoort in dit logboek te staan in plaats van in een
+belofte.
+
+**Eén afwijking die geen smaak is.** Een aangezette gesprekspil is donkergroen en niet blauw. Blauw
+is in dit ontwerp de kleur van een handeling, en "Nieuw gesprek" staat er vlak naast; twee blauwe
+pillen naast elkaar lopen in elkaar over en dan lijkt de naam van je gesprek ook een knop.
+
+**De opmaakcodes zijn uit beeld.** De drie kopjes van een antwoord (`## Vacature`,
+`## Schrijfopdracht`, `## Brief`) stonden letterlijk op het scherm. Ze zijn nu echte kopjes, met de
+brief op een eigen vlak. Dat is geen markdown-omzetting: binnen de brief wordt nog steeds niets
+opgemaakt, want wat je ziet moet zijn wat je plakt. De kopjes zijn structuur die de prompt
+voorschrijft en waar `splitsAntwoord()` op knipt, en ze komen nooit in de kopie terecht omdat die
+alleen het briefdeel pakt.
+
+**Wat deze ronde leerde over de vier controles.** Na die laatste wijziging waren `tsc --noEmit`,
+`test:unit` en `build` alle drie groen terwijl de pagina een 500 gaf: `brief` werd gebruikt in een
+`useMemo` die bóven zijn eigen declaratie stond. TypeScript ziet dat niet, want het gebruik zit in
+een closure en pas bij het aanroepen tijdens de weergave loopt het stuk. Alleen het echt renderen
+van de pagina ving dat. Conventie 10 gaat over data ("gebouwd is niet geverifieerd"); dit is
+dezelfde regel voor schermen. Een schermwijziging is pas af als hij een keer getekend is.
+
+De testtelling gaat van 4646 naar 4648. De twee erbij bewaken dat het stijlblad zijn eigen
+letterstapel en zijn eigen basismaat blijft zetten, zodat een wijziging aan `globals.css` hier
+niets doet. De controle op "alleen eigen tokens" en "geen component uit `@/components/`" is
+ongewijzigd blijven staan en gaat nog steeds op.
