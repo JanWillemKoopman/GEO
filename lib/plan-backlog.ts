@@ -67,6 +67,14 @@ export interface BacklogItem {
    * loopt op boven de 1 en is dus geen aandeel. Zie `lib/opportunities.ts`.
    */
   gewicht: number | null;
+  /**
+   * Blok A, punt 4: waarom deze kans nog in de voorraad zit. `null` is een
+   * gewone wachtrijkans (krijgt vanzelf een maand zodra de vulling weer
+   * draait), `"uitgehaald"` is een klant die hem zelf terugsleepte,
+   * `"buiten_bereik"` is een kans die ook na twaalf maanden vol content plus
+   * buffer nergens meer past.
+   */
+  reden: "uitgehaald" | "buiten_bereik" | null;
 }
 
 export interface BacklogFilters {
@@ -122,16 +130,30 @@ export function filterBacklog(
  * geeft en de kaarten niet onder de muis van plek wisselen.
  */
 export function sortBacklog(items: BacklogItem[]): BacklogItem[] {
-  return [...items].sort((a, b) => {
-    const pa = a.potentie ?? null;
-    const pb = b.potentie ?? null;
-    if (pa !== null && pb !== null && pa !== pb) return pb - pa;
-    if ((pa === null) !== (pb === null)) return pa === null ? 1 : -1;
-    const wa = a.gewicht ?? 0;
-    const wb = b.gewicht ?? 0;
-    if (wa !== wb) return wb - wa;
-    return a.title.localeCompare(b.title, "nl");
-  });
+  return [...items].sort(compareByPotential);
+}
+
+/**
+ * De vergelijking zelf, los van `sortBacklog()` en zijn volle `BacklogItem`.
+ *
+ * `vulOpenMaanden()` (`lib/plans.ts`) heeft dezelfde volgorde nodig maar leest
+ * de voorraad met een lichtere query (alleen `id`, `potential`, `target_weight`,
+ * `title`, zie migratie 0065). Twee sorteringen die hetzelfde beweren maar apart
+ * geïmplementeerd zijn, lopen op den duur uit elkaar; vandaar één functie die
+ * allebei de aanroepers delen.
+ */
+export function compareByPotential(
+  a: { potentie: number | null; gewicht: number | null; title: string },
+  b: { potentie: number | null; gewicht: number | null; title: string },
+): number {
+  const pa = a.potentie ?? null;
+  const pb = b.potentie ?? null;
+  if (pa !== null && pb !== null && pa !== pb) return pb - pa;
+  if ((pa === null) !== (pb === null)) return pa === null ? 1 : -1;
+  const wa = a.gewicht ?? 0;
+  const wb = b.gewicht ?? 0;
+  if (wa !== wb) return wb - wa;
+  return a.title.localeCompare(b.title, "nl");
 }
 
 /** De clusters die in de voorraad voorkomen, met hun aantal, voor het filter. */
@@ -166,6 +188,32 @@ export function raaktLabel(item: BacklogItem): string | null {
     return `raakt ${item.raakt} gemeten ${vraag}`;
   }
   return `raakt ${item.raakt} van de ${item.gemeten} gemeten vragen`;
+}
+
+/**
+ * Het korte label op de kaart zelf (blok A, punt 4): waarom staat deze kans
+ * nog in de voorraad. `null` bij een gewone wachtrijkans, dan komt er geen
+ * label, precies zoals een onbekende potentie geen getal krijgt (conventie 3).
+ */
+export function redenChip(item: BacklogItem): string | null {
+  if (item.reden === "uitgehaald") return "eruit gehaald";
+  if (item.reden === "buiten_bereik") return "buiten bereik";
+  return null;
+}
+
+/**
+ * De volle uitleg in de opengeklapte kaart, met Nova's precedent vertaald:
+ * "Pages you took out, and pages your ordering pushed past the monthly
+ * quota. None of them will be written, and none of them are gone."
+ */
+export function redenUitleg(item: BacklogItem): string | null {
+  if (item.reden === "uitgehaald") {
+    return "Je hebt deze kans zelf uit zijn maand gehaald. Hij is niet weg: sleep hem terug zodra je er ruimte voor hebt.";
+  }
+  if (item.reden === "buiten_bereik") {
+    return "Deze kans past niet meer binnen de eerstkomende twaalf maanden. Hij is niet weg: hij komt vanzelf aan de beurt zodra er ruimte vrijkomt.";
+  }
+  return null;
 }
 
 /**

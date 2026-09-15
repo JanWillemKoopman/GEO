@@ -248,6 +248,18 @@ export default async function OverzichtPage({
   const wachtrij = eigenWerk.slice(0, MAX_WACHTRIJ);
   const restWachtrij = eigenWerk.length - wachtrij.length;
 
+  // ── Wat bij ORBIT ENGINE loopt, niet bij de klant (punt 27 uit
+  //    docs/tasks/nova-vergelijking-verbeterpunten.md) ─────────────────────
+  //
+  // `lib/work.ts` maakt dit onderscheid al in het datamodel (`WorkState`:
+  // "nu" versus "loopt"/"wacht"), maar dit scherm toonde alleen "nu". Een
+  // klant die hier niets ziet weet dus niet of dat komt doordat alles klaar
+  // is, of doordat er iets bij ons ligt te wachten. Nova maakt dat verschil
+  // met drie zichtbare emmers ("On track" / "Needs you" / "Failed"); hier
+  // volstaat één teller naast de kop, want een tweede lijst zou dubbel werk
+  // doen met de bestaande statuskaarten per pagina.
+  const bijOns = eigenAlleWerk.filter((w) => w.state === "loopt" || w.state === "wacht").length;
+
   // ── Het plan ─────────────────────────────────────────────────────────────
   const [{ data: paginaRijen }, { data: faseRijen }, { data: maandRijen }] = await Promise.all([
     admin
@@ -474,11 +486,14 @@ export default async function OverzichtPage({
                   ? "Eén ding wacht op jou"
                   : `${eigenWerk.length} dingen wachten op jou`
             }
+            meta={bijOns > 0 ? `Bij ORBIT ENGINE · ${bijOns}` : undefined}
           />
           {wachtrij.length === 0 ? (
             <div className="card">
               <p className="text-secondary">
-                ORBIT ENGINE meet maandelijks door en laat het weten zodra er iets beweegt.
+                {bijOns > 0
+                  ? `ORBIT ENGINE is bezig met ${bijOns} ${enkelOfMeervoud(bijOns, "taak", "taken")}. Je hoeft daar niets voor te doen; ORBIT ENGINE laat het weten zodra er iets beweegt.`
+                  : "ORBIT ENGINE meet maandelijks door en laat het weten zodra er iets beweegt."}
               </p>
             </div>
           ) : (

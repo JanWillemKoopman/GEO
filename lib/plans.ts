@@ -12,13 +12,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { DEFAULT_FUNNELS, MONTHS_AHEAD } from "@/lib/plan-constants";
 import {
   resequenceMonth,
-  spreadDates,
   datumProbleem,
   maandIsVol,
   type HerplanRij,
 } from "@/lib/plan-schedule";
 import { syncBacklog, meetbareVragenPerAnalyse, loadDeclinedOpportunities } from "@/lib/plan-backlog-data";
-import { sortBacklog, type BacklogItem, type DeclinedItem } from "@/lib/plan-backlog";
+import { sortBacklog, compareByPotential, type BacklogItem, type DeclinedItem } from "@/lib/plan-backlog";
+import { bepaalVulling, type OpenMaand } from "@/lib/plan-fill";
 import type { TopicWritingState } from "@/lib/plan-writing";
 import type {
   AnalysisStatus,
@@ -26,6 +26,7 @@ import type {
   FunnelStage,
   PlanMonth,
   PlannedPage,
+  PlanMonthStatus,
 } from "@/lib/types/database";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -84,7 +85,17 @@ export async function loadPlan(
   if (!planRow) return null;
   const plan = planRow as ContentPlan;
 
-  if (opties.sync !== false) await syncBacklog(admin, profileId);
+  // ⚠️ Eerst verversen, dan bijvullen, in die volgorde. Zonder de voorraad eerst
+  // te verversen, zou een cluster dat gisteren gemeten is pas ná deze
+  // schermopening in een maand terechtkomen. Zie `vulOpenMaanden()` hieronder
+  // voor wat "bijvullen" precies doet (blok A, punt 1 uit
+  // docs/tasks/nova-vergelijking-verbeterpunten.md).
+  let buitenBereikIds: string[] = [];
+  if (opties.sync !== false) {
+    await syncBacklog(admin, profileId);
+    const vulling = await vulOpenMaanden(admin, profileId);
+    buitenBereikIds = vulling?.buitenBereikIds ?? [];
+  }
 
   const { data: monthRows } = await admin
     .from("plan_months")
@@ -160,7 +171,9 @@ export async function loadPlan(
     plan,
     months,
     pages: (pages ?? []) as PlannedPage[],
-    backlog: sortBacklog(voorraad.map((rij) => naarBacklogItem(rij, gemeten, clusterNaam))),
+    backlog: sortBacklog(
+      voorraad.map((rij) => naarBacklogItem(rij, gemeten, clusterNaam, new Set(buitenBereikIds))),
+    ),
     declined,
     metKansen: [
       ...new Set(
@@ -195,6 +208,7 @@ function naarBacklogItem(
   rij: VoorraadRow,
   gemeten: Map<string, number>,
   clusterNaam: Map<string, string | null>,
+  buitenBereikIds: Set<string>,
 ): BacklogItem {
   return {
     id: rij.id,
@@ -216,6 +230,13 @@ function naarBacklogItem(
     raakt: rij.target_count,
     gemeten: rij.source_analysis_id ? (gemeten.get(rij.source_analysis_id) ?? null) : null,
     gewicht: rij.target_weight === null ? null : Number(rij.target_weight),
+    // Blok A, punt 4: `taken_out` weegt zwaarder dan de rekenkundige uitkomst
+    // van `vulOpenMaanden()`, want dat is de kant die de klant zelf koos.
+    // `null` = een gewone wachtrijkans: die krijgt zijn maand vanzelf zodra
+    // `vulOpenMaanden()` weer draait. Dat laatste is bij een normale
+    // schermopening zeldzaam: díe ronde heeft dan al net gedraaid, dus wat
+    // overblijft is vrijwel altijd al één van de twee andere redenen.
+    reden: rij.taken_out ? "uitgehaald" : buitenBereikIds.has(rij.id) ? "buiten_bereik" : null,
   };
 }
 
@@ -272,14 +293,18 @@ export type CreatePlanResult =
       ok: true;
       planId: string;
       /**
-       * Hoeveel pagina's er echt in maand 1 (of 2, bij een volle maand 1)
-       * terechtkwamen, tegenover het pakket (herstelplan na audit T8.10).
+       * Het nummer van de maand die na het vullen "ter_goedkeuring" staat, en
+       * hoeveel pagina's daar echt in terechtkwamen tegenover het pakket
+       * (herstelplan na audit T8.10, uitgebreid met blok A punt 1: dit hoeft
+       * dankzij `vulOpenMaanden()` niet meer per se maand 1 te zijn, bij een
+       * volle kalendermaand of een voorraad die nul oplevert schuift dit door).
        *
        * Op productie kreeg een account van tien pagina's per maand een plan
        * van vijf, zonder dat ergens gemeld werd dat de andere vijf ontbraken:
        * de voorraad had simpelweg niet meer dan vijf gemeten kansen. De klant
        * zag "10 pagina's per maand" in de melding terwijl er vijf stonden.
        */
+      monthNumber: number | null;
       plannedCount: number;
       requestedCount: number;
     }
@@ -418,75 +443,186 @@ export async function createPlan(
   }
   const planId = planRow.id as string;
 
-  const startedOnStr = startedOn.toISOString().slice(0, 10);
+  // Alle twaalf maanden starten als concept. `vulOpenMaanden()` hieronder
+  // bepaalt zelf welke daarvan als eerste inhoud krijgt (een volle
+  // kalendermaand of een dunne voorraad kan dat 2 of zelfs later maken) en
+  // zet precies die op "ter_goedkeuring". Twaalf maanden tegelijk ter
+  // goedkeuring aanbieden is twaalf beslissingen vragen voor iets wat pas
+  // over een jaar speelt.
+  const { error: monthError } = await admin.from("plan_months").insert(
+    Array.from({ length: MONTHS_AHEAD }, (_, i) => ({
+      plan_id: planId,
+      month_number: i + 1,
+      status: "concept" as const,
+    })),
+  );
 
-  // ⚠️ Maand 1 kan al te ver gevorderd zijn om nog iets in te plannen. Bij
-  // Wouter Warmtepomp werd het plan op 31 augustus opgesteld: geen bruikbare
-  // dag meer over in augustus, dus `spreadDates()` voor maand 1 gaf een lege
-  // lijst (punt 5 van docs/tasks/opdracht-bevindingen-5-tot-9.md). De voorzet
-  // gaat in dat geval naar maand 2 in plaats van naar een maand 1 die dan
-  // toch leeg blijft, en maand 2 wordt de maand die ter goedkeuring staat: er
-  // is niets zinvols om aan maand 1 voor te leggen. Maand 2 begint altijd op
-  // dag 1 van een kalendermaand en heeft dus altijd ruimte.
-  const maand1Vol = maandIsVol(startedOnStr, 1, now);
-  const voorzetMaandNummer = maand1Vol ? 2 : 1;
-
-  const { data: monthRows, error: monthError } = await admin
-    .from("plan_months")
-    .insert(
-      Array.from({ length: MONTHS_AHEAD }, (_, i) => ({
-        plan_id: planId,
-        month_number: i + 1,
-        // De maand met de voorzet gaat meteen naar de klant; de rest blijft
-        // concept tot hij eraan toe is. Twaalf maanden tegelijk ter
-        // goedkeuring aanbieden is twaalf beslissingen vragen voor iets wat
-        // pas over een jaar speelt.
-        status: i + 1 === voorzetMaandNummer ? "ter_goedkeuring" : "concept",
-      })),
-    )
-    .select("id, month_number");
-
-  if (monthError || !monthRows) {
-    console.error("Maanden aanmaken mislukt:", monthError?.message);
+  if (monthError) {
+    console.error("Maanden aanmaken mislukt:", monthError.message);
     return { ok: false, problems: ["De maanden konden niet worden aangemaakt."] };
   }
 
-  const voorzetMaand = (monthRows as { id: string; month_number: number }[]).find(
-    (m) => m.month_number === voorzetMaandNummer,
-  );
+  // Dezelfde vulling als bij elke latere schermopening (`loadPlan()`), nu
+  // meteen toegepast op het verse plan (blok A, punt 1 uit
+  // docs/tasks/nova-vergelijking-verbeterpunten.md).
+  const vulling = await vulOpenMaanden(admin, input.profileId, now);
 
-  // De voorzet: de sterkste kansen bovenaan, tot aan de quota.
-  const gesorteerd = [...voorraad].sort((a, b) => {
-    const pa = a.potential === null ? null : Number(a.potential);
-    const pb = b.potential === null ? null : Number(b.potential);
-    if (pa !== null && pb !== null && pa !== pb) return pb - pa;
-    if ((pa === null) !== (pb === null)) return pa === null ? 1 : -1;
-    return Number(b.target_weight ?? 0) - Number(a.target_weight ?? 0);
-  });
-  const voorzet = gesorteerd.slice(0, input.pagesPerMonth);
+  return {
+    ok: true,
+    planId,
+    monthNumber: vulling?.monthNumber ?? null,
+    plannedCount: vulling?.aantal ?? 0,
+    requestedCount: input.pagesPerMonth,
+  };
+}
 
-  if (voorzetMaand && voorzet.length > 0) {
-    const data = spreadDates(startedOnStr, voorzetMaandNummer, voorzet.length, now);
-    for (const [i, kaart] of voorzet.entries()) {
+/**
+ * Vult elke openstaande maand van het lopende plan aan tot de pakketquota, met
+ * de sterkste kansen uit de voorraad (blok A, punt 1 uit
+ * `docs/tasks/nova-vergelijking-verbeterpunten.md`). Precies de regel die
+ * `createPlan()` altijd al voor de voorzet-maand toepaste, nu voor elke maand
+ * die nog niet is vrijgegeven. Vult daarna, met wat overblijft, elke maand ook
+ * aan tot zijn buffer (punt 3): een verzegelde kans die geen datum krijgt en
+ * pas meetelt zodra `vulMetBuffer()` hem verzilvert.
+ *
+ * Aanroepbaar los van `createPlan()`: `loadPlan()` roept dit ook aan, ná
+ * `syncBacklog()`, zodat een plan bij elke schermopening zo ver gevuld is als
+ * de gemeten voorraad op dat moment toelaat. Een dunne voorraad maakt een
+ * maand korter, nooit verzonnen inhoud (conventie 3) — precies zoals
+ * `createPlan()` dat altijd al voor maand 1 deed.
+ *
+ * Raakt nooit een `"goedgekeurd"` maand aan. De rekenkant (welke kans in welke
+ * maand, welke maand naar `"ter_goedkeuring"`) staat puur en getest in
+ * `bepaalVulling()`, `lib/plan-fill.ts`; hier staat alleen de database-kant.
+ *
+ * @returns Het maandnummer en aantal pagina's van de maand die (nu of al
+ *   eerder) `"ter_goedkeuring"` staat, of `null` als er niets te bevorderen
+ *   viel (geen plan, geen open maanden, of een lege voorraad zonder dat er al
+ *   een maand ter goedkeuring stond).
+ */
+export interface VulResultaat {
+  monthNumber: number | null;
+  aantal: number;
+  /** Backlog-ids die na deze ronde nog steeds nergens in pasten (punt 4). */
+  buitenBereikIds: string[];
+}
+
+export async function vulOpenMaanden(
+  admin: Admin,
+  profileId: string,
+  now: Date = new Date(),
+): Promise<VulResultaat | null> {
+  const { data: planRow } = await admin
+    .from("content_plans")
+    .select("id, started_on, pages_per_month")
+    .eq("profile_id", profileId)
+    .neq("status", "gestopt")
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const plan = planRow as { id: string; started_on: string; pages_per_month: number } | null;
+  if (!plan) return null;
+
+  const { data: monthRows } = await admin
+    .from("plan_months")
+    .select("id, month_number, status")
+    .eq("plan_id", plan.id)
+    .neq("status", "goedgekeurd")
+    .order("month_number");
+  const maandenRaw = (monthRows ?? []) as { id: string; month_number: number; status: PlanMonthStatus }[];
+  if (maandenRaw.length === 0) return null;
+
+  const monthIds = maandenRaw.map((m) => m.id);
+  const { data: bestaandRows } = await admin
+    .from("planned_pages")
+    .select("plan_month_id, is_buffer")
+    .in("plan_month_id", monthIds)
+    .neq("status", "afgewezen");
+  const aantalPerMaand = new Map<string, number>();
+  const buffersPerMaand = new Map<string, number>();
+  for (const r of (bestaandRows ?? []) as { plan_month_id: string; is_buffer: boolean }[]) {
+    const map = r.is_buffer ? buffersPerMaand : aantalPerMaand;
+    map.set(r.plan_month_id, (map.get(r.plan_month_id) ?? 0) + 1);
+  }
+
+  const pagesPerMonth = plan.pages_per_month;
+
+  const openMaanden: OpenMaand[] = maandenRaw.map((m) => ({
+    id: m.id,
+    monthNumber: m.month_number,
+    status: m.status,
+    huidigAantal: aantalPerMaand.get(m.id) ?? 0,
+    huidigBuffers: buffersPerMaand.get(m.id) ?? 0,
+    magNogVullen: !maandIsVol(plan.started_on, m.month_number, now),
+  }));
+
+  const { data: voorraadRows } = await admin
+    .from("planned_pages")
+    .select("id, potential, target_weight, title")
+    .eq("profile_id", profileId)
+    .is("plan_month_id", null)
+    .eq("status", "gepland");
+  const voorraadIds = ((voorraadRows ?? []) as { id: string; potential: number | null; target_weight: number | null; title: string }[])
+    .map((r) => ({
+      id: r.id,
+      potentie: r.potential === null ? null : Number(r.potential),
+      gewicht: r.target_weight === null ? null : Number(r.target_weight),
+      title: r.title,
+    }))
+    .sort(compareByPotential)
+    .map((r) => r.id);
+
+  const uitkomst = bepaalVulling({ openMaanden, voorraadIds, pagesPerMonth });
+
+  for (const opdracht of uitkomst.opdrachten) {
+    // Ver genoeg naar achteren zodat ze na bestaande content komen;
+    // `herplanMaand()` geeft ze meteen hierna hun echte plek en publicatiedatum.
+    for (const [i, kaartId] of opdracht.backlogIds.entries()) {
       const { error } = await admin
         .from("planned_pages")
-        .update({
-          plan_month_id: voorzetMaand.id,
-          sort_order: i,
-          scheduled_for: data[i] ?? null,
-        })
-        .eq("id", kaart.id)
+        .update({ plan_month_id: opdracht.monthId, sort_order: 10_000 + i, auto_placed: true, taken_out: false })
+        .eq("id", kaartId)
         // ⚠️ Alleen als hij op dit moment nog in de voorraad staat. Zonder deze
         // voorwaarde kan een gelijktijdige sleepactie overschreven worden.
         .is("plan_month_id", null);
-      if (error) {
-        console.error("Voorzet inplannen mislukt:", error.message);
-        break;
-      }
+      if (error) console.error("Automatisch inplannen mislukt:", error.message);
+    }
+
+    // Wisselgeld (punt 3): geen sort_order/scheduled_for die ertoe doet, want
+    // `herplanMaand()` sluit `is_buffer = true` expliciet uit. Ze wachten hier
+    // tot `vulMetBuffer()` ze verzilvert.
+    for (const kaartId of opdracht.bufferIds) {
+      const { error } = await admin
+        .from("planned_pages")
+        .update({ plan_month_id: opdracht.monthId, is_buffer: true, auto_placed: true, taken_out: false })
+        .eq("id", kaartId)
+        .is("plan_month_id", null);
+      if (error) console.error("Buffer inplannen mislukt:", error.message);
+    }
+
+    const maand = maandenRaw.find((m) => m.id === opdracht.monthId);
+    if (maand) {
+      await herplanMaand(admin, { id: maand.id, month_number: maand.month_number, started_on: plan.started_on }, null);
     }
   }
 
-  return { ok: true, planId, plannedCount: voorzet.length, requestedCount: input.pagesPerMonth };
+  if (uitkomst.bevorderMaand) {
+    await admin.from("plan_months").update({ status: "ter_goedkeuring" }).eq("id", uitkomst.bevorderMaand);
+  }
+
+  // Wat na deze ronde nog in `uitkomst.restendeVoorraadIds` staat, paste na
+  // twaalf maanden vol content plus buffer nergens meer in (punt 4): dat
+  // bepaalt `loadPlan()` straks als "buiten bereik" in plaats van "wachtrij".
+  // Altijd meegeven, ook als er geen "ter_goedkeuring"-maand is om te melden.
+  const terGoedkeuringId =
+    uitkomst.bevorderMaand ?? maandenRaw.find((m) => m.status === "ter_goedkeuring")?.id ?? null;
+  const maand = terGoedkeuringId ? maandenRaw.find((m) => m.id === terGoedkeuringId) : null;
+  if (!maand) return { monthNumber: null, aantal: 0, buitenBereikIds: uitkomst.restendeVoorraadIds };
+
+  const opdracht = uitkomst.opdrachten.find((o) => o.monthId === terGoedkeuringId);
+  const aantal = (aantalPerMaand.get(maand.id) ?? 0) + (opdracht?.backlogIds.length ?? 0);
+
+  return { monthNumber: maand.month_number, aantal, buitenBereikIds: uitkomst.restendeVoorraadIds };
 }
 
 /**
@@ -537,12 +673,17 @@ export async function assignToMonth(
   // ⚠️ Verhuist de kaart naar een ANDERE maand, dan vervalt een zelfgekozen
   // datum (migratie 0067). Die datum lag in de kalendermaand die hij verlaat:
   // hem meenemen naar maand 3 zou een pagina in oktober op 18 augustus zetten.
+  //
+  // Terug in actieve dienst, op alle twee de vlaggen: `auto_placed: false`
+  // (migratie 0098 beloofde al dat een menselijke sleepactie dit doet, maar
+  // die aanroep ontbrak tot nu toe) en `taken_out: false` (punt 4: een
+  // eerdere "bewust uitgehaald" is vanaf nu weer stale).
   const { error } = await admin
     .from("planned_pages")
     .update(
       vorigeMaand === input.monthId
-        ? { plan_month_id: input.monthId }
-        : { plan_month_id: input.monthId, scheduled_manual: false },
+        ? { plan_month_id: input.monthId, auto_placed: false, taken_out: false }
+        : { plan_month_id: input.monthId, scheduled_manual: false, auto_placed: false, taken_out: false },
     )
     .eq("id", input.pageId);
   if (error) {
@@ -552,10 +693,14 @@ export async function assignToMonth(
 
   await herplanMaand(admin, maand, { verplaatst: input.pageId, naarIndex: input.index });
   // Kwam de kaart uit een andere maand, dan klopt de spreiding daar nu ook niet
-  // meer: er is een gat gevallen.
+  // meer: er is een gat gevallen. Meteen daarna zijn eigen buffer erin schuiven
+  // (punt 2), zodat die maand niet krimpt tot de eerstvolgende schermopening.
   if (vorigeMaand && vorigeMaand !== input.monthId) {
     const oud = await maandMetPlan(admin, vorigeMaand, input.profileId);
-    if (oud) await herplanMaand(admin, oud, null);
+    if (oud) {
+      await herplanMaand(admin, oud, null);
+      await vulMetBuffer(admin, oud);
+    }
   }
 
   return { ok: true, probleem: null };
@@ -597,6 +742,9 @@ export async function moveToBacklog(
 
   const maand = await maandMetPlan(admin, kaart.plan_month_id, input.profileId);
 
+  // `taken_out: true` (punt 4): dit is de enige plek in de app waar een klant
+  // een kaart bewust uit een maand haalt zonder hem af te wijzen. De voorraad
+  // laat dit straks zien als "eruit gehaald", niet als "nog nooit ingepland".
   const { error } = await admin
     .from("planned_pages")
     .update({
@@ -604,6 +752,7 @@ export async function moveToBacklog(
       scheduled_for: null,
       scheduled_manual: false,
       sort_order: 0,
+      taken_out: true,
     })
     .eq("id", input.pageId)
     .eq("status", "gepland");
@@ -612,7 +761,12 @@ export async function moveToBacklog(
     return { ok: false, probleem: "Terugleggen is niet gelukt." };
   }
 
-  if (maand) await herplanMaand(admin, maand, null);
+  if (maand) {
+    await herplanMaand(admin, maand, null);
+    // Zijn eigen buffer erin schuiven (punt 2): terugleggen naar de voorraad
+    // mag de maand niet ongemerkt onder zijn belofte laten zakken.
+    await vulMetBuffer(admin, maand);
+  }
   return { ok: true, probleem: null };
 }
 
@@ -787,6 +941,55 @@ async function herplanMaand(
       .update({ sort_order: u.sort_order, scheduled_for: u.scheduled_for })
       .eq("id", u.id);
   }
+}
+
+/**
+ * Een maand die net een kaart kwijtraakte, meteen weer op zijn beloofde
+ * grootte brengen met zijn eigen buffer, als hij er een heeft (blok A, punt 2:
+ * "Geef elke maand een vast formaat en houd dat vast bij elke wijziging").
+ *
+ * Dit is het tegenhanger-mechanisme van `removePage()` hierboven, voor de
+ * twee andere manieren waarop een maand kan krimpen: terugslepen naar de
+ * voorraad (`moveToBacklog()`) en verplaatsen naar een andere maand
+ * (`assignToMonth()`, de maand die de kaart verlaat). `removePage()` kopieert
+ * de vrijgekomen datum en plek rechtstreeks naar de buffer, omdat de rest van
+ * de maand daar ongemoeid bij blijft; hier is de maand al herdateerd (de
+ * aanroeper belt dit pas ná `herplanMaand()`), dus de buffer krijgt gewoon een
+ * nieuwe, volle `herplanMaand()`-ronde net als elke andere kaart.
+ *
+ * ⚠️ Zelfde wedstrijdconditie als in `removePage()`: de voorwaardelijke
+ * `UPDATE ... WHERE is_buffer = true` bepaalt zelf of de claim lukt, niet een
+ * lezing ervoor. Twee gelijktijdige aanroepen voor dezelfde maand kunnen dus
+ * nooit dezelfde buffer allebei denken te hebben.
+ *
+ * Geen buffer, of de maand heeft geen bruikbare kalenderdag meer: dan gebeurt
+ * er niets, en blijft de maand een kaart korter dan zijn quota tot de
+ * eerstvolgende schermopening (`vulOpenMaanden()`) er weer voorraad in vindt.
+ */
+async function vulMetBuffer(admin: Admin, maand: MaandMetPlan): Promise<void> {
+  if (maandIsVol(maand.started_on, maand.month_number)) return;
+
+  const { data: buffer } = await admin
+    .from("planned_pages")
+    .select("id")
+    .eq("plan_month_id", maand.id)
+    .eq("is_buffer", true)
+    .eq("status", "gepland")
+    .order("sort_order")
+    .limit(1)
+    .maybeSingle();
+  if (!buffer) return;
+
+  const { data: geclaimd } = await admin
+    .from("planned_pages")
+    .update({ is_buffer: false })
+    .eq("id", buffer.id as string)
+    .eq("is_buffer", true)
+    .select("id")
+    .maybeSingle();
+  if (!geclaimd) return;
+
+  await herplanMaand(admin, maand, null);
 }
 
 /**

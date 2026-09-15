@@ -18,7 +18,7 @@ Vertaald naar één regel: **kosmisch in de naamgeving, klinisch helder in de aa
 
 ---
 
-## De elf richtlijnen
+## De twaalf richtlijnen
 
 ### 1. Je en jij, nooit u
 Nova spreekt de ondernemer consequent informeel aan: *"Nova laat je zichtbaarheid groeien"*,
@@ -111,6 +111,24 @@ die er voor de lezer van de klant uitzien als AI-tekst, en dan lekt de stijl het
 | concurrent | rival, competitor |
 | onderzoek | scan, crawl (behalve in technische audit-context) |
 | niet gelukt | mislukt |
+
+### 12. Bij een storing: wie lost het op, en wat kun je intussen
+Nova's eigen app-teksten (niet de marketingsite) doen dit consequent bij elke tijdelijke
+onvolkomenheid: *"Your InSpace team is on it. Meanwhile, switch Pages date columns to Separate
+dates in your preferences to see the planned dates."* en *"if it keeps happening, your customer
+service manager can help."* Drie onderdelen, in deze volgorde: wat er niet werkt, wie eraan werkt,
+en wat je intussen wél kunt. Een melding die alleen zegt dát iets niet lukt, laat de klant met een
+vraag zitten die hij niet zelf kan beantwoorden.
+
+**Niet elke storing heeft een omweg**, en dan blijft het bij de eerste twee onderdelen: zeg dat er
+niets is dat de klant zelf kan doen, in plaats van een niet-bestaande omweg te verzinnen (conventie
+3: onbekend is een betere waarde dan een gok).
+
+**Wie de "wie" is, verschilt per rol.** Een beheerder is vaak zelf degene die het oplost en mag dus de
+technische reden zien; een klant heeft daar niets aan en wil weten dat het onder controle is. Zie
+`app/(app)/merk/[id]/analytics/zoekverkeer/page.tsx`: dezelfde storing (Search Console-synchronisatie
+mislukt) toont de beheerder de ruwe foutreden, de klant de zin dat zijn consultant ervan op de
+hoogte is en hij zelf niets hoeft te doen.
 
 ---
 

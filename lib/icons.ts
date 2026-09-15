@@ -79,6 +79,7 @@ import {
   CircleHelp,
   ClipboardCheck,
   Copy,
+  Download,
   Eye,
   EyeOff,
   FilePen,
@@ -137,6 +138,7 @@ export type IcoonNaam =
   | "omlaag"
   | "extern"
   | "kopieer"
+  | "downloaden"
   | "profiel"
   | "help"
   | "meer"
@@ -233,6 +235,7 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   omlaag: ArrowDown,
   extern: ArrowUpRight,
   kopieer: Copy,
+  downloaden: Download,
   profiel: UserRound,
   // Een vraagteken in een cirkel: de standaardtekening voor hulp, en de enige
   // in deze set die dat woord letterlijk uitbeeldt. Voor Support, rechtsboven

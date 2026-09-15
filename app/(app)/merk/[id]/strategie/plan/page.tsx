@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { loadPlan } from "@/lib/plans";
 import { backlogCount } from "@/lib/plan-backlog-data";
 import { PageHeader } from "@/components/page-header";
+import { Icon } from "@/components/icon";
 import { PlanView } from "./plan-view";
 import { PlanReadView } from "./plan-read-view";
 import { CreatePlanBox } from "./create-plan-box";
@@ -75,6 +76,20 @@ export default async function PlanPage({
           bord
             ? "Sleep content naar de maand waarin het geschreven moet worden. Elke maand geef je apart vrij."
             : "Wat ORBIT ENGINE deze maand en volgende maand voor je schrijft, en wanneer het live moet."
+        }
+        action={
+          // Punt 28 uit docs/tasks/nova-vergelijking-verbeterpunten.md: de
+          // klant die dit meeneemt naar een eigen overleg wil het hele plan
+          // zien, dus alleen tonen zodra er een plan bestaat om te downloaden.
+          bundle && (
+            <a
+              href={`/api/profiles/${id}/plan/export`}
+              className="btn-outline inline-flex items-center gap-1.5"
+            >
+              <Icon naam="downloaden" size={16} />
+              Download CSV
+            </a>
+          )
         }
       />
 

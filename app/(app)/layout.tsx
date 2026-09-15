@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { AppShell } from "@/components/app-shell";
 import { ToastProvider } from "@/components/toast";
+import { DeploymentBanner } from "@/components/deployment-banner";
 import { loadWorkspace } from "@/lib/workspace";
 import { isStaff, isStaffAccount } from "@/lib/staff";
 import { isSales } from "@/lib/sales/access";
@@ -79,6 +80,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       >
         {children}
       </AppShell>
+      {/* Eén keer voor de hele ingelogde app, niet per scherm: zie
+          components/deployment-banner.tsx (punt 25 uit
+          docs/tasks/nova-vergelijking-verbeterpunten.md). */}
+      <DeploymentBanner />
     </ToastProvider>
   );
 }

@@ -485,3 +485,31 @@ elke volgende uitleesronde staan en wordt nooit overschreven. Zelfde afspraak al
 
 **RLS**: select-only, dezelfde twee sloten als 0095 en 0096. Schrijven via
 `app/api/solliciteren/feiten/` met een expliciete eigenaarscontrole in `laadEigenFeit()`.
+
+## 0098 — wie zette deze pagina in haar maand (blok A punt 1)
+
+`planned_pages.auto_placed`, additief met default `false`. Sinds deze migratie vult
+`vulOpenMaanden()` (`lib/plans.ts`) elke openstaande maand van het contentplan vooraf aan met de
+sterkste kansen uit de voorraad, in plaats van dat een klant elke kaart zelf uit de voorraad sleept
+(`docs/tasks/nova-vergelijking-verbeterpunten.md`, blok A punt 1). `true` = het systeem zette de
+kaart daar, `false` = een mens sleepte hem daar (`assignToMonth()`) of de kaart dateert van vóór deze
+migratie. Nodig voor een latere stap (punt 4, herkomst tonen): zonder deze vlag is dat onderscheid
+na verloop van tijd niet meer te reconstrueren.
+
+Genummerd 0098 en niet 0095: het zijproject "Solliciteren" claimde 0095 tot en met 0097 op
+`main` terwijl dit werk op een eigen branch liep (zie de sectie hierboven). Nagerekend tegen de
+lijst migraties die al op productie stonden vóórdat deze migratie werd toegepast.
+
+⚠️ Bij het bouwen van 0099 bleek dat `assignToMonth()` deze vlag nooit op `false` zette, ondanks wat
+hierboven al stond: de aanroep ontbrak. Rechtgezet in dezelfde ronde als 0099.
+
+## 0099 — bewust uitgehaald, of nog nooit ingepland (blok A punt 4)
+
+`planned_pages.taken_out`, additief met default `false`. `moveToBacklog()` (`lib/plans.ts`) zet hem
+op `true` op het moment dat een klant een kaart terugsleept naar de voorraad; `assignToMonth()` en
+`vulOpenMaanden()` zetten hem terug op `false` zodra de kaart weer in een maand terechtkomt. Het
+planscherm (`plan-view.tsx`) toont een kaart met `taken_out: true` als "eruit gehaald", en een kaart
+die na een volledige vulronde nog steeds in de voorraad zit (`vulOpenMaanden()`'s
+`restendeVoorraadIds`) als "buiten bereik": samen het onderscheid uit
+`docs/tasks/nova-vergelijking-verbeterpunten.md`, blok A punt 4, tussen "nog nooit ingepland" en
+"er bewust uitgehaald".
