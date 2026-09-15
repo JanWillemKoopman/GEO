@@ -22,11 +22,21 @@
  * vragen voor iets wat pas over een jaar speelt"). Deze functie houdt die regel
  * in stand: nooit meer dan één openstaande maand tegelijk "ter_goedkeuring".
  *
+ * ── WAAROM ER OOK EEN TWEEDE RONDE IS, VOOR WISSELGELD ──────────────────────
+ *
+ * Blok A, punt 3: elke maand krijgt na zijn echte inhoud ook `BUFFER_PER_MONTH`
+ * extra kans(en) als buffer, zodat een latere verwijdering of terugsleep die
+ * maand niet laat krimpen (punt 2, `vulMetBuffer()` in `lib/plans.ts`). Dit
+ * staat expliciet in een tweede ronde, ná alle echte inhoud van alle maanden:
+ * een verre maand die nog een lege plek heeft, gaat voor op wisselgeld in een
+ * eerdere maand die zijn quota al haalt.
+ *
  * Puur en zonder `server-only` (conventie 2): geen database, dus testbaar
  * vanuit `scripts/test-unit.ts`. De database-kant (welke rijen dat precies
  * zijn, hoe ze worden bijgewerkt) staat in `vulOpenMaanden()`, `lib/plans.ts`.
  */
 import type { PlanMonthStatus } from "@/lib/types/database";
+import { BUFFER_PER_MONTH } from "@/lib/plan-constants";
 
 export interface OpenMaand {
   id: string;
@@ -45,6 +55,8 @@ export interface OpenMaand {
    * elke maand in de reeks, niet alleen de eerste.
    */
   magNogVullen: boolean;
+  /** Buffers die er al in staan (blok A, punt 3): tellen niet mee voor de quota. */
+  huidigBuffers: number;
 }
 
 export interface VulOpdracht {
@@ -52,6 +64,8 @@ export interface VulOpdracht {
   monthNumber: number;
   /** Volgorde binnen de maand: eerst toegewezen kaarten komen eerst. */
   backlogIds: string[];
+  /** Wisselgeld voor deze maand (punt 3): geen datum, geen plek in de telling. */
+  bufferIds: string[];
 }
 
 export interface VulUitkomst {
@@ -80,16 +94,28 @@ export function bepaalVulling(input: {
 }): VulUitkomst {
   const { openMaanden, pagesPerMonth } = input;
   const voorraad = [...input.voorraadIds];
-  const opdrachten: VulOpdracht[] = [];
+  const opdrachten = new Map<string, VulOpdracht>();
   const heeftAlTerGoedkeuring = openMaanden.some((m) => m.status === "ter_goedkeuring");
   let bevorderMaand: string | null = null;
 
+  const opdracht = (maand: OpenMaand): VulOpdracht => {
+    let o = opdrachten.get(maand.id);
+    if (!o) {
+      o = { monthId: maand.id, monthNumber: maand.monthNumber, backlogIds: [], bufferIds: [] };
+      opdrachten.set(maand.id, o);
+    }
+    return o;
+  };
+
+  // Eerste ronde: echte inhoud, tot aan de pakketquota. Dit gaat voor alles
+  // anders, ook voor een verre maand: liever de sterkste kans in maand acht
+  // dan wisselgeld in maand een.
   for (const maand of openMaanden) {
     const ruimte = maand.magNogVullen ? pagesPerMonth - maand.huidigAantal : 0;
     const toegewezen = voorraad.splice(0, Math.max(0, ruimte));
 
     if (toegewezen.length > 0) {
-      opdrachten.push({ monthId: maand.id, monthNumber: maand.monthNumber, backlogIds: toegewezen });
+      opdracht(maand).backlogIds.push(...toegewezen);
     }
 
     // De eerste maand met inhoud (van tevoren óf net toegewezen) wordt de
@@ -101,8 +127,24 @@ export function bepaalVulling(input: {
     }
   }
 
+  // Tweede ronde: wisselgeld (punt 3), met wat overblijft. Ook in maandvolgorde,
+  // zodat de eerstkomende maanden als eerste hun buffer krijgen.
+  for (const maand of openMaanden) {
+    if (voorraad.length === 0) break;
+    // Dezelfde bescherming als de content-ronde hierboven zou hebben als de
+    // aanroeper toch per ongeluk een gesloten maand doorgeeft: een
+    // "goedgekeurd"-maand is dicht, ook voor wisselgeld.
+    if (maand.status === "goedgekeurd" || !maand.magNogVullen) continue;
+    const nogTeVullen = BUFFER_PER_MONTH - maand.huidigBuffers;
+    if (nogTeVullen <= 0) continue;
+    const buffers = voorraad.splice(0, nogTeVullen);
+    if (buffers.length > 0) {
+      opdracht(maand).bufferIds.push(...buffers);
+    }
+  }
+
   return {
-    opdrachten,
+    opdrachten: [...opdrachten.values()],
     restendeVoorraad: voorraad.length,
     bevorderMaand,
   };

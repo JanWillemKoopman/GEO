@@ -53,19 +53,21 @@ maand, bij het aanmaken van een plan én bij elke schermopening. Migratie 0098
 (`planned_pages.auto_placed`). Zie `docs/logbook.md`, 15 september 2026, voor de twee dingen die
 niet in de oorspronkelijke planningsronde stonden: de bevordering naar precies één
 "ter_goedkeuring"-maand tegelijk, en de correctie voor een maand zonder bruikbare kalenderdag meer.
-Nog niet gedaan: de punten 2 tot en met 4 hieronder, die op deze kapstok voortbouwen.
+Nog niet gedaan: punt 4 hieronder, die op deze kapstok voortbouwt.
 
-**2. Geef elke maand een vast formaat en houd dat vast bij elke wijziging.** (midden)
-Nova's regel: "A swap keeps each month the same size." Wie een pagina uit maand drie haalt, moet er
-een terugleggen, anders krimpt de maand onder wat het abonnement belooft. ORBIT ENGINE kent nu
-alleen volgorde wisselen binnen een maand (`swapWithNeighbour` in `lib/plan-order.ts`), niet ruilen
-tussen maanden met behoud van het maandformaat. Het gevolg van dat verschil is concreet: bij ons
-kan een klant ongemerkt een maand leeg trekken en ziet niemand dat hij minder krijgt dan afgesproken.
+**2. ~~Geef elke maand een vast formaat en houd dat vast bij elke wijziging.~~** (midden) ✅ **Live,
+15 september 2026.** `moveToBacklog()` en de "oude maand" van `assignToMonth()` roepen na hun
+herplanning nu ook `vulMetBuffer()` aan (`lib/plans.ts`): dezelfde soort voorwaardelijke claim die
+`removePage()` al voor verwijderen deed, nu ook voor terugleggen en verplaatsen. Alleen als de
+maand een buffer heeft: zonder buffer krimpt hij nog steeds tot de eerstvolgende schermopening
+(conventie 3, geen verzonnen inhoud). Dat is precies waarom punt 3 hiervoor moest.
 
-**3. Schrijf een paar pagina's meer dan het abonnement dekt, als wisselgeld.** (midden)
-Nova noemt dat "a few extra, as a buffer: extra pages ready to swap in whenever you want to change
-what's scheduled". Zonder buffer betekent "ik wil deze pagina niet" dat er een gat valt. Met buffer
-betekent het: pak een andere. Dit maakt punt 2 pas prettig in plaats van knellend.
+**3. ~~Schrijf een paar pagina's meer dan het abonnement dekt, als wisselgeld.~~** (midden) ✅ **Live,
+15 september 2026.** `bepaalVulling()` (`lib/plan-fill.ts`) vult, ná de echte inhoud van alle open
+maanden, in een tweede ronde elke maand aan tot één buffer (`BUFFER_PER_MONTH`,
+`lib/plan-constants.ts`). Bevinding die de open vraag hieronder beantwoordt: een buffer kost niets
+totdat hij verzilverd wordt. `lib/plan-writing.ts` slaat `is_buffer: true` al expliciet over, dus
+een buffer die nooit wordt opgevraagd, wordt ook nooit geschreven en kost geen schrijfronde.
 
 **4. Zet wat niet in het plan past in een zichtbare wachtrij, met uitleg waarom.** (klein)
 Nova's tab heet "Not included" met de zin: "Pages you took out, and pages your ordering pushed past
@@ -322,9 +324,10 @@ in jouw app. Wij publiceren niet, dus de tekst gaat hoe dan ook door een CMS van
 15 september 2026, blok E is daarmee compleet)~~, 5 (hoeveel pagina's nog nodig), 19 (reden per
 regel), 16 (specifieke foutmeldingen), 13 (drempel voor handmatig bewerken).
 
-**Daarna, want het lost een echt probleem op dat groeit:** blok A, in de volgorde ~~1 (live sinds
-15 september 2026)~~, 2, 3, 4. Dit is de voorwaarde om werkpakket B uit het optimalisatielab te
-kunnen opleveren: zodra het aantal kansen omhoog gaat, loopt het huidige planscherm vast.
+**Daarna, want het lost een echt probleem op dat groeit:** blok A, in de volgorde ~~1, 2, 3 (alle
+drie live sinds 15 september 2026)~~, 4. Dit is de voorwaarde om werkpakket B uit het
+optimalisatielab te kunnen opleveren: zodra het aantal kansen omhoog gaat, loopt het huidige
+planscherm vast.
 
 **Dan, omdat ze de kwaliteit bewaken die we al hebben:** 14, 15, 17, 21.
 
@@ -338,8 +341,11 @@ datamodel raken.
 1. Punt 1 draait de rolverdeling op het planscherm om: van zelf samenstellen naar nakijken. Dat is
    een wezenlijke wijziging in hoe het scherm aanvoelt. Akkoord met die richting voordat er iets
    gebouwd wordt?
-2. Punt 3 (een buffer schrijven bovenop wat het abonnement dekt) kost per extra pagina een echte
-   schrijfronde. Hoeveel buffer is dat waard?
+2. ~~Punt 3 (een buffer schrijven bovenop wat het abonnement dekt) kost per extra pagina een echte
+   schrijfronde. Hoeveel buffer is dat waard?~~ **Beantwoord bij het bouwen, 15 september 2026:** een
+   buffer kost niets totdat hij verzilverd wordt (`lib/plan-writing.ts` schrijft nooit `is_buffer:
+   true`). De vraag was op een verkeerde aanname gebaseerd: er is geen "hoeveel is het waard"-afweging
+   nodig, want een ongebruikte buffer kost helemaal niets.
 3. Punt 29: is er zicht op klanten die ook in het buitenland zichtbaar willen zijn? Zo nee, dan
    blijft dit onderaan liggen en hoeft het datamodel er niet op voorbereid te worden.
 4. Punt 23 veronderstelt dat er abonnementsvormen bestaan met verschillende rechten. Bestaan die al

@@ -6139,6 +6139,7 @@ group("het plan vult zichzelf vooraf (blok A punt 1, plan-fill)", () => {
     monthNumber,
     status: "concept",
     huidigAantal: 0,
+    huidigBuffers: 0,
     magNogVullen: true,
     ...overrides,
   });
@@ -6226,6 +6227,88 @@ group("het plan vult zichzelf vooraf (blok A punt 1, plan-fill)", () => {
       voorraadIds: [],
       pagesPerMonth: 5,
     }).bevorderMaand === "maand-1",
+  );
+});
+
+group("het plan schrijft wisselgeld (blok A punt 3, plan-fill)", () => {
+  const maand = (
+    monthNumber: number,
+    overrides: Partial<OpenMaand> = {},
+  ): OpenMaand => ({
+    id: `maand-${monthNumber}`,
+    monthNumber,
+    status: "concept",
+    huidigAantal: 0,
+    huidigBuffers: 0,
+    magNogVullen: true,
+    ...overrides,
+  });
+
+  {
+    // Maand vol (drie van de drie), en er is nog precies één kans over: die
+    // wordt wisselgeld, geen tweede maand.
+    const uitkomst = bepaalVulling({
+      openMaanden: [maand(1)],
+      voorraadIds: ["a", "b", "c", "d"],
+      pagesPerMonth: 3,
+    });
+    ok("drie echte kaarten", uitkomst.opdrachten[0].backlogIds.length === 3);
+    ok("en één buffer", uitkomst.opdrachten[0].bufferIds.join(",") === "d");
+    ok("niets blijft achter in de voorraad", uitkomst.restendeVoorraad === 0);
+  }
+
+  {
+    // Echte inhoud gaat altijd voor: een verre maand 2 krijgt zijn plek voordat
+    // maand 1 wisselgeld krijgt.
+    const uitkomst = bepaalVulling({
+      openMaanden: [maand(1), maand(2)],
+      voorraadIds: ["a", "b", "c", "d"],
+      pagesPerMonth: 3,
+    });
+    ok("maand 1 vol met drie", uitkomst.opdrachten[0].backlogIds.length === 3);
+    ok("maand 1 krijgt geen buffer", uitkomst.opdrachten[0].bufferIds.length === 0);
+    ok("maand 2 krijgt de laatste kans als echte inhoud, niet als buffer", uitkomst.opdrachten[1].backlogIds.join(",") === "d");
+    ok("maand 2 krijgt ook geen buffer, de voorraad is op", uitkomst.opdrachten[1].bufferIds.length === 0);
+  }
+
+  {
+    // Twee volle maanden, twee kansen over: allebei krijgen hun eigen buffer,
+    // in maandvolgorde.
+    const uitkomst = bepaalVulling({
+      openMaanden: [maand(1, { huidigAantal: 3 }), maand(2, { huidigAantal: 3 })],
+      voorraadIds: ["x", "y"],
+      pagesPerMonth: 3,
+    });
+    ok("maand 1 krijgt geen echte inhoud meer, hij zit al vol", uitkomst.opdrachten[0].backlogIds.length === 0);
+    ok("maar wel een buffer", uitkomst.opdrachten[0].bufferIds.join(",") === "x");
+    ok("maand 2 krijgt de tweede buffer", uitkomst.opdrachten[1].bufferIds.join(",") === "y");
+  }
+
+  ok(
+    "een maand met al een buffer krijgt er geen tweede",
+    bepaalVulling({
+      openMaanden: [maand(1, { huidigAantal: 3, huidigBuffers: 1 })],
+      voorraadIds: ["x"],
+      pagesPerMonth: 3,
+    }).opdrachten.length === 0,
+  );
+
+  ok(
+    "een maand zonder bruikbare dag meer krijgt ook geen buffer",
+    bepaalVulling({
+      openMaanden: [maand(1, { huidigAantal: 3, magNogVullen: false })],
+      voorraadIds: ["x"],
+      pagesPerMonth: 3,
+    }).opdrachten.length === 0,
+  );
+
+  ok(
+    "een goedgekeurde maand krijgt nooit een buffer, ook al is er voorraad over",
+    bepaalVulling({
+      openMaanden: [maand(1, { status: "goedgekeurd", huidigAantal: 3 })],
+      voorraadIds: ["x"],
+      pagesPerMonth: 3,
+    }).opdrachten.length === 0,
   );
 });
 

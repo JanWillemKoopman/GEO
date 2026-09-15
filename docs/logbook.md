@@ -8592,3 +8592,54 @@ deploy het planscherm van deze twee merken openen en controleren dat maand 2 zic
 Getest: `tsc --noEmit`, `test:unit` (4675 geslaagd) en `test:chain` (652 geslaagd) en `build` zijn
 alle vier groen gedraaid, op de stand ná de merge met `main` (inclusief het zijproject
 "Solliciteren").
+
+## 15 september 2026: elke maand houdt zijn formaat vast, met wisselgeld (blok A punt 2 en 3)
+
+Vervolg op punt 1 hierboven, in één keer gebouwd omdat de taakomschrijving ze zelf al aan elkaar
+koppelt: "Dit maakt punt 2 pas prettig in plaats van knellend." Zonder buffer (punt 3) zou punt 2
+alleen kunnen werken door een verse kans direct uit de voorraad te pakken, wat de zorgvuldige
+maandvolgorde van punt 1 zou verstoren.
+
+**Punt 3 eerst, want punt 2 heeft hem nodig.** `bepaalVulling()` (`lib/plan-fill.ts`) vult nu in een
+tweede ronde, ná de echte inhoud van alle open maanden, elke maand aan tot één buffer
+(`BUFFER_PER_MONTH = 1`, `lib/plan-constants.ts`). Bewust één en niet "een paar": buffers vullen
+lazy bij, bij elke schermopening, dus een tweede volgt vanzelf zodra er weer voorraad is. Een buffer
+krijgt geen `sort_order`/`scheduled_for` die ertoe doet: `herplanMaand()` sluit `is_buffer = true`
+al expliciet uit (bestaande regel, ongewijzigd).
+
+**Bevinding die een openstaande vraag in het taakdocument beantwoordt.** §"Open vragen voor de
+eigenaar" vroeg zich af hoeveel een buffer "waard" is, in de aanname dat elke extra pagina een
+echte schrijfronde kost. Dat klopt niet: `lib/plan-writing.ts` slaat `is_buffer: true` al overal
+expliciet over (`if (page.is_buffer) return { schrijven: false, reden: "is_buffer" };`, van vóór
+dit werk). Een buffer kost dus niets totdat hij verzilverd wordt, en op het moment dat hij verzilverd
+wordt, is hij gewoon een pagina die toch al bij het abonnement hoorde. Geen afweging nodig.
+
+**Punt 2: dezelfde soort claim als `removePage()` al deed, nu ook voor de andere twee wegen waarop
+een maand kan krimpen.** Nieuwe functie `vulMetBuffer()` in `lib/plans.ts`: een voorwaardelijke
+`UPDATE ... WHERE is_buffer = true` (dezelfde wedstrijdconditie-bescherming als `removePage()` al
+had, en om dezelfde reden: twee gelijktijdige acties in dezelfde maand mogen nooit dezelfde buffer
+allebei denken te hebben), gevolgd door een gewone `herplanMaand()`-ronde. `removePage()` zelf is
+niet aangeraakt: die kopieert de vrijgekomen datum en plek al rechtstreeks naar de buffer omdat de
+rest van de maand daarbij ongemoeid blijft, en dat werkt goed. De twee routes die nog niets deden:
+- `moveToBacklog()` (terugslepen naar de voorraad): roept `vulMetBuffer()` aan direct na de
+  bestaande `herplanMaand()` op de maand die de kaart verlaat.
+- `assignToMonth()` (verplaatsen naar een andere maand): dezelfde aanroep, op de "oude" maand, in de
+  tak die al bestond voor "de kaart kwam ergens anders vandaan".
+
+Geen buffer aanwezig, of de maand heeft geen bruikbare kalenderdag meer (`maandIsVol()`): dan
+gebeurt er niets, en blijft de maand een kaart korter dan zijn quota tot de eerstvolgende
+schermopening. Dat is dezelfde "geen verzonnen inhoud"-regel als punt 1 (conventie 3), nu ook hier.
+
+**Wat dit niet oplost.** Een klant die tien kaarten achter elkaar uit dezelfde maand haalt binnen
+één sessie, zonder de pagina te herladen, put de buffer van die maand na de eerste keer uit; de
+volgende negen krimpen de maand alsnog totdat het scherm opnieuw laadt en `vulOpenMaanden()` bijvult.
+Geaccepteerd: `BUFFER_PER_MONTH` groter zetten dekt dat scenario af, maar dat is een aparte
+kosten/bruikbaarheid-afweging (buffers zijn zelf gratis, maar meer buffers per maand betekent wel
+dat de voorraad sneller "op" lijkt voor de klant, wat weer raakt aan punt 4 hieronder). Niet in deze
+ronde aangepast; `BUFFER_PER_MONTH` staat op één plek en is met één cijfer te verhogen.
+
+Getest: `tsc --noEmit`, `test:unit` (4688 geslaagd, twaalf nieuwe assertions voor de buffervulling)
+en `test:chain` (652 geslaagd, geen scenario geraakt: alle bestaande testmerken hebben precies
+genoeg voorraad om hun maanden te vullen, zonder overschot voor een buffer) en `build` zijn alle
+vier groen. Geen migratie: `is_buffer` bestaat al sinds migratie 0049 en werd tot nu toe nooit
+geschreven.

@@ -469,7 +469,9 @@ export async function createPlan(
  * de sterkste kansen uit de voorraad (blok A, punt 1 uit
  * `docs/tasks/nova-vergelijking-verbeterpunten.md`). Precies de regel die
  * `createPlan()` altijd al voor de voorzet-maand toepaste, nu voor elke maand
- * die nog niet is vrijgegeven.
+ * die nog niet is vrijgegeven. Vult daarna, met wat overblijft, elke maand ook
+ * aan tot zijn buffer (punt 3): een verzegelde kans die geen datum krijgt en
+ * pas meetelt zodra `vulMetBuffer()` hem verzilvert.
  *
  * Aanroepbaar los van `createPlan()`: `loadPlan()` roept dit ook aan, ná
  * `syncBacklog()`, zodat een plan bij elke schermopening zo ver gevuld is als
@@ -514,13 +516,14 @@ export async function vulOpenMaanden(
   const monthIds = maandenRaw.map((m) => m.id);
   const { data: bestaandRows } = await admin
     .from("planned_pages")
-    .select("plan_month_id")
+    .select("plan_month_id, is_buffer")
     .in("plan_month_id", monthIds)
-    .eq("is_buffer", false)
     .neq("status", "afgewezen");
   const aantalPerMaand = new Map<string, number>();
-  for (const r of (bestaandRows ?? []) as { plan_month_id: string }[]) {
-    aantalPerMaand.set(r.plan_month_id, (aantalPerMaand.get(r.plan_month_id) ?? 0) + 1);
+  const buffersPerMaand = new Map<string, number>();
+  for (const r of (bestaandRows ?? []) as { plan_month_id: string; is_buffer: boolean }[]) {
+    const map = r.is_buffer ? buffersPerMaand : aantalPerMaand;
+    map.set(r.plan_month_id, (map.get(r.plan_month_id) ?? 0) + 1);
   }
 
   const pagesPerMonth = plan.pages_per_month;
@@ -530,6 +533,7 @@ export async function vulOpenMaanden(
     monthNumber: m.month_number,
     status: m.status,
     huidigAantal: aantalPerMaand.get(m.id) ?? 0,
+    huidigBuffers: buffersPerMaand.get(m.id) ?? 0,
     magNogVullen: !maandIsVol(plan.started_on, m.month_number, now),
   }));
 
@@ -563,6 +567,18 @@ export async function vulOpenMaanden(
         // voorwaarde kan een gelijktijdige sleepactie overschreven worden.
         .is("plan_month_id", null);
       if (error) console.error("Automatisch inplannen mislukt:", error.message);
+    }
+
+    // Wisselgeld (punt 3): geen sort_order/scheduled_for die ertoe doet, want
+    // `herplanMaand()` sluit `is_buffer = true` expliciet uit. Ze wachten hier
+    // tot `vulMetBuffer()` ze verzilvert.
+    for (const kaartId of opdracht.bufferIds) {
+      const { error } = await admin
+        .from("planned_pages")
+        .update({ plan_month_id: opdracht.monthId, is_buffer: true, auto_placed: true })
+        .eq("id", kaartId)
+        .is("plan_month_id", null);
+      if (error) console.error("Buffer inplannen mislukt:", error.message);
     }
 
     const maand = maandenRaw.find((m) => m.id === opdracht.monthId);
@@ -650,10 +666,14 @@ export async function assignToMonth(
 
   await herplanMaand(admin, maand, { verplaatst: input.pageId, naarIndex: input.index });
   // Kwam de kaart uit een andere maand, dan klopt de spreiding daar nu ook niet
-  // meer: er is een gat gevallen.
+  // meer: er is een gat gevallen. Meteen daarna zijn eigen buffer erin schuiven
+  // (punt 2), zodat die maand niet krimpt tot de eerstvolgende schermopening.
   if (vorigeMaand && vorigeMaand !== input.monthId) {
     const oud = await maandMetPlan(admin, vorigeMaand, input.profileId);
-    if (oud) await herplanMaand(admin, oud, null);
+    if (oud) {
+      await herplanMaand(admin, oud, null);
+      await vulMetBuffer(admin, oud);
+    }
   }
 
   return { ok: true, probleem: null };
@@ -710,7 +730,12 @@ export async function moveToBacklog(
     return { ok: false, probleem: "Terugleggen is niet gelukt." };
   }
 
-  if (maand) await herplanMaand(admin, maand, null);
+  if (maand) {
+    await herplanMaand(admin, maand, null);
+    // Zijn eigen buffer erin schuiven (punt 2): terugleggen naar de voorraad
+    // mag de maand niet ongemerkt onder zijn belofte laten zakken.
+    await vulMetBuffer(admin, maand);
+  }
   return { ok: true, probleem: null };
 }
 
@@ -885,6 +910,55 @@ async function herplanMaand(
       .update({ sort_order: u.sort_order, scheduled_for: u.scheduled_for })
       .eq("id", u.id);
   }
+}
+
+/**
+ * Een maand die net een kaart kwijtraakte, meteen weer op zijn beloofde
+ * grootte brengen met zijn eigen buffer, als hij er een heeft (blok A, punt 2:
+ * "Geef elke maand een vast formaat en houd dat vast bij elke wijziging").
+ *
+ * Dit is het tegenhanger-mechanisme van `removePage()` hierboven, voor de
+ * twee andere manieren waarop een maand kan krimpen: terugslepen naar de
+ * voorraad (`moveToBacklog()`) en verplaatsen naar een andere maand
+ * (`assignToMonth()`, de maand die de kaart verlaat). `removePage()` kopieert
+ * de vrijgekomen datum en plek rechtstreeks naar de buffer, omdat de rest van
+ * de maand daar ongemoeid bij blijft; hier is de maand al herdateerd (de
+ * aanroeper belt dit pas ná `herplanMaand()`), dus de buffer krijgt gewoon een
+ * nieuwe, volle `herplanMaand()`-ronde net als elke andere kaart.
+ *
+ * ⚠️ Zelfde wedstrijdconditie als in `removePage()`: de voorwaardelijke
+ * `UPDATE ... WHERE is_buffer = true` bepaalt zelf of de claim lukt, niet een
+ * lezing ervoor. Twee gelijktijdige aanroepen voor dezelfde maand kunnen dus
+ * nooit dezelfde buffer allebei denken te hebben.
+ *
+ * Geen buffer, of de maand heeft geen bruikbare kalenderdag meer: dan gebeurt
+ * er niets, en blijft de maand een kaart korter dan zijn quota tot de
+ * eerstvolgende schermopening (`vulOpenMaanden()`) er weer voorraad in vindt.
+ */
+async function vulMetBuffer(admin: Admin, maand: MaandMetPlan): Promise<void> {
+  if (maandIsVol(maand.started_on, maand.month_number)) return;
+
+  const { data: buffer } = await admin
+    .from("planned_pages")
+    .select("id")
+    .eq("plan_month_id", maand.id)
+    .eq("is_buffer", true)
+    .eq("status", "gepland")
+    .order("sort_order")
+    .limit(1)
+    .maybeSingle();
+  if (!buffer) return;
+
+  const { data: geclaimd } = await admin
+    .from("planned_pages")
+    .update({ is_buffer: false })
+    .eq("id", buffer.id as string)
+    .eq("is_buffer", true)
+    .select("id")
+    .maybeSingle();
+  if (!geclaimd) return;
+
+  await herplanMaand(admin, maand, null);
 }
 
 /**
