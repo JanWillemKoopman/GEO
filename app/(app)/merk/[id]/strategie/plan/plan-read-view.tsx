@@ -194,6 +194,7 @@ function MaandKaart({
             geplaatst: telling.geplaatst,
             eersteDatum: eerste?.scheduled_for ? formatDagNL(eerste.scheduled_for) : null,
             leegDoorRuimtegebrek: telling.echt === 0 && maandIsVol(plan.started_on, month.month_number),
+            pakket: plan.pages_per_month,
           })}
         </p>
       </div>

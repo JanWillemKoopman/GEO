@@ -123,12 +123,21 @@ export function planStap(input: StapInput): string {
  * `docs/tasks/opdracht-bevindingen-5-tot-9.md`). Zonder dat onderscheid las
  * "Nog niets ingepland" als een taak voor de klant, terwijl er niets te doen
  * viel: de eerstvolgende maand had de kansen al gekregen.
+ *
+ * `pakket` (blok A punt 1, `docs/tasks/nova-vergelijking-verbeterpunten.md`)
+ * meldt er één zin bij zodra de maand zijn pakket niet haalt: sinds
+ * `vulOpenMaanden()` (`lib/plans.ts`) elke maand vooraf vult met wat de
+ * voorraad op dat moment heeft, is een tekort geen fout meer maar een
+ * voorspelbare uitkomst van een dunne voorraad, en dat hoort de klant te zien
+ * in plaats van zich af te vragen waarom het er minder zijn dan hij betaalt.
  */
 export function maandRegel(input: {
   paginas: number;
   geplaatst: number;
   eersteDatum: string | null;
   leegDoorRuimtegebrek?: boolean;
+  /** Weglaten als er niets over een tekort te zeggen valt. */
+  pakket?: number;
 }): string {
   if (input.paginas === 0) {
     return input.leegDoorRuimtegebrek
@@ -138,14 +147,18 @@ export function maandRegel(input: {
 
   const kop =
     input.paginas === 1 ? "Eén pagina deze maand" : `${input.paginas} pagina's deze maand`;
+  const tekortZin =
+    input.pakket !== undefined && input.paginas < input.pakket
+      ? ` Dat is minder dan je pakket van ${input.pakket}: er zijn nog niet genoeg gemeten kansen.`
+      : "";
 
   if (input.geplaatst >= input.paginas) {
-    return `${kop}, allemaal live.`;
+    return `${kop}, allemaal live.${tekortZin}`;
   }
   if (input.geplaatst > 0) {
-    return `${kop}, waarvan ${input.geplaatst} live.`;
+    return `${kop}, waarvan ${input.geplaatst} live.${tekortZin}`;
   }
-  return input.eersteDatum ? `${kop}, de eerste op ${input.eersteDatum}.` : `${kop}.`;
+  return (input.eersteDatum ? `${kop}, de eerste op ${input.eersteDatum}.` : `${kop}.`) + tekortZin;
 }
 
 /** Telt de statussen die de klantzin nodig heeft. Puur, dus testbaar. */

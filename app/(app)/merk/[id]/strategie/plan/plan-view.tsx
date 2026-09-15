@@ -408,8 +408,9 @@ export function PlanView({
   }
 
   /**
-   * Het plan opnieuw opzetten. Twaalf verse maanden met een voorzet in maand 1;
-   * het oude plan gaat op `gestopt` en blijft bewaard (conventie 8).
+   * Het plan opnieuw opzetten. Twaalf verse maanden, meteen gevuld met de
+   * sterkste kansen uit de voorraad (blok A punt 1, `vulOpenMaanden()`); het
+   * oude plan gaat op `gestopt` en blijft bewaard (conventie 8).
    */
   async function planOpnieuw() {
     setBusy("plan");
@@ -694,6 +695,13 @@ export function PlanView({
             // dropzones onder elkaar zijn twaalf keer dezelfde uitnodiging.
             const open = !(dicht[month.id] ?? (inhoud.length === 0 && !lopend));
             const overVol = inhoud.length > plan.pages_per_month;
+            // Blok A punt 1: alleen op de maand die om een beslissing vraagt,
+            // niet op elke lege verre conceptmaand. Die tonen al "leeg", en een
+            // tekortmelding op tien identieke lege maanden is ruis.
+            const tekort =
+              month.status === "ter_goedkeuring" &&
+              inhoud.length > 0 &&
+              inhoud.length < plan.pages_per_month;
             const isDoel = sleepDoel === month.id;
             // ⚠️ Een lege, dichtgeklapte maand krijgt géén kaartrand. Er staan er
             // tien onder elkaar zodra een plan net begint, en tien even zware
@@ -840,6 +848,20 @@ export function PlanView({
                     }}
                   >
                     {gedeeld}
+                  </p>
+                )}
+
+                {open && tekort && (
+                  <p
+                    className="border-t px-4 py-2 text-xs"
+                    style={{
+                      borderColor: "var(--border-subtle)",
+                      color: "var(--intent-warning-text)",
+                    }}
+                  >
+                    Deze maand haalt je pakket van {plan.pages_per_month} pagina&apos;s nog niet: er
+                    zijn nog niet genoeg gemeten kansen. Meet een cluster erbij, of wacht tot de
+                    volgende meetronde.
                   </p>
                 )}
 
@@ -1063,7 +1085,7 @@ export function PlanView({
       <ConfirmDialog
         open={opnieuwDialog}
         title="Het plan opnieuw opzetten"
-        body={`Je krijgt twaalf lege maanden terug, met de sterkste kansen uit je voorraad alvast in maand 1. Alles wat je nu hebt ingepland (${echt.length} ${echt.length === 1 ? "pagina" : "pagina's"}) verdwijnt uit dit scherm.`}
+        body={`Je krijgt twaalf verse maanden terug, meteen gevuld met de sterkste kansen uit je voorraad. Alles wat je nu hebt ingepland (${echt.length} ${echt.length === 1 ? "pagina" : "pagina's"}) verdwijnt uit dit scherm.`}
         irreversible={{
           title: "Wat er blijft en wat er weggaat",
           description:

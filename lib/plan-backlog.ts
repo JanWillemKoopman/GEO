@@ -122,16 +122,30 @@ export function filterBacklog(
  * geeft en de kaarten niet onder de muis van plek wisselen.
  */
 export function sortBacklog(items: BacklogItem[]): BacklogItem[] {
-  return [...items].sort((a, b) => {
-    const pa = a.potentie ?? null;
-    const pb = b.potentie ?? null;
-    if (pa !== null && pb !== null && pa !== pb) return pb - pa;
-    if ((pa === null) !== (pb === null)) return pa === null ? 1 : -1;
-    const wa = a.gewicht ?? 0;
-    const wb = b.gewicht ?? 0;
-    if (wa !== wb) return wb - wa;
-    return a.title.localeCompare(b.title, "nl");
-  });
+  return [...items].sort(compareByPotential);
+}
+
+/**
+ * De vergelijking zelf, los van `sortBacklog()` en zijn volle `BacklogItem`.
+ *
+ * `vulOpenMaanden()` (`lib/plans.ts`) heeft dezelfde volgorde nodig maar leest
+ * de voorraad met een lichtere query (alleen `id`, `potential`, `target_weight`,
+ * `title`, zie migratie 0065). Twee sorteringen die hetzelfde beweren maar apart
+ * geïmplementeerd zijn, lopen op den duur uit elkaar; vandaar één functie die
+ * allebei de aanroepers delen.
+ */
+export function compareByPotential(
+  a: { potentie: number | null; gewicht: number | null; title: string },
+  b: { potentie: number | null; gewicht: number | null; title: string },
+): number {
+  const pa = a.potentie ?? null;
+  const pb = b.potentie ?? null;
+  if (pa !== null && pb !== null && pa !== pb) return pb - pa;
+  if ((pa === null) !== (pb === null)) return pa === null ? 1 : -1;
+  const wa = a.gewicht ?? 0;
+  const wb = b.gewicht ?? 0;
+  if (wa !== wb) return wb - wa;
+  return a.title.localeCompare(b.title, "nl");
 }
 
 /** De clusters die in de voorraad voorkomen, met hun aantal, voor het filter. */

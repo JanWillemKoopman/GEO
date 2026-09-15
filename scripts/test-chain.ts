@@ -2959,8 +2959,11 @@ async function main(): Promise<void> {
     // Nog nergens zichtbaar en veel zoekvolume: dít is de kans. Potentie ≈ 90.
     const hogePotentie = await clusterMetKans("hoge potentie", false, 90);
 
-    // ⚠️ Eén pagina per maand, zodat de voorzet moet KIEZEN. Met twee zouden
-    // beide kansen in maand 1 belanden en zou de test niets bewijzen.
+    // ⚠️ Eén pagina per maand, zodat maand 1 moet KIEZEN tussen de twee kansen.
+    // Sinds blok A punt 1 (`vulOpenMaanden()`, lib/plans.ts) vult het plan élke
+    // openstaande maand vooraf, dus de kans die maand 1 niet kreeg komt niet
+    // meer in de voorraad terecht maar in maand 2: dat is verderop de eerste
+    // controle die bewijst dat de sortering ook na maand 1 nog doorwerkt.
     //
     // ⚠️ Vaste `startedOn`, een heel jaar verderop. Zonder dat argument leest
     // `createPlan()` de echte klok, en de rest van dit scenario (verderop
@@ -3027,22 +3030,39 @@ async function main(): Promise<void> {
       `potentie was ${maand1Paginas[0]?.potential}`,
     );
 
-    // ⚠️ De andere kans is NIET verdwenen en NIET ingepland: hij staat in de
-    // voorraad. Dat is het hele punt van migratie 0068, en het verschil met de
-    // oude jaarverdeling, die alle twaalf maanden vooruit volstopte.
-    const { rows: voorraad } = await db.client.query(
-      `select id, topic_id, scheduled_for, potential from public.planned_pages
+    // ⚠️ Blok A punt 1 (docs/tasks/nova-vergelijking-verbeterpunten.md):
+    // sinds `vulOpenMaanden()` niet langer alleen maand 1 vult maar élke
+    // openstaande maand, komt de andere kans niet meer in de voorraad terecht
+    // maar in maand 2 (pagesPerMonth is 1, dus maand 1 was al vol). Dát is nu
+    // precies het verschil met de oude jaarverdeling, die alle twaalf maanden
+    // in één keer met verzonnen combinaties volstopte: hier komt maand 2 pas
+    // aan de beurt ná maand 1, met een échte gemeten kans, niet met invulsel.
+    const { rows: voorraadLeeg } = await db.client.query(
+      `select id from public.planned_pages
         where profile_id = $1 and plan_month_id is null and status = 'gepland'`,
       [planPotProfileId],
     );
     ok(
-      "de andere kans blijft in de voorraad staan",
-      voorraad.length === 1 && voorraad[0].topic_id === lagePotentie.topicId,
-      `${voorraad.length} in de voorraad`,
+      "de voorraad is leeg: er waren precies genoeg kansen voor twee maanden",
+      voorraadLeeg.length === 0,
+      `${voorraadLeeg.length} nog in de voorraad`,
+    );
+
+    const { rows: maand2Paginas } = await db.client.query(
+      `select pp.topic_id, pp.scheduled_for from public.planned_pages pp
+         join public.plan_months pm on pm.id = pp.plan_month_id
+         join public.content_plans cp on cp.id = pm.plan_id
+        where cp.profile_id = $1 and pm.month_number = 2 and pp.is_buffer = false`,
+      [planPotProfileId],
     );
     ok(
-      "een kans in de voorraad heeft geen publicatiedatum",
-      voorraad[0]?.scheduled_for === null,
+      "de andere kans komt in maand 2 terecht",
+      maand2Paginas.length === 1 && maand2Paginas[0]?.topic_id === lagePotentie.topicId,
+      `${maand2Paginas.length} pagina's in maand 2`,
+    );
+    ok(
+      "en heeft, net als maand 1, een publicatiedatum",
+      Boolean(maand2Paginas[0]?.scheduled_for),
     );
 
     // ── Wat het scherm daadwerkelijk krijgt ─────────────────────────────────
@@ -3055,27 +3075,9 @@ async function main(): Promise<void> {
     ok("het scherm krijgt een plan", bundel !== null);
     ok("met twaalf maanden", bundel?.months.length === 12);
     ok(
-      "één ingeplande pagina en één kans in de voorraad",
-      bundel?.pages.length === 1 && bundel?.backlog.length === 1,
+      "twee ingeplande pagina's, blok A punt 1 vulde beide maanden",
+      bundel?.pages.length === 2 && bundel?.backlog.length === 0,
       `${bundel?.pages.length} ingepland, ${bundel?.backlog.length} in de voorraad`,
-    );
-    ok(
-      "de voorraadkaart draagt de naam van zijn cluster",
-      bundel?.backlog[0]?.cluster === "lage potentie",
-      `cluster was ${bundel?.backlog[0]?.cluster}`,
-    );
-    ok(
-      "en zijn doelvragen, met de noemer erbij",
-      bundel?.backlog[0]?.raakt === 1 && bundel?.backlog[0]?.gemeten === 1,
-      `raakt ${bundel?.backlog[0]?.raakt} van ${bundel?.backlog[0]?.gemeten}`,
-    );
-    // ⚠️ `numeric` komt als TEKST binnen bij de JS-client. Zonder de `Number()`
-    // in `naarBacklogItem()` sorteert "9" boven "80", en dan staat de zwakste
-    // kans bovenaan zonder dat er iets kapot lijkt.
-    ok(
-      "de potentie is een getal en geen tekst",
-      typeof bundel?.backlog[0]?.potentie === "number" || bundel?.backlog[0]?.potentie === null,
-      `type was ${typeof bundel?.backlog[0]?.potentie}`,
     );
     ok(
       "de clusters die al kansen leverden staan apart, zodat het scherm niet om een meting vraagt die er is",
@@ -3087,6 +3089,44 @@ async function main(): Promise<void> {
       bundel?.declined.length === 1 && bundel?.declined[0]?.reason.includes("geen bestaand aanbod"),
       JSON.stringify(bundel?.declined),
     );
+
+    // ── Een verse kans die nog in de voorraad staat ─────────────────────────
+    //
+    // ⚠️ Met beide maanden al vol (hierboven) is dit de enige manier om nu nog
+    // een kans in de voorraad te zien: gemeten ná het aanmaken van het plan,
+    // en uitgelezen met `{ sync: false }` zodat `vulOpenMaanden()` niet alvast
+    // meeloopt. Dat is ook het echte moment waarop een klant een voorraadkaart
+    // te zien krijgt: het venster tussen een nieuwe meting en de eerstvolgende
+    // schermopening die wél synchroniseert.
+    const derdeKans = await clusterMetKans("derde potentie", true, 5);
+    const { syncBacklog: syncVoorDerde } = await import("@/lib/plan-backlog-data");
+    await syncVoorDerde(admin as never, planPotProfileId);
+    const bundelMetVoorraad = await leesPlan(admin as never, planPotProfileId, { sync: false });
+    ok(
+      "de verse kans staat in de voorraad en nergens anders",
+      bundelMetVoorraad?.backlog.length === 1 && bundelMetVoorraad.pages.length === 2,
+      `${bundelMetVoorraad?.backlog.length} in de voorraad, ${bundelMetVoorraad?.pages.length} ingepland`,
+    );
+    ok(
+      "de voorraadkaart draagt de naam van zijn cluster",
+      bundelMetVoorraad?.backlog[0]?.cluster === "derde potentie",
+      `cluster was ${bundelMetVoorraad?.backlog[0]?.cluster}`,
+    );
+    ok(
+      "en zijn doelvragen, met de noemer erbij",
+      bundelMetVoorraad?.backlog[0]?.raakt === 1 && bundelMetVoorraad?.backlog[0]?.gemeten === 1,
+      `raakt ${bundelMetVoorraad?.backlog[0]?.raakt} van ${bundelMetVoorraad?.backlog[0]?.gemeten}`,
+    );
+    // ⚠️ `numeric` komt als TEKST binnen bij de JS-client. Zonder de `Number()`
+    // in `naarBacklogItem()` sorteert "9" boven "80", en dan staat de zwakste
+    // kans bovenaan zonder dat er iets kapot lijkt.
+    ok(
+      "de potentie is een getal en geen tekst",
+      typeof bundelMetVoorraad?.backlog[0]?.potentie === "number" ||
+        bundelMetVoorraad?.backlog[0]?.potentie === null,
+      `type was ${typeof bundelMetVoorraad?.backlog[0]?.potentie}`,
+    );
+    const voorraad = [{ id: bundelMetVoorraad!.backlog[0]!.id }];
 
     // ── Idempotentie (conventie 9) ──────────────────────────────────────────
     //
@@ -3102,8 +3142,8 @@ async function main(): Promise<void> {
     );
     ok(
       "drie keer synchroniseren levert geen enkele dubbele kaart op",
-      naDrieRondes[0].n === 2,
-      `${naDrieRondes[0].n} kaarten in plaats van 2`,
+      naDrieRondes[0].n === 3,
+      `${naDrieRondes[0].n} kaarten in plaats van 3`,
     );
 
     // ── Inplannen en terugleggen ────────────────────────────────────────────

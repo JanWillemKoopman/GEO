@@ -8536,3 +8536,59 @@ De testtelling gaat van 4646 naar 4648. De twee erbij bewaken dat het stijlblad 
 letterstapel en zijn eigen basismaat blijft zetten, zodat een wijziging aan `globals.css` hier
 niets doet. De controle op "alleen eigen tokens" en "geen component uit `@/components/`" is
 ongewijzigd blijven staan en gaat nog steeds op.
+
+## 15 september 2026: het contentplan vult zichzelf vooraf (blok A punt 1)
+
+Na de planningsronde (zie het plan in de sessie zelf) doorgevoerd: van "de klant stelt zelf samen
+uit een voorraad" naar "de app stelt voor, de klant keurt goed", precies het eerste punt van blok A
+uit `docs/tasks/nova-vergelijking-verbeterpunten.md`.
+
+**Kleiner dan gedacht.** `createPlan()` vulde al één maand zo, de voorzet: de sterkste kansen uit de
+voorraad tot aan de pakketquota. Nieuw is alleen dat diezelfde regel (`bepaalVulling()`,
+`lib/plan-fill.ts`, puur en getest) nu op élke openstaande maand wordt toegepast, niet meer op
+precies één. `vulOpenMaanden()` (`lib/plans.ts`) is de database-kant: hij draait bij het aanmaken
+van een plan én bij elke schermopening (na `syncBacklog()` in `loadPlan()`), zodat een plan
+meegroeit zodra er meer gemeten is, zonder dat iemand hoeft te slepen.
+
+**Eén regel die erbij kwam en niet in het plan stond: precies één maand tegelijk "ter_goedkeuring".**
+`approveMonth()` bevorderde de volgende conceptmaand nooit, dus zonder een aanvulling zou het vooraf
+vullen van alle maanden een scherm opleveren met meerdere even zware "Concept"-maanden. Nu bevordert
+`bepaalVulling()` de eerste maand met inhoud naar "ter_goedkeuring", en alleen als er nog geen enkele
+openstaande maand die status al draagt.
+
+**Eén technische correctie tijdens het bouwen, ook niet in het plan.** `bepaalVulling()` kende
+aanvankelijk geen begrip van "een maand zonder bruikbare kalenderdag meer" (`maandIsVol()`). Zonder
+dat zou een pagina wél een `plan_month_id` krijgen maar nooit een `scheduled_for`, want
+`spreadDates()` heeft voor zo'n maand geen dag meer te geven. Nieuw veld `magNogVullen` op
+`OpenMaand`: staat het op `false`, dan mag er niets bij, ook al is er nog ruimte onder de quota.
+Generaliseert precies de regel die `createPlan()` al had voor "maand 1 is te ver gevorderd, ga naar
+maand 2" (punt 5 van `docs/tasks/opdracht-bevindingen-5-tot-9.md`) naar elke maand in de reeks.
+
+**Nieuwe migratie 0098** (niet 0095: zie hieronder), `planned_pages.auto_placed`, additief met
+default `false`. Nodig omdat er na deze wijziging geen enkele kolom meer vertelt of het systeem of
+een mens een kaart in zijn maand zette; dat onderscheid is niet met terugwerkende kracht te
+reconstrueren en punt 4 uit hetzelfde document (herkomst tonen) heeft het straks nodig. Toegepast op
+productie via de Supabase MCP-tool en nagekeken: de kolom staat er, `boolean not null default false`.
+
+**Het migratienummer moest verschuiven, en dat kwam pas bij het toepassen aan het licht.** Terwijl
+dit werk op een eigen branch liep, landde op `main` een compleet ander zijproject
+("Solliciteren", zie de eigen sectie hierboven) met migraties 0095 tot en met 0097. Een `select` op
+`supabase_migrations.schema_migrations` vóór het toepassen liet dat meteen zien: productie stond al
+drie migraties verder dan wat in de lokale `supabase/migrations/`-map van deze branch stond. Eerst
+`main` in de branch gemerged (één conflict, in `docs/logbook.md`, twee onafhankelijke toevoegingen
+onder elkaar gezet), daarna de eigen migratie van 0095 naar 0098 hernoemd, in het bestand zelf en in
+`supabase/README.md`. Precies waarom conventie 10 vraagt om tegen de echte, actuele stand te
+controleren in plaats van tegen wat er lokaal lag.
+
+**Tegen echte data gecontroleerd (conventie 10), zonder productie aan te raken.** Twee echte
+profielen hebben een contentplan: Fysio Centrum Utrecht en MJB Dakservice, allebei 10 pagina's per
+maand, allebei met precies het patroon dat dit punt oplost: maand 1 vol (10/10, "ter_goedkeuring"),
+maand 2 tot en met 12 leeg ("concept", 0 pagina's), en een voorraad die veel dunner is dan de quota
+(1 respectievelijk 3 kansen). De nieuwe functie zelf is niet tegen deze klantprofielen gedraaid: dat
+zou de eerste keer zijn dat het nieuwe gedrag echt gebeurt, en dat hoort bij een bewust deploy-
+moment, niet bij het verifiëren van code op een branch die nog niet gemerged is. Aanbeveling: vlak na
+deploy het planscherm van deze twee merken openen en controleren dat maand 2 zich vult.
+
+Getest: `tsc --noEmit`, `test:unit` (4675 geslaagd) en `test:chain` (652 geslaagd) en `build` zijn
+alle vier groen gedraaid, op de stand ná de merge met `main` (inclusief het zijproject
+"Solliciteren").

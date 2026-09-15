@@ -46,13 +46,14 @@ een buffer, en de klant past aan. ORBIT ENGINE doet het omgekeerd: links de voor
 lege maanden die de gebruiker zelf vult met slepen of een menu. Dat werkt bij zeven kansen en loopt
 vast bij honderd.
 
-**1. Vul de maanden vooraf, laat de klant nakijken in plaats van samenstellen.** (groot)
-Nova's scherm heet letterlijk "Reviewing your plan" en opent met "These are the pages NOVA
-suggests". Het plan is er al; de klant beoordeelt het. ORBIT ENGINE heeft alle ingrediënten al
-liggen: `pages_per_month` in `content_plans`, de potentiescore per kans, en de volgorde uit
-`lib/plan-backlog.ts`. Wat ontbreekt is de stap die de voorraad op basis daarvan zelf over de
-maanden verdeelt. Dit is de kapstok waar de punten 2 tot en met 6 aan hangen; zonder dit punt zijn
-die minder waard.
+**1. Vul de maanden vooraf, laat de klant nakijken in plaats van samenstellen.** (groot) ✅ **Live,
+15 september 2026.** Kleiner dan gedacht: `createPlan()` vulde al één maand zo (de voorzet), nu doet
+`vulOpenMaanden()` (`lib/plans.ts`, rekenkant puur in `lib/plan-fill.ts`) dat voor elke openstaande
+maand, bij het aanmaken van een plan én bij elke schermopening. Migratie 0098
+(`planned_pages.auto_placed`). Zie `docs/logbook.md`, 15 september 2026, voor de twee dingen die
+niet in de oorspronkelijke planningsronde stonden: de bevordering naar precies één
+"ter_goedkeuring"-maand tegelijk, en de correctie voor een maand zonder bruikbare kalenderdag meer.
+Nog niet gedaan: de punten 2 tot en met 4 hieronder, die op deze kapstok voortbouwen.
 
 **2. Geef elke maand een vast formaat en houd dat vast bij elke wijziging.** (midden)
 Nova's regel: "A swap keeps each month the same size." Wie een pagina uit maand drie haalt, moet er
@@ -321,9 +322,9 @@ in jouw app. Wij publiceren niet, dus de tekst gaat hoe dan ook door een CMS van
 15 september 2026, blok E is daarmee compleet)~~, 5 (hoeveel pagina's nog nodig), 19 (reden per
 regel), 16 (specifieke foutmeldingen), 13 (drempel voor handmatig bewerken).
 
-**Daarna, want het lost een echt probleem op dat groeit:** blok A als geheel, in de volgorde
-1, 2, 3, 4. Dit is de voorwaarde om werkpakket B uit het optimalisatielab te kunnen opleveren:
-zodra het aantal kansen omhoog gaat, loopt het huidige planscherm vast.
+**Daarna, want het lost een echt probleem op dat groeit:** blok A, in de volgorde ~~1 (live sinds
+15 september 2026)~~, 2, 3, 4. Dit is de voorwaarde om werkpakket B uit het optimalisatielab te
+kunnen opleveren: zodra het aantal kansen omhoog gaat, loopt het huidige planscherm vast.
 
 **Dan, omdat ze de kwaliteit bewaken die we al hebben:** 14, 15, 17, 21.
 
