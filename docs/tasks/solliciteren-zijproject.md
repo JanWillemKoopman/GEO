@@ -20,7 +20,7 @@ schrijfstijl meetbaar en kwam de feitenkaart erbij. De achtergrond en de gemaakt
 | De opslag | Migraties 0095, 0096 en 0097 | Toegepast op productie en nagerekend |
 | De inlog | `app/solliciteren/layout.tsx` plus `lib/supabase/middleware.ts` | Werkt, zonder sessie een 307 naar `/login` |
 | De ingang | De S rechtsboven, `components/workspace-chrome.tsx` | Werkt, alleen zichtbaar voor een account van ORBIT ENGINE zelf |
-| De opmaak | `app/solliciteren/solliciteren.css` | Eigen tokens en klassen, bewaakt door `scripts/test-unit.ts` |
+| De opmaak | `app/solliciteren/solliciteren.css` | Nagebouwde stijl van LinkedIn, eigen tokens, bewaakt door `scripts/test-unit.ts` |
 | De publicatie | Geen eigen inrichting nodig | Gaat mee met elke publicatie van `main` naar Vercel |
 
 ## Wat er nog niet is
@@ -63,11 +63,17 @@ die alleen de brief pakt vraagt dat het model zijn brief herkenbaar afbakent, en
 promptafspraak die een vangnet in code nodig heeft (conventie 1). Pas de moeite waard als blijkt dat
 het kopiëren in de praktijk stoort.
 
-**6. Word-bestanden en gescande PDF's.** Een PDF en een tekstbestand worden ingelezen, `.docx` niet,
+**6. De nabouw van LinkedIn is op hun publieke ontwerptaal gemaakt.** Vlak, kaarten, knoppen,
+invoervelden en maatvoering zijn nagemeten in de browser en kloppen. Wat niet na te meten valt is of
+het ook echt hetzelfde is als hun huidige schermen: daar is van hieruit niet in te kijken. Hun
+huisletter is bovendien niet vrij te gebruiken, dus er staat de systeemstapel. Wie het dichterbij
+wil brengen, moet met een echt scherm ernaast vergelijken.
+
+**7. Word-bestanden en gescande PDF's.** Een PDF en een tekstbestand worden ingelezen, `.docx` niet,
 en een gescande PDF is een plaatje waar geen tekst uit komt. Allebei vragen een heel ander soort
 pakket. Het scherm zegt in beide gevallen wat er aan de hand is, dus dit is een gemak en geen gemis.
 
-**7. Een eigen adres, als het ooit een losstaande app wordt.** Hij draait nu op hetzelfde domein en
+**8. Een eigen adres, als het ooit een losstaande app wordt.** Hij draait nu op hetzelfde domein en
 in hetzelfde project bij Vercel. Een eigen domein of een eigen project betekent een eigen inlog, en
 daarmee vervalt precies het voordeel waarom hij hier is gezet.
 

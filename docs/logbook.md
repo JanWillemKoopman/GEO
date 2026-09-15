@@ -8416,3 +8416,57 @@ tweede beter, en dat onderscheid stond nergens opgeschreven. Nu wel.
 
 `tsc --noEmit`, `test:unit` (4646 geslaagd), `test:chain` (650 geslaagd) en `build` zijn alle vier
 groen. De schermen zijn nagekeken op een echte weergave van 1440 pixels breed.
+
+---
+
+## 15 september 2026: het zijproject krijgt de uitstraling van LinkedIn
+
+Op verzoek van de eigenaar is de vormgeving van `app/solliciteren/` vervangen door de ontwerptaal
+van LinkedIn. Alleen `solliciteren.css` en één component zijn geraakt; er is geen migratie en geen
+gedrag veranderd.
+
+**Waarom dit mag en de vorige keuze niet meer telt.** Op 14 september was de stijl met opzet het
+tegenovergestelde van ORBIT ENGINE: warm papier, een schreefletter, terracotta, zodat je in een
+oogopslag zag dat je ergens anders was. Die redenering blijft kloppen, maar hij is niet de enige
+mogelijke: LinkedIn is de omgeving waarin solliciteren gebeurt, en die uitstraling hier overnemen
+scheelt een omschakeling in je hoofd. Het onderscheid met ORBIT ENGINE blijft even scherp, want
+LinkedIn-blauw op warmgrijs lijkt net zo weinig op leiblauw op wit als papier dat deed.
+
+**Wat er is nagebouwd, en dat is met cijfers na te meten.** Nagerekend in de browser op de
+daadwerkelijk berekende stijl, niet op het oog: vlak `rgb(244, 242, 238)`, kaarten wit met
+`border-radius: 8px` en `box-shadow: 0 0 0 1px rgba(0,0,0,0.08)` in plaats van een rand, knoppen
+`rgb(10, 102, 194)` met `border-radius: 999px` en gewicht 600, invoervelden 4 pixels met een rand
+van `rgba(0,0,0,0.6)`, verwijzingen blauw en halfvet, en 14 pixels als basismaat in plaats van 16.
+Die laatste is het onopvallendste en het belangrijkste: hij bepaalt of een scherm leest als "een
+website" of als "dit product".
+
+**Twee dingen bewust niet overgenomen.** Er staat geen logo en geen woordmerk in de app: een stijl
+overnemen is iets anders dan een merkteken voeren. En de huisletter van LinkedIn is niet vrij te
+gebruiken, dus er staat de stapel systeemletters die hun eigen stijlblad als terugval hanteert. Dat
+is ook wat een deel van hun bezoekers werkelijk ziet. **Het is een nabouw op hun publiek bekende
+ontwerptaal en geen pixelkopie**; van hieruit is niet in hun schermen te kijken, dus "exact" is niet
+iets wat ik kan waarmaken of narekenen, en dat hoort in dit logboek te staan in plaats van in een
+belofte.
+
+**Eén afwijking die geen smaak is.** Een aangezette gesprekspil is donkergroen en niet blauw. Blauw
+is in dit ontwerp de kleur van een handeling, en "Nieuw gesprek" staat er vlak naast; twee blauwe
+pillen naast elkaar lopen in elkaar over en dan lijkt de naam van je gesprek ook een knop.
+
+**De opmaakcodes zijn uit beeld.** De drie kopjes van een antwoord (`## Vacature`,
+`## Schrijfopdracht`, `## Brief`) stonden letterlijk op het scherm. Ze zijn nu echte kopjes, met de
+brief op een eigen vlak. Dat is geen markdown-omzetting: binnen de brief wordt nog steeds niets
+opgemaakt, want wat je ziet moet zijn wat je plakt. De kopjes zijn structuur die de prompt
+voorschrijft en waar `splitsAntwoord()` op knipt, en ze komen nooit in de kopie terecht omdat die
+alleen het briefdeel pakt.
+
+**Wat deze ronde leerde over de vier controles.** Na die laatste wijziging waren `tsc --noEmit`,
+`test:unit` en `build` alle drie groen terwijl de pagina een 500 gaf: `brief` werd gebruikt in een
+`useMemo` die bóven zijn eigen declaratie stond. TypeScript ziet dat niet, want het gebruik zit in
+een closure en pas bij het aanroepen tijdens de weergave loopt het stuk. Alleen het echt renderen
+van de pagina ving dat. Conventie 10 gaat over data ("gebouwd is niet geverifieerd"); dit is
+dezelfde regel voor schermen. Een schermwijziging is pas af als hij een keer getekend is.
+
+De testtelling gaat van 4646 naar 4648. De twee erbij bewaken dat het stijlblad zijn eigen
+letterstapel en zijn eigen basismaat blijft zetten, zodat een wijziging aan `globals.css` hier
+niets doet. De controle op "alleen eigen tokens" en "geen component uit `@/components/`" is
+ongewijzigd blijven staan en gaat nog steeds op.
