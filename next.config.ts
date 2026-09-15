@@ -9,6 +9,16 @@ import { DOORVERWIJZINGEN } from "./lib/redirects";
  */
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // De versie die in de browserbundel gebakken wordt bij het bouwen, voor
+  // `components/deployment-banner.tsx` (docs/tasks/nova-vergelijking-verbeterpunten.md,
+  // punt 25). Vercel zet `VERCEL_GIT_COMMIT_SHA` vanzelf bij elke deploy;
+  // lokaal bestaat die niet, dus dan valt dit terug op het opstartmoment van
+  // de dev-server. `app/api/version/route.ts` leest dezelfde variabele bij
+  // elk verzoek opnieuw en geeft dus de ECHT lopende versie terug: verschilt
+  // die van wat hier gebakken is, dan draait de browser een oudere build.
+  env: {
+    NEXT_PUBLIC_APP_VERSION: process.env.VERCEL_GIT_COMMIT_SHA ?? String(Date.now()),
+  },
   experimental: {
     // Server Actions / routes mogen de externe crawler-fetch + OpenAI-calls draaien.
     serverActions: {

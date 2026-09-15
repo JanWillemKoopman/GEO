@@ -875,6 +875,7 @@ import {
   REVIEW_PLATFORMS,
 } from "@/lib/reputation/sources";
 import { decideStep, budgetUsd, RUN_BUDGET_EUR, STEP_COST_USD } from "@/lib/reputation/budget";
+import { isNewerVersionAvailable } from "@/lib/deployment";
 import type {
   ProfileOffering,
   ProfileTopic,
@@ -21195,6 +21196,14 @@ group("optimalisatie 16: de bevinding wijst de sectie aan waar het huiswerk zit"
   const zonder = checkAdviestoon(tekst);
   ok("zonder secties geen aanwijzing", zonder.zwaarsteSectie === null);
   ok("en dezelfde telling", zonder.gebiedend === uitkomst.gebiedend);
+});
+
+group("punt 25: nieuwe versie beschikbaar", () => {
+  ok("gelijke versies: geen melding", !isNewerVersionAvailable("abc123", "abc123"));
+  ok("verschillende versies: wel een melding", isNewerVersionAvailable("abc123", "def456"));
+  ok("eigen versie nog onbekend: geen melding", !isNewerVersionAvailable("", "def456"));
+  ok("serverversie nog onbekend: geen melding", !isNewerVersionAvailable("abc123", ""));
+  ok("allebei onbekend: geen melding", !isNewerVersionAvailable("", ""));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

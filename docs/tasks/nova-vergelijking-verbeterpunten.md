@@ -222,27 +222,40 @@ vastzit, een reden zegt wat jij nu moet doen.
 
 ## Blok E. Vertrouwen en communicatie
 
-**25. Meld het als er een nieuwe versie van de app is uitgerold.** (klein)
-Nova toont een balk: "A new version of NOVA is available. Reload the page to continue with the
-latest version", en bij een automatische herlaadactie "Your draft is safe. NOVA will reload in
-{seconds} seconds." ORBIT ENGINE heeft dit niet. Bij een app die op Vercel bij elke merge opnieuw
-uitrolt, betekent dat nu dat iemand met een oud scherm doorwerkt en niet begrijpt waarom een knop
-een fout geeft. Dit is het punt met de beste verhouding tussen werk en opbrengst in deze lijst.
+**25. Meld het als er een nieuwe versie van de app is uitgerold.** (klein) ✅ **Live, 15 september
+2026.** `next.config.ts` bakt de versie in de browserbundel, `/api/version` geeft de echt lopende
+versie terug, `components/deployment-banner.tsx` vergelijkt ze elke vijf minuten en toont bij een
+verschil een balk onderin het scherm. Bewust geen automatisch herladen zoals Nova: het merkprofiel
+bewaart pas op een expliciete klik, dus de klant beslist zelf wanneer. Zie `docs/logbook.md`,
+15 september 2026.
 
-**26. Zeg bij elke tijdelijke storing wie het oplost en wat de klant intussen kan.** (klein)
-Nova's meldingen doen dit consequent: "Your InSpace team is on it. Meanwhile, switch Pages date
-columns to Separate dates in your preferences to see the planned dates." Dus: wat er mis is, wie
-het oppakt, en een omweg voor nu. ORBIT ENGINE's foutmeldingen zijn al netjes geschreven volgens
-`docs/schrijfstijl.md`, maar noemen zelden een omweg. Dit is geen nieuw scherm, het is een
-schrijfregel die aan `schrijfstijl.md` toegevoegd kan worden.
+**26. Zeg bij elke tijdelijke storing wie het oplost en wat de klant intussen kan.** (klein) ✅
+**Live, 15 september 2026.** Nieuwe richtlijn 12 in `docs/schrijfstijl.md`. Toegepast op de
+Search Console-foutmelding op `/merk/[id]/analytics/zoekverkeer`: een beheerder ziet nog steeds de
+technische reden (die is vaak zelf de "wie het oplost"), een klant ziet voortaan dat zijn consultant
+ervan op de hoogte is en dat er voor hem niets te doen valt, in plaats van een ruwe API-foutregel.
+De overige foutmeldingen in de app zijn niet allemaal langsgelopen: de richtlijn staat er, de rest
+volgt bij de eerstvolgende keer dat iemand zo'n scherm toch al aanraakt.
 
-**27. Maak het verschil zichtbaar tussen wachten op ons en wachten op de klant.** (klein)
-Nova groepeert paginastatussen in drie bakken: "On track", "Needs you", "Failed". Dat is de enige
-indeling die de klant nodig heeft om te weten of hij iets moet doen. ORBIT ENGINE heeft rijke
-statussen per pagina, maar geen samenvatting die zegt: hier wordt op jou gewacht.
+**27. Maak het verschil zichtbaar tussen wachten op ons en wachten op de klant.** (klein) ✅ **Live,
+15 september 2026, kleiner dan gedacht.** Het onderscheid bleek al in het datamodel te zitten
+(`lib/work.ts`, `WorkState`: `nu` versus `loopt`/`wacht`), alleen werd op `/merk/[id]` uitsluitend
+`nu` getoond. Er is geen tweede lijst bijgekomen (die zou dubbel werk doen met de bestaande
+statuskaarten per pagina), wel een teller naast de kop ("Bij ORBIT ENGINE · 3") en een aangepaste
+lege-staat-tekst die zegt waar ORBIT ENGINE mee bezig is als er niets op de klant wacht.
 
-**28. Laat de klant zijn content en zijn plan exporteren.** (klein)
-Nova heeft "Download CSV" op het plan en "Download content" op de lopende strategie. ORBIT ENGINE
+**28. Laat de klant zijn content en zijn plan exporteren.** (klein) ✅ **Deels live, 15 september
+2026.** Het per-pagina exporteren van geschreven content bleek al te bestaan
+(`lib/pipeline/content-export.ts`, de downloadknop in de bibliotheek); dat is dus al Nova's
+"Download content". Nieuw: `GET /api/profiles/[id]/plan/export` en een "Download CSV"-knop op het
+planscherm, met per geplande pagina de maand, titel, type, funnelfase, status en datum. Een bulk-
+export van alle geschreven teksten in één bestand (in plaats van per pagina) staat niet in deze
+ronde; dat is een aparte, grotere afweging als blijkt dat klanten dat missen.
+
+**Losse observatie, geen eigen punt:** bij het bouwen van de plan-export bleek dat er al een
+vergelijkbare route bestaat voor analyseresultaten (`/api/analyses/[id]/results/export`), maar die
+is in geen enkel scherm aan een knop gekoppeld. Niet in deze ronde opgepakt: onbekend of dat bewust
+zo is (nog te bouwen knop) of een vergeten aansluiting; eerst navragen bij de eigenaar.
 exporteert alleen de meetresultaten van een analyse
 (`app/api/analyses/[id]/results/export/route.ts`). Een klant die zijn plan in een eigen overleg wil
 bespreken, of zijn teksten wil doorgeven aan een tekstschrijver, kan dat nu niet zonder kopiëren en
@@ -304,8 +317,9 @@ in jouw app. Wij publiceren niet, dus de tekst gaat hoe dan ook door een CMS van
 
 ## Voorgestelde volgorde
 
-**Eerst, want klein en meteen merkbaar:** 25 (versiemelding), 5 (hoeveel pagina's nog nodig),
-19 (reden per regel), 16 (specifieke foutmeldingen), 13 (drempel voor handmatig bewerken).
+**Eerst, want klein en meteen merkbaar:** ~~25, 26, 27, 28 (alle vier live sinds
+15 september 2026, blok E is daarmee compleet)~~, 5 (hoeveel pagina's nog nodig), 19 (reden per
+regel), 16 (specifieke foutmeldingen), 13 (drempel voor handmatig bewerken).
 
 **Daarna, want het lost een echt probleem op dat groeit:** blok A als geheel, in de volgorde
 1, 2, 3, 4. Dit is de voorwaarde om werkpakket B uit het optimalisatielab te kunnen opleveren:

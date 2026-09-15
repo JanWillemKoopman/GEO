@@ -8088,3 +8088,69 @@ briefing heeft staan.
 
 Getest: `tsc --noEmit`, `test:unit` (4388 geslaagd), `test:chain` (650 geslaagd) en `build` zijn
 alle vier groen gedraaid na de vier wijzigingen.
+
+## 15 september 2026: melding bij een nieuwe versie, en het open ontwerpbesluit blijft open
+
+Eerste punt uit `docs/tasks/nova-vergelijking-verbeterpunten.md` doorgevoerd (punt 25, blok E), na
+een verse vastlegging van de Nova-app (971 naar 1766 tekstsleutels sinds de vorige, ook in deze
+sessie ververst in `docs/nova-i18n.json`).
+
+**Het probleem was al zichtbaar en niet herkend als bug.** ORBIT ENGINE deployt bij elke merge naar
+main, en een openstaand tabblad bleef gewoon doorwerken op een verouderde JS-bundel. Het eerste
+zichtbare gevolg was een knop die een fout gaf omdat de API onder zijn voeten veranderd was, en dat
+oogt als een defect in de app, niet als een deploy die net heeft plaatsgevonden.
+
+**Werking:** `next.config.ts` bakt `NEXT_PUBLIC_APP_VERSION` in de browserbundel
+(`VERCEL_GIT_COMMIT_SHA` op Vercel, anders het opstartmoment van de dev-server). `/api/version` leest
+dezelfde omgevingsvariabele bij elk verzoek opnieuw en geeft dus de ECHT lopende versie terug.
+`components/deployment-banner.tsx` vergelijkt de twee elke vijf minuten (`lib/deployment.ts`,
+puur en getest) en toont bij een verschil een balk onderin het scherm: "Herlaad nu" of "Niet nu".
+
+**Bewust geen automatisch herladen, in tegenstelling tot Nova.** Nova telt zelf af en herlaadt
+vanzelf, en dat kan bij hen omdat vrijwel elk scherm autosave heeft. Het merkprofiel
+(`brand-wizard.tsx`) bewaart pas op een expliciete klik, dus een geforceerd herladen kan client-side
+werk wegvegen. De klant beslist zelf wanneer, en de bestaande `beforeunload`-waarschuwing in
+formulieren met openstaande wijzigingen blijft daarbovenop gewoon werken.
+
+**Het open ontwerpbesluit uit `docs/designsystem.md` §9b blijft van kracht en is niet stilzwijgend
+verder ingevuld.** Op verzoek van de eigenaar wordt de vormgeving voorlopig verder naar Nova
+toegebracht in plaats van er verder van af te wijken: dat is een expliciete uitspraak op punt 1 van
+§9b ("nog verdiepen, eigen identiteit later"), geen vergeten vraag. Deze wijziging zelf voegt geen
+nieuwe kleur, radius of schaduw toe: hij hergebruikt de bestaande `.toast-card`-stijl uit
+`components/toast.tsx`, dus hij verandert niets aan het fundament waar §9b over gaat.
+
+Getest: `tsc --noEmit`, `test:unit` (4393 geslaagd, waarvan 5 nieuw), `test:chain` (650 geslaagd) en
+`build` zijn alle vier groen gedraaid.
+
+## 15 september 2026: blok E compleet, punt 26, 27 en 28 uit de Nova-vergelijking
+
+Vervolg op de vorige entry (punt 25). Alle drie klein, allemaal zonder migratie.
+
+**Punt 26, een schrijfregel, niet een scherm.** `docs/schrijfstijl.md` krijgt een twaalfde
+richtlijn: bij een storing eerst zeggen wat er niet werkt, dan wie eraan werkt, dan wat de klant
+intussen wél kan (of expliciet dat er niets is, conventie 3). De twee verwijzingen naar "elf
+richtlijnen" in `docs/merkstrategie.md` zijn meegewerkt naar twaalf. Toegepast op één echt geval:
+`/merk/[id]/analytics/zoekverkeer` toonde bij een mislukte Search Console-synchronisatie dezelfde
+ruwe API-foutregel aan een beheerder én aan een klant. Een beheerder kan daar iets mee, een klant
+niet: die ziet nu dat zijn consultant ervan op de hoogte is. De rest van de foutmeldingen in de app
+is niet systematisch langsgelopen; de richtlijn staat, de toepassing groeit mee bij vervolgwerk.
+
+**Punt 27 bleek al voor twee derde gebouwd.** `lib/work.ts` maakt het onderscheid "wacht op de
+klant" versus "wij zijn ermee bezig" al met `WorkState`, maar `/merk/[id]` liet alleen de eerste
+soort zien. Geen tweede lijst toegevoegd (dat zou de bestaande statuskaarten per pagina dupliceren),
+wel een teller naast "Wat er op je wacht" en een aangepaste lege-staat-zin die zegt waarmee ORBIT
+ENGINE bezig is als er niets op de klant wacht.
+
+**Punt 28: de helft bestond al.** Content per pagina exporteren stond er al
+(`lib/pipeline/content-export.ts`). Ontbrak: het hele plan in één bestand. Nieuw: `GET
+/api/profiles/[id]/plan/export` en een knop op het planscherm. Bij het bouwen viel op dat de
+vergelijkbare route voor analyseresultaten (`/api/analyses/[id]/results/export`) aan geen enkele
+knop hangt; dat is genoteerd in het taakdocument om aan de eigenaar voor te leggen, niet
+stilzwijgend gefixt of verwijderd.
+
+Getest: `tsc --noEmit`, `test:unit` (4393 geslaagd), `test:chain` (650 geslaagd) en `build` zijn
+alle vier groen gedraaid, ook `npm run build` met de nieuwe route erin gecontroleerd.
+
+Blok E uit `docs/tasks/nova-vergelijking-verbeterpunten.md` is hiermee compleet. Blok A (het
+contentplan vooraf vullen) wacht op een planningsronde met de eigenaar over punt 1, zoals eerder
+afgesproken.
