@@ -95,6 +95,7 @@ een document af van wat de code doet, dan is het document fout.
 | [`docs/logbook.md`](./docs/logbook.md) | **Waarom het is zoals het is.** Elke beslissing met datum en het cijfer eronder. Kijk hier vóór je iets terugdraait: de kans is groot dat het met reden zo staat |
 | [`docs/processtappen-nieuwe-pagina.md`](./docs/processtappen-nieuwe-pagina.md) | **Wat er precies gebeurt, stap voor stap.** Genummerde checklist van klant aanmaken tot een opgeleverde pagina, zonder technische kennis nodig |
 | [`docs/contentpijplijn-overdracht.md`](./docs/contentpijplijn-overdracht.md) | **De contentpijplijn voor buitenstaanders.** Elke AI-aanroep in volgorde, met de prompts erin, geschreven om aan een externe copywriter of AI-expert te overhandigen |
+| [`docs/nova-vs-orbit-engine-proces.md`](./docs/nova-vs-orbit-engine-proces.md) | **Het proces van InSpace Nova naast dat van ORBIT ENGINE**, van eerste contact tot bewezen effect. Wat zij wel hebben en wij niet, en andersom |
 | [`docs/tasks/`](./docs/tasks/) | Wat er nog open staat. Af is weg, samengevat in het logboek |
 
 ## Zijproject: Solliciteren
