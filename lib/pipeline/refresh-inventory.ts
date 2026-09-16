@@ -44,6 +44,8 @@ export interface RefreshResult {
   blocked: boolean;
   /** Zijn er nog geselecteerde pagina's die niet aan de beurt kwamen (403, of het tijdbudget op)? */
   remaining: number;
+  /** Hoeveel pagina's daarnaast alleen een titel/meta-blik kregen, als signaal voor de keuze hierboven (migratie 0101). */
+  lightlyScanned: number;
 }
 
 export async function refreshInventory(
@@ -70,7 +72,7 @@ export async function refreshInventory(
     exclude = ((bekend ?? []) as { url: string }[]).map((r) => r.url);
   }
 
-  const { pages, totalFound, truncated, blocked, remaining } = await crawlInventory(
+  const { pages, totalFound, truncated, blocked, remaining, lightlyScanned } = await crawlInventory(
     profile.url,
     {
       maxPages,
@@ -145,6 +147,11 @@ export async function refreshInventory(
   // De ware omvang van de site komt uit de sitemap, los van of het lezen van
   // de PAGINA'S zelf lukte, dus dat cijfer klopt ook bij een blokkade.
   update.sitemap_total_urls = totalFound;
+  // Zelfde reden als hierboven: dit komt uit de lichte doorgang, vóór de volle
+  // crawl-lus waar een blokkade kan optreden, dus het klopt ook dan. Nul is
+  // hier een echt gegeven (de site paste al binnen het plafond, deze doorgang
+  // draaide niet), geen "niet gemeten".
+  update.crawl_lightly_scanned = lightlyScanned;
   // Het kwaliteitsoordeel alleen bijwerken als er ook echt iets gelezen is:
   // `assessInventory()` op een lege of gedeeltelijke lijst zou een goede
   // vorige beoordeling overschrijven met "dun", terwijl er niets mis is met de
@@ -163,5 +170,6 @@ export async function refreshInventory(
     truncated,
     blocked,
     remaining: remaining.length,
+    lightlyScanned,
   };
 }

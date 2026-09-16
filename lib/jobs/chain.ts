@@ -39,6 +39,17 @@ import type { JobType } from "@/lib/jobs/types";
  * gaat het profiel op 'mislukt' en hoort er niets meer achteraan te komen.
  */
 export const ONBOARDING_NEXT: Partial<Record<JobType, JobType>> = {
+  /**
+   * `profile_light_scan` (migratie 0102) is VERRIJKING op de paginakeuze van
+   * `profile_discover`, geen voorwaarde ervoor: mislukt de lichte doorgang
+   * definitief, dan kiest `profile_discover` gewoon op het URL-pad alleen,
+   * zoals hij altijd al deed. Anders dan bij de andere rijen hieronder gaat de
+   * GESLAAGDE tak hier niet via deze tabel: die kan zichzelf met een hogere
+   * ronde herplannen (`lib/jobs/handlers.ts`), en dat is geen 1-op-1 opvolger
+   * die deze tabel kan uitdrukken. Alleen de definitief-mislukte tak leunt
+   * hierop, zodat een falende lichte scan de rest van de keten niet meesleurt.
+   */
+  profile_light_scan: "profile_discover",
   profile_offering: "profile_market",
   profile_market: "profile_llm_baseline",
   profile_llm_baseline: "profile_synthesis",

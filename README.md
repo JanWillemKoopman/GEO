@@ -15,10 +15,12 @@ en meet of dat gewerkt heeft.
 **Merk aanmaken → meten → adviseren → content genereren → publiceren → effect bewijzen.**
 Dat loopt grotendeels automatisch via een achtergrondwachtrij. De klant hoeft geen browsertab open te houden.
 
-Het begint met **drie velden**: webadres, bedrijfsnaam en eventuele andere schrijfwijzen. Daarna
-draait een onderzoekspijplijn van acht taken in ongeveer 7,5 minuut (~$0,25) die de site uitkamt,
-het aanbod als boom in kaart brengt, de markt onderzoekt, test wat AI-assistenten al over het merk
-weten, en er een dossier van maakt.
+Het begint met **drie velden**: webadres, bedrijfsnaam en eventuele andere schrijfwijzen. Eerst
+bekijkt een lichte titel+meta-doorgang tot 1000 pagina's van de site (geen AI, wel netwerk, kan tot
+~10 minuten duren, de klant zit er nog niet bij), zodat de crawl daarna weet welke pagina's het
+aanbod echt dragen. Daarna draait een onderzoekspijplijn van acht taken in ongeveer 7,5 minuut
+(~$0,25) die de site uitkamt, het aanbod als boom in kaart brengt, de markt onderzoekt, test wat
+AI-assistenten al over het merk weten, en er een dossier van maakt.
 
 Kernfuncties: onboarding van drie velden met een volledige onderzoekspijplijn · aanbodboom met
 bron per regel · LLM-kennistest (kent een assistent je, en klopt wat hij zegt?) · 5–8 voorgestelde

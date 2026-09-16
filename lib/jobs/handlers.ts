@@ -16,6 +16,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { nextInChain } from "@/lib/jobs/chain";
 import { prepareProfile } from "@/lib/pipeline/prepare-profile";
 import { discoverSite } from "@/lib/pipeline/discover";
+import { runLightScanTick, MAX_LIGHT_SCAN_ROUNDS } from "@/lib/pipeline/light-scan";
 import { buildOfferingTree } from "@/lib/pipeline/offering";
 import { proposeTopics } from "@/lib/pipeline/propose-topics";
 import { researchMarket } from "@/lib/pipeline/market";
@@ -362,6 +363,36 @@ async function scheduleImpactIfLastRun(
 
 const handlers: { [T in JobType]: Handler<T> } = {
   // ── Profielonderzoek ──────────────────────────────────────────────────────
+  /**
+   * Vooronderzoek (migratie 0102): één ronde van de lichte titel+meta-scan.
+   * Plant zichzelf met een hogere ronde opnieuw in als er nog kandidaten open
+   * staan, tot `MAX_LIGHT_SCAN_ROUNDS` rondes; daarna (of zodra alles gescand
+   * is) gaat het verder naar `profile_discover`, die de opgebouwde signalen
+   * leest (`lib/pipeline/discover.ts`).
+   */
+  profile_light_scan: async ({ admin, job }, payload) => {
+    if (!job.profile_id) throw new Error("profile_light_scan zonder profile_id.");
+    const round = payload.round ?? 0;
+    const { done } = await runLightScanTick(job.profile_id);
+
+    if (done || round >= MAX_LIGHT_SCAN_ROUNDS - 1) {
+      await enqueue(admin, {
+        type: "profile_discover",
+        payload: {},
+        profileId: job.profile_id,
+        dedupeKey: dedupe.profileDiscover(job.profile_id),
+      });
+      return;
+    }
+
+    await enqueue(admin, {
+      type: "profile_light_scan",
+      payload: { round: round + 1 },
+      profileId: job.profile_id,
+      dedupeKey: dedupe.profileLightScan(job.profile_id, round + 1),
+    });
+  },
+
   // ── Fase 0: ontdekken. Nul AI-kosten, en het fundament onder al het
   // volgende (docs/tasks/onboarding-2.0.md blok B).
   profile_discover: async ({ admin, job }) => {
@@ -1604,6 +1635,7 @@ async function enqueueNext(
   const type = nextInChain(na);
   if (!type) return;
   const sleutel: Partial<Record<JobType, string>> = {
+    profile_discover: dedupe.profileDiscover(profileId),
     profile_market: dedupe.profileMarket(profileId),
     profile_llm_baseline: dedupe.llmBaseline(profileId),
     profile_synthesis: dedupe.profileSynthesis(profileId),

@@ -1,5 +1,5 @@
 /**
- * Het Admin-scherm: welke acht taken de onboarding doet, en hoe lang ze duurden.
+ * Het Admin-scherm: welke negen taken de onboarding doet, en hoe lang ze duurden.
  *
  * ── WAAROM DIT EEN PURE MODULE IS ───────────────────────────────────────────
  *
@@ -31,15 +31,20 @@ export const ADMIN_SECTIES = [
 ] as const;
 
 /**
- * De acht taken van de onboardingketen, op uitvoervolgorde.
+ * De negen taken van de onboardingketen, op uitvoervolgorde.
  *
  * ⚠️ Dit is de keten die aan één `enqueue` hangt vanuit `POST /api/profiles`
  * (`docs/architecture.md` §4). `technical_audit` hoort erbij ook al levert hij
  * geen AI-aanroep: hij wordt door `profile_discover` ingepland en de klant
  * wacht erop. Andere taaksoorten (meten, schrijven, hermeten) horen bij een
  * cluster en niet bij de onboarding, en staan hier dus niet in.
+ *
+ * `profile_light_scan` (migratie 0102) staat sinds die migratie vooraan: het
+ * vooronderzoek dat `profile_discover` van titel/meta-signalen voorziet, vóórdat
+ * die kiest welke pagina's echt volledig gelezen worden.
  */
 export const ONBOARDING_TAKEN: JobType[] = [
+  "profile_light_scan",
   "profile_discover",
   "technical_audit",
   "profile_research",

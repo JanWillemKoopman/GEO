@@ -49,6 +49,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { collectPageUrls, crawlPages, MAX_PAGES_HARD_CAP } from "@/lib/crawler";
 import { assessInventory, buildTaxonomy, type SiteSection } from "@/lib/pipeline/inventory-quality";
 import { selectUrls } from "@/lib/pipeline/url-priority";
+import { loadPageSignals } from "@/lib/pipeline/light-scan";
 import { chooseCrawlFocus } from "@/lib/pipeline/crawl-focus";
 import { mergeTextFacts } from "@/lib/pipeline/text-facts";
 import type { HarvestedFact } from "@/lib/pipeline/structured-data";
@@ -147,7 +148,15 @@ export async function discoverSite(profileId: string): Promise<DiscoveryResult> 
   }
 
   // ── Stap 3: kiezen en ophalen ─────────────────────────────────────────────
-  const selectie = selectUrls(alleUrls, maxPages, priorityPaths);
+  //
+  // Signalen uit het vooronderzoek (migratie 0102), als dat gedraaid heeft:
+  // titel/meta-description van tot 1000 pagina's, zodat een dienstenpagina met
+  // een generieke slug niet verliest van een blogartikel puur omdat het pad
+  // niets zegt. Leeg (Map zonder rijen) bij een profiel van vóór die migratie
+  // of als de lichte scan niets opleverde; `selectUrls()` valt dan terug op het
+  // bestaande pad-alleen-gedrag.
+  const signalen = await loadPageSignals(admin, profileId);
+  const selectie = selectUrls(alleUrls, maxPages, priorityPaths, new Set(), signalen);
   const urls = selectie.urls;
   const pages = await crawlPages(urls, { harvest: true });
 

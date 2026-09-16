@@ -17,6 +17,7 @@ import { stripChrome } from "@/lib/pipeline/page-text";
 import {
   harvestStructuredData,
   assessRendering,
+  extractMetaTags,
   type StructuredHarvest,
   type RenderAssessment,
 } from "@/lib/pipeline/structured-data";
@@ -32,7 +33,7 @@ import {
   sameDomain,
   toFetchUrl,
 } from "@/lib/crawl-urls";
-import { scoreUrl, selectUrls, type UrlSelection } from "@/lib/pipeline/url-priority";
+import { scoreUrl, selectUrls, type UrlSelection, type UrlSignal } from "@/lib/pipeline/url-priority";
 import { speedProfile, nextDelayMs, slowerThan, type CrawlSpeed } from "@/lib/crawl-speed";
 
 export { decodeXmlEntities, extractLocs, isProductSitemap, isProductUrl, isSitemapIndex, sameDomain };
@@ -536,6 +537,173 @@ export interface InventoryResult {
    * achtergrondtaak plant zichzelf hiermee opnieuw in (§17.7).
    */
   remaining: string[];
+  /**
+   * Hoeveel pagina's alleen de lichte titel+meta-doorgang kregen (zie
+   * `crawlHeads()` hieronder), als extra signaal voor de keuze welke
+   * `maxPages` pagina's wél volledig gelezen worden. Nul als de site al
+   * binnen `maxPages` paste: dan viel er niets te kiezen en dus niets te
+   * scannen.
+   */
+  lightlyScanned: number;
+}
+
+/**
+ * Hoeveel tekst we hoogstens lezen bij de lichte titel+meta-doorgang. Ruim
+ * boven wat een normale `<head>` beslaat (titel, een stuk of tien meta-tags,
+ * soms wat inline CSS), krap genoeg om nooit de hele pagina binnen te halen.
+ */
+const HEAD_READ_CAP_CHARS = 32_000;
+/** Korter dan `FETCH_TIMEOUT_MS`: er hoeft maar een fractie van de pagina gelezen te worden. */
+const HEAD_FETCH_TIMEOUT_MS = 8000;
+
+/**
+ * Hoeveel extra pagina's de lichte titel+meta-doorgang hoogstens krijgt, boven
+ * op de `maxPages` die volledig gelezen worden.
+ *
+ * ── WAAROM DIT ERBIJ KWAM (16 september 2026, Nova-vergelijking) ────────────
+ *
+ * Nova (InSpace) leest tijdens onboarding expliciet titels en
+ * meta-descriptions, los van en vóór de volledige crawl. ORBIT ENGINE koos zijn
+ * `max_inventory_pages` (standaard 60, hard plafond 150) tot nu toe puur op het
+ * URL-pad (`url-priority.ts`), en dat gaat mis bij een generieke slug: een
+ * dienstenpagina op `/diensten/42` scoorde even laag als een blogartikel.
+ *
+ * 600 is bewust ruim boven het volledige-crawlplafond maar begrensd: bij
+ * "normaal" tempo (3 tegelijk, ~1,1s pauze tussen rondes) is 600 pagina's
+ * ongeveer 4 minuten, en dit draait alleen in de achtergrondtaak
+ * `crawl_inventory` die daar de ruimte voor heeft (`budgetMs`, 180s reservering
+ * in `lib/jobs/handlers.ts`).
+ */
+export const MAX_LIGHTWEIGHT_PAGES = 600;
+
+/**
+ * Hoeveel pagina's het VOORONDERZOEK (`profile_light_scan`, migratie 0102)
+ * hoogstens licht scant, vóór de eerste diepe crawl (`profile_discover`) kiest
+ * welke er echt volledig gelezen worden.
+ *
+ * Groter dan `MAX_LIGHTWEIGHT_PAGES` en met een eigen constante, bewust: dit
+ * draait niet op een merk dat al bestaat (waar `crawl_inventory` een vast
+ * tijdbudget van 180s heeft binnen ÉÉN taakaanroep), maar op het moment dat de
+ * consultant een merk aanmaakt, met alleen naam, schrijfwijzen en webadres, en
+ * de klant er nog niet bij zit. Dat mag van de eigenaar tot een paar honderd
+ * pagina's meer kosten en tot ~10 minuten duren (in de praktijk 1 à 2
+ * taakrondes van 150s, `lib/pipeline/light-scan.ts`), zolang niemand op een
+ * scherm zit te wachten.
+ */
+export const MAX_PREONBOARDING_LIGHT_PAGES = 1000;
+
+export interface PageHead {
+  title: string | null;
+  description: string | null;
+}
+
+function headFrom(html: string): PageHead {
+  const meta = extractMetaTags(html);
+  return {
+    title: extractTitle(html),
+    description: meta["description"] || meta["og:description"] || null,
+  };
+}
+
+/**
+ * Haalt ALLEEN de titel en de meta-description van een pagina op, zonder de
+ * rest van de pagina te lezen. Twee besparingen tegelijk, niet één:
+ *
+ *   1. Een `Range`-verzoek als hint aan de server. Niet elke server honoreert
+ *      hem (die stuurt dan gewoon de volledige pagina terug, wat verder geen
+ *      probleem is), maar wie hem wel honoreert stuurt alleen de eerste
+ *      `HEAD_READ_CAP_CHARS` bytes over de lijn.
+ *   2. Het lezen van de stream stopt zodra `</head>` voorbij is gekomen, in
+ *      plaats van te wachten tot de hele body binnen is: bij een pagina van
+ *      een paar honderd kilobyte scheelt dat verreweg de meeste bytes.
+ *
+ * Geen `htmlToText`, geen `stripChrome`, geen structured-data-oogst: dat is
+ * precies het verwerkingswerk dat deze functie vermijdt. `crawlPages()`
+ * hierboven blijft de functie voor een pagina die ECHT gelezen moet worden.
+ */
+export async function fetchPageHead(
+  url: string,
+  opts: { asBrowser?: boolean; referer?: string } = {},
+): Promise<PageHead | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), HEAD_FETCH_TIMEOUT_MS);
+  try {
+    const headers = {
+      ...requestHeaders(opts),
+      Range: `bytes=0-${HEAD_READ_CAP_CHARS - 1}`,
+    };
+    const res = await fetch(url, { signal: controller.signal, redirect: "follow", headers });
+    // 206 (Partial Content) is de server die de Range honoreert; 200 is de
+    // server die hem negeert en toch alles stuurt. Beide zijn een geslaagde
+    // fetch, alleen een 4xx/5xx is een mislukte.
+    if (!res.ok && res.status !== 206) return null;
+
+    const reader = res.body?.getReader();
+    if (!reader) {
+      // Omgeving zonder streaming `body` (komt in de praktijk niet voor bij
+      // Node's fetch, wel een eerlijke terugval): gewoon lezen en afkappen.
+      return headFrom((await res.text()).slice(0, HEAD_READ_CAP_CHARS));
+    }
+
+    const decoder = new TextDecoder();
+    let html = "";
+    while (html.length < HEAD_READ_CAP_CHARS) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      html += decoder.decode(value, { stream: true });
+      if (/<\/head/i.test(html)) break;
+    }
+    await reader.cancel().catch(() => {});
+    return headFrom(html);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Haalt titel en meta-description op voor een hele lijst URL's, in batches met
+ * hetzelfde tempo-profiel als `crawlInventory()` (courtesy, §17.2/§17.3): dit
+ * zijn nog altijd honderden extra verzoeken aan andermans server, ook al is elk
+ * verzoek zelf goedkoop.
+ *
+ * ── ELKE GEPROBEERDE URL KOMT IN DE KAART, OOK ZONDER RESULTAAT ─────────────
+ *
+ * Een pagina die niets oplevert (mislukte fetch, geen titel én geen
+ * meta-description) krijgt een rij met `title: null, description: null`. Voor
+ * `scoreUrl()` maakt dat niets uit: een lege `UrlSignal` scoort hetzelfde als
+ * geen signaal. Voor `lib/pipeline/light-scan.ts` (het vooronderzoek dat
+ * zichzelf over meerdere taakrondes heen opnieuw inplant, migratie 0102) maakt
+ * het wél uit: zonder deze rij zou een pagina die structureel blokkeert of
+ * 404't bij ELKE ronde opnieuw als "nog niet geprobeerd" gelden, en zou die
+ * ronde nooit klaar raken zolang er ook maar één zo'n URL in de kandidatenlijst
+ * staat.
+ */
+export async function crawlHeads(
+  urls: readonly string[],
+  opts: { speed?: CrawlSpeed; asBrowser?: boolean; budgetMs?: number } = {},
+): Promise<Map<string, UrlSignal>> {
+  const signals = new Map<string, UrlSignal>();
+  const profile = speedProfile(opts.speed ?? "normaal");
+  const start = Date.now();
+
+  for (let i = 0; i < urls.length; i += profile.batchSize) {
+    if (opts.budgetMs !== undefined && Date.now() - start > opts.budgetMs) break;
+    const batch = urls.slice(i, i + profile.batchSize);
+    const results = await Promise.all(
+      batch.map(async (url) => ({
+        url,
+        head: await fetchPageHead(url, { asBrowser: opts.asBrowser }),
+      })),
+    );
+    for (const { url, head } of results) {
+      signals.set(url, { title: head?.title ?? null, description: head?.description ?? null });
+    }
+    if (i + profile.batchSize < urls.length) await sleep(nextDelayMs(profile));
+  }
+
+  return signals;
 }
 
 /** Eén batch ophalen met de headers en de status van de speed-aware crawl, i.p.v. `fetchText()`'s "null bij elke fout". */
@@ -588,6 +756,7 @@ export async function crawlInventory(
 ): Promise<InventoryResult> {
   const hardCap = opts.budgetMs !== undefined ? MAX_PAGES_BACKGROUND : MAX_PAGES_HARD_CAP;
   const maxPages = Math.min(Math.max(opts.maxPages ?? DEFAULT_MAX_PAGES, 1), hardCap);
+  const start = Date.now();
 
   // Modus "meer" (§17.8): het uitsluiten gebeurt VÓÓR het kiezen, niet erna.
   // Zou `selectUrls()` eerst de beste `maxPages` kiezen en pas daarna de al
@@ -599,12 +768,40 @@ export async function crawlInventory(
   // `totalFound` over de volledige, ongefilterde lijst, dus "meer" bij een
   // grotendeels gecrawlde site toont nog steeds de ware omvang van de site.
   const exclude = new Set(opts.exclude ?? []);
-  const index = selectUrls(alleUrls, maxPages, opts.priorityPaths, exclude);
+  const vooraf = selectUrls(alleUrls, maxPages, opts.priorityPaths, exclude);
+
+  // ── De lichte titel+meta-doorgang (16 september 2026, Nova-vergelijking) ──
+  //
+  // Alleen als er iets te kiezen valt (`vooraf.truncated`) én er een tijdbudget
+  // is: dat is precies de achtergrondtaak `crawl_inventory`, die de ruimte
+  // ervoor heeft. `sales-enrich.ts` roept deze functie ook aan, zonder budget,
+  // voor een snelle scan van één bedrijfssite (25 pagina's): die blijft
+  // ongemoeid, hij was niet zwaar bedoeld en mag dat niet worden.
+  let index = vooraf;
+  let lightlyScanned = 0;
+  if (vooraf.truncated && opts.budgetMs !== undefined) {
+    const kandidaten = selectUrls(
+      alleUrls,
+      Math.min(MAX_LIGHTWEIGHT_PAGES, alleUrls.length),
+      opts.priorityPaths,
+      exclude,
+    ).urls;
+    // Ten hoogste de helft van het budget: de andere helft blijft voor het
+    // ECHT lezen van de gekozen pagina's hieronder, anders eet deze doorgang
+    // op een trage site het hele tijdbudget op zonder dat er één pagina
+    // volledig gelezen is.
+    const signals = await crawlHeads(kandidaten, {
+      speed: opts.speed,
+      asBrowser: opts.asBrowser,
+      budgetMs: Math.floor(opts.budgetMs / 2),
+    });
+    lightlyScanned = signals.size;
+    index = selectUrls(alleUrls, maxPages, opts.priorityPaths, exclude, signals);
+  }
   const teCrawlen = index.urls;
 
   let speed = opts.speed ?? "normaal";
   let profile = speedProfile(speed);
-  const start = Date.now();
   const base = toFetchUrl(host);
 
   const gehaald = new Map<string, { title: string | null; text: string }>();
@@ -670,6 +867,7 @@ export async function crawlInventory(
     blocked,
     usedSpeed: speed,
     remaining,
+    lightlyScanned,
   };
 }
 

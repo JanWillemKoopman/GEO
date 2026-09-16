@@ -13,6 +13,16 @@ import type { CrawlSpeed } from "@/lib/crawl-speed";
 
 export const JOB_TYPES = [
   /**
+   * Vooronderzoek, vóór fase 0 (migratie 0102): een lichte titel+meta-doorgang
+   * over tot 1000 pagina's, zodat `profile_discover` hierna een beter
+   * gefundeerde keuze maakt over welke 150 pagina's het echt volledig leest.
+   * Geen AI-aanroep, wel veel netwerk, en plant zichzelf een paar keer opnieuw
+   * in als 1000 pagina's niet in één taakaanroep past
+   * (`lib/pipeline/light-scan.ts`). Draait op het moment dat de consultant het
+   * merk aanmaakt, ruim vóór er een klant bij is. Ketent naar profile_discover.
+   */
+  "profile_light_scan",
+  /**
    * Fase 0 van de onboarding: de site uitkammen zonder één AI-aanroep
    * (docs/tasks/onboarding-2.0.md blok B). Crawlt tot 150 pagina's, oogst
    * JSON-LD/OpenGraph, beoordeelt de inventaris en meet of de tekst überhaupt
@@ -279,6 +289,8 @@ export interface RecommendationPayload {
 
 /** Wat elke taaksoort in `payload_json` meekrijgt. */
 export interface JobPayloads {
+  /** Hoeveelste ronde dit is (migratie 0102). 0 = de eerste, vanaf de aanmaakroute. */
+  profile_light_scan: { round?: number };
   profile_discover: Record<string, never>;
   profile_research: Record<string, never>;
   /**
@@ -495,6 +507,9 @@ export interface JobPayloads {
  * samen, één zware taak vult de aanroep in z'n eentje.
  */
 export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
+  // Tot 1000 pagina's licht scannen, in rondes (migratie 0102). Zelfde soort
+  // werk als crawl_inventory, alleen groter en zelf-herplannend.
+  "profile_light_scan",
   // Geen AI-aanroep, maar wel tot 150 pagina's ophalen in batches van 8. Bij een
   // trage site is dat ruim een minuut netwerk, zwaar in tijd, niet in geld.
   "profile_discover",

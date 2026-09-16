@@ -39,6 +39,7 @@ import { JOB_TYPES, type JobType } from "@/lib/jobs/types";
  * een zin die per ongeluk gebruikt kan worden.
  */
 export const TAAK_TEKST: Record<JobType, string | null> = {
+  profile_light_scan: "gekeken welke pagina's je website allemaal heeft",
   profile_discover: "je website uitgelezen",
   profile_research: "je merk onderzocht",
   profile_offering: "je aanbod in kaart gebracht",

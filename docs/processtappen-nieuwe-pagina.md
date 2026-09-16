@@ -29,9 +29,17 @@ betaald onderzoek in gang.
    soort herkomst: het onderzoek hierna mag deze aanname tegenspreken als het iets anders vindt, maar
    mag hem nooit stilzwijgend overschrijven.
 6. Het systeem maakt het merkprofiel aan in de database.
-7. Het systeem zet automatisch een reeks van acht onderzoekstaken klaar om te gaan draaien.
+7. Het systeem zet automatisch een reeks van negen onderzoekstaken klaar om te gaan draaien.
 
-## Fase 2. Het automatische onderzoek (ongeveer 7,5 minuten, ongeveer 25 dollarcent)
+> **Sinds migratie 0102 gaat er nog één stap vóór taak 1.** Een lichte titel+meta-doorgang
+> (`profile_light_scan`) bekijkt tot 1000 pagina's van de site, zonder ze volledig te lezen, en
+> gebruikt dat om taak 1 hieronder een beter gefundeerde keuze te laten maken over welke 150
+> pagina's het écht volledig leest. Geen AI-aanroep, dus gratis, maar wel netwerk: dit kan een paar
+> taakrondes duren (tot ~10 minuten in de praktijk). De klant zit er op dit moment nog niet bij, dus
+> die tijd voelt niemand. Lukt deze stap niet, dan gaat taak 1 gewoon door op het URL-pad alleen,
+> zoals hij vóór deze migratie altijd al deed.
+
+## Fase 2. Het automatische onderzoek (ongeveer 7,5 minuten, ongeveer 25 dollarcent, plus het vooronderzoek hierboven)
 
 Niemand hoeft hier iets voor te doen. Het scherm mag dicht. Elke taak controleert eerst of zijn
 resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.

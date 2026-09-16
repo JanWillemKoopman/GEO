@@ -207,14 +207,17 @@ export async function POST(request: Request) {
 
   // Zie de analyse-route: het onderzoek hangt aan de wachtrij, niet aan een
   // openstaande browsertab (optimalisatie.md 1.5).
-  // Fase 0 eerst (docs/tasks/onboarding-2.0.md blok B): de site uitkammen kost
-  // niets en levert de context waar het onderzoek op leunt. Deze taak ketent
-  // zelf door naar `profile_research`.
+  // Vooronderzoek eerst (migratie 0102): een lichte titel+meta-doorgang over
+  // tot 1000 pagina's, zodat de eerste diepe crawl (fase 0, `profile_discover`)
+  // een beter gefundeerde keuze maakt over welke 150 pagina's het echt
+  // volledig leest. Geen klant die hierop wacht, dus dit mag een paar rondes
+  // duren. Deze taak ketent zelf door naar `profile_discover`, die op zijn
+  // beurt naar `profile_research` ketent.
   await enqueue(admin, {
-    type: "profile_discover",
-    payload: {},
+    type: "profile_light_scan",
+    payload: { round: 0 },
     profileId: data.id as string,
-    dedupeKey: dedupe.profileDiscover(data.id as string),
+    dedupeKey: dedupe.profileLightScan(data.id as string, 0),
   });
 
   // De technische audit stond hier ook, parallel aan het onderzoek. Sinds de

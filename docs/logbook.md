@@ -8977,3 +8977,86 @@ niet bereikt.
 oorzaak.** Na de laatste wijziging was `tsc --noEmit` groen terwijl `npm run build` faalde op een
 cast in `scripts/test-unit.ts`. De twee kijken dus niet naar precies dezelfde bestanden. Vier
 controles draaien is niet drie controles draaien plus een formaliteit.
+
+## De lichte titel+meta-doorgang: een vollediger beeld zonder alles te lezen (16 september 2026)
+
+Nova (InSpace) leest tijdens onboarding expliciet titels en meta-descriptions, los van en vóór de
+volledige crawl (*"Reading your titles and meta descriptions…"*, `Nova_onboarding.md` §3b). ORBIT
+ENGINE las de hele sitemap altijd al volledig uit (tot 10.000 URL's, migratie 0061), maar koos
+daaruit de `max_inventory_pages` die écht gelezen worden puur op het URL-pad (`url-priority.ts`).
+Dat gaat mis bij een generieke slug: een dienstenpagina op `/diensten/42` scoorde even laag als een
+blogartikel, terwijl de titel "Vloerverwarming installeren" precies zegt waar de pagina over gaat.
+
+**Wat er nu gebeurt.** `crawlInventory()` (`lib/crawler.ts`) doet, alleen als een site groter is dan
+het plafond én er een tijdbudget beschikbaar is (dus alleen de achtergrondtaak `crawl_inventory`, niet
+de snelle scan van de Sales-module die geen budget meegeeft), eerst een goedkope doorgang
+(`crawlHeads()`) over tot 600 pagina's: alleen `<title>` en de meta-description, geen volledige tekst,
+geen structured-data-oogst. Twee besparingen tegelijk maken dat goedkoop: een `Range`-verzoek als hint
+aan de server, en het lezen van de stream stopt zodra `</head>` voorbij is, in plaats van te wachten
+tot de hele pagina binnen is. Die titels en meta-descriptions gaan als extra signaal
+(`UrlSignal`) in `scoreUrl()`/`selectUrls()`, met een kleiner gewicht dan het URL-pad: het pad blijft
+leidend, de tekst redt of ontmaskert alleen de twijfelgevallen. Zonder signaal (de meeste aanroepen,
+want deze stap draait niet altijd) verandert er niets aan het bestaande gedrag.
+
+**Wat het niet doet.** Geen nieuwe pagina's opslaan: de lichte doorgang levert alleen een beter
+gefundeerde keuze op voor de bestaande `max_inventory_pages`, niet een bredere content-inventaris.
+Hoeveel pagina's meededen staat wel op het scherm (`profiles.crawl_lightly_scanned`, migratie 0101,
+`InventoryBox`), zodat "we keken breder" niet stilzwijgend gebeurt.
+
+Getest: `scoreUrl()`/`selectUrls()` met en zonder signaal, inclusief het geval waarin negen neutrale
+secties een kale slug uit de top-2 duwen zonder signaal en het signaal hem er wél tussen krijgt
+(`scripts/test-unit.ts`, drie nieuwe assertiegroepen). `tsc --noEmit`, `test:unit` (4851 geslaagd),
+`test:chain` (659 geslaagd) en `build` zijn alle vier groen. Migratie 0101 is additief, geen
+backfill: een bestaand profiel krijgt de kolom pas gevuld bij zijn eerstvolgende crawlronde.
+
+## Het vooronderzoek: 1000 pagina's vóór de eerste diepe crawl, in eigen tempo (16 september 2026)
+
+Vervolg op het stuk hierboven, op uitdrukkelijk verzoek van de eigenaar: niet wachten tot een latere
+"Vernieuw inventaris"-ronde, maar de lichte titel+meta-doorgang al laten draaien op het moment dat
+een merk wordt aangemaakt (drie velden: naam, schrijfwijzen, webadres), vóórdat de eerste diepe crawl
+(`profile_discover`) kiest welke 150 pagina's hij echt volledig leest. En groter: 1000 pagina's in
+plaats van 600, met tot ~10 minuten de tijd, want de klant zit er op dat moment nog niet bij.
+
+**Het technische probleem, en waarom dit meer is dan een grotere `MAX_LIGHTWEIGHT_PAGES`.** Eén
+taakaanroep mag van Vercel hooguit 300 seconden duren (`app/api/cron/worker/route.ts`). 1000 pagina's
+op "normaal" tempo is daar ruim overheen. De nieuwe taaksoort `profile_light_scan`
+(`lib/jobs/handlers.ts`) draait daarom in rondes van hooguit 150 seconden en plant zichzelf met een
+hoger rondenummer opnieuw in zolang er kandidaten open staan, tot een veiligheidsplafond van vijf
+rondes (`MAX_LIGHT_SCAN_ROUNDS`, `lib/pipeline/light-scan.ts`). De voortgang staat niet in de
+taakrij zelf (die kan platformlimiet-afgebroken worden) maar in een nieuwe tabel,
+`profile_page_signals` (migratie 0102): elke ronde berekent opnieuw welke van de top-1000
+kandidaten daar nog geen rij hebben en scant alleen die.
+
+**Eén aanpassing die dit pas liet werken: `crawlHeads()` bewaart nu ook een mislukte pagina.**
+Tot vandaag kwam een pagina die niets opleverde (mislukte fetch, geen titel, geen
+meta-description) niet in de resultaatkaart terecht — logisch voor scoren (`scoreUrl()` behandelt
+"geen signaal" en "leeg signaal" toch al hetzelfde), maar dodelijk voor de herneembaarheid: een
+structureel blokkerende URL zou bij ELKE ronde opnieuw als "nog niet geprobeerd" gelden, en het
+vooronderzoek zou nooit klaar raken zolang er ook maar één zo'n URL in de kandidatenlijst stond.
+`crawlHeads()` zet nu voor elke geprobeerde URL een rij weg, ook met `title: null, description:
+null`. Voor `crawl_inventory` (de bestaande, kleinere lichte doorgang uit het vorige logboekstuk)
+verandert dit niets aan het scoregedrag, wel maakt het `lightlyScanned`-cijfer daar preciezer:
+"hoeveel pagina's zijn geprobeerd" in plaats van "hoeveel pagina's leverden iets op".
+
+**Wat er gebeurt als het misgaat.** `profile_light_scan` is verrijking, geen voorwaarde: mislukt hij
+definitief (na vier pogingen, `MAX_ATTEMPTS`), dan gaat de keten via `lib/jobs/chain.ts`
+(`ONBOARDING_NEXT`) gewoon door naar `profile_discover`, die dan terugvalt op het bestaande
+pad-alleen-gedrag. Staat er in `lib/jobs/progress.ts` (`NON_BLOCKING_TYPES`) zodat dat geen rood
+kruis op het voortgangsscherm van de klant oplevert voor iets dat hij niet mist. De consultant ziet
+de stap wel: `research-steps.ts` kreeg er een negende stap bij ("Je website verkennen"), en
+`ONBOARDING_TAKEN` (`lib/onboarding-insight.ts`) ging van acht naar negen taken, `README.md` en
+`docs/processtappen-nieuwe-pagina.md` zijn bijgewerkt.
+
+**Waarom de taak zichzelf niet met dezelfde sleutel herplant.** De dedupe-index blokkeert een
+tweede taak met dezelfde sleutel zolang de eerste nog `queued` of `running` is — en dat is de
+taak zelf nog, op het moment dat hij binnen zijn eigen handler de volgende ronde probeert in te
+plannen (de werker vinkt pas ná de handler af, `lib/jobs/worker.ts`). Het rondenummer zit daarom in
+de dedupe-sleutel (`dedupe.profileLightScan(profileId, round)`), zodat ronde N+1 nooit tegen ronde N
+aan botst.
+
+Getest: een pure module `lib/pipeline/light-scan-select.ts` (los van `light-scan.ts`, dat
+`server-only` is, zelfde reden als `crawl-urls.ts` naast `crawler.ts`) met `openCandidates()`, en
+drie nieuwe assertiegroepen voor de bijgewerkte `research-steps.ts`-tests (de eerste stap is nu het
+vooronderzoek, niet meer de crawl). `tsc --noEmit`, `test:unit` (4858 geslaagd), `test:chain` (659
+geslaagd) en `build` zijn alle vier groen. Migratie 0102 (`profile_page_signals`) is additief en
+toegepast op productie.

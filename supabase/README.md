@@ -523,3 +523,25 @@ matcht de update geen rij meer en krijgt de tweede opslaan een melding in plaats
 stilzwijgend wint. Bewust niet bijgehouden door andere schrijfacties op deze tabel (schrijfpijplijn,
 keuring, publiceren): die hebben hun eigen taakvergrendeling, dit slot is specifiek voor twee mensen
 die tegelijk in dezelfde tekst typen.
+
+## 0101 — hoeveel pagina's kregen alleen een titel/meta-blik (Nova-vergelijking)
+
+`profiles.crawl_lightly_scanned`, additief, nullable. `crawlInventory()` (`lib/crawler.ts`) doet bij
+een te grote site en een beschikbaar tijdbudget eerst een goedkope titel+meta-doorgang
+(`crawlHeads()`) over tot 600 pagina's, als extra signaal voor `scoreUrl()`/`selectUrls()` bij het
+kiezen welke pagina's echt volledig gelezen worden. Dit cijfer, bijgewerkt door
+`lib/pipeline/refresh-inventory.ts` en getoond in `InventoryBox`, zegt hoeveel pagina's aan die
+doorgang meededen. Null = de stap draaide nog niet mee (elk profiel van vóór deze migratie), 0 = de
+site paste al binnen het plafond en er viel niets te kiezen. Zie `docs/logbook.md`, 16 september
+2026.
+
+## 0102 — de signalen van het vooronderzoek, over meerdere taakrondes heen
+
+`profile_page_signals` (nieuwe tabel), additief. Titel/meta-description per URL uit de nieuwe
+taaksoort `profile_light_scan`: een lichte doorgang over tot 1000 pagina's die draait op het moment
+dat een merk wordt aangemaakt, vóór de eerste diepe crawl (`profile_discover`). Omdat 1000 pagina's
+niet in één taakaanroep past (platformlimiet 300s), plant de taak zichzelf een paar keer opnieuw in
+(`lib/pipeline/light-scan.ts`); deze tabel is waar de voortgang tussen die rondes bewaard blijft, één
+rij per (profiel, URL), met `title`/`description` beide `null` als een pagina niets opleverde (dat
+telt als "geprobeerd", niet als "nog niet geprobeerd"). RLS: select-only, zelfde patroon als
+`profile_pages` (migratie 0005). Zie `docs/logbook.md`, 16 september 2026.
