@@ -625,9 +625,24 @@ klant, zonder dat er velden voor bestaan.
 
 ## 8. Zeven voorstellen, geprioriteerd
 
+> **Stand op 16 september 2026: vijf van de zeven zijn gebouwd, en drie van die
+> vijf bleken bij het bouwen geen verbetering maar een reparatie.** Wat er precies
+> is gebeurd staat in `docs/logbook.md` onder de kop van die datum. Per voorstel
+> hieronder staat de stand erbij, inclusief de plekken waar dit document zich
+> vergiste.
+
 Elk voorstel zegt wat het oplost, wat het kost in werk, en wat er misgaat als je het niet doet.
 
 ### Voorstel 1. Eén startscherm na de overdracht: "Zo begint je programma"
+
+**Gebouwd, en anders dan hier bedacht.** Twee aannames in dit voorstel bleken
+niet te kloppen. Een klant met precies één merk werd allang doorgestuurd naar
+zijn merk in plaats van naar de merkenlijst, en het merkoverzicht had al een
+balk met de zes stappen van de ronde. Wat er echt mis was, zat een laag dieper:
+bij nul clusters zei die balk "ORBIT ENGINE is aan zet bij meten", terwijl er
+niets in de wachtrij stond en de klant zelf niets kon starten. Een apart
+startscherm zou dat niet hebben opgelost, alleen bedekt. `lib/ronde.ts` kent nu
+een derde partij: bij nul clusters is de consultant aan zet.
 
 **Het probleem.** Zie §6.2A: zeven handelingen en vier poorten voordat er één pagina geschreven is,
 zonder dat iemand de klant vertelt dat dat de route is.
@@ -645,6 +660,13 @@ klant weet niet waar hij is.
 staat nergens waarop.
 
 ### Voorstel 2. Het abonnement in de app
+
+**Half gebouwd, want de helft bestond al.** Het contentpakket was wel degelijk
+te zetten, op het toewijzingsscherm sinds 31 augustus 2026; dit document had dat
+gemist. Wat er echt ontbrak was de startdatum: `accounts.started_at` werd door
+geen enkele regel geschreven, alleen gelezen. Die wordt nu gezet bij de
+overdracht en is daar te corrigeren. De SEPA-machtiging via Stripe is niet
+gebouwd en staat nog open.
 
 **Het probleem.** `package_pages_per_month` stuurt het contentplan, en er is geen scherm waar hij
 gezet wordt. `started_at` bepaalt de teller "maand 4 sinds de start", en ook die wordt met de hand
@@ -664,6 +686,11 @@ verkocht is, en niemand ziet dat, want het plan ziet er verder normaal uit.
 
 ### Voorstel 3. Search Console in de route in plaats van in een adminscherm
 
+**De lege staten zijn gebouwd, de plek in de route niet.** Ook hier was de
+telling in dit document niet precies: er waren er drie en niet twee, en de derde
+was in de praktijk onbereikbaar omdat de controle op de koppeling vuurde vóór
+die op gepubliceerde pagina's. Dat is gerepareerd en het zijn er nu vier.
+
 **Het probleem.** De koppeling is stafgereedschap zonder moment. `/merk/[id]/analytics/zoekverkeer`
 blijft leeg en de klant weet niet waarom.
 
@@ -681,10 +708,17 @@ terwijl de koppeling in twee minuten te maken is.
 
 ### Voorstel 4. De publicatiewachtrij als één scherm
 
+**Het kopieerformaat is gebouwd, de wachtrij niet.** Zie §9.1: van de drie
+onderdelen is het derde gedaan, en dat was het kleinste met het meeste effect.
+
 Zie §9.1 voor de uitwerking. Dit is de enige plek waar Nova's publicatiestap bruikbaar is zonder
 automatisch te publiceren, en het is meer winst dan het lijkt.
 
 ### Voorstel 5. Wachtstanden krijgen een zin
+
+**Gedeeltelijk gebouwd.** De belangrijkste van de vier is gedaan (net
+overgedragen, zie voorstel 1), plus de vier lege staten van het zoekverkeer en de
+lege staat van het clusterscherm. De andere wachtstanden staan nog open.
 
 **Het probleem.** ORBIT ENGINE heeft de statustaal per pagina, niet per traject.
 
@@ -696,6 +730,8 @@ geschreven, en pagina wacht op een schrijfronde die pas over weken start.
 **Wat er misgaat zonder.** Elke stilte leest als een storing.
 
 ### Voorstel 6. Bestanden bij het merkprofiel
+
+**Niet gebouwd.** Staat nog open.
 
 **Het probleem.** Het onboardinggesprek heeft een plakvak voor tekst. Een ondernemer heeft geen
 tekst, hij heeft een pdf: een tarievenkaart, een brochure, een productlijst.
@@ -709,6 +745,8 @@ inleespatroon staat er.
 maat die bepaalt of een pagina geschreven mag worden.
 
 ### Voorstel 7. De handmatige bewerking krijgt deterministische waarschuwingen
+
+**Niet gebouwd.** Staat nog open.
 
 **Het probleem.** De klant mag een tekst handmatig aanpassen voordat hij hem vrijgeeft. Daarna wordt
 er niets meer gecontroleerd.
@@ -767,6 +805,11 @@ Dat derde punt is de kleinste wijziging van dit hele document en waarschijnlijk 
 het is de laatste handeling voordat de klant zijn eigen site aanraakt, en daar gaat het nu mis in de
 opmaak.
 
+> **Gebouwd op 16 september 2026.** Er staan nu drie kopieervormen met per vorm de
+> reden om hem te kiezen, geschreven over het CMS van de klant en niet over het
+> formaat (`lib/kopieervormen.ts`). De eerste twee punten, één wachtrijscherm en
+> bulk afvinken vanuit de bibliotheek, staan nog open.
+
 ### 9.2 De chatassistent per pagina: nee, en wat er wél te halen valt
 
 Nova's Content Assistant is een gesprek per pagina, met sessies, historie, en goedkeuren of afwijzen
@@ -806,6 +849,39 @@ start". Dat besluit blijft staan, en het maakt voorstel 1 belangrijker: zonder k
 programma zelf de reden zijn om te blijven.
 
 ---
+
+## 9b. Wat er uit ORBIT ENGINE weg moest, en waarom
+
+Dit hoofdstuk stond niet in de eerste versie van dit document: dat keek alleen
+naar wat Nova heeft en ORBIT ENGINE niet. De andere kant leverde drie vondsten op
+die zwaarder wegen dan de meeste voorstellen hierboven, want het waren geen
+ontbrekende functies maar besluiten die niet deden wat er stond.
+
+**1. Een cluster starten stond open terwijl het op slot hoorde.** Elke dure route
+vraagt `mayTriggerCost`, op één na: `POST /api/analyses`. Dat is geen
+ontwerpkeuze geweest, want `lib/cost-rules.ts` schrijft in zijn eigen toelichting
+dat precies die route op 2 september 2026 dicht is gezet. Een klant kon er
+betaald onderzoek mee starten via het vrije tekstveld, terwijl hetzelfde onderwerp
+via het snelpad netjes werd geweigerd. Gedicht, met een test die alle zes routes
+afloopt.
+
+**2. Een dode kolom.** `value_per_mention_eur` had nul lezers, stond op geen
+enkel scherm en was bewust niet bewerkbaar. De kolom blijft staan (conventie 4)
+en besluit 16 blijft gelden, maar uit het type is hij weg: een veld dat niemand
+kan zetten en niemand ziet, nodigt uit om er iets mee te doen dat er niet is.
+
+**3. Een veld dat beloofde wat het niet deed.** De waardeklasse van een klant. Het
+advies in een eerdere versie van dit document was om hem aan te sluiten op de
+potentiescore. Dat advies was fout, en de code wist het beter: die score is per
+onderwerp en de waardeklasse per merk, dus een factor zou elk onderwerp van een
+merk even hard verschuiven en aan de onderlinge volgorde niets veranderen. Wat er
+wél mis was, was de omschrijving op het scherm, die pal boven zijn eigen
+ontkenning stond. Er is nu een controle over alle 60 velden die dat voortaan
+vangt.
+
+**En twee schermen te veel.** De bibliotheek bestond per cluster én merkbreed, en
+de briefing en "Openstaande vragen" toonden dezelfde rijen met verschillende
+invoervelden. Het eerste is samengevoegd, het tweede deelt nu zijn model.
 
 ## 10. De naamkwestie
 
