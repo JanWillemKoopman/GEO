@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { AnalyticsTable, type AnalyticsColumn } from "@/components/analytics-table";
 import { DetailPanel } from "@/components/detail-panel";
+import { ClusterAnswers } from "@/components/cluster-answers";
 import { Icon } from "@/components/icon";
 import { confidenceBand, changeIsMeaningful } from "@/lib/stats/uncertainty";
 import type { VisibilityScore } from "@/lib/types/database";
@@ -68,14 +69,15 @@ export function AnalyticsClusterTable({
   );
 }
 
-/** De inhoud van het detailpaneel (plan Z8): de gemeten vragen en de laatste
- * drie metingen. De verdeling over de drie fasen staat hier bewust niet bij:
- * die rust op een optelling uit `tracking_runs` die nog niet gebouwd is
- * (F5, zie `docs/tasks/analytics-herontwerp.md`). */
+/** De inhoud van het detailpaneel (plan Z8): de gemeten vragen, de laatste
+ * drie metingen, en de letterlijke antwoorden erachter (16 september 2026,
+ * `components/cluster-answers.tsx`). De verdeling over de drie fasen staat
+ * hier bewust niet bij: die rust op een optelling uit `tracking_runs` die nog
+ * niet gebouwd is (F5, zie `docs/tasks/analytics-herontwerp.md`). */
 function ClusterDetail({ rij }: { rij: ClusterRij }) {
   const laatsteDrie = [...rij.reeks].reverse().slice(0, 3);
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       <div>
         <span className="mono-label">Gemeten vragen</span>
         <p className="stat-value text-lg">{rij.laatste?.judged_runs ?? "-"}</p>
@@ -93,6 +95,7 @@ function ClusterDetail({ rij }: { rij: ClusterRij }) {
           </div>
         ))}
       </div>
+      <ClusterAnswers analysisId={rij.cluster.id} />
       <Link href={`/analyses/${rij.cluster.id}`} className="text-sm underline">
         Naar het clusterdossier
       </Link>
