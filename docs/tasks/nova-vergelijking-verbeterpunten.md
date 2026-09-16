@@ -110,27 +110,36 @@ onderzoek het profiel vooraf en kijkt de klant na, wat de wizard zelf ook zegt m
 "uit je website gehaald". Nova is daar pas later heen bewogen. De punten hieronder zijn afwerking,
 geen koerswijziging.
 
-**9. Geef het merkprofiel een eigen statuskaart per merk.** (klein)
-Nova's `brand.card` kent vijf toestanden: nog niet begonnen, bezig, verstuurd, klaar, en mislukt met
-de uitnodiging om opnieuw te genereren. ORBIT ENGINE toont voortgang als "x van de y ingevuld", wat
-iets anders zegt: het zegt hoe vol het formulier is, niet of het profiel bruikbaar is. Die twee
-lopen uiteen zodra de belangrijke velden leeg zijn en de onbelangrijke vol.
+**9. ~~Geef het merkprofiel een eigen statuskaart per merk.~~** (klein) ✅ **Live, 16 september
+2026.** Kleiner dan gedacht: `ProfileReadinessPanel` (Nova's `brand.card`-model, vijf toestanden via
+`assessReadiness()`) bestond al, maar stond alleen in de onboardingsessie. Nieuwe
+`DossierStatus`-wrapper (`app/(app)/merk/[id]/_components/dossier-status.tsx`) zet 'm ook op het
+merkdossier zelf (`/merk/[id]/merkprofiel/bewerken`), naast de knop "Onderzoek opnieuw". Geen
+aparte vijf-toestanden-badge op de merkenlijst: die lijst toont via `ProfileStatusBadge` al
+bezig/klaar/mislukt, en een volledige `assessReadiness()`-berekening per rij zou daar N losse
+databasebevragingen kosten voor een lijstscherm. Dat is bewust niet gebouwd.
 
-**10. Maak het profiel downloadbaar.** (klein)
-Nova heeft "Download profile". Klein, maar het maakt het profiel iets dat de klant bezit en kan
-doorsturen naar zijn eigen tekstschrijver of bureau. Dat is ook een verkoopargument: het bewijst
-dat het werk van waarde is los van de app.
+**10. ~~Maak het profiel downloadbaar.~~** (klein) ✅ **Live, 16 september 2026.** Nieuwe route
+`GET /api/profiles/[id]/export`, met een "Download profiel"-knop op het merkdossier. Exact de 42
+klantvelden (`CLIENT_STEPS`, `lib/pipeline/brand-fields.ts`), niet de vijftien commerciële/
+contactvelden die alleen in het verkoopgesprek horen.
 
-**11. Waarschuw eerlijk bij opnieuw genereren.** (klein)
-Nova: "NOVA writes the profile and your plan again from scratch, so the wording will not be
-identical." ORBIT ENGINE heeft geen knop om het hele profiel opnieuw te laten schrijven. Komt die
-er, dan hoort deze zin er meteen bij, want een klant die correcties heeft getypt verwacht ze terug
-te zien.
+**11. Waarschuw eerlijk bij opnieuw genereren.** (klein) **Niet gebouwd, 16 september 2026: de
+aanname klopt niet.** Bevestigd (opnieuw) dat ORBIT ENGINE geen knop heeft om het hele profiel
+from-scratch te herschrijven, en dat is ook geen ontbrekende functie: de bestaande "Onderzoek
+opnieuw"-knop (`RerunResearchButton`) doet iets anders en beters dan Nova's variant, namelijk alles
+bewaren wat een mens invulde en alleen crawl/facetten/aanbod verversen. Zijn eigen bevestigingstekst
+zegt dat al expliciet. Nova's waarschuwing hoort pas ergens als er ooit een écht destructieve
+"herschrijf alles"-knop komt, en die vraagt niemand nu. Deze punt blijft open tot die situatie zich
+voordoet.
 
-**12. Laat tijdens het genereren zien in welke stap het zit.** (klein)
-Nova toont drie fases: in de wachtrij, bestanden lezen, profiel schrijven, met de geruststelling
-"You can close this page, it carries on without you." ORBIT ENGINE heeft die belofte wel in de
-onboarding ("loopt door als je dit scherm sluit") maar niet bij het profiel zelf.
+**12. ~~Laat tijdens het genereren zien in welke stap het zit.~~** (klein) ✅ **Live, 16 september
+2026, met dezelfde `DossierStatus`-wrapper als punt 9.** `ProfileReadinessPanel` toonde deze
+drie-fasen-voortgang (met "je kunt dit scherm sluiten") al binnen de onboardingsessie; het enige
+wat ontbrak was dat hij op het merkdossier zelf niet opnieuw ging pollen zodra een latere
+"Onderzoek opnieuw"-ronde start. `RerunResearchButton` kreeg een `onStarted`-callback,
+`DossierStatus` gebruikt die om het paneel te hermonteren (`key`) en zo de voortgang van de nieuwe
+ronde te tonen in plaats van de oude "klaar"-stand te laten staan.
 
 ---
 
@@ -140,36 +149,41 @@ ORBIT ENGINE heeft hier al veel: versieherkomst in gewone taal (`lib/pipeline/ve
 zelf al naar Nova gemodelleerd), een diff-weergave, een kwaliteitspaneel, een zoekresultaat-preview,
 claimcontrole en een eindpoort. De punten hieronder zijn wat Nova er sindsdien bij heeft gezet.
 
-**13. Zet een drempel voor de handmatige bewerkmodus.** (klein)
-Nova opent een bevestiging: "Manual edits may affect indexing, keyword targeting, and on-page
-optimisation for Google. Continue only if you're comfortable editing this content by hand", met als
-knop "Continue at my own risk". ORBIT ENGINE waarschuwt nu alleen dat wijzigingen de versie
-overschrijven. Het punt is niet de waarschuwing zelf, het is dat de klant erna weet dat een
-handmatige ingreep iets kost.
+**13. ~~Zet een drempel voor de handmatige bewerkmodus.~~** (klein) ✅ **Live, 16 september 2026.**
+`content-editor.tsx` opent nu eerst een korte uitleg met "Ja, ik pas de tekst zelf aan" /
+"Annuleren" voordat de bewerkmodus zelf verschijnt, zelfde tweeklaps-patroon als
+`RerunResearchButton`. Geen modaal venster: één klik die twee wordt is genoeg.
 
-**14. Controleer deterministisch vóór het opslaan van een bewerking.** (midden)
-Nova toetst bij opslaan op vijf dingen: lege meta-titel, lege H1, lege meta-omschrijving, het
-belangrijkste zoekwoord dat nergens in titel, H1 of tekst voorkomt, en een link zonder adres. Dat
-is precies conventie 1 uit `CLAUDE.md`: elke promptinstructie een deterministisch vangnet in code.
-ORBIT ENGINE controleert de gegenereerde tekst al streng, maar de handmatig bewerkte tekst gaat
-langs een lichtere poort. Een klant kan dus met de hand kapot maken wat de pijplijn goed had.
+**14. ~~Controleer deterministisch vóór het opslaan van een bewerking.~~** (midden) ✅ **Live,
+16 september 2026.** Nieuwe pure module `lib/pipeline/manual-edit-checks.ts`, `checkManualEdit()`,
+in de PATCH-route. Vier van Nova's vijf controles zijn hier waardevol: lege titel (die is ook de
+H1), lege meta-title, lege meta-omschrijving, een link zonder adres. De vijfde ("belangrijkste
+zoekwoord") kent hier geen apart veld; `cluster` (het onderwerp waar de pagina op moet scoren) is de
+dichtstbijzijnde tekst, en de controle slaat over als die leeg is (conventie 3). Blokkeert het
+opslaan met status 422 en een tekst die precies zegt wat er ontbreekt.
 
-**15. Zeg vooraf welke opmaak verloren gaat.** (klein)
-Nova: "Some formatting on this page can't be edited here and will be removed if you save:
-{elements}". Wie een tabel of een bijschrift kwijtraakt zonder waarschuwing, vertrouwt de editor
-daarna niet meer.
+**15. Zeg vooraf welke opmaak verloren gaat.** (klein) **Niet van toepassing.** Bevestigd:
+`content-editor.tsx` is bewust een platte Markdown-editor zonder werkbalk (zie het eigen
+opschrift van dat bestand); er is geen rijke opmaak die bij het opslaan gestript wordt, dus er is
+niets om vooraf over te waarschuwen. Dit punt keert pas terug als er ooit een rijkere editor komt,
+en die is met opzet niet gebouwd (zie "Wat we bewust niet overnemen").
 
-**16. Maak de foutmeldingen bij opslaan specifiek.** (klein)
-Nova heeft er tien, elk met een eigen oorzaak: iemand anders wijzigde dit ondertussen, dit is al
-gepubliceerd, de tekst is te lang, je hebt geen rechten meer, de verbinding brak af. Elke melding
-eindigt met "Your draft is safe". ORBIT ENGINE heeft er één algemene. Dat verschil merk je pas als
-er iets misgaat, en dan is het precies het moment waarop vertrouwen wint of verliest.
+**16. ~~Maak de foutmeldingen bij opslaan specifiek.~~** (klein) ✅ **Live, 16 september 2026,
+samen met punt 14 en 17 gebouwd.** De PATCH-route geeft nu vier soorten fouten een eigen tekst: de
+pagina bestaat niet meer, een van de vier controles van punt 14 faalt (met welke), een conflict met
+een gelijktijdige bewerking (punt 17), of een echte opslagstoring. `content-editor.tsx` toont die
+tekst voortaan als de kop van de melding, niet weggestopt onder "technische details". Twee van
+Nova's tien redenen zijn hier niet gebouwd ("al gepubliceerd", "tekst te lang"): die regels bestaan
+nergens anders in de app, en ze erbij verzinnen voor deze ene foutmelding zou een nieuwe blokkerende
+regel invoeren die niemand vroeg.
 
-**17. Vang gelijktijdig bewerken af.** (midden)
-Nova's melding "This item changed since you opened it" verraadt dat ze meegeven welke versie je aan
-het bewerken was. Bij ons kan een consultant en een klant tegelijk in hetzelfde stuk werken en wint
-stilzwijgend wie het laatst opslaat. Met een sales-led model waarin de consultant meekijkt is dat
-geen randgeval maar de normale gang van zaken.
+**17. ~~Vang gelijktijdig bewerken af.~~** (midden) ✅ **Live, 16 september 2026.** Nieuwe kolom
+`content_pieces.updated_at` (migratie 0100). De PATCH-route slaat pas op als `updated_at` nog gelijk
+is aan wat de editor laadde (`WHERE updated_at = ...`, dezelfde voorwaardelijke-update-vergrendeling
+als `removePage()` in `lib/plans.ts`); komt iemand anders ertussen, dan krijgt de tweede opslaan een
+duidelijke melding in plaats van dat hij stilzwijgend wint. Bewust alleen op déze route: de
+schrijfpijplijn zelf heeft al zijn eigen taakvergrendeling (conventie 9), dit slot is specifiek voor
+twee mensen die tegelijk in dezelfde tekst typen.
 
 ---
 
@@ -179,50 +193,64 @@ Dit blok is bij Nova het sterkst gegroeid en bij ons het dunst. Het gaat over al
 nádat een pagina bestaat. Let op: bij Nova hangt een deel hiervan aan hun CMS-koppeling, maar de
 onderliggende actie werkt ook zonder.
 
-**18. Scheid opnieuw inplannen van opnieuw schrijven, en bewaak het verschil.** (midden)
-Nova heeft twee aparte acties met een expliciete kruisverwijzing: als de publicatiedatum al voorbij
-is, blokkeert hij herschrijven en zegt "Reschedule the post instead, that moves the date and
-re-queues the write in one step. A publication date in the past is skipped, so a rewrite on its own
-would never go out." ORBIT ENGINE kent herschrijven wel, opnieuw inplannen niet als eigen actie.
-Dat betekent dat een pagina met een verlopen datum nu stil blijft liggen.
+**18. ~~Scheid opnieuw inplannen van opnieuw schrijven, en bewaak het verschil.~~** (midden) ✅
+**Live, 16 september 2026.** Nieuwe route `POST /api/profiles/[id]/plan/requeue-overdue` en een
+knop "Verzet en herinplannen" op `beheer/csm-view.tsx`, naast de bestaande "N over de datum"-vlag.
+Kleiner en dwingender dan Nova's versie: `app/api/cron/plan/route.ts` haalt alleen `status =
+'gepland'` op, dus een pagina die vastloopt in `status = 'schrijven'` (de schrijftaak stierf) komt
+nooit meer aan de beurt, hoe ver de datum ook vooruit gezet wordt. Deze actie zet daarom de datum
+op morgen ÉN de status terug op `gepland`, in één stap, precies zoals Nova's eigen tekst het
+beschrijft ("moves the date and re-queues the write in one step"). Staf-only, zelfde controle als
+`assign`.
 
-**19. Geef per regel de reden waarom een actie niet kan.** (klein)
-Nova's bulk-herschrijven zet achter elke regel die niet mee kan waaróm niet: al gepubliceerd, wordt
-nu gepubliceerd, geannuleerd, nog niet goedgekeurd door de klant, of er is nog geen tekst om te
-vervangen. Geen algemene melding "sommige items zijn overgeslagen", maar per regel. Dit is een
-patroon dat overal in ORBIT ENGINE bruikbaar is waar nu een verzamelmelding staat.
+**19. Geef per regel de reden waarom een actie niet kan.** (klein) **Al gebouwd, bevestigd 16
+september 2026.** `lib/plan-bulk.ts` (`kiesVoorBulk()`, `bulkMelding()`) doet dit al voor de enige
+bulkactie die ORBIT ENGINE heeft ("Markeer alles als geplaatst"): de melding na afloop noemt elke
+overgeslagen pagina met zijn reden, niet één verzamelzin. Er is geen andere bulkactie in de app met
+een generieke melding om te verbeteren.
 
-**20. Bouw bulkacties met een controlestap ertussen.** (midden)
-Nova's opzet voor het aanpassen van adressen in bulk is netjes: zoek en vervang over alle paden,
-met een aparte optie om alleen de eerste map te vervangen, per regel een controle op geldigheid en
-dubbelingen, en dan een scherm "Review the changes" dat toont wat er nu staat en wat er na opslaan
-staat, met "Nothing is written until you confirm". ORBIT ENGINE heeft bulkacties op het planscherm,
-maar zonder die tussenstap.
+**20. ~~Bouw bulkacties met een controlestap ertussen.~~** (midden) ✅ **Live, 16 september 2026.**
+De bevestigingsdialoog van "Markeer alles als geplaatst" toont nu, vóór bevestigen, exact welke
+pagina's live gaan (met het adres) en welke blijven staan (met reden), berekend met dezelfde
+`kiesVoorBulk()` die de route ook gebruikt. Geen aparte "Review the changes"-pagina zoals Nova: de
+lijst past in de bestaande dialoog (`children`-slot van `ConfirmDialog`), en een aparte pagina voor
+één simpele bulkactie zou zwaarder zijn dan wat hij oplost.
 
-**21. Zet een dakpan op bulkacties die geld kosten.** (klein)
-Nova: "At most {max} pages at a time, each one costs a new writer run. Re-queue the rest in a second
-pass." Bij ons is elke schrijfronde een betaalde AI-aanroep en is er geen bovengrens op een
-bulkactie. Eén verkeerde klik is dan meteen duur.
+**21. Zet een dakpan op bulkacties die geld kosten.** (klein) **Niet gebouwd, 16 september 2026: de
+aanname klopt niet.** De enige bulkactie die ORBIT ENGINE heeft ("Markeer alles als geplaatst")
+kost geen AI-aanroep: het zet een status en een adres, meer niet. Er is nu geen enkele bulkactie die
+geld kost. Een bovengrens bouwen zou een nieuwe, kostbare bulkactie veronderstellen die niemand
+gevraagd heeft; dat is andersom werken. Blijft open tot zo'n actie er is.
 
-**22. Vertel bij een veld expliciet op welk niveau het werkt.** (klein)
-Nova zet boven hun schrijfinstructie: "This note belongs to the domain, not to the pages you
-rewrite", met de uitleg dat opslaan de instructie verandert voor élke nog niet geschreven pagina.
-ORBIT ENGINE heeft drie lagen die precies dit probleem hebben: merklaag, clusterlaag, paginalaag
-(zie `optimalisatielab-orbit-engine.md` §3.1). Het scherm zegt nu niet altijd welke laag je te
-pakken hebt, en dat is de makkelijkste manier om per ongeluk alles te veranderen.
+**22. Vertel bij een veld expliciet op welk niveau het werkt.** (klein) **Niet gebouwd, 16
+september 2026: kleiner probleem dan gedacht, en één bijvangst.** Uitgezocht welke drie velden dit
+zouden raken: `content_plans.strategy_note` (plan-niveau, alleen invulbaar bij het aanmaken, dus
+geen risico op "per ongeluk voor elke toekomstige pagina veranderen"), `topics.client_note`
+(cluster-niveau, alleen-lezen op het scherm waar hij getoond wordt) en
+`content_pieces.revision_note` (paginaniveau, hoort per definitie bij precies één pagina). Geen van
+de drie heeft de dubbelzinnigheid die Nova's voorbeeld beschrijft. **Bijvangst, groter dan dit
+punt zelf:** `content_plans.strategy_note` wordt bij het aanmaken van een plan opgeslagen
+(`create-plan-box.tsx`, "Dit gaat mee als context bij het opstellen") maar nergens in de
+schrijfpijplijn ooit weer GELEZEN. De belofte in de UI-tekst klopt op dit moment niet
+(`CLAUDE.md`: "schrijf nooit dat iets al kan wat nog niet gebouwd is"). Dat oplossen is een eigen
+klus (uitzoeken waar in de schrijfprompt dit hoort in te haken), geen onderdeel van dit punt, en
+wordt hier alleen gemeld.
 
-**23. Leg het abonnement vast als getal waar het plan tegen afgezet wordt.** (midden)
-Nova's `admin.planQuota` koppelt een abonnementsvorm aan twee dingen: hoeveel pagina's per maand, en
-wélke paginatypes dit merk mag krijgen. ORBIT ENGINE heeft `pages_per_month`, maar niet de
-paginatypes per abonnement. Zonder dat kan een klant een paginatype in zijn plan krijgen waar hij
-niet voor betaalt.
+**23. Leg het abonnement vast als getal waar het plan tegen afgezet wordt.** (midden) **Niet
+gebouwd: apart besluit, zoals het document zelf al zei.** Bevestigd: `planned_pages.page_type`
+bestaat al (`categorie | dienst | informatief | overig`), maar er is geen koppeltabel die vastlegt
+welke paginatypes bij welk abonnement horen. Bouwen zonder antwoord op de eigen open vraag hieronder
+("bestaan er al commerciële abonnementsvormen met verschillende rechten, of is `pages_per_month`
+per klant voorlopig genoeg?") zou een datamodel neerzetten voor een onderscheid dat misschien nog
+niet bestaat.
 
-**24. Geef de klantentabel een reden bij elke vastgelopen klant.** (klein)
-ORBIT ENGINE's `beheer/csm-view.tsx` heeft de segmenten al, naar Nova gemodelleerd, en doet het
-met de banner per segment op één punt zelfs beter. Wat Nova erbij heeft is `admin.issueReasons`:
-zes concrete redenen waarom een merk stilstaat, zoals "geen standaardtaal ingesteld", "minder dan
-drie funnels", "laatste ronde mislukt", "nog geen strategie". Een segment zegt dát iemand
-vastzit, een reden zegt wat jij nu moet doen.
+**24. ~~Geef de klantentabel een reden bij elke vastgelopen klant.~~** (klein) ✅ **Live, 16
+september 2026, kleiner dan gedacht.** `segmentOf()` kent voor "vastgelopen" maar twee oorzaken
+(een mislukt onderzoek, of mislukte taken), niet Nova's zes: de rest van Nova's redenen
+("geen standaardtaal", "minder dan drie funnels") bestaat hier niet, want die keuzes maakt ORBIT
+ENGINE zelf tijdens het onderzoek. `flagsOf()` toonde de tweede oorzaak al ("N taken mislukt"), maar
+niet de eerste: een merk dat vastliep doordat het ONDERZOEK zelf mislukte (zonder taakfouten) had
+dus geen enkele vlag. Nieuwe vlag "Onderzoek mislukt" in `lib/csm.ts` dekt dat gat.
 
 ---
 
@@ -323,18 +351,21 @@ in jouw app. Wij publiceren niet, dus de tekst gaat hoe dan ook door een CMS van
 
 ## Voorgestelde volgorde
 
-**Eerst, want klein en meteen merkbaar:** ~~25, 26, 27, 28 (alle vier live sinds
-15 september 2026, blok E is daarmee compleet)~~, 5 (hoeveel pagina's nog nodig), 19 (reden per
-regel), 16 (specifieke foutmeldingen), 13 (drempel voor handmatig bewerken).
+**Eerst, want klein en meteen merkbaar:** ~~25, 26, 27, 28, 19 (al gebouwd, bevestigd), 16, 13
+(alle live sinds 15/16 september 2026, blok E is daarmee compleet)~~. Nog open: 5 (hoeveel
+pagina's nog nodig).
 
 **Daarna, want het lost een echt probleem op dat groeit:** ~~blok A, alle vier de punten, live sinds
 15 september 2026~~. Dit was de voorwaarde om werkpakket B uit het optimalisatielab te kunnen
 opleveren: zodra het aantal kansen omhoog gaat, liep het oude planscherm vast.
 
-**Dan, omdat ze de kwaliteit bewaken die we al hebben:** 14, 15, 17, 21.
+**Dan, omdat ze de kwaliteit bewaken die we al hebben:** ~~14, 17, 20, 24 (live sinds 16 september
+2026)~~. 15 niet van toepassing, 21 niet gebouwd (geen bulkactie die geld kost om een grens op te
+zetten), 18 (opnieuw inplannen) bleek klein genoeg om meteen mee te doen en is ook live.
 
-**Apart besluit:** 29 (meertaligheid) en 23 (paginatypes per abonnement), allebei omdat ze het
-datamodel raken.
+**Apart besluit:** 29 (meertaligheid), 23 (paginatypes per abonnement) en 22 (niveau-labels, bleek
+kleiner dan gedacht, met een bijvangst: `content_plans.strategy_note` wordt nergens gelezen), alle
+drie omdat ze het datamodel raken of een eigen uitzoekklus behoeven.
 
 ---
 

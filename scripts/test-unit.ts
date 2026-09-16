@@ -652,6 +652,7 @@ import { actionNeedsStaff, STAFF_ONLY_ACTIONS } from "@/lib/cost-rules";
 import { navActief } from "@/lib/nav";
 import { openVragenTotaal, openVragenLabel } from "@/lib/open-questions-count";
 import { eindpoort } from "@/lib/content-final-gate";
+import { checkManualEdit } from "@/lib/pipeline/manual-edit-checks";
 import { leesMaandKeuze, maandRegel, planStap, telStatussen } from "@/lib/plan-read";
 import {
   isEersteMaand,
@@ -751,6 +752,7 @@ import {
   stepProgress,
   overallProgress,
   missingRequired,
+  veldAlsTekst,
 } from "@/lib/pipeline/brand-fields";
 import { resolveWriteSource, consultantFields } from "@/lib/profile-source";
 import {
@@ -6721,6 +6723,19 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   }
 });
 
+group("een profielveld als leesbare tekst (blok B punt 10, profielexport)", () => {
+  ok("leeg blijft leeg", veldAlsTekst(null) === "" && veldAlsTekst(undefined) === "");
+  ok("ja/nee in plaats van true/false", veldAlsTekst(true) === "Ja" && veldAlsTekst(false) === "Nee");
+  ok("een lijst wordt met puntkomma's", veldAlsTekst(["a", "b", "c"]) === "a; b; c");
+  ok("een lege lijst is een lege tekst", veldAlsTekst([]) === "");
+  ok("een gewoon getal blijft gewoon", veldAlsTekst(42) === "42");
+  ok("een gewone tekst blijft gewoon", veldAlsTekst("Cv-ketel onderhoud") === "Cv-ketel onderhoud");
+  ok(
+    "een object (bv. persona's) wordt geen [object Object]",
+    veldAlsTekst({ naam: "Jan" }) === '{"naam":"Jan"}',
+  );
+});
+
 group("drie oppervlakken, één veldenlijst (onboarding 3.0 fase 1)", () => {
   // ⚠️ Samen exact `STEP_ORDER`, niets meer en niets minder. Een stap die in
   // geen van beide lijsten staat is een stap die nergens rendert, en dat merkt
@@ -7856,6 +7871,19 @@ group("segmentOf: elk merk in precies één segment", () => {
   ok(
     "en klaar om te plaatsen ook",
     flagsOf(merk({ paginasTePlaatsen: 2 })).some((v) => v.includes("klaar om te plaatsen")),
+  );
+  // Blok D, punt 24: een mislukt onderzoek is een andere oorzaak dan mislukte
+  // taken, en moet een eigen vlag krijgen, ook als er geen enkele taak faalde.
+  ok(
+    "een mislukt onderzoek krijgt een eigen vlag",
+    flagsOf(merk({ profileStatus: "mislukt", pijplijnfouten: 0 })).includes("Onderzoek mislukt"),
+  );
+  ok(
+    "en die staat los van mislukte taken",
+    (() => {
+      const v = flagsOf(merk({ profileStatus: "mislukt", pijplijnfouten: 2 }));
+      return v.includes("Onderzoek mislukt") && v.includes("2 taken mislukt");
+    })(),
   );
   ok(
     "een merk zonder vlaggen dat loopt, vraagt niets",
@@ -9865,6 +9893,61 @@ group("eindpoort: geen definitieve versie met vragen open", () => {
   // open te staan: een geschreven pagina niet kunnen afronden omdat een telling
   // misging is erger dan een pagina afronden met een vraag open.
   ok("een onmogelijke telling blokkeert niet", eindpoort(-2).mag === true);
+});
+
+group("vijf controles bij een handmatige bewerking (blok C punt 14)", () => {
+  const geldig = {
+    title: "Cv-ketel onderhoud in Tilburg",
+    bodyMarkdown: "Wij onderhouden je cv-ketel in Tilburg en omgeving.",
+    metaTitle: "Cv-ketel onderhoud Tilburg | Voorbeeld",
+    metaDescription: "Snel en vakkundig cv-ketel onderhoud in Tilburg.",
+    cluster: "cv-ketel onderhoud",
+  };
+
+  ok("een volledige pagina heeft geen problemen", checkManualEdit(geldig).length === 0);
+
+  ok(
+    "lege titel blokkeert",
+    checkManualEdit({ ...geldig, title: "  " }).some((p) => p.code === "lege-titel"),
+  );
+  ok(
+    "lege meta-title blokkeert",
+    checkManualEdit({ ...geldig, metaTitle: "" }).some((p) => p.code === "lege-meta-titel"),
+  );
+  ok(
+    "lege meta-description blokkeert",
+    checkManualEdit({ ...geldig, metaDescription: "" }).some((p) => p.code === "lege-meta-omschrijving"),
+  );
+  ok(
+    "een link zonder adres blokkeert",
+    checkManualEdit({ ...geldig, bodyMarkdown: "Lees ook [onze andere pagina]()." }).some(
+      (p) => p.code === "lege-link",
+    ),
+  );
+  ok(
+    "een link met adres is geen probleem",
+    checkManualEdit({ ...geldig, bodyMarkdown: "Lees ook [onze andere pagina](/andere-pagina)." })
+      .length === 0,
+  );
+
+  ok(
+    "het zoekwoord moet ergens voorkomen",
+    checkManualEdit({
+      ...geldig,
+      title: "Iets anders",
+      metaTitle: "Iets anders",
+      bodyMarkdown: "Dit gaat nergens over ketels.",
+    }).some((p) => p.code === "zoekwoord-ontbreekt"),
+  );
+  ok(
+    "geen cluster bekend is geen aanname over het zoekwoord (conventie 3)",
+    checkManualEdit({ ...geldig, title: "Iets anders", cluster: null }).length === 0,
+  );
+  ok(
+    "meerdere problemen komen allemaal terug",
+    checkManualEdit({ title: "", bodyMarkdown: "", metaTitle: "", metaDescription: "", cluster: null })
+      .length === 3,
+  );
 });
 
 group("de vragenpagina staat in Strategie, tussen clusters en plan", () => {

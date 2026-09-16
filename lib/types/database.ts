@@ -1092,6 +1092,8 @@ export interface ContentPiece {
   publish_check_json: unknown | null;
   publish_checked_at: string | null;
   created_at: string;
+  /** Migratie 0100: wanneer de PATCH-route dit stuk voor het laatst opsloeg (punt 17). */
+  updated_at: string;
 }
 
 /**

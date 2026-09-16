@@ -15,7 +15,14 @@ import { useRefresh } from "@/components/use-refresh";
  * Een bevestiging ervoor, want het duurt een paar minuten en het herschrijft
  * het aanbod. Geen modaal venster: één klik die verandert in twee is genoeg.
  */
-export function RerunResearchButton({ profileId }: { profileId: string }) {
+export function RerunResearchButton({
+  profileId,
+  onStarted,
+}: {
+  profileId: string;
+  /** Blok B punt 12: laat een aanroeper (bv. `DossierStatus`) opnieuw gaan pollen. */
+  onStarted?: () => void;
+}) {
   const { refresh, refreshing } = useRefresh();
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
@@ -37,6 +44,7 @@ export function RerunResearchButton({ profileId }: { profileId: string }) {
         setPending(false);
         return;
       }
+      onStarted?.();
       refresh();
     } catch {
       setError("Opnieuw onderzoeken is niet gelukt. Controleer je verbinding.");

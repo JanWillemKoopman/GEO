@@ -8681,3 +8681,116 @@ met Nova's kernboodschap vertaald: niet weg, wacht gewoon op ruimte.
 Getest: `tsc --noEmit`, `test:unit` (4694 geslaagd, zes nieuwe assertions) en `test:chain`
 (652 geslaagd, geen scenario geraakt) en `build` zijn alle vier groen. Migratie 0099 toegepast via
 de Supabase MCP-tool en nagekeken: de kolom staat er, `boolean not null default false`.
+
+## 16 september 2026: het merkdossier krijgt zijn statuskaart terug (blok B, punt 9, 10, 12)
+
+Blok B uit `docs/tasks/nova-vergelijking-verbeterpunten.md`. Drie van de vier punten kleiner dan
+gedacht, want de bouwstenen bestonden al en stonden alleen op de verkeerde plek.
+
+**Punt 9 en 12 delen dezelfde oplossing.** `ProfileReadinessPanel` (Nova's `brand.card`-model,
+`assessReadiness()`) en zijn drie-fasen-voortgangsweergave bestonden al, maar uitsluitend binnen de
+onboardingsessie. Nieuwe wrapper `DossierStatus` zet hem ook op `/merk/[id]/merkprofiel/bewerken`,
+naast de bestaande knop "Onderzoek opnieuw". De enige echte toevoeging: die knop kreeg een
+`onStarted`-callback zodat `DossierStatus` het paneel kan hermonteren (`key={ronde}`) zodra een
+nieuwe onderzoeksronde begint. Zonder die schakel zou het paneel na de eerste keer "klaar" nooit
+meer gaan pollen, en dus een tweede ronde niet laten zien.
+
+**Punt 10**: nieuwe route `GET /api/profiles/[id]/export`, CSV met exact de 42 klantvelden
+(`CLIENT_STEPS`, `lib/pipeline/brand-fields.ts`), niet de vijftien commerciële/contactvelden.
+Nieuwe pure functie `veldAlsTekst()` in diezelfde module zet een lijst, een ja/nee-veld of een
+object om naar leesbare CSV-tekst, met tests.
+
+**Punt 11 niet gebouwd: de aanname klopte niet.** Het punt veronderstelt een "schrijf het hele
+profiel opnieuw"-knop die niet bestaat. De bestaande "Onderzoek opnieuw"-knop doet iets anders (en
+veiligers): alles bewaren wat een mens invulde. Nova's waarschuwing hoort bij een destructieve
+knop die niemand vraagt; die bouwen om er een waarschuwing bij te kunnen zetten is de zaak
+omdraaien. Blijft open tot zo'n knop ooit wél nodig is.
+
+Geen migratie, geen datamodelwijziging: alleen hergebruik van bestaande componenten en één nieuwe
+route. Getest: `tsc --noEmit`, `test:unit` (4701 geslaagd, zeven nieuwe assertions) en `test:chain`
+(652 geslaagd) en `build` zijn alle vier groen.
+
+## 16 september 2026: vier sloten om de handmatige bewerkmodus (blok C, punt 13, 14, 16, 17)
+
+Blok C uit `docs/tasks/nova-vergelijking-verbeterpunten.md`, allemaal in en om
+`content-editor.tsx` en de PATCH-route eronder (`/api/analyses/[id]/content/[pieceId]`).
+
+**Punt 13**: een drempel vóór de bewerkmodus opent, zelfde tweeklaps-patroon als
+`RerunResearchButton` elders in de app (geen modaal venster, gewoon een tweede klik).
+
+**Punt 14**: nieuwe pure module `lib/pipeline/manual-edit-checks.ts`. Vier van Nova's vijf
+controles zijn overgenomen (lege titel/H1, lege meta-title, lege meta-omschrijving, link zonder
+adres); de vijfde ("belangrijkste zoekwoord") leunt op `cluster` bij gebrek aan een eigen
+zoekwoordveld en slaat over als die leeg is (conventie 3). De controle rekent op de EFFECTIEVE
+stand na de bewerking (bestaande velden erbij gehaald voor wat niet meekomt in de aanvraag), niet
+alleen op wat er nu wordt opgeslagen.
+
+**Punt 17**: nieuwe kolom `content_pieces.updated_at` (migratie 0100). De PATCH-route leest hem bij
+het ophalen en gebruikt hem als voorwaarde bij het schrijven (`WHERE updated_at = ...`), zelfde
+patroon als de buffer-claim in `removePage()` (`lib/plans.ts`): de voorwaardelijke update bepaalt
+zelf of hij lukt, geen aparte lees-dan-beslis-stap die een wedstrijdconditie open laat. Bewust
+alleen op deze ene route: de schrijfpijplijn heeft al zijn eigen taakvergrendeling (conventie 9),
+dit is specifiek voor twee mensen die in dezelfde tekst typen.
+
+**Punt 16** volgt uit de andere twee: de foutmeldingen van punt 14 (welke controle faalde) en punt
+17 (een conflict) zijn vanzelf al specifiek, dus dit punt was vooral zorgen dat `content-editor.tsx`
+die tekst ook ECHT laat zien. Bleek nodig: `problemFromResponse()` (het gedeelde
+foutafhandelingspatroon) stopt een onbekende foutmelding weg onder "technische details" en toont een
+generieke kop. Voor deze ene editor gebouwd om die tekst rechtstreeks als kop te tonen, in plaats van
+het gedeelde component zelf aan te passen: dat raakt tientallen andere schermen en was geen
+onderdeel van deze opdracht.
+
+**Punt 15 niet gebouwd: niet van toepassing.** `content-editor.tsx` is met opzet een platte
+Markdown-editor zonder werkbalk (zie het eigen opschrift van dat bestand). Er is geen rijke opmaak
+die bij het opslaan verloren kan gaan, dus er valt niets vooraf over te waarschuwen.
+
+Getest: `tsc --noEmit`, `test:unit` (4710 geslaagd, veertien nieuwe assertions) en `test:chain`
+(652 geslaagd, geen scenario raakte de PATCH-route) en `build` zijn alle vier groen. Migratie 0100
+toegepast via de Supabase MCP-tool en nagekeken: de kolom staat er, `timestamptz not null default
+now()`.
+
+## 16 september 2026: beheeracties, blok D (punt 18, 19, 20, 21, 22, 23, 24)
+
+Laatste blok van de Nova-vergelijkingsronde. Drie gebouwd, één al bevestigd gebouwd, drie niet
+gebouwd met een reden.
+
+**Punt 18**: nieuwe route `POST /api/profiles/[id]/plan/requeue-overdue`, knop op
+`beheer/csm-view.tsx`. Bevinding onderweg: Nova's eigen tekst ("moves the date and re-queues the
+write in one step") is hier LETTERLIJK nodig, niet alleen retorisch. `app/api/cron/plan/route.ts`
+haalt alleen `status = 'gepland'` op; een pagina die vastloopt in `status = 'schrijven'` (de
+schrijftaak stierf) komt nooit meer aan de beurt, ongeacht de datum. Alleen de datum vooruitzetten
+lost dus niets op; deze actie zet daarom altijd beide tegelijk.
+
+**Punt 20**: de bevestigingsdialoog van "Markeer alles als geplaatst" toont nu vooraf welke
+pagina's live gaan en welke blijven staan met reden, met dezelfde `kiesVoorBulk()` die de route
+zelf gebruikt (geen aparte schatting die uit de pas kan lopen). Gebruikt de bestaande
+`children`-slot van `ConfirmDialog`, geen nieuw scherm.
+
+**Punt 24**: `segmentOf()` kent voor "vastgelopen" maar twee oorzaken (onderzoek mislukt, taken
+mislukt), en `flagsOf()` toonde er maar één. Nieuwe vlag "Onderzoek mislukt" dekt de andere.
+
+**Punt 19 bleek al gebouwd**: `lib/plan-bulk.ts` doet dit patroon al voor de enige bulkactie die
+bestaat. Bevestigd met een blik in de code, niets aan toegevoegd.
+
+**Drie niet gebouwd, met reden:**
+- **Punt 21** (bovengrens op dure bulkacties): er bestaat geen bulkactie die geld kost. Een grens
+  bouwen zou een nieuwe kostbare bulkactie veronderstellen die niemand vroeg.
+- **Punt 22** (niveau-labels): de drie kandidaatvelden (`content_plans.strategy_note`,
+  `topics.client_note`, `content_pieces.revision_note`) hebben niet de dubbelzinnigheid die Nova's
+  voorbeeld beschrijft. **Bijvangst, groter dan het punt zelf:** `content_plans.strategy_note`
+  wordt bij het aanmaken van een plan opgeslagen met de belofte "Dit gaat mee als context bij het
+  opstellen", maar wordt nergens in de schrijfpijplijn ooit gelezen. Een belofte die niet wordt
+  waargemaakt (`CLAUDE.md`: "schrijf nooit dat iets al kan wat nog niet gebouwd is"), niet in deze
+  ronde opgelost: dat vraagt uitzoeken waar in de schrijfprompt dit hoort in te haken, een eigen
+  klus.
+- **Punt 23** (paginatypes per abonnement): het document zelf noemt dit al een apart besluit, met
+  een open vraag of er commerciële abonnementsvormen bestaan. `planned_pages.page_type` bestaat al;
+  de koppeltabel met het abonnement niet, en die zonder antwoord bouwen zou gokken.
+
+Geen migratie. Getest: `tsc --noEmit`, `test:unit` (4712 geslaagd, vier nieuwe assertions) en
+`test:chain` (652 geslaagd) en `build` zijn alle vier groen.
+
+Met dit blok is de hele Nova-vergelijkingsronde uit `docs/tasks/nova-vergelijking-verbeterpunten.md`
+doorlopen: blok A (4/4), blok B (3/4, punt 11 niet van toepassing), blok C (4/5, punt 15 niet van
+toepassing), blok D (4/7, drie apart-besluit of niet-van-toepassing), blok E (4/4). Blok F
+(meertaligheid, koppelingstest) staat nog open, expliciet groot en apart te besluiten.
