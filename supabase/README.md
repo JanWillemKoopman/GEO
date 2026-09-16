@@ -545,3 +545,14 @@ niet in één taakaanroep past (platformlimiet 300s), plant de taak zichzelf een
 rij per (profiel, URL), met `title`/`description` beide `null` als een pagina niets opleverde (dat
 telt als "geprobeerd", niet als "nog niet geprobeerd"). RLS: select-only, zelfde patroon als
 `profile_pages` (migratie 0005). Zie `docs/logbook.md`, 16 september 2026.
+
+## 0103 — de zoekopdrachten uit Search Console
+
+`search_console_queries` (nieuwe tabel), additief. Migratie 0052 liet de query-dimensie bewust weg
+("een tweede tabel waard zodra ze echt gebruikt worden"); dat moment is nu, met de kansenbron
+"zoekverkeer" (`lib/opportunities.ts`) en de positieverdeling (`lib/search-console/rankings.ts`).
+Zelfde patroon als `search_console_days`: uniek op (profiel, dag, zoekopdracht, pagina), want Google
+herziet de laatste dagen nog na. `lib/search-console/sync.ts` haalt hem op als tweede, best-effort
+aanroep binnen dezelfde dagelijkse `gsc_sync`-taak: mislukt hij, dan blijft de paginacijfers-sync (de
+kritieke aanroep die de lege staten stuurt) gewoon geslaagd. Zie `docs/tasks/zoekdata-in-de-keten.md`,
+blok A, en `docs/logbook.md`, 16 september 2026.

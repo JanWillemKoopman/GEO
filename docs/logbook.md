@@ -9102,3 +9102,40 @@ exportroute, de Analytics-grafieken en de content-pagina zelf.
 
 Getest: `tsc --noEmit`, `test:unit` (4858 geslaagd), `test:chain` (659 geslaagd) en `build` zijn
 alle vier groen. Geen migratie: dit raakt alleen schermen en leesqueries.
+
+## 16 september 2026: Zoekdata in de keten, A0 en blok A
+
+Start van `docs/tasks/zoekdata-in-de-keten.md`: Search Console en DataForSEO van meetlaag naar
+stuurlaag, op verzoek van de eigenaar. Twee stukken zijn af.
+
+**A0, de bevinding die alles blokkeerde.** Het zoekverkeerscherm gaf het volledige databereik door
+aan `vergelijk()` als huidige periode. De veiligheidsklep in die functie ziet dan terecht dat de
+periode ervóór per definitie buiten bereik ligt, dus `vergelijkbaar` werd nooit `true`, hoeveel data
+er ook binnenkwam: alle acht de kerncijfers (onze pagina's en de rest van de site) meldden voor
+altijd "geen vergelijking". Nagerekend met een reproductie op 180 dagen testdata.
+`lib/search-console/metrics.ts` krijgt `vergelijkingsvenster()`: een vast venster van de laatste 28
+dagen, eindigend op de laatste dag met cijfers in plaats van op vandaag. Het scherm gebruikt dit nu
+voor beide vergelijkingsblokken; de "nog geen vergelijking"-tekst verwijst naar de echte vroegste
+dag met cijfers (`volledigVenster()`) in plaats van naar het nieuwe, kortere venster.
+
+**Blok A: de zoekopdrachten erbij.** Migratie 0103, `search_console_queries`, additief, zelfde
+uniek-sleutel-patroon als `search_console_days`. `lib/search-console/sync.ts` haalt de zoekopdrachten
+op als tweede aanroep binnen dezelfde dagelijkse `gsc_sync`-taak: geen tweede cron, geen nieuw
+jobtype. Bewust best-effort: mislukt deze tweede aanroep, dan blijft de paginacijfers-sync (die de
+lege staten van het zoekverkeerscherm stuurt) gewoon geslaagd, en gaat de fout niet naar
+`gsc_last_error`. Nieuwe pure module `lib/search-console/rankings.ts`: de positieverdeling, "op het
+randje" (positie 8 tot 20, minstens 50 vertoningen) en stijgers/dalers over twee vensters.
+
+`lib/opportunities.ts` krijgt een vijfde bron, `zoekverkeer`: een pagina die ORBIT ENGINE zelf
+schreef en die al op het randje van de eerste pagina staat. Alleen onze eigen pagina's
+(`content_pieces.published_url`), niet willekeurige pagina's van de site. Geen doelvragen-getal en
+geen potentiescore, want dit komt niet uit een AI-meting; het sorteerveld `share` wordt hier
+hergebruikt voor de vertoningen, nooit als getal op het scherm. Gekoppeld in `lib/insights-data.ts`.
+
+Wat nog open staat uit blok A: de vier lege staten van het zoekverkeerscherm nog niet uitgebreid met
+een vijfde ("op het randje" zonder resultaten toont simpelweg niets, en dat is bewust), en de
+positieverdeling/stijgers-dalers uit `rankings.ts` staan nog niet op een scherm. Beide zijn
+rekenkant-af, schermwerk volgt.
+
+Getest: `tsc --noEmit`, `test:unit` (4886 geslaagd), `test:chain` (659 geslaagd) en `build` zijn alle
+vier groen.

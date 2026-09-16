@@ -990,7 +990,8 @@ const handlers: { [T in JobType]: Handler<T> } = {
     const result = await syncSearchConsole(admin, job.profile_id);
     console.log(
       result.ok
-        ? `Search Console ${job.profile_id}: ${result.rijen} rijen over ${result.start} tot ${result.eind}.`
+        ? `Search Console ${job.profile_id}: ${result.rijen} rijen over ${result.start} tot ${result.eind}` +
+          (result.queryRijen === null ? ", zoekopdrachten mislukt." : `, ${result.queryRijen} zoekopdrachten.`)
         : `Search Console ${job.profile_id}: ${result.reason}`,
     );
   },

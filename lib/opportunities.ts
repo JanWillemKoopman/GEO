@@ -53,7 +53,8 @@ export type OpportunitySource =
   | "meting"        // een gemiste vraag uit het rapport
   | "onderwerp"     // een onderwerp dat nog nooit gemeten is
   | "techniek"      // een AI-crawler komt er niet in
-  | "plan";         // een pagina die klaarstaat maar niet gepubliceerd is
+  | "plan"          // een pagina die klaarstaat maar niet gepubliceerd is
+  | "zoekverkeer";  // een pagina staat al bijna op de eerste pagina van Google
 
 /**
  * Wat je bij deze kans daadwerkelijk gaat doen.
@@ -166,6 +167,13 @@ export interface OpportunityInput {
   readyToPublish: number;
   /** Naar welk plan de knop wijst, als er een plan is. */
   hasPlan: boolean;
+  /**
+   * Pagina's die in Google al op het randje staan, positie 8 tot 20 met genoeg
+   * vertoningen om het verschil te laten zien (`lib/search-console/rankings.ts`,
+   * `opHetRandje()`). Leeg als er geen Search Console-koppeling is of niets op
+   * het randje staat, en dan levert deze bron simpelweg niets op (conventie 3).
+   */
+  randje?: { query: string; page: string; position: number; impressions: number }[];
 }
 
 /**
@@ -252,6 +260,33 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
     });
   }
 
+  // ── Op het randje: al bijna op de eerste pagina van Google ───────────────
+  //
+  // Puur rekenwerk op Search Console-gegevens, geen AI-aanroep (blok A,
+  // docs/tasks/zoekdata-in-de-keten.md). De pagina bestaat al en Google toont
+  // hem al: dit is de goedkoopste kans van de hele lijst na "publiceren".
+  for (const r of input.randje ?? []) {
+    lijst.push({
+      id: `zoekverkeer-${r.page}-${r.query}`,
+      title: `"${r.query}" staat op plek ${Math.round(r.position)} in Google`,
+      why: `Deze pagina wordt al getoond voor deze zoekopdracht, alleen nog niet op de eerste pagina van Google. Vaak is één gerichte verbetering al genoeg om dat te veranderen.`,
+      action: "Werk deze pagina bij",
+      source: "zoekverkeer",
+      handeling: "pagina_bijwerken",
+      raakt: null,
+      gemeten: null,
+      // ⚠️ Hergebruik van het sorteerveld voor een andere grootheid dan
+      // "gewicht van doelvragen": hier de vertoningen, zodat de kans met de
+      // meeste bewezen zoekverkeer binnen deze bron bovenaan komt. Nooit op
+      // het scherm getoond, precies zoals `share` dat overal is (zie de
+      // waarschuwing bovenaan dit bestand).
+      share: r.impressions,
+      potential: null,
+      href: `/merk/${input.profileId}/analytics/zoekverkeer`,
+      url: r.page,
+    });
+  }
+
   for (const t of input.unmeasuredTopics) {
     lijst.push({
       id: `onderwerp-${t.id}`,
@@ -298,7 +333,8 @@ function sorteer(lijst: Opportunity[]): Opportunity[] {
     techniek: 0,
     plan: 1,
     meting: 2,
-    onderwerp: 3,
+    zoekverkeer: 3,
+    onderwerp: 4,
   };
   /** Blokkerend of al betaald: dat gaat altijd voor. */
   const eersteGroep = (o: Opportunity) => o.source === "techniek" || o.source === "plan";

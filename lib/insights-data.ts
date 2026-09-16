@@ -17,6 +17,13 @@ import { insights, type Insight } from "@/lib/insights";
 import { brandScorePerPeriod, type BrandPeriod, type BrandScoreRow } from "@/lib/brand-score";
 import { opportunities, type Opportunity } from "@/lib/opportunities";
 import { loadRecommendationPotential } from "@/lib/potential-data";
+import { normaliseerUrl } from "@/lib/search-console/metrics";
+import {
+  laatsteVenster,
+  opHetRandje,
+  totalenPerQueryPagina,
+  type GscQueryDag,
+} from "@/lib/search-console/rankings";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -50,6 +57,8 @@ export async function loadLoop(admin: Admin, profileId: string): Promise<LoopBun
     { data: pageRows },
     { data: planRow },
     { data: runRows },
+    { data: pieceRows },
+    { data: queryRows },
   ] = await Promise.all([
     analysisIds.length > 0
       ? admin
@@ -113,6 +122,22 @@ export async function loadLoop(admin: Admin, profileId: string): Promise<LoopBun
           .select("analysis_id, week_no, purpose")
           .in("analysis_id", analysisIds)
       : Promise.resolve({ data: [] }),
+    // ── De kansenbron "zoekverkeer" (blok A, zoekdata-in-de-keten.md) ────────
+    // Alleen onze eigen pagina's: "op het randje" gaat over een pagina die
+    // ORBIT ENGINE kan bijwerken, niet over willekeurige pagina's van de site.
+    analysisIds.length > 0
+      ? admin
+          .from("content_pieces")
+          .select("published_url")
+          .in("analysis_id", analysisIds)
+          .not("published_url", "is", null)
+      : Promise.resolve({ data: [] }),
+    admin
+      .from("search_console_queries")
+      .select("day, query, page, clicks, impressions, position")
+      .eq("profile_id", profileId)
+      .order("day", { ascending: false })
+      .limit(25000),
   ]);
 
   const alleRuns = (runRows ?? []) as {
@@ -212,6 +237,18 @@ export async function loadLoop(admin: Admin, profileId: string): Promise<LoopBun
 
   const crawlerBlocked = ((auditRow?.blockers as number | null) ?? 0) > 0;
 
+  // ── Op het randje: bijna op de eerste pagina, alleen op onze eigen pagina's ──
+  const onzeUrls = new Set(
+    ((pieceRows ?? []) as { published_url: string }[]).map((p) => normaliseerUrl(p.published_url)),
+  );
+  const gscQueryRijen = (queryRows ?? []) as GscQueryDag[];
+  const gscVenster = laatsteVenster(gscQueryRijen);
+  const randje = gscVenster
+    ? opHetRandje(totalenPerQueryPagina(gscQueryRijen, gscVenster)).filter((r) =>
+        onzeUrls.has(normaliseerUrl(r.page)),
+      )
+    : [];
+
   const kansen = opportunities({
     profileId,
     recommendations: recommendations.map((r, i) => ({
@@ -225,6 +262,12 @@ export async function loadLoop(admin: Admin, profileId: string): Promise<LoopBun
     crawlerBlocked,
     readyToPublish: klaarOmTePubliceren,
     hasPlan: Boolean(planRow),
+    randje: randje.map((r) => ({
+      query: r.query,
+      page: r.page,
+      position: r.position!,
+      impressions: r.impressions,
+    })),
   });
 
   return {

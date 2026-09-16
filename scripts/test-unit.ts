@@ -451,6 +451,15 @@ import {
   vorigVenster,
   type GscDag,
 } from "@/lib/search-console/metrics";
+import {
+  bewegingen as gscBewegingen,
+  dalers as gscDalers,
+  opHetRandje,
+  RANDJE_MIN_VERTONINGEN,
+  stijgers as gscStijgers,
+  totalenPerQueryPagina,
+  type GscQueryDag,
+} from "@/lib/search-console/rankings";
 
 import { splitSentences, stripMarkdown, firstSentences } from "@/lib/pipeline/sentences";
 import { extractHeadings, renderMarkdown } from "@/lib/markdown";
@@ -8850,6 +8859,50 @@ group("opportunities: één lijst, gesorteerd op wat het oplevert", () => {
   );
 });
 
+group("opportunities: de kansenbron 'zoekverkeer' (blok A, 16 september 2026)", () => {
+  const basis = {
+    profileId: "p1",
+    recommendations: [],
+    unmeasuredTopics: [],
+    crawlerBlocked: false,
+    readyToPublish: 0,
+    hasPlan: true,
+  };
+
+  const metRandje = opportunities({
+    ...basis,
+    randje: [
+      { query: "dakinspectie kosten", page: "https://x.nl/a", position: 12, impressions: 300 },
+      { query: "dakdekker zutphen", page: "https://x.nl/b", position: 15, impressions: 80 },
+    ],
+  });
+
+  ok("elke randje-rij wordt een kans", metRandje.filter((o) => o.source === "zoekverkeer").length === 2);
+  ok(
+    "de meest getoonde staat eerst binnen deze bron",
+    metRandje.filter((o) => o.source === "zoekverkeer")[0]!.url === "https://x.nl/a",
+  );
+  ok(
+    "het is een bijwerkactie, geen nieuwe pagina",
+    metRandje.filter((o) => o.source === "zoekverkeer").every((o) => o.handeling === "pagina_bijwerken"),
+  );
+  ok(
+    "de positie staat in de titel",
+    metRandje.find((o) => o.url === "https://x.nl/a")!.title.includes("12"),
+  );
+  ok(
+    "er is geen doelvragen-getal: dit komt niet uit een AI-meting",
+    metRandje.filter((o) => o.source === "zoekverkeer").every((o) => o.raakt === null && o.potential === null),
+  );
+
+  // ⚠️ Zonder Search Console-koppeling of zonder randje-pagina's levert deze
+  // bron simpelweg niets op, geen foutmelding en geen lege kaart (conventie 3).
+  const zonderRandje = opportunities(basis);
+  ok("geen randje-kansen zonder invoer", !zonderRandje.some((o) => o.source === "zoekverkeer"));
+  const expliciedLeeg = opportunities({ ...basis, randje: [] });
+  ok("en ook niet bij een expliciet lege lijst", !expliciedLeeg.some((o) => o.source === "zoekverkeer"));
+});
+
 group("workKindIcon: elke soort werk heeft één tekening die bestaat", () => {
   // De chip rechts zegt wat je gaat DOEN, het icoon links waar het OVER gaat.
   // Valt er één weg, dan rendert het overzicht een leeg gat op de plek waar de
@@ -10906,6 +10959,63 @@ group("adressen vergelijkbaar maken", () => {
   ok("een kaal pad blijft heel", normaliseerUrl("/dienst/x") === "/dienst/x");
   ok("zonder beginslash komt er een bij", normaliseerUrl("dienst/x") === "/dienst/x");
   ok("hoofdletters tellen niet mee", normaliseerUrl("/Dienst/X") === "/dienst/x");
+});
+
+group("de positieverdeling uit Search Console (blok A)", () => {
+  const venster = { start: "2026-08-01", eind: "2026-08-10" };
+  const rijen: GscQueryDag[] = [
+    // Op het randje: positie 12, genoeg vertoningen.
+    { day: "2026-08-05", query: "dakinspectie kosten", page: "/a", clicks: 5, impressions: 100, position: 12 },
+    { day: "2026-08-06", query: "dakinspectie kosten", page: "/a", clicks: 3, impressions: 60, position: 12 },
+    // Positie 3: al goed, hoort niet bij "op het randje".
+    { day: "2026-08-05", query: "dakdekker zutphen", page: "/b", clicks: 20, impressions: 200, position: 3 },
+    // Positie 15 maar te weinig vertoningen: geen schijnprecisie.
+    { day: "2026-08-05", query: "dakinspectie zutphen", page: "/c", clicks: 1, impressions: 10, position: 15 },
+    // Positie 35: te ver weg voor één zet.
+    { day: "2026-08-05", query: "dakonderhoud", page: "/d", clicks: 1, impressions: 80, position: 35 },
+  ];
+
+  const totalen = totalenPerQueryPagina(rijen, venster);
+  ok("vier combinaties, opgeteld over het venster", totalen.length === 4);
+  const a = totalen.find((t) => t.page === "/a")!;
+  ok("klikken tellen op", a.clicks === 8);
+  ok("vertoningen ook", a.impressions === 160);
+  ok("de positie is gewogen op vertoningen, hier gelijk aan 12", Math.abs(a.position! - 12) < 1e-9);
+
+  const randje = opHetRandje(totalen);
+  ok("alleen de combinatie tussen 8 en 20 met genoeg vertoningen", randje.length === 1);
+  ok("dat is /a", randje[0]!.page === "/a");
+  ok(
+    "de grens ligt op RANDJE_MIN_VERTONINGEN",
+    randje.every((r) => r.impressions >= RANDJE_MIN_VERTONINGEN),
+  );
+
+});
+
+group("stijgers en dalers over twee vensters", () => {
+  const nu = { start: "2026-08-11", eind: "2026-08-20" };
+  const reeks: GscQueryDag[] = [
+    // Vorige venster: positie 20. Huidige venster: positie 8. Een stijger.
+    { day: "2026-08-05", query: "dakinspectie kosten", page: "/a", clicks: 1, impressions: 60, position: 20 },
+    { day: "2026-08-15", query: "dakinspectie kosten", page: "/a", clicks: 10, impressions: 60, position: 8 },
+    // Vorige venster: positie 5. Huidige venster: positie 14. Een daler.
+    { day: "2026-08-05", query: "dakdekker zutphen", page: "/b", clicks: 15, impressions: 100, position: 5 },
+    { day: "2026-08-15", query: "dakdekker zutphen", page: "/b", clicks: 2, impressions: 100, position: 14 },
+    // Alleen in het huidige venster: geen "vorige" om mee te vergelijken.
+    { day: "2026-08-15", query: "nieuwe vraag", page: "/e", clicks: 1, impressions: 30, position: 9 },
+  ];
+
+  const b = gscBewegingen(reeks, nu);
+  ok("alleen combinaties met een positie in BEIDE vensters", b.length === 2);
+  ok("de nieuwe vraag zonder verleden telt niet mee", !b.some((x) => x.query === "nieuwe vraag"));
+
+  const stijgersLijst = gscStijgers(b);
+  ok("precies één stijger", stijgersLijst.length === 1);
+  ok("dakinspectie kosten steeg, van 20 naar 8", stijgersLijst[0]!.verschil === 8 - 20);
+
+  const dalersLijst = gscDalers(b);
+  ok("precies één daler", dalersLijst.length === 1);
+  ok("dakdekker zutphen daalde, van 5 naar 14", dalersLijst[0]!.verschil === 14 - 5);
 });
 
 // ════════════════════════════════════════════════════════════════════════════
