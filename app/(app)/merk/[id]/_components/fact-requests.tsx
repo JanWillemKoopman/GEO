@@ -6,6 +6,8 @@ import { InfoHint } from "@/components/info-hint";
 import { ErrorNotice, problemFromResponse, networkProblem } from "@/components/error-notice";
 import type { UserFacingError } from "@/lib/errors";
 import type { FactRequest } from "@/lib/types/database";
+import { Antwoordveld } from "@/components/antwoordveld";
+import { vraagsoortKop, vraagVorm, VERPLICHT_UITLEG } from "@/lib/feitenvraag";
 
 /**
  * De klant om feiten vragen (optimalisatie.md 4.6).
@@ -287,7 +289,16 @@ function FactCard({
   /** Deze kaart staat in de "overgeslagen"-lijst: nog steeds te beantwoorden, geen skip-knop nodig. */
   skipped?: boolean;
 }) {
+  // Het concept-antwoord dat de claim-audit al had, als startwaarde: bevestigen
+  // is goedkoper dan formuleren, en tot 16 september 2026 toonde dit scherm die
+  // gok helemaal niet terwijl de briefing hem wél liet zien.
   const [answer, setAnswer] = useState("");
+  const kop = vraagsoortKop(fact.kind);
+  const { vorm } = vraagVorm(fact);
+  // Bij een keuzevraag is er niets te typen, dus slaat de knop meteen op zodra
+  // er geklikt is. Een "Opslaan"-knop achter twee knoppen "Ja" en "Nee" is een
+  // handeling te veel voor een antwoord van één klik.
+  const directOpslaan = vorm === "keuze";
 
   return (
     // ⚠️ Het invoerveld stond tot 28 augustus 2026 naast de vraag, één regel
@@ -298,10 +309,13 @@ function FactCard({
       <div className="flex min-w-0 flex-col gap-0.5">
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-medium">{fact.question}</p>
+          {kop && <span className="mono-label shrink-0">{kop.titel}</span>}
           {groep && <span className="mono-label shrink-0">{groep}</span>}
+          {fact.required && <span className="chip chip-warning shrink-0">Draagt een kernstuk</span>}
           {skipped && <span className="chip chip-neutral shrink-0">Overgeslagen</span>}
         </div>
         {fact.reason && <p className="text-sm text-muted">{fact.reason}</p>}
+        {fact.required && <p className="text-sm text-muted">{VERPLICHT_UITLEG}</p>}
       </div>
 
       <form
@@ -312,19 +326,39 @@ function FactCard({
           if (value) onSend(fact.id, { answer: value });
         }}
       >
-        <textarea
-          className="field w-full"
-          rows={3}
-          value={answer}
-          onChange={(e) => setAnswer(e.target.value)}
-          placeholder="Jouw antwoord…"
-          aria-label={fact.question}
-          disabled={busy}
+        {fact.suggested_answer && !answer && (
+          <div className="flex flex-col gap-1">
+            <button
+              type="button"
+              className="btn-outline btn-sm w-fit"
+              disabled={busy}
+              onClick={() => setAnswer(fact.suggested_answer!)}
+            >
+              Gok van ORBIT ENGINE: {fact.suggested_answer}. Dit klopt
+            </button>
+            <span className="text-sm text-muted">
+              Een inschatting, geen gecontroleerd feit. Lees hem na voordat je hem bevestigt, want
+              een fout antwoord komt zo in je tekst terecht.
+            </span>
+          </div>
+        )}
+
+        <Antwoordveld
+          id={`vraag-${fact.id}`}
+          vraag={fact}
+          waarde={answer}
+          zetWaarde={(v) => {
+            setAnswer(v);
+            if (directOpslaan && v) onSend(fact.id, { answer: v });
+          }}
+          uitgeschakeld={busy}
         />
         <div className="flex flex-wrap items-center gap-3">
-          <button type="submit" className="btn-outline" disabled={busy || !answer.trim()}>
-            Opslaan
-          </button>
+          {!directOpslaan && (
+            <button type="submit" className="btn-outline" disabled={busy || !answer.trim()}>
+              Opslaan
+            </button>
+          )}
           {!skipped && (
             <button
               type="button"

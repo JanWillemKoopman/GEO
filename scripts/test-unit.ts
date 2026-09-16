@@ -35,6 +35,14 @@ import { vloeiendPad, vloeiendPadTerug } from "@/lib/chart-curve";
 import { redactCompetitors, containsCompetitor } from "@/lib/pipeline/redact";
 import { stripProseDashes } from "@/lib/pipeline/dash-guard";
 import { publicFactRequest } from "@/lib/fact-request-public";
+import { plattetekst, kopieeropties } from "@/lib/kopieervormen";
+import { legeStaat } from "@/lib/search-console/lege-staat";
+import {
+  startdatumBijToewijzing,
+  afspraakGaten,
+  afspraakSamenvatting,
+  leesStartdatum,
+} from "@/lib/verkoopafspraak";
 import { rateLimitWindowStart, rateLimitVerdict } from "@/lib/rate-limit-rules";
 // ── Het kwaliteitsraamwerk (migratie 0091) ─────────────────────────────────
 import {
@@ -651,6 +659,13 @@ import {
 import { brandScorePerPeriod } from "@/lib/brand-score";
 import { ronde, rondeZin } from "@/lib/ronde";
 import { actionNeedsStaff, STAFF_ONLY_ACTIONS } from "@/lib/cost-rules";
+import { overdrachtZonderCluster } from "@/lib/cluster-start";
+import {
+  vraagVorm,
+  vraagsoortKop,
+  VRAAGSOORT_VOLGORDE,
+  groepeerOpSoort,
+} from "@/lib/feitenvraag";
 import { navActief } from "@/lib/nav";
 import { openVragenTotaal, openVragenLabel } from "@/lib/open-questions-count";
 import { eindpoort } from "@/lib/content-final-gate";
@@ -8263,6 +8278,7 @@ group("de ronde: zes stappen, precies één aan de beurt", () => {
   // staan, en verder nog niets. Precies het moment waarop hij voor het eerst
   // alleen inlogt.
   const nieuweKlant = ronde({
+    clusters: 3,
     metingen: 1,
     kansen: 7,
     gepland: 0,
@@ -8288,7 +8304,7 @@ group("de ronde: zes stappen, precies één aan de beurt", () => {
   // het hele product: ORBIT ENGINE komt niet op zijn website.
   ok(
     "plannen en publiceren zijn van de klant",
-    nieuweKlant.filter((f) => f.vanJou).map((f) => f.id).join(" ") === "plannen publiceren",
+    nieuweKlant.filter((f) => f.aanZet === "jij").map((f) => f.id).join(" ") === "plannen publiceren",
   );
   ok("en de zin zegt dat hij aan zet is", rondeZin(nieuweKlant).startsWith("Je bent aan zet"));
 
@@ -8296,6 +8312,7 @@ group("de ronde: zes stappen, precies één aan de beurt", () => {
   // dan is schrijven aan de beurt, ook al staat er al een pagina live van vóór
   // het plan. Bij Gasservice Brabant was dat precies zo.
   const gat = ronde({
+    clusters: 3,
     metingen: 2,
     kansen: 7,
     gepland: 12,
@@ -8308,6 +8325,7 @@ group("de ronde: zes stappen, precies één aan de beurt", () => {
 
   // Een ronde die rond is, is geen ronde die af is.
   const rond = ronde({
+    clusters: 3,
     metingen: 3,
     kansen: 4,
     gepland: 12,
@@ -8323,12 +8341,64 @@ group("de ronde: zes stappen, precies één aan de beurt", () => {
   ok("maar zegt wel dat het doorloopt", rondeZin(rond).includes("maandelijks"));
 
   // Enkelvoud en meervoud, want deze standen staan bijna altijd op 0 of 1.
-  const een = ronde({ metingen: 1, kansen: 1, gepland: 1, geschreven: 1, gepubliceerd: 1, hermeten: 1 });
+  const een = ronde({ clusters: 3, metingen: 1, kansen: 1, gepland: 1, geschreven: 1, gepubliceerd: 1, hermeten: 1 });
   ok("één meting is enkelvoud", een[0].stand === "1 meting");
   ok("één tekst is enkelvoud", een[3].stand === "1 tekst");
-  const leeg = ronde({ metingen: 0, kansen: 0, gepland: 0, geschreven: 0, gepubliceerd: 0, hermeten: 0 });
+  const leeg = ronde({ clusters: 3, metingen: 0, kansen: 0, gepland: 0, geschreven: 0, gepubliceerd: 0, hermeten: 0 });
   ok("nul zegt wat er ontbreekt", leeg.every((f) => f.stand.startsWith("nog")));
   ok("en meten is dan de eerste stap", leeg.find((f) => f.actief)?.id === "meten");
+
+  // ── Een merk zonder onderwerp (16 september 2026) ────────────────────────
+  //
+  // ⚠️ DE STILLE STILSTAND DIE DIT VOORKOMT. Een net overgedragen klant heeft
+  // nul clusters. Tot deze wijziging las hij "ORBIT ENGINE is aan zet bij
+  // meten", terwijl er niets in de wachtrij stond en hij zelf niets kon starten
+  // (een cluster beginnen is beheerderswerk, `lib/cost-rules.ts`). Hij zat dus
+  // te wachten op iets dat nooit vanzelf kwam, en niets op zijn scherm zei dat.
+  const zonderOnderwerp = ronde({
+    clusters: 0,
+    metingen: 0,
+    kansen: 0,
+    gepland: 0,
+    geschreven: 0,
+    gepubliceerd: 0,
+    hermeten: 0,
+  });
+  const meten = zonderOnderwerp.find((f) => f.id === "meten")!;
+  ok("zonder cluster is de consultant aan zet", meten.aanZet === "consultant");
+  ok("en de stand zegt wat er mist", meten.stand === "nog geen onderwerp");
+  ok("meten is dan de actieve stap", meten.actief);
+  const zin = rondeZin(zonderOnderwerp);
+  ok("de zin wijst de consultant aan", zin.startsWith("Je consultant is aan zet"));
+  ok("en zegt wat er daarna komt", /daarna meet orbit engine/i.test(zin));
+  // Niet "ORBIT ENGINE is aan zet": dat was precies de onjuiste zin.
+  ok("en nooit dat ORBIT ENGINE aan zet is", !zin.startsWith("ORBIT ENGINE is aan zet"));
+
+  // Zodra er één cluster is, is het weer gewoon werk van ORBIT ENGINE.
+  const metOnderwerp = ronde({
+    clusters: 1,
+    metingen: 0,
+    kansen: 0,
+    gepland: 0,
+    geschreven: 0,
+    gepubliceerd: 0,
+    hermeten: 0,
+  });
+  ok(
+    "met een cluster is ORBIT ENGINE weer aan zet",
+    metOnderwerp.find((f) => f.id === "meten")?.aanZet === "orbit",
+  );
+  ok(
+    "en de stand is weer de gewone",
+    metOnderwerp.find((f) => f.id === "meten")?.stand === "nog niet gemeten",
+  );
+
+  // De arbeidsverdeling zelf verandert niet: alleen de eerste stap kan van
+  // eigenaar wisselen, de andere vijf nooit.
+  ok(
+    "alleen meten kan naar de consultant",
+    zonderOnderwerp.filter((f) => f.aanZet === "consultant").length === 1,
+  );
 
   // ⚠️ Geen enkele stand claimt een doel. "3 van de 12" zou een norm zijn die
   // de klant niet zelf gesteld heeft.
@@ -17812,11 +17882,17 @@ group("A5: het contentpakket landt niet meer op het account van de consultant", 
   ok("de aanmaakwizard vraagt geen contentpakket meer", !wizard.includes("packagePagesPerMonth"));
   ok("de aanmaakwizard heeft geen isStaff-vertakking meer nodig", !wizard.includes("isStaff"));
 
+  // ⚠️ Deze controle keek tot 16 september 2026 of het blok de zin "vóór het
+  // eerste contentplan" bevatte. Die zin stond er altijd, ook bij een klant
+  // waarbij het pakket allang goed stond, en daarmee bewaakte hij vooral zijn
+  // eigen formulering. De belofte eronder is wat telt: de consultant moet te
+  // zien krijgen dat een ontbrekend pakket het contentplan van de klant
+  // blokkeert. Dat komt nu uit `afspraakGaten()`, alleen als het gat er echt is,
+  // en het staat hierboven onder test. Hier blijft over dat het blok die lijst
+  // ook daadwerkelijk toont: zonder dat is de tekst getest en de schermweergave niet.
   const pakketBlok = leesBestand("app/(app)/merk/[id]/_components/package-box.tsx");
-  ok(
-    "het toewijzingsscherm zegt dat dit vóór het eerste contentplan moet gebeuren",
-    pakketBlok.includes("vóór het eerste contentplan"),
-  );
+  ok("het toewijzingsscherm toont de openstaande verkoopafspraak", pakketBlok.includes("afspraakGaten"));
+  ok("met het gevolg erbij en niet alleen het veld", pakketBlok.includes("gat.gevolg"));
 });
 
 group("A6: de opslagknop van het gespreksblok zegt wat hij doet", () => {
@@ -22337,13 +22413,471 @@ group("optimalisatie 16: de bevinding wijst de sectie aan waar het huiswerk zit"
   ok("en dezelfde telling", zonder.gebiedend === uitkomst.gebiedend);
 });
 
+// ── Eén feitenvraag, één model (16 september 2026) ──────────────────────────
+console.log("\nDe feitenvraag, op elk scherm hetzelfde");
+
+group("het invoerveld hoort bij de vraag", () => {
+  // ── WAT HIER MIS WAS ─────────────────────────────────────────────────────
+  //
+  // Dezelfde rij uit `fact_requests` kreeg op de briefing een ja-of-nee-keuze
+  // en op "Openstaande vragen" een leeg tekstvak van drie regels. Een vraag van
+  // één klik kostte daar dus een getypt antwoord, en dat bepaalt of iemand hem
+  // beantwoordt.
+  ok("ja of nee wordt een keuze", vraagVorm({ answer_type: "ja_nee" }).vorm === "keuze");
+  ok(
+    "met twee knoppen",
+    vraagVorm({ answer_type: "ja_nee" }).keuzes.join("/") === "Ja/Nee",
+  );
+  ok(
+    "een keuzevraag gebruikt zijn eigen opties",
+    vraagVorm({ answer_type: "keuze", options: ["Wel", "Niet"] }).keuzes.join("/") === "Wel/Niet",
+  );
+  ok("een lijst krijgt een tekstvak", vraagVorm({ answer_type: "lijst" }).vorm === "tekstvak");
+  ok("met een hint erin", vraagVorm({ answer_type: "lijst" }).hint === "Eén per regel");
+  ok("een bedrag krijgt zijn eigen veld", vraagVorm({ answer_type: "bedrag" }).vorm === "bedrag");
+  ok("een url ook", vraagVorm({ answer_type: "url" }).vorm === "url");
+
+  // ⚠️ Conventie 3. Een keuzelijst zonder opties is een vraag die je niet kúnt
+  // beantwoorden; een tekstvak is hooguit onhandig. Rijen van vóór migratie
+  // 0024 hebben de kolom niet.
+  ok("een keuze zonder opties valt terug", vraagVorm({ answer_type: "keuze", options: [] }).vorm !== "keuze");
+  ok("een lege optie telt niet mee", vraagVorm({ answer_type: "keuze", options: ["  "] }).vorm !== "keuze");
+  ok("geen type valt terug op een regel", vraagVorm({}).vorm === "regel");
+  ok("een onbekend type ook", vraagVorm({ answer_type: "iets_nieuws" }).vorm === "regel");
+});
+
+group("de kopjes en de volgorde staan op één plek", () => {
+  ok("elke soort heeft een kop", VRAAGSOORT_VOLGORDE.every((k) => vraagsoortKop(k) !== null));
+  ok("zonder soort geen kop", vraagsoortKop(null) === null);
+  ok("een onbekende soort ook niet", vraagsoortKop("verzonnen") === null);
+  // De klant leest geen categorieënmodel, hij leest een vraag van zijn
+  // leverancier. Dat geldt voor de vijf soorten met een jargonnaam; "praktisch"
+  // is al gewoon Nederlands en heet daarom wél zo.
+  const jargon = ["verificatie", "aanvulling", "onderscheid", "bewijs", "grenzen"];
+  ok(
+    "geen enkel jargonwoord staat in zijn eigen kop",
+    jargon.every((k) => !vraagsoortKop(k)!.titel.toLowerCase().includes(k)),
+  );
+  ok(
+    "en elke kop legt uit waarom de vraag gesteld wordt",
+    VRAAGSOORT_VOLGORDE.every((k) => vraagsoortKop(k)!.uitleg.trim().length > 25),
+  );
+
+  // De volgorde is overgenomen uit het scherm dat al bij klanten draait en met
+  // opzet niet "verbeterd".
+  ok("verificatie eerst", VRAAGSOORT_VOLGORDE[0] === "verificatie");
+  ok("onderscheid daarna", VRAAGSOORT_VOLGORDE[1] === "onderscheid");
+  ok("grenzen achteraan", VRAAGSOORT_VOLGORDE[VRAAGSOORT_VOLGORDE.length - 1] === "grenzen");
+
+  const groepen = groepeerOpSoort([
+    { kind: "grenzen" },
+    { kind: "verificatie" },
+    { kind: null },
+    { kind: "onderscheid" },
+  ]);
+  ok("gegroepeerd in de vaste volgorde", groepen.map((g) => g.kind).join(" ") === "verificatie onderscheid grenzen ");
+  ok("en wat geen soort heeft, staat achteraan", groepen[groepen.length - 1].kind === "");
+  ok("zonder kop", groepen[groepen.length - 1].kop === null);
+  ok("een lege lijst geeft geen groepen", groepeerOpSoort([]).length === 0);
+});
+
+group("beide schermen tekenen hetzelfde veld", () => {
+  const briefing = leesBestand("app/(app)/analyses/[id]/briefing/briefing-form.tsx");
+  const vragenlijst = leesBestand("app/(app)/merk/[id]/_components/fact-requests.tsx");
+  ok("de briefing gebruikt het gedeelde veld", briefing.includes("Antwoordveld"));
+  ok("de vragenlijst ook", vragenlijst.includes("Antwoordveld"));
+  // Op de declaratie en niet op het woord: de toelichting in dat bestand noemt
+  // de oude naam met opzet, zodat terug te vinden is waar hij heen ging.
+  ok("de briefing heeft geen eigen kopjestabel meer", !briefing.includes("const KIND_HEADING"));
+  ok("en geen eigen volgorde", !briefing.includes("const KIND_ORDER"));
+  // De gok van ORBIT ENGINE stond alleen op de briefing, terwijl bevestigen
+  // goedkoper is dan formuleren.
+  ok("de vragenlijst toont nu ook de gok", vragenlijst.includes("suggested_answer"));
+  ok("en markeert wat een kernstuk draagt", vragenlijst.includes("VERPLICHT_UITLEG"));
+});
+
+group("het ruwe AI-antwoord bereikt de browser niet", () => {
+  // Herstelplan na audit T8.9. Twee paden waren gerepareerd, dit derde niet:
+  // `loadOpenQuestions` deed `select("*")` en die rij ging als prop naar een
+  // clientcomponent. De schoonmaak staat nu in de loader, zodat elke volgende
+  // lezer hem vanzelf krijgt.
+  const loader = leesBestand("lib/open-questions.ts");
+  ok("de loader schoont de rijen op", loader.includes("publicFactRequest"));
+
+  const schoon = publicFactRequest({
+    id: "f1",
+    question: "Hoeveel monteurs heb je?",
+    raw_json: { antwoord: "het complete OpenAI-antwoord" },
+    section_id: "s1",
+    section_refs: ["a"],
+    kind: "bewijs",
+    answer_type: "getal",
+  }) as unknown as Record<string, unknown>;
+  ok("raw_json gaat eruit", !("raw_json" in schoon));
+  ok("section_id ook", !("section_id" in schoon));
+  // En wat het scherm nodig heeft, blijft staan: anders zou de schoonmaak de
+  // vraagvorm slopen die hierboven net getest is.
+  ok("de vraagsoort blijft", schoon.kind === "bewijs");
+  ok("het antwoordtype blijft", schoon.answer_type === "getal");
+});
+
+// ── Eén bibliotheek in plaats van twee (16 september 2026) ──────────────────
+console.log("\nEén bibliotheek");
+
+group("de bibliotheek per cluster is een doorverwijzing geworden", () => {
+  // ── WAT HIER MIS WAS ─────────────────────────────────────────────────────
+  //
+  // Twee lijsten over dezelfde rijen: een per cluster en een merkbrede. Een
+  // klant met vier clusters had er vijf, met twee weergaven, twee manieren om
+  // te filteren en twee tellingen die gelijk hoorden te zijn zonder dat iets
+  // dat afdwong. De merkbrede kan alles wat de andere kon, plus zoeken,
+  // paginering en kerncijfers.
+  const cluster = leesBestand("app/(app)/analyses/[id]/bibliotheek/page.tsx");
+  ok("hij verwijst door", cluster.includes("redirect("));
+  ok("naar de merkbrede, met dit cluster als filter", cluster.includes("strategie/bibliotheek?cluster="));
+  ok("en toont zelf geen lijst meer", !cluster.includes("LibraryList"));
+
+  // De detailpagina eronder is een ander scherm en moet blijven: daar staat de
+  // tekst zelf, en elke rij in de merkbrede bibliotheek linkt ernaartoe.
+  ok(
+    "de detailpagina bestaat nog",
+    bestaatBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/page.tsx"),
+  );
+  // De oude lijstweergave hoort weg te zijn: code die nergens meer vandaan
+  // wordt aangeroepen, gaat stil uit de pas lopen met de weergave die wél
+  // gebruikt wordt.
+  ok(
+    "de oude lijstweergave is opgeruimd",
+    !bestaatBestand("app/(app)/analyses/[id]/bibliotheek/library-list.tsx"),
+  );
+
+  const merk = leesBestand("app/(app)/merk/[id]/strategie/bibliotheek/page.tsx");
+  ok("de merkbrede leest het filter uit het adres", merk.includes("searchParams"));
+  ok("en geeft het door aan de weergave", merk.includes("beginCluster"));
+
+  // Een adres met een onbekend cluster-id mag geen lege lijst opleveren: dat is
+  // verwarrender dan geen filter (conventie 3).
+  ok("een onbekend cluster valt terug op alles", merk.includes("rows.some("));
+
+  // En het scherm dat de klant uitlegt hoe het werkt, mag niet meer over twee
+  // bibliotheken praten (CLAUDE.md: nooit schrijven dat iets kan wat er niet is).
+  const support = leesBestand("app/(app)/support/page.tsx");
+  ok("de uitleg noemt er nog maar één", !support.includes("eigen, kleinere bibliotheek"));
+});
+
+// ── Een cluster starten is beheerderswerk (16 september 2026) ───────────────
+console.log("\nWie begint een cluster");
+
+group("elke dure route heeft dezelfde rem", () => {
+  // ── WAT HIER MIS WAS ─────────────────────────────────────────────────────
+  //
+  // `lib/cost-rules.ts` schrijft in zijn eigen toelichting dat "POST
+  // /api/profiles en POST /api/analyses allebei een 201 gaven" en dat de
+  // eigenaar dat op 2 september 2026 heeft teruggedraaid. Bij /api/profiles is
+  // die rem er die dag gekomen, bij /api/analyses niet: dat was op 16 september
+  // 2026 de enige dure route zonder `mayTriggerCost`. Een klant kon er via het
+  // vrije tekstveld betaald onderzoek mee starten, terwijl hetzelfde onderwerp
+  // via het snelpad netjes werd geweigerd.
+  //
+  // Deze controle bewaakt de belofte van `cost-guard.ts` ("elke dure route
+  // stelt dezelfde vraag aan dezelfde functie") in plaats van hem te geloven.
+  const dureRoutes = [
+    "app/api/analyses/route.ts",
+    "app/api/profiles/route.ts",
+    "app/api/analyses/[id]/measure/route.ts",
+    "app/api/analyses/[id]/generate/route.ts",
+    "app/api/profiles/[id]/topics/route.ts",
+    "app/api/profiles/[id]/reputation/route.ts",
+  ];
+  const zonderRem = dureRoutes.filter((pad) => !leesBestand(pad).includes("mayTriggerCost"));
+  ok("elke dure route vraagt het aan cost-guard", zonderRem.length === 0, zonderRem.join(", "));
+
+  ok(
+    "en een cluster starten staat op slot",
+    STAFF_ONLY_ACTIONS.includes("analyse_starten"),
+  );
+});
+
+group("een klant loopt niet tegen een knop die hem afwijst", () => {
+  // De knoppen die naar /analyses/new wezen stonden bij een klant vol in beeld
+  // en weigerden pas ná de klik. Op het clusterscherm is dat het eerste wat hij
+  // van de app leert, dus daar verdwijnt de knop in plaats van te weigeren.
+  const clusters = leesBestand("app/(app)/merk/[id]/strategie/clusters/page.tsx");
+  ok("het clusterscherm toont de knop alleen aan de consultant", clusters.includes("staff ? ("));
+  ok(
+    "en zegt de klant wie zijn onderwerpen klaarzet",
+    clusters.includes("KLANT_ZONDER_CLUSTERS"),
+  );
+
+  const topics = leesBestand("app/(app)/merk/[id]/_components/topics-panel.tsx");
+  ok("het snelpad doet hetzelfde", topics.includes("staff ? ("));
+
+  // Een adres achter een verborgen knop is nog steeds een adres.
+  const nieuw = leesBestand("app/(app)/analyses/new/page.tsx");
+  ok("en de pagina zelf controleert het ook", nieuw.includes("isStaff") && nieuw.includes("notFound()"));
+});
+
+group("een merk zonder cluster overdragen wordt gemeld", () => {
+  ok("met nul clusters komt er een waarschuwing", overdrachtZonderCluster(0) !== null);
+  ok("met één cluster niet", overdrachtZonderCluster(1) === null);
+  ok(
+    "de waarschuwing zegt wat de klant zou zien",
+    /leeg overzicht/.test(overdrachtZonderCluster(0) ?? ""),
+  );
+  ok(
+    "en wat je eraan doet",
+    /zet eerst/i.test(overdrachtZonderCluster(0) ?? ""),
+  );
+
+  const toewijzen = leesBestand("app/(app)/merk/[id]/admin/toewijzen/page.tsx");
+  ok("het toewijzingsscherm toont hem", toewijzen.includes("overdrachtZonderCluster"));
+});
+
+// ── Een veld belooft nooit meer dan het doet (16 september 2026) ────────────
+console.log("\nGeen veld belooft wat het niet doet");
+
+group("omschrijving en gebruik spreken elkaar niet tegen", () => {
+  // ── WAT HIER MIS GING ────────────────────────────────────────────────────
+  //
+  // `deal_value_band` had als omschrijving "Bepaalt hoe zwaar een onderwerp
+  // meeweegt" en als gebruik "Wordt op dit moment nog niet meegewogen in de
+  // app". Die twee regels staan pal onder elkaar op hetzelfde scherm
+  // (`brand-field-input.tsx` toont eerst `description`, dan `usage`), dus de
+  // consultant las een belofte met de ontkenning eronder. CLAUDE.md: schrijf
+  // nooit dat iets al kan wat nog niet gebouwd is.
+  //
+  // Deze controle vangt precies dat geval: zegt het gebruik "nog niet", dan mag
+  // de omschrijving geen werkwoord bevatten dat beweert dat de app er iets mee
+  // doet. Het gaat om de belofte, niet om de formulering: een veld beschrijven
+  // mag altijd, iets toezeggen niet.
+  const beweert = /\b(bepaalt|stuurt|zorgt ervoor|wordt gebruikt|komt onder|weegt mee|verschijnt)\b/i;
+  const nogNiet = /nog niet|nog geen lezer|niet meegewogen/i;
+
+  const overtreders = BRAND_FIELDS.filter(
+    (f) => nogNiet.test(f.usage) && beweert.test(f.description),
+  ).map((f) => f.key);
+
+  ok("geen enkel veld belooft wat zijn gebruik ontkent", overtreders.length === 0, overtreders.join(", "));
+
+  // En het omgekeerde moet blijven bestaan: dat er velden ZIJN die eerlijk
+  // zeggen dat ze nog geen lezer hebben. Verdwijnt die categorie, dan is de
+  // controle hierboven stil nutteloos geworden.
+  ok(
+    "er zijn nog velden die eerlijk zeggen dat ze niet gebruikt worden",
+    BRAND_FIELDS.some((f) => nogNiet.test(f.usage)),
+  );
+});
+
+group("de waardeklasse is vastgelegd, niet aangesloten", () => {
+  // De redenering staat in `commercial-context.ts`: de potentiescore is per
+  // onderwerp en de waardeklasse per merk, dus een factor zou elk onderwerp van
+  // een merk even hard verschuiven en de onderlinge volgorde niet veranderen.
+  // Deze controle houdt vast dat het een besluit blijft en niet stil terugkeert.
+  const potentie = leesBestand("lib/potential.ts");
+  ok("de potentiescore leest de waardeklasse niet", !potentie.includes("deal_value_band"));
+  const voorraad = leesBestand("lib/plan-backlog.ts");
+  ok("de voorraadsortering evenmin", !voorraad.includes("deal_value_band"));
+
+  const context = leesBestand("lib/pipeline/commercial-context.ts");
+  ok(
+    "en de reden staat uitgeschreven op één plek",
+    context.includes("deal_value_band") && context.includes("per merk"),
+  );
+});
+
+// ── De verkoopafspraak onder een account (16 september 2026) ────────────────
+console.log("\nDe verkoopafspraak: pakket en startdatum");
+
+group("het programma begint bij de toewijzing", () => {
+  const nu = new Date("2026-09-16T10:00:00Z");
+  ok("zonder startdatum wordt er een gezet", startdatumBijToewijzing(null, nu) === nu.toISOString());
+  // ⚠️ De regel die ertoe doet: een klant die zijn tweede merk krijgt, begint
+  // niet opnieuw. Zou dit overschrijven, dan springt zijn teller terug naar
+  // maand 1 en daarmee elk cijfer dat "sinds de start" rekent.
+  ok("een bestaande datum blijft staan", startdatumBijToewijzing("2026-03-01T00:00:00Z", nu) === null);
+});
+
+group("elk gat noemt wat de klant ervan merkt", () => {
+  const leeg = afspraakGaten({ pakket: null, startdatum: null });
+  ok("twee gaten", leeg.length === 2);
+  ok("het pakket staat bovenaan", leeg[0].veld === "pakket");
+  // Zwaar betekent hier: hoeveel de klant ervan merkt. Zonder pakket blokkeert
+  // zijn contentplan, zonder startdatum blijft alleen een teller leeg.
+  ok("en de startdatum eronder", leeg[1].veld === "startdatum");
+  ok(
+    "elk gat zegt het gevolg en niet alleen het veld",
+    leeg.every((g) => g.gevolg.trim().length > 40),
+  );
+  ok("het gevolg van geen pakket is het contentplan", /contentplan/i.test(leeg[0].gevolg));
+
+  ok("alleen een pakket laat de datum over", afspraakGaten({ pakket: 20, startdatum: null }).length === 1);
+  ok(
+    "alles ingevuld is geen gat",
+    afspraakGaten({ pakket: 20, startdatum: "2026-03-01T00:00:00Z" }).length === 0,
+  );
+});
+
+group("de samenvatting zegt hoe het ervoor staat", () => {
+  ok(
+    "compleet noemt het pakket en de datum",
+    /20 pagina's per maand/.test(afspraakSamenvatting({ pakket: 20, startdatum: "2026-03-01T00:00:00Z" })),
+  );
+  ok(
+    "helemaal leeg zegt dat ook",
+    afspraakSamenvatting({ pakket: null, startdatum: null }) === "De verkoopafspraak staat nog helemaal open.",
+  );
+});
+
+group("een startdatum uit een invoerveld", () => {
+  ok("leeg wist de datum", leesStartdatum("") === null);
+  ok("null wist de datum", leesStartdatum(null) === null);
+  ok("een datum wordt een tijdstempel", (leesStartdatum("2026-03-01") ?? "").startsWith("2026-03-01"));
+  // Onbekend is beter dan verkeerd (conventie 3): een onleesbare datum slaat de
+  // route over in plaats van de teller van de klant op een gok te zetten.
+  ok("onzin levert niets op", leesStartdatum("morgen") === undefined);
+  ok("een getal levert niets op", leesStartdatum(20260301) === undefined);
+});
+
+// ── De vier lege staten van het zoekverkeerscherm (16 september 2026) ───────
+console.log("\nWaarom staat er geen zoekverkeer op het scherm?");
+
+const gsc = (over: Partial<Parameters<typeof legeStaat>[0]> = {}) =>
+  legeStaat({
+    heeftProperty: true,
+    geverifieerdOp: "2026-09-01T00:00:00Z",
+    laatsteFout: null,
+    gepubliceerdePaginas: 3,
+    dagenVoorOnzePaginas: 42,
+    ...over,
+  });
+
+group("elk van de vier heeft zijn eigen uitleg", () => {
+  ok("geen property", gsc({ heeftProperty: false })?.staat === "niet_gekoppeld");
+  ok("nooit geverifieerd", gsc({ geverifieerdOp: null })?.staat === "geen_toegang");
+  ok("laatste poging mislukt", gsc({ laatsteFout: "403 van Google" })?.staat === "geen_toegang");
+  ok("niets gepubliceerd", gsc({ gepubliceerdePaginas: 0 })?.staat === "niets_live");
+  ok("nog geen cijfers", gsc({ dagenVoorOnzePaginas: 0 })?.staat === "cijfers_komen");
+  ok("alles in orde geeft niets", gsc() === null);
+});
+
+group("de volgorde is het programma zelf", () => {
+  // De fout van vóór 16 september 2026: dit is de meest voorkomende klant, net
+  // gekoppeld en nog niets live, en die las "Koppel je Google Search Console".
+  ok(
+    "net gekoppeld en niets live gaat over publiceren",
+    gsc({ gepubliceerdePaginas: 0, dagenVoorOnzePaginas: 0 })?.staat === "niets_live",
+  );
+  // Zonder toegang valt er over publiceren niets zinnigs te zeggen: eerst moet
+  // Google ons binnenlaten.
+  ok(
+    "geen toegang weegt zwaarder dan niets live",
+    gsc({ geverifieerdOp: null, gepubliceerdePaginas: 0 })?.staat === "geen_toegang",
+  );
+  ok(
+    "geen koppeling weegt het zwaarst",
+    gsc({ heeftProperty: false, geverifieerdOp: null, gepubliceerdePaginas: 0 })?.staat ===
+      "niet_gekoppeld",
+  );
+});
+
+group("elke staat zegt wie er aan zet is", () => {
+  ok("niet gekoppeld is consultantwerk", gsc({ heeftProperty: false })?.aanZet === "consultant");
+  ok("geen toegang is consultantwerk", gsc({ geverifieerdOp: null })?.aanZet === "consultant");
+  ok("niets live is aan de klant", gsc({ gepubliceerdePaginas: 0 })?.aanZet === "klant");
+  // De enige staat waarin niemand iets kan doen, en dus de enige die letterlijk
+  // zegt dat je niets hoeft te doen.
+  const wachten = gsc({ dagenVoorOnzePaginas: 0 });
+  ok("wachten is van niemand", wachten?.aanZet === null);
+  ok("en zegt dat ook", /niets te doen|niets doen/i.test(wachten?.geruststelling ?? ""));
+
+  const alle = [
+    gsc({ heeftProperty: false })!,
+    gsc({ geverifieerdOp: null })!,
+    gsc({ gepubliceerdePaginas: 0 })!,
+    gsc({ dagenVoorOnzePaginas: 0 })!,
+  ];
+  ok("vier verschillende koppen", new Set(alle.map((a) => a.kop)).size === 4);
+  ok(
+    "elke uitleg zegt wat er aan de hand is",
+    alle.every((a) => a.uitleg.trim().length > 40),
+  );
+  ok(
+    "wie kan wachten leest dat ook",
+    alle.filter((a) => a.aanZet !== "klant").every((a) => a.geruststelling.trim().length > 0),
+  );
+});
+
+// ── De drie kopieervormen (16 september 2026) ───────────────────────────────
+console.log("\nKopiëren naar het CMS van de klant");
+
+group("platte tekst houdt wat een mens nodig heeft", () => {
+  const md = [
+    "# Daklekkage verhelpen",
+    "",
+    "Wij komen **binnen 24 uur** langs. Lees de [voorwaarden](https://voorbeeld.nl/voorwaarden).",
+    "",
+    "- Eerst afdichten",
+    "- Daarna herstellen",
+    "",
+    "1. Bel ons",
+    "2. Wij komen langs",
+  ].join("\n");
+  const uit = plattetekst(md);
+
+  ok("de hekjes zijn weg", !uit.includes("#"));
+  ok("de sterretjes zijn weg", !uit.includes("**"));
+  ok("de kop staat er nog", uit.startsWith("Daklekkage verhelpen"));
+  // Het verschil met `stripMarkdown`: dit gaat naar een mens die het plakt, dus
+  // de opsomming en het linkadres moeten het overleven.
+  ok("het opsommingsteken blijft", uit.includes("- Eerst afdichten"));
+  ok("het nummer blijft", uit.includes("1. Bel ons"));
+  ok("het linkadres blijft", uit.includes("voorwaarden (https://voorbeeld.nl/voorwaarden)"));
+  ok("het linklabel blijft", uit.includes("voorwaarden ("));
+});
+
+group("platte tekst ruimt op wat een editor in de weg zit", () => {
+  const md = "Eerste alinea.\n\n---\n\nTweede alinea.";
+  const uit = plattetekst(md);
+  ok("de horizontale lijn is weg", !uit.includes("---"));
+  ok("hooguit één witregel", !uit.includes("\n\n\n"));
+  ok("geen witruimte aan de randen", uit === uit.trim());
+
+  ok("blokcitaat verliest zijn teken", plattetekst("> Zo staat het in de norm.") === "Zo staat het in de norm.");
+  ok("inline code verliest zijn tekens", plattetekst("Gebruik `robots.txt` hiervoor.") === "Gebruik robots.txt hiervoor.");
+  // Een link waarvan het label al het adres is, wordt niet verdubbeld: anders
+  // staat er "https://x.nl (https://x.nl)" op de pagina van de klant.
+  ok("geen dubbel adres", plattetekst("[https://x.nl](https://x.nl)") === "https://x.nl");
+  ok("een afbeelding houdt alleen zijn bijschrift", plattetekst("![Het dak](/dak.jpg)") === "Het dak");
+});
+
+group("de opties dragen hun eigen reden", () => {
+  const opties = kopieeropties("# Kop\n\nTekst.", "<h1>Kop</h1>\n<p>Tekst.</p>");
+  ok("drie vormen", opties.length === 3);
+  ok("HTML staat vooraan", opties[0].vorm === "html");
+  // Waarom de volgorde vastligt: de meeste CMS'en nemen opmaak over, dus dat is
+  // de rij waar de klant het eerst op moet stuiten.
+  ok("daarna platte tekst", opties[1].vorm === "tekst");
+  ok("Markdown als laatste", opties[2].vorm === "markdown");
+  ok(
+    "elke optie zegt waarvoor hij is",
+    opties.every((o) => o.waarvoor.trim().length > 20),
+  );
+  ok(
+    "geen enkele reden praat over het formaat in plaats van over het CMS",
+    opties.every((o) => /CMS|editor/i.test(o.waarvoor)),
+  );
+
+  // Een pagina zonder tekst hoort geen kopieerknop te tonen die niets doet.
+  ok("lege pagina geeft geen opties", kopieeropties("", "").length === 0);
+  ok("alleen HTML leeg valt weg", kopieeropties("Tekst.", "").every((o) => o.vorm !== "html"));
+});
+
 group("punt 25: nieuwe versie beschikbaar", () => {
   ok("gelijke versies: geen melding", !isNewerVersionAvailable("abc123", "abc123"));
   ok("verschillende versies: wel een melding", isNewerVersionAvailable("abc123", "def456"));
   ok("eigen versie nog onbekend: geen melding", !isNewerVersionAvailable("", "def456"));
   ok("serverversie nog onbekend: geen melding", !isNewerVersionAvailable("abc123", ""));
-  ok("allebei onbekend: geen melding", !isNewerVersionAvailable("", ""));
-});
+  ok("allebei onbekend: geen melding", !isNewerVersionAvailable("", ""));});
 
 // ════════════════════════════════════════════════════════════════════════════
 void (async () => {

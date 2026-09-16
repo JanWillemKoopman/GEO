@@ -592,7 +592,10 @@ export const BRAND_FIELDS: BrandField[] = [
     key: "author_bio",
     step: "auteur",
     label: "Korte introductie",
-    description: "Twee zinnen. Komt onder de artikelen te staan.",
+    // "Komt onder de artikelen te staan" beloofde iets dat nog niet gebouwd is,
+    // met de `usage` eronder die het tegenspreekt (CLAUDE.md: schrijf nooit dat
+    // iets al kan wat nog niet gebouwd is).
+    description: "Twee zinnen over waarom deze persoon hier verstand van heeft.",
     placeholder: "Sanne werkt sinds 2011 in de werkplaats en leidt daar het onderhoudsteam.",
     kind: "lange-tekst",
     derivable: false,
@@ -777,8 +780,16 @@ export const BRAND_FIELDS: BrandField[] = [
     key: "deal_value_band",
     step: "strategie",
     label: "Wat een klant ongeveer waard is",
+    // ⚠️ Hier stond "Bepaalt hoe zwaar een onderwerp meeweegt", pal boven de
+    // `usage` eronder die zegt dat hij nog niet meeweegt. Twee regels die elkaar
+    // op één scherm tegenspreken, en de eerste was de onjuiste: de potentiescore
+    // is per ONDERWERP en de waardeklasse per MERK, dus een factor zou elk
+    // onderwerp van een merk even hard verschuiven en de onderlinge volgorde,
+    // het enige waarvoor die score dient, niet veranderen. De uitgeschreven
+    // redenering staat in `lib/pipeline/commercial-context.ts`.
     description:
-      "Bepaalt hoe zwaar een onderwerp meeweegt. Geen bedrag, want dat is in een uur niet vast te stellen.",
+      "Voor het gesprek: bij een grote klantwaarde tellen beslissingsvragen zwaarder dan bereik. " +
+      "Geen bedrag, want dat is in een uur niet vast te stellen.",
     kind: "keuze",
     options: [
       "Weten we niet",

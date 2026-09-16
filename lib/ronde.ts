@@ -40,6 +40,18 @@ export type FaseId =
   | "hermeten";
 
 export interface RondeInput {
+  /**
+   * Hoeveel clusters dit merk heeft.
+   *
+   * ⚠️ **Zonder cluster valt er niets te meten, en dan is ORBIT ENGINE niet aan
+   * zet maar de consultant.** Tot 16 september 2026 miste dit getal, en dan
+   * las een net overgedragen klant met nul clusters: "ORBIT ENGINE is aan zet
+   * bij meten." Er stond op dat moment niets in de wachtrij en hij kon zelf
+   * niets starten (een cluster beginnen is beheerderswerk, zie
+   * `lib/cost-rules.ts`), dus die zin liet hem wachten op iets dat nooit
+   * vanzelf kwam. Precies de stille stilstand die dit blok moest voorkomen.
+   */
+  clusters: number;
   /** Aantal afgeronde meetperiodes over alle clusters van dit merk. */
   metingen: number;
   /** Openstaande kansen uit het laatste rapport. */
@@ -65,15 +77,26 @@ export interface RondeFase {
   klaar: boolean;
   /** De eerste stap die nog niet klaar is. Hooguit één van de zes. */
   actief: boolean;
-  /** Wacht deze stap op de klant, of doet ORBIT ENGINE hem zelf? */
-  vanJou: boolean;
+  /**
+   * Wie moet er iets doen voordat deze stap verdergaat?
+   *
+   * `"jij"` de klant, `"orbit"` ORBIT ENGINE zelf, `"consultant"` Outer Orbit.
+   * Die derde bestaat sinds 16 september 2026 en heeft precies één geval: er is
+   * nog geen enkel cluster, dus er valt niets te meten en de klant kan dat zelf
+   * niet starten. Zonder die waarde zou het scherm "ORBIT ENGINE is aan zet"
+   * zeggen bij een lege wachtrij.
+   */
+  aanZet: AanZet;
 }
+
+export type AanZet = "jij" | "orbit" | "consultant";
 
 interface FaseDefinitie {
   id: FaseId;
   label: string;
   wat: string;
-  vanJou: boolean;
+  /** De normale stand. Alleen "meten" wijkt hiervan af, en alleen bij nul clusters. */
+  aanZet: AanZet;
   /** Het aantal dat deze stap draagt. */
   telling: (input: RondeInput) => number;
   /** De stand, in woorden. */
@@ -85,7 +108,7 @@ interface FaseDefinitie {
  * waarin een stap "aan de beurt" kan zijn. Verplaats hier niets zonder dat de
  * pijplijn zelf verandert.
  *
- * `vanJou` staat op twee stappen. Plannen is van de klant sinds hij zijn eigen
+ * `aanZet` staat op "jij" bij twee stappen. Plannen is van de klant sinds hij zijn eigen
  * maand vrijgeeft (27 augustus 2026, `lib/cost-rules.ts`), en publiceren was
  * altijd al van hem: ORBIT ENGINE kan niet op zijn website komen. Dat is geen
  * detail maar de kern van de arbeidsverdeling, en de klant leest het hier voor
@@ -96,7 +119,7 @@ const FASES: FaseDefinitie[] = [
     id: "meten",
     label: "Meten",
     wat: "ORBIT ENGINE stelt de vragen van jouw klanten aan AI-assistenten",
-    vanJou: false,
+    aanZet: "orbit",
     telling: (i) => i.metingen,
     stand: (n) => (n === 0 ? "nog niet gemeten" : n === 1 ? "1 meting" : `${n} metingen`),
   },
@@ -104,7 +127,7 @@ const FASES: FaseDefinitie[] = [
     id: "kansen",
     label: "Kansen",
     wat: "waar je niet genoemd wordt, en wat dat waard is",
-    vanJou: false,
+    aanZet: "orbit",
     telling: (i) => i.kansen,
     stand: (n) => (n === 0 ? "nog geen kansen" : n === 1 ? "1 kans" : `${n} kansen`),
   },
@@ -112,7 +135,7 @@ const FASES: FaseDefinitie[] = [
     id: "plannen",
     label: "Plannen",
     wat: "jij geeft de maand vrij die aan de beurt is",
-    vanJou: true,
+    aanZet: "jij",
     telling: (i) => i.gepland,
     stand: (n) => (n === 0 ? "nog geen plan" : `${n} ingepland`),
   },
@@ -120,7 +143,7 @@ const FASES: FaseDefinitie[] = [
     id: "schrijven",
     label: "Schrijven",
     wat: "ORBIT ENGINE schrijft de pagina's die de gemiste vragen moeten winnen",
-    vanJou: false,
+    aanZet: "orbit",
     telling: (i) => i.geschreven,
     stand: (n) => (n === 0 ? "nog niets geschreven" : n === 1 ? "1 tekst" : `${n} teksten`),
   },
@@ -128,7 +151,7 @@ const FASES: FaseDefinitie[] = [
     id: "publiceren",
     label: "Publiceren",
     wat: "jij zet de tekst op je site en vult de link in",
-    vanJou: true,
+    aanZet: "jij",
     telling: (i) => i.gepubliceerd,
     stand: (n) => (n === 0 ? "nog niets live" : n === 1 ? "1 live" : `${n} live`),
   },
@@ -136,7 +159,7 @@ const FASES: FaseDefinitie[] = [
     id: "hermeten",
     label: "Hermeten",
     wat: "na twee en vier weken meet ORBIT ENGINE of het geholpen heeft",
-    vanJou: false,
+    aanZet: "orbit",
     telling: (i) => i.hermeten,
     stand: (n) => (n === 0 ? "nog niets nagemeten" : n === 1 ? "1 nagemeten" : `${n} nagemeten`),
   },
@@ -157,15 +180,25 @@ export function ronde(input: RondeInput): RondeFase[] {
 
   const eersteOpen = standen.findIndex((s) => !s.klaar);
 
-  return standen.map((s, i) => ({
-    id: s.def.id,
-    label: s.def.label,
-    wat: s.def.wat,
-    stand: s.def.stand(s.n),
-    klaar: s.klaar,
-    actief: i === eersteOpen,
-    vanJou: s.def.vanJou,
-  }));
+  const zonderCluster = input.clusters <= 0;
+
+  return standen.map((s, i) => {
+    // Het enige geval waarin een stap van eigenaar wisselt: er is nog geen
+    // onderwerp om op te meten, en dan wacht de klant niet op ORBIT ENGINE maar
+    // op zijn consultant.
+    const meetStapZonderOnderwerp = s.def.id === "meten" && zonderCluster;
+    return {
+      id: s.def.id,
+      label: s.def.label,
+      wat: meetStapZonderOnderwerp
+        ? "je consultant kiest samen met jou het eerste onderwerp"
+        : s.def.wat,
+      stand: meetStapZonderOnderwerp ? "nog geen onderwerp" : s.def.stand(s.n),
+      klaar: s.klaar,
+      actief: i === eersteOpen,
+      aanZet: meetStapZonderOnderwerp ? ("consultant" as const) : s.def.aanZet,
+    };
+  });
 }
 
 /**
@@ -179,8 +212,13 @@ export function rondeZin(fases: RondeFase[]): string {
   if (!actief) {
     return "Je ronde loopt rond. ORBIT ENGINE meet maandelijks door en zet nieuw werk voor je klaar.";
   }
-  if (actief.vanJou) {
+  if (actief.aanZet === "jij") {
     return `Je bent aan zet bij ${actief.label.toLowerCase()}: ${actief.wat}.`;
+  }
+  if (actief.aanZet === "consultant") {
+    // Geen verwijt en geen lege staat: wat er gebeurt, door wie, en wat er
+    // daarna komt. Dit is de allereerste zin die een overgedragen klant leest.
+    return `Je consultant is aan zet: ${actief.wat}. Daarna meet ORBIT ENGINE elke maand of AI-assistenten je noemen.`;
   }
   return `ORBIT ENGINE is aan zet bij ${actief.label.toLowerCase()}: ${actief.wat}.`;
 }

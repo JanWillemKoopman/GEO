@@ -99,9 +99,18 @@ export function TopicsPanel({
           website te weinig prijsgaf om diensten uit te herkennen, bijvoorbeeld
           bij een site die zijn tekst pas via JavaScript laadt.
         </p>
-        <Link href="/analyses/new" className="btn-primary w-fit">
-          Kies zelf een onderwerp
-        </Link>
+        {/* Een onderwerp starten is betaald werk en dus beheerderswerk
+            (`analyse_starten` in `STAFF_ONLY_ACTIONS`). De klant kreeg hier een
+            knop die hem na de klik afwees; nu leest hij wie het voor hem doet. */}
+        {staff ? (
+          <Link href="/analyses/new" className="btn-primary w-fit">
+            Kies zelf een onderwerp
+          </Link>
+        ) : (
+          <p className="text-sm text-muted">
+            Je consultant kiest samen met jou een onderwerp om mee te beginnen.
+          </p>
+        )}
       </div>
     );
   }

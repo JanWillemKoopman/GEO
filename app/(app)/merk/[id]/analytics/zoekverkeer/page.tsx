@@ -25,6 +25,7 @@ import {
   volledigVenster,
   type GscDag,
 } from "@/lib/search-console/metrics";
+import { legeStaat } from "@/lib/search-console/lege-staat";
 import type { ClusterLabel, ImpactVerdict } from "@/lib/types/database";
 import { Icon } from "@/components/icon";
 
@@ -71,51 +72,12 @@ export default async function ZoekverkeerPage({
 
   const rijen = (dagRijen ?? []) as GscDag[];
 
-  // ── Geen koppeling: geen lege grafiek maar uitleg ────────────────────────
-  if (!profile.gsc_property || rijen.length === 0) {
-    return (
-      <div className="flex flex-col gap-6">
-        <Kop />
-        <div className="card flex flex-col gap-3">
-          <span className="mono-label">
-            {profile.gsc_property ? "Nog geen cijfers binnen" : "Nog niet gekoppeld"}
-          </span>
-          <p className="text-secondary">
-            Koppel je Google Search Console en ORBIT ENGINE laat zien of de pagina&apos;s die hij
-            publiceerde ook bezoekers opleveren.
-          </p>
-          {/* Schrijfstijl.md §12: wie lost het op, en wat kun je intussen. Een
-              beheerder mag de ruwe reden zien, want die is vaak degene die het
-              zelf verhelpt (en de tekst uit lib/search-console/sync.ts zegt
-              dan meteen wat er moet gebeuren). Een klant heeft niets aan een
-              technische foutregel over andermans koppeling: die weet alleen
-              dat zijn consultant ervan op de hoogte is en dat er voor hem
-              niets te doen valt. */}
-          {profile.gsc_last_error &&
-            (staff ? (
-              <p className="text-sm text-[var(--status-error)]">
-                De laatste synchronisatie liep vast: {profile.gsc_last_error}
-              </p>
-            ) : (
-              <p className="text-sm text-secondary">
-                Het ophalen van je zoekcijfers lukt op dit moment niet. Je consultant is op de
-                hoogte en lost dit op; je hoeft hier zelf niets voor te doen.
-              </p>
-            ))}
-          {staff ? (
-            <Link href="/instellingen/koppelingen" className="btn-primary w-fit">
-              Naar de koppeling
-            </Link>
-          ) : (
-            <p className="text-sm text-muted">
-              Je consultant legt de koppeling voor je. Laat weten dat je hem wilt, dan staat je
-              zoekverkeer hier binnen een dag.
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
+  // ⚠️ **Hier stond de vroege terugkeer op de koppeling**, en die vuurde vóór de
+  // controle op gepubliceerde pagina's. Gevolg: de meest voorkomende klant van
+  // allemaal (net gekoppeld, nog niets gepubliceerd) las "Koppel je Google
+  // Search Console" terwijl de koppeling er al stond. De vier lege staten en
+  // hun volgorde staan nu in `lib/search-console/lege-staat.ts`, met tests, en
+  // ze worden hieronder pas beoordeeld als bekend is wat er van ons live staat.
 
   // ── F2: labels en clusters, voor de filterbalk (V2) ─────────────────────
   const [{ data: clusterRijen }, { data: labelRijen }] = await Promise.all([
@@ -179,9 +141,75 @@ export default async function ZoekverkeerPage({
     if (adres) typePerUrl.set(normaliseerUrl(adres), p.page_type);
   }
 
-  // ── V7: de lege staat is de normale staat ─────────────────────────────────
-  if (stukken.length === 0) {
+  const onzeUrlPerStuk = new Map(stukken.map((s) => [normaliseerUrl(s.published_url), s]));
+  const rijenVoorOns = rijen.filter((r) => onzeUrlPerStuk.has(normaliseerUrl(r.page)));
+
+  // ── V7: de lege staat is de normale staat, en het zijn er vier ───────────
+  //
+  // ⚠️ De telling gaat over ALLE gepubliceerde pagina's van dit merk, niet over
+  // de gefilterde selectie. Anders zou een klant die op één cluster filtert te
+  // horen krijgen dat hij nog niets gepubliceerd heeft.
+  const alleOnzeUrls = new Set(alleStukken.map((s) => normaliseerUrl(s.published_url)));
+  const leeg = legeStaat({
+    heeftProperty: Boolean(profile.gsc_property),
+    geverifieerdOp: profile.gsc_verified_at,
+    laatsteFout: profile.gsc_last_error,
+    gepubliceerdePaginas: alleStukken.length,
+    dagenVoorOnzePaginas: rijen.filter((r) => alleOnzeUrls.has(normaliseerUrl(r.page))).length,
+  });
+
+  if (leeg) {
     const totaalGepland = (planRijen ?? []).length;
+    return (
+      <div className="flex flex-col gap-6">
+        <Kop />
+        <div className="card flex flex-col gap-3">
+          <span className="mono-label">{leeg.kop}</span>
+          <p className="text-secondary">{leeg.uitleg}</p>
+          {leeg.staat === "niets_live" && (
+            <p className="text-sm text-muted">
+              {totaalGepland > 0
+                ? `Er ${totaalGepland === 1 ? "staat 1 pagina" : `staan ${totaalGepland} pagina's`} in je contentplan. Zodra de eerste live gaat, staat het verkeer erop hier.`
+                : "Er staat nog niets in je contentplan."}
+            </p>
+          )}
+          {/* Schrijfstijl.md §12: wie lost het op, en wat kun je intussen. Een
+              beheerder mag de ruwe reden zien, want die is vaak degene die het
+              zelf verhelpt (en de tekst uit `lib/search-console/sync.ts` zegt
+              dan meteen wat er moet gebeuren). Een klant heeft niets aan een
+              technische foutregel over andermans koppeling: die weet alleen dat
+              zijn consultant ervan op de hoogte is en dat er voor hem niets te
+              doen valt. Overgenomen uit de ronde van 16 september 2026 op
+              `main`, die dezelfde lege staat verbeterde. */}
+          {leeg.staat === "geen_toegang" &&
+            profile.gsc_last_error &&
+            (staff ? (
+              <p className="text-sm text-[var(--status-error)]">
+                De laatste poging liep vast: {profile.gsc_last_error}
+              </p>
+            ) : (
+              <p className="text-sm text-secondary">
+                Het ophalen van je zoekcijfers lukt op dit moment niet. Je consultant is op de
+                hoogte en lost dit op; je hoeft hier zelf niets voor te doen.
+              </p>
+            ))}
+          {leeg.aanZet === "consultant" &&
+            (staff ? (
+              <Link href="/instellingen/koppelingen" className="btn-primary w-fit">
+                Naar de koppeling
+              </Link>
+            ) : (
+              <p className="text-sm text-muted">{leeg.geruststelling}</p>
+            ))}
+          {leeg.aanZet === null && <p className="text-sm text-muted">{leeg.geruststelling}</p>}
+        </div>
+      </div>
+    );
+  }
+
+  // Wel pagina's en wel cijfers, maar niet binnen dit filter. Een andere
+  // boodschap dan de vier hierboven: hier helpt het filter wissen.
+  if (stukken.length === 0) {
     return (
       <div className="flex flex-col gap-6">
         <Kop />
@@ -194,19 +222,15 @@ export default async function ZoekverkeerPage({
           clusterfilter={clusterfilter}
         />
         <div className="card flex flex-col gap-1">
-          <span className="mono-label">Nog geen pagina&apos;s live</span>
+          <span className="mono-label">Geen pagina&apos;s in deze selectie</span>
           <p className="text-secondary">
-            {totaalGepland > 0
-              ? `Er ${totaalGepland === 1 ? "staat 1 pagina" : `staan ${totaalGepland} pagina's`} in je contentplan. Zodra de eerste live gaat, staat het verkeer erop hier.`
-              : "Er staat nog niets in je contentplan."}
+            Er staan wel pagina&apos;s van ORBIT ENGINE live, alleen niet in het cluster of label dat
+            je hier gekozen hebt. Kies een andere selectie.
           </p>
         </div>
       </div>
     );
   }
-
-  const onzeUrlPerStuk = new Map(stukken.map((s) => [normaliseerUrl(s.published_url), s]));
-  const rijenVoorOns = rijen.filter((r) => onzeUrlPerStuk.has(normaliseerUrl(r.page)));
 
   // ── V1: vier kerncijfers, alleen over onze pagina's, V5-bewust ───────────
   const vensterOns = volledigVenster(rijenVoorOns);

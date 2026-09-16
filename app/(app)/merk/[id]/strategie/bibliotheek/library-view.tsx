@@ -53,8 +53,24 @@ const STATUS_CHIP: Record<string, string> = {
   archived: "chip chip-neutral",
 };
 
-export function LibraryView({ rows }: { rows: LibraryRow[] }) {
-  const [filters, setFilters] = useState<LibraryFilters>(LEGE_FILTERS);
+export function LibraryView({
+  rows,
+  beginCluster = "",
+}: {
+  rows: LibraryRow[];
+  /**
+   * Het cluster waarop de lijst al gefilterd binnenkomt, uit `?cluster=` in het
+   * adres. Leeg = alles.
+   *
+   * ⚠️ Hiermee vervangt dit scherm de bibliotheek per cluster
+   * (`/analyses/[id]/bibliotheek`), die op 16 september 2026 een doorverwijzing
+   * hiernaartoe is geworden. Een klant met vier clusters had vijf bibliotheken:
+   * vier die elk een deel toonden en één die alles toonde, met twee verschillende
+   * lijstweergaven en twee manieren om te filteren.
+   */
+  beginCluster?: string;
+}) {
+  const [filters, setFilters] = useState<LibraryFilters>({ ...LEGE_FILTERS, cluster: beginCluster });
   const [pagina, setPagina] = useState(1);
 
   const totalen = useMemo(() => libraryTotals(rows), [rows]);

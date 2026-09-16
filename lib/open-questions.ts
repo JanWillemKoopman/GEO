@@ -1,4 +1,5 @@
 import "server-only";
+import { publicFactRequest } from "@/lib/fact-request-public";
 
 /**
  * Hoeveel vragen er open staan voor een merk, en welke.
@@ -90,7 +91,17 @@ export async function loadOpenQuestions(
   const [{ data: factRows, error: factError }, { data: nvtRows, error: nvtError }] =
     await fetchQuestionRows(db, profile.id);
 
-  const facts = (factRows ?? []) as FactRequest[];
+  // ⚠️ **De ruwe rij mag de browser niet bereiken** (herstelplan na audit,
+  // T8.9). `fact_requests.raw_json` bevat het complete antwoord van OpenAI,
+  // inclusief het antwoord-id, want conventie 8 bewaart elke AI-call volledig
+  // voor de audit-trail. Twee plekken zijn daar destijds voor gerepareerd; deze
+  // derde is op 16 september 2026 gevonden: `select("*")` hierboven ging via
+  // `facts` rechtstreeks als prop naar een clientcomponent op
+  // `/merk/[id]/strategie/vragen`.
+  //
+  // De schoonmaak staat hier en niet in dat scherm, zodat elke volgende lezer
+  // hem vanzelf krijgt in plaats van hem te moeten kennen.
+  const facts = ((factRows ?? []) as Record<string, unknown>[]).map(publicFactRequest);
   const nvt = ((nvtRows ?? []) as { field: string }[]).map((r) => r.field);
   const gaps = findGaps(profile, nvt);
 

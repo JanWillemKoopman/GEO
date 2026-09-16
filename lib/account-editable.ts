@@ -16,9 +16,11 @@
  *     instelling. Zou een klant zichzelf op 40 kunnen zetten, dan is de afspraak
  *     een suggestie.
  *   • `started_at` en `cancelled_at`  die horen bij de levenscyclus. Opzeggen
- *     loopt via een eigen handeling met een bevestiging (besluit 14).
- *   • `value_per_mention_eur`  besluit 16: dit stuurt een bedrag op het scherm
- *     aan en hoort in het gesprek thuis, niet in een invulveld.
+ *     loopt via een eigen handeling met een bevestiging (besluit 14), en de
+ *     startdatum wordt sinds 16 september 2026 vanzelf gezet bij het toewijzen.
+ *     De consultant corrigeert hem op het toewijzingsscherm; een klant die zijn
+ *     eigen startdatum kan verzetten, verzet daarmee elk cijfer dat "sinds de
+ *     start" rekent.
  *   • `name`  de werknaam staat in de merkkiezer en wordt door de consultant
  *     gezet bij het aanmaken.
  *

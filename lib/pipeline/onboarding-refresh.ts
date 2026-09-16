@@ -70,7 +70,12 @@ export const FIELD_TASKS: Record<string, RefreshTask[]> = {
   offline_proof: [], // gelezen door de feitenbank, bij het schrijven
   sales_objections: [], // gelezen door de briefing en de schrijfprompt
   goal_12m: [], // gelezen door het contentplan en het rapport
-  deal_value_band: [], // weegt mee in de potentiescore, bij het plannen
+  // ⚠️ Hier stond "weegt mee in de potentiescore, bij het plannen", en dat
+  // klopte niet: `lib/potential.ts` noemt dit veld nergens, en dat is een
+  // besluit en geen omissie (zie `lib/pipeline/commercial-context.ts`). Het
+  // staat vastgelegd voor het gesprek en krijgt pas een lezer als er een
+  // beslissing bij komt die merken onderling vergelijkt.
+  deal_value_band: [], // vastgelegd voor het gesprek, nog geen lezer in de pijplijn
   seasonality: [], // bepaalt de volgorde van het plan, niet het onderzoek
   respect_site_structure: [], // gelezen door de structuuranalyse, bij het advies
   contact_name: [],
