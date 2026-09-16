@@ -34,14 +34,15 @@ export default async function ToewijzenPage({
   const staff = await isStaff(user.id);
   if (!staff) notFound();
 
-  // Het pakket hangt aan het account onder dit merk, niet aan het merk zelf.
+  // Het pakket en de startdatum hangen aan het account onder dit merk, niet aan
+  // het merk zelf.
   // Zie `app/(app)/merk/[id]/_components/package-box.tsx` voor waarom het juist
   // op dit scherm staat, en `lib/package-sizes.ts` voor de fout die het oplost.
   const account = profile.account_id
     ? (
         await createAdminClient()
           .from("accounts")
-          .select("id, name, package_pages_per_month")
+          .select("id, name, package_pages_per_month, started_at")
           .eq("id", profile.account_id)
           .maybeSingle()
       ).data
@@ -95,6 +96,7 @@ export default async function ToewijzenPage({
         accountId={accountId}
         accountName={(account?.name as string | undefined) ?? null}
         current={(account?.package_pages_per_month as number | null | undefined) ?? null}
+        startedAt={(account?.started_at as string | null | undefined) ?? null}
       />
     </div>
   );

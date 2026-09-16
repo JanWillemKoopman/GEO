@@ -5,6 +5,7 @@ import { membershipsOf } from "@/lib/accounts";
 import { isStaff } from "@/lib/staff";
 import { EDITABLE_ACCOUNT_FIELDS } from "@/lib/account-editable";
 import { toPackageSize } from "@/lib/package-sizes";
+import { leesStartdatum } from "@/lib/verkoopafspraak";
 import { deletionPlan, deleteAccount } from "@/lib/deletion";
 import {
   confirmationMatches,
@@ -94,6 +95,30 @@ export async function PATCH(
       );
     }
     update.package_pages_per_month = maat;
+  }
+
+  // ── De startdatum, alleen door de beheerder ─────────────────────────────
+  //
+  // Zelfde redenering als bij het pakket hierboven: dit is een verkoopafspraak
+  // en geen instelling. De datum wordt normaal automatisch gezet bij het
+  // toewijzen (`app/api/profiles/[id]/assign/route.ts`); dit is de plek waar de
+  // consultant hem corrigeert voor een klant die eerder begon dan zijn merk werd
+  // overgedragen.
+  if ("started_at" in body) {
+    if (!staff) {
+      return NextResponse.json(
+        {
+          error:
+            "De startdatum van je abonnement legt je consultant vast. Klopt hij niet, laat het weten.",
+        },
+        { status: 403 },
+      );
+    }
+    const start = leesStartdatum(body.started_at);
+    if (start === undefined) {
+      return NextResponse.json({ error: "Dat is geen geldige datum." }, { status: 400 });
+    }
+    update.started_at = start;
   }
 
   for (const veld of EDITABLE_ACCOUNT_FIELDS) {

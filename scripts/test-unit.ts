@@ -35,6 +35,14 @@ import { vloeiendPad, vloeiendPadTerug } from "@/lib/chart-curve";
 import { redactCompetitors, containsCompetitor } from "@/lib/pipeline/redact";
 import { stripProseDashes } from "@/lib/pipeline/dash-guard";
 import { publicFactRequest } from "@/lib/fact-request-public";
+import { plattetekst, kopieeropties } from "@/lib/kopieervormen";
+import { legeStaat } from "@/lib/search-console/lege-staat";
+import {
+  startdatumBijToewijzing,
+  afspraakGaten,
+  afspraakSamenvatting,
+  leesStartdatum,
+} from "@/lib/verkoopafspraak";
 import { rateLimitWindowStart, rateLimitVerdict } from "@/lib/rate-limit-rules";
 // ── Het kwaliteitsraamwerk (migratie 0091) ─────────────────────────────────
 import {
@@ -17444,11 +17452,17 @@ group("A5: het contentpakket landt niet meer op het account van de consultant", 
   ok("de aanmaakwizard vraagt geen contentpakket meer", !wizard.includes("packagePagesPerMonth"));
   ok("de aanmaakwizard heeft geen isStaff-vertakking meer nodig", !wizard.includes("isStaff"));
 
+  // ⚠️ Deze controle keek tot 16 september 2026 of het blok de zin "vóór het
+  // eerste contentplan" bevatte. Die zin stond er altijd, ook bij een klant
+  // waarbij het pakket allang goed stond, en daarmee bewaakte hij vooral zijn
+  // eigen formulering. De belofte eronder is wat telt: de consultant moet te
+  // zien krijgen dat een ontbrekend pakket het contentplan van de klant
+  // blokkeert. Dat komt nu uit `afspraakGaten()`, alleen als het gat er echt is,
+  // en het staat hierboven onder test. Hier blijft over dat het blok die lijst
+  // ook daadwerkelijk toont: zonder dat is de tekst getest en de schermweergave niet.
   const pakketBlok = leesBestand("app/(app)/merk/[id]/_components/package-box.tsx");
-  ok(
-    "het toewijzingsscherm zegt dat dit vóór het eerste contentplan moet gebeuren",
-    pakketBlok.includes("vóór het eerste contentplan"),
-  );
+  ok("het toewijzingsscherm toont de openstaande verkoopafspraak", pakketBlok.includes("afspraakGaten"));
+  ok("met het gevolg erbij en niet alleen het veld", pakketBlok.includes("gat.gevolg"));
 });
 
 group("A6: de opslagknop van het gespreksblok zegt wat hij doet", () => {
@@ -21967,6 +21981,193 @@ group("optimalisatie 16: de bevinding wijst de sectie aan waar het huiswerk zit"
   const zonder = checkAdviestoon(tekst);
   ok("zonder secties geen aanwijzing", zonder.zwaarsteSectie === null);
   ok("en dezelfde telling", zonder.gebiedend === uitkomst.gebiedend);
+});
+
+// ── De verkoopafspraak onder een account (16 september 2026) ────────────────
+console.log("\nDe verkoopafspraak: pakket en startdatum");
+
+group("het programma begint bij de toewijzing", () => {
+  const nu = new Date("2026-09-16T10:00:00Z");
+  ok("zonder startdatum wordt er een gezet", startdatumBijToewijzing(null, nu) === nu.toISOString());
+  // ⚠️ De regel die ertoe doet: een klant die zijn tweede merk krijgt, begint
+  // niet opnieuw. Zou dit overschrijven, dan springt zijn teller terug naar
+  // maand 1 en daarmee elk cijfer dat "sinds de start" rekent.
+  ok("een bestaande datum blijft staan", startdatumBijToewijzing("2026-03-01T00:00:00Z", nu) === null);
+});
+
+group("elk gat noemt wat de klant ervan merkt", () => {
+  const leeg = afspraakGaten({ pakket: null, startdatum: null });
+  ok("twee gaten", leeg.length === 2);
+  ok("het pakket staat bovenaan", leeg[0].veld === "pakket");
+  // Zwaar betekent hier: hoeveel de klant ervan merkt. Zonder pakket blokkeert
+  // zijn contentplan, zonder startdatum blijft alleen een teller leeg.
+  ok("en de startdatum eronder", leeg[1].veld === "startdatum");
+  ok(
+    "elk gat zegt het gevolg en niet alleen het veld",
+    leeg.every((g) => g.gevolg.trim().length > 40),
+  );
+  ok("het gevolg van geen pakket is het contentplan", /contentplan/i.test(leeg[0].gevolg));
+
+  ok("alleen een pakket laat de datum over", afspraakGaten({ pakket: 20, startdatum: null }).length === 1);
+  ok(
+    "alles ingevuld is geen gat",
+    afspraakGaten({ pakket: 20, startdatum: "2026-03-01T00:00:00Z" }).length === 0,
+  );
+});
+
+group("de samenvatting zegt hoe het ervoor staat", () => {
+  ok(
+    "compleet noemt het pakket en de datum",
+    /20 pagina's per maand/.test(afspraakSamenvatting({ pakket: 20, startdatum: "2026-03-01T00:00:00Z" })),
+  );
+  ok(
+    "helemaal leeg zegt dat ook",
+    afspraakSamenvatting({ pakket: null, startdatum: null }) === "De verkoopafspraak staat nog helemaal open.",
+  );
+});
+
+group("een startdatum uit een invoerveld", () => {
+  ok("leeg wist de datum", leesStartdatum("") === null);
+  ok("null wist de datum", leesStartdatum(null) === null);
+  ok("een datum wordt een tijdstempel", (leesStartdatum("2026-03-01") ?? "").startsWith("2026-03-01"));
+  // Onbekend is beter dan verkeerd (conventie 3): een onleesbare datum slaat de
+  // route over in plaats van de teller van de klant op een gok te zetten.
+  ok("onzin levert niets op", leesStartdatum("morgen") === undefined);
+  ok("een getal levert niets op", leesStartdatum(20260301) === undefined);
+});
+
+// ── De vier lege staten van het zoekverkeerscherm (16 september 2026) ───────
+console.log("\nWaarom staat er geen zoekverkeer op het scherm?");
+
+const gsc = (over: Partial<Parameters<typeof legeStaat>[0]> = {}) =>
+  legeStaat({
+    heeftProperty: true,
+    geverifieerdOp: "2026-09-01T00:00:00Z",
+    laatsteFout: null,
+    gepubliceerdePaginas: 3,
+    dagenVoorOnzePaginas: 42,
+    ...over,
+  });
+
+group("elk van de vier heeft zijn eigen uitleg", () => {
+  ok("geen property", gsc({ heeftProperty: false })?.staat === "niet_gekoppeld");
+  ok("nooit geverifieerd", gsc({ geverifieerdOp: null })?.staat === "geen_toegang");
+  ok("laatste poging mislukt", gsc({ laatsteFout: "403 van Google" })?.staat === "geen_toegang");
+  ok("niets gepubliceerd", gsc({ gepubliceerdePaginas: 0 })?.staat === "niets_live");
+  ok("nog geen cijfers", gsc({ dagenVoorOnzePaginas: 0 })?.staat === "cijfers_komen");
+  ok("alles in orde geeft niets", gsc() === null);
+});
+
+group("de volgorde is het programma zelf", () => {
+  // De fout van vóór 16 september 2026: dit is de meest voorkomende klant, net
+  // gekoppeld en nog niets live, en die las "Koppel je Google Search Console".
+  ok(
+    "net gekoppeld en niets live gaat over publiceren",
+    gsc({ gepubliceerdePaginas: 0, dagenVoorOnzePaginas: 0 })?.staat === "niets_live",
+  );
+  // Zonder toegang valt er over publiceren niets zinnigs te zeggen: eerst moet
+  // Google ons binnenlaten.
+  ok(
+    "geen toegang weegt zwaarder dan niets live",
+    gsc({ geverifieerdOp: null, gepubliceerdePaginas: 0 })?.staat === "geen_toegang",
+  );
+  ok(
+    "geen koppeling weegt het zwaarst",
+    gsc({ heeftProperty: false, geverifieerdOp: null, gepubliceerdePaginas: 0 })?.staat ===
+      "niet_gekoppeld",
+  );
+});
+
+group("elke staat zegt wie er aan zet is", () => {
+  ok("niet gekoppeld is consultantwerk", gsc({ heeftProperty: false })?.aanZet === "consultant");
+  ok("geen toegang is consultantwerk", gsc({ geverifieerdOp: null })?.aanZet === "consultant");
+  ok("niets live is aan de klant", gsc({ gepubliceerdePaginas: 0 })?.aanZet === "klant");
+  // De enige staat waarin niemand iets kan doen, en dus de enige die letterlijk
+  // zegt dat je niets hoeft te doen.
+  const wachten = gsc({ dagenVoorOnzePaginas: 0 });
+  ok("wachten is van niemand", wachten?.aanZet === null);
+  ok("en zegt dat ook", /niets te doen|niets doen/i.test(wachten?.geruststelling ?? ""));
+
+  const alle = [
+    gsc({ heeftProperty: false })!,
+    gsc({ geverifieerdOp: null })!,
+    gsc({ gepubliceerdePaginas: 0 })!,
+    gsc({ dagenVoorOnzePaginas: 0 })!,
+  ];
+  ok("vier verschillende koppen", new Set(alle.map((a) => a.kop)).size === 4);
+  ok(
+    "elke uitleg zegt wat er aan de hand is",
+    alle.every((a) => a.uitleg.trim().length > 40),
+  );
+  ok(
+    "wie kan wachten leest dat ook",
+    alle.filter((a) => a.aanZet !== "klant").every((a) => a.geruststelling.trim().length > 0),
+  );
+});
+
+// ── De drie kopieervormen (16 september 2026) ───────────────────────────────
+console.log("\nKopiëren naar het CMS van de klant");
+
+group("platte tekst houdt wat een mens nodig heeft", () => {
+  const md = [
+    "# Daklekkage verhelpen",
+    "",
+    "Wij komen **binnen 24 uur** langs. Lees de [voorwaarden](https://voorbeeld.nl/voorwaarden).",
+    "",
+    "- Eerst afdichten",
+    "- Daarna herstellen",
+    "",
+    "1. Bel ons",
+    "2. Wij komen langs",
+  ].join("\n");
+  const uit = plattetekst(md);
+
+  ok("de hekjes zijn weg", !uit.includes("#"));
+  ok("de sterretjes zijn weg", !uit.includes("**"));
+  ok("de kop staat er nog", uit.startsWith("Daklekkage verhelpen"));
+  // Het verschil met `stripMarkdown`: dit gaat naar een mens die het plakt, dus
+  // de opsomming en het linkadres moeten het overleven.
+  ok("het opsommingsteken blijft", uit.includes("- Eerst afdichten"));
+  ok("het nummer blijft", uit.includes("1. Bel ons"));
+  ok("het linkadres blijft", uit.includes("voorwaarden (https://voorbeeld.nl/voorwaarden)"));
+  ok("het linklabel blijft", uit.includes("voorwaarden ("));
+});
+
+group("platte tekst ruimt op wat een editor in de weg zit", () => {
+  const md = "Eerste alinea.\n\n---\n\nTweede alinea.";
+  const uit = plattetekst(md);
+  ok("de horizontale lijn is weg", !uit.includes("---"));
+  ok("hooguit één witregel", !uit.includes("\n\n\n"));
+  ok("geen witruimte aan de randen", uit === uit.trim());
+
+  ok("blokcitaat verliest zijn teken", plattetekst("> Zo staat het in de norm.") === "Zo staat het in de norm.");
+  ok("inline code verliest zijn tekens", plattetekst("Gebruik `robots.txt` hiervoor.") === "Gebruik robots.txt hiervoor.");
+  // Een link waarvan het label al het adres is, wordt niet verdubbeld: anders
+  // staat er "https://x.nl (https://x.nl)" op de pagina van de klant.
+  ok("geen dubbel adres", plattetekst("[https://x.nl](https://x.nl)") === "https://x.nl");
+  ok("een afbeelding houdt alleen zijn bijschrift", plattetekst("![Het dak](/dak.jpg)") === "Het dak");
+});
+
+group("de opties dragen hun eigen reden", () => {
+  const opties = kopieeropties("# Kop\n\nTekst.", "<h1>Kop</h1>\n<p>Tekst.</p>");
+  ok("drie vormen", opties.length === 3);
+  ok("HTML staat vooraan", opties[0].vorm === "html");
+  // Waarom de volgorde vastligt: de meeste CMS'en nemen opmaak over, dus dat is
+  // de rij waar de klant het eerst op moet stuiten.
+  ok("daarna platte tekst", opties[1].vorm === "tekst");
+  ok("Markdown als laatste", opties[2].vorm === "markdown");
+  ok(
+    "elke optie zegt waarvoor hij is",
+    opties.every((o) => o.waarvoor.trim().length > 20),
+  );
+  ok(
+    "geen enkele reden praat over het formaat in plaats van over het CMS",
+    opties.every((o) => /CMS|editor/i.test(o.waarvoor)),
+  );
+
+  // Een pagina zonder tekst hoort geen kopieerknop te tonen die niets doet.
+  ok("lege pagina geeft geen opties", kopieeropties("", "").length === 0);
+  ok("alleen HTML leeg valt weg", kopieeropties("Tekst.", "").every((o) => o.vorm !== "html"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

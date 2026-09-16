@@ -163,17 +163,22 @@ export interface Account {
   /** Opzeggen verwijdert niets (besluit 14). Zie `isActiveAccount()`. */
   cancelled_at: string | null;
   /**
-   * Wat één punt extra AI-zichtbaarheid dit account per maand waard is, in euro
-   * (migratie 0051, besluit 16). Bewust geen standaardwaarde: een gemiddelde
-   * invullen zet een bedrag op het scherm dat de klant als belofte leest.
+   * ⚠️ **Hier stond `value_per_mention_eur`, en dat veld is op 16 september 2026
+   * uit dit type gehaald.** De kolom in `accounts` blijft bestaan (conventie 4:
+   * migraties zijn additief, nooit `drop`), de data blijft staan, en het besluit
+   * erachter (besluit 16: wat één punt extra zichtbaarheid per maand waard is,
+   * komt uit het gesprek en niet uit een invulveld) is niet teruggedraaid.
    *
-   * ⚠️ **Wordt sinds 26 augustus 2026 op geen enkel scherm getoond.** Het enige
-   * blok dat hem las was het opbrengstblok op het merkoverzicht, en dat is er
-   * afgehaald (`docs/logbook.md`). De kolom blijft staan: de data is er, hij is
-   * te bewerken via `lib/account-editable.ts`, en het besluit erachter is niet
-   * teruggedraaid. Komt er een scherm dat over rendement gaat, dan hoort hij daar.
+   * Waarom hij weg is: nagerekend leverde hij nul lezers op in de hele app. Het
+   * enige blok dat hem las was het opbrengstblok op het merkoverzicht, en dat is
+   * op 26 augustus 2026 verwijderd; `lib/account-editable.ts` sloot hem bewust
+   * uit van bewerken. Een veld dat niemand kan zetten en niemand ziet, is geen
+   * besluit meer maar een restant, en in een type hoort het dan niet thuis: het
+   * nodigt uit om er iets mee te doen dat er niet is.
+   *
+   * Komt er een scherm dat over rendement gaat, dan komt hij hier terug, samen
+   * met de plek waar hij gezet wordt. Zie `docs/logbook.md`, 16 september 2026.
    */
-  value_per_mention_eur: number | null;
   created_at: string;
   updated_at: string;
 }

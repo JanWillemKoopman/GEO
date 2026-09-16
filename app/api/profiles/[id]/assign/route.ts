@@ -3,6 +3,7 @@ import { getUser } from "@/lib/auth";
 import { isStaff } from "@/lib/staff";
 import { defaultAccountFor } from "@/lib/accounts";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { startdatumBijToewijzing } from "@/lib/verkoopafspraak";
 
 /**
  * Profiel toewijzen aan een klantaccount (docs/tasks/onboarding-2.0.md, blok A).
@@ -160,6 +161,32 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       { error: "Toewijzen is bij de analyses misgegaan; het merk is teruggezet." },
       { status: 500 },
     );
+  }
+
+  // ── Hier begint het programma, en dus de teller ──────────────────────────
+  //
+  // ⚠️ Nagerekend op 16 september 2026: `accounts.started_at` werd door geen
+  // enkele regel in de app geschreven, alleen gelezen door `monthsSinceStart()`.
+  // "Maand 4 sinds de start" stond daardoor bij elke echte klant leeg, en dat is
+  // het enige cijfer dat zegt hoe lang ORBIT ENGINE al voor hem werkt.
+  //
+  // Toewijzen is het juiste moment: het merk wordt weken eerder klaargezet, soms
+  // voor een prospect die nooit klant wordt. Een bestaande datum blijft staan,
+  // zodat een tweede merk de teller van de klant niet terugzet; die regel staat
+  // in `lib/verkoopafspraak.ts`, met tests.
+  //
+  // Faalt dit, dan is de toewijzing zelf wél gelukt en dat is wat telt. De
+  // consultant kan de datum op het toewijzingsscherm alsnog zetten.
+  if (targetAccountId) {
+    const { data: accountRij } = await admin
+      .from("accounts")
+      .select("started_at")
+      .eq("id", targetAccountId)
+      .maybeSingle();
+    const start = startdatumBijToewijzing((accountRij?.started_at as string | null) ?? null);
+    if (start) {
+      await admin.from("accounts").update({ started_at: start }).eq("id", targetAccountId);
+    }
   }
 
   return NextResponse.json({ ok: true, email: target.user.email ?? null, assignedAt });
