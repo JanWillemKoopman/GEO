@@ -1,24 +1,18 @@
 import { redirect } from "next/navigation";
 
 /**
- * "Vragen & antwoorden" was een eigen tabblad, terwijl het rapport er voor elk
- * punt naartoe moest linken om zijn eigen bewering te onderbouwen. Het staat nu
- * in hoofdstuk 02, direct onder die bewering.
- *
- * Deze route blijft bestaan voor bestaande links; de `runs`-filter gaat mee.
+ * "Vragen & antwoorden" was een eigen tabblad, en verhuisde op 26 augustus
+ * 2026 naar hoofdstuk 02 van het dossier. Sinds 16 september 2026 staat de
+ * letterlijke antwoordenlijst niet meer op het cluster zelf: de cijfers erachter
+ * horen op Analytics, en het cluster toont alleen nog de conclusie in gewone
+ * taal. Deze route blijft bestaan voor bestaande links, en stuurt door naar het
+ * cluster zelf.
  */
 export default async function AntwoordenRedirect({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ runs?: string }>;
 }) {
   const { id } = await params;
-  const { runs } = await searchParams;
-  redirect(
-    runs
-      ? `/analyses/${id}?hoofdstuk=bewijs&runs=${runs}#antwoorden`
-      : `/analyses/${id}?hoofdstuk=bewijs`,
-  );
+  redirect(`/analyses/${id}`);
 }

@@ -149,9 +149,9 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
     return (
       <EmptyState
         title="Er wacht geen pagina op je input"
-        action={{ href: `/analyses/${id}?hoofdstuk=werk`, label: "Kies wat ORBIT ENGINE gaat schrijven" }}
+        action={{ href: `/analyses/${id}`, label: "Kies wat ORBIT ENGINE gaat schrijven" }}
       >
-        Zodra je in hoofdstuk 03 pagina&apos;s kiest, stelt ORBIT ENGINE hier de vragen die het nodig heeft
+        Zodra je op het cluster pagina&apos;s kiest, stelt ORBIT ENGINE hier de vragen die het nodig heeft
         om te schrijven zonder ook maar iets te verzinnen.
       </EmptyState>
     );

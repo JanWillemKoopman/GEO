@@ -371,7 +371,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         state: measured ? "klaar" : "wacht",
         title: piece.title,
         why: measured
-          ? "Gepubliceerd en hermeten. Het resultaat staat in hoofdstuk 04."
+          ? "Gepubliceerd en hermeten. Het resultaat staat op Analytics → Zoekverkeer."
           : "Gepubliceerd. ORBIT ENGINE hermeet na twee en na vier weken. AI-assistenten pikken nieuwe content niet dezelfde dag op.",
         urgency: URGENCY.gemeten,
         href,
@@ -465,8 +465,8 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
       title: task.title,
       why: task.why,
       urgency: URGENCY.offsite,
-      // Off-site werk vink je af in het blok onderaan hetzelfde hoofdstuk.
-      href: `/analyses/${task.analysis_id}?hoofdstuk=werk#offsite`,
+      // Off-site werk vink je af in het blok onderaan hetzelfde cluster.
+      href: `/analyses/${task.analysis_id}#offsite`,
       meta: task.domain ?? undefined,
       analysisId: task.analysis_id,
       analysisName: analysis.name,
