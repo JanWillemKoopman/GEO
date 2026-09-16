@@ -9170,3 +9170,39 @@ Getest: `berekenOpbrengst()` heeft een eigen testgroep die de rekenfout in het e
 zelf ving (63 versus de echte 60 dagen), en bewijst dat de controlegroep nooit onze eigen klikken
 meetelt. `tsc --noEmit`, `test:unit` (4896 geslaagd), `test:chain` (659 geslaagd) en `build` zijn
 alle vier groen. Geen migratie: alle gebruikte tabellen bestaan al.
+
+## 16 september 2026, vervolg: blok B, de leverancierslaag
+
+`lib/search-demand/` gebouwd naar het patroon van `lib/engines/`: `types.ts` (de kleine interface,
+één functie), `registry.ts` (een provider alleen met beide omgevingsvariabelen, anders `null`),
+`dataforseo.ts` (de adapter), `cache.ts` (eerst de cache, dan pas de leverancier, nooit dezelfde
+term twee keer betalen binnen 30 dagen) en `keywords.ts` (puur, van een meetvraag naar een
+opzoekbare zoekterm). Drie migraties: 0104 (`keyword_demand`, de cache, en `vendor_calls`, het
+kostenlogboek los van `ai_calls`), 0105 (`profile_keywords`, welke term bij welk merk hoort en
+waarom), 0106 (`profile_topics.search_volume_absolute`/`search_volume_source`, en `prompts.
+volume_source` krijgt `gemeten` als derde waarde).
+
+**De leverancierskeuze is bevestigd, de adapter zelf nog niet tegen een echt account geverifieerd.**
+`dataforseo.ts` is gebouwd naar de publieke documentatie van het Google Ads Search Volume-eindpunt;
+er was in deze ronde geen DataForSEO-account beschikbaar om een echte aanroep tegen te draaien. Dat
+blokkeert niets, want zonder sleutel raakt de hele module nooit aan, maar de adapter zelf is pas
+"af" na één echte aanroep die tegen een productieaccount is nagerekend (conventie 10). Staat expliciet
+in de code als open punt.
+
+**De belangrijkste test staat niet in `test-unit.ts`.** `registry.ts` is `server-only`, dus een
+directe import crasht `test-unit.ts` (dat bestand draait bewust zonder de `server-only`-stub die
+`test-chain.ts` wel heeft). Scenario 13 in `test-chain.ts` bewijst in plaats daarvan dat de app zonder
+DATAFORSEO-sleutel zich identiek gedraagt aan vóór deze bouwronde, dezelfde garantie als
+`enginesForProfile()` voor Gemini.
+
+`afleidenZoekterm()` (`lib/search-demand/keywords.ts`) is bewust géén AI-aanroep: een vaste lijst
+vraagwoorden eraf, de rest blijft staan. Dat werkt goed bij een vraag met één kern en matig bij een
+samengestelde vraag; lukt de afleiding niet goed genoeg, dan levert de functie `null` en blijft
+`volume_source` op `geschat` staan.
+
+**Nog niet gedaan:** `keywords.ts` en `cache.ts` zijn nog nergens aangeroepen vanuit de pijplijn.
+Dat is blok C (clusters, vragen en de potentiescore verankeren aan een echte meting), een eigen,
+apart te bouwen en te testen stap.
+
+Getest: `tsc --noEmit`, `test:unit` (4903 geslaagd), `test:chain` (663 geslaagd, inclusief scenario
+13) en `build` zijn alle vier groen.

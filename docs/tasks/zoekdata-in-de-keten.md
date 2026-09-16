@@ -6,10 +6,14 @@
 `vergelijkingsvenster()`). Blok A ✅ af: migratie 0103, `lib/search-console/sync.ts` haalt de
 zoekopdrachten op, `lib/search-console/rankings.ts` rekent de positieverdeling, `lib/opportunities.ts`
 heeft de bron `zoekverkeer`. Hoofdstuk 7 (het opbrengstblok) ✅ af: `lib/search-console/opbrengst.ts`
-plus het blok op `/merk/[id]/analytics`. Blok B (DataForSEO), C (clusters/vragen/kansen verankeren)
-en D (de tekst) staan nog open; zie hoofdstuk 10 voor het genomen besluit over de leverancier. Alle
-vier de controles (`tsc`, `test:unit`, `test:chain`, `build`) stonden groen bij elke stap, zie
-`docs/logbook.md` 16 september 2026.
+plus het blok op `/merk/[id]/analytics`. Blok B ✅ af: migraties 0104-0106, `lib/search-demand/`
+(`types.ts`, `registry.ts`, `dataforseo.ts`, `cache.ts`, `keywords.ts`), zonder sleutel bewezen
+identiek gedrag (scenario 13, `test-chain.ts`). ⚠️ De DataForSEO-adapter zelf is nog niet tegen een
+echt account geverifieerd, er was geen account beschikbaar in deze bouwronde (conventie 10). Blok C
+(clusters/vragen/kansen verankeren aan een echte meting) en D (de tekst) staan nog open; `keywords.ts`
+en `cache.ts` zijn nog nergens vanuit de pijplijn aangeroepen. Zie hoofdstuk 10 voor het genomen
+besluit over de leverancier. Alle vier de controles (`tsc`, `test:unit`, `test:chain`, `build`)
+stonden groen bij elke stap, zie `docs/logbook.md` 16 september 2026.
 
 **Waar dit op voortbouwt.** `docs/tasks/ontwikkelplan-visie.md` heeft twee sprints die hier over
 gaan: sprint 2 (de zoekopdrachten uit Search Console erbij halen, gratis) en sprint 8 (echte

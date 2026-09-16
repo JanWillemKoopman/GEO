@@ -556,3 +556,29 @@ herziet de laatste dagen nog na. `lib/search-console/sync.ts` haalt hem op als t
 aanroep binnen dezelfde dagelijkse `gsc_sync`-taak: mislukt hij, dan blijft de paginacijfers-sync (de
 kritieke aanroep die de lege staten stuurt) gewoon geslaagd. Zie `docs/tasks/zoekdata-in-de-keten.md`,
 blok A, en `docs/logbook.md`, 16 september 2026.
+
+## 0104 — de zoekvolumecache en het leverancierslogboek
+
+`keyword_demand` (nieuwe tabel), additief: het maandvolume per zoekterm/land/taal, met de ruwe
+leverancierrespons ernaast (conventie 8). Uniek op (zoekterm, land, taal); een rij jonger dan 30
+dagen wordt nooit opnieuw opgehaald (`lib/search-demand/cache.ts`). Geen RLS-select-policy: generieke
+marktdata zonder eigenaar, alleen door de service-role gelezen. `vendor_calls` (nieuwe tabel),
+additief: het kostenlogboek voor leveranciers buiten OpenAI, bewust los van `ai_calls` (dat wordt
+gelezen door het dagplafond, en een zoekvolume-aanroep van een paar dollarcent hoort een meetronde
+nooit te blokkeren). Zie `docs/tasks/zoekdata-in-de-keten.md`, blok B.
+
+## 0105 — welke zoekterm hoort bij welk merk
+
+`profile_keywords` (nieuwe tabel), additief. Koppelt een zoekterm uit `keyword_demand` (generiek,
+zonder eigenaar) aan een merk en optioneel een cluster, met een herkomstkolom (`aanbod`,
+`zoekverkeer`, `vraag`, `handmatig`) die zegt waarom de term in een kanslijst opduikt. RLS: select-only
+via `readable_profile_ids()`, zelfde patroon als overal.
+
+## 0106 — het verschil tussen een gok en een meting, in het datamodel
+
+`profile_topics.search_volume_absolute` (het echte maandvolume) en `search_volume_source` (`geschat`
+of `gemeten`), additief. `search_volume_index` (de 0-100 schaal die het scherm toont) blijft
+onaangetast; deze twee kolommen zeggen of dat getal op een echte meting verankerd is. Op `prompts`
+krijgt `volume_source` een derde toegestane waarde, `gemeten`, naast `geschat` en `klant`
+(constraint vervangen, geen `drop` van data, conventie 4). Zie `docs/tasks/zoekdata-in-de-keten.md`,
+blok B, en `docs/logbook.md`, 16 september 2026.

@@ -461,6 +461,7 @@ import {
   type GscQueryDag,
 } from "@/lib/search-console/rankings";
 import { berekenOpbrengst, type OpbrengstPagina } from "@/lib/search-console/opbrengst";
+import { afleidenZoekterm, MIN_KEYWORD_LENGTH } from "@/lib/search-demand/keywords";
 
 import { splitSentences, stripMarkdown, firstSentences } from "@/lib/pipeline/sentences";
 import { extractHeadings, renderMarkdown } from "@/lib/markdown";
@@ -11079,6 +11080,42 @@ group("berekenOpbrengst: wat ORBIT ENGINE oplevert, niet wat de site oplevert (�
   ok("geen publicatiedatum betekent geen getal, geen 0", zonderDatums.klikkenSindsStart === null);
 });
 
+// ⚠️ "zonder DATAFORSEO-sleutel gedraagt de app zich identiek" staat als
+// scenario 13 in test-chain.ts, niet hier: lib/search-demand/registry.ts is
+// `server-only`, en die grendel is alleen in de ketentest opgeheven
+// (scripts/chain/server-only-stub.js). test-unit.ts draait zonder die stub
+// (zie de toelichting bovenaan dit bestand), dus een directe import hier
+// crasht de hele testrun.
+
+group("afleidenZoekterm: van meetvraag naar zoekterm (§3.2 deel B)", () => {
+  eq(
+    "een simpele kostenvraag levert de kern op",
+    afleidenZoekterm("Wat kost een dakinspectie?") ?? "",
+    "dakinspectie",
+  );
+  eq(
+    "hoeveel-kost werkt ook",
+    afleidenZoekterm("Hoeveel kost dakonderhoud in Zutphen?") ?? "",
+    "dakonderhoud zutphen",
+  );
+  eq(
+    "een samengestelde vraag gebruikt alleen het eerste deel",
+    afleidenZoekterm("Wat kost een dakinspectie en wanneer is het nodig?") ?? "",
+    "dakinspectie",
+  );
+  ok(
+    "een te korte uitkomst levert null op, geen halve zoekterm",
+    afleidenZoekterm("Wat is dit?") === null,
+  );
+  ok("een lege vraag levert null op", afleidenZoekterm("") === null);
+  ok("en alleen witruimte ook", afleidenZoekterm("   ") === null);
+  ok(
+    "MIN_KEYWORD_LENGTH is de echte grens",
+    afleidenZoekterm("x".repeat(MIN_KEYWORD_LENGTH - 1)) === null &&
+      afleidenZoekterm("x".repeat(MIN_KEYWORD_LENGTH)) === "x".repeat(MIN_KEYWORD_LENGTH),
+  );
+});
+
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nOverzicht: funnel-voortgang en contentmix");
 
@@ -12619,6 +12656,8 @@ function onderwerp(
     analysis_id: null,
     search_volume_index: null,
     search_volume_reasoning: null,
+    search_volume_absolute: null,
+    search_volume_source: "geschat",
     created_at: "",
     updated_at: "",
   };

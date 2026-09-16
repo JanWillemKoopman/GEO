@@ -8482,6 +8482,35 @@ async function main(): Promise<void> {
       );
     }
 
+    // ══ SCENARIO 13: zonder DATAFORSEO-sleutel gedraagt de app zich identiek ══
+    //
+    // De garantie waar lib/search-demand/ op rust (docs/tasks/
+    // zoekdata-in-de-keten.md, blok B, uitgangspunt 3 van ontwikkelplan-visie.md:
+    // "geen verplichte tweede sleutel, nergens"). Hoort hier en niet in
+    // test-unit.ts: `registry.ts` is `server-only`, en die grendel is alleen in
+    // déze test opgeheven.
+    {
+      const oudLogin = process.env.DATAFORSEO_LOGIN;
+      const oudWachtwoord = process.env.DATAFORSEO_PASSWORD;
+      delete process.env.DATAFORSEO_LOGIN;
+      delete process.env.DATAFORSEO_PASSWORD;
+      const { searchDemandProvider } = await import("@/lib/search-demand/registry");
+      ok("scenario 13: geen provider zonder sleutels", searchDemandProvider() === null);
+
+      process.env.DATAFORSEO_LOGIN = "test-login";
+      delete process.env.DATAFORSEO_PASSWORD;
+      ok("scenario 13: ook niet met maar één van de twee", searchDemandProvider() === null);
+
+      process.env.DATAFORSEO_PASSWORD = "test-wachtwoord";
+      ok("scenario 13: met allebei komt er wél een provider", searchDemandProvider() !== null);
+      ok("scenario 13: met de juiste id", searchDemandProvider()?.id === "dataforseo");
+
+      if (oudLogin === undefined) delete process.env.DATAFORSEO_LOGIN;
+      else process.env.DATAFORSEO_LOGIN = oudLogin;
+      if (oudWachtwoord === undefined) delete process.env.DATAFORSEO_PASSWORD;
+      else process.env.DATAFORSEO_PASSWORD = oudWachtwoord;
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);
