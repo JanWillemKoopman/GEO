@@ -306,6 +306,9 @@ export default async function OverzichtPage({
   // de werklijst, en de geplande pagina's in `planTotalen`.
   const teksten = eigenAlleWerk.filter((w) => w.kind === "pagina");
   const rondeFases = ronde({
+    // Zonder cluster valt er niets te meten, en dan is de consultant aan zet en
+    // niet ORBIT ENGINE. Zie de toelichting bij `RondeInput` in `lib/ronde.ts`.
+    clusters: eigenClusters.length,
     metingen: periodes.length,
     kansen: lus.opportunities.length,
     gepland: totalen.gepland,

@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
+import { isStaff } from "@/lib/staff";
 import { emailsEnabled } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import type { ClusterLabel, Profile } from "@/lib/types/database";
@@ -14,7 +16,15 @@ export default async function NewAnalysisPage({
   searchParams: Promise<{ merk?: string }>;
 }) {
   const { merk } = await searchParams;
-  await requireUser();
+  const user = await requireUser();
+
+  // ⚠️ Een cluster starten is betaald werk en staat als `analyse_starten` in
+  // `STAFF_ONLY_ACTIONS`. De route erachter weigert sinds 16 september 2026
+  // netjes, maar een klant hoort hier niet eens te komen: de knoppen die
+  // hiernaartoe wezen zijn weg, en een adres achter een verborgen knop is nog
+  // steeds een adres. Zelfde patroon als `/instellingen/koppelingen`.
+  if (!(await isStaff(user.id))) notFound();
+
   const supabase = await createClient();
 
   const { data } = await supabase

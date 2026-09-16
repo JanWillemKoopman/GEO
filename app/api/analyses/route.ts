@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
+import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
@@ -52,6 +53,27 @@ export async function POST(request: Request) {
   if (!profile) {
     return NextResponse.json({ error: "Merk niet gevonden." }, { status: 404 });
   }
+  // ── De kostenrem die hier ontbrak (16 september 2026) ───────────────────
+  //
+  // ⚠️ Deze route was de ENIGE dure route zonder `mayTriggerCost`. Dat is geen
+  // ontwerpkeuze geweest maar een gemiste regel: `lib/cost-rules.ts` schrijft in
+  // zijn eigen toelichting dat "POST /api/profiles en POST /api/analyses
+  // allebei een 201 gaven" en dat de eigenaar dat op 2 september 2026 heeft
+  // teruggedraaid. Bij `/api/profiles` is die rem er die dag gekomen, hier niet,
+  // en `analyse_starten` staat sindsdien wél in `STAFF_ONLY_ACTIONS`.
+  //
+  // Gevolg zolang het ontbrak: een klant kon via het vrije tekstveld op
+  // /analyses/new betaald onderzoek starten (`prepare_analysis`), terwijl
+  // hetzelfde onderwerp via het snelpad in `topics-panel.tsx` netjes werd
+  // geweigerd. Twee wegen naar dezelfde taak, één ervan open.
+  //
+  // De melding nodigt uit in plaats van af te wijzen, precies zoals bij de
+  // andere zes: de klant mag weten dat de functie bestaat en bij wie hij moet
+  // zijn.
+  if (!(await mayTriggerCost(user.id, "analyse_starten"))) {
+    return NextResponse.json({ error: COST_DENIED.analyse_starten }, { status: 403 });
+  }
+
   if (profile.status !== "klaar") {
     return NextResponse.json(
       { error: "ORBIT ENGINE is nog bezig met dit merk. Wacht tot het onderzoek klaar is." },

@@ -7,6 +7,7 @@ import { listPendingInvites } from "@/lib/invites";
 import { PageHeader } from "@/components/page-header";
 import { AssignBox } from "../../_components/assign-box";
 import { PackageBox } from "../../_components/package-box";
+import { overdrachtZonderCluster } from "@/lib/cluster-start";
 import { TeamBox } from "@/app/(app)/instellingen/team-box";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -60,6 +61,16 @@ export default async function ToewijzenPage({
     ? await Promise.all([membersOf(accountId, user.id), listPendingInvites(accountId)])
     : [[], []];
 
+  // Een merk zonder cluster overdragen levert gegarandeerd een klant op die op
+  // een leeg overzicht kijkt en zelf niets kan starten, want een cluster
+  // beginnen is beheerderswerk. Dat hoort hier gezegd te worden, op het scherm
+  // waar de overdracht gebeurt, en niet pas als de klant belt.
+  const { count: clusterAantal } = await createAdminClient()
+    .from("analyses")
+    .select("id", { count: "exact", head: true })
+    .eq("profile_id", id);
+  const clusterWaarschuwing = overdrachtZonderCluster(clusterAantal ?? 0);
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -67,6 +78,13 @@ export default async function ToewijzenPage({
         title="Toewijzen"
         description="Dit merk aan een klantaccount koppelen."
       />
+
+      {clusterWaarschuwing && (
+        <div className="card flex flex-col gap-1 border-l-2 border-[var(--status-warning)]">
+          <span className="mono-label">Nog niets om naar te kijken</span>
+          <p className="text-sm text-secondary">{clusterWaarschuwing}</p>
+        </div>
+      )}
 
       <AssignBox
         profileId={id}

@@ -63,10 +63,15 @@ export function RondeBalk({ fases, zin }: { fases: RondeFase[]; zin: string }) {
               {fase.stand}
             </span>
 
-            {/* ⚠️ Alleen op de twee stappen die op de klant wachten. Dit is de
-                enige plek in de app waar de arbeidsverdeling in één oogopslag
-                staat: vier stappen doet ORBIT ENGINE, twee doet hij zelf. */}
-            {fase.vanJou && <span className="chip chip-neutral w-fit">jij</span>}
+            {/* ⚠️ Alleen op de stappen die niet vanzelf gaan. Dit is de enige
+                plek in de app waar de arbeidsverdeling in één oogopslag staat:
+                vier stappen doet ORBIT ENGINE, twee doet de klant zelf, en bij
+                een merk zonder onderwerp wacht de eerste stap op de consultant
+                (zie `lib/ronde.ts`). */}
+            {fase.aanZet === "jij" && <span className="chip chip-neutral w-fit">jij</span>}
+            {fase.aanZet === "consultant" && (
+              <span className="chip chip-neutral w-fit">je consultant</span>
+            )}
           </li>
         ))}
       </ol>

@@ -14,6 +14,7 @@ import { TopicsPanel } from "../../_components/topics-panel";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadAnalysisPotential, type PotentialTriple } from "@/lib/potential-data";
 import { isStaff } from "@/lib/staff";
+import { KLANT_ZONDER_CLUSTERS } from "@/lib/cluster-start";
 import type { Analysis, ClusterLabel, ProfileTopic } from "@/lib/types/database";
 import {
   LABELFILTER_ALLES,
@@ -151,10 +152,18 @@ export default async function ClustersPage({
         description="Elk cluster is één onderwerp waarop ORBIT ENGINE je zichtbaarheid volgt."
         // Het merk gaat mee in de link: dan staat het goede merk al
         // voorgeselecteerd én weet dat scherm waar "terug" heen moet.
+        // ⚠️ Alleen voor de consultant. Een cluster starten is betaald werk en
+        // staat als `analyse_starten` in `STAFF_ONLY_ACTIONS`; tot 16 september
+        // 2026 zag de klant hier een knop die hem na de klik afwees. Anders dan
+        // bij de andere zes kostenknoppen blijft hij hier niet staan: dit is het
+        // scherm waar een klant zonder clusters landt, en een afwijzende knop is
+        // daar het eerste wat hij van de app leert.
         action={
-          <Link href={`/analyses/new?merk=${id}`} className="btn-primary">
-            + Nieuw cluster
-          </Link>
+          staff ? (
+            <Link href={`/analyses/new?merk=${id}`} className="btn-primary">
+              + Nieuw cluster
+            </Link>
+          ) : undefined
         }
       />
 
@@ -221,13 +230,20 @@ export default async function ClustersPage({
             </ul>
           )
         ) : analyses.length === 0 ? (
-          <EmptyState
-            title="Nog geen clusters voor dit merk"
-            action={{ href: `/analyses/new?merk=${id}`, label: "Start je eerste cluster" }}
-          >
-            Kies het product of onderwerp dat je wilt meten. ORBIT ENGINE stelt de vragen die jouw
-            klanten aan een AI stellen, en telt hoe vaak jij in het antwoord staat.
-          </EmptyState>
+          staff ? (
+            <EmptyState
+              title="Nog geen clusters voor dit merk"
+              action={{ href: `/analyses/new?merk=${id}`, label: "Start het eerste cluster" }}
+            >
+              Kies het product of onderwerp dat gemeten moet worden. ORBIT ENGINE stelt de vragen
+              die klanten aan een AI stellen, en telt hoe vaak dit merk in het antwoord staat.
+            </EmptyState>
+          ) : (
+            // De klant kan dit zelf niet starten, dus hoort hier te staan wie
+            // dat wel doet en wat er daarna komt. Een lege staat die naar een
+            // knop wijst die weigert, is erger dan geen knop.
+            <EmptyState title={KLANT_ZONDER_CLUSTERS.titel}>{KLANT_ZONDER_CLUSTERS.uitleg}</EmptyState>
+          )
         ) : zichtbaar.length === 0 ? (
           <div className="card flex flex-col gap-1">
             <span className="mono-label">Geen clusters met dit label</span>

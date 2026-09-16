@@ -653,6 +653,7 @@ import {
 import { brandScorePerPeriod } from "@/lib/brand-score";
 import { ronde, rondeZin } from "@/lib/ronde";
 import { actionNeedsStaff, STAFF_ONLY_ACTIONS } from "@/lib/cost-rules";
+import { overdrachtZonderCluster } from "@/lib/cluster-start";
 import { navActief } from "@/lib/nav";
 import { openVragenTotaal, openVragenLabel } from "@/lib/open-questions-count";
 import { eindpoort } from "@/lib/content-final-gate";
@@ -7960,6 +7961,7 @@ group("de ronde: zes stappen, precies één aan de beurt", () => {
   // staan, en verder nog niets. Precies het moment waarop hij voor het eerst
   // alleen inlogt.
   const nieuweKlant = ronde({
+    clusters: 3,
     metingen: 1,
     kansen: 7,
     gepland: 0,
@@ -7985,7 +7987,7 @@ group("de ronde: zes stappen, precies één aan de beurt", () => {
   // het hele product: ORBIT ENGINE komt niet op zijn website.
   ok(
     "plannen en publiceren zijn van de klant",
-    nieuweKlant.filter((f) => f.vanJou).map((f) => f.id).join(" ") === "plannen publiceren",
+    nieuweKlant.filter((f) => f.aanZet === "jij").map((f) => f.id).join(" ") === "plannen publiceren",
   );
   ok("en de zin zegt dat hij aan zet is", rondeZin(nieuweKlant).startsWith("Je bent aan zet"));
 
@@ -7993,6 +7995,7 @@ group("de ronde: zes stappen, precies één aan de beurt", () => {
   // dan is schrijven aan de beurt, ook al staat er al een pagina live van vóór
   // het plan. Bij Gasservice Brabant was dat precies zo.
   const gat = ronde({
+    clusters: 3,
     metingen: 2,
     kansen: 7,
     gepland: 12,
@@ -8005,6 +8008,7 @@ group("de ronde: zes stappen, precies één aan de beurt", () => {
 
   // Een ronde die rond is, is geen ronde die af is.
   const rond = ronde({
+    clusters: 3,
     metingen: 3,
     kansen: 4,
     gepland: 12,
@@ -8020,12 +8024,64 @@ group("de ronde: zes stappen, precies één aan de beurt", () => {
   ok("maar zegt wel dat het doorloopt", rondeZin(rond).includes("maandelijks"));
 
   // Enkelvoud en meervoud, want deze standen staan bijna altijd op 0 of 1.
-  const een = ronde({ metingen: 1, kansen: 1, gepland: 1, geschreven: 1, gepubliceerd: 1, hermeten: 1 });
+  const een = ronde({ clusters: 3, metingen: 1, kansen: 1, gepland: 1, geschreven: 1, gepubliceerd: 1, hermeten: 1 });
   ok("één meting is enkelvoud", een[0].stand === "1 meting");
   ok("één tekst is enkelvoud", een[3].stand === "1 tekst");
-  const leeg = ronde({ metingen: 0, kansen: 0, gepland: 0, geschreven: 0, gepubliceerd: 0, hermeten: 0 });
+  const leeg = ronde({ clusters: 3, metingen: 0, kansen: 0, gepland: 0, geschreven: 0, gepubliceerd: 0, hermeten: 0 });
   ok("nul zegt wat er ontbreekt", leeg.every((f) => f.stand.startsWith("nog")));
   ok("en meten is dan de eerste stap", leeg.find((f) => f.actief)?.id === "meten");
+
+  // ── Een merk zonder onderwerp (16 september 2026) ────────────────────────
+  //
+  // ⚠️ DE STILLE STILSTAND DIE DIT VOORKOMT. Een net overgedragen klant heeft
+  // nul clusters. Tot deze wijziging las hij "ORBIT ENGINE is aan zet bij
+  // meten", terwijl er niets in de wachtrij stond en hij zelf niets kon starten
+  // (een cluster beginnen is beheerderswerk, `lib/cost-rules.ts`). Hij zat dus
+  // te wachten op iets dat nooit vanzelf kwam, en niets op zijn scherm zei dat.
+  const zonderOnderwerp = ronde({
+    clusters: 0,
+    metingen: 0,
+    kansen: 0,
+    gepland: 0,
+    geschreven: 0,
+    gepubliceerd: 0,
+    hermeten: 0,
+  });
+  const meten = zonderOnderwerp.find((f) => f.id === "meten")!;
+  ok("zonder cluster is de consultant aan zet", meten.aanZet === "consultant");
+  ok("en de stand zegt wat er mist", meten.stand === "nog geen onderwerp");
+  ok("meten is dan de actieve stap", meten.actief);
+  const zin = rondeZin(zonderOnderwerp);
+  ok("de zin wijst de consultant aan", zin.startsWith("Je consultant is aan zet"));
+  ok("en zegt wat er daarna komt", /daarna meet orbit engine/i.test(zin));
+  // Niet "ORBIT ENGINE is aan zet": dat was precies de onjuiste zin.
+  ok("en nooit dat ORBIT ENGINE aan zet is", !zin.startsWith("ORBIT ENGINE is aan zet"));
+
+  // Zodra er één cluster is, is het weer gewoon werk van ORBIT ENGINE.
+  const metOnderwerp = ronde({
+    clusters: 1,
+    metingen: 0,
+    kansen: 0,
+    gepland: 0,
+    geschreven: 0,
+    gepubliceerd: 0,
+    hermeten: 0,
+  });
+  ok(
+    "met een cluster is ORBIT ENGINE weer aan zet",
+    metOnderwerp.find((f) => f.id === "meten")?.aanZet === "orbit",
+  );
+  ok(
+    "en de stand is weer de gewone",
+    metOnderwerp.find((f) => f.id === "meten")?.stand === "nog niet gemeten",
+  );
+
+  // De arbeidsverdeling zelf verandert niet: alleen de eerste stap kan van
+  // eigenaar wisselen, de andere vijf nooit.
+  ok(
+    "alleen meten kan naar de consultant",
+    zonderOnderwerp.filter((f) => f.aanZet === "consultant").length === 1,
+  );
 
   // ⚠️ Geen enkele stand claimt een doel. "3 van de 12" zou een norm zijn die
   // de klant niet zelf gesteld heeft.
@@ -21981,6 +22037,126 @@ group("optimalisatie 16: de bevinding wijst de sectie aan waar het huiswerk zit"
   const zonder = checkAdviestoon(tekst);
   ok("zonder secties geen aanwijzing", zonder.zwaarsteSectie === null);
   ok("en dezelfde telling", zonder.gebiedend === uitkomst.gebiedend);
+});
+
+// ── Een cluster starten is beheerderswerk (16 september 2026) ───────────────
+console.log("\nWie begint een cluster");
+
+group("elke dure route heeft dezelfde rem", () => {
+  // ── WAT HIER MIS WAS ─────────────────────────────────────────────────────
+  //
+  // `lib/cost-rules.ts` schrijft in zijn eigen toelichting dat "POST
+  // /api/profiles en POST /api/analyses allebei een 201 gaven" en dat de
+  // eigenaar dat op 2 september 2026 heeft teruggedraaid. Bij /api/profiles is
+  // die rem er die dag gekomen, bij /api/analyses niet: dat was op 16 september
+  // 2026 de enige dure route zonder `mayTriggerCost`. Een klant kon er via het
+  // vrije tekstveld betaald onderzoek mee starten, terwijl hetzelfde onderwerp
+  // via het snelpad netjes werd geweigerd.
+  //
+  // Deze controle bewaakt de belofte van `cost-guard.ts` ("elke dure route
+  // stelt dezelfde vraag aan dezelfde functie") in plaats van hem te geloven.
+  const dureRoutes = [
+    "app/api/analyses/route.ts",
+    "app/api/profiles/route.ts",
+    "app/api/analyses/[id]/measure/route.ts",
+    "app/api/analyses/[id]/generate/route.ts",
+    "app/api/profiles/[id]/topics/route.ts",
+    "app/api/profiles/[id]/reputation/route.ts",
+  ];
+  const zonderRem = dureRoutes.filter((pad) => !leesBestand(pad).includes("mayTriggerCost"));
+  ok("elke dure route vraagt het aan cost-guard", zonderRem.length === 0, zonderRem.join(", "));
+
+  ok(
+    "en een cluster starten staat op slot",
+    STAFF_ONLY_ACTIONS.includes("analyse_starten"),
+  );
+});
+
+group("een klant loopt niet tegen een knop die hem afwijst", () => {
+  // De knoppen die naar /analyses/new wezen stonden bij een klant vol in beeld
+  // en weigerden pas ná de klik. Op het clusterscherm is dat het eerste wat hij
+  // van de app leert, dus daar verdwijnt de knop in plaats van te weigeren.
+  const clusters = leesBestand("app/(app)/merk/[id]/strategie/clusters/page.tsx");
+  ok("het clusterscherm toont de knop alleen aan de consultant", clusters.includes("staff ? ("));
+  ok(
+    "en zegt de klant wie zijn onderwerpen klaarzet",
+    clusters.includes("KLANT_ZONDER_CLUSTERS"),
+  );
+
+  const topics = leesBestand("app/(app)/merk/[id]/_components/topics-panel.tsx");
+  ok("het snelpad doet hetzelfde", topics.includes("staff ? ("));
+
+  // Een adres achter een verborgen knop is nog steeds een adres.
+  const nieuw = leesBestand("app/(app)/analyses/new/page.tsx");
+  ok("en de pagina zelf controleert het ook", nieuw.includes("isStaff") && nieuw.includes("notFound()"));
+});
+
+group("een merk zonder cluster overdragen wordt gemeld", () => {
+  ok("met nul clusters komt er een waarschuwing", overdrachtZonderCluster(0) !== null);
+  ok("met één cluster niet", overdrachtZonderCluster(1) === null);
+  ok(
+    "de waarschuwing zegt wat de klant zou zien",
+    /leeg overzicht/.test(overdrachtZonderCluster(0) ?? ""),
+  );
+  ok(
+    "en wat je eraan doet",
+    /zet eerst/i.test(overdrachtZonderCluster(0) ?? ""),
+  );
+
+  const toewijzen = leesBestand("app/(app)/merk/[id]/admin/toewijzen/page.tsx");
+  ok("het toewijzingsscherm toont hem", toewijzen.includes("overdrachtZonderCluster"));
+});
+
+// ── Een veld belooft nooit meer dan het doet (16 september 2026) ────────────
+console.log("\nGeen veld belooft wat het niet doet");
+
+group("omschrijving en gebruik spreken elkaar niet tegen", () => {
+  // ── WAT HIER MIS GING ────────────────────────────────────────────────────
+  //
+  // `deal_value_band` had als omschrijving "Bepaalt hoe zwaar een onderwerp
+  // meeweegt" en als gebruik "Wordt op dit moment nog niet meegewogen in de
+  // app". Die twee regels staan pal onder elkaar op hetzelfde scherm
+  // (`brand-field-input.tsx` toont eerst `description`, dan `usage`), dus de
+  // consultant las een belofte met de ontkenning eronder. CLAUDE.md: schrijf
+  // nooit dat iets al kan wat nog niet gebouwd is.
+  //
+  // Deze controle vangt precies dat geval: zegt het gebruik "nog niet", dan mag
+  // de omschrijving geen werkwoord bevatten dat beweert dat de app er iets mee
+  // doet. Het gaat om de belofte, niet om de formulering: een veld beschrijven
+  // mag altijd, iets toezeggen niet.
+  const beweert = /\b(bepaalt|stuurt|zorgt ervoor|wordt gebruikt|komt onder|weegt mee|verschijnt)\b/i;
+  const nogNiet = /nog niet|nog geen lezer|niet meegewogen/i;
+
+  const overtreders = BRAND_FIELDS.filter(
+    (f) => nogNiet.test(f.usage) && beweert.test(f.description),
+  ).map((f) => f.key);
+
+  ok("geen enkel veld belooft wat zijn gebruik ontkent", overtreders.length === 0, overtreders.join(", "));
+
+  // En het omgekeerde moet blijven bestaan: dat er velden ZIJN die eerlijk
+  // zeggen dat ze nog geen lezer hebben. Verdwijnt die categorie, dan is de
+  // controle hierboven stil nutteloos geworden.
+  ok(
+    "er zijn nog velden die eerlijk zeggen dat ze niet gebruikt worden",
+    BRAND_FIELDS.some((f) => nogNiet.test(f.usage)),
+  );
+});
+
+group("de waardeklasse is vastgelegd, niet aangesloten", () => {
+  // De redenering staat in `commercial-context.ts`: de potentiescore is per
+  // onderwerp en de waardeklasse per merk, dus een factor zou elk onderwerp van
+  // een merk even hard verschuiven en de onderlinge volgorde niet veranderen.
+  // Deze controle houdt vast dat het een besluit blijft en niet stil terugkeert.
+  const potentie = leesBestand("lib/potential.ts");
+  ok("de potentiescore leest de waardeklasse niet", !potentie.includes("deal_value_band"));
+  const voorraad = leesBestand("lib/plan-backlog.ts");
+  ok("de voorraadsortering evenmin", !voorraad.includes("deal_value_band"));
+
+  const context = leesBestand("lib/pipeline/commercial-context.ts");
+  ok(
+    "en de reden staat uitgeschreven op één plek",
+    context.includes("deal_value_band") && context.includes("per merk"),
+  );
 });
 
 // ── De verkoopafspraak onder een account (16 september 2026) ────────────────
