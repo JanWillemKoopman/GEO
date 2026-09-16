@@ -1,6 +1,12 @@
 # Het clusterresultaat overzichtelijker maken
 
-**Opgesteld:** 16 september 2026. **Status: onderzoek en voorstellenlijst, geen bouwopdracht.**
+**Opgesteld:** 16 september 2026. **Status: gebouwd, zie `docs/logbook.md` 16 september 2026.**
+De eigenaar koos een radicalere richting dan de drie voorstellen hieronder: geen dichtere hoofdstukken,
+maar alle cijfers naar Analytics en het cluster zelf terug naar één tabblad. Dit document blijft
+staan als de analyse die naar dat besluit leidde; de voorstellen A/B/C eronder zijn gepasseerd
+station, niet uitgevoerd zoals beschreven.
+
+**Oorspronkelijke status, ter referentie:**
 Aanleiding: de eigenaar ervaart het scherm van een cluster, ná het aanmaken en het binnenkomen van
 de meting (`/analyses/[id]`), als onoverzichtelijk. Te veel ruis op de tabbladen, meerdere
 tabbladen, soms heel lang.

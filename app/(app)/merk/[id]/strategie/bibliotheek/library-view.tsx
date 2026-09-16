@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { LastUpdated } from "@/components/last-updated";
+import { STATUS_LABEL, STATUS_CHIP } from "@/lib/content-status";
 import {
   beschikbareWaarden,
   filterLibrary,
@@ -35,22 +36,6 @@ const TYPE_LABEL: Record<string, string> = {
   faq: "FAQ",
   landing: "Landingspagina",
   comparison: "Vergelijking",
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  briefing: "Wacht op jouw input",
-  draft: "Concept",
-  ready: "Klaar om te publiceren",
-  published: "Staat live",
-  archived: "Gearchiveerd",
-};
-
-const STATUS_CHIP: Record<string, string> = {
-  briefing: "chip chip-warning",
-  draft: "chip chip-neutral",
-  ready: "chip chip-info",
-  published: "chip chip-success",
-  archived: "chip chip-neutral",
 };
 
 export function LibraryView({

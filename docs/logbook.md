@@ -9060,3 +9060,45 @@ drie nieuwe assertiegroepen voor de bijgewerkte `research-steps.ts`-tests (de ee
 vooronderzoek, niet meer de crawl). `tsc --noEmit`, `test:unit` (4858 geslaagd), `test:chain` (659
 geslaagd) en `build` zijn alle vier groen. Migratie 0102 (`profile_page_signals`) is additief en
 toegepast op productie.
+
+## 16 september 2026: het cluster van vier hoofdstukken naar één tabblad
+
+Vervolg op `docs/tasks/clusters-resultaatscherm-vereenvoudigen.md` (16 september 2026): het
+onderzoek daar signaleerde dat de vier hoofdstukken van een cluster (Stand, Waar je wint en mist,
+Wat je moet doen, Opgeleverd) meerdere weergaven van dezelfde cijfers stapelden. De eigenaar koos
+daarna een radicalere richting dan het document zelf voorstelde: alle cijfers over hoe een cluster
+ervoor staat (score, trend, concurrentietabellen, letterlijke antwoorden) horen bij Analytics, niet
+bij het cluster. Het cluster zelf wordt de plek waar een meting content wordt.
+
+**Wat er is gebeurd.** `app/(app)/analyses/[id]/page.tsx` heeft geen hoofdstukken en geen
+periodekiezer meer. Nieuwe `_chapters/inhoud.tsx` toont, in vaste volgorde: de blokkade-poort (een
+harde stop, geen cijfer), een korte samenvatting (`report.summary` plus de kansen uit
+`report.gaps_json` in gewone taal, zonder bewijslinks), de feitenvragen van dit cluster, en één
+lijst met alle aanbevolen pagina's en optimalisaties. Die laatste lijst toont nu ELKE aanbeveling
+(niet alleen de nog openstaande, zoals hoofdstuk 03 deed), met zijn status
+(`lib/content-status.ts`, hetzelfde label als de bibliotheek al gebruikte) en zijn potentiescore:
+de klant ziet zo in één blik wat al geschreven is, wat nog moet, en wat het oplevert.
+
+**Wat is verhuisd, en wat niet.** De potentiescore blijft op het cluster staan, want die is nodig om
+te kíezen wat je laat schrijven, geen cijfer over hoe het cluster ervoor staat. Hoofdstuk 04
+("Opgeleverd") is volledig verwijderd zonder vervanging te hoeven bouwen: `docs/tasks/
+analytics-herontwerp.md` V3 had de `content_impact`-cijfers al naar Analytics → Zoekverkeer
+verplaatst ("Effect op AI"-kolom), dus dat hoofdstuk was al gedupliceerd. De score, de trend en de
+concurrentietabellen stonden al, met een cluster-filter, op Analytics → Zichtbaarheid en →
+Concurrenten. De letterlijke antwoordenlijst (`AnswersView`) heeft nog geen nieuwe plek: die is
+verwijderd, niet verplaatst. Wie het letterlijke antwoord van een AI-assistent wil teruglezen kan
+dat vandaag nergens meer. Het detailpaneel van Analytics → Zichtbaarheid (`Z8` uit
+`analytics-herontwerp.md`) is de logische plek daarvoor, maar dat is een eigen stap.
+
+**Verwijderd, want overbodig zonder de hoofdstukken:** `_chapters/stand.tsx`, `bewijs.tsx`,
+`resultaat.tsx`, `werk.tsx`, `score-panel.tsx` (`ScoreCard`, `BrandRankingsTable`,
+`CompetitorCard`, `AlsoMentionedCard`), `antwoorden/answers-view.tsx`,
+`components/{trend-chart,results-panel,work-list,chapter,chapter-tabs,period-picker}.tsx`,
+`lib/pipeline/{answers,periods}.ts`. Elk gecontroleerd op andere gebruiksplekken vóór verwijderen
+(conventie: verwijder wat echt niets meer gebruikt, laat niets dood achter). `lib/work.ts`,
+`lib/pipeline/results.ts`, `lib/chart-curve.ts`, `components/potential-metrics.tsx` en
+`lib/pipeline/brand-rankings.ts` blijven: die worden nog gebruikt door het merkdashboard, de
+exportroute, de Analytics-grafieken en de content-pagina zelf.
+
+Getest: `tsc --noEmit`, `test:unit` (4858 geslaagd), `test:chain` (659 geslaagd) en `build` zijn
+alle vier groen. Geen migratie: dit raakt alleen schermen en leesqueries.

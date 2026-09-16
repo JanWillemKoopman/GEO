@@ -19,6 +19,12 @@
 >   detailpaneel (F4) in plaats daarvan: dat is het patroon dat Z8, C6 en V8 elders op Analytics ook
 >   gebruiken, en een tweede "meer lezen"-patroon ernaast zou de inconsistentie terugbrengen die dit
 >   plan wegwerkt.
+> - **Nieuw, 16 september 2026: de letterlijke antwoorden hebben nergens meer een plek.** Het
+>   clusterdossier toonde tot die datum de volledige antwoordenlijst van een meting
+>   (`docs/logbook.md`, 16 september 2026); die is verwijderd zonder vervanging, want alle cijfers
+>   horen bij Analytics. Het detailpaneel van Zichtbaarheid (Z8, hierboven) toont vandaag alleen de
+>   gemeten vragen en de laatste drie scores, geen letterlijke tekst. Uitbreiden van dat paneel met
+>   het antwoord per vraag is de logische plek, maar is niet in dezelfde ronde gebouwd.
 >
 > Ook de admin-schermen voor entiteitenbeheer (C1) hebben nu alleen een zoekveld; filteren op
 > ingedeeld/niet en meerdere rijen tegelijk bewerken staat niet in dit bestand maar is wel nog open.
