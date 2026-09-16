@@ -297,6 +297,10 @@ dat deze sprint vooraan staat.
 
 ### Sprint 2. De SEO-meetlaag
 
+> **Uitgewerkt in `docs/tasks/zoekdata-in-de-keten.md` (16 september 2026), blok A.** Dat document
+> zegt waar in de keten deze cijfers landen en welke beslissing ze veranderen. ⚠️ Het migratienummer
+> hieronder (`0060`) is sinds augustus vergeven; het nieuwe plan rekent vanaf `0103`.
+
 **Waarom nu.** De goedkoopste helft van de SEO-belofte, en er komt geen leverancier aan te pas.
 Search Console geeft zoekopdrachten en posities gratis weg, en de koppeling staat er al. De migratie
 van augustus zegt zelf dat zoekopdrachten "een tweede tabel waard zijn zodra ze echt gebruikt
@@ -493,6 +497,10 @@ nagerekend tegen `ai_calls`.
 ---
 
 ### Sprint 8. Echte zoekvolumes via een API
+
+> **Uitgewerkt in `docs/tasks/zoekdata-in-de-keten.md` (16 september 2026), blok B tot en met E.**
+> De prijzen in §6 hieronder zijn op 16 september opnieuw nagezocht en kloppen nog steeds. ⚠️ Het
+> migratienummer hieronder (`0066`) is sinds augustus vergeven; het nieuwe plan rekent vanaf `0104`.
 
 **Waarom achteraan.** Niet vanwege de prijs, want die is verwaarloosbaar (§6), maar omdat het een
 leverancier toevoegt aan een product dat zich eerst zonder moet bewijzen. Hierna is de potentiescore
