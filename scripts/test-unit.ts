@@ -445,6 +445,9 @@ import {
   totalen as gscTotalen,
   verschuif,
   vergelijk,
+  vergelijkingsvenster,
+  VERGELIJKINGSVENSTER_DAGEN,
+  volledigVenster as volledigVensterGsc,
   vorigVenster,
   type GscDag,
 } from "@/lib/search-console/metrics";
@@ -10732,6 +10735,51 @@ group("het vorige, even lange venster", () => {
   const zonderVorige = vergelijk([rijen[0]], venster);
   ok("zonder vorig venster is de CTR-verandering null", zonderVorige.verschil.ctr === null);
   ok("en de positieverandering ook", zonderVorige.verschil.positieVerbetert === null);
+});
+
+group("vergelijkingsvenster: waarom het zoekverkeerscherm nooit een verandering toonde", () => {
+  // ⚠️ DE BEVINDING VAN 16 SEPTEMBER 2026 (docs/tasks/zoekdata-in-de-keten.md
+  // §7.2). Het zoekverkeerscherm gaf `volledigVenster()` (het hele databereik)
+  // door aan `vergelijk()` als huidige periode. Dan ligt de periode ervóór per
+  // definitie vóór de vroegste dag die er is, dus `vergelijkbaar` wordt nooit
+  // `true`, hoeveel data er ook binnenkomt.
+  const halfJaar: GscDag[] = [];
+  for (let i = 0; i < 180; i++) {
+    halfJaar.push({
+      day: verschuif("2026-03-01", i),
+      page: "/a",
+      clicks: 3,
+      impressions: 90,
+      position: 12,
+    });
+  }
+
+  const metVolledigBereik = vergelijk(halfJaar, volledigVensterGsc(halfJaar)!);
+  ok(
+    "met het volledige bereik als venster is er NOOIT een vergelijking, dat was de fout",
+    !metVolledigBereik.vergelijkbaar,
+  );
+
+  const venster = vergelijkingsvenster(halfJaar)!;
+  ok("het venster is precies 28 dagen lang", dagenTussen(venster.start, venster.eind) === VERGELIJKINGSVENSTER_DAGEN);
+  ok("het eindigt op de laatste dag die we hebben", venster.eind === volledigVensterGsc(halfJaar)!.eind);
+
+  const metVastVenster = vergelijk(halfJaar, venster);
+  ok("met een vast venster van 28 dagen komt er wél een vergelijking", metVastVenster.vergelijkbaar);
+  ok("28 dagen keer 3 klikken is 84", metVastVenster.nu.clicks === 84);
+  ok("en het verschil met de 28 dagen ervoor is 0, want de reeks is vlak", metVastVenster.verschil.clicks === 0);
+
+  // Te weinig geschiedenis (minder dan 56 dagen): nog steeds eerlijk `null`,
+  // geen schijnvergelijking.
+  const zesWeken: GscDag[] = [];
+  for (let i = 0; i < 40; i++) {
+    zesWeken.push({ day: verschuif("2026-08-01", i), page: "/a", clicks: 1, impressions: 10, position: 5 });
+  }
+  const kortVenster = vergelijkingsvenster(zesWeken)!;
+  const kortResultaat = vergelijk(zesWeken, kortVenster);
+  ok("met 40 dagen historie is 28+28 nog niet gedekt, dus geen vergelijking", !kortResultaat.vergelijkbaar);
+
+  ok("zonder data levert het venster null op", vergelijkingsvenster([]) === null);
 });
 
 group("V5: geen delta bij een onvolledig eerste venster", () => {
