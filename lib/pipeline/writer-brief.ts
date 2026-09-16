@@ -94,6 +94,13 @@ export interface OpdrachtInput {
   /** Waardeproposities en bezwaren uit het merkprofiel, als ruw materiaal. */
   valueProps: string[];
   objections: string[];
+  /**
+   * De actuele situatie die de klant bij het opstellen van het plan meegaf
+   * (`content_plans.strategy_note`): een nieuwe vestiging, een product dat
+   * eruit gaat, een seizoen dat telt. `null` als er niets is ingevuld of het
+   * plan is opgezet vóórdat dit veld bestond.
+   */
+  situationalNote: string | null;
   analysisId: string;
   profileId: string | null;
 }
@@ -128,6 +135,9 @@ export async function maakSchrijfopdracht(input: OpdrachtInput): Promise<WriterB
     input.valueProps.length ? `Waardeproposities uit het merkprofiel: ${input.valueProps.join(", ")}` : "",
     input.objections.length
       ? `Bezwaren die klanten in het verkoopgesprek noemen: ${input.objections.join(" | ")}`
+      : "",
+    input.situationalNote
+      ? `ACTUELE SITUATIE VAN DE KLANT (achtergrond bij je keuzes hierboven, geen nieuw feit: verzin er zelf niets bovenop): ${input.situationalNote}`
       : "",
     input.contract
       ? `DE INHOUDSOPGAVE die al ligt (dit is de structuur, jij levert de richting):\n` +
