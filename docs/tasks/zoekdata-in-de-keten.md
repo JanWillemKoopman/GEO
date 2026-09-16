@@ -11,7 +11,14 @@ die de app voor een klant neemt.
 
 **De prijsvergelijking uit §6 van dat plan is op 16 september 2026 opnieuw nagezocht en klopt nog
 steeds.** DataForSEO blijft de aanbeveling: betalen per aanroep, geen abonnement, ongeveer 6
-dollarcent per duizend zoektermen.
+dollarcent per duizend zoektermen. De eigenaar heeft de leverancierskeuze op 16 september bevestigd,
+inclusief het voorwaardenrisico. Zie hoofdstuk 10.
+
+**Twee kanten.** Hoofdstuk 3 gaat over de keten: waar in de app een gok een beslissing neemt
+terwijl er een meting beschikbaar is. **Hoofdstuk 7 gaat over het scherm**: hoe je met Search
+Console eerlijk zichtbaar maakt wat ORBIT ENGINE daadwerkelijk oplevert aan zichtbaarheid en
+klikken. Dat hoofdstuk opent met een bevinding die de rest blokkeert, dus wie alleen tijd heeft voor
+één hoofdstuk, leest 7.2.
 
 ---
 
@@ -78,9 +85,13 @@ helft van de vermenigvuldiging (`search_volume_index` uit `lib/pipeline/search-d
 een taalmodel dat een schaal van 0 tot 100 invult tegen vier voorbeelden. Dat is een nette
 constructie voor een gok, en het is nog steeds een gok. De klant ziet er een cijfer.
 
+**En er is een zesde plek, die niet in deze tabel past omdat het geen beslissing is maar een
+bewering: het scherm dat laat zien wat het programma oplevert.** Dat is hoofdstuk 7, en daar zit een
+aparte bevinding: dat scherm kan vandaag geen enkele verandering tonen.
+
 ---
 
-## 3. De vijf ingrepen
+## 3. De vijf ingrepen in de keten
 
 Per ingreep: wat er verandert, waar precies, en waar het misgaat als je het verkeerd doet.
 
@@ -215,6 +226,9 @@ van de 9 AI-antwoorden waarvoor hij geschreven is, en hij staat in Google op ple
 'dakinspectie kosten', goed voor 340 vertoningen per maand."* Eén pagina, twee bewijzen, allebei
 gemeten.
 
+Wat dat per merk optelt, en hoe je dat eerlijk op het overzicht zet, staat in hoofdstuk 7. Dat is
+een eigen vraagstuk, want daar gaat het niet meer over meten maar over toeschrijven.
+
 ---
 
 ## 4. Het datamodel
@@ -308,14 +322,169 @@ en dat past niet betrouwbaar in dezelfde werker-aanroep. Zelfde redenering als b
 
 ---
 
-## 7. De bouwvolgorde
+## 7. Het analytics-overzicht: wat ORBIT ENGINE oplevert
+
+Toegevoegd op 16 september 2026, op verzoek van de eigenaar: maak met Search Console zichtbaar wat
+ORBIT ENGINE daadwerkelijk oplevert aan zichtbaarheid en klikken, zoals Nova dat op zijn
+overzichtsscherm doet.
+
+### 7.1 Wat er al staat, en wat er niet staat
+
+Eerst nagerekend tegen de code, want het grootste deel van de machinerie ligt er al en dit hoofdstuk
+moet niet voorstellen wat gebouwd is.
+
+**Staat er al**, op `/merk/[id]/analytics/zoekverkeer`: een blok "Wat ORBIT ENGINE publiceerde" met
+vier kerncijfers over uitsluitend onze eigen pagina's, de rest van de site ingeklapt eronder met de
+uitdrukkelijke tekst dat het een vergelijking is en geen resultaat, een grafiek met de
+publicatiedata erin gemarkeerd, een tabel per pagina met het AI-effect ernaast, en vier lege staten
+die elk zeggen wie er aan zet is. Dat is inhoudelijk al beter dan wat Nova doet, en het scherm zegt
+in zijn eigen opschrift waarom: de hele website meten suggereert een verband dat met één meetpunt
+niet te tonen is.
+
+**Staat er niet:** dit alles zit op een tabblad dat je moet weten te vinden. Het analytics-overzicht
+zelf (`/merk/[id]/analytics`, "Zichtbaarheid in AI") bevat geen enkel Google-cijfer. Er is dus geen
+plek waar de twee helften van de belofte bij elkaar staan.
+
+### 7.2 ⚠️ De bevinding die dit hoofdstuk blokkeert
+
+**Het scherm dat de opbrengst moet bewijzen, kan vandaag geen enkele verandering tonen.** Alle acht
+de kerncijfers (vier over onze pagina's, vier over de rest van de site) melden voor altijd "geen
+vergelijking", hoeveel maanden data er ook binnenkomen.
+
+De oorzaak is een regel code die op zichzelf klopt. `volledigVenster()` geeft het volledige bereik
+van de dagen die we hebben. Het scherm geeft dat bereik door aan `vergelijk()` als de huidige
+periode. Die functie legt er de even lange periode direct daarvóór naast en controleert of we
+daarvoor wel cijfers hebben. Die controle faalt per definitie: de periode ervóór ligt volledig vóór
+de vroegste dag die we hebben. De veiligheidsklep die zou voorkomen dat een gat als groei gelezen
+wordt, staat dus altijd dicht.
+
+Nagerekend met een reproductie op 180 dagen aan cijfers: het scherm vraagt om 1 maart tot 27
+augustus, legt daar 2 september tot 28 februari naast, en concludeert terecht dat daar niets van
+bekend is.
+
+**De oplossing** is niet de veiligheidsklep aanpassen maar het scherm: geef een vaste periode door
+(de laatste 28 dagen) in plaats van het hele bereik. Dan kan de periode daarvóór wél gedekt zijn en
+doet de klep precies waarvoor hij bedoeld is. Dit is de eerste taak van blok A, want zonder deze
+reparatie is elk volgend cijfer in dit hoofdstuk een getal zonder richting.
+
+### 7.3 Het echte vraagstuk: waar mag ORBIT ENGINE de eer voor opeisen
+
+Nova zet op zijn overzicht "Search click growth since you started". Dat is het sterkst ogende getal
+van hun hele app, en het is het minst verdedigbare: het schrijft aan Nova toe wat ook het seizoen
+kan zijn, een andere marketinginspanning, een Google-update, of pagina's die de klant zelf maakte.
+
+ORBIT ENGINE kan dit beter, om één reden: de app weet precies welke adressen hij zelf schreef. Dat
+geeft drie niveaus van bewering, en het plan kiest bewust niet het sterkst ogende.
+
+| Niveau | De bewering | Verdedigbaar |
+|---|---|---|
+| 1 | De hele site groeide sinds we begonnen | Nee. Dit is Nova's getal en het claimt andermans werk |
+| 2 | Deze 14 pagina's zijn van ons en leveren dit op | Ja. Ze bestonden niet voordat wij ze schreven |
+| 3 | Onze pagina's tegenover de rest van de site, over dezelfde periode | Ja, en dit is het sterkste |
+
+**Niveau 3 is de kern.** De rest van de site is de natuurlijke controlegroep, precies zoals
+`compute_impact` al een controlegroep van clusters gebruikt bij de AI-hermeting. Groeien onze
+pagina's 40 procent terwijl de rest 38 procent groeit, dan bewoog de markt en liften wij mee.
+Groeien onze pagina's 40 procent terwijl de rest 5 procent zakt, dan is dat een echt signaal. Het
+scherm toont beide helften al, alleen moet de lezer nu zelf de aftreksom maken.
+
+> **De regel: niveau 1 komt nooit op het scherm als resultaat van ORBIT ENGINE.** Hij blijft staan
+> waar hij nu staat, ingeklapt en benoemd als vergelijking. Wie hem ooit naar boven haalt als
+> kerncijfer, haalt Nova's zwakste gewoonte binnen.
+
+### 7.4 Vier rekenregels die dit getal eerlijk houden
+
+Dit zijn de plekken waar een opbrengstcijfer stilletjes onwaar wordt.
+
+**a) Elke pagina telt vanaf zijn eigen publicatiedatum.** Een pagina die tien dagen live staat mag
+niet meetellen over een periode van negentig dagen. De tabel per pagina doet dit al goed
+(`sindsPublicatie` filtert op de publicatiedatum); de vier kerncijfers bovenaan doen het niet, die
+tellen alle rijen van onze adressen op.
+
+⚠️ **Bij een nieuwe pagina is dat vrijwel onschuldig en bij een verbeterde pagina is het de hele
+vraag.** Een pagina die al bestond en die ORBIT ENGINE herschreef, heeft cijfers van vóór onze
+ingreep. Die tellen nu mee in "wat ORBIT ENGINE publiceerde". Voor precies het paginatype waar
+toeschrijving het moeilijkst is, claimt het scherm dus het meest.
+
+**b) Een jonge pagina is geen slecht presterende pagina.** Google heeft dagen tot weken nodig. Een
+pagina van tien dagen oud met nul klikken hoort niet het gemiddelde omlaag te trekken, hij hoort een
+eigen regel te krijgen: "3 pagina's staan korter dan 28 dagen online en zijn bij Google nog
+nauwelijks vertoond." Hetzelfde principe als `MINIMUM_VERTONINGEN` van 50, dat al voorkomt dat een
+pagina met drie vertoningen als zwakste wordt aangewezen.
+
+**c) Het totaal sinds de start en het cijfer van deze periode zijn twee verschillende dingen.** Een
+cumulatief getal loopt alleen maar op en is daarmee prachtig op een overzicht en nutteloos als
+prestatiesignaal. Allebei tonen mag, door elkaar halen niet. "Sinds de start opgeleverd" en "deze
+28 dagen" krijgen dus een eigen label en staan nooit in dezelfde rij kaarten.
+
+**d) ⚠️ `gsc_first_day` is niet het begin van het programma.** Die kolom wordt door
+`lib/search-console/sync.ts` één keer gezet op het begin van het eerste opgehaalde venster, en dat
+is negentig dagen vóór de eerste synchronisatie (`EERSTE_RONDE_DAGEN`). Het is het begin van de
+DATA, niet het moment waarop ORBIT ENGINE begon. Wie hem als "sinds je startte" gebruikt, telt
+negentig dagen mee waarin wij nog niets deden.
+
+Het echte nulpunt is de publicatiedatum van de eerste pagina die wij schreven. En `gsc_first_day`
+heeft juist daardoor een andere, waardevolle rol: hij zegt hoe ver de nulmeting terugloopt. Ligt de
+eerste synchronisatie ruim vóór de eerste publicatie, dan is er een echte nulmeting van de site
+zonder ons. Vallen ze samen, dan is die er niet, en dan hoort het scherm dat te zeggen in plaats van
+een vergelijking te tonen die nergens op rust.
+
+### 7.5 Wat er komt te staan
+
+**Eén blok bovenaan het analytics-overzicht**, met de kop "Wat ORBIT ENGINE tot nu toe opleverde".
+Geen tweede zoekverkeerscherm: drie getallen, één zin, en een verwijzing door naar het tabblad voor
+de details.
+
+1. **Pagina's live**, met erbij hoeveel er in het plan klaarstaan. Nova's "pages published" met een
+   richting eraan.
+2. **Klikken sinds de start**, cumulatief, alleen van onze pagina's, elk geteld vanaf zijn eigen
+   publicatiedatum.
+3. **Deze 28 dagen tegenover de 28 daarvóór**, van onze pagina's, met de rest van de site als
+   ijkpunt in dezelfde zin. Dit is niveau 3 uit 7.3.
+
+Daaronder de zin die alleen ORBIT ENGINE kan schrijven, over beide assen tegelijk:
+
+> *"Van de 14 pagina's die ORBIT ENGINE schreef, leveren er 9 bezoekers op uit Google, en bij 6
+> ervan noemt een AI-assistent je nu bij de vragen waarvoor ze geschreven zijn."*
+
+Nova heeft die tweede helft niet en kan hem ook niet krijgen: hun hele meetlaag is Google.
+
+**⚠️ Eén gedeelde rekenmodule, geen tweede berekening.** De getallen op het overzicht en die op het
+zoekverkeerscherm komen uit dezelfde pure module (`lib/search-console/opbrengst.ts`, testbaar,
+conventie 2). Twee schermen die hetzelfde getal apart uitrekenen lopen gegarandeerd uit elkaar, en
+het overzichtsscherm draagt in zijn eigen opschrift al de waarschuwing daarover.
+
+**De lege staten gelden onverkort.** `legeStaat()` kent er vier en die zijn hier net zo geldig: niet
+gekoppeld, geen toegang bij Google, nog niets live, cijfers komen nog. Een merk zonder gepubliceerde
+pagina's ziet geen nul maar de zin die zegt wie er aan zet is.
+
+### 7.6 Wat hier bewust niet komt
+
+- **Geen omzet, geen waarde per klik, geen rendement.** We weten niet wat een klik waard is. Een
+  getal met een euroteken dat op een aanname rust, is precies wat `merkstrategie.md` §30 bijhoudt
+  als een belofte die de bouw vooruitloopt.
+- **Geen sitebrede groeiclaim als kerncijfer.** Zie 7.3.
+- **Geen tweede ranglijst van beste pagina's.** `besteEnZwakste()` bestaat al en de tabel is al
+  gesorteerd. Nova's leaderboard zou hier een derde weergave van dezelfde rijen zijn.
+- **Geen prestatiebadge of gamificatie.** Al afgewezen in `docs/tasks/nova-vergelijking-verbeterpunten.md`.
+
+---
+
+## 8. De bouwvolgorde
 
 Vijf blokken. De volgorde is niet willekeurig: blok A kost niets en heeft geen leverancier nodig,
 dus daar hoort de helft van de waarde vandaan te komen voordat er één dollar naar buiten gaat.
 
 ### Blok A. De zoekopdrachten uit Search Console (gratis, geen leverancier)
 
-Migratie `0103`, de tweede aanroep in `lib/search-console/sync.ts`, en een pure rekenmodule
+**A0 gaat vooraf aan alles: de reparatie uit 7.2.** Het zoekverkeerscherm geeft het volledige
+databereik door als huidige periode en kan daardoor nooit een verandering tonen. Een vaste periode
+van 28 dagen doorgeven lost het op. Dit is een kleine ingreep in
+`app/(app)/merk/[id]/analytics/zoekverkeer/page.tsx` met een test in `test-unit.ts` die vastlegt dat
+een merk met genoeg historie wél een vergelijking krijgt. Zonder A0 is elk cijfer uit hoofdstuk 7
+een getal zonder richting.
+
+Daarna: migratie `0103`, de tweede aanroep in `lib/search-console/sync.ts`, en een pure rekenmodule
 `lib/search-console/rankings.ts` voor de positieverdeling en de pagina's op het randje. Plus de
 nieuwe kansenbron `zoekverkeer` en de vier lege staten die het zoekverkeerscherm al heeft, aangevuld
 met de nieuwe.
@@ -351,14 +520,20 @@ de tekst slechter kan maken, dus hier is een menselijk oordeel geen luxe maar de
 
 ### Blok E. Het bewijs
 
-Ingreep 3.5.
+Ingreep 3.5 plus het hele hoofdstuk 7: de gedeelde rekenmodule `lib/search-console/opbrengst.ts`,
+de vier rekenregels uit 7.4, en het blok bovenaan het analytics-overzicht.
 
-**Af als:** één echt gepubliceerde pagina beide assen laat zien, nagerekend tegen zowel de
-AI-hermeting als Search Console.
+⚠️ **De volgorde binnen dit blok is niet vrij.** Eerst de rekenmodule met zijn tests, dan de twee
+schermen die hem gebruiken. Andersom bouwen levert twee berekeningen op die een half jaar later uit
+elkaar blijken te lopen.
+
+**Af als:** op één merk met echte gepubliceerde pagina's het overzichtsblok en het zoekverkeerscherm
+exact dezelfde getallen tonen, de toeschrijving per pagina vanaf de eigen publicatiedatum klopt, en
+een verbeterde pagina aantoonbaar niet zijn cijfers van vóór de herschrijving meetelt (7.4a).
 
 ---
 
-## 8. Wat dit plan bewust niet doet
+## 9. Wat dit plan bewust niet doet
 
 - **Geen zoekwoorddichtheid, geen SEO-score per pagina, geen groen bolletje.** Zie 3.4. Die
   gereedschappen sturen een schrijver richting herhaling, en dit product heeft negentien controles
@@ -375,17 +550,29 @@ AI-hermeting als Search Console.
 
 ---
 
-## 9. Open vragen voor de eigenaar
+## 10. Besluiten en open vragen
 
-1. **De voorwaarden van DataForSEO.** Sommige leveranciers verbieden het doorgeven van hun
-   zoekvolumes aan derden, en dit product toont ze aan de klant. Dat is een juridische controle en
-   geen technische, en hij kan de leverancierskeuze omgooien. ⚠️ Deze vraag hoort vóór blok B
-   beantwoord te zijn, niet erna.
-2. **Land en taal.** Nederland en Nederlands vast, of per merk instelbaar met het oog op België? Dat
+### Genomen op 16 september 2026
+
+**DataForSEO wordt de leverancier, en de eigenaar neemt het voorwaardenrisico bewust.** Sommige
+leveranciers verbieden het doorgeven van zoekvolumes aan derden, en dit product toont ze aan de
+klant. De eigenaar heeft besloten door te gaan zonder die controle vooraf af te ronden.
+
+⚠️ Wat dat betekent voor de bouw, en dit is geen formaliteit: de leverancierslaag uit hoofdstuk 5
+moet echt vervangbaar zijn. Blijkt de voorwaarde er later toch te staan, dan is de uitweg één
+adapter vervangen en niet een halve app herbouwen. De test die bewijst dat de app zonder sleutel
+identiek werkt, is daarmee geen nette bijkomstigheid maar de verzekeringspolis op dit besluit.
+
+**Het analytics-overzicht krijgt een opbrengstblok**, met de bewuste keuze om Nova's sitebrede
+groeiclaim niet over te nemen. Zie hoofdstuk 7.
+
+### Nog open
+
+1. **Land en taal.** Nederland en Nederlands vast, of per merk instelbaar met het oog op België? Dat
    bepaalt of `keyword_demand` één rij per zoekterm heeft of meerdere.
-3. **Het startsaldo van 50 dollar bij DataForSEO.** Vooruitbetaald tegoed, geen abonnement, en bij
+2. **Het startsaldo van 50 dollar bij DataForSEO.** Vooruitbetaald tegoed, geen abonnement, en bij
    twintig merken gaat het ruim een jaar mee. Akkoord om dat te storten voordat blok B begint?
-4. **De bandgrenzen.** De huidige banden (hoog, midden, laag) komen uit een relatieve schaal binnen
+3. **De bandgrenzen.** De huidige banden (hoog, midden, laag) komen uit een relatieve schaal binnen
    één analyse. Met echte volumes kun je kiezen: absolute grenzen die voor elke markt gelijk zijn, of
    relatief binnen het merk blijven. Absoluut is eerlijker tussen merken, relatief houdt de
    bestaande weging precies zoals hij nu werkt. Mijn voorstel is relatief beginnen, omdat dat
