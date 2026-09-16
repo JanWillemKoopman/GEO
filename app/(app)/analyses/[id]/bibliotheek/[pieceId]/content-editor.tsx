@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ErrorNotice, problemFromResponse, networkProblem } from "@/components/error-notice";
+import { ErrorNotice, networkProblem } from "@/components/error-notice";
 import { FaqEditor, type FaqEditItem } from "@/components/faq-editor";
 import { SearchPreview } from "@/components/search-preview";
 import { renderMarkdown } from "@/lib/markdown";
@@ -32,6 +32,8 @@ interface EditorState {
   metaTitle: string;
   metaDescription: string;
   faq: FaqEditItem[];
+  /** Migratie 0100, punt 17: wanneer deze stand geladen is, voor het conflictslot. */
+  updatedAt: string;
 }
 
 export function ContentEditor({
@@ -48,12 +50,16 @@ export function ContentEditor({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  // Punt 13: een drempel vóór de bewerkmodus opent, geen modaal venster erbij
+  // (zelfde soort tweeklaps-bevestiging als `RerunResearchButton`).
+  const [drempel, setDrempel] = useState(false);
   const [weergave, setWeergave] = useState<"bewerken" | "voorbeeld">("bewerken");
   const [title, setTitle] = useState(initial.title);
   const [body, setBody] = useState(initial.bodyMarkdown);
   const [metaTitle, setMetaTitle] = useState(initial.metaTitle);
   const [metaDescription, setMetaDescription] = useState(initial.metaDescription);
   const [faq, setFaq] = useState<FaqEditItem[]>(initial.faq);
+  const [updatedAt, setUpdatedAt] = useState(initial.updatedAt);
   const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [problem, setProblem] = useState<UserFacingError | null>(null);
 
@@ -77,12 +83,34 @@ export function ContentEditor({
           meta_title: metaTitle,
           meta_description: metaDescription,
           faq_json: faq,
+          updated_at: updatedAt,
         }),
       });
+      const json = await res.json().catch(() => null);
       if (!res.ok) {
         setState("error");
-        setProblem(problemFromResponse(await res.json().catch(() => null)));
+        // Punt 16: de tekst die de route teruggeeft is al specifiek (welke
+        // controle faalde, of iemand anders je voor was), en die tekst moet
+        // de kop zijn die iemand leest, niet weggestopt onder "technische
+        // details" zoals `problemFromResponse()` bij een onbekende fout doet.
+        setProblem({
+          kind: "unknown",
+          title:
+            res.status === 409
+              ? "Iemand anders was je voor"
+              : res.status === 422
+                ? "Dit kan nog niet opgeslagen worden"
+                : "Opslaan is niet gelukt",
+          message: (json as { error?: string } | null)?.error ?? "Probeer het opnieuw.",
+          // Bij een conflict lost nog eens klikken niets op: de pagina moet
+          // eerst vernieuwd worden om de nieuwste stand te zien.
+          canRetry: res.status !== 409,
+          detail: "",
+        });
         return;
+      }
+      if (typeof (json as { updatedAt?: string } | null)?.updatedAt === "string") {
+        setUpdatedAt((json as { updatedAt: string }).updatedAt);
       }
       setState("saved");
       setOpen(false);
@@ -100,9 +128,43 @@ export function ContentEditor({
   }
 
   if (!open) {
+    // Punt 13: een drempel, geen modaal venster. Wie op "Tekst bewerken" klikt
+    // weet daarna dat een handmatige ingreep de pijplijn buitenspel zet, in
+    // plaats van dat pas te ontdekken bij de kleine tekst in de bewerkmodus.
+    if (drempel) {
+      return (
+        <div className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
+          <p className="text-sm text-secondary">
+            Als je hier met de hand in werkt, gaat dat buiten de schrijfpijplijn om: de controles die
+            ORBIT ENGINE normaal op gegenereerde tekst uitvoert, gelden niet voor wat jij zelf typt.
+            Ga alleen door als je dat zelf in de gaten wilt houden.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn-primary btn-sm"
+              onClick={() => {
+                setDrempel(false);
+                setOpen(true);
+              }}
+            >
+              Ja, ik pas de tekst zelf aan
+            </button>
+            <button
+              type="button"
+              className="btn-outline btn-sm"
+              onClick={() => setDrempel(false)}
+            >
+              Annuleren
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" onClick={() => setOpen(true)} className="btn-outline w-fit">
+        <button type="button" onClick={() => setDrempel(true)} className="btn-outline w-fit">
           Tekst bewerken
         </button>
         {state === "saved" && (

@@ -512,6 +512,7 @@ export default async function ContentDetailPage({
           metaTitle: piece.meta_title ?? "",
           metaDescription: piece.meta_description ?? "",
           faq,
+          updatedAt: piece.updated_at,
         }}
         previewUrl={previewUrl}
       />

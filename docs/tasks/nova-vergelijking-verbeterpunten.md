@@ -149,36 +149,41 @@ ORBIT ENGINE heeft hier al veel: versieherkomst in gewone taal (`lib/pipeline/ve
 zelf al naar Nova gemodelleerd), een diff-weergave, een kwaliteitspaneel, een zoekresultaat-preview,
 claimcontrole en een eindpoort. De punten hieronder zijn wat Nova er sindsdien bij heeft gezet.
 
-**13. Zet een drempel voor de handmatige bewerkmodus.** (klein)
-Nova opent een bevestiging: "Manual edits may affect indexing, keyword targeting, and on-page
-optimisation for Google. Continue only if you're comfortable editing this content by hand", met als
-knop "Continue at my own risk". ORBIT ENGINE waarschuwt nu alleen dat wijzigingen de versie
-overschrijven. Het punt is niet de waarschuwing zelf, het is dat de klant erna weet dat een
-handmatige ingreep iets kost.
+**13. ~~Zet een drempel voor de handmatige bewerkmodus.~~** (klein) ✅ **Live, 16 september 2026.**
+`content-editor.tsx` opent nu eerst een korte uitleg met "Ja, ik pas de tekst zelf aan" /
+"Annuleren" voordat de bewerkmodus zelf verschijnt, zelfde tweeklaps-patroon als
+`RerunResearchButton`. Geen modaal venster: één klik die twee wordt is genoeg.
 
-**14. Controleer deterministisch vóór het opslaan van een bewerking.** (midden)
-Nova toetst bij opslaan op vijf dingen: lege meta-titel, lege H1, lege meta-omschrijving, het
-belangrijkste zoekwoord dat nergens in titel, H1 of tekst voorkomt, en een link zonder adres. Dat
-is precies conventie 1 uit `CLAUDE.md`: elke promptinstructie een deterministisch vangnet in code.
-ORBIT ENGINE controleert de gegenereerde tekst al streng, maar de handmatig bewerkte tekst gaat
-langs een lichtere poort. Een klant kan dus met de hand kapot maken wat de pijplijn goed had.
+**14. ~~Controleer deterministisch vóór het opslaan van een bewerking.~~** (midden) ✅ **Live,
+16 september 2026.** Nieuwe pure module `lib/pipeline/manual-edit-checks.ts`, `checkManualEdit()`,
+in de PATCH-route. Vier van Nova's vijf controles zijn hier waardevol: lege titel (die is ook de
+H1), lege meta-title, lege meta-omschrijving, een link zonder adres. De vijfde ("belangrijkste
+zoekwoord") kent hier geen apart veld; `cluster` (het onderwerp waar de pagina op moet scoren) is de
+dichtstbijzijnde tekst, en de controle slaat over als die leeg is (conventie 3). Blokkeert het
+opslaan met status 422 en een tekst die precies zegt wat er ontbreekt.
 
-**15. Zeg vooraf welke opmaak verloren gaat.** (klein)
-Nova: "Some formatting on this page can't be edited here and will be removed if you save:
-{elements}". Wie een tabel of een bijschrift kwijtraakt zonder waarschuwing, vertrouwt de editor
-daarna niet meer.
+**15. Zeg vooraf welke opmaak verloren gaat.** (klein) **Niet van toepassing.** Bevestigd:
+`content-editor.tsx` is bewust een platte Markdown-editor zonder werkbalk (zie het eigen
+opschrift van dat bestand); er is geen rijke opmaak die bij het opslaan gestript wordt, dus er is
+niets om vooraf over te waarschuwen. Dit punt keert pas terug als er ooit een rijkere editor komt,
+en die is met opzet niet gebouwd (zie "Wat we bewust niet overnemen").
 
-**16. Maak de foutmeldingen bij opslaan specifiek.** (klein)
-Nova heeft er tien, elk met een eigen oorzaak: iemand anders wijzigde dit ondertussen, dit is al
-gepubliceerd, de tekst is te lang, je hebt geen rechten meer, de verbinding brak af. Elke melding
-eindigt met "Your draft is safe". ORBIT ENGINE heeft er één algemene. Dat verschil merk je pas als
-er iets misgaat, en dan is het precies het moment waarop vertrouwen wint of verliest.
+**16. ~~Maak de foutmeldingen bij opslaan specifiek.~~** (klein) ✅ **Live, 16 september 2026,
+samen met punt 14 en 17 gebouwd.** De PATCH-route geeft nu vier soorten fouten een eigen tekst: de
+pagina bestaat niet meer, een van de vier controles van punt 14 faalt (met welke), een conflict met
+een gelijktijdige bewerking (punt 17), of een echte opslagstoring. `content-editor.tsx` toont die
+tekst voortaan als de kop van de melding, niet weggestopt onder "technische details". Twee van
+Nova's tien redenen zijn hier niet gebouwd ("al gepubliceerd", "tekst te lang"): die regels bestaan
+nergens anders in de app, en ze erbij verzinnen voor deze ene foutmelding zou een nieuwe blokkerende
+regel invoeren die niemand vroeg.
 
-**17. Vang gelijktijdig bewerken af.** (midden)
-Nova's melding "This item changed since you opened it" verraadt dat ze meegeven welke versie je aan
-het bewerken was. Bij ons kan een consultant en een klant tegelijk in hetzelfde stuk werken en wint
-stilzwijgend wie het laatst opslaat. Met een sales-led model waarin de consultant meekijkt is dat
-geen randgeval maar de normale gang van zaken.
+**17. ~~Vang gelijktijdig bewerken af.~~** (midden) ✅ **Live, 16 september 2026.** Nieuwe kolom
+`content_pieces.updated_at` (migratie 0100). De PATCH-route slaat pas op als `updated_at` nog gelijk
+is aan wat de editor laadde (`WHERE updated_at = ...`, dezelfde voorwaardelijke-update-vergrendeling
+als `removePage()` in `lib/plans.ts`); komt iemand anders ertussen, dan krijgt de tweede opslaan een
+duidelijke melding in plaats van dat hij stilzwijgend wint. Bewust alleen op déze route: de
+schrijfpijplijn zelf heeft al zijn eigen taakvergrendeling (conventie 9), dit slot is specifiek voor
+twee mensen die tegelijk in dezelfde tekst typen.
 
 ---
 

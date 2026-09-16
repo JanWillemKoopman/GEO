@@ -652,6 +652,7 @@ import { actionNeedsStaff, STAFF_ONLY_ACTIONS } from "@/lib/cost-rules";
 import { navActief } from "@/lib/nav";
 import { openVragenTotaal, openVragenLabel } from "@/lib/open-questions-count";
 import { eindpoort } from "@/lib/content-final-gate";
+import { checkManualEdit } from "@/lib/pipeline/manual-edit-checks";
 import { leesMaandKeuze, maandRegel, planStap, telStatussen } from "@/lib/plan-read";
 import {
   isEersteMaand,
@@ -9879,6 +9880,61 @@ group("eindpoort: geen definitieve versie met vragen open", () => {
   // open te staan: een geschreven pagina niet kunnen afronden omdat een telling
   // misging is erger dan een pagina afronden met een vraag open.
   ok("een onmogelijke telling blokkeert niet", eindpoort(-2).mag === true);
+});
+
+group("vijf controles bij een handmatige bewerking (blok C punt 14)", () => {
+  const geldig = {
+    title: "Cv-ketel onderhoud in Tilburg",
+    bodyMarkdown: "Wij onderhouden je cv-ketel in Tilburg en omgeving.",
+    metaTitle: "Cv-ketel onderhoud Tilburg | Voorbeeld",
+    metaDescription: "Snel en vakkundig cv-ketel onderhoud in Tilburg.",
+    cluster: "cv-ketel onderhoud",
+  };
+
+  ok("een volledige pagina heeft geen problemen", checkManualEdit(geldig).length === 0);
+
+  ok(
+    "lege titel blokkeert",
+    checkManualEdit({ ...geldig, title: "  " }).some((p) => p.code === "lege-titel"),
+  );
+  ok(
+    "lege meta-title blokkeert",
+    checkManualEdit({ ...geldig, metaTitle: "" }).some((p) => p.code === "lege-meta-titel"),
+  );
+  ok(
+    "lege meta-description blokkeert",
+    checkManualEdit({ ...geldig, metaDescription: "" }).some((p) => p.code === "lege-meta-omschrijving"),
+  );
+  ok(
+    "een link zonder adres blokkeert",
+    checkManualEdit({ ...geldig, bodyMarkdown: "Lees ook [onze andere pagina]()." }).some(
+      (p) => p.code === "lege-link",
+    ),
+  );
+  ok(
+    "een link met adres is geen probleem",
+    checkManualEdit({ ...geldig, bodyMarkdown: "Lees ook [onze andere pagina](/andere-pagina)." })
+      .length === 0,
+  );
+
+  ok(
+    "het zoekwoord moet ergens voorkomen",
+    checkManualEdit({
+      ...geldig,
+      title: "Iets anders",
+      metaTitle: "Iets anders",
+      bodyMarkdown: "Dit gaat nergens over ketels.",
+    }).some((p) => p.code === "zoekwoord-ontbreekt"),
+  );
+  ok(
+    "geen cluster bekend is geen aanname over het zoekwoord (conventie 3)",
+    checkManualEdit({ ...geldig, title: "Iets anders", cluster: null }).length === 0,
+  );
+  ok(
+    "meerdere problemen komen allemaal terug",
+    checkManualEdit({ title: "", bodyMarkdown: "", metaTitle: "", metaDescription: "", cluster: null })
+      .length === 3,
+  );
 });
 
 group("de vragenpagina staat in Strategie, tussen clusters en plan", () => {

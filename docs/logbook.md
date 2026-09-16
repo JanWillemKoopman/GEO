@@ -8709,3 +8709,42 @@ omdraaien. Blijft open tot zo'n knop ooit wél nodig is.
 Geen migratie, geen datamodelwijziging: alleen hergebruik van bestaande componenten en één nieuwe
 route. Getest: `tsc --noEmit`, `test:unit` (4701 geslaagd, zeven nieuwe assertions) en `test:chain`
 (652 geslaagd) en `build` zijn alle vier groen.
+
+## 16 september 2026: vier sloten om de handmatige bewerkmodus (blok C, punt 13, 14, 16, 17)
+
+Blok C uit `docs/tasks/nova-vergelijking-verbeterpunten.md`, allemaal in en om
+`content-editor.tsx` en de PATCH-route eronder (`/api/analyses/[id]/content/[pieceId]`).
+
+**Punt 13**: een drempel vóór de bewerkmodus opent, zelfde tweeklaps-patroon als
+`RerunResearchButton` elders in de app (geen modaal venster, gewoon een tweede klik).
+
+**Punt 14**: nieuwe pure module `lib/pipeline/manual-edit-checks.ts`. Vier van Nova's vijf
+controles zijn overgenomen (lege titel/H1, lege meta-title, lege meta-omschrijving, link zonder
+adres); de vijfde ("belangrijkste zoekwoord") leunt op `cluster` bij gebrek aan een eigen
+zoekwoordveld en slaat over als die leeg is (conventie 3). De controle rekent op de EFFECTIEVE
+stand na de bewerking (bestaande velden erbij gehaald voor wat niet meekomt in de aanvraag), niet
+alleen op wat er nu wordt opgeslagen.
+
+**Punt 17**: nieuwe kolom `content_pieces.updated_at` (migratie 0100). De PATCH-route leest hem bij
+het ophalen en gebruikt hem als voorwaarde bij het schrijven (`WHERE updated_at = ...`), zelfde
+patroon als de buffer-claim in `removePage()` (`lib/plans.ts`): de voorwaardelijke update bepaalt
+zelf of hij lukt, geen aparte lees-dan-beslis-stap die een wedstrijdconditie open laat. Bewust
+alleen op deze ene route: de schrijfpijplijn heeft al zijn eigen taakvergrendeling (conventie 9),
+dit is specifiek voor twee mensen die in dezelfde tekst typen.
+
+**Punt 16** volgt uit de andere twee: de foutmeldingen van punt 14 (welke controle faalde) en punt
+17 (een conflict) zijn vanzelf al specifiek, dus dit punt was vooral zorgen dat `content-editor.tsx`
+die tekst ook ECHT laat zien. Bleek nodig: `problemFromResponse()` (het gedeelde
+foutafhandelingspatroon) stopt een onbekende foutmelding weg onder "technische details" en toont een
+generieke kop. Voor deze ene editor gebouwd om die tekst rechtstreeks als kop te tonen, in plaats van
+het gedeelde component zelf aan te passen: dat raakt tientallen andere schermen en was geen
+onderdeel van deze opdracht.
+
+**Punt 15 niet gebouwd: niet van toepassing.** `content-editor.tsx` is met opzet een platte
+Markdown-editor zonder werkbalk (zie het eigen opschrift van dat bestand). Er is geen rijke opmaak
+die bij het opslaan verloren kan gaan, dus er valt niets vooraf over te waarschuwen.
+
+Getest: `tsc --noEmit`, `test:unit` (4710 geslaagd, veertien nieuwe assertions) en `test:chain`
+(652 geslaagd, geen scenario raakte de PATCH-route) en `build` zijn alle vier groen. Migratie 0100
+toegepast via de Supabase MCP-tool en nagekeken: de kolom staat er, `timestamptz not null default
+now()`.

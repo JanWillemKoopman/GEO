@@ -513,3 +513,13 @@ die na een volledige vulronde nog steeds in de voorraad zit (`vulOpenMaanden()`'
 `restendeVoorraadIds`) als "buiten bereik": samen het onderscheid uit
 `docs/tasks/nova-vergelijking-verbeterpunten.md`, blok A punt 4, tussen "nog nooit ingepland" en
 "er bewust uitgehaald".
+
+## 0100 — wanneer is dit contentstuk voor het laatst aangepast (blok C punt 17)
+
+`content_pieces.updated_at`, additief met default `now()`. De PATCH-route
+(`/api/analyses/[id]/content/[pieceId]`) gebruikt hem als voorwaarde bij het opslaan van een
+handmatige bewerking (`WHERE updated_at = ...`): wijzigde iemand anders de pagina ondertussen, dan
+matcht de update geen rij meer en krijgt de tweede opslaan een melding in plaats van dat hij
+stilzwijgend wint. Bewust niet bijgehouden door andere schrijfacties op deze tabel (schrijfpijplijn,
+keuring, publiceren): die hebben hun eigen taakvergrendeling, dit slot is specifiek voor twee mensen
+die tegelijk in dezelfde tekst typen.
