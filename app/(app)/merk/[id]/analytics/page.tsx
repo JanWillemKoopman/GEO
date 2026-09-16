@@ -31,6 +31,9 @@ import type {
   TechnicalAudit as TechnicalAuditRow,
   VisibilityScore,
 } from "@/lib/types/database";
+import { legeStaat } from "@/lib/search-console/lege-staat";
+import { berekenOpbrengst, type OpbrengstPagina } from "@/lib/search-console/opbrengst";
+import { normaliseerUrl, type GscDag } from "@/lib/search-console/metrics";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Zichtbaarheid in AI" };
@@ -91,6 +94,29 @@ export default async function AnalyticsPage({
 
   const clusters = (analysisRows ?? []) as { id: string; name: string; label_id: string | null }[];
   const labels = sorteerLabels((labelRows ?? []) as ClusterLabel[]);
+  const analysisIdsVoorOpbrengst = clusters.map((c) => c.id);
+
+  // ── §7: wat ORBIT ENGINE tot nu toe oplevert, merkbreed en NIET gefilterd ──
+  // op cluster of label: dit blok gaat over het hele merk, net als de
+  // publicatie- en plancijfers eronder niets met de filterbalk te maken hebben.
+  const [{ data: pieceRows }, { data: gscRows }, { data: planPageRows }] = await Promise.all([
+    analysisIdsVoorOpbrengst.length > 0
+      ? supabase
+          .from("content_pieces")
+          .select("published_url, published_at")
+          .in("analysis_id", analysisIdsVoorOpbrengst)
+          .not("published_url", "is", null)
+      : Promise.resolve({ data: [] }),
+    supabase
+      .from("search_console_days")
+      .select("day, page, clicks, impressions, position")
+      .eq("profile_id", id),
+    supabase
+      .from("planned_pages")
+      .select("status")
+      .eq("profile_id", id)
+      .eq("is_buffer", false),
+  ]);
 
   let scores: VisibilityScore[] = [];
   if (clusters.length > 0) {
@@ -179,6 +205,53 @@ export default async function AnalyticsPage({
         })()
       : null;
 
+  // ── §7.2/§7.5: het opbrengstblok, of de lege staat die zegt wie aan zet is ──
+  const opbrengstPaginas: OpbrengstPagina[] = ((pieceRows ?? []) as { published_url: string; published_at: string | null }[]).map(
+    (p) => ({ page: p.published_url, publishedAt: p.published_at }),
+  );
+  const gscRijen = (gscRows ?? []) as GscDag[];
+  const planPaginas = (planPageRows ?? []) as { status: string }[];
+  const paginasGepland = planPaginas.filter((p) => p.status !== "geplaatst").length;
+
+  const opbrengstLeeg = legeStaat({
+    heeftProperty: Boolean(profile.gsc_property),
+    geverifieerdOp: profile.gsc_verified_at,
+    laatsteFout: profile.gsc_last_error,
+    gepubliceerdePaginas: opbrengstPaginas.length,
+    dagenVoorOnzePaginas: gscRijen.filter((r) =>
+      opbrengstPaginas.some((p) => normaliseerUrl(p.page) === normaliseerUrl(r.page)),
+    ).length,
+  });
+
+  const opbrengst = opbrengstLeeg ? null : berekenOpbrengst(opbrengstPaginas, gscRijen, paginasGepland);
+
+  // ── §7.3, niveau 3: onze pagina's tegenover de controlegroep ────────────
+  //
+  // ⚠️ Alleen als BEIDE kanten een echte vergelijking hebben én de vorige
+  // periode niet op nul klikken stond: een percentage over "0 naar 4" is
+  // oneindig en zegt niets (conventie 3, geen schijnprecisie).
+  let controlegroepZin: string | null = null;
+  if (
+    opbrengst?.vergelijkingOns?.vergelijkbaar &&
+    opbrengst.vergelijkingControlegroep?.vergelijkbaar &&
+    opbrengst.vergelijkingOns.vorige.clicks > 0 &&
+    opbrengst.vergelijkingControlegroep.vorige.clicks > 0
+  ) {
+    const onsPercentage = Math.round(
+      (opbrengst.vergelijkingOns.verschil.clicks! / opbrengst.vergelijkingOns.vorige.clicks) * 100,
+    );
+    const restPercentage = Math.round(
+      (opbrengst.vergelijkingControlegroep.verschil.clicks! /
+        opbrengst.vergelijkingControlegroep.vorige.clicks) *
+        100,
+    );
+    const teken = (n: number) => (n > 0 ? "+" : "");
+    controlegroepZin =
+      onsPercentage > restPercentage
+        ? `Onze pagina's groeiden ${teken(onsPercentage)}${onsPercentage}% deze periode, de rest van de site ${teken(restPercentage)}${restPercentage}%. Dat verschil is aan ons toe te schrijven.`
+        : `Onze pagina's groeiden ${teken(onsPercentage)}${onsPercentage}% deze periode, ongeveer gelijk op met de rest van de site (${teken(restPercentage)}${restPercentage}%). De markt bewoog mee, meer dan dat wij dat deden.`;
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -186,6 +259,70 @@ export default async function AnalyticsPage({
         title="Zichtbaarheid in AI"
         description="Hoe vaak AI-assistenten je noemen, over al je clusters heen, en wat dat cijfer verklaart."
       />
+
+      {/* ── §7.5: wat ORBIT ENGINE tot nu toe opleverde ──────────────────────
+          Merkbreed en bovenaan: dit is de eerste vraag van de eigenaar, vóór
+          de AI-zichtbaarheidsscore, want het is het bewijs dat er iets
+          gebeurt, niet de meting van hoe goed het gaat. */}
+      {opbrengstLeeg ? (
+        <div className="card flex flex-col gap-2">
+          <span className="mono-label">{opbrengstLeeg.kop}</span>
+          <p className="text-secondary">{opbrengstLeeg.uitleg}</p>
+          {opbrengstLeeg.geruststelling && (
+            <p className="text-sm text-muted">{opbrengstLeeg.geruststelling}</p>
+          )}
+        </div>
+      ) : (
+        <div className="card flex flex-col gap-3">
+          <span className="mono-label">Wat ORBIT ENGINE tot nu toe opleverde</span>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex flex-col gap-1">
+              <span className="mono-label text-muted">Pagina&apos;s live</span>
+              <span className="stat-value text-3xl">
+                {opbrengst!.paginasLive}
+                {opbrengst!.paginasGepland > 0 && (
+                  <span className="text-base text-muted"> · {opbrengst!.paginasGepland} in het plan</span>
+                )}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="mono-label text-muted">Klikken sinds de start</span>
+              <span className="stat-value text-3xl">
+                {opbrengst!.klikkenSindsStart === null
+                  ? "-"
+                  : opbrengst!.klikkenSindsStart.toLocaleString("nl-NL")}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="mono-label text-muted">Deze 28 dagen</span>
+              {opbrengst!.vergelijkingOns ? (
+                <>
+                  <span className="stat-value text-3xl">
+                    {opbrengst!.vergelijkingOns.nu.clicks.toLocaleString("nl-NL")} klikken
+                  </span>
+                  {!controlegroepZin && (
+                    <span className="text-sm text-muted">Nog niet genoeg geschiedenis voor een vergelijking.</span>
+                  )}
+                </>
+              ) : (
+                <span className="text-secondary">Nog geen klikken gemeten.</span>
+              )}
+            </div>
+          </div>
+          {/* ── §7.3, niveau 3: de rest van de site als controlegroep ────── */}
+          {controlegroepZin && <p className="text-sm text-secondary">{controlegroepZin}</p>}
+          {opbrengst!.jongePaginas > 0 && (
+            <p className="text-sm text-muted">
+              {opbrengst!.jongePaginas === 1
+                ? "1 pagina staat korter dan 28 dagen online en is bij Google nog nauwelijks vertoond."
+                : `${opbrengst!.jongePaginas} pagina's staan korter dan 28 dagen online en zijn bij Google nog nauwelijks vertoond.`}
+            </p>
+          )}
+          <Link href={`/merk/${id}/analytics/zoekverkeer`} className="text-sm underline w-fit">
+            Bekijk per pagina
+          </Link>
+        </div>
+      )}
 
       <AnalyticsFilters
         periodes={periodes}

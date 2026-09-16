@@ -460,6 +460,7 @@ import {
   totalenPerQueryPagina,
   type GscQueryDag,
 } from "@/lib/search-console/rankings";
+import { berekenOpbrengst, type OpbrengstPagina } from "@/lib/search-console/opbrengst";
 
 import { splitSentences, stripMarkdown, firstSentences } from "@/lib/pipeline/sentences";
 import { extractHeadings, renderMarkdown } from "@/lib/markdown";
@@ -11016,6 +11017,66 @@ group("stijgers en dalers over twee vensters", () => {
   const dalersLijst = gscDalers(b);
   ok("precies één daler", dalersLijst.length === 1);
   ok("dakdekker zutphen daalde, van 5 naar 14", dalersLijst[0]!.verschil === 14 - 5);
+});
+
+group("berekenOpbrengst: wat ORBIT ENGINE oplevert, niet wat de site oplevert (§7)", () => {
+  const nu = new Date("2026-09-10T12:00:00Z");
+
+  const paginas: OpbrengstPagina[] = [
+    { page: "https://x.nl/a", publishedAt: "2026-07-01" },
+    // Jonger dan het vergelijkingsvenster: geen slecht presterende pagina.
+    { page: "https://x.nl/nieuw", publishedAt: "2026-09-05" },
+  ];
+
+  const rijen: GscDag[] = [];
+  for (let i = 0; i < 90; i++) {
+    const dag = verschuif("2026-06-01", i);
+    // Onze pagina: 5 klikken per dag, ELKE dag, ook vóór de publicatiedatum
+    // (bijvoorbeeld een pagina die ORBIT ENGINE herschreef en die al langer
+    // bestond). Dat moet uit "klikkenSindsStart" gefilterd worden.
+    rijen.push({ day: dag, page: "https://x.nl/a", clicks: 5, impressions: 50, position: 10 });
+    // Een pagina die niet van ons is: telt mee in de controlegroep.
+    rijen.push({ day: dag, page: "https://x.nl/oud", clicks: 2, impressions: 40, position: 8 });
+  }
+  // De nieuwe pagina heeft nog nauwelijks cijfers, zoals in werkelijkheid.
+  rijen.push({ day: "2026-09-08", page: "https://x.nl/nieuw", clicks: 0, impressions: 3, position: 40 });
+
+  const o = berekenOpbrengst(paginas, rijen, 4, nu);
+
+  ok("twee pagina's live", o.paginasLive === 2);
+  ok("vier gepland", o.paginasGepland === 4);
+
+  // ⚠️ §7.4a: /a heeft cijfers van 1 juni tot en met 29 augustus (90 dagen,
+  // i = 0 tot 89 vanaf 1 juni). Vanaf de publicatiedatum (1 juli) tot en met
+  // 29 augustus is dat 60 dagen, dus 60 × 5 = 300 klikken. De klikken van vóór
+  // de publicatiedatum (1 tot en met 30 juni, 30 dagen × 5) tellen NIET mee,
+  // ook al staan ze in de rijen van diezelfde URL.
+  eq2("klikken tellen pas vanaf de eigen publicatiedatum", o.klikkenSindsStart, 60 * 5);
+
+  ok("er is een vergelijking voor onze pagina's", o.vergelijkingOns !== null);
+  ok("en voor de controlegroep", o.vergelijkingControlegroep !== null);
+  // ⚠️ Nagerekend: onzeRijen loopt door tot 8 september (/nieuw), dus het
+  // venster is 12 augustus tot 8 september. Daarin heeft /a nog maar 18 van
+  // de 28 dagen cijfers (12 t/m 29 augustus, want de reeks van /a stopt op
+  // 29 augustus): 18 × 5 = 90 klikken. De controlegroep (alleen /oud) heeft
+  // wél een volle 28 dagen: 28 × 2 = 56.
+  eq2("onze pagina's: 90 klikken deze periode", o.vergelijkingOns!.nu.clicks, 90);
+  eq2("de controlegroep: 56 klikken deze periode", o.vergelijkingControlegroep!.nu.clicks, 56);
+  ok(
+    "de controlegroep is de rest, niet de hele site: onze pagina's tellen er niet in mee",
+    o.vergelijkingControlegroep!.nu.clicks !== o.vergelijkingOns!.nu.clicks,
+  );
+
+  ok("precies één jonge pagina", o.jongePaginas === 1);
+
+  // Zonder publicatiedatums is "sinds start" onbekend, geen 0 (conventie 3).
+  const zonderDatums = berekenOpbrengst(
+    [{ page: "https://x.nl/a", publishedAt: null }],
+    rijen,
+    0,
+    nu,
+  );
+  ok("geen publicatiedatum betekent geen getal, geen 0", zonderDatums.klikkenSindsStart === null);
 });
 
 // ════════════════════════════════════════════════════════════════════════════

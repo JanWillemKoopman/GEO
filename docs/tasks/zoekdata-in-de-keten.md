@@ -1,6 +1,15 @@
 # Zoekdata in de keten: Search Console en DataForSEO van meetlaag naar stuurlaag
 
-**Opgesteld:** 16 september 2026. **Status: bouwplan, nog niets gebouwd.**
+**Opgesteld:** 16 september 2026. **Status: in aanbouw.**
+
+**Bouwstatus, bijgewerkt 16 september 2026.** A0 ✅ af (`lib/search-console/metrics.ts`,
+`vergelijkingsvenster()`). Blok A ✅ af: migratie 0103, `lib/search-console/sync.ts` haalt de
+zoekopdrachten op, `lib/search-console/rankings.ts` rekent de positieverdeling, `lib/opportunities.ts`
+heeft de bron `zoekverkeer`. Hoofdstuk 7 (het opbrengstblok) ✅ af: `lib/search-console/opbrengst.ts`
+plus het blok op `/merk/[id]/analytics`. Blok B (DataForSEO), C (clusters/vragen/kansen verankeren)
+en D (de tekst) staan nog open; zie hoofdstuk 10 voor het genomen besluit over de leverancier. Alle
+vier de controles (`tsc`, `test:unit`, `test:chain`, `build`) stonden groen bij elke stap, zie
+`docs/logbook.md` 16 september 2026.
 
 **Waar dit op voortbouwt.** `docs/tasks/ontwikkelplan-visie.md` heeft twee sprints die hier over
 gaan: sprint 2 (de zoekopdrachten uit Search Console erbij halen, gratis) en sprint 8 (echte

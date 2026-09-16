@@ -9139,3 +9139,34 @@ rekenkant-af, schermwerk volgt.
 
 Getest: `tsc --noEmit`, `test:unit` (4886 geslaagd), `test:chain` (659 geslaagd) en `build` zijn alle
 vier groen.
+
+## 16 september 2026, vervolg: het opbrengstblok op het analytics-overzicht
+
+Hoofdstuk 7 van `docs/tasks/zoekdata-in-de-keten.md` gebouwd, op verzoek van de eigenaar: laat op
+`/merk/[id]/analytics` zien wat ORBIT ENGINE daadwerkelijk oplevert aan zichtbaarheid en klikken,
+zoals Nova dat doet, maar zonder Nova's zwakste gewoonte over te nemen.
+
+**Eigen module, niet hergebruikt van het zoekverkeerscherm.** `lib/search-console/opbrengst.ts`
+beantwoordt een strengere vraag dan `metrics.ts`: niet "hoe doet de site het" maar "wat mag ORBIT
+ENGINE zich toerekenen". De controlegroep is hier daarom écht de rest van de site, onze eigen
+pagina's eruit gefilterd, in plaats van de brede, alles-inclusief vergelijking die het
+zoekverkeerscherm bewust toont als losse, gelabelde vergelijking. Twee schermen die "de rest van de
+site" zeggen en iets anders bedoelen was precies het risico; ze hebben nu allebei hun eigen naam en
+een commentaar dat het verschil uitlegt.
+
+**Twee rekenregels die het cijfer eerlijk houden.** Elke pagina telt pas mee vanaf zijn eigen
+publicatiedatum, ook als er al langer cijfers van die URL in de database staan (een pagina die
+herschreven is, geen nieuwe). En pagina's jonger dan het vergelijkingsvenster worden apart geteld in
+plaats van het gemiddelde te verdunnen: Google heeft weken nodig om een nieuwe pagina serieus te
+tonen.
+
+Het blok toont drie kerncijfers (pagina's live plus wat er in het plan staat, klikken sinds de start,
+de laatste 28 dagen) en één zin die de controlegroep tegen onze eigen pagina's afzet, alleen als
+beide kanten een echte vergelijking hebben en de vorige periode niet op nul klikken stond: een
+percentage over "0 naar 4" is oneindig en zegt niets. Bewust geen omzet, geen tweede ranglijst, geen
+gamificatie (zie hoofdstuk 9 van het plan voor de volledige lijst met wat bewust wegblijft).
+
+Getest: `berekenOpbrengst()` heeft een eigen testgroep die de rekenfout in het eerste testscenario
+zelf ving (63 versus de echte 60 dagen), en bewijst dat de controlegroep nooit onze eigen klikken
+meetelt. `tsc --noEmit`, `test:unit` (4896 geslaagd), `test:chain` (659 geslaagd) en `build` zijn
+alle vier groen. Geen migratie: alle gebruikte tabellen bestaan al.
