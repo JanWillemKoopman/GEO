@@ -8863,3 +8863,45 @@ merk geldt en later aan te passen is, in plaats van een eenmalige invoer te sugg
 Getest: `tsc --noEmit`, `test:unit` (4712 geslaagd) en `test:chain` (652 geslaagd) en `build` zijn
 alle vier groen (`build` faalde één keer op een niet-ontsnapt aanhalingsteken in JSX, meteen
 gecorrigeerd naar `&ldquo;`/`&rdquo;`, hetzelfde patroon als elders in de app). Geen migratie.
+
+## 16 september 2026: het contentplan krijgt een kalender, een versiegeschiedenis en een exact tekort (blok A, punt 5, 6, 7, 8, 30)
+
+De laatste vijf openstaande punten van de Nova-vergelijkingsronde. Drie gebouwd, twee bevestigd
+"niet van toepassing" of "al gebouwd" na onderzoek.
+
+**Punt 5**: `maandRegel()` (`lib/plan-read.ts`) en de tekortmelding op het bord (`plan-view.tsx`)
+noemen nu het exacte aantal ("Nog 3 pagina's nodig om je pakket van 5 te halen") in plaats van
+alleen te zeggen dát het tekortschiet.
+
+**Punt 6**: nieuwe derde weergave `PlanCalendarView`, bereikbaar via `?weergave=kalender` naast
+Overzicht en Plannen. Nieuwe pure module `lib/plan-calendar.ts` (`calendarDagen()`) groepeert de
+pagina's van één maand per publicatiedag; de component tekent per maand een rooster van
+`LAATSTE_DAG` (28, nu geëxporteerd uit `plan-schedule.ts`) dagen. Alleen-lezen: een derde plek die
+ook kan plannen zou de volgorde tussen drie schermen uit de pas kunnen laten lopen.
+
+**Punt 7**: nieuwe pagina `/merk/[id]/strategie/plan/versies` en `loadPlanVersions()`
+(`lib/plans.ts`). Bleek kleiner dan gedacht: `content_plans` bewaarde elke versie al (`version`,
+status `gestopt` in plaats van verwijderd), sinds de allereerste contentplan-migratie. Er ontbrak
+alleen een scherm dat ze toont. Bewuste afwijking van Nova: geen goedgekeurd/afgewezen/niet-
+afgemaakt-label, want `content_plans.status` legt nergens vast WAAROM een plan stopte (een nieuwe
+versie stopt de oude altijd, ongeacht de reden). In plaats daarvan de feiten die er wél zijn:
+hoeveel van de twaalf maanden ooit vrijgegeven zijn en hoeveel pagina's uit dat voorstel live
+kwamen. Een tri-state verzinnen die de data niet draagt, is precies wat conventie 3 wil voorkomen.
+
+**Punt 8 niet gebouwd: niet van toepassing.** `createPlan()` doet geen enkele AI-aanroep en rondt
+in één synchrone aanvraag af (`syncBacklog()` en `vulOpenMaanden()` zijn allebei pure
+databasebewerkingen). Er is geen fase waarin sommige maanden al klaar zijn en andere nog
+"gegenereerd worden" zoals bij Nova, waar losse AI-agenten per maand een eigen strategie schrijven.
+
+**Punt 30 bleek al gebouwd.** `SearchConsoleBox` had de gevraagde knop al: "Koppel en controleer"
+(later "Opnieuw controleren") doet één echte aanvraag die `syncSearchConsole()` aanroept en het
+werkelijke resultaat toont, geen aparte testknop nodig want opslaan-zonder-controle was hier al
+nooit een bruikbare uitkomst.
+
+Getest: `tsc --noEmit`, `test:unit` (4723 geslaagd, achttien nieuwe assertions) en `test:chain`
+(659 geslaagd, zeven nieuwe assertions op de bestaande potentiescore-scenario, met een extra gemeten
+cluster zodat er voorraad overblijft voor een tweede planversie) en `build` zijn alle vier groen.
+Geen migratie: `content_plans.version`/`status` bestonden al.
+
+Met dit blok is blok A van de Nova-vergelijkingsronde volledig compleet (8 van de 8 punten), en
+staat alleen blok F (meertaligheid, koppelingstest) nog open als groot, apart te besluiten project.

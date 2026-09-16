@@ -39,9 +39,12 @@ const MAANDNAMEN = [
  * Binnen welke dagen van de maand plannen we?
  *
  * Tot en met 28, zodat februari geen uitzondering is. Overgenomen uit
- * `lib/plan-constants.ts`, waar dezelfde regel gold.
+ * `lib/plan-constants.ts`, waar dezelfde regel gold. Geëxporteerd sinds blok A
+ * punt 6 (`docs/tasks/nova-vergelijking-verbeterpunten.md`): de kalenderweergave
+ * van het plan (`plan-calendar-view.tsx`) moet dezelfde grens tekenen, anders
+ * suggereren dag 29 tot en met 31 lege vakjes die nooit een pagina krijgen.
  */
-const LAATSTE_DAG = 28;
+export const LAATSTE_DAG = 28;
 
 export interface KalenderMaand {
   /** Nul-gebaseerd, zoals `Date.getUTCMonth()`. */

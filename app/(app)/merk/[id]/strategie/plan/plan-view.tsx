@@ -873,9 +873,12 @@ export function PlanView({
                       color: "var(--intent-warning-text)",
                     }}
                   >
-                    Deze maand haalt je pakket van {plan.pages_per_month} pagina&apos;s nog niet: er
-                    zijn nog niet genoeg gemeten kansen. Meet een cluster erbij, of wacht tot de
-                    volgende meetronde.
+                    Nog{" "}
+                    {plan.pages_per_month - inhoud.length === 1
+                      ? "één pagina"
+                      : `${plan.pages_per_month - inhoud.length} pagina's`}{" "}
+                    nodig om je pakket van {plan.pages_per_month} te halen: er zijn nog niet genoeg
+                    gemeten kansen. Meet een cluster erbij, of wacht tot de volgende meetronde.
                   </p>
                 )}
 

@@ -78,28 +78,35 @@ met per kaart een label ("eruit gehaald" of "buiten bereik") en bij het uitklapp
 meer. Bijvangst: `assignToMonth()` zette `auto_placed` nooit terug op `false` bij een menselijke
 sleepactie, ondanks wat de migratie 0098 zelf al beloofde. Rechtgezet in dezelfde ronde.
 
-**5. Zeg op het planscherm hoeveel pagina's er nog bij moeten om het abonnement te halen.** (klein)
-Nova: "Add # more pages to reach your plan of {quota} pages a month". Eén zin, en de klant weet
-of hij klaar is. ORBIT ENGINE toont wel hoe lang de voorraad meegaat (`backlogDurationLabel()`),
-maar niet of de eerstvolgende maand vol is.
+**5. ~~Zeg op het planscherm hoeveel pagina's er nog bij moeten om het abonnement te halen.~~**
+(klein) ✅ **Live, 16 september 2026.** `maandRegel()` (`lib/plan-read.ts`) en de tekortmelding op
+het bord (`plan-view.tsx`) zeggen nu allebei het exacte aantal: "Nog 3 pagina's nodig om je pakket
+van 5 te halen" in plaats van alleen "dat is minder dan je pakket".
 
-**6. Laat het plan ook als kalender zien, niet alleen als lijst.** (klein)
-Nova heeft een schakelaar tussen "Table" en "Calendar" (`strategy.calendar.layoutLabel`). Bij twaalf
-maanden met elk een handvol pagina's is een kalender sneller te overzien dan een lijst, en het maakt
-gaten zichtbaar die in een lijst niet opvallen.
+**6. ~~Laat het plan ook als kalender zien, niet alleen als lijst.~~** (klein) ✅ **Live, 16
+september 2026.** Nieuwe derde weergave naast Overzicht en Plannen: `PlanCalendarView`
+(`plan-calendar-view.tsx`), bereikbaar via `?weergave=kalender`. Twaalf maanden naast elkaar, elk
+een rooster van `LAATSTE_DAG` (28) dagen met een gekleurd vakje per dag met content, kleur op basis
+van de status die het meest om aandacht vraagt. Alleen-lezen, zoals Overzicht: slepen blijft op het
+bord, anders kunnen drie plekken de volgorde uit de pas laten lopen.
 
-**7. Bewaar elk voorstel als versie, met de uitkomst erbij.** (midden)
-Nova bewaart elke strategieronde apart: "Proposal of {date}", met per ronde de uitkomst goedgekeurd,
-afgewezen of niet afgemaakt, en oudere rondes alleen-lezen. ORBIT ENGINE logt cluster-rondes al in
-`profile_topic_rounds`, maar het planvoorstel zelf niet. Zonder dat kun je achteraf niet nagaan wat
-je een klant precies hebt voorgesteld en wat hij ervan vond, en dat is bij een verlenging precies
-wat je wilt laten zien.
+**7. ~~Bewaar elk voorstel als versie, met de uitkomst erbij.~~** (midden) ✅ **Live, 16 september
+2026, met één bewuste afwijking van Nova.** Nieuwe pagina `/merk/[id]/strategie/plan/versies`
+(`loadPlanVersions()`, `lib/plans.ts`), bereikbaar via een link op het planscherm zodra er meer dan
+één voorstel bestaat. `content_plans` bleek al elke versie te bewaren (`version`, status `gestopt`
+in plaats van verwijderd, sinds de eerste contentplan-migratie): het ontbrak alleen aan een scherm
+dat ze toont. Geen goedgekeurd/afgewezen/niet-afgemaakt-label zoals Nova: `content_plans.status`
+kent geen "waarom" voor het stoppen van een plan, dus in plaats daarvan de feiten die er wél zijn,
+hoeveel van de twaalf maanden ooit werden vrijgegeven en hoeveel pagina's uit dat voorstel live
+kwamen. Die verzinnen tot een tri-state zou een antwoord suggereren dat de data niet geeft
+(conventie 3).
 
-**8. Toon voortgang terwijl het plan gemaakt wordt, per maand.** (klein)
-Nova: "{completed} of {total} months generated so far", plus per nog lege maand een blokje "This
-month is still being generated. It will appear here as soon as it's ready, no need to do anything."
-ORBIT ENGINE heeft een goede wachtrij met statussen, maar een half klaar plan ziet er nu uit als
-een kapot plan.
+**8. Toon voortgang terwijl het plan gemaakt wordt, per maand.** (klein) **Niet van toepassing,
+16 september 2026.** Bevestigd: `createPlan()` doet geen enkele AI-aanroep (`syncBacklog()` en
+`vulOpenMaanden()` zijn allebei pure databasebewerkingen) en rondt binnen één synchrone
+aanvraag af. Er is geen fase waarin sommige maanden al klaar zijn en andere nog "worden
+gegenereerd": het hele plan staat er in één keer. Nova's voortgangsscherm lost een probleem op dat
+hier niet bestaat, want daar schrijven losse AI-agenten per maand een eigen strategie.
 
 ---
 
@@ -330,13 +337,15 @@ Nederlandse klant die ook in België of Duitsland wil scoren is dat een echte fu
 middagje werk: het raakt het datamodel, het plan, de meting en de schrijfketen. Apart besluit waard,
 niet iets om tussendoor te doen.
 
-**30. Een testronde om te controleren of een koppeling echt werkt.** (midden)
-Nova's `admin.demoPost` stuurt een proefbericht met onzin-tekst om te controleren of de
-CMS-koppeling doet wat hij belooft. De CMS-kant vervalt hier, maar het idee erachter niet: ORBIT
-ENGINE heeft ook koppelingen die stil kunnen falen, met Search Console als belangrijkste. Een knop
-"controleer deze koppeling" die één echte aanvraag doet en toont wat er terugkomt, voorkomt dat je
-er weken later achter komt dat er geen data binnenkwam. Conventie 10 uit `CLAUDE.md` zegt precies
-dit: gebouwd is niet geverifieerd.
+**30. Een testronde om te controleren of een koppeling echt werkt.** (midden) **Al gebouwd,
+bevestigd 16 september 2026.** `SearchConsoleBox` (`app/(app)/merk/[id]/_components/`) heeft precies
+deze knop al: "Koppel en controleer" (of "Opnieuw controleren" zodra hij al gekoppeld is) doet één
+echte aanvraag naar `POST /api/profiles/[id]/search-console`, die zelf meteen `syncSearchConsole()`
+aanroept en het echte aantal opgehaalde regels teruggeeft, of de exacte reden als het niet lukte
+(`gsc_last_error`). Geen aparte "test"-actie los van opslaan: de route zegt zelf waarom, "opslaan
+zonder controle is hier geen bruikbare uitkomst". Search Console is ook de enige koppeling in de
+app die dit nodig heeft (`instellingen/koppelingen`), dus er is nu geen tweede plek om dit patroon
+naar te kopiëren.
 
 ---
 
@@ -366,12 +375,12 @@ in jouw app. Wij publiceren niet, dus de tekst gaat hoe dan ook door een CMS van
 
 ## Voorgestelde volgorde
 
-**Eerst, want klein en meteen merkbaar:** ~~25, 26, 27, 28, 19 (al gebouwd, bevestigd), 16, 13
-(alle live sinds 15/16 september 2026, blok E is daarmee compleet)~~. Nog open: 5 (hoeveel
-pagina's nog nodig).
+**Eerst, want klein en meteen merkbaar:** ~~25, 26, 27, 28, 19 (al gebouwd, bevestigd), 16, 13, 5,
+30 (al gebouwd, bevestigd) (alle live of bevestigd sinds 15/16 september 2026, blok E is daarmee
+compleet)~~.
 
-**Daarna, want het lost een echt probleem op dat groeit:** ~~blok A, alle vier de punten, live sinds
-15 september 2026~~. Dit was de voorwaarde om werkpakket B uit het optimalisatielab te kunnen
+**Daarna, want het lost een echt probleem op dat groeit:** ~~blok A, alle acht de punten, live sinds
+15/16 september 2026~~. Dit was de voorwaarde om werkpakket B uit het optimalisatielab te kunnen
 opleveren: zodra het aantal kansen omhoog gaat, liep het oude planscherm vast.
 
 **Dan, omdat ze de kwaliteit bewaken die we al hebben:** ~~14, 17, 20, 24 (live sinds 16 september

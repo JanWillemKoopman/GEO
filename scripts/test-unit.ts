@@ -604,7 +604,9 @@ import {
   datumProbleem,
   maandIsVol,
   schrijfBelofte,
+  LAATSTE_DAG,
 } from "@/lib/plan-schedule";
+import { calendarDagen } from "@/lib/plan-calendar";
 import { sharedNotice } from "@/lib/plan-overview";
 import {
   filterBacklog,
@@ -5772,6 +5774,43 @@ group("de kalender van een plan (plan-schedule)", () => {
   );
 });
 
+group("de kalenderweergave van het plan (blok A punt 6, plan-calendar)", () => {
+  const pagina = (over: Partial<Parameters<typeof calendarDagen>[0][number]> = {}) => ({
+    id: "p1",
+    title: "Een pagina",
+    status: "gepland" as const,
+    scheduled_for: "2026-10-05",
+    is_buffer: false,
+    ...over,
+  });
+
+  ok("levert precies LAATSTE_DAG dagen op", calendarDagen([]).length === LAATSTE_DAG);
+  ok("een lege maand heeft alleen lege dagen", calendarDagen([]).every((d) => d.paginas.length === 0));
+
+  const gevuld = calendarDagen([pagina()]);
+  ok("de pagina staat op de juiste dag", gevuld.find((d) => d.dag === 5)?.paginas.length === 1);
+  ok("en met zijn titel erbij", gevuld.find((d) => d.dag === 5)?.paginas[0].title === "Een pagina");
+  ok(
+    "een andere dag blijft leeg",
+    gevuld.find((d) => d.dag === 6)?.paginas.length === 0,
+  );
+
+  ok(
+    "een buffer telt niet mee",
+    calendarDagen([pagina({ id: "b1", is_buffer: true })]).every((d) => d.paginas.length === 0),
+  );
+  ok(
+    "geen publicatiedatum telt niet mee",
+    calendarDagen([pagina({ id: "p2", scheduled_for: null })]).every((d) => d.paginas.length === 0),
+  );
+  ok(
+    "twee pagina's op dezelfde dag staan allebei in dat vakje",
+    calendarDagen([pagina({ id: "p1" }), pagina({ id: "p2", title: "Nog een pagina" })]).find(
+      (d) => d.dag === 5,
+    )?.paginas.length === 2,
+  );
+});
+
 group("publicatiedata spreiden over een maand (plan-schedule)", () => {
   // ⚠️ Een vaste `now`, ver buiten de geteste maand. Zonder dat argument leest
   // `spreadDates()` de echte klok, en dan slaat de regel "in de lopende maand
@@ -8184,9 +8223,13 @@ group("het contentplan zoals de klant het leest", () => {
       "4 pagina's deze maand.",
   );
   ok(
-    "minder dan het pakket krijgt een tekortzin erbij",
+    "minder dan het pakket krijgt een tekortzin met het exacte aantal erbij (blok A punt 5)",
     maandRegel({ paginas: 2, geplaatst: 0, eersteDatum: null, pakket: 5 }) ===
-      "2 pagina's deze maand. Dat is minder dan je pakket van 5: er zijn nog niet genoeg gemeten kansen.",
+      "2 pagina's deze maand. Nog 3 pagina's nodig om je pakket van 5 te halen: er zijn nog niet genoeg gemeten kansen.",
+  );
+  ok(
+    "enkelvoud bij precies één pagina tekort",
+    maandRegel({ paginas: 4, geplaatst: 0, eersteDatum: null, pakket: 5 }).includes("Nog één pagina nodig"),
   );
   ok(
     "precies het pakket krijgt geen tekortzin",
@@ -8195,7 +8238,7 @@ group("het contentplan zoals de klant het leest", () => {
   ok(
     "de tekortzin komt ook achter 'allemaal live'",
     maandRegel({ paginas: 2, geplaatst: 2, eersteDatum: null, pakket: 5 }).includes(
-      "allemaal live. Dat is minder dan je pakket",
+      "allemaal live. Nog 3 pagina's nodig",
     ),
   );
 
@@ -10957,20 +11000,22 @@ group("de klantweergave kan nooit rechten geven, alleen wegnemen", () => {
   ok("het kostenslot blijft het effectieve recht gebruiken", gate.includes("isStaff(userId)"));
 });
 
-group("het contentplan heeft twee weergaven", () => {
+group("het contentplan heeft drie weergaven", () => {
   const scherm = readFileSync("app/(app)/merk/[id]/strategie/plan/page.tsx", "utf8");
 
-  // ⚠️ Allebei bereikbaar voor iedereen; alleen het beginpunt verschilt. De
+  // ⚠️ Alledrie bereikbaar voor iedereen; alleen het beginpunt verschilt. De
   // klant landt op het overzicht en gaat met één klik naar het bord, de
   // consultant landt op het bord. Tot 27 augustus 2026 was er alleen het bord,
   // ook voor de klant, met bovenaan "sleep beschikbare content items naar de
-  // maand waarin ze geschreven moeten worden".
+  // maand waarin ze geschreven moeten worden". Kalender (blok A punt 6) kwam
+  // er als derde bij, zonder de rolregel van de eerste twee te raken.
   ok("de leesweergave bestaat", scherm.includes("<PlanReadView"));
   ok("het bord bestaat", scherm.includes("<PlanView"));
-  ok("er is een schakelaar tussen de twee", scherm.includes("<WeergaveKiezer"));
+  ok("de kalenderweergave bestaat", scherm.includes("<PlanCalendarView"));
+  ok("er is een schakelaar tussen de drie", scherm.includes("<WeergaveKiezer"));
   ok(
     "de rol bepaalt alleen het beginpunt",
-    scherm.includes('const bord = weergave ? weergave === "plannen" : staff;'),
+    scherm.includes("staff ? \"plannen\" : \"overzicht\""),
   );
   // Een weergave in de URL wint van de rol, zodat een gedeelde link bij de
   // klant en de consultant hetzelfde opent.
