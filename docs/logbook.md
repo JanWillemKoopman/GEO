@@ -8977,3 +8977,34 @@ niet bereikt.
 oorzaak.** Na de laatste wijziging was `tsc --noEmit` groen terwijl `npm run build` faalde op een
 cast in `scripts/test-unit.ts`. De twee kijken dus niet naar precies dezelfde bestanden. Vier
 controles draaien is niet drie controles draaien plus een formaliteit.
+
+## De lichte titel+meta-doorgang: een vollediger beeld zonder alles te lezen (16 september 2026)
+
+Nova (InSpace) leest tijdens onboarding expliciet titels en meta-descriptions, los van en vóór de
+volledige crawl (*"Reading your titles and meta descriptions…"*, `Nova_onboarding.md` §3b). ORBIT
+ENGINE las de hele sitemap altijd al volledig uit (tot 10.000 URL's, migratie 0061), maar koos
+daaruit de `max_inventory_pages` die écht gelezen worden puur op het URL-pad (`url-priority.ts`).
+Dat gaat mis bij een generieke slug: een dienstenpagina op `/diensten/42` scoorde even laag als een
+blogartikel, terwijl de titel "Vloerverwarming installeren" precies zegt waar de pagina over gaat.
+
+**Wat er nu gebeurt.** `crawlInventory()` (`lib/crawler.ts`) doet, alleen als een site groter is dan
+het plafond én er een tijdbudget beschikbaar is (dus alleen de achtergrondtaak `crawl_inventory`, niet
+de snelle scan van de Sales-module die geen budget meegeeft), eerst een goedkope doorgang
+(`crawlHeads()`) over tot 600 pagina's: alleen `<title>` en de meta-description, geen volledige tekst,
+geen structured-data-oogst. Twee besparingen tegelijk maken dat goedkoop: een `Range`-verzoek als hint
+aan de server, en het lezen van de stream stopt zodra `</head>` voorbij is, in plaats van te wachten
+tot de hele pagina binnen is. Die titels en meta-descriptions gaan als extra signaal
+(`UrlSignal`) in `scoreUrl()`/`selectUrls()`, met een kleiner gewicht dan het URL-pad: het pad blijft
+leidend, de tekst redt of ontmaskert alleen de twijfelgevallen. Zonder signaal (de meeste aanroepen,
+want deze stap draait niet altijd) verandert er niets aan het bestaande gedrag.
+
+**Wat het niet doet.** Geen nieuwe pagina's opslaan: de lichte doorgang levert alleen een beter
+gefundeerde keuze op voor de bestaande `max_inventory_pages`, niet een bredere content-inventaris.
+Hoeveel pagina's meededen staat wel op het scherm (`profiles.crawl_lightly_scanned`, migratie 0101,
+`InventoryBox`), zodat "we keken breder" niet stilzwijgend gebeurt.
+
+Getest: `scoreUrl()`/`selectUrls()` met en zonder signaal, inclusief het geval waarin negen neutrale
+secties een kale slug uit de top-2 duwen zonder signaal en het signaal hem er wél tussen krijgt
+(`scripts/test-unit.ts`, drie nieuwe assertiegroepen). `tsc --noEmit`, `test:unit` (4851 geslaagd),
+`test:chain` (659 geslaagd) en `build` zijn alle vier groen. Migratie 0101 is additief, geen
+backfill: een bestaand profiel krijgt de kolom pas gevuld bij zijn eerstvolgende crawlronde.

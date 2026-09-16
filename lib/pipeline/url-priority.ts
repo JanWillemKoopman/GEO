@@ -76,6 +76,38 @@ export const HOMEPAGE_SCORE = 1000;
 /** Wat een expliciet door een mens gekozen sectie waard is. Overstemt alles behalve de homepage. */
 const VOORRANG_BONUS = 300;
 
+/**
+ * Titel en meta-description van een pagina, als ORBIT ENGINE die al kent
+ * zonder de pagina volledig gelezen te hebben (de lichte titel+meta-doorgang
+ * in `crawlHeads()`, lib/crawler.ts). Optioneel: zonder deze gegevens scoort
+ * een URL zoals voorheen, puur op het pad.
+ *
+ * ── WAAROM DIT ERBIJ MOEST (16 september 2026) ──────────────────────────────
+ *
+ * Nova (InSpace) leest tijdens onboarding expliciet titels en
+ * meta-descriptions los van de volledige crawl, óók van pagina's die niet
+ * volledig gelezen worden. `scoreUrl()` kende tot nu toe alleen het URL-pad,
+ * en dat gaat mis bij een generieke slug: `/diensten/42` scoorde even laag als
+ * een blogartikel, terwijl de titel "Vloerverwarming installeren" precies zegt
+ * waar de pagina over gaat. Zie `Nova_onboarding.md` §3b en
+ * `docs/nova-vs-orbit-engine-proces.md` voor de vergelijking.
+ */
+export interface UrlSignal {
+  title?: string | null;
+  description?: string | null;
+}
+
+/**
+ * Hoeveel titel/meta-tekst mag meewegen. Kleiner dan de padbonussen
+ * (AANBOD_WOORDEN +120, STEUN_WOORDEN +60, ruis -80): het pad is een
+ * structuurkeuze van de klant zelf en blijft leidend, titel/meta is een
+ * aanvullend signaal dat vooral generieke of onduidelijke paden redt of juist
+ * ontmaskert.
+ */
+const AANBOD_BONUS_SIGNAL = 60;
+const STEUN_BONUS_SIGNAL = 30;
+const RUIS_PENALTY_SIGNAL = -40;
+
 /** Splitst een padsegment in woorden: "onze-diensten" → ["onze", "diensten"]. */
 function woordenVan(segment: string): string[] {
   return segment
@@ -85,13 +117,36 @@ function woordenVan(segment: string): string[] {
     .filter(Boolean);
 }
 
+/** Los lopende woorden uit een titel of meta-description, geen padnotatie. */
+function woordenUitTekst(tekst: string): string[] {
+  return tekst.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+}
+
+function signaalScore(signal?: UrlSignal): number {
+  if (!signal) return 0;
+  const woorden = [...woordenUitTekst(signal.title ?? ""), ...woordenUitTekst(signal.description ?? "")];
+  if (woorden.length === 0) return 0;
+
+  // Ruis (blog, vacature, voorwaarden, …) weegt het zwaarst: een titel als
+  // "10 tips voor …" ontmaskert een blogartikel ook als het toevallig onder
+  // een aanbod-achtig pad hangt.
+  if (woorden.some((w) => RUIS_WOORDEN.has(w))) return RUIS_PENALTY_SIGNAL;
+  if (woorden.some((w) => AANBOD_WOORDEN.has(w))) return AANBOD_BONUS_SIGNAL;
+  if (woorden.some((w) => STEUN_WOORDEN.has(w))) return STEUN_BONUS_SIGNAL;
+  return 0;
+}
+
 /**
  * Hoe waardevol is deze pagina voor het in kaart brengen van het aanbod?
  *
  * Geen 0-100 schaal: het getal wordt alleen met andere scores vergeleken, nooit
  * aan een drempel gehouden. Een schaal zou suggereren dat 50 iets betekent.
  */
-export function scoreUrl(url: string, priorityPaths: readonly string[] = []): number {
+export function scoreUrl(
+  url: string,
+  priorityPaths: readonly string[] = [],
+  signal?: UrlSignal,
+): number {
   const segments = segmentsOf(url);
   if (segments.length === 0) return HOMEPAGE_SCORE;
 
@@ -118,12 +173,19 @@ export function scoreUrl(url: string, priorityPaths: readonly string[] = []): nu
   // Hoe dieper, hoe specifieker, hoe minder representatief voor het geheel.
   score -= 12 * (segments.length - 1);
 
+  score += signaalScore(signal);
+
   return score;
 }
 
 /** Vaste volgorde: hoogste score eerst, dan ondiep vóór diep, dan alfabetisch. */
-function vergelijk(a: string, b: string, priorityPaths: readonly string[]): number {
-  const verschil = scoreUrl(b, priorityPaths) - scoreUrl(a, priorityPaths);
+function vergelijk(
+  a: string,
+  b: string,
+  priorityPaths: readonly string[],
+  signals?: ReadonlyMap<string, UrlSignal>,
+): number {
+  const verschil = scoreUrl(b, priorityPaths, signals?.get(b)) - scoreUrl(a, priorityPaths, signals?.get(a));
   if (verschil !== 0) return verschil;
   const diepte = segmentsOf(a).length - segmentsOf(b).length;
   if (diepte !== 0) return diepte;
@@ -173,6 +235,13 @@ export function selectUrls(
    * de site, ongeacht wat er al gecrawld is.
    */
   exclude: ReadonlySet<string> = new Set(),
+  /**
+   * Titel/meta-description per URL, uit de lichte titel+meta-doorgang
+   * (`crawlHeads()`, lib/crawler.ts). Ontbreekt een URL in deze kaart, dan
+   * scoort hij zoals voorheen, puur op het pad: dit is een aanvulling, geen
+   * vereiste.
+   */
+  signals?: ReadonlyMap<string, UrlSignal>,
 ): UrlSelection {
   // Ontdubbelen op de canonieke sleutel en niet op de letterlijke tekst: de
   // sitemap van udenhout.nl bevat zowel `https://udenhout.nl` als
@@ -195,14 +264,15 @@ export function selectUrls(
     perSectie.set(key, lijst);
   }
   for (const lijst of perSectie.values()) {
-    lijst.sort((a, b) => vergelijk(a, b, priorityPaths));
+    lijst.sort((a, b) => vergelijk(a, b, priorityPaths, signals));
   }
 
   const secties = [...perSectie.entries()].sort((a, b) => {
     // Op de beste pagina in de sectie, niet op het gemiddelde: één
     // dienstenpagina in een verder saaie sectie moet die sectie omhoog trekken.
     const verschil =
-      scoreUrl(b[1][0], priorityPaths) - scoreUrl(a[1][0], priorityPaths);
+      scoreUrl(b[1][0], priorityPaths, signals?.get(b[1][0])) -
+      scoreUrl(a[1][0], priorityPaths, signals?.get(a[1][0]));
     if (verschil !== 0) return verschil;
     if (b[1].length !== a[1].length) return b[1].length - a[1].length;
     return a[0].localeCompare(b[0]);
@@ -254,7 +324,7 @@ export function selectUrls(
 
     // ── Stap 3: de vrije plekken naar de hoogste scores over de hele site ───
     if (gekozen.size < max) {
-      for (const url of [...uniek].sort((a, b) => vergelijk(a, b, priorityPaths))) {
+      for (const url of [...uniek].sort((a, b) => vergelijk(a, b, priorityPaths, signals))) {
         if (gekozen.size >= max) break;
         gekozen.add(url);
       }
@@ -263,7 +333,7 @@ export function selectUrls(
     for (const url of uniek) gekozen.add(url);
   }
 
-  const urls = [...gekozen].sort((a, b) => vergelijk(a, b, priorityPaths));
+  const urls = [...gekozen].sort((a, b) => vergelijk(a, b, priorityPaths, signals));
 
   return {
     urls,

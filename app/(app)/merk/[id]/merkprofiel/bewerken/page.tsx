@@ -146,6 +146,7 @@ export default async function BewerkenPage({
             initialLastRunAt={profile.crawl_last_run_at}
             initialLastMode={profile.crawl_last_mode}
             initialBlockedAt={profile.crawl_last_blocked_at}
+            initialLightlyScanned={profile.crawl_lightly_scanned}
           />
         </CollapsibleSection>
         <CollapsibleSection title="Wat je al hebt liggen">

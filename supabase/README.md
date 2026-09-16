@@ -523,3 +523,14 @@ matcht de update geen rij meer en krijgt de tweede opslaan een melding in plaats
 stilzwijgend wint. Bewust niet bijgehouden door andere schrijfacties op deze tabel (schrijfpijplijn,
 keuring, publiceren): die hebben hun eigen taakvergrendeling, dit slot is specifiek voor twee mensen
 die tegelijk in dezelfde tekst typen.
+
+## 0101 — hoeveel pagina's kregen alleen een titel/meta-blik (Nova-vergelijking)
+
+`profiles.crawl_lightly_scanned`, additief, nullable. `crawlInventory()` (`lib/crawler.ts`) doet bij
+een te grote site en een beschikbaar tijdbudget eerst een goedkope titel+meta-doorgang
+(`crawlHeads()`) over tot 600 pagina's, als extra signaal voor `scoreUrl()`/`selectUrls()` bij het
+kiezen welke pagina's echt volledig gelezen worden. Dit cijfer, bijgewerkt door
+`lib/pipeline/refresh-inventory.ts` en getoond in `InventoryBox`, zegt hoeveel pagina's aan die
+doorgang meededen. Null = de stap draaide nog niet mee (elk profiel van vóór deze migratie), 0 = de
+site paste al binnen het plafond en er viel niets te kiezen. Zie `docs/logbook.md`, 16 september
+2026.

@@ -555,7 +555,7 @@ import {
   sectionOf,
   parseUrlList,
 } from "@/lib/crawl-urls";
-import { scoreUrl, selectUrls } from "@/lib/pipeline/url-priority";
+import { scoreUrl, selectUrls, type UrlSignal } from "@/lib/pipeline/url-priority";
 import { buildPageBlocks } from "@/lib/pipeline/page-select";
 import {
   entityConsistencyChecks,
@@ -4065,6 +4065,53 @@ group("url-priority: wat een pagina waard is", () => {
   );
 
   ok("dieper is minder", scoreUrl("https://a.nl/diensten/a/b/c") < dienst);
+});
+
+group("url-priority: titel/meta redt of ontmaskert een generieke URL (Nova-vergelijking, 16 sep 2026)", () => {
+  // Een generieke slug (een numeriek ID, zoals veel CMS'en die geven) zegt op
+  // zichzelf niets over de pagina. De titel wel.
+  const kaleDienst = scoreUrl("https://a.nl/pagina/42");
+  const kaleDienstMetTitel = scoreUrl("https://a.nl/pagina/42", [], {
+    title: "Vloerverwarming installeren",
+    description: "Onze dienst vloerverwarming, vakkundig geïnstalleerd.",
+  });
+  ok(
+    "een aanbodwoord in de titel tilt een kale slug boven zijn eigen kale score",
+    kaleDienstMetTitel > kaleDienst,
+  );
+
+  // Andersom: een pad dat neutraal oogt maar een blogtitel draagt, moet niet
+  // meetellen als aanbod.
+  const kaleSlug = scoreUrl("https://a.nl/pagina/7");
+  const kaleSlugMetBlogtitel = scoreUrl("https://a.nl/pagina/7", [], {
+    title: "Blog: 10 tips voor een warme winter",
+    description: null,
+  });
+  ok(
+    "een blogtitel op een neutraal pad duwt de score omlaag, niet omhoog",
+    kaleSlugMetBlogtitel < kaleSlug,
+  );
+
+  // `selectUrls()` zelf: negen neutrale eigen-secties (score 0) verdringen de
+  // kale `/pagina/42` (score -12, eigen sectie) uit de top-2 sectiequota, maar
+  // met het signaal (score 48) springt hij er wél tussen.
+  const neutraal = Array.from({ length: 9 }, (_, i) => `https://a.nl/x${i}`);
+  const alle = ["https://a.nl/", "https://a.nl/pagina/42", ...neutraal];
+  const signalen = new Map<string, UrlSignal>([
+    ["https://a.nl/pagina/42", { title: "Onze dienst: vloerverwarming installeren", description: null }],
+  ]);
+
+  const zonderSignaal = selectUrls(alle, 2);
+  ok(
+    "zonder signaal verliest de kale slug het van de neutrale secties",
+    !zonderSignaal.urls.includes("https://a.nl/pagina/42"),
+  );
+
+  const metSignaal = selectUrls(alle, 2, [], new Set(), signalen);
+  ok(
+    "met het signaal haalt dezelfde URL de top-2 wél",
+    metSignaal.urls.includes("https://a.nl/pagina/42"),
+  );
 });
 
 group("url-priority: de Yoast-val (2000 blogs, 12 diensten)", () => {

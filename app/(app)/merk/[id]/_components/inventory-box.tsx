@@ -39,6 +39,7 @@ export function InventoryBox({
   initialLastRunAt = null,
   initialLastMode = null,
   initialBlockedAt = null,
+  initialLightlyScanned = null,
 }: {
   profileId: string;
   initialCount: number;
@@ -51,10 +52,13 @@ export function InventoryBox({
   initialLastRunAt?: string | null;
   initialLastMode?: "meer" | "opnieuw" | null;
   initialBlockedAt?: string | null;
+  /** Hoeveel pagina's bij de laatste ronde alleen een titel/meta-blik kregen. Null = die stap draaide nog niet mee. */
+  initialLightlyScanned?: number | null;
 }) {
   const { refresh, refreshing } = useRefresh();
   const [count] = useState(initialCount);
   const [totaal] = useState<number | null>(initialTotalFound);
+  const [lichtGescand] = useState<number | null>(initialLightlyScanned);
   const [max, setMax] = useState(initialMax);
   const [voorrang, setVoorrang] = useState(initialPriorityPaths.join(", "));
   const [speed, setSpeed] = useState<CrawlSpeed>(initialSpeed);
@@ -130,6 +134,13 @@ export function InventoryBox({
           </>
         )}
       </p>
+      {typeof lichtGescand === "number" && lichtGescand > 0 && (
+        <p className="text-sm text-muted">
+          Om die {count} te kiezen bekeek ORBIT ENGINE eerst kort de titel en omschrijving van{" "}
+          <span className="font-medium">{lichtGescand} andere pagina&apos;s</span>, zonder ze
+          volledig te lezen.
+        </p>
+      )}
 
       {initialLastRunAt && (
         <p className="text-sm text-muted">

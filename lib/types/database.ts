@@ -361,6 +361,13 @@ export interface Profile {
   /** Wanneer de site voor het laatst met 403 antwoordde. */
   crawl_last_blocked_at: string | null;
   /**
+   * Aantal pagina's waarvan bij de laatste crawlronde alleen titel en
+   * meta-description zijn gelezen, als extra signaal voor de paginakeuze
+   * (migratie 0101). Null = deze stap draaide nog niet mee, 0 = de site paste
+   * al binnen het plafond en er viel niets te kiezen.
+   */
+  crawl_lightly_scanned: number | null;
+  /**
    * Entiteitsaanwezigheid (optimalisatie.md 7.4, migratie 0022). Of een merk in
    * Wikidata/Wikipedia voorkomt is een van de sterkste signalen waarmee
    * AI-systemen een bedrijf als bestaande entiteit herkennen.
