@@ -29,6 +29,11 @@ type Admin = SupabaseClient;
  * een die tegenvalt kost vertrouwen.
  */
 const TYPICAL_SECONDS: Record<JobType, number> = {
+  // Eén ronde van het vooronderzoek (migratie 0102). Meestal is één ronde
+  // genoeg voor een gewone MKB-site; deze schatting is per taakrij, niet voor
+  // het hele vooronderzoek (dat kan een paar rondes duren, zie
+  // MAX_LIGHT_SCAN_ROUNDS in lib/pipeline/light-scan.ts).
+  profile_light_scan: 60,
   // Tot 150 pagina's in batches van 8. Geen AI, wel het meeste netwerk van de
   // hele pijplijn, bij een trage site loopt dit richting anderhalve minuut.
   profile_discover: 70,
@@ -125,6 +130,12 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
  * misser als "de meting is misgelopen" gemeld worden.
  */
 const NON_BLOCKING_TYPES: ReadonlySet<JobType> = new Set<JobType>([
+  // Verrijking van de paginakeuze van profile_discover, geen voorwaarde
+  // (migratie 0102, zelfde afspraak als profile_offering hieronder). Mislukt
+  // de lichte scan definitief, dan kiest profile_discover gewoon op het
+  // URL-pad alleen, zoals hij altijd al deed: geen rood kruis op een scherm
+  // voor iets dat de klant niet mist.
+  "profile_light_scan",
   "calibrate_volumes",
   // De aanbodboom is VERRIJKING, geen voorwaarde (zelfde redenering als
   // competitor_intel bij het rapport). Het profiel staat al op 'klaar' als

@@ -556,6 +556,7 @@ import {
   parseUrlList,
 } from "@/lib/crawl-urls";
 import { scoreUrl, selectUrls, type UrlSignal } from "@/lib/pipeline/url-priority";
+import { openCandidates } from "@/lib/pipeline/light-scan-select";
 import { buildPageBlocks } from "@/lib/pipeline/page-select";
 import {
   entityConsistencyChecks,
@@ -4114,6 +4115,32 @@ group("url-priority: titel/meta redt of ontmaskert een generieke URL (Nova-verge
   );
 });
 
+group("light-scan: welke kandidaten nog open staan (migratie 0102)", () => {
+  const kandidaten = ["https://a.nl/", "https://a.nl/diensten", "https://a.nl/over-ons"];
+
+  eq(
+    "niets gescand: alles staat open",
+    JSON.stringify(openCandidates(kandidaten, new Set())),
+    JSON.stringify(kandidaten),
+  );
+
+  eq(
+    "één gescand: die valt weg",
+    JSON.stringify(openCandidates(kandidaten, new Set(["https://a.nl/diensten"]))),
+    JSON.stringify(["https://a.nl/", "https://a.nl/over-ons"]),
+  );
+
+  eq(
+    "alles gescand: niets staat meer open, ook al leverde een deel niets op",
+    // `crawlHeads()` zet ook een pagina die niets opleverde in de kaart (met
+    // title/description op null), en die telt hier als "gezien": zonder dat
+    // zou een structureel mislukkende URL bij elke ronde weer als open gelden
+    // en het vooronderzoek nooit klaar raken.
+    String(openCandidates(kandidaten, new Set(kandidaten)).length),
+    "0",
+  );
+});
+
 group("url-priority: de Yoast-val (2000 blogs, 12 diensten)", () => {
   // Dit is het geval waarvoor dit bestand bestaat. Bij Yoast staat
   // post-sitemap.xml vóór page-sitemap.xml, dus de oude `slice(0, 150)` op
@@ -4735,14 +4762,16 @@ group("onderzoeksstappen met tussenresultaten (§8)", () => {
     counts: { ...leeg, researchDone: true },
   });
   const stand = (job: string) => halverwege.find((s) => s.job === job)?.state;
+  const resultVan = (job: string) => halverwege.find((s) => s.job === job)?.result;
+  ok("het vooronderzoek is klaar", stand("profile_light_scan") === "klaar", stand("profile_light_scan"));
   ok("de crawl is klaar", stand("profile_discover") === "klaar", stand("profile_discover"));
   ok("het onderzoek is klaar", stand("profile_research") === "klaar");
   ok("het aanbod is bezig", stand("profile_offering") === "bezig", stand("profile_offering"));
   ok("de kennistest wacht", stand("profile_llm_baseline") === "wacht");
   ok(
     "en het tussenresultaat staat erbij",
-    (halverwege[0].result ?? "").includes("31 pagina's"),
-    halverwege[0].result ?? "",
+    (resultVan("profile_discover") ?? "").includes("31 pagina's"),
+    resultVan("profile_discover") ?? "",
   );
   ok("er loopt nog iets", researchRunning(halverwege));
 
@@ -4764,14 +4793,36 @@ group("onderzoeksstappen met tussenresultaten (§8)", () => {
   );
   ok("niets loopt meer", !researchRunning(nietsGevonden));
 
-  // Helemaal aan het begin staat alles te wachten op de eerste taak.
+  // Helemaal aan het begin staat alles te wachten op de allereerste taak: het
+  // vooronderzoek (migratie 0102), vóór profile_discover.
   const start = buildSteps({
+    pendingByType: { profile_light_scan: 1 },
+    facetSummaries: {},
+    counts: leeg,
+  });
+  ok("de eerste stap is bezig", start[0].job === "profile_light_scan" && start[0].state === "bezig");
+  ok("de rest wacht", start.slice(1).every((s) => s.state === "wacht"));
+
+  // Het vooronderzoek is geweest, de diepe crawl draait nu.
+  const naVooronderzoek = buildSteps({
     pendingByType: { profile_discover: 1 },
     facetSummaries: {},
     counts: leeg,
   });
-  ok("de eerste stap is bezig", start[0].state === "bezig");
-  ok("de rest wacht", start.slice(1).every((s) => s.state === "wacht"));
+  ok(
+    "het vooronderzoek is klaar zodra de crawl draait",
+    naVooronderzoek.find((s) => s.job === "profile_light_scan")?.state === "klaar",
+  );
+  ok(
+    "de crawl is de bezige stap",
+    naVooronderzoek.find((s) => s.job === "profile_discover")?.state === "bezig",
+  );
+  ok(
+    "en alles daarna wacht nog",
+    naVooronderzoek
+      .slice(naVooronderzoek.findIndex((s) => s.job === "profile_discover") + 1)
+      .every((s) => s.state === "wacht"),
+  );
 
   // ⚠️ Het wachtscherm sloeg de vier standen plat tot één vinkje, dus een stap
   // die niets vond zag eruit als een geslaagde stap. `displaySteps()` houdt het
@@ -4798,10 +4849,11 @@ group("onderzoeksstappen met tussenresultaten (§8)", () => {
   const lopend = displaySteps(halverwege);
   const bezig = lopend[halverwege.findIndex((s) => s.job === "profile_offering")];
   ok("een lopende stap is nog niet afgehandeld", !bezig.done && !bezig.nietsGevonden);
+  const discoverLabel = lopend[halverwege.findIndex((s) => s.job === "profile_discover")].label;
   ok(
     "en het tussenresultaat staat in het label",
-    lopend[0].label.includes("31 pagina's"),
-    lopend[0].label,
+    discoverLabel.includes("31 pagina's"),
+    discoverLabel,
   );
 });
 
@@ -11423,7 +11475,7 @@ group("de negen secties zijn die van de klant", () => {
     ADMIN_SECTIES.map((s) => s.naam).join(" · ") ===
       "Bedrijf · Contact · Talen · Positionering · Doelgroep · Stem · Woorden · Auteur · Onderwerpen",
   );
-  ok("acht onboardingtaken", ONBOARDING_TAKEN.length === 8);
+  ok("negen onboardingtaken", ONBOARDING_TAKEN.length === 9);
   ok("allemaal echte taaksoorten", ONBOARDING_TAKEN.every((t) => TAAK_TEKST[t] !== undefined));
 });
 

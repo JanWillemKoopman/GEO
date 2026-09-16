@@ -17,6 +17,15 @@
 import type { EngineId } from "@/lib/types/database";
 
 export const dedupe = {
+  /**
+   * De RONDE hoort in de sleutel (migratie 0102). `profile_light_scan` plant
+   * zichzelf een paar keer opnieuw in totdat elke kandidaat gescand is; op het
+   * moment dat ronde N zichzelf herplant staat de eigen taakrij nog op
+   * 'running' (de werker vinkt pas ná de handler af, `lib/jobs/worker.ts`), dus
+   * een sleutel zonder rondenummer zou tegen zijn eigen, nog lopende rij
+   * botsen en nooit een vervolgronde inplannen.
+   */
+  profileLightScan: (profileId: string, round: number) => `profile_light_scan:${profileId}:r${round}`,
   profileDiscover: (profileId: string) => `profile_discover:${profileId}`,
   profileResearch: (profileId: string) => `profile_research:${profileId}`,
   profileOffering: (profileId: string) => `profile_offering:${profileId}`,

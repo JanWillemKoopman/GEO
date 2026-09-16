@@ -576,6 +576,22 @@ const HEAD_FETCH_TIMEOUT_MS = 8000;
  */
 export const MAX_LIGHTWEIGHT_PAGES = 600;
 
+/**
+ * Hoeveel pagina's het VOORONDERZOEK (`profile_light_scan`, migratie 0102)
+ * hoogstens licht scant, vóór de eerste diepe crawl (`profile_discover`) kiest
+ * welke er echt volledig gelezen worden.
+ *
+ * Groter dan `MAX_LIGHTWEIGHT_PAGES` en met een eigen constante, bewust: dit
+ * draait niet op een merk dat al bestaat (waar `crawl_inventory` een vast
+ * tijdbudget van 180s heeft binnen ÉÉN taakaanroep), maar op het moment dat de
+ * consultant een merk aanmaakt, met alleen naam, schrijfwijzen en webadres, en
+ * de klant er nog niet bij zit. Dat mag van de eigenaar tot een paar honderd
+ * pagina's meer kosten en tot ~10 minuten duren (in de praktijk 1 à 2
+ * taakrondes van 150s, `lib/pipeline/light-scan.ts`), zolang niemand op een
+ * scherm zit te wachten.
+ */
+export const MAX_PREONBOARDING_LIGHT_PAGES = 1000;
+
 export interface PageHead {
   title: string | null;
   description: string | null;
@@ -652,10 +668,17 @@ export async function fetchPageHead(
  * zijn nog altijd honderden extra verzoeken aan andermans server, ook al is elk
  * verzoek zelf goedkoop.
  *
+ * ── ELKE GEPROBEERDE URL KOMT IN DE KAART, OOK ZONDER RESULTAAT ─────────────
+ *
  * Een pagina die niets oplevert (mislukte fetch, geen titel én geen
- * meta-description) komt niet in de kaart: `scoreUrl()` valt dan terug op het
- * URL-pad alsof deze doorgang niet had gedraaid, in plaats van een lege
- * `UrlSignal` als een echt (negatief) signaal te lezen.
+ * meta-description) krijgt een rij met `title: null, description: null`. Voor
+ * `scoreUrl()` maakt dat niets uit: een lege `UrlSignal` scoort hetzelfde als
+ * geen signaal. Voor `lib/pipeline/light-scan.ts` (het vooronderzoek dat
+ * zichzelf over meerdere taakrondes heen opnieuw inplant, migratie 0102) maakt
+ * het wél uit: zonder deze rij zou een pagina die structureel blokkeert of
+ * 404't bij ELKE ronde opnieuw als "nog niet geprobeerd" gelden, en zou die
+ * ronde nooit klaar raken zolang er ook maar één zo'n URL in de kandidatenlijst
+ * staat.
  */
 export async function crawlHeads(
   urls: readonly string[],
@@ -675,9 +698,7 @@ export async function crawlHeads(
       })),
     );
     for (const { url, head } of results) {
-      if (head && (head.title || head.description)) {
-        signals.set(url, { title: head.title, description: head.description });
-      }
+      signals.set(url, { title: head?.title ?? null, description: head?.description ?? null });
     }
     if (i + profile.batchSize < urls.length) await sleep(nextDelayMs(profile));
   }

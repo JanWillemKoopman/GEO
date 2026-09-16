@@ -31,6 +31,7 @@ export interface ResearchStep {
 
 /** De keten, in de volgorde waarin hij draait. */
 const STEPS: { job: JobType; label: string; facet: string | null }[] = [
+  { job: "profile_light_scan", label: "Je website verkennen", facet: null },
   { job: "profile_discover", label: "Je website uitlezen", facet: "techniek" },
   { job: "profile_research", label: "Je merk en je markt leren kennen", facet: null },
   {
@@ -107,6 +108,12 @@ function resultFor(
   counts: StepInput["counts"],
 ): string | null {
   if (facet) return facetSummaries[facet]?.trim() || null;
+  // Vast antwoord en geen telling: deze stap heeft geen eigen facet en haar
+  // opbrengst (titels/meta-descriptions) is geen klantfeit om te tonen, alleen
+  // een betere basis voor de volgende stap. Zonder deze regel valt de stap
+  // terug op `null`, en dat leest als "niets gevonden" (met het oranje
+  // waarschuwingsteken), wat hier niet klopt: de stap heeft altijd wat te doen.
+  if (job === "profile_light_scan") return "Website verkend.";
   if (job === "profile_research")
     return counts.researchDone ? "Merkdossier opgebouwd." : null;
   if (job === "technical_audit") {
