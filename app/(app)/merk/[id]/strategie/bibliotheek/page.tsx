@@ -22,9 +22,13 @@ export const metadata = { title: "Bibliotheek" };
  * gekocht heeft, terwijl dit het eindproduct is waar hij voor betaalt
  * (besluit 5, 17 augustus 2026).
  *
- * De bibliotheek per cluster (`/analyses/[id]/bibliotheek`) blijft bestaan als
- * doorklik vanuit het dossier. Dit is de verzamelplek, niet de vervanging, en
- * de twee horen hetzelfde aantal te tonen.
+ * ⚠️ **Sinds 16 september 2026 is dit de ENIGE bibliotheek.** Hiervoor bestond
+ * hij naast een bibliotheek per cluster, en die stond er niet als doorklik maar
+ * als tweede volwaardige lijst: een klant met vier clusters had er vijf, met
+ * twee verschillende lijstweergaven en twee manieren om te filteren, die
+ * hetzelfde aantal hoorden te tonen zonder dat iets dat afdwong.
+ * `/analyses/[id]/bibliotheek` verwijst nu hiernaartoe met `?cluster=`, zodat de
+ * doorklik vanuit een cluster nog steeds uitkomt op precies dat cluster.
  *
  * ⚠️ Alleen de HUIDIGE versie per pagina. Oudere versies blijven bewaard en zijn
  * te bereiken vanaf de detailpagina; ze horen niet in een overzicht dat de vraag
@@ -32,10 +36,13 @@ export const metadata = { title: "Bibliotheek" };
  */
 export default async function BibliotheekPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ cluster?: string }>;
 }) {
   const { id } = await params;
+  const { cluster: clusterUitAdres } = await searchParams;
   const profile = await getProfile(id);
   if (!profile) notFound();
   await requireUser();
@@ -98,7 +105,13 @@ export default async function BibliotheekPage({
           moet winnen.
         </EmptyState>
       ) : (
-        <LibraryView rows={rows} />
+        // `?cluster=` komt van de doorverwijzing die de bibliotheek per
+        // cluster vervangt. Een onbekend cluster-id valt terug op "alles": een
+        // filter dat niets oplevert is verwarrender dan geen filter.
+        <LibraryView
+          rows={rows}
+          beginCluster={rows.some((r) => r.analysisId === clusterUitAdres) ? clusterUitAdres! : ""}
+        />
       )}
     </div>
   );

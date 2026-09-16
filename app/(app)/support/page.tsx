@@ -628,7 +628,7 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
           items={[
             "Elke rij toont het onderwerp, het cluster waar de pagina bij hoort, de status, en of de pagina nog nagekeken moet worden.",
             "Alleen de huidige versie van elke pagina staat in dit overzicht. Oudere versies blijven bewaard en zijn te vinden vanaf de detailpagina van een tekst.",
-            "Elk cluster heeft ook een eigen, kleinere bibliotheek met alleen zijn eigen pagina's, bereikbaar vanuit het cluster zelf.",
+            "Dit is de enige bibliotheek. Klik je vanuit een cluster op Bibliotheek, dan kom je hier uit met dat cluster al als filter ingesteld.",
           ]}
         />
         <p className="text-secondary">

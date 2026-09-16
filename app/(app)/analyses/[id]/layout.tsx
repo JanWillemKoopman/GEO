@@ -85,7 +85,7 @@ export default async function AnalysisLayout({
         </div>
       </div>
 
-      {!awaitingApproval && <AnalysisNav analysisId={id} libraryCount={libraryCount} />}
+      {!awaitingApproval && <AnalysisNav analysisId={id} profileId={analysis.profile_id} libraryCount={libraryCount} />}
 
       <div>{children}</div>
     </div>

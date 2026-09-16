@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { enkelOfMeervoud } from "@/lib/format";
+import { Antwoordveld } from "@/components/antwoordveld";
+import { vraagsoortKop, VRAAGSOORT_VOLGORDE, VERPLICHT_UITLEG } from "@/lib/feitenvraag";
 
 /**
  * Het briefingscherm (contentbriefing.md §8, implementatieplan.md R5.2).
@@ -39,37 +41,15 @@ export interface BriefingQuestionView {
 }
 
 /**
- * Menselijke kopjes per vraagsoort. Niet "verificatie" maar "even bevestigen",
- * de klant leest geen categorieënmodel, hij leest een vraag van zijn leverancier.
+ * ⚠️ Hier stond `KIND_HEADING`, de kopjes per vraagsoort. Ze staan sinds
+ * 16 september 2026 in `lib/feitenvraag.ts`, omdat de vragenlijst op
+ * "Openstaande vragen" dezelfde rijen toont en dus dezelfde kopjes hoort te
+ * gebruiken. Twee kopieën van dezelfde tekst lopen uit elkaar (conventie P2).
  */
-const KIND_HEADING: Record<string, { title: string; hint: string }> = {
-  verificatie: {
-    title: "Even bevestigen",
-    hint: "Dit vond ORBIT ENGINE op je site. Klopt het nog?",
-  },
-  aanvulling: {
-    title: "Wat ORBIT ENGINE niet kan weten",
-    hint: "Dit staat nergens online. Zonder jouw antwoord blijft het uit de tekst.",
-  },
-  onderscheid: {
-    title: "Waarom jij",
-    hint: "Dit is het antwoord dat geen enkele concurrent kan geven, en het meest waardevolle wat je hier invult.",
-  },
-  bewijs: {
-    title: "Cijfers en voorbeelden",
-    hint: "Eén eigen getal maakt een pagina geloofwaardiger dan tien mooie zinnen.",
-  },
-  praktisch: {
-    title: "Praktisch",
-    hint: "Adres, telefoon, links. Zonder deze gegevens blijven er gaten in de pagina.",
-  },
-  grenzen: {
-    title: "Wat ORBIT ENGINE juist niet mag beweren",
-    hint: "Zeg je hier nee, dan schrijft ORBIT ENGINE het niet. Ook niet voorzichtig.",
-  },
-};
 
-const KIND_ORDER = ["verificatie", "onderscheid", "aanvulling", "bewijs", "praktisch", "grenzen"];
+// ⚠️ `KIND_ORDER` stond hier. Hij is `VRAAGSOORT_VOLGORDE` in
+// `lib/feitenvraag.ts` geworden, ongewijzigd: de vragenlijst toont dezelfde
+// rijen en hoort ze in dezelfde volgorde te zetten.
 
 /**
  * De stand van één pagina vóór het schrijven
@@ -147,9 +127,9 @@ export function BriefingForm({
   const open = questions.filter((q) => !draft[q.id]?.value.trim() && !draft[q.id]?.skipped);
   const openVerplicht = open.filter((q) => q.required);
 
-  const gegroepeerd = KIND_ORDER.map((kind) => ({
+  const gegroepeerd = VRAAGSOORT_VOLGORDE.map((kind) => ({
     kind,
-    meta: KIND_HEADING[kind] ?? { title: "Overig", hint: "" },
+    meta: vraagsoortKop(kind) ?? { titel: "Overig", uitleg: "" },
     items: questions.filter((q) => q.kind === kind),
   })).filter((g) => g.items.length > 0);
 
@@ -315,9 +295,9 @@ export function BriefingForm({
       {gegroepeerd.map((groep) => (
         <section key={groep.kind} className="flex flex-col gap-3">
           <div className="flex flex-col gap-1 border-b border-[var(--border-subtle)] pb-2">
-            <h2 className="text-lg font-medium">{groep.meta.title}</h2>
+            <h2 className="text-lg font-medium">{groep.meta.titel}</h2>
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              {groep.meta.hint}
+              {groep.meta.uitleg}
             </p>
           </div>
 
@@ -449,7 +429,20 @@ function QuestionCard({
         </div>
       )}
 
-      {!skipped && <AnswerField id={inputId} question={question} value={value} onChange={onChange} />}
+      {!skipped && (
+        <Antwoordveld
+          id={inputId}
+          vraag={{
+            answer_type: question.answerType,
+            options: question.options,
+            suggested_answer: question.suggestedAnswer,
+            required: question.required,
+            kind: question.kind,
+          }}
+          waarde={value}
+          zetWaarde={onChange}
+        />
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -481,86 +474,11 @@ function QuestionCard({
  * radiogroep met de opties. Vrije tekst alleen als het echt niet anders kan,
  * een open veld is de duurste vraag die je een klant kunt stellen.
  */
-function AnswerField({
-  id,
-  question,
-  value,
-  onChange,
-}: {
-  id: string;
-  question: BriefingQuestionView;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  if (question.answerType === "ja_nee") {
-    return <Choices id={id} options={["Ja", "Nee"]} value={value} onChange={onChange} />;
-  }
-
-  if (question.answerType === "keuze" && question.options.length > 0) {
-    return <Choices id={id} options={question.options} value={value} onChange={onChange} />;
-  }
-
-  if (question.answerType === "tekst_lang" || question.answerType === "lijst") {
-    return (
-      <textarea
-        id={id}
-        className="field"
-        rows={3}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={question.answerType === "lijst" ? "Eén per regel" : ""}
-      />
-    );
-  }
-
-  const type = question.answerType === "getal" ? "number" : question.answerType === "url" ? "url" : "text";
-  return (
-    <div className="flex items-center gap-2">
-      {question.answerType === "bedrag" && <span aria-hidden>€</span>}
-      <input
-        id={id}
-        type={type}
-        inputMode={question.answerType === "bedrag" ? "decimal" : undefined}
-        className="field flex-1"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={question.answerType === "url" ? "https://…" : ""}
-      />
-    </div>
-  );
-}
-
-function Choices({
-  id,
-  options,
-  value,
-  onChange,
-}: {
-  id: string;
-  options: string[];
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby={id}>
-      {options.map((optie) => {
-        const gekozen = value === optie;
-        return (
-          <button
-            key={optie}
-            type="button"
-            role="radio"
-            aria-checked={gekozen}
-            className={gekozen ? "btn-primary btn-sm" : "btn-outline btn-sm"}
-            onClick={() => onChange(optie)}
-          >
-            {optie}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+// ⚠️ `AnswerField` en `Choices` stonden hier. Ze zijn `components/antwoordveld.tsx`
+// geworden: dezelfde rij uit `fact_requests` werd op "Openstaande vragen"
+// getekend als een tekstvak van drie regels, ook als het een ja-of-nee-vraag
+// was. Eén component, en de regel welke vorm bij welk `answer_type` hoort staat
+// puur en getest in `lib/feitenvraag.ts`.
 
 /**
  * Wat er per pagina nog nodig is, en welke uitwegen er zijn

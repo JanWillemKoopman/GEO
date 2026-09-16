@@ -8470,3 +8470,76 @@ De testtelling gaat van 4646 naar 4648. De twee erbij bewaken dat het stijlblad 
 letterstapel en zijn eigen basismaat blijft zetten, zodat een wijziging aan `globals.css` hier
 niets doet. De controle op "alleen eigen tokens" en "geen component uit `@/components/`" is
 ongewijzigd blijven staan en gaat nog steeds op.
+
+## De Nova-vergelijking doorgevoerd: acht wijzigingen, en drie ervan waren gaten (16 september 2026)
+
+`docs/nova-vs-orbit-engine-proces.md` legde het proces van InSpace Nova naast dat van ORBIT ENGINE.
+Wat daaruit als voorstel kwam is deze dag gebouwd. Drie van de acht bleken bij het bouwen geen
+verbetering maar een reparatie: iets dat al besloten was, deed het niet.
+
+**De drie gaten, en ze horen bij elkaar.** `POST /api/analyses` was de enige dure route zonder
+`mayTriggerCost`, terwijl `lib/cost-rules.ts` in zijn eigen toelichting schrijft dat precies die
+route op 2 september 2026 dicht is gezet en `analyse_starten` sindsdien in `STAFF_ONLY_ACTIONS`
+staat. Bij `/api/profiles` is die rem er die dag gekomen, hier niet. Een klant kon dus via het vrije
+tekstveld op `/analyses/new` betaald onderzoek starten, terwijl hetzelfde onderwerp via het snelpad
+in `topics-panel.tsx` netjes werd geweigerd. `accounts.started_at` werd door geen enkele regel in
+`lib/` of `app/` geschreven, alleen gelezen door `monthsSinceStart()`, dus "maand 4 sinds de start"
+stond bij elke echte klant leeg. En `loadOpenQuestions()` deed `select("*")` en gaf die rij
+rechtstreeks als prop aan een clientcomponent, inclusief `raw_json` met het volledige antwoord van
+OpenAI erin: hetzelfde lek waar herstelplan T8.9 twee andere paden voor repareerde, op een derde pad
+dat gemist was. Alle drie zijn nu gedicht, en alle drie hebben een test die de belofte narekent in
+plaats van hem te geloven. Die van de kostenrem loopt alle zes de dure routes af.
+
+**De stille stilstand.** Een net overgedragen klant heeft nul clusters. Het overzicht zei hem
+"ORBIT ENGINE is aan zet bij meten", terwijl er niets in de wachtrij stond en hij zelf niets kon
+starten. Hij wachtte op iets dat nooit vanzelf kwam en niets op zijn scherm zei dat. `lib/ronde.ts`
+kent daarom sinds vandaag een derde partij naast de klant en ORBIT ENGINE: bij nul clusters is de
+consultant aan zet, met de zin erbij wat er daarna komt. Alleen de eerste van de zes stappen kan van
+eigenaar wisselen, de andere vijf nooit. Het toewijzingsscherm waarschuwt nu vóór de overdracht als
+er geen cluster staat, want dat is de plek waar het misgaat.
+
+**Een veld dat loog, en de controle die dat voortaan vangt.** "Wat een klant ongeveer waard is" had
+als omschrijving "Bepaalt hoe zwaar een onderwerp meeweegt", met pal eronder op hetzelfde scherm
+"Wordt op dit moment nog niet meegewogen in de app". De eerste was de onjuiste, en
+`lib/pipeline/commercial-context.ts` had al uitgeschreven waarom die nooit gaat kloppen: de
+potentiescore is per onderwerp en de waardeklasse per merk, dus een factor zou elk onderwerp van een
+merk even hard verschuiven en de onderlinge volgorde, het enige waar die score voor dient, niet
+veranderen. Het advies uit de analyse om hem alsnog aan te sluiten was dus fout, en de code wist het
+beter. Er staat nu een controle over alle 60 velden: zegt het gebruik "nog niet", dan mag de
+omschrijving geen werkwoord bevatten dat iets toezegt. Dat is `CLAUDE.md`'s regel "schrijf nooit dat
+iets al kan wat nog niet gebouwd is", nagerekend in plaats van afgesproken.
+
+**Twee schermen zijn er één geworden, en twee andere delen nu hun model.** De bibliotheek bestond per
+cluster én merkbreed: twee lijsten over dezelfde rijen, met twee weergaven, twee manieren om te
+filteren en twee tellingen die gelijk hoorden te zijn zonder dat iets dat afdwong. Een klant met vier
+clusters had er vijf. `/analyses/[id]/bibliotheek` verwijst nu door naar de merkbrede met
+`?cluster=`, zodat de doorklik houdt wat hij waard was. En de briefing en "Openstaande vragen" tonen
+dezelfde `fact_requests`-rijen: de briefing las `kind`, `answer_type`, `options`, `suggested_answer`
+en `required`, de vragenlijst niet. Een ja-of-nee-vraag kreeg daar dus een leeg tekstvak van drie
+regels en een concept-antwoord werd niet getoond, terwijl bevestigen goedkoper is dan formuleren.
+`lib/feitenvraag.ts` en `components/antwoordveld.tsx` zijn nu de gedeelde helft. De componenten zelf
+samenvoegen is de tweede helft en staat nog open in `docs/tasks/customer-journey-cluster-tot-schrijven.md`
+punt 5: dat is een gedragswijziging en geen hernoeming.
+
+**Wat er verder uit Nova is overgenomen.** Het kopieerformaat, en dat is de kleinste wijziging van de
+acht met waarschijnlijk het meeste effect: de bibliotheek zette Markdown op het klembord, en dat is
+voor zowel een WordPress-blok als een gewone editor het verkeerde antwoord. Er zijn nu drie vormen
+met per vorm de reden om hem te kiezen, geschreven over het CMS van de klant en niet over het
+formaat, naar Nova's *"Choose the format that matches the CMS workflow"*. En de vier lege staten van
+het zoekverkeerscherm: daar stonden er twee, waarvan de tweede het werk deed van drie verschillende
+problemen met drie verschillende oplossingen.
+
+**Wat bewust níet is overgenomen** staat in hoofdstuk 9 van de vergelijking en is deze ronde niet
+veranderd: automatisch publiceren, de gamificatie van hun oudere app, de chatassistent per pagina, de
+meertaligheid en de contractduur. Van Nova's publicatiestap is alleen het deel genomen dat zonder
+CMS-koppeling werkt, en dat was precies het kopieerformaat hierboven.
+
+**De testtelling gaat van 4648 naar 4772**, plus de 650 ketentests die ongewijzigd zijn gebleven. De
+124 erbij bewaken vooral dingen die eerder alleen in commentaar stonden: dat elke dure route dezelfde
+vraag stelt, dat geen veld belooft wat zijn gebruik ontkent, en dat het ruwe AI-antwoord de browser
+niet bereikt.
+
+**En één les over de vier controles, die het logboek van 15 september herhaalt met een andere
+oorzaak.** Na de laatste wijziging was `tsc --noEmit` groen terwijl `npm run build` faalde op een
+cast in `scripts/test-unit.ts`. De twee kijken dus niet naar precies dezelfde bestanden. Vier
+controles draaien is niet drie controles draaien plus een formaliteit.

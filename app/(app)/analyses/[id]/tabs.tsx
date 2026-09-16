@@ -29,9 +29,12 @@ import { Icon } from "@/components/icon";
  */
 export function AnalysisNav({
   analysisId,
+  profileId,
   libraryCount,
 }: {
   analysisId: string;
+  /** Nodig sinds de bibliotheek merkbreed is: daar hangt het adres aan het merk. */
+  profileId: string;
   libraryCount: number;
 }) {
   const pathname = usePathname();
@@ -53,7 +56,14 @@ export function AnalysisNav({
       <NavLink href={base} active={onDossier}>
         Cluster
       </NavLink>
-      <NavLink href={`${base}/bibliotheek`} active={onLibrary}>
+      {/* ⚠️ Wijst sinds 16 september 2026 naar de MERKBREDE bibliotheek, met
+          dit cluster als filter. De bibliotheek per cluster was een tweede
+          lijst over dezelfde rijen; wat de doorklik waard was (alleen dít
+          cluster zien) doet het filter nu. */}
+      <NavLink
+        href={`/merk/${profileId}/strategie/bibliotheek?cluster=${analysisId}`}
+        active={onLibrary}
+      >
         Bibliotheek
         {libraryCount > 0 && (
           <span className="mono-label" style={{ fontSize: "0.6rem", opacity: 0.75 }}>

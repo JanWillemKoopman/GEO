@@ -654,6 +654,12 @@ import { brandScorePerPeriod } from "@/lib/brand-score";
 import { ronde, rondeZin } from "@/lib/ronde";
 import { actionNeedsStaff, STAFF_ONLY_ACTIONS } from "@/lib/cost-rules";
 import { overdrachtZonderCluster } from "@/lib/cluster-start";
+import {
+  vraagVorm,
+  vraagsoortKop,
+  VRAAGSOORT_VOLGORDE,
+  groepeerOpSoort,
+} from "@/lib/feitenvraag";
 import { navActief } from "@/lib/nav";
 import { openVragenTotaal, openVragenLabel } from "@/lib/open-questions-count";
 import { eindpoort } from "@/lib/content-final-gate";
@@ -22037,6 +22043,158 @@ group("optimalisatie 16: de bevinding wijst de sectie aan waar het huiswerk zit"
   const zonder = checkAdviestoon(tekst);
   ok("zonder secties geen aanwijzing", zonder.zwaarsteSectie === null);
   ok("en dezelfde telling", zonder.gebiedend === uitkomst.gebiedend);
+});
+
+// ── Eén feitenvraag, één model (16 september 2026) ──────────────────────────
+console.log("\nDe feitenvraag, op elk scherm hetzelfde");
+
+group("het invoerveld hoort bij de vraag", () => {
+  // ── WAT HIER MIS WAS ─────────────────────────────────────────────────────
+  //
+  // Dezelfde rij uit `fact_requests` kreeg op de briefing een ja-of-nee-keuze
+  // en op "Openstaande vragen" een leeg tekstvak van drie regels. Een vraag van
+  // één klik kostte daar dus een getypt antwoord, en dat bepaalt of iemand hem
+  // beantwoordt.
+  ok("ja of nee wordt een keuze", vraagVorm({ answer_type: "ja_nee" }).vorm === "keuze");
+  ok(
+    "met twee knoppen",
+    vraagVorm({ answer_type: "ja_nee" }).keuzes.join("/") === "Ja/Nee",
+  );
+  ok(
+    "een keuzevraag gebruikt zijn eigen opties",
+    vraagVorm({ answer_type: "keuze", options: ["Wel", "Niet"] }).keuzes.join("/") === "Wel/Niet",
+  );
+  ok("een lijst krijgt een tekstvak", vraagVorm({ answer_type: "lijst" }).vorm === "tekstvak");
+  ok("met een hint erin", vraagVorm({ answer_type: "lijst" }).hint === "Eén per regel");
+  ok("een bedrag krijgt zijn eigen veld", vraagVorm({ answer_type: "bedrag" }).vorm === "bedrag");
+  ok("een url ook", vraagVorm({ answer_type: "url" }).vorm === "url");
+
+  // ⚠️ Conventie 3. Een keuzelijst zonder opties is een vraag die je niet kúnt
+  // beantwoorden; een tekstvak is hooguit onhandig. Rijen van vóór migratie
+  // 0024 hebben de kolom niet.
+  ok("een keuze zonder opties valt terug", vraagVorm({ answer_type: "keuze", options: [] }).vorm !== "keuze");
+  ok("een lege optie telt niet mee", vraagVorm({ answer_type: "keuze", options: ["  "] }).vorm !== "keuze");
+  ok("geen type valt terug op een regel", vraagVorm({}).vorm === "regel");
+  ok("een onbekend type ook", vraagVorm({ answer_type: "iets_nieuws" }).vorm === "regel");
+});
+
+group("de kopjes en de volgorde staan op één plek", () => {
+  ok("elke soort heeft een kop", VRAAGSOORT_VOLGORDE.every((k) => vraagsoortKop(k) !== null));
+  ok("zonder soort geen kop", vraagsoortKop(null) === null);
+  ok("een onbekende soort ook niet", vraagsoortKop("verzonnen") === null);
+  // De klant leest geen categorieënmodel, hij leest een vraag van zijn
+  // leverancier. Dat geldt voor de vijf soorten met een jargonnaam; "praktisch"
+  // is al gewoon Nederlands en heet daarom wél zo.
+  const jargon = ["verificatie", "aanvulling", "onderscheid", "bewijs", "grenzen"];
+  ok(
+    "geen enkel jargonwoord staat in zijn eigen kop",
+    jargon.every((k) => !vraagsoortKop(k)!.titel.toLowerCase().includes(k)),
+  );
+  ok(
+    "en elke kop legt uit waarom de vraag gesteld wordt",
+    VRAAGSOORT_VOLGORDE.every((k) => vraagsoortKop(k)!.uitleg.trim().length > 25),
+  );
+
+  // De volgorde is overgenomen uit het scherm dat al bij klanten draait en met
+  // opzet niet "verbeterd".
+  ok("verificatie eerst", VRAAGSOORT_VOLGORDE[0] === "verificatie");
+  ok("onderscheid daarna", VRAAGSOORT_VOLGORDE[1] === "onderscheid");
+  ok("grenzen achteraan", VRAAGSOORT_VOLGORDE[VRAAGSOORT_VOLGORDE.length - 1] === "grenzen");
+
+  const groepen = groepeerOpSoort([
+    { kind: "grenzen" },
+    { kind: "verificatie" },
+    { kind: null },
+    { kind: "onderscheid" },
+  ]);
+  ok("gegroepeerd in de vaste volgorde", groepen.map((g) => g.kind).join(" ") === "verificatie onderscheid grenzen ");
+  ok("en wat geen soort heeft, staat achteraan", groepen[groepen.length - 1].kind === "");
+  ok("zonder kop", groepen[groepen.length - 1].kop === null);
+  ok("een lege lijst geeft geen groepen", groepeerOpSoort([]).length === 0);
+});
+
+group("beide schermen tekenen hetzelfde veld", () => {
+  const briefing = leesBestand("app/(app)/analyses/[id]/briefing/briefing-form.tsx");
+  const vragenlijst = leesBestand("app/(app)/merk/[id]/_components/fact-requests.tsx");
+  ok("de briefing gebruikt het gedeelde veld", briefing.includes("Antwoordveld"));
+  ok("de vragenlijst ook", vragenlijst.includes("Antwoordveld"));
+  // Op de declaratie en niet op het woord: de toelichting in dat bestand noemt
+  // de oude naam met opzet, zodat terug te vinden is waar hij heen ging.
+  ok("de briefing heeft geen eigen kopjestabel meer", !briefing.includes("const KIND_HEADING"));
+  ok("en geen eigen volgorde", !briefing.includes("const KIND_ORDER"));
+  // De gok van ORBIT ENGINE stond alleen op de briefing, terwijl bevestigen
+  // goedkoper is dan formuleren.
+  ok("de vragenlijst toont nu ook de gok", vragenlijst.includes("suggested_answer"));
+  ok("en markeert wat een kernstuk draagt", vragenlijst.includes("VERPLICHT_UITLEG"));
+});
+
+group("het ruwe AI-antwoord bereikt de browser niet", () => {
+  // Herstelplan na audit T8.9. Twee paden waren gerepareerd, dit derde niet:
+  // `loadOpenQuestions` deed `select("*")` en die rij ging als prop naar een
+  // clientcomponent. De schoonmaak staat nu in de loader, zodat elke volgende
+  // lezer hem vanzelf krijgt.
+  const loader = leesBestand("lib/open-questions.ts");
+  ok("de loader schoont de rijen op", loader.includes("publicFactRequest"));
+
+  const schoon = publicFactRequest({
+    id: "f1",
+    question: "Hoeveel monteurs heb je?",
+    raw_json: { antwoord: "het complete OpenAI-antwoord" },
+    section_id: "s1",
+    section_refs: ["a"],
+    kind: "bewijs",
+    answer_type: "getal",
+  }) as unknown as Record<string, unknown>;
+  ok("raw_json gaat eruit", !("raw_json" in schoon));
+  ok("section_id ook", !("section_id" in schoon));
+  // En wat het scherm nodig heeft, blijft staan: anders zou de schoonmaak de
+  // vraagvorm slopen die hierboven net getest is.
+  ok("de vraagsoort blijft", schoon.kind === "bewijs");
+  ok("het antwoordtype blijft", schoon.answer_type === "getal");
+});
+
+// ── Eén bibliotheek in plaats van twee (16 september 2026) ──────────────────
+console.log("\nEén bibliotheek");
+
+group("de bibliotheek per cluster is een doorverwijzing geworden", () => {
+  // ── WAT HIER MIS WAS ─────────────────────────────────────────────────────
+  //
+  // Twee lijsten over dezelfde rijen: een per cluster en een merkbrede. Een
+  // klant met vier clusters had er vijf, met twee weergaven, twee manieren om
+  // te filteren en twee tellingen die gelijk hoorden te zijn zonder dat iets
+  // dat afdwong. De merkbrede kan alles wat de andere kon, plus zoeken,
+  // paginering en kerncijfers.
+  const cluster = leesBestand("app/(app)/analyses/[id]/bibliotheek/page.tsx");
+  ok("hij verwijst door", cluster.includes("redirect("));
+  ok("naar de merkbrede, met dit cluster als filter", cluster.includes("strategie/bibliotheek?cluster="));
+  ok("en toont zelf geen lijst meer", !cluster.includes("LibraryList"));
+
+  // De detailpagina eronder is een ander scherm en moet blijven: daar staat de
+  // tekst zelf, en elke rij in de merkbrede bibliotheek linkt ernaartoe.
+  ok(
+    "de detailpagina bestaat nog",
+    bestaatBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/page.tsx"),
+  );
+  // De oude lijstweergave hoort weg te zijn: code die nergens meer vandaan
+  // wordt aangeroepen, gaat stil uit de pas lopen met de weergave die wél
+  // gebruikt wordt.
+  ok(
+    "de oude lijstweergave is opgeruimd",
+    !bestaatBestand("app/(app)/analyses/[id]/bibliotheek/library-list.tsx"),
+  );
+
+  const merk = leesBestand("app/(app)/merk/[id]/strategie/bibliotheek/page.tsx");
+  ok("de merkbrede leest het filter uit het adres", merk.includes("searchParams"));
+  ok("en geeft het door aan de weergave", merk.includes("beginCluster"));
+
+  // Een adres met een onbekend cluster-id mag geen lege lijst opleveren: dat is
+  // verwarrender dan geen filter (conventie 3).
+  ok("een onbekend cluster valt terug op alles", merk.includes("rows.some("));
+
+  // En het scherm dat de klant uitlegt hoe het werkt, mag niet meer over twee
+  // bibliotheken praten (CLAUDE.md: nooit schrijven dat iets kan wat er niet is).
+  const support = leesBestand("app/(app)/support/page.tsx");
+  ok("de uitleg noemt er nog maar één", !support.includes("eigen, kleinere bibliotheek"));
 });
 
 // ── Een cluster starten is beheerderswerk (16 september 2026) ───────────────
