@@ -8794,3 +8794,34 @@ Met dit blok is de hele Nova-vergelijkingsronde uit `docs/tasks/nova-vergelijkin
 doorlopen: blok A (4/4), blok B (3/4, punt 11 niet van toepassing), blok C (4/5, punt 15 niet van
 toepassing), blok D (4/7, drie apart-besluit of niet-van-toepassing), blok E (4/4). Blok F
 (meertaligheid, koppelingstest) staat nog open, expliciet groot en apart te besluiten.
+
+## 16 september 2026: de plannotitie gaat eindelijk het schrijven in
+
+Bijvangst uit blok D punt 22, apart opgelost op verzoek van de eigenaar na een gerichte vraag: klopt
+het dat `content_plans.strategy_note` de content beter maakt? Antwoord: nee, want de kolom werd
+opgeslagen en nooit gelezen. Een klant die bij het aanmaken van een plan intypt "vanaf november
+openen we in Breda" zag die tekst in de database verdwijnen, ondanks de belofte op het scherm ("Dit
+gaat mee als context bij het opstellen").
+
+**De reparatie.** `loadContentContext()` (`lib/pipeline/content.ts`) haalt nu, naast alles wat het
+al ophaalde, ook de `strategy_note` van het actieve plan van dit merk op (dezelfde
+"nieuwste-niet-gestopte-plan"-query als `vulOpenMaanden()`). Die gaat als `situationalNote` mee de
+schrijfopdracht in (`maakSchrijfopdracht()`, `lib/pipeline/writer-brief.ts`), met een expliciet
+label: "geen nieuw feit, verzin er zelf niets bovenop". Dat laatste is geen vormelijkheid: de
+schrijfopdracht mag van zijn eigen harde regels niets verzinnen dat niet op de feitenkaart staat, en
+een plannotitie is nooit tegen een bron gecontroleerd. Hij stuurt de KEUZE van de schrijver (wel of
+niet de nieuwe vestiging noemen, niet de oude aanraden), maar levert zelf geen citeerbare bewering.
+
+**Waarom dit geen migratie nodig had.** De kolom bestond al sinds de eerste contentplan-migratie
+(0049); alleen het lezen ontbrak. Ook geen UI-wijziging: de tekst op `create-plan-box.tsx` klopt nu
+gewoon met wat er gebeurt, in plaats van eromheen gepraat te worden.
+
+**Wat dit niet oplost.** De notitie is een momentopname van het aanmaken van het plan, niet
+bij te werken zonder het hele plan opnieuw op te zetten (`strategy_note` wordt alleen bij
+`createPlan()` gezet, `lib/plans.ts:433`). Een klant die drie maanden ná het aanmaken iets wil
+melden, kan dat nu nog steeds niet los van een volledige herstart. Dat is een apart punt, niet in
+deze reparatie meegenomen.
+
+Getest: `tsc --noEmit`, `test:unit` (4712 geslaagd, ongewijzigd: dit raakt geen pure, testbare
+functie, alleen een extra promptregel die conditioneel is) en `test:chain` (652 geslaagd) en
+`build` zijn alle vier groen. Geen migratie.

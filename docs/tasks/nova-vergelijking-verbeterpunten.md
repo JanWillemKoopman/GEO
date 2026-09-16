@@ -223,18 +223,23 @@ geld kost. Een bovengrens bouwen zou een nieuwe, kostbare bulkactie veronderstel
 gevraagd heeft; dat is andersom werken. Blijft open tot zo'n actie er is.
 
 **22. Vertel bij een veld expliciet op welk niveau het werkt.** (klein) **Niet gebouwd, 16
-september 2026: kleiner probleem dan gedacht, en één bijvangst.** Uitgezocht welke drie velden dit
-zouden raken: `content_plans.strategy_note` (plan-niveau, alleen invulbaar bij het aanmaken, dus
-geen risico op "per ongeluk voor elke toekomstige pagina veranderen"), `topics.client_note`
-(cluster-niveau, alleen-lezen op het scherm waar hij getoond wordt) en
-`content_pieces.revision_note` (paginaniveau, hoort per definitie bij precies één pagina). Geen van
-de drie heeft de dubbelzinnigheid die Nova's voorbeeld beschrijft. **Bijvangst, groter dan dit
-punt zelf:** `content_plans.strategy_note` wordt bij het aanmaken van een plan opgeslagen
+september 2026: kleiner probleem dan gedacht.** Uitgezocht welke drie velden dit zouden raken:
+`content_plans.strategy_note` (plan-niveau, alleen invulbaar bij het aanmaken, dus geen risico op
+"per ongeluk voor elke toekomstige pagina veranderen"), `topics.client_note` (cluster-niveau,
+alleen-lezen op het scherm waar hij getoond wordt) en `content_pieces.revision_note`
+(paginaniveau, hoort per definitie bij precies één pagina). Geen van de drie heeft de
+dubbelzinnigheid die Nova's voorbeeld beschrijft.
+
+**Bijvangst bij dit punt, ✅ apart opgelost, 16 september 2026:** bij het uitzoeken bleek
+`content_plans.strategy_note` bij het aanmaken van een plan wél opgeslagen te worden
 (`create-plan-box.tsx`, "Dit gaat mee als context bij het opstellen") maar nergens in de
-schrijfpijplijn ooit weer GELEZEN. De belofte in de UI-tekst klopt op dit moment niet
-(`CLAUDE.md`: "schrijf nooit dat iets al kan wat nog niet gebouwd is"). Dat oplossen is een eigen
-klus (uitzoeken waar in de schrijfprompt dit hoort in te haken), geen onderdeel van dit punt, en
-wordt hier alleen gemeld.
+schrijfpijplijn ooit gelezen: een belofte die niet klopte (`CLAUDE.md`: "schrijf nooit dat iets al
+kan wat nog niet gebouwd is"). Rechtgezet: `loadContentContext()` (`lib/pipeline/content.ts`) haalt
+de notitie nu op en geeft hem door aan `maakSchrijfopdracht()` (`lib/pipeline/writer-brief.ts`,
+nieuw veld `situationalNote`), die hem als achtergrond in de schrijfopdracht zet, expliciet gemerkt
+als "geen nieuw feit, verzin er zelf niets bovenop" zodat het niet als onderbouwde bewering
+meetelt. Geen migratie: de kolom bestond al. Geen UI-wijziging nodig: de tekst op
+`create-plan-box.tsx` klopt nu gewoon.
 
 **23. Leg het abonnement vast als getal waar het plan tegen afgezet wordt.** (midden) **Niet
 gebouwd: apart besluit, zoals het document zelf al zei.** Bevestigd: `planned_pages.page_type`
@@ -363,9 +368,10 @@ opleveren: zodra het aantal kansen omhoog gaat, liep het oude planscherm vast.
 2026)~~. 15 niet van toepassing, 21 niet gebouwd (geen bulkactie die geld kost om een grens op te
 zetten), 18 (opnieuw inplannen) bleek klein genoeg om meteen mee te doen en is ook live.
 
-**Apart besluit:** 29 (meertaligheid), 23 (paginatypes per abonnement) en 22 (niveau-labels, bleek
-kleiner dan gedacht, met een bijvangst: `content_plans.strategy_note` wordt nergens gelezen), alle
-drie omdat ze het datamodel raken of een eigen uitzoekklus behoeven.
+**Apart besluit:** 29 (meertaligheid) en 23 (paginatypes per abonnement), allebei omdat ze het
+datamodel raken. Punt 22 zelf niet gebouwd (geen veld had de bedoelde dubbelzinnigheid), maar de
+bijvangst eronder (`content_plans.strategy_note` werd nergens gelezen) is ✅ rechtgezet op
+16 september 2026.
 
 ---
 
