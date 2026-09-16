@@ -222,24 +222,34 @@ kost geen AI-aanroep: het zet een status en een adres, meer niet. Er is nu geen 
 geld kost. Een bovengrens bouwen zou een nieuwe, kostbare bulkactie veronderstellen die niemand
 gevraagd heeft; dat is andersom werken. Blijft open tot zo'n actie er is.
 
-**22. Vertel bij een veld expliciet op welk niveau het werkt.** (klein) **Niet gebouwd, 16
-september 2026: kleiner probleem dan gedacht.** Uitgezocht welke drie velden dit zouden raken:
-`content_plans.strategy_note` (plan-niveau, alleen invulbaar bij het aanmaken, dus geen risico op
-"per ongeluk voor elke toekomstige pagina veranderen"), `topics.client_note` (cluster-niveau,
-alleen-lezen op het scherm waar hij getoond wordt) en `content_pieces.revision_note`
-(paginaniveau, hoort per definitie bij precies één pagina). Geen van de drie heeft de
-dubbelzinnigheid die Nova's voorbeeld beschrijft.
+**22. ~~Vertel bij een veld expliciet op welk niveau het werkt.~~** (klein) ✅ **Live, 16 september
+2026, in twee stappen.** Eerst uitgezocht welke drie velden dit zouden raken:
+`content_plans.strategy_note` (plan-niveau, destijds alleen invulbaar bij het aanmaken),
+`topics.client_note` (cluster-niveau, alleen-lezen) en `content_pieces.revision_note`
+(paginaniveau, hoort per definitie bij precies één pagina). Geen van de drie had toen de
+dubbelzinnigheid die Nova's voorbeeld beschrijft, dus in eerste instantie niet gebouwd.
 
-**Bijvangst bij dit punt, ✅ apart opgelost, 16 september 2026:** bij het uitzoeken bleek
-`content_plans.strategy_note` bij het aanmaken van een plan wél opgeslagen te worden
-(`create-plan-box.tsx`, "Dit gaat mee als context bij het opstellen") maar nergens in de
-schrijfpijplijn ooit gelezen: een belofte die niet klopte (`CLAUDE.md`: "schrijf nooit dat iets al
-kan wat nog niet gebouwd is"). Rechtgezet: `loadContentContext()` (`lib/pipeline/content.ts`) haalt
-de notitie nu op en geeft hem door aan `maakSchrijfopdracht()` (`lib/pipeline/writer-brief.ts`,
-nieuw veld `situationalNote`), die hem als achtergrond in de schrijfopdracht zet, expliciet gemerkt
-als "geen nieuw feit, verzin er zelf niets bovenop" zodat het niet als onderbouwde bewering
-meetelt. Geen migratie: de kolom bestond al. Geen UI-wijziging nodig: de tekst op
-`create-plan-box.tsx` klopt nu gewoon.
+**Bijvangst die het punt alsnog waarmaakte.** Bij het uitzoeken bleek `content_plans.strategy_note`
+wél opgeslagen te worden bij het aanmaken (`create-plan-box.tsx`, "Dit gaat mee als context bij het
+opstellen") maar nergens in de schrijfpijplijn ooit gelezen: een belofte die niet klopte
+(`CLAUDE.md`: "schrijf nooit dat iets al kan wat nog niet gebouwd is"). Eerste reparatie:
+`loadContentContext()` (`lib/pipeline/content.ts`) geeft de notitie door aan `maakSchrijfopdracht()`
+(`lib/pipeline/writer-brief.ts`, veld `situationalNote`) als achtergrond, expliciet gemerkt als
+"geen nieuw feit, verzin er zelf niets bovenop".
+
+**Tweede reparatie, en die maakt punt 22 alsnog waar: Nova doet dit dus al, en beter.** Nova's
+`contentActions.rewrite` heeft exact ditzelfde veld ("Content-creation note"), met de scope-uitleg
+letterlijk zoals in dit punt beschreven ("This note belongs to the domain, not to the pages you
+rewrite"), een tekenlimiet ("a long note crowds out the brief itself"), en zijn eigen
+conflictmelding als iemand anders 'm ondertussen wijzigde. Overgenomen: nieuwe route
+`PATCH /api/profiles/[id]/plan/note`, bewerkbaar vanuit "opnieuw schrijven" op elke pagina
+(`revise-box.tsx`, los van de sectie waar Nova hem samen met de herschrijfronde opslaat: hier een
+eigen opslagknop, want een merkbrede instructie aanpassen hoort nooit een betaalde AI-herschrijving
+van één pagina mee te trekken), met dezelfde voorwaardelijke-update-vergrendeling als
+`content_pieces.updated_at` (punt 17) en een limiet van 300 tekens (`MAX_STRATEGY_NOTE_LENGTH`,
+`lib/plan-constants.ts`). Geen migratie: `content_plans.updated_at` had al een database-trigger die
+'m bijhoudt (migratie 0049). `create-plan-box.tsx`'s tekst is bijgewerkt: de notitie geldt voor het
+hele merk en is later aan te passen, niet een eenmalige invoer bij het opstellen.
 
 **23. Leg het abonnement vast als getal waar het plan tegen afgezet wordt.** (midden) **Niet
 gebouwd: apart besluit, zoals het document zelf al zei.** Bevestigd: `planned_pages.page_type`
@@ -369,9 +379,9 @@ opleveren: zodra het aantal kansen omhoog gaat, liep het oude planscherm vast.
 zetten), 18 (opnieuw inplannen) bleek klein genoeg om meteen mee te doen en is ook live.
 
 **Apart besluit:** 29 (meertaligheid) en 23 (paginatypes per abonnement), allebei omdat ze het
-datamodel raken. Punt 22 zelf niet gebouwd (geen veld had de bedoelde dubbelzinnigheid), maar de
-bijvangst eronder (`content_plans.strategy_note` werd nergens gelezen) is ✅ rechtgezet op
-16 september 2026.
+datamodel raken. Punt 22 alsnog ✅ live op 16 september 2026: de bijvangst dat
+`content_plans.strategy_note` nergens gelezen werd, leidde naar Nova's eigen oplossing (een
+merkbrede notitie, bewerkbaar vanuit "opnieuw schrijven"), die meteen ook het punt zelf waarmaakt.
 
 ---
 

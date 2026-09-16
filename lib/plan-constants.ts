@@ -37,6 +37,17 @@ export const MONTHS_AHEAD = 12;
 export const BUFFER_PER_MONTH = 1;
 
 /**
+ * Hoeveel tekens de notitie voor de schrijver mag hebben (blok D punt 22,
+ * `content_plans.strategy_note`). Nova zet er bewust ook een grens op: "the
+ * writer works better from short, focused guidance, and a long note crowds
+ * out the brief itself." Dit is geen technische limiet maar een inhoudelijke:
+ * `maakSchrijfopdracht()` (`lib/pipeline/writer-brief.ts`) geeft de notitie als
+ * achtergrond mee naast alles wat al op de feitenkaart staat, en een notitie
+ * die zelf een alinea is, verdringt de rest van die opdracht.
+ */
+export const MAX_STRATEGY_NOTE_LENGTH = 300;
+
+/**
  * De standaard funnelfasen voor een merk dat er nog geen heeft.
  *
  * Vier, want dat zit midden in Nova's toegestane drie tot vijf, en het is de

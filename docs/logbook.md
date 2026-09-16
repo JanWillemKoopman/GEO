@@ -8825,3 +8825,41 @@ deze reparatie meegenomen.
 Getest: `tsc --noEmit`, `test:unit` (4712 geslaagd, ongewijzigd: dit raakt geen pure, testbare
 functie, alleen een extra promptregel die conditioneel is) en `test:chain` (652 geslaagd) en
 `build` zijn alle vier groen. Geen migratie.
+
+## 16 september 2026: de plannotitie wordt een merkbreed, doorlopend veld (blok D punt 22)
+
+Vervolg op de vorige invoer. Gevraagd wat Nova zelf met precies dit probleem doet: bleek exact
+uitgeschreven in `docs/nova-i18n.json` onder `contentActions.rewrite`, en het is de oplossing voor
+het gat dat de vorige reparatie expliciet openliet ("een klant die drie maanden later iets wil
+melden, kan dat nog niet zonder het hele plan opnieuw op te zetten").
+
+**Wat Nova doet.** Een "Content-creation note" die niet bij het aanmaken van een plan hoort maar bij
+"Rewrite content", bewerkbaar op elk moment vanuit elke pagina. Drie dingen zaten er letterlijk bij:
+een scope-uitleg ("This note belongs to the domain, not to the pages you rewrite"), een tekenlimiet
+met reden ("a long note crowds out the brief itself"), en een eigen conflictmelding als iemand
+anders 'm ondertussen wijzigde.
+
+**Wat er nu staat.** `content_plans.strategy_note` is losgeknipt van `createPlan()`: een nieuwe
+route `PATCH /api/profiles/[id]/plan/note` slaat 'm op, met dezelfde voorwaardelijke-update-
+vergrendeling als punt 17 (`WHERE updated_at = ...`). Geen nieuwe kolom of trigger nodig:
+`content_plans.updated_at` heeft al sinds migratie 0049 een database-trigger die hem bijhoudt, dus
+deze route hoeft die kolom zelf niet te zetten, alleen te lezen en in de `WHERE` te gebruiken.
+Nieuwe constante `MAX_STRATEGY_NOTE_LENGTH = 300` in `lib/plan-constants.ts`, gebruikt bij het
+aanmaken én bij het bewerken, met dezelfde onderbouwing als Nova.
+
+**Eén bewuste afwijking van Nova.** Nova slaat de notitie op ALS ONDERDEEL van het inplannen van een
+herschrijving, in één klik. Hier bewust een eigen "Opslaan"-knop, los van "Schrijf een nieuwe
+versie": een merkbrede instructie aanpassen mag nooit als bijverschijnsel een betaalde
+AI-herschrijfronde van één specifieke pagina meetrekken. Twee aparte knoppen, twee aparte gevolgen,
+in lijn met hoe de rest van de app onomkeerbare of kostbare acties altijd apart bevestigt.
+
+**Waar het staat.** `revise-box.tsx` (het scherm waar "opnieuw schrijven" al stond) kreeg een tweede,
+onafhankelijke sectie erboven: `StrategyNoteBox`, altijd zichtbaar zodra er een plan is, ongeacht of
+deze ene pagina wel of niet een nieuwe versie mag krijgen (de eindpoort gaat over déze pagina, niet
+over een merkbrede notitie). Verschijnt niet als er nog geen plan is: dan is er niets om de notitie
+aan te hangen. `create-plan-box.tsx`'s tekst is bijgewerkt om te zeggen dat de notitie voor het hele
+merk geldt en later aan te passen is, in plaats van een eenmalige invoer te suggereren.
+
+Getest: `tsc --noEmit`, `test:unit` (4712 geslaagd) en `test:chain` (652 geslaagd) en `build` zijn
+alle vier groen (`build` faalde één keer op een niet-ontsnapt aanhalingsteken in JSX, meteen
+gecorrigeerd naar `&ldquo;`/`&rdquo;`, hetzelfde patroon als elders in de app). Geen migratie.

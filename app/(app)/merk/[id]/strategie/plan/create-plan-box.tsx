@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRefresh } from "@/components/use-refresh";
 import { useToast } from "@/components/toast";
-import { MONTHS_AHEAD } from "@/lib/plan-constants";
+import { MONTHS_AHEAD, MAX_STRATEGY_NOTE_LENGTH } from "@/lib/plan-constants";
 import { Icon } from "@/components/icon";
 
 /**
@@ -180,16 +180,22 @@ export function CreatePlanBox({
           </label>
           <p className="text-sm text-muted">
             Bijvoorbeeld: een nieuwe vestiging, een product dat eruit gaat, een
-            seizoen dat telt. Dit gaat mee als context bij het opstellen.
+            seizoen dat telt. Geldt voor het hele merk, niet voor één pagina, en
+            je past hem later aan bij &ldquo;opnieuw schrijven&rdquo; op een
+            willekeurige pagina.
           </p>
           <textarea
             id="notitie"
             className="field"
             rows={2}
             value={note}
+            maxLength={MAX_STRATEGY_NOTE_LENGTH}
             onChange={(e) => setNote(e.target.value)}
             placeholder="Vanaf november openen we in Breda"
           />
+          <span className="mono-label text-muted" style={{ fontSize: "0.65rem" }}>
+            {note.length}/{MAX_STRATEGY_NOTE_LENGTH}
+          </span>
           <button
             type="button"
             className="btn-primary btn-lg w-fit"

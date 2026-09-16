@@ -248,6 +248,19 @@ export default async function ContentDetailPage({
     .in("status", ["open", "overgeslagen"]);
   const unansweredRequired = (openVragen ?? []).map((v) => v.question as string);
 
+  // De merkbrede notitie voor de schrijver (blok D punt 22, Nova's
+  // "Content-creation note"): bewerkbaar vanuit "opnieuw schrijven", zie
+  // `revise-box.tsx`. `null` als er nog geen plan is; dan is er niets om aan te
+  // hangen en verschijnt de notitie-editor niet.
+  const { data: planRij } = await supabase
+    .from("content_plans")
+    .select("strategy_note, updated_at")
+    .eq("profile_id", analysis.profile_id)
+    .neq("status", "gestopt")
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   // ── Wat de eindpoort tegenhoudt (28 augustus 2026) ───────────────────────
   //
   // Andere telling dan `unansweredRequired` hierboven, en dat is opzet: die
@@ -522,6 +535,12 @@ export default async function ContentDetailPage({
         pieceId={pieceId}
         poort={poort}
         vragenHref={`/merk/${analysis.profile_id}/strategie/vragen`}
+        profileId={analysis.profile_id}
+        strategyNote={
+          planRij
+            ? { note: planRij.strategy_note as string | null, updatedAt: planRij.updated_at as string }
+            : null
+        }
       />
 
       {/* Geschiedenis en vergelijken. */}
