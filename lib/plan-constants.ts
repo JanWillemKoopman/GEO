@@ -22,6 +22,32 @@
 export const MONTHS_AHEAD = 12;
 
 /**
+ * Hoeveel pagina's een maand krijgt bovenop de pakketquota, als wisselgeld
+ * (blok A, punt 3, `docs/tasks/nova-vergelijking-verbeterpunten.md`). Nova:
+ * "a few extra, as a buffer: extra pages ready to swap in whenever you want
+ * to change what's scheduled."
+ *
+ * Eén, niet "een paar": buffers vullen zichzelf lazy bij, bij elke
+ * schermopening (`vulOpenMaanden()`, `lib/plans.ts`). Eén is genoeg om de
+ * eerstvolgende verwijdering of terugsleep in die maand meteen op te vangen;
+ * een tweede volgt vanzelf zodra er weer voorraad is. Meer vooraf zou alleen
+ * sneller aan de voorraad knagen zonder dat er iets mee gedaan wordt tot iemand
+ * daadwerkelijk iets uit die maand haalt.
+ */
+export const BUFFER_PER_MONTH = 1;
+
+/**
+ * Hoeveel tekens de notitie voor de schrijver mag hebben (blok D punt 22,
+ * `content_plans.strategy_note`). Nova zet er bewust ook een grens op: "the
+ * writer works better from short, focused guidance, and a long note crowds
+ * out the brief itself." Dit is geen technische limiet maar een inhoudelijke:
+ * `maakSchrijfopdracht()` (`lib/pipeline/writer-brief.ts`) geeft de notitie als
+ * achtergrond mee naast alles wat al op de feitenkaart staat, en een notitie
+ * die zelf een alinea is, verdringt de rest van die opdracht.
+ */
+export const MAX_STRATEGY_NOTE_LENGTH = 300;
+
+/**
  * De standaard funnelfasen voor een merk dat er nog geen heeft.
  *
  * Vier, want dat zit midden in Nova's toegestane drie tot vijf, en het is de

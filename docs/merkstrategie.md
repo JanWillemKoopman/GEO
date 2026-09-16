@@ -495,8 +495,8 @@ doe?" Maar: "dit hebben we gevonden. Dit is waarom het belangrijk is. Dit gaan w
 ## 13. Verbale identiteit en tone of voice
 
 > Dit geldt voor **marketingcommunicatie**. Voor tekst in de app zelf is `docs/schrijfstijl.md`
-> leidend, met elf richtlijnen die specifieker zijn dan wat hier staat. De twee spreken elkaar niet
-> tegen, maar bij twijfel over een knop, een foutmelding of een instructie wint `schrijfstijl.md`.
+> leidend, met twaalf richtlijnen die specifieker zijn dan wat hier staat. De twee spreken elkaar
+> niet tegen, maar bij twijfel over een knop, een foutmelding of een instructie wint `schrijfstijl.md`.
 
 ### 13.1 Kern
 
@@ -1011,7 +1011,7 @@ implementatiedetail, en het staat hier zodat het gesteld wordt in plaats van dat
   den Udenhout. Voor de bewijsvoering waar §21 om vraagt, cijfers met context, zijn de echte
   getallen van die twee cases nodig en die zitten niet in dit systeem.
 - **De tone of voice in §13.** Die spreekt `docs/schrijfstijl.md` niet tegen, maar is er wel
-  algemener dan. Voor tekst in de app blijft `schrijfstijl.md` leidend, met elf richtlijnen die
+  algemener dan. Voor tekst in de app blijft `schrijfstijl.md` leidend, met twaalf richtlijnen die
   specifieker zijn. Eén ervan staat niet in dit document en is wel bindend: **je en jij, nooit u.**
 
 ---

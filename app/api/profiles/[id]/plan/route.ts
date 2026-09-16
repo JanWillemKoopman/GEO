@@ -5,6 +5,7 @@ import { getOwnedProfile } from "@/lib/profiles";
 import { createPlan } from "@/lib/plans";
 import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 import { checkBudgetForProfile } from "@/lib/spend-limit";
+import { MAX_STRATEGY_NOTE_LENGTH } from "@/lib/plan-constants";
 
 /**
  * POST /api/profiles/[id]/plan, een contentplan opstellen.
@@ -83,10 +84,18 @@ export async function POST(
     body = {};
   }
 
+  const strategyNote = body.strategyNote?.trim() || null;
+  if (strategyNote && strategyNote.length > MAX_STRATEGY_NOTE_LENGTH) {
+    return NextResponse.json(
+      { error: `De notitie mag hooguit ${MAX_STRATEGY_NOTE_LENGTH} tekens zijn.` },
+      { status: 422 },
+    );
+  }
+
   const result = await createPlan(admin, {
     profileId: id,
     pagesPerMonth: quota,
-    strategyNote: body.strategyNote?.trim() || null,
+    strategyNote,
   });
 
   if (!result.ok) {

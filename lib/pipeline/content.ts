@@ -1048,6 +1048,7 @@ async function loadContentContext(
     { data: factRows },
     { data: techniekFacet },
     { data: pieceRow },
+    { data: planRow },
   ] = await Promise.all([
     admin.from("profiles").select("*").eq("id", analysis.profile_id).maybeSingle(),
     admin.from("topic_research").select("*").eq("analysis_id", analysisId).maybeSingle(),
@@ -1081,9 +1082,23 @@ async function loadContentContext(
       .eq("title", recommendation.title)
       .eq("is_current", true)
       .maybeSingle(),
+    // De actuele situatie die de klant bij het opstellen van het plan meegaf
+    // (blok A/D punt 22, `docs/tasks/nova-vergelijking-verbeterpunten.md`): een
+    // nieuwe vestiging, een product dat eruit gaat, een seizoen dat telt.
+    // `create-plan-box.tsx` beloofde al "dit gaat mee als context bij het
+    // opstellen"; tot deze wijziging kwam die tekst nergens terecht.
+    admin
+      .from("content_plans")
+      .select("strategy_note")
+      .eq("profile_id", analysis.profile_id)
+      .neq("status", "gestopt")
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
   const profile = profileRow as Profile | null;
   const topicResearch = topicResearchRow as TopicResearch | null;
+  const strategyNote = (planRow as { strategy_note: string | null } | null)?.strategy_note ?? null;
 
   // ── De antwoorden van de klant, klaar om de kaart in te gaan (R8.1) ───────
   //
@@ -1435,6 +1450,7 @@ async function loadContentContext(
         contract,
         valueProps: profile?.value_props ?? [],
         objections: profile?.sales_objections ?? [],
+        situationalNote: strategyNote,
         analysisId,
         profileId: analysis.profile_id,
       });

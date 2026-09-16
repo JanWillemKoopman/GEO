@@ -612,19 +612,25 @@ import {
   datumProbleem,
   maandIsVol,
   schrijfBelofte,
+  LAATSTE_DAG,
 } from "@/lib/plan-schedule";
+import { calendarDagen } from "@/lib/plan-calendar";
 import { sharedNotice } from "@/lib/plan-overview";
 import {
   filterBacklog,
   sortBacklog,
+  compareByPotential,
   clusterCounts,
   potentieLabel,
   raaktLabel,
+  redenChip,
+  redenUitleg,
   estimateBacklogMonths,
   backlogDurationLabel,
   LEGE_BACKLOG_FILTERS,
   type BacklogItem,
 } from "@/lib/plan-backlog";
+import { bepaalVulling, type OpenMaand } from "@/lib/plan-fill";
 import {
   PLAN_STATUS_META,
   planRunningDate,
@@ -663,6 +669,7 @@ import {
 import { navActief } from "@/lib/nav";
 import { openVragenTotaal, openVragenLabel } from "@/lib/open-questions-count";
 import { eindpoort } from "@/lib/content-final-gate";
+import { checkManualEdit } from "@/lib/pipeline/manual-edit-checks";
 import { leesMaandKeuze, maandRegel, planStap, telStatussen } from "@/lib/plan-read";
 import {
   isEersteMaand,
@@ -762,6 +769,7 @@ import {
   stepProgress,
   overallProgress,
   missingRequired,
+  veldAlsTekst,
 } from "@/lib/pipeline/brand-fields";
 import { resolveWriteSource, consultantFields } from "@/lib/profile-source";
 import {
@@ -951,6 +959,7 @@ import {
   REVIEW_PLATFORMS,
 } from "@/lib/reputation/sources";
 import { decideStep, budgetUsd, RUN_BUDGET_EUR, STEP_COST_USD } from "@/lib/reputation/budget";
+import { isNewerVersionAvailable } from "@/lib/deployment";
 import type {
   ProfileOffering,
   ProfileTopic,
@@ -5738,6 +5747,7 @@ function kans(over: Partial<BacklogItem> = {}): BacklogItem {
     raakt: null,
     gemeten: null,
     gewicht: null,
+    reden: null,
     ...over,
   };
 }
@@ -5776,6 +5786,43 @@ group("de kalender van een plan (plan-schedule)", () => {
   ok(
     "een maand van vorig jaar wel",
     isPastMonth("2025-08-12", 1, inAugustus) === true,
+  );
+});
+
+group("de kalenderweergave van het plan (blok A punt 6, plan-calendar)", () => {
+  const pagina = (over: Partial<Parameters<typeof calendarDagen>[0][number]> = {}) => ({
+    id: "p1",
+    title: "Een pagina",
+    status: "gepland" as const,
+    scheduled_for: "2026-10-05",
+    is_buffer: false,
+    ...over,
+  });
+
+  ok("levert precies LAATSTE_DAG dagen op", calendarDagen([]).length === LAATSTE_DAG);
+  ok("een lege maand heeft alleen lege dagen", calendarDagen([]).every((d) => d.paginas.length === 0));
+
+  const gevuld = calendarDagen([pagina()]);
+  ok("de pagina staat op de juiste dag", gevuld.find((d) => d.dag === 5)?.paginas.length === 1);
+  ok("en met zijn titel erbij", gevuld.find((d) => d.dag === 5)?.paginas[0].title === "Een pagina");
+  ok(
+    "een andere dag blijft leeg",
+    gevuld.find((d) => d.dag === 6)?.paginas.length === 0,
+  );
+
+  ok(
+    "een buffer telt niet mee",
+    calendarDagen([pagina({ id: "b1", is_buffer: true })]).every((d) => d.paginas.length === 0),
+  );
+  ok(
+    "geen publicatiedatum telt niet mee",
+    calendarDagen([pagina({ id: "p2", scheduled_for: null })]).every((d) => d.paginas.length === 0),
+  );
+  ok(
+    "twee pagina's op dezelfde dag staan allebei in dat vakje",
+    calendarDagen([pagina({ id: "p1" }), pagina({ id: "p2", title: "Nog een pagina" })]).find(
+      (d) => d.dag === 5,
+    )?.paginas.length === 2,
   );
 });
 
@@ -6088,6 +6135,19 @@ group("de voorraad filteren en sorteren (plan-backlog)", () => {
     "en klopt",
     tellers.find((c) => c.naam === "Cv-ketel onderhoud")?.aantal === 3,
   );
+
+  // ⚠️ sortBacklog() en de lichtgewicht voorraadquery in vulOpenMaanden()
+  // (lib/plans.ts) delen sinds blok A punt 1 dezelfde vergelijking. Los
+  // getest zodat een toekomstige wijziging aan sortBacklog() niet per ongeluk
+  // alleen de UI-sortering raakt en de automatische vulling laat afwijken.
+  const rijen = [
+    { id: "a", potentie: 40, gewicht: 1, title: "b" },
+    { id: "b", potentie: 40, gewicht: 1, title: "a" },
+    { id: "c", potentie: 80, gewicht: 1, title: "z" },
+  ];
+  const volgorde = [...rijen].sort(compareByPotential).map((r) => r.id);
+  ok("compareByPotential: hoogste potentie eerst", volgorde[0] === "c");
+  ok("gelijke stand: alfabetisch op titel", volgorde[1] === "b" && volgorde[2] === "a");
 });
 
 group("wat er op een voorraadkaart komt te staan (plan-backlog)", () => {
@@ -6111,6 +6171,23 @@ group("wat er op een voorraadkaart komt te staan (plan-backlog)", () => {
   );
   ok("geen doelvragen is geen regel", raaktLabel(kans({ raakt: null })) === null);
   ok("nul doelvragen ook niet", raaktLabel(kans({ raakt: 0, gemeten: 30 })) === null);
+
+  // Blok A, punt 4: waarom een kans nog in de voorraad staat.
+  ok("een gewone wachtrijkans krijgt geen label", redenChip(kans({ reden: null })) === null);
+  ok("en ook geen uitleg", redenUitleg(kans({ reden: null })) === null);
+  ok("bewust uitgehaald krijgt zijn eigen label", redenChip(kans({ reden: "uitgehaald" })) === "eruit gehaald");
+  ok(
+    "met een uitleg die zegt dat hij terug kan",
+    redenUitleg(kans({ reden: "uitgehaald" }))?.includes("sleep hem terug") === true,
+  );
+  ok(
+    "buiten bereik krijgt een ander label",
+    redenChip(kans({ reden: "buiten_bereik" })) === "buiten bereik",
+  );
+  ok(
+    "met een uitleg die zegt dat hij nog aan de beurt komt",
+    redenUitleg(kans({ reden: "buiten_bereik" }))?.includes("twaalf maanden") === true,
+  );
 });
 
 group("Hoe lang de voorraad meegaat (werkpakket C §5.2)", () => {
@@ -6127,6 +6204,188 @@ group("Hoe lang de voorraad meegaat (werkpakket C §5.2)", () => {
     backlogDurationLabel(9, 4) === "Bij dit tempo duurt de voorraad nog 3 maanden.",
   );
   ok("geen voorraad levert geen zin op", backlogDurationLabel(0, 4) === null);
+});
+
+group("het plan vult zichzelf vooraf (blok A punt 1, plan-fill)", () => {
+  const maand = (
+    monthNumber: number,
+    overrides: Partial<OpenMaand> = {},
+  ): OpenMaand => ({
+    id: `maand-${monthNumber}`,
+    monthNumber,
+    status: "concept",
+    huidigAantal: 0,
+    huidigBuffers: 0,
+    magNogVullen: true,
+    ...overrides,
+  });
+
+  ok("een lege voorraad vult niets", bepaalVulling({
+    openMaanden: [maand(1)],
+    voorraadIds: [],
+    pagesPerMonth: 5,
+  }).opdrachten.length === 0);
+
+  {
+    // Vijf kansen, pakket van vijf: maand 1 vol, maand 2 blijft leeg.
+    const uitkomst = bepaalVulling({
+      openMaanden: [maand(1), maand(2)],
+      voorraadIds: ["a", "b", "c", "d", "e"],
+      pagesPerMonth: 5,
+    });
+    ok("precies één maand krijgt een opdracht", uitkomst.opdrachten.length === 1);
+    ok("en dat is maand 1", uitkomst.opdrachten[0].monthId === "maand-1");
+    ok("met alle vijf kansen, in volgorde", uitkomst.opdrachten[0].backlogIds.join(",") === "a,b,c,d,e");
+    ok("niets blijft over", uitkomst.restendeVoorraad === 0);
+    ok("maand 1 wordt bevorderd", uitkomst.bevorderMaand === "maand-1");
+  }
+
+  {
+    // Een dunne voorraad: minder kansen dan het pakket. Maand wordt korter,
+    // er wordt niets bijverzonnen (conventie 3), precies zoals createPlan()
+    // dat altijd al voor de allereerste voorzet deed.
+    const uitkomst = bepaalVulling({
+      openMaanden: [maand(1)],
+      voorraadIds: ["a", "b"],
+      pagesPerMonth: 5,
+    });
+    ok("de maand krijgt alleen wat er is", uitkomst.opdrachten[0].backlogIds.length === 2);
+    ok("geen tekort gaat verloren, hij blijft gewoon 0", uitkomst.restendeVoorraad === 0);
+  }
+
+  {
+    // Genoeg voor twee maanden: de tweede maand vult pas ná de eerste.
+    const uitkomst = bepaalVulling({
+      openMaanden: [maand(1), maand(2), maand(3)],
+      voorraadIds: ["a", "b", "c", "d", "e", "f", "g"],
+      pagesPerMonth: 3,
+    });
+    ok("maand 1 krijgt drie", uitkomst.opdrachten[0].backlogIds.length === 3);
+    ok("maand 2 krijgt drie", uitkomst.opdrachten[1].backlogIds.length === 3);
+    ok("maand 3 krijgt de rest, één", uitkomst.opdrachten[2].backlogIds.length === 1);
+    ok("alleen maand 1 wordt bevorderd", uitkomst.bevorderMaand === "maand-1");
+  }
+
+  ok(
+    "een goedgekeurde maand komt hier nooit binnen, dus ook nooit een opdracht",
+    bepaalVulling({
+      openMaanden: [maand(1, { status: "goedgekeurd", huidigAantal: 5 })],
+      voorraadIds: ["a"],
+      pagesPerMonth: 5,
+    }).opdrachten.length === 0,
+  );
+
+  ok(
+    "een maand zonder bruikbare dag meer krijgt niets, ook al is er ruimte onder de quota",
+    bepaalVulling({
+      openMaanden: [maand(1, { magNogVullen: false }), maand(2)],
+      voorraadIds: ["a", "b"],
+      pagesPerMonth: 5,
+    }).opdrachten[0].monthId === "maand-2",
+  );
+
+  ok(
+    "staat er al een maand ter_goedkeuring, dan wordt er nooit een tweede bevorderd",
+    bepaalVulling({
+      openMaanden: [
+        maand(1, { status: "ter_goedkeuring", huidigAantal: 2 }),
+        maand(2),
+      ],
+      voorraadIds: ["a", "b", "c"],
+      pagesPerMonth: 5,
+    }).bevorderMaand === null,
+  );
+
+  ok(
+    "een maand die al inhoud had maar leeg blijft aan nieuwe kaarten, telt toch mee voor bevordering",
+    bepaalVulling({
+      openMaanden: [maand(1, { magNogVullen: false, huidigAantal: 3 })],
+      voorraadIds: [],
+      pagesPerMonth: 5,
+    }).bevorderMaand === "maand-1",
+  );
+});
+
+group("het plan schrijft wisselgeld (blok A punt 3, plan-fill)", () => {
+  const maand = (
+    monthNumber: number,
+    overrides: Partial<OpenMaand> = {},
+  ): OpenMaand => ({
+    id: `maand-${monthNumber}`,
+    monthNumber,
+    status: "concept",
+    huidigAantal: 0,
+    huidigBuffers: 0,
+    magNogVullen: true,
+    ...overrides,
+  });
+
+  {
+    // Maand vol (drie van de drie), en er is nog precies één kans over: die
+    // wordt wisselgeld, geen tweede maand.
+    const uitkomst = bepaalVulling({
+      openMaanden: [maand(1)],
+      voorraadIds: ["a", "b", "c", "d"],
+      pagesPerMonth: 3,
+    });
+    ok("drie echte kaarten", uitkomst.opdrachten[0].backlogIds.length === 3);
+    ok("en één buffer", uitkomst.opdrachten[0].bufferIds.join(",") === "d");
+    ok("niets blijft achter in de voorraad", uitkomst.restendeVoorraad === 0);
+  }
+
+  {
+    // Echte inhoud gaat altijd voor: een verre maand 2 krijgt zijn plek voordat
+    // maand 1 wisselgeld krijgt.
+    const uitkomst = bepaalVulling({
+      openMaanden: [maand(1), maand(2)],
+      voorraadIds: ["a", "b", "c", "d"],
+      pagesPerMonth: 3,
+    });
+    ok("maand 1 vol met drie", uitkomst.opdrachten[0].backlogIds.length === 3);
+    ok("maand 1 krijgt geen buffer", uitkomst.opdrachten[0].bufferIds.length === 0);
+    ok("maand 2 krijgt de laatste kans als echte inhoud, niet als buffer", uitkomst.opdrachten[1].backlogIds.join(",") === "d");
+    ok("maand 2 krijgt ook geen buffer, de voorraad is op", uitkomst.opdrachten[1].bufferIds.length === 0);
+  }
+
+  {
+    // Twee volle maanden, twee kansen over: allebei krijgen hun eigen buffer,
+    // in maandvolgorde.
+    const uitkomst = bepaalVulling({
+      openMaanden: [maand(1, { huidigAantal: 3 }), maand(2, { huidigAantal: 3 })],
+      voorraadIds: ["x", "y"],
+      pagesPerMonth: 3,
+    });
+    ok("maand 1 krijgt geen echte inhoud meer, hij zit al vol", uitkomst.opdrachten[0].backlogIds.length === 0);
+    ok("maar wel een buffer", uitkomst.opdrachten[0].bufferIds.join(",") === "x");
+    ok("maand 2 krijgt de tweede buffer", uitkomst.opdrachten[1].bufferIds.join(",") === "y");
+  }
+
+  ok(
+    "een maand met al een buffer krijgt er geen tweede",
+    bepaalVulling({
+      openMaanden: [maand(1, { huidigAantal: 3, huidigBuffers: 1 })],
+      voorraadIds: ["x"],
+      pagesPerMonth: 3,
+    }).opdrachten.length === 0,
+  );
+
+  ok(
+    "een maand zonder bruikbare dag meer krijgt ook geen buffer",
+    bepaalVulling({
+      openMaanden: [maand(1, { huidigAantal: 3, magNogVullen: false })],
+      voorraadIds: ["x"],
+      pagesPerMonth: 3,
+    }).opdrachten.length === 0,
+  );
+
+  ok(
+    "een goedgekeurde maand krijgt nooit een buffer, ook al is er voorraad over",
+    bepaalVulling({
+      openMaanden: [maand(1, { status: "goedgekeurd", huidigAantal: 3 })],
+      voorraadIds: ["x"],
+      pagesPerMonth: 3,
+    }).opdrachten.length === 0,
+  );
 });
 
 group("de twee constanten van het plan", () => {
@@ -6516,6 +6775,19 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   function allStepsIncompleet(prof: Record<string, unknown>): boolean {
     return STEP_ORDER.every((s) => !stepProgress(prof, s).compleet);
   }
+});
+
+group("een profielveld als leesbare tekst (blok B punt 10, profielexport)", () => {
+  ok("leeg blijft leeg", veldAlsTekst(null) === "" && veldAlsTekst(undefined) === "");
+  ok("ja/nee in plaats van true/false", veldAlsTekst(true) === "Ja" && veldAlsTekst(false) === "Nee");
+  ok("een lijst wordt met puntkomma's", veldAlsTekst(["a", "b", "c"]) === "a; b; c");
+  ok("een lege lijst is een lege tekst", veldAlsTekst([]) === "");
+  ok("een gewoon getal blijft gewoon", veldAlsTekst(42) === "42");
+  ok("een gewone tekst blijft gewoon", veldAlsTekst("Cv-ketel onderhoud") === "Cv-ketel onderhoud");
+  ok(
+    "een object (bv. persona's) wordt geen [object Object]",
+    veldAlsTekst({ naam: "Jan" }) === '{"naam":"Jan"}',
+  );
 });
 
 group("drie oppervlakken, één veldenlijst (onboarding 3.0 fase 1)", () => {
@@ -7654,6 +7926,19 @@ group("segmentOf: elk merk in precies één segment", () => {
     "en klaar om te plaatsen ook",
     flagsOf(merk({ paginasTePlaatsen: 2 })).some((v) => v.includes("klaar om te plaatsen")),
   );
+  // Blok D, punt 24: een mislukt onderzoek is een andere oorzaak dan mislukte
+  // taken, en moet een eigen vlag krijgen, ook als er geen enkele taak faalde.
+  ok(
+    "een mislukt onderzoek krijgt een eigen vlag",
+    flagsOf(merk({ profileStatus: "mislukt", pijplijnfouten: 0 })).includes("Onderzoek mislukt"),
+  );
+  ok(
+    "en die staat los van mislukte taken",
+    (() => {
+      const v = flagsOf(merk({ profileStatus: "mislukt", pijplijnfouten: 2 }));
+      return v.includes("Onderzoek mislukt") && v.includes("2 taken mislukt");
+    })(),
+  );
   ok(
     "een merk zonder vlaggen dat loopt, vraagt niets",
     needsAttention(merk()) === false,
@@ -7944,6 +8229,32 @@ group("het contentplan zoals de klant het leest", () => {
     "een gevulde maand negeert de vlag",
     maandRegel({ paginas: 2, geplaatst: 0, eersteDatum: null, leegDoorRuimtegebrek: true }) ===
       "2 pagina's deze maand.",
+  );
+
+  // ── Het pakkettekort (blok A punt 1) ─────────────────────────────────────
+  ok(
+    "geen pakket meegeven verandert niets aan de bestaande zin",
+    maandRegel({ paginas: 4, geplaatst: 0, eersteDatum: null, pakket: undefined }) ===
+      "4 pagina's deze maand.",
+  );
+  ok(
+    "minder dan het pakket krijgt een tekortzin met het exacte aantal erbij (blok A punt 5)",
+    maandRegel({ paginas: 2, geplaatst: 0, eersteDatum: null, pakket: 5 }) ===
+      "2 pagina's deze maand. Nog 3 pagina's nodig om je pakket van 5 te halen: er zijn nog niet genoeg gemeten kansen.",
+  );
+  ok(
+    "enkelvoud bij precies één pagina tekort",
+    maandRegel({ paginas: 4, geplaatst: 0, eersteDatum: null, pakket: 5 }).includes("Nog één pagina nodig"),
+  );
+  ok(
+    "precies het pakket krijgt geen tekortzin",
+    maandRegel({ paginas: 5, geplaatst: 0, eersteDatum: null, pakket: 5 }) === "5 pagina's deze maand.",
+  );
+  ok(
+    "de tekortzin komt ook achter 'allemaal live'",
+    maandRegel({ paginas: 2, geplaatst: 2, eersteDatum: null, pakket: 5 }).includes(
+      "allemaal live. Nog 3 pagina's nodig",
+    ),
   );
 
   // ── Reservepagina's tellen niet mee ──────────────────────────────────────
@@ -9697,6 +10008,61 @@ group("eindpoort: geen definitieve versie met vragen open", () => {
   ok("een onmogelijke telling blokkeert niet", eindpoort(-2).mag === true);
 });
 
+group("vijf controles bij een handmatige bewerking (blok C punt 14)", () => {
+  const geldig = {
+    title: "Cv-ketel onderhoud in Tilburg",
+    bodyMarkdown: "Wij onderhouden je cv-ketel in Tilburg en omgeving.",
+    metaTitle: "Cv-ketel onderhoud Tilburg | Voorbeeld",
+    metaDescription: "Snel en vakkundig cv-ketel onderhoud in Tilburg.",
+    cluster: "cv-ketel onderhoud",
+  };
+
+  ok("een volledige pagina heeft geen problemen", checkManualEdit(geldig).length === 0);
+
+  ok(
+    "lege titel blokkeert",
+    checkManualEdit({ ...geldig, title: "  " }).some((p) => p.code === "lege-titel"),
+  );
+  ok(
+    "lege meta-title blokkeert",
+    checkManualEdit({ ...geldig, metaTitle: "" }).some((p) => p.code === "lege-meta-titel"),
+  );
+  ok(
+    "lege meta-description blokkeert",
+    checkManualEdit({ ...geldig, metaDescription: "" }).some((p) => p.code === "lege-meta-omschrijving"),
+  );
+  ok(
+    "een link zonder adres blokkeert",
+    checkManualEdit({ ...geldig, bodyMarkdown: "Lees ook [onze andere pagina]()." }).some(
+      (p) => p.code === "lege-link",
+    ),
+  );
+  ok(
+    "een link met adres is geen probleem",
+    checkManualEdit({ ...geldig, bodyMarkdown: "Lees ook [onze andere pagina](/andere-pagina)." })
+      .length === 0,
+  );
+
+  ok(
+    "het zoekwoord moet ergens voorkomen",
+    checkManualEdit({
+      ...geldig,
+      title: "Iets anders",
+      metaTitle: "Iets anders",
+      bodyMarkdown: "Dit gaat nergens over ketels.",
+    }).some((p) => p.code === "zoekwoord-ontbreekt"),
+  );
+  ok(
+    "geen cluster bekend is geen aanname over het zoekwoord (conventie 3)",
+    checkManualEdit({ ...geldig, title: "Iets anders", cluster: null }).length === 0,
+  );
+  ok(
+    "meerdere problemen komen allemaal terug",
+    checkManualEdit({ title: "", bodyMarkdown: "", metaTitle: "", metaDescription: "", cluster: null })
+      .length === 3,
+  );
+});
+
 group("de vragenpagina staat in Strategie, tussen clusters en plan", () => {
   const items = brandNav("00000000-0000-0000-0000-000000000001", false);
   const strategie = items.filter((i) => i.hoofdstuk === "Strategie").map((i) => i.label);
@@ -10704,20 +11070,22 @@ group("de klantweergave kan nooit rechten geven, alleen wegnemen", () => {
   ok("het kostenslot blijft het effectieve recht gebruiken", gate.includes("isStaff(userId)"));
 });
 
-group("het contentplan heeft twee weergaven", () => {
+group("het contentplan heeft drie weergaven", () => {
   const scherm = readFileSync("app/(app)/merk/[id]/strategie/plan/page.tsx", "utf8");
 
-  // ⚠️ Allebei bereikbaar voor iedereen; alleen het beginpunt verschilt. De
+  // ⚠️ Alledrie bereikbaar voor iedereen; alleen het beginpunt verschilt. De
   // klant landt op het overzicht en gaat met één klik naar het bord, de
   // consultant landt op het bord. Tot 27 augustus 2026 was er alleen het bord,
   // ook voor de klant, met bovenaan "sleep beschikbare content items naar de
-  // maand waarin ze geschreven moeten worden".
+  // maand waarin ze geschreven moeten worden". Kalender (blok A punt 6) kwam
+  // er als derde bij, zonder de rolregel van de eerste twee te raken.
   ok("de leesweergave bestaat", scherm.includes("<PlanReadView"));
   ok("het bord bestaat", scherm.includes("<PlanView"));
-  ok("er is een schakelaar tussen de twee", scherm.includes("<WeergaveKiezer"));
+  ok("de kalenderweergave bestaat", scherm.includes("<PlanCalendarView"));
+  ok("er is een schakelaar tussen de drie", scherm.includes("<WeergaveKiezer"));
   ok(
     "de rol bepaalt alleen het beginpunt",
-    scherm.includes('const bord = weergave ? weergave === "plannen" : staff;'),
+    scherm.includes("staff ? \"plannen\" : \"overzicht\""),
   );
   // Een weergave in de URL wint van de rol, zodat een gedeelde link bij de
   // klant en de consultant hetzelfde opent.
@@ -22503,6 +22871,13 @@ group("de opties dragen hun eigen reden", () => {
   ok("lege pagina geeft geen opties", kopieeropties("", "").length === 0);
   ok("alleen HTML leeg valt weg", kopieeropties("Tekst.", "").every((o) => o.vorm !== "html"));
 });
+
+group("punt 25: nieuwe versie beschikbaar", () => {
+  ok("gelijke versies: geen melding", !isNewerVersionAvailable("abc123", "abc123"));
+  ok("verschillende versies: wel een melding", isNewerVersionAvailable("abc123", "def456"));
+  ok("eigen versie nog onbekend: geen melding", !isNewerVersionAvailable("", "def456"));
+  ok("serverversie nog onbekend: geen melding", !isNewerVersionAvailable("abc123", ""));
+  ok("allebei onbekend: geen melding", !isNewerVersionAvailable("", ""));});
 
 // ════════════════════════════════════════════════════════════════════════════
 void (async () => {

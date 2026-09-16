@@ -173,11 +173,26 @@ export default async function ZoekverkeerPage({
                 : "Er staat nog niets in je contentplan."}
             </p>
           )}
-          {leeg.staat === "geen_toegang" && profile.gsc_last_error && (
-            <p className="text-sm text-[var(--status-error)]">
-              De laatste poging liep vast: {profile.gsc_last_error}
-            </p>
-          )}
+          {/* Schrijfstijl.md §12: wie lost het op, en wat kun je intussen. Een
+              beheerder mag de ruwe reden zien, want die is vaak degene die het
+              zelf verhelpt (en de tekst uit `lib/search-console/sync.ts` zegt
+              dan meteen wat er moet gebeuren). Een klant heeft niets aan een
+              technische foutregel over andermans koppeling: die weet alleen dat
+              zijn consultant ervan op de hoogte is en dat er voor hem niets te
+              doen valt. Overgenomen uit de ronde van 16 september 2026 op
+              `main`, die dezelfde lege staat verbeterde. */}
+          {leeg.staat === "geen_toegang" &&
+            profile.gsc_last_error &&
+            (staff ? (
+              <p className="text-sm text-[var(--status-error)]">
+                De laatste poging liep vast: {profile.gsc_last_error}
+              </p>
+            ) : (
+              <p className="text-sm text-secondary">
+                Het ophalen van je zoekcijfers lukt op dit moment niet. Je consultant is op de
+                hoogte en lost dit op; je hoeft hier zelf niets voor te doen.
+              </p>
+            ))}
           {leeg.aanZet === "consultant" &&
             (staff ? (
               <Link href="/instellingen/koppelingen" className="btn-primary w-fit">

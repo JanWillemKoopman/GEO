@@ -219,6 +219,11 @@ export function segmentOf(b: CsmBrand): CsmSegment {
  */
 export function flagsOf(b: CsmBrand): string[] {
   const vlaggen: string[] = [];
+  // Blok D, punt 24: de banner van "vastgelopen" is één zin voor twee heel
+  // verschillende oorzaken. Zonder dit onderscheid toont een merk dat vastliep
+  // omdat het ONDERZOEK zelf mislukte (en dus nul taakfouten heeft) helemaal
+  // geen vlag, terwijl het net zo vastgelopen is als een merk met taakfouten.
+  if (b.profileStatus === "mislukt") vlaggen.push("Onderzoek mislukt");
   if (b.pijplijnfouten > 0) {
     vlaggen.push(
       b.pijplijnfouten === 1 ? "1 taak mislukt" : `${b.pijplijnfouten} taken mislukt`,

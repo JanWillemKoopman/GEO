@@ -10,6 +10,7 @@ import { FaqEdit } from "@/lib/schemas/content-piece";
 import { describeError, classifyError } from "@/lib/errors";
 import { eindpoort, EINDPOORT_STATUS } from "@/lib/content-final-gate";
 import { countBlockingQuestions } from "@/lib/open-questions";
+import { checkManualEdit } from "@/lib/pipeline/manual-edit-checks";
 import type { ContentPiece, ContentPieceTarget } from "@/lib/types/database";
 import type { StoredRecommendation } from "@/lib/pipeline/recommendation";
 
@@ -62,6 +63,34 @@ export async function PATCH(
     return NextResponse.json({ error: "Ongeldige aanvraag." }, { status: 400 });
   }
 
+  // ── Punt 17: wie bewerkt dit op dit moment? ──────────────────────────────
+  //
+  // De editor laadt de pagina en stuurt terug wanneer hij dat deed
+  // (`updated_at`). Ontbreekt dat, dan draait er een oudere clientversie die
+  // dit nooit meestuurt, en is er niets om tegen te vergelijken: vernieuwen
+  // is dan de veilige vraag in plaats van blind opslaan.
+  if (typeof body.updated_at !== "string") {
+    return NextResponse.json(
+      { error: "Vernieuw de pagina en probeer het opnieuw." },
+      { status: 400 },
+    );
+  }
+
+  // Eén keer ophalen: nodig voor de deterministische controles (punt 14, de
+  // huidige waarden van velden die niet meegestuurd worden), voor het
+  // FAQ/schema.org-blok hieronder, en om zo meteen "bestaat dit nog" te weten.
+  const { data: pieceRow } = await admin
+    .from("content_pieces")
+    .select(
+      "type, title, body_markdown, meta_title, meta_description, cluster, schema_jsonld, published_url, created_at, updated_at",
+    )
+    .eq("id", pieceId)
+    .eq("analysis_id", id)
+    .maybeSingle();
+  if (!pieceRow) {
+    return NextResponse.json({ error: "Deze pagina bestaat niet meer." }, { status: 404 });
+  }
+
   const update: Record<string, unknown> = { edited_by_user: true };
   for (const field of EDITABLE_FIELDS) {
     if (typeof body[field] === "string") update[field] = (body[field] as string).trim();
@@ -86,6 +115,29 @@ export async function PATCH(
     return NextResponse.json({ error: "Niets om op te slaan." }, { status: 400 });
   }
 
+  // ── Punt 14: dezelfde vijf controles die Nova bij opslaan doet ───────────
+  //
+  // Op de EFFECTIEVE stand na deze bewerking, niet alleen op de velden die nu
+  // meekomen: een klant die alleen de tekst aanpast terwijl de meta-title al
+  // langer leeg stond, moet dat nu ook te horen krijgen, niet pas bij de
+  // volgende meting.
+  const problemen = checkManualEdit({
+    title: (update.title as string) ?? pieceRow.title,
+    bodyMarkdown: (update.body_markdown as string) ?? pieceRow.body_markdown ?? "",
+    metaTitle: (update.meta_title as string) ?? pieceRow.meta_title ?? "",
+    metaDescription: (update.meta_description as string) ?? pieceRow.meta_description ?? "",
+    cluster: pieceRow.cluster,
+  });
+  if (problemen.length > 0) {
+    return NextResponse.json(
+      {
+        error: problemen.map((p) => p.message).join(" "),
+        problemen: problemen.map((p) => p.code),
+      },
+      { status: 422 },
+    );
+  }
+
   // Het woordental meteen bijwerken: anders staat er in de bibliotheek een
   // getal dat niet meer klopt met de tekst die eronder staat.
   if (typeof update.body_markdown === "string") {
@@ -101,41 +153,56 @@ export async function PATCH(
   // aanpassen terwijl de gestructureerde data die AI-crawlers lezen de oude
   // vraag blijft tonen, precies het soort verrassing dat conventie 1 wil
   // voorkomen.
-  if (update.faq_json) {
-    const { data: pieceRow } = await admin
-      .from("content_pieces")
-      .select("type, title, meta_description, schema_jsonld, published_url, created_at")
-      .eq("id", pieceId)
-      .eq("analysis_id", id)
-      .maybeSingle();
-
-    if (pieceRow?.type === "faq") {
-      const [{ data: profileRow }, schemaOrg] = await Promise.all([
-        admin.from("profiles").select("business_model").eq("id", analysis.profile_id).maybeSingle(),
-        loadSchemaOrg(admin, analysis.profile_id),
-      ]);
-      update.schema_jsonld = validateOrRebuildJsonLd(pieceRow.schema_jsonld, {
-        type: "faq",
-        title: (update.title as string) ?? pieceRow.title,
-        description: (update.meta_description as string) ?? pieceRow.meta_description ?? "",
-        url: pieceRow.published_url ?? analysis.url,
-        faq: update.faq_json as { q: string; a: string }[],
-        businessModel: profileRow?.business_model ?? null,
-        organization: schemaOrg,
-        datePublished: bestaandeDatePublished(pieceRow.schema_jsonld) ?? pieceRow.created_at,
-        dateModified: new Date().toISOString(),
-      });
-    }
+  if (update.faq_json && pieceRow.type === "faq") {
+    const [{ data: profileRow }, schemaOrg] = await Promise.all([
+      admin.from("profiles").select("business_model").eq("id", analysis.profile_id).maybeSingle(),
+      loadSchemaOrg(admin, analysis.profile_id),
+    ]);
+    update.schema_jsonld = validateOrRebuildJsonLd(pieceRow.schema_jsonld, {
+      type: "faq",
+      title: (update.title as string) ?? pieceRow.title,
+      description: (update.meta_description as string) ?? pieceRow.meta_description ?? "",
+      url: pieceRow.published_url ?? analysis.url,
+      faq: update.faq_json as { q: string; a: string }[],
+      businessModel: profileRow?.business_model ?? null,
+      organization: schemaOrg,
+      datePublished: bestaandeDatePublished(pieceRow.schema_jsonld) ?? pieceRow.created_at,
+      dateModified: new Date().toISOString(),
+    });
   }
 
-  const { error } = await admin
+  update.updated_at = new Date().toISOString();
+
+  // ⚠️ Punt 17: de voorwaardelijke `WHERE updated_at = ...` bepaalt zelf of de
+  // opslag lukt, niet een lezing ervoor (zelfde patroon als `removePage()` in
+  // lib/plans.ts). Matcht hij geen rij, dan wijzigde iemand anders de pagina
+  // tussen het laden en dit moment, en is er niets overschreven.
+  const { data: opgeslagen, error } = await admin
     .from("content_pieces")
     .update(update)
     .eq("id", pieceId)
-    .eq("analysis_id", id);
+    .eq("analysis_id", id)
+    .eq("updated_at", pieceRow.updated_at)
+    .select("id")
+    .maybeSingle();
 
-  if (error) return NextResponse.json({ error: "Opslaan is niet gelukt." }, { status: 500 });
-  return NextResponse.json({ ok: true });
+  if (error) {
+    console.error(`Opslaan van pagina ${pieceId} mislukt:`, error.message);
+    return NextResponse.json(
+      { error: "Opslaan is niet gelukt door een tijdelijke storing. Er is niets veranderd, probeer het opnieuw." },
+      { status: 500 },
+    );
+  }
+  if (!opgeslagen) {
+    return NextResponse.json(
+      {
+        error:
+          "Iemand anders heeft deze pagina ondertussen gewijzigd. Vernieuw de pagina om de nieuwste versie te zien; je eigen tekst is niet opgeslagen, kopieer hem eerst als je hem wilt bewaren.",
+      },
+      { status: 409 },
+    );
+  }
+  return NextResponse.json({ ok: true, updatedAt: update.updated_at });
 }
 
 export async function POST(

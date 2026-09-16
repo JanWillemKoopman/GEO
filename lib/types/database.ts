@@ -116,6 +116,10 @@ export interface PlannedPage {
   posted_url: string | null;
   /** Besluit 8: zowel de eigenaar als de klant mag plaatsen, en we leggen vast wie. */
   posted_by_user_id: string | null;
+  /** Migratie 0098: `vulOpenMaanden()` zette hem hier, niet een mens. */
+  auto_placed: boolean;
+  /** Migratie 0099: een klant sleepte hem bewust terug naar de voorraad. */
+  taken_out: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -1093,6 +1097,8 @@ export interface ContentPiece {
   publish_check_json: unknown | null;
   publish_checked_at: string | null;
   created_at: string;
+  /** Migratie 0100: wanneer de PATCH-route dit stuk voor het laatst opsloeg (punt 17). */
+  updated_at: string;
 }
 
 /**

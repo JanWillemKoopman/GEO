@@ -7,8 +7,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { loadPlan } from "@/lib/plans";
 import { backlogCount } from "@/lib/plan-backlog-data";
 import { PageHeader } from "@/components/page-header";
+import { Icon } from "@/components/icon";
 import { PlanView } from "./plan-view";
 import { PlanReadView } from "./plan-read-view";
+import { PlanCalendarView } from "./plan-calendar-view";
 import { CreatePlanBox } from "./create-plan-box";
 
 export const dynamic = "force-dynamic";
@@ -64,7 +66,22 @@ export default async function PlanPage({
 
   const kansen = bundle ? 0 : await backlogCount(admin, id);
 
-  const bord = weergave ? weergave === "plannen" : staff;
+  // Blok A punt 7: de link naar eerdere voorstellen alleen tonen als die er
+  // ook echt zijn. Eén telling in plaats van de volle `loadPlanVersions()`:
+  // dit scherm hoeft alleen te weten of er meer dan één versie bestaat.
+  const { count: versieAantal } = bundle
+    ? await admin
+        .from("content_plans")
+        .select("id", { count: "exact", head: true })
+        .eq("profile_id", id)
+    : { count: 0 };
+
+  // Blok A punt 6: een derde weergave naast Overzicht en Plannen. Zelfde regel
+  // als de andere twee: een weergave in de URL wint, ongeacht rol, zodat een
+  // gedeelde link bij iedereen hetzelfde opent.
+  const modus: "overzicht" | "plannen" | "kalender" =
+    weergave === "plannen" || weergave === "kalender" ? weergave : weergave === "overzicht" ? "overzicht" : staff ? "plannen" : "overzicht";
+  const bord = modus === "plannen";
 
   return (
     <div className="flex flex-col gap-6">
@@ -72,16 +89,42 @@ export default async function PlanPage({
         eyebrow="Strategie"
         title="Contentplan"
         description={
-          bord
+          modus === "plannen"
             ? "Sleep content naar de maand waarin het geschreven moet worden. Elke maand geef je apart vrij."
-            : "Wat ORBIT ENGINE deze maand en volgende maand voor je schrijft, en wanneer het live moet."
+            : modus === "kalender"
+              ? "Het hele jaar in één oogopslag: waar zit alles gepland, en waar valt een gat."
+              : "Wat ORBIT ENGINE deze maand en volgende maand voor je schrijft, en wanneer het live moet."
+        }
+        action={
+          bundle && (
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Blok A punt 7: alleen tonen als er ook echt meer dan één
+                  voorstel is. */}
+              {(versieAantal ?? 0) > 1 && (
+                <Link href={`/merk/${id}/strategie/plan/versies`} className="btn-outline">
+                  Eerdere voorstellen
+                </Link>
+              )}
+              {/* Punt 28 uit docs/tasks/nova-vergelijking-verbeterpunten.md: de
+                  klant die dit meeneemt naar een eigen overleg wil het hele
+                  plan zien, dus alleen tonen zodra er een plan bestaat om te
+                  downloaden. */}
+              <a
+                href={`/api/profiles/${id}/plan/export`}
+                className="btn-outline inline-flex items-center gap-1.5"
+              >
+                <Icon naam="downloaden" size={16} />
+                Download CSV
+              </a>
+            </div>
+          )
         }
       />
 
-      {bundle && <WeergaveKiezer profileId={id} bord={bord} />}
+      {bundle && <WeergaveKiezer profileId={id} modus={modus} />}
 
       {bundle ? (
-        bord ? (
+        modus === "plannen" ? (
           <PlanView
             profileId={id}
             plan={bundle.plan}
@@ -93,6 +136,8 @@ export default async function PlanPage({
             topics={bundle.topics}
             staff={staff}
           />
+        ) : modus === "kalender" ? (
+          <PlanCalendarView plan={bundle.plan} months={bundle.months} pages={bundle.pages} />
         ) : (
           <PlanReadView
             profileId={id}
@@ -116,21 +161,33 @@ export default async function PlanPage({
 }
 
 /**
- * De schakelaar tussen de twee weergaven.
+ * De schakelaar tussen de drie weergaven.
  *
- * Twee links en geen tabbladen: dit is één scherm dat op twee manieren te lezen
- * is, en een link houdt de keuze deelbaar. Dezelfde regel als bij de
- * hoofdstukken van het clusterdossier (`docs/ux-design.md`).
+ * Links en geen tabbladen: dit is één scherm dat op drie manieren te lezen is,
+ * en een link houdt de keuze deelbaar. Dezelfde regel als bij de hoofdstukken
+ * van het clusterdossier (`docs/ux-design.md`). Kalender (blok A punt 6) is de
+ * derde: Nova's "Table"/"Calendar"-schakelaar, hier als eigen weergave naast
+ * Overzicht en Plannen in plaats van een schakelaar binnen één scherm, want
+ * die twee bestonden al als losse pagina's met hun eigen url.
  */
-function WeergaveKiezer({ profileId, bord }: { profileId: string; bord: boolean }) {
+function WeergaveKiezer({
+  profileId,
+  modus,
+}: {
+  profileId: string;
+  modus: "overzicht" | "plannen" | "kalender";
+}) {
   const basis = `/merk/${profileId}/strategie/plan`;
   return (
     <div className="no-print flex flex-wrap items-center gap-2">
-      <Keuze href={`${basis}?weergave=overzicht`} actief={!bord}>
+      <Keuze href={`${basis}?weergave=overzicht`} actief={modus === "overzicht"}>
         Overzicht
       </Keuze>
-      <Keuze href={`${basis}?weergave=plannen`} actief={bord}>
+      <Keuze href={`${basis}?weergave=plannen`} actief={modus === "plannen"}>
         Plannen
+      </Keuze>
+      <Keuze href={`${basis}?weergave=kalender`} actief={modus === "kalender"}>
+        Kalender
       </Keuze>
     </div>
   );

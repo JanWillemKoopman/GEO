@@ -8089,6 +8089,72 @@ briefing heeft staan.
 Getest: `tsc --noEmit`, `test:unit` (4388 geslaagd), `test:chain` (650 geslaagd) en `build` zijn
 alle vier groen gedraaid na de vier wijzigingen.
 
+## 15 september 2026: melding bij een nieuwe versie, en het open ontwerpbesluit blijft open
+
+Eerste punt uit `docs/tasks/nova-vergelijking-verbeterpunten.md` doorgevoerd (punt 25, blok E), na
+een verse vastlegging van de Nova-app (971 naar 1766 tekstsleutels sinds de vorige, ook in deze
+sessie ververst in `docs/nova-i18n.json`).
+
+**Het probleem was al zichtbaar en niet herkend als bug.** ORBIT ENGINE deployt bij elke merge naar
+main, en een openstaand tabblad bleef gewoon doorwerken op een verouderde JS-bundel. Het eerste
+zichtbare gevolg was een knop die een fout gaf omdat de API onder zijn voeten veranderd was, en dat
+oogt als een defect in de app, niet als een deploy die net heeft plaatsgevonden.
+
+**Werking:** `next.config.ts` bakt `NEXT_PUBLIC_APP_VERSION` in de browserbundel
+(`VERCEL_GIT_COMMIT_SHA` op Vercel, anders het opstartmoment van de dev-server). `/api/version` leest
+dezelfde omgevingsvariabele bij elk verzoek opnieuw en geeft dus de ECHT lopende versie terug.
+`components/deployment-banner.tsx` vergelijkt de twee elke vijf minuten (`lib/deployment.ts`,
+puur en getest) en toont bij een verschil een balk onderin het scherm: "Herlaad nu" of "Niet nu".
+
+**Bewust geen automatisch herladen, in tegenstelling tot Nova.** Nova telt zelf af en herlaadt
+vanzelf, en dat kan bij hen omdat vrijwel elk scherm autosave heeft. Het merkprofiel
+(`brand-wizard.tsx`) bewaart pas op een expliciete klik, dus een geforceerd herladen kan client-side
+werk wegvegen. De klant beslist zelf wanneer, en de bestaande `beforeunload`-waarschuwing in
+formulieren met openstaande wijzigingen blijft daarbovenop gewoon werken.
+
+**Het open ontwerpbesluit uit `docs/designsystem.md` §9b blijft van kracht en is niet stilzwijgend
+verder ingevuld.** Op verzoek van de eigenaar wordt de vormgeving voorlopig verder naar Nova
+toegebracht in plaats van er verder van af te wijken: dat is een expliciete uitspraak op punt 1 van
+§9b ("nog verdiepen, eigen identiteit later"), geen vergeten vraag. Deze wijziging zelf voegt geen
+nieuwe kleur, radius of schaduw toe: hij hergebruikt de bestaande `.toast-card`-stijl uit
+`components/toast.tsx`, dus hij verandert niets aan het fundament waar §9b over gaat.
+
+Getest: `tsc --noEmit`, `test:unit` (4393 geslaagd, waarvan 5 nieuw), `test:chain` (650 geslaagd) en
+`build` zijn alle vier groen gedraaid.
+
+## 15 september 2026: blok E compleet, punt 26, 27 en 28 uit de Nova-vergelijking
+
+Vervolg op de vorige entry (punt 25). Alle drie klein, allemaal zonder migratie.
+
+**Punt 26, een schrijfregel, niet een scherm.** `docs/schrijfstijl.md` krijgt een twaalfde
+richtlijn: bij een storing eerst zeggen wat er niet werkt, dan wie eraan werkt, dan wat de klant
+intussen wél kan (of expliciet dat er niets is, conventie 3). De twee verwijzingen naar "elf
+richtlijnen" in `docs/merkstrategie.md` zijn meegewerkt naar twaalf. Toegepast op één echt geval:
+`/merk/[id]/analytics/zoekverkeer` toonde bij een mislukte Search Console-synchronisatie dezelfde
+ruwe API-foutregel aan een beheerder én aan een klant. Een beheerder kan daar iets mee, een klant
+niet: die ziet nu dat zijn consultant ervan op de hoogte is. De rest van de foutmeldingen in de app
+is niet systematisch langsgelopen; de richtlijn staat, de toepassing groeit mee bij vervolgwerk.
+
+**Punt 27 bleek al voor twee derde gebouwd.** `lib/work.ts` maakt het onderscheid "wacht op de
+klant" versus "wij zijn ermee bezig" al met `WorkState`, maar `/merk/[id]` liet alleen de eerste
+soort zien. Geen tweede lijst toegevoegd (dat zou de bestaande statuskaarten per pagina dupliceren),
+wel een teller naast "Wat er op je wacht" en een aangepaste lege-staat-zin die zegt waarmee ORBIT
+ENGINE bezig is als er niets op de klant wacht.
+
+**Punt 28: de helft bestond al.** Content per pagina exporteren stond er al
+(`lib/pipeline/content-export.ts`). Ontbrak: het hele plan in één bestand. Nieuw: `GET
+/api/profiles/[id]/plan/export` en een knop op het planscherm. Bij het bouwen viel op dat de
+vergelijkbare route voor analyseresultaten (`/api/analyses/[id]/results/export`) aan geen enkele
+knop hangt; dat is genoteerd in het taakdocument om aan de eigenaar voor te leggen, niet
+stilzwijgend gefixt of verwijderd.
+
+Getest: `tsc --noEmit`, `test:unit` (4393 geslaagd), `test:chain` (650 geslaagd) en `build` zijn
+alle vier groen gedraaid, ook `npm run build` met de nieuwe route erin gecontroleerd.
+
+Blok E uit `docs/tasks/nova-vergelijking-verbeterpunten.md` is hiermee compleet. Blok A (het
+contentplan vooraf vullen) wacht op een planningsronde met de eigenaar over punt 1, zoals eerder
+afgesproken.
+
 ## 14 september 2026: een zijproject in dezelfde codebase, achter dezelfde inlog
 
 **Er staat sinds vandaag een tweede app in deze repo: `app/solliciteren/`, één pagina, met een S
@@ -8471,6 +8537,374 @@ letterstapel en zijn eigen basismaat blijft zetten, zodat een wijziging aan `glo
 niets doet. De controle op "alleen eigen tokens" en "geen component uit `@/components/`" is
 ongewijzigd blijven staan en gaat nog steeds op.
 
+## 15 september 2026: het contentplan vult zichzelf vooraf (blok A punt 1)
+
+Na de planningsronde (zie het plan in de sessie zelf) doorgevoerd: van "de klant stelt zelf samen
+uit een voorraad" naar "de app stelt voor, de klant keurt goed", precies het eerste punt van blok A
+uit `docs/tasks/nova-vergelijking-verbeterpunten.md`.
+
+**Kleiner dan gedacht.** `createPlan()` vulde al één maand zo, de voorzet: de sterkste kansen uit de
+voorraad tot aan de pakketquota. Nieuw is alleen dat diezelfde regel (`bepaalVulling()`,
+`lib/plan-fill.ts`, puur en getest) nu op élke openstaande maand wordt toegepast, niet meer op
+precies één. `vulOpenMaanden()` (`lib/plans.ts`) is de database-kant: hij draait bij het aanmaken
+van een plan én bij elke schermopening (na `syncBacklog()` in `loadPlan()`), zodat een plan
+meegroeit zodra er meer gemeten is, zonder dat iemand hoeft te slepen.
+
+**Eén regel die erbij kwam en niet in het plan stond: precies één maand tegelijk "ter_goedkeuring".**
+`approveMonth()` bevorderde de volgende conceptmaand nooit, dus zonder een aanvulling zou het vooraf
+vullen van alle maanden een scherm opleveren met meerdere even zware "Concept"-maanden. Nu bevordert
+`bepaalVulling()` de eerste maand met inhoud naar "ter_goedkeuring", en alleen als er nog geen enkele
+openstaande maand die status al draagt.
+
+**Eén technische correctie tijdens het bouwen, ook niet in het plan.** `bepaalVulling()` kende
+aanvankelijk geen begrip van "een maand zonder bruikbare kalenderdag meer" (`maandIsVol()`). Zonder
+dat zou een pagina wél een `plan_month_id` krijgen maar nooit een `scheduled_for`, want
+`spreadDates()` heeft voor zo'n maand geen dag meer te geven. Nieuw veld `magNogVullen` op
+`OpenMaand`: staat het op `false`, dan mag er niets bij, ook al is er nog ruimte onder de quota.
+Generaliseert precies de regel die `createPlan()` al had voor "maand 1 is te ver gevorderd, ga naar
+maand 2" (punt 5 van `docs/tasks/opdracht-bevindingen-5-tot-9.md`) naar elke maand in de reeks.
+
+**Nieuwe migratie 0098** (niet 0095: zie hieronder), `planned_pages.auto_placed`, additief met
+default `false`. Nodig omdat er na deze wijziging geen enkele kolom meer vertelt of het systeem of
+een mens een kaart in zijn maand zette; dat onderscheid is niet met terugwerkende kracht te
+reconstrueren en punt 4 uit hetzelfde document (herkomst tonen) heeft het straks nodig. Toegepast op
+productie via de Supabase MCP-tool en nagekeken: de kolom staat er, `boolean not null default false`.
+
+**Het migratienummer moest verschuiven, en dat kwam pas bij het toepassen aan het licht.** Terwijl
+dit werk op een eigen branch liep, landde op `main` een compleet ander zijproject
+("Solliciteren", zie de eigen sectie hierboven) met migraties 0095 tot en met 0097. Een `select` op
+`supabase_migrations.schema_migrations` vóór het toepassen liet dat meteen zien: productie stond al
+drie migraties verder dan wat in de lokale `supabase/migrations/`-map van deze branch stond. Eerst
+`main` in de branch gemerged (één conflict, in `docs/logbook.md`, twee onafhankelijke toevoegingen
+onder elkaar gezet), daarna de eigen migratie van 0095 naar 0098 hernoemd, in het bestand zelf en in
+`supabase/README.md`. Precies waarom conventie 10 vraagt om tegen de echte, actuele stand te
+controleren in plaats van tegen wat er lokaal lag.
+
+**Tegen echte data gecontroleerd (conventie 10), zonder productie aan te raken.** Twee echte
+profielen hebben een contentplan: Fysio Centrum Utrecht en MJB Dakservice, allebei 10 pagina's per
+maand, allebei met precies het patroon dat dit punt oplost: maand 1 vol (10/10, "ter_goedkeuring"),
+maand 2 tot en met 12 leeg ("concept", 0 pagina's), en een voorraad die veel dunner is dan de quota
+(1 respectievelijk 3 kansen). De nieuwe functie zelf is niet tegen deze klantprofielen gedraaid: dat
+zou de eerste keer zijn dat het nieuwe gedrag echt gebeurt, en dat hoort bij een bewust deploy-
+moment, niet bij het verifiëren van code op een branch die nog niet gemerged is. Aanbeveling: vlak na
+deploy het planscherm van deze twee merken openen en controleren dat maand 2 zich vult.
+
+Getest: `tsc --noEmit`, `test:unit` (4675 geslaagd) en `test:chain` (652 geslaagd) en `build` zijn
+alle vier groen gedraaid, op de stand ná de merge met `main` (inclusief het zijproject
+"Solliciteren").
+
+## 15 september 2026: elke maand houdt zijn formaat vast, met wisselgeld (blok A punt 2 en 3)
+
+Vervolg op punt 1 hierboven, in één keer gebouwd omdat de taakomschrijving ze zelf al aan elkaar
+koppelt: "Dit maakt punt 2 pas prettig in plaats van knellend." Zonder buffer (punt 3) zou punt 2
+alleen kunnen werken door een verse kans direct uit de voorraad te pakken, wat de zorgvuldige
+maandvolgorde van punt 1 zou verstoren.
+
+**Punt 3 eerst, want punt 2 heeft hem nodig.** `bepaalVulling()` (`lib/plan-fill.ts`) vult nu in een
+tweede ronde, ná de echte inhoud van alle open maanden, elke maand aan tot één buffer
+(`BUFFER_PER_MONTH = 1`, `lib/plan-constants.ts`). Bewust één en niet "een paar": buffers vullen
+lazy bij, bij elke schermopening, dus een tweede volgt vanzelf zodra er weer voorraad is. Een buffer
+krijgt geen `sort_order`/`scheduled_for` die ertoe doet: `herplanMaand()` sluit `is_buffer = true`
+al expliciet uit (bestaande regel, ongewijzigd).
+
+**Bevinding die een openstaande vraag in het taakdocument beantwoordt.** §"Open vragen voor de
+eigenaar" vroeg zich af hoeveel een buffer "waard" is, in de aanname dat elke extra pagina een
+echte schrijfronde kost. Dat klopt niet: `lib/plan-writing.ts` slaat `is_buffer: true` al overal
+expliciet over (`if (page.is_buffer) return { schrijven: false, reden: "is_buffer" };`, van vóór
+dit werk). Een buffer kost dus niets totdat hij verzilverd wordt, en op het moment dat hij verzilverd
+wordt, is hij gewoon een pagina die toch al bij het abonnement hoorde. Geen afweging nodig.
+
+**Punt 2: dezelfde soort claim als `removePage()` al deed, nu ook voor de andere twee wegen waarop
+een maand kan krimpen.** Nieuwe functie `vulMetBuffer()` in `lib/plans.ts`: een voorwaardelijke
+`UPDATE ... WHERE is_buffer = true` (dezelfde wedstrijdconditie-bescherming als `removePage()` al
+had, en om dezelfde reden: twee gelijktijdige acties in dezelfde maand mogen nooit dezelfde buffer
+allebei denken te hebben), gevolgd door een gewone `herplanMaand()`-ronde. `removePage()` zelf is
+niet aangeraakt: die kopieert de vrijgekomen datum en plek al rechtstreeks naar de buffer omdat de
+rest van de maand daarbij ongemoeid blijft, en dat werkt goed. De twee routes die nog niets deden:
+- `moveToBacklog()` (terugslepen naar de voorraad): roept `vulMetBuffer()` aan direct na de
+  bestaande `herplanMaand()` op de maand die de kaart verlaat.
+- `assignToMonth()` (verplaatsen naar een andere maand): dezelfde aanroep, op de "oude" maand, in de
+  tak die al bestond voor "de kaart kwam ergens anders vandaan".
+
+Geen buffer aanwezig, of de maand heeft geen bruikbare kalenderdag meer (`maandIsVol()`): dan
+gebeurt er niets, en blijft de maand een kaart korter dan zijn quota tot de eerstvolgende
+schermopening. Dat is dezelfde "geen verzonnen inhoud"-regel als punt 1 (conventie 3), nu ook hier.
+
+**Wat dit niet oplost.** Een klant die tien kaarten achter elkaar uit dezelfde maand haalt binnen
+één sessie, zonder de pagina te herladen, put de buffer van die maand na de eerste keer uit; de
+volgende negen krimpen de maand alsnog totdat het scherm opnieuw laadt en `vulOpenMaanden()` bijvult.
+Geaccepteerd: `BUFFER_PER_MONTH` groter zetten dekt dat scenario af, maar dat is een aparte
+kosten/bruikbaarheid-afweging (buffers zijn zelf gratis, maar meer buffers per maand betekent wel
+dat de voorraad sneller "op" lijkt voor de klant, wat weer raakt aan punt 4 hieronder). Niet in deze
+ronde aangepast; `BUFFER_PER_MONTH` staat op één plek en is met één cijfer te verhogen.
+
+Getest: `tsc --noEmit`, `test:unit` (4688 geslaagd, twaalf nieuwe assertions voor de buffervulling)
+en `test:chain` (652 geslaagd, geen scenario geraakt: alle bestaande testmerken hebben precies
+genoeg voorraad om hun maanden te vullen, zonder overschot voor een buffer) en `build` zijn alle
+vier groen. Geen migratie: `is_buffer` bestaat al sinds migratie 0049 en werd tot nu toe nooit
+geschreven.
+
+## 15 september 2026: nog nooit ingepland, of er bewust uitgehaald (blok A punt 4)
+
+Laatste punt van blok A, vervolg op de drie hierboven. Nova's precedent: een apart tabblad "Not
+included" met de zin "Pages you took out, and pages your ordering pushed past the monthly quota.
+None of them will be written, and none of them are gone." ORBIT ENGINE krijgt geen apart tabblad,
+maar hetzelfde onderscheid in dezelfde lijst: een klant opent nog altijd één voorraad, met per kaart
+een label als het er een is.
+
+**De tweede helft van Nova's zin was al gratis, en dat leidde tot de kleinste van de twee vlaggen.**
+"Buiten bereik" (voorbij de twaalf maanden × pakketquota, plus buffer) hoeft nergens te worden
+opgeslagen: `vulOpenMaanden()` vult sowieso elke openstaande maand tot aan zijn plafond, dus wat
+er na die ronde nog in de voorraad overblijft, past per definitie nergens meer. `bepaalVulling()`
+gaf dat al terug als een aantal (`restendeVoorraad`); nu geeft hij ook de bijbehorende id's
+(`restendeVoorraadIds`), die `vulOpenMaanden()` doorgeeft aan `loadPlan()` en die op de kaart
+uitkomen als het label "buiten bereik".
+
+**De eerste helft ("bewust uitgehaald") kon niet uit bestaande data komen, en kreeg een nieuwe
+kolom.** Migratie 0099, `planned_pages.taken_out`, additief met default `false`. `moveToBacklog()`
+is de enige plek in de hele app waar een klant een kaart uit een maand haalt zonder hem af te
+wijzen; die zet de vlag nu op `true`. Zodra de kaart weer ergens wordt toegewezen (`assignToMonth()`,
+of automatisch door `vulOpenMaanden()`), gaat hij weer op `false`: de reden is dan verouderd.
+
+**Bijvangst: een belofte uit migratie 0098 die nooit werd nagekomen.** Die migratie zei al
+"`false` = een mens sleepte hem daar (`assignToMonth()`)" over `auto_placed`, maar de aanroep die dat
+had moeten doen ontbrak. Elke kaart die een klant sinds 15 september handmatig verplaatste, bleef dus
+`auto_placed: true` dragen alsof het systeem hem daar zette. Rechtgezet in dezelfde ronde als deze
+migratie, `supabase/README.md` bij 0098 vermeldt de correctie.
+
+**Geen apart scherm.** Punt 4 vraagt om zichtbaarheid, niet om een nieuwe navigatiestructuur, en de
+bestaande kaart had al een opengeklapte stand met ruimte voor een extra regel (`why`, `raakt`,
+`existingUrl`). `redenChip()` zet een klein label in de metaregel ("eruit gehaald" / "buiten bereik"),
+`redenUitleg()` (beide `lib/plan-backlog.ts`, puur en getest) geeft bij het uitklappen de volzin,
+met Nova's kernboodschap vertaald: niet weg, wacht gewoon op ruimte.
+
+Getest: `tsc --noEmit`, `test:unit` (4694 geslaagd, zes nieuwe assertions) en `test:chain`
+(652 geslaagd, geen scenario geraakt) en `build` zijn alle vier groen. Migratie 0099 toegepast via
+de Supabase MCP-tool en nagekeken: de kolom staat er, `boolean not null default false`.
+
+## 16 september 2026: het merkdossier krijgt zijn statuskaart terug (blok B, punt 9, 10, 12)
+
+Blok B uit `docs/tasks/nova-vergelijking-verbeterpunten.md`. Drie van de vier punten kleiner dan
+gedacht, want de bouwstenen bestonden al en stonden alleen op de verkeerde plek.
+
+**Punt 9 en 12 delen dezelfde oplossing.** `ProfileReadinessPanel` (Nova's `brand.card`-model,
+`assessReadiness()`) en zijn drie-fasen-voortgangsweergave bestonden al, maar uitsluitend binnen de
+onboardingsessie. Nieuwe wrapper `DossierStatus` zet hem ook op `/merk/[id]/merkprofiel/bewerken`,
+naast de bestaande knop "Onderzoek opnieuw". De enige echte toevoeging: die knop kreeg een
+`onStarted`-callback zodat `DossierStatus` het paneel kan hermonteren (`key={ronde}`) zodra een
+nieuwe onderzoeksronde begint. Zonder die schakel zou het paneel na de eerste keer "klaar" nooit
+meer gaan pollen, en dus een tweede ronde niet laten zien.
+
+**Punt 10**: nieuwe route `GET /api/profiles/[id]/export`, CSV met exact de 42 klantvelden
+(`CLIENT_STEPS`, `lib/pipeline/brand-fields.ts`), niet de vijftien commerciële/contactvelden.
+Nieuwe pure functie `veldAlsTekst()` in diezelfde module zet een lijst, een ja/nee-veld of een
+object om naar leesbare CSV-tekst, met tests.
+
+**Punt 11 niet gebouwd: de aanname klopte niet.** Het punt veronderstelt een "schrijf het hele
+profiel opnieuw"-knop die niet bestaat. De bestaande "Onderzoek opnieuw"-knop doet iets anders (en
+veiligers): alles bewaren wat een mens invulde. Nova's waarschuwing hoort bij een destructieve
+knop die niemand vraagt; die bouwen om er een waarschuwing bij te kunnen zetten is de zaak
+omdraaien. Blijft open tot zo'n knop ooit wél nodig is.
+
+Geen migratie, geen datamodelwijziging: alleen hergebruik van bestaande componenten en één nieuwe
+route. Getest: `tsc --noEmit`, `test:unit` (4701 geslaagd, zeven nieuwe assertions) en `test:chain`
+(652 geslaagd) en `build` zijn alle vier groen.
+
+## 16 september 2026: vier sloten om de handmatige bewerkmodus (blok C, punt 13, 14, 16, 17)
+
+Blok C uit `docs/tasks/nova-vergelijking-verbeterpunten.md`, allemaal in en om
+`content-editor.tsx` en de PATCH-route eronder (`/api/analyses/[id]/content/[pieceId]`).
+
+**Punt 13**: een drempel vóór de bewerkmodus opent, zelfde tweeklaps-patroon als
+`RerunResearchButton` elders in de app (geen modaal venster, gewoon een tweede klik).
+
+**Punt 14**: nieuwe pure module `lib/pipeline/manual-edit-checks.ts`. Vier van Nova's vijf
+controles zijn overgenomen (lege titel/H1, lege meta-title, lege meta-omschrijving, link zonder
+adres); de vijfde ("belangrijkste zoekwoord") leunt op `cluster` bij gebrek aan een eigen
+zoekwoordveld en slaat over als die leeg is (conventie 3). De controle rekent op de EFFECTIEVE
+stand na de bewerking (bestaande velden erbij gehaald voor wat niet meekomt in de aanvraag), niet
+alleen op wat er nu wordt opgeslagen.
+
+**Punt 17**: nieuwe kolom `content_pieces.updated_at` (migratie 0100). De PATCH-route leest hem bij
+het ophalen en gebruikt hem als voorwaarde bij het schrijven (`WHERE updated_at = ...`), zelfde
+patroon als de buffer-claim in `removePage()` (`lib/plans.ts`): de voorwaardelijke update bepaalt
+zelf of hij lukt, geen aparte lees-dan-beslis-stap die een wedstrijdconditie open laat. Bewust
+alleen op deze ene route: de schrijfpijplijn heeft al zijn eigen taakvergrendeling (conventie 9),
+dit is specifiek voor twee mensen die in dezelfde tekst typen.
+
+**Punt 16** volgt uit de andere twee: de foutmeldingen van punt 14 (welke controle faalde) en punt
+17 (een conflict) zijn vanzelf al specifiek, dus dit punt was vooral zorgen dat `content-editor.tsx`
+die tekst ook ECHT laat zien. Bleek nodig: `problemFromResponse()` (het gedeelde
+foutafhandelingspatroon) stopt een onbekende foutmelding weg onder "technische details" en toont een
+generieke kop. Voor deze ene editor gebouwd om die tekst rechtstreeks als kop te tonen, in plaats van
+het gedeelde component zelf aan te passen: dat raakt tientallen andere schermen en was geen
+onderdeel van deze opdracht.
+
+**Punt 15 niet gebouwd: niet van toepassing.** `content-editor.tsx` is met opzet een platte
+Markdown-editor zonder werkbalk (zie het eigen opschrift van dat bestand). Er is geen rijke opmaak
+die bij het opslaan verloren kan gaan, dus er valt niets vooraf over te waarschuwen.
+
+Getest: `tsc --noEmit`, `test:unit` (4710 geslaagd, veertien nieuwe assertions) en `test:chain`
+(652 geslaagd, geen scenario raakte de PATCH-route) en `build` zijn alle vier groen. Migratie 0100
+toegepast via de Supabase MCP-tool en nagekeken: de kolom staat er, `timestamptz not null default
+now()`.
+
+## 16 september 2026: beheeracties, blok D (punt 18, 19, 20, 21, 22, 23, 24)
+
+Laatste blok van de Nova-vergelijkingsronde. Drie gebouwd, één al bevestigd gebouwd, drie niet
+gebouwd met een reden.
+
+**Punt 18**: nieuwe route `POST /api/profiles/[id]/plan/requeue-overdue`, knop op
+`beheer/csm-view.tsx`. Bevinding onderweg: Nova's eigen tekst ("moves the date and re-queues the
+write in one step") is hier LETTERLIJK nodig, niet alleen retorisch. `app/api/cron/plan/route.ts`
+haalt alleen `status = 'gepland'` op; een pagina die vastloopt in `status = 'schrijven'` (de
+schrijftaak stierf) komt nooit meer aan de beurt, ongeacht de datum. Alleen de datum vooruitzetten
+lost dus niets op; deze actie zet daarom altijd beide tegelijk.
+
+**Punt 20**: de bevestigingsdialoog van "Markeer alles als geplaatst" toont nu vooraf welke
+pagina's live gaan en welke blijven staan met reden, met dezelfde `kiesVoorBulk()` die de route
+zelf gebruikt (geen aparte schatting die uit de pas kan lopen). Gebruikt de bestaande
+`children`-slot van `ConfirmDialog`, geen nieuw scherm.
+
+**Punt 24**: `segmentOf()` kent voor "vastgelopen" maar twee oorzaken (onderzoek mislukt, taken
+mislukt), en `flagsOf()` toonde er maar één. Nieuwe vlag "Onderzoek mislukt" dekt de andere.
+
+**Punt 19 bleek al gebouwd**: `lib/plan-bulk.ts` doet dit patroon al voor de enige bulkactie die
+bestaat. Bevestigd met een blik in de code, niets aan toegevoegd.
+
+**Drie niet gebouwd, met reden:**
+- **Punt 21** (bovengrens op dure bulkacties): er bestaat geen bulkactie die geld kost. Een grens
+  bouwen zou een nieuwe kostbare bulkactie veronderstellen die niemand vroeg.
+- **Punt 22** (niveau-labels): de drie kandidaatvelden (`content_plans.strategy_note`,
+  `topics.client_note`, `content_pieces.revision_note`) hebben niet de dubbelzinnigheid die Nova's
+  voorbeeld beschrijft. **Bijvangst, groter dan het punt zelf:** `content_plans.strategy_note`
+  wordt bij het aanmaken van een plan opgeslagen met de belofte "Dit gaat mee als context bij het
+  opstellen", maar wordt nergens in de schrijfpijplijn ooit gelezen. Een belofte die niet wordt
+  waargemaakt (`CLAUDE.md`: "schrijf nooit dat iets al kan wat nog niet gebouwd is"), niet in deze
+  ronde opgelost: dat vraagt uitzoeken waar in de schrijfprompt dit hoort in te haken, een eigen
+  klus.
+- **Punt 23** (paginatypes per abonnement): het document zelf noemt dit al een apart besluit, met
+  een open vraag of er commerciële abonnementsvormen bestaan. `planned_pages.page_type` bestaat al;
+  de koppeltabel met het abonnement niet, en die zonder antwoord bouwen zou gokken.
+
+Geen migratie. Getest: `tsc --noEmit`, `test:unit` (4712 geslaagd, vier nieuwe assertions) en
+`test:chain` (652 geslaagd) en `build` zijn alle vier groen.
+
+Met dit blok is de hele Nova-vergelijkingsronde uit `docs/tasks/nova-vergelijking-verbeterpunten.md`
+doorlopen: blok A (4/4), blok B (3/4, punt 11 niet van toepassing), blok C (4/5, punt 15 niet van
+toepassing), blok D (4/7, drie apart-besluit of niet-van-toepassing), blok E (4/4). Blok F
+(meertaligheid, koppelingstest) staat nog open, expliciet groot en apart te besluiten.
+
+## 16 september 2026: de plannotitie gaat eindelijk het schrijven in
+
+Bijvangst uit blok D punt 22, apart opgelost op verzoek van de eigenaar na een gerichte vraag: klopt
+het dat `content_plans.strategy_note` de content beter maakt? Antwoord: nee, want de kolom werd
+opgeslagen en nooit gelezen. Een klant die bij het aanmaken van een plan intypt "vanaf november
+openen we in Breda" zag die tekst in de database verdwijnen, ondanks de belofte op het scherm ("Dit
+gaat mee als context bij het opstellen").
+
+**De reparatie.** `loadContentContext()` (`lib/pipeline/content.ts`) haalt nu, naast alles wat het
+al ophaalde, ook de `strategy_note` van het actieve plan van dit merk op (dezelfde
+"nieuwste-niet-gestopte-plan"-query als `vulOpenMaanden()`). Die gaat als `situationalNote` mee de
+schrijfopdracht in (`maakSchrijfopdracht()`, `lib/pipeline/writer-brief.ts`), met een expliciet
+label: "geen nieuw feit, verzin er zelf niets bovenop". Dat laatste is geen vormelijkheid: de
+schrijfopdracht mag van zijn eigen harde regels niets verzinnen dat niet op de feitenkaart staat, en
+een plannotitie is nooit tegen een bron gecontroleerd. Hij stuurt de KEUZE van de schrijver (wel of
+niet de nieuwe vestiging noemen, niet de oude aanraden), maar levert zelf geen citeerbare bewering.
+
+**Waarom dit geen migratie nodig had.** De kolom bestond al sinds de eerste contentplan-migratie
+(0049); alleen het lezen ontbrak. Ook geen UI-wijziging: de tekst op `create-plan-box.tsx` klopt nu
+gewoon met wat er gebeurt, in plaats van eromheen gepraat te worden.
+
+**Wat dit niet oplost.** De notitie is een momentopname van het aanmaken van het plan, niet
+bij te werken zonder het hele plan opnieuw op te zetten (`strategy_note` wordt alleen bij
+`createPlan()` gezet, `lib/plans.ts:433`). Een klant die drie maanden ná het aanmaken iets wil
+melden, kan dat nu nog steeds niet los van een volledige herstart. Dat is een apart punt, niet in
+deze reparatie meegenomen.
+
+Getest: `tsc --noEmit`, `test:unit` (4712 geslaagd, ongewijzigd: dit raakt geen pure, testbare
+functie, alleen een extra promptregel die conditioneel is) en `test:chain` (652 geslaagd) en
+`build` zijn alle vier groen. Geen migratie.
+
+## 16 september 2026: de plannotitie wordt een merkbreed, doorlopend veld (blok D punt 22)
+
+Vervolg op de vorige invoer. Gevraagd wat Nova zelf met precies dit probleem doet: bleek exact
+uitgeschreven in `docs/nova-i18n.json` onder `contentActions.rewrite`, en het is de oplossing voor
+het gat dat de vorige reparatie expliciet openliet ("een klant die drie maanden later iets wil
+melden, kan dat nog niet zonder het hele plan opnieuw op te zetten").
+
+**Wat Nova doet.** Een "Content-creation note" die niet bij het aanmaken van een plan hoort maar bij
+"Rewrite content", bewerkbaar op elk moment vanuit elke pagina. Drie dingen zaten er letterlijk bij:
+een scope-uitleg ("This note belongs to the domain, not to the pages you rewrite"), een tekenlimiet
+met reden ("a long note crowds out the brief itself"), en een eigen conflictmelding als iemand
+anders 'm ondertussen wijzigde.
+
+**Wat er nu staat.** `content_plans.strategy_note` is losgeknipt van `createPlan()`: een nieuwe
+route `PATCH /api/profiles/[id]/plan/note` slaat 'm op, met dezelfde voorwaardelijke-update-
+vergrendeling als punt 17 (`WHERE updated_at = ...`). Geen nieuwe kolom of trigger nodig:
+`content_plans.updated_at` heeft al sinds migratie 0049 een database-trigger die hem bijhoudt, dus
+deze route hoeft die kolom zelf niet te zetten, alleen te lezen en in de `WHERE` te gebruiken.
+Nieuwe constante `MAX_STRATEGY_NOTE_LENGTH = 300` in `lib/plan-constants.ts`, gebruikt bij het
+aanmaken én bij het bewerken, met dezelfde onderbouwing als Nova.
+
+**Eén bewuste afwijking van Nova.** Nova slaat de notitie op ALS ONDERDEEL van het inplannen van een
+herschrijving, in één klik. Hier bewust een eigen "Opslaan"-knop, los van "Schrijf een nieuwe
+versie": een merkbrede instructie aanpassen mag nooit als bijverschijnsel een betaalde
+AI-herschrijfronde van één specifieke pagina meetrekken. Twee aparte knoppen, twee aparte gevolgen,
+in lijn met hoe de rest van de app onomkeerbare of kostbare acties altijd apart bevestigt.
+
+**Waar het staat.** `revise-box.tsx` (het scherm waar "opnieuw schrijven" al stond) kreeg een tweede,
+onafhankelijke sectie erboven: `StrategyNoteBox`, altijd zichtbaar zodra er een plan is, ongeacht of
+deze ene pagina wel of niet een nieuwe versie mag krijgen (de eindpoort gaat over déze pagina, niet
+over een merkbrede notitie). Verschijnt niet als er nog geen plan is: dan is er niets om de notitie
+aan te hangen. `create-plan-box.tsx`'s tekst is bijgewerkt om te zeggen dat de notitie voor het hele
+merk geldt en later aan te passen is, in plaats van een eenmalige invoer te suggereren.
+
+Getest: `tsc --noEmit`, `test:unit` (4712 geslaagd) en `test:chain` (652 geslaagd) en `build` zijn
+alle vier groen (`build` faalde één keer op een niet-ontsnapt aanhalingsteken in JSX, meteen
+gecorrigeerd naar `&ldquo;`/`&rdquo;`, hetzelfde patroon als elders in de app). Geen migratie.
+
+## 16 september 2026: het contentplan krijgt een kalender, een versiegeschiedenis en een exact tekort (blok A, punt 5, 6, 7, 8, 30)
+
+De laatste vijf openstaande punten van de Nova-vergelijkingsronde. Drie gebouwd, twee bevestigd
+"niet van toepassing" of "al gebouwd" na onderzoek.
+
+**Punt 5**: `maandRegel()` (`lib/plan-read.ts`) en de tekortmelding op het bord (`plan-view.tsx`)
+noemen nu het exacte aantal ("Nog 3 pagina's nodig om je pakket van 5 te halen") in plaats van
+alleen te zeggen dát het tekortschiet.
+
+**Punt 6**: nieuwe derde weergave `PlanCalendarView`, bereikbaar via `?weergave=kalender` naast
+Overzicht en Plannen. Nieuwe pure module `lib/plan-calendar.ts` (`calendarDagen()`) groepeert de
+pagina's van één maand per publicatiedag; de component tekent per maand een rooster van
+`LAATSTE_DAG` (28, nu geëxporteerd uit `plan-schedule.ts`) dagen. Alleen-lezen: een derde plek die
+ook kan plannen zou de volgorde tussen drie schermen uit de pas kunnen laten lopen.
+
+**Punt 7**: nieuwe pagina `/merk/[id]/strategie/plan/versies` en `loadPlanVersions()`
+(`lib/plans.ts`). Bleek kleiner dan gedacht: `content_plans` bewaarde elke versie al (`version`,
+status `gestopt` in plaats van verwijderd), sinds de allereerste contentplan-migratie. Er ontbrak
+alleen een scherm dat ze toont. Bewuste afwijking van Nova: geen goedgekeurd/afgewezen/niet-
+afgemaakt-label, want `content_plans.status` legt nergens vast WAAROM een plan stopte (een nieuwe
+versie stopt de oude altijd, ongeacht de reden). In plaats daarvan de feiten die er wél zijn:
+hoeveel van de twaalf maanden ooit vrijgegeven zijn en hoeveel pagina's uit dat voorstel live
+kwamen. Een tri-state verzinnen die de data niet draagt, is precies wat conventie 3 wil voorkomen.
+
+**Punt 8 niet gebouwd: niet van toepassing.** `createPlan()` doet geen enkele AI-aanroep en rondt
+in één synchrone aanvraag af (`syncBacklog()` en `vulOpenMaanden()` zijn allebei pure
+databasebewerkingen). Er is geen fase waarin sommige maanden al klaar zijn en andere nog
+"gegenereerd worden" zoals bij Nova, waar losse AI-agenten per maand een eigen strategie schrijven.
+
+**Punt 30 bleek al gebouwd.** `SearchConsoleBox` had de gevraagde knop al: "Koppel en controleer"
+(later "Opnieuw controleren") doet één echte aanvraag die `syncSearchConsole()` aanroept en het
+werkelijke resultaat toont, geen aparte testknop nodig want opslaan-zonder-controle was hier al
+nooit een bruikbare uitkomst.
+
+Getest: `tsc --noEmit`, `test:unit` (4723 geslaagd, achttien nieuwe assertions) en `test:chain`
+(659 geslaagd, zeven nieuwe assertions op de bestaande potentiescore-scenario, met een extra gemeten
+cluster zodat er voorraad overblijft voor een tweede planversie) en `build` zijn alle vier groen.
+Geen migratie: `content_plans.version`/`status` bestonden al.
+
+Met dit blok is blok A van de Nova-vergelijkingsronde volledig compleet (8 van de 8 punten), en
+staat alleen blok F (meertaligheid, koppelingstest) nog open als groot, apart te besluiten project.
 ## De Nova-vergelijking doorgevoerd: acht wijzigingen, en drie ervan waren gaten (16 september 2026)
 
 `docs/nova-vs-orbit-engine-proces.md` legde het proces van InSpace Nova naast dat van ORBIT ENGINE.

@@ -1279,3 +1279,18 @@ export const SESSION_AUTHOR_FIELDS: (keyof Profile)[] = [
   "author_facebook_url",
   "author_other_url",
 ];
+
+/**
+ * Eén profielveld als leesbare tekst, voor de profielexport (blok B punt 10).
+ *
+ * Puur, dus testbaar (conventie 2): dit bepaalt hoe elke veldsoort (lijst,
+ * persona's, ja/nee) in een CSV-cel terechtkomt, en dat is rekenwerk dat niet
+ * verstopt hoort in een routebestand.
+ */
+export function veldAlsTekst(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "boolean") return value ? "Ja" : "Nee";
+  if (Array.isArray(value)) return value.map((v) => veldAlsTekst(v)).join("; ");
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}

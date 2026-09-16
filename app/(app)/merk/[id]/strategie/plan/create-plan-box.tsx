@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRefresh } from "@/components/use-refresh";
 import { useToast } from "@/components/toast";
-import { MONTHS_AHEAD } from "@/lib/plan-constants";
+import { MONTHS_AHEAD, MAX_STRATEGY_NOTE_LENGTH } from "@/lib/plan-constants";
 import { Icon } from "@/components/icon";
 
 /**
@@ -60,7 +60,7 @@ export function CreatePlanBox({
         body: JSON.stringify({ strategyNote: note }),
       });
       const j = (await res.json().catch(() => null)) as
-        | { error?: string; plannedCount?: number; requestedCount?: number }
+        | { error?: string; monthNumber?: number | null; plannedCount?: number; requestedCount?: number }
         | null;
       if (!res.ok) {
         toast({
@@ -74,6 +74,14 @@ export function CreatePlanBox({
       // pagina's per maand een eerste maand van vijf, zonder dat deze melding
       // dat liet weten. De voorraad had simpelweg niet meer dan vijf gemeten
       // kansen. Nu zegt de melding wat er écht in de maand staat.
+      //
+      // ⚠️ "Maand 1" is sinds blok A punt 1 niet meer gegarandeerd: bij een
+      // volle kalendermaand of een dunne voorraad is `monthNumber` de maand
+      // die ORBIT ENGINE daadwerkelijk kon vullen (`vulOpenMaanden()`,
+      // lib/plans.ts). `?? 1` is alleen een noodgreep voor het geval de
+      // server ooit `null` teruggeeft (lege voorraad); dan klopt de rest van
+      // de zin toch al niet en toont de knop hieronder het scherm opnieuw.
+      const maandNummer = j?.monthNumber ?? 1;
       const gepland = j?.plannedCount ?? quota ?? 0;
       const tekort = (j?.requestedCount ?? quota ?? 0) - gepland;
       toast({
@@ -81,9 +89,9 @@ export function CreatePlanBox({
         title: "Het contentplan staat klaar",
         description:
           tekort > 0
-            ? `${MONTHS_AHEAD} maanden. Maand 1 begint met ${gepland} van de ${quota} pagina's: er zijn nog niet ` +
+            ? `${MONTHS_AHEAD} maanden. Maand ${maandNummer} begint met ${gepland} van de ${quota} pagina's: er zijn nog niet ` +
               `genoeg gemeten kansen voor de rest. Meet een cluster erbij, dan vult de voorraad zich aan.`
-            : `${MONTHS_AHEAD} maanden, ${quota} pagina's per maand. Maand 1 wacht op vrijgave.`,
+            : `${MONTHS_AHEAD} maanden, ${quota} pagina's per maand. Maand ${maandNummer} wacht op vrijgave.`,
       });
       refresh();
     } catch {
@@ -102,11 +110,13 @@ export function CreatePlanBox({
       <div className="card flex flex-col gap-3">
         <span className="mono-label">Nog geen contentplan</span>
         <p className="text-secondary">
-          Een contentplan geeft je {MONTHS_AHEAD} maanden om zelf in te vullen.
-          ORBIT ENGINE zet de kansen uit je metingen klaar in een voorraad en vult
-          alvast de eerste maand met de sterkste; de rest bepaal jij. Je geeft per
-          maand vrij, en ORBIT ENGINE begint tien dagen voor elke publicatiedatum
-          met schrijven.
+          Een contentplan geeft je {MONTHS_AHEAD} maanden vooruit. ORBIT ENGINE vult
+          elke maand vanzelf met de sterkste kansen uit je metingen, jij keurt per
+          maand goed voordat er iets geschreven wordt. Is de voorraad nog dun, dan
+          is een maand korter dan je pakket in plaats van gevuld met verzonnen
+          onderwerpen; zodra er meer gemeten is, vult hij vanzelf verder aan. Je
+          geeft per maand vrij, en ORBIT ENGINE begint tien dagen voor elke
+          publicatiedatum met schrijven.
         </p>
 
         {!staff && !mag && (
@@ -170,16 +180,22 @@ export function CreatePlanBox({
           </label>
           <p className="text-sm text-muted">
             Bijvoorbeeld: een nieuwe vestiging, een product dat eruit gaat, een
-            seizoen dat telt. Dit gaat mee als context bij het opstellen.
+            seizoen dat telt. Geldt voor het hele merk, niet voor één pagina, en
+            je past hem later aan bij &ldquo;opnieuw schrijven&rdquo; op een
+            willekeurige pagina.
           </p>
           <textarea
             id="notitie"
             className="field"
             rows={2}
             value={note}
+            maxLength={MAX_STRATEGY_NOTE_LENGTH}
             onChange={(e) => setNote(e.target.value)}
             placeholder="Vanaf november openen we in Breda"
           />
+          <span className="mono-label text-muted" style={{ fontSize: "0.65rem" }}>
+            {note.length}/{MAX_STRATEGY_NOTE_LENGTH}
+          </span>
           <button
             type="button"
             className="btn-primary btn-lg w-fit"
