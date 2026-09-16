@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/components/toast";
 import {
   CSM_SEGMENTS,
   CSM_SEGMENT_META,
@@ -245,8 +247,42 @@ function Tab({
  * vorm die op een telefoon niet omvalt: geen tabel maar een kaart per merk.
  */
 function Rij({ brand }: { brand: CsmBrand }) {
+  const router = useRouter();
+  const toast = useToast();
   const meta = CSM_SEGMENT_META[segmentOf(brand)];
   const vlaggen = flagsOf(brand);
+  const [bezig, setBezig] = useState(false);
+
+  // Blok D punt 18: "Reschedule the post instead, that moves the date and
+  // re-queues the write in one step." Alleen zichtbaar als het ook iets
+  // oplevert: een pagina die over de datum is en vastzit, niet elke pagina.
+  async function verzetEnHerinplannen() {
+    setBezig(true);
+    try {
+      const res = await fetch(`/api/profiles/${brand.profileId}/plan/requeue-overdue`, {
+        method: "POST",
+      });
+      const json = (await res.json().catch(() => null)) as { aantal?: number; error?: string } | null;
+      if (!res.ok) {
+        toast({ intent: "fout", title: "Dat lukte niet", description: json?.error ?? "Probeer het opnieuw." });
+        return;
+      }
+      const n = json?.aantal ?? 0;
+      toast({
+        intent: n > 0 ? "succes" : "waarschuwing",
+        title: n > 0 ? (n === 1 ? "1 pagina herinplanned" : `${n} pagina's herinplanned`) : "Niets meer over de datum",
+        description:
+          n > 0
+            ? "Ze staan nu op morgen en zijn klaar om (opnieuw) geschreven te worden."
+            : "Er was niets meer om te herinplannen.",
+      });
+      router.refresh();
+    } catch {
+      toast({ intent: "fout", title: "Geen verbinding", description: "Controleer je internet en probeer het opnieuw." });
+    } finally {
+      setBezig(false);
+    }
+  }
 
   return (
     <li className="card flex flex-wrap items-start justify-between gap-3">
@@ -287,6 +323,16 @@ function Rij({ brand }: { brand: CsmBrand }) {
       </div>
 
       <div className="flex shrink-0 flex-wrap items-center gap-3 text-sm">
+        {brand.paginasTeLaat > 0 && (
+          <button
+            type="button"
+            className="btn-outline btn-sm disabled:opacity-60"
+            disabled={bezig}
+            onClick={() => void verzetEnHerinplannen()}
+          >
+            {bezig ? "Bezig…" : "Verzet en herinplannen"}
+          </button>
+        )}
         {/* Wacht dit merk op een gesprek, dan is de sessie de volgende stap en
             niet het dossier. */}
         {(brand.fase === "klaar_voor_gesprek" || brand.fase === "gesprek_gehad") && (

@@ -8748,3 +8748,49 @@ Getest: `tsc --noEmit`, `test:unit` (4710 geslaagd, veertien nieuwe assertions) 
 (652 geslaagd, geen scenario raakte de PATCH-route) en `build` zijn alle vier groen. Migratie 0100
 toegepast via de Supabase MCP-tool en nagekeken: de kolom staat er, `timestamptz not null default
 now()`.
+
+## 16 september 2026: beheeracties, blok D (punt 18, 19, 20, 21, 22, 23, 24)
+
+Laatste blok van de Nova-vergelijkingsronde. Drie gebouwd, één al bevestigd gebouwd, drie niet
+gebouwd met een reden.
+
+**Punt 18**: nieuwe route `POST /api/profiles/[id]/plan/requeue-overdue`, knop op
+`beheer/csm-view.tsx`. Bevinding onderweg: Nova's eigen tekst ("moves the date and re-queues the
+write in one step") is hier LETTERLIJK nodig, niet alleen retorisch. `app/api/cron/plan/route.ts`
+haalt alleen `status = 'gepland'` op; een pagina die vastloopt in `status = 'schrijven'` (de
+schrijftaak stierf) komt nooit meer aan de beurt, ongeacht de datum. Alleen de datum vooruitzetten
+lost dus niets op; deze actie zet daarom altijd beide tegelijk.
+
+**Punt 20**: de bevestigingsdialoog van "Markeer alles als geplaatst" toont nu vooraf welke
+pagina's live gaan en welke blijven staan met reden, met dezelfde `kiesVoorBulk()` die de route
+zelf gebruikt (geen aparte schatting die uit de pas kan lopen). Gebruikt de bestaande
+`children`-slot van `ConfirmDialog`, geen nieuw scherm.
+
+**Punt 24**: `segmentOf()` kent voor "vastgelopen" maar twee oorzaken (onderzoek mislukt, taken
+mislukt), en `flagsOf()` toonde er maar één. Nieuwe vlag "Onderzoek mislukt" dekt de andere.
+
+**Punt 19 bleek al gebouwd**: `lib/plan-bulk.ts` doet dit patroon al voor de enige bulkactie die
+bestaat. Bevestigd met een blik in de code, niets aan toegevoegd.
+
+**Drie niet gebouwd, met reden:**
+- **Punt 21** (bovengrens op dure bulkacties): er bestaat geen bulkactie die geld kost. Een grens
+  bouwen zou een nieuwe kostbare bulkactie veronderstellen die niemand vroeg.
+- **Punt 22** (niveau-labels): de drie kandidaatvelden (`content_plans.strategy_note`,
+  `topics.client_note`, `content_pieces.revision_note`) hebben niet de dubbelzinnigheid die Nova's
+  voorbeeld beschrijft. **Bijvangst, groter dan het punt zelf:** `content_plans.strategy_note`
+  wordt bij het aanmaken van een plan opgeslagen met de belofte "Dit gaat mee als context bij het
+  opstellen", maar wordt nergens in de schrijfpijplijn ooit gelezen. Een belofte die niet wordt
+  waargemaakt (`CLAUDE.md`: "schrijf nooit dat iets al kan wat nog niet gebouwd is"), niet in deze
+  ronde opgelost: dat vraagt uitzoeken waar in de schrijfprompt dit hoort in te haken, een eigen
+  klus.
+- **Punt 23** (paginatypes per abonnement): het document zelf noemt dit al een apart besluit, met
+  een open vraag of er commerciële abonnementsvormen bestaan. `planned_pages.page_type` bestaat al;
+  de koppeltabel met het abonnement niet, en die zonder antwoord bouwen zou gokken.
+
+Geen migratie. Getest: `tsc --noEmit`, `test:unit` (4712 geslaagd, vier nieuwe assertions) en
+`test:chain` (652 geslaagd) en `build` zijn alle vier groen.
+
+Met dit blok is de hele Nova-vergelijkingsronde uit `docs/tasks/nova-vergelijking-verbeterpunten.md`
+doorlopen: blok A (4/4), blok B (3/4, punt 11 niet van toepassing), blok C (4/5, punt 15 niet van
+toepassing), blok D (4/7, drie apart-besluit of niet-van-toepassing), blok E (4/4). Blok F
+(meertaligheid, koppelingstest) staat nog open, expliciet groot en apart te besluiten.

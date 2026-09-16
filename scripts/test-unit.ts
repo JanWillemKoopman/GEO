@@ -7872,6 +7872,19 @@ group("segmentOf: elk merk in precies één segment", () => {
     "en klaar om te plaatsen ook",
     flagsOf(merk({ paginasTePlaatsen: 2 })).some((v) => v.includes("klaar om te plaatsen")),
   );
+  // Blok D, punt 24: een mislukt onderzoek is een andere oorzaak dan mislukte
+  // taken, en moet een eigen vlag krijgen, ook als er geen enkele taak faalde.
+  ok(
+    "een mislukt onderzoek krijgt een eigen vlag",
+    flagsOf(merk({ profileStatus: "mislukt", pijplijnfouten: 0 })).includes("Onderzoek mislukt"),
+  );
+  ok(
+    "en die staat los van mislukte taken",
+    (() => {
+      const v = flagsOf(merk({ profileStatus: "mislukt", pijplijnfouten: 2 }));
+      return v.includes("Onderzoek mislukt") && v.includes("2 taken mislukt");
+    })(),
+  );
   ok(
     "een merk zonder vlaggen dat loopt, vraagt niets",
     needsAttention(merk()) === false,

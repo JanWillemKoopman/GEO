@@ -193,50 +193,64 @@ Dit blok is bij Nova het sterkst gegroeid en bij ons het dunst. Het gaat over al
 nádat een pagina bestaat. Let op: bij Nova hangt een deel hiervan aan hun CMS-koppeling, maar de
 onderliggende actie werkt ook zonder.
 
-**18. Scheid opnieuw inplannen van opnieuw schrijven, en bewaak het verschil.** (midden)
-Nova heeft twee aparte acties met een expliciete kruisverwijzing: als de publicatiedatum al voorbij
-is, blokkeert hij herschrijven en zegt "Reschedule the post instead, that moves the date and
-re-queues the write in one step. A publication date in the past is skipped, so a rewrite on its own
-would never go out." ORBIT ENGINE kent herschrijven wel, opnieuw inplannen niet als eigen actie.
-Dat betekent dat een pagina met een verlopen datum nu stil blijft liggen.
+**18. ~~Scheid opnieuw inplannen van opnieuw schrijven, en bewaak het verschil.~~** (midden) ✅
+**Live, 16 september 2026.** Nieuwe route `POST /api/profiles/[id]/plan/requeue-overdue` en een
+knop "Verzet en herinplannen" op `beheer/csm-view.tsx`, naast de bestaande "N over de datum"-vlag.
+Kleiner en dwingender dan Nova's versie: `app/api/cron/plan/route.ts` haalt alleen `status =
+'gepland'` op, dus een pagina die vastloopt in `status = 'schrijven'` (de schrijftaak stierf) komt
+nooit meer aan de beurt, hoe ver de datum ook vooruit gezet wordt. Deze actie zet daarom de datum
+op morgen ÉN de status terug op `gepland`, in één stap, precies zoals Nova's eigen tekst het
+beschrijft ("moves the date and re-queues the write in one step"). Staf-only, zelfde controle als
+`assign`.
 
-**19. Geef per regel de reden waarom een actie niet kan.** (klein)
-Nova's bulk-herschrijven zet achter elke regel die niet mee kan waaróm niet: al gepubliceerd, wordt
-nu gepubliceerd, geannuleerd, nog niet goedgekeurd door de klant, of er is nog geen tekst om te
-vervangen. Geen algemene melding "sommige items zijn overgeslagen", maar per regel. Dit is een
-patroon dat overal in ORBIT ENGINE bruikbaar is waar nu een verzamelmelding staat.
+**19. Geef per regel de reden waarom een actie niet kan.** (klein) **Al gebouwd, bevestigd 16
+september 2026.** `lib/plan-bulk.ts` (`kiesVoorBulk()`, `bulkMelding()`) doet dit al voor de enige
+bulkactie die ORBIT ENGINE heeft ("Markeer alles als geplaatst"): de melding na afloop noemt elke
+overgeslagen pagina met zijn reden, niet één verzamelzin. Er is geen andere bulkactie in de app met
+een generieke melding om te verbeteren.
 
-**20. Bouw bulkacties met een controlestap ertussen.** (midden)
-Nova's opzet voor het aanpassen van adressen in bulk is netjes: zoek en vervang over alle paden,
-met een aparte optie om alleen de eerste map te vervangen, per regel een controle op geldigheid en
-dubbelingen, en dan een scherm "Review the changes" dat toont wat er nu staat en wat er na opslaan
-staat, met "Nothing is written until you confirm". ORBIT ENGINE heeft bulkacties op het planscherm,
-maar zonder die tussenstap.
+**20. ~~Bouw bulkacties met een controlestap ertussen.~~** (midden) ✅ **Live, 16 september 2026.**
+De bevestigingsdialoog van "Markeer alles als geplaatst" toont nu, vóór bevestigen, exact welke
+pagina's live gaan (met het adres) en welke blijven staan (met reden), berekend met dezelfde
+`kiesVoorBulk()` die de route ook gebruikt. Geen aparte "Review the changes"-pagina zoals Nova: de
+lijst past in de bestaande dialoog (`children`-slot van `ConfirmDialog`), en een aparte pagina voor
+één simpele bulkactie zou zwaarder zijn dan wat hij oplost.
 
-**21. Zet een dakpan op bulkacties die geld kosten.** (klein)
-Nova: "At most {max} pages at a time, each one costs a new writer run. Re-queue the rest in a second
-pass." Bij ons is elke schrijfronde een betaalde AI-aanroep en is er geen bovengrens op een
-bulkactie. Eén verkeerde klik is dan meteen duur.
+**21. Zet een dakpan op bulkacties die geld kosten.** (klein) **Niet gebouwd, 16 september 2026: de
+aanname klopt niet.** De enige bulkactie die ORBIT ENGINE heeft ("Markeer alles als geplaatst")
+kost geen AI-aanroep: het zet een status en een adres, meer niet. Er is nu geen enkele bulkactie die
+geld kost. Een bovengrens bouwen zou een nieuwe, kostbare bulkactie veronderstellen die niemand
+gevraagd heeft; dat is andersom werken. Blijft open tot zo'n actie er is.
 
-**22. Vertel bij een veld expliciet op welk niveau het werkt.** (klein)
-Nova zet boven hun schrijfinstructie: "This note belongs to the domain, not to the pages you
-rewrite", met de uitleg dat opslaan de instructie verandert voor élke nog niet geschreven pagina.
-ORBIT ENGINE heeft drie lagen die precies dit probleem hebben: merklaag, clusterlaag, paginalaag
-(zie `optimalisatielab-orbit-engine.md` §3.1). Het scherm zegt nu niet altijd welke laag je te
-pakken hebt, en dat is de makkelijkste manier om per ongeluk alles te veranderen.
+**22. Vertel bij een veld expliciet op welk niveau het werkt.** (klein) **Niet gebouwd, 16
+september 2026: kleiner probleem dan gedacht, en één bijvangst.** Uitgezocht welke drie velden dit
+zouden raken: `content_plans.strategy_note` (plan-niveau, alleen invulbaar bij het aanmaken, dus
+geen risico op "per ongeluk voor elke toekomstige pagina veranderen"), `topics.client_note`
+(cluster-niveau, alleen-lezen op het scherm waar hij getoond wordt) en
+`content_pieces.revision_note` (paginaniveau, hoort per definitie bij precies één pagina). Geen van
+de drie heeft de dubbelzinnigheid die Nova's voorbeeld beschrijft. **Bijvangst, groter dan dit
+punt zelf:** `content_plans.strategy_note` wordt bij het aanmaken van een plan opgeslagen
+(`create-plan-box.tsx`, "Dit gaat mee als context bij het opstellen") maar nergens in de
+schrijfpijplijn ooit weer GELEZEN. De belofte in de UI-tekst klopt op dit moment niet
+(`CLAUDE.md`: "schrijf nooit dat iets al kan wat nog niet gebouwd is"). Dat oplossen is een eigen
+klus (uitzoeken waar in de schrijfprompt dit hoort in te haken), geen onderdeel van dit punt, en
+wordt hier alleen gemeld.
 
-**23. Leg het abonnement vast als getal waar het plan tegen afgezet wordt.** (midden)
-Nova's `admin.planQuota` koppelt een abonnementsvorm aan twee dingen: hoeveel pagina's per maand, en
-wélke paginatypes dit merk mag krijgen. ORBIT ENGINE heeft `pages_per_month`, maar niet de
-paginatypes per abonnement. Zonder dat kan een klant een paginatype in zijn plan krijgen waar hij
-niet voor betaalt.
+**23. Leg het abonnement vast als getal waar het plan tegen afgezet wordt.** (midden) **Niet
+gebouwd: apart besluit, zoals het document zelf al zei.** Bevestigd: `planned_pages.page_type`
+bestaat al (`categorie | dienst | informatief | overig`), maar er is geen koppeltabel die vastlegt
+welke paginatypes bij welk abonnement horen. Bouwen zonder antwoord op de eigen open vraag hieronder
+("bestaan er al commerciële abonnementsvormen met verschillende rechten, of is `pages_per_month`
+per klant voorlopig genoeg?") zou een datamodel neerzetten voor een onderscheid dat misschien nog
+niet bestaat.
 
-**24. Geef de klantentabel een reden bij elke vastgelopen klant.** (klein)
-ORBIT ENGINE's `beheer/csm-view.tsx` heeft de segmenten al, naar Nova gemodelleerd, en doet het
-met de banner per segment op één punt zelfs beter. Wat Nova erbij heeft is `admin.issueReasons`:
-zes concrete redenen waarom een merk stilstaat, zoals "geen standaardtaal ingesteld", "minder dan
-drie funnels", "laatste ronde mislukt", "nog geen strategie". Een segment zegt dát iemand
-vastzit, een reden zegt wat jij nu moet doen.
+**24. ~~Geef de klantentabel een reden bij elke vastgelopen klant.~~** (klein) ✅ **Live, 16
+september 2026, kleiner dan gedacht.** `segmentOf()` kent voor "vastgelopen" maar twee oorzaken
+(een mislukt onderzoek, of mislukte taken), niet Nova's zes: de rest van Nova's redenen
+("geen standaardtaal", "minder dan drie funnels") bestaat hier niet, want die keuzes maakt ORBIT
+ENGINE zelf tijdens het onderzoek. `flagsOf()` toonde de tweede oorzaak al ("N taken mislukt"), maar
+niet de eerste: een merk dat vastliep doordat het ONDERZOEK zelf mislukte (zonder taakfouten) had
+dus geen enkele vlag. Nieuwe vlag "Onderzoek mislukt" in `lib/csm.ts` dekt dat gat.
 
 ---
 
@@ -337,18 +351,21 @@ in jouw app. Wij publiceren niet, dus de tekst gaat hoe dan ook door een CMS van
 
 ## Voorgestelde volgorde
 
-**Eerst, want klein en meteen merkbaar:** ~~25, 26, 27, 28 (alle vier live sinds
-15 september 2026, blok E is daarmee compleet)~~, 5 (hoeveel pagina's nog nodig), 19 (reden per
-regel), 16 (specifieke foutmeldingen), 13 (drempel voor handmatig bewerken).
+**Eerst, want klein en meteen merkbaar:** ~~25, 26, 27, 28, 19 (al gebouwd, bevestigd), 16, 13
+(alle live sinds 15/16 september 2026, blok E is daarmee compleet)~~. Nog open: 5 (hoeveel
+pagina's nog nodig).
 
 **Daarna, want het lost een echt probleem op dat groeit:** ~~blok A, alle vier de punten, live sinds
 15 september 2026~~. Dit was de voorwaarde om werkpakket B uit het optimalisatielab te kunnen
 opleveren: zodra het aantal kansen omhoog gaat, liep het oude planscherm vast.
 
-**Dan, omdat ze de kwaliteit bewaken die we al hebben:** 14, 15, 17, 21.
+**Dan, omdat ze de kwaliteit bewaken die we al hebben:** ~~14, 17, 20, 24 (live sinds 16 september
+2026)~~. 15 niet van toepassing, 21 niet gebouwd (geen bulkactie die geld kost om een grens op te
+zetten), 18 (opnieuw inplannen) bleek klein genoeg om meteen mee te doen en is ook live.
 
-**Apart besluit:** 29 (meertaligheid) en 23 (paginatypes per abonnement), allebei omdat ze het
-datamodel raken.
+**Apart besluit:** 29 (meertaligheid), 23 (paginatypes per abonnement) en 22 (niveau-labels, bleek
+kleiner dan gedacht, met een bijvangst: `content_plans.strategy_note` wordt nergens gelezen), alle
+drie omdat ze het datamodel raken of een eigen uitzoekklus behoeven.
 
 ---
 

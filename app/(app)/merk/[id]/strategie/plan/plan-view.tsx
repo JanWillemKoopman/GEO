@@ -31,6 +31,7 @@ import {
 } from "@/lib/plan-backlog";
 import { writeDecision, writeBlockNotice, type TopicWritingState } from "@/lib/plan-writing";
 import { canMove } from "@/lib/plan-order";
+import { kiesVoorBulk, OVERSLAAN_TEKST } from "@/lib/plan-bulk";
 import type { ContentPlan, FunnelStage, PlanMonth, PlannedPage } from "@/lib/types/database";
 import { Icon } from "@/components/icon";
 
@@ -167,6 +168,17 @@ export function PlanView({
   const echt = useMemo(() => pages.filter((p) => !p.is_buffer), [pages]);
   const zichtbareVoorraad = useMemo(() => filterBacklog(backlog, filters), [backlog, filters]);
   const clusters = useMemo(() => clusterCounts(backlog), [backlog]);
+
+  // Punt 20: "Review the changes" in miniatuur. Dezelfde `kiesVoorBulk()` die
+  // de route ook gebruikt, dus wat hier staat is exact wat er zal gebeuren,
+  // geen aparte schatting die uit de pas kan lopen met de echte uitvoering.
+  const bulkSelectie = useMemo(
+    () =>
+      bulkDialog
+        ? kiesVoorBulk(pages.filter((p) => p.plan_month_id === bulkDialog.id))
+        : null,
+    [pages, bulkDialog],
+  );
 
   /** Alles wat een maand moet weten, in één keer uitgerekend. */
   const maanden = useMemo(
@@ -1060,7 +1072,38 @@ export function PlanView({
         busy={busy === bulkDialog?.id}
         onCancel={() => setBulkDialog(null)}
         onConfirm={() => bulkDialog && void alsGeplaatstMarkeren(bulkDialog)}
-      />
+      >
+        {/* Punt 20: nothing is written until you confirm, en dit laat zien wát er
+            precies geschreven wordt vóór je op de knop drukt. */}
+        {bulkSelectie && (bulkSelectie.mee.length > 0 || bulkSelectie.overslaan.length > 0) && (
+          <div className="flex flex-col gap-2 text-sm">
+            {bulkSelectie.mee.length > 0 && (
+              <div>
+                <span className="mono-label">Gaat live</span>
+                <ul className="mt-1 flex flex-col gap-0.5">
+                  {bulkSelectie.mee.map((p) => (
+                    <li key={p.id} className="truncate text-secondary">
+                      {p.title} <span className="text-muted">→ {p.url}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {bulkSelectie.overslaan.length > 0 && (
+              <div>
+                <span className="mono-label">Blijft staan</span>
+                <ul className="mt-1 flex flex-col gap-0.5">
+                  {bulkSelectie.overslaan.map((p) => (
+                    <li key={p.id} className="truncate text-muted">
+                      {p.title} · {OVERSLAAN_TEKST[p.reden]}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </ConfirmDialog>
 
       {/* ── Maand vrijgeven ─────────────────────────────────────────────── */}
       <ConfirmDialog
