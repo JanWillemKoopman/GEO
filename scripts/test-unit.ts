@@ -751,6 +751,7 @@ import {
   stepProgress,
   overallProgress,
   missingRequired,
+  veldAlsTekst,
 } from "@/lib/pipeline/brand-fields";
 import { resolveWriteSource, consultantFields } from "@/lib/profile-source";
 import {
@@ -6719,6 +6720,19 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   function allStepsIncompleet(prof: Record<string, unknown>): boolean {
     return STEP_ORDER.every((s) => !stepProgress(prof, s).compleet);
   }
+});
+
+group("een profielveld als leesbare tekst (blok B punt 10, profielexport)", () => {
+  ok("leeg blijft leeg", veldAlsTekst(null) === "" && veldAlsTekst(undefined) === "");
+  ok("ja/nee in plaats van true/false", veldAlsTekst(true) === "Ja" && veldAlsTekst(false) === "Nee");
+  ok("een lijst wordt met puntkomma's", veldAlsTekst(["a", "b", "c"]) === "a; b; c");
+  ok("een lege lijst is een lege tekst", veldAlsTekst([]) === "");
+  ok("een gewoon getal blijft gewoon", veldAlsTekst(42) === "42");
+  ok("een gewone tekst blijft gewoon", veldAlsTekst("Cv-ketel onderhoud") === "Cv-ketel onderhoud");
+  ok(
+    "een object (bv. persona's) wordt geen [object Object]",
+    veldAlsTekst({ naam: "Jan" }) === '{"naam":"Jan"}',
+  );
 });
 
 group("drie oppervlakken, één veldenlijst (onboarding 3.0 fase 1)", () => {

@@ -8681,3 +8681,31 @@ met Nova's kernboodschap vertaald: niet weg, wacht gewoon op ruimte.
 Getest: `tsc --noEmit`, `test:unit` (4694 geslaagd, zes nieuwe assertions) en `test:chain`
 (652 geslaagd, geen scenario geraakt) en `build` zijn alle vier groen. Migratie 0099 toegepast via
 de Supabase MCP-tool en nagekeken: de kolom staat er, `boolean not null default false`.
+
+## 16 september 2026: het merkdossier krijgt zijn statuskaart terug (blok B, punt 9, 10, 12)
+
+Blok B uit `docs/tasks/nova-vergelijking-verbeterpunten.md`. Drie van de vier punten kleiner dan
+gedacht, want de bouwstenen bestonden al en stonden alleen op de verkeerde plek.
+
+**Punt 9 en 12 delen dezelfde oplossing.** `ProfileReadinessPanel` (Nova's `brand.card`-model,
+`assessReadiness()`) en zijn drie-fasen-voortgangsweergave bestonden al, maar uitsluitend binnen de
+onboardingsessie. Nieuwe wrapper `DossierStatus` zet hem ook op `/merk/[id]/merkprofiel/bewerken`,
+naast de bestaande knop "Onderzoek opnieuw". De enige echte toevoeging: die knop kreeg een
+`onStarted`-callback zodat `DossierStatus` het paneel kan hermonteren (`key={ronde}`) zodra een
+nieuwe onderzoeksronde begint. Zonder die schakel zou het paneel na de eerste keer "klaar" nooit
+meer gaan pollen, en dus een tweede ronde niet laten zien.
+
+**Punt 10**: nieuwe route `GET /api/profiles/[id]/export`, CSV met exact de 42 klantvelden
+(`CLIENT_STEPS`, `lib/pipeline/brand-fields.ts`), niet de vijftien commerciële/contactvelden.
+Nieuwe pure functie `veldAlsTekst()` in diezelfde module zet een lijst, een ja/nee-veld of een
+object om naar leesbare CSV-tekst, met tests.
+
+**Punt 11 niet gebouwd: de aanname klopte niet.** Het punt veronderstelt een "schrijf het hele
+profiel opnieuw"-knop die niet bestaat. De bestaande "Onderzoek opnieuw"-knop doet iets anders (en
+veiligers): alles bewaren wat een mens invulde. Nova's waarschuwing hoort bij een destructieve
+knop die niemand vraagt; die bouwen om er een waarschuwing bij te kunnen zetten is de zaak
+omdraaien. Blijft open tot zo'n knop ooit wél nodig is.
+
+Geen migratie, geen datamodelwijziging: alleen hergebruik van bestaande componenten en één nieuwe
+route. Getest: `tsc --noEmit`, `test:unit` (4701 geslaagd, zeven nieuwe assertions) en `test:chain`
+(652 geslaagd) en `build` zijn alle vier groen.

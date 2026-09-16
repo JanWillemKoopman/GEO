@@ -110,27 +110,36 @@ onderzoek het profiel vooraf en kijkt de klant na, wat de wizard zelf ook zegt m
 "uit je website gehaald". Nova is daar pas later heen bewogen. De punten hieronder zijn afwerking,
 geen koerswijziging.
 
-**9. Geef het merkprofiel een eigen statuskaart per merk.** (klein)
-Nova's `brand.card` kent vijf toestanden: nog niet begonnen, bezig, verstuurd, klaar, en mislukt met
-de uitnodiging om opnieuw te genereren. ORBIT ENGINE toont voortgang als "x van de y ingevuld", wat
-iets anders zegt: het zegt hoe vol het formulier is, niet of het profiel bruikbaar is. Die twee
-lopen uiteen zodra de belangrijke velden leeg zijn en de onbelangrijke vol.
+**9. ~~Geef het merkprofiel een eigen statuskaart per merk.~~** (klein) ✅ **Live, 16 september
+2026.** Kleiner dan gedacht: `ProfileReadinessPanel` (Nova's `brand.card`-model, vijf toestanden via
+`assessReadiness()`) bestond al, maar stond alleen in de onboardingsessie. Nieuwe
+`DossierStatus`-wrapper (`app/(app)/merk/[id]/_components/dossier-status.tsx`) zet 'm ook op het
+merkdossier zelf (`/merk/[id]/merkprofiel/bewerken`), naast de knop "Onderzoek opnieuw". Geen
+aparte vijf-toestanden-badge op de merkenlijst: die lijst toont via `ProfileStatusBadge` al
+bezig/klaar/mislukt, en een volledige `assessReadiness()`-berekening per rij zou daar N losse
+databasebevragingen kosten voor een lijstscherm. Dat is bewust niet gebouwd.
 
-**10. Maak het profiel downloadbaar.** (klein)
-Nova heeft "Download profile". Klein, maar het maakt het profiel iets dat de klant bezit en kan
-doorsturen naar zijn eigen tekstschrijver of bureau. Dat is ook een verkoopargument: het bewijst
-dat het werk van waarde is los van de app.
+**10. ~~Maak het profiel downloadbaar.~~** (klein) ✅ **Live, 16 september 2026.** Nieuwe route
+`GET /api/profiles/[id]/export`, met een "Download profiel"-knop op het merkdossier. Exact de 42
+klantvelden (`CLIENT_STEPS`, `lib/pipeline/brand-fields.ts`), niet de vijftien commerciële/
+contactvelden die alleen in het verkoopgesprek horen.
 
-**11. Waarschuw eerlijk bij opnieuw genereren.** (klein)
-Nova: "NOVA writes the profile and your plan again from scratch, so the wording will not be
-identical." ORBIT ENGINE heeft geen knop om het hele profiel opnieuw te laten schrijven. Komt die
-er, dan hoort deze zin er meteen bij, want een klant die correcties heeft getypt verwacht ze terug
-te zien.
+**11. Waarschuw eerlijk bij opnieuw genereren.** (klein) **Niet gebouwd, 16 september 2026: de
+aanname klopt niet.** Bevestigd (opnieuw) dat ORBIT ENGINE geen knop heeft om het hele profiel
+from-scratch te herschrijven, en dat is ook geen ontbrekende functie: de bestaande "Onderzoek
+opnieuw"-knop (`RerunResearchButton`) doet iets anders en beters dan Nova's variant, namelijk alles
+bewaren wat een mens invulde en alleen crawl/facetten/aanbod verversen. Zijn eigen bevestigingstekst
+zegt dat al expliciet. Nova's waarschuwing hoort pas ergens als er ooit een écht destructieve
+"herschrijf alles"-knop komt, en die vraagt niemand nu. Deze punt blijft open tot die situatie zich
+voordoet.
 
-**12. Laat tijdens het genereren zien in welke stap het zit.** (klein)
-Nova toont drie fases: in de wachtrij, bestanden lezen, profiel schrijven, met de geruststelling
-"You can close this page, it carries on without you." ORBIT ENGINE heeft die belofte wel in de
-onboarding ("loopt door als je dit scherm sluit") maar niet bij het profiel zelf.
+**12. ~~Laat tijdens het genereren zien in welke stap het zit.~~** (klein) ✅ **Live, 16 september
+2026, met dezelfde `DossierStatus`-wrapper als punt 9.** `ProfileReadinessPanel` toonde deze
+drie-fasen-voortgang (met "je kunt dit scherm sluiten") al binnen de onboardingsessie; het enige
+wat ontbrak was dat hij op het merkdossier zelf niet opnieuw ging pollen zodra een latere
+"Onderzoek opnieuw"-ronde start. `RerunResearchButton` kreeg een `onStarted`-callback,
+`DossierStatus` gebruikt die om het paneel te hermonteren (`key`) en zo de voortgang van de nieuwe
+ronde te tonen in plaats van de oude "klaar"-stand te laten staan.
 
 ---
 

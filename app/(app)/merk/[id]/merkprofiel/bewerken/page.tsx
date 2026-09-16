@@ -3,10 +3,12 @@ import { getProfile } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
 import { CollapsibleSection } from "@/components/collapsible-section";
+import { Icon } from "@/components/icon";
 import { BrandWizard } from "../../_components/brand-wizard";
 import { CLIENT_STEPS, type BrandStep } from "@/lib/pipeline/brand-fields";
 import { InventoryBox } from "../../_components/inventory-box";
 import { DossierBox } from "../../_components/dossier-box";
+import { DossierStatus } from "../../_components/dossier-status";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Merkdossier" };
@@ -106,7 +108,20 @@ export default async function BewerkenPage({
         eyebrow="Merkprofiel"
         title="Merkdossier"
         description="ORBIT ENGINE heeft het meeste al van je website gehaald. Kijk het na, corrigeer wat niet klopt, en vul aan wat het niet kon weten. Alles wat je hier vastlegt blijft staan, ook als het onderzoek opnieuw draait."
+        action={
+          // Blok B punt 10: maakt het profiel iets dat de klant bezit en kan
+          // doorsturen naar zijn eigen tekstschrijver of bureau.
+          <a
+            href={`/api/profiles/${id}/export`}
+            className="btn-outline inline-flex items-center gap-1.5"
+          >
+            <Icon naam="downloaden" size={16} />
+            Download profiel
+          </a>
+        }
       />
+
+      <DossierStatus profileId={id} brandName={profile.name} />
 
       <BrandWizard
         profileId={id}
