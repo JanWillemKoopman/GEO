@@ -147,9 +147,17 @@ export function maandRegel(input: {
 
   const kop =
     input.paginas === 1 ? "Eén pagina deze maand" : `${input.paginas} pagina's deze maand`;
+  // Blok A punt 5: niet alleen zeggen dát het pakket niet gehaald wordt, maar
+  // ook met hoeveel. Nova: "Add # more pages to reach your plan of {quota}
+  // pages a month" — het getal is precies wat de klant nodig heeft om te
+  // weten of hij zelf iets kan doen (een cluster erbij meten) en hoeveel.
   const tekortZin =
     input.pakket !== undefined && input.paginas < input.pakket
-      ? ` Dat is minder dan je pakket van ${input.pakket}: er zijn nog niet genoeg gemeten kansen.`
+      ? (() => {
+          const nogNodig = input.pakket - input.paginas;
+          const zin = nogNodig === 1 ? "één pagina" : `${nogNodig} pagina's`;
+          return ` Nog ${zin} nodig om je pakket van ${input.pakket} te halen: er zijn nog niet genoeg gemeten kansen.`;
+        })()
       : "";
 
   if (input.geplaatst >= input.paginas) {

@@ -27,6 +27,7 @@ import type {
   PlanMonth,
   PlannedPage,
   PlanMonthStatus,
+  PlanStatus,
 } from "@/lib/types/database";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -190,6 +191,107 @@ export async function loadPlan(
       analysisStatus: t.analyses?.status ?? null,
     })),
   };
+}
+
+/** Eén planvoorstel, met wat ervan geworden is. */
+export interface PlanVersieSamenvatting {
+  id: string;
+  version: number;
+  startedOn: string;
+  status: PlanStatus;
+  pagesPerMonth: number;
+  strategyNote: string | null;
+  maandenGoedgekeurd: number;
+  maandenTotaal: number;
+  paginasLive: number;
+}
+
+/**
+ * Elk planvoorstel van dit merk, nieuwste eerst (blok A punt 7,
+ * `docs/tasks/nova-vergelijking-verbeterpunten.md`, Nova's "Proposal of
+ * {date}").
+ *
+ * ── WAAROM DIT GEEN GOEDGEKEURD/AFGEWEZEN-VLAG HEEFT, ZOALS NOVA ────────────
+ *
+ * `content_plans.status` kent maar drie standen: `concept`, `actief`,
+ * `gestopt`. Een plan gaat op `gestopt` zodra `createPlan()` een NIEUWE versie
+ * aanmaakt, ongeacht de reden: de klant wilde iets anders, het pakket
+ * veranderde, of het liep gewoon door naar een volgend jaar. Er is nergens
+ * vastgelegd WAAROM een plan stopte, dus een tri-state "goedgekeurd/
+ * afgewezen/niet afgemaakt" verzinnen zou een antwoord suggereren dat er niet
+ * is (conventie 3: onbekend is beter dan een verkeerde aanname). In plaats
+ * daarvan de feiten die er wél liggen: hoeveel van de twaalf maanden ooit
+ * werden vrijgegeven, en hoeveel pagina's uit dit voorstel live kwamen. Dat
+ * onderscheidt in de praktijk een plan dat nooit van de grond kwam van een
+ * plan dat een jaar lang goed liep en daarna simpelweg werd opgevolgd.
+ *
+ * Puur lezen, geen bijwerking: dit bestaat naast `loadPlan()`, dat alleen de
+ * ACTIEVE versie leest.
+ */
+export async function loadPlanVersions(
+  admin: Admin,
+  profileId: string,
+): Promise<PlanVersieSamenvatting[]> {
+  const { data: planRows } = await admin
+    .from("content_plans")
+    .select("id, version, started_on, status, pages_per_month, strategy_note")
+    .eq("profile_id", profileId)
+    .order("version", { ascending: false });
+
+  const plannen = (planRows ?? []) as {
+    id: string;
+    version: number;
+    started_on: string;
+    status: PlanStatus;
+    pages_per_month: number;
+    strategy_note: string | null;
+  }[];
+  if (plannen.length === 0) return [];
+
+  const planIds = plannen.map((p) => p.id);
+  const { data: maandRows } = await admin
+    .from("plan_months")
+    .select("id, plan_id, status")
+    .in("plan_id", planIds);
+  const maanden = (maandRows ?? []) as { id: string; plan_id: string; status: PlanMonthStatus }[];
+
+  const planVanMaand = new Map(maanden.map((m) => [m.id, m.plan_id]));
+  const monthIds = maanden.map((m) => m.id);
+  const { data: paginaRows } =
+    monthIds.length > 0
+      ? await admin
+          .from("planned_pages")
+          .select("plan_month_id")
+          .in("plan_month_id", monthIds)
+          .eq("status", "geplaatst")
+      : { data: [] };
+
+  const goedgekeurdPerPlan = new Map<string, number>();
+  const totaalPerPlan = new Map<string, number>();
+  for (const m of maanden) {
+    totaalPerPlan.set(m.plan_id, (totaalPerPlan.get(m.plan_id) ?? 0) + 1);
+    if (m.status === "goedgekeurd") {
+      goedgekeurdPerPlan.set(m.plan_id, (goedgekeurdPerPlan.get(m.plan_id) ?? 0) + 1);
+    }
+  }
+  const livePerPlan = new Map<string, number>();
+  for (const r of (paginaRows ?? []) as { plan_month_id: string }[]) {
+    const planId = planVanMaand.get(r.plan_month_id);
+    if (!planId) continue;
+    livePerPlan.set(planId, (livePerPlan.get(planId) ?? 0) + 1);
+  }
+
+  return plannen.map((p) => ({
+    id: p.id,
+    version: p.version,
+    startedOn: p.started_on,
+    status: p.status,
+    pagesPerMonth: p.pages_per_month,
+    strategyNote: p.strategy_note,
+    maandenGoedgekeurd: goedgekeurdPerPlan.get(p.id) ?? 0,
+    maandenTotaal: totaalPerPlan.get(p.id) ?? 0,
+    paginasLive: livePerPlan.get(p.id) ?? 0,
+  }));
 }
 
 /** Een voorraadrij zoals de query hem oplevert. */

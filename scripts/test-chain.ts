@@ -2854,7 +2854,7 @@ async function main(): Promise<void> {
     // ══════════════════════════════════════════════════════════════════════
     console.log("\nHet contentplan volgt de potentiescore");
 
-    const { createPlan } = await import("@/lib/plans");
+    const { createPlan, loadPlanVersions } = await import("@/lib/plans");
 
     const planPotUserId = randomUUID();
     const planPotProfileId = randomUUID();
@@ -3317,6 +3317,38 @@ async function main(): Promise<void> {
         "maar vervalt bij een verhuizing naar een andere maand",
         naVerhuizing[0].scheduled_manual === false,
       );
+    }
+
+    // ── Elk planvoorstel blijft bewaard, met wat ervan geworden is (blok A
+    // punt 7) ────────────────────────────────────────────────────────────────
+    {
+      const maand1 = maandRijen.find((m: { month_number: number }) => m.month_number === 1);
+      const goedgekeurd = await approveMonth(admin as never, maand1.id, planPotUserId);
+      ok("maand 1 van het eerste voorstel wordt vrijgegeven", goedgekeurd === true);
+
+      // Een vers gemeten kans, anders heeft `createPlan()` niets meer om een
+      // tweede voorstel mee te vullen: de eerdere twee kansen zitten allebei
+      // al in een maand van het eerste voorstel.
+      await clusterMetKans("derde voorstel", false, 40);
+
+      // Nog een keer opzetten: dit stopt versie 1 en maakt versie 2, zonder dat
+      // versie 1 of zijn maanden verdwijnen (conventie 8).
+      const tweedeVersie = await createPlan(admin as never, {
+        profileId: planPotProfileId,
+        pagesPerMonth: 1,
+        startedOn: new Date("2027-06-10T00:00:00Z"),
+      });
+      ok("het tweede voorstel wordt gemaakt", tweedeVersie.ok);
+
+      const versies = await loadPlanVersions(admin as never, planPotProfileId);
+      ok("er staan nu twee voorstellen", versies.length === 2);
+      ok("het nieuwste staat vooraan", versies[0]?.version === 2 && versies[1]?.version === 1);
+      ok("het oudste voorstel is gestopt, niet verwijderd", versies[1]?.status === "gestopt");
+      ok(
+        "het oudste voorstel onthoudt dat één maand is vrijgegeven",
+        versies[1]?.maandenGoedgekeurd === 1 && versies[1]?.maandenTotaal === 12,
+      );
+      ok("het nieuwe voorstel heeft nog geen enkele maand vrijgegeven", versies[0]?.maandenGoedgekeurd === 0);
     }
 
     // ══════════════════════════════════════════════════════════════════════
