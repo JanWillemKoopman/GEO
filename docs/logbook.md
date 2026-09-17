@@ -9544,3 +9544,54 @@ alle vier groen, op een schone `.next`. Nagerekend op de gebouwde CSS: `--header
 `--sidebar-w` is 240px, `--sidebar-w-collapsed` is 56px, en geen enkel eigen bestand (het zijproject
 uitgezonderd) draagt nog een `backdrop-filter` of het patroon `h-9 w-9` behalve de decoratieve
 uitlegtegel op `/support`, die geen navigatieknop is en dus terecht ongemoeid bleef.
+
+## 17 september 2026, stap 5 van de redesign: de apparaatdetectie
+
+De server weet nu of een bezoeker op een telefoon zit, vóór er één component rendert. Dit is de
+vijfde van elf stappen en de eerste van het mobiele spoor; er verandert nog niets aan hoe een scherm
+eruitziet.
+
+**De aanpak staat in `redesign2026.md` §8.12.6: een header in `middleware.ts`, gelezen met
+`headers()` in `lib/apparaat.ts`.** Geen client-hook die na de eerste tekening alsnog van vorm
+wisselt, geen dubbele render die een tabel van tweehonderd rijen twee keer in de HTML zet. De
+useragent staat al in het verzoek dat de middleware toch al voor de sessie afhandelt, dus dit kost
+geen extra netwerkronde.
+
+**De pseudocode uit het plan bleek onjuist, en dat is tijdens het bouwen gecorrigeerd.** Er stond
+`response.headers.set("x-apparaat", ...)`. Dat zet een REACTIE-header: zichtbaar voor de browser,
+onzichtbaar voor `headers()` in een servercomponent tijdens hetzelfde verzoek. `next/headers` leest
+de headers van het inkomende verzoek zoals de middleware ze doorgeeft, niet wat er uiteindelijk naar
+de browser gaat. De echte uitvoering zet `x-apparaat` op een kopie van `request.headers` en geeft
+die aan elke `NextResponse.next({ request: { headers } })` mee die `updateSession` bouwt, ook de
+herbouwde reacties in het cookie-pad. `lib/supabase/middleware.ts` kreeg er daarom een tweede,
+optioneel argument bij; de enige aanroeper (`middleware.ts`) geeft het altijd mee.
+
+**Dit is nagerekend en niet aangenomen, conform `CLAUDE.md` conventie 10.** Een script riep
+`middleware()` rechtstreeks aan met drie useragents tegen `/markt/[slug]` (de enige onbeschermde
+route, want een beschermde route levert bij een testverzoek zonder sessie een omleiding op en dan
+wordt de header nooit gezet) en las de resulterende `x-middleware-request-x-apparaat`-header:
+
+| Useragent | Uitkomst |
+|---|---|
+| iPhone | `telefoon` |
+| Desktop Chrome | `computer` |
+| iPad | `computer` |
+
+Dat laatste is met opzet: `redesign2026.md` §8.12.5 zegt dat de tussenstand tussen 768 en 1024
+pixels de desktopopmaak is met de zijbalk ingeklapt, geen derde ontwerp. Alleen `device.type ===
+"mobile"` telt als telefoon.
+
+**Een tweede, permanente verificatie staat nu in `/beheer/designsysteem`.** De pagina toont bovenaan
+wat `isTelefoon()` voor het huidige verzoek teruggeeft. Zonder een zichtbare plek was de eerste keer
+dat een echte bug hierin was opgevallen pas in stap 6 of 7, wanneer er al schermen op leunen; nu is
+het in één oogopslag te zien.
+
+**De `Vary: x-apparaat`-regel op `/markt/[slug]`** staat in `next.config.ts` als `headers()`-functie,
+want een header vanuit een paginacomponent zetten kan niet in de App Router. De pagina gebruikt
+`isTelefoon()` op dit moment nog niet (hij staat in groep A van §8.12.2 en toont op beide apparaten
+hetzelfde), dus dit is voorwaarts geschreven: een vangnet voor als er ooit een cachelaag bij komt die
+`dynamic = "force-dynamic"` niet al had uitgezet.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+alle vier groen. Het verificatiescript is na gebruik verwijderd, het draaide buiten de teststack om
+en had daar geen taak.

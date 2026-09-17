@@ -6,9 +6,23 @@ import { publicEnv } from "@/lib/env";
  * Ververst de Supabase-sessie op elke request en beschermt de app-routes.
  * Standaard @supabase/ssr-patroon: cookies worden zowel op de inkomende request
  * als op de uitgaande response gezet zodat de sessie geldig blijft.
+ *
+ * ⚠️ `requestHeaders` (17 september 2026, redesign2026.md §8.12.6) is een
+ * eigen `Headers`-kopie van `request.headers` met `x-apparaat` erop, gezet
+ * door `middleware.ts` vóór deze functie. Hij gaat overal waar deze functie
+ * een `NextResponse.next({ request })` bouwt mee als het `request`-argument,
+ * in plaats van het ongewijzigde `request` zelf: alleen zo komt de header bij
+ * `headers()` in een servercomponent terecht. Een header die je pas op de
+ * REACTIE zet (`response.headers.set(...)`) bereikt de browser, maar nooit
+ * `next/headers` tijdens hetzelfde verzoek, want die leest de headers van het
+ * inkomende verzoek zoals de middleware ze doorgeeft.
+ *
+ * Optioneel en met een terugval op `request.headers` zelf, zodat een aanroep
+ * zonder dit argument (een test, een toekomstige caller) niet breekt.
  */
-export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({ request });
+export async function updateSession(request: NextRequest, requestHeaders?: Headers) {
+  const headers = requestHeaders ?? new Headers(request.headers);
+  let response = NextResponse.next({ request: { headers } });
 
   const supabase = createServerClient(publicEnv.supabaseUrl, publicEnv.supabaseAnonKey, {
     cookies: {
@@ -17,7 +31,7 @@ export async function updateSession(request: NextRequest) {
       },
       setAll(cookiesToSet: { name: string; value: string; options?: CookieOptions }[]) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        response = NextResponse.next({ request });
+        response = NextResponse.next({ request: { headers } });
         cookiesToSet.forEach(({ name, value, options }) =>
           response.cookies.set(name, value, options),
         );

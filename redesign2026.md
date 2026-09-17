@@ -2049,9 +2049,23 @@ en `confirm-bar.tsx` droegen elk hun eigen plakbalk met de glaslaag erin. Die la
 losse component maar hetzelfde patroon vijf keer met de hand herhaald, en dat is precies het soort
 herhaling waar `.icon-btn` en het wegvallen van de glaslaag voor bedoeld zijn.
 
-**Stap 5, de apparaatdetectie.** `middleware.ts` plus `lib/apparaat.ts` (8.12.6). Los van stap 6 en
-7 omdat het apart te controleren is: een header zetten en uitlezen is te testen zonder dat er één
-pixel verandert. Hier hoort ook de `Vary`-regel op `/markt/[slug]`.
+**Stap 5, de apparaatdetectie.** `middleware.ts`, `lib/supabase/middleware.ts`, `lib/apparaat.ts`
+en de `Vary`-regel op `/markt/[slug]` in `next.config.ts` (8.12.6). Los van stap 6 en 7 omdat het
+apart te controleren is: een header zetten en uitlezen is te testen zonder dat er één pixel
+verandert.
+
+⚠️ **Eén correctie op de pseudocode uit §8.12.6 tijdens het bouwen.** Daar stond
+`response.headers.set("x-apparaat", ...)`, en dat is een REACTIE-header: zichtbaar voor de browser,
+onzichtbaar voor `headers()` in een servercomponent tijdens hetzelfde verzoek. `next/headers` leest
+de headers van het inkomende verzoek zoals de middleware ze doorgeeft, niet wat er uiteindelijk naar
+de browser gaat. De uitvoering zet `x-apparaat` daarom op een kopie van `request.headers` en geeft
+die aan `NextResponse.next({ request: { headers } })` mee, op elke plek waar `updateSession` zo'n
+reactie bouwt.
+
+Geverifieerd met een script dat `middleware()` rechtstreeks aanriep met drie useragents (telefoon,
+desktop, tablet) tegen een onbeschermde route en de resulterende `x-middleware-request-x-apparaat`
+las: telefoon gaf `telefoon`, desktop en tablet gaven allebei `computer`. Dat laatste is met opzet:
+een tablet krijgt de desktopstructuur, conform §8.12.5.
 
 **Stap 6, de mobiele opmaak.** De onderbalk (8.12.4), het "Meer"-blad, de mobiele bovenbalk. Na deze
 stap is de app op een telefoon te navigeren zoals bedoeld, ook al zien de schermen er nog
@@ -2188,7 +2202,7 @@ zat niet in de eerste versie van dit plan.
 | 2 | Componentklassen | 1 bestand, ~900 regels | beide |
 | 3 | Nieuwe desktopcomponenten | 5 bestanden | desktop |
 | 4 | Desktopopmaak | 2 bestanden | desktop |
-| 5 | Apparaatdetectie | ~20 regels in 2 bestanden | mobiel |
+| 5 | Apparaatdetectie | 4 bestanden | mobiel |
 | 6 | Mobiele opmaak | 3 bestanden | mobiel |
 | 7 | Mobiele patronen | 3 bestanden | mobiel |
 | 8 | Inlogroute | 6 bestanden | beide |

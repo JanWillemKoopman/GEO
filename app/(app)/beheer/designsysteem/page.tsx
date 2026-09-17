@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { requireUser } from "@/lib/auth";
 import { isStaff } from "@/lib/staff";
+import { isTelefoon } from "@/lib/apparaat";
 import { PageHeader } from "@/components/page-header";
 import { Gallerij } from "./gallerij";
 
@@ -39,6 +40,14 @@ export default async function DesignsysteemPage() {
   const user = await requireUser();
   if (!(await isStaff(user.id))) notFound();
 
+  // De apparaatdetectie zelf (17 september 2026, stap 5): een servercomponent
+  // die `isTelefoon()` aanroept en het resultaat toont, is het enige bewijs
+  // dat de header echt van `middleware.ts` bij `next/headers` aankomt en niet
+  // alleen bij tsc groen ziet. CLAUDE.md conventie 10: gebouwd is niet
+  // geverifieerd. Zonder een gebruiker als deze had de eerste bug hierin pas
+  // in stap 6 of 7 opgevallen, wanneer er al schermen op leunen.
+  const telefoon = await isTelefoon();
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
@@ -46,6 +55,14 @@ export default async function DesignsysteemPage() {
         title="Designsysteem"
         description="Elk token, elke klasse en elk component in al zijn staten. Wissel van stand met de knop rechtsboven om beide kanten te controleren."
       />
+      <div className="card flex items-center gap-3">
+        <span className="chip chip-info">isTelefoon()</span>
+        <span className="type-compact-emphasis">{telefoon ? "telefoon" : "computer"}</span>
+        <span className="type-caption text-muted">
+          Gelezen uit de `x-apparaat`-header die `middleware.ts` op dit verzoek zette. Verander de
+          useragent om te zien of dit meebeweegt.
+        </span>
+      </div>
       <Gallerij />
     </div>
   );

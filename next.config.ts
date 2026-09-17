@@ -35,6 +35,34 @@ const nextConfig: NextConfig = {
   async redirects() {
     return DOORVERWIJZINGEN;
   },
+  // `Vary: x-apparaat` op de ene publieke pagina van de app (17 september
+  // 2026, redesign2026.md §10.2 stap 5).
+  //
+  // ── WAAROM ALLEEN DEZE ROUTE ─────────────────────────────────────────────
+  //
+  // Elke ingelogde pagina is toch al dynamisch, want ze leest de
+  // sessiecookie: daar bestaat geen gedeelde cache die een apparaat met een
+  // ander apparaat kan verwarren. `app/markt/[slug]` is de enige route buiten
+  // `(app)`, zonder inlog en dus zonder die cookie, en draagt al
+  // `dynamic = "force-dynamic"`. Die vlag zet Next.js' eigen Data Cache en
+  // Full Route Cache uit, maar zegt niets over een CDN of een browser
+  // ertussenin: mocht die caching ooit weer aan gaan (een `revalidate`, een
+  // andere hostingpartij), dan voorkomt deze header dat iemand op een
+  // telefoon de dashboardversie uit de cache krijgt die eerst voor een
+  // computer werd gerenderd, of andersom.
+  //
+  // De pagina gebruikt `isTelefoon()` op dit moment nog niet: hij staat in
+  // groep A van `redesign2026.md` §8.12.2 en toont op beide apparaten
+  // hetzelfde. Deze regel is dus voorwaarts geschreven, niet voor een
+  // verschil dat er al is.
+  async headers() {
+    return [
+      {
+        source: "/markt/:slug*",
+        headers: [{ key: "Vary", value: "x-apparaat" }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
