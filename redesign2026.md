@@ -2006,7 +2006,7 @@ skelet om en zijn de 117 kaarten meegegaan, zonder dat er één scherm is aanger
 | 3 | Nieuwe desktopcomponenten | 5 bestanden, plus de etalage | Tabs, Segment, FilterChip, Drawer, DataCard, en een scherm om ze te controleren |
 | 4 | Desktopopmaak | 8 bestanden | Bovenbalk 48px, nieuwe zijbalk, drie standen |
 | 5 | Apparaatdetectie | ~20 regels | Niets zichtbaars, het fundament voor 6 en 7 |
-| 6 | Mobiele opmaak | 3 bestanden | Onderbalk, "Meer"-blad, mobiele bovenbalk |
+| 6 | Mobiele opmaak | 8 bestanden | Onderbalk, "Meer"-blad, mobiele bovenbalk, plus de aansluiting in `WorkspaceChrome`, `AppShell`, `lib/nav.ts` en `lib/icons.ts` |
 | 7 | Mobiele patronen | 3 bestanden | Tabel met 2 kolommen, detailblad, stappenflow |
 | 8 | Inlogroute | 6 bestanden | Beide ontwerpen, en §9b-uitzondering weg |
 | 9 | Typografie-opruiming | 1 bestand plus ~200 wijzigingen | De schaal klopt overal |
@@ -2070,6 +2070,24 @@ een tablet krijgt de desktopstructuur, conform §8.12.5.
 **Stap 6, de mobiele opmaak.** De onderbalk (8.12.4), het "Meer"-blad, de mobiele bovenbalk. Na deze
 stap is de app op een telefoon te navigeren zoals bedoeld, ook al zien de schermen er nog
 desktopachtig uit.
+
+⚠️ **Eén correctie tijdens het bouwen, op `lib/nav.ts` en niet op dit plan.** De schermtitel voor de
+mobiele bovenbalk moest een bestaande functie hergebruiken om geen van de vijftig
+`page.tsx`-bestanden aan te raken vóór stap 10. De eerste poging hergebruikte `navActief()`, de
+functie die de zijbalk gebruikt, en een test tegen een echt pad
+(`/merk/x/strategie/plan/versies`) liet meteen zien dat dat de verkeerde strengheid is:
+`navActief` is met opzet strikt exact, juist om te voorkomen dat twee buurbestemmingen in de zijbalk
+tegelijk oplichten. Voor een titel is dat averechts: een dieper scherm zonder eigen menu-item toont
+dan liever de titel van zijn ouder dan niets. De nieuwe functie, `titelVoorPad()`, gebruikt daarom
+`isActive()` (voorvoegsel) met "langste match wint" als tiebreak, en is met vier paden na elkaar
+getest, inclusief het geval dat de eerste versie fout had.
+
+**Wat verder is meegenomen, buiten de kernlevering van dit blueprint:** de onderbalk verschuift met
+het PAD (`pathname.startsWith("/sales")`) en niet met de rol, omdat een salesmedewerker ook een merk
+kan bekijken en "waar sta ik nu" dan een betere leidraad is dan "wat ben ik meestal". En drie
+functies die op de desktop los in de bovenbalk stonden (previewToggle, het zijproject, support) én
+geen van drieën deel uitmaakten van het `lib/nav.ts`-datamodel, kregen een plek in het "Meer"-blad in
+plaats van stilzwijgend te verdwijnen op een telefoon.
 
 **Stap 7, de mobiele patronen.** De drie componenten die 37 van de 50 schermen dekken: de tabel met
 twee kolommen (groep B), het detailblad, de stappenflow (groep C).
@@ -2203,7 +2221,7 @@ zat niet in de eerste versie van dit plan.
 | 3 | Nieuwe desktopcomponenten | 5 bestanden | desktop |
 | 4 | Desktopopmaak | 2 bestanden | desktop |
 | 5 | Apparaatdetectie | 4 bestanden | mobiel |
-| 6 | Mobiele opmaak | 3 bestanden | mobiel |
+| 6 | Mobiele opmaak | 8 bestanden | mobiel |
 | 7 | Mobiele patronen | 3 bestanden | mobiel |
 | 8 | Inlogroute | 6 bestanden | beide |
 | 9 | Typografie | 1 bestand plus ~200 wijzigingen | beide |

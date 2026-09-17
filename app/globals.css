@@ -1611,6 +1611,35 @@ textarea.field {
   border-bottom: var(--border-width-xs) solid var(--line-muted);
 }
 
+/* ── De mobiele bovenbalk (17 september 2026, stap 6) ─────────────────────
+   52px, GEMETEN uit `redesign2026.md` §8.12.3. Andere inhoud en niet alleen
+   een andere hoogte: geen woordmerk, geen merkkiezer, geen vier knoppen. Een
+   terugknop, de titel van het scherm, en hooguit één knop rechts. De
+   merkkiezer verhuist naar het "Meer"-blad (`.meer-blad`); die past niet
+   tussen een terugknop en een titel zonder dat er iets moet inschikken. */
+.topbar-mobiel {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 52px;
+  padding: 0 8px;
+  background-color: var(--bg-base);
+  border-bottom: var(--border-width-xs) solid var(--line-muted);
+}
+.topbar-mobiel-titel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
 /* ── De zijbalk ─────────────────────────────────────────────────────────────
    240 pixels, op de grond van de pagina en niet op die van een kaart. */
 .sidebar {
@@ -1671,6 +1700,13 @@ textarea.field {
   outline: var(--border-width-sm) solid var(--border-focus);
   outline-offset: -2px;
 }
+/* GEMETEN minimum voor een vinger (`redesign2026.md` §8.12.3): 44px. Alleen
+   voor `.meer-blad.tsx`, dat op een telefoon rendert; de zijbalk zelf blijft
+   op 36px, want daar wijst een muis aan. */
+.nav-item-lg {
+  height: 44px;
+  padding: 0 16px;
+}
 
 /* De kop boven een groep bestemmingen.
 
@@ -1690,6 +1726,84 @@ textarea.field {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-subtle);
+}
+
+/* ── De onderbalk ───────────────────────────────────────────────────────────
+   Het enige echt nieuwe navigatiecomponent van de hele redesign (17 september
+   2026, stap 6). Op een telefoon vervangt hij de zijbalk volledig; er is geen
+   ingeklapte of uitgeklapte stand, hij is er gewoon of niet.
+
+   GEMETEN uit `redesign2026.md` §8.12.4: 56px plus de veilige zone onderaan
+   (een notch of een thuisbalk op recente telefoons mag deze balk niet
+   overlappen), vijf posities, gelijk verdeeld.
+
+   ⚠️ HET ACTIEVE PICTOGRAM WORDT NIET GEVULD. Het plan noemt dat als OKX'
+   eigen patroon, maar deze app tekent uitsluitend in Lucide's lijnstijl:
+   `docs/merkstrategie.md` §15.1 verbiedt gevulde vlakken in een icoon met
+   zoveel woorden, en Lucide levert hier ook geen gevulde tegenhangers voor.
+   De actieve staat blijft dus wat hij overal in dit systeem is: een kleur- en
+   gewichtsverschil, --text-subtle naar --text-primary, geen tweede tekening.
+   Dit is de enige plek in `redesign2026.md` waar de letterlijke OKX-vorm om
+   die reden niet is gevolgd. */
+.onderbalk {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  height: 56px;
+  /* De veilige zone telt mee in de hoogte, niet als losse marge eronder: een
+     balk die naar 56px plus 34px (een notch) springt duwt de pagina-inhoud
+     verrassend ver omhoog. Dit houdt de zichtbare balk altijd 56px. */
+  padding-bottom: env(safe-area-inset-bottom);
+  background-color: var(--bg-surface);
+  border-top: var(--border-width-xs) solid var(--line-muted);
+}
+.onderbalk-item {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 56px;
+  color: var(--text-subtle);
+}
+/* Het bolletje bij "openstaande vragen", hier omdat "Vragen" niet in élke
+   balkstand een eigen positie heeft (de Sales-balk heeft er geen). Boven het
+   pictogram van "Meer" en niet ervoor: ervoor duwt het label uit het midden. */
+.onderbalk-item-badge {
+  position: absolute;
+  top: 2px;
+  right: calc(50% - 14px);
+}
+.onderbalk-item[aria-current] {
+  color: var(--text-primary);
+}
+.onderbalk-item:active {
+  background-color: var(--interactive-hover);
+}
+.onderbalk-item-label {
+  font-size: 0.625rem; /* 10px, GEMETEN */
+  font-weight: 500;
+  line-height: 0.75rem;
+}
+
+/* ── Het "Meer"-blad ────────────────────────────────────────────────────────
+   Hergebruikt `.drawer` in zijn mobiele stand (7.14): een blad van onderen is
+   een blad van onderen, of het nu een rijdetail draagt of de rest van de
+   navigatie. Dit blok voegt alleen toe wat een navigatieblad specifiek nodig
+   heeft: een regel met een merk erin en een uitlogknop onderaan die zich
+   onderscheidt van de gewone `.nav-item`-regels erboven. */
+.meer-blad-merk {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-xl);
+  background-color: var(--bg-layer-2);
 }
 
 /* ── Tabbladen ──────────────────────────────────────────────────────────────

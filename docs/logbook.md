@@ -9595,3 +9595,69 @@ hetzelfde), dus dit is voorwaarts geschreven: een vangnet voor als er ooit een c
 Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
 alle vier groen. Het verificatiescript is na gebruik verwijderd, het draaide buiten de teststack om
 en had daar geen taak.
+
+## 17 september 2026, stap 6 van de redesign: de mobiele opmaak
+
+Een telefoon navigeert nu via een eigen scherm en niet via een uitklapbare kopie van de zijbalk.
+Dit is de zesde van elf stappen en de eerste die daadwerkelijk iets anders laat zien op een telefoon
+dan op een computer.
+
+**Drie nieuwe componenten, en ze staan samen precies waar `redesign2026.md` §8.12.4 ze plant.**
+`BottomNav` (de onderbalk, vijf posities), `MeerBlad` (het blad achter "Meer") en `MobileTopbar` (52
+pixels, terugknop, titel, één knop). `AppShell` is `async` geworden om `isTelefoon()` (stap 5) aan te
+roepen, en `WorkspaceChrome` vertakt volledig op dat ene booleaans: twee complete, losse opbouwen in
+plaats van één opbouw die op smallere schermen inschikt.
+
+**Het "Meer"-blad hergebruikt `Drawer` uit stap 3, in zijn mobiele stand.** Een blad van onderen is
+een blad van onderen, of het nu de details van één tabelrij draagt of de rest van de navigatie.
+Dezelfde sleepgreep, dezelfde animatie, dezelfde toetsenbordafhandeling: twee keer diezelfde overlay
+bouwen was precies de herhaling die `docs/designsystem.md` §8 regel 1 verbiedt.
+
+**De pseudocode voor de schermtitel bleek bij het testen fout, en dat is meteen gecorrigeerd.**
+`titelVoorPad()` moest een titel vinden zonder een van de vijftig `page.tsx`-bestanden aan te raken,
+en hergebruikte daarvoor eerst `navActief()`, dezelfde functie als de zijbalk. Een test tegen een
+echt pad (`/merk/x/strategie/plan/versies`) liet meteen zien waarom dat de verkeerde strengheid is:
+`navActief` is met opzet strikt exact, juist om te voorkomen dat twee buurbestemmingen in de zijbalk
+tegelijk oplichten. Voor een titel werkt die strengheid averechts: een dieper scherm zonder eigen
+menu-item toont dan liever de titel van zijn ouder dan niets. De functie gebruikt nu `isActive()`
+(voorvoegsel) met "langste match wint", en is met vier paden nagerekend, waaronder het geval dat de
+eerste versie fout had:
+
+| Pad | Titel |
+|---|---|
+| `/merk/x` | Hoe sta je ervoor |
+| `/merk/x/strategie/plan/versies` | Contentplan (geen eigen item, erft van de ouder) |
+| `/sales/prospects/xyz` | Prospects (idem, in de Sales-sectie) |
+| `/instellingen` | geen titel: geen enkele bestemming begint hiermee |
+
+**De onderbalk verschuift met het pad en niet met de rol.** Een salesmedewerker kan ook een merk
+bekijken (staff ziet alles), en dan is "waar sta ik nu" een betere leidraad dan "wat ben ik meestal".
+`pathname.startsWith("/sales")` beslist dus, dezelfde soort regel als de zijbalk al gebruikt voor
+zijn actieve staat.
+
+**Drie functies die los in de desktop-bovenbalk stonden zijn niet stilzwijgend verdwenen.** De
+wisselknop naar de klantweergave, de link naar het zijproject en de link naar support stonden geen
+van drieën in het `lib/nav.ts`-datamodel (het zijn losse `Link`s direct in `workspace-chrome.tsx`),
+dus ze verschenen niet vanzelf in het "Meer"-blad zoals de rest van de navigatie dat wel doet. Alle
+drie hebben nu een eigen plek gekregen: de wisselknop naast de merkkiezer, de andere twee in een
+eigen blok boven de gegroepeerde navigatie.
+
+**Drie nieuwe pictogrammen, voor de Sales-onderbalk.** `markten` (Map), `bedrijven` (Building2),
+`verstuurd` (Send). De sidebar geeft alleen zijn zeven hoofdstukken een icoon (`lib/icons.ts` regel
+4), maar een tabbalk van vijf posities werkt zoals elders zo'n balk werkt: elke positie draagt er
+zelf een. `markten` is bewust een andere tekening dan het bestaande `offsite` (ook `Globe`-achtig
+maar een andere betekenis), om twee betekenissen nooit op elkaar te laten lijken.
+
+**Eén letterlijk punt uit `redesign2026.md` is bewust niet gevolgd.** Het plan noemt "pictogram
+gevuld in plaats van lijn" voor de actieve staat als OKX' eigen patroon. Deze app tekent uitsluitend
+in Lucide's lijnstijl (`docs/merkstrategie.md` §15.1 verbiedt gevulde vlakken met zoveel woorden, en
+Lucide levert hier ook geen gevulde tegenhangers voor). De actieve staat blijft dus het kleur- en
+gewichtsverschil dat dit hele systeem al overal gebruikt.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd), `lint` (alleen een
+al bestaande, ongerelateerde waarschuwing in `app/solliciteren/`) en `build` zijn allemaal groen op
+een schone `.next`. Nagerekend op de gebouwde CSS: `.onderbalk`, `.onderbalk-item`, `.topbar-mobiel`,
+`.meer-blad-merk` en `.nav-item-lg` staan er allemaal in. `titelVoorPad()` is los getest met vier
+representatieve paden. Wat niet is gecontroleerd: hoe het scherm er in een echte, ingelogde browser
+op een telefoon uitziet, want deze omgeving heeft geen geldige sessie. Dat blijft open voor de
+eerstvolgende Vercel-preview.

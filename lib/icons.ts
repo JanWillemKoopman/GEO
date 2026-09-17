@@ -69,6 +69,7 @@ import {
   ArrowUp,
   ArrowUpRight,
   BookOpen,
+  Building2,
   CalendarRange,
   Check,
   ChevronDown,
@@ -87,6 +88,7 @@ import {
   FileQuestionMark,
   FingerprintPattern,
   Globe,
+  Map,
   Menu,
   MessageCircle,
   Minus,
@@ -99,6 +101,7 @@ import {
   RotateCw,
   Scale,
   Search,
+  Send,
   Shield,
   SlidersHorizontal,
   Tag,
@@ -182,7 +185,18 @@ export type IcoonNaam =
   // Alleen zichtbaar voor staf: wisselen naar wat een klant ziet
   // (`components/preview-toggle.tsx`).
   | "klantweergave"
-  | "eigenweergave";
+  | "eigenweergave"
+  // ── De onderbalk op een telefoon (17 september 2026) ────────────────────
+  // Drie nieuwe betekenissen voor de Sales-onderbalk (`components/bottom-nav.tsx`,
+  // redesign2026.md §8.12.4). De sidebar geeft alleen zijn zeven hoofdstukken
+  // een icoon (regel 4 hierboven), maar een tabbalk van vijf posities werkt
+  // zoals overal elders zo'n balk werkt: elke positie draagt er zelf een, want
+  // zonder tekening is een tabblad alleen een woord op 22 pixels afstand van
+  // het volgende. "Overzicht" en "Vragen" en "Plan" lenen hun tekening van hun
+  // hoofdstuk of van een bestaande betekenis hierboven; deze drie zijn nieuw.
+  | "markten"
+  | "bedrijven"
+  | "verstuurd";
 
 export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // ── DE ZEVEN HOOFDSTUKKEN ───────────────────────────────────────────────
@@ -347,4 +361,16 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // voor "je bent daar nu, terug naar jezelf". Alleen zichtbaar voor staf.
   klantweergave: Eye,
   eigenweergave: EyeOff,
+
+  // ── De onderbalk op een telefoon ─────────────────────────────────────────
+  // Een gebied op een kaart: sales onderzoekt een markt vóór er een klant is,
+  // niet een individueel bedrijf. Bewust een andere tekening dan `offsite`
+  // (ook `Globe`-achtig maar een andere betekenis: bereik buiten de eigen
+  // site), om twee betekenissen nooit op elkaar te laten lijken.
+  markten: Map,
+  // Een pand: de bedrijven die sales kent, vóór ze een prospect zijn.
+  bedrijven: Building2,
+  // Een verstuurd bericht: wat er de deur uit is, de laatste stap in
+  // outreach.
+  verstuurd: Send,
 };

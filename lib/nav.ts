@@ -557,6 +557,50 @@ export function navActief(pathname: string, item: NavItem): boolean {
 }
 
 /**
+ * De titel voor de mobiele bovenbalk (17 september 2026, stap 6 van de
+ * redesign, `redesign2026.md` §8.12.3: "terugknop plus schermtitel").
+ *
+ * ── WAAROM DIT NIET PER PAGINA WORDT MEEGEGEVEN ─────────────────────────────
+ *
+ * Dat zou vijftig `page.tsx`-bestanden raken vóór er één daadwerkelijk mobiel
+ * scherm gebouwd is (stap 10), en de zijbalk lost precies dit probleem al op:
+ * elke route die de klant ooit ziet heeft er een label voor. Deze functie
+ * hergebruikt die lijst in plaats van hem te herhalen.
+ *
+ * ⚠️ **`isActive()`, niet `navActief()`, en dat is met opzet een ANDERE
+ * strengheid dan de zijbalk gebruikt.** Een eerste versie hergebruikte
+ * `navActief`, en een test tegen echte paden (`/merk/x/strategie/plan/versies`)
+ * liet meteen zien waarom dat mis is: `navActief` is strikt exact voor de
+ * meeste bestemmingen (`isExact`), juist om te voorkomen dat twee
+ * buurbestemmingen in de zijbalk tegelijk oplichten
+ * (`/merkprofiel` tegenover `/merkprofiel/bewerken`). Voor een titel is dat
+ * omgekeerd onwenselijk: een dieper scherm zonder eigen menu-item toont dan
+ * liever de titel van zijn OUDER dan niets. `isActive()` (voorvoegsel,
+ * `startsWith`) vindt die ouder wél; het is dezelfde titel als de
+ * hoofdbestemming, en dat is voor een schermtitel geen probleem, want er is
+ * maar één titel per scherm en geen twee die om aandacht strijden zoals in
+ * de zijbalk.
+ *
+ * **Langste match wint, niet de eerste.** Bij een voorvoegsel matchen twee
+ * bestemmingen soms allebei (`/merkprofiel` en `/merkprofiel/bewerken` voor
+ * het pad `/merkprofiel/bewerken/x`); zonder deze regel pakt de eerste van de
+ * twee in `alles`, ongeacht welke specifieker is.
+ *
+ * Levert niets op voor een route zonder ENKEL treffend menu-item (de
+ * merkloze routes als `/instellingen`, of een pad dat aan geen enkel
+ * voorvoegsel voldoet): dan valt de bovenbalk terug op de merknaam of de
+ * app-naam, geen titel is beter dan een verzonnen titel (conventie 3,
+ * `CLAUDE.md`).
+ */
+export function titelVoorPad(pathname: string, alles: NavItem[]): string | null {
+  const treffers = alles.filter((item) => isActive(pathname, item.href));
+  if (treffers.length === 0) return null;
+  return treffers.reduce((langste, kandidaat) =>
+    kandidaat.href.length > langste.href.length ? kandidaat : langste,
+  ).label;
+}
+
+/**
  * ⚠️ Hier stonden `ACCOUNT_NAV` en daarvoor `NAV`, de platte lijst van vóór de
  * zijbalk. `NAV` verdween op 17 augustus 2026: `MainNav` las hem en bestond
  * niet meer, en het profielmenu toonde er een tweede hoofdnavigatie mee naast

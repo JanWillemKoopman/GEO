@@ -2,10 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { BrandSwitcher } from "@/components/brand-switcher";
 import { Icon } from "@/components/icon";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { BottomNav } from "@/components/bottom-nav";
+import { MobileTopbar } from "@/components/mobile-topbar";
+import { brandNav, generalNav, salesNav, titelVoorPad, type NavItem } from "@/lib/nav";
 import type { BrandOption } from "@/lib/workspace";
 
 /**
@@ -15,13 +19,22 @@ import type { BrandOption } from "@/lib/workspace";
  * merkenlijst gaat wél naar de client (de kiezer moet erin kunnen zoeken), maar
  * de rest van de shell niet.
  *
- * ── DE MOBIELE INDELING IS EEN ANDERE INDELING ──────────────────────────────
+ * ── DE MOBIELE INDELING IS SINDS 17 SEPTEMBER 2026 EEN ANDER SCHERM ─────────
  *
- * `docs/ux-design.md` §7: mobiel is geen verkleinde desktop. De zijbalk wordt
- * daar een lade achter een knop, en de merkkiezer verhuist naar de bovenbalk,
- * want dat is op een telefoon de enige plek die altijd zichtbaar is. De lade
- * sluit zichzelf zodra je iets kiest; een menu dat open blijft staan na een
- * keuze laat je twee keer tikken voor één handeling.
+ * Tot stap 6 van de redesign was dit een lade achter een hamburgerknop: dezelfde
+ * zijbalk, alleen verborgen tot je hem opende. `redesign2026.md` §8.12 zegt
+ * met zoveel woorden dat dat een geschaalde desktopervaring is en geen eigen
+ * mobiel ontwerp: `telefoon` (van `isTelefoon()` in `AppShell`, bepaald in de
+ * middleware van stap 5) schakelt nu tussen twee VOLLEDIG andere opbouwen,
+ * `BottomNav`/`MobileTopbar` tegenover `Sidebar`/`.topbar`, niet tussen twee
+ * groottes van dezelfde opbouw.
+ *
+ * De hamburgerlade van vóór stap 6 blijft bestaan, maar dient nu een ander
+ * doel: het vangnet uit §8.12.6 voor als de server zich vergist (een tablet
+ * die zich voordoet als telefoon, een browservenster dat smaller wordt
+ * gemaakt terwijl de server "computer" besliste). `lg:hidden` blijft op de
+ * desktoptak staan, `telefoon` beslist welke van de twee takken er ÜBERHAUPT
+ * rendert.
  */
 export function WorkspaceChrome({
   brands,
@@ -30,7 +43,9 @@ export function WorkspaceChrome({
   sales,
   solliciteren,
   openVragen,
+  telefoon,
   onSelectBrand,
+  signOutAction,
   logo,
   openQuestions,
   previewToggle,
@@ -47,7 +62,14 @@ export function WorkspaceChrome({
   solliciteren: boolean;
   /** Hoeveel vragen er open staan. Zet het bolletje in de zijbalk aan. */
   openVragen: number;
+  /** `isTelefoon()`, bepaald op de server (`lib/apparaat.ts`, stap 5). Beslist
+   *  welke van de twee volledig verschillende opbouwen rendert. */
+  telefoon: boolean;
   onSelectBrand: (brandId: string) => void;
+  /** De server action achter "Uitloggen". Op desktop zit hij al verwerkt in
+   *  `accountMenu`; het "Meer"-blad heeft de kale functie nodig om zijn eigen
+   *  rij te bouwen. */
+  signOutAction: () => void | Promise<void>;
   logo: React.ReactNode;
   /** De teller "3 openstaande vragen". Leeg zodra er niets open staat. */
   openQuestions?: React.ReactNode;
@@ -57,6 +79,49 @@ export function WorkspaceChrome({
   children: React.ReactNode;
 }) {
   const [ladeOpen, setLadeOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Eén berekening voor de hele mobiele tak: `BottomNav` (de vier primaire
+  // posities plus "Meer") en `MobileTopbar` (de titel) hebben hem allebei
+  // nodig, en twee kopieën van dezelfde lijst lopen op termijn uit elkaar.
+  // Kost niets op desktop: `telefoon` is dan `false` en dit stuk JSX rendert
+  // nooit, maar de berekening zelf is goedkoop genoeg (platte array-opbouw)
+  // om hem niet achter een voorwaarde te verstoppen en de hooks-volgorde
+  // daarmee op het spel te zetten.
+  const alles: NavItem[] = [
+    ...(activeBrand ? brandNav(activeBrand.id, staff) : []),
+    ...generalNav(staff),
+    ...salesNav(sales),
+  ];
+  const titel = telefoon ? (titelVoorPad(pathname, alles) ?? activeBrand?.name ?? "ORBIT ENGINE") : "";
+
+  if (telefoon) {
+    return (
+      <div className="flex min-h-dvh flex-col">
+        <MobileTopbar titel={titel} actie={accountMenu} />
+
+        {/* 56px onderbalk plus zijn veilige zone: de inhoud moet daar nooit
+            onder verdwijnen. `.stand` regelt zijn eigen zijmarge en bovenmarge
+            al; deze wikkel voegt alleen de ondermarge toe die uniek is voor de
+            mobiele tak. */}
+        <main className="min-w-0 flex-1 pb-[calc(56px+env(safe-area-inset-bottom)+16px)]">
+          <div className="stand">{children}</div>
+        </main>
+
+        <BottomNav
+          activeBrand={activeBrand}
+          brands={brands}
+          sales={sales}
+          solliciteren={solliciteren}
+          previewToggle={previewToggle}
+          openVragen={openVragen}
+          alles={alles}
+          onSelectBrand={onSelectBrand}
+          signOutAction={signOutAction}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-dvh flex-col">

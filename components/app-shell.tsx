@@ -5,6 +5,7 @@ import { ProfileMenu } from "@/components/profile-menu";
 import { PreviewToggle } from "@/components/preview-toggle";
 import { WorkspaceChrome } from "@/components/workspace-chrome";
 import { OpenQuestionsBadge } from "@/components/open-questions-badge";
+import { isTelefoon } from "@/lib/apparaat";
 import type { Workspace } from "@/lib/workspace";
 import type { User } from "@supabase/supabase-js";
 
@@ -23,7 +24,7 @@ import type { User } from "@supabase/supabase-js";
  * `WorkspaceChrome`. Zo staat er geen `"use client"` boven de hele shell, en
  * blijft de merkenlijst uit de client-bundel.
  */
-export function AppShell({
+export async function AppShell({
   user,
   workspace,
   staff,
@@ -47,12 +48,20 @@ export function AppShell({
   openVragen: number;
   children: React.ReactNode;
 }) {
+  // `async` sinds 17 september 2026 (stap 6): `isTelefoon()` leest de header
+  // die de middleware zette (stap 5, `lib/apparaat.ts`), en dat kan alleen op
+  // de server. Dit is de enige plek in de shell die nog wist welke van de
+  // twee opbouwen `WorkspaceChrome` moet kiezen; die zelf blijft "use client".
+  const telefoon = await isTelefoon();
+
   return (
     <WorkspaceChrome
       brands={workspace.brands}
       activeBrand={workspace.active}
       staff={staff}
       sales={sales}
+      telefoon={telefoon}
+      signOutAction={signOut}
       // Het zijproject "Solliciteren" hangt aan hetzelfde recht als de rest van
       // wat alleen van ORBIT ENGINE zelf is: `staff`, dus het EFFECTIEVE recht.
       // Staat de klantweergave aan, dan verdwijnt de S net als al het andere
