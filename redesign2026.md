@@ -15,7 +15,7 @@ De app draagt nu het tokensysteem van InSpace Nova, een direct concurrerend prod
 vervangt dat door het tokensysteem van OKX. Dat is geen kleurwissel: de hele architectuur van de
 vormgeving gaat om.
 
-**De vijf wijzigingen die het meeste verschil maken**, in volgorde van zichtbaarheid:
+**De zes wijzigingen die het meeste verschil maken**, in volgorde van zichtbaarheid:
 
 1. **De grond wordt zwart.** `#000000` als pagina, `#121212` als eerste laag, `#171717` als kaart.
    De lichte stand draait om: `#f6f6f6` als pagina, `#ffffff` als kaart. Nu is het allebei wit met
@@ -25,37 +25,46 @@ vormgeving gaat om.
    het stippenpatroon op de werkruimte verdwijnen volledig.
 3. **De dichtheid gaat omhoog.** De inhoud is nu 1024 pixels breed en gecentreerd. Dat wordt 1440
    met een volle-breedte-stand voor tabelschermen. Dit is de kern van het desktopverzoek.
-4. **De accentkleur wordt limoen.** `#bcff2f` vervangt het paars `#8511d9`. Dat is de één beslissing
-   in dit plan die niet technisch is; §13.1 legt hem voor.
+4. **De accentkleur wordt limoen.** `#bcff2f` vervangt het paars `#8511d9`, letterlijk zoals bij
+   OKX, met donkergroen `#2b6d17` als tegenhanger in de lichte stand (§13.1).
 5. **Het lettertype wordt Archivo.** OKX Sans is van CoType Foundry en commercieel gelicentieerd.
    Archivo is de dichtstbijzijnde vrije vervanger, gemeten en niet geraden (§5.2).
+6. **Mobiel krijgt een eigen ontwerp.** Geen geschaalde desktopversie: een eigen navigatie, eigen
+   tabellen met twee kolommen in plaats van zeven, en een stappenflow in plaats van lange
+   formulieren. Desktop wordt daar met geen enkele concessie voor ingeleverd (§8.12).
 
 **Wat er niet verandert:** geen enkele regel businesslogica, geen route, geen databasekolom, geen
-API. Dit is een wijziging in `app/globals.css` plus een herschrijving van de klassenlaag, en daarna
-een opruimronde door 249 tsx-bestanden.
+API. Dit is een wijziging in `app/globals.css`, een herschrijving van de klassenlaag, elf nieuwe
+componenten en daarna een opruimronde door 249 tsx-bestanden.
 
 **Waarom dat kan:** regel 1 van `docs/designsystem.md` §8 ("een kleur heeft een betekenis, geen
 naam") is consequent toegepast. De app noemt nergens `paars`, hij noemt `intelligence`. Daardoor
 zit het fundament op één plek. Dit is het moment waarop die discipline zich uitbetaalt.
 
-### Waar dit plan afwijkt van de opdracht
+### De drie besluiten van de eigenaar
+
+Genomen op 17 september 2026, en dit document is erop herschreven.
+
+| | Besluit | Gevolg |
+|---|---|---|
+| Accentkleur | Limoen `#bcff2f`, letterlijk overnemen | §13.1, één token, geen gevolgen elders |
+| Mobiel | Niet blokkeren, maar een eigen ontwerp naast desktop | §8.12 herschreven, zes componenten erbij, ongeveer een derde meer werk |
+| Oplevering | In stappen, elke stap apart naar productie | §10.2, elf stappen met een eigen tak per stap |
+
+### Waar dit plan een kanttekening bij de opdracht houdt
 
 De opdracht zegt: neem OKX over als kopie, niet als inspiratie, om concurrentiegedrang te
-voorkomen. Dat eerste doel haalt dit plan. Het tweede is een terechte zorg en dit plan lost hem
-echt op: OKX is een cryptobeurs en zal nooit met een GEO-product voor het MKB concurreren, Nova wel.
+voorkomen. Dat doel haalt dit plan, en de zorg erachter is terecht: OKX is een cryptobeurs en zal
+nooit met een GEO-product voor het MKB concurreren, Nova wel.
 
-Eén nuance hoort er wel bij, en `docs/designsystem.md` §9b heeft hem in augustus zelf al opgeschreven:
+Eén nuance blijft staan, en `docs/designsystem.md` §9b heeft hem in augustus zelf al opgeschreven:
 de vraag die daar open staat is niet "van wie is dit systeem" maar "is dit uiterlijk van ons". Een
-kopie van OKX beantwoordt die vraag niet, hij verplaatst hem. Dat is geen reden om het niet te doen,
-het is een reden om het onderscheid te maken tussen twee lagen:
+kopie van OKX beantwoordt die vraag niet, hij verplaatst hem.
 
-- **De systeemlaag** (structuur, dichtheid, maatvoering, radiusschaal, statenmodel, hoe oppervlakken
-  stapelen, hoe een token heet). Die overnemen is normaal vakwerk en precies waar dit plan sterk in is.
-- **De merklaag** (de limoen `#bcff2f`, het lettertype OKX Sans). Die is van OKX zelf.
-
-Het lettertype is sowieso al beslist: het is gelicentieerd, dus het kan niet mee, en §5.2 heeft de
-gemeten vervanger. Blijft over: de limoen. §13.1 legt die ene keuze voor met beide kanten uitgewerkt.
-Het is één token. Kies wat je wilt, de rest van dit plan verandert er niet van.
+Met het besluit over de limoen is dat een bewuste keuze geworden in plaats van iets wat insluipt,
+en dat is het verschil dat telt. Het staat opgeschreven in §13.1 en §10.6 zorgt dat
+`designsystem.md` §9b het eerlijk blijft benoemen, zodat het over een half jaar geen verrassing is.
+Het lettertype was sowieso geen keuze: OKX Sans is gelicentieerd en kan niet mee.
 
 ---
 
@@ -140,7 +149,7 @@ Dit is de sloopiijst. Elk punt is een plek waar iemand die beide producten kent 
 |---|---|---|
 | Glasoppervlak op elke kaart | `--glass-*`, 42 keer in css, `backdrop-filter` 15 keer | Vlak oppervlak, geen blur |
 | Stippenpatroon op de werkruimte | `.workspace-canvas::before` | Niets, vlakke grond |
-| Paars als merkkleur | `--accent-purple`, 15 keer | Limoen of eigen accent, §13.1 |
+| Paars als merkkleur | `--accent-purple`, 15 keer | Limoen `#bcff2f`, §13.1 |
 | Groen-paars verloop in het woordmerk | `--brand-gradient`, 4 bestanden | Vlakke tekstkleur |
 | Kaartradius 12px | `--radius-lg` op `.card` | 8px |
 | Koel leiblauw als neutraal (`#f8fafc`, `#e7edf2`, `#17212b`) | de hele neutralenschaal | Echt grijs, zonder blauwzweem |
@@ -917,8 +926,10 @@ outline-offset: 2px;
 
 Geen gloed, geen gekleurde ring. Dit is het OKX-patroon en het is beter dan wat er nu staat.
 
-**Responsief:** onder 640px wordt een knoppenrij een kolom en krijgen de knoppen volle breedte. De
-maat verandert niet.
+**Mobiel (onder 768px):** de standaardmaat wordt **lg (48px)** in plaats van md, want 40px is onder
+de 44px die een vinger comfortabel raakt. Een knoppenrij wordt een kolom met de **hoofdactie
+bovenaan**, niet onderaan: dat is GEMETEN bij OKX, hun dialoogvoet zet `flex-direction: column-reverse`.
+De hoofdactie krijgt volle breedte.
 
 ### 7.2 IconButton, GEMETEN
 
@@ -964,6 +975,10 @@ wordt 4px met een lichtere rand, en de focus is een zwarte of witte ring in plaa
 
 **Label boven het veld**, `body-xs-bold` (12px, 500), `--text-tertiary`, 6px eronder. Fouttekst
 `body-xs`, `--intent-danger-content`, 4px onder het veld.
+
+**Mobiel (onder 768px):** maat **lg (48px)**, en de tekst gaat naar **16px**. Die 16px is geen smaak:
+Safari op iOS zoomt de hele pagina in zodra een veld met minder dan 16px focus krijgt, en daar komt
+de bezoeker niet vanzelf uit. Het label blijft 12px.
 
 ### 7.4 Search, AFGELEID
 
@@ -1162,8 +1177,20 @@ laden         zie 7.20
 De tabel is nu `py-1.5` (ongeveer 34px) met een glazen sticky kop. Dat wordt een dekkende kop op
 `--bg-base` en rijen van 44px. Dichter voelt het niet, want er komt regelhoogte 1,5 in.
 
-**Responsief:** onder 768px wordt elke rij een kaart met de kop als label links en de waarde rechts.
-Dat is wat OKX doet en het is beter dan horizontaal scrollen.
+**Mobiel (onder 768px):** geen kaart per rij en geen horizontaal schuiven, maar het gemeten
+OKX-patroon uit 8.12.1: **twee kolommen van 50%, elk met twee waarden gestapeld.**
+
+```
+links (50%)                        rechts (50%, rechts uitgelijnd)
+  hoofdwaarde   14px / 500           kerncijfer    14px / 500, tabular-nums
+  bijschrift    12px / --text-tertiary   verandering  12px / --trend-up of --trend-down
+```
+
+Welke vier van de zeven gegevens meegaan, is per tabel een ontwerpkeuze en geen automatisme. Die
+keuze staat per scherm in stap 10. De overige kolommen worden **niet gerenderd**, niet verborgen.
+
+Rijhoogte op mobiel: **64px**, want twee regels plus lucht, en dat is meteen een ruim aanraakvlak.
+Een tik opent het detailblad (7.14) met alle gegevens.
 
 ### 7.12 Chart, GEMETEN palet, AFGELEID opmaak
 
@@ -1201,8 +1228,9 @@ sluitknop     IconButton xl rechtsboven, 16px van de rand
 Dit zijn OKX' eigen dialoogwaarden, letterlijk. De paddings 24 en 32 kloppen met
 `--okd-dialog-confirm-container-padding-top: 32px` en `--okd-dialog-confirm-title-padding-horizontal: 24px`.
 
-**Responsief:** onder 640px wordt het paneel een blad dat van onderen inschuift, volle breedte,
-radius alleen bovenaan, max-hoogte 90vh.
+**Mobiel (onder 768px), GEMETEN bij OKX:** het paneel wordt een blad van onderen (7.14). De
+paddings gaan naar hun `sm`-set: **16px horizontaal** in plaats van 24. De knoppen krijgen volle
+breedte en de rij wordt `column-reverse`, dus de hoofdactie komt bovenaan.
 
 ### 7.14 Drawer, AFGELEID
 
@@ -1217,7 +1245,20 @@ voet          rand boven --line-muted, padding 16px 24px
 beweging      200ms --ease-out, van rechts
 ```
 
-De mobiele navigatielade van nu (288px) wordt 280px en volgt deze regels.
+**Mobiel (onder 768px): een blad van onderen, geen lade van rechts.**
+
+```
+breedte       volle breedte
+hoogte        tot 90vh, inhoud scrollt
+radius        --radius-xxxl, alleen linksboven en rechtsboven
+greep         36px bij 4px, --border-strong, gecentreerd, 8px van de bovenkant
+sluiten       naar beneden slepen, of tikken op het scrim
+beweging      250ms --ease-out, van onderen
+kop           56px, titel gecentreerd, sluitknop rechts
+```
+
+De sleepgreep is geen versiering: zonder zichtbare greep probeert niemand te slepen, en dan is de
+enige uitweg het scrim, dat op een telefoon vaak maar een paar pixels hoog is.
 
 ### 7.15 Toast, GEMETEN
 
@@ -1237,7 +1278,9 @@ duur          4000ms, bij een fout blijft hij staan
 ```
 
 De vulling volgt de betekenis: `--intent-*-surface` met een rand in `--intent-*-content` op 20%.
-Op mobiel: volle breedte min 32px, van bovenaf.
+**Mobiel (onder 768px):** volle breedte min 32px, van bovenaf, onder de bovenbalk. Niet van
+onderen, want daar zit de onderbalk (8.12.4) en een melding die daaroverheen valt verbergt de
+navigatie.
 
 ### 7.16 Alert, AFGELEID
 
@@ -1296,7 +1339,12 @@ Nu is de kop 15px op gewicht 600 in `--text-primary`. Dat is zwaarder dan de bes
 en dat is precies omgekeerd aan wat OKX doet: daar is de kop klein en gedempt, en de bestemmingen
 zijn de inhoud.
 
-**Ingeklapt:** alleen pictogrammen, 40px hoog, gecentreerd, met een tooltip rechts.
+**Ingeklapt (768 tot 1024px):** alleen pictogrammen, 40px hoog, gecentreerd, met een tooltip rechts.
+
+**Mobiel (onder 768px): de zijbalk bestaat niet.** Hij wordt vervangen door de onderbalk (8.12.4),
+en de bestemmingen die daar niet in passen zitten in het "Meer"-blad. Dit is geen lade met dezelfde
+inhoud: twintig bestemmingen in hoofdstukken is een desktoppatroon, en op een telefoon is het een
+lijst waar je doorheen moet scrollen om te navigeren.
 
 ### 7.18 Topbar, GEMETEN
 
@@ -1665,21 +1713,212 @@ marge         16px tussen kop en inhoud, 8px in de kleine variant
 De 32px verticale padding is ruim en het is echt hun waarde. Voor `/support` met tientallen vragen
 is de kleine variant beter; die krijgt 16px.
 
-### 8.12 Responsief gedrag
+### 8.12 Twee ontwerpen, niet één dat meeschaalt
 
-De opdracht zegt: desktop is verreweg het belangrijkste, mobiel moet werken. Dat is de volgorde die
-hier wordt aangehouden.
+**Het uitgangspunt, vastgesteld door de eigenaar op 17 september 2026:** desktop wordt ontworpen
+zonder één concessie aan mobiel, en mobiel krijgt een eigen ontwerp waar het desktoppatroon niet
+overzet. Geen van beide is een geschaalde versie van de ander. Dat kost meer werk en dat is
+geaccepteerd.
 
-| Breedte | Wat er gebeurt |
+#### 8.12.1 Wat OKX zelf doet, GEMETEN
+
+Dit is geen aanname. Dezelfde pagina (`/markets/prices`) is met een desktop- en een
+telefoon-useragent opgehaald en de HTML verschilt:
+
+| | Desktop | Telefoon |
+|---|---|---|
+| Kolommen | **7** (naam, koers, verandering, grafiekje, bereik, marktwaarde, actie) | **2** (naam 50%, koers 50%) |
+| Rijopbouw | één waarde per cel | **twee waarden gestapeld per cel** |
+| Weggelaten | niets | bereik, grafiekje, marktwaarde, actie |
+| HTML-omvang | 161.978 b | 132.122 b |
+
+De mobiele cel links draagt het teken (16px, gewicht 500) met de volledige naam eronder (12px,
+`--text-tertiary`). De cel rechts draagt de koers met de verandering eronder (12px, in de
+stijgkleur of de daalkleur). Vier gegevens in een raster van 2 bij 2, in plaats van zeven naast
+elkaar.
+
+**Drie dingen die hieruit volgen:**
+
+1. **De weggelaten kolommen worden niet verborgen, ze worden niet gerenderd.** Geen
+   `display: none`, geen horizontaal schuiven. Ze zitten niet in de HTML.
+2. **Componenten hebben een mobiele variant**, geen breekpunt. In hun opmaak staat letterlijk een
+   klasse `is-mobile` naast de gewone klassen.
+3. **Aanraakvlakken worden groter, niet kleiner.** Hun tabbladen staan op desktop in maat `md` en op
+   de telefoon in `xl` en `xxl`.
+
+**Eén ding uit hun mobiele opzet nemen we niet over.** Hun viewport staat op
+`maximum-scale=1.0, user-scalable=no`. Dat zet inzoomen uit, en dat is een toegankelijkheidsfout:
+wie slecht ziet kan de tekst niet vergroten. ORBIT ENGINE houdt `width=device-width, initial-scale=1`
+en verder niets.
+
+#### 8.12.2 Drie soorten schermen
+
+Niet elk van de 50 schermen heeft hetzelfde soort mobiele ontwerp nodig. Ze vallen in drie groepen,
+en per groep is de aanpak anders.
+
+**Groep A, lezen en beslissen.** Het merkoverzicht, de rapporten, de vragenlijst, support, de
+publieke marktpagina. Op de telefoon net zo compleet als op de computer, want er valt niets weg:
+het is tekst, cijfers en knoppen. Eén kolom, grotere aanraakvlakken, verder gelijk.
+
+Routes: `/merk/[id]`, `/merk/[id]/strategie/vragen`, `/analyses/[id]/rapport`, `/support`,
+`/markt/[slug]`, de hele inlogroute. **13 van de 50.**
+
+**Groep B, data.** Analytics, clusters, bibliotheek, de salesmarkten en de prospectlijsten. Hier
+geldt het OKX-patroon letterlijk: op de telefoon minder gegevens, met opzet gekozen, gestapeld in
+plaats van naast elkaar. De volledige diepte zit achter een tik op de rij.
+
+Routes: alle `analytics`-routes, `strategie/clusters`, `strategie/bibliotheek`, `sales/markten`,
+`sales/prospects`, `analyses`, `beheer/kwaliteit`. **19 van de 50.**
+
+**Groep C, werkbank.** De beheerformulieren, het toewijzen van clusters, het bewerken van een
+merkprofiel, het schrijven van een concept. Dit zijn taken die op een computer horen, en dat is geen
+gebrek aan de telefoon maar een eigenschap van de taak: een formulier van 365 regels is op een
+telefoon nooit een goed formulier.
+
+**Dat betekent niet dat ze op de telefoon niet werken.** Het betekent dat ze er een ándere vorm
+krijgen: niet één lange pagina met alles, maar een stappenflow van één sectie per scherm, met een
+voortgangsbalk en een opslagknop die vastzit onderaan. Dat is voor een telefoon het betere ontwerp,
+en op de computer zou het juist hinderlijk zijn. Dit is precies waar "twee ontwerpen" iets oplevert.
+
+Routes: `merk/[id]/admin/*`, `merk/[id]/merkprofiel/bewerken`, `analyses/[id]/concept`,
+`analyses/[id]/briefing`, `instellingen/*`, `merk/nieuw`. **18 van de 50.**
+
+#### 8.12.3 De mobiele ontwerpregels
+
+Wat er op de telefoon anders is dan op de computer, als lijst.
+
+| | Desktop | Telefoon |
+|---|---|---|
+| Navigatie | Zijbalk 240px, hoofdstukken, 20 bestemmingen zichtbaar | **Balk onderaan** met 5 bestemmingen, de rest in een blad |
+| Bovenbalk | 48px, woordmerk plus merkkiezer plus 4 knoppen | **52px**, terugknop plus schermtitel plus 1 knop |
+| Aanraakvlak | 32px is genoeg voor een aanwijzer | **minimaal 44px**, altijd |
+| Knop | md (40px) als standaard | **lg (48px)** als standaard, volle breedte bij de hoofdactie |
+| Invoerveld | md (40px) | **lg (48px)**, en 16px tekst zodat iOS niet inzoomt |
+| Tabblad | onderstreept, 40px | **onderstreept, 48px**, horizontaal schuifbaar met de actieve in beeld |
+| Tabel | tot 7 kolommen | **2 kolommen, waarden gestapeld** (8.12.1) |
+| Rijdetail | lade rechts, 420px | **blad van onderen**, tot 90vh, met een sleepgreep |
+| Dialoog | gecentreerd, 520px | **blad van onderen**, volle breedte, radius alleen bovenaan |
+| Knoppenrij | naast elkaar, rechts | **onder elkaar, hoofdactie bovenaan** (GEMETEN: OKX zet `column-reverse`) |
+| Melding | rechtsboven, 451px | **bovenaan, volle breedte min 32px** |
+| Zijmarge | 24px | **16px** |
+| Kaartpadding | 24px | **16px** (GEMETEN) |
+| Formulier | alle secties onder elkaar | **stappenflow**, één sectie per scherm (groep C) |
+| Grafiek | 320px hoog, legenda ernaast | **220px hoog, legenda eronder**, aanraken in plaats van zweven |
+
+**De typografie verandert niet.** 14px blijft 14px, want kleiner lezen op een telefoon is niet
+prettiger. Alleen wat je aanraakt wordt groter.
+
+#### 8.12.4 De onderbalk
+
+Het enige echt nieuwe navigatiecomponent. Op de telefoon vervangt hij de zijbalk volledig.
+
+```
+hoogte        56px plus de veilige zone onderaan (env(safe-area-inset-bottom))
+bg            --bg-surface
+rand boven    1px --line-muted
+posities      5, gelijk verdeeld
+per positie   pictogram 22px boven een label van 10px, gewicht 500
+              rust    --text-subtle
+              actief  --text-primary, pictogram gevuld in plaats van lijn
+aanraakvlak   volledige hoogte, minimaal 56px breed
+```
+
+De vijf posities: **Overzicht**, **Zichtbaarheid**, **Plan**, **Vragen**, **Meer**. De laatste opent
+een blad met de overige bestemmingen, de merkkiezer, de standwissel en uitloggen. Voor een
+salesmedewerker verschuift de set naar **Vandaag**, **Markten**, **Prospects**, **Outreach**,
+**Meer**.
+
+#### 8.12.5 De breekpunten
+
+| Breedte | Ontwerp | Wat er gebeurt |
+|---|---|---|
+| vanaf 1440px | desktop | Stand `werken` stopt met groeien, stand `data` gebruikt alles |
+| 1270 tot 1440px | desktop | Volledige tabellen, de sparkline-kolom verschijnt |
+| 1024 tot 1270px | desktop | Zijbalk blijft, tabellen laten de drie minst belangrijke kolommen vallen |
+| 768 tot 1024px | **tussenstand** | Zijbalk wordt ingeklapt (56px, alleen pictogrammen), tabellen houden 4 kolommen, dialogen blijven gecentreerd |
+| onder 768px | **mobiel** | Het volledige mobiele ontwerp uit 8.12.3 |
+
+**De grens ligt op 768px en er is er maar één.** Eén grens in plaats van vier is een bewuste keuze:
+twee ontwerpen die elk goed zijn, met één duidelijke overgang, is te bouwen en te testen. Vier
+tussenstanden zijn dat niet.
+
+De tussenstand tussen 768 en 1024 is geen derde ontwerp maar de desktopversie met de zijbalk
+ingeklapt. Dat dekt de tablet in staande stand.
+
+#### 8.12.6 Hoe dit technisch werkt
+
+Drie niveaus, van goedkoop naar duur. De regel is: pak altijd het goedkoopste niveau dat het
+probleem oplost.
+
+**Niveau 1, responsieve utilities.** Tailwind zoals nu. Dekt marges, paddings, kolomaantallen,
+knopmaten, alles waar de structuur gelijk blijft. Dit dekt naar schatting 70% van het werk en kost
+niets extra.
+
+**Niveau 2, containerqueries.** Tailwind v4 heeft `@container`. Een component kijkt naar de ruimte
+die hij krijgt in plaats van naar het scherm. Nodig voor een kaart die zowel in een kolom van 320px
+als over de volle breedte moet werken, en die zijn er in de analytics.
+
+**Niveau 3, een andere render.** Voor de drie gevallen waar de structuur echt verschilt: de tabel,
+de navigatie en de stappenflow van groep C. Hier komen twee componenten naast elkaar, net als bij
+OKX.
+
+Voor niveau 3 is de vraag: hoe weet de server of het een telefoon is. Er zijn drie manieren en de
+keuze is niet vrijblijvend.
+
+| Manier | Hoe | Waarom wel of niet |
+|---|---|---|
+| Allebei renderen, één verbergen | `hidden md:block` | **Nee.** Een tabel met 200 rijen staat dan twee keer in de HTML. Dat is precies het gewicht dat een telefoon niet heeft. |
+| In de browser meten | `useIsMobile()` | **Nee.** Dit is een RSC-first app. Een client-hook geeft eerst de verkeerde versie en dan een sprong, en de tabel moet dan client-side. |
+| Op de server aan de useragent | middleware zet een header | **Ja.** Dit is wat OKX doet, en `middleware.ts` draait hier al op elke pagina. |
+
+De uitvoering is klein:
+
+```ts
+// middleware.ts, bij de bestaande updateSession
+const { device } = userAgent(request);
+const response = await updateSession(request);
+response.headers.set("x-apparaat", device.type === "mobile" ? "telefoon" : "computer");
+```
+
+```ts
+// lib/apparaat.ts
+export async function isTelefoon() {
+  return (await headers()).get("x-apparaat") === "telefoon";
+}
+```
+
+**Drie dingen om te weten voordat dit gebouwd wordt:**
+
+1. **Dit kost geen extra netwerkronde.** De middleware draait al op elke pagina voor de sessie, en
+   de useragent staat al in het verzoek.
+2. **Het raakt de caching niet, op één plek na.** Elke ingelogde pagina is toch al dynamisch, want
+   ze leest de sessiecookie. De uitzondering is `/markt/[slug]`, de enige publieke pagina: die moet
+   `Vary: x-apparaat` krijgen of hij serveert de verkeerde versie uit de cache. Dat is een
+   regel in de route en het staat als eigen stap in 10.2.
+3. **De useragent is een gok en soms de verkeerde.** Een tablet met een desktop-useragent krijgt het
+   desktopontwerp, en dat is bij 768px breed verkeerd. Vangnet: de CSS-breekpunten uit 8.12.5 gelden
+   altijd, ook als de server zich vergist. De server kiest alleen welke van de twee structuren er
+   komt, en de CSS zorgt dat allebei op elke breedte leesbaar blijven. Zo is een verkeerde gok
+   lelijk en nooit kapot.
+
+#### 8.12.7 Wat dit extra kost
+
+Eerlijk, want dit was de vraag.
+
+| Onderdeel | Extra werk |
 |---|---|
-| vanaf 1440px | Stand `werken` stopt met groeien. Stand `data` gebruikt alles. |
-| 1270 tot 1440px | Volledige tabellen. De sparkline-kolom verschijnt. |
-| 1024 tot 1270px | Zijbalk blijft. Tabellen laten de drie minst belangrijke kolommen vallen. Kaartrasters gaan van 4 naar 2 kolommen. |
-| 768 tot 1024px | Zijbalk wordt een lade. Inhoud volle breedte min 20px. Twee kolommen worden één. |
-| 640 tot 768px | Tabellen worden kaartrijen. Dialogen worden bladen van onderen. |
-| onder 640px | Alles één kolom, 16px marge. Knoppenrijen worden kolommen. |
+| Onderbalk plus "Meer"-blad | 2 nieuwe componenten |
+| Mobiele bovenbalk | Variant op `workspace-chrome` |
+| Tabel met 2 kolommen | 1 component, dekt alle 19 schermen van groep B |
+| Rijdetail als blad | Variant op `Drawer` (7.14) |
+| Stappenflow formulier | 1 component, dekt de 18 schermen van groep C |
+| Apparaatdetectie | `middleware.ts` plus `lib/apparaat.ts`, ongeveer 20 regels |
+| Per scherm nalopen | 50 routes, ongeveer 20 met echt eigen mobiel werk |
 
-Zie §13.2 voor de vraag of er onder een bepaalde breedte helemaal niets meer getoond moet worden.
+**Zes nieuwe componenten en ongeveer 20 schermen met eigen mobiel werk.** Dat is grofweg een derde
+bovenop het oorspronkelijke plan. Het goede nieuws is dat het geconcentreerd zit: de tabel en de
+stappenflow dekken samen 37 van de 50 schermen met twee componenten.
+
 
 ---
 
@@ -1751,33 +1990,78 @@ De belangrijkste asymmetrie: **het accent is in de lichte stand geen limoen maar
 
 Geen enkele nieuwe dependency behalve het lettertype, en dat is een Google Font via `next/font`.
 
-### 10.2 De volgorde
+### 10.2 De elf stappen
 
 `CLAUDE.md` schrijft voor: migratie eerst, dan code, dan UI. Er is hier geen migratie, dus de
-volgorde wordt: tokens, klassen, componenten, schermen.
+volgorde is: tokens, klassen, componenten, opmaak, schermen. Elke stap is een eigen tak vanaf
+`main`, gaat groen naar productie, en is op zichzelf terug te draaien (§13.3).
 
-**Stap 1, de tokenlaag.** `app/globals.css` regel 45 tot 900 wordt vervangen. Eén commit. Na deze
-stap is de app lelijk maar functioneel: alles draait op de nieuwe kleuren, met de oude vormen.
-Dit is het moment om de standen naast elkaar te zetten.
+**De stappen staan zo op volgorde dat het zichtbare resultaat vroeg komt.** Na stap 4 is het hele
+skelet om en zijn de 117 kaarten meegegaan, zonder dat er één scherm is aangeraakt.
+
+| # | Stap | Omvang | Wat je daarna ziet |
+|---|---|---|---|
+| 1 | Tokenlaag | 1 bestand, ~400 regels | Alle kleuren om, oude vormen |
+| 2 | Componentklassen | 1 bestand, ~900 regels | Kaarten, knoppen, chips, velden om |
+| 3 | Nieuwe desktopcomponenten | 5 bestanden | Tabs, SelectionChip, Drawer, DataCard, Segment |
+| 4 | Desktopopmaak | 2 bestanden | Bovenbalk 48px, nieuwe zijbalk, drie standen |
+| 5 | Apparaatdetectie | ~20 regels | Niets zichtbaars, het fundament voor 6 en 7 |
+| 6 | Mobiele opmaak | 3 bestanden | Onderbalk, "Meer"-blad, mobiele bovenbalk |
+| 7 | Mobiele patronen | 3 bestanden | Tabel met 2 kolommen, detailblad, stappenflow |
+| 8 | Inlogroute | 6 bestanden | Beide ontwerpen, en §9b-uitzondering weg |
+| 9 | Typografie-opruiming | 1 bestand plus ~200 wijzigingen | De schaal klopt overal |
+| 10 | De schermen | 50 routes, ~20 met echt werk | Het lange stuk |
+| 11 | Documentatie | 4 bestanden | `designsystem.md` herschreven |
+
+**Stap 1, de tokenlaag.** `app/globals.css` regel 45 tot 900 vervangen. Na deze stap is de app
+lelijk maar volledig functioneel: nieuwe kleuren, oude vormen. Dit is het eerste moment om de twee
+standen naast elkaar te zetten.
 
 **Stap 2, de componentklassen.** De 59 klassen krijgen de waarden uit §7. Grootste effect per
-regel: `.card` (117 bestanden), `.chip` (68), `.btn-*` (53), `.field` (48), `.mono-label` (126).
-Eén commit per klassengroep, zodat een fout terug te draaien is.
+regel: `.card` (117 bestanden), `.mono-label` (126), `.chip` (68), `.btn-*` (53), `.field` (48).
+Eén commit per klassengroep. **Dit is het belangrijkste kijkmoment van het hele traject**, want
+hierna is het uiterlijk in grote lijnen beslist.
 
-**Stap 3, de nieuwe componenten.** Wat er nog niet is: `Tabs`, `SelectionChip`, `Drawer`,
-`DataCard`, `Segment`. Elk een eigen bestand in `components/`, elk met de staten uit §7.
+**Stap 3, de nieuwe desktopcomponenten.** `Tabs` (7.6), `SelectionChip` (7.8), `Drawer` (7.14),
+`DataCard` (7.10), `Segment` (7.6). Elk met alle staten, want een component zonder zijn staten is
+het werk waard om twee keer te doen.
 
-**Stap 4, de opmaak.** `workspace-chrome.tsx` (bovenbalk 48px, drie standen), `sidebar.tsx`
-(nieuwe actieve staat, nieuwe kophiërarchie). Twee bestanden, groot effect.
+**Stap 4, de desktopopmaak.** `workspace-chrome.tsx` en `sidebar.tsx`. Twee bestanden, en ze zitten
+onder elk scherm.
 
-**Stap 5, de inlogroute.** Vijf schermen, afgesloten geheel, en het heft de uitzondering uit §9b op.
+**Stap 5, de apparaatdetectie.** `middleware.ts` plus `lib/apparaat.ts` (8.12.6). Los van stap 6 en
+7 omdat het apart te controleren is: een header zetten en uitlezen is te testen zonder dat er één
+pixel verandert. Hier hoort ook de `Vary`-regel op `/markt/[slug]`.
 
-**Stap 6, de schermen.** 58 routes. Dit is het lange stuk. Volgorde op gebruik: merkoverzicht,
-analytics, strategie, sales, admin, de rest.
+**Stap 6, de mobiele opmaak.** De onderbalk (8.12.4), het "Meer"-blad, de mobiele bovenbalk. Na deze
+stap is de app op een telefoon te navigeren zoals bedoeld, ook al zien de schermen er nog
+desktopachtig uit.
 
-**Stap 7, de typografie-opruiming.** Zie 10.4. Kan parallel aan stap 6.
+**Stap 7, de mobiele patronen.** De drie componenten die 37 van de 50 schermen dekken: de tabel met
+twee kolommen (groep B), het detailblad, de stappenflow (groep C).
 
-**Stap 8, documentatie.** Zie 10.6.
+**Stap 8, de inlogroute.** Vijf schermen, afgesloten geheel, meteen in beide ontwerpen. Het heft de
+uitzondering uit `docs/designsystem.md` §9b op, want de inlogroute gebruikt daarna dezelfde
+componenten als de rest.
+
+**Stap 9, de typografie-opruiming.** Zie 10.4. Kan parallel aan stap 10.
+
+**Stap 10, de schermen.** 50 routes, per groep uit 8.12.2. Volgorde op gebruik: merkoverzicht,
+analytics, strategie, sales, admin, de rest. Dit is de lange staart en hij is in porties te doen.
+
+**Stap 11, documentatie.** Zie 10.6.
+
+**Waar de stappen van elkaar afhangen:**
+
+```
+1 → 2 → 3 → 4 ──┐
+                ├→ 8 → 10 → 11
+    5 → 6 → 7 ──┘
+                9  (kan vanaf stap 2, parallel)
+```
+
+Stap 5 kan al beginnen zodra stap 1 klaar is; hij raakt de vormgeving niet. Stap 9 kan parallel
+vanaf stap 2. De rest is een ketting.
 
 ### 10.3 De componentklassen na de wijziging
 
@@ -1864,7 +2148,7 @@ token dat zijn betekenis houdt, en `growth` naar `trend-up` maakt expliciet wat 
 | Document | Wat ermee gebeurt |
 |---|---|
 | `docs/designsystem.md` | **Wordt herschreven.** Het blijft de eigenaar van het design system. De inhoud van §2 tot §10 wordt vervangen door wat hier in §5 tot §7 staat. |
-| `docs/designsystem.md` §9b | **Wordt herschreven, niet geschrapt.** De vraag verandert van "dit is van de concurrent" naar "dit is van OKX, en dat is geen concurrent". De uitkomst van §13.1 hoort hier. |
+| `docs/designsystem.md` §9b | **Wordt herschreven, niet geschrapt.** De vraag verandert van "dit is van de concurrent" naar "dit is van OKX, en dat is geen concurrent". De uitkomst van §13.1 hoort hier: limoen is overgenomen en de eigen merklaag blijft open. |
 | `docs/designsystem.md` §9 ("wat we van Nova overnamen") | **Wordt bijlage.** Historisch, net als bijlage A over inspace.io. |
 | `docs/logbook.md` | **Alinea onderaan** met datum en cijfer, per `CLAUDE.md`. |
 | `docs/merkstrategie.md` §15, §16 | **Nakijken.** §15.4 verbiedt de neonpaarse AI-gloed; die verdwijnt, dus dat komt goed uit. §16.2 vraagt om functionele kleurhiërarchie, en dat is precies wat §5.1.5 levert. |
@@ -1875,21 +2159,29 @@ token dat zijn betekenis houdt, en `growth` naar `trend-up` maakt expliciet wat 
 
 ### 10.7 Wat dit kost
 
-Een schatting, geen belofte.
+Een schatting, geen belofte. Het mobiele spoor (stap 5 tot 7) is de toevoeging van 17 september; het
+zat niet in de eerste versie van dit plan.
 
-| Stap | Omvang |
-|---|---|
-| 1. Tokenlaag | 1 bestand, ongeveer 400 regels |
-| 2. Componentklassen | 1 bestand, ongeveer 900 regels |
-| 3. Nieuwe componenten | 5 bestanden |
-| 4. Opmaak | 2 bestanden |
-| 5. Inlogroute | 6 bestanden |
-| 6. Schermen | 50 routes, waarvan ongeveer 15 echt werk |
-| 7. Typografie | 1 bestand plus ongeveer 200 gerichte wijzigingen |
-| 8. Documentatie | 4 bestanden |
+| # | Stap | Omvang | Spoor |
+|---|---|---|---|
+| 1 | Tokenlaag | 1 bestand, ~400 regels | beide |
+| 2 | Componentklassen | 1 bestand, ~900 regels | beide |
+| 3 | Nieuwe desktopcomponenten | 5 bestanden | desktop |
+| 4 | Desktopopmaak | 2 bestanden | desktop |
+| 5 | Apparaatdetectie | ~20 regels in 2 bestanden | mobiel |
+| 6 | Mobiele opmaak | 3 bestanden | mobiel |
+| 7 | Mobiele patronen | 3 bestanden | mobiel |
+| 8 | Inlogroute | 6 bestanden | beide |
+| 9 | Typografie | 1 bestand plus ~200 wijzigingen | beide |
+| 10 | De schermen | 50 routes, ~20 met echt werk | beide |
+| 11 | Documentatie | 4 bestanden | beide |
 
-Stap 1 tot 5 samen zijn ongeveer 15 bestanden en leveren het grootste deel van het zichtbare
-resultaat. Stap 6 is de lange staart.
+**Stap 1 tot 8 zijn samen ongeveer 23 bestanden** en leveren het grootste deel van het zichtbare
+resultaat, op beide apparaten. Stap 10 is de lange staart.
+
+Het mobiele spoor voegt zes componenten toe en ongeveer een derde aan totale omvang. Dat is minder
+dan het klinkt omdat het geconcentreerd zit: **twee componenten (de tabel met twee kolommen en de
+stappenflow) dekken 37 van de 50 schermen.**
 
 ---
 
@@ -1928,6 +2220,8 @@ Nieuw, en het vangt de fout die `globals.css` zelf als waarschuwing opschrijft. 
    handmatig gelijkgehouden lijsten van 100 regels.
 3. Geen enkele `.tsx` bevat een letterlijke hexkleur. Geteld vóór de wijziging, en dat aantal mag
    alleen dalen.
+4. Geen `user-scalable=no` en geen `maximum-scale` in de viewport-meta. OKX heeft dat wel en het is
+   de ene fout uit hun mobiele opzet die niet mee mag komen (8.12.1).
 
 Punt 2 is de moeite waard: twee blokken die met de hand gelijk worden gehouden gaan een keer uit
 elkaar lopen, en dat merkt niemand tot iemand zijn stand handmatig zet.
@@ -1977,6 +2271,17 @@ Eerlijk: of dit werkt is niet uit een test af te lezen. Wat wel kan, op een Verc
 - 1280, 1440, 1920 en 2560 pixels breed, want daar gaat deze opdracht over.
 - De inlogroute, want dat is in de sales-led opzet vaak het eerste beeld in een demogesprek.
 
+**En voor het mobiele spoor er apart bij:**
+
+- 390 pixels breed (iPhone) en 360 (Android), in beide standen.
+- Een tabel van groep B naast dezelfde tabel op de computer, om te zien of de vier gekozen gegevens
+  de juiste vier zijn. Dat is een ontwerpvraag en geen testvraag, dus hij hoort bekeken te worden.
+- Een formulier van groep C als stappenflow, helemaal doorlopen tot en met opslaan.
+- Een tablet in staande stand (768 tot 1024px), want dat is de tussenstand en dus de smalste
+  marge voor fouten.
+- Eén test met een verkeerde gok van de apparaatdetectie: een telefoon met een desktop-useragent.
+  Het resultaat mag lelijk zijn en moet werken (8.12.6).
+
 ---
 
 ## 12. Interne controle
@@ -1990,8 +2295,10 @@ De opdracht vraagt hierom vóór oplevering. Uitgevoerd, met de uitkomst erbij.
 | Alle gevraagde tokencategorieën? | Kleur, typografie, ruimte, radius, rand, schaduw, pictogram, beweging, opmaak. Alle negen in §5. |
 | OKX-analyse verifieerbaar? | Ja, 1.135.435 bytes CSS plus het fontbestand, en per waarde staat er GEMETEN, BEREKEND of AFGELEID bij. |
 | Aangeleverde research gecontroleerd? | Ja, §4. 13 beweringen van Gemini en 15 van ChatGPT nagerekend. |
-| Responsieve strategie? | §8.12, met desktop als uitgangspunt zoals gevraagd. |
-| Migratiestrategie? | §10.2, acht stappen. |
+| Responsieve strategie? | §8.12, herschreven op 17 september naar twee ontwerpen naast elkaar. Het OKX-patroon erachter is gemeten (7 kolommen tegen 2), niet aangenomen. |
+| Mobiel ontwerp compleet? | Navigatie (8.12.4), tabel, detailblad, stappenflow, plus mobiele varianten bij Button, Input, Table, Drawer, Modal, Toast en Sidebar in §7. |
+| Technisch haalbaar op RSC? | §8.12.6. Drie manieren afgewogen, de gekozen manier gebruikt de middleware die er al draait. |
+| Migratiestrategie? | §10.2, elf stappen met hun onderlinge afhankelijkheden. |
 | Lichte stand? | Bestaat bij OKX volledig, dus overgenomen en niet verzonnen (§9.4). |
 | Wordt de Nova-look onherkenbaar? | §1.4 heeft negen kenmerken, alle negen vervangen. Grond, vorm, kleur, dichtheid en typografie gaan alle vijf om. |
 
@@ -2006,64 +2313,98 @@ De opdracht vraagt hierom vóór oplevering. Uitgevoerd, met de uitkomst erbij.
 
 ---
 
-## 13. Wat de eigenaar moet beslissen
+## 13. De drie besluiten, genomen
 
-Drie keuzes. Bij alle drie staat een aanbeveling, zodat "ga door" een geldig antwoord is.
+Vastgelegd door de eigenaar op 17 september 2026. Ze stonden open in de eerste versie van dit
+document; hier staat wat er besloten is en wat het betekent.
 
-### 13.1 De accentkleur
+### 13.1 De accentkleur: limoen, letterlijk
 
-De opdracht zegt: neem OKX zo letterlijk mogelijk over. Voor alles in dit document is dat gedaan.
-Bij deze ene kleur is het goed om de keuze bewust te maken, want limoen `#bcff2f` is niet een
-patroon maar OKX' eigen merkkleur, en hij komt onder het woordmerk ORBIT ENGINE te staan.
+**Besluit: `#bcff2f` wordt overgenomen zoals hij bij OKX is.**
 
-**Optie A, limoen `#bcff2f`.** Maximale gelijkenis, precies wat er gevraagd is. Het is één token en
-hij werkt: 15,8:1 op zwart, en in de lichte stand valt hij terug op donkergroen zoals OKX zelf doet.
+Dat betekent concreet:
 
-**Optie B, een eigen accent in dezelfde rol.** Alles uit dit document blijft staan behalve zes
-waarden. De rol is wat telt: één kleur met hoge chroma, op minder dan 1% van het oppervlak, alleen
-voor de primaire actie, de actieve staat en de eigen merklijn in een grafiek. Het bestaande groen
-`#37941c` past in die rol, of iets nieuws.
+```
+donker   --accent: #bcff2f    --accent-hover: #9ce207    --accent-pressed: #87c600
+licht    --accent: #2b6d17    --accent-hover: #225812    --accent-pressed: #18400c
+beide    --accent-highlight: #bcff2f   met #000000 als tekstkleur erop
+```
 
-**Aanbeveling: A.** De opdracht is expliciet, OKX is geen concurrent van dit product, en het is één
-token dat later te wisselen is zonder dat er een component aan verandert. Het enige wat pleit voor B
-is dat `docs/designsystem.md` §9b in augustus zelf om een eigen merklaag vroeg en dat die vraag met A
-open blijft staan. Dat is een merkbeslissing en geen ontwerpbeslissing, en die is aan de eigenaar.
+De lichte stand is geen afwijking maar hun eigen oplossing: limoen op wit haalt 1,2:1 en is
+onleesbaar, dus daar staat donkergroen. Limoen blijft in de lichte stand alleen bestaan als vlak
+waar zwarte tekst op komt.
 
-### 13.2 Mobiel
+**Waar het accent wél komt**, en nergens anders:
 
-De opdracht noemt de gedachte om de app op smartphones helemaal niet meer aan te bieden.
+- De primaire actie op een scherm, hooguit één per scherm
+- De actieve staat in de navigatie (als streep, niet als vulling)
+- De eigen merklijn in een grafiek (`--chart-1`)
+- De linkerrand van een AI-advies (7.23)
+- Het label "kans" in de concurrentenanalyse (zie 10.5)
 
-**Optie A, blokkeren onder 768px.** Een scherm met "ORBIT ENGINE werkt op een computer". Scheelt
-al het werk in §8.12 onder 768px, ongeveer een vijfde van de opmaakinspanning.
+**Waar het accent niet komt:** niet op koppen, niet op links in lopende tekst, niet als achtergrond
+van een sectie, niet op meer dan ongeveer 1% van het zichtbare oppervlak. Dat percentage is geen
+vuistregel uit een researchstuk maar wat de gemeten CSS van OKX laat zien, en het is de reden dat
+de kleur werkt.
 
-**Optie B, werkend houden zoals nu.** Volledig responsief tot 375px, zoals §8.12 beschrijft.
+**Wat hiermee open blijft:** `docs/designsystem.md` §9b vroeg in augustus om een eigen merklaag van
+Outer Orbit. Dit besluit beantwoordt die vraag niet, het stelt hem uit. Dat is met open ogen
+gebeurd, net als in augustus, en §10.6 zorgt dat §9b dat eerlijk blijft opschrijven in plaats van
+dat het opnieuw insluipt.
 
-**Optie C, alles behalve de inlogroute.** De app blokkeert onder 768px, maar inloggen,
-wachtwoord herstellen en een uitnodiging aannemen werken wel op een telefoon.
+### 13.2 Mobiel: een eigen ontwerp, niet blokkeren
 
-**Aanbeveling: C.** Blokkeren is verdedigbaar voor een dataschermenapp, maar een uitnodiging komt
-per mail binnen en die opent iemand op zijn telefoon. Als dat niet werkt, kan iemand zijn account
-niet aanmaken, en in een sales-led opzet is dat precies de verkeerde plek om te blokkeren. B kost
-werk voor schermen die vrijwel niemand op een telefoon opent.
+**Besluit: de app blijft volledig beschikbaar op de telefoon, en mobiel krijgt een eigen ontwerp.**
 
-**Let op: dit is de enige keuze die de omvang van het werk echt verandert.** Bij C hoeft §8.12
-onder 768px alleen voor vijf inlogschermen te kloppen in plaats van voor 50 routes.
+De eerste versie van dit document stelde voor om onder 768px te blokkeren. Dat voorstel is
+ingetrokken. Het uitgangspunt is nu:
 
-### 13.3 De volgorde van oplevering
+> Desktop wordt ontworpen zonder één concessie aan mobiel. Mobiel krijgt een eigen ontwerp waar het
+> desktoppatroon niet overzet. Geen van beide is een geschaalde versie van de ander.
 
-**Optie A, alles in één keer.** Eén tak, één samenvoeging, de app gaat in één keer om. Geen periode
-waarin de helft nieuw is en de helft oud.
+§8.12 is daar helemaal op herschreven en is nu het langste hoofdstuk van dit plan. De kern:
 
-**Optie B, per stap naar productie.** Stap 1 tot 5 eerst (tokens, klassen, componenten, opmaak,
-inlog), dan de schermen in porties.
+- OKX doet dit zelf al, en het is gemeten: 7 kolommen op de computer, 2 op de telefoon, met de
+  weggelaten gegevens niet verborgen maar niet gerenderd (8.12.1).
+- De 50 schermen vallen in drie groepen met elk een eigen aanpak: 13 schermen zijn op allebei
+  gelijk, 19 krijgen minder gegevens met diepte achter een tik, 18 krijgen op de telefoon een
+  stappenflow in plaats van een lang formulier (8.12.2).
+- Eén breekpunt op 768px, niet vier, zodat er twee ontwerpen te bouwen en te testen zijn in plaats
+  van vijf halve (8.12.5).
+- De server kiest de structuur via de useragent, precies zoals OKX, met de CSS-breekpunten als
+  vangnet voor als die gok fout is (8.12.6).
 
-**Aanbeveling: B.** Na stap 5 is al het zichtbare skelet om en de 117 kaarten en 68 chips zijn
-automatisch meegegaan. De resterende schermen zien er dan al grotendeels goed uit, want ze gebruiken
-diezelfde klassen. Dat is een veel kleiner risico dan één samenvoeging van 250 bestanden, en het
-levert eerder iets op om naar te kijken. Bovendien is het de enige variant waarbij "het is toch niet
-wat ik bedoelde" nog betaalbaar is.
+**Wat het kost:** zes nieuwe componenten en ongeveer 20 schermen met eigen mobiel werk, grofweg een
+derde bovenop het oorspronkelijke plan (8.12.7).
 
----
+**Eén ding is het waard om te blijven zeggen**, want het zit in het woord "optimaal": de
+beheerformulieren van groep C worden op de telefoon een goede stappenflow, en dat is een beter
+mobiel ontwerp dan hetzelfde formulier kleiner. Het is geen kopie van de desktopervaring, en dat is
+precies de bedoeling.
+
+### 13.3 Oplevering: in stappen, elk apart naar productie
+
+**Besluit: het werk wordt in stappen uitgewerkt en elke stap gaat apart naar productie.**
+
+"Oplevering" betekende in de eerste versie: hoe komt dit in productie, want `main` is productie op
+Vercel. Er waren twee kanten, en het besluit dekt ze allebei:
+
+- **Het werk wordt in stappen uitgewerkt**, zodat elke stap op zichzelf na te kijken is.
+- **Elke stap gaat apart naar productie**, zodat een fout klein blijft en terug te draaien is.
+
+De elf stappen staan in §10.2. Wat dat betekent voor het ritme:
+
+| | |
+|---|---|
+| Takken | Eén tak per stap, vanaf `main`, samengevoegd zodra hij groen is |
+| Per stap groen | `tsc --noEmit`, `test:unit`, `test:chain`, `build`, alle vier |
+| Per stap zichtbaar | Een Vercel-preview vóór de samenvoeging |
+| Terugdraaien | Eén samenvoeging terug, want de stappen zijn onafhankelijk |
+
+**Waarom dit belangrijker is dan het klinkt:** na stap 2 zijn de 117 kaarten, 68 chips en 53 knoppen
+al om, zonder dat er één scherm is aangeraakt. Dat is het moment om te kijken of dit is wat je
+bedoelde, en dat moment komt vroeg. Zou het één samenvoeging van 250 bestanden zijn, dan kwam dat
+moment pas aan het eind, en dan is "dit is toch niet wat ik bedoelde" een dure zin.
 
 ## 14. Bronnen
 
@@ -2080,7 +2421,7 @@ Opgehaald 17 september 2026.
 **Vergelijkingsletters**, alle acht opgehaald en gemeten: Archivo, Figtree, Geist, Instrument Sans,
 Inter, Manrope, Plus Jakarta Sans, Public Sans.
 
-**ORBIT ENGINE:** `app/globals.css`, `components/` (62 bestanden), `app/` (58 routes),
+**ORBIT ENGINE:** `app/globals.css`, `components/` (60 tsx), `app/` (50 paginaroutes),
 `docs/designsystem.md`, `docs/merkstrategie.md`, `docs/schrijfstijl.md`, `CLAUDE.md`.
 
 **Aangeleverd:** de Gemini-research en de ChatGPT-research uit de opdracht, nagerekend in §4.
