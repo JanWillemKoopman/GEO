@@ -9103,6 +9103,28 @@ exportroute, de Analytics-grafieken en de content-pagina zelf.
 Getest: `tsc --noEmit`, `test:unit` (4858 geslaagd), `test:chain` (659 geslaagd) en `build` zijn
 alle vier groen. Geen migratie: dit raakt alleen schermen en leesqueries.
 
+## 16 september 2026: de letterlijke antwoorden terug, nu op Analytics
+
+Direct vervolg op het vorige stuk: het cluster toont geen letterlijke antwoorden meer, en die
+hadden nog geen nieuwe plek. `lib/pipeline/answers.ts` (`loadAnswers()`) is ongewijzigd
+teruggezet en krijgt nu één aanroeper: nieuwe route `GET /api/analyses/[id]/answers`, met dezelfde
+eigenaarscontrole als `costs/route.ts` (`getOwnedAnalysis()`), maar zonder het staff-only-slot dat
+die route heeft, dit is precies de content die de klant al zag toen hij nog op het cluster stond.
+
+Het detailpaneel van Analytics → Zichtbaarheid (Z8, `analytics-cluster-table.tsx`) haalt de
+antwoorden nu pas op zodra iemand een cluster aanklikt (nieuwe client component
+`components/cluster-answers.tsx`), niet vooraf voor alle clusters tegelijk: `raw_response` kan
+enkele duizenden tekens per vraag zijn, en dat voor tien clusters vooraf meesturen zou de pagina
+onnodig zwaar maken voor een paneel dat niemand hoeft te openen. Elke vraag staat dichtgeklapt
+achter een `<details>`, met de eigen merknaam gemarkeerd via het bestaande
+`components/highlighted-text.tsx`.
+
+`docs/tasks/analytics-herontwerp.md` is bijgewerkt: het punt dat gisteren nog openstond, is vandaag
+al gesloten.
+
+Getest: `tsc --noEmit`, `test:unit` (4858 geslaagd), `test:chain` (659 geslaagd) en `build` zijn
+alle vier groen. Geen migratie.
+
 ## 16 september 2026: Zoekdata in de keten, A0 en blok A
 
 Start van `docs/tasks/zoekdata-in-de-keten.md`: Search Console en DataForSEO van meetlaag naar
