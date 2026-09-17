@@ -69,7 +69,7 @@ export function ActivationForm({
           willekeurig adres een account te openen. */}
       <div className="flex flex-col gap-1.5">
         <span className="mono-label">Je e-mailadres</span>
-        <div className="flex flex-wrap items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-3 py-2">
           <span className="break-url text-sm font-medium">{email}</span>
           <span className="chip chip-success shrink-0">bevestigd</span>
         </div>

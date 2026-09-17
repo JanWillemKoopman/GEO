@@ -139,7 +139,7 @@ export default async function SalesOpportunitiesPage() {
             <article key={kans.id} className="card flex flex-col gap-2">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <div className="flex flex-wrap items-baseline gap-2">
-                  <h2 className="font-semibold">
+                  <h2 className="font-medium">
                     {kans.sales_companies?.name ?? "Onbekend bedrijf"}
                   </h2>
                   <span className="mono-label">

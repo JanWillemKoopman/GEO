@@ -70,7 +70,7 @@ export function OnbekendeNamen({
   return (
     <section className="card flex flex-col gap-4">
       <div>
-        <h2 className="text-lg font-semibold">Genoemd, maar niet in onze lijst</h2>
+        <h2 className="text-lg font-medium">Genoemd, maar niet in onze lijst</h2>
         <p className="mt-1 text-secondary">
           De AI noemde deze partijen in de antwoorden over deze markt. Dat betekent één van twee
           dingen: onze lijst mist een bedrijf, of het is een merk of een vergelijkingssite. Wie

@@ -32,7 +32,7 @@ export function AnalysisCardMetrics({ metrics }: { metrics: Metrics }) {
 function Metric({ value, label }: { value: string; label: string }) {
   return (
     <span className="mono-label" style={{ fontSize: "0.65rem" }}>
-      <span className="font-semibold" style={{ color: "var(--text-primary)" }}>
+      <span className="font-medium" style={{ color: "var(--text-primary)" }}>
         {value}
       </span>{" "}
       {label}

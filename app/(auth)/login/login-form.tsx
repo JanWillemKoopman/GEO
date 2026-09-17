@@ -87,7 +87,7 @@ export function LoginForm({
             type="button"
             onClick={() => setWachtwoordZichtbaar((zichtbaar) => !zichtbaar)}
             aria-label={wachtwoordZichtbaar ? "Wachtwoord verbergen" : "Wachtwoord tonen"}
-            className="absolute right-2.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-[var(--radius-sm)] text-muted transition-colors hover:text-[var(--text-primary)]"
+            className="absolute right-2.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-[var(--radius-lg)] text-muted transition-colors hover:text-[var(--text-primary)]"
           >
             {wachtwoordZichtbaar ? (
               <EyeOff size={17} strokeWidth={1.75} aria-hidden="true" />
@@ -129,7 +129,7 @@ export function LoginFooter({ signupsEnabled }: { signupsEnabled: boolean }) {
           Nog geen account?{" "}
           <Link
             href="/register"
-            className="font-semibold text-[var(--text-primary)] underline underline-offset-2 hover:text-[var(--text-secondary)]"
+            className="font-medium text-[var(--text-primary)] underline underline-offset-2 hover:text-[var(--text-secondary)]"
           >
             Registreren
           </Link>

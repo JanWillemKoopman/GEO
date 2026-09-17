@@ -154,7 +154,7 @@ export function OpportunitiesBlock({
         (restHref ? (
           <Link
             href={restHref}
-            className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold hover:underline"
+            className="inline-flex w-fit items-center gap-1.5 text-sm font-medium hover:underline"
           >
             Bekijk de {rest === 1 ? "laatste kans" : `${rest} overige kansen`}
             <Icon naam="naar" size={14} />
@@ -205,7 +205,7 @@ function KansRegel({
 
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-start justify-between gap-4">
-          <span className={eerste ? "text-lg font-semibold" : "font-semibold"}>{kans.title}</span>
+          <span className={eerste ? "text-lg font-medium" : "font-medium"}>{kans.title}</span>
           {/* Rechts één kolom met wat de kansen onderling vergelijkbaar maakt.
               De chip staat er alleen bij als de potentiescore in deze lijst
               daadwerkelijk uiteenloopt, en dan neutraal: een gat dat te winnen
@@ -256,14 +256,14 @@ function KansRegel({
               // hoofdacties.
               <Link
                 href={kans.href}
-                className="inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"
+                className="inline-flex items-center gap-1.5 text-sm font-medium hover:underline"
               >
                 {kans.action}
                 <Icon naam="naar" size={14} />
               </Link>
             )
           ) : (
-            <span className="text-sm font-semibold">{kans.action}</span>
+            <span className="text-sm font-medium">{kans.action}</span>
           )}
         </span>
       </div>

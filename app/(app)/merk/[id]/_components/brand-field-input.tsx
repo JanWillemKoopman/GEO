@@ -82,7 +82,7 @@ export function BrandFieldInput({
             ja-nee-veld renderen geen element met `id={id}` waar `htmlFor` naar
             kan wijzen. `Standen` verwijst met `aria-labelledby` naar dit
             label-id, niet naar `id` zelf. */}
-        <label htmlFor={id} id={labelId(id)} className="text-sm font-semibold">
+        <label htmlFor={id} id={labelId(id)} className="text-sm font-medium">
           {field.label}
         </label>
         <span className="flex flex-wrap items-center gap-2">
@@ -280,7 +280,7 @@ function PersonaEditor({
       {items.map((persona, i) => (
         <div
           key={i}
-          className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3"
+          className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3"
         >
           <input
             className="field"
@@ -398,7 +398,7 @@ function Standen({
             role="radio"
             aria-checked={actief}
             onClick={() => (actief ? onClear() : onChange(n))}
-            className="rounded-[var(--radius-md)] border px-3 py-2 text-sm transition-colors"
+            className="rounded-[var(--radius-xl)] border px-3 py-2 text-sm transition-colors"
             style={{
               borderColor: actief
                 ? "var(--intent-intelligence-border)"

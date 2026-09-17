@@ -113,7 +113,7 @@ export default async function ProfielenPage() {
                 className="card card-interactive flex flex-wrap items-center justify-between gap-4"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-lg font-semibold">{p.name}</p>
+                  <p className="truncate text-lg font-medium">{p.name}</p>
                   <p className="mono-label break-url mt-1">
                     {p.url} · <LastUpdated at={p.updated_at} className="" />
                   </p>

@@ -86,7 +86,7 @@ export function NieuweMarkt() {
   return (
     <form onSubmit={verstuur} className="card flex flex-col gap-4">
       <div>
-        <h2 className="text-lg font-semibold">Nieuwe markt</h2>
+        <h2 className="text-lg font-medium">Nieuwe markt</h2>
         <p className="mt-1 text-secondary">
           Een branche, een plaats en de straal eromheen. Meer heeft ORBIT ENGINE niet nodig om een
           markt af te bakenen.

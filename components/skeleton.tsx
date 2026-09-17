@@ -24,7 +24,7 @@ export function ListSkeleton({ rows = 3 }: { rows?: number }) {
       </div>
       <div className="flex flex-col gap-3">
         {Array.from({ length: rows }).map((_, i) => (
-          <Skeleton key={i} className="h-[88px]" style={{ borderRadius: "var(--radius-lg)" }} />
+          <Skeleton key={i} className="h-[88px]" style={{ borderRadius: "var(--radius-xxxl)" }} />
         ))}
       </div>
     </div>
@@ -57,17 +57,17 @@ export function OverviewSkeleton() {
         <Skeleton className="h-4 w-96 max-w-full" />
       </div>
       {/* De standkaart. */}
-      <Skeleton className="h-48" style={{ borderRadius: "var(--radius-lg)" }} />
+      <Skeleton className="h-48" style={{ borderRadius: "var(--radius-xxxl)" }} />
       {/* Wat op je wacht: kop plus één regel. */}
       <div className="flex flex-col gap-3">
         <Skeleton className="h-6 w-56" />
-        <Skeleton className="h-24" style={{ borderRadius: "var(--radius-lg)" }} />
+        <Skeleton className="h-24" style={{ borderRadius: "var(--radius-xxxl)" }} />
       </div>
       {/* Waar je begint: kop, de gemarkeerde eerste kans, dan de lijst. */}
       <div className="flex flex-col gap-3">
         <Skeleton className="h-6 w-40" />
-        <Skeleton className="h-32" style={{ borderRadius: "var(--radius-lg)" }} />
-        <Skeleton className="h-64" style={{ borderRadius: "var(--radius-lg)" }} />
+        <Skeleton className="h-32" style={{ borderRadius: "var(--radius-xxxl)" }} />
+        <Skeleton className="h-64" style={{ borderRadius: "var(--radius-xxxl)" }} />
       </div>
     </div>
   );
@@ -81,7 +81,7 @@ export function ChapterSkeleton({ blocks = 2 }: { blocks?: number }) {
         <Skeleton
           key={i}
           className={i === 0 ? "h-40" : "h-56"}
-          style={{ borderRadius: "var(--radius-lg)" }}
+          style={{ borderRadius: "var(--radius-xxxl)" }}
         />
       ))}
     </div>
@@ -94,7 +94,7 @@ export function DetailSkeleton() {
     <div className="flex flex-col gap-5" aria-busy="true" aria-label="Bezig met laden">
       <Skeleton className="h-3 w-40" />
       <Skeleton className="h-8 w-2/3" />
-      <Skeleton className="h-64" style={{ borderRadius: "var(--radius-lg)" }} />
+      <Skeleton className="h-64" style={{ borderRadius: "var(--radius-xxxl)" }} />
     </div>
   );
 }
@@ -146,7 +146,7 @@ export function PageSkeleton({
         <Skeleton className="h-4 w-[28rem] max-w-full" />
       </div>
       {Array.from({ length: blocks }).map((_, i) => (
-        <Skeleton key={i} className={hoogte} style={{ borderRadius: "var(--radius-lg)" }} />
+        <Skeleton key={i} className={hoogte} style={{ borderRadius: "var(--radius-xxxl)" }} />
       ))}
     </div>
   );

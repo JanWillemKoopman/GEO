@@ -179,7 +179,7 @@ export function NewAnalysisForm({
           Staat de mail uit (EMAILS_ENABLED), dan verdwijnt het vinkje: een vakje
           aanvinken waar niets van komt, is een belofte die de app niet nakomt. */}
       {emailsEnabled && (
-        <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3">
+        <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3">
           <input
             type="checkbox"
             checked={notifyByEmail}

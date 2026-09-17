@@ -68,7 +68,7 @@ export function ClusterAnswers({ analysisId }: { analysisId: string }) {
       <span className="mono-label">Gemeten antwoorden</span>
       <ul className="flex flex-col gap-1">
         {state.rows.map((r) => (
-          <li key={r.runId} className="rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+          <li key={r.runId} className="rounded-[var(--radius-xl)] border border-[var(--border-subtle)]">
             <details>
               <summary className="flex cursor-pointer items-start gap-2 p-2 text-sm">
                 <span

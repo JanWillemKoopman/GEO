@@ -9,9 +9,9 @@ import { Skeleton } from "@/components/skeleton";
 export default function Loading() {
   return (
     <div className="flex flex-col gap-6" aria-busy="true" aria-label="Bezig met laden">
-      <Skeleton className="h-32" style={{ borderRadius: "var(--radius-lg)" }} />
-      <Skeleton className="h-48" style={{ borderRadius: "var(--radius-lg)" }} />
-      <Skeleton className="h-56" style={{ borderRadius: "var(--radius-lg)" }} />
+      <Skeleton className="h-32" style={{ borderRadius: "var(--radius-xxxl)" }} />
+      <Skeleton className="h-48" style={{ borderRadius: "var(--radius-xxxl)" }} />
+      <Skeleton className="h-56" style={{ borderRadius: "var(--radius-xxxl)" }} />
     </div>
   );
 }

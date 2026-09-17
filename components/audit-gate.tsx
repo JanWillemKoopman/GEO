@@ -44,7 +44,7 @@ export function AuditGate({
       </div>
 
       {/* role="alert" zodat een schermlezer dit aankondigt en het niet visueel-only is. */}
-      <h3 className="text-lg font-semibold" role="alert">
+      <h3 className="text-lg font-medium" role="alert">
         Je website houdt AI-assistenten buiten
       </h3>
 

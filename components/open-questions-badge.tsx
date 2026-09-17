@@ -44,7 +44,7 @@ export function OpenQuestionsBadge({
       href={href}
       title={label}
       aria-label={label}
-      className="flex items-center gap-2 rounded-[var(--radius-md)] px-2 py-1 text-sm text-secondary transition-colors hover:bg-[var(--wash-hover)] hover:text-[var(--text-primary)]"
+      className="flex items-center gap-2 rounded-[var(--radius-xl)] px-2 py-1 text-sm text-secondary transition-colors hover:bg-[var(--wash-hover)] hover:text-[var(--text-primary)]"
     >
       <span className="vraag-dot" aria-hidden />
       <span className="hidden sm:inline">{label}</span>

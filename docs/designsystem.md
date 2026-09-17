@@ -5,23 +5,24 @@
 > **De tokenlaag van `app/globals.css` is die van OKX geworden, niet meer die van Nova.** Dat was
 > stap 1 van elf; het blueprint voor de rest staat in `redesign2026.md`.
 >
-> **Wat hieronder NIET meer klopt** (stap 1 is doorgevoerd):
+> **Wat hieronder NIET meer klopt** (stap 1 en 2 zijn doorgevoerd):
 >
 > | Hoofdstuk | Status |
 > |---|---|
 > | §2 Kleur | **Achterhaald.** Alle waarden zijn vervangen. Zie `redesign2026.md` §5.1 en §6. |
 > | §3 Typografie, de letter | **Achterhaald.** Geist Sans is Archivo geworden; zie `redesign2026.md` §5.2. |
-> | §3 Typografie, de schaal | Nog geldig tot stap 9. |
+> | §3 Typografie, de schaal | **Achterhaald.** Elf stijlen op de OKX-schaal, "vet" is 500 en geen 600, regelhoogte anderhalf en geen 1,4. |
+> | §3.2 De mono in labels | **Achterhaald.** De mono is uit de labels; OKX heeft één familie. |
 > | §4 Grafieken, de kleuren | **Achterhaald.** Acht reeksen in plaats van zes. |
+> | §5 Vorm en diepte | **Achterhaald.** Radiusschaal 2/4/6/8/10/12 plus een pil van 60. Geen glas, geen kaartschaduw. |
 > | §6 Motion | Ongewijzigd overgenomen, klopt nog. |
+> | §7 De primitieven | **Achterhaald.** Kaart, knop, chip, veld en skeleton zijn alle vijf om. |
 > | §10 Donkere modus, de waarden | **Achterhaald.** |
 >
-> **Wat hieronder nog WEL klopt**, want stap 2 tot 11 zijn nog niet gedaan: §3.1 (de tekstschaal),
-> §5 (vorm en diepte, de radiusschaal en de maten), §6b (iconen), §7 (de primitieven), §8 (de negen
-> regels) en §11 (de controle vóór een commit). Die beschrijven wat er nu echt in de code staat.
->
-> **Twee uitzonderingen die al wél om zijn**, omdat ze anders kapot ogen: het glas op de kaarten
-> (`backdrop-filter`) staat uit, en het stippenpatroon op de werkruimte is weg.
+> **Wat hieronder nog WEL klopt**, want stap 3 tot 11 zijn nog niet gedaan: §6b (iconen, gaat in
+> stap 3 van lijndikte 1,75 naar 1,5), §8 (de negen regels) en §11 (de controle vóór een commit).
+> De maatvoering van de opmaak (zijbalk, bovenbalk, inhoudsbreedte) staat nog op de oude waarden en
+> gaat in stap 4 om.
 >
 > **De regel blijft: de code is leidend.** Wijkt `app/globals.css` af van wat hier staat, dan is dit
 > document fout. Dat is nu op de hierboven genoemde punten het geval, met opzet en tijdelijk. Dit

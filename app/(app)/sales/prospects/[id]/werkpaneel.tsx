@@ -110,7 +110,7 @@ export function Werkpaneel({ opportunityId, outreach }: WerkpaneelProps) {
     return (
       <section className="card flex flex-col gap-3">
         <div>
-          <h2 className="text-lg font-semibold">Pak deze kans op</h2>
+          <h2 className="text-lg font-medium">Pak deze kans op</h2>
           <p className="mt-1 text-secondary">
             Zodra je hem oppakt zoekt ORBIT ENGINE wie er bij dit bedrijf over de commercie gaat en
             zet een conceptmail plus een gespreksvoorbereiding klaar. Dat gebeurt bewust pas nu:
@@ -133,7 +133,7 @@ export function Werkpaneel({ opportunityId, outreach }: WerkpaneelProps) {
     <section className="flex flex-col gap-4">
       <div className="card flex flex-col gap-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-lg font-semibold">Jouw werk</h2>
+          <h2 className="text-lg font-medium">Jouw werk</h2>
           <span className="chip chip-neutral">{STAND_TEKST[stand].label}</span>
         </div>
         <p className="text-secondary">{STAND_TEKST[stand].uitleg}</p>
@@ -163,7 +163,7 @@ export function Werkpaneel({ opportunityId, outreach }: WerkpaneelProps) {
       {outreach.bodyDraft && (
         <div className="card flex flex-col gap-3">
           <div>
-            <h3 className="font-semibold">Het concept</h3>
+            <h3 className="font-medium">Het concept</h3>
             <p className="mt-1 text-secondary">
               Lees hem na en pas hem aan. Versturen doe je zelf, vanuit je eigen mailbox: de
               ontvanger krijgt een bericht van jou en niet van een systeem.
@@ -212,7 +212,7 @@ export function Werkpaneel({ opportunityId, outreach }: WerkpaneelProps) {
           enkel scherm toonde. De verkoper zag dus niets en wist niet waarom. */}
       {!outreach.callPrep && outreach.prepMelding && (
         <div className="card flex flex-col gap-2">
-          <h3 className="font-semibold">Er staat geen belvoorbereiding</h3>
+          <h3 className="font-medium">Er staat geen belvoorbereiding</h3>
           <p className="text-secondary">{outreach.prepMelding}</p>
           <p className="text-secondary">
             Bel gerust, maar bereid het gesprek zelf voor: gebruik de cijfers uit het bewijs
@@ -224,7 +224,7 @@ export function Werkpaneel({ opportunityId, outreach }: WerkpaneelProps) {
       {outreach.callPrep && (
         <div className="card flex flex-col gap-3">
           <div>
-            <h3 className="font-semibold">Als je belt</h3>
+            <h3 className="font-medium">Als je belt</h3>
             <p className="mt-1 text-secondary">
               Houd dit open tijdens het gesprek. Elk cijfer hierin is tegen de meting gecontroleerd.
             </p>
@@ -280,7 +280,7 @@ export function Werkpaneel({ opportunityId, outreach }: WerkpaneelProps) {
       )}
 
       <div className="card flex flex-col gap-3">
-        <h3 className="font-semibold">Leg vast wat er gebeurd is</h3>
+        <h3 className="font-medium">Leg vast wat er gebeurd is</h3>
         <div className="flex flex-wrap gap-2">
           {volgende.map((s) => (
             <button

@@ -69,7 +69,7 @@ function MaandGrid({ dagen }: { dagen: CalendarDag[] }) {
           return (
             <div
               key={d.dag}
-              className="flex aspect-square items-center justify-center rounded-[var(--radius-sm)] text-[0.65rem] text-muted"
+              className="flex aspect-square items-center justify-center rounded-[var(--radius-lg)] text-[0.65rem] text-muted"
               style={{ background: "var(--bg-elevated)" }}
             >
               {d.dag}
@@ -87,7 +87,7 @@ function MaandGrid({ dagen }: { dagen: CalendarDag[] }) {
             title={titel}
             role="gridcell"
             aria-label={titel}
-            className="flex aspect-square items-center justify-center rounded-[var(--radius-sm)] text-[0.65rem] font-medium"
+            className="flex aspect-square items-center justify-center rounded-[var(--radius-lg)] text-[0.65rem] font-medium"
             style={
               tone === "wacht"
                 ? { background: "var(--intent-warning-surface)", color: "var(--intent-warning-text)" }

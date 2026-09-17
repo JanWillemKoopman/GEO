@@ -206,7 +206,7 @@ function Keuze({
     <Link
       href={href}
       aria-current={actief ? "page" : undefined}
-      className="rounded-[var(--radius-md)] px-3 py-1.5 text-sm font-medium transition-colors hover:bg-[var(--wash-hover)]"
+      className="rounded-[var(--radius-xl)] px-3 py-1.5 text-sm font-medium transition-colors hover:bg-[var(--wash-hover)]"
       style={{
         color: actief ? "var(--text-primary)" : "var(--text-secondary)",
         background: actief ? "var(--bg-elevated)" : undefined,

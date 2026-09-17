@@ -82,7 +82,7 @@ export function DeploymentBanner() {
         <div className="flex items-start gap-3">
           <Icon naam="opnieuw" size={18} className="mt-0.5 text-[var(--text-secondary)]" />
           <div className="flex flex-col gap-0.5">
-            <p className="text-sm font-semibold">Er is een nieuwe versie van ORBIT ENGINE</p>
+            <p className="text-sm font-medium">Er is een nieuwe versie van ORBIT ENGINE</p>
             <p className="text-sm text-secondary">
               Herlaad de pagina om verder te gaan met de laatste versie.
             </p>

@@ -144,7 +144,7 @@ function MetricTile({
         <InfoHint label={label}>{hint}</InfoHint>
       </span>
       <span
-        className="text-3xl font-bold tracking-tight"
+        className="text-3xl font-medium tracking-tight"
         style={tone === "up" ? { color: "var(--status-success)" } : undefined}
       >
         {value === null ? "-" : value}

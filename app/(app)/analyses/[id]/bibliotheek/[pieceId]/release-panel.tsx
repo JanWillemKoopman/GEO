@@ -219,7 +219,7 @@ export function ReleasePanel({
         // (`docs/ux-design.md` §4). De melding zegt wat er open staat, waaróm dat
         // uitmaakt en waar je het oplost, en de knop ernaast gaat er direct
         // heen. Overslaan staat in de melding zelf, want dat is de uitweg.
-        <div className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3">
+        <div className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3">
           <span className="mono-label">Nog niet vrij te geven</span>
           <p className="text-sm text-secondary">{poort.melding}</p>
           <Link href={vragenHref} className="btn-outline btn-sm w-fit">

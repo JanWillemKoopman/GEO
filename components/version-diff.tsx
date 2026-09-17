@@ -87,7 +87,7 @@ export function VersionDiff({
         </p>
       )}
       {open && state === "klaar" && (
-        <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 text-sm leading-relaxed">
+        <div className="rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 text-sm leading-relaxed">
           {bron === "huidige-pagina" && (
             <p className="mb-2 text-muted">
               Rood verdwijnt van je pagina, groen komt erbij.

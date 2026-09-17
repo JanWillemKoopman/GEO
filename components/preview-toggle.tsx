@@ -43,7 +43,7 @@ export function PreviewToggle({ previewing }: { previewing: boolean }) {
     <button
       type="button"
       onClick={() => void setClientPreview(true, pathname)}
-      className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
+      className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-xl)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
       aria-label="Bekijk als klant"
       title="Bekijk als klant"
     >

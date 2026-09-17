@@ -83,7 +83,7 @@ export default async function SalesOutreachPage() {
         <>
           <section className="card flex flex-col gap-3">
             <div>
-              <h2 className="text-lg font-semibold">De trechter</h2>
+              <h2 className="text-lg font-medium">De trechter</h2>
               <p className="mt-1 text-secondary">
                 Cumulatief geteld: wie een gesprek had, is ook gemaild geweest. Het eerste cijfer
                 dat echt telt is Gesprek gehad.
@@ -111,7 +111,7 @@ export default async function SalesOutreachPage() {
                 <article key={rij.id} className="card flex flex-col gap-2">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <div className="flex flex-wrap items-baseline gap-2">
-                      <h3 className="font-semibold">
+                      <h3 className="font-medium">
                         {rij.sales_companies?.name ?? "Onbekend bedrijf"}
                       </h3>
                       <span className="mono-label">{rij.sales_markets?.label ?? ""}</span>

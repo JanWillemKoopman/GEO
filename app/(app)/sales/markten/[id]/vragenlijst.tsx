@@ -119,7 +119,7 @@ export function Vragenlijst({
     <div className="flex flex-col gap-4">
       <div className="card flex flex-col gap-3">
         <div>
-          <h2 className="text-lg font-semibold">De vragen die deze markt gaan meten</h2>
+          <h2 className="text-lg font-medium">De vragen die deze markt gaan meten</h2>
           <p className="mt-1 text-secondary">
             Elk bedrijf in deze markt wordt gemeten op dezelfde {actief.length} vragen, op{" "}
             {engines.length === 1 ? "één assistent" : `${engines.length} assistenten`}. Haal eruit
@@ -157,7 +157,7 @@ export function Vragenlijst({
         return (
           <div key={groep.label} className="card flex flex-col gap-3">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h3 className="font-semibold">{groep.naam}</h3>
+              <h3 className="font-medium">{groep.naam}</h3>
               <span className="mono-label">
                 {actiefInGroep} van de {groep.vragen.length} vragen
               </span>

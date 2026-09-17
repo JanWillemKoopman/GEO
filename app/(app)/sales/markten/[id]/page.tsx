@@ -302,7 +302,7 @@ export default async function SalesMarktPage({
 
       {markt.discovery_note && (
         <div className="card">
-          <h2 className="text-lg font-semibold">Wat het onderzoek zelf niet zeker wist</h2>
+          <h2 className="text-lg font-medium">Wat het onderzoek zelf niet zeker wist</h2>
           <p className="mt-1 text-secondary">{markt.discovery_note as string}</p>
         </div>
       )}

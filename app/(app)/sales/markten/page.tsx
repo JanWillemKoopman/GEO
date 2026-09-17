@@ -81,7 +81,7 @@ export default async function SalesMarktenPage() {
             return (
               <li key={m.id as string} className="card-interactive card flex flex-col gap-2">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h2 className="text-lg font-semibold">
+                  <h2 className="text-lg font-medium">
                     <Link href={`/sales/markten/${m.id as string}`} className="hover:underline">
                       {m.label as string}
                     </Link>

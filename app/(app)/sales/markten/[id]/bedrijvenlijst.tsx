@@ -147,7 +147,7 @@ export function Bedrijvenlijst({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">De bedrijven in deze markt</h2>
+          <h2 className="text-lg font-medium">De bedrijven in deze markt</h2>
           <p className="mt-1 text-secondary">
             {meegenomen} van de {bedrijven.length} gaan mee. Haal weg wat er niet in hoort, en
             klik op een vindplaats om te controleren waar een bedrijf vandaan komt.

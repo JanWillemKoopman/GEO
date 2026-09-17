@@ -262,7 +262,7 @@ function FilterKnop({
       type="button"
       onClick={onClick}
       aria-pressed={actief}
-      className={`flex items-center gap-1.5 rounded-[var(--radius-md)] border px-2.5 py-1 text-sm transition-colors ${
+      className={`flex items-center gap-1.5 rounded-[var(--radius-xl)] border px-2.5 py-1 text-sm transition-colors ${
         actief
           ? "border-[var(--border-strong)] bg-[var(--bg-elevated)] font-medium text-[var(--text-primary)]"
           : "border-[var(--border-subtle)] text-secondary hover:bg-[var(--wash-hover)] hover:text-[var(--text-primary)]"
@@ -305,7 +305,7 @@ function FactCard({
     // hoog. Dat was een keuze voor een korte lijst, en hij kostte de antwoorden:
     // in een regel van 26rem schrijft niemand op welke garantie hij geeft. Nu
     // staat de vraag boven het veld en het veld over de volle breedte.
-    <li className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3">
+    <li className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3">
       <div className="flex min-w-0 flex-col gap-0.5">
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-medium">{fact.question}</p>

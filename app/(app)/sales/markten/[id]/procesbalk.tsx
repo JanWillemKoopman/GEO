@@ -55,7 +55,7 @@ export function Procesbalk({
     <section className="card flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">Wat ORBIT ENGINE nu doet</h2>
+          <h2 className="text-lg font-medium">Wat ORBIT ENGINE nu doet</h2>
           <p className="mt-1 text-secondary">{samenvatting}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -110,7 +110,7 @@ function euro(usd: number): string {
  */
 function bolletje(stand: FaseStand): string {
   const basis =
-    "chip mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold";
+    "chip mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-medium";
   if (stand === "klaar") return `${basis} chip-success`;
   if (stand === "bezig") return `${basis} chip-info`;
   if (stand === "wacht_op_jou") return `${basis} chip-warning`;

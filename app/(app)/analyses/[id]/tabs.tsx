@@ -104,7 +104,7 @@ function NavLink({
       // dus het actieve tabblad negeert de hover vanzelf en de andere niet.
       // Zonder dit beloofde `transition-colors` een overgang die nergens heen
       // ging: je wees een tabblad aan en er gebeurde niets.
-      className="flex items-center gap-2 rounded-[var(--radius-md)] px-3 py-1.5 text-sm font-medium transition-colors hover:bg-[var(--wash-hover)]"
+      className="flex items-center gap-2 rounded-[var(--radius-xl)] px-3 py-1.5 text-sm font-medium transition-colors hover:bg-[var(--wash-hover)]"
       style={{
         color: active ? "var(--text-primary)" : "var(--text-secondary)",
         background: active ? "var(--bg-elevated)" : undefined,

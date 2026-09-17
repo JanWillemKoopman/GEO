@@ -150,7 +150,7 @@ export function InventoryBox({
       )}
       {initialBlockedAt && (
         <div
-          className="rounded-[var(--radius-md)] border border-[var(--status-error)] px-3 py-2 text-sm"
+          className="rounded-[var(--radius-xl)] border border-[var(--status-error)] px-3 py-2 text-sm"
           role="status"
         >
           <span className="mono-label">De site weerde ons</span>

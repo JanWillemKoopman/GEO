@@ -134,7 +134,7 @@ export function SearchConsoleBox({
             is niet nodig: ORBIT ENGINE leest alleen.
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <code className="break-url rounded-[var(--radius-md)] bg-[var(--bg-elevated)] px-2 py-1 text-sm">
+            <code className="break-url rounded-[var(--radius-xl)] bg-[var(--bg-elevated)] px-2 py-1 text-sm">
               {serviceAccountEmail}
             </code>
             <button

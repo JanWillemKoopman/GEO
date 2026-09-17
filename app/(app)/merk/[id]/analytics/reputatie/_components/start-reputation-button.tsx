@@ -99,7 +99,7 @@ export function StartReputationButton({
   // modaal venster: één klik die verandert in twee is genoeg (zelfde keuze als
   // bij `rerun-research-button.tsx`).
   return (
-    <div className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
+    <div className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3">
       <p className="text-sm text-secondary">
         ORBIT ENGINE vraagt ChatGPT hoe er over dit merk gepraat wordt: merkbreed, per dienst, en
         naast de concurrenten die uit de metingen zijn gekomen. Je hoeft er niet bij te wachten:

@@ -154,7 +154,7 @@ function TaskCard({
 
   return (
     <li
-      className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3"
+      className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3"
       style={dimmed ? { opacity: 0.65 } : undefined}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">

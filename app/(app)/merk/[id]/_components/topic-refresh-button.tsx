@@ -69,7 +69,7 @@ export function TopicRefreshButton({ profileId }: { profileId: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
+    <div className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3">
       <span className="mono-label">Stel nieuwe clusters voor</span>
       {loading && <p className="text-sm text-secondary">Bekijken wat er sinds de vorige ronde is bijgekomen…</p>}
       {preview && !result && (

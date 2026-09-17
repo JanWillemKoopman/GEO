@@ -131,7 +131,7 @@ export function StrategyBox({
         {factors.map((f, i) => (
           <div
             key={i}
-            className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3"
+            className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3"
           >
             <div className="flex flex-wrap gap-2">
               <select

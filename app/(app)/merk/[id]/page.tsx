@@ -389,7 +389,7 @@ export default async function OverzichtPage({
           Een smalle regel en geen kaart: dit is stafinformatie en hoort niet
           even zwaar te wegen als de stand van het merk eronder. */}
       {fase && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-4 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] px-4 py-2.5">
           <span className="flex flex-wrap items-center gap-2">
             <span className="mono-label">Alleen jij ziet dit</span>
             <span
@@ -510,7 +510,7 @@ export default async function OverzichtPage({
                 <li>
                   <Link
                     href={`/merk/${id}/strategie/clusters`}
-                    className="inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"
+                    className="inline-flex items-center gap-1.5 text-sm font-medium hover:underline"
                   >
                     Nog {restWachtrij} {enkelOfMeervoud(restWachtrij, "punt", "punten")} in je clusters
                     <Icon naam="naar" size={14} />
@@ -673,7 +673,7 @@ function WachtrijKaart({ item }: { item: WorkItem }) {
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="flex flex-wrap items-center gap-2">
-          <span className="font-semibold">{item.title}</span>
+          <span className="font-medium">{item.title}</span>
           {blokkerend && <span className="chip chip-danger">{WORK_KIND_LABEL[item.kind]}</span>}
         </span>
         <span className="text-sm text-secondary">{item.why}</span>

@@ -142,7 +142,7 @@ function Hero({ brandId }: { brandId: string | null }) {
             GEO · de kern van ORBIT ENGINE
           </span>
           <p className="text-secondary">
-            <span className="font-semibold">Generative Engine Optimization.</span> Zichtbaarheid in
+            <span className="font-medium">Generative Engine Optimization.</span> Zichtbaarheid in
             AI-antwoorden: wordt jouw merk genoemd wanneer iemand ChatGPT, Gemini of een andere
             AI-assistent iets vraagt over jouw markt? Elke meting, elk cluster en elke tekst in
             ORBIT ENGINE is hierop gericht.
@@ -152,9 +152,9 @@ function Hero({ brandId }: { brandId: string | null }) {
           <IconTegel icoon="zoekmachine" />
           <span className="mono-label">SEO · wat je erbij ziet</span>
           <p className="text-secondary">
-            <span className="font-semibold">Zoekmachineoptimalisatie.</span> Zichtbaarheid in
+            <span className="font-medium">Zoekmachineoptimalisatie.</span> Zichtbaarheid in
             traditionele zoekresultaten, zoals Google. Op{" "}
-            <span className="font-semibold">Zoekverkeer</span> zie je de echte cijfers uit Google
+            <span className="font-medium">Zoekverkeer</span> zie je de echte cijfers uit Google
             Search Console: leveren je gepubliceerde pagina&apos;s ook daar bezoekers op? ORBIT
             ENGINE doet vandaag geen zoekwoordonderzoek en houdt geen posities in Google bij.
           </p>
@@ -182,7 +182,7 @@ function Hero({ brandId }: { brandId: string | null }) {
                   <span className="mono-label" style={{ fontSize: "0.65rem" }}>
                     {stap.nummer}
                   </span>
-                  <span className="font-semibold">{stap.titel}</span>
+                  <span className="font-medium">{stap.titel}</span>
                 </span>
                 <p className="max-w-xl text-sm text-secondary">{stap.tekst}</p>
               </div>
@@ -291,7 +291,7 @@ function IconTegel({
 }) {
   return (
     <span
-      className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)]"
+      className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-xl)]"
       style={{ background: achtergrond, color: kleur }}
     >
       <Icon naam={icoon} size={18} />
@@ -314,7 +314,7 @@ function ZijNav({ groepen }: { groepen: NavHoofdstuk[] }) {
     >
       {groepen.map((groep) => (
         <div key={groep.naam} className="flex flex-col gap-1">
-          <span className="flex items-center gap-2 px-3 pb-1.5 text-[0.9375rem] font-semibold text-[var(--text-primary)]">
+          <span className="flex items-center gap-2 px-3 pb-1.5 text-[0.9375rem] font-medium text-[var(--text-primary)]">
             <span className="flex text-[var(--text-primary)]">
               <Icon naam={groep.icoon} size={16} />
             </span>
@@ -325,7 +325,7 @@ function ZijNav({ groepen }: { groepen: NavHoofdstuk[] }) {
               <a
                 key={item.href}
                 href={`#${slug(item.label)}`}
-                className="truncate rounded-[var(--radius-md)] px-3 py-1.5 text-sm text-secondary transition-colors hover:bg-[var(--wash-hover)] hover:text-[var(--text-primary)]"
+                className="truncate rounded-[var(--radius-xl)] px-3 py-1.5 text-sm text-secondary transition-colors hover:bg-[var(--wash-hover)] hover:text-[var(--text-primary)]"
               >
                 {item.label}
               </a>
@@ -380,7 +380,7 @@ function Onderdeel({
       <div className="flex items-start gap-3">
         <IconTegel icoon={icoon} />
         <div className="flex min-w-0 flex-col gap-0.5 pt-0.5">
-          <h3 className="text-[1.0625rem] font-semibold text-[var(--text-primary)]">
+          <h3 className="text-[1.0625rem] font-medium text-[var(--text-primary)]">
             {item.label}
           </h3>
           <p className="text-sm text-muted">{KICKER[item.label]}</p>
@@ -412,7 +412,7 @@ function Onderdeel({
 /** Een korte, feitelijke bulletlijst in een getint kader, voor "wat je hier ziet en kunt doen". */
 function Kader({ label, items }: { label: string; items: React.ReactNode[] }) {
   return (
-    <div className="flex flex-col gap-2 rounded-[var(--radius-md)] bg-[var(--bg-elevated)] p-4">
+    <div className="flex flex-col gap-2 rounded-[var(--radius-xl)] bg-[var(--bg-elevated)] p-4">
       <span className="mono-label">{label}</span>
       <ul className="flex flex-col gap-2">
         {items.map((tekst, i) => (
@@ -430,7 +430,7 @@ function Kader({ label, items }: { label: string; items: React.ReactNode[] }) {
 function Tip({ children }: { children: React.ReactNode }) {
   return (
     <p
-      className="rounded-[var(--radius-md)] border-l-2 bg-[var(--bg-elevated)] py-2.5 pl-3 pr-3 text-sm text-secondary"
+      className="rounded-[var(--radius-xl)] border-l-2 bg-[var(--bg-elevated)] py-2.5 pl-3 pr-3 text-sm text-secondary"
       style={{ borderColor: "var(--intent-information-border)" }}
     >
       <span
@@ -498,20 +498,20 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
           label="Wat je hier ziet"
           items={[
             <>
-              <span className="font-semibold">Zichtbaarheid in AI</span> bovenaan is je hoofdcijfer:
+              <span className="font-medium">Zichtbaarheid in AI</span> bovenaan is je hoofdcijfer:
               hoe vaak AI-assistenten je noemen, met de onzekerheidsmarge erbij. Een verandering
               binnen die marge telt niet als winst of verlies, dat is meetruis.
             </>,
             <>
-              <span className="font-semibold">Wat er op je wacht</span> toont hooguit vijf punten
+              <span className="font-medium">Wat er op je wacht</span> toont hooguit vijf punten
               die om jouw actie vragen, zoals een concept goedkeuren of een vraag beantwoorden.
             </>,
             <>
-              <span className="font-semibold">Waar je begint</span> wijst naar de kans die het
+              <span className="font-medium">Waar je begint</span> wijst naar de kans die het
               meeste oplevert als er nog niets gepland staat.
             </>,
             <>
-              Daaronder zie je je <span className="font-semibold">contentplan</span> in het kort en
+              Daaronder zie je je <span className="font-medium">contentplan</span> in het kort en
               wat ORBIT ENGINE de afgelopen week deed.
             </>,
           ]}
@@ -595,16 +595,16 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
           label="Wat je hier ziet"
           items={[
             <>
-              De <span className="font-semibold">voortgangsbalk</span> toont hoeveel van de
+              De <span className="font-medium">voortgangsbalk</span> toont hoeveel van de
               geplande pagina&apos;s al geplaatst zijn.
             </>,
             <>
-              <span className="font-semibold">Per fase van de klantreis</span> laat zien of het
+              <span className="font-medium">Per fase van de klantreis</span> laat zien of het
               plan in balans is: alleen informatieve pagina&apos;s bereikt bijvoorbeeld niemand die
               al klaar is om te kopen.
             </>,
             <>
-              <span className="font-semibold">Wat voor content er gepland staat</span> toont de
+              <span className="font-medium">Wat voor content er gepland staat</span> toont de
               verdeling over informatief, categorie en dienst.
             </>,
             "Een reservepagina telt niet mee in je maandtotaal en staat klaar voor het geval er iets afvalt.",
@@ -676,7 +676,7 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
             "Klikken, vertoningen, doorklikratio en gemiddelde positie: de vier cijfers die Google Search Console per pagina bijhoudt.",
             "De grafiek toont het verloop per dag, met een merkteken op de publicatiedatum van elke pagina.",
             <>
-              De kolom <span className="font-semibold">Effect op AI</span> vergelijkt hoe vaak een
+              De kolom <span className="font-medium">Effect op AI</span> vergelijkt hoe vaak een
               AI-assistent je noemde vóór en ná publicatie van die pagina, tegen een controlegroep
               die niets veranderde. Dat is het enige cijfer op dit scherm dat oorzaak en gevolg
               verbindt.

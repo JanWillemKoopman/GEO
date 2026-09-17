@@ -185,7 +185,7 @@ export function Sidebar({
         <button
           type="button"
           onClick={klapOm}
-          className="mono-label mt-auto flex items-center gap-2 rounded-[var(--radius-md)] px-3 py-2 text-left transition-colors hover:bg-[var(--bg-muted)]"
+          className="mono-label mt-auto flex items-center gap-2 rounded-[var(--radius-xl)] px-3 py-2 text-left transition-colors hover:bg-[var(--bg-muted)]"
           aria-label={ingeklapt ? "Zijbalk uitklappen" : "Zijbalk inklappen"}
         >
           <Icon naam={ingeklapt ? "uitklappen" : "inklappen"} />
@@ -241,7 +241,7 @@ function Hoofdstuk({
           // de tint van de tekening.
           // Neutraal in plaats van paars, zelfde ronde en zelfde reden als bij
           // `Item` verderop.
-          className={`flex items-center justify-center rounded-[var(--radius-md)] p-2 text-[var(--text-primary)] transition-colors ${
+          className={`flex items-center justify-center rounded-[var(--radius-xl)] p-2 text-[var(--text-primary)] transition-colors ${
             actief ? "bg-[var(--bg-elevated)]" : "hover:bg-[var(--wash-hover)]"
           }`}
         >
@@ -255,7 +255,7 @@ function Hoofdstuk({
     <>
       {scheiding && <div className="mb-1 mt-5 border-t border-[var(--border-subtle)]" />}
       <div className={`flex flex-col ${eerste || scheiding ? "" : "mt-5"}`}>
-        <span className="flex items-center gap-2.5 px-3 pb-1.5 pt-2 text-left text-[0.9375rem] font-semibold text-[var(--text-primary)]">
+        <span className="flex items-center gap-2.5 px-3 pb-1.5 pt-2 text-left text-[0.9375rem] font-medium text-[var(--text-primary)]">
           {/* De kleur staat op de ouder en niet op het icoon zelf: `Icon` erft
               altijd `currentColor` (`components/icon.tsx`), en die regel blijft
               staan zodat een tekening nooit zijn eigen tint meebrengt. */}
@@ -328,7 +328,7 @@ function Item({
       // `text-foreground-neutral`). De hover eronder is een waas van 5% inkt en
       // geen tweede vlak, zodat "waar je bent" en "waar je overheen zweeft"
       // niet dezelfde zwaarte krijgen.
-      className={`flex items-center justify-between gap-2 rounded-[var(--radius-md)] px-3 py-2 text-sm transition-colors ${
+      className={`flex items-center justify-between gap-2 rounded-[var(--radius-xl)] px-3 py-2 text-sm transition-colors ${
         active
           ? "bg-[var(--bg-elevated)] font-medium text-[var(--text-primary)]"
           : "text-[var(--text-secondary)] hover:bg-[var(--wash-hover)] hover:text-[var(--text-primary)]"
@@ -360,12 +360,12 @@ function Item({
           // "hier doet de AI iets". Er stonden er vier onder elkaar, en dat was
           // het eerste wat het oog in de zijbalk raakte.
           //
-          // ⚠️ `--radius-sm` en geen pil. Dit was een pil, in dezelfde ronde
+          // ⚠️ `--radius-lg` en geen pil. Dit was een pil, in dezelfde ronde
           // waarin de chips van de app dat juist óphielden te zijn
           // (`docs/designsystem.md` §5.1). Twee ronde stempels in een app vol
           // vlakken van 6, 8 en 12 pixels zijn geen accent maar een afwijking,
           // en de zijbalk staat naast élk scherm.
-          className="shrink-0 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] px-1.5 py-0.5 text-[0.5625rem] font-semibold uppercase leading-[1.4] tracking-[0.08em] text-[var(--text-secondary)]"
+          className="shrink-0 rounded-[var(--radius-lg)] bg-[var(--bg-elevated)] px-1.5 py-0.5 text-[0.5625rem] font-medium uppercase leading-[1.4] tracking-[0.08em] text-[var(--text-secondary)]"
           title="Alleen zichtbaar voor jou, niet voor de klant"
         >
           alleen jij

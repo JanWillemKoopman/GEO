@@ -356,7 +356,7 @@ export default async function AdminPage({
 function Json({ waarde }: { waarde: unknown }) {
   return (
     <pre
-      className="max-h-64 overflow-auto rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 text-xs"
+      className="max-h-64 overflow-auto rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 text-xs"
       style={{ fontFamily: "var(--font-mono)" }}
     >
       {JSON.stringify(waarde, null, 2)}

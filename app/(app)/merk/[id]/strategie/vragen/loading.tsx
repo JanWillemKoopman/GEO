@@ -21,7 +21,7 @@ export default function Loading() {
           hoogte houdt laat het scherm bij het vullen zichtbaar springen. */}
       <div className="flex flex-col gap-3">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-32" style={{ borderRadius: "var(--radius-md)" }} />
+          <Skeleton key={i} className="h-32" style={{ borderRadius: "var(--radius-xl)" }} />
         ))}
       </div>
     </div>

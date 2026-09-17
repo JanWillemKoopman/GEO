@@ -57,7 +57,7 @@ export function Marktacties({
   return (
     <div className="card flex flex-col gap-4">
       <div>
-        <h2 className="text-lg font-semibold">Wat je nu met deze markt kunt</h2>
+        <h2 className="text-lg font-medium">Wat je nu met deze markt kunt</h2>
         <p className="mt-1 text-secondary">
           Deze markt is gemeten. Je kunt hem later opnieuw meten om te zien wat er verandert, en je
           kunt de uitkomst als openbare pagina neerzetten.
@@ -66,7 +66,7 @@ export function Marktacties({
 
       <div className="flex flex-col gap-3 border-t border-[var(--border-subtle)] pt-3">
         <div>
-          <h3 className="font-semibold">Opnieuw meten</h3>
+          <h3 className="font-medium">Opnieuw meten</h3>
           <p className="mt-1 text-secondary">
             Met exact dezelfde vragen als de vorige keer. Dat moet, want anders meet je het verschil
             tussen twee vragenlijsten en niet het verschil in de markt. Een bedrijf dat gezakt is,
@@ -94,7 +94,7 @@ export function Marktacties({
 
       <div className="flex flex-col gap-3 border-t border-[var(--border-subtle)] pt-3">
         <div>
-          <h3 className="font-semibold">De openbare pagina</h3>
+          <h3 className="font-medium">De openbare pagina</h3>
           <p className="mt-1 text-secondary">
             {isPublic
               ? `Deze markt staat online op /markt/${slug}. Je kunt hem er altijd weer afhalen.`

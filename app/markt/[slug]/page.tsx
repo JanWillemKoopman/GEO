@@ -67,7 +67,7 @@ export default async function PubliekeMarktPagina({
       </header>
 
       <section className="card flex flex-col gap-2">
-        <h2 className="text-lg font-semibold">Hoe dit gemeten is</h2>
+        <h2 className="text-lg font-medium">Hoe dit gemeten is</h2>
         <p className="text-secondary">{rapport.methode}</p>
         <p className="text-sm text-muted">
           {rapport.cijfers.vragen} vragen op{" "}
@@ -80,7 +80,7 @@ export default async function PubliekeMarktPagina({
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Wat eruit kwam</h2>
+        <h2 className="text-lg font-medium">Wat eruit kwam</h2>
         <p className="text-secondary">{rapport.bevindingen}</p>
 
         <div className="card overflow-x-auto">

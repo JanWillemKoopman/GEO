@@ -141,7 +141,7 @@ function PromptCategoryList({
       {prompts.map((p) => (
         <li
           key={p.id}
-          className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 sm:flex-row sm:items-start"
+          className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 sm:flex-row sm:items-start"
         >
           <div className="flex flex-1 flex-col gap-1.5">
             <textarea

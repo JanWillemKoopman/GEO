@@ -188,7 +188,7 @@ export function ConcurrentenAnalyse({
               )}
             </ul>
             {(kansen.length > 0 ? overig : bronnenMetScore.slice(5)).length > 0 && (
-              <details className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
+              <details className="rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3">
                 <summary className="cursor-pointer text-sm text-secondary">
                   {kansen.length > 0 ? overig.length : bronnenMetScore.length - 5} overige bronnen
                 </summary>

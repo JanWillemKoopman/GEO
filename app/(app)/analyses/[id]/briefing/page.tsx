@@ -167,7 +167,7 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
   if (questions.length === 0 && alleenGroen) {
     return (
       <div className="card card-success flex flex-col gap-3">
-        <h1 className="text-xl font-semibold">ORBIT ENGINE weet genoeg</h1>
+        <h1 className="text-xl font-medium">ORBIT ENGINE weet genoeg</h1>
         <p style={{ color: "var(--text-secondary)" }}>
           Voor{" "}
           {pieces.length === 1

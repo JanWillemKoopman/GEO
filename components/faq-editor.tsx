@@ -56,7 +56,7 @@ export function FaqEditor({
       {items.map((item, i) => (
         <div
           key={i}
-          className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3"
+          className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3"
         >
           <div className="flex items-start justify-between gap-2">
             <span className="mono-label" style={{ fontSize: "0.65rem" }}>

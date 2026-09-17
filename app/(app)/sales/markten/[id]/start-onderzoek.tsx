@@ -45,7 +45,7 @@ export function StartOnderzoek({ marketId }: { marketId: string }) {
   return (
     <div className="card flex flex-col gap-3">
       <div>
-        <h2 className="text-lg font-semibold">Breng de markt in kaart</h2>
+        <h2 className="text-lg font-medium">Breng de markt in kaart</h2>
         <p className="mt-1 text-secondary">
           ORBIT ENGINE zoekt op het web welke bedrijven er in deze markt zitten, leest de
           ledenlijsten en bedrijvengidsen uit die het tegenkomt, en haalt de klanten van Outer

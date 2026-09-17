@@ -214,7 +214,7 @@ export function BriefingForm({
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-3">
-        <h1 className="text-2xl font-semibold">Nog even dit, dan schrijft ORBIT ENGINE je pagina&apos;s</h1>
+        <h1 className="text-2xl font-medium">Nog even dit, dan schrijft ORBIT ENGINE je pagina&apos;s</h1>
         <p style={{ color: "var(--text-secondary)" }}>
           Je koos {pageCount} {pageCount === 1 ? "pagina" : "pagina's"}. Deze{" "}
           {questions.length} {questions.length === 1 ? "vraag zorgt" : "vragen zorgen"} dat er

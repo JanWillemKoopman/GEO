@@ -268,27 +268,37 @@
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 
-  /* ── Vorm en maat ─────────────────────────────────────────────────────────
-     ⚠️ ONGEWIJZIGD IN STAP 1, EN DAT IS MET OPZET. De radiusschaal van OKX
-     (2/4/6/8/10/12) botst op naam met deze: hun `sm` is 2 pixels en deze is 6.
-     Zou ik de waarden hier nu vervangen, dan verschuift elke `var(--radius-sm)`
-     in de klassenlaag stilletjes naar iets anders dan de schrijver bedoelde.
+  /* ── Vorm ─────────────────────────────────────────────────────────────────
+     De radiusschaal van OKX, GEMETEN uit hun `--okd-border-radius-*`. Zeven
+     treden en er is niets ronder dan 12 pixels behalve de pil.
 
-     Stap 2 zet de klassenlaag over op de nieuwe schaal, in één beweging met de
-     rest van de vormgeving. Tot dan staan hier de oude waarden en klopt alles
-     wat ernaar verwijst. Hetzelfde geldt voor `--header-h`, die in stap 4 van
-     61 naar 48 pixels gaat. */
-  --radius-2xs: 2px;
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-2xl: 24px;
-  --radius-pill: 9999px;
+     ⚠️ DE NAMEN BOTSTEN MET DE OUDE SCHAAL, en daarom is de omzetting op
+     17 september 2026 in twee fasen gedaan: eerst elke oude naam naar een
+     tijdelijke naam op zijn WAARDE, daarna naar de nieuwe naam met diezelfde
+     waarde. Zonder die tussenstap was `--radius-sm` van 6 naar 2 pixels
+     gesprongen op 7 plekken die om 6 vroegen, en dat zie je pas in de browser.
+
+     Wat waar terechtkwam: 2→sm, 4→md, 6→lg, 8→xl, en 12, 16 en 24 vielen alle
+     drie samen op xxxl (12px), want ronder dan dat bestaat hier niet meer.
+
+     De pil is 60 pixels en geen 9999. Dat is hun eigen waarde
+     (`--okd-button-lg-border-radius`) en het scheelt op een hoog element: bij
+     9999 wordt een blok van 200 pixels hoog een ovaal, bij 60 blijft het een
+     rechthoek met ronde hoeken. */
+  --radius-sm: 2px;
+  --radius-md: 4px; /* knop rechthoekig, chip, badge, invoerveld */
+  --radius-lg: 6px;
+  --radius-xl: 8px; /* kaart, menu, selectiechip */
+  --radius-xxl: 10px;
+  --radius-xxxl: 12px; /* dialoog, datakaart */
+  --radius-pill: 60px; /* knop standaard, voortgangsbaan */
+
   --border-width-xs: 1px;
   --border-width-sm: 2px;
   --border-width-md: 4px;
+
+  /* ⚠️ ONGEWIJZIGD: gaat in stap 4 van 61 naar 48 pixels, samen met de
+     bovenbalk zelf. */
   --header-h: 61px;
 
   /* ═══════════════════════════════════════════════════════════════════════
@@ -327,12 +337,10 @@
   --border-contrast: var(--border-emphasis);
   --focus-ring: var(--border-focus);
 
-  /* Het glas gaat eruit. Deze drie maken de kaart alvast vlak en dekkend,
-     zodat de blur nergens meer werk doet die je toch niet ziet. */
-  --glass-surface: var(--bg-surface);
-  --glass-surface-strong: var(--bg-surface);
-  --glass-filter: none;
-  --glass-shadow: none;
+  /* De vier `--glass-*`-tokens zijn op 17 september 2026 helemaal verdwenen,
+     samen met de drie uitzonderingsblokken die het effect weer uitzetten als de
+     browser het niet kan, iemand minder doorzichtigheid vraagt, of het scherm
+     smal is. Er is niets meer dat ze aanroept. */
   --shadow-overlay: var(--shadow-xl);
 
   /* Merkkleuren. Het paars en het groen zijn weg; wat ernaar verwees krijgt
@@ -713,13 +721,13 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
 
-  --radius-2xs: var(--radius-2xs);
-  --radius-xs: var(--radius-xs);
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);
   --radius-xl: var(--radius-xl);
-  --radius-2xl: var(--radius-2xl);
+  --radius-xxxl: var(--radius-xxxl);
+  --radius-xxxl: var(--radius-xxxl);
+  --radius-xxxl: var(--radius-xxxl);
   --radius-pill: var(--radius-pill);
 
   --ease-standard: var(--ease-standard);
@@ -875,74 +883,82 @@ table {
 }
 
 /* ── Herbruikbare primitieven ──────────────────────────────────────────────
-   Gebruik deze, nooit een eigen tint. docs/ux-design.md regel 7 heeft de
-   grep-controle die dat afdwingt. */
+   Gebruik deze, nooit een eigen tint of eigen maat. `docs/ux-design.md` regel 7
+   heeft de grep-controle die dat afdwingt. */
 
 /* ── De typografieschaal ────────────────────────────────────────────────────
-   Elf benoemde stijlen, overgenomen uit de gecompileerde CSS van Nova op
-   24 augustus 2026. Tot dan stond hier niets: elk scherm koos zelf een
-   Tailwind-maat, en op 399 plekken was dat `text-sm`.
+   Op 17 september 2026 overgezet op de schaal van OKX, GEMETEN uit hun
+   `--okd-text-*`-tokens. De namen bleven, de waarden niet.
 
-   Dat pakte beter uit dan het klinkt. De maten en regelhoogtes van Tailwind
-   blijken één op één die van Nova te zijn (14px op 20, 16px op 24, 20px op 28,
-   24px op 32), dus de app stond al op de goede schaal. Wat ontbrak is wat een
-   schaal pas een schaal maakt: een vaste koppeling tussen maat, gewicht en
-   regelhoogte, zodat "een kaarttitel" één ding is in plaats van een keuze.
+   ── DE TWEE WIJZIGINGEN DIE JE METEEN ZIET ──────────────────────────────────
 
-   Gebruik deze klassen in nieuw werk. Bestaande `text-sm` blijft staan waar hij
-   staat; hij levert exact hetzelfde beeld op en 399 regels omschrijven voor nul
-   zichtbaar verschil is risico zonder opbrengst.
+   1. **"Vet" is gewicht 500 en geen 600.** OKX gebruikt nergens 600 of 700
+      voor tekst binnen een regel; alleen hun twee grootste koppen gaan naar
+      600. Hier stonden alle titels op 600. Dat is de grootste enkele
+      verschuiving in dit bestand en hij maakt elk scherm rustiger.
 
-     .type-hero              36/40, 600   de paginakop van een hoofdscherm
-     .type-title             24/32, 600   de kop van een scherm of dialoog
-     .type-section           20/28, 600   de kop boven een blok
-     .type-lead              14/20, mono  de aanhef in kapitalen boven een titel
-     .type-body              16/24, 400   lopende tekst
-     .type-body-emphasis     16/24, 500   nadruk bínnen lopende tekst
-     .type-compact           14/20, 400   lopende tekst in een kaart
-     .type-compact-emphasis  14/20, 500   nadruk daarbinnen
-     .type-caption           12/16, 400   bijschrift, tijdstempel
-     .type-caption-emphasis  12/16, 500   bijschrift dat een waarde draagt
-     .type-label             11/16, mono  het kleinste label
+   2. **De regelhoogte is anderhalf keer de maat en geen 1,4.** Bij OKX is het
+      exact: 14 op 21, 12 op 18, 16 op 24. Hier stond 14 op 20 en 12 op 16.
+      Tekst krijgt dus lucht, ook al wordt de app verder dichter.
 
-   ⚠️ De twee gewichten van 500 zijn voor nadruk BINNEN een alinea, niet voor
-   een titel. Het besluit van 24 augustus 2026 dat een kaarttitel op 600 staat
-   en niet op 500 blijft staan; zie docs/designsystem.md §3.1. Nova gebruikt 500
-   voor het woord dat je in een zin wilt laten opvallen, en dat is iets anders
-   dan de regel waaraan je een kaart herkent. */
+   De schaal, met de OKX-naam erbij:
+
+     .type-hero              36/47,5, 600   heading-xl,       paginakop hoofdscherm
+     .type-title             24/30,   500   heading-md,       kop van scherm of dialoog
+     .type-section           18/24,   500   heading-sm,       kop boven een blok
+     .type-lead              12/15,   500   heading-overline, aanhef in kapitalen
+     .type-body              16/24,   400   body-md
+     .type-body-emphasis     16/24,   500   body-md-bold
+     .type-compact           14/21,   400   body-sm,          lopende tekst in een kaart
+     .type-compact-emphasis  14/21,   500   body-sm-bold
+     .type-caption           12/18,   400   body-xs
+     .type-caption-emphasis  12/18,   500   body-xs-bold
+     .type-label             12/15,   500   heading-overline, het kleinste label
+
+   ⚠️ `.type-section` is van 20 naar 18 pixels gegaan. OKX heeft geen 20: hun
+   schaal springt van 18 naar 24. Twintig was hier een tussenmaat die nergens
+   op rustte.
+
+   ⚠️ DE MONO IS UIT DE LABELS. `.type-lead` en `.type-label` stonden in de
+   monospace met brede letterspatiëring, nagerekend tegen Nova, die dat in hun
+   product inderdaad doet. OKX doet het niet: hun hele interface staat in één
+   familie, en cijfers krijgen daar de tabulaire variant van diezelfde letter in
+   plaats van een tweede lettertype. `--font-mono` blijft bestaan voor wat écht
+   monospace is (een URL, een stuk code), niet voor labels. */
 .type-hero {
   font-family: var(--font-sans);
-  font-size: 2.25rem;
+  font-size: 2.25rem; /* 36px */
   font-weight: 600;
-  line-height: 2.5rem;
-  letter-spacing: 0;
+  line-height: 1.32;
+  letter-spacing: -0.015em;
 }
 .type-title {
   font-family: var(--font-sans);
-  font-size: 1.5rem;
-  font-weight: 600;
-  line-height: 2rem;
-  letter-spacing: 0;
+  font-size: 1.5rem; /* 24px */
+  font-weight: 500;
+  line-height: 1.875rem; /* 30px */
+  letter-spacing: -0.01em;
 }
 .type-section {
   font-family: var(--font-sans);
-  font-size: 1.25rem;
-  font-weight: 600;
-  line-height: 1.75rem;
+  font-size: 1.125rem; /* 18px */
+  font-weight: 500;
+  line-height: 1.5rem; /* 24px */
   letter-spacing: 0;
 }
 .type-lead {
-  font-family: var(--font-mono);
-  font-size: 0.875rem;
-  font-weight: 400;
-  line-height: 1.25rem;
-  letter-spacing: 0.1406rem;
+  font-family: var(--font-sans);
+  font-size: 0.75rem; /* 12px */
+  font-weight: 500;
+  line-height: 0.9375rem; /* 15px */
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 .type-body {
   font-family: var(--font-sans);
-  font-size: 1rem;
+  font-size: 1rem; /* 16px */
   font-weight: 400;
-  line-height: 1.5rem;
+  line-height: 1.5rem; /* 24px */
   letter-spacing: 0;
 }
 .type-body-emphasis {
@@ -954,425 +970,486 @@ table {
 }
 .type-compact {
   font-family: var(--font-sans);
-  font-size: 0.875rem;
+  font-size: 0.875rem; /* 14px */
   font-weight: 400;
-  line-height: 1.25rem;
+  line-height: 1.3125rem; /* 21px */
   letter-spacing: 0;
 }
 .type-compact-emphasis {
   font-family: var(--font-sans);
   font-size: 0.875rem;
   font-weight: 500;
-  line-height: 1.25rem;
+  line-height: 1.3125rem;
   letter-spacing: 0;
 }
 .type-caption {
   font-family: var(--font-sans);
-  font-size: 0.75rem;
+  font-size: 0.75rem; /* 12px */
   font-weight: 400;
-  line-height: 1rem;
+  line-height: 1.125rem; /* 18px */
   letter-spacing: 0;
 }
 .type-caption-emphasis {
   font-family: var(--font-sans);
   font-size: 0.75rem;
   font-weight: 500;
-  line-height: 1rem;
+  line-height: 1.125rem;
   letter-spacing: 0;
 }
 .type-label {
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  font-weight: 400;
-  line-height: 1rem;
-  letter-spacing: 0.0625rem;
-}
-
-/* Kicker: klein, uppercase, boven een titel. Bij Nova is dit de "YOUR BRAND"-
-   regel.
-
-   ── DE TERUGDRAAI VAN 24 AUGUSTUS 2026 ─────────────────────────────────────
-
-   Op 6 augustus is deze klasse van mono naar sans gebracht, met als argument dat
-   mono-labels de "technische read-out"-stijl van de marketingsite waren en niet
-   van het product. Dat argument kwam uit schermafbeeldingen en het klopte niet.
-   Nova's eigen CSS heeft `type-label` en `type-lead`, allebei in de mono, met
-   letterspatiëring van 1 pixel respectievelijk 2,25. Mono in een klein label is
-   dus juist wél hun productstijl.
-
-   Dus terug naar mono, op Nova's maat en spatiëring. Twee dingen wijken bewust
-   af, omdat deze klasse iets draagt wat hun `type-label` niet draagt:
-
-   1. **Gewicht 500 in plaats van 400.** Deze klasse zet zelf de kleur op
-      --text-muted, en dat is 3,7:1. Mono van 11 pixels in kapitalen op gewicht
-      400 in die kleur is te dun om nog een label te zijn. Bij Nova staat de
-      kleur los van de klasse, dus daar speelt dat niet.
-   2. **Kapitalen staan erin.** Bij Nova komt `uppercase` uit een losse utility.
-      Hier zit hij in de klasse omdat alle 101 gebruiksplekken hem willen.
-
-   De naam klopt weer met wat hij doet. Hernoem hem alsnog niet in een losse
-   commit: dat raakt te veel bestanden tegelijk voor een naamswijziging. */
-.mono-label {
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
   font-weight: 500;
-  line-height: 1rem;
-  letter-spacing: 0.0625rem;
+  line-height: 0.9375rem;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--text-muted);
 }
 
-/* Getalswaarden in mono: cijfers die je vergelijkt horen onder elkaar uit te
-   lijnen. Dit is wat er van het mono-gebruik overblijft. */
+/* Het kleine label boven een titel of naast een waarde. Bij OKX heet dit
+   `heading-overline` en het is hun enige tekststijl in kapitalen.
+
+   ── WAT HIER VERANDERDE OP 17 SEPTEMBER 2026 ───────────────────────────────
+
+   Van monospace 11 pixels naar de gewone letter op 12. De naam klopt daarmee
+   niet meer met wat hij doet, en dat blijft bewust zo: hernoemen raakt 126
+   bestanden in één commit en dat is een aparte beweging (stap 10 van het plan).
+
+   De kleur gaat van `--text-muted` (dat was 3,7:1, te weinig voor tekst) naar
+   `--text-subtle`, en die haalt 7,1:1 in donker en 6,5:1 in licht. Daarmee kan
+   het gewicht terug naar 500 zonder dat het label wegvalt, en dat is precies
+   wat OKX doet. */
+.mono-label {
+  font-family: var(--font-sans);
+  font-size: 0.75rem; /* 12px */
+  font-weight: 500;
+  line-height: 0.9375rem; /* 15px */
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+/* Een getal dat vergeleken wordt. Cijfers horen onder elkaar uit te lijnen.
+
+   ⚠️ `tabular-nums` is hier GEEN sier maar noodzaak. OKX Sans is tabulair van
+   zichzelf (`zero` en `one` meten allebei 600 eenheden), Archivo niet. Zonder
+   deze regel springt een kolom zodra een cijfer verandert.
+
+   Het gewicht gaat van 700 naar 500. Het argument voor 700 was dat het
+   hoofdgetal het zwaarste element van zijn kaart hoort te zijn, en dat klopt
+   nog steeds; alleen doet bij OKX de MAAT dat werk en niet het gewicht. Hun
+   datakaart zet de waarde op 24 pixels naast een label van 12, allebei licht.
+   Zeven honderd bestaat in hun hele interface niet. */
 .stat-value {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
+  font-weight: 500;
   letter-spacing: -0.01em;
-  /* Het hoofdgetal stond op het gewicht van de lopende tekst eromheen en verloor
-     het daardoor van de kop erboven. Een cijfer dat het antwoord van het scherm
-     is, hoort het zwaarste element van zijn kaart te zijn. */
-  font-weight: 700;
 }
 
-/* Kaart: wit, één rand, PLAT. Geen hover-lift.
-   ── DE GLASLAAG (3 september 2026) ──────────────────────────────────────────
-   De vulling is sinds die datum `--glass-surface` in plaats van
-   `--bg-surface`. In de donkere stand wijst dat token terug naar
-   `--bg-surface` zelf, dus daar staat er letterlijk hetzelfde als hiervoor.
-   In de lichte stand laat de kaart 28% van de grond eronder door: op de
-   werkruimte is dat het lichtgrijs met de stippen van `.workspace-canvas`,
-   op een witte pagina is het wit en verandert er niets.
+/* Elke tabelcel en elk veld met een getal erin krijgt dezelfde behandeling.
+   Losse klasse, zodat het ook kan zonder de rest van `.stat-value`. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
 
-   De rand blijft `--border-subtle` en dus een echte tint. Een doorschijnende
-   rand was de voor de hand liggende glaskeuze en is bewust niet gedaan:
-   §2.1 legt uit dat doorschijnend zwart vuil wordt zodra het op een gekleurd
-   vlak ligt, en `.card-accent` en de drie broertjes leggen daar een getinte
-   rand overheen.
+/* ── De kaart ───────────────────────────────────────────────────────────────
+   Vlak, één rand, geen schaduw. Dat is de hele kaart.
 
-   De schaduw is één pixel op 3% inkt en geen tweede schaduwstand: §8 regel 2
-   blijft "plat, niet gloeiend". Wie hem te veel vindt, zet `--glass-shadow`
-   op `none`; dat is één regel en het raakt geen enkel component. */
+   ── WAT ERAF GING OP 17 SEPTEMBER 2026 ──────────────────────────────────────
+
+   De glaslaag (`backdrop-filter` plus een vulling van 72% dekking), de schaduw
+   van één pixel, en vier pixels radius. OKX heeft geen van drieën: een kaart is
+   daar een dekkend vlak met een rand van één pixel, en de diepte komt van de
+   kleur van dat vlak tegenover de grond eronder, niet van een effect.
+
+   Dat werkt alleen omdat de grond in stap 1 is losgetrokken van de kaart: de
+   pagina is `#f6f6f6` in licht en `#000000` in donker, de kaart is `#ffffff` en
+   `#171717`. Hiervoor waren ze allebei wit en moest de rand al het werk doen.
+
+   De rand is `--border-primary` (dekkend) en niet `--border-subtle`
+   (doorschijnend): een kaart ligt op een vlakke grond en nooit op iets
+   gekleurds, dus de dekkende variant kan hier en is rustiger. */
 .card {
-  background-color: var(--glass-surface);
-  backdrop-filter: var(--glass-filter);
-  -webkit-backdrop-filter: var(--glass-filter);
-  box-shadow: var(--glass-shadow);
-  border: var(--border-width-xs) solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  padding: 20px;
+  background-color: var(--bg-surface);
+  border: var(--border-width-xs) solid var(--border-primary);
+  border-radius: var(--radius-xl); /* 8px */
+  padding: 16px;
   /* Een kaart is bijna altijd een flex- of grid-kind. Zonder dit houdt hij zijn
      min-content-breedte aan en duwt de breedste regel erin de hele pagina open. */
   min-width: 0;
   transition:
-    box-shadow var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard),
     border-color var(--duration-fast) var(--ease-standard);
 }
-/* Alleen wat klikbaar IS, gedraagt zich klikbaar. */
+/* GEMETEN bij OKX: hun kaartpadding loopt met het scherm mee, 16 naar 20 naar
+   24. Dat is het enige wat aan een kaart responsief is. */
+@media (min-width: 768px) {
+  .card {
+    padding: 20px;
+  }
+}
+@media (min-width: 1024px) {
+  .card {
+    padding: 24px;
+  }
+}
+
+/* Alleen wat klikbaar IS, gedraagt zich klikbaar.
+
+   ⚠️ GEEN `transform` EN GEEN SCHADUW. Bij OKX beweegt er niets als je ergens
+   overheen gaat: alleen de kleur verandert. De `box-shadow` die hier stond
+   tilde de kaart op bij hover, en dat is precies het marketing-effect dat een
+   dashboard onrustig maakt. */
 .card-interactive {
   cursor: pointer;
 }
 .card-interactive:hover {
-  border-color: var(--border-strong);
-  /* Vervangt --glass-shadow uit .card: wat je aanwijst tilt op naar de ene
-     schaduw van §5.3, en zakt bij het weggaan terug naar de glaspixel. */
-  box-shadow: var(--shadow-overlay);
+  background-color: var(--bg-surface-raised);
+  border-color: var(--border-emphasis);
+}
+.card-interactive:active {
+  background-color: var(--bg-layer-2);
+}
+.card-interactive:focus-visible {
+  outline: var(--border-width-sm) solid var(--border-focus);
+  outline-offset: 2px;
 }
 
-/* Kaart-accenten in plaats van losse borderColor-overrides met rauwe rgba. */
+/* Kaart-accenten: een getinte rand in plaats van een losse rgba-override. */
 .card-accent {
-  border-color: var(--intent-intelligence-border);
+  border-color: var(--accent);
 }
 .card-danger {
-  border-color: var(--intent-danger-border);
+  border-color: var(--intent-danger-content);
 }
 .card-success {
-  border-color: var(--intent-growth-border);
+  border-color: var(--intent-success-content);
 }
 .card-warning {
-  border-color: var(--intent-warning-border);
+  border-color: var(--intent-warning-content);
 }
 
 /* ── De stang links op een kaart ────────────────────────────────────────────
-   Toegevoegd 24 augustus 2026 voor het overzicht.
+   Eén kaart per scherm draagt het hoofdgetal (`docs/ux-design.md` §1) en die
+   zag er precies zo uit als de vijf eronder. De stang markeert hem, en de tint
+   zegt hoe het cijfer loopt.
 
-   Eén kaart per scherm draagt het hoofdgetal (`docs/ux-design.md` §1), en die
-   zag er precies zo uit als de vijf kaarten eronder: witte kaart, dunne rand.
-   De stang markeert hem, en de tint zegt hoe het cijfer loopt. Daarmee blijft
-   `docs/designsystem.md` §2.3 heel: de kleur betekent iets ("dit steeg echt",
-   "hier gaat iets de verkeerde kant op") en markeert niet alleen.
-
-   Alleen `border-left-*` en niet de hele `border`: de andere drie randen
-   blijven van `.card` en de radius blijft `--radius-lg`, waardoor de stang de
-   ronding van de kaart volgt in plaats van hem af te snijden. */
+   ⚠️ Van 4 pixels naar 2. OKX kent maar twee randdiktes, 1 en 1,5, en gebruikt
+   een gekleurde linkerrand nergens dikker dan 2. Vier pixels leest als een
+   tabblad en niet als een markering. */
 .card-rail {
-  border-left-width: var(--border-width-md);
-  border-left-color: var(--border-strong);
+  border-left-width: var(--border-width-sm);
+  border-left-color: var(--border-emphasis);
 }
 .card-rail-success {
-  border-left-width: var(--border-width-md);
-  border-left-color: var(--intent-growth-solid);
+  border-left-width: var(--border-width-sm);
+  border-left-color: var(--trend-up);
 }
 .card-rail-warning {
-  border-left-width: var(--border-width-md);
-  border-left-color: var(--intent-warning-solid);
+  border-left-width: var(--border-width-sm);
+  border-left-color: var(--intent-warning-content);
 }
 
 /* ── Knoppen ────────────────────────────────────────────────────────────────
-   40px en 32px, tegen 48px en 40px hiervoor. Nova's product is dichter dan
-   hun marketingsite, en een knop van 48px naast een veld van 48px vult een
-   dashboardscherm met knoppen. De vorm is --radius-md, geen pil meer. */
-.btn-primary {
+   GEMETEN bij OKX. Hun hoogtes zijn niet opgegeven maar BEREKEND uit
+   `padding-vertical × 2 + line-height + border × 2`, en ze komen precies uit:
+
+     lg   13 + 13 + 20 + 2  =  48px   padding-h 24, tekst 16
+     md    9 +  9 + 20 + 2  =  40px   padding-h 16, tekst 14
+     sm    7 +  7 + 20 + 2  =  36px   padding-h 12, tekst 14
+     xs    5 +  5 + 16 + 2  =  28px   padding-h  8, tekst 12
+
+   ── DE TWEE WIJZIGINGEN DIE JE METEEN ZIET ──────────────────────────────────
+
+   1. **De knop is weer een pil.** `--radius-pill`, en dat is bij OKX 60 pixels
+      en geen 9999. Hij was hier op 24 augustus 2026 juist rechthoekig gemaakt
+      met het argument dat de pil van de marketingsite kwam. Bij OKX is het
+      omgekeerd: `--okd-button-lg-border-radius` is 60 in hun hele
+      productomgeving, en alleen hun expliciete `rect`-variant is 4 of 8. Die
+      rechthoekige variant staat hieronder als `.btn-rect`.
+
+   2. **Het gewicht gaat van 600 naar 500.** `--okd-button-*-font-weight` is
+      overal 500. Zie de toelichting bij de typografieschaal.
+
+   De hoogte blijft 40 pixels als standaard, precies zoals hiervoor, en dat is
+   toevallig ook exact OKX' maat `md`. Er verandert dus niets aan de dichtheid. */
+.btn-primary,
+.btn-outline,
+.btn-ghost,
+.btn-accent,
+.btn-danger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px; /* GEMETEN: `--okd-button-md-icon-margin` */
   height: 40px;
+  min-width: 90px; /* GEMETEN: `--okd-button-md-min-width` */
   padding: 0 16px;
-  border-radius: var(--radius-md);
-  /* ⚠️ Was paars tot 24 augustus 2026. Nu inkt, en dat is de grootste enkele
-     wijziging sinds de omzetting van 6 augustus. Zie --intent-neutral-solid
-     hierboven voor het waarom en `docs/designsystem.md` §2.4. Kort: zolang elke
-     hoofdknop paars is betekent paars "knop", en dan zegt de merkkleur niets
-     meer op de plek waar hij het meest opvalt.
+  border-radius: var(--radius-pill);
+  border: var(--border-width-xs) solid transparent;
+  font-family: var(--font-sans);
+  font-size: 0.875rem; /* 14px */
+  font-weight: 500;
+  line-height: 1.25rem; /* 20px */
+  transition:
+    background-color var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out);
+}
 
-     Nagerekend op het echte inlogscherm van nova.inspace.io: hun knop draagt
-     `bg-background-neutral-inverse text-foreground-on-neutral`, op h-10,
-     rounded-md en px-4. Dat is exact deze maatvoering. */
-  background-color: var(--intent-neutral-solid);
-  color: var(--intent-neutral-on-solid);
-  font-weight: 600;
-  font-size: 0.9375rem;
-  transition: background-color var(--duration-base) var(--ease-out);
+/* De hoofdknop: omgekeerd contrast. Wit op zwart in de donkere stand, zwart op
+   wit in de lichte. Dat is bij OKX de primaire actie, en het is bewust NIET de
+   accentkleur: zodra elke hoofdknop limoen is, betekent limoen "knop" en zegt
+   de merkkleur niets meer op de plek waar hij het meest opvalt. Datzelfde
+   argument stond hier al sinds 24 augustus 2026 en het geldt onverkort. */
+.btn-primary {
+  background-color: var(--interactive-selected);
+  color: var(--interactive-selected-on);
 }
-.btn-primary:hover {
-  background-color: var(--intent-neutral-hover);
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--interactive-selected);
+  opacity: 0.8; /* GEMETEN: hun `surface-interactive-emphasis-hovered` is .8 */
 }
-.btn-primary:disabled {
-  /* Nova zet 40% en niet 50%. Op de nieuwe inktknop is dat het verschil tussen
-     "uitgeschakeld" en "een tweede, grijze knop": bij 50% leest het vlak nog als
-     een keuze. */
-  opacity: 0.4;
-  cursor: not-allowed;
+.btn-primary:active:not(:disabled) {
+  opacity: 0.7;
+}
+
+/* De accentknop. Hooguit één per scherm, voor de handeling waar het scherm om
+   draait. Zie de toelichting bij `--accent`. */
+.btn-accent {
+  background-color: var(--accent);
+  color: var(--accent-on);
+}
+.btn-accent:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+.btn-accent:active:not(:disabled) {
+  background-color: var(--accent-pressed);
+}
+
+/* Secundair: een rand, en een waas bij hover. Inverteert niet naar een vlak. */
+.btn-outline {
+  background-color: transparent;
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+.btn-outline:hover:not(:disabled) {
+  background-color: var(--interactive-hover);
+  border-color: var(--border-strong);
+}
+.btn-outline:active:not(:disabled) {
+  background-color: var(--interactive-pressed);
 }
 
 /* De derde knop: geen vlak, geen rand, alleen tekst met een waas bij hover.
-   Toegevoegd 24 augustus 2026.
-
-   Hij bestond hier niet, en daardoor stonden uitwegen ("Wachtwoord vergeten?",
-   "Annuleren" naast een gevaaractie) als kale link onder een knop, zonder enige
-   terugkoppeling bij hover behalve een onderstreping. Nova geeft die uitweg
-   dezelfde maatvoering als de hoofdknop en vult hem bij hover met 5% van de
-   inktkleur. Daarmee is het zichtbaar een knop, en tegelijk zichtbaar niet de
-   handeling die je hoort te kiezen. */
+   Voor de uitweg naast een hoofdactie ("Annuleren", "Wachtwoord vergeten?"). */
 .btn-ghost {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 40px;
-  padding: 0 16px;
-  border-radius: var(--radius-md);
   background-color: transparent;
+  color: var(--text-tertiary);
+}
+.btn-ghost:hover:not(:disabled) {
+  background-color: var(--interactive-hover);
   color: var(--text-primary);
-  font-weight: 600;
-  font-size: 0.9375rem;
-  transition: background-color var(--duration-base) var(--ease-out);
 }
-.btn-ghost:hover {
-  background-color: var(--wash-hover);
+.btn-ghost:active:not(:disabled) {
+  background-color: var(--interactive-pressed);
 }
-.btn-ghost:disabled {
-  /* Nova zet 40% en niet 50%. Op de nieuwe inktknop is dat het verschil tussen
-     "uitgeschakeld" en "een tweede, grijze knop": bij 50% leest het vlak nog als
-     een keuze. */
-  opacity: 0.4;
+
+/* Gevaar: weggooien, definitief afbreken. */
+.btn-danger {
+  background-color: var(--intent-danger-solid);
+  color: var(--intent-danger-on-solid);
+}
+.btn-danger:hover:not(:disabled) {
+  background-color: var(--intent-danger-content);
+}
+
+.btn-primary:disabled,
+.btn-outline:disabled,
+.btn-ghost:disabled,
+.btn-accent:disabled,
+.btn-danger:disabled {
+  background-color: var(--interactive-disabled);
+  border-color: transparent;
+  color: var(--text-disabled);
+  opacity: 1; /* de kleur doet het werk, niet de doorzichtigheid */
   cursor: not-allowed;
 }
 
-/* Secundair: rand plus een lichte vulling bij hover. Inverteert NIET meer naar
-   solide zwart; dat was een marketing-effect en het liet een rustige
-   knoppenrij bij hover omslaan in een zwart blok. */
-.btn-outline {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 40px;
-  padding: 0 16px;
-  border-radius: var(--radius-md);
-  border: var(--border-width-xs) solid var(--border-strong);
-  color: var(--text-primary);
-  font-weight: 600;
-  font-size: 0.9375rem;
-  background-color: var(--bg-surface);
-  transition:
-    background-color var(--duration-fast) var(--ease-standard),
-    border-color var(--duration-fast) var(--ease-standard);
-}
-.btn-outline:hover {
-  /* Was --bg-base. Die werd wit op 24 augustus 2026 en dan is er geen hover
-     meer: wit op wit. --bg-muted is de eerste stap boven het oppervlak, en dat
-     is precies wat Nova's `--ds-background-neutral-hover` doet. */
-  background-color: var(--bg-muted);
-  border-color: var(--border-contrast);
-}
-.btn-outline:disabled {
-  /* Nova zet 40% en niet 50%. Op de nieuwe inktknop is dat het verschil tussen
-     "uitgeschakeld" en "een tweede, grijze knop": bij 50% leest het vlak nog als
-     een keuze. */
-  opacity: 0.4;
-  cursor: not-allowed;
+/* De focusring is overal dezelfde en hij is niet gekleurd: bij OKX is
+   `border-focus` puur wit of puur zwart. Een gekleurde ring op een gekleurde
+   knop is geen ring. */
+.btn-primary:focus-visible,
+.btn-outline:focus-visible,
+.btn-ghost:focus-visible,
+.btn-accent:focus-visible,
+.btn-danger:focus-visible,
+.field:focus-visible {
+  outline: var(--border-width-sm) solid var(--border-focus);
+  outline-offset: 2px;
 }
 
+/* De maten. GEMETEN, zie de berekening bovenaan dit blok. */
 .btn-sm {
-  height: 32px;
+  height: 36px;
+  min-width: 81px;
   padding: 0 12px;
-  font-size: 0.875rem;
+}
+.btn-xs {
+  height: 28px;
+  min-width: 63px;
+  padding: 0 8px;
+  gap: 6px;
+  font-size: 0.75rem; /* 12px */
+  line-height: 1rem; /* 16px */
+}
+.btn-lg {
+  height: 48px;
+  min-width: 108px;
+  padding: 0 24px;
+  gap: 8px; /* GEMETEN: lg gebruikt 8 waar de rest 6 gebruikt */
+  font-size: 1rem; /* 16px */
 }
 
-/* B.15: 44px, de aanbevolen minimale tikdoelgrootte (WCAG 2.5.5, Apple HIG).
-   Niet de standaard, `.btn-primary`/`.btn-outline` blijven bewust 40px (zie
-   hierboven), een scherm vol 44px-knoppen zou de dichtheid weer opgeven die
-   Nova's product juist onderscheidt van hun marketingsite. Dit is voor de ÉNE
-   hoofdactie van een scherm dat vaak op een telefoon bediend wordt: bevestigen,
-   publiceren, "schrijf alles". Combineren met `.btn-primary` of `.btn-outline`. */
-.btn-lg {
-  height: 44px;
-  padding: 0 20px;
-  font-size: 1rem;
+/* De rechthoekige variant. OKX zet hem in tabellen en werkbalken, waar een pil
+   naast een veld of een cel scheef staat. `rect-md` is 4 pixels, `rect-lg` 8. */
+.btn-rect {
+  border-radius: var(--radius-md);
+}
+.btn-rect.btn-lg {
+  border-radius: var(--radius-xl);
+}
+
+/* Een knop die alleen een pictogram draagt, heeft geen minimumbreedte nodig. */
+.btn-icon {
+  min-width: 0;
+  width: 40px;
+  padding: 0;
+}
+.btn-icon.btn-sm {
+  width: 36px;
+}
+.btn-icon.btn-xs {
+  width: 28px;
+}
+.btn-icon.btn-lg {
+  width: 48px;
 }
 
 /* ── Chip en badge ──────────────────────────────────────────────────────────
-   Nova's badges zijn klein, pilvormig, in schrijftaal en in de sans. Ze waren
-   hier uppercase mono met brede tracking: dat leest als een technische
-   read-out en dat is de stijl van de marketingsite, niet van het product.
-   De pil blijft hier wél, want dit is precies waar Nova hem voor gebruikt. */
+   Klein, rechthoekig, in schrijftaal.
+
+   ⚠️ De radius gaat van 6 naar 4 pixels (`--radius-md`) en het gewicht van 600
+   naar 500. De pil is voorbehouden aan de knop.
+
+   ⚠️ DE VASTE KLEUR IS ERUIT. Hier stond `color: #dbcce7`, een letterlijke hex
+   die er in augustus 2026 in kwam omdat de paarse chiptekst in de donkere stand
+   3,49:1 haalde op zijn eigen vlak. Dat probleem bestaat niet meer: de
+   `--intent-*-content`-tokens zijn per stand doorgerekend tegen hun eigen
+   oppervlak. Daarmee vervalt ook de uitzonderingsbehandeling voor
+   `.chip-attention` en `.chip-danger` die eronder stond. */
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   font-family: var(--font-sans);
-  font-size: 0.75rem;
-  /* 500 was te licht naast een titel van 600: de chip draagt op het overzicht
-     het getal waarop de lijst gesorteerd is ("Potentie 68/100"), en dat is
-     niet het lichtste element van de regel. */
-  font-weight: 600;
-  line-height: 1.4;
-  padding: 3px 10px;
-  /* ⚠️ Was `--radius-pill`, gewijzigd 24 augustus 2026. Zie
-     `docs/designsystem.md` §5.1: de pil is voorbehouden aan wat rond MOET zijn
-     (voortgangsbalken, de live-dot). Een chip is een klein vlak met tekst
-     erin, en pilvormig botste hij zichtbaar met de knoppen en velden ernaast,
-     die sinds de omzetting allemaal `--radius-md` hebben. */
-  border-radius: var(--radius-sm);
-  background-color: var(--intent-intelligence-surface);
-  /* ⚠️ Vaste kleur, niet `--intent-intelligence-text`. In de donkere stand is
-     die variabele #ad45ff op een chipvlak van #42006d: 3,49:1, ruim onder de
-     4,5:1 die WCAG AA eist voor tekst van dit formaat (12px, dus geen "grote
-     tekst"-uitzondering). #dbcce7 op datzelfde vlak haalt 9,5:1. In de lichte
-     stand (#8511d9 op #faf4ff, 6,32:1) verandert er niets aan de leesbaarheid. */
-  color: #dbcce7;
-  border: var(--border-width-xs) solid var(--intent-intelligence-border);
+  font-size: 0.75rem; /* 12px */
+  font-weight: 500;
+  line-height: 1.125rem; /* 18px */
+  padding: 2px 8px;
+  border-radius: var(--radius-md); /* 4px */
+  border: var(--border-width-xs) solid transparent;
+  /* De kale chip is neutraal. Wie een betekenis wil, zet er een variant naast;
+     dat dwingt af dat kleur een keuze is en geen standaard. */
+  background-color: var(--bg-layer-2);
+  color: var(--text-tertiary);
 }
-.chip-success {
-  background-color: var(--intent-growth-surface);
-  color: var(--intent-growth-text);
-  border-color: var(--intent-growth-border);
+.chip-success,
+.chip-green {
+  background-color: var(--intent-success-surface);
+  color: var(--intent-success-content);
 }
 .chip-danger {
   background-color: var(--intent-danger-surface);
-  color: var(--intent-danger-text);
-  border-color: var(--intent-danger-border);
+  color: var(--intent-danger-content);
 }
 .chip-warning {
   background-color: var(--intent-warning-surface);
-  color: var(--intent-warning-text);
-  border-color: var(--intent-warning-border);
+  color: var(--intent-warning-content);
 }
 .chip-info {
-  background-color: var(--intent-information-surface);
-  color: var(--intent-information-text);
-  border-color: var(--intent-information-border);
+  background-color: var(--intent-info-surface);
+  color: var(--intent-info-content);
+  border-color: var(--border-subtle);
 }
+/* "Kans" in de concurrentenanalyse. Dit was roze (`attention`); een kans is
+   geen waarschuwing maar iets om op te klikken, dus krijgt hij het accent.
+   Zie `redesign2026.md` §10.5. */
 .chip-attention {
-  background-color: var(--intent-attention-surface);
-  color: var(--intent-attention-text);
-  border-color: var(--intent-attention-border);
+  background-color: var(--accent-highlight);
+  color: var(--accent-highlight-on);
 }
 .chip-neutral {
-  background-color: var(--intent-neutral-surface);
-  color: var(--intent-neutral-text);
-  border-color: var(--intent-neutral-border);
+  background-color: var(--bg-layer-2);
+  color: var(--text-tertiary);
 }
-.chip-green {
-  background-color: var(--intent-growth-surface);
-  color: var(--intent-growth-text);
-  border-color: var(--intent-growth-border);
-}
-/* Twee andere varianten haalden in de donkere stand ook net geen 4,5:1 op hun
-   eigen chipvlak: .chip-attention #f6339a op #510424 is 4,21:1, .chip-danger
-   #fb2c36 op #460809 is 4,25:1. Op de algemene paginatekst zijn diezelfde
-   kleuren wel voldoende leesbaar, dus de globale variabele blijft ongemoeid;
-   alleen op het diepere chipvlak krijgen ze hier een wittere tint (5,4:1 en
-   5,9:1). De andere vier chipvarianten haalden al ruim boven 4,5:1. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    .chip-attention {
-      color: #f743a2;
-    }
-    .chip-danger {
-      color: #fb3d46;
-    }
-  }
-}
-:root[data-theme="dark"] {
-  .chip-attention {
-    color: #f743a2;
-  }
-  .chip-danger {
-    color: #fb3d46;
-  }
+/* De omlijnde variant, voor een chip op een vlak dat zelf al gevuld is. */
+.chip-outline {
+  background-color: transparent;
+  border-color: var(--border-default);
+  color: var(--text-tertiary);
 }
 
 /* ── Invoervelden ──────────────────────────────────────────────────────────
-   Wit met een rand, niet grijs verzonken. Verzonken velden zijn een
-   marketing-esthetiek; in een formulier van twaalf velden maakt het de pagina
-   onrustig. De focusring blijft: dat is toegankelijkheid, geen sier. */
+   Veertig pixels hoog, dus even hoog als de knop ernaast. Vier pixels radius,
+   want een veld is bij OKX nooit een pil.
+
+   ⚠️ De rand in rust gaat van `--border-strong` naar `--border-default`, een
+   stap lichter. In een formulier van twaalf velden is dat het verschil tussen
+   een raster van hokjes en een lijst waar je doorheen leest. De hover zet hem
+   weer op `--border-strong`, dus het veld blijft zeggen dat het aanklikbaar is.
+
+   ⚠️ De focus is één rand in de inktkleur plus een ring eromheen, en geen
+   inset-schaduw meer. OKX verdubbelt daar niet de randdikte en kleurt hem niet:
+   `border-focus` is puur wit of puur zwart. */
 .field {
   width: 100%;
   height: 40px;
   padding: 0 12px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-md); /* 4px */
   background-color: var(--bg-surface);
-  border: var(--border-width-xs) solid var(--border-strong);
+  border: var(--border-width-xs) solid var(--border-default);
   color: var(--text-primary);
   font-family: var(--font-sans);
-  font-size: 0.9375rem;
+  font-size: 0.875rem; /* 14px */
+  line-height: 1.25rem;
   transition:
     border-color var(--duration-fast) var(--ease-standard),
-    box-shadow var(--duration-fast) var(--ease-standard);
+    background-color var(--duration-fast) var(--ease-standard);
 }
 .field::placeholder {
-  color: var(--text-muted);
+  color: var(--text-placeholder);
 }
-/* Een veld dat je aanwijst zegt dat het aanklikbaar is. Dit ontbrak; Nova heeft
-   het wel (`[&:not(:focus-within):hover]:border-border-neutral`) en het scheelt
-   in een formulier van twaalf velden merkbaar in hoe levend het aanvoelt. */
-.field:hover:not(:focus) {
-  border-color: var(--border-contrast);
+.field:hover:not(:focus):not(:disabled) {
+  border-color: var(--border-strong);
 }
-/* ⚠️ De focusrand was paars met een gloed van 3 pixels eromheen, tot
-   24 augustus 2026. Nu inkt, zonder gloed, zoals Nova het doet
-   (`focus-within:border-2 focus-within:border-border-neutral-inverse`).
-
-   Zij verdubbelen daar de randdikte; hier gebeurt dat met een `inset`-schaduw
-   van 1 pixel bovenop de bestaande rand. Dat geeft precies hetzelfde beeld,
-   maar zonder de sprong van één pixel die een veranderende randdikte in de
-   inhoud van het veld veroorzaakt. */
 .field:focus {
-  outline: none;
-  border-color: var(--focus-ring);
-  box-shadow: inset 0 0 0 1px var(--focus-ring);
+  outline: var(--border-width-sm) solid var(--border-focus);
+  outline-offset: 2px;
+  border-color: var(--border-focus);
+}
+.field:disabled {
+  background-color: var(--bg-disabled);
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+/* Een veld dat een fout draagt. */
+.field-error {
+  border-color: var(--intent-danger-content);
+}
+/* Elk veld met een getal erin lijnt zijn cijfers uit. Zie `.tabular`. */
+.field-number {
+  font-variant-numeric: tabular-nums;
 }
 textarea.field {
   height: auto;
@@ -1383,24 +1460,24 @@ textarea.field {
 }
 
 /* Skeleton: de vorm van wat er komt. Een skeleton zegt WAAR de inhoud komt,
-   een spinner alleen DAT er gewacht wordt. */
+   een spinner alleen DAT er gewacht wordt.
+
+   ⚠️ De glans die eroverheen schoof is eruit. Dat was een verloop van drie
+   kleuren dat over de volle breedte bewoog; OKX heeft nergens zo'n effect. Wat
+   overblijft is één vlak dat pulseert, en dat is rustiger op een scherm waar
+   twintig skeletons tegelijk staan. */
 .skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--bg-elevated) 25%,
-    var(--bg-surface-2) 50%,
-    var(--bg-elevated) 75%
-  );
-  background-size: 200% 100%;
+  background-color: var(--bg-layer-2);
   border-radius: var(--radius-md);
-  animation: skeleton-sweep 1.4s infinite var(--ease-standard);
+  animation: skeleton-puls 1.5s ease-in-out infinite;
 }
-@keyframes skeleton-sweep {
-  from {
-    background-position: 200% 0;
+@keyframes skeleton-puls {
+  0%,
+  100% {
+    opacity: 1;
   }
-  to {
-    background-position: -200% 0;
+  50% {
+    opacity: 0.4;
   }
 }
 
@@ -1414,14 +1491,25 @@ textarea.field {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 12px 14px;
-  border-radius: var(--radius-lg);
-  background-color: var(--glass-surface-strong);
-  backdrop-filter: var(--glass-filter);
-  -webkit-backdrop-filter: var(--glass-filter);
+  /* GEMETEN bij OKX (`--okd-message-box-*`): padding 16, radius md, schaduw xl,
+     en een breedte tussen 451 en 700 pixels. Die ondergrens is ruimer dan wat
+     hier stond en hij is er met reden: een melding die smaller is dan de zin
+     erin breekt af op twee regels en leest dan als een foutmelding. */
+  padding: 16px;
+  min-width: 451px;
+  max-width: 700px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-elevated-contrast);
   border: var(--border-width-xs) solid var(--border-subtle);
-  box-shadow: var(--shadow-overlay);
+  box-shadow: var(--shadow-xl);
   animation: toast-in var(--duration-base) var(--ease-standard);
+}
+/* Op een telefoon past 451 pixels niet. GEMETEN afstand tot de rand: 16. */
+@media (max-width: 639px) {
+  .toast-card {
+    min-width: 0;
+    width: calc(100vw - 32px);
+  }
 }
 .toast-card[data-leaving] {
   animation: toast-out var(--duration-fast) ease-in forwards;
@@ -1487,16 +1575,47 @@ textarea.field {
   animation: modal-overlay-in var(--duration-base) var(--ease-standard);
 }
 .modal-panel {
-  /* De sterke glasvariant: een dialoog draagt de tekst waar je op klikt, dus
-     hij laat minder door dan een kaart. Zie het tokenblok in de kop. */
-  background-color: var(--glass-surface-strong);
-  backdrop-filter: var(--glass-filter);
-  -webkit-backdrop-filter: var(--glass-filter);
+  /* GEMETEN bij OKX (`--okd-dialog-*`): een dialoog staat op
+     `surface-structural-elevated-contrast`, één stap lichter dan een gewone
+     kaart, met 12 pixels radius en de zwaarste schaduw. De breedte loopt van
+     280 tot 520.
+
+     De padding is hun eigen verdeling en niet één waarde: 24 opzij, 24 boven
+     de titel, 32 rond de inhoud, 24 onder de knoppen. Dat is hier één
+     `padding: 24px` met een ruimere binnenmarge, want deze klasse draagt het
+     hele paneel en niet drie losse delen. */
+  background-color: var(--bg-elevated-contrast);
   border: var(--border-width-xs) solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  padding: 20px;
-  box-shadow: var(--shadow-overlay);
+  border-radius: var(--radius-xxxl);
+  padding: 24px;
+  min-width: 280px;
+  max-width: 520px;
+  box-shadow: var(--shadow-xl);
   animation: modal-content-in var(--duration-base) var(--ease-standard);
+}
+/* Onder 768 pixels wordt de dialoog een blad van onderen. GEMETEN bij OKX: hun
+   `oxnv-dialog` schakelt daar naar de `sm`-paddings (16 opzij) en zet de
+   knoppenrij op `column-reverse`, dus de hoofdactie komt bovenaan.
+   `redesign2026.md` §8.12.3 heeft de volledige mobiele regels; dit is het deel
+   dat in de klassenlaag thuishoort. */
+@media (max-width: 767px) {
+  .modal-panel {
+    max-width: none;
+    width: 100%;
+    padding: 16px;
+    border-radius: var(--radius-xxxl) var(--radius-xxxl) 0 0;
+    animation: modal-sheet-in var(--duration-slow) var(--ease-out);
+  }
+}
+@keyframes modal-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 @keyframes modal-overlay-in {
   from {
@@ -1517,82 +1636,59 @@ textarea.field {
   }
 }
 
-/* ── Zwevend menu (3 september 2026) ─────────────────────────────────────────
+/* ── Zwevend menu ───────────────────────────────────────────────────────────
    Eén klasse voor alles wat als los vlak bóven de pagina hangt en géén dialoog
    is: de merkkiezer, het accountmenu, de toelichting van `InfoHint`. Die drie
    bouwden hun vlak elk met dezelfde vier losse Tailwind-klassen na, en dat is
-   precies het soort herhaling waar §8 regel 1 voor bedoeld is: nu staat de
-   glaslaag op één plek en niet drie keer in een component.
+   precies het soort herhaling waar §8 regel 1 voor bedoeld is.
 
-   De sterke variant, om dezelfde reden als bij de dialoog: hier staat tekst
-   waar je op klikt, en die mag niet met een kaartrand eronder gaan wedijveren.
-   De schaduw blijft --shadow-overlay, want dit is wat §5.3 "zweeft boven de
-   pagina" noemt. Er komt dus geen schaduw bij, alleen materiaal. */
+   ── HET GLAS IS ERAF (17 SEPTEMBER 2026) ────────────────────────────────────
+
+   Hier stond een doorschijnende vulling met `backdrop-filter`, plus verderop
+   drie blokken die dat effect weer uitzetten als de browser het niet kan, als
+   iemand minder doorzichtigheid vraagt, of op een telefoon. Al die machinerie
+   is weg: OKX heeft in zijn hele gecompileerde CSS geen enkele
+   `backdrop-filter`. Een zwevend vlak is daar dekkend, met een rand en een
+   schaduw, en dat is het.
+
+   Dat scheelt drie uitzonderingsblokken, vier tokens en een toegankelijkheids-
+   probleem dat we nu niet meer hoeven op te lossen. */
 .menu-surface {
-  background-color: var(--glass-surface-strong);
-  backdrop-filter: var(--glass-filter);
-  -webkit-backdrop-filter: var(--glass-filter);
+  background-color: var(--bg-surface);
+  border: var(--border-width-xs) solid var(--border-subtle);
+  border-radius: var(--radius-xl); /* 8px */
+  box-shadow: var(--shadow-lg);
+  /* GEMETEN: OKX zet 4 pixels lucht boven en onder de regels, niet opzij; de
+     regel zelf draagt zijn eigen padding en zijn hover loopt tot de rand. */
+  padding: 4px 0;
+  max-height: 320px;
+  overflow-y: auto;
 }
-
-/* ── De drie grenzen van de glaslaag ─────────────────────────────────────────
-   Glas is een verfijning en nooit een voorwaarde. Op deze drie plekken gaat
-   het eraf, en dan blijft precies het opake ontwerp van vóór 3 september 2026
-   over. Alle drie zetten ze de tokens terug in plaats van de regels te
-   overschrijven: dan hoeft er per uitzondering maar één blok bij te komen,
-   hoeveel klassen het glas later ook gebruiken.
-
-   1. GEEN ONDERSTEUNING. `backdrop-filter` bestaat niet overal. Zonder deze
-      regel blijft de doorschijnende vulling staan zonder de vervaging die hem
-      leesbaar houdt, en dan schemert er een scherpe stip door een kaart.
-   2. WIE MINDER DOORZICHTIGHEID VRAAGT. Een besturingssysteem-instelling, en
-      hij bestaat omdat doorschijnende vlakken voor sommige mensen letterlijk
-      moeilijker te lezen zijn. §9 van de opdracht: inhoud gaat vóór effect.
-   3. OP EEN TELEFOON. Daar liggen de kaarten onder elkaar op een vlakke grond,
-      is er dus niets interessants om doorheen te laten schemeren, en kost elke
-      vervagingslaag rekentijd op het toestel dat er het minst van heeft. De
-      lichte doorschijnendheid blijft wél staan: die is gratis. */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  :root {
-    --glass-surface: var(--bg-surface);
-    --glass-surface-strong: var(--bg-surface);
-    --glass-filter: none;
-  }
+/* Eén regel in dat menu. GEMETEN: 36 pixels hoog, 12 opzij, 14 pixels tekst.
+   ⚠️ Een gekozen regel krijgt GEEN accentkleur maar een vinkje en een waas.
+   Dat is bij OKX consequent en het is de reden dat een lijst van twintig
+   regels rustig blijft. */
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--text-secondary);
+  text-align: left;
+  transition: background-color var(--duration-fast) var(--ease-standard);
 }
-
-@media (prefers-reduced-transparency: reduce) {
-  :root {
-    --glass-surface: var(--bg-surface);
-    --glass-surface-strong: var(--bg-surface);
-    --glass-filter: none;
-    --glass-shadow: none;
-  }
+.menu-item:hover {
+  background-color: var(--interactive-hover);
+  color: var(--text-primary);
 }
-
-@media (max-width: 639px) {
-  :root {
-    --glass-filter: none;
-  }
-}
-
-/* Pulserende live-dot: "loopt nu". Kleur en vorm samen, nooit kleur alleen. */
-.live-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: var(--intent-growth-solid);
-  box-shadow: 0 0 0 0 color-mix(in srgb, var(--intent-growth-solid) 50%, transparent);
-  animation: live-pulse 2s infinite var(--ease-standard);
-}
-@keyframes live-pulse {
-  0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--intent-growth-solid) 50%, transparent);
-  }
-  70% {
-    box-shadow: 0 0 0 7px transparent;
-  }
-  100% {
-    box-shadow: 0 0 0 0 transparent;
-  }
+.menu-item[aria-selected="true"],
+.menu-item[data-gekozen] {
+  background-color: var(--interactive-hover);
+  color: var(--text-primary);
 }
 
 /* ── Het bolletje bij "openstaande vragen" (28 augustus 2026) ───────────────
@@ -1667,7 +1763,10 @@ textarea.field {
 .prose h3,
 .prose h4 {
   color: var(--text-primary);
-  font-weight: 700;
+  /* 500 en geen 700. Dit is gerenderde Markdown uit de contentbibliotheek, dus
+     lopende tekst met koppen erin, en bij OKX is de zwaarste tekst binnen een
+     tekstblok 500. Zeven honderd bestaat in hun interface niet. */
+  font-weight: 500;
   line-height: 1.25;
   margin-top: 1.5em;
   /* H.68: elke kop heeft nu een anker-id (lib/markdown.ts). Zonder deze marge
@@ -1725,7 +1824,7 @@ textarea.field {
   font-size: 0.9em;
   background: var(--bg-elevated);
   padding: 0.1em 0.4em;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-lg);
 }
 .prose blockquote {
   border-left: var(--border-width-sm) solid var(--intent-intelligence-border);
@@ -1840,17 +1939,19 @@ textarea.field {
 .auth-card {
   position: relative;
   width: 100%;
-  max-width: 520px;
+  /* 480 en niet 520. De 520 was Nova's enige kaartbreedte in dit bereik; het
+     nieuwe systeem heeft geen vaste kaartbreedte en 480 laat het veld van 48
+     pixels hoog met zijn label ademen zonder dat de regel te lang wordt. */
+  max-width: 480px;
   margin: 0 auto;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xxxl);
   background-color: var(--bg-surface);
-  border: var(--border-width-xs) solid var(--border-subtle);
-  padding: 32px 24px;
-  /* Nova's `shadow-sm`, letterlijk. De schaduw die hier stond liep 48 pixels
-     ver uit en tilde de kaart van de pagina; deze zet hem er alleen op. */
-  box-shadow:
-    0 1px 3px 0 rgba(0, 0, 0, 0.1),
-    0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  border: var(--border-width-xs) solid var(--border-primary);
+  padding: 32px;
+  /* GEEN SCHADUW. De kaart staat op `--bg-stage`, en dat is een andere kleur
+     dan de kaart zelf: in de lichte stand `#f6f6f6` onder `#ffffff`, in de
+     donkere `#000000` onder `#171717`. Het kleurverschil doet wat de schaduw
+     hiervoor moest doen, en dat is precies hoe OKX diepte maakt. */
 }
 @media (min-width: 640px) {
   .auth-card {
@@ -1866,65 +1967,68 @@ textarea.field {
   gap: 7px;
   height: 26px;
   padding: 0 10px;
-  border-radius: 6px;
-  background-color: var(--bg-elevated);
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-layer-2);
+  color: var(--text-subtle);
+  font-family: var(--font-sans);
+  font-size: 0.75rem; /* 12px, zie .mono-label */
   font-weight: 500;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   white-space: nowrap;
 }
 
 /* ── Veld en knop ───────────────────────────────────────────────────────────
-   48 en 50 pixels, tegen de 40 van .field en .btn-primary. Een formulier van
-   twee velden mag ademen; een instellingenscherm met er twaalf niet, en
-   daarom blijft de dashboardmaat staan waar hij staat. De linkermarge van 42
-   houdt het icoon in het veld vrij van de tekst. */
+   48 pixels, tegen de 40 van `.field` en `.btn-primary`. Een formulier van twee
+   velden mag ademen; een instellingenscherm met er twaalf niet, en daarom
+   blijft de dashboardmaat staan waar hij staat.
+
+   48 is precies OKX' maat `lg` (13 + 13 + 20 + 2), dus dit is geen eigen
+   uitzondering meer maar de grootste trede van de gewone schaal. Dat was het
+   hele punt van `docs/designsystem.md` §9b over de inloguitzondering: hij mag
+   bestaan zolang hij niets nieuws introduceert. */
 .auth-label {
   display: block;
-  font-size: 0.9375rem;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-size: 0.75rem; /* 12px, body-xs-bold */
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
 }
 .auth-label-required {
-  color: var(--status-error);
+  color: var(--intent-danger-content);
 }
 
 .auth-field {
   width: 100%;
-  /* 44 en niet 48, en 8 rond en niet 10: Nova's `h-11` en `rounded-md`. De 48
-     kwam uit dezelfde ronde als de 52 pixels marge hierboven en maakte het
-     scherm een maat te groot. */
-  height: 44px;
+  height: 48px;
   padding: 0 14px 0 40px;
-  border-radius: var(--radius-md);
-  /* Was --bg-base, en die is sinds 24 augustus 2026 wit: het veld verdween
-     daarmee in de witte kaart. --bg-muted houdt het onderscheid dat er altijd
-     was. */
-  background-color: var(--bg-muted);
-  border: var(--border-width-xs) solid var(--border-subtle);
+  border-radius: var(--radius-md); /* 4px, net als `.field` */
+  /* Het veld staat nu op de kaartkleur en niet meer op een grijs vlak. In het
+     nieuwe systeem is de kaart zelf al losgetrokken van de grond, dus het veld
+     hoeft zich niet nog eens af te zetten; een rand is genoeg. */
+  background-color: var(--bg-surface);
+  border: var(--border-width-xs) solid var(--border-default);
   color: var(--text-primary);
   font-family: var(--font-sans);
-  font-size: 0.9375rem;
+  /* 16 pixels en geen 15. Safari op iOS zoomt de hele pagina in zodra een veld
+     met minder dan 16 pixels focus krijgt, en daar komt de bezoeker niet
+     vanzelf uit. Op een inlogscherm is dat precies de verkeerde plek. */
+  font-size: 1rem;
   transition:
     border-color var(--duration-fast) var(--ease-standard),
-    box-shadow var(--duration-fast) var(--ease-standard);
+    background-color var(--duration-fast) var(--ease-standard);
 }
 .auth-field::placeholder {
-  color: var(--text-muted);
+  color: var(--text-placeholder);
 }
 .auth-field:hover:not(:focus) {
-  border-color: var(--border-contrast);
+  border-color: var(--border-strong);
 }
-/* Zelfde omzetting als bij `.field` hierboven: inkt in plaats van een paarse
-   gloed. Zie daar voor het waarom en voor de reden dat de tweede pixel uit een
-   `inset`-schaduw komt en niet uit een dikkere rand. */
 .auth-field:focus {
-  outline: none;
-  border-color: var(--focus-ring);
-  box-shadow: inset 0 0 0 1px var(--focus-ring);
+  outline: var(--border-width-sm) solid var(--border-focus);
+  outline-offset: 2px;
+  border-color: var(--border-focus);
 }
 /* Alleen een wachtwoordveld heeft rechts een oogknop staan. */
 .auth-field-toggle {
@@ -1936,23 +2040,27 @@ textarea.field {
   align-items: center;
   justify-content: center;
   width: 100%;
-  /* Zelfde maat als het veld erboven, zie daar. */
-  height: 44px;
-  border-radius: var(--radius-md);
-  /* Inkt, net als `.btn-primary`. Het inlogscherm is precies waar dit voor het
-     eerst opviel: een paarse knop in donkere modus terwijl Nova daar een bijna
-     witte heeft. */
-  background-color: var(--intent-neutral-solid);
-  color: var(--intent-neutral-on-solid);
-  font-weight: 600;
+  height: 48px;
+  /* De pil, net als elke andere knop. Zie het knoppenblok hierboven. */
+  border-radius: var(--radius-pill);
+  background-color: var(--interactive-selected);
+  color: var(--interactive-selected-on);
+  font-weight: 500;
   font-size: 1rem;
-  transition: background-color var(--duration-base) var(--ease-out);
+  transition:
+    background-color var(--duration-base) var(--ease-out),
+    opacity var(--duration-base) var(--ease-out);
 }
-.auth-submit:hover {
-  background-color: var(--intent-neutral-hover);
+.auth-submit:hover:not(:disabled) {
+  opacity: 0.8;
+}
+.auth-submit:focus-visible {
+  outline: var(--border-width-sm) solid var(--border-focus);
+  outline-offset: 2px;
 }
 .auth-submit:disabled {
-  opacity: 0.55;
+  background-color: var(--interactive-disabled);
+  color: var(--text-disabled);
   cursor: not-allowed;
 }
 
@@ -1963,8 +2071,8 @@ textarea.field {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  font-size: 0.8125rem;
-  color: var(--text-muted);
+  font-size: 0.75rem; /* 12px, body-xs */
+  color: var(--text-subtle);
 }
 
 @media print {
@@ -2027,18 +2135,22 @@ textarea.field {
 
   html,
   body {
+    /* Papier is wit, niet het schermgrijs van --bg-base. Vandaar de vaste
+       waarde: dit is de enige plek in dit bestand waar een kleur geen token
+       is, en de reden is dat er geen token voor "papier" bestaat. */
     background: #ffffff !important;
   }
 
   * {
     box-shadow: none !important;
-    backdrop-filter: none !important;
     animation: none !important;
   }
 
   .card {
     break-inside: avoid;
-    border-color: #d0d7de !important;
+    /* Op papier moet de kaartrand zichtbaar zijn. --border-primary is #e6e6e6
+       en dat drukt op veel printers als niets af. */
+    border-color: var(--border-strong) !important;
   }
 
   a {

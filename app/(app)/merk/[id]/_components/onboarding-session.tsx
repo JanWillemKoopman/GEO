@@ -396,7 +396,7 @@ export function OnboardingSession({
                     <>
                       <div className="card flex flex-col gap-2" id="veld-anker-url">
                         <div className="flex flex-wrap items-baseline justify-between gap-2">
-                          <span className="text-sm font-semibold">Website</span>
+                          <span className="text-sm font-medium">Website</span>
                           {standen.url === "mislukt" && (
                             <span className="chip chip-danger">niet gelukt</span>
                           )}
@@ -463,7 +463,7 @@ export function OnboardingSession({
                       </div>
 
                       <div className="card flex flex-col gap-2">
-                        <span className="text-sm font-semibold">Search Console</span>
+                        <span className="text-sm font-medium">Search Console</span>
                         <p className="text-sm text-muted">
                           Zonder koppeling blijft het scherm Zoekverkeer leeg en mist je rapport de
                           cijfers over klikken en vertoningen.

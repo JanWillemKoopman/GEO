@@ -224,7 +224,7 @@ function Tab({
       // die laatste wint, dus de gekozen filterknop negeert de hover vanzelf.
       // Zonder dit beloofde `transition-colors` een overgang die nergens heen
       // ging.
-      className="flex items-center gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-sm font-medium transition-colors hover:bg-[var(--wash-hover)]"
+      className="flex items-center gap-2 rounded-[var(--radius-xl)] border px-3 py-2 text-sm font-medium transition-colors hover:bg-[var(--wash-hover)]"
       style={{
         borderColor: actief ? "var(--intent-intelligence-border)" : "var(--border-subtle)",
         background: actief ? "var(--intent-intelligence-surface)" : undefined,

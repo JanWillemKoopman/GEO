@@ -136,7 +136,7 @@ export function WorkInProgress({
           een mailtje wachtte, wachtte voor niets. Dit component is een client-
           component en kan de serverschakelaar niet zien, dus staat er nu alleen
           wat onder alle omstandigheden waar is. */}
-      <p className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3 text-sm text-secondary">
+      <p className="rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3 text-sm text-secondary">
         <strong className="font-medium">Je kunt dit scherm sluiten.</strong> ORBIT ENGINE draait op de
         achtergrond door en maakt het werk af, ook als je de browser afsluit. Kom gerust later terug.
       </p>

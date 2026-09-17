@@ -209,7 +209,7 @@ export default async function ProspectDossierPage({
 
       {!kans ? (
         <div className="card">
-          <h2 className="text-lg font-semibold">Nog geen kans gevonden</h2>
+          <h2 className="text-lg font-medium">Nog geen kans gevonden</h2>
           <p className="mt-1 text-secondary">
             Dit bedrijf staat in een markt, maar de meting leverde geen aanleiding op om contact op
             te nemen. Dat is een uitkomst en geen fout.
@@ -219,7 +219,7 @@ export default async function ProspectDossierPage({
         <>
           <section className="card flex flex-col gap-3">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="text-lg font-semibold">Waarom je belt</h2>
+              <h2 className="text-lg font-medium">Waarom je belt</h2>
               <div className="flex items-center gap-2">
                 <span className="chip chip-neutral">{KANS_LABEL[kans.type as KansType] ?? kans.type}</span>
                 <span className="chip chip-neutral">score {kans.score}</span>
@@ -285,7 +285,7 @@ export default async function ProspectDossierPage({
 
           <section className="card flex flex-col gap-3">
             <div>
-              <h2 className="text-lg font-semibold">Hoe de score is opgebouwd</h2>
+              <h2 className="text-lg font-medium">Hoe de score is opgebouwd</h2>
               <p className="mt-1 text-secondary">
                 De score is gerekend en niet geschat. Elk onderdeel telt voor zichzelf, en samen
                 bepalen ze of dit bedrijf de eerste is die je belt.
@@ -312,7 +312,7 @@ export default async function ProspectDossierPage({
               manier om het vertrouwen kwijt te raken dat de mail net won. */}
           {kans.sales_markets?.is_public && kans.sales_markets.slug && (
             <section className="card flex flex-col gap-1">
-              <h2 className="text-lg font-semibold">Openbaar bewijs</h2>
+              <h2 className="text-lg font-medium">Openbaar bewijs</h2>
               <p className="text-secondary">
                 De uitkomst van deze markt staat online. Deze link mag in je mail: de prospect kan
                 er zelf nalezen wat er gemeten is.
@@ -325,7 +325,7 @@ export default async function ProspectDossierPage({
 
           <section className="flex flex-col gap-3">
             <div>
-              <h2 className="text-lg font-semibold">Het bewijs</h2>
+              <h2 className="text-lg font-medium">Het bewijs</h2>
               <p className="mt-1 text-secondary">
                 Dit is wat er gevraagd is en wat de AI antwoordde. Gemeten in ronde{" "}
                 {kans.sales_runs?.round_no ?? 1}

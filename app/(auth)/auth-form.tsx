@@ -19,7 +19,7 @@ export function AuthForm({ mode, action, notice, signupsEnabled = false }: AuthF
   return (
     <form action={formAction} className="flex flex-col gap-4">
       {notice && (
-        <p className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--intent-growth-surface)] px-4 py-3 text-sm text-[var(--intent-growth-text)]">
+        <p className="rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--intent-growth-surface)] px-4 py-3 text-sm text-[var(--intent-growth-text)]">
           {notice}
         </p>
       )}

@@ -74,7 +74,7 @@ export function BrandSwitcher({
   if (brands.length === 1) {
     return (
       <span className="flex min-w-0 items-center gap-2">
-        <span className="truncate text-sm font-semibold">{brands[0].name}</span>
+        <span className="truncate text-sm font-medium">{brands[0].name}</span>
       </span>
     );
   }
@@ -88,7 +88,7 @@ export function BrandSwitcher({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className="flex h-9 min-w-0 max-w-[14rem] items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-sm font-medium transition-colors hover:border-[var(--border-contrast)]"
+        className="flex h-9 min-w-0 max-w-[14rem] items-center gap-2 rounded-[var(--radius-xl)] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-sm font-medium transition-colors hover:border-[var(--border-contrast)]"
       >
         <span className="truncate">{label}</span>
         <span className="text-muted">
@@ -98,7 +98,7 @@ export function BrandSwitcher({
 
       {open && (
         <div
-          className="menu-surface absolute left-0 z-40 mt-1 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)]"
+          className="menu-surface absolute left-0 z-40 mt-1 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-[var(--radius-xxxl)] border border-[var(--border-subtle)]"
           style={{ boxShadow: "var(--shadow-overlay)" }}
           role="listbox"
         >
@@ -131,7 +131,7 @@ export function BrandSwitcher({
                     setOpen(false);
                     onSelect(b.id);
                   }}
-                  className="flex w-full flex-col items-start gap-0.5 rounded-[var(--radius-md)] px-3 py-2 text-left transition-colors hover:bg-[var(--bg-muted)]"
+                  className="flex w-full flex-col items-start gap-0.5 rounded-[var(--radius-xl)] px-3 py-2 text-left transition-colors hover:bg-[var(--bg-muted)]"
                   style={{
                     background:
                       active?.id === b.id ? "var(--bg-elevated)" : "transparent",
@@ -157,7 +157,7 @@ export function BrandSwitcher({
                 setOpen(false);
                 onSelect("");
               }}
-              className="w-full rounded-[var(--radius-md)] px-3 py-2 text-left text-sm text-secondary transition-colors hover:bg-[var(--bg-muted)]"
+              className="w-full rounded-[var(--radius-xl)] px-3 py-2 text-left text-sm text-secondary transition-colors hover:bg-[var(--bg-muted)]"
             >
               Alle merken bekijken
             </button>

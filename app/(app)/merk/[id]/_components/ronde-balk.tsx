@@ -52,7 +52,7 @@ export function RondeBalk({ fases, zin }: { fases: RondeFase[]; zin: string }) {
               </span>
               <span
                 className={`min-w-0 truncate text-sm ${
-                  fase.actief ? "font-semibold" : fase.klaar ? "font-medium" : "text-muted"
+                  fase.actief ? "font-medium" : fase.klaar ? "font-medium" : "text-muted"
                 }`}
               >
                 {fase.label}

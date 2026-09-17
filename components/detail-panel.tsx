@@ -27,13 +27,13 @@ export function DetailPanel({
     <div className="card sticky top-[calc(var(--header-h)+1rem)] flex max-h-[calc(100vh-var(--header-h)-2rem)] flex-col gap-3 overflow-y-auto">
       <div className="flex items-start justify-between gap-2">
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-semibold">{title}</span>
+          <span className="block truncate font-medium">{title}</span>
           {subtitle && <span className="mono-label block truncate text-muted">{subtitle}</span>}
         </span>
         <button
           type="button"
           onClick={onClose}
-          className="shrink-0 rounded-[var(--radius-md)] p-1 text-muted transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
+          className="shrink-0 rounded-[var(--radius-xl)] p-1 text-muted transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
           aria-label="Paneel sluiten"
         >
           <Icon naam="sluiten" size={16} />

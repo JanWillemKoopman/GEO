@@ -74,7 +74,7 @@ export default async function NewAnalysisPage({
 
       {profiles.length === 0 ? (
         <div className="card flex flex-col items-center gap-4 py-12 text-center">
-          <h2 className="text-xl font-semibold">Eerst een merk</h2>
+          <h2 className="text-xl font-medium">Eerst een merk</h2>
           <p className="max-w-md text-secondary">
             ORBIT ENGINE meet altijd binnen een merk. Voeg er één toe, en daarna koppel je hier zoveel
             clusters aan als je wilt, één per product of onderwerp.

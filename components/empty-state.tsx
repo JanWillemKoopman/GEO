@@ -24,7 +24,7 @@ export function EmptyState({
 }) {
   return (
     <div className="card flex flex-col items-center gap-4 py-14 text-center">
-      <h2 className="text-xl font-semibold">{title}</h2>
+      <h2 className="text-xl font-medium">{title}</h2>
       <p className="max-w-md text-secondary">{children}</p>
       {action && (
         <Link href={action.href} className="btn-primary mt-1">

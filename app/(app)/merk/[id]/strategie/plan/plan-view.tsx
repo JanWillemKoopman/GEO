@@ -687,7 +687,7 @@ export function PlanView({
                 {declined.map((item, i) => (
                   <li
                     key={i}
-                    className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-2.5 text-sm"
+                    className="rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-2.5 text-sm"
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-secondary">{item.problem}</span>
@@ -771,7 +771,7 @@ export function PlanView({
                       type="button"
                       aria-expanded={open}
                       onClick={() => setDicht((d) => ({ ...d, [month.id]: open }))}
-                      className="flex items-center gap-2 text-sm font-semibold hover:underline"
+                      className="flex items-center gap-2 text-sm font-medium hover:underline"
                     >
                       <Icon naam={open ? "openen" : "verder"} size={13} />
                       {/* Besluit 7: "maand 4 sinds de start", nooit "van 12". */}
@@ -1257,7 +1257,7 @@ function RijMenu({
           if (!open) meten();
           setOpen((o) => !o);
         }}
-        className="rounded-[var(--radius-md)] p-1.5 text-muted transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] disabled:opacity-40"
+        className="rounded-[var(--radius-xl)] p-1.5 text-muted transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] disabled:opacity-40"
       >
         <Icon naam="meer" size={16} />
       </button>
@@ -1269,7 +1269,7 @@ function RijMenu({
             role="menu"
             /* z-40 is de laag van uitklapmenu's uit de ladder in `docs/ux-design.md`:
                boven de navigatiebalken, onder de dialogen. */
-            className="menu-surface fixed z-40 flex w-60 flex-col overflow-y-auto rounded-[var(--radius-md)] py-1"
+            className="menu-surface fixed z-40 flex w-60 flex-col overflow-y-auto rounded-[var(--radius-xl)] py-1"
             style={{
               top: plek.top,
               right: plek.right,
@@ -1440,7 +1440,7 @@ function Segment({
       type="button"
       onClick={onClick}
       aria-pressed={actief}
-      className="rounded-[var(--radius-md)] border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-[var(--wash-hover)]"
+      className="rounded-[var(--radius-xl)] border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-[var(--wash-hover)]"
       style={{
         borderColor: actief ? "var(--intent-intelligence-border)" : "var(--border-subtle)",
         background: actief ? "var(--intent-intelligence-surface)" : undefined,

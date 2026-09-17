@@ -160,7 +160,7 @@ export function ClusterKaart({
     <div className="card flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
-          <Link href={`/analyses/${analyse.id}`} className="truncate text-lg font-semibold hover:underline">
+          <Link href={`/analyses/${analyse.id}`} className="truncate text-lg font-medium hover:underline">
             {analyse.name}
           </Link>
           <LastUpdated at={analyse.updated_at} className="mono-label mt-1 block" />
@@ -182,7 +182,7 @@ export function ClusterKaart({
                 aria-expanded={menuOpen}
                 disabled={opSlot}
                 onClick={() => setMenuOpen((o) => !o)}
-                className="rounded-[var(--radius-md)] p-1.5 text-muted transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] disabled:opacity-40"
+                className="rounded-[var(--radius-xl)] p-1.5 text-muted transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] disabled:opacity-40"
               >
                 <Icon naam="meer" size={16} />
               </button>
@@ -191,7 +191,7 @@ export function ClusterKaart({
                 <div
                   role="menu"
                   aria-label={`Acties voor ${analyse.name}`}
-                  className="menu-surface absolute right-0 top-full z-30 mt-1 w-64 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)] p-1 text-left"
+                  className="menu-surface absolute right-0 top-full z-30 mt-1 w-64 overflow-hidden rounded-[var(--radius-xxxl)] border border-[var(--border-subtle)] p-1 text-left"
                   style={{ boxShadow: "var(--shadow-overlay)" }}
                 >
                   <div className="px-2 pb-1 pt-1.5">
@@ -203,7 +203,7 @@ export function ClusterKaart({
                     aria-checked={!analyse.label_id}
                     disabled={opSlot}
                     onClick={() => void zetLabel(null)}
-                    className="block w-full rounded-[var(--radius-md)] px-2 py-1.5 text-left text-sm transition-colors hover:bg-[var(--wash-hover)] disabled:opacity-40"
+                    className="block w-full rounded-[var(--radius-xl)] px-2 py-1.5 text-left text-sm transition-colors hover:bg-[var(--wash-hover)] disabled:opacity-40"
                   >
                     Geen label
                   </button>
@@ -215,7 +215,7 @@ export function ClusterKaart({
                       aria-checked={l.id === analyse.label_id}
                       disabled={opSlot}
                       onClick={() => void zetLabel(l.id)}
-                      className="block w-full rounded-[var(--radius-md)] px-2 py-1.5 text-left text-sm transition-colors hover:bg-[var(--wash-hover)] disabled:opacity-40"
+                      className="block w-full rounded-[var(--radius-xl)] px-2 py-1.5 text-left text-sm transition-colors hover:bg-[var(--wash-hover)] disabled:opacity-40"
                     >
                       {l.name}
                     </button>
@@ -226,7 +226,7 @@ export function ClusterKaart({
                       type="button"
                       disabled={opSlot}
                       onClick={() => setNieuwLabel("")}
-                      className="block w-full rounded-[var(--radius-md)] px-2 py-1.5 text-left text-sm text-secondary transition-colors hover:bg-[var(--wash-hover)] disabled:opacity-40"
+                      className="block w-full rounded-[var(--radius-xl)] px-2 py-1.5 text-left text-sm text-secondary transition-colors hover:bg-[var(--wash-hover)] disabled:opacity-40"
                     >
                       + Nieuw label maken
                     </button>
@@ -272,7 +272,7 @@ export function ClusterKaart({
                         setMenuOpen(false);
                         setVraagPrullenbak(true);
                       }}
-                      className="flex w-full items-center gap-2 rounded-[var(--radius-md)] px-2 py-1.5 text-left text-sm transition-colors hover:bg-[var(--wash-hover)] disabled:opacity-40"
+                      className="flex w-full items-center gap-2 rounded-[var(--radius-xl)] px-2 py-1.5 text-left text-sm transition-colors hover:bg-[var(--wash-hover)] disabled:opacity-40"
                       style={{ color: "var(--intent-danger-text)" }}
                     >
                       <Icon naam="prullenbak" size={14} />

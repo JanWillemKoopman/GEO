@@ -165,7 +165,7 @@ export function PublishBox({
           </button>
         </form>
       ) : (
-        <div className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
+        <div className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3">
           <p className="text-sm text-secondary">
             ORBIT ENGINE zet nu twee hermetingen in de rij, over twee en over vier weken, om te zien of deze
             pagina het verschil maakt. Klopt de link?
@@ -234,7 +234,7 @@ function PublishCheckNotice({ check, checkedAt }: { check: PublishCheck | null; 
 
   return (
     <div
-      className="card-warning flex flex-col gap-1 rounded-[var(--radius-md)] border p-3"
+      className="card-warning flex flex-col gap-1 rounded-[var(--radius-xl)] border p-3"
     >
       <span className="text-sm font-medium">Even controleren</span>
       <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-secondary">

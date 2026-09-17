@@ -31,7 +31,7 @@ export function CollapsibleSection({
   }, [defaultOpen]);
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+    <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-subtle)]">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}

@@ -235,7 +235,7 @@ export function TeamBox({
             keer. <strong>Je ziet hem nu voor het laatst</strong>: ORBIT ENGINE bewaart
             alleen een versleutelde versie, dus opnieuw tonen kan niet.
           </p>
-          <p className="break-url rounded-[var(--radius-md)] bg-[var(--bg-elevated)] p-3 font-mono text-xs">
+          <p className="break-url rounded-[var(--radius-xl)] bg-[var(--bg-elevated)] p-3 font-mono text-xs">
             {link}
           </p>
           <CopyButton

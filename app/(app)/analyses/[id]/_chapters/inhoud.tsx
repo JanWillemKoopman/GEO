@@ -203,7 +203,7 @@ export async function InhoudChapter({ analysis }: { analysis: Analysis }) {
               return (
                 <li
                   key={i}
-                  className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-4"
+                  className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-4"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-medium">{r.title}</span>

@@ -64,7 +64,7 @@ export function ProfileMenu({
         aria-label="Menu openen"
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
+        className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-xl)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
       >
         <Icon naam="profiel" size={20} />
       </button>
@@ -73,7 +73,7 @@ export function ProfileMenu({
         <div
           role="menu"
           aria-label="Menu"
-          className="menu-surface absolute right-0 z-40 mt-1 w-56 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)]"
+          className="menu-surface absolute right-0 z-40 mt-1 w-56 overflow-hidden rounded-[var(--radius-xxxl)] border border-[var(--border-subtle)]"
           style={{ boxShadow: "var(--shadow-overlay)" }}
         >
           <div className="border-b border-[var(--border-subtle)] px-3 py-2">
@@ -85,7 +85,7 @@ export function ProfileMenu({
               href="/instellingen"
               role="menuitem"
               onClick={() => setOpen(false)}
-              className="block rounded-[var(--radius-md)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--wash-hover)]"
+              className="block rounded-[var(--radius-xl)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--wash-hover)]"
             >
               Mijn account
             </Link>
@@ -96,7 +96,7 @@ export function ProfileMenu({
               <button
                 type="submit"
                 role="menuitem"
-                className="block w-full rounded-[var(--radius-md)] px-3 py-2 text-left text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--wash-hover)]"
+                className="block w-full rounded-[var(--radius-xl)] px-3 py-2 text-left text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--wash-hover)]"
               >
                 Uitloggen
               </button>

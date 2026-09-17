@@ -72,7 +72,7 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
           <span className="mono-label">Merk</span>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-lg font-semibold">{profile.name}</p>
+              <p className="text-lg font-medium">{profile.name}</p>
               <p className="text-sm text-secondary">
                 Branche: {profile.industry ?? "onbekend"}
               </p>

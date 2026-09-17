@@ -190,7 +190,7 @@ export function BrandWizard({
               type="button"
               onClick={() => setStap(s)}
               aria-current={actief ? "step" : undefined}
-              className="flex items-center gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-sm font-medium transition-colors"
+              className="flex items-center gap-2 rounded-[var(--radius-xl)] border px-3 py-2 text-sm font-medium transition-colors"
               style={{
                 borderColor: actief
                   ? "var(--intent-intelligence-border)"

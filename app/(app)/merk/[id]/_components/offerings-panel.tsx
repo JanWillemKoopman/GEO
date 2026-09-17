@@ -124,7 +124,7 @@ export function OfferingsPanel({
 
       {inventory && inventory.verdict !== "voldoende" && (
         <div
-          className="rounded-[var(--radius-md)] border border-[var(--status-warning)] px-3 py-2 text-sm"
+          className="rounded-[var(--radius-xl)] border border-[var(--status-warning)] px-3 py-2 text-sm"
           role="status"
         >
           <span className="mono-label">{VERDICT_KOPPEN[inventory.verdict]}</span>

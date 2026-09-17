@@ -72,7 +72,7 @@ export function RerunResearchButton({
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
+    <div className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3">
       <p className="text-sm text-secondary">
         ORBIT ENGINE leest de website opnieuw uit en bouwt het aanbod opnieuw op. Dat
         duurt een paar minuten.

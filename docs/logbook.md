@@ -9364,3 +9364,73 @@ alle vier groen. Nagerekend op de gebouwde CSS: de elf kernkleuren van het Nova-
 `#17212b`, `#f8fafc`, `#37941c`, `#e7edf2`, `#788795`, `#43505d`, `#c2ccd6`, `#ad45ff`, `#b9efa3`,
 `#e4e9ee`) komen alle elf nul keer voor, en de nieuwe waarden wel. Het zijproject
 `app/solliciteren/` draagt uitsluitend eigen `--sol-*`-tokens en is niet aangeraakt.
+
+## 17 september 2026, stap 2 van de redesign: de componentklassen
+
+De 59 klassen in `app/globals.css` staan op de specificatie van OKX. Dit is de tweede van elf
+stappen; stap 1 (de tokenlaag) staat hierboven.
+
+**Dit was het kijkmoment van het hele traject en dat is met opzet zo gepland.** Na deze stap is het
+uiterlijk in grote lijnen beslist, zonder dat er één scherm is aangeraakt: `.card` staat in 117
+bestanden, `.mono-label` in 126, `.chip` in 68, `.btn-*` in 53 en `.field` in 48. Die gingen alle
+vijf in één beweging mee.
+
+**De radiusschaal botste op naam en dat is in twee fasen opgelost.** OKX' schaal is 2/4/6/8/10/12,
+de oude was 2/4/6/8/12/16/24, en `--radius-sm` betekende in de ene 6 pixels en in de andere 2.
+Eerst is dus elke oude naam naar een tijdelijke naam op zijn wáárde gebracht, en daarna naar de
+nieuwe naam met diezelfde waarde: 164 verwijzingen in 60 bestanden, zonder dat er één pixel
+verschoof. 12, 16 en 24 vielen daarbij alle drie samen op 12, want ronder dan dat bestaat niet meer.
+
+**De vier wijzigingen die je meteen ziet.** De kaart verliest zijn glaslaag en zijn schaduw en gaat
+van 12 naar 8 pixels rond; wat overblijft is een dekkend vlak met één rand, en dat werkt alleen
+omdat stap 1 de grond al van de kaart heeft losgetrokken. De knop wordt weer een pil, want
+`--okd-button-lg-border-radius` is bij OKX 60 in hun hele productomgeving en alleen hun expliciete
+`rect`-variant is 4 of 8. De chip gaat van 6 naar 4 pixels rond. En "vet" is overal gewicht 500
+geworden.
+
+**Dat laatste is de grootste enkele verschuiving en hij is uit stap 9 naar voren gehaald.** OKX
+gebruikt nergens 600 of 700 voor tekst binnen een regel; alleen hun twee grootste koppen gaan naar
+600. In de klassenlaag was dat een kwestie van veertien regels, maar in de schermen stonden nog 88
+keer `font-semibold` en twee keer `font-bold`. Die zijn meegenomen: zonder die veeg zou stap 2 er
+niet uitzien als OKX, en dan is het kijkmoment waardeloos. Nagerekend op de gebouwde CSS is
+`.type-hero` (36 pixels, OKX' `heading-xl`) nu de enige regel van ORBIT ENGINE zelf die nog op 600
+staat. De twintig andere 600's komen uit `app/solliciteren/`, dat eigen `--sol-*`-tokens draagt en
+niet is aangeraakt.
+
+**De mono is uit de labels.** `.mono-label`, `.type-lead`, `.type-label` en `.auth-eyebrow` stonden
+in de monospace met brede letterspatiëring. Dat was in augustus 2026 nagerekend tegen Nova, die het
+in hun product inderdaad doet. OKX doet het niet: hun hele interface staat in één familie en cijfers
+krijgen daar de tabulaire variant van diezelfde letter in plaats van een tweede lettertype.
+`--font-mono` blijft bestaan en heeft nog precies één gebruiker, `.prose code`, en dat is waar mono
+voor is. De labels gaan daarbij van 11 naar 12 pixels en van `--text-muted` (3,7:1) naar
+`--text-subtle` (7,1:1 in donker, 6,5:1 in licht).
+
+**De glaslaag is compleet verdwenen, met drie uitzonderingsblokken erbij.** Er stonden er drie die
+het effect weer uitzetten: als de browser `backdrop-filter` niet kan, als iemand minder
+doorzichtigheid vraagt, en op een telefoon. Die machinerie bestond om een effect te repareren dat
+OKX helemaal niet heeft; in hun 1.135.435 bytes CSS komt geen enkele `backdrop-filter` voor. Weg
+zijn dus vier tokens, drie blokken en een toegankelijkheidsprobleem dat nu niet meer opgelost hoeft
+te worden.
+
+**Twee vaste hexkleuren zijn eruit.** `.chip` droeg `color: #dbcce7` en er stonden twee
+donkere-stand-uitzonderingen voor `.chip-attention` en `.chip-danger`, alle drie omdat de chiptekst
+op zijn eigen vlak net geen 4,5:1 haalde. Dat probleem bestaat niet meer: de
+`--intent-*-content`-tokens zijn per stand tegen hun eigen oppervlak doorgerekend. Geteld na afloop
+houdt `app/globals.css` nog precies één losse hexwaarde buiten de tokendefinities over: het witte
+papier in de printstand, en daar bestaat geen token voor.
+
+**De inlogroute gebruikt nu de gewone schaal.** Het veld en de knop staan op 48 pixels, en dat is
+niet langer een eigen uitzondering maar precies OKX' maat `lg` (13 + 13 + 20 + 2). Dat was het hele
+punt van `docs/designsystem.md` §9b over de inloguitzondering: hij mag bestaan zolang hij niets
+nieuws introduceert. De kaart gaat van 520 naar 480 pixels en verliest zijn schaduw; hij staat op
+`--bg-stage`, en dat is in beide standen een andere kleur dan de kaart zelf.
+
+**Eén detail dat later pijn had gedaan.** Het veld op het inlogscherm staat nu op 16 pixels in
+plaats van 15. Safari op iOS zoomt de hele pagina in zodra een veld met minder dan 16 pixels focus
+krijgt, en daar komt de bezoeker niet vanzelf uit. Op het scherm dat in de sales-led opzet vaak het
+eerste beeld in een demogesprek is, is dat precies de verkeerde plek om dat te laten gebeuren.
+
+Getest: `tsc --noEmit`, `test:unit` (4912 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+alle vier groen. Nagerekend op de gebouwde CSS: de radiusschaal is letterlijk die van OKX
+(2/4/6/8/10/12 plus 60), `9999px` komt nul keer voor, en van de gewichten staat alles op 500 of
+lichter op `.type-hero` na. 93 bestanden gewijzigd.

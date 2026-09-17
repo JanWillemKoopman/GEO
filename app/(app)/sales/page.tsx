@@ -145,7 +145,7 @@ export default async function SalesOverzichtPage() {
         <>
           <section className="flex flex-col gap-3">
             <div>
-              <h2 className="font-semibold">Jouw werk vandaag</h2>
+              <h2 className="font-medium">Jouw werk vandaag</h2>
               <p className="text-secondary">
                 Wat je hebt opgepakt en waar een volgende stap op wacht. De oudste staat bovenaan.
               </p>
@@ -160,7 +160,7 @@ export default async function SalesOverzichtPage() {
                 <article key={rij.id} className="card flex flex-col gap-2">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <div className="flex flex-wrap items-baseline gap-2">
-                      <h3 className="font-semibold">{rij.sales_companies?.name ?? "Onbekend bedrijf"}</h3>
+                      <h3 className="font-medium">{rij.sales_companies?.name ?? "Onbekend bedrijf"}</h3>
                       <span className="mono-label">{rij.sales_markets?.label ?? ""}</span>
                     </div>
                     <span className="chip chip-neutral">
@@ -188,7 +188,7 @@ export default async function SalesOverzichtPage() {
 
           <section className="flex flex-col gap-3">
             <div>
-              <h2 className="font-semibold">Nog niet opgepakt</h2>
+              <h2 className="font-medium">Nog niet opgepakt</h2>
               <p className="text-secondary">
                 De hoogste kansen waar nog niemand mee bezig is. Wie hem oppakt, krijgt hem: een
                 bedrijf kan maar één actieve benadering tegelijk hebben.
@@ -204,7 +204,7 @@ export default async function SalesOverzichtPage() {
                 <article key={kans.id} className="card flex flex-col gap-2">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <div className="flex flex-wrap items-baseline gap-2">
-                      <h3 className="font-semibold">{kans.sales_companies?.name ?? "Onbekend bedrijf"}</h3>
+                      <h3 className="font-medium">{kans.sales_companies?.name ?? "Onbekend bedrijf"}</h3>
                       <span className="mono-label">{kans.sales_markets?.label ?? ""}</span>
                     </div>
                     <span className="chip chip-neutral">{kans.score}</span>
@@ -229,12 +229,12 @@ export default async function SalesOverzichtPage() {
           {reacties.length > 0 && (
             <section className="flex flex-col gap-3">
               <div>
-                <h2 className="font-semibold">Hier kwam een reactie op</h2>
+                <h2 className="font-medium">Hier kwam een reactie op</h2>
                 <p className="text-secondary">Bellen is nu de volgende stap, niet nog een mail.</p>
               </div>
               {reacties.map((rij) => (
                 <article key={`reactie-${rij.id}`} className="card flex items-center justify-between gap-2">
-                  <span className="font-semibold">{rij.sales_companies?.name ?? "Onbekend bedrijf"}</span>
+                  <span className="font-medium">{rij.sales_companies?.name ?? "Onbekend bedrijf"}</span>
                   <Link href={`/sales/prospects/${rij.company_id}`} className="btn-ghost">
                     Naar het dossier
                   </Link>
@@ -245,7 +245,7 @@ export default async function SalesOverzichtPage() {
 
           <section className="flex flex-col gap-3">
             <div>
-              <h2 className="font-semibold">Jouw cijfers deze maand</h2>
+              <h2 className="font-medium">Jouw cijfers deze maand</h2>
               {/* ⚠️ Alleen de eigen cijfers, en geen vergelijking met collega's
                   (plan §5.1, laatste zin). Het eerste cijfer dat echt telt is
                   Gesprek, niet Verstuurd. */}
@@ -258,7 +258,7 @@ export default async function SalesOverzichtPage() {
               {cijfers.map((c) => (
                 <div key={c.label}>
                   <span className="mono-label">{c.label}</span>
-                  <p className="text-xl font-semibold">{c.waarde}</p>
+                  <p className="text-xl font-medium">{c.waarde}</p>
                 </div>
               ))}
             </div>

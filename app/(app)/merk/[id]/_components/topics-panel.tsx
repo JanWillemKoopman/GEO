@@ -190,10 +190,10 @@ export function TopicsPanel({
     return (
       <li
         key={t.id}
-        className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4"
+        className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-4"
       >
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <span className="font-semibold">{t.title}</span>
+          <span className="font-medium">{t.title}</span>
           <div className="flex flex-wrap items-center gap-2">
             {t.stage === "concept" && !t.analysis_id && (
               <span className="chip chip-neutral">Concept</span>
@@ -261,7 +261,7 @@ export function TopicsPanel({
         )}
 
         {mixFor === t.id && (
-          <div className="flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
+          <div className="flex flex-col gap-3 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3">
             <div className="flex flex-col gap-1">
               <span className="mono-label">Hoeveel vragen per fase?</span>
               <p className="text-sm text-secondary">

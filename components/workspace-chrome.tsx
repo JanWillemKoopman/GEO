@@ -71,7 +71,7 @@ export function WorkspaceChrome({
             <button
               type="button"
               onClick={() => setLadeOpen(true)}
-              className="-ml-1 rounded-[var(--radius-md)] p-2 text-secondary transition-colors hover:bg-[var(--bg-muted)] lg:hidden"
+              className="-ml-1 rounded-[var(--radius-xl)] p-2 text-secondary transition-colors hover:bg-[var(--bg-muted)] lg:hidden"
               aria-label="Menu openen"
             >
               <Icon naam="menu" size={20} />
@@ -118,7 +118,7 @@ export function WorkspaceChrome({
                 href="/solliciteren"
                 aria-label="Solliciteren, zijproject"
                 title="Solliciteren"
-                className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
+                className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-xl)] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
               >
                 S
               </Link>
@@ -126,7 +126,7 @@ export function WorkspaceChrome({
             <Link
               href="/support"
               aria-label="Support: hoe ORBIT ENGINE werkt"
-              className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
+              className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-xl)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
             >
               <Icon naam="help" size={20} />
             </Link>
@@ -179,7 +179,7 @@ export function WorkspaceChrome({
               <button
                 type="button"
                 onClick={() => setLadeOpen(false)}
-                className="rounded-[var(--radius-md)] p-1 text-muted transition-colors hover:text-[var(--text-primary)]"
+                className="rounded-[var(--radius-xl)] p-1 text-muted transition-colors hover:text-[var(--text-primary)]"
                 aria-label="Menu sluiten"
               >
                 <Icon naam="sluiten" size={18} />

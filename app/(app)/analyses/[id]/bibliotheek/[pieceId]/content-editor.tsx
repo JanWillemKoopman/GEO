@@ -133,7 +133,7 @@ export function ContentEditor({
     // plaats van dat pas te ontdekken bij de kleine tekst in de bewerkmodus.
     if (drempel) {
       return (
-        <div className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
+        <div className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3">
           <p className="text-sm text-secondary">
             Als je hier met de hand in werkt, gaat dat buiten de schrijfpijplijn om: de controles die
             ORBIT ENGINE normaal op gegenereerde tekst uitvoert, gelden niet voor wat jij zelf typt.
@@ -187,12 +187,12 @@ export function ContentEditor({
             schrijven, dan begint die weer bij de tekst van de AI.
           </p>
         </div>
-        <div className="flex shrink-0 gap-1 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-0.5">
+        <div className="flex shrink-0 gap-1 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-0.5">
           <button
             type="button"
             onClick={() => setWeergave("bewerken")}
             aria-pressed={weergave === "bewerken"}
-            className="rounded-[calc(var(--radius-md)-2px)] px-3 py-1 text-sm"
+            className="rounded-[calc(var(--radius-xl)-2px)] px-3 py-1 text-sm"
             style={
               weergave === "bewerken"
                 ? { background: "var(--intent-intelligence-surface)", color: "var(--intent-intelligence-text)" }
@@ -205,7 +205,7 @@ export function ContentEditor({
             type="button"
             onClick={() => setWeergave("voorbeeld")}
             aria-pressed={weergave === "voorbeeld"}
-            className="rounded-[calc(var(--radius-md)-2px)] px-3 py-1 text-sm"
+            className="rounded-[calc(var(--radius-xl)-2px)] px-3 py-1 text-sm"
             style={
               weergave === "voorbeeld"
                 ? { background: "var(--intent-intelligence-surface)", color: "var(--intent-intelligence-text)" }

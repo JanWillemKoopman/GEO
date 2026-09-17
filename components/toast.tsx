@@ -168,7 +168,7 @@ function ToastCard({ toast, onClose }: { toast: ToastItem; onClose: () => void }
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <p className="text-sm font-semibold">{toast.title}</p>
+          <p className="text-sm font-medium">{toast.title}</p>
           {toast.description && (
             <p className="text-sm text-secondary">{toast.description}</p>
           )}
@@ -176,7 +176,7 @@ function ToastCard({ toast, onClose }: { toast: ToastItem; onClose: () => void }
         <button
           type="button"
           onClick={onClose}
-          className="-m-1 shrink-0 rounded-[var(--radius-sm)] p-1 text-muted transition-colors hover:text-[var(--text-primary)]"
+          className="-m-1 shrink-0 rounded-[var(--radius-lg)] p-1 text-muted transition-colors hover:text-[var(--text-primary)]"
           aria-label="Melding sluiten"
         >
           <Icon naam="sluiten" size={16} />

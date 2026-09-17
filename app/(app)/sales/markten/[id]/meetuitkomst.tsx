@@ -73,7 +73,7 @@ export function Meetuitkomst({
 
       <div className="card flex flex-col gap-3">
         <div>
-          <h2 className="text-lg font-semibold">Wat de meting opleverde</h2>
+          <h2 className="text-lg font-medium">Wat de meting opleverde</h2>
           <p className="mt-1 text-secondary">
             Het gewogen aandeel telt een vraag zwaarder naarmate er commercieel meer aan hangt. Het
             percentage tussen haakjes is de marge: valt een verschil daarbinnen, dan is het geen

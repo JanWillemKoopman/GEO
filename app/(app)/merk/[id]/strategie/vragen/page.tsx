@@ -141,7 +141,7 @@ export default async function VragenPage({
               return (
                 <li
                   key={gap.field}
-                  className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 lg:flex-row lg:items-center lg:justify-between lg:gap-6"
+                  className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 lg:flex-row lg:items-center lg:justify-between lg:gap-6"
                 >
                   <div className="flex min-w-0 flex-col gap-1">
                     <span className="text-sm font-medium">{gap.label}</span>

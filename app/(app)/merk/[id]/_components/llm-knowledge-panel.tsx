@@ -99,7 +99,7 @@ export function LlmKnowledgePanel({ rows }: { rows: ProfileLlmBaseline[] }) {
         return (
           <div key={engine} className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-semibold">{engineLabel(engine)}</span>
+              <span className="font-medium">{engineLabel(engine)}</span>
               <span
                 className={
                   knows.level === "kent"
@@ -145,7 +145,7 @@ export function LlmKnowledgePanel({ rows }: { rows: ProfileLlmBaseline[] }) {
                 {tegenspraken.map((c, i) => (
                   <li
                     key={`${c.key}-${i}`}
-                    className="rounded-[var(--radius-sm)] border border-[var(--status-error)] px-3 py-2 text-sm"
+                    className="rounded-[var(--radius-lg)] border border-[var(--status-error)] px-3 py-2 text-sm"
                   >
                     <span className="mono-label">{c.key}</span>{" "}
                     <span className="text-secondary">
