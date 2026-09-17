@@ -9271,3 +9271,25 @@ Getest: `tsc --noEmit`, `test:unit` (4912 geslaagd, met een nieuwe testgroep voo
 `bandFromMeasuredVolume()` en een tekstcontrole op de rem in `content-contract.ts`), `test:chain`
 (666 geslaagd, met nieuwe assertions dat `search_volume_source`/`volume_source` zonder
 DATAFORSEO-sleutel op "geschat" blijven staan) en `build` zijn alle vier groen.
+
+## 17 september 2026, vervolg: gemerged naar main en migraties op productie
+
+`claude/nova-google-search-console-4mx1u7` is samengevoegd met `main` (merge-commit, geen
+conflicten buiten het logboek zelf, dat vanzelfsprekend twee kanten op groeide). Alle vier de
+controles (`tsc`, `test:unit`, `test:chain`, `build`) opnieuw groen op de samengevoegde stand.
+Migraties `0103` tot en met `0106` zijn met de Supabase-tool op productie toegepast
+(`search_console_queries`, `keyword_demand`, `vendor_calls`, `profile_keywords`,
+`profile_topics.search_volume_absolute`/`search_volume_source`, de uitgebreide
+`prompts.volume_source`-constraint) en nagerekend: vier nieuwe tabellen, twee nieuwe kolommen, één
+aangepaste constraint, allemaal aanwezig. De twee nieuwe INFO-meldingen van de beveiligingsadviseur
+(`keyword_demand` en `vendor_calls` zonder select-policy) zijn bewust zo, hetzelfde patroon als
+`ai_calls` en `staff_users`: alleen de service-role leest ze.
+
+**De openstaande punten staan op drie plekken, met één eigenaar per feit.** De volledige toelichting
+in `docs/tasks/zoekdata-in-de-keten.md` hoofdstuk 10 ("Nog open"): de DataForSEO-adapter is nog niet
+tegen een echt account geverifieerd, en blok D (de zoekwoordlaag in het contentcontract) heeft zijn
+eigen kwaliteitscriterium (tien pagina's met en tien zonder door het kwaliteitslab, met een mens die
+meeleest) nog niet gehaald, allebei omdat er geen productieomgeving met echte sleutels beschikbaar
+was tijdens het bouwen. Een korte verwijzing daarnaartoe staat bij sprint 8 van
+`docs/tasks/ontwikkelplan-visie.md`, zodat het ook zichtbaar is voor wie het sprintoverzicht leest
+zonder het losse plan te openen.
