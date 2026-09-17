@@ -3,755 +3,668 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    ORBIT ENGINE, design system
 
-   Bron: het tokensysteem van de NOVA-workspace van InSpace (nova.inspace.io).
-   Afgeleid op 6 augustus 2026 uit schermafbeeldingen, op 24 augustus 2026
-   nagerekend tegen de gecompileerde CSS van dat product zelf. Van de 46
-   kleurwaarden die hier stonden bleken er 45 letterlijk de hunne te zijn; de
-   ene afwijking (#fef3c7 tegenover #fef3c6) is toen rechtgezet. Volledige
-   verantwoording en de regels voor toepassing: docs/designsystem.md.
+   Bron: het tokensysteem van OKX (okx.com), bij hen `okd` geheten. Afgeleid op
+   17 september 2026 uit 1.135.435 bytes gecompileerde CSS van negen van hun
+   stylesheets, plus hun fontbestand. Hun systeem draagt 3.561 custom
+   properties, waarvan 378 semantische kleurtokens in twee volledige standen.
+   Volledige verantwoording, per waarde met GEMETEN of AFGELEID erbij:
+   `redesign2026.md`. Regels voor toepassing: `docs/designsystem.md`.
 
-   ⚠️ Dit is NIET het systeem van de marketingsite inspace.io. Dat was de bron
-   tot 6 augustus 2026 en het leverde een warme, ronde, gloeiende interface op:
-   goed voor een landingspagina, verkeerd voor een dashboard waar iemand een uur
-   per week in zit. InSpace doet dat in hun eigen product ook niet. De
-   productomgeving is koel, strak en plat:
+   ⚠️ Dit verving op 17 september 2026 het tokensysteem van de NOVA-workspace
+   van InSpace. Dat was de bron van 6 augustus tot 17 september 2026 en
+   `docs/designsystem.md` §9b legde in augustus al vast waarom dat op termijn
+   niet houdbaar was: Nova is een direct concurrerend product. OKX is dat niet
+   en zal dat nooit worden.
 
-     warm off-white  →  koel leiblauw          (#f7f8f6 → #f8fafc)
-     pillen overal   →  8px en 12px            (radius 18/14/9 → 12/8/6)
-     gekleurde gloed →  één platte schaduw     (glow-orbs weg)
-     gradient overal →  alleen het woordmerk
+   Wat er verschoof, in vijf regels:
 
-   ── DE TWEE STANDEN (24 augustus 2026) ──────────────────────────────────────
+     koel leiblauw    →  neutraal grijs        (#17212b → #000000, geen zweem)
+     wit op wit       →  grijze grond          (kaart en pagina uit elkaar)
+     glas en schaduw  →  één rand              (backdrop-filter eruit)
+     paars en groen   →  limoen                (#8511d9 → #bcff2f)
+     zeven betekenissen → vier                 (informatie wordt grijs)
 
-   Er zijn er nu twee. Donkere modus was op 11 augustus geschrapt omdat elk van
-   de 107 tokens een doordachte tegenhanger nodig had en die er niet was; met de
-   gecompileerde CSS van Nova erbij liggen die tegenhangers er wél, want hun
-   product draagt een volledig donker palet. Dat is overgenomen.
+   ── DEZE STAP (stap 1 van 11) ───────────────────────────────────────────────
+
+   Dit is de tokenlaag en verder niets. Kleur, letter, beweging en schaduw zijn
+   om; radius, maatvoering en de componentklassen staan nog op hun oude waarden.
+   De app is na deze stap dus lelijk maar volledig werkend, en dat is met opzet:
+   zo is deze stap op zichzelf terug te draaien. Stap 2 zet de klassenlaag om.
+
+   ⚠️ **DE ALIASSENLAAG ONDERAAN IS TIJDELIJK.** 101 oude tokennamen worden
+   gebruikt in de klassenlaag hieronder en in 249 tsx-bestanden. Ze wijzen nu
+   naar hun nieuwe tegenhanger, zodat er niets breekt terwijl de rest volgt.
+   Elke alias verdwijnt zodra zijn laatste gebruiker om is (stap 2 en stap 10).
+   Schrijf geen NIEUWE code tegen een alias.
+
+   ── DE TWEE STANDEN ─────────────────────────────────────────────────────────
 
    De startstand volgt het besturingssysteem. Kiest iemand zelf, dan zet
    `components/theme-toggle.tsx` een `data-theme` op het wortelelement en wint
-   die keuze van het systeem. Vandaar de drie blokken hieronder:
+   die keuze. Vandaar de drie blokken:
 
      :root                                    de lichte stand, altijd volledig
      @media (prefers-color-scheme: dark)      systeemvoorkeur, tenzij expliciet licht
      :root[data-theme="dark"]                 de eigen keuze, wint van allebei
 
+   Dit is beter dan wat OKX zelf doet. Zij zetten een klasse `.theme-dark` met
+   JavaScript, en dan flitst de pagina licht op vóór dat script draait. Deze
+   opzet werkt zonder JavaScript.
+
    ⚠️ Definieer een kleur NOOIT alleen in een van de twee donkere blokken. De
-   lichte stand hierboven is de volledige lijst; de donkere blokken herdefiniëren
-   alleen wat anders moet zijn. Een token dat alleen in het donkere blok bestaat
-   is in de lichte stand leeg, en een lege kleur is doorzichtig.
+   lichte stand hieronder is de volledige lijst; de donkere blokken
+   herdefiniëren alleen wat anders moet zijn. Een token dat alleen in het
+   donkere blok bestaat is in de lichte stand leeg, en een lege kleur is
+   doorzichtig.
+
+   ⚠️ De twee donkere blokken zijn LETTERLIJK identiek en worden met de hand
+   gelijk gehouden. Dat gaat een keer mis. `redesign2026.md` §11.3 heeft het
+   controlescript dat dit moet gaan afdwingen; tot het er is, wijzig ze altijd
+   allebei.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root,
 :root[data-theme="light"] {
   /* Vertelt de browser welke kant het op moet met wat hij zelf tekent:
-     scrollbalken, keuzelijsten, het datumveld. Zonder deze regel blijven die in
-     de donkere stand wit. Het donkere tegenhangertje staat in allebei de
-     donkere blokken verderop. */
+     scrollbalken, keuzelijsten, het datumveld. */
   color-scheme: light;
 
-  /* ── Neutralen ────────────────────────────────────────────────────────────
-     Koel leiblauw, niet warm groengrijs. Dit is 70% van het verschil tussen
-     "ziet eruit als een landingspagina" en "ziet eruit als software".
+  /* ── Oppervlak ────────────────────────────────────────────────────────────
+     Neutraal grijs, geen blauwzweem. Dat is het grootste enkele verschil met
+     wat hier tot 17 september stond: #17212b is blauwzwart, #000000 is zwart.
 
-     De randen zijn een echte tint en geen doorschijnend zwart: doorschijnend
-     zwart maakt een rand vuil zodra hij op een gekleurd vlak ligt, een echte
-     tint niet.
+     ⚠️ DE PAGINA IS NIET MEER WIT. Hij was wit met witte kaarten erop, waarbij
+     de kaart alleen van zijn rand leefde. OKX doet het omgekeerd: hun
+     `surface-structural-web-only-base` is #f6f6f6 in de lichte stand en de
+     kaart daarboven is #ffffff. Een kaart die een eigen kleur heeft hoeft niet
+     alleen op een randje te drijven. */
+  --bg-base: #f6f6f6; /* pagina */
+  --bg-layer-1: #ffffff; /* de werkruimte naast de zijbalk */
+  --bg-surface: #ffffff; /* kaart, menu, dialoog */
+  --bg-surface-raised: #f3f3f3; /* tabelrij bij hover, genest vlak */
+  --bg-layer-2: #e9e9e9; /* chip, voortgangsbaan, tabelkop */
+  --bg-layer-3: #dcdcdc; /* een stap dieper, zelden nodig */
+  --bg-elevated-contrast: #ffffff; /* dialoogvenster boven het scrim */
+  --bg-disabled: #fafafa;
+  --bg-inverse: #000000;
+  --bg-scrim: rgba(0, 0, 0, 0.43);
+  --bg-stage: #f6f6f6; /* de grond onder een los inlogscherm */
 
-     ⚠️ DE PAGINA IS WIT, sinds 24 augustus 2026. Hij was leiblauw met witte
-     kaarten erop; dat was een gok uit de screenshotronde en hij bleek verkeerd.
-     De gecompileerde CSS van Nova zegt het onomwonden: `body` krijgt daar
-     `--ds-background-neutral`, en dat is `#fff`. Het leiblauw is bij hen niet de
-     grond maar de eerste stap eróp, voor wat ín een kaart genest zit.
+  /* ── Tekst ────────────────────────────────────────────────────────────────
+     Vijf niveaus en niet drie. Het oude systeem had er drie, en de laagste
+     (`--text-muted`, #788795) haalde op wit maar 3,7:1: te weinig voor
+     bodytekst, dus er was geen bruikbare trede tussen body en onleesbaar.
 
-     Vier stappen, en meer zijn het er bij Nova ook niet:
+     Doorgerekend op #ffffff: 21,0 / 11,7 / 6,8 / 6,5 / 4,0 / 2,3. */
+  --text-primary: #000000;
+  --text-secondary: #383838;
+  --text-tertiary: #5b5b5b;
+  --text-subtle: #5e5e5e;
+  --text-subtler: #858585; /* ⚠️ 4,0:1. Rand en bijzaak, nooit bodytekst. */
+  --text-disabled: #b3b3b3;
+  --text-placeholder: rgba(0, 0, 0, 0.22);
+  --text-inverse: #ffffff;
 
-       --bg-base      pagina
-       --bg-surface   kaart, menu, dialoog
-       --bg-muted     genest vlak, tabelkop, hover op een oppervlak
-       --bg-elevated  chip, voortgangsbaan
-       --bg-surface-2 hover op een genest vlak
+  /* ── Rand ─────────────────────────────────────────────────────────────────
+     Twee soorten naast elkaar, en dat is opzet. De doorzichtige set
+     (`-subtle`, `-default`, `-strong`) werkt op élke ondergrond zonder eigen
+     variant. De dekkende set (`-primary`, `-emphasis`) staat waar een rand
+     nooit over iets gekleurds ligt en waar doorzichtig zwart dus vuil zou
+     worden. OKX heeft ze allebei en kiest per plek. */
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-default: rgba(0, 0, 0, 0.14);
+  --border-strong: rgba(0, 0, 0, 0.32);
+  --border-primary: #e6e6e6; /* de kaartrand */
+  --border-emphasis: #4a4a4a; /* de rand die moet spreken */
+  --border-selected: #000000;
+  --border-focus: #000000;
+  --line-muted: #ebebeb; /* tabelrijscheiding */
+  --line-secondary: #dbdbdb;
 
-     In de lichte stand vallen pagina en kaart samen op wit: de kaart is dan
-     alleen zijn rand, precies zoals bij Nova. In de donkere stand kan dat niet,
-     want een rand van #27323d op #121a22 is bijna niet te zien; daar staat de
-     kaart één stap boven de pagina. Zie het donkere blok onderaan. */
-  --bg-base: #ffffff; /* pagina */
-  --bg-surface: #ffffff; /* kaarten, menu's, dialogen */
-  --bg-muted: #f8fafc; /* geneste vlakken, tabelkoppen, hover op een oppervlak */
-  --bg-elevated: #e7edf2; /* chips, voortgangsbanen */
-  --bg-surface-2: #dce3ea; /* een tint dieper, hover op een genest vlak */
+  /* ── Accent ───────────────────────────────────────────────────────────────
+     ⚠️ IN DE LICHTE STAND IS HET ACCENT GEEN LIMOEN. Limoen (#bcff2f) op wit
+     haalt 1,2:1 en is onleesbaar. OKX lost dat zelf op met donkergroen
+     (`brand-primary-alternative` is bij hen #2b6d17 in licht en #bcff2f in
+     donker), en dat is hier overgenomen.
 
-  /* De grond onder een scherm dat uit één gecentreerde kaart bestaat: inloggen,
-     wachtwoord herstellen, een uitnodiging aannemen. Die kaart moet zich van de
-     pagina lostrekken, en dat lukt alleen als de pagina niet dezelfde kleur is.
+     De limoen bestaat in de lichte stand alleen als `--accent-highlight`: een
+     vlak waar zwarte tekst op komt, niet een kleur om mee te schrijven.
 
-     ⚠️ Dit is een eigen token en geen verwijzing naar --bg-muted, want de twee
-     standen gaan hier tegengesteld: in licht ligt de grond één stap ONDER de
-     kaart (#f8fafc onder wit), in donker één stap BOVEN (#121a22 onder
-     #17212b). Met --bg-muted kwam de donkere grond op #27323d uit, en dan lag
-     de kaart in een lichter kader met een rand die in precies diezelfde kleur
-     onzichtbaar werd. Dat was wat er op het inlogscherm te zien was. */
-  --bg-stage: #f8fafc;
+     Waar het accent wél komt, en nergens anders: de primaire actie (hooguit
+     één per scherm), de actieve staat in de navigatie, de eigen merklijn in
+     een grafiek, de linkerrand van een AI-advies, en het label "kans". Dit
+     werkt alleen bij ongeveer 1% van het zichtbare oppervlak; dat percentage
+     komt uit de gemeten CSS van OKX en niet uit een vuistregel. */
+  --accent: #2b6d17;
+  --accent-hover: #225812;
+  --accent-pressed: #18400c;
+  --accent-on: #ffffff;
+  --accent-highlight: #bcff2f;
+  --accent-highlight-on: #000000;
 
-  --text-primary: #17212b; /* blauwzwart, niet zwart */
-  --text-secondary: #43505d;
-  --text-muted: #788795; /* ALLEEN voor bijzaak: 3,7:1, geen bodytekst */
+  /* ── Interactie ───────────────────────────────────────────────────────────
+     Dit is het patroon dat de hele interface bij elkaar houdt, en het is het
+     meest overdraagbare wat OKX heeft. Elke hover, elke actieve en elke
+     ingedrukte staat is een waas van doorzichtig zwart (licht) of wit
+     (donker). Daardoor werkt één set op een kaart, op een tabelrij, op een
+     gekleurd vlak en op de pagina zelf, zonder dat er per ondergrond een
+     variant nodig is.
 
-  --border-subtle: #e7edf2;
-  --border-strong: #c2ccd6;
-  /* Was #9daab6. Nova's `--ds-border-neutral` is #788795, een stap donkerder,
-     en dat is precies waar deze tint voor bedoeld is: de enkele rand die echt
-     moet spreken. Op wit haalt hij 3,2:1, ruim boven de 3,0 die WCAG voor een
-     niet-tekstueel element vraagt; #9daab6 haalde 2,1:1 en zakte daar dus onder
-     door zodra de pagina wit werd. */
-  --border-contrast: #788795;
+     ⚠️ Een geselecteerde staat is een RAND of een omgekeerd vlak, geen
+     accentkleur. Dat is bij OKX consequent en het is de reden dat een lijst
+     met twintig regels rustig blijft. */
+  --interactive-hover: rgba(0, 0, 0, 0.06);
+  --interactive-active: rgba(0, 0, 0, 0.09);
+  --interactive-pressed: rgba(0, 0, 0, 0.14);
+  --interactive-disabled: rgba(0, 0, 0, 0.03);
+  --interactive-selected: #000000;
+  --interactive-selected-on: #ffffff;
+  --interactive-oncolor-hover: hsla(0, 0%, 100%, 0.7);
 
-  /* De focusring. Nova kleurt hem niet met het merk maar met de inktkleur
-     (`--ds-border-neutral-inverse`), en dat is beter dan het paars dat hier
-     stond: een paarse ring op een paarse knop is geen ring. */
-  --focus-ring: #17212b;
+  /* ── Betekenis ────────────────────────────────────────────────────────────
+     Vier, waar het er zeven waren. `intelligence` is het accent geworden,
+     `growth` is richting (zie hieronder), `attention` ging naar het accent
+     omdat zijn enige gebruik het woord "kans" is, en `premium` was dood.
 
-  /* ── Merkkleuren ──────────────────────────────────────────────────────────
-     Paars en groen blijven van ons; de systematiek eromheen is van Nova. Het
-     groen is wel bijgetrokken naar dat van hun product (#37941c) in plaats van
-     dat van hun marketingsite (#2e9e50): die twee verschillen zichtbaar zodra
-     ze naast elkaar staan. */
-  --accent-purple: #8511d9;
-  --accent-purple-strong: #7414b5; /* hover */
-  --accent-purple-surface: #f3e6ff;
-  --accent-purple-glow: rgba(133, 17, 217, 0.14); /* alleen de grafiekband */
-  --accent-green: #b9efa3;
-  --accent-green-text: #2c711a;
-  --accent-green-dark: #37941c;
-  --brand-gradient: linear-gradient(96deg, #37941c 0%, #8511d9 96%);
-
-  /* ── Het woordmerk ────────────────────────────────────────────────────────
-     Twee kleuren en één verloop, allemaal via een token, want in de donkere
-     stand worden ze alle drie wit.
-
-     ⚠️ Dat is een besluit van de eigenaar (24 augustus 2026) en geen afgeleide
-     van Nova: een groen-paars verloop van 17 pixels hoog op een bijna zwarte
-     balk leest niet als een merk maar als een kleurvlekje, en het is het eerste
-     wat het oog raakt bij het openen van de app. Wit is rustiger en het is wat
-     Nova met hun eigen woordmerk doet zodra de grond donker wordt. In de lichte
-     stand blijft het verloop staan; daar draagt het wél.
-
-     `--wordmark-1` is het teken links en het woord ORBIT, `--wordmark-2` het
-     woord ENGINE en de stip in de baan. Het SVG-merkteken leest ze rechtstreeks
-     uit (`app/(auth)/orbit-mark.tsx`), dus het draait mee zonder eigen regel. */
-  --wordmark-1: #37941c;
-  --wordmark-2: #8511d9;
-  /* Het midden van de baan van het merkteken: precies tussen de twee in. */
-  --wordmark-mid: #5c63a8;
-  --wordmark-gradient: var(--brand-gradient);
-  --wordmark-fill: transparent;
-
-  /* ── Betekenislaag ────────────────────────────────────────────────────────
-     Een kleur heeft een betekenis, geen naam. Zeven betekenissen, elk met vijf
-     velden, exact zoals Nova ze uitsplitst:
-
-       -solid     gevulde vlakken (knop, gevulde badge, grafieklijn)
-       -on-solid  de tekstkleur ÓP dat gevulde vlak
-       -text      dezelfde betekenis als leesbare tekst op een licht vlak
-       -surface   de lichtste tint als achtergrond van een chip of kaart
-       -border    de randtint
-
-     De waarden zijn Nova's eigen schaal. Elke -text haalt op wit minstens
-     5,0:1, ruim boven de drempel van 4,5. De oude set haalde dat op twee
-     plekken niet. */
-
-  /* Nova kent twee paarse standen, #9e21fc en #8511d9. Wij nemen de donkere als
-     solide vlak: wit op #9e21fc haalt 4,0:1 en zakt daarmee onder de drempel van
-     4,5 voor knoptekst, wit op #8511d9 haalt 5,4:1. Bij hen is de lichte stand
-     te verdedigen omdat hij ook in donkere modus dienstdoet; wij hebben alleen
-     licht. */
-  --intent-intelligence-solid: #8511d9;
-  --intent-intelligence-hover: #7414b5;
-  --intent-intelligence-on-solid: #ffffff;
-  --intent-intelligence-text: #8511d9;
-  --intent-intelligence-surface: #faf4ff;
-  --intent-intelligence-surface-hover: #f3e6ff;
-  --intent-intelligence-border: #e9d1ff;
-
-  --intent-growth-solid: #37941c;
-  --intent-growth-hover: #2c711a;
-  --intent-growth-on-solid: #ffffff;
-  --intent-growth-text: #2c711a;
-  --intent-growth-surface: #effce9;
-  --intent-growth-surface-hover: #dcf7d0;
-  --intent-growth-border: #b9efa3;
-
-  --intent-information-solid: #0084d1;
-  --intent-information-hover: #0069a8;
-  --intent-information-on-solid: #ffffff;
-  --intent-information-text: #0069a8;
-  --intent-information-surface: #f0f9ff;
-  --intent-information-surface-hover: #dff2fe;
-  --intent-information-border: #b8e6fe;
-
-  --intent-warning-solid: #e17100;
-  --intent-warning-hover: #bb4d00;
-  --intent-warning-on-solid: #ffffff;
-  --intent-warning-text: #bb4d00;
-  --intent-warning-surface: #fffbeb;
-  --intent-warning-surface-hover: #fef3c6; /* was #fef3c7, Nova heeft #fef3c6 */
-  --intent-warning-border: #fee685;
-
-  --intent-attention-solid: #e60076;
-  --intent-attention-hover: #c6005c;
-  --intent-attention-on-solid: #ffffff;
-  --intent-attention-text: #c6005c;
-  --intent-attention-surface: #fdf2f8;
-  --intent-attention-surface-hover: #fce7f3;
-  --intent-attention-border: #fccee8;
-
-  --intent-danger-solid: #e7000b;
-  --intent-danger-hover: #c10007;
+     ⚠️ INFORMATIE IS GRIJS EN NIET BLAUW. Bij OKX is een informatieve melding
+     neutraal, want kleur is gereserveerd voor iets wat je moet wéten. Blauw
+     bestaat bij hen alleen voor slepen en neerzetten. */
+  --intent-success-content: #2b6d17;
+  --intent-success-surface: #e9f4d1;
+  --intent-success-solid: #3c8f24;
+  --intent-success-on-solid: #ffffff;
+  --intent-warning-content: #ba5d00;
+  --intent-warning-surface: #ffedcb;
+  --intent-warning-solid: #fea01d;
+  --intent-warning-on-solid: #000000;
+  --intent-danger-content: #ba2133;
+  --intent-danger-surface: #fee0e3;
+  --intent-danger-solid: #e05a6a;
   --intent-danger-on-solid: #ffffff;
-  --intent-danger-text: #c10007;
-  --intent-danger-surface: #fef2f2;
-  --intent-danger-surface-hover: #ffe2e2;
-  --intent-danger-border: #ffc9c9;
+  --intent-info-content: #212121;
+  --intent-info-surface: #f6f6f6;
+  --intent-info-solid: #4a4a4a;
+  --intent-info-on-solid: #ffffff;
 
-  --intent-premium-solid: #9f7d57;
-  --intent-premium-hover: #84664a;
-  --intent-premium-on-solid: #ffffff;
-  --intent-premium-text: #84664a;
-  --intent-premium-surface: #f9f7f3;
-  --intent-premium-surface-hover: #f1eee3;
-  --intent-premium-border: #e2dac6;
+  /* ── Richting ─────────────────────────────────────────────────────────────
+     Stijgen en dalen staan LOS van succes en fout, en dat is een besluit van
+     OKX dat hier klopt: een dalende zichtbaarheid is geen foutmelding.
 
-  --intent-neutral-text: var(--text-muted);
-  --intent-neutral-surface: var(--bg-elevated);
-  --intent-neutral-border: var(--border-subtle);
-  /* De achtste betekenis, en de belangrijkste: "dit is de handeling".
-     Toegevoegd 24 augustus 2026, na het narekenen van Nova's eigen inlogscherm.
+     ⚠️ DE `-text`-VARIANTEN ZIJN VAN ONS EN NIET VAN OKX. Hun eigen kleuren
+     halen in de lichte stand geen AA voor tekst onder 18 pixels: #31bd65 op
+     wit is 2,44:1 en #eb4b6d is 3,65:1. Bij hen geeft dat niet, want daar
+     staat een koers groot en dik en geldt 3,0:1. Bij ons komt deze kleur op
+     een verschilpercentage van 14 pixels in een tabelcel, en dan geldt 4,5:1.
 
-     Hun hoofdknop draagt `bg-background-neutral-inverse` en niet hun merkpaars.
-     Dat is geen smaakkwestie maar het sluitstuk van regel 1 uit
-     `docs/designsystem.md` §8: een kleur heeft een betekenis. Zolang élke
-     hoofdknop paars is, betekent paars "knop" en niet meer "hier doet de AI
-     iets", en dan is de betekenislaag op de meest zichtbare plek van het scherm
-     precies niets waard. Inkt zegt "dit is wat je hier doet", en paars kan weer
-     zeggen wat het hoort te zeggen.
+     Dus: de gemeten kleur voor vlakken, lijnen en grafieken, een donkerder
+     tegenhanger voor tekst. Doorgerekend: 5,4:1 en 5,7:1 op wit. Dit is de
+     enige plek in dit hele systeem waar afwijken van OKX beter is dan volgen,
+     en de reden is dat hun kleur voor hun typografie is gekozen. */
+  --trend-up: #31bd65;
+  --trend-up-text: #1d7a3f;
+  --trend-up-surface: #e0f5e8;
+  --trend-up-tint: rgba(49, 189, 101, 0.2);
+  --trend-down: #eb4b6d;
+  --trend-down-text: #c22a48;
+  --trend-down-surface: #fce4e9;
+  --trend-down-tint: rgba(235, 75, 109, 0.2);
+  --trend-flat: #5e5e5e;
 
-     De naam klopt met wat hij doet: hij keert om. Op een lichte pagina is de
-     handeling bijna zwart, op een donkere bijna wit, en dat is in allebei de
-     standen dezelfde regel (maximaal contrast met de grond) en niet twee
-     verschillende keuzes. */
-  --intent-neutral-solid: #27323d;
-  --intent-neutral-hover: #121a22;
-  --intent-neutral-on-solid: #ffffff;
+  /* ── Grafiek ──────────────────────────────────────────────────────────────
+     Acht reeksen, en de laatste drie zijn grijs. Dat is het patroon: het eigen
+     merk krijgt het accent, de concurrenten die ertoe doen krijgen kleur, de
+     rest wordt grijs. Reeks 5 is in beide standen gelijk.
 
-  /* Het waas onder een knop zonder vlak. Nova zet daar 5% van de inktkleur
-     neer (`bg-background-neutral-inverse/5`), en dat blijft in allebei de
-     standen even zichtbaar omdat de inktkleur meedraait. */
-  --wash-hover: color-mix(in srgb, var(--intent-neutral-solid) 5%, transparent);
-
-  /* ── Grafieken ────────────────────────────────────────────────────────────
-     Zes categorische kleuren, gebonden aan dezelfde betekenissen. Nova doet dit
-     ook zo (--chart-1 tot --chart-6), en het is de reden dat een groeireeks
-     daar overal exact dezelfde tint heeft.
-
-     ⚠️ Kleurenblindheid: deze zes zijn NIET opnieuw gevalideerd na de overstap.
-     Paars naast roze is het paar dat er als eerste doorheen zakt. Daarom draagt
-     elke lijn een naam aan het uiteinde en staat er een tabel onder: identiteit
-     leunt nooit alleen op kleur. Zie designsystem.md §4. */
-  --chart-1: var(--intent-intelligence-solid);
-  --chart-2: var(--intent-growth-solid);
-  --chart-3: var(--intent-information-solid);
-  --chart-4: var(--intent-warning-solid);
-  --chart-5: var(--intent-attention-solid);
-  --chart-6: var(--intent-premium-solid);
-
-  --chart-own: var(--chart-1);
-  --chart-own-band: var(--accent-purple-glow);
-  --chart-rival-1: var(--chart-4);
-  --chart-rival-2: var(--chart-3);
-  --chart-rival-3: var(--chart-5);
-  --chart-axis: var(--text-muted); /* astekst */
-  --chart-grid: var(--border-subtle); /* rasterlijnen */
-  --chart-reference: var(--border-strong); /* gestreepte referentielijnen */
-
-  /* ── Status, verwijzingen naar de betekenislaag ─────────────────────────── */
-  --status-success: var(--intent-growth-solid);
-  --status-error: var(--intent-danger-solid);
-  --status-warning: var(--intent-warning-text);
-  --status-info: var(--intent-information-solid);
+     ⚠️ `--chart-1` tot en met `--chart-6` worden in `merk/[id]/page.tsx`
+     opgebouwd als `var(--chart-${n})`. Een gat in die reeks is daar een lege
+     kleur, dus doorzichtig. Laat er nooit een weg. */
+  --chart-1: #2b6d17; /* altijd het eigen merk */
+  --chart-2: #0b5bcb;
+  --chart-3: #e28400;
+  --chart-4: #dbb01d;
+  --chart-5: #a352ef;
+  --chart-6: #5e5e5e;
+  --chart-7: #858585;
+  --chart-8: #afafaf;
+  --chart-grid: var(--line-muted);
+  --chart-axis: var(--text-subtle);
 
   /* ── Typografie ───────────────────────────────────────────────────────────
-     Geist Sans én Geist Mono, het paar dat Nova zelf gebruikt. Mono was
-     JetBrains Mono; twee families van twee makers naast elkaar is precies het
-     soort verschil dat je niet ziet maar wel voelt. */
-  --font-sans: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+     OKX schrijft in OKX Sans. Dat is van CoType Foundry, commercieel
+     gelicentieerd, en kan dus niet mee. Acht vrije letters zijn opgehaald en
+     met fontTools tegen de gemeten doelmetriek gelegd (x-hoogte 0,510 em,
+     kapitaalhoogte 0,700 em, cijferbreedte 0,600 em).
+
+     Archivo wint op 2,2% gemiddelde afwijking mét het juiste karakter: OKX
+     Sans is een neo-grotesk en Archivo is dat ook. Manrope zat met 1,9% dichter
+     op de cijfers maar is geometrisch en leest zichtbaar anders. Inter, de gok
+     die in het vooronderzoek werd aangedragen, staat zevende van de acht.
+
+     ⚠️ Archivo is niet tabulair van zichzelf en OKX Sans wel (`zero` en `one`
+     zijn daar allebei 600 eenheden). Elk getal in deze app heeft daarom
+     expliciet `font-variant-numeric: tabular-nums` nodig, anders springen
+     kolommen in een tabel zodra een cijfer verandert. */
+  --font-sans: var(--font-archivo), -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
 
-  /* ── Vorm ─────────────────────────────────────────────────────────────────
-     Nova's schaal. Fors kleiner dan de oude 18/14/9, en de pil is NIET langer
-     de standaard: die is voorbehouden aan chips en badges. Knoppen, velden en
-     navigatie-items krijgen --radius-md. Dat is de meest zichtbare enkele
-     wijziging van deze hele omzetting. */
+  /* ── Beweging ─────────────────────────────────────────────────────────────
+     Ongewijzigd. OKX levert geen motion-tokens in de opgehaalde bundels, en
+     wat hier stond is kort en zonder opsmuk: precies wat bij dit systeem hoort.
+
+     ⚠️ Wat er in stap 2 uit gaat is elke `transform` op hover. Bij OKX beweegt
+     er niets als je ergens overheen gaat, alleen de kleur verandert. */
+  --duration-fast: 0.12s;
+  --duration-base: 0.15s;
+  --duration-slow: 0.2s;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+
+  /* ── Schaduw ──────────────────────────────────────────────────────────────
+     Drie, waar OKX er zeven heeft. De andere vier gebruikt hun app niet.
+
+     ⚠️ De regel die hierbij hoort is belangrijker dan de waarden: alleen wat
+     boven het scrim zweeft krijgt een schaduw. Een kaart heeft een rand. */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+  /* ── Vorm en maat ─────────────────────────────────────────────────────────
+     ⚠️ ONGEWIJZIGD IN STAP 1, EN DAT IS MET OPZET. De radiusschaal van OKX
+     (2/4/6/8/10/12) botst op naam met deze: hun `sm` is 2 pixels en deze is 6.
+     Zou ik de waarden hier nu vervangen, dan verschuift elke `var(--radius-sm)`
+     in de klassenlaag stilletjes naar iets anders dan de schrijver bedoelde.
+
+     Stap 2 zet de klassenlaag over op de nieuwe schaal, in één beweging met de
+     rest van de vormgeving. Tot dan staan hier de oude waarden en klopt alles
+     wat ernaar verwijst. Hetzelfde geldt voor `--header-h`, die in stap 4 van
+     61 naar 48 pixels gaat. */
   --radius-2xs: 2px;
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
-  /* ⚠️ 16 en 24 staan hier omdat Nova ze in hun tokens heeft, maar ze worden
-     nergens gebruikt en dat is met opzet. In hun gecompileerde CSS komt geen
-     enkele `rounded-xl` of `rounded-2xl` voor: 12 pixels is in de praktijk hun
-     grootste ronding, ook op het inlogscherm. De inlogkaart stond tot 24
-     augustus 2026 op 16 en dat was een van de drie redenen dat hij naast het
-     origineel een maat te groot oogde.
-
-     Gebruik ze dus niet zonder aanleiding. Ze staan er zodat de schaal
-     compleet is en zodat een volgende ronde niet opnieuw hoeft uit te zoeken
-     welke waarden erbij horen. */
   --radius-xl: 16px;
   --radius-2xl: 24px;
   --radius-pill: 9999px;
-
   --border-width-xs: 1px;
   --border-width-sm: 2px;
   --border-width-md: 4px;
-
-  /* ── Hoogte van de bovenbalk ──────────────────────────────────────────────
-     Eén getal, want twee balken plakken eronder: de hoofdstuktabs van het
-     dossier (`components/chapter-tabs.tsx`) en de mobiele chiprij van de
-     sectie-rail (`components/section-rail.tsx`). Die stonden allebei op een
-     losse `top-[57px]`, en de bovenbalk is inmiddels 61 pixels hoog: 36 voor
-     de knoppen (h-9), 2 × 12 padding en 1 voor de onderrand. Die 4 pixels
-     verschil waren een kier waar de pagina-inhoud doorheen schoof onder de
-     bovenbalk. `workspace-chrome.tsx` zet deze hoogte óók op de balk zelf, dus
-     de twee kunnen niet meer uit elkaar lopen. */
   --header-h: 61px;
 
-  /* ── Diepte ───────────────────────────────────────────────────────────────
-     Eén schaduw in het hele systeem, letterlijk die van Nova, en hij is
-     voorbehouden aan wat boven de pagina zweeft: menu's, dialogen, de
-     hover-staat van een klikbare kaart. Een gewone kaart is plat en heeft
-     alleen een rand. Meer schaduwstanden maken een interface niet dieper,
-     alleen rommeliger. */
-  --shadow-overlay:
-    0 4px 6px -4px rgba(0, 0, 0, 0.1),
-    0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  /* ═══════════════════════════════════════════════════════════════════════
+     AANSLUITING OP WAT ER AL STAAT, TIJDELIJK
 
-  /* Doorschijnende paginakleur onder de sticky balken met backdrop-blur.
-     Volgt --bg-base: die werd wit op 24 augustus 2026, dus deze ook. */
-  --bg-base-blur: rgba(255, 255, 255, 0.85);
+     Hieronder wijst elke oude tokennaam naar zijn nieuwe tegenhanger. Ze
+     staan er zodat de klassenlaag in dit bestand en 249 tsx-bestanden blijven
+     werken terwijl de rest van de verbouwing volgt.
 
-  /* ── Glas, alleen in de lichte stand (3 september 2026) ───────────────────
-     Een oppervlak dat een klein beetje doorlaat wat eronder ligt. Vier tokens,
-     en ze zitten hier bij elkaar zodat er geen losse rgba() in een component
-     hoeft te staan: regel 1 van §8 geldt ook voor een doorschijnende kleur.
+     Het zijn `var()`-verwijzingen en geen kopieën van waarden. Daardoor
+     hoeven ze NIET in de donkere blokken herhaald te worden: wijst een alias
+     naar `--bg-surface-raised`, dan volgt hij vanzelf wat dat token in de
+     donkere stand is. Eén plek per alias, en dus niets om uit elkaar te laten
+     lopen.
 
-     ⚠️ Dit is GEEN tweede schaduwstand en geen gloed. §8 regel 2 ("plat, niet
-     gloeiend") blijft staan: de gelaagdheid komt uit wat er doorheen schemert,
-     niet uit een halo eromheen. Het enige nieuwe schaduwtje is
-     --glass-shadow, en dat is één pixel op 3% inkt, ruim onder de
-     --shadow-overlay die voor zwevende dingen gereserveerd blijft.
+     ⚠️ Schrijf geen nieuwe code tegen deze namen. Elke regel hier verdwijnt
+     zodra zijn laatste gebruiker om is: de klassenlaag in stap 2, de
+     tsx-bestanden in stap 10.
+     ═══════════════════════════════════════════════════════════════════════ */
 
-     De waarden zijn bewust laag gekozen. Een kaart op de werkruimte
-     (--bg-muted, #f8fafc) komt met 0,72 wit uit op ongeveer #fcfdfe: dat is
-     één stap van wit af, precies genoeg om de stippen van .workspace-canvas
-     naar de randen toe te laten meelezen en te weinig om als effect op te
-     vallen. Op een witte pagina zonder zijbalk is het verschil nul, en dat is
-     de bedoeling: het glas volgt de grond en dringt zich niet op.
+  /* Oppervlak. `--bg-muted` was het geneste vlak, de tabelkop én de hover op
+     een oppervlak; dat is precies de rol van `--bg-surface-raised`. */
+  --bg-muted: var(--bg-surface-raised);
+  --bg-elevated: var(--bg-layer-2);
+  --bg-surface-2: var(--bg-layer-3);
+  --overlay-scrim: var(--bg-scrim);
 
-     ⚠️ ALLE VIER WORDEN IN DE DONKERE STAND TERUGGEZET naar het opake
-     origineel, in allebei de donkere blokken. Zoek op "Glas" verderop. De
-     donkere stand is daardoor tot op de pixel onveranderd, en dat is een
-     harde eis: een doorschijnend vlak op een bijna zwarte grond levert
-     grijze modder op in plaats van materiaal. */
-  --glass-surface: rgba(255, 255, 255, 0.72);
-  /* Wat écht boven de pagina hangt (menu, dialoog, melding) laat minder door:
-     daar staat leesbare tekst op een willekeurige achtergrond, en die mag
-     nooit met de inhoud eronder gaan concurreren. */
-  --glass-surface-strong: rgba(255, 255, 255, 0.86);
-  /* De vervaging achter een glasvlak. 12px is te weinig om als "wazig" te
-     lezen en genoeg om een rand te verzachten. Op een telefoon staat hij uit,
-     zie de mediaquery bij .card: daar liggen kaarten onder elkaar en kost hij
-     alleen maar rekentijd. `saturate` iets boven 1 houdt de kleur die
-     doorschemert levend; zonder die correctie trekt blur alles naar grijs. */
-  --glass-filter: blur(12px) saturate(1.06);
-  /* Eén pixel op 3% inkt, afgeleid van --text-primary (#17212b) en niet van
-     zwart, om dezelfde reden als --overlay-scrim: zwart oogt vuil op een koel
-     leiblauwe pagina. */
-  --glass-shadow: 0 1px 2px rgba(23, 33, 43, 0.03);
-  /* Het waas achter een dialoog. Afgeleid van --text-primary (#17212b), niet van
-     zwart: zwart oogt vuil op een koel leiblauwe pagina. */
-  --overlay-scrim: rgba(23, 33, 43, 0.4);
+  /* De bovenbalk was doorschijnend met een blur erachter. In dit systeem is
+     hij dekkend: OKX heeft nergens een `backdrop-filter`. */
+  --bg-base-blur: var(--bg-base);
 
-  /* ── Motion ───────────────────────────────────────────────────────────────
-     De waarden komen sinds 24 augustus 2026 rechtstreeks uit Nova's
-     gecompileerde CSS in plaats van uit een schatting. Hun standaardovergang is
-     0,15 s op cubic-bezier(.4, 0, .2, 1); wat verschijnt gebruikt daarnaast een
-     zuivere uitloop, cubic-bezier(0, 0, .2, 1).
+  /* Tekst. Drie niveaus werden er vijf; de oude laagste was bijzaak. */
+  --text-muted: var(--text-tertiary);
 
-     De drie duren zijn de drie die zij feitelijk gebruiken:
+  /* Rand. */
+  --border-contrast: var(--border-emphasis);
+  --focus-ring: var(--border-focus);
 
-       0,12 s  een menu of melding die weggaat
-       0,15 s  de standaard: kleur, rand, dialoog, tooltip, melding die komt
-       0,20 s  een accordeon die open- of dichtvouwt, want daar beweegt hoogte
+  /* Het glas gaat eruit. Deze drie maken de kaart alvast vlak en dekkend,
+     zodat de blur nergens meer werk doet die je toch niet ziet. */
+  --glass-surface: var(--bg-surface);
+  --glass-surface-strong: var(--bg-surface);
+  --glass-filter: none;
+  --glass-shadow: none;
+  --shadow-overlay: var(--shadow-xl);
 
-     0,3 s is weg. Dat was een marketingduur en hij voelt in een dashboard
-     traag. */
-  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-out: cubic-bezier(0, 0, 0.2, 1);
-  --duration-fast: 0.12s;
-  --duration-base: 0.15s;
-  --duration-slow: 0.2s;
+  /* Merkkleuren. Het paars en het groen zijn weg; wat ernaar verwees krijgt
+     het accent of de richtingkleur, afhankelijk van wat het betekende. */
+  --accent-purple: var(--accent);
+  --accent-purple-strong: var(--accent-hover);
+  --accent-purple-surface: var(--intent-success-surface);
+  --accent-purple-glow: var(--trend-up-tint);
+  --accent-green: var(--trend-up-surface);
+  --accent-green-text: var(--trend-up-text);
+  --accent-green-dark: var(--trend-up);
 
-  /* ── Schakelaar ───────────────────────────────────────────────────────────
-     Nova heeft hiervoor eigen tokens, en terecht: een schakelaarbaan is het
-     enige vlak in de app waarvan de kleur "aan" of "uit" betekent zonder dat er
-     tekst bij staat. Het groen is dat van de betekenis "groei", de uit-stand is
-     een neutraal dat donker genoeg is om als vlak te lezen (3,0:1 op wit) en
-     licht genoeg om niet als een gevulde knop te lezen. */
+  /* Het woordmerk wordt vlak. Het groen-paarse verloop van 17 pixels hoog is
+     eruit; zie `docs/designsystem.md`. `--brand-gradient` blijft bestaan als
+     naam omdat `.brand-gradient-text` er nog op staat, maar hij is nu één
+     kleur. Stap 4 haalt de klasse zelf weg. */
+  --brand-gradient: none;
+  --wordmark-1: var(--text-primary);
+  --wordmark-2: var(--text-primary);
+  --wordmark-mid: var(--text-primary);
+  --wordmark-gradient: none;
+  --wordmark-fill: var(--text-primary);
+
+  /* De zeven betekenissen naar vier. `intelligence` was alles wat van de AI
+     komt en krijgt het accent. `growth` was stijging en is richting geworden.
+     `attention` had één gebruiker, het woord "kans" in de concurrentenanalyse,
+     en een kans is geen waarschuwing maar iets om op te klikken: accent. */
+  --intent-intelligence-solid: var(--accent);
+  --intent-intelligence-hover: var(--accent-hover);
+  --intent-intelligence-on-solid: var(--accent-on);
+  --intent-intelligence-text: var(--accent);
+  --intent-intelligence-surface: var(--intent-success-surface);
+  --intent-intelligence-surface-hover: var(--intent-success-surface);
+  --intent-intelligence-border: var(--border-default);
+
+  --intent-growth-solid: var(--trend-up);
+  --intent-growth-hover: var(--trend-up-text);
+  --intent-growth-on-solid: #ffffff;
+  --intent-growth-text: var(--trend-up-text);
+  --intent-growth-surface: var(--trend-up-surface);
+  --intent-growth-surface-hover: var(--trend-up-surface);
+  --intent-growth-border: var(--border-default);
+
+  --intent-information-solid: var(--intent-info-solid);
+  --intent-information-hover: var(--intent-info-content);
+  --intent-information-on-solid: var(--intent-info-on-solid);
+  --intent-information-text: var(--intent-info-content);
+  --intent-information-surface: var(--intent-info-surface);
+  --intent-information-surface-hover: var(--bg-layer-2);
+  --intent-information-border: var(--border-default);
+
+  --intent-attention-solid: var(--accent);
+  --intent-attention-hover: var(--accent-hover);
+  --intent-attention-on-solid: var(--accent-on);
+  --intent-attention-text: var(--accent);
+  --intent-attention-surface: var(--intent-success-surface);
+  --intent-attention-surface-hover: var(--intent-success-surface);
+  --intent-attention-border: var(--border-default);
+
+  --intent-danger-text: var(--intent-danger-content);
+  --intent-danger-border: var(--border-default);
+  --intent-danger-surface-hover: var(--intent-danger-surface);
+  --intent-danger-hover: var(--intent-danger-content);
+
+  --intent-warning-text: var(--intent-warning-content);
+  --intent-warning-border: var(--border-default);
+  --intent-warning-surface-hover: var(--intent-warning-surface);
+  --intent-warning-hover: var(--intent-warning-content);
+
+  /* `premium` had nul gebruikers buiten zijn eigen definitie en is weg. */
+
+  --intent-neutral-text: var(--text-tertiary);
+  --intent-neutral-surface: var(--bg-layer-2);
+  --intent-neutral-border: var(--border-default);
+  --intent-neutral-solid: var(--interactive-selected);
+  --intent-neutral-hover: var(--interactive-selected);
+  --intent-neutral-on-solid: var(--interactive-selected-on);
+  --wash-hover: var(--interactive-hover);
+
+  /* Status. */
+  --status-success: var(--intent-success-content);
+  --status-error: var(--intent-danger-content);
+  --status-warning: var(--intent-warning-content);
+  --status-info: var(--intent-info-content);
+
+  /* Grafiek, oude namen. */
+  --chart-own: var(--chart-1);
+  --chart-own-band: var(--trend-up-tint);
+  --chart-own-muted: var(--bg-layer-2);
+  --chart-rival-1: var(--chart-3);
+  --chart-rival-2: var(--chart-2);
+  --chart-rival-3: var(--chart-5);
+  --chart-reference: var(--border-strong);
+
+  /* De schakelaar. Actief is het accent, en niet meer een eigen groen. */
   --switch-thumb: #ffffff;
-  --switch-track-active: #4cb929;
-  --switch-track-active-hover: #37941c;
-  --switch-track-inactive: #c5d1d6;
-  --switch-track-inactive-hover: #a8b7be;
+  --switch-track-active: var(--accent);
+  --switch-track-active-hover: var(--accent-hover);
+  --switch-track-inactive: var(--border-strong);
+  --switch-track-inactive-hover: var(--border-emphasis);
 }
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   DE DONKERE STAND
-
-   Vastgelegd 24 augustus 2026. Op 11 augustus was donkere modus geschrapt, en
-   het argument was goed: 107 tokens hebben elk een doordachte tegenhanger nodig,
-   mechanisch omkeren geeft grijze modder, en dat was een dag werk plus een
-   designronde voor de fase met de laagste impact.
-
-   Wat er sindsdien veranderde is dat de tegenhangers er nu liggen. De
-   gecompileerde CSS van Nova draagt hun volledige donkere palet, tot en met de
-   randtinten en de zeven betekenissen. Ze zijn hieronder overgenomen. Er is dus
-   niets meer af te leiden en niets meer te gokken; het werk dat het besluit
-   destijds te duur maakte, is al gedaan door de bron waar dit systeem toch al
-   van komt.
-
-   ── DE ENE PLEK WAAR WE VAN NOVA AFWIJKEN ──────────────────────────────────
-
-   De grafiekkleuren. In de lichte stand wijzen --chart-1 tot --chart-6 naar de
-   `-solid` van elke betekenis, en dat werkt: een donkere lijn op een lichte
-   grond. In de donkere stand wordt `-solid` juist dónkerder (groei gaat van
-   #37941c naar #2c711a), en dan verdwijnt de lijn in de achtergrond. Daarom
-   wijzen de zes hier naar de `-text`-waarden, want dat zijn in de donkere stand
-   de lichte tinten. Zonder deze omzetting is elke grafiek in donkere modus
-   onleesbaar, en dat is geen smaakkwestie.
-
-   ── HOE DE STANDEN ZICH VERHOUDEN ──────────────────────────────────────────
-
-   Het blok staat er twee keer, en dat is nodig, niet dubbel:
-
-     @media (prefers-color-scheme: dark) op :root:not([data-theme="light"])
-        de systeemvoorkeur, zolang de gebruiker niet uitdrukkelijk licht koos
-     :root[data-theme="dark"]
-        de eigen keuze, en die wint van het systeem in allebei de richtingen
-
-   Nova doet het precies zo. Wie de waarden aanpast, past ze in ALLEBEI de
-   blokken aan; ze zijn identiek en dat hoort zo te blijven.
-   ═══════════════════════════════════════════════════════════════════════════ */
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
 
-    /* Neutralen. Vier stappen, net als in de lichte stand.
+    /* ── Oppervlak ────────────────────────────────────────────────────────────
+       Zes stappen, en hier vallen pagina en kaart NIET samen. Bij OKX is de
+       pagina echt zwart (#000) en ligt de kaart er twee stappen boven. Dat is
+       hun `surface-structural-web-only-base` tegenover `-elevated-default`. */
+    --bg-base: #000000;
+    --bg-layer-1: #121212;
+    --bg-surface: #171717;
+    --bg-surface-raised: #1d1d1d;
+    --bg-layer-2: #2c2c2c;
+    --bg-layer-3: #3f3f3f;
+    --bg-elevated-contrast: #343434;
+    --bg-disabled: #0e0e0e;
+    --bg-inverse: #ffffff;
+    --bg-scrim: rgba(0, 0, 0, 0.68);
+    --bg-stage: #000000;
 
-       ⚠️ Hier vallen pagina en kaart NIET samen. In de lichte stand zijn ze
-       allebei wit en doet de rand het werk; een rand van #e7edf2 op wit is goed
-       te zien. In de donkere stand is een rand van #27323d op #121a22 dat niet,
-       en dan is een kaart geen kaart meer. Daarom staat het oppervlak hier één
-       stap boven de pagina. Dat is de enige asymmetrie tussen de twee standen,
-       en hij is er omdat het oog in donker anders werkt, niet uit slordigheid. */
-    --bg-base: #121a22;
-    --bg-surface: #17212b;
-    --bg-muted: #27323d;
-    --bg-elevated: #27323d;
-    --bg-surface-2: #43505d;
-    /* Tegengesteld aan de lichte stand, zie de toelichting daar: de grond ligt
-       hier ONDER de kaart en niet erboven. #121a22 onder #17212b, met een rand
-       van #27323d ertussen die dan wel te zien is. */
-    --bg-stage: #121a22;
-
+    /* ── Tekst ────────────────────────────────────────────────────────────────
+       Doorgerekend op #000: 21,0 / 16,8 / 10,0 / 7,1 / 3,5 / 3,1. */
     --text-primary: #ffffff;
-    --text-secondary: #c2ccd6;
-    --text-muted: #788795;
+    --text-secondary: #e6e6e6;
+    --text-tertiary: #b3b3b3;
+    --text-subtle: #969696;
+    --text-subtler: #636363;
+    --text-disabled: #5b5b5b;
+    --text-placeholder: hsla(0, 0%, 100%, 0.3);
+    --text-inverse: #000000;
 
-    --border-subtle: #27323d;
-    --border-strong: #43505d;
-    --border-contrast: #9daab6;
+    /* ── Rand ─────────────────────────────────────────────────────────────────
+       De doorzichtige set werkt op elk vlak, de dekkende set waar een rand nooit
+       over iets gekleurds ligt. */
+    --border-subtle: hsla(0, 0%, 100%, 0.13);
+    --border-default: hsla(0, 0%, 100%, 0.22);
+    --border-strong: hsla(0, 0%, 100%, 0.4);
+    --border-primary: #383838;
+    --border-emphasis: #b8b8b8;
+    --border-selected: #ffffff;
+    --border-focus: #ffffff;
+    --line-muted: #2e2e2e;
+    --line-secondary: #404040;
 
-    --focus-ring: #e7edf2;
+    /* ── Accent ───────────────────────────────────────────────────────────────
+       Hier staat de limoen, want op zwart haalt hij 17,5:1. In de lichte stand
+       kan dat niet (1,2:1) en staat er donkergroen; zie daar. */
+    --accent: #bcff2f;
+    --accent-hover: #9ce207;
+    --accent-pressed: #87c600;
+    --accent-on: #000000;
+    --accent-highlight: #bcff2f;
+    --accent-highlight-on: #000000;
 
-    /* Merkkleuren. Het paars gaat omhoog naar Nova's donkere stand: #8511d9 op
-       #121a22 haalt 3,3:1 en is voor tekst te donker, #ad45ff haalt 6,1:1. */
-    --accent-purple: #ad45ff;
-    --accent-purple-strong: #c278ff;
-    --accent-purple-surface: #42006d;
-    --accent-purple-glow: rgba(173, 69, 255, 0.22);
-    --accent-green: #275a1a;
-    --accent-green-text: #4cb929;
-    --accent-green-dark: #4cb929;
-    --brand-gradient: linear-gradient(96deg, #4cb929 0%, #ad45ff 96%);
-    /* Het woordmerk wordt wit, in een stuk. Zie de toelichting in de lichte
-       stand: het verloop is hier geen merk meer maar een vlekje. `none` op de
-       gradient is geen luiheid maar een eis: `.brand-gradient-text` knipt de
-       achtergrond uit de letters, en zolang daar een verloop staat is een
-       kleur erop onzichtbaar. */
-    --wordmark-1: #ffffff;
-    --wordmark-2: #ffffff;
-    --wordmark-mid: #ffffff;
-    --wordmark-gradient: none;
-    --wordmark-fill: #ffffff;
+    /* ── Interactie ───────────────────────────────────────────────────────────
+       Doorzichtig wit, dus één set voor alle ondergronden. */
+    --interactive-hover: hsla(0, 0%, 100%, 0.13);
+    --interactive-active: hsla(0, 0%, 100%, 0.16);
+    --interactive-pressed: hsla(0, 0%, 100%, 0.22);
+    --interactive-disabled: hsla(0, 0%, 100%, 0.08);
+    --interactive-selected: #ffffff;
+    --interactive-selected-on: #000000;
+    --interactive-oncolor-hover: hsla(0, 0%, 100%, 0.15);
 
-    /* De zeven betekenissen. Het patroon is overal hetzelfde en het is dat van
-       Nova: het gevulde vlak wordt een stap donkerder, de leesbare tekst wordt
-       een stap lichter, en het achtergrondje eronder gaat van bijna-wit naar
-       bijna-zwart in dezelfde tint. */
-    --intent-intelligence-solid: #8511d9;
-    --intent-intelligence-hover: #9e21fc;
-    --intent-intelligence-on-solid: #ffffff;
-    --intent-intelligence-text: #ad45ff;
-    --intent-intelligence-surface: #42006d;
-    --intent-intelligence-surface-hover: #5f1291;
-    --intent-intelligence-border: #7414b5;
-
-    --intent-growth-solid: #2c711a;
-    --intent-growth-hover: #37941c;
-    --intent-growth-on-solid: #ffffff;
-    --intent-growth-text: #4cb929;
-    --intent-growth-surface: #0e2a09;
-    --intent-growth-surface-hover: #234d1a;
-    --intent-growth-border: #275a1a;
-
-    --intent-information-solid: #0069a8;
-    --intent-information-hover: #0084d1;
-    --intent-information-on-solid: #ffffff;
-    --intent-information-text: #00a6f4;
-    --intent-information-surface: #052f4a;
-    --intent-information-surface-hover: #024a70;
-    --intent-information-border: #00598a;
-
-    --intent-warning-solid: #bb4d00;
-    --intent-warning-hover: #e17100;
-    --intent-warning-on-solid: #ffffff;
-    --intent-warning-text: #fe9a00;
-    --intent-warning-surface: #461901;
-    --intent-warning-surface-hover: #7b3306;
-    --intent-warning-border: #973c00;
-
-    --intent-attention-solid: #c6005c;
-    --intent-attention-hover: #e60076;
-    --intent-attention-on-solid: #ffffff;
-    --intent-attention-text: #f6339a;
-    --intent-attention-surface: #510424;
-    --intent-attention-surface-hover: #861043;
-    --intent-attention-border: #a3004c;
-
-    --intent-danger-solid: #c10007;
-    --intent-danger-hover: #e7000b;
+    /* ── Betekenis ────────────────────────────────────────────────────────────
+       Informatie is grijs en niet blauw; zie de lichte stand. */
+    --intent-success-content: #49a92d;
+    --intent-success-surface: #192400;
+    --intent-success-solid: #3c8f24;
+    --intent-success-on-solid: #ffffff;
+    --intent-warning-content: #ffc452;
+    --intent-warning-surface: #4d3200;
+    --intent-warning-solid: #f5a915;
+    --intent-warning-on-solid: #000000;
+    --intent-danger-content: #f57a8a;
+    --intent-danger-surface: #420a10;
+    --intent-danger-solid: #f5384f;
     --intent-danger-on-solid: #ffffff;
-    --intent-danger-text: #fb2c36;
-    --intent-danger-surface: #460809;
-    --intent-danger-surface-hover: #82181a;
-    --intent-danger-border: #9f0712;
+    --intent-info-content: #ebebeb;
+    --intent-info-surface: #121212;
+    --intent-info-solid: #b8b8b8;
+    --intent-info-on-solid: #000000;
 
-    --intent-premium-solid: #84664a;
-    --intent-premium-hover: #9f7d57;
-    --intent-premium-on-solid: #ffffff;
-    --intent-premium-text: #ac8e63;
-    --intent-premium-surface: #2f231b;
-    --intent-premium-surface-hover: #584536;
-    --intent-premium-border: #6c5340;
-    /* De handeling keert om: bijna wit op een donkere grond, met donkere tekst
-       erop. Dit zijn Nova's `--ds-background-neutral-inverse` en
-       `--ds-foreground-on-neutral`, letterlijk. */
-    --intent-neutral-solid: #e7edf2;
-    --intent-neutral-hover: #ffffff;
-    --intent-neutral-on-solid: #17212b;
+    /* ── Richting ─────────────────────────────────────────────────────────────
+       De `-text`-varianten zijn van ons en niet van OKX; het waarom staat bij de
+       lichte stand. Op #000: 6,7 en 8,0, op de kaart #171717: 5,7 en 6,9. */
+    --trend-up: #25a750;
+    --trend-up-text: #25a750;
+    --trend-up-surface: #071c0f;
+    --trend-up-tint: rgba(37, 167, 80, 0.2);
+    --trend-down: #ca3f64;
+    --trend-down-text: #f57a8a;
+    --trend-down-surface: #230b10;
+    --trend-down-tint: rgba(202, 63, 100, 0.2);
+    --trend-flat: #b8b8b8;
 
-    /* Grafieken: naar de lichte `-text`-tinten, zie de kop van dit blok. */
-    --chart-1: var(--intent-intelligence-text);
-    --chart-2: var(--intent-growth-text);
-    --chart-3: var(--intent-information-text);
-    --chart-4: var(--intent-warning-text);
-    --chart-5: var(--intent-attention-text);
-    --chart-6: var(--intent-premium-text);
+    /* ── Grafiek ──────────────────────────────────────────────────────────────
+       Reeks 1 is altijd het eigen merk. De laatste drie zijn grijs: dat is het
+       patroon, niet een tekort aan kleuren. */
+    --chart-1: #bcff2f;
+    --chart-2: #277ae7;
+    --chart-3: #ffb729;
+    --chart-4: #edc746;
+    --chart-5: #a352ef;
+    --chart-6: #969696;
+    --chart-7: #636363;
+    --chart-8: #454545;
 
-    --bg-base-blur: rgba(18, 26, 34, 0.85);
-
-    /* ── Glas staat in de donkere stand UIT (3 september 2026) ───────────────
-       De glaslaag is uitdrukkelijk alleen voor de lichte stand gebouwd. Hier
-       wijzen alle vier de tokens terug naar het opake origineel, zodat élke
-       regel die ze gebruikt in donker exact hetzelfde tekent als vóór de
-       glaslaag. Niet weglaten: een token dat hier ontbreekt houdt zijn lichte
-       waarde, en dan komt er wit glas op een bijna zwarte pagina te liggen.
-       `--glass-filter: none` maakt de `backdrop-filter` een lege regel in
-       plaats van een bewerking, dus er wordt in donker ook geen laag berekend. */
-    --glass-surface: var(--bg-surface);
-    --glass-surface-strong: var(--bg-surface);
-    --glass-filter: none;
-    --glass-shadow: none;
-    /* Het waas achter een dialoog moet in donker dieper zijn dan in licht:
-       0,4 op een donkere pagina scheidt de dialoog niet meer van wat eronder
-       ligt. Afgeleid van --bg-base, niet van zwart. */
-    --overlay-scrim: rgba(9, 13, 17, 0.66);
-
-    --switch-track-active: #37941c;
-    --switch-track-active-hover: #4cb929;
-    --switch-track-inactive: #4d5f67;
-    --switch-track-inactive-hover: #687d87;
+    /* ── Schaduw ──────────────────────────────────────────────────────────────
+       In de donkere stand draagt niets een schaduw behalve wat boven het scrim
+       zweeft. Een kaart heeft een rand. */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
   }
 }
 
-/* De eigen keuze. Identiek aan het blok hierboven en dat hoort zo: dit blok
-   wint van de systeemvoorkeur, in allebei de richtingen. Wie hier een waarde
-   aanpast, past hem daar ook aan. */
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  /* Neutralen. Vier stappen, net als in de lichte stand.
+  /* ── Oppervlak ────────────────────────────────────────────────────────────
+     Zes stappen, en hier vallen pagina en kaart NIET samen. Bij OKX is de
+     pagina echt zwart (#000) en ligt de kaart er twee stappen boven. Dat is
+     hun `surface-structural-web-only-base` tegenover `-elevated-default`. */
+  --bg-base: #000000;
+  --bg-layer-1: #121212;
+  --bg-surface: #171717;
+  --bg-surface-raised: #1d1d1d;
+  --bg-layer-2: #2c2c2c;
+  --bg-layer-3: #3f3f3f;
+  --bg-elevated-contrast: #343434;
+  --bg-disabled: #0e0e0e;
+  --bg-inverse: #ffffff;
+  --bg-scrim: rgba(0, 0, 0, 0.68);
+  --bg-stage: #000000;
 
-     ⚠️ Hier vallen pagina en kaart NIET samen. In de lichte stand zijn ze
-     allebei wit en doet de rand het werk; een rand van #e7edf2 op wit is goed
-     te zien. In de donkere stand is een rand van #27323d op #121a22 dat niet,
-     en dan is een kaart geen kaart meer. Daarom staat het oppervlak hier één
-     stap boven de pagina. Dat is de enige asymmetrie tussen de twee standen,
-     en hij is er omdat het oog in donker anders werkt, niet uit slordigheid. */
-  --bg-base: #121a22;
-  --bg-surface: #17212b;
-  --bg-muted: #27323d;
-  --bg-elevated: #27323d;
-  --bg-surface-2: #43505d;
-  /* Tegengesteld aan de lichte stand, zie de toelichting daar. */
-  --bg-stage: #121a22;
-
+  /* ── Tekst ────────────────────────────────────────────────────────────────
+     Doorgerekend op #000: 21,0 / 16,8 / 10,0 / 7,1 / 3,5 / 3,1. */
   --text-primary: #ffffff;
-  --text-secondary: #c2ccd6;
-  --text-muted: #788795;
+  --text-secondary: #e6e6e6;
+  --text-tertiary: #b3b3b3;
+  --text-subtle: #969696;
+  --text-subtler: #636363;
+  --text-disabled: #5b5b5b;
+  --text-placeholder: hsla(0, 0%, 100%, 0.3);
+  --text-inverse: #000000;
 
-  --border-subtle: #27323d;
-  --border-strong: #43505d;
-  --border-contrast: #9daab6;
+  /* ── Rand ─────────────────────────────────────────────────────────────────
+     De doorzichtige set werkt op elk vlak, de dekkende set waar een rand nooit
+     over iets gekleurds ligt. */
+  --border-subtle: hsla(0, 0%, 100%, 0.13);
+  --border-default: hsla(0, 0%, 100%, 0.22);
+  --border-strong: hsla(0, 0%, 100%, 0.4);
+  --border-primary: #383838;
+  --border-emphasis: #b8b8b8;
+  --border-selected: #ffffff;
+  --border-focus: #ffffff;
+  --line-muted: #2e2e2e;
+  --line-secondary: #404040;
 
-  --focus-ring: #e7edf2;
+  /* ── Accent ───────────────────────────────────────────────────────────────
+     Hier staat de limoen, want op zwart haalt hij 17,5:1. In de lichte stand
+     kan dat niet (1,2:1) en staat er donkergroen; zie daar. */
+  --accent: #bcff2f;
+  --accent-hover: #9ce207;
+  --accent-pressed: #87c600;
+  --accent-on: #000000;
+  --accent-highlight: #bcff2f;
+  --accent-highlight-on: #000000;
 
-  /* Merkkleuren. Het paars gaat omhoog naar Nova's donkere stand: #8511d9 op
-     #121a22 haalt 3,3:1 en is voor tekst te donker, #ad45ff haalt 6,1:1. */
-  --accent-purple: #ad45ff;
-  --accent-purple-strong: #c278ff;
-  --accent-purple-surface: #42006d;
-  --accent-purple-glow: rgba(173, 69, 255, 0.22);
-  --accent-green: #275a1a;
-  --accent-green-text: #4cb929;
-  --accent-green-dark: #4cb929;
-  --brand-gradient: linear-gradient(96deg, #4cb929 0%, #ad45ff 96%);
-  /* Het woordmerk wordt wit, in een stuk. Zie de lichte stand. */
-  --wordmark-1: #ffffff;
-  --wordmark-2: #ffffff;
-  --wordmark-mid: #ffffff;
-  --wordmark-gradient: none;
-  --wordmark-fill: #ffffff;
+  /* ── Interactie ───────────────────────────────────────────────────────────
+     Doorzichtig wit, dus één set voor alle ondergronden. */
+  --interactive-hover: hsla(0, 0%, 100%, 0.13);
+  --interactive-active: hsla(0, 0%, 100%, 0.16);
+  --interactive-pressed: hsla(0, 0%, 100%, 0.22);
+  --interactive-disabled: hsla(0, 0%, 100%, 0.08);
+  --interactive-selected: #ffffff;
+  --interactive-selected-on: #000000;
+  --interactive-oncolor-hover: hsla(0, 0%, 100%, 0.15);
 
-  /* De zeven betekenissen. Het patroon is overal hetzelfde en het is dat van
-     Nova: het gevulde vlak wordt een stap donkerder, de leesbare tekst wordt
-     een stap lichter, en het achtergrondje eronder gaat van bijna-wit naar
-     bijna-zwart in dezelfde tint. */
-  --intent-intelligence-solid: #8511d9;
-  --intent-intelligence-hover: #9e21fc;
-  --intent-intelligence-on-solid: #ffffff;
-  --intent-intelligence-text: #ad45ff;
-  --intent-intelligence-surface: #42006d;
-  --intent-intelligence-surface-hover: #5f1291;
-  --intent-intelligence-border: #7414b5;
-
-  --intent-growth-solid: #2c711a;
-  --intent-growth-hover: #37941c;
-  --intent-growth-on-solid: #ffffff;
-  --intent-growth-text: #4cb929;
-  --intent-growth-surface: #0e2a09;
-  --intent-growth-surface-hover: #234d1a;
-  --intent-growth-border: #275a1a;
-
-  --intent-information-solid: #0069a8;
-  --intent-information-hover: #0084d1;
-  --intent-information-on-solid: #ffffff;
-  --intent-information-text: #00a6f4;
-  --intent-information-surface: #052f4a;
-  --intent-information-surface-hover: #024a70;
-  --intent-information-border: #00598a;
-
-  --intent-warning-solid: #bb4d00;
-  --intent-warning-hover: #e17100;
-  --intent-warning-on-solid: #ffffff;
-  --intent-warning-text: #fe9a00;
-  --intent-warning-surface: #461901;
-  --intent-warning-surface-hover: #7b3306;
-  --intent-warning-border: #973c00;
-
-  --intent-attention-solid: #c6005c;
-  --intent-attention-hover: #e60076;
-  --intent-attention-on-solid: #ffffff;
-  --intent-attention-text: #f6339a;
-  --intent-attention-surface: #510424;
-  --intent-attention-surface-hover: #861043;
-  --intent-attention-border: #a3004c;
-
-  --intent-danger-solid: #c10007;
-  --intent-danger-hover: #e7000b;
+  /* ── Betekenis ────────────────────────────────────────────────────────────
+     Informatie is grijs en niet blauw; zie de lichte stand. */
+  --intent-success-content: #49a92d;
+  --intent-success-surface: #192400;
+  --intent-success-solid: #3c8f24;
+  --intent-success-on-solid: #ffffff;
+  --intent-warning-content: #ffc452;
+  --intent-warning-surface: #4d3200;
+  --intent-warning-solid: #f5a915;
+  --intent-warning-on-solid: #000000;
+  --intent-danger-content: #f57a8a;
+  --intent-danger-surface: #420a10;
+  --intent-danger-solid: #f5384f;
   --intent-danger-on-solid: #ffffff;
-  --intent-danger-text: #fb2c36;
-  --intent-danger-surface: #460809;
-  --intent-danger-surface-hover: #82181a;
-  --intent-danger-border: #9f0712;
+  --intent-info-content: #ebebeb;
+  --intent-info-surface: #121212;
+  --intent-info-solid: #b8b8b8;
+  --intent-info-on-solid: #000000;
 
-  --intent-premium-solid: #84664a;
-  --intent-premium-hover: #9f7d57;
-  --intent-premium-on-solid: #ffffff;
-  --intent-premium-text: #ac8e63;
-  --intent-premium-surface: #2f231b;
-  --intent-premium-surface-hover: #584536;
-  --intent-premium-border: #6c5340;
-  /* De handeling keert om: bijna wit op een donkere grond, met donkere tekst
-     erop. Dit zijn Nova's `--ds-background-neutral-inverse` en
-     `--ds-foreground-on-neutral`, letterlijk. */
-  --intent-neutral-solid: #e7edf2;
-  --intent-neutral-hover: #ffffff;
-  --intent-neutral-on-solid: #17212b;
+  /* ── Richting ─────────────────────────────────────────────────────────────
+     De `-text`-varianten zijn van ons en niet van OKX; het waarom staat bij de
+     lichte stand. Op #000: 6,7 en 8,0, op de kaart #171717: 5,7 en 6,9. */
+  --trend-up: #25a750;
+  --trend-up-text: #25a750;
+  --trend-up-surface: #071c0f;
+  --trend-up-tint: rgba(37, 167, 80, 0.2);
+  --trend-down: #ca3f64;
+  --trend-down-text: #f57a8a;
+  --trend-down-surface: #230b10;
+  --trend-down-tint: rgba(202, 63, 100, 0.2);
+  --trend-flat: #b8b8b8;
 
-  /* Grafieken: naar de lichte `-text`-tinten, zie de kop van dit blok. */
-  --chart-1: var(--intent-intelligence-text);
-  --chart-2: var(--intent-growth-text);
-  --chart-3: var(--intent-information-text);
-  --chart-4: var(--intent-warning-text);
-  --chart-5: var(--intent-attention-text);
-  --chart-6: var(--intent-premium-text);
+  /* ── Grafiek ──────────────────────────────────────────────────────────────
+     Reeks 1 is altijd het eigen merk. De laatste drie zijn grijs: dat is het
+     patroon, niet een tekort aan kleuren. */
+  --chart-1: #bcff2f;
+  --chart-2: #277ae7;
+  --chart-3: #ffb729;
+  --chart-4: #edc746;
+  --chart-5: #a352ef;
+  --chart-6: #969696;
+  --chart-7: #636363;
+  --chart-8: #454545;
 
-  --bg-base-blur: rgba(18, 26, 34, 0.85);
-
-  /* ── Glas staat in de donkere stand UIT (3 september 2026) ───────────────
-     De glaslaag is uitdrukkelijk alleen voor de lichte stand gebouwd. Hier
-     wijzen alle vier de tokens terug naar het opake origineel, zodat élke
-     regel die ze gebruikt in donker exact hetzelfde tekent als vóór de
-     glaslaag. Niet weglaten: een token dat hier ontbreekt houdt zijn lichte
-     waarde, en dan komt er wit glas op een bijna zwarte pagina te liggen.
-     `--glass-filter: none` maakt de `backdrop-filter` een lege regel in
-     plaats van een bewerking, dus er wordt in donker ook geen laag berekend. */
-  --glass-surface: var(--bg-surface);
-  --glass-surface-strong: var(--bg-surface);
-  --glass-filter: none;
-  --glass-shadow: none;
-  /* Het waas achter een dialoog moet in donker dieper zijn dan in licht:
-     0,4 op een donkere pagina scheidt de dialoog niet meer van wat eronder
-     ligt. Afgeleid van --bg-base, niet van zwart. */
-  --overlay-scrim: rgba(9, 13, 17, 0.66);
-
-  --switch-track-active: #37941c;
-  --switch-track-active-hover: #4cb929;
-  --switch-track-inactive: #4d5f67;
-  --switch-track-inactive-hover: #687d87;
+  /* ── Schaduw ──────────────────────────────────────────────────────────────
+     In de donkere stand draagt niets een schaduw behalve wat boven het scrim
+     zweeft. Een kaart heeft een rand. */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
 }
 
 /* Tailwind-utilities koppelen aan de tokens (v4 @theme inline). */
@@ -782,12 +695,20 @@
   --color-warning: var(--status-warning);
   --color-info: var(--status-info);
 
+  /* ⚠️ DEZE NAMEN LIEGEN SINDS 17 SEPTEMBER 2026, EN DAT IS TIJDELIJK.
+     `text-purple` levert nu de accentkleur op (donkergroen in licht, limoen in
+     donker) en `text-green` de stijgkleur. De klassenamen komen uit het oude
+     systeem, de kleuren uit het nieuwe. Ze blijven kloppen in wat ze DOEN, niet
+     in wat ze heten. Stap 2 en stap 10 hernoemen de gebruikers; daarna gaan
+     deze regels eruit. Schrijf hier geen nieuwe code tegen.
+
+     `--color-premium` is weg: die had nul gebruikers, in de klassenlaag noch in
+     de 249 tsx-bestanden, en het token waar hij naar wees bestaat niet meer. */
   --color-intelligence: var(--intent-intelligence-solid);
   --color-growth: var(--intent-growth-solid);
   --color-information: var(--intent-information-solid);
   --color-attention: var(--intent-attention-solid);
   --color-danger: var(--intent-danger-solid);
-  --color-premium: var(--intent-premium-solid);
 
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
@@ -859,57 +780,25 @@ body {
    in de donkere stand is weer een vlak `--bg-muted` zonder patroon. Zie de
    twee donkere blokken verderop in dit bestand. */
 .workspace-canvas {
-  position: relative;
-  isolation: isolate;
-  background-color: var(--bg-muted);
-}
-.workspace-canvas::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  /* #e4e9ee, één stap donkerder dan --bg-muted (#f8fafc), tussen --bg-muted
-     en --bg-elevated (#e7edf2) in. Twee radiale patronen 90° gedraaid ten
-     opzichte van elkaar geven het gestreepte-blokjes-effect: geen los rooster
-     van stippen, maar korte streepjes. */
-  background-image:
-    radial-gradient(circle, #e4e9ee 0.8px, transparent 0.8px),
-    radial-gradient(circle, #e4e9ee 0.8px, transparent 0.8px);
-  background-size:
-    5px 20px,
-    20px 5px;
-  background-position:
-    -2.5px -10px,
-    -10px -2.5px;
-  mask-image: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.6) 100%);
-  -webkit-mask-image: radial-gradient(
-    ellipse at center,
-    transparent 40%,
-    rgba(0, 0, 0, 0.6) 100%
-  );
-  mask-size: 100% 100%;
-  -webkit-mask-size: 100% 100%;
-  mask-repeat: no-repeat;
-  -webkit-mask-repeat: no-repeat;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    .workspace-canvas {
-      background-color: var(--bg-base);
-    }
-    .workspace-canvas::before {
-      background-image: none;
-    }
-  }
-}
-:root[data-theme="dark"] {
-  .workspace-canvas {
-    background-color: var(--bg-base);
-  }
-  .workspace-canvas::before {
-    background-image: none;
-  }
+  /* De grond naast de zijbalk. Eén vlak, en verder niets.
+
+     ── WAT HIER WEG IS (17 SEPTEMBER 2026) ─────────────────────────────────
+
+     Hier lag een stippenpatroon: twee radiale verlopen 90° ten opzichte van
+     elkaar, met een masker dat ze naar het midden liet wegvallen. Het kwam uit
+     de Nova-ronde van 28 augustus en het was het meest decoratieve element van
+     de hele app.
+
+     Twee redenen dat het nu weg is, en de eerste alleen was al genoeg. De
+     stippen hadden een vaste kleur, #e4e9ee, en die was afgestemd op het koele
+     leiblauw van toen. Op de neutrale grijzen van dit systeem is dat een
+     zichtbaar blauwe spikkel. De tweede: OKX heeft nergens een patroon op een
+     oppervlak. Een vlak is bij hen een kleur, en de structuur komt van randen
+     en van ruimte.
+
+     `position: relative` en `isolation` mochten mee weg: er is geen ::before
+     meer om tegenaf te zetten. */
+  background-color: var(--bg-base);
 }
 
 /* ── Niets is breder dan het scherm ─────────────────────────────────────────
@@ -2093,21 +1982,39 @@ textarea.field {
      stand wit en wit op wit is leeg papier. */
   :root {
     color-scheme: light;
+
+    /* ⚠️ Alleen de CANONIEKE tokens, niet de aliassen. `--bg-muted` en
+       `--text-muted` wijzen sinds 17 september 2026 via `var()` naar
+       `--bg-surface-raised` en `--text-tertiary`; zet je ze hier apart, dan
+       staan er twee waarheden en loopt er ooit een uit elkaar. Eén regel per
+       feit, ook op papier.
+
+       De grond wordt hier wit en niet het schermgrijs #f6f6f6: een vlak van
+       lichtgrijs over een hele pagina kost inkt en levert niets op. */
     --bg-base: #ffffff;
+    --bg-layer-1: #ffffff;
     --bg-surface: #ffffff;
-    --bg-muted: #f8fafc;
-    --bg-elevated: #e7edf2;
-    --text-primary: #17212b;
-    --text-secondary: #43505d;
-    --text-muted: #788795;
-    --border-subtle: #e7edf2;
-    --border-strong: #c2ccd6;
-    /* Papier laat niets door. De `* { backdrop-filter: none }` verderop haalt
-       de vervaging al weg; zonder deze twee regels blijft de doorschijnende
-       vulling staan en drukt een kaart lichter af dan hij hoort. */
-    --glass-surface: #ffffff;
-    --glass-surface-strong: #ffffff;
-    --glass-shadow: none;
+    --bg-surface-raised: #f3f3f3;
+    --bg-layer-2: #e9e9e9;
+    --text-primary: #000000;
+    --text-secondary: #383838;
+    --text-tertiary: #5b5b5b;
+    --text-subtle: #5e5e5e;
+    --border-subtle: rgba(0, 0, 0, 0.06);
+    --border-default: rgba(0, 0, 0, 0.14);
+    --border-strong: rgba(0, 0, 0, 0.32);
+    --border-primary: #e6e6e6;
+    --line-muted: #ebebeb;
+
+    /* Het accent wordt op papier de donkere variant, ook als het scherm in de
+       donkere stand stond: limoen op wit haalt 1,2:1 en is op papier niets. */
+    --accent: #2b6d17;
+    --accent-on: #ffffff;
+
+    /* Richting moet op papier de tekstvariant zijn, want een percentage in een
+       tabel is daar altijd kleine tekst. */
+    --trend-up: #1d7a3f;
+    --trend-down: #c22a48;
   }
 
   .no-print,

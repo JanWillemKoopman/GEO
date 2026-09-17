@@ -1,5 +1,34 @@
 # Design System
 
+> # ⚠️ DIT DOCUMENT IS SINDS 17 SEPTEMBER 2026 GEDEELTELIJK ACHTERHAALD
+>
+> **De tokenlaag van `app/globals.css` is die van OKX geworden, niet meer die van Nova.** Dat was
+> stap 1 van elf; het blueprint voor de rest staat in `redesign2026.md`.
+>
+> **Wat hieronder NIET meer klopt** (stap 1 is doorgevoerd):
+>
+> | Hoofdstuk | Status |
+> |---|---|
+> | §2 Kleur | **Achterhaald.** Alle waarden zijn vervangen. Zie `redesign2026.md` §5.1 en §6. |
+> | §3 Typografie, de letter | **Achterhaald.** Geist Sans is Archivo geworden; zie `redesign2026.md` §5.2. |
+> | §3 Typografie, de schaal | Nog geldig tot stap 9. |
+> | §4 Grafieken, de kleuren | **Achterhaald.** Acht reeksen in plaats van zes. |
+> | §6 Motion | Ongewijzigd overgenomen, klopt nog. |
+> | §10 Donkere modus, de waarden | **Achterhaald.** |
+>
+> **Wat hieronder nog WEL klopt**, want stap 2 tot 11 zijn nog niet gedaan: §3.1 (de tekstschaal),
+> §5 (vorm en diepte, de radiusschaal en de maten), §6b (iconen), §7 (de primitieven), §8 (de negen
+> regels) en §11 (de controle vóór een commit). Die beschrijven wat er nu echt in de code staat.
+>
+> **Twee uitzonderingen die al wél om zijn**, omdat ze anders kapot ogen: het glas op de kaarten
+> (`backdrop-filter`) staat uit, en het stippenpatroon op de werkruimte is weg.
+>
+> **De regel blijft: de code is leidend.** Wijkt `app/globals.css` af van wat hier staat, dan is dit
+> document fout. Dat is nu op de hierboven genoemde punten het geval, met opzet en tijdelijk. Dit
+> document wordt in stap 11 herschreven, en dan verdwijnt deze waarschuwing samen met
+> `redesign2026.md` zelf.
+
+
 > **Bron: de NOVA-workspace van InSpace** (`nova.inspace.io`), hun ingelogde productomgeving,
 > geanalyseerd op 6 augustus 2026 uit de CSS-bundel en de i18n-bundel van de app.
 > **Peildatum van dit document: 24 augustus 2026.** §6b (iconen) is toegevoegd op 21 augustus 2026.

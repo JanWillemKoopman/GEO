@@ -1,12 +1,32 @@
 import type { Metadata, Viewport } from "next";
-import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
-import { Archivo_Black } from "next/font/google";
+import { Archivo, Archivo_Black } from "next/font/google";
 import "./globals.css";
 
-// Geist Sans en Geist Mono, het paar dat de NOVA-workspace zelf gebruikt.
-// Mono was JetBrains Mono: twee families van twee makers naast elkaar is precies
-// het soort verschil dat je niet ziet maar wel voelt. Zie designsystem.md §3.
+// ── ARCHIVO, SINDS 17 SEPTEMBER 2026 ────────────────────────────────────────
+//
+// Dit was Geist Sans, de letter van de NOVA-workspace. OKX schrijft in OKX Sans
+// en dat is van CoType Foundry: commercieel gelicentieerd, dus het kan niet mee.
+//
+// Acht vrije letters zijn opgehaald en met fontTools tegen de gemeten metriek
+// van OKX Sans gelegd (x-hoogte 0,510 em, kapitaalhoogte 0,700 em,
+// cijferbreedte 0,600 em). Archivo wint op 2,2% gemiddelde afwijking mét het
+// juiste karakter: allebei neo-grotesk. Manrope zat met 1,9% dichter op de
+// cijfers maar is geometrisch en leest zichtbaar anders. Inter staat zevende.
+// De volledige tabel staat in `redesign2026.md` §5.2.
+//
+// Gewichten 400, 500 en 600. Meer niet, want bij OKX is "bold" gewicht 500 en
+// gaan alleen twee koppen naar 600.
+const archivo = Archivo({
+  weight: ["400", "500", "600"],
+  subsets: ["latin"],
+  variable: "--font-archivo",
+  display: "swap",
+});
+
+// Geist Mono blijft: hij staat alleen onder cijfers en code, en daar is niets
+// mis mee. Mono was ooit JetBrains Mono; twee families van twee makers naast
+// elkaar is precies het soort verschil dat je niet ziet maar wel voelt.
 
 // Archivo Black, uitsluitend voor het woordmerk ORBIT ENGINE (26 augustus 2026).
 // Een logo is geen kop en volgt daarom niet de tekstschaal in §3.1 van
@@ -36,8 +56,8 @@ export const viewport: Viewport = {
   // de kleur van de browserbalk op een telefoon; stond hij op één waarde, dan
   // zat er in donkere modus een lichte balk boven een donkere pagina.
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#121a22" },
+    { media: "(prefers-color-scheme: light)", color: "#f6f6f6" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -70,7 +90,7 @@ export default function RootLayout({
   return (
     <html
       lang="nl"
-      className={`${GeistSans.variable} ${GeistMono.variable} ${archivoBlack.variable}`}
+      className={`${archivo.variable} ${GeistMono.variable} ${archivoBlack.variable}`}
       suppressHydrationWarning
     >
       <head>

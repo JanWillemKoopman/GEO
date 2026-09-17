@@ -9293,3 +9293,74 @@ meeleest) nog niet gehaald, allebei omdat er geen productieomgeving met echte sl
 was tijdens het bouwen. Een korte verwijzing daarnaartoe staat bij sprint 8 van
 `docs/tasks/ontwikkelplan-visie.md`, zodat het ook zichtbaar is voor wie het sprintoverzicht leest
 zonder het losse plan te openen.
+
+## 17 september 2026, stap 1 van de redesign: de tokenlaag is die van OKX
+
+Het tokensysteem van de NOVA-workspace van InSpace is eruit en dat van OKX (`okd`) is erin. Dit is
+de eerste van elf stappen; het volledige blueprint met de verantwoording per waarde staat in
+`redesign2026.md`.
+
+**Waarom nu.** `docs/designsystem.md` §9b legde op 17 augustus 2026 vast dat het fundament van de
+vormgeving uit het product van een directe concurrent kwam, en dat er een uitspraak van de eigenaar
+nodig was. Die uitspraak is er nu: de vormtaal wordt die van OKX. Dat is geen concurrent en zal dat
+nooit worden, want zij zijn een cryptobeurs. De vraag die §9b eigenlijk stelt ("is dit uiterlijk van
+óns") blijft open, en dat staat zo in `redesign2026.md` §13.1 opgeschreven zodat het niet opnieuw
+insluipt.
+
+**Wat er in deze stap veranderd is: kleur, letter, beweging en schaduw. Verder niets.** Radius,
+maatvoering en de 59 componentklassen staan nog op hun oude waarden. De app is nu dus lelijk maar
+volledig werkend, en dat is met opzet: zo is deze stap op zichzelf terug te draaien. Twee bestanden
+zijn aangeraakt, `app/globals.css` en `app/layout.tsx`.
+
+**De cijfers.** Het nieuwe systeem is afgeleid uit 1.135.435 bytes gecompileerde CSS van negen
+stylesheets van okx.com, opgehaald op 17 september 2026. Hun `okd`-systeem draagt 3.561 custom
+properties, waarvan 378 semantische kleurtokens in twee volledige standen; 678 daarvan verschillen
+per stand. De lichte stand hoefde dus niet verzonnen te worden, die hebben zij zelf.
+
+**De vier verschuivingen die het meeste doen.** De grond gaat van wit naar `#f6f6f6` in licht en van
+`#121a22` naar `#000000` in donker, met de kaart er los boven in plaats van dezelfde kleur met een
+randje. De neutralen verliezen hun blauwzweem (`#17212b` was blauwzwart, `#000000` is zwart). Het
+paars `#8511d9` wordt limoen `#bcff2f` in donker en donkergroen `#2b6d17` in licht, want limoen op
+wit haalt 1,2:1 en is onleesbaar; dat is OKX' eigen oplossing. En tekst gaat van drie naar vijf
+niveaus, omdat de oude laagste (`#788795`) op wit maar 3,7:1 haalde en er dus geen bruikbare trede
+tussen bodytekst en onleesbaar zat.
+
+**Zeven betekenissen zijn er vier geworden.** `intelligence` is het accent, `growth` is richting
+geworden (stijgen en dalen staan los van succes en fout, want een dalende zichtbaarheid is geen
+foutmelding), `information` is grijs in plaats van blauw zoals bij OKX, `attention` ging naar het
+accent omdat zijn enige gebruiker het woord "kans" is en een kans geen waarschuwing is, en `premium`
+had nul gebruikers en is weg.
+
+**Eén plek waar afwijken van OKX beter was dan volgen.** Hun stijg- en daalkleuren halen in de
+lichte stand geen AA voor tekst onder 18 pixels: `#31bd65` op wit is 2,44:1 en `#eb4b6d` is 3,65:1.
+Bij hen geeft dat niet, want daar staat een koers groot en dik en geldt de grens van 3,0:1. Bij ons
+komt die kleur op een verschilpercentage van 14 pixels in een tabelcel en geldt 4,5:1. Daarom zijn
+er twee tokens bij die OKX niet heeft, `--trend-up-text` (`#1d7a3f`, 5,4:1) en `--trend-down-text`
+(`#c22a48`, 5,7:1), voor tekst; de gemeten kleur blijft voor vlakken, lijnen en grafieken.
+
+**Het lettertype is Archivo en dat is gemeten, niet gekozen.** OKX schrijft in OKX Sans, van CoType
+Foundry en commercieel gelicentieerd, dus dat kan niet mee. Acht vrije letters zijn opgehaald en met
+fontTools tegen de metriek van het echte bestand gelegd (x-hoogte 0,510 em, kapitaalhoogte 0,700 em,
+cijferbreedte 0,600 em). Archivo wint op 2,2% gemiddelde afwijking mét het juiste karakter: allebei
+neo-grotesk. Manrope zat met 1,9% dichter op de cijfers maar is geometrisch en leest zichtbaar
+anders. Inter, de veelgenoemde gok, staat zevende van de acht. Let op: OKX Sans is tabulair van
+zichzelf (`zero` en `one` zijn allebei 600 eenheden) en Archivo niet, dus elk getal in deze app
+heeft vanaf nu expliciet `font-variant-numeric: tabular-nums` nodig.
+
+**De aliassenlaag is tijdelijk en staat er met opzet.** 101 oude tokennamen worden gebruikt in de
+klassenlaag en in 249 tsx-bestanden. Ze wijzen nu via `var()` naar hun nieuwe tegenhanger, zodat er
+niets breekt terwijl de rest volgt. Omdat het verwijzingen zijn en geen kopieën, hoeven ze niet in
+de donkere blokken herhaald te worden en is er dus niets om uit elkaar te laten lopen. Ze verdwijnen
+per stuk zodra hun laatste gebruiker om is, in stap 2 en stap 10.
+
+**Twee dingen die alvast weg zijn omdat ze anders kapot ogen.** Het glas op de kaarten
+(`backdrop-filter`) is uitgezet via de tokens: een doorschijnend vlak van 72% hoort niet in een
+systeem dat met randen werkt. En het stippenpatroon op de werkruimte is verwijderd, want de stippen
+hadden een vaste kleur (`#e4e9ee`) die op het koele leiblauw was afgestemd en op de nieuwe neutrale
+grond een zichtbaar blauwe spikkel werd.
+
+Getest: `tsc --noEmit`, `test:unit` (4912 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+alle vier groen. Nagerekend op de gebouwde CSS: de elf kernkleuren van het Nova-palet (`#8511d9`,
+`#17212b`, `#f8fafc`, `#37941c`, `#e7edf2`, `#788795`, `#43505d`, `#c2ccd6`, `#ad45ff`, `#b9efa3`,
+`#e4e9ee`) komen alle elf nul keer voor, en de nieuwe waarden wel. Het zijproject
+`app/solliciteren/` draagt uitsluitend eigen `--sol-*`-tokens en is niet aangeraakt.
