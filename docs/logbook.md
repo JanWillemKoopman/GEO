@@ -9293,3 +9293,45 @@ meeleest) nog niet gehaald, allebei omdat er geen productieomgeving met echte sl
 was tijdens het bouwen. Een korte verwijzing daarnaartoe staat bij sprint 8 van
 `docs/tasks/ontwikkelplan-visie.md`, zodat het ook zichtbaar is voor wie het sprintoverzicht leest
 zonder het losse plan te openen.
+
+## 17 september 2026, vervolg: het hele dashboard achter de inlog
+
+**De lijst stond verkeerd om, en dat ging twee keer mis.** De middleware hield een lijst bij van zes
+BESCHERMDE secties (`/analyses`, `/merk`, `/instellingen`, `/beheer`, `/sales`, `/solliciteren`), en
+alles wat er niet in stond was open. Zo'n lijst vraagt van iedereen die een scherm bouwt dat hij aan
+een tweede bestand denkt, en dat gebeurde twee keer niet: bij de herindeling van 17 augustus 2026
+viel het merendeel van de app buiten de controle omdat het naar `/merk` verhuisde, en `/support`
+heeft er sinds zijn bouw nooit in gestaan. Er lekte geen data, want elk scherm roept zelf
+`requireUser()` aan, maar een bezoeker zonder sessie kreeg eerst een volledige server-render van een
+leeg scherm en pas daarna het inlogscherm.
+
+**Nu is alles dicht, behalve acht adressen met een reden erbij** (`lib/auth-paden.ts`). Die acht zijn
+niet "schermen die wel mogen", het zijn schermen die zonder inlog moeten werken omdat ze anders
+onbereikbaar zijn: inloggen, registreren, wachtwoord vergeten, het herstelformulier, de
+uitnodigingspagina met het token, de route waar de herstel-link binnenkomt, het publieke
+marktrapport, en de deelvoorbeeldafbeelding. Van de 51 adressen die `app/` oplevert, zitten er nu 45
+achter de inlog en 6 niet; `/support` was de enige die er echt buiten viel. Een scherm dat er
+voortaan bij komt, is vanzelf beschermd, ook als niemand aan dit bestand denkt. Vergeten kost nu
+hooguit een scherm dat te streng is, en dat merkt de eerste bezoeker meteen; vergeten kostte eerst
+een scherm dat te open was, en dat merkte niemand.
+
+**Een adres dat niet bestaat, gaat óók naar het inlogscherm.** Dat is nieuw en het is de bedoeling:
+een 404 aan een bezoeker zonder sessie vertelt hem welke adressen er wél zijn.
+
+**Twee dingen blijven met opzet publiek, en ze zijn geen dashboard.** Het marktrapport op
+`/markt/[slug]` is het bewijsstuk uit de Sales-module ("de verkoper zegt kijk zelf, en de prospect
+hoeft geen account", `docs/tasks/geo-prospect-engine.md` hoofdstuk 20); een inlog daar haalt de hele
+werking ervan weg. En `/opengraph-image` is de voorvertoning die Next.js aan élk adres hangt dat er
+zelf geen heeft, dus ook aan dat marktrapport: achter de inlog krijgt een prospect die zo'n link
+doorstuurt een kale URL zonder kaartje.
+
+**De lijst staat in een pure module en niet in de middleware** (conventie 2), zodat de test hem echt
+kan aanroepen in plaats van de brontekst te lezen. Het vangnet eronder (conventie 1) leidt de
+adressen af uit `app/` zélf: elke `page.tsx` wordt een adres, routegroepen vallen weg, parameters
+worden een voorbeeldwaarde, en per adres eist de test dat het beschermd is of dat het bij de acht
+uitzonderingen staat. Een lijst die je met de hand bijwerkt zou precies het scherm missen dat iemand
+er net bij zette, en dat is de fout die hier twee keer gemaakt is.
+
+Getest: `tsc --noEmit`, `test:unit` (4987 geslaagd, met een nieuwe groep "elke pagina van het
+dashboard zit achter de inlog" van 75 controles), `test:chain` (666 geslaagd) en `build` zijn alle
+vier groen.

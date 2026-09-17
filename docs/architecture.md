@@ -158,6 +158,13 @@ klik. Alle routes doen hun eigen controle; `health` en `invites/accept` zijn met
 - **Cron:** alle drie de routes eisen `Authorization: Bearer <CRON_SECRET>`.
 - **Registratie:** twee lagen, Supabase "Allow new users to sign up" (harde poort, ook tegen
   directe API-aanroepen) en `SIGNUPS_ENABLED` in de app (verbergt UI, blokkeert de server action).
+- **Schermen:** dicht, tenzij. `lib/auth-paden.ts` noemt de acht adressen die zonder sessie moeten
+  werken (inloggen, registreren, wachtwoord vergeten, het herstelformulier, de uitnodiging met
+  token, de route waar de herstel-link binnenkomt, het publieke marktrapport, de
+  deelvoorbeeldafbeelding); al het andere stuurt de middleware naar `/login`, ook een adres dat niet
+  bestaat. Zie 17 september 2026 in `docs/logbook.md` voor waarom die lijst omgekeerd is. De
+  middleware is daarbij de snelle deur en niet de sluitende: elk scherm roept zelf `requireUser()`
+  aan, en `app/(app)/layout.tsx` doet het één keer voor de hele ingelogde app.
 
 ### De eindpoort: geen definitieve versie met openstaande vragen (28 augustus 2026)
 

@@ -408,6 +408,7 @@ import {
 } from "@/lib/sales/report";
 import { ICONEN } from "@/lib/icons";
 import { DOORVERWIJZINGEN } from "@/lib/redirects";
+import { isPubliekPad, PUBLIEKE_PADEN } from "@/lib/auth-paden";
 import { findGaps, gapLink } from "@/lib/profile-gaps";
 import {
   gapQuestions,
@@ -1058,6 +1059,58 @@ function tsxOnder(map: string): string[] {
     else if (item.name.endsWith(".tsx")) uit.push(pad);
   }
   return uit;
+}
+
+/**
+ * De matcher uit `middleware.ts` als bruikbare regex.
+ *
+ * Die ene regel bepaalt of de middleware een adres überhaupt ziet, en dus of de
+ * bescherming daar aan staat. Hij wordt op twee plekken getoetst (draait hij
+ * waar hij moet, en zit elk scherm achter de inlog), vandaar hier één keer.
+ */
+function matcherUitMiddleware(): RegExp {
+  const gevonden = leesBestand("middleware.ts").match(/"(\/\(\(\?!.*)"/);
+  ok("de matcher staat in middleware.ts", Boolean(gevonden));
+  return new RegExp(`^${(gevonden?.[1] ?? "x").replace(/\\\\/g, "\\")}$`);
+}
+
+/**
+ * Elk webadres dat `app/` oplevert, afgeleid uit de bestandsnamen zelf.
+ *
+ * ⚠️ Met opzet uit de map en niet uit een lijst in dit bestand: een lijst die je
+ * met de hand bijwerkt, mist precies het scherm dat iemand er net bij zette, en
+ * dat is twee keer eerder gebeurd (`lib/auth-paden.ts`). Een routegroep
+ * (`(app)`) verdwijnt uit het adres, een parameter (`[id]`) wordt een
+ * voorbeeldwaarde, en `/api/` blijft eruit omdat de middleware daar sinds
+ * 28 augustus 2026 niet overheen komt: elke route daar doet zijn eigen controle.
+ */
+function adressenUitAppMap(): string[] {
+  const uit = new Set<string>();
+  const loop = (map: string) => {
+    let inhoud: { name: string; isDirectory: () => boolean }[];
+    try {
+      inhoud = readdirSync(map, { withFileTypes: true, encoding: "utf8" });
+    } catch {
+      return;
+    }
+    for (const item of inhoud) {
+      const pad = join(map, item.name);
+      if (item.isDirectory()) {
+        loop(pad);
+        continue;
+      }
+      if (item.name !== "page.tsx" && item.name !== "route.ts") continue;
+      const segmenten = map
+        .split("/")
+        .slice(1) // "app" zelf hoort niet in het adres
+        .filter((deel) => !(deel.startsWith("(") && deel.endsWith(")")))
+        .map((deel) => (deel.startsWith("[") ? "x1" : deel));
+      const adres = `/${segmenten.join("/")}`;
+      if (!adres.startsWith("/api/") && adres !== "/api") uit.add(adres);
+    }
+  };
+  loop("app");
+  return [...uit].sort();
 }
 
 /** Alle `.ts`-bestanden onder een map, recursief. Voor de API-routes. */
@@ -14823,10 +14876,7 @@ console.log("\nSnelheid: waar het scherm op wacht (28 augustus 2026)");
 // knopklik. Eén teken verkeerd in dit patroon zet óf de bescherming uit óf de
 // besparing terug, en allebei gebeurt zonder foutmelding. Vandaar deze test.
 group("de middleware draait waar hij moet, en nergens anders", () => {
-  const bron = leesBestand("middleware.ts");
-  const gevonden = bron.match(/"(\/\(\(\?!.*)"/);
-  ok("de matcher staat in middleware.ts", Boolean(gevonden));
-  const patroon = new RegExp(`^${(gevonden?.[1] ?? "x").replace(/\\\\/g, "\\")}$`);
+  const patroon = matcherUitMiddleware();
 
   // Wél: elk scherm dat de sessie nodig heeft, plus de auth-pagina's waar een
   // ingelogde bezoeker juist wéggestuurd wordt.
@@ -14861,6 +14911,93 @@ group("de middleware draait waar hij moet, en nergens anders", () => {
   }
 });
 
+// ── Elk scherm zit achter de inlog ─────────────────────────────────────────
+//
+// ⚠️ Dit is de test die de omkering van 17 september 2026 vasthoudt
+// (`lib/auth-paden.ts`). Vóór die datum stond in de middleware een lijst van
+// zes BESCHERMDE secties, en alles wat er niet in stond was open. Twee keer is
+// er een scherm buiten gevallen: het merendeel van de app bij de herindeling
+// naar `/merk` (17 augustus 2026) en `/support` sinds zijn bouw. Er lekte geen
+// data, want elk scherm roept zelf `requireUser()` aan, maar een bezoeker
+// zonder sessie kreeg eerst een server-render en pas daarna het inlogscherm.
+//
+// Nu is de lijst omgekeerd, en deze test is het vangnet eronder (conventie 1):
+// hij leidt uit `app/` zélf af welke adressen er zijn en eist per adres dat het
+// achter de inlog zit. Een nieuw scherm dat per ongeluk publiek is, laat deze
+// test dus vallen zonder dat iemand hem hoeft bij te werken.
+group("elke pagina van het dashboard zit achter de inlog", () => {
+  const patroon = matcherUitMiddleware();
+
+  // Alle adressen die `app/` oplevert: elke `page.tsx` is een scherm, en
+  // `app/auth/wachtwoord/route.ts` is de enige route-handler buiten `/api/`
+  // waar de middleware overheen komt.
+  const adressen = adressenUitAppMap();
+  ok("er zijn schermen gevonden om te controleren", adressen.length >= 40, `${adressen.length}`);
+
+  // Precies deze zeven schermen horen zonder sessie te werken, en de reden
+  // staat per stuk in `lib/auth-paden.ts`. Staat er hieronder iets bij dat daar
+  // niet staat (of andersom), dan is er een scherm publiek geworden zonder dat
+  // iemand daar een besluit over nam. De achtste uitzondering,
+  // `/opengraph-image`, heeft geen `page.tsx` en komt dus niet uit de map; die
+  // staat apart hieronder.
+  const publiekVerwacht = new Set([
+    "/login",
+    "/register",
+    "/wachtwoord-vergeten",
+    "/wachtwoord",
+    "/uitnodiging/x1",
+    "/markt/x1",
+    "/auth/wachtwoord",
+  ]);
+
+  for (const adres of adressen) {
+    const hoortPubliek = publiekVerwacht.has(adres);
+    const isPubliek = isPubliekPad(adres) || !patroon.test(adres);
+    if (hoortPubliek) {
+      ok(`${adres} blijft met opzet zonder inlog bereikbaar`, isPubliek);
+    } else {
+      ok(`${adres} zit achter de inlog`, !isPubliek);
+    }
+  }
+
+  // De schermen die het eerder mis hadden, met naam genoemd. Een lijst die uit
+  // de map komt kan stilvallen als de map-doorloop breekt; deze drie niet.
+  for (const adres of ["/support", "/merk/x1/analytics", "/", "/beheer/kwaliteit"]) {
+    ok(`${adres} zit achter de inlog`, patroon.test(adres) && !isPubliekPad(adres));
+  }
+
+  // De deelvoorbeeldafbeelding (`app/opengraph-image.tsx`). Next.js hangt hem
+  // aan élk adres dat er zelf geen heeft, dus ook aan het publieke
+  // marktrapport: achter de inlog krijgt een prospect die zo'n link doorstuurt
+  // een kale URL zonder kaartje.
+  ok("de voorvertoning van een gedeelde link blijft publiek", isPubliekPad("/opengraph-image"));
+
+  // Een adres dat niet bestaat, gaat óók naar het inlogscherm. Anders vertelt
+  // de 404 een bezoeker zonder sessie precies welke adressen er wél zijn.
+  for (const adres of ["/bestaat-niet", "/merk/x1/geheim", "/sales/export"]) {
+    ok(`${adres} levert geen 404 maar het inlogscherm`, !isPubliekPad(adres));
+  }
+
+  // Een afsluitende schuine streep is hetzelfde adres, en mag de uitkomst dus
+  // niet omdraaien. `/markt/` publiek en `/markt` beschermd (of omgekeerd) is
+  // precies het soort verschil dat niemand ziet aankomen.
+  ok("een afsluitende streep verandert niets aan /login", isPubliekPad("/login/"));
+  ok("en niets aan /beheer", !isPubliekPad("/beheer/"));
+
+  // Geen bijna-treffers: het gaat om hele padsegmenten, niet om tekst die
+  // toevallig zo begint. `/marktplaats` is geen marktrapport.
+  for (const bijna of ["/marktplaats", "/loginpoging", "/uitnodigingen-beheer"]) {
+    ok(`${bijna} lift niet mee op een publiek adres`, !isPubliekPad(bijna));
+  }
+
+  // Elke uitzondering draagt zijn reden mee. Zonder die regel groeit de lijst
+  // met adressen waarvan niemand later nog weet waarom ze open staan.
+  for (const { pad, reden } of PUBLIEKE_PADEN) {
+    ok(`${pad} zegt waarom hij publiek is`, reden.trim().length >= 20, reden);
+  }
+  eq2("er staan acht uitzonderingen in de lijst", PUBLIEKE_PADEN.length, 8);
+});
+
 // ── Het zijproject "Solliciteren" ──────────────────────────────────────────
 //
 // ⚠️ `app/solliciteren/` is een eigen app van één pagina in dezelfde codebase
@@ -14877,10 +15014,11 @@ group("het zijproject staat los van ORBIT ENGINE, en zit wel achter dezelfde inl
   // De inlog: gedeeld, en twee keer gecontroleerd. De middleware stuurt een
   // bezoeker zonder sessie meteen naar het inlogscherm, de layout controleert
   // het op de server nog een keer plus het beheerdersrecht.
-  ok(
-    "de middleware beschermt /solliciteren",
-    leesBestand("lib/supabase/middleware.ts").includes('"/solliciteren"'),
-  );
+  // ⚠️ Stond hier als "de naam /solliciteren komt voor in de middleware", tot de
+  // lijst op 17 september 2026 omgekeerd werd (`lib/auth-paden.ts`). Het
+  // zijproject staat er nu juist NIET meer in, en is precies daarom beschermd:
+  // alles is dicht behalve de acht adressen die open moeten.
+  ok("de middleware beschermt /solliciteren", !isPubliekPad("/solliciteren"));
   ok("de layout vraagt om een ingelogde gebruiker", layout.includes("requireUser()"));
   ok("en laat alleen een account van ORBIT ENGINE zelf binnen", layout.includes("isStaff("));
   ok("een klant krijgt een 404 en geen foutmelding", layout.includes("notFound()"));

@@ -1,11 +1,17 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { publicEnv } from "@/lib/env";
+import { isPubliekPad } from "@/lib/auth-paden";
 
 /**
  * Ververst de Supabase-sessie op elke request en beschermt de app-routes.
  * Standaard @supabase/ssr-patroon: cookies worden zowel op de inkomende request
  * als op de uitgaande response gezet zodat de sessie geldig blijft.
+ *
+ * ⚠️ Welke adressen zonder sessie bereikbaar zijn, staat in `lib/auth-paden.ts`,
+ * en dat is sinds 17 september 2026 een lijst uitzonderingen in plaats van een
+ * lijst beschermde secties: alles is dicht behalve wat daar met reden genoemd
+ * wordt. De reden voor die omkering staat in dat bestand.
  */
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -30,30 +36,16 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  // ⚠️ Elke ingelogde sectie hoort hier te staan, niet alleen `/analyses`. Sinds
-  // de herindeling van 17 augustus 2026 zit het merendeel van de app onder
-  // `/merk`, en dat viel buiten deze controle. De pagina's zelf roepen
-  // `requireUser()` aan, dus er lekte niets, maar een bezoeker zonder sessie
-  // kreeg een omweg via een server-render in plaats van meteen het inlogscherm.
-  // `/solliciteren` is het zijproject (14 september 2026): een eigen app van
-  // één pagina, achter dezelfde inlog. Hij hoort in deze lijst om dezelfde
-  // reden als de rest: de pagina zelf roept `requireUser()` aan, dus er lekt
-  // niets, maar zonder deze regel krijgt een bezoeker zonder sessie eerst een
-  // server-render en pas daarna het inlogscherm.
-  const isProtected = [
-    "/analyses",
-    "/merk",
-    "/instellingen",
-    "/beheer",
-    "/sales",
-    "/solliciteren",
-  ].some((p) => path === p || path.startsWith(`${p}/`));
   const isAuthPage = path === "/login" || path === "/register";
 
-  // Niet ingelogd + beschermde route → naar login.
-  if (!user && isProtected) {
+  // Niet ingelogd + geen publiek adres → naar het inlogscherm.
+  if (!user && !isPubliekPad(path)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    // ⚠️ Zonder de queryparameters van het vorige adres: het inlogscherm leest
+    // er zelf twee (`check_email` en `reset_sent`) en zet daar een melding bij.
+    // Meeliften levert dus een mededeling die nergens op slaat.
+    url.search = "";
     return NextResponse.redirect(url);
   }
 
@@ -63,6 +55,7 @@ export async function updateSession(request: NextRequest) {
     // De wortel beslist waar je heen gaat: het overzicht van je merk, of de
     // merkenlijst als er nog geen keuze is (`app/page.tsx`).
     url.pathname = "/";
+    url.search = "";
     return NextResponse.redirect(url);
   }
 
