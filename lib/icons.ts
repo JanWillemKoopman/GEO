@@ -196,7 +196,15 @@ export type IcoonNaam =
   // hoofdstuk of van een bestaande betekenis hierboven; deze drie zijn nieuw.
   | "markten"
   | "bedrijven"
-  | "verstuurd";
+  | "verstuurd"
+  // ── Het inlogtoneel (17 september 2026, stap 8) ──────────────────────────
+  // De wachtwoordwissel in een veld: een open oog voor "toon", een
+  // doorgestreept oog voor "verberg". Bewust dezelfde tekening als
+  // `klantweergave`/`eigenweergave` hierboven, met een eigen naam: dat is
+  // een universele conventie en geen eigen keuze, en de twee functies staan
+  // nooit naast elkaar op een scherm, dus er is niets om te verwarren.
+  | "wachtwoordtonen"
+  | "wachtwoordverbergen";
 
 export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // ── DE ZEVEN HOOFDSTUKKEN ───────────────────────────────────────────────
@@ -373,4 +381,8 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // Een verstuurd bericht: wat er de deur uit is, de laatste stap in
   // outreach.
   verstuurd: Send,
+
+  // ── Het inlogtoneel ───────────────────────────────────────────────────────
+  wachtwoordtonen: Eye,
+  wachtwoordverbergen: EyeOff,
 };

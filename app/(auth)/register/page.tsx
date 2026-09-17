@@ -18,7 +18,7 @@ export default function RegisterPage() {
       title="Account aanmaken"
       intro="Eén adres, één wachtwoord. Daarna zet ORBIT ENGINE je merk op de kaart."
     >
-      <AuthForm mode="register" action={signUp} signupsEnabled />
+      <AuthForm action={signUp} signupsEnabled />
     </AuthCard>
   );
 }

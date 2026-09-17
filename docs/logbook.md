@@ -9706,3 +9706,67 @@ Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd)
 allemaal groen op een schone `.next`. Wat niet is gecontroleerd: hoe de twee componenten er in een
 echte, ingelogde browser op een telefoon uitzien, want deze omgeving heeft geen geldige sessie. Dat
 blijft, net als bij stap 6, open voor de eerstvolgende Vercel-preview.
+
+## 17 september 2026, stap 8 van de redesign: de inlogroute
+
+Vijf schermen (`login`, `register`, `wachtwoord-vergeten`, `wachtwoord`, `uitnodiging/[token]`) om
+naar `redesign2026.md` §8.2, en daarmee de uitzondering uit `docs/designsystem.md` §9b opgelost: die
+stond specifiek voor het feit dat de inlogroute zijn eigen `.auth-label`/`.auth-field`/`.auth-submit`/
+`.auth-footnote` had, elk een kopie van een bestaand primitief met een net iets andere maat. Dat is nu
+weg. De route gebruikt dezelfde `.type-*`, `.field`, `.btn-*` en `Alert` als de rest van de app, op
+zijn eigen (grotere) trede van diezelfde schalen: `.type-heading-lg` (30px, nieuw, alleen dit scherm),
+`.field-lg` (48px, de trede die §7.3 ook voor elk veld onder 768px voorschrijft), `Alert` (nieuw,
+§7.16, drie intents: succes, waarschuwing, fout). Wat overblijft onder "HET INLOGTONEEL" in
+`app/globals.css` is uitsluitend de opmaak van het toneel zelf: de ondergrond en de kaart van 480
+pixels die alle vijf schermen delen.
+
+**Drie dingen die niet letterlijk in de spec stonden en toch zijn veranderd, met een reden:**
+
+- **`--bg-stage` is geschrapt.** Dit token bestond om de grond onder de inlogkaart een andere kleur te
+  geven dan `--bg-base`, nodig in de Nova-jaren toen de twee verschilden. Sinds stap 1 zijn ze in
+  beide standen letterlijk identiek (`#f6f6f6` licht, `#000000` donker): twee namen voor één feit.
+  `.auth-stage` gebruikt nu `--bg-base` rechtstreeks, en de drie tokendefinities zijn weg uit
+  `app/globals.css`.
+- **De iconen in de velden (envelop, slot) zijn weg, de oogknop in het wachtwoordveld blijft.** Geen
+  van beide stond in §8.2's letterlijke opsomming; het envelop/slot-paar was Nova-decoratie die nergens
+  anders in de app terugkomt (een dashboardveld heeft geen icoon), de oogknop staat er wél letterlijk
+  ("de wachtwoordwissel in het veld wordt een IconButton md"). Die oogknop haalde bovendien
+  `import { Eye, EyeOff } from "lucide-react"` rechtstreeks binnen, in plaats van via `lib/icons.ts`:
+  dat is precies wat `docs/designsystem.md` §8 regel 9 verbiedt. Nu geregistreerd als
+  `wachtwoordtonen`/`wachtwoordverbergen`, bewust dezelfde tekening als `klantweergave`/`eigenweergave`
+  (ook Eye/EyeOff): een universele conventie is geen eigen keuze, en de twee functies staan nooit naast
+  elkaar op een scherm.
+- **`Alert` (§7.16) kreeg een neutrale rand, niet de gekleurde rand op 20% opaciteit die de tekst
+  noemt.** Elke andere intent-gekleurde vlakte in dit systeem (de chipvarianten, en de meldingen die
+  al vóór stap 8 op het inlogtoneel stonden) gebruikt al surface plus content-kleur met een neutrale
+  rand (`--intent-*-border` wijst overal naar `--border-default`). Die precedent won van een
+  spec-regel die zelf nooit tegen gecompileerde CSS was nagerekend, want OKX levert dit component niet
+  in de opgehaalde bundels.
+
+**Twee kleinere opruimingen, ontdekt tijdens het herschrijven van deze route:**
+
+`auth-form.tsx` had een `mode: "login" | "register"`-prop, maar de inlogtak riep niemand meer aan
+(`login/login-form.tsx` deed dat werk al sinds eerder, met een eigen oogknop die `auth-form.tsx` niet
+had). Een tak die niemand aanroept is precies het soort halve implementatie die niet moet blijven
+staan; de `mode`-prop is weg en het component is nu uitsluitend het registratieformulier.
+`activation-form.tsx` toonde de vertrouwensregel ("Je gegevens zijn versleuteld en beveiligd
+opgeslagen.") twee keer op hetzelfde scherm: eenmaal in zijn eigen laatste `<p>`, eenmaal automatisch
+via `AuthCard`, die dezelfde tekst al in zijn afsluiter zet voor elke kaart. De eigen regel is weg.
+
+Het woordmerk staat sinds deze stap boven de kaart in plaats van erin (`AuthLayout`, niet
+`AuthCard`): §8.2 zegt "woordmerk boven de kaart, 24px eronder", en alle vijf schermen delen precies
+één logo, dus dat is een feit van het toneel en niet van de kaart.
+
+`redesign2026.md` en `docs/designsystem.md` §9b zijn bijgewerkt met wat hierboven staat. De
+kostenschatting van stap 8 ging van 6 naar 13 bestanden (`Alert` en de twee nieuwe iconen tellen mee,
+en die kan stap 10 elders hergebruiken); de opgetelde schatting voor stap 1 tot 8 in §10.7 is
+bijgesteld van 23 naar 36, met stap 7's eigen correctie (3 naar 2 bestanden, al genoteerd in de vorige
+logboekregel) daarin meegenomen.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+allemaal groen op een schone `.next`, met alle vijf inlogroutes in de buildoutput
+(`/login`, `/register`, `/uitnodiging/[token]`, `/wachtwoord`, `/wachtwoord-vergeten`). Wat niet is
+gecontroleerd: hoe de vijf schermen er in een echte browser uitzien, licht en donker, want deze
+omgeving heeft geen geldige sessie om achter de inlogroute te komen en de inlogroute zelf heeft geen
+staging-data nodig om te bekijken maar wél een draaiende server. Dat blijft open voor de
+eerstvolgende Vercel-preview, net als bij de stappen 5 tot 7.

@@ -2,8 +2,9 @@
 
 import { useActionState, useState } from "react";
 import Link from "next/link";
-import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { AuthLabel } from "../auth-card";
+import { Alert } from "@/components/alert";
+import { Icon } from "@/components/icon";
 import type { AuthState } from "../actions";
 
 /**
@@ -12,11 +13,17 @@ import type { AuthState } from "../actions";
  * ── WAAROM DIT NIET IN `auth-form.tsx` ZIT ──────────────────────────────────
  *
  * Om dezelfde reden die boven `password-forms.tsx` staat. Dat component doet
- * inloggen én registreren met twee kale velden. Dit formulier heeft iconen in
- * het veld, een oogknop en een andere veldhoogte: dat er met vlaggen in wringen
- * levert een component op dat drie vormen kent en geen ervan goed. Registreren
- * blijft op `auth-form.tsx`, en dat scherm staat tijdens de bouwfase toch dicht
- * (`signupsEnabled`).
+ * alleen registreren. Dit formulier heeft een oogknop in het wachtwoordveld,
+ * en dat er met vlaggen in wringen levert een component op dat twee vormen
+ * kent en geen ervan goed.
+ *
+ * ── STAP 8: GEEN ICONEN MEER IN DE VELDEN ZELF ─────────────────────────────
+ *
+ * Mail- en slotpictogram links in het veld stonden nergens in `redesign2026.md`
+ * §8.2, en een dashboardveld (`.field` elders in de app) heeft er ook geen.
+ * Dat was precies het soort route-eigen versiering die stap 8 opheft: één
+ * systeem, geen anderhalf. De oogknop blijft, want die staat wél letterlijk in
+ * de spec ("de wachtwoordwissel in het veld wordt een IconButton md").
  */
 export function LoginForm({
   action,
@@ -29,47 +36,29 @@ export function LoginForm({
   const [wachtwoordZichtbaar, setWachtwoordZichtbaar] = useState(false);
 
   return (
-    <form action={formAction} className="flex flex-col gap-6">
-      {notice && (
-        <p className="rounded-[10px] border border-[var(--intent-growth-border)] bg-[var(--intent-growth-surface)] px-4 py-3 text-sm text-[var(--intent-growth-text)]">
-          {notice}
-        </p>
-      )}
+    <form action={formAction} className="flex flex-col gap-4">
+      {notice && <Alert intent="success">{notice}</Alert>}
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5">
         <AuthLabel htmlFor="email" required>
           Werk-e-mailadres
         </AuthLabel>
-        <div className="relative">
-          <Mail
-            size={16}
-            strokeWidth={1.75}
-            aria-hidden="true"
-            className="pointer-events-none absolute left-[14px] top-1/2 -translate-y-1/2 text-muted"
-          />
-          <input
-            id="email"
-            type="email"
-            name="email"
-            required
-            autoComplete="email"
-            placeholder="jij@bedrijf.nl"
-            className="auth-field"
-          />
-        </div>
+        <input
+          id="email"
+          type="email"
+          name="email"
+          required
+          autoComplete="email"
+          placeholder="jij@bedrijf.nl"
+          className="field field-lg"
+        />
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5">
         <AuthLabel htmlFor="wachtwoord" required>
           Wachtwoord
         </AuthLabel>
         <div className="relative">
-          <Lock
-            size={16}
-            strokeWidth={1.75}
-            aria-hidden="true"
-            className="pointer-events-none absolute left-[14px] top-1/2 -translate-y-1/2 text-muted"
-          />
           <input
             id="wachtwoord"
             type={wachtwoordZichtbaar ? "text" : "password"}
@@ -77,7 +66,7 @@ export function LoginForm({
             required
             autoComplete="current-password"
             placeholder="Voer je wachtwoord in"
-            className="auth-field auth-field-toggle"
+            className="field field-lg field-toggle-inset w-full"
           />
           {/* Een oogknop is geen sier: hij haalt de meest voorkomende
               inlogfout weg, een typefout in een veld dat je niet kunt lezen.
@@ -87,24 +76,20 @@ export function LoginForm({
             type="button"
             onClick={() => setWachtwoordZichtbaar((zichtbaar) => !zichtbaar)}
             aria-label={wachtwoordZichtbaar ? "Wachtwoord verbergen" : "Wachtwoord tonen"}
-            className="absolute right-2.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-[var(--radius-lg)] text-muted transition-colors hover:text-[var(--text-primary)]"
+            className="icon-btn absolute right-2 top-1/2 -translate-y-1/2"
           >
-            {wachtwoordZichtbaar ? (
-              <EyeOff size={17} strokeWidth={1.75} aria-hidden="true" />
-            ) : (
-              <Eye size={17} strokeWidth={1.75} aria-hidden="true" />
-            )}
+            <Icon naam={wachtwoordZichtbaar ? "wachtwoordverbergen" : "wachtwoordtonen"} size={17} />
           </button>
         </div>
       </div>
 
       {state.error && (
-        <p className="-mt-2 text-sm text-[var(--status-error)]" role="alert">
+        <Alert intent="danger" role="alert">
           {state.error}
-        </p>
+        </Alert>
       )}
 
-      <button type="submit" disabled={pending} className="auth-submit">
+      <button type="submit" disabled={pending} className="btn-primary btn-lg mt-2 w-full">
         {pending ? "Bezig…" : "Inloggen"}
       </button>
     </form>

@@ -8,6 +8,7 @@ import { Drawer } from "@/components/drawer";
 import { DataCard, DataCardRij } from "@/components/data-card";
 import { MobielTabel } from "@/components/mobiel-tabel";
 import { Stappenflow } from "@/components/stappenflow";
+import { Alert } from "@/components/alert";
 
 /**
  * De interactieve helft van de etalage. Alles wat een staat heeft staat hier,
@@ -68,6 +69,7 @@ export function Gallerij() {
       <Blok titel="Typografie" toelichting="Elf stijlen. Vet is gewicht 500, niet 600, en de regelhoogte is anderhalf.">
         <div className="flex flex-col gap-3">
           <p className="type-hero">Hero, 36 op 47,5, gewicht 600</p>
+          <p className="type-heading-lg">Kop groot, 30 op 40, gewicht 500 (alleen het inlogtoneel)</p>
           <p className="type-title">Titel, 24 op 30, gewicht 500</p>
           <p className="type-section">Sectie, 18 op 24, gewicht 500</p>
           <p className="type-lead">Lead, 12 op 15, kapitalen</p>
@@ -164,6 +166,19 @@ export function Gallerij() {
         </div>
       </Blok>
 
+      <Blok
+        titel="Meldingen"
+        toelichting="Een blok in de pagina, geen zwevende toast. AFGELEID (stap 8): OKX levert dit component niet in de opgehaalde bundels, gebouwd voor het inlogtoneel."
+      >
+        <div className="flex flex-col gap-3">
+          <Alert intent="success">Je account staat klaar. Bevestig je e-mailadres en log daarna in.</Alert>
+          <Alert intent="warning">Die herstel-link is verlopen of al gebruikt. Vraag hieronder een nieuwe aan.</Alert>
+          <Alert intent="danger" role="alert">
+            Dat e-mailadres of wachtwoord klopt niet.
+          </Alert>
+        </div>
+      </Blok>
+
       <Blok titel="Velden" toelichting="Veertig pixels, even hoog als de knop ernaast. De focus is een ring en geen gloed.">
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1.5">
@@ -185,6 +200,12 @@ export function Gallerij() {
           <label className="flex flex-col gap-1.5 sm:col-span-2">
             <span className="mono-label">Tekstvak</span>
             <textarea className="field" defaultValue="Een langere toelichting die over meerdere regels loopt." />
+          </label>
+          <label className="flex flex-col gap-1.5 sm:col-span-2">
+            <span className="type-caption-emphasis text-[var(--text-tertiary)]">
+              Groot (48px, alleen het inlogtoneel)
+            </span>
+            <input className="field field-lg" placeholder="Input lg, 16px tekst tegen inzoomen op iOS" />
           </label>
         </div>
       </Blok>

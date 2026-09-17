@@ -1,10 +1,6 @@
-import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
-import { OrbitMark } from "./orbit-mark";
-
 /**
- * De kaart die élk inlogscherm draagt: logo, kopje, titel, ondertitel,
- * formulier, afsluiter.
+ * De kaart die élk inlogscherm draagt: kopje, titel, ondertitel, formulier,
+ * afsluiter. Het woordmerk erboven staat sinds stap 8 in `AuthLayout`.
  *
  * ── WAAROM ÉÉN VORM VOOR ALLE SCHERMEN ──────────────────────────────────────
  *
@@ -14,6 +10,17 @@ import { OrbitMark } from "./orbit-mark";
  * aanvraagt heeft precies hetzelfde nodig als wie inlogt, namelijk één kolom
  * met één handeling erin. Verschil zit alleen in het kopje, de titel en het
  * formulier; de maatvoering is overal dezelfde.
+ *
+ * ── DE MAATVOERING IS SINDS STAP 8 DIE VAN `redesign2026.md` §8.2 ──────────
+ *
+ * Bovenkopje `.mono-label` (heading-overline, dus zonder de pil en het
+ * schildje die hier tot dan stonden), titel `.type-heading-lg` (30px, een
+ * nieuwe trede die alleen dit scherm gebruikt), onderschrift `.type-compact`
+ * op `--text-tertiary`. Geen van de twee schildjes (bij het kopje, bij de
+ * afsluitregel) staat in de letterlijke spec, dus die zijn weg: minder
+ * versiering, en één minder plek waar een icoon rechtstreeks uit
+ * `lucide-react` kwam in plaats van uit `lib/icons.ts` (`docs/designsystem.md`
+ * §8 regel 9).
  */
 export function AuthCard({
   eyebrow,
@@ -22,7 +29,7 @@ export function AuthCard({
   children,
   footer,
 }: {
-  /** Het mono-kopje boven de titel, bijvoorbeeld "veilig inloggen". */
+  /** Het bovenkopje, bijvoorbeeld "veilig inloggen". */
   eyebrow: string;
   title: string;
   intro: string;
@@ -32,45 +39,16 @@ export function AuthCard({
 }) {
   return (
     <div className="auth-card">
-      <div className="flex justify-center">
-        <Link href="/" className="inline-flex items-center gap-2.5" aria-label="ORBIT ENGINE">
-          <OrbitMark size={28} gradientId="orbit-mark-kaart" className="h-7 w-7" />
-          {/* Archivo Black, niet Geist Sans: het woordmerk volgt sinds
-              26 augustus 2026 zijn eigen display-lettertype, los van de drie
-              gewichten in designsystem.md §3.1. `.brand-logo` zet de
-              hoofdletters en de krappe spatiëring. */}
-          <span className="brand-logo text-[1.25rem] leading-none">
-            {/* Uit de tokens en niet uit de hand, sinds 24 augustus 2026. In de
-                donkere stand staan ze allebei op wit, hetzelfde besluit als bij
-                het woordmerk in de bovenbalk; het waarom staat bij
-                `--wordmark-1` in `app/globals.css`. */}
-            <span style={{ color: "var(--wordmark-1)" }}>ORBIT</span>{" "}
-            <span style={{ color: "var(--wordmark-2)" }}>ENGINE</span>
-          </span>
-        </Link>
-      </div>
+      <p className="mono-label">{eyebrow}</p>
+      <h1 className="type-heading-lg mt-2">{title}</h1>
+      <p className="type-compact mt-2 text-[var(--text-tertiary)]">{intro}</p>
 
-      {/* De verticale maatvoering volgt sinds 24 augustus 2026 de schaal van
-          Nova (8, 16, 24, 32) in plaats van zeven losse pixelwaarden die elk
-          apart bedacht waren. Zie de toelichting bij `.auth-card` in
-          `app/globals.css`: het scherm was een maat te groot. */}
-      <p className="auth-eyebrow mt-8">
-        <ShieldCheck size={13} strokeWidth={1.75} aria-hidden="true" />
-        {eyebrow}
-      </p>
+      <div className="mt-6">{children}</div>
 
-      {/* `.type-title`, de kop van een scherm bij Nova: 24 pixels op gewicht 600
-          zonder krappe letterspatiëring. Was 28 op 700 met `tracking-tight`. */}
-      <h1 className="type-title mt-5">{title}</h1>
-      <p className="mt-2 text-[0.9375rem] text-secondary">{intro}</p>
+      {footer && <div className="type-compact mt-6 text-center">{footer}</div>}
 
-      <div className="mt-8">{children}</div>
-
-      {footer && <div className="mt-6 text-center text-[0.9375rem]">{footer}</div>}
-
-      <div className="mt-8 border-t border-[var(--border-subtle)] pt-5">
-        <p className="auth-footnote">
-          <ShieldCheck size={13} strokeWidth={1.75} aria-hidden="true" />
+      <div className="mt-6 border-t border-[var(--border-subtle)] pt-4">
+        <p className="type-caption text-center text-[var(--text-subtle)]">
           Je gegevens zijn versleuteld en beveiligd.
         </p>
       </div>
@@ -78,7 +56,10 @@ export function AuthCard({
   );
 }
 
-/** Het label boven een veld, met het rode sterretje voor verplichte velden. */
+/** Het label boven een veld, met het rode sterretje voor verplichte velden.
+ *  `body-xs-bold` (§7.3), dus gewone kapitalisatie en geen kapitalen: dat is
+ *  de generieke labelstijl van elk veld in de app, niet iets eigens van het
+ *  inlogtoneel. */
 export function AuthLabel({
   htmlFor,
   children,
@@ -89,9 +70,9 @@ export function AuthLabel({
   required?: boolean;
 }) {
   return (
-    <label htmlFor={htmlFor} className="auth-label">
+    <label htmlFor={htmlFor} className="type-caption-emphasis block text-[var(--text-tertiary)]">
       {children}
-      {required && <span className="auth-label-required"> *</span>}
+      {required && <span className="text-[var(--intent-danger-text)]"> *</span>}
     </label>
   );
 }

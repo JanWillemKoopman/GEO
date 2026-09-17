@@ -75,7 +75,7 @@ export default async function InvitePage({
 
   return (
     <AuthCard eyebrow="Uitnodiging" title={scherm.title} intro={scherm.body}>
-      <Link href="/login" className="auth-submit">
+      <Link href="/login" className="btn-primary btn-lg w-full">
         Naar inloggen
       </Link>
     </AuthCard>

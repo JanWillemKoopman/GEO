@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PasswordResetRequestForm } from "../password-forms";
 import { AuthCard } from "../auth-card";
+import { Alert } from "@/components/alert";
 
 export const metadata = { title: "Wachtwoord vergeten" };
 
@@ -23,12 +24,9 @@ export default async function WachtwoordVergetenPage({
       }
     >
       {verlopen && (
-        <p
-          className="mb-[30px] rounded-[10px] border border-[var(--intent-warning-border)] bg-[var(--intent-warning-surface)] px-4 py-3 text-sm text-[var(--intent-warning-text)]"
-          role="alert"
-        >
+        <Alert intent="warning" role="alert" className="mb-4">
           Die herstel-link is verlopen of al gebruikt. Vraag hieronder een nieuwe aan.
-        </p>
+        </Alert>
       )}
       <PasswordResetRequestForm />
     </AuthCard>

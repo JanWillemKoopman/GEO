@@ -5,7 +5,7 @@
 > **De tokenlaag van `app/globals.css` is die van OKX geworden, niet meer die van Nova.** Dat was
 > stap 1 van elf; het blueprint voor de rest staat in `redesign2026.md`.
 >
-> **Wat hieronder NIET meer klopt** (stap 1, 2, 4, 5, 6 en 7 zijn doorgevoerd):
+> **Wat hieronder NIET meer klopt** (stap 1, 2, 4, 5, 6, 7 en 8 zijn doorgevoerd):
 >
 > | Hoofdstuk | Status |
 > |---|---|
@@ -19,8 +19,10 @@
 > | §7 De primitieven | **Achterhaald.** Kaart, knop, chip, veld en skeleton zijn alle vijf om. |
 > | §10 Donkere modus, de waarden | **Achterhaald.** |
 >
-> **Wat hieronder nog WEL klopt**, want stap 8 tot 11 zijn nog niet gedaan: §6b (iconen, lijndikte
+> **Wat hieronder nog WEL klopt**, want stap 9 tot 11 zijn nog niet gedaan: §6b (iconen, lijndikte
 > staat nog op 1,75 en gaat naar 1,5), §8 (de negen regels) en §11 (de controle vóór een commit).
+> §9b hieronder is met stap 8 opgelost; die tekst blijft staan als afgesloten geschiedenis, met een
+> nieuwe alinea erboven die zegt wat er sindsdien is.
 >
 > **Sinds stap 4 ook achterhaald:** de maatvoering van de opmaak. De bovenbalk is 48px (was 61), de
 > zijbalk is 240px uitgeklapt en 56px ingeklapt (was 64), en de inhoud kent drie standen (720/1440/geen
@@ -870,6 +872,20 @@ uitzondering is ingeperkt zodat hij niet lekt: alle vorm staat in één blok in 
 onder de kop "HET INLOGTONEEL", elke klasse begint met `.auth-`, en er is geen enkele nieuwe kleur
 bijgekomen. Neem er niets van over in een dashboardscherm. `docs/logbook.md` heeft de volledige
 afweging.
+
+> ⚠️ **Sinds stap 8 van de redesign (17 september 2026) is deze specifieke uitzondering opgelost,
+> los van het bredere besluit hierboven dat nog steeds openstaat.** De alinea hierboven beschrijft
+> hoe het was: 520 pixels, 44px velden met een icoon, een eigen `.auth-label`/`.auth-field`/
+> `.auth-submit`/`.auth-footnote` naast de gewone primitieven. `redesign2026.md` §8.2 zette de route
+> om naar dezelfde tokens en dezelfde componenten als de rest van de app, alleen op zijn eigen
+> (grotere) trede van diezelfde schalen: `.type-heading-lg` (30px, nieuw, alleen dit scherm),
+> `.field-lg` (48px, de trede die §7.3 ook voor élk veld onder 768px voorschrijft, nog niet overal
+> doorgevoerd), `Alert` (nieuw, §7.16) voor de foutmeldingen. Wat overblijft in "HET INLOGTONEEL" is
+> uitsluitend de opmaak van het toneel zelf: de ondergrond (`--bg-base`, niet langer een apart token
+> `--bg-stage`, want die twee waren sinds stap 1 al overal identiek) en de kaart van 480 pixels. Het
+> woordmerk verhuisde van binnen de kaart naar erboven, in `AuthLayout`. De bredere vraag, of het
+> hele UITERLIJK van de app eigen moet worden, blijft open en wacht nog steeds op de merkassets uit
+> punt 3 hierboven.
 
 ---
 

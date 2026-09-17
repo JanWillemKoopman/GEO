@@ -2008,7 +2008,7 @@ skelet om en zijn de 117 kaarten meegegaan, zonder dat er één scherm is aanger
 | 5 | Apparaatdetectie | ~20 regels | Niets zichtbaars, het fundament voor 6 en 7 |
 | 6 | Mobiele opmaak | 8 bestanden | Onderbalk, "Meer"-blad, mobiele bovenbalk, plus de aansluiting in `WorkspaceChrome`, `AppShell`, `lib/nav.ts` en `lib/icons.ts` |
 | 7 | Mobiele patronen | 2 bestanden | Tabel met 2 kolommen, stappenflow. Het detailblad is `Drawer` uit stap 3, geen apart bestand |
-| 8 | Inlogroute | 6 bestanden | Beide ontwerpen, en §9b-uitzondering weg |
+| 8 | Inlogroute | 13 bestanden | Beide ontwerpen (één vloeiend ontwerp), en §9b-uitzondering weg |
 | 9 | Typografie-opruiming | 1 bestand plus ~200 wijzigingen | De schaal klopt overal |
 | 10 | De schermen | 50 routes, ~20 met echt werk | Het lange stuk |
 | 11 | Documentatie | 4 bestanden | `designsystem.md` herschreven |
@@ -2112,6 +2112,25 @@ de vijf uit stap 3.
 **Stap 8, de inlogroute.** Vijf schermen, afgesloten geheel, meteen in beide ontwerpen. Het heft de
 uitzondering uit `docs/designsystem.md` §9b op, want de inlogroute gebruikt daarna dezelfde
 componenten als de rest.
+
+⚠️ **"Beide ontwerpen" bleek geen tweede component te vragen.** De kaart is al `width: 100%` met een
+`max-width`, dus hij vloeit vanzelf mee met elke breedte; wat de mobiele regel van §7.3 ("Input lg
+onder 768px") eist, gebruikt de inlogroute al voor élk veld, op elke breedte. Er is dus geen apart
+mobiel scherm gebouwd, alleen geverifieerd dat het ene ontwerp klopt.
+
+Twee dingen die tijdens het bouwen niet in de letterlijke spec stonden en zijn toegevoegd of
+geschrapt:
+
+- **`--bg-stage` is geschrapt, niet hergebruikt.** §5.1 nam het token nog over uit de Nova-opzet, waar
+  de grond onder de kaart een andere kleur had dan `--bg-base`. Sinds stap 1 zijn de twee in beide
+  standen letterlijk identiek (`#f6f6f6` licht, `#000000` donker): twee namen voor één feit. §8.2 zegt
+  zelf al "grond `--bg-base`", en dat is nu ook wat er staat; `.auth-stage` in `app/globals.css` is de
+  enige aanroeper.
+- **Alert (§7.16) is gebouwd met een neutrale rand, niet de gekleurde rand op 20% opaciteit die de
+  tekst noemt.** Elke andere intent-gekleurde vlakte in dit systeem (de chipvarianten, en de
+  meldingen die al op het inlogtoneel stonden vóór stap 8) gebruikt al surface plus content-kleur met
+  een neutrale rand; die precedent won van de letter van een spec-regel die zelf nooit tegen echte
+  CSS was nagerekend (OKX levert dit component niet in de opgehaalde bundels, AFGELEID dus).
 
 **Stap 9, de typografie-opruiming.** Zie 10.4. Kan parallel aan stap 10.
 
@@ -2239,14 +2258,16 @@ zat niet in de eerste versie van dit plan.
 | 4 | Desktopopmaak | 2 bestanden | desktop |
 | 5 | Apparaatdetectie | 4 bestanden | mobiel |
 | 6 | Mobiele opmaak | 8 bestanden | mobiel |
-| 7 | Mobiele patronen | 3 bestanden | mobiel |
-| 8 | Inlogroute | 6 bestanden | beide |
+| 7 | Mobiele patronen | 2 bestanden | mobiel |
+| 8 | Inlogroute | 13 bestanden | beide (één vloeiend ontwerp) |
 | 9 | Typografie | 1 bestand plus ~200 wijzigingen | beide |
 | 10 | De schermen | 50 routes, ~20 met echt werk | beide |
 | 11 | Documentatie | 4 bestanden | beide |
 
-**Stap 1 tot 8 zijn samen ongeveer 23 bestanden** en leveren het grootste deel van het zichtbare
-resultaat, op beide apparaten. Stap 10 is de lange staart.
+**Stap 1 tot 8 zijn samen 36 bestanden** (bijgesteld van de geschatte 23: vooral stap 8 bleek groter,
+want het heft niet alleen `.auth-` op maar bouwt ook de generieke `Alert` en twee nieuwe iconen die
+stap 10 elders kan hergebruiken) en leveren het grootste deel van het zichtbare resultaat, op beide
+apparaten. Stap 10 is de lange staart.
 
 Het mobiele spoor voegt zes componenten toe en ongeveer een derde aan totale omvang. Dat is minder
 dan het klinkt omdat het geconcentreerd zit: **twee componenten (de tabel met twee kolommen en de

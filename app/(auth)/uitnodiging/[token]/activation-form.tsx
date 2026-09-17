@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { passwordRules, passwordOk } from "@/lib/invite-rules";
 import { Icon } from "@/components/icon";
+import { Alert } from "@/components/alert";
+import { AuthLabel } from "../../auth-card";
 
 /**
  * Het activatieformulier: kies een wachtwoord, kom binnen.
@@ -63,12 +65,14 @@ export function ActivationForm({
   }
 
   return (
-    <form onSubmit={verstuur} className="flex flex-col gap-5" noValidate>
+    <form onSubmit={verstuur} className="flex flex-col gap-4" noValidate>
       {/* Het adres staat vast: de link is daar aangekomen, dus dat adres is
           bewezen. Wijzigen zou van een uitnodiging een manier maken om op een
-          willekeurig adres een account te openen. */}
+          willekeurig adres een account te openen. Geen `AuthLabel`: dit is geen
+          `<label>` bij een invoerbaar veld maar een vaste weergave, alleen de
+          stijl (`type-caption-emphasis`, `--text-tertiary`) is dezelfde. */}
       <div className="flex flex-col gap-1.5">
-        <span className="mono-label">Je e-mailadres</span>
+        <span className="type-caption-emphasis text-[var(--text-tertiary)]">Je e-mailadres</span>
         <div className="flex flex-wrap items-center gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-3 py-2">
           <span className="break-url text-sm font-medium">{email}</span>
           <span className="chip chip-success shrink-0">bevestigd</span>
@@ -76,13 +80,11 @@ export function ActivationForm({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="wachtwoord" className="mono-label">
-          Kies een wachtwoord
-        </label>
-        <div className="flex gap-2">
+        <AuthLabel htmlFor="wachtwoord">Kies een wachtwoord</AuthLabel>
+        <div className="relative">
           <input
             id="wachtwoord"
-            className="field flex-1"
+            className="field field-lg field-toggle-inset w-full"
             type={toon ? "text" : "password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -93,10 +95,10 @@ export function ActivationForm({
           <button
             type="button"
             onClick={() => setToon((t) => !t)}
-            className="btn-outline shrink-0"
+            className="icon-btn absolute right-2 top-1/2 -translate-y-1/2"
             aria-label={toon ? "Wachtwoord verbergen" : "Wachtwoord tonen"}
           >
-            {toon ? "Verberg" : "Toon"}
+            <Icon naam={toon ? "wachtwoordverbergen" : "wachtwoordtonen"} size={17} />
           </button>
         </div>
 
@@ -119,18 +121,14 @@ export function ActivationForm({
       </div>
 
       {fout && (
-        <p className="card card-danger text-sm" role="alert">
+        <Alert intent="danger" role="alert">
           {fout}
-        </p>
+        </Alert>
       )}
 
-      <button type="submit" className="btn-primary btn-lg" disabled={!mag}>
+      <button type="submit" className="btn-primary btn-lg mt-2 w-full" disabled={!mag}>
         {busy ? "Bezig met activeren…" : "Activeer mijn account"}
       </button>
-
-      <p className="text-sm text-muted">
-        Je gegevens zijn versleuteld en beveiligd opgeslagen.
-      </p>
     </form>
   );
 }

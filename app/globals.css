@@ -88,7 +88,6 @@
   --bg-disabled: #fafafa;
   --bg-inverse: #000000;
   --bg-scrim: rgba(0, 0, 0, 0.43);
-  --bg-stage: #f6f6f6; /* de grond onder een los inlogscherm */
 
   /* ── Tekst ────────────────────────────────────────────────────────────────
      Vijf niveaus en niet drie. Het oude systeem had er drie, en de laagste
@@ -474,7 +473,6 @@
     --bg-disabled: #0e0e0e;
     --bg-inverse: #ffffff;
     --bg-scrim: rgba(0, 0, 0, 0.68);
-    --bg-stage: #000000;
 
     /* ── Tekst ────────────────────────────────────────────────────────────────
        Doorgerekend op #000: 21,0 / 16,8 / 10,0 / 7,1 / 3,5 / 3,1. */
@@ -590,7 +588,6 @@
   --bg-disabled: #0e0e0e;
   --bg-inverse: #ffffff;
   --bg-scrim: rgba(0, 0, 0, 0.68);
-  --bg-stage: #000000;
 
   /* ── Tekst ────────────────────────────────────────────────────────────────
      Doorgerekend op #000: 21,0 / 16,8 / 10,0 / 7,1 / 3,5 / 3,1. */
@@ -917,6 +914,7 @@ table {
    De schaal, met de OKX-naam erbij:
 
      .type-hero              36/47,5, 600   heading-xl,       paginakop hoofdscherm
+     .type-heading-lg        30/40,   500   heading-lg,       titel van het inlogtoneel (stap 8)
      .type-title             24/30,   500   heading-md,       kop van scherm of dialoog
      .type-section           18/24,   500   heading-sm,       kop boven een blok
      .type-lead              12/15,   500   heading-overline, aanhef in kapitalen
@@ -944,6 +942,15 @@ table {
   font-weight: 600;
   line-height: 1.32;
   letter-spacing: -0.015em;
+}
+/* De enige plek die deze trede gebruikt is het inlogtoneel: geen dashboardkop
+   gaat naar 30px, die blijft op `.type-title` (24px, heading-md). */
+.type-heading-lg {
+  font-family: var(--font-sans);
+  font-size: 1.875rem; /* 30px */
+  font-weight: 500;
+  line-height: 2.5rem; /* 40px */
+  letter-spacing: -0.01em;
 }
 .type-title {
   font-family: var(--font-sans);
@@ -1413,6 +1420,61 @@ table {
   color: var(--text-tertiary);
 }
 
+/* ── Melding ────────────────────────────────────────────────────────────────
+   Een blok in de pagina, geen zwevende toast: een foutmelding bij een
+   formulier hoort bij het veld waar hij bij hoort, niet los erboven te
+   zweven. AFGELEID (`redesign2026.md` §7.16): OKX levert dit component niet
+   in de opgehaalde bundels.
+
+   Kleur en rand volgen hetzelfde patroon als de chip-varianten hierboven, en
+   niet de gekleurde rand op 20% opaciteit die §7.16 letterlijk noemt: elke
+   andere intent-gekleurde vlakte in dit systeem (de chip, en de meldingen die
+   al op het inlogtoneel stonden vóór stap 8) gebruikt surface plus
+   content-kleur met een neutrale rand (`--intent-*-border` wijst overal naar
+   `--border-default`), en die precedent weegt zwaarder dan de letter van een
+   plan dat op dit punt zelf nog een aanname was.
+
+   Drie van de vier betekenissen: succes, waarschuwing, fout. Geen `info` en
+   geen `neutral`, want geen van de vijf inlogschermen (het enige dat dit
+   component vandaag gebruikt) heeft ze nodig; de vierde en vijfde komen erbij
+   zodra een scherm in stap 10 ze echt aanroept, op dezelfde manier. */
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border: var(--border-width-xs) solid var(--border-default);
+  font-size: 0.875rem; /* 14px, body-sm */
+  line-height: 1.3125rem;
+  color: var(--text-secondary);
+}
+.alert svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.alert-success {
+  background-color: var(--intent-growth-surface);
+  border-color: var(--intent-growth-border);
+}
+.alert-success svg {
+  color: var(--intent-growth-text);
+}
+.alert-warning {
+  background-color: var(--intent-warning-surface);
+  border-color: var(--intent-warning-border);
+}
+.alert-warning svg {
+  color: var(--intent-warning-text);
+}
+.alert-danger {
+  background-color: var(--intent-danger-surface);
+  border-color: var(--intent-danger-border);
+}
+.alert-danger svg {
+  color: var(--intent-danger-text);
+}
+
 /* ── Invoervelden ──────────────────────────────────────────────────────────
    Veertig pixels hoog, dus even hoog als de knop ernaast. Vier pixels radius,
    want een veld is bij OKX nooit een pil.
@@ -1463,6 +1525,22 @@ table {
 /* Elk veld met een getal erin lijnt zijn cijfers uit. Zie `.tabular`. */
 .field-number {
   font-variant-numeric: tabular-nums;
+}
+/* De grootste trede van de veldschaal: 48px in plaats van 40, tekst 16px in
+   plaats van 14. GEMETEN als OKX' eigen `Input lg` (`redesign2026.md` §7.3).
+   Voor nu alleen op het inlogtoneel (stap 8), waar een formulier van twee
+   velden mag ademen; §7.3 zegt ook dat dit ONDER 768px de maat voor ELK veld
+   in de app zou moeten zijn (Safari zoomt anders in bij focus op een veld
+   onder 16px), maar dat raakt vijftig schermen en is werk voor stap 10. */
+.field-lg {
+  height: 48px;
+  padding: 0 16px;
+  font-size: 1rem; /* 16px */
+}
+/* Ruimte voor een IconButton md (32px) rechts in het veld, zoals de
+   wachtwoordwissel op een wachtwoordveld. */
+.field-toggle-inset {
+  padding-right: 46px;
 }
 textarea.field {
   height: auto;
@@ -2565,11 +2643,16 @@ textarea.field {
    steeds open en vraagt om merkassets die er niet zijn. Dit is één scherm, op
    verzoek van de eigenaar, en het bewijst hooguit dat de merkkant er is.
 
-   Alles hieronder begint met .auth- en staat alleen op deze route. De kleuren
-   komen zonder uitzondering uit de tokens bovenaan dit bestand. Neem hier
-   niets van over in een dashboardscherm: dan is de uitzondering geen
-   uitzondering meer.
-   ═══════════════════════════════════════════════════════════════════════════ */
+   ── STAP 8 VAN DE REDESIGN (17 SEPTEMBER 2026) HEEFT DIT BLOK LEEGGETROKKEN ─
+
+   Tot dan stond hier een volledig eigen set: `.auth-eyebrow`, `.auth-label`,
+   `.auth-field`, `.auth-submit`, `.auth-footnote`, elk een kopie van een
+   bestaand primitief met een net iets andere maat. Dat was precies de
+   "anderhalf systeem" die `redesign2026.md` §8.2 wilde opheffen: de
+   inlogroute gebruikt sindsdien dezelfde `.type-*`, `.field`, `.btn-*` en
+   `Alert` als de rest van de app, alleen op zijn eigen (grotere) trede van
+   diezelfde schalen. Wat overblijft is uitsluitend de opmaak van het toneel
+   zelf: de ondergrond en de kaart die alle vijf schermen delen. */
 
 /* ── Het toneel ─────────────────────────────────────────────────────────────
    Eén vlak, geen decor. Tot 24 augustus 2026 stond hier een hemel met banen,
@@ -2582,48 +2665,29 @@ textarea.field {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  /* Was --bg-muted, en dat klopte alleen in de lichte stand. In de donkere
-     stand is --bg-muted #27323d en dat is LICHTER dan de kaart (#17212b): de
-     kaart lag in een lichter kader, en zijn rand (#27323d) viel weg tegen
-     precies diezelfde kleur. Van een kaart met een rand bleef zo een vlek
-     zonder omtrek over.
-
-     --bg-stage draait de verhouding per stand om; het waarom staat bij dat
-     token bovenaan dit bestand. */
-  background-color: var(--bg-stage);
+  /* `--bg-base`, letterlijk (`redesign2026.md` §8.2). Tot stap 8 stond hier
+     een los token `--bg-stage`, nodig omdat de pagina en de kaart in de
+     Nova-jaren niet dezelfde grond deelden. Sinds stap 1 zijn `--bg-base` en
+     die oude `--bg-stage`-waarde in beide standen identiek (`#f6f6f6` licht,
+     `#000000` donker): twee namen voor één feit, en dat tweede token is
+     opgeruimd. De kaart zet zich nog steeds af, niet met een schaduw maar met
+     zijn eigen `--bg-surface` tegenover deze grond; zie `.auth-card`. */
+  background-color: var(--bg-base);
 }
 
 /* ── De kaart ───────────────────────────────────────────────────────────────
-   520 pixels breed, 12 pixels rond, 32 pixels lucht binnen de rand en 40 zodra
-   het scherm dat toelaat.
-
-   ── DE VERKLEINING VAN 24 AUGUSTUS 2026 ────────────────────────────────────
-
-   Hij was 560 breed, 16 rond en had 52 pixels marge, en dat viel de eigenaar op
-   naast het origineel: hetzelfde scherm, maar een maat groter. Dat klopte, en
-   de gecompileerde CSS van Nova wijst alle drie de waarden aan:
-
-     breedte  hun enige kaartbreedte in dit bereik is 520 (`max-w-[520px]`)
-     ronding  hun grootste ronding die feitelijk voorkomt is 12 (`rounded-lg`);
-              16 en 24 staan wél in hun tokens maar worden nergens gebruikt
-     marge    `p-8` met `sm:p-10`, dus 32 en 40, en niet 52
-
-   De 52 was hier binnengekomen als "lucht maakt er een entree van". Dat is waar
-   voor een landingspagina en het is precies waarom dit scherm er groter uitzag
-   dan het origineel: een inlogkaart is geen entree maar een deur. */
+   480 pixels breed, 12 pixels rond, 32 pixels lucht binnen de rand en 40 zodra
+   het scherm dat toelaat. GEMETEN bij OKX' eigen inlogscherm (§8.2). */
 .auth-card {
   position: relative;
   width: 100%;
-  /* 480 en niet 520. De 520 was Nova's enige kaartbreedte in dit bereik; het
-     nieuwe systeem heeft geen vaste kaartbreedte en 480 laat het veld van 48
-     pixels hoog met zijn label ademen zonder dat de regel te lang wordt. */
   max-width: 480px;
   margin: 0 auto;
   border-radius: var(--radius-xxxl);
   background-color: var(--bg-surface);
   border: var(--border-width-xs) solid var(--border-primary);
   padding: 32px;
-  /* GEEN SCHADUW. De kaart staat op `--bg-stage`, en dat is een andere kleur
+  /* GEEN SCHADUW. De kaart staat op `--bg-base`, en dat is een andere kleur
      dan de kaart zelf: in de lichte stand `#f6f6f6` onder `#ffffff`, in de
      donkere `#000000` onder `#171717`. Het kleurverschil doet wat de schaduw
      hiervoor moest doen, en dat is precies hoe OKX diepte maakt. */
@@ -2632,122 +2696,6 @@ textarea.field {
   .auth-card {
     padding: 40px;
   }
-}
-
-/* Het kopje boven de titel: klein, mono, in kapitalen, met een schildje. Het
-   zegt wat dit scherm is voordat de titel zegt wat je er doet. */
-.auth-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 26px;
-  padding: 0 10px;
-  border-radius: var(--radius-md);
-  background-color: var(--bg-layer-2);
-  color: var(--text-subtle);
-  font-family: var(--font-sans);
-  font-size: 0.75rem; /* 12px, zie .mono-label */
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-/* ── Veld en knop ───────────────────────────────────────────────────────────
-   48 pixels, tegen de 40 van `.field` en `.btn-primary`. Een formulier van twee
-   velden mag ademen; een instellingenscherm met er twaalf niet, en daarom
-   blijft de dashboardmaat staan waar hij staat.
-
-   48 is precies OKX' maat `lg` (13 + 13 + 20 + 2), dus dit is geen eigen
-   uitzondering meer maar de grootste trede van de gewone schaal. Dat was het
-   hele punt van `docs/designsystem.md` §9b over de inloguitzondering: hij mag
-   bestaan zolang hij niets nieuws introduceert. */
-.auth-label {
-  display: block;
-  font-size: 0.75rem; /* 12px, body-xs-bold */
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-}
-.auth-label-required {
-  color: var(--intent-danger-content);
-}
-
-.auth-field {
-  width: 100%;
-  height: 48px;
-  padding: 0 14px 0 40px;
-  border-radius: var(--radius-md); /* 4px, net als `.field` */
-  /* Het veld staat nu op de kaartkleur en niet meer op een grijs vlak. In het
-     nieuwe systeem is de kaart zelf al losgetrokken van de grond, dus het veld
-     hoeft zich niet nog eens af te zetten; een rand is genoeg. */
-  background-color: var(--bg-surface);
-  border: var(--border-width-xs) solid var(--border-default);
-  color: var(--text-primary);
-  font-family: var(--font-sans);
-  /* 16 pixels en geen 15. Safari op iOS zoomt de hele pagina in zodra een veld
-     met minder dan 16 pixels focus krijgt, en daar komt de bezoeker niet
-     vanzelf uit. Op een inlogscherm is dat precies de verkeerde plek. */
-  font-size: 1rem;
-  transition:
-    border-color var(--duration-fast) var(--ease-standard),
-    background-color var(--duration-fast) var(--ease-standard);
-}
-.auth-field::placeholder {
-  color: var(--text-placeholder);
-}
-.auth-field:hover:not(:focus) {
-  border-color: var(--border-strong);
-}
-.auth-field:focus {
-  outline: var(--border-width-sm) solid var(--border-focus);
-  outline-offset: 2px;
-  border-color: var(--border-focus);
-}
-/* Alleen een wachtwoordveld heeft rechts een oogknop staan. */
-.auth-field-toggle {
-  padding-right: 46px;
-}
-
-.auth-submit {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 48px;
-  /* De pil, net als elke andere knop. Zie het knoppenblok hierboven. */
-  border-radius: var(--radius-pill);
-  background-color: var(--interactive-selected);
-  color: var(--interactive-selected-on);
-  font-weight: 500;
-  font-size: 1rem;
-  transition:
-    background-color var(--duration-base) var(--ease-out),
-    opacity var(--duration-base) var(--ease-out);
-}
-.auth-submit:hover:not(:disabled) {
-  opacity: 0.8;
-}
-.auth-submit:focus-visible {
-  outline: var(--border-width-sm) solid var(--border-focus);
-  outline-offset: 2px;
-}
-.auth-submit:disabled {
-  background-color: var(--interactive-disabled);
-  color: var(--text-disabled);
-  cursor: not-allowed;
-}
-
-/* De afsluiter onder de streep: klein, grijs, met hetzelfde schildje als het
-   kopje bovenaan. Hij belooft niets nieuws, hij bevestigt. */
-.auth-footnote {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  font-size: 0.75rem; /* 12px, body-xs */
-  color: var(--text-subtle);
 }
 
 /* ── Mobiele tabel (17 september 2026, stap 7) ─────────────────────────────

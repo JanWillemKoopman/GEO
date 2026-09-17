@@ -2,88 +2,81 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
+import { AuthLabel } from "./auth-card";
+import { Alert } from "@/components/alert";
 import type { AuthState } from "./actions";
 
-interface AuthFormProps {
-  mode: "login" | "register";
+/**
+ * Het registratieformulier. Inloggen heeft sinds stap 8 zijn eigen
+ * `login/login-form.tsx` (met een oogknop in het wachtwoordveld); dit
+ * component deed ooit beide met een `mode`-prop, maar de inlogtak was al een
+ * tijd dood (`register/page.tsx` is de enige aanroeper, altijd met
+ * `mode="register"`). Twee vormen in één component voor een tak die niemand
+ * meer aanroept is precies het soort halve implementatie die niet moet
+ * blijven staan, dus die tak is weg.
+ */
+export function AuthForm({
+  action,
+  signupsEnabled,
+}: {
   action: (prev: AuthState, formData: FormData) => Promise<AuthState>;
-  notice?: string | null;
-  /** Toont de registratielink alleen als registratie openstaat (bouwfase = dicht). */
-  signupsEnabled?: boolean;
-}
-
-export function AuthForm({ mode, action, notice, signupsEnabled = false }: AuthFormProps) {
+  /** Toont de link "Al een account? Inloggen" alleen als registratie openstaat
+   *  (bouwfase = dicht); zonder registratie is er niemand die deze pagina
+   *  bereikt om aan die link iets te hebben. */
+  signupsEnabled: boolean;
+}) {
   const [state, formAction, pending] = useActionState(action, { error: null });
-  const isLogin = mode === "login";
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
-      {notice && (
-        <p className="rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--intent-growth-surface)] px-4 py-3 text-sm text-[var(--intent-growth-text)]">
-          {notice}
-        </p>
-      )}
-
-      <label className="flex flex-col gap-1.5">
-        <span className="mono-label">E-mail</span>
+      <div className="flex flex-col gap-1.5">
+        <AuthLabel htmlFor="email" required>
+          Werk-e-mailadres
+        </AuthLabel>
         <input
+          id="email"
           type="email"
           name="email"
           required
           autoComplete="email"
           placeholder="jij@bedrijf.nl"
-          className="field"
+          className="field field-lg"
         />
-      </label>
+      </div>
 
-      <label className="flex flex-col gap-1.5">
-        <span className="mono-label">Wachtwoord</span>
+      <div className="flex flex-col gap-1.5">
+        <AuthLabel htmlFor="wachtwoord" required>
+          Wachtwoord
+        </AuthLabel>
         <input
+          id="wachtwoord"
           type="password"
           name="password"
           required
-          autoComplete={isLogin ? "current-password" : "new-password"}
-          placeholder={isLogin ? "••••••••" : "minimaal 8 tekens"}
-          className="field"
+          minLength={8}
+          autoComplete="new-password"
+          placeholder="Minimaal 8 tekens"
+          className="field field-lg"
         />
-      </label>
+      </div>
 
       {state.error && (
-        <p className="text-sm text-[var(--status-error)]" role="alert">
+        <Alert intent="danger" role="alert">
           {state.error}
-        </p>
+        </Alert>
       )}
 
-      <button type="submit" disabled={pending} className="btn-primary mt-1 w-full disabled:opacity-60">
-        {pending ? "Bezig…" : isLogin ? "Inloggen" : "Account aanmaken"}
+      <button type="submit" disabled={pending} className="btn-primary btn-lg mt-2 w-full">
+        {pending ? "Bezig…" : "Account aanmaken"}
       </button>
 
-      {isLogin && (
-        <p className="text-center text-sm">
+      {signupsEnabled && (
+        <p className="type-compact mt-2 text-center">
+          Al een account?{" "}
           <Link
-            href="/wachtwoord-vergeten"
+            href="/login"
             className="text-[var(--text-primary)] underline underline-offset-2 hover:text-[var(--text-secondary)]"
           >
-            Wachtwoord vergeten?
-          </Link>
-        </p>
-      )}
-
-      {isLogin && signupsEnabled && (
-        <p className="mt-2 text-center text-sm text-secondary">
-          Nog geen account?{" "}
-          <Link href="/register" className="text-[var(--text-primary)] underline underline-offset-2 hover:text-[var(--text-secondary)]">
-            Registreren
-          </Link>
-        </p>
-      )}
-      {isLogin && !signupsEnabled && (
-        <p className="mt-2 text-center text-sm text-muted">ORBIT ENGINE is op uitnodiging. Vraag je contactpersoon om toegang.</p>
-      )}
-      {!isLogin && (
-        <p className="mt-2 text-center text-sm text-secondary">
-          Al een account?{" "}
-          <Link href="/login" className="text-[var(--text-primary)] underline underline-offset-2 hover:text-[var(--text-secondary)]">
             Inloggen
           </Link>
         </p>

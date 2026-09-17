@@ -1,69 +1,101 @@
 "use client";
 
-import { useActionState } from "react";
-import { Lock, Mail } from "lucide-react";
+import { useActionState, useState } from "react";
 import { AuthLabel } from "./auth-card";
+import { Alert } from "@/components/alert";
+import { Icon } from "@/components/icon";
 import { requestPasswordReset, updatePassword, type AuthState } from "./actions";
 
 /**
  * De twee wachtwoordherstel-formulieren (docs/tasks/onboarding-2.0.md, blok A).
  *
- * Bewust niet in `auth-form.tsx` gepropt: dat component doet inloggen en
- * registreren met één e-mail- en één wachtwoordveld. Herstel heeft één keer
- * alleen een e-mailveld en één keer twee wachtwoordvelden, en dat er met vlaggen
- * in wringen levert een component op dat vier vormen kent en geen ervan goed.
+ * Bewust niet in `auth-form.tsx` gepropt: dat component doet alleen
+ * registreren, met één e-mail- en één wachtwoordveld zonder oogknop. Herstel
+ * heeft één keer alleen een e-mailveld en één keer twee wachtwoordvelden mét
+ * oogknop, en dat er met vlaggen in wringen levert een component op dat drie
+ * vormen kent en geen ervan goed.
  *
- * De maatvoering is sinds 24 augustus 2026 dezelfde als die van het
- * inlogformulier: velden van 48 pixels met een icoon erin, een knop van 50.
- * Wie hier belandt komt van het inlogscherm, en twee formaten formulier achter
- * elkaar leest als twee verschillende producten.
+ * De maatvoering is dezelfde als die van het inlogformulier (`login-form.tsx`,
+ * stap 8 van de redesign): `.field-lg`, `Alert` voor de foutmelding, geen
+ * iconen in de velden zelf behalve de wachtwoordwissel.
  */
-
-function ErrorLine({ error }: { error: string | null }) {
-  if (!error) return null;
-  return (
-    <p className="-mt-4 text-sm text-[var(--status-error)]" role="alert">
-      {error}
-    </p>
-  );
-}
-
 export function PasswordResetRequestForm() {
   const [state, formAction, pending] = useActionState<AuthState, FormData>(requestPasswordReset, {
     error: null,
   });
 
   return (
-    <form action={formAction} className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
+    <form action={formAction} className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
         <AuthLabel htmlFor="herstel-email" required>
           Werk-e-mailadres
         </AuthLabel>
-        <div className="relative">
-          <Mail
-            size={16}
-            strokeWidth={1.75}
-            aria-hidden="true"
-            className="pointer-events-none absolute left-[14px] top-1/2 -translate-y-1/2 text-muted"
-          />
-          <input
-            id="herstel-email"
-            type="email"
-            name="email"
-            required
-            autoComplete="email"
-            placeholder="jij@bedrijf.nl"
-            className="auth-field"
-          />
-        </div>
+        <input
+          id="herstel-email"
+          type="email"
+          name="email"
+          required
+          autoComplete="email"
+          placeholder="jij@bedrijf.nl"
+          className="field field-lg"
+        />
       </div>
 
-      <ErrorLine error={state.error} />
+      {state.error && (
+        <Alert intent="danger" role="alert">
+          {state.error}
+        </Alert>
+      )}
 
-      <button type="submit" disabled={pending} className="auth-submit -mt-1">
+      <button type="submit" disabled={pending} className="btn-primary btn-lg mt-2 w-full">
         {pending ? "Versturen…" : "Stuur me een herstel-link"}
       </button>
     </form>
+  );
+}
+
+/** Eén wachtwoordveld met een oogknop erin, zodat `NewPasswordForm` hem twee
+ *  keer kan neerzetten zonder de opbouw te herhalen. Elk veld heeft zijn
+ *  eigen zichtbaarheidsstaat: tonen bij "Nieuw wachtwoord" hoeft niet ook
+ *  "Nogmaals" te tonen. */
+function WachtwoordVeld({
+  id,
+  name,
+  label,
+  placeholder,
+}: {
+  id: string;
+  name: string;
+  label: string;
+  placeholder: string;
+}) {
+  const [zichtbaar, setZichtbaar] = useState(false);
+  return (
+    <div className="flex flex-col gap-1.5">
+      <AuthLabel htmlFor={id} required>
+        {label}
+      </AuthLabel>
+      <div className="relative">
+        <input
+          id={id}
+          type={zichtbaar ? "text" : "password"}
+          name={name}
+          required
+          minLength={8}
+          autoComplete="new-password"
+          placeholder={placeholder}
+          className="field field-lg field-toggle-inset w-full"
+        />
+        <button
+          type="button"
+          onClick={() => setZichtbaar((z) => !z)}
+          aria-label={zichtbaar ? "Wachtwoord verbergen" : "Wachtwoord tonen"}
+          className="icon-btn absolute right-2 top-1/2 -translate-y-1/2"
+        >
+          <Icon naam={zichtbaar ? "wachtwoordverbergen" : "wachtwoordtonen"} size={17} />
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -73,58 +105,27 @@ export function NewPasswordForm() {
   });
 
   return (
-    <form action={formAction} className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <AuthLabel htmlFor="nieuw-wachtwoord" required>
-          Nieuw wachtwoord
-        </AuthLabel>
-        <div className="relative">
-          <Lock
-            size={16}
-            strokeWidth={1.75}
-            aria-hidden="true"
-            className="pointer-events-none absolute left-[14px] top-1/2 -translate-y-1/2 text-muted"
-          />
-          <input
-            id="nieuw-wachtwoord"
-            type="password"
-            name="password"
-            required
-            minLength={8}
-            autoComplete="new-password"
-            placeholder="Minimaal 8 tekens"
-            className="auth-field"
-          />
-        </div>
-      </div>
+    <form action={formAction} className="flex flex-col gap-4">
+      <WachtwoordVeld
+        id="nieuw-wachtwoord"
+        name="password"
+        label="Nieuw wachtwoord"
+        placeholder="Minimaal 8 tekens"
+      />
+      <WachtwoordVeld
+        id="nieuw-wachtwoord-nogmaals"
+        name="password_repeat"
+        label="Nogmaals"
+        placeholder="Herhaal het wachtwoord"
+      />
 
-      <div className="flex flex-col gap-2">
-        <AuthLabel htmlFor="nieuw-wachtwoord-nogmaals" required>
-          Nogmaals
-        </AuthLabel>
-        <div className="relative">
-          <Lock
-            size={16}
-            strokeWidth={1.75}
-            aria-hidden="true"
-            className="pointer-events-none absolute left-[14px] top-1/2 -translate-y-1/2 text-muted"
-          />
-          <input
-            id="nieuw-wachtwoord-nogmaals"
-            type="password"
-            name="password_repeat"
-            required
-            minLength={8}
-            autoComplete="new-password"
-            placeholder="Herhaal het wachtwoord"
-            className="auth-field"
-          />
-        </div>
-      </div>
+      {state.error && (
+        <Alert intent="danger" role="alert">
+          {state.error}
+        </Alert>
+      )}
 
-      <ErrorLine error={state.error} />
-
-      <button type="submit" disabled={pending} className="auth-submit -mt-1">
+      <button type="submit" disabled={pending} className="btn-primary btn-lg mt-2 w-full">
         {pending ? "Opslaan…" : "Wachtwoord opslaan"}
       </button>
     </form>
