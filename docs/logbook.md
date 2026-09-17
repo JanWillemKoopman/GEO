@@ -9661,3 +9661,48 @@ een schone `.next`. Nagerekend op de gebouwde CSS: `.onderbalk`, `.onderbalk-ite
 representatieve paden. Wat niet is gecontroleerd: hoe het scherm er in een echte, ingelogde browser
 op een telefoon uitziet, want deze omgeving heeft geen geldige sessie. Dat blijft open voor de
 eerstvolgende Vercel-preview.
+
+## 17 september 2026, stap 7 van de redesign: de mobiele patronen
+
+`redesign2026.md` §10.2 noemde drie componenten die samen 37 van de 50 schermen dekken: de tabel met
+twee kolommen (groep B), het detailblad, de stappenflow (groep C). Het werden er twee: het
+detailblad bleek al te bestaan. `Drawer` uit stap 3 doet precies wat §7.11 van een detailblad vraagt
+(van onderen in plaats van van rechts onder 768px, met sleepgreep), en een tweede versie bouwen was
+de herhaling die `docs/designsystem.md` §8 regel 1 verbiedt.
+
+**`MobielTabel` (`components/mobiel-tabel.tsx`).** Twee kolommen van 50%, elk met twee waarden
+gestapeld: hoofdwaarde en bijschrift links, kerncijfer en verandering rechts. GEMETEN als OKX' eigen
+patroon (§7.11, §8.12.1), niet een kaart per rij en niet horizontaal schuiven, want dat zijn de twee
+alternatieven die daar zelf ook zijn losgelaten. Rijhoogte 64px, ruim genoeg als aanraakvlak voor een
+tik die het detailblad opent. Welke vier van de zeven gegevens van een tabel meegaan is met opzet
+geen instelling van dit component: dat is een ontwerpkeuze per scherm, en die keuze hoort bij stap
+10, niet hierin verstopt.
+
+**`Stappenflow` (`components/stappenflow.tsx`).** Eén sectie per scherm in plaats van alle secties
+onder elkaar, met een voortgangsbalk en een opslagknop die vastzit onderaan (§8.9, §8.12.2). Twee
+keuzes zijn het waard om vast te leggen:
+
+- **De knoppenbalk is `fixed`, net als `ConfirmBar`.** `app/(app)/analyses/[id]/_editors/confirm-bar.tsx`
+  loste "een knop die nooit uit beeld raakt" al eerder op voor de desktop, met een balk over de volle
+  breedte van het venster en een spacer erboven zodat de inhoud er nooit achter verdwijnt. Dezelfde
+  vorm, alleen zit `bottom` nu op `56px + de veilige zone` in plaats van op `0`: dat is de hoogte van
+  de onderbalk (`.onderbalk`, stap 6) die eronder al vaststaat, en zonder die optelsom komt de
+  opslagbalk boven op de navigatie te staan.
+- **De hoofdactie staat bovenaan zonder `column-reverse`.** OKX bereikt dat bij een modal (§7.13) door
+  de knoppenrij om te draaien. Hier staat er geen rij van twee gelijke knoppen maar een hoofdknop
+  (Volgende of Opslaan) en een secundaire knop (Vorige) eronder: de hoofdknop staat gewoon als eerste
+  in de JSX. Zelfde uitkomst, geen omgekeerde volgorde in de DOM nodig.
+
+Beide componenten staan met een werkend voorbeeld in de etalage (`/beheer/designsysteem`), inclusief
+een doorklikbare `Stappenflow` van drie stappen: de knoppenbalk plakt daar zichtbaar aan de
+onderkant van het venster en niet aan de kaart eromheen, precies zoals hij dat op een echt scherm ook
+gaat doen.
+
+`redesign2026.md` en `docs/designsystem.md` zijn bijgewerkt: de kostentabel in het plan noemt nu twee
+bestanden in plaats van drie, met de reden erbij, en de waarschuwing bovenaan `designsystem.md` telt
+stap 7 nu mee bij "doorgevoerd".
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+allemaal groen op een schone `.next`. Wat niet is gecontroleerd: hoe de twee componenten er in een
+echte, ingelogde browser op een telefoon uitzien, want deze omgeving heeft geen geldige sessie. Dat
+blijft, net als bij stap 6, open voor de eerstvolgende Vercel-preview.

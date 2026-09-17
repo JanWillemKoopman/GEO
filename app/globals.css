@@ -2750,6 +2750,134 @@ textarea.field {
   color: var(--text-subtle);
 }
 
+/* ── Mobiele tabel (17 september 2026, stap 7) ─────────────────────────────
+   Twee kolommen van 50%, elk met twee waarden gestapeld. GEMETEN bij OKX
+   (`redesign2026.md` §7.11, §8.12.1) als het patroon dat op een telefoon een
+   tabel met tot zeven kolommen vervangt, in plaats van een kaart per rij of
+   horizontaal schuiven.
+
+   Rijhoogte 64px: twee regels tekst plus lucht, en meteen een ruim
+   aanraakvlak voor een tik die het detailblad opent. */
+.mobiel-tabel-rij {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 4px;
+  border-bottom: var(--border-width-xs) solid var(--line-muted);
+}
+.mobiel-tabel-rij:last-child {
+  border-bottom: none;
+}
+.mobiel-tabel-rij-klikbaar {
+  cursor: pointer;
+}
+.mobiel-tabel-rij-klikbaar:active {
+  background-color: var(--interactive-hover);
+}
+.mobiel-tabel-links {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+.mobiel-tabel-rechts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  gap: 2px;
+  text-align: right;
+}
+.mobiel-tabel-hoofdwaarde {
+  font-size: 0.875rem; /* 14px */
+  font-weight: 500;
+  line-height: 1.25rem;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mobiel-tabel-bijschrift {
+  font-size: 0.75rem; /* 12px */
+  font-weight: 400;
+  line-height: 1.125rem;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mobiel-tabel-kerncijfer {
+  font-size: 0.875rem; /* 14px */
+  font-weight: 500;
+  line-height: 1.25rem;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.mobiel-tabel-verandering {
+  font-size: 0.75rem; /* 12px */
+  font-weight: 400;
+  line-height: 1.125rem;
+  font-variant-numeric: tabular-nums;
+}
+.mobiel-tabel-verandering-omhoog {
+  color: var(--trend-up-text);
+}
+.mobiel-tabel-verandering-omlaag {
+  color: var(--trend-down-text);
+}
+.mobiel-tabel-verandering-vlak {
+  color: var(--trend-flat);
+}
+
+/* ── Stappenflow (17 september 2026, stap 7) ───────────────────────────────
+   De mobiele vorm van een lang beheerformulier: één sectie per scherm in
+   plaats van alle secties onder elkaar (`redesign2026.md` §8.9, groep C in
+   §8.12.2). Zie `components/stappenflow.tsx` voor het waarom van de vaste
+   voetbalk en de knopvolgorde. */
+.stappenflow-kop {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 12px;
+}
+.stappenflow-voortgang {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background-color: var(--bg-layer-2);
+  overflow: hidden;
+}
+.stappenflow-voortgang-balk {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background-color: var(--accent);
+  transition: width var(--duration-slow) var(--ease-standard);
+}
+.stappenflow-inhoud {
+  padding-top: 20px;
+}
+/* Reserveert dezelfde hoogte als `.stappenflow-voet`: twee knoppen van 40px,
+   8px ertussen, 12px lucht boven en onder. Vaste waarde en geen meting via
+   JavaScript, net als de spacer bij `ConfirmBar`. */
+.stappenflow-voet-ruimte {
+  height: 112px;
+}
+.stappenflow-voet {
+  position: fixed;
+  inset-inline: 0;
+  /* Boven de onderbalk (56px, `.onderbalk`) en zijn eigen veilige zone: zonder
+     deze optelsom komt de opslagbalk boven op de navigatie te staan. */
+  bottom: calc(56px + env(safe-area-inset-bottom));
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  background-color: var(--bg-base);
+  border-top: var(--border-width-xs) solid var(--line-muted);
+}
+
 @media print {
   /* Nova's eigen paginamarge. Zonder deze regel neemt de browser zijn eigen
      standaard, en die verschilt per browser: hetzelfde dossier komt er bij de

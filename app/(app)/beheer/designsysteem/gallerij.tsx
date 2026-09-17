@@ -6,6 +6,8 @@ import { Tabs, Segment } from "@/components/tabs";
 import { FilterChip, FilterChipGroep } from "@/components/filterchip";
 import { Drawer } from "@/components/drawer";
 import { DataCard, DataCardRij } from "@/components/data-card";
+import { MobielTabel } from "@/components/mobiel-tabel";
+import { Stappenflow } from "@/components/stappenflow";
 
 /**
  * De interactieve helft van de etalage. Alles wat een staat heeft staat hier,
@@ -19,6 +21,7 @@ export function Gallerij() {
   const [periode, setPeriode] = useState<"actueel" | "vorige" | "jaar">("actueel");
   const [filters, setFilters] = useState<string[]>(["Actueel"]);
   const [ladeOpen, setLadeOpen] = useState(false);
+  const [stap, setStap] = useState(0);
 
   function wisselFilter(naam: string) {
     setFilters((f) => (f.includes(naam) ? f.filter((x) => x !== naam) : [...f, naam]));
@@ -296,6 +299,92 @@ export function Gallerij() {
             </p>
           </div>
         </Drawer>
+      </Blok>
+
+      <Blok
+        titel="Mobiele tabel"
+        toelichting="Twee kolommen van 50%, elk met twee waarden gestapeld: het patroon dat op een telefoon een tabel met tot zeven kolommen vervangt. Geen mediaquery-variant van de gewone tabel maar een eigen component (stap 7)."
+      >
+        <div
+          className="mx-auto overflow-hidden rounded-[var(--radius-xxxl)] border border-[var(--border-primary)]"
+          style={{ maxWidth: 375, padding: "0 4px" }}
+        >
+          <MobielTabel
+            rijen={[
+              {
+                id: "1",
+                hoofdwaarde: "Wat kost een cv-ketel vervangen",
+                bijschrift: "Onderhoud en vervanging",
+                kerncijfer: "34%",
+                verandering: { tekst: "+6 punten", richting: "omhoog" },
+              },
+              {
+                id: "2",
+                hoofdwaarde: "Beste merk voor zonnepanelen",
+                bijschrift: "Duurzame energie",
+                kerncijfer: "3e van 7",
+                verandering: { tekst: "-1 plaats", richting: "omlaag" },
+              },
+              {
+                id: "3",
+                hoofdwaarde: "Airco laten plaatsen kosten",
+                bijschrift: "Nieuw dit kwartaal",
+                kerncijfer: "12",
+                verandering: { tekst: "gelijk", richting: "vlak" },
+              },
+            ]}
+            onRijKlik={() => {}}
+          />
+        </div>
+        <p className="type-caption text-muted">
+          Een tik opent het detailblad: dat is `Drawer` hierboven, er komt geen apart component bij.
+        </p>
+      </Blok>
+
+      <Blok
+        titel="Stappenflow"
+        toelichting="Eén sectie per scherm in plaats van alle secties onder elkaar: de mobiele vorm van een lang beheerformulier (stap 7). De knoppenbalk is net als ConfirmBar `fixed` aan de onderkant van het VENSTER, niet van deze kaart: scroll naar beneden om hem te zien."
+      >
+        <Stappenflow
+          stappen={[
+            {
+              titel: "Basisgegevens",
+              content: (
+                <div className="flex flex-col gap-3">
+                  <label className="flex flex-col gap-1.5">
+                    <span className="mono-label">Merknaam</span>
+                    <input className="field" defaultValue="Gasservice Brabant" />
+                  </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className="mono-label">Website</span>
+                    <input className="field" defaultValue="https://gasservicebrabant.nl" />
+                  </label>
+                </div>
+              ),
+            },
+            {
+              titel: "Doelgroep",
+              content: (
+                <label className="flex flex-col gap-1.5">
+                  <span className="mono-label">Voor wie werkt dit merk</span>
+                  <textarea className="field" defaultValue="Particulieren in Noord-Brabant met een cv-ketel ouder dan tien jaar." />
+                </label>
+              ),
+            },
+            {
+              titel: "Bevestigen",
+              content: (
+                <p className="type-compact text-secondary">
+                  Controleer de twee vorige stappen en druk op Opslaan. Er komt geen derde stap meer.
+                </p>
+              ),
+            },
+          ]}
+          huidige={stap}
+          onVorige={() => setStap((s) => Math.max(0, s - 1))}
+          onVolgende={() => setStap((s) => Math.min(2, s + 1))}
+          onOpslaan={() => setStap(0)}
+        />
       </Blok>
 
       <Blok titel="Wachten" toelichting="Een skeleton zegt waar de inhoud komt, een spinner alleen dat er gewacht wordt.">

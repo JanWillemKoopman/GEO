@@ -2007,7 +2007,7 @@ skelet om en zijn de 117 kaarten meegegaan, zonder dat er één scherm is aanger
 | 4 | Desktopopmaak | 8 bestanden | Bovenbalk 48px, nieuwe zijbalk, drie standen |
 | 5 | Apparaatdetectie | ~20 regels | Niets zichtbaars, het fundament voor 6 en 7 |
 | 6 | Mobiele opmaak | 8 bestanden | Onderbalk, "Meer"-blad, mobiele bovenbalk, plus de aansluiting in `WorkspaceChrome`, `AppShell`, `lib/nav.ts` en `lib/icons.ts` |
-| 7 | Mobiele patronen | 3 bestanden | Tabel met 2 kolommen, detailblad, stappenflow |
+| 7 | Mobiele patronen | 2 bestanden | Tabel met 2 kolommen, stappenflow. Het detailblad is `Drawer` uit stap 3, geen apart bestand |
 | 8 | Inlogroute | 6 bestanden | Beide ontwerpen, en §9b-uitzondering weg |
 | 9 | Typografie-opruiming | 1 bestand plus ~200 wijzigingen | De schaal klopt overal |
 | 10 | De schermen | 50 routes, ~20 met echt werk | Het lange stuk |
@@ -2091,6 +2091,23 @@ plaats van stilzwijgend te verdwijnen op een telefoon.
 
 **Stap 7, de mobiele patronen.** De drie componenten die 37 van de 50 schermen dekken: de tabel met
 twee kolommen (groep B), het detailblad, de stappenflow (groep C).
+
+⚠️ **Het detailblad bleek geen nieuw component.** `Drawer` uit stap 3 doet al precies wat §7.11 van
+een detailblad vraagt: van onderen in plaats van van rechts onder 768px, met een sleepgreep. Gebouwd
+zijn dus twee bestanden: `components/mobiel-tabel.tsx` (`MobielTabel`, 64px rijen, twee kolommen van
+50%) en `components/stappenflow.tsx` (`Stappenflow`, één sectie per scherm met een voortgangsbalk).
+
+`Stappenflow`s knoppenbalk is `fixed`, hetzelfde patroon als `ConfirmBar`
+(`app/(app)/analyses/[id]/_editors/confirm-bar.tsx`) op de desktop: een balk over de volle breedte
+van het venster met een spacer erboven, zodat de laatste regel van een sectie er nooit achter
+verdwijnt. `bottom` staat op `56px + de veilige zone` en niet op `0`, want dat is de hoogte van de
+onderbalk (`.onderbalk`, stap 6) eronder. De hoofdactie (Volgende of Opslaan) staat vóór de
+secundaire knop (Vorige) in de JSX: dat geeft dezelfde "hoofdactie bovenaan" als OKX' eigen
+`column-reverse`-truc bij een modal (§7.13), zonder dat truc nodig te hebben, want hier staat maar
+één knoppenpaar en geen symmetrische rij.
+
+Beide componenten staan met een werkend voorbeeld in de etalage (`/beheer/designsysteem`), net als
+de vijf uit stap 3.
 
 **Stap 8, de inlogroute.** Vijf schermen, afgesloten geheel, meteen in beide ontwerpen. Het heft de
 uitzondering uit `docs/designsystem.md` §9b op, want de inlogroute gebruikt daarna dezelfde
