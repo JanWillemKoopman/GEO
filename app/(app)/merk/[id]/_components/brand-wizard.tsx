@@ -234,7 +234,7 @@ export function BrandWizard({
       {/* ── De onderbalk ──────────────────────────────────────────────────
           Sticky, want dit scherm is lang en de opslagknop moet bereikbaar
           blijven zonder terug te scrollen (ux-design.md §7). */}
-      <div className="no-print sticky bottom-0 -mx-6 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] bg-[var(--bg-base-blur)] px-6 py-3 backdrop-blur-md">
+      <div className="no-print sticky bottom-0 -mx-6 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line-muted)] bg-[var(--bg-base)] px-6 py-3">
         <span className="mono-label">
           {voortgang.gevuld} van de {voortgang.totaal} ingevuld
           {vuil && " · niet opgeslagen"}

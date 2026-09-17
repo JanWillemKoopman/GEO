@@ -125,7 +125,7 @@ export function AnalyticsTable<T>({
       <table className="w-full border-collapse text-left text-sm">
         <thead>
           <tr
-            className="sticky z-10 border-b border-[var(--border-subtle)] bg-[var(--bg-base-blur)] backdrop-blur-md"
+            className="sticky z-10 border-b border-[var(--line-muted)] bg-[var(--bg-base)]"
             style={{ top: stickyOffset }}
           >
             {columns.map((col) => (

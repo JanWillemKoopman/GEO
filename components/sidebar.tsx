@@ -154,10 +154,14 @@ export function Sidebar({
   // De breedte zit hier en niet op de <aside>: het inklappen is clientstate en
   // die woont in dit component. Vaste breedtes, want een zijbalk die meegroeit
   // met de langste merknaam laat de hele pagina verspringen zodra je wisselt.
-  const breedte = mobiel ? "w-full" : smal ? "w-16" : "w-60";
+  // De breedtes staan als token in globals.css (`--sidebar-w` en
+  // `--sidebar-w-collapsed`), want de bovenbalk en de mobiele lade rekenen er
+  // ook mee. Ingeklapt van 64 naar 56: een pictogramknop is 40 pixels plus 8
+  // lucht aan weerszijden, en 64 liet daar een lege rand omheen staan.
+  const breedte = mobiel ? "w-full" : smal ? "sidebar sidebar-smal" : "sidebar";
 
   return (
-    <div className={`flex h-full flex-col p-3 transition-[width] duration-200 ${breedte}`}>
+    <div className={mobiel ? "flex h-full w-full flex-col p-2" : `flex flex-col ${breedte}`}>
       {!smal && activeBrand && (
         <span className="mono-label truncate px-3 pb-2 pt-2">{activeBrand.name}</span>
       )}
@@ -185,7 +189,7 @@ export function Sidebar({
         <button
           type="button"
           onClick={klapOm}
-          className="mono-label mt-auto flex items-center gap-2 rounded-[var(--radius-xl)] px-3 py-2 text-left transition-colors hover:bg-[var(--bg-muted)]"
+          className="nav-kop mt-auto transition-colors hover:text-[var(--text-primary)]"
           aria-label={ingeklapt ? "Zijbalk uitklappen" : "Zijbalk inklappen"}
         >
           <Icon naam={ingeklapt ? "uitklappen" : "inklappen"} />
@@ -229,7 +233,7 @@ function Hoofdstuk({
   if (smal) {
     return (
       <>
-        {scheiding && <div className="my-2 border-t border-[var(--border-subtle)]" />}
+        {scheiding && <div className="my-2 border-t border-[var(--line-muted)]" />}
         <Link
           href={kop.items[0].href}
           onClick={onClick}
@@ -241,8 +245,12 @@ function Hoofdstuk({
           // de tint van de tekening.
           // Neutraal in plaats van paars, zelfde ronde en zelfde reden als bij
           // `Item` verderop.
-          className={`flex items-center justify-center rounded-[var(--radius-xl)] p-2 text-[var(--text-primary)] transition-colors ${
-            actief ? "bg-[var(--bg-elevated)]" : "hover:bg-[var(--wash-hover)]"
+          // Ingeklapt is dit de hele navigatie, dus het aanraakvlak is 40 en
+          // niet 32: `.icon-btn-lg`. De actieve staat is hier wél een vlak en
+          // geen streep links, want een streep van twee pixels naast een balk
+          // van 56 is niet te zien.
+          className={`icon-btn icon-btn-lg mx-auto ${
+            actief ? "bg-[var(--interactive-hover)] text-[var(--text-primary)]" : ""
           }`}
         >
           <Icon naam={kop.icoon} size={18} />
@@ -253,23 +261,31 @@ function Hoofdstuk({
 
   return (
     <>
-      {scheiding && <div className="mb-1 mt-5 border-t border-[var(--border-subtle)]" />}
-      <div className={`flex flex-col ${eerste || scheiding ? "" : "mt-5"}`}>
-        <span className="flex items-center gap-2.5 px-3 pb-1.5 pt-2 text-left text-[0.9375rem] font-medium text-[var(--text-primary)]">
-          {/* De kleur staat op de ouder en niet op het icoon zelf: `Icon` erft
-              altijd `currentColor` (`components/icon.tsx`), en die regel blijft
-              staan zodat een tekening nooit zijn eigen tint meebrengt. */}
-          <span className="flex text-[var(--text-primary)]">
-            <Icon naam={kop.icoon} size={18} />
-          </span>
+      {scheiding && <div className="mb-1 mt-4 border-t border-[var(--line-muted)]" />}
+      <div className={`flex flex-col ${eerste || scheiding ? "" : "mt-4"}`}>
+        {/* ── DE KOP IS LICHTER GEWORDEN DAN ZIJN KINDEREN (17 SEPTEMBER 2026)
+            Hij stond op 15 pixels, gewicht 600, in `--text-primary`, dus
+            zwaarder dan de bestemmingen eronder. Dat is precies omgekeerd aan
+            wat het zou moeten zeggen: de kop wijst een vaste plek in de app
+            aan, de bestemmingen zijn de inhoud. Bij OKX is zo'n kop klein en
+            gedempt. De vorm staat in `.nav-kop` in globals.css.
+
+            De kleur staat op de ouder en niet op het icoon zelf: `Icon` erft
+            altijd `currentColor` (`components/icon.tsx`), en die regel blijft
+            staan zodat een tekening nooit zijn eigen tint meebrengt. */}
+        <span className="nav-kop">
+          <Icon naam={kop.icoon} size={16} />
           <span className="min-w-0 flex-1 truncate">{kop.naam}</span>
         </span>
-        {/* 28 pixels inspringen is niet willekeurig: dat is precies de breedte
-            van het icoon (18) plus de tussenruimte (10), waardoor de tekst van
+        {/* 24 pixels inspringen is niet willekeurig: dat is precies de breedte
+            van het icoon (16) plus de tussenruimte (8), waardoor de tekst van
             een bestemming exact onder de tekst van zijn kop uitkomt. De
             uitlijning draagt het kindschap, en daarmee is de verticale lijn die
-            hier tot 24 augustus 2026 stond overbodig. */}
-        <div className="flex flex-col pl-7">
+            hier tot 24 augustus 2026 stond overbodig.
+
+            ⚠️ Was 28 toen het icoon nog 18 was en de tussenruimte 10. Wijzig je
+            een van die twee, dan moet dit getal mee. */}
+        <div className="flex flex-col pl-6">
           {kop.items.map((item) => (
             <Item
               key={item.href}
@@ -317,22 +333,22 @@ function Item({
       // 1. In de donkere stand kwam dat vlak op #42006d uit met letters van
       //    #ad45ff erop. Dat is 2,6:1, onder de 4,5 die leesbare tekst vraagt,
       //    en het was de felste kleur op een verder rustig scherm.
-      // 2. Paars betekent in dit systeem "hier doet de AI iets"
-      //    (`docs/designsystem.md` §8). Zolang de zijbalk het naast élk scherm
-      //    voor "je bent hier" gebruikt, betekent het dat niet meer. Dat is
-      //    exact dezelfde redenering die de hoofdknop van paars naar inkt
-      //    bracht, één ronde eerder.
+      // 2. Paars betekende in dat systeem "hier doet de AI iets". Zolang de
+      //    zijbalk het naast élk scherm voor "je bent hier" gebruikt, betekent
+      //    het dat niet meer.
       //
-      // Nu: een neutraal vlak met gewone tekstkleur, dus wit in de donkere
-      // stand. Dat is ook wat Nova doet (`bg-background-neutral-subtle` met
-      // `text-foreground-neutral`). De hover eronder is een waas van 5% inkt en
-      // geen tweede vlak, zodat "waar je bent" en "waar je overheen zweeft"
-      // niet dezelfde zwaarte krijgen.
-      className={`flex items-center justify-between gap-2 rounded-[var(--radius-xl)] px-3 py-2 text-sm transition-colors ${
-        active
-          ? "bg-[var(--bg-elevated)] font-medium text-[var(--text-primary)]"
-          : "text-[var(--text-secondary)] hover:bg-[var(--wash-hover)] hover:text-[var(--text-primary)]"
-      }`}
+      // ── EN SINDS 17 SEPTEMBER 2026 IS HET GEEN VLAK MEER ──────────────────
+      //
+      // Het neutrale vlak dat daarvoor in de plaats kwam bleef één ding doen
+      // wat het niet moest doen: in een kolom van twintig bestemmingen leest
+      // een gevuld blok als een knop en niet als "je bent hier". Nu is het een
+      // lichte waas plus een streep van twee pixels links, en dat is hetzelfde
+      // patroon als bij de gekozen filterchip en de gekozen regel in een menu:
+      // de staat is een rand of een streep, nooit een kleurvlak. De vorm staat
+      // in `.nav-item` in globals.css, en hij grijpt aan op `aria-current`
+      // hierboven: één bron voor de staat, geen tweede klasse die ermee uit de
+      // pas kan lopen.
+      className="nav-item"
     >
       <span className="flex min-w-0 items-center gap-2">
         <span className="truncate">{item.label}</span>
@@ -365,7 +381,8 @@ function Item({
           // (`docs/designsystem.md` §5.1). Twee ronde stempels in een app vol
           // vlakken van 6, 8 en 12 pixels zijn geen accent maar een afwijking,
           // en de zijbalk staat naast élk scherm.
-          className="shrink-0 rounded-[var(--radius-lg)] bg-[var(--bg-elevated)] px-1.5 py-0.5 text-[0.5625rem] font-medium uppercase leading-[1.4] tracking-[0.08em] text-[var(--text-secondary)]"
+          className="chip chip-neutral shrink-0"
+          style={{ fontSize: "0.625rem", padding: "0 6px", letterSpacing: "0.04em", textTransform: "uppercase" }}
           title="Alleen zichtbaar voor jou, niet voor de klant"
         >
           alleen jij

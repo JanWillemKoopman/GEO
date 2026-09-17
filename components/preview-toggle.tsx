@@ -29,7 +29,7 @@ export function PreviewToggle({ previewing }: { previewing: boolean }) {
       <button
         type="button"
         onClick={() => void setClientPreview(false, pathname)}
-        className="chip chip-warning flex h-9 items-center gap-1.5 px-3 transition-opacity hover:opacity-80"
+        className="chip chip-warning flex h-8 items-center gap-1.5 px-3 transition-opacity hover:opacity-80"
         title="Je bekijkt de app nu zoals een klant hem ziet"
       >
         <Icon naam="klantweergave" size={14} />
@@ -43,7 +43,7 @@ export function PreviewToggle({ previewing }: { previewing: boolean }) {
     <button
       type="button"
       onClick={() => void setClientPreview(true, pathname)}
-      className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-xl)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
+      className="icon-btn"
       aria-label="Bekijk als klant"
       title="Bekijk als klant"
     >

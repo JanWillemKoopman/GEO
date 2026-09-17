@@ -12,9 +12,8 @@ import { useRouter } from "next/navigation";
  *
  * Nu is het een blijvende balk over de volle breedte, op élk schermformaat: je
  * kunt het concept van boven tot onder doorlezen zonder de actie ooit kwijt te
- * raken. De glaslaag (`backdrop-blur`) is dezelfde als die van de bovenbalk,
- * designsystem.md §A3 gebruikt dat patroon voor alles wat over de inhoud heen
- * zweeft.
+ * raken. De balk is dekkend en niet doorschijnend: sinds 17 september 2026 heeft
+ * dit systeem nergens een `backdrop-filter`, want OKX heeft die ook niet.
  */
 export function ConfirmBar({
   analysisId,
@@ -56,8 +55,13 @@ export function ConfirmBar({
     <>
       {/* Spacer, zodat de balk het einde van de inhoud nooit bedekt. */}
       <div className="no-print h-24" aria-hidden />
-      <div className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border-subtle)] bg-[var(--bg-base-blur)] px-6 py-3 backdrop-blur-md">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2">
+      <div className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-[var(--line-muted)] bg-[var(--bg-base)] px-6 py-3">
+        {/* Volgt de inhoudsbreedte van `.stand`, anders staat de knop niet onder
+            de tekst waar hij bij hoort. */}
+        <div
+          className="mx-auto flex flex-wrap items-center gap-x-4 gap-y-2"
+          style={{ maxWidth: "var(--stand-werken)" }}
+        >
           <button
             onClick={() => void confirm()}
             disabled={pending}

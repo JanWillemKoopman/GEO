@@ -297,9 +297,25 @@
   --border-width-sm: 2px;
   --border-width-md: 4px;
 
-  /* ⚠️ ONGEWIJZIGD: gaat in stap 4 van 61 naar 48 pixels, samen met de
-     bovenbalk zelf. */
-  --header-h: 61px;
+  /* GEMETEN: `--global-header-height` is bij OKX 48 pixels. Dat was hier 61.
+
+     ⚠️ Dit getal staat niet alleen. De hoofdstuktabs van een cluster plakken
+     met `top: var(--header-h)` exact onder deze balk; lopen de twee uit elkaar,
+     dan ontstaat er een kier waar de pagina-inhoud doorheen schuift. Wijzig hem
+     dus nooit in een component maar altijd hier. */
+  --header-h: 48px;
+
+  /* De zijbalk. 240 blijft: dat is bij OKX ook de breedte van hun eigen
+     navigatiekolom, en breder gaat ten koste van de tabel ernaast.
+
+     Ingeklapt van 64 naar 56: een pictogramknop is 32 pixels plus 8 lucht aan
+     weerszijden, en 64 liet daar een lege rand omheen staan. */
+  --sidebar-w: 240px;
+  --sidebar-w-collapsed: 56px;
+
+  /* De drie standen voor de inhoudsbreedte, zie `.stand` verderop. */
+  --stand-lezen: 720px;
+  --stand-werken: 1440px;
 
   /* ═══════════════════════════════════════════════════════════════════════
      AANSLUITING OP WAT ER AL STAAT, TIJDELIJK
@@ -326,9 +342,6 @@
   --bg-surface-2: var(--bg-layer-3);
   --overlay-scrim: var(--bg-scrim);
 
-  /* De bovenbalk was doorschijnend met een blur erachter. In dit systeem is
-     hij dekkend: OKX heeft nergens een `backdrop-filter`. */
-  --bg-base-blur: var(--bg-base);
 
   /* Tekst. Drie niveaus werden er vijf; de oude laagste was bijzaak. */
   --text-muted: var(--text-tertiary);
@@ -1479,6 +1492,204 @@ textarea.field {
   50% {
     opacity: 0.4;
   }
+}
+
+/* ── De drie standen ────────────────────────────────────────────────────────
+   De inhoud stond op 1024 pixels, gecentreerd, op élk scherm. Dat is de kern
+   van wat er aan de desktopervaring schortte: een tabel met twaalf kolommen
+   werd in 1024 pixels geperst terwijl het scherm 2560 breed was.
+
+   Drie standen, en elke route kiest er één:
+
+     lezen    720px    formulier, instellingen, één stuk tekst
+     werken  1440px    de meeste schermen, kaarten in een raster
+     data      geen    tabel, grafiek, vergelijking
+
+   ── HOE EEN PAGINA KIEST ────────────────────────────────────────────────────
+
+   De wikkel zit in `workspace-chrome.tsx` en de keuze hoort bij de pagina, dus
+   het kind moet de ouder kunnen sturen. Dat kan met `:has()`: de wikkel kijkt
+   of er ergens in zijn inhoud een element met `.wil-data` of `.wil-lezen`
+   staat, en past zijn breedte daarop aan.
+
+   ⚠️ Dit is met opzet gekozen boven het alternatief, dat was de breedte als
+   prop door `AppShell` heen geven. Dat raakt vijftig `page.tsx`-bestanden en
+   twee lagen shell voor een keuze die puur over vormgeving gaat. `:has()` doet
+   het met één regel CSS en een marker van nul pixels.
+
+   ⚠️ En als een browser `:has()` niet kent, valt alles terug op `werken`
+   (1440px). Dat is niet kapot maar alleen minder breed, en dat is precies het
+   soort degradatie dat je wilt. */
+.stand {
+  width: 100%;
+  max-width: var(--stand-werken);
+  margin-inline: auto;
+  /* GEMETEN bij OKX: 16 op een telefoon, 20 op een tablet, 24 op een desktop. */
+  padding: 24px 16px;
+}
+@media (min-width: 768px) {
+  .stand {
+    padding: 24px 20px;
+  }
+}
+@media (min-width: 1024px) {
+  .stand {
+    padding: 24px;
+  }
+}
+.stand:has(.wil-lezen) {
+  max-width: var(--stand-lezen);
+}
+.stand:has(.wil-data) {
+  max-width: none;
+}
+
+/* ── De pictogramknop ───────────────────────────────────────────────────────
+   Een knop die alleen een tekening draagt. Eigen component en geen variant van
+   `.btn-*`, want hij heeft geen minimumbreedte, geen label en een eigen
+   maatreeks.
+
+   GEMETEN bij OKX: 12, 16 en 24 pixels. Die drie zijn klein, want zij zetten ze
+   in tabelcellen en naast koersen. De 32 hieronder is van ons en hij is de
+   standaard: alles in de bovenbalk is los klikbaar, en 24 pixels is onder wat
+   een aanwijzer comfortabel raakt. */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background-color: transparent;
+  color: var(--text-tertiary);
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+.icon-btn:hover:not(:disabled) {
+  background-color: var(--interactive-hover);
+  color: var(--text-primary);
+}
+.icon-btn:active:not(:disabled) {
+  background-color: var(--interactive-pressed);
+}
+.icon-btn:focus-visible {
+  outline: var(--border-width-sm) solid var(--border-focus);
+  outline-offset: 2px;
+}
+.icon-btn:disabled {
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+.icon-btn-sm {
+  width: 24px;
+  height: 24px;
+}
+.icon-btn-lg {
+  width: 40px;
+  height: 40px;
+}
+/* Op een telefoon minstens 44 pixels; zie `redesign2026.md` §8.12.3. */
+@media (max-width: 767px) {
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* ── De bovenbalk ───────────────────────────────────────────────────────────
+   48 pixels, GEMETEN. Dekkend, geen vervaging: OKX heeft nergens een
+   `backdrop-filter`, en een doorschijnende balk boven een tabel die eronder
+   doorschuift is precies waar dat effect onrustig wordt. */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: var(--header-h);
+  background-color: var(--bg-base);
+  border-bottom: var(--border-width-xs) solid var(--line-muted);
+}
+
+/* ── De zijbalk ─────────────────────────────────────────────────────────────
+   240 pixels, op de grond van de pagina en niet op die van een kaart. */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: var(--sidebar-w);
+  padding: 8px;
+  background-color: var(--bg-base);
+  transition: width var(--duration-slow) var(--ease-standard);
+}
+.sidebar-smal {
+  width: var(--sidebar-w-collapsed);
+}
+
+/* Een bestemming in de zijbalk.
+
+   ── DE ACTIEVE STAAT IS WEZENLIJK VERANDERD ─────────────────────────────────
+
+   Hij was een gevuld blok in `--bg-elevated`. Dat wordt een lichte waas plus
+   een streep van twee pixels links. Het gevulde blok trok te veel aandacht in
+   een lijst van twintig bestemmingen: als je het over een hele kolom bekijkt,
+   leest zo'n blok als een knop en niet als "je bent hier".
+
+   Dit is hetzelfde patroon als bij de gekozen filterchip en de gekozen regel in
+   een menu: de staat is een rand of een streep, nooit een kleurvlak. */
+.nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.25rem;
+  color: var(--text-tertiary);
+  /* De streep staat links en is in rust doorzichtig, zodat hij bij het
+     aanzetten geen pixel verschuift. */
+  border-left: var(--border-width-sm) solid transparent;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+.nav-item:hover {
+  background-color: var(--interactive-hover);
+  color: var(--text-primary);
+}
+.nav-item[aria-current] {
+  background-color: var(--interactive-hover);
+  border-left-color: var(--border-selected);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.nav-item:focus-visible {
+  outline: var(--border-width-sm) solid var(--border-focus);
+  outline-offset: -2px;
+}
+
+/* De kop boven een groep bestemmingen.
+
+   ⚠️ Hij was 15 pixels op gewicht 600 in `--text-primary`, dus ZWAARDER dan de
+   bestemmingen eronder. Dat is precies omgekeerd aan wat het zou moeten zeggen:
+   de kop wijst een vaste plek in de app aan, de bestemmingen zijn de inhoud. Bij
+   OKX is zo'n kop klein en gedempt en zijn de regels eronder de hoofdzaak. */
+.nav-kop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 0.9375rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
 }
 
 /* ── Tabbladen ──────────────────────────────────────────────────────────────

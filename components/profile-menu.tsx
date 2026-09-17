@@ -64,9 +64,9 @@ export function ProfileMenu({
         aria-label="Menu openen"
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-xl)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
+        className="icon-btn"
       >
-        <Icon naam="profiel" size={20} />
+        <Icon naam="profiel" size={18} />
       </button>
 
       {open && (

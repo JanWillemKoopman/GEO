@@ -5,7 +5,7 @@
 > **De tokenlaag van `app/globals.css` is die van OKX geworden, niet meer die van Nova.** Dat was
 > stap 1 van elf; het blueprint voor de rest staat in `redesign2026.md`.
 >
-> **Wat hieronder NIET meer klopt** (stap 1 en 2 zijn doorgevoerd):
+> **Wat hieronder NIET meer klopt** (stap 1, 2 en 4 zijn doorgevoerd):
 >
 > | Hoofdstuk | Status |
 > |---|---|
@@ -19,10 +19,13 @@
 > | §7 De primitieven | **Achterhaald.** Kaart, knop, chip, veld en skeleton zijn alle vijf om. |
 > | §10 Donkere modus, de waarden | **Achterhaald.** |
 >
-> **Wat hieronder nog WEL klopt**, want stap 3 tot 11 zijn nog niet gedaan: §6b (iconen, gaat in
-> stap 3 van lijndikte 1,75 naar 1,5), §8 (de negen regels) en §11 (de controle vóór een commit).
-> De maatvoering van de opmaak (zijbalk, bovenbalk, inhoudsbreedte) staat nog op de oude waarden en
-> gaat in stap 4 om.
+> **Wat hieronder nog WEL klopt**, want stap 5 tot 11 zijn nog niet gedaan: §6b (iconen, lijndikte
+> staat nog op 1,75 en gaat naar 1,5), §8 (de negen regels) en §11 (de controle vóór een commit).
+>
+> **Sinds stap 4 ook achterhaald:** de maatvoering van de opmaak. De bovenbalk is 48px (was 61), de
+> zijbalk is 240px uitgeklapt en 56px ingeklapt (was 64), en de inhoud kent drie standen (720/1440/geen
+> maximum) in plaats van de ene vaste breedte van 1024px. De actieve staat in de zijbalk is een streep
+> plus een waas, geen gevuld vlak meer.
 >
 > **De regel blijft: de code is leidend.** Wijkt `app/globals.css` af van wat hier staat, dan is dit
 > document fout. Dat is nu op de hierboven genoemde punten het geval, met opzet en tijdelijk. Dit

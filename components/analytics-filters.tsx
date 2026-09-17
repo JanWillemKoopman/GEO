@@ -56,7 +56,7 @@ export function AnalyticsFilters({
 
   return (
     <div
-      className="analytics-filterbalk no-print sticky top-[var(--header-h)] z-20 -mx-6 flex flex-wrap items-center gap-4 border-b border-[var(--border-subtle)] bg-[var(--bg-base-blur)] px-6 py-3 backdrop-blur-md"
+      className="analytics-filterbalk no-print sticky top-[var(--header-h)] z-20 -mx-6 flex flex-wrap items-center gap-4 border-b border-[var(--line-muted)] bg-[var(--bg-base)] px-6 py-3"
       role="group"
       aria-label="Filters"
     >

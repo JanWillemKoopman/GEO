@@ -2004,7 +2004,7 @@ skelet om en zijn de 117 kaarten meegegaan, zonder dat er één scherm is aanger
 | 1 | Tokenlaag | 1 bestand, ~400 regels | Alle kleuren om, oude vormen |
 | 2 | Componentklassen | 1 bestand, ~900 regels | Kaarten, knoppen, chips, velden om |
 | 3 | Nieuwe desktopcomponenten | 5 bestanden, plus de etalage | Tabs, Segment, FilterChip, Drawer, DataCard, en een scherm om ze te controleren |
-| 4 | Desktopopmaak | 2 bestanden | Bovenbalk 48px, nieuwe zijbalk, drie standen |
+| 4 | Desktopopmaak | 8 bestanden | Bovenbalk 48px, nieuwe zijbalk, drie standen |
 | 5 | Apparaatdetectie | ~20 regels | Niets zichtbaars, het fundament voor 6 en 7 |
 | 6 | Mobiele opmaak | 3 bestanden | Onderbalk, "Meer"-blad, mobiele bovenbalk |
 | 7 | Mobiele patronen | 3 bestanden | Tabel met 2 kolommen, detailblad, stappenflow |
@@ -2041,8 +2041,13 @@ onder Admin, met vijf gedocumenteerde uitzonderingen die elk een toets moesten d
 etalage voor de verbouwing is die zesde uitzondering niet waard: hij is per adres bereikbaar en dat
 is genoeg. Na stap 11 kan opnieuw gewogen worden of hij een vaste plek verdient.
 
-**Stap 4, de desktopopmaak.** `workspace-chrome.tsx` en `sidebar.tsx`. Twee bestanden, en ze zitten
-onder elk scherm.
+**Stap 4, de desktopopmaak.** `workspace-chrome.tsx` en `sidebar.tsx` waren de kern, plus zes
+bestanden die met de bovenbalk meedraaien: `preview-toggle.tsx`, `profile-menu.tsx`,
+`theme-toggle.tsx` en `open-questions-badge.tsx` droegen dezelfde `h-9 w-9`-knop met de hand
+opgebouwd, en `analytics-filters.tsx`, `analytics-table.tsx`, `section-rail.tsx`, `brand-wizard.tsx`
+en `confirm-bar.tsx` droegen elk hun eigen plakbalk met de glaslaag erin. Die laatste vijf zijn geen
+losse component maar hetzelfde patroon vijf keer met de hand herhaald, en dat is precies het soort
+herhaling waar `.icon-btn` en het wegvallen van de glaslaag voor bedoeld zijn.
 
 **Stap 5, de apparaatdetectie.** `middleware.ts` plus `lib/apparaat.ts` (8.12.6). Los van stap 6 en
 7 omdat het apart te controleren is: een header zetten en uitlezen is te testen zonder dat er één

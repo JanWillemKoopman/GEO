@@ -9489,3 +9489,58 @@ plaats van een app die laadt.
 Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd, één meer dan hiervoor omdat de nieuwe route zelf
 wordt getoetst), `test:chain` (666 geslaagd) en `build` zijn alle vier groen. De route bouwt op
 5,44 kB.
+
+## 17 september 2026, stap 4 van de redesign: de desktopopmaak
+
+De bovenbalk, de zijbalk, de mobiele lade en de drie inhoudsstanden staan op de maatvoering van
+OKX. Dit is de vierde van elf stappen; na deze stap is het hele skelet om, zonder dat er één scherm
+inhoudelijk is aangeraakt.
+
+**De bovenbalk gaat van 61 naar 48 pixels, GEMETEN** (`--global-header-height`). Hij verliest zijn
+vervaging: `bg-base-blur` plus `backdrop-blur-md` was een doorschijnende balk boven een tabel die
+eronder doorschuift, en dat is precies waar het effect onrustig wordt. OKX heeft nergens een
+`backdrop-filter`, dus de balk is nu dekkend. Vijf plekken droegen dezelfde constructie met de hand
+opgebouwd (`analytics-filters.tsx`, `analytics-table.tsx`, `section-rail.tsx`, `brand-wizard.tsx`,
+`confirm-bar.tsx`) en zijn meegenomen, want het was hetzelfde patroon vijf keer herhaald.
+
+**Er is een nieuw component: `.icon-btn`.** Vier bestanden bouwden onafhankelijk van elkaar dezelfde
+knop van 36 pixels met de hand op (`preview-toggle.tsx`, `profile-menu.tsx`, `theme-toggle.tsx`,
+plus de knoppen in `workspace-chrome.tsx` zelf). Dat is precies het soort herhaling die `docs/designsystem.md`
+§8 regel 1 bedoelt. Hij is nu 32 pixels als standaard, met 24 en 40 als varianten, en op een
+telefoon minstens 44 volgens `redesign2026.md` §8.12.3.
+
+**De inhoud kreeg drie standen in plaats van één vaste breedte.** De pagina stond op `max-w-5xl`
+(1024 pixels), gecentreerd, op élk scherm: dat was de kern van wat er aan de desktopervaring
+schortte. Nu kiest een pagina met een marker in zijn eigen inhoud (`.wil-lezen`, `.wil-data`) en
+leest de wikkel dat met `:has()`. Die constructie is bewust gekozen boven een breedte-prop door de
+hele shell heen, want dat raakt vijftig `page.tsx`-bestanden voor een keuze die puur vormgeving is.
+Valt `:has()` weg in een oudere browser, dan blijft de standaardbreedte van 1440 staan: minder breed,
+niet kapot.
+
+**De actieve staat in de zijbalk is wezenlijk veranderd.** Hij was een gevuld blok in `--bg-elevated`.
+Dat wordt een lichte waas plus een streep van twee pixels links, hetzelfde patroon als de gekozen
+filterchip en de gekozen regel in een menu uit stap 3: de staat is een rand of een streep, nooit een
+kleurvlak. Een gevuld blok in een kolom van twintig bestemmingen leest als een knop en niet als "je
+bent hier".
+
+**De hoofdstukkop is lichter geworden dan zijn kinderen, en dat is met opzet omgekeerd.** Hij stond
+op 15 pixels, gewicht 600, in `--text-primary`, dus zwaarder dan de bestemmingen eronder. Bij OKX is
+zo'n kop klein en gedempt (`heading-overline`, 12 pixels, gewicht 500) en zijn de regels eronder de
+hoofdzaak. De inspringing onder de kop is meeverschoven van 28 naar 24 pixels, want die volgt de
+breedte van het icoon plus de tussenruimte en beide zijn kleiner geworden.
+
+**De zijbalk staat op de grond van de pagina en niet meer op een grijzere kunstgreep.** Tot deze stap
+kregen de werkruimte en de mobiele lade `--bg-muted` in plaats van `--bg-base`, om de rand van een
+witte kaart op een witte pagina zichtbaar te houden. Sinds stap 1 zijn pagina en kaart al twee
+verschillende kleuren, dus die kunstgreep is overbodig geworden en eruit.
+
+**Twee dingen die de aliassenlaag uit stap 1 zichtbaar maakten.** `--bg-base-blur` had na deze stap
+geen enkele gebruiker meer over en is verwijderd. En `--wash-hover` (de hover op de vragenteller) is
+naar zijn canonieke naam `--interactive-hover` gebracht, samen met een radius die van de oude 8 naar
+de nieuwe 4 pixels ging.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+alle vier groen, op een schone `.next`. Nagerekend op de gebouwde CSS: `--header-h` is 48px,
+`--sidebar-w` is 240px, `--sidebar-w-collapsed` is 56px, en geen enkel eigen bestand (het zijproject
+uitgezonderd) draagt nog een `backdrop-filter` of het patroon `h-9 w-9` behalve de decoratieve
+uitlegtegel op `/support`, die geen navigatieknop is en dus terecht ongemoeid bleef.

@@ -60,21 +60,21 @@ export function WorkspaceChrome({
 
   return (
     <div className="flex min-h-dvh flex-col">
-      {/* De hoogte staat vast op --header-h en volgt niet meer uit de inhoud:
-          de hoofdstuktabs van het dossier plakken exact onder deze balk, en
-          zodra de twee getallen uit elkaar lopen ontstaat er een kier waar de
-          pagina-inhoud doorheen schuift. Zie het blok bij --header-h in
-          globals.css. */}
-      <header className="no-print sticky top-0 z-30 h-[var(--header-h)] border-b border-[var(--border-subtle)] bg-[var(--bg-base-blur)] backdrop-blur-md">
+      {/* De vorm staat in `.topbar` in globals.css: 48 pixels, dekkend, één rand
+          eronder. De hoogte staat daar vast op --header-h en volgt niet uit de
+          inhoud, want de hoofdstuktabs van een cluster plakken er met
+          `top: var(--header-h)` exact onder. Lopen die twee uit elkaar, dan
+          ontstaat er een kier waar de pagina-inhoud doorheen schuift. */}
+      <header className="topbar no-print">
         <div className="flex h-full items-center justify-between gap-3 px-4 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-w-0 items-center gap-2">
             <button
               type="button"
               onClick={() => setLadeOpen(true)}
-              className="-ml-1 rounded-[var(--radius-xl)] p-2 text-secondary transition-colors hover:bg-[var(--bg-muted)] lg:hidden"
+              className="icon-btn -ml-1 lg:hidden"
               aria-label="Menu openen"
             >
-              <Icon naam="menu" size={20} />
+              <Icon naam="menu" size={18} />
             </button>
             {logo}
             <span className="hidden text-muted sm:inline" aria-hidden>
@@ -118,7 +118,7 @@ export function WorkspaceChrome({
                 href="/solliciteren"
                 aria-label="Solliciteren, zijproject"
                 title="Solliciteren"
-                className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-xl)] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
+                className="icon-btn font-medium"
               >
                 S
               </Link>
@@ -126,9 +126,9 @@ export function WorkspaceChrome({
             <Link
               href="/support"
               aria-label="Support: hoe ORBIT ENGINE werkt"
-              className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-xl)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
+              className="icon-btn"
             >
-              <Icon naam="help" size={20} />
+              <Icon naam="help" size={18} />
             </Link>
             <ThemeToggle />
             {accountMenu}
@@ -139,7 +139,7 @@ export function WorkspaceChrome({
       <div className="flex flex-1">
         {/* Vaste zijbalk vanaf lg. Sticky onder de bovenbalk, met een eigen
             scrollbaan zodat een lange merknaam de pagina niet meeneemt. */}
-        <aside className="no-print hidden shrink-0 self-start border-r border-[var(--border-subtle)] lg:block">
+        <aside className="no-print sticky top-[var(--header-h)] hidden h-[calc(100dvh-var(--header-h))] shrink-0 self-start overflow-y-auto border-r border-[var(--line-muted)] lg:block">
           <Sidebar activeBrand={activeBrand} staff={staff} sales={sales} openVragen={openVragen} />
         </aside>
 
@@ -148,19 +148,25 @@ export function WorkspaceChrome({
             hele kolom. Zie het blok "Niets is breder dan het scherm" in
             globals.css.
 
-            De achtergrond staat hier bewust WEL op --bg-muted en niet op het
-            pagina-wit van --bg-base. Nova's eigen pagina is wit (24 augustus
-            2026, zie globals.css), maar dat geldt voor een kale pagina zonder
-            zijbalk. Zodra de inhoud in kaarten op wit staat, valt de rand van
-            die kaarten tegen deze even witte grond weg: op verzoek van de
-            eigenaar (28 augustus 2026) krijgt de werkruimte hier weer het
-            lichtgrijs dat de kaarten laat opvallen.
+            ── DE DRIE STANDEN (17 SEPTEMBER 2026) ────────────────────────────
 
-            `.workspace-canvas` (ook 28 augustus 2026, globals.css) legt daar
-            een fijn stippenpatroon overheen dat naar het midden toe wegvalt,
-            alleen in de lichte stand: zie de toelichting bij die klasse. */}
+            De inhoud stond hier op `max-w-5xl`, dus 1024 pixels, op élk scherm.
+            Dat is de kern van wat er aan de desktopervaring schortte: een tabel
+            met twaalf kolommen werd in 1024 pixels geperst terwijl het scherm
+            2560 breed was.
+
+            `.stand` doet nu 1440 als standaard, en een pagina die breder of
+            smaller moet zetten dat zelf met een marker in zijn eigen inhoud
+            (`.wil-data`, `.wil-lezen`). De wikkel leest die met `:has()`. Het
+            waarom van die constructie staat bij `.stand` in globals.css.
+
+            De grond is `--bg-base` en niet meer `--bg-muted`. Sinds stap 1 zijn
+            de pagina en de kaart twee verschillende kleuren (`#f6f6f6` onder
+            `#ffffff` in licht, `#000000` onder `#171717` in donker), dus het
+            kunstgreepje om de werkruimte grijzer te maken dan de rest is niet
+            meer nodig. Het stippenpatroon dat hier lag is in stap 1 al weg. */}
         <main className="workspace-canvas min-w-0 flex-1">
-          <div className="mx-auto w-full max-w-5xl px-6 py-10">{children}</div>
+          <div className="stand">{children}</div>
         </main>
       </div>
 
@@ -169,17 +175,20 @@ export function WorkspaceChrome({
         <div className="no-print fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
-            className="absolute inset-0 bg-[var(--overlay-scrim)]"
+            className="absolute inset-0 bg-[var(--bg-scrim)]"
             aria-label="Menu sluiten"
             onClick={() => setLadeOpen(false)}
           />
-          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col overflow-y-auto bg-[var(--bg-surface)]">
-            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-4 py-3">
+          {/* 280 pixels, GEMETEN als de mobiele ladebreedte in het plan (§8.12.3).
+              Was 288. De kop is even hoog als de bovenbalk zodat de lade er
+              niet naast lijkt te staan. */}
+          <div className="absolute inset-y-0 left-0 flex w-[280px] max-w-[85vw] flex-col overflow-y-auto border-r border-[var(--border-primary)] bg-[var(--bg-surface)]">
+            <div className="flex h-[var(--header-h)] shrink-0 items-center justify-between border-b border-[var(--line-muted)] px-4">
               <span className="mono-label">Navigatie</span>
               <button
                 type="button"
                 onClick={() => setLadeOpen(false)}
-                className="rounded-[var(--radius-xl)] p-1 text-muted transition-colors hover:text-[var(--text-primary)]"
+                className="icon-btn -mr-1"
                 aria-label="Menu sluiten"
               >
                 <Icon naam="sluiten" size={18} />

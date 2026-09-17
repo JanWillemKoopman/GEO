@@ -76,7 +76,7 @@ export function ThemeToggle() {
   // Vóór de eerste meting weten we de stand niet. Een lege plek van dezelfde
   // maat is beter dan een knop die een halve tel het verkeerde icoon toont.
   if (stand === null) {
-    return <div className="h-9 w-9" aria-hidden />;
+    return <div className="icon-btn" aria-hidden />;
   }
 
   const naarDonker = stand === "light";
@@ -85,7 +85,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={wissel}
-      className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-xl)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
+      className="icon-btn"
       aria-label={naarDonker ? "Naar de donkere weergave" : "Naar de lichte weergave"}
       title={naarDonker ? "Donkere weergave" : "Lichte weergave"}
     >
