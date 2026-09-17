@@ -214,7 +214,8 @@ export type PromptSpecificity = "head" | "long_tail";
  * Zie lib/pipeline/volume.ts voor de labels en de wegingsfactoren.
  */
 export type VolumeBand = "hoog" | "midden" | "laag";
-export type VolumeSource = "geschat" | "klant";
+/** "gemeten" sinds migratie 0106: een echte leverancier (lib/search-demand/) in plaats van een gok. */
+export type VolumeSource = "geschat" | "klant" | "gemeten";
 
 export interface Persona {
   name: string;
@@ -658,6 +659,14 @@ export interface ProfileTopic {
   search_volume_index: number | null;
   /** Eén zin van het model erbij, voor de tooltip. */
   search_volume_reasoning: string | null;
+  /**
+   * Het echte maandelijkse zoekvolume van de zwaarste zoekterm achter dit
+   * onderwerp (migratie 0106, lib/search-demand/). Null zonder match of
+   * zonder leverancier.
+   */
+  search_volume_absolute: number | null;
+  /** "geschat" (het model) of "gemeten" (een echte leverancier, migratie 0106). */
+  search_volume_source: "geschat" | "gemeten";
   created_at: string;
   updated_at: string;
 }

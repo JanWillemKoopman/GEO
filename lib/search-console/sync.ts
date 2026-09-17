@@ -6,15 +6,25 @@ import "server-only";
  * ── DE ROUTE PLANT, DEZE FUNCTIE HAALT OP ───────────────────────────────────
  *
  * Eén taak per merk per dag (`gsc_sync`). Geen AI-aanroep, dus licht werk in de
- * zin van `HEAVY_JOB_TYPES`: het is één HTTP-verzoek naar Google plus een
- * bulk-upsert.
+ * zin van `HEAVY_JOB_TYPES`: twee HTTP-verzoeken naar Google plus twee
+ * bulk-upserts.
  *
- * ── WAT ER NIET WORDT OPGEHAALD ─────────────────────────────────────────────
+ * ── SINDS 16 SEPTEMBER 2026: OOK DE ZOEKOPDRACHTEN (migratie 0103) ─────────
  *
- * Geen zoekopdrachten (nog niet, dat is een tweede tabel waard zodra ze echt
- * gebruikt worden),
- * geen apparaten, geen landen. Alleen pagina's per dag, want de vraag die dit
- * product stelt is "doet de pagina die ORBIT ENGINE schreef iets".
+ * Een tweede aanroep met `dimensions: ["date", "query", "page"]`, over
+ * precies hetzelfde venster als de paginacijfers. Geen tweede cron en geen
+ * nieuw jobtype: dezelfde dagelijkse taak doet nu twee aanroepen in plaats
+ * van één (docs/tasks/zoekdata-in-de-keten.md, blok A).
+ *
+ * ⚠️ **De zoekopdrachten zijn bijvangst, geen kernfunctie.** Mislukt de
+ * tweede aanroep, dan mislukt de synchronisatie als geheel NIET: de
+ * paginacijfers die het zoekverkeerscherm en de lege staten dragen, blijven
+ * gewoon staan. `gsc_last_error` gaat alleen over de eerste, kritieke
+ * aanroep; een mislukte zoekopdrachtenronde wordt alleen gelogd en probeert
+ * het de volgende dag opnieuw (dezelfde terugvalstrategie als de
+ * paginacijfers zelf via `syncWindow()`'s nawerkvenster).
+ *
+ * Nog steeds niet opgehaald: apparaten, landen.
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { accessToken } from "@/lib/search-console/auth";
@@ -32,6 +42,12 @@ export interface SyncResult {
   rijen: number;
   start: string | null;
   eind: string | null;
+  /**
+   * Hoeveel regels zoekopdrachten erbij kwamen. `null` als de aanroep om wat
+   * voor reden dan ook niet lukte, dus GEEN 0: dat zou een echte lege ronde
+   * niet meer te onderscheiden zijn van een mislukte (conventie 3).
+   */
+  queryRijen: number | null;
 }
 
 /**
@@ -55,13 +71,20 @@ export async function syncSearchConsole(
 
   const property = (profileRow?.gsc_property as string | null) ?? null;
   if (!property) {
-    return { ok: false, reason: "Dit merk is nog niet aan Search Console gekoppeld.", rijen: 0, start: null, eind: null };
+    return {
+      ok: false,
+      reason: "Dit merk is nog niet aan Search Console gekoppeld.",
+      rijen: 0,
+      start: null,
+      eind: null,
+      queryRijen: null,
+    };
   }
 
   const token = await accessToken();
   if (!token.ok) {
     await noteer(admin, profileId, token.reason);
-    return { ok: false, reason: token.reason, rijen: 0, start: null, eind: null };
+    return { ok: false, reason: token.reason, rijen: 0, start: null, eind: null, queryRijen: null };
   }
 
   // De laatste dag die we al hebben bepaalt hoe ver we terug moeten.
@@ -75,7 +98,7 @@ export async function syncSearchConsole(
 
   const venster = syncWindow((laatsteRij?.day as string | null) ?? null, now);
   if (!heeftWerk(venster)) {
-    return { ok: true, reason: null, rijen: 0, start: venster.start, eind: venster.eind };
+    return { ok: true, reason: null, rijen: 0, start: venster.start, eind: venster.eind, queryRijen: null };
   }
 
   const url =
@@ -104,7 +127,7 @@ export async function syncSearchConsole(
     if (!res.ok) {
       const reden = await uitleg(res);
       await noteer(admin, profileId, reden);
-      return { ok: false, reason: reden, rijen: 0, start: venster.start, eind: venster.eind };
+      return { ok: false, reason: reden, rijen: 0, start: venster.start, eind: venster.eind, queryRijen: null };
     }
 
     const j = (await res.json()) as { rows?: typeof rows };
@@ -112,7 +135,7 @@ export async function syncSearchConsole(
   } catch {
     const reden = "Google was niet bereikbaar. De volgende ronde probeert het opnieuw.";
     await noteer(admin, profileId, reden);
-    return { ok: false, reason: reden, rijen: 0, start: venster.start, eind: venster.eind };
+    return { ok: false, reason: reden, rijen: 0, start: venster.start, eind: venster.eind, queryRijen: null };
   }
 
   const rijen = rows
@@ -135,7 +158,7 @@ export async function syncSearchConsole(
     if (error) {
       const reden = "De cijfers konden niet worden opgeslagen.";
       await noteer(admin, profileId, reden);
-      return { ok: false, reason: reden, rijen: 0, start: venster.start, eind: venster.eind };
+      return { ok: false, reason: reden, rijen: 0, start: venster.start, eind: venster.eind, queryRijen: null };
     }
   }
 
@@ -151,7 +174,85 @@ export async function syncSearchConsole(
     })
     .eq("id", profileId);
 
-  return { ok: true, reason: null, rijen: rijen.length, start: venster.start, eind: venster.eind };
+  // ── De zoekopdrachten: bijvangst, mag mislukken zonder de ronde te breken ──
+  const queryRijen = await syncQueries(admin, profileId, property, token.token, venster);
+
+  return { ok: true, reason: null, rijen: rijen.length, start: venster.start, eind: venster.eind, queryRijen };
+}
+
+/**
+ * Dezelfde aanroep, met `query` als extra dimensie (migratie 0103).
+ *
+ * Eigen functie en niet ingeweven in `syncSearchConsole()` zelf: die functie
+ * is al lang genoeg, en een aparte functie maakt de "mag mislukken"-regel in
+ * de aanroeper zichtbaar in plaats van verstopt in een try/catch middenin een
+ * grotere functie.
+ *
+ * `null` bij elke mislukking. Geen `gsc_last_error`: dat veld stuurt de lege
+ * staten van het zoekverkeerscherm, en die gaan over de paginacijfers, niet
+ * over deze bijvangst.
+ */
+async function syncQueries(
+  admin: Admin,
+  profileId: string,
+  property: string,
+  accessTokenValue: string,
+  venster: { start: string; eind: string },
+): Promise<number | null> {
+  const url =
+    `https://searchconsole.googleapis.com/webmasters/v3/sites/` +
+    `${encodeURIComponent(property)}/searchAnalytics/query`;
+
+  let rows: { keys?: string[]; clicks?: number; impressions?: number; position?: number }[];
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessTokenValue}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        startDate: venster.start,
+        endDate: venster.eind,
+        dimensions: ["date", "query", "page"],
+        dataState: "final",
+        rowLimit: ROW_LIMIT,
+      }),
+    });
+    if (!res.ok) {
+      console.warn(`Zoekopdrachten ophalen mislukt voor profiel ${profileId}: HTTP ${res.status}.`);
+      return null;
+    }
+    const j = (await res.json()) as { rows?: typeof rows };
+    rows = j.rows ?? [];
+  } catch (err) {
+    console.warn(`Zoekopdrachten ophalen mislukt voor profiel ${profileId}: ${String(err)}.`);
+    return null;
+  }
+
+  const rijen = rows
+    .filter((r) => Array.isArray(r.keys) && r.keys.length === 3)
+    .map((r) => ({
+      profile_id: profileId,
+      day: r.keys![0],
+      query: r.keys![1],
+      page: r.keys![2],
+      clicks: Math.round(r.clicks ?? 0),
+      impressions: Math.round(r.impressions ?? 0),
+      position: r.position ?? null,
+    }));
+
+  if (rijen.length === 0) return 0;
+
+  const { error } = await admin
+    .from("search_console_queries")
+    .upsert(rijen, { onConflict: "profile_id,day,query,page" });
+  if (error) {
+    console.warn(`Zoekopdrachten opslaan mislukt voor profiel ${profileId}: ${error.message}.`);
+    return null;
+  }
+
+  return rijen.length;
 }
 
 /**

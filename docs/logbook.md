@@ -9109,7 +9109,7 @@ Direct vervolg op het vorige stuk: het cluster toont geen letterlijke antwoorden
 hadden nog geen nieuwe plek. `lib/pipeline/answers.ts` (`loadAnswers()`) is ongewijzigd
 teruggezet en krijgt nu één aanroeper: nieuwe route `GET /api/analyses/[id]/answers`, met dezelfde
 eigenaarscontrole als `costs/route.ts` (`getOwnedAnalysis()`), maar zonder het staff-only-slot dat
-die route heeft — dit is precies de content die de klant al zag toen hij nog op het cluster stond.
+die route heeft, dit is precies de content die de klant al zag toen hij nog op het cluster stond.
 
 Het detailpaneel van Analytics → Zichtbaarheid (Z8, `analytics-cluster-table.tsx`) haalt de
 antwoorden nu pas op zodra iemand een cluster aanklikt (nieuwe client component
@@ -9124,3 +9124,150 @@ al gesloten.
 
 Getest: `tsc --noEmit`, `test:unit` (4858 geslaagd), `test:chain` (659 geslaagd) en `build` zijn
 alle vier groen. Geen migratie.
+
+## 16 september 2026: Zoekdata in de keten, A0 en blok A
+
+Start van `docs/tasks/zoekdata-in-de-keten.md`: Search Console en DataForSEO van meetlaag naar
+stuurlaag, op verzoek van de eigenaar. Twee stukken zijn af.
+
+**A0, de bevinding die alles blokkeerde.** Het zoekverkeerscherm gaf het volledige databereik door
+aan `vergelijk()` als huidige periode. De veiligheidsklep in die functie ziet dan terecht dat de
+periode ervóór per definitie buiten bereik ligt, dus `vergelijkbaar` werd nooit `true`, hoeveel data
+er ook binnenkwam: alle acht de kerncijfers (onze pagina's en de rest van de site) meldden voor
+altijd "geen vergelijking". Nagerekend met een reproductie op 180 dagen testdata.
+`lib/search-console/metrics.ts` krijgt `vergelijkingsvenster()`: een vast venster van de laatste 28
+dagen, eindigend op de laatste dag met cijfers in plaats van op vandaag. Het scherm gebruikt dit nu
+voor beide vergelijkingsblokken; de "nog geen vergelijking"-tekst verwijst naar de echte vroegste
+dag met cijfers (`volledigVenster()`) in plaats van naar het nieuwe, kortere venster.
+
+**Blok A: de zoekopdrachten erbij.** Migratie 0103, `search_console_queries`, additief, zelfde
+uniek-sleutel-patroon als `search_console_days`. `lib/search-console/sync.ts` haalt de zoekopdrachten
+op als tweede aanroep binnen dezelfde dagelijkse `gsc_sync`-taak: geen tweede cron, geen nieuw
+jobtype. Bewust best-effort: mislukt deze tweede aanroep, dan blijft de paginacijfers-sync (die de
+lege staten van het zoekverkeerscherm stuurt) gewoon geslaagd, en gaat de fout niet naar
+`gsc_last_error`. Nieuwe pure module `lib/search-console/rankings.ts`: de positieverdeling, "op het
+randje" (positie 8 tot 20, minstens 50 vertoningen) en stijgers/dalers over twee vensters.
+
+`lib/opportunities.ts` krijgt een vijfde bron, `zoekverkeer`: een pagina die ORBIT ENGINE zelf
+schreef en die al op het randje van de eerste pagina staat. Alleen onze eigen pagina's
+(`content_pieces.published_url`), niet willekeurige pagina's van de site. Geen doelvragen-getal en
+geen potentiescore, want dit komt niet uit een AI-meting; het sorteerveld `share` wordt hier
+hergebruikt voor de vertoningen, nooit als getal op het scherm. Gekoppeld in `lib/insights-data.ts`.
+
+Wat nog open staat uit blok A: de vier lege staten van het zoekverkeerscherm nog niet uitgebreid met
+een vijfde ("op het randje" zonder resultaten toont simpelweg niets, en dat is bewust), en de
+positieverdeling/stijgers-dalers uit `rankings.ts` staan nog niet op een scherm. Beide zijn
+rekenkant-af, schermwerk volgt.
+
+Getest: `tsc --noEmit`, `test:unit` (4886 geslaagd), `test:chain` (659 geslaagd) en `build` zijn alle
+vier groen.
+
+## 16 september 2026, vervolg: het opbrengstblok op het analytics-overzicht
+
+Hoofdstuk 7 van `docs/tasks/zoekdata-in-de-keten.md` gebouwd, op verzoek van de eigenaar: laat op
+`/merk/[id]/analytics` zien wat ORBIT ENGINE daadwerkelijk oplevert aan zichtbaarheid en klikken,
+zoals Nova dat doet, maar zonder Nova's zwakste gewoonte over te nemen.
+
+**Eigen module, niet hergebruikt van het zoekverkeerscherm.** `lib/search-console/opbrengst.ts`
+beantwoordt een strengere vraag dan `metrics.ts`: niet "hoe doet de site het" maar "wat mag ORBIT
+ENGINE zich toerekenen". De controlegroep is hier daarom écht de rest van de site, onze eigen
+pagina's eruit gefilterd, in plaats van de brede, alles-inclusief vergelijking die het
+zoekverkeerscherm bewust toont als losse, gelabelde vergelijking. Twee schermen die "de rest van de
+site" zeggen en iets anders bedoelen was precies het risico; ze hebben nu allebei hun eigen naam en
+een commentaar dat het verschil uitlegt.
+
+**Twee rekenregels die het cijfer eerlijk houden.** Elke pagina telt pas mee vanaf zijn eigen
+publicatiedatum, ook als er al langer cijfers van die URL in de database staan (een pagina die
+herschreven is, geen nieuwe). En pagina's jonger dan het vergelijkingsvenster worden apart geteld in
+plaats van het gemiddelde te verdunnen: Google heeft weken nodig om een nieuwe pagina serieus te
+tonen.
+
+Het blok toont drie kerncijfers (pagina's live plus wat er in het plan staat, klikken sinds de start,
+de laatste 28 dagen) en één zin die de controlegroep tegen onze eigen pagina's afzet, alleen als
+beide kanten een echte vergelijking hebben en de vorige periode niet op nul klikken stond: een
+percentage over "0 naar 4" is oneindig en zegt niets. Bewust geen omzet, geen tweede ranglijst, geen
+gamificatie (zie hoofdstuk 9 van het plan voor de volledige lijst met wat bewust wegblijft).
+
+Getest: `berekenOpbrengst()` heeft een eigen testgroep die de rekenfout in het eerste testscenario
+zelf ving (63 versus de echte 60 dagen), en bewijst dat de controlegroep nooit onze eigen klikken
+meetelt. `tsc --noEmit`, `test:unit` (4896 geslaagd), `test:chain` (659 geslaagd) en `build` zijn
+alle vier groen. Geen migratie: alle gebruikte tabellen bestaan al.
+
+## 16 september 2026, vervolg: blok B, de leverancierslaag
+
+`lib/search-demand/` gebouwd naar het patroon van `lib/engines/`: `types.ts` (de kleine interface,
+één functie), `registry.ts` (een provider alleen met beide omgevingsvariabelen, anders `null`),
+`dataforseo.ts` (de adapter), `cache.ts` (eerst de cache, dan pas de leverancier, nooit dezelfde
+term twee keer betalen binnen 30 dagen) en `keywords.ts` (puur, van een meetvraag naar een
+opzoekbare zoekterm). Drie migraties: 0104 (`keyword_demand`, de cache, en `vendor_calls`, het
+kostenlogboek los van `ai_calls`), 0105 (`profile_keywords`, welke term bij welk merk hoort en
+waarom), 0106 (`profile_topics.search_volume_absolute`/`search_volume_source`, en `prompts.
+volume_source` krijgt `gemeten` als derde waarde).
+
+**De leverancierskeuze is bevestigd, de adapter zelf nog niet tegen een echt account geverifieerd.**
+`dataforseo.ts` is gebouwd naar de publieke documentatie van het Google Ads Search Volume-eindpunt;
+er was in deze ronde geen DataForSEO-account beschikbaar om een echte aanroep tegen te draaien. Dat
+blokkeert niets, want zonder sleutel raakt de hele module nooit aan, maar de adapter zelf is pas
+"af" na één echte aanroep die tegen een productieaccount is nagerekend (conventie 10). Staat expliciet
+in de code als open punt.
+
+**De belangrijkste test staat niet in `test-unit.ts`.** `registry.ts` is `server-only`, dus een
+directe import crasht `test-unit.ts` (dat bestand draait bewust zonder de `server-only`-stub die
+`test-chain.ts` wel heeft). Scenario 13 in `test-chain.ts` bewijst in plaats daarvan dat de app zonder
+DATAFORSEO-sleutel zich identiek gedraagt aan vóór deze bouwronde, dezelfde garantie als
+`enginesForProfile()` voor Gemini.
+
+`afleidenZoekterm()` (`lib/search-demand/keywords.ts`) is bewust géén AI-aanroep: een vaste lijst
+vraagwoorden eraf, de rest blijft staan. Dat werkt goed bij een vraag met één kern en matig bij een
+samengestelde vraag; lukt de afleiding niet goed genoeg, dan levert de functie `null` en blijft
+`volume_source` op `geschat` staan.
+
+**Nog niet gedaan:** `keywords.ts` en `cache.ts` zijn nog nergens aangeroepen vanuit de pijplijn.
+Dat is blok C (clusters, vragen en de potentiescore verankeren aan een echte meting), een eigen,
+apart te bouwen en te testen stap.
+
+Getest: `tsc --noEmit`, `test:unit` (4903 geslaagd), `test:chain` (663 geslaagd, inclusief scenario
+13) en `build` zijn alle vier groen.
+
+## 17 september 2026: blok C en D, de keten en de tekst verankerd aan een echte meting
+
+Vervolg op `docs/tasks/zoekdata-in-de-keten.md`. Twee blokken, allebei met een bewuste grens op wat
+er in deze ronde wel en niet gebeurt.
+
+**Blok C: de clusterkeuze en het vraaggewicht.** `proposeTopics()` (`lib/pipeline/propose-topics.ts`)
+zoekt voor elke voorgestelde titel een gemeten zoekvolume op via `keywordVolumes()`, met de titel
+zelf als kandidaat-zoekterm (die is meestal al zoektermvormig, "wasmachine kopen" en niet een hele
+zin). Het model levert dat cijfer nooit zelf aan; de koppeling gebeurt in code, na de aanroep.
+`profile_topics.search_volume_index` (de 0-100 schaal die het scherm toont) blijft ongemoeid, dat is
+een apart besluit.
+
+Voor de dertig meetvragen per analyse (`lib/pipeline/prepare.ts`) geldt hetzelfde patroon, met een
+nieuwe pure functie `bandFromMeasuredVolume()` in `lib/pipeline/volume.ts`: een echte meting wordt
+herschaald naar de zwaarste vraag van dezelfde batch, en dezelfde 60/25-grenzen als de bestaande
+`bandFromEstimate()` beslissen de band. Geen nieuwe absolute cijfers verzonnen (500 is hoog, 50 is
+midden) zonder productiedata om ze tegen af te zetten; dat was expliciet de valkuil die het plan zelf
+al benoemde. `afleidenZoekterm()` (`lib/search-demand/keywords.ts`, al gebouwd in blok B) levert
+`null` bij een vraag die niet naar één kern te herleiden is, en dan blijft die ene vraag op
+`geschat` staan.
+
+**Blok D: het contentcontract, niet de schrijfprompt.** `lib/pipeline/content-plan.ts` haalt bij een
+"verbeteren"-aanbeveling de echte zoekopdrachten op die de bestaande pagina al vertoningen
+opleveren (`search_console_queries`, top acht op vertoningen), en geeft ze mee aan
+`buildContentContract()`. Nieuwe `zoekopdrachtenBlok()` in `lib/pipeline/content-contract.ts` zet ze
+in de prompt met de rem er letterlijk bij: sturen welke deelvraag zwaar weegt, nooit hoe de zin
+klinkt, nooit letterlijk overnemen. Bewust NIET gedaan: dezelfde lijst nog een keer in
+`writer-brief.ts`, want het contract heeft de prioritering al in de sectievolgorde verwerkt, en een
+geheel nieuwe pagina (zonder bestaande URL) krijgt in deze ronde geen zoekwoordlaag: dat vergt de
+bredere aanbodboom-naar-zoekterm-afleiding die het plan zelf al de moeilijkste stap noemt.
+
+⚠️ **Blok D is niet "af" volgens zijn eigen maatstaf.** Het plan eist tien pagina's met en tien zonder
+de zoekwoordlaag door het kwaliteitslab, met een menselijk oordeel. Dat vergt een echte, betaalde
+AI-aanroep tegen een productieomgeving, niet beschikbaar in deze bouwronde. De code is gebouwd en
+getest tegen de gestubde ketentest, die bewijst dat het zonder Search Console-data identiek blijft,
+maar de kernvraag (maakt dit de tekst beter) is nog onbeantwoord. Staat als eerste te controleren
+punt in het plan, hoofdstuk 10.
+
+Getest: `tsc --noEmit`, `test:unit` (4912 geslaagd, met een nieuwe testgroep voor
+`bandFromMeasuredVolume()` en een tekstcontrole op de rem in `content-contract.ts`), `test:chain`
+(666 geslaagd, met nieuwe assertions dat `search_volume_source`/`volume_source` zonder
+DATAFORSEO-sleutel op "geschat" blijven staan) en `build` zijn alle vier groen.

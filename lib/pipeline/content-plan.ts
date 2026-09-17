@@ -46,6 +46,7 @@ import {
   zetContractVast,
 } from "@/lib/pipeline/input-coverage";
 import { TARGET_WORDS, TYPE_GUIDANCE, type RecommendationInput } from "@/lib/pipeline/content";
+import { normaliseerUrl } from "@/lib/search-console/metrics";
 import type { ContentContract } from "@/lib/schemas/content-contract";
 import type { ItemDossier } from "@/lib/schemas/item-dossier";
 import type { VerifiedExplainer } from "@/lib/pipeline/explainer-verify";
@@ -262,6 +263,12 @@ export async function planContentPiece(args: {
   // geschreven zoals vóór deze wijziging, en niet slechter.
   let existingText: string | null = null;
   let existingFetchedAt: string | null = null;
+  // Blok D, §3.4 (docs/tasks/zoekdata-in-de-keten.md): echte zoekopdrachten
+  // die deze pagina al vertoningen opleveren, als achtergrond voor het
+  // contract. Leeg bij een nieuwe pagina of zonder Search Console-koppeling.
+  let existingQueries: { query: string; impressions: number }[] = [];
+  /** Hoeveel zoekopdrachten er hoogstens meegaan: genoeg om een patroon te zien, weinig genoeg om het contract niet te overladen. */
+  const MAX_CONTRACT_QUERIES = 8;
   if (recommendation.action === "verbeteren" && recommendation.existingUrl) {
     const { data: pageRows } = await admin
       .from("profile_pages")
@@ -278,6 +285,21 @@ export async function planContentPiece(args: {
           `de inventaris van dit merk. Bestaande tekst niet opgehaald.`,
       );
     } else {
+      const { data: queryRows } = await admin
+        .from("search_console_queries")
+        .select("query, page, impressions")
+        .eq("profile_id", analysis.profile_id);
+      const doelUrl = normaliseerUrl(bekend.url);
+      const perQuery = new Map<string, number>();
+      for (const r of (queryRows ?? []) as { query: string; page: string; impressions: number }[]) {
+        if (normaliseerUrl(r.page) !== doelUrl) continue;
+        perQuery.set(r.query, (perQuery.get(r.query) ?? 0) + r.impressions);
+      }
+      existingQueries = [...perQuery.entries()]
+        .map(([query, impressions]) => ({ query, impressions }))
+        .sort((a, b) => b.impressions - a.impressions)
+        .slice(0, MAX_CONTRACT_QUERIES);
+
       const opgehaald = await fetchExistingPage(bekend.url);
       existingText = opgehaald.text;
       existingFetchedAt = opgehaald.text ? opgehaald.fetchedAt : null;
@@ -325,6 +347,7 @@ export async function planContentPiece(args: {
     profileId: analysis.profile_id,
     existingText,
     existingUrl: recommendation.existingUrl ?? null,
+    existingQueries,
   });
 
   // ⚠️ Nul secties "aanwezig" bij een pagina die WEL bestaat, is een signaal.

@@ -27,7 +27,14 @@ import {
   citesOwnSite,
   mentionSurvivesTextGuard,
 } from "@/lib/entities/normalize";
-import { bandFromEstimate, volumeBandOf, isVolumeBand, VOLUME_BANDS, VOLUME_FACTOR } from "@/lib/pipeline/volume";
+import {
+  bandFromEstimate,
+  bandFromMeasuredVolume,
+  volumeBandOf,
+  isVolumeBand,
+  VOLUME_BANDS,
+  VOLUME_FACTOR,
+} from "@/lib/pipeline/volume";
 import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { parseRobots, isAllowed, sitemapsFrom } from "@/lib/audit/robots";
 import { splitByTerms } from "@/lib/highlight";
@@ -445,9 +452,23 @@ import {
   totalen as gscTotalen,
   verschuif,
   vergelijk,
+  vergelijkingsvenster,
+  VERGELIJKINGSVENSTER_DAGEN,
+  volledigVenster as volledigVensterGsc,
   vorigVenster,
   type GscDag,
 } from "@/lib/search-console/metrics";
+import {
+  bewegingen as gscBewegingen,
+  dalers as gscDalers,
+  opHetRandje,
+  RANDJE_MIN_VERTONINGEN,
+  stijgers as gscStijgers,
+  totalenPerQueryPagina,
+  type GscQueryDag,
+} from "@/lib/search-console/rankings";
+import { berekenOpbrengst, type OpbrengstPagina } from "@/lib/search-console/opbrengst";
+import { afleidenZoekterm, MIN_KEYWORD_LENGTH } from "@/lib/search-demand/keywords";
 
 import { splitSentences, stripMarkdown, firstSentences } from "@/lib/pipeline/sentences";
 import { extractHeadings, renderMarkdown } from "@/lib/markdown";
@@ -1246,6 +1267,27 @@ group("band uit schatting", () => {
   ok("band wint van schatting", volumeBandOf({ volume_band: "laag", volume_estimate: 90 }) === "laag");
   ok("terugval op schatting", volumeBandOf({ volume_band: null, volume_estimate: 90 }) === "hoog");
   ok("onzin geweigerd", !isVolumeBand("gemiddeld") && isVolumeBand("hoog"));
+});
+
+group("bandFromMeasuredVolume: een echte meting herschaald naar de zwaarste vraag (blok C, §3.2)", () => {
+  // De zwaarste vraag van de batch is het nulpunt van "hoog", precies zoals
+  // een AI-schatting van 100 dat ook is.
+  ok("de zwaarste vraag zelf is altijd hoog", bandFromMeasuredVolume(1000, 1000, null) === "hoog");
+  ok("60% van de zwaarste is nog hoog (grens 60)", bandFromMeasuredVolume(600, 1000, null) === "hoog");
+  ok("59% is midden", bandFromMeasuredVolume(590, 1000, null) === "midden");
+  ok("24% is laag", bandFromMeasuredVolume(240, 1000, null) === "laag");
+
+  // Zonder meting (geen match, of de leverancier kent de term niet) valt de
+  // functie terug op de AI-schatting, en verandert er dus niets.
+  ok("geen gemeten volume: terugval op de schatting", bandFromMeasuredVolume(null, 1000, 90) === "hoog");
+  ok(
+    "geen zwaarste volume in de batch (niemand gematcht): ook terugval",
+    bandFromMeasuredVolume(500, 0, 20) === "laag",
+  );
+  ok(
+    "geen van beide bekend: de bestaande terugval van bandFromEstimate",
+    bandFromMeasuredVolume(null, 0, null) === "midden",
+  );
 });
 
 group("promptgewicht", () => {
@@ -8847,6 +8889,50 @@ group("opportunities: één lijst, gesorteerd op wat het oplevert", () => {
   );
 });
 
+group("opportunities: de kansenbron 'zoekverkeer' (blok A, 16 september 2026)", () => {
+  const basis = {
+    profileId: "p1",
+    recommendations: [],
+    unmeasuredTopics: [],
+    crawlerBlocked: false,
+    readyToPublish: 0,
+    hasPlan: true,
+  };
+
+  const metRandje = opportunities({
+    ...basis,
+    randje: [
+      { query: "dakinspectie kosten", page: "https://x.nl/a", position: 12, impressions: 300 },
+      { query: "dakdekker zutphen", page: "https://x.nl/b", position: 15, impressions: 80 },
+    ],
+  });
+
+  ok("elke randje-rij wordt een kans", metRandje.filter((o) => o.source === "zoekverkeer").length === 2);
+  ok(
+    "de meest getoonde staat eerst binnen deze bron",
+    metRandje.filter((o) => o.source === "zoekverkeer")[0]!.url === "https://x.nl/a",
+  );
+  ok(
+    "het is een bijwerkactie, geen nieuwe pagina",
+    metRandje.filter((o) => o.source === "zoekverkeer").every((o) => o.handeling === "pagina_bijwerken"),
+  );
+  ok(
+    "de positie staat in de titel",
+    metRandje.find((o) => o.url === "https://x.nl/a")!.title.includes("12"),
+  );
+  ok(
+    "er is geen doelvragen-getal: dit komt niet uit een AI-meting",
+    metRandje.filter((o) => o.source === "zoekverkeer").every((o) => o.raakt === null && o.potential === null),
+  );
+
+  // ⚠️ Zonder Search Console-koppeling of zonder randje-pagina's levert deze
+  // bron simpelweg niets op, geen foutmelding en geen lege kaart (conventie 3).
+  const zonderRandje = opportunities(basis);
+  ok("geen randje-kansen zonder invoer", !zonderRandje.some((o) => o.source === "zoekverkeer"));
+  const expliciedLeeg = opportunities({ ...basis, randje: [] });
+  ok("en ook niet bij een expliciet lege lijst", !expliciedLeeg.some((o) => o.source === "zoekverkeer"));
+});
+
 group("workKindIcon: elke soort werk heeft één tekening die bestaat", () => {
   // De chip rechts zegt wat je gaat DOEN, het icoon links waar het OVER gaat.
   // Valt er één weg, dan rendert het overzicht een leeg gat op de plek waar de
@@ -10734,6 +10820,51 @@ group("het vorige, even lange venster", () => {
   ok("en de positieverandering ook", zonderVorige.verschil.positieVerbetert === null);
 });
 
+group("vergelijkingsvenster: waarom het zoekverkeerscherm nooit een verandering toonde", () => {
+  // ⚠️ DE BEVINDING VAN 16 SEPTEMBER 2026 (docs/tasks/zoekdata-in-de-keten.md
+  // §7.2). Het zoekverkeerscherm gaf `volledigVenster()` (het hele databereik)
+  // door aan `vergelijk()` als huidige periode. Dan ligt de periode ervóór per
+  // definitie vóór de vroegste dag die er is, dus `vergelijkbaar` wordt nooit
+  // `true`, hoeveel data er ook binnenkomt.
+  const halfJaar: GscDag[] = [];
+  for (let i = 0; i < 180; i++) {
+    halfJaar.push({
+      day: verschuif("2026-03-01", i),
+      page: "/a",
+      clicks: 3,
+      impressions: 90,
+      position: 12,
+    });
+  }
+
+  const metVolledigBereik = vergelijk(halfJaar, volledigVensterGsc(halfJaar)!);
+  ok(
+    "met het volledige bereik als venster is er NOOIT een vergelijking, dat was de fout",
+    !metVolledigBereik.vergelijkbaar,
+  );
+
+  const venster = vergelijkingsvenster(halfJaar)!;
+  ok("het venster is precies 28 dagen lang", dagenTussen(venster.start, venster.eind) === VERGELIJKINGSVENSTER_DAGEN);
+  ok("het eindigt op de laatste dag die we hebben", venster.eind === volledigVensterGsc(halfJaar)!.eind);
+
+  const metVastVenster = vergelijk(halfJaar, venster);
+  ok("met een vast venster van 28 dagen komt er wél een vergelijking", metVastVenster.vergelijkbaar);
+  ok("28 dagen keer 3 klikken is 84", metVastVenster.nu.clicks === 84);
+  ok("en het verschil met de 28 dagen ervoor is 0, want de reeks is vlak", metVastVenster.verschil.clicks === 0);
+
+  // Te weinig geschiedenis (minder dan 56 dagen): nog steeds eerlijk `null`,
+  // geen schijnvergelijking.
+  const zesWeken: GscDag[] = [];
+  for (let i = 0; i < 40; i++) {
+    zesWeken.push({ day: verschuif("2026-08-01", i), page: "/a", clicks: 1, impressions: 10, position: 5 });
+  }
+  const kortVenster = vergelijkingsvenster(zesWeken)!;
+  const kortResultaat = vergelijk(zesWeken, kortVenster);
+  ok("met 40 dagen historie is 28+28 nog niet gedekt, dus geen vergelijking", !kortResultaat.vergelijkbaar);
+
+  ok("zonder data levert het venster null op", vergelijkingsvenster([]) === null);
+});
+
 group("V5: geen delta bij een onvolledig eerste venster", () => {
   const venster = { start: "2026-08-01", eind: "2026-08-10" };
 
@@ -10858,6 +10989,159 @@ group("adressen vergelijkbaar maken", () => {
   ok("een kaal pad blijft heel", normaliseerUrl("/dienst/x") === "/dienst/x");
   ok("zonder beginslash komt er een bij", normaliseerUrl("dienst/x") === "/dienst/x");
   ok("hoofdletters tellen niet mee", normaliseerUrl("/Dienst/X") === "/dienst/x");
+});
+
+group("de positieverdeling uit Search Console (blok A)", () => {
+  const venster = { start: "2026-08-01", eind: "2026-08-10" };
+  const rijen: GscQueryDag[] = [
+    // Op het randje: positie 12, genoeg vertoningen.
+    { day: "2026-08-05", query: "dakinspectie kosten", page: "/a", clicks: 5, impressions: 100, position: 12 },
+    { day: "2026-08-06", query: "dakinspectie kosten", page: "/a", clicks: 3, impressions: 60, position: 12 },
+    // Positie 3: al goed, hoort niet bij "op het randje".
+    { day: "2026-08-05", query: "dakdekker zutphen", page: "/b", clicks: 20, impressions: 200, position: 3 },
+    // Positie 15 maar te weinig vertoningen: geen schijnprecisie.
+    { day: "2026-08-05", query: "dakinspectie zutphen", page: "/c", clicks: 1, impressions: 10, position: 15 },
+    // Positie 35: te ver weg voor één zet.
+    { day: "2026-08-05", query: "dakonderhoud", page: "/d", clicks: 1, impressions: 80, position: 35 },
+  ];
+
+  const totalen = totalenPerQueryPagina(rijen, venster);
+  ok("vier combinaties, opgeteld over het venster", totalen.length === 4);
+  const a = totalen.find((t) => t.page === "/a")!;
+  ok("klikken tellen op", a.clicks === 8);
+  ok("vertoningen ook", a.impressions === 160);
+  ok("de positie is gewogen op vertoningen, hier gelijk aan 12", Math.abs(a.position! - 12) < 1e-9);
+
+  const randje = opHetRandje(totalen);
+  ok("alleen de combinatie tussen 8 en 20 met genoeg vertoningen", randje.length === 1);
+  ok("dat is /a", randje[0]!.page === "/a");
+  ok(
+    "de grens ligt op RANDJE_MIN_VERTONINGEN",
+    randje.every((r) => r.impressions >= RANDJE_MIN_VERTONINGEN),
+  );
+
+});
+
+group("stijgers en dalers over twee vensters", () => {
+  const nu = { start: "2026-08-11", eind: "2026-08-20" };
+  const reeks: GscQueryDag[] = [
+    // Vorige venster: positie 20. Huidige venster: positie 8. Een stijger.
+    { day: "2026-08-05", query: "dakinspectie kosten", page: "/a", clicks: 1, impressions: 60, position: 20 },
+    { day: "2026-08-15", query: "dakinspectie kosten", page: "/a", clicks: 10, impressions: 60, position: 8 },
+    // Vorige venster: positie 5. Huidige venster: positie 14. Een daler.
+    { day: "2026-08-05", query: "dakdekker zutphen", page: "/b", clicks: 15, impressions: 100, position: 5 },
+    { day: "2026-08-15", query: "dakdekker zutphen", page: "/b", clicks: 2, impressions: 100, position: 14 },
+    // Alleen in het huidige venster: geen "vorige" om mee te vergelijken.
+    { day: "2026-08-15", query: "nieuwe vraag", page: "/e", clicks: 1, impressions: 30, position: 9 },
+  ];
+
+  const b = gscBewegingen(reeks, nu);
+  ok("alleen combinaties met een positie in BEIDE vensters", b.length === 2);
+  ok("de nieuwe vraag zonder verleden telt niet mee", !b.some((x) => x.query === "nieuwe vraag"));
+
+  const stijgersLijst = gscStijgers(b);
+  ok("precies één stijger", stijgersLijst.length === 1);
+  ok("dakinspectie kosten steeg, van 20 naar 8", stijgersLijst[0]!.verschil === 8 - 20);
+
+  const dalersLijst = gscDalers(b);
+  ok("precies één daler", dalersLijst.length === 1);
+  ok("dakdekker zutphen daalde, van 5 naar 14", dalersLijst[0]!.verschil === 14 - 5);
+});
+
+group("berekenOpbrengst: wat ORBIT ENGINE oplevert, niet wat de site oplevert (§7)", () => {
+  const nu = new Date("2026-09-10T12:00:00Z");
+
+  const paginas: OpbrengstPagina[] = [
+    { page: "https://x.nl/a", publishedAt: "2026-07-01" },
+    // Jonger dan het vergelijkingsvenster: geen slecht presterende pagina.
+    { page: "https://x.nl/nieuw", publishedAt: "2026-09-05" },
+  ];
+
+  const rijen: GscDag[] = [];
+  for (let i = 0; i < 90; i++) {
+    const dag = verschuif("2026-06-01", i);
+    // Onze pagina: 5 klikken per dag, ELKE dag, ook vóór de publicatiedatum
+    // (bijvoorbeeld een pagina die ORBIT ENGINE herschreef en die al langer
+    // bestond). Dat moet uit "klikkenSindsStart" gefilterd worden.
+    rijen.push({ day: dag, page: "https://x.nl/a", clicks: 5, impressions: 50, position: 10 });
+    // Een pagina die niet van ons is: telt mee in de controlegroep.
+    rijen.push({ day: dag, page: "https://x.nl/oud", clicks: 2, impressions: 40, position: 8 });
+  }
+  // De nieuwe pagina heeft nog nauwelijks cijfers, zoals in werkelijkheid.
+  rijen.push({ day: "2026-09-08", page: "https://x.nl/nieuw", clicks: 0, impressions: 3, position: 40 });
+
+  const o = berekenOpbrengst(paginas, rijen, 4, nu);
+
+  ok("twee pagina's live", o.paginasLive === 2);
+  ok("vier gepland", o.paginasGepland === 4);
+
+  // ⚠️ §7.4a: /a heeft cijfers van 1 juni tot en met 29 augustus (90 dagen,
+  // i = 0 tot 89 vanaf 1 juni). Vanaf de publicatiedatum (1 juli) tot en met
+  // 29 augustus is dat 60 dagen, dus 60 × 5 = 300 klikken. De klikken van vóór
+  // de publicatiedatum (1 tot en met 30 juni, 30 dagen × 5) tellen NIET mee,
+  // ook al staan ze in de rijen van diezelfde URL.
+  eq2("klikken tellen pas vanaf de eigen publicatiedatum", o.klikkenSindsStart, 60 * 5);
+
+  ok("er is een vergelijking voor onze pagina's", o.vergelijkingOns !== null);
+  ok("en voor de controlegroep", o.vergelijkingControlegroep !== null);
+  // ⚠️ Nagerekend: onzeRijen loopt door tot 8 september (/nieuw), dus het
+  // venster is 12 augustus tot 8 september. Daarin heeft /a nog maar 18 van
+  // de 28 dagen cijfers (12 t/m 29 augustus, want de reeks van /a stopt op
+  // 29 augustus): 18 × 5 = 90 klikken. De controlegroep (alleen /oud) heeft
+  // wél een volle 28 dagen: 28 × 2 = 56.
+  eq2("onze pagina's: 90 klikken deze periode", o.vergelijkingOns!.nu.clicks, 90);
+  eq2("de controlegroep: 56 klikken deze periode", o.vergelijkingControlegroep!.nu.clicks, 56);
+  ok(
+    "de controlegroep is de rest, niet de hele site: onze pagina's tellen er niet in mee",
+    o.vergelijkingControlegroep!.nu.clicks !== o.vergelijkingOns!.nu.clicks,
+  );
+
+  ok("precies één jonge pagina", o.jongePaginas === 1);
+
+  // Zonder publicatiedatums is "sinds start" onbekend, geen 0 (conventie 3).
+  const zonderDatums = berekenOpbrengst(
+    [{ page: "https://x.nl/a", publishedAt: null }],
+    rijen,
+    0,
+    nu,
+  );
+  ok("geen publicatiedatum betekent geen getal, geen 0", zonderDatums.klikkenSindsStart === null);
+});
+
+// ⚠️ "zonder DATAFORSEO-sleutel gedraagt de app zich identiek" staat als
+// scenario 13 in test-chain.ts, niet hier: lib/search-demand/registry.ts is
+// `server-only`, en die grendel is alleen in de ketentest opgeheven
+// (scripts/chain/server-only-stub.js). test-unit.ts draait zonder die stub
+// (zie de toelichting bovenaan dit bestand), dus een directe import hier
+// crasht de hele testrun.
+
+group("afleidenZoekterm: van meetvraag naar zoekterm (§3.2 deel B)", () => {
+  eq(
+    "een simpele kostenvraag levert de kern op",
+    afleidenZoekterm("Wat kost een dakinspectie?") ?? "",
+    "dakinspectie",
+  );
+  eq(
+    "hoeveel-kost werkt ook",
+    afleidenZoekterm("Hoeveel kost dakonderhoud in Zutphen?") ?? "",
+    "dakonderhoud zutphen",
+  );
+  eq(
+    "een samengestelde vraag gebruikt alleen het eerste deel",
+    afleidenZoekterm("Wat kost een dakinspectie en wanneer is het nodig?") ?? "",
+    "dakinspectie",
+  );
+  ok(
+    "een te korte uitkomst levert null op, geen halve zoekterm",
+    afleidenZoekterm("Wat is dit?") === null,
+  );
+  ok("een lege vraag levert null op", afleidenZoekterm("") === null);
+  ok("en alleen witruimte ook", afleidenZoekterm("   ") === null);
+  ok(
+    "MIN_KEYWORD_LENGTH is de echte grens",
+    afleidenZoekterm("x".repeat(MIN_KEYWORD_LENGTH - 1)) === null &&
+      afleidenZoekterm("x".repeat(MIN_KEYWORD_LENGTH)) === "x".repeat(MIN_KEYWORD_LENGTH),
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -12400,6 +12684,8 @@ function onderwerp(
     analysis_id: null,
     search_volume_index: null,
     search_volume_reasoning: null,
+    search_volume_absolute: null,
+    search_volume_source: "geschat",
     created_at: "",
     updated_at: "",
   };
@@ -18956,6 +19242,16 @@ group("Het contract past in de doellengte (verbetering 6)", () => {
 
   const bouwer = leesBestand("lib/pipeline/content-contract.ts");
   ok("de bouwer geeft de doellengte mee", bouwer.includes("maxWoorden: input.targetWords.max"));
+
+  // ⚠️ Blok D, §3.4 (docs/tasks/zoekdata-in-de-keten.md): de rem is niet
+  // onderhandelbaar. Deze twee teksten moeten samen in het bestand staan,
+  // anders leest de zoekopdrachtenblok als "hier zijn wat zoektermen" in
+  // plaats van een sturingsregel.
+  ok("de zoekopdrachten gaan het contract in", bouwer.includes("zoekopdrachtenBlok(input.existingQueries)"));
+  ok(
+    "met de rem: sturen welke vraag, nooit hoe de zin klinkt",
+    bouwer.includes("NOOIT letterlijk over") && bouwer.includes("welke deelvraag het zwaarst weegt"),
+  );
 });
 
 

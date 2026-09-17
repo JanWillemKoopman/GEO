@@ -360,3 +360,40 @@ export function volledigVenster(rijen: GscDag[]): Venster | null {
   const dagen = rijen.map((r) => r.day).sort();
   return { start: dagen[0], eind: dagen[dagen.length - 1] };
 }
+
+/**
+ * Hoeveel dagen de vergelijking op het zoekverkeerscherm beslaat.
+ *
+ * ⚠️ **Dit vervangt sinds 16 september 2026 `volledigVenster()` als invoer voor
+ * `vergelijk()`.** Het hele databereik als "huidige periode" doorgeven laat de
+ * veiligheidsklep in `vergelijk()` altijd dichtslaan: de periode ervóór ligt
+ * dan per definitie vóór de vroegste dag die we ooit ontvingen, dus
+ * `vergelijkbaar` wordt nooit `true`, hoeveel maanden data er ook binnenkomen.
+ * Nagerekend met een reproductie op 180 dagen testdata (docs/tasks/
+ * zoekdata-in-de-keten.md §7.2).
+ *
+ * 28 dagen tegenover de 28 daarvóór: lang genoeg om ruis van losse dagen te
+ * dempen, kort genoeg dat het merendeel van de merken na twee maanden een
+ * echte vergelijking krijgt.
+ */
+export const VERGELIJKINGSVENSTER_DAGEN = 28;
+
+/**
+ * Het venster van de laatste `dagen` die we hebben, voor gebruik in `vergelijk()`.
+ *
+ * Eindigt op de laatste dag waar we cijfers van hebben, niet op vandaag: de
+ * laatste twee dagen zijn toch al gemarkeerd als voorlopig (`perDag()`), en
+ * "vandaag" zou bij een net gestarte synchronisatie een venster opleveren dat
+ * voor het grootste deel uit dagen bestaat waar nog niets binnen is.
+ *
+ * `null` zonder data, zodat de aanroeper dezelfde lege staat toont als
+ * `volledigVenster()` dat al deed.
+ */
+export function vergelijkingsvenster(
+  rijen: GscDag[],
+  dagen: number = VERGELIJKINGSVENSTER_DAGEN,
+): Venster | null {
+  const volledig = volledigVenster(rijen);
+  if (!volledig) return null;
+  return { start: verschuif(volledig.eind, -(dagen - 1)), eind: volledig.eind };
+}

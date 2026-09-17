@@ -2396,6 +2396,18 @@ async function main(): Promise<void> {
       `kreeg ${JSON.stringify(aantalNaEerste)}`,
     );
 
+    // Blok C, §3.2 deel B: zonder DATAFORSEO-sleutel in deze test blijft elke
+    // vraag op 'geschat' staan, precies het gedrag van vóór die bouwronde.
+    const { rows: volumeBronnen } = await db.client.query(
+      "select volume_source from public.prompts where analysis_id = $1",
+      [mixAnalyse],
+    );
+    ok(
+      "zonder zoekvolumeleverancier blijft volume_source 'geschat'",
+      volumeBronnen.every((r) => r.volume_source === "geschat"),
+      volumeBronnen.map((r) => r.volume_source).join(", "),
+    );
+
     // De laatste fase opent de poort wél.
     const { rows: laatsteFase } = await db.client.query(
       `select * from public.jobs where analysis_id = $1 and type = 'generate_prompts'
@@ -5380,13 +5392,25 @@ async function main(): Promise<void> {
       ok("de eerste ronde levert onderwerpen op", eersteRonde.proposed === 2, String(eersteRonde.proposed));
 
       const { rows: conceptRijen } = await db.client.query(
-        `select id, title, stage, status, origin from public.profile_topics where profile_id = $1 order by title`,
+        `select id, title, stage, status, origin, search_volume_source, search_volume_absolute
+           from public.profile_topics where profile_id = $1 order by title`,
         [stageProfileId],
       );
       ok(
         "zonder gesprek krijgen ze allemaal stage 'concept'",
         conceptRijen.every((r) => r.stage === "concept"),
         conceptRijen.map((r) => `${r.title}:${r.stage}`).join(", "),
+      );
+      // Blok C, §3.1: zonder DATAFORSEO-sleutel in deze test blijft dit exact
+      // het gedrag van vóór die bouwronde, "geschat" en geen absoluut volume.
+      ok(
+        "zonder zoekvolumeleverancier blijft search_volume_source 'geschat'",
+        conceptRijen.every((r) => r.search_volume_source === "geschat"),
+        conceptRijen.map((r) => `${r.title}:${r.search_volume_source}`).join(", "),
+      );
+      ok(
+        "en search_volume_absolute onbekend, geen 0",
+        conceptRijen.every((r) => r.search_volume_absolute === null),
       );
       ok(
         "en herkomst 'aanbod' (0076), er was nog geen gesprek",
@@ -8480,6 +8504,35 @@ async function main(): Promise<void> {
         "en het kwaliteitsoordeel verandert daar niet van",
         kwNa3[0].quality_verdict === kwNa2[0].quality_verdict,
       );
+    }
+
+    // ══ SCENARIO 13: zonder DATAFORSEO-sleutel gedraagt de app zich identiek ══
+    //
+    // De garantie waar lib/search-demand/ op rust (docs/tasks/
+    // zoekdata-in-de-keten.md, blok B, uitgangspunt 3 van ontwikkelplan-visie.md:
+    // "geen verplichte tweede sleutel, nergens"). Hoort hier en niet in
+    // test-unit.ts: `registry.ts` is `server-only`, en die grendel is alleen in
+    // déze test opgeheven.
+    {
+      const oudLogin = process.env.DATAFORSEO_LOGIN;
+      const oudWachtwoord = process.env.DATAFORSEO_PASSWORD;
+      delete process.env.DATAFORSEO_LOGIN;
+      delete process.env.DATAFORSEO_PASSWORD;
+      const { searchDemandProvider } = await import("@/lib/search-demand/registry");
+      ok("scenario 13: geen provider zonder sleutels", searchDemandProvider() === null);
+
+      process.env.DATAFORSEO_LOGIN = "test-login";
+      delete process.env.DATAFORSEO_PASSWORD;
+      ok("scenario 13: ook niet met maar één van de twee", searchDemandProvider() === null);
+
+      process.env.DATAFORSEO_PASSWORD = "test-wachtwoord";
+      ok("scenario 13: met allebei komt er wél een provider", searchDemandProvider() !== null);
+      ok("scenario 13: met de juiste id", searchDemandProvider()?.id === "dataforseo");
+
+      if (oudLogin === undefined) delete process.env.DATAFORSEO_LOGIN;
+      else process.env.DATAFORSEO_LOGIN = oudLogin;
+      if (oudWachtwoord === undefined) delete process.env.DATAFORSEO_PASSWORD;
+      else process.env.DATAFORSEO_PASSWORD = oudWachtwoord;
     }
 
     __setTestAdminClient(null);

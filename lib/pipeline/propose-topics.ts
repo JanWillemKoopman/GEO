@@ -46,6 +46,7 @@ import { MODELS } from "@/lib/openai/models";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { discontinuedNames, parseContextFactors } from "@/lib/pipeline/context-factors";
 import { activeOfferings } from "@/lib/offerings";
+import { keywordVolumes } from "@/lib/search-demand/cache";
 import type { Profile, ProfileOffering } from "@/lib/types/database";
 
 export const TopicProposals = z.object({
@@ -285,40 +286,69 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
     }
   }
 
+  // ── Blok C, 3.1: een cijfer onder elk voorstel (docs/tasks/zoekdata-in-de-keten.md) ──
+  //
+  // ⚠️ Het model levert het cijfer nooit zelf aan (conventie 1). De titel van
+  // een onderwerp is meestal al zoektermvormig ("wasmachine kopen",
+  // "hardloopblessure behandelen", precies wat de systeemprompt hierboven
+  // voorschrijft), dus die titel is de kandidaat-zoekterm. Zonder
+  // DATAFORSEO-sleutel geeft dit een lege Map terug en verandert er niets
+  // (`lib/search-demand/cache.ts`).
+  //
+  // ⚠️ Alleen Nederland/Nederlands, vast: open vraag 1 van het plan
+  // (docs/tasks/zoekdata-in-de-keten.md §10) is nog niet beantwoord, en
+  // "Nederlands is een bewuste keuze" staat al zo in README.md.
+  const volumes = await keywordVolumes(
+    admin,
+    voorstellen.map((t) => t.title.trim()),
+    "NL",
+    "nl",
+    profileId,
+  );
+
   const { error } = await admin.from("profile_topics").insert(
-    voorstellen.map((t, i) => ({
-      profile_id: profileId,
-      title: t.title.trim(),
-      rationale: t.rationale.trim() || null,
-      // Alleen verwijzingen die echt bestaan. Een verzonnen aanbodnaam zou een
-      // topic opleveren dat nergens op terug te voeren is. Ontdubbeld, want
-      // "Sportfysiotherapie" en "Specialismen › Sportfysiotherapie" wijzen naar
-      // dezelfde knoop.
-      offering_ids: [
-        ...new Set(
-          t.offerings
-            .map((naam) => byLabel.get(naam.trim().toLowerCase()))
-            .filter((id): id is string => Boolean(id)),
-        ),
-      ],
-      // De NAMEN erbij (migratie 0043). Een herhaalronde gooit de AI-knopen weg
-      // en bouwt ze opnieuw op met nieuwe id's; zonder deze kolom wijzen de
-      // offering_ids daarna naar rijen die niet meer bestaan, stil, want een
-      // uuid[] kan geen foreign key hebben. `buildOfferingTree()` herstelt de
-      // koppeling hierop.
-      offering_names: [
-        ...new Set(
-          t.offerings
-            .map((naam) => byName.get(naam.trim().toLowerCase()))
-            .filter((n): n is string => Boolean(n)),
-        ),
-      ],
-      // Aflopend: hoogste prioriteit bovenaan bij `order by priority desc`.
-      priority: Math.max(0, MAX_TOPICS - (Number.isFinite(t.priority) ? t.priority : i + 1)),
-      status: "voorgesteld",
-      stage: nieuweStage,
-      origin: nieuweOorsprong,
-    })),
+    voorstellen.map((t, i) => {
+      const gemeten = volumes.get(t.title.trim().toLowerCase());
+      return {
+        profile_id: profileId,
+        title: t.title.trim(),
+        rationale: t.rationale.trim() || null,
+        // `null` als de leverancier deze term niet kent of er geen leverancier
+        // is: onbekend, geen 0 (conventie 3). `search_volume_index` (de 0-100
+        // schaal) blijft ongemoeid; dat is de bestaande AI-herkalibratie
+        // (lib/pipeline/search-demand.ts) en verandert niet in deze bouwronde.
+        search_volume_absolute: gemeten?.volume ?? null,
+        search_volume_source: gemeten?.volume != null ? ("gemeten" as const) : ("geschat" as const),
+        // Alleen verwijzingen die echt bestaan. Een verzonnen aanbodnaam zou een
+        // topic opleveren dat nergens op terug te voeren is. Ontdubbeld, want
+        // "Sportfysiotherapie" en "Specialismen › Sportfysiotherapie" wijzen naar
+        // dezelfde knoop.
+        offering_ids: [
+          ...new Set(
+            t.offerings
+              .map((naam) => byLabel.get(naam.trim().toLowerCase()))
+              .filter((id): id is string => Boolean(id)),
+          ),
+        ],
+        // De NAMEN erbij (migratie 0043). Een herhaalronde gooit de AI-knopen weg
+        // en bouwt ze opnieuw op met nieuwe id's; zonder deze kolom wijzen de
+        // offering_ids daarna naar rijen die niet meer bestaan, stil, want een
+        // uuid[] kan geen foreign key hebben. `buildOfferingTree()` herstelt de
+        // koppeling hierop.
+        offering_names: [
+          ...new Set(
+            t.offerings
+              .map((naam) => byName.get(naam.trim().toLowerCase()))
+              .filter((n): n is string => Boolean(n)),
+          ),
+        ],
+        // Aflopend: hoogste prioriteit bovenaan bij `order by priority desc`.
+        priority: Math.max(0, MAX_TOPICS - (Number.isFinite(t.priority) ? t.priority : i + 1)),
+        status: "voorgesteld",
+        stage: nieuweStage,
+        origin: nieuweOorsprong,
+      };
+    }),
   );
 
   if (error) {

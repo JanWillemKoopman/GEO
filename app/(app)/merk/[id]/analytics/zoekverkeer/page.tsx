@@ -22,6 +22,7 @@ import {
   normaliseerUrl,
   perDag,
   vergelijk,
+  vergelijkingsvenster,
   volledigVenster,
   type GscDag,
 } from "@/lib/search-console/metrics";
@@ -233,8 +234,16 @@ export default async function ZoekverkeerPage({
   }
 
   // ── V1: vier kerncijfers, alleen over onze pagina's, V5-bewust ───────────
-  const vensterOns = volledigVenster(rijenVoorOns);
+  //
+  // ⚠️ VASTE 28 DAGEN, NIET HET VOLLEDIGE BEREIK (16 september 2026). Met
+  // `volledigVenster()` als "huidige periode" ligt de vergelijkingsperiode
+  // altijd vóór de vroegste dag die we hebben, dus `vergelijkbaar` werd nooit
+  // `true`. Zie `vergelijkingsvenster()` in `lib/search-console/metrics.ts`.
+  const vensterOns = vergelijkingsvenster(rijenVoorOns);
   const vergelijkingOns = vensterOns ? vergelijk(rijenVoorOns, vensterOns) : null;
+  // Los van `vensterOns`: de échte eerste dag met cijfers, voor de tekst die
+  // zegt sinds wanneer we meten als er nog geen vergelijking mogelijk is.
+  const vroegsteDagOns = volledigVenster(rijenVoorOns);
   const dagenOns = perDag(rijenVoorOns);
   const publicatiedata = [...new Set(stukken.map((s) => s.published_at?.slice(0, 10)).filter((d): d is string => !!d))];
 
@@ -269,8 +278,11 @@ export default async function ZoekverkeerPage({
   });
 
   // ── De rest van de site, ter vergelijking (V1, ingeklapt) ────────────────
-  const vensterHeleSite = volledigVenster(rijen)!;
+  // Niet-null: de lege staat hierboven is al gepasseerd, dus `rijen` bevat
+  // minstens de dagen van onze eigen pagina's.
+  const vensterHeleSite = vergelijkingsvenster(rijen)!;
   const vergelijkingHeleSite = vergelijk(rijen, vensterHeleSite);
+  const vroegsteDagHeleSite = volledigVenster(rijen)!;
 
   return (
     <div className="flex flex-col gap-6">
@@ -311,7 +323,7 @@ export default async function ZoekverkeerPage({
             <p className="text-sm text-muted">
               {vergelijkingOns.vergelijkbaar
                 ? `Vergeleken met de ${dagenIn(vensterOns!.start, vensterOns!.eind)} dagen daarvóór. De laatste twee dagen zijn nog niet definitief.`
-                : `Eerste volledige periode, vanaf ${new Date(vensterOns!.start).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })} vergelijkbaar.`}
+                : `Nog niet genoeg geschiedenis voor een vergelijking. We verzamelen cijfers sinds ${new Date(vroegsteDagOns!.start).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}.`}
             </p>
           </>
         ) : (
@@ -361,7 +373,8 @@ export default async function ZoekverkeerPage({
           </div>
           {!vergelijkingHeleSite.vergelijkbaar && (
             <p className="text-sm text-muted">
-              Eerste volledige periode, vanaf {new Date(vensterHeleSite.start).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })} vergelijkbaar.
+              Nog niet genoeg geschiedenis voor een vergelijking. We verzamelen cijfers sinds{" "}
+              {new Date(vroegsteDagHeleSite.start).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}.
             </p>
           )}
         </div>
