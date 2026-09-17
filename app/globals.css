@@ -1481,6 +1481,356 @@ textarea.field {
   }
 }
 
+/* ── Tabbladen ──────────────────────────────────────────────────────────────
+   Twee soorten, en de app heeft ze allebei nodig.
+
+   **Onderstreept** voor navigatie binnen een scherm: de vijf hoofdstukken van
+   een cluster, de vier Analytics-schermen. Dit is een plaatsaanduiding, dus hij
+   draagt geen vlak maar een streep.
+
+   **Segment** voor een keuze uit twee of drie die het beeld verandert zonder
+   dat je van plek wisselt: een periodefilter, een weergavewissel. Dit is een
+   schakelaar, dus hij draagt wél een vlak.
+
+   Het verschil is niet cosmetisch. Een onderstreepte tab zegt "je bent hier",
+   een segment zegt "zo kijk je ernaar". Waar dat door elkaar loopt weet niemand
+   meer of de terugknop hem terugbrengt. */
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  border-bottom: var(--border-width-xs) solid var(--line-muted);
+}
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 4px;
+  font-size: 0.875rem; /* 14px */
+  font-weight: 400;
+  line-height: 1.25rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  /* De streep zit ONDER de tab en overlapt de rand van `.tabs`. Vandaar de
+     negatieve marge: zonder die pixel staat de actieve streep één pixel boven
+     de lijn en oogt hij los. */
+  border-bottom: var(--border-width-sm) solid transparent;
+  margin-bottom: -1px;
+  transition:
+    color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+.tab:hover {
+  color: var(--text-primary);
+}
+.tab[aria-current],
+.tab[aria-selected="true"] {
+  color: var(--text-primary);
+  font-weight: 500;
+  border-bottom-color: var(--text-primary);
+}
+.tab:focus-visible {
+  outline: var(--border-width-sm) solid var(--border-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+/* Op een telefoon schuift de rij horizontaal en wordt de tab hoger, want 40
+   pixels is onder de 44 die een vinger comfortabel raakt. Zie
+   `redesign2026.md` §8.12.3. */
+@media (max-width: 767px) {
+  .tabs {
+    gap: 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .tab {
+    height: 48px;
+  }
+}
+
+/* Het segment. De baan draagt de vulling, het gekozen segment draagt de kaart. */
+.segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-layer-2);
+}
+.segment-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.25rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+.segment-item:hover:not([aria-pressed="true"]) {
+  color: var(--text-primary);
+}
+.segment-item[aria-pressed="true"] {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  font-weight: 500;
+  box-shadow: var(--shadow-sm);
+}
+.segment-item:focus-visible {
+  outline: var(--border-width-sm) solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* ── Filterchip ─────────────────────────────────────────────────────────────
+   GEMETEN bij OKX (`--okd-selectionchips-*`): 36 pixels hoog in maat md en 40
+   in lg, minstens 32 breed, 8 pixels padding, tekst 14 op 16 met gewicht 400,
+   en 8 pixels radius.
+
+   ⚠️ GEKOZEN IS EEN RAND EN GEEN VULLING. Dat is het patroon dat de hele
+   OKX-interface bij elkaar houdt en het is de reden dat een filterbalk met
+   twaalf chips niet gaat schreeuwen. Het vlak in rust is al de waas van
+   `--interactive-hover`; zou gekozen óók een vulling zijn, dan was het verschil
+   tussen "aanwijsbaar" en "aan" alleen nog een tint. */
+.chip-select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  min-width: 32px;
+  padding: 8px;
+  border-radius: var(--radius-xl); /* 8px */
+  border: var(--border-width-xs) solid transparent;
+  background-color: var(--interactive-hover);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1rem;
+  white-space: nowrap;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+.chip-select:hover:not(:disabled) {
+  background-color: var(--interactive-active);
+  color: var(--text-primary);
+}
+.chip-select:active:not(:disabled) {
+  background-color: var(--interactive-pressed);
+}
+.chip-select[aria-pressed="true"] {
+  border-color: var(--border-selected);
+  color: var(--text-primary);
+}
+.chip-select:disabled {
+  background-color: var(--interactive-disabled);
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+.chip-select:focus-visible {
+  outline: var(--border-width-sm) solid var(--border-focus);
+  outline-offset: 2px;
+}
+.chip-select-lg {
+  min-height: 40px;
+}
+/* GEMETEN: 8 pixels tussen twee chips. */
+.chip-select-groep {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ── Lade ───────────────────────────────────────────────────────────────────
+   Een paneel dat van rechts inschuift. Een rij openen mag je je plek in de
+   lijst niet kosten, en dat is precies wat een nieuwe pagina wél doet.
+
+   Onder 768 pixels wordt het een blad van onderen: op een telefoon is 420
+   pixels breed het hele scherm, en dan is "van rechts" een paginawissel met
+   extra stappen. Zie `redesign2026.md` §7.14. */
+.drawer-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background-color: var(--bg-scrim);
+  animation: drawer-scrim-in var(--duration-base) var(--ease-standard);
+}
+.drawer {
+  position: fixed;
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-surface);
+  box-shadow: var(--shadow-xl);
+  /* Van rechts, over de volle hoogte. */
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 420px;
+  max-width: 90vw;
+  border-inline-start: var(--border-width-xs) solid var(--border-primary);
+  animation: drawer-in var(--duration-slow) var(--ease-out);
+}
+.drawer-kop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+  height: 56px;
+  padding: 0 16px 0 24px;
+  border-bottom: var(--border-width-xs) solid var(--line-muted);
+}
+.drawer-inhoud {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px;
+}
+.drawer-voet {
+  flex-shrink: 0;
+  border-top: var(--border-width-xs) solid var(--line-muted);
+  padding: 16px 24px;
+}
+/* De sleepgreep bestaat alleen op de telefoon, want alleen daar valt er te
+   slepen. Hij is geen versiering: zonder zichtbare greep probeert niemand het,
+   en dan is het scrim de enige uitweg. Dat scrim is boven een blad van 90vh
+   maar een paar pixels hoog. */
+.drawer-greep {
+  display: none;
+}
+@media (max-width: 767px) {
+  .drawer {
+    inset-block: auto 0;
+    inset-inline: 0;
+    width: auto;
+    max-width: none;
+    max-height: 90vh;
+    border-inline-start: none;
+    border-top: var(--border-width-xs) solid var(--border-primary);
+    border-radius: var(--radius-xxxl) var(--radius-xxxl) 0 0;
+    animation: drawer-blad-in var(--duration-slow) var(--ease-out);
+  }
+  .drawer-greep {
+    display: block;
+    flex-shrink: 0;
+    width: 36px;
+    height: 4px;
+    margin: 8px auto 0;
+    border-radius: var(--radius-pill);
+    background-color: var(--border-strong);
+  }
+  .drawer-kop {
+    padding: 0 8px 0 16px;
+  }
+  .drawer-inhoud,
+  .drawer-voet {
+    padding-inline: 16px;
+  }
+}
+@keyframes drawer-scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes drawer-blad-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* ── Datakaart ──────────────────────────────────────────────────────────────
+   Het blokje met één cijfer erin. GEMETEN bij OKX: hun datakaart staat op
+   `background-base-secondary`, is 12 pixels rond (dus RONDER dan een gewone
+   kaart van 8) en groeit in padding mee met het scherm.
+
+   Dat de datakaart ronder is dan de gewone kaart lijkt een vergissing en is het
+   niet: hij staat bijna altijd in een rij van vier en draagt geen tekst maar
+   een getal. De ronding maakt er een blokje van in plaats van een vlak.
+
+   De hiërarchie komt van de MAAT en niet van het gewicht: 24 pixels voor het
+   getal naast 12 voor het label, allebei op gewicht 500 respectievelijk 400.
+   Zie de toelichting bij `.stat-value`. */
+.data-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 16px;
+  border-radius: var(--radius-xxxl); /* 12px */
+  background-color: var(--bg-layer-1);
+  border: var(--border-width-xs) solid var(--border-primary);
+}
+@media (min-width: 768px) {
+  .data-card {
+    padding: 20px;
+  }
+}
+@media (min-width: 1024px) {
+  .data-card {
+    padding: 24px;
+  }
+}
+.data-card-label {
+  font-size: 0.75rem; /* 12px */
+  font-weight: 400;
+  line-height: 1.125rem;
+  color: var(--text-tertiary);
+}
+.data-card-waarde {
+  font-size: 1.5rem; /* 24px */
+  font-weight: 500;
+  line-height: 1.875rem;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.data-card-verschil {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 0.875rem; /* 14px */
+  font-weight: 400;
+  line-height: 1.3125rem;
+  font-variant-numeric: tabular-nums;
+}
+/* ⚠️ De `-text`-varianten en niet de gewone. Een verschilpercentage is 14
+   pixels, dus tekst, en dan geldt 4,5:1. Zie het richtingblok in de kop. */
+.data-card-verschil-omhoog {
+  color: var(--trend-up-text);
+}
+.data-card-verschil-omlaag {
+  color: var(--trend-down-text);
+}
+.data-card-verschil-vlak {
+  color: var(--trend-flat);
+}
+
 /* ── Broodroostermelding ────────────────────────────────────────────────────
    De bewegingen komen uit de gecompileerde CSS van nova.inspace.io: 0,15s in,
    0,12s uit, en een streepje dat leegloopt over de levensduur van de melding.

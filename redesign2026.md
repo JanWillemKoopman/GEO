@@ -2003,7 +2003,7 @@ skelet om en zijn de 117 kaarten meegegaan, zonder dat er één scherm is aanger
 |---|---|---|---|
 | 1 | Tokenlaag | 1 bestand, ~400 regels | Alle kleuren om, oude vormen |
 | 2 | Componentklassen | 1 bestand, ~900 regels | Kaarten, knoppen, chips, velden om |
-| 3 | Nieuwe desktopcomponenten | 5 bestanden | Tabs, SelectionChip, Drawer, DataCard, Segment |
+| 3 | Nieuwe desktopcomponenten | 5 bestanden, plus de etalage | Tabs, Segment, FilterChip, Drawer, DataCard, en een scherm om ze te controleren |
 | 4 | Desktopopmaak | 2 bestanden | Bovenbalk 48px, nieuwe zijbalk, drie standen |
 | 5 | Apparaatdetectie | ~20 regels | Niets zichtbaars, het fundament voor 6 en 7 |
 | 6 | Mobiele opmaak | 3 bestanden | Onderbalk, "Meer"-blad, mobiele bovenbalk |
@@ -2022,9 +2022,24 @@ regel: `.card` (117 bestanden), `.mono-label` (126), `.chip` (68), `.btn-*` (53)
 Eén commit per klassengroep. **Dit is het belangrijkste kijkmoment van het hele traject**, want
 hierna is het uiterlijk in grote lijnen beslist.
 
-**Stap 3, de nieuwe desktopcomponenten.** `Tabs` (7.6), `SelectionChip` (7.8), `Drawer` (7.14),
-`DataCard` (7.10), `Segment` (7.6). Elk met alle staten, want een component zonder zijn staten is
-het werk waard om twee keer te doen.
+**Stap 3, de nieuwe desktopcomponenten.** `Tabs` en `Segment` (7.6), `FilterChip` (7.8), `Drawer`
+(7.14), `DataCard` (7.10). Elk met alle staten, want een component zonder zijn staten is het werk
+waard om twee keer te doen.
+
+**Daar hoort sinds 17 september een achtste bestand bij: `/beheer/designsysteem`.** Dat stond niet
+in de eerste opzet van dit plan en is er tijdens stap 3 aan toegevoegd, om een reden die `CLAUDE.md`
+conventie 10 zelf noemt: gebouwd is niet geverifieerd. Voor rekenkunde is er `test-unit.ts`, maar
+voor vormgeving bestaat die test niet. Vijf componenten bouwen die nergens gebruikt worden is
+precies het soort werk dat er groen uitziet en fout kan zijn.
+
+Het is een intern scherm (`isStaff`, en een 404 bij een gewone gebruiker) dat elk token, elke klasse
+en elk component in al zijn staten naast elkaar zet. Daarmee is het ook het antwoord op de vraag die
+na stap 1 en 2 open bleef staan: hoe ziet dit er eigenlijk uit.
+
+⚠️ **Hij staat bewust NIET in de zijbalk.** `lib/nav.ts` heeft een grens van negen bestemmingen
+onder Admin, met vijf gedocumenteerde uitzonderingen die elk een toets moesten doorstaan. Een
+etalage voor de verbouwing is die zesde uitzondering niet waard: hij is per adres bereikbaar en dat
+is genoeg. Na stap 11 kan opnieuw gewogen worden of hij een vaste plek verdient.
 
 **Stap 4, de desktopopmaak.** `workspace-chrome.tsx` en `sidebar.tsx`. Twee bestanden, en ze zitten
 onder elk scherm.

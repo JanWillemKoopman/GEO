@@ -9434,3 +9434,58 @@ Getest: `tsc --noEmit`, `test:unit` (4912 geslaagd), `test:chain` (666 geslaagd)
 alle vier groen. Nagerekend op de gebouwde CSS: de radiusschaal is letterlijk die van OKX
 (2/4/6/8/10/12 plus 60), `9999px` komt nul keer voor, en van de gewichten staat alles op 500 of
 lichter op `.type-hero` na. 93 bestanden gewijzigd.
+
+## 17 september 2026, stap 3 van de redesign: vijf componenten en een etalage
+
+De componenten die het nieuwe systeem nodig heeft en die er nog niet waren: `Tabs` en `Segment`
+(`components/tabs.tsx`), `FilterChip` (`components/filterchip.tsx`), `Drawer`
+(`components/drawer.tsx`) en `DataCard` (`components/data-card.tsx`). Hun vorm staat in
+`app/globals.css`, hun gedrag in de componenten zelf.
+
+**Tabbladen zijn twee componenten geworden en geen `variant`-prop.** Een onderstreepte tab zegt "je
+bent hier" en hoort bij navigatie; de terugknop brengt je terug. Een segment zegt "zo kijk je ernaar"
+en verandert het beeld zonder dat je van plek wisselt; de terugknop doet daar niets. Waar die twee
+door elkaar lopen weet niemand meer wat de terugknop doet, en dat is een ontwerpbeslissing en geen
+stijl. Vandaar twee componenten.
+
+**De lade vervangt `DetailPanel`, maar nog niet in de schermen zelf.** `DetailPanel` liet de tabel
+ernaast krimpen, en dat werkte zolang een tabel vier kolommen had. Met de bredere opmaak van stap 4
+valt bij krimpen precies de kolom weg waar je op klikte. De lade schuift eroverheen, vergrendelt de
+scroll van de pagina eronder (anders verlies je alsnog je plek in de lijst, precies het probleem dat
+hij moet oplossen) en wordt onder 768 pixels een blad van onderen met een sleepgreep. De vijf
+bestaande gebruikers van `DetailPanel` gaan in stap 10 om.
+
+**De datakaart draagt drie regels uit `CLAUDE.md` in zijn vorm.** `waarde={null}` levert een liggend
+streepje met "nog niet gemeten" op, nooit een nul: een nul is een meting die zegt dat het merk
+nergens genoemd wordt, leeg is een meting die niet bestaat (conventie 3). Er is een veld
+`toelichting` voor het gevolg van het cijfer naast het cijfer zelf. En de hiërarchie komt van de
+MAAT en niet van het gewicht, 24 pixels naast 12: dat is wat OKX doet en het is het verschil tussen
+een kaart die leest als data en een kaart die schreeuwt.
+
+**Er is een scherm bijgekomen dat niet in het plan stond: `/beheer/designsysteem`.** Vijf
+componenten bouwen die nergens gebruikt worden is precies het soort werk dat er groen uitziet en
+fout kan zijn, en `CLAUDE.md` conventie 10 zegt het onomwonden: gebouwd is niet geverifieerd. Voor
+rekenkunde is er `test-unit.ts`; voor vormgeving bestond die controle niet. Tot nu was de enige
+manier om de vormgeving na te kijken het doorklikken van vijftig schermen, en dan mis je per
+definitie elke staat die er op dat moment toevallig niet is: uitgeschakeld, bezig, leeg, fout.
+
+Op dat scherm staat elk token, elke klasse en elk component in al zijn staten naast elkaar, in beide
+standen. Het is daarmee ook het antwoord op de vraag die na stap 1 en 2 open bleef: hoe ziet dit er
+eigenlijk uit. Intern, `isStaff`, en een 404 bij een gewone gebruiker, hetzelfde patroon als
+`/beheer`.
+
+**Hij staat bewust niet in de zijbalk, en dat is een besluit.** `lib/nav.ts` heeft een grens van
+negen bestemmingen onder Admin (`GRENS_PER_HOOFDSTUK`), met vijf gedocumenteerde uitzonderingen die
+elk dezelfde toets moesten doorstaan: is dit een soort werk dat er nog niet stond. De testsuite
+handhaaft die grens en sloeg bij de tiende bestemming meteen aan, precies zoals bedoeld. Een etalage
+voor een verbouwing is die zesde uitzondering niet waard; hij is per adres bereikbaar en dat is
+genoeg. Na stap 11 kan opnieuw gewogen worden of hij een vaste plek verdient.
+
+**Twee dingen die de testsuite ving en die ik anders had gemist.** Behalve de grens hierboven ook de
+regel dat elk scherm met data een `loading.tsx` hoort te hebben: zonder die wachtvorm laat Next.js
+bij een klik de oude pagina staan tot de nieuwe klaar is, en dat leest als een app die hangt in
+plaats van een app die laadt.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd, één meer dan hiervoor omdat de nieuwe route zelf
+wordt getoetst), `test:chain` (666 geslaagd) en `build` zijn alle vier groen. De route bouwt op
+5,44 kB.
