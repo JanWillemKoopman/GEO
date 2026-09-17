@@ -498,9 +498,17 @@ nagerekend tegen `ai_calls`.
 
 ### Sprint 8. Echte zoekvolumes via een API
 
-> **Uitgewerkt in `docs/tasks/zoekdata-in-de-keten.md` (16 september 2026), blok B tot en met E.**
-> De prijzen in §6 hieronder zijn op 16 september opnieuw nagezocht en kloppen nog steeds. ⚠️ Het
-> migratienummer hieronder (`0066`) is sinds augustus vergeven; het nieuwe plan rekent vanaf `0104`.
+> **Uitgewerkt en grotendeels gebouwd in `docs/tasks/zoekdata-in-de-keten.md` (16-17 september
+> 2026), blok B tot en met D.** De prijzen in §6 hieronder zijn op 16 september opnieuw nagezocht en
+> kloppen nog steeds. ⚠️ Het migratienummer hieronder (`0066`) is sinds augustus vergeven; het
+> nieuwe plan rekent vanaf `0104`.
+>
+> ⚠️ **Twee dingen staan nog open, allebei omdat er geen productieomgeving beschikbaar was in de
+> bouwronde (conventie 10), zie hoofdstuk 10 van dat document voor de volledige toelichting:**
+> de DataForSEO-adapter (`lib/search-demand/dataforseo.ts`) is gebouwd naar de documentatie maar nog
+> nooit tegen een echt account gedraaid, en blok D (de zoekwoordlaag in het contentcontract) heeft
+> zijn eigen "af"-criterium (tien pagina's met en tien zonder door het kwaliteitslab, met een
+> menselijk oordeel) nog niet gehaald.
 
 **Waarom achteraan.** Niet vanwege de prijs, want die is verwaarloosbaar (§6), maar omdat het een
 leverancier toevoegt aan een product dat zich eerst zonder moet bewijzen. Hierna is de potentiescore
