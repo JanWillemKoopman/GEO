@@ -9206,3 +9206,46 @@ apart te bouwen en te testen stap.
 
 Getest: `tsc --noEmit`, `test:unit` (4903 geslaagd), `test:chain` (663 geslaagd, inclusief scenario
 13) en `build` zijn alle vier groen.
+
+## 17 september 2026: blok C en D, de keten en de tekst verankerd aan een echte meting
+
+Vervolg op `docs/tasks/zoekdata-in-de-keten.md`. Twee blokken, allebei met een bewuste grens op wat
+er in deze ronde wel en niet gebeurt.
+
+**Blok C: de clusterkeuze en het vraaggewicht.** `proposeTopics()` (`lib/pipeline/propose-topics.ts`)
+zoekt voor elke voorgestelde titel een gemeten zoekvolume op via `keywordVolumes()`, met de titel
+zelf als kandidaat-zoekterm (die is meestal al zoektermvormig, "wasmachine kopen" en niet een hele
+zin). Het model levert dat cijfer nooit zelf aan; de koppeling gebeurt in code, na de aanroep.
+`profile_topics.search_volume_index` (de 0-100 schaal die het scherm toont) blijft ongemoeid, dat is
+een apart besluit.
+
+Voor de dertig meetvragen per analyse (`lib/pipeline/prepare.ts`) geldt hetzelfde patroon, met een
+nieuwe pure functie `bandFromMeasuredVolume()` in `lib/pipeline/volume.ts`: een echte meting wordt
+herschaald naar de zwaarste vraag van dezelfde batch, en dezelfde 60/25-grenzen als de bestaande
+`bandFromEstimate()` beslissen de band. Geen nieuwe absolute cijfers verzonnen (500 is hoog, 50 is
+midden) zonder productiedata om ze tegen af te zetten; dat was expliciet de valkuil die het plan zelf
+al benoemde. `afleidenZoekterm()` (`lib/search-demand/keywords.ts`, al gebouwd in blok B) levert
+`null` bij een vraag die niet naar één kern te herleiden is, en dan blijft die ene vraag op
+`geschat` staan.
+
+**Blok D: het contentcontract, niet de schrijfprompt.** `lib/pipeline/content-plan.ts` haalt bij een
+"verbeteren"-aanbeveling de echte zoekopdrachten op die de bestaande pagina al vertoningen
+opleveren (`search_console_queries`, top acht op vertoningen), en geeft ze mee aan
+`buildContentContract()`. Nieuwe `zoekopdrachtenBlok()` in `lib/pipeline/content-contract.ts` zet ze
+in de prompt met de rem er letterlijk bij: sturen welke deelvraag zwaar weegt, nooit hoe de zin
+klinkt, nooit letterlijk overnemen. Bewust NIET gedaan: dezelfde lijst nog een keer in
+`writer-brief.ts`, want het contract heeft de prioritering al in de sectievolgorde verwerkt, en een
+geheel nieuwe pagina (zonder bestaande URL) krijgt in deze ronde geen zoekwoordlaag: dat vergt de
+bredere aanbodboom-naar-zoekterm-afleiding die het plan zelf al de moeilijkste stap noemt.
+
+⚠️ **Blok D is niet "af" volgens zijn eigen maatstaf.** Het plan eist tien pagina's met en tien zonder
+de zoekwoordlaag door het kwaliteitslab, met een menselijk oordeel. Dat vergt een echte, betaalde
+AI-aanroep tegen een productieomgeving, niet beschikbaar in deze bouwronde. De code is gebouwd en
+getest tegen de gestubde ketentest, die bewijst dat het zonder Search Console-data identiek blijft,
+maar de kernvraag (maakt dit de tekst beter) is nog onbeantwoord. Staat als eerste te controleren
+punt in het plan, hoofdstuk 10.
+
+Getest: `tsc --noEmit`, `test:unit` (4912 geslaagd, met een nieuwe testgroep voor
+`bandFromMeasuredVolume()` en een tekstcontrole op de rem in `content-contract.ts`), `test:chain`
+(666 geslaagd, met nieuwe assertions dat `search_volume_source`/`volume_source` zonder
+DATAFORSEO-sleutel op "geschat" blijven staan) en `build` zijn alle vier groen.

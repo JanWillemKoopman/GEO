@@ -151,6 +151,13 @@ export interface ContractInput {
   existingText?: string | null;
   /** Het adres erbij, zodat de opdracht kan zeggen om welke pagina het gaat. */
   existingUrl?: string | null;
+  /**
+   * Zoekopdrachten waar de BESTAANDE pagina al vertoningen op krijgt in
+   * Google, aflopend op vertoningen (docs/tasks/zoekdata-in-de-keten.md,
+   * blok D, §3.4). Leeg bij een nieuwe pagina, of zonder Search
+   * Console-koppeling: dan verandert er niets aan het contract.
+   */
+  existingQueries?: { query: string; impressions: number }[];
 }
 
 /**
@@ -185,6 +192,27 @@ function planBlok(plan: AuditedClaim[]): string {
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+/**
+ * Echte zoekopdrachten van de bestaande pagina, als achtergrond bij WELKE
+ * deelvraag zwaar weegt (docs/tasks/zoekdata-in-de-keten.md, blok D, §3.4).
+ *
+ * ⚠️ DE REM, EN DIE IS NIET ONDERHANDELBAAR. Deze zoekopdrachten sturen welke
+ * vraag een sectie beantwoordt, nooit hoe die zin geformuleerd wordt. Zonder
+ * die grens levert deze koppeling zoekwoordproza op: dezelfde term herhaald,
+ * koppen die als zoekopdracht klinken. Vandaar de expliciete instructie
+ * hieronder, niet alleen "hier zijn wat zoektermen".
+ */
+function zoekopdrachtenBlok(queries: { query: string; impressions: number }[] | undefined): string {
+  if (!queries || queries.length === 0) return "";
+  return (
+    `ECHTE ZOEKOPDRACHTEN VAN GOOGLE die nu al naar deze pagina leiden (meest gebruikt eerst). ` +
+    `Gebruik dit ALLEEN om te zien welke deelvraag het zwaarst weegt en welke sectie vooraan moet ` +
+    `staan. Neem deze zoekopdrachten NOOIT letterlijk over in een kop of zin, en herhaal een term ` +
+    `niet vaker dan in gewoon Nederlands natuurlijk is:\n` +
+    queries.map((q) => `- "${q.query}" (${q.impressions} vertoningen)`).join("\n")
+  );
 }
 
 function dossierBlok(dossier: ItemDossier | null): string {
@@ -240,6 +268,7 @@ export async function buildContentContract(input: ContractInput): Promise<{
     formatFactCard(input.facts),
     planBlok(input.plan),
     bestaandePaginaBlok(input.existingText, input.existingUrl),
+    zoekopdrachtenBlok(input.existingQueries),
   ]
     .filter(Boolean)
     .join("\n\n");

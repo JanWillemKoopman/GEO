@@ -2396,6 +2396,18 @@ async function main(): Promise<void> {
       `kreeg ${JSON.stringify(aantalNaEerste)}`,
     );
 
+    // Blok C, §3.2 deel B: zonder DATAFORSEO-sleutel in deze test blijft elke
+    // vraag op 'geschat' staan, precies het gedrag van vóór die bouwronde.
+    const { rows: volumeBronnen } = await db.client.query(
+      "select volume_source from public.prompts where analysis_id = $1",
+      [mixAnalyse],
+    );
+    ok(
+      "zonder zoekvolumeleverancier blijft volume_source 'geschat'",
+      volumeBronnen.every((r) => r.volume_source === "geschat"),
+      volumeBronnen.map((r) => r.volume_source).join(", "),
+    );
+
     // De laatste fase opent de poort wél.
     const { rows: laatsteFase } = await db.client.query(
       `select * from public.jobs where analysis_id = $1 and type = 'generate_prompts'
@@ -5380,13 +5392,25 @@ async function main(): Promise<void> {
       ok("de eerste ronde levert onderwerpen op", eersteRonde.proposed === 2, String(eersteRonde.proposed));
 
       const { rows: conceptRijen } = await db.client.query(
-        `select id, title, stage, status, origin from public.profile_topics where profile_id = $1 order by title`,
+        `select id, title, stage, status, origin, search_volume_source, search_volume_absolute
+           from public.profile_topics where profile_id = $1 order by title`,
         [stageProfileId],
       );
       ok(
         "zonder gesprek krijgen ze allemaal stage 'concept'",
         conceptRijen.every((r) => r.stage === "concept"),
         conceptRijen.map((r) => `${r.title}:${r.stage}`).join(", "),
+      );
+      // Blok C, §3.1: zonder DATAFORSEO-sleutel in deze test blijft dit exact
+      // het gedrag van vóór die bouwronde, "geschat" en geen absoluut volume.
+      ok(
+        "zonder zoekvolumeleverancier blijft search_volume_source 'geschat'",
+        conceptRijen.every((r) => r.search_volume_source === "geschat"),
+        conceptRijen.map((r) => `${r.title}:${r.search_volume_source}`).join(", "),
+      );
+      ok(
+        "en search_volume_absolute onbekend, geen 0",
+        conceptRijen.every((r) => r.search_volume_absolute === null),
       );
       ok(
         "en herkomst 'aanbod' (0076), er was nog geen gesprek",

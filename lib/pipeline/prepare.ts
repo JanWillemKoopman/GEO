@@ -36,7 +36,9 @@ import { generateTopicResearch } from "@/lib/pipeline/topic-research";
 import { generatePromptsForStage, calibrateVolumes, type BrandContext } from "@/lib/pipeline/prompts";
 import { duplicatePromptIds } from "@/lib/pipeline/prompt-dedupe";
 import { resolveMix, DEFAULT_STAGE_COUNT, type FunnelStage } from "@/lib/prompt-mix";
-import { bandFromEstimate } from "@/lib/pipeline/volume";
+import { bandFromEstimate, bandFromMeasuredVolume } from "@/lib/pipeline/volume";
+import { afleidenZoekterm } from "@/lib/search-demand/keywords";
+import { keywordVolumes } from "@/lib/search-demand/cache";
 import { PROMPT_CATEGORIES } from "@/lib/types/database";
 import type { Analysis, AnalysisStatus, Profile, ProfilePage } from "@/lib/types/database";
 import { requireCount } from "@/lib/require-count";
@@ -284,24 +286,55 @@ export async function generateAnalysisPrompts(
         category,
         count: mix[category as FunnelStage] ?? DEFAULT_STAGE_COUNT,
       });
-      const rows = prompts.map((p) => ({
-        analysis_id: id,
-        text: p.text,
-        category: p.category, // funnelfase
-        intent: p.intent,
-        intent_type: p.intentType,
-        specificity: p.specificity,
-        purchase_intent: p.purchaseIntent,
-        cluster: p.cluster,
-        // De ruwe schatting bewaren als audit-trail, maar wegen en tonen doen we
-        // over de band (optimalisatie.md 2.6).
-        volume_estimate: p.volumeEstimate,
-        volume_band: bandFromEstimate(p.volumeEstimate),
-        volume_source: "geschat" as const,
-        active: true,
-        created_by: "system" as const,
-        source_raw_json: p.sourceRawJson as never,
-      }));
+      // ── Blok C, 3.2 deel B: het gewicht verankeren aan een echte meting ────
+      // (docs/tasks/zoekdata-in-de-keten.md)
+      //
+      // ⚠️ GEEN nieuwe absolute bandgrenzen verzinnen (open vraag 3 van het
+      // plan is nog niet beantwoord). In plaats daarvan: dezelfde relatieve
+      // aanpak als de bestaande AI-schatting, `bandFromEstimate()`
+      // ongewijzigd, alleen de invoer verandert van een gok in een meting.
+      // Binnen DEZE batch vragen wordt het echte volume herschaald naar de
+      // zwaarste vraag van de batch (= 100), en diezelfde 60/25-grenzen
+      // beslissen de band. Vragen zonder gemeten volume blijven op de
+      // AI-schatting staan.
+      //
+      // ⚠️ Een vraag is geen zoekterm (§3.2): `afleidenZoekterm()` levert
+      // `null` bij een vraag die niet naar één kern te herleiden is, en dan
+      // blijft die ene vraag op `geschat` staan, de rest van de batch
+      // onaangetast.
+      const afgeleideTermen = prompts.map((p) => afleidenZoekterm(p.text));
+      const uniekeTermen = [...new Set(afgeleideTermen.filter((t): t is string => t !== null))];
+      const gemetenVolumes = await keywordVolumes(admin, uniekeTermen, "NL", "nl", profile.id);
+      const zwaarsteVolume = Math.max(
+        0,
+        ...[...gemetenVolumes.values()].map((v) => v.volume ?? 0),
+      );
+
+      const rows = prompts.map((p, i) => {
+        const term = afgeleideTermen[i];
+        const gemeten = term ? gemetenVolumes.get(term.toLowerCase()) : undefined;
+        const heeftMeting = gemeten?.volume != null && zwaarsteVolume > 0;
+        const band = bandFromMeasuredVolume(gemeten?.volume, zwaarsteVolume, p.volumeEstimate);
+
+        return {
+          analysis_id: id,
+          text: p.text,
+          category: p.category, // funnelfase
+          intent: p.intent,
+          intent_type: p.intentType,
+          specificity: p.specificity,
+          purchase_intent: p.purchaseIntent,
+          cluster: p.cluster,
+          // De ruwe schatting bewaren als audit-trail, maar wegen en tonen doen we
+          // over de band (optimalisatie.md 2.6).
+          volume_estimate: p.volumeEstimate,
+          volume_band: band,
+          volume_source: heeftMeting ? ("gemeten" as const) : ("geschat" as const),
+          active: true,
+          created_by: "system" as const,
+          source_raw_json: p.sourceRawJson as never,
+        };
+      });
       // Foutcontrole is hier geen formaliteit: mislukt deze insert stil, dan
       // gaat de analyse hieronder naar 'concept_klaar' ZONDER vragen, en loopt
       // hij na het bevestigen vast op een meting die niets te meten heeft.

@@ -27,7 +27,14 @@ import {
   citesOwnSite,
   mentionSurvivesTextGuard,
 } from "@/lib/entities/normalize";
-import { bandFromEstimate, volumeBandOf, isVolumeBand, VOLUME_BANDS, VOLUME_FACTOR } from "@/lib/pipeline/volume";
+import {
+  bandFromEstimate,
+  bandFromMeasuredVolume,
+  volumeBandOf,
+  isVolumeBand,
+  VOLUME_BANDS,
+  VOLUME_FACTOR,
+} from "@/lib/pipeline/volume";
 import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { parseRobots, isAllowed, sitemapsFrom } from "@/lib/audit/robots";
 import { splitByTerms } from "@/lib/highlight";
@@ -1260,6 +1267,27 @@ group("band uit schatting", () => {
   ok("band wint van schatting", volumeBandOf({ volume_band: "laag", volume_estimate: 90 }) === "laag");
   ok("terugval op schatting", volumeBandOf({ volume_band: null, volume_estimate: 90 }) === "hoog");
   ok("onzin geweigerd", !isVolumeBand("gemiddeld") && isVolumeBand("hoog"));
+});
+
+group("bandFromMeasuredVolume: een echte meting herschaald naar de zwaarste vraag (blok C, §3.2)", () => {
+  // De zwaarste vraag van de batch is het nulpunt van "hoog", precies zoals
+  // een AI-schatting van 100 dat ook is.
+  ok("de zwaarste vraag zelf is altijd hoog", bandFromMeasuredVolume(1000, 1000, null) === "hoog");
+  ok("60% van de zwaarste is nog hoog (grens 60)", bandFromMeasuredVolume(600, 1000, null) === "hoog");
+  ok("59% is midden", bandFromMeasuredVolume(590, 1000, null) === "midden");
+  ok("24% is laag", bandFromMeasuredVolume(240, 1000, null) === "laag");
+
+  // Zonder meting (geen match, of de leverancier kent de term niet) valt de
+  // functie terug op de AI-schatting, en verandert er dus niets.
+  ok("geen gemeten volume: terugval op de schatting", bandFromMeasuredVolume(null, 1000, 90) === "hoog");
+  ok(
+    "geen zwaarste volume in de batch (niemand gematcht): ook terugval",
+    bandFromMeasuredVolume(500, 0, 20) === "laag",
+  );
+  ok(
+    "geen van beide bekend: de bestaande terugval van bandFromEstimate",
+    bandFromMeasuredVolume(null, 0, null) === "midden",
+  );
 });
 
 group("promptgewicht", () => {
@@ -19214,6 +19242,16 @@ group("Het contract past in de doellengte (verbetering 6)", () => {
 
   const bouwer = leesBestand("lib/pipeline/content-contract.ts");
   ok("de bouwer geeft de doellengte mee", bouwer.includes("maxWoorden: input.targetWords.max"));
+
+  // ⚠️ Blok D, §3.4 (docs/tasks/zoekdata-in-de-keten.md): de rem is niet
+  // onderhandelbaar. Deze twee teksten moeten samen in het bestand staan,
+  // anders leest de zoekopdrachtenblok als "hier zijn wat zoektermen" in
+  // plaats van een sturingsregel.
+  ok("de zoekopdrachten gaan het contract in", bouwer.includes("zoekopdrachtenBlok(input.existingQueries)"));
+  ok(
+    "met de rem: sturen welke vraag, nooit hoe de zin klinkt",
+    bouwer.includes("NOOIT letterlijk over") && bouwer.includes("welke deelvraag het zwaarst weegt"),
+  );
 });
 
 

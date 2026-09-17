@@ -10,10 +10,19 @@ plus het blok op `/merk/[id]/analytics`. Blok B ✅ af: migraties 0104-0106, `li
 (`types.ts`, `registry.ts`, `dataforseo.ts`, `cache.ts`, `keywords.ts`), zonder sleutel bewezen
 identiek gedrag (scenario 13, `test-chain.ts`). ⚠️ De DataForSEO-adapter zelf is nog niet tegen een
 echt account geverifieerd, er was geen account beschikbaar in deze bouwronde (conventie 10). Blok C
-(clusters/vragen/kansen verankeren aan een echte meting) en D (de tekst) staan nog open; `keywords.ts`
-en `cache.ts` zijn nog nergens vanuit de pijplijn aangeroepen. Zie hoofdstuk 10 voor het genomen
-besluit over de leverancier. Alle vier de controles (`tsc`, `test:unit`, `test:chain`, `build`)
-stonden groen bij elke stap, zie `docs/logbook.md` 16 september 2026.
+✅ af, met bewuste beperkingen (zie §3.1/§3.2 hieronder voor wat wel en niet is aangepakt): de
+clusterkeuze (`propose-topics.ts`) en het gewicht van elke meetvraag (`prepare.ts`,
+`bandFromMeasuredVolume()` in `lib/pipeline/volume.ts`) zijn verankerd aan een echte meting waar die
+er is. Blok D deels af: het contentcontract krijgt de echte zoekopdrachten van een bestaande pagina
+als achtergrond (`lib/pipeline/content-contract.ts`, `zoekopdrachtenBlok()`), met de rem verwerkt in
+de instructie zelf. ⚠️ Niet gedaan in blok D: geen echte zoekwoordinjectie voor een GEHEEL NIEUWE
+pagina (dat vergt de bredere aanbodboom-naar-zoekterm-afleiding die het plan zelf al "de moeilijkste
+stap" noemt), en `writer-brief.ts` krijgt de ruwe lijst niet nog een keer, want het contract heeft de
+prioritering al verwerkt. ⚠️ **Het "Af als"-criterium van blok D is niet gehaald**: tien pagina's met
+en tien zonder de zoekwoordlaag door het kwaliteitslab met een menselijk oordeel erbij. Dat kon in
+deze bouwronde niet, want dat vergt échte, betaalde AI-aanroepen tegen een productieomgeving. Zie
+hoofdstuk 10. Alle vier de controles (`tsc`, `test:unit`, `test:chain`, `build`) stonden groen bij
+elke stap, zie `docs/logbook.md` 16 en 17 september 2026.
 
 **Waar dit op voortbouwt.** `docs/tasks/ontwikkelplan-visie.md` heeft twee sprints die hier over
 gaan: sprint 2 (de zoekopdrachten uit Search Console erbij halen, gratis) en sprint 8 (echte
@@ -579,15 +588,41 @@ identiek werkt, is daarmee geen nette bijkomstigheid maar de verzekeringspolis o
 **Het analytics-overzicht krijgt een opbrengstblok**, met de bewuste keuze om Nova's sitebrede
 groeiclaim niet over te nemen. Zie hoofdstuk 7.
 
+### Genomen op 17 september 2026
+
+**De bandgrenzen (open vraag 3 hieronder) zijn ingevuld met de relatieve aanpak**, en dat besluit
+stond hierboven al als voorstel: `bandFromMeasuredVolume()` (`lib/pipeline/volume.ts`) herschaalt
+een echt gemeten volume naar de zwaarste vraag van dezelfde batch, en laat dezelfde 60/25-grenzen
+als `bandFromEstimate()` de band bepalen. Geen nieuwe absolute cijfers verzonnen zonder
+productiedata om ze tegen af te zetten. Blijft open zodra er wel productiedata is: dan is een
+overstap naar absolute grenzen een eigen, gemeten besluit.
+
+**Blok D stopt bij het contract, niet bij de schrijfprompt zelf.** De echte zoekopdrachten van een
+bestaande pagina gaan het contentcontract in als achtergrond bij welke deelvraag zwaar weegt, nooit
+als letterlijke tekst (`zoekopdrachtenBlok()`, met de rem in de instructie zelf verwerkt). Bewust
+NIET gedaan: dezelfde lijst nog een keer in `writer-brief.ts` stoppen. Het contract heeft de
+prioritering dan al verwerkt in de sectievolgorde en de doelvraag; een tweede keer dezelfde
+zoekopdrachten aanbieden is geen extra sturing maar herhaling, en herhaling in de prompt is precies
+wat de rem moet voorkomen.
+
+⚠️ **Het "Af als"-criterium van blok D (tien pagina's met en tien zonder de zoekwoordlaag door het
+kwaliteitslab, met een menselijk oordeel erbij) is NIET gehaald.** Dat vergt échte, betaalde
+AI-aanroepen tegen een OpenAI-sleutel en een productieomgeving met Search Console-data, geen van
+beide beschikbaar in deze bouwronde. De wiring is gebouwd en getest tegen de gestubde ketentest
+(die bewijst dat het zonder Search Console-data identiek blijft aan vóór deze verandering), maar
+de kernvraag van blok D, maakt dit de tekst beter of erger, is onbeantwoord. **Dit is het eerste dat
+gecontroleerd moet worden zodra er een echte omgeving is**, vóór dit voor alle klanten aan staat.
+
 ### Nog open
 
 1. **Land en taal.** Nederland en Nederlands vast, of per merk instelbaar met het oog op België? Dat
-   bepaalt of `keyword_demand` één rij per zoekterm heeft of meerdere.
+   bepaalt of `keyword_demand` één rij per zoekterm heeft of meerdere. `propose-topics.ts` en
+   `prepare.ts` hebben "NL"/"nl" nu hard gecodeerd, met een verwijzing naar deze open vraag in de
+   code.
 2. **Het startsaldo van 50 dollar bij DataForSEO.** Vooruitbetaald tegoed, geen abonnement, en bij
-   twintig merken gaat het ruim een jaar mee. Akkoord om dat te storten voordat blok B begint?
-3. **De bandgrenzen.** De huidige banden (hoog, midden, laag) komen uit een relatieve schaal binnen
-   één analyse. Met echte volumes kun je kiezen: absolute grenzen die voor elke markt gelijk zijn, of
-   relatief binnen het merk blijven. Absoluut is eerlijker tussen merken, relatief houdt de
-   bestaande weging precies zoals hij nu werkt. Mijn voorstel is relatief beginnen, omdat dat
-   `promptWeight()` onaangeraakt laat, en pas naar absoluut gaan als blok B laat zien hoe ver de twee
-   uit elkaar lopen.
+   twintig merken gaat het ruim een jaar mee. Akkoord om dat te storten, zodat de adapter (blok B)
+   eindelijk tegen een echt account getest kan worden?
+3. **Het kwaliteitsoordeel over blok D**, zie hierboven: de eerste echte contentronde met de
+   zoekwoordlaag aan verdient een bewuste vergelijking met een ronde zonder, met een mens die
+   meeleest. Dat kan pas zodra er een merk is met zowel een Search Console-koppeling als
+   gepubliceerde pagina's.

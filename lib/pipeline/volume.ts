@@ -77,3 +77,27 @@ export function volumeBandOf(prompt: {
   if (isVolumeBand(prompt.volume_band)) return prompt.volume_band;
   return bandFromEstimate(prompt.volume_estimate);
 }
+
+/**
+ * Zet een ECHT gemeten zoekvolume om in een band, relatief aan de zwaarste
+ * vraag in dezelfde batch (docs/tasks/zoekdata-in-de-keten.md, blok C, §3.2
+ * deel B).
+ *
+ * ⚠️ Bewust GEEN nieuwe absolute grenzen ("500 is hoog, 50 is midden"): dat
+ * zou een cijfer uit de lucht grijpen zonder productiedata om het tegen af te
+ * zetten (open vraag 3 van het plan, conventie 10). In plaats daarvan wordt
+ * het echte volume herschaald naar de zwaarste vraag van de batch (= 100), en
+ * beslissen dezelfde 60/25-grenzen als `bandFromEstimate()` de band. Zo blijft
+ * er precies één plek die bepaalt waar "hoog" begint, gemeten of geschat.
+ *
+ * `zwaarsteVolume` van 0 of minder betekent dat er niets te herschalen valt:
+ * dan is er geen meting, terug naar `bandFromEstimate(fallbackEstimate)`.
+ */
+export function bandFromMeasuredVolume(
+  gemetenVolume: number | null | undefined,
+  zwaarsteVolume: number,
+  fallbackEstimate: number | null | undefined,
+): VolumeBand {
+  if (gemetenVolume == null || zwaarsteVolume <= 0) return bandFromEstimate(fallbackEstimate);
+  return bandFromEstimate((gemetenVolume / zwaarsteVolume) * 100);
+}
