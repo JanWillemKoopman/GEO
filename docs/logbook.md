@@ -9770,3 +9770,52 @@ gecontroleerd: hoe de vijf schermen er in een echte browser uitzien, licht en do
 omgeving heeft geen geldige sessie om achter de inlogroute te komen en de inlogroute zelf heeft geen
 staging-data nodig om te bekijken maar wél een draaiende server. Dat blijft open voor de
 eerstvolgende Vercel-preview, net als bij de stappen 5 tot 7.
+
+## 19 september 2026, het contenttype: een stuurknop die niemand vasthield
+
+De vraag was of je bij het aanmaken van een cluster kunt opgeven wat voor soort pagina eruit moet
+komen. Het onderzoek staat in `docs/tasks/contenttype-bij-cluster.md`; dit is wat ervan gebouwd is.
+
+**Het contenttype bestaat al en stuurt meer dan het lijkt.** Zestien modules lezen
+`content_pieces.type`: het bepaalt de doellengte (een FAQ 250 tot 500 woorden, een artikel 700 tot
+1200), de schrijfinstructie, de inhoudsopgave, het kwaliteitsprofiel en het schema.org-type. Alleen
+koos niemand het. `REPORT_SYSTEM` is ruim tweeduizend tekens lang en zei geen woord over `type`.
+Uitkomst over 37 aanbevelingen op productie: 21 keer `landing` (57%), 12 keer `article`, 3 keer
+`faq`, 1 keer `comparison`.
+
+**Erger: twee van de vier types haalden de schrijver niet.** `pageTypeVoor()` vertaalde
+`faq` → `informatief` en `comparison` → `categorie`, en `contentTypeFor()` vertaalde terug naar
+`article` en `landing`. Die twee zijn geen elkaars omgekeerde, dus een FAQ-aanbeveling werd
+geschreven als artikel van dubbele lengte en langs het verkeerde kwaliteitsprofiel gekeurd. Vier van
+de 37 kansen, 11 procent, en nergens zichtbaar dat het misging. Alleen op de route via het
+contentplan, en dat is sinds migratie 0065 de normale route.
+
+**Wat er nu staat.** Migratie 0107 geeft `planned_pages` een eigen `content_type`, letterlijk
+overgenomen uit de aanbeveling en niet afgeleid. `page_type` blijft bestaan voor de contentmix en de
+kliktabel: twee feiten, twee kolommen, elk met één eigenaar. De bestaande 37 kansen zijn bij het
+toepassen gevuld uit het rapport waar ze uit komen; nagerekend op productie staat er nu 21 landing,
+12 article, 3 faq en 1 comparison, dus ook de vier die hun vorm verloren. Het soort staat op de kaart
+in de voorraad en is daar aan te passen zolang er nog niets geschreven is, met Nederlandse etiketten
+op een motor die zijn vier Engelse waarden houdt. En `REPORT_SYSTEM` kiest het type nu bewust, met
+`content-type-fit.ts` als vangnet ernaast (conventie 1): een FAQ waarvan minder dan de helft van de
+doelvragen een vraag is wordt een artikel, een vergelijking zonder vergelijkwoord een
+landingspagina. Alleen naar beneden, nooit omhoog: automatisch opwaarderen zou een redactionele
+keuze zijn op het signaal van een vraagteken.
+
+**Wat er bewust NIET gebouwd is.** Het contenttype filtert niet welke kansen bestaan, het bepaalt
+alleen hun vorm. Een Teamsessie op 19 september haalde twee aannames onderuit die dat wél zouden
+rechtvaardigen. Ten eerste: de "168 onbenutte gemiste vragen" bestaan niet zoals geteld, want
+`MISSED_CAP = 15` laat het rapportmodel per cluster alleen de vijftien zwaarste vragen zien en het
+dekt daar 74 van de hooguit 90 van. Die cap verhogen is bovendien niet gratis: `EXCERPT_CHARS = 320`
+is er letterlijk op gedimensioneerd om vijftien bewijsdossiers te laten passen. Ten tweede: filteren
+op contenttype raakt de as niet waarop kansen sneuvelen. Van de 18 opgeschreven afwijzingen gaan er
+11 over ontbrekende feiten en 5 over overlap, nul over de vorm van een pagina. Wat daar wél uit
+volgt (een knop die afgewezen kansen heroverweegt zodra de ondernemer nieuwe feitenvragen heeft
+beantwoord, met 88 beantwoorde vragen op productie die nooit tot een herbeoordeling leidden) staat
+als apart voorstel in `docs/tasks/kansen-heroverwegen-na-feiten.md` en is niet gebouwd.
+
+Getest: `tsc --noEmit`, `test:unit` (4936 geslaagd), `test:chain` (674 geslaagd) en `build` zijn alle
+vier groen. De migratie is op productie toegepast en de vulling is nagerekend. Wat niet geverifieerd
+is: er is nog geen FAQ-kans dóór de nieuwe route geschreven, dus dat de tekst nu echt binnen 250 tot
+500 woorden uitkomt is aangetoond in de ketentest en niet op productie (conventie 10). Dat is de
+eerstvolgende meting.

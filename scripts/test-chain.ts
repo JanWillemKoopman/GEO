@@ -5624,6 +5624,108 @@ async function main(): Promise<void> {
     }
 
     // ════════════════════════════════════════════════════════════════════════
+    // Het contenttype van de aanbeveling overleeft de rit naar de voorraad
+    // (migratie 0107).
+    //
+    // ⚠️ DE FOUT DIE HIER GEVANGEN WORDT. De voorraad bewaarde alleen
+    // `page_type`, en die vertaling kent vier hokjes waar het rapport er vier
+    // andere heeft: `faq` werd `informatief` en `comparison` werd `categorie`.
+    // De schrijfstap vertaalde terug met `contentTypeFor()`, en die kent alleen
+    // `landing` en `article`. Een FAQ-kans werd zo een artikel van 700 tot 1200
+    // woorden in plaats van een FAQ van 250 tot 500, en beoordeeld langs het
+    // verkeerde kwaliteitsprofiel. Vier van de 37 kansen op productie.
+    //
+    // Alleen in de keten te zien, want het gaat om wat er in Postgres landt:
+    // de kolom, de check-constraint en de insert van `syncBacklog()` samen.
+    {
+      console.log("\nHet contenttype van een kans blijft heel (migratie 0107)");
+      const ctUserId = randomUUID();
+      const ctProfileId = randomUUID();
+      const ctAnalysisId = randomUUID();
+
+      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+        ctUserId,
+        "contenttype@example.com",
+      ]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status)
+         values ($1, $2, 'Contenttype BV', 'https://contenttype-bv.nl', 'Contenttype BV', 'klaar')`,
+        [ctProfileId, ctUserId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'Contenttype — onderwerp', 'https://contenttype-bv.nl', 'onderwerp', 'gereed')`,
+        [ctAnalysisId, ctUserId, ctProfileId],
+      );
+      await db.client.query(
+        `insert into public.reports (analysis_id, period, recommendations_json)
+         values ($1, 'week 0', $2::jsonb)`,
+        [
+          ctAnalysisId,
+          JSON.stringify(
+            (["article", "faq", "landing", "comparison"] as const).map((type) => ({
+              title: `Kans ${type}`,
+              why: "De AI noemt ons niet.",
+              type,
+              action: "nieuw",
+              targetIntent: "Iemand die dit zoekt",
+              targets: [],
+            })),
+          ),
+        ],
+      );
+
+      const { syncBacklog } = await import("@/lib/plan-backlog-data");
+      await syncBacklog(admin as never, ctProfileId);
+
+      const { rows: ctKansen } = await db.client.query(
+        `select title, page_type, content_type from public.planned_pages
+          where profile_id = $1 order by title`,
+        [ctProfileId],
+      );
+      ok("alle vier de kansen staan in de voorraad", ctKansen.length === 4, `${ctKansen.length}`);
+      for (const type of ["article", "faq", "landing", "comparison"] as const) {
+        const rij = ctKansen.find((r: { title: string }) => r.title === `Kans ${type}`);
+        ok(
+          `een ${type}-kans houdt zijn contenttype`,
+          rij?.content_type === type,
+          `${rij?.content_type} (page_type ${rij?.page_type})`,
+        );
+      }
+
+      // ⚠️ Dit is de kern: `page_type` verliest het onderscheid en dat mag,
+      // want die kolom voedt de contentmix. Het contenttype moet het juist
+      // vasthouden. Zouden ze hetzelfde zeggen, dan was de tweede kolom zinloos.
+      const faqRij = ctKansen.find((r: { title: string }) => r.title === "Kans faq");
+      const artikelRij = ctKansen.find((r: { title: string }) => r.title === "Kans article");
+      ok(
+        "terwijl het paginatype ze wél op één hoop gooit",
+        faqRij?.page_type === artikelRij?.page_type && faqRij?.content_type !== artikelRij?.content_type,
+      );
+
+      // Een tweede synchronisatie mag niets verdubbelen (conventie 9).
+      await syncBacklog(admin as never, ctProfileId);
+      const { rows: ctOpnieuw } = await db.client.query(
+        "select count(*)::int as n from public.planned_pages where profile_id = $1",
+        [ctProfileId],
+      );
+      ok("en twee keer synchroniseren verdubbelt niets", ctOpnieuw[0].n === 4, `${ctOpnieuw[0].n}`);
+
+      // De check-constraint uit 0107 laat geen verzonnen type toe. Zonder deze
+      // grens zou een tikfout in de API-route stil in de database belanden.
+      let geweigerd = false;
+      try {
+        await db.client.query(
+          `update public.planned_pages set content_type = 'productpagina' where profile_id = $1`,
+          [ctProfileId],
+        );
+      } catch {
+        geweigerd = true;
+      }
+      ok("de database weigert een onbekend contenttype", geweigerd);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
     // Een pagina uit het contentplan kan nu wél gemeten worden
     // (doorloop-huyberts.md punt 2).
     //

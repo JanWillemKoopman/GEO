@@ -19,6 +19,7 @@ import {
 import {
   filterBacklog,
   clusterCounts,
+  contentTypeLabel,
   potentieLabel,
   raaktLabel,
   redenChip,
@@ -29,10 +30,22 @@ import {
   type BacklogFilters,
   type DeclinedItem,
 } from "@/lib/plan-backlog";
-import { writeDecision, writeBlockNotice, type TopicWritingState } from "@/lib/plan-writing";
+import {
+  writeDecision,
+  writeBlockNotice,
+  CONTENT_TYPES,
+  CONTENT_TYPE_LABEL,
+  type TopicWritingState,
+} from "@/lib/plan-writing";
 import { canMove } from "@/lib/plan-order";
 import { kiesVoorBulk, OVERSLAAN_TEKST } from "@/lib/plan-bulk";
-import type { ContentPlan, FunnelStage, PlanMonth, PlannedPage } from "@/lib/types/database";
+import type {
+  ContentPlan,
+  ContentType,
+  FunnelStage,
+  PlanMonth,
+  PlannedPage,
+} from "@/lib/types/database";
 import { Icon } from "@/components/icon";
 
 /**
@@ -262,6 +275,25 @@ export function PlanView({
       pageId,
       { actie: "inplannen", maandId, index },
       { titel: `Ingepland in ${kalender}`, tekst: `"${titel}"` },
+    );
+  }
+
+  /**
+   * Het soort pagina van één kans bijstellen (migratie 0107).
+   *
+   * De consultant die naar de kans kijkt, weet beter dan het rapportmodel of dit
+   * een dienstpagina of een artikel moet worden, en het soort bepaalt de
+   * doellengte, de inhoudsopgave en de lat waarlangs de tekst gekeurd wordt.
+   * Kan alleen zolang er nog niets geschreven is; de route bewaakt dat.
+   */
+  async function zetContentType(item: BacklogItem, type: ContentType) {
+    await stuur(
+      item.id,
+      { actie: "contenttype", contentType: type },
+      {
+        titel: `Wordt een ${CONTENT_TYPE_LABEL[type]}`,
+        tekst: `ORBIT ENGINE schrijft "${item.title}" als ${CONTENT_TYPE_LABEL[type]}.`,
+      },
     );
   }
 
@@ -664,6 +696,7 @@ export function PlanView({
                     }}
                     onKies={(maandId) => void inplannen(item.id, item.title, maandId, null)}
                     onVerwijder={() => setRemoveKans(item)}
+                    onContentType={(type) => void zetContentType(item, type)}
                   />
                 ))}
               </ul>
@@ -1327,6 +1360,7 @@ function BacklogRij({
   onSleepEinde,
   onKies,
   onVerwijder,
+  onContentType,
 }: {
   item: BacklogItem;
   maanden: MaandKeuze[];
@@ -1337,11 +1371,13 @@ function BacklogRij({
   onSleepEinde: () => void;
   onKies: (maandId: string) => void;
   onVerwijder: () => void;
+  onContentType: (type: ContentType) => void;
 }) {
   const potentie = potentieLabel(item);
   const raakt = raaktLabel(item);
   const reden = redenChip(item);
   const uitleg = redenUitleg(item);
+  const soort = contentTypeLabel(item);
 
   return (
     <li
@@ -1369,6 +1405,16 @@ function BacklogRij({
           {potentie && <span>{potentie}</span>}
           <span>·</span>
           <span>{item.handeling === "verbeteren" ? "verbeteren" : "nieuw"}</span>
+          {/* Het soort pagina (migratie 0107). Staat er alleen als het is
+              vastgesteld: bij een kans zonder soort leidt de schrijfstap hem af
+              uit het paginatype, en dat is een benadering waar dit scherm niet
+              voor moet doen alsof er gekozen is (conventie 3). */}
+          {soort && (
+            <>
+              <span>·</span>
+              <span>{soort}</span>
+            </>
+          )}
           {reden && (
             <span className="chip chip-neutral" style={{ marginLeft: 2 }}>
               {reden}
@@ -1407,6 +1453,24 @@ function BacklogRij({
               >
                 {m.label}
                 {m.voorbij ? " (voorbij)" : ""}
+              </MenuKnop>
+            ))}
+            <MenuScheiding />
+            {/* Wat voor tekst dit wordt. Bepaalt de lengte, de opbouw en de lat
+                waarlangs de pagina gekeurd wordt, dus dit is geen etiket maar
+                een opdracht. Het rapportmodel kiest hem; wie naar de kans kijkt
+                weet het vaak beter. */}
+            <MenuKop>Soort pagina</MenuKop>
+            {CONTENT_TYPES.map((type) => (
+              <MenuKnop
+                key={type}
+                onClick={() => {
+                  sluit();
+                  onContentType(type);
+                }}
+              >
+                {CONTENT_TYPE_LABEL[type]}
+                {item.contentType === type ? " ✓" : ""}
               </MenuKnop>
             ))}
             <MenuScheiding />

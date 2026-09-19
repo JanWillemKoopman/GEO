@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { markPosted, removePage, assignToMonth, moveToBacklog, setPageDate } from "@/lib/plans";
 import { swapWithNeighbour, type OrderablePage } from "@/lib/plan-order";
+import { leesContentType } from "@/lib/plan-writing";
 
 /**
  * POST /api/profiles/[id]/plan/pages/[pageId], een handeling op één pagina.
@@ -25,7 +26,8 @@ type Actie =
   | "verplaats"
   | "inplannen"
   | "naar_voorraad"
-  | "datum";
+  | "datum"
+  | "contenttype";
 
 export async function POST(
   request: Request,
@@ -61,6 +63,7 @@ export async function POST(
     maandId?: string;
     index?: number;
     datum?: string | null;
+    contentType?: unknown;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -122,6 +125,49 @@ export async function POST(
       return NextResponse.json({ error: result.probleem }, { status: 409 });
     }
     return NextResponse.json({ ok: true });
+  }
+
+  // ── Het soort pagina bijstellen (migratie 0107) ──────────────────────────
+  //
+  // ⚠️ Alleen zolang er nog niets geschreven is. Daarna zou de keuze een
+  // belofte zijn die niemand nakomt: de tekst staat er al, met de lengte, de
+  // inhoudsopgave en de kwaliteitslat van het oude type. Dezelfde regel als bij
+  // de vragenverdeling van een analyse (`app/api/analyses/[id]/route.ts`), en
+  // om dezelfde reden: een veld dat je kunt invullen zonder gevolg is erger dan
+  // een veld dat er niet is.
+  //
+  // Kost niets en valt dus buiten `mayTriggerCost`, net als inplannen en de
+  // datum: dit stuurt alleen wat er geschreven wordt als het zover komt, niet
+  // dát er geschreven wordt.
+  if (actie === "contenttype") {
+    if (page.status !== "gepland") {
+      return NextResponse.json(
+        {
+          error:
+            "Deze pagina is al in behandeling, dus het soort ligt vast. " +
+            "Wil je een ander soort, verwijder hem dan en plan hem opnieuw in.",
+        },
+        { status: 409 },
+      );
+    }
+
+    // `null` is een geldige stand: terug naar "niet vastgesteld", waarna de
+    // schrijfstap hem weer uit het paginatype afleidt (conventie 3).
+    const gekozen = body.contentType === null ? null : leesContentType(body.contentType);
+    if (body.contentType !== null && gekozen === null) {
+      return NextResponse.json({ error: "Dit soort pagina bestaat niet." }, { status: 400 });
+    }
+
+    const { error } = await admin
+      .from("planned_pages")
+      .update({ content_type: gekozen })
+      .eq("id", pageId)
+      .eq("profile_id", id)
+      .eq("status", "gepland");
+    if (error) {
+      return NextResponse.json({ error: "Aanpassen is niet gelukt." }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true, contentType: gekozen });
   }
 
   if (actie === "verplaats") {

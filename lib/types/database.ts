@@ -102,6 +102,21 @@ export interface PlannedPage {
   title: string;
   url_path: string | null;
   page_type: PageType;
+  /**
+   * De VORM van de tekst, letterlijk uit de aanbeveling (migratie 0107).
+   *
+   * Niet hetzelfde als `page_type`, en met opzet niet daaruit afgeleid.
+   * `page_type` zegt welke functie de pagina op de site heeft en voedt de
+   * contentmix; dit zegt wat voor tekst het wordt en stuurt de doellengte, de
+   * schrijfinstructie, het contract en het kwaliteitsprofiel. De vertaling
+   * heen en terug tussen die twee verloor `faq` en `comparison`, 4 van de 37
+   * kansen op productie.
+   *
+   * `null` = niet vastgesteld (een pagina uit het plan of handmatig
+   * toegevoegd). De code valt dan terug op `contentTypeFor(page_type)`,
+   * conventie 3: leeg is geen gok.
+   */
+  content_type: ContentType | null;
   funnel_stage_id: string | null;
   topic_id: string | null;
   status: PlannedPageStatus;

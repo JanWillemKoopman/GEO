@@ -582,3 +582,14 @@ onaangetast; deze twee kolommen zeggen of dat getal op een echte meting veranker
 krijgt `volume_source` een derde toegestane waarde, `gemeten`, naast `geschat` en `klant`
 (constraint vervangen, geen `drop` van data, conventie 4). Zie `docs/tasks/zoekdata-in-de-keten.md`,
 blok B, en `docs/logbook.md`, 16 september 2026.
+
+## 0107 — het contenttype bij de kans
+
+`planned_pages.content_type` (nullable, check op `article`, `faq`, `landing`, `comparison`),
+additief, plus een eenmalige vulling van bestaande rijen uit `reports.recommendations_json` via
+`source_ref`. Bewaart de VORM van de tekst letterlijk uit de aanbeveling, naast `page_type`, dat de
+FUNCTIE van de pagina op de site beschrijft en de contentmix voedt. De vertaling heen en terug
+tussen die twee verloor `faq` en `comparison`: een FAQ-kans kwam als artikel bij de schrijver aan,
+4 van de 37 kansen op productie. Leeg = niet vastgesteld, dan valt de code terug op
+`contentTypeFor(page_type)` (conventie 3). Zie `docs/tasks/contenttype-bij-cluster.md` §8 en
+`docs/logbook.md`, 19 september 2026.

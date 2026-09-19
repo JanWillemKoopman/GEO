@@ -6,7 +6,12 @@ import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { writeDecision, planBriefing, type WriteBlock } from "@/lib/plan-writing";
 import { SCHRIJFVOORSPRONG_DAGEN } from "@/lib/plan-status";
 import { targetsFromSourceRef } from "@/lib/plan-backlog-data";
-import type { AnalysisStatus, PageType, PlanMonthStatus } from "@/lib/types/database";
+import type {
+  AnalysisStatus,
+  ContentType,
+  PageType,
+  PlanMonthStatus,
+} from "@/lib/types/database";
 
 /**
  * GET /api/cron/plan, de motor onder het contentplan (fase 4, zie `docs/logbook.md`).
@@ -43,6 +48,8 @@ interface PageRow {
   profile_id: string;
   title: string;
   page_type: PageType;
+  /** Migratie 0107: de vorm van de tekst, letterlijk uit de aanbeveling. */
+  content_type: ContentType | null;
   status: string;
   scheduled_for: string | null;
   is_buffer: boolean;
@@ -84,7 +91,7 @@ export async function GET(request: Request) {
   const { data, error } = await admin
     .from("planned_pages")
     .select(
-      `id, profile_id, title, page_type, status, scheduled_for, is_buffer, topic_id,
+      `id, profile_id, title, page_type, content_type, status, scheduled_for, is_buffer, topic_id,
        source, why, target_intent, recommendation_action, existing_url, related_url, source_ref,
        plan_months!inner(month_number, status),
        profile_funnel_stages(label),
@@ -156,9 +163,15 @@ export async function GET(request: Request) {
     // `existingUrl: null`, dus vier van de zeven kansen van Gasservice Brabant
     // zouden een tweede pagina hebben opgeleverd naast de pagina die ze hadden
     // moeten verbeteren.
+    // ⚠️ `contentType` is de reparatie van migratie 0107. Hij stond hier niet,
+    // en `contentTypeFor(page_type)` kent maar twee van de vier types: een
+    // FAQ-kans werd zo een artikel van 700 tot 1200 woorden in plaats van een
+    // FAQ van 250 tot 500, en een vergelijking een landingspagina. Vier van de
+    // 37 kansen op productie, en nergens zichtbaar dat het misging.
     const briefing = planBriefing({
       title: page.title,
       pageType: page.page_type,
+      contentType: page.content_type,
       topicTitle: topic?.title ?? null,
       funnelLabel: page.profile_funnel_stages?.label ?? null,
       monthNumber: maand.month_number,

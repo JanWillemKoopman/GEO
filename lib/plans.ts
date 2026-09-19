@@ -325,6 +325,7 @@ function naarBacklogItem(
         : rij.recommendation_action === "nieuw"
           ? "nieuw"
           : null,
+    contentType: rij.content_type,
     existingUrl: rij.existing_url,
     // ⚠️ `Number()` en geen kale cast. Postgres levert `numeric` als tekst aan de
     // JS-client, en een tekst sorteert alfabetisch: dan komt "9" boven "80".

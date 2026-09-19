@@ -14,6 +14,7 @@ import { GapAnalysis } from "@/lib/schemas/gap-analysis";
 import { Report } from "@/lib/schemas/report";
 import { NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { resolveTargets, mergeOverlappingRecommendations } from "@/lib/pipeline/recommendation";
+import { reconcileContentTypes } from "@/lib/pipeline/content-type-fit";
 import { reconcileExistingPageActions } from "@/lib/pipeline/existing-page-match";
 import { correctQuestionCount, questionCountLine } from "@/lib/pipeline/report-summary";
 import {
@@ -100,6 +101,19 @@ const REPORT_SYSTEM =
   // Fase 4: de aanbeveling moet aanwijzen WELKE gemiste vraag hij gaat winnen.
   // Zonder die koppeling weet de schrijver later niet waarvoor hij schrijft, en
   // is achteraf niet te zeggen of de pagina iets uithaalde.
+  // ── Het contenttype, 19 september 2026 ───────────────────────────────────
+  // Hier stond NIETS over `type`, terwijl het schema er vier toestaat en dat
+  // type de doellengte, de inhoudsopgave en de publicatiedrempel bepaalt. Het
+  // model koos dus op gewoonte: 21 van de 37 aanbevelingen op productie werden
+  // `landing`, 57 procent, en `comparison` precies één keer. Het vangnet staat
+  // in `content-type-fit.ts` (conventie 1).
+  "KIES PER AANBEVELING BEWUST HET TYPE PAGINA, want dat bepaalt hoe lang de tekst wordt en hoe hij " +
+  "wordt opgebouwd. `landing` is een pagina over één dienst of aanbod van de klant, waar iemand op " +
+  "landt die die dienst overweegt. `article` is uitleg over een onderwerp, voor iemand die zich nog " +
+  "aan het oriënteren is. `faq` kies je alleen als de gemiste vragen echt vragen zijn die klanten zo " +
+  "stellen, en de pagina dus uit vraag-en-antwoord bestaat. `comparison` kies je alleen als de vraag " +
+  "gaat over het verschil tussen opties, soorten of aanpakken. Kies niet standaard `landing`: een " +
+  "vraag die om uitleg vraagt, wordt met een verkooppagina niet gewonnen. " +
   "Wijs bij ELKE aanbeveling met de codes (V1, V2, …) aan welke gemiste vragen die pagina moet gaan " +
   "winnen: minimaal één, en alleen vragen die inhoudelijk bij die pagina horen. Eén pagina mag " +
   "meerdere verwante vragen bedienen; verdeel de zwaarste vragen over de aanbevelingen en laat geen " +
@@ -865,6 +879,23 @@ export async function generateReport(
       resolveTargets(report.parsed.recommendations, missed),
     );
 
+    // ── Past het gekozen type bij de doelvragen? (19 september 2026) ───────
+    // Het deterministische vangnet onder de type-instructie in REPORT_SYSTEM
+    // (conventie 1). Zet alleen naar beneden: een FAQ zonder vragen wordt een
+    // artikel, een vergelijking zonder vergelijking een landingspagina. Nooit
+    // andersom, zie de toelichting in `content-type-fit.ts`.
+    const { recommendations: getypeerd, overrides: typeCorrecties } =
+      reconcileContentTypes(enriched);
+    if (typeCorrecties.length > 0) {
+      console.warn(
+        `Analyse ${id} periode ${weekNo}: ${typeCorrecties.length} aanbeveling(en) met een type dat ` +
+          `niet bij de doelvragen paste: ` +
+          typeCorrecties
+            .map((o) => `"${o.title}" (${o.van} → ${o.naar}, ${o.reden})`)
+            .join("; "),
+      );
+    }
+
     // ── Bestaat dit al op de website? (docs/logbook.md 1 september 2026) ───
     // Het deterministische vangnet onder de nieuw/verbeteren-instructie in
     // REPORT_SYSTEM: rekent zelf na tegen de crawl in plaats van te vertrouwen
@@ -872,7 +903,7 @@ export async function generateReport(
     // `existingUrl` als een "nieuwe" pagina die de site al ruim dekt.
     const { recommendations: gecontroleerd, overrides: paginaCorrecties } =
       reconcileExistingPageActions(
-        enriched,
+        getypeerd,
         pages.map((p) => ({ url: p.url, title: p.title, text: p.text_excerpt })),
       );
     if (paginaCorrecties.length > 0) {

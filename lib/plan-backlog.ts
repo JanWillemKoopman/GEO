@@ -28,6 +28,9 @@
  * de browser.
  */
 
+import { CONTENT_TYPE_LABEL } from "@/lib/plan-writing";
+import type { ContentType } from "@/lib/types/database";
+
 /** Wat je met deze kans gaat doen. Komt uit `recommendations_json[].action`. */
 export type BacklogHandeling = "nieuw" | "verbeteren";
 
@@ -43,6 +46,16 @@ export interface BacklogItem {
   /** De analyse achter dat cluster, voor de doorklik naar het dossier. */
   clusterId: string | null;
   handeling: BacklogHandeling | null;
+  /**
+   * Wat voor tekst dit wordt (migratie 0107). Stuurt de doellengte, de
+   * schrijfinstructie, de inhoudsopgave en de publicatiedrempel.
+   *
+   * `null` = niet vastgesteld. Dan staat er geen soort op de kaart, precies
+   * zoals een onbekende potentie geen getal krijgt (conventie 3): de
+   * schrijfstap leidt hem dan af uit het paginatype, en dat is een benadering
+   * waar het scherm niet voor moet doen alsof het een keuze was.
+   */
+  contentType: ContentType | null;
   /** De pagina die verbeterd wordt. Leeg bij een nieuwe pagina. */
   existingUrl: string | null;
   /**
@@ -178,6 +191,17 @@ export function clusterCounts(items: BacklogItem[]): { naam: string; aantal: num
 export function potentieLabel(item: BacklogItem): string | null {
   if (item.potentie === null) return null;
   return `potentie ${Math.round(item.potentie)}`;
+}
+
+/**
+ * Wat voor soort pagina dit wordt, in de woorden van het scherm.
+ *
+ * `null` bij een kans zonder vastgesteld type, en dan komt er niets op de kaart.
+ * Hier "artikel" neerzetten omdat de schrijfstap daar toevallig op terugvalt,
+ * zou een keuze tonen die niemand gemaakt heeft (conventie 3).
+ */
+export function contentTypeLabel(item: BacklogItem): string | null {
+  return item.contentType ? CONTENT_TYPE_LABEL[item.contentType] : null;
 }
 
 /** "raakt 4 van de 30 gemeten vragen", of alleen de teller, of niets. */

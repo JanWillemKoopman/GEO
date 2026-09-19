@@ -665,8 +665,16 @@ import {
   writeBlockNotice,
   planBriefing,
   contentTypeFor,
+  leesContentType,
+  CONTENT_TYPES,
+  CONTENT_TYPE_LABEL,
   type PageForWriting,
 } from "@/lib/plan-writing";
+import {
+  corrigeerContentType,
+  reconcileContentTypes,
+  type TypeKandidaat,
+} from "@/lib/pipeline/content-type-fit";
 import { swapWithNeighbour, canMove, type OrderablePage } from "@/lib/plan-order";
 import {
   contentHref,
@@ -5883,6 +5891,7 @@ function kans(over: Partial<BacklogItem> = {}): BacklogItem {
     cluster: "Cv-ketel onderhoud",
     clusterId: "a1",
     handeling: "nieuw",
+    contentType: null,
     existingUrl: null,
     potentie: null,
     raakt: null,
@@ -6734,6 +6743,157 @@ group("mag ORBIT ENGINE deze pagina schrijven? (plan-writing)", () => {
   ok("een informatieve pagina wordt een artikel", contentTypeFor("informatief") === "article");
   ok("de fase staat in het doelpubliek", briefing.targetIntent.includes("oriëntatie"));
   ok("en het onderwerp in de reden", briefing.why.includes("Auto financieren"));
+
+  // ⚠️ DE FOUT DIE MIGRATIE 0107 REPAREERT, 19 september 2026.
+  //
+  // Het contenttype van de kans ging niet mee naar de schrijftaak; die leidde
+  // hem af uit `page_type`, en die vertaling kent maar twee van de vier types.
+  // Een FAQ-kans werd zo een artikel van 700 tot 1200 woorden in plaats van een
+  // FAQ van 250 tot 500, en een vergelijking een landingspagina. Vier van de 37
+  // kansen op productie, en nergens zichtbaar dat het misging.
+  //
+  // Alle vier de types heen en terug, want juist de twee die vandaag sneuvelen
+  // hebben geen tegenhanger aan de `page_type`-kant.
+  for (const [type, paginatype] of [
+    ["faq", "informatief"],
+    ["comparison", "categorie"],
+    ["landing", "dienst"],
+    ["article", "informatief"],
+  ] as const) {
+    ok(
+      `een ${type}-kans blijft een ${type}`,
+      planBriefing({
+        title: "Een kans",
+        pageType: paginatype,
+        contentType: type,
+        topicTitle: null,
+        funnelLabel: null,
+        monthNumber: 1,
+      }).type === type,
+    );
+  }
+
+  // Zonder opgeslagen type blijft het oude gedrag staan: een pagina uit het
+  // plan of een handmatig toegevoegde heeft er geen (conventie 3).
+  ok(
+    "zonder type valt hij terug op het paginatype",
+    planBriefing({
+      title: "Een kans",
+      pageType: "categorie",
+      contentType: null,
+      topicTitle: null,
+      funnelLabel: null,
+      monthNumber: 1,
+    }).type === "landing",
+  );
+
+  // De waarde komt uit JSON van een model en uit de body van een verzoek, dus
+  // hij is niet te vertrouwen. Onbekend wordt `null` en nooit een gok.
+  ok("een geldig type wordt gelezen", leesContentType("faq") === "faq");
+  ok("hoofdletters en spaties mogen", leesContentType("  Landing ") === "landing");
+  ok("een onbekend type wordt null", leesContentType("productpagina") === null);
+  ok("en een niet-tekst ook", leesContentType(42) === null);
+  ok(
+    "elk type heeft een Nederlands etiket",
+    CONTENT_TYPES.every((t) => (CONTENT_TYPE_LABEL[t]?.length ?? 0) > 0),
+  );
+  // ⚠️ Het etiket is voor het scherm en de motor houdt zijn eigen waarden. Zou
+  // een label per ongeluk gelijk zijn aan de sleutel, dan staat er een vakterm
+  // op een klantscherm (`docs/schrijfstijl.md`).
+  ok(
+    "en geen enkel etiket is de Engelse term zelf",
+    CONTENT_TYPES.every((t) => CONTENT_TYPE_LABEL[t] !== t),
+  );
+});
+
+group("past het contenttype bij de doelvragen? (content-type-fit)", () => {
+  // Een FAQ waarvan de doelvragen echt vragen zijn, blijft staan.
+  ok(
+    "een echte FAQ blijft een FAQ",
+    corrigeerContentType({
+      title: "Veelgestelde vragen over dakgoten",
+      type: "faq",
+      targets: [{ text: "Hoe vaak moet je een dakgoot reinigen?" }, { text: "Wat kost dat?" }],
+    }) === null,
+  );
+
+  // ⚠️ De fout die dit vangnet vangt: een FAQ-etiket op vragen die geen vraag
+  // zijn. Dan komt er een pagina van 250 tot 500 woorden waar er 700 tot 1200
+  // nodig waren, en wordt hij ook nog langs het FAQ-profiel gekeurd.
+  const faqZonderVragen = corrigeerContentType({
+    title: "Dakgoot reinigen in Apeldoorn",
+    type: "faq",
+    targets: [{ text: "dakgoot reinigen apeldoorn" }, { text: "kosten dakgootreiniging" }],
+  });
+  ok("een FAQ zonder vragen wordt een artikel", faqZonderVragen?.naar === "article");
+  ok("en de reden noemt het aandeel", faqZonderVragen?.reden.includes("%") === true);
+
+  // Precies op de grens telt als genoeg: één van de twee is een vraag.
+  ok(
+    "de helft vraagvorm is genoeg",
+    corrigeerContentType({
+      title: "Vragen over onderhoud",
+      type: "faq",
+      targets: [{ text: "Hoe vaak onderhoud?" }, { text: "onderhoud cv-ketel kosten" }],
+    }) === null,
+  );
+
+  // Een vergelijking moet ergens om een vergelijking vragen.
+  ok(
+    "een echte vergelijking blijft staan",
+    corrigeerContentType({
+      title: "Warmtepomp of cv-ketel",
+      type: "comparison",
+      targets: [{ text: "Wat is het verschil tussen een warmtepomp en een cv-ketel?" }],
+    }) === null,
+  );
+  ok(
+    "een vergelijking zonder vergelijking wordt een landingspagina",
+    corrigeerContentType({
+      title: "Warmtepomp laten installeren",
+      type: "comparison",
+      targets: [{ text: "Wie installeert er een warmtepomp in Breda?" }],
+    })?.naar === "landing",
+  );
+
+  // ⚠️ "De beste" is een koopvraag en geen vergelijking. Zou dat woord in de
+  // lijst staan, dan werd elke koopvraag een vergelijkingspagina, en dat is
+  // precies de vraag waarop een dienstpagina hoort te winnen.
+  ok(
+    "de beste dakdekker is geen vergelijking",
+    corrigeerContentType({
+      title: "De beste dakdekker van Apeldoorn",
+      type: "comparison",
+      targets: [{ text: "Wie is de beste dakdekker in Apeldoorn?" }],
+    })?.naar === "landing",
+  );
+
+  // Zonder doelvragen is er niets om tegen te toetsen; dan blijft het oordeel
+  // van het model staan (conventie 3, geen bewijs is geen reden).
+  ok(
+    "zonder doelvragen wordt er niets rechtgezet",
+    corrigeerContentType({ title: "Iets", type: "faq", targets: [] }) === null,
+  );
+
+  // Een artikel of landingspagina wordt nooit automatisch opgewaardeerd: de
+  // code maakt geen redactionele keuze op een vraagteken.
+  ok(
+    "een artikel met alleen vragen blijft een artikel",
+    corrigeerContentType({
+      title: "Alles over dakisolatie",
+      type: "article",
+      targets: [{ text: "Wat kost dakisolatie?" }, { text: "Hoe lang duurt het?" }],
+    }) === null,
+  );
+
+  // En de lijstvorm, zoals het rapport hem gebruikt.
+  const gemengd = reconcileContentTypes<TypeKandidaat>([
+    { title: "A", type: "faq", targets: [{ text: "geen vraag" }] },
+    { title: "B", type: "landing", targets: [{ text: "Wie doet dit in Breda?" }] },
+  ]);
+  ok("de lijst corrigeert alleen wat mis is", gemengd.overrides.length === 1);
+  ok("en laat de rest ongemoeid", gemengd.recommendations[1].type === "landing");
+  ok("de gecorrigeerde is aangepast", gemengd.recommendations[0].type === "article");
 });
 
 /** Leest de reden uit een afwijzende beslissing. Geeft "" bij een toewijzing. */

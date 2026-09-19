@@ -27,8 +27,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { loadRecommendationPotential } from "@/lib/potential-data";
 import { distributePotentialByWeight } from "@/lib/potential";
 import { readRecommendations, type RecommendationTarget } from "@/lib/pipeline/recommendation";
+import { leesContentType } from "@/lib/plan-writing";
 import type { BacklogItem, BacklogHandeling, DeclinedItem } from "@/lib/plan-backlog";
-import type { PageType } from "@/lib/types/database";
+import type { ContentType, PageType } from "@/lib/types/database";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -51,6 +52,12 @@ interface RuweAanbeveling {
  * omgekeerde vertaling staat in `contentTypeFor()` in `lib/plan-writing.ts`. Een
  * landingspagina is in planwoorden een dienstpagina, een vergelijking een
  * categoriepagina, en de rest is informatief.
+ *
+ * ⚠️ Deze vertaling is LOSSY en blijft dat, want hij dient de contentmix op het
+ * overzicht en de kliktabel onder Zoekverkeer: die tellen de functie van een
+ * pagina op de site en hebben aan vier hokjes genoeg. Wat hij NIET meer mag
+ * doen is de schrijfstap voeden; daarvoor draagt de kans sinds migratie 0107
+ * zijn eigen `content_type`, letterlijk overgenomen uit de aanbeveling.
  */
 function pageTypeVoor(type: unknown): PageType {
   switch (type) {
@@ -170,6 +177,7 @@ export async function syncBacklog(
     why: string | null;
     targetIntent: string | null;
     pageType: PageType;
+    contentType: ContentType | null;
     handeling: BacklogHandeling;
     existingUrl: string | null;
     relatedUrl: string | null;
@@ -198,6 +206,12 @@ export async function syncBacklog(
         why: tekst(ruw?.why),
         targetIntent: tekst(ruw?.targetIntent),
         pageType: pageTypeVoor(ruw?.type),
+        // Migratie 0107: het type LETTERLIJK bewaren naast de vertaling
+        // hierboven. Dit is de waarde die de schrijfstap straks leest, en de
+        // enige vorm waarin `faq` en `comparison` de rit overleven. Een
+        // onbekende waarde wordt `null` en geen gok (conventie 3); de
+        // schrijfstap valt dan terug op het oude gedrag.
+        contentType: leesContentType(ruw?.type),
         handeling: handelingVoor(ruw?.action),
         existingUrl: schoonAdres(ruw?.existingUrl),
         // Migratie 0083: alleen zinnig bij een nieuwe pagina, want bij
@@ -254,6 +268,11 @@ export async function syncBacklog(
       // De kaart staat er al, ook als hij inmiddels ingepland of geschreven is.
       // Alleen het cijfer ververst: een nieuwe meetronde verandert de potentie,
       // en dan moet de kaart dat tonen.
+      //
+      // ⚠️ `content_type` blijft hier bewust buiten. Een mens kan het type op de
+      // kaart hebben gecorrigeerd (`app/api/profiles/[id]/plan/pages/[pageId]`),
+      // en die correctie mag niet bij de eerstvolgende schermopening
+      // stilzwijgend teruggedraaid worden door het model dat ernaast zat.
       bijwerken.push({ id: bestaandeId, potential, target_count: raakt });
       continue;
     }
@@ -263,6 +282,7 @@ export async function syncBacklog(
       profile_id: profileId,
       title: k.title,
       page_type: k.pageType,
+      content_type: k.contentType,
       topic_id: topicVanAnalyse.get(k.analysisId) ?? null,
       status: "gepland",
       sort_order: 0,

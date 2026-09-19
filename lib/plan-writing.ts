@@ -155,6 +155,13 @@ export function writeBlockNotice(
  * plan denkt in de functie van een pagina op de site (Nova's vier), de
  * schrijfpijplijn in de vorm van de tekst. Een categorie- en een dienstpagina
  * zijn allebei een landingspagina; informatief en overig worden een artikel.
+ *
+ * ⚠️ TERUGVAL, GEEN HOOFDROUTE (migratie 0107). Deze vertaling verliest twee
+ * van de vier types: `faq` en `comparison` bestaan aan deze kant niet en komen
+ * er dus nooit uit. Dat kostte op productie 4 van de 37 kansen hun vorm, een
+ * FAQ die als artikel van dubbele lengte geschreven werd. Sinds 0107 draagt de
+ * kans zijn eigen `content_type` en is dit alleen nog wat een pagina krijgt die
+ * er geen heeft: een pagina uit het plan of een handmatig toegevoegde.
  */
 export function contentTypeFor(pageType: PageType): ContentType {
   switch (pageType) {
@@ -165,6 +172,48 @@ export function contentTypeFor(pageType: PageType): ContentType {
       return "article";
   }
 }
+
+/** De vier contenttypes, voor wie een waarde van buiten moet controleren. */
+export const CONTENT_TYPES: readonly ContentType[] = [
+  "article",
+  "faq",
+  "landing",
+  "comparison",
+] as const;
+
+/**
+ * Een contenttype uit onbetrouwbare invoer: uit de JSON van een rapport, of uit
+ * de body van een verzoek.
+ *
+ * `null` bij alles wat niet exact een van de vier is, en nooit een terugval op
+ * `article`. Een verkeerd type is erger dan geen type: geen type valt terug op
+ * het paginatype, een verkeerd type stuurt de doellengte en het
+ * kwaliteitsprofiel de verkeerde kant op (conventie 3).
+ */
+export function leesContentType(waarde: unknown): ContentType | null {
+  if (typeof waarde !== "string") return null;
+  const schoon = waarde.trim().toLowerCase();
+  return (CONTENT_TYPES as readonly string[]).includes(schoon)
+    ? (schoon as ContentType)
+    : null;
+}
+
+/**
+ * Hoe een contenttype op het scherm heet.
+ *
+ * ⚠️ De motor houdt zijn vier Engelse waarden; alleen het etiket is Nederlands,
+ * en in de woorden waarin de eigenaar erover praat. `docs/schrijfstijl.md`:
+ * een klantscherm gebruikt geen vaktermen, en "landing" is er een. Dit is
+ * bewust een aparte tabel en geen hernoeming van het type zelf: hernoemen zou
+ * de rapportschema's, de opgeslagen JSON en het kwaliteitsprofiel raken voor
+ * iets wat alleen op het scherm staat.
+ */
+export const CONTENT_TYPE_LABEL: Record<ContentType, string> = {
+  landing: "dienstpagina",
+  comparison: "vergelijking",
+  article: "artikel of blog",
+  faq: "veelgestelde vragen",
+};
 
 /**
  * De briefing die met de schrijftaak meegaat.
@@ -177,6 +226,13 @@ export function contentTypeFor(pageType: PageType): ContentType {
 export function planBriefing(input: {
   title: string;
   pageType: PageType;
+  /**
+   * Het contenttype van de kans zelf (migratie 0107). Weegt zwaarder dan
+   * `pageType`: dit is wat het rapport koos of wat een mens er later van maakte,
+   * terwijl `contentTypeFor()` het hoogstens kan benaderen en twee van de vier
+   * types niet eens kent. `null` = deze pagina komt niet uit een aanbeveling.
+   */
+  contentType?: ContentType | null;
   topicTitle: string | null;
   funnelLabel: string | null;
   monthNumber: number;
@@ -185,7 +241,7 @@ export function planBriefing(input: {
   const onderwerp = input.topicTitle ?? input.title;
   return {
     title: input.title,
-    type: contentTypeFor(input.pageType),
+    type: input.contentType ?? contentTypeFor(input.pageType),
     targetIntent: `Iemand die zich in de fase ${fase.toLowerCase()} bevindt rond ${onderwerp.toLowerCase()}`,
     why: `Staat in het contentplan, maand ${input.monthNumber}, onderwerp ${onderwerp}, fase ${fase}.`,
   };

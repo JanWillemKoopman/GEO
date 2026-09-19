@@ -387,6 +387,15 @@ draait niet opnieuw (§7.1). Dát is het gat, en het heeft een gemeten frequenti
 - *Verificatie:* de verdeling over de vier types over de eerstvolgende drie rapporten, afgezet tegen
   de 57 procent landingspagina van vandaag.
 
+**Stap 4 en 5 zijn uit dit plan gehaald.** Ze bouwden een tweede kansenbron en de knop erboven, en
+dat dient het doel van dit document niet: gerichter schrijven op basis van contenttype. Ze staan nu
+in `docs/tasks/kansen-heroverwegen-na-feiten.md`, met de aanleiding die de cijfers wél aanwijzen
+(nieuwe beantwoorde feiten) in plaats van een gekozen vorm. Hieronder blijft staan wat er aan
+ontwerp al lag, zodat dat werk niet opnieuw gedaan hoeft te worden.
+
+<details>
+<summary>Het oorspronkelijke ontwerp van stap 4 en 5</summary>
+
 **Stap 4. De infrastructuur voor een tweede bron naast het rapport.**
 
 Dit is het echte werk en de voorwaarde voor stap 5, welke aanleiding de ronde ook krijgt.
@@ -425,6 +434,8 @@ Dit is het echte werk en de voorwaarde voor stap 5, welke aanleiding de ronde oo
 - *Test:* `test-chain.ts` met twee klikken achter elkaar: de tweede moet zichzelf afwijzen.
 - *Verificatie:* de eerste echte ronde op een merk met beantwoorde feitenvragen, met per voorgestelde
   kans het feit dat hem mogelijk maakte.
+
+</details>
 
 ### 8.3 Wat er bewust niet in zit
 
