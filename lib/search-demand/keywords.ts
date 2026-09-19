@@ -96,6 +96,21 @@ function eersteDeel(zin: string): string {
  * `null` bij: een lege of te korte invoer, of een resultaat dat na het
  * strippen nog steeds korter is dan `MIN_KEYWORD_LENGTH`.
  */
+/**
+ * Google Ads' eigen woordlimiet per zoekterm. Nagemeten tegen een echt
+ * DataForSEO-account op 19 september 2026 (docs/logbook.md): 10 woorden
+ * lukt, 11 geeft `status_code 40501` ("Keyword text has too many words")
+ * terug, en dat is een fout op het niveau van de hele batch waar de term
+ * toevallig in zat, niet alleen van die ene term.
+ */
+export const MAX_WOORDEN_PER_ZOEKTERM = 10;
+
+/** Past deze term binnen Google Ads' woordlimiet? */
+export function binnenWoordlimiet(term: string): boolean {
+  const woordenAantal = term.trim().split(/\s+/).filter(Boolean).length;
+  return woordenAantal > 0 && woordenAantal <= MAX_WOORDEN_PER_ZOEKTERM;
+}
+
 export function afleidenZoekterm(vraag: string): string | null {
   let tekst = vraag
     .trim()

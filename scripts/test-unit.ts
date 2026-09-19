@@ -468,7 +468,7 @@ import {
   type GscQueryDag,
 } from "@/lib/search-console/rankings";
 import { berekenOpbrengst, type OpbrengstPagina } from "@/lib/search-console/opbrengst";
-import { afleidenZoekterm, MIN_KEYWORD_LENGTH } from "@/lib/search-demand/keywords";
+import { afleidenZoekterm, MIN_KEYWORD_LENGTH, binnenWoordlimiet, MAX_WOORDEN_PER_ZOEKTERM } from "@/lib/search-demand/keywords";
 
 import { splitSentences, stripMarkdown, firstSentences } from "@/lib/pipeline/sentences";
 import { extractHeadings, renderMarkdown } from "@/lib/markdown";
@@ -11142,6 +11142,20 @@ group("afleidenZoekterm: van meetvraag naar zoekterm (§3.2 deel B)", () => {
     afleidenZoekterm("x".repeat(MIN_KEYWORD_LENGTH - 1)) === null &&
       afleidenZoekterm("x".repeat(MIN_KEYWORD_LENGTH)) === "x".repeat(MIN_KEYWORD_LENGTH),
   );
+});
+
+group("binnenWoordlimiet: de woordlimiet die één batch niet mag laten mislukken (19 september 2026)", () => {
+  ok(
+    "MAX_WOORDEN_PER_ZOEKTERM woorden past nog",
+    binnenWoordlimiet(Array.from({ length: MAX_WOORDEN_PER_ZOEKTERM }, (_, i) => `w${i}`).join(" ")),
+  );
+  ok(
+    "één woord meer dan MAX_WOORDEN_PER_ZOEKTERM past niet meer",
+    !binnenWoordlimiet(Array.from({ length: MAX_WOORDEN_PER_ZOEKTERM + 1 }, (_, i) => `w${i}`).join(" ")),
+  );
+  ok("één woord past", binnenWoordlimiet("dakinspectie"));
+  ok("een lege term past niet", !binnenWoordlimiet(""));
+  ok("alleen witruimte past niet", !binnenWoordlimiet("   "));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

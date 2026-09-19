@@ -5,15 +5,11 @@ import "server-only";
  * (docs/tasks/zoekdata-in-de-keten.md, blok B; prijsvergelijking in
  * `docs/tasks/ontwikkelplan-visie.md` §6).
  *
- * ── ⚠️ NOG NIET TEGEN EEN ECHT ACCOUNT GEVERIFIEERD (conventie 10) ──────────
+ * ── GEVERIFIEERD TEGEN EEN ECHT ACCOUNT (conventie 10, 19 september 2026) ───
  *
- * Gebouwd naar de publieke documentatie van DataForSEO's Google Ads
- * Search Volume-eindpunt. Er is in deze bouwronde geen DataForSEO-account
- * beschikbaar om een echte aanroep tegen te draaien (zie de open vraag over
- * het startsaldo in het plan, hoofdstuk 10). Zonder sleutel raakt deze module
- * nooit aan, dus dat blokkeert de rest van de app niet, maar deze functie
- * zelf is pas "af" na één echte aanroep die tegen productiecijfers is
- * nagerekend.
+ * Authenticatie, endpoint en responsvorm zijn bevestigd tegen een echt
+ * account (docs/logbook.md). Daarbij kwam de woordlimiet hieronder aan het
+ * licht: dat is geen aanname meer maar nagemeten gedrag.
  *
  * ── AUTHENTICATIE ────────────────────────────────────────────────────────────
  *
@@ -29,6 +25,7 @@ import "server-only";
  * `LOCATION_CODES`, geen nieuwe adapter.
  */
 import type { SearchDemandProvider, SearchDemandResult } from "@/lib/search-demand/types";
+import { binnenWoordlimiet, MAX_WOORDEN_PER_ZOEKTERM } from "@/lib/search-demand/keywords";
 
 const LOCATION_CODES: Record<string, number> = {
   NL: 2528,
@@ -69,7 +66,21 @@ export function createDataForSeoProvider(login: string, password: string): Searc
         return [];
       }
 
-      const uniekeTermen = [...new Set(keywords.map((k) => k.trim()).filter(Boolean))];
+      const gefilterd = [...new Set(keywords.map((k) => k.trim()).filter(Boolean))];
+
+      // Vooraf uitfilteren, niet pas laten mislukken: een term boven de
+      // woordlimiet hoort hetzelfde behandeld te worden als een term die
+      // DataForSEO niet kent (conventie 3, "onbekend" via cache.ts): hij
+      // ontbreekt simpelweg in het resultaat, in plaats van de hele batch
+      // waar hij toevallig in zat te laten mislukken.
+      const uniekeTermen = gefilterd.filter(binnenWoordlimiet);
+      const teLang = gefilterd.length - uniekeTermen.length;
+      if (teLang > 0) {
+        console.warn(
+          `DataForSEO: ${teLang} zoekterm boven de woordlimiet van ${MAX_WOORDEN_PER_ZOEKTERM}, overgeslagen.`,
+        );
+      }
+
       const resultaten: SearchDemandResult[] = [];
 
       // Batches van MAX_KEYWORDS_PER_CALL: één aanroep per batch, hetzelfde

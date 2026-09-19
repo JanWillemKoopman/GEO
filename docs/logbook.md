@@ -9834,3 +9834,27 @@ vergelijking overdoen op een schaal die wél bedoeld is om vergeleken te worden.
 
 Open vraag 2 in `docs/tasks/zoekdata-in-de-keten.md` §10 is hiermee afgehandeld: het account bestaat,
 het saldo staat erop, de sleutels staan in Vercel.
+
+## 19 september 2026: de batch-bug gerepareerd, en het echte gesprek over `afleidenZoekterm()`
+
+**De reparatie.** `binnenWoordlimiet()` (`lib/search-demand/keywords.ts`) filtert een zoekterm boven
+Google Ads' woordlimiet van 10 er vooraf uit, in plaats van de hele batch (tot 1000 zoektermen) te
+laten mislukken zoals de test hierboven liet zien. Puur en zonder `server-only` (conventie 2), dus
+getest vanuit `test-unit.ts` zonder een echte aanroep nodig te hebben. `dataforseo.ts` gebruikt hem
+nu om de batch vooraf schoon te maken, met een `console.warn` die zegt hoeveel termen zijn
+overgeslagen. De docstring bovenaan `dataforseo.ts` is bijgewerkt: die zei nog "nog niet tegen een
+echt account geverifieerd", en dat klopt sinds vandaag niet meer.
+
+**Het gesprek dat deze bug opleverde.** De eigenaar vroeg terecht door: stuurt de app werkelijk de
+hele AI-meetvraag als zoekterm naar DataForSEO? Ja, dat is precies wat er gebeurt, en de eerste
+testronde liet al zien dat dat op 9 van de 10 echte vragen geen resultaat oplevert. De batch-bug was
+dus een symptoom van een dieper punt: je moet een zoekterm niet proberen terug te knippen uit een
+AI-gegenereerde zin, je moet hem opbouwen uit wat je al zeker weet. `propose-topics.ts` regel 294
+doet dat al voor Blok 3.1: de onderwerptitel zelf is daar de kandidaat-zoekterm, geen tekst die eerst
+uit een AI-zin gedestilleerd wordt. Het voorstel voor Blok 3.2 deel B, nog niet gebouwd, staat als
+open vraag 2 in `docs/tasks/zoekdata-in-de-keten.md`: dezelfde aanpak, onderwerp plus plaats, met als
+prijs dat het volume dan per onderwerp-plaats-combinatie komt in plaats van per individuele
+meetvraag.
+
+Getest: `tsc --noEmit`, `test:unit` (4918 geslaagd, met de nieuwe groep voor `binnenWoordlimiet()`),
+`test:chain` (666 geslaagd) en `build` zijn allemaal groen.

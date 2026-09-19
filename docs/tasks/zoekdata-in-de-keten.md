@@ -623,16 +623,35 @@ eerste ronde: de authenticatie en de opslag als `null` bij onbekend werken corre
 te lange term faalt vandaag in zijn geheel (`dataforseo.ts` regel 101-104) in plaats van alleen die
 ene term over te slaan. Die batch-bug staat nog open.
 
+### Genomen op 19 september 2026 (2)
+
+**De batch-bug is gerepareerd.** `binnenWoordlimiet()` (`lib/search-demand/keywords.ts`, puur,
+conventie 2) filtert een zoekterm boven Google Ads' woordlimiet er vooraf uit, in plaats van de hele
+batch te laten mislukken zoals bij de eerste test op 19 september bleek te gebeuren. Zie
+`docs/logbook.md` voor de details en de test in `test-unit.ts`.
+
+⚠️ **Dit repareert de crash, niet de kwaliteit van de afleiding zelf.** `afleidenZoekterm()` blijft
+op echte meetvragen meestal een term opleveren die niemand zoekt (bevinding 1 van de eerste test).
+Dat is een apart, groter vraagstuk: zie de voorgestelde richting hieronder bij "een zoekterm opbouwen
+in plaats van afleiden".
+
 ### Nog open
 
 1. **Land en taal.** Nederland en Nederlands vast, of per merk instelbaar met het oog op België? Dat
    bepaalt of `keyword_demand` één rij per zoekterm heeft of meerdere. `propose-topics.ts` en
    `prepare.ts` hebben "NL"/"nl" nu hard gecodeerd, met een verwijzing naar deze open vraag in de
    code.
-2. **De batch-bug uit de eerste echte test (19 september 2026, zie `docs/logbook.md`).** Eén
-   zoekterm boven Google Ads' eigen woordlimiet laat vandaag de hele batch van tot 1000 zoektermen
-   mislukken in plaats van alleen die ene term. Vooraf filteren op woordaantal, of losstaand opnieuw
-   proberen zonder de afgewezen term, is de voor de hand liggende reparatie.
+2. **Een zoekterm opbouwen in plaats van afleiden.** `afleidenZoekterm()` knipt een AI-gegenereerde
+   meetvraag terug tot een zoekterm, en dat werkt op echte vragen meestal niet (zie de eerste test,
+   `docs/logbook.md` 19 september 2026): 9 van de 10 afgeleide termen kregen geen enkel resultaat.
+   `propose-topics.ts` regel 294 doet iets anders voor Blok 3.1 en werkt daar wél goed: de titel van
+   een onderwerp is zelf al de kandidaat-zoekterm, geen tekst die eerst uit een AI-zin gedestilleerd
+   hoeft te worden. Voor Blok 3.2 deel B (het gewicht per meetvraag) is het voorstel om hetzelfde
+   patroon te volgen: de zoekterm opbouwen uit het onderwerp plus de plaats of regio uit het
+   merkprofiel, in plaats van hem terug te knippen uit de losse meetvraag. De prijs: dat levert één
+   (of een paar) volumes per onderwerp-plaats-combinatie op, niet meer per individuele meetvraag, dus
+   grover dan het plan hier oorspronkelijk wilde. Nog niet uitgewerkt of gebouwd, wel besproken met
+   de eigenaar op 19 september 2026.
 3. **Het kwaliteitsoordeel over blok D**, zie hierboven: de eerste echte contentronde met de
    zoekwoordlaag aan verdient een bewuste vergelijking met een ronde zonder, met een mens die
    meeleest. Dat kan pas zodra er een merk is met zowel een Search Console-koppeling als
