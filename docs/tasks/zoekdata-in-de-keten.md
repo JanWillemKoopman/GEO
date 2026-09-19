@@ -613,15 +613,26 @@ beide beschikbaar in deze bouwronde. De wiring is gebouwd en getest tegen de ges
 de kernvraag van blok D, maakt dit de tekst beter of erger, is onbeantwoord. **Dit is het eerste dat
 gecontroleerd moet worden zodra er een echte omgeving is**, vóór dit voor alle klanten aan staat.
 
+### Genomen op 19 september 2026
+
+**Het startsaldo is gestort en de adapter is voor het eerst tegen een echt account getest**
+(open vraag 2 hieronder is hiermee afgehandeld). `DATAFORSEO_LOGIN`/`DATAFORSEO_PASSWORD` staan
+versleuteld in Vercel. Zie `docs/logbook.md` 19 september 2026 voor de twee bevindingen uit die
+eerste ronde: de authenticatie en de opslag als `null` bij onbekend werken correct, maar
+`afleidenZoekterm()` levert op echte meetvragen meestal een onbruikbare term, en een batch met één
+te lange term faalt vandaag in zijn geheel (`dataforseo.ts` regel 101-104) in plaats van alleen die
+ene term over te slaan. Die batch-bug staat nog open.
+
 ### Nog open
 
 1. **Land en taal.** Nederland en Nederlands vast, of per merk instelbaar met het oog op België? Dat
    bepaalt of `keyword_demand` één rij per zoekterm heeft of meerdere. `propose-topics.ts` en
    `prepare.ts` hebben "NL"/"nl" nu hard gecodeerd, met een verwijzing naar deze open vraag in de
    code.
-2. **Het startsaldo van 50 dollar bij DataForSEO.** Vooruitbetaald tegoed, geen abonnement, en bij
-   twintig merken gaat het ruim een jaar mee. Akkoord om dat te storten, zodat de adapter (blok B)
-   eindelijk tegen een echt account getest kan worden?
+2. **De batch-bug uit de eerste echte test (19 september 2026, zie `docs/logbook.md`).** Eén
+   zoekterm boven Google Ads' eigen woordlimiet laat vandaag de hele batch van tot 1000 zoektermen
+   mislukken in plaats van alleen die ene term. Vooraf filteren op woordaantal, of losstaand opnieuw
+   proberen zonder de afgewezen term, is de voor de hand liggende reparatie.
 3. **Het kwaliteitsoordeel over blok D**, zie hierboven: de eerste echte contentronde met de
    zoekwoordlaag aan verdient een bewuste vergelijking met een ronde zonder, met een mens die
    meeleest. Dat kan pas zodra er een merk is met zowel een Search Console-koppeling als
