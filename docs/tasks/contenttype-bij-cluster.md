@@ -221,3 +221,89 @@ onderweg kwijtraakt.
    al vast: de pagina's van Gasservice Brabant voor Tilburg, Oss en Eindhoven zijn feitelijk lokale
    landingspagina's en worden als gewone landingspagina beoordeeld. Dat wachtte op het moment dat
    het rapport een type kan afgeven. Stap 2 is precies dat moment.
+
+---
+
+## 7. Twee knoppen achteraf: opnieuw berekenen of extra ophalen
+
+Vervolgvraag van 19 september: kan er een knop komen die de kansen opnieuw berekent met een
+contenttype als insteek, of een knop die er los extra contentideeën bij haalt binnen één gekozen
+type?
+
+### 7.1 Opnieuw berekenen kan niet, en dat is geen toeval
+
+Het rapport is de bron van de voorraad, en die bron is met opzet onherhaalbaar per periode:
+
+- **De database staat het niet toe.** `reports` heeft een unieke index op `(analysis_id, week_no)`
+  (migratie 0021). Eén rapport per cluster per meetperiode, punt.
+- **De code stopt er zelf voor.** `generateReport()` telt eerst of er al een rapport voor deze
+  periode is en zet dan de status op gereed zonder één aanroep te doen (conventie 9). De knop
+  "rapport opnieuw" op het scherm is een retry voor een mislukt rapport, geen herberekening.
+- **Overschrijven zou de audittrail slopen.** Elke aanroep bewaart zijn volledige ruwe JSON naast de
+  uitgesplitste kolommen (conventie 8). Het rapport van vandaag is het bewijs onder elke pagina die
+  eruit voortkwam.
+- **En de voorraad zou dubbel lopen.** Een kaart hangt aan `source_ref`, opgebouwd als
+  `<rapport-id>#<volgnummer>`, en `syncBacklog()` verwijdert nooit iets. Een tweede rapport levert
+  dus nieuwe sleutels voor dezelfde onderwerpen: alle kansen komen er een tweede keer bij te staan,
+  naast de kaarten die al ingepland of geschreven zijn. Op productie heeft geen enkel cluster ooit
+  twee rapporten gehad, dus dit pad is nooit gelopen.
+
+Een herberekening zou dus vier ontwerpbesluiten tegelijk moeten terugdraaien. De volgende
+meetperiode levert wél een nieuw rapport, en dat is de plek waar een gewijzigde insteek vanzelf
+landt.
+
+### 7.2 Extra ophalen kan wel, en er is een sjabloon voor
+
+`lib/pipeline/propose-more-topics.ts` is precies deze knop, maar dan een laag hoger: "Stel nieuwe
+clusters voor". De eigenschappen die daar zijn uitgedacht, gelden hier een op een:
+
+- draait op een klik, niet automatisch;
+- is ALTIJD aanvullend, verwijdert en vervangt nooit iets;
+- gebruikt meer bewijs dan de automatische ronde (de gemeten gaps, de afwijzingsredenen);
+- wijst zichzelf af zodra er niets nieuws is, vóór er een dure aanroep gedaan wordt
+  (`topic-round-diff.ts`);
+- legt elke ronde vast, ook een ronde die niets opleverde.
+
+Een tweede kansenronde erft dat allemaal, plus drie eigen eisen:
+
+1. **Een eigen jobtype** (conventie 7), geen uitbreiding van `generate_report`.
+2. **Een eigen sleutelruimte** voor `source_ref`, bijvoorbeeld `ronde:<ronde-id>#<volgnummer>`. De
+   ruimte `<rapport-id>#<volgnummer>` is van het rapport en moet dat blijven, anders wijst
+   `targetsFromSourceRef()` naar een aanbeveling die er niet is.
+3. **Dezelfde vier eisen als het rapport.** Een kans moet nog steeds een gemeten gemis met bewijs
+   hebben, iets waars dat de klant erover kan zeggen, geen bestaande pagina die het al dekt en geen
+   overlap met een bestaande kans, inclusief de kansen die al in de voorraad staan. Zonder die
+   grens levert de ronde onderwerpen zonder meetbare vraag, en dat is precies de algemene tekst
+   waar niemand voor betaalt (`lib/plan-writing.ts`).
+
+### 7.3 Is er genoeg over om op te halen? Ja, ruim
+
+Nagerekend op 19 september over de laatste periodieke meting van alle zes de clusters:
+
+| | aantal |
+|---|---|
+| gemeten vragen | 275 |
+| vragen waarin het eigen merk niet genoemd werd | 242 (88%) |
+| vragen die door een aanbeveling gedekt zijn | 74 |
+| gemiste vragen waar niets mee gebeurd is | 168 |
+| daarvan met een opgeschreven reden in `declined_json` | 18 |
+
+Twee derde van de gemeten gemiste vraag is dus nooit een kans geworden, en bij 150 daarvan staat
+nergens waarom. Er is materiaal genoeg voor een tweede ronde.
+
+### 7.4 Maar de muur is de feitenkaart, niet het contenttype
+
+Van de 18 afwijzingen die wél zijn opgeschreven, gaan er 11 over ontbrekende feiten ("geen vestiging
+in Nieuwegein aangeleverd", "niet bevestigd dat dit wordt aangeboden") en 5 over overlap met een
+andere aanbeveling. Geen enkele gaat over de vorm van de pagina.
+
+Dat voorspelt wat een tweede ronde binnen één contenttype oplevert: het type verandert niets aan de
+reden dat deze kansen sneuvelden. Twee gevolgen voor het ontwerp:
+
+- **De ronde moet nul mogen teruggeven**, met de reden erbij, precies zoals de clusterronde dat doet.
+  Een knop die altijd iets oplevert, levert verzonnen kansen op.
+- **Eerst gratis kijken, dan pas betalen.** De 18 afgewezen kansen staan al in de database en worden
+  al gelezen (`loadDeclinedOpportunities()`). Filteren op het gekozen type en tonen kost niets. Pas
+  als daar niets bruikbaars tussen zit, is een AI-ronde te rechtvaardigen.
+- **De echte hefboom ligt bij de feitenvragen.** 11 van de 18 afwijzingen zijn op te lossen met een
+  antwoord van de ondernemer, niet met een extra aanroep. `fact_requests` bestaat daar al voor.
