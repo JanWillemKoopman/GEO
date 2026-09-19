@@ -9858,3 +9858,46 @@ meetvraag.
 
 Getest: `tsc --noEmit`, `test:unit` (4918 geslaagd, met de nieuwe groep voor `binnenWoordlimiet()`),
 `test:chain` (666 geslaagd) en `build` zijn allemaal groen.
+
+## 19 september 2026: een echt bruikbare zoekterm per meetvraag, niet meer per onderwerp-plaats
+
+De eigenaar wilde geen genoegen nemen met het grovere alternatief uit de vorige logboekregel (volume
+per onderwerp-plaats-combinatie): echt per voorgesteld contentitem een indicatie van het zoekverkeer,
+dus per meetvraag. Dat bleek mogelijk zonder een nieuwe AI-aanroep, door twee bouwstenen te gebruiken
+die al bestaan: het `cluster`-label dat `generatePromptsForStage()` (`lib/pipeline/prompts.ts`)
+sowieso al per meetvraag meegeeft ("kort thema-label", bijvoorbeeld "dakrenovatie"), en de plaats die
+bij een lokaal bedrijf al letterlijk in de vraag staat (`geoRule`, dezelfde regel die de plaats erin
+dwingt). `afleidenZoekterm()` (probeerde de vrije zin terug te knippen) is vervangen door
+`kandidaatZoektermen()` (`lib/search-demand/keywords.ts`), die thema plus plaats aan elkaar plakt.
+
+**De verificatie tegen het echte account leverde meteen een tweede bevinding op.** Met vijf
+voorbeelden uit de eerdere steekproef (daklekkage, dakrenovatie, bekkenfysiotherapie,
+hardloopblessure, zakelijke lease) kreeg "daklekkage apeldoorn" een volume (40/maand), maar de andere
+vier niet: "bekkenfysiotherapie utrecht", "hardloopblessure utrecht" en "zakelijke lease bedrijfswagen
+oss" leverden alle drie `null` op. Een losse test op de kale thema's zonder plaats liet zien waarom:
+"bekkenfysiotherapie" alleen heeft een gemeten volume van 5.400/maand, "zakelijke lease" 1.000/maand,
+"hardloopblessure" 20/maand. Google Ads heeft dus vaak wél data op het brede onderwerp, maar niet meer
+zodra er een specifieke plaats bij komt, dat combinatieniveau zakt onder de meetdrempel van de
+leverancier. Dat is geen bug maar een grens van de brondata.
+
+**De reparatie: twee kandidaten in plaats van één, van specifiek naar breed.**
+`kandidaatZoektermen()` geeft `["thema plaats", "thema"]` terug als er een plaats gevonden is, anders
+alleen `["thema"]`. `prepare.ts` haalt alle kandidaten van alle vragen in één keer op (de cache in
+`cache.ts` voorkomt dubbel betalen) en kiest per vraag de eerste kandidaat met een echt volume. Eén
+scherpte daarbij: `zwaarsteVolume`, waarmee `bandFromMeasuredVolume()` herschaalt, rekent alleen met
+de daadwerkelijk GEKOZEN volumes per vraag, niet met de hele kandidatenpoel. Zou dat wel zo zijn, dan
+kan een brede terugvalterm die maar één vraag gebruikt (zoals "bekkenfysiotherapie" op 5.400) de schaal
+van alle andere vragen in dezelfde batch optrekken, ook van vragen die die term zelf niet gebruikten.
+
+**Wat dit niet is: een garantie dat elke vraag nu een gemeten volume krijgt.** Bij een erg specifieke
+combinatie van thema en plaats, of een thema dat ook op zichzelf zelden gezocht wordt, blijft
+`volume_source` gewoon op `geschat` staan. Dat is precies conventie 3: onbekend is een betere waarde
+dan een verkeerde, dus geen derde, nog bredere terugvalstap toegevoegd die het risico op een
+oneerlijke vergelijking (een heel andere zoekvraag) weer zou vergroten.
+
+Nog niet gedaan: dit nagerekend op een volledige, echte `keyword_discovery`-ronde met de dertig
+meetvragen van één bestaand merk, in plaats van losse voorbeelden. Dat staat als open vraag 3 in
+`docs/tasks/zoekdata-in-de-keten.md`.
+
+Getest: `tsc --noEmit`, `test:unit` (4919 geslaagd, met de vernieuwde groep voor
+`kandidaatZoektermen()`), `test:chain` (666 geslaagd) en `build` zijn allemaal groen.

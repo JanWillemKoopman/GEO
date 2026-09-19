@@ -630,10 +630,24 @@ conventie 2) filtert een zoekterm boven Google Ads' woordlimiet er vooraf uit, i
 batch te laten mislukken zoals bij de eerste test op 19 september bleek te gebeuren. Zie
 `docs/logbook.md` voor de details en de test in `test-unit.ts`.
 
-⚠️ **Dit repareert de crash, niet de kwaliteit van de afleiding zelf.** `afleidenZoekterm()` blijft
-op echte meetvragen meestal een term opleveren die niemand zoekt (bevinding 1 van de eerste test).
-Dat is een apart, groter vraagstuk: zie de voorgestelde richting hieronder bij "een zoekterm opbouwen
-in plaats van afleiden".
+**`afleidenZoekterm()` is vervangen door `kandidaatZoektermen()`.** De eigenaar vroeg expliciet om
+per meetvraag een echt bruikbare zoekterm, geen grovere onderwerp-plaats-combinatie zoals hierboven
+nog als enige optie stond. In plaats van een AI-gegenereerde meetvraag terug te knippen (wat de
+eerste test al liet mislukken, 9 van de 10 afgeleide termen zonder resultaat), bouwt de nieuwe
+functie de term op uit bouwstenen die al bestaan: het `cluster`-label dat `generatePromptsForStage()`
+sowieso al per meetvraag meegeeft, plus de plaats die bij een lokaal bedrijf al letterlijk in de vraag
+staat (`geoRule` in `prompts.ts`). Dat is precies hetzelfde patroon als `propose-topics.ts` regel 294
+al gebruikt voor Blok 3.1.
+
+⚠️ **Eén terugvaloptie was nodig, en dat is zelf ook een bevinding.** Een nieuwe testronde tegen het
+echte account liet zien dat een plaats erbij plakken niet altijd helpt: "bekkenfysiotherapie" had een
+gemeten volume van 5.400 per maand, maar "bekkenfysiotherapie utrecht" leverde niets op. Google Ads
+heeft simpelweg te weinig zoekvolume op dat combinatieniveau om het te melden, dat is geen fout in de
+code maar een grens van de brondata. `kandidaatZoektermen()` geeft daarom twee kandidaten terug, van
+specifiek naar breed, en `prepare.ts` probeert ze in die volgorde: eerst thema-plus-plaats, en alleen
+als die niets oplevert, het thema alleen. `zwaarsteVolume` (voor de bandherschaling) rekent alleen met
+de daadwerkelijk gekozen volumes per vraag, niet met de hele kandidatenpoel, anders zou een brede
+terugvalterm de schaal van vragen die hem niet eens gebruikten kunnen optrekken.
 
 ### Nog open
 
@@ -641,18 +655,11 @@ in plaats van afleiden".
    bepaalt of `keyword_demand` één rij per zoekterm heeft of meerdere. `propose-topics.ts` en
    `prepare.ts` hebben "NL"/"nl" nu hard gecodeerd, met een verwijzing naar deze open vraag in de
    code.
-2. **Een zoekterm opbouwen in plaats van afleiden.** `afleidenZoekterm()` knipt een AI-gegenereerde
-   meetvraag terug tot een zoekterm, en dat werkt op echte vragen meestal niet (zie de eerste test,
-   `docs/logbook.md` 19 september 2026): 9 van de 10 afgeleide termen kregen geen enkel resultaat.
-   `propose-topics.ts` regel 294 doet iets anders voor Blok 3.1 en werkt daar wél goed: de titel van
-   een onderwerp is zelf al de kandidaat-zoekterm, geen tekst die eerst uit een AI-zin gedestilleerd
-   hoeft te worden. Voor Blok 3.2 deel B (het gewicht per meetvraag) is het voorstel om hetzelfde
-   patroon te volgen: de zoekterm opbouwen uit het onderwerp plus de plaats of regio uit het
-   merkprofiel, in plaats van hem terug te knippen uit de losse meetvraag. De prijs: dat levert één
-   (of een paar) volumes per onderwerp-plaats-combinatie op, niet meer per individuele meetvraag, dus
-   grover dan het plan hier oorspronkelijk wilde. Nog niet uitgewerkt of gebouwd, wel besproken met
-   de eigenaar op 19 september 2026.
-3. **Het kwaliteitsoordeel over blok D**, zie hierboven: de eerste echte contentronde met de
+2. **Het kwaliteitsoordeel over blok D**, zie hierboven: de eerste echte contentronde met de
    zoekwoordlaag aan verdient een bewuste vergelijking met een ronde zonder, met een mens die
    meeleest. Dat kan pas zodra er een merk is met zowel een Search Console-koppeling als
    gepubliceerde pagina's.
+3. **Nog niet nagerekend op een echte, volledige analyse.** De nieuwe kandidaat-opbouw is getest met
+   losse voorbeelden tegen het echte account (`docs/logbook.md`, 19 september 2026), niet met een
+   volledige `keyword_discovery`-ronde op een bestaand merk met dertig echte meetvragen. Dat is de
+   volgende stap voordat dit voor een klant aan staat.
