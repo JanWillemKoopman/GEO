@@ -468,7 +468,7 @@ import {
   type GscQueryDag,
 } from "@/lib/search-console/rankings";
 import { berekenOpbrengst, type OpbrengstPagina } from "@/lib/search-console/opbrengst";
-import { afleidenZoekterm, MIN_KEYWORD_LENGTH } from "@/lib/search-demand/keywords";
+import { kandidaatZoektermen, MIN_KEYWORD_LENGTH, binnenWoordlimiet, MAX_WOORDEN_PER_ZOEKTERM } from "@/lib/search-demand/keywords";
 
 import { splitSentences, stripMarkdown, firstSentences } from "@/lib/pipeline/sentences";
 import { extractHeadings, renderMarkdown } from "@/lib/markdown";
@@ -11115,33 +11115,66 @@ group("berekenOpbrengst: wat ORBIT ENGINE oplevert, niet wat de site oplevert (�
 // (zie de toelichting bovenaan dit bestand), dus een directe import hier
 // crasht de hele testrun.
 
-group("afleidenZoekterm: van meetvraag naar zoekterm (§3.2 deel B)", () => {
+group("kandidaatZoektermen: thema plus plaats, met terugval op het thema alleen (19 september 2026)", () => {
   eq(
-    "een simpele kostenvraag levert de kern op",
-    afleidenZoekterm("Wat kost een dakinspectie?") ?? "",
-    "dakinspectie",
+    "thema plus plaats als specifiekste kandidaat, thema alleen als terugval",
+    kandidaatZoektermen(
+      "daklekkage",
+      "Wat kost het gemiddeld om een daklekkage in Apeldoorn snel te laten repareren?",
+      ["Apeldoorn", "Zutphen", "Deventer"],
+    ).join(" | "),
+    "daklekkage apeldoorn | daklekkage",
   );
   eq(
-    "hoeveel-kost werkt ook",
-    afleidenZoekterm("Hoeveel kost dakonderhoud in Zutphen?") ?? "",
-    "dakonderhoud zutphen",
+    "geen plaats in de vraag: alleen het thema, geen dubbele kandidaat",
+    kandidaatZoektermen("hardloopschoenen", "Welke hardloopschoenen passen bij overpronatie?", []).join(" | "),
+    "hardloopschoenen",
   );
   eq(
-    "een samengestelde vraag gebruikt alleen het eerste deel",
-    afleidenZoekterm("Wat kost een dakinspectie en wanneer is het nodig?") ?? "",
-    "dakinspectie",
+    "geen serviceRegions bekend: alleen het thema, ook al staat er een plaats in de zin",
+    kandidaatZoektermen("dakdekker", "Welke dakdekker in Apeldoorn kan snel komen?", []).join(" | "),
+    "dakdekker",
+  );
+  eq(
+    "twee plaatsen in de vraag: de eerste in de volgorde van serviceRegions wint",
+    kandidaatZoektermen(
+      "bekkenfysiotherapie",
+      "Wat kost bekkenfysiotherapie in Nieuwegein of Utrecht?",
+      ["Utrecht", "Nieuwegein"],
+    ).join(" | "),
+    "bekkenfysiotherapie utrecht | bekkenfysiotherapie",
+  );
+  eq(
+    "staat de plaats al in het thema, dan wordt hij niet dubbel geplakt en is er maar één kandidaat",
+    kandidaatZoektermen("dakdekker apeldoorn", "Welke dakdekker in Apeldoorn kan snel komen?", [
+      "Apeldoorn",
+    ]).join(" | "),
+    "dakdekker apeldoorn",
+  );
+  ok("een leeg thema levert geen kandidaten op", kandidaatZoektermen("", "Wat kost een dakinspectie?", []).length === 0);
+  ok(
+    "een te kort thema levert geen kandidaten op",
+    kandidaatZoektermen("x".repeat(MIN_KEYWORD_LENGTH - 1), "een vraag", []).length === 0,
+  );
+  eq(
+    "hoofdletterongevoelig",
+    kandidaatZoektermen("Daklekkage", "... in APELDOORN ...", ["apeldoorn"]).join(" | "),
+    "daklekkage apeldoorn | daklekkage",
+  );
+});
+
+group("binnenWoordlimiet: de woordlimiet die één batch niet mag laten mislukken (19 september 2026)", () => {
+  ok(
+    "MAX_WOORDEN_PER_ZOEKTERM woorden past nog",
+    binnenWoordlimiet(Array.from({ length: MAX_WOORDEN_PER_ZOEKTERM }, (_, i) => `w${i}`).join(" ")),
   );
   ok(
-    "een te korte uitkomst levert null op, geen halve zoekterm",
-    afleidenZoekterm("Wat is dit?") === null,
+    "één woord meer dan MAX_WOORDEN_PER_ZOEKTERM past niet meer",
+    !binnenWoordlimiet(Array.from({ length: MAX_WOORDEN_PER_ZOEKTERM + 1 }, (_, i) => `w${i}`).join(" ")),
   );
-  ok("een lege vraag levert null op", afleidenZoekterm("") === null);
-  ok("en alleen witruimte ook", afleidenZoekterm("   ") === null);
-  ok(
-    "MIN_KEYWORD_LENGTH is de echte grens",
-    afleidenZoekterm("x".repeat(MIN_KEYWORD_LENGTH - 1)) === null &&
-      afleidenZoekterm("x".repeat(MIN_KEYWORD_LENGTH)) === "x".repeat(MIN_KEYWORD_LENGTH),
-  );
+  ok("één woord past", binnenWoordlimiet("dakinspectie"));
+  ok("een lege term past niet", !binnenWoordlimiet(""));
+  ok("alleen witruimte past niet", !binnenWoordlimiet("   "));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

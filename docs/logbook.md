@@ -9770,3 +9770,134 @@ gecontroleerd: hoe de vijf schermen er in een echte browser uitzien, licht en do
 omgeving heeft geen geldige sessie om achter de inlogroute te komen en de inlogroute zelf heeft geen
 staging-data nodig om te bekijken maar wél een draaiende server. Dat blijft open voor de
 eerstvolgende Vercel-preview, net als bij de stappen 5 tot 7.
+
+## 19 september 2026: DataForSEO voor het eerst tegen een echt account getest
+
+De eigenaar heeft het startsaldo van open vraag 2 in `docs/tasks/zoekdata-in-de-keten.md` §10
+gestort en een DataForSEO-account aangemaakt. `DATAFORSEO_LOGIN` en `DATAFORSEO_PASSWORD` staan sinds
+vandaag versleuteld in Vercel (productie, preview en development), voor het project `geo`. Daarmee is
+de eerste helft van conventie 10 voor `lib/search-demand/dataforseo.ts` gedaan: er is nu een sleutel,
+dus de adapter kan voor het eerst tegen de echte leverancier draaien.
+
+**Eerste aanroep.** Een losse testaanroep op de merknamen "audi" en "volkswagen" (toevallig ook de
+twee merken die Van den Udenhout als dealer voert) leverde een geldige HTTP 200 met echte
+maandcijfers: Audi 90.500/maand, Volkswagen 110.000/maand, beide met twaalf maanden geschiedenis
+terug. De authenticatie, het endpoint en de vorm van de respons in `dataforseo.ts` kloppen dus
+tegen het echte account. Kosten: $0,09 voor die ene aanroep.
+
+**De vergelijking op vijf bestaande analyses (het "Af als"-criterium van Blok B).** Van de merken op
+`main` heeft er maar één, Van den Udenhout, een `search_volume_index` op `profile_topics` (de
+profielbrede herkalibratie uit `lib/pipeline/search-demand.ts` draait pas na een eerste rapport, en
+dat is bij de meeste profielen in deze omgeving nog niet gebeurd). Om toch vijf analyses te kunnen
+vergelijken is uitgeweken naar het niveau eronder: de per-analyse `volume_estimate` op `prompts`
+(0-100, relatief BINNEN één analyse, zoals `lib/pipeline/prompts.ts` het ook bedoelt, dus expliciet
+niet vergelijkbaar tussen analyses, zie `lib/pipeline/search-demand.ts` regel 7-16). Voor vijf
+onderwerpen (daklekkage verhelpen, dakrenovatie en dakisolatie, bekkenfysiotherapie, hardloopblessure
+behandelen, en Zakelijke lease voor bedrijfswagens, de enige van de vijf die bij een echte klant hoort)
+zijn de hoogst en laagst scorende meetvragen genomen en met `lib/search-demand/keywords.ts`
+(`afleidenZoekterm()`) omgezet naar een zoekterm, precies zoals de pijplijn dat zelf zou doen.
+
+⚠️ **Twee bevindingen, en de eerste is belangrijker dan de score-vergelijking zelf.**
+
+1. **`afleidenZoekterm()` levert op echte meetvragen vaak een onbruikbare term.** Van de tien
+   afgeleide termen kreeg er precies één een echt volume terug, en dat was toeval
+   ("woon nieuwegein", zelf een zinloze term, kreeg toevallig 20/maand). De andere negen waren óf te
+   lang voor Google Ads' eigen woordlimiet (zie punt 2), óf te specifiek om ooit gezocht te zijn
+   ("verschillen tussen operational lease", "bekkenfysiotherapie praktijk utrecht"). Een handmatig
+   gekozen, opgeschoonde kernterm voor diezelfde vijf onderwerpen deed het duidelijk beter: 4 van de 8
+   testtermen kregen een echt volume (daklekkage apeldoorn 40/maand, dakrenovatie apeldoorn 50/maand,
+   dakisolatie apeldoorn 40/maand, operational lease bedrijfswagen 210/maand). Dat bevestigt precies
+   de eigen waarschuwing bovenaan `keywords.ts`: de deterministische afleiding is "matig tot slecht
+   bij een samengestelde vraag", en de meeste echte meetvragen in deze steekproef zijn samengesteld.
+   Conventie 3 vangt dit gelukkig correct op: een onbekende term wordt `null`, nooit een verzonnen 0.
+2. **Een echte bug: één te lange term in een batch verwerpt de HELE batch, niet alleen die ene
+   term.** DataForSEO wijst een aanroep met status `40501` af zodra één zoekterm boven de ongeveer
+   tien woorden van Google Ads' eigen keyword-limiet komt ("Keyword text has too many words"), en dat
+   is een fout op het niveau van de hele taak, niet van de losse term. `dataforseo.ts` regel 101-104
+   vangt dat vandaag af met `task.status_code !== 20000` → heel de batch overslaan. Bij een batch van
+   tot 1000 zoektermen (`MAX_KEYWORDS_PER_CALL`) betekent dat: één slecht afgeleide term uit
+   `afleidenZoekterm()` kan de meting van de andere 999 stilletjes laten mislukken, zonder dat er iets
+   fout lijkt te gaan (de aanroep zelf faalt niet, alleen de batch waar hij in zat). Dit is nog niet
+   gerepareerd; het staat als openstaand punt hieronder.
+
+**Wat dit betekent voor Blok B.** De koppeling zelf (authenticatie, endpoint, batching, opslag als
+`null` bij onbekend) is nu wél tegen een echt account bevestigd. Het eigenlijke "Af als"-criterium,
+"de modelgok naast het echte volume, met de afwijking opgeschreven", is maar deels gehaald: er was te
+weinig echt volume in deze steekproef om een betekenisvolle afwijking uit te rekenen (bij vier van de
+tien onderwerp-vergelijkingen was er domweg geen echt cijfer om naast de gok te leggen). De grotere
+winst van deze testronde is het vinden van de batch-bug, niet de score-vergelijking zelf.
+
+**Nog te doen, niet in deze ronde uitgevoerd:** de batch-bug repareren (bijvoorbeeld: per keyword de
+woordlimiet vooraf controleren en te lange termen er zelf uitfilteren in plaats van de hele batch te
+laten mislukken), en zodra er merken zijn met een `search_volume_index` op onderwerpniveau, die
+vergelijking overdoen op een schaal die wél bedoeld is om vergeleken te worden.
+
+Open vraag 2 in `docs/tasks/zoekdata-in-de-keten.md` §10 is hiermee afgehandeld: het account bestaat,
+het saldo staat erop, de sleutels staan in Vercel.
+
+## 19 september 2026: de batch-bug gerepareerd, en het echte gesprek over `afleidenZoekterm()`
+
+**De reparatie.** `binnenWoordlimiet()` (`lib/search-demand/keywords.ts`) filtert een zoekterm boven
+Google Ads' woordlimiet van 10 er vooraf uit, in plaats van de hele batch (tot 1000 zoektermen) te
+laten mislukken zoals de test hierboven liet zien. Puur en zonder `server-only` (conventie 2), dus
+getest vanuit `test-unit.ts` zonder een echte aanroep nodig te hebben. `dataforseo.ts` gebruikt hem
+nu om de batch vooraf schoon te maken, met een `console.warn` die zegt hoeveel termen zijn
+overgeslagen. De docstring bovenaan `dataforseo.ts` is bijgewerkt: die zei nog "nog niet tegen een
+echt account geverifieerd", en dat klopt sinds vandaag niet meer.
+
+**Het gesprek dat deze bug opleverde.** De eigenaar vroeg terecht door: stuurt de app werkelijk de
+hele AI-meetvraag als zoekterm naar DataForSEO? Ja, dat is precies wat er gebeurt, en de eerste
+testronde liet al zien dat dat op 9 van de 10 echte vragen geen resultaat oplevert. De batch-bug was
+dus een symptoom van een dieper punt: je moet een zoekterm niet proberen terug te knippen uit een
+AI-gegenereerde zin, je moet hem opbouwen uit wat je al zeker weet. `propose-topics.ts` regel 294
+doet dat al voor Blok 3.1: de onderwerptitel zelf is daar de kandidaat-zoekterm, geen tekst die eerst
+uit een AI-zin gedestilleerd wordt. Het voorstel voor Blok 3.2 deel B, nog niet gebouwd, staat als
+open vraag 2 in `docs/tasks/zoekdata-in-de-keten.md`: dezelfde aanpak, onderwerp plus plaats, met als
+prijs dat het volume dan per onderwerp-plaats-combinatie komt in plaats van per individuele
+meetvraag.
+
+Getest: `tsc --noEmit`, `test:unit` (4918 geslaagd, met de nieuwe groep voor `binnenWoordlimiet()`),
+`test:chain` (666 geslaagd) en `build` zijn allemaal groen.
+
+## 19 september 2026: een echt bruikbare zoekterm per meetvraag, niet meer per onderwerp-plaats
+
+De eigenaar wilde geen genoegen nemen met het grovere alternatief uit de vorige logboekregel (volume
+per onderwerp-plaats-combinatie): echt per voorgesteld contentitem een indicatie van het zoekverkeer,
+dus per meetvraag. Dat bleek mogelijk zonder een nieuwe AI-aanroep, door twee bouwstenen te gebruiken
+die al bestaan: het `cluster`-label dat `generatePromptsForStage()` (`lib/pipeline/prompts.ts`)
+sowieso al per meetvraag meegeeft ("kort thema-label", bijvoorbeeld "dakrenovatie"), en de plaats die
+bij een lokaal bedrijf al letterlijk in de vraag staat (`geoRule`, dezelfde regel die de plaats erin
+dwingt). `afleidenZoekterm()` (probeerde de vrije zin terug te knippen) is vervangen door
+`kandidaatZoektermen()` (`lib/search-demand/keywords.ts`), die thema plus plaats aan elkaar plakt.
+
+**De verificatie tegen het echte account leverde meteen een tweede bevinding op.** Met vijf
+voorbeelden uit de eerdere steekproef (daklekkage, dakrenovatie, bekkenfysiotherapie,
+hardloopblessure, zakelijke lease) kreeg "daklekkage apeldoorn" een volume (40/maand), maar de andere
+vier niet: "bekkenfysiotherapie utrecht", "hardloopblessure utrecht" en "zakelijke lease bedrijfswagen
+oss" leverden alle drie `null` op. Een losse test op de kale thema's zonder plaats liet zien waarom:
+"bekkenfysiotherapie" alleen heeft een gemeten volume van 5.400/maand, "zakelijke lease" 1.000/maand,
+"hardloopblessure" 20/maand. Google Ads heeft dus vaak wél data op het brede onderwerp, maar niet meer
+zodra er een specifieke plaats bij komt, dat combinatieniveau zakt onder de meetdrempel van de
+leverancier. Dat is geen bug maar een grens van de brondata.
+
+**De reparatie: twee kandidaten in plaats van één, van specifiek naar breed.**
+`kandidaatZoektermen()` geeft `["thema plaats", "thema"]` terug als er een plaats gevonden is, anders
+alleen `["thema"]`. `prepare.ts` haalt alle kandidaten van alle vragen in één keer op (de cache in
+`cache.ts` voorkomt dubbel betalen) en kiest per vraag de eerste kandidaat met een echt volume. Eén
+scherpte daarbij: `zwaarsteVolume`, waarmee `bandFromMeasuredVolume()` herschaalt, rekent alleen met
+de daadwerkelijk GEKOZEN volumes per vraag, niet met de hele kandidatenpoel. Zou dat wel zo zijn, dan
+kan een brede terugvalterm die maar één vraag gebruikt (zoals "bekkenfysiotherapie" op 5.400) de schaal
+van alle andere vragen in dezelfde batch optrekken, ook van vragen die die term zelf niet gebruikten.
+
+**Wat dit niet is: een garantie dat elke vraag nu een gemeten volume krijgt.** Bij een erg specifieke
+combinatie van thema en plaats, of een thema dat ook op zichzelf zelden gezocht wordt, blijft
+`volume_source` gewoon op `geschat` staan. Dat is precies conventie 3: onbekend is een betere waarde
+dan een verkeerde, dus geen derde, nog bredere terugvalstap toegevoegd die het risico op een
+oneerlijke vergelijking (een heel andere zoekvraag) weer zou vergroten.
+
+Nog niet gedaan: dit nagerekend op een volledige, echte `keyword_discovery`-ronde met de dertig
+meetvragen van één bestaand merk, in plaats van losse voorbeelden. Dat staat als open vraag 3 in
+`docs/tasks/zoekdata-in-de-keten.md`.
+
+Getest: `tsc --noEmit`, `test:unit` (4919 geslaagd, met de vernieuwde groep voor
+`kandidaatZoektermen()`), `test:chain` (666 geslaagd) en `build` zijn allemaal groen.

@@ -613,16 +613,53 @@ beide beschikbaar in deze bouwronde. De wiring is gebouwd en getest tegen de ges
 de kernvraag van blok D, maakt dit de tekst beter of erger, is onbeantwoord. **Dit is het eerste dat
 gecontroleerd moet worden zodra er een echte omgeving is**, vóór dit voor alle klanten aan staat.
 
+### Genomen op 19 september 2026
+
+**Het startsaldo is gestort en de adapter is voor het eerst tegen een echt account getest**
+(open vraag 2 hieronder is hiermee afgehandeld). `DATAFORSEO_LOGIN`/`DATAFORSEO_PASSWORD` staan
+versleuteld in Vercel. Zie `docs/logbook.md` 19 september 2026 voor de twee bevindingen uit die
+eerste ronde: de authenticatie en de opslag als `null` bij onbekend werken correct, maar
+`afleidenZoekterm()` levert op echte meetvragen meestal een onbruikbare term, en een batch met één
+te lange term faalt vandaag in zijn geheel (`dataforseo.ts` regel 101-104) in plaats van alleen die
+ene term over te slaan. Die batch-bug staat nog open.
+
+### Genomen op 19 september 2026 (2)
+
+**De batch-bug is gerepareerd.** `binnenWoordlimiet()` (`lib/search-demand/keywords.ts`, puur,
+conventie 2) filtert een zoekterm boven Google Ads' woordlimiet er vooraf uit, in plaats van de hele
+batch te laten mislukken zoals bij de eerste test op 19 september bleek te gebeuren. Zie
+`docs/logbook.md` voor de details en de test in `test-unit.ts`.
+
+**`afleidenZoekterm()` is vervangen door `kandidaatZoektermen()`.** De eigenaar vroeg expliciet om
+per meetvraag een echt bruikbare zoekterm, geen grovere onderwerp-plaats-combinatie zoals hierboven
+nog als enige optie stond. In plaats van een AI-gegenereerde meetvraag terug te knippen (wat de
+eerste test al liet mislukken, 9 van de 10 afgeleide termen zonder resultaat), bouwt de nieuwe
+functie de term op uit bouwstenen die al bestaan: het `cluster`-label dat `generatePromptsForStage()`
+sowieso al per meetvraag meegeeft, plus de plaats die bij een lokaal bedrijf al letterlijk in de vraag
+staat (`geoRule` in `prompts.ts`). Dat is precies hetzelfde patroon als `propose-topics.ts` regel 294
+al gebruikt voor Blok 3.1.
+
+⚠️ **Eén terugvaloptie was nodig, en dat is zelf ook een bevinding.** Een nieuwe testronde tegen het
+echte account liet zien dat een plaats erbij plakken niet altijd helpt: "bekkenfysiotherapie" had een
+gemeten volume van 5.400 per maand, maar "bekkenfysiotherapie utrecht" leverde niets op. Google Ads
+heeft simpelweg te weinig zoekvolume op dat combinatieniveau om het te melden, dat is geen fout in de
+code maar een grens van de brondata. `kandidaatZoektermen()` geeft daarom twee kandidaten terug, van
+specifiek naar breed, en `prepare.ts` probeert ze in die volgorde: eerst thema-plus-plaats, en alleen
+als die niets oplevert, het thema alleen. `zwaarsteVolume` (voor de bandherschaling) rekent alleen met
+de daadwerkelijk gekozen volumes per vraag, niet met de hele kandidatenpoel, anders zou een brede
+terugvalterm de schaal van vragen die hem niet eens gebruikten kunnen optrekken.
+
 ### Nog open
 
 1. **Land en taal.** Nederland en Nederlands vast, of per merk instelbaar met het oog op België? Dat
    bepaalt of `keyword_demand` één rij per zoekterm heeft of meerdere. `propose-topics.ts` en
    `prepare.ts` hebben "NL"/"nl" nu hard gecodeerd, met een verwijzing naar deze open vraag in de
    code.
-2. **Het startsaldo van 50 dollar bij DataForSEO.** Vooruitbetaald tegoed, geen abonnement, en bij
-   twintig merken gaat het ruim een jaar mee. Akkoord om dat te storten, zodat de adapter (blok B)
-   eindelijk tegen een echt account getest kan worden?
-3. **Het kwaliteitsoordeel over blok D**, zie hierboven: de eerste echte contentronde met de
+2. **Het kwaliteitsoordeel over blok D**, zie hierboven: de eerste echte contentronde met de
    zoekwoordlaag aan verdient een bewuste vergelijking met een ronde zonder, met een mens die
    meeleest. Dat kan pas zodra er een merk is met zowel een Search Console-koppeling als
    gepubliceerde pagina's.
+3. **Nog niet nagerekend op een echte, volledige analyse.** De nieuwe kandidaat-opbouw is getest met
+   losse voorbeelden tegen het echte account (`docs/logbook.md`, 19 september 2026), niet met een
+   volledige `keyword_discovery`-ronde op een bestaand merk met dertig echte meetvragen. Dat is de
+   volgende stap voordat dit voor een klant aan staat.
