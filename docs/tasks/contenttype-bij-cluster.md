@@ -226,6 +226,11 @@ onderweg kwijtraakt.
 
 ## 7. Twee knoppen achteraf: opnieuw berekenen of extra ophalen
 
+> ⚠️ **Twee conclusies uit dit hoofdstuk zijn op 19 september door de Teamsessie weerlegd**, zie
+> §8.1. Kort: de telling in §7.3 weerspiegelt een plafond in de code en geen onbenutte vraag, en de
+> gratis eerste stap uit §7.4 kan niet worden gebouwd omdat het veld waarop hij filtert niet
+> bestaat. §7.1 en §7.2 blijven staan. Het plan dat hierop volgt staat in §8.
+
 Vervolgvraag van 19 september: kan er een knop komen die de kansen opnieuw berekent met een
 contenttype als insteek, of een knop die er los extra contentideeën bij haalt binnen één gekozen
 type?
@@ -307,3 +312,139 @@ reden dat deze kansen sneuvelden. Twee gevolgen voor het ontwerp:
   als daar niets bruikbaars tussen zit, is een AI-ronde te rechtvaardigen.
 - **De echte hefboom ligt bij de feitenvragen.** 11 van de 18 afwijzingen zijn op te lossen met een
   antwoord van de ondernemer, niet met een extra aanroep. `fact_requests` bestaat daar al voor.
+
+---
+
+## 8. Implementatieplan
+
+Uitkomst van de Teamsessie van 19 september 2026 (AI 35%, Product 25%, Architectuur 20%, Data 20%,
+plus tegenspraak). Dit hoofdstuk vervangt §7.3 en §7.4 als plan; §7.1 en §7.2 blijven gelden.
+
+### 8.1 Wat de Teamsessie weerlegde
+
+**De "168 onbenutte gemiste vragen" bestaan niet zoals geteld.** `MISSED_CAP = 15`
+(`lib/pipeline/report.ts:358`, toegepast op regel 528 ná sorteren op gewicht) laat het rapportmodel
+per cluster alleen de vijftien zwaarste gemiste vragen zien. Over zes clusters zijn dat er hoogstens
+90, en de 37 aanbevelingen dekken er 74 van: het model benut ruim tachtig procent van wat het krijgt.
+De rest zag het nooit, en dat zijn per definitie de lichtste vragen. Daar komt bij dat
+`computeMissedPrompts()` (regel 413-455) twee groepen uitsluit die in de ruwe telling wél meededen:
+vragen waarin geen enkele aanbieder genoemd werd (niets te winnen) en metingen zonder eigen-merk-
+oordeel (een dataprobleem, geen gemiste kans).
+
+**De cap verhogen is niet gratis.** `EXCERPT_CHARS = 320` (`lib/pipeline/evidence-format.ts:44-48`)
+is er letterlijk op gedimensioneerd om vijftien dossiers naast de rest van de invoer te laten passen.
+Vijftien is de maatvoering van het grootste invoerblok van de zwaarste aanroep in de keten.
+
+**De gratis eerste stap kan niet.** `declinedGaps` (`lib/schemas/report.ts:58-64`) kent alleen
+`cluster`, `problem` en `reason`. Geen contenttype, geen vraagcode. Filteren op type zou raden op
+trefwoorden in vrije tekst worden, en dat is een gok (conventie 3).
+
+**De as is feiten, niet vorm.** Van de 18 opgeschreven afwijzingen gaan er 11 over ontbrekende feiten
+en 5 over overlap, nul over de vorm van de pagina. Tegelijk staan er op productie 88 beantwoorde
+feitenvragen, en geen daarvan heeft ooit een afgewezen kans opnieuw laten beoordelen: een rapport
+draait niet opnieuw (§7.1). Dát is het gat, en het heeft een gemeten frequentie.
+
+### 8.2 De vijf stappen
+
+**Stap 1. Het contenttype heel houden van rapport tot schrijver.**
+
+- *Migratie:* `planned_pages.content_type text`, nullable, zonder default, met een check op de vier
+  waarden. Leeg betekent "niet vastgesteld", en dat is iets anders dan een gok (conventie 3).
+  Additief en idempotent (conventie 4). Bestaande rijen veranderen niet.
+- *Code:* `syncBacklog()` (`lib/plan-backlog-data.ts`) schrijft het `type` van de aanbeveling
+  letterlijk mee. `app/api/cron/plan/route.ts` leest die kolom en valt alleen terug op
+  `contentTypeFor(page_type)` als hij leeg is (een pagina uit het plan of handmatig toegevoegd).
+  `page_type` blijft bestaan voor de contentmix en de kliktabel; hij wordt alleen niet meer gebruikt
+  om het contenttype te reconstrueren.
+- *Test:* in `test-unit.ts` alle vier de types heen en terug, met `faq` en `comparison` als de twee
+  die vandaag sneuvelen. In `test-chain.ts` één scenario dat een FAQ-kans via het plan naar een
+  schrijftaak brengt.
+- *Verificatie (conventie 10):* op productie één FAQ-kans laten schrijven en nakijken dat
+  `content_pieces.type = 'faq'` is en de tekst binnen 250 tot 500 woorden valt.
+
+**Stap 2. Het type tonen en corrigeren op de kaart.**
+
+- *Migratie:* geen, stap 1 levert de kolom.
+- *Code:* het type op de kaart in de voorraad en de kansenlijst, met een keuzemenu. Wijzigen via een
+  API-route met service-role en expliciete ownership-check (conventie 6), nooit rechtstreeks vanaf de
+  browser. Alleen zolang de pagina nog niet geschreven is: daarna zou de keuze een belofte zijn die
+  niemand nakomt, dezelfde regel als bij de funnelverdeling (`app/api/analyses/[id]/route.ts`).
+- *Test:* `test-unit.ts` op de toegestane waarden en op de statusgrens.
+- *Verificatie:* een consultant past op productie één kans aan en de geschreven tekst volgt het
+  nieuwe type.
+
+**Stap 3. Het rapport het type bewust laten kiezen, en zijn afwijzingen navolgbaar maken.**
+
+- *Migratie:* geen. `declined_json` is een JSON-kolom; het schema eromheen verandert.
+- *Code:* `declinedGaps` in `lib/schemas/report.ts` krijgt `type` en `targetQuestionIds`. In
+  `REPORT_SYSTEM` komt een blok dat per type zegt wanneer je het kiest; het vangnet ernaast
+  (conventie 1) corrigeert een type dat niet bij de doelvragen past, bijvoorbeeld een FAQ zonder
+  vraagvorm. `loadDeclinedOpportunities()` geeft de twee nieuwe velden door.
+- *Let op:* bestaande rapporten krijgen die velden nooit met terugwerkende kracht. Het scherm moet
+  daarom "onbekend" kunnen tonen zonder te doen alsof het een keuze was.
+- *Test:* `test-unit.ts` op het vangnet, met een FAQ-aanbeveling zonder vraag als het geval dat
+  gecorrigeerd hoort te worden.
+- *Verificatie:* de verdeling over de vier types over de eerstvolgende drie rapporten, afgezet tegen
+  de 57 procent landingspagina van vandaag.
+
+**Stap 4. De infrastructuur voor een tweede bron naast het rapport.**
+
+Dit is het echte werk en de voorwaarde voor stap 5, welke aanleiding de ronde ook krijgt.
+
+- *Migratie:* tabel `opportunity_rounds` met `profile_id`, `analysis_id`, de aanleiding, een
+  momentopname van waarop de ronde besloot, `recommendations_json` in dezelfde vorm als bij `reports`,
+  de kosten en `created_at`. Plus `'ronde'` toegevoegd aan de check op `planned_pages.source`, met
+  hetzelfde `drop constraint if exists` plus `add constraint`-patroon dat migratie 0065 zelf al
+  gebruikt.
+- *Code:* `targetsFromSourceRef()` (`lib/plan-backlog-data.ts:378`) vertakt op het voorvoegsel:
+  `ronde:<ronde-id>#<nr>` leest uit `opportunity_rounds`, een kaal rapport-id uit `reports`, met
+  dezelfde defensieve lege lijst als er niets matcht. `syncBacklog()` leest beide bronnen.
+  `app/api/cron/plan/route.ts:166` accepteert naast `aanbeveling` ook `ronde`.
+- *Waarom een eigen tabel:* een rondekans moet maanden later nog zijn doelvragen kunnen teruggeven,
+  precies zoals `reports.recommendations_json` dat nu doet. Zonder die opslag krijgt hij stil lege
+  doelvragen, schrijft `saveTargets()` nul rijen en slaat de effectmeting over. Dat is dezelfde
+  stille fout als de FAQ-fout uit §2.2.
+- *Test:* `test-chain.ts` brengt een rondekans van ronde tot geschreven tekst tot effectmeting, en
+  toont aan dat `content_piece_targets` gevuld is.
+- *Verificatie:* één echte ronde op productie, met daarna een hermeting die de doelvragen terugvindt.
+
+**Stap 5. De knop, op nieuwe feiten in plaats van op een gekozen vorm.**
+
+- *Wat hij doet:* "Beoordeel de afgewezen kansen opnieuw". Hij kijkt naar de afgewezen kansen van het
+  laatste rapport per cluster en naar de feitenvragen die sinds dat rapport beantwoord zijn, en stelt
+  alsnog kansen voor waar het ontbrekende feit inmiddels op tafel ligt.
+- *Vorm:* het sjabloon van `propose-more-topics.ts`. Eerst een voorbeeld van wat de ronde zou doen
+  plus de geschatte kosten, dan pas de aanroep. Nul nieuwe antwoorden betekent geen aanroep en een
+  melding die zegt waarom. Altijd aanvullend, nooit vervangend. Eigen jobtype (conventie 7). Dezelfde
+  vier eisen als het rapport, plus: geen overlap met een kans die al in de voorraad staat, getoetst op
+  de zwaarste doelvraag zoals `mergeOverlappingRecommendations()` dat al doet.
+- *Rechten:* de handeling komt in `lib/cost-rules.ts` te staan. Dit is consultantwerk, dus
+  `STAFF_ONLY_ACTIONS`, met een melding die de klant uitnodigt in plaats van afwijst.
+- *Nul is een geldige uitkomst,* en wordt net als bij de clusterronde vastgelegd. Een knop die altijd
+  iets oplevert, levert verzinsels op.
+- *Test:* `test-chain.ts` met twee klikken achter elkaar: de tweede moet zichzelf afwijzen.
+- *Verificatie:* de eerste echte ronde op een merk met beantwoorde feitenvragen, met per voorgestelde
+  kans het feit dat hem mogelijk maakte.
+
+### 8.3 Wat er bewust niet in zit
+
+- **De contenttypekeuze als filter.** Het type stuurt de vorm van een pagina (stap 1 tot en met 3),
+  het bepaalt niet meer welke kansen bestaan. De cijfers wijzen die as niet aan.
+- **De cap van vijftien aanraken.** Eerst meten wat een hogere cap doet met het aantal aanbevelingen
+  en met de omvang van de prompt, op één testcluster. Bestaande rapporten draaien nooit opnieuw, dus
+  een verhoging betekent dat cijfers van vóór en ná over twee noemers rekenen.
+- **De zin "Geef 5 tot 8 concrete aanbevelingen" weghalen.** Mag bij gelegenheid, maar verwacht er
+  niets van: bij het herdraaien van hetzelfde rapport op dezelfde metingen kwamen er 8 uit waar de
+  eerste ronde er 7 gaf (`docs/tasks/bevindingen-live-test-31-augustus-2026.md:226-229`). De zin
+  bindt niet.
+- **De contentfocus op het cluster** (§5, stap 3) blijft staan als voorstel, maar is in deze
+  Teamsessie niet beoordeeld. Hij hoort achter stap 3 aan, niet ervoor.
+
+### 8.4 Het risico dat blijft
+
+`syncBacklog()` verwijdert nooit iets, en rondekansen zijn per definitie lichter dan de kansen uit het
+rapport. Ze komen in dezelfde voorraad en concurreren via de potentiescore om dezelfde plekken in een
+contentplan met een vast aantal pagina's per maand. Een knop die ruimte lijkt te maken, kan dus het
+zwaardere werk verdringen. De herkomst wordt daarom een eigen waarde in `source`, zodat rondekansen
+te filteren zijn en hun effect apart te meten valt tegen dat van rapportkansen. Dat is de meting die
+moet uitwijzen of deze knop waarde toevoegde.
