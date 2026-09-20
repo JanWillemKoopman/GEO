@@ -1,20 +1,21 @@
 # Vier meetbronnen, en zoekvolume dat niet meer wiebelt
 
-**Opgesteld:** 20 september 2026. **Status: stap 0 is gedraaid (hoofdstuk 6.1), op verzoek van de
-eigenaar uitgezocht of het goedkoper kan (hoofdstuk 6.2), en op 20 september 2026 heeft de eigenaar
-besloten: Gemini blijft de vierde bron, ook boven de grens van $0,03, omdat een goed beeld van de
-Nederlandse markt zwaarder weegt dan dat laatste centje (hoofdstuk 6.3). Stap 2 tot en met 7 zijn
-daarmee niet langer geblokkeerd. Er is nog niets gebouwd.**
+**Opgesteld:** 20 september 2026. **Status: geverifieerd (hoofdstuk 6), en op 20 september 2026 heeft
+de eigenaar de uiteindelijke scope bepaald (hoofdstuk 6.4): Gemini via DataForSEO komt erbij als
+DERDE bron, ChatGPT via DataForSEO vervalt. Die derde bron, en de meerderheidsregel uit hoofdstuk 5,
+zijn gebouwd en getest (`tsc --noEmit`, `test:unit`, `test:chain`, `build` alle vier groen, zie
+`docs/logbook.md` 20 september 2026 (12)). Het AI-zoekvolume (hoofdstuk 3.2, stap 1 en 8) is bewust
+NIET gebouwd, zie hoofdstuk 6.4 voor waarom.**
 
 > ⚠️ **Modelkeuze is de knop die werkt bij ChatGPT, niet bij Gemini.** Overstappen op `gpt-4o-mini`
 > brengt ChatGPT via DataForSEO van $0,08 naar $0,027 per meting, ruim onder de grens van $0,03. Bij
 > Gemini zijn alle 12 modellen getest, en de kosten wisselen vooral per vraag: gemiddeld $0,039, en
 > geen enkel model zit daar betrouwbaar onder de grens. Web search uitzetten maakt Gemini wel
 > goedkoop ($0,007), maar meet dan iets anders (getrainde kennis in plaats van een antwoord op een
-> actuele zoekopdracht). **De eigenaar heeft Gemini desondanks geaccepteerd als vierde bron**
-> (hoofdstuk 6.3): een meetronde met alle vier bronnen op gelijke voet (1x per vraag) komt daarmee
-> op ongeveer $1,44, of $2,88 met Google AI Overview op zijn huidige 3x-cadans. Zie hoofdstuk 6.2
-> voor de modelvergelijking en hoofdstuk 6.3 voor de kosten per 30 prompts.
+> actuele zoekopdracht). **De eigenaar heeft Gemini desondanks geaccepteerd, en ChatGPT via
+> DataForSEO juist laten vallen** (hoofdstuk 6.4): dat laatste levert weinig toe naast de eigen
+> ChatGPT-route en Google AI Overview, ook al haalt het de kostengrens wél. Zie hoofdstuk 6.2 voor de
+> modelvergelijking en hoofdstuk 6.4 voor het uiteindelijke besluit.
 
 De aanleiding is een wens van de eigenaar: DataForSEO levert niet alleen het Google AI Overview dat
 we sinds vandaag meten, maar ook antwoorden van LLM's zelf, en daarnaast een schatting van hoe vaak
@@ -25,23 +26,31 @@ wat ze kosten, wat ze in deze app raken, en in welke volgorde het gebouwd wordt.
 
 ## 1. Wat er besloten is
 
-De eigenaar heeft op 20 september 2026 vier keuzes gemaakt. Ze staan hier bovenaan omdat de rest
-van dit document eruit volgt.
+De eigenaar heeft op 20 september 2026 vier keuzes gemaakt, later die dag aangescherpt tot een
+definitieve scope (hoofdstuk 6.4) nadat de verificatie liet zien wat elke bron werkelijk kost.
 
 1. **Eerst verifiëren tegen de echte api**, met de vragen van Van den Udenhout, daarna pas bouwen.
 2. **Eén volledige meting per nieuwe bron**, dus alle dertig vragen, één keer per vraag.
-3. **Het AI-zoekvolume gaat mee in dezelfde bouwronde**, niet in een aparte.
-4. **De nieuwe bronnen krijgen dezelfde plek als Google AI Overview**: ze voeden de kansen en ze
-   staan in de bronknop op Zichtbaarheid in AI.
+3. **Het AI-zoekvolume gaat mee in dezelfde bouwronde**, niet in een aparte. ⚠️ Teruggedraaid in
+   hoofdstuk 6.4: het bleek een eigen ontwerpvraag te raken (hoe een gemeten cijfer en een
+   AI-schatting samen de potentiescore dragen zonder ze door elkaar te middelen) die deze bouwronde
+   niet moest forceren.
+4. **De nieuwe bron krijgt dezelfde plek als Google AI Overview**: hij voedt de kansen en staat in
+   de bronknop op Zichtbaarheid in AI.
 
-Een clustermeting komt daarmee op vier bronnen:
+Een clustermeting komt daarmee op DRIE bronnen, niet vier (hoofdstuk 6.4 legt uit waarom ChatGPT via
+DataForSEO afviel):
 
 | # | bron | hoe | status |
 |---|---|---|---|
 | 1 | ChatGPT | onze eigen OpenAI-route | bestaat |
 | 2 | Google AI Overview | DataForSEO SERP-api | bestaat, staat aan op productie |
-| 3 | ChatGPT | DataForSEO LLM Responses | nieuw |
-| 4 | Gemini | DataForSEO LLM Responses | nieuw |
+| 3 | Gemini | DataForSEO LLM Responses | gebouwd, achter `DATAFORSEO_LLM_ENABLED` (standaard uit) |
+
+~~ChatGPT via DataForSEO LLM Responses~~ is onderzocht (hoofdstuk 6.1/6.2) maar niet gebouwd: hij
+haalt de kostengrens wel met `gpt-4o-mini` ($0,027 per meting), maar levert weinig toe naast de
+eigen ChatGPT-route en Google AI Overview, en de eigenaar heeft ervoor gekozen die derde
+ChatGPT-variant niet toe te voegen.
 
 ---
 
@@ -400,23 +409,59 @@ juist 1x is: minder herhaling, meer wiebelen, en dat is hier bewust geaccepteerd
 
 **Een volledige meetronde met alle vier bronnen, op de cadans waarmee elke bron ook echt gaat
 draaien** (Google op zijn bestaande 3x, de rest op 1x): $0,38 + $0,51 + $0,82 + $1,17 ≈ **$2,88**
-per ronde, tegen de $1,15 van vandaag met twee bronnen en de eerder geraamde $2,15. Dat is de
-richtprijs die in stap 7 (de kosten) en in het logboek terug moet komen zodra dit gebouwd is.
+per ronde, tegen de $1,15 van vandaag met twee bronnen en de eerder geraamde $2,15. Dit rekensommetje
+ging nog uit van vier bronnen; hoofdstuk 6.4 laat zien wat er overblijft nu ChatGPT via DataForSEO
+afvalt.
+
+### 6.4 Het definitieve besluit: DRIE bronnen, niet vier (20 september 2026)
+
+Ná hoofdstuk 6.3 (Gemini blijft, ook boven de kostengrens) heeft de eigenaar de scope van dit hele
+plan aangescherpt, met twee gevolgen die allebei in dezelfde alinea van
+`docs/logbook.md` (20 september 2026 (12)) staan.
+
+**1. ChatGPT via DataForSEO komt niet.** Hij haalt de kostengrens wél met `gpt-4o-mini` ($0,027 per
+meting, hoofdstuk 6.2), maar hij levert weinig toe: het is een derde manier om ChatGPT te bevragen,
+naast de eigen route (bron 1) die al bestaat. Gemini heeft dat alternatief niet, dat is precies
+waarom hij wél gebouwd wordt: zonder deze weg is er helemaal geen manier om Gemini's beeld van de
+Nederlandse markt te meten (`lib/engines/gemini.ts` bestaat wel, maar wacht nog op een
+`GEMINI_API_KEY`).
+
+**Gevolg voor de kosten**, met ChatGPT via DataForSEO eruit: een meetronde met de drie werkelijke
+bronnen komt op $0,51 (eigen ChatGPT) + $0,38 (Google AI Overview, 3x per vraag) + ongeveer $1,17
+(Gemini via DataForSEO, 1x per vraag) ≈ **$2,06 per ronde**, dicht bij de oorspronkelijke raming van
+$2,15 uit hoofdstuk 4 en goedkoper dan de $2,88 met vier bronnen uit hoofdstuk 6.3.
+
+**2. Het AI-zoekvolume (hoofdstuk 3.2, keuze 3 van hoofdstuk 1) gaat NIET mee in deze bouwronde.**
+Bij het uitwerken van stap 8 bleek de "voorrangsregel" die het plan vraagt (een gemeten cijfer draagt
+de potentiescore, anders de bestaande AI-schatting) een echte ontwerpvraag te zijn en geen kwestie
+van twee kolommen naast elkaar zetten: `search_volume_index` is een 0-100 schaal die
+`recalibrateSearchVolume()` bewust over ALLE onderwerpen van een merk RELATIEF bepaalt, zodat 70 bij
+het ene merk hetzelfde betekent als 70 bij het andere (zie de eigen documentatie van die functie).
+Een absoluut gemeten `ai_search_volume` (bijvoorbeeld 346 zoekopdrachten per maand) is geen punt op
+die schaal; hem er zomaar naast zetten of in omrekenen zonder de vergelijkbaarheid tussen merken te
+breken is precies het "nooit door elkaar heen middelen, want dan is niet meer te zeggen wat een
+getal betekent"-risico dat hoofdstuk van stap 8 zelf al benoemt. Dat verdient een eigen ontwerpronde
+met de eigenaar (waarschijnlijk: laat een gemeten cijfer de relatieve AFWEGING tussen onderwerpen van
+hetzelfde merk verschuiven, in plaats van de 0-100 schaal te vervangen), niet een aanname die deze
+bouwronde er stiekem doorheen fietst.
+
+**Gevolg:** stap 1 (de migratie voor `ai_search_volume`) en stap 8 (de leverancierslaag en de
+voorrangsregel) uit hoofdstuk 7 zijn NIET uitgevoerd. Ze blijven openstaan, zie hoofdstuk 8.
 
 ---
 
 ## 7. Het bouwplan
 
-> ✅ **Niet langer geblokkeerd.** De eigenaar heeft op 20 september 2026 besloten dat Gemini
-> meedoet als vierde bron ondanks de kosten (hoofdstuk 6.3). ChatGPT via DataForSEO draait op
-> `gpt-4o-mini`, dat is vastgezet in stap 2. Voor Gemini legt stap 2 het model vast dat in 6.2 het
-> meest concurrerende gemiddelde had (`gemini-3.6-flash`), met de kanttekening dat de kosten daar
-> per vraag wisselen.
+> ✅ **Gebouwd op 20 september 2026** (`docs/logbook.md`, 20 september 2026 (12)): stap 2 tot en met
+> 7 hieronder, alleen voor Gemini (niet voor ChatGPT via DataForSEO, hoofdstuk 6.4). Stap 1 en 8 (het
+> AI-zoekvolume) zijn bewust NIET gebouwd, zie hoofdstuk 6.4 voor de openstaande ontwerpvraag.
+> Stap 2's modelkeuze is `gemini-3.6-flash` (hoofdstuk 6.2's meest concurrerende gemiddelde), met de
+> kanttekening dat de kosten bij Gemini per vraag wisselen in plaats van stabiel per model te zijn.
 
 De volgorde is die van `CLAUDE.md`: migratie eerst, dan code, dan UI. Elke stap is los af te maken
 en los te testen.
 
-### Stap 1: de migratie (alleen voor het zoekvolume)
+### Stap 1: de migratie (alleen voor het zoekvolume) — ❌ niet uitgevoerd, zie hoofdstuk 6.4
 
 De meetbronnen hebben er geen nodig, `tracking_runs.engine` is vrije tekst. Het zoekvolume wel:
 `profile_topics` krijgt het gemeten cijfer náást de bestaande schatting, en niet in plaats daarvan.
@@ -433,59 +478,77 @@ gok, maar een bestaande schatting is beter dan niets).
 
 Daarna de index in `supabase/README.md` bij, in dezelfde commit.
 
-### Stap 2: de bronlaag
+### Stap 2: de bronlaag — ✅ gebouwd, alleen voor Gemini
 
-Een nieuwe map `lib/llm-responses/`, naar het model van `lib/ai-overview/`:
+Een nieuwe map `lib/llm-responses/`, naar het model van `lib/ai-overview/`. Oorspronkelijk gepland
+voor twee platformen (ChatGPT en Gemini); na hoofdstuk 6.4 alleen Gemini, dus zonder een
+platform-onderscheid in de code:
 
-- `types.ts`: de twee bronnamen (`dataforseo_chatgpt`, `dataforseo_gemini`), het aantal metingen per
-  vraag (1, keuze 2 van de eigenaar) en het aantal herkansingen. Puur, dus testbaar (conventie 2).
+- `types.ts`: één bronnaam (`dataforseo_gemini`), het aantal metingen per vraag (1, keuze 2 van de
+  eigenaar), het aantal herkansingen, en het model (`gemini-3.6-flash`, hoofdstuk 6.2). Puur, dus
+  testbaar (conventie 2).
 - `registry.ts`: één schakelaar `DATAFORSEO_LLM_ENABLED`, standaard uit, en alleen de letterlijke
   waarde `true` zet hem aan. Zelfde regel en zelfde reden als bij de twee lagen ervoor: de
   DataForSEO-sleutel staat al in Vercel, dus de sleutel mag hier nooit de schakelaar zijn.
-- `client.ts`: de aanroep met de herkansing erin, en het verschil tussen de twee platformen op één
-  plek: ChatGPT krijgt land en geforceerde web search mee, Gemini niet.
-- `parse.ts`: de tekst en de bronvermeldingen uit de respons halen, en de drie uitkomsten
+- `client.ts`: de aanroep met de herkansing erin. Geen `force_web_search` en geen
+  `web_search_country_iso_code`: die velden bestaan niet bij Gemini (hoofdstuk 3.1), en zonder de
+  ChatGPT-kant is er ook geen "verschil tussen twee platformen" meer om op één plek te zetten.
+- `parse.ts`: de tekst en het aantal bronvermeldingen uit de respons halen, en de drie uitkomsten
   onderscheiden die `lib/ai-overview/types.ts` ook al onderscheidt: gemeten, leeg teruggekomen,
   mislukt. **Een leeg antwoord is geen nulscore maar een meetfout**, en er wordt dan niets
-  opgeslagen.
+  opgeslagen. `money_spent` op het resultaat is de echte kostenbron, niet `cost` op de taak
+  (nagemeten 20 september 2026).
 
-### Stap 3: het jobtype
+`lib/pipeline/measure-llm-response.ts` is de taakingang, naar het model van
+`measure-ai-overview.ts`, met dezelfde gedeelde `judgeRun()` en dezelfde LETTERLIJKE
+`SIMULATE_SYSTEM` als de eigen ChatGPT-route (nu geëxporteerd uit `lib/pipeline/measure.ts`).
 
-Eén nieuw jobtype `measure_llm_response`, met het platform in de payload. Niet twee jobtypes: de
-stap is identiek op drie velden na, en de dedupe-sleutel draagt de bron al.
+### Stap 3: het jobtype — ✅ gebouwd
+
+Eén nieuw jobtype `measure_llm_response`. Geen platformveld in de payload: met alleen Gemini is er
+niets om tussen te kiezen, en de bron staat toch al vast in `tracking_runs.engine`.
 
 Conventie 7 (één zware AI-aanroep per taak) blijft daarmee overeind, en de taak ketent naar de
 aggregatie op dezelfde manier als `measure_ai_overview`, want de kansen wachten op alle bronnen.
-`countOpenPeriodicMeasurements()` in `lib/jobs/pending.ts` moet het nieuwe type meetellen, anders
-begint de aggregatie voordat de nieuwe bronnen binnen zijn.
+`countOpenPeriodicMeasurements()` in `lib/jobs/pending.ts` telt het nieuwe type mee, anders zou de
+aggregatie beginnen voordat Gemini binnen is.
 
-### Stap 4: inplannen
+### Stap 4: inplannen — ✅ gebouwd
 
 `enqueueLlmResponseMeasurement()` naast `enqueueAiOverviewMeasurement()`, aangeroepen vanuit
-dezelfde drie plekken: `confirm`, `measure` en de tracking-cron. Eén meting per vraag per bron.
+dezelfde drie plekken: `confirm`, `measure` en de tracking-cron. Eén meting per vraag.
 
-### Stap 5: de rekenkunde (hoofdstuk 5 van dit document)
+### Stap 5: de rekenkunde (hoofdstuk 5 van dit document) — ✅ gebouwd
 
-De meerderheidsregel in `computeMissedPrompts()` eerst binnen een bron, dan tussen de bronnen. Met
-scenario's in `test-unit.ts` die vastleggen wat er gebeurt bij twee tegen twee, bij een bron die
-niets opleverde, en bij een vraag die maar door één bron gemeten is.
+De meerderheidsregel zit in een nieuwe pure module, `lib/pipeline/missed-prompts.ts`
+(`bepaalGemisteVragen()`), eerst binnen een bron, dan tussen de bronnen.
+`computeMissedPrompts()` in `lib/pipeline/report.ts` roept die aan in plaats van zelf te tellen. Zes
+scenario's in `test-unit.ts`: Google's drievoudige meting die niet meer wint van de rest (het
+probleem dat dit hoofdstuk beschrijft), een gelijke stand tussen bronnen (telt als gemiste kans), een
+bron die voor een vraag niets opleverde, een vraag die maar door één bron gemeten is (die bron
+beslist, ongewijzigd gedrag), en een gelijke stand BINNEN één bron (blijft "genoemd" winnen,
+ongewijzigd gedrag).
 
-### Stap 6: de UI
+### Stap 6: de UI — ✅ gebouwd
 
-Twee regels erbij in `BRONNEN` (`lib/engines/bron.ts`), met labels zoals de klant de assistenten
-kent. Geen "engine" in beeld, `docs/schrijfstijl.md` §11. De bronknop en het analyticsoverzicht
-pakken de rest vanzelf op, want die lezen `per_engine_json`.
+Eén regel erbij in `BRONNEN` (`lib/engines/bron.ts`, label "Gemini"), met labels zoals de klant de
+assistenten kent. Geen "engine" in beeld, `docs/schrijfstijl.md` §11. De bronknop en het
+analyticsoverzicht pakken de rest vanzelf op, want die lezen `per_engine_json`.
 
-Bij Gemini hoort een zin die uitlegt dat daar geen Nederlandse zoekcontext ingesteld kan worden.
-Zonder die zin leest een lage score daar als een oordeel over het merk.
+`bronToelichting()` in dezelfde module geeft de zin die uitlegt dat Gemini geen Nederlandse
+zoekcontext heeft; `components/analytics-filters.tsx` toont hem onder de bronknop zodra Gemini
+gekozen is. Zonder die zin leest een lage score daar als een oordeel over het merk.
 
-### Stap 7: de kosten
+### Stap 7: de kosten — niet nodig gebleken
 
-De tarieven in `lib/openai/pricing.ts`, anders staat er een meetronde in het kostenoverzicht met
-een prijs van nul. DataForSEO geeft de werkelijke uitgave per aanroep terug, dus die wordt
-opgeslagen in plaats van berekend, net als bij de AI Overview-bron.
+Bij nader onderzoek (20 september 2026) blijkt `/api/analyses/[id]/costs` de werkelijke `cost_usd`
+per `ai_calls`-rij optellen, niet een schatting uit `lib/openai/pricing.ts` herberekenen. Die tarieven
+worden alleen gebruikt door `lib/engines/openai.ts` en `lib/engines/gemini.ts`, waar de API zelf geen
+kosten teruggeeft. DataForSEO geeft de werkelijke uitgave wél terug (`money_spent`), en die staat al
+in `ai_calls` via `logAiCall()` in `measure-llm-response.ts`, precies zoals bij de AI Overview-bron.
+Er is dus geen post in `pricing.ts` nodig; die zou toch nooit gelezen worden voor deze bron.
 
-### Stap 8: het zoekvolume
+### Stap 8: het zoekvolume — ❌ niet uitgevoerd, zie hoofdstuk 6.4
 
 - De leverancierslaag in `lib/search-demand/` uitbreiden met het AI-zoekvolume-endpoint, naast het
   bestaande Google Ads-volume.
@@ -505,29 +568,27 @@ opgeslagen in plaats van berekend, net als bij de AI Overview-bron.
 
 - **Eén meting per nieuwe bron wiebelt.** Op 20 september is gemeten dat één losse uitkomst
   ongeveer een muntworp is: bij 17 van de 28 vragen waar het merk ooit genoemd werd, viel de
-  uitkomst een half uur later anders uit. De twee nieuwe bronnen krijgen daarom in de bronknop een
-  cijfer dat zichtbaar beweegt. Dat is de prijs van keuze 2, en hij is te verdedigen zolang die
-  bronnen het cijfer van de klant niet dragen. Wordt het storend, dan is de goedkope uitweg die
-  bronnen alleen over de zwaarstwegende vragen laten lopen in plaats van over alle dertig.
-- **Gemini meet zonder Nederlandse zoekcontext.** Zie hoofdstuk 3.1.
+  uitkomst een half uur later anders uit. Gemini krijgt daarom in de bronknop een cijfer dat
+  zichtbaar beweegt. Dat is de prijs van keuze 2, en hij is te verdedigen zolang deze bron het cijfer
+  van de klant niet draagt. Wordt het storend, dan is de goedkope uitweg deze bron alleen over de
+  zwaarstwegende vragen laten lopen in plaats van over alle dertig.
+- **Gemini meet zonder Nederlandse zoekcontext.** Zie hoofdstuk 3.1; de bronknop legt dit sinds deze
+  bouwronde uit (`bronToelichting()`).
 
-**Beantwoord door stap 0 (hoofdstuk 6.1, 20 september 2026):**
+**Beantwoord door stap 0 (hoofdstuk 6.1 t/m 6.4, 20 september 2026):**
 
 - Wat een meting werkelijk kost, en of dat goedkoper kan: met het juiste model kost ChatGPT via
-  DataForSEO **$0,027** (`gpt-4o-mini`, onder de grens van $0,03) en Gemini minimaal **$0,03**
-  (`gemini-3.5-flash-lite`, precies op de grens, want de kosten zitten in de web search zelf en
-  niet in het model). Een meetronde komt daarmee op ongeveer $2,86, dicht bij de verwachte $2,15.
-  Zie hoofdstuk 6.1 en 6.2. **Open blijft: gaat Gemini mee op de grens, of vervalt hij als vierde
-  bron?** Dat is de enige resterende keuze voordat stap 2 tot en met 7 door kunnen.
+  DataForSEO **$0,027** (`gpt-4o-mini`, onder de grens van $0,03), maar die bron wordt niet gebouwd
+  (hoofdstuk 6.4: te weinig toegevoegde waarde naast bron 1 en 2). Gemini kost gemiddeld **$0,039**,
+  boven de grens, en de eigenaar accepteert dat expliciet. Een meetronde met de drie werkelijke
+  bronnen komt op ongeveer **$2,06**, dicht bij de verwachte $2,15. Zie hoofdstuk 6.1, 6.2 en 6.4.
+- Welke modelnamen we vastzetten: **`gemini-3.6-flash`** (het gunstigste gemiddelde uit hoofdstuk
+  6.2, geen duidelijke winnaar want de kosten wisselen vooral per vraag, niet per model). In code
+  (`lib/llm-responses/types.ts`), niet in een omgevingsvariabele, zodat een modelwissel een commit is
+  en geen instelling.
 - Het AI-zoekvolume is gevuld voor Nederlandse termen, maar alleen op het brede clusterlabel (4 van
-  4), niet op de volzin of het clusterlabel plus plaats (0 van 8). Zie hoofdstuk 6.1.
-- Welke modelnamen we vastzetten: **`gpt-4o-mini` voor ChatGPT** (niet `gpt-4o`: die is 3 keer zo
-  duur voor een vergelijkbaar antwoord, en redeneermodellen zoals het standaard-gekozen `o4-mini`
-  ondersteunen `force_web_search` sowieso niet). Voor Gemini is er, na het testen van alle 12
-  modellen, geen duidelijke winnaar: de kosten wisselen vooral per vraag, niet per model, en
-  `gemini-3.6-flash` of `gemini-3.5-flash-lite` (de twee goedkoopste gemiddelden) zitten op de
-  grens van $0,03, niet eronder. Zie hoofdstuk 6.1 en 6.2. Dat hoort net als bij OpenAI in code te
-  staan en niet in een omgevingsvariabele, zodat een modelwissel een commit is en geen instelling.
+  4), niet op de volzin of het clusterlabel plus plaats (0 van 8). Zie hoofdstuk 6.1. Nog niet
+  gebruikt: zie hoofdstuk 6.4 voor de ontwerpvraag die stap 8 tegenhoudt.
 
 ---
 
@@ -536,14 +597,23 @@ opgeslagen in plaats van berekend, net als bij de AI Overview-bron.
 Gebouwd is niet geverifieerd (conventie 10). Dit werk is pas af als:
 
 1. ✅ **Gedaan, 20 september 2026.** `scripts/probe-dataforseo-ai.ts` heeft gedraaid en de
-   uitkomsten staan als hoofdstuk 6.1 in dit document. Uitkomst: de afbreekregel op kosten is
-   geraakt, dus punt 2 en 3 hieronder wachten op het besluit van de eigenaar uit hoofdstuk 6.1.
-2. Een echt cluster van Van den Udenhout een volledige meetronde over alle vier de bronnen heeft
-   gedaan, en de werkelijke kosten naast de raming in het logboek staan, zoals op 20 september bij
-   het cluster APK Den Bosch gebeurd is.
-3. De kansenlijst van vóór en ná de nieuwe meerderheidsregel naast elkaar gelegd is op diezelfde
-   echte data, zodat zichtbaar is wat er voor een bestaande klant verandert.
-4. `tsc --noEmit`, `test:unit`, `test:chain` en `build` alle vier groen zijn.
+   uitkomsten staan als hoofdstuk 6.1 t/m 6.4 in dit document, inclusief het definitieve besluit:
+   drie bronnen (niet vier), het AI-zoekvolume nog niet gebouwd.
+2. ✅ **Gebouwd en getest, 20 september 2026** (`docs/logbook.md`, 20 september 2026 (12)): de
+   Gemini-bronlaag (stap 2 t/m 6) en de meerderheidsregel (stap 5), met scenario's in `test-unit.ts`.
+   Stap 1, 7 en 8 zijn met reden overgeslagen (7: niet nodig, 1 en 8: uitgesteld, zie hoofdstuk 6.4).
+3. **Nog open:** een echt cluster van Van den Udenhout een volledige meetronde over de drie
+   werkelijke bronnen heeft gedaan (`DATAFORSEO_LLM_ENABLED=true` gezet op productie), en de
+   werkelijke kosten naast de raming van hoofdstuk 6.4 (~$2,06) in het logboek staan, zoals op 20
+   september bij het cluster APK Den Bosch gebeurd is voor de eerste twee bronnen.
+4. **Nog open:** de kansenlijst van vóór en ná de nieuwe meerderheidsregel naast elkaar gelegd is op
+   diezelfde echte data, zodat zichtbaar is wat er voor een bestaande klant verandert. De
+   scenario-tests in `test-unit.ts` bewijzen dat de rekenkunde doet wat hoofdstuk 5 vraagt; ze
+   bewijzen niet wat er bij een echt cluster daadwerkelijk verschuift.
+5. ✅ `tsc --noEmit`, `test:unit` (5007), `test:chain` (722) en `build` staan alle vier groen voor de
+   Gemini-bronlaag en de rekenkunde.
+6. **Nog open:** het AI-zoekvolume (stap 1 en 8) krijgt zijn eigen ontwerpronde (hoofdstuk 6.4) en
+   wordt dan alsnog gebouwd, in een eigen bouwronde.
 
-Is dat rond, dan gaat dit document eruit en blijft er een alinea met datum en cijfers onderaan
-`docs/logbook.md` staan.
+Punt 3, 4 en 6 staan open. Zodra die rond zijn, gaat dit document eruit en blijft er een alinea met
+datum en cijfers onderaan `docs/logbook.md` staan.

@@ -10387,3 +10387,49 @@ laatste is een reëel risico: op 19 september kreeg bij het gewone zoekvolume 1 
 volzinnen afgeleide termen een resultaat.
 
 Gebouwd is er niets. `tsc --noEmit` en `test:unit` (4980) groen.
+
+## 20 september 2026 (12): Gemini via DataForSEO gebouwd, ChatGPT via DataForSEO afgevallen
+
+Vervolg op (11). Stap 0 is gedraaid tegen een echt DataForSEO-account (~$0,26 in totaal, met
+toestemming en inloggegevens van de eigenaar), en de uitkomsten staan met datum in
+`docs/tasks/vier-meetbronnen-en-ai-zoekvolume.md` (hoofdstuk 6.1 t/m 6.3). Drie dingen uit die
+verificatie:
+
+- **ChatGPT via DataForSEO kostte met het eerste werkende model (`gpt-4o`) $0,0814 per meting**, ver
+  boven de grens van $0,03 uit het plan en duurder dan onze eigen ChatGPT-route ($0,0170). Met
+  `gpt-4o-mini` daalde dat naar $0,0272, wél onder de grens, maar de eigenaar heeft besloten deze
+  bron toch niet te bouwen: hij levert weinig toe naast de eigen route en Google AI Overview.
+- **Gemini via DataForSEO zit bij geen van de 12 geteste modellen betrouwbaar onder de grens**
+  (gemiddeld $0,039 over 15 metingen, de kosten wisselen per vraag). De eigenaar accepteert dat
+  expliciet: een goed beeld van de Nederlandse markt weegt zwaarder, en Gemini heeft geen
+  ChatGPT-alternatief (`lib/engines/gemini.ts` wacht nog op een `GEMINI_API_KEY`).
+- **Gemini kent geen Nederlandse zoekcontext.** Een lage score bij Gemini is niet uit elkaar te
+  trekken in "merk niet genoemd" en "Gemini keek naar een ander land". De bronknop op Zichtbaarheid
+  in AI legt dat sinds deze bouwronde uit zodra Gemini gekozen is (`bronToelichting()` in
+  `lib/engines/bron.ts`).
+
+**Gebouwd: Gemini als derde meetbron**, naar het model van Google AI Overview: `lib/llm-responses/`
+(types, registry, client, parse), het jobtype `measure_llm_response`, de planner
+`enqueueLlmResponseMeasurement()` op dezelfde drie plekken als de tweede bron (`confirm`, `measure`,
+de tracking-cron), en een label in de bronknop. Eén meting per vraag (niet drie zoals bij Google),
+model `gemini-3.6-flash` vastgezet in code. Achter `DATAFORSEO_LLM_ENABLED`, standaard uit, zelfde
+reden als bij de tweede bron: de DataForSEO-sleutel staat al in Vercel en mag niet zelf de
+schakelaar zijn. Geen migratie nodig: `tracking_runs.engine` is al vrije tekst.
+
+**⚠️ Ook gebouwd, en dit raakt bestaande klanten: de meerderheidsregel uit (11) is opgelost.**
+`computeMissedPrompts()` telde tot nu toe elke meting even zwaar, waardoor Google (3x per vraag
+gemeten) de helft van elke stem kreeg. `lib/pipeline/missed-prompts.ts` (nieuw, puur, getest)
+bepaalt nu eerst een meerderheid BINNEN elke bron, en telt dan de bronnen tegen elkaar: elke bron
+weegt als één stem, ongeacht het aantal herhalingen. Bij een gelijke stand tussen bronnen telt de
+vraag als gemiste kans (de voorzichtige kant). Zes scenario's in `test-unit.ts`, inclusief het geval
+dat deze wijziging moest oplossen (Google's drievoudige meting die niet langer wint van de rest) en
+het geval van vóór deze bouwronde (één bron beslist alleen).
+
+Het AI-zoekvolume uit (11) (hoofdstuk 3.2 en stap 1/8 van het plan) is dit keer NIET gebouwd: het
+zou `search_volume_index` (de 0-100 schaal die potentiescores tussen merken vergelijkbaar houdt,
+`lib/pipeline/search-demand.ts`) moeten combineren met een absoluut gemeten getal, en dat mengen zou
+precies het "niet meer te zeggen wat een getal betekent"-probleem opleveren dat het plan zelf al
+benoemt. Dat verdient een eigen ontwerpronde, geen haastige aanname in dezelfde bouwronde. Staat als
+open werk in `docs/tasks/vier-meetbronnen-en-ai-zoekvolume.md`.
+
+`tsc --noEmit`, `test:unit` (5007) en `test:chain` (722) groen, `build` groen.

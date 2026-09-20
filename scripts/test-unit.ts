@@ -144,12 +144,20 @@ import {
   leesBronfilter,
   beschikbareBronnen,
   bronLabel,
+  bronToelichting,
 } from "@/lib/engines/bron";
 import {
   AI_OVERVIEW_ENGINE,
   AI_OVERVIEW_REPEATS,
   AI_OVERVIEW_POGINGEN,
 } from "@/lib/ai-overview/types";
+import { leesLlmResponse } from "@/lib/llm-responses/parse";
+import {
+  LLM_RESPONSE_GEMINI_ENGINE,
+  LLM_RESPONSE_REPEATS,
+  LLM_RESPONSE_POGINGEN,
+} from "@/lib/llm-responses/types";
+import { bepaalGemisteVragen } from "@/lib/pipeline/missed-prompts";
 import { formatEvidenceDossier, excerpt } from "@/lib/pipeline/evidence-format";
 import type { EvidenceEntry } from "@/lib/pipeline/evidence-format";
 import { stripUnsupportedClaims, validateField, NEUTRAL_FALLBACK } from "@/lib/pipeline/validate-claims";
@@ -23640,4 +23648,168 @@ group("cijferVoorBron: het cijfer van de gekozen meetbron", () => {
   // De labels zijn wat de klant de assistent noemt, niet de technische naam.
   eq("ChatGPT heet ChatGPT", bronLabel(PRIMARY_ENGINE), "ChatGPT");
   eq("en de tweede bron heet Google AI Overview", bronLabel(AI_OVERVIEW_ENGINE), "Google AI Overview");
+  eq("en de derde bron heet Gemini", bronLabel(LLM_RESPONSE_GEMINI_ENGINE), "Gemini");
+
+  // ⚠️ Gemini kent geen Nederlandse zoekcontext (hoofdstuk 3.1 van het plan).
+  // Zonder een toelichting leest een lage score hier als een oordeel over het
+  // merk, en dat is precies wat merkstrategie.md §30 bijhoudt.
+  ok("Gemini krijgt een toelichting", (bronToelichting(LLM_RESPONSE_GEMINI_ENGINE) ?? "").length > 0);
+  ok("ChatGPT krijgt er geen", bronToelichting(PRIMARY_ENGINE) === null);
+  ok("Google AI Overview ook niet", bronToelichting(AI_OVERVIEW_ENGINE) === null);
+});
+
+// ── lib/llm-responses/parse.ts ───────────────────────────────────────────────
+//
+// Zelfde soort risico als bij AI Overview, en één extra: een leeg antwoord
+// kwam bij de verificatie van 20 september 2026 voor terwijl DataForSEO er wél
+// voor liet betalen. Dat mag nooit als "merk niet genoemd" tellen.
+group("leesLlmResponse: een Gemini-antwoord uitpakken, en weten wanneer het leeg is", () => {
+  const taak = (resultaat: Record<string, unknown>, opties?: { statusCode?: number; cost?: number }) => ({
+    tasks: [
+      {
+        status_code: opties?.statusCode ?? 20000,
+        cost: opties?.cost ?? 0,
+        result: [resultaat],
+      },
+    ],
+  });
+
+  // Het gewone geval: tekst en een paar bronvermeldingen, langer dan de grens.
+  const goed = leesLlmResponse(
+    taak({
+      money_spent: 0.0351,
+      items: [
+        {
+          type: "message",
+          sections: [
+            {
+              type: "text",
+              text: "In Oss zijn er verschillende autobedrijven waar je een occasion kunt kopen en je huidige auto kunt inruilen.",
+              annotations: [{ url: "https://voorbeeld.nl/1" }, { url: "https://voorbeeld.nl/2" }],
+            },
+          ],
+        },
+      ],
+    }),
+  );
+  eq("status is gemeten", goed.status, "gemeten");
+  ok("de tekst komt mee", goed.tekst.includes("Oss"));
+  eq2("het aantal bronvermeldingen komt mee", goed.aantalBronvermeldingen, 2);
+  eq2("money_spent is de kostenbron, niet cost", goed.kostenUsd, 0.0351);
+
+  // ⚠️ HET BELANGRIJKSTE GEVAL. Een antwoord dat er wél is maar te kort om een
+  // meting te zijn, is GEEN nulscore (conventie 3). Nagemeten op 20 september
+  // 2026: dit gebeurde bij de eerste verificatieronde op alle vijf testvragen.
+  const leeg = leesLlmResponse(
+    taak(
+      { money_spent: 0.02, items: [{ type: "message", sections: [{ type: "text", text: "" }] }] },
+    ),
+  );
+  eq("een te kort antwoord is geen meting", leeg.status, "leeg");
+  eq2("de kosten komen wél mee", leeg.kostenUsd, 0.02);
+
+  // Een mislukte taak, bijvoorbeeld het model ondersteunt een veld niet.
+  const stuk = leesLlmResponse({
+    tasks: [
+      {
+        status_code: 40501,
+        status_message: "Invalid Field: 'this model does not support force_web_search'.",
+        cost: 0,
+      },
+    ],
+  });
+  eq("een statusfout is een mislukking", stuk.status, "mislukt");
+  ok("met de reden erbij", (stuk.melding ?? "").includes("force_web_search"));
+
+  // Onverwachte vormen mogen nooit gooien.
+  eq("een lege respons is een mislukking", leesLlmResponse({}).status, "mislukt");
+  eq("en null ook", leesLlmResponse(null).status, "mislukt");
+
+  // De afspraken die de kosten en het gedrag bepalen.
+  ok("elke vraag gaat één keer, niet drie", LLM_RESPONSE_REPEATS === 1);
+  ok("en een mislukte aanroep krijgt één herkansing", LLM_RESPONSE_POGINGEN === 2);
+  ok("de bron landt onder zijn eigen engine-naam", LLM_RESPONSE_GEMINI_ENGINE === "dataforseo_gemini");
+});
+
+// ── lib/pipeline/missed-prompts.ts ───────────────────────────────────────────
+//
+// De belangrijkste rekenkundige wijziging van deze bouwronde (hoofdstuk 5 van
+// docs/tasks/vier-meetbronnen-en-ai-zoekvolume.md): eerst binnen een bron een
+// meerderheid, dan pas tussen de bronnen. Deze module bepaalt welke pagina's
+// geschreven worden, dus elk scenario hieronder staat voor een cijfer dat
+// anders een bestaande klant zou raken.
+group("bepaalGemisteVragen: eerst binnen een bron, dan tussen de bronnen", () => {
+  const meting = (runId: string, promptId: string, engine: string, mentioned: boolean) => ({
+    runId,
+    promptId,
+    engine,
+    mentioned,
+  });
+
+  // ⚠️ HET PROBLEEM DAT DIT OPLOST. Google meet 3x, ChatGPT en Gemini 1x. Bij
+  // ChatGPT genoemd, bij Gemini niet, en bij Google 2 van de 3 keer wél: zou
+  // je alle 5 metingen even zwaar tellen (3 wél, 2 niet), dan wint "genoemd"
+  // met de stem van Google. Met één stem per bron staat het 2-1 (ChatGPT en
+  // Google noemen het merk, Gemini niet), en dat is geen gemiste kans.
+  const googleWintNietMeer = bepaalGemisteVragen([
+    meting("r1", "p1", "openai", true),
+    meting("r2", "p1", "gemini_dfs", false),
+    meting("r3", "p1", "google_ai_overview", true),
+    meting("r4", "p1", "google_ai_overview", true),
+    meting("r5", "p1", "google_ai_overview", false),
+  ]);
+  eq2(
+    "Google's drievoudige meting krijgt niet meer stemgewicht dan de rest",
+    googleWintNietMeer.length,
+    0,
+  );
+
+  // Twee bronnen tegen twee bronnen: gelijke stand telt als gemiste kans
+  // (hoofdstuk 5, de voorzichtige kant).
+  const gelijkeStand = bepaalGemisteVragen([
+    meting("r1", "p1", "openai", true),
+    meting("r2", "p1", "gemini_dfs", true),
+    meting("r3", "p1", "google_ai_overview", false),
+    meting("r4", "p1", "vierde_bron", false),
+  ]);
+  eq2("een gelijke stand tussen bronnen is een gemiste kans", gelijkeStand.length, 1);
+  eq("met een run uit een bron die 'm miste", gelijkeStand[0]?.promptId, "p1");
+
+  // Een bron die voor deze vraag helemaal geen meting heeft (bijvoorbeeld
+  // Gemini viel deze ronde uit) telt niet mee als "gemist" en niet als
+  // "genoemd": hij doet gewoon niet mee aan de stemming. Hier stemmen alleen
+  // ChatGPT en Google, allebei "gemist".
+  const eenBronOntbreekt = bepaalGemisteVragen([
+    meting("r1", "p1", "openai", false),
+    meting("r2", "p1", "google_ai_overview", false),
+    meting("r3", "p1", "google_ai_overview", false),
+  ]);
+  eq2("de twee bronnen die wél meetten, zijn het eens: gemiste kans", eenBronOntbreekt.length, 1);
+
+  // Een vraag die maar door één bron gemeten is: die ene bron beslist, zoals
+  // vóór deze bouwronde.
+  const eenBronMaar = bepaalGemisteVragen([meting("r1", "p1", "openai", false)]);
+  eq2("één bron alleen: die bron beslist", eenBronMaar.length, 1);
+  eq("de run van die ene meting is het bewijs", eenBronMaar[0]?.representatieveRunId, "r1");
+
+  const eenBronMaarWelGenoemd = bepaalGemisteVragen([meting("r1", "p1", "openai", true)]);
+  eq2("en bij wél genoemd geen gemiste kans", eenBronMaarWelGenoemd.length, 0);
+
+  // Binnen één bron blijft een gelijke stand "genoemd" winnen (ongewijzigd
+  // gedrag): bij twee van de vier metingen genoemd is dat geen meerderheid.
+  const binnenBronGelijkeStand = bepaalGemisteVragen([
+    meting("r1", "p1", "openai", true),
+    meting("r2", "p1", "openai", true),
+    meting("r3", "p1", "openai", false),
+    meting("r4", "p1", "openai", false),
+  ]);
+  eq2("binnen één bron wint een gelijke stand als 'genoemd'", binnenBronGelijkeStand.length, 0);
+
+  // Twee vragen door elkaar heen: ze mogen elkaar niet beïnvloeden.
+  const tweeVragen = bepaalGemisteVragen([
+    meting("r1", "p1", "openai", false),
+    meting("r2", "p2", "openai", true),
+  ]);
+  eq2("twee losse vragen blijven los", tweeVragen.length, 1);
+  eq("en het is de juiste vraag", tweeVragen[0]?.promptId, "p1");
 });

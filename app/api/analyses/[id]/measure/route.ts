@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
-import { enqueueMeasurement, enqueueAiOverviewMeasurement } from "@/lib/jobs/queue";
+import { enqueueMeasurement, enqueueAiOverviewMeasurement, enqueueLlmResponseMeasurement } from "@/lib/jobs/queue";
 import { describeError, classifyError } from "@/lib/errors";
 import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 import { checkBudgetForProfile } from "@/lib/spend-limit";
@@ -55,12 +55,13 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     }
 
     const { planned, totalPrompts } = await enqueueMeasurement(admin, id, 0);
-    // Zie de confirm-route: telt mee, want de ronde is pas klaar als beide
+    // Zie de confirm-route: telt mee, want de ronde is pas klaar als alle
     // bronnen binnen zijn.
     const google = await enqueueAiOverviewMeasurement(admin, id, 0);
+    const gemini = await enqueueLlmResponseMeasurement(admin, id, 0);
     return NextResponse.json({
       queued: true,
-      planned: planned + google.planned,
+      planned: planned + google.planned + gemini.planned,
       totalPrompts,
       status: "meten",
     });

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
-import { enqueueMeasurement, enqueueAiOverviewMeasurement } from "@/lib/jobs/queue";
+import { enqueueMeasurement, enqueueAiOverviewMeasurement, enqueueLlmResponseMeasurement } from "@/lib/jobs/queue";
 import { describeError, classifyError } from "@/lib/errors";
 import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 import { checkBudgetForProfile } from "@/lib/spend-limit";
@@ -83,6 +83,11 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     // nog gemeten wordt.
     const google = await enqueueAiOverviewMeasurement(admin, id, 0);
     planned += google.planned;
+    // De derde bron erbij (Gemini via DataForSEO). Doet niets zonder
+    // DATAFORSEO_LLM_ENABLED=true. Telt WÉL mee in `planned`, zelfde reden als
+    // bij Google: de ronde is pas klaar als alle bronnen binnen zijn.
+    const gemini = await enqueueLlmResponseMeasurement(admin, id, 0);
+    planned += gemini.planned;
   } catch (err) {
     console.error(`meting inplannen mislukt bij bevestigen van ${id}:`, err);
     return NextResponse.json(

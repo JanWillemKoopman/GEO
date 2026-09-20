@@ -77,6 +77,12 @@ export const dedupe = {
    */
   measureAiOverview: (analysisId: string, promptId: string, weekNo: number, repeat = 0) =>
     `aioverview:${analysisId}:${promptId}:w${weekNo}:r${repeat}`,
+  /**
+   * Gemini via DataForSEO (docs/tasks/vier-meetbronnen-en-ai-zoekvolume.md).
+   * Zelfde reden als `measureAiOverview`: eigen taaktype, eigen voorvoegsel.
+   */
+  measureLlmResponse: (analysisId: string, promptId: string, weekNo: number, repeat = 0) =>
+    `llmresponse:${analysisId}:${promptId}:w${weekNo}:r${repeat}`,
   aggregateWeek: (analysisId: string, weekNo: number) => `aggregate:${analysisId}:w${weekNo}`,
   competitorIntel: (analysisId: string, weekNo: number) => `compintel:${analysisId}:w${weekNo}`,
   generateReport: (analysisId: string, weekNo: number) => `report:${analysisId}:w${weekNo}`,

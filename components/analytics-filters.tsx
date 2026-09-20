@@ -9,7 +9,7 @@ import {
   type Periodeoptie,
 } from "@/lib/analytics-filters";
 import type { Labelachtig } from "@/lib/cluster-labels";
-import { BRONFILTER_STANDAARD, type Bron } from "@/lib/engines/bron";
+import { BRONFILTER_STANDAARD, bronToelichting, type Bron } from "@/lib/engines/bron";
 
 /**
  * De ene filterbalk voor alle vier de Analytics-schermen (plan
@@ -135,6 +135,10 @@ export function AnalyticsFilters({
             ))}
           </select>
         </Filter>
+      )}
+
+      {bronnen.length > 1 && bronToelichting(bronfilter) && (
+        <p className="text-secondary w-full basis-full text-sm">{bronToelichting(bronfilter)}</p>
       )}
 
       {clustersBijLabel.length > 1 && (

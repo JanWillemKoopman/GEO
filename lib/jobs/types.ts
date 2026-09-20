@@ -67,6 +67,7 @@ export const JOB_TYPES = [
   /** Eén vraag stellen en het antwoord beoordelen (3a + 3b). Eén per prompt. */
   "measure_prompt",
   "measure_ai_overview",
+  "measure_llm_response",
   /** Pure aggregatie over alle metingen van een week (3c). Geen AI-aanroep. */
   "aggregate_week",
   /** Waarom worden concurrenten genoemd? Destilleert eigenschappen uit de meting (R4.2). */
@@ -357,6 +358,24 @@ export interface JobPayloads {
      * Hoeveelste herhaling van deze vraag. Deze bron meet standaard drie keer,
      * omdat één losse uitkomst ongeveer een muntworp is (nagemeten 20 september
      * 2026) en een aanroep hier een vijfde kost van een ChatGPT-meting.
+     */
+    repeatIndex?: number;
+  };
+  /**
+   * Eén meetvraag via Gemini, opgehaald bij DataForSEO
+   * (docs/tasks/vier-meetbronnen-en-ai-zoekvolume.md).
+   *
+   * ⚠️ Een EIGEN taaktype, zelfde reden als `measure_ai_overview` (conventie
+   * 7): eigen leverancier, eigen faalgevallen (`leeg` is hier normaal, bij
+   * ChatGPT een fout), en een eigen bron in `tracking_runs.engine`.
+   */
+  measure_llm_response: {
+    promptId: string;
+    weekNo: number;
+    /**
+     * Hoeveelste herhaling van deze vraag. Standaard één (keuze 2 van de
+     * eigenaar): bij $0,02 tot $0,065 per meting is drie keer meten al snel
+     * duurder dan de rest van de meetronde samen.
      */
     repeatIndex?: number;
   };

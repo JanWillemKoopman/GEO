@@ -39,6 +39,9 @@ interface MeasurePayloadShape {
 /** Het taaktype van de tweede meetbron. Zie `lib/ai-overview/types.ts`. */
 const AI_OVERVIEW_JOB = "measure_ai_overview";
 
+/** Het taaktype van de derde meetbron. Zie `lib/llm-responses/types.ts`. */
+const LLM_RESPONSE_JOB = "measure_llm_response";
+
 /**
  * Hoeveel van deze openstaande taken horen bij de PERIODIEKE meting van deze
  * periode? Impactmetingen tellen niet mee: die horen bij een pagina, niet bij
@@ -82,9 +85,12 @@ export function countOpenPeriodicMeasurements(
     if (payload.impact) return false;
     if (payload.weekNo !== weekNo) return false;
 
-    // De tweede meetbron heeft geen engine in zijn payload; zijn taaktype zegt
-    // het al.
-    if (j.type === AI_OVERVIEW_JOB) return true;
+    // De tweede en derde meetbron hebben geen engine in hun payload; hun
+    // taaktype zegt het al. Beide moeten hier meetellen: `computeMissedPrompts()`
+    // telt per vraag EERST binnen elke bron en dan pas tussen de bronnen
+    // (hoofdstuk 5 van het plan), en dat werkt alleen als alle bronnen binnen
+    // zijn vóórdat het rapport draait.
+    if (j.type === AI_OVERVIEW_JOB || j.type === LLM_RESPONSE_JOB) return true;
 
     return (payload.engine ?? primaryEngine) === primaryEngine;
   }).length;

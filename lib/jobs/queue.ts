@@ -2,6 +2,8 @@ import "server-only";
 import { maySkip } from "@/lib/pipeline/elicit-rate";
 import { aiOverviewEnabled } from "@/lib/ai-overview/registry";
 import { AI_OVERVIEW_ENGINE, AI_OVERVIEW_REPEATS } from "@/lib/ai-overview/types";
+import { llmResponseGeminiEnabled } from "@/lib/llm-responses/registry";
+import { LLM_RESPONSE_GEMINI_ENGINE, LLM_RESPONSE_REPEATS } from "@/lib/llm-responses/types";
 
 /**
  * Taken in de wachtrij zetten (optimalisatie.md fase 1).
@@ -367,6 +369,86 @@ export async function enqueueAiOverviewMeasurement(
   const { data: inserted, error } = await admin.from("jobs").insert(rows).select("id");
   if (error && error.code !== UNIQUE_VIOLATION) {
     throw new Error(`AI Overview-meting inplannen mislukt: ${error.message}`);
+  }
+  return { planned: (inserted ?? []).length, totalPrompts: all.length };
+}
+
+/**
+ * De metingen via Gemini (DataForSEO) inplannen voor één periode. Zelfde
+ * opzet als `enqueueAiOverviewMeasurement()`, met twee verschillen die uit
+ * de besluiten van de eigenaar volgen
+ * (docs/tasks/vier-meetbronnen-en-ai-zoekvolume.md):
+ *
+ *   1. **Eén meting per vraag, niet drie** (`LLM_RESPONSE_REPEATS`, keuze 2):
+ *      bij $0,02 tot $0,065 per meting is drie keer meten al snel duurder dan
+ *      de rest van de meetronde samen.
+ *   2. **Geen overslaanregel**, zelfde reden als bij AI Overview: `maySkip()`
+ *      rust op tellers die alleen over de primaire engine gaan.
+ *
+ * Doet niets zonder `DATAFORSEO_LLM_ENABLED=true`.
+ */
+export async function enqueueLlmResponseMeasurement(
+  admin: Admin,
+  analysisId: string,
+  weekNo: number,
+): Promise<{ planned: number; totalPrompts: number }> {
+  if (!llmResponseGeminiEnabled()) return { planned: 0, totalPrompts: 0 };
+
+  const { data: prompts } = await admin
+    .from("prompts")
+    .select("id")
+    .eq("analysis_id", analysisId)
+    .eq("active", true);
+
+  const all = prompts ?? [];
+  if (all.length === 0) return { planned: 0, totalPrompts: 0 };
+
+  const gepland = all.flatMap((p) =>
+    Array.from({ length: LLM_RESPONSE_REPEATS }, (_, r) => ({ promptId: p.id as string, repeat: r })),
+  );
+
+  // Al gemeten? Dan niet opnieuw inplannen. Zelfde kostenbescherming als bij
+  // de andere twee bronnen.
+  const { data: gemeten } = await admin
+    .from("tracking_runs")
+    .select("prompt_id, repeat_index")
+    .eq("analysis_id", analysisId)
+    .eq("week_no", weekNo)
+    .eq("engine", LLM_RESPONSE_GEMINI_ENGINE)
+    .not("mention_json", "is", null);
+
+  const alGemeten = new Set(
+    (gemeten ?? []).map((r) => `${r.prompt_id as string}:${(r.repeat_index as number) ?? 0}`),
+  );
+  const kandidaten = gepland.filter((g) => !alGemeten.has(`${g.promptId}:${g.repeat}`));
+  if (kandidaten.length === 0) return { planned: 0, totalPrompts: all.length };
+
+  const sleutels = kandidaten.map((c) =>
+    dedupe.measureLlmResponse(analysisId, c.promptId, weekNo, c.repeat),
+  );
+  const { data: openRows } = await admin
+    .from("jobs")
+    .select("dedupe_key")
+    .in("dedupe_key", sleutels)
+    .in("status", ["queued", "running"]);
+  const alIngepland = new Set((openRows ?? []).map((r) => r.dedupe_key as string));
+
+  const rows = kandidaten
+    .filter((c) => !alIngepland.has(dedupe.measureLlmResponse(analysisId, c.promptId, weekNo, c.repeat)))
+    .map((c) => ({
+      type: "measure_llm_response" as const,
+      payload_json: { promptId: c.promptId, weekNo, repeatIndex: c.repeat } as never,
+      analysis_id: analysisId,
+      dedupe_key: dedupe.measureLlmResponse(analysisId, c.promptId, weekNo, c.repeat),
+      status: "queued" as const,
+      scheduled_for: new Date().toISOString(),
+    }));
+
+  if (rows.length === 0) return { planned: 0, totalPrompts: all.length };
+
+  const { data: inserted, error } = await admin.from("jobs").insert(rows).select("id");
+  if (error && error.code !== UNIQUE_VIOLATION) {
+    throw new Error(`Gemini-via-DataForSEO-meting inplannen mislukt: ${error.message}`);
   }
   return { planned: (inserted ?? []).length, totalPrompts: all.length };
 }

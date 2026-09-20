@@ -73,6 +73,7 @@ import { refreshInventory } from "@/lib/pipeline/refresh-inventory";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import { measureAiOverviewById } from "@/lib/pipeline/measure-ai-overview";
+import { measureLlmResponseById } from "@/lib/pipeline/measure-llm-response";
 import type {
   JobType,
   JobPayloads,
@@ -163,12 +164,12 @@ async function scheduleAggregateIfLastPrompt(
     .from("jobs")
     .select("id, payload_json, type")
     .eq("analysis_id", analysisId)
-    // ⚠️ Beide meetsoorten (20 september 2026). De kansen in het rapport komen
-    // uit een meerderheidsregel over álle metingen van een vraag
-    // (`computeMissedPrompts`), dus een ronde is pas klaar als beide bronnen
+    // ⚠️ Alle drie de meetsoorten (20 september 2026). De kansen in het rapport
+    // komen uit een meerderheidsregel over álle bronnen van een vraag
+    // (`computeMissedPrompts`), dus een ronde is pas klaar als alle bronnen
     // binnen zijn. Zie lib/jobs/pending.ts voor waarom dat het oude bezwaar
     // ("laat een trage bron de analyse niet laten hangen") overleeft.
-    .in("type", ["measure_prompt", "measure_ai_overview"])
+    .in("type", ["measure_prompt", "measure_ai_overview", "measure_llm_response"])
     .in("status", ["queued", "running"])
     // De taak die dit aanroept staat zélf nog op 'running'. Zonder deze
     // uitsluiting is `remaining` altijd minstens 1 en wordt de aggregatie
@@ -629,6 +630,25 @@ const handlers: { [T in JobType]: Handler<T> } = {
     // ⚠️ Ook déze taak kan de laatste van de ronde zijn. Zou alleen
     // `measure_prompt` de aggregatie aansturen, dan blijft een ronde waarvan de
     // Google-metingen als laatste binnenkomen voorgoed op 'meten' staan.
+    await scheduleAggregateIfLastPrompt(admin, job.analysis_id, payload.weekNo, job.id);
+  },
+
+  // ── Eén vraag meten via Gemini (DataForSEO) ───────────────────────────────
+  //
+  // Zelfde reden als bij `measure_ai_overview`: ketent naar de aggregatie, want
+  // de kansen wachten op alle bronnen (hoofdstuk 5 van
+  // docs/tasks/vier-meetbronnen-en-ai-zoekvolume.md).
+  measure_llm_response: async ({ admin, job }, payload) => {
+    if (!job.analysis_id) throw new Error("measure_llm_response zonder analysis_id.");
+    const uitkomst = await measureLlmResponseById(
+      job.analysis_id,
+      payload.promptId,
+      payload.weekNo,
+      payload.repeatIndex ?? 0,
+    );
+    // Een leeg antwoord is geen fout maar wel iets om te kunnen terugzien.
+    if (!uitkomst.gemeten) console.log(uitkomst.melding);
+
     await scheduleAggregateIfLastPrompt(admin, job.analysis_id, payload.weekNo, job.id);
   },
 
