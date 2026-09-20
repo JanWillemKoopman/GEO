@@ -1,6 +1,13 @@
 # Google AI Overview als tweede meetbron, en de wiebel van één meting
 
-**Opgesteld:** 20 september 2026. **Status: onderzocht en nagemeten, nog niet gebouwd.**
+**Opgesteld:** 20 september 2026. **Status: stap 2, 3 en 4 gebouwd. Stap 1 vervallen, stap 5 is een
+keuze van de eigenaar.**
+
+> ⚠️ **De bron staat UIT.** `AI_OVERVIEW_ENABLED` staat standaard op uit, en de aanwezigheid van een
+> DataForSEO-sleutel zet hem niet aan (`lib/ai-overview/registry.ts`). Zolang hij uit staat plant
+> `enqueueAiOverviewMeasurement()` nul taken en verandert er niets. Scenario 14 in `test-chain.ts`
+> legt dat vast. Zet hem pas aan als je bereid bent ongeveer $0,38 per cluster per meetronde uit te
+> geven.
 
 De aanleiding is een vraag van de eigenaar: dezelfde cluster twee keer meten met een half uur ertussen
 geeft twee verschillende uitslagen, en de klant leest dat als achteruitgang. Dit document legt vast
@@ -196,7 +203,7 @@ dus geld en verschuift geen enkel cijfer. Dat is prima, maar het is geen oplossi
 voor ongeveer $0,58 per markt per ronde. Dat is een aparte opdracht in `lib/pipeline/sales-measure.ts`
 en heeft niets met de klantmeting te maken.
 
-### Stap 2: de aggregatie engine-bewust maken (voorwaarde, anders telt alles dubbel)
+### Stap 2: de aggregatie engine-bewust maken ✅ GEBOUWD op 20 september 2026
 
 Nagerekend op 20 september 2026: `computeAggregates()` in `lib/pipeline/measure.ts` bevat **geen
 enkele engine-filter**, het woord "engine" komt in die functie niet voor. Hetzelfde geldt voor
@@ -211,7 +218,7 @@ de plek waar de uitsplitsing hoort.
 van beide dingen, en de vraag waar de klant op afgaat ("noemt ChatGPT mij") wordt er juist troebeler
 van.
 
-### Stap 3: Google AI Overview als derde soort bron, mét herhalingen vanaf dag één
+### Stap 3: Google AI Overview als derde soort bron ✅ GEBOUWD op 20 september 2026
 
 ⚠️ **Een AI Overview past niet in `EngineAdapter`.** Die interface verwacht een gesprek: een
 systeemprompt en een gebruikersvraag (`lib/engines/types.ts`). De SERP-api geeft een

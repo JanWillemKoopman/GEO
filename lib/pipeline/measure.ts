@@ -261,6 +261,33 @@ export async function measureOnePrompt(
     }
   }
 
+  await judgeRun(admin, analysis, ownLabel, ownAliases, ownExclusions, run);
+}
+
+/**
+ * Halte 3b los: één opgeslagen antwoord beoordelen.
+ *
+ * ── WAAROM DIT EEN EIGEN FUNCTIE IS (20 september 2026) ─────────────────────
+ *
+ * Sinds er een tweede soort bron bestaat (Google AI Overview, zie
+ * `lib/pipeline/measure-ai-overview.ts`) moet dezelfde beoordelaar over beide
+ * soorten antwoorden. Dat is geen gemak maar een meetvereiste: zouden er twee
+ * beoordelaars zijn, dan meten we het verschil tussen die twee in plaats van
+ * het verschil tussen ChatGPT en Google, en is geen enkele vergelijking tussen
+ * de bronnen nog iets waard. Dezelfde regel die `lib/engines/types.ts` al stelt
+ * voor engines, nu afgedwongen door één gedeelde functie in plaats van door een
+ * afspraak.
+ *
+ * Idempotent: staat `mention_json` er al, dan gebeurt er niets.
+ */
+export async function judgeRun(
+  admin: Admin,
+  analysis: Pick<Analysis, "id" | "profile_id">,
+  ownLabel: string,
+  ownAliases: string[],
+  ownExclusions: string[],
+  run: TrackingRun,
+): Promise<void> {
   if (run.mention_json) return; // 3b al gedaan, niets te doen (idempotent)
 
   // Een eerder opgeslagen leeg antwoord (van vóór de controle hierboven) mag
@@ -270,7 +297,7 @@ export async function measureOnePrompt(
   if ((run.raw_response ?? "").trim().length < MIN_ANSWER_CHARS) {
     await admin.from("tracking_runs").delete().eq("id", run.id);
     throw new Error(
-      `Opgeslagen meting van prompt ${prompt.id} bevat geen bruikbaar antwoord; ` +
+      `Opgeslagen meting van prompt ${run.prompt_id} bevat geen bruikbaar antwoord; ` +
         `de meting wordt opnieuw gedaan.`,
     );
   }

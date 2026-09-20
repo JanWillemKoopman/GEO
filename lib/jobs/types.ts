@@ -66,6 +66,7 @@ export const JOB_TYPES = [
   "calibrate_volumes",
   /** Eén vraag stellen en het antwoord beoordelen (3a + 3b). Eén per prompt. */
   "measure_prompt",
+  "measure_ai_overview",
   /** Pure aggregatie over alle metingen van een week (3c). Geen AI-aanroep. */
   "aggregate_week",
   /** Waarom worden concurrenten genoemd? Destilleert eigenschappen uit de meting (R4.2). */
@@ -339,6 +340,25 @@ export interface JobPayloads {
      * Afwezig = 'openai', wat élke meting tot augustus 2026 was.
      */
     engine?: EngineId;
+  };
+  /**
+   * Eén meetvraag via Google AI Overview (20 september 2026).
+   *
+   * ⚠️ Een EIGEN taaktype en geen engine-variant van `measure_prompt`. Conventie
+   * 7: een nieuwe zware stap wordt een eigen jobtype. Bovendien loopt deze stap
+   * niet via `EngineAdapter` (een zoekopdracht is geen gesprek) en heeft hij
+   * eigen faalgevallen: "geen overzicht" is hier een normale uitkomst en bij
+   * ChatGPT een fout.
+   */
+  measure_ai_overview: {
+    promptId: string;
+    weekNo: number;
+    /**
+     * Hoeveelste herhaling van deze vraag. Deze bron meet standaard drie keer,
+     * omdat één losse uitkomst ongeveer een muntworp is (nagemeten 20 september
+     * 2026) en een aanroep hier een vijfde kost van een ChatGPT-meting.
+     */
+    repeatIndex?: number;
   };
   aggregate_week: { weekNo: number };
   profile_competitors: { weekNo: number };

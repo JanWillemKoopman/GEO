@@ -138,6 +138,12 @@ import { checkUrlFormat, isOnBrandDomain } from "@/lib/url";
 import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import { PRIMARY_ENGINE } from "@/lib/engines/types";
+import { leesAiOverview } from "@/lib/ai-overview/parse";
+import {
+  AI_OVERVIEW_ENGINE,
+  AI_OVERVIEW_REPEATS,
+  AI_OVERVIEW_POGINGEN,
+} from "@/lib/ai-overview/types";
 import { formatEvidenceDossier, excerpt } from "@/lib/pipeline/evidence-format";
 import type { EvidenceEntry } from "@/lib/pipeline/evidence-format";
 import { stripUnsupportedClaims, validateField, NEUTRAL_FALLBACK } from "@/lib/pipeline/validate-claims";
@@ -23482,4 +23488,67 @@ group("countOpenPeriodicMeasurements: wacht alleen op de primaire engine", () =>
     countOpenPeriodicMeasurements([taak({ weekNo: 0, impact: { wave: 1 }, engine: "openai" })], 0) === 0,
   );
   ok("de primaire engine is ChatGPT", PRIMARY_ENGINE === "openai");
+});
+
+// ── lib/ai-overview/parse.ts ─────────────────────────────────────────────────
+//
+// Dit is de plek waar "geen AI Overview" en "wél een AI Overview" uit elkaar
+// gehouden worden, en dat onderscheid bepaalt of een vraag die ronde meetelt in
+// de noemer. Een fout hier verlaagt stilletjes de score van een merk doordat
+// Google toevallig geen overzicht toonde.
+group("leesAiOverview: een overzicht uitpakken, en weten wanneer er geen is", () => {
+  const taak = (inhoud: Record<string, unknown>) => ({
+    tasks: [{ status_code: 20000, cost: 0.004, result: [{ items: [inhoud] }] }],
+  });
+
+  // Het gewone geval: tekst plus bronnen.
+  const goed = leesAiOverview(
+    taak({
+      type: "ai_overview",
+      markdown: "In Zwolle vindt u verschillende dakdekkers die eerst een inspectie doen.",
+      references: [{ domain: "www.mrdakdekkerzwolle.nl" }, { domain: "de-kraaij.com" }],
+    }),
+  );
+  eq("status is gemeten", goed.status, "gemeten");
+  ok("de tekst komt mee", goed.tekst.includes("Zwolle"));
+  eq("www valt weg uit het domein", goed.bronnen.join(","), "mrdakdekkerzwolle.nl,de-kraaij.com");
+  eq2("en de kosten komen mee", goed.kostenUsd, 0.004);
+
+  // Zonder `markdown` valt hij terug op de losse tekstblokken.
+  const viaItems = leesAiOverview(
+    taak({ type: "ai_overview", items: [{ text: "Eerste stuk." }, { text: "Tweede stuk." }] }),
+  );
+  eq("zonder markdown werken de losse blokken", viaItems.status, "gemeten");
+  ok("en die worden samengevoegd", viaItems.tekst.includes("Eerste") && viaItems.tekst.includes("Tweede"));
+
+  // ⚠️ HET BELANGRIJKSTE GEVAL. Geen overzichtsblok is een NIET-METING, geen
+  // nulscore. Zou dit als "merk niet genoemd" wegschrijven, dan zakt de score
+  // van een merk doordat Google geen antwoord gaf (conventie 3).
+  const geen = leesAiOverview(taak({ type: "organic" }));
+  eq("geen overzichtsblok is geen meting", geen.status, "geen_overview");
+  eq("en dus geen tekst", geen.tekst, "");
+
+  // ⚠️ Een LEEG overzichtsblok telt ook als geen meting. Dat kwam in de meting
+  // van 20 september 4 keer voor op 180 aanroepen.
+  const leegBlok = leesAiOverview(taak({ type: "ai_overview", markdown: "", references: [] }));
+  eq("een leeg overzicht telt niet als meting", leegBlok.status, "geen_overview");
+
+  // Een mislukte taak. ⚠️ De kosten komen tóch mee: een 40101 kost $0,002, en
+  // die weglaten maakt elke kostenraming van deze bron structureel te laag.
+  const stuk = leesAiOverview({
+    tasks: [{ status_code: 40101, status_message: "Internal SE Server Error.", cost: 0.002 }],
+  });
+  eq("een serverfout is een mislukking", stuk.status, "mislukt");
+  eq2("en kost tóch geld", stuk.kostenUsd, 0.002);
+  ok("met de reden erbij", (stuk.melding ?? "").includes("Internal SE"));
+
+  // Onverwachte vormen mogen nooit gooien: één rare respons zou anders een hele
+  // meetronde kunnen afbreken.
+  eq("een lege respons is een mislukking", leesAiOverview({}).status, "mislukt");
+  eq("en null ook", leesAiOverview(null).status, "mislukt");
+
+  // De afspraken die de kosten bepalen.
+  ok("elke vraag gaat drie keer", AI_OVERVIEW_REPEATS === 3);
+  ok("en een mislukte aanroep krijgt één herkansing", AI_OVERVIEW_POGINGEN === 2);
+  ok("de bron landt onder zijn eigen engine-naam", AI_OVERVIEW_ENGINE === "google_ai_overview");
 });

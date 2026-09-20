@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
-import { enqueueMeasurement } from "@/lib/jobs/queue";
+import { enqueueMeasurement, enqueueAiOverviewMeasurement } from "@/lib/jobs/queue";
 import { describeError, classifyError } from "@/lib/errors";
 import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 import { checkBudgetForProfile } from "@/lib/spend-limit";
@@ -76,6 +76,12 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   let totalPrompts: number;
   try {
     ({ planned, totalPrompts } = await enqueueMeasurement(admin, id, 0));
+    // De tweede bron erbij (20 september 2026). Doet niets zonder
+    // AI_OVERVIEW_ENABLED=true, en telt bewust NIET mee in `planned`: die teller
+    // stuurt het voortgangsscherm aan, dat wacht op de score, en de score rust
+    // op de primaire engine. Zou deze bron meetellen, dan blijft de balk hangen
+    // op werk waar de klant niet op wacht.
+    await enqueueAiOverviewMeasurement(admin, id, 0);
   } catch (err) {
     console.error(`meting inplannen mislukt bij bevestigen van ${id}:`, err);
     return NextResponse.json(

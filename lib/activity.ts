@@ -51,6 +51,7 @@ export const TAAK_TEKST: Record<JobType, string | null> = {
   generate_prompts: "de vragen opgesteld die je klanten stellen",
   calibrate_volumes: "ingeschat hoe vaak er naar die vragen gezocht wordt",
   measure_prompt: "een vraag aan een AI-assistent gesteld",
+  measure_ai_overview: "een vraag aan Google gesteld en het AI-overzicht gelezen",
   aggregate_week: "de meetronde doorgerekend",
   profile_competitors: "uitgezocht waarom je concurrenten genoemd worden",
   generate_report: "je rapport geschreven",

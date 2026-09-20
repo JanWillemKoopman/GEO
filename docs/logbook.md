@@ -10208,3 +10208,54 @@ zou anders een dure ChatGPT-meting in leven houden die daar structureel niets do
 er een meetronde in het kostenoverzicht met een prijs van nul.
 
 Getest: `tsc --noEmit`, `test:unit` (4947, was 4941), `test:chain` (696, was 690) en `build` groen.
+
+## 20 september 2026 (8): Google AI Overview meet mee, achter een schakelaar die uit staat
+
+Stap 3 van `docs/tasks/ai-overview-als-tweede-meetbron.md`. Elke meetvraag kan nu ook langs het
+AI-overzicht van Google, drie keer per vraag, en het resultaat landt in `tracking_runs` naast de
+ChatGPT-meting.
+
+**Het is een bron, geen engine, en dat onderscheid zit in de code.** `EngineAdapter` verwacht een
+gesprek: een systeemprompt en een gebruikersvraag. Hier gaat een zoekopdracht naar een zoekmachine en
+komt een resultatenpagina terug. Vandaar `lib/ai-overview/` naast `lib/engines/`, en een eigen
+taaktype `measure_ai_overview` in plaats van een engine-variant van `measure_prompt` (conventie 7).
+In de OPSLAG is het wél gewoon een bron naast de andere: `engine = 'google_ai_overview'`, waarmee
+deze bron de hele beoordelings- en aggregatieketen erft.
+
+**Wat wél gedeeld wordt, is de beoordelaar.** Halte 3b is uit `measureOnePrompt()` gelicht tot
+`judgeRun()`, en beide bronnen gebruiken hem. Dat is geen gemak maar een meetvereiste: met twee
+beoordelaars meet je het verschil tussen die twee in plaats van tussen ChatGPT en Google, en is geen
+enkele vergelijking tussen de bronnen nog iets waard.
+
+**⚠️ Geen overzicht is geen nulscore.** Toont Google bij een vraag geen AI Overview, dan wordt er
+niets opgeslagen en telt die vraag die ronde niet mee in de noemer van deze bron. Zou je hem als
+"merk niet genoemd" wegschrijven, dan zakt de score doordat Google geen antwoord gaf (conventie 3).
+Dat is geen randgeval: 9% van de geslaagde aanroepen levert geen bruikbaar overzicht op.
+
+**Drie herhalingen per vraag, vanaf dag één.** Niet omdat het kan maar omdat het moet: van de 28
+vragen waar het merk ooit genoemd werd wisselde de uitkomst bij 17 tussen twee rondes een half uur na
+elkaar. Eén losse uitkomst is ongeveer een muntworp. Bij $0,0037 per aanroep kost drie keer meten van
+dertig vragen ongeveer $0,38, tegen $1,54 voor hetzelfde bij ChatGPT. De prijs is de enige reden dat
+deze bron de moeite is, en die prijs wordt hier uitgegeven aan zekerheid.
+
+**De herkansing zit in de aanroep zelf.** Bijna een derde van de aanroepen geeft `40101 Internal SE
+Server Error` bij de eerste poging (26 van 90, en 28 van 90 in de tweede ronde); alle 54
+herkansingen slaagden. Zonder die lus zou een derde van elke ronde ontbreken en verspringt de noemer
+per ronde. ⚠️ Een mislukte aanroep kost tóch $0,002, dus die kosten tellen op bij de volgende poging
+en worden altijd gelogd, ook als er niets gemeten is.
+
+**De schakelaar staat in code en staat uit.** `AI_OVERVIEW_ENABLED`, standaard uit, en de
+aanwezigheid van een DataForSEO-sleutel zet hem niet aan. Dat is de les van 20 september (2)
+toegepast: die sleutels staan in Vercel voor de geparkeerde zoekvolumelaag, dus zou de sleutel
+volstaan, dan ging deze betaalde bron meteen meedraaien op elke omgeving waar die laag ooit is
+opgezet. Scenario 14 in `test-chain.ts` legt vast dat twee geldige sleutels op zichzelf niets doen,
+dat de schakelaar aan drie metingen per vraag oplevert, en dat tweemaal plannen niets verdubbelt.
+
+**Twee dingen die deze taak bewust NIET doet.** Hij ketent niet naar de aggregatie, want dan werd die
+per binnenkomende meting opnieuw gedraaid: negentig keer hetzelfde rekenwerk en een rapport dat
+halverwege een ronde verstuurd wordt. En hij telt niet mee in `planned` op het voortgangsscherm,
+want dat scherm wacht op de score, en de score rust op `PRIMARY_ENGINE`.
+
+Getest: `tsc --noEmit`, `test:unit` (4964, was 4947), `test:chain` (709, was 696) en `build` groen.
+⚠️ Niet geverifieerd tegen productie (conventie 10): de bron heeft nog geen echte meetronde gedraaid
+binnen de app. Het onderzoek eronder is wél tegen het echte account gedaan, 234 aanroepen voor $0,85.

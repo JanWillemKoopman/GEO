@@ -8776,6 +8776,77 @@ async function main(): Promise<void> {
       else process.env.SEARCH_DEMAND_ENABLED = oudSchakelaar;
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // SCENARIO 14: Google AI Overview plant niets in zonder zijn schakelaar
+    //
+    // ⚠️ Dezelfde les als scenario 13, en daarom dezelfde opzet. De
+    // DataForSEO-sleutels staan in Vercel voor de geparkeerde zoekvolumelaag.
+    // Zou de sleutel hier de schakelaar zijn, dan gaat deze bron meteen
+    // meedraaien op elke omgeving waar die laag ooit is opgezet, en dan staat er
+    // een betaalde bron te meten die niemand heeft aangezet.
+    //
+    // Wat dit scenario vastlegt dat een unittest niet kan: wat er daadwerkelijk
+    // in de WACHTRIJ belandt. Drie herhalingen per vraag, en nul zodra de
+    // schakelaar uit staat.
+    {
+      const oudLogin = process.env.DATAFORSEO_LOGIN;
+      const oudWachtwoord = process.env.DATAFORSEO_PASSWORD;
+      const oudSchakelaar = process.env.AI_OVERVIEW_ENABLED;
+      const { enqueueAiOverviewMeasurement } = await import("@/lib/jobs/queue");
+      const { aiOverviewEnabled } = await import("@/lib/ai-overview/registry");
+
+      process.env.DATAFORSEO_LOGIN = "test-login";
+      process.env.DATAFORSEO_PASSWORD = "test-wachtwoord";
+      delete process.env.AI_OVERVIEW_ENABLED;
+
+      ok("scenario 14: de bron staat standaard uit", aiOverviewEnabled() === false);
+      const uit = await enqueueAiOverviewMeasurement(admin as never, analysisId, 0);
+      eqc("scenario 14: en plant dus niets in", String(uit.planned), "0");
+
+      // Twee geldige sleutels zijn op zichzelf niet genoeg. Dat is de hele reden
+      // dat de schakelaar in code staat en niet in de aanwezigheid van een sleutel.
+      for (const halfslachtig of ["1", "ja", "yes", "aan", ""]) {
+        process.env.AI_OVERVIEW_ENABLED = halfslachtig;
+        ok(`scenario 14: "${halfslachtig}" zet de bron niet aan`, aiOverviewEnabled() === false);
+      }
+      // Hoofdletters en spaties worden wél vergeven, zelfde regel als
+      // `searchDemandEnabled()`. Een typefout mag de bron niet aanzetten, maar
+      // "TRUE" uit een omgevingsscherm is geen typefout.
+      for (const wel of ["true", "TRUE", " true ", "True"]) {
+        process.env.AI_OVERVIEW_ENABLED = wel;
+        ok(`scenario 14: "${wel}" zet de bron wél aan`, aiOverviewEnabled() === true);
+      }
+
+      process.env.AI_OVERVIEW_ENABLED = "true";
+      const { rows: actieveVragen } = await db.client.query(
+        "select count(*)::int as n from public.prompts where analysis_id = $1 and active = true",
+        [analysisId],
+      );
+      const aan = await enqueueAiOverviewMeasurement(admin as never, analysisId, 0);
+      // ⚠️ DRIE per vraag, niet één. Eén losse uitkomst is ongeveer een muntworp
+      // (17 van de 28 vragen wisselden tussen twee rondes, 20 september 2026), en
+      // bij $0,0037 per aanroep is drie keer meten hier betaalbaar. Dat is de
+      // hele zakelijke reden dat deze bron bestaat, dus hoort hij vast te staan.
+      eqc(
+        "scenario 14: met de schakelaar aan drie metingen per vraag",
+        String(aan.planned),
+        String(actieveVragen[0].n * 3),
+      );
+
+      // En idempotent: nog een keer plannen levert niets op, want de taken staan
+      // al klaar. Meten is de betaalde stap.
+      const nogEens = await enqueueAiOverviewMeasurement(admin as never, analysisId, 0);
+      eqc("scenario 14: tweemaal plannen verdubbelt niets", String(nogEens.planned), "0");
+
+      await db.client.query("delete from public.jobs where type = 'measure_ai_overview'");
+      if (oudLogin === undefined) delete process.env.DATAFORSEO_LOGIN;
+      else process.env.DATAFORSEO_LOGIN = oudLogin;
+      if (oudWachtwoord === undefined) delete process.env.DATAFORSEO_PASSWORD;
+      else process.env.DATAFORSEO_PASSWORD = oudWachtwoord;
+      if (oudSchakelaar === undefined) delete process.env.AI_OVERVIEW_ENABLED;
+      else process.env.AI_OVERVIEW_ENABLED = oudSchakelaar;
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

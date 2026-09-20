@@ -72,6 +72,7 @@ import type { Kandidaat } from "@/lib/sales/discovery";
 import { refreshInventory } from "@/lib/pipeline/refresh-inventory";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
+import { measureAiOverviewById } from "@/lib/pipeline/measure-ai-overview";
 import type {
   JobType,
   JobPayloads,
@@ -593,6 +594,31 @@ const handlers: { [T in JobType]: Handler<T> } = {
     if (!job.analysis_id)
       throw new Error("calibrate_volumes zonder analysis_id.");
     await calibratePromptVolumes(job.analysis_id);
+  },
+
+  // ── Eén vraag meten via Google AI Overview ────────────────────────────────
+  //
+  // ⚠️ Deze taak ketent NIET naar de aggregatie. Dat is met opzet: de score van
+  // de klant rust op `PRIMARY_ENGINE` (`lib/engines/types.ts`), en
+  // `countOpenPeriodicMeasurements()` wacht daarom alleen op de ChatGPT-metingen.
+  // Zou deze taak de aggregatie aansturen, dan werd die per binnenkomende
+  // AI Overview-meting opnieuw gedraaid: dertig keer drie keer hetzelfde
+  // rekenwerk, en een rapport dat halverwege een ronde al verstuurd wordt.
+  //
+  // De uitkomst landt gewoon in `tracking_runs`, en de eerstvolgende aggregatie
+  // van deze periode neemt hem mee in `per_engine_json`.
+  measure_ai_overview: async ({ job }, payload) => {
+    if (!job.analysis_id) throw new Error("measure_ai_overview zonder analysis_id.");
+    const uitkomst = await measureAiOverviewById(
+      job.analysis_id,
+      payload.promptId,
+      payload.weekNo,
+      payload.repeatIndex ?? 0,
+    );
+    // Een vraag zonder AI-overzicht is geen fout maar wel iets om te kunnen
+    // terugzien: bij ongeveer één vraag op de tien gebeurt dit, en als dat
+    // aandeel plots oploopt is dat een signaal over Google, niet over het merk.
+    if (!uitkomst.gemeten) console.log(uitkomst.melding);
   },
 
   // ── Eén vraag meten (3a + 3b) ─────────────────────────────────────────────
