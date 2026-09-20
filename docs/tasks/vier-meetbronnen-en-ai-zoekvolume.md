@@ -1,13 +1,14 @@
 # Vier meetbronnen, en zoekvolume dat niet meer wiebelt
 
-**Opgesteld:** 20 september 2026. **Status: onderzocht en uitgewerkt, nog niets gebouwd en nog
-niets geverifieerd.**
+**Opgesteld:** 20 september 2026. **Status: stap 0 is gedraaid op 20 september 2026 (zie hoofdstuk
+6.1). Uitkomst: de afbreekregel op kosten is geraakt. Er is nog niets gebouwd, en er mag ook niets
+gebouwd worden voordat de eigenaar een expliciet besluit heeft genomen over die kosten.**
 
-> ⚠️ **Geen enkel kostencijfer in dit document is nagemeten.** De prijs per aanroep van de twee
-> nieuwe bronnen staat nergens in de documentatie van DataForSEO, en dat is precies het cijfer
-> waar de beslissing op rust. `scripts/probe-dataforseo-ai.ts` staat klaar om het te meten en is
-> nog niet gedraaid, want deze werkomgeving laat de DataForSEO-sleutel niet toe in een commando.
-> **Stap 0 in hoofdstuk 6 gaat vóór elke regel bouwwerk** (conventie 10).
+> ⚠️ **De twee nieuwe meetbronnen kosten in de praktijk meer dan de afbreekregel toestaat.** Zowel
+> ChatGPT als Gemini via DataForSEO LLM Responses kwamen bij een echte meting boven de $0,03 per
+> meting uit die hoofdstuk 6 als grens stelt. Dat is geen documentatiecijfer meer maar een
+> nagemeten uitgave. Zie hoofdstuk 6.1 voor de cijfers en wat dat voor het bouwplan in hoofdstuk 7
+> betekent.
 
 De aanleiding is een wens van de eigenaar: DataForSEO levert niet alleen het Google AI Overview dat
 we sinds vandaag meten, maar ook antwoorden van LLM's zelf, en daarnaast een schatting van hoe vaak
@@ -222,9 +223,90 @@ De uitkomsten van A tot en met D horen als hoofdstuk aan dit document toegevoegd
 datum erbij, zoals hoofdstuk 3 van `ai-overview-als-tweede-meetbron.md` dat doet. Zonder dat
 hoofdstuk is dit plan niet af.
 
+### 6.1 Uitkomst van de verificatie (20 september 2026)
+
+Gedraaid met `DATAFORSEO_LOGIN`/`DATAFORSEO_PASSWORD` van de eigenaar, tegen de echte vragen van
+Van den Udenhout. Eerst zonder `--betaald` (gratis, A en B), daarna met `--betaald` (C en D).
+Totaal afgeschreven bij DataForSEO in deze verificatie: **$0,26** (script $0,1469, plus $0,1166 aan
+gerichte vervolgaanroepen om de twee mislukkingen in D te verklaren, zie hieronder).
+
+**A. Nederland en Nederlands in het AI-zoekvolume** ✅ aanwezig. 94 landen, Netherlands zit erbij
+met "Dutch (nl)" als taal. De afbreekregel bij A ("Nederland of Nederlands ontbreekt") is dus niet
+geraakt: het zoekvolumedeel (hoofdstuk 3.2 en stap 8) blijft overeind.
+
+**B. Modellen met web search.** ChatGPT: 46 modellen, 33 met `web_search_supported: true`. Gemini:
+12 modellen, alle 12 met web search. Belangrijke correctie op de aanname in dit document: **niet
+elk model met `web_search_supported: true` ondersteunt ook `force_web_search`.** Het script koos
+automatisch het eerste model uit de lijst (`o4-mini`, een redeneermodel) en dat gaf bij élke van de
+vijf D-vragen de fout `40501 Invalid Field: 'this model does not support 'force_web_search''`, dus
+$0,00 kosten maar ook 0 van de 5 bruikbaar. Een gerichte hertest met `gpt-4o` (geen redeneermodel)
+werkte wel. **Conclusie: de modelkeuze in stap 2 (`lib/llm-responses/types.ts`) moet een
+niet-redenerend model vastzetten (`gpt-4o` is nagemeten), niet het eerste model uit de lijst.**
+
+**C. AI-zoekvolume op onze eigen termen.** Kosten: $0,0112 voor de hele lijst van 12 termen, ruim
+onder de "~$0,01" schatting. Raakpercentage exact zoals hoofdstuk 3.2 voorspelde:
+
+| vorm | raak | conclusie |
+|---|---|---|
+| volzin (de hele meetvraag) | 0 van 3 | zoals verwacht, te specifiek |
+| clusterlabel + plaats | 0 van 5 | ook te specifiek, zelfs met plaats erbij |
+| clusterlabel alleen | 4 van 4 | dit is de vorm die iets oplevert |
+
+Voorbeeldcijfers op clusterniveau: "occasion kopen" 142, "zakelijke lease" 346 (huidige AI-schatting
+was 68), "wagenparkbeheer" 17 (huidige schatting 30), "tweedehands auto kopen" 368. Twaalf maanden
+historie is aanwezig. De afbreekregel bij C ("geen enkele vorm geeft een volume") is dus niet
+geraakt, maar wel de helft ervan: **alleen de brede clusterterm werkt, dus `kandidaatZoektermen()`
+moet in stap 8 bij de brede vorm landen, niet bij de specifieke.** Dat de twee gemeten cijfers ver
+afwijken van de bestaande AI-schatting (346 tegen 68, 17 tegen 30) bevestigt ook meteen waarom
+hoofdstuk 3.2 dit "stabiliteit, niet waarheid" noemt: het zijn geen vervangingen van hetzelfde
+cijfer, het zijn twee verschillende dingen die toevallig dezelfde plek in de UI innemen.
+
+**D. Wat een meting werkelijk kost, en of het antwoord bruikbaar is.** Dit is waar de afbreekregel
+raakt. De eerste ronde met de automatisch gekozen modellen gaf op beide bronnen 0 van de 5
+bruikbaar: ChatGPT door de `force_web_search`-fout hierboven (B), Gemini omdat alle vijf antwoorden
+leeg terugkwamen (0 tekens) terwijl er wel voor $0,01 à $0,04 per aanroep is afgeschreven en de API
+`web_search: true` teruggaf. Dat is precies conventie 3 in de praktijk: een leeg antwoord is geen
+nulscore, en het script heeft daarom terecht niets als meting geteld.
+
+Om vast te stellen of dat een instelfout was of een echte eigenschap van de bron, zijn er twee
+gerichte hertests gedaan (dezelfde vraag, één aanroep per bron, geen batch van vijf):
+
+| bron | model | kosten | tekens terug | bruikbaar |
+|---|---|---|---|---|
+| ChatGPT, DataForSEO, `force_web_search` aan | `gpt-4o` | **$0,0814** | 1272 (rijk, met vijf lokale autobedrijven en bronvermeldingen) | ja |
+| Gemini, DataForSEO | `gemini-3.8-flash` | **$0,0351** | 853 (rijk, met lokale autobedrijven) | ja |
+
+Beide bronnen werken dus wél, en leveren op hun beurt een bruikbaar, Nederlands, op web search
+gebaseerd antwoord met concrete lokale bedrijven. Maar geen van beide blijft onder de grens van dit
+document:
+
+- **ChatGPT via DataForSEO kost $0,0814 per meting, 4,8 keer de grens van $0,03, en ruim 5 keer
+  onze eigen ChatGPT-route ($0,017).** De geforceerde web search met landcode is duur, precies het
+  scenario waar hoofdstuk 4 al voor waarschuwde ("een toeslag voor web search", "$0,0006 plus wat
+  het model zelf aan tokens rekent" was dus een sterke onderschatting).
+- **Gemini via DataForSEO kost $0,0351 per meting**, net boven de grens van $0,03.
+
+**De afbreekregel van hoofdstuk 6 is dus geraakt: "Bij D kost een meting meer dan $0,03 → dan gaat
+hij niet door zonder een expliciet besluit van de eigenaar."** Dat besluit is er nog niet. De
+Gemini-flakiness (eerste ronde leeg, tweede ronde rijk, zelfde instellingen) is bovendien zelf een
+open vraag: of dat op één losse meting per vraag (keuze 2 van de eigenaar) een probleem wordt is
+niet met vijf metingen vast te stellen.
+
+**Gevolg voor het bouwplan in hoofdstuk 7:** stap 2 tot en met 7 (de twee nieuwe meetbronnen) gaan
+niet door zonder dat de eigenaar expliciet akkoord geeft op $0,08 per ChatGPT-meting via DataForSEO
+en $0,035 per Gemini-meting, wat een meetronde van $1,15 naar ongeveer **$1,15 + 30×($0,08 +
+$0,035) ≈ $4,60** per ronde brengt in plaats van de $2,15 die hoofdstuk 4 als verwachting noemde.
+**Stap 1 en stap 8 (de migratie en het zoekvolume) raken deze afbreekregel niet** en kunnen los
+doorgaan: het zoekvolume-endpoint is apart geprijsd (ongeveer $0,01 per merk, hoofdstuk 4) en heeft
+geen relatie met de dure LLM Responses-aanroepen.
+
 ---
 
 ## 7. Het bouwplan
+
+> ⚠️ **Stap 2 tot en met 7 wachten op een expliciet besluit van de eigenaar** (zie hoofdstuk 6.1):
+> beide nieuwe bronnen kosten meer dan de $0,03 grens per meting. Stap 1 en stap 8 raken die
+> afbreekregel niet en zijn niet geblokkeerd.
 
 De volgorde is die van `CLAUDE.md`: migratie eerst, dan code, dan UI. Elke stap is los af te maken
 en los te testen.
@@ -324,12 +406,18 @@ opgeslagen in plaats van berekend, net als bij de AI Overview-bron.
   bronnen alleen over de zwaarstwegende vragen laten lopen in plaats van over alle dertig.
 - **Gemini meet zonder Nederlandse zoekcontext.** Zie hoofdstuk 3.1.
 
-**Open, en pas te beantwoorden na stap 0:**
+**Beantwoord door stap 0 (hoofdstuk 6.1, 20 september 2026):**
 
-- Wat een meting werkelijk kost, en dus of de meetronde op ongeveer $2,15 uitkomt of op meer.
-- Of het AI-zoekvolume voor Nederlandse termen überhaupt gevuld is.
-- Welke modelnamen we vastzetten. Net als bij OpenAI hoort dat in code te staan en niet in een
-  omgevingsvariabele, zodat een modelwissel een commit is en geen instelling.
+- Wat een meting werkelijk kost: **$0,0814 voor ChatGPT via DataForSEO, $0,0351 voor Gemini via
+  DataForSEO**, allebei boven de grens van $0,03. Een meetronde komt daarmee op ongeveer $4,60 in
+  plaats van de verwachte $2,15, en dat wacht op een expliciet besluit van de eigenaar (hoofdstuk
+  6.1) voordat stap 2 tot en met 7 doorgaan.
+- Het AI-zoekvolume is gevuld voor Nederlandse termen, maar alleen op het brede clusterlabel (4 van
+  4), niet op de volzin of het clusterlabel plus plaats (0 van 8). Zie hoofdstuk 6.1.
+- Welke modelnamen we vastzetten: **`gpt-4o` voor ChatGPT** (redeneermodellen zoals het
+  standaard-gekozen `o4-mini` ondersteunen `force_web_search` niet) **en `gemini-3.8-flash` voor
+  Gemini**, beide nagemeten in hoofdstuk 6.1. Dat hoort net als bij OpenAI in code te staan en niet
+  in een omgevingsvariabele, zodat een modelwissel een commit is en geen instelling.
 
 ---
 
@@ -337,8 +425,9 @@ opgeslagen in plaats van berekend, net als bij de AI Overview-bron.
 
 Gebouwd is niet geverifieerd (conventie 10). Dit werk is pas af als:
 
-1. `scripts/probe-dataforseo-ai.ts` gedraaid heeft en de uitkomsten als hoofdstuk in dit document
-   staan, met datum.
+1. ✅ **Gedaan, 20 september 2026.** `scripts/probe-dataforseo-ai.ts` heeft gedraaid en de
+   uitkomsten staan als hoofdstuk 6.1 in dit document. Uitkomst: de afbreekregel op kosten is
+   geraakt, dus punt 2 en 3 hieronder wachten op het besluit van de eigenaar uit hoofdstuk 6.1.
 2. Een echt cluster van Van den Udenhout een volledige meetronde over alle vier de bronnen heeft
    gedaan, en de werkelijke kosten naast de raming in het logboek staan, zoals op 20 september bij
    het cluster APK Den Bosch gebeurd is.
