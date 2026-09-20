@@ -1,14 +1,16 @@
 # Vier meetbronnen, en zoekvolume dat niet meer wiebelt
 
-**Opgesteld:** 20 september 2026. **Status: stap 0 is gedraaid op 20 september 2026 (zie hoofdstuk
-6.1). Uitkomst: de afbreekregel op kosten is geraakt. Er is nog niets gebouwd, en er mag ook niets
-gebouwd worden voordat de eigenaar een expliciet besluit heeft genomen over die kosten.**
+**Opgesteld:** 20 september 2026. **Status: stap 0 is gedraaid op 20 september 2026 (hoofdstuk 6.1),
+en op verzoek van de eigenaar is uitgezocht of het goedkoper kan (hoofdstuk 6.2). Er is nog niets
+gebouwd. ChatGPT via DataForSEO haalt met het juiste model (`gpt-4o-mini`) de kostengrens; voor
+Gemini ligt er nog een keuze open bij de eigenaar.**
 
-> ⚠️ **De twee nieuwe meetbronnen kosten in de praktijk meer dan de afbreekregel toestaat.** Zowel
-> ChatGPT als Gemini via DataForSEO LLM Responses kwamen bij een echte meting boven de $0,03 per
-> meting uit die hoofdstuk 6 als grens stelt. Dat is geen documentatiecijfer meer maar een
-> nagemeten uitgave. Zie hoofdstuk 6.1 voor de cijfers en wat dat voor het bouwplan in hoofdstuk 7
-> betekent.
+> ⚠️ **Modelkeuze is de knop die werkt, niet alle bronnen zijn even beïnvloedbaar.** Met het eerste
+> werkende model kostte een meting $0,08 (ChatGPT) en $0,035 (Gemini), beide boven de grens van
+> $0,03. Overstappen op `gpt-4o-mini` brengt ChatGPT naar $0,027, ruim onder de grens. Bij Gemini
+> zit de kostendrempel niet in het model maar in een vaste toeslag voor de web search zelf: het
+> goedkoopste geteste model zit nog altijd op de grens ($0,03). Zie hoofdstuk 6.2 voor de cijfers en
+> de resterende keuze (Gemini meedoen op de grens, of laten vervallen als vierde bron).
 
 De aanleiding is een wens van de eigenaar: DataForSEO levert niet alleen het Google AI Overview dat
 we sinds vandaag meten, maar ook antwoorden van LLM's zelf, en daarnaast een schatting van hoe vaak
@@ -287,26 +289,62 @@ document:
 - **Gemini via DataForSEO kost $0,0351 per meting**, net boven de grens van $0,03.
 
 **De afbreekregel van hoofdstuk 6 is dus geraakt: "Bij D kost een meting meer dan $0,03 → dan gaat
-hij niet door zonder een expliciet besluit van de eigenaar."** Dat besluit is er nog niet. De
-Gemini-flakiness (eerste ronde leeg, tweede ronde rijk, zelfde instellingen) is bovendien zelf een
-open vraag: of dat op één losse meting per vraag (keuze 2 van de eigenaar) een probleem wordt is
-niet met vijf metingen vast te stellen.
+hij niet door zonder een expliciet besluit van de eigenaar."** De Gemini-flakiness (eerste ronde
+leeg, tweede ronde rijk, zelfde instellingen) is bovendien zelf een open vraag: of dat op één losse
+meting per vraag (keuze 2 van de eigenaar) een probleem wordt is niet met vijf metingen vast te
+stellen.
 
-**Gevolg voor het bouwplan in hoofdstuk 7:** stap 2 tot en met 7 (de twee nieuwe meetbronnen) gaan
-niet door zonder dat de eigenaar expliciet akkoord geeft op $0,08 per ChatGPT-meting via DataForSEO
-en $0,035 per Gemini-meting, wat een meetronde van $1,15 naar ongeveer **$1,15 + 30×($0,08 +
-$0,035) ≈ $4,60** per ronde brengt in plaats van de $2,15 die hoofdstuk 4 als verwachting noemde.
-**Stap 1 en stap 8 (de migratie en het zoekvolume) raken deze afbreekregel niet** en kunnen los
-doorgaan: het zoekvolume-endpoint is apart geprijsd (ongeveer $0,01 per merk, hoofdstuk 4) en heeft
-geen relatie met de dure LLM Responses-aanroepen.
+### 6.2 Kan het goedkoper? (20 september 2026, op verzoek van de eigenaar)
+
+`gpt-4o` en `gemini-3.8-flash` waren in 6.1 de eerste werkende modellen, niet per se de goedkoopste.
+Zeven extra gerichte metingen (dezelfde vraag, telkens één aanroep) op goedkopere modelvarianten,
+$0,20 aan kosten:
+
+| bron | model | kosten | conclusie |
+|---|---|---|---|
+| ChatGPT | `gpt-4o-mini` | **$0,0272** | ✅ onder de grens van $0,03 |
+| ChatGPT | `gpt-4.1-mini` | $0,0298 | ✅ net onder de grens |
+| ChatGPT | `gpt-4.1-nano` | mislukt | ondersteunt `web_search` niet |
+| ChatGPT | `gpt-5-mini` | mislukt | ondersteunt `force_web_search` niet |
+| Gemini | `gemini-3.5-flash-lite` | $0,0300 | grenswaarde, langer antwoord dan het duurdere model |
+| Gemini | `gemini-2.5-flash-lite` | $0,0359 | duurder dan het "gewone" `gemini-3.8-flash` |
+| Gemini | `gemini-3.1-flash-lite` | $0,0439 | duurder dan het "gewone" `gemini-3.8-flash` |
+
+**Voor ChatGPT werkt de goedkope-modelroute goed.** `gpt-4o-mini` geeft dezelfde soort rijke,
+Nederlandse antwoorden met lokale bedrijven (1735 tekens, tegen 1272 bij `gpt-4o`) voor een derde
+van de prijs: **$0,027 in plaats van $0,081, onder de grens van $0,03.** Dat is dan ook het model
+dat in stap 2 vastgezet moet worden, niet `gpt-4o`.
+
+**Voor Gemini werkt die route niet.** De "lite"-modellen zijn niet goedkoper in de praktijk, want ze
+schrijven juist langere antwoorden (tot 2598 tekens) en de rekening loopt evenredig op. Een aparte
+test met een kortere antwoordlimiet (`max_output_tokens: 512` in plaats van 2048) bevestigt dat:
+`gemini-3.8-flash` bleef op $0,0326 hangen, nauwelijks lager dan de $0,0351 met de volledige lengte.
+**De kosten bij Gemini zitten dus niet in de lengte van het antwoord maar in een vaste toeslag voor
+de web search zelf, en daar is met een modelkeuze niet aan te ontkomen.** Het goedkoopst gemeten
+Gemini-model, `gemini-3.5-flash-lite` op $0,0300, zit op de grens zelf.
+
+**Gevolg voor het besluit:** met `gpt-4o-mini` in plaats van `gpt-4o` komt een meetronde op
+ongeveer **$1,15 + 30×($0,027 + $0,03) ≈ $2,86** in plaats van de eerder berekende $4,60, en dat is
+dichter bij de $2,15 uit hoofdstuk 4. ChatGPT via DataForSEO haalt de grens van $0,03 daarmee. Voor
+Gemini blijft de keuze open: **op of net over de grens meedoen (rond $0,03 per meting), of Gemini
+als vierde bron laten vallen** en met drie bronnen (eigen ChatGPT-route, Google AI Overview,
+ChatGPT via DataForSEO) verdergaan. Dat laatste raakt ook hoofdstuk 5: met drie in plaats van vier
+bronnen ziet de stemverdeling er anders uit, al blijft het probleem van hoofdstuk 5 (Google weegt
+driemaal zo zwaar als elke andere bron) even relevant.
+
+**Gevolg voor het bouwplan in hoofdstuk 7:** met `gpt-4o-mini` vastgezet en een besluit over Gemini
+(meedoen op de grens, of vervallen als vierde bron) kunnen stap 2 tot en met 7 door. Zonder dat
+besluit blijven ze geblokkeerd. Stap 1 en stap 8 (de migratie en het zoekvolume) raken deze
+afbreekregel niet en kunnen los doorgaan: het zoekvolume-endpoint is apart geprijsd (ongeveer $0,01
+per merk, hoofdstuk 4) en heeft geen relatie met de LLM Responses-aanroepen.
 
 ---
 
 ## 7. Het bouwplan
 
-> ⚠️ **Stap 2 tot en met 7 wachten op een expliciet besluit van de eigenaar** (zie hoofdstuk 6.1):
-> beide nieuwe bronnen kosten meer dan de $0,03 grens per meting. Stap 1 en stap 8 raken die
-> afbreekregel niet en zijn niet geblokkeerd.
+> ⚠️ **Stap 2 tot en met 7 wachten op een besluit over Gemini** (zie hoofdstuk 6.2): ChatGPT via
+> DataForSEO haalt de kostengrens met `gpt-4o-mini`, Gemini blijft op de grens hangen bij het
+> goedkoopste geteste model. Stap 1 en stap 8 raken die afbreekregel niet en zijn niet geblokkeerd.
 
 De volgorde is die van `CLAUDE.md`: migratie eerst, dan code, dan UI. Elke stap is los af te maken
 en los te testen.
@@ -408,16 +446,20 @@ opgeslagen in plaats van berekend, net als bij de AI Overview-bron.
 
 **Beantwoord door stap 0 (hoofdstuk 6.1, 20 september 2026):**
 
-- Wat een meting werkelijk kost: **$0,0814 voor ChatGPT via DataForSEO, $0,0351 voor Gemini via
-  DataForSEO**, allebei boven de grens van $0,03. Een meetronde komt daarmee op ongeveer $4,60 in
-  plaats van de verwachte $2,15, en dat wacht op een expliciet besluit van de eigenaar (hoofdstuk
-  6.1) voordat stap 2 tot en met 7 doorgaan.
+- Wat een meting werkelijk kost, en of dat goedkoper kan: met het juiste model kost ChatGPT via
+  DataForSEO **$0,027** (`gpt-4o-mini`, onder de grens van $0,03) en Gemini minimaal **$0,03**
+  (`gemini-3.5-flash-lite`, precies op de grens, want de kosten zitten in de web search zelf en
+  niet in het model). Een meetronde komt daarmee op ongeveer $2,86, dicht bij de verwachte $2,15.
+  Zie hoofdstuk 6.1 en 6.2. **Open blijft: gaat Gemini mee op de grens, of vervalt hij als vierde
+  bron?** Dat is de enige resterende keuze voordat stap 2 tot en met 7 door kunnen.
 - Het AI-zoekvolume is gevuld voor Nederlandse termen, maar alleen op het brede clusterlabel (4 van
   4), niet op de volzin of het clusterlabel plus plaats (0 van 8). Zie hoofdstuk 6.1.
-- Welke modelnamen we vastzetten: **`gpt-4o` voor ChatGPT** (redeneermodellen zoals het
-  standaard-gekozen `o4-mini` ondersteunen `force_web_search` niet) **en `gemini-3.8-flash` voor
-  Gemini**, beide nagemeten in hoofdstuk 6.1. Dat hoort net als bij OpenAI in code te staan en niet
-  in een omgevingsvariabele, zodat een modelwissel een commit is en geen instelling.
+- Welke modelnamen we vastzetten: **`gpt-4o-mini` voor ChatGPT** (niet `gpt-4o`: die is 3 keer zo
+  duur voor een vergelijkbaar antwoord, en redeneermodellen zoals het standaard-gekozen `o4-mini`
+  ondersteunen `force_web_search` sowieso niet) **en `gemini-3.5-flash-lite` of `gemini-3.8-flash`
+  voor Gemini** (beide rond $0,03, een "lite"-model is hier geen garantie voor lagere kosten). Zie
+  hoofdstuk 6.1 en 6.2. Dat hoort net als bij OpenAI in code te staan en niet in een
+  omgevingsvariabele, zodat een modelwissel een commit is en geen instelling.
 
 ---
 
