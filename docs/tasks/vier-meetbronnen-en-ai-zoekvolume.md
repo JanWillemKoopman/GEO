@@ -5,12 +5,13 @@ en op verzoek van de eigenaar is uitgezocht of het goedkoper kan (hoofdstuk 6.2)
 gebouwd. ChatGPT via DataForSEO haalt met het juiste model (`gpt-4o-mini`) de kostengrens; voor
 Gemini ligt er nog een keuze open bij de eigenaar.**
 
-> ⚠️ **Modelkeuze is de knop die werkt, niet alle bronnen zijn even beïnvloedbaar.** Met het eerste
-> werkende model kostte een meting $0,08 (ChatGPT) en $0,035 (Gemini), beide boven de grens van
-> $0,03. Overstappen op `gpt-4o-mini` brengt ChatGPT naar $0,027, ruim onder de grens. Bij Gemini
-> zit de kostendrempel niet in het model maar in een vaste toeslag voor de web search zelf: het
-> goedkoopste geteste model zit nog altijd op de grens ($0,03). Zie hoofdstuk 6.2 voor de cijfers en
-> de resterende keuze (Gemini meedoen op de grens, of laten vervallen als vierde bron).
+> ⚠️ **Modelkeuze is de knop die werkt bij ChatGPT, niet bij Gemini.** Overstappen op `gpt-4o-mini`
+> brengt ChatGPT via DataForSEO van $0,08 naar $0,027 per meting, ruim onder de grens van $0,03. Bij
+> Gemini zijn alle 12 modellen getest, en de kosten wisselen vooral per vraag: gemiddeld $0,039, en
+> geen enkel model zit daar betrouwbaar onder de grens. Web search uitzetten maakt Gemini wel
+> goedkoop ($0,007), maar meet dan iets anders (getrainde kennis in plaats van een antwoord op een
+> actuele zoekopdracht). Zie hoofdstuk 6.2 voor de cijfers en de resterende keuze (Gemini meedoen
+> op de grens, of laten vervallen als vierde bron).
 
 De aanleiding is een wens van de eigenaar: DataForSEO levert niet alleen het Google AI Overview dat
 we sinds vandaag meten, maar ook antwoorden van LLM's zelf, en daarnaast een schatting van hoe vaak
@@ -319,18 +320,51 @@ dat in stap 2 vastgezet moet worden, niet `gpt-4o`.
 schrijven juist langere antwoorden (tot 2598 tekens) en de rekening loopt evenredig op. Een aparte
 test met een kortere antwoordlimiet (`max_output_tokens: 512` in plaats van 2048) bevestigt dat:
 `gemini-3.8-flash` bleef op $0,0326 hangen, nauwelijks lager dan de $0,0351 met de volledige lengte.
-**De kosten bij Gemini zitten dus niet in de lengte van het antwoord maar in een vaste toeslag voor
-de web search zelf, en daar is met een modelkeuze niet aan te ontkomen.** Het goedkoopst gemeten
-Gemini-model, `gemini-3.5-flash-lite` op $0,0300, zit op de grens zelf.
+
+**Twee dingen die makkelijk als oplossing lijken, en het niet zijn (nagevraagd door de eigenaar,
+20 september 2026, nog eens $0,38 aan verificatie):**
+
+- **Web search uitzetten bij Gemini** (`web_search: false`) kost inderdaad bijna niets ($0,0068
+  tegen $0,03+), maar meet dan ook iets anders. Zonder web search geeft Gemini zijn getrainde
+  kennis terug in plaats van een antwoord op basis van een actuele zoekopdracht, en dat is precies
+  het onderscheid dat hoofdstuk 3 bewaakt: de bron bestaat juist om te zien wat een AI zegt ná een
+  websearch. Dit is geen goedkopere versie van dezelfde meting, het is een andere meting.
+- **Alle 12 Gemini-modellen zijn getest** (eerst 4, op verzoek van de eigenaar de overige 8 erbij),
+  met op de goedkoopste ook twee extra vragen om te zien of het model of de vraag de kosten bepaalt:
+
+  | model | gemeten kosten (één of meer vragen) |
+  |---|---|
+  | `gemini-3.6-flash` | $0,0201 / $0,0362 / $0,0349 (gemiddeld $0,030, **op de grens**, geen stabiel voordeel) |
+  | `gemini-3.5-flash-lite` | $0,0300 (1x gemeten, **op de grens**) |
+  | `gemini-3.7-flash` | $0,0334 |
+  | `gemini-3.8-flash` | $0,0326 / $0,0351 |
+  | `gemini-2.5-flash-lite` | $0,0358 / $0,0359 |
+  | `gemini-2.5-flash` | $0,0373 |
+  | `gemini-3.1-pro-preview` | $0,0440 |
+  | `gemini-3.1-flash-lite` | $0,0439 |
+  | `gemini-2.5-pro` | $0,0445 |
+  | `gemini-3-flash-preview` | $0,0587 |
+  | `gemini-3.5-flash` (geen lite) | $0,0651 |
+
+  De eerste hit op `gemini-3.6-flash` ($0,02) leek een doorbraak, maar bleek ruis: dezelfde model op
+  twee andere echte vragen kwam uit op $0,035 à $0,036. **De kosten bij Gemini wisselen dus per
+  vraag, niet (alleen) per model**, hetzelfde soort wiebelen dat hoofdstuk 8 al voor de score
+  beschrijft, nu ook zichtbaar in de rekening. Over alle vijftien metingen samen ligt het gemiddelde
+  op ongeveer $0,039, en geen enkel model zit daar betrouwbaar onder de $0,03.
+
+**Conclusie: bij Gemini lost geen modelkeuze het kostenprobleem structureel op.** De twee beste
+kandidaten (`gemini-3.6-flash`, `gemini-3.5-flash-lite`) balanceren op de grens zelf, in plaats van
+er ruim onder te zitten zoals `gpt-4o-mini` dat voor ChatGPT doet.
 
 **Gevolg voor het besluit:** met `gpt-4o-mini` in plaats van `gpt-4o` komt een meetronde op
 ongeveer **$1,15 + 30×($0,027 + $0,03) ≈ $2,86** in plaats van de eerder berekende $4,60, en dat is
 dichter bij de $2,15 uit hoofdstuk 4. ChatGPT via DataForSEO haalt de grens van $0,03 daarmee. Voor
-Gemini blijft de keuze open: **op of net over de grens meedoen (rond $0,03 per meting), of Gemini
-als vierde bron laten vallen** en met drie bronnen (eigen ChatGPT-route, Google AI Overview,
-ChatGPT via DataForSEO) verdergaan. Dat laatste raakt ook hoofdstuk 5: met drie in plaats van vier
-bronnen ziet de stemverdeling er anders uit, al blijft het probleem van hoofdstuk 5 (Google weegt
-driemaal zo zwaar als elke andere bron) even relevant.
+Gemini blijft de keuze open, en is met deze bredere test scherper geworden: **op de grens meedoen
+(rond $0,03 tot $0,039 per meting, wetend dat dit per vraag wisselt), of Gemini als vierde bron
+laten vallen** en met drie bronnen (eigen ChatGPT-route, Google AI Overview, ChatGPT via
+DataForSEO) verdergaan. Dat laatste raakt ook hoofdstuk 5: met drie in plaats van vier bronnen ziet
+de stemverdeling er anders uit, al blijft het probleem van hoofdstuk 5 (Google weegt driemaal zo
+zwaar als elke andere bron) even relevant.
 
 **Gevolg voor het bouwplan in hoofdstuk 7:** met `gpt-4o-mini` vastgezet en een besluit over Gemini
 (meedoen op de grens, of vervallen als vierde bron) kunnen stap 2 tot en met 7 door. Zonder dat
@@ -456,10 +490,11 @@ opgeslagen in plaats van berekend, net als bij de AI Overview-bron.
   4), niet op de volzin of het clusterlabel plus plaats (0 van 8). Zie hoofdstuk 6.1.
 - Welke modelnamen we vastzetten: **`gpt-4o-mini` voor ChatGPT** (niet `gpt-4o`: die is 3 keer zo
   duur voor een vergelijkbaar antwoord, en redeneermodellen zoals het standaard-gekozen `o4-mini`
-  ondersteunen `force_web_search` sowieso niet) **en `gemini-3.5-flash-lite` of `gemini-3.8-flash`
-  voor Gemini** (beide rond $0,03, een "lite"-model is hier geen garantie voor lagere kosten). Zie
-  hoofdstuk 6.1 en 6.2. Dat hoort net als bij OpenAI in code te staan en niet in een
-  omgevingsvariabele, zodat een modelwissel een commit is en geen instelling.
+  ondersteunen `force_web_search` sowieso niet). Voor Gemini is er, na het testen van alle 12
+  modellen, geen duidelijke winnaar: de kosten wisselen vooral per vraag, niet per model, en
+  `gemini-3.6-flash` of `gemini-3.5-flash-lite` (de twee goedkoopste gemiddelden) zitten op de
+  grens van $0,03, niet eronder. Zie hoofdstuk 6.1 en 6.2. Dat hoort net als bij OpenAI in code te
+  staan en niet in een omgevingsvariabele, zodat een modelwissel een commit is en geen instelling.
 
 ---
 
