@@ -1,17 +1,20 @@
 # Vier meetbronnen, en zoekvolume dat niet meer wiebelt
 
-**Opgesteld:** 20 september 2026. **Status: stap 0 is gedraaid op 20 september 2026 (hoofdstuk 6.1),
-en op verzoek van de eigenaar is uitgezocht of het goedkoper kan (hoofdstuk 6.2). Er is nog niets
-gebouwd. ChatGPT via DataForSEO haalt met het juiste model (`gpt-4o-mini`) de kostengrens; voor
-Gemini ligt er nog een keuze open bij de eigenaar.**
+**Opgesteld:** 20 september 2026. **Status: stap 0 is gedraaid (hoofdstuk 6.1), op verzoek van de
+eigenaar uitgezocht of het goedkoper kan (hoofdstuk 6.2), en op 20 september 2026 heeft de eigenaar
+besloten: Gemini blijft de vierde bron, ook boven de grens van $0,03, omdat een goed beeld van de
+Nederlandse markt zwaarder weegt dan dat laatste centje (hoofdstuk 6.3). Stap 2 tot en met 7 zijn
+daarmee niet langer geblokkeerd. Er is nog niets gebouwd.**
 
 > ⚠️ **Modelkeuze is de knop die werkt bij ChatGPT, niet bij Gemini.** Overstappen op `gpt-4o-mini`
 > brengt ChatGPT via DataForSEO van $0,08 naar $0,027 per meting, ruim onder de grens van $0,03. Bij
 > Gemini zijn alle 12 modellen getest, en de kosten wisselen vooral per vraag: gemiddeld $0,039, en
 > geen enkel model zit daar betrouwbaar onder de grens. Web search uitzetten maakt Gemini wel
 > goedkoop ($0,007), maar meet dan iets anders (getrainde kennis in plaats van een antwoord op een
-> actuele zoekopdracht). Zie hoofdstuk 6.2 voor de cijfers en de resterende keuze (Gemini meedoen
-> op de grens, of laten vervallen als vierde bron).
+> actuele zoekopdracht). **De eigenaar heeft Gemini desondanks geaccepteerd als vierde bron**
+> (hoofdstuk 6.3): een meetronde met alle vier bronnen op gelijke voet (1x per vraag) komt daarmee
+> op ongeveer $1,44, of $2,88 met Google AI Overview op zijn huidige 3x-cadans. Zie hoofdstuk 6.2
+> voor de modelvergelijking en hoofdstuk 6.3 voor de kosten per 30 prompts.
 
 De aanleiding is een wens van de eigenaar: DataForSEO levert niet alleen het Google AI Overview dat
 we sinds vandaag meten, maar ook antwoorden van LLM's zelf, en daarnaast een schatting van hoe vaak
@@ -372,13 +375,43 @@ besluit blijven ze geblokkeerd. Stap 1 en stap 8 (de migratie en het zoekvolume)
 afbreekregel niet en kunnen los doorgaan: het zoekvolume-endpoint is apart geprijsd (ongeveer $0,01
 per merk, hoofdstuk 4) en heeft geen relatie met de LLM Responses-aanroepen.
 
+### 6.3 Het besluit, en de kosten per 30 prompts op een rij (20 september 2026)
+
+**Besluit van de eigenaar: Gemini blijft de vierde bron**, ook op of net boven de grens van $0,03.
+Motivatie: een goed beeld van de Nederlandse markt weegt zwaarder dan het laatste stukje kosten, en
+Gemini is precies de bron zonder ChatGPT-alternatief in dit plan. Daarmee is de afbreekregel van
+hoofdstuk 6 uitdrukkelijk buiten werking gesteld voor Gemini, niet opgerekt: het is geen aanname dat
+de kosten toch wel meevallen, het is een bewuste keuze met de nagemeten cijfers ernaast.
+
+**De kosten per 30 prompts, op gelijke voet (1x per vraag), uit de al gemeten cijfers van 6.1 en
+6.2, geen nieuwe aanroepen nodig:**
+
+| bron | per meting | per 30 prompts |
+|---|---|---|
+| ChatGPT, eigen route | $0,017 | $0,51 |
+| Google AI Overview, bij 1x per vraag | $0,0037 | $0,11 |
+| ChatGPT via DataForSEO (`gpt-4o-mini`) | $0,027 | $0,82 |
+| Gemini via DataForSEO | $0,02 tot $0,065, gemiddeld $0,039 | ongeveer $1,17 (wisselt per vraag) |
+
+**Let op het verschil met hoofdstuk 4:** Google AI Overview draait op productie niet op 1x maar op
+3x per vraag ($0,38 per 30 prompts in plaats van $0,11), omdat die herhaling nodig bleek voor de
+betrouwbaarheid van juist die bron (dezelfde reden als waarom keuze 2 voor de twee nieuwe bronnen
+juist 1x is: minder herhaling, meer wiebelen, en dat is hier bewust geaccepteerd, hoofdstuk 8).
+
+**Een volledige meetronde met alle vier bronnen, op de cadans waarmee elke bron ook echt gaat
+draaien** (Google op zijn bestaande 3x, de rest op 1x): $0,38 + $0,51 + $0,82 + $1,17 ≈ **$2,88**
+per ronde, tegen de $1,15 van vandaag met twee bronnen en de eerder geraamde $2,15. Dat is de
+richtprijs die in stap 7 (de kosten) en in het logboek terug moet komen zodra dit gebouwd is.
+
 ---
 
 ## 7. Het bouwplan
 
-> ⚠️ **Stap 2 tot en met 7 wachten op een besluit over Gemini** (zie hoofdstuk 6.2): ChatGPT via
-> DataForSEO haalt de kostengrens met `gpt-4o-mini`, Gemini blijft op de grens hangen bij het
-> goedkoopste geteste model. Stap 1 en stap 8 raken die afbreekregel niet en zijn niet geblokkeerd.
+> ✅ **Niet langer geblokkeerd.** De eigenaar heeft op 20 september 2026 besloten dat Gemini
+> meedoet als vierde bron ondanks de kosten (hoofdstuk 6.3). ChatGPT via DataForSEO draait op
+> `gpt-4o-mini`, dat is vastgezet in stap 2. Voor Gemini legt stap 2 het model vast dat in 6.2 het
+> meest concurrerende gemiddelde had (`gemini-3.6-flash`), met de kanttekening dat de kosten daar
+> per vraag wisselen.
 
 De volgorde is die van `CLAUDE.md`: migratie eerst, dan code, dan UI. Elke stap is los af te maken
 en los te testen.
