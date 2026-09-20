@@ -161,9 +161,14 @@ async function scheduleAggregateIfLastPrompt(
 ): Promise<void> {
   const { data: openJobs } = await admin
     .from("jobs")
-    .select("id, payload_json")
+    .select("id, payload_json, type")
     .eq("analysis_id", analysisId)
-    .eq("type", "measure_prompt")
+    // ⚠️ Beide meetsoorten (20 september 2026). De kansen in het rapport komen
+    // uit een meerderheidsregel over álle metingen van een vraag
+    // (`computeMissedPrompts`), dus een ronde is pas klaar als beide bronnen
+    // binnen zijn. Zie lib/jobs/pending.ts voor waarom dat het oude bezwaar
+    // ("laat een trage bron de analyse niet laten hangen") overleeft.
+    .in("type", ["measure_prompt", "measure_ai_overview"])
     .in("status", ["queued", "running"])
     // De taak die dit aanroept staat zélf nog op 'running'. Zonder deze
     // uitsluiting is `remaining` altijd minstens 1 en wordt de aggregatie
@@ -598,16 +603,17 @@ const handlers: { [T in JobType]: Handler<T> } = {
 
   // ── Eén vraag meten via Google AI Overview ────────────────────────────────
   //
-  // ⚠️ Deze taak ketent NIET naar de aggregatie. Dat is met opzet: de score van
-  // de klant rust op `PRIMARY_ENGINE` (`lib/engines/types.ts`), en
-  // `countOpenPeriodicMeasurements()` wacht daarom alleen op de ChatGPT-metingen.
-  // Zou deze taak de aggregatie aansturen, dan werd die per binnenkomende
-  // AI Overview-meting opnieuw gedraaid: dertig keer drie keer hetzelfde
-  // rekenwerk, en een rapport dat halverwege een ronde al verstuurd wordt.
+  // ⚠️ Deze taak ketent WÉL naar de aggregatie, net als `measure_prompt`. Dat
+  // is geen symmetrie om de symmetrie: de kansen die de klant te zien krijgt
+  // komen uit `computeMissedPrompts()`, dat per VRAAG telt met een
+  // meerderheidsregel over álle metingen van die vraag. Een vraag die bij
+  // ChatGPT gemist wordt en bij Google drie keer raak is, is dus geen gemiste
+  // kans. Dat werkt alleen als beide bronnen binnen zijn vóór het rapport.
   //
-  // De uitkomst landt gewoon in `tracking_runs`, en de eerstvolgende aggregatie
-  // van deze periode neemt hem mee in `per_engine_json`.
-  measure_ai_overview: async ({ job }, payload) => {
+  // `scheduleAggregateIfLastPrompt()` plant de aggregatie hooguit één keer in
+  // (de dedupe-sleutel is de periode), dus negentig taken die allemaal "ben ik
+  // de laatste?" vragen leveren één aggregatie op, geen negentig.
+  measure_ai_overview: async ({ admin, job }, payload) => {
     if (!job.analysis_id) throw new Error("measure_ai_overview zonder analysis_id.");
     const uitkomst = await measureAiOverviewById(
       job.analysis_id,
@@ -619,6 +625,11 @@ const handlers: { [T in JobType]: Handler<T> } = {
     // terugzien: bij ongeveer één vraag op de tien gebeurt dit, en als dat
     // aandeel plots oploopt is dat een signaal over Google, niet over het merk.
     if (!uitkomst.gemeten) console.log(uitkomst.melding);
+
+    // ⚠️ Ook déze taak kan de laatste van de ronde zijn. Zou alleen
+    // `measure_prompt` de aggregatie aansturen, dan blijft een ronde waarvan de
+    // Google-metingen als laatste binnenkomen voorgoed op 'meten' staan.
+    await scheduleAggregateIfLastPrompt(admin, job.analysis_id, payload.weekNo, job.id);
   },
 
   // ── Eén vraag meten (3a + 3b) ─────────────────────────────────────────────

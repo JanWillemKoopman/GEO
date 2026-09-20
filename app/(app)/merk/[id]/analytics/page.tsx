@@ -12,6 +12,13 @@ import { ClusterVisibilityGrid } from "@/components/cluster-visibility-grid";
 import { activeOnly } from "@/lib/archive";
 import { confidenceBand, bandInAntwoorden } from "@/lib/stats/uncertainty";
 import {
+  beschikbareBronnen,
+  cijferVoorBron,
+  leesBronfilter,
+  bronLabel,
+  BRONFILTER_STANDAARD,
+} from "@/lib/engines/bron";
+import {
   bepaalPeriodes,
   clustersVoorFilter,
   leesClusterfilter,
@@ -62,10 +69,15 @@ export default async function AnalyticsPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ periode?: string; label?: string; cluster?: string }>;
+  searchParams: Promise<{ periode?: string; label?: string; cluster?: string; bron?: string }>;
 }) {
   const { id } = await params;
-  const { periode: periodeUitAdres, label: labelUitAdres, cluster: clusterUitAdres } = await searchParams;
+  const {
+    periode: periodeUitAdres,
+    label: labelUitAdres,
+    cluster: clusterUitAdres,
+    bron: bronUitAdres,
+  } = await searchParams;
   const profile = await getProfile(id);
   if (!profile) notFound();
   await requireUser();
@@ -137,6 +149,15 @@ export default async function AnalyticsPage({
   const labelfilter = leesLabelfilter(labelUitAdres, labels);
   const clustersBijLabel = clustersVoorFilter(clusters, labelfilter);
   const clusterfilter = leesClusterfilter(clusterUitAdres, clustersBijLabel);
+  // ── De BRON-keuze (20 september 2026) ────────────────────────────────────
+  //
+  // ⚠️ Alleen dit scherm kent hem, en dat is een besluit van de eigenaar: de
+  // tweede meetbron mag nergens anders in de app een tweede cijfer opleveren.
+  // `beschikbareBronnen()` kijkt of er daadwerkelijk via meer dan één bron
+  // gemeten is; zo niet, dan verschijnt de knop niet en verandert er niets.
+  const bronnen = beschikbareBronnen(scores);
+  const bronfilter = bronnen.length > 1 ? leesBronfilter(bronUitAdres) : BRONFILTER_STANDAARD;
+
   const zichtbareClusterIds = new Set(
     (clusterfilter === "alles" ? clustersBijLabel : clustersBijLabel.filter((c) => c.id === clusterfilter)).map(
       (c) => c.id,
@@ -151,6 +172,11 @@ export default async function AnalyticsPage({
     .map((c) => {
       const reeks = scores
         .filter((s) => s.analysis_id === c.id)
+        // ⚠️ Alleen rondes waarin DEZE bron daadwerkelijk gemeten heeft. Een
+        // ronde van vóór de tweede bron, of een ronde waarin Google bij geen
+        // enkele vraag een overzicht toonde, hoort niet als 0% in de grafiek:
+        // dat is niet gemeten, geen nul (conventie 3).
+        .filter((s) => cijferVoorBron(s, bronfilter) !== null)
         .sort((a, b) => a.week_no - b.week_no);
       const totAanPeriode =
         periodefilter === PERIODEFILTER_ACTUEEL
@@ -161,7 +187,7 @@ export default async function AnalyticsPage({
       return { cluster: c, reeks: totAanPeriode, laatste, vorige };
     })
     .filter((r) => r.laatste !== null)
-    .sort((a, b) => leidend(b.laatste!) - leidend(a.laatste!));
+    .sort((a, b) => leidend(b.laatste!, bronfilter) - leidend(a.laatste!, bronfilter));
 
   // ── Het merkcijfer: gewogen op het aantal metingen per cluster ───────────
   //
@@ -169,7 +195,7 @@ export default async function AnalyticsPage({
   // metingen zou dan even zwaar tellen als een met 90, en dan verspringt het
   // merkcijfer zodra iemand een klein cluster start.
   const laatsten = perCluster.map((r) => r.laatste!);
-  const merkScore = gewogenGemiddelde(laatsten);
+  const merkScore = gewogenGemiddelde(laatsten, bronfilter);
   const band = merkScore !== null ? confidenceBand(merkScore.waarde, merkScore.stderr) : null;
 
   const audit = auditRow as TechnicalAuditRow | null;
@@ -186,8 +212,8 @@ export default async function AnalyticsPage({
     id: r.cluster.id,
     name: r.cluster.name,
     punten: r.reeks.map((s) => ({
-      waarde: leidend(s),
-      marge: confidenceBand(leidend(s), stderrVan(s)).margin,
+      waarde: leidend(s, bronfilter),
+      marge: confidenceBand(leidend(s, bronfilter), stderrVan(s, bronfilter)).margin,
     })),
     volgendeMeetronde: r.reeks.length < 3 ? volgendeMeetronde(r.laatste!.computed_at) : null,
   }));
@@ -198,9 +224,11 @@ export default async function AnalyticsPage({
       ? (() => {
           const zwakste = perCluster[perCluster.length - 1];
           const sterkste = perCluster[0];
-          const verschil = Math.round(leidend(sterkste.laatste!) - leidend(zwakste.laatste!));
+          const verschil = Math.round(
+            leidend(sterkste.laatste!, bronfilter) - leidend(zwakste.laatste!, bronfilter),
+          );
           return verschil > 0
-            ? `${zwakste.cluster.name} blijft het meest achter: ${Math.round(leidend(zwakste.laatste!))}%, ${verschil} punten onder je sterkste cluster (${sterkste.cluster.name}).`
+            ? `${zwakste.cluster.name} blijft het meest achter: ${Math.round(leidend(zwakste.laatste!, bronfilter))}%, ${verschil} punten onder je sterkste cluster (${sterkste.cluster.name}).`
             : null;
         })()
       : null;
@@ -328,6 +356,8 @@ export default async function AnalyticsPage({
         periodes={periodes}
         labels={labels}
         clustersBijLabel={clustersBijLabel}
+        bronnen={bronnen}
+        bronfilter={bronfilter}
         periodefilter={periodefilter}
         labelfilter={labelfilter}
         clusterfilter={clusterfilter}
@@ -421,7 +451,7 @@ export default async function AnalyticsPage({
           <span className="mono-label">Per cluster</span>
           {/* ── Z4: de ene duidende zin, uit de cijfers zelf gerekend ────── */}
           {duidendeZin && <p className="text-secondary">{duidendeZin}</p>}
-          <AnalyticsClusterTable rows={perCluster} labelNaamPerId={labelNaamPerId} />
+          <AnalyticsClusterTable rows={perCluster} labelNaamPerId={labelNaamPerId} bron={bronfilter} />
         </div>
       )}
 
@@ -459,13 +489,13 @@ export default async function AnalyticsPage({
  * scherm de andere kiezen, dan tonen twee schermen een ander getal voor
  * dezelfde periode.
  */
-function leidend(s: VisibilityScore): number {
-  return s.weighted_score ?? s.score;
+function leidend(s: VisibilityScore, bron: string = BRONFILTER_STANDAARD): number {
+  return cijferVoorBron(s, bron)?.score ?? 0;
 }
 
 /** De onzekerheid die bij `leidend()` hoort. De twee horen altijd bij elkaar. */
-function stderrVan(s: VisibilityScore): number {
-  return (s.weighted_score != null ? s.weighted_stderr : s.score_stderr) ?? 0;
+function stderrVan(s: VisibilityScore, bron: string = BRONFILTER_STANDAARD): number {
+  return cijferVoorBron(s, bron)?.stderr ?? 0;
 }
 
 /**
@@ -483,6 +513,7 @@ function volgendeMeetronde(laatsteMeting: string | null): string | null {
 /** Het merkcijfer, gewogen op het aantal gemeten vragen per cluster. */
 function gewogenGemiddelde(
   scores: VisibilityScore[],
+  bron: string = BRONFILTER_STANDAARD,
 ): { waarde: number; stderr: number; clusters: number } | null {
   if (scores.length === 0) return null;
 
@@ -491,9 +522,9 @@ function gewogenGemiddelde(
   let varianceSom = 0;
   for (const s of scores) {
     const w = Math.max(1, s.winnable_runs ?? 1);
-    som += leidend(s) * w;
+    som += leidend(s, bron) * w;
     gewicht += w;
-    varianceSom += (stderrVan(s) * w) ** 2;
+    varianceSom += (stderrVan(s, bron) * w) ** 2;
   }
   if (gewicht === 0) return null;
 

@@ -140,6 +140,12 @@ import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import { PRIMARY_ENGINE } from "@/lib/engines/types";
 import { leesAiOverview } from "@/lib/ai-overview/parse";
 import {
+  cijferVoorBron,
+  leesBronfilter,
+  beschikbareBronnen,
+  bronLabel,
+} from "@/lib/engines/bron";
+import {
   AI_OVERVIEW_ENGINE,
   AI_OVERVIEW_REPEATS,
   AI_OVERVIEW_POGINGEN,
@@ -23450,19 +23456,36 @@ group("bandInAntwoorden: de band in antwoorden in plaats van in procenten", () =
 // lib/jobs/queue.ts waarschuwde hiervoor en die waarschuwing was terecht:
 // computeAggregates() bevatte op 20 september 2026 het woord "engine" niet.
 // Zie PRIMARY_ENGINE in lib/engines/types.ts.
-group("countOpenPeriodicMeasurements: wacht alleen op de primaire engine", () => {
-  const taak = (payload: Record<string, unknown>) => ({ payload_json: payload });
+group("countOpenPeriodicMeasurements: op welke metingen wacht de aggregatie", () => {
+  const taak = (payload: Record<string, unknown>, type = "measure_prompt") => ({
+    payload_json: payload,
+    type,
+  });
 
-  // ⚠️ HET GEVAL DAT DIT AFVANGT. Zou de aggregatie op een tweede bron blijven
-  // wachten, dan hangt een analyse op zijn voortgangsscherm zodra die bron traag
-  // of stuk is, terwijl het cijfer dat de klant ziet allang gerekend kan worden.
+  // ⚠️ HET GEVAL DAT DIT AFVANGT. De kansen die de klant ziet komen uit een
+  // meerderheidsregel over álle metingen van een vraag (`computeMissedPrompts`).
+  // Zou de aggregatie niet op de tweede bron wachten, dan landen die metingen ná
+  // het rapport en tellen ze die ronde nergens in mee.
   ok(
-    "een tweede bron houdt de aggregatie niet tegen",
-    countOpenPeriodicMeasurements([taak({ weekNo: 0, engine: "google_ai_overview" })], 0) === 0,
+    "de aggregatie wacht op de tweede meetbron",
+    countOpenPeriodicMeasurements([taak({ weekNo: 0 }, "measure_ai_overview")], 0) === 1,
   );
   ok(
-    "de primaire engine wel",
+    "en op de primaire engine",
     countOpenPeriodicMeasurements([taak({ weekNo: 0, engine: "openai" })], 0) === 1,
+  );
+
+  // ⚠️ Maar NIET op een derde engine. Die vult alleen `per_engine_json` en voedt
+  // geen kansen, dus hij mag later landen.
+  ok(
+    "maar niet op een engine die alleen de uitsplitsing vult",
+    countOpenPeriodicMeasurements([taak({ weekNo: 0, engine: "gemini" })], 0) === 0,
+  );
+
+  // Een andere periode telt nooit mee, ook niet bij de tweede bron.
+  ok(
+    "een andere periode telt niet mee",
+    countOpenPeriodicMeasurements([taak({ weekNo: 1 }, "measure_ai_overview")], 0) === 0,
   );
 
   // Een taak van vóór deze wijziging draagt geen engine mee, en kwam toen per
@@ -23473,13 +23496,18 @@ group("countOpenPeriodicMeasurements: wacht alleen op de primaire engine", () =>
     countOpenPeriodicMeasurements([taak({ weekNo: 0 })], 0) === 1,
   );
 
-  // Gemengd: alleen de primaire.
+  // Gemengd: de primaire engine en de tweede bron, niet de derde engine.
   ok(
-    "gemengde wachtrij telt alleen primair",
+    "gemengde wachtrij telt beide meetbronnen",
     countOpenPeriodicMeasurements(
-      [taak({ weekNo: 0 }), taak({ weekNo: 0, engine: "gemini" }), taak({ weekNo: 0, engine: "openai" })],
+      [
+        taak({ weekNo: 0 }),
+        taak({ weekNo: 0, engine: "gemini" }),
+        taak({ weekNo: 0, engine: "openai" }),
+        taak({ weekNo: 0 }, "measure_ai_overview"),
+      ],
       0,
-    ) === 2,
+    ) === 3,
   );
 
   // De bestaande regels blijven gelden.
@@ -23551,4 +23579,65 @@ group("leesAiOverview: een overzicht uitpakken, en weten wanneer er geen is", ()
   ok("elke vraag gaat drie keer", AI_OVERVIEW_REPEATS === 3);
   ok("en een mislukte aanroep krijgt één herkansing", AI_OVERVIEW_POGINGEN === 2);
   ok("de bron landt onder zijn eigen engine-naam", AI_OVERVIEW_ENGINE === "google_ai_overview");
+});
+
+// ── lib/engines/bron.ts ──────────────────────────────────────────────────────
+//
+// De keuzeknop "Bron" op Zichtbaarheid in AI. Eén ding moet hier vaststaan: een
+// klant die de knop nooit aanraakt ziet exact wat hij altijd zag.
+group("cijferVoorBron: het cijfer van de gekozen meetbron", () => {
+  const rij = (per: unknown) => ({
+    score: 21,
+    score_stderr: 8.3,
+    weighted_score: 24,
+    weighted_stderr: 7.1,
+    per_engine_json: per,
+  });
+
+  // ⚠️ DE BELANGRIJKSTE TOETS. De primaire bron leest de gewone kolommen, want
+  // díé kolommen ZIJN de primaire engine sinds de aggregatie engine-bewust werd.
+  // Zou deze functie ook voor ChatGPT in per_engine_json duiken, dan verandert
+  // het cijfer van elke bestaande klant.
+  const chatgpt = cijferVoorBron(rij(null), PRIMARY_ENGINE);
+  eq2("ChatGPT leest de gewone kolommen", chatgpt?.score ?? null, 24);
+  eq2("en de bijbehorende marge", chatgpt?.stderr ?? null, 7.1);
+
+  // Zonder gewogen cijfer valt hij terug op het ongewogen, zelfde regel als
+  // `leidend()` op het scherm.
+  const zonderGewogen = cijferVoorBron(
+    { score: 21, score_stderr: 8.3, weighted_score: null, weighted_stderr: null, per_engine_json: null },
+    PRIMARY_ENGINE,
+  );
+  eq2("zonder gewogen cijfer telt het ongewogen", zonderGewogen?.score ?? null, 21);
+
+  // De tweede bron komt uit per_engine_json, en ook daar gaat gewogen voor.
+  const metGoogle = rij({
+    google_ai_overview: { score: 40, stderr: 9, weighted_score: 45, weighted_stderr: 8 },
+  });
+  const google = cijferVoorBron(metGoogle, AI_OVERVIEW_ENGINE);
+  eq2("Google leest zijn eigen gewogen cijfer", google?.score ?? null, 45);
+  eq2("met zijn eigen marge", google?.stderr ?? null, 8);
+
+  // ⚠️ NIET GEMETEN IS NIET NUL (conventie 3). Een ronde van vóór deze bron
+  // heeft geen per_engine_json; die als 0% in de grafiek zetten zou een val
+  // tonen die er niet is.
+  ok("een ronde zonder deze bron geeft null", cijferVoorBron(rij(null), AI_OVERVIEW_ENGINE) === null);
+  ok(
+    "en een bron zonder cijfer ook",
+    cijferVoorBron(rij({ google_ai_overview: { score: null, stderr: 0 } }), AI_OVERVIEW_ENGINE) === null,
+  );
+
+  // Een onbekende waarde in het adres mag nooit een leeg scherm geven.
+  eq("een onbekende bron valt terug op de standaard", leesBronfilter("onzin"), PRIMARY_ENGINE);
+  eq("en een lege waarde ook", leesBronfilter(null), PRIMARY_ENGINE);
+  eq("een geldige bron blijft staan", leesBronfilter(AI_OVERVIEW_ENGINE), AI_OVERVIEW_ENGINE);
+
+  // ⚠️ De knop verschijnt alleen als er iets te kiezen valt. Zolang er nooit via
+  // een tweede bron gemeten is, verandert dit scherm dus niets.
+  eq2("zonder tweede bron valt er niets te kiezen", beschikbareBronnen([rij(null)]).length, 1);
+  eq2("met een tweede bron wel", beschikbareBronnen([metGoogle]).length, 2);
+
+  // De labels zijn wat de klant de assistent noemt, niet de technische naam.
+  eq("ChatGPT heet ChatGPT", bronLabel(PRIMARY_ENGINE), "ChatGPT");
+  eq("en de tweede bron heet Google AI Overview", bronLabel(AI_OVERVIEW_ENGINE), "Google AI Overview");
 });

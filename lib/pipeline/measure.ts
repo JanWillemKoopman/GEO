@@ -913,11 +913,31 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
       const genoemd = winbaar.filter((id) => ownByRun.get(id)?.mentioned);
       const winbaarTotaal = sumShare(winbaar, eigenShares);
       const genoemdTotaal = sumShare(genoemd, eigenShares);
+
+      // ⚠️ Ook het GEWOGEN cijfer per bron, en niet alleen het ongewogen. Het
+      // scherm toont `weighted_score ?? score` (`leidend()` in
+      // components/analytics-cluster-table.tsx). Zou hier alleen het ongewogen
+      // cijfer staan, dan vergelijkt de bronknop een gewogen ChatGPT-cijfer met
+      // een ongewogen Google-cijfer, en is het verschil deels een rekenverschil
+      // in plaats van een verschil tussen de twee platformen.
+      const eigenGewicht = (id: string) =>
+        (weightByRun.get(id) ?? NEUTRAL_WEIGHT) * (eigenShares.get(id) ?? 1);
+      const gewichtTotaal = winbaar.reduce((sum, id) => sum + eigenGewicht(id), 0);
+      const gewichtGenoemd = genoemd.reduce((sum, id) => sum + eigenGewicht(id), 0);
+
       return [
         engineId,
         {
           score: winbaarTotaal > 0 ? Math.round((genoemdTotaal / winbaarTotaal) * 100) : null,
           stderr: binomialStderr(genoemdTotaal, winbaarTotaal),
+          weighted_score:
+            gewichtTotaal > 0 ? Math.round((gewichtGenoemd / gewichtTotaal) * 100) : null,
+          weighted_stderr: weightedScoreStderr(
+            winbaar.map((id) => ({
+              weight: eigenGewicht(id),
+              mentioned: Boolean(ownByRun.get(id)?.mentioned),
+            })),
+          ),
           judged_runs: roundQuestions(sumShare(ids, eigenShares)),
           winnable_runs: roundQuestions(winbaarTotaal),
         },

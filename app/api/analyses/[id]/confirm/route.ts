@@ -77,11 +77,12 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   try {
     ({ planned, totalPrompts } = await enqueueMeasurement(admin, id, 0));
     // De tweede bron erbij (20 september 2026). Doet niets zonder
-    // AI_OVERVIEW_ENABLED=true, en telt bewust NIET mee in `planned`: die teller
-    // stuurt het voortgangsscherm aan, dat wacht op de score, en de score rust
-    // op de primaire engine. Zou deze bron meetellen, dan blijft de balk hangen
-    // op werk waar de klant niet op wacht.
-    await enqueueAiOverviewMeasurement(admin, id, 0);
+    // AI_OVERVIEW_ENABLED=true. Telt WÉL mee in `planned`: de ronde is pas klaar
+    // als beide bronnen binnen zijn, want de kansen worden over beide samen
+    // bepaald. Zou deze teller hem weglaten, dan staat de balk op vol terwijl er
+    // nog gemeten wordt.
+    const google = await enqueueAiOverviewMeasurement(admin, id, 0);
+    planned += google.planned;
   } catch (err) {
     console.error(`meting inplannen mislukt bij bevestigen van ${id}:`, err);
     return NextResponse.json(

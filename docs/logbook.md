@@ -10259,3 +10259,50 @@ want dat scherm wacht op de score, en de score rust op `PRIMARY_ENGINE`.
 Getest: `tsc --noEmit`, `test:unit` (4964, was 4947), `test:chain` (709, was 696) en `build` groen.
 ⚠️ Niet geverifieerd tegen productie (conventie 10): de bron heeft nog geen echte meetronde gedraaid
 binnen de app. Het onderzoek eronder is wél tegen het echte account gedaan, 234 aanroepen voor $0,85.
+
+## 20 september 2026 (9): een bronknop op Zichtbaarheid, en beide bronnen voeden de kansen
+
+Twee wensen van de eigenaar, en de tweede dwong een besluit van vanochtend terug te draaien.
+
+**De bronknop.** Op `/merk/[id]/analytics` staat nu een vierde filter, "Bron", met ChatGPT en Google
+AI Overview. Hij wisselt wélk cijfer er staat, in plaats van ergens een tweede getal naast te
+zetten dat uitgelegd moet worden. Nadrukkelijk alleen op dat scherm: nergens anders in de app
+verschijnt een tweede cijfer.
+
+De knop verschijnt alleen als er daadwerkelijk via meer dan één bron gemeten is
+(`beschikbareBronnen()`), zelfde regel als de rest van de filterbalk. Voor een klant met alleen
+ChatGPT-metingen verandert er dus niets. En de primaire bron leest bewust de gewone kolommen van
+`visibility_scores` in plaats van `per_engine_json`: die kolommen ZIJN de primaire engine sinds de
+aggregatie engine-bewust werd, dus wie de knop nooit aanraakt ziet exact wat hij altijd zag.
+
+**⚠️ Een ronde zonder deze bron is geen nul.** Rondes van vóór de tweede bron hebben geen
+`per_engine_json`, en `cijferVoorBron()` geeft daar `null` terug in plaats van 0. Die rondes vallen
+uit de grafiek in plaats van als val getoond te worden (conventie 3).
+
+**Het gewogen cijfer staat nu óók per bron in `per_engine_json`.** Zonder dat zou de knop een gewogen
+ChatGPT-cijfer vergelijken met een ongewogen Google-cijfer, en is een deel van het verschil een
+rekenverschil in plaats van een verschil tussen de platformen.
+
+**⚠️ En het besluit van vanochtend dat is teruggedraaid.** Bij het engine-bewust maken van de
+aggregatie telde `countOpenPeriodicMeasurements()` alleen de primaire engine, met als redenering:
+laat een trage tweede bron de analyse niet laten hangen. Die redenering sneuvelt op de tweede wens.
+De kansen die een klant ziet komen uit `computeMissedPrompts()`, en dat telt per VRAAG met een
+meerderheidsregel over álle metingen van die vraag. Een vraag die bij ChatGPT gemist wordt en bij
+Google drie keer raak is, is dus géén gemiste kans. Precies de bedoeling, maar dat werkt alleen als
+beide bronnen binnen zijn vóórdat het rapport draait. Wacht de aggregatie niet, dan landen de
+Google-metingen ná het rapport en tellen ze die ronde nergens in mee.
+
+Het oude bezwaar is geen loos bezwaar, maar het lost zichzelf op: een taak die blijft mislukken gaat
+na `MAX_ATTEMPTS` naar 'failed' en valt daarmee uit `queued`/`running`, de enige twee statussen die
+de teller opvraagt. Een kapotte tweede bron vertraagt een ronde dus, maar kan hem niet laten hangen.
+Gevolg: `measure_ai_overview` ketent nu ook naar de aggregatie, en telt mee in de voortgangsteller
+die de klant ziet.
+
+**De bron staat aan op productie.** `AI_OVERVIEW_ENABLED=true` in Vercel, alleen op productie. Een
+cluster wordt vanaf nu door beide bronnen gemeten: 46 ChatGPT-metingen plus 90 Google-metingen (drie
+per vraag), samen ongeveer $1,14 per meetronde per cluster tegen $0,76 daarvoor. In code blijft de
+schakelaar standaard uit, dus preview- en ontwikkelomgevingen meten niets en geven niets uit.
+
+Getest: `tsc --noEmit`, `test:unit` (4980, was 4964), `test:chain` (709) en `build` groen.
+⚠️ Nog niet geverifieerd tegen productie (conventie 10): de eerste echte meetronde met beide bronnen
+moet nog draaien.

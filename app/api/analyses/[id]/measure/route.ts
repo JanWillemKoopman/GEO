@@ -55,10 +55,15 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     }
 
     const { planned, totalPrompts } = await enqueueMeasurement(admin, id, 0);
-    // Zie de confirm-route: buiten `planned` gehouden, want het voortgangsscherm
-    // wacht op de score en die rust op de primaire engine.
-    await enqueueAiOverviewMeasurement(admin, id, 0);
-    return NextResponse.json({ queued: true, planned, totalPrompts, status: "meten" });
+    // Zie de confirm-route: telt mee, want de ronde is pas klaar als beide
+    // bronnen binnen zijn.
+    const google = await enqueueAiOverviewMeasurement(admin, id, 0);
+    return NextResponse.json({
+      queued: true,
+      planned: planned + google.planned,
+      totalPrompts,
+      status: "meten",
+    });
   } catch (err) {
     console.error(`meting inplannen mislukt voor ${id}:`, err);
     return NextResponse.json(

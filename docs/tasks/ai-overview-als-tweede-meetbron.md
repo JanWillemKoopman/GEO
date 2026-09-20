@@ -3,11 +3,14 @@
 **Opgesteld:** 20 september 2026. **Status: stap 2, 3 en 4 gebouwd. Stap 1 vervallen, stap 5 is een
 keuze van de eigenaar.**
 
-> ⚠️ **De bron staat UIT.** `AI_OVERVIEW_ENABLED` staat standaard op uit, en de aanwezigheid van een
-> DataForSEO-sleutel zet hem niet aan (`lib/ai-overview/registry.ts`). Zolang hij uit staat plant
-> `enqueueAiOverviewMeasurement()` nul taken en verandert er niets. Scenario 14 in `test-chain.ts`
-> legt dat vast. Zet hem pas aan als je bereid bent ongeveer $0,38 per cluster per meetronde uit te
-> geven.
+> ⚠️ **De bron staat AAN op productie sinds 20 september 2026**, op verzoek van de eigenaar. Elk
+> nieuw cluster wordt vanaf nu door beide bronnen gemeten, en de kansen worden over beide samen
+> bepaald. Kosten: ongeveer $0,38 per cluster per meetronde bovenop de $0,76 van ChatGPT.
+>
+> In code staat `AI_OVERVIEW_ENABLED` nog steeds standaard op uit, en de aanwezigheid van een
+> DataForSEO-sleutel zet hem niet aan (`lib/ai-overview/registry.ts`). Alleen productie heeft de
+> variabele; een preview- of ontwikkelomgeving meet dus niets en geeft niets uit. Scenario 14 in
+> `test-chain.ts` legt vast dat de schakelaar de enige poort is.
 
 De aanleiding is een vraag van de eigenaar: dezelfde cluster twee keer meten met een half uur ertussen
 geeft twee verschillende uitslagen, en de klant leest dat als achteruitgang. Dit document legt vast
