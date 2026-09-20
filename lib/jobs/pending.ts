@@ -15,6 +15,8 @@
  * blijven wachten op werk dat er niets mee te maken heeft.
  */
 
+import { PRIMARY_ENGINE } from "@/lib/engines/types";
+
 /** Alleen wat we nodig hebben van een taakrij. Geen databasetype nodig. */
 export interface PendingJobRow {
   payload_json: unknown;
@@ -24,6 +26,7 @@ export interface PendingJobRow {
 interface MeasurePayloadShape {
   weekNo?: number;
   impact?: unknown;
+  engine?: string;
 }
 
 /**
@@ -31,13 +34,28 @@ interface MeasurePayloadShape {
  * periode? Impactmetingen tellen niet mee: die horen bij een pagina, niet bij
  * een ronde.
  *
+ * ⚠️ En alleen de PRIMAIRE engine telt mee (20 september 2026). Deze teller
+ * bepaalt of de aggregatie mag starten. Zou hij op een tweede bron blijven
+ * wachten, dan blijft een analyse hangen op een voortgangsscherm zodra die
+ * tweede bron traag of stuk is, terwijl het cijfer dat de klant ziet allang
+ * gerekend kan worden. De tweede bron vult `per_engine_json` en mag dus later
+ * landen. Andersom geldt niet: zonder de primaire engine is er geen score.
+ *
+ * Een payload zonder `engine` is een taak van vóór deze wijziging en hoort bij
+ * de primaire engine, want er was toen niets anders.
+ *
  * De aanroeper is verantwoordelijk voor het uitfilteren van de taak die de vraag
  * stelt (die staat zelf nog op 'running' of net op 'failed').
  */
-export function countOpenPeriodicMeasurements(jobs: PendingJobRow[], weekNo: number): number {
+export function countOpenPeriodicMeasurements(
+  jobs: PendingJobRow[],
+  weekNo: number,
+  primaryEngine: string = PRIMARY_ENGINE,
+): number {
   return jobs.filter((j) => {
     const payload = (j.payload_json ?? {}) as MeasurePayloadShape;
     if (payload.impact) return false;
+    if ((payload.engine ?? primaryEngine) !== primaryEngine) return false;
     return payload.weekNo === weekNo;
   }).length;
 }

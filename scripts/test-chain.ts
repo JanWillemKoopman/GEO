@@ -6251,6 +6251,91 @@ async function main(): Promise<void> {
         periodiekDubbelFout !== null && String(periodiekDubbelFout).includes("tracking_runs_idem_periodic_idx"),
         String(periodiekDubbelFout),
       );
+
+      // ══════════════════════════════════════════════════════════════════
+      // EEN TWEEDE BRON MAG DE SCORE NIET AANRAKEN (20 september 2026)
+      //
+      // ⚠️ DIT IS DE FOUT DIE GEEN UNITTEST VANGT, en die lib/jobs/queue.ts al
+      // in woorden beschreef: computeAggregates() bevatte geen engine-filter.
+      //
+      // Het is niet simpelweg dubbeltellen. shareByRun() ziet twee metingen van
+      // dezelfde vraag aan voor twee HERHALINGEN en geeft ze elk gewicht 1/2.
+      // Eén vraag, bij ChatGPT wél genoemd en bij Google niet, zou dan als
+      // "half genoemd" de score in gaan: 50 in plaats van 100. Het cijfer blijft
+      // plausibel en slaat nergens meer op. Vandaar dat dit scenario het
+      // verschil tussen 100 en 50 toetst en niet alleen "er komt iets uit".
+      const { rows: primaireRun } = await db.client.query(
+        `select id from public.tracking_runs
+           where analysis_id = $1 and prompt_id = $2 and week_no = $3
+             and purpose = 'periodic' and engine = 'openai'`,
+        [impactAnalysisId, promptId, weekNo],
+      );
+      const primaireRunId = String(primaireRun[0].id);
+
+      // De tweede bron: dezelfde vraag, dezelfde periode, andere engine. De
+      // unieke index laat dit toe omdat de engine in de sleutel zit (0041).
+      const { rows: tweedeRun } = await db.client.query(
+        `insert into public.tracking_runs
+           (analysis_id, prompt_id, prompt_text_snapshot, prompt_category_snapshot,
+            engine, week_no, purpose, repeat_index, raw_response, raw_response_received_at,
+            mention_json)
+         values ($1, $2, 'antwoord van de tweede bron', 'Oriëntatie', 'gemini', $3,
+                 'periodic', 0, 'antwoord van de tweede bron', now(), '{"mentions":[]}'::jsonb)
+         returning id`,
+        [impactAnalysisId, promptId, weekNo],
+      );
+      const tweedeRunId = String(tweedeRun[0].id);
+
+      await db.client.query(
+        "update public.tracking_runs set mention_json = '{\"mentions\":[]}'::jsonb where id = $1",
+        [primaireRunId],
+      );
+
+      // Bij ChatGPT wél genoemd, bij de tweede bron niet. Allebei winbaar, want
+      // in allebei noemt de AI een aanbieder.
+      for (const [runId, eigenGenoemd] of [
+        [primaireRunId, true],
+        [tweedeRunId, false],
+      ] as [string, boolean][]) {
+        await db.client.query(
+          `insert into public.tracking_run_mentions
+             (tracking_run_id, entity_name, is_own_brand, mentioned, cited_sources)
+           values ($1, 'Fysi-Unique', true, $2, '{}')`,
+          [runId, eigenGenoemd],
+        );
+        await db.client.query(
+          `insert into public.tracking_run_mentions
+             (tracking_run_id, entity_name, is_own_brand, mentioned, cited_sources)
+           values ($1, 'Fysio Amersfoort', false, true, '{}')`,
+          [runId],
+        );
+      }
+
+      const { computeAggregates } = await import("@/lib/pipeline/measure");
+      await computeAggregates(admin as never, impactAnalysisId, weekNo);
+
+      const { rows: scoreNa } = await db.client.query(
+        "select score, judged_runs, winnable_runs, per_engine_json from public.visibility_scores where analysis_id = $1 and week_no = $2",
+        [impactAnalysisId, weekNo],
+      );
+      eqc("de score rust op één vraag", String(scoreNa[0].judged_runs), "1");
+      eqc("en die vraag is winbaar", String(scoreNa[0].winnable_runs), "1");
+      // 100 en niet 50: de tweede bron telt niet als halve herhaling mee.
+      // `score` is numeric(5,2), dus "100.00"; vandaar de vergelijking op getal.
+      eqc(
+        "de tweede bron verlaagt de score niet tot de helft",
+        String(Number(scoreNa[0].score)),
+        "100",
+      );
+
+      // En hij is niet weggegooid: hij staat apart, met zijn eigen cijfer.
+      const perEngine = (scoreNa[0].per_engine_json ?? {}) as Record<
+        string,
+        { score: number | null; judged_runs: number }
+      >;
+      eqc("ChatGPT staat apart met zijn eigen cijfer", String(perEngine.openai?.score), "100");
+      eqc("en de tweede bron ook", String(perEngine.gemini?.score), "0");
+      eqc("elk met één beoordeelde vraag", String(perEngine.gemini?.judged_runs), "1");
     }
 
     // ══════════════════════════════════════════════════════════════════════

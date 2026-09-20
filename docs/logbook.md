@@ -10171,3 +10171,40 @@ hoort op de twee plekken waar één cijfer zich als "de stand" presenteert: het 
 Zichtbaarheid in AI.
 
 Getest: `tsc --noEmit`, `test:unit` (4941, was 4935), `test:chain` (690) en `build` groen.
+
+## 20 september 2026 (7): de aggregatie is engine-bewust, stap 2 van het meetplan
+
+`lib/jobs/queue.ts` waarschuwde al maanden dat je niet per engine mocht uitwaaieren omdat de
+aggregatie alle metingen van een periode optelde, ongeacht bron. Die waarschuwing was terecht:
+`computeAggregates()` bevatte het woord "engine" niet.
+
+**De fout die dit voorkomt is subtieler dan dubbeltellen.** `shareByRun()` (R6.1) deelt het gewicht
+van een vraag over zijn metingen, zodat een drie keer gemeten vraag niet drie keer zo zwaar telt.
+Maar die functie ziet twee metingen van dezelfde vraag door twee verschillende bronnen aan voor twee
+HERHALINGEN en geeft ze elk gewicht 1/2. Eén vraag, bij ChatGPT wél genoemd en bij Google niet, zou
+dan als "half genoemd" de score in gaan: 50 in plaats van 100. Het cijfer blijft plausibel en slaat
+nergens meer op. Het scenario in `test-chain.ts` toetst precies dat verschil.
+
+**De regel: één engine draagt de score.** `PRIMARY_ENGINE` in `lib/engines/types.ts`, nu `openai`.
+De score, het gewogen cijfer, de foutmarge, het aandeel en de concurrentie-uitsplitsing rekenen
+alleen daarmee. Dat is geen tussenoplossing: de vraag van de klant is "noemt ChatGPT mij", niet
+"noemt het gemiddelde van ChatGPT en Google mij". Een gemengd cijfer beantwoordt geen van beide.
+
+**De andere bronnen komen in `per_engine_json`**, een kolom die sinds migratie 0001 bestaat en nooit
+gevuld was. Elke bron krijgt daar zijn eigen score, foutmarge en aantallen, en nadrukkelijk zijn
+eigen aandelenberekening, want anders keert dezelfde halveringsfout via de achterdeur terug.
+
+**Drie tellers, drie verschillende redenen.** `measurementIsUsable()` filtert op de primaire engine
+omdat zijn noemer de VRAGEN van de analyse telt; twee bronnen optellen zou die teller boven de
+noemer duwen en een halve mislukte ronde alsnog bruikbaar noemen.
+`countOpenPeriodicMeasurements()` wacht alleen op de primaire engine, want anders blijft een analyse
+hangen op zijn voortgangsscherm zodra een tweede bron traag is, terwijl het cijfer allang gerekend
+kan worden. En `updateBrandEliciting()` telt alleen de primaire engine omdat meetbaarheid een
+eigenschap is van vraag én bron: een vraag die bij Google aanbieders oplevert en bij ChatGPT nooit,
+zou anders een dure ChatGPT-meting in leven houden die daar structureel niets doet.
+
+**Wat er nog ontbreekt vóór er echt per engine ingepland wordt:** een tweede bron die iets oplevert
+(er is geen `GEMINI_API_KEY`), en de tarieven van die bron in `lib/openai/pricing.ts`, anders staat
+er een meetronde in het kostenoverzicht met een prijs van nul.
+
+Getest: `tsc --noEmit`, `test:unit` (4947, was 4941), `test:chain` (696, was 690) en `build` groen.

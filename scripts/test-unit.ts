@@ -137,6 +137,7 @@ import { domainOf } from "@/lib/offsite/domain";
 import { checkUrlFormat, isOnBrandDomain } from "@/lib/url";
 import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
+import { PRIMARY_ENGINE } from "@/lib/engines/types";
 import { formatEvidenceDossier, excerpt } from "@/lib/pipeline/evidence-format";
 import type { EvidenceEntry } from "@/lib/pipeline/evidence-format";
 import { stripUnsupportedClaims, validateField, NEUTRAL_FALLBACK } from "@/lib/pipeline/validate-claims";
@@ -23436,4 +23437,49 @@ group("bandInAntwoorden: de band in antwoorden in plaats van in procenten", () =
       bandInAntwoorden({ low: 6, high: 36 }).includes("—"),
     ),
   );
+});
+
+// ── De score rust op één engine ──────────────────────────────────────────────
+//
+// lib/jobs/queue.ts waarschuwde hiervoor en die waarschuwing was terecht:
+// computeAggregates() bevatte op 20 september 2026 het woord "engine" niet.
+// Zie PRIMARY_ENGINE in lib/engines/types.ts.
+group("countOpenPeriodicMeasurements: wacht alleen op de primaire engine", () => {
+  const taak = (payload: Record<string, unknown>) => ({ payload_json: payload });
+
+  // ⚠️ HET GEVAL DAT DIT AFVANGT. Zou de aggregatie op een tweede bron blijven
+  // wachten, dan hangt een analyse op zijn voortgangsscherm zodra die bron traag
+  // of stuk is, terwijl het cijfer dat de klant ziet allang gerekend kan worden.
+  ok(
+    "een tweede bron houdt de aggregatie niet tegen",
+    countOpenPeriodicMeasurements([taak({ weekNo: 0, engine: "google_ai_overview" })], 0) === 0,
+  );
+  ok(
+    "de primaire engine wel",
+    countOpenPeriodicMeasurements([taak({ weekNo: 0, engine: "openai" })], 0) === 1,
+  );
+
+  // Een taak van vóór deze wijziging draagt geen engine mee, en kwam toen per
+  // definitie van de primaire engine. Die moet blijven tellen, anders rekent de
+  // aggregatie een lopende ronde te vroeg door.
+  ok(
+    "een payload zonder engine telt als primair",
+    countOpenPeriodicMeasurements([taak({ weekNo: 0 })], 0) === 1,
+  );
+
+  // Gemengd: alleen de primaire.
+  ok(
+    "gemengde wachtrij telt alleen primair",
+    countOpenPeriodicMeasurements(
+      [taak({ weekNo: 0 }), taak({ weekNo: 0, engine: "gemini" }), taak({ weekNo: 0, engine: "openai" })],
+      0,
+    ) === 2,
+  );
+
+  // De bestaande regels blijven gelden.
+  ok(
+    "een impactmeting telt nog steeds niet mee",
+    countOpenPeriodicMeasurements([taak({ weekNo: 0, impact: { wave: 1 }, engine: "openai" })], 0) === 0,
+  );
+  ok("de primaire engine is ChatGPT", PRIMARY_ENGINE === "openai");
 });

@@ -216,25 +216,20 @@ export async function enqueueMeasurement(
   // filtert vooraf i.p.v. op de index te vertrouwen.
   // ── WAAROM HIER (NOG) GEEN UITWAAIERING PER ENGINE STAAT ─────────────────
   //
-  // De bedrading is klaar: `measure_prompt` draagt een engine in zijn payload,
-  // de dedupe-sleutel kent hem, `measureOnePrompt` roept de juiste adapter aan
-  // en migratie 0041 dwingt de idempotentie per engine af. Wat nog ontbreekt is
-  // de AGGREGATIE: `computeAggregates`, `measurementIsUsable` en
-  // `countOpenPeriodicMeasurements` tellen alle runs van een periode, ongeacht
-  // engine.
+  // ✅ De blokkade die hier stond is op 20 september 2026 weggenomen. De
+  // aggregatie is engine-bewust: `computeAggregates`, `measurementIsUsable` en
+  // `countOpenPeriodicMeasurements` rekenen op `PRIMARY_ENGINE`
+  // (`lib/engines/types.ts`), en de andere bronnen landen in
+  // `visibility_scores.per_engine_json`. Het scenario in `test-chain.ts` legt
+  // vast dat een tweede bron de score niet halveert.
   //
-  // Zou je hier nu per engine inplannen, dan telt elke vraag dubbel mee in de
-  // score en klopt de foutmarge niet meer. Precies het soort stille
-  // degradatie waar dit project drie vangnetten tegen heeft. Bovendien is er
-  // nog geen GEMINI_API_KEY, dus het zou vandaag niets opleveren en morgen een
-  // verkeerd cijfer.
+  // Wat er nog wél ontbreekt vóór hier per engine ingepland mag worden:
+  //   1. een tweede bron die iets oplevert. Er is geen `GEMINI_API_KEY`, dus
+  //      uitwaaieren zou vandaag alleen mislukte taken produceren;
+  //   2. de tarieven van die bron in `lib/openai/pricing.ts`, anders staat er
+  //      een meetronde in het kostenoverzicht met een prijs van nul.
   //
-  // Wat er moet gebeuren zodra die sleutel er is, in deze volgorde:
-  //   1. de drie tellers hierboven engine-bewust maken (score op de primaire
-  //      engine, per-engine-uitsplitsing in `visibility_scores.per_engine_json`,
-  //      dat veld bestaat sinds migratie 0001 en is nooit gevuld);
-  //   2. de tarieven van Gemini in `lib/openai/pricing.ts` zetten;
-  //   3. pas dán hier `enginesForProfile()` gebruiken om per engine in te plannen.
+  // Zodra allebei geregeld zijn, is `enginesForProfile()` hier genoeg.
   const candidateKeys = candidates.map((c) =>
     dedupe.measurePrompt(analysisId, c.promptId, weekNo, c.repeat),
   );
