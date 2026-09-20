@@ -10351,3 +10351,39 @@ Dat past bij een dealer die al een APK-pagina heeft.
 ⚠️ De vijf openstaande feitenvragen bij dit merk zijn voor deze test fictief beantwoord. Ze gaan
 over wagenparkbeheer, niet over APK, en horen door de klant zelf bevestigd te worden voordat er een
 pagina op gebaseerd wordt.
+
+## 20 september 2026 (11): vier meetbronnen besloten, en het zoekvolume uit DataForSEO onderzocht
+
+De eigenaar wil naast ChatGPT (eigen route) en Google AI Overview ook ChatGPT en Gemini via
+DataForSEO meten, elk één keer per vraag, en daarnaast het AI-zoekvolume van DataForSEO gebruiken
+voor de potentiescore. Het uitgewerkte plan staat in
+`docs/tasks/vier-meetbronnen-en-ai-zoekvolume.md`. Drie dingen uit dat onderzoek horen hier:
+
+**Het cijfer dat de beslissing draagt is er nog niet.** DataForSEO rekent voor een LLM-antwoord
+$0,0006 per aanroep plus wat het model zelf aan tokens en aan web search kost, en die twee posten
+staan nergens in hun documentatie. Ter vergelijking, gemeten in `ai_calls`: onze eigen ChatGPT-route
+kost $0,0170 per meting, Google AI Overview $0,0037. Komen de nieuwe bronnen op dezelfde orde uit
+als onze eigen route, dan gaat een meetronde per cluster van $1,15 naar ongeveer $2,15.
+`scripts/probe-dataforseo-ai.ts` meet het voor ongeveer $0,21 na, op echte vragen van Van den
+Udenhout, en is nog niet gedraaid.
+
+**⚠️ Vier bronnen breken de meerderheidsregel.** De kansen komen uit `computeMissedPrompts()`
+(`lib/pipeline/report.ts`), en die telt elke meting even zwaar. Met vier bronnen krijgt een gewone
+vraag zes metingen, waarvan er drie van Google komen: Google zou in zijn eentje de helft van de stem
+krijgen, en de bron die het cijfer van de klant draagt één zesde. Niet omdat Google belangrijker is,
+maar omdat hij goedkoop is en daarom drie keer gemeten wordt. Het voorstel is eerst de meerderheid
+binnen een bron te bepalen en pas daarna de bronnen te tellen, zodat het aantal herhalingen een
+keuze over zekerheid blijft in plaats van een keuze over invloed.
+
+**Het AI-zoekvolume is geen gemeten promptvolume.** DataForSEO leidt `ai_search_volume` af uit de
+"People Also Ask"-vragen in hun eigen index van Google-resultaten en noemt het zelf relatieve
+populariteit. De 370 miljoen verzamelde prompts uit de wervende tekst horen bij hun LLM
+Mentions-product, niet bij dit endpoint. De winst zit dus niet in waarheid maar in herhaalbaarheid:
+het cijfer verandert niet omdat je het nog eens opvraagt, en dat doet de huidige AI-schatting in
+`lib/pipeline/search-demand.ts` wel. Kosten: ongeveer één cent voor alle onderwerpen van een merk.
+Twee dingen zijn nog onbekend, en allebei kunnen ze het voorstel laten omvallen: of Nederland met
+het Nederlands in dat endpoint bestaat, en of onze soort termen er een volume uit krijgen. Dat
+laatste is een reëel risico: op 19 september kreeg bij het gewone zoekvolume 1 van de 10 uit
+volzinnen afgeleide termen een resultaat.
+
+Gebouwd is er niets. `tsc --noEmit` en `test:unit` (4980) groen.
