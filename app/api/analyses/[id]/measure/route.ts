@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
-import { enqueueMeasurement } from "@/lib/jobs/queue";
+import { enqueueMeasurement, enqueueAiOverviewMeasurement } from "@/lib/jobs/queue";
 import { describeError, classifyError } from "@/lib/errors";
 import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 import { checkBudgetForProfile } from "@/lib/spend-limit";
@@ -55,7 +55,15 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     }
 
     const { planned, totalPrompts } = await enqueueMeasurement(admin, id, 0);
-    return NextResponse.json({ queued: true, planned, totalPrompts, status: "meten" });
+    // Zie de confirm-route: telt mee, want de ronde is pas klaar als beide
+    // bronnen binnen zijn.
+    const google = await enqueueAiOverviewMeasurement(admin, id, 0);
+    return NextResponse.json({
+      queued: true,
+      planned: planned + google.planned,
+      totalPrompts,
+      status: "meten",
+    });
   } catch (err) {
     console.error(`meting inplannen mislukt voor ${id}:`, err);
     return NextResponse.json(

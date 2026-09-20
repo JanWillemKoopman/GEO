@@ -44,7 +44,8 @@ import {
 import { Icon } from "@/components/icon";
 import { ronde, rondeZin } from "@/lib/ronde";
 import { RondeBalk } from "./_components/ronde-balk";
-import { confidenceBand, changeIsMeaningful } from "@/lib/stats/uncertainty";
+import { confidenceBand, changeIsMeaningful, bandInAntwoorden } from "@/lib/stats/uncertainty";
+import { poolRecent, describePooled } from "@/lib/stats/pooling";
 
 export const dynamic = "force-dynamic";
 
@@ -338,7 +339,14 @@ export default async function OverzichtPage({
   // Het staat nu weer bovenaan, met de marge erbij en met dezelfde
   // terughoudendheid als overal: een verschil binnen de marge is geen verschil.
   const vorige = periodes.length > 1 ? periodes[periodes.length - 2] : null;
-  const band = laatste ? confidenceBand(laatste.score, laatste.stderr) : null;
+  // ⚠️ Het hoofdgetal komt uit de laatste DRIE rondes samen, niet uit de laatste
+  // alleen (20 september 2026). Eén ronde is een steekproef met een band van
+  // ±16 punten bij 30 vragen, en die band is groter dan het verschil dat een
+  // klant als vooruitgang of verval leest. `poolRecent()` stopt met samenvoegen
+  // zodra een oudere ronde betekenisvol afwijkt, dus een échte stijging wordt
+  // nooit uitgesmeerd; zie lib/stats/pooling.ts.
+  const samengevoegd = poolRecent(periodes);
+  const band = samengevoegd ? confidenceBand(samengevoegd.score, samengevoegd.stderr) : null;
   const verschil =
     laatste && vorige
       ? changeIsMeaningful(
@@ -416,11 +424,19 @@ export default async function OverzichtPage({
           steeds over de meting, en de knop ernaast gaat naar het cijfer zelf. */}
       <SectionErrorBoundary label="Je programma">
         <div className={`card ${railKlasse(lus.insights)} flex flex-col gap-5`}>
-          {laatste && band && (
+          {laatste && band && samengevoegd && (
             <div className="flex flex-wrap items-end gap-x-6 gap-y-2 border-b border-[var(--border-subtle)] pb-5">
+              {/* ⚠️ De BAND is het hoofdgetal, niet het punt (20 september
+                  2026). "21%" leest als een stand terwijl er een band van ±15
+                  omheen ligt; een klant die dat een maand later ziet
+                  verschuiven leest daar verval in dat er niet is. Het precieze
+                  percentage staat er nog onder, voor wie het wil narekenen. */}
               <div className="flex min-w-0 flex-col gap-0.5">
                 <span className="mono-label">Zichtbaarheid in AI</span>
-                <span className="stat-value text-5xl">{Math.round(laatste.score)}%</span>
+                <span className="stat-value text-5xl">{bandInAntwoorden(band)}</span>
+                <span className="text-sm text-muted">
+                  AI-antwoorden waarin je merk voorkomt
+                </span>
               </div>
               <div className="flex min-w-0 flex-1 flex-col gap-1 pb-1">
                 <span className="flex flex-wrap items-center gap-2">
@@ -444,8 +460,8 @@ export default async function OverzichtPage({
                 </span>
                 {band.margin > 0 && (
                   <span className="text-sm text-muted">
-                    Onzekerheidsmarge {band.low}% tot {band.high}%. Het is een steekproef, en dit
-                    is hoe breed hij is.
+                    Uitgedrukt in procenten: {samengevoegd.score}%, met een marge van {band.low}%
+                    tot {band.high}%. {describePooled(samengevoegd)}
                   </span>
                 )}
               </div>

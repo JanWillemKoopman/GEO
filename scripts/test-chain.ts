@@ -6251,6 +6251,91 @@ async function main(): Promise<void> {
         periodiekDubbelFout !== null && String(periodiekDubbelFout).includes("tracking_runs_idem_periodic_idx"),
         String(periodiekDubbelFout),
       );
+
+      // ══════════════════════════════════════════════════════════════════
+      // EEN TWEEDE BRON MAG DE SCORE NIET AANRAKEN (20 september 2026)
+      //
+      // ⚠️ DIT IS DE FOUT DIE GEEN UNITTEST VANGT, en die lib/jobs/queue.ts al
+      // in woorden beschreef: computeAggregates() bevatte geen engine-filter.
+      //
+      // Het is niet simpelweg dubbeltellen. shareByRun() ziet twee metingen van
+      // dezelfde vraag aan voor twee HERHALINGEN en geeft ze elk gewicht 1/2.
+      // Eén vraag, bij ChatGPT wél genoemd en bij Google niet, zou dan als
+      // "half genoemd" de score in gaan: 50 in plaats van 100. Het cijfer blijft
+      // plausibel en slaat nergens meer op. Vandaar dat dit scenario het
+      // verschil tussen 100 en 50 toetst en niet alleen "er komt iets uit".
+      const { rows: primaireRun } = await db.client.query(
+        `select id from public.tracking_runs
+           where analysis_id = $1 and prompt_id = $2 and week_no = $3
+             and purpose = 'periodic' and engine = 'openai'`,
+        [impactAnalysisId, promptId, weekNo],
+      );
+      const primaireRunId = String(primaireRun[0].id);
+
+      // De tweede bron: dezelfde vraag, dezelfde periode, andere engine. De
+      // unieke index laat dit toe omdat de engine in de sleutel zit (0041).
+      const { rows: tweedeRun } = await db.client.query(
+        `insert into public.tracking_runs
+           (analysis_id, prompt_id, prompt_text_snapshot, prompt_category_snapshot,
+            engine, week_no, purpose, repeat_index, raw_response, raw_response_received_at,
+            mention_json)
+         values ($1, $2, 'antwoord van de tweede bron', 'Oriëntatie', 'gemini', $3,
+                 'periodic', 0, 'antwoord van de tweede bron', now(), '{"mentions":[]}'::jsonb)
+         returning id`,
+        [impactAnalysisId, promptId, weekNo],
+      );
+      const tweedeRunId = String(tweedeRun[0].id);
+
+      await db.client.query(
+        "update public.tracking_runs set mention_json = '{\"mentions\":[]}'::jsonb where id = $1",
+        [primaireRunId],
+      );
+
+      // Bij ChatGPT wél genoemd, bij de tweede bron niet. Allebei winbaar, want
+      // in allebei noemt de AI een aanbieder.
+      for (const [runId, eigenGenoemd] of [
+        [primaireRunId, true],
+        [tweedeRunId, false],
+      ] as [string, boolean][]) {
+        await db.client.query(
+          `insert into public.tracking_run_mentions
+             (tracking_run_id, entity_name, is_own_brand, mentioned, cited_sources)
+           values ($1, 'Fysi-Unique', true, $2, '{}')`,
+          [runId, eigenGenoemd],
+        );
+        await db.client.query(
+          `insert into public.tracking_run_mentions
+             (tracking_run_id, entity_name, is_own_brand, mentioned, cited_sources)
+           values ($1, 'Fysio Amersfoort', false, true, '{}')`,
+          [runId],
+        );
+      }
+
+      const { computeAggregates } = await import("@/lib/pipeline/measure");
+      await computeAggregates(admin as never, impactAnalysisId, weekNo);
+
+      const { rows: scoreNa } = await db.client.query(
+        "select score, judged_runs, winnable_runs, per_engine_json from public.visibility_scores where analysis_id = $1 and week_no = $2",
+        [impactAnalysisId, weekNo],
+      );
+      eqc("de score rust op één vraag", String(scoreNa[0].judged_runs), "1");
+      eqc("en die vraag is winbaar", String(scoreNa[0].winnable_runs), "1");
+      // 100 en niet 50: de tweede bron telt niet als halve herhaling mee.
+      // `score` is numeric(5,2), dus "100.00"; vandaar de vergelijking op getal.
+      eqc(
+        "de tweede bron verlaagt de score niet tot de helft",
+        String(Number(scoreNa[0].score)),
+        "100",
+      );
+
+      // En hij is niet weggegooid: hij staat apart, met zijn eigen cijfer.
+      const perEngine = (scoreNa[0].per_engine_json ?? {}) as Record<
+        string,
+        { score: number | null; judged_runs: number }
+      >;
+      eqc("ChatGPT staat apart met zijn eigen cijfer", String(perEngine.openai?.score), "100");
+      eqc("en de tweede bron ook", String(perEngine.gemini?.score), "0");
+      eqc("elk met één beoordeelde vraag", String(perEngine.gemini?.judged_runs), "1");
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -7738,23 +7823,43 @@ async function main(): Promise<void> {
           [rondes[0].id],
         );
 
-        const { rows: ronde2 } = await db.client.query(
-          `insert into public.sales_runs (market_id, round_no, status, intents_json, question_count, engines)
-           select market_id, round_no + 1, 'vragen_klaar', intents_json, $2, engines
-             from public.sales_runs where id = $1
-           returning id, round_no`,
-          [rondes[0].id, vragenRonde1.length],
-        );
-        const ronde2Id = String(ronde2[0].id);
-        eqc("de tweede ronde telt door", String(ronde2[0].round_no), "2");
+        const { maakHermeting } = await import("@/lib/pipeline/sales-remeasure");
 
-        for (const [i, v] of vragenRonde1.entries()) {
-          await db.client.query(
-            `insert into public.sales_questions (run_id, text, intent_label, intent_stage, weight, position)
-             values ($1, $2, $3, $4, $5, $6)`,
-            [ronde2Id, v.text, v.intent_label, v.intent_stage, v.weight, i],
-          );
-        }
+        // ── ⚠️ De tijdrem (20 september 2026) ──────────────────────────────
+        //
+        // Ronde 1 is zojuist afgerond. Een hermeting nu meet geen markt maar de
+        // wisselvalligheid van de AI-antwoorden: nagemeten op de echte markt
+        // Tilburg klapten 27 van de 45 vraag-bedrijfcombinaties om tussen twee
+        // rondes, zonder dat er iets veranderd was. Type 8 zou die ruis
+        // vervolgens als "gezakt sinds de vorige meting" in een verkoopmail
+        // zetten. Vandaar dat deze poort dicht hoort te zitten.
+        await db.client.query(
+          "update public.sales_runs set finished_at = now() where id = $1",
+          [rondes[0].id],
+        );
+        const teVroeg = await maakHermeting(admin as never, salesMarktId, userId);
+        ok("een hermeting op dezelfde dag wordt geweigerd", !teVroeg.ok, String(teVroeg.melding));
+        ok(
+          "en de melding legt uit waarom, zonder jargon",
+          String(teVroeg.melding ?? "").includes("21 dagen"),
+          String(teVroeg.melding),
+        );
+        const { rows: naWeigering } = await db.client.query(
+          "select count(*)::int as n from public.sales_runs where market_id = $1",
+          [salesMarktId],
+        );
+        eqc("en er is geen ronde aangemaakt", String(naWeigering[0].n), "1");
+
+        // Een maand later mag het wel, en dan komt de hermeting uit de échte
+        // functie in plaats van uit een nagebouwde insert.
+        await db.client.query(
+          "update public.sales_runs set finished_at = now() - interval '30 days' where id = $1",
+          [rondes[0].id],
+        );
+        const hermeting = await maakHermeting(admin as never, salesMarktId, userId);
+        ok("een maand later mag het wel", hermeting.ok, String(hermeting.melding));
+        const ronde2Id = String(hermeting.runId);
+        eqc("de tweede ronde telt door", String(hermeting.ronde), "2");
 
         const { rows: vragenRonde2 } = await db.client.query(
           "select text, weight from public.sales_questions where run_id = $1 order by position",
@@ -8669,6 +8774,77 @@ async function main(): Promise<void> {
       else process.env.DATAFORSEO_PASSWORD = oudWachtwoord;
       if (oudSchakelaar === undefined) delete process.env.SEARCH_DEMAND_ENABLED;
       else process.env.SEARCH_DEMAND_ENABLED = oudSchakelaar;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // SCENARIO 14: Google AI Overview plant niets in zonder zijn schakelaar
+    //
+    // ⚠️ Dezelfde les als scenario 13, en daarom dezelfde opzet. De
+    // DataForSEO-sleutels staan in Vercel voor de geparkeerde zoekvolumelaag.
+    // Zou de sleutel hier de schakelaar zijn, dan gaat deze bron meteen
+    // meedraaien op elke omgeving waar die laag ooit is opgezet, en dan staat er
+    // een betaalde bron te meten die niemand heeft aangezet.
+    //
+    // Wat dit scenario vastlegt dat een unittest niet kan: wat er daadwerkelijk
+    // in de WACHTRIJ belandt. Drie herhalingen per vraag, en nul zodra de
+    // schakelaar uit staat.
+    {
+      const oudLogin = process.env.DATAFORSEO_LOGIN;
+      const oudWachtwoord = process.env.DATAFORSEO_PASSWORD;
+      const oudSchakelaar = process.env.AI_OVERVIEW_ENABLED;
+      const { enqueueAiOverviewMeasurement } = await import("@/lib/jobs/queue");
+      const { aiOverviewEnabled } = await import("@/lib/ai-overview/registry");
+
+      process.env.DATAFORSEO_LOGIN = "test-login";
+      process.env.DATAFORSEO_PASSWORD = "test-wachtwoord";
+      delete process.env.AI_OVERVIEW_ENABLED;
+
+      ok("scenario 14: de bron staat standaard uit", aiOverviewEnabled() === false);
+      const uit = await enqueueAiOverviewMeasurement(admin as never, analysisId, 0);
+      eqc("scenario 14: en plant dus niets in", String(uit.planned), "0");
+
+      // Twee geldige sleutels zijn op zichzelf niet genoeg. Dat is de hele reden
+      // dat de schakelaar in code staat en niet in de aanwezigheid van een sleutel.
+      for (const halfslachtig of ["1", "ja", "yes", "aan", ""]) {
+        process.env.AI_OVERVIEW_ENABLED = halfslachtig;
+        ok(`scenario 14: "${halfslachtig}" zet de bron niet aan`, aiOverviewEnabled() === false);
+      }
+      // Hoofdletters en spaties worden wél vergeven, zelfde regel als
+      // `searchDemandEnabled()`. Een typefout mag de bron niet aanzetten, maar
+      // "TRUE" uit een omgevingsscherm is geen typefout.
+      for (const wel of ["true", "TRUE", " true ", "True"]) {
+        process.env.AI_OVERVIEW_ENABLED = wel;
+        ok(`scenario 14: "${wel}" zet de bron wél aan`, aiOverviewEnabled() === true);
+      }
+
+      process.env.AI_OVERVIEW_ENABLED = "true";
+      const { rows: actieveVragen } = await db.client.query(
+        "select count(*)::int as n from public.prompts where analysis_id = $1 and active = true",
+        [analysisId],
+      );
+      const aan = await enqueueAiOverviewMeasurement(admin as never, analysisId, 0);
+      // ⚠️ DRIE per vraag, niet één. Eén losse uitkomst is ongeveer een muntworp
+      // (17 van de 28 vragen wisselden tussen twee rondes, 20 september 2026), en
+      // bij $0,0037 per aanroep is drie keer meten hier betaalbaar. Dat is de
+      // hele zakelijke reden dat deze bron bestaat, dus hoort hij vast te staan.
+      eqc(
+        "scenario 14: met de schakelaar aan drie metingen per vraag",
+        String(aan.planned),
+        String(actieveVragen[0].n * 3),
+      );
+
+      // En idempotent: nog een keer plannen levert niets op, want de taken staan
+      // al klaar. Meten is de betaalde stap.
+      const nogEens = await enqueueAiOverviewMeasurement(admin as never, analysisId, 0);
+      eqc("scenario 14: tweemaal plannen verdubbelt niets", String(nogEens.planned), "0");
+
+      await db.client.query("delete from public.jobs where type = 'measure_ai_overview'");
+      if (oudLogin === undefined) delete process.env.DATAFORSEO_LOGIN;
+      else process.env.DATAFORSEO_LOGIN = oudLogin;
+      if (oudWachtwoord === undefined) delete process.env.DATAFORSEO_PASSWORD;
+      else process.env.DATAFORSEO_PASSWORD = oudWachtwoord;
+      if (oudSchakelaar === undefined) delete process.env.AI_OVERVIEW_ENABLED;
+      else process.env.AI_OVERVIEW_ENABLED = oudSchakelaar;
     }
 
     __setTestAdminClient(null);

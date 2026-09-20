@@ -110,6 +110,46 @@ export function confidenceBand(
 }
 
 /**
+ * De band als HOOFDGETAL, in antwoorden in plaats van in procenten.
+ *
+ * ── WAAROM DIT BESTAAT ──────────────────────────────────────────────────────
+ *
+ * "21%" leest als een stand. Het is er geen. Nagemeten op 20 september 2026
+ * (docs/logbook.md 20 september (3)): van de 11 vragen die binnen dezelfde
+ * meetronde drie keer gesteld werden en waar het merk ooit genoemd werd, gaven
+ * er 6 een andere uitkomst bij de herhaling. Minuten na elkaar. Het getal 21
+ * suggereert een precisie van één procentpunt, terwijl de band er ±15 omheen
+ * ligt.
+ *
+ * Een klant die dat getal een maand later ziet verschuiven naar 13% leest daar
+ * verval in. Er is geen verval, er is een steekproef. Dus tonen we niet het
+ * punt maar de band, en niet in procenten maar in iets wat je je kunt
+ * voorstellen: hoeveel van de tien antwoorden noemen dit merk.
+ *
+ * ── WAAROM TIEN EN NIET HONDERD ─────────────────────────────────────────────
+ *
+ * Een meetronde stelt dertig vragen. "3 tot 11 van de 30" is precies even waar
+ * als "1 tot 4 van de 10", maar niemand rekent in dertigsten. Tien is de schaal
+ * waarop een mens een verhouding meteen ziet.
+ *
+ * Puur, dus testbaar vanuit `scripts/test-unit.ts` (conventie 2).
+ */
+export function bandInAntwoorden(band: { low: number; high: number }): string {
+  const laag = Math.round(band.low / 10);
+  const hoog = Math.round(band.high / 10);
+
+  // Zelfs de bovengrens haalt geen heel antwoord. "0 tot 0" zeggen zou
+  // suggereren dat we zeker weten dat het nooit gebeurt, en dat weten we niet.
+  if (hoog <= 0) return "minder dan 1 van de 10";
+
+  // De band is zo smal dat hij op deze schaal één getal wordt. Dan is "tussen 2
+  // en 2" onzin en hoort er "ongeveer 2" te staan.
+  if (laag >= hoog) return `ongeveer ${hoog} van de 10`;
+
+  return `${laag} tot ${hoog} van de 10`;
+}
+
+/**
  * Is het verschil tussen twee periodes écht een verandering, of past het binnen
  * de ruis? (optimalisatie.md 2.3)
  *

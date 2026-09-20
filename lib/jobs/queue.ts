@@ -1,5 +1,7 @@
 import "server-only";
 import { maySkip } from "@/lib/pipeline/elicit-rate";
+import { aiOverviewEnabled } from "@/lib/ai-overview/registry";
+import { AI_OVERVIEW_ENGINE, AI_OVERVIEW_REPEATS } from "@/lib/ai-overview/types";
 
 /**
  * Taken in de wachtrij zetten (optimalisatie.md fase 1).
@@ -216,25 +218,20 @@ export async function enqueueMeasurement(
   // filtert vooraf i.p.v. op de index te vertrouwen.
   // ── WAAROM HIER (NOG) GEEN UITWAAIERING PER ENGINE STAAT ─────────────────
   //
-  // De bedrading is klaar: `measure_prompt` draagt een engine in zijn payload,
-  // de dedupe-sleutel kent hem, `measureOnePrompt` roept de juiste adapter aan
-  // en migratie 0041 dwingt de idempotentie per engine af. Wat nog ontbreekt is
-  // de AGGREGATIE: `computeAggregates`, `measurementIsUsable` en
-  // `countOpenPeriodicMeasurements` tellen alle runs van een periode, ongeacht
-  // engine.
+  // ✅ De blokkade die hier stond is op 20 september 2026 weggenomen. De
+  // aggregatie is engine-bewust: `computeAggregates`, `measurementIsUsable` en
+  // `countOpenPeriodicMeasurements` rekenen op `PRIMARY_ENGINE`
+  // (`lib/engines/types.ts`), en de andere bronnen landen in
+  // `visibility_scores.per_engine_json`. Het scenario in `test-chain.ts` legt
+  // vast dat een tweede bron de score niet halveert.
   //
-  // Zou je hier nu per engine inplannen, dan telt elke vraag dubbel mee in de
-  // score en klopt de foutmarge niet meer. Precies het soort stille
-  // degradatie waar dit project drie vangnetten tegen heeft. Bovendien is er
-  // nog geen GEMINI_API_KEY, dus het zou vandaag niets opleveren en morgen een
-  // verkeerd cijfer.
+  // Wat er nog wél ontbreekt vóór hier per engine ingepland mag worden:
+  //   1. een tweede bron die iets oplevert. Er is geen `GEMINI_API_KEY`, dus
+  //      uitwaaieren zou vandaag alleen mislukte taken produceren;
+  //   2. de tarieven van die bron in `lib/openai/pricing.ts`, anders staat er
+  //      een meetronde in het kostenoverzicht met een prijs van nul.
   //
-  // Wat er moet gebeuren zodra die sleutel er is, in deze volgorde:
-  //   1. de drie tellers hierboven engine-bewust maken (score op de primaire
-  //      engine, per-engine-uitsplitsing in `visibility_scores.per_engine_json`,
-  //      dat veld bestaat sinds migratie 0001 en is nooit gevuld);
-  //   2. de tarieven van Gemini in `lib/openai/pricing.ts` zetten;
-  //   3. pas dán hier `enginesForProfile()` gebruiken om per engine in te plannen.
+  // Zodra allebei geregeld zijn, is `enginesForProfile()` hier genoeg.
   const candidateKeys = candidates.map((c) =>
     dedupe.measurePrompt(analysisId, c.promptId, weekNo, c.repeat),
   );
@@ -284,4 +281,92 @@ export async function enqueueMeasurement(
     if (created) planned++;
   }
   return { planned, totalPrompts: list.length };
+}
+
+/**
+ * De metingen via Google AI Overview inplannen voor één periode.
+ *
+ * ── WAAROM DIT EEN EIGEN PLANNER IS EN GEEN TAK IN `enqueueMeasurement` ─────
+ *
+ * Drie verschillen die geen van alle met een vlaggetje op te lossen zijn:
+ *
+ *   1. **Elke vraag gaat drie keer**, niet alleen de acht zwaarste. Bij ChatGPT
+ *      kost dat $1,54 per cluster en hier $0,38, en daar zit precies de reden
+ *      dat deze bron de moeite is (`lib/ai-overview/types.ts`).
+ *   2. **Geen overslaanregel.** `maySkip()` rust op `elicit_samples`, en die
+ *      tellers gaan sinds 20 september 2026 alleen over de primaire engine.
+ *      Een vraag die bij ChatGPT structureel niets oplevert kan bij Google prima
+ *      aanbieders noemen; die hier overslaan zou een aanname zijn in plaats van
+ *      een meting.
+ *   3. **Dit blokkeert de aggregatie niet.** De taken ketenen nergens heen, dus
+ *      ze mogen later landen dan de ronde die de klant ziet.
+ *
+ * Doet niets zonder `AI_OVERVIEW_ENABLED=true`. Dat is een bewuste grendel en
+ * geen voorzorg: zie `lib/ai-overview/registry.ts` voor waarom de sleutel hier
+ * niet de schakelaar mag zijn.
+ */
+export async function enqueueAiOverviewMeasurement(
+  admin: Admin,
+  analysisId: string,
+  weekNo: number,
+): Promise<{ planned: number; totalPrompts: number }> {
+  if (!aiOverviewEnabled()) return { planned: 0, totalPrompts: 0 };
+
+  const { data: prompts } = await admin
+    .from("prompts")
+    .select("id")
+    .eq("analysis_id", analysisId)
+    .eq("active", true);
+
+  const all = prompts ?? [];
+  if (all.length === 0) return { planned: 0, totalPrompts: 0 };
+
+  const gepland = all.flatMap((p) =>
+    Array.from({ length: AI_OVERVIEW_REPEATS }, (_, r) => ({ promptId: p.id as string, repeat: r })),
+  );
+
+  // Al gemeten? Dan niet opnieuw inplannen. Zelfde kostenbescherming als bij de
+  // ChatGPT-meting: een aanroep die al betaald is, doen we niet nog eens.
+  const { data: gemeten } = await admin
+    .from("tracking_runs")
+    .select("prompt_id, repeat_index")
+    .eq("analysis_id", analysisId)
+    .eq("week_no", weekNo)
+    .eq("engine", AI_OVERVIEW_ENGINE)
+    .not("mention_json", "is", null);
+
+  const alGemeten = new Set(
+    (gemeten ?? []).map((r) => `${r.prompt_id as string}:${(r.repeat_index as number) ?? 0}`),
+  );
+  const kandidaten = gepland.filter((g) => !alGemeten.has(`${g.promptId}:${g.repeat}`));
+  if (kandidaten.length === 0) return { planned: 0, totalPrompts: all.length };
+
+  const sleutels = kandidaten.map((c) =>
+    dedupe.measureAiOverview(analysisId, c.promptId, weekNo, c.repeat),
+  );
+  const { data: openRows } = await admin
+    .from("jobs")
+    .select("dedupe_key")
+    .in("dedupe_key", sleutels)
+    .in("status", ["queued", "running"]);
+  const alIngepland = new Set((openRows ?? []).map((r) => r.dedupe_key as string));
+
+  const rows = kandidaten
+    .filter((c) => !alIngepland.has(dedupe.measureAiOverview(analysisId, c.promptId, weekNo, c.repeat)))
+    .map((c) => ({
+      type: "measure_ai_overview" as const,
+      payload_json: { promptId: c.promptId, weekNo, repeatIndex: c.repeat } as never,
+      analysis_id: analysisId,
+      dedupe_key: dedupe.measureAiOverview(analysisId, c.promptId, weekNo, c.repeat),
+      status: "queued" as const,
+      scheduled_for: new Date().toISOString(),
+    }));
+
+  if (rows.length === 0) return { planned: 0, totalPrompts: all.length };
+
+  const { data: inserted, error } = await admin.from("jobs").insert(rows).select("id");
+  if (error && error.code !== UNIQUE_VIOLATION) {
+    throw new Error(`AI Overview-meting inplannen mislukt: ${error.message}`);
+  }
+  return { planned: (inserted ?? []).length, totalPrompts: all.length };
 }
