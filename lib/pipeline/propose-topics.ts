@@ -291,9 +291,16 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
   // ⚠️ Het model levert het cijfer nooit zelf aan (conventie 1). De titel van
   // een onderwerp is meestal al zoektermvormig ("wasmachine kopen",
   // "hardloopblessure behandelen", precies wat de systeemprompt hierboven
-  // voorschrijft), dus die titel is de kandidaat-zoekterm. Zonder
-  // DATAFORSEO-sleutel geeft dit een lege Map terug en verandert er niets
-  // (`lib/search-demand/cache.ts`).
+  // voorschrijft), dus die titel is de kandidaat-zoekterm.
+  //
+  // ⚠️ DEZE STAP LIGT STIL (20 september 2026, docs/logbook.md). De
+  // zoekvolumelaag is geparkeerd, dus `keywordVolumes()` geeft een lege Map
+  // terug en `search_volume_absolute` blijft `null`, precies zoals op alle 23
+  // rijen in productie. In de praktijk leverde deze aanroep ook nooit iets op:
+  // een onderwerptitel als "Bekkenbodemfysiotherapie bij verzakking of een
+  // zwaar gevoel" is geen zoekterm waar ooit een volume op komt. Komt de laag
+  // terug, dan is dít de plek die eerst herzien moet worden, en niet de
+  // leverancier.
   //
   // ⚠️ Alleen Nederland/Nederlands, vast: open vraag 1 van het plan
   // (docs/tasks/zoekdata-in-de-keten.md §10) is nog niet beantwoord, en

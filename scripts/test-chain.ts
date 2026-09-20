@@ -8565,33 +8565,110 @@ async function main(): Promise<void> {
       );
     }
 
-    // ══ SCENARIO 13: zonder DATAFORSEO-sleutel gedraagt de app zich identiek ══
+    // ══ SCENARIO 13: de zoekvolumelaag staat uit, en blijft uit ══════════════
     //
     // De garantie waar lib/search-demand/ op rust (docs/tasks/
     // zoekdata-in-de-keten.md, blok B, uitgangspunt 3 van ontwikkelplan-visie.md:
     // "geen verplichte tweede sleutel, nergens"). Hoort hier en niet in
     // test-unit.ts: `registry.ts` is `server-only`, en die grendel is alleen in
     // déze test opgeheven.
+    //
+    // ⚠️ Uitgebreid op 20 september 2026, toen de laag geparkeerd werd. De
+    // sleutels blijven in Vercel staan omdat de eigenaar later wil kunnen
+    // doorontwikkelen, dus "geen sleutel" is niet langer de schakelaar. Deze
+    // test legt vast wat de nieuwe schakelaar doet, en vooral dat twee
+    // geldige sleutels op zichzelf NIET genoeg zijn om de laag te laten
+    // draaien. Dat was de hele reden om hem in code te zetten.
     {
       const oudLogin = process.env.DATAFORSEO_LOGIN;
       const oudWachtwoord = process.env.DATAFORSEO_PASSWORD;
+      const oudSchakelaar = process.env.SEARCH_DEMAND_ENABLED;
+      const { searchDemandProvider, searchDemandEnabled } = await import(
+        "@/lib/search-demand/registry"
+      );
+
+      // Zonder de schakelaar staat de laag uit, ook met twee geldige sleutels.
+      delete process.env.SEARCH_DEMAND_ENABLED;
+      process.env.DATAFORSEO_LOGIN = "test-login";
+      process.env.DATAFORSEO_PASSWORD = "test-wachtwoord";
+      ok("scenario 13: de laag staat standaard uit", searchDemandEnabled() === false);
+      ok(
+        "scenario 13: twee geldige sleutels zetten hem niet aan",
+        searchDemandProvider() === null,
+      );
+
+      // Twijfel valt naar uit: alles wat niet 'true' is, laat de laag uit.
+      for (const halfslachtig of ["", "1", "0", "ja", "waar", "yes", "false", "onwaar"]) {
+        process.env.SEARCH_DEMAND_ENABLED = halfslachtig;
+        ok(`scenario 13: "${halfslachtig}" zet de laag niet aan`, searchDemandEnabled() === false);
+      }
+
+      // Spaties en hoofdletters mogen wél, anders is een ingetypte waarde in
+      // Vercel een stille mislukking in plaats van een schakelaar.
+      for (const wel of ["true", "TRUE", " true ", "True"]) {
+        process.env.SEARCH_DEMAND_ENABLED = wel;
+        ok(`scenario 13: "${wel}" zet de laag wél aan`, searchDemandEnabled() === true);
+      }
+
+      // Aan gezet, mét sleutels: dan pas komt er een leverancier.
+      process.env.SEARCH_DEMAND_ENABLED = "true";
+      ok("scenario 13: aan gezet is de laag aan", searchDemandEnabled() === true);
+      ok("scenario 13: met allebei komt er wél een provider", searchDemandProvider() !== null);
+      ok("scenario 13: met de juiste id", searchDemandProvider()?.id === "dataforseo");
+
+      // Aan gezet zonder sleutels blijft de oude garantie: geen provider.
       delete process.env.DATAFORSEO_LOGIN;
       delete process.env.DATAFORSEO_PASSWORD;
-      const { searchDemandProvider } = await import("@/lib/search-demand/registry");
       ok("scenario 13: geen provider zonder sleutels", searchDemandProvider() === null);
 
       process.env.DATAFORSEO_LOGIN = "test-login";
-      delete process.env.DATAFORSEO_PASSWORD;
       ok("scenario 13: ook niet met maar één van de twee", searchDemandProvider() === null);
 
-      process.env.DATAFORSEO_PASSWORD = "test-wachtwoord";
-      ok("scenario 13: met allebei komt er wél een provider", searchDemandProvider() !== null);
-      ok("scenario 13: met de juiste id", searchDemandProvider()?.id === "dataforseo");
+      // ⚠️ En de cache blijft óók dicht. Dit is de helft die je makkelijk
+      // vergeet: de 7 zoektermen die op 19 september zijn opgehaald staan nog
+      // dertig dagen in `keyword_demand`, en zonder deze grendel zouden ze een
+      // vraag nog steeds het label 'gemeten' kunnen geven terwijl de laag uit
+      // staat. Een verse rij, dus ruim binnen CACHE_GELDIGHEID_DAGEN.
+      await db.client.query(
+        `insert into public.keyword_demand (keyword, country, language, volume, provider, fetched_at)
+         values ('parkeertest zoekterm', 'NL', 'nl', 1234, 'dataforseo', now())
+         on conflict (keyword, country, language) do update set volume = excluded.volume`,
+      );
+      const { keywordVolumes } = await import("@/lib/search-demand/cache");
+      const { createAdminClient: adminVoorCache } = await import("@/lib/supabase/admin");
+
+      process.env.SEARCH_DEMAND_ENABLED = "true";
+      const metLaagAan = await keywordVolumes(
+        adminVoorCache(),
+        ["parkeertest zoekterm"],
+        "NL",
+        "nl",
+      );
+      ok(
+        "scenario 13: met de laag aan komt een gecachete term gewoon terug",
+        metLaagAan.get("parkeertest zoekterm")?.volume === 1234,
+        `kreeg ${JSON.stringify([...metLaagAan.values()])}`,
+      );
+
+      delete process.env.SEARCH_DEMAND_ENABLED;
+      const metLaagUit = await keywordVolumes(
+        adminVoorCache(),
+        ["parkeertest zoekterm"],
+        "NL",
+        "nl",
+      );
+      ok(
+        "scenario 13: met de laag uit blijft ook de cache dicht",
+        metLaagUit.size === 0,
+        `kreeg ${metLaagUit.size} termen terug`,
+      );
 
       if (oudLogin === undefined) delete process.env.DATAFORSEO_LOGIN;
       else process.env.DATAFORSEO_LOGIN = oudLogin;
       if (oudWachtwoord === undefined) delete process.env.DATAFORSEO_PASSWORD;
       else process.env.DATAFORSEO_PASSWORD = oudWachtwoord;
+      if (oudSchakelaar === undefined) delete process.env.SEARCH_DEMAND_ENABLED;
+      else process.env.SEARCH_DEMAND_ENABLED = oudSchakelaar;
     }
 
     __setTestAdminClient(null);

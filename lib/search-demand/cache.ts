@@ -15,9 +15,16 @@ import "server-only";
  * Is er geen sleutel (`searchDemandProvider()` geeft `null`), dan levert deze
  * functie terug wat de cache al heeft, en niets voor de rest. Geen throw, geen
  * placeholder: dat is precies "zonder sleutel gedraagt de app zich identiek".
+ *
+ * ── STAAT DE LAAG UIT, DAN KOMT ER NIETS TERUG (20 september 2026) ──────────
+ *
+ * Dat is iets ANDERS dan "geen sleutel". De laag is geparkeerd
+ * (`searchDemandEnabled()`, `lib/search-demand/registry.ts`), en dan is ook de
+ * cache dicht: een lege Map, geen enkele zoekterm. Zie de reden bij de
+ * controle zelf, en het besluit in `docs/logbook.md`.
  */
 import { createAdminClient } from "@/lib/supabase/admin";
-import { searchDemandProvider } from "@/lib/search-demand/registry";
+import { searchDemandProvider, searchDemandEnabled } from "@/lib/search-demand/registry";
 import type { SearchDemandResult } from "@/lib/search-demand/types";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -50,6 +57,15 @@ export async function keywordVolumes(
   language: string,
   profileId: string | null = null,
 ): Promise<Map<string, KeywordVolume>> {
+  // ── De laag is geparkeerd (20 september 2026, docs/logbook.md) ───────────
+  //
+  // ⚠️ Deze controle staat vóór de cache en niet alleen bij de leverancier.
+  // Zonder hem zou een zoekterm die op 19 september is opgehaald nog dertig
+  // dagen lang (`CACHE_GELDIGHEID_DAGEN`) een volumeband kunnen zetten in een
+  // app die geacht wordt stil te staan, en zou een vraag het label `gemeten`
+  // krijgen terwijl de laag uit staat. Uit is uit.
+  if (!searchDemandEnabled()) return new Map();
+
   const uniekeTermen = [...new Set(keywords.map((k) => k.trim().toLowerCase()).filter(Boolean))];
   if (uniekeTermen.length === 0) return new Map();
 

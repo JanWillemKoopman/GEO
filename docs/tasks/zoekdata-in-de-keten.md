@@ -1,6 +1,24 @@
 # Zoekdata in de keten: Search Console en DataForSEO van meetlaag naar stuurlaag
 
-**Opgesteld:** 16 september 2026. **Status: in aanbouw.**
+**Opgesteld:** 16 september 2026. **Status: DataForSEO-kant GEPARKEERD sinds 20 september 2026.
+Search Console-kant blijft gewoon in gebruik.**
+
+> ⚠️ **Lees dit eerst.** De DataForSEO-helft van dit plan staat uit. `SEARCH_DEMAND_ENABLED` in
+> `lib/search-demand/registry.ts` staat standaard op uit, en die grendel zit ook op de cache. De
+> sleutels blijven in Vercel staan om later te kunnen doorontwikkelen, dus de sleutel is niet meer
+> de schakelaar.
+>
+> **Waarom:** de laag is uit de app te halen zonder dat er één scherm, score of aanbeveling
+> verandert. 0 van de 23 onderwerpen kreeg een gemeten volume, de potentiescore leest de gemeten
+> kolom nergens, en de 9 vragen met het label `gemeten` staan op dezelfde band als de 21 zonder.
+> Daartegenover: twee productiebugs, en een derde (de ankerfout in `bandFromMeasuredVolume()`) die
+> door de reparatie van 20 september bij de eerstvolgende analyse voor het eerst werkzaam zou zijn
+> geworden. De volledige afweging en de drie aanleidingen om hem terug te halen staan in
+> `docs/logbook.md`, 20 september 2026 (2).
+>
+> **Wat hieronder nog steeds klopt en in gebruik is:** hoofdstuk 1, blok A (Search Console),
+> hoofdstuk 7 (het opbrengstblok), en de kansbron `zoekverkeer`. Alles wat over DataForSEO gaat,
+> beschrijft code die er staat maar stilligt.
 
 **Bouwstatus, bijgewerkt 16 september 2026.** A0 ✅ af (`lib/search-console/metrics.ts`,
 `vergelijkingsvenster()`). Blok A ✅ af: migratie 0103, `lib/search-console/sync.ts` haalt de
@@ -191,6 +209,10 @@ rekenwerk op Search Console-gegevens, zonder één AI-aanroep.
 DataForSEO waar deze klant geen pagina voor heeft en geen enkele vertoning op krijgt. Dat is
 letterlijk de vraag die Search Console niet kan zien en die de AI-meting alleen indirect raakt.
 
+⚠️ **Nooit gebouwd, en voorlopig ook niet.** `lib/opportunities.ts` kent vijf bronnen, niet zes:
+`onbenutte_vraag` bestaat nergens in de code. Hij hangt van de geparkeerde DataForSEO-laag af, dus
+hij komt pas in beeld als die terugkomt. Bron 5 (`zoekverkeer`) is er wél en werkt.
+
 **De potentiescore.** `potentialScore()` blijft precies wat hij is, een vermenigvuldiging van gat
 maal volume, maar `search_volume_index` op `profile_topics` wordt verankerd aan de echte volumes
 waar die er zijn. `profile_topics` krijgt daarvoor twee kolommen: het absolute maandvolume en een
@@ -281,6 +303,10 @@ minder dan 30 dagen oud wordt nooit opnieuw opgehaald.
 **`0105_merk_zoektermen.sql`.** `profile_keywords`: welke zoektermen horen bij welk merk en welk
 cluster, met een herkomstkolom (`aanbod`, `zoekverkeer`, `vraag`, `handmatig`). Dit is de tabel die
 "waar komt deze zoekterm vandaan" beantwoordt, en dus ook waarom hij in een kanslijst opduikt.
+
+⚠️ **Deze tabel is leeg en heeft geen enkel schrijf- of leespad in `app/` of `lib/`.** Hij is
+aangelegd voor een stap die nooit is gebouwd. Blijft staan (conventie 4: nooit `drop`), zie
+`supabase/README.md` bij 0105.
 
 **`0106_zoekvolume_herkomst.sql`.** Op `profile_topics` het absolute maandvolume plus een
 herkomstkolom naast de bestaande `search_volume_index`. Op `prompts` wordt de check-constraint van

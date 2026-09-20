@@ -9940,3 +9940,62 @@ unit- of ketentest die deze twee stappen nooit na elkaar liet lopen.
 
 Getest: `tsc --noEmit`, `test:unit` (4919 geslaagd), `test:chain` (669 geslaagd, met het nieuwe
 scenario T8.2) en `build` zijn allemaal groen.
+
+## 20 september 2026 (2): de zoekvolumelaag gaat op de parkeerstand
+
+Een Teamsessie over `lib/search-demand/` (SEO 28%, Data 20%, Product 16%, GEO 14%, AI 12%,
+Engineering 10%, plus tegenspraak) eindigde met een uitkomst die niemand vooraf had: de koppeling
+hoeft niet gerepareerd te worden maar geparkeerd, en de reden is in één zin na te rekenen.
+
+**Je kunt deze laag uitzetten en er verandert niets zichtbaars in de app.** Geen scherm, geen score,
+geen aanbeveling. Nagerekend tegen productie op 20 september: 0 van de 23 onderwerpen heeft een
+gemeten zoekvolume, de potentiescore leest `profile_topics.search_volume_absolute` nergens
+(`lib/potential-data.ts` regel 100-106 leest alleen `search_volume_index`, en dat is de AI-schatting
+uit `lib/pipeline/search-demand.ts`), en de 9 meetvragen die het label `gemeten` dragen staan alle
+negen op band `midden`, net als de 21 vragen zonder meting. De laag heeft $0,18 aan data opgeleverd
+die niemand leest.
+
+**Daartegenover staat wat hij heeft gekost:** drie migraties waarvan er één (`0105`, tabel
+`profile_keywords`) een tabel aanmaakte die nergens in `app/` of `lib/` wordt aangeroepen, ruim 400
+regels module, en twee productiebugs. Allebei die bugs ontstonden op het raakvlak tussen de nieuwe
+laag en iets dat er al stond: de batch die klapte op één te lange zoekterm (19 september) en de
+nakalibratie die een gemeten band overschreef terwijl het label `gemeten` bleef staan (20 september).
+Dat patroon, en niet de kosten, is de reden om te stoppen.
+
+**⚠️ En er stond een derde fout klaar die nog nooit is opgetreden.** `bandFromMeasuredVolume()`
+(`lib/pipeline/volume.ts`) schaalt naar de zwaarste gemeten term van de batch. Bij Van den Udenhout
+was dat "financiering": 2.400 zoekopdrachten per maand met een CPC van 14,66 euro, dus hypotheken en
+zakelijke leningen, niet autofinanciering. Die term zou anker worden en dus band `hoog` met gewicht
+1,0 krijgen, terwijl "aankoopadvies" (50 per maand, wel passend) naar het minimumgewicht zakt. In
+productie is dat nooit gebeurd omdat de nakalibratiebug alles naar `midden` platsloeg. **De
+reparatie van vanochtend maakt die fout bij de eerstvolgende analyse voor het eerst werkzaam.** Dat
+is de directe aanleiding om nu te parkeren en niet volgende maand.
+
+**De schakelaar staat in code, niet in Vercel.** De eigenaar wil `DATAFORSEO_LOGIN` en
+`DATAFORSEO_PASSWORD` laten staan om later te kunnen doorontwikkelen. Daarmee kan de aanwezigheid
+van een sleutel niet langer de schakelaar zijn, want dan draait de laag gewoon door. Vandaar
+`SEARCH_DEMAND_ENABLED` in `lib/search-demand/registry.ts`, standaard uit, en alleen de letterlijke
+waarde `true` zet hem aan. Die grendel zit óók op de cache (`lib/search-demand/cache.ts`): zonder
+dat zouden de 7 zoektermen uit `keyword_demand` nog tot ongeveer 19 oktober een band kunnen zetten
+in een app die geacht wordt stil te staan. Scenario 13 in `test-chain.ts` legt allebei vast, inclusief
+dat twee geldige sleutels op zichzelf niet genoeg zijn.
+
+**Niet gesloopt, en dat is een bewuste keuze.** De tabel `profile_keywords`, de kolommen
+`profile_topics.search_volume_absolute` en `search_volume_source`, en de module zelf blijven staan.
+Conventie 4 zegt dat migraties additief zijn en nooit `drop`, en een tabel weggooien is onomkeerbaar.
+Slapende code die niets doet kost minder dan een migratie die data vernietigt. Wat wel is opgeruimd:
+elke plek in de documentatie die beweerde dat deze koppeling iets doet wat hij niet doet.
+
+**Waarom dit terugkomt, en waarom niet eerder.** Drie aanleidingen, en pas bij één daarvan is het de
+moeite waard: als de toets uit blok D aantoont dat echte zoekopdrachten de tekst beter maken (en die
+toets kan volledig op Search Console-data, zonder DataForSEO), als er zoveel merken zijn dat
+onderwerpen kiezen in het strategisch gesprek niet meer schaalt, of als een klant in een gesprek
+vraagt hoe vaak iets gezocht wordt en het antwoord schuldig blijft. Tot die tijd is het aanbod van de
+klant plus het gesprek een sterker signaal dan een zoekvolume van Google Ads, zeker bij 23
+onderwerpen.
+
+**De belangrijkste les, los van deze koppeling.** Het ergste is niet een koppeling die niet werkt,
+maar een koppeling die half werkt en meedraait: die kost bugs zonder iets op te leveren. "Gebouwd,
+niet gebruikt" is geen neutrale toestand.
+
+Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen.
