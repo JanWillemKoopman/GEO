@@ -651,6 +651,23 @@ terugvalterm de schaal van vragen die hem niet eens gebruikten kunnen optrekken.
 
 ### Nog open
 
+### Genomen op 20 september 2026
+
+**De eerste echte, volledige testronde op een bestaand merk is gedraaid** (Van den Udenhout,
+"Occasion kopen in Noord-Brabant"), en dat maakte open vraag 3 hieronder (nu verplaatst naar hier)
+overbodig: 9 van de 30 vragen kregen een echt gemeten volume, tegen $0,18 aan DataForSEO-kosten. Zie
+`docs/logbook.md` 20 september 2026 voor de cijfers.
+
+⚠️ **Die testronde bracht een bug boven die niets met deze bouwronde te maken had.**
+`calibratePromptVolumes()`, een bestaande nabewerkingstaak die alle vragen van een analyse nog één
+keer met een AI-schatting herweegt, keek niet naar `volume_source` en overschreef zo de band van net
+gemeten vragen met een gok, terwijl het label `gemeten` bleef staan. Gerepareerd: die stap sluit
+vragen met `volume_source = 'gemeten'` nu uit. Dit stond in geen van de eerdere versies van dit plan,
+want de nabewerkingstaak bestond al vóór deze bouwronde en niemand had de twee stappen ooit na elkaar
+laten lopen tot deze echte test dat deed.
+
+### Nog open
+
 1. **Land en taal.** Nederland en Nederlands vast, of per merk instelbaar met het oog op België? Dat
    bepaalt of `keyword_demand` één rij per zoekterm heeft of meerdere. `propose-topics.ts` en
    `prepare.ts` hebben "NL"/"nl" nu hard gecodeerd, met een verwijzing naar deze open vraag in de
@@ -659,7 +676,3 @@ terugvalterm de schaal van vragen die hem niet eens gebruikten kunnen optrekken.
    zoekwoordlaag aan verdient een bewuste vergelijking met een ronde zonder, met een mens die
    meeleest. Dat kan pas zodra er een merk is met zowel een Search Console-koppeling als
    gepubliceerde pagina's.
-3. **Nog niet nagerekend op een echte, volledige analyse.** De nieuwe kandidaat-opbouw is getest met
-   losse voorbeelden tegen het echte account (`docs/logbook.md`, 19 september 2026), niet met een
-   volledige `keyword_discovery`-ronde op een bestaand merk met dertig echte meetvragen. Dat is de
-   volgende stap voordat dit voor een klant aan staat.
