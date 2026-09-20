@@ -6510,6 +6510,65 @@ async function main(): Promise<void> {
     await db.client.query("delete from public.profiles where id = $1", [t81Profiel]);
 
     // ══════════════════════════════════════════════════════════════════════
+    // BUG GEVONDEN OP EEN ECHTE TESTRONDE (19/20 september 2026, zie
+    // docs/logbook.md): calibratePromptVolumes() overschreef de band van een
+    // vraag die al een echt DataForSEO-volume had met een verse AI-schatting,
+    // terwijl volume_source op 'gemeten' bleef staan. Het label zei "gemeten",
+    // het cijfer erachter was intussen weer een gok.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nDe nakalibratie laat een echt gemeten vraag met rust (T8.2)");
+
+    const t82Profiel = randomUUID();
+    await db.client.query(
+      `insert into public.profiles (id, user_id, name, url, status)
+       values ($1, $2, 'T8.2-merk', 'https://t82-merk.nl', 'klaar')`,
+      [t82Profiel, userId],
+    );
+    const { rows: t82Analyses } = await db.client.query(
+      `insert into public.analyses (user_id, profile_id, url, topic, name, status)
+       values ($1, $2, 'https://t82-merk.nl', 'occasions', 'Occasions', 'bezig') returning id`,
+      [userId, t82Profiel],
+    );
+    const t82AnalysisId = t82Analyses[0].id as string;
+
+    const { rows: t82Prompts } = await db.client.query(
+      `insert into public.prompts (analysis_id, text, category, volume_estimate, volume_band, volume_source)
+       values
+         ($1, 'Financiering occasion Boxtel', 'Beslissing', 32, 'midden', 'gemeten'),
+         ($1, 'Wat kost een occasion in Oss?', 'Oriëntatie', 50, 'midden', 'geschat'),
+         ($1, 'Welke garantie krijg ik bij een occasion?', 'Overweging', 50, 'midden', 'geschat')
+       returning id, text`,
+      [t82AnalysisId],
+    );
+
+    const { calibratePromptVolumes } = await import("@/lib/pipeline/prepare");
+    await calibratePromptVolumes(t82AnalysisId);
+
+    const { rows: t82Na } = await db.client.query(
+      `select text, volume_estimate, volume_band, volume_source from public.prompts
+        where analysis_id = $1 order by text`,
+      [t82AnalysisId],
+    );
+    const gemetenNa = t82Na.find((r: { text: string }) => r.text === "Financiering occasion Boxtel");
+    ok(
+      "de al gemeten vraag behoudt haar echte volume en band",
+      gemetenNa?.volume_estimate === 32 && gemetenNa?.volume_band === "midden",
+      JSON.stringify(gemetenNa),
+    );
+    ok(
+      "en blijft op 'gemeten' staan, geen stille terugval naar 'geschat'",
+      gemetenNa?.volume_source === "gemeten",
+    );
+    ok(
+      "de twee geschatte vragen deden wél mee aan de nakalibratie",
+      t82Na
+        .filter((r: { text: string }) => r.text !== "Financiering occasion Boxtel")
+        .every((r: { volume_source: string }) => r.volume_source === "geschat"),
+    );
+
+    await db.client.query("delete from public.profiles where id = $1", [t82Profiel]);
+
+    // ══════════════════════════════════════════════════════════════════════
     console.log("\nDe Sales-module: de scheiding met de klantomgeving (migratie 0068)");
 
     {

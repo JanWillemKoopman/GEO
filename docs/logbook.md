@@ -9901,3 +9901,42 @@ meetvragen van één bestaand merk, in plaats van losse voorbeelden. Dat staat a
 
 Getest: `tsc --noEmit`, `test:unit` (4919 geslaagd, met de vernieuwde groep voor
 `kandidaatZoektermen()`), `test:chain` (666 geslaagd) en `build` zijn allemaal groen.
+
+## 20 september 2026: de eerste echte testronde, en de bug die hij blootlegde
+
+Na de merge naar `main` is de nieuwe code voor het eerst op een echt cluster van een bestaande klant
+gedraaid: Van den Udenhout, "Occasion kopen in Noord-Brabant" (analyse `027487ec-4879-44ca-a1b3-141720fadd34`).
+Alle vijf taken liepen zonder fouten: onderzoek, promptgeneratie in drie funnelfasen, nakalibratie.
+
+**Het resultaat op de zoektermen: 9 van de 30 vragen (30%) kregen een echt gemeten volume.** Een paar
+voorbeelden van de terugvalconstructie uit de vorige logboekregel, nu bevestigd in het echt: "financiering
+oss" leverde niets op, "financiering" alleen wel (2.400/maand); "verborgen gebreken rosmalen" niets,
+"verborgen gebreken" alleen 1.300/maand; "aankoopkeuring rosmalen" niets, "aankoopkeuring" alleen
+880/maand. Kosten van de hele ronde: $0,18 bij DataForSEO (drie aanroepen, één per funnelfase, 54
+zoektermen in totaal) plus ongeveer $0,02 aan AI-aanroepen.
+
+**⚠️ Maar de test bracht ook een bug boven die niets met deze bouwronde te maken had.** Ná de drie
+funnelfasen draait een bestaande, aparte taak (`calibrate_volumes` → `calibratePromptVolumes()` in
+`lib/pipeline/prepare.ts`, gebouwd lang vóór deze bouwronde) die alle vragen van de analyse nog één keer
+met een AI-schatting herweegt, "consistenter dan losse schattingen per vraag". Die stap keek niet naar
+`volume_source` en overschreef dus ook de band van de net gemeten vragen. Concreet bewijs: "financiering"
+had met 2.400/maand veruit het hoogste échte volume van de hele set en had daarom band "hoog" moeten
+worden (`bandFromMeasuredVolume()` schaalt de zwaarste vraag van de batch naar 100). In plaats daarvan
+kwam de vraag na de nakalibratie op band "midden" met een AI-schatting van 32, terwijl `volume_source`
+gewoon op `gemeten` bleef staan. Het label zei "gemeten", het cijfer erachter was weer een gok.
+
+**De reparatie:** `calibratePromptVolumes()` (`lib/pipeline/prepare.ts`) sluit vragen met
+`volume_source = 'gemeten'` nu uit van zijn `select`, dus ook van zijn `update`. Zo'n vraag behoudt de
+band die `bandFromMeasuredVolume()` haar gaf, en de resterende geschatte vragen worden zoals voorheen
+relatief tegen elkaar afgezet. Een scenario in `test-chain.ts` (T8.2) legt dit vast: een vraag met
+`volume_source = 'gemeten'` komt ongewijzigd uit `calibratePromptVolumes()`, twee vragen met
+`volume_source = 'geschat'` doen wél mee.
+
+**Waarom dit niet in `docs/tasks/zoekdata-in-de-keten.md` stond:** dat plan beschrijft `prepare.ts`'s
+eigen `bandFromMeasuredVolume()`-stap binnen één funnelfase, maar niet deze latere, analysebrede
+nabewerkingstaak, die al bestond vóór deze bouwronde en nergens de nieuwe `volume_source`-waarde kende.
+Dat is precies het soort gat dat alleen een echte, volledige testronde blootlegt, en niet een geïsoleerde
+unit- of ketentest die deze twee stappen nooit na elkaar liet lopen.
+
+Getest: `tsc --noEmit`, `test:unit` (4919 geslaagd), `test:chain` (669 geslaagd, met het nieuwe
+scenario T8.2) en `build` zijn allemaal groen.

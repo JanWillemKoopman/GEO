@@ -449,6 +449,16 @@ export async function finishPromptGeneration(id: string): Promise<AnalysisStatus
  * exact de terugval die er altijd al was. Daarom raakt een fout hier de status
  * van de analyse NIET: 'mislukt' tonen voor een cosmetische verfijning zou de
  * klant een probleem melden dat hij niet heeft.
+ *
+ * ⚠️ **Nooit een echt gemeten vraag overschrijven** (bug gevonden op 19/20
+ * september 2026 tegen een echte testronde, zie docs/logbook.md). Deze stap
+ * draait ALTIJD, over alle vragen van de analyse, ook nadat een deel al een
+ * echt DataForSEO-volume kreeg via `bandFromMeasuredVolume()` verderop in dit
+ * bestand. Zonder filter overschreef hij die band stilletjes met een verse
+ * AI-schatting, terwijl `volume_source` op `gemeten` bleef staan: het label
+ * zei "gemeten", het cijfer erachter was intussen weer een gok. Vandaar het
+ * filter op `volume_source` hieronder: alleen vragen die nog nooit een echte
+ * meting hadden, doen mee aan deze relatieve AI-kalibratie.
  */
 export async function calibratePromptVolumes(id: string): Promise<void> {
   const admin = createAdminClient();
@@ -459,6 +469,9 @@ export async function calibratePromptVolumes(id: string): Promise<void> {
     .select("id, text")
     .eq("analysis_id", id)
     .eq("created_by", "system")
+    // Nooit een gemeten vraag overschrijven met een gok, zie de waarschuwing
+    // hierboven.
+    .neq("volume_source", "gemeten")
     .order("created_at")
     .order("id");
 
