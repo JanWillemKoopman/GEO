@@ -157,15 +157,44 @@ platform waar de klant aantoonbaar anders scoort.
 
 ## 4. Wat er moet gebeuren, in deze volgorde
 
-### Stap 1: snoeien en herhalen bij ChatGPT (lost de wiebel op, budgetneutraal)
+### Stap 1: ~~snoeien en herhalen bij ChatGPT~~ VERVALLEN, 20 september 2026
 
-`MIN_SAMPLES_TO_SKIP` van 8 naar 3, zodat vragen die niets opleveren er daadwerkelijk uit gaan, en
-dat budget naar herhalingen van de vragen die wél iets opleveren. Bij de markt Tilburg zaten 24 van
-de 40 vragen in de categorie "noemt nooit iemand"; die kosten daar $0,58 per ronde en leveren niets.
+⚠️ **Deze stap stond hier fout en is nagerekend voordat er iets aan gebouwd werd. Hij levert niets
+op. Wie hem alsnog wil bouwen, leest eerst waarom hij vervalt.**
 
-⚠️ Let op de andere kant van die knop: `elicit-rate.ts` legt in zijn eigen toelichting uit waaróm 8
-er staat (bij 0 van 2 is de bovengrens nog 66%). Van 8 naar 3 mag alleen als de bovengrenstoets
-blijft staan, anders komt de fout van R2.1 terug.
+De stap luidde: `MIN_SAMPLES_TO_SKIP` van 8 naar 3, en het bespaarde geld naar herhalingen. Drie
+dingen kloppen daar niet aan.
+
+**1. Die 8 is niet de knop die klemt.** `maySkip()` eist twee dingen tegelijk: genoeg metingen én een
+Wilson-bovengrens onder de 25%. Bij nul successen is die bovengrens `Z²/(n+Z²)`, en die zakt pas bij
+**twaalf** metingen onder de drempel (24,3%; bij elf is het nog 25,9%). `MIN_SAMPLES_TO_SKIP` op 3
+zetten verandert dus exact niets, want de tweede voorwaarde blijft de bindende. Op productie heeft
+geen van de 210 vragen twaalf metingen, en staat er dan ook geen enkele op `brand_eliciting = 'nee'`.
+
+**2. Er valt op de klantmeting niets te snoeien.** Nagemeten per vraag over alle zes de clusters:
+het aantal vragen dat nog nooit één aanbieder opleverde is 0, 0, 1, 1, 2 en 3 van de 30. Gemiddeld
+1,2 vraag per cluster, goed voor ongeveer $0,02 per ronde. De 24-van-de-40 uit hoofdstuk 1 komt uit
+de **salesmodule**, een andere pijplijn die dertig bedrijven tegelijk meet. Die twee over één kam
+scheren was de fout.
+
+**3. En zelfs als er wél iets te snoeien viel, verandert het de score niet.** Vragen zonder enige
+aanbieder vallen al buiten de noemer (`winnableRunIds` in `computeAggregates()`). Snoeien bespaart
+dus geld en verschuift geen enkel cijfer. Dat is prima, maar het is geen oplossing voor de wiebel.
+
+**Wat bij die controle wél bleek te kloppen, en dus niet aangeraakt moet worden:**
+
+- De herhalingen gaan naar de acht zwaarstwegende vragen, en het scherm toont de **gewogen** score
+  (`leidend()` in `components/analytics-cluster-table.tsx` leest `weighted_score`). Die toewijzing is
+  dus juist: precisie waar het gewicht zit.
+- De foutmarge wordt bewust in VRAGEN gerekend en niet in metingen, dus herhalingen maken de band
+  niet smaller. Dat is conservatief en het werkt in het voordeel van de klant: een bredere band
+  betekent vaker "gelijk gebleven" in plaats van een vals alarm.
+- De presentatie is al gedisciplineerd: een marge-kolom, `changeIsMeaningful()` achter de
+  verandering, en de band op het merkscherm.
+
+**Waar snoeien wél loont: de salesmodule.** Daar zijn 24 van de 40 vragen structureel merkloos, goed
+voor ongeveer $0,58 per markt per ronde. Dat is een aparte opdracht in `lib/pipeline/sales-measure.ts`
+en heeft niets met de klantmeting te maken.
 
 ### Stap 2: de aggregatie engine-bewust maken (voorwaarde, anders telt alles dubbel)
 
@@ -205,10 +234,30 @@ Verder nodig:
 - geen AI Overview aanwezig is óók een niet-meting, geen nulscore;
 - een eigen schakelaar, standaard uit, zelfde patroon als `SEARCH_DEMAND_ENABLED`.
 
-### Stap 4: presentatie
+### Stap 4: presentatie (na het vervallen van stap 1 is dit de enige budgetneutrale ingreep)
 
-Het gemiddelde over de laatste drie rondes als hoofdgetal, de losse ronde als stip eromheen. En de
-band als hoofdgetal in plaats van het punt: "tussen 1 en 3 van de 10 antwoorden" in plaats van "21%".
+Twee dingen, allebei gratis, en samen het echte antwoord op de klacht waar dit document mee begon.
+
+**Het gemiddelde over de laatste drie rondes als hoofdgetal**, de losse ronde als stip eromheen. De
+wiebel zakt daarmee met de wortel uit drie, dus ongeveer 1,7 keer, zonder één extra meting. ⚠️ Nog
+niet te demonstreren: geen enkele analyse op productie heeft een tweede periode, alles staat op
+`week_no = 0`. Werkt dus pas vanaf de tweede ronde, en moet tot die tijd netjes terugvallen op de
+enige ronde die er is.
+
+**Een rem op handmatig hermeten.** Dit is wat de eigenaar daadwerkelijk overkwam: twee keer meten op
+één dag en twee uitslagen zien. `lib/measure-cadence.ts` heeft die rem al voor de periodieke meting
+(21 dagen), maar een handmatige hermeting binnen een periode hoort geen tweede losse uitslag op te
+leveren. Die hoort samengevoegd te worden met de eerste, wat de schatting juist bétert.
+
+En verder: de band als hoofdgetal in plaats van het punt, "tussen 1 en 3 van de 10 antwoorden" in
+plaats van "21%".
+
+### Stap 5: meer herhalingen, en dat kost geld
+
+De band smaller maken kan alleen met meer metingen. Van 46 naar 90 metingen per cluster (drie per
+vraag) maakt de band ongeveer 1,57 keer smaller en brengt de ronde van $0,76 naar $1,54. Dat is een
+keuze van de eigenaar en geen technische, en hij staat hier alleen omdat het na stap 1 de enige
+overgebleven manier is om de band op de ChatGPT-kant echt te vernauwen.
 
 ---
 

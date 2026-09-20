@@ -10053,3 +10053,46 @@ die twee keer in dit gesprek als feit is gebruikt voordat hij gemeten werd. Hij 
 weerleggen. Conventie 10 gaat niet alleen over wat je bouwt, maar ook over wat je adviseert.
 
 Niets aan code gewijzigd: dit was onderzoek.
+
+## 20 september 2026 (4): stap 1 van het meetplan vervalt, nagerekend voordat hij gebouwd werd
+
+De eigenaar gaf akkoord op "snoeien en herhalen, budgetneutraal" als eerste ingreep tegen de
+springende clusterscore. Bij het openen van `elicit-rate.ts` bleek die stap op drie verkeerde
+aannames te rusten, alle drie van mij. Niets gebouwd, plan gecorrigeerd.
+
+**De knop die ik wilde omzetten klemt niet.** `maySkip()` eist genoeg metingen én een
+Wilson-bovengrens onder de 25%. Bij nul successen is die bovengrens `Z²/(n+Z²)`, en die zakt pas bij
+**twaalf** metingen onder de drempel (24,3%; bij elf nog 25,9%). `MIN_SAMPLES_TO_SKIP` van 8 naar 3
+zetten verandert dus exact niets, want de bovengrenstoets blijft bindend. Dat verklaart ook waarom
+er op productie geen enkele vraag op `brand_eliciting = 'nee'` staat: met één meting per maandronde
+duurt het twaalf maanden voordat een vraag mág afvallen.
+
+**Er valt op de klantmeting niets te snoeien.** Per vraag nagemeten over alle zes de clusters: het
+aantal vragen dat nog nooit één aanbieder opleverde is 0, 0, 1, 1, 2 en 3 van de 30. Ongeveer $0,02
+per ronde. De 24-van-de-40 waarmee ik de stap onderbouwde komt uit de **salesmodule**, een andere
+pijplijn die dertig bedrijven tegelijk meet in plaats van één merk. Twee pijplijnen over één kam
+scheren was de fout, en hij was met één query zichtbaar geweest.
+
+**En snoeien had de score sowieso niet bewogen.** Vragen zonder enige aanbieder vallen al buiten de
+noemer (`winnableRunIds`). Het bespaart geld en verschuift geen cijfer.
+
+**Wat bij diezelfde controle juist wél bleek te kloppen.** De herhalingen gaan naar de acht
+zwaarstwegende vragen en het scherm toont de gewogen score, dus die toewijzing is juist. De
+foutmarge wordt bewust in vragen gerekend en niet in metingen, waardoor herhalingen de band niet
+smaller maken; dat is conservatief en werkt in het voordeel van de klant, want een bredere band
+betekent vaker "gelijk gebleven" in plaats van vals alarm. En de presentatie heeft de marge-kolom en
+`changeIsMeaningful()` al. Het stuk van de app dat ik wilde repareren was het stuk dat al klopte.
+
+**Wat overblijft is een geldvraag en twee gratis ingrepen.** Gratis: het gemiddelde over de laatste
+drie rondes als hoofdgetal (wiebel omlaag met wortel drie, nul extra metingen), en een rem op
+handmatig hermeten zodat twee metingen op één dag samengevoegd worden in plaats van als twee
+uitslagen getoond. Die tweede is letterlijk wat de eigenaar overkwam. Kost geld: drie metingen per
+vraag in plaats van 46 per cluster, $1,54 tegen $0,76, band 1,57 keer smaller. En er is één plek
+waar snoeien wél loont, maar dat is de salesmodule met 24 van de 40 vragen merkloos.
+
+**De les.** Twee keer in twee dagen heb ik een plausibele redenering als feit gebruikt: eerst
+"gecached, dus stabiel", nu "de overslaanregel klemt op acht". Allebei viel in één commando te
+weerleggen. Conventie 10 zegt dat gebouwd niet geverifieerd is; dit gesprek voegt toe dat een
+geaccepteerd plan dat ook niet is.
+
+Niets aan code gewijzigd.
