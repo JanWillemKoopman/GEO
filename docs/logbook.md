@@ -9999,3 +9999,57 @@ maar een koppeling die half werkt en meedraait: die kost bugs zonder iets op te 
 niet gebruikt" is geen neutrale toestand.
 
 Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen.
+
+## 20 september 2026 (3): één meting is een muntworp, en Google is dat net zo goed
+
+De eigenaar merkte dat dezelfde cluster twee keer meten twee verschillende uitslagen geeft, en vroeg
+of Search Console of de nieuwe SEO-api dat kon oplossen. Het antwoord op de eerste helft is ja, op de
+tweede helft nee, en de reden staat in cijfers die vandaag zijn nagemeten. Het volledige plan staat
+in `docs/tasks/ai-overview-als-tweede-meetbron.md`.
+
+**De diagnose klopt, maar de oorzaak is niet de steekproefgrootte.** Het is de uitkomst per vraag.
+Bij de klantmeting gaan de acht zwaarste vragen drie keer door de meting, binnen dezelfde ronde,
+minuten na elkaar: van de 11 vragen waar het merk ooit genoemd werd, gaven er **6 een andere
+uitkomst bij de herhaling**. Bij de markt Tilburg (dezelfde 40 vragen op 1 en 15 september) klapten
+**27 van de 45** combinaties van vraag en bedrijf om. Van Erve ging van 5 vermeldingen naar 1.
+
+**De noemer beweegt mee, en dat tikt harder aan dan de teller.** Bij die markt noemden **24 van de 40
+vragen in beide rondes geen enkel bedrijf**. Je betaalt voor 40 vragen en meet er 16.
+
+**De rem die dit moest opvangen heeft nog nooit gevuurd.** `elicit-rate.ts` slaat een vraag pas over
+na acht metingen. Van de 210 vragen op productie heeft er **geen enkele meer dan 3**. De besparing
+die de herhalingen uit R6.1 moest betalen bestaat dus niet.
+
+**⚠️ De aanname over Google AI Overview is weerlegd, en dat is de belangrijkste uitkomst van vandaag.**
+Vooraf was de redenering: een AI Overview wordt per zoekopdracht bewaard, dus is hij rustiger dan een
+ChatGPT-antwoord, dus is hij de stabiele tweede as. Nagemeten op alle 90 prompts van Van den
+Udenhout, twee volledige rondes met een half uur ertussen, 234 aanroepen voor $0,85: van de 28 vragen
+waar het merk ooit genoemd werd **wisselde de uitkomst bij 17 (61%)**, van de 418 bronnen kwamen er
+**204 terug (49%)**, en bij 1 op de 5 vragen wisselde zelfs of er überhaupt een AI Overview
+verscheen. Het cluster wagenparkbeheer ging van 8% naar 20% in een half uur. Google is dus niet
+rustiger dan ChatGPT, eerder onrustiger.
+
+**Wat wél standhield: de dekking en de prijs.** 91% van de geslaagde aanroepen levert een bruikbare
+AI Overview, en die noemt concrete lokale bedrijven met hun eigen site als bron. De zorg dat Google
+bij lokale koopvragen een kaart toont in plaats van een overzicht bleek ongegrond. Nagemeten in
+`ai_calls` kost een ChatGPT-ronde van 30 prompts **$0,76** (46 metingen, want acht vragen gaan drie
+keer, plus $0,03 voor de beoordelaar). Diezelfde 30 prompts via de SERP-api kosten **$0,13**,
+inclusief de herkansingen: **bijna een derde van de aanroepen mislukt bij de eerste poging** met
+`40101 Internal SE Server Error`, en zo'n mislukte aanroep kost tóch $0,002.
+
+**Daarmee draait de zakelijke reden om.** Google is niet het rustige signaal maar het kanaal waar
+herhalen betaalbaar is, en herhalen is wat de wiebel wegneemt. Drie metingen per vraag kosten daar
+$0,38 per cluster, tegen $1,54 bij ChatGPT. Wie deze bron bouwt, ontwerpt hem dus vanaf dag één met
+herhalingen, en presenteert hem nooit als de nauwkeurige tegenhanger van ChatGPT.
+
+**Twee dingen die eerst moeten.** `computeAggregates()` bevat **geen enkele engine-filter** (het
+woord komt in die functie niet voor), dus per engine uitwaaieren laat vandaag elke vraag dubbel
+meetellen; de waarschuwing in `lib/jobs/queue.ts` is nog steeds geldig. En een AI Overview past niet
+in `EngineAdapter`: die interface verwacht een gesprek met een systeemprompt, een SERP-api geeft een
+resultatenpagina. Het is een derde soort bron, geen vierde engine.
+
+**De les die breder geldt dan deze koppeling.** "Gecached, dus stabiel" was een plausibele redenering
+die twee keer in dit gesprek als feit is gebruikt voordat hij gemeten werd. Hij kostte $0,85 om te
+weerleggen. Conventie 10 gaat niet alleen over wat je bouwt, maar ook over wat je adviseert.
+
+Niets aan code gewijzigd: dit was onderzoek.
