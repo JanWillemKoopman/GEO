@@ -44,7 +44,7 @@ import {
 import { Icon } from "@/components/icon";
 import { ronde, rondeZin } from "@/lib/ronde";
 import { RondeBalk } from "./_components/ronde-balk";
-import { confidenceBand, changeIsMeaningful } from "@/lib/stats/uncertainty";
+import { confidenceBand, changeIsMeaningful, bandInAntwoorden } from "@/lib/stats/uncertainty";
 import { poolRecent, describePooled } from "@/lib/stats/pooling";
 
 export const dynamic = "force-dynamic";
@@ -426,9 +426,17 @@ export default async function OverzichtPage({
         <div className={`card ${railKlasse(lus.insights)} flex flex-col gap-5`}>
           {laatste && band && samengevoegd && (
             <div className="flex flex-wrap items-end gap-x-6 gap-y-2 border-b border-[var(--border-subtle)] pb-5">
+              {/* ⚠️ De BAND is het hoofdgetal, niet het punt (20 september
+                  2026). "21%" leest als een stand terwijl er een band van ±15
+                  omheen ligt; een klant die dat een maand later ziet
+                  verschuiven leest daar verval in dat er niet is. Het precieze
+                  percentage staat er nog onder, voor wie het wil narekenen. */}
               <div className="flex min-w-0 flex-col gap-0.5">
                 <span className="mono-label">Zichtbaarheid in AI</span>
-                <span className="stat-value text-5xl">{samengevoegd.score}%</span>
+                <span className="stat-value text-5xl">{bandInAntwoorden(band)}</span>
+                <span className="text-sm text-muted">
+                  AI-antwoorden waarin je merk voorkomt
+                </span>
               </div>
               <div className="flex min-w-0 flex-1 flex-col gap-1 pb-1">
                 <span className="flex flex-wrap items-center gap-2">
@@ -452,8 +460,8 @@ export default async function OverzichtPage({
                 </span>
                 {band.margin > 0 && (
                   <span className="text-sm text-muted">
-                    Onzekerheidsmarge {band.low}% tot {band.high}%. Het is een steekproef, en dit
-                    is hoe breed hij is. {describePooled(samengevoegd)}
+                    Uitgedrukt in procenten: {samengevoegd.score}%, met een marge van {band.low}%
+                    tot {band.high}%. {describePooled(samengevoegd)}
                   </span>
                 )}
               </div>

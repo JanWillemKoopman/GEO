@@ -17,7 +17,7 @@
  * niet te testen zonder een echt project, en een test met een nagebootste
  * database toetst vooral of je nabootsing klopt.
  */
-import { binomialStderr, weightedScoreStderr, confidenceBand, changeIsMeaningful, Z95 } from "@/lib/stats/uncertainty";
+import { binomialStderr, weightedScoreStderr, confidenceBand, changeIsMeaningful, bandInAntwoorden, Z95 } from "@/lib/stats/uncertainty";
 import {
   normalizeEntityName,
   isSameEntity,
@@ -23401,5 +23401,39 @@ group("poolRecent: rustige rondes samenvoegen, een echte stijging niet", () => {
   ok(
     "meer rondes heten zekerder",
     describePooled({ score: 20, stderr: 5, rounds: 3 }).includes("zekerder"),
+  );
+});
+
+// ── bandInAntwoorden: de band als hoofdgetal ─────────────────────────────────
+//
+// "21%" leest als een stand terwijl er een band van ±15 omheen ligt. Een klant
+// die dat een maand later ziet verschuiven leest daar verval in dat er niet is.
+// Zie docs/logbook.md, 20 september 2026 (3), voor de meting eronder.
+group("bandInAntwoorden: de band in antwoorden in plaats van in procenten", () => {
+  // Het geval uit het echte dashboard: score 21%, band 6% tot 36%.
+  eq("21% met band 6 tot 36 wordt 1 tot 4", bandInAntwoorden({ low: 6, high: 36 }), "1 tot 4 van de 10");
+
+  // ⚠️ Een smalle band mag geen "tussen 2 en 2" opleveren. Dat leest als een
+  // fout, terwijl het juist het zekerste geval is.
+  eq("een smalle band wordt ongeveer", bandInAntwoorden({ low: 18, high: 23 }), "ongeveer 2 van de 10");
+
+  // ⚠️ Nul is geen uitkomst die we durven beloven. "0 tot 0 van de 10" zou
+  // zeggen dat het merk gegarandeerd nooit genoemd wordt, en dat weten we niet
+  // (conventie 3: onbekend is beter dan een verkeerde waarde).
+  eq("een lage band belooft geen nul", bandInAntwoorden({ low: 0, high: 4 }), "minder dan 1 van de 10");
+
+  // De bovenkant moet ook kloppen: 90% tot 100% is negen tot tien.
+  eq("de bovenkant telt door", bandInAntwoorden({ low: 88, high: 100 }), "9 tot 10 van de 10");
+
+  // Een brede band bij een middenscore, het meest voorkomende geval.
+  eq("een brede band toont zijn breedte", bandInAntwoorden({ low: 12, high: 58 }), "1 tot 6 van de 10");
+
+  // ⚠️ De formulering mag nooit een gedachtestreepje bevatten (schrijfstijl §10),
+  // want deze tekst komt letterlijk op het scherm.
+  ok(
+    "geen gedachtestreepjes in de uitkomst",
+    !["1 tot 4", "ongeveer 2", "minder dan 1"].some(() =>
+      bandInAntwoorden({ low: 6, high: 36 }).includes("—"),
+    ),
   );
 });

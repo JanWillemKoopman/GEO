@@ -10,7 +10,7 @@ import { AnalyticsFilters } from "@/components/analytics-filters";
 import { AnalyticsClusterTable } from "@/components/analytics-cluster-table";
 import { ClusterVisibilityGrid } from "@/components/cluster-visibility-grid";
 import { activeOnly } from "@/lib/archive";
-import { confidenceBand } from "@/lib/stats/uncertainty";
+import { confidenceBand, bandInAntwoorden } from "@/lib/stats/uncertainty";
 import {
   bepaalPeriodes,
   clustersVoorFilter,
@@ -390,12 +390,20 @@ export default async function AnalyticsPage({
                 gemeten is. Een cluster met vijf metingen telt dus lichter mee dan een met negentig.
               </InfoHint>
             </span>
-            <span className="stat-value text-5xl">{Math.round(merkScore.waarde)}%</span>
+            {/* ⚠️ De BAND is het hoofdgetal, niet het punt (20 september 2026).
+                Zelfde reden als op het merkscherm: één meetronde is een
+                steekproef, en een kaal percentage belooft een precisie die de
+                meting niet heeft. Zie bandInAntwoorden() in
+                lib/stats/uncertainty.ts. */}
+            <span className="stat-value text-5xl">
+              {band ? bandInAntwoorden(band) : `${Math.round(merkScore.waarde)}%`}
+            </span>
             {band && band.margin > 0 && (
               <span className="text-sm text-muted">
-                Onzekerheidsmarge {Math.max(0, Math.round(band.low))}% tot{" "}
-                {Math.min(100, Math.round(band.high))}%. Dat is geen slordigheid: het is een
-                steekproef, en dit is hoe breed hij is.
+                AI-antwoorden waarin je merk voorkomt. Uitgedrukt in procenten:{" "}
+                {Math.round(merkScore.waarde)}%, met een marge van{" "}
+                {Math.max(0, Math.round(band.low))}% tot {Math.min(100, Math.round(band.high))}%.
+                Dat is geen slordigheid: het is een steekproef, en dit is hoe breed hij is.
               </span>
             )}
           </div>

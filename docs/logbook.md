@@ -10141,3 +10141,33 @@ nu roept het `maakHermeting()` aan, en toetst eerst dat een hermeting op dezelfd
 wordt en er geen ronde is aangemaakt.
 
 Getest: `tsc --noEmit`, `test:unit` (4935, was 4919), `test:chain` (690, was 686) en `build` groen.
+
+## 20 september 2026 (6): de band is het hoofdgetal geworden, in antwoorden in plaats van procenten
+
+"21%" leest als een stand. Het is er geen: de band eromheen is ±15 punten, en van de 11 herhaald
+gemeten vragen waar het merk ooit genoemd werd gaven er 6 een andere uitkomst bij de herhaling
+(20 september (3)). Een klant die 21% een maand later ziet verschuiven naar 13% leest daar verval in
+dat er niet is.
+
+**Het hoofdgetal is nu de band, uitgedrukt in antwoorden.** `bandInAntwoorden()` in
+`lib/stats/uncertainty.ts`, naast `confidenceBand()` waar hij hoort. Waar stond "21%" staat nu
+"1 tot 4 van de 10", met eronder "AI-antwoorden waarin je merk voorkomt". Het precieze percentage en
+de marge staan er nog steeds onder, voor wie wil narekenen.
+
+**Waarom tien en niet dertig.** Een meetronde stelt dertig vragen, dus "3 tot 11 van de 30" is
+precies even waar. Maar niemand rekent in dertigsten. Tien is de schaal waarop een mens een
+verhouding meteen ziet.
+
+**Drie randgevallen, en waarom ze zo aflopen.** Een band die op deze schaal één getal wordt heet
+"ongeveer 2 van de 10", want "tussen 2 en 2" leest als een fout terwijl het juist het zekerste geval
+is. Een band waarvan zelfs de bovengrens geen heel antwoord haalt heet "minder dan 1 van de 10" en
+niet "0 tot 0": dat laatste zou beloven dat het merk gegarandeerd nooit genoemd wordt, en dat weten
+we niet (conventie 3).
+
+**Waar het NIET is doorgevoerd, en dat is een keuze.** De clustertabel, het detailpaneel met de
+laatste drie metingen en het staafjesraster houden hun percentage. Dat zijn vergelijkingsweergaven
+waar je rijen naast elkaar legt, en de staven tonen hun marge al visueel. De band als hoofdgetal
+hoort op de twee plekken waar één cijfer zich als "de stand" presenteert: het merkscherm en
+Zichtbaarheid in AI.
+
+Getest: `tsc --noEmit`, `test:unit` (4941, was 4935), `test:chain` (690) en `build` groen.
