@@ -295,5 +295,10 @@ overgebleven manier is om de band op de ChatGPT-kant echt te vernauwen.
 - De aggregatie telt per engine en per bron, aantoonbaar met een scenario in `test-chain.ts`.
 - De AI Overview-meting draait met drie herhalingen en een herkansingslus, en een lege of ontbrekende
   overview landt als onbekend en niet als nul.
-- ⚠️ Nog te doen vóór stap 3 gebouwd wordt: dit onderzoek herhalen over meerdere dagen. Twee rondes
-  op één ochtend is geen maandcijfer.
+- ⚠️ Nog te doen: dit onderzoek herhalen over meerdere dagen. Twee rondes op één ochtend is geen
+  maandcijfer.
+- ✅ **Geverifieerd op productie, 20 september 2026** (`docs/logbook.md`, 20 september (10)). Cluster
+  "APK Den Bosch" voor Van den Udenhout, 136 meettaken, nul mislukt, $1,1484 tegen $1,14 geraamd. De
+  aggregatie wachtte op beide bronnen, de score bleef van ChatGPT, en `per_engine_json` draagt beide.
+  ⚠️ Eén cijfer bijgesteld: geen-overzicht is 29% van de aanroepen en niet 9%, maar wél stabiel per
+  vraag (8 vragen structureel geen, 2 wisselend, 20 altijd).

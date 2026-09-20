@@ -10306,3 +10306,48 @@ schakelaar standaard uit, dus preview- en ontwikkelomgevingen meten niets en gev
 Getest: `tsc --noEmit`, `test:unit` (4980, was 4964), `test:chain` (709) en `build` groen.
 ⚠️ Nog niet geverifieerd tegen productie (conventie 10): de eerste echte meetronde met beide bronnen
 moet nog draaien.
+
+## 20 september 2026 (10): de eerste echte meetronde met beide bronnen (APK Den Bosch)
+
+Conventie 10 afgevinkt voor de tweede meetbron. Een nieuw cluster voor Van den Udenhout, onderwerp
+"APK Den Bosch", volledig door de productiepijplijn: voorbereiding, dertig vragen, meting,
+aggregatie en rapport. **136 meettaken, nul mislukt, geen enkele taak meer dan één poging.**
+
+**De kosten kloppen op de cent.** Geraamd $1,14, geworden **$1,1484**: $0,7738 voor ChatGPT (46
+metingen plus beoordelaar) en $0,3140 voor Google (90 aanroepen). De raming uit
+`docs/tasks/ai-overview-als-tweede-meetbron.md` hoeft dus niet bijgesteld.
+
+**De aggregatie wachtte op beide bronnen**, zoals bedoeld: `aggregate_week` draaide pas nadat alle
+136 taken klaar waren, en het rapport zegt "30 vragen onderzocht, samen 110 keer gemeten" (46 plus
+64). De score bleef van ChatGPT: 28% ongewogen, 25% gewogen, over 30 beoordeelde vragen en niet over
+52. `per_engine_json` draagt beide bronnen inclusief hun gewogen cijfer: ChatGPT 28/25 over 30
+vragen, Google 18/17 over 22 vragen.
+
+**⚠️ Een cijfer dat bijgesteld moet: "geen AI Overview" is vaker dan gedacht, maar wél stabiel.**
+Het onderzoek van vanochtend mat 9% geen-overzicht op de geslaagde aanroepen. Hier is het 26 van de
+90 aanroepen, 29%. Maar de verdeling per vraag laat zien dat het geen ruis is:
+
+| overzichten per vraag | vragen |
+|---|---|
+| 3 van 3 | 20 |
+| 2 van 3 | 2 |
+| 0 van 3 | 8 |
+
+Acht vragen krijgen bij Google structureel géén AI Overview, en maar twee vragen wisselen. Dat is
+dus grotendeels een eigenschap van de vraag en niet van de meting, en dat is beter nieuws dan het
+percentage suggereert: de dekking is voorspelbaar. Voor dit cluster is Google bruikbaar bij 22 van
+de 30 vragen (73%).
+
+**De meerderheidsregel deed precies wat hij moet.** Bij één vraag waren de bronnen het oneens
+("Welke garage in Eindhoven biedt een APK aan terwijl ik op mijn auto kan wachten?"): ChatGPT noemde
+Van den Udenhout in zijn enige meting, Google in geen van zijn drie. Vier oordelen, één keer
+genoemd, dus een gemiste kans. Met alleen ChatGPT was diezelfde vraag als gewonnen geteld op één
+muntworp. Dat is de hele winst van een tweede bron, en hij is hier op productie aantoonbaar.
+
+**Wat het rapport ervan maakte:** 22 vragen die volgens de meerderheidsregel gemist worden, waarvan
+de zwaarste 15 in de lijst (`MISSED_CAP`), en vijf aanbevelingen die allemaal op "verbeteren" staan.
+Dat past bij een dealer die al een APK-pagina heeft.
+
+⚠️ De vijf openstaande feitenvragen bij dit merk zijn voor deze test fictief beantwoord. Ze gaan
+over wagenparkbeheer, niet over APK, en horen door de klant zelf bevestigd te worden voordat er een
+pagina op gebaseerd wordt.
