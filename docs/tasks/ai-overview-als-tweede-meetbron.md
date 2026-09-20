@@ -234,23 +234,40 @@ Verder nodig:
 - geen AI Overview aanwezig is óók een niet-meting, geen nulscore;
 - een eigen schakelaar, standaard uit, zelfde patroon als `SEARCH_DEMAND_ENABLED`.
 
-### Stap 4: presentatie (na het vervallen van stap 1 is dit de enige budgetneutrale ingreep)
+### Stap 4: presentatie ✅ GEBOUWD op 20 september 2026
 
 Twee dingen, allebei gratis, en samen het echte antwoord op de klacht waar dit document mee begon.
 
-**Het gemiddelde over de laatste drie rondes als hoofdgetal**, de losse ronde als stip eromheen. De
-wiebel zakt daarmee met de wortel uit drie, dus ongeveer 1,7 keer, zonder één extra meting. ⚠️ Nog
-niet te demonstreren: geen enkele analyse op productie heeft een tweede periode, alles staat op
-`week_no = 0`. Werkt dus pas vanaf de tweede ronde, en moet tot die tijd netjes terugvallen op de
-enige ronde die er is.
+**✅ Het hoofdgetal komt uit de laatste drie rondes samen** (`lib/stats/pooling.ts`, `poolRecent()`).
+De band zakt met de wortel uit het aantal rondes, dus drie rustige rondes geven een band die
+ongeveer 1,7 keer smaller is, zonder één extra betaalde meting. De module weegt naar zekerheid
+(inverse variantie), zodat een ronde met een smalle band zwaarder telt dan een met een brede.
 
-**Een rem op handmatig hermeten.** Dit is wat de eigenaar daadwerkelijk overkwam: twee keer meten op
-één dag en twee uitslagen zien. `lib/measure-cadence.ts` heeft die rem al voor de periodieke meting
-(21 dagen), maar een handmatige hermeting binnen een periode hoort geen tweede losse uitslag op te
-leveren. Die hoort samengevoegd te worden met de eerste, wat de schatting juist bétert.
+⚠️ **De valkuil zit dichtgetimmerd:** samenvoegen stopt zodra een oudere ronde betekenisvol afwijkt
+van de nieuwste, gemeten met dezelfde `changeIsMeaningful()` die elders het pijltje bepaalt. Een
+echte stijging wordt dus nooit uitgesmeerd over drie rondes. De kolom "Verandering" blijft bewust de
+losse rondes vergelijken: dat is een andere vraag ("is er iets gebeurd") dan het hoofdgetal ("waar
+sta je").
 
-En verder: de band als hoofdgetal in plaats van het punt, "tussen 1 en 3 van de 10 antwoorden" in
-plaats van "21%".
+Aangesloten op het hoofdgetal van `/merk/[id]` en op de kolommen Zichtbaarheid en Marge van de
+clustertabel. ⚠️ Nog niet op productie te zien: geen enkele analyse heeft een tweede periode, alles
+staat op `week_no = 0`. Bij één ronde komt die ronde onveranderd terug, dus er verandert vandaag
+niets zichtbaars. Dat is met opzet.
+
+**✅ Een rem op handmatig hermeten** (`maakHermeting()` in `lib/pipeline/sales-remeasure.ts`). Die
+functie had een budgetrem en een statusrem maar geen tijdrem, dus je kon een markt twee keer op één
+ochtend hermeten. Nu dezelfde grens en dezelfde functie als de klantmeting (21 dagen,
+`mayMeasureAgain()`), met een melding die uitlegt dat een tweede ronde nu vooral de
+wisselvalligheid van de AI-antwoorden meet.
+
+⚠️ De klantmeting bleek deze rem al te hebben zonder dat iemand hem zo noemde:
+`POST /api/analyses/[id]/measure` meet altijd op `week_no = 0` en `enqueueMeasurement()` slaat al
+gemeten vragen over, dus een tweede druk op de knop plant nul taken. De maandtaak heeft zijn eigen
+rem van 21 dagen. Alleen de salesmodule stond open.
+
+**Nog niet gedaan:** de band als hoofdgetal in plaats van het punt, dus "tussen 1 en 3 van de 10
+antwoorden" in plaats van "21%". Dat is een tekstwijziging die de hele app raakt en verdient een
+eigen ronde.
 
 ### Stap 5: meer herhalingen, en dat kost geld
 

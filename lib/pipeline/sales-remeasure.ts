@@ -25,6 +25,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { availableEngineIds } from "@/lib/engines/registry";
 import { beoordeelRonde, besteedAanMarkt, raamMeetronde } from "@/lib/sales/budget";
+import { mayMeasureAgain, MIN_DAGEN_TUSSEN_PERIODES } from "@/lib/measure-cadence";
 import type { EngineId } from "@/lib/engines/types";
 
 type Admin = SupabaseClient;
@@ -53,13 +54,19 @@ export async function maakHermeting(
 ): Promise<HermeetUitkomst> {
   const { data: runs } = await admin
     .from("sales_runs")
-    .select("id, round_no, status, intents_json, engines")
+    .select("id, round_no, status, intents_json, engines, finished_at")
     .eq("market_id", marketId)
     .order("round_no", { ascending: false })
     .limit(1);
 
   const vorige = (runs ?? [])[0] as
-    | { id: string; round_no: number; status: string; intents_json: Record<string, unknown> | null }
+    | {
+        id: string;
+        round_no: number;
+        status: string;
+        intents_json: Record<string, unknown> | null;
+        finished_at: string | null;
+      }
     | undefined;
 
   if (!vorige) {
@@ -76,6 +83,44 @@ export async function maakHermeting(
       ok: false,
       melding:
         "De vorige ronde is nog niet afgerond. Wacht daarop, anders meet je door elkaar heen.",
+      runId: null,
+      ronde: null,
+      vragen: 0,
+    };
+  }
+
+  // ── ⚠️ De tijdrem (20 september 2026) ──────────────────────────────────────
+  //
+  // Deze functie had een budgetrem en een statusrem, maar geen tijdrem. Je kon
+  // een markt dus twee keer op één ochtend hermeten, en dat is precies hoe je
+  // twee verschillende uitslagen krijgt zonder dat er iets veranderd is.
+  //
+  // Nagemeten op de markt Tilburg, dezelfde 40 vragen op 1 en 15 september: van
+  // de 45 combinaties van vraag en bedrijf waar het bedrijf minstens één keer
+  // genoemd werd, klapten er 27 om. Van Erve ging van 5 vermeldingen naar 1,
+  // zonder dat er iets aan Van Erve veranderd was. Een tweede ronde binnen een
+  // paar dagen meet dus geen marktverandering maar ruis, en type 8 van
+  // `lib/sales/opportunity.ts` ("gezakt sinds de vorige meting") zet die ruis
+  // vervolgens in een verkoopmail.
+  //
+  // Dezelfde grens en dezelfde functie als de klantmeting (21 dagen,
+  // `lib/measure-cadence.ts`). Bewust geen eigen regel hier: twee functies die
+  // hetzelfde zouden moeten doen drijven uit elkaar, en dan meet sales op een
+  // dag iets anders dan de klantkant.
+  //
+  // `finished_at` en niet `created_at`: het gaat om wanneer er voor het laatst
+  // gemeten is, niet om wanneer de ronde is aangemaakt. Staat hij leeg bij een
+  // ronde die wél 'klaar' is (oude rij van vóór de kolom), dan blokkeren we
+  // niet: een ontbrekende datum is geen bewijs van te vroeg zijn.
+  const cadans = mayMeasureAgain(vorige.finished_at);
+  if (!cadans.ok) {
+    return {
+      ok: false,
+      melding:
+        `De vorige meting is ${cadans.dagenGeleden} dagen geleden afgerond. Een nieuwe ronde nu ` +
+        `meet vooral de wisselvalligheid van de AI-antwoorden en niet de markt: dezelfde vraag ` +
+        `levert bij herhaling in ruim de helft van de gevallen een ander bedrijf op. Wacht tot er ` +
+        `${MIN_DAGEN_TUSSEN_PERIODES} dagen tussen zitten, dan is een verschil ook echt een verschil.`,
       runId: null,
       ronde: null,
       vragen: 0,

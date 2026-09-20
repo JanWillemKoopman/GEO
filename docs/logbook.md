@@ -10096,3 +10096,48 @@ weerleggen. Conventie 10 zegt dat gebouwd niet geverifieerd is; dit gesprek voeg
 geaccepteerd plan dat ook niet is.
 
 Niets aan code gewijzigd.
+
+## 20 september 2026 (5): het hoofdgetal komt uit drie rondes, en sales krijgt een tijdrem
+
+De twee gratis ingrepen uit `docs/tasks/ai-overview-als-tweede-meetbron.md` staan er. Allebei lossen
+ze hetzelfde op: een klant die naar één meetronde kijkt en daar een stand in leest die er niet is.
+
+**Het hoofdgetal komt nu uit de laatste drie rondes samen** (`lib/stats/pooling.ts`). Eén ronde is
+een steekproef met een band van ±16 punten bij 30 vragen, en dat is breder dan het verschil dat een
+klant als vooruitgang of verval leest. Drie rondes samenvoegen maakt de band ongeveer 1,7 keer
+smaller, en kost geen enkele extra meting: die rondes zijn al gedaan en al betaald. De weging gaat
+op zekerheid (inverse variantie), dus een ronde met een smalle band telt zwaarder dan een met een
+brede.
+
+**⚠️ De valkuil daarbij is dat je een echte stijging uitsmeert.** Publiceert een klant een pagina en
+gaat hij van 10% naar 70%, dan zou blind middelen hem zijn verdiende winst afpakken. Vandaar dat
+`poolRecent()` stopt met samenvoegen zodra een oudere ronde betekenisvol afwijkt van de nieuwste.
+Die grens wordt niet in de nieuwe module bedacht maar opgehaald bij `changeIsMeaningful()`, dezelfde
+functie die elders bepaalt of er een pijltje getoond mag worden. Eén feit, één eigenaar. In gewone
+taal: rustige maanden worden samengevoegd tot een steeds zekerder cijfer, en zodra er echt iets
+gebeurt begint de teller opnieuw bij de ronde waarin dat gebeurde. De kolom "Verandering" blijft
+bewust de losse rondes vergelijken, want dat is een andere vraag dan het hoofdgetal.
+
+**Vandaag verandert er niets zichtbaars, en dat hoort zo.** Geen enkele analyse op productie heeft
+een tweede periode, alles staat op `week_no = 0`. Bij één ronde komt die ronde onveranderd terug.
+De winst begint bij de tweede meetronde.
+
+**De salesmodule kreeg een tijdrem.** `maakHermeting()` had een budgetrem en een statusrem, maar je
+kon een markt twee keer op één ochtend hermeten. Dat meet geen marktverandering maar ruis: op de
+echte markt Tilburg klapten 27 van de 45 vraag-bedrijfcombinaties om tussen twee rondes, en Van
+Erve ging van 5 vermeldingen naar 1 zonder dat er iets aan Van Erve veranderd was. Opportunitytype 8
+("gezakt sinds de vorige meting") zou die ruis vervolgens in een conceptmail zetten. Nu geldt
+dezelfde grens en dezelfde functie als aan de klantkant, 21 dagen via `mayMeasureAgain()`, bewust
+geen eigen regel ernaast.
+
+**Wat bij deze ronde bleek en niet in het plan stond:** de klantmeting had die rem al, zonder dat
+iemand hem zo noemde. `POST /api/analyses/[id]/measure` meet altijd op `week_no = 0` en
+`enqueueMeasurement()` slaat al gemeten vragen over, dus een tweede druk op de knop plant nul taken.
+De maandtaak heeft zijn eigen rem. Alleen sales stond open, en dat is precies de module waar een
+getal rechtstreeks een verkoopmail in loopt.
+
+**Ook de ketentest doet nu het echte werk.** Het hermeetscenario bouwde ronde 2 na met een insert;
+nu roept het `maakHermeting()` aan, en toetst eerst dat een hermeting op dezelfde dag geweigerd
+wordt en er geen ronde is aangemaakt.
+
+Getest: `tsc --noEmit`, `test:unit` (4935, was 4919), `test:chain` (690, was 686) en `build` groen.

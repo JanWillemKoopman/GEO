@@ -7738,23 +7738,43 @@ async function main(): Promise<void> {
           [rondes[0].id],
         );
 
-        const { rows: ronde2 } = await db.client.query(
-          `insert into public.sales_runs (market_id, round_no, status, intents_json, question_count, engines)
-           select market_id, round_no + 1, 'vragen_klaar', intents_json, $2, engines
-             from public.sales_runs where id = $1
-           returning id, round_no`,
-          [rondes[0].id, vragenRonde1.length],
-        );
-        const ronde2Id = String(ronde2[0].id);
-        eqc("de tweede ronde telt door", String(ronde2[0].round_no), "2");
+        const { maakHermeting } = await import("@/lib/pipeline/sales-remeasure");
 
-        for (const [i, v] of vragenRonde1.entries()) {
-          await db.client.query(
-            `insert into public.sales_questions (run_id, text, intent_label, intent_stage, weight, position)
-             values ($1, $2, $3, $4, $5, $6)`,
-            [ronde2Id, v.text, v.intent_label, v.intent_stage, v.weight, i],
-          );
-        }
+        // ── ⚠️ De tijdrem (20 september 2026) ──────────────────────────────
+        //
+        // Ronde 1 is zojuist afgerond. Een hermeting nu meet geen markt maar de
+        // wisselvalligheid van de AI-antwoorden: nagemeten op de echte markt
+        // Tilburg klapten 27 van de 45 vraag-bedrijfcombinaties om tussen twee
+        // rondes, zonder dat er iets veranderd was. Type 8 zou die ruis
+        // vervolgens als "gezakt sinds de vorige meting" in een verkoopmail
+        // zetten. Vandaar dat deze poort dicht hoort te zitten.
+        await db.client.query(
+          "update public.sales_runs set finished_at = now() where id = $1",
+          [rondes[0].id],
+        );
+        const teVroeg = await maakHermeting(admin as never, salesMarktId, userId);
+        ok("een hermeting op dezelfde dag wordt geweigerd", !teVroeg.ok, String(teVroeg.melding));
+        ok(
+          "en de melding legt uit waarom, zonder jargon",
+          String(teVroeg.melding ?? "").includes("21 dagen"),
+          String(teVroeg.melding),
+        );
+        const { rows: naWeigering } = await db.client.query(
+          "select count(*)::int as n from public.sales_runs where market_id = $1",
+          [salesMarktId],
+        );
+        eqc("en er is geen ronde aangemaakt", String(naWeigering[0].n), "1");
+
+        // Een maand later mag het wel, en dan komt de hermeting uit de échte
+        // functie in plaats van uit een nagebouwde insert.
+        await db.client.query(
+          "update public.sales_runs set finished_at = now() - interval '30 days' where id = $1",
+          [rondes[0].id],
+        );
+        const hermeting = await maakHermeting(admin as never, salesMarktId, userId);
+        ok("een maand later mag het wel", hermeting.ok, String(hermeting.melding));
+        const ronde2Id = String(hermeting.runId);
+        eqc("de tweede ronde telt door", String(hermeting.ronde), "2");
 
         const { rows: vragenRonde2 } = await db.client.query(
           "select text, weight from public.sales_questions where run_id = $1 order by position",

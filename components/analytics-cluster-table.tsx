@@ -7,6 +7,7 @@ import { DetailPanel } from "@/components/detail-panel";
 import { ClusterAnswers } from "@/components/cluster-answers";
 import { Icon } from "@/components/icon";
 import { confidenceBand, changeIsMeaningful } from "@/lib/stats/uncertainty";
+import { poolRecent } from "@/lib/stats/pooling";
 import type { VisibilityScore } from "@/lib/types/database";
 
 /**
@@ -34,6 +35,26 @@ function leidend(s: VisibilityScore): number {
 
 function stderrVan(s: VisibilityScore): number {
   return (s.weighted_score != null ? s.weighted_stderr : s.score_stderr) ?? 0;
+}
+
+/**
+ * Het cijfer van een cluster uit de laatste drie rondes samen (20 september 2026).
+ *
+ * ⚠️ De kolom "Verandering" blijft bewust de LOSSE rondes vergelijken. Dat zijn
+ * twee verschillende vragen: dit is "waar sta je", die is "is er iets gebeurd".
+ * Ze spreken elkaar niet tegen, want zodra er écht iets gebeurt stopt
+ * `poolRecent()` met samenvoegen en is dit cijfer gelijk aan de laatste ronde.
+ */
+function samengevoegd(r: ClusterRij) {
+  return poolRecent(r.reeks.map((s) => ({ score: leidend(s), stderr: stderrVan(s) })));
+}
+
+/** De band hoort bij het getoonde cijfer, dus bij de samengevoegde schatting. */
+function bandVan(r: ClusterRij) {
+  const p = samengevoegd(r);
+  return p
+    ? confidenceBand(p.score, p.stderr)
+    : confidenceBand(leidend(r.laatste!), stderrVan(r.laatste!));
 }
 
 export function AnalyticsClusterTable({
@@ -135,17 +156,17 @@ function clusterKolommen(labelNaamPerId: Map<string, string>): AnalyticsColumn<C
       header: "Zichtbaarheid",
       numeriek: true,
       width: "8rem",
-      sortValue: (r) => leidend(r.laatste!),
-      render: (r) => `${Math.round(leidend(r.laatste!))}%`,
+      sortValue: (r) => samengevoegd(r)?.score ?? leidend(r.laatste!),
+      render: (r) => `${samengevoegd(r)?.score ?? Math.round(leidend(r.laatste!))}%`,
     },
     {
       key: "marge",
       header: "Marge",
       numeriek: true,
       width: "7rem",
-      sortValue: (r) => confidenceBand(leidend(r.laatste!), stderrVan(r.laatste!)).margin,
+      sortValue: (r) => bandVan(r).margin,
       render: (r) => {
-        const band = confidenceBand(leidend(r.laatste!), stderrVan(r.laatste!));
+        const band = bandVan(r);
         return band.margin > 0 ? `± ${band.margin}` : "-";
       },
     },

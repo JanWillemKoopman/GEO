@@ -714,6 +714,7 @@ import {
 import { COST_DENIED } from "@/lib/cost-rules";
 import { requireCount } from "@/lib/require-count";
 import { mayMeasureAgain, MIN_DAGEN_TUSSEN_PERIODES } from "@/lib/measure-cadence";
+import { poolRecent, describePooled, MAX_POOLED_ROUNDS } from "@/lib/stats/pooling";
 import {
   visibilityIndex,
   potentialScore,
@@ -23318,3 +23319,87 @@ void (async () => {
   }
   process.exit(failed === 0 ? 0 : 1);
 })();
+
+// ── lib/stats/pooling.ts ─────────────────────────────────────────────────────
+//
+// De aanleiding staat in docs/logbook.md, 20 september 2026 (3): één meetronde
+// is een steekproef met een band die breder is dan het verschil dat een klant
+// als vooruitgang leest. Samenvoegen maakt het cijfer zekerder zonder één extra
+// betaalde meting.
+group("poolRecent: rustige rondes samenvoegen, een echte stijging niet", () => {
+  // Niets te tonen zonder metingen.
+  ok("lege lijst geeft null", poolRecent([]) === null);
+
+  // ⚠️ Een nieuwe klant moet exact zien wat hij nu ook ziet.
+  const een = poolRecent([{ score: 21, stderr: 8.3 }]);
+  ok("één ronde komt onveranderd terug", een?.score === 21 && een?.rounds === 1);
+  eq2("en met zijn eigen standaardfout", een?.stderr ?? null, 8.3);
+
+  // Drie rondes die binnen elkaars ruis vallen: samenvoegen mag, en de band
+  // hoort smaller te worden. Met gelijke standaardfouten is de winst de wortel
+  // uit drie: 8,3 / 1,732 ≈ 4,79.
+  const rustig = poolRecent([
+    { score: 18, stderr: 8.3 },
+    { score: 24, stderr: 8.3 },
+    { score: 21, stderr: 8.3 },
+  ]);
+  ok("drie rustige rondes gaan samen", rustig?.rounds === 3);
+  ok("het cijfer is het gemiddelde", rustig?.score === 21);
+  ok(
+    "en de band is ongeveer wortel drie smaller",
+    Math.abs((rustig?.stderr ?? 0) - 4.79) < 0.05,
+    `stderr=${rustig?.stderr}`,
+  );
+
+  // ⚠️ HET GEVAL DAT DIT MOET AFVANGEN. Gaat een merk van 10% naar 70%, dan is
+  // dat geen ruis maar verdiende winst. Die uitsmeren over drie rondes zou de
+  // klant zijn resultaat afpakken, en precies dat is waarom poolRecent() stopt
+  // bij een betekenisvol verschil.
+  const sprong = poolRecent([
+    { score: 10, stderr: 5 },
+    { score: 12, stderr: 5 },
+    { score: 70, stderr: 5 },
+  ]);
+  ok("een echte sprong wordt niet uitgesmeerd", sprong?.rounds === 1);
+  ok("en het getoonde cijfer is de nieuwe stand", sprong?.score === 70);
+
+  // De teller begint opnieuw bij de ronde waarin het gebeurde: de ronde vóór de
+  // sprong doet niet mee, ook niet als de ronde dáárvoor weer dichtbij ligt.
+  const naSprong = poolRecent([
+    { score: 68, stderr: 5 },
+    { score: 10, stderr: 5 },
+    { score: 70, stderr: 5 },
+  ]);
+  ok("een oudere ronde achter een sprong telt niet mee", naSprong?.rounds === 1);
+
+  // Nooit meer dan drie, ook niet met tien rustige rondes.
+  const veel = poolRecent(Array.from({ length: 10 }, () => ({ score: 20, stderr: 8 })));
+  ok("hoogstens drie rondes", veel?.rounds === 3);
+  ok("de grens staat op drie", MAX_POOLED_ROUNDS === 3);
+
+  // Een zekerdere ronde weegt zwaarder dan een onzekere. 10 met stderr 2 en 50
+  // met stderr 10 geeft gewichten 1/4 en 1/100, dus vrijwel helemaal de 10.
+  const ongelijk = poolRecent([
+    { score: 50, stderr: 10 },
+    { score: 10, stderr: 2 },
+  ]);
+  ok(
+    "de zekerste ronde weegt het zwaarst",
+    (ongelijk?.score ?? 0) <= 12,
+    `score=${ongelijk?.score}`,
+  );
+
+  // ⚠️ Een standaardfout van 0 betekent "niet bekend" (zie BrandPeriod) en mag
+  // geen oneindig gewicht krijgen. Dan liever onveranderd teruggeven dan een
+  // verzonnen getal (conventie 3).
+  const zonderMarge = poolRecent([{ score: 40, stderr: 0 }]);
+  ok("stderr 0 levert geen oneindig gewicht", zonderMarge?.score === 40);
+  eq2("en geen verzonnen marge", zonderMarge?.stderr ?? null, 0);
+
+  // De zin eronder moet zeggen dat het cijfer zekerder is, niet zwakker.
+  ok("één ronde wordt zo benoemd", describePooled({ score: 20, stderr: 8, rounds: 1 }).includes("laatste meting"));
+  ok(
+    "meer rondes heten zekerder",
+    describePooled({ score: 20, stderr: 5, rounds: 3 }).includes("zekerder"),
+  );
+});
