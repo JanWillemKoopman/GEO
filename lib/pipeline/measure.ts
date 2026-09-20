@@ -36,7 +36,15 @@ import { elicitLabel } from "@/lib/pipeline/elicit-rate";
 import { MENTION_SYSTEM, buildMentionUser } from "@/lib/openai/mention-prompt";
 import type { Analysis, AnalysisStatus, Prompt, TrackingRun } from "@/lib/types/database";
 
-const SIMULATE_SYSTEM =
+/**
+ * Geëxporteerd zodat `lib/llm-responses/client.ts` (Gemini via DataForSEO)
+ * LETTERLIJK dezelfde instructie meestuurt. Hoofdstuk 3.1 van
+ * docs/tasks/vier-meetbronnen-en-ai-zoekvolume.md: een andere instructie zou
+ * het verschil tussen de bronnen vervuilen met een verschil tussen twee
+ * opdrachten. Dit is 327 tekens, ruim binnen de limiet van 500 die dat
+ * endpoint stelt.
+ */
+export const SIMULATE_SYSTEM =
   "Je bent een behulpzame AI-assistent (zoals ChatGPT) die vragen van gebruikers beantwoordt. " +
   "Gebruik web search om actuele, feitelijke informatie te vinden. Noem concrete merken, bedrijven " +
   "of bronnen waar relevant voor het antwoord. Antwoord in het Nederlands, zoals je dat voor een " +

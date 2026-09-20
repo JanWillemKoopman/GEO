@@ -8847,6 +8847,64 @@ async function main(): Promise<void> {
       else process.env.AI_OVERVIEW_ENABLED = oudSchakelaar;
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // SCENARIO 15: Gemini via DataForSEO plant niets in zonder zijn schakelaar,
+    // en met de schakelaar aan precies ÉÉN meting per vraag
+    //
+    // ⚠️ Zelfde les als scenario 14, met het verschil dat de eigenaar op 20
+    // september 2026 koos voor ÉÉN meting per vraag in plaats van drie
+    // (docs/tasks/vier-meetbronnen-en-ai-zoekvolume.md, keuze 2): bij $0,02
+    // tot $0,065 per meting is drie keer meten al snel duurder dan de rest van
+    // de meetronde samen.
+    {
+      const oudLogin = process.env.DATAFORSEO_LOGIN;
+      const oudWachtwoord = process.env.DATAFORSEO_PASSWORD;
+      const oudSchakelaar = process.env.DATAFORSEO_LLM_ENABLED;
+      const { enqueueLlmResponseMeasurement } = await import("@/lib/jobs/queue");
+      const { llmResponseGeminiEnabled } = await import("@/lib/llm-responses/registry");
+
+      process.env.DATAFORSEO_LOGIN = "test-login";
+      process.env.DATAFORSEO_PASSWORD = "test-wachtwoord";
+      delete process.env.DATAFORSEO_LLM_ENABLED;
+
+      ok("scenario 15: de bron staat standaard uit", llmResponseGeminiEnabled() === false);
+      const uit = await enqueueLlmResponseMeasurement(admin as never, analysisId, 0);
+      eqc("scenario 15: en plant dus niets in", String(uit.planned), "0");
+
+      for (const halfslachtig of ["1", "ja", "yes", "aan", ""]) {
+        process.env.DATAFORSEO_LLM_ENABLED = halfslachtig;
+        ok(`scenario 15: "${halfslachtig}" zet de bron niet aan`, llmResponseGeminiEnabled() === false);
+      }
+      for (const wel of ["true", "TRUE", " true ", "True"]) {
+        process.env.DATAFORSEO_LLM_ENABLED = wel;
+        ok(`scenario 15: "${wel}" zet de bron wél aan`, llmResponseGeminiEnabled() === true);
+      }
+
+      process.env.DATAFORSEO_LLM_ENABLED = "true";
+      const { rows: actieveVragen } = await db.client.query(
+        "select count(*)::int as n from public.prompts where analysis_id = $1 and active = true",
+        [analysisId],
+      );
+      const aan = await enqueueLlmResponseMeasurement(admin as never, analysisId, 0);
+      // ⚠️ ÉÉN per vraag, niet drie zoals bij Google AI Overview.
+      eqc(
+        "scenario 15: met de schakelaar aan precies één meting per vraag",
+        String(aan.planned),
+        String(actieveVragen[0].n),
+      );
+
+      const nogEens = await enqueueLlmResponseMeasurement(admin as never, analysisId, 0);
+      eqc("scenario 15: tweemaal plannen verdubbelt niets", String(nogEens.planned), "0");
+
+      await db.client.query("delete from public.jobs where type = 'measure_llm_response'");
+      if (oudLogin === undefined) delete process.env.DATAFORSEO_LOGIN;
+      else process.env.DATAFORSEO_LOGIN = oudLogin;
+      if (oudWachtwoord === undefined) delete process.env.DATAFORSEO_PASSWORD;
+      else process.env.DATAFORSEO_PASSWORD = oudWachtwoord;
+      if (oudSchakelaar === undefined) delete process.env.DATAFORSEO_LLM_ENABLED;
+      else process.env.DATAFORSEO_LLM_ENABLED = oudSchakelaar;
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

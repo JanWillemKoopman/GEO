@@ -27,6 +27,7 @@
  */
 import { PRIMARY_ENGINE, type EngineId } from "@/lib/engines/types";
 import { AI_OVERVIEW_ENGINE } from "@/lib/ai-overview/types";
+import { LLM_RESPONSE_GEMINI_ENGINE } from "@/lib/llm-responses/types";
 
 /** Eén keuze in de knop. Uitbreiden is hier één regel erbij. */
 export interface Bron {
@@ -38,7 +39,27 @@ export interface Bron {
 export const BRONNEN: Bron[] = [
   { id: PRIMARY_ENGINE, label: "ChatGPT" },
   { id: AI_OVERVIEW_ENGINE, label: "Google AI Overview" },
+  { id: LLM_RESPONSE_GEMINI_ENGINE, label: "Gemini" },
 ];
+
+/**
+ * Een toelichting die bij een bron hoort, of `null` als er niets bijzonders
+ * te zeggen valt. Verschijnt onder de bronknop zodra die bron gekozen is.
+ *
+ * ⚠️ Gemini krijgt hier zijn eigen zin. Gemini kent geen Nederlandse
+ * zoekcontext (`web_search_country_iso_code` bestaat niet bij deze bron,
+ * hoofdstuk 3.1 van docs/tasks/vier-meetbronnen-en-ai-zoekvolume.md). Een lage
+ * score is dus niet uit elkaar te trekken in "niet genoemd" en "Gemini keek
+ * naar een ander land". Zonder deze zin leest een lage score hier als een
+ * oordeel over het merk, en dat is precies wat `merkstrategie.md` §30
+ * bijhoudt als een belofte die niet klopt.
+ */
+export function bronToelichting(id: string): string | null {
+  if (id === LLM_RESPONSE_GEMINI_ENGINE) {
+    return "Gemini kan niet gericht op Nederland zoeken. Een lage score hier kan ook betekenen dat Gemini naar een ander land keek, niet dat je merk daar niet genoemd wordt.";
+  }
+  return null;
+}
 
 /** Zonder keuze in het adres: de bron waar de score van de klant op rust. */
 export const BRONFILTER_STANDAARD: string = PRIMARY_ENGINE;

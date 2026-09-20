@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { serverEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { enqueue, enqueueMeasurement, enqueueAiOverviewMeasurement, dedupe } from "@/lib/jobs/queue";
+import { enqueue, enqueueMeasurement, enqueueAiOverviewMeasurement, enqueueLlmResponseMeasurement, dedupe } from "@/lib/jobs/queue";
 import { maxMeasurementPeriods } from "@/lib/config";
 import { mayMeasureAgain } from "@/lib/measure-cadence";
 import { activeOnly } from "@/lib/archive";
@@ -98,9 +98,10 @@ export async function GET(request: Request) {
     if (nextPeriod > maxMeasurementPeriods) continue;
 
     const { planned } = await enqueueMeasurement(admin, a.id as string, nextPeriod);
-    // De tweede bron loopt mee in dezelfde periode. Doet niets zonder
-    // AI_OVERVIEW_ENABLED=true.
+    // De tweede en derde bron lopen mee in dezelfde periode. Doen niets zonder
+    // hun eigen schakelaar (AI_OVERVIEW_ENABLED, DATAFORSEO_LLM_ENABLED).
     await enqueueAiOverviewMeasurement(admin, a.id as string, nextPeriod);
+    await enqueueLlmResponseMeasurement(admin, a.id as string, nextPeriod);
     results.push({ id: a.id as string, period: nextPeriod, planned });
   }
 
