@@ -417,7 +417,7 @@ async function main() {
   const betaald = process.argv.includes("--betaald");
   const auth = inloggegevens();
 
-  console.log("ORBIT ENGINE — verificatie DataForSEO AI Optimization");
+  console.log("ORBIT ENGINE, verificatie DataForSEO AI Optimization");
   console.log(betaald ? `Modus: ook de betaalde stappen (verwacht ~$${VERWACHTE_KOSTEN_USD}).` : "Modus: alleen de gratis stappen. Voeg --betaald toe voor C en D.");
 
   const nederlandsKan = await stapA(auth);

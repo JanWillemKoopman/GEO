@@ -1,0 +1,350 @@
+# Vier meetbronnen, en zoekvolume dat niet meer wiebelt
+
+**Opgesteld:** 20 september 2026. **Status: onderzocht en uitgewerkt, nog niets gebouwd en nog
+niets geverifieerd.**
+
+> ⚠️ **Geen enkel kostencijfer in dit document is nagemeten.** De prijs per aanroep van de twee
+> nieuwe bronnen staat nergens in de documentatie van DataForSEO, en dat is precies het cijfer
+> waar de beslissing op rust. `scripts/probe-dataforseo-ai.ts` staat klaar om het te meten en is
+> nog niet gedraaid, want deze werkomgeving laat de DataForSEO-sleutel niet toe in een commando.
+> **Stap 0 in hoofdstuk 6 gaat vóór elke regel bouwwerk** (conventie 10).
+
+De aanleiding is een wens van de eigenaar: DataForSEO levert niet alleen het Google AI Overview dat
+we sinds vandaag meten, maar ook antwoorden van LLM's zelf, en daarnaast een schatting van hoe vaak
+een vraag in AI-tools gesteld wordt. Dit document legt vast wat die twee producten werkelijk zijn,
+wat ze kosten, wat ze in deze app raken, en in welke volgorde het gebouwd wordt.
+
+---
+
+## 1. Wat er besloten is
+
+De eigenaar heeft op 20 september 2026 vier keuzes gemaakt. Ze staan hier bovenaan omdat de rest
+van dit document eruit volgt.
+
+1. **Eerst verifiëren tegen de echte api**, met de vragen van Van den Udenhout, daarna pas bouwen.
+2. **Eén volledige meting per nieuwe bron**, dus alle dertig vragen, één keer per vraag.
+3. **Het AI-zoekvolume gaat mee in dezelfde bouwronde**, niet in een aparte.
+4. **De nieuwe bronnen krijgen dezelfde plek als Google AI Overview**: ze voeden de kansen en ze
+   staan in de bronknop op Zichtbaarheid in AI.
+
+Een clustermeting komt daarmee op vier bronnen:
+
+| # | bron | hoe | status |
+|---|---|---|---|
+| 1 | ChatGPT | onze eigen OpenAI-route | bestaat |
+| 2 | Google AI Overview | DataForSEO SERP-api | bestaat, staat aan op productie |
+| 3 | ChatGPT | DataForSEO LLM Responses | nieuw |
+| 4 | Gemini | DataForSEO LLM Responses | nieuw |
+
+---
+
+## 2. Wat er al staat, en waarom dat gunstig uitpakt
+
+Op 20 september is de aggregatie bronbewust gemaakt, en die verbouwing draagt deze uitbreiding
+grotendeels al.
+
+- **Eén bron draagt de score van de klant** (`PRIMARY_ENGINE` in `lib/engines/types.ts`, dus
+  ChatGPT via onze eigen route). Elke andere bron landt in `visibility_scores.per_engine_json`.
+  Een bron erbij verandert het cijfer van de klant dus niet, en dat is precies de bedoeling: de
+  vraag van de klant is "noemt ChatGPT mij", niet "noemt het gemiddelde van vier bronnen mij".
+- **De bronknop is één regel per bron** (`BRONNEN` in `lib/engines/bron.ts`).
+- **`tracking_runs.engine` is vrije tekst**, geen opsomming met een controle erop. Er is dus geen
+  migratie nodig om twee nieuwe bronnamen te mogen opslaan.
+- **De beoordelaar is gedeeld.** `judgeRun()` uit `lib/pipeline/measure.ts` leest de tekst van een
+  antwoord en bepaalt wie er genoemd wordt, ongeacht welke bron de tekst leverde. Dat moet zo
+  blijven, anders meten we het verschil tussen twee beoordelaars in plaats van tussen twee bronnen.
+- **`lib/ai-overview/` is het model voor een nieuwe bron**: ophalen, uitpakken, een schakelaar, een
+  eigen jobtype. Dat patroon wordt hier herhaald en niet opnieuw bedacht.
+
+Wat er nog niet staat en wel nodig is, staat in hoofdstuk 7.
+
+---
+
+## 3. Wat DataForSEO werkelijk levert
+
+### 3.1 De twee nieuwe meetbronnen
+
+| bron | endpoint |
+|---|---|
+| ChatGPT | `/v3/ai_optimization/chat_gpt/llm_responses/live` |
+| Gemini | `/v3/ai_optimization/gemini/llm_responses/live` |
+
+Beide nemen een vraag, een systeeminstructie, een modelnaam en een schakelaar voor web search. Twee
+dingen zijn tegen onze eigen gegevens nagerekend en niet aangenomen:
+
+- **Onze vragen passen.** De limiet is 500 tekens. De 240 vragen die op 20 september 2026 in
+  productie staan zijn gemiddeld 117 tekens, de langste 168.
+- **Onze instructie past.** `SIMULATE_SYSTEM` in `lib/pipeline/measure.ts` is 327 tekens, tegen een
+  limiet van 500. Hij kan dus letterlijk mee, en dat is voorwaarde: een andere instructie zou het
+  verschil tussen de bronnen vervuilen met een verschil tussen twee opdrachten.
+
+**⚠️ Het verschil dat de conclusie raakt: alleen ChatGPT kent een locatie.**
+
+| instelling | ChatGPT | Gemini |
+|---|---|---|
+| `web_search` | ja | ja |
+| `force_web_search` | ja | nee |
+| `web_search_country_iso_code` | ja | nee |
+| `web_search_city` | ja | nee |
+| `system_message` | ja, 500 tekens | ja, 500 tekens |
+| bronvermeldingen bij het antwoord | ja | ja |
+
+Bij Gemini kun je dus niet zeggen "zoek vanuit Nederland". De taal van de vraag is het enige
+Nederlandse signaal dat het model krijgt. Gevolg voor de klant: een lage score bij Gemini is niet
+uit elkaar te trekken in "wij worden niet genoemd" en "Gemini keek naar een ander land". Dat hoort
+in de uitleg bij die bron te staan, en het is een reden om Gemini nooit het cijfer van de klant te
+laten dragen.
+
+Bij ChatGPT is het omgekeerde waar, en dat is winst: `web_search_country_iso_code: "NL"` meet iets
+wat we vandaag helemaal niet kunnen meten. Onze eigen route zet de web search-tool aan zonder
+locatie mee te geven (`WEB_SEARCH_TOOL` in `lib/openai/structured.ts`). Bron 3 is dus geen kopie
+van bron 1, hij is de Nederlandse variant ervan.
+
+### 3.2 Het AI-zoekvolume
+
+`/v3/ai_optimization/ai_keyword_data/keywords_search_volume/live`, tot 1000 zoektermen per aanroep,
+met per term een `ai_search_volume` en twaalf maanden historie.
+
+**Wat het niet is.** De tekst waar dit voorstel op rust zegt dat DataForSEO een database van meer
+dan 370 miljoen verzamelde LLM-prompts gebruikt. Die claim hoort bij hun LLM Mentions-product en
+staat niet in de documentatie van dit endpoint. DataForSEO legt over dít cijfer uit dat het uit een
+eigen berekening komt die vooral leunt op de "People Also Ask"-vragen uit hun index van
+Google-resultaten, en ze noemen het zelf relatieve populariteit, geen telling van echte prompts.
+
+**Waarom het tóch de moeite is.** Niet omdat het waar is en de huidige schatting niet, maar omdat
+het **herhaalbaar** is. Vandaag komt `search_volume_index` uit een AI-aanroep die alle onderwerpen
+van een merk tegen elkaar afzet (`lib/pipeline/search-demand.ts`). Dat cijfer kan bij een tweede
+aanroep anders uitvallen zonder dat er iets veranderde, dezelfde kwaal als bij de meting zelf. Een
+DataForSEO-cijfer verandert niet omdat je het nog eens opvraagt, en het is bovendien vergelijkbaar
+tussen merken. Dat is de winst: stabiliteit, niet waarheid.
+
+**De haak die we al kennen.** Bij een term van meerdere woorden telt DataForSEO alleen vragen mee
+waarin álle woorden voorkomen. Een meetvraag van 117 tekens komt dan vrijwel zeker op nul uit. Dat
+is exact wat op 19 september 2026 bij het gewone zoekvolume gemeten is: van tien uit volzinnen
+afgeleide termen kreeg er één een resultaat. De oplossing staat er al,
+`kandidaatZoektermen()` in `lib/search-demand/keywords.ts`, die een zoekterm opbouwt uit het
+clusterlabel en de plaats in plaats van hem uit de zin te destilleren. Die laag is alleen wel
+geparkeerd sinds 20 september (`lib/search-demand/registry.ts`), dus hem weer aanzetten hoort bij
+deze beslissing.
+
+---
+
+## 4. Wat het kost
+
+**Wat bekend is, en gemeten:**
+
+| bron | per meting | per cluster van 30 vragen per ronde |
+|---|---|---|
+| ChatGPT, onze eigen route, met web search | $0,0170 | $0,76 (46 metingen, de acht zwaarste vragen gaan 3x) |
+| Google AI Overview | $0,0037 | $0,38 (3 metingen per vraag) |
+| **samen, vandaag op productie** | | **$1,15** (nagemeten: $1,1484) |
+
+**Wat onbekend is.** De prijs van de twee nieuwe bronnen is $0,0006 per aanroep plus wat het model
+zelf aan tokens rekent plus een toeslag voor web search. Die laatste twee posten staan nergens als
+tabel; DataForSEO geeft ze achteraf per aanroep terug in het veld `money_spent`.
+
+**De verwachting, en het is niet meer dan dat:** dezelfde orde als onze eigen ChatGPT-route, want
+het is dezelfde soort aanroep met dezelfde dure web search eronder. Dan komt een cluster van $1,15
+op ongeveer $2,15 per meetronde. **Dat is bijna een verdubbeling van de duurste stap van het
+product, en daarom is stap 0 geen formaliteit.**
+
+Het AI-zoekvolume valt daarbuiten en is verwaarloosbaar: $0,01 per aanroep plus $0,0001 per term,
+tot 1000 termen in één aanroep. Alle onderwerpen van een merk kosten daarmee ongeveer één cent.
+
+---
+
+## 5. ⚠️ Het probleem dat vier bronnen maken, en dat nog nergens opgelost is
+
+Dit is de belangrijkste vondst van dit onderzoek, en hij staat niet in de opdracht.
+
+De kansen die de klant leest komen uit `computeMissedPrompts()` in `lib/pipeline/report.ts`. De
+regel daar: een vraag is een gemiste kans als het merk **in de meerderheid van zijn beoordeelde
+metingen** ontbrak. Die regel telt elke meting even zwaar.
+
+Vandaag valt dat mee. Straks niet:
+
+| bron | metingen per gewone vraag | aandeel in de stem |
+|---|---|---|
+| ChatGPT, eigen route | 1 | 1 van 6 |
+| Google AI Overview | 3 | **3 van 6** |
+| ChatGPT via DataForSEO | 1 | 1 van 6 |
+| Gemini via DataForSEO | 1 | 1 van 6 |
+
+**Google zou in zijn eentje de helft van elke stem krijgen**, niet omdat hij belangrijker is maar
+omdat hij goedkoop is en daarom drie keer gemeten wordt. De bron die het cijfer van de klant draagt
+houdt één zesde over. De kansenlijst, en dus welke pagina's er geschreven worden, zou daarmee
+feitelijk door Google bepaald worden.
+
+**Het voorstel: eerst binnen een bron, dan tussen de bronnen.** Per bron de meerderheid van zijn
+eigen metingen bepalen, dat levert één stem per bron op, en pas daarna de bronnen tellen. Dan
+wegen vier bronnen als vier, ongeacht hoe vaak elk van ze gemeten is, en blijft het aantal
+herhalingen een keuze over zekerheid in plaats van een keuze over invloed.
+
+Bij een gelijke stand (twee tegen twee) telt de vraag als gemiste kans. Dat is de voorzichtige
+kant: een pagina schrijven voor een vraag waar je bij de helft van de assistenten ontbreekt is te
+verdedigen, hem overslaan terwijl je bij de helft ontbreekt niet.
+
+Dit is een wijziging in de rekenkunde die de uitkomst voor bestaande klanten verandert. Hij hoort
+dus onder test (`test-unit.ts`) en in het logboek, en niet stilletjes mee te liften.
+
+---
+
+## 6. Stap 0: de verificatie
+
+`scripts/probe-dataforseo-ai.ts` staat klaar, typecheckt schoon en draait op de echte vragen van
+Van den Udenhout uit productie. Draaien:
+
+```bash
+# DATAFORSEO_LOGIN en DATAFORSEO_PASSWORD in .env.local
+npx tsx scripts/probe-dataforseo-ai.ts            # A en B, gratis
+npx tsx scripts/probe-dataforseo-ai.ts --betaald  # ook C en D, ~$0,21
+```
+
+| stap | vraag | kosten | wat het besluit |
+|---|---|---|---|
+| A | Staat Nederland met het Nederlands in het AI-zoekvolume? | gratis | nee = hoofdstuk 5 van de bouwlijst vervalt |
+| B | Welke modellen kunnen web search, en hoe heten ze? | gratis | levert de modelnamen voor de code |
+| C | Levert `ai_search_volume` iets op voor volzin, cluster plus plaats, en cluster? | ~$0,01 | bepaalt welke zoekterm de code moet bouwen |
+| D | Wat kost één meting via beide nieuwe bronnen echt? | ~$0,20 | bepaalt of er überhaupt gebouwd wordt |
+
+**De afbreekregels, vooraf vastgelegd zodat ze niet achteraf worden opgerekt:**
+
+- **Nederland of Nederlands ontbreekt bij A** → het zoekvolumedeel vervalt, de twee meetbronnen
+  gaan gewoon door.
+- **Bij C geeft geen enkele vorm een volume** → het zoekvolumedeel vervalt. Dit is een reëel
+  scenario: het is precies wat er op 19 september bij het gewone zoekvolume gebeurde.
+- **Bij D kost een meting meer dan $0,03** → dan is een bron duurder dan onze eigen ChatGPT-route
+  terwijl hij minder oplevert, en gaat hij niet door zonder een expliciet besluit van de eigenaar.
+- **Bij D is minder dan 80% van de antwoorden bruikbaar** → eerst uitzoeken waarom, niet bouwen. De
+  drempel is dezelfde `MIN_SUCCESS_RATIO` die de meting zelf al hanteert.
+
+De uitkomsten van A tot en met D horen als hoofdstuk aan dit document toegevoegd te worden, met de
+datum erbij, zoals hoofdstuk 3 van `ai-overview-als-tweede-meetbron.md` dat doet. Zonder dat
+hoofdstuk is dit plan niet af.
+
+---
+
+## 7. Het bouwplan
+
+De volgorde is die van `CLAUDE.md`: migratie eerst, dan code, dan UI. Elke stap is los af te maken
+en los te testen.
+
+### Stap 1: de migratie (alleen voor het zoekvolume)
+
+De meetbronnen hebben er geen nodig, `tracking_runs.engine` is vrije tekst. Het zoekvolume wel:
+`profile_topics` krijgt het gemeten cijfer náást de bestaande schatting, en niet in plaats daarvan.
+
+- `ai_search_volume` (integer, null als er niets gemeten is)
+- `ai_search_volume_keyword` (text, welke zoekterm het opleverde, want zonder die term is het
+  cijfer niet te controleren)
+- `ai_search_volume_raw` (jsonb, de volledige ruwe respons, conventie 8)
+- `ai_search_volume_at` (timestamptz, wanneer, want dit cijfer veroudert)
+
+Additief en idempotent, conventie 4. De bestaande `search_volume_index` blijft staan en blijft
+gevuld: hij is de terugval als er geen gemeten cijfer is (conventie 3, onbekend is beter dan een
+gok, maar een bestaande schatting is beter dan niets).
+
+Daarna de index in `supabase/README.md` bij, in dezelfde commit.
+
+### Stap 2: de bronlaag
+
+Een nieuwe map `lib/llm-responses/`, naar het model van `lib/ai-overview/`:
+
+- `types.ts`: de twee bronnamen (`dataforseo_chatgpt`, `dataforseo_gemini`), het aantal metingen per
+  vraag (1, keuze 2 van de eigenaar) en het aantal herkansingen. Puur, dus testbaar (conventie 2).
+- `registry.ts`: één schakelaar `DATAFORSEO_LLM_ENABLED`, standaard uit, en alleen de letterlijke
+  waarde `true` zet hem aan. Zelfde regel en zelfde reden als bij de twee lagen ervoor: de
+  DataForSEO-sleutel staat al in Vercel, dus de sleutel mag hier nooit de schakelaar zijn.
+- `client.ts`: de aanroep met de herkansing erin, en het verschil tussen de twee platformen op één
+  plek: ChatGPT krijgt land en geforceerde web search mee, Gemini niet.
+- `parse.ts`: de tekst en de bronvermeldingen uit de respons halen, en de drie uitkomsten
+  onderscheiden die `lib/ai-overview/types.ts` ook al onderscheidt: gemeten, leeg teruggekomen,
+  mislukt. **Een leeg antwoord is geen nulscore maar een meetfout**, en er wordt dan niets
+  opgeslagen.
+
+### Stap 3: het jobtype
+
+Eén nieuw jobtype `measure_llm_response`, met het platform in de payload. Niet twee jobtypes: de
+stap is identiek op drie velden na, en de dedupe-sleutel draagt de bron al.
+
+Conventie 7 (één zware AI-aanroep per taak) blijft daarmee overeind, en de taak ketent naar de
+aggregatie op dezelfde manier als `measure_ai_overview`, want de kansen wachten op alle bronnen.
+`countOpenPeriodicMeasurements()` in `lib/jobs/pending.ts` moet het nieuwe type meetellen, anders
+begint de aggregatie voordat de nieuwe bronnen binnen zijn.
+
+### Stap 4: inplannen
+
+`enqueueLlmResponseMeasurement()` naast `enqueueAiOverviewMeasurement()`, aangeroepen vanuit
+dezelfde drie plekken: `confirm`, `measure` en de tracking-cron. Eén meting per vraag per bron.
+
+### Stap 5: de rekenkunde (hoofdstuk 5 van dit document)
+
+De meerderheidsregel in `computeMissedPrompts()` eerst binnen een bron, dan tussen de bronnen. Met
+scenario's in `test-unit.ts` die vastleggen wat er gebeurt bij twee tegen twee, bij een bron die
+niets opleverde, en bij een vraag die maar door één bron gemeten is.
+
+### Stap 6: de UI
+
+Twee regels erbij in `BRONNEN` (`lib/engines/bron.ts`), met labels zoals de klant de assistenten
+kent. Geen "engine" in beeld, `docs/schrijfstijl.md` §11. De bronknop en het analyticsoverzicht
+pakken de rest vanzelf op, want die lezen `per_engine_json`.
+
+Bij Gemini hoort een zin die uitlegt dat daar geen Nederlandse zoekcontext ingesteld kan worden.
+Zonder die zin leest een lage score daar als een oordeel over het merk.
+
+### Stap 7: de kosten
+
+De tarieven in `lib/openai/pricing.ts`, anders staat er een meetronde in het kostenoverzicht met
+een prijs van nul. DataForSEO geeft de werkelijke uitgave per aanroep terug, dus die wordt
+opgeslagen in plaats van berekend, net als bij de AI Overview-bron.
+
+### Stap 8: het zoekvolume
+
+- De leverancierslaag in `lib/search-demand/` uitbreiden met het AI-zoekvolume-endpoint, naast het
+  bestaande Google Ads-volume.
+- De zoekterm komt uit `kandidaatZoektermen()`, van specifiek naar breed, en de eerste met een echt
+  volume wint. Welke term het werd, wordt opgeslagen.
+- `recalibrateSearchVolume()` (`lib/pipeline/search-demand.ts`) krijgt een voorrangsregel: is er een
+  gemeten cijfer, dan draagt dat de potentiescore; is er geen, dan blijft de bestaande AI-schatting
+  staan. Nooit door elkaar heen middelen, want dan is niet meer te zeggen wat een getal betekent.
+- De tooltip in de app moet zeggen welke van de twee het is. Een gemeten cijfer en een geschat
+  cijfer die er hetzelfde uitzien is precies het soort belofte dat `merkstrategie.md` §30 bijhoudt.
+
+---
+
+## 8. Wat we accepteren, en wat open blijft
+
+**Geaccepteerd:**
+
+- **Eén meting per nieuwe bron wiebelt.** Op 20 september is gemeten dat één losse uitkomst
+  ongeveer een muntworp is: bij 17 van de 28 vragen waar het merk ooit genoemd werd, viel de
+  uitkomst een half uur later anders uit. De twee nieuwe bronnen krijgen daarom in de bronknop een
+  cijfer dat zichtbaar beweegt. Dat is de prijs van keuze 2, en hij is te verdedigen zolang die
+  bronnen het cijfer van de klant niet dragen. Wordt het storend, dan is de goedkope uitweg die
+  bronnen alleen over de zwaarstwegende vragen laten lopen in plaats van over alle dertig.
+- **Gemini meet zonder Nederlandse zoekcontext.** Zie hoofdstuk 3.1.
+
+**Open, en pas te beantwoorden na stap 0:**
+
+- Wat een meting werkelijk kost, en dus of de meetronde op ongeveer $2,15 uitkomt of op meer.
+- Of het AI-zoekvolume voor Nederlandse termen überhaupt gevuld is.
+- Welke modelnamen we vastzetten. Net als bij OpenAI hoort dat in code te staan en niet in een
+  omgevingsvariabele, zodat een modelwissel een commit is en geen instelling.
+
+---
+
+## 9. Wanneer dit af is
+
+Gebouwd is niet geverifieerd (conventie 10). Dit werk is pas af als:
+
+1. `scripts/probe-dataforseo-ai.ts` gedraaid heeft en de uitkomsten als hoofdstuk in dit document
+   staan, met datum.
+2. Een echt cluster van Van den Udenhout een volledige meetronde over alle vier de bronnen heeft
+   gedaan, en de werkelijke kosten naast de raming in het logboek staan, zoals op 20 september bij
+   het cluster APK Den Bosch gebeurd is.
+3. De kansenlijst van vóór en ná de nieuwe meerderheidsregel naast elkaar gelegd is op diezelfde
+   echte data, zodat zichtbaar is wat er voor een bestaande klant verandert.
+4. `tsc --noEmit`, `test:unit`, `test:chain` en `build` alle vier groen zijn.
+
+Is dat rond, dan gaat dit document eruit en blijft er een alinea met datum en cijfers onderaan
+`docs/logbook.md` staan.
