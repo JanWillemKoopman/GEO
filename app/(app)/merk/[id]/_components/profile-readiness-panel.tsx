@@ -245,7 +245,7 @@ function Balk({ gedaan, totaal }: { gedaan: number; totaal: number }) {
         className="h-full rounded-[var(--radius-pill)] transition-[width] duration-500"
         style={{
           width: `${pct}%`,
-          background: "var(--intent-growth-solid)",
+          background: "var(--trend-up)",
         }}
       />
     </div>
@@ -257,7 +257,7 @@ function Regel({ row }: { row: ReadinessRow }) {
     row.state === "klaar" ? "klaar" : row.state === "loopt" ? "loopt" : "open";
   const kleur =
     row.state === "klaar"
-      ? "var(--intent-growth-text)"
+      ? "var(--trend-up-text)"
       : row.state === "loopt"
         ? "var(--text-muted)"
         : row.nodig

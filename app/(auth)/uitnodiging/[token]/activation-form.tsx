@@ -107,7 +107,7 @@ export function ActivationForm({
             <li key={r.id} className="flex items-center gap-2 text-sm">
               <span
                 style={{
-                  color: r.ok ? "var(--intent-growth-text)" : "var(--text-muted)",
+                  color: r.ok ? "var(--trend-up-text)" : "var(--text-muted)",
                 }}
               >
                 <Icon naam={r.ok ? "klaar" : "open"} size={14} />

@@ -94,7 +94,7 @@ export function AssignBox({
       </p>
 
       {done && (
-        <p className="text-sm text-[var(--intent-growth-text)]" role="status">
+        <p className="text-sm text-[var(--trend-up-text)]" role="status">
           Toegewezen aan {done}. De clusters zijn meeverhuisd.
         </p>
       )}

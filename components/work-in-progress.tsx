@@ -94,11 +94,11 @@ export function WorkInProgress({
                 className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs"
                 style={{
                   background: step.done
-                    ? "color-mix(in srgb, var(--intent-growth-solid) 20%, transparent)"
+                    ? "color-mix(in srgb, var(--trend-up) 20%, transparent)"
                     : "transparent",
                   border: step.done ? "none" : "1px solid var(--border-strong)",
                   color: step.done
-                    ? "var(--intent-growth-text)"
+                    ? "var(--trend-up-text)"
                     : step.nietsGevonden
                       ? "var(--intent-warning-text)"
                       : "var(--text-muted)",

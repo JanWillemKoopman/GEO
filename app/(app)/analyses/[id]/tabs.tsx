@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/icon";
+import { Tabs } from "@/components/tabs";
 
 /**
  * De secundaire navigatie van een analyse.
@@ -52,65 +53,44 @@ export function AnalysisNav({
   const onDossier = !onLibrary && !onSettings;
 
   return (
-    <div className="no-print flex flex-wrap items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
-      <NavLink href={base} active={onDossier}>
-        Cluster
-      </NavLink>
-      {/* ⚠️ Wijst sinds 16 september 2026 naar de MERKBREDE bibliotheek, met
-          dit cluster als filter. De bibliotheek per cluster was een tweede
-          lijst over dezelfde rijen; wat de doorklik waard was (alleen dít
-          cluster zien) doet het filter nu. */}
-      <NavLink
-        href={`/merk/${profileId}/strategie/bibliotheek?cluster=${analysisId}`}
-        active={onLibrary}
-      >
-        Bibliotheek
-        {libraryCount > 0 && (
-          <span className="mono-label" style={{ fontSize: "0.6rem", opacity: 0.75 }}>
-            {libraryCount}
-          </span>
-        )}
-      </NavLink>
+    // `justify-between` in plaats van de losse `ml-auto` op Instellingen: die
+    // knop is met opzet geen derde tabblad (zie de toelichting hierboven), dus
+    // hij staat hier als eigen element naast `Tabs` en niet ertussen.
+    //
+    // De rand onderaan staat hier nog een keer, in dezelfde kleur als `.tabs`
+    // zijn eigen rand (`--line-muted`): die van `.tabs` dekt alleen de breedte
+    // van de twee tabbladen, deze dekt de volle breedte inclusief Instellingen.
+    <div className="no-print flex flex-wrap items-center justify-between gap-2 border-b border-[var(--line-muted)]">
+      <Tabs
+        label="Onderdelen van dit cluster"
+        items={[
+          { href: base, label: "Cluster", actief: onDossier },
+          {
+            // ⚠️ Wijst sinds 16 september 2026 naar de MERKBREDE bibliotheek,
+            // met dit cluster als filter. De bibliotheek per cluster was een
+            // tweede lijst over dezelfde rijen; wat de doorklik waard was
+            // (alleen dít cluster zien) doet het filter nu.
+            href: `/merk/${profileId}/strategie/bibliotheek?cluster=${analysisId}`,
+            label: "Bibliotheek",
+            // Expliciet meegeven en niet aan `Tabs` zijn voorvoegselmatch
+            // overlaten: die vergelijkt tegen `pathname`, dat nooit een
+            // querystring bevat, dus zou nooit als actief herkennen.
+            actief: onLibrary,
+            aantal: libraryCount,
+          },
+        ]}
+      />
 
       <Link
         href={`${base}/instellingen`}
         aria-label="Instellingen van dit cluster"
         aria-current={onSettings ? "page" : undefined}
-        className="mono-label ml-auto flex items-center gap-1.5 px-3 py-2 transition-colors hover:text-[var(--text-primary)]"
+        className="mono-label flex items-center gap-1.5 px-3 py-2 transition-colors hover:text-[var(--text-primary)]"
         style={onSettings ? { color: "var(--text-primary)" } : undefined}
       >
         <Icon naam="instellingen" size={14} />
         Instellingen
       </Link>
     </div>
-  );
-}
-
-function NavLink({
-  href,
-  active,
-  children,
-}: {
-  href: string;
-  active: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      aria-current={active ? "page" : undefined}
-      // De waas bij hover staat in een klasse en het actieve vlak in een
-      // inline-stijl, en dat is met opzet: een inline-stijl wint van een klasse,
-      // dus het actieve tabblad negeert de hover vanzelf en de andere niet.
-      // Zonder dit beloofde `transition-colors` een overgang die nergens heen
-      // ging: je wees een tabblad aan en er gebeurde niets.
-      className="flex items-center gap-2 rounded-[var(--radius-xl)] px-3 py-1.5 text-sm font-medium transition-colors hover:bg-[var(--wash-hover)]"
-      style={{
-        color: active ? "var(--text-primary)" : "var(--text-secondary)",
-        background: active ? "var(--bg-elevated)" : undefined,
-      }}
-    >
-      {children}
-    </Link>
   );
 }

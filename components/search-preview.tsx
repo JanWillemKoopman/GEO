@@ -32,7 +32,7 @@ export function SearchPreview({
         <span className="text-sm text-muted">{url}</span>
         <span
           className="text-lg"
-          style={{ color: "var(--intent-information-text)" }}
+          style={{ color: "var(--intent-info-content)" }}
         >
           {metaTitle.trim() || title}
         </span>

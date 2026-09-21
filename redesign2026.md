@@ -2160,6 +2160,7 @@ analytics, strategie, sales, admin, de rest. Dit is de lange staart en hij is in
 | 3 | Strategie: clusters, vragen, plan, plan/versies, bibliotheek (§8.5) | ✅ 21 september 2026 |
 | 4 | Sales: startscherm, markten, markten/[id], prospects, prospects/[id], outreach (§8.7) | ✅ 21 september 2026, gedeeltelijk (zie ⚠️) |
 | 5 | Admin en beheer: 6 routes onder `/merk/[id]/admin/*`, 3 onder `/beheer/*` (§8.6) | ✅ 21 september 2026, gedeeltelijk (zie ⚠️) |
+| 6 | De overige routes: `/analyses/*` (9), `/merk` en `/merk/nieuw`, `/instellingen/*`, `/support`, `/markt/[slug]`, `/` (§8.8), plus §10.5 app-breed | ✅ 21 september 2026, gedeeltelijk (zie ⚠️) |
 
 ⚠️ **Bij portie 1 bleek §8.3's eigen voorschrift ("kerncijfers: raster van 4 DataCards") een
 verkeerde aanname.** Het echte scherm heeft geen vier losse kaarten maar één kaart met een
@@ -2251,6 +2252,37 @@ breedte van de FORMULIERKOLOM bedoelt, niet van de hele pagina inclusief rail), 
 dat een aanname en geen zekerheid. De overige acht routes (kortere, gerichte edit-schermen als
 `AssignBox`, `PackageBox`, `EntitiesManager`) zijn niet stuk voor stuk nagelopen op dezelfde vraag.
 Wordt met de opslagbalk samen een eigen portie.
+
+⚠️ **Portie 6 leverde de grootste hefboom van heel stap 10: een volledige, app-brede §10.5-sweep.**
+Wat in eerdere porties telkens één of twee losse `--intent-growth-*`-aanroepen bleek, stond nog op 12
+andere plekken door de hele app. In plaats van die één voor één tegen te komen in nog vijf toekomstige
+porties is de hele codebase in één keer doorzocht en omgezet: elke `--intent-growth-text` naar
+`--trend-up-text`, elke `-solid` naar `--trend-up`, elke `-border` naar `--border-default` (allemaal
+kleurloze omzettingen, de tokens waren al aliassen van elkaar), en hetzelfde voor de twee resterende
+`--intent-information-*`-aanroepen naar `--intent-info-content`/`--border-default`. Nagerekend:
+**nul** overgebleven `intent-growth`- of `intent-information`-verwijzingen in de hele `app/`- en
+`components/`-boom. `intent-attention` en `intent-premium` stonden al op nul (het tweede zelfs al
+overal uit `globals.css` zelf, een schatting uit het blueprint die inmiddels achterhaald was). Alleen
+`intent-intelligence` blijft over, met dezelfde reden als in elke eerdere portie: geen
+`--accent-surface`-token om naartoe te wijzen zonder er zelf een te verzinnen.
+
+**Losse bevindingen binnen deze portie**, per route uit §8.8:
+
+- `/analyses/[id]/*` (9 routes): `AnalysisNav` (de subnavigatie boven elk cluster) gebruikte een
+  zelfgebouwde pilnavigatie, niet de gedeelde `Tabs` uit stap 3. Nu vervangen: `Tabs` voor Cluster en
+  Bibliotheek (met de bibliotheek-teller als `aantal`-prop), de instellingenlink blijft er los naast
+  staan omdat hij met opzet geen derde, even zwaar tabblad is. Trof ook een dode tokennaam,
+  `--wash-hover`, die nog wél bestond als alias maar sinds stap 4 overal elders al
+  `--interactive-hover` heet.
+- `/merk` en `/merk/nieuw`: geen wijziging. De merkenlijst is een kaartenlijst, geen tabel (net als
+  Strategie en Sales in eerdere porties); `/nieuw` begrenst zichzelf al op `max-w-xl`, dus `wil-lezen`
+  zou daar niets toevoegen.
+- `/instellingen`: begrenst zichzelf ook al op `max-w-xl`. `/instellingen/koppelingen` deed dat niet
+  en kreeg `wil-lezen` (720px), zijn eerste echte stand-wijziging.
+- `/support` (764 regels): **niet aangeraakt.** §8.8 wil dit een accordion-lijst; §8.11 noemt `/support`
+  zelf als het voorbeeld voor de kleine `CollapsibleSection`-variant. Dit hoort dus bij de al
+  aangekondigde eigen portie voor dat component (zie portie 1), niet bij deze.
+- `/markt/[slug]` en `/`: geen treffers bij de standaardcontroles, geen wijziging nodig.
 
 **Stap 11, documentatie.** Zie 10.6.
 

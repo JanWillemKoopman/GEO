@@ -10029,3 +10029,43 @@ dezelfde reden als in portie 2 en 3: geen `--accent-surface`-token om naartoe te
 gecontroleerd: hoe de rail er in een echte browser uitziet op 1280px en breder, en of de nieuwe
 `--border-selected`-kleur voldoende opvalt naast de mono-nummers ernaast. Dat blijft open voor de
 eerstvolgende Vercel-preview.
+
+## 21 september 2026, stap 10 van de redesign, portie 6: de overige routes (gedeeltelijk)
+
+`/analyses/*` (9 routes), `/merk`, `/merk/nieuw`, `/instellingen/*`, `/support`, `/markt/[slug]`, `/`
+(§8.8), en als bijvangst een volledige app-brede §10.5-sweep.
+
+**De grootste vondst: elke vorige portie deed §10.5 (zeven betekenissen naar vier) los, met één of
+twee losse `--intent-growth-*`-aanroepen per keer.** Deze portie zocht de hele `app/`- en
+`components/`-boom in één keer door en vond er nog twaalf. Allemaal omgezet, volgens dezelfde
+kleurloze aliassen als steeds (`--intent-growth-text`→`--trend-up-text`, `-solid`→`--trend-up`,
+`-border`→`--border-default`), plus de laatste twee `--intent-information-*`-aanroepen naar
+`--intent-info-content`/`--border-default`. Nagerekend: **nul** treffers voor `intent-growth` of
+`intent-information` in de hele codebase. `intent-attention` en `intent-premium` stonden al op nul
+(het CSS-token voor premium bestond zelfs al nergens meer in `globals.css`, een schatting uit het
+blueprint die inmiddels achterhaald bleek). Alleen `intent-intelligence` staat nog overal waar hij
+stond: geen `--accent-surface`-token om naartoe te wijzen, dezelfde reden als in elke eerdere portie.
+
+**`/analyses/[id]/*` (9 routes, gedeeld via één layout):** `AnalysisNav` had een eigen pilnavigatie in
+plaats van de gedeelde `Tabs` uit stap 3. Nu gebruikt hij `Tabs` voor de twee echte bestemmingen
+(Cluster, Bibliotheek, met de teller als `aantal`), de instellingenlink staat er met opzet los naast
+in plaats van als derde tabblad. Onderweg ook een dode tokennaam opgeruimd: `--wash-hover`, nog wel
+een geldige alias maar overal elders sinds stap 4 al `--interactive-hover`.
+
+**`/merk`, `/merk/nieuw`, `/instellingen`: grotendeels geen wijziging nodig.** De merkenlijst is een
+kaartenlijst en geen tabel (zesde keer dat dit patroon terugkomt, na Strategie en Sales), `/nieuw` en
+`/instellingen` begrenzen zichzelf al op `max-w-xl`. `/instellingen/koppelingen` deed dat niet en
+kreeg als enige in deze portie een echte standwijziging: `wil-lezen`.
+
+**`/support` (764 regels): bewust niet aangeraakt.** §8.8 wil hem als accordion-lijst, en §8.11 noemt
+`/support` zelf als het voorbeeld voor de kleine `CollapsibleSection`-variant. Hoort dus bij de al in
+portie 1 aangekondigde eigen portie voor dat component, niet bij deze.
+
+`redesign2026.md` bijgewerkt.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+allemaal groen. Nagerekend: `grep` op `intent-growth`, `intent-information`, `intent-attention` en
+`intent-premium` over de hele `app/`- en `components/`-boom leverde nul treffers op ná deze portie.
+Wat niet is gecontroleerd: hoe de vervangen `Tabs`-navigatie op een cluster er in een echte browser
+uitziet, en of de dubbele onderrand (van `.tabs` zelf en van de nieuwe wikkel eromheen) een zichtbare
+naad geeft in plaats van één lijn. Dat blijft open voor de eerstvolgende Vercel-preview.

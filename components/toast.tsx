@@ -144,14 +144,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 }
 
 const RAND: Record<ToastIntent, string> = {
-  succes: "var(--intent-growth-border)",
+  succes: "var(--border-default)",
   fout: "var(--intent-danger-border)",
   info: "var(--intent-intelligence-border)",
   waarschuwing: "var(--intent-warning-border)",
 };
 
 const STREEP: Record<ToastIntent, string> = {
-  succes: "var(--intent-growth-solid)",
+  succes: "var(--trend-up)",
   fout: "var(--intent-danger-solid)",
   info: "var(--intent-intelligence-solid)",
   waarschuwing: "var(--intent-warning-solid)",

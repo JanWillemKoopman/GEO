@@ -248,7 +248,7 @@ export function InventoryBox({
       </div>
 
       {staat === "ingepland" && (
-        <span className="flex items-center gap-1.5 text-sm text-[var(--intent-growth-text)]">
+        <span className="flex items-center gap-1.5 text-sm text-[var(--trend-up-text)]">
           <Icon naam="klaar" size={14} />
           Ingepland. Dit kan een paar minuten duren, ververs de pagina om de nieuwe stand te zien.
         </span>
