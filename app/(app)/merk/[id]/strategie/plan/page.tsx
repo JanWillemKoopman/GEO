@@ -145,6 +145,7 @@ export default async function PlanPage({
             months={bundle.months}
             pages={bundle.pages}
             topics={bundle.topics}
+            clusterNaam={bundle.clusterNaam}
           />
         )
       ) : (

@@ -20,7 +20,21 @@
  * Puur, dus testbaar (conventie 2). Geen `server-only`: de lijst rendert dit in
  * de browser.
  */
-import type { PlannedPageStatus, PlanMonthStatus } from "@/lib/types/database";
+import type { ContentAction, PageType, PlannedPageStatus, PlanMonthStatus } from "@/lib/types/database";
+
+/** Het type content, in gewone taal. Eén eigenaar voor deze vertaling (`docs/logbook.md`). */
+export const PAGE_TYPE_LABEL: Record<PageType, string> = {
+  categorie: "Categorie",
+  dienst: "Dienst",
+  informatief: "Informatief",
+  overig: "Overig",
+};
+
+/** Nieuwe pagina of een bestaande verbeteren. */
+export const CONTENT_ACTION_LABEL: Record<ContentAction, string> = {
+  nieuw: "Nieuwe pagina",
+  verbeteren: "Optimalisatie",
+};
 
 /** Bij wie ligt de bal? `null` = niemand hoeft iets, de staat is af. */
 export type WhoseTurn = "klant" | "orbit_engine" | null;

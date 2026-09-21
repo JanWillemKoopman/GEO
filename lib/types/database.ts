@@ -104,6 +104,10 @@ export interface PlannedPage {
   page_type: PageType;
   funnel_stage_id: string | null;
   topic_id: string | null;
+  /** Het cluster waar deze kans uit voortkomt (migratie 0065). Null bij een kans buiten een meting om. */
+  source_analysis_id: string | null;
+  /** Nieuwe pagina of een bestaande verbeteren (migratie 0065). Null = onbekend. */
+  recommendation_action: ContentAction | null;
   status: PlannedPageStatus;
   sort_order: number;
   /** Reserve die inschuift als er een pagina sneuvelt. Telt niet mee in het maandtotaal. */
