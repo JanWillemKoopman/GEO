@@ -122,11 +122,16 @@ export function poolRecent(
 function poolAll(rondes: PeriodEstimate[]): PooledEstimate {
   const bruikbaar = rondes.filter((r) => r.stderr > 0);
 
+  // ⚠️ Altijd afgerond, ook bij één ronde (21 september 2026). `visibility_scores`
+  // bewaart de score met volle precisie ("22.232558139534884"), en dat getal
+  // ging tot vandaag ongerond door naar het scherm zodra er niets samen te
+  // voegen viel. Overal elders in de app staat een percentage al heel; hier
+  // hoort het niet anders te zijn.
   if (bruikbaar.length === 0) {
-    return { score: rondes[0].score, stderr: 0, rounds: 1 };
+    return { score: Math.round(rondes[0].score), stderr: 0, rounds: 1 };
   }
   if (bruikbaar.length === 1) {
-    return { score: bruikbaar[0].score, stderr: round2(bruikbaar[0].stderr), rounds: 1 };
+    return { score: Math.round(bruikbaar[0].score), stderr: round2(bruikbaar[0].stderr), rounds: 1 };
   }
 
   const gewichten = bruikbaar.map((r) => 1 / (r.stderr * r.stderr));

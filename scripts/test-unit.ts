@@ -23450,6 +23450,17 @@ group("poolRecent: rustige rondes samenvoegen, een echte stijging niet", () => {
   ok("stderr 0 levert geen oneindig gewicht", zonderMarge?.score === 40);
   eq2("en geen verzonnen marge", zonderMarge?.stderr ?? null, 0);
 
+  // ⚠️ Altijd afgerond, ook bij één ronde (21 september 2026). `visibility_scores`
+  // bewaart de volle precisie ("22.232558139534884") en die kwam tot vandaag
+  // ongerond op het scherm terecht zodra er niets samen te voegen viel.
+  const nietGeheel = poolRecent([{ score: 22.232558139534884, stderr: 8.3 }]);
+  ok("een score met decimalen wordt afgerond", nietGeheel?.score === 22);
+  const zonderMargeNietGeheel = poolRecent([{ score: 40.6, stderr: 0 }]);
+  ok(
+    "ook zonder marge blijft het getoonde cijfer een geheel getal",
+    zonderMargeNietGeheel?.score === 41,
+  );
+
   // De zin eronder moet zeggen dat het cijfer zekerder is, niet zwakker.
   ok("één ronde wordt zo benoemd", describePooled({ score: 20, stderr: 8, rounds: 1 }).includes("laatste meting"));
   ok(

@@ -10889,3 +10889,22 @@ bestand `_components/wachtrij-lijst.tsx` in plaats van naar `page.tsx` zelf, en 
 `SectionErrorBoundary` op het overzicht ging van vijf naar vier.
 
 `tsc --noEmit`, `test:unit` (5010), `test:chain` (722) en `build` groen.
+
+## 21 september 2026 (14): het hoofdgetal ongerond, en een randloos uitlegpaneeltje
+
+Twee kleine vervolgpunten op (13).
+
+**`poolAll()` in `lib/stats/pooling.ts` gaf bij één bruikbare ronde de opgeslagen score onveranderd
+terug**, en die staat in `visibility_scores` met volle precisie ("22.232558139534884"). Zodra er
+niets samen te voegen viel (de meeste merken, de eerste maanden) kwam dat cijfer zo op het scherm
+terecht, ook op de plekken die net in (13) teruggingen naar een percentage. Nu rondt `poolAll()` in
+beide takken van "niets of één bruikbare ronde" af, net als de tak met meerdere rondes al deed.
+
+**`InfoHint` (`components/info-hint.tsx`) hergebruikte `.menu-surface`** voor zijn uitlegpaneeltje.
+Die klasse zet `padding: 4px 0`, bedoeld voor een dropdown waarvan elke REGEL zijn eigen zijpadding
+draagt, en dat won van Tailwinds `p-3` op hetzelfde element (gelijke specificiteit, later in de
+bundel). Resultaat: de tekst liep tot aan de rand, op alle achttien plekken waar `InfoHint` staat.
+Het paneeltje zet zijn eigen achtergrond, rand en schaduw nu rechtstreeks in plaats van via die
+klasse.
+
+`tsc --noEmit`, `test:unit` (5012) en `test:chain` (722) groen, `build` groen.
