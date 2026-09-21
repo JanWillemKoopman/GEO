@@ -142,17 +142,16 @@
   --accent-highlight-on: #000000;
 
   /* ── Actieknoppen ─────────────────────────────────────────────────────────
-     Vastgesteld 21 september 2026: één groen, `#25a750`, voor elke knop die
-     een cluster of onderwerp START (`.btn-actie`). Bewust geen `var()` naar
-     `--accent`: het accent is voorbehouden aan hooguit één primaire actie per
-     scherm, en een clusterlijst met tien onderwerpen heeft tien "start"-
-     knoppen tegelijk op het scherm staan. Bewust ook geen aparte donkere
-     stand: dit is dezelfde letterlijke hex in licht en donker, in plaats van
-     mee te schuiven met het thema zoals `--accent` dat wel doet. */
-  --action-button: #25a750;
-  --action-button-hover: #1f8e44;
-  --action-button-pressed: #187538;
-  --action-button-on: #ffffff;
+     Vastgesteld 21 september 2026: een eigen naam voor elke knop die een
+     cluster of onderwerp START (`.btn-actie`), zoveel per scherm als er
+     onderwerpen zijn. Eerst `#25a750` (groen, in beide standen gelijk), diezelfde
+     dag teruggedraaid naar omgekeerd contrast: zwart op wit in de lichte
+     stand, wit op zwart in de donkere. Dat is letterlijk `--interactive-selected`,
+     dus een `var()`-verwijzing daarnaartoe en geen eigen hex: één feit, één
+     eigenaar. De klasse blijft wél apart van `.btn-primary` bestaan, want de
+     twee mogen ooit weer uit elkaar lopen. */
+  --action-button: var(--interactive-selected);
+  --action-button-on: var(--interactive-selected-on);
 
   /* ── Interactie ───────────────────────────────────────────────────────────
      Dit is het patroon dat de hele interface bij elkaar houdt, en het is het
@@ -1318,18 +1317,19 @@ table {
   background-color: var(--accent-pressed);
 }
 
-/* De actieknop: `#25a750`, voor elke knop die een cluster of onderwerp start
-   ("Nieuwe cluster", "Cluster starten"). Zie de toelichting bij
-   `--action-button`. */
+/* De actieknop: voor elke knop die een cluster of onderwerp start
+   ("Nieuwe cluster", "Cluster starten"). Omgekeerd contrast, net als
+   `.btn-primary`; zie de toelichting bij `--action-button`. */
 .btn-actie {
   background-color: var(--action-button);
   color: var(--action-button-on);
 }
 .btn-actie:hover:not(:disabled) {
-  background-color: var(--action-button-hover);
+  background-color: var(--action-button);
+  opacity: 0.8;
 }
 .btn-actie:active:not(:disabled) {
-  background-color: var(--action-button-pressed);
+  opacity: 0.7;
 }
 
 /* Secundair: een rand, en een waas bij hover. Inverteert niet naar een vlak. */

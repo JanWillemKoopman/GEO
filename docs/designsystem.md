@@ -135,20 +135,20 @@ van Outer Orbit moet worden; het stelt hem uit. Zie §9b.
 
 ### 2.4a Actieknoppen
 
-| Token | Waarde (beide standen) |
-|---|---|
-| `--action-button` | `#25a750` |
-| `--action-button-hover` | `#1f8e44` |
-| `--action-button-pressed` | `#187538` |
-| `--action-button-on` | `#ffffff` |
+| Token | Licht | Donker |
+|---|---|---|
+| `--action-button` | `#000000` | `#ffffff` |
+| `--action-button-on` | `#ffffff` | `#000000` |
 
-**Besluit van de eigenaar, 21 september 2026.** Het accent (§2.4) is voor de ÉÉN hoofdactie van een
-scherm en verschijnt daarom hooguit één keer. Een clusterlijst met tien voorgestelde onderwerpen
-heeft tien gelijkwaardige "start dit"-knoppen tegelijk op het scherm, en dat past niet bij die regel.
-`.btn-actie` is de eigen kleur voor precies dat geval: elke knop die een cluster of onderwerp start
-("Nieuwe cluster", "Cluster starten", "Starten met deze verdeling"). Vast `#25a750` in beide standen,
-geen aparte donkere variant zoals `--accent` die wel heeft: dit groen is een eigen, herkenbare kleur
-en geen accentvervanging.
+**Besluit van de eigenaar, 21 september 2026, tweemaal op één dag.** Eerst een eigen groen
+(`#25a750`, in beide standen gelijk) voor elke knop die een cluster of onderwerp start
+("Nieuwe cluster", "Cluster starten", "Starten met deze verdeling"), met als reden dat het accent
+(§2.4) voorbehouden is aan de ÉÉN hoofdactie van een scherm terwijl een clusterlijst tien
+gelijkwaardige "start dit"-knoppen tegelijk toont. Diezelfde dag teruggedraaid naar omgekeerd
+contrast, zwart op wit in het licht en wit op zwart in het donker: exact `--interactive-selected`,
+en `--action-button` wijst er met een `var()` naar toe in plaats van een eigen hex te dragen. `.btn-actie`
+blijft wél een eigen klasse naast `.btn-primary`, zodat de twee ooit weer uiteen kunnen lopen zonder
+dat elke aanroeper in de code mee hoeft te veranderen.
 
 ### 2.5 De betekenislaag: vier, niet zeven
 
@@ -511,7 +511,7 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 | `.card-rail` / `-success` / `-warning` / `-accent` | De 2px-stang links op de kaart met het hoofdgetal, of op een kaart die om een handeling vraagt. Zie §5.5 |
 | `.btn-primary` | **De handeling.** Omgekeerd contrast (wit op zwart in donker, zwart op wit in licht), geen accentkleur. Zie §2.4 voor waarom |
 | `.btn-accent` | De hoofdactie van een scherm, hooguit één. Limoen (donker) of donkergroen (licht) |
-| `.btn-actie` | **Actieknoppen**: elke knop die een cluster of onderwerp start ("Nieuwe cluster", "Cluster starten"), zoveel per scherm als er onderwerpen zijn. Vast `#25a750`, in beide standen gelijk. Zie §2.4a |
+| `.btn-actie` | **Actieknoppen**: elke knop die een cluster of onderwerp start ("Nieuwe cluster", "Cluster starten"), zoveel per scherm als er onderwerpen zijn. Omgekeerd contrast, zelfde kleur als `.btn-primary`. Zie §2.4a |
 | `.btn-outline` / `.btn-ghost` | De keuze ernaast, resp. de uitweg. Zelfde maten |
 | `.btn-sm` / `.btn-lg` | 36px en 48px, BEREKEND uit padding × 2 + regelhoogte + rand × 2 |
 | `.chip` + `-success` / `-danger` / `-warning` / `-info` / `-attention` / `-neutral` / `-outline` | `--radius-md` (4px, niet meer een pil), gewicht 500. `-attention` draagt sinds stap 10 de accentkleur, niet roze (§2.5) |

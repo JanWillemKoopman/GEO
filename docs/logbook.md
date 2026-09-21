@@ -10928,3 +10928,20 @@ Het paneeltje zet zijn eigen achtergrond, rand en schaduw nu rechtstreeks in pla
 klasse.
 
 `tsc --noEmit`, `test:unit` (5012) en `test:chain` (722) groen, `build` groen.
+
+## 21 september 2026 (15): Actieknoppen teruggedraaid van groen naar omgekeerd contrast
+
+Zelfde dag, tweede besluit over dezelfde kleur. `#25a750` (zie (14) hierboven) bleek toch niet de
+gewenste kleur voor `.btn-actie`: de eigenaar wilde de actieknop zwart op wit in de lichte stand en
+wit op zwart in de donkere. Dat is letterlijk `--interactive-selected`/`--interactive-selected-on`,
+dus `--action-button` en `--action-button-on` wijzen er nu met een `var()`-verwijzing naartoe in
+plaats van een eigen hex te dragen (`app/globals.css`). De losse `--action-button-hover` en
+`--action-button-pressed` tokens zijn vervallen; `.btn-actie:hover`/`:active` gebruiken nu dezelfde
+`opacity: 0.8`/`0.7` als `.btn-primary`.
+
+`.btn-actie` blijft als eigen klasse bestaan naast `.btn-primary`, ook nu ze er visueel identiek
+uitzien: de twee dekken een ander gebruik (één hoofdknop per scherm tegenover zoveel startknoppen
+als er onderwerpen zijn) en kunnen dus ooit weer uit elkaar lopen zonder dat elke aanroeper in de
+code mee hoeft te veranderen. `docs/designsystem.md` §2.4a is bijgewerkt.
+
+`tsc --noEmit`, `test:unit`, `test:chain` en `build` groen.
