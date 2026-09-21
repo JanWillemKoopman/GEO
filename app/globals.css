@@ -853,8 +853,20 @@ body {
      en van ruimte.
 
      `position: relative` en `isolation` mochten mee weg: er is geen ::before
-     meer om tegenaf te zetten. */
+     meer om tegenaf te zetten.
+
+     ── DIEPTE ZONDER PATROON (21 SEPTEMBER 2026) ───────────────────────────
+     Verticaal verloop op verzoek van de eigenaar: bovenaan 10% donkerder dan
+     `--bg-base`, aflopend naar `--bg-base` zelf onderaan de pagina. Geen
+     nieuw token nodig: `color-mix` mengt `--bg-base` met zwart, dus het
+     verloop volgt vanzelf mee als `--bg-base` ooit verandert. De kaarten
+     (`--bg-surface`) staan er los van en blijven wit. */
   background-color: var(--bg-base);
+  background-image: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--bg-base) 90%, black) 0,
+    var(--bg-base) 600px
+  );
 }
 
 /* ── Niets is breder dan het scherm ─────────────────────────────────────────
