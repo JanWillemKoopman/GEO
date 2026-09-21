@@ -174,8 +174,11 @@ export function Werkpaneel({ opportunityId, outreach }: WerkpaneelProps) {
               <span className="mono-label">Onderwerp</span> {outreach.subject}
             </p>
           )}
+          {/* Vaste breedte van 680px (§8.7): een e-mail leest als een e-mail
+              bij de regellengte van een echte mailclient, niet uitgerekt over
+              de volle breedte van het scherm. */}
           <textarea
-            className="field min-h-[14rem] font-mono text-sm"
+            className="field min-h-[14rem] max-w-[680px] font-mono text-sm"
             value={tekst}
             onChange={(e) => setTekst(e.target.value)}
             aria-label="De tekst van de mail"

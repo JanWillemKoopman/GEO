@@ -1720,6 +1720,65 @@ textarea.field {
   }
 }
 
+/* ── Accordion (CollapsibleSection) ────────────────────────────────────────
+   GEMETEN bij OKX (`redesign2026.md` §8.11), stap 10. Was een losse doos per
+   sectie: afgerond, een rand rondom, een `--bg-elevated`-kop. OKX' eigen
+   accordion is vlak: geen doos, geen vulling, alleen een streep onder elke
+   rij. Gestapeld wordt dat een doorlopende lijst met een scheidingslijn
+   tussen de rijen in plaats van losse, zwevende dozen.
+
+   32 pixels verticale kop-vulling is ruim en het is echt hun eigen waarde,
+   niet afgeleid. Voor een lijst van tientallen items (`/support`) is dat te
+   veel lucht; de kleine variant (`.collapsible-compact`) krijgt 16px en een
+   titel van 14 in plaats van 18px. */
+.collapsible {
+  border-bottom: var(--border-width-xs) solid var(--border-subtle);
+}
+.collapsible-kop {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 32px 0;
+  text-align: left;
+  font-size: 1.125rem; /* 18px, heading-sm */
+  font-weight: 500;
+  line-height: 1.5rem; /* 24px */
+  color: var(--text-primary);
+}
+.collapsible-titel {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+.collapsible-pictogram {
+  flex-shrink: 0;
+  display: flex;
+  color: var(--text-secondary);
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+/* `display: flex` met een gap en niet alleen padding: de inhoud is bij de
+   meeste aanroepers meer dan één element (een lijst plus een toelichting,
+   bijvoorbeeld), en zonder een eigen stapelregel liepen die aan elkaar vast
+   zodra de doos hierboven wegviel. */
+.collapsible-inhoud {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 32px;
+}
+.collapsible-compact .collapsible-kop {
+  padding: 16px 0;
+  font-size: 0.875rem; /* 14px */
+  line-height: 1rem; /* 16px */
+}
+.collapsible-compact .collapsible-inhoud {
+  gap: 8px;
+  padding-bottom: 16px;
+}
+
 /* ── De bovenbalk ───────────────────────────────────────────────────────────
    48 pixels, GEMETEN. Dekkend, geen vervaging: OKX heeft nergens een
    `backdrop-filter`, en een doorschijnende balk boven een tabel die eronder

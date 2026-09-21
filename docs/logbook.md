@@ -10069,3 +10069,51 @@ allemaal groen. Nagerekend: `grep` op `intent-growth`, `intent-information`, `in
 Wat niet is gecontroleerd: hoe de vervangen `Tabs`-navigatie op een cluster er in een echte browser
 uitziet, en of de dubbele onderrand (van `.tabs` zelf en van de nieuwe wikkel eromheen) een zichtbare
 naad geeft in plaats van één lijn. Dat blijft open voor de eerstvolgende Vercel-preview.
+
+## 21 september 2026, stap 10 van de redesign, portie 7: de drie openstaande punten, afgesloten
+
+Portie 1, 4 en 5 lieten elk iets liggen omdat het te riskant leek zonder browser. Deze portie sluit
+alle drie af: twee gebouwd, twee definitief afgewezen met een reden.
+
+**`CollapsibleSection` is herbouwd naar OKX' vlakke accordion (§8.11).** Was een losse, afgeronde doos
+per sectie met een `--bg-elevated`-kop; is nu vlak, met alleen een streep onder elke rij, zodat een
+reeks secties leest als één doorlopende lijst. Kop-vulling 32px, titel 18px/gewicht 500. Een nieuwe
+`compact`-prop geeft de kleine variant uit de spec (16px vulling, 14px titel) voor een langere lijst.
+Twaalf bestanden gebruiken dit component; ze krijgen de nieuwe vorm zonder dat er iets aan hun eigen
+inhoud is veranderd.
+
+**Het conceptmailveld in `werkpaneel.tsx` kreeg `max-w-[680px]`** (§8.7): een e-mail leest als een
+e-mail bij de regellengte van een echte mailclient.
+
+**Twee definitieve nee's, allebei omdat de code zelf al het antwoord gaf:**
+
+- **`/support` wordt geen accordion-lijst, punt.** Het scherm heeft zijn eigen toelichting: de eerste
+  versie gebruikte al precies het tabblad/accordion-patroon dat §8.8 nu voorstelt, en dat gaf "een rij
+  bijna identieke grijze kaarten zonder enige hiërarchie". De huidige opbouw (vaste zijnavigatie naast
+  doorlopende inhoud, als een echte documentatiepagina) is de latere, bewuste correctie: Support heeft
+  geen data om te temmen, alleen uitleg. Dit is geen openstaand punt meer; de spec is hier achterhaald
+  door een besluit dat er ná kwam.
+- **Het prospectdossier blijft één kolom.** Dat scherm bestaat voor het moment waarop een prospect de
+  claim betwist, en toont daarom alles onder elkaar: de vraag, het antwoord, de bronnen, de
+  score-opbouw. Een twee-koloms raster op een bedrijfskritisch scherm zonder browser om te verifiëren
+  is een te grote gok, zeker voor een spec-regel zonder eigen motivatie.
+
+**Ook definitief nee: de vastplakkende opslagbalk in Admin.** Vraagt vuile-staat-tracking in minstens
+vijf editor-componenten die dat vandaag niet bijhouden. Nieuwe functionaliteit per component, geen
+redesign van iets dat er al staat.
+
+**Drie Admin-routes kregen alsnog `wil-lezen`** (`aanbodboom`, `toewijzen`, `concurrenten`), stuk voor
+stuk geverifieerd als formulieren zonder brede rasters. `admin/0-meting` bewust niet: bij nader lezen
+is dat het leesscherm dat de consultant vóór een demogesprek doorneemt, dus een overzicht en geen
+formulier.
+
+**Hiermee is stap 10 inhoudelijk klaar:** alle zes groepen uit `redesign2026.md` §8.2 tot §8.8 zijn
+bekeken. Wat niet is gebouwd staat met een reden in het logboek en in het plan, niet stilzwijgend
+overgeslagen.
+
+`redesign2026.md` bijgewerkt met de zevende en laatste rij van de voortgangstabel voor deze stap.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+allemaal groen. Wat niet is gecontroleerd: hoe de nieuwe vlakke `CollapsibleSection` er in een echte
+browser uitziet op alle twaalf aanroepers, vooral of de content zonder de oude doos nog voldoende van
+zijn buren te onderscheiden is. Dat blijft open voor de eerstvolgende Vercel-preview.

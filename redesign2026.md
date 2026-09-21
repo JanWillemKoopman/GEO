@@ -2161,6 +2161,7 @@ analytics, strategie, sales, admin, de rest. Dit is de lange staart en hij is in
 | 4 | Sales: startscherm, markten, markten/[id], prospects, prospects/[id], outreach (§8.7) | ✅ 21 september 2026, gedeeltelijk (zie ⚠️) |
 | 5 | Admin en beheer: 6 routes onder `/merk/[id]/admin/*`, 3 onder `/beheer/*` (§8.6) | ✅ 21 september 2026, gedeeltelijk (zie ⚠️) |
 | 6 | De overige routes: `/analyses/*` (9), `/merk` en `/merk/nieuw`, `/instellingen/*`, `/support`, `/markt/[slug]`, `/` (§8.8), plus §10.5 app-breed | ✅ 21 september 2026, gedeeltelijk (zie ⚠️) |
+| 7 | De drie openstaande punten uit portie 1, 4 en 5: `CollapsibleSection` naar OKX' vlakke accordion, het conceptmailveld op 680px, de resterende `wil-lezen`-schermen in Admin | ✅ 21 september 2026, met twee definitieve neen's (zie ⚠️) |
 
 ⚠️ **Bij portie 1 bleek §8.3's eigen voorschrift ("kerncijfers: raster van 4 DataCards") een
 verkeerde aanname.** Het echte scherm heeft geen vier losse kaarten maar één kaart met een
@@ -2283,6 +2284,51 @@ overal uit `globals.css` zelf, een schatting uit het blueprint die inmiddels ach
   zelf als het voorbeeld voor de kleine `CollapsibleSection`-variant. Dit hoort dus bij de al
   aangekondigde eigen portie voor dat component (zie portie 1), niet bij deze.
 - `/markt/[slug]` en `/`: geen treffers bij de standaardcontroles, geen wijziging nodig.
+
+⚠️ **Portie 7 sluit de drie openstaande punten uit stap 10 af, twee ermee en twee definitief niet.**
+
+**`CollapsibleSection` (§8.11) is herbouwd.** Was een losse doos per sectie (afgeronde rand, volle
+rand, `--bg-elevated`-kop); is nu OKX' eigen vlakke stijl: geen doos, alleen een streep onder elke
+rij, kop-vulling 32px (nieuw: een `compact`-variant met 16px voor een langere lijst), titel
+18px/gewicht 500 (14px in de compacte variant), pictogram 20px (16px compact). Twaalf bestanden
+gebruiken dit component; de vorm verandert overal mee, de inhoud van elke sectie niet. Nieuwe CSS:
+`.collapsible`, `.collapsible-kop`, `.collapsible-titel`, `.collapsible-pictogram`,
+`.collapsible-inhoud`, plus de `.collapsible-compact`-varianten.
+
+**`werkpaneel.tsx`'s conceptmailveld kreeg `max-w-[680px]`** (§8.7): het enige stuk van de
+Sales-portie dat zonder lay-outrisico kon, in tegenstelling tot de twee-koloms opzet eronder.
+
+**Definitief nee, met een reden die in de code zelf al stond, op twee plekken:**
+
+- **`/support` wordt geen accordion-lijst**, ook al zegt §8.8 dat met zoveel woorden. Het scherm heeft
+  daar zelf al een uitgebreide toelichting over: de EERSTE versie gebruikte precies de
+  tabblad/accordion-opbouw die §8 nu weer voorstelt, en dat werkte niet ("een rij bijna identieke
+  grijze kaarten zonder enige hiërarchie"). De huidige opbouw (een vaste zijnavigatie naast
+  doorlopende inhoud, zoals een echte documentatiepagina) is een latere, bewuste correctie daarop:
+  "Support heeft geen data, alleen uitleg", dus de patronen die data temmen passen er niet op. Dit is
+  geen openstaand punt meer maar een afgesloten vraag: de spec is hier achterhaald door een besluit
+  dat er ná lag.
+- **Het prospectdossier (`/sales/prospects/[id]`) blijft één kolom**, geen twee. Het scherm bestaat
+  voor precies één moment ("het moment waarop een prospect zegt 'dat kan niet kloppen'") en toont
+  daarom alles: de volledige AI-vraag en het antwoord, de bronnen, de score-opbouw. Een twee-koloms
+  raster op een bedrijfskritisch, bewijs-zwaar scherm zonder browser om het te verifiëren is een te
+  grote gok voor een spec-regel die zelf niet motiveert waaróm twee kolommen hier beter zouden zijn.
+
+**Ook definitief nee: de vastplakkende opslagbalk in Admin (§8.6).** Blijft ongebouwd. Die vraagt om
+vuile-staat-tracking in minstens vijf verschillende editor-componenten
+(`OfferingsPanel`, `AssignBox`, `PackageBox`, `EntitiesManager`, `OnboardingSession`) die dat vandaag
+geen van alle bijhouden; dat bouwen is nieuwe functionaliteit per component en geen redesign van iets
+dat er al staat.
+
+**Drie extra Admin-routes kregen alsnog `wil-lezen`:** `aanbodboom`, `toewijzen`, `concurrenten`, alle
+drie geverifieerd als echte formulieren zonder brede rasters of tabellen. `admin/0-meting` juist niet:
+bij nader lezen is dat een leesscherm dat de consultant vóór een demogesprek doorneemt ("het scherm
+dat de consultant deelt in de demo"), dus een overzicht en geen formulier, en §8.6's eigen regel wijst
+dan naar "werken". `admin/page.tsx` (het overzicht met de zes `CollapsibleSection`-blokken) en de drie
+`/beheer/*`-routes blijven om dezelfde reden op de standaardbreedte.
+
+**Stap 10 is hiermee inhoudelijk klaar.** Alle zes groepen uit §8.2 tot §8.8 zijn bekeken; wat niet is
+gebouwd staat hierboven met een reden, niet stilzwijgend overgeslagen.
 
 **Stap 11, documentatie.** Zie 10.6.
 
