@@ -2158,6 +2158,7 @@ analytics, strategie, sales, admin, de rest. Dit is de lange staart en hij is in
 | 1 | Het merkoverzicht (`/merk/[id]`, §8.3), plus `PageHeader` en `SectionHeading` als bijvangst (34 respectievelijk 2 schermen die meeliften) | ✅ 21 september 2026 |
 | 2 | Analytics: zichtbaarheid, concurrenten, reputatie, zoekverkeer (§8.4) | ✅ 21 september 2026 |
 | 3 | Strategie: clusters, vragen, plan, plan/versies, bibliotheek (§8.5) | ✅ 21 september 2026 |
+| 4 | Sales: startscherm, markten, markten/[id], prospects, prospects/[id], outreach (§8.7) | ✅ 21 september 2026, gedeeltelijk (zie ⚠️) |
 
 ⚠️ **Bij portie 1 bleek §8.3's eigen voorschrift ("kerncijfers: raster van 4 DataCards") een
 verkeerde aanname.** Het echte scherm heeft geen vier losse kaarten maar één kaart met een
@@ -2214,6 +2215,20 @@ oplevert (de twee tokenparen zijn niet identiek, in tegenstelling tot elke eerde
 `--intent-growth-*`→`--trend-up`-omzetting in dit project). Twee losse `--intent-growth-*`-aanroepen
 elders (`plan-calendar-view.tsx`, `create-plan-box.tsx`) zijn wel omgezet naar `--trend-up` zonder
 kleurverschil, dezelfde soort naamswisseling als in portie 1 en 2.
+
+⚠️ **Portie 4 (Sales) is bewust gedeeltelijk.** Gebouwd: de interne-scherm-streep uit §8.7 ("de
+bovenbalk krijgt in de Sales-routes een streep van 2px in `--intent-warning-solid` direct onder
+zich"), nieuw als `.topbar-sales` op zowel de desktop- als de mobiele bovenbalk, aangestuurd door
+dezelfde `pathname.startsWith("/sales")`-regel die `BottomNav` al gebruikte. Geen `wil-data` nodig:
+net als bij Strategie zijn markten en prospects kaartlijsten, geen tabellen.
+
+**Niet gebouwd, met opzet:** de twee-koloms opzet van het prospectdossier ("links het dossier, rechts
+de conceptmail in een Card") en de vaste breedte van 680px op het conceptmailveld. Beide staan nu
+in één kolom onder elkaar, wat werkt maar niet is wat §8.7 voorschrijft. Dit is écht nieuwe lay-out
+op een intern, bedrijfskritisch scherm (`app/(app)/sales/prospects/[id]/page.tsx` plus
+`werkpaneel.tsx`, 410 respectievelijk enkele honderden regels) met voorwaardelijke content
+(afgewezen/opgepakt/verzonden), en zonder browser is een raster met de verkeerde breakpoint-aanname
+makkelijker fout dan goed. Dit wordt zijn eigen, kleine portie, net als `CollapsibleSection`.
 
 **Stap 11, documentatie.** Zie 10.6.
 

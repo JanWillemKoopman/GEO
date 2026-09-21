@@ -9960,3 +9960,35 @@ hexkleuren, `backdrop-blur`, `shadow-` en de oude intent-namen. Wat niet is geco
 nieuwe rood van `VersionDiff` op beide standen (licht en donker) voldoende contrast houdt tegen zijn
 eigen surface-tint, en hoe de linkerstang op een open vraag er in een echte browser uitziet. Dat
 blijft open voor de eerstvolgende Vercel-preview.
+
+## 21 september 2026, stap 10 van de redesign, portie 4: Sales (gedeeltelijk)
+
+Zes routes (§8.7): startscherm, markten, markten/[id], prospects, prospects/[id], outreach.
+
+**Nieuw: `.topbar-sales`, de interne-scherm-streep.** §8.7 vraagt een streep van 2px
+`--intent-warning-solid` onder de bovenbalk, alleen in Sales-routes, zodat in één oogopslag duidelijk
+is dat je in een intern scherm zit (`CLAUDE.md`: een klant ziet niets van Sales). De klasse staat nu
+op zowel `.topbar` (desktop) als `.topbar-mobiel` (telefoon, via een nieuwe `salesContext`-prop op
+`MobileTopbar`), aangestuurd in `WorkspaceChrome` door dezelfde `pathname.startsWith("/sales")`-regel
+die `BottomNav` al gebruikte om van context te wisselen. Geen nieuwe logica, één bestaande regel op
+een tweede plek toegepast.
+
+**Geen `wil-data` nodig.** Markten en prospects zijn, net als bij Strategie, kaartlijsten en geen
+tabellen; §8.7's "Table dicht met de saleskansen" klopt niet met wat er staat.
+
+**Bewust niet gebouwd: de twee-koloms opzet van het prospectdossier.** §8.7 wil "links het dossier,
+rechts de conceptmail in een Card" vanaf 1024px, en een vaste breedte van 680px op het
+conceptmailveld. Het scherm (`prospects/[id]/page.tsx` plus `werkpaneel.tsx`) staat nu in één kolom
+onder elkaar. Dat werkt, maar is niet de spec. Dit is écht nieuwe lay-out op een bedrijfskritisch
+intern scherm met veel voorwaardelijke content (een prospect zonder kans, met kans maar niet
+opgepakt, opgepakt met een concept, verzonden, afgewezen), en zonder browser is de kans op een
+verkeerde breakpoint-aanname te groot om dat blind te doen. Wordt een eigen, kleine portie, net als
+`CollapsibleSection` uit portie 1.
+
+`redesign2026.md` bijgewerkt, inclusief de markering "gedeeltelijk" in de voortgangstabel.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+allemaal groen. Nagerekend: alle zes routes doorzocht op hexkleuren, `backdrop-blur`, `shadow-` en de
+oude intent-namen (geen gevonden, deze module was al schoon op dat vlak). Wat niet is gecontroleerd:
+hoe de nieuwe streep er in een echte browser uitziet op zowel licht als donker, en op zowel desktop
+als telefoon. Dat blijft open voor de eerstvolgende Vercel-preview.

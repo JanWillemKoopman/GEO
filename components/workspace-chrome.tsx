@@ -95,10 +95,15 @@ export function WorkspaceChrome({
   ];
   const titel = telefoon ? (titelVoorPad(pathname, alles) ?? activeBrand?.name ?? "ORBIT ENGINE") : "";
 
+  // Zelfde regel als `BottomNav` gebruikt om van Sales-context te wisselen:
+  // het pad beslist, niet de rol, want een salesmedewerker kan ook een merk
+  // bekijken. §8.7's interne-scherm-streep gebruikt dezelfde voorwaarde.
+  const inSalesContext = pathname.startsWith("/sales");
+
   if (telefoon) {
     return (
       <div className="flex min-h-dvh flex-col">
-        <MobileTopbar titel={titel} actie={accountMenu} />
+        <MobileTopbar titel={titel} actie={accountMenu} salesContext={inSalesContext} />
 
         {/* 56px onderbalk plus zijn veilige zone: de inhoud moet daar nooit
             onder verdwijnen. `.stand` regelt zijn eigen zijmarge en bovenmarge
@@ -130,7 +135,7 @@ export function WorkspaceChrome({
           inhoud, want de hoofdstuktabs van een cluster plakken er met
           `top: var(--header-h)` exact onder. Lopen die twee uit elkaar, dan
           ontstaat er een kier waar de pagina-inhoud doorheen schuift. */}
-      <header className="topbar no-print">
+      <header className={`topbar no-print${inSalesContext ? " topbar-sales" : ""}`}>
         <div className="flex h-full items-center justify-between gap-3 px-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-2">
             <button
