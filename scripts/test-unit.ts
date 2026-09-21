@@ -455,6 +455,8 @@ import {
   type VoortgangPagina,
 } from "@/lib/plan-progress";
 import { activiteit, ALLE_TAAKSOORTEN, TAAK_TEKST } from "@/lib/activity";
+import { groepeerPerOnderwerp } from "@/lib/wachtrij";
+import type { WorkItem } from "@/lib/work";
 import {
   ADMIN_SECTIES,
   ONBOARDING_TAKEN,
@@ -8712,21 +8714,9 @@ group("overzichtCijfers: drie totalen en één stand van nu", () => {
 
 group("totalenKop: de regel die zegt dat het totalen zijn", () => {
   // ⚠️ Zonder deze regel leest een klant met twaalf geschreven pagina's de rij
-  // als "deze maand". Met een datum erbij is het concreter dan "sinds de start",
-  // en die datum staat er toch al: de oudste analyse van dit merk.
-  ok(
-    "met een startdatum staat de maand erin",
-    totalenKop("2026-03-04T10:00:00Z") === "Sinds maart 2026",
-  );
-  ok(
-    "zonder startdatum blijft het algemeen",
-    totalenKop(null) === "Sinds de start van je programma",
-  );
-  // Onbruikbare invoer wordt nooit een halve zin op het scherm (conventie 3).
-  ok(
-    "en onleesbare invoer ook",
-    totalenKop("geen datum") === "Sinds de start van je programma",
-  );
+  // als "deze maand". Vaste tekst sinds 21 september 2026: geen datum meer die
+  // kan wijzen naar een moment dat niet meer bestaat (zie lib/overview.ts).
+  ok("altijd dezelfde vaste tekst", totalenKop() === "Sinds start ORBIT ENGINE");
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -11288,6 +11278,38 @@ group("de contentmix telt op dezelfde as als Analytics", () => {
   }
 });
 
+group("groepeerPerOnderwerp: de wachtrij per cluster", () => {
+  const items: WorkItem[] = [
+    wachtrijItem("feit:1", "Wagenparkbeheer", "Eén vraag over je bedrijf"),
+    wachtrijItem("pagina:1", "All-in leaseprijs", "Publiceer de pagina"),
+    wachtrijItem("pagina:2", "Wagenparkbeheer", "Publiceer de tweede pagina"),
+  ];
+  const groepen = groepeerPerOnderwerp(items);
+
+  ok("twee onderwerpen", groepen.length === 2);
+  // Eerste onderwerp bij eerste voorkomen, niet alfabetisch: de wachtrij zelf
+  // staat al op urgentie gesorteerd, en die volgorde blijft leidend.
+  ok("op volgorde van eerste voorkomen", groepen[0].onderwerp === "Wagenparkbeheer");
+  ok("beide items van dat onderwerp staan erin", groepen[0].items.length === 2);
+  ok("het andere onderwerp krijgt zijn eigen groep", groepen[1].items.length === 1);
+  ok("een lege lijst geeft geen groepen", groepeerPerOnderwerp([]).length === 0);
+
+  function wachtrijItem(id: string, onderwerp: string, title: string): WorkItem {
+    return {
+      id,
+      kind: "pagina",
+      state: "nu",
+      typeLabel: "Pagina publiceren",
+      title,
+      why: "test",
+      urgency: 40,
+      href: "#",
+      analysisId: onderwerp,
+      analysisName: onderwerp,
+    };
+  }
+});
+
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nWat ORBIT ENGINE deze week deed");
 
@@ -11370,6 +11392,14 @@ group("het overzicht: één hoofdgetal, één primaire knop, één rekensom", ()
   // een handmatige doorloop gebeurt één keer, het risico ontstaat bij de
   // volgende wijziging.
   const overzicht = readFileSync("app/(app)/merk/[id]/page.tsx", "utf8");
+  // ⚠️ De wachtrijkaart zelf verhuisde op 21 september 2026 naar een eigen
+  // client-component (`_components/wachtrij-lijst.tsx`), voor het "nog X
+  // bekijken" per onderwerp (`lib/wachtrij.ts`). De twee broncodecontroles die
+  // over die kaart gingen, kijken sindsdien naar allebei de bestanden samen.
+  const wachtrijLijst = readFileSync(
+    "app/(app)/merk/[id]/_components/wachtrij-lijst.tsx",
+    "utf8",
+  );
 
   // Alle vijf de werksoorten stonden op amber. "Bekijk wat er mis is" (een
   // cluster dat niet gelukt is) zag er daardoor precies zo uit als "Nakijken".
@@ -11377,7 +11407,7 @@ group("het overzicht: één hoofdgetal, één primaire knop, één rekensom", ()
   // "blokkade, mislukt", attention is "vraagt een keuze, is niet fout". Sinds
   // 25 augustus 2026 draagt de KAART die toon en niet meer een chip van 60
   // pixels, maar het onderscheid moet blijven bestaan.
-  ok("de soort werk bepaalt de toon", overzicht.includes("workChipTone(item.kind)"));
+  ok("de soort werk bepaalt de toon", wachtrijLijst.includes("workChipTone(item.kind)"));
 
   // ── ⚠️ ÉÉN PRIMAIRE KNOP (25 AUGUSTUS 2026) ─────────────────────────────
   //
@@ -11388,7 +11418,8 @@ group("het overzicht: één hoofdgetal, één primaire knop, één rekensom", ()
   // is er geen.
   ok(
     "precies één primaire knop op het scherm",
-    (overzicht.match(/btn-primary/g) ?? []).length === 1,
+    (overzicht.match(/btn-primary/g) ?? []).length === 0 &&
+      (wachtrijLijst.match(/btn-primary/g) ?? []).length === 1,
   );
 
   // Het hoofdgetal stond vier keer op dit scherm, in drie schalen. De subkop is
@@ -11416,11 +11447,13 @@ group("het overzicht: één hoofdgetal, één primaire knop, één rekensom", ()
   ok("de kop zegt hoe vers de meting is", overzicht.includes("versheidsregel"));
 
   // Zeven databronnen op de startpagina van de klant: één onverwachte datavorm
-  // mag niet het hele scherm weghalen (`docs/ux-design.md` §4). Vijf blokken
-  // sinds het opbrengstblok eraf ging (26 augustus 2026).
+  // mag niet het hele scherm weghalen (`docs/ux-design.md` §4). Vier blokken
+  // sinds "Waar je begint" en "Wat ORBIT ENGINE deed" op 21 september 2026
+  // verdwenen (ze verdubbelden met de wachtrij, en het laatste stond
+  // permanent op "niets gepland"/leeg zonder iets aan te bieden).
   ok(
     "elk blok staat in zijn eigen foutopvang",
-    (overzicht.match(/<SectionErrorBoundary/g) ?? []).length >= 5,
+    (overzicht.match(/<SectionErrorBoundary/g) ?? []).length >= 4,
   );
 
   // ── ⚠️ HET ZICHTBAARHEIDSPERCENTAGE STAAT HIER WEER ─────────────────────

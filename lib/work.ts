@@ -71,6 +71,14 @@ export interface WorkItem {
   kind: WorkKind;
   state: WorkState;
   title: string;
+  /**
+   * Wat voor taak dit concreet is, als chip bij de titel: "Vragen beantwoorden",
+   * "Pagina publiceren", "Briefing invullen", "Cluster starten". `WORK_KIND_LABEL`
+   * ("Pagina") is te grof om op het overzicht te tonen naast vijf andere
+   * pagina-items met een ander doel; dit veld maakt per regel expliciet wat de
+   * klant gaat doen, niet alleen waar het over gaat (21 september 2026).
+   */
+  typeLabel: string;
   /** Eén zin: waarom dit ertoe doet. Geen uitleg over hoe het systeem werkt. */
   why: string;
   /** Lager = eerder, binnen dezelfde staat. */
@@ -292,6 +300,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
           id: `blokkade:${analysis.profile_id}`,
           kind: "blokkade",
           state: "nu",
+          typeLabel: "Blokkade oplossen",
           title:
             n === 1
               ? "Je website houdt AI-assistenten buiten"
@@ -312,6 +321,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         id: `goedkeuring:${analysis.id}`,
         kind: "goedkeuring",
         state: "nu",
+        typeLabel: "Cluster starten",
         title: "Bekijk en bevestig het concept",
         why: "Het onderzoek en de vragen staan klaar. Jij geeft akkoord, ORBIT ENGINE begint te meten.",
         urgency: URGENCY.goedkeuring,
@@ -327,6 +337,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         id: `herstel:${analysis.id}`,
         kind: "herstel",
         state: "nu",
+        typeLabel: "Cluster herstellen",
         title: "Er is iets misgegaan",
         why: "Open het cluster om te zien waar het spaak liep en het opnieuw te proberen.",
         urgency: URGENCY.herstel,
@@ -342,6 +353,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         id: `loopt:${analysis.id}`,
         kind: "goedkeuring",
         state: "loopt",
+        typeLabel: analysis.status === "meten" ? "Meting bezig" : "Onderzoek bezig",
         title: analysis.status === "meten" ? "De meting draait" : "Het onderzoek draait",
         why: "ORBIT ENGINE werkt op de achtergrond door, ook als je de browser sluit. Jij hoeft niets.",
         urgency: URGENCY.goedkeuring,
@@ -369,6 +381,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         id: `pagina:${piece.id}`,
         kind: "pagina",
         state: measured ? "klaar" : "wacht",
+        typeLabel: measured ? "Pagina hermeten" : "Wacht op hermeting",
         title: piece.title,
         why: measured
           ? "Gepubliceerd en hermeten. Het resultaat staat op Analytics → Zoekverkeer."
@@ -407,6 +420,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         id: `pagina:${piece.id}`,
         kind: "pagina",
         state: "nu",
+        typeLabel: "Briefing invullen",
         title: piece.title,
         why: "De briefing staat klaar. Vul aan wat ORBIT ENGINE niet van je website kan halen, dan schrijft het de pagina.",
         urgency: URGENCY.feit,
@@ -423,6 +437,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         id: `pagina:${piece.id}`,
         kind: "pagina",
         state: "loopt",
+        typeLabel: "Pagina wordt geschreven",
         title: piece.title,
         why: "ORBIT ENGINE schrijft dit nu. Zodra de tekst klaar is, staat hij hier om na te kijken.",
         urgency: URGENCY.schrijven,
@@ -438,6 +453,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
       id: `pagina:${piece.id}`,
       kind: "pagina",
       state: "nu",
+      typeLabel: piece.needs_review ? "Pagina nakijken" : "Pagina publiceren",
       title: piece.title,
       why: piece.needs_review
         ? "De tekst is klaar, maar de eindredactie zag nog iets. Kijk het na en publiceer daarna."
@@ -462,6 +478,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
       id: `offsite:${task.id}`,
       kind: "offsite",
       state,
+      typeLabel: state === "klaar" ? "Actie afgerond" : "Actie buiten je site",
       title: task.title,
       why: task.why,
       urgency: URGENCY.offsite,
@@ -489,6 +506,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
       id: `feit:${profileId}`,
       kind: "feit",
       state: "nu",
+      typeLabel: "Vragen beantwoorden",
       title: count === 1 ? "Eén vraag over je bedrijf" : `${count} vragen over je bedrijf`,
       why: "Concrete cijfers en jaartallen zijn precies wat een AI-assistent aanhaalt. Eén keer invullen, en élke pagina die ORBIT ENGINE daarna schrijft wordt citeerbaarder.",
       urgency: URGENCY.feit,

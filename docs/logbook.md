@@ -10834,3 +10834,58 @@ benoemt. Dat verdient een eigen ontwerpronde, geen haastige aanname in dezelfde 
 open werk in `docs/tasks/vier-meetbronnen-en-ai-zoekvolume.md`.
 
 `tsc --noEmit`, `test:unit` (5007) en `test:chain` (722) groen, `build` groen.
+
+## 21 september 2026 (13): het overzichtscherm teruggedraaid en opgeschoond, op vraag van de eigenaar
+
+Zeven punten uit één ronde feedback op het overzichtscherm (`app/(app)/merk/[id]/page.tsx`), met
+Van den Udenhout als voorbeeldscherm.
+
+**Terug naar een percentage, door de hele app.** De band-in-antwoorden uit (10) ("2 tot 3 van de
+10") bleek voor de eigenaar minder leesbaar dan een kaal percentage, ondanks de statistische
+onderbouwing erachter. Op het overzicht en op Analytics staat het hoofdgetal weer als `X%`; de marge
+staat er nog steeds bij, alleen niet meer als het hoofdgetal zelf. `bandInAntwoorden()` blijft
+bestaan (puur, getest) voor het geval dit terugkomt, maar wordt nergens meer aangeroepen vanuit een
+scherm.
+
+**De linkerstang op de standkaart is nu vast groen (`#25a750`)**, niet meer afhankelijk van
+`insights()` (`railKlasse()` is verwijderd). Dat is een bewuste afwijking van de regel uit (10) dat
+kleur een oordeel draagt: de eigenaar wil dat dit hoofdgetal altijd dezelfde nadruk krijgt.
+
+**"Sinds september 2026" werd "Sinds start ORBIT ENGINE".** `totalenKop()` in `lib/overview.ts`
+rekende een maandnaam uit de oudste analyse; die datum wees soms naar een moment dat niet meer de
+werkelijke start was (een cluster dat opnieuw begon na archivering). De vaste tekst klopt altijd.
+
+**De groene vinkjes op "Zo werkt je maand" zijn duidelijker.** Een afgeronde stap krijgt een rondje
+in de groene oppervlaktetint (`--trend-up-surface`) achter het vinkje (`_components/ronde-balk.tsx`).
+
+**"Waar je begint" is verwijderd.** Het overlapte zichtbaar met "Wat er op je wacht" (dezelfde
+kaartvorm, dezelfde knoppen), en de eigenaar wees dat aan als verwarrend. De wachtrij zelf is
+uitgebreid: van vijf naar tien items (`MAX_WACHTRIJ`), gegroepeerd per onderwerp (nieuw:
+`lib/wachtrij.ts`, `groepeerPerOnderwerp()`, puur en getest) met een "nog X bekijken" per onderwerp
+(nieuwe client-component `_components/wachtrij-lijst.tsx`). Elke regel toont nu ook een vaste
+type-omschrijving (`WorkItem.typeLabel`, nieuw veld in `lib/work.ts`): "Vragen beantwoorden",
+"Pagina publiceren", "Briefing invullen", "Cluster starten" in plaats van alleen een titel en een
+knop die niet zeiden wát voor taak het was.
+
+**"Wat ORBIT ENGINE deed" is verwijderd**, met zijn hele broncode (`ActiviteitKaart`,
+`ActiviteitRegels`, de `jobs`-query in `page.tsx`). `lib/activity.ts` zelf blijft bestaan: dat blok
+staat ook op `/merk/[id]/admin` en die pagina blijft ongewijzigd.
+
+**Het contentplan-blok kreeg een balk erbij en een kapot blok eraf.** "Aantal ingeplande pagina's"
+staat nu als eigen balk boven de bestaande live-balk (`PlanKaart`). Bij het nakijken van "Per fase
+van de klantreis" bleek dat blok STRUCTUREEL kapot: nagerekend op productie (Van den Udenhout, 18
+geplande pagina's) heeft `planned_pages.funnel_stage_id` op nul rijen een waarde. Sinds de
+jaarverdeling in `createPlan()` (`lib/plans.ts`) op 25 augustus 2026 verdween, kiest niets in de
+schrijfpijplijn meer een fase per pagina; de kolom bestaat en de vier standaardfasen worden nog
+aangemaakt (`ensureFunnels()`), maar er wordt nergens meer naar geschreven. Het blok zei dus bij
+ieder merk "niets gepland", ook waar wél gepland is. Weggehaald in plaats van gerepareerd: de
+reparatie zit in de schrijfpijplijn en is een eigen bouwronde. Open werk, met de query die het
+aantoont: `docs/tasks/funnelfase-nooit-gevuld.md`.
+
+`totalenKop()` verloor zijn parameter (geen datum meer nodig); de test erop is meegegaan.
+`groepeerPerOnderwerp()` kreeg een nieuwe testgroep. De twee broncodecontroles die over de
+wachtrijkaart gingen (`workChipTone`, "precies één primaire knop") kijken sindsdien naar het nieuwe
+bestand `_components/wachtrij-lijst.tsx` in plaats van naar `page.tsx` zelf, en de telling van
+`SectionErrorBoundary` op het overzicht ging van vijf naar vier.
+
+`tsc --noEmit`, `test:unit` (5010), `test:chain` (722) en `build` groen.
