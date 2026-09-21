@@ -1,16 +1,23 @@
 # UX & Design
 
 Leidend voor elk scherm. Tokens en primitieven staan in `app/globals.css`; dit document legt uit
-wat ze zijn en wanneer je welke gebruikt. **Peildatum: 27 augustus 2026.** De vormgeving zelf ging
-op 6 augustus over op het systeem van de NOVA-workspace (volledige verantwoording in
-`designsystem.md`); deze datum volgt de gedragspatronen die daarna zijn bijgekomen (statustaal,
-foutafhandeling, de content-editie, op 21 augustus de iconen in de zijbalk, en op 24 augustus de
-indeling van het merkoverzicht plus de vormgevingsronde erna, de regels voor een lange lijst en de
-uitvraag op "Vraagt jouw input", alle drie hieronder in §5). Later op 24 augustus kwam de
-narekening tegen Nova's eigen CSS erbij, met als grootste gevolgen een witte paginagrond en een
-donkere modus met een schakelaar (§2 hieronder, `designsystem.md` §2.1 en §10). Op 25 en 26 augustus
-kwamen daar twee ontwerprondes op het merkoverzicht bij: dat scherm is de bestemming na inloggen, en
-daaruit volgen regels die voor elke landingspagina gelden (§5 hieronder).
+wat ze zijn en wanneer je welke gebruikt. **Peildatum voor de gedragspatronen: 27 augustus 2026.** De
+vormgeving zelf ging op 6 augustus 2026 over op het systeem van de NOVA-workspace en op 17 september
+2026 over op OKX (volledige verantwoording van allebei in `designsystem.md`); deze datum volgt de
+gedragspatronen die na de eerste omzetting zijn bijgekomen (statustaal, foutafhandeling, de
+content-editie, op 21 augustus de iconen in de zijbalk, en op 24 augustus de indeling van het
+merkoverzicht plus de vormgevingsronde erna, de regels voor een lange lijst en de uitvraag op "Vraagt
+jouw input", alle drie hieronder in §5). Later op 24 augustus kwam de narekening tegen Nova's eigen
+CSS erbij, met als grootste gevolgen een witte paginagrond en een donkere modus met een schakelaar
+(§2 hieronder, `designsystem.md` §2.1 en §10). Op 25 en 26 augustus kwamen daar twee ontwerprondes
+op het merkoverzicht bij: dat scherm is de bestemming na inloggen, en daaruit volgen regels die voor
+elke landingspagina gelden (§5 hieronder).
+
+**De indeling, de navigatie en de gedragspatronen in dit document golden vóór de OKX-omzetting en
+gelden er nog steeds na.** Die ronde (§10.2 van de inmiddels verwijderde `redesign2026.md`) verving
+de vormgeving (kleur, vorm, typografie, dichtheid), niet de indeling: welke schermen er zijn, hoe de
+zijbalk werkt, hoe een lijst zich gedraagt op mobiel. Waar een concreet getal in dit document zelf
+door die ronde is veranderd (een maat, een gewicht, een tokennaam), staat dat er inline bij.
 
 > **Voor de tékst in die schermen geldt `docs/schrijfstijl.md`**: de tone-of-voice van ORBIT ENGINE,
 > afgeleid van InSpace Nova. Dit document gaat over hoe iets eruitziet, dat over hoe het klinkt.
@@ -39,95 +46,70 @@ Het uitgangspunt: **snapt een niet-technische klant dit binnen 5 seconden zonder
 
 ## 2. Kleur en typografie
 
-**Bron: de NOVA-workspace van InSpace** (`nova.inspace.io`), hun ingelogde productomgeving, niet hun
-marketingsite. Dat onderscheid is het hele punt; `designsystem.md` §1 legt uit waarom.
+**Bron: OKX** (`okx.com`), gemeten uit hun gecompileerde CSS op 17 september 2026. Dit is de tweede
+omzetting: van 6 augustus tot 17 september 2026 was InSpace Nova's werkomgeving de bron. De volledige
+verantwoording van allebei, inclusief waarom, staat in `designsystem.md` §1 en bijlage A.
 
-**Twee standen, licht en donker, sinds 24 augustus 2026.** De startstand volgt het
-besturingssysteem; klikt iemand op de schakelaar rechtsboven in de balk, dan wint zijn keuze en
-staat die in `localStorage`. Besluit 17 van 11 augustus 2026, dat de donkere modus schrapte, is die
-dag teruggedraaid omdat het palet ervoor blijkt te bestaan; `designsystem.md` §10 heeft het waarom
-en de twee plekken waar donker niet de spiegel van licht is.
+**Twee standen, licht en donker.** De startstand volgt het besturingssysteem; klikt iemand op de
+schakelaar rechtsboven in de balk, dan wint zijn keuze en staat die in `localStorage`.
+`designsystem.md` §10 heeft het volledige mechanisme.
 
 > ⚠️ **Wat dit betekent voor wie een scherm bouwt: een hexwaarde in een component is geen
-> nettigheidskwestie meer.** Hij draait niet mee met de stand en levert daar gegarandeerd wit op wit
-> of zwart op zwart op. Gebruik altijd een token, en loop na een nieuw scherm de vijf controles uit
-> `designsystem.md` §11 langs.
+> nettigheidskwestie.** Hij draait niet mee met de stand en levert daar gegarandeerd wit op wit
+> of zwart op zwart op. Gebruik altijd een token, en loop na een nieuw scherm de controles uit
+> `designsystem.md` §12 langs.
 
 De volledige tokenlijst staat in `designsystem.md` §2 en hoeft hier niet herhaald te worden. Wat je
-moet weten om een scherm te bouwen (de donkere tegenhangers staan in dezelfde tabel daar):
+moet weten om een scherm te bouwen:
 
 ```css
-/* Neutralen: wit als grond, koel leiblauw als eerste stap eróp */
---bg-base: #ffffff;  --bg-surface: #ffffff;  --bg-muted: #f8fafc;
---bg-elevated: #e7edf2;  --bg-surface-2: #dce3ea;
---text-primary: #17212b;  --text-secondary: #43505d;  --text-muted: #788795;
---border-subtle: #e7edf2;  --border-strong: #c2ccd6;  --border-contrast: #788795;
+/* Neutralen: grond en kaart liggen uit elkaar, geen blauwzweem */
+--bg-base: #f6f6f6;  --bg-surface: #ffffff;  --bg-surface-raised: #f3f3f3;  --bg-layer-2: #e9e9e9;
+--text-primary: #000000;  --text-secondary: #383838;  --text-tertiary: #5b5b5b;
+--border-subtle: rgba(0,0,0,.06);  --border-default: rgba(0,0,0,.14);  --border-primary: #e6e6e6;
 
-/* Betekenissen, elk met -solid, -on-solid, -text, -surface en -border */
---intent-intelligence-*   het merk, AI, de primaire actie
---intent-growth-*         gelukt, gestegen, gepubliceerd
---intent-information-*    een mededeling
---intent-warning-*        kijk hier even naar
---intent-attention-*      vraagt een keuze, is niet fout
---intent-danger-*         blokkade, mislukt, onomkeerbaar
---intent-premium-*        betaald, hoogste plan
---intent-neutral-*        uit, niet van toepassing
+/* Het accent: limoen in donker, donkergroen in licht (limoen op wit is onleesbaar) */
+--accent: #2b6d17 licht / #bcff2f donker;   hooguit één per scherm, zie designsystem.md §2.4
 
-/* Vorm: de pil is NIET meer de standaard */
---radius-md: 8px;    knoppen, velden, navigatie
---radius-lg: 12px;   kaarten
---radius-sm: 6px;    chips en badges (sinds 24 augustus 2026 geen pil meer)
---radius-pill;       alleen voortgangsbalken, stippen en de live-dot
+/* Betekenissen, vier in plaats van Nova's zeven, elk met -content, -surface, -solid */
+--intent-success-*    gelukt, gestegen, gepubliceerd
+--intent-warning-*    kijk hier even naar
+--intent-danger-*     blokkade, mislukt, onomkeerbaar
+--intent-info-*       een mededeling, neutraal grijs, geen blauw
+--trend-up-* / --trend-down-*   richting van een cijfer, apart van succes/fout
 
-/* Diepte: één schaduw, voor wat zweeft. Verder plat. */
---shadow-overlay: 0 4px 6px -4px rgba(0,0,0,.1), 0 10px 15px -3px rgba(0,0,0,.1);
+/* Vorm: de knop is weer een pil, de kaart niet meer */
+--radius-md: 4px;    knoppen rechthoekig, velden, chips, navigatie
+--radius-xl: 8px;    kaarten, menu's
+--radius-pill: 60px; de standaardknop
+
+/* Diepte: drie schaduwstanden, alleen boven het scrim. Een kaart heeft geen schaduw, alleen een rand. */
+--shadow-sm / --shadow-lg / --shadow-xl
 ```
 
-**Fonts:** Geist Sans en Geist Mono via `next/font`, het paar dat Nova zelf gebruikt. Mono was
-JetBrains Mono. Aeonik en TT Commons van InSpace zijn commercieel gelicenseerd en mogen we niet
-overnemen; Geist is daar de open-source tegenhanger van.
+**Fonts:** Archivo (tekst) en Geist Mono (code, URL's) via `next/font`. Was Geist Sans plus Geist
+Mono in de Nova-periode; OKX Sans zelf is commercieel gelicentieerd en niet overneembaar, Archivo is
+het vrije alternatief met de kleinste gemeten afwijking. Zie `designsystem.md` §3.1.
 
-**Acht principes voor consistente toepassing:**
+**Negen regels voor consistente toepassing** (volledig in `designsystem.md` §11, samengevat):
 
-1. **Een kleur heeft een betekenis, geen naam.** Gebruik `--intent-growth-text`, nooit
-   `--accent-green`, en nooit een hexwaarde of een rauwe `rgba()` in een component of een
-   hulpfunctie. Elke kleur buiten `globals.css` is een fout die zich verspreidt: die kleur mist
-   de volgende paletwijziging, en niemand ziet dat totdat twee schermen die elkaar opvolgen twee
-   tinten groen tonen. Dat gebeurde letterlijk: `lib/analysis-status.ts` had `info` en `success`
-   allebei op hetzelfde oude marketingsite-groen staan, ontdekt op 6 augustus 2026, ná de eerste
-   opruimronde, omdat die controle destijds alleen `.tsx` bestreek en dit een `.ts`-bestand is.
-   **Controle vóór een commit, beide moeten nul regels geven (nu ook op `.ts`):**
-
-   ```bash
-   grep -rnE "#[0-9a-fA-F]{6}\b" app components lib --include="*.tsx" --include="*.ts" \
-     | grep -v themeColor | grep -v "lib/email/"
-   grep -rnE "rgba?\([0-9]" app components lib --include="*.tsx" --include="*.ts" \
-     | grep -v "lib/email/"
-   ```
-
-   Twee uitzonderingen, allebei functioneel en geen van beide een gemiste opruiming:
-   `themeColor` in `app/layout.tsx` gaat naar de browserbalk van het besturingssysteem en kan geen
-   CSS-variabele zijn, en `lib/email/*.ts` is HTML voor e-mailclients, die begrijpen geen
-   `var(--...)`.
-2. **Plat, niet gloeiend.** Rand en vlak dragen de hiërarchie. De ene schaduw is voor wat boven de
-   pagina zweeft: menu's, dialogen, de hover van een klikbare kaart. Een gewone kaart is plat.
-   De enige gloed die overblijft is de focusring, en die is toegankelijkheid.
-3. **De pil is voor wat rond moet zijn**: voortgangsbalken, stippen, de `live-dot`. Chips en badges
-   staan op `--radius-sm`, knoppen en velden en navigatie-items op `--radius-md`. De oude regel
-   "interactieve elementen zijn pilvormig" was de marketingsite.
-4. **Status is kleur plus vorm, nooit kleur alleen.** Een pulserende dot, een pijl (`↑` of `↓`) of
-   een chip met tekst. Dat is toegankelijkheid.
-5. **Mono is voor cijfers en voor het kleinste label.** `.stat-value` voor waarden die je
-   vergelijkt, `.mono-label` als kicker boven een titel. Die kicker was sinds 6 augustus sans; op
-   24 augustus 2026 is dat teruggedraaid naar mono, omdat Nova's eigen CSS laat zien dat mono in een
-   klein label juist wél hun productstijl is. Zie `designsystem.md` §3.2.
-6. **Contrast is een tokenkeuze.** `-text` op een licht vlak, `-on-solid` op een gevuld vlak, en
-   `--text-muted` (3,7:1) nooit voor iets wat gelezen moet worden.
-7. **Eén easing overal** (`--ease-standard`), en korte duur: 0,12s tot 0,20s. Bij het wisselen van
-   licht naar donker staat elke overgang uit, anders veegt het hele scherm over in plaats van om te
-   klappen.
-8. **De merk-gradient is het woordmerk.** Nergens anders. In de Nova-werkomgeving komt hij nul keer
-   voor.
+1. **Een kleur heeft een betekenis, geen naam.** Nooit een hexwaarde of rauwe `rgba()` in een
+   component. Controle vóór een commit staat in `designsystem.md` §12, en moet **nul regels** geven
+   op zowel `.tsx` als `.ts`.
+2. **Plat, niet gloeiend.** Geen schaduw op een kaart, geen `backdrop-filter`, geen `transform` op
+   hover. De drie schaduwstanden zijn voorbehouden aan wat boven het scrim zweeft.
+3. **De pil is voor de standaardknop**, en verder nergens. Chips, velden en navigatie staan op
+   `--radius-md` (4px).
+4. **Status is kleur plus vorm, nooit kleur alleen.** Een dot, een pijl, een chip met tekst.
+5. **Eén lettertypefamilie voor alles.** Archivo, `tabular-nums` voor cijfers. Geen mono meer in
+   labels; dat was specifiek Nova's stijl.
+6. **Contrast is een tokenkeuze.** `-content`/`-text` op een licht vlak, `-on`/`-inverse` op een
+   gevuld vlak, en `--text-subtler` nooit voor iets wat gelezen moet worden.
+7. **Eén easing overal** (`--ease-standard`), korte duur: 0,12s tot 0,20s. Bij het wisselen van
+   licht naar donker staat elke overgang uit.
+8. **Het accent is schaars.** Hooguit één hoofdactie per scherm, nooit een kop, nooit meer dan
+   ongeveer 1% van het oppervlak. Zie `designsystem.md` §2.4.
+9. **Een icoon komt uit `lib/icons.ts`.** Nooit een letterteken, nooit een eigen SVG.
 
 ## 3. Componenten
 
@@ -141,22 +123,23 @@ schermen die de gebruiker na elkaar ziet).
 | `.card` | Wit, één rand, **plat**. Geen schaduw, geen hover; een kaart die bij hover omhoog komt belooft interactie. |
 | `.card-interactive` | Alleen op daadwerkelijk klikbare kaarten (de lijstitems). Hier hoort de hover. |
 | `.card-accent` / `.card-danger` / `.card-success` / `.card-warning` | Getinte kaartranden. |
-| `.card-rail` / `.card-rail-success` / `.card-rail-warning` | De 4px-stang links op de kaart met het hoofdgetal van een scherm. **Eén per scherm**, anders markeert hij niets meer. De tint volgt de trend van dat getal: groen bij een echte stijging, oranje bij een echte daling, grijs zolang er geen oordeel is (nooit gemeten, eerste meting, of een verschil binnen de meetruis). Zie `designsystem.md` §5.5. |
-| `.btn-primary` / `.btn-outline` | Beide 40px, `--radius-md`, geen pil meer. `.btn-sm` = 32px, `.btn-lg` = 44px. |
-| `.btn-lg` | 44px, de aanbevolen minimale tikdoelgrootte (WCAG 2.5.5). Combineren met `.btn-primary`/`.btn-outline`, alleen op de ÉNE hoofdactie van een scherm dat vaak op een telefoon bediend wordt (bevestigen, publiceren, "schrijf alles"). Niet de standaard, anders verdwijnt de dichtheid die 40px juist opleverde. |
-| `.no-print` | Verbergt chrome (bovenbalk, hoofdstuk-rail, tabbladen, vaste actiebalken) in het printstijlblad onderaan `globals.css` (B.13). Het dossier IS het rapport, er is geen aparte printpagina. |
-| `.chip` + `-success` / `-danger` / `-warning` / `-info` / `-attention` / `-neutral` / `-green` | `--radius-sm` (sinds 24 augustus 2026 geen pil meer), sans, gewicht 600, schrijftaal. Nooit met de hand een tint of een vorm nabouwen. Dat gebeurde toch, in vijf componenten tegelijk; zie regel 1 hierboven en de `grep` die het nu tegenhoudt. |
-| `.mono-label` | De kicker bóven een titel: 11px, uppercase, **mono** met 1px letterspatiëring. Sinds 24 augustus 2026 klopt de naam weer; hernoemen raakt nog steeds te veel bestanden voor alleen een naam. |
-| `.type-hero` … `.type-label` | De elf tekststijlen van Nova, met maat, gewicht en regelhoogte vast aan elkaar. Gebruik ze in nieuw werk; `designsystem.md` §3.2 heeft de tabel. |
+| `.card-rail` / `.card-rail-success` / `.card-rail-warning` / `.card-rail-accent` | De 2px-stang links op de kaart met het hoofdgetal van een scherm, of op een kaart die om een handeling vraagt (`-accent`). **Eén per scherm**, anders markeert hij niets meer. De tint volgt de trend van dat getal: `--trend-up` bij een echte stijging, oranje bij een echte daling, grijs zolang er geen oordeel is (nooit gemeten, eerste meting, of een verschil binnen de meetruis). Zie `designsystem.md` §5.5. |
+| `.btn-primary` / `.btn-outline` | Beide 40px, `--radius-pill` (weer een pil). `.btn-sm` = 36px, `.btn-lg` = 48px, BEREKEND uit OKX' eigen opgaven. |
+| `.btn-accent` | De hoofdactie van een scherm, hooguit één. Limoen in donker, donkergroen in licht. Nooit `.btn-primary`, die is bewust neutraal (§2 hierboven). |
+| `.btn-lg` | 48px, ruim boven de aanbevolen minimale tikdoelgrootte (WCAG 2.5.5, 44px). Combineren met `.btn-primary`/`.btn-outline`/`.btn-accent`, alleen op de ÉNE hoofdactie van een scherm dat vaak op een telefoon bediend wordt (bevestigen, publiceren, "schrijf alles"). Niet de standaard, anders verdwijnt de dichtheid die 40px juist opleverde. |
+| `.no-print` | Verbergt chrome (bovenbalk, hoofdstuk-rail, tabbladen, vaste actiebalken) in het printstijlblad onderaan `globals.css`. Het dossier IS het rapport, er is geen aparte printpagina. |
+| `.chip` + `-success` / `-danger` / `-warning` / `-info` / `-attention` / `-neutral` / `-outline` | `--radius-md` (4px, geen pil), sans, gewicht 500, schrijftaal. `-attention` draagt sinds de OKX-omzetting het accent, niet meer roze. Nooit met de hand een tint of een vorm nabouwen; zie regel 1 hierboven en de `grep` die het tegenhoudt. |
+| `.mono-label` | De kicker bóven een titel: 12px, uppercase, 0,04em letterspatiëring. Rendert sinds de OKX-omzetting in Archivo, niet meer in mono; de naam is historisch en hernoemen raakt nog steeds te veel bestanden voor alleen een naam. |
+| `.type-hero` … `.type-caption-emphasis` | De tekststijlen van OKX, met maat, gewicht en regelhoogte vast aan elkaar. Gebruik ze in nieuw werk; `designsystem.md` §3.2 heeft de tabel. |
 | `.btn-ghost` | **De uitweg naast een handeling**: "Wachtwoord vergeten?", "Terug naar inloggen", "Annuleren". Zelfde maat als `.btn-primary`, geen vlak, bij hover een waas. Gebruik hem in plaats van een kale link zodra hij onder of naast een knop staat, anders zweeft er een regel tekst onder een vlak van 40 pixels. |
-| `.stat-value` | Cijfers die je vergelijkt, in mono met `tabular-nums`, gewicht 700. |
-| `.field` | Formuliervelden, 40px, wit met een rand, inclusief focusring. |
+| `.stat-value` | Cijfers die je vergelijkt, `tabular-nums`, gewicht 500. Bij OKX doet de maat het werk van een hoofdgetal, niet het gewicht. |
+| `.field` / `.field-lg` | Formuliervelden, 40px (of 48px voor `.field-lg`, tot nu toe alleen de inlogroute), wit met een rand, inclusief focusring. |
 | `.live-dot` | Pulserende indicator voor "loopt nu". |
 | `.skeleton` | Laadvlak, respecteert `prefers-reduced-motion`. |
 | `.prose` | Lange tekst (rapport, contentpagina). |
 | `.brand-gradient-text` | **Alleen het woordmerk ORBIT ENGINE.** Nergens anders. |
-| `PageHeader`, `EmptyState`, `Narrow` | Eén variant per patroon, geen lokale kopieën. |
-| `Icon` (`components/icon.tsx`) | Het enige icoon-component, nooit een los teken en nooit een eigen SVG. In een lijstregel: 18px, links van de titel, in de leeskleur (`text-secondary`) en nooit in de merkkleur. In een knop: 18px, vóór het label als de knop naar een plek gaat (het icoon van dat hoofdstuk), erna als hij vooruit gaat (`naar`). Zie `designsystem.md` §6b.3, regels 5 en 6. |
+| `PageHeader`, `SectionHeading`, `EmptyState`, `Narrow` | Eén variant per patroon, geen lokale kopieën. |
+| `Icon` (`components/icon.tsx`) | Het enige icoon-component, nooit een los teken en nooit een eigen SVG. In een lijstregel: 16px, links van de titel, in de leeskleur (`text-secondary`) en nooit in de accentkleur. In een knop: 18px. Zie `designsystem.md` §6. |
 | `ConfidenceChip` (`components/confidence-chip.tsx`) | Zekerheid is een **niveau**, nooit een getal: zeker (geen markering) · onzeker (amber) · niet vastgesteld (mono-label "niet gevonden"). "0.62" zegt een MKB'er niets. |
 | `CopyButton`, `ExternalLink`, `LastUpdated` (`components/`) | H.63-65: drie kleine primitieven tegen herhaling, klembord, "verlaat de app"-pijltje, relatieve datum met volledige datum als tooltip. Elke plek die zelf `navigator.clipboard` of `target="_blank"` opnieuw uittypte, hoort hierheen te verhuizen. |
 | `TableOfContents` (`components/table-of-contents.tsx`) | H.68: inhoudsopgave bij een contentpagina met 3+ koppen, gevoed door `extractHeadings()` in `lib/markdown.ts`. De ankers komen uit dezelfde functie die `renderMarkdown()` zijn `id`'s geeft, dus ze kunnen nooit uit de pas lopen. |
@@ -318,14 +301,14 @@ erger dan een kop die er nog niet is: de eerste kost vertrouwen in de hele balk.
 
 **Er valt niets uit te klappen.** Het uitklappen was er voor die ene kop met negen kinderen. Met
 hooguit vijf per hoofdstuk passen alle bestemmingen tegelijk in beeld, en dan is een klapknop een
-klik die niets oplevert. Ingeklapt (64px) blijft alleen het icoon van het hoofdstuk over, en dat
+klik die niets oplevert. Ingeklapt (56px) blijft alleen het icoon van het hoofdstuk over, en dat
 linkt naar zijn eerste bestemming.
 
 **Alleen de kop draagt een icoon** (21 augustus 2026). De zeven hoofdstukken hebben er een, op 18
 pixels; de bestemmingen eronder niet. Zo blijft het icoon zeggen "dit is een van de zeven vaste
 plekken in de app" in plaats van alleen "hier staat een regel". De koppen droegen hiervoor de tekens
 ◉ ▣ ▲ ◆ ⚙ ◈, die op elk apparaat een andere vorm hadden; welke tekening bij welk hoofdstuk hoort
-staat nu in `lib/icons.ts`, de vormregels in `designsystem.md` §6b.
+staat nu in `lib/icons.ts`, de vormregels in `designsystem.md` §6.
 
 ⚠️ **De bestemmingen hebben een halve dag wél een icoon gehad, en dat is teruggedraaid.** Het zag er
 verzorgd uit en het werkte averechts: zestien tekeningen in een balk van zestien regels markeren
@@ -342,7 +325,7 @@ wijziging doet één ding:
 
 | Wat | Was | Is | Waarom |
 |---|---|---|---|
-| De kop | 14px, gewicht 500, grijs | **15px, gewicht 600, `--text-primary`** | Zes ankers die je in één oogopslag terugvindt |
+| De kop | 14px, gewicht 500, grijs | 15px, gewicht 600, `--text-primary`. **Sinds de OKX-omzetting (17 september 2026) 12px, gewicht 500, uppercase** (`.nav-kop`): OKX gebruikt nergens 600 binnen een regel, zie `designsystem.md` §3.2 | Zes ankers die je in één oogopslag terugvindt |
 | Het icoon van de kop | De kleur van de tekst ernaast | Onveranderd, `currentColor` | Het heeft een halve dag `--accent-purple` gedragen; dat is teruggedraaid, zie de waarschuwing onder deze tabel |
 | Het kindschap | Een verticale lijn links van de kinderen | **28px inspringen, geen lijn** | De tekst van een bestemming staat exact onder de tekst van zijn kop; de lijn liep dwars door de actieve regel |
 | De actieve regel | `--bg-elevated` met de gewone tekstkleur | **`--bg-elevated` met `--text-primary`, en een hover van 5% inkt eronder** | Het vlak alleen haalde 1,1:1 met zijn eigen achtergrond: je zag het pas als je ernaar zocht. De tekst laten meelopen naar de primaire kleur lost dat op zonder er een merkkleur bij te halen |
@@ -358,14 +341,16 @@ redenen om het terug te draaien, en de tweede is de zwaarste. In de donkere stan
 regel uit op paarse letters (`#ad45ff`) op een paars vlak (`#42006d`): 2,6:1, onder de 4,5 die
 leesbare tekst vraagt. En paars betekent in dit systeem "hier doet de AI iets"; zolang de balk het
 naast élk scherm gebruikt voor "je bent hier" betekent het dat niet meer. Dat is dezelfde redenering
-die de hoofdknop van paars naar inkt bracht. Zie `designsystem.md` §10.4.
+die de hoofdknop van paars naar inkt bracht (destijds Nova's inktkleur; sinds de OKX-omzetting is de
+hoofdknop neutraal en de accentkleur limoen, met dezelfde redenering, zie `designsystem.md` §2.4).
+Deze hele alinea is geschiedenis uit de Nova-periode; zie `designsystem.md` bijlage A.
 
 ⚠️ **"Alleen jij" is een gevuld stempeltje geworden**, in dezelfde tint als de actieve regel. Los
 grijs hoofdlettertekst achter de bestemming las als een tweede label van die bestemming, terwijl het
 een stempel erop is: dit ziet de klant niet. Het staat op `--radius-sm`, dezelfde vorm als de chips
 elders in de app.
 
-**Ingeklapt (64px) draagt het icoon de tekstkleur**, ook als het hoofdstuk niet actief is. Het is
+**Ingeklapt (56px) draagt het icoon de tekstkleur**, ook als het hoofdstuk niet actief is. Het is
 daar het enige wat er van de zes ankers over is en moet dus leesbaar zijn, niet opvallend; de
 actieve staat zit in het vlak eronder.
 
@@ -436,11 +421,11 @@ de bovenste toevallig het hoofdgetal van het merk droeg. Zes ingrepen, allemaal 
 
 | Wat | Waarom | Waar het vastligt |
 |---|---|---|
-| Een groene stang links op de stand-kaart | Het hoofdgetal zag eruit als de vijf kaarten eronder. De tint volgt de eerste zin van `insights()`, dus groen betekent "dit steeg écht" en niet "dit is een kaart" | `designsystem.md` §5.5 |
-| De inzichtregels kregen een gekleurde stip, en de zin werd weer zwart | De hele zin stond in groen of oranje. Drie regels waarvan er twee gekleurd zijn, leest als een foutmelding; en het teken • kwam uit de tekstlaag en zag er per platform anders uit | `designsystem.md` §6b.1 |
-| Elke regel in "wacht op jou" en "waar begin je" kreeg een icoon | Twaalf kansen die alleen in hun tekst verschilden. Het icoon draagt het verschil tussen een nieuwe pagina en een bestaande die bijgewerkt wordt, vóór de eerste letter | `designsystem.md` §6b.3, regel 5 |
-| Iconen en de handeling onderaan een kaart in de leeskleur, niet in paars | Twaalf paarse regels onder elkaar maken van een lijst een muur van gelijkwaardige hoofdacties | `designsystem.md` §6b.3, regel 6 |
-| Kaarttitels van 500 naar 600, het hoofdgetal naar 700 | Titel en toelichting leken even zwaar; het cijfer dat het antwoord van het scherm is, was niet het zwaarste element van zijn kaart | `designsystem.md` §3.1 |
+| Een gekleurde stang links op de stand-kaart | Het hoofdgetal zag eruit als de vijf kaarten eronder. De tint volgt de eerste zin van `insights()`, dus de kleur betekent "dit steeg écht" en niet "dit is een kaart" | `designsystem.md` §5.5 |
+| De inzichtregels kregen een gekleurde stip, en de zin werd weer zwart | De hele zin stond in groen of oranje. Drie regels waarvan er twee gekleurd zijn, leest als een foutmelding; en het teken • kwam uit de tekstlaag en zag er per platform anders uit | `designsystem.md` §6 |
+| Elke regel in "wacht op jou" en "waar begin je" kreeg een icoon | Twaalf kansen die alleen in hun tekst verschilden. Het icoon draagt het verschil tussen een nieuwe pagina en een bestaande die bijgewerkt wordt, vóór de eerste letter | `designsystem.md` §6 |
+| Iconen en de handeling onderaan een kaart in de leeskleur, niet in de accentkleur | Twaalf accentkleurige regels onder elkaar maken van een lijst een muur van gelijkwaardige hoofdacties | `designsystem.md` §6 |
+| Kaarttitels op gewicht 500, het hoofdgetal op gewicht 500 met een grotere maat | Titel en toelichting leken even zwaar; het cijfer dat het antwoord van het scherm is, was niet het zwaarste element van zijn kaart. **Sinds de OKX-omzetting doet de maat dat werk, niet het gewicht**: 600 en 700 komen nergens meer voor binnen een regel | `designsystem.md` §3.2 |
 | De potentiechip rechts uitgelijnd, en minder rond | Hij draagt het getal waarop de lijst gesorteerd is, dus hij hoort in één kolom te staan en niet achter elke titel op een andere plek | `designsystem.md` §5.1 |
 
 ⚠️ **De laatste regel is op 25 augustus ingehaald.** De kolom rechts klopte, de inhoud niet: bij een
@@ -884,7 +869,7 @@ gelinkte routes van de app voor alleen cosmetiek.
 rechtenvraag één keer met `getOwnedProfile()`, in plaats van elf keer per scherm. Een gebruiker die
 niet bij het merk hoort krijgt een **404 en geen 403**: een 403 bevestigt dat het merk bestaat.
 
-**Vaste breedtes in de zijbalk** (240px, ingeklapt 64px). Een zijbalk die meegroeit met de langste
+**Vaste breedtes in de zijbalk** (240px, ingeklapt 56px). Een zijbalk die meegroeit met de langste
 merknaam laat de hele pagina verspringen zodra je wisselt.
 
 **Een analyse is één dossier in vier hoofdstukken**, als tabbladen:
@@ -1283,9 +1268,11 @@ implementatiedetail; het ontwerpproces blijft desktop-first.
 | Grafieken | Volledige multi-serie grafiek | Kernwaarde + sparkline |
 | Modals | Gecentreerd | Full-screen sheet |
 
-⚠️ **Open punt sinds de overstap:** een `.btn-primary` is 40px hoog en haalt de 44px hieronder dus
-niet. Op mobiel moet een primaire actie extra verticale padding of een eigen `.btn-lg` krijgen. Dat
-is nog niet gebouwd.
+⚠️ **Open punt:** een `.btn-primary` is 40px hoog en haalt de 44px hieronder dus niet. `.btn-lg`
+(48px sinds de OKX-omzetting) haalt de drempel wel, maar een pagina moet hem zelf op zijn primaire
+actie zetten; er is geen automatische omschakeling onder 768px. `.icon-btn` heeft die omschakeling
+sinds stap 6 van de OKX-ronde wel (44px onder 767px, zie `app/globals.css`); voor de tekstknop is
+dat nog niet gebouwd.
 
 Vaste mobiele regels: tikdoelen ≥ 44×44px · formuliervelden ≥ 16px (anders zoomt iOS Safari in) ·
 geen interactie mag van hover afhangen.

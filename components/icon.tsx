@@ -8,10 +8,9 @@ import { ICONEN, type IcoonNaam } from "@/lib/icons";
  * Lucide levert standaard 24 pixels bij lijndikte 2. Dat is te zwaar naast
  * `text-sm`: het icoon trekt dan meer aandacht dan het woord ernaast, en dat is
  * de omgekeerde volgorde van wat `docs/merkstrategie.md` §15.3 vraagt
- * ("duidelijke typografie, subtiele borders"). De handgetekende SVG's die hier
- * al stonden (`components/profile-menu.tsx`) hadden lijndikte 1,6 en 1,8, en
- * dat bleek de goede maat. 1,75 zit daar precies tussenin en houdt de hele set
- * op één gewicht.
+ * ("duidelijke typografie, subtiele borders"). Lijndikte 1,5 (was 1,75 vóór de
+ * OKX-omzetting) hoort bij tekst op gewicht 500 in plaats van 600: een lichtere
+ * letter naast een even zware lijn oogt onbalans, zie `redesign2026.md` §5.7.
  *
  * ⚠️ **Het icoon kleurt nooit zichzelf.** Het erft `currentColor` van de tekst
  * ernaast. Zo blijft de betekenislaag van `docs/designsystem.md` §2.3 de enige
@@ -42,7 +41,7 @@ export function Icon({
   return (
     <Tekening
       size={size}
-      strokeWidth={1.75}
+      strokeWidth={1.5}
       aria-hidden
       className={`shrink-0${className ? ` ${className}` : ""}`}
     />
