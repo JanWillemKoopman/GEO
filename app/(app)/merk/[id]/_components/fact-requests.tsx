@@ -86,7 +86,12 @@ export function FactRequests({
 
   // Alleen groepen waar ook echt een vraag in zit. Een filterknop die naar een
   // lege lijst leidt is een dood einde (`docs/ux-design.md` §4).
-  const knoppen = (groepen ?? []).filter((g) => facts.some((f) => groepVan(f) === g.id));
+  const alleGroepen = (groepen ?? []).filter((g) => facts.some((f) => groepVan(f) === g.id));
+  // Een knop met "0" erachter is ook een dood einde: hij oogt als filter maar
+  // leidt naar een groep waar alles al beantwoord of overgeslagen is. Die knop
+  // blijft weg, ook al bestaat de groep nog (voor "Alles" en de tellingen
+  // eronder telt hij nog gewoon mee).
+  const knoppen = alleGroepen.filter((g) => facts.some((f) => groepVan(f) === g.id && f.status === "open"));
 
   async function send(factId: string, payload: { answer?: string; skip?: boolean }) {
     setBusy(factId);
@@ -124,8 +129,8 @@ export function FactRequests({
 
   /** De naam van de groep waar deze vraag bij hoort, voor het etiket erboven. */
   function naamVan(f: FactRequest): string | null {
-    if (knoppen.length < 2) return null;
-    return knoppen.find((g) => g.id === groepVan(f))?.naam ?? null;
+    if (alleGroepen.length < 2) return null;
+    return alleGroepen.find((g) => g.id === groepVan(f))?.naam ?? null;
   }
 
   return (
@@ -146,7 +151,7 @@ export function FactRequests({
 
       {/* Het filter. Verschijnt pas bij twee groepen, en toont per groep hoeveel
           er nog open staat: een filter zonder telling laat je blind klikken. */}
-      {knoppen.length > 1 && (
+      {alleGroepen.length > 1 && (
         <div className="flex flex-wrap items-center gap-2">
           <FilterKnop label="Alles" aantal={facts.filter((f) => f.status === "open").length} actief={groep === null} onClick={() => setGroep(null)} />
           {knoppen.map((g) => (
@@ -361,7 +366,11 @@ function FactCard({
         />
         <div className="flex flex-wrap items-center gap-3">
           {!directOpslaan && (
-            <button type="submit" className="btn-outline" disabled={busy || !answer.trim()}>
+            <button
+              type="submit"
+              className={answer.trim() ? "btn-accent" : "btn-outline"}
+              disabled={busy || !answer.trim()}
+            >
               Opslaan
             </button>
           )}
