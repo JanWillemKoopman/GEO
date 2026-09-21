@@ -123,9 +123,9 @@ export function VersionDiff({
                   <del
                     key={i}
                     style={{
-                      background: "var(--intent-danger-surface)",
-                      color: "var(--intent-danger-text)",
-                      textDecorationColor: "var(--intent-danger-text)",
+                      background: "var(--trend-down-surface)",
+                      color: "var(--trend-down-text)",
+                      textDecorationColor: "var(--trend-down-text)",
                     }}
                   >
                     {op.text}
@@ -136,8 +136,8 @@ export function VersionDiff({
                 <ins
                   key={i}
                   style={{
-                    background: "var(--intent-growth-surface)",
-                    color: "var(--intent-growth-text)",
+                    background: "var(--trend-up-surface)",
+                    color: "var(--trend-up-text)",
                     textDecoration: "none",
                   }}
                 >

@@ -305,7 +305,13 @@ function FactCard({
     // hoog. Dat was een keuze voor een korte lijst, en hij kostte de antwoorden:
     // in een regel van 26rem schrijft niemand op welke garantie hij geeft. Nu
     // staat de vraag boven het veld en het veld over de volle breedte.
-    <li className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3">
+    //
+    // De linkerstang (`card-rail-accent`, §8.5) staat niet op een overgeslagen
+    // vraag: die vroeg al om een reactie en kreeg er een, dus is geen open punt
+    // meer, ook al staat hij nog in dezelfde lijst.
+    <li
+      className={`flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 ${skipped ? "" : "card-rail-accent"}`}
+    >
       <div className="flex min-w-0 flex-col gap-0.5">
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-medium">{fact.question}</p>

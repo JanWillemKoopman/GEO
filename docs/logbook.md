@@ -9924,3 +9924,39 @@ op hexkleuren, `backdrop-blur`, `shadow-`, kale Tailwind-radiusklassen, resteren
 en de oude intent-namen. Wat niet is gecontroleerd: hoe de lade er in een echte browser uitziet boven
 op een brede tabel, en of `wil-data` op een breed scherm ook echt breder rendert dan 1440px. Dat
 blijft open voor de eerstvolgende Vercel-preview.
+
+## 21 september 2026, stap 10 van de redesign, portie 3: Strategie
+
+Vijf routes (§8.5): clusters, vragen, plan, plan/versies, bibliotheek.
+
+**Geen van de vijf kreeg `wil-data`.** §8.5 veronderstelt tabellen voor clusters en bibliotheek; beide
+zijn kaartrasters (`ClusterKaart`, respectievelijk `grid-cols-3` in `library-view.tsx`). Plan is een
+kalenderweergave, ook geen tabel. §8.1's eigen algemene regel (data is voor tabel, grafiek,
+vergelijking) wijst dan zelf al naar "werken", en dat is al de standaardbreedte. Derde keer dat een
+per-scherm voorschrift uit §8 niet aansloot op wat er echt staat (na de DataCards in portie 1 en de
+hoofdgrafiek in portie 2); steeds omdat het scherm intussen doordachter is dan de abstracte
+beschrijving.
+
+**Nieuwe CSS-klasse: `.card-rail-accent`.** §8.5 vraagt "open vraag krijgt links 2px --accent". Er
+bestonden al twee stangvarianten (`.card-rail-success`, `.card-rail-warning`, beide een
+richtingkleur voor een meetuitkomst); deze derde draagt `--accent` voor "dit vraagt een handeling van
+jou" en niet voor een uitkomst. Toegepast op elke kaart in `FactRequests`' open-lijst, met opzet niet
+op een overgeslagen vraag in dezelfde component: die vroeg al om een reactie en kreeg er een.
+
+**`VersionDiff` kreeg de enige omzetting in deze hele redesign die écht een andere kleur oplevert.**
+Verwijderde tekst ging van `--intent-danger-*` naar `--trend-down-*`, toegevoegde tekst van
+`--intent-growth-*` naar `--trend-up-*`. Elke eerdere `growth`→`trend-up`-omzetting in dit project was
+kleurloos (het ene token wees al naar het andere); hier niet, want `--trend-down-text` (`#c22a48`) en
+`--intent-danger-text` (`#ba2133`) zijn twee verschillende roodtinten. Semantisch is dit de juistere
+kleur: verwijderde tekst in een versievergelijking is een richting (minder), geen foutmelding. Twee
+overige `--intent-growth-*`-aanroepen (`plan-calendar-view.tsx`, `create-plan-box.tsx`) zijn wel
+kleurloos omgezet naar `--trend-up`, dezelfde naamswisseling als in de vorige twee porties.
+
+`redesign2026.md` kreeg een derde rij in de voortgangstabel.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+allemaal groen. Nagerekend: alle vijf routes en hun bijbehorende componenten zijn doorzocht op
+hexkleuren, `backdrop-blur`, `shadow-` en de oude intent-namen. Wat niet is gecontroleerd: of het
+nieuwe rood van `VersionDiff` op beide standen (licht en donker) voldoende contrast houdt tegen zijn
+eigen surface-tint, en hoe de linkerstang op een open vraag er in een echte browser uitziet. Dat
+blijft open voor de eerstvolgende Vercel-preview.

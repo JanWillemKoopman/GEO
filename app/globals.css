@@ -1207,6 +1207,12 @@ table {
   border-left-width: var(--border-width-sm);
   border-left-color: var(--intent-warning-content);
 }
+/* Een kaart die om een handeling vraagt en geen meetuitkomst weergeeft: een
+   openstaande vraag, geen stijging of waarschuwing. Stap 10, §8.5. */
+.card-rail-accent {
+  border-left-width: var(--border-width-sm);
+  border-left-color: var(--accent);
+}
 
 /* ── Knoppen ────────────────────────────────────────────────────────────────
    GEMETEN bij OKX. Hun hoogtes zijn niet opgegeven maar BEREKEND uit

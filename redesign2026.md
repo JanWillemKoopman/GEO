@@ -2157,6 +2157,7 @@ analytics, strategie, sales, admin, de rest. Dit is de lange staart en hij is in
 |---|---|---|
 | 1 | Het merkoverzicht (`/merk/[id]`, §8.3), plus `PageHeader` en `SectionHeading` als bijvangst (34 respectievelijk 2 schermen die meeliften) | ✅ 21 september 2026 |
 | 2 | Analytics: zichtbaarheid, concurrenten, reputatie, zoekverkeer (§8.4) | ✅ 21 september 2026 |
+| 3 | Strategie: clusters, vragen, plan, plan/versies, bibliotheek (§8.5) | ✅ 21 september 2026 |
 
 ⚠️ **Bij portie 1 bleek §8.3's eigen voorschrift ("kerncijfers: raster van 4 DataCards") een
 verkeerde aanname.** Het echte scherm heeft geen vier losse kaarten maar één kaart met een
@@ -2194,6 +2195,25 @@ van de gedeelde `AnalyticsTable` (alle vier de schermen) ging van 14px/400/`--te
 vervangen door `Drawer`** op de vier plekken die het gebruikten, plus verwijderd als dood bestand.
 Dat laatste stond letterlijk in §8.4 ("de detail-panel die er al is wordt de lade") en is de grootste
 functionele verbetering van deze portie: een rij aanklikken kost niet langer kolombreedte.
+
+⚠️ **Bij portie 3 bleek §8.5's "stand data voor clusters en bibliotheek" een verkeerde aanname, om
+dezelfde reden als bij portie 1.** Geen van de twee is een tabel: clusters is een lijst `ClusterKaart`,
+bibliotheek een kaartraster (`grid-cols-3`). §8.1's eigen algemene regel (data is voor "tabel,
+grafiek, vergelijking") zegt dan zelf al dat "werken" klopt voor een kaartraster, dus geen wijziging.
+Plan is óók geen tabel (een kalenderweergave), dus ook daar geen wijziging nodig, wat toevallig al was
+wat §8.5 voor plan voorschreef.
+
+Wat wél nieuw is: **`.card-rail-accent`**, een derde stang naast de bestaande
+`.card-rail-success`/`.card-rail-warning` (`--accent` in plaats van een richtingkleur, voor "dit vraagt
+een handeling" in plaats van "dit is een meetuitkomst"). Toegepast op elke open vraag in
+`FactRequests` (§8.5: "open vraag krijgt links 2px --accent"), niet op een overgeslagen vraag in
+dezelfde lijst. En `VersionDiff` ging van `--intent-danger-*`/`--intent-growth-*` naar
+`--trend-down-*`/`--trend-up-*` voor verwijderde/toegevoegde tekst, letterlijk zoals §8.5 het
+voorschrijft: dit is de eerste plek in de hele redesign waar zo'n omzetting een ECHTE kleurwijziging
+oplevert (de twee tokenparen zijn niet identiek, in tegenstelling tot elke eerdere
+`--intent-growth-*`→`--trend-up`-omzetting in dit project). Twee losse `--intent-growth-*`-aanroepen
+elders (`plan-calendar-view.tsx`, `create-plan-box.tsx`) zijn wel omgezet naar `--trend-up` zonder
+kleurverschil, dezelfde soort naamswisseling als in portie 1 en 2.
 
 **Stap 11, documentatie.** Zie 10.6.
 

@@ -94,7 +94,7 @@ function MaandGrid({ dagen }: { dagen: CalendarDag[] }) {
                 : tone === "fout"
                   ? { background: "var(--intent-danger-surface)", color: "var(--intent-danger-text)" }
                   : tone === "klaar"
-                    ? { background: "var(--intent-growth-surface)", color: "var(--intent-growth-text)" }
+                    ? { background: "var(--trend-up-surface)", color: "var(--trend-up-text)" }
                     : { background: "var(--intent-intelligence-surface)", color: "var(--intent-intelligence-text)" }
             }
           >
