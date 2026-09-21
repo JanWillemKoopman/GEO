@@ -13,17 +13,24 @@ const DESKTOP_QUERY = "(min-width: 1024px)";
 export function CollapsibleSection({
   title,
   badge,
+  badgeClassName,
   defaultOpen,
   compact = false,
+  card = false,
   children,
 }: {
   title: string;
   badge?: string;
+  /** Overschrijft de kale, grijze chip. Voor een badge die mag opvallen. */
+  badgeClassName?: string;
   /** Overschrijft het breakpoint-gedrag (bv. altijd open forceren). */
   defaultOpen?: boolean;
   /** De kleine variant uit §8.11: 16px kop-vulling en 14px titel in plaats
    *  van 32px/18px. Voor een lijst van tientallen items, zoals `/support`. */
   compact?: boolean;
+  /** Op een wit, afgerond vlak in plaats van de vlakke OKX-streep. Voor een
+   *  sectie die tussen kaarten staat en er zelf ook als kaart uit moet zien. */
+  card?: boolean;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen ?? true);
@@ -35,7 +42,9 @@ export function CollapsibleSection({
   }, [defaultOpen]);
 
   return (
-    <div className={`collapsible${compact ? " collapsible-compact" : ""}`}>
+    <div
+      className={`collapsible${compact ? " collapsible-compact" : ""}${card ? " collapsible-card" : ""}`}
+    >
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -44,7 +53,7 @@ export function CollapsibleSection({
       >
         <span className="collapsible-titel">
           {title}
-          {badge && <span className="chip">{badge}</span>}
+          {badge && <span className={badgeClassName ?? "chip"}>{badge}</span>}
         </span>
         <span
           className="collapsible-pictogram"

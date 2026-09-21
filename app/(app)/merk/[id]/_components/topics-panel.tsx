@@ -133,7 +133,9 @@ export function TopicsPanel({
     return b.priority - a.priority;
   });
 
-  const open = sorted.filter((t) => t.status !== "afgewezen");
+  // Een topic met een lopend cluster staat al in "Mijn clusters" hierboven.
+  // Hem hier ook laten staan zet hetzelfde cluster twee keer op de pagina.
+  const open = sorted.filter((t) => t.status !== "afgewezen" && !t.analysis_id);
   const afgewezen = sorted.filter((t) => t.status === "afgewezen");
 
   async function patch(topicId: string, patchBody: Record<string, unknown>) {
@@ -315,7 +317,7 @@ export function TopicsPanel({
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                className="btn-primary btn-sm disabled:opacity-50"
+                className="btn-accent btn-sm disabled:opacity-50"
                 disabled={bezig || !checkMix(mix).ok}
                 onClick={() => void start(t.id, mix)}
               >
@@ -394,7 +396,7 @@ export function TopicsPanel({
             {!t.analysis_id && t.stage !== "concept" && (
               <button
                 type="button"
-                className="btn-primary btn-sm disabled:opacity-50"
+                className="btn-accent btn-sm disabled:opacity-50"
                 disabled={bezig}
                 onClick={() => void start(t.id)}
               >
@@ -490,7 +492,9 @@ export function TopicsPanel({
     <CollapsibleSection
       title="Onderwerpen om op te meten"
       badge={`${open.length} voorgesteld`}
+      badgeClassName="chip chip-info"
       defaultOpen={false}
+      card
     >
       <p className="text-sm text-secondary">
         Afgeleid uit de diensten en producten die ORBIT ENGINE op je website vond. Kies waarop je wilt

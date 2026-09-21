@@ -78,18 +78,24 @@ export function ClusterBalk({
           Prullenbak ({aantalPrullenbak})
         </Link>
 
-        {/* Rechts op dezelfde regel. `ml-auto` duwt hem naar de rand zolang er
-            ruimte is, en op een smal scherm valt hij eronder in plaats van de
-            knoppen weg te drukken. */}
-        <label className="ml-auto flex items-center gap-2">
-          <span className="mono-label">
+        {/* Rechts op dezelfde regel. `ml-auto` duwt het duo naar de rand zolang
+            er ruimte is, en op een smal scherm valt het eronder in plaats van
+            de knoppen weg te drukken. */}
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            className="btn-ghost btn-sm"
+            onClick={() => setBeheer((aan) => !aan)}
+            aria-expanded={beheer}
+          >
             <Icon naam="label" size={14} />
-            Label
-          </span>
+            Labels beheren
+          </button>
+
           <select
             value={filter}
             onChange={(e) => kiesLabel(e.target.value)}
-            className="field w-auto"
+            className="field w-auto pr-8"
             aria-label="Filter op label"
           >
             <option value={LABELFILTER_ALLES}>Alle labels</option>
@@ -102,19 +108,7 @@ export function ClusterBalk({
                 nergens meer terug te vinden zodra er tien labels zijn. */}
             <option value={LABELFILTER_GEEN}>Zonder label ({aantalZonderLabel})</option>
           </select>
-        </label>
-
-        {/* Achter het filter en niet ervoor: hernoemen en weggooien doe je een
-            enkele keer, filteren elke keer dat je hier komt. */}
-        <button
-          type="button"
-          className="btn-ghost btn-sm"
-          onClick={() => setBeheer((aan) => !aan)}
-          aria-expanded={beheer}
-        >
-          <Icon naam="label" size={14} />
-          Labels beheren
-        </button>
+        </div>
       </div>
 
       {beheer && (
