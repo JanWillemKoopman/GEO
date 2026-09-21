@@ -4,8 +4,6 @@ import { getProfile } from "@/lib/profiles";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
-import { AuditPanel } from "@/components/audit-panel";
-import { InfoHint } from "@/components/info-hint";
 import { AnalyticsFilters } from "@/components/analytics-filters";
 import { AnalyticsClusterTable } from "@/components/analytics-cluster-table";
 import { ClusterVisibilityGrid } from "@/components/cluster-visibility-grid";
@@ -27,11 +25,6 @@ import {
   PERIODEFILTER_ACTUEEL,
 } from "@/lib/analytics-filters";
 import { sorteerLabels } from "@/lib/cluster-labels";
-import {
-  parseContextFactors,
-  technicalAdviceStale,
-  staleAdviceNotice,
-} from "@/lib/pipeline/context-factors";
 import type { AuditCheck } from "@/lib/audit/technical";
 import type {
   ClusterLabel,
@@ -48,16 +41,17 @@ export const metadata = { title: "Zichtbaarheid in AI" };
 /**
  * ZICHTBAARHEID IN AI, over alle clusters van dit merk heen.
  *
- * ── WAAROM DE TECHNISCHE DIAGNOSE ONDERAAN DIT SCHERM STAAT ─────────────────
+ * ── WAAROM DE BLOKKADEBANNER HIER STAAT, DE VOLLEDIGE DIAGNOSE NIET MEER ────
  *
- * Besluit 7 van 17 augustus 2026. De audit stond op `/profielen/[id]/techniek`,
- * als gereedschap. Maar een klant die zich afvraagt waarom zijn score laag is
- * kijkt niet in Instellingen: hij kijkt naar het cijfer. Een dichte robots.txt
- * is de meest voorkomende verklaring van een lage score, dus hoort de diagnose
- * naast dat cijfer te staan.
- *
- * Een blokkade staat daarom bovenáán en niet onderaan: die verklaart het cijfer
- * dat eronder staat, en dat moet je lezen vóór het cijfer en niet erna.
+ * Besluit 7 van 17 augustus 2026 zette de volledige technische diagnose
+ * (checklijst per categorie) onderaan dit scherm, naast het cijfer dat ze
+ * verklaart. Op 21 september 2026 is die checklijst hier weer weggehaald: hij
+ * herhaalde wat de losse blokkadebanner al zegt zonder er iets aan toe te
+ * voegen. De banner blijft wel staan, en blijft bovenaan: die verklaart het
+ * cijfer dat eronder staat, en dat moet je lezen vóór het cijfer en niet erna.
+ * De ruwe auditdata blijft wel bewaard in `technical_audits` (audit-trail,
+ * conventie 8), en is als ruwe JSON te zien op Admin (staffscherm), maar de
+ * opgemaakte checklijst per categorie staat nergens meer in de klant-UI.
  *
  * ⚠️ **De score wordt hier niet opnieuw berekend.** Hij komt uit dezelfde
  * `visibility_scores`-rijen als hoofdstuk 01 van het clusterdossier, met
@@ -83,26 +77,20 @@ export default async function AnalyticsPage({
   await requireUser();
 
   const supabase = await createClient();
-  const [{ data: auditRow }, { data: strategyRow }, { data: analysisRows }, { data: labelRows }] =
-    await Promise.all([
-      // Kolommen bij naam: `technical_audits.raw_json` is de ruwe uitvoer van de
-      // audit en hoort op Admin (besluit 4). Met een `*` reist hij mee naar de
-      // browser, ook al toont dit scherm alleen de nette checklijst.
-      supabase
-        .from("technical_audits")
-        .select("checks_json, checked_at, site_url, blockers")
-        .eq("profile_id", id)
-        .order("checked_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from("profile_strategy")
-        .select("context_factors")
-        .eq("profile_id", id)
-        .maybeSingle(),
-      activeOnly(supabase.from("analyses").select("id, name, label_id").eq("profile_id", id)),
-      supabase.from("cluster_labels").select("*").eq("profile_id", id),
-    ]);
+  const [{ data: auditRow }, { data: analysisRows }, { data: labelRows }] = await Promise.all([
+    // Kolommen bij naam: `technical_audits.raw_json` is de ruwe uitvoer van de
+    // audit en hoort op Admin (besluit 4). Met een `*` reist hij mee naar de
+    // browser, ook al gebruikt dit scherm alleen de blokkades eruit.
+    supabase
+      .from("technical_audits")
+      .select("checks_json, checked_at, site_url, blockers")
+      .eq("profile_id", id)
+      .order("checked_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    activeOnly(supabase.from("analyses").select("id, name, label_id").eq("profile_id", id)),
+    supabase.from("cluster_labels").select("*").eq("profile_id", id),
+  ]);
 
   const clusters = (analysisRows ?? []) as { id: string; name: string; label_id: string | null }[];
   const labels = sorteerLabels((labelRows ?? []) as ClusterLabel[]);
@@ -196,15 +184,10 @@ export default async function AnalyticsPage({
   // merkcijfer zodra iemand een klein cluster start.
   const laatsten = perCluster.map((r) => r.laatste!);
   const merkScore = gewogenGemiddelde(laatsten, bronfilter);
-  const band = merkScore !== null ? confidenceBand(merkScore.waarde, merkScore.stderr) : null;
 
   const audit = auditRow as TechnicalAuditRow | null;
   const checks = (audit?.checks_json ?? []) as AuditCheck[];
   const blokkades = checks.filter((c) => c.severity === "blocker");
-  const factors = parseContextFactors(
-    (strategyRow as { context_factors?: unknown } | null)?.context_factors,
-  );
-  const staleFactor = technicalAdviceStale(factors);
   const labelNaamPerId = new Map(labels.map((l) => [l.id, l.name]));
 
   // ── Z1, Z2: het hoofdbeeld, per cluster ───────────────────────────────────
@@ -409,33 +392,7 @@ export default async function AnalyticsPage({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[16rem_minmax(0,1fr)]">
-          {/* De stang links markeert het hoofdgetal van dit scherm, net als op
-              het overzicht. Grijs en niet groen: hier staat geen zin bij die
-              zegt of het cijfer echt gestegen is, en dan mag de kleur dat ook
-              niet zeggen (`docs/designsystem.md` §5.5). */}
-          <div className="card card-rail flex flex-col gap-2">
-            <span className="mono-label flex items-center gap-1">
-              Zichtbaarheid over {merkScore.clusters === 1 ? "1 cluster" : `${merkScore.clusters} clusters`}
-              <InfoHint label="Hoe is dit gerekend?">
-                Het gemiddelde over je clusters, gewogen op het aantal vragen dat per cluster
-                gemeten is. Een cluster met vijf metingen telt dus lichter mee dan een met negentig.
-              </InfoHint>
-            </span>
-            {/* ⚠️ Weer een percentage als hoofdgetal (21 september 2026), na de
-                band-in-antwoorden van 20 september. Zelfde omkering als op het
-                merkscherm; de marge staat nog wel in de regel eronder. */}
-            <span className="stat-value text-5xl">{Math.round(merkScore.waarde)}%</span>
-            {band && band.margin > 0 && (
-              <span className="text-sm text-muted">
-                AI-antwoorden waarin je merk voorkomt. Met een marge van{" "}
-                {Math.max(0, Math.round(band.low))}% tot {Math.min(100, Math.round(band.high))}%.
-                Dat is geen slordigheid: het is een steekproef, en dit is hoe breed hij is.
-              </span>
-            )}
-          </div>
-          <ClusterVisibilityGrid clusters={visibilityGridData} />
-        </div>
+        <ClusterVisibilityGrid clusters={visibilityGridData} />
       )}
 
       {/* ── 3. Per cluster, als tabel (plan Z3) ──────────────────────────────
@@ -451,30 +408,6 @@ export default async function AnalyticsPage({
           <AnalyticsClusterTable rows={perCluster} labelNaamPerId={labelNaamPerId} bron={bronfilter} />
         </div>
       )}
-
-      {/* ── 5. Technische diagnose (besluit 7) ─────────────────────────────── */}
-      <div className="flex flex-col gap-2">
-        <span className="mono-label">Technische diagnose</span>
-        <p className="text-sm text-muted">
-          Of AI-assistenten je site mogen lezen, en of je gegevens overal hetzelfde zijn.
-        </p>
-        {staleFactor && (
-          <p className="card text-sm text-[var(--status-warning)]" role="status">
-            {staleAdviceNotice(staleFactor)}
-          </p>
-        )}
-        {audit ? (
-          <AuditPanel checks={checks} checkedAt={audit.checked_at} siteUrl={audit.site_url} />
-        ) : (
-          <div className="card flex flex-col gap-2">
-            <span className="mono-label">Technische controle · loopt</span>
-            <p className="text-secondary">
-              ORBIT ENGINE controleert nog of AI-assistenten je site mogen lezen. De uitslag staat
-              hier zodra dat klaar is. Jij hoeft niets te doen.
-            </p>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
