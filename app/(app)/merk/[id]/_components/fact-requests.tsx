@@ -66,6 +66,10 @@ export function FactRequests({
   const [showSkipped, setShowSkipped] = useState(false);
   /** `null` = alles. Anders een `analysis_id` of de sleutel `merk`. */
   const [groep, setGroep] = useState<string | null>(null);
+  // Een cluster zonder open vraag staat standaard niet in de rij: een rij met
+  // tien knoppen waarvan er acht "0" tonen is ruis. Wie ze toch wil zien
+  // (bijvoorbeeld om te controleren wat er al beantwoord is) klikt ze open.
+  const [toonAlleClusters, setToonAlleClusters] = useState(false);
 
   /** Bij welke groep hoort deze vraag? Zonder cluster is het een merkvraag. */
   function groepVan(f: FactRequest): string {
@@ -87,6 +91,16 @@ export function FactRequests({
   // Alleen groepen waar ook echt een vraag in zit. Een filterknop die naar een
   // lege lijst leidt is een dood einde (`docs/ux-design.md` §4).
   const knoppen = (groepen ?? []).filter((g) => facts.some((f) => groepVan(f) === g.id));
+
+  // Standaard alleen de clusters met een open vraag. Een geselecteerd cluster
+  // blijft zichtbaar ook al staat het op 0, anders verdwijnt de knop onder je
+  // klik vandaan.
+  const zichtbareKnoppen = toonAlleClusters
+    ? knoppen
+    : knoppen.filter(
+        (g) => g.id === groep || facts.some((f) => groepVan(f) === g.id && f.status === "open"),
+      );
+  const verborgenClusters = knoppen.length - zichtbareKnoppen.length;
 
   async function send(factId: string, payload: { answer?: string; skip?: boolean }) {
     setBusy(factId);
@@ -147,17 +161,28 @@ export function FactRequests({
       {/* Het filter. Verschijnt pas bij twee groepen, en toont per groep hoeveel
           er nog open staat: een filter zonder telling laat je blind klikken. */}
       {knoppen.length > 1 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <FilterKnop label="Alles" aantal={facts.filter((f) => f.status === "open").length} actief={groep === null} onClick={() => setGroep(null)} />
-          {knoppen.map((g) => (
-            <FilterKnop
-              key={g.id}
-              label={g.naam}
-              aantal={facts.filter((f) => groepVan(f) === g.id && f.status === "open").length}
-              actief={groep === g.id}
-              onClick={() => setGroep(g.id)}
-            />
-          ))}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <FilterKnop label="Alles" aantal={facts.filter((f) => f.status === "open").length} actief={groep === null} onClick={() => setGroep(null)} />
+            {zichtbareKnoppen.map((g) => (
+              <FilterKnop
+                key={g.id}
+                label={g.naam}
+                aantal={facts.filter((f) => groepVan(f) === g.id && f.status === "open").length}
+                actief={groep === g.id}
+                onClick={() => setGroep(g.id)}
+              />
+            ))}
+          </div>
+          {!toonAlleClusters && verborgenClusters > 0 && (
+            <button
+              type="button"
+              onClick={() => setToonAlleClusters(true)}
+              className="w-fit text-sm text-secondary hover:underline"
+            >
+              Toon alle clusters
+            </button>
+          )}
         </div>
       )}
 
