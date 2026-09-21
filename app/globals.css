@@ -1236,7 +1236,7 @@ table {
    openstaande vraag, geen stijging of waarschuwing. Stap 10, §8.5. */
 .card-rail-accent {
   border-left-width: var(--border-width-sm);
-  border-left-color: var(--accent);
+  /* border-left-color: var(--accent); */
 }
 
 /* ── Knoppen ────────────────────────────────────────────────────────────────
