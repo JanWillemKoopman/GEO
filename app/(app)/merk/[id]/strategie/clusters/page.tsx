@@ -160,8 +160,8 @@ export default async function ClustersPage({
         // daar het eerste wat hij van de app leert.
         action={
           staff ? (
-            <Link href={`/analyses/new?merk=${id}`} className="btn-primary">
-              + Nieuw cluster
+            <Link href={`/analyses/new?merk=${id}`} className="btn-accent">
+              Nieuwe cluster
             </Link>
           ) : undefined
         }

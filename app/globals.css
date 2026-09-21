@@ -1792,6 +1792,33 @@ textarea.field {
   padding-bottom: 16px;
 }
 
+/* De kaartvariant: dezelfde kop en inhoud, maar op een wit, afgerond vlak in
+   plaats van de vlakke streep. Voor een sectie die tussen `.card`-kaarten
+   staat (bijvoorbeeld "Onderwerpen om op te meten" onder de clusterlijst) en
+   anders de enige grijze doos op de pagina is. */
+.collapsible-card {
+  background-color: var(--bg-surface);
+  border: var(--border-width-xs) solid var(--border-primary);
+  border-radius: var(--radius-xl); /* 8px */
+  padding: 0 16px;
+}
+.collapsible-card .collapsible-kop {
+  padding: 20px 0;
+}
+.collapsible-card .collapsible-inhoud {
+  padding-bottom: 20px;
+}
+@media (min-width: 768px) {
+  .collapsible-card {
+    padding: 0 20px;
+  }
+}
+@media (min-width: 1024px) {
+  .collapsible-card {
+    padding: 0 24px;
+  }
+}
+
 /* ── De bovenbalk ───────────────────────────────────────────────────────────
    48 pixels, GEMETEN. Dekkend, geen vervaging: OKX heeft nergens een
    `backdrop-filter`, en een doorschijnende balk boven een tabel die eronder
