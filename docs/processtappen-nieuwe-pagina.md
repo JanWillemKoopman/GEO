@@ -1,16 +1,19 @@
-# Van klant tot pagina: alle stappen op een rij
+# Van adviseur tot nameting: alle stappen op een rij
 
 > **Voor wie dit is.** Iedereen die wil zien wat er precies gebeurt tussen het aanmaken van een
-> klant en het moment dat er een nieuwe, publiceerbare pagina klaarstaat, zonder dat je code hoeft
-> te lezen. Elke stap staat er, hoe klein ook, ook de stappen die geen mens ooit aanklikt omdat de
-> app ze zelf doet.
+> merkprofiel door de adviseur en het moment dat het effect van een gepubliceerde pagina bewezen is,
+> zonder dat je code hoeft te lezen. Elke stap staat er, hoe klein ook, ook de stappen die geen mens
+> ooit aanklikt omdat de app ze zelf doet.
 >
 > **Waarom dit een apart document is.** [`APP_FLOW_DOCUMENTATION.md`](../APP_FLOW_DOCUMENTATION.md)
 > legt dezelfde keten uit in vijf fases en beantwoordt vooral de vraag "waarom werkt het zo". Dit
 > document beantwoordt "wat gebeurt er precies, in welke volgorde". Klopt er iets niet meer, dan is
 > de code leidend: `lib/pipeline/` en `lib/jobs/` zijn de bron waar dit overzicht uit is opgebouwd.
 >
-> **Peildatum: 3 september 2026.**
+> **Peildatum: 21 september 2026.** Fase 1 tot en met 14 nagekeken tegen `lib/pipeline/` en
+> `lib/jobs/`, ongewijzigd sinds 3 september 2026. Fase 15 is nieuw in deze versie: de nameting stond
+> tot nu toe alleen beschreven in `APP_FLOW_DOCUMENTATION.md` §4, hier voor het eerst genummerd
+> uitgewerkt tegen `lib/pipeline/impact.ts` en `lib/pipeline/impact-math.ts`.
 
 ---
 
@@ -311,6 +314,50 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
 105. Het systeem toont het resultaat aan de klant in gewone taal: welke problemen er zijn gevonden,
      of de bevestiging dat alles klopt.
 
-**Hiermee is de nieuwe pagina opgeleverd.** Wat er hierna gebeurt, het opnieuw meten na 14 en 28
-dagen met een controlegroep om het effect van de pagina te bewijzen, valt buiten deze lijst en
-staat beschreven in fase 5 van [`APP_FLOW_DOCUMENTATION.md`](../APP_FLOW_DOCUMENTATION.md).
+## Fase 15. De nameting: heeft de pagina gewerkt?
+
+Hier zit het onderscheidende punt van de hele keten: niet alleen meten en schrijven, maar ook
+bewijzen of het geschrevene iets opgeleverd heeft. Een score die na publicatie stijgt is geen bewijs
+op zichzelf, want zichtbaarheid beweegt ook vanzelf en de ruis in een meting van dertig vragen is al
+gauw net zo groot als een gewone stijging. Daarom meet het systeem twee dingen naast elkaar: de
+vragen waar deze ene pagina voor gemaakt is, en een controlegroep van vragen waar geen pagina voor
+gemaakt is. Stijgt alles even hard, dan lag het niet aan de pagina.
+
+106. Zodra de pagina als gepubliceerd gemarkeerd is (stap 98), plant het systeem automatisch twee
+     hermeetmomenten in: golf 1 op 14 dagen na de publicatiedatum, golf 2 op 28 dagen erna. De klant
+     hoeft hier niets voor te doen.
+107. Niet eerder dan 14 dagen, want een AI-assistent neemt een nieuwe pagina niet dezelfde dag op:
+     hij moet eerst gecrawld en geïndexeerd worden, en dat duurt bij zoekgestuurde assistenten dagen
+     tot weken. Twee momenten in plaats van één, omdat één meting "opgepikt" niet van "toeval" kan
+     onderscheiden.
+108. Op het geplande moment verzamelt het systeem de doelvragen: precies de vragen uit de
+     oorspronkelijke meting waarvoor deze pagina bedoeld was.
+109. Het systeem stelt daar een controlegroep naast samen: vragen uit dezelfde analyse waarvoor geen
+     enkele gepubliceerde pagina bestaat, tot maximaal vijf. De keuze is niet willekeurig maar vast
+     bepaald, zodat golf 1 en golf 2 dezelfde controlevragen gebruiken en eerlijk naast elkaar staan.
+110. Het systeem stelt alle doelvragen en controlevragen opnieuw aan een AI-assistent, op precies
+     dezelfde manier als bij de oorspronkelijke meting in fase 5.
+111. Het systeem bepaalt per vraag de stand van vóór publicatie: de laatste reguliere meting die
+     dateert van vóór de publicatiedatum van deze pagina. Bewust niet de allereerste meting: publiceert
+     de klant pas na drie maanden, dan is die geen eerlijk vertrekpunt meer.
+112. Het systeem berekent het verschil tussen voor en na, apart voor de doelvragen en apart voor de
+     controlegroep.
+113. Het systeem trekt daaruit een streng oordeel: gestegen, gelijk gebleven of gedaald, met een
+     eigen marge die meebeweegt met het aantal vergelijkbare vragen. Valt het verschil binnen die
+     marge, dan telt dat als "gelijk", niet als een toevallige stijging. Zijn er te weinig
+     vergelijkbare vragen om iets zinnigs te zeggen, dan is het oordeel "nog te weinig data" in plaats
+     van een gok.
+114. Het resultaat van deze golf wordt per pagina opgeslagen, los van de andere golf, zodat golf 1 en
+     golf 2 apart terug te zien blijven.
+115. Golf 2 (28 dagen) telt zwaarder dan golf 1 (14 dagen) zodra beide er zijn: een AI-systeem heeft
+     een pagina in twee weken zelden al volledig opgepikt.
+116. Het systeem toont het resultaat in gewone taal, altijd met de doelgroep en de controlegroep
+     naast elkaar, bijvoorbeeld "op de vragen waarvoor je publiceerde +18, op de rest +3". Een losse
+     uitspraak als "je score is gestegen" komt nergens op het scherm, want zonder de controlegroep
+     ernaast is die uitspraak niet te verdedigen.
+117. Deze hermeting staat los van de gewone maandelijkse meting uit fase 5, die op alle dertig vragen
+     van de analyse blijft doorlopen. Zo hangt het verdict over deze ene pagina nooit af van één
+     momentopname, en blijft ook zichtbaar hoe het merk zich in bredere zin ontwikkelt.
+
+**Hiermee is de hele keten doorlopen: van het merkprofiel dat de adviseur klaarzet, tot het
+bewezen effect van een pagina die de klant zelf gepubliceerd heeft.**
