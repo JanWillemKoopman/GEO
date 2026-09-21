@@ -10966,3 +10966,32 @@ als er onderwerpen zijn) en kunnen dus ooit weer uit elkaar lopen zonder dat elk
 code mee hoeft te veranderen. `docs/designsystem.md` §2.4a is bijgewerkt.
 
 `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen.
+
+## 21 september 2026 (17): het contentplan, vier klantmeldingen in één keer
+
+Vier meldingen over `PlanView` (`app/(app)/merk/[id]/strategie/plan/plan-view.tsx`), alle vier
+opgelost:
+
+1. **"Afgevallen kansen" is nu intern.** De sectie met wat het rapportmodel overwoog maar niet
+   voorstelde (werkpakket C §5.1) is ruis voor een klant, die nooit een aanbeveling zag om af te
+   vallen. De data en de onderbouwende waarde blijven bestaan (`docs/logbook.md`-conventie: één
+   feit, één eigenaar), maar de sectie toont alleen nog als `staff` (besluit 18).
+2. **Bug: een teruggelegde kaart kwam niet terug in de voorraad.** `vulOpenMaanden()`
+   (`lib/plans.ts`) draait bij elke schermopening en vult open maanden met de sterkste kansen uit
+   de voorraad. Die query selecteerde alle kansen met `plan_month_id is null`, óók een kaart die de
+   klant zojuist bewust met "Terug naar de voorraad" uit een maand haalde (`taken_out = true`,
+   migratie 0099). Het gevolg: de kaart werd bij de eerstvolgende schermopening, vaak binnen
+   dezelfde `router.refresh()`, alweer in een (soms dezelfde) maand gezet, nog vóór de klant hem
+   ooit in "In te plannen content" zag staan. De query in `vulOpenMaanden()` sluit `taken_out = true`
+   nu uit. Scenario toegevoegd in `test-chain.ts` (plan-voorraad-scenario): met de oude query faalde
+   het, met de fix niet.
+3. **Filteren op cluster in "In te plannen content" bleek al gebouwd** (de `<select>` naast het
+   zoekveld, zichtbaar zodra de voorraad meer dan één cluster bevat). Geen wijziging nodig.
+4. **De meldingspopup na een actie is weg.** Elke actie op dit scherm was al meteen uitgevoerd
+   (de `fetch` loopt vóór de popup); de popup met het aflopende balkje voegde alleen een wachttijd
+   toe zonder nieuwe informatie, want de wijziging is al zichtbaar via `router.refresh()`. Alleen de
+   foutmeldingen (die niet uit het scherm zijn af te lezen) blijven staan. `stuur()` verloor zijn
+   `melding`-parameter; de losse succesmeldingen in `paginaActie()`, `maandActie()`,
+   `alsGeplaatstMarkeren()` en `planOpnieuw()` zijn verwijderd.
+
+`tsc --noEmit`, `test:unit` (5015) en `test:chain` (723) groen, `build` groen.

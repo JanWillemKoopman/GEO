@@ -663,12 +663,18 @@ export async function vulOpenMaanden(
     magNogVullen: !maandIsVol(plan.started_on, m.month_number, now),
   }));
 
+  // ⚠️ `taken_out = true` blijft buiten deze ronde. Zonder deze regel greep
+  // vulOpenMaanden() een kans die de klant net bewust met "Terug naar de
+  // voorraad" uit een maand haalde meteen weer terug bij de eerstvolgende
+  // schermopening, vaak vóór de klant hem ooit in de voorraad zag staan
+  // (`naarBacklogItem()` verwacht die schermopening juist zeldzaam te zijn).
   const { data: voorraadRows } = await admin
     .from("planned_pages")
     .select("id, potential, target_weight, title")
     .eq("profile_id", profileId)
     .is("plan_month_id", null)
-    .eq("status", "gepland");
+    .eq("status", "gepland")
+    .eq("taken_out", false);
   const voorraadIds = ((voorraadRows ?? []) as { id: string; potential: number | null; target_weight: number | null; title: string }[])
     .map((r) => ({
       id: r.id,

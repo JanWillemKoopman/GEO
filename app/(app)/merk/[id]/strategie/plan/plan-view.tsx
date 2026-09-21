@@ -215,11 +215,14 @@ export function PlanView({
 
   // ── Handelingen ──────────────────────────────────────────────────────────
 
-  async function stuur(
-    pageId: string,
-    body: Record<string, unknown>,
-    melding: { titel: string; tekst?: string } | null,
-  ): Promise<boolean> {
+  /**
+   * Eén handeling op een pagina sturen. Geen meldingspopup bij succes: de
+   * wijziging is meteen zichtbaar in het scherm zelf (`router.refresh()`).
+   * Een popup die na een afgeronde actie nog even moet uitlopen voegt daar
+   * niets aan toe, alleen een wachttijd. Een fout blijft wel gemeld, want die
+   * is niet uit het scherm af te lezen.
+   */
+  async function stuur(pageId: string, body: Record<string, unknown>): Promise<boolean> {
     setBusy(pageId);
     try {
       const res = await fetch(`/api/profiles/${profileId}/plan/pages/${pageId}`, {
@@ -236,9 +239,6 @@ export function PlanView({
         });
         return false;
       }
-      if (melding) {
-        toast({ intent: "succes", title: melding.titel, description: melding.tekst ?? "" });
-      }
       router.refresh();
       return true;
     } catch {
@@ -253,27 +253,12 @@ export function PlanView({
     }
   }
 
-  async function inplannen(pageId: string, titel: string, maandId: string, index: number | null) {
-    const maand = maandVan.get(maandId);
-    const kalender = maand
-      ? (monthCalendar(plan.started_on, maand.month_number)?.label ?? `maand ${maand.month_number}`)
-      : "de maand";
-    await stuur(
-      pageId,
-      { actie: "inplannen", maandId, index },
-      { titel: `Ingepland in ${kalender}`, tekst: `"${titel}"` },
-    );
+  async function inplannen(pageId: string, maandId: string, index: number | null) {
+    await stuur(pageId, { actie: "inplannen", maandId, index });
   }
 
-  async function naarVoorraad(pageId: string, titel: string) {
-    await stuur(
-      pageId,
-      { actie: "naar_voorraad" },
-      {
-        titel: "Terug in de voorraad",
-        tekst: `"${titel}" staat weer beschikbaar en wordt niet geschreven.`,
-      },
-    );
+  async function naarVoorraad(pageId: string) {
+    await stuur(pageId, { actie: "naar_voorraad" });
   }
 
   /**
@@ -282,19 +267,7 @@ export function PlanView({
    * geen maand.
    */
   async function zetDatum(page: PlannedPage, datum: string | null) {
-    const ok = await stuur(
-      page.id,
-      { actie: "datum", datum },
-      datum
-        ? {
-            titel: `Verplaatst naar ${formatDagNL(datum)}`,
-            tekst: `ORBIT ENGINE begint tien dagen daarvoor aan "${page.title}".`,
-          }
-        : {
-            titel: "Weer automatisch",
-            tekst: `"${page.title}" schuift weer mee met de spreiding van de maand.`,
-          },
-    );
+    const ok = await stuur(page.id, { actie: "datum", datum });
     if (ok) {
       setDatumDialog(null);
       setDatumInvoer("");
@@ -306,22 +279,7 @@ export function PlanView({
     actie: "goedkeuren" | "afwijzen" | "geplaatst",
     url?: string,
   ) {
-    const ok = await stuur(page.id, { actie, url }, null);
-    if (ok) {
-      toast({
-        intent: actie === "afwijzen" ? "info" : "succes",
-        title:
-          actie === "goedkeuren"
-            ? "Tekst goedgekeurd"
-            : actie === "geplaatst"
-              ? "Gemarkeerd als geplaatst"
-              : "Definitief verwijderd",
-        description:
-          actie === "afwijzen"
-            ? `"${page.title}" komt niet terug in de voorraad.`
-            : `"${page.title}"`,
-      });
-    }
+    await stuur(page.id, { actie, url });
     setPostDialog(null);
     setRemoveDialog(null);
     setRemoveKans(null);
@@ -329,7 +287,7 @@ export function PlanView({
   }
 
   async function verplaats(page: PlannedPage, richting: "omhoog" | "omlaag") {
-    await stuur(page.id, { actie: "verplaats", richting }, null);
+    await stuur(page.id, { actie: "verplaats", richting });
   }
 
   /**
@@ -364,17 +322,6 @@ export function PlanView({
         });
         return;
       }
-      toast({
-        intent: actie === "goedkeuren" ? "succes" : "info",
-        title:
-          actie === "goedkeuren"
-            ? `Maand ${month.month_number} vrijgegeven`
-            : `Maand ${month.month_number} afgewezen`,
-        description:
-          actie === "goedkeuren"
-            ? `${schrijfBelofte(eersteDatumVanMaand(month.id))} met schrijven.`
-            : "De pagina's blijven staan; je kunt de maand opnieuw samenstellen.",
-      });
       router.refresh();
     } finally {
       setBusy(null);
@@ -407,7 +354,6 @@ export function PlanView({
         });
         return;
       }
-      toast(j.melding);
       router.refresh();
     } catch {
       toast({
@@ -443,11 +389,6 @@ export function PlanView({
         });
         return;
       }
-      toast({
-        intent: "succes",
-        title: "Het plan staat opnieuw klaar",
-        description: "Twaalf lege maanden, met de sterkste kansen alvast in maand 1.",
-      });
       router.refresh();
     } catch {
       toast({
@@ -549,7 +490,7 @@ export function PlanView({
           onDrop={(e) => {
             e.preventDefault();
             setSleepDoel(null);
-            if (sleep?.uitMaand) void naarVoorraad(sleep.pageId, sleep.titel);
+            if (sleep?.uitMaand) void naarVoorraad(sleep.pageId);
             setSleep(null);
           }}
         >
@@ -663,7 +604,7 @@ export function PlanView({
                       setSleep(null);
                       setSleepDoel(null);
                     }}
-                    onKies={(maandId) => void inplannen(item.id, item.title, maandId, null)}
+                    onKies={(maandId) => void inplannen(item.id, maandId, null)}
                     onVerwijder={() => setRemoveKans(item)}
                   />
                 ))}
@@ -674,8 +615,9 @@ export function PlanView({
           {/* Werkpakket C §5.1: het derde niveau, afgevallen kansen met reden.
               Uitgeklapt inzichtelijk maar niet in het gezicht: dit is geen werk
               dat wacht, het is de onderbouwing van wat er NIET in de voorraad
-              staat. */}
-          {declined.length > 0 && (
+              staat. Alleen voor het team: voor een klant is dit ruis over
+              aanbevelingen die hij nooit voorgesteld kreeg. */}
+          {staff && declined.length > 0 && (
             <details className="card flex flex-col gap-2">
               <summary className="mono-label cursor-pointer">
                 {declined.length} afgevallen kans{declined.length === 1 ? "" : "en"}
@@ -750,7 +692,7 @@ export function PlanView({
                 onDrop={(e) => {
                   e.preventDefault();
                   setSleepDoel(null);
-                  if (sleep) void inplannen(sleep.pageId, sleep.titel, month.id, null);
+                  if (sleep) void inplannen(sleep.pageId, month.id, null);
                   setSleep(null);
                 }}
               >
@@ -923,12 +865,12 @@ export function PlanView({
                             setSleepDoel(null);
                           }}
                           onDropHier={() => {
-                            if (sleep) void inplannen(sleep.pageId, sleep.titel, month.id, index);
+                            if (sleep) void inplannen(sleep.pageId, month.id, index);
                             setSleep(null);
                             setSleepDoel(null);
                           }}
-                          onKies={(maandId) => void inplannen(page.id, page.title, maandId, null)}
-                          onNaarVoorraad={() => void naarVoorraad(page.id, page.title)}
+                          onKies={(maandId) => void inplannen(page.id, maandId, null)}
+                          onNaarVoorraad={() => void naarVoorraad(page.id)}
                           onDatum={() => {
                             setDatumDialog(page);
                             setDatumInvoer(page.scheduled_for ?? "");
