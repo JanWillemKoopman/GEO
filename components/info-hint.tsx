@@ -62,7 +62,12 @@ export function InfoHint({ label, children }: { label: string; children: React.R
         <span
           id={panelId}
           role="note"
-          className="menu-surface absolute left-0 top-8 z-20 block w-64 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3 text-sm font-normal text-secondary shadow-[var(--shadow-overlay)]"
+          // ⚠️ Bewust NIET `.menu-surface` (21 september 2026): die klasse zet
+          // `padding: 4px 0`, bedoeld voor een dropdown waarvan elke REGEL zijn
+          // eigen zijpadding draagt. Op dit paneeltje, met vrije lopende tekst,
+          // won die regel het van Tailwinds `p-3` (gelijke specificiteit, later
+          // in de bundel), dus stond de tekst zonder zijmarge tot aan de rand.
+          className="absolute left-0 top-8 z-20 block w-64 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 text-sm font-normal leading-snug text-secondary shadow-[var(--shadow-lg)]"
         >
           <span className="mono-label mb-1 block" style={{ fontSize: "0.65rem" }}>
             {label}
