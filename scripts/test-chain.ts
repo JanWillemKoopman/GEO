@@ -3205,6 +3205,23 @@ async function main(): Promise<void> {
       naTerug[0].plan_month_id === null && naTerug[0].scheduled_for === null,
     );
 
+    // ⚠️ Bug van 21 september 2026: vulOpenMaanden() greep een kaart die de
+    // klant net bewust terugsleepte (taken_out = true) meteen weer terug in
+    // een open maand, nog vóór de klant hem ooit in de voorraad zag staan. De
+    // volgende schermopening (zoals hier, via loadPlan() met sync: true) moet
+    // die kaart laten liggen.
+    const { loadPlan: leesPlanNaTerugleggen } = await import("@/lib/plans");
+    await leesPlanNaTerugleggen(admin as never, planPotProfileId);
+    const { rows: naSchermopening } = await db.client.query(
+      `select plan_month_id, taken_out from public.planned_pages where id = $1`,
+      [inMaand3[0].id],
+    );
+    ok(
+      "een bewust teruggelegde kaart wordt niet meteen weer automatisch ingepland",
+      naSchermopening[0].plan_month_id === null && naSchermopening[0].taken_out === true,
+      `plan_month_id ${naSchermopening[0].plan_month_id}, taken_out ${naSchermopening[0].taken_out}`,
+    );
+
     // ⚠️ Wat al geschreven wordt, mag NIET terug: dat is betaald werk weggooien.
     await db.client.query(
       "update public.planned_pages set status = 'schrijven' where id = $1",
