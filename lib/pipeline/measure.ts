@@ -14,7 +14,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { callPlain, callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
 import { getEngine } from "@/lib/engines/registry";
-import type { EngineId } from "@/lib/engines/types";
+import { PRIMARY_ENGINE, type EngineId } from "@/lib/engines/types";
 import { measureWebSearchEnabled } from "@/lib/config";
 import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { volumeBandOf } from "@/lib/pipeline/volume";
@@ -36,7 +36,15 @@ import { elicitLabel } from "@/lib/pipeline/elicit-rate";
 import { MENTION_SYSTEM, buildMentionUser } from "@/lib/openai/mention-prompt";
 import type { Analysis, AnalysisStatus, Prompt, TrackingRun } from "@/lib/types/database";
 
-const SIMULATE_SYSTEM =
+/**
+ * Geëxporteerd zodat `lib/llm-responses/client.ts` (Gemini via DataForSEO)
+ * LETTERLIJK dezelfde instructie meestuurt. Hoofdstuk 3.1 van
+ * docs/tasks/vier-meetbronnen-en-ai-zoekvolume.md: een andere instructie zou
+ * het verschil tussen de bronnen vervuilen met een verschil tussen twee
+ * opdrachten. Dit is 327 tekens, ruim binnen de limiet van 500 die dat
+ * endpoint stelt.
+ */
+export const SIMULATE_SYSTEM =
   "Je bent een behulpzame AI-assistent (zoals ChatGPT) die vragen van gebruikers beantwoordt. " +
   "Gebruik web search om actuele, feitelijke informatie te vinden. Noem concrete merken, bedrijven " +
   "of bronnen waar relevant voor het antwoord. Antwoord in het Nederlands, zoals je dat voor een " +
@@ -261,6 +269,33 @@ export async function measureOnePrompt(
     }
   }
 
+  await judgeRun(admin, analysis, ownLabel, ownAliases, ownExclusions, run);
+}
+
+/**
+ * Halte 3b los: één opgeslagen antwoord beoordelen.
+ *
+ * ── WAAROM DIT EEN EIGEN FUNCTIE IS (20 september 2026) ─────────────────────
+ *
+ * Sinds er een tweede soort bron bestaat (Google AI Overview, zie
+ * `lib/pipeline/measure-ai-overview.ts`) moet dezelfde beoordelaar over beide
+ * soorten antwoorden. Dat is geen gemak maar een meetvereiste: zouden er twee
+ * beoordelaars zijn, dan meten we het verschil tussen die twee in plaats van
+ * het verschil tussen ChatGPT en Google, en is geen enkele vergelijking tussen
+ * de bronnen nog iets waard. Dezelfde regel die `lib/engines/types.ts` al stelt
+ * voor engines, nu afgedwongen door één gedeelde functie in plaats van door een
+ * afspraak.
+ *
+ * Idempotent: staat `mention_json` er al, dan gebeurt er niets.
+ */
+export async function judgeRun(
+  admin: Admin,
+  analysis: Pick<Analysis, "id" | "profile_id">,
+  ownLabel: string,
+  ownAliases: string[],
+  ownExclusions: string[],
+  run: TrackingRun,
+): Promise<void> {
   if (run.mention_json) return; // 3b al gedaan, niets te doen (idempotent)
 
   // Een eerder opgeslagen leeg antwoord (van vóór de controle hierboven) mag
@@ -270,7 +305,7 @@ export async function measureOnePrompt(
   if ((run.raw_response ?? "").trim().length < MIN_ANSWER_CHARS) {
     await admin.from("tracking_runs").delete().eq("id", run.id);
     throw new Error(
-      `Opgeslagen meting van prompt ${prompt.id} bevat geen bruikbaar antwoord; ` +
+      `Opgeslagen meting van prompt ${run.prompt_id} bevat geen bruikbaar antwoord; ` +
         `de meting wordt opnieuw gedaan.`,
     );
   }
@@ -531,11 +566,17 @@ async function persistBrandCounts(admin: Admin, counts: Map<string, number>): Pr
  * betrouwbaarheidsinterval in plaats van twee ongelukkige trekkingen.
  */
 async function updateBrandEliciting(admin: Admin, analysisId: string): Promise<void> {
+  // ⚠️ Alleen de primaire engine (20 september 2026). Deze tellers bepalen via
+  // `maySkip()` of een vraag nog gemeten wordt. Zouden er twee bronnen in zitten,
+  // dan houdt een vraag die bij Google wél aanbieders oplevert een dure
+  // ChatGPT-meting in leven die daar structureel niets doet, en andersom.
+  // Meetbaarheid is een eigenschap van vraag én bron, niet van de vraag alleen.
   const { data } = await admin
     .from("tracking_runs")
     .select("prompt_id, brands_in_answer")
     .eq("analysis_id", analysisId)
     .eq("purpose", "periodic")
+    .eq("engine", PRIMARY_ENGINE)
     .not("prompt_id", "is", null)
     .not("brands_in_answer", "is", null);
 
@@ -587,7 +628,7 @@ async function updateBrandEliciting(admin: Admin, analysisId: string): Promise<v
 export async function computeAggregates(admin: Admin, analysisId: string, weekNo: number): Promise<void> {
   const { data: runsFull } = await admin
     .from("tracking_runs")
-    .select("id, prompt_id, prompt_category_snapshot, prompt_weight")
+    .select("id, prompt_id, prompt_category_snapshot, prompt_weight, engine")
     .eq("analysis_id", analysisId)
     .eq("week_no", weekNo)
     // Impact- en controlemetingen (optimalisatie.md 5.3) horen hier niet bij:
@@ -617,6 +658,11 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
   // (oude rij, of handmatige prompt zonder tags), dan het NEUTRALE gewicht,
   // niet de ondergrens, zie NEUTRAL_WEIGHT (optimalisatie.md 0.10).
   const weightByRun = new Map(runs.map((r) => [r.id as string, Number(r.prompt_weight ?? NEUTRAL_WEIGHT)]));
+  // Welke bron produceerde dit antwoord? Een lege kolom is een rij van vóór de
+  // enginelaag, en die kwam per definitie van de primaire engine.
+  const engineByRun = new Map(
+    runs.map((r) => [r.id as string, ((r.engine as string | null) ?? PRIMARY_ENGINE) as EngineId]),
+  );
 
   const { data: mentionRows } = await admin.from("tracking_run_mentions").select("*").in("tracking_run_id", runIds);
   const mentions = mentionRows ?? [];
@@ -702,13 +748,30 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
   // Alleen BEOORDEELDE runs tellen mee (optimalisatie.md 0.2, zelfde regel als
   // in report.ts). Een run zonder eigen-merk-oordeel betekent dat 3b faalde,
   // dat is onbekend, niet "niet genoemd".
-  const judgedRunIds = runIds.filter((id) => ownByRun.has(id));
-  if (judgedRunIds.length < runIds.length) {
+  const judgedAlleEngines = runIds.filter((id) => ownByRun.has(id));
+  if (judgedAlleEngines.length < runIds.length) {
     console.warn(
-      `Analyse ${analysisId} periode ${weekNo}: ${runIds.length - judgedRunIds.length} van ${runIds.length} ` +
+      `Analyse ${analysisId} periode ${weekNo}: ${runIds.length - judgedAlleEngines.length} van ${runIds.length} ` +
         `metingen zonder eigen-merk-oordeel; die tellen niet mee in de score.`,
     );
   }
+
+  // ── ⚠️ De score rust op ÉÉN engine (20 september 2026) ─────────────────────
+  //
+  // Alles hieronder, de score, het gewogen cijfer, de foutmarge, het aandeel en
+  // de concurrentie-uitsplitsing, rekent vanaf hier alleen met de primaire
+  // engine. `lib/jobs/queue.ts` waarschuwde hiervoor en die waarschuwing was
+  // terecht: deze functie bevatte het woord "engine" niet.
+  //
+  // De fout die dit voorkomt is niet dat elke vraag twee keer meetelt. Het is
+  // subtieler en erger: `shareByRun()` hieronder ziet twee metingen van dezelfde
+  // vraag aan voor twee HERHALINGEN en geeft ze elk gewicht 1/2. Een vraag die
+  // bij ChatGPT wél en bij Google níét genoemd wordt, zou dan als "half genoemd"
+  // de score in gaan. Het cijfer blijft plausibel en slaat nergens meer op.
+  //
+  // De andere bronnen komen verderop in `per_engine_json`, apart geteld en apart
+  // getoond. Zie PRIMARY_ENGINE in lib/engines/types.ts voor het waarom.
+  const judgedRunIds = judgedAlleEngines.filter((id) => engineByRun.get(id) === PRIMARY_ENGINE);
 
   // ── Per VRAAG tellen, niet per meting (R6.1) ───────────────────────────────
   // De zwaarstwegende vragen worden meerdere keren gemeten. Zonder deze weging
@@ -837,11 +900,65 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
       ? Math.round((ownMentionedTotal / (ownMentionedTotal + basisMentions)) * 100)
       : null;
 
+  // ── De uitsplitsing per bron (20 september 2026, migratie 0001 eindelijk in
+  // gebruik) ────────────────────────────────────────────────────────────────
+  //
+  // `per_engine_json` bestaat sinds de allereerste migratie en is nooit gevuld.
+  // Nu wel, want zodra er een tweede bron meet is dit de enige plek waar zijn
+  // uitkomst terechtkan zonder de score te vervuilen.
+  //
+  // ⚠️ Elke bron krijgt zijn EIGEN aandelenberekening. Dat is geen detail: zou
+  // je één `shares` over alle bronnen delen, dan halveert het gewicht van een
+  // vraag zodra twee bronnen hem beantwoorden, en dat is precies de fout die
+  // hierboven wordt voorkomen.
+  const perEngine = Object.fromEntries(
+    [...new Set([...engineByRun.values()])].map((engineId) => {
+      const ids = judgedAlleEngines.filter((id) => engineByRun.get(id) === engineId);
+      const eigenShares = shareByRun(
+        ids.map((id) => ({ runId: id, promptId: promptByRun.get(id) ?? null })),
+      );
+      const winbaar = ids.filter((id) => (brandsPerRun.get(id) ?? 0) > 0);
+      const genoemd = winbaar.filter((id) => ownByRun.get(id)?.mentioned);
+      const winbaarTotaal = sumShare(winbaar, eigenShares);
+      const genoemdTotaal = sumShare(genoemd, eigenShares);
+
+      // ⚠️ Ook het GEWOGEN cijfer per bron, en niet alleen het ongewogen. Het
+      // scherm toont `weighted_score ?? score` (`leidend()` in
+      // components/analytics-cluster-table.tsx). Zou hier alleen het ongewogen
+      // cijfer staan, dan vergelijkt de bronknop een gewogen ChatGPT-cijfer met
+      // een ongewogen Google-cijfer, en is het verschil deels een rekenverschil
+      // in plaats van een verschil tussen de twee platformen.
+      const eigenGewicht = (id: string) =>
+        (weightByRun.get(id) ?? NEUTRAL_WEIGHT) * (eigenShares.get(id) ?? 1);
+      const gewichtTotaal = winbaar.reduce((sum, id) => sum + eigenGewicht(id), 0);
+      const gewichtGenoemd = genoemd.reduce((sum, id) => sum + eigenGewicht(id), 0);
+
+      return [
+        engineId,
+        {
+          score: winbaarTotaal > 0 ? Math.round((genoemdTotaal / winbaarTotaal) * 100) : null,
+          stderr: binomialStderr(genoemdTotaal, winbaarTotaal),
+          weighted_score:
+            gewichtTotaal > 0 ? Math.round((gewichtGenoemd / gewichtTotaal) * 100) : null,
+          weighted_stderr: weightedScoreStderr(
+            winbaar.map((id) => ({
+              weight: eigenGewicht(id),
+              mentioned: Boolean(ownByRun.get(id)?.mentioned),
+            })),
+          ),
+          judged_runs: roundQuestions(sumShare(ids, eigenShares)),
+          winnable_runs: roundQuestions(winbaarTotaal),
+        },
+      ];
+    }),
+  );
+
   await admin.from("visibility_scores").upsert(
     {
       analysis_id: analysisId,
       week_no: weekNo,
       score,
+      per_engine_json: perEngine,
       weighted_score: weightedScore,
       winnable_runs: winnableRuns,
       brandless_runs: brandlessRuns,
@@ -1079,6 +1196,11 @@ export async function measurementIsUsable(
       // noemer duwen, en zou een ronde waarin de helft van de vragen mislukte
       // alsnog "voldoende gemeten" heten.
       .eq("repeat_index", 0)
+      // ⚠️ En alleen de primaire engine (20 september 2026). De noemer hierboven
+      // telt de VRAGEN van deze analyse; zou de teller metingen van twee bronnen
+      // optellen, dan komt hij boven die noemer uit en heet een ronde waarin de
+      // helft van de ChatGPT-metingen mislukte alsnog bruikbaar.
+      .eq("engine", PRIMARY_ENGINE)
       .not("mention_json", "is", null),
   ]);
 

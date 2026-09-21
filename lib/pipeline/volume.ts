@@ -92,6 +92,29 @@ export function volumeBandOf(prompt: {
  *
  * `zwaarsteVolume` van 0 of minder betekent dat er niets te herschalen valt:
  * dan is er geen meting, terug naar `bandFromEstimate(fallbackEstimate)`.
+ *
+ * ── ⚠️ DE ANKERFOUT DIE NOG OPENSTAAT (20 september 2026) ───────────────────
+ *
+ * Deze functie wordt op dit moment nooit met een echte meting aangeroepen: de
+ * zoekvolumelaag is geparkeerd (`SEARCH_DEMAND_ENABLED`, zie
+ * `lib/search-demand/registry.ts`), dus `gemetenVolume` is altijd `null` en
+ * dit valt altijd terug op de schatting. Dat is maar goed ook, want er zit een
+ * fout in die nog niet gerepareerd is.
+ *
+ * "De zwaarste van de batch" is alleen een eerlijk ijkpunt als die term ook
+ * echt bij dit merk hoort, en dat wordt nergens gecontroleerd. Bij Van den
+ * Udenhout was de zwaarste gemeten term "financiering": 2.400 zoekopdrachten
+ * per maand met een CPC van 14,66 euro, dus hypotheken en zakelijke leningen,
+ * niet autofinanciering bij een occasiondealer. Die term zou anker worden en
+ * band `hoog` krijgen (gewicht 1,0 in `promptWeight()`), terwijl
+ * "aankoopadvies" (50 per maand, wel passend) op index 2 uitkomt en naar het
+ * minimumgewicht zakt. Het merkvreemde woord krijgt dan het hoogste gewicht.
+ *
+ * Wie deze laag ooit weer aanzet, repareert eerst dit: een gemeten term mag
+ * pas meetellen als hij aantoonbaar bij dit merk hoort. Het materiaal daarvoor
+ * ligt al klaar en wordt vandaag weggegooid: `keyword_demand` bewaart per term
+ * ook `cpc` en `competition` (`lib/search-demand/cache.ts`), en geen enkele
+ * consument leest ze.
  */
 export function bandFromMeasuredVolume(
   gemetenVolume: number | null | undefined,

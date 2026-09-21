@@ -37,7 +37,7 @@ import { generatePromptsForStage, calibrateVolumes, type BrandContext } from "@/
 import { duplicatePromptIds } from "@/lib/pipeline/prompt-dedupe";
 import { resolveMix, DEFAULT_STAGE_COUNT, type FunnelStage } from "@/lib/prompt-mix";
 import { bandFromEstimate, bandFromMeasuredVolume } from "@/lib/pipeline/volume";
-import { afleidenZoekterm } from "@/lib/search-demand/keywords";
+import { kandidaatZoektermen } from "@/lib/search-demand/keywords";
 import { keywordVolumes } from "@/lib/search-demand/cache";
 import { PROMPT_CATEGORIES } from "@/lib/types/database";
 import type { Analysis, AnalysisStatus, Profile, ProfilePage } from "@/lib/types/database";
@@ -298,21 +298,34 @@ export async function generateAnalysisPrompts(
       // beslissen de band. Vragen zonder gemeten volume blijven op de
       // AI-schatting staan.
       //
-      // ⚠️ Een vraag is geen zoekterm (§3.2): `afleidenZoekterm()` levert
-      // `null` bij een vraag die niet naar één kern te herleiden is, en dan
-      // blijft die ene vraag op `geschat` staan, de rest van de batch
-      // onaangetast.
-      const afgeleideTermen = prompts.map((p) => afleidenZoekterm(p.text));
-      const uniekeTermen = [...new Set(afgeleideTermen.filter((t): t is string => t !== null))];
-      const gemetenVolumes = await keywordVolumes(admin, uniekeTermen, "NL", "nl", profile.id);
-      const zwaarsteVolume = Math.max(
-        0,
-        ...[...gemetenVolumes.values()].map((v) => v.volume ?? 0),
+      // ⚠️ Een vraag is geen zoekterm (§3.2): `kandidaatZoektermen()` bouwt de
+      // term op uit het thema-label plus de plaats die al in de vraag staat,
+      // in plaats van hem terug te knippen uit de vrije tekst (docs/logbook.md,
+      // 19 september 2026). Per vraag komen er twee kandidaten terug, van
+      // specifiek naar breed: een plaats erbij plakken levert soms JUIST geen
+      // data op (Google Ads heeft dan te weinig volume op dat combinatieniveau
+      // om te melden), dus we proberen eerst de specifieke term en vallen
+      // terug op de bredere als die niets oplevert. Een lege lijst laat die
+      // ene vraag op `geschat` staan, de rest van de batch onaangetast.
+      const kandidatenPerPrompt = prompts.map((p) =>
+        kandidaatZoektermen(p.cluster, p.text, profile.service_regions),
       );
+      const alleTermen = [...new Set(kandidatenPerPrompt.flat())];
+      const gemetenVolumes = await keywordVolumes(admin, alleTermen, "NL", "nl", profile.id);
+
+      // Per vraag de meest specifieke kandidaat met een echt gemeten volume,
+      // of anders de bredere terugvalterm. `zwaarsteVolume` gebruikt alleen
+      // de daadwerkelijk GEKOZEN volumes, niet de hele kandidatenpoel: anders
+      // zou één brede terugvalterm (bijvoorbeeld "bekkenfysiotherapie", 5.400
+      // per maand) de schaal van de hele batch kunnen optrekken, ook voor
+      // vragen die hem zelf niet gebruiken.
+      const gekozenPerPrompt = kandidatenPerPrompt.map((kandidaten) =>
+        kandidaten.map((t) => gemetenVolumes.get(t.toLowerCase())).find((v) => v?.volume != null),
+      );
+      const zwaarsteVolume = Math.max(0, ...gekozenPerPrompt.map((v) => v?.volume ?? 0));
 
       const rows = prompts.map((p, i) => {
-        const term = afgeleideTermen[i];
-        const gemeten = term ? gemetenVolumes.get(term.toLowerCase()) : undefined;
+        const gemeten = gekozenPerPrompt[i];
         const heeftMeting = gemeten?.volume != null && zwaarsteVolume > 0;
         const band = bandFromMeasuredVolume(gemeten?.volume, zwaarsteVolume, p.volumeEstimate);
 
@@ -436,6 +449,16 @@ export async function finishPromptGeneration(id: string): Promise<AnalysisStatus
  * exact de terugval die er altijd al was. Daarom raakt een fout hier de status
  * van de analyse NIET: 'mislukt' tonen voor een cosmetische verfijning zou de
  * klant een probleem melden dat hij niet heeft.
+ *
+ * ⚠️ **Nooit een echt gemeten vraag overschrijven** (bug gevonden op 19/20
+ * september 2026 tegen een echte testronde, zie docs/logbook.md). Deze stap
+ * draait ALTIJD, over alle vragen van de analyse, ook nadat een deel al een
+ * echt DataForSEO-volume kreeg via `bandFromMeasuredVolume()` verderop in dit
+ * bestand. Zonder filter overschreef hij die band stilletjes met een verse
+ * AI-schatting, terwijl `volume_source` op `gemeten` bleef staan: het label
+ * zei "gemeten", het cijfer erachter was intussen weer een gok. Vandaar het
+ * filter op `volume_source` hieronder: alleen vragen die nog nooit een echte
+ * meting hadden, doen mee aan deze relatieve AI-kalibratie.
  */
 export async function calibratePromptVolumes(id: string): Promise<void> {
   const admin = createAdminClient();
@@ -446,6 +469,9 @@ export async function calibratePromptVolumes(id: string): Promise<void> {
     .select("id, text")
     .eq("analysis_id", id)
     .eq("created_by", "system")
+    // Nooit een gemeten vraag overschrijven met een gok, zie de waarschuwing
+    // hierboven.
+    .neq("volume_source", "gemeten")
     .order("created_at")
     .order("id");
 

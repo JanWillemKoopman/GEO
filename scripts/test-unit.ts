@@ -17,7 +17,7 @@
  * niet te testen zonder een echt project, en een test met een nagebootste
  * database toetst vooral of je nabootsing klopt.
  */
-import { binomialStderr, weightedScoreStderr, confidenceBand, changeIsMeaningful, Z95 } from "@/lib/stats/uncertainty";
+import { binomialStderr, weightedScoreStderr, confidenceBand, changeIsMeaningful, bandInAntwoorden, Z95 } from "@/lib/stats/uncertainty";
 import {
   normalizeEntityName,
   isSameEntity,
@@ -137,6 +137,27 @@ import { domainOf } from "@/lib/offsite/domain";
 import { checkUrlFormat, isOnBrandDomain } from "@/lib/url";
 import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
+import { PRIMARY_ENGINE } from "@/lib/engines/types";
+import { leesAiOverview } from "@/lib/ai-overview/parse";
+import {
+  cijferVoorBron,
+  leesBronfilter,
+  beschikbareBronnen,
+  bronLabel,
+  bronToelichting,
+} from "@/lib/engines/bron";
+import {
+  AI_OVERVIEW_ENGINE,
+  AI_OVERVIEW_REPEATS,
+  AI_OVERVIEW_POGINGEN,
+} from "@/lib/ai-overview/types";
+import { leesLlmResponse } from "@/lib/llm-responses/parse";
+import {
+  LLM_RESPONSE_GEMINI_ENGINE,
+  LLM_RESPONSE_REPEATS,
+  LLM_RESPONSE_POGINGEN,
+} from "@/lib/llm-responses/types";
+import { bepaalGemisteVragen } from "@/lib/pipeline/missed-prompts";
 import { formatEvidenceDossier, excerpt } from "@/lib/pipeline/evidence-format";
 import type { EvidenceEntry } from "@/lib/pipeline/evidence-format";
 import { stripUnsupportedClaims, validateField, NEUTRAL_FALLBACK } from "@/lib/pipeline/validate-claims";
@@ -468,7 +489,7 @@ import {
   type GscQueryDag,
 } from "@/lib/search-console/rankings";
 import { berekenOpbrengst, type OpbrengstPagina } from "@/lib/search-console/opbrengst";
-import { afleidenZoekterm, MIN_KEYWORD_LENGTH } from "@/lib/search-demand/keywords";
+import { kandidaatZoektermen, MIN_KEYWORD_LENGTH, binnenWoordlimiet, MAX_WOORDEN_PER_ZOEKTERM } from "@/lib/search-demand/keywords";
 
 import { splitSentences, stripMarkdown, firstSentences } from "@/lib/pipeline/sentences";
 import { extractHeadings, renderMarkdown } from "@/lib/markdown";
@@ -714,6 +735,7 @@ import {
 import { COST_DENIED } from "@/lib/cost-rules";
 import { requireCount } from "@/lib/require-count";
 import { mayMeasureAgain, MIN_DAGEN_TUSSEN_PERIODES } from "@/lib/measure-cadence";
+import { poolRecent, describePooled, MAX_POOLED_ROUNDS } from "@/lib/stats/pooling";
 import {
   visibilityIndex,
   potentialScore,
@@ -11115,33 +11137,66 @@ group("berekenOpbrengst: wat ORBIT ENGINE oplevert, niet wat de site oplevert (�
 // (zie de toelichting bovenaan dit bestand), dus een directe import hier
 // crasht de hele testrun.
 
-group("afleidenZoekterm: van meetvraag naar zoekterm (§3.2 deel B)", () => {
+group("kandidaatZoektermen: thema plus plaats, met terugval op het thema alleen (19 september 2026)", () => {
   eq(
-    "een simpele kostenvraag levert de kern op",
-    afleidenZoekterm("Wat kost een dakinspectie?") ?? "",
-    "dakinspectie",
+    "thema plus plaats als specifiekste kandidaat, thema alleen als terugval",
+    kandidaatZoektermen(
+      "daklekkage",
+      "Wat kost het gemiddeld om een daklekkage in Apeldoorn snel te laten repareren?",
+      ["Apeldoorn", "Zutphen", "Deventer"],
+    ).join(" | "),
+    "daklekkage apeldoorn | daklekkage",
   );
   eq(
-    "hoeveel-kost werkt ook",
-    afleidenZoekterm("Hoeveel kost dakonderhoud in Zutphen?") ?? "",
-    "dakonderhoud zutphen",
+    "geen plaats in de vraag: alleen het thema, geen dubbele kandidaat",
+    kandidaatZoektermen("hardloopschoenen", "Welke hardloopschoenen passen bij overpronatie?", []).join(" | "),
+    "hardloopschoenen",
   );
   eq(
-    "een samengestelde vraag gebruikt alleen het eerste deel",
-    afleidenZoekterm("Wat kost een dakinspectie en wanneer is het nodig?") ?? "",
-    "dakinspectie",
+    "geen serviceRegions bekend: alleen het thema, ook al staat er een plaats in de zin",
+    kandidaatZoektermen("dakdekker", "Welke dakdekker in Apeldoorn kan snel komen?", []).join(" | "),
+    "dakdekker",
+  );
+  eq(
+    "twee plaatsen in de vraag: de eerste in de volgorde van serviceRegions wint",
+    kandidaatZoektermen(
+      "bekkenfysiotherapie",
+      "Wat kost bekkenfysiotherapie in Nieuwegein of Utrecht?",
+      ["Utrecht", "Nieuwegein"],
+    ).join(" | "),
+    "bekkenfysiotherapie utrecht | bekkenfysiotherapie",
+  );
+  eq(
+    "staat de plaats al in het thema, dan wordt hij niet dubbel geplakt en is er maar één kandidaat",
+    kandidaatZoektermen("dakdekker apeldoorn", "Welke dakdekker in Apeldoorn kan snel komen?", [
+      "Apeldoorn",
+    ]).join(" | "),
+    "dakdekker apeldoorn",
+  );
+  ok("een leeg thema levert geen kandidaten op", kandidaatZoektermen("", "Wat kost een dakinspectie?", []).length === 0);
+  ok(
+    "een te kort thema levert geen kandidaten op",
+    kandidaatZoektermen("x".repeat(MIN_KEYWORD_LENGTH - 1), "een vraag", []).length === 0,
+  );
+  eq(
+    "hoofdletterongevoelig",
+    kandidaatZoektermen("Daklekkage", "... in APELDOORN ...", ["apeldoorn"]).join(" | "),
+    "daklekkage apeldoorn | daklekkage",
+  );
+});
+
+group("binnenWoordlimiet: de woordlimiet die één batch niet mag laten mislukken (19 september 2026)", () => {
+  ok(
+    "MAX_WOORDEN_PER_ZOEKTERM woorden past nog",
+    binnenWoordlimiet(Array.from({ length: MAX_WOORDEN_PER_ZOEKTERM }, (_, i) => `w${i}`).join(" ")),
   );
   ok(
-    "een te korte uitkomst levert null op, geen halve zoekterm",
-    afleidenZoekterm("Wat is dit?") === null,
+    "één woord meer dan MAX_WOORDEN_PER_ZOEKTERM past niet meer",
+    !binnenWoordlimiet(Array.from({ length: MAX_WOORDEN_PER_ZOEKTERM + 1 }, (_, i) => `w${i}`).join(" ")),
   );
-  ok("een lege vraag levert null op", afleidenZoekterm("") === null);
-  ok("en alleen witruimte ook", afleidenZoekterm("   ") === null);
-  ok(
-    "MIN_KEYWORD_LENGTH is de echte grens",
-    afleidenZoekterm("x".repeat(MIN_KEYWORD_LENGTH - 1)) === null &&
-      afleidenZoekterm("x".repeat(MIN_KEYWORD_LENGTH)) === "x".repeat(MIN_KEYWORD_LENGTH),
-  );
+  ok("één woord past", binnenWoordlimiet("dakinspectie"));
+  ok("een lege term past niet", !binnenWoordlimiet(""));
+  ok("alleen witruimte past niet", !binnenWoordlimiet("   "));
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -23285,3 +23340,476 @@ void (async () => {
   }
   process.exit(failed === 0 ? 0 : 1);
 })();
+
+// ── lib/stats/pooling.ts ─────────────────────────────────────────────────────
+//
+// De aanleiding staat in docs/logbook.md, 20 september 2026 (3): één meetronde
+// is een steekproef met een band die breder is dan het verschil dat een klant
+// als vooruitgang leest. Samenvoegen maakt het cijfer zekerder zonder één extra
+// betaalde meting.
+group("poolRecent: rustige rondes samenvoegen, een echte stijging niet", () => {
+  // Niets te tonen zonder metingen.
+  ok("lege lijst geeft null", poolRecent([]) === null);
+
+  // ⚠️ Een nieuwe klant moet exact zien wat hij nu ook ziet.
+  const een = poolRecent([{ score: 21, stderr: 8.3 }]);
+  ok("één ronde komt onveranderd terug", een?.score === 21 && een?.rounds === 1);
+  eq2("en met zijn eigen standaardfout", een?.stderr ?? null, 8.3);
+
+  // Drie rondes die binnen elkaars ruis vallen: samenvoegen mag, en de band
+  // hoort smaller te worden. Met gelijke standaardfouten is de winst de wortel
+  // uit drie: 8,3 / 1,732 ≈ 4,79.
+  const rustig = poolRecent([
+    { score: 18, stderr: 8.3 },
+    { score: 24, stderr: 8.3 },
+    { score: 21, stderr: 8.3 },
+  ]);
+  ok("drie rustige rondes gaan samen", rustig?.rounds === 3);
+  ok("het cijfer is het gemiddelde", rustig?.score === 21);
+  ok(
+    "en de band is ongeveer wortel drie smaller",
+    Math.abs((rustig?.stderr ?? 0) - 4.79) < 0.05,
+    `stderr=${rustig?.stderr}`,
+  );
+
+  // ⚠️ HET GEVAL DAT DIT MOET AFVANGEN. Gaat een merk van 10% naar 70%, dan is
+  // dat geen ruis maar verdiende winst. Die uitsmeren over drie rondes zou de
+  // klant zijn resultaat afpakken, en precies dat is waarom poolRecent() stopt
+  // bij een betekenisvol verschil.
+  const sprong = poolRecent([
+    { score: 10, stderr: 5 },
+    { score: 12, stderr: 5 },
+    { score: 70, stderr: 5 },
+  ]);
+  ok("een echte sprong wordt niet uitgesmeerd", sprong?.rounds === 1);
+  ok("en het getoonde cijfer is de nieuwe stand", sprong?.score === 70);
+
+  // De teller begint opnieuw bij de ronde waarin het gebeurde: de ronde vóór de
+  // sprong doet niet mee, ook niet als de ronde dáárvoor weer dichtbij ligt.
+  const naSprong = poolRecent([
+    { score: 68, stderr: 5 },
+    { score: 10, stderr: 5 },
+    { score: 70, stderr: 5 },
+  ]);
+  ok("een oudere ronde achter een sprong telt niet mee", naSprong?.rounds === 1);
+
+  // Nooit meer dan drie, ook niet met tien rustige rondes.
+  const veel = poolRecent(Array.from({ length: 10 }, () => ({ score: 20, stderr: 8 })));
+  ok("hoogstens drie rondes", veel?.rounds === 3);
+  ok("de grens staat op drie", MAX_POOLED_ROUNDS === 3);
+
+  // Een zekerdere ronde weegt zwaarder dan een onzekere. 10 met stderr 2 en 50
+  // met stderr 10 geeft gewichten 1/4 en 1/100, dus vrijwel helemaal de 10.
+  const ongelijk = poolRecent([
+    { score: 50, stderr: 10 },
+    { score: 10, stderr: 2 },
+  ]);
+  ok(
+    "de zekerste ronde weegt het zwaarst",
+    (ongelijk?.score ?? 0) <= 12,
+    `score=${ongelijk?.score}`,
+  );
+
+  // ⚠️ Een standaardfout van 0 betekent "niet bekend" (zie BrandPeriod) en mag
+  // geen oneindig gewicht krijgen. Dan liever onveranderd teruggeven dan een
+  // verzonnen getal (conventie 3).
+  const zonderMarge = poolRecent([{ score: 40, stderr: 0 }]);
+  ok("stderr 0 levert geen oneindig gewicht", zonderMarge?.score === 40);
+  eq2("en geen verzonnen marge", zonderMarge?.stderr ?? null, 0);
+
+  // De zin eronder moet zeggen dat het cijfer zekerder is, niet zwakker.
+  ok("één ronde wordt zo benoemd", describePooled({ score: 20, stderr: 8, rounds: 1 }).includes("laatste meting"));
+  ok(
+    "meer rondes heten zekerder",
+    describePooled({ score: 20, stderr: 5, rounds: 3 }).includes("zekerder"),
+  );
+});
+
+// ── bandInAntwoorden: de band als hoofdgetal ─────────────────────────────────
+//
+// "21%" leest als een stand terwijl er een band van ±15 omheen ligt. Een klant
+// die dat een maand later ziet verschuiven leest daar verval in dat er niet is.
+// Zie docs/logbook.md, 20 september 2026 (3), voor de meting eronder.
+group("bandInAntwoorden: de band in antwoorden in plaats van in procenten", () => {
+  // Het geval uit het echte dashboard: score 21%, band 6% tot 36%.
+  eq("21% met band 6 tot 36 wordt 1 tot 4", bandInAntwoorden({ low: 6, high: 36 }), "1 tot 4 van de 10");
+
+  // ⚠️ Een smalle band mag geen "tussen 2 en 2" opleveren. Dat leest als een
+  // fout, terwijl het juist het zekerste geval is.
+  eq("een smalle band wordt ongeveer", bandInAntwoorden({ low: 18, high: 23 }), "ongeveer 2 van de 10");
+
+  // ⚠️ Nul is geen uitkomst die we durven beloven. "0 tot 0 van de 10" zou
+  // zeggen dat het merk gegarandeerd nooit genoemd wordt, en dat weten we niet
+  // (conventie 3: onbekend is beter dan een verkeerde waarde).
+  eq("een lage band belooft geen nul", bandInAntwoorden({ low: 0, high: 4 }), "minder dan 1 van de 10");
+
+  // De bovenkant moet ook kloppen: 90% tot 100% is negen tot tien.
+  eq("de bovenkant telt door", bandInAntwoorden({ low: 88, high: 100 }), "9 tot 10 van de 10");
+
+  // Een brede band bij een middenscore, het meest voorkomende geval.
+  eq("een brede band toont zijn breedte", bandInAntwoorden({ low: 12, high: 58 }), "1 tot 6 van de 10");
+
+  // ⚠️ De formulering mag nooit een gedachtestreepje bevatten (schrijfstijl §10),
+  // want deze tekst komt letterlijk op het scherm.
+  ok(
+    "geen gedachtestreepjes in de uitkomst",
+    !["1 tot 4", "ongeveer 2", "minder dan 1"].some(() =>
+      bandInAntwoorden({ low: 6, high: 36 }).includes("—"),
+    ),
+  );
+});
+
+// ── De score rust op één engine ──────────────────────────────────────────────
+//
+// lib/jobs/queue.ts waarschuwde hiervoor en die waarschuwing was terecht:
+// computeAggregates() bevatte op 20 september 2026 het woord "engine" niet.
+// Zie PRIMARY_ENGINE in lib/engines/types.ts.
+group("countOpenPeriodicMeasurements: op welke metingen wacht de aggregatie", () => {
+  const taak = (payload: Record<string, unknown>, type = "measure_prompt") => ({
+    payload_json: payload,
+    type,
+  });
+
+  // ⚠️ HET GEVAL DAT DIT AFVANGT. De kansen die de klant ziet komen uit een
+  // meerderheidsregel over álle metingen van een vraag (`computeMissedPrompts`).
+  // Zou de aggregatie niet op de tweede bron wachten, dan landen die metingen ná
+  // het rapport en tellen ze die ronde nergens in mee.
+  ok(
+    "de aggregatie wacht op de tweede meetbron",
+    countOpenPeriodicMeasurements([taak({ weekNo: 0 }, "measure_ai_overview")], 0) === 1,
+  );
+  ok(
+    "en op de primaire engine",
+    countOpenPeriodicMeasurements([taak({ weekNo: 0, engine: "openai" })], 0) === 1,
+  );
+
+  // ⚠️ Maar NIET op een derde engine. Die vult alleen `per_engine_json` en voedt
+  // geen kansen, dus hij mag later landen.
+  ok(
+    "maar niet op een engine die alleen de uitsplitsing vult",
+    countOpenPeriodicMeasurements([taak({ weekNo: 0, engine: "gemini" })], 0) === 0,
+  );
+
+  // Een andere periode telt nooit mee, ook niet bij de tweede bron.
+  ok(
+    "een andere periode telt niet mee",
+    countOpenPeriodicMeasurements([taak({ weekNo: 1 }, "measure_ai_overview")], 0) === 0,
+  );
+
+  // Een taak van vóór deze wijziging draagt geen engine mee, en kwam toen per
+  // definitie van de primaire engine. Die moet blijven tellen, anders rekent de
+  // aggregatie een lopende ronde te vroeg door.
+  ok(
+    "een payload zonder engine telt als primair",
+    countOpenPeriodicMeasurements([taak({ weekNo: 0 })], 0) === 1,
+  );
+
+  // Gemengd: de primaire engine en de tweede bron, niet de derde engine.
+  ok(
+    "gemengde wachtrij telt beide meetbronnen",
+    countOpenPeriodicMeasurements(
+      [
+        taak({ weekNo: 0 }),
+        taak({ weekNo: 0, engine: "gemini" }),
+        taak({ weekNo: 0, engine: "openai" }),
+        taak({ weekNo: 0 }, "measure_ai_overview"),
+      ],
+      0,
+    ) === 3,
+  );
+
+  // De bestaande regels blijven gelden.
+  ok(
+    "een impactmeting telt nog steeds niet mee",
+    countOpenPeriodicMeasurements([taak({ weekNo: 0, impact: { wave: 1 }, engine: "openai" })], 0) === 0,
+  );
+  ok("de primaire engine is ChatGPT", PRIMARY_ENGINE === "openai");
+});
+
+// ── lib/ai-overview/parse.ts ─────────────────────────────────────────────────
+//
+// Dit is de plek waar "geen AI Overview" en "wél een AI Overview" uit elkaar
+// gehouden worden, en dat onderscheid bepaalt of een vraag die ronde meetelt in
+// de noemer. Een fout hier verlaagt stilletjes de score van een merk doordat
+// Google toevallig geen overzicht toonde.
+group("leesAiOverview: een overzicht uitpakken, en weten wanneer er geen is", () => {
+  const taak = (inhoud: Record<string, unknown>) => ({
+    tasks: [{ status_code: 20000, cost: 0.004, result: [{ items: [inhoud] }] }],
+  });
+
+  // Het gewone geval: tekst plus bronnen.
+  const goed = leesAiOverview(
+    taak({
+      type: "ai_overview",
+      markdown: "In Zwolle vindt u verschillende dakdekkers die eerst een inspectie doen.",
+      references: [{ domain: "www.mrdakdekkerzwolle.nl" }, { domain: "de-kraaij.com" }],
+    }),
+  );
+  eq("status is gemeten", goed.status, "gemeten");
+  ok("de tekst komt mee", goed.tekst.includes("Zwolle"));
+  eq("www valt weg uit het domein", goed.bronnen.join(","), "mrdakdekkerzwolle.nl,de-kraaij.com");
+  eq2("en de kosten komen mee", goed.kostenUsd, 0.004);
+
+  // Zonder `markdown` valt hij terug op de losse tekstblokken.
+  const viaItems = leesAiOverview(
+    taak({ type: "ai_overview", items: [{ text: "Eerste stuk." }, { text: "Tweede stuk." }] }),
+  );
+  eq("zonder markdown werken de losse blokken", viaItems.status, "gemeten");
+  ok("en die worden samengevoegd", viaItems.tekst.includes("Eerste") && viaItems.tekst.includes("Tweede"));
+
+  // ⚠️ HET BELANGRIJKSTE GEVAL. Geen overzichtsblok is een NIET-METING, geen
+  // nulscore. Zou dit als "merk niet genoemd" wegschrijven, dan zakt de score
+  // van een merk doordat Google geen antwoord gaf (conventie 3).
+  const geen = leesAiOverview(taak({ type: "organic" }));
+  eq("geen overzichtsblok is geen meting", geen.status, "geen_overview");
+  eq("en dus geen tekst", geen.tekst, "");
+
+  // ⚠️ Een LEEG overzichtsblok telt ook als geen meting. Dat kwam in de meting
+  // van 20 september 4 keer voor op 180 aanroepen.
+  const leegBlok = leesAiOverview(taak({ type: "ai_overview", markdown: "", references: [] }));
+  eq("een leeg overzicht telt niet als meting", leegBlok.status, "geen_overview");
+
+  // Een mislukte taak. ⚠️ De kosten komen tóch mee: een 40101 kost $0,002, en
+  // die weglaten maakt elke kostenraming van deze bron structureel te laag.
+  const stuk = leesAiOverview({
+    tasks: [{ status_code: 40101, status_message: "Internal SE Server Error.", cost: 0.002 }],
+  });
+  eq("een serverfout is een mislukking", stuk.status, "mislukt");
+  eq2("en kost tóch geld", stuk.kostenUsd, 0.002);
+  ok("met de reden erbij", (stuk.melding ?? "").includes("Internal SE"));
+
+  // Onverwachte vormen mogen nooit gooien: één rare respons zou anders een hele
+  // meetronde kunnen afbreken.
+  eq("een lege respons is een mislukking", leesAiOverview({}).status, "mislukt");
+  eq("en null ook", leesAiOverview(null).status, "mislukt");
+
+  // De afspraken die de kosten bepalen.
+  ok("elke vraag gaat drie keer", AI_OVERVIEW_REPEATS === 3);
+  ok("en een mislukte aanroep krijgt één herkansing", AI_OVERVIEW_POGINGEN === 2);
+  ok("de bron landt onder zijn eigen engine-naam", AI_OVERVIEW_ENGINE === "google_ai_overview");
+});
+
+// ── lib/engines/bron.ts ──────────────────────────────────────────────────────
+//
+// De keuzeknop "Bron" op Zichtbaarheid in AI. Eén ding moet hier vaststaan: een
+// klant die de knop nooit aanraakt ziet exact wat hij altijd zag.
+group("cijferVoorBron: het cijfer van de gekozen meetbron", () => {
+  const rij = (per: unknown) => ({
+    score: 21,
+    score_stderr: 8.3,
+    weighted_score: 24,
+    weighted_stderr: 7.1,
+    per_engine_json: per,
+  });
+
+  // ⚠️ DE BELANGRIJKSTE TOETS. De primaire bron leest de gewone kolommen, want
+  // díé kolommen ZIJN de primaire engine sinds de aggregatie engine-bewust werd.
+  // Zou deze functie ook voor ChatGPT in per_engine_json duiken, dan verandert
+  // het cijfer van elke bestaande klant.
+  const chatgpt = cijferVoorBron(rij(null), PRIMARY_ENGINE);
+  eq2("ChatGPT leest de gewone kolommen", chatgpt?.score ?? null, 24);
+  eq2("en de bijbehorende marge", chatgpt?.stderr ?? null, 7.1);
+
+  // Zonder gewogen cijfer valt hij terug op het ongewogen, zelfde regel als
+  // `leidend()` op het scherm.
+  const zonderGewogen = cijferVoorBron(
+    { score: 21, score_stderr: 8.3, weighted_score: null, weighted_stderr: null, per_engine_json: null },
+    PRIMARY_ENGINE,
+  );
+  eq2("zonder gewogen cijfer telt het ongewogen", zonderGewogen?.score ?? null, 21);
+
+  // De tweede bron komt uit per_engine_json, en ook daar gaat gewogen voor.
+  const metGoogle = rij({
+    google_ai_overview: { score: 40, stderr: 9, weighted_score: 45, weighted_stderr: 8 },
+  });
+  const google = cijferVoorBron(metGoogle, AI_OVERVIEW_ENGINE);
+  eq2("Google leest zijn eigen gewogen cijfer", google?.score ?? null, 45);
+  eq2("met zijn eigen marge", google?.stderr ?? null, 8);
+
+  // ⚠️ NIET GEMETEN IS NIET NUL (conventie 3). Een ronde van vóór deze bron
+  // heeft geen per_engine_json; die als 0% in de grafiek zetten zou een val
+  // tonen die er niet is.
+  ok("een ronde zonder deze bron geeft null", cijferVoorBron(rij(null), AI_OVERVIEW_ENGINE) === null);
+  ok(
+    "en een bron zonder cijfer ook",
+    cijferVoorBron(rij({ google_ai_overview: { score: null, stderr: 0 } }), AI_OVERVIEW_ENGINE) === null,
+  );
+
+  // Een onbekende waarde in het adres mag nooit een leeg scherm geven.
+  eq("een onbekende bron valt terug op de standaard", leesBronfilter("onzin"), PRIMARY_ENGINE);
+  eq("en een lege waarde ook", leesBronfilter(null), PRIMARY_ENGINE);
+  eq("een geldige bron blijft staan", leesBronfilter(AI_OVERVIEW_ENGINE), AI_OVERVIEW_ENGINE);
+
+  // ⚠️ De knop verschijnt alleen als er iets te kiezen valt. Zolang er nooit via
+  // een tweede bron gemeten is, verandert dit scherm dus niets.
+  eq2("zonder tweede bron valt er niets te kiezen", beschikbareBronnen([rij(null)]).length, 1);
+  eq2("met een tweede bron wel", beschikbareBronnen([metGoogle]).length, 2);
+
+  // De labels zijn wat de klant de assistent noemt, niet de technische naam.
+  eq("ChatGPT heet ChatGPT", bronLabel(PRIMARY_ENGINE), "ChatGPT");
+  eq("en de tweede bron heet Google AI Overview", bronLabel(AI_OVERVIEW_ENGINE), "Google AI Overview");
+  eq("en de derde bron heet Gemini", bronLabel(LLM_RESPONSE_GEMINI_ENGINE), "Gemini");
+
+  // ⚠️ Gemini kent geen Nederlandse zoekcontext (hoofdstuk 3.1 van het plan).
+  // Zonder een toelichting leest een lage score hier als een oordeel over het
+  // merk, en dat is precies wat merkstrategie.md §30 bijhoudt.
+  ok("Gemini krijgt een toelichting", (bronToelichting(LLM_RESPONSE_GEMINI_ENGINE) ?? "").length > 0);
+  ok("ChatGPT krijgt er geen", bronToelichting(PRIMARY_ENGINE) === null);
+  ok("Google AI Overview ook niet", bronToelichting(AI_OVERVIEW_ENGINE) === null);
+});
+
+// ── lib/llm-responses/parse.ts ───────────────────────────────────────────────
+//
+// Zelfde soort risico als bij AI Overview, en één extra: een leeg antwoord
+// kwam bij de verificatie van 20 september 2026 voor terwijl DataForSEO er wél
+// voor liet betalen. Dat mag nooit als "merk niet genoemd" tellen.
+group("leesLlmResponse: een Gemini-antwoord uitpakken, en weten wanneer het leeg is", () => {
+  const taak = (resultaat: Record<string, unknown>, opties?: { statusCode?: number; cost?: number }) => ({
+    tasks: [
+      {
+        status_code: opties?.statusCode ?? 20000,
+        cost: opties?.cost ?? 0,
+        result: [resultaat],
+      },
+    ],
+  });
+
+  // Het gewone geval: tekst en een paar bronvermeldingen, langer dan de grens.
+  const goed = leesLlmResponse(
+    taak({
+      money_spent: 0.0351,
+      items: [
+        {
+          type: "message",
+          sections: [
+            {
+              type: "text",
+              text: "In Oss zijn er verschillende autobedrijven waar je een occasion kunt kopen en je huidige auto kunt inruilen.",
+              annotations: [{ url: "https://voorbeeld.nl/1" }, { url: "https://voorbeeld.nl/2" }],
+            },
+          ],
+        },
+      ],
+    }),
+  );
+  eq("status is gemeten", goed.status, "gemeten");
+  ok("de tekst komt mee", goed.tekst.includes("Oss"));
+  eq2("het aantal bronvermeldingen komt mee", goed.aantalBronvermeldingen, 2);
+  eq2("money_spent is de kostenbron, niet cost", goed.kostenUsd, 0.0351);
+
+  // ⚠️ HET BELANGRIJKSTE GEVAL. Een antwoord dat er wél is maar te kort om een
+  // meting te zijn, is GEEN nulscore (conventie 3). Nagemeten op 20 september
+  // 2026: dit gebeurde bij de eerste verificatieronde op alle vijf testvragen.
+  const leeg = leesLlmResponse(
+    taak(
+      { money_spent: 0.02, items: [{ type: "message", sections: [{ type: "text", text: "" }] }] },
+    ),
+  );
+  eq("een te kort antwoord is geen meting", leeg.status, "leeg");
+  eq2("de kosten komen wél mee", leeg.kostenUsd, 0.02);
+
+  // Een mislukte taak, bijvoorbeeld het model ondersteunt een veld niet.
+  const stuk = leesLlmResponse({
+    tasks: [
+      {
+        status_code: 40501,
+        status_message: "Invalid Field: 'this model does not support force_web_search'.",
+        cost: 0,
+      },
+    ],
+  });
+  eq("een statusfout is een mislukking", stuk.status, "mislukt");
+  ok("met de reden erbij", (stuk.melding ?? "").includes("force_web_search"));
+
+  // Onverwachte vormen mogen nooit gooien.
+  eq("een lege respons is een mislukking", leesLlmResponse({}).status, "mislukt");
+  eq("en null ook", leesLlmResponse(null).status, "mislukt");
+
+  // De afspraken die de kosten en het gedrag bepalen.
+  ok("elke vraag gaat één keer, niet drie", LLM_RESPONSE_REPEATS === 1);
+  ok("en een mislukte aanroep krijgt één herkansing", LLM_RESPONSE_POGINGEN === 2);
+  ok("de bron landt onder zijn eigen engine-naam", LLM_RESPONSE_GEMINI_ENGINE === "dataforseo_gemini");
+});
+
+// ── lib/pipeline/missed-prompts.ts ───────────────────────────────────────────
+//
+// De belangrijkste rekenkundige wijziging van deze bouwronde (hoofdstuk 5 van
+// docs/tasks/vier-meetbronnen-en-ai-zoekvolume.md): eerst binnen een bron een
+// meerderheid, dan pas tussen de bronnen. Deze module bepaalt welke pagina's
+// geschreven worden, dus elk scenario hieronder staat voor een cijfer dat
+// anders een bestaande klant zou raken.
+group("bepaalGemisteVragen: eerst binnen een bron, dan tussen de bronnen", () => {
+  const meting = (runId: string, promptId: string, engine: string, mentioned: boolean) => ({
+    runId,
+    promptId,
+    engine,
+    mentioned,
+  });
+
+  // ⚠️ HET PROBLEEM DAT DIT OPLOST. Google meet 3x, ChatGPT en Gemini 1x. Bij
+  // ChatGPT genoemd, bij Gemini niet, en bij Google 2 van de 3 keer wél: zou
+  // je alle 5 metingen even zwaar tellen (3 wél, 2 niet), dan wint "genoemd"
+  // met de stem van Google. Met één stem per bron staat het 2-1 (ChatGPT en
+  // Google noemen het merk, Gemini niet), en dat is geen gemiste kans.
+  const googleWintNietMeer = bepaalGemisteVragen([
+    meting("r1", "p1", "openai", true),
+    meting("r2", "p1", "gemini_dfs", false),
+    meting("r3", "p1", "google_ai_overview", true),
+    meting("r4", "p1", "google_ai_overview", true),
+    meting("r5", "p1", "google_ai_overview", false),
+  ]);
+  eq2(
+    "Google's drievoudige meting krijgt niet meer stemgewicht dan de rest",
+    googleWintNietMeer.length,
+    0,
+  );
+
+  // Twee bronnen tegen twee bronnen: gelijke stand telt als gemiste kans
+  // (hoofdstuk 5, de voorzichtige kant).
+  const gelijkeStand = bepaalGemisteVragen([
+    meting("r1", "p1", "openai", true),
+    meting("r2", "p1", "gemini_dfs", true),
+    meting("r3", "p1", "google_ai_overview", false),
+    meting("r4", "p1", "vierde_bron", false),
+  ]);
+  eq2("een gelijke stand tussen bronnen is een gemiste kans", gelijkeStand.length, 1);
+  eq("met een run uit een bron die 'm miste", gelijkeStand[0]?.promptId, "p1");
+
+  // Een bron die voor deze vraag helemaal geen meting heeft (bijvoorbeeld
+  // Gemini viel deze ronde uit) telt niet mee als "gemist" en niet als
+  // "genoemd": hij doet gewoon niet mee aan de stemming. Hier stemmen alleen
+  // ChatGPT en Google, allebei "gemist".
+  const eenBronOntbreekt = bepaalGemisteVragen([
+    meting("r1", "p1", "openai", false),
+    meting("r2", "p1", "google_ai_overview", false),
+    meting("r3", "p1", "google_ai_overview", false),
+  ]);
+  eq2("de twee bronnen die wél meetten, zijn het eens: gemiste kans", eenBronOntbreekt.length, 1);
+
+  // Een vraag die maar door één bron gemeten is: die ene bron beslist, zoals
+  // vóór deze bouwronde.
+  const eenBronMaar = bepaalGemisteVragen([meting("r1", "p1", "openai", false)]);
+  eq2("één bron alleen: die bron beslist", eenBronMaar.length, 1);
+  eq("de run van die ene meting is het bewijs", eenBronMaar[0]?.representatieveRunId, "r1");
+
+  const eenBronMaarWelGenoemd = bepaalGemisteVragen([meting("r1", "p1", "openai", true)]);
+  eq2("en bij wél genoemd geen gemiste kans", eenBronMaarWelGenoemd.length, 0);
+
+  // Binnen één bron blijft een gelijke stand "genoemd" winnen (ongewijzigd
+  // gedrag): bij twee van de vier metingen genoemd is dat geen meerderheid.
+  const binnenBronGelijkeStand = bepaalGemisteVragen([
+    meting("r1", "p1", "openai", true),
+    meting("r2", "p1", "openai", true),
+    meting("r3", "p1", "openai", false),
+    meting("r4", "p1", "openai", false),
+  ]);
+  eq2("binnen één bron wint een gelijke stand als 'genoemd'", binnenBronGelijkeStand.length, 0);
+
+  // Twee vragen door elkaar heen: ze mogen elkaar niet beïnvloeden.
+  const tweeVragen = bepaalGemisteVragen([
+    meting("r1", "p1", "openai", false),
+    meting("r2", "p2", "openai", true),
+  ]);
+  eq2("twee losse vragen blijven los", tweeVragen.length, 1);
+  eq("en het is de juiste vraag", tweeVragen[0]?.promptId, "p1");
+});

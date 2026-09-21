@@ -10171,3 +10171,666 @@ Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd)
 allemaal groen, over beide commits van deze stap. Wat niet is gecontroleerd: of de herschreven
 `designsystem.md` ergens een waarde noemt die inmiddels alweer is doorontwikkeld sinds de laatste
 `grep` tegen `app/globals.css`; dat is per definitie een momentopname en niet doorlopend bewaakt.
+
+## 19 september 2026: DataForSEO voor het eerst tegen een echt account getest
+
+De eigenaar heeft het startsaldo van open vraag 2 in `docs/tasks/zoekdata-in-de-keten.md` §10
+gestort en een DataForSEO-account aangemaakt. `DATAFORSEO_LOGIN` en `DATAFORSEO_PASSWORD` staan sinds
+vandaag versleuteld in Vercel (productie, preview en development), voor het project `geo`. Daarmee is
+de eerste helft van conventie 10 voor `lib/search-demand/dataforseo.ts` gedaan: er is nu een sleutel,
+dus de adapter kan voor het eerst tegen de echte leverancier draaien.
+
+**Eerste aanroep.** Een losse testaanroep op de merknamen "audi" en "volkswagen" (toevallig ook de
+twee merken die Van den Udenhout als dealer voert) leverde een geldige HTTP 200 met echte
+maandcijfers: Audi 90.500/maand, Volkswagen 110.000/maand, beide met twaalf maanden geschiedenis
+terug. De authenticatie, het endpoint en de vorm van de respons in `dataforseo.ts` kloppen dus
+tegen het echte account. Kosten: $0,09 voor die ene aanroep.
+
+**De vergelijking op vijf bestaande analyses (het "Af als"-criterium van Blok B).** Van de merken op
+`main` heeft er maar één, Van den Udenhout, een `search_volume_index` op `profile_topics` (de
+profielbrede herkalibratie uit `lib/pipeline/search-demand.ts` draait pas na een eerste rapport, en
+dat is bij de meeste profielen in deze omgeving nog niet gebeurd). Om toch vijf analyses te kunnen
+vergelijken is uitgeweken naar het niveau eronder: de per-analyse `volume_estimate` op `prompts`
+(0-100, relatief BINNEN één analyse, zoals `lib/pipeline/prompts.ts` het ook bedoelt, dus expliciet
+niet vergelijkbaar tussen analyses, zie `lib/pipeline/search-demand.ts` regel 7-16). Voor vijf
+onderwerpen (daklekkage verhelpen, dakrenovatie en dakisolatie, bekkenfysiotherapie, hardloopblessure
+behandelen, en Zakelijke lease voor bedrijfswagens, de enige van de vijf die bij een echte klant hoort)
+zijn de hoogst en laagst scorende meetvragen genomen en met `lib/search-demand/keywords.ts`
+(`afleidenZoekterm()`) omgezet naar een zoekterm, precies zoals de pijplijn dat zelf zou doen.
+
+⚠️ **Twee bevindingen, en de eerste is belangrijker dan de score-vergelijking zelf.**
+
+1. **`afleidenZoekterm()` levert op echte meetvragen vaak een onbruikbare term.** Van de tien
+   afgeleide termen kreeg er precies één een echt volume terug, en dat was toeval
+   ("woon nieuwegein", zelf een zinloze term, kreeg toevallig 20/maand). De andere negen waren óf te
+   lang voor Google Ads' eigen woordlimiet (zie punt 2), óf te specifiek om ooit gezocht te zijn
+   ("verschillen tussen operational lease", "bekkenfysiotherapie praktijk utrecht"). Een handmatig
+   gekozen, opgeschoonde kernterm voor diezelfde vijf onderwerpen deed het duidelijk beter: 4 van de 8
+   testtermen kregen een echt volume (daklekkage apeldoorn 40/maand, dakrenovatie apeldoorn 50/maand,
+   dakisolatie apeldoorn 40/maand, operational lease bedrijfswagen 210/maand). Dat bevestigt precies
+   de eigen waarschuwing bovenaan `keywords.ts`: de deterministische afleiding is "matig tot slecht
+   bij een samengestelde vraag", en de meeste echte meetvragen in deze steekproef zijn samengesteld.
+   Conventie 3 vangt dit gelukkig correct op: een onbekende term wordt `null`, nooit een verzonnen 0.
+2. **Een echte bug: één te lange term in een batch verwerpt de HELE batch, niet alleen die ene
+   term.** DataForSEO wijst een aanroep met status `40501` af zodra één zoekterm boven de ongeveer
+   tien woorden van Google Ads' eigen keyword-limiet komt ("Keyword text has too many words"), en dat
+   is een fout op het niveau van de hele taak, niet van de losse term. `dataforseo.ts` regel 101-104
+   vangt dat vandaag af met `task.status_code !== 20000` → heel de batch overslaan. Bij een batch van
+   tot 1000 zoektermen (`MAX_KEYWORDS_PER_CALL`) betekent dat: één slecht afgeleide term uit
+   `afleidenZoekterm()` kan de meting van de andere 999 stilletjes laten mislukken, zonder dat er iets
+   fout lijkt te gaan (de aanroep zelf faalt niet, alleen de batch waar hij in zat). Dit is nog niet
+   gerepareerd; het staat als openstaand punt hieronder.
+
+**Wat dit betekent voor Blok B.** De koppeling zelf (authenticatie, endpoint, batching, opslag als
+`null` bij onbekend) is nu wél tegen een echt account bevestigd. Het eigenlijke "Af als"-criterium,
+"de modelgok naast het echte volume, met de afwijking opgeschreven", is maar deels gehaald: er was te
+weinig echt volume in deze steekproef om een betekenisvolle afwijking uit te rekenen (bij vier van de
+tien onderwerp-vergelijkingen was er domweg geen echt cijfer om naast de gok te leggen). De grotere
+winst van deze testronde is het vinden van de batch-bug, niet de score-vergelijking zelf.
+
+**Nog te doen, niet in deze ronde uitgevoerd:** de batch-bug repareren (bijvoorbeeld: per keyword de
+woordlimiet vooraf controleren en te lange termen er zelf uitfilteren in plaats van de hele batch te
+laten mislukken), en zodra er merken zijn met een `search_volume_index` op onderwerpniveau, die
+vergelijking overdoen op een schaal die wél bedoeld is om vergeleken te worden.
+
+Open vraag 2 in `docs/tasks/zoekdata-in-de-keten.md` §10 is hiermee afgehandeld: het account bestaat,
+het saldo staat erop, de sleutels staan in Vercel.
+
+## 19 september 2026: de batch-bug gerepareerd, en het echte gesprek over `afleidenZoekterm()`
+
+**De reparatie.** `binnenWoordlimiet()` (`lib/search-demand/keywords.ts`) filtert een zoekterm boven
+Google Ads' woordlimiet van 10 er vooraf uit, in plaats van de hele batch (tot 1000 zoektermen) te
+laten mislukken zoals de test hierboven liet zien. Puur en zonder `server-only` (conventie 2), dus
+getest vanuit `test-unit.ts` zonder een echte aanroep nodig te hebben. `dataforseo.ts` gebruikt hem
+nu om de batch vooraf schoon te maken, met een `console.warn` die zegt hoeveel termen zijn
+overgeslagen. De docstring bovenaan `dataforseo.ts` is bijgewerkt: die zei nog "nog niet tegen een
+echt account geverifieerd", en dat klopt sinds vandaag niet meer.
+
+**Het gesprek dat deze bug opleverde.** De eigenaar vroeg terecht door: stuurt de app werkelijk de
+hele AI-meetvraag als zoekterm naar DataForSEO? Ja, dat is precies wat er gebeurt, en de eerste
+testronde liet al zien dat dat op 9 van de 10 echte vragen geen resultaat oplevert. De batch-bug was
+dus een symptoom van een dieper punt: je moet een zoekterm niet proberen terug te knippen uit een
+AI-gegenereerde zin, je moet hem opbouwen uit wat je al zeker weet. `propose-topics.ts` regel 294
+doet dat al voor Blok 3.1: de onderwerptitel zelf is daar de kandidaat-zoekterm, geen tekst die eerst
+uit een AI-zin gedestilleerd wordt. Het voorstel voor Blok 3.2 deel B, nog niet gebouwd, staat als
+open vraag 2 in `docs/tasks/zoekdata-in-de-keten.md`: dezelfde aanpak, onderwerp plus plaats, met als
+prijs dat het volume dan per onderwerp-plaats-combinatie komt in plaats van per individuele
+meetvraag.
+
+Getest: `tsc --noEmit`, `test:unit` (4918 geslaagd, met de nieuwe groep voor `binnenWoordlimiet()`),
+`test:chain` (666 geslaagd) en `build` zijn allemaal groen.
+
+## 19 september 2026: een echt bruikbare zoekterm per meetvraag, niet meer per onderwerp-plaats
+
+De eigenaar wilde geen genoegen nemen met het grovere alternatief uit de vorige logboekregel (volume
+per onderwerp-plaats-combinatie): echt per voorgesteld contentitem een indicatie van het zoekverkeer,
+dus per meetvraag. Dat bleek mogelijk zonder een nieuwe AI-aanroep, door twee bouwstenen te gebruiken
+die al bestaan: het `cluster`-label dat `generatePromptsForStage()` (`lib/pipeline/prompts.ts`)
+sowieso al per meetvraag meegeeft ("kort thema-label", bijvoorbeeld "dakrenovatie"), en de plaats die
+bij een lokaal bedrijf al letterlijk in de vraag staat (`geoRule`, dezelfde regel die de plaats erin
+dwingt). `afleidenZoekterm()` (probeerde de vrije zin terug te knippen) is vervangen door
+`kandidaatZoektermen()` (`lib/search-demand/keywords.ts`), die thema plus plaats aan elkaar plakt.
+
+**De verificatie tegen het echte account leverde meteen een tweede bevinding op.** Met vijf
+voorbeelden uit de eerdere steekproef (daklekkage, dakrenovatie, bekkenfysiotherapie,
+hardloopblessure, zakelijke lease) kreeg "daklekkage apeldoorn" een volume (40/maand), maar de andere
+vier niet: "bekkenfysiotherapie utrecht", "hardloopblessure utrecht" en "zakelijke lease bedrijfswagen
+oss" leverden alle drie `null` op. Een losse test op de kale thema's zonder plaats liet zien waarom:
+"bekkenfysiotherapie" alleen heeft een gemeten volume van 5.400/maand, "zakelijke lease" 1.000/maand,
+"hardloopblessure" 20/maand. Google Ads heeft dus vaak wél data op het brede onderwerp, maar niet meer
+zodra er een specifieke plaats bij komt, dat combinatieniveau zakt onder de meetdrempel van de
+leverancier. Dat is geen bug maar een grens van de brondata.
+
+**De reparatie: twee kandidaten in plaats van één, van specifiek naar breed.**
+`kandidaatZoektermen()` geeft `["thema plaats", "thema"]` terug als er een plaats gevonden is, anders
+alleen `["thema"]`. `prepare.ts` haalt alle kandidaten van alle vragen in één keer op (de cache in
+`cache.ts` voorkomt dubbel betalen) en kiest per vraag de eerste kandidaat met een echt volume. Eén
+scherpte daarbij: `zwaarsteVolume`, waarmee `bandFromMeasuredVolume()` herschaalt, rekent alleen met
+de daadwerkelijk GEKOZEN volumes per vraag, niet met de hele kandidatenpoel. Zou dat wel zo zijn, dan
+kan een brede terugvalterm die maar één vraag gebruikt (zoals "bekkenfysiotherapie" op 5.400) de schaal
+van alle andere vragen in dezelfde batch optrekken, ook van vragen die die term zelf niet gebruikten.
+
+**Wat dit niet is: een garantie dat elke vraag nu een gemeten volume krijgt.** Bij een erg specifieke
+combinatie van thema en plaats, of een thema dat ook op zichzelf zelden gezocht wordt, blijft
+`volume_source` gewoon op `geschat` staan. Dat is precies conventie 3: onbekend is een betere waarde
+dan een verkeerde, dus geen derde, nog bredere terugvalstap toegevoegd die het risico op een
+oneerlijke vergelijking (een heel andere zoekvraag) weer zou vergroten.
+
+Nog niet gedaan: dit nagerekend op een volledige, echte `keyword_discovery`-ronde met de dertig
+meetvragen van één bestaand merk, in plaats van losse voorbeelden. Dat staat als open vraag 3 in
+`docs/tasks/zoekdata-in-de-keten.md`.
+
+Getest: `tsc --noEmit`, `test:unit` (4919 geslaagd, met de vernieuwde groep voor
+`kandidaatZoektermen()`), `test:chain` (666 geslaagd) en `build` zijn allemaal groen.
+
+## 20 september 2026: de eerste echte testronde, en de bug die hij blootlegde
+
+Na de merge naar `main` is de nieuwe code voor het eerst op een echt cluster van een bestaande klant
+gedraaid: Van den Udenhout, "Occasion kopen in Noord-Brabant" (analyse `027487ec-4879-44ca-a1b3-141720fadd34`).
+Alle vijf taken liepen zonder fouten: onderzoek, promptgeneratie in drie funnelfasen, nakalibratie.
+
+**Het resultaat op de zoektermen: 9 van de 30 vragen (30%) kregen een echt gemeten volume.** Een paar
+voorbeelden van de terugvalconstructie uit de vorige logboekregel, nu bevestigd in het echt: "financiering
+oss" leverde niets op, "financiering" alleen wel (2.400/maand); "verborgen gebreken rosmalen" niets,
+"verborgen gebreken" alleen 1.300/maand; "aankoopkeuring rosmalen" niets, "aankoopkeuring" alleen
+880/maand. Kosten van de hele ronde: $0,18 bij DataForSEO (drie aanroepen, één per funnelfase, 54
+zoektermen in totaal) plus ongeveer $0,02 aan AI-aanroepen.
+
+**⚠️ Maar de test bracht ook een bug boven die niets met deze bouwronde te maken had.** Ná de drie
+funnelfasen draait een bestaande, aparte taak (`calibrate_volumes` → `calibratePromptVolumes()` in
+`lib/pipeline/prepare.ts`, gebouwd lang vóór deze bouwronde) die alle vragen van de analyse nog één keer
+met een AI-schatting herweegt, "consistenter dan losse schattingen per vraag". Die stap keek niet naar
+`volume_source` en overschreef dus ook de band van de net gemeten vragen. Concreet bewijs: "financiering"
+had met 2.400/maand veruit het hoogste échte volume van de hele set en had daarom band "hoog" moeten
+worden (`bandFromMeasuredVolume()` schaalt de zwaarste vraag van de batch naar 100). In plaats daarvan
+kwam de vraag na de nakalibratie op band "midden" met een AI-schatting van 32, terwijl `volume_source`
+gewoon op `gemeten` bleef staan. Het label zei "gemeten", het cijfer erachter was weer een gok.
+
+**De reparatie:** `calibratePromptVolumes()` (`lib/pipeline/prepare.ts`) sluit vragen met
+`volume_source = 'gemeten'` nu uit van zijn `select`, dus ook van zijn `update`. Zo'n vraag behoudt de
+band die `bandFromMeasuredVolume()` haar gaf, en de resterende geschatte vragen worden zoals voorheen
+relatief tegen elkaar afgezet. Een scenario in `test-chain.ts` (T8.2) legt dit vast: een vraag met
+`volume_source = 'gemeten'` komt ongewijzigd uit `calibratePromptVolumes()`, twee vragen met
+`volume_source = 'geschat'` doen wél mee.
+
+**Waarom dit niet in `docs/tasks/zoekdata-in-de-keten.md` stond:** dat plan beschrijft `prepare.ts`'s
+eigen `bandFromMeasuredVolume()`-stap binnen één funnelfase, maar niet deze latere, analysebrede
+nabewerkingstaak, die al bestond vóór deze bouwronde en nergens de nieuwe `volume_source`-waarde kende.
+Dat is precies het soort gat dat alleen een echte, volledige testronde blootlegt, en niet een geïsoleerde
+unit- of ketentest die deze twee stappen nooit na elkaar liet lopen.
+
+Getest: `tsc --noEmit`, `test:unit` (4919 geslaagd), `test:chain` (669 geslaagd, met het nieuwe
+scenario T8.2) en `build` zijn allemaal groen.
+
+## 20 september 2026 (2): de zoekvolumelaag gaat op de parkeerstand
+
+Een Teamsessie over `lib/search-demand/` (SEO 28%, Data 20%, Product 16%, GEO 14%, AI 12%,
+Engineering 10%, plus tegenspraak) eindigde met een uitkomst die niemand vooraf had: de koppeling
+hoeft niet gerepareerd te worden maar geparkeerd, en de reden is in één zin na te rekenen.
+
+**Je kunt deze laag uitzetten en er verandert niets zichtbaars in de app.** Geen scherm, geen score,
+geen aanbeveling. Nagerekend tegen productie op 20 september: 0 van de 23 onderwerpen heeft een
+gemeten zoekvolume, de potentiescore leest `profile_topics.search_volume_absolute` nergens
+(`lib/potential-data.ts` regel 100-106 leest alleen `search_volume_index`, en dat is de AI-schatting
+uit `lib/pipeline/search-demand.ts`), en de 9 meetvragen die het label `gemeten` dragen staan alle
+negen op band `midden`, net als de 21 vragen zonder meting. De laag heeft $0,18 aan data opgeleverd
+die niemand leest.
+
+**Daartegenover staat wat hij heeft gekost:** drie migraties waarvan er één (`0105`, tabel
+`profile_keywords`) een tabel aanmaakte die nergens in `app/` of `lib/` wordt aangeroepen, ruim 400
+regels module, en twee productiebugs. Allebei die bugs ontstonden op het raakvlak tussen de nieuwe
+laag en iets dat er al stond: de batch die klapte op één te lange zoekterm (19 september) en de
+nakalibratie die een gemeten band overschreef terwijl het label `gemeten` bleef staan (20 september).
+Dat patroon, en niet de kosten, is de reden om te stoppen.
+
+**⚠️ En er stond een derde fout klaar die nog nooit is opgetreden.** `bandFromMeasuredVolume()`
+(`lib/pipeline/volume.ts`) schaalt naar de zwaarste gemeten term van de batch. Bij Van den Udenhout
+was dat "financiering": 2.400 zoekopdrachten per maand met een CPC van 14,66 euro, dus hypotheken en
+zakelijke leningen, niet autofinanciering. Die term zou anker worden en dus band `hoog` met gewicht
+1,0 krijgen, terwijl "aankoopadvies" (50 per maand, wel passend) naar het minimumgewicht zakt. In
+productie is dat nooit gebeurd omdat de nakalibratiebug alles naar `midden` platsloeg. **De
+reparatie van vanochtend maakt die fout bij de eerstvolgende analyse voor het eerst werkzaam.** Dat
+is de directe aanleiding om nu te parkeren en niet volgende maand.
+
+**De schakelaar staat in code, niet in Vercel.** De eigenaar wil `DATAFORSEO_LOGIN` en
+`DATAFORSEO_PASSWORD` laten staan om later te kunnen doorontwikkelen. Daarmee kan de aanwezigheid
+van een sleutel niet langer de schakelaar zijn, want dan draait de laag gewoon door. Vandaar
+`SEARCH_DEMAND_ENABLED` in `lib/search-demand/registry.ts`, standaard uit, en alleen de letterlijke
+waarde `true` zet hem aan. Die grendel zit óók op de cache (`lib/search-demand/cache.ts`): zonder
+dat zouden de 7 zoektermen uit `keyword_demand` nog tot ongeveer 19 oktober een band kunnen zetten
+in een app die geacht wordt stil te staan. Scenario 13 in `test-chain.ts` legt allebei vast, inclusief
+dat twee geldige sleutels op zichzelf niet genoeg zijn.
+
+**Niet gesloopt, en dat is een bewuste keuze.** De tabel `profile_keywords`, de kolommen
+`profile_topics.search_volume_absolute` en `search_volume_source`, en de module zelf blijven staan.
+Conventie 4 zegt dat migraties additief zijn en nooit `drop`, en een tabel weggooien is onomkeerbaar.
+Slapende code die niets doet kost minder dan een migratie die data vernietigt. Wat wel is opgeruimd:
+elke plek in de documentatie die beweerde dat deze koppeling iets doet wat hij niet doet.
+
+**Waarom dit terugkomt, en waarom niet eerder.** Drie aanleidingen, en pas bij één daarvan is het de
+moeite waard: als de toets uit blok D aantoont dat echte zoekopdrachten de tekst beter maken (en die
+toets kan volledig op Search Console-data, zonder DataForSEO), als er zoveel merken zijn dat
+onderwerpen kiezen in het strategisch gesprek niet meer schaalt, of als een klant in een gesprek
+vraagt hoe vaak iets gezocht wordt en het antwoord schuldig blijft. Tot die tijd is het aanbod van de
+klant plus het gesprek een sterker signaal dan een zoekvolume van Google Ads, zeker bij 23
+onderwerpen.
+
+**De belangrijkste les, los van deze koppeling.** Het ergste is niet een koppeling die niet werkt,
+maar een koppeling die half werkt en meedraait: die kost bugs zonder iets op te leveren. "Gebouwd,
+niet gebruikt" is geen neutrale toestand.
+
+Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen.
+
+## 20 september 2026 (3): één meting is een muntworp, en Google is dat net zo goed
+
+De eigenaar merkte dat dezelfde cluster twee keer meten twee verschillende uitslagen geeft, en vroeg
+of Search Console of de nieuwe SEO-api dat kon oplossen. Het antwoord op de eerste helft is ja, op de
+tweede helft nee, en de reden staat in cijfers die vandaag zijn nagemeten. Het volledige plan staat
+in `docs/tasks/ai-overview-als-tweede-meetbron.md`.
+
+**De diagnose klopt, maar de oorzaak is niet de steekproefgrootte.** Het is de uitkomst per vraag.
+Bij de klantmeting gaan de acht zwaarste vragen drie keer door de meting, binnen dezelfde ronde,
+minuten na elkaar: van de 11 vragen waar het merk ooit genoemd werd, gaven er **6 een andere
+uitkomst bij de herhaling**. Bij de markt Tilburg (dezelfde 40 vragen op 1 en 15 september) klapten
+**27 van de 45** combinaties van vraag en bedrijf om. Van Erve ging van 5 vermeldingen naar 1.
+
+**De noemer beweegt mee, en dat tikt harder aan dan de teller.** Bij die markt noemden **24 van de 40
+vragen in beide rondes geen enkel bedrijf**. Je betaalt voor 40 vragen en meet er 16.
+
+**De rem die dit moest opvangen heeft nog nooit gevuurd.** `elicit-rate.ts` slaat een vraag pas over
+na acht metingen. Van de 210 vragen op productie heeft er **geen enkele meer dan 3**. De besparing
+die de herhalingen uit R6.1 moest betalen bestaat dus niet.
+
+**⚠️ De aanname over Google AI Overview is weerlegd, en dat is de belangrijkste uitkomst van vandaag.**
+Vooraf was de redenering: een AI Overview wordt per zoekopdracht bewaard, dus is hij rustiger dan een
+ChatGPT-antwoord, dus is hij de stabiele tweede as. Nagemeten op alle 90 prompts van Van den
+Udenhout, twee volledige rondes met een half uur ertussen, 234 aanroepen voor $0,85: van de 28 vragen
+waar het merk ooit genoemd werd **wisselde de uitkomst bij 17 (61%)**, van de 418 bronnen kwamen er
+**204 terug (49%)**, en bij 1 op de 5 vragen wisselde zelfs of er überhaupt een AI Overview
+verscheen. Het cluster wagenparkbeheer ging van 8% naar 20% in een half uur. Google is dus niet
+rustiger dan ChatGPT, eerder onrustiger.
+
+**Wat wél standhield: de dekking en de prijs.** 91% van de geslaagde aanroepen levert een bruikbare
+AI Overview, en die noemt concrete lokale bedrijven met hun eigen site als bron. De zorg dat Google
+bij lokale koopvragen een kaart toont in plaats van een overzicht bleek ongegrond. Nagemeten in
+`ai_calls` kost een ChatGPT-ronde van 30 prompts **$0,76** (46 metingen, want acht vragen gaan drie
+keer, plus $0,03 voor de beoordelaar). Diezelfde 30 prompts via de SERP-api kosten **$0,13**,
+inclusief de herkansingen: **bijna een derde van de aanroepen mislukt bij de eerste poging** met
+`40101 Internal SE Server Error`, en zo'n mislukte aanroep kost tóch $0,002.
+
+**Daarmee draait de zakelijke reden om.** Google is niet het rustige signaal maar het kanaal waar
+herhalen betaalbaar is, en herhalen is wat de wiebel wegneemt. Drie metingen per vraag kosten daar
+$0,38 per cluster, tegen $1,54 bij ChatGPT. Wie deze bron bouwt, ontwerpt hem dus vanaf dag één met
+herhalingen, en presenteert hem nooit als de nauwkeurige tegenhanger van ChatGPT.
+
+**Twee dingen die eerst moeten.** `computeAggregates()` bevat **geen enkele engine-filter** (het
+woord komt in die functie niet voor), dus per engine uitwaaieren laat vandaag elke vraag dubbel
+meetellen; de waarschuwing in `lib/jobs/queue.ts` is nog steeds geldig. En een AI Overview past niet
+in `EngineAdapter`: die interface verwacht een gesprek met een systeemprompt, een SERP-api geeft een
+resultatenpagina. Het is een derde soort bron, geen vierde engine.
+
+**De les die breder geldt dan deze koppeling.** "Gecached, dus stabiel" was een plausibele redenering
+die twee keer in dit gesprek als feit is gebruikt voordat hij gemeten werd. Hij kostte $0,85 om te
+weerleggen. Conventie 10 gaat niet alleen over wat je bouwt, maar ook over wat je adviseert.
+
+Niets aan code gewijzigd: dit was onderzoek.
+
+## 20 september 2026 (4): stap 1 van het meetplan vervalt, nagerekend voordat hij gebouwd werd
+
+De eigenaar gaf akkoord op "snoeien en herhalen, budgetneutraal" als eerste ingreep tegen de
+springende clusterscore. Bij het openen van `elicit-rate.ts` bleek die stap op drie verkeerde
+aannames te rusten, alle drie van mij. Niets gebouwd, plan gecorrigeerd.
+
+**De knop die ik wilde omzetten klemt niet.** `maySkip()` eist genoeg metingen én een
+Wilson-bovengrens onder de 25%. Bij nul successen is die bovengrens `Z²/(n+Z²)`, en die zakt pas bij
+**twaalf** metingen onder de drempel (24,3%; bij elf nog 25,9%). `MIN_SAMPLES_TO_SKIP` van 8 naar 3
+zetten verandert dus exact niets, want de bovengrenstoets blijft bindend. Dat verklaart ook waarom
+er op productie geen enkele vraag op `brand_eliciting = 'nee'` staat: met één meting per maandronde
+duurt het twaalf maanden voordat een vraag mág afvallen.
+
+**Er valt op de klantmeting niets te snoeien.** Per vraag nagemeten over alle zes de clusters: het
+aantal vragen dat nog nooit één aanbieder opleverde is 0, 0, 1, 1, 2 en 3 van de 30. Ongeveer $0,02
+per ronde. De 24-van-de-40 waarmee ik de stap onderbouwde komt uit de **salesmodule**, een andere
+pijplijn die dertig bedrijven tegelijk meet in plaats van één merk. Twee pijplijnen over één kam
+scheren was de fout, en hij was met één query zichtbaar geweest.
+
+**En snoeien had de score sowieso niet bewogen.** Vragen zonder enige aanbieder vallen al buiten de
+noemer (`winnableRunIds`). Het bespaart geld en verschuift geen cijfer.
+
+**Wat bij diezelfde controle juist wél bleek te kloppen.** De herhalingen gaan naar de acht
+zwaarstwegende vragen en het scherm toont de gewogen score, dus die toewijzing is juist. De
+foutmarge wordt bewust in vragen gerekend en niet in metingen, waardoor herhalingen de band niet
+smaller maken; dat is conservatief en werkt in het voordeel van de klant, want een bredere band
+betekent vaker "gelijk gebleven" in plaats van vals alarm. En de presentatie heeft de marge-kolom en
+`changeIsMeaningful()` al. Het stuk van de app dat ik wilde repareren was het stuk dat al klopte.
+
+**Wat overblijft is een geldvraag en twee gratis ingrepen.** Gratis: het gemiddelde over de laatste
+drie rondes als hoofdgetal (wiebel omlaag met wortel drie, nul extra metingen), en een rem op
+handmatig hermeten zodat twee metingen op één dag samengevoegd worden in plaats van als twee
+uitslagen getoond. Die tweede is letterlijk wat de eigenaar overkwam. Kost geld: drie metingen per
+vraag in plaats van 46 per cluster, $1,54 tegen $0,76, band 1,57 keer smaller. En er is één plek
+waar snoeien wél loont, maar dat is de salesmodule met 24 van de 40 vragen merkloos.
+
+**De les.** Twee keer in twee dagen heb ik een plausibele redenering als feit gebruikt: eerst
+"gecached, dus stabiel", nu "de overslaanregel klemt op acht". Allebei viel in één commando te
+weerleggen. Conventie 10 zegt dat gebouwd niet geverifieerd is; dit gesprek voegt toe dat een
+geaccepteerd plan dat ook niet is.
+
+Niets aan code gewijzigd.
+
+## 20 september 2026 (5): het hoofdgetal komt uit drie rondes, en sales krijgt een tijdrem
+
+De twee gratis ingrepen uit `docs/tasks/ai-overview-als-tweede-meetbron.md` staan er. Allebei lossen
+ze hetzelfde op: een klant die naar één meetronde kijkt en daar een stand in leest die er niet is.
+
+**Het hoofdgetal komt nu uit de laatste drie rondes samen** (`lib/stats/pooling.ts`). Eén ronde is
+een steekproef met een band van ±16 punten bij 30 vragen, en dat is breder dan het verschil dat een
+klant als vooruitgang of verval leest. Drie rondes samenvoegen maakt de band ongeveer 1,7 keer
+smaller, en kost geen enkele extra meting: die rondes zijn al gedaan en al betaald. De weging gaat
+op zekerheid (inverse variantie), dus een ronde met een smalle band telt zwaarder dan een met een
+brede.
+
+**⚠️ De valkuil daarbij is dat je een echte stijging uitsmeert.** Publiceert een klant een pagina en
+gaat hij van 10% naar 70%, dan zou blind middelen hem zijn verdiende winst afpakken. Vandaar dat
+`poolRecent()` stopt met samenvoegen zodra een oudere ronde betekenisvol afwijkt van de nieuwste.
+Die grens wordt niet in de nieuwe module bedacht maar opgehaald bij `changeIsMeaningful()`, dezelfde
+functie die elders bepaalt of er een pijltje getoond mag worden. Eén feit, één eigenaar. In gewone
+taal: rustige maanden worden samengevoegd tot een steeds zekerder cijfer, en zodra er echt iets
+gebeurt begint de teller opnieuw bij de ronde waarin dat gebeurde. De kolom "Verandering" blijft
+bewust de losse rondes vergelijken, want dat is een andere vraag dan het hoofdgetal.
+
+**Vandaag verandert er niets zichtbaars, en dat hoort zo.** Geen enkele analyse op productie heeft
+een tweede periode, alles staat op `week_no = 0`. Bij één ronde komt die ronde onveranderd terug.
+De winst begint bij de tweede meetronde.
+
+**De salesmodule kreeg een tijdrem.** `maakHermeting()` had een budgetrem en een statusrem, maar je
+kon een markt twee keer op één ochtend hermeten. Dat meet geen marktverandering maar ruis: op de
+echte markt Tilburg klapten 27 van de 45 vraag-bedrijfcombinaties om tussen twee rondes, en Van
+Erve ging van 5 vermeldingen naar 1 zonder dat er iets aan Van Erve veranderd was. Opportunitytype 8
+("gezakt sinds de vorige meting") zou die ruis vervolgens in een conceptmail zetten. Nu geldt
+dezelfde grens en dezelfde functie als aan de klantkant, 21 dagen via `mayMeasureAgain()`, bewust
+geen eigen regel ernaast.
+
+**Wat bij deze ronde bleek en niet in het plan stond:** de klantmeting had die rem al, zonder dat
+iemand hem zo noemde. `POST /api/analyses/[id]/measure` meet altijd op `week_no = 0` en
+`enqueueMeasurement()` slaat al gemeten vragen over, dus een tweede druk op de knop plant nul taken.
+De maandtaak heeft zijn eigen rem. Alleen sales stond open, en dat is precies de module waar een
+getal rechtstreeks een verkoopmail in loopt.
+
+**Ook de ketentest doet nu het echte werk.** Het hermeetscenario bouwde ronde 2 na met een insert;
+nu roept het `maakHermeting()` aan, en toetst eerst dat een hermeting op dezelfde dag geweigerd
+wordt en er geen ronde is aangemaakt.
+
+Getest: `tsc --noEmit`, `test:unit` (4935, was 4919), `test:chain` (690, was 686) en `build` groen.
+
+## 20 september 2026 (6): de band is het hoofdgetal geworden, in antwoorden in plaats van procenten
+
+"21%" leest als een stand. Het is er geen: de band eromheen is ±15 punten, en van de 11 herhaald
+gemeten vragen waar het merk ooit genoemd werd gaven er 6 een andere uitkomst bij de herhaling
+(20 september (3)). Een klant die 21% een maand later ziet verschuiven naar 13% leest daar verval in
+dat er niet is.
+
+**Het hoofdgetal is nu de band, uitgedrukt in antwoorden.** `bandInAntwoorden()` in
+`lib/stats/uncertainty.ts`, naast `confidenceBand()` waar hij hoort. Waar stond "21%" staat nu
+"1 tot 4 van de 10", met eronder "AI-antwoorden waarin je merk voorkomt". Het precieze percentage en
+de marge staan er nog steeds onder, voor wie wil narekenen.
+
+**Waarom tien en niet dertig.** Een meetronde stelt dertig vragen, dus "3 tot 11 van de 30" is
+precies even waar. Maar niemand rekent in dertigsten. Tien is de schaal waarop een mens een
+verhouding meteen ziet.
+
+**Drie randgevallen, en waarom ze zo aflopen.** Een band die op deze schaal één getal wordt heet
+"ongeveer 2 van de 10", want "tussen 2 en 2" leest als een fout terwijl het juist het zekerste geval
+is. Een band waarvan zelfs de bovengrens geen heel antwoord haalt heet "minder dan 1 van de 10" en
+niet "0 tot 0": dat laatste zou beloven dat het merk gegarandeerd nooit genoemd wordt, en dat weten
+we niet (conventie 3).
+
+**Waar het NIET is doorgevoerd, en dat is een keuze.** De clustertabel, het detailpaneel met de
+laatste drie metingen en het staafjesraster houden hun percentage. Dat zijn vergelijkingsweergaven
+waar je rijen naast elkaar legt, en de staven tonen hun marge al visueel. De band als hoofdgetal
+hoort op de twee plekken waar één cijfer zich als "de stand" presenteert: het merkscherm en
+Zichtbaarheid in AI.
+
+Getest: `tsc --noEmit`, `test:unit` (4941, was 4935), `test:chain` (690) en `build` groen.
+
+## 20 september 2026 (7): de aggregatie is engine-bewust, stap 2 van het meetplan
+
+`lib/jobs/queue.ts` waarschuwde al maanden dat je niet per engine mocht uitwaaieren omdat de
+aggregatie alle metingen van een periode optelde, ongeacht bron. Die waarschuwing was terecht:
+`computeAggregates()` bevatte het woord "engine" niet.
+
+**De fout die dit voorkomt is subtieler dan dubbeltellen.** `shareByRun()` (R6.1) deelt het gewicht
+van een vraag over zijn metingen, zodat een drie keer gemeten vraag niet drie keer zo zwaar telt.
+Maar die functie ziet twee metingen van dezelfde vraag door twee verschillende bronnen aan voor twee
+HERHALINGEN en geeft ze elk gewicht 1/2. Eén vraag, bij ChatGPT wél genoemd en bij Google niet, zou
+dan als "half genoemd" de score in gaan: 50 in plaats van 100. Het cijfer blijft plausibel en slaat
+nergens meer op. Het scenario in `test-chain.ts` toetst precies dat verschil.
+
+**De regel: één engine draagt de score.** `PRIMARY_ENGINE` in `lib/engines/types.ts`, nu `openai`.
+De score, het gewogen cijfer, de foutmarge, het aandeel en de concurrentie-uitsplitsing rekenen
+alleen daarmee. Dat is geen tussenoplossing: de vraag van de klant is "noemt ChatGPT mij", niet
+"noemt het gemiddelde van ChatGPT en Google mij". Een gemengd cijfer beantwoordt geen van beide.
+
+**De andere bronnen komen in `per_engine_json`**, een kolom die sinds migratie 0001 bestaat en nooit
+gevuld was. Elke bron krijgt daar zijn eigen score, foutmarge en aantallen, en nadrukkelijk zijn
+eigen aandelenberekening, want anders keert dezelfde halveringsfout via de achterdeur terug.
+
+**Drie tellers, drie verschillende redenen.** `measurementIsUsable()` filtert op de primaire engine
+omdat zijn noemer de VRAGEN van de analyse telt; twee bronnen optellen zou die teller boven de
+noemer duwen en een halve mislukte ronde alsnog bruikbaar noemen.
+`countOpenPeriodicMeasurements()` wacht alleen op de primaire engine, want anders blijft een analyse
+hangen op zijn voortgangsscherm zodra een tweede bron traag is, terwijl het cijfer allang gerekend
+kan worden. En `updateBrandEliciting()` telt alleen de primaire engine omdat meetbaarheid een
+eigenschap is van vraag én bron: een vraag die bij Google aanbieders oplevert en bij ChatGPT nooit,
+zou anders een dure ChatGPT-meting in leven houden die daar structureel niets doet.
+
+**Wat er nog ontbreekt vóór er echt per engine ingepland wordt:** een tweede bron die iets oplevert
+(er is geen `GEMINI_API_KEY`), en de tarieven van die bron in `lib/openai/pricing.ts`, anders staat
+er een meetronde in het kostenoverzicht met een prijs van nul.
+
+Getest: `tsc --noEmit`, `test:unit` (4947, was 4941), `test:chain` (696, was 690) en `build` groen.
+
+## 20 september 2026 (8): Google AI Overview meet mee, achter een schakelaar die uit staat
+
+Stap 3 van `docs/tasks/ai-overview-als-tweede-meetbron.md`. Elke meetvraag kan nu ook langs het
+AI-overzicht van Google, drie keer per vraag, en het resultaat landt in `tracking_runs` naast de
+ChatGPT-meting.
+
+**Het is een bron, geen engine, en dat onderscheid zit in de code.** `EngineAdapter` verwacht een
+gesprek: een systeemprompt en een gebruikersvraag. Hier gaat een zoekopdracht naar een zoekmachine en
+komt een resultatenpagina terug. Vandaar `lib/ai-overview/` naast `lib/engines/`, en een eigen
+taaktype `measure_ai_overview` in plaats van een engine-variant van `measure_prompt` (conventie 7).
+In de OPSLAG is het wél gewoon een bron naast de andere: `engine = 'google_ai_overview'`, waarmee
+deze bron de hele beoordelings- en aggregatieketen erft.
+
+**Wat wél gedeeld wordt, is de beoordelaar.** Halte 3b is uit `measureOnePrompt()` gelicht tot
+`judgeRun()`, en beide bronnen gebruiken hem. Dat is geen gemak maar een meetvereiste: met twee
+beoordelaars meet je het verschil tussen die twee in plaats van tussen ChatGPT en Google, en is geen
+enkele vergelijking tussen de bronnen nog iets waard.
+
+**⚠️ Geen overzicht is geen nulscore.** Toont Google bij een vraag geen AI Overview, dan wordt er
+niets opgeslagen en telt die vraag die ronde niet mee in de noemer van deze bron. Zou je hem als
+"merk niet genoemd" wegschrijven, dan zakt de score doordat Google geen antwoord gaf (conventie 3).
+Dat is geen randgeval: 9% van de geslaagde aanroepen levert geen bruikbaar overzicht op.
+
+**Drie herhalingen per vraag, vanaf dag één.** Niet omdat het kan maar omdat het moet: van de 28
+vragen waar het merk ooit genoemd werd wisselde de uitkomst bij 17 tussen twee rondes een half uur na
+elkaar. Eén losse uitkomst is ongeveer een muntworp. Bij $0,0037 per aanroep kost drie keer meten van
+dertig vragen ongeveer $0,38, tegen $1,54 voor hetzelfde bij ChatGPT. De prijs is de enige reden dat
+deze bron de moeite is, en die prijs wordt hier uitgegeven aan zekerheid.
+
+**De herkansing zit in de aanroep zelf.** Bijna een derde van de aanroepen geeft `40101 Internal SE
+Server Error` bij de eerste poging (26 van 90, en 28 van 90 in de tweede ronde); alle 54
+herkansingen slaagden. Zonder die lus zou een derde van elke ronde ontbreken en verspringt de noemer
+per ronde. ⚠️ Een mislukte aanroep kost tóch $0,002, dus die kosten tellen op bij de volgende poging
+en worden altijd gelogd, ook als er niets gemeten is.
+
+**De schakelaar staat in code en staat uit.** `AI_OVERVIEW_ENABLED`, standaard uit, en de
+aanwezigheid van een DataForSEO-sleutel zet hem niet aan. Dat is de les van 20 september (2)
+toegepast: die sleutels staan in Vercel voor de geparkeerde zoekvolumelaag, dus zou de sleutel
+volstaan, dan ging deze betaalde bron meteen meedraaien op elke omgeving waar die laag ooit is
+opgezet. Scenario 14 in `test-chain.ts` legt vast dat twee geldige sleutels op zichzelf niets doen,
+dat de schakelaar aan drie metingen per vraag oplevert, en dat tweemaal plannen niets verdubbelt.
+
+**Twee dingen die deze taak bewust NIET doet.** Hij ketent niet naar de aggregatie, want dan werd die
+per binnenkomende meting opnieuw gedraaid: negentig keer hetzelfde rekenwerk en een rapport dat
+halverwege een ronde verstuurd wordt. En hij telt niet mee in `planned` op het voortgangsscherm,
+want dat scherm wacht op de score, en de score rust op `PRIMARY_ENGINE`.
+
+Getest: `tsc --noEmit`, `test:unit` (4964, was 4947), `test:chain` (709, was 696) en `build` groen.
+⚠️ Niet geverifieerd tegen productie (conventie 10): de bron heeft nog geen echte meetronde gedraaid
+binnen de app. Het onderzoek eronder is wél tegen het echte account gedaan, 234 aanroepen voor $0,85.
+
+## 20 september 2026 (9): een bronknop op Zichtbaarheid, en beide bronnen voeden de kansen
+
+Twee wensen van de eigenaar, en de tweede dwong een besluit van vanochtend terug te draaien.
+
+**De bronknop.** Op `/merk/[id]/analytics` staat nu een vierde filter, "Bron", met ChatGPT en Google
+AI Overview. Hij wisselt wélk cijfer er staat, in plaats van ergens een tweede getal naast te
+zetten dat uitgelegd moet worden. Nadrukkelijk alleen op dat scherm: nergens anders in de app
+verschijnt een tweede cijfer.
+
+De knop verschijnt alleen als er daadwerkelijk via meer dan één bron gemeten is
+(`beschikbareBronnen()`), zelfde regel als de rest van de filterbalk. Voor een klant met alleen
+ChatGPT-metingen verandert er dus niets. En de primaire bron leest bewust de gewone kolommen van
+`visibility_scores` in plaats van `per_engine_json`: die kolommen ZIJN de primaire engine sinds de
+aggregatie engine-bewust werd, dus wie de knop nooit aanraakt ziet exact wat hij altijd zag.
+
+**⚠️ Een ronde zonder deze bron is geen nul.** Rondes van vóór de tweede bron hebben geen
+`per_engine_json`, en `cijferVoorBron()` geeft daar `null` terug in plaats van 0. Die rondes vallen
+uit de grafiek in plaats van als val getoond te worden (conventie 3).
+
+**Het gewogen cijfer staat nu óók per bron in `per_engine_json`.** Zonder dat zou de knop een gewogen
+ChatGPT-cijfer vergelijken met een ongewogen Google-cijfer, en is een deel van het verschil een
+rekenverschil in plaats van een verschil tussen de platformen.
+
+**⚠️ En het besluit van vanochtend dat is teruggedraaid.** Bij het engine-bewust maken van de
+aggregatie telde `countOpenPeriodicMeasurements()` alleen de primaire engine, met als redenering:
+laat een trage tweede bron de analyse niet laten hangen. Die redenering sneuvelt op de tweede wens.
+De kansen die een klant ziet komen uit `computeMissedPrompts()`, en dat telt per VRAAG met een
+meerderheidsregel over álle metingen van die vraag. Een vraag die bij ChatGPT gemist wordt en bij
+Google drie keer raak is, is dus géén gemiste kans. Precies de bedoeling, maar dat werkt alleen als
+beide bronnen binnen zijn vóórdat het rapport draait. Wacht de aggregatie niet, dan landen de
+Google-metingen ná het rapport en tellen ze die ronde nergens in mee.
+
+Het oude bezwaar is geen loos bezwaar, maar het lost zichzelf op: een taak die blijft mislukken gaat
+na `MAX_ATTEMPTS` naar 'failed' en valt daarmee uit `queued`/`running`, de enige twee statussen die
+de teller opvraagt. Een kapotte tweede bron vertraagt een ronde dus, maar kan hem niet laten hangen.
+Gevolg: `measure_ai_overview` ketent nu ook naar de aggregatie, en telt mee in de voortgangsteller
+die de klant ziet.
+
+**De bron staat aan op productie.** `AI_OVERVIEW_ENABLED=true` in Vercel, alleen op productie. Een
+cluster wordt vanaf nu door beide bronnen gemeten: 46 ChatGPT-metingen plus 90 Google-metingen (drie
+per vraag), samen ongeveer $1,14 per meetronde per cluster tegen $0,76 daarvoor. In code blijft de
+schakelaar standaard uit, dus preview- en ontwikkelomgevingen meten niets en geven niets uit.
+
+Getest: `tsc --noEmit`, `test:unit` (4980, was 4964), `test:chain` (709) en `build` groen.
+⚠️ Nog niet geverifieerd tegen productie (conventie 10): de eerste echte meetronde met beide bronnen
+moet nog draaien.
+
+## 20 september 2026 (10): de eerste echte meetronde met beide bronnen (APK Den Bosch)
+
+Conventie 10 afgevinkt voor de tweede meetbron. Een nieuw cluster voor Van den Udenhout, onderwerp
+"APK Den Bosch", volledig door de productiepijplijn: voorbereiding, dertig vragen, meting,
+aggregatie en rapport. **136 meettaken, nul mislukt, geen enkele taak meer dan één poging.**
+
+**De kosten kloppen op de cent.** Geraamd $1,14, geworden **$1,1484**: $0,7738 voor ChatGPT (46
+metingen plus beoordelaar) en $0,3140 voor Google (90 aanroepen). De raming uit
+`docs/tasks/ai-overview-als-tweede-meetbron.md` hoeft dus niet bijgesteld.
+
+**De aggregatie wachtte op beide bronnen**, zoals bedoeld: `aggregate_week` draaide pas nadat alle
+136 taken klaar waren, en het rapport zegt "30 vragen onderzocht, samen 110 keer gemeten" (46 plus
+64). De score bleef van ChatGPT: 28% ongewogen, 25% gewogen, over 30 beoordeelde vragen en niet over
+52. `per_engine_json` draagt beide bronnen inclusief hun gewogen cijfer: ChatGPT 28/25 over 30
+vragen, Google 18/17 over 22 vragen.
+
+**⚠️ Een cijfer dat bijgesteld moet: "geen AI Overview" is vaker dan gedacht, maar wél stabiel.**
+Het onderzoek van vanochtend mat 9% geen-overzicht op de geslaagde aanroepen. Hier is het 26 van de
+90 aanroepen, 29%. Maar de verdeling per vraag laat zien dat het geen ruis is:
+
+| overzichten per vraag | vragen |
+|---|---|
+| 3 van 3 | 20 |
+| 2 van 3 | 2 |
+| 0 van 3 | 8 |
+
+Acht vragen krijgen bij Google structureel géén AI Overview, en maar twee vragen wisselen. Dat is
+dus grotendeels een eigenschap van de vraag en niet van de meting, en dat is beter nieuws dan het
+percentage suggereert: de dekking is voorspelbaar. Voor dit cluster is Google bruikbaar bij 22 van
+de 30 vragen (73%).
+
+**De meerderheidsregel deed precies wat hij moet.** Bij één vraag waren de bronnen het oneens
+("Welke garage in Eindhoven biedt een APK aan terwijl ik op mijn auto kan wachten?"): ChatGPT noemde
+Van den Udenhout in zijn enige meting, Google in geen van zijn drie. Vier oordelen, één keer
+genoemd, dus een gemiste kans. Met alleen ChatGPT was diezelfde vraag als gewonnen geteld op één
+muntworp. Dat is de hele winst van een tweede bron, en hij is hier op productie aantoonbaar.
+
+**Wat het rapport ervan maakte:** 22 vragen die volgens de meerderheidsregel gemist worden, waarvan
+de zwaarste 15 in de lijst (`MISSED_CAP`), en vijf aanbevelingen die allemaal op "verbeteren" staan.
+Dat past bij een dealer die al een APK-pagina heeft.
+
+⚠️ De vijf openstaande feitenvragen bij dit merk zijn voor deze test fictief beantwoord. Ze gaan
+over wagenparkbeheer, niet over APK, en horen door de klant zelf bevestigd te worden voordat er een
+pagina op gebaseerd wordt.
+
+## 20 september 2026 (11): vier meetbronnen besloten, en het zoekvolume uit DataForSEO onderzocht
+
+De eigenaar wil naast ChatGPT (eigen route) en Google AI Overview ook ChatGPT en Gemini via
+DataForSEO meten, elk één keer per vraag, en daarnaast het AI-zoekvolume van DataForSEO gebruiken
+voor de potentiescore. Het uitgewerkte plan staat in
+`docs/tasks/vier-meetbronnen-en-ai-zoekvolume.md`. Drie dingen uit dat onderzoek horen hier:
+
+**Het cijfer dat de beslissing draagt is er nog niet.** DataForSEO rekent voor een LLM-antwoord
+$0,0006 per aanroep plus wat het model zelf aan tokens en aan web search kost, en die twee posten
+staan nergens in hun documentatie. Ter vergelijking, gemeten in `ai_calls`: onze eigen ChatGPT-route
+kost $0,0170 per meting, Google AI Overview $0,0037. Komen de nieuwe bronnen op dezelfde orde uit
+als onze eigen route, dan gaat een meetronde per cluster van $1,15 naar ongeveer $2,15.
+`scripts/probe-dataforseo-ai.ts` meet het voor ongeveer $0,21 na, op echte vragen van Van den
+Udenhout, en is nog niet gedraaid.
+
+**⚠️ Vier bronnen breken de meerderheidsregel.** De kansen komen uit `computeMissedPrompts()`
+(`lib/pipeline/report.ts`), en die telt elke meting even zwaar. Met vier bronnen krijgt een gewone
+vraag zes metingen, waarvan er drie van Google komen: Google zou in zijn eentje de helft van de stem
+krijgen, en de bron die het cijfer van de klant draagt één zesde. Niet omdat Google belangrijker is,
+maar omdat hij goedkoop is en daarom drie keer gemeten wordt. Het voorstel is eerst de meerderheid
+binnen een bron te bepalen en pas daarna de bronnen te tellen, zodat het aantal herhalingen een
+keuze over zekerheid blijft in plaats van een keuze over invloed.
+
+**Het AI-zoekvolume is geen gemeten promptvolume.** DataForSEO leidt `ai_search_volume` af uit de
+"People Also Ask"-vragen in hun eigen index van Google-resultaten en noemt het zelf relatieve
+populariteit. De 370 miljoen verzamelde prompts uit de wervende tekst horen bij hun LLM
+Mentions-product, niet bij dit endpoint. De winst zit dus niet in waarheid maar in herhaalbaarheid:
+het cijfer verandert niet omdat je het nog eens opvraagt, en dat doet de huidige AI-schatting in
+`lib/pipeline/search-demand.ts` wel. Kosten: ongeveer één cent voor alle onderwerpen van een merk.
+Twee dingen zijn nog onbekend, en allebei kunnen ze het voorstel laten omvallen: of Nederland met
+het Nederlands in dat endpoint bestaat, en of onze soort termen er een volume uit krijgen. Dat
+laatste is een reëel risico: op 19 september kreeg bij het gewone zoekvolume 1 van de 10 uit
+volzinnen afgeleide termen een resultaat.
+
+Gebouwd is er niets. `tsc --noEmit` en `test:unit` (4980) groen.
+
+## 20 september 2026 (12): Gemini via DataForSEO gebouwd, ChatGPT via DataForSEO afgevallen
+
+Vervolg op (11). Stap 0 is gedraaid tegen een echt DataForSEO-account (~$0,26 in totaal, met
+toestemming en inloggegevens van de eigenaar), en de uitkomsten staan met datum in
+`docs/tasks/vier-meetbronnen-en-ai-zoekvolume.md` (hoofdstuk 6.1 t/m 6.3). Drie dingen uit die
+verificatie:
+
+- **ChatGPT via DataForSEO kostte met het eerste werkende model (`gpt-4o`) $0,0814 per meting**, ver
+  boven de grens van $0,03 uit het plan en duurder dan onze eigen ChatGPT-route ($0,0170). Met
+  `gpt-4o-mini` daalde dat naar $0,0272, wél onder de grens, maar de eigenaar heeft besloten deze
+  bron toch niet te bouwen: hij levert weinig toe naast de eigen route en Google AI Overview.
+- **Gemini via DataForSEO zit bij geen van de 12 geteste modellen betrouwbaar onder de grens**
+  (gemiddeld $0,039 over 15 metingen, de kosten wisselen per vraag). De eigenaar accepteert dat
+  expliciet: een goed beeld van de Nederlandse markt weegt zwaarder, en Gemini heeft geen
+  ChatGPT-alternatief (`lib/engines/gemini.ts` wacht nog op een `GEMINI_API_KEY`).
+- **Gemini kent geen Nederlandse zoekcontext.** Een lage score bij Gemini is niet uit elkaar te
+  trekken in "merk niet genoemd" en "Gemini keek naar een ander land". De bronknop op Zichtbaarheid
+  in AI legt dat sinds deze bouwronde uit zodra Gemini gekozen is (`bronToelichting()` in
+  `lib/engines/bron.ts`).
+
+**Gebouwd: Gemini als derde meetbron**, naar het model van Google AI Overview: `lib/llm-responses/`
+(types, registry, client, parse), het jobtype `measure_llm_response`, de planner
+`enqueueLlmResponseMeasurement()` op dezelfde drie plekken als de tweede bron (`confirm`, `measure`,
+de tracking-cron), en een label in de bronknop. Eén meting per vraag (niet drie zoals bij Google),
+model `gemini-3.6-flash` vastgezet in code. Achter `DATAFORSEO_LLM_ENABLED`, standaard uit, zelfde
+reden als bij de tweede bron: de DataForSEO-sleutel staat al in Vercel en mag niet zelf de
+schakelaar zijn. Geen migratie nodig: `tracking_runs.engine` is al vrije tekst.
+
+**⚠️ Ook gebouwd, en dit raakt bestaande klanten: de meerderheidsregel uit (11) is opgelost.**
+`computeMissedPrompts()` telde tot nu toe elke meting even zwaar, waardoor Google (3x per vraag
+gemeten) de helft van elke stem kreeg. `lib/pipeline/missed-prompts.ts` (nieuw, puur, getest)
+bepaalt nu eerst een meerderheid BINNEN elke bron, en telt dan de bronnen tegen elkaar: elke bron
+weegt als één stem, ongeacht het aantal herhalingen. Bij een gelijke stand tussen bronnen telt de
+vraag als gemiste kans (de voorzichtige kant). Zes scenario's in `test-unit.ts`, inclusief het geval
+dat deze wijziging moest oplossen (Google's drievoudige meting die niet langer wint van de rest) en
+het geval van vóór deze bouwronde (één bron beslist alleen).
+
+Het AI-zoekvolume uit (11) (hoofdstuk 3.2 en stap 1/8 van het plan) is dit keer NIET gebouwd: het
+zou `search_volume_index` (de 0-100 schaal die potentiescores tussen merken vergelijkbaar houdt,
+`lib/pipeline/search-demand.ts`) moeten combineren met een absoluut gemeten getal, en dat mengen zou
+precies het "niet meer te zeggen wat een getal betekent"-probleem opleveren dat het plan zelf al
+benoemt. Dat verdient een eigen ontwerpronde, geen haastige aanname in dezelfde bouwronde. Staat als
+open werk in `docs/tasks/vier-meetbronnen-en-ai-zoekvolume.md`.
+
+`tsc --noEmit`, `test:unit` (5007) en `test:chain` (722) groen, `build` groen.

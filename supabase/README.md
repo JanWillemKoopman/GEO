@@ -574,6 +574,12 @@ zonder eigenaar) aan een merk en optioneel een cluster, met een herkomstkolom (`
 `zoekverkeer`, `vraag`, `handmatig`) die zegt waarom de term in een kanslijst opduikt. RLS: select-only
 via `readable_profile_ids()`, zelfde patroon als overal.
 
+⚠️ **Deze tabel is leeg en wordt nergens gebruikt.** Er is geen enkele `insert`, `update` of `select`
+op `profile_keywords` in `app/` of `lib/`; hij is aangelegd als fundament voor een stap die nooit
+gebouwd is. Blijft staan omdat conventie 4 zegt dat migraties additief zijn en nooit `drop`, en een
+tabel weggooien onomkeerbaar is. Hoort bij de geparkeerde zoekvolumelaag, zie `docs/logbook.md`
+20 september 2026 (2).
+
 ## 0106 — het verschil tussen een gok en een meting, in het datamodel
 
 `profile_topics.search_volume_absolute` (het echte maandvolume) en `search_volume_source` (`geschat`
@@ -582,3 +588,11 @@ onaangetast; deze twee kolommen zeggen of dat getal op een echte meting veranker
 krijgt `volume_source` een derde toegestane waarde, `gemeten`, naast `geschat` en `klant`
 (constraint vervangen, geen `drop` van data, conventie 4). Zie `docs/tasks/zoekdata-in-de-keten.md`,
 blok B, en `docs/logbook.md`, 16 september 2026.
+
+⚠️ **Let op het verschil tussen twee bijna gelijknamige kolommen**, want dat is de val bij de
+volgende wijziging. `prompts.volume_source` LEEFT: `calibratePromptVolumes()`
+(`lib/pipeline/prepare.ts`) sluit daarop vragen met een echte meting uit van herweging. De twee
+kolommen op `profile_topics` worden alleen geschreven (`lib/pipeline/propose-topics.ts`) en door geen
+enkele regel productiecode gelezen; `search_volume_absolute` staat op alle rijen op `null`. Ze horen
+bij de geparkeerde zoekvolumelaag (`docs/logbook.md` 20 september 2026 (2)) en krijgen pas een lezer
+als die laag terugkomt.

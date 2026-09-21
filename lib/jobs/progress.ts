@@ -47,6 +47,15 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   generate_prompts: 40, // 3 parallelle prompt-calls, elk met een bijvul-ronde
   calibrate_volumes: 15, // één aanroep over alle vragen samen
   measure_prompt: 18, // één vraag stellen met web_search + beoordelen
+  // Sneller dan een ChatGPT-meting: geen redeneermodel, alleen een zoekactie en
+  // daarna dezelfde goedkope beoordeling. Nagemeten op 234 aanroepen (20
+  // september 2026): ruim binnen de tien seconden, mits de herkansing niet hoeft.
+  measure_ai_overview: 9,
+  // Nog niet nagemeten (staat nog op geen enkele echte meetronde, zie
+  // docs/tasks/vier-meetbronnen-en-ai-zoekvolume.md hoofdstuk 9). Zelfde orde
+  // als measure_prompt aangehouden: ook een gesprek met web_search, alleen bij
+  // een andere leverancier.
+  measure_llm_response: 18,
   aggregate_week: 3, // puur rekenwerk
   profile_competitors: 15, // één destillatie-aanroep over de antwoordfragmenten
   generate_report: 25, // gap-analyse + rapport

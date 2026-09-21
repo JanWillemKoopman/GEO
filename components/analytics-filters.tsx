@@ -9,12 +9,18 @@ import {
   type Periodeoptie,
 } from "@/lib/analytics-filters";
 import type { Labelachtig } from "@/lib/cluster-labels";
+import { BRONFILTER_STANDAARD, bronToelichting, type Bron } from "@/lib/engines/bron";
 
 /**
  * De ene filterbalk voor alle vier de Analytics-schermen (plan
- * analytics-herontwerp.md, F2). Periode, Label en Cluster, in die volgorde;
- * Fase komt pas in ronde 3, en tot die tijd staat hij hier niet: een filter
- * tonen dat nog niets doet is erger dan hem weglaten.
+ * analytics-herontwerp.md, F2). Periode, Label, Cluster en Bron, in die
+ * volgorde; Fase komt pas in ronde 3, en tot die tijd staat hij hier niet: een
+ * filter tonen dat nog niets doet is erger dan hem weglaten.
+ *
+ * Bron kwam erbij op 20 september 2026, toen Google AI Overview als tweede
+ * meetbron ging meedraaien. Hij verschijnt alleen als er daadwerkelijk via meer
+ * dan één bron gemeten is (`beschikbareBronnen()`), dus voor een klant met
+ * alleen ChatGPT-metingen verandert er niets aan dit scherm.
  *
  * De keuze staat in het adres en niet in clientstate (`?periode=`, `?label=`,
  * `?cluster=`), dus een gefilterd beeld is te delen en te bewaren. Elke
@@ -25,23 +31,33 @@ export function AnalyticsFilters({
   periodes,
   labels,
   clustersBijLabel,
+  bronnen = [],
   periodefilter,
   labelfilter,
   clusterfilter,
+  bronfilter = BRONFILTER_STANDAARD,
 }: {
   periodes: Periodeoptie[];
   labels: Labelachtig[];
   /** De clusters die bij het huidige labelfilter horen (`clustersVoorFilter()`). */
   clustersBijLabel: Labelachtig[];
+  /** De bronnen waarin daadwerkelijk gemeten is (`beschikbareBronnen()`). */
+  bronnen?: Bron[];
   periodefilter: string;
   labelfilter: string;
   clusterfilter: string;
+  bronfilter?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  if (periodes.length < 2 && labels.length === 0 && clustersBijLabel.length <= 1) {
+  if (
+    periodes.length < 2 &&
+    labels.length === 0 &&
+    clustersBijLabel.length <= 1 &&
+    bronnen.length <= 1
+  ) {
     return null;
   }
 
@@ -101,6 +117,28 @@ export function AnalyticsFilters({
             ))}
           </select>
         </Filter>
+      )}
+
+      {bronnen.length > 1 && (
+        <Filter label="Bron">
+          <select
+            className="field"
+            value={bronfilter}
+            onChange={(e) =>
+              navigeer({ bron: e.target.value === BRONFILTER_STANDAARD ? null : e.target.value })
+            }
+          >
+            {bronnen.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.label}
+              </option>
+            ))}
+          </select>
+        </Filter>
+      )}
+
+      {bronnen.length > 1 && bronToelichting(bronfilter) && (
+        <p className="text-secondary w-full basis-full text-sm">{bronToelichting(bronfilter)}</p>
       )}
 
       {clustersBijLabel.length > 1 && (

@@ -70,6 +70,19 @@ export const dedupe = {
         : `measure:${analysisId}:${promptId}:w${weekNo}:r${repeat}`;
     return engine === "openai" ? basis : `${basis}:e${engine}`;
   },
+  /**
+   * Google AI Overview (20 september 2026). Eigen voorvoegsel en niet het
+   * engine-achtervoegsel van `measurePrompt`: het is een ander taaktype, en twee
+   * taaktypes met dezelfde sleutel zouden elkaar als duplicaat wegfilteren.
+   */
+  measureAiOverview: (analysisId: string, promptId: string, weekNo: number, repeat = 0) =>
+    `aioverview:${analysisId}:${promptId}:w${weekNo}:r${repeat}`,
+  /**
+   * Gemini via DataForSEO (docs/tasks/vier-meetbronnen-en-ai-zoekvolume.md).
+   * Zelfde reden als `measureAiOverview`: eigen taaktype, eigen voorvoegsel.
+   */
+  measureLlmResponse: (analysisId: string, promptId: string, weekNo: number, repeat = 0) =>
+    `llmresponse:${analysisId}:${promptId}:w${weekNo}:r${repeat}`,
   aggregateWeek: (analysisId: string, weekNo: number) => `aggregate:${analysisId}:w${weekNo}`,
   competitorIntel: (analysisId: string, weekNo: number) => `compintel:${analysisId}:w${weekNo}`,
   generateReport: (analysisId: string, weekNo: number) => `report:${analysisId}:w${weekNo}`,

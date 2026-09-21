@@ -7,6 +7,8 @@ import { Drawer } from "@/components/drawer";
 import { ClusterAnswers } from "@/components/cluster-answers";
 import { Icon } from "@/components/icon";
 import { confidenceBand, changeIsMeaningful } from "@/lib/stats/uncertainty";
+import { poolRecent } from "@/lib/stats/pooling";
+import { cijferVoorBron, BRONFILTER_STANDAARD } from "@/lib/engines/bron";
 import type { VisibilityScore } from "@/lib/types/database";
 
 /**
@@ -28,20 +30,48 @@ export interface ClusterRij {
   vorige: VisibilityScore | null;
 }
 
-function leidend(s: VisibilityScore): number {
-  return s.weighted_score ?? s.score;
+/**
+ * De score van de gekozen BRON (20 september 2026). Zonder keuze is dat de
+ * primaire engine, en dan leest deze functie gewoon de kolommen die er altijd
+ * al stonden. Zie lib/engines/bron.ts.
+ */
+function leidend(s: VisibilityScore, bron: string = BRONFILTER_STANDAARD): number {
+  return cijferVoorBron(s, bron)?.score ?? 0;
 }
 
-function stderrVan(s: VisibilityScore): number {
-  return (s.weighted_score != null ? s.weighted_stderr : s.score_stderr) ?? 0;
+function stderrVan(s: VisibilityScore, bron: string = BRONFILTER_STANDAARD): number {
+  return cijferVoorBron(s, bron)?.stderr ?? 0;
+}
+
+/**
+ * Het cijfer van een cluster uit de laatste drie rondes samen (20 september 2026).
+ *
+ * ⚠️ De kolom "Verandering" blijft bewust de LOSSE rondes vergelijken. Dat zijn
+ * twee verschillende vragen: dit is "waar sta je", die is "is er iets gebeurd".
+ * Ze spreken elkaar niet tegen, want zodra er écht iets gebeurt stopt
+ * `poolRecent()` met samenvoegen en is dit cijfer gelijk aan de laatste ronde.
+ */
+function samengevoegd(r: ClusterRij, bron: string) {
+  return poolRecent(r.reeks.map((s) => ({ score: leidend(s, bron), stderr: stderrVan(s, bron) })));
+}
+
+/** De band hoort bij het getoonde cijfer, dus bij de samengevoegde schatting. */
+function bandVan(r: ClusterRij, bron: string) {
+  const p = samengevoegd(r, bron);
+  return p
+    ? confidenceBand(p.score, p.stderr)
+    : confidenceBand(leidend(r.laatste!, bron), stderrVan(r.laatste!, bron));
 }
 
 export function AnalyticsClusterTable({
   rows,
   labelNaamPerId,
+  bron = BRONFILTER_STANDAARD,
 }: {
   rows: ClusterRij[];
   labelNaamPerId: Map<string, string>;
+  /** De gekozen meetbron. Zie lib/engines/bron.ts. */
+  bron?: string;
 }) {
   const [geselecteerd, setGeselecteerd] = useState<string | null>(null);
   const gekozenRij = rows.find((r) => r.cluster.id === geselecteerd) ?? null;
@@ -54,7 +84,7 @@ export function AnalyticsClusterTable({
           rowKey={(r) => r.cluster.id}
           defaultSortKey="zichtbaarheid"
           defaultSortDir="asc"
-          columns={clusterKolommen(labelNaamPerId)}
+          columns={clusterKolommen(labelNaamPerId, bron)}
           stickyOffset="calc(var(--header-h) + 3.5rem)"
           onRowClick={(r) => setGeselecteerd(r.cluster.id === geselecteerd ? null : r.cluster.id)}
           selectedKey={geselecteerd}
@@ -65,7 +95,7 @@ export function AnalyticsClusterTable({
         titel={gekozenRij?.cluster.name ?? ""}
         onSluit={() => setGeselecteerd(null)}
       >
-        {gekozenRij && <ClusterDetail rij={gekozenRij} />}
+        {gekozenRij && <ClusterDetail rij={gekozenRij} bron={bron} />}
       </Drawer>
     </>
   );
@@ -76,7 +106,7 @@ export function AnalyticsClusterTable({
  * `components/cluster-answers.tsx`). De verdeling over de drie fasen staat
  * hier bewust niet bij: die rust op een optelling uit `tracking_runs` die nog
  * niet gebouwd is (F5, zie `docs/tasks/analytics-herontwerp.md`). */
-function ClusterDetail({ rij }: { rij: ClusterRij }) {
+function ClusterDetail({ rij, bron }: { rij: ClusterRij; bron: string }) {
   const laatsteDrie = [...rij.reeks].reverse().slice(0, 3);
   return (
     <div className="flex flex-col gap-4">
@@ -93,7 +123,7 @@ function ClusterDetail({ rij }: { rij: ClusterRij }) {
                 ? new Date(s.computed_at).toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" })
                 : "-"}
             </span>
-            <span className="stat-value">{Math.round(leidend(s))}%</span>
+            <span className="stat-value">{Math.round(leidend(s, bron))}%</span>
           </div>
         ))}
       </div>
@@ -108,7 +138,10 @@ function ClusterDetail({ rij }: { rij: ClusterRij }) {
 /** De kolommen van de clustertabel (plan Z3): label, cluster, zichtbaarheid,
  * marge, verandering, gemeten vragen, laatst gemeten. Gesorteerd op zwakste
  * eerst. */
-function clusterKolommen(labelNaamPerId: Map<string, string>): AnalyticsColumn<ClusterRij>[] {
+function clusterKolommen(
+  labelNaamPerId: Map<string, string>,
+  bron: string,
+): AnalyticsColumn<ClusterRij>[] {
   return [
     {
       key: "label",
@@ -137,17 +170,17 @@ function clusterKolommen(labelNaamPerId: Map<string, string>): AnalyticsColumn<C
       header: "Zichtbaarheid",
       numeriek: true,
       width: "8rem",
-      sortValue: (r) => leidend(r.laatste!),
-      render: (r) => `${Math.round(leidend(r.laatste!))}%`,
+      sortValue: (r) => samengevoegd(r, bron)?.score ?? leidend(r.laatste!, bron),
+      render: (r) => `${samengevoegd(r, bron)?.score ?? Math.round(leidend(r.laatste!, bron))}%`,
     },
     {
       key: "marge",
       header: "Marge",
       numeriek: true,
       width: "7rem",
-      sortValue: (r) => confidenceBand(leidend(r.laatste!), stderrVan(r.laatste!)).margin,
+      sortValue: (r) => bandVan(r, bron).margin,
       render: (r) => {
-        const band = confidenceBand(leidend(r.laatste!), stderrVan(r.laatste!));
+        const band = bandVan(r, bron);
         return band.margin > 0 ? `± ${band.margin}` : "-";
       },
     },
@@ -156,14 +189,14 @@ function clusterKolommen(labelNaamPerId: Map<string, string>): AnalyticsColumn<C
       header: "Verandering",
       numeriek: true,
       width: "9rem",
-      sortValue: (r) => (r.vorige ? leidend(r.laatste!) - leidend(r.vorige) : null),
+      sortValue: (r) => (r.vorige ? leidend(r.laatste!, bron) - leidend(r.vorige, bron) : null),
       render: (r) => {
         if (!r.vorige) return <span className="chip chip-neutral">eerste meting</span>;
-        const nu = leidend(r.laatste!);
-        const toen = leidend(r.vorige);
+        const nu = leidend(r.laatste!, bron);
+        const toen = leidend(r.vorige, bron);
         const betekenisvol = changeIsMeaningful(
-          { score: nu, stderr: stderrVan(r.laatste!) },
-          { score: toen, stderr: stderrVan(r.vorige) },
+          { score: nu, stderr: stderrVan(r.laatste!, bron) },
+          { score: toen, stderr: stderrVan(r.vorige, bron) },
         ).changed;
         const delta = nu - toen;
         if (!betekenisvol) return <span className="chip chip-neutral">gelijk</span>;

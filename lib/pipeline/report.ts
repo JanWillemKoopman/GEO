@@ -13,6 +13,8 @@ import { MODELS } from "@/lib/openai/models";
 import { GapAnalysis } from "@/lib/schemas/gap-analysis";
 import { Report } from "@/lib/schemas/report";
 import { NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
+import { bepaalGemisteVragen } from "@/lib/pipeline/missed-prompts";
+import { PRIMARY_ENGINE } from "@/lib/engines/types";
 import { resolveTargets, mergeOverlappingRecommendations } from "@/lib/pipeline/recommendation";
 import { reconcileExistingPageActions } from "@/lib/pipeline/existing-page-match";
 import { correctQuestionCount, questionCountLine } from "@/lib/pipeline/report-summary";
@@ -400,7 +402,7 @@ async function computeMissedPrompts(
   const { data: runRows } = await admin
     .from("tracking_runs")
     .select(
-      "id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, prompt_weight, brands_in_answer",
+      "id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, prompt_weight, brands_in_answer, engine",
     )
     .eq("analysis_id", analysisId)
     .eq("week_no", weekNo)
@@ -461,47 +463,32 @@ async function computeMissedPrompts(
     .eq("analysis_id", analysisId);
   const tagByPrompt = new Map((tagRows ?? []).map((p) => [p.id as string, p]));
 
-  // ── Eén regel per VRAAG, niet per meting (implementatieplan.md R6.1) ───────
+  // ── Eén regel per VRAAG, niet per meting (implementatieplan.md R6.1), en
+  // EERST binnen een bron, dan pas tussen de bronnen (hoofdstuk 5 van
+  // docs/tasks/vier-meetbronnen-en-ai-zoekvolume.md) ─────────────────────────
   //
-  // De zwaarstwegende vragen worden meerdere keren gemeten. Zonder deze stap zou
-  // dezelfde vraag tot drie keer in de lijst gemiste kansen staan, en met de cap
-  // van MISSED_CAP zouden die duplicaten de plek innemen van vragen die er nog
-  // niet in staan. Erger: contentaanbevelingen zouden zich op één vraag stapelen.
-  //
-  // De regel: een vraag is een gemiste kans als het merk in de MEERDERHEID van
-  // z'n beoordeelde metingen ontbrak. Word je bij dezelfde vraag twee van de
-  // drie keer wél genoemd, dan is dat geen gemiste kans maar een wisselvallige
-  //, een ander probleem, en geen reden om er een pagina voor te schrijven.
-  const perVraag = new Map<
-    string,
-    { beoordeeld: number; gemist: number; eersteGemisteRun: string }
-  >();
-  for (const r of runs) {
-    const oordeel = ownMentioned.get(r.id as string);
-    if (oordeel === undefined) continue;
-    const key = (r.prompt_id as string | null) ?? `run:${r.id as string}`;
-    const entry = perVraag.get(key) ?? {
-      beoordeeld: 0,
-      gemist: 0,
-      eersteGemisteRun: "",
-    };
-    entry.beoordeeld++;
-    if (oordeel === false) {
-      entry.gemist++;
-      if (!entry.eersteGemisteRun) entry.eersteGemisteRun = r.id as string;
-    }
-    perVraag.set(key, entry);
-  }
-
-  // De representatieve meting per gemiste vraag: eentje waarin het merk écht
-  // ontbrak, want daar hangt het bewijsdossier aan (R1.1). Een meting waarin het
-  // merk wél genoemd werd als bewijs van een gemiste kans opvoeren zou precies
-  // de fabricage zijn die R1 uitbant.
-  const gemisteRunIds = new Set<string>();
-  for (const entry of perVraag.values()) {
-    if (entry.gemist * 2 > entry.beoordeeld)
-      gemisteRunIds.add(entry.eersteGemisteRun);
-  }
+  // Zonder de eerste stap zou dezelfde vraag tot drie keer in de lijst gemiste
+  // kansen staan, en met de cap van MISSED_CAP zouden die duplicaten de plek
+  // innemen van vragen die er nog niet in staan. Zonder de tweede stap zou de
+  // bron die het vaakst gemeten wordt (vandaag Google AI Overview, 3x per
+  // vraag) de kansenlijst feitelijk alleen bepalen: elke meting even zwaar
+  // tellen geeft die bron de helft van elke stem, niet omdat hij belangrijker
+  // is maar omdat hij goedkoop is. Zie `lib/pipeline/missed-prompts.ts`.
+  const gemisteVragen = bepaalGemisteVragen(
+    runs
+      .map((r) => {
+        const oordeel = ownMentioned.get(r.id as string);
+        if (oordeel === undefined) return null;
+        return {
+          runId: r.id as string,
+          promptId: (r.prompt_id as string | null) ?? `run:${r.id as string}`,
+          engine: (r.engine as string | null) ?? PRIMARY_ENGINE,
+          mentioned: oordeel,
+        };
+      })
+      .filter((m): m is NonNullable<typeof m> => m !== null),
+  );
+  const gemisteRunIds = new Set(gemisteVragen.map((g) => g.representatieveRunId));
 
   return (
     runs

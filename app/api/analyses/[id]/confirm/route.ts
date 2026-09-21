@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
-import { enqueueMeasurement } from "@/lib/jobs/queue";
+import { enqueueMeasurement, enqueueAiOverviewMeasurement, enqueueLlmResponseMeasurement } from "@/lib/jobs/queue";
 import { describeError, classifyError } from "@/lib/errors";
 import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 import { checkBudgetForProfile } from "@/lib/spend-limit";
@@ -76,6 +76,18 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   let totalPrompts: number;
   try {
     ({ planned, totalPrompts } = await enqueueMeasurement(admin, id, 0));
+    // De tweede bron erbij (20 september 2026). Doet niets zonder
+    // AI_OVERVIEW_ENABLED=true. Telt WÉL mee in `planned`: de ronde is pas klaar
+    // als beide bronnen binnen zijn, want de kansen worden over beide samen
+    // bepaald. Zou deze teller hem weglaten, dan staat de balk op vol terwijl er
+    // nog gemeten wordt.
+    const google = await enqueueAiOverviewMeasurement(admin, id, 0);
+    planned += google.planned;
+    // De derde bron erbij (Gemini via DataForSEO). Doet niets zonder
+    // DATAFORSEO_LLM_ENABLED=true. Telt WÉL mee in `planned`, zelfde reden als
+    // bij Google: de ronde is pas klaar als alle bronnen binnen zijn.
+    const gemini = await enqueueLlmResponseMeasurement(admin, id, 0);
+    planned += gemini.planned;
   } catch (err) {
     console.error(`meting inplannen mislukt bij bevestigen van ${id}:`, err);
     return NextResponse.json(
