@@ -193,7 +193,6 @@ export function Sidebar({
           aria-label={ingeklapt ? "Zijbalk uitklappen" : "Zijbalk inklappen"}
         >
           <Icon naam={ingeklapt ? "uitklappen" : "inklappen"} />
-          {!ingeklapt && "Inklappen"}
         </button>
       )}
     </div>

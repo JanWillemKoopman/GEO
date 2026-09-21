@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
@@ -29,12 +28,11 @@ import type { BrandOption } from "@/lib/workspace";
  * `BottomNav`/`MobileTopbar` tegenover `Sidebar`/`.topbar`, niet tussen twee
  * groottes van dezelfde opbouw.
  *
- * De hamburgerlade van vóór stap 6 blijft bestaan, maar dient nu een ander
- * doel: het vangnet uit §8.12.6 voor als de server zich vergist (een tablet
- * die zich voordoet als telefoon, een browservenster dat smaller wordt
- * gemaakt terwijl de server "computer" besliste). `lg:hidden` blijft op de
- * desktoptak staan, `telefoon` beslist welke van de twee takken er ÜBERHAUPT
- * rendert.
+ * De hamburgerlade van vóór stap 6 is op 21 september 2026 weg: op de
+ * desktoptak (`telefoon` is dan `false`) hoort geen hamburgermenu meer, ook
+ * niet als vangnet voor een smal browservenster. `telefoon` beslist welke van
+ * de twee takken er rendert; wie zich vergist zit tussen `BottomNav` en
+ * `.topbar`/`Sidebar` in en heeft geen eigen derde opbouw.
  */
 export function WorkspaceChrome({
   brands,
@@ -78,7 +76,6 @@ export function WorkspaceChrome({
   accountMenu: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const [ladeOpen, setLadeOpen] = useState(false);
   const pathname = usePathname();
 
   // Eén berekening voor de hele mobiele tak: `BottomNav` (de vier primaire
@@ -138,14 +135,6 @@ export function WorkspaceChrome({
       <header className={`topbar no-print${inSalesContext ? " topbar-sales" : ""}`}>
         <div className="flex h-full items-center justify-between gap-3 px-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setLadeOpen(true)}
-              className="icon-btn -ml-1 lg:hidden"
-              aria-label="Menu openen"
-            >
-              <Icon naam="menu" size={18} />
-            </button>
             {logo}
             <span className="hidden text-muted sm:inline" aria-hidden>
               /
@@ -239,41 +228,6 @@ export function WorkspaceChrome({
           <div className="stand">{children}</div>
         </main>
       </div>
-
-      {/* De mobiele lade. */}
-      {ladeOpen && (
-        <div className="no-print fixed inset-0 z-50 lg:hidden">
-          <button
-            type="button"
-            className="absolute inset-0 bg-[var(--bg-scrim)]"
-            aria-label="Menu sluiten"
-            onClick={() => setLadeOpen(false)}
-          />
-          {/* 280 pixels, GEMETEN als de mobiele ladebreedte in het plan (§8.12.3).
-              Was 288. De kop is even hoog als de bovenbalk zodat de lade er
-              niet naast lijkt te staan. */}
-          <div className="absolute inset-y-0 left-0 flex w-[280px] max-w-[85vw] flex-col overflow-y-auto border-r border-[var(--border-primary)] bg-[var(--bg-surface)]">
-            <div className="flex h-[var(--header-h)] shrink-0 items-center justify-between border-b border-[var(--line-muted)] px-4">
-              <span className="mono-label">Navigatie</span>
-              <button
-                type="button"
-                onClick={() => setLadeOpen(false)}
-                className="icon-btn -mr-1"
-                aria-label="Menu sluiten"
-              >
-                <Icon naam="sluiten" size={18} />
-              </button>
-            </div>
-            <Sidebar
-              staff={staff}
-              sales={sales}
-              activeBrand={activeBrand}
-              openVragen={openVragen}
-              onMobileClose={() => setLadeOpen(false)}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
