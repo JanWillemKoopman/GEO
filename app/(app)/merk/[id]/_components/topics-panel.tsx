@@ -317,7 +317,7 @@ export function TopicsPanel({
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                className="btn-accent btn-sm disabled:opacity-50"
+                className="btn-actie btn-sm disabled:opacity-50"
                 disabled={bezig || !checkMix(mix).ok}
                 onClick={() => void start(t.id, mix)}
               >
@@ -396,7 +396,7 @@ export function TopicsPanel({
             {!t.analysis_id && t.stage !== "concept" && (
               <button
                 type="button"
-                className="btn-accent btn-sm disabled:opacity-50"
+                className="btn-actie btn-sm disabled:opacity-50"
                 disabled={bezig}
                 onClick={() => void start(t.id)}
               >

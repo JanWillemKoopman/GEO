@@ -25,6 +25,7 @@ import {
 } from "@/lib/cluster-labels";
 import { ClusterBalk } from "./cluster-balk";
 import { ClusterKaart } from "./cluster-kaart";
+import { NieuweClusterKnop } from "./nieuwe-cluster-knop";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Clusters" };
@@ -152,19 +153,12 @@ export default async function ClustersPage({
         description="Elk cluster is één onderwerp waarop ORBIT ENGINE je zichtbaarheid volgt."
         // Het merk gaat mee in de link: dan staat het goede merk al
         // voorgeselecteerd én weet dat scherm waar "terug" heen moet.
-        // ⚠️ Alleen voor de consultant. Een cluster starten is betaald werk en
-        // staat als `analyse_starten` in `STAFF_ONLY_ACTIONS`; tot 16 september
-        // 2026 zag de klant hier een knop die hem na de klik afwees. Anders dan
-        // bij de andere zes kostenknoppen blijft hij hier niet staan: dit is het
-        // scherm waar een klant zonder clusters landt, en een afwijzende knop is
-        // daar het eerste wat hij van de app leert.
-        action={
-          staff ? (
-            <Link href={`/analyses/new?merk=${id}`} className="btn-accent">
-              Nieuwe cluster
-            </Link>
-          ) : undefined
-        }
+        // ⚠️ Zichtbaar voor iedereen sinds 21 september 2026, ook voor de
+        // klant. Het echte slot blijft op de server staan (`analyse_starten`
+        // in `STAFF_ONLY_ACTIONS`): `NieuweClusterKnop` laat een klant hier
+        // niet naar `/analyses/new` linken, maar toont dezelfde uitleg als op
+        // het lege clusterscherm. Zie de toelichting in dat bestand.
+        action={<NieuweClusterKnop merkId={id} staff={staff} />}
       />
 
       {/* ── 1. Storingen ───────────────────────────────────────────────────

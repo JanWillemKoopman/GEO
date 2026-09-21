@@ -10888,4 +10888,24 @@ wachtrijkaart gingen (`workChipTone`, "precies één primaire knop") kijken sind
 bestand `_components/wachtrij-lijst.tsx` in plaats van naar `page.tsx` zelf, en de telling van
 `SectionErrorBoundary` op het overzicht ging van vijf naar vier.
 
+## 21 september 2026 (14): actieknoppen krijgen een eigen kleur, en "Nieuwe cluster" wordt zichtbaar voor de klant
+
+**`#25a750` is vastgesteld als de kleur van Actieknoppen** (`--action-button`, klasse `.btn-actie`,
+`app/globals.css` §"Actieknoppen", `docs/designsystem.md` §2.4a): elke knop die een cluster of
+onderwerp start ("Nieuwe cluster", "Cluster starten", "Starten met deze verdeling"). Dit is bewust
+geen tweede naam voor `--accent`: het accent is voorbehouden aan hooguit één hoofdactie per scherm
+(§2.4), terwijl een clusterlijst tien gelijkwaardige startknoppen tegelijk toont. Ook bewust geen
+aparte donkere stand, anders dan `--accent`: één letterlijke hex in beide standen.
+
+**"Nieuwe cluster" is nu zichtbaar voor de klant**, niet meer alleen voor de consultant. Het
+onderliggende slot verandert niet: een cluster starten kost geld en blijft `analyse_starten` in
+`STAFF_ONLY_ACTIONS` (`lib/cost-rules.ts`). Zonder aanpassing zou de knop voor een klant simpelweg
+linken naar `/analyses/new`, waar hij op een 404 landt, precies de weggehaalde situatie van
+16 september 2026. De nieuwe client component `NieuweClusterKnop`
+(`app/(app)/merk/[id]/strategie/clusters/nieuwe-cluster-knop.tsx`) laat staff naar `/analyses/new`
+linken zoals voorheen, en toont een klant bij dezelfde knop een dialoog met de uitleg die al op het
+lege clusterscherm stond (`KLANT_ZONDER_CLUSTERS`, `lib/cluster-start.ts`), zonder te navigeren.
+
+`tsc --noEmit`, `test:unit`, `test:chain` en `build` groen.
+
 `tsc --noEmit`, `test:unit` (5010), `test:chain` (722) en `build` groen.
