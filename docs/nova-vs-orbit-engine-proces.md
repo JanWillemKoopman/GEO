@@ -19,9 +19,9 @@
 
 | Bron | Wat het is | Omvang |
 |---|---|---|
-| `docs/nova-i18n.json` | De complete tekstcatalogus van de huidige Nova-app (`nova.inspace.io`), uit de server-gerenderde HTML van de inlogpagina | 10 namespaces, 971 teksten |
-| `docs/inspace-app-i18n.json` | Dezelfde truc op de oudere app (`app.inspace.io`), de vorige generatie van hetzelfde product | 21 namespaces, 1.469 teksten |
-| `docs/inspace-marketing.txt` | De marketingsite van InSpace, inclusief productmenu, prijsstructuur en vacatures | 14 kB |
+| `docs/nova-i18n.json` (verwijderd, zie `docs/logbook.md`) | De complete tekstcatalogus van de huidige Nova-app (`nova.inspace.io`), uit de server-gerenderde HTML van de inlogpagina | 10 namespaces, 971 teksten |
+| `docs/inspace-app-i18n.json` (verwijderd, zie `docs/logbook.md`) | Dezelfde truc op de oudere app (`app.inspace.io`), de vorige generatie van hetzelfde product | 21 namespaces, 1.469 teksten |
+| `docs/inspace-marketing.txt` (verwijderd, zie `docs/logbook.md`) | De marketingsite van InSpace, inclusief productmenu, prijsstructuur en vacatures | 14 kB |
 | `Nova_onboarding.md` | Een eerdere reconstructie van alleen de onboarding, uit augustus 2026 | 25 kB |
 | De code op `main` | ORBIT ENGINE zelf: routes, jobtypes, datamodel, pijplijnmodules | 49 schermen, 48 taaksoorten |
 
