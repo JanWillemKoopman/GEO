@@ -10995,3 +10995,29 @@ opgelost:
    `alsGeplaatstMarkeren()` en `planOpnieuw()` zijn verwijderd.
 
 `tsc --noEmit`, `test:unit` (5015) en `test:chain` (723) groen, `build` groen.
+
+## 21 september 2026 (18): twee dubbelingen van "Zichtbaarheid in AI" geschrapt
+
+Op een schets van het scherm streepte de eigenaar twee blokken door. Ten eerste de linkerkaart
+"Zichtbaarheid over N clusters" (het merkcijfer met marge-uitleg) naast het clusterraster: met de
+drie clustercijfers ernaast als losse kaarten (`ClusterVisibilityGrid`) voegde het gewogen
+gemiddelde ernaast niets toe, alleen nog een vierde getal om tegen de drie andere af te zetten.
+Ten tweede de hele "Technische diagnose"-sectie onderaan: de checklijst per categorie (Mogen
+AI-assistenten je site lezen / Kunnen ze je tekst begrijpen / Weten ze wie je bent, met de
+samenvattingskaart erboven) herhaalde wat de losse blokkadebanner bovenaan al zegt zonder er iets
+aan toe te voegen.
+
+De blokkadebanner (besluit 7 van 17 augustus 2026) blijft dus wél staan, bovenaan het scherm: die
+verklaart het cijfer eronder wanneer AI-assistenten de site niet mogen lezen. Alleen de volledige
+checklijst is weg. De ruwe auditdata (`technical_audits.checks_json`, conventie 8) blijft bewaard
+en blijft als ruwe JSON zichtbaar op Admin (staffscherm), maar heeft nergens meer een opgemaakte
+weergave in de klant-UI. `AuditPanel` (`components/audit-panel.tsx`) heeft daarmee geen aanroeper
+meer in de app en staat klaar om verwijderd te worden zodra iemand hem echt nodig heeft na te
+kijken; met één minuut aan diff leek het te vroeg om een component weg te gooien op basis van één
+scherm-doorlichting.
+
+`app/(app)/merk/[id]/analytics/page.tsx`: `merkScore`-kaart en `ClusterVisibilityGrid` samen in een
+grid vervangen door alleen het raster; de "Technische diagnose"-sectie, de `profile_strategy`-query
+en de context-factor staleness-check (alleen daarvoor gebruikt) zijn verwijderd.
+
+`tsc --noEmit`, `test:unit` (5015), `test:chain` (722) en `build` groen.
