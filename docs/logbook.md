@@ -35,6 +35,8 @@ verwijzing in de code straks nergens meer heen.
 | `tasks/mijn-reputatie.md` (en de leesbare versie ernaast, `tasks/mijn-reputatie.html`) | Het product- en implementatieplan voor de reputatieanalyse: waarom een los product, de vier vragen aan ChatGPT, de oordeelslaag, het datamodel en de rekensom over de kosten | Alle vijf sprints (R1 t/m R5) gebouwd en op drie echte runs geverifieerd, zie de zeven secties hieronder van 22 en 23 augustus 2026. Het datamodel zelf staat in de migraties `0062` t/m `0064`, de pijplijnstap in `architecture.md` §6 rij 21, de code in `lib/reputation/` en `lib/pipeline/reputation-*.ts`. Verwijderd 23 augustus 2026, toen R5 geverifieerd was |
 | `tasks/doorloop-huyberts.md` | De zes punten uit de eerste volledige klantdoorloop van 26 augustus 2026, met per punt de bestanden, de aanpak en het verificatiecriterium, testklant Huyberts Keukens als bewijsmateriaal | Alle zes punten en de twee kleinere punten afgehandeld, zie "26 augustus 2026: de zes punten uit de doorloop afgewerkt" hieronder. Migratie `0066`, `docs/architecture.md` §9 (opnieuw doorgerekend), `docs/tasks/roadmap.md` (het opengebleven structurele vervolg op punt 6). Verwijderd 26 augustus 2026 |
 | `tasks/herstelplan-na-audit.md` T1 t/m T9 | Het herstelplan na de technische audit van 2 september 2026: negen taken, van de contentkwaliteit-lus tot de wachttijd | T1, T3 t/m T9 gebouwd en nagerekend, zie de acht alinea's van 2 en 3 september 2026 hieronder ("het herstelplan na de audit, T1" t/m "..., T9"). T2 (de beoordelingsset voor contentkwaliteit) is door de eigenaar geschrapt, zie de alinea eronder. Verwijderd 3 september 2026 |
+| `css.css`, `docs/nova-i18n.json`, `docs/inspace-app-i18n.json`, `docs/inspace-marketing.txt` | De ruwe brondata achter de Nova/InSpace-vergelijking: Nova's gecompileerde CSS-bundel en de drie tekstcatalogi uit de server-gerenderde loginpagina's | De conclusies eruit staan uitgeschreven in `docs/nova-vs-orbit-engine-proces.md` en `docs/tasks/nova-vergelijking-verbeterpunten.md`, die verder geen ruwe data meer nodig hebben. Verwijderd 21 september 2026, bij de OKX-herontwerpronde |
+| `redesign2026.md` §1 t/m §14 | Het volledige herontwerpplan van Nova naar OKX: de research, het nieuwe design system (§5 t/m §7), de schermspecs (§8), de elf uitvoeringsstappen (§10) en de drie besluiten van de eigenaar (§13, limoen als accent, mobiel een eigen ontwerp, oplevering in stappen) | Gebouwd en op `main`. Het design system zelf staat nu in `docs/designsystem.md`, de mobiele en desktop-indeling in `docs/ux-design.md`. Tientallen componenten citeren nog een paragraafnummer uit dit plan in hun eigen commentaar (bijv. "§8.5", "GEMETEN bij OKX"); dat commentaar blijft staan zoals het geschreven is, want het legt het waarom van die ene regel uit en niet de volledige herkomst. Verwijderd 21 september 2026, toen stap 11 (deze documentatie) klaar was |
 
 De volledige originelen staan in de git-historie (laatste versie: de commit vóór de
 documentatie-herstructurering).
@@ -9770,6 +9772,405 @@ gecontroleerd: hoe de vijf schermen er in een echte browser uitzien, licht en do
 omgeving heeft geen geldige sessie om achter de inlogroute te komen en de inlogroute zelf heeft geen
 staging-data nodig om te bekijken maar wél een draaiende server. Dat blijft open voor de
 eerstvolgende Vercel-preview, net als bij de stappen 5 tot 7.
+
+## 21 september 2026, stap 9 van de redesign: de typografie-opruiming
+
+`redesign2026.md` §10.4 beschreef drie handmatige posten: de Tailwind-schaal zelf naar de
+OKX-waarden trekken (de hefboom, 1 bestand), de gewichtssweep (`font-semibold` naar `font-medium`,
+geschat ~200 treffers) en acht plus acht koppen op `text-3xl`/`text-2xl` die `PageHeader` worden.
+Nagelopen bleken twee van de drie al (deels) gedaan of kleiner dan gedacht:
+
+- **De gewichtssweep stond al op nul.** `grep -c font-semibold` en `font-bold` gaven allebei 0 in
+  `app/` en `components/`, tegenover 215 keer `font-medium`. Die sweep is kennelijk al meegelift in
+  een eerdere stap (vermoedelijk stap 2 of 4) zonder een eigen logboekregel. Niets te doen.
+- **Van de 16 schermen met `text-3xl`/`text-2xl` waren er 14 een `.stat-value`**, dus een cijfer en
+  geen paginakop: die combinatie (`stat-value text-3xl`) is precies bedoeld als "de klasse zet de
+  tabulaire cijfers neer, de Tailwind-grootte bepaalt de maat", en profiteert nu automatisch van de
+  nieuwe schaal zonder dat er iets hoefde te veranderen. Eén was het woordmerk op de 404-pagina
+  (`app/not-found.tsx`), die zijn eigen behandeling houdt (zie `docs/designsystem.md` §3.1: het
+  merklettertype `.brand-logo` staat met opzet maar op twee plekken, de bovenbalk en de inlogkaart,
+  en een derde erbij zetten was niet gevraagd). **Eén was een echte paginakop**:
+  `app/(app)/analyses/[id]/briefing/briefing-form.tsx`, nu `PageHeader` in plaats van een kale
+  `<h1 className="text-2xl font-medium">`.
+
+**Wat wél is gebouwd: het `@theme inline`-blok in `app/globals.css`.** Negen `--text-*`-tokens
+(`xs` tot `5xl`, `md` als synoniem van `base` erbij omdat OKX' eigen naamgeving dat gebruikt) trekken
+elke kale Tailwind-tekstklasse naar de OKX-maten. Daarmee is `text-sm` overal in de app ineens 14px
+op regelhoogte 21 (was 14 op 20), zonder dat er één van de 549 aanroepers is aangeraakt. Nagerekend
+in de gebouwde CSS: `.text-sm{font-size:.875rem;line-height:var(--tw-leading,1.3125rem)}`,
+`.text-3xl{font-size:2.25rem}`.
+
+**De valstrik uit §10.4 is meteen opgelost.** `--color-base` stond in `@theme inline` en maakte van
+`text-base` een KLEURklasse in plaats van Tailwinds eigen ingebouwde tekstgrootte; die regel is
+geschrapt. Nagerekend in de gebouwde CSS staat er nu
+`.text-base{font-size:var(--text-base);line-height:...}`, dus een echte grootte. Twee gevolgen
+gevonden en behandeld:
+
+- **`app/(app)/merk/[id]/analytics/page.tsx:284`** (`· X in het plan` naast een grote kerncijfer)
+  deed voorheen niets: de kleur die `text-base` zette werd meteen overschreven door het ernaast
+  staande `text-muted`, en zonder eigen grootte erfde het element de 36px van zijn ouder
+  (`.stat-value.text-3xl`). Dat was dus een zichtbare bug: een bijzin in 36px naast een cijfer in
+  36px. Na deze stap krijgt hij zijn eigen 16px op 24px, zoals de tekst zelf altijd al suggereerde.
+  Geen codewijziging nodig, alleen de tokenwijziging.
+- **`app/(app)/merk/[id]/strategie/plan/plan-view.tsx`** had een waarschuwingscommentaar dat
+  letterlijk uitlegde waarom `text-base` daar niet gebruikt mocht worden. Dat commentaar is nu fout
+  (de val bestaat niet meer) en is bijgewerkt naar wat er nu staat.
+
+**Wat bewust niet is gedaan:** §10.5 ("van zeven betekenissen naar vier", de intent-tokens
+`intelligence`/`growth`/`information`/`attention`/`premium`) staat in het plan zonder eigen stapnummer
+en "raakt bestaande schermen" (§9, regel 368), dus die hoort bij stap 10 (de schermen) en niet bij
+deze typografiestap. Niet aangeraakt.
+
+`redesign2026.md` (de stap-9 paragraaf en beide kostentabellen) en `docs/designsystem.md` (de
+waarschuwingsbanner) zijn bijgewerkt.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+allemaal groen op een schone `.next`. Extra nagerekend, buiten de vier standaardcontroles om: de
+gebouwde CSS zelf (`.next/static/css/*.css`) is doorzocht op `.text-sm`, `.text-base` en `.text-3xl`
+om te bevestigen dat de tokens ook echt de utilities veranderen en niet alleen in `@theme` staan
+zonder effect. Wat niet is gecontroleerd: hoe een scherm met veel `text-sm`/`text-lg` er in een echte
+browser uitziet, om zeker te weten dat de iets ruimere regelhoogte nergens een layout breekt. Dat
+blijft open voor de eerstvolgende Vercel-preview.
+
+## 21 september 2026, stap 10 van de redesign, portie 1: het merkoverzicht
+
+Eerste portie van de lange staart (`redesign2026.md` §10.2 noemt 50 routes, "in porties te doen").
+Volgorde op gebruik, dus als eerste `/merk/[id]` (§8.3), de startpagina na inloggen.
+
+**§8.3's eigen voorschrift klopte niet, en dat is eerst uitgezocht in plaats van blind gevolgd.**
+De tekst zegt "kerncijfers: raster van 4 DataCards (7.10)". Het echte scherm (934 regels, precies
+zoals geteld) heeft die vier cijfers niet als losse kaarten staan: het heeft één kaart met een
+hoofdgetal (de zichtbaarheidsscore, `.stat-value text-5xl`), de duiding erbij, en daaronder een
+cijferrij met verticale scheidingslijnen tussen de kolommen (`CijferRij`, een eigen component in
+hetzelfde bestand). Dat is een doordachtere opbouw dan vier gelijke DataCards: de vier getallen horen
+inhoudelijk bij elkaar en bij het hoofdgetal erboven, en vier losse kaarten zouden dat verband
+visueel opheffen. Niet aangeraakt.
+
+**Wat wél nodig bleek, na het hele bestand langs te lopen op hexkleuren, `backdrop-blur`, `shadow-`,
+kale `rounded-*` en de zeven oude intent-namen** (§10.5): het scherm was op die punten al bijna
+volledig schoon, want het gebruikt overal de gedeelde primitieven (`.card`, `.stat-value`, `.chip`,
+`.mono-label`) die al eerder in deze redesign zijn omgezet. Drie echte vondsten:
+
+- **`PageHeader` stond op `.type-title` (24px)**, terwijl §8.9 een paginakop expliciet 30px
+  (`heading-lg`) voorschrijft, een eigen, grotere trede dan een kop in een dialoog. Dit component
+  wordt op 34 schermen gebruikt, dus deze ene wijziging is de grootste hefboom van deze portie. Ook
+  het onderschrift is meteen goedgezet: `body-sm` op `--text-tertiary` in plaats van de vorige
+  `text-secondary`, met 4px in plaats van 8px onder de titel.
+- **`SectionHeading` miste de streep uit §8.10** (1px `--line-muted`, 8px onder de titel). Dit
+  component wordt op 2 schermen gebruikt (dit overzicht en Reputatie); beide profiteren mee.
+- **Twee plekken riepen nog `var(--intent-growth-solid)`/`-text` aan** in plaats van `var(--trend-up)`/
+  `-text` (`page.tsx` zelf, `_components/ronde-balk.tsx`, `components/loop-blocks.tsx`). Dit is de
+  vertaling uit §10.5 ("groei is een richting, geen betekenis") en een zuivere naamswisseling: het
+  eerste token wees al naar het tweede, dus er verandert geen pixel.
+
+**Bewust niet meegenomen: `CollapsibleSection` naar de vlakke OKX-accordion van §8.11.** §8.3 beweert
+dat dit component "negen keer" op dit scherm staat; het is één keer, genest in een `.card`. Het
+component zelf wordt wél in 12 bestanden gebruikt, in twee heel verschillende opstellingen: genest in
+een kaart (hier) en los na elkaar in een rij van vijf tot zes stuks (`admin/page.tsx` en andere
+formulierschermen). §8.11's vlakke stijl (geen rand, geen achtergrond, alleen een streep onder elke
+rij als scheiding) is GEMETEN voor de tweede opstelling; of hij ook goed oogt genest in een kaart is
+zonder browser niet te verifiëren. Twaalf bestanden in het duister aanpassen op een gok is precies het
+soort risico dat "elke stap is op zichzelf terug te draaien" moet voorkomen. Dit wordt een eigen
+portie, met de andere elf aanroepers erbij bekeken in plaats van alleen deze ene.
+
+`redesign2026.md` kreeg een voortgangstabel onder de stap-10-paragraaf, bijgewerkt per portie.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+allemaal groen. Nagerekend: het hele bestand `app/(app)/merk/[id]/page.tsx` is doorzocht op
+hexkleuren, `backdrop-blur`, `shadow-`, kale Tailwind-radiusklassen en de oude intent-namen (het
+laatste leverde de twee vondsten hierboven op, de rest leverde niets op). Wat niet is gecontroleerd:
+hoe het scherm er in een echte browser uitziet, dus of de 30px paginakop en de nieuwe streep onder
+elke sectiekop ergens een layout laten breken. Dat blijft open voor de eerstvolgende Vercel-preview.
+
+## 21 september 2026, stap 10 van de redesign, portie 2: Analytics
+
+De vier zwaarste dataschermen (§8.4): zichtbaarheid, concurrenten, reputatie, zoekverkeer.
+
+**De grootste functionele wijziging: `DetailPanel` is overal vervangen door `Drawer`.** §8.4 zegt het
+letterlijk: "de detail-panel die er al is wordt de lade." Vier bestanden riepen `DetailPanel` aan
+(`analytics-cluster-table.tsx`, `concurrenten-analyse.tsx`, `zoekverkeer-paginas.tsx`,
+`reputation-offerings.tsx`), en elk deed hetzelfde: een rij aanklikken liet de tabel ernaast krimpen
+via `grid-cols-[minmax(0,1fr)_20rem]`. Dat is precies het probleem dat Drawer (gebouwd in stap 3)
+oplost: een rij aanklikken kost geen kolombreedte meer, het paneel schuift van rechts overheen. Het
+dode bestand `components/detail-panel.tsx` is verwijderd.
+
+**Alle vier de schermen kregen `wil-data`.** Geteld: dit token (uit de standenmachine van stap 4,
+`.stand:has(.wil-data)`) werd tot vandaag door geen enkel scherm in de hele app aangeroepen. Analytics
+is de eerste toepassing. Toegepast op de hoofdtak van elk scherm (de tak mét de tabel); de
+lege/laad/mislukt-staten (kleine kaarten zonder tabel) blijven op de standaardbreedte, want een korte
+melding heeft niets aan 2560 pixels.
+
+**De gedeelde `AnalyticsTable`-kop ging naar de juiste maat.** 14px/gewicht 400/`--text-muted` werd
+12px/gewicht 500/`--text-subtle` (§7.11), voor alle vier de schermen tegelijk, want er is maar één
+tabelcomponent voor Analytics (`plan analytics-herontwerp.md`, F3).
+
+**Twee plekken met `--intent-growth-solid`** (`page.tsx`, `reputation-tone-distribution.tsx`) omgezet
+naar `--trend-up` (§10.5, kleurloze naamswisseling). Twee plekken met `--intent-intelligence-*`
+(`concurrenten-analyse.tsx`, `analytics-table.tsx`, voor een gemarkeerde/gekozen rij) bewust NIET
+omgezet: er bestaat geen `--accent-surface`-token om naartoe te wijzen zonder er zelf een te
+verzinnen, en dat hoort bij de bredere opruiming van de zeven oude intent-namen, niet bij twee losse
+call-sites in een portie over iets anders.
+
+**Twee voorschriften uit §8.4 bleken al gebouwd, in een betere vorm dan de tekst beschrijft.** De
+"gestapelde balk" voor de toonverdeling op Reputatie bestond al (`ReputationToneDistribution`, met
+zes tinten voor zes categorieën in plaats van de veronderstelde drie, en 16px in plaats van 8px voor
+de leesbaarheid). De "hoofdgrafiek van 320px" op Zichtbaarheid bestaat niet: een grafiek per cluster
+is er op 3 augustus 2026 bewust uit gehaald toen honderden clusters een muur van kaartjes opleverden;
+een tabel verving hem, en dat blijft zo. Geen van beide aangeroerd.
+
+`redesign2026.md` kreeg een tweede rij in de voortgangstabel van stap 10, met de bevindingen erbij.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+allemaal groen. Nagerekend: alle vier de Analytics-bestanden en hun tabelcomponenten zijn doorzocht
+op hexkleuren, `backdrop-blur`, `shadow-`, kale Tailwind-radiusklassen, resterend `DetailPanel`-gebruik
+en de oude intent-namen. Wat niet is gecontroleerd: hoe de lade er in een echte browser uitziet boven
+op een brede tabel, en of `wil-data` op een breed scherm ook echt breder rendert dan 1440px. Dat
+blijft open voor de eerstvolgende Vercel-preview.
+
+## 21 september 2026, stap 10 van de redesign, portie 3: Strategie
+
+Vijf routes (§8.5): clusters, vragen, plan, plan/versies, bibliotheek.
+
+**Geen van de vijf kreeg `wil-data`.** §8.5 veronderstelt tabellen voor clusters en bibliotheek; beide
+zijn kaartrasters (`ClusterKaart`, respectievelijk `grid-cols-3` in `library-view.tsx`). Plan is een
+kalenderweergave, ook geen tabel. §8.1's eigen algemene regel (data is voor tabel, grafiek,
+vergelijking) wijst dan zelf al naar "werken", en dat is al de standaardbreedte. Derde keer dat een
+per-scherm voorschrift uit §8 niet aansloot op wat er echt staat (na de DataCards in portie 1 en de
+hoofdgrafiek in portie 2); steeds omdat het scherm intussen doordachter is dan de abstracte
+beschrijving.
+
+**Nieuwe CSS-klasse: `.card-rail-accent`.** §8.5 vraagt "open vraag krijgt links 2px --accent". Er
+bestonden al twee stangvarianten (`.card-rail-success`, `.card-rail-warning`, beide een
+richtingkleur voor een meetuitkomst); deze derde draagt `--accent` voor "dit vraagt een handeling van
+jou" en niet voor een uitkomst. Toegepast op elke kaart in `FactRequests`' open-lijst, met opzet niet
+op een overgeslagen vraag in dezelfde component: die vroeg al om een reactie en kreeg er een.
+
+**`VersionDiff` kreeg de enige omzetting in deze hele redesign die écht een andere kleur oplevert.**
+Verwijderde tekst ging van `--intent-danger-*` naar `--trend-down-*`, toegevoegde tekst van
+`--intent-growth-*` naar `--trend-up-*`. Elke eerdere `growth`→`trend-up`-omzetting in dit project was
+kleurloos (het ene token wees al naar het andere); hier niet, want `--trend-down-text` (`#c22a48`) en
+`--intent-danger-text` (`#ba2133`) zijn twee verschillende roodtinten. Semantisch is dit de juistere
+kleur: verwijderde tekst in een versievergelijking is een richting (minder), geen foutmelding. Twee
+overige `--intent-growth-*`-aanroepen (`plan-calendar-view.tsx`, `create-plan-box.tsx`) zijn wel
+kleurloos omgezet naar `--trend-up`, dezelfde naamswisseling als in de vorige twee porties.
+
+`redesign2026.md` kreeg een derde rij in de voortgangstabel.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+allemaal groen. Nagerekend: alle vijf routes en hun bijbehorende componenten zijn doorzocht op
+hexkleuren, `backdrop-blur`, `shadow-` en de oude intent-namen. Wat niet is gecontroleerd: of het
+nieuwe rood van `VersionDiff` op beide standen (licht en donker) voldoende contrast houdt tegen zijn
+eigen surface-tint, en hoe de linkerstang op een open vraag er in een echte browser uitziet. Dat
+blijft open voor de eerstvolgende Vercel-preview.
+
+## 21 september 2026, stap 10 van de redesign, portie 4: Sales (gedeeltelijk)
+
+Zes routes (§8.7): startscherm, markten, markten/[id], prospects, prospects/[id], outreach.
+
+**Nieuw: `.topbar-sales`, de interne-scherm-streep.** §8.7 vraagt een streep van 2px
+`--intent-warning-solid` onder de bovenbalk, alleen in Sales-routes, zodat in één oogopslag duidelijk
+is dat je in een intern scherm zit (`CLAUDE.md`: een klant ziet niets van Sales). De klasse staat nu
+op zowel `.topbar` (desktop) als `.topbar-mobiel` (telefoon, via een nieuwe `salesContext`-prop op
+`MobileTopbar`), aangestuurd in `WorkspaceChrome` door dezelfde `pathname.startsWith("/sales")`-regel
+die `BottomNav` al gebruikte om van context te wisselen. Geen nieuwe logica, één bestaande regel op
+een tweede plek toegepast.
+
+**Geen `wil-data` nodig.** Markten en prospects zijn, net als bij Strategie, kaartlijsten en geen
+tabellen; §8.7's "Table dicht met de saleskansen" klopt niet met wat er staat.
+
+**Bewust niet gebouwd: de twee-koloms opzet van het prospectdossier.** §8.7 wil "links het dossier,
+rechts de conceptmail in een Card" vanaf 1024px, en een vaste breedte van 680px op het
+conceptmailveld. Het scherm (`prospects/[id]/page.tsx` plus `werkpaneel.tsx`) staat nu in één kolom
+onder elkaar. Dat werkt, maar is niet de spec. Dit is écht nieuwe lay-out op een bedrijfskritisch
+intern scherm met veel voorwaardelijke content (een prospect zonder kans, met kans maar niet
+opgepakt, opgepakt met een concept, verzonden, afgewezen), en zonder browser is de kans op een
+verkeerde breakpoint-aanname te groot om dat blind te doen. Wordt een eigen, kleine portie, net als
+`CollapsibleSection` uit portie 1.
+
+`redesign2026.md` bijgewerkt, inclusief de markering "gedeeltelijk" in de voortgangstabel.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+allemaal groen. Nagerekend: alle zes routes doorzocht op hexkleuren, `backdrop-blur`, `shadow-` en de
+oude intent-namen (geen gevonden, deze module was al schoon op dat vlak). Wat niet is gecontroleerd:
+hoe de nieuwe streep er in een echte browser uitziet op zowel licht als donker, en op zowel desktop
+als telefoon. Dat blijft open voor de eerstvolgende Vercel-preview.
+
+## 21 september 2026, stap 10 van de redesign, portie 5: Admin en beheer (gedeeltelijk)
+
+Zes routes onder `/merk/[id]/admin/*`, drie onder `/beheer/*` (§8.6).
+
+**De belangrijkste vondst van deze portie: het patroon dat §8.6 vraagt bestond al, alleen in de
+verkeerde kleur.** `onboarding-session.tsx` (783 regels) heeft `SectionRail`, een sticky
+inhoudsopgave met scroll-spy (`IntersectionObserver`) die een actief hoofdstuk aanwijst terwijl je
+scrolt. Dat IS §8.6's "inhoudsopgave vanaf 1280px links naast het formulier, sticky". Alleen de
+actieve regel gebruikte `--intent-intelligence-solid`/`-text` (een accentkleur), terwijl spec en de
+zijbalk (`.nav-item[aria-current]`) allebei `--text-primary` met `--border-selected` (puur zwart in
+licht, puur wit in donker) gebruiken voor "je bent hier". Nu gelijkgetrokken. De railbreedte ging van
+176px (`w-44`) naar de voorgeschreven 200px (`w-[200px]`). `SectionRail` heeft precies één aanroeper,
+dus dit is een lage-impact wijziging met een echt kleurverschil (niet nul, zoals de meeste
+`intent-growth`→`trend-up`-omzettingen in eerdere porties).
+
+**Bewust niet gebouwd: de vastplakkende opslagbalk uit §8.6.** Die vraagt "vuile staat"-tracking
+(weet dat een formulier gewijzigd is sinds de laatste opslag) die nergens in deze negen schermen
+bestaat; hem bouwen is nieuwe functionaliteit en geen redesign van iets dat er al staat.
+
+**Bewust niet gecontroleerd: `wil-lezen` (720px) op de acht overige routes.** Bij
+`onboarding-session.tsx` staat de rail in dezelfde flexrij als de inhoud; `wil-lezen` op de hele
+pagina zou dus de rail ÉN de inhoud samen in 720px persen. Vermoedelijk bedoelt de spec de breedte van
+de formulierkolom en niet van de hele pagina inclusief rail, maar dat is een aanname zonder browser om
+hem te toetsen. De overige acht routes (kortere edit-schermen: `AssignBox`, `PackageBox`,
+`EntitiesManager`, `OfferingsPanel`, en de overzichten `admin/page.tsx` en de drie `/beheer/*`-pagina's)
+zijn niet stuk voor stuk langsgelopen op deze vraag. Wordt, samen met de opslagbalk, een eigen portie.
+
+`redesign2026.md` bijgewerkt.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+allemaal groen. Nagerekend: alle negen routes doorzocht op hexkleuren, `backdrop-blur`, `shadow-`
+(niets gevonden) en de oude intent-namen (één vondst in `csm-view.tsx`, bewust niet omgezet om
+dezelfde reden als in portie 2 en 3: geen `--accent-surface`-token om naartoe te wijzen). Wat niet is
+gecontroleerd: hoe de rail er in een echte browser uitziet op 1280px en breder, en of de nieuwe
+`--border-selected`-kleur voldoende opvalt naast de mono-nummers ernaast. Dat blijft open voor de
+eerstvolgende Vercel-preview.
+
+## 21 september 2026, stap 10 van de redesign, portie 6: de overige routes (gedeeltelijk)
+
+`/analyses/*` (9 routes), `/merk`, `/merk/nieuw`, `/instellingen/*`, `/support`, `/markt/[slug]`, `/`
+(§8.8), en als bijvangst een volledige app-brede §10.5-sweep.
+
+**De grootste vondst: elke vorige portie deed §10.5 (zeven betekenissen naar vier) los, met één of
+twee losse `--intent-growth-*`-aanroepen per keer.** Deze portie zocht de hele `app/`- en
+`components/`-boom in één keer door en vond er nog twaalf. Allemaal omgezet, volgens dezelfde
+kleurloze aliassen als steeds (`--intent-growth-text`→`--trend-up-text`, `-solid`→`--trend-up`,
+`-border`→`--border-default`), plus de laatste twee `--intent-information-*`-aanroepen naar
+`--intent-info-content`/`--border-default`. Nagerekend: **nul** treffers voor `intent-growth` of
+`intent-information` in de hele codebase. `intent-attention` en `intent-premium` stonden al op nul
+(het CSS-token voor premium bestond zelfs al nergens meer in `globals.css`, een schatting uit het
+blueprint die inmiddels achterhaald bleek). Alleen `intent-intelligence` staat nog overal waar hij
+stond: geen `--accent-surface`-token om naartoe te wijzen, dezelfde reden als in elke eerdere portie.
+
+**`/analyses/[id]/*` (9 routes, gedeeld via één layout):** `AnalysisNav` had een eigen pilnavigatie in
+plaats van de gedeelde `Tabs` uit stap 3. Nu gebruikt hij `Tabs` voor de twee echte bestemmingen
+(Cluster, Bibliotheek, met de teller als `aantal`), de instellingenlink staat er met opzet los naast
+in plaats van als derde tabblad. Onderweg ook een dode tokennaam opgeruimd: `--wash-hover`, nog wel
+een geldige alias maar overal elders sinds stap 4 al `--interactive-hover`.
+
+**`/merk`, `/merk/nieuw`, `/instellingen`: grotendeels geen wijziging nodig.** De merkenlijst is een
+kaartenlijst en geen tabel (zesde keer dat dit patroon terugkomt, na Strategie en Sales), `/nieuw` en
+`/instellingen` begrenzen zichzelf al op `max-w-xl`. `/instellingen/koppelingen` deed dat niet en
+kreeg als enige in deze portie een echte standwijziging: `wil-lezen`.
+
+**`/support` (764 regels): bewust niet aangeraakt.** §8.8 wil hem als accordion-lijst, en §8.11 noemt
+`/support` zelf als het voorbeeld voor de kleine `CollapsibleSection`-variant. Hoort dus bij de al in
+portie 1 aangekondigde eigen portie voor dat component, niet bij deze.
+
+`redesign2026.md` bijgewerkt.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+allemaal groen. Nagerekend: `grep` op `intent-growth`, `intent-information`, `intent-attention` en
+`intent-premium` over de hele `app/`- en `components/`-boom leverde nul treffers op ná deze portie.
+Wat niet is gecontroleerd: hoe de vervangen `Tabs`-navigatie op een cluster er in een echte browser
+uitziet, en of de dubbele onderrand (van `.tabs` zelf en van de nieuwe wikkel eromheen) een zichtbare
+naad geeft in plaats van één lijn. Dat blijft open voor de eerstvolgende Vercel-preview.
+
+## 21 september 2026, stap 10 van de redesign, portie 7: de drie openstaande punten, afgesloten
+
+Portie 1, 4 en 5 lieten elk iets liggen omdat het te riskant leek zonder browser. Deze portie sluit
+alle drie af: twee gebouwd, twee definitief afgewezen met een reden.
+
+**`CollapsibleSection` is herbouwd naar OKX' vlakke accordion (§8.11).** Was een losse, afgeronde doos
+per sectie met een `--bg-elevated`-kop; is nu vlak, met alleen een streep onder elke rij, zodat een
+reeks secties leest als één doorlopende lijst. Kop-vulling 32px, titel 18px/gewicht 500. Een nieuwe
+`compact`-prop geeft de kleine variant uit de spec (16px vulling, 14px titel) voor een langere lijst.
+Twaalf bestanden gebruiken dit component; ze krijgen de nieuwe vorm zonder dat er iets aan hun eigen
+inhoud is veranderd.
+
+**Het conceptmailveld in `werkpaneel.tsx` kreeg `max-w-[680px]`** (§8.7): een e-mail leest als een
+e-mail bij de regellengte van een echte mailclient.
+
+**Twee definitieve nee's, allebei omdat de code zelf al het antwoord gaf:**
+
+- **`/support` wordt geen accordion-lijst, punt.** Het scherm heeft zijn eigen toelichting: de eerste
+  versie gebruikte al precies het tabblad/accordion-patroon dat §8.8 nu voorstelt, en dat gaf "een rij
+  bijna identieke grijze kaarten zonder enige hiërarchie". De huidige opbouw (vaste zijnavigatie naast
+  doorlopende inhoud, als een echte documentatiepagina) is de latere, bewuste correctie: Support heeft
+  geen data om te temmen, alleen uitleg. Dit is geen openstaand punt meer; de spec is hier achterhaald
+  door een besluit dat er ná kwam.
+- **Het prospectdossier blijft één kolom.** Dat scherm bestaat voor het moment waarop een prospect de
+  claim betwist, en toont daarom alles onder elkaar: de vraag, het antwoord, de bronnen, de
+  score-opbouw. Een twee-koloms raster op een bedrijfskritisch scherm zonder browser om te verifiëren
+  is een te grote gok, zeker voor een spec-regel zonder eigen motivatie.
+
+**Ook definitief nee: de vastplakkende opslagbalk in Admin.** Vraagt vuile-staat-tracking in minstens
+vijf editor-componenten die dat vandaag niet bijhouden. Nieuwe functionaliteit per component, geen
+redesign van iets dat er al staat.
+
+**Drie Admin-routes kregen alsnog `wil-lezen`** (`aanbodboom`, `toewijzen`, `concurrenten`), stuk voor
+stuk geverifieerd als formulieren zonder brede rasters. `admin/0-meting` bewust niet: bij nader lezen
+is dat het leesscherm dat de consultant vóór een demogesprek doorneemt, dus een overzicht en geen
+formulier.
+
+**Hiermee is stap 10 inhoudelijk klaar:** alle zes groepen uit `redesign2026.md` §8.2 tot §8.8 zijn
+bekeken. Wat niet is gebouwd staat met een reden in het logboek en in het plan, niet stilzwijgend
+overgeslagen.
+
+`redesign2026.md` bijgewerkt met de zevende en laatste rij van de voortgangstabel voor deze stap.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+allemaal groen. Wat niet is gecontroleerd: hoe de nieuwe vlakke `CollapsibleSection` er in een echte
+browser uitziet op alle twaalf aanroepers, vooral of de content zonder de oude doos nog voldoende van
+zijn buren te onderscheiden is. Dat blijft open voor de eerstvolgende Vercel-preview.
+
+## 21 september 2026, stap 11 van de redesign: documentatie
+
+Stap 10 was inhoudelijk klaar; deze stap trekt de documentatie gelijk, zoals `redesign2026.md` §10.6
+aangaf en `CLAUDE.md` sowieso al eist ("verandert het gedrag, werk dan `docs/` bij in dezelfde
+commit").
+
+**De ruwe Nova/InSpace-brondata is weg.** `css.css` (Nova's gecompileerde CSS-bundel, 93 kB in de
+hoofdmap), `docs/nova-i18n.json`, `docs/inspace-app-i18n.json` en `docs/inspace-marketing.txt` waren
+de tekstcatalogi en de stijlbundel achter de Nova-vergelijking. De conclusies staan al uitgeschreven
+in `docs/nova-vs-orbit-engine-proces.md` en `docs/tasks/nova-vergelijking-verbeterpunten.md`, en die
+twee documenten hebben geen ruwe data meer nodig; ze blijven staan (beide nog open werk), alleen hun
+verwijzing naar de nu verwijderde bronbestanden is bijgewerkt. De vertaaltabel bovenaan dit logboek
+heeft er een regel bij.
+
+**`docs/designsystem.md` is herschreven.** Het beschreef sinds 17 september 2026 met een grote
+waarschuwing bovenaan nog het Nova-systeem, terwijl `app/globals.css` allang OKX' tokens droeg. De
+herschrijving trekt kleur, typografie, ruimte, vorm, iconen, opmaak en het themasysteem gelijk met
+wat er werkelijk in de code staat, met de Nova-periode als afgesloten geschiedenis in bijlage A
+(dezelfde behandeling die de InSpace-marketingsite al had vóór 6 augustus 2026). §9b, het open
+ontwerpbesluit "is dit systeem ooit van Outer Orbit zelf", is herschreven met de uitkomst van het
+limoenbesluit van 17 september 2026 erin: het accent is letterlijk van OKX overgenomen, en dat maakt
+de onderliggende vraag scherper in plaats van dat het hem beantwoordt. De vraag blijft open, net als
+in augustus.
+
+**`docs/ux-design.md` is nagekeken**, niet herschreven: de indeling en de gedragspatronen golden vóór
+de OKX-omzetting en gelden er nog steeds na, alleen een paar concrete maten in dat document dateerden
+nog van de Nova-periode. Rechtgezet: de zijbalk ingeklapt (56px, niet 64), de stang op een
+stand-kaart (2px, niet 4), de knopmaten sm/lg (36/48px, niet 32/44), het kleinste label (niet meer
+mono), en de kruisverwijzingen naar `designsystem.md` volgen nu de nieuwe paragraafnummering.
+`docs/merkstrategie.md` §15 en §16 zijn nagekeken en hoefden niet mee: die twee gaan over
+merkfilosofie (neutral-first, functionele kleur, geen neonpaarse AI-gloed) en niet over tokenwaarden,
+en kloppen al met de OKX-omzetting.
+
+**Twee genuine openstaande punten kregen een eigen bestand**,
+`docs/tasks/openstaand-na-okx-omzetting.md`: `.field-lg` (48px, de trede die Safari's inzoomgedrag
+bij focus voorkomt) staat nog alleen op de inlogroute en niet overal onder 768px, en de donkere
+stand is nog niet systematisch nagekeken op de ingelogde schermen sinds de OKX-tokens erin zitten
+(hetzelfde punt dat ook al na de Nova-omzetting openstond). Een derde, de kleurenblindheidscontrole
+op de acht grafiekreeksen, staat er ook in en stond al sinds de Nova-periode open.
+
+**Bijvangst: `components/icon.tsx` droeg nog lijndikte 1,75.** De OKX-omzetting had dit altijd al naar
+1,5 willen zetten (stap 2, §5.7 van het toenmalige plan), maar de regel en het bijbehorende commentaar
+waren nooit meegenomen. Rechtgezet, met het commentaar bijgewerkt naar de huidige redenering (tekst op
+gewicht 500 vraagt om een lichtere lijn dan tekst op 600).
+
+`redesign2026.md` zelf verdwijnt in de volgende commit van deze stap, zodra ook dat gecontroleerd is.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+allemaal groen, over beide commits van deze stap. Wat niet is gecontroleerd: of de herschreven
+`designsystem.md` ergens een waarde noemt die inmiddels alweer is doorontwikkeld sinds de laatste
+`grep` tegen `app/globals.css`; dat is per definitie een momentopname en niet doorlopend bewaakt.
 
 ## 19 september 2026: DataForSEO voor het eerst tegen een echt account getest
 

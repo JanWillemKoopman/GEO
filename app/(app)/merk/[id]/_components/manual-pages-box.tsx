@@ -169,7 +169,7 @@ export function ManualPagesBox({
       {uitslag && (
         <div className="flex flex-col gap-1 text-sm" role="status">
           {uitslag.added > 0 && (
-            <span className="flex items-center gap-1.5 text-[var(--intent-growth-text)]">
+            <span className="flex items-center gap-1.5 text-[var(--trend-up-text)]">
               <Icon naam="klaar" size={14} />
               {uitslag.added} {uitslag.added === 1 ? "pagina" : "pagina's"} toegevoegd. Draai
               &ldquo;Onderzoek opnieuw&rdquo; om ze in je aanbod te verwerken.

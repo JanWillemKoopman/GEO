@@ -104,7 +104,7 @@ export function TopicRefreshButton({ profileId }: { profileId: string }) {
           </div>
         </>
       )}
-      {result && <p className="text-sm text-[var(--intent-growth-text)]">{result}</p>}
+      {result && <p className="text-sm text-[var(--trend-up-text)]">{result}</p>}
       {error && (
         <p className="text-sm text-[var(--status-error)]" role="alert">
           {error}

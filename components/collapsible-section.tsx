@@ -14,12 +14,16 @@ export function CollapsibleSection({
   title,
   badge,
   defaultOpen,
+  compact = false,
   children,
 }: {
   title: string;
   badge?: string;
   /** Overschrijft het breakpoint-gedrag (bv. altijd open forceren). */
   defaultOpen?: boolean;
+  /** De kleine variant uit §8.11: 16px kop-vulling en 14px titel in plaats
+   *  van 32px/18px. Voor een lijst van tientallen items, zoals `/support`. */
+  compact?: boolean;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen ?? true);
@@ -31,25 +35,25 @@ export function CollapsibleSection({
   }, [defaultOpen]);
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-subtle)]">
+    <div className={`collapsible${compact ? " collapsible-compact" : ""}`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between gap-3 bg-[var(--bg-elevated)] px-4 py-3 text-left transition-colors hover:bg-[var(--bg-surface-2)]"
+        className="collapsible-kop"
         aria-expanded={open}
       >
-        <span className="flex items-center gap-2 font-medium">
+        <span className="collapsible-titel">
           {title}
           {badge && <span className="chip">{badge}</span>}
         </span>
         <span
-          className="text-secondary transition-transform"
+          className="collapsible-pictogram"
           style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
         >
-          <Icon naam="openen" />
+          <Icon naam="openen" size={compact ? 16 : 20} />
         </span>
       </button>
-      {open && <div className="flex flex-col gap-4 p-4">{children}</div>}
+      {open && <div className="collapsible-inhoud">{children}</div>}
     </div>
   );
 }

@@ -285,7 +285,8 @@ export default async function ZoekverkeerPage({
   const vroegsteDagHeleSite = volledigVenster(rijen)!;
 
   return (
-    <div className="flex flex-col gap-6">
+    // `wil-data`: brede tabel eronder, zie de toelichting in analytics/page.tsx.
+    <div className="flex flex-col gap-6 wil-data">
       <Kop />
 
       <AnalyticsFilters
@@ -414,7 +415,7 @@ function Cijfer({
       {delta === null || delta === 0 ? (
         <span className="mono-label text-muted">{delta === 0 ? "gelijk" : "geen vergelijking"}</span>
       ) : (
-        <span className="mono-label" style={{ color: beter ? "var(--intent-growth-text)" : "var(--intent-danger-text)" }}>
+        <span className="mono-label" style={{ color: beter ? "var(--trend-up-text)" : "var(--intent-danger-text)" }}>
           <Icon naam={delta > 0 ? "stijging" : "daling"} size={12} />
           {Math.abs(delta).toLocaleString("nl-NL")}
           {eenheid ? ` ${eenheid}` : ""}

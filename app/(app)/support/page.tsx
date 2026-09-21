@@ -431,11 +431,11 @@ function Tip({ children }: { children: React.ReactNode }) {
   return (
     <p
       className="rounded-[var(--radius-xl)] border-l-2 bg-[var(--bg-elevated)] py-2.5 pl-3 pr-3 text-sm text-secondary"
-      style={{ borderColor: "var(--intent-information-border)" }}
+      style={{ borderColor: "var(--border-default)" }}
     >
       <span
         className="mono-label mr-1.5"
-        style={{ fontSize: "0.65rem", color: "var(--intent-information-text)" }}
+        style={{ fontSize: "0.65rem", color: "var(--intent-info-content)" }}
       >
         Tip
       </span>

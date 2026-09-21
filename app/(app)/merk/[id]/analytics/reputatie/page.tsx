@@ -303,7 +303,8 @@ export default async function ReputatiePage({
   return (
     // Het ritme drukt de groepering uit: 32 pixels tussen hoofdstukken, 12
     // erbinnen (`ux-design.md`, de ronde van 25 augustus 2026 op het overzicht).
-    <div className="flex flex-col gap-8">
+    // `wil-data`: brede tabel eronder, zie de toelichting in analytics/page.tsx.
+    <div className="flex flex-col gap-8 wil-data">
       <Kop
         action={
           magStarten ? (

@@ -27,6 +27,13 @@
  *
  * Servercomponent: er valt niets te klikken behalve wat de aanroeper in
  * `action` meegeeft.
+ *
+ * ── DE STREEP IS NIEUW (STAP 10) ────────────────────────────────────────────
+ *
+ * GEMETEN bij OKX (`redesign2026.md` §8.10): een streep van 1px `--line-muted`
+ * over de volle breedte, 8px onder de titel. Zonder die streep hing een
+ * sectiekop los boven zijn inhoud; de streep trekt "hier begint een nieuw
+ * hoofdstuk" ook visueel door, niet alleen via de tekst.
  */
 export function SectionHeading({
   title,
@@ -43,12 +50,15 @@ export function SectionHeading({
   id?: string;
 }) {
   return (
-    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-      <h2 id={id} className="type-section">
-        {title}
-      </h2>
-      {meta && !action && <span className="mono-label">{meta}</span>}
-      {action}
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 id={id} className="type-section">
+          {title}
+        </h2>
+        {meta && !action && <span className="mono-label">{meta}</span>}
+        {action}
+      </div>
+      <div className="border-b border-[var(--line-muted)]" />
     </div>
   );
 }

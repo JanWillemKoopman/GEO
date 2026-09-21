@@ -53,7 +53,7 @@ export function ContentBriefEditor({ analysisId, initial }: { analysisId: string
           {saving ? "Opslaan…" : "Wijzigingen opslaan"}
         </button>
         {saved && (
-          <span className="flex items-center gap-1.5 text-sm text-[var(--intent-growth-text)]">
+          <span className="flex items-center gap-1.5 text-sm text-[var(--trend-up-text)]">
             <Icon naam="klaar" size={14} />
             Opgeslagen
           </span>

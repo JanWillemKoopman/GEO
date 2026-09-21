@@ -224,7 +224,8 @@ export default async function ConcurrentenPage({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    // `wil-data`: brede tabel, zie de toelichting in analytics/page.tsx.
+    <div className="flex flex-col gap-6 wil-data">
       <PageHeader
         eyebrow="Analytics"
         title="Concurrenten"

@@ -53,7 +53,7 @@ export function SectionRail({ sections }: { sections: RailSection[] }) {
       {/* Desktop: verticale rail naast de inhoud. */}
       <nav
         aria-label="Hoofdstukken"
-        className="no-print sticky top-[calc(var(--header-h)+2.5rem)] hidden w-44 shrink-0 flex-col self-start lg:flex"
+        className="no-print sticky top-[calc(var(--header-h)+2.5rem)] hidden w-[200px] shrink-0 flex-col self-start lg:flex"
       >
         {sections.map((s, i) => (
           <RailItem key={s.id} section={s} index={i} active={active === s.id} />
@@ -104,13 +104,13 @@ function RailItem({
       aria-current={active ? "true" : undefined}
       className="flex items-baseline gap-3 py-2.5 transition-colors"
       style={{
-        borderLeft: active ? "var(--border-width-sm) solid var(--intent-intelligence-solid)" : "var(--border-width-sm) solid var(--border-subtle)",
+        borderLeft: active ? "var(--border-width-sm) solid var(--border-selected)" : "var(--border-width-sm) solid var(--border-subtle)",
         paddingLeft: 14,
       }}
     >
       <span
         className="mono-label"
-        style={{ color: active ? "var(--intent-intelligence-text)" : "var(--text-muted)", fontSize: "0.68rem" }}
+        style={{ color: active ? "var(--text-primary)" : "var(--text-muted)", fontSize: "0.68rem" }}
       >
         {String(index + 1).padStart(2, "0")}
       </span>

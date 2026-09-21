@@ -6,8 +6,9 @@ Niets hieronder is gebouwd. Elk punt is een voorstel dat nog een eigen besluit n
 **Bron:** een verse vastlegging van de Nova-app van InSpace, gehaald uit de server-gerenderde
 loginpagina van `nova.inspace.io`. Die pagina stuurt de volledige tekstcatalogus van de hele
 applicatie mee naar een bezoeker die niet is ingelogd, dus de schermindeling, de knoppen, de
-foutmeldingen en de statussen zijn er allemaal uit te lezen. De vastlegging in `docs/nova-i18n.json`
-is met deze ronde ververst.
+foutmeldingen en de statussen zijn er allemaal uit te lezen. De vastlegging (destijds ververst in
+`docs/nova-i18n.json`) is inmiddels verwijderd nu de puntenlijst hieronder af is; zie
+`docs/logbook.md` voor waar de conclusies uit staan.
 
 **Wat er sinds de vorige vastlegging is veranderd:** Nova is gegroeid van 971 naar 1766
 tekstsleutels, bijna een verdubbeling. De 1233 nieuwe sleutels zitten vooral in vier gebieden:

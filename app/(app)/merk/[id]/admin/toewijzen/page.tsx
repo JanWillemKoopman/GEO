@@ -72,7 +72,8 @@ export default async function ToewijzenPage({
   const clusterWaarschuwing = overdrachtZonderCluster(clusterAantal ?? 0);
 
   return (
-    <div className="flex flex-col gap-6">
+    // `wil-lezen`: formulierpatroon (§8.6/§8.8), 720px in plaats van 1440.
+    <div className="flex flex-col gap-6 wil-lezen">
       <PageHeader
         eyebrow="Admin"
         title="Toewijzen"

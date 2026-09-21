@@ -51,7 +51,7 @@ export default async function KoppelingenPage() {
 
   if (merken.length === 0) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 wil-lezen">
         <Kop />
         <EmptyState title="Nog geen merken" action={{ href: "/merk/nieuw", label: "Merk toevoegen" }}>
           Een koppeling hangt aan een merk. Voeg er eerst een toe.
@@ -97,7 +97,9 @@ export default async function KoppelingenPage() {
   const adres = serviceAccountEmail();
 
   return (
-    <div className="flex flex-col gap-6">
+    // `wil-lezen`: een instellingenscherm is formulierpatroon (§8.6/§8.8), dus
+    // 720px in plaats van de standaard 1440px. Zie `.stand` in app/globals.css.
+    <div className="flex flex-col gap-6 wil-lezen">
       <Kop />
 
       {/* ⚠️ Zonder sleutel werkt geen enkele koppeling, en dat is geen fout van

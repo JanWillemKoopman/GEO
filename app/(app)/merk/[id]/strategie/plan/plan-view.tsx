@@ -565,10 +565,11 @@ export function PlanView({
           >
             <div className="flex flex-col gap-2 px-4 pb-3 pt-4">
               <div className="flex items-baseline justify-between gap-2">
-                {/* ⚠️ NIET `text-base`. In dit project maakt `--color-base` van `text-base`
-                    een KLEURklasse (`color: var(--bg-base)`), en dan staat de kop in de
-                    donkere stand bijna onzichtbaar in de kleur van de paginagrond. De
-                    typografie loopt via de `type-`-klassen uit `app/globals.css`. */}
+                {/* `.type-body-emphasis` en niet een kale Tailwind-tekstgrootte: de
+                    typografie loopt via de `type-`-klassen uit `app/globals.css`. (Tot
+                    stap 9 van de redesign was `text-base` hier ook nog een echte val, zie
+                    de toelichting bij `@theme inline` in dat bestand; die val is inmiddels
+                    weg.) */}
                 <h2 className="type-body-emphasis">In te plannen content</h2>
                 <span className="mono-label text-muted">
                   {zichtbareVoorraad.length === backlog.length

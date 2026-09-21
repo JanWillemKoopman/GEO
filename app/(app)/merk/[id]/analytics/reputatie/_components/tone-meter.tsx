@@ -62,7 +62,7 @@ export function ToneMeter({
 
   const tint =
     index >= 20
-      ? "var(--intent-growth-solid)"
+      ? "var(--trend-up)"
       : index > -20
         ? "var(--text-secondary)"
         : "var(--intent-danger-solid)";
