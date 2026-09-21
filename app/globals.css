@@ -856,15 +856,16 @@ body {
      meer om tegenaf te zetten.
 
      ── DIEPTE ZONDER PATROON (21 SEPTEMBER 2026) ───────────────────────────
-     Verticaal verloop op verzoek van de eigenaar: bovenaan 10% donkerder dan
-     `--bg-base`, aflopend naar `--bg-base` zelf onderaan de pagina. Geen
+     Verticaal verloop op verzoek van de eigenaar: bovenaan iets donkerder dan
+     `--bg-base`, aflopend naar `--bg-base` zelf onderaan de pagina. Eerst 90%
+     geprobeerd, dat vond de eigenaar te donker; 98% is precies goed. Geen
      nieuw token nodig: `color-mix` mengt `--bg-base` met zwart, dus het
      verloop volgt vanzelf mee als `--bg-base` ooit verandert. De kaarten
      (`--bg-surface`) staan er los van en blijven wit. */
   background-color: var(--bg-base);
   background-image: linear-gradient(
     to bottom,
-    color-mix(in srgb, var(--bg-base) 90%, black) 0,
+    color-mix(in srgb, var(--bg-base) 98%, black) 0,
     var(--bg-base) 600px
   );
 }
