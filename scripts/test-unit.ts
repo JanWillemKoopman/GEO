@@ -23083,21 +23083,36 @@ group("elke dure route heeft dezelfde rem", () => {
 
 group("een klant loopt niet tegen een knop die hem afwijst", () => {
   // De knoppen die naar /analyses/new wezen stonden bij een klant vol in beeld
-  // en weigerden pas ná de klik. Op het clusterscherm is dat het eerste wat hij
-  // van de app leert, dus daar verdwijnt de knop in plaats van te weigeren.
-  const clusters = leesBestand("app/(app)/merk/[id]/strategie/clusters/page.tsx");
-  ok("het clusterscherm toont de knop alleen aan de consultant", clusters.includes("staff ? ("));
-  ok(
-    "en zegt de klant wie zijn onderwerpen klaarzet",
-    clusters.includes("KLANT_ZONDER_CLUSTERS"),
-  );
-
+  // en weigerden pas ná de klik. Op het lege clusterscherm verdwijnt die knop
+  // in plaats van te weigeren.
   const topics = leesBestand("app/(app)/merk/[id]/_components/topics-panel.tsx");
-  ok("het snelpad doet hetzelfde", topics.includes("staff ? ("));
+  ok("het snelpad op het lege scherm toont de knop alleen aan de consultant", topics.includes("staff ? ("));
+  ok(
+    "en zegt de klant anders wie zijn onderwerpen klaarzet",
+    topics.includes("consultant kiest samen met jou"),
+  );
 
   // Een adres achter een verborgen knop is nog steeds een adres.
   const nieuw = leesBestand("app/(app)/analyses/new/page.tsx");
   ok("en de pagina zelf controleert het ook", nieuw.includes("isStaff") && nieuw.includes("notFound()"));
+
+  // Sinds 21 september 2026 is "Nieuwe cluster" WEL zichtbaar voor de klant
+  // (op verzoek van de eigenaar), maar leidt hij een klant nooit naar die
+  // geblokkeerde route: `NieuweClusterKnop` beslist zelf, in de component en
+  // niet op de pagina, of hij linkt (staff) of de uitleg toont (klant).
+  const clusters = leesBestand("app/(app)/merk/[id]/strategie/clusters/page.tsx");
+  ok(
+    "het clusterscherm toont de knop aan iedereen",
+    clusters.includes("<NieuweClusterKnop merkId={id} staff={staff} />"),
+  );
+
+  const knop = leesBestand("app/(app)/merk/[id]/strategie/clusters/nieuwe-cluster-knop.tsx");
+  ok("de knop zelf linkt alleen voor staff naar /analyses/new", knop.includes('if (staff) {'));
+  ok(
+    "en toont een klant de uitleg in plaats van te navigeren",
+    knop.includes("KLANT_ZONDER_CLUSTERS"),
+  );
+  ok("die uitleg staat op één plek en wordt hier hergebruikt", knop.includes("cluster-start"));
 });
 
 group("een merk zonder cluster overdragen wordt gemeld", () => {

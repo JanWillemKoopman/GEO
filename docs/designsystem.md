@@ -133,6 +133,23 @@ limoen niets meer.
 **Wat dit besluit openlaat.** Het beantwoordt niet de vraag of het uiterlijk ooit een eigen merklaag
 van Outer Orbit moet worden; het stelt hem uit. Zie §9b.
 
+### 2.4a Actieknoppen
+
+| Token | Waarde (beide standen) |
+|---|---|
+| `--action-button` | `#25a750` |
+| `--action-button-hover` | `#1f8e44` |
+| `--action-button-pressed` | `#187538` |
+| `--action-button-on` | `#ffffff` |
+
+**Besluit van de eigenaar, 21 september 2026.** Het accent (§2.4) is voor de ÉÉN hoofdactie van een
+scherm en verschijnt daarom hooguit één keer. Een clusterlijst met tien voorgestelde onderwerpen
+heeft tien gelijkwaardige "start dit"-knoppen tegelijk op het scherm, en dat past niet bij die regel.
+`.btn-actie` is de eigen kleur voor precies dat geval: elke knop die een cluster of onderwerp start
+("Nieuwe cluster", "Cluster starten", "Starten met deze verdeling"). Vast `#25a750` in beide standen,
+geen aparte donkere variant zoals `--accent` die wel heeft: dit groen is een eigen, herkenbare kleur
+en geen accentvervanging.
+
 ### 2.5 De betekenislaag: vier, niet zeven
 
 Nova had zeven betekenissen (`intelligence`, `growth`, `information`, `warning`, `attention`,
@@ -494,6 +511,7 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 | `.card-rail` / `-success` / `-warning` / `-accent` | De 2px-stang links op de kaart met het hoofdgetal, of op een kaart die om een handeling vraagt. Zie §5.5 |
 | `.btn-primary` | **De handeling.** Omgekeerd contrast (wit op zwart in donker, zwart op wit in licht), geen accentkleur. Zie §2.4 voor waarom |
 | `.btn-accent` | De hoofdactie van een scherm, hooguit één. Limoen (donker) of donkergroen (licht) |
+| `.btn-actie` | **Actieknoppen**: elke knop die een cluster of onderwerp start ("Nieuwe cluster", "Cluster starten"), zoveel per scherm als er onderwerpen zijn. Vast `#25a750`, in beide standen gelijk. Zie §2.4a |
 | `.btn-outline` / `.btn-ghost` | De keuze ernaast, resp. de uitweg. Zelfde maten |
 | `.btn-sm` / `.btn-lg` | 36px en 48px, BEREKEND uit padding × 2 + regelhoogte + rand × 2 |
 | `.chip` + `-success` / `-danger` / `-warning` / `-info` / `-attention` / `-neutral` / `-outline` | `--radius-md` (4px, niet meer een pil), gewicht 500. `-attention` draagt sinds stap 10 de accentkleur, niet roze (§2.5) |

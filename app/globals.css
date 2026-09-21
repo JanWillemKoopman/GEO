@@ -141,6 +141,19 @@
   --accent-highlight: #bcff2f;
   --accent-highlight-on: #000000;
 
+  /* ── Actieknoppen ─────────────────────────────────────────────────────────
+     Vastgesteld 21 september 2026: één groen, `#25a750`, voor elke knop die
+     een cluster of onderwerp START (`.btn-actie`). Bewust geen `var()` naar
+     `--accent`: het accent is voorbehouden aan hooguit één primaire actie per
+     scherm, en een clusterlijst met tien onderwerpen heeft tien "start"-
+     knoppen tegelijk op het scherm staan. Bewust ook geen aparte donkere
+     stand: dit is dezelfde letterlijke hex in licht en donker, in plaats van
+     mee te schuiven met het thema zoals `--accent` dat wel doet. */
+  --action-button: #25a750;
+  --action-button-hover: #1f8e44;
+  --action-button-pressed: #187538;
+  --action-button-on: #ffffff;
+
   /* ── Interactie ───────────────────────────────────────────────────────────
      Dit is het patroon dat de hele interface bij elkaar houdt, en het is het
      meest overdraagbare wat OKX heeft. Elke hover, elke actieve en elke
@@ -1254,6 +1267,7 @@ table {
 .btn-outline,
 .btn-ghost,
 .btn-accent,
+.btn-actie,
 .btn-danger {
   display: inline-flex;
   align-items: center;
@@ -1304,6 +1318,20 @@ table {
   background-color: var(--accent-pressed);
 }
 
+/* De actieknop: `#25a750`, voor elke knop die een cluster of onderwerp start
+   ("Nieuwe cluster", "Cluster starten"). Zie de toelichting bij
+   `--action-button`. */
+.btn-actie {
+  background-color: var(--action-button);
+  color: var(--action-button-on);
+}
+.btn-actie:hover:not(:disabled) {
+  background-color: var(--action-button-hover);
+}
+.btn-actie:active:not(:disabled) {
+  background-color: var(--action-button-pressed);
+}
+
 /* Secundair: een rand, en een waas bij hover. Inverteert niet naar een vlak. */
 .btn-outline {
   background-color: transparent;
@@ -1345,6 +1373,7 @@ table {
 .btn-outline:disabled,
 .btn-ghost:disabled,
 .btn-accent:disabled,
+.btn-actie:disabled,
 .btn-danger:disabled {
   background-color: var(--interactive-disabled);
   border-color: transparent;
@@ -1360,6 +1389,7 @@ table {
 .btn-outline:focus-visible,
 .btn-ghost:focus-visible,
 .btn-accent:focus-visible,
+.btn-actie:focus-visible,
 .btn-danger:focus-visible,
 .field:focus-visible {
   outline: var(--border-width-sm) solid var(--border-focus);
@@ -1582,6 +1612,14 @@ table {
 /* Elk veld met een getal erin lijnt zijn cijfers uit. Zie `.tabular`. */
 .field-number {
   font-variant-numeric: tabular-nums;
+}
+/* Een `<select>`: de browser tekent zijn eigen pijltje in de padding-box, dus
+   zonder extra ruimte plakt dat pijltje tegen dezelfde 12px als de tekst
+   ervoor. Na `.field` in dit bestand, zodat de padding-shorthand van `.field`
+   dit niet terugzet: een Tailwind-utility met gelijke specificiteit verliest
+   die strijd, deze klasse wint hem juist door zijn plek in het bestand. */
+.field-select {
+  padding-right: 32px;
 }
 /* De grootste trede van de veldschaal: 48px in plaats van 40, tekst 16px in
    plaats van 14. GEMETEN als OKX' eigen `Input lg` (`redesign2026.md` §7.3).

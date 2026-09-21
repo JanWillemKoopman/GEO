@@ -81,10 +81,10 @@ export function ClusterBalk({
         {/* Rechts op dezelfde regel. `ml-auto` duwt het duo naar de rand zolang
             er ruimte is, en op een smal scherm valt het eronder in plaats van
             de knoppen weg te drukken. */}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           <button
             type="button"
-            className="btn-ghost btn-sm"
+            className="btn-ghost btn-sm shrink-0 whitespace-nowrap"
             onClick={() => setBeheer((aan) => !aan)}
             aria-expanded={beheer}
           >
@@ -95,7 +95,7 @@ export function ClusterBalk({
           <select
             value={filter}
             onChange={(e) => kiesLabel(e.target.value)}
-            className="field w-auto pr-8"
+            className="field field-select w-auto"
             aria-label="Filter op label"
           >
             <option value={LABELFILTER_ALLES}>Alle labels</option>
