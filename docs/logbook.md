@@ -10118,3 +10118,55 @@ Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd)
 allemaal groen. Wat niet is gecontroleerd: hoe de nieuwe vlakke `CollapsibleSection` er in een echte
 browser uitziet op alle twaalf aanroepers, vooral of de content zonder de oude doos nog voldoende van
 zijn buren te onderscheiden is. Dat blijft open voor de eerstvolgende Vercel-preview.
+
+## 21 september 2026, stap 11 van de redesign: documentatie
+
+Stap 10 was inhoudelijk klaar; deze stap trekt de documentatie gelijk, zoals `redesign2026.md` §10.6
+aangaf en `CLAUDE.md` sowieso al eist ("verandert het gedrag, werk dan `docs/` bij in dezelfde
+commit").
+
+**De ruwe Nova/InSpace-brondata is weg.** `css.css` (Nova's gecompileerde CSS-bundel, 93 kB in de
+hoofdmap), `docs/nova-i18n.json`, `docs/inspace-app-i18n.json` en `docs/inspace-marketing.txt` waren
+de tekstcatalogi en de stijlbundel achter de Nova-vergelijking. De conclusies staan al uitgeschreven
+in `docs/nova-vs-orbit-engine-proces.md` en `docs/tasks/nova-vergelijking-verbeterpunten.md`, en die
+twee documenten hebben geen ruwe data meer nodig; ze blijven staan (beide nog open werk), alleen hun
+verwijzing naar de nu verwijderde bronbestanden is bijgewerkt. De vertaaltabel bovenaan dit logboek
+heeft er een regel bij.
+
+**`docs/designsystem.md` is herschreven.** Het beschreef sinds 17 september 2026 met een grote
+waarschuwing bovenaan nog het Nova-systeem, terwijl `app/globals.css` allang OKX' tokens droeg. De
+herschrijving trekt kleur, typografie, ruimte, vorm, iconen, opmaak en het themasysteem gelijk met
+wat er werkelijk in de code staat, met de Nova-periode als afgesloten geschiedenis in bijlage A
+(dezelfde behandeling die de InSpace-marketingsite al had vóór 6 augustus 2026). §9b, het open
+ontwerpbesluit "is dit systeem ooit van Outer Orbit zelf", is herschreven met de uitkomst van het
+limoenbesluit van 17 september 2026 erin: het accent is letterlijk van OKX overgenomen, en dat maakt
+de onderliggende vraag scherper in plaats van dat het hem beantwoordt. De vraag blijft open, net als
+in augustus.
+
+**`docs/ux-design.md` is nagekeken**, niet herschreven: de indeling en de gedragspatronen golden vóór
+de OKX-omzetting en gelden er nog steeds na, alleen een paar concrete maten in dat document dateerden
+nog van de Nova-periode. Rechtgezet: de zijbalk ingeklapt (56px, niet 64), de stang op een
+stand-kaart (2px, niet 4), de knopmaten sm/lg (36/48px, niet 32/44), het kleinste label (niet meer
+mono), en de kruisverwijzingen naar `designsystem.md` volgen nu de nieuwe paragraafnummering.
+`docs/merkstrategie.md` §15 en §16 zijn nagekeken en hoefden niet mee: die twee gaan over
+merkfilosofie (neutral-first, functionele kleur, geen neonpaarse AI-gloed) en niet over tokenwaarden,
+en kloppen al met de OKX-omzetting.
+
+**Twee genuine openstaande punten kregen een eigen bestand**,
+`docs/tasks/openstaand-na-okx-omzetting.md`: `.field-lg` (48px, de trede die Safari's inzoomgedrag
+bij focus voorkomt) staat nog alleen op de inlogroute en niet overal onder 768px, en de donkere
+stand is nog niet systematisch nagekeken op de ingelogde schermen sinds de OKX-tokens erin zitten
+(hetzelfde punt dat ook al na de Nova-omzetting openstond). Een derde, de kleurenblindheidscontrole
+op de acht grafiekreeksen, staat er ook in en stond al sinds de Nova-periode open.
+
+**Bijvangst: `components/icon.tsx` droeg nog lijndikte 1,75.** De OKX-omzetting had dit altijd al naar
+1,5 willen zetten (stap 2, §5.7 van het toenmalige plan), maar de regel en het bijbehorende commentaar
+waren nooit meegenomen. Rechtgezet, met het commentaar bijgewerkt naar de huidige redenering (tekst op
+gewicht 500 vraagt om een lichtere lijn dan tekst op 600).
+
+`redesign2026.md` zelf verdwijnt in de volgende commit van deze stap, zodra ook dat gecontroleerd is.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+allemaal groen, over beide commits van deze stap. Wat niet is gecontroleerd: of de herschreven
+`designsystem.md` ergens een waarde noemt die inmiddels alweer is doorontwikkeld sinds de laatste
+`grep` tegen `app/globals.css`; dat is per definitie een momentopname en niet doorlopend bewaakt.
