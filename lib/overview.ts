@@ -195,15 +195,14 @@ export interface OverzichtCijfer {
  * gaan, want zonder die regel leest een klant met 12 geschreven pagina's ze als
  * "deze maand" en klopt zijn beeld van het tempo niet.
  *
- * Met een startdatum erbij als die bekend is: "Sinds maart 2026" is concreter
- * dan "sinds de start", en de datum staat er toch al (de oudste analyse van dit
- * merk, anders het merkprofiel zelf).
+ * ⚠️ Geen datum meer erin (21 september 2026). "Sinds maart 2026" stond er in
+ * plaats van "sinds de start" zodra de startdatum bekend was, maar die datum
+ * kwam uit de oudste analyse en niet uit het merkprofiel zelf: bij een merk dat
+ * later een cluster archiveerde en opnieuw begon, wees hij naar een moment dat
+ * niet meer bestond. De vaste tekst klopt altijd.
  */
-export function totalenKop(start: string | null): string {
-  if (!start) return "Sinds de start van je programma";
-  const d = new Date(start);
-  if (Number.isNaN(d.getTime())) return "Sinds de start van je programma";
-  return `Sinds ${d.toLocaleDateString("nl-NL", { month: "long", year: "numeric", timeZone: "UTC" })}`;
+export function totalenKop(): string {
+  return "Sinds start ORBIT ENGINE";
 }
 
 export function overzichtCijfers({

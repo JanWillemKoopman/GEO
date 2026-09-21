@@ -10,7 +10,7 @@ import { AnalyticsFilters } from "@/components/analytics-filters";
 import { AnalyticsClusterTable } from "@/components/analytics-cluster-table";
 import { ClusterVisibilityGrid } from "@/components/cluster-visibility-grid";
 import { activeOnly } from "@/lib/archive";
-import { confidenceBand, bandInAntwoorden } from "@/lib/stats/uncertainty";
+import { confidenceBand } from "@/lib/stats/uncertainty";
 import {
   beschikbareBronnen,
   cijferVoorBron,
@@ -422,18 +422,13 @@ export default async function AnalyticsPage({
                 gemeten is. Een cluster met vijf metingen telt dus lichter mee dan een met negentig.
               </InfoHint>
             </span>
-            {/* ⚠️ De BAND is het hoofdgetal, niet het punt (20 september 2026).
-                Zelfde reden als op het merkscherm: één meetronde is een
-                steekproef, en een kaal percentage belooft een precisie die de
-                meting niet heeft. Zie bandInAntwoorden() in
-                lib/stats/uncertainty.ts. */}
-            <span className="stat-value text-5xl">
-              {band ? bandInAntwoorden(band) : `${Math.round(merkScore.waarde)}%`}
-            </span>
+            {/* ⚠️ Weer een percentage als hoofdgetal (21 september 2026), na de
+                band-in-antwoorden van 20 september. Zelfde omkering als op het
+                merkscherm; de marge staat nog wel in de regel eronder. */}
+            <span className="stat-value text-5xl">{Math.round(merkScore.waarde)}%</span>
             {band && band.margin > 0 && (
               <span className="text-sm text-muted">
-                AI-antwoorden waarin je merk voorkomt. Uitgedrukt in procenten:{" "}
-                {Math.round(merkScore.waarde)}%, met een marge van{" "}
+                AI-antwoorden waarin je merk voorkomt. Met een marge van{" "}
                 {Math.max(0, Math.round(band.low))}% tot {Math.min(100, Math.round(band.high))}%.
                 Dat is geen slordigheid: het is een steekproef, en dit is hoe breed hij is.
               </span>

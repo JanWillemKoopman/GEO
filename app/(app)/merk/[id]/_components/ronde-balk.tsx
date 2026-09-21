@@ -37,10 +37,20 @@ export function RondeBalk({ fases, zin }: { fases: RondeFase[]; zin: string }) {
             <span className="flex items-center gap-1.5">
               {/* De tekening draagt de stand: gezet, aan de beurt, of nog niet
                   aan de orde. De kleur zit op de ouder, want een icoon erft
-                  altijd `currentColor` (`docs/designsystem.md` §6b.2). */}
+                  altijd `currentColor` (`docs/designsystem.md` §6b.2).
+
+                  ⚠️ Een afgeronde stap krijgt sinds 21 september 2026 een eigen
+                  rondje in de groene oppervlaktetint (`--trend-up-surface`) en
+                  een net iets groter vinkje. Zonder dat contrast stond het
+                  vinkje op 15 pixels dunne lijn tussen vijf andere iconen en
+                  viel het als eerste stap van de rij niet op, terwijl "gezet"
+                  precies is wat deze rij als eerste moet laten zien. */}
               <span
-                className="flex shrink-0"
+                className="flex shrink-0 items-center justify-center rounded-[var(--radius-pill)]"
                 style={{
+                  width: fase.klaar ? 18 : undefined,
+                  height: fase.klaar ? 18 : undefined,
+                  background: fase.klaar ? "var(--trend-up-surface)" : undefined,
                   color: fase.klaar
                     ? "var(--trend-up-text)"
                     : fase.actief
@@ -48,7 +58,10 @@ export function RondeBalk({ fases, zin }: { fases: RondeFase[]; zin: string }) {
                       : "var(--text-muted)",
                 }}
               >
-                <Icon naam={fase.klaar ? "klaar" : fase.actief ? "loopt" : "open"} size={15} />
+                <Icon
+                  naam={fase.klaar ? "klaar" : fase.actief ? "loopt" : "open"}
+                  size={fase.klaar ? 13 : 15}
+                />
               </span>
               <span
                 className={`min-w-0 truncate text-sm ${
