@@ -1889,13 +1889,14 @@ textarea.field {
 
    ── DE ACTIEVE STAAT IS WEZENLIJK VERANDERD ─────────────────────────────────
 
-   Hij was een gevuld blok in `--bg-elevated`. Dat wordt een lichte waas plus
-   een streep van twee pixels links. Het gevulde blok trok te veel aandacht in
-   een lijst van twintig bestemmingen: als je het over een hele kolom bekijkt,
-   leest zo'n blok als een knop en niet als "je bent hier".
+   Hij was een gevuld blok in `--bg-elevated`. Dat wordt een lichte waas.
+   Het gevulde blok trok te veel aandacht in een lijst van twintig
+   bestemmingen: als je het over een hele kolom bekijkt, leest zo'n blok als
+   een knop en niet als "je bent hier".
 
-   Dit is hetzelfde patroon als bij de gekozen filterchip en de gekozen regel in
-   een menu: de staat is een rand of een streep, nooit een kleurvlak. */
+   ⚠️ Had eerst ook een streep van twee pixels links (21 september 2026 eraf):
+   naast de waas zelf voegde de streep niets toe en trok hij een harde lijn
+   dwars door het vlak. */
 .nav-item {
   display: flex;
   align-items: center;
@@ -1908,13 +1909,12 @@ textarea.field {
   font-weight: 400;
   line-height: 1.25rem;
   color: var(--text-tertiary);
-  /* De streep staat links en is in rust doorzichtig, zodat hij bij het
-     aanzetten geen pixel verschuift. */
-  border-left: var(--border-width-sm) solid transparent;
+  /* Korter dan de balk breed is: zonder deze marge liep het actieve vlak door
+     tot de rand van de zijbalk, terwijl de tekst er middenin zwom. */
+  margin-right: 8px;
   transition:
     background-color var(--duration-fast) var(--ease-standard),
-    color var(--duration-fast) var(--ease-standard),
-    border-color var(--duration-fast) var(--ease-standard);
+    color var(--duration-fast) var(--ease-standard);
 }
 .nav-item:hover {
   background-color: var(--interactive-hover);
@@ -1922,7 +1922,6 @@ textarea.field {
 }
 .nav-item[aria-current] {
   background-color: var(--interactive-hover);
-  border-left-color: var(--border-selected);
   color: var(--text-primary);
   font-weight: 500;
 }
@@ -1940,10 +1939,10 @@ textarea.field {
 
 /* De kop boven een groep bestemmingen.
 
-   ⚠️ Hij was 15 pixels op gewicht 600 in `--text-primary`, dus ZWAARDER dan de
-   bestemmingen eronder. Dat is precies omgekeerd aan wat het zou moeten zeggen:
-   de kop wijst een vaste plek in de app aan, de bestemmingen zijn de inhoud. Bij
-   OKX is zo'n kop klein en gedempt en zijn de regels eronder de hoofdzaak. */
+   ⚠️ Stond op gewicht 500 (17 september 2026), juist omdat 600 zwaarder was
+   dan de bestemmingen eronder. Terug naar 600 op 21 september 2026: op 12
+   pixels en kleine kapitalen viel het verschil tussen 500 en de bestemmingen
+   (die zelf ook op 400 tot 500 staan) niet meer te zien. */
 .nav-kop {
   display: flex;
   align-items: center;
@@ -1951,7 +1950,7 @@ textarea.field {
   height: 32px;
   padding: 0 12px;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 0.9375rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
