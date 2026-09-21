@@ -10908,3 +10908,24 @@ Het paneeltje zet zijn eigen achtergrond, rand en schaduw nu rechtstreeks in pla
 klasse.
 
 `tsc --noEmit`, `test:unit` (5012) en `test:chain` (722) groen, `build` groen.
+
+## 21 september 2026 (15): de leeslijst van het contentplan werd een tabel
+
+Op het Overzicht-scherm van het contentplan (`PlanReadView`) stond elke geplande pagina als een
+regel met alleen datum en titel. De klant wil er meer uit een oogopslag halen: welk cluster de
+pagina voedt, of het een nieuwe pagina of een optimalisatie is, en welk type content het is. Die
+drie stonden al in `planned_pages` (`source_analysis_id`, `recommendation_action`, `page_type`),
+alleen niet in het TypeScript-type `PlannedPage` en niet in wat het scherm liet zien.
+
+`PlannedPage` (`lib/types/database.ts`) kreeg `source_analysis_id` en `recommendation_action` erbij.
+`loadPlan()` (`lib/plans.ts`) zoekt de clusternaam nu ook op voor pagina's die al in een maand staan
+(eerder alleen voor de voorraad) en geeft die mee als `clusterNaam` in de `PlanBundle`. De labels
+"Categorie/Dienst/Informatief/Overig" en "Nieuwe pagina/Optimalisatie" stonden los in de CSV-export
+(`app/api/profiles/[id]/plan/export/route.ts`); die verhuisden naar `lib/plan-status.ts`
+(`PAGE_TYPE_LABEL`, `CONTENT_ACTION_LABEL`) zodat de export en het scherm dezelfde vertaling
+gebruiken (één feit, één eigenaar).
+
+De lijst in `MaandKaart` (`plan-read-view.tsx`) is nu een tabel: Titel, Gepland, Cluster, Nieuw of
+optimalisatie, Type content, in die volgorde.
+
+`tsc --noEmit`, `test:unit` (5012) en `test:chain` (722) groen, `build` groen.

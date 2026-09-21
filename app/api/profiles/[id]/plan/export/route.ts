@@ -2,17 +2,8 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
-import { PLAN_STATUS_META } from "@/lib/plan-status";
-import type { ContentPlan, FunnelStage, PageType, PlanMonth, PlannedPage } from "@/lib/types/database";
-
-/** De vier waarden zijn al Nederlandse woorden (lib/plan-progress.ts), dit is
- *  alleen de hoofdletter voor in een kolom. */
-const PAGE_TYPE_LABEL: Record<PageType, string> = {
-  categorie: "Categorie",
-  dienst: "Dienst",
-  informatief: "Informatief",
-  overig: "Overig",
-};
+import { PAGE_TYPE_LABEL, PLAN_STATUS_META } from "@/lib/plan-status";
+import type { ContentPlan, FunnelStage, PlanMonth, PlannedPage } from "@/lib/types/database";
 
 /**
  * GET /api/profiles/[id]/plan/export, het contentplan als CSV (Nova's
