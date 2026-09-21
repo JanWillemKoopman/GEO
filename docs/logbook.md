@@ -9992,3 +9992,40 @@ allemaal groen. Nagerekend: alle zes routes doorzocht op hexkleuren, `backdrop-b
 oude intent-namen (geen gevonden, deze module was al schoon op dat vlak). Wat niet is gecontroleerd:
 hoe de nieuwe streep er in een echte browser uitziet op zowel licht als donker, en op zowel desktop
 als telefoon. Dat blijft open voor de eerstvolgende Vercel-preview.
+
+## 21 september 2026, stap 10 van de redesign, portie 5: Admin en beheer (gedeeltelijk)
+
+Zes routes onder `/merk/[id]/admin/*`, drie onder `/beheer/*` (§8.6).
+
+**De belangrijkste vondst van deze portie: het patroon dat §8.6 vraagt bestond al, alleen in de
+verkeerde kleur.** `onboarding-session.tsx` (783 regels) heeft `SectionRail`, een sticky
+inhoudsopgave met scroll-spy (`IntersectionObserver`) die een actief hoofdstuk aanwijst terwijl je
+scrolt. Dat IS §8.6's "inhoudsopgave vanaf 1280px links naast het formulier, sticky". Alleen de
+actieve regel gebruikte `--intent-intelligence-solid`/`-text` (een accentkleur), terwijl spec en de
+zijbalk (`.nav-item[aria-current]`) allebei `--text-primary` met `--border-selected` (puur zwart in
+licht, puur wit in donker) gebruiken voor "je bent hier". Nu gelijkgetrokken. De railbreedte ging van
+176px (`w-44`) naar de voorgeschreven 200px (`w-[200px]`). `SectionRail` heeft precies één aanroeper,
+dus dit is een lage-impact wijziging met een echt kleurverschil (niet nul, zoals de meeste
+`intent-growth`→`trend-up`-omzettingen in eerdere porties).
+
+**Bewust niet gebouwd: de vastplakkende opslagbalk uit §8.6.** Die vraagt "vuile staat"-tracking
+(weet dat een formulier gewijzigd is sinds de laatste opslag) die nergens in deze negen schermen
+bestaat; hem bouwen is nieuwe functionaliteit en geen redesign van iets dat er al staat.
+
+**Bewust niet gecontroleerd: `wil-lezen` (720px) op de acht overige routes.** Bij
+`onboarding-session.tsx` staat de rail in dezelfde flexrij als de inhoud; `wil-lezen` op de hele
+pagina zou dus de rail ÉN de inhoud samen in 720px persen. Vermoedelijk bedoelt de spec de breedte van
+de formulierkolom en niet van de hele pagina inclusief rail, maar dat is een aanname zonder browser om
+hem te toetsen. De overige acht routes (kortere edit-schermen: `AssignBox`, `PackageBox`,
+`EntitiesManager`, `OfferingsPanel`, en de overzichten `admin/page.tsx` en de drie `/beheer/*`-pagina's)
+zijn niet stuk voor stuk langsgelopen op deze vraag. Wordt, samen met de opslagbalk, een eigen portie.
+
+`redesign2026.md` bijgewerkt.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+allemaal groen. Nagerekend: alle negen routes doorzocht op hexkleuren, `backdrop-blur`, `shadow-`
+(niets gevonden) en de oude intent-namen (één vondst in `csm-view.tsx`, bewust niet omgezet om
+dezelfde reden als in portie 2 en 3: geen `--accent-surface`-token om naartoe te wijzen). Wat niet is
+gecontroleerd: hoe de rail er in een echte browser uitziet op 1280px en breder, en of de nieuwe
+`--border-selected`-kleur voldoende opvalt naast de mono-nummers ernaast. Dat blijft open voor de
+eerstvolgende Vercel-preview.

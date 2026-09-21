@@ -2159,6 +2159,7 @@ analytics, strategie, sales, admin, de rest. Dit is de lange staart en hij is in
 | 2 | Analytics: zichtbaarheid, concurrenten, reputatie, zoekverkeer (§8.4) | ✅ 21 september 2026 |
 | 3 | Strategie: clusters, vragen, plan, plan/versies, bibliotheek (§8.5) | ✅ 21 september 2026 |
 | 4 | Sales: startscherm, markten, markten/[id], prospects, prospects/[id], outreach (§8.7) | ✅ 21 september 2026, gedeeltelijk (zie ⚠️) |
+| 5 | Admin en beheer: 6 routes onder `/merk/[id]/admin/*`, 3 onder `/beheer/*` (§8.6) | ✅ 21 september 2026, gedeeltelijk (zie ⚠️) |
 
 ⚠️ **Bij portie 1 bleek §8.3's eigen voorschrift ("kerncijfers: raster van 4 DataCards") een
 verkeerde aanname.** Het echte scherm heeft geen vier losse kaarten maar één kaart met een
@@ -2229,6 +2230,27 @@ op een intern, bedrijfskritisch scherm (`app/(app)/sales/prospects/[id]/page.tsx
 `werkpaneel.tsx`, 410 respectievelijk enkele honderden regels) met voorwaardelijke content
 (afgewezen/opgepakt/verzonden), en zonder browser is een raster met de verkeerde breakpoint-aanname
 makkelijker fout dan goed. Dit wordt zijn eigen, kleine portie, net als `CollapsibleSection`.
+
+⚠️ **Portie 5 (Admin en beheer) is bewust gedeeltelijk, en leverde de belangrijkste correctie van de
+hele stap 10 tot nu toe.** `onboarding-session.tsx` (783 regels, het langste formulier in de app)
+bleek §8.6's "inhoudsopgave" al te hebben: `SectionRail`, een sticky rail met scroll-spy, exact het
+patroon dat de spec beschrijft. Wat er niet klopte was de kleur: de actieve regel gebruikte
+`--intent-intelligence-solid`/`-text` (een accentkleur) in plaats van `--text-primary` met
+`--border-selected` (puur zwart/wit, §8.6, en al het patroon dat `.nav-item` in de zijbalk gebruikt
+voor precies dezelfde "dit is actief"-betekenis). Dat is nu gelijkgetrokken, en de railbreedte ging
+van 176px (`w-44`) naar de voorgeschreven 200px. Eén component, één aanroeper, dus lage impact-diameter
+voor een echte kleurwijziging.
+
+**Niet gebouwd: de vastplakkende opslagbalk.** Geen van de negen routes heeft hem, en die bouwen
+vraagt om "vuile staat"-tracking (weet wanneer een formulier gewijzigd is) die nergens in deze
+schermen bestaat. **Niet gecontroleerd: `wil-lezen` op de overige acht routes.** Bij
+`onboarding-session.tsx` zit de rail ín dezelfde flexrij als de inhoud, dus een `wil-lezen` van 720px
+op de hele pagina zou de rail én de inhoud samen in 720px persen, ongeveer 480px voor de inhoud na
+aftrek van de rail. Dat is vermoedelijk niet de bedoeling van de spec (die "lezen" waarschijnlijk als
+breedte van de FORMULIERKOLOM bedoelt, niet van de hele pagina inclusief rail), maar zonder browser is
+dat een aanname en geen zekerheid. De overige acht routes (kortere, gerichte edit-schermen als
+`AssignBox`, `PackageBox`, `EntitiesManager`) zijn niet stuk voor stuk nagelopen op dezelfde vraag.
+Wordt met de opslagbalk samen een eigen portie.
 
 **Stap 11, documentatie.** Zie 10.6.
 
