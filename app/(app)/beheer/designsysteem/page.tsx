@@ -27,10 +27,10 @@ export const metadata: Metadata = { title: "Designsysteem" };
  *
  * ── HET IS BEWUST GEEN DOCUMENTATIE ─────────────────────────────────────────
  *
- * `docs/designsystem.md` beschrijft de regels en `redesign2026.md` de
- * herkomst. Dit scherm beschrijft niets, het TOONT. Eén feit heeft één
- * eigenaar: staat een waarde hier in een bijschrift, dan is dat om te kunnen
- * nakijken wat je ziet, niet om het ergens anders te vervangen.
+ * `docs/designsystem.md` beschrijft de regels en de herkomst. Dit scherm
+ * beschrijft niets, het TOONT. Eén feit heeft één eigenaar: staat een waarde
+ * hier in een bijschrift, dan is dat om te kunnen nakijken wat je ziet, niet
+ * om het ergens anders te vervangen.
  *
  * ⚠️ Alleen voor de eigen organisatie, en bij een gewone gebruiker een 404 en
  * geen 403. Een 403 bevestigt dat het scherm bestaat. Zelfde patroon als
