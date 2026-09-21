@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { Icon } from "@/components/icon";
 import { CollapsibleSection } from "@/components/collapsible-section";
-import { PLAN_STATUS_META, MONTH_STATUS_META, type StatusTone } from "@/lib/plan-status";
+import {
+  PLAN_STATUS_META,
+  MONTH_STATUS_META,
+  PAGE_TYPE_LABEL,
+  CONTENT_ACTION_LABEL,
+  type StatusTone,
+} from "@/lib/plan-status";
 import { contentHref, formatDagNL } from "@/lib/plan-overview";
 import { monthCalendar, isRunningMonth, maandIsVol } from "@/lib/plan-schedule";
 import { leesMaandKeuze, maandRegel, planStap, telStatussen } from "@/lib/plan-read";
@@ -29,12 +35,14 @@ export function PlanReadView({
   months,
   pages,
   topics,
+  clusterNaam,
 }: {
   profileId: string;
   plan: ContentPlan;
   months: PlanMonth[];
   pages: PlannedPage[];
   topics: TopicWritingState[];
+  clusterNaam: Record<string, string | null>;
 }) {
   const nu = new Date();
   const analyseVanOnderwerp = new Map(topics.map((t) => [t.topicId, t.analysisId]));
@@ -80,6 +88,7 @@ export function PlanReadView({
           month={months.find((m) => m.id === deze.id)!}
           paginas={dezePaginas}
           analyseVanOnderwerp={analyseVanOnderwerp}
+          clusterNaam={clusterNaam}
           lopend={lopend === deze.monthNumber}
           magVrijgeven
         />
@@ -92,6 +101,7 @@ export function PlanReadView({
           month={months.find((m) => m.id === volgende.id)!}
           paginas={paginasVan(volgende.id)}
           analyseVanOnderwerp={analyseVanOnderwerp}
+          clusterNaam={clusterNaam}
           lopend={false}
           magVrijgeven={false}
         />
@@ -155,6 +165,7 @@ function MaandKaart({
   month,
   paginas,
   analyseVanOnderwerp,
+  clusterNaam,
   lopend,
   magVrijgeven,
 }: {
@@ -163,6 +174,7 @@ function MaandKaart({
   month: PlanMonth;
   paginas: PlannedPage[];
   analyseVanOnderwerp: Map<string, string | null>;
+  clusterNaam: Record<string, string | null>;
   lopend: boolean;
   magVrijgeven: boolean;
 }) {
@@ -200,45 +212,70 @@ function MaandKaart({
       </div>
 
       {opDatum.length > 0 && (
-        <ul className="flex flex-col">
-          {opDatum.map((page) => {
-            const meta = PLAN_STATUS_META[page.status];
-            const href = contentHref(
-              page.content_piece_id,
-              page.topic_id ? (analyseVanOnderwerp.get(page.topic_id) ?? null) : null,
-            );
-            return (
-              <li
-                key={page.id}
-                className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-[var(--border-subtle)] py-2.5 first:border-t-0 first:pt-0"
-              >
-                <span className="mono-label w-20 shrink-0">
-                  {page.scheduled_for ? formatDagNL(page.scheduled_for) : "geen datum"}
-                </span>
-                <span className="min-w-0 flex-1">
-                  {href ? (
-                    <Link href={href} className="font-medium hover:underline">
-                      {page.title}
-                    </Link>
-                  ) : (
-                    <span>{page.title}</span>
-                  )}
-                </span>
-                {/* Bij `gepland` zegt de datum alles; de chip zou daar tien keer
-                    per maand hetzelfde zeggen. Zelfde regel als op het bord. */}
-                {page.status !== "gepland" && (
-                  <span className={`${paginaChip(meta.tone)} shrink-0`}>{meta.label}</span>
-                )}
-                {href && meta.actionRequired && (
-                  <Link href={href} className="btn-outline btn-sm shrink-0">
-                    {page.status === "ter_goedkeuring" ? "Nakijken" : "Publiceren"}
-                    <Icon naam="naar" size={14} />
-                  </Link>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="text-muted">
+                <th className="py-1.5 pr-4 font-normal">Titel</th>
+                <th className="py-1.5 pr-4 font-normal">Gepland</th>
+                <th className="py-1.5 pr-4 font-normal">Cluster</th>
+                <th className="py-1.5 pr-4 font-normal">Nieuw of optimalisatie</th>
+                <th className="py-1.5 pr-4 font-normal">Type content</th>
+                <th className="py-1.5 font-normal" />
+              </tr>
+            </thead>
+            <tbody>
+              {opDatum.map((page) => {
+                const meta = PLAN_STATUS_META[page.status];
+                const href = contentHref(
+                  page.content_piece_id,
+                  page.topic_id ? (analyseVanOnderwerp.get(page.topic_id) ?? null) : null,
+                );
+                const cluster = page.source_analysis_id
+                  ? (clusterNaam[page.source_analysis_id] ?? null)
+                  : null;
+                return (
+                  <tr
+                    key={page.id}
+                    className="border-t border-[var(--border-subtle)] align-baseline"
+                  >
+                    <td className="min-w-[14rem] py-2.5 pr-4">
+                      {href ? (
+                        <Link href={href} className="font-medium hover:underline">
+                          {page.title}
+                        </Link>
+                      ) : (
+                        <span className="font-medium">{page.title}</span>
+                      )}
+                      {/* Bij `gepland` zegt de datum alles; de chip zou daar tien
+                          keer per maand hetzelfde zeggen. Zelfde regel als op het
+                          bord. */}
+                      {page.status !== "gepland" && (
+                        <span className={`${paginaChip(meta.tone)} ml-2`}>{meta.label}</span>
+                      )}
+                      {href && meta.actionRequired && (
+                        <Link href={href} className="btn-outline btn-sm ml-2 inline-flex">
+                          {page.status === "ter_goedkeuring" ? "Nakijken" : "Publiceren"}
+                          <Icon naam="naar" size={14} />
+                        </Link>
+                      )}
+                    </td>
+                    <td className="mono-label whitespace-nowrap py-2.5 pr-4">
+                      {page.scheduled_for ? formatDagNL(page.scheduled_for) : "geen datum"}
+                    </td>
+                    <td className="py-2.5 pr-4 text-secondary">{cluster ?? "-"}</td>
+                    <td className="py-2.5 pr-4 text-secondary">
+                      {page.recommendation_action
+                        ? CONTENT_ACTION_LABEL[page.recommendation_action]
+                        : "-"}
+                    </td>
+                    <td className="py-2.5 text-secondary">{PAGE_TYPE_LABEL[page.page_type]}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {magVrijgeven && month.status !== "goedgekeurd" && telling.echt > 0 && (

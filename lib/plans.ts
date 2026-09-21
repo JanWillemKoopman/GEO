@@ -41,6 +41,8 @@ export interface PlanBundle {
   backlog: BacklogItem[];
   /** Wat het rapportmodel overwoog maar niet voorstelde, met de reden (werkpakket C §5.1). */
   declined: DeclinedItem[];
+  /** Clusternaam per `source_analysis_id`, voor pagina's zowel in een maand als in de voorraad. */
+  clusterNaam: Record<string, string | null>;
   /**
    * De clusters die al minstens één kans hebben opgeleverd, ingepland of niet.
    *
@@ -148,7 +150,11 @@ export async function loadPlan(
   // vorm van zo'n join ergens mis, dan valt het scherm om in plaats van dat er
   // één naam ontbreekt.
   const clusterIds = [
-    ...new Set(voorraad.map((v) => v.source_analysis_id).filter((id): id is string => Boolean(id))),
+    ...new Set(
+      [...voorraad, ...((pages ?? []) as PlannedPage[])]
+        .map((v) => v.source_analysis_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
   ];
   const { data: clusterRows } = clusterIds.length
     ? await admin.from("analyses").select("id, topic").in("id", clusterIds)
@@ -176,6 +182,7 @@ export async function loadPlan(
       voorraad.map((rij) => naarBacklogItem(rij, gemeten, clusterNaam, new Set(buitenBereikIds))),
     ),
     declined,
+    clusterNaam: Object.fromEntries(clusterNaam),
     metKansen: [
       ...new Set(
         ((kansClusters ?? []) as { source_analysis_id: string | null }[])
@@ -296,8 +303,6 @@ export async function loadPlanVersions(
 
 /** Een voorraadrij zoals de query hem oplevert. */
 interface VoorraadRow extends PlannedPage {
-  source_analysis_id: string | null;
-  recommendation_action: string | null;
   existing_url: string | null;
   why: string | null;
   target_intent: string | null;
