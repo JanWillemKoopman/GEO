@@ -9879,3 +9879,48 @@ hexkleuren, `backdrop-blur`, `shadow-`, kale Tailwind-radiusklassen en de oude i
 laatste leverde de twee vondsten hierboven op, de rest leverde niets op). Wat niet is gecontroleerd:
 hoe het scherm er in een echte browser uitziet, dus of de 30px paginakop en de nieuwe streep onder
 elke sectiekop ergens een layout laten breken. Dat blijft open voor de eerstvolgende Vercel-preview.
+
+## 21 september 2026, stap 10 van de redesign, portie 2: Analytics
+
+De vier zwaarste dataschermen (§8.4): zichtbaarheid, concurrenten, reputatie, zoekverkeer.
+
+**De grootste functionele wijziging: `DetailPanel` is overal vervangen door `Drawer`.** §8.4 zegt het
+letterlijk: "de detail-panel die er al is wordt de lade." Vier bestanden riepen `DetailPanel` aan
+(`analytics-cluster-table.tsx`, `concurrenten-analyse.tsx`, `zoekverkeer-paginas.tsx`,
+`reputation-offerings.tsx`), en elk deed hetzelfde: een rij aanklikken liet de tabel ernaast krimpen
+via `grid-cols-[minmax(0,1fr)_20rem]`. Dat is precies het probleem dat Drawer (gebouwd in stap 3)
+oplost: een rij aanklikken kost geen kolombreedte meer, het paneel schuift van rechts overheen. Het
+dode bestand `components/detail-panel.tsx` is verwijderd.
+
+**Alle vier de schermen kregen `wil-data`.** Geteld: dit token (uit de standenmachine van stap 4,
+`.stand:has(.wil-data)`) werd tot vandaag door geen enkel scherm in de hele app aangeroepen. Analytics
+is de eerste toepassing. Toegepast op de hoofdtak van elk scherm (de tak mét de tabel); de
+lege/laad/mislukt-staten (kleine kaarten zonder tabel) blijven op de standaardbreedte, want een korte
+melding heeft niets aan 2560 pixels.
+
+**De gedeelde `AnalyticsTable`-kop ging naar de juiste maat.** 14px/gewicht 400/`--text-muted` werd
+12px/gewicht 500/`--text-subtle` (§7.11), voor alle vier de schermen tegelijk, want er is maar één
+tabelcomponent voor Analytics (`plan analytics-herontwerp.md`, F3).
+
+**Twee plekken met `--intent-growth-solid`** (`page.tsx`, `reputation-tone-distribution.tsx`) omgezet
+naar `--trend-up` (§10.5, kleurloze naamswisseling). Twee plekken met `--intent-intelligence-*`
+(`concurrenten-analyse.tsx`, `analytics-table.tsx`, voor een gemarkeerde/gekozen rij) bewust NIET
+omgezet: er bestaat geen `--accent-surface`-token om naartoe te wijzen zonder er zelf een te
+verzinnen, en dat hoort bij de bredere opruiming van de zeven oude intent-namen, niet bij twee losse
+call-sites in een portie over iets anders.
+
+**Twee voorschriften uit §8.4 bleken al gebouwd, in een betere vorm dan de tekst beschrijft.** De
+"gestapelde balk" voor de toonverdeling op Reputatie bestond al (`ReputationToneDistribution`, met
+zes tinten voor zes categorieën in plaats van de veronderstelde drie, en 16px in plaats van 8px voor
+de leesbaarheid). De "hoofdgrafiek van 320px" op Zichtbaarheid bestaat niet: een grafiek per cluster
+is er op 3 augustus 2026 bewust uit gehaald toen honderden clusters een muur van kaartjes opleverden;
+een tabel verving hem, en dat blijft zo. Geen van beide aangeroerd.
+
+`redesign2026.md` kreeg een tweede rij in de voortgangstabel van stap 10, met de bevindingen erbij.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+allemaal groen. Nagerekend: alle vier de Analytics-bestanden en hun tabelcomponenten zijn doorzocht
+op hexkleuren, `backdrop-blur`, `shadow-`, kale Tailwind-radiusklassen, resterend `DetailPanel`-gebruik
+en de oude intent-namen. Wat niet is gecontroleerd: hoe de lade er in een echte browser uitziet boven
+op een brede tabel, en of `wil-data` op een breed scherm ook echt breder rendert dan 1440px. Dat
+blijft open voor de eerstvolgende Vercel-preview.

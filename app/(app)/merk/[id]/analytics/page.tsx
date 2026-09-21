@@ -253,7 +253,9 @@ export default async function AnalyticsPage({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    // `wil-data`: deze pagina heeft een brede tabel (redesign2026.md §8.4), dus
+    // geen plafond op 1440px. Zie `.stand` in app/globals.css.
+    <div className="flex flex-col gap-6 wil-data">
       <PageHeader
         eyebrow="Analytics"
         title="Zichtbaarheid in AI"

@@ -2156,6 +2156,7 @@ analytics, strategie, sales, admin, de rest. Dit is de lange staart en hij is in
 | # | Portie | Status |
 |---|---|---|
 | 1 | Het merkoverzicht (`/merk/[id]`, §8.3), plus `PageHeader` en `SectionHeading` als bijvangst (34 respectievelijk 2 schermen die meeliften) | ✅ 21 september 2026 |
+| 2 | Analytics: zichtbaarheid, concurrenten, reputatie, zoekverkeer (§8.4) | ✅ 21 september 2026 |
 
 ⚠️ **Bij portie 1 bleek §8.3's eigen voorschrift ("kerncijfers: raster van 4 DataCards") een
 verkeerde aanname.** Het echte scherm heeft geen vier losse kaarten maar één kaart met een
@@ -2176,6 +2177,23 @@ rand, geen achtergrond, alleen een streep onder elke rij) is precies goed voor d
 mogelijk te kaal voor de eerste. Zonder een browser om het na te kijken is dat een gok in twaalf
 bestanden tegelijk, en die hoort niet in een portie die net zo goed in tweeën kan. Dit wordt zijn
 eigen portie.
+
+⚠️ **Bij portie 2 bleken twee van §8.4's voorschriften al gebouwd, en anders dan de tekst.** "De
+verdeling wordt een gestapelde balk" (voor Reputatie) bestond al: `ReputationToneDistribution`,
+gebouwd tijdens een eerdere ronde, precies om dezelfde reden als de spec noemt (een taartdiagram op
+één label is geen informatie). Zes tinten in plaats van de veronderstelde drie, en 16px in plaats van
+8px: dat is een bewuste keuze voor leesbaarheid bij zes categorieën en niet aangepast. En "hoofdgrafiek
+Chart in een Card, 320px" bestaat niet op Zichtbaarheid: een grafiek per cluster is er op 3 augustus
+2026 bewust uit gehaald (zie het commentaar in `page.tsx` zelf) omdat een kaart per rij bij honderden
+clusters een muur werd in plaats van een overzicht; een tabel verving hem. Niet teruggezet.
+
+Wél gedaan: alle vier schermen kregen `wil-data` (geen enkel scherm in de hele app gebruikte dit
+token tot nu toe, dus dit is de eerste keer dat de standenmachine uit stap 4 iets doet), de tabelkop
+van de gedeelde `AnalyticsTable` (alle vier de schermen) ging van 14px/400/`--text-muted` naar
+12px/500/`--text-subtle` (§7.11), en **`DetailPanel` (het paneel dat de tabel liet krimpen) is
+vervangen door `Drawer`** op de vier plekken die het gebruikten, plus verwijderd als dood bestand.
+Dat laatste stond letterlijk in §8.4 ("de detail-panel die er al is wordt de lade") en is de grootste
+functionele verbetering van deze portie: een rij aanklikken kost niet langer kolombreedte.
 
 **Stap 11, documentatie.** Zie 10.6.
 

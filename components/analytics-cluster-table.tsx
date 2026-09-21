@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { AnalyticsTable, type AnalyticsColumn } from "@/components/analytics-table";
-import { DetailPanel } from "@/components/detail-panel";
+import { Drawer } from "@/components/drawer";
 import { ClusterAnswers } from "@/components/cluster-answers";
 import { Icon } from "@/components/icon";
 import { confidenceBand, changeIsMeaningful } from "@/lib/stats/uncertainty";
@@ -47,7 +47,7 @@ export function AnalyticsClusterTable({
   const gekozenRij = rows.find((r) => r.cluster.id === geselecteerd) ?? null;
 
   return (
-    <div className={`grid grid-cols-1 gap-4 ${gekozenRij ? "lg:grid-cols-[minmax(0,1fr)_20rem]" : ""}`}>
+    <>
       <div className="card">
         <AnalyticsTable
           rows={rows}
@@ -60,12 +60,14 @@ export function AnalyticsClusterTable({
           selectedKey={geselecteerd}
         />
       </div>
-      {gekozenRij && (
-        <DetailPanel title={gekozenRij.cluster.name} onClose={() => setGeselecteerd(null)}>
-          <ClusterDetail rij={gekozenRij} />
-        </DetailPanel>
-      )}
-    </div>
+      <Drawer
+        open={gekozenRij !== null}
+        titel={gekozenRij?.cluster.name ?? ""}
+        onSluit={() => setGeselecteerd(null)}
+      >
+        {gekozenRij && <ClusterDetail rij={gekozenRij} />}
+      </Drawer>
+    </>
   );
 }
 

@@ -53,7 +53,8 @@ export function AnalyticsTable<T>({
   /** Deze rij blijft zichtbaar boven- of onderaan zijn groep bij het scrollen. */
   isOwnRow?: (row: T) => boolean;
   /** Een rij is klikbaar zodra dit meegegeven is: de aanroeper opent er
-   * meestal een `DetailPanel` mee (plan F4), zonder de lijst te verlaten. */
+   * meestal een `Drawer` mee (stap 10, `redesign2026.md` §8.4), zonder de
+   * lijst te verlaten of te laten krimpen. */
   onRowClick?: (row: T) => void;
   /** De rij die nu in het detailpaneel staat, voor de gemarkeerde stand. */
   selectedKey?: string | null;
@@ -131,7 +132,7 @@ export function AnalyticsTable<T>({
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={`py-2 pr-4 font-normal text-muted ${col.numeriek ? "text-right" : "text-left"}`}
+                className={`py-2 pr-4 text-xs font-medium text-[var(--text-subtle)] ${col.numeriek ? "text-right" : "text-left"}`}
                 style={col.width ? { width: col.width } : undefined}
               >
                 {col.sortValue ? (

@@ -285,7 +285,8 @@ export default async function ZoekverkeerPage({
   const vroegsteDagHeleSite = volledigVenster(rijen)!;
 
   return (
-    <div className="flex flex-col gap-6">
+    // `wil-data`: brede tabel eronder, zie de toelichting in analytics/page.tsx.
+    <div className="flex flex-col gap-6 wil-data">
       <Kop />
 
       <AnalyticsFilters

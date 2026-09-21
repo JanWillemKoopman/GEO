@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AnalyticsTable, type AnalyticsColumn } from "@/components/analytics-table";
-import { DetailPanel } from "@/components/detail-panel";
+import { Drawer } from "@/components/drawer";
 import { groupOfferings, type OfferingView } from "@/lib/reputation/screen";
 
 const STATE_LABEL: Record<OfferingView["state"], { text: string; chip: string }> = {
@@ -77,7 +77,7 @@ export function ReputationOfferings({ views, brand }: { views: OfferingView[]; b
   ];
 
   return (
-    <div className={`grid grid-cols-1 gap-4 ${gekozenView ? "lg:grid-cols-[minmax(0,1fr)_20rem]" : ""}`}>
+    <>
       <div className="card">
         <AnalyticsTable
           rows={gesorteerd}
@@ -87,12 +87,14 @@ export function ReputationOfferings({ views, brand }: { views: OfferingView[]; b
           selectedKey={geselecteerd}
         />
       </div>
-      {gekozenView && (
-        <DetailPanel title={gekozenView.name} onClose={() => setGeselecteerd(null)}>
-          <OfferingDetail view={gekozenView} brand={brand} />
-        </DetailPanel>
-      )}
-    </div>
+      <Drawer
+        open={gekozenView !== null}
+        titel={gekozenView?.name ?? ""}
+        onSluit={() => setGeselecteerd(null)}
+      >
+        {gekozenView && <OfferingDetail view={gekozenView} brand={brand} />}
+      </Drawer>
+    </>
   );
 }
 

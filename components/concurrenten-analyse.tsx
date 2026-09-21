@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AnalyticsTable, type AnalyticsColumn } from "@/components/analytics-table";
-import { DetailPanel } from "@/components/detail-panel";
+import { Drawer } from "@/components/drawer";
 import { ExternalLink } from "@/components/external-link";
 import type { BrandRankingRow } from "@/lib/pipeline/brand-rankings";
 
@@ -124,27 +124,29 @@ export function ConcurrentenAnalyse({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className={`grid grid-cols-1 gap-4 ${gekozenRij ? "lg:grid-cols-[minmax(0,1fr)_20rem]" : ""}`}>
-        <div className="card">
-          <AnalyticsTable
-            rows={rankingRows}
-            rowKey={(r) => r.name}
-            isOwnRow={(r) => r.isOwnBrand}
-            columns={kolommen}
-            stickyOffset="calc(var(--header-h) + 3.5rem)"
-            onRowClick={(r) => !r.isOwnBrand && setGeselecteerd(r.name === geselecteerd ? null : r.name)}
-            selectedKey={geselecteerd}
-          />
-        </div>
-        {gekozenRij && (
-          <DetailPanel title={gekozenRij.name} onClose={() => setGeselecteerd(null)}>
-            <ConcurrentDetail
-              vermeldingen={vermeldingenPerConcurrent[gekozenRij.name] ?? []}
-              bronnen={bronnen.filter((b) => b.competitorsGenormaliseerd.includes(genormaliseerd(gekozenRij.name)))}
-            />
-          </DetailPanel>
-        )}
+      <div className="card">
+        <AnalyticsTable
+          rows={rankingRows}
+          rowKey={(r) => r.name}
+          isOwnRow={(r) => r.isOwnBrand}
+          columns={kolommen}
+          stickyOffset="calc(var(--header-h) + 3.5rem)"
+          onRowClick={(r) => !r.isOwnBrand && setGeselecteerd(r.name === geselecteerd ? null : r.name)}
+          selectedKey={geselecteerd}
+        />
       </div>
+      <Drawer
+        open={gekozenRij !== null}
+        titel={gekozenRij?.name ?? ""}
+        onSluit={() => setGeselecteerd(null)}
+      >
+        {gekozenRij && (
+          <ConcurrentDetail
+            vermeldingen={vermeldingenPerConcurrent[gekozenRij.name] ?? []}
+            bronnen={bronnen.filter((b) => b.competitorsGenormaliseerd.includes(genormaliseerd(gekozenRij.name)))}
+          />
+        )}
+      </Drawer>
 
       {omitted > 0 && (
         <p className="text-sm text-muted">
