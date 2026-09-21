@@ -1583,6 +1583,14 @@ table {
 .field-number {
   font-variant-numeric: tabular-nums;
 }
+/* Een `<select>`: de browser tekent zijn eigen pijltje in de padding-box, dus
+   zonder extra ruimte plakt dat pijltje tegen dezelfde 12px als de tekst
+   ervoor. Na `.field` in dit bestand, zodat de padding-shorthand van `.field`
+   dit niet terugzet: een Tailwind-utility met gelijke specificiteit verliest
+   die strijd, deze klasse wint hem juist door zijn plek in het bestand. */
+.field-select {
+  padding-right: 32px;
+}
 /* De grootste trede van de veldschaal: 48px in plaats van 40, tekst 16px in
    plaats van 14. GEMETEN als OKX' eigen `Input lg` (`redesign2026.md` §7.3).
    Voor nu alleen op het inlogtoneel (stap 8), waar een formulier van twee
