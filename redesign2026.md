@@ -2009,7 +2009,7 @@ skelet om en zijn de 117 kaarten meegegaan, zonder dat er één scherm is aanger
 | 6 | Mobiele opmaak | 8 bestanden | Onderbalk, "Meer"-blad, mobiele bovenbalk, plus de aansluiting in `WorkspaceChrome`, `AppShell`, `lib/nav.ts` en `lib/icons.ts` |
 | 7 | Mobiele patronen | 2 bestanden | Tabel met 2 kolommen, stappenflow. Het detailblad is `Drawer` uit stap 3, geen apart bestand |
 | 8 | Inlogroute | 13 bestanden | Beide ontwerpen (één vloeiend ontwerp), en §9b-uitzondering weg |
-| 9 | Typografie-opruiming | 1 bestand plus ~200 wijzigingen | De schaal klopt overal |
+| 9 | Typografie-opruiming | 3 bestanden | De schaal klopt overal |
 | 10 | De schermen | 50 routes, ~20 met echt werk | Het lange stuk |
 | 11 | Documentatie | 4 bestanden | `designsystem.md` herschreven |
 
@@ -2133,6 +2133,20 @@ geschrapt:
   CSS was nagerekend (OKX levert dit component niet in de opgehaalde bundels, AFGELEID dus).
 
 **Stap 9, de typografie-opruiming.** Zie 10.4. Kan parallel aan stap 10.
+
+⚠️ **Twee van de drie geplande onderdelen bleken al gedaan, en het derde was kleiner dan geschat.**
+De gewichtssweep (`font-semibold` naar `font-medium`, geschat op ~200 treffers) stond al op nul
+treffers vóór deze stap begon: die is kennelijk al meegelift in een eerdere stap zonder een eigen
+regel in het logboek. En van de 16 schermen met `text-3xl`/`text-2xl` die "PageHeader worden" zouden,
+bleken er 14 een `.stat-value` (een cijfer, geen kop) en één een woordmerk-link
+(`app/not-found.tsx`, die zijn eigen behandeling houdt, zie `docs/designsystem.md` §3.1 over
+`.brand-logo`). Precies één was een echte paginakop met kale Tailwind-klassen:
+`app/(app)/analyses/[id]/briefing/briefing-form.tsx`, nu `PageHeader`.
+
+Wat wél is gebouwd: het `@theme inline`-blok in `app/globals.css` kreeg de negen `--text-*`-tokens
+uit de tabel hieronder, en de valstrikregel `--color-base` is geschrapt (zie de toelichting bij
+`@theme inline` zelf). Drie bestanden dus: `app/globals.css`, `briefing-form.tsx` en
+`plan-view.tsx` (een stale waarschuwingscommentaar over de nu-verholpen val).
 
 **Stap 10, de schermen.** 50 routes, per groep uit 8.12.2. Volgorde op gebruik: merkoverzicht,
 analytics, strategie, sales, admin, de rest. Dit is de lange staart en hij is in porties te doen.
@@ -2260,7 +2274,7 @@ zat niet in de eerste versie van dit plan.
 | 6 | Mobiele opmaak | 8 bestanden | mobiel |
 | 7 | Mobiele patronen | 2 bestanden | mobiel |
 | 8 | Inlogroute | 13 bestanden | beide (één vloeiend ontwerp) |
-| 9 | Typografie | 1 bestand plus ~200 wijzigingen | beide |
+| 9 | Typografie | 3 bestanden | beide |
 | 10 | De schermen | 50 routes, ~20 met echt werk | beide |
 | 11 | Documentatie | 4 bestanden | beide |
 

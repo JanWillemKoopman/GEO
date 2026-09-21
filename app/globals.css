@@ -687,15 +687,53 @@
 
 /* Tailwind-utilities koppelen aan de tokens (v4 @theme inline). */
 @theme inline {
-  /* ⚠️ LET OP, DEZE EERSTE REGEL IS EEN VALSTRIK. Uit `--color-base` maakt
-     Tailwind de klasse `text-base`, en die zet dus een KLEUR
-     (`color: var(--bg-base)`) en niet de tekstgrootte van 1rem die je in elk
-     ander Tailwind-project krijgt. Wie `text-base` schrijft voor "gewone
-     tekstgrootte" krijgt in de donkere stand letters in de kleur van de
-     paginagrond, dus onleesbaar. Dat gebeurde op 26 augustus 2026 met de kop
-     "Beschikbaar" op het contentplan. Gebruik de `type-`-klassen hierboven voor
-     typografie; ze zijn er precies om dit soort botsingen te voorkomen. */
-  --color-base: var(--bg-base);
+  /* ── De tekstschaal, GEMETEN bij OKX (stap 9, 21 september 2026) ──────────
+     Dit is de hefboom uit `redesign2026.md` §10.4: 562 keer `text-sm`, 38 keer
+     `text-lg`, 32 keer `text-xs` stonden verspreid over 249 bestanden, en die
+     met de hand omzetten naar `.type-*` was 640 wijzigingen voor beperkte
+     winst. In plaats daarvan trekt dit blok de Tailwind-schaal zelf naar de
+     OKX-waarden: `text-sm` betekent overal ineens 14px op regelhoogte 21 (was
+     14 op 20) zonder dat er één aanroeper is aangeraakt.
+
+     `--text-base` staat hier bewust NIET bij: Tailwind levert die al met
+     precies de waarde die OKX' `body-md` ook heeft (16px op 24px), en totdat
+     de regel hieronder verdween stond die waarde toch nooit aan, dus er viel
+     niets te verplaatsen. */
+  --text-xs: 0.75rem; /* 12px */
+  --text-xs--line-height: 1.125rem; /* 18px */
+  --text-sm: 0.875rem; /* 14px */
+  --text-sm--line-height: 1.3125rem; /* 21px */
+  --text-md: 1rem; /* 16px, synoniem van --text-base */
+  --text-md--line-height: 1.5rem; /* 24px */
+  --text-lg: 1.125rem; /* 18px */
+  --text-lg--line-height: 1.5rem; /* 24px */
+  --text-xl: 1.5rem; /* 24px */
+  --text-xl--line-height: 1.875rem; /* 30px */
+  --text-2xl: 1.875rem; /* 30px */
+  --text-2xl--line-height: 2.5rem; /* 40px */
+  --text-3xl: 2.25rem; /* 36px */
+  --text-3xl--line-height: 1.32;
+  --text-4xl: 2.5rem; /* 40px */
+  --text-4xl--line-height: 1.32;
+  --text-5xl: 3.5rem; /* 56px */
+  --text-5xl--line-height: 1.32;
+
+  /* ⚠️ `--color-base` STOND HIER, EN WAS EEN VALSTRIK. Tailwind maakt uit een
+     token `--color-{naam}` een klasse `text-{naam}` die een KLEUR zet, en die
+     klasse wint het van Tailwinds eigen ingebouwde `--text-base`
+     (tekstgrootte). Zolang deze regel bestond, zette `text-base` dus
+     `color: var(--bg-base)` in plaats van 16px tekst, en in de donkere stand
+     stonden letters dan in de kleur van de paginagrond: onleesbaar. Dat
+     gebeurde op 26 augustus 2026 met de kop "Beschikbaar" op het contentplan,
+     en dezelfde val ving `· X in het plan` op het merkoverzicht
+     (`app/(app)/merk/[id]/analytics/page.tsx`), waar de tekst na `text-muted`
+     zijn kleur alweer kwijt was en zonder eigen grootte de 36px van zijn
+     ouder `.stat-value.text-3xl` erfde.
+
+     De regel is geschrapt: `text-base` is sinds stap 9 weer een gewone
+     tekstgrootte, 16px op 24px, precies zoals in elk ander Tailwind-project.
+     Gebruik voor typografie verder de `.type-*`-klassen hierboven; ze zijn
+     er precies om dit soort botsingen te voorkomen. */
   --color-muted-surface: var(--bg-muted);
   --color-elevated: var(--bg-elevated);
   --color-surface: var(--bg-surface);

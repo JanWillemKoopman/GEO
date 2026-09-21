@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { enkelOfMeervoud } from "@/lib/format";
 import { Antwoordveld } from "@/components/antwoordveld";
+import { PageHeader } from "@/components/page-header";
 import { vraagsoortKop, VRAAGSOORT_VOLGORDE, VERPLICHT_UITLEG } from "@/lib/feitenvraag";
 
 /**
@@ -214,13 +215,10 @@ export function BriefingForm({
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-3">
-        <h1 className="text-2xl font-medium">Nog even dit, dan schrijft ORBIT ENGINE je pagina&apos;s</h1>
-        <p style={{ color: "var(--text-secondary)" }}>
-          Je koos {pageCount} {pageCount === 1 ? "pagina" : "pagina's"}. Deze{" "}
-          {questions.length} {questions.length === 1 ? "vraag zorgt" : "vragen zorgen"} dat er
-          alleen kloppende informatie in komt te staan. Wat je niet beantwoordt, laat ORBIT ENGINE weg. Het
-          verzint niets.
-        </p>
+        <PageHeader
+          title="Nog even dit, dan schrijft ORBIT ENGINE je pagina's"
+          description={`Je koos ${pageCount} ${pageCount === 1 ? "pagina" : "pagina's"}. Deze ${questions.length} ${questions.length === 1 ? "vraag zorgt" : "vragen zorgen"} dat er alleen kloppende informatie in komt te staan. Wat je niet beantwoordt, laat ORBIT ENGINE weg. Het verzint niets.`}
+        />
 
         <div className="flex items-center gap-3">
           <div

@@ -5,13 +5,13 @@
 > **De tokenlaag van `app/globals.css` is die van OKX geworden, niet meer die van Nova.** Dat was
 > stap 1 van elf; het blueprint voor de rest staat in `redesign2026.md`.
 >
-> **Wat hieronder NIET meer klopt** (stap 1, 2, 4, 5, 6, 7 en 8 zijn doorgevoerd):
+> **Wat hieronder NIET meer klopt** (stap 1, 2, 4, 5, 6, 7, 8 en 9 zijn doorgevoerd):
 >
 > | Hoofdstuk | Status |
 > |---|---|
 > | §2 Kleur | **Achterhaald.** Alle waarden zijn vervangen. Zie `redesign2026.md` §5.1 en §6. |
 > | §3 Typografie, de letter | **Achterhaald.** Geist Sans is Archivo geworden; zie `redesign2026.md` §5.2. |
-> | §3 Typografie, de schaal | **Achterhaald.** Elf stijlen op de OKX-schaal, "vet" is 500 en geen 600, regelhoogte anderhalf en geen 1,4. |
+> | §3 Typografie, de schaal | **Achterhaald, en sinds stap 9 ook echt gebouwd.** Elf stijlen op de OKX-schaal, "vet" is 500 en geen 600, regelhoogte anderhalf en geen 1,4. Sinds stap 9 trekt `@theme inline` in `app/globals.css` ook de kale Tailwind-klassen (`text-sm`, `text-lg`, …) naar diezelfde waarden, dus niet alleen de `.type-*`-klassen kloppen. |
 > | §3.2 De mono in labels | **Achterhaald.** De mono is uit de labels; OKX heeft één familie. |
 > | §4 Grafieken, de kleuren | **Achterhaald.** Acht reeksen in plaats van zes. |
 > | §5 Vorm en diepte | **Achterhaald.** Radiusschaal 2/4/6/8/10/12 plus een pil van 60. Geen glas, geen kaartschaduw. |
@@ -19,7 +19,7 @@
 > | §7 De primitieven | **Achterhaald.** Kaart, knop, chip, veld en skeleton zijn alle vijf om. |
 > | §10 Donkere modus, de waarden | **Achterhaald.** |
 >
-> **Wat hieronder nog WEL klopt**, want stap 9 tot 11 zijn nog niet gedaan: §6b (iconen, lijndikte
+> **Wat hieronder nog WEL klopt**, want stap 10 en 11 zijn nog niet gedaan: §6b (iconen, lijndikte
 > staat nog op 1,75 en gaat naar 1,5), §8 (de negen regels) en §11 (de controle vóór een commit).
 > §9b hieronder is met stap 8 opgelost; die tekst blijft staan als afgesloten geschiedenis, met een
 > nieuwe alinea erboven die zegt wat er sindsdien is.

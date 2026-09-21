@@ -9770,3 +9770,62 @@ gecontroleerd: hoe de vijf schermen er in een echte browser uitzien, licht en do
 omgeving heeft geen geldige sessie om achter de inlogroute te komen en de inlogroute zelf heeft geen
 staging-data nodig om te bekijken maar wél een draaiende server. Dat blijft open voor de
 eerstvolgende Vercel-preview, net als bij de stappen 5 tot 7.
+
+## 21 september 2026, stap 9 van de redesign: de typografie-opruiming
+
+`redesign2026.md` §10.4 beschreef drie handmatige posten: de Tailwind-schaal zelf naar de
+OKX-waarden trekken (de hefboom, 1 bestand), de gewichtssweep (`font-semibold` naar `font-medium`,
+geschat ~200 treffers) en acht plus acht koppen op `text-3xl`/`text-2xl` die `PageHeader` worden.
+Nagelopen bleken twee van de drie al (deels) gedaan of kleiner dan gedacht:
+
+- **De gewichtssweep stond al op nul.** `grep -c font-semibold` en `font-bold` gaven allebei 0 in
+  `app/` en `components/`, tegenover 215 keer `font-medium`. Die sweep is kennelijk al meegelift in
+  een eerdere stap (vermoedelijk stap 2 of 4) zonder een eigen logboekregel. Niets te doen.
+- **Van de 16 schermen met `text-3xl`/`text-2xl` waren er 14 een `.stat-value`**, dus een cijfer en
+  geen paginakop: die combinatie (`stat-value text-3xl`) is precies bedoeld als "de klasse zet de
+  tabulaire cijfers neer, de Tailwind-grootte bepaalt de maat", en profiteert nu automatisch van de
+  nieuwe schaal zonder dat er iets hoefde te veranderen. Eén was het woordmerk op de 404-pagina
+  (`app/not-found.tsx`), die zijn eigen behandeling houdt (zie `docs/designsystem.md` §3.1: het
+  merklettertype `.brand-logo` staat met opzet maar op twee plekken, de bovenbalk en de inlogkaart,
+  en een derde erbij zetten was niet gevraagd). **Eén was een echte paginakop**:
+  `app/(app)/analyses/[id]/briefing/briefing-form.tsx`, nu `PageHeader` in plaats van een kale
+  `<h1 className="text-2xl font-medium">`.
+
+**Wat wél is gebouwd: het `@theme inline`-blok in `app/globals.css`.** Negen `--text-*`-tokens
+(`xs` tot `5xl`, `md` als synoniem van `base` erbij omdat OKX' eigen naamgeving dat gebruikt) trekken
+elke kale Tailwind-tekstklasse naar de OKX-maten. Daarmee is `text-sm` overal in de app ineens 14px
+op regelhoogte 21 (was 14 op 20), zonder dat er één van de 549 aanroepers is aangeraakt. Nagerekend
+in de gebouwde CSS: `.text-sm{font-size:.875rem;line-height:var(--tw-leading,1.3125rem)}`,
+`.text-3xl{font-size:2.25rem}`.
+
+**De valstrik uit §10.4 is meteen opgelost.** `--color-base` stond in `@theme inline` en maakte van
+`text-base` een KLEURklasse in plaats van Tailwinds eigen ingebouwde tekstgrootte; die regel is
+geschrapt. Nagerekend in de gebouwde CSS staat er nu
+`.text-base{font-size:var(--text-base);line-height:...}`, dus een echte grootte. Twee gevolgen
+gevonden en behandeld:
+
+- **`app/(app)/merk/[id]/analytics/page.tsx:284`** (`· X in het plan` naast een grote kerncijfer)
+  deed voorheen niets: de kleur die `text-base` zette werd meteen overschreven door het ernaast
+  staande `text-muted`, en zonder eigen grootte erfde het element de 36px van zijn ouder
+  (`.stat-value.text-3xl`). Dat was dus een zichtbare bug: een bijzin in 36px naast een cijfer in
+  36px. Na deze stap krijgt hij zijn eigen 16px op 24px, zoals de tekst zelf altijd al suggereerde.
+  Geen codewijziging nodig, alleen de tokenwijziging.
+- **`app/(app)/merk/[id]/strategie/plan/plan-view.tsx`** had een waarschuwingscommentaar dat
+  letterlijk uitlegde waarom `text-base` daar niet gebruikt mocht worden. Dat commentaar is nu fout
+  (de val bestaat niet meer) en is bijgewerkt naar wat er nu staat.
+
+**Wat bewust niet is gedaan:** §10.5 ("van zeven betekenissen naar vier", de intent-tokens
+`intelligence`/`growth`/`information`/`attention`/`premium`) staat in het plan zonder eigen stapnummer
+en "raakt bestaande schermen" (§9, regel 368), dus die hoort bij stap 10 (de schermen) en niet bij
+deze typografiestap. Niet aangeraakt.
+
+`redesign2026.md` (de stap-9 paragraaf en beide kostentabellen) en `docs/designsystem.md` (de
+waarschuwingsbanner) zijn bijgewerkt.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+allemaal groen op een schone `.next`. Extra nagerekend, buiten de vier standaardcontroles om: de
+gebouwde CSS zelf (`.next/static/css/*.css`) is doorzocht op `.text-sm`, `.text-base` en `.text-3xl`
+om te bevestigen dat de tokens ook echt de utilities veranderen en niet alleen in `@theme` staan
+zonder effect. Wat niet is gecontroleerd: hoe een scherm met veel `text-sm`/`text-lg` er in een echte
+browser uitziet, om zeker te weten dat de iets ruimere regelhoogte nergens een layout breekt. Dat
+blijft open voor de eerstvolgende Vercel-preview.
