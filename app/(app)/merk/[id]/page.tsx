@@ -736,7 +736,7 @@ function PlanKaart({
         >
           <span
             className="block h-full rounded-[var(--radius-pill)]"
-            style={{ width: `${percentage}%`, background: "var(--intent-growth-solid)" }}
+            style={{ width: `${percentage}%`, background: "var(--trend-up)" }}
           />
         </span>
       </div>

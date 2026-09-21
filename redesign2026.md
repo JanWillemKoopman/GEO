@@ -2151,6 +2151,32 @@ uit de tabel hieronder, en de valstrikregel `--color-base` is geschrapt (zie de 
 **Stap 10, de schermen.** 50 routes, per groep uit 8.12.2. Volgorde op gebruik: merkoverzicht,
 analytics, strategie, sales, admin, de rest. Dit is de lange staart en hij is in porties te doen.
 
+**Voortgang stap 10** (wordt per portie bijgewerkt, zie `docs/logbook.md` voor de details per datum):
+
+| # | Portie | Status |
+|---|---|---|
+| 1 | Het merkoverzicht (`/merk/[id]`, §8.3), plus `PageHeader` en `SectionHeading` als bijvangst (34 respectievelijk 2 schermen die meeliften) | ✅ 21 september 2026 |
+
+⚠️ **Bij portie 1 bleek §8.3's eigen voorschrift ("kerncijfers: raster van 4 DataCards") een
+verkeerde aanname.** Het echte scherm heeft geen vier losse kaarten maar één kaart met een
+hoofdgetal, een duiding en een onderverdeelde cijferrij (`CijferRij`), en dat is een doordachtere
+opbouw dan vier gelijke blokken. Niet platgeslagen naar DataCard; de bestaande opbouw gebruikt de
+primitieven (`.card`, `.stat-value`, `.chip`, `.mono-label`) die al OKX' vorm hebben, dus hij was op
+dat vlak al goed. Wat écht ontbrak was kleiner: `PageHeader` op 24px in plaats van de voorgeschreven
+30px (nu gefixt voor alle 34 schermen die het gebruiken), `SectionHeading` zonder de streep uit §8.10
+(nu gefixt voor beide schermen die het gebruiken), en twee plekken die nog `--intent-growth-solid`
+aanriepen in plaats van `--trend-up` (§10.5, een kleurloze naamswijziging, want het eerste token
+wijst al naar het tweede).
+
+⚠️ **Bewust niet meegenomen: `CollapsibleSection` naar OKX' vlakke accordion (§8.11).** Deze
+pagina roept hem één keer aan (niet negen keer, zoals §8.3 beweert), maar het component zelf wordt in
+12 bestanden gebruikt, in twee heel verschillende opstellingen: genest in een `.card` (hier) en
+los na elkaar in een rij van vijf of zes (`admin/page.tsx` en anderen). §8.11's vlakke stijl (geen
+rand, geen achtergrond, alleen een streep onder elke rij) is precies goed voor de tweede opstelling en
+mogelijk te kaal voor de eerste. Zonder een browser om het na te kijken is dat een gok in twaalf
+bestanden tegelijk, en die hoort niet in een portie die net zo goed in tweeën kan. Dit wordt zijn
+eigen portie.
+
 **Stap 11, documentatie.** Zie 10.6.
 
 **Waar de stappen van elkaar afhangen:**

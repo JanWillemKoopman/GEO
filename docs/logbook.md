@@ -9829,3 +9829,53 @@ om te bevestigen dat de tokens ook echt de utilities veranderen en niet alleen i
 zonder effect. Wat niet is gecontroleerd: hoe een scherm met veel `text-sm`/`text-lg` er in een echte
 browser uitziet, om zeker te weten dat de iets ruimere regelhoogte nergens een layout breekt. Dat
 blijft open voor de eerstvolgende Vercel-preview.
+
+## 21 september 2026, stap 10 van de redesign, portie 1: het merkoverzicht
+
+Eerste portie van de lange staart (`redesign2026.md` §10.2 noemt 50 routes, "in porties te doen").
+Volgorde op gebruik, dus als eerste `/merk/[id]` (§8.3), de startpagina na inloggen.
+
+**§8.3's eigen voorschrift klopte niet, en dat is eerst uitgezocht in plaats van blind gevolgd.**
+De tekst zegt "kerncijfers: raster van 4 DataCards (7.10)". Het echte scherm (934 regels, precies
+zoals geteld) heeft die vier cijfers niet als losse kaarten staan: het heeft één kaart met een
+hoofdgetal (de zichtbaarheidsscore, `.stat-value text-5xl`), de duiding erbij, en daaronder een
+cijferrij met verticale scheidingslijnen tussen de kolommen (`CijferRij`, een eigen component in
+hetzelfde bestand). Dat is een doordachtere opbouw dan vier gelijke DataCards: de vier getallen horen
+inhoudelijk bij elkaar en bij het hoofdgetal erboven, en vier losse kaarten zouden dat verband
+visueel opheffen. Niet aangeraakt.
+
+**Wat wél nodig bleek, na het hele bestand langs te lopen op hexkleuren, `backdrop-blur`, `shadow-`,
+kale `rounded-*` en de zeven oude intent-namen** (§10.5): het scherm was op die punten al bijna
+volledig schoon, want het gebruikt overal de gedeelde primitieven (`.card`, `.stat-value`, `.chip`,
+`.mono-label`) die al eerder in deze redesign zijn omgezet. Drie echte vondsten:
+
+- **`PageHeader` stond op `.type-title` (24px)**, terwijl §8.9 een paginakop expliciet 30px
+  (`heading-lg`) voorschrijft, een eigen, grotere trede dan een kop in een dialoog. Dit component
+  wordt op 34 schermen gebruikt, dus deze ene wijziging is de grootste hefboom van deze portie. Ook
+  het onderschrift is meteen goedgezet: `body-sm` op `--text-tertiary` in plaats van de vorige
+  `text-secondary`, met 4px in plaats van 8px onder de titel.
+- **`SectionHeading` miste de streep uit §8.10** (1px `--line-muted`, 8px onder de titel). Dit
+  component wordt op 2 schermen gebruikt (dit overzicht en Reputatie); beide profiteren mee.
+- **Twee plekken riepen nog `var(--intent-growth-solid)`/`-text` aan** in plaats van `var(--trend-up)`/
+  `-text` (`page.tsx` zelf, `_components/ronde-balk.tsx`, `components/loop-blocks.tsx`). Dit is de
+  vertaling uit §10.5 ("groei is een richting, geen betekenis") en een zuivere naamswisseling: het
+  eerste token wees al naar het tweede, dus er verandert geen pixel.
+
+**Bewust niet meegenomen: `CollapsibleSection` naar de vlakke OKX-accordion van §8.11.** §8.3 beweert
+dat dit component "negen keer" op dit scherm staat; het is één keer, genest in een `.card`. Het
+component zelf wordt wél in 12 bestanden gebruikt, in twee heel verschillende opstellingen: genest in
+een kaart (hier) en los na elkaar in een rij van vijf tot zes stuks (`admin/page.tsx` en andere
+formulierschermen). §8.11's vlakke stijl (geen rand, geen achtergrond, alleen een streep onder elke
+rij als scheiding) is GEMETEN voor de tweede opstelling; of hij ook goed oogt genest in een kaart is
+zonder browser niet te verifiëren. Twaalf bestanden in het duister aanpassen op een gok is precies het
+soort risico dat "elke stap is op zichzelf terug te draaien" moet voorkomen. Dit wordt een eigen
+portie, met de andere elf aanroepers erbij bekeken in plaats van alleen deze ene.
+
+`redesign2026.md` kreeg een voortgangstabel onder de stap-10-paragraaf, bijgewerkt per portie.
+
+Getest: `tsc --noEmit`, `test:unit` (4913 geslaagd), `test:chain` (666 geslaagd) en `build` zijn
+allemaal groen. Nagerekend: het hele bestand `app/(app)/merk/[id]/page.tsx` is doorzocht op
+hexkleuren, `backdrop-blur`, `shadow-`, kale Tailwind-radiusklassen en de oude intent-namen (het
+laatste leverde de twee vondsten hierboven op, de rest leverde niets op). Wat niet is gecontroleerd:
+hoe het scherm er in een echte browser uitziet, dus of de 30px paginakop en de nieuwe streep onder
+elke sectiekop ergens een layout laten breken. Dat blijft open voor de eerstvolgende Vercel-preview.

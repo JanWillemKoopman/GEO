@@ -42,7 +42,7 @@ export function RondeBalk({ fases, zin }: { fases: RondeFase[]; zin: string }) {
                 className="flex shrink-0"
                 style={{
                   color: fase.klaar
-                    ? "var(--intent-growth-text)"
+                    ? "var(--trend-up-text)"
                     : fase.actief
                       ? "var(--text-primary)"
                       : "var(--text-muted)",

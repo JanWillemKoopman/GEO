@@ -28,7 +28,7 @@ import {
  * gevulde vlakken, en dat is precies wat een stip is.
  */
 const TOON_KLEUR: Record<Insight["toon"], string> = {
-  goed: "var(--intent-growth-solid)",
+  goed: "var(--trend-up)",
   let_op: "var(--intent-warning-solid)",
   neutraal: "var(--border-strong)",
 };
