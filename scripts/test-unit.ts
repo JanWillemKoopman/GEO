@@ -454,7 +454,7 @@ import {
   type LibraryRow,
 } from "@/lib/library";
 import { kiesVoorBulk, bulkMelding } from "@/lib/plan-bulk";
-import { leesHerkomst, terugLink } from "@/lib/origin";
+import { leesHerkomst, terugLink, isStukpagina } from "@/lib/origin";
 import {
   contentMix,
   funnelVoortgang,
@@ -10849,6 +10849,27 @@ group("de herkomst uit de querystring", () => {
     terugLink("bibliotheek", "an-1", null).href === "/analyses/an-1/bibliotheek",
   );
   ok("het label zegt waar je heen gaat", terugLink("plan", "an-1", "merk-1").label === "Contentplan");
+});
+
+group("de contentpagina van een stuk slaat de dossierchrome over", () => {
+  ok(
+    "de contentpagina zelf",
+    isStukpagina("/analyses/an-1/bibliotheek/piece-1", "an-1"),
+  );
+  ok(
+    "ook met een trailing slash",
+    isStukpagina("/analyses/an-1/bibliotheek/piece-1/", "an-1"),
+  );
+  ok(
+    "de bibliotheeklijst zelf niet (geen pieceId)",
+    !isStukpagina("/analyses/an-1/bibliotheek", "an-1"),
+  );
+  ok("instellingen niet", !isStukpagina("/analyses/an-1/instellingen", "an-1"));
+  ok("concept niet", !isStukpagina("/analyses/an-1/concept", "an-1"));
+  ok(
+    "het stuk van een ander cluster niet",
+    !isStukpagina("/analyses/an-2/bibliotheek/piece-1", "an-1"),
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════

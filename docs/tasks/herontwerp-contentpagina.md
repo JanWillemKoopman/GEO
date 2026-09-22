@@ -572,3 +572,45 @@ Nagerekend op de langste pagina in productie (f3a175b5, drie rondes, 78 bevindin
 ronde): 32 daarvan kwamen ook in een eerdere ronde voor, 46 niet. Die 46 zijn later ontstaan of pas
 later gezien, en horen dus bij "niet aan toegekomen" en niet bij "geprobeerd". Precies dat
 onderscheid was het punt van de hele groep.
+
+---
+
+## Bijlage C, feedback op de bouw zelf (22 september 2026)
+
+Vier dingen die pas opvielen toen het scherm er stond, niet toen het op papier stond.
+
+**1. Twee terugknoppen en twee statuschips.** `analyses/[id]/layout.tsx` zet boven élke route van
+dit cluster een "Terug naar Clusters", de clusternaam en zijn status (bijvoorbeeld "Gereed"). Voor
+`bibliotheek/[pieceId]` botst dat met de eigen paginabalk van dit scherm (§4), die zijn eigen
+terugknop en zijn eigen statuschip ("Concept") al toont. Twee terugknoppen naar twee verschillende
+plekken, en twee statuschips die over iets anders gaan (het cluster tegenover dit ene stuk) maar
+naast elkaar hetzelfde leken te zeggen. Deze pagina is af, ontkoppeld van het dossier eromheen, en
+hoort alleen zijn eigen chrome te tonen.
+
+Opgelost door de layout de dieper geneste route te laten herkennen en zijn eigen chrome dan over te
+slaan. Een layout kent alleen de `params` van zijn eigen segment, niet welk kind er precies getoond
+wordt, dus `middleware.ts` zet er `x-pad` (het pad van het verzoek) naast, gelezen via `lib/pad.ts`.
+Zelfde patroon als `x-apparaat` in `lib/apparaat.ts`. Dat maakt in één keer ook de andere twee
+punten van de feedback goed: zonder de layout-chrome verdwijnt de "Instellingen"-link naar het
+cluster, en de terugknop die overblijft is de paginabalk zijn eigen `terugLink` (`lib/origin.ts`),
+die standaard al naar de Bibliotheek wijst.
+
+**2. De rail was een accordion, geen tabbladen.** `context-rail.tsx` toonde alle vijf secties onder
+elkaar, met "Kwaliteit" standaard open. Op een pagina met veel bevindingen is die ene sectie zelf al
+lang, en de sticky kolom (met een eigen `max-height` en `overflow-y: auto`, dus technisch al begrensd
+tot het scherm) oogde daardoor als één groot, doorlopend blok. Vervangen door tabbladen: één sectie
+zichtbaar tegelijk, de rest een klik verderop. Hergebruikt de bestaande `.tab`-vorm uit
+`globals.css` met een eigen `role="tablist"`-rij eromheen, want de zes labels in een rail van 400px
+passen niet op de vaste 24px-rij die `.tabs` voor navigatie gebruikt.
+
+**3. De rail was smaller dan hij hoorde te zijn.** De leeskolom houdt bewust 720px aan (`§3.2`,
+"een regel van 1000 pixels leest niet"), maar de rail ernaast stond vast op 320px terwijl de kolom
+eromheen flex:1 is: op een breed scherm bleef er een lege strook over tussen de tekst en de rail,
+zonder functie. De rail is verbreed naar 400px, wat die lege strook grotendeels opvult in plaats van
+de rail zelf breder te maken dan zijn inhoud nodig heeft.
+
+**4. Het canvas had de kleur van de app, niet van een pagina.** De tekst die bewerkt wordt is de
+pagina die straks gepubliceerd wordt; `.canvas-veld` stond op `background: transparent` en nam dus
+de grijze app-achtergrond (`--bg-base`) over. Het bewerkbare vlak (titel plus tekst) staat nu op een
+`.card`: wit, met dezelfde rand en ronding als elke andere kaart in de app, zodat het zich zichtbaar
+onderscheidt van de app eromheen in plaats van als een grijs formulierveld te ogen.

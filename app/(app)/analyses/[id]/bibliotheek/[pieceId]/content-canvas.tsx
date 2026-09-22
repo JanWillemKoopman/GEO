@@ -103,42 +103,47 @@ export function ContentCanvas({
         </div>
       )}
 
-      <div className="content-canvas-maat flex flex-col gap-4">
-        <div className="flex items-center justify-end gap-1 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-0.5 w-fit self-end">
-          <Knop actief={weergave === "schrijven"} onClick={() => setWeergave("schrijven")}>
-            Schrijven
-          </Knop>
-          <Knop actief={weergave === "opgemaakt"} onClick={() => setWeergave("opgemaakt")}>
-            Opgemaakt
-          </Knop>
-        </div>
+      {/* De tekst zelf op een wit vlak (`.card`): de pagina die straks
+          gepubliceerd wordt, zichtbaar los van de grijze app eromheen, in
+          plaats van dezelfde grijstint als een formulierveld. */}
+      <div className="content-canvas-maat">
+        <div className="card flex flex-col gap-4">
+          <div className="flex items-center justify-end gap-1 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-0.5 w-fit self-end">
+            <Knop actief={weergave === "schrijven"} onClick={() => setWeergave("schrijven")}>
+              Schrijven
+            </Knop>
+            <Knop actief={weergave === "opgemaakt"} onClick={() => setWeergave("opgemaakt")}>
+              Opgemaakt
+            </Knop>
+          </div>
 
-        {weergave === "schrijven" ? (
-          <>
-            <input
-              className="canvas-titel type-title"
-              value={titel}
-              onChange={(e) => {
-                onEerstePoging();
-                onTitel(e.target.value);
-              }}
-              aria-label="Titel van de pagina"
+          {weergave === "schrijven" ? (
+            <>
+              <input
+                className="canvas-titel type-title"
+                value={titel}
+                onChange={(e) => {
+                  onEerstePoging();
+                  onTitel(e.target.value);
+                }}
+                aria-label="Titel van de pagina"
+              />
+              <GroeiendVeld
+                waarde={tekst}
+                onWijzig={(v) => {
+                  onEerstePoging();
+                  onTekst(v);
+                }}
+                veldRef={tekstRef}
+              />
+            </>
+          ) : (
+            <article
+              className="prose max-w-none"
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(tekst) }}
             />
-            <GroeiendVeld
-              waarde={tekst}
-              onWijzig={(v) => {
-                onEerstePoging();
-                onTekst(v);
-              }}
-              veldRef={tekstRef}
-            />
-          </>
-        ) : (
-          <article
-            className="prose max-w-none"
-            dangerouslySetInnerHTML={{ __html: renderMarkdown(tekst) }}
-          />
-        )}
+          )}
+        </div>
       </div>
 
       <div className="content-canvas-maat">

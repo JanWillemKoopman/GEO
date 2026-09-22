@@ -21,6 +21,11 @@ export async function middleware(request: NextRequest) {
   // ingeklapt, geen derde ontwerp. Alleen `device.type === "mobile"` (een
   // telefoon) krijgt de mobiele structuur uit stap 6 en 7.
   requestHeaders.set("x-apparaat", device.type === "mobile" ? "telefoon" : "computer");
+  // `x-pad`: het pad van dit verzoek, voor `lib/pad.ts`. Zelfde reden als
+  // `x-apparaat` hierboven: een servercomponent zoals `analyses/[id]/layout.tsx`
+  // kent alleen de `params` van zijn eigen segment, en heeft soms wél het volle
+  // pad nodig om te weten of een dieper geneste route zijn eigen chrome toont.
+  requestHeaders.set("x-pad", request.nextUrl.pathname);
 
   return await updateSession(request, requestHeaders);
 }

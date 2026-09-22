@@ -42,6 +42,21 @@ export function leesHerkomst(raw: string | string[] | undefined): Herkomst | nul
     : null;
 }
 
+/**
+ * Sta je op de contentpagina van één stuk (`bibliotheek/[pieceId]`)? Bepaalt
+ * of `analyses/[id]/layout.tsx` zijn eigen chrome (terug naar Clusters, de
+ * clusternaam, de status) overslaat: die pagina heeft al zijn eigen paginabalk
+ * met een eigen terugknop en statuschip, zie `docs/tasks/herontwerp-
+ * contentpagina.md`, Bijlage C.
+ *
+ * Puur en zonder `server-only` (conventie 2): het pad zelf komt uit
+ * `lib/pad.ts`, dat wél de headers leest, maar de vergelijking hier is gewone
+ * tekstlogica en dus testbaar zonder een request te bouwen.
+ */
+export function isStukpagina(pad: string, analysisId: string): boolean {
+  return new RegExp(`^/analyses/${analysisId}/bibliotheek/[^/]+/?$`).test(pad);
+}
+
 export interface TerugLink {
   href: string;
   label: string;
