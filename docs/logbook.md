@@ -11147,7 +11147,41 @@ en de identiteit in `brand_facts` die achterbleven.
 bestaande kolommen (`brand_facts.superseded_by`, `profiles.proof_points`) worden nu ook bij een
 wijziging bijgewerkt.
 
-## 22 september 2026 (21): het aantal vragen per fase kiezen bij het aanmaken van een cluster
+## 22 september 2026 (21): "Wat dit cluster laat zien" kapt af op 5 zinnen, en de gatenlijst is weg
+
+Vinkte je op Analytics > Zichtbaarheid in AI één cluster aan, dan verscheen daarboven de volledige
+rapportsamenvatting plus een aparte bullet per gemiste vraag: bij Van den Udenhout veertien regels
+onder elkaar (screenshot van de eigenaar). De eigenaar wil in 3 tot 5 zinnen lezen hoe een cluster
+ervoor staat, geen rapport.
+
+De bulletlijst (`reports.gaps_json`) is uit de kaart gehaald: diezelfde vragen staan al op "Wat
+ORBIT ENGINE nog van je wil weten", waar de kaart toch al naar linkt, dus dit was een herhaling en
+geen nieuwe informatie. Voor de samenvatting zelf (`reports.summary`) geldt conventie 1: de
+schrijfinstructie in `report.ts` vraagt al om kort te schrijven, maar "kort" is geen getal, dus
+schreef het model soms zeven of acht zinnen. `kortSamengevat()` (`lib/pipeline/report-summary.ts`)
+knipt nu op de eerste 5 zinnen af, op de leesroute in `analytics/page.tsx`, dus dit werkt ook voor
+al bestaande rapporten en niet pas na een nieuwe meetronde.
+
+`tsc --noEmit`, `test:unit` (5036), `test:chain` (728) en `build` groen. Geen migratie.
+
+## 22 september 2026 (22): een statusfilter naast het labelfilter op "strategie/clusters"
+
+Het labelfilter (migratie 0083) filtert op eigen ordening, maar de vraag "welke clusters wachten nog
+op mijn goedkeuring" was er niet mee te beantwoorden zonder de hele lijst door te lezen. `STATUS_META`
+(`lib/analysis-status.ts`) had de vertaling daarvoor al (`"Klaar voor jouw akkoord"`, `"Niet
+gelukt"`, …), er was alleen geen filter erop.
+
+Zelfde vorm als het labelfilter, in hetzelfde bestand als `STATUS_META` zodat de statustekst en het
+filter niet uit de pas kunnen lopen: `STATUSFILTER_ALLES`, `leesStatusfilter()` (onbekende waarde uit
+het adres valt terug op "alles"), `filterOpStatus()`, `telPerStatus()`. `ClusterBalk` kreeg een tweede
+uitklapmenu, met de statussen in de volgorde waarin een cluster ze doorloopt en "wacht op jou"
+(`concept_klaar`, `mislukt`) vooraan. Label en status staan los naast elkaar in de URL
+(`?label=<id>&status=<status>`), dus wijzigen van de een laat de ander staan.
+
+`tsc --noEmit`, `test:unit` (5039), `test:chain` (728) en `build` groen. Geen migratie nodig, het
+filter leest de al bestaande `analyses.status`.
+
+## 22 september 2026 (23): het aantal vragen per fase kiezen bij het aanmaken van een cluster
 
 Op "Nieuw cluster" (`/analyses/new`) lag de verdeling over Oriëntatie, Overweging en Beslissing al
 vast op de standaard 10/10/10 (`lib/prompt-mix.ts`, migratie 0054), zonder dat er op dit scherm iets

@@ -906,7 +906,7 @@ import {
   regionsFromDescription,
   discontinuedNames,
 } from "@/lib/pipeline/context-factors";
-import { correctQuestionCount, questionCountLine } from "@/lib/pipeline/report-summary";
+import { correctQuestionCount, kortSamengevat, questionCountLine } from "@/lib/pipeline/report-summary";
 import {
   PACKAGE_SIZES,
   DEFAULT_PACKAGE_SIZE,
@@ -927,6 +927,12 @@ import {
   LABELFILTER_ALLES,
   LABELFILTER_GEEN,
 } from "@/lib/cluster-labels";
+import {
+  leesStatusfilter,
+  filterOpStatus,
+  telPerStatus,
+  STATUSFILTER_ALLES,
+} from "@/lib/analysis-status";
 import {
   clustersVoorFilter,
   leesClusterfilter,
@@ -18141,6 +18147,25 @@ group("het aantal onderzochte vragen wordt rechtgezet (bevinding 4)", () => {
   ok("bij nul vragen valt de regel weg", questionCountLine(0, 0) === "");
 });
 
+// ⚠️ De fout: "Wat dit cluster laat zien" toonde de volledige
+// rapportsamenvatting, soms zeven of acht zinnen, plus een lijst met elke
+// gemiste vraag eronder. Het model krijgt de instructie kort te schrijven,
+// maar "kort" is geen getal (conventie 1).
+group("de clustersamenvatting wordt afgekapt op 5 zinnen", () => {
+  const kort = "Eén. Twee. Drie.";
+  ok("een korte tekst blijft heel", kortSamengevat(kort) === kort, kortSamengevat(kort));
+
+  const lang = "Eén. Twee. Drie. Vier. Vijf. Zes. Zeven.";
+  const afgekapt = kortSamengevat(lang);
+  ok("langer dan 5 zinnen wordt geknipt", afgekapt === "Eén. Twee. Drie. Vier. Vijf.", afgekapt);
+  ok("geknipt bij precies 5 zinnen", !afgekapt.includes("Zes"));
+
+  ok(
+    "een ander maximum werkt ook",
+    kortSamengevat("Eén. Twee. Drie.", 2) === "Eén. Twee.",
+  );
+});
+
 // ⚠️ De fout: het planscherm blokkeerde op "kies eerst 10, 20 of 40 pagina's
 // per maand" terwijl er nergens een scherm was om dat te kiezen. Het pakket
 // staat nu in de pre-boardingwizard en op het toewijzen-scherm.
@@ -21196,6 +21221,33 @@ group("filteren toont precies de clusters van dat label", () => {
   eq2("label a heeft er twee", telling.perLabel.a, 2);
   eq2("label b heeft er één", telling.perLabel.b, 1);
   eq2("en er is er één zonder label", telling.zonderLabel, 1);
+});
+
+group("een status uit het adres wordt gewantrouwd (22 september 2026)", () => {
+  eq("een bekende status mag", leesStatusfilter("concept_klaar"), "concept_klaar");
+  // ⚠️ Een onbekende waarde zou anders een leeg scherm geven zonder uitleg,
+  // en dat leest als "mijn clusters zijn weg" (zelfde reden als het labelfilter).
+  eq("een onbekende status valt terug op alles", leesStatusfilter("verzonnen"), STATUSFILTER_ALLES);
+  eq("niets in het adres is ook alles", leesStatusfilter(undefined), STATUSFILTER_ALLES);
+});
+
+group("filteren op status toont precies die clusters", () => {
+  const clusters = [
+    { id: "1", status: "concept_klaar" as const },
+    { id: "2", status: "meten" as const },
+    { id: "3", status: "gereed" as const },
+    { id: "4", status: "concept_klaar" as const },
+  ];
+  eq("alles laat alles staan", filterOpStatus(clusters, STATUSFILTER_ALLES).length.toString(), "4");
+  eq(
+    "wacht op mijn goedkeuring toont er twee",
+    filterOpStatus(clusters, "concept_klaar").map((c) => c.id).join(","),
+    "1,4",
+  );
+
+  const telling = telPerStatus(clusters);
+  eq2("concept_klaar heeft er twee", telling.concept_klaar, 2);
+  eq2("meten heeft er één", telling.meten, 1);
 });
 
 group("de prullenbak stopt de metingen, en dat staat in de code", () => {

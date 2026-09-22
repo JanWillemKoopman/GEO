@@ -25,6 +25,7 @@ import {
   PERIODEFILTER_ACTUEEL,
 } from "@/lib/analytics-filters";
 import { sorteerLabels } from "@/lib/cluster-labels";
+import { kortSamengevat } from "@/lib/pipeline/report-summary";
 import type { AuditCheck } from "@/lib/audit/technical";
 import type {
   ClusterLabel,
@@ -156,26 +157,31 @@ export default async function AnalyticsPage({
   // maar niet in één zin zeggen wat de meting betekent. Vandaar dat dit stuk
   // wél meeverhuisd is.
   //
+  // Tot dezelfde datum stond hier ook nog een lijst met elke gemiste vraag
+  // eronder (`gaps_json`), soms wel vijftien regels: precies het "hele
+  // verhaal" waar een gebruiker die één cluster aanvinkt niet om vroeg. Die
+  // lijst staat al op "Wat ORBIT ENGINE nog van je wil weten" (link
+  // hieronder); hier blijft alleen de samenvatting over, ingekort tot
+  // maximaal 5 zinnen (`kortSamengevat`, conventie 1: het model krijgt de
+  // instructie kort te schrijven, maar "kort" is geen getal).
+  //
   // Alleen bij één gekozen cluster: een samenvatting van cluster A boven de
   // cijfers van A tot en met F leest als een uitspraak over alles.
-  let clusterConclusie: { samenvatting: string | null; gaten: string[] } | null = null;
+  let clusterConclusie: { samenvatting: string } | null = null;
   if (clusterfilter !== "alles") {
     const { data: rapportRij } = await supabase
       .from("reports")
-      .select("summary, gaps_json")
+      .select("summary")
       .eq("analysis_id", clusterfilter)
       .order("week_no", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (rapportRij) {
-      const gaten = ((rapportRij.gaps_json ?? []) as { problem?: unknown }[])
-        .map((g) => (typeof g.problem === "string" ? g.problem : null))
-        .filter((g): g is string => Boolean(g));
-      const samenvatting =
-        typeof rapportRij.summary === "string" && rapportRij.summary.trim() !== ""
-          ? rapportRij.summary
-          : null;
-      if (samenvatting || gaten.length > 0) clusterConclusie = { samenvatting, gaten };
+    if (
+      rapportRij &&
+      typeof rapportRij.summary === "string" &&
+      rapportRij.summary.trim() !== ""
+    ) {
+      clusterConclusie = { samenvatting: kortSamengevat(rapportRij.summary) };
     }
   }
 
@@ -389,19 +395,7 @@ export default async function AnalyticsPage({
       {clusterConclusie && (
         <div className="card flex flex-col gap-3">
           <span className="mono-label">Wat dit cluster laat zien</span>
-          {clusterConclusie.samenvatting && (
-            <p className="text-secondary">{clusterConclusie.samenvatting}</p>
-          )}
-          {clusterConclusie.gaten.length > 0 && (
-            <ul className="flex flex-col gap-1.5">
-              {clusterConclusie.gaten.map((probleem, i) => (
-                <li key={i} className="flex gap-2 text-sm text-secondary">
-                  <span aria-hidden>·</span>
-                  {probleem}
-                </li>
-              ))}
-            </ul>
-          )}
+          <p className="text-secondary">{clusterConclusie.samenvatting}</p>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <Link href={`/merk/${id}/strategie/vragen`} className="mono-label underline">
               Wat ORBIT ENGINE nog van je wil weten

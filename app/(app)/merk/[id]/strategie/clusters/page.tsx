@@ -7,7 +7,13 @@ import { StatusBadge } from "@/components/status-badge";
 import { AnalysisCardMetrics } from "@/components/analysis-card-metrics";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
-import { STATUS_META } from "@/lib/analysis-status";
+import {
+  STATUS_META,
+  STATUSFILTER_ALLES,
+  filterOpStatus,
+  leesStatusfilter,
+  telPerStatus,
+} from "@/lib/analysis-status";
 import { loadDashboard } from "@/lib/dashboard";
 import { LastUpdated } from "@/components/last-updated";
 import { TopicsPanel } from "../../_components/topics-panel";
@@ -65,16 +71,28 @@ export const metadata = { title: "Clusters" };
  * een knop had. Een cluster daarin verdwijnt uit deze lijst én uit de
  * maandelijkse meetronde, want `/api/cron/tracking` leest via `activeOnly()`.
  * Het meten stopt dus per definitie, en niet omdat een scherm dat belooft.
+ *
+ * ── STATUSFILTER (22 september 2026) ─────────────────────────────────────────
+ *
+ * Naast het label een tweede, onafhankelijk filter op `analyses.status`
+ * (`lib/analysis-status.ts`), voor "welke clusters wachten nog op mijn
+ * goedkeuring". Zelfde vangnet tegen een onbekende waarde uit het adres als
+ * het labelfilter.
  */
 export default async function ClustersPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ weergave?: string; label?: string; gelanceerd?: string }>;
+  searchParams: Promise<{
+    weergave?: string;
+    label?: string;
+    status?: string;
+    gelanceerd?: string;
+  }>;
 }) {
   const { id } = await params;
-  const { weergave, label: labelUitAdres, gelanceerd } = await searchParams;
+  const { weergave, label: labelUitAdres, status: statusUitAdres, gelanceerd } = await searchParams;
   const inPrullenbak = weergave === "prullenbak";
   const profile = await getProfile(id);
   if (!profile) notFound();
@@ -125,11 +143,20 @@ export default async function ClustersPage({
   // Een `?label=` uit het adres kan van alles zijn, ook een label van een ander
   // merk. Onbekend valt terug op "alle labels" (`lib/cluster-labels.ts`).
   const labelfilter = leesLabelfilter(labelUitAdres, labels);
-  const zichtbaar = filterOpLabel(inPrullenbak ? gearchiveerd : analyses, labelfilter);
-  const telling = telPerLabel(inPrullenbak ? gearchiveerd : analyses);
+  // Zelfde wantrouwen voor `?status=`: onbekend valt terug op "alle statussen"
+  // (`lib/analysis-status.ts`). Label en status staan los naast elkaar, dus
+  // ze filteren allebei de lijst die de ander al opleverde.
+  const statusfilter = leesStatusfilter(statusUitAdres);
+  const lijstVoorWeergave = inPrullenbak ? gearchiveerd : analyses;
+  const zichtbaar = filterOpStatus(filterOpLabel(lijstVoorWeergave, labelfilter), statusfilter);
+  const telling = telPerLabel(lijstVoorWeergave);
   // Het beheerpaneel telt over beide lijsten heen: een label dat alleen nog
   // clusters in de prullenbak heeft, is niet leeg.
   const tellingTotaal = telPerLabel([...analyses, ...gearchiveerd]);
+  // De statusaantallen in het uitklapmenu gaan over dezelfde lijst als het
+  // labelfilter al toont, zodat "3 klaar voor akkoord" ook klopt als je al op
+  // een label hebt ingekort.
+  const statustelling = telPerStatus(filterOpLabel(lijstVoorWeergave, labelfilter));
 
   // ── Blok 3: de voorstellen uit de nulmeting ──────────────────────────────
   // Besluit 6: dit stond op een eigen adres ("Voorgestelde clusters"), en dat
@@ -207,8 +234,10 @@ export default async function ClustersPage({
           merkId={id}
           labels={labels}
           filter={labelfilter}
+          statusfilter={statusfilter}
           aantalPerLabel={telling.perLabel}
           aantalPerLabelTotaal={tellingTotaal.perLabel}
+          aantalPerStatus={statustelling}
           aantalZonderLabel={telling.zonderLabel}
           aantalActief={analyses.length}
           aantalPrullenbak={gearchiveerd.length}
@@ -219,12 +248,12 @@ export default async function ClustersPage({
           zichtbaar.length === 0 ? (
             <div className="card flex flex-col gap-1">
               <span className="mono-label">
-                {gearchiveerd.length === 0 ? "De prullenbak is leeg" : "Geen clusters met dit label"}
+                {gearchiveerd.length === 0 ? "De prullenbak is leeg" : "Geen clusters met dit filter"}
               </span>
               <p className="text-secondary">
                 {gearchiveerd.length === 0
                   ? "Clusters die je hier neerzet verdwijnen uit je overzicht en worden niet meer gemeten. Ze blijven wel bewaard, dus terugzetten kan altijd."
-                  : "Er staat wel iets in de prullenbak, alleen niet onder dit label. Kies een ander label om het te zien."}
+                  : "Er staat wel iets in de prullenbak, alleen niet onder dit label of deze status. Kies een andere filter om het te zien."}
               </p>
             </div>
           ) : (
@@ -253,11 +282,11 @@ export default async function ClustersPage({
           )
         ) : zichtbaar.length === 0 ? (
           <div className="card flex flex-col gap-1">
-            <span className="mono-label">Geen clusters met dit label</span>
+            <span className="mono-label">Geen clusters met dit filter</span>
             <p className="text-secondary">
               Je hebt {analyses.length === 1 ? "één cluster" : `${analyses.length} clusters`}, maar
-              geen enkele onder dit label. Kies een ander label, of hang er hieronder een cluster
-              aan.
+              geen enkele met dit label of deze status. Kies een ander filter, of hang er hieronder
+              een cluster aan.
             </p>
           </div>
         ) : (
