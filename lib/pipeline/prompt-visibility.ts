@@ -56,7 +56,7 @@ export interface PromptVisibilityRonde {
 export async function loadPromptVisibility(
   supabase: SupabaseClient,
   rondes: PromptVisibilityRonde[],
-  bron: string,
+  bronnen: string[],
 ): Promise<PromptVisibilityRow[]> {
   if (rondes.length === 0) return [];
 
@@ -73,7 +73,7 @@ export async function loadPromptVisibility(
       rondes.map((r) => r.analysisId),
     )
     .eq("purpose", "periodic")
-    .eq("engine", bron);
+    .in("engine", bronnen);
 
   // Per cluster hoort maar één week mee te tellen: de week die de
   // clusterrij ernaast ook toont. `.in("analysis_id", …)` haalt alle weken op,

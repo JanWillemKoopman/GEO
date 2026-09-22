@@ -141,6 +141,8 @@ import { PRIMARY_ENGINE } from "@/lib/engines/types";
 import { leesAiOverview } from "@/lib/ai-overview/parse";
 import {
   cijferVoorBron,
+  cijferVoorBronnen,
+  bronfilterNaarAdres,
   leesBronfilter,
   beschikbareBronnen,
   bronLabel,
@@ -949,6 +951,10 @@ import {
   leesPeriodefilter,
   selecteerPerCluster,
   PERIODEFILTER_ACTUEEL,
+  beschikbareFunnelfasen,
+  leesFunnelfilter,
+  filterOpFunnel,
+  FUNNELFILTER_ALLES,
 } from "@/lib/analytics-filters";
 import { describeToneSliders, clampToneSlider } from "@/lib/pipeline/tone-sliders";
 import { versionReasonLabel } from "@/lib/pipeline/version-reason";
@@ -21459,6 +21465,29 @@ group("label beperkt de clusterlijst, cluster laat het label met rust", () => {
   eq("niets in het adres is ook alles", leesClusterfilter(undefined, bijLabelA), CLUSTERFILTER_ALLES);
 });
 
+group("funnel: alleen de fasen die voorkomen, en filteren op de gekozen fase", () => {
+  const prompts = [
+    { category: "Oriëntatie" },
+    { category: "Overweging" },
+    { category: "Overweging" },
+  ];
+
+  const fasen = beschikbareFunnelfasen(prompts);
+  eq("alleen de fasen die voorkomen, in vaste volgorde", fasen.join(","), "Oriëntatie,Overweging");
+  eq2("Beslissing komt niet voor, dus telt niet mee", fasen.includes("Beslissing") ? 1 : 0, 0);
+
+  eq("een geldige fase blijft staan", leesFunnelfilter("Overweging", fasen), "Overweging");
+  eq(
+    "een onbekende waarde valt terug op alle fasen",
+    leesFunnelfilter("van-een-ander-merk", fasen),
+    FUNNELFILTER_ALLES,
+  );
+  eq("niets in het adres is ook alle fasen", leesFunnelfilter(undefined, fasen), FUNNELFILTER_ALLES);
+
+  eq2("alle fasen laat alles staan", filterOpFunnel(prompts, FUNNELFILTER_ALLES).length, 3);
+  eq2("een gekozen fase laat alleen die fase staan", filterOpFunnel(prompts, "Overweging").length, 2);
+});
+
 group("periode: onbekend valt terug op actueel, en per cluster de juiste stand", () => {
   const rijen = [
     { analysis_id: "1", computed_at: "2026-07-01T09:00:00Z" },
@@ -23907,14 +23936,52 @@ group("cijferVoorBron: het cijfer van de gekozen meetbron", () => {
   );
 
   // Een onbekende waarde in het adres mag nooit een leeg scherm geven.
-  eq("een onbekende bron valt terug op de standaard", leesBronfilter("onzin"), PRIMARY_ENGINE);
-  eq("en een lege waarde ook", leesBronfilter(null), PRIMARY_ENGINE);
-  eq("een geldige bron blijft staan", leesBronfilter(AI_OVERVIEW_ENGINE), AI_OVERVIEW_ENGINE);
+  const beschikbaar = [
+    { id: PRIMARY_ENGINE, label: "ChatGPT" },
+    { id: AI_OVERVIEW_ENGINE, label: "Google AI Overview" },
+  ];
+  ok(
+    "een onbekende bron valt terug op de standaard",
+    JSON.stringify(leesBronfilter("onzin", beschikbaar)) === JSON.stringify([PRIMARY_ENGINE]),
+  );
+  ok("en een lege waarde ook", JSON.stringify(leesBronfilter(null, beschikbaar)) === JSON.stringify([PRIMARY_ENGINE]));
+  ok(
+    "een geldige bron blijft staan",
+    JSON.stringify(leesBronfilter(AI_OVERVIEW_ENGINE, beschikbaar)) === JSON.stringify([AI_OVERVIEW_ENGINE]),
+  );
+  ok(
+    "meerdere bronnen, kommagescheiden, blijven allebei staan",
+    JSON.stringify(leesBronfilter(`${PRIMARY_ENGINE},${AI_OVERVIEW_ENGINE}`, beschikbaar)) ===
+      JSON.stringify([PRIMARY_ENGINE, AI_OVERVIEW_ENGINE]),
+  );
 
   // ⚠️ De knop verschijnt alleen als er iets te kiezen valt. Zolang er nooit via
   // een tweede bron gemeten is, verandert dit scherm dus niets.
   eq2("zonder tweede bron valt er niets te kiezen", beschikbareBronnen([rij(null)]).length, 1);
   eq2("met een tweede bron wel", beschikbareBronnen([metGoogle]).length, 2);
+
+  // Meerdere bronnen tegelijk: één gemiddeld cijfer, nooit twee naast elkaar.
+  const gemiddeld = cijferVoorBronnen(metGoogle, [PRIMARY_ENGINE, AI_OVERVIEW_ENGINE]);
+  eq2("het gemiddelde van ChatGPT (24) en Google (45) is 34,5", gemiddeld?.score ?? null, 34.5);
+  ok(
+    "bij precies één bron is het gemiddelde gelijk aan die ene bron",
+    cijferVoorBronnen(metGoogle, [AI_OVERVIEW_ENGINE])?.score === cijferVoorBron(metGoogle, AI_OVERVIEW_ENGINE)?.score,
+  );
+  ok(
+    "een bron die deze ronde niet meemat telt niet mee in het gemiddelde",
+    cijferVoorBronnen(rij(null), [PRIMARY_ENGINE, AI_OVERVIEW_ENGINE])?.score === 24,
+  );
+  ok(
+    "geen enkele gekozen bron gemeten geeft null, geen nul",
+    cijferVoorBronnen(rij(null), [AI_OVERVIEW_ENGINE]) === null,
+  );
+
+  // Het adres blijft schoon bij de standaardkeuze, en draagt de keuze anders.
+  ok("de standaardkeuze staat niet in het adres", bronfilterNaarAdres([PRIMARY_ENGINE]) === null);
+  ok(
+    "een andere keuze staat wel in het adres",
+    bronfilterNaarAdres([PRIMARY_ENGINE, AI_OVERVIEW_ENGINE]) === `${PRIMARY_ENGINE},${AI_OVERVIEW_ENGINE}`,
+  );
 
   // De labels zijn wat de klant de assistent noemt, niet de technische naam.
   eq("ChatGPT heet ChatGPT", bronLabel(PRIMARY_ENGINE), "ChatGPT");

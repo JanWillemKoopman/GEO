@@ -13,15 +13,19 @@ import { activeOnly } from "@/lib/archive";
 import { confidenceBand } from "@/lib/stats/uncertainty";
 import {
   beschikbareBronnen,
-  cijferVoorBron,
+  cijferVoorBronnen,
   leesBronfilter,
   bronLabel,
   BRONFILTER_STANDAARD,
 } from "@/lib/engines/bron";
 import {
   bepaalPeriodes,
+  beschikbareFunnelfasen,
   clustersVoorFilter,
+  filterOpFunnel,
+  FUNNELFILTER_ALLES,
   leesClusterfilter,
+  leesFunnelfilter,
   leesLabelfilter,
   leesPeriodefilter,
   PERIODEFILTER_ACTUEEL,
@@ -66,7 +70,7 @@ export default async function AnalyticsPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ periode?: string; label?: string; cluster?: string; bron?: string }>;
+  searchParams: Promise<{ periode?: string; label?: string; cluster?: string; bron?: string; funnel?: string }>;
 }) {
   const { id } = await params;
   const {
@@ -74,6 +78,7 @@ export default async function AnalyticsPage({
     label: labelUitAdres,
     cluster: clusterUitAdres,
     bron: bronUitAdres,
+    funnel: funnelUitAdres,
   } = await searchParams;
   const profile = await getProfile(id);
   if (!profile) notFound();
@@ -153,7 +158,7 @@ export default async function AnalyticsPage({
   // `beschikbareBronnen()` kijkt of er daadwerkelijk via meer dan één bron
   // gemeten is; zo niet, dan verschijnt de knop niet en verandert er niets.
   const bronnen = beschikbareBronnen(scores);
-  const bronfilter = bronnen.length > 1 ? leesBronfilter(bronUitAdres) : BRONFILTER_STANDAARD;
+  const bronfilter = bronnen.length > 1 ? leesBronfilter(bronUitAdres, bronnen) : BRONFILTER_STANDAARD;
 
   // ── De conclusie van de meting, als er één cluster gekozen is ────────────
   //
@@ -211,7 +216,7 @@ export default async function AnalyticsPage({
         // ronde van vóór de tweede bron, of een ronde waarin Google bij geen
         // enkele vraag een overzicht toonde, hoort niet als 0% in de grafiek:
         // dat is niet gemeten, geen nul (conventie 3).
-        .filter((s) => cijferVoorBron(s, bronfilter) !== null)
+        .filter((s) => cijferVoorBronnen(s, bronfilter) !== null)
         .sort((a, b) => a.week_no - b.week_no);
       const totAanPeriode =
         periodefilter === PERIODEFILTER_ACTUEEL
@@ -237,6 +242,11 @@ export default async function AnalyticsPage({
     })),
     bronfilter,
   );
+
+  // ── Het funnelfilter: alleen de prompttabel, elke vraag heeft een fase ────
+  const funnelfasen = beschikbareFunnelfasen(promptVisibility);
+  const funnelfilter = funnelfasen.length > 1 ? leesFunnelfilter(funnelUitAdres, funnelfasen) : FUNNELFILTER_ALLES;
+  const promptVisibilityGefilterd = filterOpFunnel(promptVisibility, funnelfilter);
 
   // ── Het merkcijfer: gewogen op het aantal metingen per cluster ───────────
   //
@@ -404,6 +414,8 @@ export default async function AnalyticsPage({
         clustersBijLabel={clustersBijLabel}
         bronnen={bronnen}
         bronfilter={bronfilter}
+        funnelfasen={funnelfasen}
+        funnelfilter={funnelfilter}
         periodefilter={periodefilter}
         labelfilter={labelfilter}
         clusterfilter={clusterfilter}
@@ -500,7 +512,7 @@ export default async function AnalyticsPage({
         <div className="flex flex-col gap-2">
           <span className="mono-label">Prompts</span>
           <AnalyticsPromptTable
-            rows={promptVisibility}
+            rows={promptVisibilityGefilterd}
             merkId={id}
             ownTerms={[profile.brand_name, ...(profile.aliases ?? [])].filter(
               (t): t is string => Boolean(t && t.trim()),
@@ -519,13 +531,13 @@ export default async function AnalyticsPage({
  * scherm de andere kiezen, dan tonen twee schermen een ander getal voor
  * dezelfde periode.
  */
-function leidend(s: VisibilityScore, bron: string = BRONFILTER_STANDAARD): number {
-  return cijferVoorBron(s, bron)?.score ?? 0;
+function leidend(s: VisibilityScore, bron: string[] = BRONFILTER_STANDAARD): number {
+  return cijferVoorBronnen(s, bron)?.score ?? 0;
 }
 
 /** De onzekerheid die bij `leidend()` hoort. De twee horen altijd bij elkaar. */
-function stderrVan(s: VisibilityScore, bron: string = BRONFILTER_STANDAARD): number {
-  return cijferVoorBron(s, bron)?.stderr ?? 0;
+function stderrVan(s: VisibilityScore, bron: string[] = BRONFILTER_STANDAARD): number {
+  return cijferVoorBronnen(s, bron)?.stderr ?? 0;
 }
 
 /**
@@ -543,7 +555,7 @@ function volgendeMeetronde(laatsteMeting: string | null): string | null {
 /** Het merkcijfer, gewogen op het aantal gemeten vragen per cluster. */
 function gewogenGemiddelde(
   scores: VisibilityScore[],
-  bron: string = BRONFILTER_STANDAARD,
+  bron: string[] = BRONFILTER_STANDAARD,
 ): { waarde: number; stderr: number; clusters: number } | null {
   if (scores.length === 0) return null;
 
