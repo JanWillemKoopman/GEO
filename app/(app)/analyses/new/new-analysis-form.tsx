@@ -3,7 +3,18 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ClusterLabel, Profile } from "@/lib/types/database";
+import { PROMPT_CATEGORIES } from "@/lib/types/database";
 import { MAX_LABELNAAM, sorteerLabels } from "@/lib/cluster-labels";
+import {
+  DEFAULT_MIX,
+  MAX_PER_STAGE,
+  NEW_CLUSTER_MIN_TOTAL,
+  NEW_CLUSTER_MAX_TOTAL,
+  checkNewClusterMix,
+  isDefaultMix,
+  mixTotal,
+  type PromptMix,
+} from "@/lib/prompt-mix";
 
 /** De waarde van de keuzelijst die zegt: ik typ er zelf een nieuwe. */
 const NIEUW_LABEL = "__nieuw__";
@@ -31,6 +42,11 @@ export function NewAnalysisForm({
   );
   const [topic, setTopic] = useState("");
   const [contentBrief, setContentBrief] = useState("");
+  // De verdeling over de funnelfasen (migratie 0054). Standaard tien per fase,
+  // en dat blijft ook gelden als het veld ongemoeid blijft: `checkNewClusterMix`
+  // (`lib/prompt-mix.ts`) houdt de optelling tussen NEW_CLUSTER_MIN_TOTAL en
+  // NEW_CLUSTER_MAX_TOTAL.
+  const [mix, setMix] = useState<PromptMix>(DEFAULT_MIX);
   // Het label (migratie 0083). Leeg = geen label, `NIEUW_LABEL` = het tekstveld
   // eronder telt. Labels zijn optioneel: wie er één cluster heeft, heeft niets
   // te groeperen.
@@ -42,6 +58,8 @@ export function NewAnalysisForm({
   const [pending, setPending] = useState(false);
 
   const labels = sorteerLabels(labelsPerMerk[profileId] ?? []);
+  const mixCheck = checkNewClusterMix(mix);
+  const mixError = mixCheck.ok ? null : mixCheck.reason;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -58,6 +76,7 @@ export function NewAnalysisForm({
           notify_by_email: notifyByEmail,
           label_id: labelKeuze === NIEUW_LABEL ? "" : labelKeuze,
           label_name: labelKeuze === NIEUW_LABEL ? nieuwLabel : "",
+          ...(isDefaultMix(mix) ? {} : { mix }),
         }),
       });
       const json = await res.json();
@@ -157,6 +176,36 @@ export function NewAnalysisForm({
         </span>
       </div>
 
+      <div className="flex flex-col gap-1.5">
+        <span className="mono-label">Hoeveel vragen per fase?</span>
+        <div className="grid grid-cols-3 gap-2">
+          {PROMPT_CATEGORIES.map((fase) => (
+            <label key={fase} className="flex flex-col gap-1 text-sm">
+              <span>{fase}</span>
+              <input
+                type="number"
+                min={0}
+                max={MAX_PER_STAGE}
+                value={mix[fase]}
+                onChange={(e) =>
+                  setMix((huidig) => ({ ...huidig, [fase]: Number(e.target.value) }))
+                }
+                className="field"
+              />
+            </label>
+          ))}
+        </div>
+        <span className="text-sm text-muted">
+          Standaard tien per fase. Samen {mixTotal(mix)} vragen, dat moet tussen de{" "}
+          {NEW_CLUSTER_MIN_TOTAL} en {NEW_CLUSTER_MAX_TOTAL} liggen.
+        </span>
+        {mixError && (
+          <p className="text-sm" style={{ color: "var(--intent-danger-text)" }}>
+            {mixError}
+          </p>
+        )}
+      </div>
+
       <label className="flex flex-col gap-1.5">
         <span className="mono-label">Wat voor content wil je? (optioneel)</span>
         <textarea
@@ -206,7 +255,11 @@ export function NewAnalysisForm({
         </p>
       )}
 
-      <button type="submit" disabled={pending} className="btn-primary btn-lg w-full disabled:opacity-60">
+      <button
+        type="submit"
+        disabled={pending || !mixCheck.ok}
+        className="btn-primary btn-lg w-full disabled:opacity-60"
+      >
         {pending ? "Cluster aanmaken…" : "Start cluster"}
       </button>
     </form>

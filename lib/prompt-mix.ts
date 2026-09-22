@@ -173,6 +173,39 @@ export function checkMix(input: Partial<Record<FunnelStage, unknown>>): MixCheck
 }
 
 /**
+ * Grenzen voor het aanmaken van een nieuw cluster (`/analyses/new`).
+ *
+ * Enger dan `MIN_TOTAL`/`MAX_TOTAL` hierboven, die gelden zodra er al een
+ * aanbodboom is om een voorzet op te baseren (`suggestPromptMix`, het
+ * snelpad in `topics-panel.tsx`). Hier kiest de klant vóór de eerste meting,
+ * zonder die voorzet. Onder de tien is de meting te wankel om iets te zeggen,
+ * boven de zestig weegt het allereerste cluster te zwaar mee in de
+ * meetkosten van iemand die de app nog niet kent.
+ */
+export const NEW_CLUSTER_MIN_TOTAL = 10;
+export const NEW_CLUSTER_MAX_TOTAL = 60;
+
+/** Zoals `checkMix`, met de engere grenzen van een nieuw cluster erbovenop. */
+export function checkNewClusterMix(input: Partial<Record<FunnelStage, unknown>>): MixCheck {
+  const check = checkMix(input);
+  if (!check.ok) return check;
+  const totaal = mixTotal(check.mix);
+  if (totaal < NEW_CLUSTER_MIN_TOTAL) {
+    return {
+      ok: false,
+      reason: `Samen minstens ${NEW_CLUSTER_MIN_TOTAL} vragen, anders is de meting te wankel om iets te zeggen.`,
+    };
+  }
+  if (totaal > NEW_CLUSTER_MAX_TOTAL) {
+    return {
+      ok: false,
+      reason: `Samen hooguit ${NEW_CLUSTER_MAX_TOTAL} vragen voor een eerste cluster. Meer kan later, per fase bijstellen.`,
+    };
+  }
+  return check;
+}
+
+/**
  * Eén zin die zegt wat deze verdeling kost en oplevert.
  *
  * Staat onder het invoerveld, want het getal veranderen is gratis en de gevolgen
