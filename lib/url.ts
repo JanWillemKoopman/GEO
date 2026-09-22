@@ -93,3 +93,12 @@ export function isOnBrandDomain(publishedUrl: string, profileUrl: string): boole
 export function buildAnalysisName(url: string, topic: string | null): string {
   return topic && topic.trim() ? `${url} · ${topic.trim()}` : `${url} (hele site)`;
 }
+
+/** Extraheert alleen de clusternaam uit de volledige analysenaam, zonder domein. */
+export function getClusterDisplayName(analysisName: string): string {
+  const parts = analysisName.split(" · ");
+  if (parts.length > 1) {
+    return parts.slice(1).join(" · ");
+  }
+  return analysisName;
+}

@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { getAnalysis } from "@/lib/analyses";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "@/components/status-badge";
+import { getClusterDisplayName } from "@/lib/url";
 import { AnalysisNav } from "./tabs";
 import { Icon } from "@/components/icon";
 
@@ -25,10 +26,11 @@ export async function generateMetadata({
   const { id } = await params;
   const analysis = await getAnalysis(id);
   if (!analysis) return {};
+  const displayName = getClusterDisplayName(analysis.name);
   return {
     title: {
-      template: `%s · ${analysis.name} · ORBIT ENGINE`,
-      default: `${analysis.name} · ORBIT ENGINE`,
+      template: `%s · ${displayName} · ORBIT ENGINE`,
+      default: `${displayName} · ORBIT ENGINE`,
     },
   };
 }
@@ -81,7 +83,7 @@ export default async function AnalysisLayout({
           Clusters
         </Link>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <h1 className="type-title">{analysis.name}</h1>
+          <h1 className="type-title">{getClusterDisplayName(analysis.name)}</h1>
           <StatusBadge status={analysis.status} showWhoseTurn />
         </div>
       </div>

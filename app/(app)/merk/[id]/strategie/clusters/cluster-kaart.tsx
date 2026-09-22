@@ -9,6 +9,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Icon } from "@/components/icon";
 import { useRefresh } from "@/components/use-refresh";
 import { MAX_LABELNAAM, normaliseerLabelnaam } from "@/lib/cluster-labels";
+import { getClusterDisplayName } from "@/lib/url";
 import type { AnalysisCardMetrics as Metrics } from "@/lib/dashboard";
 import type { Analysis, ClusterLabel } from "@/lib/types/database";
 
@@ -210,10 +211,10 @@ export function ClusterKaart({
         <div className="min-w-0">
           {kopLink && !gearchiveerd ? (
             <Link href={kopLink} className="truncate text-lg font-medium hover:underline">
-              {analyse.name}
+              {getClusterDisplayName(analyse.name)}
             </Link>
           ) : (
-            <span className="block truncate text-lg font-medium">{analyse.name}</span>
+            <span className="block truncate text-lg font-medium">{getClusterDisplayName(analyse.name)}</span>
           )}
           <LastUpdated at={analyse.updated_at} className="mono-label mt-1 block" />
         </div>
@@ -229,7 +230,7 @@ export function ClusterKaart({
             <div className="relative" ref={menuRef}>
               <button
                 type="button"
-                aria-label={`Meer acties voor ${analyse.name}`}
+                aria-label={`Meer acties voor ${getClusterDisplayName(analyse.name)}`}
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
                 disabled={opSlot}
@@ -242,7 +243,7 @@ export function ClusterKaart({
               {menuOpen && (
                 <div
                   role="menu"
-                  aria-label={`Acties voor ${analyse.name}`}
+                  aria-label={`Acties voor ${getClusterDisplayName(analyse.name)}`}
                   className="menu-surface absolute right-0 top-full z-30 mt-1 w-64 overflow-hidden rounded-[var(--radius-xxxl)] border border-[var(--border-subtle)] p-1 text-left"
                   style={{ boxShadow: "var(--shadow-overlay)" }}
                 >
@@ -401,7 +402,7 @@ export function ClusterKaart({
         open={vraagPrullenbak}
         title="Dit cluster naar de prullenbak?"
         body={
-          `"${analyse.name}" verdwijnt uit je overzicht en uit de maandelijkse meetronde, dus er ` +
+          `"${getClusterDisplayName(analyse.name)}" verdwijnt uit je overzicht en uit de maandelijkse meetronde, dus er ` +
           "wordt vanaf nu niets meer gemeten voor dit cluster. Alle metingen, rapporten en " +
           "geschreven pagina's blijven bewaard: je kunt het cluster later terugzetten, en dan gaat " +
           "het meten weer verder."
