@@ -17,20 +17,26 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadBrandWork, type WorkItem } from "@/lib/work";
 import { readRecommendations } from "@/lib/pipeline/recommendation";
-import { ownMentionCount } from "@/lib/pipeline/brand-rankings";
 import type { Analysis, VisibilityScore } from "@/lib/types/database";
 
 type Db = SupabaseClient;
 
 /**
  * De vier kerncijfers per analyse op het kaartje in "Mijn analyses" (abcplan.md
- * §3.4, herzien): zichtbaarheidsscore, openstaande vragen, voorgestelde en
+ * §3.4, herzien): zichtbaarheidsscore, aantal zoekopdrachten, voorgestelde en
  * geschreven pagina's, plus het aantal metingen dat eraan ten grondslag ligt.
  * `null` betekent "nog niet meetbaar", niet "nul".
  */
 export interface AnalysisCardMetrics {
   visibilityScore: number | null;
-  openQuestions: number | null;
+  /**
+   * Hoeveel verschillende prompts de laatste meting van dit cluster gebruikte.
+   * Stond hier eerder als "openstaande vragen" (`winnable_runs - mentioned`),
+   * maar dat cijfer botste met de gelijknamige, echte vragenlijst op
+   * `/merk/[id]/strategie/vragen`: twee heel verschillende dingen onder
+   * hetzelfde woord op hetzelfde scherm. `null` zolang er niet gemeten is.
+   */
+  searchQueries: number | null;
   suggestedArticles: number;
   writtenArticles: number;
   measurementCount: number;
@@ -70,19 +76,29 @@ export async function loadDashboard(
   }
 
   const ids = analyses.map((a) => a.id);
-  const [{ data: pieceRows }, { data: scoreRows }, { data: reportRows }] = await Promise.all([
-    db
-      .from("content_pieces")
-      .select("analysis_id, title, status, published_at")
-      .in("analysis_id", ids)
-      .eq("is_current", true),
-    db.from("visibility_scores").select("*").in("analysis_id", ids).order("week_no"),
-    db
-      .from("reports")
-      .select("analysis_id, week_no, recommendations_json")
-      .in("analysis_id", ids)
-      .order("week_no"),
-  ]);
+  const [{ data: pieceRows }, { data: scoreRows }, { data: reportRows }, { data: runRows }] =
+    await Promise.all([
+      db
+        .from("content_pieces")
+        .select("analysis_id, title, status, published_at")
+        .in("analysis_id", ids)
+        .eq("is_current", true),
+      db.from("visibility_scores").select("*").in("analysis_id", ids).order("week_no"),
+      db
+        .from("reports")
+        .select("analysis_id, week_no, recommendations_json")
+        .in("analysis_id", ids)
+        .order("week_no"),
+      // Voor het kaartcijfer "zoekopdrachten": alleen 'periodic', want een
+      // impact- of controlemeting bevraagt maar een handvol prompts en zou dat
+      // cijfer laten kelderen op precies het moment dat er net een pagina
+      // gepubliceerd is.
+      db
+        .from("tracking_runs")
+        .select("analysis_id, prompt_id, week_no")
+        .in("analysis_id", ids)
+        .eq("purpose", "periodic"),
+    ]);
 
   const pieces = pieceRows ?? [];
   const scores = (scoreRows ?? []) as VisibilityScore[];
@@ -95,6 +111,7 @@ export async function loadDashboard(
       pieces,
       scores,
       (reportRows ?? []) as { analysis_id: string; week_no: number; recommendations_json: unknown }[],
+      (runRows ?? []) as { analysis_id: string; prompt_id: string | null; week_no: number }[],
     ),
   };
 }
@@ -110,6 +127,7 @@ function buildCardMetrics(
   pieces: { analysis_id: string; title: string; status: string }[],
   scores: VisibilityScore[],
   reports: { analysis_id: string; week_no: number; recommendations_json: unknown }[],
+  runs: { analysis_id: string; prompt_id: string | null; week_no: number }[],
 ): Record<string, AnalysisCardMetrics> {
   const piecesByAnalysis = new Map<string, typeof pieces>();
   for (const p of pieces) {
@@ -119,6 +137,11 @@ function buildCardMetrics(
   const scoresByAnalysis = new Map<string, VisibilityScore[]>();
   for (const s of scores) {
     scoresByAnalysis.set(s.analysis_id, [...(scoresByAnalysis.get(s.analysis_id) ?? []), s]);
+  }
+
+  const runsByAnalysis = new Map<string, typeof runs>();
+  for (const r of runs) {
+    runsByAnalysis.set(r.analysis_id, [...(runsByAnalysis.get(r.analysis_id) ?? []), r]);
   }
 
   // Laatste rapport per analyse, eerdere aanbevelingen zijn achterhaald zodra
@@ -145,19 +168,21 @@ function buildCardMetrics(
     const ownScores = [...(scoresByAnalysis.get(id) ?? [])].sort((a, b) => a.week_no - b.week_no);
     const latest = ownScores[ownScores.length - 1] ?? null;
 
-    let openQuestions: number | null = null;
-    if (latest && latest.winnable_runs != null) {
-      // score = % van de winnable_runs waarin het merk genoemd wordt (ongewogen,
-      // zie VisibilityScore.score), omgekeerd terug te rekenen naar een telling
-      // zonder een aparte query op tracking_run_mentions nodig te hebben. Zelfde
-      // afleiding als de rangordetabel (`brand-rankings.ts`), vandaar gedeeld.
-      const mentioned = ownMentionCount(latest.score, latest.winnable_runs);
-      openQuestions = Math.max(0, latest.winnable_runs - mentioned);
+    // Unieke prompts van de laatste meetronde: dezelfde week_no als de laatste
+    // score, zodat dit cijfer altijd bij de zichtbaarheid ernaast hoort en niet
+    // meerdere metingen door elkaar telt.
+    let searchQueries: number | null = null;
+    if (latest) {
+      const ownRuns = (runsByAnalysis.get(id) ?? []).filter((r) => r.week_no === latest.week_no);
+      const uniquePrompts = new Set(ownRuns.map((r) => r.prompt_id).filter((p): p is string => p !== null));
+      // Nul unieke prompts ondanks metingrijen betekent oude rijen zonder
+      // prompt_id, geen meting zonder vragen (conventie 3).
+      searchQueries = uniquePrompts.size > 0 ? uniquePrompts.size : null;
     }
 
     result[id] = {
       visibilityScore: latest ? (latest.weighted_score ?? latest.score) : null,
-      openQuestions,
+      searchQueries,
       suggestedArticles,
       writtenArticles,
       measurementCount: ownScores.length,

@@ -1249,9 +1249,15 @@ cluster zit licht dat menu-item op (`navActief()` in `lib/nav.ts`).
 
 Elke rij in de clusterlijst toont in plaats daarvan vier vaste kaartcijfers plus het aantal
 metingen (`AnalysisCardMetrics`, `components/analysis-card-metrics.tsx`): zichtbaarheidsscore,
-aantal openstaande vragen, aantal voorgestelde en aantal geschreven pagina's, en "N metingen". Die
-cijfers komen uit dezelfde bronnen als het werkmodel (`visibility_scores`, `content_pieces`,
-`reports`). Het kaartje kan dus nooit iets anders beweren dan de analyse zelf verderop laat zien.
+aantal zoekopdrachten (unieke prompts van de laatste meetronde), aantal voorgestelde en aantal
+geschreven pagina's, en "N metingen". Die cijfers komen uit dezelfde bronnen als het werkmodel
+(`visibility_scores`, `tracking_runs`, `content_pieces`, `reports`). Het kaartje kan dus nooit iets
+anders beweren dan de analyse zelf verderop laat zien.
+
+⚠️ Tot 22 september 2026 stond hier "openstaande vragen" (`winnable_runs - mentioned`, dus gemiste
+kansen in de meting). Dat botste met de gelijknamige, echte vragenlijst op
+`/merk/[id]/strategie/vragen` (`lib/open-questions.ts`): twee heel verschillende tellingen onder
+hetzelfde woord op hetzelfde scherm. Zie `docs/logbook.md` voor die datum.
 
 ## 7. Responsive
 

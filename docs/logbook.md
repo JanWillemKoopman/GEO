@@ -11202,3 +11202,27 @@ Geen migratie nodig, de kolommen bestaan al sinds 0054.
 
 `tsc --noEmit`, `test:unit` (5041, negen nieuw voor `checkNewClusterMix`), `test:chain` (728) en
 `build` groen.
+
+## 22 september 2026 (24): "openstaande vragen" op de clusterkaart bleek een ander getal dan de
+echte vragenlijst, nu "zoekopdrachten"
+
+De eigenaar zag op de clusterkaarten "22 openstaande vragen" bij een cluster waar de sidebar maar
+"6 openstaande vragen" telde, en vroeg zich af waar het verschil vandaan kwam. Dat waren twee losse
+tellingen die toevallig hetzelfde woord droegen: het kaartcijfer (`buildCardMetrics`,
+`lib/dashboard.ts`) rekende `winnable_runs - mentioned` uit, dus hoeveel metingen van de laatste
+ronde geen enkele aanbieder noemden, en dat is een gemiste kans in de meting, geen vraag aan de
+klant. De echte vragenlijst (`lib/open-questions.ts`, zichtbaar op `/merk/[id]/strategie/vragen` en
+in de sidebar) telt `fact_requests` met status `open` plus profielgaten. Twee dingen die niets met
+elkaar te maken hebben, onder één label op één scherm.
+
+Het kaartcijfer heet nu "Zoekopdrachten" en telt iets anders: het aantal unieke prompts dat de
+laatste meetronde van dit cluster gebruikte (`tracking_runs`, gefilterd op `purpose = 'periodic'`
+en de `week_no` van de laatste score, ontdubbeld op `prompt_id`). Bij een cluster met dertig
+goedgekeurde koopvragen staat er dus "30 zoekopdrachten" te lezen, en dat cijfer botst niet meer met
+de vragenlijst ernaast in de navigatie. `null` zolang er niet gemeten is, en ook als een oude rij
+geen `prompt_id` heeft (conventie 3): een meting zonder bekend aantal vragen is niet hetzelfde als
+een meting van nul vragen.
+
+`tsc --noEmit`, `test:unit` (5043, drie al bestaande mislukkingen ongerelateerd aan dit werk,
+"de S staat in de bovenbalk"), `test:chain` (728) en `build` groen. Geen migratie, alleen een
+extra query op de al bestaande `tracking_runs`-tabel.
