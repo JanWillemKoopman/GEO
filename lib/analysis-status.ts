@@ -55,6 +55,53 @@ export const STATUS_META: Record<
  * betekenissen: `information` (blauw) voor een mededeling, `growth` (groen)
  * voor een afgeronde, geslaagde staat.
  */
+/**
+ * Statusfilter boven de clusterlijst (`strategie/clusters`).
+ *
+ * Zelfde vorm als het labelfilter in `lib/cluster-labels.ts`: één stand
+ * "alles" naast de zes technische statussen uit `AnalysisStatus`, gelezen uit
+ * de URL en dus met hetzelfde wantrouwen tegen wat daarin kan staan. Een
+ * eigen "wacht op mijn goedkeuring" bovenaan de lijst is er al via de
+ * sortering op `whoseTurn`; dit filter kort de lijst juist in tot precies die
+ * status, voor wie alleen dát wil zien.
+ */
+export const STATUSFILTER_ALLES = "alles";
+
+export type Statusfilter = AnalysisStatus | typeof STATUSFILTER_ALLES;
+
+/**
+ * Een `?status=` uit het adres kan van alles zijn. Onbekend valt terug op
+ * "alle statussen", net als bij het labelfilter: een leeg scherm zonder
+ * uitleg leest als "mijn clusters zijn weg".
+ */
+export function leesStatusfilter(ruw: string | null | undefined): Statusfilter {
+  if (ruw && ruw in STATUS_META) return ruw as AnalysisStatus;
+  return STATUSFILTER_ALLES;
+}
+
+/** De clusters die bij deze filterstand horen. */
+export function filterOpStatus<T extends { status: AnalysisStatus }>(
+  clusters: T[],
+  filter: Statusfilter,
+): T[] {
+  if (filter === STATUSFILTER_ALLES) return clusters;
+  return clusters.filter((c) => c.status === filter);
+}
+
+/**
+ * Hoeveel clusters er per status zijn, voor de aantallen in het uitklapmenu.
+ * Een status die niet voorkomt, ontbreekt in het resultaat (0, niet vermeld).
+ */
+export function telPerStatus<T extends { status: AnalysisStatus }>(
+  clusters: T[],
+): Record<AnalysisStatus, number> {
+  const telling = {} as Record<AnalysisStatus, number>;
+  for (const c of clusters) {
+    telling[c.status] = (telling[c.status] ?? 0) + 1;
+  }
+  return telling;
+}
+
 export const TONE_STYLE: Record<StatusTone, React.CSSProperties> = {
   attention: {
     background: "var(--intent-intelligence-surface)",
