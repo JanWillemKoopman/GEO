@@ -1,10 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { AnalyticsTable, type AnalyticsColumn } from "@/components/analytics-table";
-import { Drawer } from "@/components/drawer";
-import { ClusterAnswers } from "@/components/cluster-answers";
 import { Icon } from "@/components/icon";
 import { confidenceBand, changeIsMeaningful } from "@/lib/stats/uncertainty";
 import { poolRecent } from "@/lib/stats/pooling";
@@ -76,69 +73,16 @@ export function AnalyticsClusterTable({
   /** De gekozen meetbron. Zie lib/engines/bron.ts. */
   bron?: string;
 }) {
-  const [geselecteerd, setGeselecteerd] = useState<string | null>(null);
-  const gekozenRij = rows.find((r) => r.cluster.id === geselecteerd) ?? null;
-
   return (
-    <>
-      <div className="card">
-        <AnalyticsTable
-          rows={rows}
-          rowKey={(r) => r.cluster.id}
-          defaultSortKey="zichtbaarheid"
-          defaultSortDir="asc"
-          columns={clusterKolommen(labelNaamPerId, bron, merkId)}
-          stickyOffset="calc(var(--header-h) + 3.5rem)"
-          onRowClick={(r) => setGeselecteerd(r.cluster.id === geselecteerd ? null : r.cluster.id)}
-          selectedKey={geselecteerd}
-        />
-      </div>
-      <Drawer
-        open={gekozenRij !== null}
-        titel={gekozenRij?.cluster.name ?? ""}
-        onSluit={() => setGeselecteerd(null)}
-      >
-        {gekozenRij && <ClusterDetail rij={gekozenRij} bron={bron} merkId={merkId} />}
-      </Drawer>
-    </>
-  );
-}
-
-/** De inhoud van het detailpaneel (plan Z8): de gemeten vragen, de laatste
- * drie metingen, en de letterlijke antwoorden erachter (16 september 2026,
- * `components/cluster-answers.tsx`). De verdeling over de drie fasen staat
- * hier bewust niet bij: die rust op een optelling uit `tracking_runs` die nog
- * niet gebouwd is (F5, zie `docs/tasks/analytics-herontwerp.md`). */
-function ClusterDetail({ rij, bron, merkId }: { rij: ClusterRij; bron: string; merkId: string }) {
-  const laatsteDrie = [...rij.reeks].reverse().slice(0, 3);
-  return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <span className="mono-label">Gemeten vragen</span>
-        <p className="stat-value text-lg">{rij.laatste?.judged_runs ?? "-"}</p>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <span className="mono-label">Laatste metingen</span>
-        {laatsteDrie.map((s) => (
-          <div key={s.week_no} className="flex items-baseline justify-between gap-2 text-sm">
-            <span className="text-muted">
-              {s.computed_at
-                ? new Date(s.computed_at).toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" })
-                : "-"}
-            </span>
-            <span className="stat-value">{Math.round(leidend(s, bron))}%</span>
-          </div>
-        ))}
-      </div>
-      <ClusterAnswers analysisId={rij.cluster.id} />
-      {/* ⚠️ Wees tot 22 september 2026 naar "het clusterdossier"
-          (`/analyses/[id]`). Dat scherm is er niet meer: alles wat erop stond
-          staat hier, bij Openstaande vragen of in het Contentplan. Deze link
-          zet nu het clusterfilter van dít scherm aan, want dat is wat de
-          doorklik waard was. */}
-      <Link href={`/merk/${merkId}/analytics?cluster=${rij.cluster.id}`} className="text-sm underline">
-        Bekijk alleen dit cluster
-      </Link>
+    <div className="card">
+      <AnalyticsTable
+        rows={rows}
+        rowKey={(r) => r.cluster.id}
+        defaultSortKey="zichtbaarheid"
+        defaultSortDir="asc"
+        columns={clusterKolommen(labelNaamPerId, bron, merkId)}
+        stickyOffset="calc(var(--header-h) + 3.5rem)"
+      />
     </div>
   );
 }

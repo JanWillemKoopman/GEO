@@ -132,10 +132,10 @@ export function WhyThisPage({
             Vragen die AI-assistenten écht gesteld zijn, geen geschatte zoekwoorden.
           </span>
           {/* ⚠️ Wees tot 22 september 2026 naar `/analyses/[id]?runs=…`, de
-              resultatenpagina van het cluster. Die is er niet meer, en de
-              letterlijke antwoorden stonden er toen al niet meer op: die staan
-              op Analytics, achter het cluster in de tabel
-              (`components/cluster-answers.tsx`). */}
+              resultatenpagina van het cluster. Die is er niet meer: de
+              letterlijke antwoorden staan op Analytics, in de prompttabel
+              onder "Per cluster" (`components/analytics-prompt-table.tsx`),
+              uitklapbaar per vraag en al gefilterd op dit cluster. */}
           {targets.some((t) => t.tracking_run_id) && (
             <Link
               href={`/merk/${profileId}/analytics?cluster=${analysisId}`}

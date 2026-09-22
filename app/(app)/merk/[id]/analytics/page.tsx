@@ -6,7 +6,9 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
 import { AnalyticsFilters } from "@/components/analytics-filters";
 import { AnalyticsClusterTable } from "@/components/analytics-cluster-table";
+import { AnalyticsPromptTable } from "@/components/analytics-prompt-table";
 import { ClusterVisibilityGrid } from "@/components/cluster-visibility-grid";
+import { loadPromptVisibility } from "@/lib/pipeline/prompt-visibility";
 import { activeOnly } from "@/lib/archive";
 import { confidenceBand } from "@/lib/stats/uncertainty";
 import {
@@ -221,6 +223,20 @@ export default async function AnalyticsPage({
     })
     .filter((r) => r.laatste !== null)
     .sort((a, b) => leidend(b.laatste!, bronfilter) - leidend(a.laatste!, bronfilter));
+
+  // ── De prompttabel: elke gemeten vraag, over alle zichtbare clusters heen ─
+  //
+  // Dezelfde ronde per cluster als in "Per cluster" (`r.laatste.week_no`), dus
+  // nooit een ander getal dan de tabel ernaast.
+  const promptVisibility = await loadPromptVisibility(
+    supabase,
+    perCluster.map((r) => ({
+      analysisId: r.cluster.id,
+      clusterName: r.cluster.name,
+      weekNo: r.laatste!.week_no,
+    })),
+    bronfilter,
+  );
 
   // ── Het merkcijfer: gewogen op het aantal metingen per cluster ───────────
   //
@@ -475,6 +491,20 @@ export default async function AnalyticsPage({
             labelNaamPerId={labelNaamPerId}
             merkId={id}
             bron={bronfilter}
+          />
+        </div>
+      )}
+
+      {/* ── 4. Per prompt: elke gemeten vraag, sterkste zichtbaarheid boven ── */}
+      {promptVisibility.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <span className="mono-label">Prompts</span>
+          <AnalyticsPromptTable
+            rows={promptVisibility}
+            merkId={id}
+            ownTerms={[profile.brand_name, ...(profile.aliases ?? [])].filter(
+              (t): t is string => Boolean(t && t.trim()),
+            )}
           />
         </div>
       )}
