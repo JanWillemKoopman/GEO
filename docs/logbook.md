@@ -11092,3 +11092,39 @@ bij een maandronde de verkeerde periode pakt, liegt over iets waar de klant toch
 
 `tsc --noEmit`, `test:unit` (5035), `test:chain` (728) en `build` groen. Migratie 0107 toegepast op
 productie en nagerekend.
+
+## 22 september 2026 (2): "wat je al invulde" gegroepeerd, en het potloodje repareert de feitenbank
+
+Het overzicht van al beantwoorde vragen op "Openstaande vragen" was één platte lijst zonder enige
+structuur: bij Van den Udenhout 37 regels achter elkaar, zonder cluster, zonder bullet, en zonder
+manier om een fout antwoord te corrigeren zonder de vraag terug te zoeken tussen de open vragen
+(screenshot van de eigenaar). `AnsweredOverzicht` in `fact-requests.tsx` groepeert nu op dezelfde
+clusters als het filter erboven, één bullet per vraag, met een potloodje dat de vraag inline
+openklapt met hetzelfde invoerveld als een open vraag.
+
+**Het potloodje stuurt naar dezelfde `PATCH /api/profiles/[id]/facts` als een eerste antwoord**, dus
+er kwam geen nieuwe route bij. Wat wél ontbrak: `answerFact()` (`lib/facts.ts`) ging ervan uit dat
+een antwoord maar één keer geschreven wordt. Twee plekken braken zonder dat er ooit een potloodje
+was om het te merken:
+
+- **`proof_points`** kreeg bij elke opslag een nieuwe regel `"${vraag} ${antwoord}"` toegevoegd, en
+  controleerde alleen of exact diezelfde regel al bestond. Wijzig je het antwoord, dan blijft de
+  oude regel gewoon staan naast de nieuwe: "levert 250 auto's per jaar" naast "levert 300 auto's per
+  jaar", allebei als vaststaand feit voor de schrijver.
+- **`brand_facts`** (migratie 0036) bewaart elk feit onder `claimKey()` van de HELE bewering, vraag
+  én antwoord samen. Wijzig je het antwoord, dan verandert die sleutel mee, dus het "oude" feit
+  wordt nooit als vervangen (`superseded_by`) gemarkeerd: de bank groeit met een spookfeit dat
+  niemand ooit corrigeert.
+
+Beide zijn nu een deterministisch vangnet in `answerFact()` in plaats van een aanname over hoe vaak
+er beantwoord wordt (conventie 1): bij een wijziging (oude status `beantwoord`, ander antwoord)
+verwijdert de proof_points-update eerst elke regel die met dezelfde vraag begint, en wordt elk
+actief `brand_facts`-feit met de OUDE sleutel voor dit profiel op `superseded_by` naar zichzelf
+gezet (dezelfde truc als `factstore.ts` al gebruikt om de unieke index vrij te maken zonder de rij
+te verwijderen). `buildFactBase()` leest bij de eerstvolgende pagina toch al vers uit
+`fact_requests`, dus die kant van de doorvoer werkte al; het was specifiek de kopie in `proof_points`
+en de identiteit in `brand_facts` die achterbleven.
+
+`tsc --noEmit`, `test:unit` (5035), `test:chain` (728) en `build` groen. Geen migratie nodig, alleen
+bestaande kolommen (`brand_facts.superseded_by`, `profiles.proof_points`) worden nu ook bij een
+wijziging bijgewerkt.
