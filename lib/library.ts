@@ -19,6 +19,7 @@
  * het scherm. Dat hoort dus in een pure, testbare module (conventie 2), en niet
  * verspreid over een paar `useMemo`-blokken.
  */
+import type { ContentAction } from "@/lib/types/database";
 
 /** Alleen wat de lijst en de filters nodig hebben. Bewust smal: dit gaat naar de client. */
 export interface LibraryRow {
@@ -28,6 +29,8 @@ export interface LibraryRow {
   cluster: string;
   title: string;
   type: string;
+  /** Nieuwe pagina of een bestaande verbeteren (`lib/plan-status.ts`, `CONTENT_ACTION_LABEL`). */
+  action: ContentAction;
   status: string;
   /**
    * Herstelplan na audit T1.2: `status: "ready"` betekent "de pijplijn is
