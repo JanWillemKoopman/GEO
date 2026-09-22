@@ -12,7 +12,7 @@
  * en tekent niets. `plan-calendar-view.tsx` doet de weergave.
  */
 import { LAATSTE_DAG } from "@/lib/plan-schedule";
-import type { PlannedPageStatus } from "@/lib/types/database";
+import type { ContentAction, PlannedPageStatus } from "@/lib/types/database";
 
 export interface CalendarPagina {
   id: string;
@@ -20,6 +20,8 @@ export interface CalendarPagina {
   status: PlannedPageStatus;
   contentPieceId: string | null;
   topicId: string | null;
+  /** Nieuwe pagina of optimalisatie van een bestaande; `null` = nog onbekend. */
+  recommendationAction: ContentAction | null;
 }
 
 export interface CalendarDag {
@@ -44,6 +46,7 @@ export function calendarDagen(
     is_buffer: boolean;
     content_piece_id?: string | null;
     topic_id?: string | null;
+    recommendation_action?: ContentAction | null;
   }[],
 ): CalendarDag[] {
   const perDag = new Map<number, CalendarPagina[]>();
@@ -59,6 +62,7 @@ export function calendarDagen(
       status: p.status,
       contentPieceId: p.content_piece_id ?? null,
       topicId: p.topic_id ?? null,
+      recommendationAction: p.recommendation_action ?? null,
     });
     perDag.set(dag, lijst);
   }

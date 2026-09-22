@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { PLAN_STATUS_META, type StatusTone } from "@/lib/plan-status";
+import { Icon } from "@/components/icon";
+import { PLAN_STATUS_META, CONTENT_ACTION_LABEL, type StatusTone } from "@/lib/plan-status";
 import { monthCalendar } from "@/lib/plan-schedule";
 import { contentHref } from "@/lib/plan-overview";
 import { calendarDagen, type CalendarDag, type CalendarPagina } from "@/lib/plan-calendar";
@@ -113,8 +114,13 @@ function DagPopup({
       >
         <div className="flex items-center justify-between gap-2">
           <h3 className="type-body-emphasis">{gekozenDag.label}</h3>
-          <button type="button" onClick={onSluiten} className="text-muted hover:text-primary">
-            Sluiten
+          <button
+            type="button"
+            onClick={onSluiten}
+            className="btn-ghost btn-icon btn-sm btn-rect"
+            aria-label="Popup sluiten"
+          >
+            <Icon naam="sluiten" size={16} />
           </button>
         </div>
         <ul className="flex flex-col gap-2">
@@ -122,15 +128,20 @@ function DagPopup({
             const meta = PLAN_STATUS_META[p.status];
             const href = contentHref(p.contentPieceId, p.topicId ? (analyseVanOnderwerp.get(p.topicId) ?? null) : null);
             return (
-              <li key={p.id} className="flex items-center justify-between gap-2">
-                {href ? (
-                  <Link href={href} className="font-medium hover:underline">
-                    {p.title}
-                  </Link>
-                ) : (
-                  <span className="font-medium">{p.title}</span>
+              <li key={p.id} className="flex flex-col gap-1">
+                <div className="flex items-center justify-between gap-2">
+                  {href ? (
+                    <Link href={href} className="font-medium hover:underline">
+                      {p.title}
+                    </Link>
+                  ) : (
+                    <span className="font-medium">{p.title}</span>
+                  )}
+                  <span className={paginaChip(meta.tone)}>{meta.label}</span>
+                </div>
+                {p.recommendationAction && (
+                  <span className="text-sm text-muted">{CONTENT_ACTION_LABEL[p.recommendationAction]}</span>
                 )}
-                <span className={paginaChip(meta.tone)}>{meta.label}</span>
               </li>
             );
           })}
@@ -185,7 +196,7 @@ function MaandGrid({ dagen, onKiesDag }: { dagen: CalendarDag[]; onKiesDag: (dag
             {d.dag}
             <span
               className="absolute -right-1 -top-1 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full px-0.5 text-[0.55rem] font-semibold leading-none"
-              style={{ background: "var(--bg-page)", color: "inherit", border: "1px solid currentColor" }}
+              style={{ background: "var(--bg-inverse)", color: "var(--text-inverse)" }}
             >
               {d.paginas.length}
             </span>
