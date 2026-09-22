@@ -6,7 +6,7 @@ import type { AnalysisCardMetrics as Metrics } from "@/lib/dashboard";
  * dossier, wie meer wil weten klikt door naar de analyse zelf.
  */
 export function AnalysisCardMetrics({ metrics }: { metrics: Metrics }) {
-  const { visibilityScore, openQuestions, suggestedArticles, writtenArticles, measurementCount } =
+  const { visibilityScore, searchQueries, suggestedArticles, writtenArticles, measurementCount } =
     metrics;
 
   return (
@@ -15,7 +15,7 @@ export function AnalysisCardMetrics({ metrics }: { metrics: Metrics }) {
         value={visibilityScore != null ? `${Math.round(visibilityScore)}%` : "-"}
         label="Zichtbaarheid"
       />
-      <Metric value={openQuestions != null ? String(openQuestions) : "-"} label="Openstaande vragen" />
+      <Metric value={searchQueries != null ? String(searchQueries) : "-"} label="Zoekopdrachten" />
       <Metric value={String(suggestedArticles)} label="Voorgesteld" />
       <Metric value={String(writtenArticles)} label="Geschreven" />
       <span className="mono-label" style={{ fontSize: "0.65rem" }}>
