@@ -70,12 +70,22 @@ function OnderwerpGroep({ groep }: { groep: WachtrijGroep }) {
  * regel als "Maak de pagina over wagenparkbeheer..." er hetzelfde uit als "6
  * vragen over je bedrijf": allebei een titel en een knop, zonder dat duidelijk
  * was wát voor taak het was (`docs/logbook.md`, 21 september).
+ *
+ * ⚠️ De hele kaart is de link (`.card-link`), sinds 22 september 2026. De knop
+ * rechts is nu een `<span>` die er hetzelfde uitziet: een tweede `<a>` erin zou
+ * ongeldige geneste links geven. `btn-outline` in plaats van `btn-primary`, om
+ * dezelfde reden als "Bekijk je zichtbaarheid" bovenaan het scherm dat
+ * `btn-outline` gebruikt: nu de hele kaart klikbaar is, hoeft de knop niet meer
+ * de opvallendste vorm te dragen.
  */
 function WachtrijKaart({ item }: { item: WorkItem }) {
   const blokkerend = workChipTone(item.kind) === "danger";
 
   return (
-    <div className={`card ${blokkerend ? "card-danger" : ""} flex flex-wrap items-start gap-4`}>
+    <Link
+      href={item.href}
+      className={`card card-link ${blokkerend ? "card-danger" : ""} flex-wrap items-start gap-4`}
+    >
       <span className="pt-0.5 text-secondary">
         <Icon naam={workKindIcon(item.kind)} size={20} />
       </span>
@@ -88,10 +98,10 @@ function WachtrijKaart({ item }: { item: WorkItem }) {
         <span className="text-sm text-secondary">{item.why}</span>
         {item.meta && <span className="mono-label">{item.meta}</span>}
       </div>
-      <Link href={item.href} className="btn-primary btn-sm shrink-0">
+      <span className="btn-outline btn-sm shrink-0">
         {item.actionLabel ?? "Bekijken"}
         <Icon naam="naar" size={14} />
-      </Link>
-    </div>
+      </span>
+    </Link>
   );
 }

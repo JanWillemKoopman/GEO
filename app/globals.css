@@ -278,6 +278,11 @@
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  /* Uitzondering op de regel hierboven, alleen voor een kaart die zelf de hele
+     link is (`.card-link`, 22 september 2026): zonder knop erin is een rand
+     alleen niet genoeg signaal dat het blok klikbaar is. Zwart/grijs in de
+     lichte stand, limoen in de donkere; zie die stand voor het waarom. */
+  --shadow-hover: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 3px 10px rgba(0, 0, 0, 0.1);
 
   /* ── Vorm ─────────────────────────────────────────────────────────────────
      De radiusschaal van OKX, GEMETEN uit hun `--okd-border-radius-*`. Zeven
@@ -580,6 +585,9 @@
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
     --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+    /* Limoen (`--accent`), niet grijs: op zwart is dat het enige kleuraccent
+       dat als "klikbaar" leest in plaats van als "opgetild". */
+    --shadow-hover: 0 0 0 1px rgba(188, 255, 47, 0.25), 0 0 14px rgba(188, 255, 47, 0.22);
   }
 }
 
@@ -695,6 +703,7 @@
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+  --shadow-hover: 0 0 0 1px rgba(188, 255, 47, 0.25), 0 0 14px rgba(188, 255, 47, 0.22);
 }
 
 /* Tailwind-utilities koppelen aan de tokens (v4 @theme inline). */
@@ -1194,6 +1203,29 @@ table {
   background-color: var(--bg-layer-2);
 }
 .card-interactive:focus-visible {
+  outline: var(--border-width-sm) solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* Een kaart die zelf de link is, zonder losse knop erin (`WachtrijKaart`,
+   22 september 2026). Zonder knop is de kleurverandering van
+   `.card-interactive` te stil; de schaduw is het enige signaal dat het hele
+   blok klikbaar is. Vandaar wél `--shadow-hover` hier, in weerwoord op de
+   regel bij `--shadow-sm`. */
+.card-link {
+  display: flex;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+}
+.card-link:hover {
+  border-color: var(--border-emphasis);
+  box-shadow: var(--shadow-hover);
+}
+.card-link:active {
+  background-color: var(--bg-layer-2);
+}
+.card-link:focus-visible {
   outline: var(--border-width-sm) solid var(--border-focus);
   outline-offset: 2px;
 }
