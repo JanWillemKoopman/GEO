@@ -11365,3 +11365,43 @@ beoordelen gemaakt en zou een losse maatvoering als "20*30 cm" stukmaken. Zes as
 `tsc --noEmit`, `test:unit` (5086, 27 nieuwe; dezelfde vier al bestaande mislukkingen over "de S" en
 de navigatievolgorde in Strategie, ongerelateerd), `test:chain` (732, scenario 17 nieuw) en `build`
 groen. Geen migratie: alle gebruikte kolommen bestaan al.
+
+## 22 september 2026 (27): de eerste echte Search Console-koppeling, en een rijen-versus-dagen bug
+die pas bij echte data zichtbaar werd
+
+`GOOGLE_SERVICE_ACCOUNT_JSON` stond sinds fase 5 (11 augustus) nooit in Vercel: geen serviceaccount
+aangemaakt, geen enkel profiel met een `gsc_property`. De eigenaar had zelf al een serviceaccount
+aangemaakt (`gsc-reader@gen-lang-client-0646623492.iam.gserviceaccount.com`) en het adres bij Van den
+Udenhout aan Search Console toegevoegd, dus de sleutel hoefde alleen nog in Vercel gezet te worden.
+
+Eerste poging ging fout: de private key in de omgevingsvariabele kreeg echte regeleindes in plaats
+van de letterlijke `\n`-tekens die een geldig JSON-bestand vereist, waardoor `JSON.parse()` in
+`lib/search-console/key-state.ts` faalde en de app de sleutel als "niet ingesteld" las (Vercel
+markeerde hem bovendien als "Needs Attention" omdat hij als leesbaar type stond in plaats van Secret).
+Tweede poging: de waarde correct ge-escaped opnieuw gezet, het type naar Secret, en getest los van de
+app door zelf een JWT te tekenen en in te wisselen bij Google (`oauth2.googleapis.com/token` gaf een
+geldig token terug) voordat de klant het nogmaals probeerde.
+
+Daarna werkte de koppeling: `gsc_verified_at` staat, 25.000 rijen (89 dagen × pagina's, 23 juni tot en
+met 19 september) staan in `search_console_days`. Maar het koppelingenscherm toonde "1000 dagen" in
+plaats van 89. Twee fouten tegelijk: de tellus in `app/(app)/instellingen/koppelingen/page.tsx` telde
+RIJEN in plaats van unieke `day`-waarden (de tabel heeft één rij per dag én per pagina, conventie
+`dimensions: ["date", "page"]` uit `zoekverkeer-in-de-keten.md`), en de query had geen expliciete
+`.limit()`, dus Supabase stopte stil bij zijn standaard paginagrootte van 1000 rijen: precies het getal
+dat op het scherm stond. Bij testdata (91 rijen, zie besluit 17 augustus) viel dat nooit op; bij de
+eerste klant met maanden echte data wel.
+
+Drie plekken lazen `search_console_days` zonder limiet en met hetzelfde risico op een stille
+steekproef in plaats van het volledige bereik: `instellingen/koppelingen/page.tsx` (nu telt hij
+unieke dagen, met `.limit(200000)`), `merk/[id]/analytics/page.tsx` (de opbrengstberekening, had bij
+25.000 rijen op 1000 gestopt en dus een fractie van de echte opbrengst getoond) en
+`merk/[id]/analytics/zoekverkeer/page.tsx` (dezelfde 1000-rijenval voor de grafiek zelf). Alle drie nu
+met `.limit(200000)`, ruim boven wat realistisch is (16 maanden Search Console-geschiedenis × enkele
+honderden pagina's).
+
+`tsc --noEmit`, `test:unit` (5059, dezelfde vier bekende mislukkingen), `test:chain` (728) en `build`
+groen. Geen migratie, alleen queries aangepast. Geen nieuwe testcase: de bug zat in productiecode die
+alleen met een rijenaantal boven 1000 zichtbaar wordt, en dat na te bouwen in `test-unit.ts` zou meer
+mock-gewicht kosten dan het treft, tegenover het aanroepen van de echte Supabase-data waarmee dit al
+geverifieerd is (conventie 10).
+
