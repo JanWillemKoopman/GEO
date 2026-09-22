@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Icon } from "@/components/icon";
+import type { IcoonNaam } from "@/lib/icons";
 import { workChipTone, workKindIcon, WORK_KIND_LABEL } from "@/lib/work-kind";
 import type { WorkItem } from "@/lib/work";
 import type { WachtrijOverzicht, WachtrijSectie } from "@/lib/wachtrij";
@@ -29,8 +30,31 @@ import type { WachtrijOverzicht, WachtrijSectie } from "@/lib/wachtrij";
  * de linkerkolom eerst en lopen pas door naar de tweede zodra de eerste vol
  * is, en `break-inside-avoid` op elke sectie voorkomt dat één sectie
  * middenin geknipt wordt.
+ *
+ * ── ⚠️ ÉÉN WITTE KAART, GEEN LOS BLOK OP DE PAGINAKLEUR (22 september 2026) ──
+ *
+ * Stond eerst zonder `.card` direct op `--bg-base`, terwijl het stat-blok
+ * erboven en het contentplan eronder wél in een witte kaart zitten. Dat las
+ * als een gat tussen twee kaarten in plaats van een derde kaart in de reeks.
+ * `SECTIE_ICOON` hergebruikt bestaande iconen (dezelfde tekeningen als de
+ * bijbehorende `WorkKind` in `lib/icons.ts`) zodat een subkop ook zonder te
+ * lezen bij Cluster, Contentplan, Openstaande vragen of Bibliotheek te
+ * plaatsen is.
+ *
+ * ⚠️ Geen verticale lijn tussen de kolommen: bij `column-count` weet je niet
+ * vooraf welke sectie in welke kolom landt (dat hangt af van hun hoogte), dus
+ * een rand op "elk kind behalve het eerste" zou ook tussen twee secties in
+ * dezelfde kolom verschijnen. De ruime `gap-x-10` scheidt de kolommen zonder
+ * dat risico.
  */
 const PER_SUBKOP_ZICHTBAAR = 4;
+
+const SECTIE_ICOON: Record<WachtrijSectie["kop"], IcoonNaam> = {
+  Cluster: "goedkeuring",
+  Contentplan: "plannen",
+  "Openstaande vragen": "feit",
+  Bibliotheek: "bibliotheek",
+};
 
 export function WachtrijLijst({ overzicht }: { overzicht: WachtrijOverzicht }) {
   return (
@@ -39,12 +63,17 @@ export function WachtrijLijst({ overzicht }: { overzicht: WachtrijOverzicht }) {
         <WachtrijKaart key={item.id} item={item} />
       ))}
       {overzicht.secties.length > 0 && (
-        <div className="columns-1 gap-x-8 md:columns-2">
-          {overzicht.secties.map((sectie) => (
-            <div key={sectie.kop} className="mb-6 break-inside-avoid">
-              <SectieBlok sectie={sectie} />
-            </div>
-          ))}
+        <div className="card">
+          <div className="columns-1 gap-x-10 md:columns-2">
+            {overzicht.secties.map((sectie, i) => (
+              <div
+                key={sectie.kop}
+                className={`break-inside-avoid ${i > 0 ? "mt-6" : ""}`}
+              >
+                <SectieBlok sectie={sectie} />
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -54,20 +83,30 @@ export function WachtrijLijst({ overzicht }: { overzicht: WachtrijOverzicht }) {
 function SectieBlok({ sectie }: { sectie: WachtrijSectie }) {
   return (
     <div className="flex flex-col gap-4">
-      <h3 className="text-base font-semibold">{sectie.kop}</h3>
+      <h3 className="flex items-center gap-2 text-base font-semibold">
+        <span className="text-secondary">
+          <Icon naam={SECTIE_ICOON[sectie.kop]} size={17} />
+        </span>
+        {sectie.kop}
+      </h3>
       {sectie.subkoppen.map((sub) => (
-        <div key={sub.subkop} className="flex flex-col gap-2">
+        <div key={sub.subkop} className="flex flex-col gap-1.5">
           <span className="mono-label">
             {sub.subkop} · {sub.items.length}
           </span>
-          <ul className="flex flex-col gap-1.5">
+          <ul className="flex flex-col">
             {sub.items.slice(0, PER_SUBKOP_ZICHTBAAR).map((item) => (
-              <li key={item.id} className="flex items-baseline gap-2 pl-0.5">
-                <span aria-hidden="true" className="text-muted">
-                  •
-                </span>
-                <Link href={item.href} className="min-w-0 truncate text-sm hover:underline">
-                  {item.title}
+              <li key={item.id}>
+                <Link
+                  href={item.href}
+                  className="group -mx-2 flex min-w-0 items-center gap-2 rounded-[var(--radius-md)] px-2 py-1 text-sm hover:bg-[var(--bg-surface-raised)]"
+                >
+                  <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                  <Icon
+                    naam="naar"
+                    size={13}
+                    className="shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100"
+                  />
                 </Link>
               </li>
             ))}
@@ -75,7 +114,7 @@ function SectieBlok({ sectie }: { sectie: WachtrijSectie }) {
           {sub.items.length > PER_SUBKOP_ZICHTBAAR && (
             <Link
               href={sectie.overzichtHref}
-              className="inline-flex w-fit items-center gap-1.5 pl-4 text-sm font-medium hover:underline"
+              className="inline-flex w-fit items-center gap-1.5 text-sm font-medium hover:underline"
             >
               Nog {sub.items.length - PER_SUBKOP_ZICHTBAAR}{" "}
               {sub.items.length - PER_SUBKOP_ZICHTBAAR === 1 ? "punt" : "punten"} bekijken
