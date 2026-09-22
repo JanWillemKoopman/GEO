@@ -107,3 +107,29 @@ export function questionCountLine(uniqueQuestions: number, runs: number): string
     `zegt hoeveel vragen er onderzocht zijn, en verzin er geen ander.${metingen}`
   );
 }
+
+/**
+ * Knipt de samenvatting af op maximaal `maxZinnen` zinnen (conventie 1).
+ *
+ * ── DE FOUT DIE DIT REPAREERT ───────────────────────────────────────────────
+ *
+ * ⚠️ Gevonden op 22 september 2026: "Wat dit cluster laat zien" toonde de
+ * volledige rapportsamenvatting plus een lijst met elk gemist vraag, tot wel
+ * vijftien regels. De instructie in `report.ts` vraagt het model om kort te
+ * schrijven, maar "kort" is geen getal en het model schreef soms zeven of acht
+ * zinnen. Een gebruiker die een cluster aanvinkt wil in 3 tot 5 zinnen lezen
+ * hoe het ervoor staat, geen rapport.
+ *
+ * Knippen op zinnen (niet op tekens) omdat een afgekapt teken halverwege een
+ * woord onleesbaar is; een halve zin is dat ook, maar wel te herkennen als
+ * bewust ingekort. Bij twijfel over een zinsgrens (afkortingen als "bv.")
+ * wordt er niet geknipt: te veel is beter dan een verminkte zin.
+ */
+export function kortSamengevat(summary: string, maxZinnen = 5): string {
+  const zinnen = summary.trim().match(/[^.!?]+[.!?]+(?=\s|$)/g);
+  if (!zinnen || zinnen.length <= maxZinnen) return summary.trim();
+  return zinnen
+    .slice(0, maxZinnen)
+    .map((zin) => zin.trim())
+    .join(" ");
+}
