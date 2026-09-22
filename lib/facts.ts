@@ -23,6 +23,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { beoordeelClaim, marktclaimUitleg } from "@/lib/pipeline/claim-plausibility";
 import { isGapQuestion } from "@/lib/pipeline/gap-questions";
+import { claimKey, factFromAnswer } from "@/lib/pipeline/factcard";
 import type { FactRequest } from "@/lib/types/database";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -83,6 +84,40 @@ export async function answerFact(
   if (error || !updatedRow) return { ok: false, error: "Opslaan is niet gelukt.", status: 500 };
   const updated = updatedRow as FactRequest;
 
+  // ── Een bestaand antwoord wijzigen (potloodje op "Openstaande vragen") ────
+  //
+  // `buildFactBase()` leest dit antwoord telkens vers uit `fact_requests`, dus
+  // een pas geschreven pagina ziet een wijziging vanzelf. Wat NIET vanzelf
+  // meegaat is het oude feit dat al met een IDENTITEIT in `brand_facts` staat
+  // (migratie 0036): dat feit is opgeslagen onder de ontdubbelsleutel van het
+  // OUDE antwoord (`claimKey()` neemt de antwoordtekst mee), dus een nieuw
+  // antwoord krijgt gewoon een NIEUWE sleutel en het oude feit blijft "actueel"
+  // staan naast het nieuwe. Zonder dit vlaggen ziet de eerstvolgende feitenkaart
+  // dus zowel het oude als het nieuwe antwoord, en mag het model kiezen, precies
+  // de tegenspraak die `fact-merge.ts` juist zichtbaar moet maken in plaats van
+  // stilzwijgend laten voortbestaan.
+  if (fact.status === "beantwoord" && fact.answer !== null && fact.answer !== input.answer) {
+    const oud = factFromAnswer({ ...fact, answer_type: fact.answer_type ?? "tekst" });
+    const oudeSleutel = oud ? claimKey(oud.text) : "";
+    if (oudeSleutel) {
+      const { data: verouderd } = await admin
+        .from("brand_facts")
+        .select("id")
+        .eq("profile_id", input.profileId)
+        .is("analysis_id", null)
+        .eq("fact_key", oudeSleutel)
+        .is("superseded_by", null);
+      // Wijst voorlopig naar zichzelf, dezelfde onschuldige truc als
+      // `factstore.ts` gebruikt: dat maakt de unieke index (profiel, sleutel)
+      // vrij zonder de rij te verwijderen, zodat een al geschreven pagina die
+      // ernaar verwijst na te trekken blijft. `buildFactBase()` legt bij de
+      // eerstvolgende opbouw het NIEUWE feit onder de nieuwe sleutel vast.
+      for (const rij of verouderd ?? []) {
+        await admin.from("brand_facts").update({ superseded_by: rij.id as string }).eq("id", rij.id as string);
+      }
+    }
+  }
+
   // ── Niet alle klantinput is gelijk (werkpakket A §3.4) ───────────────────
   //
   // Een superlatief of marktclaim zonder cijfer, bron of voorbeeld gaat NIET
@@ -108,11 +143,20 @@ export async function answerFact(
   // met `fact_requests`, maar bewust: `proof_points` is waar de hele
   // schrijfpijplijn al naar kijkt, en de klant kan het daar zelf bijstellen
   // of weghalen.
+  //
+  // ⚠️ Bij een WIJZIGING van een al beantwoorde vraag moet het oude antwoord
+  // hier eerst uit, anders staat straks "levert 250 auto's per jaar" naast
+  // "levert 300 auto's per jaar" allebei als vaststaand feit, en heeft het
+  // potloodje op "Openstaande vragen" niets opgelost. Eén vraag hoort hier aan
+  // hoogstens één regel: die met de vraagtekst als voorvoegsel.
   const line = `${fact.question} ${input.answer}`;
-  if (!input.existingProofPoints.some((p) => p.trim().toLowerCase() === line.toLowerCase())) {
+  const alAanwezig = input.existingProofPoints.some((p) => p.trim().toLowerCase() === line.toLowerCase());
+  if (!alAanwezig) {
+    const voorvoegsel = `${fact.question} `.trim().toLowerCase();
+    const zonderOud = input.existingProofPoints.filter((p) => !p.trim().toLowerCase().startsWith(voorvoegsel));
     await admin
       .from("profiles")
-      .update({ proof_points: [...input.existingProofPoints, line] })
+      .update({ proof_points: [...zonderOud, line] })
       .eq("id", input.profileId);
   }
 

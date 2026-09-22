@@ -222,14 +222,7 @@ export function FactRequests({
             {showAnswered ? "Verberg" : "Toon"} wat je al invulde ({answered.length})
           </button>
           {showAnswered && (
-            <ul className="flex flex-col gap-1.5">
-              {answered.map((f) => (
-                <li key={f.id} className="text-sm">
-                  <span className="text-muted">{f.question} </span>
-                  <span className="text-secondary">{f.answer}</span>
-                </li>
-              ))}
-            </ul>
+            <AnsweredOverzicht facts={answered} naamVan={naamVan} busy={busy} onSend={send} />
           )}
         </div>
       )}
@@ -261,6 +254,151 @@ export function FactRequests({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Wat je al invulde, per cluster, één bullet per vraag met een potloodje erachter.
+ *
+ * ── ⚠️ TOEGEVOEGD OP 22 SEPTEMBER 2026 ──────────────────────────────────────
+ *
+ * Stond hiervoor als platte lijst van tientallen regels achter elkaar, zonder
+ * enige structuur en zonder dat je er iets aan kon veranderen: "als je iets
+ * verkeerd had ingevuld, moest je opnieuw de hele vraag opzoeken tussen de open
+ * vragen" (screenshot van 37 al beantwoorde vragen bij Van den Udenhout). Nu
+ * staan ze per cluster onder elkaar, en corrigeer je een antwoord ter plekke.
+ *
+ * Een wijziging gaat via dezelfde `onSend` als een eerste antwoord: dat roept
+ * `answerFact()` aan, die het OUDE antwoord in `brand_facts` en `proof_points`
+ * vervangt in plaats van ernaast te zetten (`lib/facts.ts`). Zo ziet de
+ * eerstvolgende pagina die ORBIT ENGINE schrijft de correctie vanzelf, zonder dat
+ * je ergens anders in de app nog iets hoeft bij te werken.
+ */
+function AnsweredOverzicht({
+  facts,
+  naamVan,
+  busy,
+  onSend,
+}: {
+  facts: FactRequest[];
+  naamVan: (f: FactRequest) => string | null;
+  busy: string | null;
+  onSend: (factId: string, payload: { answer?: string; skip?: boolean }) => void;
+}) {
+  const groepen = new Map<string, FactRequest[]>();
+  for (const f of facts) {
+    const naam = naamVan(f) ?? "";
+    if (!groepen.has(naam)) groepen.set(naam, []);
+    groepen.get(naam)!.push(f);
+  }
+
+  // Zonder groepen (minder dan twee clusters) is er maar één sleutel: "". Dan
+  // is een kopje erboven ruis, precies zoals het filter hierboven ook pas
+  // verschijnt bij meer dan één groep.
+  if (groepen.size === 1 && groepen.has("")) {
+    return (
+      <ul className="flex flex-col gap-1">
+        {facts.map((f) => (
+          <AnsweredRow key={f.id} fact={f} busy={busy === f.id} onSend={onSend} />
+        ))}
+      </ul>
+    );
+  }
+
+  const namen = Array.from(groepen.keys()).sort((a, b) => a.localeCompare(b, "nl"));
+
+  return (
+    <div className="flex flex-col gap-3">
+      {namen.map((naam) => (
+        <div key={naam} className="flex flex-col gap-1">
+          <span className="mono-label">{naam || "Overig"}</span>
+          <ul className="flex flex-col gap-1">
+            {groepen.get(naam)!.map((f) => (
+              <AnsweredRow key={f.id} fact={f} busy={busy === f.id} onSend={onSend} />
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Eén beantwoorde vraag als bullet, met een potloodje om hem te corrigeren. */
+function AnsweredRow({
+  fact,
+  busy,
+  onSend,
+}: {
+  fact: FactRequest;
+  busy: boolean;
+  onSend: (factId: string, payload: { answer?: string; skip?: boolean }) => void;
+}) {
+  const [bewerken, setBewerken] = useState(false);
+  const [waarde, setWaarde] = useState(fact.answer ?? "");
+
+  if (bewerken) {
+    return (
+      <li className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3">
+        <form
+          className="flex flex-col gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const nieuw = waarde.trim();
+            if (nieuw && nieuw !== fact.answer) onSend(fact.id, { answer: nieuw });
+            setBewerken(false);
+          }}
+        >
+          <span className="text-sm font-medium">{fact.question}</span>
+          <Antwoordveld
+            id={`bewerk-${fact.id}`}
+            vraag={fact}
+            waarde={waarde}
+            zetWaarde={setWaarde}
+            uitgeschakeld={busy}
+          />
+          <div className="flex items-center gap-3">
+            <button type="submit" className="btn-outline btn-sm" disabled={busy || !waarde.trim()}>
+              Opslaan
+            </button>
+            <button
+              type="button"
+              className="text-sm text-secondary hover:underline"
+              onClick={() => {
+                setWaarde(fact.answer ?? "");
+                setBewerken(false);
+              }}
+            >
+              Annuleren
+            </button>
+          </div>
+        </form>
+      </li>
+    );
+  }
+
+  return (
+    <li className="flex items-start gap-1.5 text-sm">
+      <span aria-hidden className="text-muted">
+        •
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="text-muted">{fact.question} </span>
+        <span className="text-secondary">{fact.answer}</span>
+      </span>
+      <button
+        type="button"
+        onClick={() => {
+          setWaarde(fact.answer ?? "");
+          setBewerken(true);
+        }}
+        disabled={busy}
+        className="shrink-0 text-muted hover:text-[var(--text-primary)]"
+        aria-label={`Antwoord op "${fact.question}" wijzigen`}
+        title="Wijzigen"
+      >
+        ✎
+      </button>
+    </li>
   );
 }
 
