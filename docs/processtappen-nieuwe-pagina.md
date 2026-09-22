@@ -31,16 +31,17 @@ betaald onderzoek in gang.
 5. Het systeem legt vast dat deze drie velden "door de adviseur ingevuld" zijn. Dat is een apart
    soort herkomst: het onderzoek hierna mag deze aanname tegenspreken als het iets anders vindt, maar
    mag hem nooit stilzwijgend overschrijven.
-6. Het systeem maakt het merkprofiel aan in de database.
+6. Het systeem legt het merkprofiel vast, zodat het terug te vinden is zodra de adviseur of de
+   klant het weer opent.
 7. Het systeem zet automatisch een reeks van negen onderzoekstaken klaar om te gaan draaien.
 
-> **Sinds migratie 0102 gaat er nog één stap vóór taak 1.** Een lichte titel+meta-doorgang
-> (`profile_light_scan`) bekijkt tot 1000 pagina's van de site, zonder ze volledig te lezen, en
-> gebruikt dat om taak 1 hieronder een beter gefundeerde keuze te laten maken over welke 150
-> pagina's het écht volledig leest. Geen AI-aanroep, dus gratis, maar wel netwerk: dit kan een paar
-> taakrondes duren (tot ~10 minuten in de praktijk). De klant zit er op dit moment nog niet bij, dus
-> die tijd voelt niemand. Lukt deze stap niet, dan gaat taak 1 gewoon door op het URL-pad alleen,
-> zoals hij vóór deze migratie altijd al deed.
+> **Er gaat sinds kort nog één voorbereidende stap vóór taak 1.** Het systeem werpt eerst een
+> vluchtige blik op tot 1000 pagina's van de site, alleen de titel en een korte samenvatting per
+> pagina, zonder ze echt te lezen. Dat helpt taak 1 hieronder een beter onderbouwde keuze te maken
+> over welke 150 pagina's het daarna wél helemaal doorleest. Geen AI aan te pas, dus gratis, maar wel
+> tijd nodig omdat het internet moet bevragen: in de praktijk tot ongeveer 10 minuten. De klant zit
+> er op dit moment nog niet bij, dus die tijd voelt niemand. Lukt dit voorbereidende stapje een keer
+> niet, dan gaat taak 1 gewoon door zoals hij altijd al deed, op het webadres alleen.
 
 ## Fase 2. Het automatische onderzoek (ongeveer 7,5 minuten, ongeveer 25 dollarcent, plus het vooronderzoek hierboven)
 
@@ -64,7 +65,7 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
 14. **Taak 7, testen wat AI-assistenten al weten.** De duurste stap: kent ChatGPT dit bedrijf, klopt
     wat hij zegt, welke bronnen haalt hij aan, zijn er bedrijven met een bijna gelijke naam, en wordt
     het merk genoemd bij een koopvraag waarin geen merknaam voorkomt.
-15. **Taak 8, alles samenbrengen.** Een synthesestap bundelt de zeven vorige taken tot één
+15. **Taak 8, alles samenbrengen.** Een laatste stap bundelt de zeven vorige taken tot één
     merkdossier.
 16. Bij elke taak die niets vindt, toont het scherm een waarschuwing in plaats van een groen vinkje.
     Dat is een bewust verschil: weten dat er iets ontbreekt is iets anders dan denken dat alles
@@ -162,8 +163,8 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
 54. De klant bekijkt de aanbevolen pagina's.
 55. De klant kiest welke pagina of pagina's geschreven moeten worden, los per aanbeveling of in één
     keer met "genereer alles".
-56. Het systeem zet voor elke gekozen pagina een taak in de achtergrondwachtrij. De klant hoeft niet
-    te wachten en mag het scherm sluiten.
+56. Het systeem zet voor elke gekozen pagina zelf een taak klaar die op de achtergrond gaat draaien.
+    De klant hoeft niet te wachten en mag het scherm sluiten.
 57. Voor elke pagina onderzoekt het systeem het onderwerp nog verder: welke deelvragen en
     vervolgvragen hoort een lezer te hebben, welke twijfels leven er, en welke uitleg met bron hoort
     daarbij. Dit gebeurt met een eigen zoekactie op het web.
@@ -194,7 +195,7 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
 
 64. Zodra de laatste pagina uit de gekozen groep zijn contract heeft, start het systeem de
     briefingstap voor de hele groep in één keer.
-65. Het systeem voert een claim-audit uit: welke beweringen heeft elke pagina nodig, en welke
+65. Het systeem controleert alle beweringen: welke beweringen heeft elke pagina nodig, en welke
     daarvan kunnen nog niet onderbouwd worden met de feitenkaart. Per bewering legt het systeem ook
     vast wie hem kan bevestigen. Over algemene vakkennis wordt geen vraag gesteld: een vraag
     waarvan het antwoord op internet staat, kost meer vertrouwen dan hij oplevert.
@@ -242,8 +243,8 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
     bronnen praat" in plaats van gewoon antwoord te geven.
 79. Het systeem checkt op te veel gelijkenis met bestaande content.
 80. Het systeem checkt de leesbaarheid van de tekst.
-81. Het systeem valideert de technische metadata programmatisch en repareert hem zo nodig zelf,
-    zonder daarvoor het AI-model in te schakelen.
+81. Het systeem controleert de technische metadata met een vaste rekenregel en herstelt kleine
+    fouten daar zelf in, zonder daar het AI-model bij te hoeven halen.
 
 ## Fase 11. De kwaliteitspoort en eventueel herstellen
 
