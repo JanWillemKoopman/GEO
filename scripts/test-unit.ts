@@ -6005,6 +6005,20 @@ group("de kalenderweergave van het plan (blok A punt 6, plan-calendar)", () => {
       (d) => d.dag === 5,
     )?.paginas.length === 2,
   );
+
+  // Het popupje bij een dag (bolletje met aantal) heeft de content-piece- en
+  // topic-id nodig om naar de bibliotheek te kunnen linken, net als de
+  // leesweergave dat al deed.
+  const metLink = calendarDagen([
+    pagina({ content_piece_id: "cp1", topic_id: "t1" }),
+  ]);
+  const dagMetLink = metLink.find((d) => d.dag === 5)?.paginas[0];
+  ok("de content-piece-id gaat mee", dagMetLink?.contentPieceId === "cp1");
+  ok("de topic-id gaat mee", dagMetLink?.topicId === "t1");
+  ok(
+    "zonder id's blijft het null, nooit undefined",
+    calendarDagen([pagina()]).find((d) => d.dag === 5)?.paginas[0].contentPieceId === null,
+  );
 });
 
 group("publicatiedata spreiden over een maand (plan-schedule)", () => {
@@ -11595,23 +11609,23 @@ group("de klantweergave kan nooit rechten geven, alleen wegnemen", () => {
 group("het contentplan heeft drie weergaven", () => {
   const scherm = readFileSync("app/(app)/merk/[id]/strategie/plan/page.tsx", "utf8");
 
-  // ⚠️ Alledrie bereikbaar voor iedereen; alleen het beginpunt verschilt. De
-  // klant landt op het overzicht en gaat met één klik naar het bord, de
-  // consultant landt op het bord. Tot 27 augustus 2026 was er alleen het bord,
-  // ook voor de klant, met bovenaan "sleep beschikbare content items naar de
-  // maand waarin ze geschreven moeten worden". Kalender (blok A punt 6) kwam
-  // er als derde bij, zonder de rolregel van de eerste twee te raken.
+  // ⚠️ Alledrie bereikbaar voor iedereen. Sinds 22 september 2026 landt
+  // iedereen zonder `?weergave=` op het bord (Plannen), ongeacht rol: dat is
+  // de weergave waar het meeste werk gebeurt. Tot 27 augustus 2026 was er
+  // alleen het bord, ook voor de klant, met bovenaan "sleep beschikbare
+  // content items naar de maand waarin ze geschreven moeten worden". Kalender
+  // (blok A punt 6) kwam er als derde bij.
   ok("de leesweergave bestaat", scherm.includes("<PlanReadView"));
   ok("het bord bestaat", scherm.includes("<PlanView"));
   ok("de kalenderweergave bestaat", scherm.includes("<PlanCalendarView"));
   ok("er is een schakelaar tussen de drie", scherm.includes("<WeergaveKiezer"));
   ok(
-    "de rol bepaalt alleen het beginpunt",
-    scherm.includes("staff ? \"plannen\" : \"overzicht\""),
+    "zonder weergave in de URL land je op Plannen",
+    /:\s*"plannen";/.test(scherm),
   );
-  // Een weergave in de URL wint van de rol, zodat een gedeelde link bij de
-  // klant en de consultant hetzelfde opent.
-  ok("en de URL wint van de rol", scherm.includes("searchParams"));
+  // Een weergave in de URL wint van het standaardgedrag, zodat een gedeelde
+  // link bij iedereen hetzelfde opent.
+  ok("en de URL wint van het standaardgedrag", scherm.includes("searchParams"));
 
   const lees = readFileSync(
     "app/(app)/merk/[id]/strategie/plan/plan-read-view.tsx",
