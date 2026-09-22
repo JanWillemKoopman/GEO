@@ -10,12 +10,18 @@ import "server-only";
  * - prompts bestaan alleen als A1/A2 al gelukt zijn.
  * - visibility_scores (week 0) bestaat alleen als A3 al gelukt is.
  */
-import type { createClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type PipelineStage = "prepare" | "measure" | "report";
 
+/**
+ * ⚠️ Neemt sinds 22 september 2026 elke Supabase-client aan, en niet alleen de
+ * server-client onder RLS. De herstelroute (`/api/analyses/[id]/hervatten`)
+ * leest dezelfde twee tellingen met de service-role client, en twee versies van
+ * deze functie zouden twee antwoorden op dezelfde vraag betekenen.
+ */
 export async function determineStage(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: SupabaseClient,
   analysisId: string,
 ): Promise<PipelineStage> {
   // ⚠️ Deze telling gebruikt BEWUST geen `requireCount` (F5, 12 augustus 2026),

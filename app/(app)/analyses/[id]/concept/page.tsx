@@ -7,6 +7,8 @@ import { TopicResearchEditor } from "../_editors/topic-research-editor";
 import { ContentBriefEditor } from "../_editors/content-brief-editor";
 import { PromptsManager } from "../_editors/prompts-manager";
 import { ConfirmBar } from "../_editors/confirm-bar";
+import { PrepareProgress } from "../prepare-progress";
+import { determineStage } from "@/lib/pipeline/stage";
 
 export const metadata = { title: "Concept beoordelen" };
 
@@ -26,15 +28,47 @@ export const metadata = { title: "Concept beoordelen" };
  * precies wat er gemeten gaat worden, in de volgorde waarin je het beoordeelt,
  * eerst waar het over gaat, dan wat we gevonden hebben, dan de vragen zelf.
  * De goedkeuringsbalk blijft onderaan in beeld staan.
+ *
+ * ── HET WACHTEN OP HET CONCEPT HOORT OOK HIER (22 september 2026) ──────────
+ *
+ * Het opstellen van het onderzoek en de vragen duurt een paar minuten, en dat
+ * wachtscherm stond op `/analyses/[id]`. Dat adres verwijst sinds vandaag door
+ * naar het clusteroverzicht
+ * (`docs/tasks/clusterresultaat-zonder-eigen-scherm.md`), dus het wachten
+ * verhuist naar het scherm waar het over gaat: je wacht op het concept, dus je
+ * wacht op deze pagina.
+ *
+ * ⚠️ Dit is het ENIGE wachtscherm dat overblijft, en dat is met opzet: hier
+ * wacht je op iets wat jíj daarna moet doen. Op de meting daarna wacht je
+ * nergens op, die loopt door op de server en meldt zichzelf
+ * (`components/cluster-melder.tsx`).
  */
 export default async function ConceptPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const analysis = await getAnalysis(id);
   if (!analysis) notFound();
 
+  // Het concept wordt nog opgesteld (of dat liep vast): dan is dít scherm de
+  // wachtkamer, want dit is waar je op wacht.
+  //
+  // ⚠️ Bij 'mislukt' eerst uitzoeken wélke fase struikelde. Een cluster dat in
+  // de MÉTING vastliep hoort hier niet te wachten op een concept dat allang
+  // klaar is; dat hoort op het clusteroverzicht te staan, met de knop om
+  // opnieuw te proberen.
+  if (analysis.status === "bezig" || analysis.status === "mislukt") {
+    const supabaseVoorFase = await createClient();
+    const fase = await determineStage(supabaseVoorFase, id);
+    if (fase === "prepare") {
+      return <PrepareProgress analysisId={id} initialStatus={analysis.status} />;
+    }
+    redirect(`/merk/${analysis.profile_id}/strategie/clusters`);
+  }
+
   // Al bevestigd? Dan is dit scherm klaar met z'n werk. Het beheer van dezelfde
   // gegevens gaat daarna via Instellingen, zonder de verplichting.
-  if (analysis.status !== "concept_klaar") redirect(`/analyses/${id}`);
+  if (analysis.status !== "concept_klaar") {
+    redirect(`/merk/${analysis.profile_id}/strategie/clusters`);
+  }
 
   const supabase = await createClient();
   const [{ data: profileRow }, { data: researchRow }, { data: promptRows }] = await Promise.all([
@@ -126,7 +160,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
           hier wat er moet gebeuren in plaats van een knop aan te bieden die
           doodloopt. */}
       {activeCount > 0 ? (
-        <ConfirmBar analysisId={id} activeCount={activeCount} />
+        <ConfirmBar analysisId={id} profileId={analysis.profile_id} activeCount={activeCount} />
       ) : (
         <div className="card card-danger">
           <p className="text-secondary">

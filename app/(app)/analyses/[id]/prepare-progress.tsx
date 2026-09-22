@@ -66,7 +66,11 @@ export function PrepareProgress({
   const data = useStatusPoll<StatusPayload>(
     `/api/analyses/${analysisId}/status`,
     (d) => d.status === "concept_klaar" || d.status === "meten",
-    () => router.replace(`/analyses/${analysisId}/instellingen`),
+    // ⚠️ Stuurde tot 22 september 2026 door naar `/instellingen`, een scherm dat
+    // niets met het concept te maken heeft. Dit component staat nu op het
+    // conceptscherm zelf, dus zodra het concept klaar is, hoeft alleen dit
+    // scherm opnieuw te renderen en staat het concept er.
+    () => router.refresh(),
   );
 
   // Definitief mislukt: alle pogingen zijn op. Een tijdelijke storing komt hier

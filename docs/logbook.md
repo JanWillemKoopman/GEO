@@ -37,6 +37,7 @@ verwijzing in de code straks nergens meer heen.
 | `tasks/herstelplan-na-audit.md` T1 t/m T9 | Het herstelplan na de technische audit van 2 september 2026: negen taken, van de contentkwaliteit-lus tot de wachttijd | T1, T3 t/m T9 gebouwd en nagerekend, zie de acht alinea's van 2 en 3 september 2026 hieronder ("het herstelplan na de audit, T1" t/m "..., T9"). T2 (de beoordelingsset voor contentkwaliteit) is door de eigenaar geschrapt, zie de alinea eronder. Verwijderd 3 september 2026 |
 | `css.css`, `docs/nova-i18n.json`, `docs/inspace-app-i18n.json`, `docs/inspace-marketing.txt` | De ruwe brondata achter de Nova/InSpace-vergelijking: Nova's gecompileerde CSS-bundel en de drie tekstcatalogi uit de server-gerenderde loginpagina's | De conclusies eruit staan uitgeschreven in `docs/nova-vs-orbit-engine-proces.md` en `docs/tasks/nova-vergelijking-verbeterpunten.md`, die verder geen ruwe data meer nodig hebben. Verwijderd 21 september 2026, bij de OKX-herontwerpronde |
 | `redesign2026.md` §1 t/m §14 | Het volledige herontwerpplan van Nova naar OKX: de research, het nieuwe design system (§5 t/m §7), de schermspecs (§8), de elf uitvoeringsstappen (§10) en de drie besluiten van de eigenaar (§13, limoen als accent, mobiel een eigen ontwerp, oplevering in stappen) | Gebouwd en op `main`. Het design system zelf staat nu in `docs/designsystem.md`, de mobiele en desktop-indeling in `docs/ux-design.md`. Tientallen componenten citeren nog een paragraafnummer uit dit plan in hun eigen commentaar (bijv. "§8.5", "GEMETEN bij OKX"); dat commentaar blijft staan zoals het geschreven is, want het legt het waarom van die ene regel uit en niet de volledige herkomst. Verwijderd 21 september 2026, toen stap 11 (deze documentatie) klaar was |
+| `tasks/clusters-resultaatscherm-vereenvoudigen.md` A/B/C | De analyse van 16 september 2026 over de dichtheid van het clusterscherm: drie richtingen om de hoofdstukken dunner te maken | Ingehaald. Het scherm zelf is er op 22 september 2026 uit gehaald, zie `tasks/clusterresultaat-zonder-eigen-scherm.md` en de alinea van die datum hieronder. Verwijderd 22 september 2026 |
 
 De volledige originelen staan in de git-historie (laatste versie: de commit vóór de
 documentatie-herstructurering).
@@ -11021,3 +11022,73 @@ grid vervangen door alleen het raster; de "Technische diagnose"-sectie, de `prof
 en de context-factor staleness-check (alleen daarvoor gebruikt) zijn verwijderd.
 
 `tsc --noEmit`, `test:unit` (5015), `test:chain` (722) en `build` groen.
+
+## 22 september 2026: het clusterresultaat verliest zijn scherm en wordt een melding
+
+De eigenaar: "Door de resultatenpagina van de cluster te verwijderen wil ik minder ruis creëren. Nu
+staat deze informatie op meerdere plekken waar dit niet hoort." Dat is dezelfde beweging als op 16
+september 2026, toen dit scherm drie van zijn vier hoofdstukken verloor omdat de cijfers al op
+Analytics stonden. Wat toen overbleef (de conclusie, de vragen, de voorgestelde pagina's) heeft
+inmiddels ook elders een vaste plek, dus bleef er een scherm over dat alleen nog herhaalde.
+
+**Wat weg is.** `/analyses/[id]` toonde twee dingen: een voortgangsbalk zolang de meting liep, en
+daarna de uitslag. Allebei verdwenen. Het adres verwijst nu door, want er staan links naar in
+verstuurde rapportmails en in bladwijzers; een 404 kost daar een gesprek en niet alleen een klik.
+Met het scherm verdwenen `_chapters/inhoud.tsx`, `measure-progress.tsx`, `report-progress.tsx` (al
+sinds 16 september zonder aanroeper) en de twee schrijfknoppen uit `_work/`.
+
+**Het wachtscherm was al overbodig, en dat was aantoonbaar.** `POST /api/analyses/[id]/confirm`
+plant de meettaken zelf in sinds optimalisatie.md 1.5. De balk startte niets, hij keek alleen toe
+naar werk dat doorliep als je de tab sloot. De klant stond dus minutenlang te kijken naar iets waar
+hij niet bij hoefde te zijn.
+
+**Wat ervoor in de plaats kwam.** Na het bevestigen ga je terug naar je clusteroverzicht met de
+melding "Cluster gelanceerd", en de uitslag komt je achterna waar je ook bent:
+`components/cluster-melder.tsx` staat in de app-schil en vraagt elke twintig seconden of er een
+cluster klaar is. Bij een verborgen tabblad stopt die klok. "Cluster succesvol gemeten" draagt de
+drie cijfers die de eigenaar vroeg (zichtbaarheid, openstaande vragen, voorgestelde pagina's), een
+mislukte ronde krijgt dezelfde behandeling in het rood. Zonder dat tweede geval blijft een klant
+wachten op een melding die nooit komt, en dat is erger dan het scherm dat verdween.
+
+⚠️ **De regel "één melding per ronde" zit in de database en niet in het scherm.** Migratie 0107 voegt
+`analyses.resultaat_gezien_at` toe; leeg betekent "nog te melden". `enqueueMeasurement()` maakt hem
+leeg, en alleen op het moment dat er écht meettaken bijkomen. Zou hij dat ook doen bij een ronde die
+niets in te plannen had, dan meldt de app de uitslag van vorige maand opnieuw alsof hij vers is,
+elke keer dat de maandcron langskomt. Scenario 16 in `test-chain.ts` legt allebei de kanten vast.
+De migratie zette de kolom meteen op `updated_at` voor alles wat al af was: op productie 9 clusters,
+7 weggezet, 0 nog te melden, dus niemand kreeg bij de eerste schermopening zeven meldingen over
+uitslagen van weken geleden.
+
+**Wat er verhuisde in plaats van verdween.** De conclusie van de meting in gewone taal (`summary`
+plus de gaten) stond nergens anders en staat nu op Analytics zodra je één cluster kiest. De knop
+"probeer het opnieuw" staat op het clusterkaartje, met een nieuwe route
+(`POST /api/analyses/[id]/hervatten`) die op de server met `determineStage()` uitzoekt wélke fase
+struikelde. Dat wist het oude scherm omdat het per fase een ander component toonde; een kaartje in
+een lijst kan dat niet weten en hoort dat ook niet te weten.
+
+**"Schrijf deze pagina nu" is terug, op de juiste plek.** Op het oude scherm stond per aanbeveling
+een knop om meteen te laten schrijven. Zonder die knop zou de snelste weg naar een tekst "wacht tot
+de cron over tien dagen langskomt" zijn. Hij staat nu in het contentplan, in het menu achter de drie
+puntjes bij een geplande pagina, en **alleen bij de beheerder**: hij slaat de goedkeuring van de
+maand en het tiendaagse venster over, en dat zijn precies de twee regels die de klant beschermen
+tegen betaald werk dat hij niet gevraagd heeft (besluit 18). De server controleert dat recht nog een
+keer, want een knop verbergen is geen slot, en het dagplafond geldt onverkort. De vijf stappen die
+een geplande pagina aan het schrijven krijgen zijn daarvoor uit de cron getild naar
+`lib/plan-write-start.ts`: twee kopieën van die stappen zouden gegarandeerd uit elkaar lopen, en dan
+stuurt de ene wel de doelvragen mee en de andere niet.
+
+**Off-site gaat er voorlopig helemaal uit.** Besluit van de eigenaar. Het is het enige onderdeel van
+dit scherm dat nergens anders terugkomt: het paneel is verwijderd en het werkitem is uit
+`lib/work.ts` gehaald, want een taak zonder scherm om hem af te vinken is een taak die de klant
+nooit kan afronden. De data blijft (`offsite_tasks` wordt nog gevuld), en de scan blijft draaien,
+want diezelfde taak vult `source_landscape` en dáárop draait Analytics → Concurrenten. Wie die
+aanroep ooit uitzet om kosten te sparen, haalt dus ook dat scherm leeg. De voorwaarden voor een
+terugkeer staan in `docs/tasks/clusterresultaat-zonder-eigen-scherm.md`, en ze beginnen niet bij
+"het paneel terugzetten" maar bij de vraag wiens werk dit eigenlijk is.
+
+**Bewust niet gebouwd:** een voortgangsteller ("12 van de 30 vragen") op het clusterkaartje. Dat
+cijfer vraagt per cluster een telling over `tracking_runs` in de juiste periode, en een teller die
+bij een maandronde de verkeerde periode pakt, liegt over iets waar de klant toch niets aan kan doen.
+
+`tsc --noEmit`, `test:unit` (5035), `test:chain` (728) en `build` groen. Migratie 0107 toegepast op
+productie en nagerekend.

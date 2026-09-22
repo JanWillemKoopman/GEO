@@ -5,8 +5,12 @@ import { redirect } from "next/navigation";
  * 2026 naar hoofdstuk 02 van het dossier. Sinds 16 september 2026 staat de
  * letterlijke antwoordenlijst niet meer op het cluster zelf: de cijfers erachter
  * horen op Analytics, en het cluster toont alleen nog de conclusie in gewone
- * taal. Deze route blijft bestaan voor bestaande links, en stuurt door naar het
- * cluster zelf.
+ * taal. Deze route blijft bestaan voor bestaande links.
+ *
+ * Sinds 22 september 2026 is ook de clusterpagina zelf weg, dus het adres
+ * hieronder wijst alleen nog de weg
+ * (`docs/tasks/clusterresultaat-zonder-eigen-scherm.md`). De letterlijke
+ * antwoorden staan op Analytics, achter het cluster in de tabel.
  */
 export default async function AntwoordenRedirect({
   params,

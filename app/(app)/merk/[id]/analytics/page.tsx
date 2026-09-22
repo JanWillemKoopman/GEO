@@ -146,6 +146,39 @@ export default async function AnalyticsPage({
   const bronnen = beschikbareBronnen(scores);
   const bronfilter = bronnen.length > 1 ? leesBronfilter(bronUitAdres) : BRONFILTER_STANDAARD;
 
+  // ── De conclusie van de meting, als er één cluster gekozen is ────────────
+  //
+  // ⚠️ Deze kaart stond tot 22 september 2026 op de resultatenpagina van het
+  // cluster ("Wat dit cluster laat zien"). Die pagina is weggehaald omdat ze
+  // cijfers herhaalde die hier al stonden
+  // (`docs/tasks/clusterresultaat-zonder-eigen-scherm.md`). De conclusie in
+  // gewone taal stond er echter NIET al: dit scherm kon rekenen en vergelijken,
+  // maar niet in één zin zeggen wat de meting betekent. Vandaar dat dit stuk
+  // wél meeverhuisd is.
+  //
+  // Alleen bij één gekozen cluster: een samenvatting van cluster A boven de
+  // cijfers van A tot en met F leest als een uitspraak over alles.
+  let clusterConclusie: { samenvatting: string | null; gaten: string[] } | null = null;
+  if (clusterfilter !== "alles") {
+    const { data: rapportRij } = await supabase
+      .from("reports")
+      .select("summary, gaps_json")
+      .eq("analysis_id", clusterfilter)
+      .order("week_no", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (rapportRij) {
+      const gaten = ((rapportRij.gaps_json ?? []) as { problem?: unknown }[])
+        .map((g) => (typeof g.problem === "string" ? g.problem : null))
+        .filter((g): g is string => Boolean(g));
+      const samenvatting =
+        typeof rapportRij.summary === "string" && rapportRij.summary.trim() !== ""
+          ? rapportRij.summary
+          : null;
+      if (samenvatting || gaten.length > 0) clusterConclusie = { samenvatting, gaten };
+    }
+  }
+
   const zichtbareClusterIds = new Set(
     (clusterfilter === "alles" ? clustersBijLabel : clustersBijLabel.filter((c) => c.id === clusterfilter)).map(
       (c) => c.id,
@@ -348,6 +381,38 @@ export default async function AnalyticsPage({
         clusterfilter={clusterfilter}
       />
 
+      {/* ── De conclusie van het gekozen cluster ────────────────────────────
+          Onder de filterbalk en boven de cijfers: eerst wat het betekent, dan
+          waar het vandaan komt. De twee links eronder wijzen naar de plekken
+          waar het werk uit deze meting staat; sinds 22 september 2026 is dat
+          de enige plek waar een klant dat verband nog te zien krijgt. */}
+      {clusterConclusie && (
+        <div className="card flex flex-col gap-3">
+          <span className="mono-label">Wat dit cluster laat zien</span>
+          {clusterConclusie.samenvatting && (
+            <p className="text-secondary">{clusterConclusie.samenvatting}</p>
+          )}
+          {clusterConclusie.gaten.length > 0 && (
+            <ul className="flex flex-col gap-1.5">
+              {clusterConclusie.gaten.map((probleem, i) => (
+                <li key={i} className="flex gap-2 text-sm text-secondary">
+                  <span aria-hidden>·</span>
+                  {probleem}
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <Link href={`/merk/${id}/strategie/vragen`} className="mono-label underline">
+              Wat ORBIT ENGINE nog van je wil weten
+            </Link>
+            <Link href={`/merk/${id}/strategie/plan`} className="mono-label underline">
+              De pagina&apos;s die hieruit volgen
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* ── 1. Blokkade, alleen als die er is ───────────────────────────────
           Bovenaan, want dit verklaart het cijfer eronder. Onderaan zetten
           betekent dat de klant eerst zijn score leest en pas daarna waarom hij
@@ -405,7 +470,12 @@ export default async function AnalyticsPage({
           <span className="mono-label">Per cluster</span>
           {/* ── Z4: de ene duidende zin, uit de cijfers zelf gerekend ────── */}
           {duidendeZin && <p className="text-secondary">{duidendeZin}</p>}
-          <AnalyticsClusterTable rows={perCluster} labelNaamPerId={labelNaamPerId} bron={bronfilter} />
+          <AnalyticsClusterTable
+            rows={perCluster}
+            labelNaamPerId={labelNaamPerId}
+            merkId={id}
+            bron={bronfilter}
+          />
         </div>
       )}
     </div>

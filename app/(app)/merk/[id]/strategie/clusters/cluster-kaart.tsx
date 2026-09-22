@@ -29,6 +29,16 @@ import type { Analysis, ClusterLabel } from "@/lib/types/database";
  * enkele meting, dus er valt niets te bevestigen. Alleen "nieuw label" vraagt
  * een tweede handeling, want daar moet nog een woord bij.
  *
+ * ── DE KOP LINKT NIET MEER NAAR EEN CLUSTERPAGINA (22 september 2026) ──────
+ *
+ * Er wás een clusterpagina: `/analyses/[id]`, met de uitslag van de meting. Die
+ * herhaalde de cijfers van Analytics, de vragen van Openstaande vragen en de
+ * pagina's van het Contentplan, en is daarom weggehaald
+ * (`docs/tasks/clusterresultaat-zonder-eigen-scherm.md`). De kop gaat nu naar
+ * de plek die bij de stand van het cluster hoort: naar het concept als jij aan
+ * zet bent, naar Analytics zodra er gemeten is, en nergens heen zolang er nog
+ * niets te zien valt. Een link naar een leeg scherm is erger dan geen link.
+ *
  * ── HET LABEL EN DE PRULLENBAK ZITTEN ACHTER ÉÉN MENU (2 september 2026) ───
  *
  * Tot vandaag stonden een keuzelijst en een knop op een eigen regel onder elke
@@ -154,15 +164,57 @@ export function ClusterKaart({
     }
   }
 
+  /**
+   * Opnieuw proberen na een vastgelopen cluster.
+   *
+   * De server bepaalt zelf welke fase aan de beurt is
+   * (`/api/analyses/[id]/hervatten`): dit kaartje kan onmogelijk weten of het
+   * onderzoek of de meting struikelde, en het hoort dat ook niet te weten.
+   */
+  async function hervat() {
+    setFout(null);
+    setBezig(true);
+    try {
+      const res = await fetch(`/api/analyses/${analyse.id}/hervatten`, { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) {
+        setFout(json.error ?? "Opnieuw starten is niet gelukt.");
+        return;
+      }
+      refresh();
+    } catch {
+      setFout("We konden ORBIT ENGINE niet bereiken. Probeer het opnieuw.");
+    } finally {
+      setBezig(false);
+    }
+  }
+
   const opSlot = bezig || refreshing;
+
+  /**
+   * Waar de kop heen gaat, per stand van het cluster.
+   *
+   * `null` = geen link. Dat is het eerlijke antwoord zolang het onderzoek of de
+   * meting loopt: er is dan nog niets om naar te kijken.
+   */
+  const kopLink =
+    analyse.status === "concept_klaar"
+      ? `/analyses/${analyse.id}/concept`
+      : analyse.status === "gereed" || analyse.status === "gemeten"
+        ? `/merk/${analyse.profile_id}/analytics?cluster=${analyse.id}`
+        : null;
 
   return (
     <div className="card flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
-          <Link href={`/analyses/${analyse.id}`} className="truncate text-lg font-medium hover:underline">
-            {analyse.name}
-          </Link>
+          {kopLink && !gearchiveerd ? (
+            <Link href={kopLink} className="truncate text-lg font-medium hover:underline">
+              {analyse.name}
+            </Link>
+          ) : (
+            <span className="block truncate text-lg font-medium">{analyse.name}</span>
+          )}
           <LastUpdated at={analyse.updated_at} className="mono-label mt-1 block" />
         </div>
         <div className="flex items-center gap-2">
@@ -287,6 +339,33 @@ export function ClusterKaart({
       </div>
 
       {metrics && <AnalysisCardMetrics metrics={metrics} />}
+
+      {/* ── Wat er nu gebeurt, in gewone taal ───────────────────────────────
+          Sinds 22 september 2026 is dit kaartje de enige plek waar je een
+          lopend cluster ziet staan: het wachtscherm is weg, want het werk loopt
+          op de server door en er viel niets te doen behalve kijken. Dus staat
+          hier wat er gebeurt en dat je er niet bij hoeft te blijven. */}
+      {!gearchiveerd && (analyse.status === "meten" || analyse.status === "bezig") && (
+        <p className="text-sm text-secondary">
+          {analyse.status === "meten"
+            ? "ORBIT ENGINE stelt nu de vragen aan AI-assistenten. Je kunt gerust wegklikken: je krijgt een melding zodra de uitslag er is."
+            : "ORBIT ENGINE onderzoekt het onderwerp en stelt de vragen op. Je hoort het zodra er iets voor je klaarstaat."}
+        </p>
+      )}
+
+      {/* Een vastgelopen cluster kon alleen nog verder vanaf zijn eigen pagina.
+          Die is er niet meer, dus staat de knop hier. */}
+      {!gearchiveerd && analyse.status === "mislukt" && (
+        <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-subtle)] pt-3">
+          <button type="button" className="btn-outline btn-sm" disabled={opSlot} onClick={() => void hervat()}>
+            <Icon naam="herstel" size={14} />
+            {opSlot ? "Bezig…" : "Probeer het opnieuw"}
+          </button>
+          <span className="text-sm text-muted">
+            Wat al gemeten is blijft bewaard, dus je begint niet van voren af aan.
+          </span>
+        </div>
+      )}
 
       {gearchiveerd && (
         <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-subtle)] pt-3">

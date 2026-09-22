@@ -8922,6 +8922,81 @@ async function main(): Promise<void> {
       else process.env.DATAFORSEO_LLM_ENABLED = oudSchakelaar;
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // SCENARIO 16: een nieuwe meetronde maakt de uitslagmelding weer scherp
+    //
+    // Sinds 22 september 2026 heeft het clusterresultaat geen eigen scherm meer
+    // (`docs/tasks/clusterresultaat-zonder-eigen-scherm.md`). De klant hoort dat
+    // zijn meting klaar is via één melding, en `analyses.resultaat_gezien_at`
+    // (migratie 0107) is het enige dat bijhoudt of die melding al geweest is.
+    //
+    // Dat vlaggetje wordt geleegd door `enqueueMeasurement()`, en dat is precies
+    // het soort samenhang tussen twee stappen waar deze test voor bestaat: gaat
+    // het stuk, dan mist de klant de uitslag van elke volgende maandronde, of
+    // krijgt hij elke dag dezelfde melding opnieuw. Allebei merk je pas als
+    // iemand het meldt.
+    {
+      const { enqueueMeasurement } = await import("@/lib/jobs/queue");
+
+      // De vorige uitslag is gemeld: het vlaggetje staat.
+      await db.client.query(
+        "update public.analyses set resultaat_gezien_at = now(), status = 'gereed' where id = $1",
+        [analysisId],
+      );
+      const { rows: voor } = await db.client.query(
+        "select resultaat_gezien_at from public.analyses where id = $1",
+        [analysisId],
+      );
+      ok("scenario 16: de vorige uitslag stond als gemeld", voor[0].resultaat_gezien_at !== null);
+
+      // Een nieuwe periode inplannen. Periode 8 en niet zomaar een getal: elke
+      // vierde ronde meet de VOLLEDIGE set vragen (`enqueueMeasurement`), dus
+      // dan komen er gegarandeerd taken bij. Bij een tussenliggende periode
+      // kunnen structureel merkloze vragen worden overgeslagen, en dan toetst
+      // deze test per ongeluk niets.
+      // Een eigen vraag, want de scenario's hiervoor hebben de vragen van dit
+      // cluster opgeruimd. Zonder actieve vraag plant `enqueueMeasurement()`
+      // niets in, en dan toetst dit scenario per ongeluk niets.
+      await db.client.query(
+        `insert into public.prompts (id, analysis_id, text, category, active)
+         values ($1, $2, 'Wie onderhoudt mijn cv-ketel?', 'Beslissing', true)`,
+        [randomUUID(), analysisId],
+      );
+
+      const ronde = await enqueueMeasurement(admin as never, analysisId, 8);
+      ok("scenario 16: er zijn meettaken ingepland", ronde.planned > 0, String(ronde.planned));
+
+      const { rows: na } = await db.client.query(
+        "select resultaat_gezien_at from public.analyses where id = $1",
+        [analysisId],
+      );
+      ok("scenario 16: en de uitslag staat weer op 'nog te melden'", na[0].resultaat_gezien_at === null);
+
+      // ⚠️ De andere kant op, en dit is de fout die je anders pas op productie
+      // ziet: een ronde die niets nieuws in te plannen heeft, mag het vlaggetje
+      // NIET legen. Deed hij dat wel, dan meldt de app de uitslag van vorige
+      // maand opnieuw alsof hij vers is, elke keer dat de maandcron langskomt.
+      await db.client.query(
+        "update public.analyses set resultaat_gezien_at = now() where id = $1",
+        [analysisId],
+      );
+      const nogEens = await enqueueMeasurement(admin as never, analysisId, 8);
+      eqc("scenario 16: dezelfde ronde plant niets nieuws in", String(nogEens.planned), "0");
+      const { rows: naLeeg } = await db.client.query(
+        "select resultaat_gezien_at from public.analyses where id = $1",
+        [analysisId],
+      );
+      ok(
+        "scenario 16: en laat de melding dus met rust",
+        naLeeg[0].resultaat_gezien_at !== null,
+      );
+
+      await db.client.query(
+        "delete from public.jobs where analysis_id = $1 and type = 'measure_prompt'",
+        [analysisId],
+      );
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

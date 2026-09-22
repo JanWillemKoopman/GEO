@@ -29,6 +29,7 @@ import type { WriterBrief } from "@/lib/schemas/writer-brief";
  */
 export function WhyThisPage({
   analysisId,
+  profileId,
   targets,
   targetIntent,
   cluster,
@@ -38,6 +39,8 @@ export function WhyThisPage({
   opdracht,
 }: {
   analysisId: string;
+  /** Nodig sinds de antwoorden op Analytics staan en niet meer op het cluster. */
+  profileId: string;
   targets: ContentPieceTarget[];
   targetIntent: string | null;
   cluster: string | null;
@@ -128,12 +131,14 @@ export function WhyThisPage({
           <span className="text-sm text-muted">
             Vragen die AI-assistenten écht gesteld zijn, geen geschatte zoekwoorden.
           </span>
+          {/* ⚠️ Wees tot 22 september 2026 naar `/analyses/[id]?runs=…`, de
+              resultatenpagina van het cluster. Die is er niet meer, en de
+              letterlijke antwoorden stonden er toen al niet meer op: die staan
+              op Analytics, achter het cluster in de tabel
+              (`components/cluster-answers.tsx`). */}
           {targets.some((t) => t.tracking_run_id) && (
             <Link
-              href={`/analyses/${analysisId}?runs=${targets
-                .map((t) => t.tracking_run_id)
-                .filter(Boolean)
-                .join(",")}`}
+              href={`/merk/${profileId}/analytics?cluster=${analysisId}`}
               className="mono-label w-fit underline transition-colors hover:text-[var(--text-primary)]"
             >
               Zie wat de AI hier nu antwoordt

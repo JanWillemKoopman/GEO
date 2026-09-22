@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { serverEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { planContentDraft } from "@/lib/jobs/content-jobs";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
-import { writeDecision, planBriefing, type WriteBlock } from "@/lib/plan-writing";
+import type { WriteBlock } from "@/lib/plan-writing";
 import { SCHRIJFVOORSPRONG_DAGEN } from "@/lib/plan-status";
-import { targetsFromSourceRef } from "@/lib/plan-backlog-data";
-import type { AnalysisStatus, PageType, PlanMonthStatus } from "@/lib/types/database";
+import {
+  startPaginaSchrijven,
+  SCHRIJFPAGINA_KOLOMMEN,
+  type TeSchrijvenPagina,
+} from "@/lib/plan-write-start";
 
 /**
  * GET /api/cron/plan, de motor onder het contentplan (fase 4, zie `docs/logbook.md`).
@@ -37,33 +39,12 @@ import type { AnalysisStatus, PageType, PlanMonthStatus } from "@/lib/types/data
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
-/** Rijvorm van de query hieronder. Supabase geeft de joins als geneste objecten. */
-interface PageRow {
-  id: string;
-  profile_id: string;
-  title: string;
-  page_type: PageType;
-  status: string;
-  scheduled_for: string | null;
-  is_buffer: boolean;
-  topic_id: string | null;
-  /** De velden van een gemeten kans (migratie 0065). Leeg bij een oude planpagina. */
-  source: string | null;
-  why: string | null;
-  target_intent: string | null;
-  recommendation_action: string | null;
-  existing_url: string | null;
-  related_url: string | null;
-  /** "<rapport-id>#<volgnummer>", wijst naar de aanbeveling met de doelvragen. */
-  source_ref: string | null;
-  plan_months: { month_number: number; status: PlanMonthStatus } | null;
-  profile_funnel_stages: { label: string } | null;
-  profile_topics: {
-    title: string;
-    analysis_id: string | null;
-    analyses: { status: AnalysisStatus; user_id: string } | null;
-  } | null;
-}
+/**
+ * ⚠️ De rijvorm en de vijf stappen die erop volgen staan sinds 22 september
+ * 2026 in `lib/plan-write-start.ts`, want de beheerder kan dezelfde pagina nu
+ * ook met de hand laten schrijven vanuit het contentplan. Twee kopieën van die
+ * stappen zouden gegarandeerd uit elkaar lopen.
+ */
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -83,13 +64,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await admin
     .from("planned_pages")
-    .select(
-      `id, profile_id, title, page_type, status, scheduled_for, is_buffer, topic_id,
-       source, why, target_intent, recommendation_action, existing_url, related_url, source_ref,
-       plan_months!inner(month_number, status),
-       profile_funnel_stages(label),
-       profile_topics(title, analysis_id, analyses(status, user_id))`,
-    )
+    .select(SCHRIJFPAGINA_KOLOMMEN)
     .eq("status", "gepland")
     .eq("is_buffer", false)
     .not("scheduled_for", "is", null)
@@ -102,133 +77,17 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Ophalen mislukt.", detail: error.message }, { status: 500 });
   }
 
-  const pages = (data ?? []) as unknown as PageRow[];
+  const pages = (data ?? []) as unknown as TeSchrijvenPagina[];
   const geblokkeerd: Record<string, number> = {};
   let ingepland = 0;
   let alBezig = 0;
 
   for (const page of pages) {
-    const maand = page.plan_months;
-    if (!maand) continue;
-
-    const topic = page.profile_topics;
-    const besluit = writeDecision(
-      {
-        status: "gepland",
-        scheduled_for: page.scheduled_for,
-        is_buffer: page.is_buffer,
-        topic_id: page.topic_id,
-      },
-      maand.status,
-      topic
-        ? {
-            analysis_id: topic.analysis_id,
-            analysis_status: topic.analyses?.status ?? null,
-          }
-        : null,
-      nu,
-    );
-
-    if (!besluit.schrijven) {
-      tel(geblokkeerd, besluit.reden);
-      continue;
-    }
-
-    // De EIGENAAR van de analyse schrijft, niet de cron: de contentpijplijn legt
-    // `user_id` vast bij de pagina, en die moet van de klant zijn. Zonder deze
-    // regel zou een pagina op naam van niemand komen te staan.
-    const userId = topic?.analyses?.user_id;
-    if (!userId) {
-      tel(geblokkeerd, "geen_analyse");
-      continue;
-    }
-
-    // ── DE BRIEFING KOMT UIT DE KANS ZELF ALS DIE ER IS ──────────────────
-    //
-    // Een voorraaditem draagt de reden, de doelgroep en het adres van de
-    // aanbeveling mee (migratie 0065). Die zijn geschreven op basis van gemiste
-    // vragen uit een echte meting en dus scherper dan wat `planBriefing()` uit
-    // een onderwerp en een funnelfase kan afleiden.
-    //
-    // ⚠️ En het verschil is niet cosmetisch: bij een kans met handeling
-    // "verbeteren" hoort de schrijfstap een BESTAANDE pagina aan te vullen. Tot
-    // 25 augustus 2026 stond hier onvoorwaardelijk `action: "nieuw"` met
-    // `existingUrl: null`, dus vier van de zeven kansen van Gasservice Brabant
-    // zouden een tweede pagina hebben opgeleverd naast de pagina die ze hadden
-    // moeten verbeteren.
-    const briefing = planBriefing({
-      title: page.title,
-      pageType: page.page_type,
-      topicTitle: topic?.title ?? null,
-      funnelLabel: page.profile_funnel_stages?.label ?? null,
-      monthNumber: maand.month_number,
-    });
-    const uitKans = page.source === "aanbeveling";
-
-    // ── DE DOELVRAGEN KOMEN UIT HETZELFDE RAPPORT ALS DE KANS ─────────────
-    //
-    // `source_ref` wijst als "<rapport-id>#<volgnummer>" rechtstreeks naar de
-    // aanbeveling in `reports.recommendations_json` waar de doelvragen in
-    // staan (lib/plan-backlog-data.ts, dezelfde sleutel als de voorraad
-    // gebruikt). Zonder dit bleef `targets` hier leeg: `saveTargets()` in
-    // content.ts schreef dan nul rijen in `content_piece_targets`, en
-    // `planImpactWaves()` sloeg de effectmeting over met "geen doelvragen".
-    // Fase 5 bestond zo niet voor een pagina die via het contentplan
-    // geschreven is, en dat is sinds migratie 0065 de normale route.
-    const { reportId, targets } = uitKans
-      ? await targetsFromSourceRef(admin, page.source_ref)
-      : { reportId: null, targets: [] };
-
-    try {
-      const { created, alreadyDone } = await planContentDraft(admin, {
-        analysisId: besluit.analysisId,
-        userId,
-        plannedPageId: page.id,
-        recommendation: {
-          ...briefing,
-          why: uitKans && page.why ? page.why : briefing.why,
-          targetIntent:
-            uitKans && page.target_intent ? page.target_intent : briefing.targetIntent,
-          action: page.recommendation_action === "verbeteren" ? "verbeteren" : "nieuw",
-          existingUrl: page.recommendation_action === "verbeteren" ? page.existing_url : null,
-          // Migratie 0083: bij een nieuwe pagina de bestaande pagina die het
-          // onderwerp al raakt. Zonder deze regel verdwijnt die waarschuwing op
-          // precies de route die de meeste pagina's aflegt (sinds 0065 loopt het
-          // normale pad via de contentvoorraad).
-          relatedUrl: page.recommendation_action === "verbeteren" ? null : page.related_url,
-          reportId,
-          targets,
-        },
-      });
-
-      if (alreadyDone) {
-        // Er stond al een afgeronde tekst met deze titel onder deze analyse.
-        // Dan is er niets te schrijven, maar moet het plan dat wel weten.
-        alBezig++;
-        await admin
-          .from("planned_pages")
-          .update({ status: "ter_goedkeuring" })
-          .eq("id", page.id)
-          .eq("status", "gepland");
-        continue;
-      }
-
-      if (created) {
-        ingepland++;
-        await admin
-          .from("planned_pages")
-          .update({ status: "schrijven" })
-          .eq("id", page.id)
-          .eq("status", "gepland");
-      } else {
-        // De dedupe-sleutel bestond al: de taak staat in de rij van een eerdere
-        // ronde. Geen fout, en ook geen tweede taak.
-        alBezig++;
-      }
-    } catch (err) {
-      console.error(`Plan-cron: schrijftaak voor pagina ${page.id} mislukte:`, err);
-      tel(geblokkeerd, "inplannen_mislukt");
-    }
+    const uitkomst = await startPaginaSchrijven(admin, page, nu);
+    if (uitkomst.uitkomst === "ingepland") ingepland++;
+    else if (uitkomst.uitkomst === "al_bezig" || uitkomst.uitkomst === "al_klaar") alBezig++;
+    else if (uitkomst.uitkomst === "geblokkeerd") tel(geblokkeerd, uitkomst.reden);
+    else tel(geblokkeerd, "inplannen_mislukt");
   }
 
   // ── De zoekcijfers, in dezelfde dagelijkse ronde ──────────────────────────

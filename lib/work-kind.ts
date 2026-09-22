@@ -22,6 +22,10 @@ export type WorkKind =
   | "herstel" // er ging iets mis in de pijplijn
   | "feit" // een feitenvraag over het bedrijf
   | "pagina" // een aanbevolen of geschreven pagina voor de eigen site
+  // ⚠️ "offsite" levert sinds 22 september 2026 geen werkitems meer op: het
+  // off-site advies is uit de schermen gehaald (zie lib/work.ts, blok
+  // Off-site). De soort blijft bestaan omdat de taken in de database staan en
+  // dit onderdeel terug kan komen.
   | "offsite"; // een actie buiten de eigen site
 
 export const WORK_KIND_LABEL: Record<WorkKind, string> = {

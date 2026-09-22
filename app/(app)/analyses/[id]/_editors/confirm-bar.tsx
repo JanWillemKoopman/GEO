@@ -17,9 +17,12 @@ import { useRouter } from "next/navigation";
  */
 export function ConfirmBar({
   analysisId,
+  profileId,
   activeCount,
 }: {
   analysisId: string;
+  /** Waar de klant na het bevestigen heen gaat: het clusteroverzicht van dit merk. */
+  profileId: string;
   /** Aantal actieve vragen (A.8): wat er gaat gebeuren, niet alleen dat er iets gebeurt. */
   activeCount: number;
 }) {
@@ -45,9 +48,21 @@ export function ConfirmBar({
       setPending(false);
       return;
     }
+    // ── WAAR JE NA HET BEVESTIGEN LANDT (22 september 2026) ─────────────────
+    //
+    // Tot vandaag was dat `/analyses/[id]`, dat dan een wachtscherm liet zien:
+    // een halve pagina voortgangsbalk voor werk dat op de server doorloopt, ook
+    // als je de tab sluit. Je stond dus te kijken naar iets waar je niets aan
+    // kon doen, en daarna naar een resultatenpagina die cijfers herhaalde die
+    // op Analytics staan.
+    //
+    // Nu ga je terug naar je clusteroverzicht, met één melding rechtsonder dat
+    // de meting loopt. De uitslag komt je later vanzelf achterna
+    // (`components/cluster-melder.tsx`).
+    //
     // Buiten de try: bevestigen is al gelukt op de server, dus een fout hier
     // (bv. tijdens router.refresh) mag niet als "bevestigen mislukt" ogen.
-    router.push(`/analyses/${analysisId}`);
+    router.push(`/merk/${profileId}/strategie/clusters?gelanceerd=1`);
     router.refresh();
   }
 
@@ -75,10 +90,13 @@ export function ConfirmBar({
             </span>
           ) : (
             <span className="hidden text-sm text-muted sm:inline">
-              {/* A.8: aankondigen wat er gaat gebeuren, niet alleen dat er iets gebeurt. */}
+              {/* A.8: aankondigen wat er gaat gebeuren, niet alleen dat er iets gebeurt.
+                  Sinds 22 september 2026 staat er ook bij waar je heen gaat: je
+                  hoeft niet te blijven kijken, want de meting loopt door op de
+                  server en je hoort het vanzelf als hij klaar is. */}
               ORBIT ENGINE stelt {activeCount} {activeCount === 1 ? "vraag" : "vragen"} aan AI-assistenten
-              en verwerkt de antwoorden. Je kunt de vragen en het onderzoek hierna nog steeds
-              aanpassen.
+              en verwerkt de antwoorden. Je gaat terug naar je clusters en werkt gewoon verder; je
+              hoort het zodra de meting klaar is.
             </span>
           )}
         </div>

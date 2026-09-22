@@ -1,22 +1,17 @@
 import { redirect } from "next/navigation";
 
 /**
- * Het rapport was een eigen tabblad. De inhoud ervan is verdeeld over de
- * hoofdstukken waar hij thuishoort: de samenvatting bij de score (01), de
- * gaten bij het bewijs (02), de aanbevelingen en het off-site werk bij wat je
- * moet doen (03).
+ * Het rapport was een eigen tabblad, werd daarna een hoofdstuk van het
+ * clusterdossier, en dat dossier is op 22 september 2026 zelf weggehaald
+ * (`docs/tasks/clusterresultaat-zonder-eigen-scherm.md`).
  *
  * Deze route blijft bestaan omdat er links naar staan in eerder verstuurde
- * e-mails en in bladwijzers van klanten.
+ * e-mails en in bladwijzers van klanten. Hij stuurt door naar het adres
+ * erboven, dat op zijn beurt de weg wijst naar het clusteroverzicht. Eén
+ * doorverwijzing meer dan nodig, maar wel eentje die blijft kloppen als dat
+ * eindadres ooit weer verandert.
  */
-export default async function RapportRedirect({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ periode?: string }>;
-}) {
+export default async function RapportRedirect({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { periode } = await searchParams;
-  redirect(periode ? `/analyses/${id}?periode=${periode}` : `/analyses/${id}`);
+  redirect(`/analyses/${id}`);
 }

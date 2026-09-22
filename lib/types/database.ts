@@ -261,6 +261,16 @@ export interface Analysis {
    * maakt. Zie lib/archive.ts.
    */
   archived_at: string | null;
+  /**
+   * Wanneer de uitslag van de laatste meetronde aan de gebruiker gemeld is
+   * (migratie 0107). Leeg = nog te melden.
+   *
+   * Sinds het clusterresultaat geen eigen scherm meer heeft, is dit het enige
+   * geheugen dat voorkomt dat dezelfde uitslag bij elke schermopening opnieuw
+   * als melding verschijnt. `enqueueMeasurement()` leegt hem zodra er een
+   * nieuwe ronde ingepland wordt. Zie `lib/cluster-melding.ts`.
+   */
+  resultaat_gezien_at: string | null;
   created_at: string;
   updated_at: string;
 }

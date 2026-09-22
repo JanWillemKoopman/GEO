@@ -75,7 +75,7 @@ Klant (browser/mobiel)
    │
    ▼
 Vercel: Next.js 15 op Node.js  (code: GitHub, deploy op push naar main)
- ├─ Frontend: /merk/[id]/... (de merk-werkruimte), /analyses/[id] (dossier in 4 hoofdstukken, hangt in het menu onder Clusters), /instellingen
+ ├─ Frontend: /merk/[id]/... (de merk-werkruimte), /analyses/[id]/... (het concept, de briefing en de contentpagina's van een cluster; het adres erboven verwijst sinds 22 september 2026 door naar het clusteroverzicht), /instellingen
  ├─ API-routes: CRUD + schrijfacties (service-role key + ownership-check)
  ├─ Vercel Cron (vercel.json, Hobby-limiet: max 2 taken, elk max 1×/dag)
  │    • /api/cron/tracking   maandelijks, 1e van de maand 06:00 UTC

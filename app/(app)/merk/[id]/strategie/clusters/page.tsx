@@ -26,6 +26,7 @@ import {
 import { ClusterBalk } from "./cluster-balk";
 import { ClusterKaart } from "./cluster-kaart";
 import { NieuweClusterKnop } from "./nieuwe-cluster-knop";
+import { LanceringMelding } from "./lancering-melding";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Clusters" };
@@ -38,11 +39,18 @@ export const metadata = { title: "Clusters" };
  * die weg is zodra de lijst korter blijkt dan verwacht. Nu is het merk de
  * context van het adres zelf.
  *
- * ⚠️ Het clusterdossier blijft op `/analyses/[id]` staan. Dat is de ene bewuste
- * uitzondering op besluit 8: een cluster is een globaal object met tien diepe
- * routes eronder (bibliotheek, concept, briefing, antwoorden, rapport,
- * instellingen, contentdetail), en die allemaal verplaatsen raakt de meest
- * gelinkte routes van de app voor alleen cosmetiek.
+ * ⚠️ Dit scherm is sinds 22 september 2026 de thuisbasis van een cluster. Het
+ * clusterdossier op `/analyses/[id]` bestond tot die dag en verwees daar de
+ * uitslag van de meting; dat adres verwijst nu hierheen terug
+ * (`docs/tasks/clusterresultaat-zonder-eigen-scherm.md`). De diepe routes
+ * eronder (concept, briefing, bibliotheek, contentdetail, instellingen) blijven
+ * wél op dat adres staan: dat zijn de meest gelinkte routes van de app, en
+ * verplaatsen levert daar alleen cosmetiek op.
+ *
+ * Wat dat voor dit scherm betekent: hier staat wat een cluster doet (lopen,
+ * wachten op akkoord, vastlopen) en hier staan de knoppen die daarbij horen.
+ * De cijfers staan op Analytics, de vragen bij Openstaande vragen, de
+ * voorgestelde pagina's in het Contentplan.
  *
  * Het derde blok, Voorgestelde clusters, stond tot 17 augustus 2026 op een
  * eigen adres (`/analyses/aanbevolen`).
@@ -63,10 +71,10 @@ export default async function ClustersPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ weergave?: string; label?: string }>;
+  searchParams: Promise<{ weergave?: string; label?: string; gelanceerd?: string }>;
 }) {
   const { id } = await params;
-  const { weergave, label: labelUitAdres } = await searchParams;
+  const { weergave, label: labelUitAdres, gelanceerd } = await searchParams;
   const inPrullenbak = weergave === "prullenbak";
   const profile = await getProfile(id);
   if (!profile) notFound();
@@ -161,6 +169,10 @@ export default async function ClustersPage({
         action={<NieuweClusterKnop merkId={id} staff={staff} />}
       />
 
+      {/* Net een cluster gestart? Dan is dit het scherm waarop je terugkomt, met
+          één melding die zegt wat er loopt (22 september 2026). */}
+      {gelanceerd === "1" && <LanceringMelding merkId={id} />}
+
       {/* ── 1. Storingen ───────────────────────────────────────────────────
           Vroeger stond een mislukt cluster alleen op de eigen pagina, dus wie
           niet net dáár keek zag hem niet. Deze lijst is de plek waar de klant
@@ -174,11 +186,12 @@ export default async function ClustersPage({
             {failed.length === 1 ? "1 cluster niet gelukt" : `${failed.length} clusters niet gelukt`}
           </span>
           <ul className="flex flex-col gap-1">
+            {/* ⚠️ Geen link meer naar `/analyses/[id]`: dat adres verwijst sinds
+                22 september 2026 hierheen terug. De knop om het opnieuw te
+                proberen staat op het kaartje van het cluster zelf. */}
             {failed.map((a) => (
-              <li key={a.id}>
-                <Link href={`/analyses/${a.id}`} className="text-sm underline">
-                  {a.name}
-                </Link>
+              <li key={a.id} className="text-sm text-secondary">
+                {a.name}
               </li>
             ))}
           </ul>

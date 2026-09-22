@@ -84,7 +84,13 @@ export async function sendReportEmail(
 
   const resend = new Resend(apiKey);
   const from = process.env.RESEND_FROM_EMAIL ?? "ORBIT ENGINE <onboarding@resend.dev>";
-  const reportUrl = `${publicEnv.siteUrl}/analyses/${analysis.id}`;
+  // ⚠️ Wees tot 22 september 2026 naar `/analyses/[id]`, de resultatenpagina
+  // van het cluster. Die bestaat niet meer; de cijfers uit deze mail staan op
+  // Analytics, met dit cluster als filter
+  // (`docs/tasks/clusterresultaat-zonder-eigen-scherm.md`). Het oude adres
+  // verwijst ook door, maar een mail hoort meteen op de goede plek uit te komen:
+  // hij wordt maanden later nog geopend.
+  const reportUrl = `${publicEnv.siteUrl}/merk/${analysis.profile_id}/analytics?cluster=${analysis.id}`;
   const topRecommendations = [...report.recommendations].sort((a, b) => a.priority - b.priority).slice(0, 3);
 
   const html = `
@@ -100,7 +106,7 @@ export async function sendReportEmail(
           .join("")}
       </ol>
       <p style="margin-top: 24px;">
-        <a href="${reportUrl}" style="color: #8511D9;">Lees het volledige rapport in ORBIT ENGINE →</a>
+        <a href="${reportUrl}" style="color: #8511D9;">Bekijk je cijfers in ORBIT ENGINE →</a>
       </p>
     </div>
   `;

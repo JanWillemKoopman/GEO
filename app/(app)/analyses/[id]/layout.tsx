@@ -45,10 +45,11 @@ export default async function AnalysisLayout({
   const analysis = await getAnalysis(id);
   if (!analysis) notFound();
 
-  // Zolang het concept nog bevestigd moet worden, is er maar één taak. Dan
-  // hoort er geen navigatie te staan die daarvan afleidt en die toch nergens
-  // heen kan. Alle andere routes sturen in die toestand door naar /concept.
-  const awaitingApproval = analysis.status === "concept_klaar";
+  // Zolang het concept nog opgesteld of bevestigd moet worden, is er maar één
+  // taak. Dan hoort er geen navigatie te staan die daarvan afleidt en die toch
+  // nergens heen kan: de bibliotheek is in die fase per definitie leeg. Alle
+  // andere routes sturen in die toestand door naar /concept.
+  const awaitingApproval = analysis.status === "concept_klaar" || analysis.status === "bezig";
 
   // Het aantal geschreven pagina's staat bij de bibliotheek in de navigatie:
   // het eindproduct verdient een teller, niet alleen een woord.

@@ -1,72 +1,58 @@
-import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import { getAnalysis } from "@/lib/analyses";
-import { createClient } from "@/lib/supabase/server";
-import { determineStage } from "@/lib/pipeline/stage";
-import { PrepareProgress } from "./prepare-progress";
-import { MeasureProgress } from "./measure-progress";
-import { ChapterSkeleton } from "@/components/skeleton";
-import { SectionErrorBoundary } from "@/components/section-error-boundary";
-import { InhoudChapter } from "./_chapters/inhoud";
 
 export const dynamic = "force-dynamic";
 
 /**
- * HET CLUSTER: één tabblad, geen hoofdstukken.
+ * HET CLUSTERDOSSIER BESTAAT NIET MEER. DIT ADRES WIJST DE WEG.
  *
- * ── VAN VIER HOOFDSTUKKEN NAAR ÉÉN SCHERM (16 september 2026) ───────────────
+ * ── WAT HIER STOND EN WAAROM HET WEG IS (22 september 2026) ─────────────────
  *
- * Tot deze datum was dit vier tabbladen (Stand, Waar je wint en mist, Wat je
- * moet doen, Opgeleverd), zelf al een verbetering op de doorlopende
- * scrollpagina van 26 augustus 2026 daarvoor. Op verzoek van de eigenaar gaan
- * de cijfers uit de eerste drie hoofdstukken (de score, de trend, de
- * concurrentietabellen) naar Analytics (`/merk/[id]/analytics`), die al een
- * cluster-filter heeft. Hoofdstuk 04 was al volledig gedupliceerd: dezelfde
- * `content_impact`-cijfers staan sinds V3 van `docs/tasks/analytics-herontwerp.md`
- * op Analytics → Zoekverkeer.
+ * Hier stond de resultatenpagina van een cluster: eerst als vier hoofdstukken
+ * (26 augustus 2026), daarna als één scherm met de samenvatting, de kansen en
+ * de voorgestelde pagina's (16 september 2026). Diezelfde route was ook het
+ * wachtscherm: een voortgangsbalk voor werk dat op de server doorloopt, ook als
+ * je de tab sluit.
  *
- * Wat overblijft is precies wat een cluster nog uniek te bieden heeft: de
- * vertaalslag van een meting naar content. Dat is nu `InhoudChapter`
- * (`_chapters/inhoud.tsx`), zonder tabbalk, zonder periodekiezer.
+ * Op verzoek van de eigenaar is allebei weggehaald, om dezelfde reden waarom de
+ * vier hoofdstukken er drie kwijtraakten: alles wat hier stond, staat ergens
+ * anders óók, en dan is dit scherm geen samenvatting maar een tweede waarheid.
+ *
+ *   • de cijfers van de meting  → Analytics, met een filter per cluster
+ *   • de vragen aan de klant    → Strategie → Openstaande vragen
+ *   • de voorgestelde pagina's  → Strategie → Contentplan, als voorraad
+ *
+ * Wat de pagina als enige deed, is vervangen door iets dat niet aan een scherm
+ * hangt: melden dat de meting klaar is. Dat doet `components/cluster-melder.tsx`
+ * nu, waar je ook bent in de app.
+ *
+ * ⚠️ Wat er bewust NIET mee verhuisd is: het off-site werk (de acties buiten je
+ * eigen website). Dat is uit de schermen gehaald en niet elders neergezet, en
+ * dat is een bewuste keuze met een houdbaarheidsdatum. Zie
+ * `docs/tasks/clusterresultaat-zonder-eigen-scherm.md`, blok "Off-site".
+ *
+ * ── WAAROM DIT BESTAND BLIJFT BESTAAN ───────────────────────────────────────
+ *
+ * Er staan links naar dit adres in verstuurde rapportmails, in bladwijzers van
+ * klanten en in gedeelde links uit demogesprekken. Een 404 kost daar een
+ * gesprek en niet alleen een klik. Doorverwijzen kan niet in `lib/redirects.ts`
+ * (dat zijn statische regels, en hiervoor moet eerst het merk van dit cluster
+ * opgezocht worden), dus gebeurt het hier.
+ *
+ * De onderliggende schermen blijven allemaal gewoon bestaan: het concept, de
+ * briefing, de bibliotheek, de antwoorden en de instellingen van dit cluster.
+ * Alleen de verzamelpagina erboven is weg.
  */
-export default async function DossierPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function ClusterAdres({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const analysis = await getAnalysis(id);
   if (!analysis) notFound();
 
-  // Wacht het concept op goedkeuring, dan is dát het scherm, één taak, geen
-  // inhoud die toch nog leeg is.
-  if (analysis.status === "concept_klaar") redirect(`/analyses/${id}/concept`);
-
-  const supabase = await createClient();
-
-  // Loopt de voorbereiding of de meting nog, dan is er geen inhoud om te tonen
-  // maar voortgang om te volgen. Dat is geen inhoud maar een andere toestand
-  // van hetzelfde scherm.
-  if (analysis.status === "bezig" || analysis.status === "mislukt") {
-    const stage = await determineStage(supabase, id);
-    if (stage === "prepare") {
-      return <PrepareProgress analysisId={id} initialStatus={analysis.status} />;
-    }
-    if (stage === "measure") {
-      return <MeasureProgress analysisId={id} initialStatus={analysis.status} />;
-    }
-    // stage === "report": de meting is gelukt, val door naar de inhoud.
+  // Wacht het concept op jouw akkoord, of wordt het nog opgesteld, dan is dát
+  // het scherm. Dat is de enige plek waar de app echt op jou wacht.
+  if (analysis.status === "concept_klaar" || analysis.status === "bezig") {
+    redirect(`/analyses/${id}/concept`);
   }
 
-  if (analysis.status === "meten") {
-    return <MeasureProgress analysisId={id} initialStatus={analysis.status} />;
-  }
-
-  return (
-    <SectionErrorBoundary label="Cluster">
-      <Suspense fallback={<ChapterSkeleton blocks={3} />}>
-        <InhoudChapter analysis={analysis} />
-      </Suspense>
-    </SectionErrorBoundary>
-  );
+  redirect(`/merk/${analysis.profile_id}/strategie/clusters`);
 }

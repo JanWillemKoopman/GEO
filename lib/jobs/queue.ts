@@ -259,6 +259,20 @@ export async function enqueueMeasurement(
 
   if (rows.length === 0) return { planned: 0, totalPrompts: list.length };
 
+  // ── De uitslag van de vorige ronde is vanaf nu oud nieuws ────────────────
+  //
+  // Migratie 0107. Hier, en niet bovenaan deze functie: pas als er echt
+  // meettaken bijkomen, begint er een ronde waarvan de uitslag nog gemeld moet
+  // worden. Zou de vlag ook geleegd worden als er niets in te plannen viel,
+  // dan meldt de app een uitslag van vorige maand opnieuw alsof hij vers is.
+  //
+  // Een mislukte poging die opnieuw start hoort er WEL onder te vallen: die
+  // krijgt straks een eigen uitslag, en de klant hoort die te horen.
+  await admin
+    .from("analyses")
+    .update({ resultaat_gezien_at: null })
+    .eq("id", analysisId);
+
   // Eén bulk-insert i.p.v. een taak per prompt (was tot 2×N sequentiële
   // round-trips, genoeg om de confirm-route over de functie-tijdslimiet te
   // duwen, zie de doc-comment op deze functie). Een echte race met een

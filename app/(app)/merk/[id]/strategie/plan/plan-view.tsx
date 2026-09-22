@@ -291,6 +291,61 @@ export function PlanView({
   }
 
   /**
+   * "Schrijf deze pagina nu", alleen voor de beheerder (22 september 2026).
+   *
+   * ── WAAROM DIT ER IS ──────────────────────────────────────────────────────
+   *
+   * Op de resultatenpagina van een cluster stond per aanbeveling een knop om de
+   * tekst meteen te laten schrijven. Die pagina is weggehaald
+   * (`docs/tasks/clusterresultaat-zonder-eigen-scherm.md`) en de voorgestelde
+   * pagina's staan nu in dit plan. Zonder deze knop zou de snelste weg naar een
+   * tekst "wacht tot de cron over tien dagen langskomt" zijn, en dat is geen
+   * weg maar een wachttijd.
+   *
+   * ⚠️ Hij slaat de goedkeuring van de maand en het tiendaagse venster over, en
+   * daarom staat hij alleen bij de beheerder én controleert de server dat recht
+   * nog een keer (`app/api/profiles/[id]/plan/pages/[pageId]/route.ts`). Een
+   * knop verbergen is geen slot.
+   *
+   * Hier WÉL een melding bij succes, anders dan bij de andere handelingen in
+   * dit scherm: er verandert alleen een statuschip, en het echte gevolg (er
+   * wordt nu betaald werk gedaan) is nergens in beeld af te lezen.
+   */
+  async function schrijfNu(page: { id: string; title: string }) {
+    setBusy(page.id);
+    try {
+      const res = await fetch(`/api/profiles/${profileId}/plan/pages/${page.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actie: "schrijf_nu" }),
+      });
+      const j = (await res.json().catch(() => null)) as { error?: string; melding?: string } | null;
+      if (!res.ok) {
+        toast({
+          intent: "fout",
+          title: "Schrijven kan nu niet",
+          description: j?.error ?? "Probeer het opnieuw.",
+        });
+        return;
+      }
+      toast({
+        intent: "succes",
+        title: page.title,
+        description: j?.melding ?? "ORBIT ENGINE begint nu aan deze pagina.",
+      });
+      router.refresh();
+    } catch {
+      toast({
+        intent: "fout",
+        title: "Geen verbinding",
+        description: "Controleer je internet en probeer het opnieuw.",
+      });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /**
    * De vroegste publicatiedatum in een maand, voor `schrijfBelofte()`: zonder
    * dit blijft de vrijgeef-melding "tien dagen voor elke publicatiedatum"
    * beloven terwijl de eerste pagina al over drie dagen moet (punt 5 van
@@ -875,6 +930,8 @@ export function PlanView({
                             setDatumDialog(page);
                             setDatumInvoer(page.scheduled_for ?? "");
                           }}
+                          staff={staff}
+                          onSchrijfNu={() => void schrijfNu(page)}
                           onApprove={() => void paginaActie(page, "goedkeuren")}
                           onPost={() => {
                             setPostDialog(page);
@@ -1423,6 +1480,8 @@ function PageRij({
   onKies,
   onNaarVoorraad,
   onDatum,
+  staff,
+  onSchrijfNu,
   onApprove,
   onPost,
   onRemove,
@@ -1448,6 +1507,9 @@ function PageRij({
   onNaarVoorraad: () => void;
   /** De publicatiedatum verzetten. Alleen zolang de pagina nog `gepland` is. */
   onDatum: () => void;
+  /** Beheerder? Dan staat "schrijf deze pagina nu" in het menu. */
+  staff: boolean;
+  onSchrijfNu: () => void;
   onApprove: () => void;
   onPost: () => void;
   onRemove: () => void;
@@ -1471,8 +1533,8 @@ function PageRij({
         ? planRunningDate(page)
         : null;
   // Er is één pad waarbij een pagina om akkoord vraagt zonder gekoppelde tekst:
-  // schreef de pijplijn eerder al iets met dezelfde titel, dan zet de cron alleen
-  // de status om (`alreadyDone` in `app/api/cron/plan/route.ts`).
+  // schreef de pijplijn eerder al iets met dezelfde titel, dan wordt alleen de
+  // status omgezet (`alreadyDone` in `lib/plan-write-start.ts`).
   const losseTekst = href === null && page.status === "ter_goedkeuring";
 
   return (
@@ -1610,6 +1672,24 @@ function PageRij({
         <RijMenu label={`Wat wil je met "${page.title}" doen?`} busy={busy}>
           {(sluit) => (
             <>
+              {/* ⚠️ Bovenaan en alleen voor de beheerder: dit is de enige keuze
+                  in dit menu die geld kost, en de enige die niet te herstellen
+                  is met nog een klik. Alleen bij een pagina die nog gepland
+                  staat; bij "schrijven" of "ter goedkeuring" is er al een tekst
+                  of een taak, en zou dit een tweede beloven. */}
+              {staff && magVerhuizen && (
+                <>
+                  <MenuKnop
+                    onClick={() => {
+                      sluit();
+                      onSchrijfNu();
+                    }}
+                  >
+                    Schrijf deze pagina nu
+                  </MenuKnop>
+                  <MenuScheiding />
+                </>
+              )}
               {magVerhuizen && (kanOmhoog || kanOmlaag) && (
                 <>
                   {kanOmhoog && (

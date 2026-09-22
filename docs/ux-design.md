@@ -860,10 +860,11 @@ adressen geven een **308, permanent**, naar hun eindadres; de lijst staat in `li
 wordt door `scripts/test-unit.ts` nagelopen, want de eigenaar deelt die links in demogesprekken en
 een dood adres kost hier een gesprek en niet alleen een klik.
 
-⚠️ **Het clusterdossier verhuist níet** en blijft op `/analyses/[id]`. Dat is de ene bewuste
-uitzondering: een cluster heeft tien diepe routes eronder (bibliotheek, concept, briefing,
-antwoorden, rapport, instellingen, contentdetail), en die allemaal verplaatsen raakt de meest
-gelinkte routes van de app voor alleen cosmetiek.
+⚠️ **Het clusterdossier bestaat sinds 22 september 2026 niet meer.** `/analyses/[id]` verwijst door:
+naar het concept zolang dat nog loopt of op akkoord wacht, en anders naar het clusteroverzicht van
+het merk. De diepe routes eronder (concept, briefing, bibliotheek, contentdetail, instellingen)
+blijven wél op dit adres staan, want dat zijn de meest gelinkte routes van de app en verplaatsen
+levert daar alleen cosmetiek op. Zie `docs/tasks/clusterresultaat-zonder-eigen-scherm.md`.
 
 **Eén toegangscontrole voor het hele segment.** `app/(app)/merk/[id]/layout.tsx` stelt de
 rechtenvraag één keer met `getOwnedProfile()`, in plaats van elf keer per scherm. Een gebruiker die
@@ -872,7 +873,7 @@ niet bij het merk hoort krijgt een **404 en geen 403**: een 403 bevestigt dat he
 **Vaste breedtes in de zijbalk** (240px, ingeklapt 56px). Een zijbalk die meegroeit met de langste
 merknaam laat de hele pagina verspringen zodra je wisselt.
 
-**Een analyse is één dossier in vier hoofdstukken**, als tabbladen:
+**Een analyse WAS één dossier in vier hoofdstukken**, als tabbladen:
 
 ```
 01  STAND       Hoe sta ik ervoor?     score · verandering · wat het betekent
@@ -884,18 +885,20 @@ merknaam laat de hele pagina verspringen zodra je wisselt.
 De volgorde ís de logica: hoofdstuk 4 voedt volgende periode hoofdstuk 1. Dat gaf lang de doorslag
 tegen een tabbalk (§9, `docs/logbook.md` 17 juli 2026): een tabbalk kan een vaste volgorde niet
 uitdrukken, en werk kruiste de oude, gelijkwaardige tabbladen. Op expliciet verzoek is dat op 26
-augustus 2026 alsnog omgedraaid: vier losse tabbladen, gestuurd via `?hoofdstuk=` in de URL, met
-maar één hoofdstuk tegelijk gerenderd. De volgorde blijft zichtbaar via de nummering 01 t/m 04, en
-hoofdstuk 04 benoemt in zijn eigen tekst nog steeds dat hij hoofdstuk 01 voedt, alleen niet meer met
-schermruimte. Zie `docs/logbook.md` 26 augustus 2026 voor de volledige afweging.
+augustus 2026 alsnog omgedraaid naar vier losse tabbladen.
 
-Oriëntatie via de **hoofdstuktabs** (`components/chapter-tabs.tsx`): genummerde mono-labels, een
-horizontale, sticky chiprij boven de inhoud, op zowel desktop als mobiel. De balk toont stand per
-hoofdstuk ("4 open", een `live-dot` bij een lopende meting). Serverside navigatie (`Link` met een
-querystring), geen client-side tabstate: elk hoofdstuk houdt zo zijn eigen `Suspense`-grens en elk
-tabblad is een deelbare URL. Dit is een los component van de **sectie-rail**
-(`components/section-rail.tsx`, verticaal, met scroll-spy): die draait nog op het onboardingscherm,
-dat wél één doorlopende pagina blijft.
+⚠️ **Deze indeling is er niet meer, en het scherm eromheen ook niet.** Op 16 september 2026 gingen
+de eerste drie hoofdstukken naar Analytics, dat al een clusterfilter had. Op 22 september 2026 ging
+de rest: de conclusie naar Analytics, de vragen naar Openstaande vragen, de voorgestelde pagina's
+naar het Contentplan. Wat het scherm als enige deed, melden dat de meting klaar is, hangt nu niet
+meer aan een scherm maar aan een melding rechtsonder (`components/cluster-melder.tsx`). Het blok
+hierboven blijft staan omdat tientallen commentaarblokken in de code naar "hoofdstuk 01" t/m
+"hoofdstuk 04" verwijzen, en dat waren deze vier.
+
+De oriëntatie liep destijds via genummerde hoofdstuktabs, een horizontale sticky chiprij boven de
+inhoud met de stand per hoofdstuk erin ("4 open", een `live-dot` bij een lopende meting). Ook die is
+met het scherm meeverdwenen. De **sectie-rail** (`components/section-rail.tsx`, verticaal, met
+scroll-spy) bestaat nog wél en draait op het onboardingscherm, dat één doorlopende pagina blijft.
 
 **De lagen onder en boven een sticky balk.** Er plakken er twee onder elkaar, en dat gaat op twee
 manieren mis. De hoogte van de bovenbalk staat daarom in één token, `--header-h` in
@@ -949,7 +952,9 @@ verdwijnen waarvoor de klant betaald heeft, zonder dat er iets misgaat op het sc
 naar Nova's `origin`-parameter). Een contentpagina is vanaf drie plekken te bereiken, en zonder
 herkomst komt de klant uit op een scherm waar hij niet vandaan kwam. Geen `Referer`: die valt weg
 bij een bladwijzer en bij strengere browserinstellingen, en juist dán is de terugknop het enige wat
-hij heeft. Valt de parameter weg, dan is het clusterdossier de veilige terugval.
+hij heeft. Valt de parameter weg, dan is de bibliotheek van dat cluster de veilige terugval
+(`/analyses/[id]/bibliotheek`, zelf een doorverwijzing naar de merkbrede lijst met het clusterfilter
+aan).
 
 ### Wat de klant ziet en wat alleen jij ziet
 

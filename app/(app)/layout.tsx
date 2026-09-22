@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/auth";
 import { AppShell } from "@/components/app-shell";
 import { ToastProvider } from "@/components/toast";
 import { DeploymentBanner } from "@/components/deployment-banner";
+import { ClusterMelder } from "@/components/cluster-melder";
 import { loadWorkspace } from "@/lib/workspace";
 import { isStaff, isStaffAccount } from "@/lib/staff";
 import { isSales } from "@/lib/sales/access";
@@ -84,6 +85,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           components/deployment-banner.tsx (punt 25 uit
           docs/tasks/nova-vergelijking-verbeterpunten.md). */}
       <DeploymentBanner />
+      {/* Zegt het als een meting klaar is, op welk scherm je ook staat. Staat
+          hier en niet op het clusterscherm, want dat is juist het scherm waar
+          je niet op staat te wachten (22 september 2026, zie
+          components/cluster-melder.tsx). Zonder actief merk valt er niets te
+          melden. */}
+      {workspace.active && <ClusterMelder profileId={workspace.active.id} />}
     </ToastProvider>
   );
 }

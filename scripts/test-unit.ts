@@ -1006,6 +1006,13 @@ import {
 } from "@/lib/reputation/sources";
 import { decideStep, budgetUsd, RUN_BUDGET_EUR, STEP_COST_USD } from "@/lib/reputation/budget";
 import { isNewerVersionAvailable } from "@/lib/deployment";
+import {
+  moetMelden,
+  maakMelding,
+  teMelden,
+  MAX_MELDINGEN,
+  type ClusterStand,
+} from "@/lib/cluster-melding";
 import type {
   ProfileOffering,
   ProfileTopic,
@@ -23871,4 +23878,106 @@ group("bepaalGemisteVragen: eerst binnen een bron, dan tussen de bronnen", () =>
   ]);
   eq2("twee losse vragen blijven los", tweeVragen.length, 1);
   eq("en het is de juiste vraag", tweeVragen[0]?.promptId, "p1");
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// De melding als een cluster klaar is (22 september 2026)
+//
+// Het clusterresultaat heeft geen eigen scherm meer
+// (`docs/tasks/clusterresultaat-zonder-eigen-scherm.md`). Deze module bepaalt
+// in plaats daarvan of er iets te melden valt en wat erin staat, en dat is de
+// enige plek waar de klant nog hoort dat zijn meting klaar is. Gaat dit stil
+// stuk, dan merkt niemand het, ook de klant niet.
+// ─────────────────────────────────────────────────────────────────────────────
+group("cluster-melding: één melding per ronde, en alleen als de ronde klaar is", () => {
+  const basis: ClusterStand = {
+    id: "c1",
+    naam: "Cv-ketel onderhoud",
+    status: "gereed",
+    resultaatGezienAt: null,
+    zichtbaarheid: 34,
+    openVragen: 6,
+    voorgesteld: 4,
+  };
+
+  ok("een afgerond, nog niet gemeld cluster wordt gemeld", moetMelden(basis));
+  ok(
+    "dezelfde uitslag een tweede keer niet",
+    !moetMelden({ ...basis, resultaatGezienAt: "2026-09-22T10:00:00Z" }),
+  );
+  ok("een lopende meting nog niet", !moetMelden({ ...basis, status: "meten" }));
+  // `gemeten` betekent: score binnen, rapport nog niet. Juist dat rapport
+  // levert de vragen en de voorgestelde pagina's waar de melding over gaat.
+  ok("en 'score binnen, rapport volgt' ook niet", !moetMelden({ ...basis, status: "gemeten" }));
+  ok("een mislukte ronde wél", moetMelden({ ...basis, status: "mislukt" }));
+
+  const gelukt = maakMelding(basis);
+  eq("de titel die de eigenaar vroeg", gelukt.titel, "Cluster succesvol gemeten");
+  ok(
+    "met de drie cijfers in één regel",
+    gelukt.regel.includes("34% zichtbaarheid") &&
+      gelukt.regel.includes("6 openstaande vragen") &&
+      gelukt.regel.includes("4 voorgestelde pagina's"),
+    gelukt.regel,
+  );
+  ok("en de naam van het cluster erbij", gelukt.regel.startsWith("Cv-ketel onderhoud:"), gelukt.regel);
+
+  // Conventie 3: onbekend is beter dan verkeerd. Een cluster zonder score krijgt
+  // geen 0%, want 0% betekent "gemeten en nergens genoemd".
+  const zonderScore = maakMelding({ ...basis, zichtbaarheid: null });
+  ok("geen score wordt 'nog geen score' en geen 0%", zonderScore.regel.includes("nog geen score"), zonderScore.regel);
+  ok("en dus nergens een 0%", !zonderScore.regel.includes("0%"), zonderScore.regel);
+
+  // Enkelvoud en meervoud: dit getal staat vaak op 1.
+  const eenVanElk = maakMelding({ ...basis, openVragen: 1, voorgesteld: 1 });
+  ok(
+    "enkelvoud bij één vraag en één pagina",
+    eenVanElk.regel.includes("1 openstaande vraag") && eenVanElk.regel.includes("1 voorgestelde pagina."),
+    eenVanElk.regel,
+  );
+
+  const niets = maakMelding({ ...basis, openVragen: 0, voorgesteld: 0 });
+  ok(
+    "nul is hier een echte nul en geen onbekend",
+    niets.regel.includes("geen openstaande vragen") && niets.regel.includes("nog geen voorgestelde pagina"),
+    niets.regel,
+  );
+
+  const mislukt = maakMelding({ ...basis, status: "mislukt" });
+  eq("een mislukking heeft zijn eigen soort", mislukt.soort, "mislukt");
+  ok("met de clusternaam in de titel", mislukt.titel.includes("Cv-ketel onderhoud"), mislukt.titel);
+});
+
+group("teMelden: hooguit drie meldingen, maar alles wordt weggezet", () => {
+  const maak = (i: number): ClusterStand => ({
+    id: `c${i}`,
+    naam: `Cluster ${i}`,
+    status: "gereed",
+    resultaatGezienAt: null,
+    zichtbaarheid: 20 + i,
+    openVragen: i,
+    voorgesteld: i,
+  });
+
+  const vijf = [maak(1), maak(2), maak(3), maak(4), maak(5)];
+  const uit = teMelden(vijf);
+
+  eq2("er verschijnen er hooguit drie in beeld", uit.meldingen.length, MAX_MELDINGEN);
+  // ⚠️ Dit is het punt van de test: alle vijf gaan als gezien weg. Zou alleen
+  // het drietal weggezet worden, dan komen de andere twee bij elke volgende
+  // ronde van de melder opnieuw terug, en dan klikt de klant een muur weg die
+  // nooit opdroogt.
+  eq2("maar alle vijf worden als gemeld weggezet", uit.gezien.length, 5);
+
+  const gemengd = teMelden([
+    maak(1),
+    { ...maak(2), status: "meten" },
+    { ...maak(3), resultaatGezienAt: "2026-09-22T08:00:00Z" },
+  ]);
+  eq2("een lopende en een al gemelde ronde tellen niet mee", gemengd.meldingen.length, 1);
+  eq2("en worden ook niet weggezet", gemengd.gezien.length, 1);
+  eq("het is het juiste cluster", gemengd.gezien[0] ?? "", "c1");
+
+  const leeg = teMelden([]);
+  eq2("zonder clusters valt er niets te melden", leeg.meldingen.length, 0);
 });

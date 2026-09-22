@@ -66,7 +66,11 @@ export function NewAnalysisForm({
         setPending(false);
         return;
       }
-      router.push(`/analyses/${json.id}`);
+      // Naar het CONCEPT en niet naar `/analyses/[id]`: dat adres verwijst
+      // sinds 22 september 2026 door naar het clusteroverzicht, en waar je op
+      // wacht is het concept. Zolang dat wordt opgesteld, staat de voortgang
+      // daar (`docs/tasks/clusterresultaat-zonder-eigen-scherm.md`).
+      router.push(`/analyses/${json.id}/concept`);
     } catch {
       setError("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding en probeer het opnieuw.");
       setPending(false);

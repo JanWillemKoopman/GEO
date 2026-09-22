@@ -66,10 +66,13 @@ function bandVan(r: ClusterRij, bron: string) {
 export function AnalyticsClusterTable({
   rows,
   labelNaamPerId,
+  merkId,
   bron = BRONFILTER_STANDAARD,
 }: {
   rows: ClusterRij[];
   labelNaamPerId: Map<string, string>;
+  /** Het merk waar dit scherm bij hoort: de clusternaam linkt naar zijn eigen filter. */
+  merkId: string;
   /** De gekozen meetbron. Zie lib/engines/bron.ts. */
   bron?: string;
 }) {
@@ -84,7 +87,7 @@ export function AnalyticsClusterTable({
           rowKey={(r) => r.cluster.id}
           defaultSortKey="zichtbaarheid"
           defaultSortDir="asc"
-          columns={clusterKolommen(labelNaamPerId, bron)}
+          columns={clusterKolommen(labelNaamPerId, bron, merkId)}
           stickyOffset="calc(var(--header-h) + 3.5rem)"
           onRowClick={(r) => setGeselecteerd(r.cluster.id === geselecteerd ? null : r.cluster.id)}
           selectedKey={geselecteerd}
@@ -95,7 +98,7 @@ export function AnalyticsClusterTable({
         titel={gekozenRij?.cluster.name ?? ""}
         onSluit={() => setGeselecteerd(null)}
       >
-        {gekozenRij && <ClusterDetail rij={gekozenRij} bron={bron} />}
+        {gekozenRij && <ClusterDetail rij={gekozenRij} bron={bron} merkId={merkId} />}
       </Drawer>
     </>
   );
@@ -106,7 +109,7 @@ export function AnalyticsClusterTable({
  * `components/cluster-answers.tsx`). De verdeling over de drie fasen staat
  * hier bewust niet bij: die rust op een optelling uit `tracking_runs` die nog
  * niet gebouwd is (F5, zie `docs/tasks/analytics-herontwerp.md`). */
-function ClusterDetail({ rij, bron }: { rij: ClusterRij; bron: string }) {
+function ClusterDetail({ rij, bron, merkId }: { rij: ClusterRij; bron: string; merkId: string }) {
   const laatsteDrie = [...rij.reeks].reverse().slice(0, 3);
   return (
     <div className="flex flex-col gap-4">
@@ -128,8 +131,13 @@ function ClusterDetail({ rij, bron }: { rij: ClusterRij; bron: string }) {
         ))}
       </div>
       <ClusterAnswers analysisId={rij.cluster.id} />
-      <Link href={`/analyses/${rij.cluster.id}`} className="text-sm underline">
-        Naar het clusterdossier
+      {/* ⚠️ Wees tot 22 september 2026 naar "het clusterdossier"
+          (`/analyses/[id]`). Dat scherm is er niet meer: alles wat erop stond
+          staat hier, bij Openstaande vragen of in het Contentplan. Deze link
+          zet nu het clusterfilter van dít scherm aan, want dat is wat de
+          doorklik waard was. */}
+      <Link href={`/merk/${merkId}/analytics?cluster=${rij.cluster.id}`} className="text-sm underline">
+        Bekijk alleen dit cluster
       </Link>
     </div>
   );
@@ -141,6 +149,7 @@ function ClusterDetail({ rij, bron }: { rij: ClusterRij; bron: string }) {
 function clusterKolommen(
   labelNaamPerId: Map<string, string>,
   bron: string,
+  merkId: string,
 ): AnalyticsColumn<ClusterRij>[] {
   return [
     {
@@ -160,7 +169,10 @@ function clusterKolommen(
       header: "Cluster",
       sortValue: (r) => r.cluster.name,
       render: (r) => (
-        <Link href={`/analyses/${r.cluster.id}`} className="font-medium hover:underline">
+        <Link
+          href={`/merk/${merkId}/analytics?cluster=${r.cluster.id}`}
+          className="font-medium hover:underline"
+        >
           {r.cluster.name}
         </Link>
       ),

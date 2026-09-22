@@ -382,6 +382,7 @@ export default async function ContentDetailPage({
           genoemd wordt. */}
       <WhyThisPage
         analysisId={id}
+        profileId={analysis.profile_id}
         targets={targets}
         targetIntent={piece.target_intent}
         cluster={piece.cluster}

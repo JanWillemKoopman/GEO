@@ -27,7 +27,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { STATUS_META } from "@/lib/analysis-status";
 import type { WorkKind } from "@/lib/work-kind";
 import type { AuditCheck } from "@/lib/audit/technical";
-import type { Analysis, ContentPiece, FactRequest, OffsiteTask } from "@/lib/types/database";
+import type { Analysis, ContentPiece, FactRequest } from "@/lib/types/database";
 import { activeOnly } from "@/lib/archive";
 import { formatDateShort } from "@/lib/format";
 
@@ -121,7 +121,6 @@ export const URGENCY = {
 interface WorkSources {
   analyses: Analysis[];
   pieces: PieceRow[];
-  offsite: OffsiteTask[];
   facts: Pick<FactRequest, "id" | "profile_id" | "question" | "reason">[];
   /** Per profiel de blokkades uit de nieuwste audit. */
   blockersByProfile: Map<string, { checks: AuditCheck[]; since: string | null }>;
@@ -191,14 +190,12 @@ async function fetchSources(db: Db, analyses: Analysis[]): Promise<WorkSources> 
 
   const [
     { data: pieceRows },
-    { data: offsiteRows },
     { data: factRows },
     { data: auditRows },
     { data: impactRows },
   ] = await Promise.all([
     // Alleen de HUIDIGE versie per pagina: een vervangen versie is geen werk.
     db.from("content_pieces").select(PIECE_COLUMNS).in("analysis_id", ids).eq("is_current", true),
-    db.from("offsite_tasks").select("*").in("analysis_id", ids).order("priority"),
     db
       .from("fact_requests")
       .select("id, profile_id, question, reason")
@@ -218,7 +215,6 @@ async function fetchSources(db: Db, analyses: Analysis[]): Promise<WorkSources> 
   return {
     analyses,
     pieces: (pieceRows ?? []) as PieceRow[],
-    offsite: (offsiteRows ?? []) as OffsiteTask[],
     facts: (factRows ?? []) as WorkSources["facts"],
     blockersByProfile: blockersPerProfile(
       (auditRows ?? []) as { profile_id: string; checked_at: string; checks_json: unknown }[],
@@ -339,9 +335,12 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         state: "nu",
         typeLabel: "Cluster herstellen",
         title: "Er is iets misgegaan",
-        why: "Open het cluster om te zien waar het spaak liep en het opnieuw te proberen.",
+        why: "Ga naar je clusters om te zien waar het spaak liep en het opnieuw te proberen.",
         urgency: URGENCY.herstel,
-        href: `/analyses/${analysis.id}`,
+        // Sinds 22 september 2026 staat de knop "probeer het opnieuw" op het
+        // kaartje in het clusteroverzicht; het cluster had toen nog een eigen
+        // pagina, nu niet meer.
+        href: `/merk/${analysis.profile_id}/strategie/clusters`,
         actionLabel: "Bekijk wat er misging",
         analysisId: analysis.id,
         analysisName: name,
@@ -355,9 +354,9 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         state: "loopt",
         typeLabel: analysis.status === "meten" ? "Meting bezig" : "Onderzoek bezig",
         title: analysis.status === "meten" ? "De meting draait" : "Het onderzoek draait",
-        why: "ORBIT ENGINE werkt op de achtergrond door, ook als je de browser sluit. Jij hoeft niets.",
+        why: "ORBIT ENGINE werkt op de achtergrond door, ook als je de browser sluit. Jij hoeft niets, je krijgt een melding zodra het klaar is.",
         urgency: URGENCY.goedkeuring,
-        href: `/analyses/${analysis.id}`,
+        href: `/merk/${analysis.profile_id}/strategie/clusters`,
         analysisId: analysis.id,
         analysisName: name,
       });
@@ -466,29 +465,20 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
     });
   }
 
-  // ── Off-site ───────────────────────────────────────────────────────────────
-  for (const task of sources.offsite) {
-    const analysis = byAnalysis.get(task.analysis_id);
-    if (!analysis) continue;
-
-    const state: WorkState =
-      task.status === "open" ? "nu" : task.status === "bezig" ? "loopt" : "klaar";
-
-    items.push({
-      id: `offsite:${task.id}`,
-      kind: "offsite",
-      state,
-      typeLabel: state === "klaar" ? "Actie afgerond" : "Actie buiten je site",
-      title: task.title,
-      why: task.why,
-      urgency: URGENCY.offsite,
-      // Off-site werk vink je af in het blok onderaan hetzelfde cluster.
-      href: `/analyses/${task.analysis_id}#offsite`,
-      meta: task.domain ?? undefined,
-      analysisId: task.analysis_id,
-      analysisName: analysis.name,
-    });
-  }
+  // ── Off-site: BEWUST GEEN WERKITEM MEER (22 september 2026) ───────────────
+  //
+  // Hier stond een regel per off-site actie, met een link naar het blok
+  // onderaan de resultatenpagina van het cluster. Die pagina is weggehaald
+  // (`docs/tasks/clusterresultaat-zonder-eigen-scherm.md`), en op verzoek van
+  // de eigenaar is het off-site werk NIET ergens anders teruggezet: het is
+  // voorlopig uit de app, niet verhuisd.
+  //
+  // Een werkitem zonder scherm om het af te vinken is een taak die de klant
+  // nooit kan afronden, dus hij staat hier ook niet meer. De taken zelf blijven
+  // in `offsite_tasks` staan en worden nog gewoon gevuld door de pijplijn
+  // (`lib/offsite/`): als dit onderdeel terugkomt, staat de data er nog. De
+  // afweging en de voorwaarden om het terug te halen staan in het taakdocument
+  // hierboven, blok "Off-site".
 
   // ── Feitenvragen ───────────────────────────────────────────────────────────
   // Eén item per profiel, niet per vraag: acht regels over hetzelfde onderwerp

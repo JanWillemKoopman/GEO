@@ -16,8 +16,14 @@ import { Tabs } from "@/components/tabs";
  * eerste minuten van een analyse vier leeg waren, zonder dat de balk dat liet
  * zien.
  *
- * Drie van die tabbladen zijn hoofdstukken van het dossier geworden. Wat
- * overblijft zijn de twee plekken die géén hoofdstuk zijn:
+ * Drie van die tabbladen zijn hoofdstukken van het dossier geworden, en dat
+ * dossier is er sinds 22 september 2026 zelf ook niet meer
+ * (`docs/tasks/clusterresultaat-zonder-eigen-scherm.md`). Daarmee viel ook het
+ * tabblad "Cluster" weg: het wees naar een adres dat nu doorverwijst naar het
+ * clusteroverzicht, en een tabblad dat je uit zijn eigen navigatie gooit is
+ * erger dan geen tabblad.
+ *
+ * Wat overblijft zijn de twee plekken die géén hoofdstuk waren:
  *
  *   • de BIBLIOTHEEK: het eindproduct waar de klant voor betaalt. In het
  *     dossier is een pagina een taak; hier staat de tekst zelf, netjes bij
@@ -43,15 +49,6 @@ export function AnalysisNav({
 
   const onLibrary = pathname.startsWith(`${base}/bibliotheek`);
   const onSettings = pathname.startsWith(`${base}/instellingen`);
-  // ⚠️ De briefing (`/analyses/[id]/briefing`) is geen los scherm, hij bereidt
-  // pagina's van dit cluster voor om te schrijven (Teamsessie 7 september
-  // 2026). Vóór deze regel lichtte hier geen enkel tabblad op: `onDossier` was
-  // alleen waar op het exacte basisadres, dus de klant verliet zonder het te
-  // merken de Cluster/Bibliotheek/Instellingen-navigatie zodra hij op
-  // "voorbereiden" klikte. Nu blijft "Cluster" actief op elke route van dit
-  // cluster die niet expliciet Bibliotheek of Instellingen is.
-  const onDossier = !onLibrary && !onSettings;
-
   return (
     // `justify-between` in plaats van de losse `ml-auto` op Instellingen: die
     // knop is met opzet geen derde tabblad (zie de toelichting hierboven), dus
@@ -64,7 +61,6 @@ export function AnalysisNav({
       <Tabs
         label="Onderdelen van dit cluster"
         items={[
-          { href: base, label: "Cluster", actief: onDossier },
           {
             // ⚠️ Wijst sinds 16 september 2026 naar de MERKBREDE bibliotheek,
             // met dit cluster als filter. De bibliotheek per cluster was een

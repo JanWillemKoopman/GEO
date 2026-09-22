@@ -945,6 +945,14 @@ export async function generateReport(
     // Off-site scan erachteraan (optimalisatie.md fase 7). Pas nu, want hij
     // leidt het bronnenlandschap af uit de meetdata. Losse taak: faalt hij, dan
     // mist de klant het off-site advies maar houdt hij zijn rapport.
+    //
+    // ⚠️ Deze taak blijft draaien, ook al is het off-site ADVIES sinds 22
+    // september 2026 uit de schermen gehaald
+    // (`docs/tasks/clusterresultaat-zonder-eigen-scherm.md`, blok "Off-site").
+    // Reden: dezelfde scan vult `source_landscape`, en dáárop draait Analytics →
+    // Concurrenten. Alleen de takenlijst is onzichtbaar geworden, het
+    // bronnenlandschap niet. Wie deze aanroep ooit uitzet om kosten te sparen,
+    // haalt dus ook dat scherm leeg.
     await enqueue(admin, {
       type: "offsite_scan",
       payload: {},

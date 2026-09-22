@@ -596,3 +596,22 @@ kolommen op `profile_topics` worden alleen geschreven (`lib/pipeline/propose-top
 enkele regel productiecode gelezen; `search_volume_absolute` staat op alle rijen op `null`. Ze horen
 bij de geparkeerde zoekvolumelaag (`docs/logbook.md` 20 september 2026 (2)) en krijgen pas een lezer
 als die laag terugkomt.
+
+## 0107 — onthouden of de uitslag van een cluster al gemeld is
+
+`analyses.resultaat_gezien_at` (timestamptz, additief). Leeg betekent: de uitslag van de laatste
+meetronde is nog niet aan de gebruiker gemeld. Nodig sinds de resultatenpagina van een cluster is
+weggehaald (`docs/tasks/clusterresultaat-zonder-eigen-scherm.md`): die pagina was ook het
+wachtscherm en dus de enige plek die merkte dat een meting klaar was. Dat is nu een melding
+rechtsonder in beeld (`components/cluster-melder.tsx`), en zonder deze kolom zou die melding bij elke
+schermopening opnieuw verschijnen.
+
+`enqueueMeasurement()` (`lib/jobs/queue.ts`) zet de kolom terug op `null`, en alleen op het moment
+dat er echt nieuwe meettaken bijkomen. Zou hij dat ook doen bij een ronde die niets in te plannen
+had, dan meldt de app de uitslag van vorige maand opnieuw alsof hij vers is. Scenario 16 in
+`scripts/test-chain.ts` legt allebei de kanten vast.
+
+De migratie zet de kolom meteen op `updated_at` voor elk cluster dat al `gereed`, `gemeten` of
+`mislukt` is. Zonder die regel krijgt een klant met twaalf afgeronde clusters twaalf meldingen
+tegelijk over uitslagen van weken geleden. Op productie toegepast op 22 september 2026: 9 clusters,
+7 weggezet, 0 nog te melden.

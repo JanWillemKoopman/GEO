@@ -180,7 +180,10 @@ export function TopicsPanel({
         setBusy(null);
         return;
       }
-      router.push(`/analyses/${json.id}`);
+      // Naar het concept: daar wordt het cluster opgesteld en daar geef je
+      // akkoord. `/analyses/[id]` verwijst sinds 22 september 2026 door naar het
+      // clusteroverzicht.
+      router.push(`/analyses/${json.id}/concept`);
     } catch {
       setError("Het cluster kon niet starten. Controleer je verbinding.");
       setBusy(null);
@@ -201,7 +204,13 @@ export function TopicsPanel({
               <span className="chip chip-neutral">Concept</span>
             )}
             {t.analysis_id ? (
-              <Link href={`/analyses/${t.analysis_id}`} className="chip chip-success">
+              /* Naar de clusterlijst en niet naar een clusterpagina: die is er
+                 sinds 22 september 2026 niet meer. Daar staat de stand van dit
+                 cluster, met zijn cijfers en zijn knoppen. */
+              <Link
+                href={`/merk/${profileId}/strategie/clusters`}
+                className="chip chip-success"
+              >
                 Cluster loopt
                 <Icon naam="naar" size={12} />
               </Link>
