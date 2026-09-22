@@ -1919,7 +1919,7 @@ textarea.field {
    ⚠️ DE SPLITSING HANGT AAN EEN CONTAINERQUERY EN NIET AAN DE VENSTERBREEDTE.
    Dat is de eerste plek in dit bestand waar dat gebeurt, en de reden is
    rekenkundig. De rail past als er `720px` tekst, `24px` tussenruimte en
-   `320px` rail in passen, samen 1064. Wat er beschikbaar is, is:
+   `400px` rail in passen, samen 1144. Wat er beschikbaar is, is:
 
      viewport - zijbalk - 2 × 24px marge van `.stand`
 
@@ -1942,7 +1942,7 @@ textarea.field {
   gap: 24px;
 }
 /* De rail als kolom, zodra hij past. */
-@container contentpagina (min-width: 1064px) {
+@container contentpagina (min-width: 1144px) {
   .content-split {
     flex-direction: row;
     align-items: flex-start;
@@ -1952,7 +1952,13 @@ textarea.field {
     min-width: 0;
   }
   .content-rail {
-    width: 320px;
+    /* 400px en niet 320px (22 september 2026): een rail die tabbladen toont in
+       plaats van een accordion mag smaller ogen dan hij is, want een lang
+       tabblad-label ("Onderbouwing") verdraagt minder ruimte dan een sectiekop
+       die de volle breedte voor zich alleen had. Dit is meteen de ruimte die
+       verdween tussen de leeskolom van 720px en de rail: die stond er tot
+       vandaag als lege marge bij, zonder functie. */
+    width: 400px;
     flex-shrink: 0;
     /* Onder de paginabalk, die zelf onder de bovenbalk plakt. */
     position: sticky;
@@ -1968,10 +1974,29 @@ textarea.field {
 /* Buiten de containerquery is de rail een lade en staat de knop ernaartoe in
    de balk. De rail zelf wordt dan door `Drawer` gerenderd, dus hier hoeft
    alleen de kolomversie verborgen te worden. */
-@container contentpagina (max-width: 1063.98px) {
+@container contentpagina (max-width: 1143.98px) {
   .content-rail {
     display: none;
   }
+}
+
+/* ── De tabbladen IN de rail (22 september 2026) ────────────────────────────
+   Vervangt de accordion: één tabblad zichtbaar tegelijk in plaats van alle
+   secties onder elkaar. `.tab` bestaat al (de onderstreepte navigatietab
+   hierboven in dit bestand); dit hergebruikt precies dezelfde vorm voor een
+   `role="tab"`-knop die niet navigeert maar wisselt welk paneel er staat.
+   Alleen de rij eromheen is nieuw: `.tabs` staat vast op één regel met 24px
+   tussenruimte, en dat past niet in een rail van 400px met zes labels. Hier
+   mag de rij naar een tweede regel omklappen, met minder tussenruimte. */
+.rail-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+  border-bottom: var(--border-width-xs) solid var(--line-muted);
+  margin-bottom: 16px;
+}
+.rail-paneel {
+  min-width: 0;
 }
 
 /* De leeskolom houdt de maat van de stand `lezen` (720px), ook al is de kolom

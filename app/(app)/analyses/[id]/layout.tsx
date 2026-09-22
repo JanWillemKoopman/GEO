@@ -8,6 +8,8 @@ import { StatusBadge } from "@/components/status-badge";
 import { getClusterDisplayName } from "@/lib/url";
 import { AnalysisNav } from "./tabs";
 import { Icon } from "@/components/icon";
+import { huidigPad } from "@/lib/pad";
+import { isStukpagina } from "@/lib/origin";
 
 /**
  * A.4: elk scherm een eigen tabbladtitel. Deze laag zet de analysenaam als
@@ -46,6 +48,23 @@ export default async function AnalysisLayout({
   const { id } = await params;
   const analysis = await getAnalysis(id);
   if (!analysis) notFound();
+
+  // ── ⚠️ GEEN CHROME OP DE CONTENTPAGINA VAN EEN STUK (22 september 2026) ────
+  //
+  // Deze laag zet de terugknop naar Clusters, de clusternaam en zijn status
+  // ("Gereed") boven élke onderliggende route. Voor een geschreven pagina
+  // (`bibliotheek/[pieceId]`) botst dat met de eigen paginabalk daar
+  // (`content-topbar.tsx`): twee terugknoppen naar twee verschillende plekken
+  // en twee statuschips ("Concept" van het stuk, "Gereed" van het cluster) die
+  // over iets anders gaan maar naast elkaar hetzelfde leken te zeggen. Die
+  // pagina is af, ontkoppeld van het dossier eromheen; hij hoort zijn eigen
+  // terugknop (naar de Bibliotheek) te hebben en verder niets.
+  //
+  // Een layout kent alleen de `params` van zijn eigen segment, niet welke
+  // dieper geneste route er getoond wordt. Vandaar `x-pad` uit de middleware
+  // (`lib/pad.ts`), hetzelfde patroon als `x-apparaat` in `lib/apparaat.ts`.
+  const pad = await huidigPad();
+  if (isStukpagina(pad, id)) return <>{children}</>;
 
   // Zolang het concept nog opgesteld of bevestigd moet worden, is er maar één
   // taak. Dan hoort er geen navigatie te staan die daarvan afleidt en die toch
