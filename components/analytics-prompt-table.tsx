@@ -51,13 +51,20 @@ function promptKolommen(merkId: string, ownTerms: string[]): AnalyticsColumn<Pro
     {
       key: "cluster",
       header: "Cluster",
-      width: "12rem",
+      width: "16rem",
       sortValue: (r) => r.clusterName,
       render: (r) => (
         <Link href={`/merk/${merkId}/analytics?cluster=${r.clusterId}`} className="hover:underline">
           {r.clusterName}
         </Link>
       ),
+    },
+    {
+      key: "funnel",
+      header: "Funnel",
+      width: "8rem",
+      sortValue: (r) => r.category,
+      render: (r) => r.category || "-",
     },
     {
       key: "prompt",

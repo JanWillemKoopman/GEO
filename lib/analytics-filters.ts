@@ -14,6 +14,7 @@
  * server-pagina's én `components/analytics-filters.tsx`.
  */
 import { filterOpLabel, type Labelachtig, type Labelfilter } from "@/lib/cluster-labels";
+import { PROMPT_CATEGORIES } from "@/lib/types/database";
 
 export { LABELFILTER_ALLES, LABELFILTER_GEEN, filterOpLabel, leesLabelfilter } from "@/lib/cluster-labels";
 export type { Labelfilter } from "@/lib/cluster-labels";
@@ -62,6 +63,37 @@ export function filterOpCluster<T extends { analysis_id: string } | { id: string
 ): T[] {
   if (clusterfilter === CLUSTERFILTER_ALLES) return items;
   return items.filter((item) => clusterIdVan(item) === clusterfilter);
+}
+
+// ── Funnel ───────────────────────────────────────────────────────────────
+//
+// De funnelfase van een vraag staat al op elke `tracking_runs`-rij
+// (`prompt_category_snapshot`, kolom `category` op `PromptVisibilityRow`) en
+// komt hier alleen bij de prompttabel: de scores, de grafiek en de
+// clustertabel gaan over een heel cluster, dat geen eigen fase heeft. Dit
+// filter kwam eerder bewust niet in de filterbalk, omdat er toen niets was dat
+// hem vulde (`docs/tasks/funnelfase-nooit-gevuld.md` gaat over een ANDER veld,
+// `planned_pages.funnel_stage_id`); de prompttabel vult deze kolom wel al.
+
+export const FUNNELFILTER_ALLES = "alle";
+
+/** De fasen die daadwerkelijk in deze rijen voorkomen, in vaste volgorde. */
+export function beschikbareFunnelfasen<T extends { category: string }>(rijen: T[]): string[] {
+  const gevonden = new Set(rijen.map((r) => r.category).filter((c) => c && c.trim() !== ""));
+  const bekend = PROMPT_CATEGORIES.filter((c) => gevonden.has(c));
+  const onbekend = [...gevonden].filter((c) => !(PROMPT_CATEGORIES as readonly string[]).includes(c)).sort();
+  return [...bekend, ...onbekend];
+}
+
+/** Zelfde vangnet als de andere filters: een onbekende waarde valt terug op "alle fasen". */
+export function leesFunnelfilter(ruw: string | null | undefined, beschikbaar: string[]): string {
+  return ruw && beschikbaar.includes(ruw) ? ruw : FUNNELFILTER_ALLES;
+}
+
+/** De rijen die bij deze funnelkeuze horen. */
+export function filterOpFunnel<T extends { category: string }>(rijen: T[], funnelfilter: string): T[] {
+  if (funnelfilter === FUNNELFILTER_ALLES) return rijen;
+  return rijen.filter((r) => r.category === funnelfilter);
 }
 
 // ── Periode ──────────────────────────────────────────────────────────────

@@ -62,18 +62,33 @@ export function bronToelichting(id: string): string | null {
 }
 
 /** Zonder keuze in het adres: de bron waar de score van de klant op rust. */
-export const BRONFILTER_STANDAARD: string = PRIMARY_ENGINE;
+export const BRONFILTER_STANDAARD: string[] = [PRIMARY_ENGINE];
 
 /**
- * Is dit een geldige bron?
+ * Is dit een geldige, niet-lege verzameling bronnen?
  *
- * Zelfde vangnet als `leesLabelfilter` en `leesClusterfilter`: een onbekende
- * waarde in het adres valt terug op de standaard in plaats van een leeg scherm
- * te tonen. Een geknipt en geplakt adres van een collega mag nooit een lege
- * pagina opleveren.
+ * Zelfde vangnet als `leesLabelfilter` en `leesClusterfilter`: een onbekende of
+ * lege waarde in het adres valt terug op de standaard in plaats van een leeg
+ * scherm te tonen. Een geknipt en geplakt adres van een collega mag nooit een
+ * lege pagina opleveren. `ruw` is een kommagescheiden lijst van bron-id's
+ * (`?bron=chatgpt,google_ai_overview`), zodat meerdere bronnen tegelijk te
+ * kiezen zijn (23 september 2026: eerder was dit een knop met één keuze).
  */
-export function leesBronfilter(ruw: string | null | undefined): string {
-  return ruw && BRONNEN.some((b) => b.id === ruw) ? ruw : BRONFILTER_STANDAARD;
+export function leesBronfilter(ruw: string | null | undefined, beschikbaar: Bron[] = BRONNEN): string[] {
+  if (!ruw) return BRONFILTER_STANDAARD;
+  const geldig = ruw.split(",").filter((id) => beschikbaar.some((b) => b.id === id));
+  return geldig.length > 0 ? geldig : BRONFILTER_STANDAARD;
+}
+
+/**
+ * De adreswaarde voor deze bronkeuze, of `null` als het de standaardkeuze is
+ * (zo blijft het adres schoon voor de meeste klanten, die nooit aan dit filter
+ * komen).
+ */
+export function bronfilterNaarAdres(bronfilter: string[]): string | null {
+  const isStandaard =
+    bronfilter.length === BRONFILTER_STANDAARD.length && bronfilter.every((id) => BRONFILTER_STANDAARD.includes(id));
+  return isStandaard ? null : bronfilter.join(",");
 }
 
 /** Hoe de klant deze bron genoemd ziet. */
@@ -126,6 +141,32 @@ export function cijferVoorBron(rij: ScoreRijAchtig, bron: string): { score: numb
   if (score == null) return null;
 
   const stderr = (cijfer.weighted_score != null ? cijfer.weighted_stderr : cijfer.stderr) ?? 0;
+  return { score, stderr };
+}
+
+/**
+ * Het cijfer over meerdere gekozen bronnen samen (23 september 2026): het
+ * rekenkundige gemiddelde van de bronnen die in deze ronde daadwerkelijk
+ * gemeten zijn. Een bron die deze ronde niet meemat telt niet mee, conventie 3:
+ * onbekend is geen nul.
+ *
+ * ⚠️ Dit is bewust ÉÉN gemiddeld cijfer en geen cijfer per bron naast elkaar:
+ * dezelfde regel als de rest van dit bestand, nooit een tweede getal dat
+ * iedereen moet gaan uitleggen. Bij precies één bron is dit gelijk aan
+ * `cijferVoorBron()`.
+ */
+export function cijferVoorBronnen(rij: ScoreRijAchtig, bronnen: string[]): { score: number; stderr: number } | null {
+  const cijfers = bronnen
+    .map((bron) => cijferVoorBron(rij, bron))
+    .filter((c): c is { score: number; stderr: number } => c !== null);
+  if (cijfers.length === 0) return null;
+
+  const score = cijfers.reduce((som, c) => som + c.score, 0) / cijfers.length;
+  // De onzekerheid van een gemiddelde van onafhankelijke schattingen: de
+  // wortel van de som van de gekwadrateerde bijdragen, gedeeld door het
+  // aantal. Zelfde formule als `gewogenGemiddelde()` op dit scherm, hier met
+  // gelijk gewicht per bron in plaats van per aantal metingen.
+  const stderr = Math.sqrt(cijfers.reduce((som, c) => som + c.stderr ** 2, 0)) / cijfers.length;
   return { score, stderr };
 }
 

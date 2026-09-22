@@ -11435,3 +11435,39 @@ query die groepeert); geverifieerd door de query's velden en filters tegen het s
 bestaande `loadAnswers()`-aanpak te leggen, niet tegen productiedata (nog geen tweede meting met
 herhalingen op dit account).
 
+## 23 september 2026 (29): de prompttabel breder, een Funnel-kolom en -filter, en Bron als aanvinklijst
+
+De prompttabel van gisteren kreeg drie verbeteringen. De kolom "Cluster" ging van 12rem naar 16rem:
+bij langere clusternamen liep de tekst tegen de volgende kolom aan. Er kwam een kolom "Funnel" bij,
+tussen Cluster en Prompt: `PromptVisibilityRow.category` (de funnelfase van de vraag, Oriëntatie /
+Overweging / Beslissing) stond er al in maar werd nergens getoond. Daarboven kwam een Funnel-filter
+in de filterbalk (`lib/analytics-filters.ts`: `beschikbareFunnelfasen()`, `leesFunnelfilter()`,
+`filterOpFunnel()`), die alleen verschijnt als er meer dan één fase in de getoonde vragen voorkomt
+en alleen de prompttabel filtert: een cluster of een score heeft geen eigen fase. Dit is een ANDER
+veld dan `docs/tasks/funnelfase-nooit-gevuld.md` (dat gaat over `planned_pages.funnel_stage_id`, dat
+sinds 25 augustus 2026 nergens meer geschreven wordt); `tracking_runs.prompt_category_snapshot`
+wordt wél bij elke meting gevuld.
+
+Het Bron-filter werd op verzoek van de eigenaar een aanvinklijst met een "Alle bronnen"-vakje, in
+plaats van een knop met precies één keuze. Dat botste met de vastgelegde regel van 20 september 2026
+dat dit scherm nooit een cijfer per bron naast elkaar toont; de eigenaar koos voor de hele pagina
+mee te laten schalen (niet alleen de prompttabel) en voor één GEMIDDELD cijfer over de aangevinkte
+bronnen, in plaats van een cijfer per bron ernaast. `cijferVoorBronnen()` in `lib/engines/bron.ts`
+middelt de score en combineert de onzekerheid als de wortel van de som van de gekwadrateerde
+bijdragen gedeeld door het aantal (dezelfde soort formule als `gewogenGemiddelde()` op dit scherm,
+hier met gelijk gewicht per bron); een bron die een ronde niet meemat telt niet mee (conventie 3).
+Bij precies één aangevinkte bron (de standaard) is dit gelijk aan het oude gedrag, dus voor een
+klant die het filter nooit aanraakt verandert er niets. `BRONFILTER_STANDAARD` is nu `string[]`,
+`leesBronfilter()` leest een kommagescheiden lijst (`?bron=chatgpt,google_ai_overview`) en
+`bronfilterNaarAdres()` houdt het adres schoon bij de standaardkeuze. `loadPromptVisibility()` leest
+nu `.in("engine", bronnen)` in plaats van `.eq("engine", bron)`, en de prompttabel telt de metingen
+van alle aangevinkte bronnen samen tot één percentage per vraag, net als hij dat al deed over
+herhaalde metingen van dezelfde vraag.
+
+`tsc --noEmit`, `test:unit` (5111, dezelfde vier bekende mislukkingen over "de S" en de
+navigatievolgorde in Strategie, ongerelateerd), `test:chain` (732) en `build` groen. Nieuwe
+testcases in `test-unit.ts` voor `beschikbareFunnelfasen()`/`leesFunnelfilter()`/`filterOpFunnel()`
+en voor `cijferVoorBronnen()`/`bronfilterNaarAdres()`/de meervoudige `leesBronfilter()` (conventie 1:
+elke wijziging die een uitkomst beïnvloedt krijgt een test). Geen migratie: beide velden bestonden
+al.
+

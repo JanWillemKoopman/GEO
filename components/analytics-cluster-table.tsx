@@ -5,7 +5,7 @@ import { AnalyticsTable, type AnalyticsColumn } from "@/components/analytics-tab
 import { Icon } from "@/components/icon";
 import { confidenceBand, changeIsMeaningful } from "@/lib/stats/uncertainty";
 import { poolRecent } from "@/lib/stats/pooling";
-import { cijferVoorBron, BRONFILTER_STANDAARD } from "@/lib/engines/bron";
+import { cijferVoorBronnen, BRONFILTER_STANDAARD } from "@/lib/engines/bron";
 import type { VisibilityScore } from "@/lib/types/database";
 
 /**
@@ -28,16 +28,17 @@ export interface ClusterRij {
 }
 
 /**
- * De score van de gekozen BRON (20 september 2026). Zonder keuze is dat de
- * primaire engine, en dan leest deze functie gewoon de kolommen die er altijd
- * al stonden. Zie lib/engines/bron.ts.
+ * De score van de gekozen BRONNEN (20 september 2026, meervoudig sinds 23
+ * september 2026). Zonder keuze is dat de primaire engine alleen, en dan leest
+ * deze functie gewoon de kolommen die er altijd al stonden. Bij meer dan één
+ * gekozen bron is dit hun gemiddelde. Zie lib/engines/bron.ts.
  */
-function leidend(s: VisibilityScore, bron: string = BRONFILTER_STANDAARD): number {
-  return cijferVoorBron(s, bron)?.score ?? 0;
+function leidend(s: VisibilityScore, bron: string[] = BRONFILTER_STANDAARD): number {
+  return cijferVoorBronnen(s, bron)?.score ?? 0;
 }
 
-function stderrVan(s: VisibilityScore, bron: string = BRONFILTER_STANDAARD): number {
-  return cijferVoorBron(s, bron)?.stderr ?? 0;
+function stderrVan(s: VisibilityScore, bron: string[] = BRONFILTER_STANDAARD): number {
+  return cijferVoorBronnen(s, bron)?.stderr ?? 0;
 }
 
 /**
@@ -48,12 +49,12 @@ function stderrVan(s: VisibilityScore, bron: string = BRONFILTER_STANDAARD): num
  * Ze spreken elkaar niet tegen, want zodra er écht iets gebeurt stopt
  * `poolRecent()` met samenvoegen en is dit cijfer gelijk aan de laatste ronde.
  */
-function samengevoegd(r: ClusterRij, bron: string) {
+function samengevoegd(r: ClusterRij, bron: string[]) {
   return poolRecent(r.reeks.map((s) => ({ score: leidend(s, bron), stderr: stderrVan(s, bron) })));
 }
 
 /** De band hoort bij het getoonde cijfer, dus bij de samengevoegde schatting. */
-function bandVan(r: ClusterRij, bron: string) {
+function bandVan(r: ClusterRij, bron: string[]) {
   const p = samengevoegd(r, bron);
   return p
     ? confidenceBand(p.score, p.stderr)
@@ -70,8 +71,8 @@ export function AnalyticsClusterTable({
   labelNaamPerId: Map<string, string>;
   /** Het merk waar dit scherm bij hoort: de clusternaam linkt naar zijn eigen filter. */
   merkId: string;
-  /** De gekozen meetbron. Zie lib/engines/bron.ts. */
-  bron?: string;
+  /** De gekozen meetbronnen, gemiddeld als het er meer dan één zijn. Zie lib/engines/bron.ts. */
+  bron?: string[];
 }) {
   return (
     <div className="card">
@@ -92,7 +93,7 @@ export function AnalyticsClusterTable({
  * eerst. */
 function clusterKolommen(
   labelNaamPerId: Map<string, string>,
-  bron: string,
+  bron: string[],
   merkId: string,
 ): AnalyticsColumn<ClusterRij>[] {
   return [
