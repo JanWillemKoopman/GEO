@@ -7,6 +7,7 @@ import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { buildAnalysisName } from "@/lib/url";
 import { normaliseerLabelnaam, vindLabel } from "@/lib/cluster-labels";
 import type { ClusterLabel } from "@/lib/types/database";
+import { checkNewClusterMix, type FunnelStage } from "@/lib/prompt-mix";
 
 /**
  * POST /api/analyses, nieuwe analyse aanmaken (abcplan.md §6 A0, na de
@@ -28,6 +29,7 @@ export async function POST(request: Request) {
     notify_by_email?: boolean;
     label_id?: string;
     label_name?: string;
+    mix?: Record<string, unknown>;
   };
   try {
     body = await request.json();
@@ -124,6 +126,20 @@ export async function POST(request: Request) {
     }
   }
 
+  // De verdeling over de funnelfasen (migratie 0054), hier met de engere
+  // grenzen van een eerste cluster (`checkNewClusterMix`). Weggelaten betekent
+  // de standaard 10/10/10; de kolommen blijven dan null.
+  let mixUpdate: Record<string, number> | null = null;
+  if (body.mix) {
+    const check = checkNewClusterMix(body.mix as Partial<Record<FunnelStage, unknown>>);
+    if (!check.ok) return NextResponse.json({ error: check.reason }, { status: 400 });
+    mixUpdate = {
+      prompts_orientatie: check.mix["Oriëntatie"],
+      prompts_overweging: check.mix["Overweging"],
+      prompts_beslissing: check.mix["Beslissing"],
+    };
+  }
+
   const name = buildAnalysisName(profile.url, topic);
 
   const { data, error } = await admin
@@ -138,6 +154,7 @@ export async function POST(request: Request) {
       status: "bezig",
       content_brief: contentBrief,
       label_id: labelId,
+      ...(mixUpdate ?? {}),
     })
     .select("id")
     .single();

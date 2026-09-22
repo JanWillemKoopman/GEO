@@ -750,6 +750,7 @@ import {
 import {
   DEFAULT_MIX,
   checkMix,
+  checkNewClusterMix,
   describeMix,
   isDefaultMix,
   mixTotal,
@@ -758,6 +759,8 @@ import {
   exceedsRunBudgetWarning,
   MAX_PER_STAGE,
   MAX_TOTAL,
+  NEW_CLUSTER_MIN_TOTAL,
+  NEW_CLUSTER_MAX_TOTAL,
 } from "@/lib/prompt-mix";
 import { readKey } from "@/lib/search-console/key-state";
 import {
@@ -9705,6 +9708,41 @@ group("checkMix: de grenzen, en waarom ze er zijn", () => {
   ok("negatief mag niet", !checkMix({ "Oriëntatie": -1, "Overweging": 10, "Beslissing": 10 }).ok);
   ok("kommagetal mag niet", !checkMix({ "Oriëntatie": 5.5, "Overweging": 10, "Beslissing": 10 }).ok);
   ok("onzin mag niet", !checkMix({ "Oriëntatie": "veel", "Overweging": 10, "Beslissing": 10 }).ok);
+});
+
+group("checkNewClusterMix: de engere grenzen van een nieuw cluster", () => {
+  ok("de standaard 10/10/10 komt erdoor", checkNewClusterMix(DEFAULT_MIX).ok);
+  ok(
+    "en de grenzen kloppen met wat het scherm belooft",
+    NEW_CLUSTER_MIN_TOTAL === 10 && NEW_CLUSTER_MAX_TOTAL === 60,
+  );
+
+  const onderDeTien = checkNewClusterMix({ "Oriëntatie": 3, "Overweging": 3, "Beslissing": 3 });
+  ok("minder dan tien in totaal wordt geweigerd", !onderDeTien.ok);
+  ok(
+    "en de melding noemt het minimum",
+    !onderDeTien.ok && onderDeTien.reason.includes(String(NEW_CLUSTER_MIN_TOTAL)),
+  );
+
+  const preciesTien = checkNewClusterMix({ "Oriëntatie": 4, "Overweging": 3, "Beslissing": 3 });
+  ok("precies tien mag wel", preciesTien.ok);
+
+  const bovenDeZestig = checkNewClusterMix({ "Oriëntatie": 21, "Overweging": 20, "Beslissing": 20 });
+  ok("meer dan zestig in totaal wordt geweigerd", !bovenDeZestig.ok);
+  ok(
+    "en de melding noemt het maximum",
+    !bovenDeZestig.ok && bovenDeZestig.reason.includes(String(NEW_CLUSTER_MAX_TOTAL)),
+  );
+
+  const preciesZestig = checkNewClusterMix({ "Oriëntatie": 20, "Overweging": 20, "Beslissing": 20 });
+  ok("precies zestig mag wel", preciesZestig.ok);
+
+  // De grens per fase (MAX_PER_STAGE) en op onzinnige invoer blijven gelden,
+  // want `checkNewClusterMix` bouwt bovenop `checkMix` en vervangt hem niet.
+  ok(
+    "de grens per fase blijft ook hier gelden",
+    !checkNewClusterMix({ "Oriëntatie": 41, "Overweging": 10, "Beslissing": 10 }).ok,
+  );
 });
 
 group("describeMix: wat het kost en wat het oplevert", () => {
