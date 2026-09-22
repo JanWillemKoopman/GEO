@@ -257,6 +257,14 @@ import { answerBelongsHere } from "@/lib/pipeline/answer-scope";
 import { stripChrome } from "@/lib/pipeline/page-text";
 import { prioriteerBevindingen, MAX_BEVINDINGEN_PER_RONDE } from "@/lib/pipeline/content-issues";
 import { beslisReparatieRonde, binnenRuis } from "@/lib/pipeline/content-repair-decision";
+import {
+  groepeerBevindingen,
+  aangebodenAanReparatie,
+  issueSleutel,
+  beschrijfPogingen,
+  leesbareBevinding,
+  type Keuringsronde,
+} from "@/lib/pipeline/quality-groups";
 import { duplicatePromptIds } from "@/lib/pipeline/prompt-dedupe";
 import { dedupeCompetitorNames } from "@/lib/pipeline/competitor-dedupe";
 import { htmlToText } from "@/lib/pipeline/html-text";
@@ -24156,4 +24164,212 @@ group("teMelden: hooguit drie meldingen, maar alles wordt weggezet", () => {
 
   const leeg = teMelden([]);
   eq2("zonder clusters valt er niets te melden", leeg.meldingen.length, 0);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// De contentpagina groepeert zijn bevindingen naar wat de app al geprobeerd
+// heeft (22 september 2026). Zie `lib/pipeline/quality-groups.ts` voor waarom.
+group("Bevindingen: wat is geprobeerd, en wat kwam nooit aan de beurt", () => {
+  function bevinding(over: Partial<QualityIssue> & { finding: string }): QualityIssue {
+    return {
+      dimension: "feitelijkheid",
+      severity: "midden",
+      section: null,
+      evidence: null,
+      expected: null,
+      recommendation: "Doe er iets aan.",
+      blocking: false,
+      confidence: 1,
+      phase: "schrijven",
+      bron: "redactie",
+      ...over,
+    } as QualityIssue;
+  }
+
+  // De zwaarste soort uit de echte data van 22 september 2026: een bewering
+  // zonder bron, blokkerend, zekerheid 1.
+  const zonderBron = bevinding({
+    finding: 'Deze zin zegt iets over je bedrijf zonder bron: "Wij doen dit al 20 jaar."',
+    severity: "blokkerend",
+    blocking: true,
+    bron: "bronherleidbaarheid",
+  });
+  const toon = bevinding({ finding: "De toon is te formeel.", severity: "laag", confidence: 0.7 });
+  const restvraag = bevinding({
+    finding: "Een lezer houdt deze vraag over: wat kost het?",
+    severity: "laag",
+    confidence: 0.7,
+  });
+
+  // ── De sleutel ────────────────────────────────────────────────────────────
+  eq(
+    "dezelfde bevinding in dezelfde sectie levert dezelfde sleutel",
+    issueSleutel(bevinding({ finding: "Te   dun.", section: "Prijs" })),
+    issueSleutel(bevinding({ finding: "te dun.", section: " prijs " })),
+  );
+  ok(
+    "dezelfde bevinding in een andere sectie is een ander probleem",
+    issueSleutel(bevinding({ finding: "Te dun.", section: "Prijs" })) !==
+      issueSleutel(bevinding({ finding: "Te dun.", section: "Ervaring" })),
+  );
+
+  // ── Wat de reparatie meekreeg ─────────────────────────────────────────────
+  // ⚠️ Dit is het punt van de hele module: met 25 bevindingen gaan er tien mee
+  // en blijven er vijftien onaangeraakt. Zou het scherm dat verschil niet
+  // tonen, dan leest de klant vijftien punten als "de app kreeg dit niet
+  // opgelost" terwijl de app ze nooit gezien heeft.
+  const vijfentwintig = Array.from({ length: 25 }, (_, i) =>
+    bevinding({ finding: `Punt ${i}.`, section: `S${i}` }),
+  );
+  const ronde0: Keuringsronde = { ronde: 0, issues: vijfentwintig, herkeuring: false };
+  eq2("de reparatie krijgt er tien", aangebodenAanReparatie(ronde0).length, 10);
+
+  const groepen = groepeerBevindingen(vijfentwintig, [ronde0]);
+  eq2("tien zijn er geprobeerd", groepen.geprobeerd.length, 10);
+  eq2("vijftien kwamen nooit aan de beurt", groepen.nietGeprobeerd.length, 15);
+  eq2("en samen zijn dat alle bevindingen", groepen.geprobeerd.length + groepen.nietGeprobeerd.length, 25);
+
+  // ── Blokkades staan apart, ongeacht herkomst ──────────────────────────────
+  const metBlokkade = groepeerBevindingen([zonderBron, toon, restvraag], [
+    { ronde: 0, issues: [zonderBron, toon, restvraag], herkeuring: false },
+  ]);
+  eq2("de blokkade staat in zijn eigen groep", metBlokkade.blokkades.length, 1);
+  ok("en niet ook nog tussen de geprobeerde", metBlokkade.geprobeerd.every((b) => !b.issue.blocking));
+
+  // ── Een bevinding die pas later ontstond ──────────────────────────────────
+  // Gemeten op pagina f3a175b5: van de 78 bevindingen in de laatste ronde
+  // kwamen er 46 in geen enkele eerdere ronde voor.
+  const nieuw = bevinding({ finding: "Deze kop belooft iets wat de alinea niet waarmaakt." });
+  const later = groepeerBevindingen([toon, nieuw], [{ ronde: 0, issues: [toon], herkeuring: false }]);
+  eq2("de oude is geprobeerd", later.geprobeerd.length, 1);
+  eq2("de nieuwe telt als niet geprobeerd", later.nietGeprobeerd.length, 1);
+  eq(
+    "en die nieuwe is de juiste",
+    later.nietGeprobeerd[0]?.issue.finding ?? "",
+    "Deze kop belooft iets wat de alinea niet waarmaakt.",
+  );
+
+  // ── Een herkeuring is geen reparatiepoging ────────────────────────────────
+  // Migratie 0092: dezelfde tekst opnieuw beoordeeld, er is niets herschreven.
+  const alleenHerkeuring = groepeerBevindingen([toon], [
+    { ronde: 1, issues: [toon], herkeuring: true },
+  ]);
+  eq2("een herkeuring telt niet als ronde", alleenHerkeuring.reparatierondes, 0);
+  eq(
+    "en dan beweert het scherm niets over pogingen",
+    alleenHerkeuring.nietGeprobeerd[0]?.herkomst ?? "",
+    "onbekend",
+  );
+  eq("dus staat er geen zin boven", beschrijfPogingen(alleenHerkeuring), "");
+
+  // ── Zonder eerdere rondes ─────────────────────────────────────────────────
+  // Conventie 3: onbekend is een betere waarde dan een verkeerde. Een pagina
+  // van vóór migratie 0091 heeft geen rondes, en dan hoort er niets te staan
+  // over wat er geprobeerd zou zijn.
+  const zonderRondes = groepeerBevindingen([toon, restvraag], []);
+  eq2("alles komt in één lijst", zonderRondes.nietGeprobeerd.length, 2);
+  eq2("er is niets geprobeerd om te tonen", zonderRondes.geprobeerd.length, 0);
+  eq("en de herkomst is eerlijk onbekend", zonderRondes.nietGeprobeerd[0]?.herkomst ?? "", "onbekend");
+
+  // ── Ontdubbelen ───────────────────────────────────────────────────────────
+  // Twee beoordelaars kunnen dezelfde bevinding aanleveren; de klant leest hem
+  // één keer.
+  const dubbel = groepeerBevindingen([toon, bevinding({ finding: "De toon is te formeel." })], []);
+  eq2("dezelfde bevinding verschijnt één keer", dubbel.nietGeprobeerd.length, 1);
+
+  // ── De zin erboven ────────────────────────────────────────────────────────
+  const tweeRondes = groepeerBevindingen(vijfentwintig, [
+    ronde0,
+    { ronde: 1, issues: vijfentwintig, herkeuring: false },
+  ]);
+  eq2("twee rondes tellen als twee", tweeRondes.reparatierondes, 2);
+  ok(
+    "de zin zegt hoe vaak er bijgewerkt is",
+    beschrijfPogingen(tweeRondes).startsWith("ORBIT ENGINE heeft deze pagina zelf 2 keer bijgewerkt"),
+  );
+  ok(
+    "bij één ronde staat er geen cijfer maar een woord",
+    beschrijfPogingen(groepeerBevindingen(vijfentwintig, [ronde0])).includes("één keer"),
+  );
+
+  // ── Markdown in een bevinding ─────────────────────────────────────────────
+  // Gemeten op productie: 135 van de 1227 opgeslagen bevindingen (11%) bevatten
+  // een `**`, want de beoordelaars schrijven hun zinnen met nadruk erin. In een
+  // lijst die als platte tekst rendert, leest dat als sterretjes.
+  eq(
+    "vette nadruk verdwijnt, de tekst blijft",
+    leesbareBevinding("**Bovenste introductie:** Beantwoord alle drie de doelvragen."),
+    "Bovenste introductie: Beantwoord alle drie de doelvragen.",
+  );
+  eq("cursief verdwijnt ook", leesbareBevinding("Dit is *echt* te dun."), "Dit is echt te dun.");
+  eq(
+    "onderstrepingen tellen als nadruk",
+    leesbareBevinding("__Prijs:__ noem een bedrag."),
+    "Prijs: noem een bedrag.",
+  );
+  // ⚠️ Een los sterretje is geen opmaak. Zou dit component de volledige
+  // `stripMarkdown()` gebruiken, dan sneuvelde hier de maatvoering zelf.
+  eq(
+    "een los sterretje blijft staan",
+    leesbareBevinding("De maat 20*30 cm staat er niet bij."),
+    "De maat 20*30 cm staat er niet bij.",
+  );
+  eq("een zin zonder opmaak verandert niet", leesbareBevinding("Gewoon een zin."), "Gewoon een zin.");
+  eq("lege invoer geeft lege uitvoer", leesbareBevinding(""), "");
+});
+// ════════════════════════════════════════════════════════════════════════════
+// Een servercomponent geeft nooit een FUNCTIE door aan een clientcomponent
+// (22 september 2026). Zie `bibliotheek/[pieceId]/herschrijf-context.tsx`.
+group("Geen functie-props vanuit een servercomponent", () => {
+  // ── DE FOUT DIE DIT VANGT ─────────────────────────────────────────────────
+  //
+  // Het herontwerp van de contentpagina gaf het herschrijfvak door als functie:
+  // `herschrijven={({ opdracht, bezig }) => <ReviseBox ... />}`. React kan over
+  // de grens tussen server en client alleen doorgeven wat hij kan
+  // serialiseren, en een functie kan dat niet.
+  //
+  // ⚠️ Geen van de vier bestaande controles ving dit. `tsc` keurt het type
+  // goed, `test:unit` en `test:chain` renderen geen JSX, en `build` rendert
+  // deze route niet vooruit omdat hij dynamisch is. De fout verscheen dus pas
+  // bij de eerste echte bezoeker, als "Deze pagina kon niet geladen worden"
+  // met alleen een digest erbij, want Next verbergt de melding in productie.
+  //
+  // Vandaar deze controle op de broncode: het is de enige plek in de keten waar
+  // deze regel vóór een deploy te toetsen valt.
+  const HAAKJES = /\b([A-Za-z_]\w*)=\{\s*(?:async\s*)?\([^)]*\)\s*=>/g;
+  const KAAL = /\b([A-Za-z_]\w*)=\{\s*(?:async\s*)?[A-Za-z_]\w*\s*=>/g;
+
+  const overtredingen: string[] = [];
+  for (const pad of tsxOnder("app")) {
+    const bron = leesBestand(pad);
+    // Een clientcomponent mag dit wel: daar blijft alles aan dezelfde kant.
+    const eersteRegel = bron.split("\n")[0] ?? "";
+    if (eersteRegel.includes("use client")) continue;
+
+    for (const patroon of [HAAKJES, KAAL]) {
+      patroon.lastIndex = 0;
+      let m: RegExpExecArray | null;
+      while ((m = patroon.exec(bron)) !== null) {
+        const regel = bron.slice(0, m.index).split("\n").length;
+        overtredingen.push(`${pad}:${regel} (${m[1]})`);
+      }
+    }
+  }
+
+  ok(
+    "geen enkele servercomponent geeft een functie als prop door",
+    overtredingen.length === 0,
+    overtredingen.slice(0, 5).join(", "),
+  );
+
+  // De reparatie zelf: de contentpagina geeft een kant-en-klaar element door en
+  // de stand loopt via een context aan de clientkant.
+  const pagina = leesBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/page.tsx");
+  ok("het herschrijfvak gaat als element mee", pagina.includes("herschrijfvak={"));
+  ok("en niet meer als functie", !pagina.includes("herschrijven={("));
+
+  const werkblad = leesBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/content-werkblad.tsx");
+  ok("het werkblad zet er de context omheen", werkblad.includes("<HerschrijfProvider"));
+  const vak = leesBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/revise-box.tsx");
+  ok("en het herschrijfvak leest hem daar", vak.includes("useHerschrijfstand()"));
 });

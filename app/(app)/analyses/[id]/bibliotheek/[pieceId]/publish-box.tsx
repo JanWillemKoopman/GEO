@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { InfoHint } from "@/components/info-hint";
 import { ErrorNotice, problemFromResponse, networkProblem } from "@/components/error-notice";
@@ -16,8 +16,25 @@ import { Icon } from "@/components/icon";
  *
  * Het scharnierpunt van fase 5. Tot hier levert de app tekst; vanaf hier kan hij
  * volgen of het iets uithaalt. Vandaar dat er bij de knop staat wat er daarna
- * gebeurt, een klant die niet weet dat er over twee weken hermeten wordt, ziet
+ * gebeurt: een klant die niet weet dat er over twee weken hermeten wordt, ziet
  * later een meting waar hij niet om gevraagd heeft.
+ *
+ * ── ⚠️ VAN KAART NAAR BALK, EN WAT DAT KOST (22 september 2026) ─────────────
+ *
+ * Dit blok stond eerst als kaart bovenaan de pagina en scrolde mee uit beeld.
+ * Nu zit het in de paginabalk en is het dus altijd bereikbaar. Dat is winst
+ * voor een handeling die anders blijft liggen, en het is tegelijk een risico
+ * dat er eerst niet was: een knop die nooit uit beeld gaat, wordt eerder per
+ * ongeluk gebruikt.
+ *
+ * Het bewijs dat mensen hem niet kónden vinden is bovendien dun. Gemeten op
+ * productie (22 september 2026): 25 contentpagina's, waarvan nul gepubliceerd.
+ * Dit scherm is dus nog nauwelijks gebruikt, en dan is "hij stond te laag" een
+ * aanname en geen waarneming.
+ *
+ * Daarom noemt de bevestigingsstap voortaan wat er nog openstaat. De knop wordt
+ * NIET geblokkeerd: de klant weet zelf of zijn pagina online staat, en de app
+ * hoort dat niet te overrulen. Hij mag het alleen niet verzwijgen.
  */
 export function PublishBox({
   analysisId,
@@ -26,6 +43,7 @@ export function PublishBox({
   publishedUrl,
   check,
   checkedAt,
+  blokkades,
 }: {
   analysisId: string;
   pieceId: string;
@@ -33,6 +51,12 @@ export function PublishBox({
   publishedUrl: string | null;
   check: PublishCheck | null;
   checkedAt: string | null;
+  /**
+   * Hoeveel bevindingen publicatie tegenhouden. Uit dezelfde bron als de
+   * kwaliteitsrail (`quality_json`), zodat er nooit twee tellingen naast elkaar
+   * staan die elkaar tegenspreken.
+   */
+  blokkades: number;
 }) {
   const router = useRouter();
   const [url, setUrl] = useState(publishedUrl ?? "");
@@ -42,6 +66,24 @@ export function PublishBox({
   // dit zet twee hermetingen in de rij (over twee en vier weken). Zelfde
   // patroon als RerunResearchButton: geen modaal venster, één klik wordt twee.
   const [confirming, setConfirming] = useState(false);
+  const [open, setOpen] = useState(false);
+  const wikkel = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function buiten(e: MouseEvent) {
+      if (!wikkel.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function toets(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", buiten);
+    document.addEventListener("keydown", toets);
+    return () => {
+      document.removeEventListener("mousedown", buiten);
+      document.removeEventListener("keydown", toets);
+    };
+  }, [open]);
 
   async function publish() {
     setState("busy");
@@ -58,6 +100,8 @@ export function PublishBox({
         return;
       }
       setState("idle");
+      setOpen(false);
+      setConfirming(false);
       router.refresh();
     } catch (err) {
       setState("error");
@@ -70,6 +114,7 @@ export function PublishBox({
     try {
       await fetch(`/api/analyses/${analysisId}/content/${pieceId}/publish`, { method: "DELETE" });
       setState("idle");
+      setOpen(false);
       router.refresh();
     } catch (err) {
       setState("error");
@@ -77,120 +122,200 @@ export function PublishBox({
     }
   }
 
-  if (state === "error" && problem) {
-    return <ErrorNotice error={problem} onRetry={() => void publish()} />;
-  }
+  return (
+    <div className="relative" ref={wikkel}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        /* Regel 8 van §11: hooguit één hoofdactie per scherm. Dit is hem. Is de
+           pagina al live, dan is er niets meer te doen en wordt het een gewone
+           knop naar de gegevens. */
+        className={publishedAt ? "btn-outline btn-sm" : "btn-accent btn-sm"}
+      >
+        {publishedAt ? "Publicatie" : "Zet deze pagina live"}
+      </button>
 
-  // ── Al gepubliceerd ───────────────────────────────────────────────────────
-  if (publishedAt) {
-    return (
-      <div className="card card-success flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="mono-label flex items-center gap-1">
-            Live
-            <InfoHint label="Wat gebeurt er nu?">
-              ORBIT ENGINE hermeet de vragen waarvoor deze pagina gemaakt is, twee en vier weken na
-              publicatie. AI-assistenten pikken nieuwe content niet dezelfde dag op, dus eerder
-              meten zegt niets.
-            </InfoHint>
-          </span>
-          <span className="mono-label">
-            {formatDateLong(publishedAt)}
-          </span>
+      {open && (
+        <div className="absolute right-0 z-30 mt-1 w-[min(26rem,calc(100vw-2rem))] rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-overlay)]">
+          {state === "error" && problem ? (
+            <ErrorNotice error={problem} onRetry={() => void publish()} />
+          ) : publishedAt ? (
+            <Gepubliceerd
+              publishedAt={publishedAt}
+              publishedUrl={publishedUrl}
+              check={check}
+              checkedAt={checkedAt}
+              bezig={state === "busy"}
+              onTerugtrekken={() => void unpublish()}
+            />
+          ) : (
+            <NogNiet
+              url={url}
+              setUrl={setUrl}
+              confirming={confirming}
+              setConfirming={setConfirming}
+              bezig={state === "busy"}
+              blokkades={blokkades}
+              onPubliceer={() => void publish()}
+            />
+          )}
         </div>
+      )}
+    </div>
+  );
+}
 
-        {publishedUrl && (
-          <div className="flex flex-wrap items-center gap-3">
-            <ExternalLink href={publishedUrl} className="w-fit break-all text-sm underline">
-              {publishedUrl}
-            </ExternalLink>
-            <CopyButton value={publishedUrl} label="Kopieer link" className="text-sm text-secondary hover:underline" />
-          </div>
+function NogNiet({
+  url,
+  setUrl,
+  confirming,
+  setConfirming,
+  bezig,
+  blokkades,
+  onPubliceer,
+}: {
+  url: string;
+  setUrl: (v: string) => void;
+  confirming: boolean;
+  setConfirming: (v: boolean) => void;
+  bezig: boolean;
+  blokkades: number;
+  onPubliceer: () => void;
+}) {
+  if (confirming) {
+    return (
+      <div className="flex flex-col gap-3">
+        <span className="mono-label">Klopt de link?</span>
+        <p className="w-fit break-all text-sm font-medium">{url.trim()}</p>
+
+        {/* De rem (§4 van het herontwerpplan). Geen blokkade, wel een feit dat
+            de app niet mag verzwijgen op het moment dat het ertoe doet. */}
+        {blokkades > 0 && (
+          <p className="card card-warning text-sm">
+            Er {blokkades === 1 ? "staat nog 1 punt" : `staan nog ${blokkades} punten`} open die
+            publicatie tegenhouden. Je kunt doorgaan, maar kijk ze liever eerst na in de
+            kwaliteitslijst.
+          </p>
         )}
 
-        <PublishCheckNotice check={check} checkedAt={checkedAt} />
-
         <p className="text-sm text-secondary">
-          ORBIT ENGINE hermeet de bijbehorende vragen over twee en over vier weken. Het resultaat komt
-          vanzelf in hoofdstuk 04 van je cluster te staan. Jij hoeft niets.
+          ORBIT ENGINE zet nu twee hermetingen in de rij, over twee en over vier weken, om te zien of
+          deze pagina het verschil maakt.
         </p>
 
-        <button
-          type="button"
-          onClick={() => void unpublish()}
-          disabled={state === "busy"}
-          className="w-fit text-sm text-secondary hover:underline"
-        >
-          Toch niet gepubliceerd
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="btn-primary btn-sm disabled:opacity-60"
+            disabled={bezig}
+            onClick={onPubliceer}
+          >
+            {bezig ? "Controleren…" : "Ja, dit staat live"}
+          </button>
+          <button
+            type="button"
+            className="btn-outline btn-sm"
+            disabled={bezig}
+            onClick={() => setConfirming(false)}
+          >
+            Annuleren
+          </button>
+        </div>
       </div>
     );
   }
 
-  // ── Nog niet gepubliceerd ─────────────────────────────────────────────────
   return (
-    <div className="card flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
+    <form
+      className="flex flex-col gap-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (url.trim()) setConfirming(true);
+      }}
+    >
+      <span className="mono-label flex items-center gap-1">
+        Staat deze pagina al live?
+        <InfoHint label="Waarom vraagt ORBIT ENGINE dit?">
+          Zodra je hier de link invult, hermeet ORBIT ENGINE de vragen waarvoor deze pagina gemaakt
+          is, twee en vier weken later. Dan zie je zwart-op-wit of het gewerkt heeft.
+        </InfoHint>
+      </span>
+      <p className="text-sm text-secondary">
+        Geef de link, dan controleert ORBIT ENGINE of de tekst er echt op staat.
+      </p>
+      <input
+        className="field"
+        value={url}
+        onChange={(e) => setUrl(e.target.value)}
+        placeholder="https://jouwsite.nl/de-nieuwe-pagina"
+        aria-label="Link naar de gepubliceerde pagina"
+        disabled={bezig}
+      />
+      <button type="submit" className="btn-primary btn-sm w-fit" disabled={bezig || !url.trim()}>
+        Dit staat live
+      </button>
+    </form>
+  );
+}
+
+function Gepubliceerd({
+  publishedAt,
+  publishedUrl,
+  check,
+  checkedAt,
+  bezig,
+  onTerugtrekken,
+}: {
+  publishedAt: string;
+  publishedUrl: string | null;
+  check: PublishCheck | null;
+  checkedAt: string | null;
+  bezig: boolean;
+  onTerugtrekken: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="mono-label flex items-center gap-1">
-          Staat deze pagina al live?
-          <InfoHint label="Waarom vraagt ORBIT ENGINE dit?">
-            Zodra je hier de link invult, hermeet ORBIT ENGINE de vragen waarvoor deze pagina gemaakt is,
-            twee en vier weken later. Dan zie je zwart-op-wit of het gewerkt heeft.
+          Live
+          <InfoHint label="Wat gebeurt er nu?">
+            ORBIT ENGINE hermeet de vragen waarvoor deze pagina gemaakt is, twee en vier weken na
+            publicatie. AI-assistenten pikken nieuwe content niet dezelfde dag op, dus eerder meten
+            zegt niets.
           </InfoHint>
         </span>
-        <p className="text-sm text-secondary">
-          Geef de link, dan controleert ORBIT ENGINE of de tekst er echt op staat. Daarna volgt het of je op
-          de bijbehorende vragen vaker genoemd wordt.
-        </p>
+        <span className="mono-label">{formatDateLong(publishedAt)}</span>
       </div>
 
-      {!confirming ? (
-        <form
-          className="flex flex-col gap-2 sm:flex-row"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (url.trim()) setConfirming(true);
-          }}
-        >
-          <input
-            className="field flex-1"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://jouwsite.nl/de-nieuwe-pagina"
-            aria-label="Link naar de gepubliceerde pagina"
-            disabled={state === "busy"}
+      {publishedUrl && (
+        <div className="flex flex-wrap items-center gap-3">
+          <ExternalLink href={publishedUrl} className="w-fit break-all text-sm underline">
+            {publishedUrl}
+          </ExternalLink>
+          <CopyButton
+            value={publishedUrl}
+            label="Kopieer link"
+            className="text-sm text-secondary hover:underline"
           />
-          <button type="submit" className="btn-primary btn-lg shrink-0" disabled={state === "busy" || !url.trim()}>
-            Dit staat live
-          </button>
-        </form>
-      ) : (
-        <div className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3">
-          <p className="text-sm text-secondary">
-            ORBIT ENGINE zet nu twee hermetingen in de rij, over twee en over vier weken, om te zien of deze
-            pagina het verschil maakt. Klopt de link?
-          </p>
-          <p className="w-fit break-all text-sm font-medium">{url.trim()}</p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="btn-primary btn-sm disabled:opacity-60"
-              disabled={state === "busy"}
-              onClick={() => void publish()}
-            >
-              {state === "busy" ? "Controleren…" : "Ja, dit staat live"}
-            </button>
-            <button
-              type="button"
-              className="btn-outline btn-sm"
-              disabled={state === "busy"}
-              onClick={() => setConfirming(false)}
-            >
-              Annuleren
-            </button>
-          </div>
         </div>
       )}
+
+      <PublishCheckNotice check={check} checkedAt={checkedAt} />
+
+      <p className="text-sm text-secondary">
+        ORBIT ENGINE hermeet de bijbehorende vragen over twee en over vier weken. Het resultaat komt
+        vanzelf in hoofdstuk 04 van je cluster te staan. Jij hoeft niets.
+      </p>
+
+      <button
+        type="button"
+        onClick={onTerugtrekken}
+        disabled={bezig}
+        className="w-fit text-sm text-secondary hover:underline"
+      >
+        Toch niet gepubliceerd
+      </button>
     </div>
   );
 }
@@ -202,7 +327,13 @@ export function PublishBox({
  * dat het klaar is, en zonder dit blokje wacht hij weken op een effect dat nooit
  * kan komen. Vandaar dat er altijd bij staat wat hij ermee moet.
  */
-function PublishCheckNotice({ check, checkedAt }: { check: PublishCheck | null; checkedAt: string | null }) {
+function PublishCheckNotice({
+  check,
+  checkedAt,
+}: {
+  check: PublishCheck | null;
+  checkedAt: string | null;
+}) {
   if (!check) {
     return (
       <p className="flex items-center gap-2 text-sm text-secondary">
@@ -214,10 +345,7 @@ function PublishCheckNotice({ check, checkedAt }: { check: PublishCheck | null; 
 
   if (check.problems.length === 0) {
     return (
-      <p
-        className="flex items-start gap-1.5 text-sm"
-        style={{ color: "var(--status-success)" }}
-      >
+      <p className="flex items-start gap-1.5 text-sm" style={{ color: "var(--status-success)" }}>
         <span className="mt-0.5">
           <Icon naam="klaar" size={14} />
         </span>
@@ -233,9 +361,7 @@ function PublishCheckNotice({ check, checkedAt }: { check: PublishCheck | null; 
   }
 
   return (
-    <div
-      className="card-warning flex flex-col gap-1 rounded-[var(--radius-xl)] border p-3"
-    >
+    <div className="card-warning flex flex-col gap-1 rounded-[var(--radius-xl)] border p-3">
       <span className="text-sm font-medium">Even controleren</span>
       <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-secondary">
         {check.problems.map((p, i) => (
