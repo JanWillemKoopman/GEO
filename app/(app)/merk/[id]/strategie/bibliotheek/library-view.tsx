@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { LastUpdated } from "@/components/last-updated";
 import { STATUS_LABEL, STATUS_CHIP } from "@/lib/content-status";
+import { CONTENT_ACTION_LABEL } from "@/lib/plan-status";
 import {
   beschikbareWaarden,
   filterLibrary,
@@ -162,7 +163,7 @@ export function LibraryView({
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{r.title}</p>
                   <p className="mono-label mt-1">
-                    {TYPE_LABEL[r.type] ?? r.type} · {r.cluster} ·{" "}
+                    {TYPE_LABEL[r.type] ?? r.type} · {CONTENT_ACTION_LABEL[r.action]} · {r.cluster} ·{" "}
                     <LastUpdated at={r.createdAt} className="" />
                   </p>
                   {r.publishedUrl && (

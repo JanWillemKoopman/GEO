@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/empty-state";
 import { activeOnly } from "@/lib/archive";
 import { LibraryView } from "./library-view";
 import type { LibraryRow } from "@/lib/library";
+import type { ContentAction } from "@/lib/types/database";
 import { displayTitle } from "@/lib/pipeline/slug";
 
 export const dynamic = "force-dynamic";
@@ -63,7 +64,7 @@ export default async function BibliotheekPage({
     const { data: pieceRows } = await supabase
       .from("content_pieces")
       .select(
-        "id, analysis_id, title, meta_title, type, status, needs_review, geo_score, published_url, created_at",
+        "id, analysis_id, title, meta_title, type, action, status, needs_review, geo_score, published_url, created_at",
       )
       .in(
         "analysis_id",
@@ -79,6 +80,7 @@ export default async function BibliotheekPage({
       // De paginatitel, niet de aanbevelingstitel (doorloop-huyberts.md punt 3).
       title: displayTitle({ title: p.title as string, meta_title: (p.meta_title as string | null) ?? null }),
       type: p.type as string,
+      action: p.action as ContentAction,
       status: p.status as string,
       needsReview: Boolean(p.needs_review),
       geoScore: (p.geo_score as number | null) ?? null,
