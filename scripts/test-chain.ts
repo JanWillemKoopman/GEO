@@ -8997,6 +8997,84 @@ async function main(): Promise<void> {
       );
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // SCENARIO 17: het conflictslot op de contentpagina
+    //
+    // Sinds 22 september 2026 staat het bewerken van een contentpagina altijd
+    // open (`docs/tasks/herontwerp-contentpagina.md` §5). Daarmee komt het slot
+    // uit migratie 0100 veel vaker in beeld dan voorheen: het canvas van twee
+    // mensen staat nu minutenlang tegelijk open in plaats van kort na een klik
+    // op "Tekst bewerken".
+    //
+    // Het slot zelf is één regel in de PATCH-route: `eq("updated_at", ...)` bij
+    // het schrijven. Dat is een VOORWAARDELIJKE update, geen lees-dan-beslis,
+    // en precies dat onderscheid wordt hier nagerekend: de tweede schrijver mag
+    // niet stil winnen, hij hoort nul rijen te raken.
+    {
+      const { rows: stukken } = await db.client.query(
+        // ⚠️ `updated_at::text` en niet de kale kolom: de driver levert een
+        // `timestamptz` af als JavaScript-datum, en die kent milliseconden
+        // terwijl Postgres microseconden bewaart. Teruggestuurd als parameter
+        // matcht zo'n afgeronde waarde de opgeslagen rij níet, en dan lijkt het
+        // slot dicht te zitten terwijl het gewoon een ander getal vergelijkt.
+        "select id, updated_at::text as stempel, body_markdown from public.content_pieces where analysis_id = $1 and body_markdown is not null limit 1",
+        [analysisId],
+      );
+
+      if (stukken.length === 0) {
+        ok("scenario 17: er is een contentpagina om op te sloten", false);
+      } else {
+        const stuk = stukken[0];
+        const geladen = String(stuk.stempel);
+
+        // ⚠️ Het nieuwe stempel komt uit JavaScript en niet uit `now()`, net
+        // als in de route zelf (`update.updated_at = new Date().toISOString()`).
+        // Dat is hier geen detail maar de voorwaarde dat deze test iets meet:
+        // `now()` is in Postgres de TRANSACTIETIJD en staat dus stil binnen één
+        // transactie. Met `now()` zou het stempel na de eerste update gelijk
+        // blijven aan het stempel ervoor, zou de tweede schrijver alsnog
+        // slagen, en zou deze test groen zijn terwijl hij het slot niet raakt.
+        const stempelA = new Date(Date.now() + 1000).toISOString();
+
+        // Schrijver A slaat op. Hij heeft de pagina geladen op `geladen`, dus
+        // zijn voorwaarde klopt en hij wint.
+        const eerste = await db.client.query(
+          "update public.content_pieces set body_markdown = $1, updated_at = $2 where id = $3 and updated_at = $4 returning id",
+          ["De tekst van schrijver A.", stempelA, stuk.id, geladen],
+        );
+        eqc("scenario 17: de eerste schrijver wint", String(eerste.rowCount), "1");
+
+        // Schrijver B had dezelfde stand geladen en slaat daarna op. Zijn
+        // voorwaarde klopt niet meer.
+        const tweede = await db.client.query(
+          "update public.content_pieces set body_markdown = $1, updated_at = $2 where id = $3 and updated_at = $4 returning id",
+          ["De tekst van schrijver B.", new Date(Date.now() + 2000).toISOString(), stuk.id, geladen],
+        );
+        eqc("scenario 17: de tweede raakt nul rijen", String(tweede.rowCount), "0");
+
+        // ⚠️ De kern: de tekst van A staat er nog. Zou het slot ontbreken, dan
+        // had B hem stil overschreven en zou niemand dat ooit gemerkt hebben.
+        const { rows: na } = await db.client.query(
+          "select body_markdown, updated_at::text as stempel from public.content_pieces where id = $1",
+          [stuk.id],
+        );
+        eqc(
+          "scenario 17: en de tekst van de eerste blijft staan",
+          String(na[0].body_markdown),
+          "De tekst van schrijver A.",
+        );
+        ok(
+          "scenario 17: het stempel is meegeschoven, dus B kan het opnieuw proberen",
+          new Date(String(na[0].stempel)).getTime() > new Date(geladen).getTime(),
+        );
+
+        await db.client.query(
+          "update public.content_pieces set body_markdown = $1 where id = $2",
+          [stuk.body_markdown, stuk.id],
+        );
+      }
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

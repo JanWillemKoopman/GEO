@@ -1911,6 +1911,144 @@ textarea.field {
   border-bottom-color: var(--intent-warning-solid);
 }
 
+/* ── De contentpagina: drie zones (22 september 2026) ──────────────────────
+   Zie `docs/tasks/herontwerp-contentpagina.md`. De tekst is de held, de
+   context staat in een rail ernaast, en de handeling staat in een balk die
+   niet uit beeld scrolt.
+
+   ⚠️ DE SPLITSING HANGT AAN EEN CONTAINERQUERY EN NIET AAN DE VENSTERBREEDTE.
+   Dat is de eerste plek in dit bestand waar dat gebeurt, en de reden is
+   rekenkundig. De rail past als er `720px` tekst, `24px` tussenruimte en
+   `320px` rail in passen, samen 1064. Wat er beschikbaar is, is:
+
+     viewport - zijbalk - 2 × 24px marge van `.stand`
+
+   en die zijbalk is 240px uitgeklapt of 56px ingeklapt, door de gebruiker zelf
+   te bepalen. Op 1440px met een uitgeklapte zijbalk blijft 1152px over (past),
+   op 1280px blijft 992px over (past niet), en op 1280px mét een ingeklapte
+   zijbalk 1176px (past weer). Een `@media`-regel kent dat verschil niet en zou
+   dus in twee van de drie gevallen het verkeerde doen. */
+.content-zones {
+  /* Eén plek voor de balkhoogte: de balk gebruikt hem voor zichzelf en de rail
+     voor zijn `top`. Twee declaraties zouden stil uit elkaar kunnen lopen en
+     dan plakt de rail onder een balk die er niet meer zo hoog is. */
+  --content-balk-h: 56px;
+  container-type: inline-size;
+  container-name: contentpagina;
+}
+.content-split {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+/* De rail als kolom, zodra hij past. */
+@container contentpagina (min-width: 1064px) {
+  .content-split {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+  .content-canvas-kolom {
+    flex: 1;
+    min-width: 0;
+  }
+  .content-rail {
+    width: 320px;
+    flex-shrink: 0;
+    /* Onder de paginabalk, die zelf onder de bovenbalk plakt. */
+    position: sticky;
+    top: calc(var(--header-h) + var(--content-balk-h) + 16px);
+    max-height: calc(100vh - var(--header-h) - var(--content-balk-h) - 32px);
+    overflow-y: auto;
+  }
+  /* De rail als kolom heeft geen lade-knop nodig. */
+  .content-rail-knop {
+    display: none;
+  }
+}
+/* Buiten de containerquery is de rail een lade en staat de knop ernaartoe in
+   de balk. De rail zelf wordt dan door `Drawer` gerenderd, dus hier hoeft
+   alleen de kolomversie verborgen te worden. */
+@container contentpagina (max-width: 1063.98px) {
+  .content-rail {
+    display: none;
+  }
+}
+
+/* De leeskolom houdt de maat van de stand `lezen` (720px), ook al is de kolom
+   eromheen breder. Een regel van 1000 pixels leest niet. */
+.content-canvas-maat {
+  max-width: var(--stand-lezen);
+}
+
+/* ── De paginabalk ─────────────────────────────────────────────────────────
+   ⚠️ Plakt met `top: var(--header-h)` en NOOIT met een eigen 48: `globals.css`
+   waarschuwt bij `--header-h` zelf dat een tweede getal een kier oplevert waar
+   de pagina-inhoud doorheen schuift. Dit is hetzelfde patroon als de
+   hoofdstuktabs van een cluster.
+
+   Dekkend, geen vervaging, geen schaduw: regel 2 van §11. */
+.content-balk {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--content-balk-h);
+  padding: 8px 0;
+  background-color: var(--bg-base);
+  border-bottom: var(--border-width-xs) solid var(--line-muted);
+}
+.content-balk-titel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ── Het canvas ───────────────────────────────────────────────────────────
+   Een tekstvlak dat eruitziet als een document en niet als een formulierveld:
+   de leesletter in plaats van mono, de maat van lopende tekst, en geen kader
+   dat om elke alinea heen staat. Het groeit mee met zijn inhoud, zodat er
+   nooit twee schuifbalken over elkaar heen liggen. */
+.canvas-veld {
+  width: 100%;
+  min-height: 60vh;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.75;
+  resize: none;
+  /* Geen `field-sizing: content`: dat kent nog niet elke browser, en het
+     meegroeien gebeurt in `content-canvas.tsx` zodat het overal hetzelfde
+     doet. Twee mechanismen naast elkaar zouden om de hoogte vechten. */
+  overflow-y: hidden;
+}
+.canvas-veld:focus {
+  outline: none;
+}
+.canvas-veld::placeholder {
+  color: var(--text-subtler);
+}
+/* De titel hoort in het canvas als kop te lezen en niet als invoerveld: het is
+   de H1 van de pagina die straks gepubliceerd wordt. */
+/* Draagt verder `.type-title` uit §3.2: de maat staat daar en niet hier, zodat
+   er geen tweede plek is die de kopgrootte bepaalt. */
+.canvas-titel {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+}
+.canvas-titel:focus {
+  outline: none;
+}
+
 /* ── De mobiele bovenbalk (17 september 2026, stap 6) ─────────────────────
    52px, GEMETEN uit `redesign2026.md` §8.12.3. Andere inhoud en niet alleen
    een andere hoogte: geen woordmerk, geen merkkiezer, geen vier knoppen. Een

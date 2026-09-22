@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ErrorNotice, problemFromResponse, networkProblem } from "@/components/error-notice";
@@ -39,6 +39,8 @@ function RewriteFlow({
   pieceId,
   poort,
   vragenHref,
+  opdracht,
+  bezig,
 }: {
   analysisId: string;
   pieceId: string;
@@ -53,10 +55,41 @@ function RewriteFlow({
   poort: PoortOordeel;
   /** Waar die vragen staan. */
   vragenHref: string;
+  /**
+   * Een opdracht die van buiten komt: de aanbeveling van een bevinding uit de
+   * kwaliteitsrail (22 september 2026, `herontwerp-contentpagina.md` §6.1).
+   *
+   * ── ⚠️ WAAROM DIT GEEN EIGEN ROUTE IS ────────────────────────────────────
+   *
+   * "Laat ORBIT ENGINE dit oplossen" had een knop kunnen zijn die zelf een
+   * AI-aanroep start. Dat is met opzet niet gebouwd: hij zou een tweede,
+   * fijnere reparatieweg naast deze zetten, en fijner knippen maakte de tekst
+   * in dit systeem twee keer slechter (de reparatiescore liep 67, 74, 68, 48,
+   * zie `content-issues.ts`). Dit vult dus het bestaande vak, langs dezelfde
+   * route, dezelfde poort en dezelfde nieuwe versie.
+   *
+   * `sleutel` is het tijdstip van de klik: twee keer dezelfde bevinding
+   * aanklikken moet het vak twee keer aanvullen, en op de tekst alleen zou de
+   * tweede klik niets doen.
+   */
+  opdracht: { tekst: string; sleutel: number } | null;
+  /** Er loopt al een schrijfronde voor deze pagina. */
+  bezig: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
+  const laatsteOpdracht = useRef<number | null>(null);
+
+  // Een opdracht uit de rail klapt het vak open en vult het aan. Aanvullen en
+  // niet vervangen, net als de suggestiechips hieronder: wie drie bevindingen
+  // aanklikt, wil ze alle drie in één herschrijfronde meegeven.
+  useEffect(() => {
+    if (!opdracht || laatsteOpdracht.current === opdracht.sleutel) return;
+    laatsteOpdracht.current = opdracht.sleutel;
+    setOpen(true);
+    setNote((n) => (n.trim() ? `${n.trim()}\n${opdracht.tekst}` : opdracht.tekst));
+  }, [opdracht]);
   const [state, setState] = useState<"idle" | "busy" | "queued" | "error">("idle");
   const [problem, setProblem] = useState<UserFacingError | null>(null);
 
@@ -102,6 +135,23 @@ function RewriteFlow({
         <p className="text-sm text-secondary">
           Dit duurt een paar minuten. Je kunt dit scherm sluiten. De nieuwe versie komt er vanzelf
           te staan, en deze blijft bewaard voor het geval je terug wilt.
+        </p>
+      </div>
+    );
+  }
+
+  // Er loopt al een schrijfronde voor deze pagina (22 september 2026). Nog een
+  // ronde starten terwijl de vorige loopt, levert twee versies op die elkaar
+  // inhalen, en de tweede zou bovendien op een tekst rusten die al vervangen is.
+  if (bezig) {
+    return (
+      <div className="card flex flex-col gap-2">
+        <span className="flex items-center gap-2 font-medium">
+          <span className="live-dot" />
+          ORBIT ENGINE schrijft al aan deze pagina
+        </span>
+        <p className="text-sm text-secondary">
+          Wacht tot die versie klaar is. Daarna kun je zeggen wat er nog anders moet.
         </p>
       </div>
     );
@@ -194,12 +244,17 @@ export function ReviseBox({
   vragenHref,
   profileId,
   strategyNote,
+  opdracht = null,
+  bezig = false,
 }: {
   analysisId: string;
   pieceId: string;
   poort: PoortOordeel;
   vragenHref: string;
   profileId: string;
+  /** Zie `RewriteFlow` hieronder. */
+  opdracht?: { tekst: string; sleutel: number } | null;
+  bezig?: boolean;
   /**
    * De merkbrede notitie voor de schrijver (blok D punt 22). `null` als er nog
    * geen plan is: dan is er niets om de notitie aan te hangen, en verschijnt
@@ -211,7 +266,14 @@ export function ReviseBox({
   return (
     <div className="flex flex-col gap-3">
       {strategyNote && <StrategyNoteBox profileId={profileId} initial={strategyNote} />}
-      <RewriteFlow analysisId={analysisId} pieceId={pieceId} poort={poort} vragenHref={vragenHref} />
+      <RewriteFlow
+        analysisId={analysisId}
+        pieceId={pieceId}
+        poort={poort}
+        vragenHref={vragenHref}
+        opdracht={opdracht}
+        bezig={bezig}
+      />
     </div>
   );
 }
