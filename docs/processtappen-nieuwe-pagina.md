@@ -1,16 +1,22 @@
-# Van klant tot pagina: alle stappen op een rij
+# Van adviseur tot nameting: alle stappen op een rij
 
 > **Voor wie dit is.** Iedereen die wil zien wat er precies gebeurt tussen het aanmaken van een
-> klant en het moment dat er een nieuwe, publiceerbare pagina klaarstaat, zonder dat je code hoeft
-> te lezen. Elke stap staat er, hoe klein ook, ook de stappen die geen mens ooit aanklikt omdat de
-> app ze zelf doet.
+> merkprofiel door de adviseur en het moment dat het effect van een gepubliceerde pagina bewezen is,
+> zonder dat je code hoeft te lezen. Elke stap staat er, hoe klein ook, ook de stappen die geen mens
+> ooit aanklikt omdat de app ze zelf doet.
 >
 > **Waarom dit een apart document is.** [`APP_FLOW_DOCUMENTATION.md`](../APP_FLOW_DOCUMENTATION.md)
 > legt dezelfde keten uit in vijf fases en beantwoordt vooral de vraag "waarom werkt het zo". Dit
 > document beantwoordt "wat gebeurt er precies, in welke volgorde". Klopt er iets niet meer, dan is
 > de code leidend: `lib/pipeline/` en `lib/jobs/` zijn de bron waar dit overzicht uit is opgebouwd.
 >
-> **Peildatum: 3 september 2026.**
+> **Peildatum: 22 september 2026.** Alle 117 stappen zijn onafhankelijk nagekeken tegen de broncode,
+> in vier losse controles die geen van alle deze documentatie hebben gelezen. Twee stappen bleken
+> niet te kloppen met wat er echt gebouwd is en zijn hier aangepast: **stap 104** (de check op een
+> onverwachte doorverwijzing bij publicatie doet in de code nog niets) en **stap 116** (het
+> klantscherm van de nameting toont alleen het eindoordeel, niet de onderbouwende vergelijking met de
+> controlegroep die dit document eerst beschreef). Kleinere nuances zijn verwerkt bij stap 22, 31, 38
+> en 83.
 
 ---
 
@@ -28,16 +34,17 @@ betaald onderzoek in gang.
 5. Het systeem legt vast dat deze drie velden "door de adviseur ingevuld" zijn. Dat is een apart
    soort herkomst: het onderzoek hierna mag deze aanname tegenspreken als het iets anders vindt, maar
    mag hem nooit stilzwijgend overschrijven.
-6. Het systeem maakt het merkprofiel aan in de database.
+6. Het systeem legt het merkprofiel vast, zodat het terug te vinden is zodra de adviseur of de
+   klant het weer opent.
 7. Het systeem zet automatisch een reeks van negen onderzoekstaken klaar om te gaan draaien.
 
-> **Sinds migratie 0102 gaat er nog één stap vóór taak 1.** Een lichte titel+meta-doorgang
-> (`profile_light_scan`) bekijkt tot 1000 pagina's van de site, zonder ze volledig te lezen, en
-> gebruikt dat om taak 1 hieronder een beter gefundeerde keuze te laten maken over welke 150
-> pagina's het écht volledig leest. Geen AI-aanroep, dus gratis, maar wel netwerk: dit kan een paar
-> taakrondes duren (tot ~10 minuten in de praktijk). De klant zit er op dit moment nog niet bij, dus
-> die tijd voelt niemand. Lukt deze stap niet, dan gaat taak 1 gewoon door op het URL-pad alleen,
-> zoals hij vóór deze migratie altijd al deed.
+> **Er gaat sinds kort nog één voorbereidende stap vóór taak 1.** Het systeem werpt eerst een
+> vluchtige blik op tot 1000 pagina's van de site, alleen de titel en een korte samenvatting per
+> pagina, zonder ze echt te lezen. Dat helpt taak 1 hieronder een beter onderbouwde keuze te maken
+> over welke 150 pagina's het daarna wél helemaal doorleest. Geen AI aan te pas, dus gratis, maar wel
+> tijd nodig omdat het internet moet bevragen: in de praktijk tot ongeveer 10 minuten. De klant zit
+> er op dit moment nog niet bij, dus die tijd voelt niemand. Lukt dit voorbereidende stapje een keer
+> niet, dan gaat taak 1 gewoon door zoals hij altijd al deed, op het webadres alleen.
 
 ## Fase 2. Het automatische onderzoek (ongeveer 7,5 minuten, ongeveer 25 dollarcent, plus het vooronderzoek hierboven)
 
@@ -61,7 +68,7 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
 14. **Taak 7, testen wat AI-assistenten al weten.** De duurste stap: kent ChatGPT dit bedrijf, klopt
     wat hij zegt, welke bronnen haalt hij aan, zijn er bedrijven met een bijna gelijke naam, en wordt
     het merk genoemd bij een koopvraag waarin geen merknaam voorkomt.
-15. **Taak 8, alles samenbrengen.** Een synthesestap bundelt de zeven vorige taken tot één
+15. **Taak 8, alles samenbrengen.** Een laatste stap bundelt de zeven vorige taken tot één
     merkdossier.
 16. Bij elke taak die niets vindt, toont het scherm een waarschuwing in plaats van een groen vinkje.
     Dat is een bewust verschil: weten dat er iets ontbreekt is iets anders dan denken dat alles
@@ -83,10 +90,11 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
 21. Bovenaan staat wat er nog niet bekend is, de zwaarste punten eerst. Het werkgebied staat vrijwel
     altijd bovenaan, want dat bepaalt of de latere meetvragen regionaal of landelijk gesteld worden.
 22. De klant beantwoordt twaalf commerciële vragen die een website nooit kan vertellen: waar hij op
-    wil groeien, de klantgroepen waar de groei zit, plaatsen waar hij nog niet zit, wat een klant
-    ongeveer waard is, zijn seizoenspatroon, veelgehoorde bezwaren, verboden onderwerpen, extra
-    bewijs zoals certificeringen of cijfers, gelijknamige bedrijven die hij niet is, of er nieuwe
-    pagina's bij mogen komen, en waar hij over een jaar wil staan.
+    wil groeien, waar hij juist niet meer op wil inzetten, de klantgroepen waar de groei zit,
+    plaatsen waar hij nog niet zit, wat een klant ongeveer waard is, zijn seizoenspatroon,
+    veelgehoorde bezwaren, verboden onderwerpen, extra bewijs zoals certificeringen of cijfers,
+    gelijknamige bedrijven die hij niet is, of er nieuwe pagina's bij mogen komen, en waar hij over
+    een jaar wil staan.
 23. De klant vult de contactgegevens van een contactpersoon in: naam, e-mailadres, telefoonnummer.
 24. De klant checkt wat het onderzoek uit fase 2 al gevonden heeft, blok voor blok.
 25. Optioneel plakt de klant een tarievenpagina, brochure of offertetekst erbij; het systeem haalt
@@ -105,7 +113,8 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
 30. De adviseur legt het gesprek vast met zijn aantekeningen. Er komt een datum bij, en het merk
     springt naar de status Gesprek gehad.
 31. De adviseur stuurt een uitnodiging: de klant krijgt een link en kiest zelf een wachtwoord.
-    Registreren zonder uitnodiging kan niet.
+    Registreren zonder uitnodiging kan niet, zolang zelfregistratie uitstaat. Die schakelaar bestaat
+    wel in de code, voor een latere fase, maar staat standaard uit.
 32. De adviseur wijst het merk toe aan het account van de klant.
 33. Het merk krijgt de status Overgedragen. De klant kan nu inloggen en zijn eigen werkruimte
     gebruiken; de adviseur houdt daarnaast volledige toegang.
@@ -117,8 +126,9 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
 35. Optioneel vult diegene een korte content-brief in met extra context of wensen.
 36. Het systeem onderzoekt wat de eigen website al over dit onderwerp zegt.
 37. Het systeem zoekt uit wie hier de concurrenten zijn.
-38. Het systeem stelt 30 realistische koopvragen op, verdeeld over drie fases van de klantreis:
-    oriëntatie, overweging en beslissing, elk met een eigen aantal vragen.
+38. Het systeem stelt realistische koopvragen op, verdeeld over drie fases van de klantreis:
+    oriëntatie, overweging en beslissing. Standaard tien per fase, dertig in totaal; dat aantal is
+    per analyse aan te passen.
 39. Het systeem maakt per vraag een inschatting van hoe vaak zo'n vraag ongeveer gesteld wordt.
 40. Het systeem toont het conceptmeetplan aan de klant: elke vraag is zichtbaar en te bewerken, niets
     is een black box.
@@ -137,8 +147,11 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
 46. Het systeem telt alle uitkomsten op tot één score, met een foutmarge erbij die zegt hoe zeker die
     score is.
 47. Het systeem stelt een concurrentprofiel op: wie wint, en waarop precies.
-48. Het systeem schrijft een jargonvrij rapport, met bij elke uitspraak het bewijs waar je op kunt
-    doorklikken.
+48. Het systeem schrijft een jargonvrij rapport. Het bewijs achter elke uitspraak wordt intern nog
+    wel opgebouwd, maar staat sinds de schermherziening van 16 september 2026 niet meer als
+    doorklikbare link op het klantscherm: dat scherm verwijst voor de cijfers nu naar het
+    Analytics-onderdeel, waar dezelfde doorklikbare onderbouwing per bewering nog niet teruggebouwd
+    is.
 
 ## Fase 6. Ontdekken welke pagina's er nodig zijn
 
@@ -159,8 +172,8 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
 54. De klant bekijkt de aanbevolen pagina's.
 55. De klant kiest welke pagina of pagina's geschreven moeten worden, los per aanbeveling of in één
     keer met "genereer alles".
-56. Het systeem zet voor elke gekozen pagina een taak in de achtergrondwachtrij. De klant hoeft niet
-    te wachten en mag het scherm sluiten.
+56. Het systeem zet voor elke gekozen pagina zelf een taak klaar die op de achtergrond gaat draaien.
+    De klant hoeft niet te wachten en mag het scherm sluiten.
 57. Voor elke pagina onderzoekt het systeem het onderwerp nog verder: welke deelvragen en
     vervolgvragen hoort een lezer te hebben, welke twijfels leven er, en welke uitleg met bron hoort
     daarbij. Dit gebeurt met een eigen zoekactie op het web.
@@ -191,7 +204,7 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
 
 64. Zodra de laatste pagina uit de gekozen groep zijn contract heeft, start het systeem de
     briefingstap voor de hele groep in één keer.
-65. Het systeem voert een claim-audit uit: welke beweringen heeft elke pagina nodig, en welke
+65. Het systeem controleert alle beweringen: welke beweringen heeft elke pagina nodig, en welke
     daarvan kunnen nog niet onderbouwd worden met de feitenkaart. Per bewering legt het systeem ook
     vast wie hem kan bevestigen. Over algemene vakkennis wordt geen vraag gesteld: een vraag
     waarvan het antwoord op internet staat, kost meer vertrouwen dan hij oplevert.
@@ -239,8 +252,8 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
     bronnen praat" in plaats van gewoon antwoord te geven.
 79. Het systeem checkt op te veel gelijkenis met bestaande content.
 80. Het systeem checkt de leesbaarheid van de tekst.
-81. Het systeem valideert de technische metadata programmatisch en repareert hem zo nodig zelf,
-    zonder daarvoor het AI-model in te schakelen.
+81. Het systeem controleert de technische metadata met een vaste rekenregel en herstelt kleine
+    fouten daar zelf in, zonder daar het AI-model bij te hoeven halen.
 
 ## Fase 11. De kwaliteitspoort en eventueel herstellen
 
@@ -255,8 +268,9 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
     dienstenpagina, met andere gewichten en een andere ondergrens.
 82. Scoort de tekst onder de drempel die bij dit soort pagina hoort, of overtreedt hij een harde
     regel, dan gaat de pagina naar "moet nog nagekeken worden" in plaats van meteen door.
-83. Scoort de tekst onder de citeerbaarheidsdrempel, dan stuurt het systeem de gevonden bevindingen
-    terug voor een herstelronde.
+83. Blijft de score onder de drempel van stap 82, ook nadat de citeerbaarheidsbeoordeling van fase 10
+    (stap 76) is meegewogen, dan stuurt het systeem de gevonden bevindingen terug voor een
+    herstelronde.
 84. Het systeem geeft bij zo'n herstelronde alleen de secties met een concrete bevinding terug aan
     het model, niet de hele pagina. Per sectie krijgt het model het probleem, waaraan je ziet dat de
     sectie geslaagd is, welk bewijs het mag gebruiken, en wat de klant expliciet niet beweerd wil
@@ -306,11 +320,61 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
      ondergrens van 60 procent herkenning, zodat kleine opmaakverschillen niet voor onnodig alarm
      zorgen.
 103. Het systeem checkt of de technische metadata op de pagina staat.
-104. Het systeem checkt of je via de opgegeven URL op een andere pagina bent uitgekomen, bijvoorbeeld
-     door een doorverwijzing.
+104. **Nog niet gebouwd.** Het systeem is voorbereid op een check of je via de opgegeven URL op een
+     andere pagina bent uitgekomen (bijvoorbeeld door een doorverwijzing), maar die check doet op dit
+     moment niets: het veld ervoor wordt altijd gelijkgezet aan de ingevoerde URL, ongeacht waar je
+     na een eventuele doorverwijzing echt uitkomt. Een verkeerd ingevulde of verlopen URL wordt hier
+     dus nog niet gesignaleerd.
 105. Het systeem toont het resultaat aan de klant in gewone taal: welke problemen er zijn gevonden,
      of de bevestiging dat alles klopt.
 
-**Hiermee is de nieuwe pagina opgeleverd.** Wat er hierna gebeurt, het opnieuw meten na 14 en 28
-dagen met een controlegroep om het effect van de pagina te bewijzen, valt buiten deze lijst en
-staat beschreven in fase 5 van [`APP_FLOW_DOCUMENTATION.md`](../APP_FLOW_DOCUMENTATION.md).
+## Fase 15. De nameting: heeft de pagina gewerkt?
+
+Hier zit het onderscheidende punt van de hele keten: niet alleen meten en schrijven, maar ook
+bewijzen of het geschrevene iets opgeleverd heeft. Een score die na publicatie stijgt is geen bewijs
+op zichzelf, want zichtbaarheid beweegt ook vanzelf en de ruis in een meting van dertig vragen is al
+gauw net zo groot als een gewone stijging. Daarom meet het systeem twee dingen naast elkaar: de
+vragen waar deze ene pagina voor gemaakt is, en een controlegroep van vragen waar geen pagina voor
+gemaakt is. Stijgt alles even hard, dan lag het niet aan de pagina.
+
+106. Zodra de pagina als gepubliceerd gemarkeerd is (stap 98), plant het systeem automatisch twee
+     hermeetmomenten in: golf 1 op 14 dagen na de publicatiedatum, golf 2 op 28 dagen erna. De klant
+     hoeft hier niets voor te doen.
+107. Niet eerder dan 14 dagen, want een AI-assistent neemt een nieuwe pagina niet dezelfde dag op:
+     hij moet eerst gecrawld en geïndexeerd worden, en dat duurt bij zoekgestuurde assistenten dagen
+     tot weken. Twee momenten in plaats van één, omdat één meting "opgepikt" niet van "toeval" kan
+     onderscheiden.
+108. Op het geplande moment verzamelt het systeem de doelvragen: precies de vragen uit de
+     oorspronkelijke meting waarvoor deze pagina bedoeld was.
+109. Het systeem stelt daar een controlegroep naast samen: vragen uit dezelfde analyse waarvoor geen
+     enkele gepubliceerde pagina bestaat, tot maximaal vijf. De keuze is niet willekeurig maar vast
+     bepaald, zodat golf 1 en golf 2 dezelfde controlevragen gebruiken en eerlijk naast elkaar staan.
+110. Het systeem stelt alle doelvragen en controlevragen opnieuw aan een AI-assistent, op precies
+     dezelfde manier als bij de oorspronkelijke meting in fase 5.
+111. Het systeem bepaalt per vraag de stand van vóór publicatie: de laatste reguliere meting die
+     dateert van vóór de publicatiedatum van deze pagina. Bewust niet de allereerste meting: publiceert
+     de klant pas na drie maanden, dan is die geen eerlijk vertrekpunt meer.
+112. Het systeem berekent het verschil tussen voor en na, apart voor de doelvragen en apart voor de
+     controlegroep.
+113. Het systeem trekt daaruit een streng oordeel: gestegen, gelijk gebleven of gedaald, met een
+     eigen marge die meebeweegt met het aantal vergelijkbare vragen. Valt het verschil binnen die
+     marge, dan telt dat als "gelijk", niet als een toevallige stijging. Zijn er te weinig
+     vergelijkbare vragen om iets zinnigs te zeggen, dan is het oordeel "nog te weinig data" in plaats
+     van een gok.
+114. Het resultaat van deze golf wordt per pagina opgeslagen, los van de andere golf, zodat golf 1 en
+     golf 2 apart terug te zien blijven.
+115. Golf 2 (28 dagen) telt zwaarder dan golf 1 (14 dagen) zodra beide er zijn: een AI-systeem heeft
+     een pagina in twee weken zelden al volledig opgepikt.
+116. **Voor de helft gebouwd.** De vergelijking met de controlegroep wordt wel berekend en
+     opgeslagen, en staat in het cijferbestand dat je kunt exporteren. Op het scherm dat de klant
+     ziet, staat op dit moment alleen het eindoordeel als één woord ("gestegen", "gelijk gebleven",
+     "gedaald" of "nog te weinig data"), zonder de cijfers van de doelgroep naast de controlegroep
+     erbij. Een tooltip legt wel uit dát er met een controlegroep vergeleken wordt, maar toont de
+     vergelijking zelf niet. Precies de losse uitspraak die dit hele hoofdstuk wil vermijden, staat
+     dus vooralsnog wél op het scherm; alleen de onderbouwing eronder ontbreekt nog in de klant-UI.
+117. Deze hermeting staat los van de gewone maandelijkse meting uit fase 5, die op alle dertig vragen
+     van de analyse blijft doorlopen. Zo hangt het verdict over deze ene pagina nooit af van één
+     momentopname, en blijft ook zichtbaar hoe het merk zich in bredere zin ontwikkelt.
+
+**Hiermee is de hele keten doorlopen: van het merkprofiel dat de adviseur klaarzet, tot het
+bewezen effect van een pagina die de klant zelf gepubliceerd heeft.**
