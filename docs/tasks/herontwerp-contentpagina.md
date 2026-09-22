@@ -7,6 +7,12 @@ een geschreven tekst beoordeelt, bijschaaft en live zet. 587 regels, twintig blo
 zet de onderbouwing en de kwaliteit in een zijpaneel, en zet de publicatieknop in een vaste
 bovenbalk.
 
+> **Dit bestand heet "Het originele plan".** Het is op 22 september 2026 vastgelegd als de
+> uitvoerbare basis. Er loopt een Teamsessie overheen om te kijken of er betere ideeen bij komen.
+> Komt daar niets uit wat dit plan verslaat, dan wordt dit plan uitgevoerd zoals het hier staat.
+> Komt daar wel iets uit, dan wordt het als apart hoofdstuk toegevoegd en blijft zichtbaar wat er
+> veranderde ten opzichte van deze versie.
+
 > **Dit bestand is een voorstel, geen verslag.** Er is nog niets van gebouwd. Fase 1 en fase 2
 > hieronder kunnen zonder verdere besluiten gebouwd worden. Fase 3 en fase 4 keren een besluit om
 > dat in `docs/logbook.md` §32 met redenen is vastgelegd, en horen daarom eerst langs de eigenaar.
