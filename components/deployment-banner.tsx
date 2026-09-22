@@ -78,17 +78,15 @@ export function DeploymentBanner() {
       role="status"
       aria-live="polite"
     >
-      <div className="toast-card pointer-events-auto flex w-full max-w-lg flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <Icon naam="opnieuw" size={18} className="mt-0.5 text-[var(--text-secondary)]" />
-          <div className="flex flex-col gap-0.5">
-            <p className="text-sm font-medium">Er is een nieuwe versie van ORBIT ENGINE</p>
-            <p className="text-sm text-secondary">
-              Herlaad de pagina om verder te gaan met de laatste versie.
-            </p>
-          </div>
+      <div className="toast-card pointer-events-auto flex w-full max-w-sm flex-col items-center gap-5 text-center pt-8">
+        <Icon naam="opnieuw" size={36} className="text-[var(--text-secondary)]" />
+        <div className="flex flex-col gap-1">
+          <p className="text-sm font-medium">Er is een nieuwe versie van ORBIT ENGINE</p>
+          <p className="text-sm text-secondary">
+            Herlaad de pagina om verder te gaan met de laatste versie.
+          </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
+        <div className="flex items-center gap-2 pt-2">
           <button type="button" onClick={() => setWeggeklikt(true)} className="btn-outline btn-sm">
             Niet nu
           </button>
