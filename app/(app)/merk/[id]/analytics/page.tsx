@@ -111,7 +111,13 @@ export default async function AnalyticsPage({
     supabase
       .from("search_console_days")
       .select("day, page, clicks, impressions, position")
-      .eq("profile_id", id),
+      .eq("profile_id", id)
+      // ⚠️ Zonder expliciete limiet stopt Supabase stil bij 1000 rijen
+      // (PostgREST-standaard). Bij 89 dagen over honderden pagina's is dat al
+      // bereikt, en dan rekent de opbrengst hieronder op een steekproef in
+      // plaats van het volledige bereik. Gevonden 22 september 2026 bij het
+      // naverifiëren van de eerste echte koppeling (Van den Udenhout).
+      .limit(200000),
     supabase
       .from("planned_pages")
       .select("status")

@@ -81,17 +81,33 @@ export default async function KoppelingenPage() {
   // Eén query voor alle merken samen: één keer tellen en daarna verdelen is
   // goedkoper dan een query per merk, en bij een bureau met twintig merken is
   // dat het verschil tussen een scherm en een wachttijd.
+  //
+  // ⚠️ Gevonden 22 september 2026 bij het naverifiëren van de eerste echte
+  // koppeling (Van den Udenhout): deze query telde rijen, niet dagen. De
+  // tabel heeft één rij per dag én per pagina (`dimensions: ["date", "page"]`,
+  // zie `lib/search-console/sync.ts`), dus een merk met 89 dagen aan cijfers
+  // over honderden pagina's toonde "1000 dagen", niet toevallig de standaard
+  // paginagrootte van Supabase (`.select` zonder `.limit` stopt bij 1000
+  // rijen). Nu `day` mee opgehaald en per merk ontdubbeld, met een expliciete
+  // limiet ruim boven wat realistisch is (16 maanden × honderden pagina's).
   const { data: dagRijen } = await admin
     .from("search_console_days")
-    .select("profile_id")
+    .select("profile_id, day")
     .in(
       "profile_id",
       merken.map((m) => m.id),
-    );
+    )
+    .limit(200000);
 
+  const dagenSetPerMerk = new Map<string, Set<string>>();
+  for (const r of (dagRijen ?? []) as { profile_id: string; day: string }[]) {
+    const set = dagenSetPerMerk.get(r.profile_id) ?? new Set<string>();
+    set.add(r.day);
+    dagenSetPerMerk.set(r.profile_id, set);
+  }
   const dagenPerMerk = new Map<string, number>();
-  for (const r of (dagRijen ?? []) as { profile_id: string }[]) {
-    dagenPerMerk.set(r.profile_id, (dagenPerMerk.get(r.profile_id) ?? 0) + 1);
+  for (const [profileId, set] of dagenSetPerMerk) {
+    dagenPerMerk.set(profileId, set.size);
   }
 
   const adres = serviceAccountEmail();
