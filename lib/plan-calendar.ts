@@ -18,6 +18,8 @@ export interface CalendarPagina {
   id: string;
   title: string;
   status: PlannedPageStatus;
+  contentPieceId: string | null;
+  topicId: string | null;
 }
 
 export interface CalendarDag {
@@ -34,7 +36,15 @@ export interface CalendarDag {
  *   uit) en horen dus niet in een kalender die over publiceren gaat.
  */
 export function calendarDagen(
-  pages: { id: string; title: string; status: PlannedPageStatus; scheduled_for: string | null; is_buffer: boolean }[],
+  pages: {
+    id: string;
+    title: string;
+    status: PlannedPageStatus;
+    scheduled_for: string | null;
+    is_buffer: boolean;
+    content_piece_id?: string | null;
+    topic_id?: string | null;
+  }[],
 ): CalendarDag[] {
   const perDag = new Map<number, CalendarPagina[]>();
 
@@ -43,7 +53,13 @@ export function calendarDagen(
     const dag = Number(p.scheduled_for.slice(8, 10));
     if (!Number.isInteger(dag) || dag < 1 || dag > LAATSTE_DAG) continue;
     const lijst = perDag.get(dag) ?? [];
-    lijst.push({ id: p.id, title: p.title, status: p.status });
+    lijst.push({
+      id: p.id,
+      title: p.title,
+      status: p.status,
+      contentPieceId: p.content_piece_id ?? null,
+      topicId: p.topic_id ?? null,
+    });
     perDag.set(dag, lijst);
   }
 

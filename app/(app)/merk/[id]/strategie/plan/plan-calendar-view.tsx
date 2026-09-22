@@ -1,6 +1,12 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
 import { PLAN_STATUS_META, type StatusTone } from "@/lib/plan-status";
 import { monthCalendar } from "@/lib/plan-schedule";
-import { calendarDagen, type CalendarDag } from "@/lib/plan-calendar";
+import { contentHref } from "@/lib/plan-overview";
+import { calendarDagen, type CalendarDag, type CalendarPagina } from "@/lib/plan-calendar";
+import type { TopicWritingState } from "@/lib/plan-writing";
 import type { ContentPlan, PlanMonth, PlannedPage } from "@/lib/types/database";
 
 /**
@@ -20,15 +26,25 @@ import type { ContentPlan, PlanMonth, PlannedPage } from "@/lib/types/database";
  * Een derde plek die ook nog kan plannen, is een derde plek waar de volgorde
  * uit de pas kan lopen met de andere twee.
  */
+interface GekozenDag {
+  label: string;
+  paginas: CalendarPagina[];
+}
+
 export function PlanCalendarView({
   plan,
   months,
   pages,
+  topics,
 }: {
   plan: ContentPlan;
   months: PlanMonth[];
   pages: PlannedPage[];
+  topics: TopicWritingState[];
 }) {
+  const [gekozenDag, setGekozenDag] = useState<GekozenDag | null>(null);
+  const analyseVanOnderwerp = new Map(topics.map((t) => [t.topicId, t.analysisId]));
+
   const perMaand = new Map<string, PlannedPage[]>();
   for (const p of pages) {
     const lijst = perMaand.get(p.plan_month_id) ?? [];
@@ -42,18 +58,84 @@ export function PlanCalendarView({
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {opNummer.map((maand) => {
         const kalender = monthCalendar(plan.started_on, maand.month_number);
+        const maandLabel = kalender?.label ?? `Maand ${maand.month_number}`;
         const dagen = calendarDagen(perMaand.get(maand.id) ?? []);
         const aantal = dagen.reduce((n, d) => n + d.paginas.length, 0);
         return (
           <div key={maand.id} className="card flex flex-col gap-2">
             <div className="flex items-baseline justify-between gap-2">
-              <span className="text-sm font-medium">{kalender?.label ?? `Maand ${maand.month_number}`}</span>
+              <span className="text-sm font-medium">{maandLabel}</span>
               <span className="mono-label text-muted">{aantal}</span>
             </div>
-            <MaandGrid dagen={dagen} />
+            <MaandGrid
+              dagen={dagen}
+              onKiesDag={(dag) =>
+                setGekozenDag({ label: `${dag.dag} ${maandLabel}`, paginas: dag.paginas })
+              }
+            />
           </div>
         );
       })}
+
+      {gekozenDag && (
+        <DagPopup
+          gekozenDag={gekozenDag}
+          analyseVanOnderwerp={analyseVanOnderwerp}
+          onSluiten={() => setGekozenDag(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Het popupje bij een dag met ingeplande content (de bal rechtsboven in het
+ * vakje). Alleen-lezen, net als de rest van deze weergave: klikken opent een
+ * lijst, geen editor.
+ */
+function DagPopup({
+  gekozenDag,
+  analyseVanOnderwerp,
+  onSluiten,
+}: {
+  gekozenDag: GekozenDag;
+  analyseVanOnderwerp: Map<string, string | null>;
+  onSluiten: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onSluiten}
+    >
+      <div
+        className="card flex w-full max-w-sm flex-col gap-3"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="type-body-emphasis">{gekozenDag.label}</h3>
+          <button type="button" onClick={onSluiten} className="text-muted hover:text-primary">
+            Sluiten
+          </button>
+        </div>
+        <ul className="flex flex-col gap-2">
+          {gekozenDag.paginas.map((p) => {
+            const meta = PLAN_STATUS_META[p.status];
+            const href = contentHref(p.contentPieceId, p.topicId ? (analyseVanOnderwerp.get(p.topicId) ?? null) : null);
+            return (
+              <li key={p.id} className="flex items-center justify-between gap-2">
+                {href ? (
+                  <Link href={href} className="font-medium hover:underline">
+                    {p.title}
+                  </Link>
+                ) : (
+                  <span className="font-medium">{p.title}</span>
+                )}
+                <span className={paginaChip(meta.tone)}>{meta.label}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </div>
   );
 }
@@ -61,7 +143,7 @@ export function PlanCalendarView({
 /** De prioriteit bij meerdere pagina's op één dag: wat om aandacht vraagt, wint. */
 const TOON_VOLGORDE: StatusTone[] = ["wacht", "fout", "loopt", "klaar", "neutraal"];
 
-function MaandGrid({ dagen }: { dagen: CalendarDag[] }) {
+function MaandGrid({ dagen, onKiesDag }: { dagen: CalendarDag[]; onKiesDag: (dag: CalendarDag) => void }) {
   return (
     <div className="grid grid-cols-7 gap-1" role="grid">
       {dagen.map((d) => {
@@ -82,12 +164,14 @@ function MaandGrid({ dagen }: { dagen: CalendarDag[] }) {
         const titel = d.paginas.map((p) => `${p.title} (${PLAN_STATUS_META[p.status].label})`).join(", ");
 
         return (
-          <div
+          <button
             key={d.dag}
+            type="button"
             title={titel}
             role="gridcell"
-            aria-label={titel}
-            className="flex aspect-square items-center justify-center rounded-[var(--radius-lg)] text-[0.65rem] font-medium"
+            aria-label={`${titel}, klik voor details`}
+            onClick={() => onKiesDag(d)}
+            className="relative flex aspect-square items-center justify-center rounded-[var(--radius-lg)] text-[0.65rem] font-medium"
             style={
               tone === "wacht"
                 ? { background: "var(--intent-warning-surface)", color: "var(--intent-warning-text)" }
@@ -99,9 +183,22 @@ function MaandGrid({ dagen }: { dagen: CalendarDag[] }) {
             }
           >
             {d.dag}
-          </div>
+            <span
+              className="absolute -right-1 -top-1 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full px-0.5 text-[0.55rem] font-semibold leading-none"
+              style={{ background: "var(--bg-page)", color: "inherit", border: "1px solid currentColor" }}
+            >
+              {d.paginas.length}
+            </span>
+          </button>
         );
       })}
     </div>
   );
+}
+
+function paginaChip(tone: StatusTone): string {
+  if (tone === "wacht") return "chip chip-warning";
+  if (tone === "klaar") return "chip chip-success";
+  if (tone === "fout") return "chip chip-danger";
+  return "chip chip-neutral";
 }

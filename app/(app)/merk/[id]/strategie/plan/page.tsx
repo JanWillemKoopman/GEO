@@ -31,11 +31,10 @@ export const metadata = { title: "Contentplan" };
  * moeten worden". Dat vroeg de zwaarste bediening van de app van de gebruiker
  * die er het minst vaak komt.
  *
- * ⚠️ Het verschil zit alleen in wat je als eerste ziet, niet in wat je mag. De
- * klant landt op het overzicht en gaat met één klik naar het bord; de
- * consultant landt op het bord. Beiden kunnen alles wat het plan kan. Wie een
- * weergave in de URL meegeeft (`?weergave=`) krijgt die, ongeacht rol, zodat
- * een gedeelde link bij beiden hetzelfde opent.
+ * ⚠️ Sinds 22 september 2026 landt iedereen zonder `?weergave=` op het bord
+ * (Plannen): dat is de weergave waar het meeste werk gebeurt. Beiden kunnen
+ * alles wat het plan kan; wie een weergave in de URL meegeeft krijgt die,
+ * ongeacht rol, zodat een gedeelde link bij iedereen hetzelfde opent.
  */
 export default async function PlanPage({
   params,
@@ -78,10 +77,12 @@ export default async function PlanPage({
 
   // Blok A punt 6: een derde weergave naast Overzicht en Plannen. Zelfde regel
   // als de andere twee: een weergave in de URL wint, ongeacht rol, zodat een
-  // gedeelde link bij iedereen hetzelfde opent.
+  // gedeelde link bij iedereen hetzelfde opent. Zonder weergave in de URL
+  // landt iedereen op Plannen.
   const modus: "overzicht" | "plannen" | "kalender" =
-    weergave === "plannen" || weergave === "kalender" ? weergave : weergave === "overzicht" ? "overzicht" : staff ? "plannen" : "overzicht";
-  const bord = modus === "plannen";
+    weergave === "plannen" || weergave === "kalender" || weergave === "overzicht"
+      ? weergave
+      : "plannen";
 
   return (
     <div className="flex flex-col gap-6">
@@ -137,7 +138,12 @@ export default async function PlanPage({
             staff={staff}
           />
         ) : modus === "kalender" ? (
-          <PlanCalendarView plan={bundle.plan} months={bundle.months} pages={bundle.pages} />
+          <PlanCalendarView
+            plan={bundle.plan}
+            months={bundle.months}
+            pages={bundle.pages}
+            topics={bundle.topics}
+          />
         ) : (
           <PlanReadView
             profileId={id}
@@ -181,14 +187,14 @@ function WeergaveKiezer({
   const basis = `/merk/${profileId}/strategie/plan`;
   return (
     <div className="no-print flex flex-wrap items-center gap-2">
-      <Keuze href={`${basis}?weergave=overzicht`} actief={modus === "overzicht"}>
-        Overzicht
-      </Keuze>
       <Keuze href={`${basis}?weergave=plannen`} actief={modus === "plannen"}>
         Plannen
       </Keuze>
       <Keuze href={`${basis}?weergave=kalender`} actief={modus === "kalender"}>
         Kalender
+      </Keuze>
+      <Keuze href={`${basis}?weergave=overzicht`} actief={modus === "overzicht"}>
+        Overzicht
       </Keuze>
     </div>
   );
