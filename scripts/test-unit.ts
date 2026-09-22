@@ -455,7 +455,7 @@ import {
   type VoortgangPagina,
 } from "@/lib/plan-progress";
 import { activiteit, ALLE_TAAKSOORTEN, TAAK_TEKST } from "@/lib/activity";
-import { groepeerPerOnderwerp } from "@/lib/wachtrij";
+import { groepeerPerSectie } from "@/lib/wachtrij";
 import type { WorkItem } from "@/lib/work";
 import {
   ADMIN_SECTIES,
@@ -8990,15 +8990,24 @@ group("workKindIcon: elke soort werk heeft één tekening die bestaat", () => {
   // De chip rechts zegt wat je gaat DOEN, het icoon links waar het OVER gaat.
   // Valt er één weg, dan rendert het overzicht een leeg gat op de plek waar de
   // klant kijkt.
-  const soorten: WorkKind[] = ["blokkade", "goedkeuring", "herstel", "feit", "pagina", "offsite"];
+  const soorten: WorkKind[] = [
+    "blokkade",
+    "goedkeuring",
+    "herstel",
+    "contentmaand",
+    "planpagina",
+    "feit",
+    "pagina",
+    "offsite",
+  ];
   for (const soort of soorten) {
     ok(`${soort} heeft een icoon dat bestaat`, Boolean(ICONEN[workKindIcon(soort)]));
   }
 
   // ⚠️ Twee soorten mogen bewust dezelfde tekening delen (`blokkade` leent
   // `letop`), maar niet ongemerkt: zodra er een derde bijkomt die hem óók
-  // deelt, zegt het icoon niets meer. Vijf verschillende op zes soorten is de
-  // stand van vandaag.
+  // deelt, zegt het icoon niets meer. Zeven verschillende op acht soorten is
+  // de stand van vandaag.
   const tekeningen = new Set(soorten.map((s) => workKindIcon(s)));
   ok("hooguit één soort leent de tekening van een ander", tekeningen.size >= soorten.length - 1);
 
@@ -9010,6 +9019,8 @@ group("workKindIcon: elke soort werk heeft één tekening die bestaat", () => {
     workChipTone("blokkade") === "danger" &&
       workChipTone("herstel") === "danger" &&
       workChipTone("goedkeuring") === "attention" &&
+      workChipTone("contentmaand") === "attention" &&
+      workChipTone("planpagina") === "attention" &&
       workChipTone("feit") === "attention" &&
       workChipTone("pagina") === "attention" &&
       workChipTone("offsite") === "attention",
@@ -11354,34 +11365,81 @@ group("de contentmix telt op dezelfde as als Analytics", () => {
   }
 });
 
-group("groepeerPerOnderwerp: de wachtrij per cluster", () => {
+group("groepeerPerSectie: de wachtrij in de vaste secties van de app", () => {
   const items: WorkItem[] = [
-    wachtrijItem("feit:1", "Wagenparkbeheer", "Eén vraag over je bedrijf"),
-    wachtrijItem("pagina:1", "All-in leaseprijs", "Publiceer de pagina"),
-    wachtrijItem("pagina:2", "Wagenparkbeheer", "Publiceer de tweede pagina"),
+    wachtrijItem("goedkeuring:1", "goedkeuring", "Bekijk en bevestig het concept"),
+    wachtrijItem("herstel:1", "herstel", "Er is iets misgegaan"),
+    wachtrijItem("contentmaand:1", "contentmaand", "Maand 3 van je contentplan"),
+    wachtrijItem("planpagina:1", "planpagina", "Losse pagina"),
+    wachtrijItem("feit:1", "feit", "Eén vraag over je bedrijf"),
+    wachtrijItem("pagina:1", "pagina", "Briefing", "Briefing invullen"),
+    wachtrijItem("pagina:2", "pagina", "Nakijken", "Pagina nakijken"),
+    wachtrijItem("pagina:3", "pagina", "Publiceren", "Pagina publiceren"),
   ];
-  const groepen = groepeerPerOnderwerp(items);
+  const overzicht = groepeerPerSectie(items);
 
-  ok("twee onderwerpen", groepen.length === 2);
-  // Eerste onderwerp bij eerste voorkomen, niet alfabetisch: de wachtrij zelf
-  // staat al op urgentie gesorteerd, en die volgorde blijft leidend.
-  ok("op volgorde van eerste voorkomen", groepen[0].onderwerp === "Wagenparkbeheer");
-  ok("beide items van dat onderwerp staan erin", groepen[0].items.length === 2);
-  ok("het andere onderwerp krijgt zijn eigen groep", groepen[1].items.length === 1);
-  ok("een lege lijst geeft geen groepen", groepeerPerOnderwerp([]).length === 0);
+  ok(
+    "de vier kopjes staan er, in die volgorde",
+    overzicht.secties.map((s) => s.kop).join(",") ===
+      "Cluster,Contentplan,Openstaande vragen,Bibliotheek",
+  );
 
-  function wachtrijItem(id: string, onderwerp: string, title: string): WorkItem {
+  const cluster = overzicht.secties.find((s) => s.kop === "Cluster")!;
+  ok(
+    "cluster: eerst bevestigen, dan herstellen",
+    cluster.subkoppen.map((s) => s.subkop).join(",") ===
+      "Clusters bevestigen (onderzoek starten),Clusters herstellen na mislukte meting",
+  );
+
+  const contentplan = overzicht.secties.find((s) => s.kop === "Contentplan")!;
+  ok(
+    "contentplan: eerst de maand, dan de losse pagina",
+    contentplan.subkoppen.map((s) => s.subkop).join(",") ===
+      "Contentmaand vrijgeven (definitief maken),Losse geplande pagina's goedkeuren",
+  );
+
+  const bibliotheek = overzicht.secties.find((s) => s.kop === "Bibliotheek")!;
+  ok(
+    // ⚠️ Dit is de volgorde waarin de klant de pagina daadwerkelijk aflegt,
+    // niet de urgentievolgorde van `lib/work.ts` (die zet "publiceren" vóór
+    // "briefing", want dat laatste is uitvragen en geen afronden). Zie
+    // `SUBKOP_VOLGORDE` in `lib/wachtrij.ts`.
+    "bibliotheek: briefing, dan nakijken, dan publiceren",
+    bibliotheek.subkoppen.map((s) => s.subkop).join(",") ===
+      "Briefing invullen voor een pagina,Pagina nakijken vóór publicatie,Pagina publiceren",
+  );
+
+  ok(
+    "een blokkade komt bij de waarschuwingen en niet bij de vier secties",
+    groepeerPerSectie([
+      ...items,
+      wachtrijItem("blokkade:1", "blokkade", "Je website houdt AI-assistenten buiten"),
+    ]).waarschuwingen.length === 1,
+  );
+
+  ok("een lege lijst geeft geen secties en geen waarschuwingen", (() => {
+    const leeg = groepeerPerSectie([]);
+    return leeg.secties.length === 0 && leeg.waarschuwingen.length === 0;
+  })());
+
+  function wachtrijItem(
+    id: string,
+    kind: WorkItem["kind"],
+    title: string,
+    typeLabel: string = "test",
+  ): WorkItem {
     return {
       id,
-      kind: "pagina",
+      kind,
       state: "nu",
-      typeLabel: "Pagina publiceren",
+      typeLabel,
       title,
       why: "test",
       urgency: 40,
       href: "#",
-      analysisId: onderwerp,
-      analysisName: onderwerp,
+      analysisId: "a1",
+      analysisName: "Cluster 1",
+      profileId: "profiel-1",
     };
   }
 });
