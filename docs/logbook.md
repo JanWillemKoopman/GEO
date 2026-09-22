@@ -11258,3 +11258,94 @@ een subkop meer dan vier items heeft.
 `tsc --noEmit`, `test:unit` (5054, vier al bestaande mislukkingen ongerelateerd aan dit werk, drie
 over "de S" en één over de navigatievolgorde in Strategie), `test:chain` (728) en `build` groen. Geen
 migratie, de gebruikte kolommen (`plan_months.status`, `planned_pages.content_piece_id`) bestaan al.
+
+## 22 september 2026: de contentpagina in drie zones, en wat de app al geprobeerd had
+
+`app/(app)/analyses/[id]/bibliotheek/[pieceId]` was 587 regels met twintig blokken onder elkaar. De
+tekst begon bij blok 12, het bewerken bij blok 18, en dezelfde tekst stond twee keer op het scherm:
+als opgemaakt artikel en nog eens als tekstvak achter een knop met een drempelscherm. Wie bij
+bevinding 31 las dat een sectie te vaag was, moest elf blokken verder scrollen om hem aan te passen.
+Het volledige plan en de weg ernaartoe staan in `docs/tasks/herontwerp-contentpagina.md`.
+
+**Eerst geteld, toen gebouwd.** Op productie: 25 contentpagina's, waarvan 24 de huidige versie,
+**nul gepubliceerd**, één met de hand bewerkt, 23 met `quality_json`, 22 met "check nodig", gemiddeld
+49,1 bevindingen per pagina en 78 op de langste. Dat eerste getal verandert wat deze verbouwing is:
+geen reparatie van geobserveerde pijn maar een verbetering vooraf. Het derde getal maakt de terugval
+voor pagina's zonder `quality_json` een echt randgeval (twee van de 25) in plaats van de hoofdweg.
+
+**Het inzicht dat het meeste oplevert kostte geen enkele nieuwe meting.** De reparatie krijgt met
+opzet hooguit tien bevindingen mee (`MAX_BEVINDINGEN_PER_RONDE`), want met 119 opdrachten over 25
+secties is er niets gerichts meer aan een sectiereparatie en liep de kwaliteitsscore 67, 74, 68, 48.
+Van de 49 tot 78 punten die de klant daarna te zien kreeg, was dus hooguit een handvol ooit aan het
+model voorgelegd, en de rest nooit. Het scherm zei daar niets over. Nu staat er één zin ("ORBIT
+ENGINE heeft deze pagina zelf 2 keer bijgewerkt. Dit bleef staan.") en drie groepen: wat publicatie
+tegenhoudt, wat geprobeerd is zonder resultaat, en waar de app niet aan toegekomen is.
+
+Dat is **exact af te leiden en geen schatting**: `content_quality_runs.issues_json` bewaart per ronde
+de volledige getypeerde bevindingenlijst, en de reparatie kiest daaruit met `prioriteerIssues(issues,
+10)`, een pure functie. Dezelfde functie op dezelfde opgeslagen lijst levert precies de tien op die
+het model destijds meekreeg. Geen migratie, wel twee kolommen extra in de bestaande query. De
+groepering staat in `lib/pipeline/quality-groups.ts`, puur en zonder `server-only` (conventie 2), met
+21 nieuwe assertions. Nagemeten op de langste pagina (f3a175b5, drie rondes): van de 78 bevindingen
+in de laatste ronde kwamen er 32 ook in een eerdere ronde voor en 46 niet, en die 46 horen dus bij
+"niet aan toegekomen" en niet bij "geprobeerd".
+
+**De derde route kreeg een plek.** Het scherm ordende beoordelen en publiceren, maar niet
+"laat ORBIT ENGINE er een nieuwe versie van maken en kom over een paar minuten terug". Zolang het
+bewerken achter een knop zat viel dat niet op; met een canvas dat altijd openstaat wel, want een
+herschrijving levert een nieuwe rij met een nieuw adres op. Nieuw: `GET /api/analyses/[id]/content/
+[pieceId]/status` (service-role plus eigenaarscontrole, want `jobs` staat op deny-all), een
+statuschip met zes standen waaronder "ORBIT ENGINE schrijft" en "Oudere versie", een herschrijfknop
+die uit gaat zolang er een ronde loopt, en een balk met een keuze zodra er nieuwere tekst is: het
+verschil bekijken, overnemen, of je eigen tekst houden. Nooit stil overschrijven.
+
+**Het canvas liep anders stil uit de pas.** `ContentEditor` vulde zijn velden één keer bij het
+monteren en vergeleek daarna met de verse serverwaarde. Dat viel niet op omdat de editor na elk
+opslaan dichtklapte. Altijd open zou het wel opvallen: na een verversing van elders zegt het scherm
+"je hebt wijzigingen" over tekst die niemand getypt heeft. `ContentWerkblad` vergelijkt daarom met
+een eigen nullijn die meeschuift bij elke aanvaarde stand, en niet met de serverprop.
+
+**Twee rekenfouten uit het plan zelf zijn onderweg gecorrigeerd.** De splitsing hangt aan een
+containerquery op 1064px beschikbare breedte binnen `main` en niet aan de vensterbreedte: `.stand` is
+1440px met 24px marge, maar de zijbalk (240px uitgeklapt, 56px ingeklapt) gaat er nog af, en die
+klapt de gebruiker zelf in. Op 1440px met uitgeklapte zijbalk blijft 1152px over, op 1280px 992px, en
+op 1280px met ingeklapte zijbalk weer 1176px; een `@media`-regel doet in twee van die drie gevallen
+het verkeerde. Dit is de eerste containerquery in dit systeem, zie `designsystem.md` §8. En de
+paginabalk plakt met `top: var(--header-h)` zoals de hoofdstuktabs, niet met een eigen 48: `ConfirmBar`
+was het verkeerde voorbeeld, die zit vast aan de ónderkant.
+
+**Publiceren verhuisde van een kaart naar de balk, en dat kost iets.** Een knop die nooit uit beeld
+gaat, wordt eerder per ongeluk gebruikt, en het bewijs dat mensen hem niet kónden vinden is dun: nul
+van de 25 pagina's is ooit gepubliceerd. De bevestigingsstap noemt daarom voortaan wat er nog
+openstaat ("er staan nog 3 punten open die publicatie tegenhouden"), uit dezelfde bron als de
+kwaliteitsrail zodat er nooit twee tellingen naast elkaar staan. De knop wordt niet geblokkeerd: de
+klant weet zelf of zijn pagina online staat.
+
+**Weggehaald.** `content-editor.tsx` (het canvas verving hem) en `QualityPanel` uit
+`quality-panel.tsx` (de kwaliteitsrail doet hetzelfde en meer). De drie dekkingscijfers die alleen in
+dat paneel stonden, staan nu bij de onderbouwing waar ze thuishoren. `QualityInternalPanel` en
+`leesQualityJson()` blijven.
+
+**Niet gebouwd, met een reden.** De selectie-assistent uit de oorspronkelijke opdracht (een zwevend
+menu dat een geselecteerd stuk tekst laat herschrijven) staat niet in dit werk, en dat is geen
+kwestie van tijd. Fijner knippen is in dit systeem twee keer geprobeerd en werd twee keer slechter,
+en `checkContentGate()` heeft geen fragment-bewuste vorm: alleen `ontwijkendeZinnen()`,
+`checkTabooWords()`, `checkForbiddenTopics()` en `checkSourceTalk()` werken op losse tekst, de
+dekkingspoort rekent over de hele pagina en neemt de opening als norm. In plaats daarvan vult
+"Laat ORBIT ENGINE dit oplossen" het bestaande herschrijfvak met de aanbeveling die het
+reparatiemodel toch al als opdracht kreeg: dezelfde route, dezelfde poort, dezelfde nieuwe versie.
+De vier stappen die de selectie-assistent later alsnog verdedigbaar maken staan in §8.1 van het
+taakbestand. Een rijke editor blijft achter de proef uit §8.2: markdown blijft de brontekst zolang
+niet aangetoond is dat een editor hem teken voor teken teruggeeft.
+
+**Eén vondst onderweg die niets met het scherm te maken had.** De eerste versie van de ketentest voor
+het conflictslot was groen om de verkeerde reden. `now()` is in Postgres de transactietijd en staat
+stil binnen één transactie, dus het stempel schoof niet op en de tweede schrijver won alsnog. En
+`updated_at` uit de `pg`-driver komt terug als JavaScript-datum met milliseconden, terwijl Postgres
+microseconden bewaart: teruggestuurd als parameter matcht die afgeronde waarde de rij niet. De test
+vergelijkt nu op `updated_at::text` en zet het stempel vanuit JavaScript, net als de route zelf. De
+route was al goed: PostgREST levert de tekstweergave en die rondt niets af.
+
+`tsc --noEmit`, `test:unit` (5080, 21 nieuwe; dezelfde vier al bestaande mislukkingen over "de S" en
+de navigatievolgorde in Strategie, ongerelateerd), `test:chain` (732, scenario 17 nieuw) en `build`
+groen. Geen migratie: alle gebruikte kolommen bestaan al.

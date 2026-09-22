@@ -19,6 +19,17 @@ import { kopieeropties } from "@/lib/kopieervormen";
  * die niet weet wat HTML is, moet zonder klikken kunnen zien welke rij bij zijn
  * situatie hoort. Daarom leest elke regel over zíjn CMS ("een editor waarin je
  * zelf opmaakt") en niet over het formaat.
+ *
+ * ── VAN ZEVEN KNOPPEN BOVEN DE TEKST NAAR ÉÉN MENU (22 september 2026) ──────
+ *
+ * Deze knoppen stonden bovenaan de pagina, vóór de tekst: drie kopieervormen,
+ * twee downloads, de schema-markup en de sjabloonexport. De eerste
+ * schermhoogte ging daarmee op aan exporteren in plaats van aan lezen, terwijl
+ * exporteren de laatste handeling is en niet de eerste.
+ *
+ * Het besluit van 16 september blijft overeind: de reden staat nog steeds per
+ * regel in beeld zodra het menu open is. Wat veranderde is dat het menu dicht
+ * is tot je het nodig hebt, niet dat de uitleg achter een vraagteken verdween.
  */
 export function ContentActions({
   title,
@@ -26,6 +37,7 @@ export function ContentActions({
   html,
   schemaJsonLd,
   templateExport,
+  handleiding,
 }: {
   title: string;
   markdown: string;
@@ -38,6 +50,13 @@ export function ContentActions({
    * export hierboven. Zie `docs/architecture.md` §"Sjabloondetectie".
    */
   templateExport?: { label: string; filename: string; content: string } | null;
+  /**
+   * "Hoe zet je dit op je site?" (`components/publish-guide.tsx`). Stond als
+   * eigen ingeklapte kaart op de pagina; hoort bij het exporteren en dus in
+   * hetzelfde menu. Weglaten zodra de pagina gepubliceerd is: wie voor de
+   * tweede keer publiceert heeft hem niet meer nodig.
+   */
+  handleiding?: React.ReactNode;
 }) {
   function download(filename: string, content: string, mime: string) {
     const blob = new Blob([content], { type: mime });
@@ -54,18 +73,20 @@ export function ContentActions({
   const opties = kopieeropties(markdown, html);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       {opties.length > 0 && (
-        <div className="card flex flex-col gap-2 p-4">
-          <p className="text-sm font-medium">Kies het formaat dat bij je CMS past</p>
+        <div className="flex flex-col gap-2">
+          <p className="mono-label" style={{ fontSize: "0.65rem" }}>
+            Kies het formaat dat bij je CMS past
+          </p>
           <ul className="flex flex-col gap-2">
             {opties.map((optie) => (
-              <li key={optie.vorm} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+              <li key={optie.vorm} className="flex flex-col gap-0.5">
                 <CopyButton
                   value={optie.waarde}
                   label={optie.label}
                   copiedLabel="Gekopieerd"
-                  className="btn-outline w-fit shrink-0"
+                  className="w-fit text-sm font-medium hover:underline"
                 />
                 <span className="text-sm text-secondary">{optie.waarvoor}</span>
               </li>
@@ -74,11 +95,17 @@ export function ContentActions({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        <button onClick={() => download(`${slug}.md`, markdown, "text/markdown")} className="btn-outline">
+      <div className="flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-3">
+        <button
+          onClick={() => download(`${slug}.md`, markdown, "text/markdown")}
+          className="w-fit text-sm hover:underline"
+        >
           Download .md
         </button>
-        <button onClick={() => download(`${slug}.html`, htmlDoc, "text/html")} className="btn-outline">
+        <button
+          onClick={() => download(`${slug}.html`, htmlDoc, "text/html")}
+          className="w-fit text-sm hover:underline"
+        >
           Download .html
         </button>
         {schemaJsonLd && (
@@ -86,24 +113,31 @@ export function ContentActions({
             value={schemaJsonLd}
             label="Kopieer schema-markup"
             copiedLabel="Gekopieerd"
-            className="btn-outline"
+            className="w-fit text-sm hover:underline"
           />
         )}
         {templateExport && (
-          <span className="flex items-center gap-1">
-            <button
-              onClick={() => download(templateExport.filename, templateExport.content, "text/html")}
-              className="btn-outline"
-            >
-              {templateExport.label}
-            </button>
-            <InfoHint label="Wat is dit?">
-              ORBIT ENGINE herkende tijdens het onderzoek hoe jouw site is opgebouwd, en heeft deze pagina
-              alvast in diezelfde vorm klaargezet. Zo hoef je bij het plakken niets meer om te bouwen.
-            </InfoHint>
+          <span className="flex flex-col gap-0.5">
+            <span className="flex items-center gap-1">
+              <button
+                onClick={() => download(templateExport.filename, templateExport.content, "text/html")}
+                className="w-fit text-sm hover:underline"
+              >
+                {templateExport.label}
+              </button>
+              <InfoHint label="Wat is dit?">
+                ORBIT ENGINE herkende tijdens het onderzoek hoe jouw site is opgebouwd, en heeft deze
+                pagina alvast in diezelfde vorm klaargezet. Zo hoef je bij het plakken niets meer om
+                te bouwen.
+              </InfoHint>
+            </span>
           </span>
         )}
       </div>
+
+      {handleiding && (
+        <div className="border-t border-[var(--border-subtle)] pt-3">{handleiding}</div>
+      )}
     </div>
   );
 }

@@ -491,6 +491,19 @@ werken  1440px    de meeste schermen, kaarten in een raster (de standaard)
 data      geen    tabel, grafiek, vergelijking, alleen 24px marge
 ```
 
+⚠️ **Een stand zegt hoe breed de pagina mag zijn, niet hoeveel ruimte hij écht heeft** (22 september
+2026). `.stand` staat binnen `<main>`, naast de zijbalk, en die is 240px uitgeklapt of 56px
+ingeklapt. De bruikbare breedte is dus `viewport - zijbalk - 2 × 24px`, en die laatste twee getallen
+verandert de gebruiker zelf. Op 1440px met een uitgeklapte zijbalk blijft 1152px over, op 1280px
+992px, en op 1280px mét een ingeklapte zijbalk weer 1176px.
+
+Een indeling die pas past bóven een bepaalde breedte hoort daarom aan een **containerquery** te
+hangen en niet aan een `@media`-regel: die laatste kent het verschil tussen een in- en uitgeklapte
+zijbalk niet en doet in twee van die drie gevallen het verkeerde. De eerste plek in dit systeem die
+er een gebruikt is de contentpagina (`.content-zones` in `app/globals.css`, drempel 1064px voor
+`720 + 24 + 320`). Wie een tweede gesplitst scherm bouwt, rekent op dezelfde manier en gebruikt
+hetzelfde patroon.
+
 Een pagina kiest zijn stand niet door een prop door te geven, maar door ergens in zijn inhoud een
 lege marker-`div` met de klasse `.wil-lezen` of `.wil-data` te zetten. De wikkel in
 `components/workspace-chrome.tsx` gebruikt `:has()` om daarnaar te kijken en past zijn eigen

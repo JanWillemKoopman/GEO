@@ -13,6 +13,17 @@ Teamsessie overheen gegaan (UX, Product, AI, Engineering, UI, plus tegenspraak).
 bevindingen zijn nagerekend en verwerkt, twee zijn verworpen. Bijlage A houdt bij wat er veranderde
 en waarom. De oorspronkelijke tekst staat in de git-geschiedenis, commit `b6774e3`.
 
+> **Stand van zaken: stap 0 tot en met 6 zijn gebouwd en de vier controles zijn groen.** Wat er
+> gebouwd is staat samengevat onderaan `docs/logbook.md`. Dit bestand blijft staan voor de twee
+> besluiten die nog openstaan, allebei in §8:
+>
+> - **§8.1, de selectie-assistent.** Niet gebouwd, met cijfers erbij. Blijft open tot iemand de vier
+>   stappen doorloopt of besluit dat het niet hoeft.
+> - **§8.2, de rijke editor.** Blijft achter de proef. Markdown blijft de brontekst tot die proef
+>   aantoont dat een editor hem teken voor teken teruggeeft.
+>
+> Twee dingen zijn tijdens de bouw anders gelopen dan hieronder staat. Die staan in bijlage B.
+
 ---
 
 ## 1. Waar dit plan op rust
@@ -533,3 +544,31 @@ twee die zijn verworpen.
 9. **De rem op publiceren** (§4). De knop gaat van een kaart naar een balk die nooit uit beeld is.
    Het bewijs dat mensen hem niet konden vinden is zwak, dus de bevestiging zegt voortaan wat er nog
    openstaat.
+
+
+---
+
+## Bijlage B, wat de bouw anders uitwees dan het plan (22 september 2026)
+
+Twee dingen bleken tijdens het bouwen anders te liggen. Ze staan hier en niet hierboven, zodat het
+plan leesbaar blijft als plan en deze bijlage als correctie.
+
+**1. Stap 0 leverde nul gepubliceerde pagina's op, niet drie.** Het logboek noteerde er drie; de
+telling van vandaag geeft 25 contentpagina's waarvan nul gepubliceerd, één met de hand bewerkt en 23
+met `quality_json`. Het oude getal was dus achterhaald. Dat verandert niets aan wat er gebouwd is,
+wel aan wat we erover mogen zeggen: dit scherm is nog nauwelijks gebruikt, dus dit is een verbetering
+vooraf en geen reparatie van pijn die iemand echt gevoeld heeft. Voor §6 is het goed nieuws:
+pagina's zonder `quality_json` zijn er twee van de 25, dus de terugval is een randgeval.
+
+**2. De derde groep hoefde niet geschat te worden.** §6.1 hield er rekening mee dat "hier is ORBIT
+ENGINE niet aan toegekomen" misschien alleen af te leiden zou zijn uit de laatste ronde, en stelde
+een additieve kolom voor als dat niet exact bleek. Dat is niet nodig gebleken:
+`content_quality_runs.issues_json` bewaart per ronde de volledige getypeerde bevindingenlijst. Met
+`prioriteerIssues(issues, 10)`, dezelfde pure functie die de pijplijn gebruikt, is exact te
+reconstrueren welke tien het model destijds meekreeg. Geen migratie, twee kolommen extra in een query
+die er al was.
+
+Nagerekend op de langste pagina in productie (f3a175b5, drie rondes, 78 bevindingen in de laatste
+ronde): 32 daarvan kwamen ook in een eerdere ronde voor, 46 niet. Die 46 zijn later ontstaan of pas
+later gezien, en horen dus bij "niet aan toegekomen" en niet bij "geprobeerd". Precies dat
+onderscheid was het punt van de hele groep.

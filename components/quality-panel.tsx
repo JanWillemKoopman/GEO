@@ -58,81 +58,19 @@ function Cijfer({ label, waarde, eenheid = "" }: { label: string; waarde: string
 }
 
 /**
- * De KLANTWEERGAVE: één alinea, de blokkades, en de dekking.
+ * ⚠️ `QualityPanel`, de klantweergave, stond hier tot 22 september 2026.
  *
- * Staat er niets in `quality_json` (een pagina van vóór migratie 0091), dan
- * rendert dit blok niets in plaats van lege cijfers: onbekend is een betere
- * waarde dan een verkeerde (conventie 3), en de bestaande kaarten eronder
- * blijven gewoon staan.
+ * Hij toonde één alinea, de eerste vijf blokkades en drie dekkingscijfers, als
+ * kaart tussen de andere kaarten op de contentpagina. De kwaliteitsrail van het
+ * herontwerp doet hetzelfde en meer: hij groepeert de bevindingen naar wat de
+ * app al geprobeerd heeft, en hij laat je per bevinding naar de plek in de
+ * tekst springen (`quality-findings.tsx`, `lib/pipeline/quality-groups.ts`). De
+ * dekkingscijfers staan nu bij de onderbouwing, waar ze thuishoren, in
+ * `Kerncijfers` op de contentpagina zelf.
+ *
+ * `leesQualityJson()` en `QualityInternalPanel` blijven wel: die worden allebei
+ * nog gebruikt.
  */
-export function QualityPanel({
-  quality,
-  klantzin,
-}: {
-  quality: QualityJson | null;
-  /** De zin uit `klantOordeel()`, zodat de knop en de kaart hetzelfde zeggen. */
-  klantzin: string;
-}) {
-  if (!quality?.verdict) return null;
-
-  const issues = issuesUitJson(quality.issues);
-  const blokkades = issues.filter((i) => i.blocking);
-  const dekking = quality.dekking?.gewogen ?? quality.dekking?.graad ?? null;
-
-  const stand =
-    quality.verdict === "pass"
-      ? { kaart: "card", icoon: "klaar" as const, kop: "Klaar voor publicatie" }
-      : quality.verdict === "repair"
-        ? { kaart: "card card-warning", icoon: "letop" as const, kop: "Bijna klaar" }
-        : { kaart: "card card-warning", icoon: "letop" as const, kop: "Nog niet naar je site" };
-
-  return (
-    <div className={`${stand.kaart} flex flex-col gap-3`}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="mono-label flex items-center gap-1">
-          <Icon naam={stand.icoon} size={16} />
-          {stand.kop}
-          <InfoHint label="Hoe ORBIT ENGINE dit bepaalt">
-            Vier onafhankelijke beoordelaars kijken naar deze pagina, en daarnaast rekent de app tien
-            controles na die geen mening nodig hebben: staan de verboden woorden erin, klopt de
-            onderbouwing, is de tekst niet te veel als een andere pagina van jou. Wat hier staat is de
-            uitkomst daarvan.
-          </InfoHint>
-        </span>
-      </div>
-
-      <p className="text-sm text-secondary">{klantzin}</p>
-
-      {blokkades.length > 0 && (
-        <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-secondary">
-          {blokkades.slice(0, 5).map((b, i) => (
-            <li key={i}>
-              {b.section ? <span className="font-medium">{b.section}: </span> : null}
-              {b.finding}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-        {dekking !== null && (
-          <Cijfer label="Informatie compleet" waarde={String(Math.round(dekking))} eenheid="%" />
-        )}
-        {quality.dekking?.kritiek !== null && quality.dekking?.kritiek !== undefined && (
-          <Cijfer
-            label="Belangrijkste punten gecontroleerd"
-            waarde={String(Math.round(quality.dekking.kritiek))}
-            eenheid="%"
-          />
-        )}
-        <Cijfer
-          label="Kritieke problemen"
-          waarde={blokkades.length === 0 ? "geen" : String(blokkades.length)}
-        />
-      </div>
-    </div>
-  );
-}
 
 /**
  * De ADVISEURSWEERGAVE: alles wat de klant niet hoeft te zien.
