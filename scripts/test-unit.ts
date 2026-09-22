@@ -6019,6 +6019,17 @@ group("de kalenderweergave van het plan (blok A punt 6, plan-calendar)", () => {
     "zonder id's blijft het null, nooit undefined",
     calendarDagen([pagina()]).find((d) => d.dag === 5)?.paginas[0].contentPieceId === null,
   );
+
+  // Het popupje toont ook of het een nieuwe pagina of een optimalisatie is.
+  const metActie = calendarDagen([pagina({ recommendation_action: "verbeteren" })]);
+  ok(
+    "nieuw of optimalisatie gaat mee",
+    metActie.find((d) => d.dag === 5)?.paginas[0].recommendationAction === "verbeteren",
+  );
+  ok(
+    "zonder actie blijft het null",
+    calendarDagen([pagina()]).find((d) => d.dag === 5)?.paginas[0].recommendationAction === null,
+  );
 });
 
 group("publicatiedata spreiden over een maand (plan-schedule)", () => {
