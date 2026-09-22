@@ -11021,3 +11021,21 @@ grid vervangen door alleen het raster; de "Technische diagnose"-sectie, de `prof
 en de context-factor staleness-check (alleen daarvoor gebruikt) zijn verwijderd.
 
 `tsc --noEmit`, `test:unit` (5015), `test:chain` (722) en `build` groen.
+
+## 22 september 2026 (19): de hele kaart in "wachten op jou" is klikbaar, niet alleen de knop
+
+De eigenaar moest steeds precies de knop rechts raken om naar een taak in de wachtrij te gaan.
+`WachtrijKaart` (`app/(app)/merk/[id]/_components/wachtrij-lijst.tsx`) is nu zelf de link: de `div`
+werd een `<Link href={item.href}>`, en de knop erin een `<span>` met dezelfde opmaak (een tweede
+`<a>` erin zou een ongeldige geneste link geven). De knop staat om diezelfde reden nu op
+`btn-outline` in plaats van `btn-primary`, net als "Bekijk je zichtbaarheid" bovenaan hetzelfde
+scherm: nu de hele kaart de klikbare vorm draagt, hoeft de knop dat niet meer als enige te doen.
+
+Dat botst met de regel bij `--shadow-sm` in `globals.css` ("alleen wat boven het scrim zweeft
+krijgt een schaduw, een kaart heeft een rand"): zonder knop als enige aanwijzing is een randkleur
+bij hover te stil om te laten zien dat het hele blok klikbaar is. Nieuwe klasse `.card-link` met een
+nieuwe variabele `--shadow-hover`, alleen voor deze kaart: zwart/grijs in de lichte stand
+(`rgba(0,0,0,.06)` rand + een zachte schaduw), limoen (`--accent` in de donkere stand, `#bcff2f`) in
+de donkere stand, in beide gevallen subtiel genoeg om als hint te lezen en niet als omlijsting.
+
+`tsc --noEmit`, `test:unit` (5015), `test:chain` (723) en `build` groen.
