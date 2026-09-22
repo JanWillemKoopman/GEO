@@ -11405,3 +11405,33 @@ alleen met een rijenaantal boven 1000 zichtbaar wordt, en dat na te bouwen in `t
 mock-gewicht kosten dan het treft, tegenover het aanroepen van de echte Supabase-data waarmee dit al
 geverifieerd is (conventie 10).
 
+## 22 september 2026 (28): een prompttabel onder "Per cluster", en het zijpaneel eraf
+
+De clustertabel op Zichtbaarheid in AI opende tot vandaag per rij een zijpaneel (Z8,
+`components/cluster-answers.tsx`) met de gemeten vragen van dat ene cluster. De eigenaar wilde die
+klik weg: een rij aanklikken voor het antwoord van één cluster tegelijk terwijl de vraag "welke
+prompt scoort het best" over alle clusters heen gaat. Daarvoor komt nu een eigen tabel "Prompts"
+onder "Per cluster", met bovenaan de vraag met de meeste zichtbaarheid: `lib/pipeline/prompt-
+visibility.ts` telt per prompt de metingen van de ronde die de clusterrij ernaast ook toont (zelfde
+week, zelfde bron), en zet per vraag het percentage geoordeelde metingen waarin het eigen merk
+genoemd werd. Het letterlijke antwoord blijft bewaard, nu als `<details>` in de rij zelf
+(`components/analytics-prompt-table.tsx`) in plaats van een paneel dat de pagina opzij schuift.
+
+`AnalyticsClusterTable` verloor daarmee zijn enige reden om rijen klikbaar te maken: `onRowClick`,
+`selectedKey` en de `Drawer` zijn eruit, de rij navigeert alleen nog via de clusternaam zelf (zoals
+al kon). `components/cluster-answers.tsx`, `app/api/analyses/[id]/answers/route.ts` en
+`lib/pipeline/answers.ts` hadden geen andere aanroeper meer en zijn verwijderd in plaats van
+dood te laten liggen (conventie: één feit, één eigenaar). De link "Zie wat de AI hier nu antwoordt"
+op de contentplan-kaart (`components/why-this-page.tsx`) wijst nog naar dezelfde plek
+(`analytics?cluster=…`); die toont nu de prompttabel meteen gefilterd op dat cluster, zonder dat er
+nog geklikt hoeft te worden.
+
+`tsc --noEmit`, `test:unit` (5091, dezelfde vier bekende mislukkingen over "de S" en de
+navigatievolgorde in Strategie, ongerelateerd), `test:chain` (732) en `build` groen. Geen migratie:
+alleen bestaande kolommen van `tracking_runs` en `tracking_run_mentions` gelezen. Geen nieuwe
+testcase in `test-unit.ts`: de aggregatie leest rechtstreeks van Supabase en heeft geen pure
+rekenkern die zonder database te toetsen is (conventie 2 geldt voor de rekenkunde, niet voor een
+query die groepeert); geverifieerd door de query's velden en filters tegen het schema en de
+bestaande `loadAnswers()`-aanpak te leggen, niet tegen productiedata (nog geen tweede meting met
+herhalingen op dit account).
+
