@@ -11181,7 +11181,29 @@ uitklapmenu, met de statussen in de volgorde waarin een cluster ze doorloopt en 
 `tsc --noEmit`, `test:unit` (5039), `test:chain` (728) en `build` groen. Geen migratie nodig, het
 filter leest de al bestaande `analyses.status`.
 
-## 22 september 2026 (23): "openstaande vragen" op de clusterkaart bleek een ander getal dan de
+## 22 september 2026 (23): het aantal vragen per fase kiezen bij het aanmaken van een cluster
+
+Op "Nieuw cluster" (`/analyses/new`) lag de verdeling over Oriëntatie, Overweging en Beslissing al
+vast op de standaard 10/10/10 (`lib/prompt-mix.ts`, migratie 0054), zonder dat er op dit scherm iets
+aan te passen viel. Het snelpad vanuit de aanbodboom (`topics-panel.tsx`) had die keuze al, met een
+eigen bovengrens van 100 in totaal, opgebouwd op basis van hoeveel diensten en werkgebieden een
+onderwerp meebrengt. Voor een gloednieuw cluster, zonder die voorzet, is dat te ruim: de eigenaar
+wilde hier een eigen, engere grens, tussen de 10 en de 60 in totaal.
+
+`NewAnalysisForm` (`app/(app)/analyses/new/new-analysis-form.tsx`) kreeg drie velden naast elkaar,
+één per fase, met de tellervergelijking en een foutmelding eronder zodra de optelling buiten de
+grens valt. De knop "Start cluster" is uit zolang dat zo is. Nieuw in `lib/prompt-mix.ts`:
+`NEW_CLUSTER_MIN_TOTAL` (10), `NEW_CLUSTER_MAX_TOTAL` (60) en `checkNewClusterMix()`, die bovenop de
+bestaande `checkMix()` (per-fase grens van 40, geen `drop` van bestaande kolommen) alleen de
+optelling strenger afkapt. `POST /api/analyses` valideert dezelfde functie server-side en schrijft
+de gekozen verdeling naar `prompts_orientatie`/`prompts_overweging`/`prompts_beslissing`; blijft het
+veld op de standaard staan, dan blijven die kolommen `null`, zoals bij het snelpad ook al zo werkte.
+Geen migratie nodig, de kolommen bestaan al sinds 0054.
+
+`tsc --noEmit`, `test:unit` (5041, negen nieuw voor `checkNewClusterMix`), `test:chain` (728) en
+`build` groen.
+
+## 22 september 2026 (24): "openstaande vragen" op de clusterkaart bleek een ander getal dan de
 echte vragenlijst, nu "zoekopdrachten"
 
 De eigenaar zag op de clusterkaarten "22 openstaande vragen" bij een cluster waar de sidebar maar

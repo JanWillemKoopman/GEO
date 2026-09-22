@@ -244,13 +244,13 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
       hoofdstuk: "Strategie",
     },
     {
-      href: `/merk/${brandId}/strategie/vragen`,
-      label: "Openstaande vragen",
+      href: `/merk/${brandId}/strategie/plan`,
+      label: "Contentplan",
       hoofdstuk: "Strategie",
     },
     {
-      href: `/merk/${brandId}/strategie/plan`,
-      label: "Contentplan",
+      href: `/merk/${brandId}/strategie/vragen`,
+      label: "Openstaande vragen",
       hoofdstuk: "Strategie",
     },
     {
