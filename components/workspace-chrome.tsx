@@ -39,7 +39,6 @@ export function WorkspaceChrome({
   activeBrand,
   staff,
   sales,
-  solliciteren,
   openVragen,
   telefoon,
   onSelectBrand,
@@ -56,8 +55,6 @@ export function WorkspaceChrome({
   staff: boolean;
   /** Salesmedewerker? Dan komt de Sales-sectie in de zijbalk (plan §4.1). */
   sales: boolean;
-  /** Mag deze persoon in het zijproject? Dan komt de S in de bovenbalk. */
-  solliciteren: boolean;
   /** Hoeveel vragen er open staan. Zet het bolletje in de zijbalk aan. */
   openVragen: number;
   /** `isTelefoon()`, bepaald op de server (`lib/apparaat.ts`, stap 5). Beslist
@@ -114,7 +111,6 @@ export function WorkspaceChrome({
           activeBrand={activeBrand}
           brands={brands}
           sales={sales}
-          solliciteren={solliciteren}
           previewToggle={previewToggle}
           openVragen={openVragen}
           alles={alles}
@@ -160,28 +156,6 @@ export function WorkspaceChrome({
           <div className="flex shrink-0 items-center gap-1">
             {openQuestions}
             {previewToggle}
-            {/* ── DE S: het zijproject "Solliciteren" (14 september 2026) ─────
-                Een eigen app van één pagina in dezelfde codebase, met een eigen
-                opmaak en een eigen layout: `app/solliciteren/`. Hij staat in
-                deze groep omdat hij, net als het hulp-icoon en de
-                themaschakelaar, over jou gaat en niet over dit merk, en hij
-                staat het verst naar links van de vier omdat hij de app
-                verlaat.
-
-                ⚠️ Alleen voor een account van ORBIT ENGINE zelf. Een klant
-                hoort geen knop te zien naar iets dat niet van hem is; de
-                pagina zelf controleert hetzelfde recht nog een keer, want een
-                verborgen knop is geen slot. */}
-            {solliciteren && (
-              <Link
-                href="/solliciteren"
-                aria-label="Solliciteren, zijproject"
-                title="Solliciteren"
-                className="icon-btn font-medium"
-              >
-                S
-              </Link>
-            )}
             <Link
               href="/support"
               aria-label="Support: hoe ORBIT ENGINE werkt"
