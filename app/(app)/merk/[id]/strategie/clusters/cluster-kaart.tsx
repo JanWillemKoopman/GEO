@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { StatusBadge } from "@/components/status-badge";
 import { AnalysisCardMetrics } from "@/components/analysis-card-metrics";
 import { LastUpdated } from "@/components/last-updated";
@@ -10,6 +11,7 @@ import { Icon } from "@/components/icon";
 import { useRefresh } from "@/components/use-refresh";
 import { MAX_LABELNAAM, normaliseerLabelnaam } from "@/lib/cluster-labels";
 import { getClusterDisplayName } from "@/lib/url";
+import { STATUS_META } from "@/lib/analysis-status";
 import type { AnalysisCardMetrics as Metrics } from "@/lib/dashboard";
 import type { Analysis, ClusterLabel } from "@/lib/types/database";
 
@@ -48,11 +50,24 @@ import type { Analysis, ClusterLabel } from "@/lib/types/database";
  * dag gebruikt. Ze verhuisden daarna allebei achter één drie-puntjes-menu, maar
  * "Cluster instellingen" (de link naar `/analyses/[id]/instellingen`) hoort
  * niet bij het label kiezen: het label-icoon opent nu alleen de labellijst, het
- * drie-puntjes-menu ernaast alleen instellingen en de prullenbak. Beide volgen
- * hetzelfde patroon als `components/profile-menu.tsx`: een klein paneel dat
- * sluit op een klik erbuiten of op Escape. Alleen het label dat al gekozen is,
- * blijft als chip in de kop staan, want dat is een cijfer over het cluster en
- * geen bediening.
+ * drie-puntjes-menu ernaast instellingen, AI zichtbaarheid en de prullenbak.
+ * Beide volgen hetzelfde patroon als `components/profile-menu.tsx`: een klein
+ * paneel dat sluit op een klik erbuiten of op Escape. Alleen het label dat al
+ * gekozen is, blijft als chip in de kop staan, want dat is een cijfer over het
+ * cluster en geen bediening.
+ *
+ * ── GEREED LINKT NIET MEER, EEN OPENSTAANDE ACTIE IS DE HELE KAART ──────────
+ *
+ * Een gereed cluster heeft niets meer te doen: de kop is dan platte tekst, en
+ * de weg naar Analytics loopt voortaan alleen via "AI zichtbaarheid" in het
+ * drie-puntjes-menu. Andersom, bij een cluster dat nog op iets van de klant
+ * wacht (`STATUS_META[status].actionRequired`, nu alleen "Klaar voor jouw
+ * akkoord"), is de hele kaart de link naar die actie en niet alleen de kop:
+ * één ding te doen mag overal op de kaart aangeklikt worden. De kop wordt dan
+ * platte tekst (geen link-in-een-link) en de labelknop en het
+ * drie-puntjes-menu stoppen hun klik- en toetsgebeurtenissen (`stopPropagation`)
+ * voordat die de kaart zelf bereiken, anders opent een klik op "label" ook
+ * meteen het concept.
  */
 export function ClusterKaart({
   analyse,
@@ -66,6 +81,7 @@ export function ClusterKaart({
   labels: ClusterLabel[];
   gearchiveerd?: boolean;
 }) {
+  const router = useRouter();
   const { refresh, refreshing } = useRefresh();
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState<string | null>(null);
@@ -205,20 +221,48 @@ export function ClusterKaart({
    * Waar de kop heen gaat, per stand van het cluster.
    *
    * `null` = geen link. Dat is het eerlijke antwoord zolang het onderzoek of de
-   * meting loopt: er is dan nog niets om naar te kijken.
+   * meting loopt: er is dan nog niets om naar te kijken, en ook een gereed
+   * cluster krijgt hier geen link meer: dat scherm is af, en Analytics is nu
+   * alleen nog te vinden via "AI zichtbaarheid" in het drie-puntjes-menu.
    */
   const kopLink =
     analyse.status === "concept_klaar"
       ? `/analyses/${analyse.id}/concept`
-      : analyse.status === "gereed" || analyse.status === "gemeten"
+      : analyse.status === "gemeten"
         ? `/merk/${analyse.profile_id}/analytics?cluster=${analyse.id}`
         : null;
 
+  const analyticsLink = `/merk/${analyse.profile_id}/analytics?cluster=${analyse.id}`;
+
+  // Staat er nog iets open (nu alleen "Klaar voor jouw akkoord"), dan is de
+  // hele kaart de link naar die actie, niet alleen de kop.
+  const heleKaartIsLink = !gearchiveerd && kopLink !== null && STATUS_META[analyse.status].actionRequired;
+
+  function naarActie() {
+    if (opSlot) return;
+    router.push(kopLink!);
+  }
+
   return (
-    <div className="card flex flex-col gap-3">
+    <div
+      className={`card flex flex-col gap-3${heleKaartIsLink ? " card-link" : ""}`}
+      role={heleKaartIsLink ? "link" : undefined}
+      tabIndex={heleKaartIsLink ? 0 : undefined}
+      onClick={heleKaartIsLink ? naarActie : undefined}
+      onKeyDown={
+        heleKaartIsLink
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                naarActie();
+              }
+            }
+          : undefined
+      }
+    >
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
-          {kopLink && !gearchiveerd ? (
+          {kopLink && !gearchiveerd && !heleKaartIsLink ? (
             <Link href={kopLink} className="truncate text-lg font-medium hover:underline">
               {getClusterDisplayName(analyse.name)}
             </Link>
@@ -227,7 +271,11 @@ export function ClusterKaart({
           )}
           <LastUpdated at={analyse.updated_at} className="mono-label mt-1 block" />
         </div>
-        <div className="flex items-center gap-2">
+        <div
+          className="flex items-center gap-2"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
           {label && (
             <span className="chip chip-neutral">
               <Icon naam="label" size={12} />
@@ -358,6 +406,15 @@ export function ClusterKaart({
                     <Icon naam="instellingen" size={14} />
                     Cluster instellingen
                   </Link>
+                  <Link
+                    href={analyticsLink}
+                    role="menuitem"
+                    onClick={() => setMeerMenuOpen(false)}
+                    className="flex w-full items-center gap-2 rounded-[var(--radius-xl)] px-2 py-1.5 text-left text-sm transition-colors hover:bg-[var(--wash-hover)]"
+                  >
+                    <Icon naam="analytics" size={14} />
+                    AI zichtbaarheid
+                  </Link>
                   <button
                     type="button"
                     role="menuitem"
@@ -438,22 +495,24 @@ export function ClusterKaart({
           ⚠️ Bewust ZONDER het `irreversible`-blok van `ConfirmDialog`: dit is
           juist wel terug te draaien, en dat blok in een rood kader zetten zou
           het tegenovergestelde beweren van wat de tekst zegt. */}
-      <ConfirmDialog
-        open={vraagPrullenbak}
-        title="Dit cluster naar de prullenbak?"
-        body={
-          `"${getClusterDisplayName(analyse.name)}" verdwijnt uit je overzicht en uit de maandelijkse meetronde, dus er ` +
-          "wordt vanaf nu niets meer gemeten voor dit cluster. Alle metingen, rapporten en " +
-          "geschreven pagina's blijven bewaard: je kunt het cluster later terugzetten, en dan gaat " +
-          "het meten weer verder."
-        }
-        confirmLabel="Naar de prullenbak"
-        confirmingLabel="Bezig…"
-        busy={opSlot}
-        danger
-        onConfirm={() => zetArchief(true)}
-        onCancel={() => setVraagPrullenbak(false)}
-      />
+      <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+        <ConfirmDialog
+          open={vraagPrullenbak}
+          title="Dit cluster naar de prullenbak?"
+          body={
+            `"${getClusterDisplayName(analyse.name)}" verdwijnt uit je overzicht en uit de maandelijkse meetronde, dus er ` +
+            "wordt vanaf nu niets meer gemeten voor dit cluster. Alle metingen, rapporten en " +
+            "geschreven pagina's blijven bewaard: je kunt het cluster later terugzetten, en dan gaat " +
+            "het meten weer verder."
+          }
+          confirmLabel="Naar de prullenbak"
+          confirmingLabel="Bezig…"
+          busy={opSlot}
+          danger
+          onConfirm={() => zetArchief(true)}
+          onCancel={() => setVraagPrullenbak(false)}
+        />
+      </div>
     </div>
   );
 }
