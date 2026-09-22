@@ -262,6 +262,7 @@ import {
   aangebodenAanReparatie,
   issueSleutel,
   beschrijfPogingen,
+  leesbareBevinding,
   type Keuringsronde,
 } from "@/lib/pipeline/quality-groups";
 import { duplicatePromptIds } from "@/lib/pipeline/prompt-dedupe";
@@ -24287,4 +24288,29 @@ group("Bevindingen: wat is geprobeerd, en wat kwam nooit aan de beurt", () => {
     "bij één ronde staat er geen cijfer maar een woord",
     beschrijfPogingen(groepeerBevindingen(vijfentwintig, [ronde0])).includes("één keer"),
   );
+
+  // ── Markdown in een bevinding ─────────────────────────────────────────────
+  // Gemeten op productie: 135 van de 1227 opgeslagen bevindingen (11%) bevatten
+  // een `**`, want de beoordelaars schrijven hun zinnen met nadruk erin. In een
+  // lijst die als platte tekst rendert, leest dat als sterretjes.
+  eq(
+    "vette nadruk verdwijnt, de tekst blijft",
+    leesbareBevinding("**Bovenste introductie:** Beantwoord alle drie de doelvragen."),
+    "Bovenste introductie: Beantwoord alle drie de doelvragen.",
+  );
+  eq("cursief verdwijnt ook", leesbareBevinding("Dit is *echt* te dun."), "Dit is echt te dun.");
+  eq(
+    "onderstrepingen tellen als nadruk",
+    leesbareBevinding("__Prijs:__ noem een bedrag."),
+    "Prijs: noem een bedrag.",
+  );
+  // ⚠️ Een los sterretje is geen opmaak. Zou dit component de volledige
+  // `stripMarkdown()` gebruiken, dan sneuvelde hier de maatvoering zelf.
+  eq(
+    "een los sterretje blijft staan",
+    leesbareBevinding("De maat 20*30 cm staat er niet bij."),
+    "De maat 20*30 cm staat er niet bij.",
+  );
+  eq("een zin zonder opmaak verandert niet", leesbareBevinding("Gewoon een zin."), "Gewoon een zin.");
+  eq("lege invoer geeft lege uitvoer", leesbareBevinding(""), "");
 });

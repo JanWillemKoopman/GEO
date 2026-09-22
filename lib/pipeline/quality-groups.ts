@@ -188,3 +188,35 @@ export function beschrijfPogingen(groepen: Bevindingengroepen): string {
   }
   return `ORBIT ENGINE heeft deze pagina zelf ${keer} bijgewerkt. Dit bleef staan.`;
 }
+
+/**
+ * Een bevinding zoals een mens hem hoort te lezen.
+ *
+ * ── WAAROM DIT NODIG IS ─────────────────────────────────────────────────────
+ *
+ * De beoordelaars schrijven hun bevindingen in gewone taal, maar ze zetten er
+ * geregeld markdown-nadruk in: "**Bovenste introductie:** Beantwoord alle drie
+ * de doelvragen". Gemeten op productie (22 september 2026) bevat 135 van de
+ * 1227 opgeslagen bevindingen een `**`, oftewel 11%. In een lijst die als
+ * platte tekst gerenderd wordt, ziet de lezer dus sterretjes.
+ *
+ * Dat was ook zo toen deze regels nog als `review_notes` op het scherm stonden,
+ * dus dit is geen regressie maar een oude oneffenheid die nu opvalt omdat de
+ * rail de plek is waar deze zinnen echt gelezen worden.
+ *
+ * ⚠️ Bewust alleen de NADRUK-tekens, en niet de volledige `stripMarkdown()` uit
+ * `content-gate.ts`. Die is gemaakt om tekst te kunnen beoordelen en haalt
+ * onder andere koppen en opsommingstekens weg; hier gaat het om één zin waarin
+ * alleen de opmaakstreepjes storen. Een citaat met een sterretje erin (een
+ * maatvoering, een voetnoot) blijft dus staan zolang het geen paar is.
+ */
+export function leesbareBevinding(tekst: string): string {
+  return (tekst ?? "")
+    // Vet en cursief in één keer: `**zo**`, `__zo__`, `*zo*`, `_zo_`. De inhoud
+    // blijft staan, alleen de tekens eromheen verdwijnen.
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/__(.+?)__/g, "$1")
+    .replace(/(^|[\s(])\*([^*\n]+?)\*(?=[\s).,;:!?]|$)/g, "$1$2")
+    .replace(/(^|[\s(])_([^_\n]+?)_(?=[\s).,;:!?]|$)/g, "$1$2")
+    .trim();
+}

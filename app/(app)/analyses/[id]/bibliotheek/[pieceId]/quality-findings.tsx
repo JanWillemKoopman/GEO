@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { Icon } from "@/components/icon";
 import { InfoHint } from "@/components/info-hint";
-import type { GegroepeerdeBevinding, Bevindingengroepen } from "@/lib/pipeline/quality-groups";
+import {
+  leesbareBevinding,
+  type GegroepeerdeBevinding,
+  type Bevindingengroepen,
+} from "@/lib/pipeline/quality-groups";
 
 /**
  * De bevindingen van een pagina, in drie groepen
@@ -288,10 +292,10 @@ function Bevinding({
         </span>
       )}
 
-      <p className="text-sm">{issue.finding}</p>
+      <p className="text-sm">{leesbareBevinding(issue.finding)}</p>
 
       {issue.recommendation?.trim() && (
-        <p className="text-sm text-secondary">{issue.recommendation}</p>
+        <p className="text-sm text-secondary">{leesbareBevinding(issue.recommendation)}</p>
       )}
 
       {/* Het bewijs is voor wie het niet gelooft, niet voor wie het leest. Een
@@ -300,9 +304,9 @@ function Bevinding({
       {issue.evidence?.trim() && (
         <details className="text-sm">
           <summary className="cursor-pointer text-muted">Waarop dit oordeel rust</summary>
-          <p className="mt-1 text-secondary">{issue.evidence}</p>
+          <p className="mt-1 text-secondary">{leesbareBevinding(issue.evidence)}</p>
           {issue.expected?.trim() && (
-            <p className="mt-1 text-muted">Verwacht: {issue.expected}</p>
+            <p className="mt-1 text-muted">Verwacht: {leesbareBevinding(issue.expected)}</p>
           )}
         </details>
       )}

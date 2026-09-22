@@ -11346,6 +11346,22 @@ microseconden bewaart: teruggestuurd als parameter matcht die afgeronde waarde d
 vergelijkt nu op `updated_at::text` en zet het stempel vanuit JavaScript, net als de route zelf. De
 route was al goed: PostgREST levert de tekstweergave en die rondt niets af.
 
-`tsc --noEmit`, `test:unit` (5080, 21 nieuwe; dezelfde vier al bestaande mislukkingen over "de S" en
+**Nagerekend tegen productie, niet alleen gebouwd** (conventie 10). De groepering is op de langste
+opgeslagen pagina gedraaid (f3a175b5, 78 bevindingen, drie opgeslagen rondes waarvan twee echte
+reparaties). Uitkomst: **2 blokkades, 6 geprobeerd zonder resultaat, 70 nooit aan toegekomen**, samen
+78. Over beide reparatierondes zijn er in totaal 19 verschillende bevindingen aan het model
+meegegeven (tweemaal tien, met één overlap). Dat is de verhouding waar dit hele scherm over gaat:
+van de 78 punten die de klant te lezen kreeg, heeft de app er 19 ooit geprobeerd en 70 nooit gezien,
+en dat stond nergens.
+
+**Eén oneffenheid kwam bij die controle boven water.** De beoordelaars schrijven hun bevindingen met
+markdown-nadruk erin ("**Bovenste introductie:** Beantwoord alle drie de doelvragen"). Gemeten:
+135 van de 1227 opgeslagen bevindingen, 11%. In een lijst die als platte tekst rendert, las dat als
+sterretjes. Dat was ook zo in de oude `review_notes`-lijst, dus geen regressie, maar het valt nu pas
+op omdat de rail de plek is waar deze zinnen echt gelezen worden. `leesbareBevinding()` haalt alleen
+de nadruk-tekens weg en bewust niet de volledige `stripMarkdown()` uit `content-gate.ts`: die is voor
+beoordelen gemaakt en zou een losse maatvoering als "20*30 cm" stukmaken. Zes assertions.
+
+`tsc --noEmit`, `test:unit` (5086, 27 nieuwe; dezelfde vier al bestaande mislukkingen over "de S" en
 de navigatievolgorde in Strategie, ongerelateerd), `test:chain` (732, scenario 17 nieuw) en `build`
 groen. Geen migratie: alle gebruikte kolommen bestaan al.
