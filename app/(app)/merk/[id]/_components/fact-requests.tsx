@@ -222,7 +222,7 @@ export function FactRequests({
             {showAnswered ? "Verberg" : "Toon"} wat je al invulde ({answered.length})
           </button>
           {showAnswered && (
-            <AnsweredOverzicht facts={answered} naamVan={naamVan} busy={busy} onSend={send} />
+            <VragenOverzicht facts={answered} naamVan={naamVan} busy={busy} onSend={send} metAntwoord />
           )}
         </div>
       )}
@@ -238,18 +238,7 @@ export function FactRequests({
             {showSkipped ? "Verberg" : "Toon"} wat je oversloeg ({skipped.length})
           </button>
           {showSkipped && (
-            <ul className="flex flex-col gap-3">
-              {skipped.map((fact) => (
-                <FactCard
-                  key={fact.id}
-                  fact={fact}
-                  groep={naamVan(fact)}
-                  busy={busy === fact.id}
-                  onSend={send}
-                  skipped
-                />
-              ))}
-            </ul>
+            <VragenOverzicht facts={skipped} naamVan={naamVan} busy={busy} onSend={send} metAntwoord={false} />
           )}
         </div>
       )}
@@ -258,33 +247,57 @@ export function FactRequests({
 }
 
 /**
- * Wat je al invulde, per cluster, één bullet per vraag met een potloodje erachter.
+ * Wat je al invulde of oversloeg, per cluster, met een potloodje per vraag.
  *
- * ── ⚠️ TOEGEVOEGD OP 22 SEPTEMBER 2026 ──────────────────────────────────────
+ * ── ⚠️ TOEGEVOEGD OP 22 SEPTEMBER 2026, INGEKLAPT PER CLUSTER OP DEZELFDE DAG ──
  *
  * Stond hiervoor als platte lijst van tientallen regels achter elkaar, zonder
  * enige structuur en zonder dat je er iets aan kon veranderen: "als je iets
  * verkeerd had ingevuld, moest je opnieuw de hele vraag opzoeken tussen de open
  * vragen" (screenshot van 37 al beantwoorde vragen bij Van den Udenhout). Nu
  * staan ze per cluster onder elkaar, en corrigeer je een antwoord ter plekke.
+ * Een cluster met tientallen vragen is zelf ook weer een lange lijst, dus staat
+ * elk cluster hier standaard ingeklapt: je klikt open wat je wil zien.
+ *
+ * Dezelfde opbouw dient nu ook de vragen die je oversloeg: die hebben geen
+ * antwoord om te tonen, maar wel hetzelfde potloodje om er alsnog een in te
+ * vullen. Zonder antwoord is er anders geen enkele reden meer om dat scherm
+ * apart te houden van "wat je al invulde".
  *
  * Een wijziging gaat via dezelfde `onSend` als een eerste antwoord: dat roept
  * `answerFact()` aan, die het OUDE antwoord in `brand_facts` en `proof_points`
- * vervangt in plaats van ernaast te zetten (`lib/facts.ts`). Zo ziet de
- * eerstvolgende pagina die ORBIT ENGINE schrijft de correctie vanzelf, zonder dat
- * je ergens anders in de app nog iets hoeft bij te werken.
+ * vervangt (of, bij een overgeslagen vraag, voor het eerst zet) in plaats van
+ * ernaast te zetten (`lib/facts.ts`). Zo ziet de eerstvolgende pagina die ORBIT
+ * ENGINE schrijft de correctie vanzelf, zonder dat je ergens anders in de app
+ * nog iets hoeft bij te werken.
  */
-function AnsweredOverzicht({
+function VragenOverzicht({
   facts,
   naamVan,
   busy,
   onSend,
+  metAntwoord,
 }: {
   facts: FactRequest[];
   naamVan: (f: FactRequest) => string | null;
   busy: string | null;
   onSend: (factId: string, payload: { answer?: string; skip?: boolean }) => void;
+  /** `true` voor beantwoorde vragen (toont het antwoord), `false` voor overgeslagen (potloodje vult voor het eerst in). */
+  metAntwoord: boolean;
 }) {
+  // Elk cluster begint ingeklapt: een cluster met tientallen vragen is anders
+  // meteen weer de lange lijst waar dit scherm net vanaf is.
+  const [open, setOpen] = useState<Set<string>>(new Set());
+
+  function toggle(naam: string) {
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(naam)) next.delete(naam);
+      else next.add(naam);
+      return next;
+    });
+  }
+
   const groepen = new Map<string, FactRequest[]>();
   for (const f of facts) {
     const naam = naamVan(f) ?? "";
@@ -294,12 +307,12 @@ function AnsweredOverzicht({
 
   // Zonder groepen (minder dan twee clusters) is er maar één sleutel: "". Dan
   // is een kopje erboven ruis, precies zoals het filter hierboven ook pas
-  // verschijnt bij meer dan één groep.
+  // verschijnt bij meer dan één groep, en is er dus ook niets om in te klappen.
   if (groepen.size === 1 && groepen.has("")) {
     return (
-      <ul className="flex flex-col gap-1">
+      <ul className="flex flex-col gap-3">
         {facts.map((f) => (
-          <AnsweredRow key={f.id} fact={f} busy={busy === f.id} onSend={onSend} />
+          <VraagRow key={f.id} fact={f} busy={busy === f.id} onSend={onSend} metAntwoord={metAntwoord} />
         ))}
       </ul>
     );
@@ -308,30 +321,52 @@ function AnsweredOverzicht({
   const namen = Array.from(groepen.keys()).sort((a, b) => a.localeCompare(b, "nl"));
 
   return (
-    <div className="flex flex-col gap-3">
-      {namen.map((naam) => (
-        <div key={naam} className="flex flex-col gap-1">
-          <span className="mono-label">{naam || "Overig"}</span>
-          <ul className="flex flex-col gap-1">
-            {groepen.get(naam)!.map((f) => (
-              <AnsweredRow key={f.id} fact={f} busy={busy === f.id} onSend={onSend} />
-            ))}
-          </ul>
-        </div>
-      ))}
+    <div className="flex flex-col gap-2">
+      {namen.map((naam) => {
+        const items = groepen.get(naam)!;
+        const isOpen = open.has(naam);
+        return (
+          <div key={naam} className="flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={() => toggle(naam)}
+              className="flex w-full items-center justify-between gap-2 text-left"
+              aria-expanded={isOpen}
+            >
+              <span className="mono-label">{naam || "Overig"}</span>
+              <span className="text-sm text-muted">
+                {isOpen ? "Verberg" : "Toon"} ({items.length})
+              </span>
+            </button>
+            {isOpen && (
+              <ul className="flex flex-col gap-3">
+                {items.map((f) => (
+                  <VraagRow key={f.id} fact={f} busy={busy === f.id} onSend={onSend} metAntwoord={metAntwoord} />
+                ))}
+              </ul>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-/** Eén beantwoorde vraag als bullet, met een potloodje om hem te corrigeren. */
-function AnsweredRow({
+/**
+ * Eén vraag als rij: de vraag vetgedrukt erboven, het antwoord (indien
+ * aanwezig) eronder, met een potloodje om te wijzigen of, zonder antwoord,
+ * om er alsnog een in te vullen.
+ */
+function VraagRow({
   fact,
   busy,
   onSend,
+  metAntwoord,
 }: {
   fact: FactRequest;
   busy: boolean;
   onSend: (factId: string, payload: { answer?: string; skip?: boolean }) => void;
+  metAntwoord: boolean;
 }) {
   const [bewerken, setBewerken] = useState(false);
   const [waarde, setWaarde] = useState(fact.answer ?? "");
@@ -348,7 +383,7 @@ function AnsweredRow({
             setBewerken(false);
           }}
         >
-          <span className="text-sm font-medium">{fact.question}</span>
+          <span className="text-sm font-semibold">{fact.question}</span>
           <Antwoordveld
             id={`bewerk-${fact.id}`}
             vraag={fact}
@@ -377,27 +412,28 @@ function AnsweredRow({
   }
 
   return (
-    <li className="flex items-start gap-1.5 text-sm">
-      <span aria-hidden className="text-muted">
-        •
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="text-muted">{fact.question} </span>
-        <span className="text-secondary">{fact.answer}</span>
-      </span>
-      <button
-        type="button"
-        onClick={() => {
-          setWaarde(fact.answer ?? "");
-          setBewerken(true);
-        }}
-        disabled={busy}
-        className="shrink-0 text-muted hover:text-[var(--text-primary)]"
-        aria-label={`Antwoord op "${fact.question}" wijzigen`}
-        title="Wijzigen"
-      >
-        ✎
-      </button>
+    <li className="flex flex-col gap-0.5 text-sm">
+      <div className="flex items-start justify-between gap-2">
+        <span className="font-semibold">{fact.question}</span>
+        <button
+          type="button"
+          onClick={() => {
+            setWaarde(fact.answer ?? "");
+            setBewerken(true);
+          }}
+          disabled={busy}
+          className="shrink-0 text-muted hover:text-[var(--text-primary)]"
+          aria-label={
+            metAntwoord
+              ? `Antwoord op "${fact.question}" wijzigen`
+              : `Antwoord op "${fact.question}" invullen`
+          }
+          title={metAntwoord ? "Wijzigen" : "Invullen"}
+        >
+          ✎
+        </button>
+      </div>
+      {metAntwoord && <span className="text-secondary">{fact.answer}</span>}
     </li>
   );
 }
@@ -442,15 +478,12 @@ function FactCard({
   busy,
   onSend,
   groep = null,
-  skipped = false,
 }: {
   fact: FactRequest;
   busy: boolean;
   onSend: (factId: string, payload: { answer?: string; skip?: boolean }) => void;
   /** Uit welk cluster deze vraag komt. `null` als er niet gefilterd wordt. */
   groep?: string | null;
-  /** Deze kaart staat in de "overgeslagen"-lijst: nog steeds te beantwoorden, geen skip-knop nodig. */
-  skipped?: boolean;
 }) {
   // Het concept-antwoord dat de claim-audit al had, als startwaarde: bevestigen
   // is goedkoper dan formuleren, en tot 16 september 2026 toonde dit scherm die
@@ -468,20 +501,13 @@ function FactCard({
     // hoog. Dat was een keuze voor een korte lijst, en hij kostte de antwoorden:
     // in een regel van 26rem schrijft niemand op welke garantie hij geeft. Nu
     // staat de vraag boven het veld en het veld over de volle breedte.
-    //
-    // De linkerstang (`card-rail-accent`, §8.5) staat niet op een overgeslagen
-    // vraag: die vroeg al om een reactie en kreeg er een, dus is geen open punt
-    // meer, ook al staat hij nog in dezelfde lijst.
-    <li
-      className={`flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 ${skipped ? "" : "card-rail-accent"}`}
-    >
+    <li className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 card-rail-accent">
       <div className="flex min-w-0 flex-col gap-0.5">
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-medium">{fact.question}</p>
           {kop && <span className="mono-label shrink-0">{kop.titel}</span>}
           {groep && <span className="mono-label shrink-0">{groep}</span>}
           {fact.required && <span className="chip chip-warning shrink-0">Draagt een kernstuk</span>}
-          {skipped && <span className="chip chip-neutral shrink-0">Overgeslagen</span>}
         </div>
         {fact.reason && <p className="text-sm text-muted">{fact.reason}</p>}
         {fact.required && <p className="text-sm text-muted">{VERPLICHT_UITLEG}</p>}
@@ -528,22 +554,20 @@ function FactCard({
               Opslaan
             </button>
           )}
-          {!skipped && (
-            <button
-              type="button"
-              onClick={() => onSend(fact.id, { skip: true })}
-              disabled={busy}
-              className="text-sm text-secondary hover:underline"
-              // Overslaan blijft bewaard, zodat een volgend rapport dezelfde vraag
-              // niet opnieuw stelt. Niets is vervelender dan een app die blijft zeuren.
-              // ⚠️ Sinds 28 augustus 2026 telt overslaan ook als antwoord voor de
-              // poort op de definitieve versie (`lib/content-final-gate.ts`): zonder
-              // die uitweg loopt een klant die een cijfer niet heeft voorgoed vast.
-              title="ORBIT ENGINE vraagt het niet nog een keer."
-            >
-              Weet ik niet
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => onSend(fact.id, { skip: true })}
+            disabled={busy}
+            className="text-sm text-secondary hover:underline"
+            // Overslaan blijft bewaard, zodat een volgend rapport dezelfde vraag
+            // niet opnieuw stelt. Niets is vervelender dan een app die blijft zeuren.
+            // ⚠️ Sinds 28 augustus 2026 telt overslaan ook als antwoord voor de
+            // poort op de definitieve versie (`lib/content-final-gate.ts`): zonder
+            // die uitweg loopt een klant die een cijfer niet heeft voorgoed vast.
+            title="ORBIT ENGINE vraagt het niet nog een keer."
+          >
+            Weet ik niet
+          </button>
         </div>
       </form>
     </li>
