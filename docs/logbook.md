@@ -11093,7 +11093,25 @@ bij een maandronde de verkeerde periode pakt, liegt over iets waar de klant toch
 `tsc --noEmit`, `test:unit` (5035), `test:chain` (728) en `build` groen. Migratie 0107 toegepast op
 productie en nagerekend.
 
-## 22 september 2026 (2): "wat je al invulde" gegroepeerd, en het potloodje repareert de feitenbank
+## 22 september 2026 (19): de hele kaart in "wachten op jou" is klikbaar, niet alleen de knop
+
+De eigenaar moest steeds precies de knop rechts raken om naar een taak in de wachtrij te gaan.
+`WachtrijKaart` (`app/(app)/merk/[id]/_components/wachtrij-lijst.tsx`) is nu zelf de link: de `div`
+werd een `<Link href={item.href}>`, en de knop erin een `<span>` met dezelfde opmaak (een tweede
+`<a>` erin zou een ongeldige geneste link geven). De knop staat om diezelfde reden nu op
+`btn-outline` in plaats van `btn-primary`, net als "Bekijk je zichtbaarheid" bovenaan hetzelfde
+scherm: nu de hele kaart de klikbare vorm draagt, hoeft de knop dat niet meer als enige te doen.
+
+Dat botst met de regel bij `--shadow-sm` in `globals.css` ("alleen wat boven het scrim zweeft
+krijgt een schaduw, een kaart heeft een rand"): zonder knop als enige aanwijzing is een randkleur
+bij hover te stil om te laten zien dat het hele blok klikbaar is. Nieuwe klasse `.card-link` met een
+nieuwe variabele `--shadow-hover`, alleen voor deze kaart: zwart/grijs in de lichte stand
+(`rgba(0,0,0,.06)` rand + een zachte schaduw), limoen (`--accent` in de donkere stand, `#bcff2f`) in
+de donkere stand, in beide gevallen subtiel genoeg om als hint te lezen en niet als omlijsting.
+
+`tsc --noEmit`, `test:unit` (5015), `test:chain` (723) en `build` groen.
+
+## 22 september 2026 (20): "wat je al invulde" gegroepeerd, en het potloodje repareert de feitenbank
 
 Het overzicht van al beantwoorde vragen op "Openstaande vragen" was één platte lijst zonder enige
 structuur: bij Van den Udenhout 37 regels achter elkaar, zonder cluster, zonder bullet, en zonder

@@ -36,7 +36,6 @@ export function MeerBlad({
   activeBrand,
   onSelectBrand,
   signOutAction,
-  solliciteren,
   previewToggle,
 }: {
   open: boolean;
@@ -49,9 +48,6 @@ export function MeerBlad({
   activeBrand: BrandOption | null;
   onSelectBrand: (brandId: string) => void;
   signOutAction: () => void | Promise<void>;
-  /** Mag deze persoon in het zijproject? Zelfde recht als de "S" in de
-   *  desktop-bovenbalk (`components/workspace-chrome.tsx`). */
-  solliciteren: boolean;
   /** De wisselknop naar de klantweergave. `null` voor wie dat recht niet heeft.
    *  Zelfde component als in de desktop-bovenbalk, alleen hier neergezet: op
    *  een telefoon is er geen tweede plek voor. */
@@ -83,9 +79,9 @@ export function MeerBlad({
         )}
 
         {/* Wat op de desktop los in de bovenbalk staat en op een telefoon geen
-            eigen plek meer heeft: uitleg, en voor Outer Orbit zelf de S. Geen
-            `.nav-kop` erboven, want dit hoort bij geen enkel hoofdstuk; wel een
-            rand eronder zodat het zich niet vermengt met de echte navigatie. */}
+            eigen plek meer heeft: uitleg. Geen `.nav-kop` erboven, want dit
+            hoort bij geen enkel hoofdstuk; wel een rand eronder zodat het zich
+            niet vermengt met de echte navigatie. */}
         <div className="flex flex-col gap-1 border-b border-[var(--line-muted)] pb-5">
           <Link
             href="/support"
@@ -95,16 +91,6 @@ export function MeerBlad({
           >
             Uitleg en hulp
           </Link>
-          {solliciteren && (
-            <Link
-              href="/solliciteren"
-              onClick={onSluit}
-              className="nav-item nav-item-lg"
-              aria-current={pathname === "/solliciteren" ? "page" : undefined}
-            >
-              Solliciteren
-            </Link>
-          )}
         </div>
 
         {koppen.map((kop) => (

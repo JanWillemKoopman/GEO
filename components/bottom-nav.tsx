@@ -33,7 +33,6 @@ export function BottomNav({
   activeBrand,
   brands,
   sales,
-  solliciteren,
   previewToggle,
   openVragen,
   alles,
@@ -43,7 +42,6 @@ export function BottomNav({
   activeBrand: BrandOption | null;
   brands: BrandOption[];
   sales: boolean;
-  solliciteren: boolean;
   previewToggle?: React.ReactNode;
   openVragen: number;
   /** De volledige, platte navigatielijst. `WorkspaceChrome` berekent hem één
@@ -125,7 +123,6 @@ export function BottomNav({
         activeBrand={activeBrand}
         onSelectBrand={onSelectBrand}
         signOutAction={signOutAction}
-        solliciteren={solliciteren}
         previewToggle={previewToggle}
       />
     </>
