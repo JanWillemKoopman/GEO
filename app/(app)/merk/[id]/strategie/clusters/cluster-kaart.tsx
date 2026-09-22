@@ -40,16 +40,19 @@ import type { Analysis, ClusterLabel } from "@/lib/types/database";
  * zet bent, naar Analytics zodra er gemeten is, en nergens heen zolang er nog
  * niets te zien valt. Een link naar een leeg scherm is erger dan geen link.
  *
- * ── HET LABEL EN DE PRULLENBAK ZITTEN ACHTER ÉÉN MENU (2 september 2026) ───
+ * ── TWEE MENU'S NAAST DE STATUS (22 september 2026) ─────────────────────────
  *
- * Tot vandaag stonden een keuzelijst en een knop op een eigen regel onder elke
+ * Eerst stonden een keuzelijst en een knop op een eigen regel onder elke
  * kaart, en dat maakte elke kaart een derde hoger dan hij zonder was: bij een
  * lijst van dertig clusters is dat een muur van keuzelijsten die niemand elke
- * dag gebruikt. Beide acties gaan nu achter het drie-puntjes-menu naast de
- * status, naar hetzelfde patroon als `components/profile-menu.tsx`: een klein
- * paneel dat sluit op een klik erbuiten of op Escape. Alleen het label dat al
- * gekozen is, blijft als chip in de kop staan, want dat is een cijfer over het
- * cluster en geen bediening.
+ * dag gebruikt. Ze verhuisden daarna allebei achter één drie-puntjes-menu, maar
+ * "Cluster instellingen" (de link naar `/analyses/[id]/instellingen`) hoort
+ * niet bij het label kiezen: het label-icoon opent nu alleen de labellijst, het
+ * drie-puntjes-menu ernaast alleen instellingen en de prullenbak. Beide volgen
+ * hetzelfde patroon als `components/profile-menu.tsx`: een klein paneel dat
+ * sluit op een klik erbuiten of op Escape. Alleen het label dat al gekozen is,
+ * blijft als chip in de kop staan, want dat is een cijfer over het cluster en
+ * geen bediening.
  */
 export function ClusterKaart({
   analyse,
@@ -68,18 +71,24 @@ export function ClusterKaart({
   const [fout, setFout] = useState<string | null>(null);
   const [vraagPrullenbak, setVraagPrullenbak] = useState(false);
   const [nieuwLabel, setNieuwLabel] = useState<string | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const [labelMenuOpen, setLabelMenuOpen] = useState(false);
+  const [meerMenuOpen, setMeerMenuOpen] = useState(false);
+  const labelMenuRef = useRef<HTMLDivElement>(null);
+  const meerMenuRef = useRef<HTMLDivElement>(null);
 
   const label = labels.find((l) => l.id === analyse.label_id) ?? null;
 
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!labelMenuOpen && !meerMenuOpen) return;
     function buiten(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+      if (labelMenuRef.current && !labelMenuRef.current.contains(e.target as Node)) setLabelMenuOpen(false);
+      if (meerMenuRef.current && !meerMenuRef.current.contains(e.target as Node)) setMeerMenuOpen(false);
     }
     function toets(e: KeyboardEvent) {
-      if (e.key === "Escape") setMenuOpen(false);
+      if (e.key === "Escape") {
+        setLabelMenuOpen(false);
+        setMeerMenuOpen(false);
+      }
     }
     document.addEventListener("mousedown", buiten);
     document.addEventListener("keydown", toets);
@@ -87,7 +96,7 @@ export function ClusterKaart({
       document.removeEventListener("mousedown", buiten);
       document.removeEventListener("keydown", toets);
     };
-  }, [menuOpen]);
+  }, [labelMenuOpen, meerMenuOpen]);
 
   async function zetLabel(labelId: string | null) {
     setFout(null);
@@ -104,7 +113,7 @@ export function ClusterKaart({
         return;
       }
       setNieuwLabel(null);
-      setMenuOpen(false);
+      setLabelMenuOpen(false);
       refresh();
     } catch {
       setFout("We konden ORBIT ENGINE niet bereiken. Probeer het opnieuw.");
@@ -227,23 +236,23 @@ export function ClusterKaart({
           )}
           <StatusBadge status={analyse.status} />
           {!gearchiveerd && (
-            <div className="relative" ref={menuRef}>
+            <div className="relative" ref={labelMenuRef}>
               <button
                 type="button"
-                aria-label={`Meer acties voor ${getClusterDisplayName(analyse.name)}`}
+                aria-label={`Label voor ${getClusterDisplayName(analyse.name)}`}
                 aria-haspopup="menu"
-                aria-expanded={menuOpen}
+                aria-expanded={labelMenuOpen}
                 disabled={opSlot}
-                onClick={() => setMenuOpen((o) => !o)}
+                onClick={() => setLabelMenuOpen((o) => !o)}
                 className="rounded-[var(--radius-xl)] p-1.5 text-muted transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] disabled:opacity-40"
               >
-                <Icon naam="meer" size={16} />
+                <Icon naam="label" size={16} />
               </button>
 
-              {menuOpen && (
+              {labelMenuOpen && (
                 <div
                   role="menu"
-                  aria-label={`Acties voor ${getClusterDisplayName(analyse.name)}`}
+                  aria-label={`Label voor ${getClusterDisplayName(analyse.name)}`}
                   className="menu-surface absolute right-0 top-full z-30 mt-1 w-64 overflow-hidden rounded-[var(--radius-xxxl)] border border-[var(--border-subtle)] p-1 text-left"
                   style={{ boxShadow: "var(--shadow-overlay)" }}
                 >
@@ -315,23 +324,54 @@ export function ClusterKaart({
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+            </div>
+          )}
+          {!gearchiveerd && (
+            <div className="relative" ref={meerMenuRef}>
+              <button
+                type="button"
+                aria-label={`Meer acties voor ${getClusterDisplayName(analyse.name)}`}
+                aria-haspopup="menu"
+                aria-expanded={meerMenuOpen}
+                disabled={opSlot}
+                onClick={() => setMeerMenuOpen((o) => !o)}
+                className="rounded-[var(--radius-xl)] p-1.5 text-muted transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] disabled:opacity-40"
+              >
+                <Icon naam="meer" size={16} />
+              </button>
 
-                  <div className="mt-1 border-t border-[var(--border-subtle)] pt-1">
-                    <button
-                      type="button"
-                      role="menuitem"
-                      disabled={opSlot}
-                      onClick={() => {
-                        setMenuOpen(false);
-                        setVraagPrullenbak(true);
-                      }}
-                      className="flex w-full items-center gap-2 rounded-[var(--radius-xl)] px-2 py-1.5 text-left text-sm transition-colors hover:bg-[var(--wash-hover)] disabled:opacity-40"
-                      style={{ color: "var(--intent-danger-text)" }}
-                    >
-                      <Icon naam="prullenbak" size={14} />
-                      Naar de prullenbak
-                    </button>
-                  </div>
+              {meerMenuOpen && (
+                <div
+                  role="menu"
+                  aria-label={`Acties voor ${getClusterDisplayName(analyse.name)}`}
+                  className="menu-surface absolute right-0 top-full z-30 mt-1 w-64 overflow-hidden rounded-[var(--radius-xxxl)] border border-[var(--border-subtle)] p-1 text-left"
+                  style={{ boxShadow: "var(--shadow-overlay)" }}
+                >
+                  <Link
+                    href={`/analyses/${analyse.id}/instellingen`}
+                    role="menuitem"
+                    onClick={() => setMeerMenuOpen(false)}
+                    className="flex w-full items-center gap-2 rounded-[var(--radius-xl)] px-2 py-1.5 text-left text-sm transition-colors hover:bg-[var(--wash-hover)]"
+                  >
+                    <Icon naam="instellingen" size={14} />
+                    Cluster instellingen
+                  </Link>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={opSlot}
+                    onClick={() => {
+                      setMeerMenuOpen(false);
+                      setVraagPrullenbak(true);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-[var(--radius-xl)] px-2 py-1.5 text-left text-sm transition-colors hover:bg-[var(--wash-hover)] disabled:opacity-40"
+                    style={{ color: "var(--intent-danger-text)" }}
+                  >
+                    <Icon naam="prullenbak" size={14} />
+                    Naar de prullenbak
+                  </button>
                 </div>
               )}
             </div>
