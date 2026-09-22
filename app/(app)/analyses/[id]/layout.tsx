@@ -66,6 +66,10 @@ export default async function AnalysisLayout({
   const pad = await huidigPad();
   if (isStukpagina(pad, id)) return <>{children}</>;
 
+  // Op Instellingen zelf is de rij met "Bibliotheek" en "Instellingen" overbodig:
+  // de knop "Instellingen" wijst dan naar de pagina waar je al staat.
+  const onInstellingen = pad === `/analyses/${id}/instellingen`;
+
   // Zolang het concept nog opgesteld of bevestigd moet worden, is er maar één
   // taak. Dan hoort er geen navigatie te staan die daarvan afleidt en die toch
   // nergens heen kan: de bibliotheek is in die fase per definitie leeg. Alle
@@ -75,7 +79,7 @@ export default async function AnalysisLayout({
   // Het aantal geschreven pagina's staat bij de bibliotheek in de navigatie:
   // het eindproduct verdient een teller, niet alleen een woord.
   let libraryCount = 0;
-  if (!awaitingApproval) {
+  if (!awaitingApproval && !onInstellingen) {
     const supabase = await createClient();
     const { count } = await supabase
       .from("content_pieces")
@@ -107,7 +111,9 @@ export default async function AnalysisLayout({
         </div>
       </div>
 
-      {!awaitingApproval && <AnalysisNav analysisId={id} profileId={analysis.profile_id} libraryCount={libraryCount} />}
+      {!awaitingApproval && !onInstellingen && (
+        <AnalysisNav analysisId={id} profileId={analysis.profile_id} libraryCount={libraryCount} />
+      )}
 
       <div>{children}</div>
     </div>
