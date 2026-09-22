@@ -11,6 +11,7 @@ import { ContentTopbar, type PaginaStand } from "./content-topbar";
 import { ContextRail } from "./context-rail";
 import { QualityFindings } from "./quality-findings";
 import type { Bevindingengroepen, GegroepeerdeBevinding } from "@/lib/pipeline/quality-groups";
+import { HerschrijfProvider, type Herschrijfopdracht } from "./herschrijf-context";
 import type { ContentStatusResponse } from "@/app/api/analyses/[id]/content/[pieceId]/status/route";
 
 /**
@@ -72,7 +73,7 @@ export function ContentWerkblad({
   versies,
   intern,
   inhoud,
-  herschrijven,
+  herschrijfvak,
 }: {
   analysisId: string;
   pieceId: string;
@@ -109,14 +110,16 @@ export function ContentWerkblad({
   intern: React.ReactNode;
   inhoud: React.ReactNode;
   /**
-   * Het herschrijfvak. Krijgt via `opdracht` de aanbeveling van een bevinding
-   * binnen, zodat "Laat ORBIT ENGINE dit oplossen" geen tweede route naast de
-   * bestaande wordt.
+   * Het herschrijfvak, als kant-en-klaar element.
+   *
+   * ⚠️ Bewust een `ReactNode` en geen functie die er een maakt. `page.tsx` is
+   * een servercomponent en dit een clientcomponent; over die grens gaat alleen
+   * wat te serialiseren is, en een functie is dat niet. Wat het vak nodig heeft
+   * om te weten (de opdracht uit de rail, en of er al een ronde loopt) komt
+   * daarom via `HerschrijfProvider` hieronder, aan de clientkant. Zie
+   * `herschrijf-context.tsx` voor de fout die dit repareert.
    */
-  herschrijven: (args: {
-    opdracht: { tekst: string; sleutel: number } | null;
-    bezig: boolean;
-  }) => React.ReactNode;
+  herschrijfvak: React.ReactNode;
 }) {
   const router = useRouter();
 
@@ -132,7 +135,7 @@ export function ContentWerkblad({
   const [drempelGezien, setDrempelGezien] = useState(false);
   const [schrijft, setSchrijft] = useState(false);
   const [botsing, setBotsing] = useState(false);
-  const [opdracht, setOpdracht] = useState<{ tekst: string; sleutel: number } | null>(null);
+  const [opdracht, setOpdracht] = useState<Herschrijfopdracht | null>(null);
 
   const tekstRef = useRef<HTMLTextAreaElement | null>(null);
   const opslaanRef = useRef<HTMLDivElement | null>(null);
@@ -422,7 +425,9 @@ export function ContentWerkblad({
           </div>
 
           <div className="content-canvas-maat">
-            {herschrijven({ opdracht, bezig: schrijft })}
+            <HerschrijfProvider value={{ opdracht, bezig: schrijft }}>
+              {herschrijfvak}
+            </HerschrijfProvider>
           </div>
         </div>
 

@@ -24317,3 +24317,59 @@ group("Bevindingen: wat is geprobeerd, en wat kwam nooit aan de beurt", () => {
   eq("een zin zonder opmaak verandert niet", leesbareBevinding("Gewoon een zin."), "Gewoon een zin.");
   eq("lege invoer geeft lege uitvoer", leesbareBevinding(""), "");
 });
+// ════════════════════════════════════════════════════════════════════════════
+// Een servercomponent geeft nooit een FUNCTIE door aan een clientcomponent
+// (22 september 2026). Zie `bibliotheek/[pieceId]/herschrijf-context.tsx`.
+group("Geen functie-props vanuit een servercomponent", () => {
+  // ── DE FOUT DIE DIT VANGT ─────────────────────────────────────────────────
+  //
+  // Het herontwerp van de contentpagina gaf het herschrijfvak door als functie:
+  // `herschrijven={({ opdracht, bezig }) => <ReviseBox ... />}`. React kan over
+  // de grens tussen server en client alleen doorgeven wat hij kan
+  // serialiseren, en een functie kan dat niet.
+  //
+  // ⚠️ Geen van de vier bestaande controles ving dit. `tsc` keurt het type
+  // goed, `test:unit` en `test:chain` renderen geen JSX, en `build` rendert
+  // deze route niet vooruit omdat hij dynamisch is. De fout verscheen dus pas
+  // bij de eerste echte bezoeker, als "Deze pagina kon niet geladen worden"
+  // met alleen een digest erbij, want Next verbergt de melding in productie.
+  //
+  // Vandaar deze controle op de broncode: het is de enige plek in de keten waar
+  // deze regel vóór een deploy te toetsen valt.
+  const HAAKJES = /\b([A-Za-z_]\w*)=\{\s*(?:async\s*)?\([^)]*\)\s*=>/g;
+  const KAAL = /\b([A-Za-z_]\w*)=\{\s*(?:async\s*)?[A-Za-z_]\w*\s*=>/g;
+
+  const overtredingen: string[] = [];
+  for (const pad of tsxOnder("app")) {
+    const bron = leesBestand(pad);
+    // Een clientcomponent mag dit wel: daar blijft alles aan dezelfde kant.
+    const eersteRegel = bron.split("\n")[0] ?? "";
+    if (eersteRegel.includes("use client")) continue;
+
+    for (const patroon of [HAAKJES, KAAL]) {
+      patroon.lastIndex = 0;
+      let m: RegExpExecArray | null;
+      while ((m = patroon.exec(bron)) !== null) {
+        const regel = bron.slice(0, m.index).split("\n").length;
+        overtredingen.push(`${pad}:${regel} (${m[1]})`);
+      }
+    }
+  }
+
+  ok(
+    "geen enkele servercomponent geeft een functie als prop door",
+    overtredingen.length === 0,
+    overtredingen.slice(0, 5).join(", "),
+  );
+
+  // De reparatie zelf: de contentpagina geeft een kant-en-klaar element door en
+  // de stand loopt via een context aan de clientkant.
+  const pagina = leesBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/page.tsx");
+  ok("het herschrijfvak gaat als element mee", pagina.includes("herschrijfvak={"));
+  ok("en niet meer als functie", !pagina.includes("herschrijven={("));
+
+  const werkblad = leesBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/content-werkblad.tsx");
+  ok("het werkblad zet er de context omheen", werkblad.includes("<HerschrijfProvider"));
+  const vak = leesBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/revise-box.tsx");
+  ok("en het herschrijfvak leest hem daar", vak.includes("useHerschrijfstand()"));
+});

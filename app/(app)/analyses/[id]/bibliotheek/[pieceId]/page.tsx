@@ -479,7 +479,11 @@ export default async function ContentDetailPage({
           </CollapsibleSection>
         ) : null
       }
-      herschrijven={({ opdracht, bezig }) => (
+      /* ⚠️ Een kant-en-klaar element en geen functie die er een maakt: deze
+         pagina is een servercomponent en `ContentWerkblad` een clientcomponent,
+         en over die grens gaat alleen wat te serialiseren is. Zie
+         `herschrijf-context.tsx` voor de fout die dat opleverde. */
+      herschrijfvak={
         <ReviseBox
           analysisId={id}
           pieceId={pieceId}
@@ -494,10 +498,8 @@ export default async function ContentDetailPage({
                 }
               : null
           }
-          opdracht={opdracht}
-          bezig={bezig}
         />
-      )}
+      }
     />
   );
 }

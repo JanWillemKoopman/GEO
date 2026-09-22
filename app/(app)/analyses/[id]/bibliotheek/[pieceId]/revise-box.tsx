@@ -7,6 +7,7 @@ import { ErrorNotice, problemFromResponse, networkProblem } from "@/components/e
 import type { UserFacingError } from "@/lib/errors";
 import type { PoortOordeel } from "@/lib/content-final-gate";
 import { MAX_STRATEGY_NOTE_LENGTH } from "@/lib/plan-constants";
+import { useHerschrijfstand } from "./herschrijf-context";
 
 /**
  * "Wat moet er anders?" (optimalisatie.md 4.8).
@@ -39,8 +40,6 @@ function RewriteFlow({
   pieceId,
   poort,
   vragenHref,
-  opdracht,
-  bezig,
 }: {
   analysisId: string;
   pieceId: string;
@@ -55,27 +54,21 @@ function RewriteFlow({
   poort: PoortOordeel;
   /** Waar die vragen staan. */
   vragenHref: string;
-  /**
-   * Een opdracht die van buiten komt: de aanbeveling van een bevinding uit de
-   * kwaliteitsrail (22 september 2026, `herontwerp-contentpagina.md` §6.1).
-   *
-   * ── ⚠️ WAAROM DIT GEEN EIGEN ROUTE IS ────────────────────────────────────
-   *
-   * "Laat ORBIT ENGINE dit oplossen" had een knop kunnen zijn die zelf een
-   * AI-aanroep start. Dat is met opzet niet gebouwd: hij zou een tweede,
-   * fijnere reparatieweg naast deze zetten, en fijner knippen maakte de tekst
-   * in dit systeem twee keer slechter (de reparatiescore liep 67, 74, 68, 48,
-   * zie `content-issues.ts`). Dit vult dus het bestaande vak, langs dezelfde
-   * route, dezelfde poort en dezelfde nieuwe versie.
-   *
-   * `sleutel` is het tijdstip van de klik: twee keer dezelfde bevinding
-   * aanklikken moet het vak twee keer aanvullen, en op de tekst alleen zou de
-   * tweede klik niets doen.
-   */
-  opdracht: { tekst: string; sleutel: number } | null;
-  /** Er loopt al een schrijfronde voor deze pagina. */
-  bezig: boolean;
 }) {
+  /**
+   * De opdracht uit de kwaliteitsrail en de vraag of er al een ronde loopt,
+   * allebei uit de context (`herschrijf-context.tsx`).
+   *
+   * ── ⚠️ WAAROM "LAAT DIT OPLOSSEN" GEEN EIGEN ROUTE IS ────────────────────
+   *
+   * Die knop had zelf een AI-aanroep kunnen starten. Dat is met opzet niet
+   * gebouwd: hij zou een tweede, fijnere reparatieweg naast deze zetten, en
+   * fijner knippen maakte de tekst in dit systeem twee keer slechter (de
+   * reparatiescore liep 67, 74, 68, 48, zie `content-issues.ts`). Hij vult dus
+   * het bestaande vak, langs dezelfde route, dezelfde poort en dezelfde nieuwe
+   * versie.
+   */
+  const { opdracht, bezig } = useHerschrijfstand();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
@@ -244,17 +237,12 @@ export function ReviseBox({
   vragenHref,
   profileId,
   strategyNote,
-  opdracht = null,
-  bezig = false,
 }: {
   analysisId: string;
   pieceId: string;
   poort: PoortOordeel;
   vragenHref: string;
   profileId: string;
-  /** Zie `RewriteFlow` hieronder. */
-  opdracht?: { tekst: string; sleutel: number } | null;
-  bezig?: boolean;
   /**
    * De merkbrede notitie voor de schrijver (blok D punt 22). `null` als er nog
    * geen plan is: dan is er niets om de notitie aan te hangen, en verschijnt
@@ -266,14 +254,7 @@ export function ReviseBox({
   return (
     <div className="flex flex-col gap-3">
       {strategyNote && <StrategyNoteBox profileId={profileId} initial={strategyNote} />}
-      <RewriteFlow
-        analysisId={analysisId}
-        pieceId={pieceId}
-        poort={poort}
-        vragenHref={vragenHref}
-        opdracht={opdracht}
-        bezig={bezig}
-      />
+      <RewriteFlow analysisId={analysisId} pieceId={pieceId} poort={poort} vragenHref={vragenHref} />
     </div>
   );
 }
