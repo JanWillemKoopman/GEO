@@ -20,9 +20,12 @@
 >   gebruiken, en een tweede "meer lezen"-patroon ernaast zou de inconsistentie terugbrengen die dit
 >   plan wegwerkt.
 > - ~~**De letterlijke antwoorden hebben nergens meer een plek.**~~ ✅ **Live, 16 september 2026,
->   dezelfde dag als de vraag ontstond.** Het detailpaneel van Zichtbaarheid (Z8, hierboven) toont nu
->   ook de letterlijke antwoorden per gemeten vraag, dichtgeklapt achter een `<details>` per vraag
->   (`components/cluster-answers.tsx`, `GET /api/analyses/[id]/answers`). Zie `docs/logbook.md`.
+>   dezelfde dag als de vraag ontstond, verplaatst op 22 september 2026.** Niet meer als
+>   detailpaneel per cluster (Z8 hieronder is op die datum vervallen): de letterlijke antwoorden
+>   staan nu in de prompttabel onder "Per cluster", één rij per gemeten vraag over alle clusters
+>   heen, met het antwoord dichtgeklapt achter een `<details>` per rij
+>   (`components/analytics-prompt-table.tsx`, `lib/pipeline/prompt-visibility.ts`). Zie
+>   `docs/logbook.md`.
 >
 > Ook de admin-schermen voor entiteitenbeheer (C1) hebben nu alleen een zoekveld; filteren op
 > ingedeeld/niet en meerdere rijen tegelijk bewerken staat niet in dit bestand maar is wel nog open.
