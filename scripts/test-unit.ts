@@ -925,6 +925,12 @@ import {
   LABELFILTER_GEEN,
 } from "@/lib/cluster-labels";
 import {
+  leesStatusfilter,
+  filterOpStatus,
+  telPerStatus,
+  STATUSFILTER_ALLES,
+} from "@/lib/analysis-status";
+import {
   clustersVoorFilter,
   leesClusterfilter,
   CLUSTERFILTER_ALLES,
@@ -21158,6 +21164,33 @@ group("filteren toont precies de clusters van dat label", () => {
   eq2("label a heeft er twee", telling.perLabel.a, 2);
   eq2("label b heeft er één", telling.perLabel.b, 1);
   eq2("en er is er één zonder label", telling.zonderLabel, 1);
+});
+
+group("een status uit het adres wordt gewantrouwd (22 september 2026)", () => {
+  eq("een bekende status mag", leesStatusfilter("concept_klaar"), "concept_klaar");
+  // ⚠️ Een onbekende waarde zou anders een leeg scherm geven zonder uitleg,
+  // en dat leest als "mijn clusters zijn weg" (zelfde reden als het labelfilter).
+  eq("een onbekende status valt terug op alles", leesStatusfilter("verzonnen"), STATUSFILTER_ALLES);
+  eq("niets in het adres is ook alles", leesStatusfilter(undefined), STATUSFILTER_ALLES);
+});
+
+group("filteren op status toont precies die clusters", () => {
+  const clusters = [
+    { id: "1", status: "concept_klaar" as const },
+    { id: "2", status: "meten" as const },
+    { id: "3", status: "gereed" as const },
+    { id: "4", status: "concept_klaar" as const },
+  ];
+  eq("alles laat alles staan", filterOpStatus(clusters, STATUSFILTER_ALLES).length.toString(), "4");
+  eq(
+    "wacht op mijn goedkeuring toont er twee",
+    filterOpStatus(clusters, "concept_klaar").map((c) => c.id).join(","),
+    "1,4",
+  );
+
+  const telling = telPerStatus(clusters);
+  eq2("concept_klaar heeft er twee", telling.concept_klaar, 2);
+  eq2("meten heeft er één", telling.meten, 1);
 });
 
 group("de prullenbak stopt de metingen, en dat staat in de code", () => {
