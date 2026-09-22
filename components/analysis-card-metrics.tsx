@@ -9,6 +9,14 @@ export function AnalysisCardMetrics({ metrics }: { metrics: Metrics }) {
   const { visibilityScore, searchQueries, suggestedArticles, writtenArticles, measurementCount } =
     metrics;
 
+  if (measurementCount === 0) {
+    return (
+      <span className="mono-label" style={{ fontSize: "0.65rem" }}>
+        Nog geen metingen
+      </span>
+    );
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
       <Metric
@@ -19,11 +27,9 @@ export function AnalysisCardMetrics({ metrics }: { metrics: Metrics }) {
       <Metric value={String(suggestedArticles)} label="Voorgesteld" />
       <Metric value={String(writtenArticles)} label="Geschreven" />
       <span className="mono-label" style={{ fontSize: "0.65rem" }}>
-        {measurementCount === 0
-          ? "Nog geen metingen"
-          : measurementCount === 1
-            ? "1 meting"
-            : `${measurementCount} metingen`}
+        {measurementCount === 1
+          ? "1 meting"
+          : `${measurementCount} metingen`}
       </span>
     </div>
   );
