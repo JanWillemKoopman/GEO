@@ -11146,3 +11146,20 @@ en de identiteit in `brand_facts` die achterbleven.
 `tsc --noEmit`, `test:unit` (5035), `test:chain` (728) en `build` groen. Geen migratie nodig, alleen
 bestaande kolommen (`brand_facts.superseded_by`, `profiles.proof_points`) worden nu ook bij een
 wijziging bijgewerkt.
+
+## 22 september 2026 (21): "Wat dit cluster laat zien" kapt af op 5 zinnen, en de gatenlijst is weg
+
+Vinkte je op Analytics > Zichtbaarheid in AI één cluster aan, dan verscheen daarboven de volledige
+rapportsamenvatting plus een aparte bullet per gemiste vraag: bij Van den Udenhout veertien regels
+onder elkaar (screenshot van de eigenaar). De eigenaar wil in 3 tot 5 zinnen lezen hoe een cluster
+ervoor staat, geen rapport.
+
+De bulletlijst (`reports.gaps_json`) is uit de kaart gehaald: diezelfde vragen staan al op "Wat
+ORBIT ENGINE nog van je wil weten", waar de kaart toch al naar linkt, dus dit was een herhaling en
+geen nieuwe informatie. Voor de samenvatting zelf (`reports.summary`) geldt conventie 1: de
+schrijfinstructie in `report.ts` vraagt al om kort te schrijven, maar "kort" is geen getal, dus
+schreef het model soms zeven of acht zinnen. `kortSamengevat()` (`lib/pipeline/report-summary.ts`)
+knipt nu op de eerste 5 zinnen af, op de leesroute in `analytics/page.tsx`, dus dit werkt ook voor
+al bestaande rapporten en niet pas na een nieuwe meetronde.
+
+`tsc --noEmit`, `test:unit` (5036), `test:chain` (728) en `build` groen. Geen migratie.

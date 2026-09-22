@@ -903,7 +903,7 @@ import {
   regionsFromDescription,
   discontinuedNames,
 } from "@/lib/pipeline/context-factors";
-import { correctQuestionCount, questionCountLine } from "@/lib/pipeline/report-summary";
+import { correctQuestionCount, kortSamengevat, questionCountLine } from "@/lib/pipeline/report-summary";
 import {
   PACKAGE_SIZES,
   DEFAULT_PACKAGE_SIZE,
@@ -18101,6 +18101,25 @@ group("het aantal onderzochte vragen wordt rechtgezet (bevinding 4)", () => {
   ok("de instructie noemt het aantal vragen", regel.includes("30"), regel);
   ok("en het verschil met het aantal metingen", regel.includes("46"), regel);
   ok("bij nul vragen valt de regel weg", questionCountLine(0, 0) === "");
+});
+
+// ⚠️ De fout: "Wat dit cluster laat zien" toonde de volledige
+// rapportsamenvatting, soms zeven of acht zinnen, plus een lijst met elke
+// gemiste vraag eronder. Het model krijgt de instructie kort te schrijven,
+// maar "kort" is geen getal (conventie 1).
+group("de clustersamenvatting wordt afgekapt op 5 zinnen", () => {
+  const kort = "Eén. Twee. Drie.";
+  ok("een korte tekst blijft heel", kortSamengevat(kort) === kort, kortSamengevat(kort));
+
+  const lang = "Eén. Twee. Drie. Vier. Vijf. Zes. Zeven.";
+  const afgekapt = kortSamengevat(lang);
+  ok("langer dan 5 zinnen wordt geknipt", afgekapt === "Eén. Twee. Drie. Vier. Vijf.", afgekapt);
+  ok("geknipt bij precies 5 zinnen", !afgekapt.includes("Zes"));
+
+  ok(
+    "een ander maximum werkt ook",
+    kortSamengevat("Eén. Twee. Drie.", 2) === "Eén. Twee.",
+  );
 });
 
 // ⚠️ De fout: het planscherm blokkeerde op "kies eerst 10, 20 of 40 pagina's
