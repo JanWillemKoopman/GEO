@@ -11226,3 +11226,35 @@ een meting van nul vragen.
 `tsc --noEmit`, `test:unit` (5043, drie al bestaande mislukkingen ongerelateerd aan dit werk,
 "de S staat in de bovenbalk"), `test:chain` (728) en `build` groen. Geen migratie, alleen een
 extra query op de al bestaande `tracking_runs`-tabel.
+
+## 22 september 2026 (25): "Dingen die op je wachten" krijgt de vaste indeling van de app, en twee
+ontbrekende soorten werk
+
+Op "Hoe sta je ervoor" groepeerde de wachtrij per cluster (`groepeerPerOnderwerp()`), en telde daarbij
+maar zes van de acht soorten werk die een klant daadwerkelijk kan tegenkomen. Een uitgezochte
+inventarisatie van alle klantacties in de app wees twee gaten aan: een contentmaand die op vrijgave
+wacht (`plan_months.status = 'ter_goedkeuring'`) en een losse pagina uit het contentplan die op
+akkoord wacht zonder gekoppelde `content_pieces`-rij (`planned_pages.status = 'ter_goedkeuring'` met
+`content_piece_id is null`, het pad "de tekst hangt niet aan deze regel" uit `plan-view.tsx`) stonden
+nergens in de wachtrij. Een pagina MET een gekoppelde rij levert al een werkitem op via
+`content_pieces` (briefing, nakijken, publiceren); die twee keer tonen zou dubbel werk in de wachtrij
+zetten, dus de nieuwe soort telt bewust alleen de losstaande pagina's.
+
+De eigenaar wilde de wachtrij daarna niet langer per cluster maar naar de vier vaste onderwerpen van
+de app: Cluster, Contentplan, Openstaande vragen, Bibliotheek, met per onderwerp de subkoppen die de
+klant daadwerkelijk als aparte handeling herkent (bijvoorbeeld binnen Bibliotheek: briefing invullen,
+nakijken, publiceren, in die volgorde, ook al is de urgentievolgorde van `lib/work.ts` andersom).
+
+`lib/work.ts`: twee nieuwe `WorkKind`s (`contentmaand`, `planpagina`), een `profileId`-veld op
+`WorkItem` (nodig om een item bij zijn vaste sectie te tonen zonder dat terug te puzzelen uit `href`,
+want niet elke link begint met `/merk/[id]/...`), en twee nieuwe queries in `fetchSources()`. `lib/
+wachtrij.ts` verving `groepeerPerOnderwerp()` door `groepeerPerSectie()`: een blokkade blijft een losse
+waarschuwing boven de secties (hij wijst naar Analytics, niet naar een van de vier, en blokkeert toch
+alles eronder), de rest krijgt een vaste kop- en subkopvolgorde. `wachtrij-lijst.tsx` toont de vier
+secties in twee CSS-kolommen (`columns-2`, vult zichzelf op inhoud in plaats van een vaste knip), elke
+subkop als compacte bullets met een teller, en een link naar het bijbehorende overzichtsscherm zodra
+een subkop meer dan vier items heeft.
+
+`tsc --noEmit`, `test:unit` (5054, vier al bestaande mislukkingen ongerelateerd aan dit werk, drie
+over "de S" en één over de navigatievolgorde in Strategie), `test:chain` (728) en `build` groen. Geen
+migratie, de gebruikte kolommen (`plan_months.status`, `planned_pages.content_piece_id`) bestaan al.

@@ -20,7 +20,7 @@ import { InfoHint } from "@/components/info-hint";
 import { loadContentTotalen } from "@/lib/overview-data";
 import { loadLoop } from "@/lib/insights-data";
 import { loadBrandWork, sortWork } from "@/lib/work";
-import { groepeerPerOnderwerp } from "@/lib/wachtrij";
+import { groepeerPerSectie } from "@/lib/wachtrij";
 import { WachtrijLijst } from "./_components/wachtrij-lijst";
 import { enkelOfMeervoud } from "@/lib/format";
 import {
@@ -122,16 +122,6 @@ export async function generateMetadata({
   return { title: profile ? (profile.brand_name ?? profile.name) : "Overzicht" };
 }
 
-/**
- * De harde grens op de wachtrij.
- *
- * ⚠️ Was vijf, is tien sinds 21 september 2026. De lijst groepeert nu per
- * onderwerp (`lib/wachtrij.ts`) in plaats van plat te tonen, dus een langere
- * lijst leest niet meer als rommel: elk onderwerp is een eigen blokje en
- * begint zelf ingeklapt op twee taken.
- */
-const MAX_WACHTRIJ = 10;
-
 export default async function OverzichtPage({
   params,
 }: {
@@ -224,12 +214,11 @@ export default async function OverzichtPage({
     gepubliceerd,
   });
 
-  // ── De wachtrij, alleen wat op de klant wacht, gegroepeerd per onderwerp ──
+  // ── De wachtrij, alleen wat op de klant wacht, ingedeeld in de vaste
+  //    secties Cluster, Contentplan, Openstaande vragen en Bibliotheek ──────
   const eigenAlleWerk = work;
   const eigenWerk = sortWork(eigenAlleWerk.filter((w) => w.state === "nu"));
-  const wachtrij = eigenWerk.slice(0, MAX_WACHTRIJ);
-  const restWachtrij = eigenWerk.length - wachtrij.length;
-  const wachtrijGroepen = groepeerPerOnderwerp(wachtrij);
+  const wachtrijOverzicht = groepeerPerSectie(eigenWerk);
 
   // ── Wat bij ORBIT ENGINE loopt, niet bij de klant (punt 27 uit
   //    docs/tasks/nova-vergelijking-verbeterpunten.md) ─────────────────────
@@ -459,8 +448,8 @@ export default async function OverzichtPage({
         </div>
       </SectionErrorBoundary>
 
-      {/* ── 2. Wat er nu op jou wacht ───────────────────────────────────────
-          Maximaal vijf regels. Zie de waarschuwing bovenaan dit bestand. */}
+      {/* ── 2. Wat er nu op jou wacht, ingedeeld naar Cluster, Contentplan,
+          Openstaande vragen en Bibliotheek. Zie `lib/wachtrij.ts`. */}
       <SectionErrorBoundary label="Wat er op je wacht">
         <div className="flex flex-col gap-3">
           <SectionHeading
@@ -473,7 +462,7 @@ export default async function OverzichtPage({
             }
             meta={bijOns > 0 ? `Bij ORBIT ENGINE · ${bijOns}` : undefined}
           />
-          {wachtrij.length === 0 ? (
+          {eigenWerk.length === 0 ? (
             <div className="card">
               <p className="text-secondary">
                 {bijOns > 0
@@ -482,18 +471,7 @@ export default async function OverzichtPage({
               </p>
             </div>
           ) : (
-            <>
-              <WachtrijLijst groepen={wachtrijGroepen} />
-              {restWachtrij > 0 && (
-                <Link
-                  href={`/merk/${id}/strategie/clusters`}
-                  className="inline-flex w-fit items-center gap-1.5 text-sm font-medium hover:underline"
-                >
-                  Nog {restWachtrij} {enkelOfMeervoud(restWachtrij, "punt", "punten")} in je clusters
-                  <Icon naam="naar" size={14} />
-                </Link>
-              )}
-            </>
+            <WachtrijLijst overzicht={wachtrijOverzicht} />
           )}
         </div>
       </SectionErrorBoundary>
