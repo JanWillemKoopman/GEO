@@ -91,6 +91,13 @@ export interface WorkItem {
   meta?: string;
   analysisId: string;
   analysisName: string;
+  /**
+   * Het merk waar dit werk bij hoort. Nodig om een item bij zijn vaste sectie
+   * te tonen (`lib/wachtrij.ts`, `groepeerPerSectie()`) zonder dat te moeten
+   * terugpuzzelen uit `href`: niet elk item linkt naar een pad met het merk
+   * erin (een cluster- of paginalink begint bij `/analyses/...`).
+   */
+  profileId: string;
 }
 
 /**
@@ -103,9 +110,11 @@ export interface WorkItem {
  */
 export const URGENCY = {
   blokkade: 10,
+  contentmaand: 15,
   goedkeuring: 20,
   herstel: 30,
   publiceren: 40,
+  planpagina: 42,
   nakijken: 45,
   offsite: 50,
   feit: 60,
@@ -126,6 +135,17 @@ interface WorkSources {
   blockersByProfile: Map<string, { checks: AuditCheck[]; since: string | null }>;
   /** content_piece_id's waarvoor al een effect berekend is. */
   measuredPieceIds: Set<string>;
+  /** Per profiel de maanden van het lopende contentplan die op vrijgave wachten. */
+  planMonthsByProfile: Map<string, { id: string; monthNumber: number }[]>;
+  /**
+   * Per profiel de pagina's die op akkoord wachten zonder gekoppelde
+   * `content_pieces`-rij ("de tekst hangt niet aan deze regel", zie
+   * `plan-view.tsx`). Een pagina MET een gekoppelde rij staat al in `pieces`
+   * hierboven en krijgt daar zijn werkitem; hem hier nog eens meetellen zou
+   * dezelfde pagina twee keer in de wachtrij zetten, één keer bij Contentplan
+   * en één keer bij Bibliotheek.
+   */
+  loosePlanPagesByProfile: Map<string, { id: string; title: string }[]>;
 }
 
 type PieceRow = Pick<
@@ -193,6 +213,8 @@ async function fetchSources(db: Db, analyses: Analysis[]): Promise<WorkSources> 
     { data: factRows },
     { data: auditRows },
     { data: impactRows },
+    { data: activePlanRows },
+    { data: looseRows },
   ] = await Promise.all([
     // Alleen de HUIDIGE versie per pagina: een vervangen versie is geen werk.
     db.from("content_pieces").select(PIECE_COLUMNS).in("analysis_id", ids).eq("is_current", true),
@@ -210,7 +232,49 @@ async function fetchSources(db: Db, analyses: Analysis[]): Promise<WorkSources> 
       .order("checked_at", { ascending: false })
       .limit(24 * profileIds.length),
     db.from("content_impact").select("content_piece_id").in("analysis_id", ids),
+    // Het lopende plan per profiel: nodig om de vrij te geven maand te vinden.
+    // `gestopt` telt niet mee, net als overal elders waar het lopende plan
+    // wordt gelezen (`lib/plans.ts`, `loadPlan()`).
+    db.from("content_plans").select("id, profile_id").in("profile_id", profileIds).neq("status", "gestopt"),
+    db
+      .from("planned_pages")
+      .select("id, profile_id, title")
+      .in("profile_id", profileIds)
+      .eq("status", "ter_goedkeuring")
+      .is("content_piece_id", null),
   ]);
+
+  const planIds = ((activePlanRows ?? []) as { id: string; profile_id: string }[]).map((p) => p.id);
+  const profileByPlanId = new Map(
+    ((activePlanRows ?? []) as { id: string; profile_id: string }[]).map((p) => [p.id, p.profile_id]),
+  );
+
+  // Twee stappen, want welke maanden ertoe doen hangt af van welke plannen
+  // hierboven actief bleken: `plan_id` filteren kan pas na die eerste ronde.
+  const { data: monthRows } =
+    planIds.length > 0
+      ? await db
+          .from("plan_months")
+          .select("id, plan_id, month_number")
+          .in("plan_id", planIds)
+          .eq("status", "ter_goedkeuring")
+      : { data: [] };
+
+  const planMonthsByProfile = new Map<string, { id: string; monthNumber: number }[]>();
+  for (const row of (monthRows ?? []) as { id: string; plan_id: string; month_number: number }[]) {
+    const profileId = profileByPlanId.get(row.plan_id);
+    if (!profileId) continue;
+    const list = planMonthsByProfile.get(profileId) ?? [];
+    list.push({ id: row.id, monthNumber: row.month_number });
+    planMonthsByProfile.set(profileId, list);
+  }
+
+  const loosePlanPagesByProfile = new Map<string, { id: string; title: string }[]>();
+  for (const row of (looseRows ?? []) as { id: string; profile_id: string; title: string }[]) {
+    const list = loosePlanPagesByProfile.get(row.profile_id) ?? [];
+    list.push({ id: row.id, title: row.title });
+    loosePlanPagesByProfile.set(row.profile_id, list);
+  }
 
   return {
     analyses,
@@ -220,6 +284,8 @@ async function fetchSources(db: Db, analyses: Analysis[]): Promise<WorkSources> 
       (auditRows ?? []) as { profile_id: string; checked_at: string; checks_json: unknown }[],
     ),
     measuredPieceIds: new Set((impactRows ?? []).map((r) => r.content_piece_id as string)),
+    planMonthsByProfile,
+    loosePlanPagesByProfile,
   };
 }
 
@@ -277,7 +343,8 @@ function blockersPerProfile(
  */
 export function deriveWork(sources: WorkSources): WorkItem[] {
   const items: WorkItem[] = [];
-  const { analyses, blockersByProfile, measuredPieceIds } = sources;
+  const { analyses, blockersByProfile, measuredPieceIds, planMonthsByProfile, loosePlanPagesByProfile } =
+    sources;
 
   // Eén blokkade-item per PROFIEL, niet per analyse: dezelfde site drie keer
   // aanmelden als kapot is geen overzicht. Het item hangt aan de eerste analyse
@@ -308,6 +375,50 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
           meta: blocked.since ? `Onveranderd sinds ${formatDateShort(blocked.since)}` : undefined,
           analysisId: analysis.id,
           analysisName: name,
+          profileId: analysis.profile_id,
+        });
+      }
+
+      // ── Contentplan: maand vrijgeven ────────────────────────────────────
+      // Eén item per maand die op vrijgave wacht. `vulOpenMaanden()`
+      // (`lib/plans.ts`) houdt zelf al nooit meer dan één maand tegelijk op
+      // "ter_goedkeuring", dus in de praktijk is dit hooguit één regel; de
+      // lus staat er zodat een toekomstige wijziging van die regel hier niet
+      // stilzwijgend items laat verdwijnen.
+      for (const maand of planMonthsByProfile.get(analysis.profile_id) ?? []) {
+        items.push({
+          id: `contentmaand:${maand.id}`,
+          kind: "contentmaand",
+          state: "nu",
+          typeLabel: "Contentmaand vrijgeven",
+          title: `Maand ${maand.monthNumber} van je contentplan`,
+          why: "De pagina's voor deze maand staan klaar. Geef akkoord, dan gaat ORBIT ENGINE ze schrijven en volgens planning publiceren.",
+          urgency: URGENCY.contentmaand,
+          href: `/merk/${analysis.profile_id}/strategie/plan`,
+          actionLabel: "Naar het contentplan",
+          analysisId: analysis.id,
+          analysisName: name,
+          profileId: analysis.profile_id,
+        });
+      }
+
+      // ── Contentplan: losse pagina goedkeuren ────────────────────────────
+      // Alleen pagina's zonder gekoppelde `content_pieces`-rij: zie de
+      // toelichting bij `loosePlanPagesByProfile` in `WorkSources`.
+      for (const pagina of loosePlanPagesByProfile.get(analysis.profile_id) ?? []) {
+        items.push({
+          id: `planpagina:${pagina.id}`,
+          kind: "planpagina",
+          state: "nu",
+          typeLabel: "Pagina goedkeuren",
+          title: pagina.title,
+          why: "De tekst is klaar, maar staat los van een pagina in de bibliotheek. Keur hem goed vanuit het contentplan.",
+          urgency: URGENCY.planpagina,
+          href: `/merk/${analysis.profile_id}/strategie/plan`,
+          actionLabel: "Naar het contentplan",
+          analysisId: analysis.id,
+          analysisName: name,
+          profileId: analysis.profile_id,
         });
       }
     }
@@ -325,6 +436,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         actionLabel: "Naar het concept",
         analysisId: analysis.id,
         analysisName: name,
+        profileId: analysis.profile_id,
       });
     }
 
@@ -344,6 +456,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         actionLabel: "Bekijk wat er misging",
         analysisId: analysis.id,
         analysisName: name,
+        profileId: analysis.profile_id,
       });
     }
 
@@ -359,6 +472,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         href: `/merk/${analysis.profile_id}/strategie/clusters`,
         analysisId: analysis.id,
         analysisName: name,
+        profileId: analysis.profile_id,
       });
     }
   }
@@ -392,6 +506,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
           : `Hermeting rond ${formatDateShort(addDays(piece.published_at, 14))}`,
         analysisId: piece.analysis_id,
         analysisName: analysis.name,
+        profileId: analysis.profile_id,
       });
       continue;
     }
@@ -427,6 +542,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         actionLabel: "Briefing invullen",
         analysisId: piece.analysis_id,
         analysisName: analysis.name,
+        profileId: analysis.profile_id,
       });
       continue;
     }
@@ -443,6 +559,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         href,
         analysisId: piece.analysis_id,
         analysisName: analysis.name,
+        profileId: analysis.profile_id,
       });
       continue;
     }
@@ -462,6 +579,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
       actionLabel: piece.needs_review ? "Nakijken" : "Publiceren",
       analysisId: piece.analysis_id,
       analysisName: analysis.name,
+      profileId: analysis.profile_id,
     });
   }
 
@@ -504,6 +622,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
       actionLabel: "Beantwoorden",
       analysisId: analysis.id,
       analysisName: analysis.name,
+      profileId,
     });
   }
 

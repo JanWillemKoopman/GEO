@@ -20,6 +20,8 @@ export type WorkKind =
   | "blokkade" // technische blokkade, hierdoor werkt al het andere niet
   | "goedkeuring" // het concept bevestigen, daarna start de meting
   | "herstel" // er ging iets mis in de pijplijn
+  | "contentmaand" // een maand van het contentplan vrijgeven
+  | "planpagina" // een losse pagina uit het contentplan goedkeuren
   | "feit" // een feitenvraag over het bedrijf
   | "pagina" // een aanbevolen of geschreven pagina voor de eigen site
   // ⚠️ "offsite" levert sinds 22 september 2026 geen werkitems meer op: het
@@ -32,6 +34,8 @@ export const WORK_KIND_LABEL: Record<WorkKind, string> = {
   blokkade: "Blokkade",
   goedkeuring: "Goedkeuring",
   herstel: "Herstel",
+  contentmaand: "Contentmaand",
+  planpagina: "Contentplan",
   feit: "Feitenvraag",
   pagina: "Pagina",
   offsite: "Buiten je site",
@@ -55,6 +59,8 @@ export const WORK_KIND_LABEL: Record<WorkKind, string> = {
 export function workChipTone(kind: WorkKind): "danger" | "attention" {
   return kind === "blokkade" || kind === "herstel" ? "danger" : "attention";
 }
+
+
 
 /**
  * Het icoon voor een werkregel.
@@ -82,6 +88,8 @@ const WORK_KIND_ICON: Record<WorkKind, IcoonNaam> = {
   blokkade: "letop",
   goedkeuring: "goedkeuring",
   herstel: "herstel",
+  contentmaand: "plannen",
+  planpagina: "publiceren",
   feit: "feit",
   pagina: "paginabijwerken",
   offsite: "offsite",
