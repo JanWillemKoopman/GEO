@@ -1,377 +1,535 @@
-# Herontwerp van de contentpagina (ontwerpvoorstel, 22 september 2026)
+# Herontwerp van de contentpagina (definitief plan, 22 september 2026)
 
-**Het scherm**: `app/(app)/analyses/[id]/bibliotheek/[pieceId]/page.tsx`, de pagina waar een klant
-een geschreven tekst beoordeelt, bijschaaft en live zet. 587 regels, twintig blokken onder elkaar.
+**Het scherm**: `app/(app)/analyses/[id]/bibliotheek/[pieceId]/page.tsx`, de pagina waar iemand een
+geschreven tekst beoordeelt, bijschaaft en live zet. Nu 587 regels en twintig blokken onder elkaar.
 
-**De opdracht van de eigenaar**: maak de tekst de held van het scherm, maak hem direct bewerkbaar,
-zet de onderbouwing en de kwaliteit in een zijpaneel, en zet de publicatieknop in een vaste
-bovenbalk.
+**De maatstaf voor dit plan**: de kwaliteit van de tekst die uiteindelijk gepubliceerd wordt, en de
+ervaring van degene die hem beoordeelt. Bouwtijd is geen beperking. Waar dit plan iets tóch niet
+bouwt, is dat omdat het de tekst aantoonbaar slechter maakt of omdat het bewijs ontbreekt, nooit
+omdat het veel werk is.
 
-> **Dit bestand heet "Het originele plan".** Het is op 22 september 2026 vastgelegd als de
-> uitvoerbare basis. Er loopt een Teamsessie overheen om te kijken of er betere ideeen bij komen.
-> Komt daar niets uit wat dit plan verslaat, dan wordt dit plan uitgevoerd zoals het hier staat.
-> Komt daar wel iets uit, dan wordt het als apart hoofdstuk toegevoegd en blijft zichtbaar wat er
-> veranderde ten opzichte van deze versie.
-
-> **Dit bestand is een voorstel, geen verslag.** Er is nog niets van gebouwd. Fase 1 en fase 2
-> hieronder kunnen zonder verdere besluiten gebouwd worden. Fase 3 en fase 4 keren een besluit om
-> dat in `docs/logbook.md` §32 met redenen is vastgelegd, en horen daarom eerst langs de eigenaar.
+**Voorgeschiedenis**: dit bestand ving op 22 september 2026 aan als "Het originele plan". Daar is een
+Teamsessie overheen gegaan (UX, Product, AI, Engineering, UI, plus tegenspraak). Vijf van hun
+bevindingen zijn nagerekend en verwerkt, twee zijn verworpen. Bijlage A houdt bij wat er veranderde
+en waarom. De oorspronkelijke tekst staat in de git-geschiedenis, commit `b6774e3`.
 
 ---
 
-## 1. Waar de opdracht op een verkeerde aanname rust
+## 1. Waar dit plan op rust
 
-Twee van de vier wensen zijn in augustus 2026 al eens gewogen en toen bewust niet gebouwd. Dat
-maakt ze niet verkeerd, maar het verandert wat er nodig is om ze nu wel te bouwen.
+Elk cijfer hieronder is in de code of in het logboek nagekeken, met de vindplaats erbij. Eén cijfer
+kon niet opnieuw gecontroleerd worden en staat daarom apart.
 
-**Een rijke editor is geen ontbrekend stuk, hij is een geschrapt stuk.** `docs/logbook.md` §32
-noemt vier dingen die met opzet niet gebouwd zijn, en twee daarvan staan letterlijk in deze
-opdracht: een WYSIWYG-bibliotheek ("zou de bestaande, goed onderbouwde keuze voor
-markdown-als-brontekst omkeren") en een AI-assistent per pagina ("zou `checkContentGate()` en
-`checkTabooWords()` omzeilen"). De reden staat ook in het bestand zelf: wat de klant straks in zijn
-CMS plakt, is markdown, en een editor die stiekem andere HTML maakt dan wat er in de database staat
-levert een verrassing op bij tekst die gepubliceerd wordt.
+| Waarneming | Vindplaats |
+|---|---|
+| Twintig blokken onder elkaar; de tekst begint bij blok 12, het bewerken bij blok 18 | `page.tsx` |
+| De tekst staat twee keer op het scherm: als leesversie en nog eens in de editor | `page.tsx` r.463 en r.519 |
+| Tot zeven export- en kopieerknoppen bóven de tekst | `content-actions.tsx` |
+| De bevindingenlijst telt 45 tot 96 regels per pagina, gemeten op zeven pagina's | `lib/pipeline/quality-issue.ts` r.7-12 |
+| Eerste concepten hadden 68 en 119 bevindingen; ná drie reparatierondes nog 63 en 96 | `lib/pipeline/content-issues.ts` r.7-9 |
+| De reparatie krijgt hooguit tien bevindingen mee, gesorteerd in zeven gewichten | `lib/pipeline/content-issues.ts`, `prioriteerBevindingen()` |
+| Meer reparatierondes maakten de tekst slechter: de score liep 67, 74, 68, 48 | `logbook.md` r.6277-6285 |
+| Eén reparatieronde kost $0,2525 tot $0,26 en levert meer uitvoer op dan het schrijven zelf (6.245 tegen 6.042 tokens) | `content-issues.ts` r.11-12, `lib/schemas/content-patch.ts` r.10-15 |
+| Het conflictslot zit op de server: voorwaardelijk schrijven op `updated_at`, anders een 409 | `app/api/analyses/[id]/content/[pieceId]/route.ts` |
+| `dirty` vergelijkt met de verse serverwaarde, terwijl de tekst in het veld uit de eerste lading komt | `content-editor.tsx` r.57-71 |
+| `.stand` is 1440px met 24px marge, en staat binnen `<main>` naast een zijbalk van 240px (ingeklapt 56px) | `globals.css` r.1728-1743 en r.329, `workspace-chrome.tsx` r.201-203 |
+| De bovenbalk is 48px, en wat eronder moet blijven plakken gebruikt `top: var(--header-h)`; lopen die uit elkaar, dan ontstaat er een kier | `globals.css` r.316-322 |
+| Vier controles zijn al puur en werken op losse tekst; alleen de dekkingspoort in `checkContentGate()` is paginabreed | `content-gate.ts` r.140, 689, 724, 860 tegenover r.275 |
+| De bevinding draagt al ernst, dimensie, sectie, bewijs, verwachting en aanbeveling | `lib/pipeline/quality-issue.ts` |
+| De reparatierondes staan in `content_quality_runs` en worden al opgehaald, maar alleen aan medewerkers getoond | `page.tsx` r.144-147, `quality-panel.tsx` |
 
-Dat risico is meetbaar en niet theoretisch. `lib/markdown.ts` is een eigen renderer van 171 regels
-die eerst escapet en daarna pas opmaakt, en `lib/pipeline/content-export.ts` hergebruikt diezelfde
-`inline()` voor de CMS-specifieke export. Er is dus precies één plek die bepaalt hoe `**vet**`
-eruitkomt. Een externe editor maakt daar een tweede plek van, en die twee kunnen uit de pas lopen
-zonder dat iemand het merkt tot een klant de tekst op zijn site zet.
-
-**Daarom splitst dit voorstel de opdracht.** Fase 1 en 2 leveren het hele beloofde gevoel (de tekst
-als held, één bewerkoppervlak, een zijpaneel, een vaste balk) zonder het opslagformaat aan te
-raken. Fase 3 en 4 zijn de twee omkeringen, elk met de proef die eraan vooraf moet gaan.
+**Het cijfer dat apart staat.** Het logboek noteert op r.6184 "drie gepubliceerde contentpagina's in
+de hele database". Dat is niet opnieuw gecontroleerd, want de databasetools waren tijdens het
+opstellen niet beschikbaar. Klopt het nog, dan is er geen enkel gebruikscijfer dat zegt dat de
+huidige indeling iemand in de weg zat. **Stap 0 van de bouw is daarom dat getal ophalen** (zie §10),
+want het bepaalt of §6 een reparatie is of een verbetering vooraf.
 
 ---
 
-## 2. Wat er nu mis is, geteld
+## 2. Het inzicht waar dit plan op draait
 
-| | Nu | Gevolg |
+Het scherm verzwijgt dat de app het werk al gedaan heeft.
+
+De pijplijn schrijft een pagina, keurt hem, en repareert hem in rondes. Van de 68 tot 119
+bevindingen op een eerste concept gaan er hooguit tien mee naar de reparatie, gekozen door een vaste
+sortering van zwaar naar licht. De rest is nooit geprobeerd. Wat de klant daarna te zien krijgt, is
+één ongesorteerde bak van 45 tot 96 regels waarin drie soorten punten door elkaar staan:
+
+1. Punten die publicatie tegenhouden.
+2. Punten die de reparatie geprobeerd heeft en niet opgelost kreeg.
+3. Punten die nooit aan de beurt kwamen, omdat ze onder plek tien stonden.
+
+Dat onderscheid is nergens zichtbaar, terwijl het precies het onderscheid is dat bepaalt wat iemand
+ermee moet. Een punt uit groep 3 is vaak in dertig seconden zelf opgelost. Een punt uit groep 2 is
+er een waar het model al op stukliep, en dat is meestal een punt waar informatie ontbreekt die
+alleen de klant heeft.
+
+**Dit is de grootste kwaliteitswinst die dit scherm te bieden heeft, en hij kost geen enkele nieuwe
+meting.** De sortering is een pure functie (`prioriteerBevindingen()`), de bevindingen staan met hun
+ernst in `quality_json`, en de rondes staan in `content_quality_runs`. Alle drie worden ze al
+opgehaald. Er wordt alleen niets mee gedaan.
+
+Het tweede inzicht volgt eruit: **het scherm kent drie routes en het plan ordende er twee.**
+Beoordelen en live zetten zijn geordend, maar "laat ORBIT ENGINE er een nieuwe versie van maken, en
+kom over een paar minuten terug" heeft geen plek, geen status en geen terugkeerpunt. Juist die route
+botst met een canvas dat altijd bewerkbaar is: die schrijft namelijk een nieuwe rij met een nieuw
+adres, terwijl jij in de oude zit te typen.
+
+---
+
+## 3. De indeling
+
+### 3.1 Drie zones
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│  A. ACTIEBALK (sticky, onder de bovenbalk van 48px)                      │
+│  ‹ terug   Titel   [Concept]                 [⋯]   [URL…]  [Zet live ▸]  │
+├───────────────────────────────────────────┬──────────────────────────────┤
+│  B. HET CANVAS                            │  C. DE CONTEXTRAIL (320px)   │
+│     tekst op 720px                        │                              │
+│                                           │  Inhoud                      │
+│  De tekst, direct bewerkbaar.             │  ▾ Kwaliteit            (3)  │
+│  Eén oppervlak, geen tweede kopie.        │  ▸ Waarop dit rust    12/14  │
+│  [Opslaan] verschijnt hier bij wijziging. │  ▸ Waarom deze pagina        │
+│                                           │  ▸ Versies               v3  │
+└───────────────────────────────────────────┴──────────────────────────────┘
+```
+
+### 3.2 De breedte, nagerekend
+
+De vorige versie van dit plan rekende met de viewport en kwam 12 pixels tekort. De juiste som gaat
+over `<main>`, want `.stand` staat dáárin, naast de zijbalk:
+
+```
+bruikbare breedte = viewport - zijbalk - 2 × 24px marge
+
+viewport 1440, zijbalk 240  →  1152 bruikbaar
+viewport 1440, zijbalk 56   →  1336 bruikbaar
+viewport 1280, zijbalk 240  →   992 bruikbaar
+```
+
+De gesplitste weergave vraagt `720 (tekst) + 24 (tussenruimte) + 320 (rail) = 1064`. Dat past bij
+1152 en niet bij 992.
+
+**Daarom hangt de splitsing aan een containerquery en niet aan de vensterbreedte.** Of de rail past,
+hangt namelijk net zo goed af van de zijbalk, die de gebruiker zelf in- en uitklapt. Bij `1064px`
+beschikbare breedte binnen `main` verschijnt de rail als kolom; daaronder wordt hij een lade. Een
+`@media`-regel zou bij een ingeklapte zijbalk onnodig de lade tonen, en bij een uitgeklapte zijbalk
+op 1280 een kolom tonen die niet past. Tailwind v4 kan dit met `@container`, en dat is de eerste
+plek in deze app die er een nodig heeft: dat hoort in `designsystem.md` §8 bij de standen te komen
+staan, zodat de volgende die het gebruikt niet opnieuw begint.
+
+**De lade is 420px breed** (`drawer.tsx` r.25) en de rail 320px. Dat is geen conflict, wel een
+ontwerpeis: de inhoud van de rail wordt op breedte losgelaten en niet op 320px vastgezet.
+
+### 3.3 De actiebalk plakt onder de bovenbalk
+
+`ConfirmBar` was het verkeerde voorbeeld: die zit vastgeplakt ónderaan het scherm. Het juiste
+patroon staat bij de hoofdstuktabs en gebruikt `top: var(--header-h)`, met in `globals.css` r.316-322
+de uitdrukkelijke waarschuwing dat een eigen getal hier een kier oplevert waar de pagina doorheen
+schuift. De actiebalk gebruikt die variabele dus, en nergens een 48.
+
+---
+
+## 4. Zone A, de actiebalk
+
+Van links naar rechts: terug, de titel op één regel, de status als chip, dan het `⋯`-menu en de
+publicatieactie.
+
+**De statuschip kent zes standen**, en dat is de reparatie van de derde route:
+
+| Stand | Wanneer | Wat de gebruiker eraan heeft |
 |---|---|---|
-| Blokken onder elkaar | 20 kaarten op het hoogste niveau | De tekst zelf begint pas bij blok 12 |
-| Knoppen boven de tekst | tot 7 (3 kopieervormen, 2 downloads, schema, sjabloon) | De eerste schermhoogte gaat op aan exporteren, niet aan lezen |
-| "Kijk hier even naar" | 45 tot 96 regels per pagina, gemeten op de zeven pagina's van 1 en 2 september 2026 (`lib/pipeline/quality-issue.ts`) | Niemand leest hem uit, dus ook de drie regels die publicatie tegenhouden niet |
-| Bewerken | achter een knop, achter een drempel, op blok 18 | Bewerken voelt als een uitzondering in plaats van als het werk |
-| De tekst | twee keer op het scherm: als artikel (blok 12) en nog eens in de editor (blok 18) | Twee waarheden over dezelfde alinea, en scrollen tussen het probleem en de plek om het op te lossen |
+| `Concept` | niets veranderd | dit is de huidige versie |
+| `Niet opgeslagen` | er staan wijzigingen in het canvas | je bent iets aan het doen |
+| `Opgeslagen` | net bewaard, verdwijnt na een paar seconden | het is binnen |
+| `ORBIT ENGINE schrijft` | er loopt een herschrijfjob voor dit stuk | niet doortypen, er komt een nieuwe versie |
+| `Oudere versie` | `is_current` staat uit | je kijkt naar iets wat vervangen is |
+| `Live sinds <datum>` | gepubliceerd | de hermeting loopt |
 
-Het laatste punt is het zwaarste. Wie bij bevinding 31 leest dat de derde sectie te vaag is, moet
-elf blokken verder scrollen, op "Tekst bewerken" klikken, een drempelscherm wegklikken, en dan in
-een tekstvak van 22 regels zoeken waar die sectie stond.
+**Opslaan blijft in het canvas, niet in de balk.** Dit is een correctie op de vorige versie van dit
+plan. De knop hangt aan de bewerkstand in `content-editor.tsx` r.63-71; hem naar de balk verplaatsen
+vraagt gedeelde toestand tussen twee zones en is dus geen verplaatsing maar een structuurwijziging.
+De balk draagt wel de stand `Niet opgeslagen`, zodat je nooit kwijt bent dát er iets open staat. Wie
+op de chip klikt, springt naar de knop.
 
----
+**Het `⋯`-menu** draagt alles wat nu boven de tekst staat: de drie kopieervormen met hun uitleg per
+regel, de twee downloads, de schema-markup, de sjabloonexport en "Hoe zet je dit op je site?". De
+uitleg blijft in het menu zichtbaar staan en gaat niet achter een vraagteken: dat besluit van
+16 september 2026 gold de zichtbaarheid van de reden, niet de zichtbaarheid van het menu.
 
-## 3. De nieuwe indeling
+**De publicatieactie** is de enige `btn-accent` op het scherm. Nog niet gepubliceerd: een URL-veld
+dat uitklapt, daarna de bevestiging in twee stappen die er nu ook is. Al gepubliceerd: de link, de
+uitslag van de controle, en "Toch niet gepubliceerd" in het menu.
 
-### 3.1 Drie zones in plaats van twintig blokken
+**De bevestigingsstap noemt wat er nog openstaat.** Nu herhaalt hij alleen de link en zegt hij dat
+er twee hermetingen ingepland worden. Hij zegt er voortaan bij wat er tegenhoudt:
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│  A. VASTE BOVENBALK (sticky, 56px)                                  │
-│  ‹ terug   Titel van de pagina   [Concept]        [⋯]  [Zet live ▸] │
-├──────────────────────────────────────────┬──────────────────────────┤
-│                                          │                          │
-│  B. HET CANVAS (max 720px tekstbreedte)  │  C. DE CONTEXTRAIL       │
-│                                          │     (340px, sticky)      │
-│  De tekst, direct bewerkbaar.            │                          │
-│  Titel, artikel, FAQ, meta.              │  ▸ Kwaliteit             │
-│  Eén oppervlak, geen tweede kopie.       │  ▸ Waarop dit rust       │
-│                                          │  ▸ Waarom deze pagina    │
-│                                          │  ▸ Versies               │
-│                                          │                          │
-└──────────────────────────────────────────┴──────────────────────────┘
-```
+> Er staan nog 3 punten open die publicatie tegenhouden. Weet je zeker dat deze pagina live staat?
 
-De pagina blijft in de stand `werken` (1440px, `docs/designsystem.md` §8). Dat geeft 1040px voor
-het canvas en 340px voor de rail, met 24px ertussen en de marges van de werkruimte eromheen. In het
-canvas blijft de tekst zelf op 720px, dezelfde maat als de stand `lezen`, want een regel van 1000px
-leest niet.
-
-**Onder 1280px valt de rail weg als kolom en wordt hij een lade.** `components/drawer.tsx` bestaat
-al, schuift op een telefoon van onderen in plaats van rechts, en vangt Escape af. De knop ervoor
-staat in de bovenbalk, met het aantal blokkades erop: "Kwaliteit (3)". Zo is er geen tweede
-uitklappatroon nodig naast wat de app al kent.
-
-**Geen tabbladen.** `docs/logbook.md` §32 legde vast dat deze pagina één doorlopende scroll blijft.
-Dat blijft zo binnen het canvas: de rail ernaast is geen tabblad maar een tweede kolom, en op smalle
-schermen een lade. De volgorde van de leesstof verandert niet, alleen de plaats.
-
-### 3.2 Zone A, de vaste bovenbalk
-
-Het patroon bestaat al: `app/(app)/analyses/[id]/_editors/confirm-bar.tsx` is een vaste balk over de
-volle breedte, dekkend en zonder `backdrop-filter`, gebouwd omdat de enige handeling waar de app op
-wacht onderaan een tabblad stond. Dit is hetzelfde probleem, dus dezelfde oplossing.
-
-Wat erin staat, van links naar rechts:
-
-1. **Terug**, naar waar je vandaan kwam (`lib/origin.ts`, ongewijzigd).
-2. **De paginatitel**, afgekapt op één regel.
-3. **De status als chip**: `Concept`, `Concept opgeslagen`, `Live sinds 12 september`. Statuskleur
-   plus vorm, nooit kleur alleen (`designsystem.md` regel 4).
-4. **Opslaan**, `btn-primary`, alleen zichtbaar zodra er iets veranderd is. Verdwijnt weer na het
-   opslaan.
-5. **Het menu `⋯`**: kopiëren in drie vormen, de twee downloads, de schema-markup, de
-   sjabloonexport, en "Hoe zet je dit op je site?". Dat zijn de zeven knoppen die nu boven de tekst
-   staan.
-6. **De publicatieactie**, `btn-accent`, de enige hoofdactie van het scherm. Nog niet gepubliceerd:
-   een URL-veld dat uitklapt plus "Dit staat live". Al gepubliceerd: de link, de uitslag van de
-   controle, en "Toch niet gepubliceerd" in het `⋯`-menu.
-
-**De twee bevestigingsstappen blijven.** Publiceren zet twee hermetingen in de rij, over twee en
-over vier weken (`publish-box.tsx`). Eén klik die vier weken werk inplant hoort twee klikken te
-zijn, en dat patroon staat verder overal in de app.
-
-**Het kopieermenu houdt zijn uitleg.** Op 16 september 2026 is besloten dat de reden naast de knop
-staat en niet achter een vraagteken, omdat een klant die niet weet wat HTML is anders moet klikken
-om te zien welke rij bij hem hoort. In het menu blijft die regel dus per rij zichtbaar. Wat
-verandert is alleen dat het menu dicht is tot je het nodig hebt.
-
-### 3.3 Zone B, het canvas
-
-Eén oppervlak voor de tekst, waar nu twee staan. Het artikel en de editor worden hetzelfde blok.
-
-- **Altijd bewerkbaar**, geen knop "Tekst bewerken" meer.
-- **De drempel blijft, maar verplaatst.** De waarschuwing dat handmatig werk buiten de
-  schrijfpijplijn omgaat (punt 13, 16 september 2026) verschijnt bij de eerste toetsaanslag, als
-  een regel boven het canvas met één knop "Ik houd het zelf in de gaten". Daarna is hij weg voor
-  deze pagina. Wat de drempel moest voorkomen, blijft voorkomen: niemand typt erin zonder het
-  gelezen te hebben.
-- **Het conflictslot blijft ongewijzigd.** De PATCH-route vergelijkt `updated_at` bij het schrijven
-  (migratie 0100). Wel nodig bij een altijd-open canvas: het slot moet nu vaker aan bod komen, dus
-  het canvas houdt de laatst bekende `updated_at` bij en toont bij een 409 dezelfde kop als nu
-  ("Iemand anders was je voor").
-- **Titel, meta-title, meta-description en FAQ** staan onder de tekst in een ingeklapte sectie
-  "Titel en zoekresultaat", met het zoekresultaat-voorbeeld (`SearchPreview`) erin. Nu staat dat
-  voorbeeld twee keer op de pagina: statisch boven het artikel en live in de editor.
-- **De inhoudsopgave** (`TableOfContents`) verhuist naar de bovenkant van de rail, want daar hoort
-  navigatie en niet in de leeskolom.
-
-### 3.4 Zone C, de contextrail
-
-Vier ingeklapte secties (`CollapsibleSection`, bestaat al), met de belangrijkste open bij binnenkomst.
-
-**1. Kwaliteit.** Hierin zit de grootste winst van het hele voorstel, en het kost geen nieuwe data.
-
-De pagina toont nu `piece.review_notes`, een platte lijst tekstregels. Maar `quality_json` bewaart
-diezelfde bevindingen al mét structuur (`lib/pipeline/quality-issue.ts`): per bevinding een ernst
-(`blokkerend`, `hoog`, `midden`, `laag`), een dimensie, de sectie waar het over gaat, het bewijs,
-wat er had moeten staan, en de aanbeveling. `issuesUitJson()` leest dat, en `page.tsx` roept die
-functie al aan voor de klantzin. De lijst van 45 tot 96 regels wordt dus:
-
-```
-Kwaliteit                      68/100
-────────────────────────────────────
-Houdt publicatie tegen     3
-  ▸ In "Wat kost een dakkapel"
-    Er staat een prijs die nergens
-    uit het onderzoek komt.
-    → Haal het bedrag weg of
-      onderbouw het.
-    [Ga naar deze sectie]  [Laat ORBIT ENGINE dit oplossen]
-
-Kan beter                  11   ▸
-Klein                      54   ▸
-```
-
-Drie dingen die nu niet kunnen en dan wel:
-
-- **Wat publicatie tegenhoudt, staat bovenaan en apart.** Nu staat een blokkade tussen 90 andere
-  regels, en het scherm zegt nergens welke van de regels de blokkade is.
-- **"Ga naar deze sectie" springt naar de plek in het canvas.** De bevinding draagt al een veld
-  `section` met de kop waar het over gaat, en `renderMarkdown()` zet al een `id` op elke kop met
-  hetzelfde ontdubbelalgoritme als `extractHeadings()`. De koppeling is er dus al, hij wordt alleen
-  niet gebruikt.
-- **"Laat ORBIT ENGINE dit oplossen" vult het bestaande herschrijfvak.** Het veld `recommendation`
-  is letterlijk de tekst die het reparatiemodel als opdracht krijgt. Die knop zet hem in het
-  notitieveld van `ReviseBox` en scrollt daarheen, meer niet: dezelfde route, dezelfde poort,
-  dezelfde nieuwe versie.
-
-**2. Waarop dit rust.** `ReleasePanel` ongewijzigd van inhoud, ingeklapt: de bevestigde feiten met
-hun F-nummer, de zinnen zonder bron, de verboden feiten, en de openstaande verplichte vragen. De
-kop krijgt de samenvatting die er nu niet staat: "12 van de 14 beweringen zijn onderbouwd". De twee
-zinnen zonder bron zijn wat iemand zoekt, niet de twaalf die goed zijn.
-
-**3. Waarom deze pagina.** `WhyThisPage` en `ImprovementList` samen in één sectie, ingeklapt: de
-doelvragen, het cluster, de potentie, de schrijfopdracht en (bij een verbetering) wat er verandert
-ten opzichte van de bestaande pagina.
-
-**4. Versies.** De versiegeschiedenis met de diff, ongewijzigd, ingeklapt. De diff blijft een eigen
-lazy route, want de versiequery is bewust smal en haalt de teksten niet op.
-
-**De interne kwaliteitsanalyse** (`QualityInternalPanel`) blijft precies waar hij hoort: alleen voor
-een beheerder, onderin de rail, met dezelfde `isStaff()`-controle. Die cookie kan rechten wegnemen
-en nooit geven, en dat blijft zo.
+Dit is de rem die hoort bij een knop die van een kaart naar een altijd zichtbare balk verhuist. De
+knop wordt niet geblokkeerd: de klant weet zelf of de pagina op zijn site staat, en de app hoort dat
+niet te overrulen. Hij mag het alleen niet verzwijgen.
 
 ---
 
-## 4. De flow, van binnenkomst tot publicatie
+## 5. Zone B, het canvas
 
-1. **Binnenkomst.** Je ziet de titel, de status, en de tekst. Rechts staat één regel die zegt of
-   deze pagina de deur uit kan, met daaronder wat dat tegenhoudt. Dat is de vraag waarmee iemand dit
-   scherm opent.
-2. **Beoordelen.** Je leest de tekst in de leeskolom. Wil je weten waar een bewering vandaan komt,
-   dan klap je "Waarop dit rust" open. Dat is een keuze, geen scrollafstand.
-3. **Verbeteren, klein.** Je typt in de tekst. Bij de eerste aanslag verschijnt de waarschuwing dat
-   dit buiten de pijplijn omgaat. In de balk verschijnt "Opslaan".
-4. **Verbeteren, groot.** Bij een bevinding klik je "Laat ORBIT ENGINE dit oplossen", je vult
-   eventueel aan wat er anders moet, en er komt een nieuwe versie. De oude blijft staan.
-5. **Publiceren.** Je zet de pagina op je site, plakt de link in de balk, bevestigt, en ORBIT
-   ENGINE controleert of de tekst er echt op staat. De status in de balk springt op `Live`.
-6. **Daarna.** De balk zegt wat er gaat gebeuren: hermeten over twee en over vier weken, want
-   AI-assistenten pikken nieuwe content niet dezelfde dag op.
+Eén oppervlak voor de tekst, waar er nu twee zijn. Vier dingen die de vorige versie van dit plan
+niet had opgelost en die bij een altijd-open canvas wél opgelost moeten zijn.
 
-Publiceren blijft dus binnen handbereik vanaf stap 1, wat op 27 augustus 2026 de reden was om het
-publicatieblok van plek acht naar boven te halen. Het verschil is dat het nu niet meer meescrollt
-uit beeld.
+### 5.1 De drempel blijft, maar verplaatst
+
+De waarschuwing dat handmatig werk buiten de schrijfpijplijn omgaat, verschijnt bij de eerste
+toetsaanslag in plaats van vóór het openen, met één knop om door te gaan. Daarna is hij weg voor deze
+pagina. Wat hij moest voorkomen blijft voorkomen: niemand typt erin zonder het gelezen te hebben.
+
+### 5.2 Het canvas mag niet stil uit de pas lopen
+
+`ContentEditor` vult zijn velden één keer bij het monteren en vergelijkt daarna met de verse
+serverwaarde. Zolang de editor na elk opslaan dichtklapt, valt dat niet op. Bij een canvas dat altijd
+open staat wel, en op een vervelende manier: als een verversing van elders nieuwe tekst binnenhaalt,
+zegt het scherm "je hebt wijzigingen" over tekst die de gebruiker nooit getypt heeft.
+
+**De oplossing is een expliciete vergelijking op drie standen**, en niet een `key` op de component,
+want dat gooit onopgeslagen werk weg:
+
+```
+serverversie veranderd?   lokaal onopgeslagen werk?   wat er gebeurt
+nee                       ja of nee                   niets
+ja                        nee                         het canvas neemt de nieuwe tekst over
+ja                        ja                          een balk boven het canvas: "Er is een nieuwe
+                                                      versie. [Toon het verschil] [Neem over]
+                                                      [Houd mijn tekst]"
+```
+
+Dat derde geval is precies de situatie die de herschrijfroute zelf aanmaakt, en het is de reden dat
+`VersionDiff` al bestaat. De keuze blijft bij de gebruiker en de app gooit nooit ongevraagd werk weg.
+
+### 5.3 Ankers komen uit de tekst die op het scherm staat
+
+"Ga naar deze sectie" in de rail leunt op de `id`'s die `renderMarkdown()` op koppen zet, en die
+worden op de server uit de opgeslagen tekst berekend. Zodra iemand een kop wijzigt zonder op te
+slaan, wijst de rail naar een anker dat niet meer bestaat.
+
+Het canvas berekent zijn koppen daarom zelf uit de tekst die er op dat moment staat, met dezelfde
+functie die de server gebruikt (`extractHeadings()`, al geëxporteerd, met hetzelfde
+ontdubbelalgoritme). Vindt een bevinding zijn sectie niet meer terug, dan verdwijnt de knop en komt
+er "deze kop bestaat niet meer" te staan. Dat is eerlijker dan een knop die niets doet, en het is de
+toepassing van conventie 3 op een anker.
+
+### 5.4 Het canvas weet wanneer ORBIT ENGINE zelf aan het schrijven is
+
+Een herschrijfjob levert een nieuwe rij met een nieuw `pieceId` op. Wie in de oude zit te typen,
+verliest zijn werk zodra hij doorklikt. De rij `jobs` staat op deny-all in RLS, dus dit volgt het
+bestaande patroon: een route met de service-role sleutel en een expliciete eigenaarscontrole, zoals
+`app/api/analyses/[id]/status/route.ts` dat al doet.
+
+Loopt er een job voor dit stuk, dan zegt de statuschip dat, staat er een regel boven het canvas, en
+is de knop "nog een versie laten schrijven" uit. Het canvas blijft bewerkbaar: iemand die nu een
+typefout ziet, mag hem herstellen. Is de nieuwe versie klaar, dan komt de balk uit §5.2 in beeld
+met de keuze en het verschil.
+
+### 5.5 De metavelden
+
+Titel, meta-title, meta-description en FAQ komen onder de tekst in een ingeklapte sectie "Titel en
+zoekresultaat", met het zoekresultaat-voorbeeld erin. Dat voorbeeld staat nu twee keer op de pagina.
 
 ---
 
-## 5. Wat samengaat, wat weggaat, wat dichtgaat
+## 6. Zone C, de contextrail
 
-| Element | Wordt |
+Vier secties. "Kwaliteit" staat open bij binnenkomst, de andere drie dicht. Dat wordt expliciet
+meegegeven met `defaultOpen`, want `CollapsibleSection` klapt vanaf 1024px uit zichzelf alles open
+en dat zou de rail terugveranderen in de lange lijst waar dit plan vanaf wil.
+
+### 6.1 Kwaliteit, met de reparatie erbij
+
+De kop draagt de klantzin die er al is, plus het cijfer. Daaronder drie groepen, en de derde is
+nieuw en is het punt van §2:
+
+```
+Kwaliteit                                          68/100
+──────────────────────────────────────────────────────────
+ORBIT ENGINE heeft deze pagina zelf twee keer bijgewerkt.
+Dit bleef staan.
+
+▾ Houdt publicatie tegen                                3
+    In "Wat kost een dakkapel"
+    Er staat een prijs die nergens uit het onderzoek komt.
+    → Haal het bedrag weg, of onderbouw het.
+    ORBIT ENGINE heeft dit geprobeerd en kreeg het niet opgelost.
+    [Ga naar deze sectie]   [Laat het nog eens proberen]
+
+▸ ORBIT ENGINE probeerde dit, zonder resultaat                7
+▸ Hier is ORBIT ENGINE niet aan toegekomen                   54
+```
+
+**Hoe de derde groep tot stand komt zonder nieuwe data.** `prioriteerBevindingen()` is puur en
+deterministisch: dezelfde bevindingen in dezelfde volgorde leveren dezelfde tien op. Het scherm
+draait die functie opnieuw over de bevindingen van de laatste ronde en weet daarmee welke tien de
+reparatie meekreeg. Wat erbuiten viel, is "niet aan toegekomen".
+
+⚠️ **Dit moet als eerste tegen echte data nagerekend worden** (conventie 10), want het rust op de
+aanname dat de bewaarde bevindingen dezelfde lijst zijn als de lijst die destijds de reparatie in
+ging. Klopt dat niet, dan is het alternatief een additieve kolom die per ronde bewaart welke
+bevindingen meegingen, en dan is de groepering alsnog exact in plaats van afgeleid. Liever die
+migratie dan een groep die er bijna klopt: een gebruiker die leest "hier is ORBIT ENGINE niet aan
+toegekomen" terwijl het wel geprobeerd is, wordt op het verkeerde been gezet over de betrouwbaarheid
+van zijn eigen tekst.
+
+**Per bevinding** staat er wat er gevonden is, waar het over gaat en wat eraan te doen is. Het
+bewijs (een citaat, een F-nummer) staat er ingeklapt onder. De knop "Laat het nog eens proberen"
+zet de aanbeveling in het bestaande herschrijfvak, langs dezelfde route en dezelfde poort. Er komt
+geen nieuw jobtype bij, zie §8.
+
+**De blokkades zijn nooit ingeklapt.** Een punt dat publicatie tegenhoudt, hoort niet achter een
+trede te staan, ongeacht hoeveel het er zijn.
+
+### 6.2 Waarop dit rust
+
+Het vrijgavepaneel, ongewijzigd van inhoud, met de samenvatting in de kop: "12 van de 14 beweringen
+zijn onderbouwd". De twee zonder bron zijn wat iemand zoekt, niet de twaalf die goed zijn. De
+openstaande verplichte vragen blijven erin staan, want dat is de enige plek waar de klant ziet dat
+zíjn antwoord de tekst beter maakt.
+
+### 6.3 Waarom deze pagina
+
+"Waarom deze pagina" en "Wat er verandert aan de bestaande pagina" samen in één ingeklapte sectie:
+de doelvragen, het cluster, de potentie en de schrijfopdracht.
+
+### 6.4 Versies
+
+De versiegeschiedenis met de diff, ongewijzigd, ingeklapt, met het versienummer in de kop. De diff
+blijft een eigen lazy route, want de versiequery is bewust smal.
+
+**De waarschuwing "dit is een oudere versie" gaat niet mee de rail in.** Die blijft staan waar hij
+nu staat, pal onder de titel, en wordt bovendien een stand van de statuschip. Bij een canvas dat
+altijd bewerkbaar is, is het bewerken van een vervangen versie de duurste vergissing die dit scherm
+kan uitlokken, en de herschrijfroute produceert die situatie voortdurend.
+
+### 6.5 De interne analyse
+
+`QualityInternalPanel` blijft onderin de rail, achter dezelfde `isStaff()`-controle. Die cookie kan
+rechten wegnemen en nooit geven, en dat blijft zo.
+
+---
+
+## 7. De flow
+
+1. **Binnenkomst.** Titel, status, tekst. Rechts één zin die zegt of deze pagina de deur uit kan,
+   met daaronder wat dat tegenhoudt en wat de app zelf al geprobeerd heeft.
+2. **Beoordelen.** Je leest de tekst. Wil je weten waar een bewering vandaan komt, dan klap je
+   "Waarop dit rust" open.
+3. **Klein bijschaven.** Je typt in de tekst. Bij de eerste aanslag verschijnt de waarschuwing. De
+   chip springt op `Niet opgeslagen`.
+4. **Groot laten aanpassen.** Bij een bevinding klik je "Laat het nog eens proberen". De chip
+   springt op `ORBIT ENGINE schrijft`. Je kunt het scherm sluiten.
+5. **De nieuwe versie komt binnen.** Je krijgt de keuze: het verschil bekijken, overnemen, of je
+   eigen tekst houden.
+6. **Publiceren.** Je zet de pagina op je site, plakt de link in de balk, en krijgt te zien wat er
+   eventueel nog openstaat voordat je bevestigt. Daarna controleert ORBIT ENGINE of de tekst er echt
+   op staat.
+7. **Daarna.** Hermeten over twee en over vier weken, want AI-assistenten pikken nieuwe content niet
+   dezelfde dag op.
+
+---
+
+## 8. Wat dit plan niet bouwt, en waarom
+
+### 8.1 Geen selectie-assistent met een eigen jobtype
+
+De oorspronkelijke opdracht vroeg om een zwevend menu bij een tekstselectie waarmee de AI dat stukje
+herschrijft. Dat is uit dit plan gehaald, en niet om de kosten.
+
+De reden is de gemeten kwaliteit. Fijner knippen is in dit systeem twee keer eerder geprobeerd en
+werd twee keer slechter. De reparatielus liep 67, 74, 68, 48: elke ronde die alles tegelijk
+probeerde op te lossen maakte de tekst slechter, en de lus stopt daarom nu zodra hij niet meer
+verbetert. Met 119 opdrachten over 25 secties was er niets gerichts meer aan een "gerichte
+sectiereparatie", en de uitvoer werd groter dan die van het schrijven zelf. Een fragment is nóg
+kleiner, en de vaste context (systeemprompt, feitenkaart, briefing) krimpt niet mee.
+
+Daar komt bij dat de belofte "dezelfde controles als de pijplijn" niet waar te maken was zoals hij
+er stond. Vier controles zijn puur en werken op losse tekst, maar de dekkingspoort in
+`checkContentGate()` rekent over de hele pagina en gebruikt de opening als norm. Een fragment uit
+sectie drie zou daar op de verkeerde grond slagen of zakken.
+
+**Wat er in de plaats komt** is de knop per bevinding uit §6.1: dezelfde route, dezelfde poort,
+dezelfde nieuwe versie, met de aanbeveling die het reparatiemodel toch al als opdracht kreeg. De
+mens zegt wat er moet gebeuren, de bestaande keten doet het, en het resultaat is een versie waar je
+vanaf kunt.
+
+**Wat de deur openhoudt.** Wil je die selectie-assistent later alsnog, dan is dit de volgorde die
+hem verdedigbaar maakt, en geen enkele stap daarvan is duur: (1) splits `checkContentGate()` in een
+paginabrede helft en een positie-onafhankelijke helft, zodat "het deel dat op een fragment werkt"
+een echte functie is; (2) laat een fragmentresultaat nooit stil landen maar altijd als voorstel dat
+de gebruiker aanvaardt; (3) draai na het invoegen de paginabrede controles opnieuw over de hele
+tekst, wat deterministisch is en niets kost; (4) meet op tien echte pagina's of de tekst er beter
+van wordt, met dezelfde meetlat als de reparatielus. Slaagt (4) niet, dan is het antwoord nee, en
+dan is dat een antwoord met cijfers in plaats van een gevoel.
+
+### 8.2 Geen rijke editor, tot de proef slaagt
+
+Markdown blijft de brontekst. `lib/markdown.ts` is een eigen renderer die eerst escapet en daarna
+pas opmaakt, en `content-export.ts` hergebruikt diezelfde `inline()` voor de CMS-export. Er is dus
+precies één plek die bepaalt hoe `**vet**` eruitkomt. Een tweede maakt het mogelijk dat wat de klant
+op zijn site plakt afwijkt van wat hij op het scherm zag, en dat is bij tekst die onder zijn naam
+gepubliceerd wordt het duurste soort verrassing.
+
+**De proef die dat besluit mag omkeren**, en die met alle tijd van de wereld gewoon te bouwen is:
+een script in `scripts/` dat alle opgeslagen `body_markdown` uit `content_pieces` haalt, ze door de
+kandidaat-editor laat inlezen en weer wegschrijven, en teken voor teken vergelijkt. Daarnaast legt
+hetzelfde script de HTML van de editor naast die van `renderMarkdown()` en naast de CMS-export.
+Komt daar geen enkel verschil uit, dan is het bezwaar weg en is Tiptap met een markdown-serializer
+de beste kandidaat, juist omdat je markdown kunt blijven opslaan. Komt er wel verschil uit, dan is
+de vraag welke pagina's stukgaan en waarom, en dat is het moment om te beslissen.
+
+**Wat het canvas nu al aan gevoel wint zonder die proef**: een tekstvak dat meegroeit met zijn
+inhoud, de tekst in de leesletter in plaats van in mono, de koppen op hun eigen grootte, en de
+volledige breedte van de leeskolom. Dat is het verschil tussen een formulierveld en een document,
+en het raakt het opslagformaat niet.
+
+---
+
+## 9. Wat samengaat, wat weggaat, wat dichtgaat
+
+| Nu | Wordt |
 |---|---|
 | Artikel (blok 12) en `ContentEditor` (blok 18) | Eén canvas |
 | `SearchPreview` twee keer | Eén keer, in "Titel en zoekresultaat" |
-| 7 export- en kopieerknoppen bovenaan | Eén `⋯`-menu in de balk, met de uitleg per rij erin |
-| `PublishBox` als kaart | De rechterkant van de vaste balk |
+| Zeven export- en kopieerknoppen bovenaan | Eén `⋯`-menu, met de uitleg per regel erin |
+| `PublishBox` als kaart | De rechterkant van de actiebalk |
 | Kaart "Hoe zet je dit op je site?" | Regel in het `⋯`-menu |
-| "Kijk hier even naar", 45 tot 96 regels | Kwaliteit in de rail, gegroepeerd op ernst, blokkades open |
-| De losse regel met kwaliteit, dekking en woorden | De kop van de kwaliteitssectie en de kop van "Waarop dit rust" |
-| `WhyThisPage` plus `ImprovementList` | Eén ingeklapte sectie in de rail |
+| "Kijk hier even naar", 45 tot 96 regels | Drie groepen in de rail, blokkades altijd open |
+| De losse regel met kwaliteit, dekking en woorden | De koppen van "Kwaliteit" en "Waarop dit rust" |
+| `WhyThisPage` plus `ImprovementList` | Eén ingeklapte sectie |
 | `TableOfContents` boven het artikel | Bovenaan de rail |
 | Versiegeschiedenis onderaan | Ingeklapte sectie in de rail |
 | Knop "Tekst bewerken" plus drempelscherm | Weg als knop, de waarschuwing blijft bij de eerste aanslag |
-| `QualityPanel` (de klantzin) | Blijft, als kop van de kwaliteitssectie |
+| "Dit is een oudere versie" | Blijft bij de titel, én wordt een stand van de statuschip |
 
 **Niets van de inhoud verdwijnt.** Elk cijfer, elke bevinding en elk feit dat er nu staat, staat er
-na de verbouwing nog. Wat verandert is hoeveel je ervan tegelijk ziet.
+na de verbouwing nog. Wat verandert is hoeveel je er tegelijk van ziet, en wat erbij staat.
 
 ---
 
-## 6. Wat te bouwen, in vier fases
+## 10. De bouwvolgorde
 
-### Fase 1, de indeling (geen nieuwe data, geen migratie, geen AI)
+### Stap 0, tellen voordat we bouwen
 
-1. `ContentLayout`: de driezone-wikkel met de rail, de lade onder 1280px, en de vaste balk.
-2. `ContentTopbar`: terug, titel, statuschip, opslaan, het `⋯`-menu, de publicatieactie. `PublishBox`
-   gaat er als kind in, zijn logica verandert niet.
-3. `ContentActions` verhuist ongewijzigd naar het menu.
-4. `ContextRail`: vier `CollapsibleSection`s om de bestaande panelen heen.
-5. `page.tsx` valt terug van twintig blokken naar drie zones. De queries blijven gelijk.
+Haal uit productie: hoeveel contentpagina's er zijn, hoeveel er gepubliceerd zijn, hoeveel er door
+een gebruiker bewerkt zijn (`edited_by_user`), en hoeveel er `quality_json` hebben (alles van vóór
+migratie 0091 heeft dat niet). Vier getallen, één query.
 
-Alles wat hier gebeurt is verplaatsen. Dat is het grootste deel van de winst en het kleinste deel
-van het risico.
+Ze bepalen twee dingen. Is `edited_by_user` vrijwel nul, dan is dit scherm nog nooit echt gebruikt
+en is dit plan een verbetering vooraf in plaats van een reparatie achteraf; dat verandert niets aan
+wat we bouwen, wel aan wat we erover beweren. En is het aandeel zonder `quality_json` groot, dan is
+de terugval uit §10.2 geen randgeval maar de hoofdweg.
 
-### Fase 2, het canvas en de kwaliteitslijst
+### Stap 1, de indeling
 
-6. `ContentCanvas`: `ContentEditor` altijd open, de drempel bij de eerste aanslag, het conflictslot
-   ongewijzigd, de metavelden ingeklapt eronder.
-7. `QualityFindings`: bevindingen uit `quality_json`, gegroepeerd op ernst, blokkades open, de rest
-   dicht, met "Ga naar deze sectie" en "Laat ORBIT ENGINE dit oplossen".
-8. Terugval voor pagina's zonder `quality_json` (alles van vóór migratie 0091): dan blijft de
-   huidige lijst uit `review_notes` staan. Niets breekt, en de oude pagina's tonen wat ze altijd
-   toonden.
+`ContentLayout` (de drie zones, de containerquery, de lade), `ContentTopbar` (terug, titel,
+statuschip, `⋯`-menu, publiceren, met `PublishBox` als kind), `ContextRail` (vier
+`CollapsibleSection`s om de bestaande panelen). `page.tsx` valt terug van twintig blokken naar drie
+zones, de queries blijven gelijk.
 
-Tests: het groeperen en aftoppen van bevindingen is pure rekenkunde en hoort in `scripts/test-unit.ts`
-(conventie 2). Minstens: blokkades altijd zichtbaar, ontdubbeling over dezelfde sectie, en een lege
-`quality_json` levert de terugval.
+Dit is verplaatsen, nu ook echt: opslaan blijft waar het hoort en er komt geen gedeelde toestand
+tussen zones bij.
 
-### Fase 3, de selectie-assistent (vraagt eerst een besluit)
+### Stap 2, de kwaliteitsgroepen
 
-Dit is de inline AI uit de opdracht. Hij kan, maar niet als de chatassistent die in §32 geschrapt
-is, en het verschil moet in de bouw zitten en niet in de belofte.
+`QualityFindings`: bevindingen uit `quality_json`, drie groepen, blokkades open, bewijs ingeklapt,
+"Ga naar deze sectie" en "Laat het nog eens proberen". Eerst de controle uit §6.1 of de derde groep
+uit de bestaande data af te leiden is; zo niet, dan de additieve kolom.
 
-- **Eigen jobtype, geen uitbreiding van het herschrijven** (conventie 7). Een fragment herschrijven
-  is een andere taak dan een pagina herschrijven.
-- **Vier vaste opdrachten plus een vrij veld**: inkorten, uitbreiden, concreter maken, toon
-  aanpassen. Vaste opdrachten zijn te testen, een open chat niet.
-- **De uitkomst gaat langs dezelfde controles als de pijplijn** voordat hij in de tekst komt:
-  `checkTabooWords()` en het deel van `checkContentGate()` dat op een fragment werkt. Faalt dat, dan
-  wordt er niets vervangen en staat er waarom. Dat is precies het bezwaar uit §32, en dit is de
-  enige vorm waarin dat bezwaar wegvalt.
-- **De ruwe JSON gaat naar `ai_calls`**, zoals elke andere aanroep (conventie 8).
-- **De kosten moeten eerst gemeten worden** (conventie 10). Wat we weten: op 3 september 2026
-  kostten 16 herschrijfaanroepen samen $3,3252, dus $0,2078 per stuk, en het schrijven was 86% van
-  de rekening van twaalf pagina's. Een fragment is korter, maar tien selecties per pagina is tien
-  aanroepen waar er nu één staat. Voor het aangaat: één pagina echt doorlopen, de werkelijke prijs
-  per fragment uit `ai_calls` aflezen, en pas dan besluiten op welke tier hij draait.
+Terugval voor pagina's zonder `quality_json`: de huidige lijst uit `review_notes` blijft staan.
 
-**De zwevende werkbalk bij een selectie** is boven een tekstvak lastiger dan boven een rijke editor,
-omdat een `textarea` geen positie per teken geeft. Twee uitwegen, in volgorde van voorkeur: de balk
-verschijnt vast onder het canvas zolang er iets geselecteerd is ("3 zinnen geselecteerd"), of het
-canvas wordt fase 4 en dan kan de balk wel zweven. De eerste kost niets en werkt op een telefoon
-beter, want daar is een zwevende popover boven een toetsenbord sowieso een probleem.
+Tests in `test-unit.ts`: de groepering, de aftopping, de ontdubbeling over dezelfde sectie, een lege
+`quality_json`, en vooral de derde groep tegen een vastgelegde echte bevindingenlijst.
 
-### Fase 4, een rijke editor (alleen na een geslaagde proef)
+### Stap 3, het canvas
 
-Als de markdown-editor uiteindelijk toch moet wijken voor een Canvas-achtige ervaring, dan is dat
-een omkering van een vastgelegd besluit, en die hoort te rusten op een proef en niet op een gevoel.
+`ContentCanvas`: altijd open, de drempel bij de eerste aanslag, de driestandenvergelijking uit §5.2,
+de ankers uit §5.3, de metavelden ingeklapt eronder. Het conflictslot op de server blijft ongewijzigd
+en krijgt er een ketentest bij, want het komt vaker in beeld zodra bewerken de standaard is.
 
-**De proef**: neem alle opgeslagen `body_markdown` uit `content_pieces`, laat de kandidaat-editor ze
-inlezen en weer wegschrijven, en vergelijk. De eis is dat de tekst er teken voor teken hetzelfde
-uitkomt. Haalt hij dat niet op alles, dan is de vraag welke pagina's stukgaan en waarom, en dat is
-het moment om te besluiten, niet eerder. Diezelfde proef moet ook `renderMarkdown()` en de
-CMS-export ernaast leggen: wat de klant in zijn CMS plakt, moet zijn wat hij op het scherm zag.
+### Stap 4, de derde route
 
-Tot die proef er is, blijft markdown de brontekst.
+De jobstand voor dit stuk, de zesde stand van de statuschip, de balk "er is een nieuwe versie" met
+het verschil en de keuze, en het uitzetten van de herschrijfknop zolang er een job loopt. Scenario
+in `test-chain.ts`: herschrijven, nieuwe versie, en de keuze allebei op.
+
+### Stap 5, de rem op publiceren
+
+De blokkades in de bevestigingsstap, uit dezelfde bron als de rail zodat er nooit twee tellingen
+naast elkaar staan.
+
+### Stap 6, het gevoel
+
+Het meegroeiende tekstvak, de leesletter, de koppen op grootte. Pas hier, want dit is de enige stap
+die niets kapot kan maken en dus het minst gebaat is bij vroege aandacht.
+
+### Daarna, de open besluiten
+
+De proef uit §8.2, en pas bij een geslaagde uitkomst de vraag over een rijke editor. De vier stappen
+uit §8.1 als de selectie-assistent alsnog gewenst is.
 
 ---
 
-## 7. Advies over bibliotheken
+## 11. Verificatie
 
-**Kort: niets toevoegen voor fase 1 en 2.** De app heeft elf runtime-afhankelijkheden en een eigen
-ontwerpsysteem met eigen primitieven. Alles wat dit herontwerp nodig heeft, bestaat al:
-
-| Nodig | Al aanwezig |
-|---|---|
-| Vaste actiebalk | Het patroon van `ConfirmBar` |
-| Zijpaneel op smal scherm | `components/drawer.tsx`, inclusief Escape en het blad op mobiel |
-| Inklapbare secties | `components/collapsible-section.tsx` |
-| Bevestiging in twee stappen | Het patroon van `PublishBox` en `RerunResearchButton` |
-| Chips, kaarten, knoppen, velden | `designsystem.md` §9 |
-| Iconen | `lib/icons.ts` via `components/icon.tsx` |
-
-**Shadcn UI: niet doen.** Dat is een set componenten met een eigen vormtaal die je in je project
-kopieert. Dit project heeft die laag al, met eigen tokens, eigen radii en negen vastgelegde regels.
-Een tweede set ernaast levert twee soorten knop op, en dan is het ontwerpsysteem geen systeem meer.
-
-**Radix UI: hooguit één primitief, en pas in fase 3.** Als de selectie-werkbalk echt moet zweven,
-is `@radix-ui/react-popover` het stuk dat je zelf niet beter schrijft (positioneren, focus, Escape,
-schermlezers). Dat is één pakket voor één probleem, en pas op het moment dat dat probleem er is.
-Voor het `⋯`-menu in fase 1 is `@radix-ui/react-dropdown-menu` verdedigbaar, maar een `<details>`
-met een paar regels CSS doet daar hetzelfde en voegt niets toe aan de installatie.
-
-**Tiptap of ProseMirror: alleen als de proef van fase 4 slaagt.** Een rijke editor is niet duur in
-installatie, hij is duur in wat hij met het opslagformaat doet. Slaagt de proef, dan is Tiptap met
-een markdown-serializer de beste kandidaat, juist omdat je markdown kunt blijven opslaan. Slaagt hij
-niet, dan is de winst van een mooiere editor kleiner dan de kans dat een klant iets anders
-publiceert dan hij zag.
-
-**Wat wel meteen helpt zonder pakket**: een `textarea` die meegroeit met zijn inhoud, en de tekst in
-de leesletter in plaats van in mono. Dat is het verschil tussen "een formulierveld" en "een
-document" voor de helft van het gevoel en nul afhankelijkheden.
+- Vóór elke commit: `tsc --noEmit`, `test:unit`, `test:chain`, `build`, alle vier groen.
+- Na stap 1: één echte pagina openen bij een uitgeklapte zijbalk, bij een ingeklapte zijbalk, op
+  1280 en op een telefoon. De rail hoort te verschijnen en te verdwijnen op het moment dat de
+  beschikbare breedte 1064px passeert, niet op een vast vensterformaat.
+- Na stap 2: tegen een echte pagina met blokkades nakijken dat de drie groepen kloppen, en dat "Ga
+  naar deze sectie" op de juiste kop uitkomt. Vergelijk de derde groep met de bewaarde rondes in
+  `content_quality_runs`.
+- Na stap 3: een kop hernoemen zonder op te slaan, en controleren dat de rail dat eerlijk meldt in
+  plaats van een dode knop te tonen.
+- Na stap 4: een herschrijving starten, doortypen, en controleren dat er niets verloren gaat.
+- Verandert het gedrag, dan gaat er een alinea met datum en cijfer onderaan `docs/logbook.md`, komt
+  de containerquery in `designsystem.md` §8 te staan, en verdwijnt dit bestand zodra stap 1 tot en
+  met 6 staan en de open besluiten een antwoord hebben.
 
 ---
 
-## 8. Wat dit niet oplost
+## Bijlage A, wat er veranderde ten opzichte van Het originele plan
 
-- **De pagina wordt niet korter voor wie alles wil lezen.** Hij wordt korter voor wie iets wil doen.
-  Dat is de bedoeling, maar het betekent dat de rail bij een pagina met 96 bevindingen nog steeds
-  96 bevindingen bevat, drie regels diep weggeklapt.
-- **De kwaliteitslijst wordt beter leesbaar, niet korter.** Dat 45 tot 96 bevindingen per pagina
-  veel is, is een uitkomst van de keten en geen schermprobleem. Zolang negen controles allemaal hun
-  eigen regels in dezelfde bak gooien, blijft het aantal wat het is.
-- **Fase 3 en 4 staan stil tot de eigenaar besluit.** Ze keren §32 om, en dat is geen ontwerpkeuze
-  maar een productkeuze.
+De Teamsessie van 22 september 2026 leverde vijf bevindingen op die dit plan hebben veranderd, en
+twee die zijn verworpen.
 
----
+**Overgenomen.**
 
-## 9. Volgorde en verificatie
+1. **De derde route kreeg een plek** (§4, §5.4, §6.4). Het originele plan ordende beoordelen en
+   publiceren, maar niet het herschrijven, terwijl juist dat een nieuw adres aanmaakt onder een
+   canvas waarin iemand zit te typen.
+2. **Opslaan gaat niet naar de balk** (§4). "Fase 1 is alleen verplaatsen" klopte niet: de
+   dirty-stand woont in de editor, en hem naar de balk tillen is een structuurwijziging.
+3. **De breedtesom is herrekend** (§3.2). Het originele plan vroeg 1404px waar er 1392px was, en
+   vergat bovendien de zijbalk van 240px. Daarom nu een containerquery op 1064px beschikbare breedte
+   in plaats van een vensterbreedte.
+4. **De actiebalk leende het verkeerde voorbeeld** (§3.3). `ConfirmBar` plakt onderaan; wat onder de
+   bovenbalk moet blijven staan gebruikt `top: var(--header-h)`.
+5. **De selectie-assistent is geschrapt** (§8.1). Niet om de kosten maar om de gemeten kwaliteit:
+   fijner knippen maakte de tekst in dit systeem twee keer slechter, en de belofte "dezelfde
+   controles als de pijplijn" was voor een fragment niet waar te maken.
 
-1. Fase 1 bouwen, en dan één echte pagina uit de bibliotheek openen op een breed scherm, op 1280px
-   en op een telefoon. De vraag die hij moet beantwoorden: staat de publicatieknop altijd in beeld,
-   en is de tekst het eerste wat je ziet.
-2. Fase 2 bouwen, en tegen een echte pagina met blokkades nakijken of de drie die publicatie
-   tegenhouden bovenaan staan en of "Ga naar deze sectie" op de juiste kop uitkomt.
-3. Vóór elke commit de vier controles: `tsc --noEmit`, `test:unit`, `test:chain`, `build`.
-4. Gaat het gedrag echt mee, dan een alinea met datum en cijfer onderaan `docs/logbook.md`, en dit
-   bestand weg zodra fase 1 en 2 staan en fase 3 en 4 een besluit hebben.
+**Verworpen.**
+
+6. **"Het bevindingvolume is een ketenprobleem"** is waar en stond al in het originele plan. Als
+   bevinding voegde het niets toe. Wat er wél uit voortkwam, staat nu in §2 en §6.1: niet het
+   volume aanpakken, maar zichtbaar maken wat de app al geprobeerd heeft.
+7. **"Dit scherm heeft misschien twee publieken"** (klant en prospect tijdens een demo) bleef een
+   open vraag die niet in de code te beantwoorden is. Hij verandert het ontwerp pas als het antwoord
+   ja is, en dan alleen de drempel uit §5.1.
+
+**Nieuw in dit plan, uit de tegenspraak.**
+
+8. **Stap 0, tellen voordat we bouwen** (§10). Niemand in het team had gekeken hoe vaak dit scherm
+   gebruikt wordt. Het logboek noteert drie gepubliceerde pagina's in de hele database. Dat maakt
+   het plan niet verkeerd, maar wel iets anders dan een reparatie van geobserveerde pijn.
+9. **De rem op publiceren** (§4). De knop gaat van een kaart naar een balk die nooit uit beeld is.
+   Het bewijs dat mensen hem niet konden vinden is zwak, dus de bevestiging zegt voortaan wat er nog
+   openstaat.
