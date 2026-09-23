@@ -3,12 +3,17 @@
 > **Status (23 september 2026): plan, er is nog niets van gebouwd.** Opgesteld op verzoek van de
 > eigenaar na een analyse van de code en van productie. Elk cijfer hieronder is die dag nagerekend
 > op de code of op de database (Supabase-project `GEO`), tenzij er "schatting" bij staat.
+>
+> **Besluit van de eigenaar, 23 september 2026:** de copywriterronde van 3 september 2026 (de twaalf
+> pagina's van MJB Dakservice en Fysio Centrum Utrecht, de oordelen van de copywriter en de
+> AI-ronde in `content-reviews/`) is verouderd en telt niet mee. Dit plan gebruikt die ronde nergens:
+> niet als nulmeting, niet om de blinde lezer te ijken en niet als vergelijkingsmateriaal.
 
 ## 0. In het kort
 
 De eigenaar wil weten hoe goed ORBIT ENGINE is in het maken van content op het niveau van een
-professionele copywriter, en waar in de keten de kwaliteit weglekt. Daarvoor lopen we één merk
-helemaal door, van aanmaken tot opgeleverde pagina, via de schermen, met Claude in de rol van
+professionele copywriter, en waar in de keten de kwaliteit weglekt. Daarvoor lopen we één nieuw
+merk helemaal door, van aanmaken tot opgeleverde pagina, via de schermen, met Claude in de rol van
 consultant en van klant. Bij elke stap leggen we vast welke gegevens er ontstaan, wat er naar de AI
 gaat, welke opdracht erbij hoort en wat er terugkomt. Elke stap wordt met twee meetlatten gemeten:
 
@@ -23,7 +28,7 @@ waarheidsdossier**, zodat "verzonnen" meetbaar wordt, en **wisselproeven**, die 
 hoeveel de eindtekst beter wordt als alleen die stap beter was. Dat laatste is wat de eigenaar
 uiteindelijk zoekt: waar een verbetering het meeste oplevert.
 
-Geschatte kosten aan AI-aanroepen: ongeveer $15 tot $20 (schatting, §7). Doorlooptijd: ongeveer
+Geschatte kosten aan AI-aanroepen: ongeveer $15 tot $20 (schatting, §8). Doorlooptijd: ongeveer
 een dag bouwen, daarna twee tot drie dagen doorlopen en beoordelen.
 
 ---
@@ -33,18 +38,11 @@ een dag bouwen, daarna twee tot drie dagen doorlopen en beoordelen.
 | Wat | Waar | Waarom het hier telt |
 |---|---|---|
 | Meetlat 1: twaalf dimensies, vier beoordelaars, controles in code, oordeel klaar, repareren of tegenhouden | `lib/pipeline/quality-*.ts`, `content-panel.ts` | Dit is meetlat 1, hij hoeft niet gebouwd te worden |
-| Het Kwaliteitslab met menselijke beoordelingen | `/beheer/kwaliteit`, `content_quality_reviews` | **12 oordelen van een echte copywriter liggen er** (nagerekend: set `benchmark-3-september-2026`) |
-| De vergelijking tussen app en mens | `lib/quality-benchmark.ts` | Rekent al uit hoe vaak de app "klaar" zegt waar een mens nee zegt |
-| Een eerdere ronde met een AI in de rol van copywriter | `content-reviews/feedback/` | De les daaruit bepaalt hoe meetlat 2 gebouwd moet worden, zie §2 punt 2 |
+| Het Kwaliteitslab | `/beheer/kwaliteit`, `content_quality_reviews` | De plek waar de oordelen van de eigenaar in deze doorloop terechtkomen (§6.3) |
 | De app bedienen zonder browser | `scripts/live.ts` | Inloggen en routes aanroepen werkt al |
 | De goedkope herkeuring | `POST /api/analyses/[id]/recheck` | Een tekst opnieuw keuren zonder hem opnieuw te schrijven, ongeveer een cent |
 | De ruwe uitvoer van elke AI-aanroep | `ai_calls.raw_json` | 1721 van de 1940 aanroepen van de laatste 30 dagen hebben hem; de ontbrekende zijn allemaal Sales en zoekvolume, geen enkele uit de contentketen |
 | Het proces in 117 stappen | `docs/processtappen-nieuwe-pagina.md` | De ruggengraat van de doorloop in §5 |
-
-**Wat nooit gedaan is:** de nameting uit `contentkwaliteit-copywriterronde.md` §7.1. Na die ronde
-zijn twaalf verbeteringen gebouwd, is de schrijver twee keer van model gewisseld (Terra op
-4 september, GPT-6 Sol op 23 september) en is de contentflow omgebouwd. Of de teksten daardoor beter
-zijn geworden, is niet gemeten. Deze doorlichting kan die nameting meteen zijn, zie §3.
 
 ---
 
@@ -58,14 +56,13 @@ wat erin ging") zijn daarmee vandaag niet te beantwoorden. Dit moet eerst, ander
 een verzameling uitkomsten zonder oorzaak. Zie §4, stap 0.1.
 
 **2. Een losse AI als klant is geen objectieve meetlat, maar een tweede mening met eigen
-afwijkingen.** Dat is al een keer gemeten. De AI-copywriterronde van 3 september zat 0,75 tot 2,25
-punt te laag vergeleken met de echte copywriter, maar zette de pagina's wél in bijna dezelfde
-volgorde (rangcorrelatie +0,70, tegen +0,19 voor de beoordelaar in de app). Gevolg voor dit plan:
+afwijkingen.** Bekende afwijkingen van een taalmodel als beoordelaar: het kiest vaker de tekst die
+het als eerste leest, het vindt langere teksten beter, en het waardeert tekst die lijkt op wat het
+zelf zou schrijven. Gevolg voor dit plan:
 
-- we gebruiken de blinde lezer om **te rangschikken en fouten aan te wijzen**, niet om een
-  rapportcijfer te geven;
-- we **ijken hem eerst** op de twaalf pagina's die de copywriter al beoordeelde. Dat kost vrijwel
-  niets en zegt vooraf of we hem kunnen vertrouwen (§4, stap 0.5);
+- we gebruiken de blinde lezer vooral om **te vergelijken en fouten aan te wijzen**, en minder om
+  een rapportcijfer te geven;
+- we **toetsen hem eerst** met teksten waarvan we het goede antwoord al weten (§4, stap 0.5);
 - we kiezen een **ander soort model dan de schrijver**. De app schrijft met GPT-6 Sol en keurt met
   GPT-6 Luna. Een beoordelaar uit dezelfde familie deelt de smaak van de schrijver en vindt dus de
   fouten niet die die smaak veroorzaakt. Voorstel: Claude, in een afgeschermde opdracht zonder
@@ -99,27 +96,26 @@ Twee praktische gevolgen van de nieuwe contentflow (`docs/tasks/contentflow-een-
 - het schrijven start pas als élke vraag van de pagina beantwoord of overgeslagen is, en niet eerder
   dan 10 dagen voor de geplande datum (`SCHRIJFVOORSPRONG_DAGEN` in `lib/plan-status.ts`). De
   pagina's in de doorloop krijgen dus een datum binnen die 10 dagen;
-- dat schrijven wordt gestart door een nachtelijke taak (migratie `0050_plan_cron.sql`). Een
-  doorloop kost daardoor minstens één nacht, tenzij we die taak met de hand aftrappen.
+- dat schrijven wordt gestart door een nachtelijke taak om 04:00 UTC (migratie
+  `0050_plan_cron.sql`). Een doorloop kost daardoor minstens één nacht, tenzij we die taak met de
+  hand aftrappen.
 
 ---
 
-## 3. Welk merk: een aanbeveling
+## 3. Welk merk
 
-**Aanbevolen: MJB Dakservice opnieuw opbouwen, als nieuw merk onder een nieuw demo-account.**
+Een nieuw, echt bestaand bedrijf, dat nog niet in de database staat. Waar het aan moet voldoen:
 
-Waarom dit sterker is dan een willekeurig nieuw bedrijf:
+- **regionaal MKB met diensten**, de doelgroep uit `CLAUDE.md`, waar mensen een AI-assistent een
+  koopvraag over stellen ("welke ... in [plaats] kan ...");
+- **een site met genoeg om te lezen**, maar niet perfect: tussen de 30 en 150 pagina's, met diensten
+  op eigen pagina's. Een site die al alles zegt, laat niets te verbeteren over;
+- **een sector die de eigenaar zelf kan beoordelen**, want hij is in §6.3 de menselijke toets;
+- **geen contact met het bedrijf**: we vullen geen contactpersoon in en sturen niets.
 
-- Er ligt een **menselijke nulmeting** voor dit merk: zes pagina's van 3 september, beoordeeld door
-  een echte copywriter. Dezelfde onderwerpen opnieuw laten schrijven levert een eerlijke voor en na.
-- Het **waarheidsdossier bestaat al grotendeels**: de vijftien gespreksvelden staan in
-  `docs/tasks/benchmarkronde-twee-klanten.md` §3. Die hoeven we alleen aan te vullen en te bevriezen.
-- De site heeft ongewoon veel concreet bewijs (garanties, aantallen, certificering). Daarmee is te
-  meten of ORBIT ENGINE dat bewijs ook echt gebruikt.
-
-Het risico: we optimaliseren op één dakdekker. Daarom als tweede ronde, later, een merk uit een
-andere sector met een dunne website. Dat is de lastige klant, en daar blijkt pas of de vragen aan de
-klant het gat dichten.
+Het risico van één merk: we stemmen af op één sector. Daarom later een tweede ronde met een merk
+met een dunne website. Dat is de lastige klant, en daar blijkt pas of de vragen aan de klant het gat
+dichten.
 
 ---
 
@@ -159,18 +155,27 @@ Playwright (Chromium staat al klaar in deze omgeving) klikt door de schermen als
 klant, met een schermafdruk na elke handeling. Waar een scherm vastloopt of iets onduidelijk is,
 noteren we dat als bevinding: dat is gratis UX-onderzoek.
 
-### 0.5 De blinde lezer eerst ijken, vóór hij iets mag zeggen
+### 0.5 De blinde lezer eerst toetsen, vóór hij iets mag zeggen
 
-De blinde lezer krijgt de twaalf pagina's van 3 september, met precies de vijf vragen die de
-copywriter kreeg (`content-reviews/copywriter-opdracht-alle-twaalf.md`). We vergelijken zijn
-oordelen met die van de copywriter op twee maten: het niveau, en de volgorde (rangcorrelatie).
+Er is geen bruikbaar menselijk oordeel om hem tegen af te zetten, dus we toetsen hem met teksten
+waarvan we het goede antwoord zelf maken. Drie proeven, alle drie goedkoop:
 
-**Norm: een rangcorrelatie van minstens +0,6.** Haalt hij die niet, dan passen we zijn opdracht aan
-tot hij het wel haalt, en pas daarna mag hij de doorloop beoordelen. Zonder deze stap meten we
-straks de smaak van een model en noemen we het kwaliteit.
+1. **Opzettelijke fouten.** We nemen een pagina en maken er vijf slechtere versies van, elk met één
+   bekende fout: een verzonnen garantie, een opening die bij het bedrijf begint in plaats van bij de
+   lezer, een stuk dat overal zou kunnen staan, een verkeerde aanspreekvorm, een alinea die niets
+   zegt. De lezer moet elke fout vinden en elke slechtere versie lager zetten dan het origineel.
+   **Norm: minstens vier van de vijf.**
+2. **Volgorde omdraaien.** Dezelfde twee teksten, één keer A dan B, één keer B dan A. Kiest hij
+   beide keren dezelfde, dan beoordeelt hij de tekst en niet de volgorde. **Norm: minstens negen van
+   de tien paren gelijk.**
+3. **Twee keer hetzelfde vragen.** Dezelfde tekst twee keer beoordelen. Liggen de oordelen ver uit
+   elkaar, dan is zijn opdracht te open.
 
-⚠️ Twaalf pagina's is weinig voor een correlatie. Eén pagina anders ingeschat verschuift het getal
-merkbaar. Dit is een ondergrens voor vertrouwen, geen bewijs.
+Haalt hij een norm niet, dan passen we zijn opdracht aan tot hij hem wel haalt, en pas daarna mag
+hij de doorloop beoordelen.
+
+⚠️ Deze proeven zeggen of de lezer fouten ziet en consequent is. Ze zeggen niet of zijn smaak die van
+een ondernemer of een copywriter is. Dat blijft de rol van de mens in §6.3.
 
 ---
 
@@ -178,13 +183,16 @@ merkbaar. Dit is een ondergrens voor vertrouwen, geen bewijs.
 
 ### 5.1 Het waarheidsdossier (vóór de doorloop, daarna bevroren)
 
-- de vijftien gespreksvelden uit de benchmarkronde, aangevuld waar nodig;
+- de gespreksvelden die de consultant in fase 3 invult: waar het bedrijf op wil groeien, wat niet
+  meer, klantgroepen, regio's, seizoen, bezwaren, verboden onderwerpen, bewijs, doel over een jaar;
 - de feiten die een ondernemer kent en een website niet: prijsindicaties, doorlooptijden,
   werkwijze, garanties, typische klantsituaties, wat hij nooit doet;
 - een **klantpersona**: hoe deze ondernemer antwoordt. Kort, soms met een tikfout, slaat een vraag
   over als hij het antwoord niet paraat heeft. Echte MKB-klanten schrijven geen alinea's.
 
-Het dossier gaat als apart bestand de repo in, met datum, en verandert na de start niet meer.
+Alles wat niet op de site staat is verzonnen, maar geloofwaardig voor dit soort bedrijf. Het dossier
+gaat als apart bestand de repo in, met datum, en verandert na de start niet meer. De eigenaar leest
+het vóór de start: klinkt dit als een echte ondernemer in deze branche?
 
 **Twee klantprofielen, dezelfde vragen.** Voor twee pagina's beantwoorden we de vragen twee keer:
 één keer als ideale klant (volledig, concreet) en één keer als realistische klant (kort, deels
@@ -256,21 +264,20 @@ AI-assistent, en zo moet hij ook gerapporteerd worden.
 Scores zeggen minder dan een directe keuze. Per pagina leggen we de blinde lezers twee teksten naast
 elkaar, zonder te zeggen welke van ons is:
 
-- onze nieuwe pagina tegen **de versie van 3 september** (werkt de keten beter dan toen?);
-- onze pagina tegen **de huidige pagina op de site van de klant** (is het een verbetering?);
+- onze pagina tegen **de huidige pagina op de site van de klant** over hetzelfde onderwerp, als die
+  er is (is het een verbetering?);
 - onze pagina tegen **de beste pagina van een concurrent** uit de bronnen van de meting (winnen we?).
 
 De uitkomst is een winstpercentage per vergelijking. "Op het niveau van een professionele
 copywriter" betekent dan concreet: onze pagina wint minstens zo vaak als hij verliest van de beste
-concurrent. Elke vergelijking twee keer, met de volgorde omgedraaid, want een taalmodel kiest
-merkbaar vaker de eerste tekst die het leest.
+concurrent. Elke vergelijking twee keer, met de volgorde omgedraaid (zie §4, 0.5).
 
 ### 6.3 De mens heeft het laatste woord
 
-De eigenaar leest drie pagina's en tien poortoordelen zelf. Wijkt zijn oordeel af van de blinde
-lezers, dan wint hij, en noteren we waarom. Na de doorloop gaan de pagina's naar dezelfde
-copywriter als op 3 september, met dezelfde vijf vragen. Dat is de enige meting die zonder
-voorbehoud zegt of het beter is geworden.
+De eigenaar leest drie pagina's en tien poortoordelen zelf, zonder eerst de oordelen van de blinde
+lezers te zien. Wijkt zijn oordeel af, dan wint hij, en noteren we waarom. Zijn oordelen gaan in het
+Kwaliteitslab (`content_quality_reviews`, met een eigen `benchmark_set`). Het zijn de eerste
+menselijke oordelen van de nieuwe keten, en daarmee het begin van een eigen ijkset.
 
 ---
 
@@ -288,14 +295,12 @@ in de eindtekst is de hefboom van die stap.
 Voorgestelde wisselproeven, in deze volgorde:
 
 1. **De lezer in de aanbeveling** (stap 13): een scherpere lezer, verder alles gelijk.
-2. **De inhoudsopgave** (stap 16): als verhaalboog in plaats van als vragenlijst. Die stond al als
-   open punt in `contentkwaliteit-copywriterronde.md` §7.6.
+2. **De inhoudsopgave** (stap 16): als verhaalboog in plaats van als vragenlijst.
 3. **De antwoorden van de klant** (stap 18): ideaal tegen realistisch, zie §5.1.
 4. **De schrijfopdracht** (stap 19): een opdracht zoals een ervaren eindredacteur hem zou geven.
 5. **Zonder reparatierondes** (stap 22): de eerste versie tegen de gerepareerde. Nagerekend over
    de laatste 30 dagen: 37 reparatieaanroepen kostten $5,26, meer dan de 27 schrijfaanroepen
    ($5,02). Als de reparatie de tekst niet beter maakt, is dat de duurste stap die niets oplevert.
-   Ook dit stond al open (§7.6: "niet onderzocht").
 
 Technisch: stap 0.1 maakt dit mogelijk, want met de opgeslagen invoer kunnen we een aanroep
 nabootsen met één blok aangepast. Of dat via de app op productie gaat of via een los script
@@ -315,7 +320,7 @@ Het resultaat is een verslag met:
   wisselproeven, in één overzicht, voor iemand zonder technische kennis;
 - **hooguit vijf verbeteringen**, op volgorde van opbrengst, elk met een test in `test-unit.ts` en
   een deterministisch vangnet (conventie 1);
-- een **herhaalbare set**: het waarheidsdossier, de opgeslagen invoer en de geijkte blinde lezer
+- een **herhaalbare set**: het waarheidsdossier, de opgeslagen invoer en de getoetste blinde lezer
   samen zijn een vaste proef die na elke promptwijziging opnieuw kan draaien.
 
 ⚠️ Dat laatste botst met een eerder besluit. Het herstelplan na de audit had een eigen punt voor
@@ -336,14 +341,14 @@ keuze voor de eigenaar, na de eerste doorloop, wanneer duidelijk is wat hij ople
 | **Samen** | **ongeveer $15 tot $20** |
 
 Dat past binnen de dagplafonds (€20 per klant, €50 voor alle accounts samen), mits de meting en het
-schrijven niet op dezelfde dag vallen als ander werk. De echte kostenpost is een dagdeel van de
-copywriter voor de nameting.
+schrijven niet op dezelfde dag vallen als ander werk.
 
 ---
 
 ## 9. Beslissingen van de eigenaar
 
-1. **Welk merk.** Aanbevolen: MJB Dakservice opnieuw, voor de vergelijking met de copywriter (§3).
+1. **Welk merk.** Een nieuw, echt bedrijf volgens de eisen in §3. De eigenaar noemt er een, of
+   Claude stelt er drie voor en de eigenaar kiest.
 2. **Wie is de blinde lezer.** Aanbevolen: Claude, omdat het een ander soort model is dan de
    schrijver. Alternatief: Gemini, dan is een `GEMINI_API_KEY` nodig.
 3. **De opdrachten altijd bewaren of alleen voor de demo.** Aanbevolen: altijd (§4, 0.1).
@@ -355,10 +360,10 @@ copywriter voor de nameting.
 
 ## 10. Volgorde
 
-1. Fase 0: instrumenteren en de blinde lezer ijken. Eerst dit, anders meet de rest niets.
-2. Waarheidsdossier opstellen en bevriezen.
+1. Fase 0: instrumenteren en de blinde lezer toetsen. Eerst dit, anders meet de rest niets.
+2. Waarheidsdossier opstellen, laten lezen door de eigenaar, en bevriezen.
 3. De doorloop, stap 1 tot en met 23, met na elke stap de spoorexport en de poortvraag.
 4. De eindtekst beoordelen: vier lezers, de blinde vergelijking, de eigenaar.
 5. De wisselproeven.
 6. Het verslag met de lekkagekaart en hooguit vijf verbeteringen.
-7. Daarna, los: dezelfde pagina's naar de copywriter, en een tweede merk met een dunne website.
+7. Daarna, los: een tweede merk met een dunne website.
