@@ -40,7 +40,14 @@ export function PaginaKop({
           <h1 className="type-title pagina-kop-titel" title={naam}>
             {naam}
           </h1>
-          <span className={`${STAND_CHIP[stand.toon]} shrink-0`}>{stand.label}</span>
+          {/* Oranje is op het paginascherm voorbehouden aan "Te verbeteren"
+              (23 september 2026, besluit van de eigenaar). "Wacht op jou" krijgt
+              hier dus het accent, net als de stang van de kaart "Aan zet"
+              eronder. In de lijsten (bibliotheek, plan) blijft hij oranje: daar
+              is hij het signaal tussen tientallen rijen. */}
+          <span className={`${stand.toon === "wacht" ? "chip chip-attention" : STAND_CHIP[stand.toon]} shrink-0`}>
+            {stand.label}
+          </span>
           {stand.looptAchter && <span className="chip chip-danger shrink-0">Loopt achter</span>}
         </div>
         {regel && <p className="type-caption text-muted">{regel}</p>}

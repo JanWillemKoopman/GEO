@@ -11674,3 +11674,8 @@ staan gemarkeerd in de leestekst (`lib/tekst-markering.ts`; alle 5 gevonden op d
 in een tekst verschijnen nu als tabel, op het scherm en in de export, in plaats van als streepjes. Details in
 `docs/tasks/herontwerp-contentpagina.md` bijlage D. Controles: `tsc --noEmit`, `test:unit` (5262),
 `test:chain` (758) en `build` groen.
+
+**Later op 23 september 2026: kleur en breedte van de contentpagina.** Oranje is op het paginascherm
+alleen nog de kleur van "Te verbeteren"; "Aan zet" en de melding dat ORBIT ENGINE schrijft krijgen
+een groene stang. De rail en "Titel en zoekresultaat" staan op wit, de tekst vult naast de rail de
+hele kolom en de rail is 440px breed. Zie `docs/tasks/herontwerp-contentpagina.md` bijlage D punt 7.

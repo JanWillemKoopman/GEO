@@ -83,7 +83,7 @@ export function QualityFindings({
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="type-section flex items-center gap-2">
           Te verbeteren
-          {blokkades.length > 0 && <span className="chip chip-danger">{blokkades.length}</span>}
+          {blokkades.length > 0 && <span className="chip chip-warning">{blokkades.length}</span>}
         </h2>
         {score !== null && (
           <span className="flex items-center gap-1 text-sm text-muted">
@@ -224,7 +224,7 @@ function Punt({
   return (
     <li
       className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] border-l-2 p-3"
-      style={{ borderLeftColor: "var(--intent-danger-solid)" }}
+      style={{ borderLeftColor: "var(--intent-warning-solid)" }}
     >
       <p className="text-sm font-medium">
         {titel}

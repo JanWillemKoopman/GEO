@@ -117,7 +117,7 @@ export function ContentCanvas({
       )}
 
       {schrijft && (
-        <div className="card card-warning flex items-center gap-2 text-sm">
+        <div className="card card-rail card-rail-success flex items-center gap-2 text-sm">
           <span className="live-dot" />
           ORBIT ENGINE schrijft op dit moment een nieuwe versie van deze pagina. Wat je nu typt komt
           niet in die versie terecht.
@@ -173,7 +173,10 @@ export function ContentCanvas({
         </div>
       </div>
 
-      <div className="content-canvas-maat">
+      {/* Op een witte kaart, net als de tekst zelf (23 september 2026): de
+          zoekresultaatweergave en de metavelden horen bij de pagina, niet bij
+          de grijze app eromheen. */}
+      <div className="content-canvas-maat card">
         <CollapsibleSection title="Titel en zoekresultaat" defaultOpen={false}>
           <div className="flex flex-col gap-4 pb-4">
             <SearchPreview

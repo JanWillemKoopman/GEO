@@ -120,7 +120,7 @@ export function ContextRail({
   return (
     <>
       {/* De kolomversie. Verdwijnt via de containerquery zodra hij niet past. */}
-      <aside id="rail" className="content-rail" aria-label="Te verbeteren en meer over deze pagina">
+      <aside id="rail" className="content-rail card" aria-label="Te verbeteren en meer over deze pagina">
         {paneel}
       </aside>
 
@@ -130,7 +130,7 @@ export function ContextRail({
         <button type="button" onClick={() => setLade(true)} className="btn-outline btn-sm w-fit">
           <span className="flex items-center gap-1.5">
             Te verbeteren
-            {kwaliteitBadge && <span className="chip chip-danger">{kwaliteitBadge}</span>}
+            {kwaliteitBadge && <span className="chip chip-warning">{kwaliteitBadge}</span>}
           </span>
         </button>
       </div>
