@@ -249,6 +249,87 @@ function bewijsWaarde(t: OntdekTerm): number {
   return hoofdbron(t) === "gsc" ? (t.vertoningen ?? 0) : (t.volume ?? 0);
 }
 
+// ── Het thema van een ronde ─────────────────────────────────────────────────
+
+/** Een thema is een productcategorie of onderwerp, geen zin. */
+export const THEMA_MIN = 3;
+export const THEMA_MAX = 80;
+
+/** Het thema zoals de route het opslaat, of `null` als het niet bruikbaar is. */
+export function schoonThema(invoer: unknown): string | null {
+  if (typeof invoer !== "string") return null;
+  const t = invoer.replace(/\s+/g, " ").trim();
+  if (t.length < THEMA_MIN || t.length > THEMA_MAX) return null;
+  return t;
+}
+
+/** Woorden die in een thema staan zonder iets over het onderwerp te zeggen. */
+const THEMA_VULWOORDEN = new Set([
+  "de", "het", "een", "en", "voor", "van", "in", "op", "bij", "met", "aan", "over", "naar",
+  "alles", "rond", "rondom", "thema",
+]);
+
+/**
+ * Kleine letters, zonder accenten, en dubbele klinkers enkel: "laadpaal" en
+ * "laadpalen" worden "ladpal" en "ladpalen", zodat de ene de andere vindt.
+ */
+function themaVorm(tekst: string): string {
+  return tekst
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/([aeiou])\1/g, "$1");
+}
+
+/**
+ * De stammen van de woorden in het thema, om zoektermen binnen het thema te
+ * herkennen zonder model. De laatste twee letters gaan eraf (vier blijven er
+ * minstens), zodat "occasions" ook "occasion" vindt en "laadpalen" ook
+ * "laadpaal thuis".
+ */
+export function themaStammen(thema: string | null): string[] {
+  if (!thema) return [];
+  return [
+    ...new Set(
+      themaVorm(thema)
+        .replace(/[^a-z0-9\s]/g, " ")
+        .split(/\s+/)
+        .filter((w) => w.length >= 3 && !THEMA_VULWOORDEN.has(w))
+        .map((w) => (w.length <= 4 ? w : w.slice(0, Math.max(4, w.length - 2)))),
+    ),
+  ];
+}
+
+/** Het deel van een aanbodknoop dat nodig is om thema's voor te stellen. */
+export interface AanbodKnoop {
+  id: string;
+  parent_id: string | null;
+  kind: string;
+  name: string;
+}
+
+/**
+ * De thema's die het scherm als keuze aanbiedt: de categorieën uit de
+ * aanbodboom waar echt diensten of producten onder hangen ("Lease",
+ * "Service en onderhoud"). Een categorie met alleen vestigingen eronder, of de
+ * wortel met het hele bedrijf, is geen thema. Zonder zulke categorieën: de
+ * diensten zelf. Hooguit `max`, in de volgorde van de boom.
+ */
+export function themaSuggesties(knopen: AanbodKnoop[], max = 10): string[] {
+  const verkoopbaar = (k: AanbodKnoop) => k.kind === "dienst" || k.kind === "product";
+  const metAanbod = new Set(knopen.filter(verkoopbaar).map((k) => k.parent_id).filter(Boolean));
+  const categorieen = knopen.filter((k) => k.kind === "categorie" && metAanbod.has(k.id)).map((k) => k.name.trim());
+  const lijst = categorieen.length > 0 ? categorieen : knopen.filter(verkoopbaar).map((k) => k.name.trim());
+  return [...new Set(lijst.filter((n) => n.length >= THEMA_MIN && n.length <= THEMA_MAX))].slice(0, max);
+}
+
+/** Raakt deze zoekterm het thema? Zonder thema raakt alles het. */
+export function binnenThema(keyword: string, stammen: string[]): boolean {
+  if (stammen.length === 0) return true;
+  const kl = themaVorm(keyword);
+  return stammen.some((s) => kl.includes(s));
+}
+
 /**
  * De vaste regels vóór het model: te lang, te weinig gezocht, of een
  * eigen-merkterm (daar is geen cluster voor nodig, die win je al).
@@ -257,11 +338,22 @@ function bewijsWaarde(t: OntdekTerm): number {
  * de rest op volume) en krijgt per bron zijn deel van de plekken
  * (`AANDEEL_PER_BRON`). Search Console gaat voorop: dat is wat de eigen site
  * echt heeft laten zien.
+ *
+ * Met een thema gaan binnen elke bron de termen die het thema raken voor.
+ * ⚠️ Waarom voorrang en niet weggooien: Search Console, de eigen site en de
+ * concurrenten worden per domein opgehaald, over het hele aanbod. Nagerekend
+ * op de 1.773 termen van de ronde van 23 september 2026: van de 200 termen
+ * over private lease haalden er zonder thema 41 de 400 plekken, met het thema
+ * "private lease" 147 (de rest valt af op volume of merknaam). Een thema in
+ * andere woorden dan
+ * de zoektermen ("tweedehands" tegen "occasion") zou met weggooien alles
+ * verliezen; het schiftmodel krijgt het thema en beslist per term.
  */
 export function voorfilter(
   termen: OntdekTerm[],
   eigenMerkwoorden: string[],
   max = MAX_TERMEN_SCHIFTEN,
+  stammen: string[] = [],
 ): OntdekTerm[] {
   const merk = eigenMerkwoorden.map((w) => w.toLowerCase().trim()).filter((w) => w.length >= 3);
   const bruikbaar = termen.filter((t) => {
@@ -273,11 +365,14 @@ export function voorfilter(
     return inGsc || (t.volume ?? 0) >= MIN_VOLUME;
   });
 
+  const raakt = (t: OntdekTerm) => (binnenThema(t.keyword, stammen) ? 1 : 0);
   const volgorde = ["gsc", "eigen", "concurrent", "suggestie"] as const;
   const perBron = new Map<TermBron, OntdekTerm[]>(
     volgorde.map((b) => [
       b,
-      bruikbaar.filter((t) => hoofdbron(t) === b).sort((a, c) => bewijsWaarde(c) - bewijsWaarde(a)),
+      bruikbaar
+        .filter((t) => hoofdbron(t) === b)
+        .sort((a, c) => raakt(c) - raakt(a) || bewijsWaarde(c) - bewijsWaarde(a)),
     ]),
   );
 
@@ -291,7 +386,7 @@ export function voorfilter(
   }
   const rest = bruikbaar
     .filter((t) => !gezien.has(t))
-    .sort((a, c) => (c.volume ?? 0) - (a.volume ?? 0));
+    .sort((a, c) => raakt(c) - raakt(a) || (c.volume ?? 0) - (a.volume ?? 0));
   return [...gekozen, ...rest].slice(0, max);
 }
 
@@ -485,6 +580,40 @@ export function lijktOp(titel: string, bestaand: string[], regio: string[] = [])
     if (waarde >= OVERLAP_DREMPEL && (!beste || waarde > beste.waarde)) beste = { titel: b, waarde };
   }
   return beste?.titel ?? null;
+}
+
+/** Vanaf dit aandeel gedeelde zoektermen zijn twee kandidaten uit één ronde hetzelfde onderwerp. */
+export const DUBBEL_DREMPEL = 0.5;
+
+/**
+ * Welke eerdere kandidaat uit DEZELFDE ronde is dit eigenlijk? Vergelijkt op
+ * zoektermen, niet op titel: het aandeel gedeelde termen (op variantsleutel)
+ * van de kleinste van de twee.
+ *
+ * ⚠️ Waarom niet `lijktOp` op de titels, zoals tot 23 september 2026: in de
+ * eerste echte ronde (Van den Udenhout) gaf het model 9 kandidaten en bleven
+ * er 3 over. "Audi onderhoud en service in de regio" viel weg als dubbel van
+ * "Volkswagen onderhoud en service in de regio" (2 van 3 woorden gedeeld),
+ * "Zakelijk een auto huren" als dubbel van "Een auto huren voor particulier
+ * gebruik". Woorden als "auto", "onderhoud" en "huren" staan in bijna elke
+ * titel van een autobedrijf. De zoektermen van die paren deelden 0 of 1 van 3.
+ * Twee kandidaten die echt hetzelfde zijn, delen hun bewijs.
+ *
+ * Voor de vergelijking met clusters die er al staan blijft `lijktOp` op de
+ * titel: van een bestaand cluster zijn geen zoektermen bekend, en daar
+ * markeert het alleen, het gooit niets weg.
+ */
+export function dubbelInRonde(termen: OntdekTerm[], eerder: { titel: string; termen: OntdekTerm[] }[]): string | null {
+  const eigen = new Set(termen.map((t) => variantSleutel(t.keyword)));
+  if (eigen.size === 0) return null;
+  for (const e of eerder) {
+    const ander = new Set(e.termen.map((t) => variantSleutel(t.keyword)));
+    if (ander.size === 0) continue;
+    let gedeeld = 0;
+    for (const s of eigen) if (ander.has(s)) gedeeld++;
+    if (gedeeld / Math.min(eigen.size, ander.size) >= DUBBEL_DREMPEL) return e.titel;
+  }
+  return null;
 }
 
 // ── De zinnen op de kaart ───────────────────────────────────────────────────

@@ -15,6 +15,8 @@ export interface Ronde {
   id: string;
   status: string;
   status_note: string | null;
+  /** Het thema van de ronde; `null` voor rondes van vóór migratie 0111. */
+  thema: string | null;
   created_at: string;
   finished_at: string | null;
   /** `null` voor een klant: bedragen zijn stafinformatie. */
@@ -28,7 +30,7 @@ export async function leesRondes(
   limiet = 6,
 ): Promise<Ronde[]> {
   const kolommen =
-    "id, status, status_note, created_at, finished_at" +
+    "id, status, status_note, theme, created_at, finished_at" +
     (metKosten ? ", dataforseo_cost_usd, ai_cost_usd" : "");
   const { data } = await client
     .from("cluster_discovery_runs")
@@ -40,6 +42,7 @@ export async function leesRondes(
     id: r.id as string,
     status: r.status as string,
     status_note: (r.status_note as string | null) ?? null,
+    thema: (r.theme as string | null) ?? null,
     created_at: r.created_at as string,
     finished_at: (r.finished_at as string | null) ?? null,
     kosten: metKosten

@@ -6,7 +6,7 @@ import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 import { checkBudgetForProfile } from "@/lib/spend-limit";
 import { isStaff } from "@/lib/staff";
-import { AFWIJSREDENEN } from "@/lib/cluster-discovery";
+import { AFWIJSREDENEN, schoonThema, THEMA_MAX, THEMA_MIN } from "@/lib/cluster-discovery";
 
 /**
  * Clusters ontdekken (docs/tasks/clusters-ontdekken.md, migratie 0109).
@@ -14,7 +14,8 @@ import { AFWIJSREDENEN } from "@/lib/cluster-discovery";
  * POST: een ontdekkingsronde starten. Alleen de consultant: het is dezelfde
  * handeling als de oude knop "Stel nieuwe clusters voor", dus dezelfde
  * kostenregel (`clusters_aanvullen` in lib/cost-rules.ts), en geen tweede,
- * bijna gelijke regel ernaast.
+ * bijna gelijke regel ernaast. Een ronde zonder thema start niet (migratie
+ * 0111): het scherm vraagt erom, dit is de garantie (conventie 1).
  *
  * PATCH: iets doen met één kandidaat.
  *   - `toevoegen`: iedereen die bij het merk hoort, dus ook de klant zelf
@@ -56,10 +57,23 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   return NextResponse.json({ status: (data?.status as string | undefined) ?? "geen", runId: data?.id ?? null });
 }
 
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await getUser();
   if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
+
+  let thema: string | null = null;
+  try {
+    thema = schoonThema(((await request.json()) as { thema?: unknown }).thema);
+  } catch {
+    thema = null;
+  }
+  if (!thema) {
+    return NextResponse.json(
+      { error: `Geef een productcategorie of thema op, tussen ${THEMA_MIN} en ${THEMA_MAX} tekens.` },
+      { status: 400 },
+    );
+  }
 
   if (!(await mayTriggerCost(user.id, "clusters_aanvullen"))) {
     return NextResponse.json({ error: COST_DENIED.clusters_aanvullen }, { status: 403 });
@@ -91,7 +105,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   const { data: run, error } = await admin
     .from("cluster_discovery_runs")
-    .insert({ profile_id: id, started_by: user.id, status: "verzamelen" })
+    .insert({ profile_id: id, started_by: user.id, status: "verzamelen", theme: thema })
     .select("id")
     .single();
   if (error || !run) {

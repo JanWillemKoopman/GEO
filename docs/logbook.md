@@ -11832,3 +11832,24 @@ De keuzes leven alleen in het scherm: ververs je voordat je verstuurt of opslaat
 opnieuw. Alleen "laat staan", opslaan en de nieuwe versie gaan naar de server. Bekeken in de
 browser met voorbeelddata (desktop en telefoon); nog niet op productie met een echte pagina.
 Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen.
+
+## 23 september 2026 (6): Clusters ontdekken, 6 van de 9 kandidaten ten onrechte weggegooid, en een thema per ronde
+
+De eerste echte ronde op Van den Udenhout gaf 3 kandidaten, terwijl het plan 8 tot 15 noemde. Het
+model had er 9 gemaakt. De controle erna gooide er 6 weg als "lijkt op een andere kandidaat uit deze
+ronde", op basis van gedeelde titelwoorden: bij een autobedrijf delen bijna alle titels "auto",
+"onderhoud", "service", "huren" of "leasen". De paren die wegvielen deelden 0 of 1 van hun 3
+zoektermen. De controle binnen een ronde vergelijkt nu zoektermen (`dubbelInRonde`, drempel de helft
+van de kleinste set); met de 9 kandidaten van die ronde blijven er 9 staan. Zelfde titel blijft
+dubbel.
+
+Tegelijk, op verzoek van de eigenaar: een ronde start alleen met een thema (migratie 0111). De
+eerste ronde liep over 36 diensten tegelijk en leverde losse, brede onderwerpen. Het thema stuurt de
+beginpunten, de volgorde in de voorfilter (van 41 naar 147 van de 200 leasetermen in de 400 plekken,
+nagerekend op de opgeslagen termen van die ronde), het schiften en het bundelen, dat nu 6 tot 12
+onderwerpen vraagt. Het scherm biedt de categorieën uit de aanbodboom als keuze. Details en wat
+bewust niet veranderde: `docs/tasks/clusters-ontdekken.md`, onderaan.
+
+Nog niet gedaan: een ronde met thema op productie, en het scherm met het themaveld is niet in de
+browser bekeken. Een ronde kan pas als dit op `main` staat. Getest: `tsc --noEmit`, `test:unit`,
+`test:chain` en `build` groen.

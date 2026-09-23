@@ -5863,8 +5863,8 @@ async function main(): Promise<void> {
       );
 
       const { rows: rondeRij } = await db.client.query(
-        `insert into public.cluster_discovery_runs (profile_id, started_by, status)
-         values ($1, $2, 'verzamelen') returning id`,
+        `insert into public.cluster_discovery_runs (profile_id, started_by, status, theme)
+         values ($1, $2, 'verzamelen', 'Airco') returning id`,
         [cdProfileId, userId],
       );
       const runId = rondeRij[0].id as string;
@@ -5875,7 +5875,19 @@ async function main(): Promise<void> {
         [runId],
       );
       eqc("na verzamelen staat de ronde op verbreden", naVerzamelen[0].status, "verbreden");
-      const invoer = naVerzamelen[0].input_json as { beginpunten: string[]; gsc: { keyword: string }[]; bestaand: string[] };
+      const invoer = naVerzamelen[0].input_json as {
+        thema: string | null;
+        beginpunten: string[];
+        gsc: { keyword: string }[];
+        bestaand: string[];
+      };
+      // Het thema (migratie 0111) moet elke stap bereiken, anders zoekt de
+      // ronde toch weer over het hele aanbod.
+      eqc("het thema gaat mee in de invoer van de ronde", String(invoer.thema), "Airco");
+      ok(
+        "de beginpunten krijgen het thema",
+        log.some((l) => l.schemaName === "discovery_seeds" && l.user.includes("THEMA: Airco")),
+      );
       ok(
         "een beginpunt met de merknaam valt eruit",
         !invoer.beginpunten.some((b) => b.includes("klimaat bv")),
@@ -5915,7 +5927,15 @@ async function main(): Promise<void> {
       ok("de homoniem is eruit geschift", !geschift.some((t) => t.keyword.includes("capcut")));
       ok("een onbestaand nummer van het model telt niet", geschift.length === 3, String(geschift.length));
 
+      ok(
+        "het schiften krijgt het thema",
+        log.some((l) => l.schemaName === "discovery_sift" && l.user.includes("THEMA: Airco")),
+      );
       await cd.discoveryBundle(admin as never, runId);
+      ok(
+        "het bundelen krijgt het thema",
+        log.some((l) => l.schemaName === "discovery_bundle" && l.user.includes("THEMA: Airco")),
+      );
       const { rows: kand } = await db.client.query(
         `select title, kind, overlaps_with, total_volume, own_position, terms_json
            from public.cluster_discovery_candidates where run_id = $1 order by score desc`,

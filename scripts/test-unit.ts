@@ -1065,6 +1065,11 @@ import {
   kandidaatScore,
   lijktOp,
   kaartFeiten,
+  dubbelInRonde,
+  schoonThema,
+  themaStammen,
+  binnenThema,
+  themaSuggesties,
   type OntdekTerm,
 } from "@/lib/cluster-discovery";
 import type {
@@ -25174,6 +25179,74 @@ group("Clusters ontdekken: lijkt op een bestaand cluster", () => {
   const regio = ["Den Bosch", "Eindhoven", "Noord-Brabant"];
   eq("zelfde vraag, andere stad", lijktOp("APK in Eindhoven", ["APK Den Bosch", "Goedkope prive lease"], regio) ?? "", "APK Den Bosch");
   eq("ander onderwerp", lijktOp("Laadpaal thuis laten installeren", ["APK Den Bosch", "Occasion kopen in Noord-Brabant"], regio) ?? "geen", "geen");
+});
+
+group("Clusters ontdekken: dubbel binnen één ronde op zoektermen, niet op titelwoorden", () => {
+  // De eerste echte ronde (Van den Udenhout, 23 september 2026): het model gaf
+  // 9 kandidaten, de titelvergelijking liet er 3 over. Dezelfde titels en
+  // termen als toen.
+  const k = (titel: string, woorden: string[]) => ({ titel, termen: woorden.map((w) => term({ keyword: w })) });
+  const ronde = [
+    k("Volkswagen onderhoud en service in de regio", ["volkswagen garage eindhoven", "vw garage", "volkswagen den bosch"]),
+    k("Audi onderhoud en service in de regio", ["audi garage eindhoven", "audi garage", "audi dealer den bosch"]),
+    k("SEAT onderhoud en service in de regio", ["seat dealer eindhoven", "seat den bosch", "seat dealer"]),
+    k("Škoda onderhoud en service in de regio", ["skoda dealer eindhoven", "skoda dealer den bosch", "skoda oss"]),
+    k("CUPRA onderhoud en service in de regio", ["cupra dealer eindhoven", "cupra dealer breda", "cupra eindhoven"]),
+    k("Een gebruikte auto leasen", ["occasion lease", "occasions leasen", "lease tweedehands auto"]),
+    k("Een auto tijdelijk leasen met shortlease", ["shortlease auto", "auto leasen", "auto lease"]),
+    k("Een auto huren voor particulier gebruik", ["particulier auto huren", "auto huren vakantie", "autoverhuur"]),
+    k("Zakelijk een auto huren", ["auto huren", "autoverhuur", "auto huren eindhoven"]),
+  ];
+  const gezien: { titel: string; termen: OntdekTerm[] }[] = [];
+  for (const r of ronde) if (!dubbelInRonde(r.termen, gezien)) gezien.push(r);
+  eq2("alle negen blijven", gezien.length, 9);
+  eq(
+    "zelfde bewijs is wel dubbel",
+    dubbelInRonde([term({ keyword: "vw garage" }), term({ keyword: "garage volkswagen eindhoven" })], [ronde[0]]) ?? "geen",
+    "Volkswagen onderhoud en service in de regio",
+  );
+});
+
+group("Clusters ontdekken: een ronde gaat over één thema (migratie 0111)", () => {
+  eq("thema opgeschoond", schoonThema("  private   lease ") ?? "", "private lease");
+  ok("te kort is geen thema", schoonThema("ab") === null);
+  ok("geen tekst is geen thema", schoonThema(42) === null);
+  ok("een lap tekst is geen thema", schoonThema("x".repeat(81)) === null);
+
+  const lease = themaStammen("Private lease");
+  ok("leasen hoort erbij", binnenThema("occasions leasen", lease));
+  ok("shortlease hoort erbij", binnenThema("shortlease auto", lease));
+  ok("apk niet", !binnenThema("apk eindhoven", lease));
+  ok("laadpalen vindt laadpaal", binnenThema("laadpaal thuis kosten", themaStammen("Laadpalen")));
+  ok("occasions vindt occasion", binnenThema("occasion kopen", themaStammen("Occasions")));
+  ok("zonder thema raakt alles", binnenThema("wat dan ook", themaStammen(null)));
+
+  // Binnen elke bron gaat het thema voor, ook boven een groter volume.
+  const uit = voorfilter(
+    [
+      term({ keyword: "volkswagen golf", volume: 90000, bronnen: ["eigen"], eigenPositie: 12 }),
+      term({ keyword: "private lease occasion", volume: 900, bronnen: ["eigen"], eigenPositie: 15 }),
+    ],
+    [],
+    1,
+    lease,
+  );
+  eq("thema eerst", uit.map((t) => t.keyword).join("|"), "private lease occasion");
+
+  const knopen = [
+    { id: "w", parent_id: null, kind: "categorie", name: "Van den Udenhout" },
+    { id: "l", parent_id: "w", kind: "categorie", name: "Lease" },
+    { id: "l1", parent_id: "l", kind: "dienst", name: "Private lease" },
+    { id: "v", parent_id: "w", kind: "categorie", name: "Vestigingen" },
+    { id: "v1", parent_id: "v", kind: "vestiging", name: "Eindhoven" },
+    { id: "s", parent_id: "w", kind: "categorie", name: "Service en onderhoud" },
+    { id: "s1", parent_id: "s", kind: "dienst", name: "APK" },
+  ];
+  eq("categorieën met aanbod, geen wortel of vestigingen", themaSuggesties(knopen).join("|"), "Lease|Service en onderhoud");
+  eq("zonder categorieën de diensten", themaSuggesties([{ id: "a", parent_id: null, kind: "dienst", name: "Dakgoot reinigen" }]).join("|"), "Dakgoot reinigen");
+
+  const route = leesBestand("app/api/profiles/[id]/discovery/route.ts");
+  ok("de route start geen ronde zonder thema", route.includes("schoonThema(") && route.includes("theme: thema"));
 });
 
 group("Clusters ontdekken: de klant voegt zelf toe, afwijzen blijft van de consultant (23 september 2026 (4))", () => {
