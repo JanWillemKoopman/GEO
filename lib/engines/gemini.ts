@@ -32,7 +32,7 @@ import "server-only";
  * meer dan generateContent nodig hebben is een SDK het overwegen waard.
  */
 import { z } from "zod";
-import { logAiCall } from "@/lib/openai/ledger";
+import { logAiCall, type AiCallInput } from "@/lib/openai/ledger";
 import { estimateCostUsd } from "@/lib/openai/pricing";
 import type {
   EngineAdapter,
@@ -145,6 +145,7 @@ export function createGeminiEngine(apiKey: string | null): EngineAdapter {
     response: GeminiResponse,
     webSearch: boolean,
     meta: EnginePlainOptions["meta"],
+    invoer: AiCallInput,
   ) {
     const usage = response.usageMetadata ?? {};
     const inputTokens = usage.promptTokenCount ?? null;
@@ -159,6 +160,7 @@ export function createGeminiEngine(apiKey: string | null): EngineAdapter {
         webSearch,
         costUsd,
         responseId: response.responseId ?? null,
+        input: invoer,
       });
     }
     return { responseId: response.responseId ?? null, inputTokens, outputTokens, costUsd };
@@ -185,7 +187,11 @@ export function createGeminiEngine(apiKey: string | null): EngineAdapter {
         },
         model,
       );
-      const usage = await record(response, Boolean(opts.webSearch), opts.meta);
+      const usage = await record(response, Boolean(opts.webSearch), opts.meta, {
+        system: opts.system,
+        user: opts.user,
+        webSearch: Boolean(opts.webSearch),
+      });
       return { text: textOf(response), raw: response, model, ...usage };
     },
 
@@ -220,7 +226,13 @@ export function createGeminiEngine(apiKey: string | null): EngineAdapter {
         );
       }
 
-      const usage = await record(response, false, opts.meta);
+      const usage = await record(response, false, opts.meta, {
+        system: opts.system,
+        user: opts.user,
+        schemaName: opts.schemaName,
+        temperature: 0,
+        webSearch: false,
+      });
       return { parsed, raw: response, model, ...usage };
     },
   };

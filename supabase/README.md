@@ -650,3 +650,13 @@ Voegt `cluster_discovery_runs.theme` toe (tekst): de productcategorie of het the
 consultant opgeeft bij het starten van een ronde. `null` voor rondes van daarvoor. De route
 `app/api/profiles/[id]/discovery` start geen ronde zonder thema. Op productie toegepast op 23
 september 2026.
+
+## 0112 — Elke AI-aanroep bewaart wat erin ging
+
+Voegt `ai_calls.input_json` (jsonb) en `ai_calls.prompt_hash` (tekst) toe. `input_json` bevat de
+systeemopdracht, de gebruikersopdracht, de schemanaam, het soort werk, de redeneerinspanning, de
+temperatuur en of er op het web gezocht werd; `prompt_hash` is een korte vingerafdruk van alleen de
+systeemopdracht, zodat twee rondes met een andere prompt uit elkaar te houden zijn. Gevuld op één
+plek (`lib/openai/ledger.ts`, via `lib/openai/input-capture.ts`). Rijen van vóór deze migratie
+blijven leeg. Besluit van de eigenaar op 23 september 2026: altijd bewaren. Op productie toegepast
+op 23 september 2026.

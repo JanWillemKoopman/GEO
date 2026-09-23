@@ -83,7 +83,7 @@ Vercel: Next.js 15 op Node.js  (code: GitHub, deploy op push naar main)
  ├─ /api/cron/worker: de motor, elke MINUUT aangeroepen door Supabase pg_cron
  └─ /api/cron/plan:   de schrijfronde van het contentplan, DAGELIJKS via pg_cron
    │
-   ├──────► OpenAI Responses API (gpt-5.6-luna / gpt-5.6-terra, + web_search)
+   ├──────► OpenAI Responses API (gpt-6-luna / gpt-6-sol, + web_search)
    ▼
 Supabase (Postgres + Auth)
  ├─ auth.users
@@ -729,9 +729,12 @@ berekenen is, is geld uitgeven aan een slechter antwoord.
 
 | Constante | Waarde | Tarief (in/uit per 1M) | Voor |
 |---|---|---|---|
-| `MODELS.volume` | `gpt-5.6-luna` | $0,20 / $1,20 | Mention-beoordeling (3b) |
-| `MODELS.quality` | `gpt-5.6-luna` | $0,20 / $1,20 | Research, prompts, kalibratie, simulatie (3a), gap-analyse, rapport, entiteiten, de vier contentbeoordelaars, bronanalyse |
-| `MODELS.content` | `gpt-5.6-terra` | $2 / $12 | Uitsluitend content schrijven/herschrijven |
+| `MODELS.volume` | `gpt-6-luna` | $0,10 / $0,50 | Mention-beoordeling (3b) |
+| `MODELS.quality` | `gpt-6-luna` | $0,10 / $0,50 | Research, prompts, kalibratie, simulatie (3a), gap-analyse, rapport, entiteiten, de vier contentbeoordelaars, bronanalyse |
+| `MODELS.content` | `gpt-6-sol` | $2 / $10 | Uitsluitend content schrijven/herschrijven |
+
+Sinds 23 september 2026 op GPT-6; daarvoor Luna en Terra van GPT-5.6. Waarom en wat het scheelt:
+`docs/logbook.md`, 23 september 2026 (8).
 
 `volume` en `quality` wijzen sinds augustus 2026 naar hetzelfde model; de tiers blijven bestaan
 omdat ze vastleggen wélke keuze per stap bewust gemaakt is. Het onderscheid dat vroeger in het
@@ -739,7 +742,7 @@ model zat (nano vs. mini) zit nu in de **redeneerinspanning**.
 
 **Soort werk → parameters** (`resolveTuning()` in `lib/openai/sampling.ts`). Aanroepplekken geven
 alleen nog `work: "..."` op; de vertaling naar `temperature` en `reasoning.effort` staat op één
-plek. Reden: GPT-5.6 accepteert `temperature` uitsluitend bij effort `none`, bij elke hogere
+plek. Reden: GPT-5.6 en GPT-6 accepteren `temperature` uitsluitend bij effort `none`, bij elke hogere
 stand is het een unsupported parameter en faalt de call.
 
 | `work` | effort | temperature | Voor |
@@ -879,7 +882,7 @@ iets de deur uit gaat.
 
 ## 8. Lokaal draaien
 
-Vereist: Node ≥ 20, een Supabase-project, een OpenAI-key met toegang tot `gpt-5.6-luna` én `gpt-5.6-terra`.
+Vereist: Node ≥ 20, een Supabase-project, een OpenAI-key met toegang tot `gpt-6-luna` én `gpt-6-sol`.
 
 ```bash
 npm install

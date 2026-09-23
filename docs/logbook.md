@@ -11951,7 +11951,82 @@ alleen voor wie met het toetsenbord werkt bedoeld is. `button.field` houdt die r
 toetsenbordfocus. Gevonden door de proefpagina met de echte componenten voor en na naast elkaar te
 fotograferen.
 
-## 23 september 2026 (8): UX-audit, de app doorgelopen als nieuwe gebruiker
+## 23 september 2026 (8): over naar GPT-6
+
+OpenAI bracht op 22 september 2026 GPT-6 Sol en GPT-6 Luna uit. De app is dezelfde dag
+overgestapt: meten, onderzoeken en beoordelen van `gpt-5.6-luna` naar `gpt-6-luna` ($0,20/$1,20
+naar $0,10/$0,50 per miljoen tokens), schrijven van `gpt-5.6-terra` naar `gpt-6-sol` ($2/$12 naar
+$2/$10). Er is geen GPT-6 Terra. Het zijproject Solliciteren biedt GPT-6 Sol als standaard,
+de vorige Sol ter vergelijking en GPT-6 Luna.
+
+Nagerekend op `ai_calls` over 24 augustus tot 23 september 2026: de Luna-rekening was $10,14,
+waarvan $5,10 voor 510 zoekacties. Die zoekacties kosten op GPT-6 hetzelfde, de tokens gaan van
+$5,04 naar $2,34. Samen ~$7,44, 27% minder. Het schrijven gaat van $3,90 naar ~$3,53, 10% minder.
+Over de hele maand ~$3,07 op ~$14,04, zo'n 22%.
+
+Twee dingen moesten mee om de wissel niet stuk te laten lopen. `isReasoningModel()` herkende alleen
+`gpt-5`, waardoor GPT-6 geen redeneerinspanning meekreeg en alles op `medium` draaide, ook de
+classificatie die bewust op `none` staat. En zonder tarief in `pricing.ts` viel elke aanroep op de
+terugval van $5/$30, een kostenoverzicht tot tien keer te hoog.
+
+De verwachte kwaliteitswinst is een claim van OpenAI, niet nagemeten: ongeveer de helft minder
+feitelijke fouten voor Sol, en minder misleiding (Luna van 9,5% naar 2,8%). Onafhankelijke tests zien
+de winst vooral in de prijs, niet in topscores. Nog te doen, op productie: `eval:mention -- --compare`
+(nieuwe tegen oude Luna) en de nameting uit `docs/tasks/contentkwaliteit-copywriterronde.md` §7.
+
+Gevolg voor de cijfers: een zichtbaarheidsmeting van vóór 23 september is met een ander model
+gedaan dan een van erna. Per aanroep staat het model in `ai_calls.model`; de reputatiemeting ziet de
+wissel zelf, want het model zit in `instrumentVersion()`. Terugdraaien is drie regels in
+`lib/openai/models.ts`.
+
+## 23 september 2026 (9): elke AI-aanroep bewaart ook wat erin ging
+
+`ai_calls` bewaarde het model, de tokens, de kosten en het antwoord, maar niet de opdracht. Achteraf
+was daardoor te lezen wat een stap opleverde, niet waarom. Voor de kwaliteitsdoorlichting
+(`docs/tasks/kwaliteitsdoorlichting-pijplijn.md`) is dat het halve werk: een zwakke pagina is pas
+te verklaren als je ziet wat de schrijver te lezen kreeg. Besluit van de eigenaar: altijd bewaren,
+niet alleen voor de demo.
+
+Migratie 0112 voegt `input_json` en `prompt_hash` toe. Vullen gebeurt in `logAiCall()`, zodat elke
+aanroep via `callStructured()` en `callPlain()` het automatisch doet; de vier plekken die zelf
+loggen (Gemini, Gemini via DataForSEO, AI Overview, DataForSEO Labs) geven hun invoer expliciet
+mee. De temperatuur en redeneerinspanning zijn die van de poging die werkelijk verstuurd is, niet
+die van de eerste, want na een geweigerde temperatuur doet `withTemperatureFallback()` een tweede.
+
+Opslag: de tabel was 5,5 MB. Een schrijfopdracht is gemiddeld 22.853 invoertokens (ongeveer
+90 KB), een meetvraag een paar honderd bytes; ruim te dragen. De hash dekt alleen de
+systeemopdracht, omdat de gebruikersopdracht per klant verschilt en de systeemopdracht alleen als
+de prompt in de code wijzigt.
+
+## 23 september 2026 (10): het spoor van één merk als export voor beheerders
+
+`GET /api/beheer/spoor/[profileId]` geeft elke AI-aanroep van één merk in tijdsvolgorde, met de
+opdracht (`input_json`, migratie 0112) en het antwoord erbij, plus de taken van dat merk. Alleen
+voor beheerders (een gewone gebruiker krijgt een 404), alleen lezen, hooguit 200 aanroepen per
+bladzijde. Aanleiding: de kwaliteitsdoorlichting (`docs/tasks/kwaliteitsdoorlichting-pijplijn.md`
+§4, stap 0.3). Eén schrijfopdracht is ongeveer 90 KB en een merk telt na een volledige doorloop
+honderden aanroepen; dat hoort als bestand uit de app te komen, niet in brokjes uit een
+beheerconsole. De bladzijde-instellingen staan puur in `lib/spoor.ts`, met tests.
+
+## 23 september 2026 (11): twee stille gegevensverliezen, gevonden in de kwaliteitsdoorlichting
+
+**Het gespreksscherm sloeg de waarde van vóór de klik op.** Bij een lijstveld en een keuzeknop roept
+`BrandFieldInput` `onChange` en `onCommit` in dezelfde klik aan; `bewaarVeld()` in
+`onboarding-session.tsx` las daarna `waarden[key]` uit de oude render. Gemeten bij Hans Verstraaten
+Hoveniers: van 7 van 7 lijsten ging het laatst toegevoegde punt verloren (onder meer "Zwemvijvers"
+als groeidienst) en 3 van 3 keuzes bleven leeg (klantwaarde, nieuwe pagina's, aanspreekvorm),
+terwijl het scherm "door jou vastgelegd" toonde. `zet()` werkt nu de ref direct bij en
+`bewaarVeld()` leest daaruit.
+
+**Een definitieve onderwerpenronde kon alle onderwerpen wissen.** Na het vastleggen van het gesprek
+gooit `proposeTopics()` de onbesliste concepten weg en zet de nieuwe ronde erin. Het model gaf als
+prioriteit 1; 0,95; 0,85; 0,8, de app rekende daar `8 - 0,95 = 7,05` van, en `priority` is een
+integer: de hele insert mislukte. De concepten waren al weg, de taak stond op "klaar", het merk had
+nul onderwerpen. Nu komt de volgorde uit de positie in de lijst (`lib/topic-volgorde.ts`, conventie
+1: het model zet ze al op volgorde, zijn getal is niet te vertrouwen), gaan de concepten bij een
+mislukte opslag terug, en mislukt de taak zichtbaar in plaats van stil.
+
+## 23 september 2026 (12): UX-audit, de app doorgelopen als nieuwe gebruiker
 
 Een doorloop van de hele app vanuit de klant (inloggen, overzicht, clusters, contentplan, vragen,
 bibliotheek, live melden, analytics) en vanuit de consultant (merk aanmaken, onderzoek, onboarding,
@@ -12017,5 +12092,5 @@ Wat niet gedaan is en waarom: de schermen zijn niet in de browser met echte data
 daarvoor is een database nodig die in deze werkomgeving niet beschikbaar is. P0.1 en P0.2 zijn dus
 in de code opgelost maar niet op een tablet en een telefoon nagekeken. Nagekomen: ook "Geef deze
 maand vrij" op het contentplan (Overzicht en het bord) zegt een klant nu vooraf dat dit via de
-consultant gaat, in de woorden van de weigermelding zelf. Getest: `tsc --noEmit`, `test:unit`
-(5397), `test:chain` (781) en `build` groen.
+consultant gaat, in de woorden van de weigermelding zelf. Getest, na het samenvoegen met `main`: `tsc --noEmit`,
+`test:unit` (5448), `test:chain` (781) en `build` groen.

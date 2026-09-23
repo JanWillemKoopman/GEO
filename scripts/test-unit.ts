@@ -36,6 +36,9 @@ import {
   VOLUME_FACTOR,
 } from "@/lib/pipeline/volume";
 import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
+import { bouwInvoerOpname, promptHash } from "@/lib/openai/input-capture";
+import { spoorPaginering, isUuid, SPOOR_MAX, SPOOR_STANDAARD } from "@/lib/spoor";
+import { topicPrioriteit } from "@/lib/topic-volgorde";
 import { parseRobots, isAllowed, sitemapsFrom } from "@/lib/audit/robots";
 import { splitByTerms } from "@/lib/highlight";
 import { vloeiendPad, vloeiendPadTerug } from "@/lib/chart-curve";
@@ -4221,6 +4224,12 @@ group("welk model redeneert", () => {
   ok("o3", isReasoningModel("o3-mini"));
   ok("gpt-4.1 niet", !isReasoningModel("gpt-4.1"));
   ok("gpt-4.1-nano niet", !isReasoningModel("gpt-4.1-nano"));
+  // Tot 23 september 2026 herkende de regel alleen `gpt-5`, en viel GPT-6 in de
+  // tak voor oude modellen: geen redeneerinspanning mee, alles op `medium`.
+  ok("gpt-6 luna", isReasoningModel("gpt-6-luna"));
+  ok("gpt-6 sol", isReasoningModel("gpt-6-sol"));
+  ok("een latere generatie ook", isReasoningModel("gpt-7-sol"));
+  ok("maar gpt-4o niet", !isReasoningModel("gpt-4o"));
   // Alle drie de tiers die de app draait moeten in dezelfde tak vallen: anders
   // krijgt de content-stap stilzwijgend andere parameters dan de rest.
   ok("alle tiers van de app", Object.values(MODELS).every(isReasoningModel));
@@ -4294,6 +4303,16 @@ group("kosten per model", () => {
   ok("sol staat in de tabel", hasKnownRate("gpt-5.6-sol"));
   ok("terra staat in de tabel", hasKnownRate("gpt-5.6-terra"));
   ok("gpt-4.1 blijft narekenbaar", hasKnownRate("gpt-4.1"));
+  ok("elke tier van de app heeft een tarief", Object.values(MODELS).every(hasKnownRate));
+
+  // GPT-6, prijzen van 23 september 2026. Zonder deze regels valt elke aanroep
+  // op de terugval van $5/$30: een kostenoverzicht tot tien keer te hoog.
+  const luna6 = estimateCostUsd({ model: "gpt-6-luna", inputTokens: 1e6, outputTokens: 1e6, webSearch: false });
+  ok("gpt-6 luna 1M+1M = $0,60", Math.abs(luna6 - 0.6) < 1e-6, `${luna6}`);
+  const sol6 = estimateCostUsd({ model: "gpt-6-sol", inputTokens: 1e6, outputTokens: 1e6, webSearch: false });
+  ok("gpt-6 sol 1M+1M = $12", Math.abs(sol6 - 12) < 1e-6, `${sol6}`);
+  const zoek6 = estimateCostUsd({ model: "gpt-6-luna", inputTokens: 0, outputTokens: 0, webSearch: true });
+  ok("zoekactie op gpt-6 luna = $0,010", Math.abs(zoek6 - 0.01) < 1e-6, `${zoek6}`);
 
   // 1M in + 1M uit op Luna = $0,20 + $1,20.
   const luna = estimateCostUsd({ model: "gpt-5.6-luna", inputTokens: 1e6, outputTokens: 1e6, webSearch: false });
@@ -4325,9 +4344,7 @@ group("kosten per model", () => {
  * `ai_calls`, zodat een terugval naar Sol niet stil gebeurt maar een rode test
  * oplevert die uitlegt wat het kost.
  */
-group("de contenttier staat op Terra (4 september 2026)", () => {
-  ok("content-tier is terra", MODELS.content === "gpt-5.6-terra", MODELS.content);
-  ok("meten en beoordelen blijven op luna", MODELS.quality === "gpt-5.6-luna");
+group("de contenttier: van Sol naar Terra (4 september 2026)", () => {
 
   // Gemeten op ai_calls over de twaalf pagina's van 3 september 2026:
   // content_draft 15.845 invoer / 5.925 uitvoer, mét web_search ($0,01).
@@ -4338,7 +4355,7 @@ group("de contenttier staat op Terra (4 september 2026)", () => {
     webSearch: true,
   });
   const draftTerra = estimateCostUsd({
-    model: MODELS.content,
+    model: "gpt-5.6-terra",
     inputTokens: 15_845,
     outputTokens: 5_925,
     webSearch: true,
@@ -4353,7 +4370,7 @@ group("de contenttier staat op Terra (4 september 2026)", () => {
 
   // content_revise: 13.625 invoer / 4.657 uitvoer, zonder web_search.
   const reviseTerra = estimateCostUsd({
-    model: MODELS.content,
+    model: "gpt-5.6-terra",
     inputTokens: 13_625,
     outputTokens: 4_657,
     webSearch: false,
@@ -4385,6 +4402,35 @@ group("de contenttier staat op Terra (4 september 2026)", () => {
     reviseTerra / 0.0119 >= 6,
     `${(reviseTerra / 0.0119).toFixed(1)} keuringen`,
   );
+});
+
+/**
+ * De overstap naar GPT-6 op 23 september 2026, met de tokenaantallen uit
+ * `ai_calls` over 24 augustus tot 23 september 2026. Faalt deze groep, dan is
+ * een tier stil teruggezet of klopt een tarief niet meer.
+ */
+group("de app draait op GPT-6 (23 september 2026)", () => {
+  ok("meten en beoordelen op gpt-6-luna", MODELS.volume === "gpt-6-luna" && MODELS.quality === "gpt-6-luna");
+  ok("schrijven op gpt-6-sol", MODELS.content === "gpt-6-sol", MODELS.content);
+
+  // Luna: 14.568.695 invoer, 1.770.650 uitvoer. De 510 zoekacties ($5,10)
+  // kosten op beide generaties hetzelfde en tellen hier niet mee.
+  const lunaOud = estimateCostUsd({ model: "gpt-5.6-luna", inputTokens: 14_568_695, outputTokens: 1_770_650, webSearch: false });
+  const lunaNieuw = estimateCostUsd({ model: MODELS.quality, inputTokens: 14_568_695, outputTokens: 1_770_650, webSearch: false });
+  ok("luna-tokens: $5,04 wordt $2,34", Math.abs(lunaOud - 5.04) < 0.01 && Math.abs(lunaNieuw - 2.34) < 0.01, `${lunaOud} → ${lunaNieuw}`);
+
+  // Schrijven: 793.755 invoer, 185.867 uitvoer op Terra.
+  const schrijfOud = estimateCostUsd({ model: "gpt-5.6-terra", inputTokens: 793_755, outputTokens: 185_867, webSearch: false });
+  const schrijfNieuw = estimateCostUsd({ model: MODELS.content, inputTokens: 793_755, outputTokens: 185_867, webSearch: false });
+  ok("schrijven wordt niet duurder", schrijfNieuw < schrijfOud, `${schrijfOud} → ${schrijfNieuw}`);
+  ok("en scheelt ~$0,37", Math.abs(schrijfOud - schrijfNieuw - 0.37) < 0.01, `${(schrijfOud - schrijfNieuw).toFixed(4)}`);
+
+  // De temperatuurregel moet op GPT-6 net zo gelden: classificeren op `none`
+  // met temperatuur 0, schrijven met redeneertijd en zonder temperatuur.
+  const det = resolveTuning(MODELS.volume, "deterministic");
+  ok("classificeren op gpt-6 blijft op none en 0", det.reasoningEffort === "none" && det.temperature === 0);
+  const con = resolveTuning(MODELS.content, "content");
+  ok("schrijven op gpt-6 zonder temperatuur", con.reasoningEffort === "medium" && con.temperature === undefined);
 });
 
 group("gestructureerde data oogsten (fase 0, nul API-kosten)", () => {
@@ -14818,7 +14864,7 @@ group("het meetinstrument is versioneerd", () => {
   // ⚠️ Dit product wordt verkocht op herhaling. Werkt OpenAI het model bij, dan
   // verschuift de meetlat en niet de reputatie, en zonder deze sleutel zou het
   // scherm dat verschil netjes als vooruitgang tekenen.
-  ok("de versie noemt het model", instrumentVersion().includes("gpt-5.6"));
+  ok("de versie noemt het model", instrumentVersion().includes(MODELS.quality));
   ok("en de promptversie", instrumentVersion().includes(PROMPT_VERSION));
   // ⚠️ De versie hoort mee te bewegen met de oordeelsregel. Bij de tweede run op
   // Gasservice Brabant was het ophogen vergeten, en dan staan twee runs met een
@@ -15864,9 +15910,9 @@ group("de assistent: de sleutelwoorden zijn tellen en geen gok", () => {
 // ze uit elkaar, dan faalt elke aanroep van dit scherm op een 400 zonder dat er
 // iets aan dit scherm veranderd is.
 group("de assistent: de modelkeuze volgt dezelfde regel als de pijplijn", () => {
-  ok("het vlaggenschip is de standaard", STANDAARD_MODEL === "gpt-5.6-sol");
+  ok("het vlaggenschip is de standaard", STANDAARD_MODEL === "gpt-6-sol");
   ok("de standaardkeuzes bestaan", isGeldigModel(STANDAARD_MODEL) && isGeldigeStand(STANDAARD_STAND));
-  ok("een verzonnen model wordt geweigerd", !isGeldigModel("gpt-6-astra"));
+  ok("een model buiten de lijst wordt geweigerd", !isGeldigModel("gpt-6-astra"));
   ok("een verzonnen stand wordt geweigerd", !isGeldigeStand("heel-hoog"));
   ok("elk model heeft een tarief", MODELLEN.every((m) => hasKnownRate(m.id)), MODELLEN.map((m) => m.id).join(", "));
   ok("elk model zegt waar het voor is", MODELLEN.every((m) => m.waarvoor.length > 20));
@@ -25221,7 +25267,7 @@ group("Clusters ontdekken: de klant voegt zelf toe, afwijzen blijft van de consu
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-// UX-audit van 23 september 2026 (docs/logbook.md, 23 september 2026 (UX-audit)).
+// UX-audit van 23 september 2026 (docs/logbook.md, 23 september 2026 (12)).
 // Elke groep hieronder hoort bij één genummerd punt uit die audit.
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -25322,4 +25368,73 @@ group("UX-audit P1.3, nagekomen: een maand vrijgeven zegt vooraf wie dat doet", 
   ok("zonder recht de melding van de kostenpoort, geen knop", knop.includes("if (!staff)") && knop.includes("COST_DENIED.plan_goedkeuren"));
   const bord = leesBestand("app/(app)/merk/[id]/strategie/plan/plan-view.tsx");
   ok("ook op het bord alleen een knop voor wie het mag", bord.includes("Vrijgeven via je consultant"));
+});
+
+group("Elke AI-aanroep bewaart wat erin ging (migratie 0112, 23 september 2026)", () => {
+  eq("geen invoer, geen opname", String(bouwInvoerOpname(null)), "null");
+  const a = bouwInvoerOpname({ system: "Je bent een schrijver.", user: "Schrijf over daklekkage.", schemaName: "content", work: "writing", reasoningEffort: "medium", temperature: null, webSearch: false });
+  eq("de systeemopdracht staat er letterlijk in", String(a?.inputJson.system), "Je bent een schrijver.");
+  eq("de gebruikersopdracht staat er letterlijk in", String(a?.inputJson.user), "Schrijf over daklekkage.");
+  eq("lengte gebruikersopdracht", String(a?.inputJson.tekensGebruiker), "24");
+  eq("hash is 16 tekens", String(a?.promptHash?.length), "16");
+  // De hash hangt alleen aan de systeemopdracht: een andere klant is geen andere prompt.
+  const b = bouwInvoerOpname({ system: "Je bent een schrijver.", user: "Schrijf over dakisolatie." });
+  eq("zelfde systeemopdracht, zelfde hash", String(a?.promptHash === b?.promptHash), "true");
+  eq("andere systeemopdracht, andere hash", String(promptHash("Je bent een beoordelaar.") === a?.promptHash), "false");
+  // Onbekend is geen lege tekst (conventie 3).
+  const c = bouwInvoerOpname({ request: { pad: "keywords" } });
+  eq("zonder systeemopdracht geen hash", String(c?.promptHash), "null");
+  eq("onbekende gebruikersopdracht blijft null", String(c?.inputJson.user), "null");
+
+  // De opname gebeurt op de plek waar élke OpenAI-aanroep langskomt, zodat geen stap hem kan vergeten.
+  const structured = leesBestand("lib/openai/structured.ts");
+  eq("beide aanroepvormen geven de invoer door", String((structured.match(/invoerVan\(opts, verstuurd/g) ?? []).length), "2");
+  const ledger = leesBestand("lib/openai/ledger.ts");
+  ok("het logboek schrijft input_json en prompt_hash", ledger.includes("input_json:") && ledger.includes("prompt_hash:"));
+  for (const bestand of ["lib/engines/gemini.ts", "lib/pipeline/measure-llm-response.ts", "lib/pipeline/measure-ai-overview.ts", "lib/discovery/labs.ts"]) {
+    ok(`${bestand} geeft invoer mee`, /input: /.test(leesBestand(bestand)) || leesBestand(bestand).includes("record(response"));
+  }
+});
+
+group("De spoorexport van één merk (kwaliteitsdoorlichting, 23 september 2026)", () => {
+  const leeg = spoorPaginering(new URLSearchParams(""));
+  eq("standaard aantal", String(leeg.aantal), String(SPOOR_STANDAARD));
+  eq("standaard met opdrachten", String(leeg.metInvoer), "true");
+  eq("geen startpunt", String(leeg.na), "null");
+  eq("te veel wordt begrensd", String(spoorPaginering(new URLSearchParams("aantal=5000")).aantal), String(SPOOR_MAX));
+  eq("onzin wordt de standaard", String(spoorPaginering(new URLSearchParams("aantal=abc")).aantal), String(SPOOR_STANDAARD));
+  eq("invoer=0 laat de opdrachten weg", String(spoorPaginering(new URLSearchParams("invoer=0")).metInvoer), "false");
+  // Microseconden blijven staan, anders komt de laatste rij van de vorige bladzijde terug.
+  eq("tijd ongewijzigd", String(spoorPaginering(new URLSearchParams("na=2026-09-23T21:30:01.123456+00:00")).na), "2026-09-23T21:30:01.123456+00:00");
+  eq("onleesbare tijd wordt genegeerd", String(spoorPaginering(new URLSearchParams("na=gisteren")).na), "null");
+  ok("een uuid komt erdoor", isUuid("e1fe7b94-ead1-4020-a8ed-216905c042c8"));
+  ok("een filter niet", !isUuid("x,analysis_id.not.is.null"));
+  const route = leesBestand("app/api/beheer/spoor/[profileId]/route.ts");
+  ok("alleen voor beheerders", route.includes("isStaff(user.id)") && route.includes("status: 404"));
+  ok("alleen lezen", !/\.(insert|update|upsert|delete)\(/.test(route));
+});
+
+group("Het gespreksscherm slaat de waarde van de laatste klik op (23 september 2026)", () => {
+  // Gevonden in de kwaliteitsdoorlichting: bij een lijst of keuzeknop las het
+  // opslaan de waarde van vóór de klik, dus het laatste lijstpunt en elke keuze
+  // gingen verloren terwijl het scherm "opgeslagen" toonde.
+  const scherm = leesBestand("app/(app)/merk/[id]/_components/onboarding-session.tsx");
+  const zet = scherm.slice(scherm.indexOf("function zet("), scherm.indexOf("async function bewaarVeld("));
+  ok("zet() werkt de ref meteen bij", zet.includes("waardenRef.current = { ...waardenRef.current, [key]: value }"));
+  const bewaar = scherm.slice(scherm.indexOf("async function bewaarVeld("), scherm.indexOf("A4: opslaan bij het sluiten"));
+  ok("bewaarVeld leest uit de ref", bewaar.includes("const waarde = waardenRef.current[key]"));
+  ok("bewaarVeld leest niet de oude state", !bewaar.includes("waarden[key]"));
+});
+
+group("Voorgestelde onderwerpen: volgorde uit de positie, en nooit nul na een mislukte opslag (23 september 2026)", () => {
+  eq("eerste onderwerp hoogst", String(topicPrioriteit(0, 8)), "8");
+  eq("tweede lager", String(topicPrioriteit(1, 8)), "7");
+  eq("nooit onder nul", String(topicPrioriteit(12, 8)), "0");
+  eq("altijd een heel getal", String(Number.isInteger(topicPrioriteit(1.5, 8))), "true");
+  const bron = leesBestand("lib/pipeline/propose-topics.ts");
+  ok("het getal van het model telt niet meer", !bron.includes("MAX_TOPICS - (Number.isFinite(t.priority)"));
+  ok("de positie wel", bron.includes("priority: topicPrioriteit(i, MAX_TOPICS)"));
+  const opslaan = bron.slice(bron.indexOf('.from("profile_topics").insert('));
+  ok("bij een mislukte opslag gaan de concepten terug", opslaan.includes("insert(weggehaald)"));
+  ok("en de taak mislukt zichtbaar", opslaan.includes("throw new Error(`Topicvoorstellen opslaan mislukt"));
 });

@@ -108,6 +108,7 @@ export async function meetViaAiOverview(
         costUsd: uitkomst.kostenUsd,
         responseId: null,
         raw: { status: uitkomst.status, bronnen: uitkomst.bronnen, melding: uitkomst.melding },
+        input: { user: prompt.text, webSearch: true },
       },
     );
 

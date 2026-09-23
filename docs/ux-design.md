@@ -567,7 +567,7 @@ Drie regels die hieruit volgen en voor elk scherm gelden:
   `schrijfstijl.md` §11.
 - **Een hoofdstuk met één bestemming is één regel in de zijbalk**, met het icoon van het hoofdstuk.
 
-De volledige lijst, met wat er per punt veranderde, staat in `docs/logbook.md`, 23 september 2026 (8).
+De volledige lijst, met wat er per punt veranderde, staat in `docs/logbook.md`, 23 september 2026 (12).
 
 ### Het contentplan heeft twee gedaanten (27 augustus 2026)
 

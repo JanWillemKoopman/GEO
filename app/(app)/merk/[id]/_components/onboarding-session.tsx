@@ -145,8 +145,15 @@ export function OnboardingSession({
   }, [waarden]);
 
   function zet(key: string, value: unknown) {
-    setWaarden((w) => ({ ...w, [key]: value }));
     openstaandeVelden.current.add(key);
+    // ⚠️ De ref direct bijwerken, niet pas na de volgende render. Een lijstveld
+    // en een keuzeknop roepen `onChange` en `onCommit` in dezelfde klik aan;
+    // `bewaarVeld` las toen nog de waarde van vóór die klik. Gevolg, gemeten op
+    // 23 september 2026 in de kwaliteitsdoorlichting: van elke lijst ging het
+    // laatst toegevoegde punt verloren (7 van 7 lijsten) en elke keuze bleef
+    // leeg (3 van 3), terwijl het scherm "opgeslagen" toonde.
+    waardenRef.current = { ...waardenRef.current, [key]: value };
+    setWaarden((w) => ({ ...w, [key]: value }));
   }
 
   /**
@@ -158,12 +165,14 @@ export function OnboardingSession({
    * dat bij het weglopen verdwijnt is de duurste fout die dit scherm kan maken.
    */
   async function bewaarVeld(key: string) {
+    // Uit de ref, niet uit `waarden`: zie de toelichting bij `zet()`.
+    const waarde = waardenRef.current[key];
     setStanden((s) => ({ ...s, [key]: "opslaan" }));
     try {
       const res = await fetch(`/api/profiles/${profileId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [key]: waarden[key], bron: "gesprek" }),
+        body: JSON.stringify({ [key]: waarde, bron: "gesprek" }),
       });
       if (!res.ok) {
         setStanden((s) => ({ ...s, [key]: "mislukt" }));
@@ -172,7 +181,9 @@ export function OnboardingSession({
       setStanden((s) => ({ ...s, [key]: "opgeslagen" }));
       setStates((s) => ({ ...s, [key]: { ...s[key], source: "gesprek" } }));
       setGewijzigd((v) => (v.includes(key) ? v : [...v, key]));
-      openstaandeVelden.current.delete(key);
+      // Alleen van de lijst "nog op te slaan" af als er intussen niets nieuws
+      // is ingevuld; anders vangt het sluiten van de pagina het nog op.
+      if (waardenRef.current[key] === waarde) openstaandeVelden.current.delete(key);
       setLaatsteOpslag(new Date());
     } catch {
       setStanden((s) => ({ ...s, [key]: "mislukt" }));

@@ -86,6 +86,7 @@ async function roep(
         webSearch: false,
         costUsd,
         responseId: null,
+        input: { request: { pad, ...body } },
       },
     );
 

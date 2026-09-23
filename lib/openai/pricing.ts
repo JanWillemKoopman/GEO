@@ -22,7 +22,7 @@
 import { isReasoningModel } from "@/lib/openai/sampling";
 
 /** Datum waarop de tarieven hieronder voor het laatst geverifieerd zijn. */
-export const RATES_CHECKED_ON = "2026-08-01";
+export const RATES_CHECKED_ON = "2026-09-23";
 
 interface ModelRate {
   /** USD per 1 miljoen input-tokens. */
@@ -36,7 +36,15 @@ interface ModelRate {
  * ruwe schatting dan een stil gat in de kostenregistratie.
  */
 const RATES: Record<string, ModelRate> = {
-  // GPT-5.6, wat de app sinds augustus 2026 draait (lib/openai/models.ts).
+  // GPT-6, wat de app sinds 23 september 2026 draait (lib/openai/models.ts).
+  // Nagekeken op developers.openai.com/api/docs/pricing op die datum. Boven
+  // 272K invoertokens geldt een hoger tarief; zo groot wordt geen aanroep van
+  // deze app, dus dat staat hier niet.
+  "gpt-6-astra": { inputPerMillion: 10.0, outputPerMillion: 50.0 },
+  "gpt-6-sol": { inputPerMillion: 2.0, outputPerMillion: 10.0 },
+  "gpt-6-luna": { inputPerMillion: 0.1, outputPerMillion: 0.5 },
+  // GPT-5.6, wat de app van augustus tot 23 september 2026 draaide. Blijft staan
+  // voor de historische rijen in `ai_calls` en voor het zijproject.
   "gpt-5.6-sol": { inputPerMillion: 5.0, outputPerMillion: 30.0 },
   "gpt-5.6-terra": { inputPerMillion: 2.0, outputPerMillion: 12.0 },
   "gpt-5.6-luna": { inputPerMillion: 0.2, outputPerMillion: 1.2 },
