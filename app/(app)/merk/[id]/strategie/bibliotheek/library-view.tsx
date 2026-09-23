@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { pagineer, PAGINA_GROOTTE } from "@/lib/library";
-import { filterPaginas, filterKeuzes, LEEG_FILTER, type PaginaFilter } from "@/lib/pagina-lijst";
+import { filterPaginas, filterKeuzes, groepVan, statusRegel, GROEP_LABEL, LEEG_FILTER, type Groep as GroepSleutel, type PaginaFilter } from "@/lib/pagina-lijst";
 import { Icon } from "@/components/icon";
-import { STAND_CHIP, formatDag } from "@/lib/pagina-stand";
+import { formatDag, heeftEigenScherm } from "@/lib/pagina-stand";
 import type { PaginaRij } from "@/lib/pagina-data";
 
 /**
@@ -21,25 +21,26 @@ import type { PaginaRij } from "@/lib/pagina-data";
  * filters op status, cluster, soort content en type. Een filter toont alleen
  * keuzes die in de lijst voorkomen, en staat uit als er maar één keuze is.
  *
- * ── TWEE GROEPEN: WACHT OP JOU, STAAT LIVE ──────────────────────────────────
+ * ── DRIE GROEPEN, ÉÉN ZIN PER RIJ ─────────────────────────────────────────
  *
- * Later die dag vond de eigenaar het nog steeds onduidelijk wat actie nodig
- * had en wat vanzelf liep. Sindsdien staan hier alleen pagina's met tekst
- * (`inBibliotheek()`), in twee groepen met een kop. Wat nog geen tekst heeft
- * staat in het contentplan; onderaan zegt één regel hoeveel dat er zijn.
- * Het label van de chip is de handeling ("Lees en keur goed", "Zet hem live"),
- * dus een tweede regel met dezelfde handeling ernaast viel weg.
+ * Avond 23 september 2026, op verzoek van de eigenaar: "Wacht op jou" (vragen,
+ * een keuze, goedkeuren, live zetten), "Wordt binnenkort geschreven" (alles wat
+ * vanzelf loopt) en "Staat live". Elke rij zegt in één zin waarop hij wacht
+ * (`statusRegel()`), bijvoorbeeld "3 openstaande vragen om de pagina te kunnen
+ * schrijven". Alleen een rij met iets om te doen of te lezen is een link
+ * (`heeftEigenScherm()`); de rest heeft geen eigen scherm.
+ *
+ * Een filter staat nooit meer uit. Met twee teksten van dezelfde soort hadden
+ * Status, Content en Type elk één keuze en werden ze grijs: de eigenaar las
+ * dat terecht als "de filters doen het niet".
  */
 export function LibraryView({
   profileId,
   rows,
-  onderweg,
   beginCluster,
 }: {
   profileId: string;
   rows: PaginaRij[];
-  /** Pagina's zonder tekst die in de maak zijn: die staan in het contentplan. */
-  onderweg: number;
   /** Een cluster-id uit het adres, of leeg. */
   beginCluster: string;
 }) {
@@ -104,33 +105,15 @@ export function LibraryView({
         </div>
       ) : (
         <>
-          <Groep
-            titel="Wacht op jou"
-            leeg="Er wacht nu geen tekst op jou."
-            rijen={deel.rijen.filter((r) => r.stand.aanZet === "klant")}
-            profileId={profileId}
-          />
-          <Groep
-            titel="Staat live"
-            rijen={deel.rijen.filter((r) => r.stand.aanZet !== "klant")}
-            profileId={profileId}
-          />
+          {(["wacht", "binnenkort", "live"] as const).map((g) => (
+            <Groep
+              key={g}
+              groep={g}
+              rijen={deel.rijen.filter((r) => groepVan(r.stand) === g)}
+              profileId={profileId}
+            />
+          ))}
         </>
-      )}
-
-      {onderweg > 0 && (
-        <p className="type-caption text-muted">
-          {onderweg === 1 ? "1 pagina heeft" : `${onderweg} pagina's hebben`} nog geen tekst. Hoe het
-          daarmee staat zie je in het{" "}
-          <Link href={`/merk/${profileId}/strategie/plan`} className="underline">
-            contentplan
-          </Link>
-          . Wat we daarvoor van je nodig hebben staat bij{" "}
-          <Link href={`/merk/${profileId}/strategie/vragen`} className="underline">
-            Openstaande vragen
-          </Link>
-          .
-        </p>
       )}
 
       {deel.paginas > 1 && (
@@ -180,7 +163,6 @@ function Keuze({
         className="field field-select"
         value={waarde}
         onChange={(e) => onKies(e.target.value)}
-        disabled={opties.length < 2 && waarde === ""}
       >
         <option value="">Alles</option>
         {opties.map(([waarde, tekst]) => (
@@ -193,34 +175,35 @@ function Keuze({
   );
 }
 
+/** Wat een groep zegt als hij leeg is. Een lege "Staat live" valt weg. */
+const LEEG: Partial<Record<GroepSleutel, string>> = {
+  wacht: "Er wacht nu niets op jou.",
+  binnenkort: "Er staat nu niets klaar om geschreven te worden.",
+};
+
 function Groep({
-  titel,
-  leeg,
+  groep,
   rijen,
   profileId,
 }: {
-  titel: string;
-  /** Tekst als de groep leeg is. Zonder deze tekst valt een lege groep weg. */
-  leeg?: string;
+  groep: GroepSleutel;
   rijen: PaginaRij[];
   profileId: string;
 }) {
+  const leeg = LEEG[groep];
   if (rijen.length === 0 && !leeg) return null;
   return (
     <section className="flex flex-col gap-2">
       <h2 className="type-section">
-        {titel} <span className="text-muted tabular">({rijen.length})</span>
+        {GROEP_LABEL[groep]} <span className="text-muted tabular">({rijen.length})</span>
       </h2>
       {rijen.length === 0 ? (
         <p className="type-body text-secondary">{leeg}</p>
       ) : (
         <ul className="flex flex-col gap-2">
-          {rijen.map((r) => (
-            <li key={r.routeId}>
-              <Link
-                href={`/merk/${profileId}/strategie/bibliotheek/${r.routeId}?van=bibliotheek`}
-                className="card card-interactive flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
-              >
+          {rijen.map((r) => {
+            const inhoud = (
+              <>
                 <div className="min-w-0 flex-1">
                   <p className="truncate type-body-emphasis" title={r.naam}>
                     {r.naam}
@@ -230,16 +213,42 @@ function Groep({
                       .filter(Boolean)
                       .join(" · ")}
                   </p>
+                  <p
+                    className="type-body mt-1.5"
+                    style={groep === "wacht" ? { color: "var(--intent-warning-text)" } : undefined}
+                  >
+                    {statusRegel(r)}
+                  </p>
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-3">
                   {r.score !== null && (
                     <span className="type-caption tabular text-secondary">{Math.round(r.score)}/100</span>
                   )}
-                  <span className={STAND_CHIP[r.stand.toon]}>{r.stand.label}</span>
+                  {r.stand.looptAchter && <span className="chip chip-danger">Loopt achter</span>}
+                  {heeftEigenScherm(r.stand.sleutel) && (
+                    <span className="text-muted" aria-hidden>
+                      <Icon naam="verder" size={16} />
+                    </span>
+                  )}
                 </div>
-              </Link>
-            </li>
-          ))}
+              </>
+            );
+            const klasse = "flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between";
+            return (
+              <li key={r.routeId}>
+                {heeftEigenScherm(r.stand.sleutel) ? (
+                  <Link
+                    href={`/merk/${profileId}/strategie/bibliotheek/${r.routeId}?van=bibliotheek`}
+                    className={`card card-interactive ${klasse}`}
+                  >
+                    {inhoud}
+                  </Link>
+                ) : (
+                  <div className={`card ${klasse}`}>{inhoud}</div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>

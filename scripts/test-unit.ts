@@ -138,11 +138,11 @@ import type { PeriodChange } from "@/lib/pipeline/period-change-format";
 import { domainOf } from "@/lib/offsite/domain";
 import { schrijfpoort, schrijfdatum } from "@/lib/content-write-gate";
 import { paginaNaam } from "@/lib/pagina-naam";
-import { tellingen, filterPaginas, groepVan, LEEG_FILTER, filterKeuzes } from "@/lib/pagina-lijst";
+import { tellingen, filterPaginas, groepVan, LEEG_FILTER, filterKeuzes, statusRegel } from "@/lib/pagina-lijst";
 import { bundelOpSoort } from "@/lib/pipeline/quality-groups";
 import { markeerZinnen, zinInBron } from "@/lib/tekst-markering";
 import { isAccepteerbaar, leesGeaccepteerd, voegToe, haalWeg, zonderGeaccepteerd } from "@/lib/geaccepteerde-zinnen";
-import { paginaStand, streefdatum, standVolgorde, FASEN, heeftEigenScherm, inBibliotheek, type PaginaStandInput } from "@/lib/pagina-stand";
+import { paginaStand, streefdatum, standVolgorde, FASEN, heeftEigenScherm, type PaginaStandInput } from "@/lib/pagina-stand";
 import { checkUrlFormat, isOnBrandDomain, isRedirectedElsewhere, volledigAdres } from "@/lib/url";
 import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
@@ -2170,7 +2170,7 @@ group("bibliotheek: tegels en chips tellen dezelfde stand", () => {
   // Van den Udenhout, 23 september 2026: "Klaar voor vrijgave 0" boven twee
   // rijen die op vrijgave wachtten.
   ok("wat op jou wacht telt de twee teksten en de vragen", t.wacht === 3);
-  ok("wordt gemaakt", t.gemaakt === 1);
+  ok("wordt binnenkort geschreven", t.binnenkort === 1);
   ok("staat live", t.live === 1);
   ok("vervallen telt nergens", groepVan(rijen[5].stand) === null);
   ok("filter op status", filterPaginas(rijen, { ...LEEG_FILTER, status: "goedkeuren" }).length === 2);
@@ -2184,6 +2184,59 @@ group("bibliotheek: tegels en chips tellen dezelfde stand", () => {
   ok("filter op type", filterPaginas(soorten, { ...LEEG_FILTER, actie: "verbeteren" })[0]?.naam === "B");
   ok("filter op cluster", filterPaginas(soorten, { ...LEEG_FILTER, cluster: "c2" }).length === 1);
   ok("vervallen staat niet in de keuzes", !filterKeuzes(rijen).status.some(([k]) => k === "vervallen"));
+
+  // Avond 23 september 2026: elke pagina staat op het contentplan of in de
+  // bibliotheek. Alleen een pagina in een maand die nog niet vrij is, staat
+  // alleen in het plan; alleen vervallen staat nergens.
+  const alleStanden = [
+    mk("gepland", { plan: { status: "gepland", scheduled_for: "2026-12-01", maandVrij: false } }),
+    mk("volgt", { plan: { status: "gepland", scheduled_for: "2026-10-20", maandVrij: true } }),
+    mk("voorbereid", { plan: { status: "gepland", scheduled_for: "2026-10-20", maandVrij: true }, tekst: { status: "briefing", needs_review: false, voorbereid: false } }),
+    mk("datum", { plan: { status: "gepland", scheduled_for: "2026-11-20", maandVrij: true }, tekst: tekst("briefing") }),
+    mk("zonder plan", { tekst: tekst("briefing") }),
+    mk("mislukt", { plan: { status: "mislukt", scheduled_for: "2026-10-20", maandVrij: true } }),
+  ];
+  ok("maand niet vrij: alleen in het contentplan", groepVan(alleStanden[0].stand) === null);
+  const losZonderCluster = mk("apk", { plan: { status: "gepland", scheduled_for: "2026-09-26", maandVrij: true, onderwerp: false } });
+  ok(
+    "zonder cluster: geen belofte van morgenochtend (Van den Udenhout, APK-pagina)",
+    losZonderCluster.stand.label === "Geen cluster" &&
+      !statusRegel({ stand: losZonderCluster.stand, openVragen: 0, datum: null }).includes("morgenochtend"),
+  );
+  ok("zonder cluster staat hij toch in de bibliotheek", groepVan(losZonderCluster.stand) === "binnenkort");
+  ok(
+    "al het andere wordt binnenkort geschreven, ook zonder plek in het plan",
+    alleStanden.slice(1).every((r) => groepVan(r.stand) === "binnenkort"),
+    alleStanden.map((r) => `${r.naam}:${r.stand.sleutel}:${groepVan(r.stand)}`).join(", "),
+  );
+  ok(
+    "vragen: het aantal in de zin",
+    statusRegel({ stand: rijen[2].stand, openVragen: 5, datum: "2026-10-20" }) ===
+      "5 openstaande vragen om de pagina te kunnen schrijven",
+  );
+  ok("één vraag: enkelvoud", statusRegel({ stand: rijen[2].stand, openVragen: 1, datum: null }).startsWith("1 openstaande vraag "));
+  ok(
+    "alles bekend: de schrijfdatum, tien dagen voor de publicatie",
+    statusRegel({ stand: alleStanden[3].stand, openVragen: 0, datum: "2026-11-20" }) ===
+      "Alle gegevens bekend, wordt op 10 november geschreven",
+  );
+  ok(
+    "nog niet voorbereid: geen belofte van minuten",
+    statusRegel({ stand: alleStanden[1].stand, openVragen: 0, datum: null }).includes("morgenochtend"),
+  );
+  ok(
+    "geen regel zonder tekst, en zonder gedachtestreepje",
+    [...rijen, ...alleStanden].every((r) => {
+      const z = statusRegel({ stand: r.stand, openVragen: 2, datum: "2026-11-20" });
+      return z.length > 0 && !/[\u2013\u2014]/.test(z);
+    }),
+  );
+  // Twee teksten van dezelfde soort gaven Status, Content en Type elk één
+  // keuze, en dan stond het filter uit: "de filters doen het niet".
+  ok(
+    "een filter met één keuze staat niet uit",
+    !leesBestand("app/(app)/merk/[id]/strategie/bibliotheek/library-view.tsx").includes("opties.length < 2"),
+  );
 });
 
 group("paginaNaam: één naam per pagina, overal", () => {
@@ -2228,9 +2281,6 @@ group("paginaStand: elke combinatie geeft precies één stand", () => {
   ok("voorbereiden heeft geen eigen scherm", !heeftEigenScherm("voorbereiden") && !heeftEigenScherm("niet_ingepland"));
   ok("vragen en keuze wel", heeftEigenScherm("vragen") && heeftEigenScherm("keuze"));
   ok("tekst om te lezen wel", heeftEigenScherm("goedkeuren") && heeftEigenScherm("effect_bekend"));
-  ok("bibliotheek: geen tekst, niet erin", !inBibliotheek(nietGestart) && !inBibliotheek(st({ plan: plan("schrijven"), tekst: tekst("briefing") })));
-  ok("bibliotheek: goedkeuren en live wel", inBibliotheek(st({ tekst: tekst("ready", { needs_review: true }) })) && inBibliotheek(st({ tekst: tekst("published") })));
-  ok("bibliotheek: vervallen niet", !inBibliotheek(st({ plan: plan("afgewezen") })));
   const vragen = st({ plan: plan("gepland"), tekst: tekst("briefing"), openVragen: 3 });
   ok("open vragen: jouw antwoorden nodig", vragen.sleutel === "vragen" && vragen.aanZet === "klant");
   ok("met de handeling erbij", vragen.handeling === "Beantwoord 3 vragen");

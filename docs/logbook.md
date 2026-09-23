@@ -11759,3 +11759,17 @@ iets over zijn bedrijf zegt zonder bevestigd feit kiezen voor "Klopt, laat staan
 de zin blijft. Alleen voor dit soort punt, omdat alleen de klant weet of zo'n feit klopt; een punt
 over toon of opbouw negeer je met "Keur goed". Migratie 0110, op productie toegepast (27 teksten).
 Zie `docs/tasks/herontwerp-contentpagina.md` bijlage D punt 8.
+
+**Later die avond: de bibliotheek in drie groepen, met één zin per pagina.** Met alleen de teksten in
+de bibliotheek stond een pagina zonder plek in het plan ("Nog niet ingepland") op geen enkel scherm
+meer, en zag de eigenaar niet wat er binnenkort geschreven werd. Nu staat elke pagina van een
+vrijgegeven maand in de bibliotheek, in "Wacht op jou", "Wordt binnenkort geschreven" of "Staat live"
+(`groepVan()`); een pagina in een maand die nog niet vrij is staat alleen in het contentplan. Elke
+rij zegt in één zin waarop hij wacht (`statusRegel()`), bijvoorbeeld "5 openstaande vragen om de
+pagina te kunnen schrijven" of "Alle gegevens bekend, wordt op 10 november geschreven". Een pagina
+zonder cluster heet "Geen cluster" in plaats van "we beginnen morgenochtend": `bouwOpdracht()`
+weigert hem elke ochtend, en er is nog geen knop om een cluster te koppelen (bij Van den Udenhout de
+APK-pagina en de bedrijfswagenservice). De filters Status, Content en Type stonden uit zodra ze maar
+één keuze hadden; met twee teksten van dezelfde soort las de eigenaar dat terecht als kapot. Een
+filter staat nu nooit meer uit. Controles: `tsc --noEmit`, `test:unit` (5311), `test:chain` (777)
+en `build` groen.

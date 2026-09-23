@@ -77,6 +77,8 @@ export interface PaginaStandInput {
     scheduled_for: string | null;
     /** Is de maand van deze pagina vrijgegeven? */
     maandVrij: boolean;
+    /** Hangt de pagina aan een cluster? Zonder cluster start de voorbereiding nooit. Onbekend telt als ja. */
+    onderwerp?: boolean;
   } | null;
   tekst: {
     status: string;
@@ -221,6 +223,24 @@ export function paginaStand(input: PaginaStandInput): PaginaStand {
     // Van den Udenhout vijf pagina's van een vrijgegeven maand geen enkele taak
     // hadden (de maand ging vrij om 08:29, de code die voorbereidt stond pas om
     // 09:56 live). De plan-cron van 04:00 UTC pakt ze op; dat zegt deze zin.
+    // Zonder cluster weigert `bouwOpdracht()` de voorbereiding elke ochtend
+    // opnieuw (`geen_onderwerp`). Bij Van den Udenhout gold dat op
+    // 23 september 2026 voor twee van de vijf vrijgegeven pagina's; "we
+    // beginnen morgenochtend" zou voor die twee niet waar zijn.
+    if (plan && plan.onderwerp === false && !tekst) {
+      return stand(
+        "voorbereiden",
+        {
+          label: "Geen cluster",
+          aanZet: null,
+          toon: "neutraal",
+          fase: 0,
+          zin: "Deze pagina hangt aan geen cluster. Zonder cluster kunnen we hem niet voorbereiden.",
+          handeling: null,
+        },
+        { streefdatum: streef },
+      );
+    }
     return voorbereidend(streef, false);
   }
   if (!tekst.voorbereid) return voorbereidend(streef, true);
@@ -353,18 +373,6 @@ export function heeftEigenScherm(sleutel: PaginaStandSleutel): boolean {
   );
 }
 
-/**
- * Hoort deze pagina in de bibliotheek? Alleen als er tekst is.
- *
- * Tot 23 september 2026 stond daar elke pagina van een vrijgegeven maand, ook
- * de vijf van Van den Udenhout die nog niet eens voorbereid waren. Wat nog geen
- * tekst heeft, hoort in het contentplan (wanneer) of bij Openstaande vragen
- * (wat we van je nodig hebben). Zo is de bibliotheek wat het woord belooft:
- * de teksten.
- */
-export function inBibliotheek(stand: PaginaStand): boolean {
-  return stand.fase !== null && stand.fase >= 2;
-}
 
 /** De chipklasse bij een toon (`docs/designsystem.md` §2.5, vier betekenissen). */
 export const STAND_CHIP: Record<StandToon, string> = {

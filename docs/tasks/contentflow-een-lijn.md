@@ -362,9 +362,10 @@ van op de oude status.
 
 ### 4.6a Vormgeving: van rommelig naar af
 
-> **Bijgesteld op de avond van 23 september 2026** (`docs/logbook.md`): de bibliotheek toont alleen
-> nog pagina's met tekst, en het paginascherm alleen de standen waar de klant iets doet of leest.
-> Waar hieronder staat dat de bibliotheek elke pagina vanaf het plan toont, geldt dat niet meer.
+> **Bijgesteld op de avond van 23 september 2026** (`docs/logbook.md`): de bibliotheek toont elke
+> pagina vanaf het vrijgeven van zijn maand in drie groepen (wacht op jou, wordt binnenkort
+> geschreven, staat live), met per rij één zin over waarop hij wacht. Het paginascherm bestaat alleen
+> voor de standen waar de klant iets doet of leest.
 
 Dit onderdeel is net zo zwaar als de motor. De eigenaar beoordeelde op 23 september 2026 drie
 schermen als rommelig, onduidelijk en ondermaats. Alles hieronder blijft binnen het bestaande
