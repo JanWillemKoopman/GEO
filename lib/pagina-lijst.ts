@@ -30,7 +30,9 @@ export type Groep = "wacht" | "binnenkort" | "live";
 
 export const GROEP_LABEL: Record<Groep, string> = {
   wacht: "Wacht op jou",
-  binnenkort: "Wordt binnenkort geschreven",
+  // Heette tot 23 september 2026 "Wordt binnenkort geschreven". Op verzoek van
+  // de eigenaar zegt de kop nu zelf dat de klant hier niets hoeft te doen.
+  binnenkort: "Staat op de planning (geen actie benodigd)",
   live: "Staat live",
 };
 

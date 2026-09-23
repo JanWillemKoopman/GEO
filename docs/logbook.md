@@ -11774,6 +11774,15 @@ APK-pagina en de bedrijfswagenservice). De filters Status, Content en Type stond
 filter staat nu nooit meer uit. Controles: `tsc --noEmit`, `test:unit` (5311), `test:chain` (777)
 en `build` groen.
 
+**Nog later die avond: de bibliotheek in de vormgeving van de rest van de app.** Elke rij was een
+losse kaart van ruim 110px hoog; nu is elke groep één kaart met rijen en een scheidingslijn, zoals
+de lijst op het overzicht (`WachtrijLijst`), met een `SectionHeading` en het aantal als chip. De
+statuszin staat in de kaartmaat (14px in plaats van 16px), en "Wacht op jou" krijgt een stip naast
+de oranje tekst: status is nooit kleur alleen (`docs/designsystem.md` §11 regel 4). Het losse getal
+"72/100" heet nu "Kwaliteit 72/100". Het zoekveld is van 48px naar de gewone 40px, want de grote
+maat is alleen voor de inlogroute (§5.4). De middelste groep heet op verzoek van de eigenaar "Staat
+op de planning (geen actie benodigd)" in plaats van "Wordt binnenkort geschreven".
+
 ## 23 september 2026 (4): de klant voegt een ontdekt cluster zelf toe
 
 Besluit 1 van vandaag (de klant vraagt, de consultant voegt toe) is op verzoek van de eigenaar
