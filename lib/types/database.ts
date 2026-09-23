@@ -1118,6 +1118,8 @@ export interface ContentPiece {
   weighted_evidence_coverage?: number | null;
   critical_evidence_coverage?: number | null;
   quality_profile?: string | null;
+  /** Zinnen zonder bron die de klant bewust laat staan (migratie 0110). */
+  geaccepteerde_zinnen?: unknown | null;
   /** De onderbouwingsgraad vóór het schrijven (migratie 0087). */
   input_coverage?: number | null;
   write_mode?: string | null;

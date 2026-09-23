@@ -141,6 +141,7 @@ import { paginaNaam } from "@/lib/pagina-naam";
 import { tellingen, filterPaginas, groepVan, LEEG_FILTER, filterKeuzes, statusRegel } from "@/lib/pagina-lijst";
 import { bundelOpSoort } from "@/lib/pipeline/quality-groups";
 import { markeerZinnen, zinInBron } from "@/lib/tekst-markering";
+import { isAccepteerbaar, leesGeaccepteerd, voegToe, haalWeg, zonderGeaccepteerd } from "@/lib/geaccepteerde-zinnen";
 import { paginaStand, streefdatum, standVolgorde, FASEN, heeftEigenScherm, type PaginaStandInput } from "@/lib/pagina-stand";
 import { checkUrlFormat, isOnBrandDomain, isRedirectedElsewhere, volledigAdres } from "@/lib/url";
 import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
@@ -2117,6 +2118,28 @@ group("renderMarkdown en de WordPress-export herkennen een tabel", () => {
   ok("zonder scheidingsregel is het geen tabel", !renderMarkdown("| dit | is een zin |").includes("<table"));
   const wp = markdownToGutenbergBlocks(md);
   ok("de export zet hem in een tabelblok", wp.includes("<!-- wp:table -->") && wp.includes("<td>Crafter</td>"));
+});
+
+// 23 september 2026: de klant kan een zin zonder bron bewust laten staan. Het
+// punt verdwijnt, de zin blijft, en alleen dít soort punt kan zo weg.
+group("geaccepteerde zinnen: een zin zonder bron laten staan", () => {
+  const zonderBron = (zin: string) => ({ bron: "bronherleidbaarheid" as const, blocking: true, evidence: zin });
+  const redactie = { bron: "redactie" as const, blocking: true, evidence: "De opening is te lang." };
+  const issues = [zonderBron("Vervangend vervoer kun je aanvullend kiezen."), zonderBron("Alle zes vestigingen zijn open."), redactie];
+  ok("een zin zonder bron is te accepteren", isAccepteerbaar(issues[0]));
+  ok("een punt van de redactie niet", !isAccepteerbaar(redactie));
+  ok("een niet-blokkerend punt niet", !isAccepteerbaar({ ...issues[0], blocking: false }));
+  ok("zonder zin erbij niet", !isAccepteerbaar({ ...issues[0], evidence: null }));
+
+  const lijst = voegToe([], ['"Vervangend vervoer kun je aanvullend kiezen."', "vervangend  vervoer kun je aanvullend kiezen."], "u1", "2026-09-23T10:00:00Z");
+  ok("dubbelen en aanhalingstekens tellen één keer", lijst.length === 1);
+  const uit = zonderGeaccepteerd(issues, lijst);
+  ok("het geaccepteerde punt valt weg", uit.issues.length === 2 && !uit.issues.includes(issues[0]));
+  ok("en wordt teruggemeld voor ongedaan maken", uit.weggelaten[0] === "Vervangend vervoer kun je aanvullend kiezen.");
+  const nepRedactie = zonderGeaccepteerd(issues, voegToe([], ["De opening is te lang."], "u1", "x"));
+  ok("een redactiepunt blijft staan, ook als zijn tekst op de lijst staat", nepRedactie.issues.length === 3);
+  ok("ongedaan maken haalt hem van de lijst", haalWeg(lijst, ["Vervangend vervoer kun je aanvullend kiezen"]).length === 0);
+  ok("onleesbare opslag wordt een lege lijst", leesGeaccepteerd({ zin: "x" }).length === 0 && leesGeaccepteerd([{ zin: "" }, null, { zin: "ok" }]).length === 1);
 });
 
 group("contentpagina: goedkeuren kan altijd, ook met open punten", () => {

@@ -634,3 +634,12 @@ en AI) en `cluster_discovery_candidates` (kandidaat-clusters met zoektermen, sco
 afwijsreden). Lezen mag wie het merk mag lezen, schrijven alleen de server. Op `profile_topics`
 komt `discovery_candidate_id` bij, en de herkomst `ontdekking` mag in `origin`. De zoekvolumes gaan
 bewust nergens de potentiescore in. Op productie toegepast op 23 september 2026.
+
+## 0110 — Zinnen zonder bron die de klant laat staan
+
+Voegt `content_pieces.geaccepteerde_zinnen` toe (jsonb, standaard `[]`): per zin de tekst, wie hem
+accepteerde en wanneer. Een zin die iets over het bedrijf zegt zonder bevestigd feit blokkeert
+publicatie; met "Akkoord, laat staan" verdwijnt dat punt en blijft de zin in de tekst. Het
+paginascherm telt ook de lijsten van eerdere versies van dezelfde pagina mee. Schrijven alleen via
+`app/api/analyses/[id]/content/[pieceId]/zinnen/route.ts`. Op productie toegepast op 23 september 2026:
+27 teksten, alle 27 met een lege lijst.

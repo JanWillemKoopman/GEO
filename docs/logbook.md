@@ -11754,6 +11754,12 @@ in dit scherm: `EmptyState` vroeg `py-14` (56px), maar `.card` staat in `app/glo
 Tailwind-laag en wint daardoor altijd van een hulpklasse. Elke lege staat in de app kreeg dus 16
 tot 24px. Nu staat de ruimte als `.card.empty-state` in het stijlblad, en geldt ze overal.
 
+**Later op 23 september 2026: een zin zonder bron bewust laten staan.** De klant kan bij een zin die
+iets over zijn bedrijf zegt zonder bevestigd feit kiezen voor "Klopt, laat staan": het punt verdwijnt,
+de zin blijft. Alleen voor dit soort punt, omdat alleen de klant weet of zo'n feit klopt; een punt
+over toon of opbouw negeer je met "Keur goed". Migratie 0110, op productie toegepast (27 teksten).
+Zie `docs/tasks/herontwerp-contentpagina.md` bijlage D punt 8.
+
 **Later die avond: de bibliotheek in drie groepen, met één zin per pagina.** Met alleen de teksten in
 de bibliotheek stond een pagina zonder plek in het plan ("Nog niet ingepland") op geen enkel scherm
 meer, en zag de eigenaar niet wat er binnenkort geschreven werd. Nu staat elke pagina van een

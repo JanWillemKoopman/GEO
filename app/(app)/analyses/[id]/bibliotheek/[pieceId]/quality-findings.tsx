@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { isAccepteerbaar } from "@/lib/geaccepteerde-zinnen";
 import { Icon } from "@/components/icon";
 import { InfoHint } from "@/components/info-hint";
 import {
@@ -44,6 +46,9 @@ export function QualityFindings({
   groepen,
   pogingen,
   klantzin,
+  analysisId,
+  pieceId,
+  bewustLatenStaan,
   score,
   gevonden,
   sectieBestaat,
@@ -58,6 +63,10 @@ export function QualityFindings({
   pogingen: string;
   /** Alleen nog gebruikt als er niets meer openstaat. */
   klantzin: string;
+  analysisId: string;
+  pieceId: string;
+  /** Zinnen zonder bron die de klant bewust laat staan: voor "ongedaan maken". */
+  bewustLatenStaan: string[];
   score: number | null;
   /**
    * Per blokkade (zelfde volgorde als `groepen.blokkades`) of zijn zin in de
@@ -77,6 +86,7 @@ export function QualityFindings({
 }) {
   const blokkades = groepen.blokkades;
   const overig = [...groepen.geprobeerd, ...groepen.nietGeprobeerd];
+  const laatStaan = useLaatStaan(analysisId, pieceId);
 
   return (
     <section id="verbeteren" className="flex flex-col gap-4 scroll-mt-24" aria-label="Te verbeteren">
@@ -139,10 +149,30 @@ export function QualityFindings({
                 onPasZelfAan={onPasZelfAan}
                 onLaatOplossen={onLaatOplossen}
                 kanOplossen={kanOplossen}
+                onLaatStaan={(zinnen) => void laatStaan.doe(zinnen, false)}
+                bezig={laatStaan.bezig}
               />
             ))}
           </ul>
         </>
+      )}
+
+      {laatStaan.fout && <p className="text-sm text-[var(--intent-danger-content)]">{laatStaan.fout}</p>}
+
+      {bewustLatenStaan.length > 0 && (
+        <p className="text-sm text-muted">
+          {bewustLatenStaan.length === 1
+            ? "1 zin zonder bron laat je bewust staan."
+            : `${bewustLatenStaan.length} zinnen zonder bron laat je bewust staan.`}{" "}
+          <button
+            type="button"
+            disabled={laatStaan.bezig}
+            onClick={() => void laatStaan.doe(bewustLatenStaan, true)}
+            className="text-secondary underline"
+          >
+            Ongedaan maken
+          </button>
+        </p>
       )}
 
       {overig.length > 0 && (
@@ -157,6 +187,39 @@ export function QualityFindings({
       )}
     </section>
   );
+}
+
+/**
+ * "Akkoord, laat staan" (migratie 0110): de zin blijft in de tekst, het punt
+ * verdwijnt. Na het opslaan ververst het scherm, zodat de telling in de rail,
+ * de kaart "Aan zet" en de publiceerstap tegelijk meegaan.
+ */
+function useLaatStaan(analysisId: string, pieceId: string) {
+  const router = useRouter();
+  const [bezig, setBezig] = useState(false);
+  const [fout, setFout] = useState<string | null>(null);
+  async function doe(zinnen: string[], ongedaan: boolean) {
+    setBezig(true);
+    setFout(null);
+    try {
+      const res = await fetch(`/api/analyses/${analysisId}/content/${pieceId}/zinnen`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ zinnen, ongedaan }),
+      });
+      if (!res.ok) {
+        const json = (await res.json().catch(() => null)) as { error?: string } | null;
+        setFout(json?.error ?? "Dat is niet gelukt. Probeer het opnieuw.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setFout("Er is geen verbinding. Probeer het opnieuw.");
+    } finally {
+      setBezig(false);
+    }
+  }
+  return { bezig, fout, doe };
 }
 
 /** Wat er in het herschrijfvak komt voor één bevinding. */
@@ -201,7 +264,12 @@ function Punt({
   onPasZelfAan,
   onLaatOplossen,
   kanOplossen,
+  onLaatStaan,
+  bezig,
 }: {
+  /** Laat deze zinnen (hun `evidence`) bewust staan. */
+  onLaatStaan: (zinnen: string[]) => void;
+  bezig: boolean;
   items: GegroepeerdeBevinding[];
   kop: string | null;
   /** Per item de tekst ná de aanhef, voor een bundel zonder citaten. */
@@ -220,6 +288,9 @@ function Punt({
     .map((item) => ({ item, zin: plekVan(item), index: indexVan(item) }))
     .filter((p): p is { item: GegroepeerdeBevinding; zin: string; index: number } => Boolean(p.zin));
   const sectie = eerste.issue.section?.trim();
+  // Alleen een zin zonder bron kan de klant zelf goedkeuren; een punt van een
+  // beoordelaar over toon of opbouw niet (`lib/geaccepteerde-zinnen.ts`).
+  const accepteerbaar = items.filter((i) => isAccepteerbaar(i.issue));
 
   return (
     <li
@@ -250,8 +321,8 @@ function Punt({
 
       {plekken.length > 0 && (
         <ul className="flex flex-col gap-1">
-          {plekken.map(({ zin, index }) => (
-            <li key={index}>
+          {plekken.map(({ item, zin, index }) => (
+            <li key={index} className="flex flex-col gap-0.5">
               {gevonden[index] ? (
                 <button
                   type="button"
@@ -264,6 +335,16 @@ function Punt({
                 </button>
               ) : (
                 <span className="line-clamp-2 block pl-2 text-sm text-secondary">{zin}</span>
+              )}
+              {accepteerbaar.length > 1 && isAccepteerbaar(item.issue) && (
+                <button
+                  type="button"
+                  disabled={bezig}
+                  onClick={() => onLaatStaan([item.issue.evidence ?? ""])}
+                  className="w-fit pl-2 text-xs text-secondary hover:underline"
+                >
+                  Klopt, laat deze staan
+                </button>
               )}
             </li>
           ))}
@@ -291,7 +372,23 @@ function Punt({
             Zelf aanpassen
           </button>
         )}
+        {accepteerbaar.length > 0 && (
+          <button
+            type="button"
+            disabled={bezig}
+            onClick={() => onLaatStaan(accepteerbaar.map((i) => i.issue.evidence ?? ""))}
+            className="text-sm text-secondary hover:underline"
+            title="De zin blijft in de tekst staan en het punt verdwijnt"
+          >
+            {accepteerbaar.length > 1 ? `Klopt, laat alle ${accepteerbaar.length} staan` : "Klopt, laat staan"}
+          </button>
+        )}
       </div>
+      {accepteerbaar.length > 0 && (
+        <p className="type-caption text-muted">
+          Klopt de zin wel? Dan kun je hem laten staan. Jij staat er dan voor in dat hij waar is.
+        </p>
+      )}
     </li>
   );
 }

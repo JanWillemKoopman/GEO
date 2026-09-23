@@ -61,6 +61,7 @@ export function ContentWerkblad({
   groepen,
   pogingen,
   klantzin,
+  bewustLatenStaan,
   score,
   kwaliteitBadge,
   onderbouwingBadge,
@@ -105,6 +106,8 @@ export function ContentWerkblad({
   groepen: Bevindingengroepen;
   pogingen: string;
   klantzin: string;
+  /** Zinnen zonder bron die de klant bewust laat staan (migratie 0110). */
+  bewustLatenStaan: string[];
   score: number | null;
   kwaliteitBadge?: string;
   onderbouwingBadge?: string;
@@ -524,6 +527,9 @@ export function ContentWerkblad({
               groepen={groepen}
               pogingen={pogingen}
               klantzin={klantzin}
+              analysisId={analysisId}
+              pieceId={pieceId}
+              bewustLatenStaan={bewustLatenStaan}
               score={score}
               gevonden={markering.gevonden}
               sectieBestaat={sectieBestaat}
