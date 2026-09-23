@@ -11950,3 +11950,31 @@ vorm van een veld (`.field`). Die kregen na een muisklik de dikke focusrand van 
 alleen voor wie met het toetsenbord werkt bedoeld is. `button.field` houdt die rand nu alleen bij
 toetsenbordfocus. Gevonden door de proefpagina met de echte componenten voor en na naast elkaar te
 fotograferen.
+
+## 23 september 2026 (8): over naar GPT-6
+
+OpenAI bracht op 22 september 2026 GPT-6 Sol en GPT-6 Luna uit. De app is dezelfde dag
+overgestapt: meten, onderzoeken en beoordelen van `gpt-5.6-luna` naar `gpt-6-luna` ($0,20/$1,20
+naar $0,10/$0,50 per miljoen tokens), schrijven van `gpt-5.6-terra` naar `gpt-6-sol` ($2/$12 naar
+$2/$10). Er is geen GPT-6 Terra. Het zijproject Solliciteren biedt GPT-6 Sol als standaard,
+de vorige Sol ter vergelijking en GPT-6 Luna.
+
+Nagerekend op `ai_calls` over 24 augustus tot 23 september 2026: de Luna-rekening was $10,14,
+waarvan $5,10 voor 510 zoekacties. Die zoekacties kosten op GPT-6 hetzelfde, de tokens gaan van
+$5,04 naar $2,34. Samen ~$7,44, 27% minder. Het schrijven gaat van $3,90 naar ~$3,53, 10% minder.
+Over de hele maand ~$3,07 op ~$14,04, zo'n 22%.
+
+Twee dingen moesten mee om de wissel niet stuk te laten lopen. `isReasoningModel()` herkende alleen
+`gpt-5`, waardoor GPT-6 geen redeneerinspanning meekreeg en alles op `medium` draaide, ook de
+classificatie die bewust op `none` staat. En zonder tarief in `pricing.ts` viel elke aanroep op de
+terugval van $5/$30, een kostenoverzicht tot tien keer te hoog.
+
+De verwachte kwaliteitswinst is een claim van OpenAI, niet nagemeten: ongeveer de helft minder
+feitelijke fouten voor Sol, en minder misleiding (Luna van 9,5% naar 2,8%). Onafhankelijke tests zien
+de winst vooral in de prijs, niet in topscores. Nog te doen, op productie: `eval:mention -- --compare`
+(nieuwe tegen oude Luna) en de nameting uit `docs/tasks/contentkwaliteit-copywriterronde.md` §7.
+
+Gevolg voor de cijfers: een zichtbaarheidsmeting van vóór 23 september is met een ander model
+gedaan dan een van erna. Per aanroep staat het model in `ai_calls.model`; de reputatiemeting ziet de
+wissel zelf, want het model zit in `instrumentVersion()`. Terugdraaien is drie regels in
+`lib/openai/models.ts`.

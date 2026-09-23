@@ -117,12 +117,17 @@ export interface CallTuning {
 }
 
 /**
- * Is dit een redeneermodel (GPT-5-familie en de o-serie)? Bewust op prefix en
- * niet op een lijst modelnamen: een nieuwe variant (`gpt-5.6-terra`,
- * `gpt-5.7-...`) valt dan vanzelf goed, in plaats van stil in de verkeerde tak.
+ * Is dit een redeneermodel (GPT-5 en later, en de o-serie)? Bewust op prefix en
+ * niet op een lijst modelnamen: een nieuwe variant valt dan vanzelf goed, in
+ * plaats van stil in de verkeerde tak.
+ *
+ * ⚠️ Tot 23 september 2026 stond hier alleen `gpt-5`. `gpt-6-luna` viel daardoor
+ * in de tak voor oude modellen: geen redeneerinspanning mee, dus elke aanroep op
+ * de modelstandaard `medium`, ook de mention-classificatie die bewust op `none`
+ * staat. Vandaar nu elk generatienummer vanaf 5.
  */
 export function isReasoningModel(model: string): boolean {
-  return /^(gpt-5|o[1-9])/.test(model);
+  return /^(gpt-([5-9]|\d{2,})|o[1-9])/.test(model);
 }
 
 /**

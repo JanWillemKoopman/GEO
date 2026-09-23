@@ -44,7 +44,7 @@ een branch/project weggooien) eerst afstemmen.
 ## Techstack
 
 Next.js 15 (App Router, RSC-first) / React 19 / TypeScript, Tailwind v4, Supabase (Postgres, Auth,
-RLS, pg_cron), Vercel, OpenAI GPT-5.6 (drie tiers vast in `lib/openai/models.ts`, geen
+RLS, pg_cron), Vercel, OpenAI GPT-6 (drie tiers vast in `lib/openai/models.ts`, geen
 env-variabele), Zod, Resend (standaard uit, `EMAILS_ENABLED`). Modeltiers en reasoning-effort per
 soort werk staan in `lib/openai/sampling.ts`, met de rekensom in `docs/architecture.md` §6.
 

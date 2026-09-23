@@ -9,17 +9,16 @@
  *
  * ── WAAROM ALLEEN DEZE DRIE MODELLEN ───────────────────────────────────────
  *
- * De opdracht noemde ook "GPT-6 Astra" en "GPT-5.4 Thinking". Die staan hier
- * niet, en dat is geen vergeetachtigheid: de app kent ze nergens, er is geen
- * tarief voor bekend in `lib/openai/pricing.ts`, en er is in deze omgeving geen
- * sleutel om te controleren of ze bij OpenAI bestaan. Een modelnaam die niet
- * bestaat levert geen nette foutmelding op maar een mislukte aanroep, en een
- * onbekend tarief valt stil terug op de duurste schatting die we kennen. Dat is
- * precies conventie 3: onbekend is een betere waarde dan een verkeerde.
+ * Sinds 23 september 2026 GPT-6 Sol en Luna, met de vorige Sol ernaast om een
+ * brief te kunnen vergelijken. Terra is eruit: GPT-6 Sol is goedkoper
+ * ($2/$10 tegen $2/$12) en een generatie nieuwer, dus er is geen reden meer om
+ * hem te kiezen. GPT-6 Astra staat er bewust niet in: hij kost $10/$50, vijf
+ * keer GPT-6 Sol, en is gemaakt om een computer te bedienen, niet om te
+ * schrijven. "GPT-5.4 Thinking" kent de app nergens en heeft geen tarief.
  *
- * Er bijzetten kost twee regels zodra de naam vaststaat: een regel hieronder en
- * een tarief in `lib/openai/pricing.ts`. De schermen en de routes veranderen
- * niet mee, want die lezen deze tabel.
+ * Er bijzetten kost twee regels: een regel hieronder en een tarief in
+ * `lib/openai/pricing.ts`. De schermen en de routes veranderen niet mee, want
+ * die lezen deze tabel.
  *
  * ── ALLE DRIE ZIJN REDENEERMODELLEN ────────────────────────────────────────
  *
@@ -32,7 +31,7 @@
 import { isReasoningModel, type ReasoningEffort } from "@/lib/openai/sampling";
 
 /** De modellen die deze app kent, met hun tarief in `lib/openai/pricing.ts`. */
-export type SollicitatieModelId = "gpt-5.6-sol" | "gpt-5.6-terra" | "gpt-5.6-luna";
+export type SollicitatieModelId = "gpt-6-sol" | "gpt-5.6-sol" | "gpt-6-luna";
 
 export interface SollicitatieModel {
   id: SollicitatieModelId;
@@ -55,26 +54,26 @@ export const PRIJSPEIL = "ruwe schatting, het echte bedrag staat per bericht in 
 
 export const MODELLEN: readonly SollicitatieModel[] = [
   {
-    id: "gpt-5.6-sol",
+    id: "gpt-6-sol",
     naam: "Sol, het vlaggenschip",
     waarvoor: "De beste zinnen. Voor de brief zelf, als de tekst echt de deur uit gaat.",
-    // $30 per miljoen outputtokens, 1000 woorden is ~1330 tokens: ~$0,04.
-    centenPerDuizendWoorden: 4,
+    // $10 per miljoen outputtokens, 1000 woorden is ~1330 tokens: ~$0,013.
+    centenPerDuizendWoorden: 1.3,
   },
   {
-    id: "gpt-5.6-terra",
-    naam: "Terra, de middenweg",
+    id: "gpt-5.6-sol",
+    naam: "Sol 5.6, de vorige generatie",
     waarvoor:
-      "Bijna net zo goed, 2,5 keer goedkoper. Dit is waar ORBIT ENGINE zijn eigen content op schrijft.",
-    // $12 per miljoen outputtokens: ~$0,016.
-    centenPerDuizendWoorden: 2,
+      "Het vlaggenschip van voor 23 september 2026. Twee keer zo duur; handig om een brief naast de nieuwe te leggen.",
+    // $20 per miljoen outputtokens (tijdelijk tarief van OpenAI): ~$0,027.
+    centenPerDuizendWoorden: 2.7,
   },
   {
-    id: "gpt-5.6-luna",
+    id: "gpt-6-luna",
     naam: "Luna, snel en goedkoop",
     waarvoor: "Voor uitzoekwerk: de vacature ontleden, sleutelwoorden zoeken, een alinea inkorten.",
-    // $1,20 per miljoen outputtokens: ~$0,0016.
-    centenPerDuizendWoorden: 0.2,
+    // $0,50 per miljoen outputtokens: ~$0,0007.
+    centenPerDuizendWoorden: 0.07,
   },
 ] as const;
 
@@ -82,7 +81,7 @@ export const MODELLEN: readonly SollicitatieModel[] = [
  * Het vlaggenschip staat voor, want de reden dat iemand dit scherm opent is de
  * brief en niet de analyse. Wie wil uitzoeken, zet hem zelf een stap terug.
  */
-export const STANDAARD_MODEL: SollicitatieModelId = "gpt-5.6-sol";
+export const STANDAARD_MODEL: SollicitatieModelId = "gpt-6-sol";
 
 export interface Redeneerstand {
   id: ReasoningEffort;
