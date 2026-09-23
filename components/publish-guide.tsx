@@ -68,7 +68,7 @@ export function PublishGuide({
             <>
               <span className="font-medium text-[var(--text-primary)]">Maak een nieuwe pagina.</span>{" "}
               Voorstel voor het adres:{" "}
-              <code className="rounded bg-[var(--bg-elevated)] px-1 py-0.5 text-xs">
+              <code className="rounded bg-[var(--bg-layer-2)] px-1 py-0.5 text-xs">
                 {host}
                 {path}
               </code>

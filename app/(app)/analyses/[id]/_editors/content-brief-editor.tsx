@@ -58,7 +58,7 @@ export function ContentBriefEditor({ analysisId, initial }: { analysisId: string
             Opgeslagen
           </span>
         )}
-        {error && <span className="text-sm text-[var(--status-error)]">{error}</span>}
+        {error && <span className="text-sm text-[var(--intent-danger-content)]">{error}</span>}
       </div>
     </div>
   );

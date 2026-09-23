@@ -25,7 +25,7 @@ import { Icon } from "@/components/icon";
  * verdwenen (zie de aantekening daar).
  *
  * Vormgeving volgt hetzelfde patroon als `components/brand-switcher.tsx`: een
- * kaart met `--shadow-overlay`, gesloten door een klik erbuiten of Escape, en
+ * vlak (`.menu-surface`, `--shadow-lg`), gesloten door een klik erbuiten of Escape, en
  * uitsluitend de kleurtokens uit `designsystem.md` §A/§B, zodat licht en
  * donker vanzelf goed staan.
  */

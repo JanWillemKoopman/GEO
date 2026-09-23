@@ -398,7 +398,7 @@ export default async function ReputatiePage({
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="card flex flex-col gap-1">
               <span className="mono-label">Als een koper kiest</span>
-              <span className="stat-value text-2xl">
+              <span className="data-card-waarde">
                 {groepen.genoemd.length} van de {groepen.genoemd.length + groepen.nietGenoemd.length}
               </span>
               <p className="type-compact text-secondary">
@@ -417,7 +417,7 @@ export default async function ReputatiePage({
 
             <div className="card flex flex-col gap-2">
               <span className="mono-label">Waar dit beeld op rust</span>
-              <span className="stat-value text-2xl">{evidenceWord(laatste.evidence_score)}</span>
+              <span className="data-card-waarde">{evidenceWord(laatste.evidence_score)}</span>
               {/* ── R5: de samenstelling, niet alleen het woord ───────────── */}
               <ReputationEvidence sources={sources} />
               <p className="type-compact text-secondary">

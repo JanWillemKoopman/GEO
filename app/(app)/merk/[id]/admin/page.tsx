@@ -258,26 +258,26 @@ export default async function AdminPage({
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="tabel">
               <thead>
-                <tr className="text-muted">
-                  <th className="py-1 pr-4 font-normal">Stap</th>
-                  <th className="py-1 pr-4 font-normal">Model</th>
-                  <th className="py-1 pr-4 font-normal">Tokens</th>
-                  <th className="py-1 pr-4 font-normal">Zoeken</th>
-                  <th className="py-1 font-normal">Kosten</th>
+                <tr>
+                  <th>Stap</th>
+                  <th>Model</th>
+                  <th>Tokens</th>
+                  <th>Zoeken</th>
+                  <th>Kosten</th>
                 </tr>
               </thead>
               <tbody>
                 {kosten.map((k, i) => (
-                  <tr key={i} className="border-t border-[var(--border-subtle)]">
-                    <td className="py-1 pr-4">{k.kind}</td>
-                    <td className="py-1 pr-4 mono-label">{k.model}</td>
-                    <td className="py-1 pr-4 stat-value">
+                  <tr key={i}>
+                    <td>{k.kind}</td>
+                    <td className="mono-label">{k.model}</td>
+                    <td className="stat-value">
                       {(k.input_tokens ?? 0) + (k.output_tokens ?? 0)}
                     </td>
-                    <td className="py-1 pr-4">{k.web_search ? "ja" : "nee"}</td>
-                    <td className="py-1 stat-value">
+                    <td>{k.web_search ? "ja" : "nee"}</td>
+                    <td className="stat-value">
                       {k.cost_usd === null ? "-" : `$${k.cost_usd.toFixed(4)}`}
                     </td>
                   </tr>
@@ -356,7 +356,7 @@ export default async function AdminPage({
 function Json({ waarde }: { waarde: unknown }) {
   return (
     <pre
-      className="max-h-64 overflow-auto rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 text-xs"
+      className="vlak vlak-gevuld max-h-64 overflow-auto text-xs"
       style={{ fontFamily: "var(--font-mono)" }}
     >
       {JSON.stringify(waarde, null, 2)}

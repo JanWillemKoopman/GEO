@@ -100,8 +100,8 @@ export function WorkInProgress({
                   color: step.done
                     ? "var(--trend-up-text)"
                     : step.nietsGevonden
-                      ? "var(--intent-warning-text)"
-                      : "var(--text-muted)",
+                      ? "var(--intent-warning-content)"
+                      : "var(--text-tertiary)",
                 }}
               >
                 {step.done ? (
@@ -115,7 +115,7 @@ export function WorkInProgress({
                   color:
                     step.done || step.nietsGevonden || i === activeIndex
                       ? "var(--text-primary)"
-                      : "var(--text-muted)",
+                      : "var(--text-tertiary)",
                 }}
               >
                 {step.label}
@@ -136,7 +136,7 @@ export function WorkInProgress({
           een mailtje wachtte, wachtte voor niets. Dit component is een client-
           component en kan de serverschakelaar niet zien, dus staat er nu alleen
           wat onder alle omstandigheden waar is. */}
-      <p className="rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3 text-sm text-secondary">
+      <p className="vlak vlak-gevuld text-sm text-secondary">
         <strong className="font-medium">Je kunt dit scherm sluiten.</strong> ORBIT ENGINE draait op de
         achtergrond door en maakt het werk af, ook als je de browser afsluit. Kom gerust later terug.
       </p>

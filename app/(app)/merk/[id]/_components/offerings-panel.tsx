@@ -8,6 +8,7 @@ import {
   type StructureCoverage,
 } from "@/lib/pipeline/structure-gap";
 import type { InventoryQuality, ProfileOffering } from "@/lib/types/database";
+import { Alert } from "@/components/alert";
 
 /**
  * Het aanbod zoals wij het op de site vonden, en sinds onboarding Ronde C
@@ -123,13 +124,12 @@ export function OfferingsPanel({
       )}
 
       {inventory && inventory.verdict !== "voldoende" && (
-        <div
-          className="rounded-[var(--radius-xl)] border border-[var(--status-warning)] px-3 py-2 text-sm"
-          role="status"
-        >
-          <span className="mono-label">{VERDICT_KOPPEN[inventory.verdict]}</span>
-          <p className="mt-1 text-secondary">{inventory.advice}</p>
-        </div>
+        <Alert intent="warning">
+          <span className="flex flex-col gap-1">
+            <span className="font-medium text-[var(--text-primary)]">{VERDICT_KOPPEN[inventory.verdict]}</span>
+            {inventory.advice}
+          </span>
+        </Alert>
       )}
 
       {offerings.length === 0 && (

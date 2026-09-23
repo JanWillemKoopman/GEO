@@ -129,7 +129,7 @@ export function CsmView({ brands, kpi }: { brands: CsmBrand[]; kpi: CsmTotals })
               ? "var(--intent-warning-surface)"
               : "var(--bg-surface)",
             borderColor: CSM_SEGMENT_META[segment].actie
-              ? "var(--intent-warning-border)"
+              ? "var(--border-default)"
               : "var(--border-subtle)",
           }}
         >
@@ -192,8 +192,8 @@ function Kpi({
     <div className="card flex flex-col gap-1">
       <span className="mono-label">{label}</span>
       <span
-        className="stat-value text-3xl"
-        style={{ color: alarm ? "var(--intent-danger-text)" : "var(--text-primary)" }}
+        className="data-card-waarde"
+        style={{ color: alarm ? "var(--intent-danger-content)" : undefined }}
       >
         {waarde}
       </span>
@@ -220,21 +220,12 @@ function Tab({
       type="button"
       onClick={onClick}
       aria-pressed={actief}
-      // De hover staat in een klasse en het actieve vlak in een inline-stijl:
-      // die laatste wint, dus de gekozen filterknop negeert de hover vanzelf.
-      // Zonder dit beloofde `transition-colors` een overgang die nergens heen
-      // ging.
-      className="flex items-center gap-2 rounded-[var(--radius-xl)] border px-3 py-2 text-sm font-medium transition-colors hover:bg-[var(--wash-hover)]"
-      style={{
-        borderColor: actief ? "var(--intent-intelligence-border)" : "var(--border-subtle)",
-        background: actief ? "var(--intent-intelligence-surface)" : undefined,
-        color: actief ? "var(--text-primary)" : "var(--text-secondary)",
-      }}
+      className="chip-select chip-select-lg"
     >
       {label}
       <span
-        className="stat-value text-xs"
-        style={{ color: alarm ? "var(--intent-danger-text)" : "var(--text-muted)" }}
+        className="tabular"
+        style={{ color: alarm ? "var(--intent-danger-content)" : "var(--text-subtle)" }}
       >
         {aantal}
       </span>

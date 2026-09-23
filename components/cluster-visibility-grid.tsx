@@ -74,15 +74,15 @@ function Balk({ waarde, marge }: { waarde: number; marge: number }) {
   const hoog = Math.min(100, waarde + marge);
   return (
     <span className="flex items-center gap-2">
-      <span className="relative h-3 w-full overflow-hidden rounded-[var(--radius-pill)]" style={{ background: "var(--bg-elevated)" }}>
+      <span className="relative h-3 w-full overflow-hidden rounded-[var(--radius-pill)]" style={{ background: "var(--bg-layer-2)" }}>
         <span
           className="absolute inset-y-0 rounded-[var(--radius-pill)]"
-          style={{ left: `${laag}%`, width: `${hoog - laag}%`, background: "var(--chart-own-muted, var(--bg-muted))" }}
+          style={{ left: `${laag}%`, width: `${hoog - laag}%`, background: "var(--bg-layer-2)" }}
           aria-hidden
         />
         <span
           className="absolute inset-y-0 left-0 rounded-[var(--radius-pill)]"
-          style={{ width: `${waarde}%`, background: "var(--chart-own)" }}
+          style={{ width: `${waarde}%`, background: "var(--chart-1)" }}
         />
       </span>
       <span className="stat-value w-10 shrink-0 text-right text-sm">{Math.round(waarde)}%</span>

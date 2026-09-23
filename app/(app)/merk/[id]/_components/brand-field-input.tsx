@@ -280,7 +280,7 @@ function PersonaEditor({
       {items.map((persona, i) => (
         <div
           key={i}
-          className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3"
+          className="vlak flex flex-col gap-2"
         >
           <input
             className="field"
@@ -311,7 +311,7 @@ function PersonaEditor({
               onChange(items.filter((_, idx) => idx !== i));
               onCommit?.();
             }}
-            className="w-fit text-sm text-[var(--status-error)] hover:underline"
+            className="w-fit text-sm text-[var(--intent-danger-content)] hover:underline"
           >
             Verwijderen
           </button>
@@ -398,17 +398,7 @@ function Standen({
             role="radio"
             aria-checked={actief}
             onClick={() => (actief ? onClear() : onChange(n))}
-            className="rounded-[var(--radius-xl)] border px-3 py-2 text-sm transition-colors"
-            style={{
-              borderColor: actief
-                ? "var(--intent-intelligence-border)"
-                : "var(--border-strong)",
-              background: actief
-                ? "var(--intent-intelligence-surface)"
-                : "var(--bg-surface)",
-              color: actief ? "var(--text-primary)" : "var(--text-secondary)",
-              fontWeight: actief ? 600 : 400,
-            }}
+            className="chip-select chip-select-lg"
           >
             {label}
           </button>

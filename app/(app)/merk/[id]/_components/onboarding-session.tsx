@@ -412,7 +412,7 @@ export function OnboardingSession({
                               value={urlWaarde}
                               onChange={(e) => setUrlWaarde(e.target.value)}
                             />
-                            <p className="text-sm text-[var(--status-error)]">
+                            <p className="text-sm text-[var(--intent-danger-content)]">
                               Let op: dit verandert het domein waar ORBIT ENGINE op leest. De crawl
                               en de inventaris moeten daarna opnieuw.
                             </p>
@@ -668,7 +668,7 @@ export function OnboardingSession({
                 </span>
               )}
               {bijwerken === "mislukt" && (
-                <span className="text-sm text-[var(--status-error)]">
+                <span className="text-sm text-[var(--intent-danger-content)]">
                   Het is niet gelukt om dit in gang te zetten. Probeer het zo nog eens.
                 </span>
               )}
@@ -767,7 +767,7 @@ export function Meter({
 function Getal({ waarde, label }: { waarde: number; label: string }) {
   return (
     <span className="flex flex-col">
-      <span className="stat-value text-2xl">{waarde}</span>
+      <span className="data-card-waarde">{waarde}</span>
       <span className="mono-label">{label}</span>
     </span>
   );

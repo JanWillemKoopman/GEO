@@ -124,7 +124,7 @@ export function EntitiesManager({ profileId, initial }: { profileId: string; ini
       {problem && <ErrorNotice error={problem} />}
 
       {pending.length > 0 && (
-        <section className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--intent-intelligence-border)] p-3">
+        <section className="flex flex-col gap-2 vlak">
           <p className="text-sm text-secondary">
             <span className="font-medium text-[var(--text-primary)]">
               {pending.length} nieuw gevonden {pending.length === 1 ? "merk" : "merken"}
@@ -251,7 +251,7 @@ function EntityRow({
   const [merging, setMerging] = useState(false);
 
   return (
-    <li className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 sm:flex-row sm:items-center">
+    <li className="vlak vlak-gevuld flex flex-col gap-2 sm:flex-row sm:items-center">
       <input
         className="field flex-1"
         defaultValue={entity.canonical_name}

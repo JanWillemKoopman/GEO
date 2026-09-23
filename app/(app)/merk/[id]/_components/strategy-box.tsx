@@ -131,7 +131,7 @@ export function StrategyBox({
         {factors.map((f, i) => (
           <div
             key={i}
-            className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3"
+            className="vlak flex flex-col gap-2"
           >
             <div className="flex flex-wrap gap-2">
               <select
@@ -201,7 +201,7 @@ export function StrategyBox({
         </p>
       )}
       {error && (
-        <p className="text-sm text-[var(--status-error)]" role="alert">
+        <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
           {error}
         </p>
       )}

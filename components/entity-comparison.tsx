@@ -29,12 +29,12 @@ export function EntityComparison({ rows }: { rows: ComparisonRow[] }) {
           >
             {row.label}
           </span>
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--bg-elevated)]">
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--bg-layer-2)]">
             <div
               className="h-full rounded-full"
               style={{
                 width: `${Math.max(row.percent, 2)}%`,
-                background: row.isOwnBrand ? "var(--intent-intelligence-solid)" : "var(--border-strong)",
+                background: row.isOwnBrand ? "var(--chart-1)" : "var(--border-strong)",
               }}
             />
           </div>

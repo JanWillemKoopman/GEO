@@ -109,7 +109,7 @@ export function PotentialInline({ triple }: { triple: PotentialTriple }) {
         Potentie{" "}
         <strong
           className="text-[var(--text-primary)]"
-          style={band === "hoog" ? { color: "var(--status-success)" } : undefined}
+          style={band === "hoog" ? { color: "var(--intent-success-content)" } : undefined}
         >
           {fmt(triple.potential)}
         </strong>
@@ -144,7 +144,7 @@ function MetricTile({
         <InfoHint label={label}>{hint}</InfoHint>
       </span>
       <span
-        className="stat-value text-3xl"
+        className="data-card-waarde"
         style={tone === "up" ? { color: "var(--intent-success-content)" } : undefined}
       >
         {value === null ? "-" : value}

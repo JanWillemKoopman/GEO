@@ -81,13 +81,13 @@ export function Sparkline({
       <path
         d={lijn}
         fill="none"
-        stroke="var(--chart-own)"
+        stroke="var(--chart-1)"
         strokeWidth={1.5}
         strokeLinejoin="round"
         strokeLinecap="round"
       />
       {/* De laatste stand krijgt een punt: dat is de waarde waar het om gaat. */}
-      <circle cx={W - PAD} cy={laatsteY} r={2} fill="var(--chart-own)" />
+      <circle cx={W - PAD} cy={laatsteY} r={2} fill="var(--chart-1)" />
     </svg>
   );
 }

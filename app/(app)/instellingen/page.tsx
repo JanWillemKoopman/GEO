@@ -37,7 +37,7 @@ export default async function InstellingenPage() {
   );
 
   return (
-    <div className="mx-auto flex max-w-xl flex-col gap-6">
+    <div className="wil-lezen flex flex-col gap-6">
       <PageHeader
         eyebrow="ORBIT ENGINE · account"
         title="Mijn instellingen"

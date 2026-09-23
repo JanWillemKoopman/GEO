@@ -139,7 +139,7 @@ export function WhyThisPage({
           {targets.some((t) => t.tracking_run_id) && (
             <Link
               href={`/merk/${profileId}/analytics?cluster=${analysisId}`}
-              className="mono-label w-fit underline transition-colors hover:text-[var(--text-primary)]"
+              className="link type-caption w-fit"
             >
               Zie wat de AI hier nu antwoordt
             </Link>

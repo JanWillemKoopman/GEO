@@ -66,7 +66,7 @@ export default async function ProfielenPage() {
   profiles = [...failedProfiles, ...profiles.filter((p) => p.status !== "mislukt")];
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="ORBIT ENGINE · merkdossiers"
         title="Merken"
@@ -120,7 +120,7 @@ export default async function ProfielenPage() {
                     {p.url} · <LastUpdated at={p.updated_at} className="" />
                   </p>
                   {legeMerken.has(p.id) && (
-                    <p className="mono-label mt-1" style={{ color: "var(--intent-warning-text)" }}>
+                    <p className="mono-label mt-1" style={{ color: "var(--intent-warning-content)" }}>
                       De site kon niet gelezen worden, dit dossier is leeg
                     </p>
                   )}

@@ -87,7 +87,7 @@ export function StartReputationButton({
           {repeat ? "Nieuwe reputatieanalyse" : "Start de reputatieanalyse"}
         </button>
         {error && (
-          <p className="text-sm text-[var(--status-error)]" role="alert">
+          <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
             {error}
           </p>
         )}
@@ -99,7 +99,7 @@ export function StartReputationButton({
   // modaal venster: één klik die verandert in twee is genoeg (zelfde keuze als
   // bij `rerun-research-button.tsx`).
   return (
-    <div className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3">
+    <div className="vlak flex flex-col gap-2">
       <p className="text-sm text-secondary">
         ORBIT ENGINE vraagt ChatGPT hoe er over dit merk gepraat wordt: merkbreed, per dienst, en
         naast de concurrenten die uit de metingen zijn gekomen. Je hoeft er niet bij te wachten:
@@ -164,7 +164,7 @@ export function StartReputationButton({
         </button>
       </div>
       {error && (
-        <p className="text-sm text-[var(--status-error)]" role="alert">
+        <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
           {error}
         </p>
       )}

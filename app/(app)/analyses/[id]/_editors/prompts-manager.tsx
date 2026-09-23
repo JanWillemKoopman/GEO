@@ -103,7 +103,7 @@ export function PromptsManager({ analysisId, initial }: { analysisId: string; in
       </div>
 
       {error && (
-        <p className="text-sm text-[var(--status-error)]" role="alert">
+        <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
           {error}
         </p>
       )}
@@ -143,7 +143,7 @@ function PromptCategoryList({
       {prompts.map((p) => (
         <li
           key={p.id}
-          className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 sm:flex-row sm:items-start"
+          className="vlak vlak-gevuld flex flex-col gap-2 sm:flex-row sm:items-start"
         >
           <div className="flex flex-1 flex-col gap-1.5">
             <textarea
@@ -173,7 +173,7 @@ function PromptCategoryList({
             <button
               type="button"
               onClick={() => onDelete(p.id)}
-              className="text-sm text-[var(--status-error)] hover:underline"
+              className="text-sm text-[var(--intent-danger-content)] hover:underline"
             >
               Verwijderen
             </button>

@@ -85,7 +85,7 @@ export function ConfirmBar({
             {pending ? "Meting starten…" : "Bevestig en start de meting"}
           </button>
           {error ? (
-            <span className="text-sm text-[var(--status-error)]" role="alert">
+            <span className="text-sm text-[var(--intent-danger-content)]" role="alert">
               {error}
             </span>
           ) : (

@@ -361,27 +361,27 @@ export default async function AnalyticsPage({
           <span className="mono-label">Wat ORBIT ENGINE tot nu toe opleverde</span>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div className="flex flex-col gap-1">
-              <span className="mono-label">Pagina&apos;s live</span>
-              <span className="stat-value text-3xl">
+              <span className="data-card-label">Pagina&apos;s live</span>
+              <span className="data-card-waarde">
                 {opbrengst!.paginasLive}
                 {opbrengst!.paginasGepland > 0 && (
-                  <span className="text-base text-muted"> · {opbrengst!.paginasGepland} in het plan</span>
+                  <span className="text-sm font-normal text-muted"> · {opbrengst!.paginasGepland} in het plan</span>
                 )}
               </span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="mono-label">Klikken sinds de start</span>
-              <span className="stat-value text-3xl">
+              <span className="data-card-label">Klikken sinds de start</span>
+              <span className="data-card-waarde">
                 {opbrengst!.klikkenSindsStart === null
                   ? "-"
                   : opbrengst!.klikkenSindsStart.toLocaleString("nl-NL")}
               </span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="mono-label">Deze 28 dagen</span>
+              <span className="data-card-label">Deze 28 dagen</span>
               {opbrengst!.vergelijkingOns ? (
                 <>
-                  <span className="stat-value text-3xl">
+                  <span className="data-card-waarde">
                     {opbrengst!.vergelijkingOns.nu.clicks.toLocaleString("nl-NL")} klikken
                   </span>
                   {!controlegroepZin && (
@@ -402,7 +402,7 @@ export default async function AnalyticsPage({
                 : `${opbrengst!.jongePaginas} pagina's staan korter dan 28 dagen online en zijn bij Google nog nauwelijks vertoond.`}
             </p>
           )}
-          <Link href={`/merk/${id}/analytics/zoekverkeer`} className="text-sm underline w-fit">
+          <Link href={`/merk/${id}/analytics/zoekverkeer`} className="link w-fit text-sm">
             Bekijk per pagina
           </Link>
         </div>

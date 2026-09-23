@@ -13,7 +13,7 @@ const LABEL_TEKST: Record<(typeof TONE_LABELS)[number], string> = {
 const LABEL_KLEUR: Record<(typeof TONE_LABELS)[number], string> = {
   positief: "var(--trend-up)",
   overwegend_positief: "var(--trend-up)",
-  neutraal: "var(--text-muted)",
+  neutraal: "var(--text-tertiary)",
   gemengd: "var(--intent-warning-solid)",
   negatief: "var(--intent-danger-solid)",
   onbekend: "var(--border-subtle)",

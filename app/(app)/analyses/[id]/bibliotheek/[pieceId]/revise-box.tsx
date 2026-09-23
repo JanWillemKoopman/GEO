@@ -125,7 +125,7 @@ function RewriteFlow({
 
   if (state === "queued") {
     return (
-      <div className="card card-accent flex flex-col gap-2">
+      <div className="card flex flex-col gap-2">
         <span className="flex items-center gap-2 font-medium">
           <span className="live-dot" />
           ORBIT ENGINE schrijft een nieuwe versie

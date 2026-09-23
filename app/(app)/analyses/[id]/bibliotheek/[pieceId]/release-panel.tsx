@@ -160,7 +160,7 @@ export function ReleasePanel({
             Uitspraken over je bedrijf in deze tekst ({claims.length})
           </span>
           {zonderBron.length > 0 && (
-            <p className="text-sm" style={{ color: "var(--intent-warning-text)" }}>
+            <p className="text-sm" style={{ color: "var(--intent-warning-content)" }}>
               {zonderBron.length} daarvan kon ORBIT ENGINE niet herleiden tot een bevestigd feit. Lees ze
               na voordat je publiceert.
             </p>
@@ -191,7 +191,7 @@ export function ReleasePanel({
       )}
 
       {error && (
-        <p className="text-sm" role="alert" style={{ color: "var(--intent-danger-text)" }}>
+        <p className="text-sm" role="alert" style={{ color: "var(--intent-danger-content)" }}>
           {error}
         </p>
       )}
@@ -219,7 +219,7 @@ export function ReleasePanel({
         // (`docs/ux-design.md` §4). De melding zegt wat er open staat, waaróm dat
         // uitmaakt en waar je het oplost, en de knop ernaast gaat er direct
         // heen. Overslaan staat in de melding zelf, want dat is de uitweg.
-        <div className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3">
+        <div className="vlak vlak-gevuld flex flex-col gap-2">
           <span className="mono-label">Nog niet vrij te geven</span>
           <p className="text-sm text-secondary">{poort.melding}</p>
           <Link href={vragenHref} className="btn-outline btn-sm w-fit">

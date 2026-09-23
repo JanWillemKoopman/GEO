@@ -90,8 +90,8 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
   const activeCount = prompts.filter((p) => p.active).length;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="card card-accent flex flex-col gap-3">
+    <div className="flex flex-col gap-6">
+      <div className="card card-rail flex flex-col gap-3">
         <span className="mono-label">Klaar om te starten</span>
         <h2 className="type-title">Dit gaat ORBIT ENGINE meten</h2>
         <p className="text-secondary">

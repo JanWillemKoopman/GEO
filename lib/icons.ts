@@ -63,6 +63,7 @@
 import {
   Ellipsis,
   GripVertical,
+  Info,
   ArrowDown,
   ArrowLeft,
   ArrowRight,
@@ -158,6 +159,7 @@ export type IcoonNaam =
   | "open"
   | "mislukt"
   | "letop"
+  | "info"
   | "nvt"
   | "stijging"
   | "daling"
@@ -304,6 +306,9 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   open: Circle,
   mislukt: X,
   letop: TriangleAlert,
+  // Ter informatie: een melding die niets vraagt en niets waarschuwt. Voor
+  // `Alert intent="info"` (23 september 2026).
+  info: Info,
   // Conventie 3: niet van toepassing is een streepje, nooit een 0 en nooit een
   // kruis. Een kruis zou "fout" zeggen over iets dat niet gemeten hoefde.
   nvt: Minus,

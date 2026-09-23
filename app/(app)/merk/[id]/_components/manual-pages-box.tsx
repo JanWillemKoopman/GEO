@@ -112,7 +112,7 @@ export function ManualPagesBox({
               </a>
               <button
                 type="button"
-                className="shrink-0 text-muted hover:text-[var(--status-error)]"
+                className="shrink-0 text-muted hover:text-[var(--intent-danger-content)]"
                 onClick={() => void haalWeg(p.url)}
                 aria-label={`${p.title || p.url} weghalen`}
               >
@@ -182,13 +182,13 @@ export function ManualPagesBox({
             </span>
           )}
           {uitslag.unreadable.length > 0 && (
-            <span className="text-[var(--status-warning)]">
+            <span className="text-[var(--intent-warning-content)]">
               Niet kunnen lezen: {uitslag.unreadable.join(", ")}. Controleer of het adres klopt en
               of de pagina zonder JavaScript tekst toont.
             </span>
           )}
           {uitslag.rejected.map((r) => (
-            <span key={r.value} className="text-[var(--status-warning)]">
+            <span key={r.value} className="text-[var(--intent-warning-content)]">
               {r.value}: {r.reason}
             </span>
           ))}
@@ -196,7 +196,7 @@ export function ManualPagesBox({
       )}
 
       {fout && (
-        <p className="text-sm text-[var(--status-error)]" role="alert">
+        <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
           {fout}
         </p>
       )}

@@ -565,7 +565,7 @@ export function PlanView({
               padding: 0,
               maxHeight: "calc(100vh - 8rem)",
               ...(sleepDoel === "voorraad"
-                ? { borderColor: "var(--intent-intelligence-border)", background: "var(--intent-intelligence-surface)" }
+                ? { borderColor: "var(--border-selected)", background: "var(--interactive-hover)" }
                 : {}),
             }}
           >
@@ -693,7 +693,7 @@ export function PlanView({
                 {declined.map((item, i) => (
                   <li
                     key={i}
-                    className="rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-2.5 text-sm"
+                    className="vlak text-sm"
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-secondary">{item.problem}</span>
@@ -737,8 +737,10 @@ export function PlanView({
                   padding: 0,
                   ...(isDoel
                     ? {
-                        borderColor: "var(--intent-intelligence-border)",
-                        boxShadow: "0 0 0 1px var(--intent-intelligence-border)",
+                        // Het doel van een sleepbeweging is een geselecteerde
+                        // staat: een rand, geen accentkleur (§2.8).
+                        borderColor: "var(--border-selected)",
+                        boxShadow: "0 0 0 1px var(--border-selected)",
                       }
                     : {}),
                 }}
@@ -766,10 +768,10 @@ export function PlanView({
                   }`}
                   style={{
                     background: isDoel
-                      ? "var(--intent-intelligence-surface)"
+                      ? "var(--interactive-hover)"
                       : stil
                         ? "transparent"
-                        : "var(--bg-muted)",
+                        : "var(--bg-surface-raised)",
                   }}
                 >
                   <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
@@ -864,7 +866,7 @@ export function PlanView({
                     className="border-t px-4 py-2 text-xs"
                     style={{
                       borderColor: "var(--border-subtle)",
-                      color: "var(--intent-warning-text)",
+                      color: "var(--intent-warning-content)",
                     }}
                   >
                     {gedeeld}
@@ -876,7 +878,7 @@ export function PlanView({
                     className="border-t px-4 py-2 text-xs"
                     style={{
                       borderColor: "var(--border-subtle)",
-                      color: "var(--intent-warning-text)",
+                      color: "var(--intent-warning-content)",
                     }}
                   >
                     Nog{" "}
@@ -1010,7 +1012,7 @@ export function PlanView({
             aria-label="De dag waarop deze pagina verschijnt"
           />
           {datumFout ? (
-            <span className="text-sm" style={{ color: "var(--intent-warning-text)" }}>
+            <span className="text-sm" style={{ color: "var(--intent-warning-content)" }}>
               {datumFout}
             </span>
           ) : (
@@ -1350,7 +1352,7 @@ function BacklogRij({
 
   return (
     <li
-      className="group flex cursor-grab items-start gap-2 border-t px-4 py-2.5 transition-colors hover:bg-[var(--bg-muted)] active:cursor-grabbing"
+      className="group flex cursor-grab items-start gap-2 border-t px-4 py-2.5 transition-colors hover:bg-[var(--bg-surface-raised)] active:cursor-grabbing"
       style={{ borderColor: "var(--border-subtle)", ...(busy ? { opacity: 0.5 } : {}) }}
       draggable={!busy}
       onDragStart={onSleepStart}
@@ -1445,12 +1447,9 @@ function Segment({
       type="button"
       onClick={onClick}
       aria-pressed={actief}
-      className="rounded-[var(--radius-xl)] border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-[var(--wash-hover)]"
-      style={{
-        borderColor: actief ? "var(--intent-intelligence-border)" : "var(--border-subtle)",
-        background: actief ? "var(--intent-intelligence-surface)" : undefined,
-        color: actief ? "var(--text-primary)" : "var(--text-secondary)",
-      }}
+      // `.chip-select`, de filterchip van het designsysteem: gekozen is een rand,
+      // geen groene tint (tot 23 september 2026 de oude `intelligence`-kleur).
+      className="chip-select"
     >
       {children}
     </button>
@@ -1539,7 +1538,7 @@ function PageRij({
 
   return (
     <li
-      className="group flex items-center gap-2.5 border-t px-4 py-2 transition-colors hover:bg-[var(--bg-muted)]"
+      className="group flex items-center gap-2.5 border-t px-4 py-2 transition-colors hover:bg-[var(--bg-surface-raised)]"
       style={{ borderColor: "var(--border-subtle)", ...(busy ? { opacity: 0.5 } : {}) }}
       draggable={magVerhuizen && !busy}
       onDragStart={onSleepStart}
@@ -1578,7 +1577,7 @@ function PageRij({
             style={{
               color:
                 eigenBlokkade.whoseTurn === "klant"
-                  ? "var(--intent-warning-text)"
+                  ? "var(--intent-warning-content)"
                   : "var(--text-secondary)",
             }}
           >

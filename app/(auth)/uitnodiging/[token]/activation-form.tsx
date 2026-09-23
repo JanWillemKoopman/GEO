@@ -73,7 +73,7 @@ export function ActivationForm({
           stijl (`type-caption-emphasis`, `--text-tertiary`) is dezelfde. */}
       <div className="flex flex-col gap-1.5">
         <span className="type-caption-emphasis text-[var(--text-tertiary)]">Je e-mailadres</span>
-        <div className="flex flex-wrap items-center gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-3 py-2">
+        <div className="vlak vlak-gevuld flex flex-wrap items-center gap-2 py-2">
           <span className="break-url text-sm font-medium">{email}</span>
           <span className="chip chip-success shrink-0">bevestigd</span>
         </div>
@@ -107,12 +107,12 @@ export function ActivationForm({
             <li key={r.id} className="flex items-center gap-2 text-sm">
               <span
                 style={{
-                  color: r.ok ? "var(--trend-up-text)" : "var(--text-muted)",
+                  color: r.ok ? "var(--trend-up-text)" : "var(--text-tertiary)",
                 }}
               >
                 <Icon naam={r.ok ? "klaar" : "open"} size={14} />
               </span>
-              <span style={{ color: r.ok ? "var(--text-secondary)" : "var(--text-muted)" }}>
+              <span style={{ color: r.ok ? "var(--text-secondary)" : "var(--text-tertiary)" }}>
                 {r.label}
               </span>
             </li>

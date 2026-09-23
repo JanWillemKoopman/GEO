@@ -56,7 +56,7 @@ export function FaqEditor({
       {items.map((item, i) => (
         <div
           key={i}
-          className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3"
+          className="vlak flex flex-col gap-2"
         >
           <div className="flex items-start justify-between gap-2">
             <span className="mono-label">
@@ -85,7 +85,7 @@ export function FaqEditor({
                 type="button"
                 onClick={() => remove(i)}
                 aria-label={`Verwijder vraag ${i + 1}`}
-                className="text-sm text-[var(--status-error)] hover:underline"
+                className="text-sm text-[var(--intent-danger-content)] hover:underline"
               >
                 Verwijderen
               </button>

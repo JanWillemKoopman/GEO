@@ -83,7 +83,7 @@ import type { BrandOption } from "@/lib/workspace";
  *    in de donkere stand. Hij is paars geweest, en het argument daarvoor was
  *    dat grijs op wit te weinig opviel. Dat argument gold in de lichte stand en
  *    het is opgelost door het vlak één stap donkerder te nemen
- *    (`--bg-elevated`) én de tekst mee te laten oplopen naar `--text-primary`:
+ *    (`--bg-[var(--bg-layer-2)]`) én de tekst mee te laten oplopen naar `--text-primary`:
  *    de regel valt nu op aan zijn contrast met de regels eromheen, niet aan een
  *    kleur. Het waarom van het weghalen van dat paars staat bij `Item`
  *    verderop, met de contrastmeting erbij.
@@ -375,7 +375,9 @@ function Item({
           // "hier doet de AI iets". Er stonden er vier onder elkaar, en dat was
           // het eerste wat het oog in de zijbalk raakte.
           //
-          // ⚠️ `--radius-lg` en geen pil. Dit was een pil, in dezelfde ronde
+          // ⚠️ Een omlijnde chip (`chip-outline`, 4px) en geen pil, sinds
+          // 23 september 2026 ook zonder eigen lettermaat van 10px: de gewone
+          // chipmaat past in de regel van 36px. Dit was een pil, in dezelfde ronde
           // waarin de chips van de app dat juist óphielden te zijn
           // (`docs/designsystem.md` §5.1). Twee ronde stempels in een app vol
           // vlakken van 6, 8 en 12 pixels zijn geen accent maar een afwijking,

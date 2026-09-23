@@ -11879,3 +11879,28 @@ aan de kaart die komt, en de titelbalk is 40px hoog zoals de echte kop. De stree
 was met de hand `#25a750`; nu `.card-rail-success`. `.volle-breedte` en de variabele
 `--stand-marge` vervangen vier keer `-mx-6 px-6`, die op een telefoon 8px buiten de pagina stak.
 Meldingen rechtsonder hebben een neutrale rand en een streep in de betekenis (info was groen).
+
+**Stap 3: de gedeelde bouwstenen.** Elke paginatitel is nu 30px (`.type-heading-lg`); zeven schermen
+stonden op 24px naast 33 op 30. De kaart "ORBIT ENGINE weet genoeg" op de briefing was een `h1`
+binnen een pagina die er al een had en is een kaartkop geworden. "Nieuw cluster" en Instellingen
+gebruiken de leesstand (720px) in plaats van een eigen 576px. Tussen de blokken van een pagina staat
+24px, of 32px op een pagina die uit secties met een eigen kop bestaat; Support stond op 40 en de
+onderdelen van het clusterdossier op 16. Nieuw in `app/globals.css`: `.vlak` en `.vlak-gevuld` voor
+een blok binnen een kaart (42 keer los gebouwd, vaak in de chipkleur), `.tabel` met `.tabel-dicht`
+en `.tabel-klikbaar` (acht tabellen met vier kopstijlen; de gekozen rij in Analytics is nu een rand
+en een waas in plaats van groen), en `Alert intent="info"` met een eigen icoon `info`. Waarschuwingen
+in de app lopen via `Alert` (vijf eigen varianten, waaronder een waarschuwingsstreep op "toewijzen"
+die door de cascadelagen onzichtbaar was). `DataCard` kan een oordeel dragen los van de richting (bij
+een positie is lager beter) en wordt gebruikt op Zoekverkeer, waar een verslechtering in de
+foutkleur stond. Elk cijfer naast het ene hoofdgetal van een scherm is 24px (`.data-card-waarde`),
+waar 30 en 36 door elkaar stonden. Zeven eigen filter- en schakelknoppen zijn `.chip-select` of
+`.segment` geworden. De oude AI-kleur (`intelligence`) stond nog op selecties, sleepdoelen en een
+schakelaar en is overal weg; het accent staat nog op het eigen merk (grafieklijn, markering in een
+AI-antwoord), de voortgangsbalk, "kans", de GEO-kaart op Support en `.btn-accent`. De aliaslaag van
+76 oude tokennamen is verwijderd na omzetting van elke verwijzing, net als 18 ongebruikte
+Tailwind-kleurnamen en `.brand-gradient-text`.
+
+Eén besluit van de eigenaar is bewust niet aangeraakt: op het paginascherm is oranje voorbehouden aan
+"Te verbeteren", dus "wacht op jou" en "niet opgeslagen" zijn daar limoen. Elders is "wacht op jou"
+oranje. `.card-rail-accent` is neutraal (besluit "Groene rand weg bij openstaande vragen"); de kleur
+staat nu expliciet in plaats van als uitgecommentarieerde regel.

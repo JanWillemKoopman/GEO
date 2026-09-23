@@ -174,24 +174,24 @@ export default async function KwaliteitslabPage({
         </EmptyState>
       ) : (
         <div className="card overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="tabel">
             <thead>
-              <tr className="text-left text-muted">
-                <th className="pb-2 pr-4 font-normal">Pagina</th>
-                <th className="pb-2 pr-4 font-normal">Type</th>
-                <th className="pb-2 pr-4 font-normal">Oordeel</th>
-                <th className="pb-2 pr-4 font-normal">Kwaliteit</th>
-                <th className="pb-2 pr-4 font-normal">Zekerheid</th>
-                <th className="pb-2 pr-4 font-normal">Bron</th>
-                <th className="pb-2 pr-4 font-normal">Rondes</th>
-                <th className="pb-2 pr-4 font-normal">Mens</th>
-                <th className="pb-2 font-normal">Datum</th>
+              <tr>
+                <th>Pagina</th>
+                <th>Type</th>
+                <th>Oordeel</th>
+                <th>Kwaliteit</th>
+                <th>Zekerheid</th>
+                <th>Bron</th>
+                <th>Rondes</th>
+                <th>Mens</th>
+                <th>Datum</th>
               </tr>
             </thead>
             <tbody>
               {paginas.map((p) => (
-                <tr key={p.pieceId} className="border-t border-[var(--border-subtle)]">
-                  <td className="py-2 pr-4">
+                <tr key={p.pieceId}>
+                  <td>
                     <Link href={`/beheer/kwaliteit/${p.pieceId}`} className="font-medium">
                       {p.titel}
                     </Link>
@@ -200,19 +200,19 @@ export default async function KwaliteitslabPage({
                       {p.cluster ? ` · ${p.cluster}` : ""}
                     </div>
                   </td>
-                  <td className="py-2 pr-4 text-secondary">{p.type}</td>
-                  <td className="py-2 pr-4 text-secondary">{p.verdict ?? "niet beoordeeld"}</td>
-                  <td className="py-2 pr-4 text-secondary">
+                  <td className="text-secondary">{p.type}</td>
+                  <td className="text-secondary">{p.verdict ?? "niet beoordeeld"}</td>
+                  <td className="text-secondary">
                     {p.score === null ? "-" : Math.round(p.score)}
                   </td>
-                  <td className="py-2 pr-4 text-secondary">
+                  <td className="text-secondary">
                     {p.confidence === null ? "-" : `${Math.round(p.confidence)}%`}
                   </td>
-                  <td className="py-2 pr-4 text-secondary">
+                  <td className="text-secondary">
                     {p.bronherleidbaarheid === null ? "-" : `${Math.round(p.bronherleidbaarheid)}%`}
                   </td>
-                  <td className="py-2 pr-4 text-secondary">{p.rondes}</td>
-                  <td className="py-2 pr-4 text-secondary">
+                  <td className="text-secondary">{p.rondes}</td>
+                  <td className="text-secondary">
                     {p.review === null
                       ? "nog niet"
                       : p.review.would_send === true
@@ -221,7 +221,7 @@ export default async function KwaliteitslabPage({
                           ? "niet versturen"
                           : "beoordeeld"}
                   </td>
-                  <td className="py-2 text-secondary">{formatDateShort(p.aangemaakt)}</td>
+                  <td className="text-secondary">{formatDateShort(p.aangemaakt)}</td>
                 </tr>
               ))}
             </tbody>

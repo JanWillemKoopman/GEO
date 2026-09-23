@@ -52,7 +52,7 @@ export function RondeKnop({
           {herhaling ? "Nieuwe ontdekkingsronde" : "Start een ontdekkingsronde"}
         </button>
         {fout && (
-          <p className="text-sm text-[var(--status-error)]" role="alert">
+          <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
             {fout}
           </p>
         )}
@@ -76,7 +76,7 @@ export function RondeKnop({
         </button>
       </div>
       {fout && (
-        <p className="text-sm text-[var(--status-error)]" role="alert">
+        <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
           {fout}
         </p>
       )}

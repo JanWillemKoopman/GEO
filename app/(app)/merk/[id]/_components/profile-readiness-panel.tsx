@@ -234,7 +234,7 @@ function Balk({ gedaan, totaal }: { gedaan: number; totaal: number }) {
   const pct = totaal === 0 ? 0 : Math.round((gedaan / totaal) * 100);
   return (
     <div
-      className="h-1.5 w-full overflow-hidden rounded-[var(--radius-pill)] bg-[var(--bg-elevated)]"
+      className="h-1.5 w-full overflow-hidden rounded-[var(--radius-pill)] bg-[var(--bg-layer-2)]"
       role="progressbar"
       aria-valuenow={gedaan}
       aria-valuemin={0}
@@ -259,10 +259,10 @@ function Regel({ row }: { row: ReadinessRow }) {
     row.state === "klaar"
       ? "var(--trend-up-text)"
       : row.state === "loopt"
-        ? "var(--text-muted)"
+        ? "var(--text-tertiary)"
         : row.nodig
-          ? "var(--intent-warning-text)"
-          : "var(--text-muted)";
+          ? "var(--intent-warning-content)"
+          : "var(--text-tertiary)";
 
   return (
     <li className="flex flex-wrap items-baseline gap-2 text-sm">

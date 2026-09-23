@@ -81,7 +81,7 @@ export default async function ToewijzenPage({
       />
 
       {clusterWaarschuwing && (
-        <div className="card flex flex-col gap-1 border-l-2 border-[var(--status-warning)]">
+        <div className="card card-rail card-rail-warning flex flex-col gap-1">
           <span className="mono-label">Nog niets om naar te kijken</span>
           <p className="text-sm text-secondary">{clusterWaarschuwing}</p>
         </div>

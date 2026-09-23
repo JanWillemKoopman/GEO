@@ -224,7 +224,7 @@ function Voorwaarde({
       <span className="flex items-center gap-2 text-sm">
         <span
           style={{
-            color: klaar ? "var(--trend-up-text)" : "var(--intent-warning-text)",
+            color: klaar ? "var(--trend-up-text)" : "var(--intent-warning-content)",
           }}
         >
           <Icon naam={klaar ? "klaar" : "open"} size={14} />

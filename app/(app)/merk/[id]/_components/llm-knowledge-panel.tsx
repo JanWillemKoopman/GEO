@@ -145,7 +145,7 @@ export function LlmKnowledgePanel({ rows }: { rows: ProfileLlmBaseline[] }) {
                 {tegenspraken.map((c, i) => (
                   <li
                     key={`${c.key}-${i}`}
-                    className="rounded-[var(--radius-lg)] border border-[var(--status-error)] px-3 py-2 text-sm"
+                    className="vlak border-[var(--intent-danger-content)] py-2 text-sm"
                   >
                     <span className="mono-label">{c.key}</span>{" "}
                     <span className="text-secondary">

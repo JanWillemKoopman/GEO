@@ -317,7 +317,7 @@ export default async function OverzichtPage({
           Een smalle regel en geen kaart: dit is stafinformatie en hoort niet
           even zwaar te wegen als de stand van het merk eronder. */}
       {fase && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] px-4 py-2.5">
+        <div className="vlak flex flex-wrap items-center justify-between gap-3 py-2">
           <span className="flex flex-wrap items-center gap-2">
             <span className="mono-label">Alleen jij ziet dit</span>
             <span
@@ -485,7 +485,7 @@ function CijferRij({ cijfers, kop }: { cijfers: OverzichtCijfer[]; kop: string }
               i % 2 === 1 ? "border-l border-[var(--border-subtle)] pl-6" : ""
             } ${i > 0 ? "lg:border-l lg:border-[var(--border-subtle)] lg:pl-6" : "lg:border-l-0 lg:pl-0"}`}
           >
-            <span className="stat-value text-3xl">{c.waarde}</span>
+            <span className="data-card-waarde">{c.waarde}</span>
             <span className="text-sm font-medium">{c.label}</span>
             <span className="text-sm text-muted">{c.detail}</span>
           </div>

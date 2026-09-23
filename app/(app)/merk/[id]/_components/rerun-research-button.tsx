@@ -63,7 +63,7 @@ export function RerunResearchButton({
           Onderzoek opnieuw
         </button>
         {error && (
-          <p className="text-sm text-[var(--status-error)]" role="alert">
+          <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
             {error}
           </p>
         )}
@@ -72,7 +72,7 @@ export function RerunResearchButton({
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3">
+    <div className="vlak flex flex-col gap-2">
       <p className="text-sm text-secondary">
         ORBIT ENGINE leest de website opnieuw uit en bouwt het aanbod opnieuw op. Dat
         duurt een paar minuten.
@@ -98,7 +98,7 @@ export function RerunResearchButton({
         </button>
       </div>
       {error && (
-        <p className="text-sm text-[var(--status-error)]" role="alert">
+        <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
           {error}
         </p>
       )}

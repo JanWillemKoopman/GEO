@@ -49,7 +49,7 @@ export default async function DesignsysteemPage() {
   const telefoon = await isTelefoon();
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Intern"
         title="Designsysteem"

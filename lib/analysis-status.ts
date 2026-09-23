@@ -110,8 +110,9 @@ export function telPerStatus<T extends { status: AnalysisStatus }>(
  * accent: een donkergroen label dat in de lichte stand nauwelijks te
  * onderscheiden was van "klaar" (#2b6d17 op #e9f4d1 tegenover #1d7a3f op
  * #e0f5e8). "Jij bent aan zet" is in de bibliotheek en het plan al oranje
- * (`STAND_CHIP` in `lib/pagina-stand.ts`), dus hier ook: één betekenis, één
- * kleur, op elk scherm.
+ * (`STAND_CHIP` in `lib/pagina-stand.ts`), dus hier ook. De enige
+ * uitzondering is het paginascherm zelf (`components/pagina/pagina-kop.tsx`),
+ * waar oranje op besluit van de eigenaar voorbehouden is aan "Te verbeteren".
  */
 export const TONE_CHIP: Record<StatusTone, string> = {
   attention: "chip chip-warning",

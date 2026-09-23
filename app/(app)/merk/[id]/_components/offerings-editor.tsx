@@ -213,7 +213,7 @@ export function OfferingsEditor({
 
   function renderForm() {
     return (
-      <div className="mt-2 flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3">
+      <div className="vlak mt-2 flex flex-col gap-2">
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm">
             <span className="mono-label">Naam</span>
@@ -349,7 +349,7 @@ export function OfferingsEditor({
             </button>
             <button
               type="button"
-              className="text-muted hover:text-[var(--status-error)]"
+              className="text-muted hover:text-[var(--intent-danger-content)]"
               onClick={() => void verwijder(o)}
               disabled={wacht}
             >
@@ -412,7 +412,7 @@ export function OfferingsEditor({
       )}
 
       {fout && (
-        <p className="text-sm text-[var(--status-error)]" role="alert">
+        <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
           {fout}
         </p>
       )}

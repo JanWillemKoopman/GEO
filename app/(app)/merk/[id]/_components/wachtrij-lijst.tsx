@@ -128,7 +128,7 @@ function SubkopBlok({ sub, eersteId }: { sub: WachtrijSubkop; eersteId?: string 
   return (
     <div className="flex flex-col gap-2">
       <span className="mono-label">{sub.subkop}</span>
-      <ul className="flex flex-col divide-y divide-[var(--border-subtle)] rounded-[var(--radius-lg)] border border-[var(--border-subtle)]">
+      <ul className="vlak flex flex-col divide-y divide-[var(--line-muted)] overflow-hidden p-0">
         {sub.items.map((item) => (
           <li key={item.id}>
             <TaakRegel item={item} primair={item.id === eersteId} />

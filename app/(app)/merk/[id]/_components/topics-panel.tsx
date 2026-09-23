@@ -193,7 +193,7 @@ export function TopicsPanel({
     return (
       <li
         key={t.id}
-        className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-4"
+        className="vlak flex flex-col gap-2"
       >
         <div className="flex flex-wrap items-start justify-between gap-2">
           <span className="font-medium">{t.title}</span>
@@ -270,7 +270,7 @@ export function TopicsPanel({
         )}
 
         {mixFor === t.id && (
-          <div className="flex flex-col gap-3 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3">
+          <div className="vlak flex flex-col gap-3">
             <div className="flex flex-col gap-1">
               <span className="mono-label">Hoeveel vragen per fase?</span>
               <p className="text-sm text-secondary">
@@ -311,12 +311,12 @@ export function TopicsPanel({
             {/* Werkpakket B punt 6: geen harde grens, wel een zichtbare
                 waarschuwing vóórdat het geld wordt uitgegeven. */}
             {exceedsRunBudgetWarning(mix) && checkMix(mix).ok && (
-              <p className="text-sm" style={{ color: "var(--intent-danger-text)" }}>
+              <p className="text-sm" style={{ color: "var(--intent-danger-content)" }}>
                 Dit is een grote meetronde. Weet je zeker dat dit onderwerp dit verdient?
               </p>
             )}
             {!checkMix(mix).ok && (
-              <p className="text-sm" style={{ color: "var(--intent-danger-text)" }}>
+              <p className="text-sm" style={{ color: "var(--intent-danger-content)" }}>
                 {(checkMix(mix) as { ok: false; reason: string }).reason}
               </p>
             )}
@@ -520,7 +520,7 @@ export function TopicsPanel({
       )}
 
       {error && (
-        <p className="text-sm text-[var(--status-error)]" role="alert">
+        <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
           {error}
         </p>
       )}

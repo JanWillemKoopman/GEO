@@ -133,7 +133,7 @@ export function NieuweMarkt() {
         </p>
       )}
 
-      {fout && <p className="text-sm text-[var(--intent-danger-text)]">{fout.melding}</p>}
+      {fout && <p className="text-sm text-[var(--intent-danger-content)]">{fout.melding}</p>}
 
       <div>
         <button type="submit" className="btn-primary" disabled={bezig}>

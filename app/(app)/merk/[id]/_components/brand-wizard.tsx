@@ -190,16 +190,7 @@ export function BrandWizard({
               type="button"
               onClick={() => setStap(s)}
               aria-current={actief ? "step" : undefined}
-              className="flex items-center gap-2 rounded-[var(--radius-xl)] border px-3 py-2 text-sm font-medium transition-colors"
-              style={{
-                borderColor: actief
-                  ? "var(--intent-intelligence-border)"
-                  : "var(--border-subtle)",
-                background: actief
-                  ? "var(--intent-intelligence-surface)"
-                  : "var(--bg-surface)",
-                color: actief ? "var(--text-primary)" : "var(--text-secondary)",
-              }}
+              className="chip-select chip-select-lg"
             >
               <span className="mono-label">{String(i + 1).padStart(2, "0")}</span>
               <span>{STEP_META[s].title}</span>

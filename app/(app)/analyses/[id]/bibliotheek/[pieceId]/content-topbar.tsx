@@ -119,7 +119,9 @@ export function StatusChip({
       <button
         type="button"
         onClick={onNaarOpslaan}
-        className="chip chip-warning shrink-0"
+        // Limoen en niet oranje: op dit scherm is oranje voorbehouden aan "Te
+        // verbeteren" (besluit van de eigenaar, 23 september 2026).
+        className="chip chip-attention shrink-0"
         title="Naar de opslagknop"
       >
         <Icon naam="letop" size={12} />
@@ -214,7 +216,7 @@ export function Menu({ children }: { children: React.ReactNode }) {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 z-30 mt-1 w-[min(22rem,calc(100vw-2rem))] rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-overlay)]"
+          className="menu-surface popover absolute right-0 z-30 mt-1 w-[min(22rem,calc(100vw-2rem))]"
         >
           {children}
         </div>

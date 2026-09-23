@@ -123,7 +123,7 @@ export function PackageBox({
       {gaten.length > 0 && (
         <ul className="flex flex-col gap-2">
           {gaten.map((gat) => (
-            <li key={gat.veld} className="flex flex-col gap-0.5 border-l-2 border-[var(--status-warning)] pl-3">
+            <li key={gat.veld} className="flex flex-col gap-0.5 border-l-2 border-[var(--intent-warning-content)] pl-3">
               <span className="text-sm font-medium">{gat.wat}</span>
               <span className="text-sm text-secondary">{gat.gevolg}</span>
             </li>

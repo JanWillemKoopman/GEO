@@ -113,7 +113,7 @@ export function AuditPanel({
           const aandachtspunten = groepChecks.filter((c) => c.severity !== "ok");
           const goedgekeurd = groepChecks.filter((c) => c.severity === "ok");
           return (
-            <details key={groep} className="rounded-[var(--radius-xl)] border border-[var(--border-subtle)]">
+            <details key={groep} className="vlak">
               <summary className="flex cursor-pointer items-center justify-between gap-2 p-3 text-sm font-medium">
                 <span>{GROEP_LABEL[groep]}</span>
                 <span className="mono-label">
@@ -124,8 +124,8 @@ export function AuditPanel({
                 {aandachtspunten.map((check) => (
                   <div
                     key={check.id}
-                    className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3"
-                    style={check.severity === "blocker" ? { borderColor: "var(--intent-danger-border)" } : undefined}
+                    className="vlak vlak-gevuld flex flex-col gap-2"
+                    style={check.severity === "blocker" ? { borderColor: "var(--border-default)" } : undefined}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="font-medium">{check.label}</span>

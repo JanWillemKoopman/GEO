@@ -333,143 +333,19 @@
   --stand-lezen: 720px;
   --stand-werken: 1440px;
 
-  /* ═══════════════════════════════════════════════════════════════════════
-     AANSLUITING OP WAT ER AL STAAT, TIJDELIJK
-
-     Hieronder wijst elke oude tokennaam naar zijn nieuwe tegenhanger. Ze
-     staan er zodat de klassenlaag in dit bestand en 249 tsx-bestanden blijven
-     werken terwijl de rest van de verbouwing volgt.
-
-     Het zijn `var()`-verwijzingen en geen kopieën van waarden. Daardoor
-     hoeven ze NIET in de donkere blokken herhaald te worden: wijst een alias
-     naar `--bg-surface-raised`, dan volgt hij vanzelf wat dat token in de
-     donkere stand is. Eén plek per alias, en dus niets om uit elkaar te laten
-     lopen.
-
-     ⚠️ Schrijf geen nieuwe code tegen deze namen. Elke regel hier verdwijnt
-     zodra zijn laatste gebruiker om is: de klassenlaag in stap 2, de
-     tsx-bestanden in stap 10.
-     ═══════════════════════════════════════════════════════════════════════ */
-
-  /* Oppervlak. `--bg-muted` was het geneste vlak, de tabelkop én de hover op
-     een oppervlak; dat is precies de rol van `--bg-surface-raised`. */
-  --bg-muted: var(--bg-surface-raised);
-  --bg-elevated: var(--bg-layer-2);
-  --bg-surface-2: var(--bg-layer-3);
-  --overlay-scrim: var(--bg-scrim);
-
-
-  /* Tekst. Drie niveaus werden er vijf; de oude laagste was bijzaak. */
-  --text-muted: var(--text-tertiary);
-
-  /* Rand. */
-  --border-contrast: var(--border-emphasis);
-  --focus-ring: var(--border-focus);
-
-  /* De vier `--glass-*`-tokens zijn op 17 september 2026 helemaal verdwenen,
-     samen met de drie uitzonderingsblokken die het effect weer uitzetten als de
-     browser het niet kan, iemand minder doorzichtigheid vraagt, of het scherm
-     smal is. Er is niets meer dat ze aanroept. */
-  --shadow-overlay: var(--shadow-xl);
-
-  /* Merkkleuren. Het paars en het groen zijn weg; wat ernaar verwees krijgt
-     het accent of de richtingkleur, afhankelijk van wat het betekende. */
-  --accent-purple: var(--accent);
-  --accent-purple-strong: var(--accent-hover);
-  --accent-purple-surface: var(--intent-success-surface);
-  --accent-purple-glow: var(--trend-up-tint);
-  --accent-green: var(--trend-up-surface);
-  --accent-green-text: var(--trend-up-text);
-  --accent-green-dark: var(--trend-up);
-
-  /* Het woordmerk wordt vlak. Het groen-paarse verloop van 17 pixels hoog is
-     eruit; zie `docs/designsystem.md`. `--brand-gradient` blijft bestaan als
-     naam omdat `.brand-gradient-text` er nog op staat, maar hij is nu één
-     kleur. Stap 4 haalt de klasse zelf weg. */
-  --brand-gradient: none;
-  --wordmark-1: var(--text-primary);
-  --wordmark-2: var(--text-primary);
-  --wordmark-mid: var(--text-primary);
-  --wordmark-gradient: none;
-  --wordmark-fill: var(--text-primary);
-
-  /* De zeven betekenissen naar vier. `intelligence` was alles wat van de AI
-     komt en krijgt het accent. `growth` was stijging en is richting geworden.
-     `attention` had één gebruiker, het woord "kans" in de concurrentenanalyse,
-     en een kans is geen waarschuwing maar iets om op te klikken: accent. */
-  --intent-intelligence-solid: var(--accent);
-  --intent-intelligence-hover: var(--accent-hover);
-  --intent-intelligence-on-solid: var(--accent-on);
-  --intent-intelligence-text: var(--accent);
-  --intent-intelligence-surface: var(--intent-success-surface);
-  --intent-intelligence-surface-hover: var(--intent-success-surface);
-  --intent-intelligence-border: var(--border-default);
-
-  --intent-growth-solid: var(--trend-up);
-  --intent-growth-hover: var(--trend-up-text);
-  --intent-growth-on-solid: #ffffff;
-  --intent-growth-text: var(--trend-up-text);
-  --intent-growth-surface: var(--trend-up-surface);
-  --intent-growth-surface-hover: var(--trend-up-surface);
-  --intent-growth-border: var(--border-default);
-
-  --intent-information-solid: var(--intent-info-solid);
-  --intent-information-hover: var(--intent-info-content);
-  --intent-information-on-solid: var(--intent-info-on-solid);
-  --intent-information-text: var(--intent-info-content);
-  --intent-information-surface: var(--intent-info-surface);
-  --intent-information-surface-hover: var(--bg-layer-2);
-  --intent-information-border: var(--border-default);
-
-  --intent-attention-solid: var(--accent);
-  --intent-attention-hover: var(--accent-hover);
-  --intent-attention-on-solid: var(--accent-on);
-  --intent-attention-text: var(--accent);
-  --intent-attention-surface: var(--intent-success-surface);
-  --intent-attention-surface-hover: var(--intent-success-surface);
-  --intent-attention-border: var(--border-default);
-
-  --intent-danger-text: var(--intent-danger-content);
-  --intent-danger-border: var(--border-default);
-  --intent-danger-surface-hover: var(--intent-danger-surface);
-  --intent-danger-hover: var(--intent-danger-content);
-
-  --intent-warning-text: var(--intent-warning-content);
-  --intent-warning-border: var(--border-default);
-  --intent-warning-surface-hover: var(--intent-warning-surface);
-  --intent-warning-hover: var(--intent-warning-content);
-
-  /* `premium` had nul gebruikers buiten zijn eigen definitie en is weg. */
-
-  --intent-neutral-text: var(--text-tertiary);
-  --intent-neutral-surface: var(--bg-layer-2);
-  --intent-neutral-border: var(--border-default);
-  --intent-neutral-solid: var(--interactive-selected);
-  --intent-neutral-hover: var(--interactive-selected);
-  --intent-neutral-on-solid: var(--interactive-selected-on);
-  --wash-hover: var(--interactive-hover);
-
-  /* Status. */
-  --status-success: var(--intent-success-content);
-  --status-error: var(--intent-danger-content);
-  --status-warning: var(--intent-warning-content);
-  --status-info: var(--intent-info-content);
-
-  /* Grafiek, oude namen. */
-  --chart-own: var(--chart-1);
-  --chart-own-band: var(--trend-up-tint);
-  --chart-own-muted: var(--bg-layer-2);
-  --chart-rival-1: var(--chart-3);
-  --chart-rival-2: var(--chart-2);
-  --chart-rival-3: var(--chart-5);
-  --chart-reference: var(--border-strong);
+  /* ── De aliaslaag is weg (23 september 2026) ─────────────────────────────
+     Hier stonden 76 oude tokennamen uit de Nova-periode (`--bg-elevated`,
+     `--text-muted`, `--intent-intelligence-*`, `--status-*`, ...) die via
+     `var()` naar hun nieuwe tegenhanger wezen, "tijdelijk" sinds 17 september.
+     Elke verwijzing in de app is naar het echte token omgezet en de laag is
+     verwijderd. De mechanische omzetting veranderde niets aan het beeld; waar
+     een oude naam een verkeerde betekenis droeg (de AI-kleur op een selectie,
+     een link of "actie nodig"), is dat in dezelfde ronde per plek rechtgezet.
+     Een nieuwe verwijzing naar een van die namen is een lege kleur: de derde
+     controle in `docs/designsystem.md` §12 vangt dat. */
 
   /* De schakelaar. Actief is het accent, en niet meer een eigen groen. */
   --switch-thumb: #ffffff;
-  --switch-track-active: var(--accent);
-  --switch-track-active-hover: var(--accent-hover);
-  --switch-track-inactive: var(--border-strong);
-  --switch-track-inactive-hover: var(--border-emphasis);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -755,37 +631,16 @@
      tekstgrootte, 16px op 24px, precies zoals in elk ander Tailwind-project.
      Gebruik voor typografie verder de `.type-*`-klassen hierboven; ze zijn
      er precies om dit soort botsingen te voorkomen. */
-  --color-muted-surface: var(--bg-muted);
-  --color-elevated: var(--bg-elevated);
   --color-surface: var(--bg-surface);
-  --color-surface-2: var(--bg-surface-2);
-  --color-purple: var(--accent-purple);
-  --color-purple-surface: var(--accent-purple-surface);
-  --color-green: var(--accent-green);
-  --color-green-text: var(--accent-green-text);
-  --color-green-dark: var(--accent-green-dark);
-  --color-ink: var(--text-primary);
   --color-secondary: var(--text-secondary);
-  --color-muted: var(--text-muted);
-  --color-success: var(--status-success);
-  --color-error: var(--status-error);
-  --color-warning: var(--status-warning);
-  --color-info: var(--status-info);
+  --color-muted: var(--text-tertiary);
 
-  /* ⚠️ DEZE NAMEN LIEGEN SINDS 17 SEPTEMBER 2026, EN DAT IS TIJDELIJK.
-     `text-purple` levert nu de accentkleur op (donkergroen in licht, limoen in
-     donker) en `text-green` de stijgkleur. De klassenamen komen uit het oude
-     systeem, de kleuren uit het nieuwe. Ze blijven kloppen in wat ze DOEN, niet
-     in wat ze heten. Stap 2 en stap 10 hernoemen de gebruikers; daarna gaan
-     deze regels eruit. Schrijf hier geen nieuwe code tegen.
-
-     `--color-premium` is weg: die had nul gebruikers, in de klassenlaag noch in
-     de 249 tsx-bestanden, en het token waar hij naar wees bestaat niet meer. */
-  --color-intelligence: var(--intent-intelligence-solid);
-  --color-growth: var(--intent-growth-solid);
-  --color-information: var(--intent-information-solid);
-  --color-attention: var(--intent-attention-solid);
-  --color-danger: var(--intent-danger-solid);
+  /* De kleurnamen van de oude klassenlaag (`text-purple`, `text-green`,
+     `bg-elevated` en dertien andere) zijn op 23 september 2026 weggehaald: ze
+     hadden nul gebruikers meer. Wat overblijft zijn de drie die de app als
+     Tailwind-woordenschat gebruikt (`text-secondary` 444 keer, `text-muted`
+     293 keer, `bg-surface`), rechtstreeks op hun token. `muted` betekent hier
+     `--text-tertiary`: de derde trede, niet de onleesbare oude. */
 
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
@@ -794,8 +649,7 @@
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);
   --radius-xl: var(--radius-xl);
-  --radius-xxxl: var(--radius-xxxl);
-  --radius-xxxl: var(--radius-xxxl);
+  --radius-xxl: var(--radius-xxl);
   --radius-xxxl: var(--radius-xxxl);
   --radius-pill: var(--radius-pill);
 
@@ -970,7 +824,7 @@ input[type="radio"] {
    elk vlak in beide standen, en in de donkere stand keert hij vanzelf om naar
    licht omdat --focus-ring daar meedraait. */
 :focus-visible {
-  outline: var(--border-width-sm) solid var(--focus-ring);
+  outline: var(--border-width-sm) solid var(--border-focus);
   outline-offset: 2px;
 }
 
@@ -1046,8 +900,11 @@ input[type="radio"] {
   line-height: 1.32;
   letter-spacing: -0.015em;
 }
-/* De enige plek die deze trede gebruikt is het inlogtoneel: geen dashboardkop
-   gaat naar 30px, die blijft op `.type-title` (24px, heading-md). */
+/* De kop van elke pagina: `PageHeader`, het inlogtoneel, en sinds 23 september
+   2026 ook het clusterdossier, de contentpagina, "Nieuw cluster", "Nieuw merk",
+   de marktpagina en de 404. Die zeven stonden op 24px (`.type-title`) naast 33
+   schermen op 30px; dezelfde rol hoort één maat te hebben. `.type-title` is
+   voor de kop van een dialoog of een kaart. */
 .type-heading-lg {
   font-family: var(--font-sans);
   font-size: 1.875rem; /* 30px */
@@ -1272,6 +1129,22 @@ input[type="radio"] {
   outline-offset: 2px;
 }
 
+/* ── Het vlak binnen een kaart (23 september 2026) ──────────────────────────
+   Een blok in een kaart: een openstaande vraag, een regel uit een lijst, een
+   technisch detail. Stond 42 keer los in 34 bestanden, met padding van 10 tot
+   16 pixels en vaak `--bg-elevated` als vulling: dat is de chipkleur
+   (`--bg-layer-2`), één stap donkerder dan §2.1 voor een genest vlak aangeeft.
+   `.vlak` is de rand, `.vlak-gevuld` zet daar het geneste vlak onder. */
+.vlak {
+  min-width: 0;
+  padding: 12px;
+  border: var(--border-width-xs) solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+}
+.vlak-gevuld {
+  background-color: var(--bg-surface-raised);
+}
+
 /* Kaart-accenten: een getinte rand in plaats van een losse rgba-override. */
 .card-accent {
   border-color: var(--accent);
@@ -1308,9 +1181,13 @@ input[type="radio"] {
 }
 /* Een kaart die om een handeling vraagt en geen meetuitkomst weergeeft: een
    openstaande vraag, geen stijging of waarschuwing. Stap 10, §8.5. */
+/* ⚠️ De naam zegt accent, de kleur is neutraal: de eigenaar haalde het groen
+   hier op 23 september 2026 weg ("Groene rand weg bij openstaande vragen").
+   Tot vandaag stond dat als uitgecommentarieerde regel, zodat de kleur stil
+   van `.card` erfde; nu staat hij er expliciet. */
 .card-rail-accent {
   border-left-width: var(--border-width-sm);
-  /* border-left-color: var(--accent); */
+  border-left-color: var(--border-emphasis);
 }
 
 /* ── Knoppen ────────────────────────────────────────────────────────────────
@@ -1607,16 +1484,18 @@ input[type="radio"] {
    `--border-default`), en die precedent weegt zwaarder dan de letter van een
    plan dat op dit punt zelf nog een aanname was.
 
-   Drie van de vier betekenissen: succes, waarschuwing, fout. Geen `info` en
-   geen `neutral`, want geen van de vijf inlogschermen (het enige dat dit
-   component vandaag gebruikt) heeft ze nodig; de vierde en vijfde komen erbij
-   zodra een scherm in stap 10 ze echt aanroept, op dezelfde manier. */
+   Vier betekenissen: succes, waarschuwing, fout en informatie. De vierde kwam
+   er op 23 september 2026 bij, toen de meldingen in de app zelf (niet alleen op
+   het inlogtoneel) op dit component overgingen. */
 .alert {
   display: flex;
   align-items: flex-start;
   gap: 8px;
   padding: 12px 16px;
-  border-radius: var(--radius-md);
+  /* 8 en niet 4 pixels (23 september 2026): een melding staat als blok tussen
+     kaarten en vlakken, en die zijn allemaal 8. Vier las ernaast als een
+     ander soort ding. */
+  border-radius: var(--radius-xl);
   border: var(--border-width-xs) solid var(--border-default);
   font-size: 0.875rem; /* 14px, body-sm */
   line-height: 1.3125rem;
@@ -1626,26 +1505,34 @@ input[type="radio"] {
   flex-shrink: 0;
   margin-top: 1px;
 }
+/* Succes is succes en geen richting: tot 23 september 2026 stond dit op de
+   oude `growth`-namen, dus op het stijggroen, terwijl `.chip-success` het
+   succesgroen draagt. Twee groenen voor "gelukt" is er één te veel. */
 .alert-success {
-  background-color: var(--intent-growth-surface);
-  border-color: var(--intent-growth-border);
+  background-color: var(--intent-success-surface);
 }
 .alert-success svg {
-  color: var(--intent-growth-text);
+  color: var(--intent-success-content);
 }
 .alert-warning {
   background-color: var(--intent-warning-surface);
-  border-color: var(--intent-warning-border);
 }
 .alert-warning svg {
-  color: var(--intent-warning-text);
+  color: var(--intent-warning-content);
 }
 .alert-danger {
   background-color: var(--intent-danger-surface);
-  border-color: var(--intent-danger-border);
 }
 .alert-danger svg {
-  color: var(--intent-danger-text);
+  color: var(--intent-danger-content);
+}
+/* Grijs, zoals §2.5 informatie bij OKX neutraal houdt. Toegevoegd 23 september
+   2026, toen de meldingen in de app zelf op `Alert` overgingen. */
+.alert-info {
+  background-color: var(--intent-info-surface);
+}
+.alert-info svg {
+  color: var(--intent-info-content);
 }
 
 /* ── Invoervelden ──────────────────────────────────────────────────────────
@@ -1767,6 +1654,67 @@ textarea.field {
     height: auto;
     padding: 12px 16px;
   }
+}
+
+/* ── De tabel (23 september 2026) ───────────────────────────────────────────
+   Acht tabellen in de app bouwden hun kop en rijen elk zelf: vier soorten kop
+   (kapitalen of gewone grijze tekst), rijen van 4 tot 10 pixels lucht, en een
+   scheiding in `--border-subtle` of `--line-muted`. §2.3 wijst de
+   tabelrijscheiding aan als `--line-muted`, en de kop is het kleine label in
+   kapitalen dat overal elders boven een waarde staat (`.mono-label`). */
+.tabel {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.875rem;
+  line-height: 1.3125rem;
+}
+.tabel th {
+  padding: 0 16px 8px 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 0.9375rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: left;
+  vertical-align: bottom;
+  white-space: nowrap;
+  color: var(--text-subtle);
+}
+.tabel td {
+  padding: 10px 16px 10px 0;
+  border-top: var(--border-width-xs) solid var(--line-muted);
+  vertical-align: top;
+}
+.tabel th:last-child,
+.tabel td:last-child {
+  padding-right: 0;
+}
+/* De dichte variant, voor de datatabellen van Analytics: daar staan tientallen
+   rijen onder elkaar en telt elke pixel hoogte. */
+.tabel-dicht td {
+  padding-block: 6px;
+}
+/* Een rij die iets opent: de doorzichtige waas van §2.8, zodat hij ook werkt op
+   een rij die zelf al een vlak heeft (de eigen rij in Analytics). */
+.tabel-klikbaar tbody tr {
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+.tabel-klikbaar tbody tr:hover {
+  background-color: var(--interactive-hover);
+}
+/* Met een vlak achter de rij mag de tekst niet tegen de rand van dat vlak
+   staan: acht pixels lucht in de eerste kolom, kop en rijen gelijk. */
+.tabel-klikbaar th:first-child,
+.tabel-klikbaar td:first-child {
+  padding-left: 8px;
+}
+/* Geselecteerd is een rand en een waas, geen accentkleur (§2.8). Tot
+   23 september 2026 kreeg de gekozen rij hier de groene tint van het accent. */
+.tabel tbody tr[aria-selected="true"] {
+  background-color: var(--interactive-active);
+  box-shadow: inset var(--border-width-sm) 0 0 var(--border-selected);
 }
 
 /* Skeleton: de vorm van wat er komt. Een skeleton zegt WAAR de inhoud komt,
@@ -2147,7 +2095,7 @@ textarea.field {
   color: inherit;
   text-decoration: underline dotted var(--intent-warning-solid);
   text-underline-offset: 3px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   scroll-margin-top: calc(var(--header-h) + 96px);
 }
 .tekst-punt.is-aangewezen {
@@ -2181,7 +2129,7 @@ textarea.field {
   outline-offset: 1px;
 }
 .tekst-punt-link[data-gekozen] {
-  border-left-color: var(--status-success);
+  border-left-color: var(--intent-success-solid);
   background-color: var(--bg-surface-raised);
   color: var(--text-secondary);
 }
@@ -2201,13 +2149,13 @@ textarea.field {
 .puntvenster-voortgang li {
   flex: 1;
   height: 4px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background-color: var(--intent-warning-surface);
 }
 .puntvenster-voortgang li[data-soort="orbit"],
 .puntvenster-voortgang li[data-soort="zelf"],
 .puntvenster-voortgang li[data-soort="staan"] {
-  background-color: var(--status-success);
+  background-color: var(--intent-success-solid);
 }
 .puntvenster-voortgang li[data-soort="overslaan"] {
   background-color: var(--border-default);
@@ -2223,7 +2171,7 @@ textarea.field {
   width: 100%;
   padding: 10px 12px;
   border: var(--border-width-xs) solid var(--border-default);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   background-color: var(--bg-surface);
   color: var(--text-primary);
   text-align: left;
@@ -2235,11 +2183,13 @@ textarea.field {
   background-color: var(--bg-surface-raised);
 }
 .puntvenster-optie[aria-pressed="true"] {
-  border-color: var(--status-success);
+  border-color: var(--intent-success-solid);
   background-color: var(--intent-success-surface);
 }
+/* De kleur doet het werk, niet de doorzichtigheid: dezelfde regel als de knoppen. */
 .puntvenster-optie:disabled {
-  opacity: 0.55;
+  background-color: var(--interactive-disabled);
+  color: var(--text-disabled);
   cursor: not-allowed;
 }
 .puntvenster-toets {
@@ -2248,8 +2198,8 @@ textarea.field {
   padding: 1px 6px;
   border: var(--border-width-xs) solid var(--border-default);
   border-radius: var(--radius-md);
-  font-size: 0.7rem;
-  color: var(--text-muted);
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
   text-align: center;
 }
 /* Op een telefoon is er geen toetsenbord om 1 tot 4 op te drukken. */
@@ -2266,7 +2216,9 @@ textarea.field {
   bottom: 16px;
   z-index: 20;
   box-shadow: var(--shadow-lg);
-  border-left: var(--border-width-sm) solid var(--intent-intelligence-solid);
+  /* De streep van een kaart die om een handeling vraagt (`.card-rail`), niet
+     het accent: dat is voor de hoofdactie en het eigen merk (§2.4). */
+  border-left: var(--border-width-sm) solid var(--border-emphasis);
 }
 
 /* ── De paginabalk ─────────────────────────────────────────────────────────
@@ -2684,6 +2636,7 @@ textarea.field {
    plaatsaanduiding (de hoofdstukbalk op een telefoon, `section-rail.tsx`),
    en daar is "je bent hier" de juiste betekenis en niet "aan". */
 .chip-select[aria-pressed="true"],
+.chip-select[aria-checked="true"],
 .chip-select[aria-current]:not([aria-current="false"]) {
   border-color: var(--border-selected);
   color: var(--text-primary);
@@ -2856,6 +2809,11 @@ textarea.field {
   line-height: 1.125rem;
   color: var(--text-tertiary);
 }
+/* ⚠️ Ook los te gebruiken, zonder `.data-card` eromheen (23 september 2026):
+   een cijfer in een kaart die zelf al een kaart is (de vier tellingen op het
+   overzicht, de criteria op Reputatie). Daar stonden 30 en 36 pixels naast de
+   24 van de datakaart, voor dezelfde rol. De maatregel is nu: één hoofdgetal
+   per scherm op `text-5xl` in de kaart met de streep, elk ander cijfer hier. */
 .data-card-waarde {
   font-size: 1.5rem; /* 24px */
   font-weight: 500;
@@ -2976,7 +2934,7 @@ textarea.field {
    met een veer: een dialoog die opvalt door zijn beweging leidt af van waar hij
    over gaat. Zie components/confirm-dialog.tsx. */
 .modal-overlay {
-  background: var(--overlay-scrim);
+  background: var(--bg-scrim);
   animation: modal-overlay-in var(--duration-base) var(--ease-standard);
 }
 .modal-panel {
@@ -3211,22 +3169,22 @@ textarea.field {
    en dit zegt "er wacht iets op jou". Twee verschillende beloftes horen twee
    verschillende bewegingen te hebben, anders betekent de puls niets meer.
 
-   De kleur komt uit `--intent-growth-solid` en niet uit een eigen groen: het
-   systeem kent één groen, en dat blijft zo (`docs/designsystem.md` §8). */
+   De kleur is `--intent-success-solid`, dezelfde als `.live-dot`: het verschil
+   tussen de twee zit in de beweging, niet in de kleur. */
 .vraag-dot {
   width: 8px;
   height: 8px;
   flex-shrink: 0;
   border-radius: 50%;
-  background-color: var(--intent-growth-solid);
+  background-color: var(--intent-success-solid);
   animation: vraag-adem 4s var(--ease-standard) infinite alternate;
 }
 @keyframes vraag-adem {
   from {
-    background-color: color-mix(in srgb, var(--intent-growth-solid) 45%, transparent);
+    background-color: color-mix(in srgb, var(--intent-success-solid) 45%, transparent);
   }
   to {
-    background-color: var(--intent-growth-solid);
+    background-color: var(--intent-success-solid);
   }
 }
 
@@ -3262,24 +3220,10 @@ textarea.field {
   }
 }
 
-/* Het woordmerk, en verder niets. De gradient stond ook op accentwoorden in
-   koppen; in de Nova-werkomgeving komt hij nul keer voor. Eén plek is genoeg om
-   herkenbaar te zijn, overal is een landingspagina. */
-.brand-gradient-text {
-  background: var(--wordmark-gradient);
-  -webkit-background-clip: text;
-  background-clip: text;
-  /* In de lichte stand is deze kleur doorzichtig en schijnt het verloop door de
-     letters heen. In de donkere stand staat --wordmark-gradient op `none`, valt
-     er niets door te schijnen, en is deze kleur wit. Eén regel voor twee
-     standen, in plaats van een tweede regel in allebei de donkere blokken die
-     dan uit de pas kan gaan lopen.
-
-     ⚠️ Doorzichtig moet hier een aparte waarde zijn en niet --wordmark-1: die
-     draagt de kleur van het merkteken (in licht groen), en groene letters vóór
-     het verloop laten van dat verloop niets meer zien. */
-  color: var(--wordmark-fill);
-}
+/* `.brand-gradient-text` stond hier: het groen-paarse verloop over het
+   woordmerk. Het verloop was sinds 17 september 2026 al `none` en de klasse
+   zette alleen nog de tekstkleur; op 23 september 2026 is hij weg, samen met
+   de `--wordmark-*`-tokens. Het woordmerk is `.brand-logo` hieronder. */
 
 /* Het lettertype van het woordmerk, los van de tekstschaal in §3.1 van
    designsystem.md (26 augustus 2026): Archivo Black, altijd hoofdletters, met
@@ -3334,15 +3278,15 @@ textarea.field {
      precies over de kop heen zodra je vanuit de inhoudsopgave klikt. */
   scroll-margin-top: 5rem;
 }
+/* Op de letterschaal van §3.2 (23 september 2026): 24, 18, 16 en 16, waar hier
+   27, 22, 18 en 16 stond, maten die nergens anders in de app voorkomen. */
 .prose h1 {
-  font-size: 1.7rem;
+  font-size: 1.5rem;
 }
 .prose h2 {
-  font-size: 1.4rem;
+  font-size: 1.125rem;
 }
-.prose h3 {
-  font-size: 1.15rem;
-}
+.prose h3,
 .prose h4 {
   font-size: 1rem;
 }
@@ -3383,7 +3327,7 @@ textarea.field {
   vertical-align: top;
 }
 .prose th {
-  font-weight: 600;
+  font-weight: 500;
   border-bottom-color: var(--border-primary);
 }
 .prose ul,
@@ -3402,14 +3346,14 @@ textarea.field {
 .prose code {
   font-family: var(--font-mono);
   font-size: 0.9em;
-  background: var(--bg-elevated);
+  background: var(--bg-layer-2);
   padding: 0.1em 0.4em;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
 }
 .prose blockquote {
-  border-left: var(--border-width-sm) solid var(--intent-intelligence-border);
+  border-left: var(--border-width-sm) solid var(--border-default);
   padding-left: 1em;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
 }
 .prose hr {
   border: none;
@@ -3424,7 +3368,7 @@ textarea.field {
      het is het enige teken dat er werk op je wacht. Alleen de beweging valt weg. */
   .vraag-dot {
     animation: none;
-    background-color: var(--intent-growth-solid);
+    background-color: var(--intent-success-solid);
   }
   /* De melding verschijnt en verdwijnt nog steeds, alleen zonder beweging. Het
      voortgangsstreepje blijft wél lopen: dat is informatie (hoe lang blijft
@@ -3437,7 +3381,7 @@ textarea.field {
   }
   .skeleton {
     animation: none;
-    background: var(--bg-elevated);
+    background: var(--bg-layer-2);
   }
   * {
     transition-duration: 0.01ms !important;
@@ -3790,8 +3734,8 @@ textarea.field {
 }
 .standbalk-label {
   font-size: 0.75rem;
-  line-height: 1.1rem;
-  color: var(--text-muted);
+  line-height: 1.125rem;
+  color: var(--text-tertiary);
 }
 .standbalk-stap[data-stand="nu"] .standbalk-label {
   color: var(--text-primary);

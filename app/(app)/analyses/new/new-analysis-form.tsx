@@ -200,7 +200,7 @@ export function NewAnalysisForm({
           {NEW_CLUSTER_MIN_TOTAL} en {NEW_CLUSTER_MAX_TOTAL} liggen.
         </span>
         {mixError && (
-          <p className="text-sm" style={{ color: "var(--intent-danger-text)" }}>
+          <p className="text-sm" style={{ color: "var(--intent-danger-content)" }}>
             {mixError}
           </p>
         )}
@@ -232,7 +232,7 @@ export function NewAnalysisForm({
           Staat de mail uit (EMAILS_ENABLED), dan verdwijnt het vinkje: een vakje
           aanvinken waar niets van komt, is een belofte die de app niet nakomt. */}
       {emailsEnabled && (
-        <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3">
+        <label className="vlak vlak-gevuld flex cursor-pointer items-start gap-3">
           <input
             type="checkbox"
             checked={notifyByEmail}
@@ -250,7 +250,7 @@ export function NewAnalysisForm({
       )}
 
       {error && (
-        <p className="text-sm text-[var(--status-error)]" role="alert">
+        <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
           {error}
         </p>
       )}

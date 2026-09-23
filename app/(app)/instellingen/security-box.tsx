@@ -145,7 +145,7 @@ export function SecurityBox({ email }: { email: string }) {
               <li key={r.id} className="flex items-center gap-2 text-sm">
                 <span
                   style={{
-                    color: r.ok ? "var(--trend-up-text)" : "var(--text-muted)",
+                    color: r.ok ? "var(--trend-up-text)" : "var(--text-tertiary)",
                   }}
                 >
                   <Icon naam={r.ok ? "klaar" : "open"} size={14} />

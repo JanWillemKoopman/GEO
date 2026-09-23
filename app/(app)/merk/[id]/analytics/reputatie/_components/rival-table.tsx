@@ -98,12 +98,12 @@ export function RivalTable({
         </p>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="tabel">
             <thead>
-              <tr className="text-muted">
-                <th className="py-1 pr-4 font-normal">Onderwerp</th>
+              <tr>
+                <th>Onderwerp</th>
                 {partijen.map((p, i) => (
-                  <th key={p} className="py-1 pr-4 font-normal">
+                  <th key={p}>
                     {i === 0 ? "jij" : p}
                   </th>
                 ))}
@@ -111,15 +111,15 @@ export function RivalTable({
             </thead>
             <tbody>
               {REPUTATION_CRITERIA.map((c) => (
-                <tr key={c} className="border-t border-[var(--border-subtle)]">
-                  <td className="py-1.5 pr-4 font-medium">{CRITERION_LABEL[c]}</td>
+                <tr key={c}>
+                  <td className="font-medium">{CRITERION_LABEL[c]}</td>
                   {partijen.map((p, i) => (
                     <td
                       key={p}
-                      className="stat-value py-1.5 pr-4"
                       // De eigen kolom gemarkeerd, zodat je hem in één oogopslag
-                      // terugvindt zonder de koprij te hoeven lezen.
-                      style={i === 0 ? { background: "var(--bg-elevated)" } : undefined}
+                      // terugvindt zonder de koprij te hoeven lezen. In de tint
+                      // van een genest vlak (§2.1), niet in die van een chip.
+                      className={`stat-value${i === 0 ? " bg-[var(--bg-surface-raised)] px-2" : ""}`}
                     >
                       {waarde(c, p)}
                     </td>
