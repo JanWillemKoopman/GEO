@@ -1,4 +1,6 @@
 import "server-only";
+import { markPublished } from "@/lib/pipeline/publish";
+import { volledigAdres, isOnBrandDomain } from "@/lib/url";
 
 /**
  * Het contentplan: aanmaken, lezen, goedkeuren, plaatsen.
@@ -1250,11 +1252,71 @@ export async function removePage(
  * ook: de status gaat naar `geplaatst` en de datum staat vast. Het scherm zegt
  * dat vooraf, in een eigen blok.
  */
+/**
+ * Wat "geplaatst markeren" teweegbracht. Sinds 23 september 2026 meer dan een
+ * label (`docs/tasks/contentflow-een-lijn.md` §2 punt 3): tot die dag zette deze
+ * functie alleen de plan-status op `geplaatst`, en startte hij GEEN
+ * publicatiecontrole en GEEN nameting. Die twee deed alleen de publiceerknop in
+ * de bibliotheek. Wie het contentplan volgde, zoals het ontwikkelplan de eerste
+ * klant laat doen, kreeg dus nooit te zien of zijn pagina iets opleverde.
+ */
+export type PlaatsUitkomst =
+  | { ok: true; effectmeting: "gepland" | "al_live" | "geen_tekst" }
+  | { ok: false; reden: string };
+
 export async function markPosted(
   admin: Admin,
   pageId: string,
   input: { url: string; userId: string },
-): Promise<boolean> {
+): Promise<PlaatsUitkomst> {
+  const { data: rij } = await admin
+    .from("planned_pages")
+    .select("content_piece_id, profile_id, profiles(url)")
+    .eq("id", pageId)
+    .maybeSingle();
+  const merkUrl =
+    ((rij as { profiles?: { url?: string | null } | null } | null)?.profiles?.url as string | null) ?? null;
+  const pieceId = (rij as { content_piece_id?: string | null } | null)?.content_piece_id ?? null;
+
+  // ── Eerst de tekst live zetten, dan pas het label ─────────────────────────
+  //
+  // Andersom zou een mislukte publicatie een plan-pagina op "Staat live" laten
+  // staan zonder controle en zonder nameting: precies de stille gat die dit
+  // blok dicht moest maken.
+  let effectmeting: "gepland" | "al_live" | "geen_tekst" = "geen_tekst";
+  if (pieceId) {
+    const adres = volledigAdres(input.url, merkUrl);
+    if (!adres) return { ok: false, reden: "Dit adres klopt niet. Vul het pad of het hele adres van de pagina in." };
+    if (merkUrl && !isOnBrandDomain(adres, merkUrl)) {
+      return { ok: false, reden: `Dit adres staat niet op het domein van dit merk (${merkUrl}).` };
+    }
+    const { data: piece } = await admin
+      .from("content_pieces")
+      .select("analysis_id, status, needs_review")
+      .eq("id", pieceId)
+      .maybeSingle();
+    // Zelfde regel als de publiceerroute (T3.3): een tekst die nog niet
+    // goedgekeurd is, gaat niet live. Anders was het plan een achterdeur.
+    if (piece && piece.status !== "published" && piece.needs_review) {
+      return { ok: false, reden: "Keur de tekst eerst goed voordat je hem live zet." };
+    }
+    if (piece?.status === "published") {
+      effectmeting = "al_live";
+    } else if (piece?.analysis_id) {
+      try {
+        await markPublished(admin, {
+          analysisId: piece.analysis_id as string,
+          contentPieceId: pieceId,
+          url: adres,
+        });
+        effectmeting = "gepland";
+      } catch (err) {
+        console.error(`Plan-pagina ${pageId}: live zetten van de tekst mislukte:`, err);
+        return { ok: false, reden: "Live zetten is niet gelukt. Probeer het opnieuw." };
+      }
+    }
+  }
+
   const { error } = await admin
     .from("planned_pages")
     .update({
@@ -1269,7 +1331,7 @@ export async function markPosted(
 
   if (error) {
     console.error("Markeren als geplaatst mislukt:", error.message);
-    return false;
+    return { ok: false, reden: "Opslaan is niet gelukt." };
   }
-  return true;
+  return { ok: true, effectmeting };
 }

@@ -265,11 +265,11 @@ export async function POST(
         { status: 400 },
       );
     }
-    const ok = await markPosted(admin, pageId, { url, userId: user.id });
-    if (!ok) {
-      return NextResponse.json({ error: "Markeren is niet gelukt." }, { status: 500 });
+    const uitkomst = await markPosted(admin, pageId, { url, userId: user.id });
+    if (!uitkomst.ok) {
+      return NextResponse.json({ error: uitkomst.reden }, { status: 400 });
     }
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, effectmeting: uitkomst.effectmeting });
   }
 
   return NextResponse.json({ error: "Onbekende handeling." }, { status: 400 });

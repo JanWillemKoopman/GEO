@@ -1443,6 +1443,58 @@ async function main(): Promise<void> {
       `status is ${naFout[0].status}`,
     );
 
+    // ── Eén live-handeling (contentflow-een-lijn.md fase A) ─────────────────
+    //
+    // Tot 23 september 2026 zette "Markeer als geplaatst" in het plan alleen
+    // het label. Geen publicatiecontrole, geen nameting: het plan was een
+    // weg naar "Staat live" waarop het effect nooit gemeten werd.
+    {
+      const { markPosted } = await import("@/lib/plans");
+      const stukId = naSchrijven[0].content_piece_id as string;
+      await db.client.query("update public.content_pieces set needs_review = true where id = $1", [stukId]);
+      const { rows: merkRij } = await db.client.query(
+        "select url from public.profiles where id = $1",
+        [profileId],
+      );
+      const nietGoedgekeurd = await markPosted(admin as never, binnenVenster, {
+        url: "/hardloopblessures",
+        userId: planUserId,
+      });
+      ok("fase A: een tekst die niet goedgekeurd is gaat via het plan niet live", !nietGoedgekeurd.ok);
+
+      await db.client.query("update public.content_pieces set needs_review = false where id = $1", [stukId]);
+      const uitkomst = await markPosted(admin as never, binnenVenster, {
+        url: "/hardloopblessures",
+        userId: planUserId,
+      });
+      ok(
+        "fase A: geplaatst markeren in het plan lukt",
+        uitkomst.ok && uitkomst.effectmeting === "gepland",
+        JSON.stringify(uitkomst),
+      );
+      const { rows: stukNa } = await db.client.query(
+        "select status, published_url from public.content_pieces where id = $1",
+        [stukId],
+      );
+      ok("fase A: en zet de tekst zelf op gepubliceerd", stukNa[0].status === "published", String(stukNa[0].status));
+      ok(
+        "fase A: op het volledige adres van het merk",
+        String(stukNa[0].published_url).endsWith("/hardloopblessures") &&
+          String(stukNa[0].published_url).startsWith("https://"),
+        `${stukNa[0].published_url} (merk ${merkRij[0].url})`,
+      );
+      const { rows: controle } = await db.client.query(
+        "select count(*)::int as n from public.jobs where type = 'verify_publication' and payload_json->>'contentPieceId' = $1",
+        [stukId],
+      );
+      ok("fase A: en de publicatiecontrole staat klaar", controle[0].n === 1, `${controle[0].n} taken`);
+      const { rows: planNa } = await db.client.query(
+        "select status from public.planned_pages where id = $1",
+        [binnenVenster],
+      );
+      eqc("fase A: de plan-pagina staat op geplaatst", String(planNa[0].status), "geplaatst");
+    }
+
 
     // ══════════════════════════════════════════════════════════════════════
     // De aanbodstap kapt de keten niet meer af (Teamsessie 18 augustus 2026)

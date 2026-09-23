@@ -136,7 +136,7 @@ import { faseVoorPagina } from "@/lib/plan-funnel";
 import { buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change-format";
 import type { PeriodChange } from "@/lib/pipeline/period-change-format";
 import { domainOf } from "@/lib/offsite/domain";
-import { checkUrlFormat, isOnBrandDomain, isRedirectedElsewhere } from "@/lib/url";
+import { checkUrlFormat, isOnBrandDomain, isRedirectedElsewhere, volledigAdres } from "@/lib/url";
 import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import { PRIMARY_ENGINE } from "@/lib/engines/types";
@@ -2048,6 +2048,19 @@ group("webadres controleren", () => {
 
 // Herstelplan na audit T3.1: op 2 september 2026 gaf de publiceerroute een 202
 // voor https://www.example.com/, een adres dat niets met het merk te maken had.
+// contentflow-een-lijn.md fase A: het contentplan vraagt om een pad, de
+// nameting heeft een volledig adres nodig.
+group("volledigAdres maakt van een pad uit het plan een echt adres", () => {
+  ok("pad met slash", volledigAdres("/diensten/apk", "https://udenhout.nl") === "https://udenhout.nl/diensten/apk");
+  ok("pad zonder slash", volledigAdres("diensten/apk", "udenhout.nl") === "https://udenhout.nl/diensten/apk");
+  ok("www van het merk blijft", volledigAdres("/x", "https://www.udenhout.nl/") === "https://www.udenhout.nl/x");
+  ok("heel adres blijft heel", volledigAdres("https://udenhout.nl/x", null) === "https://udenhout.nl/x");
+  ok("adres zonder schema krijgt https", volledigAdres("udenhout.nl/x", null) === "https://udenhout.nl/x");
+  ok("pad zonder merk is onbekend, geen gok", volledigAdres("/x", null) === null);
+  ok("spaties zijn geen adres", volledigAdres("/mijn pagina", "udenhout.nl") === null);
+  ok("leeg is onbekend", volledigAdres("  ", "udenhout.nl") === null);
+});
+
 group("publiceren mag alleen op het domein van het merk (T3.1)", () => {
   ok("hetzelfde domein mag", isOnBrandDomain("https://voorbeeld.nl/pagina", "voorbeeld.nl"));
   ok("www telt niet als ander domein", isOnBrandDomain("https://www.voorbeeld.nl/pagina", "voorbeeld.nl"));

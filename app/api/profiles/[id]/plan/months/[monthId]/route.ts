@@ -137,9 +137,9 @@ export async function POST(
     // eigen tijdstip vast. Een `update ... in (...)` zou ze allemaal hetzelfde
     // adres geven, en dat is precies de meting die nergens over gaat.
     for (const p of selectie.mee) {
-      const ok = await markPosted(admin, p.id, { url: p.url, userId: user.id });
-      if (ok) gelukt.push(p.title);
-      else mislukt.push({ title: p.title, reden: "opslaan mislukte" });
+      const uitkomst = await markPosted(admin, p.id, { url: p.url, userId: user.id });
+      if (uitkomst.ok) gelukt.push(p.title);
+      else mislukt.push({ title: p.title, reden: uitkomst.reden });
     }
 
     return NextResponse.json({
