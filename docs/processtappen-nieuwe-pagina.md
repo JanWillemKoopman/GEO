@@ -10,6 +10,13 @@
 > document beantwoordt "wat gebeurt er precies, in welke volgorde". Klopt er iets niet meer, dan is
 > de code leidend: `lib/pipeline/` en `lib/jobs/` zijn de bron waar dit overzicht uit is opgebouwd.
 >
+> ⚠️ **Sinds 23 september 2026 loopt het schrijven via het contentplan en wacht het op de vragen.**
+> Fase 7 tot en met 14 hieronder beschrijven nog de route vanuit een cluster. Wat er veranderde: vrijgeven
+> van een maand start de voorbereiding en de vragen (stap 56 tot en met 67), er wordt pas geschreven als
+> elke vraag van de pagina beantwoord of overgeslagen is, zonder knop "Schrijf mijn pagina's" (stap 70),
+> en geplaatst markeren in het plan start dezelfde controle en nameting als stap 97. Zie
+> `docs/tasks/contentflow-een-lijn.md` §3 en de logboekalinea van die datum.
+>
 > **Peildatum: 23 september 2026.** Alle 117 stappen zijn op 22 september 2026 onafhankelijk
 > nagekeken tegen de broncode, in vier losse controles die geen van alle deze documentatie hebben
 > gelezen. De twee stappen die toen niet klopten met wat er gebouwd was, **stap 104** (de check op een

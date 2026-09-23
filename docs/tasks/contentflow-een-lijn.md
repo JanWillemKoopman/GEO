@@ -1,6 +1,11 @@
 # Contentflow: één pagina, één lijn, eerst alle vragen
 
-> **Status: nog niet begonnen.** Opgesteld op 23 september 2026 na een analyse van de flow van
+> **Status (23 september 2026): fase A tot en met F gebouwd**, zie de alinea van die datum onderaan
+> `docs/logbook.md`. Open: §4.4 herinneringsmails, §5 bestaande data (wacht op akkoord eigenaar),
+> "Zet in het plan" als knop in een cluster, en de schermafbeeldingen uit §4.6a. Afwijking: geen
+> migratie, de standen worden afgeleid (`lib/pagina-stand.ts`), zie het logboek.
+>
+> **Oorspronkelijke status: nog niet begonnen.** Opgesteld op 23 september 2026 na een analyse van de flow van
 > contentplan tot gepubliceerde pagina, met de data van Van den Udenhout als praktijkgeval.
 > Uitvoeren in een nieuwe sessie, fase voor fase, in de volgorde van §6. Elke fase is een eigen
 > commit met `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen.
