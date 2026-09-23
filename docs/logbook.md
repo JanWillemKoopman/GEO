@@ -11923,3 +11923,9 @@ proefpagina met de gebouwde CSS. De terug-link boven het clusterdossier en de co
 blijven staan: dat is een navigatiekeuze, geen vormgeving. Punt 2 en 3 van
 `docs/tasks/openstaand-na-okx-omzetting.md` (donkere stand per scherm nalopen, grafiekkleuren op
 kleurenblindheid) staan nog open. Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen.
+
+**Nagekomen, na de schermafbeeldingen.** De merkkiezer en de bronkeuze op Analytics zijn knoppen in de
+vorm van een veld (`.field`). Die kregen na een muisklik de dikke focusrand van een invoerveld, die
+alleen voor wie met het toetsenbord werkt bedoeld is. `button.field` houdt die rand nu alleen bij
+toetsenbordfocus. Gevonden door de proefpagina met de echte componenten voor en na naast elkaar te
+fotograferen.

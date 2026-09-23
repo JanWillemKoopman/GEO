@@ -1590,6 +1590,13 @@ input[type="radio"] {
   outline-offset: 2px;
   border-color: var(--border-focus);
 }
+/* Een knop in veldvorm (de merkkiezer, de bronkeuze op Analytics): daar hoort
+   de focusring alleen bij het toetsenbord, net als bij elke andere knop. Een
+   invoerveld houdt hem ook na een klik, want daar typ je in. */
+button.field:focus:not(:focus-visible) {
+  outline: none;
+  border-color: var(--border-strong);
+}
 .field:disabled {
   background-color: var(--bg-disabled);
   color: var(--text-disabled);
