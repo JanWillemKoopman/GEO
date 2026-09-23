@@ -844,18 +844,26 @@ export function PlanView({
                       // De dialoog erachter vertelt nog steeds wat het kost en
                       // wat er daarna gebeurt, dus niemand geeft per ongeluk
                       // een maand vrij.
-                      <button
-                        type="button"
-                        className={
-                          month.status === "ter_goedkeuring" || lopend
-                            ? "btn-primary btn-sm"
-                            : "btn-ghost btn-sm"
-                        }
-                        onClick={() => setMonthDialog(month)}
-                        disabled={busy === month.id}
-                      >
-                        Vrijgeven
-                      </button>
+                      // Sinds de UX-audit van 23 september 2026 alleen als knop
+                      // voor wie het mag (`plan_goedkeuren`): een klant kreeg de
+                      // dialoog en pas daarna de weigering. Hij leest nu vooraf
+                      // dat het via de consultant gaat.
+                      staff ? (
+                        <button
+                          type="button"
+                          className={
+                            month.status === "ter_goedkeuring" || lopend
+                              ? "btn-primary btn-sm"
+                              : "btn-ghost btn-sm"
+                          }
+                          onClick={() => setMonthDialog(month)}
+                          disabled={busy === month.id}
+                        >
+                          Vrijgeven
+                        </button>
+                      ) : (
+                        <span className="text-sm text-secondary">Vrijgeven via je consultant</span>
+                      )
                     )}
                   </div>
                 </div>

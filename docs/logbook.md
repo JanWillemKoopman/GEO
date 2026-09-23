@@ -12015,6 +12015,7 @@ Bedrijven, Verstuurd).
 
 Wat niet gedaan is en waarom: de schermen zijn niet in de browser met echte data bekeken, want
 daarvoor is een database nodig die in deze werkomgeving niet beschikbaar is. P0.1 en P0.2 zijn dus
-in de code opgelost maar niet op een tablet en een telefoon nagekeken. De knop "Geef deze maand
-vrij" op het contentplan weigert een klant nog steeds pas na de klik; die viel buiten de lijst van
-P1.3. Getest: `tsc --noEmit`, `test:unit` (5395), `test:chain` (781) en `build` groen.
+in de code opgelost maar niet op een tablet en een telefoon nagekeken. Nagekomen: ook "Geef deze
+maand vrij" op het contentplan (Overzicht en het bord) zegt een klant nu vooraf dat dit via de
+consultant gaat, in de woorden van de weigermelding zelf. Getest: `tsc --noEmit`, `test:unit`
+(5397), `test:chain` (781) en `build` groen.

@@ -5,6 +5,7 @@ import { useRefresh } from "@/components/use-refresh";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useToast } from "@/components/toast";
 import { streefdatum, formatDag } from "@/lib/pagina-stand";
+import { COST_DENIED } from "@/lib/cost-rules";
 
 /**
  * De enige knop van de leesweergave: geef deze maand vrij.
@@ -21,6 +22,7 @@ export function ReleaseMonthButton({
   monthNumber,
   paginas,
   eersteDatum,
+  staff,
 }: {
   profileId: string;
   monthId: string;
@@ -31,6 +33,14 @@ export function ReleaseMonthButton({
    * streefdatum voor de antwoorden die de dialoog noemt (`streefdatum()`).
    */
   eersteDatum: string | null;
+  /**
+   * Een maand vrijgeven is van de consultant (`plan_goedkeuren` in
+   * `lib/cost-rules.ts`). Tot de UX-audit van 23 september 2026 zag de klant
+   * hier toch de primaire knop, vulde de dialoog in en kreeg pas daarna te
+   * horen dat hij dit niet zelf doet. Nu leest hij dat vooraf, in dezelfde
+   * woorden als de weigering van de server.
+   */
+  staff: boolean;
 }) {
   const { refresh, refreshing } = useRefresh();
   const toast = useToast();
@@ -39,6 +49,10 @@ export function ReleaseMonthButton({
   // ⚠️ De knop laat pas los als het scherm de nieuwe stand heeft, niet als de
   // aanvraag de deur uit is. Zie `components/use-refresh.ts`.
   const wacht = busy || refreshing;
+
+  if (!staff) {
+    return <p className="text-sm text-secondary">{COST_DENIED.plan_goedkeuren}</p>;
+  }
 
   async function vrijgeven() {
     setBusy(true);

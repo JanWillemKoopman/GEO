@@ -25316,3 +25316,10 @@ group("UX-audit P2.5 tot P2.12: onderbalk, zijbalk, lege staten, reputatie, 404"
   ok("een lopende analyse ververst vanzelf", rep.includes("<VanzelfVerversen"));
   ok("een 404 binnen de app houdt het menu", bestaatBestand("app/(app)/not-found.tsx"));
 });
+
+group("UX-audit P1.3, nagekomen: een maand vrijgeven zegt vooraf wie dat doet", () => {
+  const knop = leesBestand("app/(app)/merk/[id]/strategie/plan/release-month-button.tsx");
+  ok("zonder recht de melding van de kostenpoort, geen knop", knop.includes("if (!staff)") && knop.includes("COST_DENIED.plan_goedkeuren"));
+  const bord = leesBestand("app/(app)/merk/[id]/strategie/plan/plan-view.tsx");
+  ok("ook op het bord alleen een knop voor wie het mag", bord.includes("Vrijgeven via je consultant"));
+});
