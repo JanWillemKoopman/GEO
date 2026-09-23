@@ -2,9 +2,8 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
-import { describeError, classifyError } from "@/lib/errors";
-import { eindpoort, EINDPOORT_STATUS } from "@/lib/content-final-gate";
-import { countBlockingQuestions } from "@/lib/open-questions";
+import { EINDPOORT_STATUS } from "@/lib/content-final-gate";
+import { keurTekstGoed } from "@/lib/content-approve";
 
 /**
  * POST /api/analyses/[id]/content/[pieceId]/approve, de klant geeft een pagina
@@ -62,44 +61,14 @@ export async function POST(
   // dat besluit staan blijft: de tekst blijft leesbaar, kopieerbaar en
   // bewerkbaar, en de klant kan zelf publiceren wat hij wil. Wat op slot gaat is
   // dat ORBIT ENGINE hem als afgerond registreert.
-  const poort = eindpoort(await countBlockingQuestions(admin, id, pieceId));
-  if (!poort.mag) {
+  // De eindpoort en het bijwerken van het contentplan staan sinds 23 september
+  // 2026 in `keurTekstGoed()`, zodat goedkeuren in het plan precies hetzelfde doet.
+  const uitkomst = await keurTekstGoed(admin, { pieceId, analysisId: id, userId: user.id });
+  if (!uitkomst.ok) {
     return NextResponse.json(
-      { error: poort.melding, openVragen: poort.open },
-      { status: EINDPOORT_STATUS },
+      { error: uitkomst.error, ...(uitkomst.openVragen !== undefined ? { openVragen: uitkomst.openVragen } : {}) },
+      { status: uitkomst.status === 409 ? EINDPOORT_STATUS : uitkomst.status },
     );
   }
-
-  try {
-    // De pagina moet bij DEZE analyse horen. Zonder deze voorwaarde zou een
-    // geldig ingelogde gebruiker met een gegokt pieceId een pagina van iemand
-    // anders kunnen vrijgeven, de eigenaarschapscontrole hierboven dekt de
-    // analyse, niet de pagina.
-    const { data, error } = await admin
-      .from("content_pieces")
-      .update({
-        needs_review: false,
-        // Sinds migratie 0034 leggen we vast DAT er iemand gekeken heeft, en
-        // wie. Zonder die twee kolommen betekent `needs_review = false` twee
-        // dingen tegelijk, "de poort vond niets" (automatisch) en "een mens
-        // heeft gekeken", en zijn ze niet uit elkaar te houden.
-        reviewed_at: new Date().toISOString(),
-        reviewed_by: user.id,
-      })
-      .eq("id", pieceId)
-      .eq("analysis_id", id)
-      .select("id")
-      .maybeSingle();
-
-    if (error) throw new Error(error.message);
-    if (!data) return NextResponse.json({ error: "Pagina niet gevonden." }, { status: 404 });
-
-    return NextResponse.json({ approved: true, reviewedAt: new Date().toISOString() });
-  } catch (err) {
-    console.error(`vrijgeven mislukt voor pagina ${pieceId}:`, err);
-    return NextResponse.json(
-      { error: "Vrijgeven is niet gelukt.", detail: describeError(err), problem: classifyError(err) },
-      { status: 500 },
-    );
-  }
+  return NextResponse.json({ approved: true, reviewedAt: uitkomst.reviewedAt });
 }

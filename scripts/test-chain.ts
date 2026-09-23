@@ -1462,7 +1462,17 @@ async function main(): Promise<void> {
       });
       ok("fase A: een tekst die niet goedgekeurd is gaat via het plan niet live", !nietGoedgekeurd.ok);
 
-      await db.client.query("update public.content_pieces set needs_review = false where id = $1", [stukId]);
+      // Fase C: goedkeuren via de gedeelde functie werkt beide rijen bij.
+      const { keurTekstGoed } = await import("@/lib/content-approve");
+      const goed = await keurTekstGoed(admin as never, { pieceId: stukId, analysisId, userId: planUserId });
+      ok("fase C: goedkeuren lukt", goed.ok, JSON.stringify(goed));
+      const { rows: naGoed } = await db.client.query(
+        `select c.needs_review, p.status from public.content_pieces c
+           join public.planned_pages p on p.content_piece_id = c.id where c.id = $1`,
+        [stukId],
+      );
+      ok("fase C: de tekst is vrijgegeven", naGoed[0].needs_review === false);
+      eqc("fase C: en het plan zegt hetzelfde", String(naGoed[0].status), "goedgekeurd");
       const uitkomst = await markPosted(admin as never, binnenVenster, {
         url: "/hardloopblessures",
         userId: planUserId,

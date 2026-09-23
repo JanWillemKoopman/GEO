@@ -137,6 +137,7 @@ import { buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change-
 import type { PeriodChange } from "@/lib/pipeline/period-change-format";
 import { domainOf } from "@/lib/offsite/domain";
 import { schrijfpoort, schrijfdatum } from "@/lib/content-write-gate";
+import { paginaStand, streefdatum, standVolgorde, FASEN, type PaginaStandInput } from "@/lib/pagina-stand";
 import { checkUrlFormat, isOnBrandDomain, isRedirectedElsewhere, volledigAdres } from "@/lib/url";
 import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
@@ -2049,6 +2050,64 @@ group("webadres controleren", () => {
 
 // Herstelplan na audit T3.1: op 2 september 2026 gaf de publiceerroute een 202
 // voor https://www.example.com/, een adres dat niets met het merk te maken had.
+// contentflow-een-lijn.md fase C: één stand per pagina, uit twee rijen.
+group("paginaStand: elke combinatie geeft precies één stand", () => {
+  const vandaag = "2026-09-23";
+  const plan = (status: string, maandVrij = true, scheduled_for = "2026-10-20") =>
+    ({ status, scheduled_for, maandVrij }) as PaginaStandInput["plan"];
+  const tekst = (status: string, extra: Partial<NonNullable<PaginaStandInput["tekst"]>> = {}) => ({
+    status,
+    needs_review: false,
+    voorbereid: true,
+    ...extra,
+  });
+  const st = (i: Partial<PaginaStandInput>) =>
+    paginaStand({ plan: null, tekst: null, openVragen: 0, vandaag, ...i });
+
+  ok("maand niet vrij: gepland", st({ plan: plan("gepland", false) }).sleutel === "gepland");
+  ok("maand vrij, nog geen rij: wordt voorbereid", st({ plan: plan("gepland") }).sleutel === "voorbereiden");
+  ok(
+    "rij zonder vragen-snapshot: wordt voorbereid",
+    st({ plan: plan("gepland"), tekst: tekst("briefing", { voorbereid: false }) }).sleutel === "voorbereiden",
+  );
+  const vragen = st({ plan: plan("gepland"), tekst: tekst("briefing"), openVragen: 3 });
+  ok("open vragen: jouw antwoorden nodig", vragen.sleutel === "vragen" && vragen.aanZet === "klant");
+  ok("met de handeling erbij", vragen.handeling === "Beantwoord 3 vragen");
+  ok("en de streefdatum 12 dagen voor de datum", vragen.streefdatum === "2026-10-08" && vragen.zin.includes("8 oktober"));
+  const achter = st({ plan: plan("gepland", true, "2026-09-28"), tekst: tekst("briefing"), openVragen: 1 });
+  ok("streefdatum voorbij: loopt achter", achter.looptAchter && achter.zin.includes("loopt achter"));
+  // Het geval 9332a0fb bij Van den Udenhout: alles beantwoord, stond drie dagen op
+  // "Wacht op jouw input".
+  const udenhout = st({ plan: plan("gepland", true, "2026-09-28"), tekst: tekst("briefing"), openVragen: 0 });
+  ok("alles beantwoord is nooit 'wacht op jou' (Van den Udenhout)", udenhout.aanZet !== "klant" && udenhout.sleutel === "schrijven");
+  const vroeg = st({ plan: plan("gepland", true, "2026-11-20"), tekst: tekst("briefing"), openVragen: 0 });
+  ok("alles gedaan, datum ver weg: wacht op de schrijfdatum", vroeg.sleutel === "wacht_op_datum" && vroeg.zin.includes("10 november"));
+  ok(
+    "te weinig feiten: jouw keuze",
+    st({ plan: plan("gepland"), tekst: tekst("briefing"), inputStand: "tegenhouden" }).sleutel === "keuze",
+  );
+  ok("plan schrijft: wordt geschreven", st({ plan: plan("schrijven"), tekst: tekst("briefing") }).sleutel === "schrijven");
+  // Het geval c4db492e: 'ready' met needs_review, bibliotheek zei "Klaar om te publiceren".
+  const nakijken = st({ tekst: tekst("ready", { needs_review: true }) });
+  ok("klaar maar niet goedgekeurd: lees en keur goed", nakijken.sleutel === "goedkeuren" && nakijken.handeling === "Keur goed");
+  ok("goedgekeurd: zet hem live", st({ tekst: tekst("ready") }).sleutel === "live_zetten");
+  ok("plan goedgekeurd telt ook", st({ plan: plan("goedgekeurd"), tekst: tekst("ready", { needs_review: true }) }).sleutel === "live_zetten");
+  ok("plan ter goedkeuring: keur goed", st({ plan: plan("ter_goedkeuring"), tekst: tekst("ready", { needs_review: true }) }).sleutel === "goedkeuren");
+  ok("gepubliceerd: staat live", st({ tekst: tekst("published") }).sleutel === "effect_meten");
+  ok("plan geplaatst telt ook als live", st({ plan: plan("geplaatst") }).sleutel === "effect_meten");
+  ok("met oordeel: effect bekend", st({ tekst: tekst("published"), effectBekend: true }).sleutel === "effect_bekend");
+  ok("mislukt", st({ plan: plan("mislukt") }).sleutel === "mislukt");
+  ok("afgewezen vervalt", st({ plan: plan("afgewezen"), tekst: tekst("ready") }).fase === null);
+  ok("vijf fasen, niet acht", FASEN.length === 5);
+  ok("stand streefdatum zonder datum is onbekend", streefdatum(null) === null);
+
+  // Precies één hoofdhandeling: alleen als de klant aan zet is.
+  const alle = [vragen, achter, udenhout, vroeg, nakijken, st({ tekst: tekst("ready") }), st({ tekst: tekst("published") })];
+  ok("een handeling alleen als de klant aan zet is", alle.every((a) => (a.aanZet === "klant") === (a.handeling !== null)));
+  ok("wat achterloopt komt bovenaan", standVolgorde(achter) < standVolgorde(vragen) && standVolgorde(vragen) < standVolgorde(udenhout));
+  ok("geen gedachtestreepje of en/of", !alle.some((a) => /[—–]|en\/of/.test(a.zin + a.label)));
+});
+
 // contentflow-een-lijn.md fase B: pas schrijven als elke vraag gedaan is.
 group("schrijfpoort: eerst alle vragen, dan pas schrijven", () => {
   const basis = {

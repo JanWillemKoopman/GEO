@@ -5,6 +5,7 @@ import { getOwnedProfile } from "@/lib/profiles";
 import { markPosted, removePage, assignToMonth, moveToBacklog, setPageDate } from "@/lib/plans";
 import { swapWithNeighbour, type OrderablePage } from "@/lib/plan-order";
 import { isStaff } from "@/lib/staff";
+import { keurTekstGoed } from "@/lib/content-approve";
 import { checkBudgetForProfile } from "@/lib/spend-limit";
 import {
   startPaginaSchrijven,
@@ -233,13 +234,25 @@ export async function POST(
   }
 
   if (actie === "goedkeuren") {
-    const { error } = await admin
+    // ── Goedkeuren is overal hetzelfde (23 september 2026) ──────────────────
+    // Met een tekst: `keurTekstGoed()`, dezelfde eindpoort en dezelfde twee
+    // rijen als in de bibliotheek. Zonder tekst valt er niets goed te keuren.
+    const { data: rij } = await admin
       .from("planned_pages")
-      .update({ status: "goedgekeurd" })
+      .select("content_piece_id, content_pieces(analysis_id)")
       .eq("id", pageId)
-      .eq("status", "ter_goedkeuring");
-    if (error) {
-      return NextResponse.json({ error: "Goedkeuren is niet gelukt." }, { status: 500 });
+      .maybeSingle();
+    const pieceId = (rij?.content_piece_id as string | null) ?? null;
+    const analysisId =
+      ((rij as { content_pieces?: { analysis_id?: string } | null } | null)?.content_pieces?.analysis_id as
+        | string
+        | undefined) ?? null;
+    if (!pieceId || !analysisId) {
+      return NextResponse.json({ error: "Er is nog geen tekst om goed te keuren." }, { status: 409 });
+    }
+    const uitkomst = await keurTekstGoed(admin, { pieceId, analysisId, userId: user.id });
+    if (!uitkomst.ok) {
+      return NextResponse.json({ error: uitkomst.error, openVragen: uitkomst.openVragen }, { status: uitkomst.status });
     }
     return NextResponse.json({ ok: true });
   }
