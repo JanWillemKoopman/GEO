@@ -615,3 +615,13 @@ De migratie zet de kolom meteen op `updated_at` voor elk cluster dat al `gereed`
 `mislukt` is. Zonder die regel krijgt een klant met twaalf afgeronde clusters twaalf meldingen
 tegelijk over uitslagen van weken geleden. Op productie toegepast op 22 september 2026: 9 clusters,
 7 weggezet, 0 nog te melden.
+
+## 0108 — `rate_limit_hit()` alleen nog voor de server
+
+Trekt `execute` op `rate_limit_hit()` in voor `public`, `anon` en `authenticated`; alleen
+`service_role` houdt het. Migratie 0090 liet de standaardrechten staan, waardoor iedereen met de
+publieke sleutel de inlogteller van een willekeurig e-mailadres kon ophogen (`login:e:<adres>`) en
+dat account zo buiten kon sluiten. De app roept de functie alleen aan via de service-role
+(`lib/rate-limit.ts`), dus er verandert niets aan het gewone inloggen. Op productie toegepast op 22
+september 2026, nagerekend met `has_function_privilege`: `anon` nee, `authenticated` nee,
+`service_role` ja.
