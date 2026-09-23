@@ -1186,6 +1186,17 @@ table {
   }
 }
 
+/* De lege staat (`components/empty-state.tsx`) krijgt boven en onder 56px.
+
+   ⚠️ Dit stond er als `py-14` op het component zelf, maar dat deed niets:
+   `.card` hierboven staat buiten een Tailwind-laag en wint daarom altijd van
+   een hulpklasse, dus elke lege staat in de app kreeg 16 tot 24px en plakte
+   tegen de rand (gezien op Clusters ontdekken, 23 september 2026). Twee
+   klassen samen wegen zwaarder dan `.card` alleen, ook in de mediaregels. */
+.card.empty-state {
+  padding-block: 56px;
+}
+
 /* Alleen wat klikbaar IS, gedraagt zich klikbaar.
 
    ⚠️ GEEN `transform` EN GEEN SCHADUW. Bij OKX beweegt er niets als je ergens
