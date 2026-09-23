@@ -11997,3 +11997,13 @@ Opslag: de tabel was 5,5 MB. Een schrijfopdracht is gemiddeld 22.853 invoertoken
 90 KB), een meetvraag een paar honderd bytes; ruim te dragen. De hash dekt alleen de
 systeemopdracht, omdat de gebruikersopdracht per klant verschilt en de systeemopdracht alleen als
 de prompt in de code wijzigt.
+
+## 23 september 2026 (10): het spoor van één merk als export voor beheerders
+
+`GET /api/beheer/spoor/[profileId]` geeft elke AI-aanroep van één merk in tijdsvolgorde, met de
+opdracht (`input_json`, migratie 0112) en het antwoord erbij, plus de taken van dat merk. Alleen
+voor beheerders (een gewone gebruiker krijgt een 404), alleen lezen, hooguit 200 aanroepen per
+bladzijde. Aanleiding: de kwaliteitsdoorlichting (`docs/tasks/kwaliteitsdoorlichting-pijplijn.md`
+§4, stap 0.3). Eén schrijfopdracht is ongeveer 90 KB en een merk telt na een volledige doorloop
+honderden aanroepen; dat hoort als bestand uit de app te komen, niet in brokjes uit een
+beheerconsole. De bladzijde-instellingen staan puur in `lib/spoor.ts`, met tests.

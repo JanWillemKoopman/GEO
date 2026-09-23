@@ -37,6 +37,7 @@ import {
 } from "@/lib/pipeline/volume";
 import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { bouwInvoerOpname, promptHash } from "@/lib/openai/input-capture";
+import { spoorPaginering, isUuid, SPOOR_MAX, SPOOR_STANDAARD } from "@/lib/spoor";
 import { parseRobots, isAllowed, sitemapsFrom } from "@/lib/audit/robots";
 import { splitByTerms } from "@/lib/highlight";
 import { vloeiendPad, vloeiendPadTerug } from "@/lib/chart-curve";
@@ -25330,4 +25331,22 @@ group("Elke AI-aanroep bewaart wat erin ging (migratie 0112, 23 september 2026)"
   for (const bestand of ["lib/engines/gemini.ts", "lib/pipeline/measure-llm-response.ts", "lib/pipeline/measure-ai-overview.ts", "lib/discovery/labs.ts"]) {
     ok(`${bestand} geeft invoer mee`, /input: /.test(leesBestand(bestand)) || leesBestand(bestand).includes("record(response"));
   }
+});
+
+group("De spoorexport van één merk (kwaliteitsdoorlichting, 23 september 2026)", () => {
+  const leeg = spoorPaginering(new URLSearchParams(""));
+  eq("standaard aantal", String(leeg.aantal), String(SPOOR_STANDAARD));
+  eq("standaard met opdrachten", String(leeg.metInvoer), "true");
+  eq("geen startpunt", String(leeg.na), "null");
+  eq("te veel wordt begrensd", String(spoorPaginering(new URLSearchParams("aantal=5000")).aantal), String(SPOOR_MAX));
+  eq("onzin wordt de standaard", String(spoorPaginering(new URLSearchParams("aantal=abc")).aantal), String(SPOOR_STANDAARD));
+  eq("invoer=0 laat de opdrachten weg", String(spoorPaginering(new URLSearchParams("invoer=0")).metInvoer), "false");
+  // Microseconden blijven staan, anders komt de laatste rij van de vorige bladzijde terug.
+  eq("tijd ongewijzigd", String(spoorPaginering(new URLSearchParams("na=2026-09-23T21:30:01.123456+00:00")).na), "2026-09-23T21:30:01.123456+00:00");
+  eq("onleesbare tijd wordt genegeerd", String(spoorPaginering(new URLSearchParams("na=gisteren")).na), "null");
+  ok("een uuid komt erdoor", isUuid("e1fe7b94-ead1-4020-a8ed-216905c042c8"));
+  ok("een filter niet", !isUuid("x,analysis_id.not.is.null"));
+  const route = leesBestand("app/api/beheer/spoor/[profileId]/route.ts");
+  ok("alleen voor beheerders", route.includes("isStaff(user.id)") && route.includes("status: 404"));
+  ok("alleen lezen", !/\.(insert|update|upsert|delete)\(/.test(route));
 });
