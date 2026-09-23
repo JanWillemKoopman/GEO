@@ -5,50 +5,45 @@ import { Icon } from "@/components/icon";
 import type { IcoonNaam } from "@/lib/icons";
 import { workChipTone, workKindIcon, WORK_KIND_LABEL } from "@/lib/work-kind";
 import type { WorkItem } from "@/lib/work";
-import type { WachtrijOverzicht, WachtrijSectie } from "@/lib/wachtrij";
+import {
+  beperkSectie,
+  wachtrijRegel,
+  type WachtrijOverzicht,
+  type WachtrijSectie,
+  type WachtrijSubkop,
+} from "@/lib/wachtrij";
 
 /**
  * De wachtrij, ingedeeld in de vaste secties Cluster, Contentplan, Openstaande
  * vragen en Bibliotheek. Zie `lib/wachtrij.ts` voor het waarom van die
  * indeling.
  *
- * ── TWEE VORMEN NAAST ELKAAR, MET OPZET ──────────────────────────────────────
+ * ── ⚠️ ÉÉN KOLOM, EEN REGEL PER TAAK (23 september 2026) ─────────────────────
  *
- * Een blokkade krijgt de volle kaart (`WachtrijKaart`, ongewijzigd sinds
- * 22 september 2026): hij staat alleen, blokkeert alles eronder en verdient
- * de uitleg die daarbij hoort. Alles daaronder is nu een compacte bullet per
- * subkop in plaats van een kaart per item, want met acht subkoppen naast
- * elkaar zou een kaart per regel het scherm laten scrollen voordat de klant
- * ook maar één sectie gezien heeft. Wie meer wil weten over één punt klikt
- * erop; de titel is de link.
+ * Tot vandaag stonden de vier secties in twee CSS-kolommen, met per taak één
+ * afgekapte regel tekst. Bij Van den Udenhout las dat als zeven losse zinnen:
+ * twee keer "Bekijk en bevestig het concept" zonder dat zichtbaar was welk
+ * cluster, en nergens waarom een taak ertoe deed of wat de klik zou doen. Dit
+ * is het blok waar de klant ziet wat hij moet doen, dus het krijgt de ruimte:
  *
- * ── DE TWEE KOLOMMEN VULLEN ZICH AUTOMATISCH ────────────────────────────────
+ * - Eén kolom, een sectie per band. Links de sectie zelf (icoon, naam, een
+ *   groene teller, de weg naar dat hoofdstuk), rechts de taken. Zo blijven de
+ *   vier blokken herkenbaar en loopt het oog van boven naar beneden, in plaats
+ *   van zigzag over twee kolommen waarvan de verdeling van hoogtes afhing.
+ * - Elke taak is een eigen regel met drie lagen: waar het over gaat (bij een
+ *   cluster de clusternaam, `wachtrijRegel()`), één zin waarom, en een knop die
+ *   zegt wat er gebeurt. De hele regel is de link; de knop is een `<span>`,
+ *   geen tweede `<a>`.
+ * - De dringendste taak van het hele scherm (`eersteId`, de eerste na
+ *   `sortWork()`) krijgt de enige primaire knop. Het scherm vraagt zo op één
+ *   plek om een klik, en dat is de plek waar de klant het meeste vrijmaakt.
  *
- * `columns-2` (CSS-kolommen) in plaats van twee vaste helften: een klant met
- * veel te herstellen clusters en niets in zijn contentplan zou bij een vaste
- * indeling een kolom vol en een kolom leeg zien. Native CSS-kolommen vullen
- * de linkerkolom eerst en lopen pas door naar de tweede zodra de eerste vol
- * is, en `break-inside-avoid` op elke sectie voorkomt dat één sectie
- * middenin geknipt wordt.
+ * ── DE TELLERS ZIJN GROEN, DE PRIMAIRE KNOP DONKER ──────────────────────────
  *
- * ── ⚠️ ÉÉN WITTE KAART, GEEN LOS BLOK OP DE PAGINAKLEUR (22 september 2026) ──
- *
- * Stond eerst zonder `.card` direct op `--bg-base`, terwijl het stat-blok
- * erboven en het contentplan eronder wél in een witte kaart zitten. Dat las
- * als een gat tussen twee kaarten in plaats van een derde kaart in de reeks.
- * `SECTIE_ICOON` hergebruikt bestaande iconen (dezelfde tekeningen als de
- * bijbehorende `WorkKind` in `lib/icons.ts`) zodat een subkop ook zonder te
- * lezen bij Cluster, Contentplan, Openstaande vragen of Bibliotheek te
- * plaatsen is.
- *
- * ⚠️ Geen verticale lijn tussen de kolommen: bij `column-count` weet je niet
- * vooraf welke sectie in welke kolom landt (dat hangt af van hun hoogte), dus
- * een rand op "elk kind behalve het eerste" zou ook tussen twee secties in
- * dezelfde kolom verschijnen. De ruime `gap-x-10` scheidt de kolommen zonder
- * dat risico.
+ * Groen is hier dezelfde `chip-success` als "Klaar voor jouw akkoord" op het
+ * clusteroverzicht: iets ligt klaar en wacht op de klant, er is niets mis. Rood
+ * blijft gereserveerd voor een blokkade (`WachtrijKaart` hieronder).
  */
-const PER_SUBKOP_ZICHTBAAR = 4;
-
 const SECTIE_ICOON: Record<WachtrijSectie["kop"], IcoonNaam> = {
   Cluster: "goedkeuring",
   Contentplan: "plannen",
@@ -56,74 +51,112 @@ const SECTIE_ICOON: Record<WachtrijSectie["kop"], IcoonNaam> = {
   Bibliotheek: "bibliotheek",
 };
 
-export function WachtrijLijst({ overzicht }: { overzicht: WachtrijOverzicht }) {
+export function WachtrijLijst({
+  overzicht,
+  eersteId,
+}: {
+  overzicht: WachtrijOverzicht;
+  /** De dringendste taak, die als enige een primaire knop krijgt. */
+  eersteId?: string;
+}) {
   return (
     <div className="flex flex-col gap-5">
       {overzicht.waarschuwingen.map((item) => (
         <WachtrijKaart key={item.id} item={item} />
       ))}
       {overzicht.secties.length > 0 && (
-        <div className="card">
-          <div className="columns-1 gap-x-10 md:columns-2">
-            {overzicht.secties.map((sectie, i) => (
-              <div
+        <div className="card overflow-hidden !p-0">
+          {overzicht.secties.map((sectie, i) => {
+            const { subkoppen, verborgen } = beperkSectie(sectie);
+            return (
+              <section
                 key={sectie.kop}
-                className={`break-inside-avoid ${i > 0 ? "mt-6" : ""}`}
+                aria-label={sectie.kop}
+                className={`grid gap-4 p-4 md:grid-cols-[13rem_minmax(0,1fr)] md:gap-8 md:p-6 ${
+                  i > 0 ? "border-t border-[var(--border-subtle)]" : ""
+                }`}
               >
-                <SectieBlok sectie={sectie} />
-              </div>
-            ))}
-          </div>
+                <SectieKop sectie={sectie} />
+                <div className="flex min-w-0 flex-col gap-5">
+                  {subkoppen.map((sub) => (
+                    <SubkopBlok key={sub.subkop} sub={sub} eersteId={eersteId} />
+                  ))}
+                  {/* Meer dan vier taken in dit blok: de rest staat in het
+                      hoofdstuk zelf (`beperkSectie()` in `lib/wachtrij.ts`). */}
+                  {verborgen > 0 && (
+                    <Link
+                      href={sectie.overzichtHref}
+                      className="w-fit text-sm font-medium underline underline-offset-4 hover:text-secondary"
+                    >
+                      Bekijk alle openstaande acties
+                    </Link>
+                  )}
+                </div>
+              </section>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
 
-function SectieBlok({ sectie }: { sectie: WachtrijSectie }) {
+function SectieKop({ sectie }: { sectie: WachtrijSectie }) {
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-row flex-wrap items-center gap-x-3 gap-y-2 md:flex-col md:items-start">
       <h3 className="flex items-center gap-2 text-base font-semibold">
         <span className="text-secondary">
-          <Icon naam={SECTIE_ICOON[sectie.kop]} size={17} />
+          <Icon naam={SECTIE_ICOON[sectie.kop]} size={18} />
         </span>
         {sectie.kop}
       </h3>
-      {sectie.subkoppen.map((sub) => (
-        <div key={sub.subkop} className="flex flex-col gap-1.5">
-          <span className="mono-label">
-            {sub.subkop} · {sub.items.length}
-          </span>
-          <ul className="flex flex-col">
-            {sub.items.slice(0, PER_SUBKOP_ZICHTBAAR).map((item) => (
-              <li key={item.id}>
-                <Link
-                  href={item.href}
-                  className="group -mx-2 flex min-w-0 items-center gap-2 rounded-[var(--radius-md)] px-2 py-1 text-sm hover:bg-[var(--bg-surface-raised)]"
-                >
-                  <span className="min-w-0 flex-1 truncate">{item.title}</span>
-                  <Icon
-                    naam="naar"
-                    size={13}
-                    className="shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100"
-                  />
-                </Link>
-              </li>
-            ))}
-          </ul>
-          {sub.items.length > PER_SUBKOP_ZICHTBAAR && (
-            <Link
-              href={sectie.overzichtHref}
-              className="inline-flex w-fit items-center gap-1.5 text-sm font-medium hover:underline"
-            >
-              Nog {sub.items.length - PER_SUBKOP_ZICHTBAAR}{" "}
-              {sub.items.length - PER_SUBKOP_ZICHTBAAR === 1 ? "punt" : "punten"} bekijken
-              <Icon naam="naar" size={14} />
-            </Link>
-          )}
-        </div>
-      ))}
+      <span className="chip chip-success">
+        {sectie.aantal} open
+      </span>
+      <Link
+        href={sectie.overzichtHref}
+        className="inline-flex items-center gap-1 text-sm text-secondary hover:underline md:mt-1"
+      >
+        {sectie.overzichtLabel}
+        <Icon naam="naar" size={13} />
+      </Link>
     </div>
+  );
+}
+
+function SubkopBlok({ sub, eersteId }: { sub: WachtrijSubkop; eersteId?: string }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="mono-label">{sub.subkop}</span>
+      <ul className="flex flex-col divide-y divide-[var(--border-subtle)] rounded-[var(--radius-lg)] border border-[var(--border-subtle)]">
+        {sub.items.map((item) => (
+          <li key={item.id}>
+            <TaakRegel item={item} primair={item.id === eersteId} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function TaakRegel({ item, primair }: { item: WorkItem; primair: boolean }) {
+  const { titel, cluster } = wachtrijRegel(item);
+  return (
+    <Link
+      href={item.href}
+      className="flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3.5 transition-colors hover:bg-[var(--bg-surface-raised)]"
+    >
+      <div className="flex min-w-0 flex-1 basis-72 flex-col gap-1">
+        {cluster && <span className="mono-label">Cluster · {cluster}</span>}
+        <span className="font-medium">{titel}</span>
+        <span className="text-sm text-secondary">{item.why}</span>
+        {item.meta && <span className="text-sm text-muted">{item.meta}</span>}
+      </div>
+      <span className={`${primair ? "btn-primary" : "btn-outline"} btn-sm shrink-0`}>
+        {item.actionLabel ?? "Bekijken"}
+        <Icon naam="naar" size={14} />
+      </span>
+    </Link>
   );
 }
 
@@ -132,9 +165,8 @@ function SectieBlok({ sectie }: { sectie: WachtrijSectie }) {
  *
  * ⚠️ De type-chip (`item.typeLabel`) staat er sinds 21 september 2026 altijd
  * bij. ⚠️ De hele kaart is de link (`.card-link`), sinds 22 september 2026. De
- * knop rechts is een `<span>` en geen tweede `<a>`: `btn-outline` in plaats
- * van `btn-primary`, om dezelfde reden als "Bekijk je zichtbaarheid" bovenaan
- * het scherm.
+ * knop rechts is een `<span>` en geen tweede `<a>`, en is omlijnd: de enige
+ * primaire knop van het scherm hoort bij de dringendste taak (`TaakRegel`).
  */
 function WachtrijKaart({ item }: { item: WorkItem }) {
   const blokkerend = workChipTone(item.kind) === "danger";

@@ -37,11 +37,18 @@
  */
 export function SectionHeading({
   title,
+  badge,
   meta,
   action,
   id,
 }: {
   title: string;
+  /**
+   * Een chip direct naast de titel, zoals het aantal open taken op het
+   * overzicht. Hoort bij de titel en niet bij de terzijde rechts: "Wat er op
+   * jou wacht · 7 open taken" is één mededeling.
+   */
+  badge?: React.ReactNode;
   /** Korte terzijde rechts van de kop: een teller, een datum, een aantal. */
   meta?: string;
   /** Eén link of knop, uiterst rechts. Geen tweede primaire actie. */
@@ -52,9 +59,12 @@ export function SectionHeading({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 id={id} className="type-section">
-          {title}
-        </h2>
+        <span className="flex flex-wrap items-center gap-2.5">
+          <h2 id={id} className="type-section">
+            {title}
+          </h2>
+          {badge}
+        </span>
         {meta && !action && <span className="mono-label">{meta}</span>}
         {action}
       </div>

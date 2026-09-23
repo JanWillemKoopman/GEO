@@ -11532,6 +11532,29 @@ pagina's zonder fase zou die telling nog steeds te laag uitvallen.
 
 Controles: `tsc --noEmit`, `test:unit` (5149), `test:chain` (737) en `build` groen.
 
+## "Wat er op jou wacht" wordt het hart van het overzicht (23 september 2026)
+
+Op verzoek van de eigenaar, na een schermafbeelding van Van den Udenhout. Het blok "Je contentplan" onderaan
+het overzicht is weg: het meldde "18 gepland, nog geen live", en dat stond al in de ronde bovenaan ("18
+ingepland") en in de cijferrij ("0 gepubliceerd"). De regel voor de eerste maand ging mee, want die kondigde
+alleen aan wat dat blok later zou tonen. Het contentplan zelf staat op Strategie → Contentplan.
+
+De wachtrij staat nu in één kolom in plaats van twee: een band per sectie (Cluster, Contentplan, Openstaande
+vragen, Bibliotheek), met links de sectie, een groene teller en de link naar dat hoofdstuk, rechts de taken.
+Elke taak toont waar hij over gaat, één zin waarom, en een knop die zegt wat er gebeurt. Een cluster op akkoord
+toont de clusternaam in plaats van "Bekijk en bevestig het concept" (`wachtrijRegel()` in `lib/wachtrij.ts`):
+op productie stonden er bij Van den Udenhout twee, "Occasion kopen in Noord-Brabant" en "Goedkope prive lease",
+en onder elkaar waren ze niet uit elkaar te houden. Een pagina krijgt zijn cluster als context. Naast de kop
+staat het totaal als groene chip ("7 open taken"), dezelfde `chip-success` als "Klaar voor jouw akkoord". De
+dringendste taak krijgt de enige primaire knop van het scherm; tot vandaag had het scherm er geen, ondanks de
+regel dat hij bij de wachtrij hoort (de test telde een woord in commentaar). `contentMix`, `isEersteMaand` en
+`volgendeMeting` worden op geen scherm meer gebruikt, alleen nog in `test-unit.ts`.
+
+Aanvulling dezelfde dag: de grens van vier taken geldt nu per blok en niet meer per subkop
+(`beperkSectie()` in `lib/wachtrij.ts`). De Bibliotheek heeft drie subkoppen en kon daardoor twaalf taken
+tonen. Zijn het er meer dan vier, dan staat onder het blok één onderstreepte link "Bekijk alle openstaande
+acties" naar dat hoofdstuk, in plaats van "Nog N taken bekijken" per subkop.
+
 ## "Je september": het maandblok telt per maand (23 september 2026)
 
 Het blok bovenaan de startpagina heette "Zo werkt je maand", maar elk getal erin telde de hele
@@ -11562,8 +11585,11 @@ vorige maand gebeurde ("In september: 3 teksten geschreven en 1 live gezet."), z
 direct eronder. "Maand 4 sinds de start" boven de merknaam is weg: dat telde planmaanden, en twee
 maandtellingen op één scherm lieten de klant zoeken welke de echte was.
 
+De losse query op alle `planned_pages` van het merk op de startpagina is ook weg: na het
+verdwijnen van het contentplanblok (hierboven) voedde hij alleen nog de ronde.
+
 Code: `lib/ronde.ts` (puur), `loadMaandBronnen()` in `lib/overview-data.ts`,
 `_components/ronde-balk.tsx`. De test in `scripts/test-unit.ts` gebruikt de productiestand van Van
 den Udenhout als hoofdgeval. Verwachte uitkomst daar: Meten klaar (20 september, 22 kansen), Plannen
 aan de beurt met "14 pagina's, wachten op je akkoord", Schrijven "0 van de 14, en 2 buiten het
-plan". Controles: `tsc --noEmit`, `test:unit` (5163), `test:chain` (737) en `build` groen.
+plan". Controles: `tsc --noEmit`, `test:unit` (5173 na samenvoegen met main), `test:chain` (737) en `build` groen.
