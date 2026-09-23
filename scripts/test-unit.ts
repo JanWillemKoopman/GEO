@@ -714,7 +714,7 @@ import {
   openMonthIds,
 } from "@/lib/plan-overview";
 import { brandScorePerPeriod } from "@/lib/brand-score";
-import { ronde, rondeZin } from "@/lib/ronde";
+import { ronde, type MaandPlanPagina, type MaandTekst } from "@/lib/ronde";
 import { actionNeedsStaff, STAFF_ONLY_ACTIONS } from "@/lib/cost-rules";
 import { overdrachtZonderCluster } from "@/lib/cluster-start";
 import {
@@ -8642,136 +8642,149 @@ group("het contentplan zoals de klant het leest", () => {
   ok("live wordt geteld", telling.geplaatst === 1);
 });
 
-group("de ronde: zes stappen, precies één aan de beurt", () => {
-  // De stand van een klant die net binnen is: de nulmeting staat, de kansen
-  // staan, en verder nog niets. Precies het moment waarop hij voor het eerst
-  // alleen inlogt.
-  const nieuweKlant = ronde({
-    clusters: 3,
-    metingen: 1,
-    kansen: 7,
-    gepland: 0,
-    geschreven: 0,
-    gepubliceerd: 0,
-    hermeten: 0,
+group("de maand: vijf stappen, geteld over deze kalendermaand", () => {
+  // ── Het echte geval: Van den Udenhout op 23 september 2026 ─────────────────
+  //
+  // Nulmeting op 20 september, 22 kansen. Maand 1 van het plan heeft 14
+  // pagina's met een publicatiedatum tussen 23 en 28 september en staat nog op
+  // `ter_goedkeuring`. Er zijn drie teksten buiten het plan: één briefing en
+  // twee klare verbeteringen van 7 september, nog niet gepubliceerd. Het oude
+  // blok zei hier "Plannen ✓ 18 ingepland" en "Schrijven ✓ 3 teksten".
+  const nu = new Date("2026-09-23T10:00:00Z");
+  const pagina = (dag: string, extra: Partial<MaandPlanPagina> = {}): MaandPlanPagina => ({
+    scheduledFor: dag,
+    isBuffer: false,
+    status: "gepland",
+    maandStatus: "ter_goedkeuring",
+    postedAt: null,
+    contentPieceId: null,
+    ...extra,
   });
-
-  ok("altijd zes stappen", nieuweKlant.length === 6);
-  ok(
-    "in de volgorde van de pijplijn",
-    nieuweKlant.map((f) => f.id).join(" ") ===
-      "meten kansen plannen schrijven publiceren hermeten",
+  const septemberPlan = Array.from({ length: 14 }, (_, i) =>
+    pagina(`2026-09-${String(23 + (i % 6)).padStart(2, "0")}`),
   );
-  ok("hooguit één stap is aan de beurt", nieuweKlant.filter((f) => f.actief).length === 1);
-  ok("en dat is de eerste die nog niet staat", nieuweKlant.find((f) => f.actief)?.id === "plannen");
-  ok(
-    "wat gezet is, blijft gezet",
-    nieuweKlant[0].klaar && nieuweKlant[1].klaar && !nieuweKlant[2].klaar,
-  );
-
-  // ⚠️ Twee van de zes wachten op de klant, en dat is de arbeidsverdeling van
-  // het hele product: ORBIT ENGINE komt niet op zijn website.
-  ok(
-    "plannen en publiceren zijn van de klant",
-    nieuweKlant.filter((f) => f.aanZet === "jij").map((f) => f.id).join(" ") === "plannen publiceren",
-  );
-  ok("en de zin zegt dat hij aan zet is", rondeZin(nieuweKlant).startsWith("Je bent aan zet"));
-
-  // Een gat in het midden telt niet als voortgang: staat er niets geschreven,
-  // dan is schrijven aan de beurt, ook al staat er al een pagina live van vóór
-  // het plan. Bij Gasservice Brabant was dat precies zo.
-  const gat = ronde({
-    clusters: 3,
-    metingen: 2,
-    kansen: 7,
-    gepland: 12,
-    geschreven: 0,
-    gepubliceerd: 1,
-    hermeten: 0,
+  const oktoberPagina = pagina("2026-10-01", { maandStatus: "concept" });
+  const teksten: MaandTekst[] = [
+    { id: "b", status: "briefing", createdAt: "2026-09-07T14:55:36Z", publishedAt: null },
+    { id: "v1", status: "ready", createdAt: "2026-09-07T14:07:31Z", publishedAt: null },
+    { id: "v2", status: "ready", createdAt: "2026-09-07T14:08:26Z", publishedAt: null },
+  ];
+  const udenhout = ronde({
+    now: nu,
+    clusters: 5,
+    metingen: ["2026-09-20T08:00:00Z"],
+    kansen: 22,
+    planPaginas: [...septemberPlan, oktoberPagina],
+    teksten,
+    hermetingen: [],
   });
-  ok("een lege stap in het midden is de actieve", gat.find((f) => f.actief)?.id === "schrijven");
-  ok("en publiceren staat wel al op klaar", gat[4].klaar);
+  const stap = (r: typeof udenhout, id: string) => r.fases.find((f) => f.id === id)!;
 
-  // Een ronde die rond is, is geen ronde die af is.
+  ok("de maand heet september", udenhout.maand === "september");
+  ok("de eerste maand begint bij de nulmeting", udenhout.periode === "sinds je nulmeting op 20 september");
+  ok(
+    "rechtsboven staat wanneer er iets nieuws komt",
+    udenhout.volgende === "Volgende meting op 1 oktober, over 8 dagen",
+    udenhout.volgende,
+  );
+  ok(
+    "vijf stappen, zonder kansen als eigen stap",
+    udenhout.fases.map((f) => f.id).join(" ") === "meten plannen schrijven publiceren hermeten",
+  );
+  ok("meten staat, met de meetdatum", stap(udenhout, "meten").klaar && stap(udenhout, "meten").stand === "20 september");
+  ok("en de kansen staan eronder", stap(udenhout, "meten").detail === "22 kansen gevonden");
+
+  // ⚠️ De kern van de reparatie: dit stond op klaar.
+  ok("plannen staat NIET op klaar zolang de maand op akkoord wacht", !stap(udenhout, "plannen").klaar);
+  ok("plannen is aan de beurt", stap(udenhout, "plannen").actief);
+  ok("en de klant is aan zet", stap(udenhout, "plannen").aanZet === "jij");
+  ok("het telt alleen de pagina's van september", stap(udenhout, "plannen").stand === "14 pagina's");
+  ok("hooguit één stap is aan de beurt", udenhout.fases.filter((f) => f.actief).length === 1);
+
+  // ⚠️ De tweede reparatie: een briefing is geen geschreven tekst.
+  ok("schrijven telt tegen het plan van deze maand", stap(udenhout, "schrijven").stand === "0 van de 14");
+  ok("en noemt wat er buiten het plan geschreven is", stap(udenhout, "schrijven").detail === "en 2 buiten het plan");
+  ok("en staat niet op klaar", !stap(udenhout, "schrijven").klaar);
+  ok("publiceren telt live tegen het plan", stap(udenhout, "publiceren").stand === "0 van de 14 live");
+  ok("en zegt dat er iets klaarstaat", stap(udenhout, "publiceren").detail === "2 teksten staan klaar");
+  ok("hermeten legt uit wanneer het begint", stap(udenhout, "hermeten").detail === "start na je eerste publicatie");
+  ok("de zin wijst de klant aan", udenhout.zin.startsWith("Jij bent aan zet: geef de 14 pagina's van deze maand vrij"));
+  ok("en er gebeurde in augustus niets", udenhout.vorigeMaand === null);
+
+  // ── Geen mengsel van maanden ───────────────────────────────────────────────
+  //
+  // Dezelfde klant op 2 oktober: de meting van 20 september telt niet meer,
+  // en de 14 pagina's van september ook niet. Er staat één pagina in oktober.
+  const oktober = ronde({
+    now: new Date("2026-10-02T12:00:00Z"),
+    clusters: 5,
+    metingen: ["2026-09-20T08:00:00Z", "2026-10-01T06:30:00Z"],
+    kansen: 18,
+    planPaginas: [...septemberPlan, oktoberPagina],
+    teksten: [
+      ...teksten,
+      { id: "v3", status: "published", createdAt: "2026-09-10T00:00:00Z", publishedAt: "2026-09-29T00:00:00Z" },
+    ],
+    hermetingen: [],
+  });
+  ok("op 2 oktober heet het oktober", oktober.maand === "oktober");
+  ok("zonder nulmetingzin", oktober.periode === null);
+  ok("met de meting van 1 oktober", stap(oktober, "meten").stand === "1 oktober");
+  ok("en alleen de pagina van oktober", stap(oktober, "plannen").stand === "1 pagina");
+  ok("een concept ligt bij de consultant", stap(oktober, "plannen").aanZet === "consultant");
+  ok(
+    "en het werk van september verdwijnt niet",
+    oktober.vorigeMaand === "In september: 3 teksten geschreven en 1 live gezet.",
+    oktober.vorigeMaand ?? "null",
+  );
+  ok("hermeten wacht op de twee weken", stap(oktober, "hermeten").detail === "2 weken na publicatie");
+
+  // ── Een maand die rond is ──────────────────────────────────────────────────
+  const klaar = (id: string, dag: string): MaandPlanPagina =>
+    pagina(dag, { maandStatus: "goedgekeurd", status: "geplaatst", postedAt: `${dag}T12:00:00Z`, contentPieceId: id });
   const rond = ronde({
-    clusters: 3,
-    metingen: 3,
+    now: new Date("2026-11-28T12:00:00Z"),
+    clusters: 2,
+    metingen: ["2026-11-01T06:10:00Z"],
     kansen: 4,
-    gepland: 12,
-    geschreven: 12,
-    gepubliceerd: 9,
-    hermeten: 5,
+    planPaginas: [klaar("x1", "2026-11-05"), klaar("x2", "2026-11-12")],
+    teksten: [
+      { id: "x1", status: "published", createdAt: "2026-10-28T00:00:00Z", publishedAt: "2026-11-05T12:00:00Z" },
+      { id: "x2", status: "published", createdAt: "2026-11-02T00:00:00Z", publishedAt: "2026-11-12T12:00:00Z" },
+    ],
+    hermetingen: ["2026-11-19T06:00:00Z", "2026-11-26T06:00:00Z"],
   });
-  ok("dan is geen enkele stap aan de beurt", rond.every((f) => !f.actief));
-  ok(
-    "en de zin belooft geen einde",
-    !/(bent|is) klaar|voltooid|afgerond/i.test(rondeZin(rond)),
-  );
-  ok("maar zegt wel dat het doorloopt", rondeZin(rond).includes("maandelijks"));
+  ok("dan is geen enkele stap aan de beurt", rond.fases.every((f) => f.klaar && !f.actief));
+  ok("het plan telt als van de", stap(rond, "publiceren").stand === "2 van de 2 live");
+  ok("hermetingen in het meervoud", stap(rond, "hermeten").stand === "2 hermetingen");
+  ok("de zin belooft geen einde", !/(bent|is) klaar|voltooid|afgerond/i.test(rond.zin));
+  ok("maar zegt wanneer het verdergaat", rond.zin.includes("Op 1 december meet ORBIT ENGINE opnieuw"));
+  ok("de laatste dag zegt morgen", ronde({ ...leegInput(), now: new Date("2026-11-30T12:00:00Z") }).volgende.endsWith("morgen"));
 
-  // Enkelvoud en meervoud, want deze standen staan bijna altijd op 0 of 1.
-  const een = ronde({ clusters: 3, metingen: 1, kansen: 1, gepland: 1, geschreven: 1, gepubliceerd: 1, hermeten: 1 });
-  ok("één meting is enkelvoud", een[0].stand === "1 meting");
-  ok("één tekst is enkelvoud", een[3].stand === "1 tekst");
-  const leeg = ronde({ clusters: 3, metingen: 0, kansen: 0, gepland: 0, geschreven: 0, gepubliceerd: 0, hermeten: 0 });
-  ok("nul zegt wat er ontbreekt", leeg.every((f) => f.stand.startsWith("nog")));
-  ok("en meten is dan de eerste stap", leeg.find((f) => f.actief)?.id === "meten");
-
-  // ── Een merk zonder onderwerp (16 september 2026) ────────────────────────
+  // ── Een merk zonder onderwerp (16 september 2026) ──────────────────────────
   //
   // ⚠️ DE STILLE STILSTAND DIE DIT VOORKOMT. Een net overgedragen klant heeft
-  // nul clusters. Tot deze wijziging las hij "ORBIT ENGINE is aan zet bij
-  // meten", terwijl er niets in de wachtrij stond en hij zelf niets kon starten
-  // (een cluster beginnen is beheerderswerk, `lib/cost-rules.ts`). Hij zat dus
-  // te wachten op iets dat nooit vanzelf kwam, en niets op zijn scherm zei dat.
-  const zonderOnderwerp = ronde({
-    clusters: 0,
-    metingen: 0,
-    kansen: 0,
-    gepland: 0,
-    geschreven: 0,
-    gepubliceerd: 0,
-    hermeten: 0,
-  });
-  const meten = zonderOnderwerp.find((f) => f.id === "meten")!;
-  ok("zonder cluster is de consultant aan zet", meten.aanZet === "consultant");
-  ok("en de stand zegt wat er mist", meten.stand === "nog geen onderwerp");
-  ok("meten is dan de actieve stap", meten.actief);
-  const zin = rondeZin(zonderOnderwerp);
-  ok("de zin wijst de consultant aan", zin.startsWith("Je consultant is aan zet"));
-  ok("en zegt wat er daarna komt", /daarna meet orbit engine/i.test(zin));
-  // Niet "ORBIT ENGINE is aan zet": dat was precies de onjuiste zin.
-  ok("en nooit dat ORBIT ENGINE aan zet is", !zin.startsWith("ORBIT ENGINE is aan zet"));
+  // nul clusters en kan zelf niets starten (`lib/cost-rules.ts`). "ORBIT ENGINE
+  // is aan zet" liet hem wachten op iets dat nooit vanzelf kwam.
+  function leegInput() {
+    return { now: nu, clusters: 0, metingen: [], kansen: 0, planPaginas: [], teksten: [], hermetingen: [] };
+  }
+  const zonderOnderwerp = ronde(leegInput());
+  ok("zonder cluster is de consultant aan zet", stap(zonderOnderwerp, "meten").aanZet === "consultant");
+  ok("en meten is de actieve stap", stap(zonderOnderwerp, "meten").actief);
+  ok("de zin wijst de consultant aan", zonderOnderwerp.zin.startsWith("Je consultant is aan zet"));
+  ok("en nooit dat ORBIT ENGINE aan zet is", !zonderOnderwerp.zin.startsWith("ORBIT ENGINE is aan zet"));
+  const metOnderwerp = ronde({ ...leegInput(), clusters: 1 });
+  ok("met een cluster is ORBIT ENGINE weer aan zet", stap(metOnderwerp, "meten").aanZet === "orbit");
+  ok("en de stand zegt wat er mist", stap(metOnderwerp, "meten").stand === "nog niet gemeten");
 
-  // Zodra er één cluster is, is het weer gewoon werk van ORBIT ENGINE.
-  const metOnderwerp = ronde({
+  // Reserves horen niet bij de maand die de klant afneemt (migratie 0049).
+  const metReserve = ronde({
+    ...leegInput(),
     clusters: 1,
-    metingen: 0,
-    kansen: 0,
-    gepland: 0,
-    geschreven: 0,
-    gepubliceerd: 0,
-    hermeten: 0,
+    planPaginas: [pagina("2026-09-25"), pagina("2026-09-26", { isBuffer: true })],
   });
-  ok(
-    "met een cluster is ORBIT ENGINE weer aan zet",
-    metOnderwerp.find((f) => f.id === "meten")?.aanZet === "orbit",
-  );
-  ok(
-    "en de stand is weer de gewone",
-    metOnderwerp.find((f) => f.id === "meten")?.stand === "nog niet gemeten",
-  );
-
-  // De arbeidsverdeling zelf verandert niet: alleen de eerste stap kan van
-  // eigenaar wisselen, de andere vijf nooit.
-  ok(
-    "alleen meten kan naar de consultant",
-    zonderOnderwerp.filter((f) => f.aanZet === "consultant").length === 1,
-  );
-
-  // ⚠️ Geen enkele stand claimt een doel. "3 van de 12" zou een norm zijn die
-  // de klant niet zelf gesteld heeft.
-  ok("geen enkele stand noemt een doel", rond.every((f) => !/ van de /.test(f.stand)));
+  ok("een reservepagina telt niet mee", stap(metReserve, "plannen").stand === "1 pagina");
 });
 
 group("wie mag betaald werk starten", () => {
@@ -11877,6 +11890,10 @@ group("het overzicht: één hoofdgetal, één primaire knop, één rekensom", ()
     "en boven de cijfers",
     overzicht.indexOf("<RondeBalk") < overzicht.indexOf("<CijferRij"),
   );
+  // ⚠️ Eén maandtelling op het scherm (23 september 2026). "Maand 4 sinds de
+  // start" boven de merknaam telde planmaanden, "Je september" telt de
+  // kalender; samen lieten ze de klant zoeken welke de echte was.
+  ok("geen tweede maandtelling boven de merknaam", !overzicht.includes("sinds de start`"));
 
   // ── ⚠️ SECTIEKOPPEN ZIJN KOPPEN ─────────────────────────────────────────
   //

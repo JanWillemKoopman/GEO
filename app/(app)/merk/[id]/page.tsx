@@ -16,7 +16,7 @@ import { SectionHeading } from "@/components/section-heading";
 import { InsightLines } from "@/components/loop-blocks";
 import { SectionErrorBoundary } from "@/components/section-error-boundary";
 import { ProfileProgress } from "./_components/profile-progress";
-import { loadContentTotalen } from "@/lib/overview-data";
+import { loadContentTotalen, loadMaandBronnen } from "@/lib/overview-data";
 import { loadLoop } from "@/lib/insights-data";
 import { loadBrandWork, sortWork } from "@/lib/work";
 import { groepeerPerSectie } from "@/lib/wachtrij";
@@ -28,9 +28,8 @@ import {
   type OverzichtCijfer,
   versheidsregel,
 } from "@/lib/overview";
-import { planTotalen, type VoortgangPagina } from "@/lib/plan-progress";
 import { Icon } from "@/components/icon";
-import { ronde, rondeZin } from "@/lib/ronde";
+import { ronde } from "@/lib/ronde";
 import { RondeBalk } from "./_components/ronde-balk";
 import { confidenceBand, changeIsMeaningful } from "@/lib/stats/uncertainty";
 import { poolRecent, describePooled } from "@/lib/stats/pooling";
@@ -233,53 +232,30 @@ export default async function OverzichtPage({
   const bijOns = eigenAlleWerk.filter((w) => w.state === "loopt" || w.state === "wacht").length;
 
   // ── Het plan ─────────────────────────────────────────────────────────────
-  // ⚠️ Geen query meer op `profile_funnel_stages`: die voedde alleen "Per fase
-  // van de klantreis", en dat blok is op 21 september 2026 weggehaald omdat
-  // `planned_pages.funnel_stage_id` toen nooit gevuld werd. De pagina's zelf
-  // blijven nodig: `totalen.gepland` voedt de ronde bovenaan.
-  const [{ data: paginaRijen }, { data: maandRijen }] = await Promise.all([
-    admin
-      .from("planned_pages")
-      .select("page_type, is_buffer, posted_at")
-      .eq("profile_id", id),
-    planRow
-      ? admin
-          .from("plan_months")
-          .select("month_number, status")
-          .eq("plan_id", (planRow as { id: string }).id)
-          .order("month_number")
-      : Promise.resolve({ data: [] }),
-  ]);
+  // ⚠️ Geen query meer op `profile_funnel_stages` (weggehaald 21 september
+  // 2026) en sinds 23 september 2026 ook niet meer op alle `planned_pages` van
+  // dit merk: die voedden alleen het contentplanblok, dat van dit scherm is, en
+  // `totalen.gepland` in de ronde. De ronde haalt nu zelf alleen het lopende
+  // plan op (`loadMaandBronnen`).
+  const planId = (planRow as { id: string } | null)?.id ?? null;
+  const maandBronnen = await loadMaandBronnen(admin, id, planId);
 
-  const paginas = (paginaRijen ?? []) as VoortgangPagina[];
-  const totalen = planTotalen(paginas);
-
-  // ⚠️ "Maand 4 sinds de start", nooit "maand 4 van 12". Besluit 7 maakte het
-  // abonnement doorlopend opzegbaar, en dan is een noemer van twaalf een belofte
-  // over een looptijd die niet is afgesproken. `plan-view.tsx` schrijft het om
-  // dezelfde reden zo.
-  const maanden = (maandRijen ?? []) as { month_number: number; status: string }[];
-  const lopendeMaand = maanden.filter((m) => m.status === "goedgekeurd").length;
-
-  // ── De ronde, en het cijfer dat eronder hangt ─────────────────────────────
+  // ── De maand bovenaan (`lib/ronde.ts`) ─────────────────────────────────────
   //
-  // Beide zijn afgeleid van cijfers die dit scherm toch al ophaalt. Er komt dus
-  // geen enkele query bij: de meetperiodes zitten in `loadLoop`, de teksten in
-  // de werklijst, en de geplande pagina's in `planTotalen`.
-  const teksten = eigenAlleWerk.filter((w) => w.kind === "pagina");
-  const rondeFases = ronde({
+  // ⚠️ Hier stond tot 23 september 2026 ook "Maand 4 sinds de start" boven de
+  // merknaam, geteld uit de vrijgegeven maanden van het contentplan. Dat is
+  // een andere maandtelling dan de kalendermaand in "Je september" eronder,
+  // en twee maandtellingen die iets anders betekenen op één scherm laten de
+  // klant zoeken welke de echte is. De maand staat nu op één plek.
+  const nu = new Date();
+  const maand = ronde({
+    now: nu,
     // Zonder cluster valt er niets te meten, en dan is de consultant aan zet en
-    // niet ORBIT ENGINE. Zie de toelichting bij `RondeInput` in `lib/ronde.ts`.
+    // niet ORBIT ENGINE.
     clusters: eigenClusters.length,
-    metingen: periodes.length,
+    metingen: periodes.map((p) => p.gemetenOp),
     kansen: lus.opportunities.length,
-    gepland: totalen.gepland,
-    geschreven: teksten.length,
-    gepubliceerd,
-    // "klaar" betekent bij een tekst precies één ding: gepubliceerd én
-    // hermeten (`lib/work.ts`). Dat is de enige stand die bewijst dat de ronde
-    // helemaal rond is geweest.
-    hermeten: teksten.filter((w) => w.state === "klaar").length,
+    ...maandBronnen,
   });
 
   // ⚠️ Het hoofdgetal stond tot 26 augustus 2026 hier en verhuisde toen naar
@@ -305,7 +281,6 @@ export default async function OverzichtPage({
       : null;
 
   const merknaam = profile.brand_name ?? profile.name;
-  const nu = new Date();
 
   return (
     // ⚠️ 32 pixels tussen de secties en 12 binnen een sectie. Het was overal 24,
@@ -322,7 +297,6 @@ export default async function OverzichtPage({
           op elk bezoek hetzelfde. Nu zegt hij of dit bezoek iets nieuws
           oplevert. */}
       <PageHeader
-        eyebrow={lopendeMaand > 0 ? `Maand ${lopendeMaand} sinds de start` : undefined}
         title={merknaam}
         description={versheidsregel({
           metingen: periodes.length,
@@ -331,11 +305,12 @@ export default async function OverzichtPage({
         })}
       />
 
-      {/* ── De ronde ───────────────────────────────────────────────────────
-          Het eerste blok van de app, en met opzet vóór de cijfers: eerst weten
-          hoe het werkt, dan pas hoe het ervoor staat. Zie `lib/ronde.ts`. */}
-      <SectionErrorBoundary label="Zo werkt je maand">
-        <RondeBalk fases={rondeFases} zin={rondeZin(rondeFases)} />
+      {/* ── De maand ───────────────────────────────────────────────────────
+          Het eerste blok van de app, en met opzet vóór de cijfers: eerst wat
+          er deze maand gedaan is en nog moet, dan pas hoe het ervoor staat.
+          Zie `lib/ronde.ts`. */}
+      <SectionErrorBoundary label={`Je ${maand.maand}`}>
+        <RondeBalk ronde={maand} />
       </SectionErrorBoundary>
 
       {/* ── De fase, alleen voor jou (deel B4) ────────────────────────────
