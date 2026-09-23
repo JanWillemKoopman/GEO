@@ -11549,3 +11549,8 @@ staat het totaal als groene chip ("7 open taken"), dezelfde `chip-success` als "
 dringendste taak krijgt de enige primaire knop van het scherm; tot vandaag had het scherm er geen, ondanks de
 regel dat hij bij de wachtrij hoort (de test telde een woord in commentaar). `contentMix`, `isEersteMaand` en
 `volgendeMeting` worden op geen scherm meer gebruikt, alleen nog in `test-unit.ts`.
+
+Aanvulling dezelfde dag: de grens van vier taken geldt nu per blok en niet meer per subkop
+(`beperkSectie()` in `lib/wachtrij.ts`). De Bibliotheek heeft drie subkoppen en kon daardoor twaalf taken
+tonen. Zijn het er meer dan vier, dan staat onder het blok één onderstreepte link "Bekijk alle openstaande
+acties" naar dat hoofdstuk, in plaats van "Nog N taken bekijken" per subkop.

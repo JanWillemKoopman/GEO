@@ -6,6 +6,7 @@ import type { IcoonNaam } from "@/lib/icons";
 import { workChipTone, workKindIcon, WORK_KIND_LABEL } from "@/lib/work-kind";
 import type { WorkItem } from "@/lib/work";
 import {
+  beperkSectie,
   wachtrijRegel,
   type WachtrijOverzicht,
   type WachtrijSectie,
@@ -43,8 +44,6 @@ import {
  * clusteroverzicht: iets ligt klaar en wacht op de klant, er is niets mis. Rood
  * blijft gereserveerd voor een blokkade (`WachtrijKaart` hieronder).
  */
-const PER_SUBKOP_ZICHTBAAR = 4;
-
 const SECTIE_ICOON: Record<WachtrijSectie["kop"], IcoonNaam> = {
   Cluster: "goedkeuring",
   Contentplan: "plannen",
@@ -67,27 +66,35 @@ export function WachtrijLijst({
       ))}
       {overzicht.secties.length > 0 && (
         <div className="card overflow-hidden !p-0">
-          {overzicht.secties.map((sectie, i) => (
-            <section
-              key={sectie.kop}
-              aria-label={sectie.kop}
-              className={`grid gap-4 p-4 md:grid-cols-[13rem_minmax(0,1fr)] md:gap-8 md:p-6 ${
-                i > 0 ? "border-t border-[var(--border-subtle)]" : ""
-              }`}
-            >
-              <SectieKop sectie={sectie} />
-              <div className="flex min-w-0 flex-col gap-5">
-                {sectie.subkoppen.map((sub) => (
-                  <SubkopBlok
-                    key={sub.subkop}
-                    sub={sub}
-                    overzichtHref={sectie.overzichtHref}
-                    eersteId={eersteId}
-                  />
-                ))}
-              </div>
-            </section>
-          ))}
+          {overzicht.secties.map((sectie, i) => {
+            const { subkoppen, verborgen } = beperkSectie(sectie);
+            return (
+              <section
+                key={sectie.kop}
+                aria-label={sectie.kop}
+                className={`grid gap-4 p-4 md:grid-cols-[13rem_minmax(0,1fr)] md:gap-8 md:p-6 ${
+                  i > 0 ? "border-t border-[var(--border-subtle)]" : ""
+                }`}
+              >
+                <SectieKop sectie={sectie} />
+                <div className="flex min-w-0 flex-col gap-5">
+                  {subkoppen.map((sub) => (
+                    <SubkopBlok key={sub.subkop} sub={sub} eersteId={eersteId} />
+                  ))}
+                  {/* Meer dan vier taken in dit blok: de rest staat in het
+                      hoofdstuk zelf (`beperkSectie()` in `lib/wachtrij.ts`). */}
+                  {verborgen > 0 && (
+                    <Link
+                      href={sectie.overzichtHref}
+                      className="w-fit text-sm font-medium underline underline-offset-4 hover:text-secondary"
+                    >
+                      Bekijk alle openstaande acties
+                    </Link>
+                  )}
+                </div>
+              </section>
+            );
+          })}
         </div>
       )}
     </div>
@@ -117,35 +124,17 @@ function SectieKop({ sectie }: { sectie: WachtrijSectie }) {
   );
 }
 
-function SubkopBlok({
-  sub,
-  overzichtHref,
-  eersteId,
-}: {
-  sub: WachtrijSubkop;
-  overzichtHref: string;
-  eersteId?: string;
-}) {
-  const rest = sub.items.length - PER_SUBKOP_ZICHTBAAR;
+function SubkopBlok({ sub, eersteId }: { sub: WachtrijSubkop; eersteId?: string }) {
   return (
     <div className="flex flex-col gap-2">
       <span className="mono-label">{sub.subkop}</span>
       <ul className="flex flex-col divide-y divide-[var(--border-subtle)] rounded-[var(--radius-lg)] border border-[var(--border-subtle)]">
-        {sub.items.slice(0, PER_SUBKOP_ZICHTBAAR).map((item) => (
+        {sub.items.map((item) => (
           <li key={item.id}>
             <TaakRegel item={item} primair={item.id === eersteId} />
           </li>
         ))}
       </ul>
-      {rest > 0 && (
-        <Link
-          href={overzichtHref}
-          className="inline-flex w-fit items-center gap-1.5 text-sm font-medium hover:underline"
-        >
-          Nog {rest} {rest === 1 ? "taak" : "taken"} bekijken
-          <Icon naam="naar" size={14} />
-        </Link>
-      )}
     </div>
   );
 }

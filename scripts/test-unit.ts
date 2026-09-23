@@ -467,7 +467,7 @@ import {
   type VoortgangPagina,
 } from "@/lib/plan-progress";
 import { activiteit, ALLE_TAAKSOORTEN, TAAK_TEKST } from "@/lib/activity";
-import { groepeerPerSectie, wachtrijRegel } from "@/lib/wachtrij";
+import { beperkSectie, groepeerPerSectie, wachtrijRegel } from "@/lib/wachtrij";
 import type { WorkItem } from "@/lib/work";
 import {
   ADMIN_SECTIES,
@@ -11638,6 +11638,32 @@ group("groepeerPerSectie: de wachtrij in de vaste secties van de app", () => {
   ok(
     "de vragen over je bedrijf gaan over het hele merk en krijgen geen cluster",
     wachtrijRegel(items[4]).cluster === null && wachtrijRegel(items[2]).cluster === null,
+  );
+
+  // Vier taken per blok, over de subkoppen heen, en daaronder één link zodra
+  // er meer zijn (23 september 2026).
+  const volleBibliotheek = groepeerPerSectie([
+    wachtrijItem("pagina:b1", "pagina", "B1", "Briefing invullen"),
+    wachtrijItem("pagina:b2", "pagina", "B2", "Briefing invullen"),
+    wachtrijItem("pagina:n1", "pagina", "N1", "Pagina nakijken"),
+    wachtrijItem("pagina:n2", "pagina", "N2", "Pagina nakijken"),
+    wachtrijItem("pagina:p1", "pagina", "P1", "Pagina publiceren"),
+    wachtrijItem("pagina:p2", "pagina", "P2", "Pagina publiceren"),
+  ]).secties[0];
+  const beperkt = beperkSectie(volleBibliotheek);
+  ok(
+    "zes taken in één blok: er staan er vier, en twee zijn verborgen",
+    beperkt.subkoppen.reduce((som, s) => som + s.items.length, 0) === 4 && beperkt.verborgen === 2,
+  );
+  ok(
+    "een subkop waarvan niets meer past valt weg, geen lege kop",
+    beperkt.subkoppen.map((s) => s.subkop).join(",") ===
+      "Briefing invullen voor een pagina,Pagina nakijken vóór publicatie",
+  );
+  ok(
+    "precies vier taken: niets verborgen, dus geen link",
+    beperkSectie(volleBibliotheek, 6).verborgen === 0 &&
+      beperkSectie({ ...volleBibliotheek, aantal: 4 }).verborgen === 0,
   );
 
   ok("een lege lijst geeft geen secties en geen waarschuwingen", (() => {

@@ -197,3 +197,33 @@ export function wachtrijRegel(item: WorkItem): WachtrijRegel {
       return { titel: item.title, cluster: null };
   }
 }
+
+/**
+ * Hoeveel taken een sectie op het overzicht laat zien, over al zijn subkoppen
+ * samen.
+ *
+ * ── ⚠️ VIER PER BLOK, NIET VIER PER SUBKOP (23 september 2026) ──────────────
+ *
+ * De grens stond eerst per subkop. De Bibliotheek heeft er drie (briefing,
+ * nakijken, publiceren), dus één blok kon twaalf taken tonen terwijl
+ * Openstaande vragen er één had. Op verzoek van de eigenaar geldt de grens nu
+ * per blok: de eerste vier in de vaste volgorde van de subkoppen, en daaronder
+ * één link naar het hoofdstuk zodra er meer zijn. Een subkop waarvan niets
+ * meer past, valt helemaal weg in plaats van als lege kop te blijven staan.
+ */
+export const PER_SECTIE_ZICHTBAAR = 4;
+
+export function beperkSectie(
+  sectie: WachtrijSectie,
+  max: number = PER_SECTIE_ZICHTBAAR,
+): { subkoppen: WachtrijSubkop[]; verborgen: number } {
+  let ruimte = max;
+  const subkoppen: WachtrijSubkop[] = [];
+  for (const sub of sectie.subkoppen) {
+    if (ruimte <= 0) break;
+    const items = sub.items.slice(0, ruimte);
+    ruimte -= items.length;
+    subkoppen.push({ subkop: sub.subkop, items });
+  }
+  return { subkoppen, verborgen: Math.max(0, sectie.aantal - max) };
+}
