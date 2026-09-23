@@ -17,6 +17,8 @@ import {
   kandidaatFeiten,
   SOORT_LABEL,
   SOORT_UITLEG,
+  themaSuggesties,
+  type AanbodKnoop,
   type KandidaatSoort,
   type OntdekTerm,
 } from "@/lib/cluster-discovery";
@@ -37,7 +39,7 @@ export const metadata = { title: "Clusters ontdekken" };
  *
  * ── WAT HIER STAAT, VAN BOVEN NAAR BENEDEN ─────────────────────────────────
  *
- *   1. De ronde: starten (consultant) of de voortgang.
+ *   1. De ronde: starten met een thema (consultant) of de voortgang.
  *   2. De kandidaten van de nieuwste ronde, in drie groepen.
  *   3. Eerdere rondes, met wat ze kostten.
  *
@@ -126,6 +128,18 @@ export default async function OntdekkenPage({ params }: { params: Promise<{ id: 
     kandidaten = (data ?? []) as KandidaatRij[];
   }
 
+  // Thema's om uit te kiezen bij het starten: alleen de consultant start.
+  let suggesties: string[] = [];
+  if (staff) {
+    const { data: knopen } = await supabase
+      .from("profile_offerings")
+      .select("id, parent_id, kind, name")
+      .eq("profile_id", id)
+      .is("removed_at", null)
+      .order("sort_order");
+    suggesties = themaSuggesties((knopen ?? []) as AanbodKnoop[]);
+  }
+
   const zoekdataAan = labsBeschikbaar();
 
   const meetKosten = formatUsd(mixTotal(DEFAULT_MIX) * COST_PER_PROMPT_USD);
@@ -147,7 +161,7 @@ export default async function OntdekkenPage({ params }: { params: Promise<{ id: 
       {/* ── 1. De ronde ─────────────────────────────────────────────────── */}
       {lopend && <RondeVoortgang merkId={id} status={lopend.status} />}
       {staff && !lopend && (
-        <RondeKnop merkId={id} herhaling={rondes.length > 0} kostenTekst={rondeKosten} />
+        <RondeKnop merkId={id} herhaling={rondes.length > 0} kostenTekst={rondeKosten} suggesties={suggesties} />
       )}
 
       {!lopend && nieuwste?.status === "mislukt" && (
@@ -162,8 +176,8 @@ export default async function OntdekkenPage({ params }: { params: Promise<{ id: 
         staff ? (
           <EmptyState title="Nog geen ontdekkingsronde voor dit merk">
             Een ronde zoekt in je Search Console, je onboarding en de zoekdata van Google naar
-            onderwerpen die nog niet gemeten worden, en bundelt ze tot 8 tot 15 voorstellen. Start er
-            hierboven een.
+            onderwerpen binnen één thema die nog niet gemeten worden, en bundelt ze tot hooguit 12
+            voorstellen. Start er hierboven een en kies het thema.
           </EmptyState>
         ) : (
           <EmptyState title="Je consultant zoekt nieuwe onderwerpen voor je">
@@ -176,7 +190,8 @@ export default async function OntdekkenPage({ params }: { params: Promise<{ id: 
           <p className="text-secondary">
             {kandidaten.length === 0
               ? `De ronde van ${formatDateLong(laatsteKlare.created_at)} leverde geen onderwerpen op. ${laatsteKlare.status_note ?? ""}`
-              : `${kandidaten.length} onderwerpen uit de ronde van ${formatDateLong(laatsteKlare.created_at)}, ` +
+              : `${kandidaten.length} onderwerpen uit de ronde van ${formatDateLong(laatsteKlare.created_at)}` +
+                (laatsteKlare.thema ? ` over ${laatsteKlare.thema}, ` : ", ") +
                 `${openAantal === kandidaten.length ? "nog allemaal open" : `waarvan ${openAantal} nog open`}. ` +
                 "Het zoekvolume is hoe vaak iets in Google gezocht wordt: een aanwijzing voor wat mensen aan een AI-assistent vragen, geen meting daarvan."}
           </p>
@@ -207,6 +222,7 @@ export default async function OntdekkenPage({ params }: { params: Promise<{ id: 
             {rondes.map((r) => (
               <li key={r.id} className="flex flex-wrap gap-x-3 text-secondary">
                 <span>{formatDateLong(r.created_at)}</span>
+                <span>{r.thema ?? "zonder thema"}</span>
                 <span>
                   {r.status === "klaar" ? "klaar" : r.status === "mislukt" ? "niet afgemaakt" : "loopt"}
                 </span>

@@ -2,7 +2,9 @@
 
 > Opgesteld 23 september 2026 op verzoek van de eigenaar. De besluiten staan onderaan
 > `docs/logbook.md` (23 september 2026). Fase 0 is gedraaid en fase 1 en 2 zijn samen gebouwd
-> (zie "Stand van de bouw" onderaan). **Nog niet nagerekend tegen een echte ronde op productie.**
+> (zie "Stand van de bouw" onderaan). Eén echte ronde gedraaid op productie, met een fout die
+> 6 van de 9 kandidaten weggooide (zie "Eerste echte ronde" onderaan). **Het criterium "Af als" is
+> nog niet getoetst.**
 
 ## Wat de eigenaar wil
 
@@ -69,7 +71,7 @@ Zoekdata wordt 30 dagen gecachet in `keyword_demand`.
 | 1. Verzamelen | Beginpunten uit aanbodboom × werkgebied, Search Console-zoekopdrachten per pagina, bestaande clusters, vermijdlijst van afgewezen onderwerpen | gratis |
 | 2. Verbreden | DataForSEO Labs: zoeksuggesties per beginpunt, waarop de eigen site staat, echte concurrenten (gekozen op omvang, zie fase 0) en waarop zij in de top 20 staan | ~$0,75 (nagemeten) |
 | 3. Schiften | Eerst vaste regels (buitenland, concurrentmerken, dubbel, te lang), dan een licht model per zoekterm: past dit bij aanbod en strategie? Gestopte diensten vallen weg | licht model |
-| 4. Bundelen | Eén aanroep: 8 tot 15 kandidaat-clusters op het juiste niveau, elk aan een dienst. Code controleert dat elke zoekterm in de invoer stond en telt de volumes zelf op. Overlap met een bestaand cluster wordt "lijkt op …", niet stil weggegooid | zwaar model |
+| 4. Bundelen | Eén aanroep: 6 tot 12 kandidaat-clusters binnen het thema op het juiste niveau, elk aan een dienst. Code controleert dat elke zoekterm in de invoer stond en telt de volumes zelf op. Overlap met een bestaand cluster wordt "lijkt op …", niet stil weggegooid | zwaar model |
 | 5. Scoren | Pure module met tests: vraag, pasvorm, eigen positie, concurrentie, overlap. Uitleg in woorden | gratis |
 | 6. AI-check (fase 3) | Drie vragen per kandidaat aan ChatGPT: noemt hij concurrenten, jou of niemand? | ~$0,10 per kandidaat |
 
@@ -83,7 +85,8 @@ meting daarvan. Dat staat zo op het scherm.
 1. ~~**Bronnenbalk**~~: op 23 september 2026 op verzoek van de eigenaar weggehaald. De gebruiker
    wil goede clusters kunnen aanvinken, niet de bronnen nalopen. Ontbreekt een bron, dan zegt de
    ronde dat zelf onder de kandidaten.
-2. **Rondeknop** met geschatte kosten en duur, voortgang, pagina mag dicht.
+2. **Rondeknop** met een verplicht thema (categorieën uit de aanbodboom als keuze, of eigen woorden),
+   geschatte kosten en duur, voortgang, pagina mag dicht.
 3. **Kandidaten in drie groepen:** Snelle winst (plek 4 tot 20), Nieuw terrein (vraag, geen pagina),
    Concurrent is je voor. Kaart: titel, één zin waarom, drie feiten met hun gevolg, "Toon bewijs".
    Knoppen: Toevoegen aan Mijn clusters · Toevoegen en meten (consultant, via de bestaande startroute)
@@ -188,9 +191,36 @@ Fase 1 en 2 zijn samen gebouwd, omdat fase 0 liet zien dat DataForSEO bruikbaar 
 
 **Nog open:**
 
-1. **Een echte ronde op Van den Udenhout** zodra dit op `main` staat. Eerder kan niet: de werker op
-   productie draait de code van `main` en kent de vier taken nog niet, dus een ronde vanaf een
-   testversie zou daar mislukken. Dan het criterium "Af als" hierboven toetsen, met de eigenaar.
+1. **Een nieuwe ronde met thema op Van den Udenhout** zodra de reparatie hieronder op `main` staat
+   (de werker op productie draait de code van `main`). Dan het criterium "Af als" hierboven toetsen,
+   met de eigenaar. Met een thema per ronde geldt dat per thema: draai er twee of drie.
 2. **De AI-check per kandidaat** (stap 6) is niet gebouwd.
 3. **Opruimen** zodra de ronde op productie is nagerekend: de route `topics/refresh` en
    `lib/pipeline/propose-more-topics.ts` worden dan niet meer gebruikt.
+
+## Eerste echte ronde en het thema per ronde (23 september 2026)
+
+**De ronde** (Van den Udenhout, $0,60 zoekdata, minder dan een cent AI, 2 minuten): 1.773
+zoektermen, 400 na de voorfilter, 181 na het schiften, 9 kandidaten van het model, **3 opgeslagen**.
+Het verlies zat niet in het model maar in de controle erna: twee kandidaten uit dezelfde ronde
+heetten dubbel als hun titels de helft van hun woorden deelden. "Audi onderhoud en service in de
+regio" viel weg tegen de Volkswagen-variant, "Zakelijk een auto huren" tegen "Een auto huren voor
+particulier gebruik". Hun zoektermen deelden 0 of 1 van 3. Nu vergelijkt `dubbelInRonde` op
+gedeelde zoektermen; nagerekend met dezelfde 9 titels en termen blijven ze alle 9 staan. De
+vergelijking met clusters die er al staan blijft op titel (daar zijn geen zoektermen van), en
+markeert alleen.
+
+**Het thema** (migratie 0111, op verzoek van de eigenaar): de consultant geeft bij het starten een
+productcategorie of thema op, verplicht. Het stuurt vier dingen:
+
+- de twintig beginpunten voor de zoeksuggesties gaan allemaal over het thema;
+- in de voorfilter gaan binnen elke bron de termen die het thema raken voor (`themaStammen`, zonder
+  model). Nagerekend op de 1.773 termen: van de 200 termen over private lease haalden er zonder
+  thema 41 de 400 plekken, met het thema 147;
+- het schiften laat termen buiten het thema weg;
+- het bundelen maakt 6 tot 12 onderwerpen binnen het thema.
+
+Wat niet verandert: de eigen site en de concurrenten worden nog steeds per domein opgehaald, over
+het hele aanbod (~$0,24 van de ronde). Filteren op het thema bij DataForSEO zelf zou dat deel
+goedkoper maken, maar een thema in andere woorden dan de zoektermen ("tweedehands" tegen
+"occasion") mist dan alles. Eerst zien wat de rondes met thema opleveren.

@@ -2,7 +2,7 @@
 
 **Bron: OKX** (`okx.com`), hun `okd`-tokensysteem, gemeten op 17 september 2026 uit de gecompileerde
 CSS van hun webapp. **Peildatum van dit document: 23 september 2026**, na de UI-audit op consistentie
-die volgde op de OKX-omzetting (`docs/logbook.md`, 23 september 2026 (6)).
+die volgde op de OKX-omzetting (`docs/logbook.md`, 23 september 2026 (7)).
 
 Dit document beschrijft **hoe ORBIT ENGINE eruitziet en waarom**. Voor de tekst in die schermen geldt
 `schrijfstijl.md`, voor de opbouw van schermen `ux-design.md`, voor het waarom achter beslissingen

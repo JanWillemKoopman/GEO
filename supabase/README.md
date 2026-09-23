@@ -643,3 +643,10 @@ publicatie; met "Akkoord, laat staan" verdwijnt dat punt en blijft de zin in de 
 paginascherm telt ook de lijsten van eerdere versies van dezelfde pagina mee. Schrijven alleen via
 `app/api/analyses/[id]/content/[pieceId]/zinnen/route.ts`. Op productie toegepast op 23 september 2026:
 27 teksten, alle 27 met een lege lijst.
+
+## 0111 — Thema per ontdekkingsronde
+
+Voegt `cluster_discovery_runs.theme` toe (tekst): de productcategorie of het thema dat de
+consultant opgeeft bij het starten van een ronde. `null` voor rondes van daarvoor. De route
+`app/api/profiles/[id]/discovery` start geen ronde zonder thema. Op productie toegepast op 23
+september 2026.
