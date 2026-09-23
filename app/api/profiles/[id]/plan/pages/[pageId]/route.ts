@@ -8,7 +8,8 @@ import { isStaff } from "@/lib/staff";
 import { keurTekstGoed } from "@/lib/content-approve";
 import { checkBudgetForProfile } from "@/lib/spend-limit";
 import {
-  startPaginaSchrijven,
+  startVoorbereiding,
+  probeerTeSchrijven,
   SCHRIJFPAGINA_KOLOMMEN,
   SCHRIJFBLOKKADE_TEKST,
   type TeSchrijvenPagina,
@@ -111,36 +112,60 @@ export async function POST(
 
     if (!volledig) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
 
-    const uitkomst = await startPaginaSchrijven(
-      admin,
-      volledig as unknown as TeSchrijvenPagina,
-      new Date(),
-      { negeerPlanning: true },
+    // ── Ook de beheerder schrijft niet om de vragen heen (23 september 2026) ──
+    //
+    // Deze knop sloeg tot die dag de vragenronde over. Nu slaat hij alleen nog
+    // de twee WACHTREGELS over (de vrijgegeven maand en de schrijfdatum), en
+    // nooit de vragen: het besluit in `docs/tasks/contentflow-een-lijn.md` §1
+    // geldt voor iedereen. Nog niet voorbereid: voorbereiding starten. Wel
+    // voorbereid: de schrijfpoort vragen, zonder datumregel.
+    const nu = new Date();
+    const pagina = volledig as unknown as TeSchrijvenPagina & { content_piece_id?: string | null };
+    const { data: koppeling } = await admin
+      .from("planned_pages")
+      .select("content_piece_id")
+      .eq("id", pageId)
+      .maybeSingle();
+    let pieceId = (koppeling?.content_piece_id as string | null) ?? null;
+
+    if (!pieceId) {
+      const uitkomsten = await startVoorbereiding(admin, [pagina], nu, { negeerPlanning: true });
+      const u = uitkomsten.get(pageId);
+      if (!u) return NextResponse.json({ error: "Deze pagina wordt al geschreven of is al klaar." }, { status: 409 });
+      if (u.uitkomst === "geblokkeerd") {
+        return NextResponse.json({ error: SCHRIJFBLOKKADE_TEKST[u.reden] }, { status: 409 });
+      }
+      if (u.uitkomst === "al_klaar") {
+        return NextResponse.json({ ok: true, melding: "Er stond al een afgeronde tekst voor deze pagina klaar." });
+      }
+      if (u.uitkomst === "gestart") {
+        return NextResponse.json({
+          ok: true,
+          melding: "ORBIT ENGINE bereidt deze pagina nu voor. Zodra de vragen beantwoord zijn, begint het schrijven.",
+        });
+      }
+      pieceId = u.pieceId;
+    }
+
+    const probeer = await probeerTeSchrijven(admin, pieceId, nu, { negeerPlanning: true });
+    if (probeer.uitkomst === "geschreven_ingepland") {
+      return NextResponse.json({ ok: true, melding: "ORBIT ENGINE begint nu aan deze pagina." });
+    }
+    if (probeer.uitkomst === "geblokkeerd") {
+      return NextResponse.json({ error: SCHRIJFBLOKKADE_TEKST[probeer.reden] }, { status: 409 });
+    }
+    if (probeer.uitkomst === "mislukt") {
+      return NextResponse.json({ error: "ORBIT ENGINE kon het schrijven niet starten." }, { status: 500 });
+    }
+    const WACHT_TEKST: Record<string, string> = {
+      vragen_open: "Er staan nog vragen open voor deze pagina. Daarna begint het schrijven vanzelf.",
+      voorbereiding_loopt: "De voorbereiding loopt nog. Daarna volgen de vragen.",
+      te_weinig_onderbouwd: "Er is te weinig bekend om deze pagina te schrijven. De klant kiest eerst: algemeen schrijven of laten vallen.",
+    };
+    return NextResponse.json(
+      { error: WACHT_TEKST[probeer.reden] ?? "Deze pagina wordt al geschreven of is al klaar." },
+      { status: 409 },
     );
-
-    if (uitkomst.uitkomst === "geblokkeerd") {
-      // 409 en geen 500: dit is een regel die de beheerder kan begrijpen en
-      // meestal zelf kan oplossen, geen storing.
-      return NextResponse.json({ error: SCHRIJFBLOKKADE_TEKST[uitkomst.reden] }, { status: 409 });
-    }
-    if (uitkomst.uitkomst === "mislukt") {
-      return NextResponse.json(
-        { error: "ORBIT ENGINE kon het schrijven niet starten." },
-        { status: 500 },
-      );
-    }
-
-    return NextResponse.json({
-      ok: true,
-      // Wat er gebeurd is, in gewone taal, want de drie uitkomsten voelen op het
-      // scherm hetzelfde maar betekenen iets anders.
-      melding:
-        uitkomst.uitkomst === "ingepland"
-          ? "ORBIT ENGINE begint nu aan deze pagina."
-          : uitkomst.uitkomst === "al_bezig"
-            ? "Deze pagina stond al in de rij om geschreven te worden."
-            : "Er stond al een afgeronde tekst voor deze pagina klaar.",
-    });
   }
 
   // ── Inplannen en terugleggen ─────────────────────────────────────────────
@@ -170,6 +195,23 @@ export async function POST(
       // 409 en geen 500: dit zijn regels die de gebruiker kan begrijpen en
       // omzeilen (een pagina die al live staat), geen storing.
       return NextResponse.json({ error: result.probleem }, { status: 409 });
+    }
+
+    // In een maand die al vrijgegeven is: meteen voorbereiden, zodat de vragen
+    // er vandaag staan en niet pas na de cron van morgenochtend. Kost ongeveer
+    // twee dollarcent (contentflow-een-lijn.md §3.1); het schrijven zelf wacht
+    // op de antwoorden en valt dus niet onder deze klik.
+    try {
+      const { data: rij } = await admin
+        .from("planned_pages")
+        .select(SCHRIJFPAGINA_KOLOMMEN)
+        .eq("id", pageId)
+        .eq("status", "gepland")
+        .eq("plan_months.status", "goedgekeurd")
+        .maybeSingle();
+      if (rij) await startVoorbereiding(admin, [rij as unknown as TeSchrijvenPagina], new Date());
+    } catch (err) {
+      console.error(`Voorbereiding na inplannen van ${pageId} mislukte:`, err);
     }
     return NextResponse.json({ ok: true });
   }

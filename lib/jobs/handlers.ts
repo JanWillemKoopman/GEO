@@ -12,6 +12,7 @@ import "server-only";
  *   measure_prompt ×N → aggregate_week → generate_report → mail
  *   content_draft → content_revise
  */
+import { probeerTeSchrijven } from "@/lib/plan-write-start";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { nextInChain } from "@/lib/jobs/chain";
 import { prepareProfile } from "@/lib/pipeline/prepare-profile";
@@ -784,7 +785,7 @@ const handlers: { [T in JobType]: Handler<T> } = {
   // wanneer er geschreven wordt, via het briefingscherm. Dat is hetzelfde
   // patroon als de review-gate tussen halte 2 en 3 (abcplan.md §3.6), nooit een
   // black box, altijd eerst kijken en bijsturen.
-  content_brief: async ({ job }, payload) => {
+  content_brief: async ({ admin, job }, payload) => {
     if (!job.analysis_id) throw new Error("content_brief zonder analysis_id.");
     const result = await runBriefing({
       analysisId: job.analysis_id,
@@ -794,6 +795,21 @@ const handlers: { [T in JobType]: Handler<T> } = {
       `Briefing ${job.analysis_id}: ${result.contentPieceIds.length} pagina's, ` +
         `${result.facts} bekende feiten, ${result.questions} vragen aan de klant.`,
     );
+
+    // ── Geen vragen? Dan niet wachten (contentflow-een-lijn.md §3) ──────────
+    //
+    // Een pagina uit het contentplan waarvoor de voorbereiding nul vragen
+    // opleverde, of waarvan alle vragen al beantwoord waren, gaat meteen door
+    // naar de schrijfpoort. Die beslist; hier wordt alleen gevraagd.
+    // `probeerTeSchrijven()` doet niets bij een pagina die niet in het plan
+    // staat, dus de oude route vanuit een cluster verandert hier niet.
+    for (const pieceId of result.contentPieceIds) {
+      try {
+        await probeerTeSchrijven(admin, pieceId, new Date());
+      } catch (err) {
+        console.error(`Na de voorbereiding schrijven voor ${pieceId} mislukte:`, err);
+      }
+    }
   },
 
   // ── Content stap 0: uitzoeken wat DEZE pagina nodig heeft (A1/A2) ─────────
