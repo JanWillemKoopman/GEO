@@ -157,6 +157,7 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
     scheduled_for: string | null;
     plan_month_id: string;
     content_piece_id: string | null;
+    topic_id: string | null;
     recommendation_action: string | null;
     profile_topics: { title: string; analysis_id: string | null } | null;
   }[]) {
@@ -171,6 +172,7 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
           status: p.status,
           scheduled_for: dag(p.scheduled_for),
           maandVrij: maandStatus.get(p.plan_month_id) === "goedgekeurd",
+          onderwerp: Boolean(p.topic_id && p.profile_topics?.analysis_id),
         },
         planTitel: p.title,
         planSoort: PAGINASOORT[p.page_type] ?? "Pagina",
@@ -216,7 +218,7 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
     routeId: string;
     plannedPageId: string | null;
     tekst: Tekst | null;
-    plan: { status: PlannedPageStatus; scheduled_for: string | null; maandVrij: boolean } | null;
+    plan: { status: PlannedPageStatus; scheduled_for: string | null; maandVrij: boolean; onderwerp?: boolean } | null;
     planTitel: string;
     planSoort: string;
     actie: "nieuw" | "verbeteren";

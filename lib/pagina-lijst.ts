@@ -13,31 +13,86 @@
  *
  * Puur (conventie 2).
  */
-import type { PaginaStand } from "@/lib/pagina-stand";
+import { formatDag, type PaginaStand } from "@/lib/pagina-stand";
+import { schrijfdatum } from "@/lib/content-write-gate";
 
-export type Groep = "wacht" | "gemaakt" | "live";
+/**
+ * ── DE DRIE GROEPEN VAN DE BIBLIOTHEEK (avond 23 september 2026) ───────────
+ *
+ * De eigenaar wil twee vragen beantwoord zien: wat wacht op mij, en wat wordt
+ * er binnenkort geschreven. Daarnaast staat wat live is. Een pagina in een
+ * maand die nog niet is vrijgegeven hoort in geen groep: die staat in het
+ * contentplan. Zo staat elke pagina op minstens één van die twee schermen;
+ * eerder die avond verdween een pagina zonder plan-pagina ("Nog niet
+ * ingepland") van allebei.
+ */
+export type Groep = "wacht" | "binnenkort" | "live";
 
 export const GROEP_LABEL: Record<Groep, string> = {
   wacht: "Wacht op jou",
-  gemaakt: "Wordt gemaakt",
+  binnenkort: "Wordt binnenkort geschreven",
   live: "Staat live",
 };
 
-/** In welke tegel valt deze stand? `null` = nergens (een vervallen pagina). */
+/** In welke groep valt deze stand? `null` = alleen in het contentplan (gepland) of nergens (vervallen). */
 export function groepVan(stand: PaginaStand): Groep | null {
-  if (stand.fase === null) return null;
+  if (stand.sleutel === "gepland" || stand.sleutel === "vervallen") return null;
   if (stand.fase === 4) return "live";
   if (stand.aanZet === "klant") return "wacht";
-  return "gemaakt";
+  return "binnenkort";
 }
 
 export function tellingen(rijen: { stand: PaginaStand }[]): Record<Groep, number> {
-  const t: Record<Groep, number> = { wacht: 0, gemaakt: 0, live: 0 };
+  const t: Record<Groep, number> = { wacht: 0, binnenkort: 0, live: 0 };
   for (const r of rijen) {
     const g = groepVan(r.stand);
     if (g) t[g]++;
   }
   return t;
+}
+
+/**
+ * Eén regel per rij: waar staat deze pagina, en waarop wacht hij? In de woorden
+ * die de eigenaar zelf gaf ("5 openstaande vragen om de pagina te kunnen
+ * schrijven", "Alle gegevens bekend, wordt op datum geschreven").
+ */
+export function statusRegel(r: { stand: PaginaStand; openVragen: number; datum: string | null }): string {
+  const { stand } = r;
+  switch (stand.sleutel) {
+    case "vragen": {
+      const n = r.openVragen;
+      if (n === 1) return "1 openstaande vraag om de pagina te kunnen schrijven";
+      if (n > 1) return `${n} openstaande vragen om de pagina te kunnen schrijven`;
+      return "Openstaande vragen om de pagina te kunnen schrijven";
+    }
+    case "keuze":
+      return "Te weinig gegevens om goed te schrijven: kies hoe we verder gaan";
+    case "goedkeuren":
+      return "Tekst is klaar: lees hem en keur hem goed";
+    case "live_zetten":
+      return "Goedgekeurd: zet hem op je site";
+    case "voorbereiden":
+      if (stand.label === "Geen cluster") return "Hangt aan geen cluster, daardoor kunnen we hem nog niet voorbereiden";
+      return stand.label === "Wordt voorbereid"
+        ? "We zetten de vragen voor deze pagina klaar"
+        : "We beginnen uiterlijk morgenochtend met de vragen voor deze pagina";
+    case "wacht_op_datum":
+      return r.datum
+        ? `Alle gegevens bekend, wordt op ${formatDag(schrijfdatum(r.datum))} geschreven`
+        : "Alle gegevens bekend, wacht op zijn schrijfdatum";
+    case "schrijven":
+      return "Alle gegevens bekend, wordt nu geschreven";
+    case "niet_ingepland":
+      return "Alle gegevens bekend, heeft nog geen datum in het contentplan";
+    case "mislukt":
+      return "Schrijven lukte niet, we proberen het opnieuw";
+    case "effect_meten":
+      return "Staat live, we meten het effect na 14 en 28 dagen";
+    case "effect_bekend":
+      return "Staat live, het effect is gemeten";
+    default:
+      return stand.label;
+  }
 }
 
 export interface PaginaFilter {
@@ -81,7 +136,12 @@ export function filterKeuzes<
   const zichtbaar = rijen.filter((r) => groepVan(r.stand));
   const uniek = <K,>(lijst: [string, K][]) => [...new Map(lijst).entries()];
   return {
-    status: uniek(zichtbaar.map((r) => [r.stand.sleutel, r.stand.label] as [string, string])),
+    // "Voorbereiding volgt" en "Wordt voorbereid" delen één sleutel; één keuze.
+    status: uniek(
+      zichtbaar.map(
+        (r) => [r.stand.sleutel, r.stand.sleutel === "voorbereiden" ? "Wordt voorbereid" : r.stand.label] as [string, string],
+      ),
+    ),
     cluster: uniek(
       zichtbaar.filter((r) => r.clusterId).map((r) => [r.clusterId!, r.cluster ?? "Cluster"] as [string, string]),
     ).sort((a, b) => a[1].localeCompare(b[1], "nl")),
