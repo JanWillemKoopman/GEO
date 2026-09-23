@@ -86,6 +86,13 @@ import type { Job } from "@/lib/types/database";
 import { requireCount } from "@/lib/require-count";
 import { resolveMix } from "@/lib/prompt-mix";
 import { PROMPT_CATEGORIES } from "@/lib/types/database";
+import {
+  discoveryBundle,
+  discoveryCollect,
+  discoveryExpand,
+  discoverySift,
+  markeerRondeMislukt,
+} from "@/lib/pipeline/cluster-discovery";
 
 type Admin = SupabaseClient;
 
@@ -1132,6 +1139,21 @@ const handlers: { [T in JobType]: Handler<T> } = {
     await runSynthesis(admin, payload.runId);
   },
 
+  // ── Clusters ontdekken (lib/pipeline/cluster-discovery.ts) ────────────────
+  // Elke stap plant zijn opvolger zelf in; de ronde draagt de status.
+  discovery_collect: async ({ admin }, payload) => {
+    await discoveryCollect(admin, payload.runId);
+  },
+  discovery_expand: async ({ admin }, payload) => {
+    await discoveryExpand(admin, payload.runId);
+  },
+  discovery_sift: async ({ admin }, payload) => {
+    await discoverySift(admin, payload.runId);
+  },
+  discovery_bundle: async ({ admin }, payload) => {
+    await discoveryBundle(admin, payload.runId);
+  },
+
   // ── De Sales-module, sprint 2 (docs/tasks/geo-prospect-engine.md §8) ──────
   //
   // De keten is: ontdekken → verifiëren → uitsluiten → POORT 1 → verrijken.
@@ -1760,6 +1782,25 @@ export async function scheduleFollowUpAfterFailure(
   // staat, en `runIsUsable()` bepaalt of dat genoeg was. Een run die op
   // 'mislukt' eindigt met een uitleg is een uitkomst; een run die blijft hangen
   // is een storing.
+  // ── Een opgegeven ontdekkingsstap sluit de ronde af ─────────────────────
+  //
+  // Elke stap plant zijn opvolger pas in als hij slaagt. Geeft hij op, dan
+  // doet niemand dat meer, en zonder deze regel blijft de ronde voorgoed op
+  // "verbreden" staan terwijl het scherm een voortgangsbalk toont. Anders dan
+  // bij de reputatierun valt er niets af te maken met wat er wél is: zonder
+  // zoektermen geen bundeling. Dus: mislukt, met een zin voor het scherm.
+  if ((job.type as string).startsWith("discovery_")) {
+    const runId = (job.payload_json as { runId?: string } | null)?.runId;
+    if (runId) {
+      await markeerRondeMislukt(
+        admin,
+        runId,
+        "een stap lukte na vier pogingen niet. Start een nieuwe ronde; de kosten tot nu toe staan hieronder.",
+      );
+    }
+    return;
+  }
+
   if (REPUTATION_STEPS.includes(job.type as JobType)) {
     const runId = (job.payload_json as { runId?: string } | null)?.runId;
     if (runId) {

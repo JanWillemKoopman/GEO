@@ -39,3 +39,6 @@ yarn-error.log*
 
 # sessie van scripts/live.ts — bevat een geldig toegangstoken voor productie
 .live-session.json
+
+# uitvoer van proefscripts (ruwe API-antwoorden)
+/probe-uitvoer

@@ -1020,6 +1020,57 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
    * onderscheid zou de ketentest niet kunnen zien of de definitieve ronde
    * echt iets anders opleverde, of toevallig hetzelfde teruggaf.
    */
+  /**
+   * Clusters ontdekken (lib/pipeline/cluster-discovery.ts, migratie 0109).
+   *
+   * De beginpunten bevatten bewust één term met de merknaam: die moet het
+   * vangnet in code eruit halen. Het schiften geeft alles terug behalve de
+   * homoniem ("capcut apk") en één nummer dat niet bestaat. Het bundelen geeft
+   * één goede kandidaat, één die op een bestaand cluster lijkt, en één die
+   * alleen uit verzonnen zoektermen bestaat en dus moet sneuvelen.
+   */
+  discovery_seeds: () => ({
+    zoektermen: ["airco laten plaatsen", "cv ketel onderhoud", "klimaat bv airco"],
+  }),
+  discovery_sift: (user: string) => {
+    const regels = user.split("\n").filter((r) => /^\d+\. /.test(r));
+    return {
+      relevant: [
+        ...regels
+          .filter((r) => !r.includes("capcut"))
+          .map((r) => ({ nr: Number(r.split(".")[0]), pasvorm: "sterk" as const })),
+        { nr: 999, pasvorm: "sterk" as const },
+      ],
+    };
+  },
+  discovery_bundle: (user: string) => {
+    const termen = user
+      .split("\n")
+      .filter((r) => r.startsWith("- ") && r.includes(" · "))
+      .map((r) => r.slice(2).split(" · ")[0]);
+    return {
+      kandidaten: [
+        {
+          titel: "Airco laten installeren",
+          onderbouwing: "Mensen zoeken hier veel op en je staat net buiten de top.",
+          diensten: ["Airco"],
+          zoektermen: termen.filter((t) => t.includes("airco")),
+        },
+        {
+          titel: "CV-ketel onderhoud in Tilburg",
+          onderbouwing: "Past bij je aanbod.",
+          diensten: ["CV-ketel onderhoud"],
+          zoektermen: [...termen.filter((t) => t.includes("ketel")), "verzonnen ketelterm"],
+        },
+        {
+          titel: "Zonnepanelen",
+          onderbouwing: "Verzonnen door het model.",
+          diensten: [],
+          zoektermen: ["zonnepanelen kopen", "zonnepanelen prijs"],
+        },
+      ],
+    };
+  },
   topic_proposals: (user: string) => {
     const gesprek = user.includes("UIT HET STRATEGISCH GESPREK");
     return {

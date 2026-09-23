@@ -171,6 +171,8 @@ export const dedupe = {
   reputationSources: (runId: string) => `rep_sources:${runId}`,
   reputationSynthesis: (runId: string) => `rep_synthesis:${runId}`,
   reputationEvidence: (runId: string) => `rep_evidence:${runId}`,
+  /** Eén taak per stap per ontdekkingsronde (migratie 0109). */
+  discovery: (stap: string, runId: string) => `discovery:${stap}:${runId}`,
   /**
    * ⚠️ Zelfde regel als bij de vergelijking: merkbreed eindigt op het woord
    * `merk` en niet op een lege string. Een sleutel die op `:` eindigt ziet er in

@@ -143,6 +143,19 @@ export const JOB_TYPES = [
   /** Blok D: de getallen rekenen, de tekst schrijven, de run afsluiten. */
   "reputation_synthesis",
 
+  // ── Clusters ontdekken (docs/tasks/clusters-ontdekken.md, migratie 0109) ──
+  //
+  // Vier stappen, elk hooguit één AI-aanroep (conventie 7). Ze ketenen zelf via
+  // `cluster_discovery_runs.status`; zie lib/pipeline/cluster-discovery.ts.
+  /** Wat we al weten verzamelen, plus beginpunten uit het aanbod (licht model). */
+  "discovery_collect",
+  /** DataForSEO: eigen site, echte concurrenten, suggesties. Geen AI. */
+  "discovery_expand",
+  /** Per zoekterm: past dit bij aanbod en strategie? (licht model) */
+  "discovery_sift",
+  /** Zoektermen bundelen tot kandidaat-clusters (één zware aanroep). */
+  "discovery_bundle",
+
   // ── De Sales-module, sprint 2 (docs/tasks/geo-prospect-engine.md §8) ──────
   //
   // Vier taaksoorten, en maar één ervan roept een model aan. Dat is het ontwerp
@@ -497,6 +510,11 @@ export interface JobPayloads {
   reputation_sources: { runId: string };
   reputation_synthesis: { runId: string };
 
+  discovery_collect: { runId: string };
+  discovery_expand: { runId: string };
+  discovery_sift: { runId: string };
+  discovery_bundle: { runId: string };
+
   // ── De Sales-module ──────────────────────────────────────────────────────
   //
   // Alle vier dragen `marketId`, ook de taak die over één bedrijf gaat. Dat is
@@ -593,6 +611,14 @@ export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "reputation_synthesis", // één aanroep over alles wat de run opleverde
   "reputation_market", // één tot drie gegronde aanbevelingsvragen
   "reputation_evidence", // vier gegronde zoekvragen plus het opknippen
+  // Clusters ontdekken: tot 25 DataForSEO-aanroepen na elkaar, en de bundeling
+  // is de enige zware AI-aanroep van de ronde. Verzamelen en schiften zijn
+  // licht model op één aanroep, maar verzamelen leest ook tot 48.000
+  // Search Console-rijen; beide daarom ook zwaar.
+  "discovery_collect",
+  "discovery_expand",
+  "discovery_sift",
+  "discovery_bundle",
   // Tot 500 pagina's in batches tot 8, met een pauze op "langzaam" tempo.
   // Zelfde soort werk als profile_discover, alleen groter en instelbaar.
   "crawl_inventory",
