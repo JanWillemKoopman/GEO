@@ -44,6 +44,7 @@ import {
   type Keuringsronde,
 } from "@/lib/pipeline/quality-groups";
 import { renderMarkdown } from "@/lib/markdown";
+import { leesGeaccepteerd, zonderGeaccepteerd } from "@/lib/geaccepteerde-zinnen";
 import { ContentWerkblad } from "./content-werkblad";
 import { TekstAanZet } from "@/components/pagina/tekst-aan-zet";
 import type { PaginaStand } from "@/lib/pagina-stand";
@@ -128,7 +129,7 @@ export async function ContentDetail({
     supabase.from("content_piece_targets").select("*").eq("content_piece_id", pieceId),
     supabase
       .from("content_pieces")
-      .select("id, version, created_at, is_current, revision_note, edited_by_user")
+      .select("id, version, created_at, is_current, revision_note, edited_by_user, geaccepteerde_zinnen")
       .eq("analysis_id", id)
       .eq("title", piece.title)
       .order("version", { ascending: false }),
@@ -177,7 +178,19 @@ export async function ContentDetail({
   // De reparatie krijgt met opzet hooguit tien bevindingen mee. De rest is
   // nooit aan het model voorgelegd, en dat is precies wat de klant moet weten
   // om te begrijpen wat hij voor zich heeft. De groepering is puur en getest.
-  const huidigeIssues = issuesUitJson(kwaliteit?.issues);
+  // Zinnen zonder bron die de klant bewust laat staan (migratie 0110). Uit
+  // alle versies van deze pagina samen: een herschrijving die de zin letterlijk
+  // laat staan, hoort hem niet opnieuw als punt te tonen. Gefilterd vóór het
+  // groeperen, zodat de rail, de kaart "Aan zet" en de publiceerstap hetzelfde
+  // aantal noemen.
+  const geaccepteerd = [
+    ...leesGeaccepteerd(piece.geaccepteerde_zinnen),
+    ...(versionRows ?? []).flatMap((v) => leesGeaccepteerd((v as { geaccepteerde_zinnen?: unknown }).geaccepteerde_zinnen)),
+  ];
+  const { issues: huidigeIssues, weggelaten: bewustLatenStaan } = zonderGeaccepteerd(
+    issuesUitJson(kwaliteit?.issues),
+    geaccepteerd,
+  );
   const eerdereRondes: Keuringsronde[] = (kwaliteitsRondes ?? []).map((rij) => ({
     ronde: Number(rij.repair_round) || 0,
     issues: issuesUitJson(rij.issues_json) as QualityIssue[],
@@ -377,6 +390,7 @@ export async function ContentDetail({
       groepen={groepen}
       pogingen={pogingen}
       klantzin={klantzin}
+      bewustLatenStaan={bewustLatenStaan}
       score={kwaliteit?.score ?? piece.quality_score ?? null}
       kwaliteitBadge={groepen.blokkades.length > 0 ? String(groepen.blokkades.length) : undefined}
       onderbouwingBadge={onderbouwingBadge}

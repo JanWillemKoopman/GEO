@@ -663,3 +663,12 @@ schermafbeeldingen vragen om inloggen op de preview.
   oranje.
 - De rail en "Titel en zoekresultaat" staan op een witte kaart.
 - Naast de rail vult de tekst de hele kolom in plaats van 720px, en de rail gaat van 400 naar 440px.
+
+**8. Een zin zonder bron bewust laten staan (23 september 2026).** Op verzoek van de eigenaar: bij
+een punt "Deze zin zegt iets over je bedrijf zonder bron" staat "Klopt, laat staan" (en bij meerdere
+zinnen ook per zin "Klopt, laat deze staan"). De zin blijft ongewijzigd in de tekst, het punt
+verdwijnt uit de telling in de rail, de kaart "Aan zet" en de publiceerstap, en de markering in de
+tekst gaat weg. Onder de lijst staat hoeveel zinnen je bewust laat staan, met "Ongedaan maken".
+Opgeslagen in `content_pieces.geaccepteerde_zinnen` (migratie 0110); het scherm telt de lijsten van
+alle versies van de pagina mee. Alleen dit soort punt kan zo weg (`lib/geaccepteerde-zinnen.ts`), en
+de route controleert dat elke zin echt zo'n punt van deze tekst is. `quality_json` blijft onaangeroerd.

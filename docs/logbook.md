@@ -11741,3 +11741,9 @@ contentplan, dat er ook niet meer naartoe linkt. Een pagina zonder rij in `conte
 alleen nog de kleur van "Te verbeteren"; "Aan zet" en de melding dat ORBIT ENGINE schrijft krijgen
 een groene stang. De rail en "Titel en zoekresultaat" staan op wit, de tekst vult naast de rail de
 hele kolom en de rail is 440px breed. Zie `docs/tasks/herontwerp-contentpagina.md` bijlage D punt 7.
+
+**Later op 23 september 2026: een zin zonder bron bewust laten staan.** De klant kan bij een zin die
+iets over zijn bedrijf zegt zonder bevestigd feit kiezen voor "Klopt, laat staan": het punt verdwijnt,
+de zin blijft. Alleen voor dit soort punt, omdat alleen de klant weet of zo'n feit klopt; een punt
+over toon of opbouw negeer je met "Keur goed". Migratie 0110, op productie toegepast (27 teksten).
+Zie `docs/tasks/herontwerp-contentpagina.md` bijlage D punt 8.
