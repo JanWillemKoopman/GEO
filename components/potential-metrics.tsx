@@ -99,7 +99,7 @@ export function PotentialInline({ triple }: { triple: PotentialTriple }) {
       <span>
         Zichtbaarheid <strong className="text-[var(--text-primary)]">{fmt(triple.visibility)}</strong>
         {nogOnzeker && (
-          <span style={{ color: "var(--status-warning)" }}> ({CONFIDENCE_LOW_LABEL.toLowerCase()})</span>
+          <span style={{ color: "var(--intent-warning-content)" }}> ({CONFIDENCE_LOW_LABEL.toLowerCase()})</span>
         )}
       </span>
       <span>
@@ -109,7 +109,7 @@ export function PotentialInline({ triple }: { triple: PotentialTriple }) {
         Potentie{" "}
         <strong
           className="text-[var(--text-primary)]"
-          style={band === "hoog" ? { color: "var(--status-success)" } : undefined}
+          style={band === "hoog" ? { color: "var(--intent-success-content)" } : undefined}
         >
           {fmt(triple.potential)}
         </strong>
@@ -139,24 +139,24 @@ function MetricTile({
 }) {
   return (
     <div className="card flex flex-col gap-1">
-      <span className="mono-label flex items-center gap-1" style={{ fontSize: "0.65rem" }}>
+      <span className="mono-label flex items-center gap-1">
         {label}
         <InfoHint label={label}>{hint}</InfoHint>
       </span>
       <span
-        className="text-3xl font-medium tracking-tight"
-        style={tone === "up" ? { color: "var(--status-success)" } : undefined}
+        className="data-card-waarde"
+        style={tone === "up" ? { color: "var(--intent-success-content)" } : undefined}
       >
         {value === null ? "-" : value}
         {value !== null && (
-          <span className="text-muted" style={{ fontSize: "0.9rem", fontWeight: 400 }}>
+          <span className="text-sm font-normal text-muted">
             {" "}
             /100
           </span>
         )}
       </span>
       {badge && (
-        <span className="mono-label" style={{ fontSize: "0.6rem", color: "var(--status-warning)" }}>
+        <span className="mono-label" style={{ color: "var(--intent-warning-content)" }}>
           {badge}
         </span>
       )}

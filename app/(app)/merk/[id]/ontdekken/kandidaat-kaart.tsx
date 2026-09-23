@@ -129,22 +129,22 @@ export function KandidaatKaart({
           {bewijsOpen ? "Verberg bewijs" : `Toon bewijs (${kandidaat.bewijs.length} zoektermen)`}
         </button>
         {bewijsOpen && (
-          <table className="mt-2 w-full text-sm">
+          <table className="tabel mt-2">
             <thead>
-              <tr className="text-left">
-                <th className="mono-label py-1 pr-3 font-normal">Zoekterm</th>
-                <th className="mono-label py-1 pr-3 text-right font-normal">Per maand</th>
-                <th className="mono-label py-1 pr-3 text-right font-normal">Jij</th>
-                <th className="mono-label py-1 font-normal">Concurrent</th>
+              <tr>
+                <th>Zoekterm</th>
+                <th className="text-right">Per maand</th>
+                <th className="text-right">Jij</th>
+                <th>Concurrent</th>
               </tr>
             </thead>
             <tbody>
               {kandidaat.bewijs.map((b) => (
-                <tr key={b.keyword} className="border-t border-[var(--line-muted)]">
-                  <td className="py-1 pr-3">{b.keyword}</td>
-                  <td className="tabular py-1 pr-3 text-right">{b.volume ?? "onbekend"}</td>
-                  <td className="tabular py-1 pr-3 text-right">{b.positie ?? "niet gevonden"}</td>
-                  <td className="py-1 text-secondary">{b.concurrent ?? ""}</td>
+                <tr key={b.keyword}>
+                  <td>{b.keyword}</td>
+                  <td className="tabular text-right">{b.volume ?? "onbekend"}</td>
+                  <td className="tabular text-right">{b.positie ?? "niet gevonden"}</td>
+                  <td className="text-secondary">{b.concurrent ?? ""}</td>
                 </tr>
               ))}
             </tbody>
@@ -191,7 +191,7 @@ export function KandidaatKaart({
       {kandidaat.status === "toegevoegd" && (
         <p className="text-sm text-secondary">
           Staat nu bij Voorgesteld op{" "}
-          <Link href={`/merk/${merkId}/strategie/clusters`} className="underline">
+          <Link href={`/merk/${merkId}/strategie/clusters`} className="link">
             Mijn clusters
           </Link>
           .{" "}
@@ -202,7 +202,7 @@ export function KandidaatKaart({
       )}
 
       {fout && (
-        <p className="text-sm text-[var(--status-error)]" role="alert">
+        <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
           {fout}
         </p>
       )}

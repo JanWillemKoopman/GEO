@@ -145,12 +145,12 @@ export function PlanReadView({
       <p className="text-sm text-muted">
         ORBIT ENGINE begint tien dagen voor elke publicatiedatum met schrijven. Zodra een tekst
         klaar is, staat hij in je{" "}
-        <Link href={`/merk/${profileId}/strategie/bibliotheek`} className="underline">
+        <Link href={`/merk/${profileId}/strategie/bibliotheek`} className="link">
           bibliotheek
         </Link>{" "}
         om na te lezen en te publiceren. Wil je zelf schuiven met wat wanneer geschreven wordt, ga
         dan naar{" "}
-        <Link href={`/merk/${profileId}/strategie/plan?weergave=plannen`} className="underline">
+        <Link href={`/merk/${profileId}/strategie/plan?weergave=plannen`} className="link">
           Plannen
         </Link>
         .
@@ -213,15 +213,15 @@ function MaandKaart({
 
       {opDatum.length > 0 && (
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="tabel">
             <thead>
-              <tr className="text-muted">
-                <th className="py-1.5 pr-4 font-normal">Titel</th>
-                <th className="py-1.5 pr-4 font-normal">Gepland</th>
-                <th className="py-1.5 pr-4 font-normal">Cluster</th>
-                <th className="py-1.5 pr-4 font-normal">Nieuw of optimalisatie</th>
-                <th className="py-1.5 pr-4 font-normal">Type content</th>
-                <th className="py-1.5 font-normal" />
+              <tr>
+                <th>Titel</th>
+                <th>Gepland</th>
+                <th>Cluster</th>
+                <th>Nieuw of optimalisatie</th>
+                <th>Type content</th>
+                <th />
               </tr>
             </thead>
             <tbody>
@@ -237,9 +237,9 @@ function MaandKaart({
                 return (
                   <tr
                     key={page.id}
-                    className="border-t border-[var(--border-subtle)] align-baseline"
+                    className="align-baseline"
                   >
-                    <td className="min-w-[14rem] py-2.5 pr-4">
+                    <td className="min-w-[14rem]">
                       {href ? (
                         <Link href={href} className="font-medium hover:underline">
                           {page.title}
@@ -260,16 +260,16 @@ function MaandKaart({
                         </Link>
                       )}
                     </td>
-                    <td className="mono-label whitespace-nowrap py-2.5 pr-4">
+                    <td className="mono-label whitespace-nowrap">
                       {page.scheduled_for ? formatDagNL(page.scheduled_for) : "geen datum"}
                     </td>
-                    <td className="py-2.5 pr-4 text-secondary">{cluster ?? "-"}</td>
-                    <td className="py-2.5 pr-4 text-secondary">
+                    <td className="text-secondary">{cluster ?? "-"}</td>
+                    <td className="text-secondary">
                       {page.recommendation_action
                         ? CONTENT_ACTION_LABEL[page.recommendation_action]
                         : "-"}
                     </td>
-                    <td className="py-2.5 text-secondary">{PAGE_TYPE_LABEL[page.page_type]}</td>
+                    <td className="text-secondary">{PAGE_TYPE_LABEL[page.page_type]}</td>
                   </tr>
                 );
               })}

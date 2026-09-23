@@ -223,7 +223,7 @@ export function BriefingForm({
         <div className="flex items-center gap-3">
           <div
             className="h-2 flex-1 overflow-hidden rounded-[var(--radius-pill)]"
-            style={{ background: "var(--bg-elevated)" }}
+            style={{ background: "var(--bg-layer-2)" }}
             role="progressbar"
             aria-valuenow={beantwoord}
             aria-valuemin={0}
@@ -234,7 +234,7 @@ export function BriefingForm({
               className="h-full transition-all"
               style={{
                 width: `${questions.length ? (beantwoord / questions.length) * 100 : 0}%`,
-                background: "var(--intent-intelligence-solid)",
+                background: "var(--accent)",
               }}
             />
           </div>
@@ -355,7 +355,7 @@ export function BriefingForm({
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
-            className="btn-primary disabled:opacity-60"
+            className="btn-primary"
             onClick={() => submit("write")}
             disabled={busy !== null}
           >
@@ -363,7 +363,7 @@ export function BriefingForm({
           </button>
           <button
             type="button"
-            className="btn-outline disabled:opacity-60"
+            className="btn-outline"
             onClick={() => submit("save")}
             disabled={busy !== null}
           >
@@ -561,7 +561,7 @@ function PaginaStanden({
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    className={keuze === "laten_vallen" ? "btn-outline" : "btn-ghost"}
+                    className="chip-select chip-select-lg"
                     aria-pressed={keuze === "laten_vallen"}
                     onClick={() => onKies(pagina.id, "laten_vallen")}
                   >
@@ -575,7 +575,7 @@ function PaginaStanden({
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  className={keuze === "algemeen" ? "btn-outline" : "btn-ghost"}
+                  className="chip-select chip-select-lg"
                   aria-pressed={keuze === "algemeen"}
                   onClick={() => onKies(pagina.id, "algemeen")}
                 >
@@ -585,7 +585,7 @@ function PaginaStanden({
                 </button>
                 <button
                   type="button"
-                  className={keuze === "laten_vallen" ? "btn-outline" : "btn-ghost"}
+                  className="chip-select chip-select-lg"
                   aria-pressed={keuze === "laten_vallen"}
                   onClick={() => onKies(pagina.id, "laten_vallen")}
                 >

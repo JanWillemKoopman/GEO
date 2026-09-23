@@ -352,7 +352,7 @@ export function OnboardingSession({
               veld. Springt niet, en zegt precies wat de klant wil weten: dat
               er niets kwijtraakt. */}
           {laatsteOpslag && (
-            <p className="mono-label text-muted" role="status">
+            <p className="mono-label" role="status">
               Alles bewaard · laatste wijziging{" "}
               {laatsteOpslag.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}
             </p>
@@ -412,7 +412,7 @@ export function OnboardingSession({
                               value={urlWaarde}
                               onChange={(e) => setUrlWaarde(e.target.value)}
                             />
-                            <p className="text-sm text-[var(--status-error)]">
+                            <p className="text-sm text-[var(--intent-danger-content)]">
                               Let op: dit verandert het domein waar ORBIT ENGINE op leest. De crawl
                               en de inventaris moeten daarna opnieuw.
                             </p>
@@ -431,7 +431,7 @@ export function OnboardingSession({
                               </button>
                               <button
                                 type="button"
-                                className="text-sm text-secondary underline-offset-2 hover:underline"
+                                className="btn-ghost btn-sm"
                                 onClick={() => {
                                   setUrlBewerken(false);
                                   setUrlWaarde(initial.url);
@@ -530,7 +530,7 @@ export function OnboardingSession({
           />
 
           <div className="flex flex-col gap-3">
-            <span className="mono-label text-muted">Contactpersoon</span>
+            <span className="mono-label">Contactpersoon</span>
             <div className="flex flex-col gap-4">
               {veld("contact_name")}
               {veld("contact_email")}
@@ -668,7 +668,7 @@ export function OnboardingSession({
                 </span>
               )}
               {bijwerken === "mislukt" && (
-                <span className="text-sm text-[var(--status-error)]">
+                <span className="text-sm text-[var(--intent-danger-content)]">
                   Het is niet gelukt om dit in gang te zetten. Probeer het zo nog eens.
                 </span>
               )}
@@ -737,7 +737,7 @@ function Kop({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="mono-label text-muted">{nummer}</span>
+      <span className="mono-label">{nummer}</span>
       <h2 className="type-section">{titel}</h2>
       <p className="text-secondary">{uitleg}</p>
     </div>
@@ -767,8 +767,8 @@ export function Meter({
 function Getal({ waarde, label }: { waarde: number; label: string }) {
   return (
     <span className="flex flex-col">
-      <span className="stat-value text-2xl">{waarde}</span>
-      <span className="mono-label text-muted">{label}</span>
+      <span className="data-card-waarde">{waarde}</span>
+      <span className="mono-label">{label}</span>
     </span>
   );
 }

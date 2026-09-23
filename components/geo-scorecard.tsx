@@ -52,10 +52,10 @@ export function GeoScorecard({ geo, score }: { geo: unknown; score: number | nul
               style={{
                 color:
                   regel.ok === null
-                    ? "var(--text-muted)"
+                    ? "var(--text-tertiary)"
                     : regel.ok
-                      ? "var(--status-success)"
-                      : "var(--status-error)",
+                      ? "var(--intent-success-content)"
+                      : "var(--intent-danger-content)",
               }}
             >
               <Icon naam={regel.ok === null ? "nvt" : regel.ok ? "klaar" : "mislukt"} />

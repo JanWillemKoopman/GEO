@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Dialog, DialogKnoppen } from "@/components/dialog";
 import { KLANT_ZONDER_CLUSTERS } from "@/lib/cluster-start";
 
 /**
@@ -39,30 +40,17 @@ export function NieuweClusterKnop({ merkId, staff }: { merkId: string; staff: bo
         Nieuwe cluster
       </button>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
-          <button
-            type="button"
-            className="modal-overlay absolute inset-0"
-            aria-label="Sluiten"
-            onClick={() => setOpen(false)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={KLANT_ZONDER_CLUSTERS.titel}
-            className="modal-panel relative w-full max-w-md"
-          >
-            <div className="flex flex-col gap-3">
-              <h2 className="text-lg font-medium">{KLANT_ZONDER_CLUSTERS.titel}</h2>
-              <p className="text-secondary">{KLANT_ZONDER_CLUSTERS.uitleg}</p>
-              <div className="flex justify-end pt-1">
-                <button type="button" className="btn-outline" onClick={() => setOpen(false)}>
-                  Sluiten
-                </button>
-              </div>
-            </div>
+        <Dialog label={KLANT_ZONDER_CLUSTERS.titel} onSluit={() => setOpen(false)}>
+          <div className="flex flex-col gap-3">
+            <h2 className="type-title">{KLANT_ZONDER_CLUSTERS.titel}</h2>
+            <p className="text-secondary">{KLANT_ZONDER_CLUSTERS.uitleg}</p>
+            <DialogKnoppen>
+              <button type="button" className="btn-outline" onClick={() => setOpen(false)}>
+                Sluiten
+              </button>
+            </DialogKnoppen>
           </div>
-        </div>
+        </Dialog>
       )}
     </>
   );

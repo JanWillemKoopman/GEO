@@ -140,7 +140,7 @@ export function LibraryView({
           <div className="flex gap-2">
             <button
               type="button"
-              className="btn-outline btn-sm disabled:opacity-50"
+              className="btn-outline btn-sm"
               disabled={deel.pagina <= 1}
               onClick={() => setPagina(deel.pagina - 1)}
             >
@@ -148,7 +148,7 @@ export function LibraryView({
             </button>
             <button
               type="button"
-              className="btn-outline btn-sm disabled:opacity-50"
+              className="btn-outline btn-sm"
               disabled={deel.pagina >= deel.paginas}
               onClick={() => setPagina(deel.pagina + 1)}
             >

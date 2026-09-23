@@ -25,7 +25,7 @@ import { Icon } from "@/components/icon";
  * verdwenen (zie de aantekening daar).
  *
  * Vormgeving volgt hetzelfde patroon als `components/brand-switcher.tsx`: een
- * kaart met `--shadow-overlay`, gesloten door een klik erbuiten of Escape, en
+ * vlak (`.menu-surface`, `--shadow-lg`), gesloten door een klik erbuiten of Escape, en
  * uitsluitend de kleurtokens uit `designsystem.md` §A/§B, zodat licht en
  * donker vanzelf goed staan.
  */
@@ -73,30 +73,31 @@ export function ProfileMenu({
         <div
           role="menu"
           aria-label="Menu"
-          className="menu-surface absolute right-0 z-40 mt-1 w-56 overflow-hidden rounded-[var(--radius-xxxl)] border border-[var(--border-subtle)]"
-          style={{ boxShadow: "var(--shadow-overlay)" }}
+          className="menu-surface absolute right-0 z-40 mt-1 w-56 overflow-hidden"
         >
-          <div className="border-b border-[var(--border-subtle)] px-3 py-2">
+          <div className="menu-sectie">
             <span className="block truncate text-sm text-secondary">{email}</span>
           </div>
 
-          <div className="p-1">
+          <span className="menu-scheiding" aria-hidden />
+          <div>
             <Link
               href="/instellingen"
               role="menuitem"
               onClick={() => setOpen(false)}
-              className="block rounded-[var(--radius-xl)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--wash-hover)]"
+              className="menu-item"
             >
               Mijn account
             </Link>
           </div>
 
-          <div className="border-t border-[var(--border-subtle)] p-1">
+          <span className="menu-scheiding" aria-hidden />
+          <div>
             <form action={signOutAction}>
               <button
                 type="submit"
                 role="menuitem"
-                className="block w-full rounded-[var(--radius-xl)] px-3 py-2 text-left text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--wash-hover)]"
+                className="menu-item"
               >
                 Uitloggen
               </button>

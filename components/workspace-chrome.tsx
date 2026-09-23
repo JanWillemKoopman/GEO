@@ -129,7 +129,7 @@ export function WorkspaceChrome({
           `top: var(--header-h)` exact onder. Lopen die twee uit elkaar, dan
           ontstaat er een kier waar de pagina-inhoud doorheen schuift. */}
       <header className={`topbar no-print${inSalesContext ? " topbar-sales" : ""}`}>
-        <div className="flex h-full items-center justify-between gap-3 px-4 sm:px-6">
+        <div className="flex h-full items-center justify-between gap-3 px-4 md:px-5 lg:px-6">
           <div className="flex min-w-0 items-center gap-2">
             {logo}
             <span className="hidden text-muted sm:inline" aria-hidden>
@@ -194,8 +194,8 @@ export function WorkspaceChrome({
             waarom van die constructie staat bij `.stand` in globals.css.
 
             De grond is `--bg-base` en niet meer `--bg-muted`. Sinds stap 1 zijn
-            de pagina en de kaart twee verschillende kleuren (`#f6f6f6` onder
-            `#ffffff` in licht, `#000000` onder `#171717` in donker), dus het
+            de pagina en de kaart twee verschillende kleuren (`--bg-base` onder
+            `--bg-surface`, in beide standen twee echte stappen), dus het
             kunstgreepje om de werkruimte grijzer te maken dan de rest is niet
             meer nodig. Het stippenpatroon dat hier lag is in stap 1 al weg. */}
         <main className="workspace-canvas min-w-0 flex-1">

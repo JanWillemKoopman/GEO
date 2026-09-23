@@ -29,8 +29,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       >
         <OrbitMark size={28} gradientId="orbit-mark-toneel" className="h-7 w-7" />
         <span className="brand-logo text-[1.25rem] leading-none">
-          <span style={{ color: "var(--wordmark-1)" }}>ORBIT</span>{" "}
-          <span style={{ color: "var(--wordmark-2)" }}>ENGINE</span>
+          <span style={{ color: "var(--text-primary)" }}>ORBIT</span>{" "}
+          <span style={{ color: "var(--text-primary)" }}>ENGINE</span>
         </span>
       </Link>
       <div className="relative z-10 w-full">{children}</div>

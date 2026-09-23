@@ -48,8 +48,8 @@ function CriteriumAs({
       <span className="mono-label">{CRITERION_LABEL[criterium]}</span>
       {eigenPlaats !== null && ofParties !== null ? (
         <>
-          <span className="stat-value text-3xl">
-            {eigenPlaats} <span className="text-lg text-muted">van {ofParties}</span>
+          <span className="data-card-waarde">
+            {eigenPlaats} <span className="text-sm font-normal text-muted">van {ofParties}</span>
           </span>
           {concurrenten.length > 0 && (
             <p className="type-caption text-muted">

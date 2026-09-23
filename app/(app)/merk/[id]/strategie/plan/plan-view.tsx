@@ -565,7 +565,7 @@ export function PlanView({
               padding: 0,
               maxHeight: "calc(100vh - 8rem)",
               ...(sleepDoel === "voorraad"
-                ? { borderColor: "var(--intent-intelligence-border)", background: "var(--intent-intelligence-surface)" }
+                ? { borderColor: "var(--border-selected)", background: "var(--interactive-hover)" }
                 : {}),
             }}
           >
@@ -577,7 +577,7 @@ export function PlanView({
                     de toelichting bij `@theme inline` in dat bestand; die val is inmiddels
                     weg.) */}
                 <h2 className="type-body-emphasis">In te plannen content</h2>
-                <span className="mono-label text-muted">
+                <span className="mono-label">
                   {zichtbareVoorraad.length === backlog.length
                     ? `${backlog.length}`
                     : `${zichtbareVoorraad.length} van ${backlog.length}`}
@@ -587,8 +587,7 @@ export function PlanView({
               {backlog.length > 0 && (
                 <>
                   <input
-                    className="field"
-                    style={{ height: 34, fontSize: "0.875rem" }}
+                    className="field field-sm"
                     value={filters.zoek}
                     onChange={(e) => setFilters((f) => ({ ...f, zoek: e.target.value }))}
                     placeholder="Zoeken"
@@ -597,8 +596,7 @@ export function PlanView({
                   <div className="flex flex-wrap gap-1.5">
                     {clusters.length > 1 && (
                       <select
-                        className="field"
-                        style={{ height: 30, width: "auto", fontSize: "0.8125rem", paddingRight: 28 }}
+                        className="field field-sm field-select w-auto"
                         value={filters.cluster}
                         onChange={(e) => setFilters((f) => ({ ...f, cluster: e.target.value }))}
                         aria-label="Filter op cluster"
@@ -695,7 +693,7 @@ export function PlanView({
                 {declined.map((item, i) => (
                   <li
                     key={i}
-                    className="rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-2.5 text-sm"
+                    className="vlak text-sm"
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-secondary">{item.problem}</span>
@@ -739,8 +737,10 @@ export function PlanView({
                   padding: 0,
                   ...(isDoel
                     ? {
-                        borderColor: "var(--intent-intelligence-border)",
-                        boxShadow: "0 0 0 1px var(--intent-intelligence-border)",
+                        // Het doel van een sleepbeweging is een geselecteerde
+                        // staat: een rand, geen accentkleur (§2.8).
+                        borderColor: "var(--border-selected)",
+                        boxShadow: "0 0 0 1px var(--border-selected)",
                       }
                     : {}),
                 }}
@@ -768,10 +768,10 @@ export function PlanView({
                   }`}
                   style={{
                     background: isDoel
-                      ? "var(--intent-intelligence-surface)"
+                      ? "var(--interactive-hover)"
                       : stil
                         ? "transparent"
-                        : "var(--bg-muted)",
+                        : "var(--bg-surface-raised)",
                   }}
                 >
                   <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
@@ -781,11 +781,11 @@ export function PlanView({
                       onClick={() => setDicht((d) => ({ ...d, [month.id]: open }))}
                       className="flex items-center gap-2 text-sm font-medium hover:underline"
                     >
-                      <Icon naam={open ? "openen" : "verder"} size={13} />
+                      <Icon naam={open ? "openen" : "verder"} size={14} />
                       {/* Besluit 7: "maand 4 sinds de start", nooit "van 12". */}
                       Maand {month.month_number}
                     </button>
-                    {kalender && <span className="mono-label text-muted">{kalender}</span>}
+                    {kalender && <span className="mono-label">{kalender}</span>}
                     {lopend && <span className="chip chip-info">Deze maand</span>}
                     {/* ⚠️ Bij een lege, dichtgeklapte maand geen chip. "Concept"
                         was daar het zwaarste element van de regel terwijl het
@@ -866,7 +866,7 @@ export function PlanView({
                     className="border-t px-4 py-2 text-xs"
                     style={{
                       borderColor: "var(--border-subtle)",
-                      color: "var(--intent-warning-text)",
+                      color: "var(--intent-warning-content)",
                     }}
                   >
                     {gedeeld}
@@ -878,7 +878,7 @@ export function PlanView({
                     className="border-t px-4 py-2 text-xs"
                     style={{
                       borderColor: "var(--border-subtle)",
-                      color: "var(--intent-warning-text)",
+                      color: "var(--intent-warning-content)",
                     }}
                   >
                     Nog{" "}
@@ -1012,7 +1012,7 @@ export function PlanView({
             aria-label="De dag waarop deze pagina verschijnt"
           />
           {datumFout ? (
-            <span className="text-sm" style={{ color: "var(--intent-warning-text)" }}>
+            <span className="text-sm" style={{ color: "var(--intent-warning-content)" }}>
               {datumFout}
             </span>
           ) : (
@@ -1094,7 +1094,11 @@ export function PlanView({
                 <ul className="mt-1 flex flex-col gap-0.5">
                   {bulkSelectie.mee.map((p) => (
                     <li key={p.id} className="truncate text-secondary">
-                      {p.title} <span className="text-muted">→ {p.url}</span>
+                      {p.title}{" "}
+                      <span className="inline-flex items-center gap-1 text-muted">
+                        <Icon naam="naar" size={12} />
+                        {p.url}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -1263,7 +1267,7 @@ function RijMenu({
           if (!open) meten();
           setOpen((o) => !o);
         }}
-        className="rounded-[var(--radius-xl)] p-1.5 text-muted transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] disabled:opacity-40"
+        className="icon-btn"
       >
         <Icon naam="meer" size={16} />
       </button>
@@ -1275,13 +1279,11 @@ function RijMenu({
             role="menu"
             /* z-40 is de laag van uitklapmenu's uit de ladder in `docs/ux-design.md`:
                boven de navigatiebalken, onder de dialogen. */
-            className="menu-surface fixed z-40 flex w-60 flex-col overflow-y-auto rounded-[var(--radius-xl)] py-1"
+            className="menu-surface fixed z-40 flex w-60 flex-col"
             style={{
               top: plek.top,
               right: plek.right,
               maxHeight: plek.hoogte,
-              border: "var(--border-width-xs) solid var(--border-subtle)",
-              boxShadow: "var(--shadow-overlay)",
             }}
           >
             {children(() => setOpen(false))}
@@ -1306,8 +1308,7 @@ function MenuKnop({
       type="button"
       role="menuitem"
       onClick={onClick}
-      className="w-full px-3 py-1.5 text-left text-sm transition-colors hover:bg-[var(--bg-muted)]"
-      style={danger ? { color: "var(--intent-danger-text)" } : undefined}
+      className={`menu-item${danger ? " menu-item-gevaar" : ""}`}
     >
       {children}
     </button>
@@ -1315,11 +1316,11 @@ function MenuKnop({
 }
 
 function MenuKop({ children }: { children: React.ReactNode }) {
-  return <span className="mono-label px-3 pb-1 pt-2 text-muted">{children}</span>;
+  return <span className="menu-kop">{children}</span>;
 }
 
 function MenuScheiding() {
-  return <span className="my-1 border-t" style={{ borderColor: "var(--border-subtle)" }} />;
+  return <span className="menu-scheiding" aria-hidden />;
 }
 
 /** Eén kans in de voorraad: titel, herkomst en cijfer, meer niet. */
@@ -1351,7 +1352,7 @@ function BacklogRij({
 
   return (
     <li
-      className="group flex cursor-grab items-start gap-2 border-t px-4 py-2.5 transition-colors hover:bg-[var(--bg-muted)] active:cursor-grabbing"
+      className="group flex cursor-grab items-start gap-2 border-t px-4 py-2.5 transition-colors hover:bg-[var(--bg-surface-raised)] active:cursor-grabbing"
       style={{ borderColor: "var(--border-subtle)", ...(busy ? { opacity: 0.5 } : {}) }}
       draggable={!busy}
       onDragStart={onSleepStart}
@@ -1446,12 +1447,9 @@ function Segment({
       type="button"
       onClick={onClick}
       aria-pressed={actief}
-      className="rounded-[var(--radius-xl)] border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-[var(--wash-hover)]"
-      style={{
-        borderColor: actief ? "var(--intent-intelligence-border)" : "var(--border-subtle)",
-        background: actief ? "var(--intent-intelligence-surface)" : undefined,
-        color: actief ? "var(--text-primary)" : "var(--text-secondary)",
-      }}
+      // `.chip-select`, de filterchip van het designsysteem: gekozen is een rand,
+      // geen groene tint (tot 23 september 2026 de oude `intelligence`-kleur).
+      className="chip-select"
     >
       {children}
     </button>
@@ -1540,7 +1538,7 @@ function PageRij({
 
   return (
     <li
-      className="group flex items-center gap-2.5 border-t px-4 py-2 transition-colors hover:bg-[var(--bg-muted)]"
+      className="group flex items-center gap-2.5 border-t px-4 py-2 transition-colors hover:bg-[var(--bg-surface-raised)]"
       style={{ borderColor: "var(--border-subtle)", ...(busy ? { opacity: 0.5 } : {}) }}
       draggable={magVerhuizen && !busy}
       onDragStart={onSleepStart}
@@ -1579,7 +1577,7 @@ function PageRij({
             style={{
               color:
                 eigenBlokkade.whoseTurn === "klant"
-                  ? "var(--intent-warning-text)"
+                  ? "var(--intent-warning-content)"
                   : "var(--text-secondary)",
             }}
           >
@@ -1605,7 +1603,7 @@ function PageRij({
             }
             /* ⚠️ Een zelfgekozen dag krijgt geen eigen teken maar een iets
                donkerdere tint. Een vinkje of een speldje naast de datum zou een
-               nieuw symbool zijn op een regel waar ✓ al "goedgekeurd" betekent,
+               nieuw symbool zijn op een regel waar het vinkje al "goedgekeurd" betekent,
                en dan leest de datum als een status. */
             className={`shrink-0 text-xs hover:text-[var(--text-primary)] hover:underline disabled:opacity-40 ${
               page.scheduled_manual ? "text-secondary" : "text-muted"

@@ -101,7 +101,7 @@ export default async function SalesProspectsPage() {
                   <p className="text-sm text-muted">De site was niet te lezen.</p>
                 )}
                 {b.do_not_contact && (
-                  <p className="text-sm text-[var(--intent-warning-text)]">
+                  <p className="text-sm text-[var(--intent-warning-content)]">
                     Dit bedrijf wil niet benaderd worden.
                   </p>
                 )}

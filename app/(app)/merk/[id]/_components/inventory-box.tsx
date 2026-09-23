@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Icon } from "@/components/icon";
 import { useRefresh } from "@/components/use-refresh";
 import { CRAWL_SPEEDS, speedProfile, type CrawlSpeed } from "@/lib/crawl-speed";
+import { Alert } from "@/components/alert";
 
 /**
  * Crawlbeheer: hoeveel, hoe vaak, en hoe rustig (onboarding Ronde D, §17.9).
@@ -149,16 +150,15 @@ export function InventoryBox({
         </p>
       )}
       {initialBlockedAt && (
-        <div
-          className="rounded-[var(--radius-xl)] border border-[var(--status-error)] px-3 py-2 text-sm"
-          role="status"
-        >
-          <span className="mono-label">De site weerde ons</span>
-          <p className="mt-1 text-secondary">
-            Bij de laatste ronde antwoordde de site met een 403. Laat ons adres toe bij de
-            hostingpartij, of zet het tempo op langzaam.
-          </p>
-        </div>
+        <Alert intent="danger">
+          <span className="flex flex-col gap-1">
+            <span className="font-medium text-[var(--text-primary)]">De site weerde ons</span>
+            <span>
+              Bij de laatste ronde antwoordde de site met een 403. Laat ons adres toe bij de
+              hostingpartij, of zet het tempo op langzaam.
+            </span>
+          </span>
+        </Alert>
       )}
 
       <label className="flex flex-col gap-1.5">
@@ -200,7 +200,7 @@ export function InventoryBox({
             <button
               key={s}
               type="button"
-              className={s === speed ? "chip chip-green" : "chip chip-neutral"}
+              className={s === speed ? "chip chip-success" : "chip chip-neutral"}
               onClick={() => setSpeed(s)}
               disabled={wacht}
             >
@@ -216,7 +216,7 @@ export function InventoryBox({
           type="button"
           onClick={() => void plan("meer")}
           disabled={wacht}
-          className="btn-outline disabled:opacity-60"
+          className="btn-outline"
         >
           {wacht ? "Bezig…" : "Meer pagina's lezen"}
         </button>
@@ -225,7 +225,7 @@ export function InventoryBox({
             type="button"
             onClick={() => setBevestigOpnieuw(true)}
             disabled={wacht}
-            className="btn-outline disabled:opacity-60"
+            className="btn-outline"
           >
             Opnieuw crawlen
           </button>
@@ -237,7 +237,7 @@ export function InventoryBox({
             </button>
             <button
               type="button"
-              className="btn-outline btn-sm"
+              className="btn-ghost btn-sm"
               disabled={wacht}
               onClick={() => setBevestigOpnieuw(false)}
             >
@@ -254,7 +254,7 @@ export function InventoryBox({
         </span>
       )}
       {staat === "fout" && (
-        <span className="text-sm text-[var(--status-error)]">
+        <span className="text-sm text-[var(--intent-danger-content)]">
           Vernieuwen is niet gelukt{fout ? `: ${fout}` : "."}
         </span>
       )}

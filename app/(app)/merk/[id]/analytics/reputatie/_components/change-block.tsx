@@ -1,5 +1,6 @@
 import type { RunComparison } from "@/lib/reputation/compare";
 import { compareSentence } from "@/lib/reputation/compare";
+import { Alert } from "@/components/alert";
 
 /**
  * BLOK 1b · Vergeleken met de vorige meting (§8, sprint R5).
@@ -33,9 +34,7 @@ export function ChangeBlock({ c, merk }: { c: RunComparison; merk: string }) {
       <p className="text-secondary">{compareSentence(c, merk)}</p>
 
       {c.warning && (
-        <p className="text-sm text-[var(--status-warning)]" role="note">
-          {c.warning}
-        </p>
+        <Alert intent="warning">{c.warning}</Alert>
       )}
 
       {(c.evidenceDelta !== null || c.hitRateDelta !== null) && (

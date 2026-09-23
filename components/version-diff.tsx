@@ -82,12 +82,12 @@ export function VersionDiff({
 
       {open && state === "laden" && <p className="text-sm text-muted">Bezig met vergelijken…</p>}
       {open && state === "fout" && (
-        <p className="text-sm text-[var(--status-error)]" role="alert">
+        <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
           Vergelijken is niet gelukt. Probeer het opnieuw.
         </p>
       )}
       {open && state === "klaar" && (
-        <div className="rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 text-sm leading-relaxed">
+        <div className="vlak vlak-gevuld text-sm leading-relaxed">
           {bron === "huidige-pagina" && (
             <p className="mb-2 text-muted">
               Rood verdwijnt van je pagina, groen komt erbij.

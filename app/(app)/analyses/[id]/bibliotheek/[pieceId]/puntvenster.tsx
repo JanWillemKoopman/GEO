@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { Dialog } from "@/components/dialog";
 import { ErrorNotice } from "@/components/error-notice";
 import { Icon } from "@/components/icon";
 import type { IcoonNaam } from "@/lib/icons";
@@ -86,13 +87,6 @@ export function Puntvenster({
   onOpslaan: () => void;
   onSluit: () => void;
 }) {
-  const paneel = useRef<HTMLDivElement>(null);
-
-  // De focus gaat naar het paneel zodat een toetsenbordgebruiker niet achter
-  // het venster blijft hangen. Zelfde gedrag als `ConfirmDialog`.
-  useEffect(() => {
-    paneel.current?.focus();
-  }, []);
   // Escape sluit, en de pijltjes bladeren zolang er niet getypt wordt.
   useEffect(() => {
     function toets(e: KeyboardEvent) {
@@ -107,21 +101,14 @@ export function Puntvenster({
   });
 
   return (
-    <div className="no-print fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
-      <button
-        type="button"
-        className="modal-overlay absolute inset-0"
-        aria-label="Sluiten"
-        onClick={() => !bezig && onSluit()}
-      />
-      <div
-        ref={paneel}
-        tabIndex={-1}
-        role="dialog"
-        aria-modal="true"
-        aria-label={stap ? `Verbeterpunt ${stap.positie} van ${totaal}` : "Je keuzes"}
-        className="modal-panel puntvenster relative flex w-full flex-col gap-4 outline-none"
-      >
+    // Eigen toetsen (Escape en de pijltjes) hierboven, dus niet die van `Dialog`.
+    <Dialog
+      label={stap ? `Verbeterpunt ${stap.positie} van ${totaal}` : "Je keuzes"}
+      onSluit={onSluit}
+      bezig={bezig}
+      sluitMetEscape={false}
+      className="puntvenster"
+    >
         <div className="flex items-center justify-between gap-3">
           <span className="type-caption-emphasis text-secondary">
             {stap ? `Punt ${stap.positie} van ${totaal}` : "Klaar met de punten"}
@@ -130,7 +117,7 @@ export function Puntvenster({
             type="button"
             onClick={onSluit}
             disabled={bezig}
-            className="text-secondary hover:text-[var(--text-primary)]"
+            className="icon-btn icon-btn-sm"
             aria-label="Sluiten"
           >
             <Icon naam="sluiten" size={18} />
@@ -204,8 +191,7 @@ export function Puntvenster({
             )}
           </div>
         )}
-      </div>
-    </div>
+    </Dialog>
   );
 }
 

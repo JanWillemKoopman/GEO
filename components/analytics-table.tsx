@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Icon } from "@/components/icon";
 
 /**
  * De ene tabel voor alle vier de Analytics-schermen (plan
@@ -123,7 +124,7 @@ export function AnalyticsTable<T>({
   // (§1.3), niet een losse per tabel: `.analytics-shell` regelt dat al.
   return (
     <div>
-      <table className="w-full border-collapse text-left text-sm">
+      <table className={`tabel tabel-dicht${onRowClick ? " tabel-klikbaar" : ""}`}>
         <thead>
           <tr
             className="sticky z-10 border-b border-[var(--line-muted)] bg-[var(--bg-base)]"
@@ -132,7 +133,7 @@ export function AnalyticsTable<T>({
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={`py-2 pr-4 text-xs font-medium text-[var(--text-subtle)] ${col.numeriek ? "text-right" : "text-left"}`}
+                className={`py-2 ${col.numeriek ? "text-right" : "text-left"}`}
                 style={col.width ? { width: col.width } : undefined}
               >
                 {col.sortValue ? (
@@ -142,7 +143,7 @@ export function AnalyticsTable<T>({
                     className="inline-flex items-center gap-1 hover:text-[var(--text-primary)]"
                   >
                     {col.header}
-                    {sortKey === col.key && <span aria-hidden>{sortDir === "asc" ? "↑" : "↓"}</span>}
+                    {sortKey === col.key && <Icon naam={sortDir === "asc" ? "omhoog" : "omlaag"} size={12} />}
                   </button>
                 ) : (
                   col.header
@@ -196,7 +197,7 @@ function GroupBody<T>({
         <tr>
           <td
             colSpan={columns.length}
-            className="mono-label bg-[var(--bg-elevated)] py-1.5 pr-4 pl-2 text-muted"
+            className="mono-label bg-[var(--bg-layer-2)] pl-2"
           >
             {groep.label} · {rijen.length === 1 ? "1 rij" : `${rijen.length} rijen`}
           </td>
@@ -211,9 +212,7 @@ function GroupBody<T>({
             key={key}
             onClick={onRowClick ? () => onRowClick(row) : undefined}
             aria-selected={onRowClick ? geselecteerd : undefined}
-            className={`border-t border-[var(--border-subtle)] ${onRowClick ? "cursor-pointer hover:bg-[var(--bg-elevated)]" : ""} ${
-              eigen ? "sticky z-[5]" : ""
-            }`}
+            className={eigen ? "sticky z-[5] font-medium" : undefined}
             style={{
               ...(eigen
                 ? {
@@ -221,13 +220,15 @@ function GroupBody<T>({
                     boxShadow: "0 1px 0 var(--border-subtle)",
                   }
                 : undefined),
-              background: geselecteerd ? "var(--intent-intelligence-surface)" : eigen ? "var(--bg-elevated)" : undefined,
+              // De eigen rij plakt, dus hij heeft een dekkend vlak nodig; een
+              // gekozen rij krijgt zijn waas en rand van `.tabel` zelf.
+              background: eigen && !geselecteerd ? "var(--bg-surface-raised)" : undefined,
             }}
           >
             {columns.map((col) => (
               <td
                 key={col.key}
-                className={`py-1.5 pr-4 align-top ${col.numeriek ? "text-right tabular-nums" : ""}`}
+                className={col.numeriek ? "text-right tabular-nums" : undefined}
               >
                 {col.render(row)}
               </td>

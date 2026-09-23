@@ -10,6 +10,7 @@ import type { UserFacingError } from "@/lib/errors";
 import type { PublishCheck } from "@/lib/pipeline/publish-check";
 import { formatDateLong } from "@/lib/format";
 import { Icon } from "@/components/icon";
+import { Alert } from "@/components/alert";
 
 /**
  * "Deze pagina staat live" (optimalisatie.md 5.1/5.2/5.3).
@@ -137,7 +138,7 @@ export function PublishBox({
       </button>
 
       {open && (
-        <div className="absolute right-0 z-30 mt-1 w-[min(26rem,calc(100vw-2rem))] rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-overlay)]">
+        <div className="menu-surface popover absolute right-0 z-30 mt-1 w-[min(26rem,calc(100vw-2rem))] p-4">
           {state === "error" && problem ? (
             <ErrorNotice error={problem} onRetry={() => void publish()} />
           ) : publishedAt ? (
@@ -207,7 +208,7 @@ function NogNiet({
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            className="btn-primary btn-sm disabled:opacity-60"
+            className="btn-primary btn-sm"
             disabled={bezig}
             onClick={onPubliceer}
           >
@@ -215,7 +216,7 @@ function NogNiet({
           </button>
           <button
             type="button"
-            className="btn-outline btn-sm"
+            className="btn-ghost btn-sm"
             disabled={bezig}
             onClick={() => setConfirming(false)}
           >
@@ -290,7 +291,7 @@ function Gepubliceerd({
 
       {publishedUrl && (
         <div className="flex flex-wrap items-center gap-3">
-          <ExternalLink href={publishedUrl} className="w-fit break-all text-sm underline">
+          <ExternalLink href={publishedUrl} className="link w-fit break-all text-sm">
             {publishedUrl}
           </ExternalLink>
           <CopyButton
@@ -345,7 +346,7 @@ function PublishCheckNotice({
 
   if (check.problems.length === 0) {
     return (
-      <p className="flex items-start gap-1.5 text-sm" style={{ color: "var(--status-success)" }}>
+      <p className="flex items-start gap-1.5 text-sm" style={{ color: "var(--intent-success-content)" }}>
         <span className="mt-0.5">
           <Icon naam="klaar" size={14} />
         </span>
@@ -361,13 +362,15 @@ function PublishCheckNotice({
   }
 
   return (
-    <div className="card-warning flex flex-col gap-1 rounded-[var(--radius-xl)] border p-3">
-      <span className="text-sm font-medium">Even controleren</span>
-      <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-secondary">
-        {check.problems.map((p, i) => (
-          <li key={i}>{p}</li>
-        ))}
-      </ul>
-    </div>
+    <Alert intent="warning">
+      <span className="flex flex-col gap-1">
+        <span className="font-medium text-[var(--text-primary)]">Even controleren</span>
+        <ul className="flex list-disc flex-col gap-1 pl-5">
+          {check.problems.map((p, i) => (
+            <li key={i}>{p}</li>
+          ))}
+        </ul>
+      </span>
+    </Alert>
   );
 }

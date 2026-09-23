@@ -127,7 +127,7 @@ export function QualityFindings({
 
       {blokkades.length === 0 ? (
         <div className="flex flex-col gap-1.5">
-          <p className="flex items-center gap-2 text-sm" style={{ color: "var(--status-success)" }}>
+          <p className="flex items-center gap-2 text-sm" style={{ color: "var(--intent-success-content)" }}>
             <Icon naam="klaar" size={16} />
             Niets houdt publicatie tegen.
           </p>
@@ -182,7 +182,7 @@ export function QualityFindings({
             type="button"
             disabled={laatStaan.bezig}
             onClick={() => void laatStaan.doe(bewustLatenStaan, true)}
-            className="text-secondary underline"
+            className="link"
           >
             Ongedaan maken
           </button>
@@ -299,8 +299,8 @@ function Punt({
 
   return (
     <li
-      className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] border-l-2 p-3"
-      style={{ borderLeftColor: allesGekozen ? "var(--status-success)" : "var(--intent-warning-solid)" }}
+      className="vlak flex flex-col gap-2 border-l-2"
+      style={{ borderLeftColor: allesGekozen ? "var(--intent-success-content)" : "var(--intent-warning-solid)" }}
     >
       <p className="text-sm font-medium">
         {titel}
@@ -352,7 +352,7 @@ function Punt({
         type="button"
         data-sluit-lade
         onClick={() => onOpenPunt(eersteOpen)}
-        className="w-fit text-sm font-medium text-[var(--intent-intelligence-text)] hover:underline"
+        className="link w-fit text-sm font-medium"
       >
         {allesGekozen ? "Keuze wijzigen" : items.length > 1 ? "Los ze op" : "Los op"}
       </button>

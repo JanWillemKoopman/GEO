@@ -43,7 +43,7 @@ export function TrackingToggle({ analysisId, initial }: { analysisId: string; in
           nulmeting.
         </p>
         {error && (
-          <p className="mt-1 text-sm text-[var(--status-error)]" role="alert">
+          <p className="mt-1 text-sm text-[var(--intent-danger-content)]" role="alert">
             {error}
           </p>
         )}
@@ -62,8 +62,8 @@ export function TrackingToggle({ analysisId, initial }: { analysisId: string; in
           // Nova apart voor dit ene onderdeel heeft, juist omdat het het enige
           // vlak in de app is waarvan de kleur zonder tekst iets betekent.
           background: enabled
-            ? "var(--switch-track-active)"
-            : "var(--switch-track-inactive)",
+            ? "var(--accent)"
+            : "var(--border-strong)",
           border: "var(--border-width-xs) solid var(--border-subtle)",
         }}
       >

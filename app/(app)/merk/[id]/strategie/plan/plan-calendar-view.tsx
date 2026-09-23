@@ -9,6 +9,7 @@ import { contentHref } from "@/lib/plan-overview";
 import { calendarDagen, type CalendarDag, type CalendarPagina } from "@/lib/plan-calendar";
 import type { TopicWritingState } from "@/lib/plan-writing";
 import type { ContentPlan, PlanMonth, PlannedPage } from "@/lib/types/database";
+import { Dialog } from "@/components/dialog";
 
 /**
  * Het contentplan als kalender, twaalf maanden naast elkaar (blok A punt 6,
@@ -66,7 +67,7 @@ export function PlanCalendarView({
           <div key={maand.id} className="card flex flex-col gap-2">
             <div className="flex items-baseline justify-between gap-2">
               <span className="text-sm font-medium">{maandLabel}</span>
-              <span className="mono-label text-muted">{aantal}</span>
+              <span className="mono-label">{aantal}</span>
             </div>
             <MaandGrid
               dagen={dagen}
@@ -104,21 +105,14 @@ function DagPopup({
   onSluiten: () => void;
 }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={onSluiten}
-    >
-      <div
-        className="card flex w-full max-w-sm flex-col gap-3"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Dialog label={gekozenDag.label} onSluit={onSluiten}>
         <div className="flex items-center justify-between gap-2">
-          <h3 className="type-body-emphasis">{gekozenDag.label}</h3>
+          <h2 className="type-title">{gekozenDag.label}</h2>
           <button
             type="button"
             onClick={onSluiten}
-            className="btn-ghost btn-icon btn-sm btn-rect"
-            aria-label="Popup sluiten"
+            className="icon-btn"
+            aria-label="Venster sluiten"
           >
             <Icon naam="sluiten" size={16} />
           </button>
@@ -146,8 +140,7 @@ function DagPopup({
             );
           })}
         </ul>
-      </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -162,8 +155,7 @@ function MaandGrid({ dagen, onKiesDag }: { dagen: CalendarDag[]; onKiesDag: (dag
           return (
             <div
               key={d.dag}
-              className="flex aspect-square items-center justify-center rounded-[var(--radius-lg)] text-[0.65rem] text-muted"
-              style={{ background: "var(--bg-elevated)" }}
+              className="tabular flex aspect-square items-center justify-center rounded-[var(--radius-md)] bg-[var(--bg-surface-raised)] text-xs text-[var(--text-subtle)]"
             >
               {d.dag}
             </div>
@@ -182,20 +174,24 @@ function MaandGrid({ dagen, onKiesDag }: { dagen: CalendarDag[]; onKiesDag: (dag
             role="gridcell"
             aria-label={`${titel}, klik voor details`}
             onClick={() => onKiesDag(d)}
-            className="relative flex aspect-square items-center justify-center rounded-[var(--radius-lg)] text-[0.65rem] font-medium"
+            className="tabular relative flex aspect-square items-center justify-center rounded-[var(--radius-md)] text-xs font-medium"
+            // Dezelfde kleuren als de statuschips (`STAND_CHIP`): oranje wacht op
+            // jou, rood ging mis, groen is klaar. "Loopt" was hier tot
+            // 23 september 2026 de accentkleur en "klaar" de stijgkleur; loopt
+            // is neutraal en klaar is succes, geen richting (§2.5, §2.6).
             style={
               tone === "wacht"
-                ? { background: "var(--intent-warning-surface)", color: "var(--intent-warning-text)" }
+                ? { background: "var(--intent-warning-surface)", color: "var(--intent-warning-content)" }
                 : tone === "fout"
-                  ? { background: "var(--intent-danger-surface)", color: "var(--intent-danger-text)" }
+                  ? { background: "var(--intent-danger-surface)", color: "var(--intent-danger-content)" }
                   : tone === "klaar"
-                    ? { background: "var(--trend-up-surface)", color: "var(--trend-up-text)" }
-                    : { background: "var(--intent-intelligence-surface)", color: "var(--intent-intelligence-text)" }
+                    ? { background: "var(--intent-success-surface)", color: "var(--intent-success-content)" }
+                    : { background: "var(--bg-layer-2)", color: "var(--text-primary)" }
             }
           >
             {d.dag}
             <span
-              className="absolute -right-1 -top-1 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full px-0.5 text-[0.55rem] font-semibold leading-none"
+              className="tabular absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[0.625rem] font-medium leading-none"
               style={{ background: "var(--bg-inverse)", color: "var(--text-inverse)" }}
             >
               {d.paginas.length}

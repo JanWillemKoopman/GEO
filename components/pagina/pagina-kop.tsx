@@ -37,7 +37,7 @@ export function PaginaKop({
       </Link>
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="type-title pagina-kop-titel" title={naam}>
+          <h1 className="type-heading-lg pagina-kop-titel" title={naam}>
             {naam}
           </h1>
           {/* Oranje is op het paginascherm voorbehouden aan "Te verbeteren"

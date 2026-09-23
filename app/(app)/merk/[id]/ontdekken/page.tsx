@@ -240,7 +240,7 @@ export default async function OntdekkenPage({ params }: { params: Promise<{ id: 
 
       <p className="text-sm text-secondary">
         Toegevoegde onderwerpen staan bij Voorgesteld op{" "}
-        <Link href={`/merk/${id}/strategie/clusters`} className="underline">
+        <Link href={`/merk/${id}/strategie/clusters`} className="link">
           Mijn clusters
         </Link>
         , samen met de voorstellen uit je onboarding.

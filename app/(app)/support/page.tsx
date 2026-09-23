@@ -63,7 +63,7 @@ export default async function SupportPage() {
   const groepen = hoofdstukken(items).filter((h) => h.naam in CONTENT);
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-8">
       <PageHeader
         eyebrow="Support"
         title="Hoe ORBIT ENGINE werkt"
@@ -135,10 +135,10 @@ function Hero({ brandId }: { brandId: string | null }) {
         <div className="card card-accent flex flex-col gap-3">
           <IconTegel
             icoon="meten"
-            achtergrond="var(--intent-intelligence-surface)"
-            kleur="var(--intent-intelligence-text)"
+            achtergrond="var(--intent-success-surface)"
+            kleur="var(--accent)"
           />
-          <span className="mono-label" style={{ color: "var(--intent-intelligence-text)" }}>
+          <span className="mono-label" style={{ color: "var(--accent)" }}>
             GEO · de kern van ORBIT ENGINE
           </span>
           <p className="text-secondary">
@@ -179,7 +179,7 @@ function Hero({ brandId }: { brandId: string | null }) {
               </span>
               <div className="flex flex-col gap-0.5 pb-6 pt-1.5">
                 <span className="flex items-baseline gap-2">
-                  <span className="mono-label" style={{ fontSize: "0.65rem" }}>
+                  <span className="mono-label">
                     {stap.nummer}
                   </span>
                   <span className="font-medium">{stap.titel}</span>
@@ -282,7 +282,7 @@ const CYCLUS: CyclusStap[] = [
 
 function IconTegel({
   icoon,
-  achtergrond = "var(--bg-elevated)",
+  achtergrond = "var(--bg-layer-2)",
   kleur = "var(--text-secondary)",
 }: {
   icoon: IcoonNaam;
@@ -325,7 +325,7 @@ function ZijNav({ groepen }: { groepen: NavHoofdstuk[] }) {
               <a
                 key={item.href}
                 href={`#${slug(item.label)}`}
-                className="truncate rounded-[var(--radius-xl)] px-3 py-1.5 text-sm text-secondary transition-colors hover:bg-[var(--wash-hover)] hover:text-[var(--text-primary)]"
+                className="truncate rounded-[var(--radius-xl)] px-3 py-1.5 text-sm text-secondary transition-colors hover:bg-[var(--interactive-hover)] hover:text-[var(--text-primary)]"
               >
                 {item.label}
               </a>
@@ -342,7 +342,7 @@ function MobielNav({ groepen }: { groepen: NavHoofdstuk[] }) {
   return (
     <nav
       aria-label="Ga naar onderdeel"
-      className="no-print -mx-6 flex gap-2 overflow-x-auto border-y border-[var(--border-subtle)] px-6 py-2.5 lg:hidden"
+      className="no-print volle-breedte flex gap-2 overflow-x-auto border-y border-[var(--border-subtle)] py-2.5 lg:hidden"
     >
       {groepen.map((groep) => (
         <a key={groep.naam} href={`#${slug(groep.naam)}`} className="chip chip-neutral shrink-0">
@@ -380,7 +380,7 @@ function Onderdeel({
       <div className="flex items-start gap-3">
         <IconTegel icoon={icoon} />
         <div className="flex min-w-0 flex-col gap-0.5 pt-0.5">
-          <h3 className="text-[1.0625rem] font-medium text-[var(--text-primary)]">
+          <h3 className="type-body-emphasis text-[var(--text-primary)]">
             {item.label}
           </h3>
           <p className="text-sm text-muted">{KICKER[item.label]}</p>
@@ -412,7 +412,7 @@ function Onderdeel({
 /** Een korte, feitelijke bulletlijst in een getint kader, voor "wat je hier ziet en kunt doen". */
 function Kader({ label, items }: { label: string; items: React.ReactNode[] }) {
   return (
-    <div className="flex flex-col gap-2 rounded-[var(--radius-xl)] bg-[var(--bg-elevated)] p-4">
+    <div className="flex flex-col gap-2 rounded-[var(--radius-xl)] bg-[var(--bg-layer-2)] p-4">
       <span className="mono-label">{label}</span>
       <ul className="flex flex-col gap-2">
         {items.map((tekst, i) => (
@@ -430,12 +430,12 @@ function Kader({ label, items }: { label: string; items: React.ReactNode[] }) {
 function Tip({ children }: { children: React.ReactNode }) {
   return (
     <p
-      className="rounded-[var(--radius-xl)] border-l-2 bg-[var(--bg-elevated)] py-2.5 pl-3 pr-3 text-sm text-secondary"
+      className="rounded-[var(--radius-xl)] border-l-2 bg-[var(--bg-layer-2)] py-2.5 pl-3 pr-3 text-sm text-secondary"
       style={{ borderColor: "var(--border-default)" }}
     >
       <span
         className="mono-label mr-1.5"
-        style={{ fontSize: "0.65rem", color: "var(--intent-info-content)" }}
+        style={{ color: "var(--intent-info-content)" }}
       >
         Tip
       </span>

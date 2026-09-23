@@ -5,6 +5,7 @@ import { InfoHint } from "@/components/info-hint";
 import { ErrorNotice, problemFromResponse, networkProblem } from "@/components/error-notice";
 import type { UserFacingError } from "@/lib/errors";
 import type { Entity } from "@/lib/types/database";
+import { Icon } from "@/components/icon";
 
 /**
  * Concurrenten beheren (optimalisatie.md 2.7).
@@ -123,7 +124,7 @@ export function EntitiesManager({ profileId, initial }: { profileId: string; ini
       {problem && <ErrorNotice error={problem} />}
 
       {pending.length > 0 && (
-        <section className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--intent-intelligence-border)] p-3">
+        <section className="flex flex-col gap-2 vlak">
           <p className="text-sm text-secondary">
             <span className="font-medium text-[var(--text-primary)]">
               {pending.length} nieuw gevonden {pending.length === 1 ? "merk" : "merken"}
@@ -250,7 +251,7 @@ function EntityRow({
   const [merging, setMerging] = useState(false);
 
   return (
-    <li className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 sm:flex-row sm:items-center">
+    <li className="vlak vlak-gevuld flex flex-col gap-2 sm:flex-row sm:items-center">
       <input
         className="field flex-1"
         defaultValue={entity.canonical_name}
@@ -267,7 +268,7 @@ function EntityRow({
             meetelt. Kiezen zet role_source op 'handmatig', waarna de
             automatische classificatie deze rij voorgoed met rust laat. */}
         <select
-          className="field"
+          className="field field-select"
           disabled={busy}
           value={entity.entity_role}
           aria-label={`Rol van ${entity.canonical_name}`}
@@ -289,7 +290,7 @@ function EntityRow({
         {mergeTargets.length > 0 &&
           (merging ? (
             <select
-              className="field"
+              className="field field-select"
               autoFocus
               disabled={busy}
               defaultValue=""
@@ -360,7 +361,8 @@ function AddEntityForm({ onAdd }: { onAdd: (name: string) => void }) {
         aria-label="Concurrent toevoegen"
       />
       <button type="submit" className="btn-outline shrink-0">
-        + Toevoegen
+        <Icon naam="toevoegen" size={18} />
+        Toevoegen
       </button>
     </form>
   );

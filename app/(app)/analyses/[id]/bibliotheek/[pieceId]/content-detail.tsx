@@ -610,7 +610,7 @@ function Versies({
               {v.id === pieceId ? (
                 <span className="font-medium">Versie {v.version} (je bekijkt deze)</span>
               ) : (
-                <Link href={`/analyses/${analysisId}/bibliotheek/${v.id}`} className="underline">
+                <Link href={`/analyses/${analysisId}/bibliotheek/${v.id}`} className="link">
                   Versie {v.version}
                 </Link>
               )}

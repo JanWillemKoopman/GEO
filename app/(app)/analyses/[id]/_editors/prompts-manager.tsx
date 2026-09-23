@@ -11,6 +11,8 @@ import {
   volumeBandOf,
   type VolumeBand,
 } from "@/lib/pipeline/volume";
+import { Icon } from "@/components/icon";
+import { Segment } from "@/components/tabs";
 
 /** Wat de klant per prompt mag wijzigen. */
 type PromptPatch = Partial<Pick<Prompt, "text" | "category" | "active" | "volume_band">>;
@@ -101,7 +103,7 @@ export function PromptsManager({ analysisId, initial }: { analysisId: string; in
       </div>
 
       {error && (
-        <p className="text-sm text-[var(--status-error)]" role="alert">
+        <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
           {error}
         </p>
       )}
@@ -141,7 +143,7 @@ function PromptCategoryList({
       {prompts.map((p) => (
         <li
           key={p.id}
-          className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 sm:flex-row sm:items-start"
+          className="vlak vlak-gevuld flex flex-col gap-2 sm:flex-row sm:items-start"
         >
           <div className="flex flex-1 flex-col gap-1.5">
             <textarea
@@ -171,7 +173,7 @@ function PromptCategoryList({
             <button
               type="button"
               onClick={() => onDelete(p.id)}
-              className="text-sm text-[var(--status-error)] hover:underline"
+              className="text-sm text-[var(--intent-danger-content)] hover:underline"
             >
               Verwijderen
             </button>
@@ -202,7 +204,7 @@ function PromptTags({ prompt }: { prompt: Prompt }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {chips.map((c, i) => (
-        <span key={i} className="chip" style={{ fontSize: "0.7rem" }}>
+        <span key={i} className="chip">
           {c}
         </span>
       ))}
@@ -232,36 +234,20 @@ function VolumeBandPicker({ prompt, onChange }: { prompt: Prompt; onChange: (ban
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="mono-label" style={{ fontSize: "0.65rem" }}>
+      <span className="mono-label">
         Hoe vaak gesteld?
       </span>
-      {VOLUME_BANDS.map((band) => {
-        const selected = band === current;
-        return (
-          <button
-            key={band}
-            type="button"
-            title={VOLUME_BAND_HELP[band]}
-            aria-pressed={selected}
-            onClick={() => !selected && onChange(band)}
-            className="chip"
-            style={{
-              fontSize: "0.7rem",
-              cursor: selected ? "default" : "pointer",
-              ...(selected
-                ? undefined
-                : {
-                    background: "transparent",
-                    color: "var(--text-muted)",
-                    borderColor: "var(--border-subtle)",
-                  }),
-            }}
-          >
-            {VOLUME_BAND_LABEL[band]}
-          </button>
-        );
-      })}
-      <span className="text-muted" style={{ fontSize: "0.65rem" }}>
+      <Segment
+        label="Hoe vaak gesteld?"
+        opties={VOLUME_BANDS.map((band) => ({
+          waarde: band,
+          label: VOLUME_BAND_LABEL[band],
+          titel: VOLUME_BAND_HELP[band],
+        }))}
+        gekozen={current}
+        onKies={(band) => band !== current && onChange(band)}
+      />
+      <span className="type-caption text-muted">
         {origin}
       </span>
     </div>
@@ -288,7 +274,8 @@ function AddPromptForm({ category, onAdd }: { category: string; onAdd: (text: st
         placeholder={`Nieuwe vraag in "${category}"…`}
       />
       <button type="submit" className="btn-outline shrink-0">
-        + Toevoegen
+        <Icon naam="toevoegen" size={18} />
+        Toevoegen
       </button>
     </form>
   );

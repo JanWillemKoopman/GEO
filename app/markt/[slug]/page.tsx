@@ -62,7 +62,7 @@ export default async function PubliekeMarktPagina({
     <main className="mx-auto flex max-w-3xl flex-col gap-8 px-5 py-12">
       <header className="flex flex-col gap-3">
         <span className="mono-label">Marktrapport</span>
-        <h1 className="type-title">{markt.label} in AI-antwoorden</h1>
+        <h1 className="type-heading-lg">{markt.label} in AI-antwoorden</h1>
         <p className="text-secondary">{rapport.intro}</p>
       </header>
 
@@ -84,18 +84,18 @@ export default async function PubliekeMarktPagina({
         <p className="text-secondary">{rapport.bevindingen}</p>
 
         <div className="card overflow-x-auto">
-          <table className="w-full min-w-[24rem] text-left text-sm">
+          <table className="tabel min-w-[24rem]">
             <thead>
-              <tr className="mono-label">
-                <th className="py-2 pr-3 font-normal">Bedrijf</th>
-                <th className="py-2 pr-3 font-normal">Genoemd bij</th>
+              <tr>
+                <th>Bedrijf</th>
+                <th>Genoemd bij</th>
               </tr>
             </thead>
             <tbody>
               {bedrijven.map((b) => (
-                <tr key={b.companyId} className="border-t border-[var(--border-subtle)]">
-                  <td className="py-2 pr-3">{b.naam}</td>
-                  <td className="py-2 pr-3 text-secondary">
+                <tr key={b.companyId}>
+                  <td>{b.naam}</td>
+                  <td className="text-secondary">
                     {b.vermeldingen} van de {b.vragen} vragen
                   </td>
                 </tr>

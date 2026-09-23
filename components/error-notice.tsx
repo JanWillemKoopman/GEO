@@ -47,7 +47,7 @@ export function ErrorNotice({
           <summary className="mono-label cursor-pointer transition-colors hover:text-[var(--text-primary)]">
             Technische details
           </summary>
-          <p className="mt-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3 font-mono text-xs break-words text-[var(--text-secondary)]">
+          <p className="vlak vlak-gevuld mt-2 font-mono text-xs break-words text-[var(--text-secondary)]">
             {error.detail}
           </p>
         </details>

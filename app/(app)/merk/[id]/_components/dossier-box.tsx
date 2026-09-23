@@ -126,11 +126,11 @@ export function DossierBox({ profileId }: { profileId: string }) {
           type="button"
           onClick={() => void verwerk()}
           disabled={busy || text.trim().length < 40}
-          className="btn-outline disabled:opacity-60"
+          className="btn-outline"
         >
           {busy ? "ORBIT ENGINE leest…" : "Haal de feiten eruit"}
         </button>
-        {error && <span className="text-sm text-[var(--status-error)]">{error}</span>}
+        {error && <span className="text-sm text-[var(--intent-danger-content)]">{error}</span>}
       </div>
 
       {facts !== null && (
@@ -163,7 +163,7 @@ export function DossierBox({ profileId }: { profileId: string }) {
                     <button
                       type="button"
                       onClick={() => void verwijder(f.id)}
-                      className="mono-label underline transition-colors hover:text-[var(--text-primary)]"
+                      className="link type-caption"
                     >
                       klopt niet
                     </button>

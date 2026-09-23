@@ -162,7 +162,7 @@ export function CreatePlanBox({
                 <>
                   ORBIT ENGINE haalt de kansen uit het rapport van een gemeten cluster. Start
                   eerst een meting op{" "}
-                  <Link href={`/merk/${profileId}/strategie/clusters`} className="underline">
+                  <Link href={`/merk/${profileId}/strategie/clusters`} className="link">
                     Clusters
                   </Link>
                   .
@@ -193,7 +193,7 @@ export function CreatePlanBox({
             onChange={(e) => setNote(e.target.value)}
             placeholder="Vanaf november openen we in Breda"
           />
-          <span className="mono-label text-muted" style={{ fontSize: "0.65rem" }}>
+          <span className="mono-label">
             {note.length}/{MAX_STRATEGY_NOTE_LENGTH}
           </span>
           <button
@@ -224,7 +224,7 @@ function Voorwaarde({
       <span className="flex items-center gap-2 text-sm">
         <span
           style={{
-            color: klaar ? "var(--trend-up-text)" : "var(--intent-warning-text)",
+            color: klaar ? "var(--trend-up-text)" : "var(--intent-warning-content)",
           }}
         >
           <Icon naam={klaar ? "klaar" : "open"} size={14} />

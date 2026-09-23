@@ -104,7 +104,7 @@ export function WachtrijLijst({
 function SectieKop({ sectie }: { sectie: WachtrijSectie }) {
   return (
     <div className="flex flex-row flex-wrap items-center gap-x-3 gap-y-2 md:flex-col md:items-start">
-      <h3 className="flex items-center gap-2 text-base font-semibold">
+      <h3 className="type-body-emphasis flex items-center gap-2">
         <span className="text-secondary">
           <Icon naam={SECTIE_ICOON[sectie.kop]} size={18} />
         </span>
@@ -118,7 +118,7 @@ function SectieKop({ sectie }: { sectie: WachtrijSectie }) {
         className="inline-flex items-center gap-1 text-sm text-secondary hover:underline md:mt-1"
       >
         {sectie.overzichtLabel}
-        <Icon naam="naar" size={13} />
+        <Icon naam="naar" size={14} />
       </Link>
     </div>
   );
@@ -128,7 +128,7 @@ function SubkopBlok({ sub, eersteId }: { sub: WachtrijSubkop; eersteId?: string 
   return (
     <div className="flex flex-col gap-2">
       <span className="mono-label">{sub.subkop}</span>
-      <ul className="flex flex-col divide-y divide-[var(--border-subtle)] rounded-[var(--radius-lg)] border border-[var(--border-subtle)]">
+      <ul className="vlak flex flex-col divide-y divide-[var(--line-muted)] overflow-hidden p-0">
         {sub.items.map((item) => (
           <li key={item.id}>
             <TaakRegel item={item} primair={item.id === eersteId} />

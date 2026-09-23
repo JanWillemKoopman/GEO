@@ -29,7 +29,7 @@ import {
 import { legeStaat } from "@/lib/search-console/lege-staat";
 import type { ClusterLabel } from "@/lib/types/database";
 import { impactUitleg, type ImpactCijfers } from "@/lib/impact-uitleg";
-import { Icon } from "@/components/icon";
+import { DataCard } from "@/components/data-card";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Zoekverkeer" };
@@ -197,7 +197,7 @@ export default async function ZoekverkeerPage({
           {leeg.staat === "geen_toegang" &&
             profile.gsc_last_error &&
             (staff ? (
-              <p className="text-sm text-[var(--status-error)]">
+              <p className="text-sm text-[var(--intent-danger-content)]">
                 De laatste poging liep vast: {profile.gsc_last_error}
               </p>
             ) : (
@@ -362,7 +362,7 @@ export default async function ZoekverkeerPage({
       </div>
 
       {/* ── De rest van de site, ingeklapt (V1) ─────────────────────────── */}
-      <details className="rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3">
+      <details className="vlak">
         <summary className="cursor-pointer text-sm text-secondary">De rest van je site, ter vergelijking</summary>
         <div className="mt-3 flex flex-col gap-2">
           <p className="text-sm text-muted">
@@ -421,20 +421,26 @@ function Cijfer({
   beterIsHoger: boolean;
 }) {
   const beter = delta === null || delta === 0 ? null : beterIsHoger ? delta > 0 : delta < 0;
+  // Tot 23 september 2026 een eigen tegel met 30px en het verschil in
+  // kapitalen, en een verslechtering in de foutkleur. Een verslechtering is
+  // een daling, geen fout (`docs/designsystem.md` §2.6).
   return (
-    <div className="card flex flex-col gap-1">
-      <span className="mono-label">{label}</span>
-      <span className="stat-value text-2xl">{waarde}</span>
-      {delta === null || delta === 0 ? (
-        <span className="mono-label text-muted">{delta === 0 ? "gelijk" : "geen vergelijking"}</span>
-      ) : (
-        <span className="mono-label" style={{ color: beter ? "var(--trend-up-text)" : "var(--intent-danger-text)" }}>
-          <Icon naam={delta > 0 ? "stijging" : "daling"} size={12} />
-          {Math.abs(delta).toLocaleString("nl-NL")}
-          {eenheid ? ` ${eenheid}` : ""}
-        </span>
-      )}
-    </div>
+    <DataCard
+      label={label}
+      waarde={waarde === "-" ? null : waarde}
+      toelichting={delta === null ? "geen vergelijking" : undefined}
+      verschil={
+        delta === null
+          ? undefined
+          : delta === 0
+            ? { tekst: "gelijk", richting: "vlak" }
+            : {
+                tekst: `${Math.abs(delta).toLocaleString("nl-NL")}${eenheid ? ` ${eenheid}` : ""}`,
+                richting: delta > 0 ? "omhoog" : "omlaag",
+                oordeel: beter ? "beter" : "slechter",
+              }
+      }
+    />
   );
 }
 

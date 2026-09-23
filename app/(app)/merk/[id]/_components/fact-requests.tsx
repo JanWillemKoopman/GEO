@@ -373,7 +373,7 @@ function VraagRow({
 
   if (bewerken) {
     return (
-      <li className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3">
+      <li className="vlak vlak-gevuld flex flex-col gap-2">
         <form
           className="flex flex-col gap-2"
           onSubmit={(e) => {
@@ -383,7 +383,7 @@ function VraagRow({
             setBewerken(false);
           }}
         >
-          <span className="text-sm font-semibold">{fact.question}</span>
+          <span className="text-sm font-medium">{fact.question}</span>
           <Antwoordveld
             id={`bewerk-${fact.id}`}
             vraag={fact}
@@ -397,7 +397,7 @@ function VraagRow({
             </button>
             <button
               type="button"
-              className="text-sm text-secondary hover:underline"
+              className="btn-ghost btn-sm"
               onClick={() => {
                 setWaarde(fact.answer ?? "");
                 setBewerken(false);
@@ -414,7 +414,7 @@ function VraagRow({
   return (
     <li className="flex flex-col gap-0.5 text-sm">
       <div className="flex items-start justify-between gap-2">
-        <span className="font-semibold">{fact.question}</span>
+        <span className="font-medium">{fact.question}</span>
         <button
           type="button"
           onClick={() => {
@@ -461,14 +461,10 @@ function FilterKnop({
       type="button"
       onClick={onClick}
       aria-pressed={actief}
-      className={`flex items-center gap-1.5 rounded-[var(--radius-xl)] border px-2.5 py-1 text-sm transition-colors ${
-        actief
-          ? "border-[var(--border-strong)] bg-[var(--bg-elevated)] font-medium text-[var(--text-primary)]"
-          : "border-[var(--border-subtle)] text-secondary hover:bg-[var(--wash-hover)] hover:text-[var(--text-primary)]"
-      }`}
+      className="chip-select"
     >
       <span className="max-w-[14rem] truncate">{label}</span>
-      <span className="text-muted">{aantal}</span>
+      <span className="tabular text-[var(--text-subtle)]">{aantal}</span>
     </button>
   );
 }
@@ -501,7 +497,7 @@ function FactCard({
     // hoog. Dat was een keuze voor een korte lijst, en hij kostte de antwoorden:
     // in een regel van 26rem schrijft niemand op welke garantie hij geeft. Nu
     // staat de vraag boven het veld en het veld over de volle breedte.
-    <li className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 card-rail-accent">
+    <li className="vlak vlak-gevuld card-rail flex flex-col gap-2">
       <div className="flex min-w-0 flex-col gap-0.5">
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-medium">{fact.question}</p>

@@ -133,7 +133,7 @@ export function ContentCanvas({
               (23 september 2026): "Opslaan" stond onder een tekst van ruim
               duizend woorden, en het menu op een eigen regel boven de tekst. */}
           <div className="canvas-werkbalk">
-            <div className="flex w-fit items-center gap-1 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-0.5">
+            <div className="segment" role="group" aria-label="Weergave">
               <Knop actief={weergave === "opgemaakt"} onClick={() => onWeergave("opgemaakt")}>
                 Lezen
               </Knop>
@@ -188,7 +188,7 @@ export function ContentCanvas({
             />
 
             <label className="flex flex-col gap-1 text-sm">
-              <span className="mono-label" style={{ fontSize: "0.65rem" }}>
+              <span className="mono-label">
                 Meta-title ({metaTitle.length}/60)
               </span>
               <input
@@ -203,7 +203,7 @@ export function ContentCanvas({
             </label>
 
             <label className="flex flex-col gap-1 text-sm">
-              <span className="mono-label" style={{ fontSize: "0.65rem" }}>
+              <span className="mono-label">
                 Meta-description ({metaDescription.length}/160)
               </span>
               <textarea
@@ -219,7 +219,7 @@ export function ContentCanvas({
             </label>
 
             <div className="flex flex-col gap-1.5">
-              <span className="mono-label" style={{ fontSize: "0.65rem" }}>
+              <span className="mono-label">
                 Veelgestelde vragen
               </span>
               <FaqEditor
@@ -251,15 +251,10 @@ function Knop({
       type="button"
       onClick={onClick}
       aria-pressed={actief}
-      className="rounded-[calc(var(--radius-xl)-2px)] px-3 py-1 text-sm"
-      style={
-        actief
-          ? {
-              background: "var(--intent-intelligence-surface)",
-              color: "var(--intent-intelligence-text)",
-            }
-          : { color: "var(--text-muted)" }
-      }
+      // Het segment van het designsysteem (`components/tabs.tsx`): een wissel
+      // van weergave, geen filter. Gekozen is het witte vlak, niet de groene
+      // tint van het accent die hier tot 23 september 2026 stond.
+      className="segment-item"
     >
       {children}
     </button>
@@ -332,7 +327,7 @@ export function NieuweVersieBalk({
   verschilHref: string | null;
 }) {
   return (
-    <div className="card card-accent flex flex-wrap items-center gap-3">
+    <div className="card card-rail flex flex-wrap items-center gap-3">
       <span className="flex items-center gap-2 text-sm font-medium">
         <Icon naam="letop" size={16} />
         Er is een nieuwere tekst dan die je voor je hebt.

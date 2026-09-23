@@ -121,7 +121,7 @@ export function OnboardingWizard() {
           <Icon naam="terug" size={14} />
           Merken
         </Link>
-        <h1 className="type-title">Nieuw merk</h1>
+        <h1 className="type-heading-lg">Nieuw merk</h1>
         <p className="mt-2 text-secondary">
           Twee velden, en ORBIT ENGINE gaat aan de slag. Het leest de hele website uit, brengt het aanbod in
           kaart, zoekt uit wie de concurrenten zijn en test wat AI-assistenten nu al over je merk
@@ -154,10 +154,10 @@ export function OnboardingWizard() {
             placeholder="mediamarkt.nl"
             aria-invalid={showUrlError}
             aria-describedby={showUrlError ? "url-error" : undefined}
-            style={showUrlError ? { borderColor: "var(--status-error)" } : undefined}
+            style={showUrlError ? { borderColor: "var(--intent-danger-content)" } : undefined}
           />
           {showUrlError ? (
-            <span id="url-error" className="text-sm text-[var(--status-error)]" role="alert">
+            <span id="url-error" className="text-sm text-[var(--intent-danger-content)]" role="alert">
               {urlCheck.message}
             </span>
           ) : (
@@ -182,7 +182,7 @@ export function OnboardingWizard() {
 
         {error && (
           <div className="flex flex-col gap-2">
-            <p className="text-sm text-[var(--status-error)]" role="alert">
+            <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
               {error}
             </p>
             {canForce && (
@@ -190,7 +190,7 @@ export function OnboardingWizard() {
                 type="button"
                 onClick={() => void submit(true)}
                 disabled={pending}
-                className="btn-outline w-fit disabled:opacity-60"
+                className="btn-outline w-fit"
               >
                 Adres klopt, ga toch door
               </button>
@@ -203,7 +203,7 @@ export function OnboardingWizard() {
             type="button"
             onClick={() => void submit(false)}
             disabled={pending || !canSubmit}
-            className="btn-primary btn-lg disabled:opacity-60"
+            className="btn-primary btn-lg"
           >
             {pending ? "Onderzoek starten…" : "Start het onderzoek"}
           </button>

@@ -11853,3 +11853,100 @@ bewust niet veranderde: `docs/tasks/clusters-ontdekken.md`, onderaan.
 Nog niet gedaan: een ronde met thema op productie, en het scherm met het themaveld is niet in de
 browser bekeken. Een ronde kan pas als dit op `main` staat. Getest: `tsc --noEmit`, `test:unit`,
 `test:chain` en `build` groen.
+
+## 23 september 2026 (7): UI-audit, consistentie na de OKX-omzetting
+
+Een audit van de hele interface tegen `docs/designsystem.md` vond dat de basis klopt (348 knoppen en
+473 chips via de gedeelde klassen, één losse kleurcode in de hele app) maar dat de laag erboven per
+scherm opnieuw gebouwd was. De eigenaar gaf akkoord op alle verbeteringen. Deze alinea's leggen per
+stap vast wat er veranderde en waarom.
+
+**Stap 1: de cascadelagen.** Alles in `app/globals.css` na de tokens stond buiten een cascadelaag,
+terwijl Tailwind v4 zijn hulpklassen in `@layer utilities` zet. CSS buiten een laag wint altijd. Zo
+won `* { border-color }` van elke `border-[...]` in een scherm (126 keer: elke waarschuwingsrand en
+elke scheidingslijn werd dezelfde lichte rand), en wonnen `.card`, `.field` en `.chip` van `p-3`,
+`w-auto` en `rounded-full` (het statusfilter op Clusters werd vol breed, de stapbolletjes van de
+Sales-procesbalk werden vierkantjes). De basis staat nu in `@layer base`, de primitieven in
+`@layer components`. In dezelfde stap weg: 29 keer `disabled:opacity-*` op een knop (deed niets, en
+zou na de omzetting dubbel gaan dimmen), 34 keer `text-muted` naast `.mono-label` (één labelkleur)
+en de 12px-rondingen en zwaarste schaduw die drie menu's over `.menu-surface` heen zetten.
+
+**Stap 1, de fouten die nu zichtbaar kapot waren.** `.live-dot` (het bolletje "er gebeurt nu iets",
+9 bestanden) had geen definitie meer en was onzichtbaar; teruggezet als ring die uitdijt, in
+succesgroen. De hoofdstukbalk op een telefoon toonde het actieve hoofdstuk niet (`chip` en
+`chip-neutral` zijn gelijk); nu `.chip-select` met `aria-current`. `type-heading` (kop
+"Verkoopafspraak") en `.input`/`btn` (de kwaliteitsbeoordeling) bestonden niet. Vijf menu's lopen nu
+via `.menu-item`, `.menu-kop`, `.menu-sectie` en `.menu-scheiding`; een gekozen regel krijgt een
+vinkje. Vier dialogen delen `components/dialog.tsx`; het dagvenster van de kalender had een vast
+zwart scrim en geen blad op een telefoon, en de andere drie zweefden op een telefoon 16px boven de
+onderrand. Een gevaarlijke bevestiging is `.btn-danger` (was de hoofdknop met een rode inline-kleur,
+die rood bleef als hij uitgeschakeld was). De lettertekens ✓, !, ↑, ↓, →, + en ? zijn iconen
+geworden; `toevoegen` is nieuw in `lib/icons.ts`. Vinkjes en keuzerondjes staan in de
+selectiekleur in plaats van browserblauw.
+
+**Stap 2: de snelle verbeteringen.** Elke keuzelijst heeft nu `.field-select` (17 misten hem; het
+pijltje plakte tegen de tekst). Onder 768px is elk veld 48px met 16px tekst, want Safari zoomt bij
+kleinere tekst in zodra je een veld aantikt; dat was punt 1 van
+`docs/tasks/openstaand-na-okx-omzetting.md` en is daar weggestreept. `.field-sm` (36px) is nieuw,
+voor de voorraadkolom op het planscherm, waar met de hand 30 en 34 pixels stond. 21 losse
+lettermaten van 9,6 tot 11,2px zijn weg (een overblijfsel van het Nova-label van 11px). `.link` is
+de ene stijl voor een link in lopende tekst (15 plekken), ook in `.prose`; vier links stonden in de
+accentkleur, wat §2.4 verbiedt. "Wacht op jou" is overal oranje: de paginakop maakte hem limoen en
+het clusterlabel "actie nodig" donkergroen, bijna gelijk aan "klaar". `TONE_STYLE` met inline
+kleuren is `TONE_CHIP` met chipklassen geworden. Limoen (`chip-attention`) staat alleen nog op
+"kans". `.chip-stijging` en `.chip-daling` vervangen `chip-success`/`chip-danger` bij een verschil
+(§2.6). "Annuleren" is overal `btn-ghost` (was 9 keer outline). Laadvlakken zijn 8px rond, gelijk
+aan de kaart die komt, en de titelbalk is 40px hoog zoals de echte kop. De streep op het overzicht
+was met de hand `#25a750`; nu `.card-rail-success`. `.volle-breedte` en de variabele
+`--stand-marge` vervangen vier keer `-mx-6 px-6`, die op een telefoon 8px buiten de pagina stak.
+Meldingen rechtsonder hebben een neutrale rand en een streep in de betekenis (info was groen).
+
+**Stap 3: de gedeelde bouwstenen.** Elke paginatitel is nu 30px (`.type-heading-lg`); zeven schermen
+stonden op 24px naast 33 op 30. De kaart "ORBIT ENGINE weet genoeg" op de briefing was een `h1`
+binnen een pagina die er al een had en is een kaartkop geworden. "Nieuw cluster" en Instellingen
+gebruiken de leesstand (720px) in plaats van een eigen 576px. Tussen de blokken van een pagina staat
+24px, of 32px op een pagina die uit secties met een eigen kop bestaat; Support stond op 40 en de
+onderdelen van het clusterdossier op 16. Nieuw in `app/globals.css`: `.vlak` en `.vlak-gevuld` voor
+een blok binnen een kaart (42 keer los gebouwd, vaak in de chipkleur), `.tabel` met `.tabel-dicht`
+en `.tabel-klikbaar` (acht tabellen met vier kopstijlen; de gekozen rij in Analytics is nu een rand
+en een waas in plaats van groen), en `Alert intent="info"` met een eigen icoon `info`. Waarschuwingen
+in de app lopen via `Alert` (vijf eigen varianten, waaronder een waarschuwingsstreep op "toewijzen"
+die door de cascadelagen onzichtbaar was). `DataCard` kan een oordeel dragen los van de richting (bij
+een positie is lager beter) en wordt gebruikt op Zoekverkeer, waar een verslechtering in de
+foutkleur stond. Elk cijfer naast het ene hoofdgetal van een scherm is 24px (`.data-card-waarde`),
+waar 30 en 36 door elkaar stonden. Zeven eigen filter- en schakelknoppen zijn `.chip-select` of
+`.segment` geworden. De oude AI-kleur (`intelligence`) stond nog op selecties, sleepdoelen en een
+schakelaar en is overal weg; het accent staat nog op het eigen merk (grafieklijn, markering in een
+AI-antwoord), de voortgangsbalk, "kans", de GEO-kaart op Support en `.btn-accent`. De aliaslaag van
+76 oude tokennamen is verwijderd na omzetting van elke verwijzing, net als 18 ongebruikte
+Tailwind-kleurnamen en `.brand-gradient-text`.
+
+Eén besluit van de eigenaar is bewust niet aangeraakt: op het paginascherm is oranje voorbehouden aan
+"Te verbeteren", dus "wacht op jou" en "niet opgeslagen" zijn daar limoen. Elders is "wacht op jou"
+oranje. `.card-rail-accent` is neutraal (besluit "Groene rand weg bij openstaande vragen"); de kleur
+staat nu expliciet in plaats van als uitgecommentarieerde regel.
+
+**Stap 4: afwerking en documentatie.** Het pictogram in een knop is 18px (16 in `.btn-sm`, 14 in
+`.btn-xs`), afgedwongen in `app/globals.css` in plaats van per aanroeper, waar 14 en 16 door elkaar
+stonden; de losse maten 13, 17 en 22 zijn 14, 18 en 24 geworden. Kopjes in een kaart staan op
+gewicht 500 (vier keer stond er 600) en de 17px-kop op Support is 16px. `chip-green` is
+`chip-success`. De designgalerij (Beheer, Designsysteem) toont de nieuwe bouwstenen.
+`docs/designsystem.md` beschrijft weer wat er in de code staat (peildatum 23 september 2026): het
+accent en waar het wél en niet staat, het paginaritme en `--stand-marge`, de veldmaten op een
+telefoon, de stang op het overzicht, de nieuwe primitieven in §9, een tiende regel over de
+cascadelagen, en een zesde controle in §12 die niet-bestaande klassen, lettermaten onder 12px en
+6px-rondingen vangt. Die controle geeft nul regels, net als de vijf bestaande.
+
+Wat niet gedaan is en waarom: de ingelogde schermen zijn niet in de browser bekeken, want daarvoor
+is een database met echte gegevens nodig die in deze werkomgeving niet beschikbaar is. De nieuwe en
+gewijzigde bouwstenen zijn wel in beide standen en op telefoonbreedte nagekeken in een losse
+proefpagina met de gebouwde CSS. De terug-link boven het clusterdossier en de contentpagina is
+blijven staan: dat is een navigatiekeuze, geen vormgeving. Punt 2 en 3 van
+`docs/tasks/openstaand-na-okx-omzetting.md` (donkere stand per scherm nalopen, grafiekkleuren op
+kleurenblindheid) staan nog open. Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen.
+
+**Nagekomen, na de schermafbeeldingen.** De merkkiezer en de bronkeuze op Analytics zijn knoppen in de
+vorm van een veld (`.field`). Die kregen na een muisklik de dikke focusrand van een invoerveld, die
+alleen voor wie met het toetsenbord werkt bedoeld is. `button.field` houdt die rand nu alleen bij
+toetsenbordfocus. Gevonden door de proefpagina met de echte componenten voor en na naast elkaar te
+fotograferen.

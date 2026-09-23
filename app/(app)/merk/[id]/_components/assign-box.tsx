@@ -103,7 +103,7 @@ export function AssignBox({
         <label className="flex min-w-56 flex-1 flex-col gap-1.5">
           <span className="mono-label">Account</span>
           <select
-            className="field"
+            className="field field-select"
             value={choice}
             onChange={(e) => setChoice(e.target.value)}
             disabled={accounts === null || wacht}
@@ -123,7 +123,7 @@ export function AssignBox({
           type="button"
           onClick={() => void assign()}
           disabled={wacht || !choice || choice === currentUserId}
-          className="btn-outline disabled:opacity-40"
+          className="btn-outline"
         >
           {wacht ? "Toewijzen…" : "Toewijzen"}
         </button>
@@ -137,7 +137,7 @@ export function AssignBox({
       )}
 
       {error && (
-        <p className="text-sm text-[var(--status-error)]" role="alert">
+        <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
           {error}
         </p>
       )}

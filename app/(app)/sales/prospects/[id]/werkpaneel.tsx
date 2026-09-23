@@ -304,7 +304,7 @@ export function Werkpaneel({ opportunityId, outreach }: WerkpaneelProps) {
                 Zonder categorie is later niet te zien welk soort prospect
                 afhaakt, en dan is er niets te leren. */}
             <select
-              className="field w-auto"
+              className="field field-select w-auto"
               value={reden}
               onChange={(e) => setReden(e.target.value as AfwijsReden)}
               aria-label="De reden van de afwijzing"

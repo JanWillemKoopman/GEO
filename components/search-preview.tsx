@@ -28,7 +28,7 @@ export function SearchPreview({
         {!isReal && <span className="chip chip-neutral">Voorstel, nog geen echte URL</span>}
       </div>
 
-      <div className="flex flex-col gap-1 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+      <div className="vlak flex flex-col gap-1 bg-[var(--bg-surface)] p-4">
         <span className="text-sm text-muted">{url}</span>
         <span
           className="text-lg"

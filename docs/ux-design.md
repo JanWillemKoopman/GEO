@@ -122,8 +122,8 @@ schermen die de gebruiker na elkaar ziet).
 |---|---|
 | `.card` | Wit, één rand, **plat**. Geen schaduw, geen hover; een kaart die bij hover omhoog komt belooft interactie. |
 | `.card-interactive` | Alleen op daadwerkelijk klikbare kaarten (de lijstitems). Hier hoort de hover. |
-| `.card-accent` / `.card-danger` / `.card-success` / `.card-warning` | Getinte kaartranden. |
-| `.card-rail` / `.card-rail-success` / `.card-rail-warning` / `.card-rail-accent` | De 2px-stang links op de kaart met het hoofdgetal van een scherm, of op een kaart die om een handeling vraagt (`-accent`). **Eén per scherm**, anders markeert hij niets meer. De tint volgt de trend van dat getal: `--trend-up` bij een echte stijging, oranje bij een echte daling, grijs zolang er geen oordeel is (nooit gemeten, eerste meting, of een verschil binnen de meetruis). Zie `designsystem.md` §5.5. |
+| `.card-accent` / `.card-danger` / `.card-success` / `.card-warning` | Getinte kaartranden. `.card-accent` staat alleen op de GEO-kaart van Support (23 september 2026); een kaart die om een handeling vraagt krijgt `.card-rail`. |
+| `.card-rail` / `.card-rail-success` / `.card-rail-warning` / `.card-rail-accent` | De 2px-stang links op de kaart met het hoofdgetal van een scherm, of op een kaart die om een handeling vraagt (`-accent`). **Eén per scherm**, anders markeert hij niets meer. Op het overzicht is hij sinds 21 september 2026 altijd `.card-rail-success`; `.card-rail-accent` is neutraal (besluit van de eigenaar). Zie `designsystem.md` §5.5. |
 | `.btn-primary` / `.btn-outline` | Beide 40px, `--radius-pill` (weer een pil). `.btn-sm` = 36px, `.btn-lg` = 48px, BEREKEND uit OKX' eigen opgaven. |
 | `.btn-accent` | De hoofdactie van een scherm, hooguit één. Limoen in donker, donkergroen in licht. Nooit `.btn-primary`, die is bewust neutraal (§2 hierboven). |
 | `.btn-lg` | 48px, ruim boven de aanbevolen minimale tikdoelgrootte (WCAG 2.5.5, 44px). Combineren met `.btn-primary`/`.btn-outline`/`.btn-accent`, alleen op de ÉNE hoofdactie van een scherm dat vaak op een telefoon bediend wordt (bevestigen, publiceren, "schrijf alles"). Niet de standaard, anders verdwijnt de dichtheid die 40px juist opleverde. |
@@ -133,12 +133,13 @@ schermen die de gebruiker na elkaar ziet).
 | `.type-hero` … `.type-caption-emphasis` | De tekststijlen van OKX, met maat, gewicht en regelhoogte vast aan elkaar. Gebruik ze in nieuw werk; `designsystem.md` §3.2 heeft de tabel. |
 | `.btn-ghost` | **De uitweg naast een handeling**: "Wachtwoord vergeten?", "Terug naar inloggen", "Annuleren". Zelfde maat als `.btn-primary`, geen vlak, bij hover een waas. Gebruik hem in plaats van een kale link zodra hij onder of naast een knop staat, anders zweeft er een regel tekst onder een vlak van 40 pixels. |
 | `.stat-value` | Cijfers die je vergelijkt, `tabular-nums`, gewicht 500. Bij OKX doet de maat het werk van een hoofdgetal, niet het gewicht. |
-| `.field` / `.field-lg` | Formuliervelden, 40px (of 48px voor `.field-lg`, tot nu toe alleen de inlogroute), wit met een rand, inclusief focusring. |
-| `.live-dot` | Pulserende indicator voor "loopt nu". |
+| `.field` / `.field-sm` / `.field-lg` | Formuliervelden, 40px (36px voor `.field-sm`, 48px voor `.field-lg`), wit met een rand, inclusief focusring. Onder 768px is elk veld 48px met 16px tekst. Een keuzelijst krijgt altijd `.field-select`. |
+| `.live-dot` | Pulserende indicator voor "loopt nu" (een ring die uitdijt, succesgroen). `.live-dot-sm` is 6px. |
 | `.skeleton` | Laadvlak, respecteert `prefers-reduced-motion`. |
 | `.prose` | Lange tekst (rapport, contentpagina). |
-| `.brand-gradient-text` | **Alleen het woordmerk ORBIT ENGINE.** Nergens anders. |
+| `.brand-logo` | **Alleen het woordmerk ORBIT ENGINE.** `.brand-gradient-text` is op 23 september 2026 verwijderd. |
 | `PageHeader`, `SectionHeading`, `EmptyState`, `Narrow` | Eén variant per patroon, geen lokale kopieën. |
+| `.vlak`, `.tabel`, `.link`, `.menu-*`, `Dialog`, `Alert`, `DataCard`, `FilterChip`, `Segment` | Sinds de UI-audit van 23 september 2026 de enige manier voor een blok in een kaart, een tabel, een link in lopende tekst, een uitklapmenu, een dialoog, een melding, een cijfertegel en een filter- of schakelknop. De regels staan in `designsystem.md` §9. |
 | `Icon` (`components/icon.tsx`) | Het enige icoon-component, nooit een los teken en nooit een eigen SVG. In een lijstregel: 16px, links van de titel, in de leeskleur (`text-secondary`) en nooit in de accentkleur. In een knop: 18px. Zie `designsystem.md` §6. |
 | `ConfidenceChip` (`components/confidence-chip.tsx`) | Zekerheid is een **niveau**, nooit een getal: zeker (geen markering) · onzeker (amber) · niet vastgesteld (mono-label "niet gevonden"). "0.62" zegt een MKB'er niets. |
 | `CopyButton`, `ExternalLink`, `LastUpdated` (`components/`) | H.63-65: drie kleine primitieven tegen herhaling, klembord, "verlaat de app"-pijltje, relatieve datum met volledige datum als tooltip. Elke plek die zelf `navigator.clipboard` of `target="_blank"` opnieuw uittypte, hoort hierheen te verhuizen. |

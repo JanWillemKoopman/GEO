@@ -203,7 +203,7 @@ export function TeamBox({
               disabled={busy}
             />
             <select
-              className="field sm:w-40"
+              className="field field-select sm:w-40"
               value={role}
               onChange={(e) => setRole(e.target.value as AccountRole)}
               aria-label="Rol"
@@ -228,14 +228,14 @@ export function TeamBox({
       )}
 
       {link && (
-        <div className="card card-accent flex flex-col gap-2">
+        <div className="card card-rail flex flex-col gap-2">
           <span className="mono-label">De uitnodigingslink</span>
           <p className="text-sm text-secondary">
             Stuur deze link naar je klant. Hij is twee weken geldig en werkt één
             keer. <strong>Je ziet hem nu voor het laatst</strong>: ORBIT ENGINE bewaart
             alleen een versleutelde versie, dus opnieuw tonen kan niet.
           </p>
-          <p className="break-url rounded-[var(--radius-xl)] bg-[var(--bg-elevated)] p-3 font-mono text-xs">
+          <p className="break-url rounded-[var(--radius-xl)] bg-[var(--bg-layer-2)] p-3 font-mono text-xs">
             {link}
           </p>
           <CopyButton

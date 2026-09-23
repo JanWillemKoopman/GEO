@@ -68,7 +68,7 @@ export function RondeKnop({
           {herhaling ? "Nieuwe ontdekkingsronde" : "Start een ontdekkingsronde"}
         </button>
         {fout && (
-          <p className="text-sm text-[var(--status-error)]" role="alert">
+          <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
             {fout}
           </p>
         )}
@@ -123,12 +123,12 @@ export function RondeKnop({
         <button type="button" className="btn-actie" disabled={wacht || !geldig} onClick={start}>
           {wacht ? "Bezig met starten" : "Ja, start de ronde"}
         </button>
-        <button type="button" className="btn-outline" disabled={wacht} onClick={() => setBevestigen(false)}>
+        <button type="button" className="btn-ghost" disabled={wacht} onClick={() => setBevestigen(false)}>
           Annuleren
         </button>
       </div>
       {fout && (
-        <p className="text-sm text-[var(--status-error)]" role="alert">
+        <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
           {fout}
         </p>
       )}

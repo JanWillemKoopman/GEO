@@ -99,7 +99,7 @@ export default async function JouwBeurtPage({ params }: { params: Promise<{ id: 
         }`;
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <PageHeader eyebrow="Strategie" title="Openstaande vragen" description={beschrijving} />
 
       {mislukt && <ErrorNotice error={mislukt} />}
@@ -121,7 +121,7 @@ export default async function JouwBeurtPage({ params }: { params: Promise<{ id: 
               </div>
               {p.stand.sleutel === "keuze" ? (
                 <Link href={paginaHref(id, p.routeId, "taken")} className="card card-rail card-rail-warning type-body">
-                  {p.stand.zin} <span className="underline">Kies op de pagina</span>
+                  {p.stand.zin} <span className="link">Kies op de pagina</span>
                 </Link>
               ) : (
                 <Vragenlijst

@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/page-header";
 import { activeOnly } from "@/lib/archive";
 import type { Profile } from "@/lib/types/database";
 import { LastUpdated } from "@/components/last-updated";
+import { Icon } from "@/components/icon";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Merken" };
@@ -65,14 +66,15 @@ export default async function ProfielenPage() {
   profiles = [...failedProfiles, ...profiles.filter((p) => p.status !== "mislukt")];
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="ORBIT ENGINE · merkdossiers"
         title="Merken"
         description="ORBIT ENGINE leert je merk eerst kennen: branche, aanbod, concurrenten, doelgroep en tone-of-voice. Dat onderzoek doen we één keer per merk, en elk cluster eronder bouwt erop voort."
         action={
           <Link href="/merk/nieuw" className="btn-primary">
-            + Nieuw merk
+            <Icon naam="toevoegen" size={18} />
+            Nieuw merk
           </Link>
         }
       />
@@ -87,7 +89,7 @@ export default async function ProfielenPage() {
           <ul className="flex flex-col gap-1">
             {failedProfiles.map((p) => (
               <li key={p.id}>
-                <Link href={`/merk/${p.id}/merkprofiel/bewerken`} className="text-sm underline">
+                <Link href={`/merk/${p.id}/merkprofiel/bewerken`} className="link text-sm">
                   {p.name}
                 </Link>
               </li>
@@ -118,7 +120,7 @@ export default async function ProfielenPage() {
                     {p.url} · <LastUpdated at={p.updated_at} className="" />
                   </p>
                   {legeMerken.has(p.id) && (
-                    <p className="mono-label mt-1" style={{ color: "var(--intent-warning-text)" }}>
+                    <p className="mono-label mt-1" style={{ color: "var(--intent-warning-content)" }}>
                       De site kon niet gelezen worden, dit dossier is leeg
                     </p>
                   )}

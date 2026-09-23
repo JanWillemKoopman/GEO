@@ -1,6 +1,7 @@
 import { InfoHint } from "@/components/info-hint";
 import type { AuditCheck, AuditSeverity } from "@/lib/audit/technical";
 import { formatDateLong } from "@/lib/format";
+import { Icon } from "@/components/icon";
 
 /**
  * De uitslag van de technische GEO-audit (optimalisatie.md 3B), sinds
@@ -112,10 +113,10 @@ export function AuditPanel({
           const aandachtspunten = groepChecks.filter((c) => c.severity !== "ok");
           const goedgekeurd = groepChecks.filter((c) => c.severity === "ok");
           return (
-            <details key={groep} className="rounded-[var(--radius-xl)] border border-[var(--border-subtle)]">
+            <details key={groep} className="vlak">
               <summary className="flex cursor-pointer items-center justify-between gap-2 p-3 text-sm font-medium">
                 <span>{GROEP_LABEL[groep]}</span>
-                <span className="mono-label text-muted">
+                <span className="mono-label">
                   {groepChecks.length - aandachtspunten.length} van de {groepChecks.length} in orde
                 </span>
               </summary>
@@ -123,8 +124,8 @@ export function AuditPanel({
                 {aandachtspunten.map((check) => (
                   <div
                     key={check.id}
-                    className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3"
-                    style={check.severity === "blocker" ? { borderColor: "var(--intent-danger-border)" } : undefined}
+                    className="vlak vlak-gevuld flex flex-col gap-2"
+                    style={check.severity === "blocker" ? { borderColor: "var(--border-default)" } : undefined}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="font-medium">{check.label}</span>
@@ -145,7 +146,10 @@ export function AuditPanel({
                 {goedgekeurd.map((check) => (
                   <div key={check.id} className="flex items-center justify-between gap-2 py-0.5 text-sm">
                     <span>{check.label}</span>
-                    <span className="chip chip-success">✓ in orde</span>
+                    <span className="chip chip-success">
+                      <Icon naam="klaar" size={12} />
+                      in orde
+                    </span>
                   </div>
                 ))}
               </div>

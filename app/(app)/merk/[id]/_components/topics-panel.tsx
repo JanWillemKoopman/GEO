@@ -193,7 +193,7 @@ export function TopicsPanel({
     return (
       <li
         key={t.id}
-        className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-4"
+        className="vlak flex flex-col gap-2"
       >
         <div className="flex flex-wrap items-start justify-between gap-2">
           <span className="font-medium">{t.title}</span>
@@ -213,7 +213,7 @@ export function TopicsPanel({
                 <Icon naam="naar" size={12} />
               </Link>
             ) : t.status === "goedgekeurd" ? (
-              <span className="chip chip-green">Goedgekeurd</span>
+              <span className="chip chip-success">Goedgekeurd</span>
             ) : t.status === "afgewezen" ? (
               <span className="chip chip-neutral">Afgewezen</span>
             ) : null}
@@ -234,7 +234,7 @@ export function TopicsPanel({
         {t.rationale && <p className="text-sm text-secondary">{t.rationale}</p>}
 
         {t.origin && (
-          <span className="mono-label text-muted">
+          <span className="mono-label">
             {t.origin === "aanbod_en_gesprek" ? "Uit het aanbod en het gesprek" : "Uit het aanbod"}
           </span>
         )}
@@ -270,7 +270,7 @@ export function TopicsPanel({
         )}
 
         {mixFor === t.id && (
-          <div className="flex flex-col gap-3 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3">
+          <div className="vlak flex flex-col gap-3">
             <div className="flex flex-col gap-1">
               <span className="mono-label">Hoeveel vragen per fase?</span>
               <p className="text-sm text-secondary">
@@ -311,12 +311,12 @@ export function TopicsPanel({
             {/* Werkpakket B punt 6: geen harde grens, wel een zichtbare
                 waarschuwing vóórdat het geld wordt uitgegeven. */}
             {exceedsRunBudgetWarning(mix) && checkMix(mix).ok && (
-              <p className="text-sm" style={{ color: "var(--intent-danger-text)" }}>
+              <p className="text-sm" style={{ color: "var(--intent-danger-content)" }}>
                 Dit is een grote meetronde. Weet je zeker dat dit onderwerp dit verdient?
               </p>
             )}
             {!checkMix(mix).ok && (
-              <p className="text-sm" style={{ color: "var(--intent-danger-text)" }}>
+              <p className="text-sm" style={{ color: "var(--intent-danger-content)" }}>
                 {(checkMix(mix) as { ok: false; reason: string }).reason}
               </p>
             )}
@@ -324,7 +324,7 @@ export function TopicsPanel({
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                className="btn-actie btn-sm disabled:opacity-50"
+                className="btn-actie btn-sm"
                 disabled={bezig || !checkMix(mix).ok}
                 onClick={() => void start(t.id, mix)}
               >
@@ -332,7 +332,7 @@ export function TopicsPanel({
               </button>
               <button
                 type="button"
-                className="btn-outline btn-sm"
+                className="btn-ghost btn-sm"
                 onClick={() => setMixFor(null)}
               >
                 Annuleren
@@ -393,7 +393,7 @@ export function TopicsPanel({
               >
                 Bewaren
               </button>
-              <button type="button" className="btn-outline btn-sm" onClick={() => setBriefFor(null)}>
+              <button type="button" className="btn-ghost btn-sm" onClick={() => setBriefFor(null)}>
                 Annuleren
               </button>
             </div>
@@ -403,7 +403,7 @@ export function TopicsPanel({
             {!t.analysis_id && t.stage !== "concept" && (
               <button
                 type="button"
-                className="btn-actie btn-sm disabled:opacity-50"
+                className="btn-actie btn-sm"
                 disabled={bezig}
                 onClick={() => void start(t.id)}
               >
@@ -416,7 +416,7 @@ export function TopicsPanel({
             {!t.analysis_id && t.stage !== "concept" && mixFor !== t.id && (
               <button
                 type="button"
-                className="btn-outline btn-sm disabled:opacity-50"
+                className="btn-outline btn-sm"
                 disabled={bezig}
                 onClick={() => {
                   // Werkpakket B punt 2: een voorzet op de omvang van dit
@@ -437,7 +437,7 @@ export function TopicsPanel({
             )}
             <button
               type="button"
-              className="btn-outline btn-sm disabled:opacity-50"
+              className="btn-outline btn-sm"
               disabled={bezig}
               onClick={() => {
                 setBriefDraft({
@@ -455,7 +455,7 @@ export function TopicsPanel({
             {t.status !== "afgewezen" && !t.analysis_id && (
               <button
                 type="button"
-                className="btn-outline btn-sm disabled:opacity-50"
+                className="btn-outline btn-sm"
                 disabled={bezig}
                 onClick={() => void patch(t.id, { status: "afgewezen" })}
               >
@@ -465,7 +465,7 @@ export function TopicsPanel({
             {t.status === "afgewezen" && (
               <button
                 type="button"
-                className="btn-outline btn-sm disabled:opacity-50"
+                className="btn-outline btn-sm"
                 disabled={bezig}
                 onClick={() => void patch(t.id, { status: "voorgesteld" })}
               >
@@ -520,7 +520,7 @@ export function TopicsPanel({
       )}
 
       {error && (
-        <p className="text-sm text-[var(--status-error)]" role="alert">
+        <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
           {error}
         </p>
       )}
@@ -531,7 +531,7 @@ export function TopicsPanel({
           (docs/tasks/clusters-ontdekken.md). */}
       <p className="text-sm text-secondary">
         Meer onderwerpen zoeken?{" "}
-        <Link href={`/merk/${profileId}/ontdekken`} className="underline">
+        <Link href={`/merk/${profileId}/ontdekken`} className="link">
           Ga naar Clusters ontdekken
         </Link>
         .
