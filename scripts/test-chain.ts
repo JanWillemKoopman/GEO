@@ -6468,18 +6468,35 @@ async function main(): Promise<void> {
       eindpoort(await countBlockingQuestions(admin as never, poortCluster, poortPieceId)).mag,
     );
 
-    // 1. Een open vraag uit DIT cluster blokkeert.
+    // 1. Een open vraag van DEZE pagina blokkeert. Een open vraag van het
+    //    cluster die aan geen pagina hangt (een aanvulling uit een meting) niet
+    //    meer: sinds 23 september 2026 tellen schrijfpoort en eindpoort precies
+    //    dezelfde vragen (`openVragenVanPagina`, contentflow-een-lijn.md §4.1).
     await db.client.query(
       `insert into public.fact_requests
          (profile_id, analysis_id, question, reason, status, scope, kind, answer_type, required)
-       values ($1, $2, 'Wat kost een onderhoudsbeurt bij jullie?', 'prijs', 'open',
-               'analyse', 'bewijs', 'tekst_kort', true)`,
+       values ($1, $2, 'Op welke locaties doen jullie onderhoud?', 'meting', 'open',
+               'analyse', 'aanvulling', 'tekst_kort', true)`,
       [poortProfiel, poortCluster],
     );
     ok(
-      "een open vraag uit dit cluster houdt de definitieve versie tegen",
+      "een losse clustervraag uit een meting houdt deze pagina niet tegen",
+      eindpoort(await countBlockingQuestions(admin as never, poortCluster, poortPieceId)).mag,
+    );
+    await db.client.query(
+      `insert into public.fact_requests
+         (profile_id, analysis_id, question, reason, status, scope, kind, answer_type, required,
+          content_piece_ids)
+       values ($1, $2, 'Wat kost een onderhoudsbeurt bij jullie?', 'prijs', 'open',
+               'analyse', 'bewijs', 'tekst_kort', true, array[$3::uuid])`,
+      [poortProfiel, poortCluster, poortPieceId],
+    );
+    ok(
+      "een open vraag van deze pagina houdt de definitieve versie tegen",
       !eindpoort(await countBlockingQuestions(admin as never, poortCluster, poortPieceId)).mag,
     );
+    const { openVragenVanPagina } = await import("@/lib/open-questions");
+    eqc("en de schrijfpoort telt precies dezelfde vraag", String(await openVragenVanPagina(admin as never, poortPieceId)), "1");
 
     // 2. Een open vraag uit een ANDER cluster blokkeert deze pagina niet.
     //    Zonder deze grens zet één vraag over installaties de onderhoudspagina

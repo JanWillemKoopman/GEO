@@ -136,6 +136,7 @@ import { faseVoorPagina } from "@/lib/plan-funnel";
 import { buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change-format";
 import type { PeriodChange } from "@/lib/pipeline/period-change-format";
 import { domainOf } from "@/lib/offsite/domain";
+import { schrijfpoort, schrijfdatum } from "@/lib/content-write-gate";
 import { checkUrlFormat, isOnBrandDomain, isRedirectedElsewhere, volledigAdres } from "@/lib/url";
 import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
@@ -2048,6 +2049,39 @@ group("webadres controleren", () => {
 
 // Herstelplan na audit T3.1: op 2 september 2026 gaf de publiceerroute een 202
 // voor https://www.example.com/, een adres dat niets met het merk te maken had.
+// contentflow-een-lijn.md fase B: pas schrijven als elke vraag gedaan is.
+group("schrijfpoort: eerst alle vragen, dan pas schrijven", () => {
+  const basis = {
+    openVragen: 0,
+    voorbereidingKlaar: true,
+    inputStand: "schrijven" as const,
+    writeMode: null,
+    publicatiedatum: "2026-10-20",
+    vandaag: "2026-10-15",
+  };
+  ok("alles gedaan en binnen tien dagen: schrijven", schrijfpoort(basis).mag);
+  ok("voorbereiding loopt nog: niet", schrijfpoort({ ...basis, voorbereidingKlaar: false }).reden === "voorbereiding_loopt");
+  const open = schrijfpoort({ ...basis, openVragen: 2 });
+  ok("twee open vragen: niet", !open.mag && open.reden === "vragen_open");
+  ok("en de melding noemt het aantal", open.melding.includes("Nog 2 vragen"));
+  ok("één open vraag in enkelvoud", schrijfpoort({ ...basis, openVragen: 1 }).melding.includes("Nog 1 vraag."));
+  ok("een onbekend aantal is geen nul", !schrijfpoort({ ...basis, openVragen: Number.NaN }).mag);
+  ok("een negatief aantal is geen nul", !schrijfpoort({ ...basis, openVragen: -1 }).mag);
+  const weinig = schrijfpoort({ ...basis, inputStand: "tegenhouden" });
+  ok("alles gedaan maar te weinig feiten: de klant kiest", !weinig.mag && weinig.reden === "te_weinig_onderbouwd");
+  ok("koos hij algemeen, dan schrijven", schrijfpoort({ ...basis, inputStand: "tegenhouden", writeMode: "algemeen" }).mag);
+  ok("een waarschuwing houdt niet tegen", schrijfpoort({ ...basis, inputStand: "waarschuwing" }).mag);
+  ok("zonder contract geldt de inputpoort niet", schrijfpoort({ ...basis, inputStand: null }).mag);
+  const vroeg = schrijfpoort({ ...basis, vandaag: "2026-10-01" });
+  ok("alles gedaan maar weken te vroeg: wachten", !vroeg.mag && vroeg.reden === "nog_niet_aan_de_beurt");
+  ok("en zegt vanaf wanneer", vroeg.schrijftVanaf === "2026-10-10" && vroeg.melding.includes("10 oktober"));
+  ok("precies op de schrijfdatum mag het", schrijfpoort({ ...basis, vandaag: "2026-10-10" }).mag);
+  ok("zonder datum niet wachten", schrijfpoort({ ...basis, publicatiedatum: null, vandaag: "2026-01-01" }).mag);
+  ok("open vragen gaan vóór de datum", schrijfpoort({ ...basis, openVragen: 3, vandaag: "2026-10-01" }).reden === "vragen_open");
+  ok("schrijfdatum over een maandgrens", schrijfdatum("2026-11-03") === "2026-10-24");
+  ok("geen gedachtestreepje in de meldingen", ![open, weinig, vroeg].some((o) => /[—–]/.test(o.melding)));
+});
+
 // contentflow-een-lijn.md fase A: het contentplan vraagt om een pad, de
 // nameting heeft een volledig adres nodig.
 group("volledigAdres maakt van een pad uit het plan een echt adres", () => {
