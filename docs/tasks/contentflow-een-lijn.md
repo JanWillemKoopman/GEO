@@ -309,7 +309,7 @@ vandaan kwam (`?van=plan|bibliotheek|taken`, `?van=plan` bestaat al).
 Opbouw van dat scherm, per stand:
 - **Bovenaan altijd een standbalk met vijf stappen, niet acht:** Vragen, Schrijven, Goedkeuren,
   Live, Effect. Stand 1 en 2 vallen onder "Vragen" (met "nog niet vrijgegeven" of "wordt
-  voorbereiden" als onderregel), 7 en 8 onder "Effect". Acht stappen op een telefoonscherm is een
+  voorbereid" als onderregel), 7 en 8 onder "Effect". Acht stappen op een telefoonscherm is een
   rij bolletjes die niemand leest. Onder de balk één zin met de volgende stap en wanneer (§3.2 regel
   6), en precies één hoofdknop, die van de klant als hij aan zet is. Zie `docs/designsystem.md` voor
   chips en stappen, `docs/schrijfstijl.md` voor de zinnen.
