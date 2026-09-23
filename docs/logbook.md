@@ -11741,3 +11741,15 @@ contentplan, dat er ook niet meer naartoe linkt. Een pagina zonder rij in `conte
 alleen nog de kleur van "Te verbeteren"; "Aan zet" en de melding dat ORBIT ENGINE schrijft krijgen
 een groene stang. De rail en "Titel en zoekresultaat" staan op wit, de tekst vult naast de rail de
 hele kolom en de rail is 440px breed. Zie `docs/tasks/herontwerp-contentpagina.md` bijlage D punt 7.
+
+## 23 september 2026 (3): Clusters ontdekken zonder bronnenblok, en elke lege staat krijgt zijn ruimte
+
+Het blok "Waar we naar kijken" is van Clusters ontdekken weg, op verzoek van de eigenaar: de
+gebruiker wil goede clusters aanvinken, niet vijf bronnen nalopen. Wat daar belangrijk aan was (een
+ronde zonder Search Console mist de snelle winst) zegt de ronde zelf nog steeds, onder de
+kandidaten. Daarmee vallen ook vier tellingen per paginabezoek weg.
+
+De eigenaar zag daarnaast dat de lege staat tegen de boven- en onderrand plakte. De oorzaak zat niet
+in dit scherm: `EmptyState` vroeg `py-14` (56px), maar `.card` staat in `app/globals.css` buiten een
+Tailwind-laag en wint daardoor altijd van een hulpklasse. Elke lege staat in de app kreeg dus 16
+tot 24px. Nu staat de ruimte als `.card.empty-state` in het stijlblad, en geldt ze overal.
