@@ -1,7 +1,7 @@
 # Clusters ontdekken
 
 > Opgesteld 23 september 2026 op verzoek van de eigenaar. De drie besluiten staan onderaan
-> `docs/logbook.md` (23 september 2026). Niets hiervan is gebouwd behalve het proefscript van fase 0.
+> `docs/logbook.md` (23 september 2026). Fase 0 is gedraaid (uitkomst onderaan); verder is nog niets gebouwd.
 
 ## Wat de eigenaar wil
 
@@ -65,13 +65,13 @@ Zoekdata wordt 30 dagen gecachet in `keyword_demand`.
 | Stap | Wat | Kosten |
 |---|---|---|
 | 1. Verzamelen | Beginpunten uit aanbodboom × werkgebied, Search Console-zoekopdrachten per pagina, bestaande clusters, vermijdlijst van afgewezen onderwerpen | gratis |
-| 2. Verbreden | DataForSEO Labs: zoekideeën rond de beginpunten, waarop de eigen site staat, echte concurrenten volgens Google en waarop zij staan | ~$0,40 tot $0,80 |
+| 2. Verbreden | DataForSEO Labs: zoeksuggesties per beginpunt, waarop de eigen site staat, echte concurrenten (gekozen op omvang, zie fase 0) en waarop zij in de top 20 staan | ~$0,75 (nagemeten) |
 | 3. Schiften | Eerst vaste regels (buitenland, concurrentmerken, dubbel, te lang), dan een licht model per zoekterm: past dit bij aanbod en strategie? Gestopte diensten vallen weg | licht model |
 | 4. Bundelen | Eén aanroep: 8 tot 15 kandidaat-clusters op het juiste niveau, elk aan een dienst. Code controleert dat elke zoekterm in de invoer stond en telt de volumes zelf op. Overlap met een bestaand cluster wordt "lijkt op …", niet stil weggegooid | zwaar model |
 | 5. Scoren | Pure module met tests: vraag, pasvorm, eigen positie, concurrentie, overlap. Uitleg in woorden | gratis |
 | 6. AI-check (fase 3) | Drie vragen per kandidaat aan ChatGPT: noemt hij concurrenten, jou of niemand? | ~$0,10 per kandidaat |
 
-Schatting per ronde: $1 tot $1,50 en 5 tot 10 minuten. Fase 0 meet dit na.
+Schatting per ronde: $1 tot $1,50 en 5 tot 10 minuten. Het DataForSEO-deel is in fase 0 nagemeten.
 
 **Eerlijkheid in de UI:** Google-zoekvolume is een aanwijzing voor wat mensen aan een AI vragen, geen
 meting daarvan. Dat staat zo op het scherm.
@@ -100,7 +100,7 @@ meting daarvan. Dat staat zo op het scherm.
 
 | Fase | Wat | Klaar als |
 |---|---|---|
-| 0. Proefronde | `scripts/probe-clusters-ontdekken.ts --betaald` op udenhout.nl (~$0,50) | Labs werkt voor NL, echte kosten bekend, eigenaar beoordeelt de uitvoer. Minder dan de helft relevant na schiften: geen pagina op DataForSEO bouwen |
+| 0. Proefronde (**gedaan**) | `scripts/probe-clusters-ontdekken.ts --betaald` op udenhout.nl, $0,57 | Labs werkt voor NL, echte kosten bekend, eigenaar beoordeelt de uitvoer. Minder dan de helft relevant na schiften: geen pagina op DataForSEO bouwen |
 | 1. Zijbalk en pagina | Gratis bronnen: Search Console, onboarding, bestaande clusters, ChatGPT. Stap 1, 3, 4, 5. Levert Snelle winst | Werkt op Van den Udenhout |
 | 2. DataForSEO | Stap 2 achter `CLUSTER_DISCOVERY_ENABLED`. Levert Nieuw terrein en Concurrent is je voor | Kosten binnen de schatting |
 | 3. AI-check en klantverzoek | Stap 6 en "Dit wil ik" | |
@@ -112,8 +112,41 @@ vinden in de ruwe data.
 **Mee te nemen bij de bouw:** `README.md` noemt zoekwoordenonderzoek en echte zoekvolumes "bewust niet
 gebouwd"; dat verandert. Check `docs/merkstrategie.md` §30 op beloftes.
 
-## Stand fase 0
+## Uitkomst fase 0 (23 september 2026, $0,57 in totaal)
 
-Het script staat klaar maar is nog niet gedraaid: de DataForSEO-sleutels staan in Vercel en niet in
-de ontwikkelomgeving. Draaien kan lokaal met de sleutels in `.env.local`, of hier nadat de sleutels
-als geheim aan de cloudomgeving zijn toegevoegd.
+Gedraaid op udenhout.nl in twee delen: `scripts/probe-clusters-ontdekken.ts --betaald` ($0,35) en een
+vervolg met twee betere varianten ($0,22). Ruwe antwoorden in `probe-uitvoer/` (niet in git).
+
+**A. DataForSEO Labs werkt voor Nederland in het Nederlands.** Alle aanroepen gaven status 20000.
+
+**B. De prijs klopt met het ontwikkelplan:** $0,012 per aanroep plus $0,00012 per resultaat, tot op de
+cent nagerekend ($0,096 voor 700 resultaten). Een volledige ronde met de werkwijze hieronder kost
+~$0,75 aan DataForSEO: eigen zoektermen (700) $0,10, concurrenten zoeken $0,01, drie dealers
+(300 elk) $0,14, twintig beginpunten (100 elk) $0,48. Plus de AI-stappen.
+
+**C. Ruis, per bron** (aandeel zoektermen met een woord uit het aanbod, een ondergrens):
+
+| Bron | Uitkomst | Oordeel |
+|---|---|---|
+| Waarop de eigen site staat | 700 termen, 75% | Bruikbaar. 251 op plek 4 tot 20 (79%), bijvoorbeeld "audi occasions" en "volkswagen occasions" op plek 10 |
+| Concurrentiegat met de twee grootste "concurrenten" | viabovag.nl en autowereld.nl, 24% | **Onbruikbaar**: dat zijn portalen, geen dealers. Bovenaan "kenteken checken" (823.000) en "bmw" |
+| Concurrentiegat met twee dealergroepen | pouw.nl en dewaalautogroep.nl, 182 termen waar zij in de top 20 staan en udenhout.nl niet | **Sterk**: automodellen die udenhout.nl verkoopt, en "occasion private lease" (22.200 per maand, De Waal op plek 5) |
+| Zoekideeën rond de diensten (`keyword_ideas`) | 700 termen, 10% | **Onbruikbaar**: "weer amsterdam", "nederland marokko". Die methode zoekt op categorie, niet op de term |
+| Zoeksuggesties per beginpunt (`keyword_suggestions`) | 5 × 100 termen | **Bruikbaar**, met twee soorten ruis die het schiften moet afvangen: homoniemen ("capcut apk" bij "apk") en varianten die dezelfde term zijn ("private lease occasion", "occasion private lease", allebei 22.200) |
+
+**Wat dit aan het ontwerp verandert:**
+
+1. **Echte concurrenten kiezen op omvang, met een vaste regel.** Google noemt eerst portalen
+   (viabovag.nl: 59.165 zoektermen, 24 keer udenhout.nl met 2.423). Dealergroepen zitten tussen
+   2 en 12 keer (pouw.nl 6.319, broekhuis.nl 28.910). Regel: hooguit 15 keer de eigen omvang, plus een
+   lijst met marktplaatsen en sociale media. Puur en testbaar, geen AI nodig.
+2. **`keyword_ideas` valt af, `keyword_suggestions` komt ervoor in de plaats.**
+3. **Varianten samenvoegen vóór het schiften**: dezelfde woorden in een andere volgorde met hetzelfde
+   volume zijn voor Google Ads één term. Anders telt de code 22.200 zes keer op.
+4. **Alleen concurrentposities in de top 20 tellen** als "concurrent is je voor".
+5. **Het schiften met een AI-model is nodig**, niet alleen een woordenlijst: "capcut apk" bevat een
+   aanbodwoord en is toch ruis.
+
+**Stopcriterium gehaald:** na de aanpassingen is in alle drie de bruikbare bronnen ruim meer dan de
+helft relevant. DataForSEO blijft in het plan. Nog open: de eigenaar beoordeelt de kandidaten zodra
+fase 1 ze als clusters bundelt; losse zoektermen beoordelen zegt weinig over de kaarten.

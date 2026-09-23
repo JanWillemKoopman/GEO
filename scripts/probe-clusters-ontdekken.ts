@@ -29,6 +29,11 @@
  *   3. ranked_keywords   van de twee grootste echte concurrenten uit stap 2
  *   4. keyword_ideas     rond de diensten uit de aanbodboom
  *
+ * ⚠️ Gedraaid op 23 september 2026: stap 4 bleek onbruikbaar (10% relevant,
+ * "weer amsterdam") en stap 3 koos portalen in plaats van dealers. De
+ * verbeterde werkwijze en alle cijfers staan in `docs/tasks/clusters-ontdekken.md`,
+ * "Uitkomst fase 0". Dit script blijft staan zoals het draaide, als bewijs.
+ *
  * ── DRAAIEN ─────────────────────────────────────────────────────────────────
  *
  *   1. Zet DATAFORSEO_LOGIN en DATAFORSEO_PASSWORD in .env.local
