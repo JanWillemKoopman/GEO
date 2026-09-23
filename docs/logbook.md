@@ -11546,3 +11546,65 @@ Fix: `BewerkenPage` vraagt nu `isStaff(user.id)` op en toont `DossierStatus` all
 klantweergave staat ziet het paneel ook niet, precies zoals bij elk ander stafblok in de app.
 
 Controles: `tsc --noEmit`, `test:unit` (5149), `test:chain` (737) en `build` groen.
+
+## "Wat er op jou wacht" wordt het hart van het overzicht (23 september 2026)
+
+Op verzoek van de eigenaar, na een schermafbeelding van Van den Udenhout. Het blok "Je contentplan" onderaan
+het overzicht is weg: het meldde "18 gepland, nog geen live", en dat stond al in de ronde bovenaan ("18
+ingepland") en in de cijferrij ("0 gepubliceerd"). De regel voor de eerste maand ging mee, want die kondigde
+alleen aan wat dat blok later zou tonen. Het contentplan zelf staat op Strategie → Contentplan.
+
+De wachtrij staat nu in één kolom in plaats van twee: een band per sectie (Cluster, Contentplan, Openstaande
+vragen, Bibliotheek), met links de sectie, een groene teller en de link naar dat hoofdstuk, rechts de taken.
+Elke taak toont waar hij over gaat, één zin waarom, en een knop die zegt wat er gebeurt. Een cluster op akkoord
+toont de clusternaam in plaats van "Bekijk en bevestig het concept" (`wachtrijRegel()` in `lib/wachtrij.ts`):
+op productie stonden er bij Van den Udenhout twee, "Occasion kopen in Noord-Brabant" en "Goedkope prive lease",
+en onder elkaar waren ze niet uit elkaar te houden. Een pagina krijgt zijn cluster als context. Naast de kop
+staat het totaal als groene chip ("7 open taken"), dezelfde `chip-success` als "Klaar voor jouw akkoord". De
+dringendste taak krijgt de enige primaire knop van het scherm; tot vandaag had het scherm er geen, ondanks de
+regel dat hij bij de wachtrij hoort (de test telde een woord in commentaar). `contentMix`, `isEersteMaand` en
+`volgendeMeting` worden op geen scherm meer gebruikt, alleen nog in `test-unit.ts`.
+
+Aanvulling dezelfde dag: de grens van vier taken geldt nu per blok en niet meer per subkop
+(`beperkSectie()` in `lib/wachtrij.ts`). De Bibliotheek heeft drie subkoppen en kon daardoor twaalf taken
+tonen. Zijn het er meer dan vier, dan staat onder het blok één onderstreepte link "Bekijk alle openstaande
+acties" naar dat hoofdstuk, in plaats van "Nog N taken bekijken" per subkop.
+
+## "Je september": het maandblok telt per maand (23 september 2026)
+
+Het blok bovenaan de startpagina heette "Zo werkt je maand", maar elk getal erin telde de hele
+looptijd. Nagerekend op productie bij Van den Udenhout op 23 september: "Plannen ✓ 18 ingepland" was
+het hele plan, terwijl de 14 pagina's van september (gepland 23 tot en met 28 september) nog op
+`ter_goedkeuring` stonden. "Schrijven ✓ 3 teksten" telde een briefing mee, terwijl de rij eronder
+"0 geschreven, 2 geoptimaliseerd" zei. De eigenaar wilde een blok dat zegt wat er deze maand gedaan
+is en nog moet gebeuren, met de naam van de maand erin.
+
+**Wat een maand is.** De kalendermaand in UTC, dezelfde klok als de meetcron (`0 6 1 * *`). Vanaf de
+tweede maand valt dat samen met de periode tussen twee metingen; de eerste maand begint bij de
+nulmeting ("sinds je nulmeting op 20 september"). Plannen, schrijven en publiceren tellen de pagina's
+met `scheduled_for` in deze maand, van het lopende plan en zonder reserves. Teksten buiten het plan
+tellen op hun aanmaakdatum (er is geen schrijfdatum) en staan er apart bij ("en 2 buiten het plan").
+
+**Vijf stappen in plaats van zes.** Kansen kwamen uit dezelfde meting, op dezelfde dag, en stonden
+dus altijd tegelijk met Meten op klaar. Het aantal staat nu onder Meten.
+
+**"2 van de 14" mag nu wel.** Het bezwaar tegen een noemer was dat een doel dat de klant niet zelf
+stelde als verwijt leest. De pagina's van een maand geeft de klant zelf vrij, dus die noemer is zijn
+eigen afspraak. Een stap is klaar als het werk van deze maand af is.
+
+**Vormgeving.** De stap van nu krijgt een eigen vlak en een limoenchip ("jij, nu", "je consultant,
+nu" of "ORBIT ENGINE, nu"); "jij" stond eerst ook bij stappen die al klaar waren. De vaste zin
+rechtsboven is vervangen door "Volgende meting op 1 oktober, over 8 dagen". Onderaan staat wat er
+vorige maand gebeurde ("In september: 3 teksten geschreven en 1 live gezet."), zodat een klant op
+2 oktober niet denkt dat zijn werk verdwenen is. Bewust geen knoppen: "Wat er op je wacht" staat
+direct eronder. "Maand 4 sinds de start" boven de merknaam is weg: dat telde planmaanden, en twee
+maandtellingen op één scherm lieten de klant zoeken welke de echte was.
+
+De losse query op alle `planned_pages` van het merk op de startpagina is ook weg: na het
+verdwijnen van het contentplanblok (hierboven) voedde hij alleen nog de ronde.
+
+Code: `lib/ronde.ts` (puur), `loadMaandBronnen()` in `lib/overview-data.ts`,
+`_components/ronde-balk.tsx`. De test in `scripts/test-unit.ts` gebruikt de productiestand van Van
+den Udenhout als hoofdgeval. Verwachte uitkomst daar: Meten klaar (20 september, 22 kansen), Plannen
+aan de beurt met "14 pagina's, wachten op je akkoord", Schrijven "0 van de 14, en 2 buiten het
+plan". Controles: `tsc --noEmit`, `test:unit` (5173 na samenvoegen met main), `test:chain` (737) en `build` groen.

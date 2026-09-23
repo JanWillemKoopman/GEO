@@ -16,6 +16,7 @@ import "server-only";
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { activeOnly } from "@/lib/archive";
+import type { MaandPlanPagina, MaandTekst } from "@/lib/ronde";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -119,4 +120,78 @@ export async function loadContentTotalen(
     gepubliceerd: pieces.filter((p) => p.published_at !== null).length,
     start,
   };
+}
+
+/**
+ * De ruwe rijen voor "Je [maand]" bovenaan de startpagina (`lib/ronde.ts`).
+ *
+ * Drie queries, parallel, en allemaal smal. De rekenkant zit in `ronde()`; dit
+ * haalt alleen op wat die nodig heeft:
+ *
+ *   • de huidige versie van elke tekst, óók briefings en concepten: de ronde
+ *     moet kunnen zien wat er nog níet geschreven is;
+ *   • de geplande pagina's van het lopende plan, met de status van hun maand,
+ *     want "wacht op je akkoord" staat op de maand en niet op de pagina;
+ *   • de rekendatum van elke hermeting.
+ *
+ * ⚠️ Alleen het lopende plan (`planId`). Pagina's van een gestopt plan horen
+ * niet bij de maand van de klant.
+ */
+export async function loadMaandBronnen(
+  admin: Admin,
+  profileId: string,
+  planId: string | null,
+): Promise<{ planPaginas: MaandPlanPagina[]; teksten: MaandTekst[]; hermetingen: string[] }> {
+  const { data: analysisRows } = await activeOnly(
+    admin.from("analyses").select("id").eq("profile_id", profileId),
+  );
+  const analysisIds = ((analysisRows ?? []) as { id: string }[]).map((a) => a.id);
+
+  const [{ data: pieceRows }, { data: impactRows }, { data: pageRows }] = await Promise.all([
+    analysisIds.length > 0
+      ? admin
+          .from("content_pieces")
+          .select("id, status, created_at, published_at")
+          .in("analysis_id", analysisIds)
+          .eq("is_current", true)
+      : Promise.resolve({ data: [] }),
+    analysisIds.length > 0
+      ? admin.from("content_impact").select("computed_at").in("analysis_id", analysisIds)
+      : Promise.resolve({ data: [] }),
+    planId
+      ? admin
+          .from("planned_pages")
+          .select("scheduled_for, is_buffer, status, posted_at, content_piece_id, plan_months!inner(status, plan_id)")
+          .eq("plan_months.plan_id", planId)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const teksten = (
+    (pieceRows ?? []) as { id: string; status: string; created_at: string; published_at: string | null }[]
+  ).map((p) => ({ id: p.id, status: p.status, createdAt: p.created_at, publishedAt: p.published_at }));
+
+  const planPaginas = (
+    (pageRows ?? []) as unknown as {
+      scheduled_for: string | null;
+      is_buffer: boolean;
+      status: string;
+      posted_at: string | null;
+      content_piece_id: string | null;
+      plan_months: { status: string } | { status: string }[] | null;
+    }[]
+  ).map((p) => {
+    const maand = Array.isArray(p.plan_months) ? p.plan_months[0] : p.plan_months;
+    return {
+      scheduledFor: p.scheduled_for,
+      isBuffer: p.is_buffer,
+      status: p.status,
+      maandStatus: maand?.status ?? "concept",
+      postedAt: p.posted_at,
+      contentPieceId: p.content_piece_id,
+    };
+  });
+
+  const hermetingen = ((impactRows ?? []) as { computed_at: string }[]).map((r) => r.computed_at);
+
+  return { planPaginas, teksten, hermetingen };
 }

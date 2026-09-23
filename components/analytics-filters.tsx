@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   CLUSTERFILTER_ALLES,
@@ -22,9 +23,11 @@ import { BRONFILTER_STANDAARD, bronToelichting, bronfilterNaarAdres, type Bron }
  * dan één bron gemeten is (`beschikbareBronnen()`), dus voor een klant met
  * alleen ChatGPT-metingen verandert er niets aan dit scherm.
  *
- * ── WAAROM BRON AANVINKVAKJES ZIJN EN GEEN KEUZEMENU (23 september 2026) ────
+ * ── WAAROM BRON AANVINKVAKJES IN EEN UITKLAPMENU HEEFT (23 september 2026) ──
  *
- * Meerdere bronnen tegelijk aanvinken kan, tot en met "alle bronnen". Het
+ * Bron oogt als de andere filters (een uitklapmenu), maar een gewone
+ * `<select>` laat maar één keuze toe. Daarom opent de knop een lijstje met
+ * aanvinkvakjes (`Bronkeuze` hieronder). Meerdere bronnen tegelijk aanvinken kan, tot en met "alle bronnen". Het
  * merkcijfer, de grafiek en de clustertabel tonen dan het GEMIDDELDE van de
  * aangevinkte bronnen, nooit een cijfer per bron naast elkaar
  * (`cijferVoorBronnen()` in `lib/engines/bron.ts`): dat blijft de regel van 20
@@ -139,38 +142,10 @@ export function AnalyticsFilters({
       )}
 
       {bronnen.length > 1 && (
-        <Filter label="Bron">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <label className="flex items-center gap-1.5">
-              <input
-                type="checkbox"
-                checked={bronfilter.length === bronnen.length}
-                onChange={(e) =>
-                  navigeer({
-                    bron: e.target.checked ? bronfilterNaarAdres(bronnen.map((b) => b.id)) : bronfilterNaarAdres([bronnen[0].id]),
-                  })
-                }
-              />
-              Alle bronnen
-            </label>
-            {bronnen.map((b) => (
-              <label key={b.id} className="flex items-center gap-1.5">
-                <input
-                  type="checkbox"
-                  checked={bronfilter.includes(b.id)}
-                  onChange={(e) => {
-                    const volgende = e.target.checked
-                      ? [...bronfilter, b.id]
-                      : bronfilter.filter((id) => id !== b.id);
-                    if (volgende.length === 0) return; // minstens één bron blijft aangevinkt
-                    navigeer({ bron: bronfilterNaarAdres(volgende) });
-                  }}
-                />
-                {b.label}
-              </label>
-            ))}
-          </div>
-        </Filter>
+        <div className="flex items-center gap-2 text-sm">
+          <span className="mono-label">Bron</span>
+          <Bronkeuze bronnen={bronnen} bronfilter={bronfilter} navigeer={navigeer} />
+        </div>
       )}
 
       {bronnen.length > 1 &&
@@ -226,5 +201,88 @@ function Filter({ label, children }: { label: string; children: React.ReactNode 
       <span className="mono-label">{label}</span>
       {children}
     </label>
+  );
+}
+
+/** Uitklapmenu met aanvinkvakjes: oogt als een `<select>`, maar staat meer dan één bron toe. */
+function Bronkeuze({
+  bronnen,
+  bronfilter,
+  navigeer,
+}: {
+  bronnen: Bron[];
+  bronfilter: string[];
+  navigeer: (wijzigingen: Record<string, string | null>) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function sluitBijKlikBuiten(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function sluitBijEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", sluitBijKlikBuiten);
+    document.addEventListener("keydown", sluitBijEscape);
+    return () => {
+      document.removeEventListener("mousedown", sluitBijKlikBuiten);
+      document.removeEventListener("keydown", sluitBijEscape);
+    };
+  }, [open]);
+
+  const alles = bronfilter.length === bronnen.length;
+  const samenvatting = alles
+    ? "Alle bronnen"
+    : bronfilter.length === 1
+      ? (bronnen.find((b) => b.id === bronfilter[0])?.label ?? "1 bron")
+      : `${bronfilter.length} bronnen`;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        className="field text-left"
+        aria-haspopup="true"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        {samenvatting}
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-30 mt-1 flex min-w-full flex-col gap-1.5 whitespace-nowrap rounded-md border border-[var(--line-muted)] bg-[var(--bg-base)] p-3 shadow-md">
+          <label className="flex items-center gap-1.5">
+            <input
+              type="checkbox"
+              checked={alles}
+              onChange={(e) =>
+                navigeer({
+                  bron: e.target.checked
+                    ? bronfilterNaarAdres(bronnen.map((b) => b.id))
+                    : bronfilterNaarAdres([bronnen[0].id]),
+                })
+              }
+            />
+            Alle bronnen
+          </label>
+          {bronnen.map((b) => (
+            <label key={b.id} className="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                checked={bronfilter.includes(b.id)}
+                onChange={(e) => {
+                  const volgende = e.target.checked ? [...bronfilter, b.id] : bronfilter.filter((id) => id !== b.id);
+                  if (volgende.length === 0) return; // minstens één bron blijft aangevinkt
+                  navigeer({ bron: bronfilterNaarAdres(volgende) });
+                }}
+              />
+              {b.label}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
