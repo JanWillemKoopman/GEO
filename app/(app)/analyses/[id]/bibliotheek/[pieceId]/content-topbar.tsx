@@ -103,7 +103,7 @@ export function ContentTopbar({
   );
 }
 
-function StatusChip({
+export function StatusChip({
   stand,
   liveSinds,
   onNaarOpslaan,
@@ -176,7 +176,7 @@ function StatusChip({
  * ontwerpsysteem zetten (`designsystem.md` §9), en dat is een hogere prijs dan
  * deze dertig regels.
  */
-function Menu({ children }: { children: React.ReactNode }) {
+export function Menu({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const wikkel = useRef<HTMLDivElement>(null);
 

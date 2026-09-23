@@ -378,7 +378,6 @@ export async function ContentDetail({
       pogingen={pogingen}
       klantzin={klantzin}
       score={kwaliteit?.score ?? piece.quality_score ?? null}
-      verdict={kwaliteit?.verdict ?? null}
       kwaliteitBadge={groepen.blokkades.length > 0 ? String(groepen.blokkades.length) : undefined}
       onderbouwingBadge={onderbouwingBadge}
       versieBadge={`v${piece.version}`}

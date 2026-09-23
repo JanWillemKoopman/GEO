@@ -45,16 +45,66 @@ function Fout({ tekst }: { tekst: string | null }) {
   return <p className="type-caption w-full text-[var(--intent-danger-content)]">{tekst}</p>;
 }
 
-/** "Keur goed": dezelfde route als altijd, met de eindpoort erachter. */
-export function KeurGoedKnop({ analysisId, pieceId }: { analysisId: string; pieceId: string }) {
+/**
+ * "Keur goed": dezelfde route als altijd, met de eindpoort erachter.
+ *
+ * ── ⚠️ ALTIJD TE KIEZEN, OOK MET OPEN PUNTEN (23 september 2026) ────────────
+ *
+ * Besluit van de eigenaar: de klant kan een tekst altijd goedkeuren, ook als de
+ * score laag is of er punten openstaan die de app publicatie laat tegenhouden.
+ * Tot vandaag verdween de knop zolang er zo'n punt was, en stond er "Bekijk de
+ * 5 punten" op zijn plek: wie de tekst goed genoeg vond, kon niet verder.
+ *
+ * De route weigerde dat nooit (`keurTekstGoed()` kijkt alleen naar open
+ * vragen, niet naar de kwaliteit); het slot zat alleen in het scherm. Wat er nu
+ * wel staat: bij open punten wordt één klik er twee, en de tweede noemt het
+ * aantal. Zelfde patroon als "Dit staat live" in `publish-box.tsx`: niet
+ * blokkeren, wel niet verzwijgen.
+ *
+ * De eindpoort op open vragen blijft (28 augustus 2026, `lib/content-final-gate.ts`):
+ * weigert de route, dan staat zijn melding onder de knop, met de uitweg erin.
+ */
+export function KeurGoedKnop({
+  analysisId,
+  pieceId,
+  openPunten = 0,
+}: {
+  analysisId: string;
+  pieceId: string;
+  /** Hoeveel punten publicatie tegenhouden. Meer dan nul: eerst bevestigen. */
+  openPunten?: number;
+}) {
   const { bezig, fout, doe } = useActie();
+  const [bevestigen, setBevestigen] = useState(false);
+  const keurGoed = () => void doe(`/api/analyses/${analysisId}/content/${pieceId}/approve`, {});
+
+  if (bevestigen) {
+    return (
+      <div className="flex w-full flex-col gap-2">
+        <p className="type-body">
+          {openPunten === 1 ? "Er staat nog 1 punt open." : `Er staan nog ${openPunten} punten open.`} Keur je de
+          tekst nu goed, dan blijven die in de tekst staan.
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="button" className="btn-primary" disabled={bezig} onClick={keurGoed}>
+            {bezig ? "Bezig…" : "Ja, keur toch goed"}
+          </button>
+          <button type="button" className="btn-outline" disabled={bezig} onClick={() => setBevestigen(false)}>
+            Eerst verbeteren
+          </button>
+        </div>
+        <Fout tekst={fout} />
+      </div>
+    );
+  }
+
   return (
     <>
       <button
         type="button"
         className="btn-primary"
         disabled={bezig}
-        onClick={() => void doe(`/api/analyses/${analysisId}/content/${pieceId}/approve`, {})}
+        onClick={() => (openPunten > 0 ? setBevestigen(true) : keurGoed())}
       >
         {bezig ? "Bezig…" : "Keur goed"}
       </button>

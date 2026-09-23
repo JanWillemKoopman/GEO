@@ -140,6 +140,7 @@ import { schrijfpoort, schrijfdatum } from "@/lib/content-write-gate";
 import { paginaNaam } from "@/lib/pagina-naam";
 import { tellingen, filterPaginas, groepVan, LEEG_FILTER, filterKeuzes } from "@/lib/pagina-lijst";
 import { bundelOpSoort } from "@/lib/pipeline/quality-groups";
+import { markeerZinnen, zinInBron } from "@/lib/tekst-markering";
 import { paginaStand, streefdatum, standVolgorde, FASEN, type PaginaStandInput } from "@/lib/pagina-stand";
 import { checkUrlFormat, isOnBrandDomain, isRedirectedElsewhere, volledigAdres } from "@/lib/url";
 import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
@@ -2066,6 +2067,51 @@ group("bundelOpSoort: vijf keer dezelfde bevinding wordt één bundel", () => {
   ok("een losse bevinding blijft los", uit[1].kop === null && uit[1].details[0] === "De inleiding is te lang.");
   const uniek = bundelOpSoort([b("Sectie prijs: te vaag."), b("Sectie werkgebied: ontbreekt.")]);
   ok("verschillende aanhef wordt niet samengevoegd", uniek.every((x) => x.kop === null));
+});
+
+// 23 september 2026: de zinnen van een verbeterpunt staan gemarkeerd in de
+// leestekst, en de lijst ernaast springt ernaartoe. Een markering op de
+// verkeerde plek of een kapotte tag is erger dan geen markering.
+group("markeerZinnen: verbeterpunten in de leestekst", () => {
+  const html = '<p>Wij leveren binnen 24 uur. Bel ons op &quot;werkdagen&quot; voor een offerte.</p><p><a href="/binnen-24-uur-geleverd">link</a></p>';
+  const uit = markeerZinnen(html, [
+    "Wij leveren binnen 24 uur.",
+    '"Bel ons op "werkdagen" voor een offerte."',
+    "Deze zin staat er niet in.",
+    "Ja.",
+  ]);
+  ok("gevonden zinnen krijgen een markering", uit.html.includes('<mark class="tekst-punt" id="punt-0">Wij leveren binnen 24 uur.</mark>'));
+  ok("aanhalingstekens in de zin volgen de escaping van de renderer", uit.html.includes('id="punt-1">Bel ons op &quot;werkdagen&quot; voor een offerte.</mark>'));
+  ok("per zin of hij gevonden is", JSON.stringify(uit.gevonden) === "[true,true,false,false]");
+  ok("een te kort stuk wordt niet gemarkeerd", !uit.html.includes('id="punt-3"'));
+  const inHref = markeerZinnen('<a href="/binnen-24-uur-geleverd-vandaag">binnen-24-uur-geleverd-vandaag</a>', ["binnen-24-uur-geleverd-vandaag"]);
+  ok("nooit binnen een tag", inHref.html.startsWith('<a href="/binnen-24-uur-geleverd-vandaag"><mark'));
+  const dubbel = markeerZinnen("<p>Onderhoud in zes werkplaatsen.</p>", ["Onderhoud in zes werkplaatsen.", "Onderhoud in zes werkplaatsen."]);
+  ok("dezelfde zin twee keer: de tweede nestelt niet in de eerste", (dubbel.html.match(/<mark/g) ?? []).length === 1 && dubbel.gevonden[1] === false);
+  const bron = "## Kop\n\nWij leveren binnen 24 uur. En meer.";
+  const plek = zinInBron(bron, "Wij leveren binnen 24 uur.");
+  ok("zinInBron vindt de plek in de markdown", plek !== null && bron.slice(plek.begin, plek.eind) === "Wij leveren binnen 24 uur.");
+  ok("zinInBron geeft null bij een onbekende zin", zinInBron(bron, "Niet aanwezig in de tekst.") === null);
+});
+
+group("renderMarkdown en de WordPress-export herkennen een tabel", () => {
+  const md = "Inleiding.\n\n| Bedrijfswagen | Vanafprijs |\n|---|---:|\n| Caddy Cargo | € 359 |\n| Crafter | € 589 |\n\nNa de tabel.";
+  const html = renderMarkdown(md);
+  ok("een tabel wordt een tabel", html.includes("<table><thead><tr><th>Bedrijfswagen</th><th>Vanafprijs</th></tr></thead>"));
+  ok("met alle rijen", html.includes("<tr><td>Caddy Cargo</td><td>€ 359</td></tr><tr><td>Crafter</td><td>€ 589</td></tr>"));
+  ok("en de alinea erna blijft een alinea", html.includes("<p>Na de tabel.</p>"));
+  ok("geen streepjes meer in de tekst", !html.includes("|---"));
+  ok("zonder scheidingsregel is het geen tabel", !renderMarkdown("| dit | is een zin |").includes("<table"));
+  const wp = markdownToGutenbergBlocks(md);
+  ok("de export zet hem in een tabelblok", wp.includes("<!-- wp:table -->") && wp.includes("<td>Crafter</td>"));
+});
+
+group("contentpagina: goedkeuren kan altijd, ook met open punten", () => {
+  const aanZet = leesBestand("components/pagina/tekst-aan-zet.tsx");
+  ok("de goedkeurknop krijgt het aantal open punten mee", aanZet.includes("openPunten={blokkades}"));
+  ok("en wordt niet meer vervangen door een verwijzing naar de lijst", !aanZet.includes('href="#rail"'));
+  const knop = leesBestand("components/pagina/knoppen.tsx");
+  ok("met open punten vraagt de knop eerst om bevestiging", knop.includes("openPunten > 0 ? setBevestigen(true)"));
 });
 
 group("bibliotheek: tegels en chips tellen dezelfde stand", () => {

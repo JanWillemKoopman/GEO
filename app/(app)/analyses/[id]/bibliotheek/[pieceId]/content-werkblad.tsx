@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import { ErrorNotice, networkProblem } from "@/components/error-notice";
 import type { FaqEditItem } from "@/components/faq-editor";
 import type { UserFacingError } from "@/lib/errors";
-import { extractHeadings } from "@/lib/markdown";
+import { extractHeadings, renderMarkdown } from "@/lib/markdown";
+import { markeerZinnen, zinInBron } from "@/lib/tekst-markering";
 import { ContentCanvas, NieuweVersieBalk } from "./content-canvas";
-import { ContentTopbar, type PaginaStand } from "./content-topbar";
+import { ContentTopbar, Menu, StatusChip, type PaginaStand } from "./content-topbar";
 import { ContextRail } from "./context-rail";
 import { QualityFindings } from "./quality-findings";
-import type { Bevindingengroepen, GegroepeerdeBevinding } from "@/lib/pipeline/quality-groups";
+import type { Bevindingengroepen } from "@/lib/pipeline/quality-groups";
 import { HerschrijfProvider, type Herschrijfopdracht } from "./herschrijf-context";
 import type { ContentStatusResponse } from "@/app/api/analyses/[id]/content/[pieceId]/status/route";
 
@@ -61,7 +62,6 @@ export function ContentWerkblad({
   pogingen,
   klantzin,
   score,
-  verdict,
   kwaliteitBadge,
   onderbouwingBadge,
   versieBadge,
@@ -106,7 +106,6 @@ export function ContentWerkblad({
   pogingen: string;
   klantzin: string;
   score: number | null;
-  verdict: string | null;
   kwaliteitBadge?: string;
   onderbouwingBadge?: string;
   versieBadge?: string;
@@ -146,6 +145,11 @@ export function ContentWerkblad({
   const [schrijft, setSchrijft] = useState(false);
   const [botsing, setBotsing] = useState(false);
   const [opdracht, setOpdracht] = useState<Herschrijfopdracht | null>(null);
+  const [weergave, setWeergave] = useState<"schrijven" | "opgemaakt">("opgemaakt");
+  // Een selectie die gezet moet worden zodra het tekstvak er staat. Het vak
+  // bestaat alleen in de bewerkstand, dus een klik vanuit de leesstand moet
+  // eerst omschakelen en pas daarna selecteren.
+  const teSelecteren = useRef<{ begin: number; eind: number } | null>(null);
 
   const tekstRef = useRef<HTMLTextAreaElement | null>(null);
   const opslaanRef = useRef<HTMLDivElement | null>(null);
@@ -233,11 +237,42 @@ export function ContentWerkblad({
     [koppen],
   );
 
+  // ── De zinnen van de verbeterpunten, gemarkeerd in de leestekst ───────────
+  //
+  // Uit de tekst in het canvas, net als de koppen hierboven: wie een zin zelf
+  // herschrijft, ziet de markering verdwijnen, en dat is precies het signaal
+  // dat hij weg is.
+  const blokZinnen = useMemo(() => groepen.blokkades.map((b) => b.issue.evidence ?? ""), [groepen]);
+  const markering = useMemo(() => markeerZinnen(renderMarkdown(tekst), blokZinnen), [tekst, blokZinnen]);
+
+  // De selectie zetten zodra het tekstvak in beeld is. Het vak groeit mee en
+  // schuift zelf dus niet: de pagina moet naar de plek scrollen, en die wordt
+  // geschat uit waar de selectie in de tekst valt. Een schatting, maar een
+  // selectie die zichtbaar is en een regel of wat verschuift is beter dan een
+  // selectie die onder de vouw staat.
+  useEffect(() => {
+    const doel = teSelecteren.current;
+    const veld = tekstRef.current;
+    if (weergave !== "schrijven" || !doel || !veld) return;
+    teSelecteren.current = null;
+    zetSelectie(veld, doel);
+  }, [weergave, tekst]);
+
+  const selecteer = useCallback((bereik: { begin: number; eind: number }) => {
+    teSelecteren.current = bereik;
+    setWeergave("schrijven");
+    // Stond hij al in de bewerkstand, dan verandert `weergave` niet en loopt de
+    // effect hierboven niet vanzelf. Een nieuwe `tekst`-waarde komt er ook niet,
+    // dus hier direct.
+    const veld = tekstRef.current;
+    if (veld) {
+      teSelecteren.current = null;
+      zetSelectie(veld, bereik);
+    }
+  }, []);
+
   const gaNaarSectie = useCallback(
     (sectie: string) => {
-      const veld = tekstRef.current;
-      if (!veld) return;
-
       // De kopregel terugzoeken in de ruwe markdown. Op de regel zelf en niet
       // op de eerste de beste plek waar die woorden staan: een kop komt vaak
       // ook in een zin voor.
@@ -247,22 +282,44 @@ export function ContentWerkblad({
       for (const regel of regels) {
         const kop = /^#{1,6}\s+(.*)$/.exec(regel);
         if (kop && kop[1].trim().toLowerCase() === doel) {
-          veld.focus();
-          // De selectie zetten laat de browser zelf naar de caret scrollen.
-          veld.setSelectionRange(positie, positie + regel.length);
+          selecteer({ begin: positie, eind: positie + regel.length });
           return;
         }
         positie += regel.length + 1;
       }
     },
-    [tekst],
+    [tekst, selecteer],
   );
 
-  const laatHetOplossen = useCallback((bevinding: GegroepeerdeBevinding) => {
-    const { issue } = bevinding;
-    const plek = issue.section?.trim() ? `In "${issue.section.trim()}": ` : "";
-    const wat = issue.recommendation?.trim() || issue.finding.trim();
-    setOpdracht({ tekst: `${plek}${wat}`, sleutel: Date.now() });
+  /** Zelf aanpassen: naar de bewerkstand, met de zin geselecteerd. */
+  const pasZelfAan = useCallback(
+    (zin: string) => {
+      const bereik = zinInBron(tekst, zin);
+      if (bereik) selecteer(bereik);
+      else setWeergave("schrijven");
+    },
+    [tekst, selecteer],
+  );
+
+  /** Naar de gemarkeerde zin in de leestekst, en hem even aanwijzen. */
+  const toonInTekst = useCallback((index: number) => {
+    setWeergave("opgemaakt");
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`punt-${index}`);
+      if (!el) return;
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+      el.classList.add("is-aangewezen");
+      setTimeout(() => el.classList.remove("is-aangewezen"), 2000);
+    });
+  }, []);
+
+  // Het herschrijfvak staat onder de tekst. Zonder deze sprong vult een klik in
+  // de rail een vak dat buiten beeld staat, en lijkt de knop niets te doen.
+  const laatOplossen = useCallback((opdrachten: string[]) => {
+    setOpdracht({ tekst: opdrachten.join("\n"), sleutel: Date.now() });
+    requestAnimationFrame(() =>
+      document.getElementById("aanpassen")?.scrollIntoView({ block: "start", behavior: "smooth" }),
+    );
   }, []);
 
   async function bewaar() {
@@ -349,16 +406,22 @@ export function ContentWerkblad({
   return (
     <div className="content-zones flex flex-col gap-5">
       {kop}
-      <ContentTopbar
-        compact={Boolean(kop)}
-        terug={terug}
-        titel={titel}
-        stand={stand}
-        liveSinds={liveSinds}
-        onNaarOpslaan={() => opslaanRef.current?.scrollIntoView({ block: "center" })}
-        menu={menu}
-        publiceren={publiceren}
-      />
+      {/* Onder de kop van het paginascherm staat de paginabalk niet meer als
+          eigen regel (23 september 2026): daar bleef alleen een losse `⋯`
+          over, op een rij van zestig pixels. Het menu staat nu in de werkbalk
+          van de tekst. De volledige balk blijft voor een oudere versie, die
+          geen kop heeft. */}
+      {!kop && (
+        <ContentTopbar
+          terug={terug}
+          titel={titel}
+          stand={stand}
+          liveSinds={liveSinds}
+          onNaarOpslaan={() => opslaanRef.current?.scrollIntoView({ block: "center" })}
+          menu={menu}
+          publiceren={publiceren}
+        />
+      )}
 
       {probleem && <ErrorNotice error={probleem} onRetry={() => void bewaar()} />}
 
@@ -409,40 +472,43 @@ export function ContentWerkblad({
             tekstRef={tekstRef}
             schrijft={schrijft}
             leesTitel={leesTitel}
+            weergave={weergave}
+            onWeergave={setWeergave}
+            leesHtml={markering.html}
+            werkbalk={
+              <div ref={opslaanRef} className="flex flex-wrap items-center justify-end gap-2">
+                {eigenWerk && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTitel(basis.title);
+                      setTekst(basis.bodyMarkdown);
+                      setMetaTitle(basis.metaTitle);
+                      setMetaDescription(basis.metaDescription);
+                      setFaq(basis.faq);
+                    }}
+                    className="text-sm text-secondary hover:underline"
+                  >
+                    Ongedaan maken
+                  </button>
+                )}
+                {(eigenWerk || opslaan === "bezig") && (
+                  <button
+                    type="button"
+                    onClick={() => void bewaar()}
+                    disabled={opslaan === "bezig"}
+                    className="btn-primary btn-sm"
+                  >
+                    {opslaan === "bezig" ? "Opslaan…" : "Opslaan"}
+                  </button>
+                )}
+                {kop && (stand === "opgeslagen" || stand === "schrijft") && (
+                  <StatusChip stand={stand} liveSinds={liveSinds} onNaarOpslaan={() => undefined} />
+                )}
+                {kop && <Menu>{menu}</Menu>}
+              </div>
+            }
           />
-
-          {/* Alleen als er iets te bewaren is (23 september 2026). Een grijze,
-              uitgeschakelde "Opslaan" onder een tekst die je alleen leest, was
-              een van de drie losse knoppen die de eigenaar rommelig vond. */}
-          <div
-            ref={opslaanRef}
-            className="content-canvas-maat flex flex-wrap items-center gap-3"
-            hidden={Boolean(kop) && !eigenWerk && opslaan !== "bezig"}
-          >
-            <button
-              type="button"
-              onClick={() => void bewaar()}
-              disabled={opslaan === "bezig" || !eigenWerk}
-              className="btn-primary w-fit"
-            >
-              {opslaan === "bezig" ? "Opslaan…" : "Opslaan"}
-            </button>
-            {eigenWerk && (
-              <button
-                type="button"
-                onClick={() => {
-                  setTitel(basis.title);
-                  setTekst(basis.bodyMarkdown);
-                  setMetaTitle(basis.metaTitle);
-                  setMetaDescription(basis.metaDescription);
-                  setFaq(basis.faq);
-                }}
-                className="text-sm text-secondary hover:underline"
-              >
-                Mijn wijzigingen ongedaan maken
-              </button>
-            )}
-          </div>
 
           <div id="aanpassen" className="content-canvas-maat flex flex-col gap-3 scroll-mt-24">
             {kop && <h2 className="type-section">Een aanpassing vragen</h2>}
@@ -459,10 +525,12 @@ export function ContentWerkblad({
               pogingen={pogingen}
               klantzin={klantzin}
               score={score}
-              verdict={verdict}
+              gevonden={markering.gevonden}
               sectieBestaat={sectieBestaat}
               onGaNaarSectie={gaNaarSectie}
-              onLaatHetOplossen={laatHetOplossen}
+              onToonInTekst={toonInTekst}
+              onPasZelfAan={pasZelfAan}
+              onLaatOplossen={laatOplossen}
               kanOplossen={poortOpen && !schrijft}
             />
           }
@@ -478,4 +546,13 @@ export function ContentWerkblad({
       </div>
     </div>
   );
+}
+
+/** Selecteer een stuk tekst in het meegroeiende tekstvak en scrol ernaartoe. */
+function zetSelectie(veld: HTMLTextAreaElement, bereik: { begin: number; eind: number }) {
+  veld.focus({ preventScroll: true });
+  veld.setSelectionRange(bereik.begin, bereik.eind);
+  const deel = veld.value.length > 0 ? bereik.begin / veld.value.length : 0;
+  const boven = veld.getBoundingClientRect().top + window.scrollY + deel * veld.scrollHeight;
+  window.scrollTo({ top: Math.max(0, boven - window.innerHeight / 3), behavior: "smooth" });
 }

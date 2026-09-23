@@ -84,6 +84,52 @@ export function inline(text: string): string {
     });
 }
 
+/**
+ * Een markdowntabel vanaf regel `start`, of `null` als daar geen tabel begint.
+ *
+ * ── WAAROM (23 september 2026) ──────────────────────────────────────────────
+ *
+ * De schrijver zet prijzen en vergelijkingen geregeld in een tabel. Deze
+ * renderer kende geen tabellen, en dan verscheen er op het scherm én in de
+ * gekopieerde HTML één alinea vol streepjes: "| Bedrijfswagen | Vanafprijs per
+ * maand | ... |---|---:|---|". Zo stond het op de pagina "Bedrijfswagen leasen
+ * vanaf € 359 p/m" van Van den Udenhout.
+ *
+ * Een tabel is: een kopregel met `|`, direct daarna een scheidingsregel van
+ * streepjes (met of zonder `:` voor de uitlijning), en daarna nul of meer
+ * rijen met `|`. Zonder scheidingsregel is het geen tabel maar een zin waarin
+ * toevallig een streep staat, en die blijft een alinea.
+ *
+ * Werkt op regels die al ge-escaped zijn; de cellen gaan door `inline()` bij
+ * de aanroeper. Gedeeld met `content-export.ts`, zodat scherm en export
+ * dezelfde tabel herkennen.
+ */
+export function leesTabel(
+  lines: readonly string[],
+  start: number,
+): { kop: string[]; rijen: string[][]; volgende: number } | null {
+  const cellen = (regel: string) =>
+    regel
+      .trim()
+      .replace(/^\|/, "")
+      .replace(/\|$/, "")
+      .split("|")
+      .map((c) => c.trim());
+  const kopRegel = lines[start]?.trim() ?? "";
+  const scheiding = lines[start + 1]?.trim() ?? "";
+  if (!kopRegel.startsWith("|")) return null;
+  if (!/^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?$/.test(scheiding)) return null;
+
+  const kop = cellen(kopRegel);
+  const rijen: string[][] = [];
+  let i = start + 2;
+  while (i < lines.length && lines[i].trim().startsWith("|")) {
+    rijen.push(cellen(lines[i]));
+    i++;
+  }
+  return { kop, rijen, volgende: i };
+}
+
 export function renderMarkdown(markdown: string): string {
   const escaped = escapeHtml(markdown);
   const lines = escaped.split(/\r?\n/);
@@ -107,12 +153,25 @@ export function renderMarkdown(markdown: string): string {
     }
   };
 
-  for (const raw of lines) {
-    const line = raw.trimEnd();
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trimEnd();
 
     if (line.trim() === "") {
       flushParagraph();
       closeList();
+      continue;
+    }
+
+    const tabel = leesTabel(lines, i);
+    if (tabel) {
+      flushParagraph();
+      closeList();
+      const kop = tabel.kop.map((c) => `<th>${inline(c)}</th>`).join("");
+      const rijen = tabel.rijen
+        .map((r) => `<tr>${r.map((c) => `<td>${inline(c)}</td>`).join("")}</tr>`)
+        .join("");
+      html.push(`<table><thead><tr>${kop}</tr></thead><tbody>${rijen}</tbody></table>`);
+      i = tabel.volgende - 1;
       continue;
     }
 

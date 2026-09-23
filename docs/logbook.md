@@ -11664,3 +11664,13 @@ Teksten om goed te keuren en pagina's om live te zetten staan alleen in de bibli
 omdat de lijst begint bij wat op de klant wacht. De drie klikbare tegels bovenaan de bibliotheek zijn
 vervangen door een zoekbalk en vier filters (status, cluster, soort content, type), omdat een tegel
 er niet uitziet als een knop. Pure filterlogica in `lib/pagina-lijst.ts`, getest in `test-unit.ts`.
+
+**23 september 2026: de contentpagina draait om "wat moet er beter", en goedkeuren kan altijd.**
+Op verzoek van de eigenaar is "Keur goed" altijd de hoofdknop, ook met open punten; dan vraagt hij
+één keer extra bevestiging met het aantal. De route weigerde dat nooit, alleen het scherm verborg de
+knop. De rail begint met "Te verbeteren" (per punt wat, hoe en waar, plus één knop voor alles), de
+overige suggesties (op die pagina 53 van de 58 bevindingen) en de naslag staan ingeklapt eronder, en de zinnen van de punten
+staan gemarkeerd in de leestekst (`lib/tekst-markering.ts`; alle 5 gevonden op die pagina). Tabellen
+in een tekst verschijnen nu als tabel, op het scherm en in de export, in plaats van als streepjes. Details in
+`docs/tasks/herontwerp-contentpagina.md` bijlage D. Controles: `tsc --noEmit`, `test:unit` (5262),
+`test:chain` (758) en `build` groen.

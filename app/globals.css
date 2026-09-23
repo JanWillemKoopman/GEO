@@ -2005,6 +2005,55 @@ textarea.field {
   max-width: var(--stand-lezen);
 }
 
+/* ── De werkbalk boven de tekst (23 september 2026) ────────────────────────
+   Lezen/bewerken links, opslaan en het menu rechts. Plakt onder de bovenbalk
+   met `top: var(--header-h)`, om dezelfde reden als de paginabalk hieronder.
+   De negatieve marge laat de balk tot de rand van de kaart lopen, zodat de
+   tekst er bij het scrollen niet langs de zijkant onderdoor zichtbaar is. */
+.canvas-werkbalk {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: -16px -16px 0;
+  padding: 12px 16px;
+  background-color: var(--bg-surface);
+  border-bottom: var(--border-width-xs) solid var(--border-subtle);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+}
+
+/* ── De zinnen van een verbeterpunt, in de leestekst ───────────────────────
+   Kleur plus vorm (designsystem.md regel 4): een tint en een stippellijn
+   eronder, zodat het ook zonder kleurzien te herkennen is. */
+.tekst-punt {
+  background-color: var(--intent-danger-surface);
+  color: inherit;
+  text-decoration: underline dotted var(--intent-danger-solid);
+  text-underline-offset: 3px;
+  border-radius: 2px;
+  scroll-margin-top: calc(var(--header-h) + 96px);
+}
+.tekst-punt.is-aangewezen {
+  outline: var(--border-width-sm) solid var(--intent-danger-solid);
+  outline-offset: 2px;
+}
+/* De plek in de lijst die naar zo'n zin springt: dezelfde tint, zodat het oog
+   de twee aan elkaar koppelt. */
+.tekst-punt-link {
+  display: block;
+  padding: 4px 8px;
+  border-left: var(--border-width-sm) solid var(--intent-danger-solid);
+  background-color: var(--intent-danger-surface);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  color: var(--text-primary);
+}
+.tekst-punt-link:hover {
+  text-decoration: underline;
+}
+
 /* ── De paginabalk ─────────────────────────────────────────────────────────
    ⚠️ Plakt met `top: var(--header-h)` en NOOIT met een eigen 48: `globals.css`
    waarschuwt bij `--header-h` zelf dat een tweede getal een kier oplevert waar
@@ -2942,6 +2991,23 @@ textarea.field {
 }
 .prose code {
   overflow-wrap: anywhere;
+}
+/* De tabel zelf (23 september 2026, sinds `renderMarkdown()` tabellen kent). */
+.prose table {
+  border-collapse: collapse;
+  margin: 1em 0;
+  font-size: 0.95em;
+}
+.prose th,
+.prose td {
+  padding: 6px 12px;
+  text-align: left;
+  border-bottom: var(--border-width-xs) solid var(--border-subtle);
+  vertical-align: top;
+}
+.prose th {
+  font-weight: 600;
+  border-bottom-color: var(--border-primary);
 }
 .prose ul,
 .prose ol {

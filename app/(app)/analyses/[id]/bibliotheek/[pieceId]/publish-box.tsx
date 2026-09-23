@@ -194,8 +194,8 @@ function NogNiet({
         {blokkades > 0 && (
           <p className="card card-warning text-sm">
             Er {blokkades === 1 ? "staat nog 1 punt" : `staan nog ${blokkades} punten`} open die
-            publicatie tegenhouden. Je kunt doorgaan, maar kijk ze liever eerst na in de
-            kwaliteitslijst.
+            publicatie tegenhouden. Je kunt doorgaan, maar kijk ze liever eerst na onder
+            {"\"Te verbeteren\"."}
           </p>
         )}
 

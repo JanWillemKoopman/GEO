@@ -1,10 +1,9 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { FaqEditor, type FaqEditItem } from "@/components/faq-editor";
 import { SearchPreview } from "@/components/search-preview";
 import { CollapsibleSection } from "@/components/collapsible-section";
-import { renderMarkdown } from "@/lib/markdown";
 import { Icon } from "@/components/icon";
 
 /**
@@ -57,7 +56,21 @@ export function ContentCanvas({
   tekstRef,
   schrijft,
   leesTitel,
+  weergave,
+  onWeergave,
+  leesHtml,
+  werkbalk,
 }: {
+  /**
+   * Lezen of bewerken. Woont in het werkblad (23 september 2026): "Zelf
+   * aanpassen" in de rail moet naar de bewerkstand kunnen springen.
+   */
+  weergave: "schrijven" | "opgemaakt";
+  onWeergave: (w: "schrijven" | "opgemaakt") => void;
+  /** De opgemaakte tekst, met de zinnen van de verbeterpunten gemarkeerd. */
+  leesHtml: string;
+  /** Rechts in de werkbalk: opslaan, de stand en het menu. */
+  werkbalk?: React.ReactNode;
   /** De naam die in de leesweergave als kop staat (`paginaNaam()`). */
   leesTitel?: string;
   titel: string;
@@ -86,8 +99,8 @@ export function ContentCanvas({
   // De bewerkstand stond voorop, en die toont de brontekst: `##` voor koppen,
   // een tabel als rijen met streepjes, links als `[tekst](url)`. De eigenaar
   // beoordeelde dat als een halffabricaat, en terecht: wie een tekst komt
-  // beoordelen, wil hem eerst lezen zoals hij op de site komt.
-  const [weergave, setWeergave] = useState<"schrijven" | "opgemaakt">("opgemaakt");
+  // beoordelen, wil hem eerst lezen zoals hij op de site komt. De stand zelf
+  // woont in het werkblad, zie `weergave`.
 
   return (
     <div className="flex flex-col gap-6">
@@ -116,13 +129,19 @@ export function ContentCanvas({
           plaats van dezelfde grijstint als een formulierveld. */}
       <div className="content-canvas-maat">
         <div className="card flex flex-col gap-4">
-          <div className="flex items-center justify-end gap-1 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-0.5 w-fit self-end">
-            <Knop actief={weergave === "opgemaakt"} onClick={() => setWeergave("opgemaakt")}>
-              Lezen
-            </Knop>
-            <Knop actief={weergave === "schrijven"} onClick={() => setWeergave("schrijven")}>
-              Bewerken
-            </Knop>
+          {/* De werkbalk plakt bovenaan zolang je door de tekst scrolt
+              (23 september 2026): "Opslaan" stond onder een tekst van ruim
+              duizend woorden, en het menu op een eigen regel boven de tekst. */}
+          <div className="canvas-werkbalk">
+            <div className="flex w-fit items-center gap-1 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-0.5">
+              <Knop actief={weergave === "opgemaakt"} onClick={() => onWeergave("opgemaakt")}>
+                Lezen
+              </Knop>
+              <Knop actief={weergave === "schrijven"} onClick={() => onWeergave("schrijven")}>
+                Bewerken
+              </Knop>
+            </div>
+            {werkbalk && <div className="ml-auto flex flex-wrap items-center justify-end gap-2">{werkbalk}</div>}
           </div>
 
           {weergave === "schrijven" ? (
@@ -148,7 +167,7 @@ export function ContentCanvas({
           ) : (
             <article className="prose max-w-none">
               <h1>{leesTitel ?? titel}</h1>
-              <div dangerouslySetInnerHTML={{ __html: renderMarkdown(tekst) }} />
+              <div dangerouslySetInnerHTML={{ __html: leesHtml }} />
             </article>
           )}
         </div>

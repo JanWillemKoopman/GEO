@@ -6,403 +6,395 @@ import { InfoHint } from "@/components/info-hint";
 import {
   leesbareBevinding,
   bundelOpSoort,
-  type Bundel,
   type GegroepeerdeBevinding,
   type Bevindingengroepen,
 } from "@/lib/pipeline/quality-groups";
 
 /**
- * De bevindingen van een pagina, in drie groepen
- * (`docs/tasks/herontwerp-contentpagina.md` §6.1).
+ * "Te verbeteren": wat er aan deze tekst beter moet, en hoe.
  *
- * ── WAT HIER VERVANGEN WORDT ────────────────────────────────────────────────
+ * ── ⚠️ WAT HIER VERANDERDE, EN WAAROM (23 september 2026) ──────────────────
  *
- * Tot 22 september 2026 stond hier "Kijk hier even naar": één platte lijst uit
- * `review_notes`. Gemeten op productie liep die van 45 tot 78 regels per pagina,
- * gemiddeld 49,1 over 25 pagina's. Alles even zwaar, alles even lang, en
- * nergens stond welke regel publicatie tegenhield.
+ * De eigenaar vond de rail naast de tekst onoverzichtelijk, en bij het
+ * natellen op de pagina van Van den Udenhout klopte dat: vóór het eerste punt
+ * stonden vier regels uitleg (een kop, een score, een klantzin van zes regels
+ * die de eerste bevinding letterlijk herhaalde, en een zin over eerdere
+ * pogingen), daarna vijf citaten die allemaal eindigden met `".`, en de knop om
+ * het op te lossen stond onderaan, onder de vouw. Wat iemand hier komt doen
+ * (zien wat beter moet en het oplossen) stond pas op de vijfde plek.
  *
- * ── WAAROM DE DERDE GROEP HET BELANGRIJKST IS ───────────────────────────────
+ * Nu, van boven naar beneden:
  *
- * De reparatie krijgt met opzet hooguit tien bevindingen mee. De rest is nooit
- * aan het model voorgelegd. Voor de lezer is dat het verschil tussen "hier liep
- * de machine op stuk, er ontbreekt waarschijnlijk informatie die alleen jij
- * hebt" en "dit heeft nog niemand aangeraakt". Die tweede soort is vaak in
- * dertig seconden zelf opgelost, en dat is precies het werk waar een canvas
- * naast deze lijst voor bedoeld is.
+ *   1. De kop met het aantal, de score klein ernaast.
+ *   2. Eén knop die alle punten tegelijk laat oplossen.
+ *   3. Per punt: wat er mis is, hoe je het oplost, en de plekken in de tekst.
+ *      Een plek aanklikken springt naar de gemarkeerde zin.
+ *   4. Wat publicatie NIET tegenhoudt, ingeklapt onder "Overige suggesties".
+ *      Op die pagina (317065f5) 53 van de 58 opgeslagen bevindingen, en die
+ *      hoort niemand eerst te lezen.
+ *
+ * Weg: de klantzin (herhaalde het eerste punt) en "waarop dit oordeel rust"
+ * onder elk punt (het bewijs is de zin zelf, en die staat nu gemarkeerd in de
+ * tekst). De zin over eerdere pogingen staat nog, maar in de ingeklapte groep:
+ * hij verklaart waarom die lijst er is, niet wat je nu moet doen.
  *
  * De groepering zelf staat in `lib/pipeline/quality-groups.ts`, puur en getest.
- * Dit bestand toont hem en rekent niets uit.
  */
 export function QualityFindings({
   groepen,
   pogingen,
   klantzin,
   score,
-  verdict,
+  gevonden,
   sectieBestaat,
   onGaNaarSectie,
-  onLaatHetOplossen,
+  onToonInTekst,
+  onPasZelfAan,
+  onLaatOplossen,
   kanOplossen,
 }: {
   groepen: Bevindingengroepen;
   /** De zin over eerdere pogingen. Leeg als er niets te vertellen valt. */
   pogingen: string;
+  /** Alleen nog gebruikt als er niets meer openstaat. */
   klantzin: string;
   score: number | null;
-  verdict: string | null;
   /**
-   * Bestaat deze kop nog in de tekst die op dit moment in het canvas staat?
-   * Loopt via de live tekst en niet via de opgeslagen versie: wie een kop
-   * hernoemt zonder op te slaan, hoort geen knop te zien die nergens heen gaat.
+   * Per blokkade (zelfde volgorde als `groepen.blokkades`) of zijn zin in de
+   * leestekst gemarkeerd kon worden. Niet gevonden: geen spring-knop.
    */
+  gevonden: boolean[];
   sectieBestaat: (sectie: string) => boolean;
   onGaNaarSectie: (sectie: string) => void;
-  /** Zet de aanbeveling in het herschrijfvak. */
-  onLaatHetOplossen: (bevinding: GegroepeerdeBevinding) => void;
+  /** Spring naar de gemarkeerde zin met dit nummer. */
+  onToonInTekst: (index: number) => void;
+  /** Naar de bewerkstand, met deze zin geselecteerd. */
+  onPasZelfAan: (zin: string) => void;
+  /** Zet deze opdracht(en) in het herschrijfvak. */
+  onLaatOplossen: (opdrachten: string[]) => void;
   /** Uit zolang de eindpoort dicht staat of ORBIT ENGINE al aan het schrijven is. */
   kanOplossen: boolean;
 }) {
-  const totaal =
-    groepen.blokkades.length + groepen.geprobeerd.length + groepen.nietGeprobeerd.length;
-
-  if (totaal === 0) {
-    return (
-      <div className="flex flex-col gap-2">
-        <p className="flex items-center gap-2 text-sm" style={{ color: "var(--status-success)" }}>
-          <Icon naam="klaar" size={16} />
-          Er staan geen opmerkingen meer open.
-        </p>
-        {klantzin && <p className="text-sm text-secondary">{klantzin}</p>}
-      </div>
-    );
-  }
-
-  const stand =
-    verdict === "pass"
-      ? { icoon: "klaar" as const, kop: "Klaar voor publicatie" }
-      : verdict === "repair"
-        ? { icoon: "letop" as const, kop: "Bijna klaar" }
-        : { icoon: "letop" as const, kop: "Nog niet naar je site" };
+  const blokkades = groepen.blokkades;
+  const overig = [...groepen.geprobeerd, ...groepen.nietGeprobeerd];
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="mono-label flex items-center gap-1">
-          <Icon naam={stand.icoon} size={16} />
-          {stand.kop}
-          <InfoHint label="Hoe ORBIT ENGINE dit bepaalt">
-            Vier onafhankelijke beoordelaars kijken naar deze pagina, en daarnaast rekent de app tien
-            controles na die geen mening nodig hebben: staan de verboden woorden erin, klopt de
-            onderbouwing, is de tekst niet te veel als een andere pagina van jou.
-          </InfoHint>
-        </span>
+    <section id="verbeteren" className="flex flex-col gap-4 scroll-mt-24" aria-label="Te verbeteren">
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="type-section flex items-center gap-2">
+          Te verbeteren
+          {blokkades.length > 0 && <span className="chip chip-danger">{blokkades.length}</span>}
+        </h2>
         {score !== null && (
-          <span className="stat-value" style={{ fontSize: "1.1rem" }}>
-            {Math.round(score)}
-            <span className="text-muted" style={{ fontSize: "0.8rem" }}>
-              /100
+          <span className="flex items-center gap-1 text-sm text-muted">
+            <span className="tabular">
+              <span className="font-medium text-[var(--text-primary)]">{Math.round(score)}</span>/100
             </span>
+            <InfoHint label="Wat deze score betekent">
+              Vier onafhankelijke beoordelaars kijken naar deze pagina, en de app rekent daarnaast tien
+              controles na die geen mening nodig hebben, zoals of elke uitspraak over je bedrijf een
+              bron heeft. De score zegt hoe goed de tekst is; de punten hieronder zeggen wat er nog
+              beter moet.
+            </InfoHint>
           </span>
         )}
       </div>
 
-      {klantzin && <p className="text-sm text-secondary">{klantzin}</p>}
-
-      {/* De zin die zegt dat de app het zelf al geprobeerd heeft. Zonder deze
-          regel leest iemand 49 punten als 49 dingen die niemand bekeken heeft,
-          en dat klopt voor een deel van de lijst juist niet. */}
-      {pogingen && (
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          {pogingen}
-        </p>
+      {blokkades.length === 0 ? (
+        <div className="flex flex-col gap-1.5">
+          <p className="flex items-center gap-2 text-sm" style={{ color: "var(--status-success)" }}>
+            <Icon naam="klaar" size={16} />
+            Niets houdt publicatie tegen.
+          </p>
+          {overig.length === 0 && klantzin && <p className="text-sm text-secondary">{klantzin}</p>}
+        </div>
+      ) : (
+        <>
+          <p className="text-sm text-secondary">
+            {blokkades.length === 1
+              ? "Dit punt raden we je aan op te lossen voor je de tekst goedkeurt."
+              : "Deze punten raden we je aan op te lossen voor je de tekst goedkeurt."}
+            {gevonden.some(Boolean) && " In de leesweergave zijn de zinnen in de tekst gemarkeerd."}
+          </p>
+          {kanOplossen && blokkades.length > 1 && (
+            <button
+              type="button"
+              data-sluit-lade
+              className="btn-outline btn-sm w-full"
+              onClick={() => onLaatOplossen(blokkades.map(opdrachtVan))}
+            >
+              Laat ORBIT ENGINE alle {blokkades.length} oplossen
+            </button>
+          )}
+          <ul className="flex flex-col gap-3">
+            {bundelOpSoort(blokkades).map((bundel, i) => (
+              <Punt
+                key={`${bundel.kop ?? bundel.details[0]}-${i}`}
+                items={bundel.items}
+                kop={bundel.kop}
+                details={bundel.details}
+                indexVan={(item) => blokkades.indexOf(item)}
+                gevonden={gevonden}
+                onToonInTekst={onToonInTekst}
+                onPasZelfAan={onPasZelfAan}
+                onLaatOplossen={onLaatOplossen}
+                kanOplossen={kanOplossen}
+              />
+            ))}
+          </ul>
+        </>
       )}
 
-      {groepen.blokkades.length > 0 && (
-        <Groep
-          titel="Houdt publicatie tegen"
-          aantal={groepen.blokkades.length}
-          items={groepen.blokkades}
-          /* ⚠️ Nooit inklapbaar, hoeveel het er ook zijn. Een punt dat
-             publicatie tegenhoudt hoort niet achter een trede te staan. */
-          altijdOpen
-          toon="blokkade"
+      {overig.length > 0 && (
+        <Overige
+          items={overig}
+          pogingen={pogingen}
           sectieBestaat={sectieBestaat}
           onGaNaarSectie={onGaNaarSectie}
-          onLaatHetOplossen={onLaatHetOplossen}
+          onLaatOplossen={onLaatOplossen}
           kanOplossen={kanOplossen}
         />
       )}
-
-      {groepen.geprobeerd.length > 0 && (
-        <Groep
-          titel="ORBIT ENGINE probeerde dit, zonder resultaat"
-          aantal={groepen.geprobeerd.length}
-          items={groepen.geprobeerd}
-          toon="geprobeerd"
-          sectieBestaat={sectieBestaat}
-          onGaNaarSectie={onGaNaarSectie}
-          onLaatHetOplossen={onLaatHetOplossen}
-          kanOplossen={kanOplossen}
-        />
-      )}
-
-      {groepen.nietGeprobeerd.length > 0 && (
-        <Groep
-          /* Bij een pagina zonder bekende reparatierondes valt er niets te
-             beweren over wat er wel of niet geprobeerd is (conventie 3), en
-             dan is "Verder opgevallen" de eerlijke kop. */
-          titel={
-            groepen.reparatierondes === 0
-              ? "Verder opgevallen"
-              : "Hier is ORBIT ENGINE niet aan toegekomen"
-          }
-          aantal={groepen.nietGeprobeerd.length}
-          items={groepen.nietGeprobeerd}
-          toon="niet-geprobeerd"
-          sectieBestaat={sectieBestaat}
-          onGaNaarSectie={onGaNaarSectie}
-          onLaatHetOplossen={onLaatHetOplossen}
-          kanOplossen={kanOplossen}
-        />
-      )}
-    </div>
+    </section>
   );
 }
 
-/** Hoeveel bevindingen er in één keer uitklappen. */
-const EERSTE_LADING = 10;
+/** Wat er in het herschrijfvak komt voor één bevinding. */
+function opdrachtVan(item: GegroepeerdeBevinding): string {
+  const { issue } = item;
+  const plek = issue.section?.trim() ? `In "${issue.section.trim()}": ` : "";
+  const wat = leesbareBevinding(issue.finding);
+  const hoe = issue.recommendation?.trim() ? ` ${leesbareBevinding(issue.recommendation)}` : "";
+  return `${plek}${wat}${hoe}`;
+}
 
-function Groep({
-  titel,
-  aantal,
+/**
+ * Het deel van een bevinding vóór de dubbele punt, als de rest een citaat is
+ * dat al als plek getoond wordt. Anders zou dezelfde zin twee keer staan.
+ */
+function kopVan(item: GegroepeerdeBevinding): string {
+  const zin = leesbareBevinding(item.issue.finding);
+  const i = zin.indexOf(":");
+  if (item.issue.evidence?.trim() && i >= 8 && i <= 90) return zin.slice(0, i).trim();
+  return zin;
+}
+
+/** Het citaat van één plek, zonder aanhalingstekens en slotpunt eromheen. */
+function plekVan(item: GegroepeerdeBevinding): string | null {
+  const bron = item.issue.evidence?.trim();
+  if (!bron) return null;
+  return leesbareBevinding(bron).replace(/^["“„']+|["”']+\.?$/g, "").trim();
+}
+
+/**
+ * Eén verbeterpunt: wat er mis is, hoe je het oplost, en waar het staat.
+ * Een bundel (dezelfde soort op meerdere plekken) is één punt met meerdere
+ * plekken en één knop voor allemaal.
+ */
+function Punt({
   items,
-  altijdOpen = false,
-  toon,
-  sectieBestaat,
-  onGaNaarSectie,
-  onLaatHetOplossen,
+  kop,
+  details,
+  indexVan,
+  gevonden,
+  onToonInTekst,
+  onPasZelfAan,
+  onLaatOplossen,
   kanOplossen,
 }: {
-  titel: string;
-  aantal: number;
   items: GegroepeerdeBevinding[];
-  altijdOpen?: boolean;
-  toon: "blokkade" | "geprobeerd" | "niet-geprobeerd";
-  sectieBestaat: (sectie: string) => boolean;
-  onGaNaarSectie: (sectie: string) => void;
-  onLaatHetOplossen: (bevinding: GegroepeerdeBevinding) => void;
+  kop: string | null;
+  /** Per item de tekst ná de aanhef, voor een bundel zonder citaten. */
+  details: string[];
+  indexVan: (item: GegroepeerdeBevinding) => number;
+  gevonden: boolean[];
+  onToonInTekst: (index: number) => void;
+  onPasZelfAan: (zin: string) => void;
+  onLaatOplossen: (opdrachten: string[]) => void;
   kanOplossen: boolean;
 }) {
-  const [open, setOpen] = useState(altijdOpen);
-  // Niet 54 items tegelijk in de DOM: dat is de lijst die dit scherm juist
-  // kwijt wilde, alleen een trede lager.
-  const [getoond, setGetoond] = useState(EERSTE_LADING);
+  const eerste = items[0];
+  const titel = kop ?? kopVan(eerste);
+  const hoe = eerste.issue.recommendation?.trim() ? leesbareBevinding(eerste.issue.recommendation) : null;
+  const plekken = items
+    .map((item) => ({ item, zin: plekVan(item), index: indexVan(item) }))
+    .filter((p): p is { item: GegroepeerdeBevinding; zin: string; index: number } => Boolean(p.zin));
+  const sectie = eerste.issue.section?.trim();
 
+  return (
+    <li
+      className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] border-l-2 p-3"
+      style={{ borderLeftColor: "var(--intent-danger-solid)" }}
+    >
+      <p className="text-sm font-medium">
+        {titel}
+        {items.length > 1 && <span className="text-muted font-normal"> ({items.length}×)</span>}
+      </p>
+      {sectie && <span className="type-caption text-muted">In: {sectie}</span>}
+      {hoe && (
+        <p className="text-sm text-secondary">
+          <span className="text-muted">Zo los je het op: </span>
+          {hoe}
+        </p>
+      )}
+
+      {plekken.length === 0 && kop && (
+        <ul className="flex flex-col gap-1">
+          {details.map((d, i) => (
+            <li key={i} className="text-sm text-secondary">
+              {d}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {plekken.length > 0 && (
+        <ul className="flex flex-col gap-1">
+          {plekken.map(({ zin, index }) => (
+            <li key={index}>
+              {gevonden[index] ? (
+                <button
+                  type="button"
+                  data-sluit-lade
+                  onClick={() => onToonInTekst(index)}
+                  className="tekst-punt-link w-full text-left text-sm"
+                  title="Toon deze zin in de tekst"
+                >
+                  <span className="line-clamp-2">{zin}</span>
+                </button>
+              ) : (
+                <span className="line-clamp-2 block pl-2 text-sm text-secondary">{zin}</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        {kanOplossen && (
+          <button
+            type="button"
+            data-sluit-lade
+            onClick={() => onLaatOplossen(items.map(opdrachtVan))}
+            className="text-sm font-medium text-[var(--intent-intelligence-text)] hover:underline"
+          >
+            {items.length > 1 ? "Laat ORBIT ENGINE ze oplossen" : "Laat ORBIT ENGINE het oplossen"}
+          </button>
+        )}
+        {plekken.length > 0 && (
+          <button
+            type="button"
+            data-sluit-lade
+            onClick={() => onPasZelfAan(plekken[0].zin)}
+            className="text-sm text-secondary hover:underline"
+          >
+            Zelf aanpassen
+          </button>
+        )}
+      </div>
+    </li>
+  );
+}
+
+/** Hoeveel overige suggesties er in één keer uitklappen. */
+const EERSTE_LADING = 10;
+
+/**
+ * Wat publicatie niet tegenhoudt. Standaard dicht: op productie gemiddeld 49
+ * bevindingen per pagina (22 september 2026), en de lezer hoort eerst bij de
+ * punten te komen die ertoe doen.
+ */
+function Overige({
+  items,
+  pogingen,
+  sectieBestaat,
+  onGaNaarSectie,
+  onLaatOplossen,
+  kanOplossen,
+}: {
+  items: GegroepeerdeBevinding[];
+  pogingen: string;
+  sectieBestaat: (sectie: string) => boolean;
+  onGaNaarSectie: (sectie: string) => void;
+  onLaatOplossen: (opdrachten: string[]) => void;
+  kanOplossen: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [getoond, setGetoond] = useState(EERSTE_LADING);
   const zichtbaar = items.slice(0, getoond);
   const rest = items.length - zichtbaar.length;
 
   return (
-    <div className="flex flex-col gap-2">
-      {altijdOpen ? (
-        <span
-          className="mono-label flex items-center gap-1.5"
-          style={{ color: "var(--intent-danger-content)" }}
-        >
-          {titel}
-          <span className="chip chip-danger">{aantal}</span>
+    <div className="flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-3">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-2 text-left text-sm"
+      >
+        <span className="flex items-center gap-2">
+          Overige suggesties
+          <span className="chip chip-neutral">{items.length}</span>
         </span>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          className="flex w-full items-center justify-between gap-2 text-left"
-        >
-          <span className="mono-label flex items-center gap-1.5">
-            {titel}
-            <span className="chip">{aantal}</span>
-          </span>
-          <span style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>
-            <Icon naam="openen" size={16} />
-          </span>
-        </button>
-      )}
+        <Icon naam={open ? "inklappen" : "uitklappen"} size={14} />
+      </button>
 
       {open && (
-        <ul className="flex flex-col gap-3">
-          {bundelOpSoort(zichtbaar).map((bundel, i) =>
-            bundel.kop ? (
-              <BundelRij
-                key={`bundel-${bundel.kop}-${i}`}
-                bundel={bundel}
-                toon={toon}
-                onLaatHetOplossen={onLaatHetOplossen}
-                kanOplossen={kanOplossen}
-              />
-            ) : (
-              <Bevinding
-                key={`${bundel.items[0].issue.section ?? ""}-${bundel.items[0].issue.finding}-${i}`}
-                item={bundel.items[0]}
-                toon={toon}
-                sectieBestaat={sectieBestaat}
-                onGaNaarSectie={onGaNaarSectie}
-                onLaatHetOplossen={onLaatHetOplossen}
-                kanOplossen={kanOplossen}
-              />
-            ),
-          )}
+        <>
+          <p className="text-sm text-muted">
+            Deze houden publicatie niet tegen. {pogingen}
+          </p>
+          <ul className="flex flex-col gap-3">
+            {zichtbaar.map((item, i) => {
+              const sectie = item.issue.section?.trim() ?? "";
+              const springbaar = sectie.length > 0 && sectieBestaat(sectie);
+              return (
+                <li
+                  key={`${sectie}-${item.issue.finding}-${i}`}
+                  className="flex flex-col gap-1 border-l-2 border-[var(--border-subtle)] pl-3"
+                >
+                  {sectie && <span className="type-caption text-muted">{sectie}</span>}
+                  <p className="text-sm">{leesbareBevinding(item.issue.finding)}</p>
+                  {item.issue.recommendation?.trim() && (
+                    <p className="text-sm text-secondary">{leesbareBevinding(item.issue.recommendation)}</p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    {kanOplossen && (
+                      <button
+                        type="button"
+                        data-sluit-lade
+                        onClick={() => onLaatOplossen([opdrachtVan(item)])}
+                        className="text-sm text-secondary hover:underline"
+                      >
+                        {item.herkomst === "geprobeerd" ? "Laat het nog eens proberen" : "Laat ORBIT ENGINE dit oplossen"}
+                      </button>
+                    )}
+                    {springbaar && (
+                      <button
+                        type="button"
+                        data-sluit-lade
+                        onClick={() => onGaNaarSectie(sectie)}
+                        className="text-sm text-secondary hover:underline"
+                      >
+                        Ga naar deze sectie
+                      </button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
           {rest > 0 && (
-            <li>
-              <button
-                type="button"
-                onClick={() => setGetoond((g) => g + EERSTE_LADING)}
-                className="text-sm text-secondary hover:underline"
-              >
-                Toon de overige {rest}
-              </button>
-            </li>
+            <button
+              type="button"
+              onClick={() => setGetoond((g) => g + EERSTE_LADING)}
+              className="w-fit text-sm text-secondary hover:underline"
+            >
+              Toon de overige {rest}
+            </button>
           )}
-        </ul>
+        </>
       )}
     </div>
-  );
-}
-
-function Bevinding({
-  item,
-  toon,
-  sectieBestaat,
-  onGaNaarSectie,
-  onLaatHetOplossen,
-  kanOplossen,
-}: {
-  item: GegroepeerdeBevinding;
-  toon: "blokkade" | "geprobeerd" | "niet-geprobeerd";
-  sectieBestaat: (sectie: string) => boolean;
-  onGaNaarSectie: (sectie: string) => void;
-  onLaatHetOplossen: (bevinding: GegroepeerdeBevinding) => void;
-  kanOplossen: boolean;
-}) {
-  const { issue } = item;
-  const sectie = issue.section?.trim() ?? "";
-  // De kop kan hernoemd zijn in tekst die nog niet is opgeslagen. Dan is een
-  // knop die nergens heen springt erger dan geen knop (conventie 3).
-  const springbaar = sectie.length > 0 && sectieBestaat(sectie);
-
-  return (
-    <li
-      className="flex flex-col gap-1.5 border-l-2 pl-3"
-      style={{
-        borderColor:
-          toon === "blokkade" ? "var(--intent-danger-solid)" : "var(--border-subtle)",
-      }}
-    >
-      {sectie && (
-        <span className="mono-label" style={{ fontSize: "0.65rem" }}>
-          {sectie}
-        </span>
-      )}
-
-      <p className="text-sm">{leesbareBevinding(issue.finding)}</p>
-
-      {issue.recommendation?.trim() && (
-        <p className="text-sm text-secondary">{leesbareBevinding(issue.recommendation)}</p>
-      )}
-
-      {/* Het bewijs is voor wie het niet gelooft, niet voor wie het leest. Een
-          citaat van twee regels onder elke bevinding maakt de lijst weer even
-          lang als de lijst die dit scherm verving. */}
-      {issue.evidence?.trim() && (
-        <details className="text-sm">
-          <summary className="cursor-pointer text-muted">Waarop dit oordeel rust</summary>
-          <p className="mt-1 text-secondary">{leesbareBevinding(issue.evidence)}</p>
-          {issue.expected?.trim() && (
-            <p className="mt-1 text-muted">Verwacht: {leesbareBevinding(issue.expected)}</p>
-          )}
-        </details>
-      )}
-
-      <div className="flex flex-wrap items-center gap-2">
-        {springbaar && (
-          <button
-            type="button"
-            onClick={() => onGaNaarSectie(sectie)}
-            className="text-sm text-secondary hover:underline"
-          >
-            Ga naar deze sectie
-          </button>
-        )}
-        {sectie && !springbaar && (
-          <span className="text-sm text-muted">Deze kop staat niet meer in de tekst</span>
-        )}
-        {kanOplossen && (
-          <button
-            type="button"
-            onClick={() => onLaatHetOplossen(item)}
-            className="text-sm text-secondary hover:underline"
-          >
-            {toon === "geprobeerd" ? "Laat het nog eens proberen" : "Laat ORBIT ENGINE dit oplossen"}
-          </button>
-        )}
-      </div>
-    </li>
-  );
-}
-
-/**
- * Eén soort bevinding op meerdere plekken (23 september 2026): één kop met de
- * telling, de plekken als korte regels, en één knop voor allemaal samen. Zie
- * `bundelOpSoort()` voor waarom en wanneer iets gebundeld wordt.
- */
-function BundelRij({
-  bundel,
-  toon,
-  onLaatHetOplossen,
-  kanOplossen,
-}: {
-  bundel: Bundel;
-  toon: "blokkade" | "geprobeerd" | "niet-geprobeerd";
-  onLaatHetOplossen: (bevinding: GegroepeerdeBevinding) => void;
-  kanOplossen: boolean;
-}) {
-  const eerste = bundel.items[0];
-  return (
-    <li
-      className="flex flex-col gap-2 border-l-2 pl-3"
-      style={{ borderColor: toon === "blokkade" ? "var(--intent-danger-solid)" : "var(--border-subtle)" }}
-    >
-      <p className="text-sm font-medium">
-        {bundel.kop} <span className="chip chip-neutral">{bundel.items.length}</span>
-      </p>
-      <ul className="flex flex-col gap-1.5">
-        {bundel.details.map((d, i) => (
-          <li key={i} className="text-sm text-secondary">
-            {d}
-          </li>
-        ))}
-      </ul>
-      {eerste.issue.recommendation?.trim() && (
-        <p className="text-sm text-muted">{leesbareBevinding(eerste.issue.recommendation)}</p>
-      )}
-      {kanOplossen && (
-        <button
-          type="button"
-          className="w-fit text-sm text-secondary hover:underline"
-          onClick={() =>
-            onLaatHetOplossen({
-              ...eerste,
-              issue: {
-                ...eerste.issue,
-                section: null,
-                finding: `${bundel.kop}: ${bundel.details.join(" ")}`,
-              },
-            })
-          }
-        >
-          Laat ORBIT ENGINE ze samen oplossen
-        </button>
-      )}
-    </li>
   );
 }

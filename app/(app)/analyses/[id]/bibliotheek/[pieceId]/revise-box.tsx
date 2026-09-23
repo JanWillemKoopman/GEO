@@ -253,8 +253,11 @@ export function ReviseBox({
 }) {
   return (
     <div className="flex flex-col gap-3">
-      {strategyNote && <StrategyNoteBox profileId={profileId} initial={strategyNote} />}
+      {/* Eerst de aanpassing van DEZE tekst, daarna pas de notitie die voor het
+          hele merk geldt (23 september 2026): wie hier komt, komt voor deze
+          pagina, en de merkbrede notitie stond als eerste knop bovenaan. */}
       <RewriteFlow analysisId={analysisId} pieceId={pieceId} poort={poort} vragenHref={vragenHref} />
+      {strategyNote && <StrategyNoteBox profileId={profileId} initial={strategyNote} />}
     </div>
   );
 }
@@ -327,8 +330,9 @@ function StrategyNoteBox({
   if (!open) {
     return (
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" onClick={() => setOpen(true)} className="btn-outline w-fit">
+        <button type="button" onClick={() => setOpen(true)} className="w-fit text-sm text-secondary hover:underline">
           {opgeslagenNote ? "Notitie voor de schrijver aanpassen" : "Notitie voor de schrijver toevoegen"}
+          <span className="text-muted"> (geldt voor het hele merk)</span>
         </button>
         {state === "saved" && (
           <span className="text-sm text-secondary">Opgeslagen</span>

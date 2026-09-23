@@ -17,33 +17,18 @@ export function TekstAanZet({
   publiceren: React.ReactNode;
 }) {
   if (stand.sleutel === "goedkeuren") {
-    // Zolang er punten zijn die publicatie tegenhouden, is "Keur goed" niet de
-    // volgende stap: de eindpoort zou hem toch weigeren. Dan wijst de knop naar
-    // die punten, en zegt de zin hoeveel het er zijn.
-    if (blokkades > 0) {
-      return (
-        <AanZet
-          stand={{
-            ...stand,
-            zin: `De tekst is klaar, maar ${blokkades === 1 ? "er staat nog 1 punt" : `er staan nog ${blokkades} punten`} open die publicatie tegenhouden. Los ze op, of vraag een aanpassing.`,
-          }}
-          actie={
-            <a href="#rail" className="btn-primary">
-              {blokkades === 1 ? "Bekijk het punt" : `Bekijk de ${blokkades} punten`}
-            </a>
-          }
-          tweede={
-            <a href="#aanpassen" className="btn-outline">
-              Vraag een aanpassing
-            </a>
-          }
-        />
-      );
-    }
+    // Met open punten blijft "Keur goed" de hoofdknop (23 september 2026): de
+    // klant beslist of de tekst goed genoeg is, en de knop vraagt dan één keer
+    // extra bevestiging. De zin zegt waar de punten staan, want dat is wat
+    // iemand hierna wil weten.
+    const zin =
+      blokkades > 0
+        ? `De tekst is klaar om te beoordelen. ${blokkades === 1 ? "Er staat nog 1 punt" : `Er staan nog ${blokkades} punten`} open onder "Te verbeteren". Los ${blokkades === 1 ? "het" : "ze"} op, of keur de tekst toch goed.`
+        : stand.zin;
     return (
       <AanZet
-        stand={stand}
-        actie={<KeurGoedKnop analysisId={analysisId} pieceId={pieceId} />}
+        stand={{ ...stand, zin }}
+        actie={<KeurGoedKnop analysisId={analysisId} pieceId={pieceId} openPunten={blokkades} />}
         tweede={
           <a href="#aanpassen" className="btn-outline">
             Vraag een aanpassing
