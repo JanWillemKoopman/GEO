@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { pagineer, PAGINA_GROOTTE } from "@/lib/library";
 import { filterPaginas, filterKeuzes, groepVan, statusRegel, GROEP_LABEL, LEEG_FILTER, type Groep as GroepSleutel, type PaginaFilter } from "@/lib/pagina-lijst";
 import { Icon } from "@/components/icon";
+import { SectionHeading } from "@/components/section-heading";
 import { formatDag, heeftEigenScherm } from "@/lib/pagina-stand";
 import type { PaginaRij } from "@/lib/pagina-data";
 
@@ -24,11 +25,21 @@ import type { PaginaRij } from "@/lib/pagina-data";
  * ── DRIE GROEPEN, ÉÉN ZIN PER RIJ ─────────────────────────────────────────
  *
  * Avond 23 september 2026, op verzoek van de eigenaar: "Wacht op jou" (vragen,
- * een keuze, goedkeuren, live zetten), "Wordt binnenkort geschreven" (alles wat
- * vanzelf loopt) en "Staat live". Elke rij zegt in één zin waarop hij wacht
- * (`statusRegel()`), bijvoorbeeld "3 openstaande vragen om de pagina te kunnen
- * schrijven". Alleen een rij met iets om te doen of te lezen is een link
+ * een keuze, goedkeuren, live zetten), "Staat op de planning (geen actie
+ * benodigd)" (alles wat vanzelf loopt) en "Staat live". Elke rij zegt in één
+ * zin waarop hij wacht (`statusRegel()`), bijvoorbeeld "3 openstaande vragen om
+ * de pagina te kunnen schrijven". Alleen een rij met iets om te doen of te lezen is een link
  * (`heeftEigenScherm()`); de rest heeft geen eigen scherm.
+ *
+ * ── VORMGEVING (23 september 2026) ────────────────────────────────────────
+ *
+ * Elke rij was een losse kaart van ruim 110px hoog, met de statuszin in 16px
+ * en alleen oranje tekst als teken dat er iets wacht. Nu volgt de lijst het
+ * overzichtsscherm (`WachtrijLijst`): per groep één kaart met rijen en een
+ * scheidingslijn, een `SectionHeading` met het aantal als chip, tekst in de
+ * kaartmaat (`type-compact`), en "wacht op jou" als stip plus kleur (regel 4
+ * van `docs/designsystem.md` §11: status is nooit kleur alleen). Het getal
+ * rechts heet nu "Kwaliteit": los stond "72/100" er zonder te zeggen waarvan.
  *
  * Een filter staat nooit meer uit. Met twee teksten van dezelfde soort hadden
  * Status, Content en Type elk één keuze en werden ze grijs: de eigenaar las
@@ -62,13 +73,14 @@ export function LibraryView({
     <div className="flex flex-col gap-5">
       <div className="card flex flex-col gap-4">
         <label className="flex flex-col gap-1.5">
-          <span className="type-caption-emphasis">Zoeken</span>
+          <span className="mono-label">Zoeken</span>
           <span className="relative flex items-center">
             <span className="pointer-events-none absolute left-3 text-muted" aria-hidden>
               <Icon naam="zoekmachine" size={16} />
             </span>
             <input
-              className="field field-lg w-full"
+              type="search"
+              className="field w-full"
               style={{ paddingLeft: "2.25rem" }}
               value={filter.zoek}
               onChange={(e) => zet({ zoek: e.target.value })}
@@ -84,12 +96,12 @@ export function LibraryView({
           <Keuze label="Type" waarde={filter.actie} opties={keuzes.actie} onKies={(actie) => zet({ actie })} />
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line-muted)] pt-3">
           <span className="type-caption text-muted tabular">
             {actief ? `${deel.totaal} van de ${totaal} pagina's` : `${totaal} pagina's`}
           </span>
           {actief && (
-            <button type="button" className="text-sm text-secondary hover:underline" onClick={() => zet(LEEG_FILTER)}>
+            <button type="button" className="btn-ghost btn-sm" onClick={() => zet(LEEG_FILTER)}>
               Filters wissen
             </button>
           )}
@@ -98,8 +110,8 @@ export function LibraryView({
 
       {deel.totaal === 0 ? (
         <div className="card flex flex-col gap-1">
-          <p className="type-body-emphasis">Hier staat niets</p>
-          <p className="text-secondary">
+          <p className="type-compact-emphasis">Hier staat niets</p>
+          <p className="type-compact text-secondary">
             Geen pagina past bij deze filters. Wis ze om alles weer te zien.
           </p>
         </div>
@@ -158,7 +170,7 @@ function Keuze({
 }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="type-caption-emphasis">{label}</span>
+      <span className="mono-label">{label}</span>
       <select
         className="field field-select"
         value={waarde}
@@ -193,64 +205,75 @@ function Groep({
   const leeg = LEEG[groep];
   if (rijen.length === 0 && !leeg) return null;
   return (
-    <section className="flex flex-col gap-2">
-      <h2 className="type-section">
-        {GROEP_LABEL[groep]} <span className="text-muted tabular">({rijen.length})</span>
-      </h2>
+    <section className="flex flex-col gap-3">
+      <SectionHeading
+        title={GROEP_LABEL[groep]}
+        badge={<span className={`chip ${groep === "wacht" && rijen.length > 0 ? "chip-warning" : "chip-neutral"} tabular`}>{rijen.length}</span>}
+      />
       {rijen.length === 0 ? (
-        <p className="type-body text-secondary">{leeg}</p>
+        <p className="type-compact text-secondary">{leeg}</p>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {rijen.map((r) => {
-            const inhoud = (
-              <>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate type-body-emphasis" title={r.naam}>
-                    {r.naam}
-                  </p>
-                  <p className="type-caption mt-1 text-muted">
-                    {[r.soort, r.cluster, r.datum ? `gepland ${formatDag(r.datum)}` : null]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-                  <p
-                    className="type-body mt-1.5"
-                    style={groep === "wacht" ? { color: "var(--intent-warning-text)" } : undefined}
-                  >
-                    {statusRegel(r)}
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-3">
-                  {r.score !== null && (
-                    <span className="type-caption tabular text-secondary">{Math.round(r.score)}/100</span>
-                  )}
-                  {r.stand.looptAchter && <span className="chip chip-danger">Loopt achter</span>}
-                  {heeftEigenScherm(r.stand.sleutel) && (
-                    <span className="text-muted" aria-hidden>
-                      <Icon naam="verder" size={16} />
-                    </span>
-                  )}
-                </div>
-              </>
-            );
-            const klasse = "flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between";
-            return (
-              <li key={r.routeId}>
-                {heeftEigenScherm(r.stand.sleutel) ? (
-                  <Link
-                    href={`/merk/${profileId}/strategie/bibliotheek/${r.routeId}?van=bibliotheek`}
-                    className={`card card-interactive ${klasse}`}
-                  >
-                    {inhoud}
-                  </Link>
-                ) : (
-                  <div className={`card ${klasse}`}>{inhoud}</div>
-                )}
-              </li>
-            );
-          })}
+        <ul className="card flex flex-col divide-y divide-[var(--border-subtle)] overflow-hidden !p-0">
+          {rijen.map((r) => (
+            <li key={r.routeId}>
+              <Rij rij={r} wacht={groep === "wacht"} profileId={profileId} />
+            </li>
+          ))}
         </ul>
       )}
     </section>
+  );
+}
+
+function Rij({ rij: r, wacht, profileId }: { rij: PaginaRij; wacht: boolean; profileId: string }) {
+  const link = heeftEigenScherm(r.stand.sleutel);
+  const inhoud = (
+    <>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <p className="truncate type-body-emphasis" title={r.naam}>
+          {r.naam}
+        </p>
+        <p className="type-caption text-muted">
+          {[r.soort, r.cluster, r.datum ? `gepland ${formatDag(r.datum)}` : null].filter(Boolean).join(" · ")}
+        </p>
+        <p
+          className={`type-compact mt-0.5 flex items-baseline gap-2 ${wacht ? "" : "text-secondary"}`}
+          style={wacht ? { color: "var(--intent-warning-content)" } : undefined}
+        >
+          {wacht && (
+            <span
+              className="inline-block size-1.5 shrink-0 translate-y-[-2px] rounded-full"
+              style={{ backgroundColor: "var(--intent-warning-solid)" }}
+              aria-hidden
+            />
+          )}
+          {statusRegel(r)}
+        </p>
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center gap-3">
+        {r.stand.looptAchter && <span className="chip chip-danger">Loopt achter</span>}
+        {r.score !== null && (
+          <span className="type-caption text-muted">
+            Kwaliteit <span className="tabular text-secondary">{Math.round(r.score)}/100</span>
+          </span>
+        )}
+        {link && (
+          <span className="text-muted" aria-hidden>
+            <Icon naam="verder" size={16} />
+          </span>
+        )}
+      </div>
+    </>
+  );
+  const klasse = "flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between md:px-5";
+  return link ? (
+    <Link
+      href={`/merk/${profileId}/strategie/bibliotheek/${r.routeId}?van=bibliotheek`}
+      className={`${klasse} transition-colors hover:bg-[var(--bg-surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--border-focus)]`}
+    >
+      {inhoud}
+    </Link>
+  ) : (
+    <div className={klasse}>{inhoud}</div>
   );
 }
