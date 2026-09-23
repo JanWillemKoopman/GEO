@@ -2713,6 +2713,23 @@ textarea.field {
   border-inline-start: var(--border-width-xs) solid var(--border-primary);
   animation: drawer-in var(--duration-slow) var(--ease-out);
 }
+/* De navigatielade komt van links, waar op een breed scherm de zijbalk staat. */
+.drawer-links {
+  inset-inline-start: 0;
+  inset-inline-end: auto;
+  width: 320px;
+  border-inline-start: none;
+  border-inline-end: var(--border-width-xs) solid var(--border-primary);
+  animation-name: drawer-links-in;
+}
+@keyframes drawer-links-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
 .drawer-kop {
   display: flex;
   align-items: center;
@@ -3619,6 +3636,22 @@ textarea.field {
   padding: 12px 16px;
   background-color: var(--bg-base);
   border-top: var(--border-width-xs) solid var(--line-muted);
+}
+
+/* Een actiebalk die onderaan het scherm vastzit, zoals "Bevestig en start de
+   meting" (`ConfirmBar`). Op een telefoon staat daar al de onderbalk (56px plus
+   zijn veilige zone), en die lag er tot de UX-audit van 23 september 2026
+   precies overheen: de enige knop van het scherm viel erachter. De regel kijkt
+   of de onderbalk er is in plaats van naar een breedte, want welke structuur er
+   komt beslist de server op de useragent (`lib/apparaat.ts`), niet de CSS. */
+.vaste-actiebalk {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 20;
+}
+body:has(.onderbalk) .vaste-actiebalk {
+  bottom: calc(56px + env(safe-area-inset-bottom));
 }
 
 @media print {

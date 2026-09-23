@@ -165,7 +165,7 @@ export default async function KoppelingenPage() {
 function Kop() {
   return (
     <PageHeader
-      eyebrow="Instellingen"
+      eyebrow="Admin"
       title="Search Console"
       description="Waar ORBIT ENGINE zijn cijfers vandaan haalt. Eén keer instellen per merk."
     />

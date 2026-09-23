@@ -9169,8 +9169,11 @@ group("wie mag betaald werk starten", () => {
     Object.values(COST_DENIED).every((z) => !/geen toegang|niet toegestaan|mag niet/i.test(z)),
   );
   ok(
-    "en elke zin noemt de customer success manager, niet 'je consultant'",
-    Object.values(COST_DENIED).every((z) => /customer success manager/i.test(z) && !/je consultant/i.test(z)),
+    // Tot de UX-audit van 23 september 2026 (P1.10) was dit andersom: deze zeven
+    // zinnen zeiden "customer success manager", de rest van de app 24 keer "je
+    // consultant". Eén woord per begrip (docs/schrijfstijl.md §11).
+    "en elke zin noemt je consultant bij Outer Orbit",
+    Object.values(COST_DENIED).every((z) => /je consultant bij Outer Orbit/.test(z) && !/customer success manager/i.test(z)),
   );
 });
 
@@ -9756,7 +9759,7 @@ group("insights: drie zinnen, en de ruis is de hoofdregel", () => {
   });
   ok(
     "publiceren gaat voor op nieuwe kansen",
-    wachtOpPublicatie[2].text.includes("online"),
+    wachtOpPublicatie[2].text.includes("live staan"),
   );
 });
 
@@ -9925,7 +9928,7 @@ group("elke dure route vraagt het aan dezelfde functie", () => {
   // hij niet dat dit product er is, en dan verkoop je het nooit.
   ok(
     "en de reputatiemelding zegt bij wie de klant moet zijn",
-    /customer success manager/i.test(COST_DENIED.reputatie_starten),
+    /je consultant/i.test(COST_DENIED.reputatie_starten),
     COST_DENIED.reputatie_starten,
   );
 });
@@ -12558,8 +12561,8 @@ group("de zijbalk verraadt niets aan een klant", () => {
   eq("een salesmedewerker heeft vijf Sales-bestemmingen", String(salesItems.length), "5");
   ok("allemaal gemarkeerd als alleen voor Outer Orbit", salesItems.every((i) => i.staffOnly === true));
   ok(
-    "Opportunities staat boven Markten",
-    salesItems.findIndex((i) => i.label === "Opportunities") <
+    "Kansen (was Opportunities, UX-audit P2.13) staat boven Markten",
+    salesItems.findIndex((i) => i.label === "Kansen") <
       salesItems.findIndex((i) => i.label === "Markten"),
   );
   ok(
@@ -25260,4 +25263,42 @@ group("Clusters ontdekken: de klant voegt zelf toe, afwijzen blijft van de consu
   ok("de kaart toont geen 'Dit wil ik' meer", !kaart.includes("Dit wil ik"));
   // Toevoegen kost niets; de meting wel, en die start de klant niet zelf.
   eq("een meting starten blijft van de consultant", String(actionNeedsStaff("analyse_starten")), "true");
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// UX-audit van 23 september 2026 (docs/logbook.md, 23 september 2026 (UX-audit)).
+// Elke groep hieronder hoort bij één genummerd punt uit die audit.
+// ════════════════════════════════════════════════════════════════════════════
+
+group("UX-audit P0.1: onder 1024 pixels is er toch een menu", () => {
+  const chrome = leesBestand("components/workspace-chrome.tsx");
+  ok("de desktopbalk draagt de menuknop", chrome.includes("<NavLade"));
+  const lade = leesBestand("components/nav-lade.tsx");
+  ok("de knop verdwijnt zodra de zijbalk er zelf staat", lade.includes("lg:hidden"));
+  ok("de lade toont dezelfde zijbalk, geen tweede menu", lade.includes("<Sidebar"));
+});
+
+group("UX-audit P0.2: een vaste actiebalk ligt boven de onderbalk", () => {
+  const balk = leesBestand("app/(app)/analyses/[id]/_editors/confirm-bar.tsx");
+  ok("de bevestigbalk gebruikt de gedeelde vorm", balk.includes("vaste-actiebalk"));
+  ok("en zet zelf geen bottom-0 meer", !balk.includes("bottom-0"));
+  const css = leesBestand("app/globals.css");
+  ok("met onderbalk schuift hij omhoog", css.includes("body:has(.onderbalk) .vaste-actiebalk"));
+});
+
+group("UX-audit P1.2, P1.4, P1.10: één woord per begrip", () => {
+  ok("Analytics noemt de meetvragen AI-vragen", !leesBestand("app/(app)/merk/[id]/analytics/page.tsx").includes(">Prompts<"));
+  ok("de vragentabel heeft geen kolom Prompt", !leesBestand("components/analytics-prompt-table.tsx").includes('header: "Prompt"'));
+  ok("het startscherm zegt AI-vragen", leesBestand("app/(app)/merk/[id]/page.tsx").includes("AI-vragen"));
+  const publiceren = [
+    "app/(app)/analyses/[id]/bibliotheek/[pieceId]/publish-box.tsx",
+    "app/(app)/merk/[id]/strategie/plan/plan-view.tsx",
+    "lib/pagina-stand.ts",
+  ].map(leesBestand).join("\n");
+  ok("niemand belooft meer dat de app de pagina live zet", !publiceren.includes('"Zet deze pagina live"') && !publiceren.includes('handeling: "Zet live"'));
+  ok("en markeren als geplaatst heet overal live melden", !publiceren.includes('title="Markeer als geplaatst"'));
+  ok("Mijn account opent op Mijn account", leesBestand("app/(app)/instellingen/page.tsx").includes('title="Mijn account"'));
+  ok("Alle merken opent op Alle merken", leesBestand("app/(app)/beheer/page.tsx").includes('title="Alle merken"'));
+  const ui = [...tsxOnder("app"), ...tsxOnder("components")].map(leesBestand).join("\n");
+  ok("geen customer success manager meer in de schermen", !/customer success manager/i.test(ui));
 });

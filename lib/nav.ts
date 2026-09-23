@@ -490,13 +490,13 @@ export function salesNav(sales = false): NavItem[] {
     { href: "/sales", label: "Overzicht", hoofdstuk: "Sales", staffOnly: true },
     {
       href: "/sales/opportunities",
-      label: "Opportunities",
+      label: "Kansen",
       hoofdstuk: "Sales",
       staffOnly: true,
     },
-    { href: "/sales/prospects", label: "Prospects", hoofdstuk: "Sales", staffOnly: true },
+    { href: "/sales/prospects", label: "Bedrijven", hoofdstuk: "Sales", staffOnly: true },
     { href: "/sales/markten", label: "Markten", hoofdstuk: "Sales", staffOnly: true },
-    { href: "/sales/outreach", label: "Outreach", hoofdstuk: "Sales", staffOnly: true },
+    { href: "/sales/outreach", label: "Verstuurd", hoofdstuk: "Sales", staffOnly: true },
   ];
 }
 

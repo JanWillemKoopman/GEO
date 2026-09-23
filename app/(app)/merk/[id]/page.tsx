@@ -380,7 +380,7 @@ export default async function OverzichtPage({
                     </span>
                   )}
                   {laatste.vragen > 0 && (
-                    <span className="mono-label">over {laatste.vragen} vragen</span>
+                    <span className="mono-label">over {laatste.vragen} AI-vragen</span>
                   )}
                 </span>
                 {band.margin > 0 && (

@@ -98,7 +98,7 @@ export function PromptsManager({ analysisId, initial }: { analysisId: string; in
   return (
     <div className="card flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <span className="mono-label">Vragen aan de AI</span>
+        <span className="mono-label">AI-vragen</span>
         <span className="mono-label">{prompts.filter((p) => p.active).length} actief van {prompts.length}</span>
       </div>
 

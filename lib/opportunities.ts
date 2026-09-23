@@ -248,7 +248,7 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       // betaald. Een geschreven pagina die niet gepubliceerd wordt, levert per
       // definitie nul op.
       why: "Deze pagina's zijn geschreven en goedgekeurd. Zolang ze niet online staan, kan geen enkele AI-assistent ze vinden.",
-      action: "Publiceer ze en markeer ze als geplaatst",
+      action: "Zet ze op je site en meld dat ze live staan",
       source: "plan",
       handeling: "publiceren",
       raakt: null,

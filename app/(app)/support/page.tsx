@@ -122,7 +122,7 @@ function Hero({ brandId }: { brandId: string | null }) {
       <p className="max-w-2xl text-lg leading-8 text-secondary">
         ORBIT ENGINE onderzoekt hoe zichtbaar je merk is in AI-antwoorden, adviseert wat daaraan te
         doen is, schrijft de content die daarvoor nodig is, en meet daarna of het gewerkt heeft.
-        Niet als losse tools naast elkaar, maar als één doorlopend proces. Je merkprofiel staat al
+        Niet als losse tools naast elkaar, maar als één doorlopend proces. Je merkdossier staat al
         klaar voordat je voor het eerst inlogt: dat werk is gedaan door je consultant.
       </p>
 

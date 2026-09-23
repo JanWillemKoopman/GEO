@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/empty-state";
 import { ExternalLink } from "@/components/external-link";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Prospects" };
+export const metadata: Metadata = { title: "Bedrijven" };
 
 /**
  * Alle bedrijven over alle markten heen (plan §5.3).
@@ -67,7 +67,7 @@ export default async function SalesProspectsPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Sales"
-        title="Prospects"
+        title="Bedrijven"
         description="Alle bedrijven die ORBIT ENGINE in een markt is tegengekomen. Eén bedrijf kan in meerdere markten zitten."
       />
 

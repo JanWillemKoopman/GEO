@@ -827,7 +827,7 @@ export function PlanView({
                         onClick={() => setBulkDialog(month)}
                         disabled={busy === month.id}
                       >
-                        Alles geplaatst
+                        Alles staat live
                       </button>
                     )}
                     {month.status !== "goedgekeurd" && inhoud.length > 0 && (
@@ -959,14 +959,14 @@ export function PlanView({
       {/* ── Markeren als geplaatst ──────────────────────────────────────── */}
       <ConfirmDialog
         open={postDialog !== null}
-        title="Markeer als geplaatst"
+        title="Meld dat hij live staat"
         body={`Bevestig het pad waar "${postDialog?.title ?? ""}" nu live staat. ORBIT ENGINE gebruikt dat adres om te meten wat de pagina oplevert.`}
         irreversible={{
           title: "Dit kun je niet terugdraaien",
           description:
             "De pagina telt vanaf nu als gepubliceerd, en ORBIT ENGINE begint hem te volgen op dit adres.",
         }}
-        confirmLabel="Markeer als geplaatst"
+        confirmLabel="Ja, dit staat live"
         confirmingLabel="Bezig…"
         busy={busy === postDialog?.id}
         onCancel={() => setPostDialog(null)}
@@ -1069,7 +1069,7 @@ export function PlanView({
       {/* ── Alles van een maand als geplaatst markeren ──────────────────── */}
       <ConfirmDialog
         open={bulkDialog !== null}
-        title="Markeer alles als geplaatst"
+        title="Meld dat alles live staat"
         body={`Je markeert ${
           echt.filter((p) => p.plan_month_id === bulkDialog?.id && p.status === "goedgekeurd").length
         } goedgekeurde pagina's van maand ${bulkDialog?.month_number ?? ""} als live, elk op het adres dat in het plan staat. Pagina's zonder adres of zonder akkoord blijven staan, en je krijgt te horen welke.`}
@@ -1078,7 +1078,7 @@ export function PlanView({
           description:
             "Deze pagina's tellen vanaf nu als gepubliceerd, en ORBIT ENGINE begint ze te volgen op die adressen.",
         }}
-        confirmLabel="Markeer alles als geplaatst"
+        confirmLabel="Ja, dit staat allemaal live"
         confirmingLabel="Bezig…"
         busy={busy === bulkDialog?.id}
         onCancel={() => setBulkDialog(null)}

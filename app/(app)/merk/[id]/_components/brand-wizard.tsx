@@ -155,7 +155,7 @@ export function BrandWizard({
       setVuil(false);
       toast({
         intent: "succes",
-        title: "Je merkprofiel is bijgewerkt",
+        title: "Je merkdossier is bijgewerkt",
         description:
           "ORBIT ENGINE gebruikt dit vanaf nu in élke pagina die het schrijft, niet alleen in de eerstvolgende.",
       });

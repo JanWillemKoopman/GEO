@@ -66,8 +66,8 @@ export function BottomNav({
     ? [
         { href: "/sales", label: "Overzicht", icoon: "sales" },
         { href: "/sales/markten", label: "Markten", icoon: "markten" },
-        { href: "/sales/prospects", label: "Prospects", icoon: "bedrijven" },
-        { href: "/sales/outreach", label: "Outreach", icoon: "verstuurd" },
+        { href: "/sales/prospects", label: "Bedrijven", icoon: "bedrijven" },
+        { href: "/sales/outreach", label: "Verstuurd", icoon: "verstuurd" },
       ]
     : activeBrand
       ? [

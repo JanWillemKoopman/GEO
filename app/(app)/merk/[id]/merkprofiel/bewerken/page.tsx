@@ -121,7 +121,7 @@ export default async function BewerkenPage({
             className="btn-outline inline-flex items-center gap-1.5"
           >
             <Icon naam="downloaden" size={16} />
-            Download profiel
+            Download merkdossier
           </a>
         }
       />

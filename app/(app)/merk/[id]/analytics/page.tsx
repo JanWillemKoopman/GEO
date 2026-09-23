@@ -510,7 +510,7 @@ export default async function AnalyticsPage({
       {/* ── 4. Per prompt: elke gemeten vraag, sterkste zichtbaarheid boven ── */}
       {promptVisibility.length > 0 && (
         <div className="flex flex-col gap-2">
-          <span className="mono-label">Prompts</span>
+          <span className="mono-label">AI-vragen</span>
           <AnalyticsPromptTable
             rows={promptVisibilityGefilterd}
             merkId={id}
