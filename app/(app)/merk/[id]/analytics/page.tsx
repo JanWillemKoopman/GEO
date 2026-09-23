@@ -4,6 +4,7 @@ import { getProfile } from "@/lib/profiles";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
+import { EmptyState } from "@/components/empty-state";
 import { SectionHeading } from "@/components/section-heading";
 import { AnalyticsFilters } from "@/components/analytics-filters";
 import { AnalyticsClusterTable } from "@/components/analytics-cluster-table";
@@ -411,16 +412,15 @@ export default async function AnalyticsPage({
           zelf mee met de data: staven bij één of twee metingen, een lijn
           vanaf drie (`components/cluster-visibility-grid.tsx`). */}
       {merkScore === null ? (
-        <div className="card flex flex-col gap-2">
-          <span className="mono-label">Nog niet gemeten</span>
-          <p className="text-secondary">
-            Zodra de eerste meetronde klaar is, staat je zichtbaarheid hier.{" "}
-            <Link href={`/merk/${id}/strategie/clusters`} className="link">
-              Start een cluster
-            </Link>{" "}
-            om te laten meten waar je klanten naar vragen.
-          </p>
-        </div>
+        // De lege staat van de app zelf (UX-audit P2.7), en geen link "Start een
+        // cluster" meer: dat doet de consultant, niet de klant (P1.3).
+        <EmptyState
+          title="Nog niet gemeten"
+          action={{ href: `/merk/${id}/strategie/clusters`, label: "Naar je clusters" }}
+        >
+          Zodra de eerste meetronde klaar is, staat je zichtbaarheid hier. Gemeten wordt er per
+          cluster: een onderwerp waar je klanten een AI-assistent naar vragen.
+        </EmptyState>
       ) : (
         <ClusterVisibilityGrid clusters={visibilityGridData} />
       )}

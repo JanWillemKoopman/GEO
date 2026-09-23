@@ -25301,3 +25301,18 @@ group("UX-audit P1.8, P1.9: merkdossier zonder crawlgereedschap, support per bes
   }
   ok("Support belooft geen clusterdossier meer", !support.includes("eigen dossier met vier hoofdstukken"));
 });
+
+group("UX-audit P2.5 tot P2.12: onderbalk, zijbalk, lege staten, reputatie, 404", () => {
+  const onder = leesBestand("components/bottom-nav.tsx");
+  ok("de onderbalk heeft Clusters", onder.includes('label: "Clusters"'));
+  ok("en geen eigen woord Zichtbaar", !onder.includes('label: "Zichtbaar"'));
+  const zijbalk = leesBestand("components/sidebar.tsx");
+  ok("alleen jij staat bij de kop, niet bij elke regel", !zijbalk.includes("item.staffOnly &&") && zijbalk.includes("kop.afgeschermd &&"));
+  ok("een hoofdstuk met één bestemming is één regel", zijbalk.includes("kop.items.length === 1"));
+  const clusters = leesBestand("app/(app)/merk/[id]/strategie/clusters/page.tsx");
+  ok("lege staten gebruiken het gedeelde onderdeel", !clusters.includes('mono-label">Geen clusters met dit filter') && !clusters.includes('mono-label">Nog geen voorstellen'));
+  const rep = leesBestand("app/(app)/merk/[id]/analytics/reputatie/page.tsx");
+  ok("het bedrag van een reputatieanalyse alleen voor wie hem start", rep.includes("magStarten\n              ? \"Ongeveer 50 vragen aan ChatGPT, een halfuur werk, ongeveer 75 cent.\""));
+  ok("een lopende analyse ververst vanzelf", rep.includes("<VanzelfVerversen"));
+  ok("een 404 binnen de app houdt het menu", bestaatBestand("app/(app)/not-found.tsx"));
+});

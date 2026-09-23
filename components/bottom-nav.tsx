@@ -71,9 +71,13 @@ export function BottomNav({
       ]
     : activeBrand
       ? [
+          // UX-audit 23 september 2026 (P2.5): dezelfde woorden als de zijbalk,
+          // alleen ingekort waar vijf vakjes op 375 pixels het vragen. Clusters
+          // ontbrak; Analytics staat nu onder Meer, want het hoofdcijfer staat
+          // al op Overzicht.
           { href: `/merk/${activeBrand.id}`, label: "Overzicht", icoon: "overzicht" },
-          { href: `/merk/${activeBrand.id}/analytics`, label: "Zichtbaar", icoon: "analytics" },
-          { href: `/merk/${activeBrand.id}/strategie/plan`, label: "Plan", icoon: "plannen" },
+          { href: `/merk/${activeBrand.id}/strategie/clusters`, label: "Clusters", icoon: "clusters" },
+          { href: `/merk/${activeBrand.id}/strategie/plan`, label: "Contentplan", icoon: "plannen" },
           { href: `/merk/${activeBrand.id}/strategie/vragen`, label: "Vragen", icoon: "feit" },
         ]
       : // Geen actief merk: dezelfde reden als op de desktop-zijbalk (zie het

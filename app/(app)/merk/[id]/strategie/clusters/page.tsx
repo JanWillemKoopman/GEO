@@ -282,14 +282,10 @@ export default async function ClustersPage({
             <EmptyState title={KLANT_ZONDER_CLUSTERS.titel}>{KLANT_ZONDER_CLUSTERS.uitleg}</EmptyState>
           )
         ) : zichtbaar.length === 0 ? (
-          <div className="card flex flex-col gap-1">
-            <span className="mono-label">Geen clusters met dit filter</span>
-            <p className="text-secondary">
-              Je hebt {analyses.length === 1 ? "één cluster" : `${analyses.length} clusters`}, maar
-              geen enkele met dit label of deze status. Kies een ander filter, of hang er hieronder
-              een cluster aan.
-            </p>
-          </div>
+          <EmptyState title="Geen clusters met dit filter">
+            Je hebt {analyses.length === 1 ? "één cluster" : `${analyses.length} clusters`}, maar
+            geen enkele met dit label of deze status. Kies een ander filter.
+          </EmptyState>
         ) : (
           <ul className="flex flex-col gap-3">
             {zichtbaar.map((a) => (
@@ -326,13 +322,11 @@ export default async function ClustersPage({
             }
           />
           {topics.length === 0 ? (
-            <div className="card flex flex-col gap-1">
-              <span className="mono-label">Nog geen voorstellen</span>
-              <p className="text-secondary">
-                ORBIT ENGINE heeft voor {profile.brand_name ?? profile.name} nog geen onderwerpen
-                voorgesteld. Zodra de nulmeting daar iets over zegt, staat het hier.
-              </p>
-            </div>
+            <EmptyState title="Nog geen voorstellen">
+              ORBIT ENGINE heeft voor {profile.brand_name ?? profile.name} nog geen onderwerpen
+              voorgesteld. Zodra de nulmeting of een ontdekkingsronde daar iets over zegt, staat het
+              hier.
+            </EmptyState>
           ) : (
             <TopicsPanel
               profileId={id}
