@@ -36,8 +36,9 @@ zichzelf"). Elke kaart is een kandidaat-cluster; zoektermen staan eronder als be
 ## Wie mag wat (besluit 1)
 
 - De **consultant** start een ontdekkingsronde en zet een kandidaat om in een meting.
-- De **klant** ziet de pagina en de kandidaten, en kan op "Dit wil ik" klikken. Dat komt bij de
-  consultant binnen als verzoek. Een ronde of meting starten blijft `STAFF_ONLY_ACTIONS`
+- De **klant** ziet de pagina en de kandidaten, en voegt er zelf een toe aan Mijn clusters
+  (sinds 23 september 2026 (4); daarvoor klikte hij "Dit wil ik" en voegde de consultant toe). De
+  meting daarna start de consultant. Een ronde of meting starten blijft `STAFF_ONLY_ACTIONS`
   (`lib/cost-rules.ts`); er komt een eigen handeling `clusters_ontdekken` bij.
 
 ## Zijbalk (besluit 3)

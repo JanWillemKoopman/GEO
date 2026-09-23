@@ -11782,3 +11782,19 @@ de oranje tekst: status is nooit kleur alleen (`docs/designsystem.md` §11 regel
 "72/100" heet nu "Kwaliteit 72/100". Het zoekveld is van 48px naar de gewone 40px, want de grote
 maat is alleen voor de inlogroute (§5.4). De middelste groep heet op verzoek van de eigenaar "Staat
 op de planning (geen actie benodigd)" in plaats van "Wordt binnenkort geschreven".
+
+## 23 september 2026 (4): de klant voegt een ontdekt cluster zelf toe
+
+Besluit 1 van vandaag (de klant vraagt, de consultant voegt toe) is op verzoek van de eigenaar
+bijgesteld: de klant zet een voorgesteld onderwerp uit Clusters ontdekken nu zelf bij Mijn clusters,
+zonder tussenstap. De knop "Dit wil ik" en de sectie "Gevraagd door de klant" zijn weg.
+
+Wat blijft zoals het was, en waarom: **de meting start nog steeds de consultant.** Toevoegen kost
+niets, het zet alleen een onderwerp bij Voorgesteld. Het geld zit in de meting, ongeveer $0,72 per
+maand per cluster en blijvend, en die staat in `STAFF_ONLY_ACTIONS` (`analyse_starten`). Afwijzen
+blijft ook van de consultant: de reden stuurt de volgende betaalde ronde. Het bedrag van een meting
+staat alleen bij de consultant op de kaart; een klant ziet na het toevoegen dat zijn consultant de
+meting start.
+
+De status `aangevraagd` blijft in de database bestaan (migratie 0109 is additief), maar wordt niet
+meer gezet. Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen.

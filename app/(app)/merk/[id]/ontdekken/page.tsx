@@ -49,8 +49,9 @@ export const metadata = { title: "Clusters ontdekken" };
  *
  * ── WIE WAT MAG (besluit 1 van 23 september 2026) ──────────────────────────
  *
- * De consultant start een ronde en voegt toe of wijst af. De klant ziet alles
- * en kan per onderwerp "Dit wil ik" zeggen. Het slot staat in de route, niet
+ * De consultant start een ronde en wijst af. Toevoegen aan Mijn clusters mag
+ * iedereen die bij het merk hoort, ook de klant zelf (23 september 2026 (4));
+ * de meting daarna blijft van de consultant. Het slot staat in de route, niet
  * alleen hier.
  *
  * ⚠️ Het adres is `/merk/[id]/ontdekken` en niet onder `/strategie/clusters`:
@@ -110,15 +111,7 @@ export default async function OntdekkenPage({ params }: { params: Promise<{ id: 
   const supabase = await createClient();
 
   // Lezen via de gebruiker, dus via RLS: een klant ziet alleen zijn eigen merk.
-  const [rondes, { data: aangevraagdRijen }] = await Promise.all([
-    leesRondes(supabase, id, staff),
-    supabase
-      .from("cluster_discovery_candidates")
-      .select("*")
-      .eq("profile_id", id)
-      .eq("status", "aangevraagd")
-      .order("requested_at", { ascending: false }),
-  ]);
+  const rondes = await leesRondes(supabase, id, staff);
   const nieuwste = rondes[0] ?? null;
   const lopend = nieuwste && !["klaar", "mislukt"].includes(nieuwste.status) ? nieuwste : null;
   const laatsteKlare = rondes.find((r) => r.status === "klaar") ?? null;
@@ -132,7 +125,6 @@ export default async function OntdekkenPage({ params }: { params: Promise<{ id: 
       .order("score", { ascending: false });
     kandidaten = (data ?? []) as KandidaatRij[];
   }
-  const aangevraagd = ((aangevraagdRijen ?? []) as KandidaatRij[]).filter((k) => k.run_id !== laatsteKlare?.id);
 
   const zoekdataAan = labsBeschikbaar();
 
@@ -165,20 +157,6 @@ export default async function OntdekkenPage({ params }: { params: Promise<{ id: 
         </div>
       )}
 
-      {/* Wat de klant heeft gevraagd uit een eerdere ronde, bovenaan voor de consultant. */}
-      {staff && aangevraagd.length > 0 && (
-        <div className="flex flex-col gap-3">
-          <SectionHeading title="Gevraagd door de klant" meta={`${aangevraagd.length}`} />
-          <ul className="flex flex-col gap-3">
-            {aangevraagd.map((k) => (
-              <li key={k.id}>
-                <KandidaatKaart merkId={id} kandidaat={naarWeergave(k)} staff={staff} kostenPerMaand={kostenPerMaand} />
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       {/* ── 2. De kandidaten ────────────────────────────────────────────── */}
       {!laatsteKlare && !lopend ? (
         staff ? (
@@ -190,7 +168,7 @@ export default async function OntdekkenPage({ params }: { params: Promise<{ id: 
         ) : (
           <EmptyState title="Je consultant zoekt nieuwe onderwerpen voor je">
             {COST_DENIED.clusters_aanvullen} Zodra er een ronde is gedraaid, zie je hier de voorstellen
-            en kun je aangeven welke je wilt.
+            en zet je de onderwerpen die je wilt zelf bij Mijn clusters.
           </EmptyState>
         )
       ) : laatsteKlare ? (
