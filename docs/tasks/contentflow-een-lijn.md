@@ -81,26 +81,71 @@ Elke pagina volgt dezelfde lijn, altijd via het contentplan. Bij elke stand staa
 
 | # | Stand (klanttaal) | Aan zet | Wat er gebeurt | Hoe hij verder gaat |
 |---|---|---|---|---|
-| 1 | Gepland | ORBIT ENGINE | In het plan met een datum | Maand vrijgegeven en datum binnen de voorbereidingstermijn |
-| 2 | Wordt voorbereid | ORBIT ENGINE | Onderzoek, inhoudsopgave (contract), feitenkaart, vragen | Vanzelf als de vragen er zijn |
+| 1 | Gepland | ORBIT ENGINE | In het plan met een datum | De maand wordt vrijgegeven |
+| 2 | Wordt voorbereid | ORBIT ENGINE | Onderzoek, inhoudsopgave (contract), feitenkaart, vragen | Vanzelf als de vragen er zijn (enkele minuten) |
 | 3 | Jouw antwoorden nodig | Jij | Vragen van deze pagina beantwoorden of overslaan | **Pas als élke vraag beantwoord of overgeslagen is.** Nul vragen: meteen door naar 4 |
 | 4 | Wordt geschreven | ORBIT ENGINE | Schrijven, keuren, herstellen | Vanzelf. Geen extra knop |
-| 5 | Lees en keur goed | Jij | Tekst lezen, eventueel bewerken, vrijgeven | Klik op "Keur goed" |
+| 5 | Lees en keur goed | Jij | Tekst lezen, eventueel bewerken of een aanpassing vragen | "Keur goed" (naar 6) of "Vraag een aanpassing" (terug naar 4) |
 | 6 | Zet hem live | Jij | Op de eigen site plaatsen, adres invullen | Adres ingevuld |
 | 7 | Staat live, effect wordt gemeten | ORBIT ENGINE | Publicatiecontrole, nameting na 14 en 28 dagen | Vanzelf |
 | 8 | Effect bekend | Niemand | Oordeel staat bij de pagina | Eindstand |
 
-Plus twee zijstanden: **Loopt achter** (datum gepasseerd terwijl stand 3 openstaat, zie §4.4) en
+Plus twee zijstanden: **Loopt achter** (streefdatum voor de antwoorden gepasseerd, zie §4.4) en
 **Mislukt** (bestaat al als `mislukt`).
 
 Waarom de klant na stand 3 geen knop meer hoeft in te drukken: het laatste antwoord of de laatste
 overgeslagen vraag ís de handeling. Een extra knop "Schrijf nu" is precies de stille stilstand die
 pagina `9332a0fb` liet zien.
 
-**De voorbereidingstermijn wordt 21 dagen** in plaats van 10: tijd voor de klant om te antwoorden
-plus ongeveer een dag schrijven en keuren plus tijd om te lezen. Maak het een constante in
-`lib/plan-status.ts` met commentaar, en laat de schrijfvoorsprong als begrip verdwijnen (schrijven
-start niet meer op een datum maar op het laatste antwoord).
+### 3.1 Eén vragenmoment per maand (laatste check, 23 september 2026)
+
+De eerste versie van dit plan startte de voorbereiding per pagina, 21 dagen voor zijn datum. Bij de
+laatste check afgewezen, omdat het niet voorspelbaar is: bij vijf pagina's per maand druppelen er
+dan op vijf verschillende dagen vragen binnen, en de klant weet nooit wanneer hij weer moet kijken.
+
+**Nieuw: vrijgeven van een maand start de voorbereiding van álle pagina's van die maand tegelijk.**
+Binnen enkele minuten staan alle vragen van die maand klaar, samengevoegd waar ze overlappen (dat
+doet de briefing al per batch). Het ritme voor de klant wordt daarmee één zin:
+
+> **Maand vrijgeven, vragen van die maand beantwoorden, de rest gaat vanzelf.**
+
+Dat is ook hoe de eigenaar het proces zelf beschreef. Wat het kost: de voorbereiding draait nu ook
+voor pagina's die pas eind van de maand verschijnen, ongeveer 2 dollarcent per pagina (gemeten
+1 september 2026, zie `planContentBriefing()`), tegenover ongeveer $1,10 voor het schrijven.
+
+Om te voorkomen dat teksten weken te vroeg klaarliggen, begint het **schrijven** per pagina niet
+eerder dan 10 dagen voor zijn datum, ook als de vragen al eerder beantwoord zijn
+(`SCHRIJFVOORSPRONG_DAGEN` blijft). Stand 4 toont dan "Alle vragen gedaan, we schrijven hem vanaf
+14 oktober". Dat is geen knop en geen wachten op de klant, alleen een datum.
+
+**Streefdatum voor de antwoorden:** 12 dagen voor de datum van de pagina (10 dagen schrijfvoorsprong
+plus 2 dagen marge). Die staat bij elke vraag. Het is een streefdatum en geen uiterste datum: er
+wordt nooit geschreven zolang een vraag open staat (besluit §1).
+
+**Bij het vrijgeven** zegt de dialoog vooraf: "Na vrijgeven staan binnen een paar minuten 11 vragen
+voor deze 5 pagina's klaar. Beantwoord ze vóór 12 oktober om op schema te blijven."
+
+### 3.2 Regels die de flow voorspelbaar houden
+
+1. **Na stand 3 komen er geen nieuwe vragen bij voor die pagina.** Gecontroleerd op 23 september
+   2026: het schrijven en herstellen (`lib/pipeline/content.ts`) maakt geen `fact_requests` aan.
+   Wat bij het schrijven nog ontbreekt wordt een opmerking bij het goedkeuren (stand 5), nooit een
+   nieuwe vraag die de pagina terugzet. Bewaak dat met een test in `test-chain.ts`.
+2. **Een antwoord wijzigen nadat er tekst is** zet de pagina niet stil terug. Op het paginascherm
+   verschijnt "Je antwoord is gewijzigd na het schrijven. Tekst bijwerken?" met één knop die de
+   bestaande herschrijfroute gebruikt.
+3. **Overslaan zegt vooraf wat het kost:** "Dan komt het onderdeel *Wat kost het* niet op de
+   pagina." Er is **geen** knop "alles overslaan": het besluit is dat de klant elke vraag gezien
+   heeft.
+4. **De onderbouwing is zichtbaar tijdens het antwoorden,** niet pas daarna. Zou het overslaan van
+   een vraag de pagina onder 40 procent brengen (§4.2 regel 3), dan zegt de overslaanknop dat vóór
+   de klik: "Als je dit overslaat, heeft de pagina te weinig om op te schrijven. Je kiest dan
+   straks tussen algemeen schrijven of de pagina laten vallen." Zo is die keuze nooit een
+   verrassing achteraf.
+5. **Een vraag die voor meer pagina's geldt** staat één keer in "Jouw beurt" met "geldt voor 2
+   pagina's", en op elk van die paginaschermen. Eén antwoord telt voor beide.
+6. **De tekst die de klant ziet noemt altijd de volgende stap en wanneer,** nooit alleen de huidige
+   stand (bijvoorbeeld "Aan zet: jij. Nog 2 vragen, daarna schrijven we hem vanaf 14 oktober").
 
 ## 4. Ontwerp in detail
 
@@ -144,21 +189,26 @@ Regels:
    Dit is een keuze, geen vraag, en hij staat op dezelfde plek als de vragen.
 4. Anders: schrijven.
 
+5. Alles gedaan maar de datum ligt verder dan 10 dagen weg: wachten tot de schrijfdatum (§3.1).
+
 Tests in `scripts/test-unit.ts` voor elke regel, ook: nul vragen en `null`-dekking schrijft wel
 (conventie 3), overgeslagen telt als beantwoord.
 
 ### 4.3 De motor: van laatste antwoord naar schrijven
 
-**Voorbereiden starten (stand 1 naar 2).** De dagelijkse cron (`app/api/cron/plan/route.ts`) kiest
-pagina's van goedgekeurde maanden met datum binnen 21 dagen en status `gepland`, en start de
-**voorbereiding**, niet het schrijven. Hergebruik route 1: `planContentBriefing()` met de pagina's
-van hetzelfde cluster die op dezelfde dag starten als één batch (dan worden overlappende vragen
-samengevoegd, zoals nu). Geef `plannedPageId` mee in de payload tot en met `content_brief`, zodat de
-briefing de plan-pagina kan koppelen. Status plan-pagina: `voorbereiden`.
+**Voorbereiden starten (stand 1 naar 2), zie §3.1.** Het vrijgeven van een maand
+(`app/api/profiles/[id]/plan/months/[monthId]/route.ts`) start meteen de voorbereiding van alle
+pagina's van die maand. Hergebruik route 1: `planContentBriefing()`, één batch per cluster (de
+briefing is per analyse), zodat overlappende vragen samengevoegd worden zoals nu. Geef
+`plannedPageId` mee in de payload tot en met `content_brief`, zodat de briefing de plan-pagina kan
+koppelen. Status plan-pagina: `voorbereiden`. Een pagina die later in een al vrijgegeven maand
+komt (slepen, "zo snel mogelijk" uit een cluster) start zijn voorbereiding op dat moment. De
+dagelijkse cron vangt pagina's op die hier doorheen glipten.
 
-Ook direct na het vrijgeven van een maand (`app/api/profiles/[id]/plan/months/[monthId]/route.ts`)
-dezelfde functie aanroepen voor pagina's die al binnen de termijn vallen. Anders wacht een maand
-die om 10.29 uur vrijgegeven wordt tot de volgende ochtend.
+**Schrijven op tijd (stand 3 naar 4).** De poort uit §4.2 krijgt een vijfde regel: alles gedaan,
+maar datum verder dan 10 dagen weg, dan niet nu schrijven en status `vragen_klaar` (label "Alle
+vragen gedaan, we schrijven hem vanaf <datum>"). De dagelijkse cron pakt die pagina's op zodra ze
+binnen 10 dagen vallen.
 
 **Na de briefing (stand 2 naar 3 of 4).** Aan het eind van `content_brief` per pagina de
 schrijfpoort draaien. Nul open vragen en poort open: meteen door naar schrijven. Anders status
@@ -192,10 +242,10 @@ plan-pagina: zie §5.
 ### 4.4 Als niemand antwoordt
 
 Geen automatische uitweg (besluit §1), wel drie zichtbare dingen:
-1. **Herinnering.** Hergebruik `app/api/cron/reminders` (bestaat). Mail na 3 dagen en na 7 dagen
-   op stand 3, alleen als `EMAILS_ENABLED`. Zonder mail: melding op "Hoe sta je ervoor".
-2. **Loopt achter.** Pure functie `loptAchter(page, nu)`: datum minus de schrijf- en leestijd (3
-   dagen) is voorbij en de pagina staat nog op 3. Chip in het plan en de takenlijst.
+1. **Herinnering.** Hergebruik `app/api/cron/reminders` (bestaat). Eén mail per maand bij het
+   klaarstaan van de vragen, en één 3 dagen voor de streefdatum als er nog iets open staat, alleen als `EMAILS_ENABLED`. Zonder mail: melding op "Hoe sta je ervoor".
+2. **Loopt achter.** Pure functie `loptAchter(page, nu)`: de streefdatum uit §3.1 (12 dagen voor
+   de datum) is voorbij en de pagina staat nog op 3. Chip in het plan en de takenlijst.
 3. **Nieuwe datum voorstellen.** Wordt de datum gepasseerd, dan stelt het plan de eerste vrije dag
    voor die haalbaar is (hergebruik de spreiding in `lib/plan-schedule.ts`). De klant bevestigt;
    de app verzet nooit zelf een datum (die is een belofte aan de klant).
@@ -207,6 +257,7 @@ laatste; controleer):
 ```sql
 alter type <enum van planned_pages.status> add value if not exists 'voorbereiden';
 alter type <enum van planned_pages.status> add value if not exists 'vragen';
+alter type <enum van planned_pages.status> add value if not exists 'vragen_klaar';
 ```
 (zoek de enumnaam op in `0049_contentplan.sql`; is het een check-constraint, breid die dan uit met
 een nieuwe constraint, nooit `drop`). Kolom `planned_pages.vragen_sinds timestamptz null` voor de
@@ -236,6 +287,18 @@ dezelfde eindtoestand geeft, inclusief ingeplande golven.
 
 ### 4.6 Interface
 
+**Drie schermen, drie vragen, geen overlap.** Dit is de kern van de interface; elke keuze hieronder
+volgt eruit.
+
+| Scherm | Beantwoordt | Toont |
+|---|---|---|
+| Contentplan | *Wanneer* gebeurt er wat? | De agenda. Per maand één knop "Maand vrijgeven", per pagina de stand en de datum. Geen vragen, geen tekst |
+| Jouw beurt | *Wat moet ik doen?* | Alleen wat op de klant wacht, vroegste streefdatum eerst. Leeg is een goed teken: "Niets te doen. De volgende vragen komen als je november vrijgeeft." |
+| Bibliotheek | *Wat is er?* | Alle pagina's vanaf stand 2, met stand, en per pagina het paginascherm |
+
+"Hoe sta je ervoor" krijgt bovenaan één regel uit "Jouw beurt": "Er wachten 7 vragen op je, beantwoord
+ze vóór 12 oktober" met één knop. Staat er niets, dan staat de regel er niet.
+
 **Eén paginascherm, onder de bibliotheek.** Nieuwe route `/merk/[id]/strategie/bibliotheek/[paginaId]`
 waarbij `paginaId` het id van de **plan-pagina** is (die bestaat vanaf stand 1; de tekst pas vanaf
 stand 4). Het oude adres `/analyses/[id]/bibliotheek/[pieceId]` verwijst door
@@ -244,17 +307,25 @@ stand 4). Het oude adres `/analyses/[id]/bibliotheek/[pieceId]` verwijst door
 vandaan kwam (`?van=plan|bibliotheek|taken`, `?van=plan` bestaat al).
 
 Opbouw van dat scherm, per stand:
-- **Bovenaan altijd een standbalk**: de acht standen als stappen, de huidige gemarkeerd, met één
-  zin "Aan zet: jij. Beantwoord of sla de 4 vragen over, daarna schrijven we hem." Zie
-  `docs/designsystem.md` voor chips en stappen, `docs/schrijfstijl.md` voor de zinnen.
+- **Bovenaan altijd een standbalk met vijf stappen, niet acht:** Vragen, Schrijven, Goedkeuren,
+  Live, Effect. Stand 1 en 2 vallen onder "Vragen" (met "nog niet vrijgegeven" of "wordt
+  voorbereiden" als onderregel), 7 en 8 onder "Effect". Acht stappen op een telefoonscherm is een
+  rij bolletjes die niemand leest. Onder de balk één zin met de volgende stap en wanneer (§3.2 regel
+  6), en precies één hoofdknop, die van de klant als hij aan zet is. Zie `docs/designsystem.md` voor
+  chips en stappen, `docs/schrijfstijl.md` voor de zinnen.
 - Stand 1 en 2: wat er gepland is, waarom deze pagina (de `why` uit de aanbeveling), de datum.
 - Stand 3: **de vragen van deze pagina, in het scherm zelf.** Per vraag het antwoordveld
   (`components/antwoordveld.tsx`) en een knop "Overslaan" met de uitleg wat dat betekent ("dit
   onderdeel komt dan niet op de pagina"). Een teller "3 van 5 gedaan". Bij de laatste: "Alles
   gedaan. We beginnen nu met schrijven." Geen losse verzendknop: elk antwoord slaat meteen op,
-  zoals op "Openstaande vragen". Hier landt ook de keuze uit §4.2 regel 3.
+  zoals op "Openstaande vragen". Hier landt ook de keuze uit §4.2 regel 3. Bij stand 4 met
+  `vragen_klaar`: "Alle vragen gedaan. We schrijven hem vanaf 14 oktober."
+- Na het laatste antwoord in "Jouw beurt" verdwijnt de pagina uit die lijst met een korte bevestiging
+  ("Alles voor *Wat kost wagenparkbeheer* is binnen"), zodat de klant ziet dat zijn werk iets deed.
 - Stand 4: "Wordt geschreven", met verwachte duur. Pollen zoals nu.
-- Stand 5: de tekst (bestaand canvas en werkblad) met één hoofdknop "Keur goed".
+- Stand 5: de tekst (bestaand canvas en werkblad) met één hoofdknop "Keur goed" en een tweede knop
+  "Vraag een aanpassing" (bestaande `revise-box.tsx`, terug naar stand 4). Kwaliteitsbevindingen
+  staan erbij als opmerkingen, niet als vragen (§3.2 regel 1).
 - Stand 6: kopieerblokken en het adresveld, één hoofdknop "Ik heb hem geplaatst". Onomkeerbaar
   vooraf benoemen (kwaliteitslat K4).
 - Stand 7 en 8: live-adres, controle-uitkomst, nameting.
