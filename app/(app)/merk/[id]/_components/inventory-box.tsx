@@ -200,7 +200,7 @@ export function InventoryBox({
             <button
               key={s}
               type="button"
-              className={s === speed ? "chip chip-green" : "chip chip-neutral"}
+              className={s === speed ? "chip chip-success" : "chip chip-neutral"}
               onClick={() => setSpeed(s)}
               disabled={wacht}
             >

@@ -326,7 +326,7 @@ export function OfferingsEditor({
             {o.price_indication && (
               <span className="mono-label">{o.price_indication}</span>
             )}
-            {o.source !== "ai" && <span className="chip chip-green">{o.source}</span>}
+            {o.source !== "ai" && <span className="chip chip-success">{o.source}</span>}
             {dekking?.dekking === "ontbreekt" && (
               <span className="chip chip-warning" title={dekking.reason}>
                 geen eigen pagina

@@ -103,7 +103,7 @@ export function LlmKnowledgePanel({ rows }: { rows: ProfileLlmBaseline[] }) {
               <span
                 className={
                   knows.level === "kent"
-                    ? "chip chip-green"
+                    ? "chip chip-success"
                     : knows.level === "wisselend"
                       ? "chip chip-warning"
                       : "chip chip-neutral"
@@ -119,7 +119,7 @@ export function LlmKnowledgePanel({ rows }: { rows: ProfileLlmBaseline[] }) {
               {categorieOordelen.length > 0 && (
                 <span
                   className={
-                    genoemdBij > 0 ? "chip chip-green" : "chip chip-neutral"
+                    genoemdBij > 0 ? "chip chip-success" : "chip chip-neutral"
                   }
                 >
                   genoemd bij {genoemdBij} van de {categorieOordelen.length}{" "}

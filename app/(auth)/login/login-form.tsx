@@ -78,7 +78,7 @@ export function LoginForm({
             aria-label={wachtwoordZichtbaar ? "Wachtwoord verbergen" : "Wachtwoord tonen"}
             className="icon-btn absolute right-2 top-1/2 -translate-y-1/2"
           >
-            <Icon naam={wachtwoordZichtbaar ? "wachtwoordverbergen" : "wachtwoordtonen"} size={17} />
+            <Icon naam={wachtwoordZichtbaar ? "wachtwoordverbergen" : "wachtwoordtonen"} size={18} />
           </button>
         </div>
       </div>

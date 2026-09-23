@@ -380,7 +380,7 @@ function Onderdeel({
       <div className="flex items-start gap-3">
         <IconTegel icoon={icoon} />
         <div className="flex min-w-0 flex-col gap-0.5 pt-0.5">
-          <h3 className="text-[1.0625rem] font-medium text-[var(--text-primary)]">
+          <h3 className="type-body-emphasis text-[var(--text-primary)]">
             {item.label}
           </h3>
           <p className="text-sm text-muted">{KICKER[item.label]}</p>

@@ -167,7 +167,7 @@ export function ProfileReadinessPanel({
                   s.state === "klaar"
                     ? "chip chip-success"
                     : s.state === "bezig"
-                      ? "chip chip-green"
+                      ? "chip chip-success"
                       : s.state === "overgeslagen"
                         ? "chip chip-warning"
                         : "chip chip-neutral"

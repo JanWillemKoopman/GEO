@@ -98,7 +98,7 @@ export function ActivationForm({
             className="icon-btn absolute right-2 top-1/2 -translate-y-1/2"
             aria-label={toon ? "Wachtwoord verbergen" : "Wachtwoord tonen"}
           >
-            <Icon naam={toon ? "wachtwoordverbergen" : "wachtwoordtonen"} size={17} />
+            <Icon naam={toon ? "wachtwoordverbergen" : "wachtwoordtonen"} size={18} />
           </button>
         </div>
 

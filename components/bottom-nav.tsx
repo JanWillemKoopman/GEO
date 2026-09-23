@@ -91,7 +91,7 @@ export function BottomNav({
             className="onderbalk-item"
             aria-current={pathname === item.href || pathname.startsWith(`${item.href}/`) ? "page" : undefined}
           >
-            <Icon naam={item.icoon} size={22} />
+            <Icon naam={item.icoon} size={24} />
             <span className="onderbalk-item-label">{item.label}</span>
           </Link>
         ))}
@@ -102,7 +102,7 @@ export function BottomNav({
           aria-haspopup="dialog"
           aria-expanded={meerOpen}
         >
-          <Icon naam="meer" size={22} />
+          <Icon naam="meer" size={24} />
           <span className="onderbalk-item-label">Meer</span>
           {/* Hetzelfde bolletje als in de desktop-bovenbalk: er wachten vragen,
               en "Vragen" staat mogelijk al in de primaire vier, maar niet

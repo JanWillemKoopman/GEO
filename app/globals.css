@@ -1347,6 +1347,24 @@ input[type="radio"] {
   outline-offset: 2px;
 }
 
+/* Het pictogram in een knop (23 september 2026). §6 zegt 18 pixels in een
+   knop; in de app stonden er 14 en 16 door elkaar, per aanroeper gekozen. Hier
+   op één plek, per knopmaat: 18 in de gewone en grote, 16 in de kleine, 14 in
+   de kleinste. Een `width`/`height` in CSS wint van het attribuut dat
+   `components/icon.tsx` zet. */
+:is(.btn-primary, .btn-outline, .btn-ghost, .btn-accent, .btn-actie, .btn-danger) > svg {
+  width: 18px;
+  height: 18px;
+}
+:is(.btn-primary, .btn-outline, .btn-ghost, .btn-accent, .btn-actie, .btn-danger).btn-sm > svg {
+  width: 16px;
+  height: 16px;
+}
+:is(.btn-primary, .btn-outline, .btn-ghost, .btn-accent, .btn-actie, .btn-danger).btn-xs > svg {
+  width: 14px;
+  height: 14px;
+}
+
 /* De maten. GEMETEN, zie de berekening bovenaan dit blok. */
 .btn-sm {
   height: 36px;
@@ -1422,8 +1440,7 @@ input[type="radio"] {
   background-color: var(--bg-layer-2);
   color: var(--text-tertiary);
 }
-.chip-success,
-.chip-green {
+.chip-success {
   background-color: var(--intent-success-surface);
   color: var(--intent-success-content);
 }

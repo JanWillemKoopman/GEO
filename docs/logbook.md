@@ -11904,3 +11904,22 @@ Eén besluit van de eigenaar is bewust niet aangeraakt: op het paginascherm is o
 "Te verbeteren", dus "wacht op jou" en "niet opgeslagen" zijn daar limoen. Elders is "wacht op jou"
 oranje. `.card-rail-accent` is neutraal (besluit "Groene rand weg bij openstaande vragen"); de kleur
 staat nu expliciet in plaats van als uitgecommentarieerde regel.
+
+**Stap 4: afwerking en documentatie.** Het pictogram in een knop is 18px (16 in `.btn-sm`, 14 in
+`.btn-xs`), afgedwongen in `app/globals.css` in plaats van per aanroeper, waar 14 en 16 door elkaar
+stonden; de losse maten 13, 17 en 22 zijn 14, 18 en 24 geworden. Kopjes in een kaart staan op
+gewicht 500 (vier keer stond er 600) en de 17px-kop op Support is 16px. `chip-green` is
+`chip-success`. De designgalerij (Beheer, Designsysteem) toont de nieuwe bouwstenen.
+`docs/designsystem.md` beschrijft weer wat er in de code staat (peildatum 23 september 2026): het
+accent en waar het wél en niet staat, het paginaritme en `--stand-marge`, de veldmaten op een
+telefoon, de stang op het overzicht, de nieuwe primitieven in §9, een tiende regel over de
+cascadelagen, en een zesde controle in §12 die niet-bestaande klassen, lettermaten onder 12px en
+6px-rondingen vangt. Die controle geeft nul regels, net als de vijf bestaande.
+
+Wat niet gedaan is en waarom: de ingelogde schermen zijn niet in de browser bekeken, want daarvoor
+is een database met echte gegevens nodig die in deze werkomgeving niet beschikbaar is. De nieuwe en
+gewijzigde bouwstenen zijn wel in beide standen en op telefoonbreedte nagekeken in een losse
+proefpagina met de gebouwde CSS. De terug-link boven het clusterdossier en de contentpagina is
+blijven staan: dat is een navigatiekeuze, geen vormgeving. Punt 2 en 3 van
+`docs/tasks/openstaand-na-okx-omzetting.md` (donkere stand per scherm nalopen, grafiekkleuren op
+kleurenblindheid) staan nog open. Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen.

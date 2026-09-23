@@ -159,6 +159,14 @@ export function Gallerij() {
           <span className="chip chip-info">Informatie</span>
           <span className="chip chip-attention">Kans</span>
           <span className="chip chip-outline">Omlijnd</span>
+          <span className="chip chip-stijging">
+            <Icon naam="stijging" size={12} />
+            Gestegen
+          </span>
+          <span className="chip chip-daling">
+            <Icon naam="daling" size={12} />
+            Gedaald
+          </span>
           <span className="chip chip-success">
             <Icon naam="klaar" size={12} />
             Met pictogram
@@ -176,6 +184,7 @@ export function Gallerij() {
           <Alert intent="danger" role="alert">
             Dat e-mailadres of wachtwoord klopt niet.
           </Alert>
+          <Alert intent="info">Ter informatie: grijs, want informatie vraagt niets en waarschuwt niet.</Alert>
         </div>
       </Blok>
 
@@ -228,6 +237,46 @@ export function Gallerij() {
             <p className="type-compact-emphasis">Met accentrand</p>
             <p className="type-caption text-muted">De hele rand draagt de betekenis.</p>
           </div>
+        </div>
+        <div className="card flex flex-col gap-3">
+          <p className="type-compact-emphasis">Een vlak binnen een kaart</p>
+          <div className="vlak">
+            <p className="type-caption text-muted">`.vlak`: een rand, 8 pixels rond, 12 pixels lucht.</p>
+          </div>
+          <div className="vlak vlak-gevuld">
+            <p className="type-caption text-muted">`.vlak-gevuld`: met de tint van een genest vlak eronder.</p>
+          </div>
+          <p className="type-compact">
+            Een <a className="link" href="#">link in lopende tekst</a> staat in de tekstkleur, nooit in
+            het accent.
+          </p>
+        </div>
+      </Blok>
+
+      <Blok titel="Tabel" toelichting="Kop in kleine kapitalen, rijen gescheiden door één lijn. Gekozen is een rand en een waas, geen kleur.">
+        <div className="card">
+          <table className="tabel tabel-klikbaar">
+            <thead>
+              <tr>
+                <th>Bedrijf</th>
+                <th className="text-right">Genoemd</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Gasservice Brabant</td>
+                <td className="tabular text-right">12</td>
+              </tr>
+              <tr aria-selected="true">
+                <td>Installatiebedrijf Noord</td>
+                <td className="tabular text-right">8</td>
+              </tr>
+              <tr>
+                <td>Warmtetechniek Zuid</td>
+                <td className="tabular text-right">3</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </Blok>
 
@@ -463,7 +512,7 @@ function Staal({ token, naam }: { token: string; naam: string }) {
       <span className="type-caption" style={{ color: "var(--text-primary)" }}>
         {naam}
       </span>
-      <code className="type-caption text-muted break-url" style={{ fontSize: "0.6875rem" }}>
+      <code className="type-caption text-muted break-url">
         {token}
       </code>
     </div>

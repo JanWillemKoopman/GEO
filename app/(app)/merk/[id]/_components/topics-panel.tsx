@@ -213,7 +213,7 @@ export function TopicsPanel({
                 <Icon naam="naar" size={12} />
               </Link>
             ) : t.status === "goedgekeurd" ? (
-              <span className="chip chip-green">Goedgekeurd</span>
+              <span className="chip chip-success">Goedgekeurd</span>
             ) : t.status === "afgewezen" ? (
               <span className="chip chip-neutral">Afgewezen</span>
             ) : null}

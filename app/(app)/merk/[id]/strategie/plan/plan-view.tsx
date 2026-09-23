@@ -781,7 +781,7 @@ export function PlanView({
                       onClick={() => setDicht((d) => ({ ...d, [month.id]: open }))}
                       className="flex items-center gap-2 text-sm font-medium hover:underline"
                     >
-                      <Icon naam={open ? "openen" : "verder"} size={13} />
+                      <Icon naam={open ? "openen" : "verder"} size={14} />
                       {/* Besluit 7: "maand 4 sinds de start", nooit "van 12". */}
                       Maand {month.month_number}
                     </button>
@@ -1603,7 +1603,7 @@ function PageRij({
             }
             /* ⚠️ Een zelfgekozen dag krijgt geen eigen teken maar een iets
                donkerdere tint. Een vinkje of een speldje naast de datum zou een
-               nieuw symbool zijn op een regel waar ✓ al "goedgekeurd" betekent,
+               nieuw symbool zijn op een regel waar het vinkje al "goedgekeurd" betekent,
                en dan leest de datum als een status. */
             className={`shrink-0 text-xs hover:text-[var(--text-primary)] hover:underline disabled:opacity-40 ${
               page.scheduled_manual ? "text-secondary" : "text-muted"

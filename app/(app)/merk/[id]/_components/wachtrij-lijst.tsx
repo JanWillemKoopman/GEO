@@ -104,7 +104,7 @@ export function WachtrijLijst({
 function SectieKop({ sectie }: { sectie: WachtrijSectie }) {
   return (
     <div className="flex flex-row flex-wrap items-center gap-x-3 gap-y-2 md:flex-col md:items-start">
-      <h3 className="flex items-center gap-2 text-base font-semibold">
+      <h3 className="type-body-emphasis flex items-center gap-2">
         <span className="text-secondary">
           <Icon naam={SECTIE_ICOON[sectie.kop]} size={18} />
         </span>
@@ -118,7 +118,7 @@ function SectieKop({ sectie }: { sectie: WachtrijSectie }) {
         className="inline-flex items-center gap-1 text-sm text-secondary hover:underline md:mt-1"
       >
         {sectie.overzichtLabel}
-        <Icon naam="naar" size={13} />
+        <Icon naam="naar" size={14} />
       </Link>
     </div>
   );

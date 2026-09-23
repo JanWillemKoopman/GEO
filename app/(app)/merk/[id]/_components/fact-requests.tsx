@@ -383,7 +383,7 @@ function VraagRow({
             setBewerken(false);
           }}
         >
-          <span className="text-sm font-semibold">{fact.question}</span>
+          <span className="text-sm font-medium">{fact.question}</span>
           <Antwoordveld
             id={`bewerk-${fact.id}`}
             vraag={fact}
@@ -414,7 +414,7 @@ function VraagRow({
   return (
     <li className="flex flex-col gap-0.5 text-sm">
       <div className="flex items-start justify-between gap-2">
-        <span className="font-semibold">{fact.question}</span>
+        <span className="font-medium">{fact.question}</span>
         <button
           type="button"
           onClick={() => {
