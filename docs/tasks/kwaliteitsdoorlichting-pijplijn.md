@@ -1,6 +1,8 @@
 # Kwaliteitsdoorlichting: één merk van aanmaken tot opgeleverde pagina, stap voor stap nagemeten
 
-> **Status (23 september 2026): plan, er is nog niets van gebouwd.** Opgesteld op verzoek van de
+> **Status (23 september 2026): in uitvoering.** Fase 0.1 is gebouwd (migratie 0112, zie
+> `docs/logbook.md`), de blinde lezer is getoetst (§4, 0.5: vergelijken werkt, losse cijfers niet),
+> de drie merken zijn gekozen (regio Eindhoven: een hovenier, een installateur en een rijschool). Opgesteld op verzoek van de
 > eigenaar na een analyse van de code en van productie. Elk cijfer hieronder is die dag nagerekend
 > op de code of op de database (Supabase-project `GEO`), tenzij er "schatting" bij staat.
 >
@@ -191,7 +193,9 @@ een ondernemer of een copywriter is. Dat blijft de rol van de mens in §6.3.
   over als hij het antwoord niet paraat heeft. Echte MKB-klanten schrijven geen alinea's.
 
 Alles wat niet op de site staat is verzonnen, maar geloofwaardig voor dit soort bedrijf. Het dossier
-gaat als apart bestand de repo in, met datum, en verandert na de start niet meer. De eigenaar leest
+krijgt een datum en verandert na de start niet meer. Het staat bewust **niet** in de repo: het
+combineert echte bedrijfsgegevens met verzonnen claims over diezelfde bedrijven, en dat hoort niet
+in een gedeelde codebase. Het staat bij de werkbestanden van de doorlichting. De eigenaar leest
 het vóór de start: klinkt dit als een echte ondernemer in deze branche?
 
 **Twee klantprofielen, dezelfde vragen.** Voor twee pagina's beantwoorden we de vragen twee keer:
