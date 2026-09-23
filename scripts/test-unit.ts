@@ -36,6 +36,7 @@ import {
   VOLUME_FACTOR,
 } from "@/lib/pipeline/volume";
 import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
+import { bouwInvoerOpname, promptHash } from "@/lib/openai/input-capture";
 import { parseRobots, isAllowed, sitemapsFrom } from "@/lib/audit/robots";
 import { splitByTerms } from "@/lib/highlight";
 import { vloeiendPad, vloeiendPadTerug } from "@/lib/chart-curve";
@@ -25303,4 +25304,30 @@ group("Clusters ontdekken: de klant voegt zelf toe, afwijzen blijft van de consu
   ok("de kaart toont geen 'Dit wil ik' meer", !kaart.includes("Dit wil ik"));
   // Toevoegen kost niets; de meting wel, en die start de klant niet zelf.
   eq("een meting starten blijft van de consultant", String(actionNeedsStaff("analyse_starten")), "true");
+});
+
+group("Elke AI-aanroep bewaart wat erin ging (migratie 0112, 23 september 2026)", () => {
+  eq("geen invoer, geen opname", String(bouwInvoerOpname(null)), "null");
+  const a = bouwInvoerOpname({ system: "Je bent een schrijver.", user: "Schrijf over daklekkage.", schemaName: "content", work: "writing", reasoningEffort: "medium", temperature: null, webSearch: false });
+  eq("de systeemopdracht staat er letterlijk in", String(a?.inputJson.system), "Je bent een schrijver.");
+  eq("de gebruikersopdracht staat er letterlijk in", String(a?.inputJson.user), "Schrijf over daklekkage.");
+  eq("lengte gebruikersopdracht", String(a?.inputJson.tekensGebruiker), "24");
+  eq("hash is 16 tekens", String(a?.promptHash?.length), "16");
+  // De hash hangt alleen aan de systeemopdracht: een andere klant is geen andere prompt.
+  const b = bouwInvoerOpname({ system: "Je bent een schrijver.", user: "Schrijf over dakisolatie." });
+  eq("zelfde systeemopdracht, zelfde hash", String(a?.promptHash === b?.promptHash), "true");
+  eq("andere systeemopdracht, andere hash", String(promptHash("Je bent een beoordelaar.") === a?.promptHash), "false");
+  // Onbekend is geen lege tekst (conventie 3).
+  const c = bouwInvoerOpname({ request: { pad: "keywords" } });
+  eq("zonder systeemopdracht geen hash", String(c?.promptHash), "null");
+  eq("onbekende gebruikersopdracht blijft null", String(c?.inputJson.user), "null");
+
+  // De opname gebeurt op de plek waar élke OpenAI-aanroep langskomt, zodat geen stap hem kan vergeten.
+  const structured = leesBestand("lib/openai/structured.ts");
+  eq("beide aanroepvormen geven de invoer door", String((structured.match(/invoerVan\(opts, verstuurd/g) ?? []).length), "2");
+  const ledger = leesBestand("lib/openai/ledger.ts");
+  ok("het logboek schrijft input_json en prompt_hash", ledger.includes("input_json:") && ledger.includes("prompt_hash:"));
+  for (const bestand of ["lib/engines/gemini.ts", "lib/pipeline/measure-llm-response.ts", "lib/pipeline/measure-ai-overview.ts", "lib/discovery/labs.ts"]) {
+    ok(`${bestand} geeft invoer mee`, /input: /.test(leesBestand(bestand)) || leesBestand(bestand).includes("record(response"));
+  }
 });

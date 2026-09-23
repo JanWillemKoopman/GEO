@@ -91,6 +91,7 @@ export async function meetViaLlmResponse(
           aantalBronvermeldingen: uitkomst.aantalBronvermeldingen,
           melding: uitkomst.melding,
         },
+        input: { system: SIMULATE_SYSTEM, user: prompt.text, webSearch: true },
       },
     );
 
