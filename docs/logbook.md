@@ -12007,3 +12007,21 @@ bladzijde. Aanleiding: de kwaliteitsdoorlichting (`docs/tasks/kwaliteitsdoorlich
 §4, stap 0.3). Eén schrijfopdracht is ongeveer 90 KB en een merk telt na een volledige doorloop
 honderden aanroepen; dat hoort als bestand uit de app te komen, niet in brokjes uit een
 beheerconsole. De bladzijde-instellingen staan puur in `lib/spoor.ts`, met tests.
+
+## 23 september 2026 (11): twee stille gegevensverliezen, gevonden in de kwaliteitsdoorlichting
+
+**Het gespreksscherm sloeg de waarde van vóór de klik op.** Bij een lijstveld en een keuzeknop roept
+`BrandFieldInput` `onChange` en `onCommit` in dezelfde klik aan; `bewaarVeld()` in
+`onboarding-session.tsx` las daarna `waarden[key]` uit de oude render. Gemeten bij Hans Verstraaten
+Hoveniers: van 7 van 7 lijsten ging het laatst toegevoegde punt verloren (onder meer "Zwemvijvers"
+als groeidienst) en 3 van 3 keuzes bleven leeg (klantwaarde, nieuwe pagina's, aanspreekvorm),
+terwijl het scherm "door jou vastgelegd" toonde. `zet()` werkt nu de ref direct bij en
+`bewaarVeld()` leest daaruit.
+
+**Een definitieve onderwerpenronde kon alle onderwerpen wissen.** Na het vastleggen van het gesprek
+gooit `proposeTopics()` de onbesliste concepten weg en zet de nieuwe ronde erin. Het model gaf als
+prioriteit 1; 0,95; 0,85; 0,8, de app rekende daar `8 - 0,95 = 7,05` van, en `priority` is een
+integer: de hele insert mislukte. De concepten waren al weg, de taak stond op "klaar", het merk had
+nul onderwerpen. Nu komt de volgorde uit de positie in de lijst (`lib/topic-volgorde.ts`, conventie
+1: het model zet ze al op volgorde, zijn getal is niet te vertrouwen), gaan de concepten bij een
+mislukte opslag terug, en mislukt de taak zichtbaar in plaats van stil.

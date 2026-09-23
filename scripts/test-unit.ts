@@ -38,6 +38,7 @@ import {
 import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { bouwInvoerOpname, promptHash } from "@/lib/openai/input-capture";
 import { spoorPaginering, isUuid, SPOOR_MAX, SPOOR_STANDAARD } from "@/lib/spoor";
+import { topicPrioriteit } from "@/lib/topic-volgorde";
 import { parseRobots, isAllowed, sitemapsFrom } from "@/lib/audit/robots";
 import { splitByTerms } from "@/lib/highlight";
 import { vloeiendPad, vloeiendPadTerug } from "@/lib/chart-curve";
@@ -25361,4 +25362,17 @@ group("Het gespreksscherm slaat de waarde van de laatste klik op (23 september 2
   const bewaar = scherm.slice(scherm.indexOf("async function bewaarVeld("), scherm.indexOf("A4: opslaan bij het sluiten"));
   ok("bewaarVeld leest uit de ref", bewaar.includes("const waarde = waardenRef.current[key]"));
   ok("bewaarVeld leest niet de oude state", !bewaar.includes("waarden[key]"));
+});
+
+group("Voorgestelde onderwerpen: volgorde uit de positie, en nooit nul na een mislukte opslag (23 september 2026)", () => {
+  eq("eerste onderwerp hoogst", String(topicPrioriteit(0, 8)), "8");
+  eq("tweede lager", String(topicPrioriteit(1, 8)), "7");
+  eq("nooit onder nul", String(topicPrioriteit(12, 8)), "0");
+  eq("altijd een heel getal", String(Number.isInteger(topicPrioriteit(1.5, 8))), "true");
+  const bron = leesBestand("lib/pipeline/propose-topics.ts");
+  ok("het getal van het model telt niet meer", !bron.includes("MAX_TOPICS - (Number.isFinite(t.priority)"));
+  ok("de positie wel", bron.includes("priority: topicPrioriteit(i, MAX_TOPICS)"));
+  const opslaan = bron.slice(bron.indexOf('.from("profile_topics").insert('));
+  ok("bij een mislukte opslag gaan de concepten terug", opslaan.includes("insert(weggehaald)"));
+  ok("en de taak mislukt zichtbaar", opslaan.includes("throw new Error(`Topicvoorstellen opslaan mislukt"));
 });

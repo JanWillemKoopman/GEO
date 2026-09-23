@@ -1,4 +1,5 @@
 import "server-only";
+import { topicPrioriteit } from "@/lib/topic-volgorde";
 
 /**
  * 5–8 core topics voorstellen (docs/tasks/onboarding-2.0.md, blok D).
@@ -270,7 +271,22 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
 
   // De definitieve ronde vervangt de onbesliste concepten, ze stonden er
   // alleen ter voorbereiding op dit gesprek en niemand heeft erop geklikt.
+  //
+  // ⚠️ Eerst de volledige rijen bewaren. Mislukt het opslaan van de nieuwe
+  // ronde hieronder, dan gaan ze terug. Gemeten op 23 september 2026 (de
+  // kwaliteitsdoorlichting, Hans Verstraaten Hoveniers): de concepten waren
+  // weg, de nieuwe ronde kwam er niet in, en het merk had nul onderwerpen
+  // terwijl de taak op "klaar" stond.
+  let weggehaald: Record<string, unknown>[] = [];
   if (onbeslisteConcepten.length > 0) {
+    const { data: volledig } = await admin
+      .from("profile_topics")
+      .select("*")
+      .in(
+        "id",
+        onbeslisteConcepten.map((c) => c.id),
+      );
+    weggehaald = (volledig ?? []) as Record<string, unknown>[];
     const { error: deleteError } = await admin
       .from("profile_topics")
       .delete()
@@ -350,7 +366,13 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
           ),
         ],
         // Aflopend: hoogste prioriteit bovenaan bij `order by priority desc`.
-        priority: Math.max(0, MAX_TOPICS - (Number.isFinite(t.priority) ? t.priority : i + 1)),
+        //
+        // ⚠️ Uit de POSITIE in de lijst, niet uit het getal van het model
+        // (conventie 1). Het model zet de onderwerpen al op volgorde, maar zijn
+        // `priority` is niet te vertrouwen: op 23 september 2026 gaf hij
+        // 1; 0,95; 0,85; 0,8. Dat leverde 7,05 op in een kolom van hele getallen,
+        // en de hele insert mislukte. Bovendien draaide 0,95 de volgorde om.
+        priority: topicPrioriteit(i, MAX_TOPICS),
         status: "voorgesteld",
         stage: nieuweStage,
         origin: nieuweOorsprong,
@@ -359,8 +381,18 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
   );
 
   if (error) {
-    console.error(`Topicvoorstellen opslaan mislukt voor profiel ${profileId}: ${error.message}`);
-    return { proposed: bestaand.length - onbeslisteConcepten.length, costUsd: result.costUsd };
+    // De concepten terug, en de taak laten mislukken in plaats van stil op
+    // "klaar" te zetten: nul onderwerpen zonder melding is erger dan een
+    // zichtbare fout die de takenlaag opnieuw probeert.
+    if (weggehaald.length > 0) {
+      const { error: herstelError } = await admin.from("profile_topics").insert(weggehaald);
+      if (herstelError) {
+        console.error(
+          `Conceptonderwerpen terugzetten mislukt voor profiel ${profileId}: ${herstelError.message}`,
+        );
+      }
+    }
+    throw new Error(`Topicvoorstellen opslaan mislukt voor profiel ${profileId}: ${error.message}`);
   }
 
   return {
