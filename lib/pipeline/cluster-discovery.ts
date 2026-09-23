@@ -6,7 +6,13 @@ import "server-only";
  *   discovery_collect  alles wat we al weten verzamelen, plus beginpunten     licht model
  *   discovery_expand   DataForSEO: eigen site, echte concurrenten, suggesties  geen AI
  *   discovery_sift     per zoekterm: past dit bij aanbod en strategie?         licht model
- *   discovery_bundle   zoektermen bundelen tot 8 tot 15 kandidaat-clusters     één zware aanroep
+ *   discovery_bundle   zoektermen bundelen tot 6 tot 12 kandidaat-clusters     één zware aanroep
+ *
+ * Elke ronde gaat over één THEMA dat de consultant opgeeft (migratie 0111,
+ * 23 september 2026): een productcategorie als "private lease" of
+ * "onderhoud". De eerste ronde zonder thema liep over 36 diensten tegelijk en
+ * leverde brede, losse onderwerpen op. Het thema stuurt de beginpunten, gaat
+ * voor in de voorfilter (`themaStammen`) en staat in het schiften en bundelen.
  *
  * Eén taak is hooguit één AI-aanroep (conventie 7). Elke taak kijkt eerst of
  * de ronde al voorbij zijn stap is (conventie 9): een herhaalde taak na een
@@ -27,11 +33,13 @@ import { discontinuedNames, parseContextFactors } from "@/lib/pipeline/context-f
 import { topicSteering, goalRule } from "@/lib/pipeline/commercial-context";
 import {
   alleenBestaandeTermen,
+  dubbelInRonde,
   kandidaatFeiten,
   kandidaatScore,
   kandidaatSoort,
   kiesConcurrenten,
   lijktOp,
+  themaStammen,
   voegVariantenSamen,
   voorfilter,
   type OntdekTerm,
@@ -68,6 +76,11 @@ export type RondeStatus = (typeof STAPPEN)[number] | "mislukt";
 
 /** Wat `input_json` van een ronde bevat. Alles wat de latere stappen nodig hebben. */
 export interface RondeInvoer {
+  /**
+   * Het thema van de ronde. `null` alleen bij rondes van vóór migratie 0111;
+   * de route start er geen meer zonder.
+   */
+  thema: string | null;
   domein: string;
   merknaam: string;
   merkwoorden: string[];
@@ -96,6 +109,7 @@ export interface RondeInvoer {
 interface RondeRij {
   id: string;
   profile_id: string;
+  theme: string | null;
   status: RondeStatus;
   status_note: string | null;
   input_json: RondeInvoer | Record<string, never>;
@@ -262,17 +276,30 @@ export async function discoveryCollect(admin: Admin, runId: string): Promise<voi
   // met de hand gedaan ("Occasions kopen" → "occasion kopen", pakketnamen
   // weg); hier doet het lichte model dat. Het vangnet staat eronder: lengte,
   // dubbel en merknamen gaan er in code uit.
+  //
+  // Met een thema gaan alle beginpunten over dat thema: dan zoekt DataForSEO
+  // twintig keer binnen één productcategorie, in plaats van één keer per dienst
+  // over 36 diensten verspreid.
+  const thema = run.theme?.trim() || null;
   let beginpunten: string[] = [];
   let aiKosten = 0;
-  if (aanbod.length > 0) {
+  if (aanbod.length > 0 || thema) {
     const res = await callStructured({
       model: MODELS.volume,
       system:
         "Je vertaalt het aanbod van een bedrijf naar zoektermen zoals een klant ze in Google typt. " +
         "Twee tot vier woorden per zoekterm, kleine letters, geen merknaam van het bedrijf zelf, geen " +
         "plaatsnamen, geen namen van pakketten of abonnementen die alleen dit bedrijf gebruikt. " +
-        `Hooguit ${MAX_BEGINPUNTEN} zoektermen, de belangrijkste diensten eerst. Antwoord in het Nederlands.`,
-      user: `Bedrijf: ${merknaam}\n${profiel.industry ? `Branche: ${profiel.industry}\n` : ""}\nAANBOD:\n${aanbod.map((a) => `- ${a}`).join("\n")}`,
+        (thema
+          ? "Alle zoektermen gaan over het THEMA hieronder: verschillende vragen, wensen en varianten " +
+            "binnen dat thema, zoals een klant ze zou typen. Het aanbod laat zien wat het bedrijf binnen " +
+            "dat thema verkoopt; diensten buiten het thema sla je over. "
+          : "") +
+        `Hooguit ${MAX_BEGINPUNTEN} zoektermen, de belangrijkste eerst. Antwoord in het Nederlands.`,
+      user:
+        `Bedrijf: ${merknaam}\n${profiel.industry ? `Branche: ${profiel.industry}\n` : ""}` +
+        (thema ? `THEMA: ${thema}\n` : "") +
+        `\nAANBOD:\n${aanbod.map((a) => `- ${a}`).join("\n")}`,
       schema: Beginpunten,
       schemaName: "discovery_seeds",
       work: "deterministic",
@@ -291,6 +318,7 @@ export async function discoveryCollect(admin: Admin, runId: string): Promise<voi
   }
 
   const invoer: RondeInvoer = {
+    thema,
     domein: kaalDomein(profiel.url),
     merknaam,
     merkwoorden,
@@ -430,7 +458,8 @@ export async function discoverySift(admin: Admin, runId: string): Promise<void> 
   const run = await leesRonde(admin, runId);
   if (alVoorbij(run.status, "schiften")) return;
   const invoer = run.input_json as RondeInvoer;
-  const kandidaten = voorfilter(run.terms_json ?? [], invoer.merkwoorden);
+  const thema = invoer.thema ?? null;
+  const kandidaten = voorfilter(run.terms_json ?? [], invoer.merkwoorden, undefined, themaStammen(thema));
 
   if (kandidaten.length === 0) {
     await volgende(admin, run, "bundelen", { sifted_json: [] }, "discovery_bundle");
@@ -448,9 +477,14 @@ export async function discoverySift(admin: Admin, runId: string): Promise<void> 
       "verband met wat het bedrijf verkoopt, en een losse merk- of categorienaam zonder meer (alleen " +
       "'volkswagen' of 'auto'): daar zoekt iemand iets anders dan een pagina van dit bedrijf.\n" +
       "pasvorm 'sterk': een klant die dit typt, kan morgen klant worden. 'redelijk': past bij het " +
-      "aanbod, maar de koopbedoeling is zwakker. Twijfel je, laat de term dan weg.",
+      "aanbod, maar de koopbedoeling is zwakker. Twijfel je, laat de term dan weg." +
+      (thema
+        ? "\nDeze ronde gaat alleen over het THEMA. Laat termen weg die niet over dat thema gaan, ook " +
+          "als ze wel bij het aanbod passen: die komen in een ronde met een ander thema aan bod."
+        : ""),
     user:
       `Bedrijf: ${invoer.merknaam}\n` +
+      (thema ? `THEMA: ${thema}\n` : "") +
       (invoer.branche ? `Branche: ${invoer.branche}\n` : "") +
       (invoer.regio.length > 0 ? `Werkgebied: ${invoer.regio.join(", ")}\n` : "") +
       `\nAANBOD:\n${invoer.aanbod.map((a) => `- ${a}`).join("\n")}` +
@@ -556,8 +590,12 @@ export async function discoveryBundle(admin: Admin, runId: string): Promise<void
       "- Te breed (een hele branche of een los merk): dan meet je een hele markt.\n" +
       "- Te smal (één productvariant): daar stelt niemand een vraag over aan een AI-assistent.\n" +
       "- Goed: het niveau waarop iemand met een concreet probleem of een concrete koopwens zoekt.\n\n" +
+      (invoer.thema
+        ? "Deze ronde gaat over één THEMA. Alle onderwerpen liggen binnen dat thema: de verschillende " +
+          "vragen, doelgroepen en koopwensen die erin zitten. Het thema zelf is te breed als onderwerp.\n\n"
+        : "") +
       "REGELS:\n" +
-      "1. Geef 8 tot 15 onderwerpen. Minder mag als er niet meer in zit; een lijst vullen mag niet.\n" +
+      "1. Geef 6 tot 12 onderwerpen. Minder mag als er niet meer in zit; een lijst vullen mag niet.\n" +
       "2. Elk onderwerp volgt uit het AANBOD. Zet in 'diensten' de namen LETTERLIJK zoals ze daar staan.\n" +
       "3. Zet in 'zoektermen' alleen termen LETTERLIJK uit de lijst, minstens twee per onderwerp.\n" +
       "4. Geen merknamen van het bedrijf zelf in de titel.\n" +
@@ -568,6 +606,7 @@ export async function discoveryBundle(admin: Admin, runId: string): Promise<void
       "Antwoord in het Nederlands.",
     user:
       `Bedrijf: ${invoer.merknaam}\n` +
+      (invoer.thema ? `THEMA: ${invoer.thema}\n` : "") +
       (invoer.branche ? `Branche: ${invoer.branche}\n` : "") +
       (invoer.regio.length > 0 ? `Werkgebied: ${invoer.regio.join(", ")}\n` : "") +
       `\nAANBOD:\n${invoer.aanbod.map((a) => `- ${a}`).join("\n")}` +
@@ -584,17 +623,20 @@ export async function discoveryBundle(admin: Admin, runId: string): Promise<void
 
   const aanbodLaag = new Map(invoer.aanbod.map((a) => [a.toLowerCase(), a]));
   const pasvormVan = new Map(geschift.map((t) => [t.keyword, t.pasvorm]));
-  const gezienTitels: string[] = [];
+  const gezien: { titel: string; termen: OntdekTerm[] }[] = [];
   const rijen: Record<string, unknown>[] = [];
 
   for (const k of res.parsed.kandidaten) {
     const titel = k.titel.trim();
     if (!titel) continue;
-    // Twee kandidaten in dezelfde ronde die op elkaar lijken: de eerste wint.
-    if (lijktOp(titel, gezienTitels, invoer.regio)) continue;
     const termen = alleenBestaandeTermen(k.zoektermen, geschift);
     if (termen.length < MIN_TERMEN_PER_KANDIDAAT) continue;
-    gezienTitels.push(titel);
+    // Twee kandidaten in dezelfde ronde met grotendeels dezelfde zoektermen, of
+    // dezelfde titel: de eerste wint. Op termen en niet op titelwoorden, zie
+    // `dubbelInRonde` (in de eerste ronde vielen daardoor 6 van de 9 weg).
+    if (gezien.some((g) => g.titel.toLowerCase() === titel.toLowerCase())) continue;
+    if (dubbelInRonde(termen, gezien)) continue;
+    gezien.push({ titel, termen });
 
     const feiten = kandidaatFeiten(termen);
     const soort = kandidaatSoort(feiten);
