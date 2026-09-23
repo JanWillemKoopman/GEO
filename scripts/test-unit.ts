@@ -467,7 +467,7 @@ import {
   type VoortgangPagina,
 } from "@/lib/plan-progress";
 import { activiteit, ALLE_TAAKSOORTEN, TAAK_TEKST } from "@/lib/activity";
-import { groepeerPerSectie } from "@/lib/wachtrij";
+import { groepeerPerSectie, wachtrijRegel } from "@/lib/wachtrij";
 import type { WorkItem } from "@/lib/work";
 import {
   ADMIN_SECTIES,
@@ -11603,6 +11603,43 @@ group("groepeerPerSectie: de wachtrij in de vaste secties van de app", () => {
     ]).waarschuwingen.length === 1,
   );
 
+  ok(
+    "elke sectie telt zijn open taken voor de groene teller",
+    overzicht.secties.map((s) => `${s.kop}:${s.aantal}`).join(",") ===
+      "Cluster:2,Contentplan:2,Openstaande vragen:1,Bibliotheek:3",
+  );
+  ok(
+    "de tellers per sectie tellen op tot alles behalve de blokkade",
+    overzicht.secties.reduce((som, s) => som + s.aantal, 0) === items.length,
+  );
+  ok(
+    "elke sectie heeft een link met de naam uit de zijbalk",
+    overzicht.secties.every((s) => s.overzichtLabel.startsWith("Naar je ")),
+  );
+
+  // ⚠️ Twee clusters op akkoord stonden als twee keer "Bekijk en bevestig het
+  // concept" onder elkaar, zonder te zeggen welk cluster (Van den Udenhout,
+  // 23 september 2026). De clusternaam is daarom de titel van de regel.
+  const concept = {
+    ...items[0],
+    analysisName: "udenhout.nl · Occasion kopen in Noord-Brabant",
+  };
+  ok(
+    "een cluster op akkoord toont de clusternaam, zonder het domein ervoor",
+    wachtrijRegel(concept).titel === "Occasion kopen in Noord-Brabant" &&
+      wachtrijRegel(concept).cluster === null,
+  );
+  const pagina = { ...items[6], analysisName: "udenhout.nl · Wagenparkbeheer voor mkb-bedrijven" };
+  ok(
+    "een pagina houdt zijn titel en krijgt het cluster als context",
+    wachtrijRegel(pagina).titel === "Nakijken" &&
+      wachtrijRegel(pagina).cluster === "Wagenparkbeheer voor mkb-bedrijven",
+  );
+  ok(
+    "de vragen over je bedrijf gaan over het hele merk en krijgen geen cluster",
+    wachtrijRegel(items[4]).cluster === null && wachtrijRegel(items[2]).cluster === null,
+  );
+
   ok("een lege lijst geeft geen secties en geen waarschuwingen", (() => {
     const leeg = groepeerPerSectie([]);
     return leeg.secties.length === 0 && leeg.waarschuwingen.length === 0;
@@ -11741,6 +11778,13 @@ group("het overzicht: één hoofdgetal, één primaire knop, één rekensom", ()
     (overzicht.match(/btn-primary/g) ?? []).length === 0 &&
       (wachtrijLijst.match(/btn-primary/g) ?? []).length === 1,
   );
+  // Sinds 23 september 2026 is die ene knop die van de dringendste taak, en
+  // niet van elke regel: `primair` is waar voor precies één id.
+  ok(
+    "de primaire knop hoort bij de dringendste taak",
+    wachtrijLijst.includes('primair ? "btn-primary"') &&
+      overzicht.includes("eersteId={eigenWerk[0]?.id}"),
+  );
 
   // Het hoofdgetal stond vier keer op dit scherm, in drie schalen. De subkop is
   // er één van, en dat is de makkelijkste om per ongeluk terug te zetten.
@@ -11770,10 +11814,12 @@ group("het overzicht: één hoofdgetal, één primaire knop, één rekensom", ()
   // mag niet het hele scherm weghalen (`docs/ux-design.md` §4). Vier blokken
   // sinds "Waar je begint" en "Wat ORBIT ENGINE deed" op 21 september 2026
   // verdwenen (ze verdubbelden met de wachtrij, en het laatste stond
-  // permanent op "niets gepland"/leeg zonder iets aan te bieden).
+  // permanent op "niets gepland"/leeg zonder iets aan te bieden). Drie sinds
+  // "Je contentplan" op 23 september 2026 verdween: de ronde, de stand en de
+  // wachtrij.
   ok(
     "elk blok staat in zijn eigen foutopvang",
-    (overzicht.match(/<SectionErrorBoundary/g) ?? []).length >= 4,
+    (overzicht.match(/<SectionErrorBoundary/g) ?? []).length >= 3,
   );
 
   // ── ⚠️ HET ZICHTBAARHEIDSPERCENTAGE STAAT HIER WEER ─────────────────────

@@ -11531,3 +11531,21 @@ Het blok "Per fase van de klantreis" op het merkoverzicht komt niet terug: met e
 pagina's zonder fase zou die telling nog steeds te laag uitvallen.
 
 Controles: `tsc --noEmit`, `test:unit` (5149), `test:chain` (737) en `build` groen.
+
+## "Wat er op jou wacht" wordt het hart van het overzicht (23 september 2026)
+
+Op verzoek van de eigenaar, na een schermafbeelding van Van den Udenhout. Het blok "Je contentplan" onderaan
+het overzicht is weg: het meldde "18 gepland, nog geen live", en dat stond al in de ronde bovenaan ("18
+ingepland") en in de cijferrij ("0 gepubliceerd"). De regel voor de eerste maand ging mee, want die kondigde
+alleen aan wat dat blok later zou tonen. Het contentplan zelf staat op Strategie → Contentplan.
+
+De wachtrij staat nu in één kolom in plaats van twee: een band per sectie (Cluster, Contentplan, Openstaande
+vragen, Bibliotheek), met links de sectie, een groene teller en de link naar dat hoofdstuk, rechts de taken.
+Elke taak toont waar hij over gaat, één zin waarom, en een knop die zegt wat er gebeurt. Een cluster op akkoord
+toont de clusternaam in plaats van "Bekijk en bevestig het concept" (`wachtrijRegel()` in `lib/wachtrij.ts`):
+op productie stonden er bij Van den Udenhout twee, "Occasion kopen in Noord-Brabant" en "Goedkope prive lease",
+en onder elkaar waren ze niet uit elkaar te houden. Een pagina krijgt zijn cluster als context. Naast de kop
+staat het totaal als groene chip ("7 open taken"), dezelfde `chip-success` als "Klaar voor jouw akkoord". De
+dringendste taak krijgt de enige primaire knop van het scherm; tot vandaag had het scherm er geen, ondanks de
+regel dat hij bij de wachtrij hoort (de test telde een woord in commentaar). `contentMix`, `isEersteMaand` en
+`volgendeMeting` worden op geen scherm meer gebruikt, alleen nog in `test-unit.ts`.

@@ -22,6 +22,7 @@
  * secties (`waarschuwingen` hieronder), niet in `secties`.
  */
 import type { WorkItem, WorkKind } from "@/lib/work";
+import { getClusterDisplayName } from "@/lib/url";
 
 export type WachtrijKop = "Cluster" | "Contentplan" | "Openstaande vragen" | "Bibliotheek";
 
@@ -34,6 +35,10 @@ export interface WachtrijSectie {
   kop: WachtrijKop;
   /** Het overzichtsscherm van dit onderwerp, voor de "bekijk alles"-link. */
   overzichtHref: string;
+  /** De tekst van die link, met de naam zoals hij in de zijbalk staat. */
+  overzichtLabel: string;
+  /** Alle open taken in deze sectie samen, voor de groene teller. */
+  aantal: number;
   subkoppen: WachtrijSubkop[];
 }
 
@@ -78,6 +83,13 @@ const OVERZICHT_HREF: Record<WachtrijKop, (profileId: string) => string> = {
   Contentplan: (profileId) => `/merk/${profileId}/strategie/plan`,
   "Openstaande vragen": (profileId) => `/merk/${profileId}/strategie/vragen`,
   Bibliotheek: (profileId) => `/merk/${profileId}/strategie/bibliotheek`,
+};
+
+const OVERZICHT_LABEL: Record<WachtrijKop, string> = {
+  Cluster: "Naar je clusters",
+  Contentplan: "Naar je contentplan",
+  "Openstaande vragen": "Naar je vragen",
+  Bibliotheek: "Naar je bibliotheek",
 };
 
 /**
@@ -132,8 +144,56 @@ export function groepeerPerSectie(items: WorkItem[]): WachtrijOverzicht {
       .map((subkop) => ({ subkop, items: perSubkop.get(subkop) ?? [] }))
       .filter((s) => s.items.length > 0);
     if (subkoppen.length === 0) continue;
-    secties.push({ kop, overzichtHref: OVERZICHT_HREF[kop](profileId), subkoppen });
+    secties.push({
+      kop,
+      overzichtHref: OVERZICHT_HREF[kop](profileId),
+      overzichtLabel: OVERZICHT_LABEL[kop],
+      aantal: subkoppen.reduce((som, s) => som + s.items.length, 0),
+      subkoppen,
+    });
   }
 
   return { waarschuwingen, secties };
+}
+
+/**
+ * Wat één regel in de wachtrij laat zien: waar het over gaat, en bij welk
+ * cluster het hoort.
+ *
+ * ── ⚠️ DE CLUSTERNAAM IS DE TITEL, NIET "BEKIJK EN BEVESTIG" (23 september 2026)
+ *
+ * Een cluster dat op akkoord wacht heeft in `lib/work.ts` de titel "Bekijk en
+ * bevestig het concept". Bij Van den Udenhout stonden er twee, onder elkaar,
+ * met precies die zin: welk concept welk cluster was, stond nergens (op
+ * productie: "Occasion kopen in Noord-Brabant" en "Goedkope prive lease"). De
+ * handeling staat al in de subkop erboven ("Clusters bevestigen"), dus op de
+ * regel zelf hoort het enige dat de twee van elkaar onderscheidt.
+ *
+ * Een pagina houdt zijn eigen titel, maar krijgt de clusternaam als context:
+ * "Maak de pagina over wagenparkbeheer tot…" zegt wat, niet voor welk
+ * onderwerp. Een contentmaand en de vragen over je bedrijf gaan over het hele
+ * merk en krijgen daarom geen cluster, ook al hangt er in `WorkItem` technisch
+ * één aan (`analysisName` is daar de eerste analyse van het merk, geen keuze).
+ *
+ * `lib/work.ts` blijft ongemoeid: dezelfde items voeden andere schermen, en
+ * daar staat de clusternaam al in de omgeving.
+ */
+export interface WachtrijRegel {
+  titel: string;
+  /** De clusternaam als context, of `null` als het item over het hele merk gaat. */
+  cluster: string | null;
+}
+
+export function wachtrijRegel(item: WorkItem): WachtrijRegel {
+  const cluster = getClusterDisplayName(item.analysisName);
+  switch (item.kind) {
+    case "goedkeuring":
+    case "herstel":
+      return { titel: cluster, cluster: null };
+    case "pagina":
+    case "planpagina":
+      return { titel: item.title, cluster };
+    default:
+      return { titel: item.title, cluster: null };
+  }
 }
