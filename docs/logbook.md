@@ -11737,6 +11737,11 @@ contentplan, dat er ook niet meer naartoe linkt. Een pagina zonder rij in `conte
 "Voorbereiding volgt" en belooft geen minuten meer. Controles: `tsc --noEmit`, `test:unit` (5268),
 `test:chain` (758) en `build` groen.
 
+**Later op 23 september 2026: kleur en breedte van de contentpagina.** Oranje is op het paginascherm
+alleen nog de kleur van "Te verbeteren"; "Aan zet" en de melding dat ORBIT ENGINE schrijft krijgen
+een groene stang. De rail en "Titel en zoekresultaat" staan op wit, de tekst vult naast de rail de
+hele kolom en de rail is 440px breed. Zie `docs/tasks/herontwerp-contentpagina.md` bijlage D punt 7.
+
 ## 23 september 2026 (3): Clusters ontdekken zonder bronnenblok, en elke lege staat krijgt zijn ruimte
 
 Het blok "Waar we naar kijken" is van Clusters ontdekken weg, op verzoek van de eigenaar: de

@@ -654,3 +654,12 @@ HTML. Beide herkennen hem nu via dezelfde `leesTabel()` in `lib/markdown.ts`.
 Nagerekend op de opgeslagen tekst van deze pagina (317065f5): 58 bevindingen, 5 blokkerend, en alle
 5 zinnen worden in de leestekst gevonden en gemarkeerd. Nog niet bekeken op het echte scherm:
 schermafbeeldingen vragen om inloggen op de preview.
+
+**7. Kleur en breedte (23 september 2026, tweede ronde).** Op verzoek van de eigenaar:
+- Oranje staat op dit scherm alleen nog bij "Te verbeteren": de telling, de stang per punt en de
+  markering in de tekst (was rood). De kaart "Aan zet" krijgt een groene stang als de klant aan zet
+  is, de melding "ORBIT ENGINE schrijft" een groene stang in plaats van een oranje vlak, en het
+  label "Wacht op jou" in de kop het accent. In de lijsten van bibliotheek en plan blijft dat label
+  oranje.
+- De rail en "Titel en zoekresultaat" staan op een witte kaart.
+- Naast de rail vult de tekst de hele kolom in plaats van 720px, en de rail gaat van 400 naar 440px.

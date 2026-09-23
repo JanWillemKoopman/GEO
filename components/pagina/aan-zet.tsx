@@ -9,8 +9,8 @@ import type { PaginaStand } from "@/lib/pagina-stand";
  * tegenhielden. De knop volgt nu de stand: kan de handeling niet, dan staat hij
  * er niet.
  *
- * De stang links volgt wie aan zet is: oranje als de klant iets moet doen,
- * accent als ORBIT ENGINE bezig is, groen als het werk af is
+ * De stang links volgt wie aan zet is: groen als de klant iets moet doen of
+ * het werk af is, accent als ORBIT ENGINE bezig is
  * (`docs/designsystem.md` §5.5).
  */
 export function AanZet({
@@ -27,12 +27,12 @@ export function AanZet({
   /** Extra inhoud onder de zin, bijvoorbeeld het adresveld bij "Zet hem live". */
   children?: React.ReactNode;
 }) {
+  // Groen als de klant aan zet is (23 september 2026, besluit van de
+  // eigenaar): oranje is op het paginascherm voorbehouden aan "Te verbeteren",
+  // de ene plek waar nog iets moet gebeuren aan de tekst. Twee oranje vlakken
+  // boven elkaar lieten niet meer zien welke van de twee het werk was.
   const rail =
-    stand.aanZet === "klant"
-      ? "card-rail-warning"
-      : stand.toon === "klaar"
-        ? "card-rail-success"
-        : "card-rail-accent";
+    stand.aanZet === "klant" || stand.toon === "klaar" ? "card-rail-success" : "card-rail-accent";
   const wie =
     stand.aanZet === "klant" ? "Aan zet: jij" : stand.aanZet === "orbit_engine" ? "Aan zet: ORBIT ENGINE" : null;
 

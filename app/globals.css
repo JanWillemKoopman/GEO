@@ -1969,13 +1969,21 @@ textarea.field {
        die de volle breedte voor zich alleen had. Dit is meteen de ruimte die
        verdween tussen de leeskolom van 720px en de rail: die stond er tot
        vandaag als lege marge bij, zonder functie. */
-    width: 400px;
+    width: 440px;
     flex-shrink: 0;
     /* Onder de paginabalk, die zelf onder de bovenbalk plakt. */
     position: sticky;
     top: calc(var(--header-h) + var(--content-balk-h) + 16px);
     max-height: calc(100vh - var(--header-h) - var(--content-balk-h) - 32px);
     overflow-y: auto;
+  }
+  /* Naast de rail vult de tekst de hele kolom (23 september 2026, op verzoek
+     van de eigenaar). De leesmaat van 720px liet op een scherm van 1888px een
+     lege strook van ruim 200px tussen de tekst en de rail. De rail gaat van
+     400 naar 440px; de drempel van 1144px blijft staan, dus de tekst is hier
+     nooit smaller dan 680px. */
+  .content-split .content-canvas-maat {
+    max-width: none;
   }
   /* De rail als kolom heeft geen lade-knop nodig. */
   .content-rail-knop {
@@ -2038,17 +2046,19 @@ textarea.field {
 
 /* ── De zinnen van een verbeterpunt, in de leestekst ───────────────────────
    Kleur plus vorm (designsystem.md regel 4): een tint en een stippellijn
-   eronder, zodat het ook zonder kleurzien te herkennen is. */
+   eronder, zodat het ook zonder kleurzien te herkennen is. Oranje en niet
+   rood (23 september 2026): oranje is op dit scherm de kleur van "hier moet
+   nog iets gebeuren", en alleen "Te verbeteren" draagt hem. */
 .tekst-punt {
-  background-color: var(--intent-danger-surface);
+  background-color: var(--intent-warning-surface);
   color: inherit;
-  text-decoration: underline dotted var(--intent-danger-solid);
+  text-decoration: underline dotted var(--intent-warning-solid);
   text-underline-offset: 3px;
   border-radius: 2px;
   scroll-margin-top: calc(var(--header-h) + 96px);
 }
 .tekst-punt.is-aangewezen {
-  outline: var(--border-width-sm) solid var(--intent-danger-solid);
+  outline: var(--border-width-sm) solid var(--intent-warning-solid);
   outline-offset: 2px;
 }
 /* De plek in de lijst die naar zo'n zin springt: dezelfde tint, zodat het oog
@@ -2056,8 +2066,8 @@ textarea.field {
 .tekst-punt-link {
   display: block;
   padding: 4px 8px;
-  border-left: var(--border-width-sm) solid var(--intent-danger-solid);
-  background-color: var(--intent-danger-surface);
+  border-left: var(--border-width-sm) solid var(--intent-warning-solid);
+  background-color: var(--intent-warning-surface);
   border-radius: 0 var(--radius-md) var(--radius-md) 0;
   color: var(--text-primary);
 }
