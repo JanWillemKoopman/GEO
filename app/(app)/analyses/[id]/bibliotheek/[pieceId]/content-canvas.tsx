@@ -56,7 +56,10 @@ export function ContentCanvas({
   previewUrl,
   tekstRef,
   schrijft,
+  leesTitel,
 }: {
+  /** De naam die in de leesweergave als kop staat (`paginaNaam()`). */
+  leesTitel?: string;
   titel: string;
   tekst: string;
   metaTitle: string;
@@ -79,7 +82,12 @@ export function ContentCanvas({
   /** Loopt er een herschrijving? Dan komt er straks andere tekst overheen. */
   schrijft: boolean;
 }) {
-  const [weergave, setWeergave] = useState<"schrijven" | "opgemaakt">("schrijven");
+  // ── Standaard lezen, niet bewerken (23 september 2026) ─────────────────────
+  // De bewerkstand stond voorop, en die toont de brontekst: `##` voor koppen,
+  // een tabel als rijen met streepjes, links als `[tekst](url)`. De eigenaar
+  // beoordeelde dat als een halffabricaat, en terecht: wie een tekst komt
+  // beoordelen, wil hem eerst lezen zoals hij op de site komt.
+  const [weergave, setWeergave] = useState<"schrijven" | "opgemaakt">("opgemaakt");
 
   return (
     <div className="flex flex-col gap-6">
@@ -88,10 +96,10 @@ export function ContentCanvas({
           altijd openstaat is er geen "openen" meer, dus hangt hij nu aan de
           eerste toetsaanslag. Wat hij moest voorkomen blijft voorkomen:
           niemand typt hierin zonder het gelezen te hebben. */}
-      {!drempelGezien && (
+      {!drempelGezien && weergave === "schrijven" && (
         <p className="text-sm text-muted">
-          Je kunt hier gewoon in typen. Wat je zelf schrijft gaat buiten de schrijfpijplijn om: de
-          controles die ORBIT ENGINE op gegenereerde tekst uitvoert, gelden er niet voor.
+          Wat je hier zelf aanpast, controleert ORBIT ENGINE niet opnieuw. Wil je dat de tekst
+          opnieuw gekeurd wordt, vraag dan een aanpassing onder de tekst.
         </p>
       )}
 
@@ -109,11 +117,11 @@ export function ContentCanvas({
       <div className="content-canvas-maat">
         <div className="card flex flex-col gap-4">
           <div className="flex items-center justify-end gap-1 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-0.5 w-fit self-end">
-            <Knop actief={weergave === "schrijven"} onClick={() => setWeergave("schrijven")}>
-              Schrijven
-            </Knop>
             <Knop actief={weergave === "opgemaakt"} onClick={() => setWeergave("opgemaakt")}>
-              Opgemaakt
+              Lezen
+            </Knop>
+            <Knop actief={weergave === "schrijven"} onClick={() => setWeergave("schrijven")}>
+              Bewerken
             </Knop>
           </div>
 
@@ -138,10 +146,10 @@ export function ContentCanvas({
               />
             </>
           ) : (
-            <article
-              className="prose max-w-none"
-              dangerouslySetInnerHTML={{ __html: renderMarkdown(tekst) }}
-            />
+            <article className="prose max-w-none">
+              <h1>{leesTitel ?? titel}</h1>
+              <div dangerouslySetInnerHTML={{ __html: renderMarkdown(tekst) }} />
+            </article>
           )}
         </div>
       </div>

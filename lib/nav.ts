@@ -250,7 +250,7 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
     },
     {
       href: `/merk/${brandId}/strategie/vragen`,
-      label: "Openstaande vragen",
+      label: "Jouw beurt",
       hoofdstuk: "Strategie",
     },
     {
@@ -549,6 +549,11 @@ export function isExact(pathname: string, href: string): boolean {
 export function navActief(pathname: string, item: NavItem): boolean {
   if (isExact(pathname, item.href)) return true;
   if (pathname.startsWith("/analyses/") && item.href.endsWith("/strategie/clusters")) return true;
+  // Het paginascherm (23 september 2026, `docs/tasks/contentflow-een-lijn.md`
+  // §4.6) woont onder de bibliotheek, en daar hoort het ook op te lichten. Tot
+  // die dag hing een pagina onder het cluster en lichtte "Clusters" op als je
+  // vanuit de Bibliotheek op een pagina klikte.
+  if (item.href.endsWith("/strategie/bibliotheek") && pathname.startsWith(`${item.href}/`)) return true;
   // Dezelfde redenering voor de Sales-sectie: een marktdossier woont op
   // `/sales/markten/<id>` en een prospectdossier op `/sales/prospects/<id>`.
   // Zonder deze regel dooft de hele zijbalk zodra je doorklikt, precies op de

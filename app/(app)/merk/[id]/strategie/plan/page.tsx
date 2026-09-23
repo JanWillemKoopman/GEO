@@ -1,3 +1,4 @@
+import { laadPaginas } from "@/lib/pagina-data";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProfile } from "@/lib/profiles";
@@ -49,9 +50,16 @@ export default async function PlanPage({
   if (!profile) notFound();
   const user = await requireUser();
   const staff = await isStaff(user.id);
-
   const admin = createAdminClient();
   const bundle = await loadPlan(admin, id);
+  // De ene stand per pagina (`lib/pagina-stand.ts`), zodat het plan hetzelfde
+  // zegt als de bibliotheek, "Jouw beurt" en het paginascherm (23 september 2026).
+  const standen = Object.fromEntries(
+    (await laadPaginas(admin, id))
+      .filter((r) => r.plannedPageId)
+      .map((r) => [r.plannedPageId!, { naam: r.naam, label: r.stand.label, toon: r.stand.toon, handeling: r.stand.handeling, sleutel: r.stand.sleutel, looptAchter: r.stand.looptAchter }]),
+  );
+
 
   const { data: account } = profile.account_id
     ? await admin
@@ -136,6 +144,7 @@ export default async function PlanPage({
             funnels={bundle.funnels}
             topics={bundle.topics}
             staff={staff}
+            standen={standen}
           />
         ) : modus === "kalender" ? (
           <PlanCalendarView

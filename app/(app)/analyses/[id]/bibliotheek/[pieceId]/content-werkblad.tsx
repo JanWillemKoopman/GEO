@@ -74,7 +74,17 @@ export function ContentWerkblad({
   intern,
   inhoud,
   herschrijfvak,
+  kop,
+  leesTitel,
 }: {
+  /**
+   * De kop van het paginascherm met de kaart "Aan zet" (23 september 2026).
+   * Staat hij er, dan krimpt de oude paginabalk tot het menu: de stand en de
+   * hoofdknop staan dan al in de kop.
+   */
+  kop?: React.ReactNode;
+  /** De naam van de pagina in de leesweergave (`paginaNaam()`). */
+  leesTitel?: string;
   analysisId: string;
   pieceId: string;
   terug: { href: string; label: string };
@@ -338,7 +348,9 @@ export function ContentWerkblad({
 
   return (
     <div className="content-zones flex flex-col gap-5">
+      {kop}
       <ContentTopbar
+        compact={Boolean(kop)}
         terug={terug}
         titel={titel}
         stand={stand}
@@ -396,9 +408,17 @@ export function ContentWerkblad({
             previewUrl={previewUrl}
             tekstRef={tekstRef}
             schrijft={schrijft}
+            leesTitel={leesTitel}
           />
 
-          <div ref={opslaanRef} className="content-canvas-maat flex flex-wrap items-center gap-3">
+          {/* Alleen als er iets te bewaren is (23 september 2026). Een grijze,
+              uitgeschakelde "Opslaan" onder een tekst die je alleen leest, was
+              een van de drie losse knoppen die de eigenaar rommelig vond. */}
+          <div
+            ref={opslaanRef}
+            className="content-canvas-maat flex flex-wrap items-center gap-3"
+            hidden={Boolean(kop) && !eigenWerk && opslaan !== "bezig"}
+          >
             <button
               type="button"
               onClick={() => void bewaar()}
@@ -424,7 +444,8 @@ export function ContentWerkblad({
             )}
           </div>
 
-          <div className="content-canvas-maat">
+          <div id="aanpassen" className="content-canvas-maat flex flex-col gap-3 scroll-mt-24">
+            {kop && <h2 className="type-section">Een aanpassing vragen</h2>}
             <HerschrijfProvider value={{ opdracht, bezig: schrijft }}>
               {herschrijfvak}
             </HerschrijfProvider>

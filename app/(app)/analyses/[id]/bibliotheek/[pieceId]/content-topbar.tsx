@@ -46,7 +46,16 @@ export function ContentTopbar({
   onNaarOpslaan,
   menu,
   publiceren,
+  compact = false,
 }: {
+  /**
+   * Onder de kop van het paginascherm (23 september 2026). Dan staan terug,
+   * naam, stand en de hoofdknop al in `PaginaKop` en de kaart "Aan zet", en
+   * blijft hier alleen over wat bij het BEWERKEN hoort: of er iets niet
+   * opgeslagen is, en het menu. Twee statuschips en twee hoofdknoppen op één
+   * scherm was precies de tegenspraak die de eigenaar aanwees.
+   */
+  compact?: boolean;
   terug: { href: string; label: string };
   titel: string;
   stand: PaginaStand;
@@ -59,6 +68,16 @@ export function ContentTopbar({
   /** Het URL-veld en de publicatieknop. */
   publiceren: React.ReactNode;
 }) {
+  if (compact) {
+    const bewerkStand = stand === "niet-opgeslagen" || stand === "opgeslagen" || stand === "schrijft" || stand === "oudere-versie";
+    return (
+      <div className="flex items-center justify-end gap-2">
+        {bewerkStand && <StatusChip stand={stand} liveSinds={liveSinds} onNaarOpslaan={onNaarOpslaan} />}
+        <Menu>{menu}</Menu>
+      </div>
+    );
+  }
+
   return (
     <div className="content-balk">
       <Link

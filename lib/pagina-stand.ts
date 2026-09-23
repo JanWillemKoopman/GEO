@@ -37,6 +37,7 @@ export type PaginaStandSleutel =
   | "vragen"
   | "keuze"
   | "wacht_op_datum"
+  | "niet_ingepland"
   | "schrijven"
   | "goedkeuren"
   | "live_zetten"
@@ -261,6 +262,20 @@ export function paginaStand(input: PaginaStandInput): PaginaStand {
       { looptAchter: achter, streefdatum: streef },
     );
   }
+  // Een pagina uit de oude route vanuit een cluster, zonder plek in het plan:
+  // die wordt nooit vanzelf geschreven (`probeerTeSchrijven()` doet alleen
+  // plan-pagina's). "Wordt geschreven" zou hier een belofte zijn die niemand
+  // nakomt; dit zegt wat er echt nodig is.
+  if (!plan && poort.mag) {
+    return stand("niet_ingepland", {
+      label: "Nog niet ingepland",
+      aanZet: null,
+      toon: "neutraal",
+      fase: 1,
+      zin: "Alle vragen zijn gedaan. Deze pagina staat nog niet in het contentplan; zodra hij daar een datum heeft, schrijven we hem.",
+      handeling: null,
+    });
+  }
   if (poort.reden === "nog_niet_aan_de_beurt") {
     return stand(
       "wacht_op_datum",
@@ -317,6 +332,6 @@ export const STAND_CHIP: Record<StandToon, string> = {
 export function standVolgorde(s: PaginaStand): number {
   if (s.aanZet === "klant") return s.looptAchter ? 0 : 1;
   if (s.aanZet === "orbit_engine") return 2;
-  if (s.sleutel === "gepland" || s.sleutel === "wacht_op_datum") return 3;
+  if (s.sleutel === "gepland" || s.sleutel === "wacht_op_datum" || s.sleutel === "niet_ingepland") return 3;
   return 4;
 }

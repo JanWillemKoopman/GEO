@@ -18,7 +18,6 @@
  * Puur en zonder `server-only` (conventie 2): het planscherm rekent hiermee in
  * de browser, en `scripts/test-unit.ts` moet erbij kunnen.
  */
-import { SCHRIJFVOORSPRONG_DAGEN } from "@/lib/plan-status";
 
 const MAANDNAMEN = [
   "januari",
@@ -184,34 +183,12 @@ export function maandIsVol(
   return spreadDates(startedOn, monthNumber, 1, now).length === 0;
 }
 
-/**
- * De voorsprongzin: "ORBIT ENGINE begint tien dagen voor elke
- * publicatiedatum" klopt niet meer zodra die publicatiedatum al binnen die
- * tien dagen ligt. Bij Wouter Warmtepomp moest een pagina op 28 augustus
- * staan terwijl het plan pas op 31 augustus is opgesteld: geen voorsprong van
- * tien dagen maar een achterstand van drie (punt 5 van
- * `docs/tasks/opdracht-bevindingen-5-tot-9.md`). Deze functie geeft de
- * juiste helft van de zin terug, zónder lidwoord aan het eind, zodat elk
- * scherm zelf de rest van de zin eraan vast kan plakken
- * ("... met schrijven.", "..., en legt elke tekst daarna aan jou voor.").
- *
- * `eersteDatum: null` (nog geen enkele pagina met een datum) levert de
- * gewone voorsprongzin op: er is dan niets om tegen te spreken.
- */
-export function schrijfBelofte(
-  eersteDatum: string | null,
-  now: Date = new Date(),
-): string {
-  if (eersteDatum) {
-    const vandaag = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-    const datum = new Date(`${eersteDatum}T00:00:00Z`).getTime();
-    const dagenTot = Math.round((datum - vandaag) / 86400000);
-    if (Number.isFinite(dagenTot) && dagenTot < SCHRIJFVOORSPRONG_DAGEN) {
-      return "ORBIT ENGINE begint zodra de maand is vrijgegeven";
-    }
-  }
-  return "ORBIT ENGINE begint tien dagen voor elke publicatiedatum";
-}
+// `schrijfBelofte()` stond hier tot 23 september 2026. Hij maakte de zin
+// "ORBIT ENGINE begint tien dagen voor elke publicatiedatum" voor de
+// vrijgeefdialoog. Sinds die dag start vrijgeven de vragen, en begint het
+// schrijven pas als die gedaan zijn (`docs/tasks/contentflow-een-lijn.md` §3.1);
+// de zin klopte dus niet meer. De dialogen rekenen nu met de streefdatum uit
+// `lib/pagina-stand.ts`.
 
 export interface HerplanRij {
   id: string;

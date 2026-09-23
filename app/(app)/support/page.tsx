@@ -244,7 +244,7 @@ const CYCLUS: CyclusStap[] = [
     icoon: "plannen",
     tekst: (
       <>
-        <b>Openstaande vragen</b> maakt de meting scherper, en <b>Contentplan</b> zet wat er
+        <b>Jouw beurt</b> zet alles wat op jou wacht bij elkaar, en <b>Contentplan</b> zet wat er
         geschreven wordt in de tijd.
       </>
     ),
@@ -456,7 +456,7 @@ function slug(label: string): string {
 const ICOON_PER_LABEL: Record<string, IcoonNaam> = {
   "Hoe sta je ervoor": "overzicht",
   Clusters: "meten",
-  "Openstaande vragen": "feit",
+  "Jouw beurt": "feit",
   Contentplan: "plannen",
   Bibliotheek: "bibliotheek",
   "Zichtbaarheid in AI": "analytics",
@@ -470,9 +470,9 @@ const ICOON_PER_LABEL: Record<string, IcoonNaam> = {
 const KICKER: Record<string, string> = {
   "Hoe sta je ervoor": "Is er iets nieuws sinds je hier voor het laatst was?",
   Clusters: "Eén onderwerp, gemeten op hoe vaak AI je noemt.",
-  "Openstaande vragen": "Wat ORBIT ENGINE nog van je wil weten.",
+  "Jouw beurt": "Alles wat op jou wacht, de eerste streefdatum bovenaan.",
   Contentplan: "Wat er wanneer geschreven en gepubliceerd wordt.",
-  Bibliotheek: "Alles wat ORBIT ENGINE al schreef, op één plek.",
+  Bibliotheek: "Alle pagina's, van de eerste vragen tot het gemeten effect.",
   "Zichtbaarheid in AI": "Je hoofdcijfer: hoe vaak je genoemd wordt.",
   Zoekverkeer: "Levert je content ook bezoekers op uit Google?",
   Concurrenten: "Wie er nog meer genoemd wordt, en waar jij staat.",
@@ -559,23 +559,24 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
         </Tip>
       </>
     ),
-    "Openstaande vragen": (
+    "Jouw beurt": (
       <>
         <p className="text-secondary">
-          Alles wat ORBIT ENGINE nog van jou wil weten, op één plek: vragen over je merk in het
-          algemeen, en vragen die specifiek gaan over de content van een cluster.
+          Alles wat op jou wacht, op één plek: de vragen per pagina, de teksten die je nog moet
+          goedkeuren, de pagina&apos;s die je nog live moet zetten, en de losse vragen over je merk.
+          De pagina met de vroegste streefdatum staat bovenaan.
         </p>
         <p className="text-secondary">
-          Elk antwoord maakt de meting scherper en de teksten concreter. Zolang er vragen open staan
-          over een pagina, kan ORBIT ENGINE die pagina niet afronden: dit scherm houdt dus
-          rechtstreeks je contentplan op gang.
+          Een pagina wordt pas geschreven als elke vraag van die pagina beantwoord of overgeslagen
+          is. Het laatste antwoord is genoeg: daarna begint het schrijven vanzelf, je hoeft nergens
+          meer op te drukken.
         </p>
         <Kader
           label="Wat je hier kunt doen"
           items={[
-            "Beantwoord een vraag in het invoerveld, of sla hem over: overslaan telt ook als antwoord en houdt niets tegen.",
-            "Filter op je merk of op een los cluster om te zien waar een vraag vandaan komt.",
-            "Staat er niets open, dan heeft ORBIT ENGINE alles wat het op dit moment nodig heeft.",
+            "Beantwoord een vraag, of sla hem over. Overslaan telt als antwoord; de knop zegt erbij welk onderdeel dan niet op de pagina komt.",
+            "Open een pagina om zijn tekst te lezen en goed te keuren, of om hem live te zetten.",
+            "Staat er niets, dan wacht er niets op je. De volgende vragen komen als je een nieuwe maand vrijgeeft.",
           ]}
         />
         <Tip>

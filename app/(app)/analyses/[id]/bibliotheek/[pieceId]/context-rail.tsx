@@ -87,42 +87,51 @@ export function ContextRail({
       badgeClassName: kwaliteitBadge ? "chip chip-danger" : undefined,
       inhoud: kwaliteit,
     },
-    { sleutel: "onderbouwing", titel: "Onderbouwing", badge: onderbouwingBadge, inhoud: onderbouwing },
-    { sleutel: "waarom", titel: "Waarom", inhoud: waarom },
+    { sleutel: "onderbouwing", titel: "Waarop dit rust", badge: onderbouwingBadge, inhoud: onderbouwing },
+    { sleutel: "waarom", titel: "Waarom deze pagina", inhoud: waarom },
     { sleutel: "versies", titel: "Versies", badge: versieBadge, inhoud: versies },
     ...(intern
       ? [{ sleutel: "intern" as const, titel: "Intern", inhoud: intern }]
       : []),
   ];
-  const huidige = secties.find((s) => s.sleutel === actief) ?? secties[1];
+  const huidige = secties.find((s) => s.sleutel === actief) ?? { sleutel: "" as SectieSleutel };
 
+  // ── Een accordeon, geen tabs (23 september 2026) ──────────────────────────
+  //
+  // Vijf tabs in een kolom van 320 pixels braken over twee regels ("Versies v1"
+  // viel eronder) en lazen daardoor als twee menu's. De koppen staan nu onder
+  // elkaar, met hun telling ernaast; één kop tegelijk open, zodat de rail niet
+  // langer wordt dan de tekst ernaast. Zelfde indeling als het herontwerp al
+  // tekende (`docs/tasks/herontwerp-contentpagina.md` §3.1).
   const paneel = (
-    <div className="flex flex-col">
-      <div className="rail-tabs" role="tablist" aria-label="Context bij deze pagina">
-        {secties.map((s) => (
-          <button
-            key={s.sleutel}
-            type="button"
-            role="tab"
-            aria-selected={s.sleutel === huidige.sleutel}
-            className="tab"
-            onClick={() => setActief(s.sleutel)}
-          >
-            {s.titel}
-            {s.badge && <span className={s.badgeClassName ?? "chip"}>{s.badge}</span>}
-          </button>
-        ))}
-      </div>
-      <div role="tabpanel" className="rail-paneel">
-        {huidige.inhoud}
-      </div>
+    <div className="flex flex-col divide-y divide-[var(--border-subtle)]">
+      {secties.map((s) => {
+        const open = s.sleutel === huidige.sleutel;
+        return (
+          <section key={s.sleutel} className="flex flex-col">
+            <button
+              type="button"
+              aria-expanded={open}
+              className="flex w-full items-center justify-between gap-2 py-3 text-left type-body-emphasis"
+              onClick={() => setActief(open ? ("" as SectieSleutel) : s.sleutel)}
+            >
+              <span className="flex items-center gap-2">
+                {s.titel}
+                {s.badge && <span className={s.badgeClassName ?? "chip chip-neutral"}>{s.badge}</span>}
+              </span>
+              <Icon naam={open ? "inklappen" : "uitklappen"} size={14} />
+            </button>
+            {open && <div className="pb-4">{s.inhoud}</div>}
+          </section>
+        );
+      })}
     </div>
   );
 
   return (
     <>
       {/* De kolomversie. Verdwijnt via de containerquery zodra hij niet past. */}
-      <aside className="content-rail" aria-label="Context bij deze pagina">
+      <aside id="rail" className="content-rail" aria-label="Context bij deze pagina">
         {paneel}
       </aside>
 

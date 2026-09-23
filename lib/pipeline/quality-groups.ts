@@ -220,3 +220,62 @@ export function leesbareBevinding(tekst: string): string {
     .replace(/(^|[\s(])_([^_\n]+?)_(?=[\s).,;:!?]|$)/g, "$1$2")
     .trim();
 }
+
+/**
+ * Bevindingen van dezelfde soort als één bundel (`docs/tasks/contentflow-een-lijn.md` §4.6a).
+ *
+ * Op 23 september 2026 stond op een pagina van Van den Udenhout vijf keer
+ * dezelfde zin onder elkaar ("Deze zin zegt iets over je bedrijf zonder bron:
+ * ..."), elk met twee eigen knoppen. Dat is één probleem op vijf plekken, en
+ * zo hoort het er ook te staan: één kop met de telling, de vijf plekken
+ * eronder, één knop om ze samen te laten oplossen.
+ *
+ * De soort is het deel vóór de eerste dubbele punt, en telt alleen als minstens
+ * twee bevindingen hem delen. Een bevinding zonder dubbele punt of met een
+ * unieke aanhef blijft alleen staan: een vuistregel die iets samenvoegt wat
+ * niet bij elkaar hoort, is erger dan een lijst die iets langer is.
+ *
+ * Puur (conventie 2). De volgorde van de eerste bevinding per soort blijft.
+ */
+export interface Bundel {
+  /** De gedeelde aanhef, of null bij een losse bevinding. */
+  kop: string | null;
+  items: GegroepeerdeBevinding[];
+  /** Per item het deel ná de dubbele punt (bij een bundel), anders de hele zin. */
+  details: string[];
+}
+
+function aanhef(tekst: string): string | null {
+  const i = tekst.indexOf(":");
+  if (i < 8 || i > 90) return null;
+  return tekst.slice(0, i).trim();
+}
+
+export function bundelOpSoort(items: GegroepeerdeBevinding[]): Bundel[] {
+  const telling = new Map<string, number>();
+  for (const it of items) {
+    const a = aanhef(leesbareBevinding(it.issue.finding));
+    if (a) telling.set(a.toLowerCase(), (telling.get(a.toLowerCase()) ?? 0) + 1);
+  }
+
+  const bundels: Bundel[] = [];
+  const opKop = new Map<string, Bundel>();
+  for (const it of items) {
+    const zin = leesbareBevinding(it.issue.finding);
+    const a = aanhef(zin);
+    if (a && (telling.get(a.toLowerCase()) ?? 0) >= 2) {
+      const sleutel = a.toLowerCase();
+      let b = opKop.get(sleutel);
+      if (!b) {
+        b = { kop: a, items: [], details: [] };
+        opKop.set(sleutel, b);
+        bundels.push(b);
+      }
+      b.items.push(it);
+      b.details.push(zin.slice(zin.indexOf(":") + 1).trim());
+    } else {
+      bundels.push({ kop: null, items: [it], details: [zin] });
+    }
+  }
+  return bundels;
+}

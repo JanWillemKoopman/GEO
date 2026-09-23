@@ -3293,3 +3293,75 @@ textarea.field {
     text-decoration: underline;
   }
 }
+
+/* ── De standbalk en de kop van het paginascherm ──────────────────────────────
+   contentflow-een-lijn.md §4.6a, 23 september 2026. Vijf stappen die op 390px
+   passen: vijf gelijke kolommen, het label onder de stip, een lijn ertussen.
+   Status is kleur plus vorm (§11 regel 4): vinkje, gevulde stip, lege stip. */
+.standbalk {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.standbalk-stap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+.standbalk-stap + .standbalk-stap::before {
+  content: "";
+  position: absolute;
+  top: 9px;
+  right: calc(50% + 14px);
+  left: calc(-50% + 14px);
+  height: var(--border-width-xs);
+  background: var(--border-subtle);
+}
+.standbalk-stap[data-stand="gedaan"] + .standbalk-stap::before {
+  background: var(--accent);
+}
+.standbalk-punt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-pill);
+  border: var(--border-width-sm) solid var(--border-default);
+  background: var(--bg-surface);
+  color: var(--accent-on);
+}
+.standbalk-stap[data-stand="gedaan"] .standbalk-punt {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.standbalk-stap[data-stand="nu"] .standbalk-punt {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 4px var(--bg-surface);
+  background: var(--accent);
+}
+.standbalk-label {
+  font-size: 0.75rem;
+  line-height: 1.1rem;
+  color: var(--text-muted);
+}
+.standbalk-stap[data-stand="nu"] .standbalk-label {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+/* De naam op één regel, afgekapt met een beletselteken; de volledige naam
+   staat in het title-attribuut. Op 23 september 2026 brak de titel in het
+   canvas midden in een woord af ("...van een bec"). */
+.pagina-kop-titel {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

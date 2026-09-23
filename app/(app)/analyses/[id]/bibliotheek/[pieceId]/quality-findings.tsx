@@ -5,6 +5,8 @@ import { Icon } from "@/components/icon";
 import { InfoHint } from "@/components/info-hint";
 import {
   leesbareBevinding,
+  bundelOpSoort,
+  type Bundel,
   type GegroepeerdeBevinding,
   type Bevindingengroepen,
 } from "@/lib/pipeline/quality-groups";
@@ -229,17 +231,27 @@ function Groep({
 
       {open && (
         <ul className="flex flex-col gap-3">
-          {zichtbaar.map((item, i) => (
-            <Bevinding
-              key={`${item.issue.section ?? ""}-${item.issue.finding}-${i}`}
-              item={item}
-              toon={toon}
-              sectieBestaat={sectieBestaat}
-              onGaNaarSectie={onGaNaarSectie}
-              onLaatHetOplossen={onLaatHetOplossen}
-              kanOplossen={kanOplossen}
-            />
-          ))}
+          {bundelOpSoort(zichtbaar).map((bundel, i) =>
+            bundel.kop ? (
+              <BundelRij
+                key={`bundel-${bundel.kop}-${i}`}
+                bundel={bundel}
+                toon={toon}
+                onLaatHetOplossen={onLaatHetOplossen}
+                kanOplossen={kanOplossen}
+              />
+            ) : (
+              <Bevinding
+                key={`${bundel.items[0].issue.section ?? ""}-${bundel.items[0].issue.finding}-${i}`}
+                item={bundel.items[0]}
+                toon={toon}
+                sectieBestaat={sectieBestaat}
+                onGaNaarSectie={onGaNaarSectie}
+                onLaatHetOplossen={onLaatHetOplossen}
+                kanOplossen={kanOplossen}
+              />
+            ),
+          )}
           {rest > 0 && (
             <li>
               <button
@@ -334,6 +346,63 @@ function Bevinding({
           </button>
         )}
       </div>
+    </li>
+  );
+}
+
+/**
+ * Eén soort bevinding op meerdere plekken (23 september 2026): één kop met de
+ * telling, de plekken als korte regels, en één knop voor allemaal samen. Zie
+ * `bundelOpSoort()` voor waarom en wanneer iets gebundeld wordt.
+ */
+function BundelRij({
+  bundel,
+  toon,
+  onLaatHetOplossen,
+  kanOplossen,
+}: {
+  bundel: Bundel;
+  toon: "blokkade" | "geprobeerd" | "niet-geprobeerd";
+  onLaatHetOplossen: (bevinding: GegroepeerdeBevinding) => void;
+  kanOplossen: boolean;
+}) {
+  const eerste = bundel.items[0];
+  return (
+    <li
+      className="flex flex-col gap-2 border-l-2 pl-3"
+      style={{ borderColor: toon === "blokkade" ? "var(--intent-danger-solid)" : "var(--border-subtle)" }}
+    >
+      <p className="text-sm font-medium">
+        {bundel.kop} <span className="chip chip-neutral">{bundel.items.length}</span>
+      </p>
+      <ul className="flex flex-col gap-1.5">
+        {bundel.details.map((d, i) => (
+          <li key={i} className="text-sm text-secondary">
+            {d}
+          </li>
+        ))}
+      </ul>
+      {eerste.issue.recommendation?.trim() && (
+        <p className="text-sm text-muted">{leesbareBevinding(eerste.issue.recommendation)}</p>
+      )}
+      {kanOplossen && (
+        <button
+          type="button"
+          className="w-fit text-sm text-secondary hover:underline"
+          onClick={() =>
+            onLaatHetOplossen({
+              ...eerste,
+              issue: {
+                ...eerste.issue,
+                section: null,
+                finding: `${bundel.kop}: ${bundel.details.join(" ")}`,
+              },
+            })
+          }
+        >
+          Laat ORBIT ENGINE ze samen oplossen
+        </button>
+      )}
     </li>
   );
 }

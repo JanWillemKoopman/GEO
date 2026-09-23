@@ -47,7 +47,7 @@ import {
 const SECTIE_ICOON: Record<WachtrijSectie["kop"], IcoonNaam> = {
   Cluster: "goedkeuring",
   Contentplan: "plannen",
-  "Openstaande vragen": "feit",
+  "Jouw beurt": "feit",
   Bibliotheek: "bibliotheek",
 };
 

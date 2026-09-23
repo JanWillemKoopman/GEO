@@ -137,6 +137,9 @@ import { buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change-
 import type { PeriodChange } from "@/lib/pipeline/period-change-format";
 import { domainOf } from "@/lib/offsite/domain";
 import { schrijfpoort, schrijfdatum } from "@/lib/content-write-gate";
+import { paginaNaam } from "@/lib/pagina-naam";
+import { tellingen, filterPaginas, groepVan } from "@/lib/pagina-lijst";
+import { bundelOpSoort } from "@/lib/pipeline/quality-groups";
 import { paginaStand, streefdatum, standVolgorde, FASEN, type PaginaStandInput } from "@/lib/pagina-stand";
 import { checkUrlFormat, isOnBrandDomain, isRedirectedElsewhere, volledigAdres } from "@/lib/url";
 import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
@@ -670,7 +673,6 @@ import {
   resequenceMonth,
   datumProbleem,
   maandIsVol,
-  schrijfBelofte,
   LAATSTE_DAG,
 } from "@/lib/plan-schedule";
 import { calendarDagen } from "@/lib/plan-calendar";
@@ -2050,6 +2052,62 @@ group("webadres controleren", () => {
 
 // Herstelplan na audit T3.1: op 2 september 2026 gaf de publiceerroute een 202
 // voor https://www.example.com/, een adres dat niets met het merk te maken had.
+group("bundelOpSoort: vijf keer dezelfde bevinding wordt één bundel", () => {
+  const b = (finding: string) => ({ issue: { finding } as never, herkomst: "nieuw" as never, aangebodenInRonde: null });
+  const uit = bundelOpSoort([
+    b("Deze zin zegt iets over je bedrijf zonder bron: \"Je wilt weten wat het kost.\""),
+    b("De inleiding is te lang."),
+    b("Deze zin zegt iets over je bedrijf zonder bron: \"Vanaf 359 euro.\""),
+    b("Deze zin zegt iets over je bedrijf zonder bron: \"Binnen 24 uur vervangend vervoer.\""),
+  ]);
+  ok("twee groepen: de bundel en de losse", uit.length === 2);
+  ok("de bundel draagt de gedeelde aanhef", uit[0].kop === "Deze zin zegt iets over je bedrijf zonder bron" && uit[0].items.length === 3);
+  ok("met alleen het citaat per regel", uit[0].details[1] === '"Vanaf 359 euro."');
+  ok("een losse bevinding blijft los", uit[1].kop === null && uit[1].details[0] === "De inleiding is te lang.");
+  const uniek = bundelOpSoort([b("Sectie prijs: te vaag."), b("Sectie werkgebied: ontbreekt.")]);
+  ok("verschillende aanhef wordt niet samengevoegd", uniek.every((x) => x.kop === null));
+});
+
+group("bibliotheek: tegels en chips tellen dezelfde stand", () => {
+  const vandaag = "2026-09-23";
+  const mk = (naam: string, i: Partial<PaginaStandInput>) => ({
+    naam,
+    cluster: "Wagenparkbeheer",
+    stand: paginaStand({ plan: null, tekst: null, openVragen: 0, vandaag, ...i }),
+  });
+  const tekst = (status: string, needs_review = false) => ({ status, needs_review, voorbereid: true });
+  const rijen = [
+    mk("Maandprijs", { tekst: tekst("ready", true) }),
+    mk("Wagenparkbeheer", { tekst: tekst("ready", true) }),
+    mk("Kosten", { plan: { status: "gepland", scheduled_for: "2026-10-20", maandVrij: true }, tekst: tekst("briefing"), openVragen: 2 }),
+    mk("APK", { plan: { status: "schrijven", scheduled_for: "2026-09-26", maandVrij: true } }),
+    mk("Live", { tekst: tekst("published") }),
+    mk("Weg", { plan: { status: "afgewezen", scheduled_for: null, maandVrij: true } }),
+  ];
+  const t = tellingen(rijen);
+  // Van den Udenhout, 23 september 2026: "Klaar voor vrijgave 0" boven twee
+  // rijen die op vrijgave wachtten.
+  ok("wat op jou wacht telt de twee teksten en de vragen", t.wacht === 3);
+  ok("wordt gemaakt", t.gemaakt === 1);
+  ok("staat live", t.live === 1);
+  ok("vervallen telt nergens", groepVan(rijen[5].stand) === null);
+  ok("filter op tegel", filterPaginas(rijen, { zoek: "", groep: "wacht" }).length === 3);
+  ok("zoeken op naam", filterPaginas(rijen, { zoek: "maandprijs", groep: null }).length === 1);
+  ok("zoeken op cluster", filterPaginas(rijen, { zoek: "wagenpark", groep: null }).length === 5);
+});
+
+group("paginaNaam: één naam per pagina, overal", () => {
+  ok(
+    "zoektitel zonder merk",
+    paginaNaam({ title: "Maak één pagina", meta_title: "Bedrijfswagen leasen vanaf € 359 p/m | Van den Udenhout" }) ===
+      "Bedrijfswagen leasen vanaf € 359 p/m",
+  );
+  ok("zoektitel zonder merkdeel blijft heel", paginaNaam({ title: "x", meta_title: "Wagenparkbeheer in Brabant" }) === "Wagenparkbeheer in Brabant");
+  ok("zonder zoektitel de opdracht", paginaNaam({ title: "Leg helder uit wat het kost", meta_title: null }) === "Leg helder uit wat het kost");
+  ok("lege zoektitel telt niet", paginaNaam({ title: "Opdracht", meta_title: "  " }) === "Opdracht");
+  ok("nooit leeg", paginaNaam({ title: " " }) === "Pagina zonder titel");
+});
+
 // contentflow-een-lijn.md fase C: één stand per pagina, uit twee rijen.
 group("paginaStand: elke combinatie geeft precies één stand", () => {
   const vandaag = "2026-09-23";
@@ -2085,6 +2143,10 @@ group("paginaStand: elke combinatie geeft precies één stand", () => {
   ok(
     "te weinig feiten: jouw keuze",
     st({ plan: plan("gepland"), tekst: tekst("briefing"), inputStand: "tegenhouden" }).sleutel === "keuze",
+  );
+  ok(
+    "oude route zonder plan, alles gedaan: niet ingepland, nooit 'wordt geschreven'",
+    st({ tekst: tekst("briefing"), openVragen: 0 }).sleutel === "niet_ingepland",
   );
   ok("plan schrijft: wordt geschreven", st({ plan: plan("schrijven"), tekst: tekst("briefing") }).sleutel === "schrijven");
   // Het geval c4db492e: 'ready' met needs_review, bibliotheek zei "Klaar om te publiceren".
@@ -6416,30 +6478,6 @@ group("een volle maand levert een lege lijst, nooit een datum in het verleden (p
   );
 });
 
-group("de voorsprongzin past zich aan (plan-schedule, schrijfBelofte)", () => {
-  // ⚠️ "ORBIT ENGINE begint tien dagen voor elke publicatiedatum" klopt niet
-  // als de eerste pagina al over drie dagen moet. Zie punt 5 van
-  // docs/tasks/opdracht-bevindingen-5-tot-9.md.
-  const nu = new Date("2026-08-20T10:00:00Z");
-  ok(
-    "geen datum: de gewone voorsprongzin",
-    schrijfBelofte(null, nu) === "ORBIT ENGINE begint tien dagen voor elke publicatiedatum",
-  );
-  ok(
-    "een datum ver genoeg weg: dezelfde voorsprongzin",
-    schrijfBelofte("2026-09-05", nu) === "ORBIT ENGINE begint tien dagen voor elke publicatiedatum",
-    `precies tien dagen verschil`,
-  );
-  ok(
-    "een datum over drie dagen: de zin past zich aan",
-    schrijfBelofte("2026-08-23", nu) === "ORBIT ENGINE begint zodra de maand is vrijgegeven",
-  );
-  ok(
-    "vandaag zelf: ook aangepast",
-    schrijfBelofte("2026-08-20", nu) === "ORBIT ENGINE begint zodra de maand is vrijgegeven",
-  );
-});
-
 group("één melding voor de hele maand (plan-overview)", () => {
   // ⚠️ De aanleiding: bij elk van de tien regels van maand 1 stond dezelfde
   // oranje zin. Dat is een eigenschap van de maand, niet van de regel.
@@ -8962,6 +9000,9 @@ group("welk menu-item licht op", () => {
     hoofdstuk: "Merkprofiel" as const,
   };
   ok("een kind laat de ouder niet oplichten", !navActief("/merk/abc/merkprofiel/bewerken", dossier));
+  // contentflow-een-lijn.md §4.6: het paginascherm woont onder de bibliotheek.
+  ok("het paginascherm laat de Bibliotheek oplichten", navActief("/merk/abc/strategie/bibliotheek/p1", bibliotheek));
+  ok("en niet Clusters", !navActief("/merk/abc/strategie/bibliotheek/p1", clusters));
 });
 
 group("overzichtCijfers: drie totalen en één stand van nu", () => {
@@ -10637,7 +10678,7 @@ group("de vragenpagina staat in Strategie, tussen plan en bibliotheek", () => {
   // verzoek van de eigenaar van plek gewisseld; deze test volgt dat besluit.
   ok(
     "de volgorde is clusters, plan, vragen, bibliotheek",
-    strategie.join(" · ") === "Clusters · Contentplan · Openstaande vragen · Bibliotheek",
+    strategie.join(" · ") === "Clusters · Contentplan · Jouw beurt · Bibliotheek",
     strategie.join(" · "),
   );
   // ⚠️ En hij staat niet meer onder Merkprofiel. Twee vragenschermen naast
@@ -11686,7 +11727,7 @@ group("groepeerPerSectie: de wachtrij in de vaste secties van de app", () => {
   ok(
     "de vier kopjes staan er, in die volgorde",
     overzicht.secties.map((s) => s.kop).join(",") ===
-      "Cluster,Contentplan,Openstaande vragen,Bibliotheek",
+      "Cluster,Contentplan,Jouw beurt,Bibliotheek",
   );
 
   const cluster = overzicht.secties.find((s) => s.kop === "Cluster")!;
@@ -11725,7 +11766,7 @@ group("groepeerPerSectie: de wachtrij in de vaste secties van de app", () => {
   ok(
     "elke sectie telt zijn open taken voor de groene teller",
     overzicht.secties.map((s) => `${s.kop}:${s.aantal}`).join(",") ===
-      "Cluster:2,Contentplan:2,Openstaande vragen:1,Bibliotheek:3",
+      "Cluster:2,Contentplan:2,Jouw beurt:1,Bibliotheek:3",
   );
   ok(
     "de tellers per sectie tellen op tot alles behalve de blokkade",
@@ -21613,7 +21654,7 @@ group("De bedrading van de paginakeuze (O1 tot en met O6)", () => {
   ok("behalve de pagina die verbeterd wordt", content.includes("excludeUrl"));
 
   // ── Het scherm laat zien wat er verandert ────────────────────────────────
-  const scherm = leesBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/page.tsx");
+  const scherm = leesBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/content-detail.tsx");
   ok("de contentpagina toont het verbeterplan", scherm.includes("ImprovementList"));
   const gids = leesBestand("components/publish-guide.tsx");
   ok("en de publicatiegids verwijst ernaar", gids.includes("Wat er aan je pagina verandert"));
@@ -24795,7 +24836,7 @@ group("Geen functie-props vanuit een servercomponent", () => {
 
   // De reparatie zelf: de contentpagina geeft een kant-en-klaar element door en
   // de stand loopt via een context aan de clientkant.
-  const pagina = leesBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/page.tsx");
+  const pagina = leesBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/content-detail.tsx");
   ok("het herschrijfvak gaat als element mee", pagina.includes("herschrijfvak={"));
   ok("en niet meer als functie", !pagina.includes("herschrijven={("));
 

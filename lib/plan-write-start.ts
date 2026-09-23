@@ -412,10 +412,14 @@ export async function probeerTeSchrijven(
 ): Promise<ProbeerUitkomst> {
   const { data: piece } = await admin
     .from("content_pieces")
-    .select("id, title, status, analysis_id, contract_json, write_mode, briefing_snapshot_json, target_intent, analyses(profile_id)")
+    .select("id, title, status, is_current, analysis_id, contract_json, write_mode, briefing_snapshot_json, target_intent, analyses(profile_id)")
     .eq("id", pieceId)
     .maybeSingle();
-  if (!piece || piece.status !== "briefing") return { uitkomst: "wacht", reden: "niet_van_toepassing" };
+  // Een rij die niet meer de huidige is, is door de klant losgelaten ("laat
+  // deze pagina vallen") of vervangen: die wordt nooit meer geschreven.
+  if (!piece || piece.status !== "briefing" || piece.is_current === false) {
+    return { uitkomst: "wacht", reden: "niet_van_toepassing" };
+  }
 
   const pagina = await laadSchrijfpagina(admin, { contentPieceId: pieceId });
   if (!pagina) return { uitkomst: "wacht", reden: "geen_plan" };

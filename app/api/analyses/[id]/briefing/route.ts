@@ -245,6 +245,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
               ? { target_intent: keuze.tekst }
               : { write_mode: "algemeen" };
         await admin.from("content_pieces").update(update).eq("id", keuze.id);
+        // Laten vallen hoort ook in het contentplan te landen (23 september
+        // 2026). Anders blijft de plan-pagina op "gepland" staan met een tekst
+        // die niet meer bestaat, en pakt de cron hem de volgende ochtend weer op.
+        if (keuze.mode === "laten_vallen") {
+          await admin
+            .from("planned_pages")
+            .update({ status: "afgewezen" })
+            .eq("content_piece_id", keuze.id)
+            .eq("status", "gepland");
+        }
       }
     }
 
