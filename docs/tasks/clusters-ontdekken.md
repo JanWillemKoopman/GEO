@@ -1,7 +1,8 @@
 # Clusters ontdekken
 
-> Opgesteld 23 september 2026 op verzoek van de eigenaar. De drie besluiten staan onderaan
-> `docs/logbook.md` (23 september 2026). Fase 0 is gedraaid (uitkomst onderaan); verder is nog niets gebouwd.
+> Opgesteld 23 september 2026 op verzoek van de eigenaar. De besluiten staan onderaan
+> `docs/logbook.md` (23 september 2026). Fase 0 is gedraaid en fase 1 en 2 zijn samen gebouwd
+> (zie "Stand van de bouw" onderaan). **Nog niet nagerekend tegen een echte ronde op productie.**
 
 ## Wat de eigenaar wil
 
@@ -150,3 +151,44 @@ cent nagerekend ($0,096 voor 700 resultaten). Een volledige ronde met de werkwij
 **Stopcriterium gehaald:** na de aanpassingen is in alle drie de bruikbare bronnen ruim meer dan de
 helft relevant. DataForSEO blijft in het plan. Nog open: de eigenaar beoordeelt de kandidaten zodra
 fase 1 ze als clusters bundelt; losse zoektermen beoordelen zegt weinig over de kaarten.
+
+## Stand van de bouw (23 september 2026)
+
+Fase 1 en 2 zijn samen gebouwd, omdat fase 0 liet zien dat DataForSEO bruikbaar is. Wat er staat:
+
+- **Migratie 0109**, op productie toegepast: `cluster_discovery_runs`, `cluster_discovery_candidates`,
+  `profile_topics.discovery_candidate_id` en de herkomst `ontdekking`.
+- **Vier taken** in `lib/pipeline/cluster-discovery.ts`: verzamelen (licht model voor de
+  beginpunten), verbreden (DataForSEO, geen AI), schiften (licht model), bundelen (één zware aanroep).
+  Een stap die definitief opgeeft zet de ronde op mislukt (`scheduleFollowUpAfterFailure`).
+- **De rekenkunde** in `lib/cluster-discovery.ts`, met tests: concurrenten kiezen op omvang,
+  varianten samenvoegen, voorfilter met een vast deel per bron, alleen bestaande termen, soort,
+  score, overlap, de zinnen op de kaart.
+- **DataForSEO** in `lib/discovery/labs.ts`, achter `CLUSTER_DISCOVERY_ENABLED` (staat op `true` in
+  Vercel, productie en preview). Kosten gaan als `dataforseo_labs` in `ai_calls`, dus het plafond per
+  account telt ze mee.
+- **De route** `app/api/profiles/[id]/discovery`: ronde starten (consultant, kostenregel
+  `clusters_aanvullen`), kandidaat aanvragen of intrekken (klant), toevoegen of afwijzen (consultant).
+- **Het scherm** `/merk/[id]/ontdekken`, en in de zijbalk de kop Clusters met "Clusters ontdekken" en
+  "Mijn clusters". De oude knop "Stel nieuwe clusters voor" is vervangen door een verwijzing hierheen.
+
+**Afwijkingen van het plan, bewust:**
+
+- **Geen knop "Toevoegen en meten".** Toevoegen zet het onderwerp bij Voorgesteld op Mijn clusters;
+  de meting start daar met de bestaande knop, inclusief de verdeling over de funnelfasen. Eén
+  manier om een cluster te starten, niet twee.
+- **Het adres van Mijn clusters is ongewijzigd** (`/strategie/clusters`, 27 verwijzingen). Clusters
+  ontdekken staat op `/merk/[id]/ontdekken`, zodat de mobiele titel niet "Mijn clusters" wordt.
+- **Nagerekend op echte data zonder AI** (de antwoorden uit fase 0): de concurrentkeuze geeft
+  broekhuis.nl, vanmossel.nl en poncenter.nl (geen enkel portaal); 1.484 termen worden 1.126 na
+  het samenvoegen van varianten en 400 na de voorfilter. Puur op volume sorteren gaf de
+  concurrenten 220 van die 400 plekken; daarom nu een vast deel per bron.
+
+**Nog open:**
+
+1. **Een echte ronde op Van den Udenhout** zodra dit op `main` staat. Eerder kan niet: de werker op
+   productie draait de code van `main` en kent de vier taken nog niet, dus een ronde vanaf een
+   testversie zou daar mislukken. Dan het criterium "Af als" hierboven toetsen, met de eigenaar.
+2. **De AI-check per kandidaat** (stap 6) is niet gebouwd.
+3. **Opruimen** zodra de ronde op productie is nagerekend: de route `topics/refresh` en
+   `lib/pipeline/propose-more-topics.ts` worden dan niet meer gebruikt.

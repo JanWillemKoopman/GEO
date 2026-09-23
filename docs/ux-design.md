@@ -229,7 +229,7 @@ Sinds besluit 1 (`docs/logbook.md`, het inmiddels verwijderde `Nova.md` §0) is 
 past horizontaal niet zonder scheidingstekens die niets betekenen, en verticaal is het één
 tussenkopje. Vandaar een **zijbalk** (`components/sidebar.tsx`).
 
-**Vier klanthoofdstukken, elk met hooguit drie kinderen** (besluit 1 tot en met 8 van 17 augustus
+**Vijf klanthoofdstukken (sinds 23 september 2026, daarvoor vier), elk met hooguit drie kinderen** (besluit 1 tot en met 8 van 17 augustus
 2026). ⚠️ **Admin mag er sinds 19 augustus 2026 vier**, bij het toevoegen van de onboardingsessie:
 drie ervan gaan over dít merk (Onboardinggesprek, Diagnose, Toewijzen) en de vierde, "Alle merken", is de
 uitgang naar de app als geheel. Dat is geen vergaarbak van vier gelijksoortige regels maar drie plus
@@ -244,9 +244,10 @@ Zichtbaarheid, Zoekverkeer en Concurrenten komen alle drie uit werk dat toch al 
 maandelijkse meting, de Search Console-koppeling en de aggregatie. Een reputatieanalyse draait niet
 mee in die cyclus: hij wordt per keer gestart, per keer betaald en per keer gedateerd. Drie plus een
 product, zoals Admin drie plus twee uitgangen is.
-⚠️ **En Strategie mag er sinds 28 augustus 2026 vier**, met opnieuw dezelfde soort reden: Clusters,
-Contentplan en Bibliotheek tonen wat ORBIT ENGINE deed, "Openstaande vragen" is de enige plek in dat
-hoofdstuk waar de klant zelf iets moet doen. Drie plus een handeling.
+⚠️ **Strategie had er van 28 augustus tot 23 september 2026 vier.** Sinds 23 september is
+Clusters een eigen hoofdstuk, met "Clusters ontdekken" en "Mijn clusters"
+(`docs/tasks/clusters-ontdekken.md`): een vijfde bestemming onder Strategie bestond niet zonder
+eerst iets samen te voegen, en een eigen kop brengt Strategie meteen terug op drie.
 ⚠️ **En Sales mag er sinds 24 augustus 2026 vijf**, bij het toevoegen van de GEO Prospect Engine.
 De onderbouwing is van een ándere soort dan bij Admin en Analytics, en dat is precies het punt: **dit
 is geen klanthoofdstuk.** Het bezwaar van 17 augustus ging over wat een klant te zien krijgt, zeven
@@ -261,8 +262,7 @@ zorgt dat een uitzondering op één plek staat, met een naam en een reden erbij,
 getal in een test dat niemand tegenkomt. Zonder die verandering was "hooguit vier" binnen een half
 jaar de norm voor elk hoofdstuk geworden, en dan is de herindeling van 17 augustus terug bij af.
 
-**De klanthoofdstukken blijven op drie, met Analytics en Strategie als de twee uitzonderingen op
-vier.** Dát is de regel die overeind moet blijven, en de test bewaakt hem apart van de rest.
+**De klanthoofdstukken blijven op drie, met Analytics als enige uitzondering op vier.** Dát is de regel die overeind moet blijven, en de test bewaakt hem apart van de rest.
 Daarvoor waren het 7 regels die uitklapten naar 15 bestemmingen, waarvan er negen onder één kop
 hingen die het commentaar in `lib/nav.ts` zelf al "de vergaarbak die dit oplost alleen verticaal"
 noemde. Elk hoofdstuk beantwoordt nu één vraag:
@@ -270,7 +270,8 @@ noemde. Elk hoofdstuk beantwoordt nu één vraag:
 | Hoofdstuk | De vraag | Bestemmingen |
 |---|---|---|
 | Overzicht | Is er iets nieuws, en wat moet ik nu doen? | `/merk/[id]`, tevens de bestemming na inloggen |
-| Strategie | Wat gaan we doen, en wat is er al gemaakt? | Clusters, Openstaande vragen, Contentplan, Bibliotheek |
+| Clusters | Waarop meten we, en waarop zouden we moeten meten? | Clusters ontdekken, Mijn clusters |
+| Strategie | Wat gaan we doen, en wat is er al gemaakt? | Contentplan, Openstaande vragen, Bibliotheek |
 | Analytics | Wat zeggen de cijfers, en waarom? | Zichtbaarheid in AI, Zoekverkeer, Concurrenten, Mijn reputatie |
 | Merkprofiel | Klopt wat ORBIT ENGINE van me vond? | Merkdossier |
 | Sales | (alleen Outer Orbit, onder een scheidingslijn) | Overzicht, Opportunities, Prospects, Markten, Outreach |

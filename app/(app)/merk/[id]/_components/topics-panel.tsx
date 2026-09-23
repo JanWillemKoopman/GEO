@@ -18,7 +18,6 @@ import { PotentialInline } from "@/components/potential-metrics";
 import type { PotentialTriple } from "@/lib/potential";
 import { Icon } from "@/components/icon";
 import { CollapsibleSection } from "@/components/collapsible-section";
-import { TopicRefreshButton } from "./topic-refresh-button";
 
 /**
  * De core topics (docs/tasks/onboarding-2.0.md, blok D).
@@ -57,9 +56,8 @@ export function TopicsPanel({
   /** Potentiescore per onderwerp-id, alleen gevuld voor onderwerpen met een analyse. */
   potenties: Record<string, PotentialTriple>;
   /**
-   * Alleen de beheerder ziet "Stel nieuwe clusters voor" (§3.5): de knop kost
-   * geld per klik en is een regieknop, geen klantwerk. De echte grendel staat
-   * op de route, dit is alleen de weergave.
+   * Alleen de beheerder start een cluster: dat kost geld en is regiewerk, geen
+   * klantwerk. De echte grendel staat op de route, dit is alleen de weergave.
    */
   staff: boolean;
   /** `profiles.service_regions.length`, voor de voorgestelde verdeling (werkpakket B punt 2). */
@@ -527,7 +525,17 @@ export function TopicsPanel({
         </p>
       )}
 
-      {staff && <TopicRefreshButton profileId={profileId} />}
+      {/* ⚠️ Hier stond tot 23 september 2026 de knop "Stel nieuwe clusters voor".
+          Die is opgegaan in Clusters ontdekken, dat dezelfde bronnen gebruikt
+          plus Search Console en de zoekdata van Google
+          (docs/tasks/clusters-ontdekken.md). */}
+      <p className="text-sm text-secondary">
+        Meer onderwerpen zoeken?{" "}
+        <Link href={`/merk/${profileId}/ontdekken`} className="underline">
+          Ga naar Clusters ontdekken
+        </Link>
+        .
+      </p>
     </CollapsibleSection>
   );
 }

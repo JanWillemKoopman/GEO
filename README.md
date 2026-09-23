@@ -47,8 +47,10 @@ strategie: welke onderwerpen commercieel tellen, en wat er speelt buiten de webs
 is overgenomen van InSpace Nova; de prijs niet.
 
 Bewust **niet** gebouwd: white-label rapportages, 10+ LLM-engines tegelijk, keyword-research
-suites, een koppeling met het CMS van de klant, echte zoekvolumes. Dat is waar de concurrentie
-complex en duur wordt.
+suites, een koppeling met het CMS van de klant. Dat is waar de concurrentie complex en duur wordt.
+Echte zoekvolumes gebruikt de app sinds 23 september 2026 op één plek: "Clusters ontdekken" zoekt
+er nieuwe onderwerpen mee (`docs/tasks/clusters-ontdekken.md`). Het resultaat is een lijst
+onderwerpen, geen zoekwoordenlijst, en de volumes gaan niet in de potentiescore.
 
 Wél voorbereid maar nog slapend: **Gemini als tweede engine.** De enginelaag, de adapter en de
 idempotentiesleutel per engine staan er; zonder `GEMINI_API_KEY` gedraagt de app zich ongewijzigd.

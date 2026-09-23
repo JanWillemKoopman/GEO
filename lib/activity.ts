@@ -81,6 +81,12 @@ export const TAAK_TEKST: Record<JobType, string | null> = {
   reputation_evidence: "uitgezocht wat er online over je te vinden is",
   reputation_market: "gevraagd wie AI aanraadt in jouw markt",
 
+  // ── Clusters ontdekken ────────────────────────────────────────────────────
+  discovery_collect: "verzameld wat we al over je weten",
+  discovery_expand: "opgezocht waar in Google naar je aanbod gezocht wordt",
+  discovery_sift: "de zoektermen geschift op wat bij je past",
+  discovery_bundle: "nieuwe onderwerpen voor je gevonden",
+
   // ── De Sales-module: nooit zichtbaar voor een klant (plan §4.3) ───────────
   //
   // Deze taken gaan over bedrijven die geen klant zijn. Ze hangen aan geen enkel

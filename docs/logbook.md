@@ -11614,3 +11614,30 @@ plan staat in `docs/tasks/clusters-ontdekken.md`. Drie besluiten van vandaag:
 Fase 0 is een proefronde (`scripts/probe-clusters-ontdekken.ts`, ~$0,50) die op Van den Udenhout
 nameet of DataForSEO Labs werkt voor Nederland, wat een ronde echt kost en hoeveel ruis erin zit. Het
 script is nog niet gedraaid: de sleutels staan in Vercel en niet in de ontwikkelomgeving.
+
+## 23 september 2026 (2): Clusters ontdekken gebouwd, nog niet nagerekend op productie
+
+Vervolg op (1). De proefronde kostte $0,57 en liet zien dat DataForSEO Labs werkt voor Nederland,
+dat de prijs tot op de cent klopt ($0,012 per aanroep plus $0,00012 per resultaat), en waar de ruis
+zit: portalen als concurrent (viabovag.nl, 24% relevant) en `keyword_ideas` (10%, "weer amsterdam").
+Echte dealergroepen en `keyword_suggestions` scoorden ruim boven de helft. Fase 1 en 2 zijn daarom
+samen gebouwd; alles staat in `docs/tasks/clusters-ontdekken.md`, "Stand van de bouw".
+
+Drie keuzes die de uitkomst sturen, alle drie met een cijfer:
+
+1. **Concurrenten op omvang, niet op wat Google eerst noemt.** Hooguit 15 keer het eigen domein:
+   dealergroepen zitten op 2 tot 12 keer, portalen op 24 keer en hoger.
+2. **Varianten zijn één zoekvraag.** "private lease occasion" en "occasion private lease" hebben
+   allebei 22.200; optellen telde dezelfde vraag zes keer.
+3. **Elke bron een vast deel van de 400 plekken in het schiften.** Op volume alleen kregen de
+   concurrenten er 220 en de termen waar udenhout.nl al op plek 4 tot 20 staat er 60.
+
+De oude knop "Stel nieuwe clusters voor" is van Mijn clusters weg; er staat een verwijzing naar het
+nieuwe scherm. Strategie gaat terug naar drie bestemmingen, Clusters wordt een eigen kop.
+
+**Niet nagerekend, en waarom.** Een echte ronde kan pas als dit op `main` staat: de werker op
+productie draait de code van `main`, dus een ronde vanaf een testversie zou daar mislukken. Er is
+hier ook geen OpenAI-sleutel. Het deel zonder AI is wel nagerekend op de echte antwoorden uit de
+proefronde. Migratie 0109 staat op productie, `CLUSTER_DISCOVERY_ENABLED` staat op `true` in Vercel.
+
+Getest: `tsc --noEmit`, `test:unit` (5209), `test:chain` (756) en `build` groen.

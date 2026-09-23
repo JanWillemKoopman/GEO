@@ -89,6 +89,12 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   // Drie gegronde aanbevelingsvragen merkbreed, één per dienst.
   reputation_market: 50,
 
+  // ── Clusters ontdekken ────────────────────────────────────────────────────
+  discovery_collect: 25, // tot 48 pagina's Search Console plus één lichte aanroep
+  discovery_expand: 60, // tot 25 DataForSEO-aanroepen na elkaar, elk 1 tot 3 seconden
+  discovery_sift: 45, // één lichte aanroep over tot 400 zoektermen
+  discovery_bundle: 60, // de zware aanroep van de ronde
+
   // ── De Sales-module ──────────────────────────────────────────────────────
   // Eén gegronde onderzoeksaanroep met web-zoeken over een hele markt: dat is de
   // zwaarste enkele aanroep van de app, want hij zoekt naar tientallen bedrijven
@@ -216,6 +222,16 @@ const NON_BLOCKING_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   // alle dienstvragen geen corpus en vallen ze terug op zelf zoeken; dat werkt
   // nog wel maar het is duurder en de diensten worden onderling onvergelijkbaar.
   // Dat hoort zichtbaar te zijn.
+  //
+  // ── Clusters ontdekken ────────────────────────────────────────────────────
+  // Zelfde reden als bij de reputatierun: de ronde draagt zijn eigen status
+  // (`cluster_discovery_runs.status`) en zijn eigen scherm, en een mislukte
+  // ronde zet `scheduleFollowUpAfterFailure()` daar op 'mislukt' met de reden.
+  // Op het merkscherm hoort hij niet als rood kruis te verschijnen.
+  "discovery_collect",
+  "discovery_expand",
+  "discovery_sift",
+  "discovery_bundle",
 ]);
 
 /**
