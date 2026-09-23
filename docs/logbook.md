@@ -11978,3 +11978,22 @@ Gevolg voor de cijfers: een zichtbaarheidsmeting van vóór 23 september is met 
 gedaan dan een van erna. Per aanroep staat het model in `ai_calls.model`; de reputatiemeting ziet de
 wissel zelf, want het model zit in `instrumentVersion()`. Terugdraaien is drie regels in
 `lib/openai/models.ts`.
+
+## 23 september 2026 (9): elke AI-aanroep bewaart ook wat erin ging
+
+`ai_calls` bewaarde het model, de tokens, de kosten en het antwoord, maar niet de opdracht. Achteraf
+was daardoor te lezen wat een stap opleverde, niet waarom. Voor de kwaliteitsdoorlichting
+(`docs/tasks/kwaliteitsdoorlichting-pijplijn.md`) is dat het halve werk: een zwakke pagina is pas
+te verklaren als je ziet wat de schrijver te lezen kreeg. Besluit van de eigenaar: altijd bewaren,
+niet alleen voor de demo.
+
+Migratie 0112 voegt `input_json` en `prompt_hash` toe. Vullen gebeurt in `logAiCall()`, zodat elke
+aanroep via `callStructured()` en `callPlain()` het automatisch doet; de vier plekken die zelf
+loggen (Gemini, Gemini via DataForSEO, AI Overview, DataForSEO Labs) geven hun invoer expliciet
+mee. De temperatuur en redeneerinspanning zijn die van de poging die werkelijk verstuurd is, niet
+die van de eerste, want na een geweigerde temperatuur doet `withTemperatureFallback()` een tweede.
+
+Opslag: de tabel was 5,5 MB. Een schrijfopdracht is gemiddeld 22.853 invoertokens (ongeveer
+90 KB), een meetvraag een paar honderd bytes; ruim te dragen. De hash dekt alleen de
+systeemopdracht, omdat de gebruikersopdracht per klant verschilt en de systeemopdracht alleen als
+de prompt in de code wijzigt.

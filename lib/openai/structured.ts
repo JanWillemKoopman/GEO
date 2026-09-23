@@ -14,7 +14,7 @@ import type OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { getOpenAI, callBudget } from "@/lib/openai/client";
 import { estimateCostUsd } from "@/lib/openai/pricing";
-import { logAiCall, type CallMeta } from "@/lib/openai/ledger";
+import { logAiCall, type AiCallInput, type CallMeta } from "@/lib/openai/ledger";
 import {
   isUnsupportedTemperatureError,
   resolveTuning,
@@ -73,6 +73,23 @@ async function withTemperatureFallback<R>(
 function reasoningParam(tuning: CallTuning): OpenAI.Reasoning | undefined {
   if (!tuning.reasoningEffort) return undefined;
   return { effort: tuning.reasoningEffort } as unknown as OpenAI.Reasoning;
+}
+
+/** De invoer van een aanroep zoals `ai_calls.input_json` hem bewaart (migratie 0112). */
+function invoerVan(
+  opts: { system: string; user: string; work?: WorkKind; webSearch?: boolean },
+  tuning: CallTuning,
+  schemaName: string | null,
+): AiCallInput {
+  return {
+    system: opts.system,
+    user: opts.user,
+    schemaName,
+    work: opts.work ?? "simulation",
+    reasoningEffort: tuning.reasoningEffort ?? null,
+    temperature: tuning.temperature ?? null,
+    webSearch: Boolean(opts.webSearch),
+  };
 }
 
 /**
@@ -199,8 +216,12 @@ export async function callStructured<T>(
   // een tweede poging doen, en twee losse budgetten zouden samen het dubbele van
   // de bovengrens opleveren waar lib/jobs/worker.ts op rekent.
   const budget = callBudget();
-  const response = await withTemperatureFallback(tuningFor(opts.model, opts.work), (tuning) =>
-    openai.responses.parse(
+  // De instellingen zoals ze WERKELIJK verstuurd zijn: na een geweigerde
+  // temperatuur is dat de tweede poging, niet de eerste (migratie 0112).
+  let verstuurd: CallTuning = tuningFor(opts.model, opts.work);
+  const response = await withTemperatureFallback(verstuurd, (tuning) => {
+    verstuurd = tuning;
+    return openai.responses.parse(
       {
         model: opts.model,
         input: [
@@ -215,8 +236,8 @@ export async function callStructured<T>(
         },
       },
       budget,
-    ),
-  );
+    );
+  });
 
   const parsed = response.output_parsed;
   if (parsed == null) {
@@ -232,6 +253,7 @@ export async function callStructured<T>(
     response,
     opts.meta,
     parsed,
+    invoerVan(opts, verstuurd, opts.schemaName),
   );
 
   return { parsed: parsed as T, raw: response, ...usage };
@@ -257,6 +279,8 @@ async function recordUsage(
    * ondernemer gaat, is dat het verkeerde moment om je bron kwijt te zijn.
    */
   ruw?: unknown,
+  /** Wat er naar het model ging (migratie 0112). */
+  invoer?: AiCallInput,
 ): Promise<CallUsage> {
   const { inputTokens, outputTokens, totalTokens } = readUsage(response.usage);
   const costUsd = estimateCostUsd({ model, inputTokens, outputTokens, webSearch });
@@ -272,6 +296,7 @@ async function recordUsage(
       costUsd,
       responseId,
       raw: ruw ?? null,
+      input: invoer ?? null,
     });
   }
 
@@ -349,8 +374,10 @@ export async function callPlain(opts: PlainCallOptions): Promise<PlainCallResult
 
   // Zie callStructured: één budget over beide pogingen heen.
   const budget = callBudget();
-  const response = await withTemperatureFallback(tuningFor(opts.model, opts.work), (tuning) =>
-    openai.responses.create(
+  let verstuurd: CallTuning = tuningFor(opts.model, opts.work);
+  const response = await withTemperatureFallback(verstuurd, (tuning) => {
+    verstuurd = tuning;
+    return openai.responses.create(
       {
         model: opts.model,
         input: [
@@ -362,8 +389,8 @@ export async function callPlain(opts: PlainCallOptions): Promise<PlainCallResult
         reasoning: reasoningParam(tuning),
       },
       budget,
-    ),
-  );
+    );
+  });
 
   const usage = await recordUsage(
     opts.model,
@@ -371,6 +398,7 @@ export async function callPlain(opts: PlainCallOptions): Promise<PlainCallResult
     response,
     opts.meta,
     response.output_text ?? "",
+    invoerVan(opts, verstuurd, null),
   );
 
   return { text: response.output_text ?? "", raw: response, ...usage };
