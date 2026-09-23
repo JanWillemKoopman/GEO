@@ -13,6 +13,23 @@
  *
  * **4 september 2026: de contenttier van Sol naar Terra.** Zie de toelichting
  * bij `content` hieronder voor de nagerekende reden.
+ *
+ * **23 september 2026: over naar GPT-6** (`docs/logbook.md`, zelfde datum).
+ * Luna wordt `gpt-6-luna`, de contenttier `gpt-6-sol`. Er is geen GPT-6 Terra.
+ * Nagerekend op `ai_calls` over 24 augustus tot 23 september 2026: de
+ * Luna-rekening zakt van $10,14 naar ~$7,44 (de zoekacties, $5,10, blijven
+ * gelijk) en het schrijven van $3,90 naar ~$3,53.
+ *
+ * ⚠️ Dit verschuift de meetlat. De meting (halte 3a) en de mention-beoordeling
+ * draaien op deze tiers, dus een zichtbaarheidscijfer van vóór 23 september is
+ * met een ander model gemeten dan een van erna. `ai_calls.model` legt per
+ * aanroep vast welk model het was; de reputatiemeting ziet het zelf, want het
+ * model zit in `instrumentVersion()`.
+ *
+ * ⚠️ Ongeverifieerd (conventie 10): er is in de ontwikkelomgeving geen
+ * OpenAI-sleutel, dus de eerste echte aanroep op GPT-6 gebeurt op productie.
+ * Terugdraaien is drie regels: zet de tiers terug op `gpt-5.6-luna` en
+ * `gpt-5.6-terra`, die tarieven staan nog in `lib/openai/pricing.ts`.
  */
 export const MODELS = {
   /**
@@ -21,15 +38,20 @@ export const MODELS = {
    * meetronde van 30 vragen ~$0,004 duurder aan tokens, terwijl één web_search
    * ($0,025) daar het twintigvoudige van is. Het prijsverschil is dus geen
    * argument; de betere classificatie wel.
+   *
+   * Sinds 23 september 2026 `gpt-6-luna`: $0,10/$0,50, de helft van GPT-5.6
+   * Luna op invoer en 58% minder op uitvoer. OpenAI meldt dat hij veel minder
+   * vaak misleidt (2,8% tegen 9,5%) en dat ChatGPT hem gratis gebruikers geeft,
+   * zodat de meting dichter bij een echte gebruiker komt.
    */
-  volume: "gpt-5.6-luna",
+  volume: "gpt-6-luna",
   /**
    * Laagvolume/kwaliteitsgevoelig, Brand DNA, prompts, rapport, redactie/kritiek.
    * Was `gpt-4.1-mini` ($0,40/$1,60). Luna is hier juist de helft goedkoper én
    * een generatie nieuwer; deze stappen krijgen bovendien echte redeneertijd
    * (effort `low`), wat mini niet kende.
    */
-  quality: "gpt-5.6-luna",
+  quality: "gpt-6-luna",
   /**
    * Premium, uitsluitend het schrijven/herschrijven van de content zelf
    * (Fase C, §8). Content ís het betaalde product, dus dit is de enige tier die
@@ -65,8 +87,17 @@ export const MODELS = {
    * een aanname tot de nameting uit `docs/tasks/contentkwaliteit-copywriterronde.md`
    * §7 is gedraaid. Terugdraaien is één regel: zet `content` terug op
    * `"gpt-5.6-sol"`, dat tarief staat nog in `lib/openai/pricing.ts`.
+   *
+   * **Van Terra naar GPT-6 Sol op 23 september 2026.** GPT-6 Sol kost $2/$10,
+   * dus even veel invoer en 17% minder uitvoer dan Terra, en is een generatie
+   * nieuwer: volgens OpenAI maakt hij ongeveer de helft minder feitelijke
+   * fouten dan GPT-5.6 Sol. Op de 37 Terra-aanroepen van 4 tot 23 september
+   * 2026 scheelt dat ~$0,37 op $3,90. De reden is dus kwaliteit, niet geld.
+   * ⚠️ Ongeverifieerd: onafhankelijke tests zien de winst vooral in de prijs en
+   * niet in topscores, en Nederlands schrijfwerk is nergens gemeten. De
+   * nameting uit `contentkwaliteit-copywriterronde.md` §7 beslist.
    */
-  content: "gpt-5.6-terra",
+  content: "gpt-6-sol",
 } as const;
 
 export type ModelName = (typeof MODELS)[keyof typeof MODELS];

@@ -4222,6 +4222,12 @@ group("welk model redeneert", () => {
   ok("o3", isReasoningModel("o3-mini"));
   ok("gpt-4.1 niet", !isReasoningModel("gpt-4.1"));
   ok("gpt-4.1-nano niet", !isReasoningModel("gpt-4.1-nano"));
+  // Tot 23 september 2026 herkende de regel alleen `gpt-5`, en viel GPT-6 in de
+  // tak voor oude modellen: geen redeneerinspanning mee, alles op `medium`.
+  ok("gpt-6 luna", isReasoningModel("gpt-6-luna"));
+  ok("gpt-6 sol", isReasoningModel("gpt-6-sol"));
+  ok("een latere generatie ook", isReasoningModel("gpt-7-sol"));
+  ok("maar gpt-4o niet", !isReasoningModel("gpt-4o"));
   // Alle drie de tiers die de app draait moeten in dezelfde tak vallen: anders
   // krijgt de content-stap stilzwijgend andere parameters dan de rest.
   ok("alle tiers van de app", Object.values(MODELS).every(isReasoningModel));
@@ -4295,6 +4301,16 @@ group("kosten per model", () => {
   ok("sol staat in de tabel", hasKnownRate("gpt-5.6-sol"));
   ok("terra staat in de tabel", hasKnownRate("gpt-5.6-terra"));
   ok("gpt-4.1 blijft narekenbaar", hasKnownRate("gpt-4.1"));
+  ok("elke tier van de app heeft een tarief", Object.values(MODELS).every(hasKnownRate));
+
+  // GPT-6, prijzen van 23 september 2026. Zonder deze regels valt elke aanroep
+  // op de terugval van $5/$30: een kostenoverzicht tot tien keer te hoog.
+  const luna6 = estimateCostUsd({ model: "gpt-6-luna", inputTokens: 1e6, outputTokens: 1e6, webSearch: false });
+  ok("gpt-6 luna 1M+1M = $0,60", Math.abs(luna6 - 0.6) < 1e-6, `${luna6}`);
+  const sol6 = estimateCostUsd({ model: "gpt-6-sol", inputTokens: 1e6, outputTokens: 1e6, webSearch: false });
+  ok("gpt-6 sol 1M+1M = $12", Math.abs(sol6 - 12) < 1e-6, `${sol6}`);
+  const zoek6 = estimateCostUsd({ model: "gpt-6-luna", inputTokens: 0, outputTokens: 0, webSearch: true });
+  ok("zoekactie op gpt-6 luna = $0,010", Math.abs(zoek6 - 0.01) < 1e-6, `${zoek6}`);
 
   // 1M in + 1M uit op Luna = $0,20 + $1,20.
   const luna = estimateCostUsd({ model: "gpt-5.6-luna", inputTokens: 1e6, outputTokens: 1e6, webSearch: false });
@@ -4326,9 +4342,7 @@ group("kosten per model", () => {
  * `ai_calls`, zodat een terugval naar Sol niet stil gebeurt maar een rode test
  * oplevert die uitlegt wat het kost.
  */
-group("de contenttier staat op Terra (4 september 2026)", () => {
-  ok("content-tier is terra", MODELS.content === "gpt-5.6-terra", MODELS.content);
-  ok("meten en beoordelen blijven op luna", MODELS.quality === "gpt-5.6-luna");
+group("de contenttier: van Sol naar Terra (4 september 2026)", () => {
 
   // Gemeten op ai_calls over de twaalf pagina's van 3 september 2026:
   // content_draft 15.845 invoer / 5.925 uitvoer, mét web_search ($0,01).
@@ -4339,7 +4353,7 @@ group("de contenttier staat op Terra (4 september 2026)", () => {
     webSearch: true,
   });
   const draftTerra = estimateCostUsd({
-    model: MODELS.content,
+    model: "gpt-5.6-terra",
     inputTokens: 15_845,
     outputTokens: 5_925,
     webSearch: true,
@@ -4354,7 +4368,7 @@ group("de contenttier staat op Terra (4 september 2026)", () => {
 
   // content_revise: 13.625 invoer / 4.657 uitvoer, zonder web_search.
   const reviseTerra = estimateCostUsd({
-    model: MODELS.content,
+    model: "gpt-5.6-terra",
     inputTokens: 13_625,
     outputTokens: 4_657,
     webSearch: false,
@@ -4386,6 +4400,35 @@ group("de contenttier staat op Terra (4 september 2026)", () => {
     reviseTerra / 0.0119 >= 6,
     `${(reviseTerra / 0.0119).toFixed(1)} keuringen`,
   );
+});
+
+/**
+ * De overstap naar GPT-6 op 23 september 2026, met de tokenaantallen uit
+ * `ai_calls` over 24 augustus tot 23 september 2026. Faalt deze groep, dan is
+ * een tier stil teruggezet of klopt een tarief niet meer.
+ */
+group("de app draait op GPT-6 (23 september 2026)", () => {
+  ok("meten en beoordelen op gpt-6-luna", MODELS.volume === "gpt-6-luna" && MODELS.quality === "gpt-6-luna");
+  ok("schrijven op gpt-6-sol", MODELS.content === "gpt-6-sol", MODELS.content);
+
+  // Luna: 14.568.695 invoer, 1.770.650 uitvoer. De 510 zoekacties ($5,10)
+  // kosten op beide generaties hetzelfde en tellen hier niet mee.
+  const lunaOud = estimateCostUsd({ model: "gpt-5.6-luna", inputTokens: 14_568_695, outputTokens: 1_770_650, webSearch: false });
+  const lunaNieuw = estimateCostUsd({ model: MODELS.quality, inputTokens: 14_568_695, outputTokens: 1_770_650, webSearch: false });
+  ok("luna-tokens: $5,04 wordt $2,34", Math.abs(lunaOud - 5.04) < 0.01 && Math.abs(lunaNieuw - 2.34) < 0.01, `${lunaOud} → ${lunaNieuw}`);
+
+  // Schrijven: 793.755 invoer, 185.867 uitvoer op Terra.
+  const schrijfOud = estimateCostUsd({ model: "gpt-5.6-terra", inputTokens: 793_755, outputTokens: 185_867, webSearch: false });
+  const schrijfNieuw = estimateCostUsd({ model: MODELS.content, inputTokens: 793_755, outputTokens: 185_867, webSearch: false });
+  ok("schrijven wordt niet duurder", schrijfNieuw < schrijfOud, `${schrijfOud} → ${schrijfNieuw}`);
+  ok("en scheelt ~$0,37", Math.abs(schrijfOud - schrijfNieuw - 0.37) < 0.01, `${(schrijfOud - schrijfNieuw).toFixed(4)}`);
+
+  // De temperatuurregel moet op GPT-6 net zo gelden: classificeren op `none`
+  // met temperatuur 0, schrijven met redeneertijd en zonder temperatuur.
+  const det = resolveTuning(MODELS.volume, "deterministic");
+  ok("classificeren op gpt-6 blijft op none en 0", det.reasoningEffort === "none" && det.temperature === 0);
+  const con = resolveTuning(MODELS.content, "content");
+  ok("schrijven op gpt-6 zonder temperatuur", con.reasoningEffort === "medium" && con.temperature === undefined);
 });
 
 group("gestructureerde data oogsten (fase 0, nul API-kosten)", () => {
@@ -14864,7 +14907,7 @@ group("het meetinstrument is versioneerd", () => {
   // ⚠️ Dit product wordt verkocht op herhaling. Werkt OpenAI het model bij, dan
   // verschuift de meetlat en niet de reputatie, en zonder deze sleutel zou het
   // scherm dat verschil netjes als vooruitgang tekenen.
-  ok("de versie noemt het model", instrumentVersion().includes("gpt-5.6"));
+  ok("de versie noemt het model", instrumentVersion().includes(MODELS.quality));
   ok("en de promptversie", instrumentVersion().includes(PROMPT_VERSION));
   // ⚠️ De versie hoort mee te bewegen met de oordeelsregel. Bij de tweede run op
   // Gasservice Brabant was het ophogen vergeten, en dan staan twee runs met een
@@ -15910,9 +15953,9 @@ group("de assistent: de sleutelwoorden zijn tellen en geen gok", () => {
 // ze uit elkaar, dan faalt elke aanroep van dit scherm op een 400 zonder dat er
 // iets aan dit scherm veranderd is.
 group("de assistent: de modelkeuze volgt dezelfde regel als de pijplijn", () => {
-  ok("het vlaggenschip is de standaard", STANDAARD_MODEL === "gpt-5.6-sol");
+  ok("het vlaggenschip is de standaard", STANDAARD_MODEL === "gpt-6-sol");
   ok("de standaardkeuzes bestaan", isGeldigModel(STANDAARD_MODEL) && isGeldigeStand(STANDAARD_STAND));
-  ok("een verzonnen model wordt geweigerd", !isGeldigModel("gpt-6-astra"));
+  ok("een model buiten de lijst wordt geweigerd", !isGeldigModel("gpt-6-astra"));
   ok("een verzonnen stand wordt geweigerd", !isGeldigeStand("heel-hoog"));
   ok("elk model heeft een tarief", MODELLEN.every((m) => hasKnownRate(m.id)), MODELLEN.map((m) => m.id).join(", "));
   ok("elk model zegt waar het voor is", MODELLEN.every((m) => m.waarvoor.length > 20));
