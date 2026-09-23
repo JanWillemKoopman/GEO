@@ -11656,3 +11656,11 @@ plan-pagina (§5 van het taakdocument, wacht op akkoord van de eigenaar omdat he
 "Zet in het plan" in plaats van "Schrijf deze pagina" in een cluster, en schermafbeeldingen van de
 nieuwe schermen (de voorbeeldversie vraagt om inloggen). Controles: `tsc --noEmit`, `test:unit`
 (5241), `test:chain` (758) en `build` groen.
+
+**Later op 23 september 2026: terug naar "Openstaande vragen", en een filterbalk in de bibliotheek.**
+Op verzoek van de eigenaar heet het menu-onderdeel weer "Openstaande vragen" en toont het alleen nog
+vragen: eerst per pagina, daarna de losse vragen over het merk, op de volle breedte van de app.
+Teksten om goed te keuren en pagina's om live te zetten staan alleen in de bibliotheek, bovenaan
+omdat de lijst begint bij wat op de klant wacht. De drie klikbare tegels bovenaan de bibliotheek zijn
+vervangen door een zoekbalk en vier filters (status, cluster, soort content, type), omdat een tegel
+er niet uitziet als een knop. Pure filterlogica in `lib/pagina-lijst.ts`, getest in `test-unit.ts`.

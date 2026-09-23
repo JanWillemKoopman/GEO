@@ -82,7 +82,7 @@ export function terugLink(
       return { href: `/merk/${profileId}/strategie/plan`, label: "Contentplan" };
     }
     if (herkomst === "taken") {
-      return { href: `/merk/${profileId}/strategie/vragen`, label: "Jouw beurt" };
+      return { href: `/merk/${profileId}/strategie/vragen`, label: "Openstaande vragen" };
     }
   }
   return { href: `/analyses/${analysisId}/bibliotheek`, label: "Bibliotheek van dit cluster" };

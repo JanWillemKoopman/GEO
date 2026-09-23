@@ -24,7 +24,7 @@
 import type { WorkItem, WorkKind } from "@/lib/work";
 import { getClusterDisplayName } from "@/lib/url";
 
-export type WachtrijKop = "Cluster" | "Contentplan" | "Jouw beurt" | "Bibliotheek";
+export type WachtrijKop = "Cluster" | "Contentplan" | "Openstaande vragen" | "Bibliotheek";
 
 export interface WachtrijSubkop {
   subkop: string;
@@ -59,7 +59,7 @@ const SECTIE_PER_SOORT: Partial<Record<WorkKind, WachtrijKop>> = {
   herstel: "Cluster",
   contentmaand: "Contentplan",
   planpagina: "Contentplan",
-  feit: "Jouw beurt",
+  feit: "Openstaande vragen",
   pagina: "Bibliotheek",
 };
 
@@ -81,14 +81,14 @@ function subkopVoorPagina(item: WorkItem): string {
 const OVERZICHT_HREF: Record<WachtrijKop, (profileId: string) => string> = {
   Cluster: (profileId) => `/merk/${profileId}/strategie/clusters`,
   Contentplan: (profileId) => `/merk/${profileId}/strategie/plan`,
-  "Jouw beurt": (profileId) => `/merk/${profileId}/strategie/vragen`,
+  "Openstaande vragen": (profileId) => `/merk/${profileId}/strategie/vragen`,
   Bibliotheek: (profileId) => `/merk/${profileId}/strategie/bibliotheek`,
 };
 
 const OVERZICHT_LABEL: Record<WachtrijKop, string> = {
   Cluster: "Naar je clusters",
   Contentplan: "Naar je contentplan",
-  "Jouw beurt": "Naar je vragen",
+  "Openstaande vragen": "Naar je vragen",
   Bibliotheek: "Naar je bibliotheek",
 };
 
@@ -104,7 +104,7 @@ const OVERZICHT_LABEL: Record<WachtrijKop, string> = {
 const SUBKOP_VOLGORDE: Record<WachtrijKop, string[]> = {
   Cluster: SUBKOP_PER_SOORT.goedkeuring ? [SUBKOP_PER_SOORT.goedkeuring, SUBKOP_PER_SOORT.herstel!] : [],
   Contentplan: [SUBKOP_PER_SOORT.contentmaand!, SUBKOP_PER_SOORT.planpagina!],
-  "Jouw beurt": [SUBKOP_PER_SOORT.feit!],
+  "Openstaande vragen": [SUBKOP_PER_SOORT.feit!],
   Bibliotheek: [
     "Briefing invullen voor een pagina",
     "Pagina nakijken vóór publicatie",
@@ -139,7 +139,7 @@ export function groepeerPerSectie(items: WorkItem[]): WachtrijOverzicht {
   if (!profileId) return { waarschuwingen, secties: [] };
 
   const secties: WachtrijSectie[] = [];
-  for (const kop of ["Cluster", "Contentplan", "Jouw beurt", "Bibliotheek"] as const) {
+  for (const kop of ["Cluster", "Contentplan", "Openstaande vragen", "Bibliotheek"] as const) {
     const subkoppen = SUBKOP_VOLGORDE[kop]
       .map((subkop) => ({ subkop, items: perSubkop.get(subkop) ?? [] }))
       .filter((s) => s.items.length > 0);

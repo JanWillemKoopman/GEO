@@ -138,7 +138,7 @@ import type { PeriodChange } from "@/lib/pipeline/period-change-format";
 import { domainOf } from "@/lib/offsite/domain";
 import { schrijfpoort, schrijfdatum } from "@/lib/content-write-gate";
 import { paginaNaam } from "@/lib/pagina-naam";
-import { tellingen, filterPaginas, groepVan } from "@/lib/pagina-lijst";
+import { tellingen, filterPaginas, groepVan, LEEG_FILTER, filterKeuzes } from "@/lib/pagina-lijst";
 import { bundelOpSoort } from "@/lib/pipeline/quality-groups";
 import { paginaStand, streefdatum, standVolgorde, FASEN, type PaginaStandInput } from "@/lib/pagina-stand";
 import { checkUrlFormat, isOnBrandDomain, isRedirectedElsewhere, volledigAdres } from "@/lib/url";
@@ -2091,9 +2091,17 @@ group("bibliotheek: tegels en chips tellen dezelfde stand", () => {
   ok("wordt gemaakt", t.gemaakt === 1);
   ok("staat live", t.live === 1);
   ok("vervallen telt nergens", groepVan(rijen[5].stand) === null);
-  ok("filter op tegel", filterPaginas(rijen, { zoek: "", groep: "wacht" }).length === 3);
-  ok("zoeken op naam", filterPaginas(rijen, { zoek: "maandprijs", groep: null }).length === 1);
-  ok("zoeken op cluster", filterPaginas(rijen, { zoek: "wagenpark", groep: null }).length === 5);
+  ok("filter op status", filterPaginas(rijen, { ...LEEG_FILTER, status: "goedkeuren" }).length === 2);
+  ok("zoeken op naam", filterPaginas(rijen, { ...LEEG_FILTER, zoek: "maandprijs" }).length === 1);
+  ok("zoeken op cluster", filterPaginas(rijen, { ...LEEG_FILTER, zoek: "wagenpark" }).length === 5);
+  const soorten = [
+    { naam: "A", cluster: "X", clusterId: "c1", soort: "Artikel", actie: "nieuw", stand: rijen[0].stand },
+    { naam: "B", cluster: "Y", clusterId: "c2", soort: "Landingspagina", actie: "verbeteren", stand: rijen[0].stand },
+  ];
+  ok("filter op content", filterPaginas(soorten, { ...LEEG_FILTER, soort: "Artikel" }).length === 1);
+  ok("filter op type", filterPaginas(soorten, { ...LEEG_FILTER, actie: "verbeteren" })[0]?.naam === "B");
+  ok("filter op cluster", filterPaginas(soorten, { ...LEEG_FILTER, cluster: "c2" }).length === 1);
+  ok("vervallen staat niet in de keuzes", !filterKeuzes(rijen).status.some(([k]) => k === "vervallen"));
 });
 
 group("paginaNaam: één naam per pagina, overal", () => {
@@ -10678,7 +10686,7 @@ group("de vragenpagina staat in Strategie, tussen plan en bibliotheek", () => {
   // verzoek van de eigenaar van plek gewisseld; deze test volgt dat besluit.
   ok(
     "de volgorde is clusters, plan, vragen, bibliotheek",
-    strategie.join(" · ") === "Clusters · Contentplan · Jouw beurt · Bibliotheek",
+    strategie.join(" · ") === "Clusters · Contentplan · Openstaande vragen · Bibliotheek",
     strategie.join(" · "),
   );
   // ⚠️ En hij staat niet meer onder Merkprofiel. Twee vragenschermen naast
@@ -11727,7 +11735,7 @@ group("groepeerPerSectie: de wachtrij in de vaste secties van de app", () => {
   ok(
     "de vier kopjes staan er, in die volgorde",
     overzicht.secties.map((s) => s.kop).join(",") ===
-      "Cluster,Contentplan,Jouw beurt,Bibliotheek",
+      "Cluster,Contentplan,Openstaande vragen,Bibliotheek",
   );
 
   const cluster = overzicht.secties.find((s) => s.kop === "Cluster")!;
@@ -11766,7 +11774,7 @@ group("groepeerPerSectie: de wachtrij in de vaste secties van de app", () => {
   ok(
     "elke sectie telt zijn open taken voor de groene teller",
     overzicht.secties.map((s) => `${s.kop}:${s.aantal}`).join(",") ===
-      "Cluster:2,Contentplan:2,Jouw beurt:1,Bibliotheek:3",
+      "Cluster:2,Contentplan:2,Openstaande vragen:1,Bibliotheek:3",
   );
   ok(
     "de tellers per sectie tellen op tot alles behalve de blokkade",

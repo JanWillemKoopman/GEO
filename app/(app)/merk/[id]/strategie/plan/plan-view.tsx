@@ -381,7 +381,7 @@ export function PlanView({
           intent: los > 0 ? "waarschuwing" : "succes",
           title: n > 0 ? `De vragen voor ${n === 1 ? "1 pagina" : `${n} pagina's`} worden klaargezet` : "Maand vrijgegeven",
           description:
-            (n > 0 ? "Binnen een paar minuten staan ze onder Jouw beurt." : "") +
+            (n > 0 ? "Binnen een paar minuten staan ze onder Openstaande vragen." : "") +
             (los > 0
               ? ` ${los === 1 ? "1 pagina hangt" : `${los} pagina's hangen`} nog aan geen cluster en ${los === 1 ? "wordt" : "worden"} dus niet voorbereid. Koppel ${los === 1 ? "hem" : "ze"} eerst aan een cluster.`
               : ""),
@@ -1763,7 +1763,7 @@ function vrijgeefTekst(paginas: PlannedPage[]): string {
     .sort()[0];
   const streef = eerste ? streefdatum(eerste) : null;
   const delen = [
-    `Na vrijgeven zetten we binnen een paar minuten de vragen voor ${n === 1 ? "deze pagina" : `deze ${n} pagina's`} klaar, onder Jouw beurt.`,
+    `Na vrijgeven zetten we binnen een paar minuten de vragen voor ${n === 1 ? "deze pagina" : `deze ${n} pagina's`} klaar, onder Openstaande vragen.`,
     streef ? `Beantwoord ze graag vóór ${formatDag(streef)} om op schema te blijven.` : "",
     "Een pagina wordt geschreven zodra al zijn vragen beantwoord of overgeslagen zijn, en daarna leggen we de tekst aan je voor.",
     zonderOnderwerp > 0

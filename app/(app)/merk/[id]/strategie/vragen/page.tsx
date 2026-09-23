@@ -11,28 +11,28 @@ import { gapLink } from "@/lib/profile-gaps";
 import { loadOpenQuestions } from "@/lib/open-questions";
 import { activeOnly } from "@/lib/archive";
 import { laadPaginas, paginaHref, type PaginaRij } from "@/lib/pagina-data";
-import { STAND_CHIP, formatDag } from "@/lib/pagina-stand";
+import { formatDag } from "@/lib/pagina-stand";
 import { Vragenlijst, type Vraag } from "@/components/pagina/vragenlijst";
 import type { UserFacingError } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Jouw beurt" };
+export const metadata = { title: "Openstaande vragen" };
 
 /**
- * JOUW BEURT: alles wat op de klant wacht, op één plek
- * (`docs/tasks/contentflow-een-lijn.md` §4.6 en §4.6a, 23 september 2026).
+ * OPENSTAANDE VRAGEN: alle vragen aan de klant, en alleen vragen.
  *
- * Heette tot die dag "Openstaande vragen" en toonde alleen losse vragen. Wat de
- * klant verder moest doen stond op drie andere plekken: het briefingscherm in
- * een cluster, "Tekst klaar voor akkoord" in het contentplan, en vrijgeven en
- * publiceren in de bibliotheek. Nu staan hier, in deze volgorde:
+ * Heette op 23 september 2026 kort "Jouw beurt" en toonde toen ook de teksten
+ * om goed te keuren en de pagina's om live te zetten. Op verzoek van de eigenaar
+ * (dezelfde dag) staan die weer alleen in de bibliotheek, waar ze met hun stand
+ * en een filter al stonden; twee plekken voor hetzelfde werk is er één te veel.
+ * Hier, in deze volgorde:
  *
- *   1. de vragen per pagina, de pagina met de vroegste streefdatum eerst;
- *   2. de teksten om goed te keuren;
- *   3. de pagina's om live te zetten;
- *   4. de losse vragen over het merk en de clusters, die aan geen pagina hangen.
+ *   1. de vragen per pagina, de pagina met de vroegste streefdatum eerst
+ *      (`docs/tasks/contentflow-een-lijn.md` §3.1);
+ *   2. de losse vragen over het merk en de clusters, die aan geen pagina hangen.
  *
- * Opmaak `lezen` (720px): een lijst om af te werken, geen dashboard.
+ * Volle breedte, zoals de andere schermen van de app: de smalle leesstand
+ * (720px) was op verzoek van de eigenaar te krap.
  */
 export default async function JouwBeurtPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -55,8 +55,6 @@ export default async function JouwBeurtPage({ params }: { params: Promise<{ id: 
   // ── 1. Vragen per pagina ──────────────────────────────────────────────────
   const metVragen = paginas.filter((p) => p.stand.sleutel === "vragen" || p.stand.sleutel === "keuze");
   const perPagina = await laadVragenPerPagina(admin, metVragen);
-  const teKeuren = paginas.filter((p) => p.stand.sleutel === "goedkeuren");
-  const liveZetten = paginas.filter((p) => p.stand.sleutel === "live_zetten");
 
   // ── 4. De losse vragen: aan geen pagina gekoppeld ─────────────────────────
   // Vragen uit een gearchiveerd cluster vallen weg (migratie 0044).
@@ -85,9 +83,7 @@ export default async function JouwBeurtPage({ params }: { params: Promise<{ id: 
     : null;
 
   const aantal =
-    metVragen.length +
-    teKeuren.length +
-    liveZetten.length +
+    metVragen.reduce((n, p) => n + Math.max(p.openVragen, 1), 0) +
     losseFacts.filter((f) => f.status === "open").length +
     gaps.length;
   const eerste = [...metVragen]
@@ -97,15 +93,14 @@ export default async function JouwBeurtPage({ params }: { params: Promise<{ id: 
 
   const beschrijving =
     aantal === 0
-      ? "Er wacht niets op je. De volgende vragen komen als je een nieuwe maand in het contentplan vrijgeeft."
-      : `${aantal === 1 ? "Er wacht 1 ding" : `Er wachten ${aantal} dingen`} op je${
+      ? "Er staan geen vragen open. De volgende vragen komen als je een nieuwe maand in het contentplan vrijgeeft."
+      : `${aantal === 1 ? "Er staat 1 vraag" : `Er staan ${aantal} vragen`} open${
           eerste ? `. De eerste graag vóór ${formatDag(eerste)}.` : "."
         }`;
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="wil-lezen" hidden />
-      <PageHeader eyebrow="Strategie" title="Jouw beurt" description={beschrijving} />
+      <PageHeader eyebrow="Strategie" title="Openstaande vragen" description={beschrijving} />
 
       {mislukt && <ErrorNotice error={mislukt} />}
 
@@ -140,18 +135,6 @@ export default async function JouwBeurtPage({ params }: { params: Promise<{ id: 
         </Sectie>
       )}
 
-      {teKeuren.length > 0 && (
-        <Sectie titel="Teksten om goed te keuren">
-          <Rijen profileId={id} rijen={teKeuren} />
-        </Sectie>
-      )}
-
-      {liveZetten.length > 0 && (
-        <Sectie titel="Pagina's om live te zetten">
-          <Rijen profileId={id} rijen={liveZetten} />
-        </Sectie>
-      )}
-
       {(losseFacts.length > 0 || gaps.length > 0) && (
         <Sectie
           titel="Losse vragen over je merk"
@@ -183,7 +166,7 @@ export default async function JouwBeurtPage({ params }: { params: Promise<{ id: 
 
       {!mislukt && aantal === 0 && (
         <div className="card card-success flex flex-col gap-1">
-          <span className="type-body-emphasis">Niets te doen</span>
+          <span className="type-body-emphasis">Niets open</span>
           <p className="text-secondary">
             ORBIT ENGINE heeft alles wat het nu nodig heeft. De volgende vragen komen als je een nieuwe
             maand in het contentplan vrijgeeft.
@@ -203,29 +186,6 @@ function Sectie({ titel, uitleg, children }: { titel: string; uitleg?: string; c
       </div>
       {children}
     </section>
-  );
-}
-
-function Rijen({ profileId, rijen }: { profileId: string; rijen: PaginaRij[] }) {
-  return (
-    <ul className="flex flex-col gap-2">
-      {rijen.map((r) => (
-        <li key={r.routeId}>
-          <Link
-            href={paginaHref(profileId, r.routeId, "taken")}
-            className="card card-interactive flex flex-wrap items-center justify-between gap-3"
-          >
-            <span className="min-w-0 flex-1 truncate type-body-emphasis" title={r.naam}>
-              {r.naam}
-            </span>
-            <span className="flex items-center gap-3">
-              <span className={STAND_CHIP[r.stand.toon]}>{r.stand.label}</span>
-              {r.stand.handeling && <span className="type-caption-emphasis underline">{r.stand.handeling}</span>}
-            </span>
-          </Link>
-        </li>
-      ))}
-    </ul>
   );
 }
 

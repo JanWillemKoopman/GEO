@@ -244,7 +244,7 @@ const CYCLUS: CyclusStap[] = [
     icoon: "plannen",
     tekst: (
       <>
-        <b>Jouw beurt</b> zet alles wat op jou wacht bij elkaar, en <b>Contentplan</b> zet wat er
+        <b>Openstaande vragen</b> zet alle vragen aan jou bij elkaar, en <b>Contentplan</b> zet wat er
         geschreven wordt in de tijd.
       </>
     ),
@@ -456,7 +456,7 @@ function slug(label: string): string {
 const ICOON_PER_LABEL: Record<string, IcoonNaam> = {
   "Hoe sta je ervoor": "overzicht",
   Clusters: "meten",
-  "Jouw beurt": "feit",
+  "Openstaande vragen": "feit",
   Contentplan: "plannen",
   Bibliotheek: "bibliotheek",
   "Zichtbaarheid in AI": "analytics",
@@ -470,7 +470,7 @@ const ICOON_PER_LABEL: Record<string, IcoonNaam> = {
 const KICKER: Record<string, string> = {
   "Hoe sta je ervoor": "Is er iets nieuws sinds je hier voor het laatst was?",
   Clusters: "Eén onderwerp, gemeten op hoe vaak AI je noemt.",
-  "Jouw beurt": "Alles wat op jou wacht, de eerste streefdatum bovenaan.",
+  "Openstaande vragen": "Wat ORBIT ENGINE nog van je wil weten.",
   Contentplan: "Wat er wanneer geschreven en gepubliceerd wordt.",
   Bibliotheek: "Alle pagina's, van de eerste vragen tot het gemeten effect.",
   "Zichtbaarheid in AI": "Je hoofdcijfer: hoe vaak je genoemd wordt.",
@@ -559,24 +559,23 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
         </Tip>
       </>
     ),
-    "Jouw beurt": (
+    "Openstaande vragen": (
       <>
         <p className="text-secondary">
-          Alles wat op jou wacht, op één plek: de vragen per pagina, de teksten die je nog moet
-          goedkeuren, de pagina&apos;s die je nog live moet zetten, en de losse vragen over je merk.
-          De pagina met de vroegste streefdatum staat bovenaan.
+          Alle vragen die ORBIT ENGINE nog aan jou heeft, op één plek: eerst de vragen per pagina,
+          de pagina met de vroegste streefdatum bovenaan, en daaronder de losse vragen over je merk.
         </p>
         <p className="text-secondary">
           Een pagina wordt pas geschreven als elke vraag van die pagina beantwoord of overgeslagen
-          is. Het laatste antwoord is genoeg: daarna begint het schrijven vanzelf, je hoeft nergens
-          meer op te drukken.
+          is. Het laatste antwoord is genoeg: daarna begint het schrijven vanzelf. Teksten om goed te
+          keuren en pagina&apos;s om live te zetten vind je in de Bibliotheek.
         </p>
         <Kader
           label="Wat je hier kunt doen"
           items={[
             "Beantwoord een vraag, of sla hem over. Overslaan telt als antwoord; de knop zegt erbij welk onderdeel dan niet op de pagina komt.",
-            "Open een pagina om zijn tekst te lezen en goed te keuren, of om hem live te zetten.",
-            "Staat er niets, dan wacht er niets op je. De volgende vragen komen als je een nieuwe maand vrijgeeft.",
+            "Open een pagina om te zien waar de vragen voor zijn.",
+            "Staat er niets open, dan heeft ORBIT ENGINE alles wat het nu nodig heeft.",
           ]}
         />
         <Tip>

@@ -53,7 +53,7 @@ export default async function PlanPage({
   const admin = createAdminClient();
   const bundle = await loadPlan(admin, id);
   // De ene stand per pagina (`lib/pagina-stand.ts`), zodat het plan hetzelfde
-  // zegt als de bibliotheek, "Jouw beurt" en het paginascherm (23 september 2026).
+  // zegt als de bibliotheek, "Openstaande vragen" en het paginascherm (23 september 2026).
   const standen = Object.fromEntries(
     (await laadPaginas(admin, id))
       .filter((r) => r.plannedPageId)

@@ -250,7 +250,7 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
     },
     {
       href: `/merk/${brandId}/strategie/vragen`,
-      label: "Jouw beurt",
+      label: "Openstaande vragen",
       hoofdstuk: "Strategie",
     },
     {

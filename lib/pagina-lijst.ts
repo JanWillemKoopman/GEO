@@ -40,17 +40,56 @@ export function tellingen(rijen: { stand: PaginaStand }[]): Record<Groep, number
   return t;
 }
 
-/** Zoeken op naam en cluster, en optioneel één tegel. Vervallen pagina's vallen altijd weg. */
-export function filterPaginas<T extends { naam: string; cluster: string | null; stand: PaginaStand }>(
-  rijen: T[],
-  filter: { zoek: string; groep: Groep | null },
-): T[] {
+export interface PaginaFilter {
+  zoek: string;
+  /** Een `PaginaStandSleutel`, of leeg. */
+  status: string;
+  /** Een cluster-id, of leeg. */
+  cluster: string;
+  /** "Artikel", "Landingspagina", ... of leeg. */
+  soort: string;
+  /** "nieuw" of "verbeteren", of leeg. */
+  actie: string;
+}
+
+export const LEEG_FILTER: PaginaFilter = { zoek: "", status: "", cluster: "", soort: "", actie: "" };
+
+/**
+ * Filteren op status, cluster, soort content en type, plus zoeken op naam en
+ * cluster (23 september 2026, op verzoek van de eigenaar). Vervallen pagina's
+ * vallen altijd weg.
+ */
+export function filterPaginas<
+  T extends { naam: string; cluster: string | null; clusterId?: string | null; soort?: string; actie?: string; stand: PaginaStand },
+>(rijen: T[], filter: PaginaFilter): T[] {
   const q = filter.zoek.trim().toLowerCase();
   return rijen.filter((r) => {
-    const g = groepVan(r.stand);
-    if (!g) return false;
-    if (filter.groep && g !== filter.groep) return false;
+    if (!groepVan(r.stand)) return false;
+    if (filter.status && r.stand.sleutel !== filter.status) return false;
+    if (filter.cluster && r.clusterId !== filter.cluster) return false;
+    if (filter.soort && r.soort !== filter.soort) return false;
+    if (filter.actie && r.actie !== filter.actie) return false;
     if (!q) return true;
     return r.naam.toLowerCase().includes(q) || (r.cluster ?? "").toLowerCase().includes(q);
   });
+}
+
+/** De keuzes in een filter: alleen wat er echt voorkomt, want een lege keuze filtert naar niets. */
+export function filterKeuzes<
+  T extends { cluster: string | null; clusterId?: string | null; soort?: string; actie?: string; stand: PaginaStand },
+>(rijen: T[]) {
+  const zichtbaar = rijen.filter((r) => groepVan(r.stand));
+  const uniek = <K,>(lijst: [string, K][]) => [...new Map(lijst).entries()];
+  return {
+    status: uniek(zichtbaar.map((r) => [r.stand.sleutel, r.stand.label] as [string, string])),
+    cluster: uniek(
+      zichtbaar.filter((r) => r.clusterId).map((r) => [r.clusterId!, r.cluster ?? "Cluster"] as [string, string]),
+    ).sort((a, b) => a[1].localeCompare(b[1], "nl")),
+    soort: uniek(zichtbaar.filter((r) => r.soort).map((r) => [r.soort!, r.soort!] as [string, string])),
+    actie: uniek(
+      zichtbaar
+        .filter((r) => r.actie)
+        .map((r) => [r.actie!, r.actie === "verbeteren" ? "Bestaande pagina verbeteren" : "Nieuwe pagina"] as [string, string]),
+    ),
+  };
 }

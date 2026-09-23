@@ -3,7 +3,7 @@ import "server-only";
 /**
  * DE PAGINA'S VAN EEN MERK, MET HUN ENE STAND (`docs/tasks/contentflow-een-lijn.md` §4.5 en §4.6).
  *
- * Eén lader voor de bibliotheek, "Jouw beurt", het contentplan en het
+ * Eén lader voor de bibliotheek, "Openstaande vragen", het contentplan en het
  * paginascherm. Vier schermen die elk zelf uitrekenden wat de stand van een
  * pagina was, gaven op 23 september 2026 bij Van den Udenhout vier
  * verschillende antwoorden over dezelfde pagina.
@@ -34,6 +34,8 @@ export interface PaginaRij {
   naam: string;
   /** "Landingspagina", "Artikel", ... */
   soort: string;
+  /** Nieuwe pagina of een bestaande verbeteren. */
+  actie: "nieuw" | "verbeteren";
   cluster: string | null;
   /** Het cluster (analyse) waar deze pagina onder valt, ook als er nog geen tekst is. */
   clusterId: string | null;
@@ -100,7 +102,7 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
     maandStatus.size > 0
       ? admin
           .from("planned_pages")
-          .select("id, title, page_type, status, scheduled_for, plan_month_id, content_piece_id, is_buffer, topic_id, profile_topics(title, analysis_id)")
+          .select("id, title, page_type, status, scheduled_for, plan_month_id, content_piece_id, is_buffer, topic_id, recommendation_action, profile_topics(title, analysis_id)")
           .eq("profile_id", profileId)
           .in("plan_month_id", [...maandStatus.keys()])
           .eq("is_buffer", false)
@@ -108,7 +110,7 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
     analyseIds.length > 0
       ? admin
           .from("content_pieces")
-          .select("id, analysis_id, title, meta_title, type, status, needs_review, briefing_snapshot_json, write_mode, quality_score, quality_json, updated_at")
+          .select("id, analysis_id, title, meta_title, type, action, status, needs_review, briefing_snapshot_json, write_mode, quality_score, quality_json, updated_at")
           .in("analysis_id", analyseIds)
           .eq("is_current", true)
           .neq("status", "archived")
@@ -135,6 +137,7 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
     title: string;
     meta_title: string | null;
     type: string;
+    action: string | null;
     status: string;
     needs_review: boolean;
     briefing_snapshot_json: unknown;
@@ -154,6 +157,7 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
     scheduled_for: string | null;
     plan_month_id: string;
     content_piece_id: string | null;
+    recommendation_action: string | null;
     profile_topics: { title: string; analysis_id: string | null } | null;
   }[]) {
     const tekst = p.content_piece_id ? (tekstOpId.get(p.content_piece_id) ?? null) : null;
@@ -170,6 +174,7 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
         },
         planTitel: p.title,
         planSoort: PAGINASOORT[p.page_type] ?? "Pagina",
+        actie: (tekst?.action ?? p.recommendation_action) === "verbeteren" ? "verbeteren" : "nieuw",
         cluster: tekst ? (analyseNaam.get(tekst.analysis_id) ?? null) : (p.profile_topics?.title ?? null),
         clusterId: tekst?.analysis_id ?? p.profile_topics?.analysis_id ?? null,
         open: tekst ? (open.get(tekst.id) ?? 0) : 0,
@@ -190,6 +195,7 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
         plan: null,
         planTitel: tekst.title,
         planSoort: SOORT[tekst.type] ?? "Pagina",
+        actie: tekst.action === "verbeteren" ? "verbeteren" : "nieuw",
         cluster: analyseNaam.get(tekst.analysis_id) ?? null,
         clusterId: tekst.analysis_id,
         open: open.get(tekst.id) ?? 0,
@@ -213,6 +219,7 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
     plan: { status: PlannedPageStatus; scheduled_for: string | null; maandVrij: boolean } | null;
     planTitel: string;
     planSoort: string;
+    actie: "nieuw" | "verbeteren";
     cluster: string | null;
     clusterId: string | null;
     open: number;
@@ -241,6 +248,7 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
       analysisId: i.tekst?.analysis_id ?? null,
       naam: i.tekst ? paginaNaam(i.tekst) : paginaNaam({ title: i.planTitel }),
       soort: i.tekst ? (SOORT[i.tekst.type] ?? i.planSoort) : i.planSoort,
+      actie: i.actie,
       cluster: i.cluster,
       clusterId: i.clusterId,
       datum: i.plan?.scheduled_for ?? null,

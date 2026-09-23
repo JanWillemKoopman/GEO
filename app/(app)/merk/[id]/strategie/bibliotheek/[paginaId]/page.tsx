@@ -68,7 +68,7 @@ export default async function PaginaScherm({
     herkomst === "plan"
       ? { href: `/merk/${id}/strategie/plan`, label: "Contentplan" }
       : herkomst === "taken"
-        ? { href: `/merk/${id}/strategie/vragen`, label: "Jouw beurt" }
+        ? { href: `/merk/${id}/strategie/vragen`, label: "Openstaande vragen" }
         : { href: `/merk/${id}/strategie/bibliotheek`, label: "Bibliotheek" };
 
   const kop = (

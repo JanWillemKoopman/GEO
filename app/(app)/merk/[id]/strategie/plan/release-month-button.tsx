@@ -63,7 +63,7 @@ export function ReleaseMonthButton({
         intent: los > 0 ? "waarschuwing" : "succes",
         title: `Maand ${monthNumber} vrijgegeven`,
         description:
-          "De vragen voor deze maand staan binnen een paar minuten onder Jouw beurt." +
+          "De vragen voor deze maand staan binnen een paar minuten onder Openstaande vragen." +
           (los > 0
             ? ` ${los === 1 ? "1 pagina hangt" : `${los} pagina's hangen`} nog aan geen cluster en ${los === 1 ? "wordt" : "worden"} niet voorbereid.`
             : ""),
@@ -100,7 +100,7 @@ export function ReleaseMonthButton({
         // gedaan zijn. De oude zin beloofde dat het schrijven meteen begon.
         body={`Na vrijgeven zetten we binnen een paar minuten de vragen voor ${
           paginas === 1 ? "deze pagina" : `deze ${paginas} pagina's`
-        } klaar, onder Jouw beurt.${
+        } klaar, onder Openstaande vragen.${
           eersteDatum && streefdatum(eersteDatum)
             ? ` Beantwoord ze graag vóór ${formatDag(streefdatum(eersteDatum)!)} om op schema te blijven.`
             : ""

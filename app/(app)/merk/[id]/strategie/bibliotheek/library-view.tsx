@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { pagineer, PAGINA_GROOTTE } from "@/lib/library";
-import { filterPaginas, tellingen, GROEP_LABEL, type Groep } from "@/lib/pagina-lijst";
+import { filterPaginas, filterKeuzes, LEEG_FILTER, type PaginaFilter } from "@/lib/pagina-lijst";
+import { Icon } from "@/components/icon";
 import { STAND_CHIP, formatDag } from "@/lib/pagina-stand";
 import type { PaginaRij } from "@/lib/pagina-data";
 
@@ -11,24 +12,23 @@ import type { PaginaRij } from "@/lib/pagina-data";
  * De bibliotheek: alle pagina's van dit merk, elk met zijn ene stand
  * (`docs/tasks/contentflow-een-lijn.md` §4.6a, 23 september 2026).
  *
- * ── WAT ER VERANDERDE EN WAAROM ─────────────────────────────────────────────
+ * ── DE BOVENKANT: ÉÉN ZOEKBALK EN VIER FILTERS ──────────────────────────────
  *
- * 1. De tegels tellen dezelfde stand als de chips. "Klaar voor vrijgave: 0"
- *    boven twee rijen die op vrijgave wachtten, kan niet meer.
- * 2. Een klik op een tegel filtert de lijst. Wie "Wacht op jou: 3" ziet, wil
- *    die drie zien.
- * 3. De zware filterkaart met drie keuzelijsten is weg: een zoekveld is genoeg,
- *    en pas vanaf tien pagina's. Voor drie pagina's was de filter groter dan de
- *    lijst.
- * 4. Elke rij zegt wat de klant moet doen, als hij aan zet is, en het
- *    kwaliteitscijfer staat er pas als er tekst is om te beoordelen. Een los
- *    streepje als cijfer is weg.
- * 5. De volgorde: eerst wat op jou wacht, dan wat ORBIT ENGINE maakt, dan wat
- *    live staat.
+ * Eerder op 23 september stonden hier drie klikbare tegels ("Wacht op jou",
+ * "Wordt gemaakt", "Staat live") die ook als filter dienden. De eigenaar vond
+ * dat onduidelijk: een tegel ziet eruit als een cijfer, niet als een knop. Nu
+ * een gewone filterbalk met wat de eigenaar vroeg: een duidelijke zoekbalk, en
+ * filters op status, cluster, soort content en type. Een filter toont alleen
+ * keuzes die in de lijst voorkomen, en staat uit als er maar één keuze is.
+ *
+ * Wat bleef: elke rij zegt wat de klant moet doen als hij aan zet is, het
+ * kwaliteitscijfer staat er pas als er tekst is, en de volgorde begint bij wat
+ * op de klant wacht. Zo staan de teksten om goed te keuren en de pagina's om
+ * live te zetten bovenaan, zonder aparte lijst.
  */
 export function LibraryView({
   profileId,
-  rows: alleRijen,
+  rows,
   beginCluster,
 }: {
   profileId: string;
@@ -36,84 +36,63 @@ export function LibraryView({
   /** Een cluster-id uit het adres, of leeg. */
   beginCluster: string;
 }) {
-  const [cluster, setCluster] = useState(beginCluster);
-  const rows = useMemo(
-    () => (cluster ? alleRijen.filter((r) => r.clusterId === cluster) : alleRijen),
-    [alleRijen, cluster],
-  );
-  const clusterNaam = cluster ? (alleRijen.find((r) => r.clusterId === cluster)?.cluster ?? null) : null;
-  const [groep, setGroep] = useState<Groep | null>(null);
-  const [zoek, setZoek] = useState("");
+  const [filter, setFilter] = useState<PaginaFilter>({ ...LEEG_FILTER, cluster: beginCluster });
   const [pagina, setPagina] = useState(1);
 
-  const t = useMemo(() => tellingen(rows), [rows]);
-  const gefilterd = useMemo(() => filterPaginas(rows, { zoek, groep }), [rows, zoek, groep]);
+  const keuzes = useMemo(() => filterKeuzes(rows), [rows]);
+  const gefilterd = useMemo(() => filterPaginas(rows, filter), [rows, filter]);
   const deel = useMemo(() => pagineer(gefilterd, pagina), [gefilterd, pagina]);
+  const actief = Object.values(filter).some((v) => v !== "");
+  const totaal = useMemo(() => filterPaginas(rows, LEEG_FILTER).length, [rows]);
+
+  function zet(deel: Partial<PaginaFilter>) {
+    setFilter((f) => ({ ...f, ...deel }));
+    setPagina(1);
+  }
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-3 gap-3">
-        {(["wacht", "gemaakt", "live"] as Groep[]).map((g) => {
-          const actief = groep === g;
-          return (
-            <button
-              key={g}
-              type="button"
-              aria-pressed={actief}
-              onClick={() => {
-                setGroep(actief ? null : g);
-                setPagina(1);
-              }}
-              className={`card card-interactive flex flex-col gap-1 text-left ${
-                g === "wacht" && t.wacht > 0 ? "card-rail card-rail-warning" : ""
-              }`}
-              style={actief ? { borderColor: "var(--border-selected)" } : undefined}
-            >
-              <span className="type-caption text-muted">{GROEP_LABEL[g]}</span>
-              <span className="stat-value">{t[g]}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {rows.length >= 10 && (
-        <input
-          className="field"
-          value={zoek}
-          onChange={(e) => {
-            setZoek(e.target.value);
-            setPagina(1);
-          }}
-          placeholder="Zoek op naam of cluster"
-          aria-label="Zoek een pagina"
-        />
-      )}
-
-      {clusterNaam && (
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="chip chip-neutral">Cluster: {clusterNaam}</span>
-          <button type="button" className="text-sm text-secondary hover:underline" onClick={() => setCluster("")}>
-            Alle clusters
-          </button>
-        </div>
-      )}
-
-      {groep && (
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="chip chip-neutral">
-            {GROEP_LABEL[groep]}: {deel.totaal}
+      <div className="card flex flex-col gap-4">
+        <label className="flex flex-col gap-1.5">
+          <span className="type-caption-emphasis">Zoeken</span>
+          <span className="relative flex items-center">
+            <span className="pointer-events-none absolute left-3 text-muted" aria-hidden>
+              <Icon naam="zoekmachine" size={16} />
+            </span>
+            <input
+              className="field field-lg w-full"
+              style={{ paddingLeft: "2.25rem" }}
+              value={filter.zoek}
+              onChange={(e) => zet({ zoek: e.target.value })}
+              placeholder="Zoek op naam van de pagina of cluster"
+            />
           </span>
-          <button type="button" className="text-sm text-secondary hover:underline" onClick={() => setGroep(null)}>
-            Toon alles
-          </button>
+        </label>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Keuze label="Status" waarde={filter.status} opties={keuzes.status} onKies={(status) => zet({ status })} />
+          <Keuze label="Cluster" waarde={filter.cluster} opties={keuzes.cluster} onKies={(cluster) => zet({ cluster })} />
+          <Keuze label="Content" waarde={filter.soort} opties={keuzes.soort} onKies={(soort) => zet({ soort })} />
+          <Keuze label="Type" waarde={filter.actie} opties={keuzes.actie} onKies={(actie) => zet({ actie })} />
         </div>
-      )}
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="type-caption text-muted tabular">
+            {actief ? `${deel.totaal} van de ${totaal} pagina's` : `${totaal} pagina's`}
+          </span>
+          {actief && (
+            <button type="button" className="text-sm text-secondary hover:underline" onClick={() => zet(LEEG_FILTER)}>
+              Filters wissen
+            </button>
+          )}
+        </div>
+      </div>
 
       {deel.totaal === 0 ? (
         <div className="card flex flex-col gap-1">
           <p className="type-body-emphasis">Hier staat niets</p>
           <p className="text-secondary">
-            {groep === "wacht" ? "Er wacht niets op je. Mooi zo." : "Geen pagina past bij deze keuze."}
+            Geen pagina past bij deze filters. Wis ze om alles weer te zien.
           </p>
         </div>
       ) : (
@@ -178,5 +157,36 @@ export function LibraryView({
         </div>
       )}
     </div>
+  );
+}
+
+function Keuze({
+  label,
+  waarde,
+  opties,
+  onKies,
+}: {
+  label: string;
+  waarde: string;
+  opties: [string, string][];
+  onKies: (waarde: string) => void;
+}) {
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className="type-caption-emphasis">{label}</span>
+      <select
+        className="field field-select"
+        value={waarde}
+        onChange={(e) => onKies(e.target.value)}
+        disabled={opties.length < 2 && waarde === ""}
+      >
+        <option value="">Alles</option>
+        {opties.map(([waarde, tekst]) => (
+          <option key={waarde} value={waarde}>
+            {tekst}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
