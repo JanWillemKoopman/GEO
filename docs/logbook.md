@@ -11593,3 +11593,24 @@ Code: `lib/ronde.ts` (puur), `loadMaandBronnen()` in `lib/overview-data.ts`,
 den Udenhout als hoofdgeval. Verwachte uitkomst daar: Meten klaar (20 september, 22 kansen), Plannen
 aan de beurt met "14 pagina's, wachten op je akkoord", Schrijven "0 van de 14, en 2 buiten het
 plan". Controles: `tsc --noEmit`, `test:unit` (5173 na samenvoegen met main), `test:chain` (737) en `build` groen.
+
+## 23 september 2026: Clusters ontdekken, drie besluiten en een proefscript
+
+De eigenaar wil een pagina "Clusters ontdekken" naast de voorgestelde clusters uit de onboarding. Het
+plan staat in `docs/tasks/clusters-ontdekken.md`. Drie besluiten van vandaag:
+
+1. **De consultant start, de klant kijkt mee en vraagt aan.** Een ronde en een meting starten blijft
+   beheerderswerk (`lib/cost-rules.ts`); de klant ziet de kandidaten en kan er een aanvragen. Reden: elk
+   cluster kost blijvend ~$0,82 per meetronde, bij 50 clusters ~€43 per maand tegen een plafond van €50.
+2. **DataForSEO komt terug, maar alleen voor deze pagina.** Dit draait het parkeerbesluit van
+   20 september (2) deels terug, op een reden die daar zelf genoemd werd: onderwerpen kiezen in het
+   gesprek schaalt niet meer. Nagekeken in Vercel: `SEARCH_DEMAND_ENABLED` bestaat niet, de oude laag
+   staat dus nog uit; het account zelf is actief voor AI Overview en Gemini. De ontdekkingspagina krijgt
+   een eigen schakelaar en schrijft niets in de potentiescore, want daar ontstonden de twee fouten.
+3. **Een eigen kop "Clusters" met "Clusters ontdekken" en "Mijn clusters"**, in die volgorde op verzoek
+   van de eigenaar. Strategie gaat daardoor van vier naar drie bestemmingen, zodat de regel van
+   17 augustus weer zonder uitzondering klopt.
+
+Fase 0 is een proefronde (`scripts/probe-clusters-ontdekken.ts`, ~$0,50) die op Van den Udenhout
+nameet of DataForSEO Labs werkt voor Nederland, wat een ronde echt kost en hoeveel ruis erin zit. Het
+script is nog niet gedraaid: de sleutels staan in Vercel en niet in de ontwikkelomgeving.
