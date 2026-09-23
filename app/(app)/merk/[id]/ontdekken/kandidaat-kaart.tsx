@@ -21,17 +21,20 @@ export interface KandidaatWeergave {
   feiten: string[];
   diensten: string[];
   overlap: string | null;
+  /** `aangevraagd` bestaat nog in de database (0109) maar wordt niet meer gezet. */
   status: "nieuw" | "aangevraagd" | "toegevoegd" | "afgewezen";
   reden: string | null;
   bewijs: BewijsRegel[];
 }
 
 /**
- * Eén kandidaat-cluster. Wat de knoppen doen hangt af van wie kijkt
- * (besluit 1 van 23 september 2026):
+ * Eén kandidaat-cluster. Iedereen die bij het merk hoort kan hem toevoegen
+ * aan Mijn clusters, ook de klant zelf (23 september 2026 (4)). Afwijzen,
+ * met een reden in één klik, is van de consultant: die reden stuurt de
+ * volgende betaalde ronde.
  *
- *   - de klant kan "Dit wil ik" zeggen, en dat weer intrekken;
- *   - de consultant voegt toe of wijst af, met een reden in één klik.
+ * ⚠️ Het bedrag van een meting staat alleen bij de consultant. Een klant
+ * start zelf geen meting, en een bedrag hoort niet op een klantscherm.
  *
  * Toevoegen start geen meting. Het onderwerp komt bij Voorgesteld op Mijn
  * clusters, en daar staat de bestaande startknop met de verdeling en de
@@ -83,11 +86,10 @@ export function KandidaatKaart({
   const besloten = kandidaat.status === "toegevoegd" || kandidaat.status === "afgewezen";
 
   return (
-    <div className={`card flex flex-col gap-3 ${kandidaat.status === "aangevraagd" ? "card-rail" : ""}`}>
+    <div className="card flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="type-body-emphasis">{kandidaat.title}</h3>
         <span className="chip chip-outline">{kandidaat.soortLabel}</span>
-        {kandidaat.status === "aangevraagd" && <span className="chip chip-attention">Gevraagd door de klant</span>}
         {kandidaat.status === "toegevoegd" && <span className="chip chip-success">Toegevoegd</span>}
         {kandidaat.status === "afgewezen" && (
           <span className="chip chip-neutral">Afgewezen{kandidaat.reden ? `: ${kandidaat.reden}` : ""}</span>
@@ -176,17 +178,10 @@ export function KandidaatKaart({
                 <span className="text-sm text-muted">Meten kost daarna {kostenPerMaand}.</span>
               </div>
             )
-          ) : kandidaat.status === "aangevraagd" ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm text-secondary">Je consultant ziet dat je dit wilt en neemt het mee.</span>
-              <button type="button" className="btn-ghost btn-sm" disabled={wacht} onClick={() => doe("intrekken")}>
-                Toch niet
-              </button>
-            </div>
           ) : (
             <div>
-              <button type="button" className="btn-outline btn-sm" disabled={wacht} onClick={() => doe("aanvragen")}>
-                Dit wil ik
+              <button type="button" className="btn-actie btn-sm" disabled={wacht} onClick={() => doe("toevoegen")}>
+                Toevoegen aan Mijn clusters
               </button>
             </div>
           )}
@@ -199,7 +194,10 @@ export function KandidaatKaart({
           <Link href={`/merk/${merkId}/strategie/clusters`} className="underline">
             Mijn clusters
           </Link>
-          . Daar start je de meting.
+          .{" "}
+          {staff
+            ? "Daar start je de meting."
+            : "Je consultant start daar de meting, zodat je gaat zien of AI-assistenten je hierop noemen."}
         </p>
       )}
 

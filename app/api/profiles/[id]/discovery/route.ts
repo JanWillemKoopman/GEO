@@ -17,13 +17,18 @@ import { AFWIJSREDENEN } from "@/lib/cluster-discovery";
  * bijna gelijke regel ernaast.
  *
  * PATCH: iets doen met één kandidaat.
- *   - `aanvragen` / `intrekken`: de klant zegt "dit wil ik" (besluit 1 van
- *     23 september 2026). Kost niets en start niets; de consultant ziet het.
- *   - `toevoegen`: de consultant zet hem bij Voorgesteld op Mijn clusters. De
- *     meting start daarna via de bestaande startknop daar, met de verdeling en
- *     de clustervelden: één manier om een cluster te starten, niet twee.
+ *   - `toevoegen`: iedereen die bij het merk hoort, dus ook de klant zelf
+ *     (besluit van de eigenaar, 23 september 2026 (4)). Het onderwerp komt bij
+ *     Voorgesteld op Mijn clusters. Dat kost niets: de meting start daarna via
+ *     de bestaande startknop daar, en die blijft van de consultant
+ *     (`analyse_starten` in STAFF_ONLY_ACTIONS). Eén manier om een cluster te
+ *     starten, niet twee.
  *   - `afwijzen`: de consultant, met een reden. Die reden gaat mee in elke
- *     volgende ronde als "vermijd dit".
+ *     volgende ronde als "vermijd dit", en stuurt dus betaald werk.
+ *
+ * ⚠️ Tot die dag was er ook `aanvragen` ("Dit wil ik"): de klant vroeg, de
+ * consultant voegde toe. Die tussenstap is weg; de status `aangevraagd` blijft
+ * in de database bestaan (migratie 0109, additief) maar wordt niet meer gezet.
  *
  * Schrijven loopt hier met de service-role key en een expliciete
  * eigendomscontrole (conventie 6).
@@ -103,7 +108,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   return NextResponse.json({ ok: true, runId: run.id });
 }
 
-type Actie = "aanvragen" | "intrekken" | "toevoegen" | "afwijzen";
+type Actie = "toevoegen" | "afwijzen";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -135,26 +140,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const staff = await isStaff(user.id);
   const nu = new Date().toISOString();
 
-  if (body.actie === "aanvragen" || body.actie === "intrekken") {
-    if (kandidaat.status === "toegevoegd" || kandidaat.status === "afgewezen") {
-      return NextResponse.json({ error: "Over dit onderwerp is al besloten." }, { status: 409 });
-    }
-    const patch =
-      body.actie === "aanvragen"
-        ? { status: "aangevraagd", requested_by: user.id, requested_at: nu }
-        : { status: "nieuw", requested_by: null, requested_at: null };
-    await admin.from("cluster_discovery_candidates").update(patch).eq("id", kandidaat.id);
-    return NextResponse.json({ ok: true, status: patch.status });
-  }
-
-  // Toevoegen en afwijzen sturen betaald werk aan (een meting, of wat een
-  // volgende ronde vermijdt), dus die zijn van de consultant. De knoppen staan
-  // bij een klant niet op het scherm; dit is de garantie (conventie 1).
-  if (!staff) {
-    return NextResponse.json({ error: COST_DENIED.clusters_aanvullen }, { status: 403 });
-  }
-
   if (body.actie === "afwijzen") {
+    // Een afwijsreden stuurt de volgende betaalde ronde, dus die is van de
+    // consultant. De knop staat bij een klant niet op het scherm; dit is de
+    // garantie (conventie 1).
+    if (!staff) {
+      return NextResponse.json({ error: COST_DENIED.clusters_aanvullen }, { status: 403 });
+    }
     const reden = body.reden?.trim() ?? "";
     if (!(AFWIJSREDENEN as readonly string[]).includes(reden) && reden.length < 3) {
       return NextResponse.json({ error: "Kies een reden." }, { status: 400 });

@@ -25128,3 +25128,16 @@ group("Clusters ontdekken: lijkt op een bestaand cluster", () => {
   eq("zelfde vraag, andere stad", lijktOp("APK in Eindhoven", ["APK Den Bosch", "Goedkope prive lease"], regio) ?? "", "APK Den Bosch");
   eq("ander onderwerp", lijktOp("Laadpaal thuis laten installeren", ["APK Den Bosch", "Occasion kopen in Noord-Brabant"], regio) ?? "geen", "geen");
 });
+
+group("Clusters ontdekken: de klant voegt zelf toe, afwijzen blijft van de consultant (23 september 2026 (4))", () => {
+  const route = leesBestand("app/api/profiles/[id]/discovery/route.ts");
+  const afwijzen = route.slice(route.indexOf('if (body.actie === "afwijzen")'), route.indexOf('if (body.actie !== "toevoegen")'));
+  ok("afwijzen vraagt de consultant", afwijzen.includes("if (!staff)"));
+  const toevoegen = route.slice(route.indexOf('if (body.actie !== "toevoegen")'));
+  ok("toevoegen vraagt geen consultant", !toevoegen.includes("if (!staff)"));
+  ok("de tussenstap aanvragen is weg", !route.includes('"aanvragen"'));
+  const kaart = leesBestand("app/(app)/merk/[id]/ontdekken/kandidaat-kaart.tsx");
+  ok("de kaart toont geen 'Dit wil ik' meer", !kaart.includes("Dit wil ik"));
+  // Toevoegen kost niets; de meting wel, en die start de klant niet zelf.
+  eq("een meting starten blijft van de consultant", String(actionNeedsStaff("analyse_starten")), "true");
+});

@@ -11773,3 +11773,19 @@ APK-pagina en de bedrijfswagenservice). De filters Status, Content en Type stond
 één keuze hadden; met twee teksten van dezelfde soort las de eigenaar dat terecht als kapot. Een
 filter staat nu nooit meer uit. Controles: `tsc --noEmit`, `test:unit` (5311), `test:chain` (777)
 en `build` groen.
+
+## 23 september 2026 (4): de klant voegt een ontdekt cluster zelf toe
+
+Besluit 1 van vandaag (de klant vraagt, de consultant voegt toe) is op verzoek van de eigenaar
+bijgesteld: de klant zet een voorgesteld onderwerp uit Clusters ontdekken nu zelf bij Mijn clusters,
+zonder tussenstap. De knop "Dit wil ik" en de sectie "Gevraagd door de klant" zijn weg.
+
+Wat blijft zoals het was, en waarom: **de meting start nog steeds de consultant.** Toevoegen kost
+niets, het zet alleen een onderwerp bij Voorgesteld. Het geld zit in de meting, ongeveer $0,72 per
+maand per cluster en blijvend, en die staat in `STAFF_ONLY_ACTIONS` (`analyse_starten`). Afwijzen
+blijft ook van de consultant: de reden stuurt de volgende betaalde ronde. Het bedrag van een meting
+staat alleen bij de consultant op de kaart; een klant ziet na het toevoegen dat zijn consultant de
+meting start.
+
+De status `aangevraagd` blijft in de database bestaan (migratie 0109 is additief), maar wordt niet
+meer gezet. Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen.
