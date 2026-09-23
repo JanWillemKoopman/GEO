@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { getProfile } from "@/lib/profiles";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { isStaff } from "@/lib/staff";
 import { PageHeader } from "@/components/page-header";
 import { SectionHeading } from "@/components/section-heading";
@@ -38,12 +37,15 @@ export const metadata = { title: "Clusters ontdekken" };
  *
  * ── WAT HIER STAAT, VAN BOVEN NAAR BENEDEN ─────────────────────────────────
  *
- *   1. Waar we naar kijken: per bron of hij er is, en wat het kost als hij
- *      ontbreekt. Een ronde zonder Search Console mist de snelle winst, en dat
- *      hoort iemand te weten vóór hij betaalt.
- *   2. De ronde: starten (consultant) of de voortgang.
- *   3. De kandidaten van de nieuwste ronde, in drie groepen.
- *   4. Eerdere rondes, met wat ze kostten.
+ *   1. De ronde: starten (consultant) of de voortgang.
+ *   2. De kandidaten van de nieuwste ronde, in drie groepen.
+ *   3. Eerdere rondes, met wat ze kostten.
+ *
+ * ⚠️ Hier stond tot 23 september 2026 ook een blok "Waar we naar kijken", met
+ * per bron (aanbod, gesprek, Search Console, zoekdata, clusters) of hij er
+ * was. Op verzoek van de eigenaar weg: de gebruiker wil goede clusters kunnen
+ * aanvinken, niet de bronnen nalopen. Ontbreekt een bron tijdens een ronde,
+ * dan zegt de ronde dat zelf (`status_note`, onder de kandidaten).
  *
  * ── WIE WAT MAG (besluit 1 van 23 september 2026) ──────────────────────────
  *
@@ -132,80 +134,11 @@ export default async function OntdekkenPage({ params }: { params: Promise<{ id: 
   }
   const aangevraagd = ((aangevraagdRijen ?? []) as KandidaatRij[]).filter((k) => k.run_id !== laatsteKlare?.id);
 
-  // ── De bronnen ──────────────────────────────────────────────────────────
-  // Via de admin-client en alleen tellingen: deze getallen gaan over wat ÉÉN
-  // ronde zou krijgen, en de eigendomscontrole is hierboven al gedaan
-  // (`getProfile` geeft alleen een merk dat deze gebruiker mag lezen).
-  const admin = createAdminClient();
-  const van90 = new Date(Date.now() - 90 * 86_400_000).toISOString().slice(0, 10);
-  const [aanbodRes, gesprekRes, clusterRes, gscRes] = await Promise.all([
-    admin
-      .from("profile_offerings")
-      .select("id", { count: "exact", head: true })
-      .eq("profile_id", id)
-      .is("removed_at", null)
-      .in("kind", ["dienst", "product"]),
-    admin.from("profile_strategy").select("recorded_at").eq("profile_id", id).maybeSingle(),
-    admin
-      .from("analyses")
-      .select("id", { count: "exact", head: true })
-      .eq("profile_id", id)
-      .is("archived_at", null),
-    admin
-      .from("search_console_queries")
-      .select("day", { count: "exact", head: true })
-      .eq("profile_id", id)
-      .gte("day", van90),
-  ]);
-  const aantalAanbod = aanbodRes.count ?? 0;
-  const gesprekOp = (gesprekRes.data as { recorded_at: string | null } | null)?.recorded_at ?? null;
-  const aantalClusters = clusterRes.count ?? 0;
-  const gscRijen = gscRes.count ?? 0;
   const zoekdataAan = labsBeschikbaar();
 
   const meetKosten = formatUsd(mixTotal(DEFAULT_MIX) * COST_PER_PROMPT_USD);
   const kostenPerMaand = `ongeveer ${meetKosten} per maandelijkse meting`;
   const rondeKosten = zoekdataAan ? "ongeveer $1 tot $1,50" : "ongeveer $0,10";
-
-  const bronnen: { naam: string; stand: string; ok: boolean }[] = [
-    {
-      naam: "Je aanbod",
-      stand: aantalAanbod > 0
-        ? `${aantalAanbod} diensten en producten uit je merkprofiel`
-        : "Nog geen diensten bekend. Zonder aanbod valt er niets te ontdekken.",
-      ok: aantalAanbod > 0,
-    },
-    {
-      naam: "Het strategisch gesprek",
-      stand: gesprekOp
-        ? `Vastgelegd op ${formatDateLong(gesprekOp)}`
-        : "Nog niet vastgelegd. Toegevoegde onderwerpen blijven dan een concept tot het gesprek er is.",
-      ok: Boolean(gesprekOp),
-    },
-    {
-      naam: "Search Console",
-      stand: profile.gsc_property
-        ? gscRijen > 0
-          ? "Gekoppeld: we zien waar je al bijna bovenaan staat"
-          : "Gekoppeld, maar er zijn nog geen zoekopdrachten binnen"
-        : "Niet gekoppeld, dus de groep Snelle winst blijft leeg",
-      ok: Boolean(profile.gsc_property) && gscRijen > 0,
-    },
-    {
-      naam: "Zoekdata van Google",
-      stand: zoekdataAan
-        ? "Aan: hoe vaak er gezocht wordt, en waar je concurrenten staan"
-        : "Uit: de ronde ziet geen zoekvolumes en geen concurrenten",
-      ok: zoekdataAan,
-    },
-    {
-      naam: "Je bestaande clusters",
-      stand: aantalClusters > 0
-        ? `${aantalClusters} lopende clusters; wat daarop lijkt wordt gemarkeerd`
-        : "Nog geen clusters",
-      ok: true,
-    },
-  ];
 
   const perSoort = new Map<KandidaatSoort, KandidaatRij[]>();
   for (const k of kandidaten) perSoort.set(k.kind, [...(perSoort.get(k.kind) ?? []), k]);
@@ -219,23 +152,7 @@ export default async function OntdekkenPage({ params }: { params: Promise<{ id: 
         description="Nieuwe onderwerpen die bij je merk passen, gevonden in je eigen Google-cijfers, je onboarding en de zoekdata van Google."
       />
 
-      {/* ── 1. Waar we naar kijken ─────────────────────────────────────── */}
-      <div className="flex flex-col gap-3">
-        <SectionHeading title="Waar we naar kijken" />
-        <ul className="grid gap-2 sm:grid-cols-2">
-          {bronnen.map((b) => (
-            <li key={b.naam} className="card flex flex-col gap-1">
-              <span className="flex items-center gap-2">
-                <span className={`chip ${b.ok ? "chip-success" : "chip-neutral"}`}>{b.ok ? "Aanwezig" : "Ontbreekt"}</span>
-                <span className="type-body-emphasis">{b.naam}</span>
-              </span>
-              <span className="text-sm text-secondary">{b.stand}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* ── 2. De ronde ─────────────────────────────────────────────────── */}
+      {/* ── 1. De ronde ─────────────────────────────────────────────────── */}
       {lopend && <RondeVoortgang merkId={id} status={lopend.status} />}
       {staff && !lopend && (
         <RondeKnop merkId={id} herhaling={rondes.length > 0} kostenTekst={rondeKosten} />
@@ -262,7 +179,7 @@ export default async function OntdekkenPage({ params }: { params: Promise<{ id: 
         </div>
       )}
 
-      {/* ── 3. De kandidaten ────────────────────────────────────────────── */}
+      {/* ── 2. De kandidaten ────────────────────────────────────────────── */}
       {!laatsteKlare && !lopend ? (
         staff ? (
           <EmptyState title="Nog geen ontdekkingsronde voor dit merk">
@@ -304,7 +221,7 @@ export default async function OntdekkenPage({ params }: { params: Promise<{ id: 
         </div>
       ) : null}
 
-      {/* ── 4. Eerdere rondes ───────────────────────────────────────────── */}
+      {/* ── 3. Eerdere rondes ───────────────────────────────────────────── */}
       {staff && rondes.length > 0 && (
         <div className="flex flex-col gap-3">
           <SectionHeading title="Rondes" />

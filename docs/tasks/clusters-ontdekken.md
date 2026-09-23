@@ -79,8 +79,9 @@ meting daarvan. Dat staat zo op het scherm.
 
 ## Het scherm
 
-1. **Bronnenbalk:** per bron wat er gebruikt wordt; bij een ontbrekende bron wat dat kost
-   ("Search Console is niet gekoppeld, dus de snelle winst valt weg").
+1. ~~**Bronnenbalk**~~: op 23 september 2026 op verzoek van de eigenaar weggehaald. De gebruiker
+   wil goede clusters kunnen aanvinken, niet de bronnen nalopen. Ontbreekt een bron, dan zegt de
+   ronde dat zelf onder de kandidaten.
 2. **Rondeknop** met geschatte kosten en duur, voortgang, pagina mag dicht.
 3. **Kandidaten in drie groepen:** Snelle winst (plek 4 tot 20), Nieuw terrein (vraag, geen pagina),
    Concurrent is je voor. Kaart: titel, één zin waarom, drie feiten met hun gevolg, "Toon bewijs".
