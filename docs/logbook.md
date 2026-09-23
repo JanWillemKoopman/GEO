@@ -11798,3 +11798,37 @@ meting start.
 
 De status `aangevraagd` blijft in de database bestaan (migratie 0109 is additief), maar wordt niet
 meer gezet. Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen.
+
+## 23 september 2026 (5): de verbeterpunten één voor één, in een venster
+
+De eigenaar noemde "Te verbeteren" een dood eind. Een oranje zin in de tekst deed niets bij een klik,
+een plek in de rail sprong alleen naar de tekst, en "Laat ORBIT ENGINE het oplossen" vulde een vak
+onderaan de pagina waar je daarna nog een keer op "Schrijf een nieuwe versie" moest drukken. De knop
+"Vraag een aanpassing" bovenaan sprong naar hetzelfde vak, dat eerst ook nog dicht stond. Dat is
+twee tot drie klikken op twee plekken voor één handeling.
+
+Nu opent een oranje zin, een plek in de rail, "Los op" of de hoofdknop "Los de N punten op" het
+puntenvenster (`puntvenster.tsx`). Per punt één vraag, "Hoe wil je dit oplossen?", met vier
+antwoorden: ORBIT ENGINE laten oplossen, zelf aanpassen (de zin wordt in het venster herschreven en
+meteen in de tekst vervangen), laten staan (alleen bij een zin zonder bron, zelfde route als
+migratie 0110) of overslaan. Na elke keuze volgt het volgende punt zonder keuze. Het slotscherm
+telt de keuzes en heeft één knop: opslaan als er eigen werk is, en de punten voor ORBIT ENGINE in
+één schrijfronde meegeven. Een balk onder de tekst houdt de lijst in beeld zolang hij niet
+verstuurd is. De rekenlogica staat puur in `lib/puntenronde.ts`, met een test.
+
+Wat bewust NIET gebouwd is: een knop die die ene zin meteen door AI laat herschrijven.
+`docs/tasks/herontwerp-contentpagina.md` §8.1 blijft staan: fijner knippen maakte de tekst in dit
+systeem twee keer slechter (reparatiescore 67, 74, 68, 48). "Laat ORBIT ENGINE het oplossen" zet
+het punt dus op een lijst, en die lijst gaat langs dezelfde route, dezelfde poort en dezelfde
+nieuwe versie als het vak onderaan. Wel één ronde per keer versturen in plaats van per punt.
+
+Twee dingen die veranderden aan eerdere besluiten van vandaag. Met open punten is "Los de N punten
+op" de hoofdknop in de kaart "Aan zet" en "Keur toch goed" de tweede (was omgekeerd, Bijlage D punt
+1); goedkeuren kan nog steeds altijd, met dezelfde extra bevestiging, en "Eerst verbeteren" in die
+bevestiging opent nu het venster. En het vak onderaan heet "Laat ORBIT ENGINE iets aanpassen", is
+voor wat níet onder Te verbeteren staat, en staat altijd open.
+
+De keuzes leven alleen in het scherm: ververs je voordat je verstuurt of opslaat, dan begin je
+opnieuw. Alleen "laat staan", opslaan en de nieuwe versie gaan naar de server. Bekeken in de
+browser met voorbeelddata (desktop en telefoon); nog niet op productie met een echte pagina.
+Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen.

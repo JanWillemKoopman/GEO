@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { isAccepteerbaar } from "@/lib/geaccepteerde-zinnen";
 import { Icon } from "@/components/icon";
 import { InfoHint } from "@/components/info-hint";
 import {
@@ -11,6 +10,7 @@ import {
   type GegroepeerdeBevinding,
   type Bevindingengroepen,
 } from "@/lib/pipeline/quality-groups";
+import { opdrachtVan, puntSleutel, type Keuze, type Keuzes } from "@/lib/puntenronde";
 
 /**
  * "Te verbeteren": wat er aan deze tekst beter moet, en hoe.
@@ -41,6 +41,15 @@ import {
  * hij verklaart waarom die lijst er is, niet wat je nu moet doen.
  *
  * De groepering zelf staat in `lib/pipeline/quality-groups.ts`, puur en getest.
+ *
+ * ── EN DAARNA: ÉÉN VENSTER PER PUNT (23 september 2026, tweede ronde) ───────
+ *
+ * Per punt stonden drie tekstknoppen ("Laat ORBIT ENGINE het oplossen", "Zelf
+ * aanpassen", "Klopt, laat staan"), en de eerste vulde alleen een vak onderaan
+ * waar je daarna nog eens moest klikken. De eigenaar noemde dat een dood eind.
+ * Nu opent een plek of "Los op" het puntenvenster (`puntvenster.tsx`), dat de
+ * keuze stelt en daarna het volgende punt laat zien. Deze lijst toont per plek
+ * wat je al gekozen hebt.
  */
 export function QualityFindings({
   groepen,
@@ -53,8 +62,10 @@ export function QualityFindings({
   gevonden,
   sectieBestaat,
   onGaNaarSectie,
-  onToonInTekst,
-  onPasZelfAan,
+  onOpenPunt,
+  onStartRonde,
+  onAllesNaarOrbit,
+  keuzes,
   onLaatOplossen,
   kanOplossen,
 }: {
@@ -75,11 +86,15 @@ export function QualityFindings({
   gevonden: boolean[];
   sectieBestaat: (sectie: string) => boolean;
   onGaNaarSectie: (sectie: string) => void;
-  /** Spring naar de gemarkeerde zin met dit nummer. */
-  onToonInTekst: (index: number) => void;
-  /** Naar de bewerkstand, met deze zin geselecteerd. */
-  onPasZelfAan: (zin: string) => void;
-  /** Zet deze opdracht(en) in het herschrijfvak. */
+  /** Open het puntenvenster op dit punt. */
+  onOpenPunt: (item: GegroepeerdeBevinding) => void;
+  /** Open het puntenvenster op het eerste punt zonder keuze. */
+  onStartRonde: () => void;
+  /** Zet elk punt zonder keuze op de lijst voor ORBIT ENGINE. */
+  onAllesNaarOrbit: () => void;
+  /** Wat de klant in het venster per punt koos. */
+  keuzes: Keuzes;
+  /** Zet deze opdracht(en) in het herschrijfvak (alleen nog voor de overige suggesties). */
   onLaatOplossen: (opdrachten: string[]) => void;
   /** Uit zolang de eindpoort dicht staat of ORBIT ENGINE al aan het schrijven is. */
   kanOplossen: boolean;
@@ -124,18 +139,23 @@ export function QualityFindings({
             {blokkades.length === 1
               ? "Dit punt raden we je aan op te lossen voor je de tekst goedkeurt."
               : "Deze punten raden we je aan op te lossen voor je de tekst goedkeurt."}
-            {gevonden.some(Boolean) && " In de leesweergave zijn de zinnen in de tekst gemarkeerd."}
+            {gevonden.some(Boolean) && " De zinnen staan oranje gemarkeerd in de tekst. Klik erop om ze op te lossen."}
           </p>
-          {kanOplossen && blokkades.length > 1 && (
-            <button
-              type="button"
-              data-sluit-lade
-              className="btn-outline btn-sm w-full"
-              onClick={() => onLaatOplossen(blokkades.map(opdrachtVan))}
-            >
-              Laat ORBIT ENGINE alle {blokkades.length} oplossen
+          <div className="flex flex-col gap-1.5">
+            <button type="button" data-sluit-lade className="btn-primary btn-sm w-full" onClick={onStartRonde}>
+              {blokkades.length === 1 ? "Los dit punt op" : `Los de ${blokkades.length} punten stap voor stap op`}
             </button>
-          )}
+            {kanOplossen && blokkades.length > 1 && (
+              <button
+                type="button"
+                data-sluit-lade
+                className="w-fit self-center text-sm text-secondary hover:underline"
+                onClick={onAllesNaarOrbit}
+              >
+                of laat ORBIT ENGINE ze alle {blokkades.length} in één keer oplossen
+              </button>
+            )}
+          </div>
           <ul className="flex flex-col gap-3">
             {bundelOpSoort(blokkades).map((bundel, i) => (
               <Punt
@@ -143,14 +163,8 @@ export function QualityFindings({
                 items={bundel.items}
                 kop={bundel.kop}
                 details={bundel.details}
-                indexVan={(item) => blokkades.indexOf(item)}
-                gevonden={gevonden}
-                onToonInTekst={onToonInTekst}
-                onPasZelfAan={onPasZelfAan}
-                onLaatOplossen={onLaatOplossen}
-                kanOplossen={kanOplossen}
-                onLaatStaan={(zinnen) => void laatStaan.doe(zinnen, false)}
-                bezig={laatStaan.bezig}
+                keuzes={keuzes}
+                onOpenPunt={onOpenPunt}
               />
             ))}
           </ul>
@@ -194,11 +208,12 @@ export function QualityFindings({
  * verdwijnt. Na het opslaan ververst het scherm, zodat de telling in de rail,
  * de kaart "Aan zet" en de publiceerstap tegelijk meegaan.
  */
-function useLaatStaan(analysisId: string, pieceId: string) {
+export function useLaatStaan(analysisId: string, pieceId: string) {
   const router = useRouter();
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState<string | null>(null);
-  async function doe(zinnen: string[], ongedaan: boolean) {
+  /** `true` als het gelukt is. */
+  async function doe(zinnen: string[], ongedaan: boolean): Promise<boolean> {
     setBezig(true);
     setFout(null);
     try {
@@ -210,25 +225,18 @@ function useLaatStaan(analysisId: string, pieceId: string) {
       if (!res.ok) {
         const json = (await res.json().catch(() => null)) as { error?: string } | null;
         setFout(json?.error ?? "Dat is niet gelukt. Probeer het opnieuw.");
-        return;
+        return false;
       }
       router.refresh();
+      return true;
     } catch {
       setFout("Er is geen verbinding. Probeer het opnieuw.");
+      return false;
     } finally {
       setBezig(false);
     }
   }
   return { bezig, fout, doe };
-}
-
-/** Wat er in het herschrijfvak komt voor één bevinding. */
-function opdrachtVan(item: GegroepeerdeBevinding): string {
-  const { issue } = item;
-  const plek = issue.section?.trim() ? `In "${issue.section.trim()}": ` : "";
-  const wat = leesbareBevinding(issue.finding);
-  const hoe = issue.recommendation?.trim() ? ` ${leesbareBevinding(issue.recommendation)}` : "";
-  return `${plek}${wat}${hoe}`;
 }
 
 /**
@@ -249,53 +257,50 @@ function plekVan(item: GegroepeerdeBevinding): string | null {
   return leesbareBevinding(bron).replace(/^["“„']+|["”']+\.?$/g, "").trim();
 }
 
+/** Wat de klant voor een plek koos, in drie woorden. */
+const KEUZE_LABEL: Record<Keuze["soort"], string> = {
+  orbit: "Op je lijst voor ORBIT ENGINE",
+  zelf: "Zelf aangepast",
+  staan: "Laat je staan",
+  overslaan: "Overgeslagen",
+};
+
 /**
  * Eén verbeterpunt: wat er mis is, hoe je het oplost, en waar het staat.
  * Een bundel (dezelfde soort op meerdere plekken) is één punt met meerdere
- * plekken en één knop voor allemaal.
+ * plekken. Elke plek en de knop "Los op" openen het puntenvenster.
  */
 function Punt({
   items,
   kop,
   details,
-  indexVan,
-  gevonden,
-  onToonInTekst,
-  onPasZelfAan,
-  onLaatOplossen,
-  kanOplossen,
-  onLaatStaan,
-  bezig,
+  keuzes,
+  onOpenPunt,
 }: {
-  /** Laat deze zinnen (hun `evidence`) bewust staan. */
-  onLaatStaan: (zinnen: string[]) => void;
-  bezig: boolean;
   items: GegroepeerdeBevinding[];
   kop: string | null;
   /** Per item de tekst ná de aanhef, voor een bundel zonder citaten. */
   details: string[];
-  indexVan: (item: GegroepeerdeBevinding) => number;
-  gevonden: boolean[];
-  onToonInTekst: (index: number) => void;
-  onPasZelfAan: (zin: string) => void;
-  onLaatOplossen: (opdrachten: string[]) => void;
-  kanOplossen: boolean;
+  keuzes: Keuzes;
+  onOpenPunt: (item: GegroepeerdeBevinding) => void;
 }) {
   const eerste = items[0];
   const titel = kop ?? kopVan(eerste);
   const hoe = eerste.issue.recommendation?.trim() ? leesbareBevinding(eerste.issue.recommendation) : null;
   const plekken = items
-    .map((item) => ({ item, zin: plekVan(item), index: indexVan(item) }))
-    .filter((p): p is { item: GegroepeerdeBevinding; zin: string; index: number } => Boolean(p.zin));
+    .map((item) => ({ item, zin: plekVan(item), keuze: keuzes[puntSleutel(item)] }))
+    .filter((p): p is { item: GegroepeerdeBevinding; zin: string; keuze: Keuze | undefined } => Boolean(p.zin));
   const sectie = eerste.issue.section?.trim();
-  // Alleen een zin zonder bron kan de klant zelf goedkeuren; een punt van een
-  // beoordelaar over toon of opbouw niet (`lib/geaccepteerde-zinnen.ts`).
-  const accepteerbaar = items.filter((i) => isAccepteerbaar(i.issue));
+  // "Los op" begint bij de eerste plek zonder keuze; heeft elke plek er een,
+  // dan bij de eerste, om een keuze te kunnen wijzigen.
+  const eersteOpen = items.find((i) => !keuzes[puntSleutel(i)]) ?? eerste;
+  const allesGekozen = items.every((i) => keuzes[puntSleutel(i)]);
+  const eersteKeuze = keuzes[puntSleutel(eerste)];
 
   return (
     <li
       className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] border-l-2 p-3"
-      style={{ borderLeftColor: "var(--intent-warning-solid)" }}
+      style={{ borderLeftColor: allesGekozen ? "var(--status-success)" : "var(--intent-warning-solid)" }}
     >
       <p className="text-sm font-medium">
         {titel}
@@ -321,74 +326,36 @@ function Punt({
 
       {plekken.length > 0 && (
         <ul className="flex flex-col gap-1">
-          {plekken.map(({ item, zin, index }) => (
-            <li key={index} className="flex flex-col gap-0.5">
-              {gevonden[index] ? (
-                <button
-                  type="button"
-                  data-sluit-lade
-                  onClick={() => onToonInTekst(index)}
-                  className="tekst-punt-link w-full text-left text-sm"
-                  title="Toon deze zin in de tekst"
-                >
-                  <span className="line-clamp-2">{zin}</span>
-                </button>
-              ) : (
-                <span className="line-clamp-2 block pl-2 text-sm text-secondary">{zin}</span>
-              )}
-              {accepteerbaar.length > 1 && isAccepteerbaar(item.issue) && (
-                <button
-                  type="button"
-                  disabled={bezig}
-                  onClick={() => onLaatStaan([item.issue.evidence ?? ""])}
-                  className="w-fit pl-2 text-xs text-secondary hover:underline"
-                >
-                  Klopt, laat deze staan
-                </button>
-              )}
+          {plekken.map(({ item, zin, keuze }) => (
+            <li key={puntSleutel(item)} className="flex flex-col gap-0.5">
+              <button
+                type="button"
+                data-sluit-lade
+                onClick={() => onOpenPunt(item)}
+                className="tekst-punt-link w-full text-left text-sm"
+                data-gekozen={keuze ? "" : undefined}
+                title="Los dit punt op"
+              >
+                <span className="line-clamp-2">{zin}</span>
+              </button>
+              {keuze && <span className="pl-2 text-xs text-secondary">{KEUZE_LABEL[keuze.soort]}</span>}
             </li>
           ))}
         </ul>
       )}
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        {kanOplossen && (
-          <button
-            type="button"
-            data-sluit-lade
-            onClick={() => onLaatOplossen(items.map(opdrachtVan))}
-            className="text-sm font-medium text-[var(--intent-intelligence-text)] hover:underline"
-          >
-            {items.length > 1 ? "Laat ORBIT ENGINE ze oplossen" : "Laat ORBIT ENGINE het oplossen"}
-          </button>
-        )}
-        {plekken.length > 0 && (
-          <button
-            type="button"
-            data-sluit-lade
-            onClick={() => onPasZelfAan(plekken[0].zin)}
-            className="text-sm text-secondary hover:underline"
-          >
-            Zelf aanpassen
-          </button>
-        )}
-        {accepteerbaar.length > 0 && (
-          <button
-            type="button"
-            disabled={bezig}
-            onClick={() => onLaatStaan(accepteerbaar.map((i) => i.issue.evidence ?? ""))}
-            className="text-sm text-secondary hover:underline"
-            title="De zin blijft in de tekst staan en het punt verdwijnt"
-          >
-            {accepteerbaar.length > 1 ? `Klopt, laat alle ${accepteerbaar.length} staan` : "Klopt, laat staan"}
-          </button>
-        )}
-      </div>
-      {accepteerbaar.length > 0 && (
-        <p className="type-caption text-muted">
-          Klopt de zin wel? Dan kun je hem laten staan. Jij staat er dan voor in dat hij waar is.
-        </p>
+      {plekken.length === 0 && items.length === 1 && eersteKeuze && (
+        <span className="text-xs text-secondary">{KEUZE_LABEL[eersteKeuze.soort]}</span>
       )}
+
+      <button
+        type="button"
+        data-sluit-lade
+        onClick={() => onOpenPunt(eersteOpen)}
+        className="w-fit text-sm font-medium text-[var(--intent-intelligence-text)] hover:underline"
+      >
+        {allesGekozen ? "Keuze wijzigen" : items.length > 1 ? "Los ze op" : "Los op"}
+      </button>
     </li>
   );
 }

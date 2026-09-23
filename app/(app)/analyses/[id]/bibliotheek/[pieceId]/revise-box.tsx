@@ -7,6 +7,7 @@ import { ErrorNotice, problemFromResponse, networkProblem } from "@/components/e
 import type { UserFacingError } from "@/lib/errors";
 import type { PoortOordeel } from "@/lib/content-final-gate";
 import { MAX_STRATEGY_NOTE_LENGTH } from "@/lib/plan-constants";
+import { schrijfopdracht } from "@/lib/puntenronde";
 import { useHerschrijfstand } from "./herschrijf-context";
 
 /**
@@ -31,7 +32,7 @@ const SUGGESTIONS = [
  * De originele "opnieuw schrijven"-knop en -dialoog, ongewijzigd op de
  * schrijfopdracht en de eindpoort na. De merkbrede notitie hieronder in
  * `ReviseBox` staat er los naast: eigen opslagactie, eigen slot, niet
- * gegate door `poort` of `open`, want een merkbrede instructie aanpassen is
+ * gegate door `poort`, want een merkbrede instructie aanpassen is
  * geen "nieuwe versie van deze pagina" en hoort dus niet aan diezelfde knop te
  * hangen.
  */
@@ -68,26 +69,27 @@ function RewriteFlow({
    * het bestaande vak, langs dezelfde route, dezelfde poort en dezelfde nieuwe
    * versie.
    */
-  const { opdracht, bezig } = useHerschrijfstand();
+  const { opdracht, bezig, lijst, onVanLijst, onVerstuurd } = useHerschrijfstand();
   const router = useRouter();
-  const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
   const laatsteOpdracht = useRef<number | null>(null);
 
-  // Een opdracht uit de rail klapt het vak open en vult het aan. Aanvullen en
+  // Een opdracht uit de rail vult het vak aan. Aanvullen en
   // niet vervangen, net als de suggestiechips hieronder: wie drie bevindingen
   // aanklikt, wil ze alle drie in één herschrijfronde meegeven.
   useEffect(() => {
     if (!opdracht || laatsteOpdracht.current === opdracht.sleutel) return;
     laatsteOpdracht.current = opdracht.sleutel;
-    setOpen(true);
     setNote((n) => (n.trim() ? `${n.trim()}\n${opdracht.tekst}` : opdracht.tekst));
   }, [opdracht]);
   const [state, setState] = useState<"idle" | "busy" | "queued" | "error">("idle");
   const [problem, setProblem] = useState<UserFacingError | null>(null);
 
   async function submit() {
-    const value = note.trim();
+    const value = schrijfopdracht(
+      lijst.map((p) => p.tekst),
+      note,
+    );
     if (!value) return;
 
     setState("busy");
@@ -105,6 +107,8 @@ function RewriteFlow({
         return;
       }
       setState("queued");
+      setNote("");
+      onVerstuurd();
       // De nieuwe versie verschijnt vanzelf; de pagina verversen zodat de klant
       // de versiegeschiedenis ziet groeien zodra hij terugkomt.
       router.refresh();
@@ -165,30 +169,55 @@ function RewriteFlow({
     );
   }
 
-  if (!open) {
-    return (
-      <button type="button" onClick={() => setOpen(true)} className="btn-outline w-fit">
-        Iets aanpassen aan deze tekst
-      </button>
-    );
-  }
+  // Het vak staat altijd open (23 september 2026). Wie hier via "Laat iets
+  // aanpassen" bovenaan landde, moest eerst nog een tweede knop vinden voordat
+  // er een vak verscheen om in te typen.
+  const leeg = lijst.length === 0 && !note.trim();
 
   return (
     <div className="card flex flex-col gap-3">
       <div className="flex flex-col gap-1">
         <span className="mono-label">Wat moet er anders?</span>
         <p className="text-sm text-secondary">
-          Schrijf het in je eigen woorden. ORBIT ENGINE maakt een nieuwe versie; deze blijft bewaard.
+          Schrijf het in je eigen woorden. ORBIT ENGINE schrijft dan een nieuwe versie van de hele
+          tekst. Dat duurt een paar minuten, en de versie die er nu staat blijft bewaard.
         </p>
       </div>
 
+      {lijst.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <span className="type-caption-emphasis text-secondary">
+            {lijst.length === 1 ? "1 punt op je lijst" : `${lijst.length} punten op je lijst`}
+          </span>
+          <ul className="flex flex-col gap-1">
+            {lijst.map((p) => (
+              <li key={p.sleutel} className="tekst-punt-link text-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="line-clamp-2">{p.tekst}</span>
+                  <button
+                    type="button"
+                    onClick={() => onVanLijst(p.sleutel)}
+                    className="shrink-0 text-xs text-secondary hover:underline"
+                  >
+                    Haal weg
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <textarea
         className="field"
-        rows={4}
-        autoFocus
+        rows={lijst.length > 0 ? 2 : 4}
         value={note}
         onChange={(e) => setNote(e.target.value)}
-        placeholder="Bijvoorbeeld: de eerste alinea mag directer, en noem er onze openingstijden bij."
+        placeholder={
+          lijst.length > 0
+            ? "Nog iets anders? Dit mag leeg blijven."
+            : "Bijvoorbeeld: de eerste alinea mag directer, en noem er onze openingstijden bij."
+        }
         aria-label="Wat moet er anders aan deze tekst?"
       />
 
@@ -217,14 +246,16 @@ function RewriteFlow({
         <button
           type="button"
           onClick={() => void submit()}
-          disabled={state === "busy" || !note.trim()}
+          disabled={state === "busy" || leeg}
           className="btn-primary w-fit"
         >
           {state === "busy" ? "Doorgeven aan ORBIT ENGINE…" : "Schrijf een nieuwe versie"}
         </button>
-        <button type="button" onClick={() => setOpen(false)} className="text-sm text-secondary hover:underline">
-          Annuleren
-        </button>
+        {note.trim() && (
+          <button type="button" onClick={() => setNote("")} className="text-sm text-secondary hover:underline">
+            Leegmaken
+          </button>
+        )}
       </div>
     </div>
   );

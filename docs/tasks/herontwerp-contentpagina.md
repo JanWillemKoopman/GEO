@@ -672,3 +672,11 @@ tekst gaat weg. Onder de lijst staat hoeveel zinnen je bewust laat staan, met "O
 Opgeslagen in `content_pieces.geaccepteerde_zinnen` (migratie 0110); het scherm telt de lijsten van
 alle versies van de pagina mee. Alleen dit soort punt kan zo weg (`lib/geaccepteerde-zinnen.ts`), en
 de route controleert dat elke zin echt zo'n punt van deze tekst is. `quality_json` blijft onaangeroerd.
+
+**9. De punten één voor één (23 september 2026, derde ronde).** De knoppen per punt zijn vervangen
+door het puntenvenster: een oranje zin, een plek of "Los op" opent het, en het stelt per punt één
+vraag met vier antwoorden. "Laat ORBIT ENGINE het oplossen" zet het punt op een lijst die aan het eind
+in één schrijfronde meegaat, dus §8.1 blijft staan. Met open punten is "Los de N punten op" de
+hoofdknop en "Keur toch goed" de tweede; dat wijzigt punt 1 hierboven alleen in volgorde, niet in wat
+kan. Besluit en cijfers: `docs/logbook.md`, 23 september 2026 (5).
+

@@ -140,6 +140,16 @@ import { schrijfpoort, schrijfdatum } from "@/lib/content-write-gate";
 import { paginaNaam } from "@/lib/pagina-naam";
 import { tellingen, filterPaginas, groepVan, LEEG_FILTER, filterKeuzes, statusRegel } from "@/lib/pagina-lijst";
 import { bundelOpSoort } from "@/lib/pipeline/quality-groups";
+import {
+  lijstVoorOrbit,
+  puntSleutel,
+  rondeVolgorde,
+  schrijfopdracht,
+  telKeuzes,
+  vervangBereik,
+  volgendOpen,
+  type Keuzes,
+} from "@/lib/puntenronde";
 import { markeerZinnen, zinInBron } from "@/lib/tekst-markering";
 import { isAccepteerbaar, leesGeaccepteerd, voegToe, haalWeg, zonderGeaccepteerd } from "@/lib/geaccepteerde-zinnen";
 import { paginaStand, streefdatum, standVolgorde, FASEN, heeftEigenScherm, type PaginaStandInput } from "@/lib/pagina-stand";
@@ -2081,6 +2091,43 @@ group("bundelOpSoort: vijf keer dezelfde bevinding wordt één bundel", () => {
   ok("een losse bevinding blijft los", uit[1].kop === null && uit[1].details[0] === "De inleiding is te lang.");
   const uniek = bundelOpSoort([b("Sectie prijs: te vaag."), b("Sectie werkgebied: ontbreekt.")]);
   ok("verschillende aanhef wordt niet samengevoegd", uniek.every((x) => x.kop === null));
+});
+
+// 23 september 2026 (tweede ronde): de punten één voor één in een venster.
+// De keuze hangt aan het punt en niet aan zijn plek, het venster gaat na elke
+// keuze naar het volgende open punt, en wat naar ORBIT ENGINE gaat is precies
+// de lijst plus wat de klant er zelf bij schreef.
+group("puntenronde: stap voor stap door de verbeterpunten", () => {
+  const b = (finding: string, evidence: string | null, recommendation = "") => ({
+    issue: { finding, evidence, recommendation, section: "Prijzen" } as never,
+    herkomst: "nieuw" as never,
+    aangebodenInRonde: null,
+  });
+  const zonderBron = "Deze zin zegt iets over je bedrijf zonder bron";
+  const a = b(`${zonderBron}: "Vanaf 359 euro."`, "Vanaf 359 euro.", "Onderbouw hem met een feit.");
+  const los = b("De inleiding is te lang.", null, "Maak hem korter.");
+  const c = b(`${zonderBron}: "Binnen 24 uur vervangend vervoer."`, '"Binnen 24 uur vervangend vervoer."');
+  const volgorde = rondeVolgorde([a, los, c]);
+  ok("de volgorde bundelt per soort, zoals de rail", volgorde[0] === a && volgorde[1] === c && volgorde[2] === los);
+
+  const [ka, kc, kl] = volgorde.map(puntSleutel);
+  ok("elk punt een eigen sleutel", new Set([ka, kc, kl]).size === 3);
+  eq("zonder keuzes begint de ronde bij het eerste punt", volgendOpen(volgorde, {}, null) ?? "", ka);
+  const keuzes: Keuzes = { [ka]: { soort: "orbit" }, [kl]: { soort: "overslaan" } };
+  eq("na het eerste punt het volgende zonder keuze", volgendOpen(volgorde, keuzes, ka) ?? "", kc);
+  eq("vanaf het laatste punt terug naar het begin", volgendOpen(volgorde, { [ka]: { soort: "orbit" } }, kl) ?? "", kc);
+  ok("alles gekozen: de ronde is klaar", volgendOpen(volgorde, { ...keuzes, [kc]: { soort: "zelf" } }, kc) === null);
+
+  const t = telKeuzes(volgorde, { ...keuzes, verdwenen: { soort: "orbit" } });
+  ok("de telling kijkt alleen naar punten die er nog staan", t.orbit === 1 && t.overslaan === 1 && t.open === 1);
+
+  const lijst = lijstVoorOrbit(volgorde, keuzes);
+  eq("alleen wat naar ORBIT ENGINE gaat staat op de lijst", String(lijst.length), "1");
+  ok("met de sectie, de bevinding en de aanbeveling", lijst[0].startsWith('In "Prijzen": ') && lijst[0].endsWith("Onderbouw hem met een feit."), lijst[0]);
+  eq("eigen woorden komen na de lijst", schrijfopdracht(["Punt een"], "  Korter graag "), "Punt een\nKorter graag");
+  eq("lege delen vallen weg", schrijfopdracht([], "   "), "");
+
+  eq("zelf aanpassen vervangt alleen de zin", vervangBereik("Aa. Vanaf 359 euro. Bb.", { begin: 4, eind: 19 }, "Vanaf 359 euro per maand."), "Aa. Vanaf 359 euro per maand. Bb.");
 });
 
 // 23 september 2026: de zinnen van een verbeterpunt staan gemarkeerd in de

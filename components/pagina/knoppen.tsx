@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PUNTEN_OPLOSSEN } from "@/components/pagina/punten-knop";
 import { useRouter } from "next/navigation";
 
 /**
@@ -68,11 +69,14 @@ export function KeurGoedKnop({
   analysisId,
   pieceId,
   openPunten = 0,
+  rustig = false,
 }: {
   analysisId: string;
   pieceId: string;
   /** Hoeveel punten publicatie tegenhouden. Meer dan nul: eerst bevestigen. */
   openPunten?: number;
+  /** Als tweede knop naast "Los de punten op": omlijnd in plaats van gevuld. */
+  rustig?: boolean;
 }) {
   const { bezig, fout, doe } = useActie();
   const [bevestigen, setBevestigen] = useState(false);
@@ -89,7 +93,16 @@ export function KeurGoedKnop({
           <button type="button" className="btn-primary" disabled={bezig} onClick={keurGoed}>
             {bezig ? "Bezig…" : "Ja, keur toch goed"}
           </button>
-          <button type="button" className="btn-outline" disabled={bezig} onClick={() => setBevestigen(false)}>
+          <button
+            type="button"
+            className="btn-outline"
+            disabled={bezig}
+            onClick={() => {
+              setBevestigen(false);
+              // Eerst verbeteren betekent: het puntenvenster open, op het eerste punt.
+              window.dispatchEvent(new Event(PUNTEN_OPLOSSEN));
+            }}
+          >
             Eerst verbeteren
           </button>
         </div>
@@ -102,11 +115,11 @@ export function KeurGoedKnop({
     <>
       <button
         type="button"
-        className="btn-primary"
+        className={rustig ? "btn-outline" : "btn-primary"}
         disabled={bezig}
         onClick={() => (openPunten > 0 ? setBevestigen(true) : keurGoed())}
       >
-        {bezig ? "Bezig…" : "Keur goed"}
+        {bezig ? "Bezig…" : rustig ? "Keur toch goed" : "Keur goed"}
       </button>
       <Fout tekst={fout} />
     </>
