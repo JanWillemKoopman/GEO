@@ -154,7 +154,7 @@ export function NewAnalysisForm({
                 {l.name}
               </option>
             ))}
-            <option value={NIEUW_LABEL}>+ Nieuw label maken</option>
+            <option value={NIEUW_LABEL}>Nieuw label maken…</option>
           </select>
         </label>
 
@@ -258,7 +258,7 @@ export function NewAnalysisForm({
       <button
         type="submit"
         disabled={pending || !mixCheck.ok}
-        className="btn-primary btn-lg w-full disabled:opacity-60"
+        className="btn-primary btn-lg w-full"
       >
         {pending ? "Cluster aanmaken…" : "Start cluster"}
       </button>

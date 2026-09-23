@@ -394,7 +394,7 @@ function StrategyNoteBox({
         placeholder="Vanaf november openen we in Breda"
         aria-label="Notitie voor de schrijver, voor het hele merk"
       />
-      <span className="mono-label text-muted" style={{ fontSize: "0.65rem" }}>
+      <span className="mono-label" style={{ fontSize: "0.65rem" }}>
         {note.length}/{MAX_STRATEGY_NOTE_LENGTH}
       </span>
 

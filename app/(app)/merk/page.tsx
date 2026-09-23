@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/page-header";
 import { activeOnly } from "@/lib/archive";
 import type { Profile } from "@/lib/types/database";
 import { LastUpdated } from "@/components/last-updated";
+import { Icon } from "@/components/icon";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Merken" };
@@ -72,7 +73,8 @@ export default async function ProfielenPage() {
         description="ORBIT ENGINE leert je merk eerst kennen: branche, aanbod, concurrenten, doelgroep en tone-of-voice. Dat onderzoek doen we één keer per merk, en elk cluster eronder bouwt erop voort."
         action={
           <Link href="/merk/nieuw" className="btn-primary">
-            + Nieuw merk
+            <Icon naam="toevoegen" size={18} />
+            Nieuw merk
           </Link>
         }
       />

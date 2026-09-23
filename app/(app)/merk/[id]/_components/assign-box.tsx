@@ -123,7 +123,7 @@ export function AssignBox({
           type="button"
           onClick={() => void assign()}
           disabled={wacht || !choice || choice === currentUserId}
-          className="btn-outline disabled:opacity-40"
+          className="btn-outline"
         >
           {wacht ? "Toewijzen…" : "Toewijzen"}
         </button>

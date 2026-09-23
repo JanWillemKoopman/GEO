@@ -18,7 +18,7 @@ export function StatusBadge({
     <span className="flex items-center gap-2">
       <span className="chip" style={{ ...TONE_STYLE[meta.tone] }}>
         {meta.actionRequired && (
-          <span className="live-dot" style={{ background: "var(--intent-intelligence-solid)" }} />
+          <span className="live-dot" />
         )}
         {meta.label}
       </span>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Icon } from "@/components/icon";
 import {
   CLUSTERFILTER_ALLES,
   FUNNELFILTER_ALLES,
@@ -244,16 +245,19 @@ function Bronkeuze({
     <div ref={ref} className="relative">
       <button
         type="button"
-        className="field text-left"
+        className="field flex items-center justify-between gap-2 text-left"
         aria-haspopup="true"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
-        {samenvatting}
+        <span className="truncate">{samenvatting}</span>
+        <span className="text-[var(--text-subtle)]">
+          <Icon naam="openen" size={14} />
+        </span>
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-1 flex min-w-full flex-col gap-1.5 whitespace-nowrap rounded-md border border-[var(--line-muted)] bg-[var(--bg-base)] p-3 shadow-md">
-          <label className="flex items-center gap-1.5">
+        <div className="menu-surface absolute left-0 top-full z-30 mt-1 flex min-w-full flex-col whitespace-nowrap">
+          <label className="menu-item cursor-pointer">
             <input
               type="checkbox"
               checked={alles}
@@ -268,7 +272,7 @@ function Bronkeuze({
             Alle bronnen
           </label>
           {bronnen.map((b) => (
-            <label key={b.id} className="flex items-center gap-1.5">
+            <label key={b.id} className="menu-item cursor-pointer">
               <input
                 type="checkbox"
                 checked={bronfilter.includes(b.id)}

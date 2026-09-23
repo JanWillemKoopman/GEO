@@ -49,7 +49,7 @@ export function Sparkline({
   // vlakke ontwikkeling terwijl er nog niets te ontwikkelen viel.
   if (values.length < 2) {
     return (
-      <span className="mono-label text-muted" title={`${label}: nog te weinig metingen`}>
+      <span className="mono-label" title={`${label}: nog te weinig metingen`}>
         nog geen verloop
       </span>
     );

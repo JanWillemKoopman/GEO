@@ -300,7 +300,7 @@ export function OfferingsEditor({
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            className="btn-primary btn-sm disabled:opacity-60"
+            className="btn-primary btn-sm"
             disabled={wacht || !form.name.trim()}
             onClick={() => void opslaan()}
           >
@@ -324,7 +324,7 @@ export function OfferingsEditor({
             <span className="chip chip-neutral">{KIND_LABELS[o.kind]}</span>
             <span className="font-medium">{o.name}</span>
             {o.price_indication && (
-              <span className="mono-label text-muted">{o.price_indication}</span>
+              <span className="mono-label">{o.price_indication}</span>
             )}
             {o.source !== "ai" && <span className="chip chip-green">{o.source}</span>}
             {dekking?.dekking === "ontbreekt" && (
@@ -422,14 +422,14 @@ export function OfferingsEditor({
           {!toonVerwijderd ? (
             <button
               type="button"
-              className="mono-label text-muted hover:text-[var(--text-primary)] w-fit"
+              className="mono-label hover:text-[var(--text-primary)] w-fit"
               onClick={() => setToonVerwijderd(true)}
             >
               {removedOfferings.length} verwijderd, tonen
             </button>
           ) : (
             <>
-              <span className="mono-label text-muted">Verwijderd</span>
+              <span className="mono-label">Verwijderd</span>
               <ul className="flex flex-col gap-1">
                 {removedOfferings.map((o) => (
                   <li key={o.id} className="flex items-baseline justify-between gap-3 text-sm">

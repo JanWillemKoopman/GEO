@@ -361,7 +361,7 @@ export default async function AnalyticsPage({
           <span className="mono-label">Wat ORBIT ENGINE tot nu toe opleverde</span>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div className="flex flex-col gap-1">
-              <span className="mono-label text-muted">Pagina&apos;s live</span>
+              <span className="mono-label">Pagina&apos;s live</span>
               <span className="stat-value text-3xl">
                 {opbrengst!.paginasLive}
                 {opbrengst!.paginasGepland > 0 && (
@@ -370,7 +370,7 @@ export default async function AnalyticsPage({
               </span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="mono-label text-muted">Klikken sinds de start</span>
+              <span className="mono-label">Klikken sinds de start</span>
               <span className="stat-value text-3xl">
                 {opbrengst!.klikkenSindsStart === null
                   ? "-"
@@ -378,7 +378,7 @@ export default async function AnalyticsPage({
               </span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="mono-label text-muted">Deze 28 dagen</span>
+              <span className="mono-label">Deze 28 dagen</span>
               {opbrengst!.vergelijkingOns ? (
                 <>
                   <span className="stat-value text-3xl">

@@ -352,7 +352,7 @@ export function OnboardingSession({
               veld. Springt niet, en zegt precies wat de klant wil weten: dat
               er niets kwijtraakt. */}
           {laatsteOpslag && (
-            <p className="mono-label text-muted" role="status">
+            <p className="mono-label" role="status">
               Alles bewaard · laatste wijziging{" "}
               {laatsteOpslag.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}
             </p>
@@ -530,7 +530,7 @@ export function OnboardingSession({
           />
 
           <div className="flex flex-col gap-3">
-            <span className="mono-label text-muted">Contactpersoon</span>
+            <span className="mono-label">Contactpersoon</span>
             <div className="flex flex-col gap-4">
               {veld("contact_name")}
               {veld("contact_email")}
@@ -737,7 +737,7 @@ function Kop({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="mono-label text-muted">{nummer}</span>
+      <span className="mono-label">{nummer}</span>
       <h2 className="type-section">{titel}</h2>
       <p className="text-secondary">{uitleg}</p>
     </div>
@@ -768,7 +768,7 @@ function Getal({ waarde, label }: { waarde: number; label: string }) {
   return (
     <span className="flex flex-col">
       <span className="stat-value text-2xl">{waarde}</span>
-      <span className="mono-label text-muted">{label}</span>
+      <span className="mono-label">{label}</span>
     </span>
   );
 }

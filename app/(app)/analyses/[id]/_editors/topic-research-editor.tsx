@@ -72,7 +72,7 @@ export function TopicResearchEditor({
       </div>
 
       <div className="flex items-center gap-3">
-        <button onClick={() => void save()} disabled={saving} className="btn-primary disabled:opacity-60">
+        <button onClick={() => void save()} disabled={saving} className="btn-primary">
           {saving ? "Opslaan…" : "Wijzigingen opslaan"}
         </button>
         {saved && (

@@ -326,7 +326,7 @@ function Rij({ brand }: { brand: CsmBrand }) {
         {brand.paginasTeLaat > 0 && (
           <button
             type="button"
-            className="btn-outline btn-sm disabled:opacity-60"
+            className="btn-outline btn-sm"
             disabled={bezig}
             onClick={() => void verzetEnHerinplannen()}
           >

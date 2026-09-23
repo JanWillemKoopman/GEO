@@ -190,7 +190,7 @@ export function OnboardingWizard() {
                 type="button"
                 onClick={() => void submit(true)}
                 disabled={pending}
-                className="btn-outline w-fit disabled:opacity-60"
+                className="btn-outline w-fit"
               >
                 Adres klopt, ga toch door
               </button>
@@ -203,7 +203,7 @@ export function OnboardingWizard() {
             type="button"
             onClick={() => void submit(false)}
             disabled={pending || !canSubmit}
-            className="btn-primary btn-lg disabled:opacity-60"
+            className="btn-primary btn-lg"
           >
             {pending ? "Onderzoek starten…" : "Start het onderzoek"}
           </button>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { Alert } from "@/components/alert";
+import { Dialog, DialogKnoppen } from "@/components/dialog";
 
 /**
  * Een bevestiging vóór een handeling die je niet terug kunt draaien.
@@ -52,81 +53,46 @@ export function ConfirmDialog({
   /** Extra invoer binnen de dialoog, bijvoorbeeld het pad bij "markeer als geplaatst". */
   children?: React.ReactNode;
 }) {
-  const paneel = useRef<HTMLDivElement>(null);
-
-  // Escape sluit, en de focus gaat naar het paneel zodat een toetsenbordgebruiker
-  // niet achter de dialoog blijft hangen.
-  useEffect(() => {
-    if (!open) return;
-    paneel.current?.focus();
-    function toets(e: KeyboardEvent) {
-      if (e.key === "Escape" && !busy) onCancel();
-    }
-    document.addEventListener("keydown", toets);
-    return () => document.removeEventListener("keydown", toets);
-  }, [open, busy, onCancel]);
-
   if (!open) return null;
 
   return (
-    <div className="no-print fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
-      <button
-        type="button"
-        className="modal-overlay absolute inset-0"
-        aria-label="Sluiten"
-        onClick={() => !busy && onCancel()}
-      />
-      <div
-        ref={paneel}
-        tabIndex={-1}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className="modal-panel relative w-full max-w-md"
-      >
-        <div className="flex flex-col gap-3">
-          <h2 className="text-lg font-medium">{title}</h2>
-          <p className="text-secondary">{body}</p>
+    <Dialog label={title} onSluit={onCancel} bezig={busy}>
+      <div className="flex flex-col gap-3">
+        <h2 className="type-title">{title}</h2>
+        <p className="text-secondary">{body}</p>
 
-          {children}
+        {children}
 
-          {irreversible && (
-            <div className="card card-danger flex flex-col gap-1">
-              <span
-                className="mono-label"
-                style={{ color: "var(--intent-danger-text)" }}
-              >
+        {irreversible && (
+          <Alert intent="danger">
+            <span className="flex flex-col gap-1">
+              <span className="type-compact-emphasis text-[var(--intent-danger-content)]">
                 {irreversible.title}
               </span>
-              <p className="text-sm text-secondary">{irreversible.description}</p>
-            </div>
-          )}
+              {irreversible.description}
+            </span>
+          </Alert>
+        )}
 
-          <div className="flex flex-wrap justify-end gap-2 pt-1">
-            <button
-              type="button"
-              className="btn-outline"
-              onClick={onCancel}
-              disabled={busy}
-            >
-              Annuleren
-            </button>
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={onConfirm}
-              disabled={busy || confirmDisabled}
-              style={
-                danger
-                  ? { background: "var(--intent-danger-solid)" }
-                  : undefined
-              }
-            >
-              {busy ? (confirmingLabel ?? "Bezig…") : confirmLabel}
-            </button>
-          </div>
-        </div>
+        <DialogKnoppen>
+          {/* De uitweg is een ghost-knop, de handeling de gevulde ernaast
+              (`designsystem.md` §9). Bij iets onomkeerbaars is dat
+              `.btn-danger` en niet de hoofdknop met een rode inline-kleur: die
+              bleef rood als hij uitgeschakeld was en kreeg in de donkere stand
+              zwarte letters. */}
+          <button type="button" className="btn-ghost" onClick={onCancel} disabled={busy}>
+            Annuleren
+          </button>
+          <button
+            type="button"
+            className={danger ? "btn-danger" : "btn-primary"}
+            onClick={onConfirm}
+            disabled={busy || confirmDisabled}
+          >
+            {busy ? (confirmingLabel ?? "Bezig…") : confirmLabel}
+          </button>
+        </DialogKnoppen>
       </div>
-    </div>
+    </Dialog>
   );
 }

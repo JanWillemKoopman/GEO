@@ -94,7 +94,7 @@ export function ManualPagesBox({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="mono-label">Pagina&apos;s die je zelf toevoegt</span>
         {pages.length > 0 && (
-          <span className="mono-label text-muted">{pages.length} toegevoegd</span>
+          <span className="mono-label">{pages.length} toegevoegd</span>
         )}
       </div>
 
@@ -144,7 +144,7 @@ export function ManualPagesBox({
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="btn-primary btn-sm disabled:opacity-60"
+              className="btn-primary btn-sm"
               disabled={wacht || !invoer.trim()}
               onClick={() => void voegToe()}
             >

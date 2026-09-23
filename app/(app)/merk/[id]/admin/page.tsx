@@ -303,14 +303,14 @@ export default async function AdminPage({
                   <span className="mono-label">{b.field}</span>
                   <span className="chip">{b.source}</span>
                   {b.confidence !== null && (
-                    <span className="mono-label text-muted">zekerheid {b.confidence}</span>
+                    <span className="mono-label">zekerheid {b.confidence}</span>
                   )}
                 </span>
                 {b.evidence_quote && (
                   <span className="text-sm text-secondary">&ldquo;{b.evidence_quote}&rdquo;</span>
                 )}
                 {b.evidence_url && (
-                  <span className="mono-label break-url text-muted">{b.evidence_url}</span>
+                  <span className="mono-label break-url">{b.evidence_url}</span>
                 )}
               </li>
             ))}
@@ -332,7 +332,7 @@ export default async function AdminPage({
                 <span className="mono-label">{o.naam}</span>
                 {o.samenvatting && <p className="text-sm text-secondary">{o.samenvatting}</p>}
                 {o.concurrenten.length > 0 && (
-                  <span className="mono-label text-muted">
+                  <span className="mono-label">
                     concurrenten: {o.concurrenten.join(", ")}
                   </span>
                 )}

@@ -426,7 +426,7 @@ function Cijfer({
       <span className="mono-label">{label}</span>
       <span className="stat-value text-2xl">{waarde}</span>
       {delta === null || delta === 0 ? (
-        <span className="mono-label text-muted">{delta === 0 ? "gelijk" : "geen vergelijking"}</span>
+        <span className="mono-label">{delta === 0 ? "gelijk" : "geen vergelijking"}</span>
       ) : (
         <span className="mono-label" style={{ color: beter ? "var(--trend-up-text)" : "var(--intent-danger-text)" }}>
           <Icon naam={delta > 0 ? "stijging" : "daling"} size={12} />

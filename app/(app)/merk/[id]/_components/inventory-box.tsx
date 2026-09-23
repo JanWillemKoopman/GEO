@@ -216,7 +216,7 @@ export function InventoryBox({
           type="button"
           onClick={() => void plan("meer")}
           disabled={wacht}
-          className="btn-outline disabled:opacity-60"
+          className="btn-outline"
         >
           {wacht ? "Bezig…" : "Meer pagina's lezen"}
         </button>
@@ -225,7 +225,7 @@ export function InventoryBox({
             type="button"
             onClick={() => setBevestigOpnieuw(true)}
             disabled={wacht}
-            className="btn-outline disabled:opacity-60"
+            className="btn-outline"
           >
             Opnieuw crawlen
           </button>

@@ -112,7 +112,7 @@ export function OfferingsPanel({
           <ConfidenceChip confidence={confidence} />
         </span>
         {offerings.length > 0 && (
-          <span className="mono-label text-muted">
+          <span className="mono-label">
             {offerings.length} onderdelen
           </span>
         )}

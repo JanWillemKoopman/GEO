@@ -803,6 +803,25 @@
   --ease-out: var(--ease-out);
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   DE TWEE LAGEN (23 september 2026)
+
+   Alles hieronder stond tot vandaag BUITEN een cascadelaag, en Tailwind v4 zet
+   zijn eigen hulpklassen wél in een laag (`@layer utilities`). CSS buiten een
+   laag wint altijd van CSS erin, ongeacht de specificiteit. Het gevolg was
+   stil en breed: `* { border-color }` hieronder won van elke `border-[...]` in
+   een scherm (126 keer: elke waarschuwingsrand en elke scheidingslijn werd
+   dezelfde lichte rand), en `.card`, `.field` en `.chip` wonnen van `p-3`,
+   `w-auto` en `rounded-full` (het clusterfilter werd vol breed, de stapbolletjes
+   van de Sales-procesbalk werden vierkantjes). `.card.empty-state` verderop is
+   een lapmiddel dat uit precies deze fout voortkwam.
+
+   Nu: de basis in `@layer base`, de primitieven in `@layer components`. Een
+   hulpklasse in een scherm wint dus weer van de basisstijl, zoals Tailwind dat
+   bedoelt. De inhoud is niet opnieuw ingesprongen, om de geschiedenis van dit
+   bestand leesbaar te houden. */
+@layer base {
+
 /* ── Base ─────────────────────────────────────────────────────────────────── */
 
 * {
@@ -934,6 +953,14 @@ table {
    de marketingsite; de Nova-werkomgeving heeft een vlak vlak. Op een scherm met
    twaalf kaarten vecht een raster met de inhoud. */
 
+/* Vinkje en keuzerondje in de kleur van een geselecteerde staat (§2.8): zwart
+   in de lichte stand, wit in de donkere. Zonder deze regel tekent de browser
+   ze in zijn eigen blauw, een kleur die in dit hele systeem niet bestaat. */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--interactive-selected);
+}
+
 /* Focus is functioneel, geen decoratie: de gloed is overal weg BEHALVE hier.
    Zonder zichtbare focus is de app niet met een toetsenbord te bedienen.
 
@@ -963,6 +990,10 @@ table {
 .thema-wisselt *::after {
   transition: none !important;
 }
+
+} /* einde @layer base */
+
+@layer components {
 
 /* ── Herbruikbare primitieven ──────────────────────────────────────────────
    Gebruik deze, nooit een eigen tint of eigen maat. `docs/ux-design.md` regel 7
@@ -2587,7 +2618,11 @@ textarea.field {
 .chip-select:active:not(:disabled) {
   background-color: var(--interactive-pressed);
 }
-.chip-select[aria-pressed="true"] {
+/* `aria-current` naast `aria-pressed`: dezelfde chip dient ook als
+   plaatsaanduiding (de hoofdstukbalk op een telefoon, `section-rail.tsx`),
+   en daar is "je bent hier" de juiste betekenis en niet "aan". */
+.chip-select[aria-pressed="true"],
+.chip-select[aria-current]:not([aria-current="false"]) {
   border-color: var(--border-selected);
   color: var(--text-primary);
 }
@@ -2915,6 +2950,37 @@ textarea.field {
     animation: modal-sheet-in var(--duration-slow) var(--ease-out);
   }
 }
+/* De omhulling rond het paneel (`components/dialog.tsx`). Onder 768 pixels
+   geen lucht rondom, zodat het blad van onderen echt tegen de onderrand ligt;
+   daarboven gecentreerd met 16 pixels marge. */
+.dialoog {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+@media (min-width: 768px) {
+  .dialoog {
+    align-items: center;
+    padding: 16px;
+  }
+}
+/* GEMETEN bij OKX: op een telefoon staat de hoofdactie bovenaan
+   (`column-reverse`), op een groter scherm rechts naast de uitweg. */
+.dialoog-knoppen {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  padding-top: 4px;
+}
+@media (min-width: 768px) {
+  .dialoog-knoppen {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+}
 @keyframes modal-sheet-in {
   from {
     opacity: 0;
@@ -2994,9 +3060,83 @@ textarea.field {
   color: var(--text-primary);
 }
 .menu-item[aria-selected="true"],
+.menu-item[aria-checked="true"],
 .menu-item[data-gekozen] {
   background-color: var(--interactive-hover);
   color: var(--text-primary);
+}
+.menu-item:active:not(:disabled) {
+  background-color: var(--interactive-pressed);
+}
+/* Binnen het vlak en niet eromheen: de regel loopt tot de rand, dus een ring
+   erbuiten zou door `overflow: hidden` van het menu worden afgesneden. */
+.menu-item:focus-visible {
+  outline: var(--border-width-sm) solid var(--border-focus);
+  outline-offset: -2px;
+}
+.menu-item:disabled {
+  color: var(--text-disabled);
+  background-color: transparent;
+  cursor: not-allowed;
+}
+
+/* ── De rest van het menu (23 september 2026) ───────────────────────────────
+   Vijf menu's (merkkiezer, accountmenu, twee clustermenu's, het planmenu)
+   bouwden hun regels elk zelf: afgeronde regels van 34 tot 36 pixels met
+   padding eromheen, twee verschillende hovertinten, en drie van de vijf zetten
+   het vlak op 12 pixels radius met de zwaarste schaduw in plaats van de 8 en
+   `--shadow-lg` hierboven. Deze klassen zijn wat die menu's gemeen hebben. */
+
+/* Een regel met twee regels tekst: een merknaam met de URL eronder. */
+.menu-item-dubbel {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  height: auto;
+  min-height: 36px;
+  padding-block: 8px;
+}
+/* Een handeling die iets weggooit. Kleur plus het woord zelf, nooit kleur
+   alleen (§11 regel 4). */
+.menu-item-gevaar {
+  color: var(--intent-danger-content);
+}
+.menu-item-gevaar:hover {
+  color: var(--intent-danger-content);
+}
+/* De kop boven een groep regels. */
+.menu-kop {
+  display: block;
+  padding: 8px 12px 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 0.9375rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+/* Iets wat geen regel is maar er wel in staat: het e-mailadres boven het
+   accountmenu, het zoekveld boven de merkenlijst. */
+.menu-sectie {
+  padding: 8px 12px;
+}
+.menu-scheiding {
+  display: block;
+  margin-block: 4px;
+  border-top: var(--border-width-xs) solid var(--line-muted);
+}
+
+/* ── Het uitlegvenster (`InfoHint`) ─────────────────────────────────────────
+   Hetzelfde zwevende vlak als een menu, maar met tekst in plaats van regels. */
+.popover {
+  padding: 12px;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.3125rem;
+  color: var(--text-secondary);
+  overflow-y: visible;
+  max-height: none;
 }
 
 /* ── Het bolletje bij "openstaande vragen" (28 augustus 2026) ───────────────
@@ -3025,6 +3165,38 @@ textarea.field {
   }
   to {
     background-color: var(--intent-growth-solid);
+  }
+}
+
+/* ── Het bolletje "er gebeurt nu iets" (23 september 2026) ──────────────────
+   Stond in 9 bestanden (statuslabel "actie nodig", de hoofdstukbalk, "werk in
+   uitvoering", drie plekken op de contentpagina) maar had sinds de
+   OKX-omzetting geen definitie meer: alleen de regel die de animatie uitzet
+   bleef over, en een span zonder maat is onzichtbaar. Teruggezet volgens de
+   belofte die `.vraag-dot` hierboven al beschrijft: een ring die uitdijt, dus
+   een andere beweging dan het trage ademen van "er wacht iets op jou".
+
+   Succesgroen en niet het accent: "loopt" is geen AI-uitkomst en geen
+   hoofdactie, en het accent hoort op hooguit 1% van het scherm (§2.4). */
+.live-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background-color: var(--intent-success-solid);
+  animation: live-puls 1.6s var(--ease-out) infinite;
+}
+.live-dot-sm {
+  width: 6px;
+  height: 6px;
+}
+@keyframes live-puls {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--intent-success-solid) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 6px transparent;
   }
 }
 
@@ -3553,3 +3725,5 @@ textarea.field {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+} /* einde @layer components */

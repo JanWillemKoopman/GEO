@@ -5,6 +5,7 @@ import { InfoHint } from "@/components/info-hint";
 import { ErrorNotice, problemFromResponse, networkProblem } from "@/components/error-notice";
 import type { UserFacingError } from "@/lib/errors";
 import type { Entity } from "@/lib/types/database";
+import { Icon } from "@/components/icon";
 
 /**
  * Concurrenten beheren (optimalisatie.md 2.7).
@@ -360,7 +361,8 @@ function AddEntityForm({ onAdd }: { onAdd: (name: string) => void }) {
         aria-label="Concurrent toevoegen"
       />
       <button type="submit" className="btn-outline shrink-0">
-        + Toevoegen
+        <Icon naam="toevoegen" size={18} />
+        Toevoegen
       </button>
     </form>
   );

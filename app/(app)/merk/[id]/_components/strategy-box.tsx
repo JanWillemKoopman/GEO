@@ -213,7 +213,7 @@ export function StrategyBox({
       <div className="flex flex-col gap-1.5">
         <button
           type="button"
-          className="btn-primary w-fit disabled:opacity-60"
+          className="btn-primary w-fit"
           disabled={wacht}
           onClick={() => void save()}
         >

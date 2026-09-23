@@ -11,6 +11,7 @@ import {
   volumeBandOf,
   type VolumeBand,
 } from "@/lib/pipeline/volume";
+import { Icon } from "@/components/icon";
 
 /** Wat de klant per prompt mag wijzigen. */
 type PromptPatch = Partial<Pick<Prompt, "text" | "category" | "active" | "volume_band">>;
@@ -288,7 +289,8 @@ function AddPromptForm({ category, onAdd }: { category: string; onAdd: (text: st
         placeholder={`Nieuwe vraag in "${category}"…`}
       />
       <button type="submit" className="btn-outline shrink-0">
-        + Toevoegen
+        <Icon naam="toevoegen" size={18} />
+        Toevoegen
       </button>
     </form>
   );

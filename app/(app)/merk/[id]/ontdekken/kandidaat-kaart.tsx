@@ -132,10 +132,10 @@ export function KandidaatKaart({
           <table className="mt-2 w-full text-sm">
             <thead>
               <tr className="text-left">
-                <th className="mono-label py-1 pr-3 font-normal">Zoekterm</th>
-                <th className="mono-label py-1 pr-3 text-right font-normal">Per maand</th>
-                <th className="mono-label py-1 pr-3 text-right font-normal">Jij</th>
-                <th className="mono-label py-1 font-normal">Concurrent</th>
+                <th className="mono-label py-1 pr-3">Zoekterm</th>
+                <th className="mono-label py-1 pr-3 text-right">Per maand</th>
+                <th className="mono-label py-1 pr-3 text-right">Jij</th>
+                <th className="mono-label py-1">Concurrent</th>
               </tr>
             </thead>
             <tbody>

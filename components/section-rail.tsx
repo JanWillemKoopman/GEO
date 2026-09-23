@@ -76,11 +76,11 @@ export function SectionRail({ sections }: { sections: RailSection[] }) {
               key={s.id}
               href={`#${s.id}`}
               aria-current={on ? "true" : undefined}
-              className={`chip shrink-0 ${on ? "" : "chip-neutral"}`}
+              className="chip-select shrink-0"
             >
-              <span style={{ opacity: 0.7 }}>{String(i + 1).padStart(2, "0")}</span>
+              <span className="tabular text-[var(--text-subtle)]">{String(i + 1).padStart(2, "0")}</span>
               {s.label}
-              {s.live && <span className="live-dot" style={{ width: 6, height: 6 }} />}
+              {s.live && <span className="live-dot live-dot-sm" />}
             </a>
           );
         })}
@@ -110,7 +110,7 @@ function RailItem({
     >
       <span
         className="mono-label"
-        style={{ color: active ? "var(--text-primary)" : "var(--text-muted)", fontSize: "0.68rem" }}
+        style={{ color: active ? "var(--text-primary)" : "var(--text-tertiary)" }}
       >
         {String(index + 1).padStart(2, "0")}
       </span>
@@ -122,8 +122,8 @@ function RailItem({
           {section.label}
         </span>
         {section.badge && (
-          <span className="mono-label flex items-center gap-1.5" style={{ fontSize: "0.6rem" }}>
-            {section.live && <span className="live-dot" style={{ width: 6, height: 6 }} />}
+          <span className="mono-label flex items-center gap-1.5">
+            {section.live && <span className="live-dot live-dot-sm" />}
             {section.badge}
           </span>
         )}

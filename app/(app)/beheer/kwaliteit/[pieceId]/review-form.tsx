@@ -139,7 +139,7 @@ export function ReviewForm({
             <select
               name={maat.veld}
               defaultValue={String(bestaand?.[maat.veld] ?? "")}
-              className="input max-w-xs"
+              className="field field-select max-w-xs"
             >
               <option value="">niet beoordeeld</option>
               {[1, 2, 3, 4, 5].map((n) => (
@@ -157,7 +157,7 @@ export function ReviewForm({
         <select
           name="would_send"
           defaultValue={bestaand?.would_send === true ? "ja" : bestaand?.would_send === false ? "nee" : ""}
-          className="input max-w-xs"
+          className="field field-select max-w-xs"
         >
           <option value="">niet beoordeeld</option>
           <option value="ja">Ja</option>
@@ -170,7 +170,7 @@ export function ReviewForm({
         <select
           name="correction_effort"
           defaultValue={bestaand?.correction_effort ?? ""}
-          className="input max-w-xs"
+          className="field field-select max-w-xs"
         >
           <option value="">niet beoordeeld</option>
           {CORRECTIE.map((c) => (
@@ -186,14 +186,14 @@ export function ReviewForm({
         <input
           name="first_thing_to_change"
           defaultValue={bestaand?.first_thing_to_change ?? ""}
-          className="input"
+          className="field"
           placeholder="Eén punt, het punt dat het meeste oplevert."
         />
       </label>
 
       <label className="flex flex-col gap-1">
         <span className="text-sm font-medium">Verdere opmerkingen</span>
-        <textarea name="notes" defaultValue={bestaand?.notes ?? ""} rows={3} className="input" />
+        <textarea name="notes" defaultValue={bestaand?.notes ?? ""} rows={3} className="field" />
       </label>
 
       <label className="flex flex-col gap-1">
@@ -205,7 +205,7 @@ export function ReviewForm({
         <input
           name="benchmark_set"
           defaultValue={bestaand?.benchmark_set ?? ""}
-          className="input max-w-xs"
+          className="field max-w-xs"
         />
       </label>
 
@@ -219,18 +219,18 @@ export function ReviewForm({
           name="reference_markdown"
           defaultValue={bestaand?.reference_markdown ?? ""}
           rows={8}
-          className="input font-mono text-xs"
+          className="field font-mono text-xs"
         />
         <input
           name="reference_source"
           defaultValue={bestaand?.reference_source ?? ""}
-          className="input mt-2 max-w-xs"
+          className="field mt-2 max-w-xs"
           placeholder="Waar komt deze versie vandaan?"
         />
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" className="btn btn-primary" disabled={bezig}>
+        <button type="submit" className="btn-primary" disabled={bezig}>
           {bezig ? "Bezig..." : "Beoordeling opslaan"}
         </button>
         {melding && <span className="text-sm text-secondary">{melding}</span>}

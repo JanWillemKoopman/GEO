@@ -80,7 +80,7 @@ export function ConfirmBar({
           <button
             onClick={() => void confirm()}
             disabled={pending}
-            className="btn-primary btn-lg w-full disabled:opacity-60 sm:w-auto"
+            className="btn-primary btn-lg w-full sm:w-auto"
           >
             {pending ? "Meting starten…" : "Bevestig en start de meting"}
           </button>

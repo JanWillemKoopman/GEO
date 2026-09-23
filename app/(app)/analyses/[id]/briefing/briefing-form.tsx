@@ -355,7 +355,7 @@ export function BriefingForm({
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
-            className="btn-primary disabled:opacity-60"
+            className="btn-primary"
             onClick={() => submit("write")}
             disabled={busy !== null}
           >
@@ -363,7 +363,7 @@ export function BriefingForm({
           </button>
           <button
             type="button"
-            className="btn-outline disabled:opacity-60"
+            className="btn-outline"
             onClick={() => submit("save")}
             disabled={busy !== null}
           >

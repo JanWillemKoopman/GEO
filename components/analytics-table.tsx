@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Icon } from "@/components/icon";
 
 /**
  * De ene tabel voor alle vier de Analytics-schermen (plan
@@ -142,7 +143,7 @@ export function AnalyticsTable<T>({
                     className="inline-flex items-center gap-1 hover:text-[var(--text-primary)]"
                   >
                     {col.header}
-                    {sortKey === col.key && <span aria-hidden>{sortDir === "asc" ? "↑" : "↓"}</span>}
+                    {sortKey === col.key && <Icon naam={sortDir === "asc" ? "omhoog" : "omlaag"} size={12} />}
                   </button>
                 ) : (
                   col.header
@@ -196,7 +197,7 @@ function GroupBody<T>({
         <tr>
           <td
             colSpan={columns.length}
-            className="mono-label bg-[var(--bg-elevated)] py-1.5 pr-4 pl-2 text-muted"
+            className="mono-label bg-[var(--bg-elevated)] py-1.5 pr-4 pl-2"
           >
             {groep.label} · {rijen.length === 1 ? "1 rij" : `${rijen.length} rijen`}
           </td>

@@ -11832,3 +11832,33 @@ De keuzes leven alleen in het scherm: ververs je voordat je verstuurt of opslaat
 opnieuw. Alleen "laat staan", opslaan en de nieuwe versie gaan naar de server. Bekeken in de
 browser met voorbeelddata (desktop en telefoon); nog niet op productie met een echte pagina.
 Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen.
+
+## 23 september 2026 (6): UI-audit, consistentie na de OKX-omzetting
+
+Een audit van de hele interface tegen `docs/designsystem.md` vond dat de basis klopt (348 knoppen en
+473 chips via de gedeelde klassen, één losse kleurcode in de hele app) maar dat de laag erboven per
+scherm opnieuw gebouwd was. De eigenaar gaf akkoord op alle verbeteringen. Deze alinea's leggen per
+stap vast wat er veranderde en waarom.
+
+**Stap 1: de cascadelagen.** Alles in `app/globals.css` na de tokens stond buiten een cascadelaag,
+terwijl Tailwind v4 zijn hulpklassen in `@layer utilities` zet. CSS buiten een laag wint altijd. Zo
+won `* { border-color }` van elke `border-[...]` in een scherm (126 keer: elke waarschuwingsrand en
+elke scheidingslijn werd dezelfde lichte rand), en wonnen `.card`, `.field` en `.chip` van `p-3`,
+`w-auto` en `rounded-full` (het statusfilter op Clusters werd vol breed, de stapbolletjes van de
+Sales-procesbalk werden vierkantjes). De basis staat nu in `@layer base`, de primitieven in
+`@layer components`. In dezelfde stap weg: 29 keer `disabled:opacity-*` op een knop (deed niets, en
+zou na de omzetting dubbel gaan dimmen), 34 keer `text-muted` naast `.mono-label` (één labelkleur)
+en de 12px-rondingen en zwaarste schaduw die drie menu's over `.menu-surface` heen zetten.
+
+**Stap 1, de fouten die nu zichtbaar kapot waren.** `.live-dot` (het bolletje "er gebeurt nu iets",
+9 bestanden) had geen definitie meer en was onzichtbaar; teruggezet als ring die uitdijt, in
+succesgroen. De hoofdstukbalk op een telefoon toonde het actieve hoofdstuk niet (`chip` en
+`chip-neutral` zijn gelijk); nu `.chip-select` met `aria-current`. `type-heading` (kop
+"Verkoopafspraak") en `.input`/`btn` (de kwaliteitsbeoordeling) bestonden niet. Vijf menu's lopen nu
+via `.menu-item`, `.menu-kop`, `.menu-sectie` en `.menu-scheiding`; een gekozen regel krijgt een
+vinkje. Vier dialogen delen `components/dialog.tsx`; het dagvenster van de kalender had een vast
+zwart scrim en geen blad op een telefoon, en de andere drie zweefden op een telefoon 16px boven de
+onderrand. Een gevaarlijke bevestiging is `.btn-danger` (was de hoofdknop met een rode inline-kleur,
+die rood bleef als hij uitgeschakeld was). De lettertekens ✓, !, ↑, ↓, →, + en ? zijn iconen
+geworden; `toevoegen` is nieuw in `lib/icons.ts`. Vinkjes en keuzerondjes staan in de
+selectiekleur in plaats van browserblauw.

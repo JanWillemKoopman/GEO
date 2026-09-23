@@ -49,7 +49,7 @@ export function ContentBriefEditor({ analysisId, initial }: { analysisId: string
         placeholder="bijv. 'Richt de content op sollicitanten die zich voorbereiden op een gesprek…'"
       />
       <div className="flex items-center gap-3">
-        <button onClick={() => void save()} disabled={saving} className="btn-primary disabled:opacity-60">
+        <button onClick={() => void save()} disabled={saving} className="btn-primary">
           {saving ? "Opslaan…" : "Wijzigingen opslaan"}
         </button>
         {saved && (

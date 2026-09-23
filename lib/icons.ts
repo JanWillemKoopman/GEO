@@ -96,6 +96,7 @@ import {
   Orbit,
   PanelLeftClose,
   PanelLeftOpen,
+  Plus,
   Radar,
   RotateCcw,
   RotateCw,
@@ -133,6 +134,7 @@ export type IcoonNaam =
   // ── Bediening ───────────────────────────────────────────────────────────
   | "menu"
   | "sluiten"
+  | "toevoegen"
   | "uitklappen"
   | "inklappen"
   | "openen"
@@ -246,6 +248,9 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // ── BEDIENING ───────────────────────────────────────────────────────────
   menu: Menu,
   sluiten: X,
+  // Iets nieuws aanmaken ("Nieuw merk", "Nieuw label maken"). Stond er tot
+  // 23 september 2026 als een los plusteken in de tekst, tegen §11 regel 9.
+  toevoegen: Plus,
   // De zijbalk klapt in en uit. Het paneel-icoon toont de handeling én de
   // richting, waar « en » alleen richting toonden.
   uitklappen: PanelLeftOpen,

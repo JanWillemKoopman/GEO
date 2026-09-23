@@ -126,7 +126,7 @@ export function DossierBox({ profileId }: { profileId: string }) {
           type="button"
           onClick={() => void verwerk()}
           disabled={busy || text.trim().length < 40}
-          className="btn-outline disabled:opacity-60"
+          className="btn-outline"
         >
           {busy ? "ORBIT ENGINE leest…" : "Haal de feiten eruit"}
         </button>

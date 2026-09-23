@@ -577,7 +577,7 @@ export function PlanView({
                     de toelichting bij `@theme inline` in dat bestand; die val is inmiddels
                     weg.) */}
                 <h2 className="type-body-emphasis">In te plannen content</h2>
-                <span className="mono-label text-muted">
+                <span className="mono-label">
                   {zichtbareVoorraad.length === backlog.length
                     ? `${backlog.length}`
                     : `${zichtbareVoorraad.length} van ${backlog.length}`}
@@ -785,7 +785,7 @@ export function PlanView({
                       {/* Besluit 7: "maand 4 sinds de start", nooit "van 12". */}
                       Maand {month.month_number}
                     </button>
-                    {kalender && <span className="mono-label text-muted">{kalender}</span>}
+                    {kalender && <span className="mono-label">{kalender}</span>}
                     {lopend && <span className="chip chip-info">Deze maand</span>}
                     {/* ⚠️ Bij een lege, dichtgeklapte maand geen chip. "Concept"
                         was daar het zwaarste element van de regel terwijl het
@@ -1094,7 +1094,11 @@ export function PlanView({
                 <ul className="mt-1 flex flex-col gap-0.5">
                   {bulkSelectie.mee.map((p) => (
                     <li key={p.id} className="truncate text-secondary">
-                      {p.title} <span className="text-muted">→ {p.url}</span>
+                      {p.title}{" "}
+                      <span className="inline-flex items-center gap-1 text-muted">
+                        <Icon naam="naar" size={12} />
+                        {p.url}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -1263,7 +1267,7 @@ function RijMenu({
           if (!open) meten();
           setOpen((o) => !o);
         }}
-        className="rounded-[var(--radius-xl)] p-1.5 text-muted transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] disabled:opacity-40"
+        className="icon-btn"
       >
         <Icon naam="meer" size={16} />
       </button>
@@ -1275,13 +1279,11 @@ function RijMenu({
             role="menu"
             /* z-40 is de laag van uitklapmenu's uit de ladder in `docs/ux-design.md`:
                boven de navigatiebalken, onder de dialogen. */
-            className="menu-surface fixed z-40 flex w-60 flex-col overflow-y-auto rounded-[var(--radius-xl)] py-1"
+            className="menu-surface fixed z-40 flex w-60 flex-col"
             style={{
               top: plek.top,
               right: plek.right,
               maxHeight: plek.hoogte,
-              border: "var(--border-width-xs) solid var(--border-subtle)",
-              boxShadow: "var(--shadow-overlay)",
             }}
           >
             {children(() => setOpen(false))}
@@ -1306,8 +1308,7 @@ function MenuKnop({
       type="button"
       role="menuitem"
       onClick={onClick}
-      className="w-full px-3 py-1.5 text-left text-sm transition-colors hover:bg-[var(--bg-muted)]"
-      style={danger ? { color: "var(--intent-danger-text)" } : undefined}
+      className={`menu-item${danger ? " menu-item-gevaar" : ""}`}
     >
       {children}
     </button>
@@ -1315,11 +1316,11 @@ function MenuKnop({
 }
 
 function MenuKop({ children }: { children: React.ReactNode }) {
-  return <span className="mono-label px-3 pb-1 pt-2 text-muted">{children}</span>;
+  return <span className="menu-kop">{children}</span>;
 }
 
 function MenuScheiding() {
-  return <span className="my-1 border-t" style={{ borderColor: "var(--border-subtle)" }} />;
+  return <span className="menu-scheiding" aria-hidden />;
 }
 
 /** Eén kans in de voorraad: titel, herkomst en cijfer, meer niet. */

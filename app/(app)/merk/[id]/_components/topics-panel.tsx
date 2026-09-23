@@ -234,7 +234,7 @@ export function TopicsPanel({
         {t.rationale && <p className="text-sm text-secondary">{t.rationale}</p>}
 
         {t.origin && (
-          <span className="mono-label text-muted">
+          <span className="mono-label">
             {t.origin === "aanbod_en_gesprek" ? "Uit het aanbod en het gesprek" : "Uit het aanbod"}
           </span>
         )}
@@ -324,7 +324,7 @@ export function TopicsPanel({
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                className="btn-actie btn-sm disabled:opacity-50"
+                className="btn-actie btn-sm"
                 disabled={bezig || !checkMix(mix).ok}
                 onClick={() => void start(t.id, mix)}
               >
@@ -403,7 +403,7 @@ export function TopicsPanel({
             {!t.analysis_id && t.stage !== "concept" && (
               <button
                 type="button"
-                className="btn-actie btn-sm disabled:opacity-50"
+                className="btn-actie btn-sm"
                 disabled={bezig}
                 onClick={() => void start(t.id)}
               >
@@ -416,7 +416,7 @@ export function TopicsPanel({
             {!t.analysis_id && t.stage !== "concept" && mixFor !== t.id && (
               <button
                 type="button"
-                className="btn-outline btn-sm disabled:opacity-50"
+                className="btn-outline btn-sm"
                 disabled={bezig}
                 onClick={() => {
                   // Werkpakket B punt 2: een voorzet op de omvang van dit
@@ -437,7 +437,7 @@ export function TopicsPanel({
             )}
             <button
               type="button"
-              className="btn-outline btn-sm disabled:opacity-50"
+              className="btn-outline btn-sm"
               disabled={bezig}
               onClick={() => {
                 setBriefDraft({
@@ -455,7 +455,7 @@ export function TopicsPanel({
             {t.status !== "afgewezen" && !t.analysis_id && (
               <button
                 type="button"
-                className="btn-outline btn-sm disabled:opacity-50"
+                className="btn-outline btn-sm"
                 disabled={bezig}
                 onClick={() => void patch(t.id, { status: "afgewezen" })}
               >
@@ -465,7 +465,7 @@ export function TopicsPanel({
             {t.status === "afgewezen" && (
               <button
                 type="button"
-                className="btn-outline btn-sm disabled:opacity-50"
+                className="btn-outline btn-sm"
                 disabled={bezig}
                 onClick={() => void patch(t.id, { status: "voorgesteld" })}
               >

@@ -193,7 +193,7 @@ export function CreatePlanBox({
             onChange={(e) => setNote(e.target.value)}
             placeholder="Vanaf november openen we in Breda"
           />
-          <span className="mono-label text-muted" style={{ fontSize: "0.65rem" }}>
+          <span className="mono-label" style={{ fontSize: "0.65rem" }}>
             {note.length}/{MAX_STRATEGY_NOTE_LENGTH}
           </span>
           <button

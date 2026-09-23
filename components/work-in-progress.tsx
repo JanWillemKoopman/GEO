@@ -123,7 +123,7 @@ export function WorkInProgress({
               {step.nietsGevonden && (
                 <span className="chip chip-warning">niets gevonden</span>
               )}
-              {i === activeIndex && <span className="live-dot" style={{ marginLeft: "auto" }} />}
+              {i === activeIndex && <span className="live-dot ml-auto" />}
             </li>
           ))}
         </ul>

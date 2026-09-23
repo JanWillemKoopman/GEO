@@ -65,7 +65,7 @@ export function PackageBox({
   if (!accountId) {
     return (
       <section className="card flex flex-col gap-2">
-        <h2 className="type-heading">Verkoopafspraak</h2>
+        <h2 className="type-section">Verkoopafspraak</h2>
         <p className="text-sm text-secondary">
           Dit merk hangt nog aan geen enkel account. Koppel het hierboven aan een klant, dan kun je
           het pakket en de startdatum vastleggen.
@@ -113,7 +113,7 @@ export function PackageBox({
   return (
     <section className="card flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <h2 className="type-heading">Verkoopafspraak</h2>
+        <h2 className="type-section">Verkoopafspraak</h2>
         <p className="text-sm text-secondary">
           Wat er met {accountName ?? "deze klant"} is afgesproken. Alleen jij stelt dit in; de klant
           ziet het terug in zijn contentplan en op zijn instellingenscherm.
@@ -171,7 +171,7 @@ export function PackageBox({
       <div className="flex items-center gap-3">
         <button
           type="button"
-          className="btn-primary w-fit disabled:opacity-60"
+          className="btn-primary w-fit"
           onClick={() => void bewaar()}
           disabled={busy || !gewijzigd}
         >

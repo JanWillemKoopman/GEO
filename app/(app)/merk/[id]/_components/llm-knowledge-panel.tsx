@@ -58,7 +58,7 @@ export function LlmKnowledgePanel({ rows }: { rows: ProfileLlmBaseline[] }) {
     <div className="card flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="mono-label">Wat AI-assistenten over je weten</span>
-        <span className="mono-label text-muted">
+        <span className="mono-label">
           {engines.map(engineLabel).join(" · ")}
         </span>
       </div>
@@ -200,7 +200,7 @@ export function LlmKnowledgePanel({ rows }: { rows: ProfileLlmBaseline[] }) {
                       {(r.raw_response ?? "").length > 900 ? "…" : ""}
                     </p>
                     {!r.web_search && (
-                      <span className="mono-label text-muted">
+                      <span className="mono-label">
                         zonder zoekfunctie gemeten
                       </span>
                     )}

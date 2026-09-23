@@ -52,7 +52,7 @@ export function ClusterVisibilityGrid({ clusters }: { clusters: ClusterVisibilit
                 <Balk key={i} waarde={p.waarde} marge={p.marge} />
               ))}
               {c.volgendeMeetronde && (
-                <span className="mono-label text-muted">
+                <span className="mono-label">
                   volgende meting rond{" "}
                   {new Date(c.volgendeMeetronde).toLocaleDateString("nl-NL", {
                     day: "numeric",

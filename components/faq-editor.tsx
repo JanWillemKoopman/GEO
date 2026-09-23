@@ -112,7 +112,7 @@ export function FaqEditor({
         type="button"
         onClick={add}
         disabled={items.length >= maxItems}
-        className="btn-outline w-fit disabled:opacity-50"
+        className="btn-outline w-fit"
       >
         + Vraag toevoegen
       </button>

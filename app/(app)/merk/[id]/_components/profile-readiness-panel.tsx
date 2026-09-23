@@ -148,7 +148,7 @@ export function ProfileReadinessPanel({
             <span className="mono-label">ORBIT ENGINE onderzoekt · live</span>
           </div>
           {data?.etaText && (
-            <span className="mono-label text-muted">{data.etaText}</span>
+            <span className="mono-label">{data.etaText}</span>
           )}
         </div>
 
@@ -208,7 +208,7 @@ export function ProfileReadinessPanel({
         <span className="mono-label">
           {readiness.compleet ? "Dossier compleet" : "Dossier niet compleet"}
         </span>
-        <span className="mono-label text-muted">
+        <span className="mono-label">
           {readiness.klaarAantal} van de {readiness.nodigAantal}
         </span>
       </div>

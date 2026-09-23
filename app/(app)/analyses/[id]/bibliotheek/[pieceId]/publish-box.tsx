@@ -207,7 +207,7 @@ function NogNiet({
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            className="btn-primary btn-sm disabled:opacity-60"
+            className="btn-primary btn-sm"
             disabled={bezig}
             onClick={onPubliceer}
           >

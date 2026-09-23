@@ -9,6 +9,7 @@ import { contentHref } from "@/lib/plan-overview";
 import { calendarDagen, type CalendarDag, type CalendarPagina } from "@/lib/plan-calendar";
 import type { TopicWritingState } from "@/lib/plan-writing";
 import type { ContentPlan, PlanMonth, PlannedPage } from "@/lib/types/database";
+import { Dialog } from "@/components/dialog";
 
 /**
  * Het contentplan als kalender, twaalf maanden naast elkaar (blok A punt 6,
@@ -66,7 +67,7 @@ export function PlanCalendarView({
           <div key={maand.id} className="card flex flex-col gap-2">
             <div className="flex items-baseline justify-between gap-2">
               <span className="text-sm font-medium">{maandLabel}</span>
-              <span className="mono-label text-muted">{aantal}</span>
+              <span className="mono-label">{aantal}</span>
             </div>
             <MaandGrid
               dagen={dagen}
@@ -104,21 +105,14 @@ function DagPopup({
   onSluiten: () => void;
 }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={onSluiten}
-    >
-      <div
-        className="card flex w-full max-w-sm flex-col gap-3"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Dialog label={gekozenDag.label} onSluit={onSluiten}>
         <div className="flex items-center justify-between gap-2">
-          <h3 className="type-body-emphasis">{gekozenDag.label}</h3>
+          <h2 className="type-title">{gekozenDag.label}</h2>
           <button
             type="button"
             onClick={onSluiten}
-            className="btn-ghost btn-icon btn-sm btn-rect"
-            aria-label="Popup sluiten"
+            className="icon-btn"
+            aria-label="Venster sluiten"
           >
             <Icon naam="sluiten" size={16} />
           </button>
@@ -146,8 +140,7 @@ function DagPopup({
             );
           })}
         </ul>
-      </div>
-    </div>
+    </Dialog>
   );
 }
 
