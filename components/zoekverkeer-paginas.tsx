@@ -5,6 +5,8 @@ import { AnalyticsTable, type AnalyticsColumn } from "@/components/analytics-tab
 import { Drawer } from "@/components/drawer";
 import { ExternalLink } from "@/components/external-link";
 import type { ImpactVerdict } from "@/lib/types/database";
+import type { ImpactUitleg } from "@/lib/impact-uitleg";
+import { IMPACT_WAVES } from "@/lib/pipeline/impact-math";
 
 /**
  * De tabel van onze eigen pagina's op Zoekverkeer (plan analytics-herontwerp.md,
@@ -19,6 +21,8 @@ export interface OnzePaginaRij {
   position: number | null;
   type: string | null;
   effectOpAi: ImpactVerdict | null;
+  /** De cijfers achter het oordeel, of `null` zolang er niet nagemeten is. */
+  effectUitleg: ImpactUitleg | null;
   /** Chronologisch, oudste eerst, vanaf de publicatiedatum. */
   sindsPublicatie: { day: string; clicks: number }[];
   publishedAt: string | null;
@@ -92,11 +96,14 @@ export function ZoekverkeerPaginas({ rows }: { rows: OnzePaginaRij[] }) {
     {
       key: "effect",
       header: "Effect op AI",
-      width: "9rem",
+      width: "11rem",
       sortValue: (r) => r.effectOpAi,
       render: (r) =>
         r.effectOpAi ? (
-          <span className={`chip ${VERDICT_LABEL[r.effectOpAi].chip}`}>{VERDICT_LABEL[r.effectOpAi].text}</span>
+          <span className="flex flex-col items-start gap-0.5">
+            <span className={`chip ${VERDICT_LABEL[r.effectOpAi].chip}`}>{VERDICT_LABEL[r.effectOpAi].text}</span>
+            {r.effectUitleg && <span className="type-caption text-muted">{r.effectUitleg.kort}</span>}
+          </span>
         ) : (
           <span className="chip chip-neutral">nog niet gemeten</span>
         ),
@@ -141,8 +148,49 @@ export function ZoekverkeerPaginas({ rows }: { rows: OnzePaginaRij[] }) {
   );
 }
 
-/** De inhoud van het detailpaneel (plan V8): het verloop sinds publicatie. */
+/**
+ * De inhoud van het detailpaneel (plan V8): het effect op AI met de cijfers
+ * erachter, en het verloop van de klikken sinds publicatie.
+ */
 function PaginaDetail({ rij }: { rij: OnzePaginaRij }) {
+  return (
+    <div className="flex flex-col gap-6">
+      <EffectDetail rij={rij} />
+      <KlikkenDetail rij={rij} />
+    </div>
+  );
+}
+
+/**
+ * Het oordeel mét de vergelijking eronder. Zonder die vergelijking is
+ * "gestegen" de losse uitspraak die `lib/pipeline/impact.ts` wil vermijden:
+ * pas naast de controlegroep zegt een stijging iets over de pagina.
+ */
+function EffectDetail({ rij }: { rij: OnzePaginaRij }) {
+  const u = rij.effectUitleg;
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="mono-label">Effect op AI</span>
+      {rij.effectOpAi && u ? (
+        <>
+          <span>
+            <span className={`chip ${VERDICT_LABEL[rij.effectOpAi].chip}`}>{VERDICT_LABEL[rij.effectOpAi].text}</span>
+          </span>
+          <p>{u.doel}</p>
+          {u.controle && <p>{u.controle}</p>}
+          <p className="text-secondary">{u.conclusie}</p>
+          <span className="type-caption text-muted">{u.moment}</span>
+        </>
+      ) : (
+        <p className="text-secondary">
+          Nog niet nagemeten. Dat gebeurt {IMPACT_WAVES.map((w) => w.days).join(" en ")} dagen na publicatie.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function KlikkenDetail({ rij }: { rij: OnzePaginaRij }) {
   if (rij.sindsPublicatie.length === 0) {
     return <p className="text-secondary">Nog geen klikken gemeten sinds publicatie.</p>;
   }

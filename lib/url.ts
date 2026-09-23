@@ -89,6 +89,30 @@ export function isOnBrandDomain(publishedUrl: string, profileUrl: string): boole
   return publishedHost === brandHost || publishedHost.endsWith(`.${brandHost}`);
 }
 
+/**
+ * Stuurde het opgegeven adres door naar een ándere pagina?
+ *
+ * Vergelijkt host plus pad, en negeert wat geen echte afwijking is: `http`
+ * tegenover `https`, `www.` of niet, hoofdletters, een slash aan
+ * het eind, en alles na `?` of `#` (een CMS plakt daar soms trackingcodes
+ * achter bij het doorsturen). Wat overblijft is een ander adres, en dan telt
+ * Zoekverkeer de bezoekers van de echte pagina niet mee, want die koppelt op
+ * het opgegeven adres (`app/(app)/merk/[id]/analytics/zoekverkeer/page.tsx`).
+ *
+ * `false` als een van beide geen leesbaar adres is: onbekend is geen
+ * doorverwijzing (conventie 3).
+ */
+export function isRedirectedElsewhere(requestedUrl: string, finalUrl: string): boolean {
+  // `normalizeUrl` haalt protocol, `www.` en slashes aan het eind weg en zet
+  // alles in kleine letters. Een pad dat alleen in hoofdletters verschilt, is
+  // in de praktijk dezelfde pagina, dus dat telt niet als doorverwijzing.
+  const kern = (u: string): string | null => normalizeUrl(u.trim().split("#")[0].split("?")[0]);
+  const a = kern(requestedUrl);
+  const b = kern(finalUrl);
+  if (!a || !b) return false;
+  return a !== b;
+}
+
 /** Bouwt de auto-gegenereerde analysenaam (abcplan.md §3.4). */
 export function buildAnalysisName(url: string, topic: string | null): string {
   return topic && topic.trim() ? `${url} · ${topic.trim()}` : `${url} (hele site)`;

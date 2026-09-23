@@ -12,7 +12,8 @@ import "server-only";
  * Dus kijken we even. Geen AI-aanroep: dit is één HTTP-verzoek en wat
  * tekstvergelijking.
  */
-import { fetchText, htmlToText } from "@/lib/crawler";
+import { fetchPage, htmlToText } from "@/lib/crawler";
+import { isRedirectedElsewhere } from "@/lib/url";
 
 export interface PublishCheck {
   /** Kon de pagina überhaupt opgehaald worden? */
@@ -23,7 +24,11 @@ export interface PublishCheck {
   textMatchRatio: number;
   /** Staat de gestructureerde data erop? */
   schemaFound: boolean;
-  /** Zijn we op een andere pagina uitgekomen dan opgegeven? */
+  /**
+   * Het adres waar we na eventuele doorverwijzingen echt uitkwamen, of `null`
+   * als de pagina niet te openen was. Wijkt het af van het opgegeven adres,
+   * dan staat dat in `problems`.
+   */
   finalUrl: string | null;
   checkedAt: string;
   /** Wat de klant moet weten, in gewone taal. Leeg = alles in orde. */
@@ -79,9 +84,9 @@ export async function checkPublication(args: {
   schemaJsonLd: string | null;
 }): Promise<PublishCheck> {
   const checkedAt = new Date().toISOString();
-  const html = await fetchText(args.url);
+  const pagina = await fetchPage(args.url);
 
-  if (!html) {
+  if (!pagina) {
     return {
       reachable: false,
       textFound: false,
@@ -96,6 +101,7 @@ export async function checkPublication(args: {
     };
   }
 
+  const { html, finalUrl } = pagina;
   const pageText = normalize(htmlToText(html));
   const sentences = pickSentences(args.bodyMarkdown);
   const found = sentences.filter((s) => pageText.includes(normalize(s))).length;
@@ -117,6 +123,15 @@ export async function checkPublication(args: {
         : `We vinden maar ${Math.round(ratio * 100)}% van onze tekst terug op deze pagina. Mogelijk is er maar een deel geplakt.`,
     );
   }
+  // Bewust een melding en geen blokkade: staat onze tekst op de pagina waar
+  // de link naartoe stuurt, dan staat hij echt live. Maar de link die de klant
+  // opgaf is dan niet het adres van de pagina, en daarop meet Zoekverkeer.
+  if (isRedirectedElsewhere(args.url, finalUrl)) {
+    problems.push(
+      `Deze link stuurt door naar een andere pagina: ${finalUrl}. Klopt dat adres, vul dat dan in. ` +
+        "Anders tellen we de bezoekers van deze pagina niet mee.",
+    );
+  }
   if (args.schemaJsonLd?.trim() && !schemaFound) {
     problems.push(
       "De gestructureerde data (het JSON-LD-blok) staat er nog niet op. Dat is geen verplichting, " +
@@ -129,7 +144,7 @@ export async function checkPublication(args: {
     textFound,
     textMatchRatio: Math.round(ratio * 100) / 100,
     schemaFound,
-    finalUrl: args.url,
+    finalUrl,
     checkedAt,
     problems,
   };
