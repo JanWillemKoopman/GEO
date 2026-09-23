@@ -38,6 +38,8 @@ verwijzing in de code straks nergens meer heen.
 | `css.css`, `docs/nova-i18n.json`, `docs/inspace-app-i18n.json`, `docs/inspace-marketing.txt` | De ruwe brondata achter de Nova/InSpace-vergelijking: Nova's gecompileerde CSS-bundel en de drie tekstcatalogi uit de server-gerenderde loginpagina's | De conclusies eruit staan uitgeschreven in `docs/nova-vs-orbit-engine-proces.md` en `docs/tasks/nova-vergelijking-verbeterpunten.md`, die verder geen ruwe data meer nodig hebben. Verwijderd 21 september 2026, bij de OKX-herontwerpronde |
 | `redesign2026.md` §1 t/m §14 | Het volledige herontwerpplan van Nova naar OKX: de research, het nieuwe design system (§5 t/m §7), de schermspecs (§8), de elf uitvoeringsstappen (§10) en de drie besluiten van de eigenaar (§13, limoen als accent, mobiel een eigen ontwerp, oplevering in stappen) | Gebouwd en op `main`. Het design system zelf staat nu in `docs/designsystem.md`, de mobiele en desktop-indeling in `docs/ux-design.md`. Tientallen componenten citeren nog een paragraafnummer uit dit plan in hun eigen commentaar (bijv. "§8.5", "GEMETEN bij OKX"); dat commentaar blijft staan zoals het geschreven is, want het legt het waarom van die ene regel uit en niet de volledige herkomst. Verwijderd 21 september 2026, toen stap 11 (deze documentatie) klaar was |
 | `tasks/clusters-resultaatscherm-vereenvoudigen.md` A/B/C | De analyse van 16 september 2026 over de dichtheid van het clusterscherm: drie richtingen om de hoofdstukken dunner te maken | Ingehaald. Het scherm zelf is er op 22 september 2026 uit gehaald, zie `tasks/clusterresultaat-zonder-eigen-scherm.md` en de alinea van die datum hieronder. Verwijderd 22 september 2026 |
+| `tasks/bevindingen-verificatie-processtappen-22-september-2026.md` punt 1 en 2 | De twee van de 117 processtappen die op 22 september 2026 niet klopten met de code: de doorverwijzingscontrole bij publiceren deed niets, en de nameting toonde de klant alleen een eindoordeel | Beide gebouwd op 23 september 2026, zie de alinea van die datum onderaan. Verwijderd 23 september 2026 |
+| `tasks/funnelfase-nooit-gevuld.md` | `planned_pages.funnel_stage_id` werd sinds 25 augustus 2026 nergens meer geschreven (0 van 18 pagina's bij Van den Udenhout) | Gerepareerd op 23 september 2026: `syncBacklog()` leidt de fase af uit de doelvragen (`lib/plan-funnel.ts`), zie de alinea van die datum onderaan. Verwijderd 23 september 2026 |
 
 De volledige originelen staan in de git-historie (laatste versie: de commit vóór de
 documentatie-herstructurering).
@@ -11471,3 +11473,61 @@ en voor `cijferVoorBronnen()`/`bronfilterNaarAdres()`/de meervoudige `leesBronfi
 elke wijziging die een uitkomst beïnvloedt krijgt een test). Geen migratie: beide velden bestonden
 al.
 
+## 23 september 2026: vijf open punten voor productie, één lek en vier reparaties
+
+Een doorloop van de documentatie, de tests en de productiedatabase op open bugs leverde vijf punten
+op. Alle vijf zijn opgelost in één ronde.
+
+**1. Iedereen kon het inloggen van een ander blokkeren.** De Supabase-beveiligingsadviseur meldde
+dat `rate_limit_hit()` (migratie 0090) door `anon` aan te roepen was, met alleen de publieke sleutel
+uit de browser. De sleutels zijn voorspelbaar (`login:e:<e-mailadres>`, `app/(auth)/actions.ts`), dus
+wie een adres kende, kon die teller boven de grens van 10 pogingen zetten en het account buitensluiten,
+elk venster opnieuw. Migratie 0108 trekt `execute` in voor `public`, `anon` en `authenticated`; de app
+roept de functie alleen aan via de service-role. Op productie toegepast en nagerekend met
+`has_function_privilege`: `anon` nee, `authenticated` nee, `service_role` ja. De andere zes
+`security definer`-functies die de adviseur noemt (`is_staff()` en verwanten) blijven bewust
+aanroepbaar voor ingelogde gebruikers: de leesregels hebben ze nodig, en ze geven alleen iets over de
+aanroeper zelf terug.
+
+**2. Vier unittests faalden op `main`.** Geen fout in de app: de tests waren niet meegegaan met twee
+bewuste wijzigingen van 22 september 2026 (de S-knop uit de bovenbalk, commit 523c85d; Contentplan en
+Openstaande vragen van plek gewisseld, commit 91d9a18). Met vier vaste rode regels valt een echte nieuwe
+fout niet op. De navigatietest volgt nu de nieuwe volgorde; de knoptest controleert nu dat geen enkel
+component nog naar `/solliciteren` linkt, want de toegang bewaakt de layout.
+
+**3. De nameting toont de onderbouwing.** Zoekverkeer liet per pagina alleen "gestegen", "gelijk
+gebleven", "gedaald" of "te weinig data" zien, terwijl `content_impact` de aantallen al bewaarde.
+`lib/impact-uitleg.ts` (puur) zet die om in zinnen: de doelvragen vóór en na, de controlegroep ernaast,
+en wat het betekent. Er wordt niets nieuws berekend en het oordeel blijft dat van `verdictOf()`. Eén
+regel is nieuw: stijgt de controlegroep net zo hard of harder (verschil binnen dezelfde marge als het
+oordeel), dan staat er dat de stijging waarschijnlijk niet door de pagina komt. Eenzijdig, want een
+controlegroep die harder stijgt is geen bewijs vóór de pagina. De tabel toont "2 → 14 van 20 vragen"
+onder het oordeel, het zijpaneel de volledige uitleg. `IMPACT_WAVES` verhuisde naar `impact-math.ts`
+zodat het scherm de 14 en 28 dagen niet dubbel hoeft te kennen. Niet tegen productie nagerekend: er
+staat nog geen enkele rij in `content_impact`, want nog geen gepubliceerde pagina is 14 dagen oud.
+Dat is de controle bij de eerste nameting.
+
+**4. De doorverwijzingscontrole werkt.** `fetchText()` volgde doorverwijzingen al, maar gooide het
+eindadres weg; `fetchPage()` in `lib/crawler.ts` geeft het terug, en `publish-check.ts` vergelijkt met
+`isRedirectedElsewhere()` (`lib/url.ts`), dat http of https, www, een slash aan het eind, hoofdletters
+en alles na `?` of `#` negeert. Het is een melding en geen blokkade: staat onze tekst op de pagina
+waar de link naartoe stuurt, dan staat hij echt live. Maar Zoekverkeer koppelt bezoekers op het
+opgegeven adres, dus de klant krijgt het echte adres te zien met het verzoek dat in te vullen. De
+kans was al kleiner dan de bevinding deed denken: `isOnBrandDomain()` weigert sinds 2 september een
+adres buiten het domein van het merk. Nagerekend tegen een echte doorverwijzing op internet
+(`res.url` gaf het eindadres), plus een ketentest.
+
+**5. De fase in de klantreis wordt weer gevuld.** `planned_pages.funnel_stage_id` werd sinds 25
+augustus 2026 nergens geschreven. `syncBacklog()` leidt hem nu af uit de doelvragen van de kans
+(`lib/plan-funnel.ts`, puur): de vraagfase met het grootste gewicht, vertaald naar de merkfase
+(Oriëntatie, Overweging naar Vergelijken, Beslissing naar Kiezen). Bij een gelijkspel blijft hij leeg,
+geen gok (conventie 3). Bestaande kaarten zonder fase krijgen hem bij de eerstvolgende synchronisatie,
+een fase die er al staat wordt niet overschreven. Nagerekend op productie vóór het bouwen: alle 97
+doelvragen van de 42 pagina's uit een aanbeveling bestaan en hebben een fase, en de regel geeft 32
+pagina's een fase (15 Kiezen, 10 Vergelijken, 7 Oriëntatie) en 10 een gelijkspel. Daarmee verschijnt
+de fasechip op het contentplan, is de fasekolom in de export gevuld, en krijgt een pagina zonder eigen
+doelgroep bij het schrijven een echte fase mee in plaats van "de fase de klantreis" (`planBriefing()`).
+Het blok "Per fase van de klantreis" op het merkoverzicht komt niet terug: met een kwart van de
+pagina's zonder fase zou die telling nog steeds te laag uitvallen.
+
+Controles: `tsc --noEmit`, `test:unit` (5149), `test:chain` (737) en `build` groen.

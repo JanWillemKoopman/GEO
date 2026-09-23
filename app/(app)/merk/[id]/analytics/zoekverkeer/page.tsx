@@ -27,7 +27,8 @@ import {
   type GscDag,
 } from "@/lib/search-console/metrics";
 import { legeStaat } from "@/lib/search-console/lege-staat";
-import type { ClusterLabel, ImpactVerdict } from "@/lib/types/database";
+import type { ClusterLabel } from "@/lib/types/database";
+import { impactUitleg, type ImpactCijfers } from "@/lib/impact-uitleg";
 import { Icon } from "@/components/icon";
 
 export const dynamic = "force-dynamic";
@@ -129,17 +130,22 @@ export default async function ZoekverkeerPage({
 
   // ── V3: content_impact ernaast, de laatste golf per pagina ────────────────
   const stukIds = stukken.map((s) => s.id);
+  // De hele rij en niet alleen het oordeel: de klant ziet de aantallen achter
+  // het woord, naast de controlegroep (`lib/impact-uitleg.ts`).
   const { data: impactRijen } =
     stukIds.length > 0
       ? await admin
           .from("content_impact")
-          .select("content_piece_id, wave, verdict")
+          .select(
+            "content_piece_id, wave, verdict, target_total, target_before_mentioned, target_after_mentioned, " +
+              "control_total, control_before_mentioned, control_after_mentioned, target_delta, control_delta, delta_threshold",
+          )
           .in("content_piece_id", stukIds)
       : { data: [] };
-  const verdictPerStuk = new Map<string, { wave: number; verdict: ImpactVerdict }>();
-  for (const r of (impactRijen ?? []) as { content_piece_id: string; wave: number; verdict: ImpactVerdict }[]) {
-    const bestaand = verdictPerStuk.get(r.content_piece_id);
-    if (!bestaand || r.wave > bestaand.wave) verdictPerStuk.set(r.content_piece_id, r);
+  const impactPerStuk = new Map<string, ImpactCijfers>();
+  for (const r of (impactRijen ?? []) as unknown as (ImpactCijfers & { content_piece_id: string })[]) {
+    const bestaand = impactPerStuk.get(r.content_piece_id);
+    if (!bestaand || r.wave > bestaand.wave) impactPerStuk.set(r.content_piece_id, r);
   }
 
   const typePerUrl = new Map<string, string>();
@@ -277,7 +283,8 @@ export default async function ZoekverkeerPage({
       ctr: ctr(totClicks, totImpr),
       position: gewogenPositie(eigenRijen),
       type: typePerUrl.get(normaliseerUrl(stuk.published_url)) ?? null,
-      effectOpAi: verdictPerStuk.get(stuk.id)?.verdict ?? null,
+      effectOpAi: impactPerStuk.get(stuk.id)?.verdict ?? null,
+      effectUitleg: impactPerStuk.has(stuk.id) ? impactUitleg(impactPerStuk.get(stuk.id)!) : null,
       sindsPublicatie,
       publishedAt: stuk.published_at,
     };
@@ -346,9 +353,9 @@ export default async function ZoekverkeerPage({
         <span className="mono-label flex items-center gap-1">
           Onze pagina&apos;s ({onzePaginas.length})
           <InfoHint label="Wat is 'Effect op AI'?">
-            {"content_impact"} vergelijkt hoe vaak AI je noemde vóór en ná publicatie, tegen een
-            controlegroep clusters die niets veranderde. Het enige cijfer op dit scherm dat oorzaak
-            en gevolg verbindt.
+            Hoe vaak AI je noemde vóór en na publicatie, op de vragen waarvoor de pagina geschreven
+            is, naast vergelijkbare vragen zonder nieuwe pagina. Klik op een pagina voor de cijfers.
+            Het enige cijfer op dit scherm dat oorzaak en gevolg verbindt.
           </InfoHint>
         </span>
         <ZoekverkeerPaginas rows={onzePaginas} />

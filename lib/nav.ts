@@ -224,10 +224,10 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
     //
     // ⚠️ DE VOLGORDE IS OP 28 AUGUSTUS 2026 OMGEZET, EN HET ZIJN ER VIER.
     //
-    // De volgorde volgt nu de ronde zelf: de clusters leveren de vragen, de
-    // antwoorden voeden het plan, het plan levert de teksten in de bibliotheek.
-    // Contentplan stond vóór Clusters, en dat las als "begin bij het plan"
-    // terwijl er zonder meting niets te plannen valt.
+    // Clusters staat eerst: Contentplan stond vóór Clusters, en dat las als
+    // "begin bij het plan" terwijl er zonder meting niets te plannen valt. Op
+    // 22 september 2026 zijn Contentplan en Openstaande vragen op verzoek van
+    // de eigenaar van plek gewisseld: eerst het plan, dan wat ervoor nodig is.
     //
     // ⚠️ Vier bestemmingen, waar drie de regel was (besluit 1 tot en met 8 van
     // 17 augustus 2026). De reden is van dezelfde soort als bij Analytics: de

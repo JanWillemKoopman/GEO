@@ -3158,6 +3158,25 @@ async function main(): Promise<void> {
       `${naDrieRondes[0].n} kaarten in plaats van 3`,
     );
 
+    // ── De fase in de klantreis (docs/tasks/funnelfase-nooit-gevuld.md) ─────
+    //
+    // Tot 23 september 2026 schreef niets `funnel_stage_id`, en stond hij op
+    // productie bij 0 van de 18 pagina's. Elke kans hier hangt aan één doelvraag
+    // in de fase "Beslissing", en die hoort bij de merkfase "Kiezen". Ook de
+    // twee kaarten die al bestonden vóórdat het plan de fasen aanmaakte, horen
+    // hem na een synchronisatie te hebben.
+    const { rows: fases } = await db.client.query(
+      `select fs.label from public.planned_pages pp
+         left join public.profile_funnel_stages fs on fs.id = pp.funnel_stage_id
+        where pp.profile_id = $1`,
+      [planPotProfileId],
+    );
+    ok(
+      "elke kaart krijgt de fase van zijn doelvragen, ook de oudere",
+      fases.length === 3 && fases.every((f: { label: string | null }) => f.label === "Kiezen"),
+      fases.map((f: { label: string | null }) => f.label ?? "leeg").join(", "),
+    );
+
     // ── Inplannen en terugleggen ────────────────────────────────────────────
     const { assignToMonth, moveToBacklog } = await import("@/lib/plans");
     const { rows: maandRijen } = await db.client.query(
@@ -6546,6 +6565,62 @@ async function main(): Promise<void> {
         [t3AnalysisId],
       );
       ok("de nog niet gedraaide hermeting is opgeruimd", t3Jobs.length === 0);
+    } finally {
+      globalThis.fetch = t3OrigineleFetch;
+    }
+
+    // ── Een link die doorstuurt naar een andere pagina ─────────────────────
+    //
+    // Bevinding 1 van de verificatie van 22 september 2026: `finalUrl` werd
+    // altijd gelijkgezet aan het opgegeven adres, dus een doorverwijzing viel
+    // nooit op. Hier staat onze tekst WEL op de pagina waar de link naartoe
+    // stuurt: de pagina blijft gepubliceerd (hij staat echt live), maar de
+    // klant krijgt te zien dat hij beter het echte adres kan invullen.
+    console.log("\nDe publicatiecontrole meldt een doorverwijzing naar een andere pagina");
+    await db.client.query(
+      `update public.content_pieces
+          set status = 'published', published_at = now(), needs_review = false, review_notes = '{}'
+        where id = $1`,
+      [t3PieceId],
+    );
+    const t3Doel = "https://t3-merk.nl/diensten/onderhoud-2026";
+    const t3Html =
+      "<html><body><p>Dit is de eerste zin die lang genoeg is om als controlezin te dienen bij het testen.</p></body></html>";
+    globalThis.fetch = (async (_input: RequestInfo | URL) => ({
+      ok: true,
+      status: 200,
+      url: t3Doel,
+      headers: new Headers(),
+      text: async () => t3Html,
+    })) as typeof globalThis.fetch;
+    try {
+      const t3Door = await verifyPublication(admin as never, t3PieceId);
+      ok("het eindadres wordt bewaard", t3Door?.finalUrl === t3Doel, t3Door?.finalUrl ?? "null");
+      ok(
+        "de klant krijgt de doorverwijzing te zien, met het echte adres",
+        (t3Door?.problems ?? []).some((p) => p.includes("stuurt door") && p.includes(t3Doel)),
+        (t3Door?.problems ?? []).join(" | "),
+      );
+      const { rows: t3DoorNa } = await db.client.query(
+        `select status from public.content_pieces where id = $1`,
+        [t3PieceId],
+      );
+      ok("de tekst staat live, dus de pagina blijft gepubliceerd", t3DoorNa[0]?.status === "published");
+
+      // Alleen een slash aan het eind of https erbij is geen doorverwijzing.
+      globalThis.fetch = (async (_input: RequestInfo | URL) => ({
+        ok: true,
+        status: 200,
+        url: `${t3PublishedUrl}/`,
+        headers: new Headers(),
+        text: async () => t3Html,
+      })) as typeof globalThis.fetch;
+      const t3Slash = await verifyPublication(admin as never, t3PieceId);
+      ok(
+        "een slash aan het eind telt niet als doorverwijzing",
+        !(t3Slash?.problems ?? []).some((p) => p.includes("stuurt door")),
+        (t3Slash?.problems ?? []).join(" | "),
+      );
     } finally {
       globalThis.fetch = t3OrigineleFetch;
     }

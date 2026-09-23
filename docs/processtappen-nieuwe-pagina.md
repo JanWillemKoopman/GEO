@@ -10,12 +10,11 @@
 > document beantwoordt "wat gebeurt er precies, in welke volgorde". Klopt er iets niet meer, dan is
 > de code leidend: `lib/pipeline/` en `lib/jobs/` zijn de bron waar dit overzicht uit is opgebouwd.
 >
-> **Peildatum: 22 september 2026.** Alle 117 stappen zijn onafhankelijk nagekeken tegen de broncode,
-> in vier losse controles die geen van alle deze documentatie hebben gelezen. Twee stappen bleken
-> niet te kloppen met wat er echt gebouwd is en zijn hier aangepast: **stap 104** (de check op een
-> onverwachte doorverwijzing bij publicatie doet in de code nog niets) en **stap 116** (het
-> klantscherm van de nameting toont alleen het eindoordeel, niet de onderbouwende vergelijking met de
-> controlegroep die dit document eerst beschreef). Kleinere nuances zijn verwerkt bij stap 22, 31, 38
+> **Peildatum: 23 september 2026.** Alle 117 stappen zijn op 22 september 2026 onafhankelijk
+> nagekeken tegen de broncode, in vier losse controles die geen van alle deze documentatie hebben
+> gelezen. De twee stappen die toen niet klopten met wat er gebouwd was, **stap 104** (de check op een
+> doorverwijzing) en **stap 116** (de vergelijking met de controlegroep op het klantscherm), zijn op
+> 23 september 2026 gebouwd en hier bijgewerkt. Kleinere nuances zijn verwerkt bij stap 22, 31, 38
 > en 83.
 
 ---
@@ -320,11 +319,12 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
      ondergrens van 60 procent herkenning, zodat kleine opmaakverschillen niet voor onnodig alarm
      zorgen.
 103. Het systeem checkt of de technische metadata op de pagina staat.
-104. **Nog niet gebouwd.** Het systeem is voorbereid op een check of je via de opgegeven URL op een
-     andere pagina bent uitgekomen (bijvoorbeeld door een doorverwijzing), maar die check doet op dit
-     moment niets: het veld ervoor wordt altijd gelijkgezet aan de ingevoerde URL, ongeacht waar je
-     na een eventuele doorverwijzing echt uitkomt. Een verkeerd ingevulde of verlopen URL wordt hier
-     dus nog niet gesignaleerd.
+104. Het systeem kijkt of de opgegeven URL doorstuurt naar een andere pagina (`fetchPage()` in
+     `lib/crawler.ts` geeft het eindadres terug, `isRedirectedElsewhere()` in `lib/url.ts`
+     vergelijkt). Een verschil in alleen http of https, www, een slash aan het eind of een
+     trackingcode telt niet. Stuurt de link echt door, dan krijgt de klant het adres te zien waar
+     hij uitkwam, met het verzoek dat in te vullen: Zoekverkeer koppelt bezoekers op het opgegeven
+     adres. Staat de tekst op die andere pagina, dan blijft de pagina gepubliceerd.
 105. Het systeem toont het resultaat aan de klant in gewone taal: welke problemen er zijn gevonden,
      of de bevestiging dat alles klopt.
 
@@ -365,13 +365,10 @@ gemaakt is. Stijgt alles even hard, dan lag het niet aan de pagina.
      golf 2 apart terug te zien blijven.
 115. Golf 2 (28 dagen) telt zwaarder dan golf 1 (14 dagen) zodra beide er zijn: een AI-systeem heeft
      een pagina in twee weken zelden al volledig opgepikt.
-116. **Voor de helft gebouwd.** De vergelijking met de controlegroep wordt wel berekend en
-     opgeslagen, en staat in het cijferbestand dat je kunt exporteren. Op het scherm dat de klant
-     ziet, staat op dit moment alleen het eindoordeel als één woord ("gestegen", "gelijk gebleven",
-     "gedaald" of "nog te weinig data"), zonder de cijfers van de doelgroep naast de controlegroep
-     erbij. Een tooltip legt wel uit dát er met een controlegroep vergeleken wordt, maar toont de
-     vergelijking zelf niet. Precies de losse uitspraak die dit hele hoofdstuk wil vermijden, staat
-     dus vooralsnog wél op het scherm; alleen de onderbouwing eronder ontbreekt nog in de klant-UI.
+116. De klant ziet op Zoekverkeer bij elke pagina het eindoordeel met de aantallen eronder: bij
+     hoeveel van de doelvragen AI het merk noemde vóór en na publicatie, en hetzelfde voor de
+     controlegroep, plus wat dat betekent in gewone taal (`lib/impact-uitleg.ts`). Valt een stijging
+     weg tegen de controlegroep, dan staat er dat hij waarschijnlijk niet door de pagina komt.
 117. Deze hermeting staat los van de gewone maandelijkse meting uit fase 5, die op alle dertig vragen
      van de analyse blijft doorlopen. Zo hangt het verdict over deze ene pagina nooit af van één
      momentopname, en blijft ook zichtbaar hoe het merk zich in bredere zin ontwikkelt.

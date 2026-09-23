@@ -72,8 +72,9 @@ export function filterOpCluster<T extends { analysis_id: string } | { id: string
 // komt hier alleen bij de prompttabel: de scores, de grafiek en de
 // clustertabel gaan over een heel cluster, dat geen eigen fase heeft. Dit
 // filter kwam eerder bewust niet in de filterbalk, omdat er toen niets was dat
-// hem vulde (`docs/tasks/funnelfase-nooit-gevuld.md` gaat over een ANDER veld,
-// `planned_pages.funnel_stage_id`); de prompttabel vult deze kolom wel al.
+// hem vulde (`planned_pages.funnel_stage_id` is een ANDER veld, sinds 23
+// september 2026 afgeleid uit deze fase, zie `lib/plan-funnel.ts`); de
+// prompttabel vult deze kolom wel al.
 
 export const FUNNELFILTER_ALLES = "alle";
 

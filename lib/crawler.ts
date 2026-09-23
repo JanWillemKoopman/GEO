@@ -193,6 +193,17 @@ export async function isReachable(host: string): Promise<boolean> {
 }
 
 export async function fetchText(url: string): Promise<string | null> {
+  return (await fetchPage(url))?.html ?? null;
+}
+
+/**
+ * Als `fetchText()`, plus het adres waar je na eventuele doorverwijzingen echt
+ * uitkwam (`res.url`). `fetchText()` volgde doorverwijzingen altijd al, maar
+ * gooide dat eindadres weg, waardoor de publicatiecontrole niet kon zien dat
+ * een opgegeven link doorstuurde naar een andere pagina (bevinding 1 van de
+ * verificatie van 22 september 2026).
+ */
+export async function fetchPage(url: string): Promise<{ html: string; finalUrl: string } | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
@@ -205,7 +216,8 @@ export async function fetchText(url: string): Promise<string | null> {
       },
     });
     if (!res.ok) return null;
-    return await res.text();
+    // `res.url` is leeg bij een gemockte Response; dan is er niet doorverwezen.
+    return { html: await res.text(), finalUrl: res.url || url };
   } catch {
     return null;
   } finally {

@@ -131,10 +131,12 @@ import type { ExistingPageCandidate } from "@/lib/pipeline/existing-page-match";
 import { geoScore, geoIssues } from "@/lib/schemas/critique";
 import type { GeoCriteria } from "@/lib/schemas/critique";
 import { compare, deltaOf, thresholdOf, verdictOf, minQuestionsForSignal } from "@/lib/pipeline/impact-math";
+import { impactUitleg, type ImpactCijfers } from "@/lib/impact-uitleg";
+import { faseVoorPagina } from "@/lib/plan-funnel";
 import { buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change-format";
 import type { PeriodChange } from "@/lib/pipeline/period-change-format";
 import { domainOf } from "@/lib/offsite/domain";
-import { checkUrlFormat, isOnBrandDomain } from "@/lib/url";
+import { checkUrlFormat, isOnBrandDomain, isRedirectedElsewhere } from "@/lib/url";
 import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import { PRIMARY_ENGINE } from "@/lib/engines/types";
@@ -1827,6 +1829,137 @@ group("minQuestionsForSignal: hoeveel vragen zijn er nodig, echte cijfers", () =
   );
 });
 
+// docs/tasks/funnelfase-nooit-gevuld.md: de fase van een geplande pagina komt
+// uit zijn doelvragen. Op productie (23 september 2026) gaf dat 32 van de 42
+// pagina's een fase; de andere tien hebben een gelijkspel en blijven leeg.
+group("faseVoorPagina: de fase komt uit de doelvragen", () => {
+  const fasen = [
+    { id: "f-ori", label: "Oriëntatie" },
+    { id: "f-verg", label: "Vergelijken" },
+    { id: "f-kies", label: "Kiezen" },
+    { id: "f-blijf", label: "Klant blijven" },
+  ];
+  ok("Oriëntatie op gelijke naam", faseVoorPagina([{ category: "Oriëntatie", weight: 1 }], fasen) === "f-ori");
+  ok("Overweging wordt Vergelijken", faseVoorPagina([{ category: "Overweging", weight: 1 }], fasen) === "f-verg");
+  ok("Beslissing wordt Kiezen", faseVoorPagina([{ category: "Beslissing", weight: 1 }], fasen) === "f-kies");
+  ok(
+    "het grootste gewicht wint, niet het grootste aantal",
+    faseVoorPagina(
+      [
+        { category: "Oriëntatie", weight: 0.2 },
+        { category: "Oriëntatie", weight: 0.2 },
+        { category: "Beslissing", weight: 0.9 },
+      ],
+      fasen,
+    ) === "f-kies",
+  );
+  ok(
+    "zonder gewicht telt een vraag als 1",
+    faseVoorPagina(
+      [
+        { category: "Overweging", weight: null },
+        { category: "Overweging", weight: null },
+        { category: "Beslissing", weight: null },
+      ],
+      fasen,
+    ) === "f-verg",
+  );
+  ok(
+    "gelijkspel geeft geen fase, geen gok",
+    faseVoorPagina(
+      [
+        { category: "Overweging", weight: 0.5 },
+        { category: "Beslissing", weight: 0.5 },
+      ],
+      fasen,
+    ) === null,
+  );
+  ok("geen doelvragen geeft geen fase", faseVoorPagina([], fasen) === null);
+  ok("een vraag zonder fase telt niet mee", faseVoorPagina([{ category: "", weight: 1 }], fasen) === null);
+  ok("een merk zonder fasen geeft geen fase", faseVoorPagina([{ category: "Beslissing", weight: 1 }], []) === null);
+  ok(
+    "een eigen merkfase met dezelfde naam als de vraagfase gaat voor",
+    faseVoorPagina([{ category: "Overweging", weight: 1 }], [{ id: "eigen", label: "overweging" }, ...fasen]) === "eigen",
+  );
+  ok("een onbekende vraagfase geeft geen fase", faseVoorPagina([{ category: "Nazorg", weight: 1 }], fasen) === null);
+});
+
+// Bevinding 2 van de verificatie van 22 september 2026: de klant zag bij de
+// nameting alleen het woord, niet de vergelijking met de controlegroep. De
+// uitleg moet de opgeslagen aantallen tonen, en mag het oordeel nooit
+// tegenspreken, ook niet als de controlegroep evenveel of harder bewoog.
+group("impactUitleg: het oordeel met de cijfers eronder", () => {
+  function rij(d: Partial<ImpactCijfers>): ImpactCijfers {
+    const basis = {
+      wave: 2,
+      target_total: 20,
+      target_before_mentioned: 2,
+      target_after_mentioned: 14,
+      control_total: 5,
+      control_before_mentioned: 1,
+      control_after_mentioned: 1,
+      target_delta: null,
+      control_delta: null,
+      delta_threshold: null,
+      verdict: "gestegen" as const,
+    };
+    const r = { ...basis, ...d };
+    return { ...r, verdict: d.verdict ?? verdictOf({ total: r.target_total, beforeMentioned: r.target_before_mentioned, afterMentioned: r.target_after_mentioned }) };
+  }
+
+  const stijging = impactUitleg(rij({}));
+  ok("de doelvragen staan er in aantallen", stijging.doel.includes("Van de 20 vragen") && stijging.doel.includes("2, nu 14"), stijging.doel);
+  ok("de controlegroep staat ernaast", stijging.controle?.includes("Bij 5 vergelijkbare vragen") === true, stijging.controle ?? "");
+  ok("golf 2 is 28 dagen", stijging.moment === "Gemeten 28 dagen na publicatie.");
+  ok("de tabelcel krijgt de korte versie", stijging.kort === "2 → 14 van 20 vragen", stijging.kort);
+  ok(
+    "controlegroep stil: het verschil zit bij de pagina",
+    stijging.conclusie.includes("stijging van 60 procentpunt") && stijging.conclusie.includes("het verschil zit bij de vragen waarvoor"),
+    stijging.conclusie,
+  );
+
+  const allesSteeg = impactUitleg(rij({ control_before_mentioned: 0, control_after_mentioned: 4 }));
+  ok(
+    "controlegroep steeg net zo hard: dan niet door de pagina",
+    allesSteeg.conclusie.includes("waarschijnlijk niet door de pagina zelf"),
+    allesSteeg.conclusie,
+  );
+  const controleHarder = impactUitleg(rij({ control_before_mentioned: 0, control_after_mentioned: 5 }));
+  ok(
+    "controlegroep steeg HARDER dan de doelvragen: ook niet door de pagina",
+    controleHarder.conclusie.includes("waarschijnlijk niet door de pagina zelf"),
+    controleHarder.conclusie,
+  );
+
+  const zonderControle = impactUitleg(rij({ control_total: 0, control_before_mentioned: 0, control_after_mentioned: 0 }));
+  ok("zonder controlegroep: geen controlezin", zonderControle.controle === null);
+  ok("en dat staat dan eerlijk in de conclusie", zonderControle.conclusie.includes("geen controlegroep"), zonderControle.conclusie);
+
+  const daling = impactUitleg(rij({ target_before_mentioned: 14, target_after_mentioned: 2 }));
+  ok("een daling leest zonder dubbel minteken", daling.conclusie.includes("daling van 60 procentpunt"), daling.conclusie);
+
+  // Huyberts Eindhoven: 0 naar 1 van de 5 is "gelijk", met 25 vragen nodig.
+  const eindhoven = impactUitleg(rij({ target_total: 5, target_before_mentioned: 0, target_after_mentioned: 1 }));
+  ok(
+    "gelijk: binnen de meetruis, met het aantal vragen dat nodig zou zijn",
+    eindhoven.conclusie.includes("+20 procentpunt") && eindhoven.conclusie.includes("ongeveer 25 vragen"),
+    eindhoven.conclusie,
+  );
+
+  const weinig = impactUitleg(rij({ target_total: 1, target_before_mentioned: 0, target_after_mentioned: 1 }));
+  ok("te weinig data zegt hoeveel er nodig zijn", weinig.conclusie.includes("minstens 2 vragen") && weinig.conclusie.includes("Het waren er 1"), weinig.conclusie);
+  ok("één vraag is enkelvoud", weinig.kort === "0 → 1 van 1 vraag", weinig.kort);
+
+  // De opgeslagen waarden zijn leidend, niet een herberekening.
+  const opgeslagen = impactUitleg(rij({ target_delta: 55, delta_threshold: 12 }));
+  ok("opgeslagen delta en marge gaan voor", opgeslagen.conclusie.includes("stijging van 55") && opgeslagen.conclusie.includes("de 12 procentpunt"), opgeslagen.conclusie);
+
+  const allesTekst = [stijging, allesSteeg, zonderControle, daling, eindhoven, weinig]
+    .flatMap((u) => [u.doel, u.controle ?? "", u.conclusie, u.moment, u.kort])
+    .join(" ");
+  ok("geen gedachtestreepjes in de uitleg", !/[—–]/.test(allesTekst));
+});
+
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nPeriodieke verandering (optimalisatie.md 6.2/6.7)");
 
@@ -1934,6 +2067,22 @@ group("publiceren mag alleen op het domein van het merk (T3.1)", () => {
     !isOnBrandDomain("https://voorbeeld.nl.evil.com", "voorbeeld.nl"),
   );
   ok("zonder bekend merkdomein mag niets", !isOnBrandDomain("https://voorbeeld.nl", ""));
+});
+
+// Bevinding 1 van de verificatie van 22 september 2026: de publicatiecontrole
+// zag nooit dat een link doorstuurde. Wat telt als "een andere pagina", en wat
+// alleen een schrijfverschil is van hetzelfde adres.
+group("isRedirectedElsewhere: doorgestuurd naar een andere pagina?", () => {
+  ok("hetzelfde adres is geen doorverwijzing", !isRedirectedElsewhere("https://voorbeeld.nl/a", "https://voorbeeld.nl/a"));
+  ok("http naar https is geen doorverwijzing", !isRedirectedElsewhere("http://voorbeeld.nl/a", "https://voorbeeld.nl/a"));
+  ok("www erbij is geen doorverwijzing", !isRedirectedElsewhere("https://voorbeeld.nl/a", "https://www.voorbeeld.nl/a"));
+  ok("een slash aan het eind is geen doorverwijzing", !isRedirectedElsewhere("https://voorbeeld.nl/a", "https://voorbeeld.nl/a/"));
+  ok("trackingcodes erachter zijn geen doorverwijzing", !isRedirectedElsewhere("https://voorbeeld.nl/a", "https://voorbeeld.nl/a?utm_source=x#top"));
+  ok("hoofdletters zijn geen doorverwijzing", !isRedirectedElsewhere("https://Voorbeeld.nl/A", "https://voorbeeld.nl/a"));
+  ok("een ander pad is wel een doorverwijzing", isRedirectedElsewhere("https://voorbeeld.nl/oud", "https://voorbeeld.nl/nieuw"));
+  ok("naar de homepage is wel een doorverwijzing", isRedirectedElsewhere("https://voorbeeld.nl/verlopen", "https://voorbeeld.nl/"));
+  ok("naar een ander domein is wel een doorverwijzing", isRedirectedElsewhere("https://voorbeeld.nl/a", "https://ander.nl/a"));
+  ok("een onleesbaar adres is onbekend, geen doorverwijzing", !isRedirectedElsewhere("https://voorbeeld.nl/a", ""));
 });
 
 // De domeincontrole en de needs_review-blokkade zitten in de route zelf (niet
@@ -10361,16 +10510,15 @@ group("vijf controles bij een handmatige bewerking (blok C punt 14)", () => {
   );
 });
 
-group("de vragenpagina staat in Strategie, tussen clusters en plan", () => {
+group("de vragenpagina staat in Strategie, tussen plan en bibliotheek", () => {
   const items = brandNav("00000000-0000-0000-0000-000000000001", false);
   const strategie = items.filter((i) => i.hoofdstuk === "Strategie").map((i) => i.label);
-  // ⚠️ De volgorde volgt de ronde: de clusters leveren de vragen, de antwoorden
-  // voeden het plan, het plan levert de teksten. Contentplan stond vóór
-  // Clusters, en dat las als "begin bij het plan" terwijl er zonder meting niets
-  // te plannen valt.
+  // ⚠️ Clusters blijft eerst: zonder meting valt er niets te plannen. Op 22
+  // september 2026 (commit 91d9a18) zijn Contentplan en Openstaande vragen op
+  // verzoek van de eigenaar van plek gewisseld; deze test volgt dat besluit.
   ok(
-    "de volgorde is clusters, vragen, plan, bibliotheek",
-    strategie.join(" · ") === "Clusters · Openstaande vragen · Contentplan · Bibliotheek",
+    "de volgorde is clusters, plan, vragen, bibliotheek",
+    strategie.join(" · ") === "Clusters · Contentplan · Openstaande vragen · Bibliotheek",
     strategie.join(" · "),
   );
   // ⚠️ En hij staat niet meer onder Merkprofiel. Twee vragenschermen naast
@@ -15171,14 +15319,14 @@ group("het zijproject staat los van ORBIT ENGINE, en zit wel achter dezelfde inl
   );
   ok("het stijlblad wordt nergens anders geladen", elders.length === 0, elders.join(", "));
 
-  // De knop: precies één plek, en alleen zichtbaar voor wie er ook in mag.
-  const chrome = leesBestand("components/workspace-chrome.tsx");
-  ok("de S staat in de bovenbalk", chrome.includes('href="/solliciteren"'));
-  ok("en hangt aan het beheerdersrecht", chrome.includes("{solliciteren && ("));
-  ok(
-    "de shell geeft dat recht ook door",
-    leesBestand("components/app-shell.tsx").includes("solliciteren={staff}"),
+  // De knop: sinds 22 september 2026 (commit 523c85d) nergens meer. Het
+  // zijproject heeft niets met ORBIT ENGINE te maken, dus de navigatie van
+  // ORBIT ENGINE wijst er ook niet naartoe; wie erin mag, gaat via het adres.
+  // De toegang zelf bewaakt de layout hierboven, niet de knop.
+  const verwijzers = tsxOnder("components").filter((b) =>
+    leesBestand(b).includes('href="/solliciteren"'),
   );
+  ok("geen knop in ORBIT ENGINE wijst naar het zijproject", verwijzers.length === 0, verwijzers.join(", "));
 });
 
 // ── De sollicitatieassistent van het zijproject ────────────────────────────

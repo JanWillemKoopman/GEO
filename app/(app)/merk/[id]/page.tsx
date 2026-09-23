@@ -235,7 +235,7 @@ export default async function OverzichtPage({
   // ── Het plan ─────────────────────────────────────────────────────────────
   // ⚠️ Geen query meer op `profile_funnel_stages`: die voedde alleen "Per fase
   // van de klantreis", en dat blok is op 21 september 2026 weggehaald omdat
-  // `planned_pages.funnel_stage_id` nooit gevuld wordt (zie `PlanKaart`
+  // `planned_pages.funnel_stage_id` toen nooit gevuld werd (zie `PlanKaart`
   // hieronder).
   const [{ data: paginaRijen }, { data: maandRijen }] = await Promise.all([
     admin
@@ -577,8 +577,13 @@ function CijferRij({ cijfers, kop }: { cijfers: OverzichtCijfer[]; kop: string }
  * kiest niets in de pijplijn nog een fase per pagina; de kolom bestaat nog,
  * maar wordt nergens meer geschreven. Een blok dat gegarandeerd "niets
  * gepland" zegt terwijl er wél gepland is, is een grotere leugen dan geen
- * blok. Dit is een aparte reparatie in de schrijfpijplijn, hier alleen
- * weggehaald.
+ * blok.
+ *
+ * Sinds 23 september 2026 vult `syncBacklog()` de fase wel, uit de doelvragen
+ * van de pagina (`lib/plan-funnel.ts`). Het blok komt toch niet terug: op
+ * productie kreeg 32 van de 42 pagina's een fase, de rest heeft een gelijkspel
+ * tussen twee fasen, en een los toegevoegde pagina heeft geen doelvragen. Een
+ * telling per fase zou dus nog steeds te laag uitvallen.
  *
  * Nu draagt één balk de voortgang van het hele plan (wat ervan live staat),
  * met daarboven een tweede balk voor de omvang van het plan zelf (hoeveel

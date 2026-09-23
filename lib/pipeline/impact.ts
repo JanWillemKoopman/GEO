@@ -20,23 +20,14 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
-import { compare, deltaOf, thresholdOf, verdictOf } from "@/lib/pipeline/impact-math";
+import { compare, deltaOf, IMPACT_WAVES, thresholdOf, verdictOf } from "@/lib/pipeline/impact-math";
 import type { ContentPieceTarget } from "@/lib/types/database";
 
 type Admin = SupabaseClient;
 
-/**
- * Wanneer we hermeten, in dagen na publicatie.
- *
- * Niet meteen: AI-systemen nemen nieuwe content niet dezelfde dag op, een
- * pagina moet gecrawld en geïndexeerd worden, en bij zoekgestuurde assistenten
- * duurt dat dagen tot weken. Twee meetmomenten en niet één, omdat één moment
- * "opgepikt" niet van "toeval" kan onderscheiden.
- */
-export const IMPACT_WAVES = [
-  { wave: 1, days: 14 },
-  { wave: 2, days: 28 },
-] as const;
+// `IMPACT_WAVES` staat in `impact-math.ts` (puur), zodat ook de uitleg op het
+// klantscherm (`lib/impact-uitleg.ts`) weet hoeveel dagen een golf is.
+export { IMPACT_WAVES } from "@/lib/pipeline/impact-math";
 
 /**
  * Hoeveel controlevragen we per golf meebeten, als bovengrens.

@@ -26,6 +26,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadRecommendationPotential } from "@/lib/potential-data";
 import { distributePotentialByWeight } from "@/lib/potential";
+import { faseVoorPagina, type MerkFase } from "@/lib/plan-funnel";
 import { readRecommendations, type RecommendationTarget } from "@/lib/pipeline/recommendation";
 import type { BacklogItem, BacklogHandeling, DeclinedItem } from "@/lib/plan-backlog";
 import type { PageType } from "@/lib/types/database";
@@ -128,7 +129,7 @@ export async function syncBacklog(
 
   const analysisIds = analyses.map((a) => a.id);
 
-  const [{ data: reportRows }, { data: topicRows }, { data: bestaandRows }] =
+  const [{ data: reportRows }, { data: topicRows }, { data: bestaandRows }, { data: faseRows }] =
     await Promise.all([
       // Alleen het LAATSTE rapport per cluster telt, net als bij de kansenlijst
       // (`lib/insights-data.ts`): een aanbeveling uit de nulmeting die in periode
@@ -145,10 +146,19 @@ export async function syncBacklog(
         .not("analysis_id", "is", null),
       admin
         .from("planned_pages")
-        .select("id, source_ref")
+        .select("id, source_ref, funnel_stage_id")
         .eq("profile_id", profileId)
         .not("source_ref", "is", null),
+      // Bewust geen `ensureFunnels()`: die staat in `lib/plans.ts`, dat dit
+      // bestand zelf importeert. Heeft een merk nog geen fasen, dan blijft de
+      // fase leeg tot `createPlan()` ze aanmaakt; de eerstvolgende synchronisatie
+      // vult hem dan alsnog (zie `bijwerken` hieronder).
+      admin
+        .from("profile_funnel_stages")
+        .select("id, label")
+        .eq("profile_id", profileId),
     ]);
+  const fasen = (faseRows ?? []) as MerkFase[];
 
   const topicVanAnalyse = new Map(
     ((topicRows ?? []) as { id: string; analysis_id: string | null }[])
@@ -157,9 +167,9 @@ export async function syncBacklog(
   );
 
   const bestaand = new Map(
-    ((bestaandRows ?? []) as { id: string; source_ref: string | null }[])
+    ((bestaandRows ?? []) as { id: string; source_ref: string | null; funnel_stage_id: string | null }[])
       .filter((r) => r.source_ref)
-      .map((r) => [r.source_ref as string, r.id]),
+      .map((r) => [r.source_ref as string, { id: r.id, faseId: r.funnel_stage_id }]),
   );
 
   const gezien = new Set<string>();
@@ -241,20 +251,49 @@ export async function syncBacklog(
     })),
   );
 
+  // De fase van elke doelvraag, in één query voor alle kansen samen.
+  const promptIds = [...new Set(kandidaten.flatMap((k) => k.vragen.map((v) => v.promptId)).filter((id): id is string => !!id))];
+  const { data: promptRows } =
+    promptIds.length > 0 && fasen.length > 0
+      ? await admin.from("prompts").select("id, category").in("id", promptIds)
+      : { data: [] };
+  const categorieVan = new Map(
+    ((promptRows ?? []) as { id: string; category: string | null }[]).map((p) => [p.id, p.category]),
+  );
+  const faseVan = (k: (typeof kandidaten)[number]): string | null =>
+    faseVoorPagina(
+      k.vragen.map((v) => ({ category: v.promptId ? (categorieVan.get(v.promptId) ?? null) : null, weight: v.weight })),
+      fasen,
+    );
+
   const nieuw: Record<string, unknown>[] = [];
-  const bijwerken: { id: string; potential: number | null; target_count: number | null }[] = [];
+  const bijwerken: {
+    id: string;
+    potential: number | null;
+    target_count: number | null;
+    /** Alleen gezet als de rij nog geen fase had; een bestaande fase blijft staan. */
+    funnel_stage_id?: string;
+  }[] = [];
 
   for (const [i, k] of kandidaten.entries()) {
     const gewicht = k.vragen.reduce((som, v) => som + (v.weight ?? 0), 0);
     const raakt = k.vragen.length > 0 ? k.vragen.length : null;
     const potential = herverdeeld.get(k.sourceRef) ?? potenties[i].potential;
 
-    const bestaandeId = bestaand.get(k.sourceRef);
-    if (bestaandeId) {
+    const bestaandeRij = bestaand.get(k.sourceRef);
+    if (bestaandeRij) {
       // De kaart staat er al, ook als hij inmiddels ingepland of geschreven is.
       // Alleen het cijfer ververst: een nieuwe meetronde verandert de potentie,
-      // en dan moet de kaart dat tonen.
-      bijwerken.push({ id: bestaandeId, potential, target_count: raakt });
+      // en dan moet de kaart dat tonen. De fase wordt alleen ingevuld waar hij
+      // nog leeg is: zo krijgen de rijen van vóór 23 september 2026 alsnog een
+      // fase, zonder dat een latere synchronisatie een fase overschrijft.
+      const fase = bestaandeRij.faseId ? null : faseVan(k);
+      bijwerken.push({
+        id: bestaandeRij.id,
+        potential,
+        target_count: raakt,
+        ...(fase ? { funnel_stage_id: fase } : {}),
+      });
       continue;
     }
 
@@ -279,6 +318,7 @@ export async function syncBacklog(
       target_count: raakt,
       target_weight: gewicht > 0 ? gewicht : null,
       potential,
+      funnel_stage_id: faseVan(k),
     });
   }
 
@@ -298,7 +338,11 @@ export async function syncBacklog(
   for (const b of bijwerken) {
     await admin
       .from("planned_pages")
-      .update({ potential: b.potential, target_count: b.target_count })
+      .update({
+        potential: b.potential,
+        target_count: b.target_count,
+        ...(b.funnel_stage_id ? { funnel_stage_id: b.funnel_stage_id } : {}),
+      })
       .eq("id", b.id);
   }
 

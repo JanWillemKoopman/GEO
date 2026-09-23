@@ -10,6 +10,19 @@
 import { binomialStderr, Z95 } from "@/lib/stats/uncertainty";
 import type { ImpactVerdict } from "@/lib/types/database";
 
+/**
+ * Wanneer we hermeten, in dagen na publicatie.
+ *
+ * Niet meteen: AI-systemen nemen nieuwe content niet dezelfde dag op, een
+ * pagina moet gecrawld en geïndexeerd worden, en bij zoekgestuurde assistenten
+ * duurt dat dagen tot weken. Twee meetmomenten en niet één, omdat één moment
+ * "opgepikt" niet van "toeval" kan onderscheiden.
+ */
+export const IMPACT_WAVES = [
+  { wave: 1, days: 14 },
+  { wave: 2, days: 28 },
+] as const;
+
 export interface Comparison {
   /** Aantal vragen dat in BEIDE metingen beoordeeld is. */
   total: number;
@@ -67,7 +80,7 @@ export function thresholdOf(c: Comparison): number {
  * uitviel. Liever "nog niet te zeggen" dan een cijfer waar de klant een
  * beslissing op baseert die het niet draagt.
  */
-const MIN_COMPARABLE = 2;
+export const MIN_COMPARABLE = 2;
 
 export function verdictOf(c: Comparison): ImpactVerdict {
   if (c.total < MIN_COMPARABLE) return "te_weinig_data";
