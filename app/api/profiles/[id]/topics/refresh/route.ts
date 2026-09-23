@@ -10,6 +10,11 @@ import { previewAdditionalRound, proposeAdditionalTopics } from "@/lib/pipeline/
  * De knop "Stel nieuwe clusters voor" (docs/optimalisatielab-orbit-engine.md,
  * werkpakket A §3.5).
  *
+ * ⚠️ Sinds 23 september 2026 staat die knop niet meer op het scherm: hij is
+ * opgegaan in Clusters ontdekken (docs/tasks/clusters-ontdekken.md). De route
+ * blijft staan tot die pagina op productie is nagerekend; daarna kan hij weg,
+ * samen met `lib/pipeline/propose-more-topics.ts`.
+ *
  * GET: de preview, zonder kosten. Zegt of er iets nieuws is sinds de vorige
  * ronde en wat die ronde ongeveer gaat kosten, zodat het scherm dat kan tonen
  * vóórdat iemand klikt.

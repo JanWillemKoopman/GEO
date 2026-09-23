@@ -5818,6 +5818,147 @@ async function main(): Promise<void> {
     }
 
     // ════════════════════════════════════════════════════════════════════════
+    // Clusters ontdekken (docs/tasks/clusters-ontdekken.md, migratie 0109)
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: vier taken die elkaar via de
+    // status van de ronde inplannen. Plant een stap zijn opvolger niet in, of
+    // geeft hij op zonder de ronde af te sluiten, dan blijft het scherm eeuwig
+    // op "Ontdekkingsronde loopt" staan. En het model mag bundelen maar niet
+    // verzinnen: een kandidaat met alleen onbestaande zoektermen hoort nooit
+    // bij de consultant aan te komen.
+    //
+    // Zonder CLUSTER_DISCOVERY_ENABLED draait de ronde op Search Console en het
+    // aanbod alleen; dat is ook precies wat hier getest wordt (geen netwerk).
+    // ════════════════════════════════════════════════════════════════════════
+    {
+      console.log("\nClusters ontdekken: van ronde tot kandidaten (0109)");
+      const cd = await import("@/lib/pipeline/cluster-discovery");
+      const cdProfileId = randomUUID();
+      const cdAnalysisId = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, gsc_property, service_regions)
+         values ($1, $2, 'Klimaat BV', 'https://www.klimaat-bv.nl', 'Klimaat BV', 'klaar',
+                 'https://www.klimaat-bv.nl/', array['Tilburg'])`,
+        [cdProfileId, userId],
+      );
+      await db.client.query(
+        `insert into public.profile_offerings (profile_id, kind, name, source, sort_order)
+         values ($1, 'dienst', 'CV-ketel onderhoud', 'ai', 0), ($1, 'dienst', 'Airco', 'ai', 1)`,
+        [cdProfileId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'CV-ketel onderhoud', 'https://klimaat-bv.nl', 'CV-ketel onderhoud', 'gereed')`,
+        [cdAnalysisId, userId, cdProfileId],
+      );
+      const vandaag = new Date().toISOString().slice(0, 10);
+      await db.client.query(
+        `insert into public.search_console_queries (profile_id, day, query, page, clicks, impressions, position) values
+           ($1, $2, 'airco laten plaatsen tilburg', 'https://www.klimaat-bv.nl/airco', 3, 300, 8),
+           ($1, $2, 'airco installeren kosten', 'https://www.klimaat-bv.nl/airco', 1, 200, 12),
+           ($1, $2, 'cv ketel onderhoud tilburg', 'https://www.klimaat-bv.nl/cv', 9, 150, 5),
+           ($1, $2, 'capcut apk', 'https://www.klimaat-bv.nl/', 0, 90, 30),
+           ($1, $2, 'klimaat bv', 'https://www.klimaat-bv.nl/', 40, 500, 1)`,
+        [cdProfileId, vandaag],
+      );
+
+      const { rows: rondeRij } = await db.client.query(
+        `insert into public.cluster_discovery_runs (profile_id, started_by, status)
+         values ($1, $2, 'verzamelen') returning id`,
+        [cdProfileId, userId],
+      );
+      const runId = rondeRij[0].id as string;
+
+      await cd.discoveryCollect(admin as never, runId);
+      const { rows: naVerzamelen } = await db.client.query(
+        "select status, input_json from public.cluster_discovery_runs where id = $1",
+        [runId],
+      );
+      eqc("na verzamelen staat de ronde op verbreden", naVerzamelen[0].status, "verbreden");
+      const invoer = naVerzamelen[0].input_json as { beginpunten: string[]; gsc: { keyword: string }[]; bestaand: string[] };
+      ok(
+        "een beginpunt met de merknaam valt eruit",
+        !invoer.beginpunten.some((b) => b.includes("klimaat bv")),
+        invoer.beginpunten.join(", "),
+      );
+      ok("Search Console gaat mee", invoer.gsc.length === 5, String(invoer.gsc.length));
+      ok("het lopende cluster staat bij wat er al is", invoer.bestaand.includes("CV-ketel onderhoud"));
+
+      const { rows: volgendeTaak } = await db.client.query(
+        "select type from public.jobs where profile_id = $1 and type like 'discovery_%'",
+        [cdProfileId],
+      );
+      ok("verzamelen plant verbreden in", volgendeTaak.some((j) => j.type === "discovery_expand"));
+
+      // Nog een keer verzamelen: de ronde is al verder, dus er gebeurt niets.
+      const aanroepenVoor = log.filter((l) => l.schemaName === "discovery_seeds").length;
+      await cd.discoveryCollect(admin as never, runId);
+      ok(
+        "een herhaalde taak doet geen tweede aanroep",
+        log.filter((l) => l.schemaName === "discovery_seeds").length === aanroepenVoor,
+      );
+
+      await cd.discoveryExpand(admin as never, runId);
+      await cd.discoverySift(admin as never, runId);
+      const { rows: naSchiften } = await db.client.query(
+        "select status, status_note, sifted_json from public.cluster_discovery_runs where id = $1",
+        [runId],
+      );
+      eqc("na schiften staat de ronde op bundelen", naSchiften[0].status, "bundelen");
+      ok(
+        "zonder zoekdata zegt de ronde dat erbij",
+        String(naSchiften[0].status_note ?? "").includes("stond uit"),
+        String(naSchiften[0].status_note),
+      );
+      const geschift = naSchiften[0].sifted_json as { keyword: string }[];
+      ok("de merkterm is er vóór het model al uit", !geschift.some((t) => t.keyword === "klimaat bv"));
+      ok("de homoniem is eruit geschift", !geschift.some((t) => t.keyword.includes("capcut")));
+      ok("een onbestaand nummer van het model telt niet", geschift.length === 3, String(geschift.length));
+
+      await cd.discoveryBundle(admin as never, runId);
+      const { rows: kand } = await db.client.query(
+        `select title, kind, overlaps_with, total_volume, own_position, terms_json
+           from public.cluster_discovery_candidates where run_id = $1 order by score desc`,
+        [runId],
+      );
+      ok("de verzonnen kandidaat sneuvelt", !kand.some((k) => k.title === "Zonnepanelen"), kand.map((k) => k.title).join(", "));
+      const airco = kand.find((k) => k.title === "Airco laten installeren");
+      ok("de airco-kandidaat is er", Boolean(airco));
+      eqc("met plek 8 is dat snelle winst", String(airco?.kind), "snelle_winst");
+      ok("zonder zoekdata is het volume onbekend, niet nul", airco?.total_volume === null, String(airco?.total_volume));
+      const ketel = kand.find((k) => k.title === "CV-ketel onderhoud in Tilburg");
+      ok(
+        "een verzonnen term binnen een echte kandidaat valt weg, de kandidaat niet",
+        ketel === undefined || !(ketel.terms_json as { keyword: string }[]).some((t) => t.keyword.includes("verzonnen")),
+      );
+      const { rows: rondeKlaar } = await db.client.query(
+        "select status, finished_at from public.cluster_discovery_runs where id = $1",
+        [runId],
+      );
+      eqc("de ronde is klaar", rondeKlaar[0].status, "klaar");
+
+      // Een tweede ronde waarvan een stap definitief opgeeft.
+      const { rows: tweede } = await db.client.query(
+        `insert into public.cluster_discovery_runs (profile_id, started_by, status)
+         values ($1, $2, 'verbreden') returning id`,
+        [cdProfileId, userId],
+      );
+      const { rows: taak } = await db.client.query(
+        `insert into public.jobs (profile_id, type, payload_json, dedupe_key, status, attempts)
+         values ($1, 'discovery_expand', $2, $3, 'running', 4) returning *`,
+        [cdProfileId, JSON.stringify({ runId: tweede[0].id }), `chain-discovery-fout:${tweede[0].id}`],
+      );
+      const { handleFailure } = await import("@/lib/jobs/worker");
+      await handleFailure(admin as never, taak[0], "DataForSEO lag eruit");
+      const { rows: naFout } = await db.client.query(
+        "select status, status_note from public.cluster_discovery_runs where id = $1",
+        [tweede[0].id],
+      );
+      eqc("een opgegeven stap zet de ronde op mislukt", naFout[0].status, "mislukt");
+      ok("met een zin voor het scherm", String(naFout[0].status_note ?? "").length > 20);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
     // Een pagina uit het contentplan kan nu wél gemeten worden
     // (doorloop-huyberts.md punt 2).
     //
