@@ -32,10 +32,14 @@ export const metadata = { title: "Contentplan" };
  * moeten worden". Dat vroeg de zwaarste bediening van de app van de gebruiker
  * die er het minst vaak komt.
  *
- * ⚠️ Sinds 22 september 2026 landt iedereen zonder `?weergave=` op het bord
- * (Plannen): dat is de weergave waar het meeste werk gebeurt. Beiden kunnen
- * alles wat het plan kan; wie een weergave in de URL meegeeft krijgt die,
- * ongeacht rol, zodat een gedeelde link bij iedereen hetzelfde opent.
+ * ⚠️ Van 22 tot 23 september 2026 landde iedereen zonder `?weergave=` op het
+ * bord (Plannen). Sinds de UX-audit van 23 september 2026 (P1.6) bepaalt de rol
+ * weer waar je landt, zoals op 27 augustus besloten: de klant op Overzicht, de
+ * consultant op Plannen. Het bord is het drukste scherm van de app, met als
+ * eerste zin "Sleep content naar de maand", en de klant plant niet: hij wil
+ * weten wat er deze maand gebeurt en wat hij moet doen. Beiden kunnen nog
+ * steeds alles wat het plan kan; wie een weergave in de URL meegeeft krijgt
+ * die, ongeacht rol, zodat een gedeelde link bij iedereen hetzelfde opent.
  */
 export default async function PlanPage({
   params,
@@ -86,11 +90,11 @@ export default async function PlanPage({
   // Blok A punt 6: een derde weergave naast Overzicht en Plannen. Zelfde regel
   // als de andere twee: een weergave in de URL wint, ongeacht rol, zodat een
   // gedeelde link bij iedereen hetzelfde opent. Zonder weergave in de URL
-  // landt iedereen op Plannen.
+  // bepaalt de rol het: de consultant op Plannen, de klant op Overzicht.
   const modus: "overzicht" | "plannen" | "kalender" =
     weergave === "plannen" || weergave === "kalender" || weergave === "overzicht"
       ? weergave
-      : "plannen";
+      : standaardWeergave(staff);
 
   return (
     <div className="flex flex-col gap-6">
@@ -186,6 +190,17 @@ export default async function PlanPage({
  * Overzicht en Plannen in plaats van een schakelaar binnen één scherm, want
  * die twee bestonden al als losse pagina's met hun eigen url.
  */
+/** Waar je landt zonder `?weergave=` in de URL (UX-audit P1.6). */
+function standaardWeergave(staff: boolean): "overzicht" | "plannen" {
+  return staff ? "plannen" : "overzicht";
+}
+
+/**
+ * De schakelaar tussen de drie weergaven, in de vorm van het gedeelde segment
+ * (`.segment`, zie `Segment` in `components/tabs.tsx`). Links en geen knoppen,
+ * want elke weergave heeft zijn eigen adres. Overzicht staat voorop sinds de
+ * UX-audit van 23 september 2026 (P1.6): lezen komt vóór plannen.
+ */
 function WeergaveKiezer({
   profileId,
   modus,
@@ -194,41 +209,23 @@ function WeergaveKiezer({
   modus: "overzicht" | "plannen" | "kalender";
 }) {
   const basis = `/merk/${profileId}/strategie/plan`;
+  const opties = [
+    { waarde: "overzicht", label: "Overzicht" },
+    { waarde: "plannen", label: "Plannen" },
+    { waarde: "kalender", label: "Kalender" },
+  ] as const;
   return (
-    <div className="no-print flex flex-wrap items-center gap-2">
-      <Keuze href={`${basis}?weergave=plannen`} actief={modus === "plannen"}>
-        Plannen
-      </Keuze>
-      <Keuze href={`${basis}?weergave=kalender`} actief={modus === "kalender"}>
-        Kalender
-      </Keuze>
-      <Keuze href={`${basis}?weergave=overzicht`} actief={modus === "overzicht"}>
-        Overzicht
-      </Keuze>
-    </div>
-  );
-}
-
-function Keuze({
-  href,
-  actief,
-  children,
-}: {
-  href: string;
-  actief: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      aria-current={actief ? "page" : undefined}
-      className="rounded-[var(--radius-xl)] px-3 py-1.5 text-sm font-medium transition-colors hover:bg-[var(--interactive-hover)]"
-      style={{
-        color: actief ? "var(--text-primary)" : "var(--text-secondary)",
-        background: actief ? "var(--bg-layer-2)" : undefined,
-      }}
-    >
-      {children}
-    </Link>
+    <nav className="segment no-print w-fit" aria-label="Weergave van het contentplan">
+      {opties.map((o) => (
+        <Link
+          key={o.waarde}
+          href={`${basis}?weergave=${o.waarde}`}
+          aria-current={modus === o.waarde ? "page" : undefined}
+          className="segment-item"
+        >
+          {o.label}
+        </Link>
+      ))}
+    </nav>
   );
 }

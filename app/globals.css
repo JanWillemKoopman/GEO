@@ -2604,10 +2604,13 @@ textarea.field {
     background-color var(--duration-fast) var(--ease-standard),
     color var(--duration-fast) var(--ease-standard);
 }
-.segment-item:hover:not([aria-pressed="true"]) {
+.segment-item:hover:not([aria-pressed="true"]):not([aria-current="page"]) {
   color: var(--text-primary);
 }
-.segment-item[aria-pressed="true"] {
+/* Een segment van links (de weergaven van het contentplan) markeert de gekozen
+   optie met `aria-current`, een van knoppen met `aria-pressed`. Dezelfde vorm. */
+.segment-item[aria-pressed="true"],
+.segment-item[aria-current="page"] {
   background-color: var(--bg-surface);
   color: var(--text-primary);
   font-weight: 500;

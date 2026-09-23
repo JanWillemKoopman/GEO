@@ -746,8 +746,7 @@ import { checkManualEdit } from "@/lib/pipeline/manual-edit-checks";
 import { leesMaandKeuze, maandRegel, planStap, telStatussen } from "@/lib/plan-read";
 import {
   isEersteMaand,
-  overzichtCijfers,
-  totalenKop,
+  totalenZin,
   planRegels,
   versheidsregel,
   volgendeMeting,
@@ -9213,82 +9212,21 @@ group("welk menu-item licht op", () => {
   ok("en niet Clusters", !navActief("/merk/abc/strategie/bibliotheek/p1", clusters));
 });
 
-group("overzichtCijfers: drie totalen en één stand van nu", () => {
-  // ⚠️ Herschreven op 28 augustus 2026. Tot die dag kwamen twee van de vier
-  // cijfers uit de KANSENLIJST, dus uit voorstellen: bij Van den Udenhout stond
-  // de rij op 0 · 0 · 7 · 5 terwijl er nog geen letter geschreven was. De rij
-  // telt nu wat er gemaakt is, over de hele looptijd.
-  const c = overzichtCijfers({
-    clusters: 1,
-    geschreven: 1,
-    geoptimaliseerd: 1,
-    gepubliceerd: 1,
-  });
-
-  ok("altijd precies vier cijfers", c.length === 4);
-  ok(
-    "de clusters staan vooraan, de publicaties achteraan",
-    c[0].label === "Cluster actief" && c[3].label === "Gepubliceerd",
+group("totalenZin: de totalen als één zin (UX-audit P1.1)", () => {
+  // Tot 23 september 2026 een rij van vier grote cijfers. Wat er van die rij
+  // moet blijven: tellen wat er GEMAAKT is (niet wat er voorgesteld is, zie 28
+  // augustus 2026), het aantal clusters als stand van nu, en geen enkele
+  // vergelijking met een vorige periode.
+  const zin = totalenZin({ clusters: 3, geschreven: 12, geoptimaliseerd: 4, gepubliceerd: 6 });
+  eq("de hele zin", zin, "3 clusters actief. Sinds de start: 12 nieuwe pagina's geschreven, 4 bestaande bijgewerkt, 6 live op je site.");
+  ok("geen groeiclaim", !/\+|steeg|daalde|vorige/.test(zin));
+  const een = totalenZin({ clusters: 1, geschreven: 1, geoptimaliseerd: 1, gepubliceerd: 0 });
+  eq("enkelvoud, en nul live zegt dat", een, "1 cluster actief. Sinds de start: 1 nieuwe pagina geschreven, 1 bestaande bijgewerkt, nog niets live.");
+  eq(
+    "zonder geschreven pagina geen rij nullen",
+    totalenZin({ clusters: 2, geschreven: 0, geoptimaliseerd: 0, gepubliceerd: 0 }),
+    "2 clusters actief. Er is nog geen pagina geschreven.",
   );
-
-  // ⚠️ Geen enkel cijfer draagt een vergelijking met een vorige periode. Het
-  // aantal clusters verandert door een besluit, niet doordat er gemeten is, en
-  // de andere drie zijn optellingen over de hele looptijd.
-  ok(
-    "geen enkele detailregel claimt groei",
-    c.every((x) => !/\+|sinds|steeg|daalde|vorige/.test(x.detail)),
-  );
-  ok("en elk cijfer heeft een toelichting", c.every((x) => x.detail.length > 0));
-
-  // ⚠️ Alleen het eerste cijfer is een stand van NU. Dat verschil moet uit de
-  // toelichting blijken, want de kop boven de rij zegt "sinds de start" en die
-  // geldt voor de andere drie.
-  ok("het eerste cijfer zegt dat het van nu is", c[0].detail === "Nu actief");
-
-  // Enkelvoud en meervoud, want deze getallen staan vaak op 1 of op 0.
-  ok("één geschreven pagina is enkelvoud", c[1].label === "Pagina geschreven");
-  ok("één optimalisatie is enkelvoud", c[2].label === "Pagina geoptimaliseerd");
-  const meer = overzichtCijfers({
-    clusters: 3,
-    geschreven: 4,
-    geoptimaliseerd: 2,
-    gepubliceerd: 5,
-  });
-  ok("meer clusters is meervoud", meer[0].label === "Clusters actief");
-  ok("meer pagina's is meervoud", meer[1].label === "Pagina's geschreven");
-  ok("meer optimalisaties is meervoud", meer[2].label === "Pagina's geoptimaliseerd");
-  // ⚠️ "Gepubliceerd" kent geen enkelvoud. Het label slaat op twee soorten
-  // tegelijk (nieuwe pagina's én optimalisaties), en "1 gepubliceerde pagina of
-  // optimalisatie" past niet in een kolom van 190 pixels.
-  ok("gepubliceerd verandert nooit van vorm", meer[3].label === "Gepubliceerd");
-
-  // ⚠️ Nul is hier een echte telling en geen onbekende waarde (conventie 3 gaat
-  // over gokken, niet over tellen). De detailregel zegt wel wat nul betekent.
-  const leeg = overzichtCijfers({
-    clusters: 0,
-    geschreven: 0,
-    geoptimaliseerd: 0,
-    gepubliceerd: 0,
-  });
-  ok("nul blijft nul", leeg.every((x) => x.waarde === "0"));
-  ok("en zegt waarom het nul is", leeg[1].detail === "Nog niets geschreven");
-
-  // ⚠️ Vier kolommen naast elkaar, waarvan drie ook een scheidingslijn met
-  // inspringing dragen: die zijn 24 pixels smaller dan de eerste. Een
-  // toelichting die daar over twee regels valt, maakt de rij rafelig en de
-  // kolommen ongelijk hoog. 23 tekens is wat er in de smalste kolom past.
-  ok(
-    "elke toelichting past op één regel",
-    [...c, ...meer, ...leeg].every((x) => x.detail.length <= 23),
-  );
-  ok("ook de nulvarianten", leeg.every((x) => x.detail.length <= 23));
-});
-
-group("totalenKop: de regel die zegt dat het totalen zijn", () => {
-  // ⚠️ Zonder deze regel leest een klant met twaalf geschreven pagina's de rij
-  // als "deze maand". Vaste tekst sinds 21 september 2026: geen datum meer die
-  // kan wijzen naar een moment dat niet meer bestaat (zie lib/overview.ts).
-  ok("altijd dezelfde vaste tekst", totalenKop() === "Sinds start ORBIT ENGINE");
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -10928,9 +10866,16 @@ group("de zijbalk kent vijf klanthoofdstukken plus Sales en Admin", () => {
     HOOFDSTUKKEN.indexOf("Overzicht") < HOOFDSTUKKEN.indexOf("Clusters") &&
       HOOFDSTUKKEN.indexOf("Clusters") < HOOFDSTUKKEN.indexOf("Strategie"),
   );
+  // UX-audit 23 september 2026 (P1.5): de klant ziet eerst wat hij heeft, de
+  // consultant eerst waar hij zoekt.
   eq(
-    "met eerst Clusters ontdekken, dan Mijn clusters",
+    "de klant ziet eerst Mijn clusters",
     (klant.find((k) => k.naam === "Clusters")?.items ?? []).map((i) => i.label).join(", "),
+    "Mijn clusters, Clusters ontdekken",
+  );
+  eq(
+    "de consultant eerst Clusters ontdekken",
+    (beheerder.find((k) => k.naam === "Clusters")?.items ?? []).map((i) => i.label).join(", "),
     "Clusters ontdekken, Mijn clusters",
   );
 
@@ -12254,10 +12199,14 @@ group("het overzicht: één hoofdgetal, één primaire knop, één rekensom", ()
   // nergens, dan wist de klant wel wat hij vandaag moest doen maar niet waar
   // het toe leidde. Eerst hoe het werkt, dan hoe het ervoor staat.
   ok("de ronde staat op de startpagina", overzicht.includes("<RondeBalk"));
+  // ⚠️ Omgedraaid in de UX-audit van 23 september 2026 (P1.1): wat er op de
+  // klant wacht staat bovenaan, de maand onderaan als naslag.
   ok(
-    "en boven de cijfers",
-    overzicht.indexOf("<RondeBalk") < overzicht.indexOf("<CijferRij"),
+    "de wachtrij staat boven het cijfer, het cijfer boven de maand",
+    overzicht.indexOf("<WachtrijLijst") < overzicht.indexOf("text-5xl") &&
+      overzicht.indexOf("text-5xl") < overzicht.indexOf("<RondeBalk"),
   );
+  ok("geen rij van vier grote tellers meer", !overzicht.includes("CijferRij"));
   // ⚠️ Eén maandtelling op het scherm (23 september 2026). "Maand 4 sinds de
   // start" boven de merknaam telde planmaanden, "Je september" telt de
   // kalender; samen lieten ze de klant zoeken welke de echte was.
@@ -12331,10 +12280,12 @@ group("het contentplan heeft drie weergaven", () => {
   ok("het bord bestaat", scherm.includes("<PlanView"));
   ok("de kalenderweergave bestaat", scherm.includes("<PlanCalendarView"));
   ok("er is een schakelaar tussen de drie", scherm.includes("<WeergaveKiezer"));
+  // UX-audit 23 september 2026 (P1.6): de rol bepaalt weer waar je landt.
   ok(
-    "zonder weergave in de URL land je op Plannen",
-    /:\s*"plannen";/.test(scherm),
+    "zonder weergave in de URL landt de consultant op Plannen en de klant op Overzicht",
+    scherm.includes('return staff ? "plannen" : "overzicht";'),
   );
+  ok("de schakelaar heeft de gedeelde segmentvorm", scherm.includes('className="segment-item"'));
   // Een weergave in de URL wint van het standaardgedrag, zodat een gedeelde
   // link bij iedereen hetzelfde opent.
   ok("en de URL wint van het standaardgedrag", scherm.includes("searchParams"));
@@ -23954,11 +23905,15 @@ group("een klant loopt niet tegen een knop die hem afwijst", () => {
 
   const knop = leesBestand("app/(app)/merk/[id]/strategie/clusters/nieuwe-cluster-knop.tsx");
   ok("de knop zelf linkt alleen voor staff naar /analyses/new", knop.includes('if (staff) {'));
+  // Sinds de UX-audit van 23 september 2026 (P1.3) de melding van de
+  // kostenpoort zelf, en niet meer de tekst van het lege scherm ("je eerste
+  // onderwerpen"), die niet klopt voor een klant die al clusters heeft.
   ok(
     "en toont een klant de uitleg in plaats van te navigeren",
-    knop.includes("KLANT_ZONDER_CLUSTERS"),
+    knop.includes("COST_DENIED.analyse_starten"),
   );
-  ok("die uitleg staat op één plek en wordt hier hergebruikt", knop.includes("cluster-start"));
+  ok("die uitleg staat op één plek en wordt hier hergebruikt", knop.includes("lib/cost-rules"));
+  ok("en de klantknop zegt dat het een aanvraag is", knop.includes("Nieuw cluster aanvragen"));
 });
 
 group("een merk zonder cluster overdragen wordt gemeld", () => {
@@ -25301,4 +25256,48 @@ group("UX-audit P1.2, P1.4, P1.10: één woord per begrip", () => {
   ok("Alle merken opent op Alle merken", leesBestand("app/(app)/beheer/page.tsx").includes('title="Alle merken"'));
   const ui = [...tsxOnder("app"), ...tsxOnder("components")].map(leesBestand).join("\n");
   ok("geen customer success manager meer in de schermen", !/customer success manager/i.test(ui));
+});
+
+group("UX-audit P1.1, P1.3, P1.5, P2.9, P2.11: startscherm, eerlijke knoppen, clusterstroom", () => {
+  const topics = leesBestand("app/(app)/merk/[id]/_components/topics-panel.tsx");
+  ok("een klant krijgt geen knop Cluster starten", topics.includes("!staff && (") && topics.includes("Je consultant start het voor je"));
+  ok("geen accentknop per voorstel", !topics.includes("btn-actie"));
+  const kaart = leesBestand("app/(app)/merk/[id]/ontdekken/kandidaat-kaart.tsx");
+  ok("toevoegen heet wat het doet", kaart.includes("Bewaar als voorstel") && !kaart.includes("Toevoegen aan Mijn clusters"));
+  ok("geen accentknop per kandidaat", !kaart.includes("btn-actie"));
+  const nieuw = leesBestand("app/(app)/merk/nieuw/page.tsx");
+  ok("wie geen merk mag laten onderzoeken krijgt de uitleg, geen formulier", nieuw.includes("COST_DENIED.merk_onderzoeken"));
+  const merken = leesBestand("app/(app)/merk/page.tsx");
+  ok("een merk in de lijst opent het overzicht", merken.includes('`/merk/${p.id}`'));
+  const clusterKaart = leesBestand("app/(app)/merk/[id]/strategie/clusters/cluster-kaart.tsx");
+  ok("de clusterkaart linkt naar zijn pagina's", clusterKaart.includes("strategie/bibliotheek?cluster="));
+  const wacht = leesBestand("app/(app)/merk/[id]/_components/wachtrij-lijst.tsx");
+  ok("open werk is geen groene chip", !wacht.includes("chip chip-success"));
+  ok("de maandbalk heet Deze maand", leesBestand("app/(app)/merk/[id]/_components/ronde-balk.tsx").includes(">Deze maand<"));
+});
+
+group("UX-audit P1.7: Zichtbaarheid in AI opent met het AI-cijfer", () => {
+  const a = leesBestand("app/(app)/merk/[id]/analytics/page.tsx");
+  ok("het cijfer staat boven de Google-opbrengst", a.indexOf("merkScore === null ?") < a.indexOf("opbrengstLeeg ? ("));
+  ok("een blokkade staat boven de filters", a.indexOf("blokkades.length > 0 &&") < a.indexOf("<AnalyticsFilters"));
+  const f = leesBestand("components/analytics-filters.tsx");
+  ok("verdiepende filters staan achter Meer filters", f.includes("Meer filters") && f.indexOf('label="Cluster"') < f.indexOf('label="Label"'));
+  ok("geen vakjargon Funnel", !f.includes('label="Funnel"'));
+});
+
+group("UX-audit P1.8, P1.9: merkdossier zonder crawlgereedschap, support per bestemming", () => {
+  const dossier = leesBestand("app/(app)/merk/[id]/merkprofiel/bewerken/page.tsx");
+  ok("het uitleesgereedschap staat alleen voor de consultant", /\{staf && \([\s\S]*<InventoryBox/.test(dossier));
+  const wizard = leesBestand("app/(app)/merk/[id]/_components/brand-wizard.tsx");
+  ok("onderaan geen losse Bewaren-knop meer", !wizard.includes('"Bewaren"'));
+
+  // Elke klantbestemming in de zijbalk heeft uitleg op Support. Zonder deze
+  // controle zakte het hoofdstuk Clusters (23 september 2026) ongemerkt weg,
+  // omdat de uitleg nog onder Strategie hing.
+  const support = leesBestand("app/(app)/support/page.tsx");
+  for (const item of brandNav("x", false)) {
+    const sleutel = /^[A-Za-z]+$/.test(item.label) ? `${item.label}: (` : `"${item.label}": (`;
+    ok(`Support legt "${item.label}" uit`, support.includes(sleutel));
+  }
+  ok("Support belooft geen clusterdossier meer", !support.includes("eigen dossier met vier hoofdstukken"));
 });

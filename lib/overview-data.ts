@@ -53,7 +53,7 @@ export async function loadGepubliceerd(admin: Admin, profileId: string): Promise
  * Tot vandaag haalde de startpagina hier alleen "hoeveel staat er live" op, en
  * kwamen de twee cijfers ernaast uit de kansenlijst: voorgestelde pagina's, dus
  * werk dat nog niet gedaan was. De rij las als opbrengst en telde voornemens.
- * Nu telt hij wat er gemaakt is (`lib/overview.ts`, `overzichtCijfers`).
+ * Nu telt hij wat er gemaakt is (`lib/overview.ts`, `totalenZin`).
  *
  * Drie filters die er alle drie toe doen:
  *

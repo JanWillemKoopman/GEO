@@ -436,6 +436,30 @@ export function ClusterKaart({
 
       {metrics && <AnalysisCardMetrics metrics={metrics} />}
 
+      {/* ── Waar de rest van dit cluster staat (UX-audit 23 september 2026, P2.11)
+          Een cluster heeft sinds 22 september 2026 bewust geen eigen pagina
+          meer; zijn cijfers staan op Analytics en zijn pagina's in de
+          Bibliotheek, allebei met een filter per cluster. Zonder deze twee
+          links moest de klant dat filter zelf vinden en instellen. Alleen bij
+          een gemeten cluster, want daarvoor staat er op die schermen nog niets. */}
+      {!gearchiveerd && analyse.status === "gemeten" && (
+        <div
+          className="flex flex-wrap items-center gap-x-4 gap-y-1"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <Link href={analyticsLink} className="link type-caption">
+            Cijfers van dit cluster
+          </Link>
+          <Link
+            href={`/merk/${analyse.profile_id}/strategie/bibliotheek?cluster=${analyse.id}`}
+            className="link type-caption"
+          >
+            Pagina&apos;s van dit cluster
+          </Link>
+        </div>
+      )}
+
       {/* ── Wat er nu gebeurt, in gewone taal ───────────────────────────────
           Sinds 22 september 2026 is dit kaartje de enige plek waar je een
           lopend cluster ziet staan: het wachtscherm is weg, want het werk loopt

@@ -110,7 +110,8 @@ function SectieKop({ sectie }: { sectie: WachtrijSectie }) {
         </span>
         {sectie.kop}
       </h3>
-      <span className="chip chip-success">
+      {/* Neutraal, niet groen (UX-audit P2.1): groen betekent "gelukt". */}
+      <span className="chip chip-neutral">
         {sectie.aantal} open
       </span>
       <Link
@@ -146,11 +147,15 @@ function TaakRegel({ item, primair }: { item: WorkItem; primair: boolean }) {
       href={item.href}
       className="flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3.5 transition-colors hover:bg-[var(--bg-surface-raised)]"
     >
-      <div className="flex min-w-0 flex-1 basis-72 flex-col gap-1">
-        {cluster && <span className="mono-label">Cluster · {cluster}</span>}
+      {/* Twee regels: wat en waarom (UX-audit P2.2). Het cluster en de extra
+          informatie staan in de tooltip; vier regels per taak maakten de lijst
+          twee keer zo traag om te scannen. */}
+      <div
+        className="flex min-w-0 flex-1 basis-72 flex-col gap-1"
+        title={[cluster ? `Cluster: ${cluster}` : null, item.meta].filter(Boolean).join(". ") || undefined}
+      >
         <span className="font-medium">{titel}</span>
         <span className="text-sm text-secondary">{item.why}</span>
-        {item.meta && <span className="text-sm text-muted">{item.meta}</span>}
       </div>
       <span className={`${primair ? "btn-primary" : "btn-outline"} btn-sm shrink-0`}>
         {item.actionLabel ?? "Bekijken"}
