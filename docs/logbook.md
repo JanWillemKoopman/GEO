@@ -11674,3 +11674,17 @@ staan gemarkeerd in de leestekst (`lib/tekst-markering.ts`; alle 5 gevonden op d
 in een tekst verschijnen nu als tabel, op het scherm en in de export, in plaats van als streepjes. Details in
 `docs/tasks/herontwerp-contentpagina.md` bijlage D. Controles: `tsc --noEmit`, `test:unit` (5262),
 `test:chain` (758) en `build` groen.
+
+**Avond 23 september 2026: de bibliotheek toont alleen teksten, en schermen zonder inhoud vallen weg.**
+De eigenaar kon in de bibliotheek niet zien wat op hem wachtte en wat vanzelf liep: vijf van de acht
+rijen bij Van den Udenhout zeiden "Wordt voorbereid", en klikken gaf een scherm met een laadbalk en
+de opdracht die ook in het contentplan staat. Die vijf pagina's hadden bovendien geen enkele taak:
+de maand ging om 08:29 UTC vrij, de code die bij vrijgeven voorbereidt stond pas om 09:56 live. De
+plan-cron van 04:00 UTC pakt ze de volgende ochtend op, behalve de twee zonder cluster, die het
+contentplan als geblokkeerd toont. Wat er veranderde: de bibliotheek toont alleen pagina's met tekst
+(`inBibliotheek()`), in twee groepen "Wacht op jou" en "Staat live", met onderaan één regel hoeveel
+pagina's nog geen tekst hebben en waar je die volgt. Het paginascherm bestaat alleen nog waar de
+klant iets moet doen of lezen (`heeftEigenScherm()`); de andere standen sturen door naar het
+contentplan, dat er ook niet meer naartoe linkt. Een pagina zonder rij in `content_pieces` heet
+"Voorbereiding volgt" en belooft geen minuten meer. Controles: `tsc --noEmit`, `test:unit` (5268),
+`test:chain` (758) en `build` groen.
