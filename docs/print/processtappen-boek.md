@@ -9,10 +9,9 @@ voor iedereen die het proces wil begrijpen, zonder dat daar kennis van software 
 
 De vijftien hoofdstukken volgen de volgorde waarin alles echt gebeurt. Voor elk hoofdstuk staat
 eerst uitgelegd waarom die stap in het proces zit en wat hij oplost, en daarna volgen de genummerde
-stappen zelf. Op twee plekken in het proces klopt de beschrijving nog niet helemaal met wat er al
-werkt; dat staat er dan bewust en met evenveel nadruk bij, in plaats van weggelaten.
+stappen zelf.
 
-Bijgewerkt op 22 september 2026, gecontroleerd tegen de werkende software.
+Bijgewerkt op 23 september 2026, gecontroleerd tegen de werkende software.
 
 ---
 
@@ -365,9 +364,11 @@ controleren of wat de klant zegt gepubliceerd te hebben, ook echt klopt.
      ondergrens van zestig procent herkenning, zodat kleine opmaakverschillen niet voor onnodig
      alarm zorgen.
 103. Het systeem checkt of de technische metadata op de pagina staat.
-104. Nog niet gebouwd: het systeem is voorbereid op een check of je via de opgegeven URL op een
-     andere pagina bent uitgekomen, bijvoorbeeld door een doorverwijzing, maar die check doet op dit
-     moment niets. Een verkeerd ingevulde of verlopen URL wordt hier dus nog niet gesignaleerd.
+104. Het systeem kijkt of de opgegeven URL doorstuurt naar een andere pagina. Een verschil in
+     alleen http of https, www, een slash aan het eind of een trackingcode telt daarbij niet. Stuurt
+     de link echt door, dan krijgt de klant het adres te zien waar hij uitkwam, met het verzoek dat
+     adres in te vullen. Anders worden de bezoekers van de pagina niet meegeteld. Staat de tekst op
+     die andere pagina, dan blijft de pagina gewoon gepubliceerd.
 105. Het systeem toont het resultaat aan de klant in gewone taal: welke problemen er zijn gevonden,
      of de bevestiging dat alles klopt.
 
@@ -409,12 +410,12 @@ gemaakt is. Stijgt alles even hard, dan lag het niet aan de pagina.
      en golf 2 apart terug te zien blijven.
 115. Golf 2, na achtentwintig dagen, telt zwaarder dan golf 1 zodra beide er zijn: een AI-systeem
      heeft een pagina in twee weken zelden al volledig opgepikt.
-116. Voor de helft gebouwd: de vergelijking met de controlegroep wordt wel berekend en opgeslagen,
-     en staat in het cijferbestand dat te exporteren is. Op het scherm dat de klant ziet, staat op
-     dit moment alleen het eindoordeel als één woord, "gestegen", "gelijk gebleven", "gedaald" of
-     "nog te weinig data", zonder de cijfers van de doelgroep naast de controlegroep erbij. Precies
-     de losse uitspraak die dit hoofdstuk wil vermijden, staat dus vooralsnog wél op het scherm; de
-     onderbouwing eronder ontbreekt daar nog.
+116. De klant ziet bij elke pagina het eindoordeel ("gestegen", "gelijk gebleven", "gedaald" of
+     "nog te weinig data") met de aantallen eronder: bij hoeveel van de doelvragen AI het merk
+     noemde vóór en na publicatie, en hetzelfde voor de controlegroep. Daaronder staat in gewone taal
+     wat dat betekent. Bijvoorbeeld dat een stijging waarschijnlijk niet door de pagina komt als de
+     vragen zonder nieuwe pagina net zo hard stegen, of hoeveel vragen er nodig zijn voordat een
+     klein verschil van toeval te onderscheiden is.
 117. Deze hermeting staat los van de gewone maandelijkse meting uit hoofdstuk 5, die op alle
      dertig vragen van de analyse blijft doorlopen. Zo hangt het oordeel over deze ene pagina nooit
      af van één momentopname, en blijft ook zichtbaar hoe het merk zich in bredere zin ontwikkelt.
