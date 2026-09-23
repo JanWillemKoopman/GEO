@@ -1,50 +1,63 @@
 import { Icon } from "@/components/icon";
-import type { RondeFase } from "@/lib/ronde";
+import type { RondeMaand } from "@/lib/ronde";
 
 /**
- * De ronde, bovenaan het overzicht.
+ * "Je september": de maand, bovenaan het overzicht.
  *
  * ── WAAROM DIT HET EERSTE BLOK VAN DE APP IS ────────────────────────────────
  *
- * Dit is het antwoord op "hoe werkt dit product". Het stond nergens. De klant
- * kreeg vier menugroepen die opslagplaatsen zijn (Overzicht, Strategie,
- * Analytics, Merkprofiel) en moest zelf bedenken dat die samen één maandelijkse
- * ronde vormen. Wie dat zelf moet tekenen, tekent het niet.
+ * Het beantwoordt "wat is er deze maand gedaan, en wat moet er nog gebeuren",
+ * in de volgorde van het product zelf. Het menu zegt dat niet: dat zijn vier
+ * laden (Overzicht, Strategie, Analytics, Merkprofiel) die de klant zelf tot
+ * één maandelijkse ronde zou moeten optellen.
  *
- * ── WAAROM ZES BLOKJES EN GEEN VOORTGANGSBALK ───────────────────────────────
+ * ── WAT ER OP 23 SEPTEMBER 2026 VERANDERDE ─────────────────────────────────
  *
- * Een balk die vult, suggereert een einde. Dit heeft geen einde: na hermeten
- * begint de volgende meting. Zes stappen naast elkaar, met de stand eronder,
- * zeggen wél waar je staat en niet dat je er bijna bent.
+ * De kop was "Zo werkt je maand", met een vaste zin die op elk bezoek hetzelfde
+ * zei, en zes stappen die de hele looptijd telden. Nu staat de maand in de
+ * kop, telt elke stap alleen deze maand (`lib/ronde.ts`), en zegt de regel
+ * rechtsboven wanneer er iets nieuws komt.
  *
- * ⚠️ Het getal onder elke stap is de stand van nu en geen doel. Er staat dus
- * "3 teksten", nooit "3 van de 10": een doel dat de klant niet zelf gesteld
- * heeft, is een verwijt zodra hij het niet haalt.
+ * Bewust weggelaten:
+ *
+ *   • Geen knoppen en geen klikbare stappen. Direct hieronder staat "Wat er op
+ *     je wacht", en bovenin "openstaande vragen". Een knop hier zou de derde
+ *     plek zijn die zegt wat je moet doen. Dit blok zegt waar je staat.
+ *   • Geen balk die vult. Een vullende balk belooft een einde, en na hermeten
+ *     begint de volgende maand.
+ *   • "jij" alleen bij de stap die nu aan de beurt is. Het stond ook bij stappen
+ *     die al klaar waren, en dan zag de klant twee keer "jij" zonder te weten
+ *     welke telde.
  */
-export function RondeBalk({ fases, zin }: { fases: RondeFase[]; zin: string }) {
+export function RondeBalk({ ronde }: { ronde: RondeMaand }) {
   return (
     <div className="card flex flex-col gap-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="mono-label">Zo werkt je maand</span>
-        <span className="text-sm text-muted">
-          Elke stap voedt de volgende. Na de laatste begint de eerste opnieuw.
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h2 className="type-section">Je {ronde.maand}</h2>
+          {ronde.periode && <span className="text-sm text-muted">{ronde.periode}</span>}
         </span>
+        <span className="text-sm text-muted">{ronde.volgende}</span>
       </div>
 
-      <ol className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
-        {fases.map((fase) => (
-          <li key={fase.id} className="flex min-w-0 flex-col gap-1">
+      <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+        {ronde.fases.map((fase) => (
+          <li
+            key={fase.id}
+            aria-current={fase.actief ? "step" : undefined}
+            className="flex min-w-0 flex-col gap-1 rounded-[var(--radius-lg)] px-3 py-2.5"
+            style={{
+              // ⚠️ De stap van nu krijgt een eigen vlak. Een ander icoontje en
+              // iets dikkere letters (tot 23 september 2026) vielen tussen vijf
+              // andere stappen niet op.
+              background: fase.actief ? "var(--interactive-hover)" : undefined,
+            }}
+          >
             <span className="flex items-center gap-1.5">
-              {/* De tekening draagt de stand: gezet, aan de beurt, of nog niet
-                  aan de orde. De kleur zit op de ouder, want een icoon erft
-                  altijd `currentColor` (`docs/designsystem.md` §6b.2).
-
-                  ⚠️ Een afgeronde stap krijgt sinds 21 september 2026 een eigen
-                  rondje in de groene oppervlaktetint (`--trend-up-surface`) en
-                  een net iets groter vinkje. Zonder dat contrast stond het
-                  vinkje op 15 pixels dunne lijn tussen vijf andere iconen en
-                  viel het als eerste stap van de rij niet op, terwijl "gezet"
-                  precies is wat deze rij als eerste moet laten zien. */}
+              {/* De kleur zit op de ouder, want een icoon erft `currentColor`
+                  (`docs/designsystem.md` §6b.2). Een afgeronde stap krijgt een
+                  rondje in de groene oppervlaktetint, zodat "gedaan" het eerste
+                  is wat de rij laat zien. */}
               <span
                 className="flex shrink-0 items-center justify-center rounded-[var(--radius-pill)]"
                 style={{
@@ -65,31 +78,33 @@ export function RondeBalk({ fases, zin }: { fases: RondeFase[]; zin: string }) {
               </span>
               <span
                 className={`min-w-0 truncate text-sm ${
-                  fase.actief ? "font-medium" : fase.klaar ? "font-medium" : "text-muted"
+                  fase.klaar || fase.actief ? "font-medium" : "text-muted"
                 }`}
               >
                 {fase.label}
               </span>
             </span>
 
-            <span className="mono-label truncate" title={fase.wat}>
-              {fase.stand}
-            </span>
+            <span className="mono-label truncate">{fase.stand}</span>
+            {fase.detail && <span className="text-sm text-muted">{fase.detail}</span>}
 
-            {/* ⚠️ Alleen op de stappen die niet vanzelf gaan. Dit is de enige
-                plek in de app waar de arbeidsverdeling in één oogopslag staat:
-                vier stappen doet ORBIT ENGINE, twee doet de klant zelf, en bij
-                een merk zonder onderwerp wacht de eerste stap op de consultant
-                (zie `lib/ronde.ts`). */}
-            {fase.aanZet === "jij" && <span className="chip chip-neutral w-fit">jij</span>}
-            {fase.aanZet === "consultant" && (
-              <span className="chip chip-neutral w-fit">je consultant</span>
+            {fase.actief && (
+              <span className="chip chip-attention mt-1 w-fit">
+                {fase.aanZet === "jij"
+                  ? "jij, nu"
+                  : fase.aanZet === "consultant"
+                    ? "je consultant, nu"
+                    : "ORBIT ENGINE, nu"}
+              </span>
             )}
           </li>
         ))}
       </ol>
 
-      <p className="border-t border-[var(--border-subtle)] pt-3 text-sm text-secondary">{zin}</p>
+      <div className="flex flex-col gap-1 border-t border-[var(--border-subtle)] pt-3">
+        <p className="text-sm text-secondary">{ronde.zin}</p>
+        {ronde.vorigeMaand && <p className="text-sm text-muted">{ronde.vorigeMaand}</p>}
+      </div>
     </div>
   );
 }

@@ -606,6 +606,11 @@ Twee van de zes stappen dragen een chip "jij": plannen en publiceren. Dat is de 
 waar de arbeidsverdeling in één oogopslag staat, en het is de kern ervan: ORBIT ENGINE komt niet op
 de website van de klant.
 
+> **Bijgewerkt op 23 september 2026.** Het blok heet nu "Je september", telt per kalendermaand, heeft
+> vijf stappen (Kansen staat onder Meten) en toont "2 van de 14" waar de klant de 14 zelf vrijgaf.
+> Het label "jij" staat alleen nog bij de stap die nu aan de beurt is. De twee regels hierboven over
+> "klaar" en "3 van de 10" zijn daarmee vervangen; zie `docs/logbook.md`, 23 september 2026.
+
 **Het zichtbaarheidspercentage staat weer op de startpagina**, bovenin de standkaart, met de
 onzekerheidsmarge en het verschil sinds de vorige meting. Een meetproduct dat opent met vier
 productietellingen laat eerst zien hoeveel er gemaakt is, terwijl de klant komt kijken of het wérkt.

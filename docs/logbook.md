@@ -11531,3 +11531,39 @@ Het blok "Per fase van de klantreis" op het merkoverzicht komt niet terug: met e
 pagina's zonder fase zou die telling nog steeds te laag uitvallen.
 
 Controles: `tsc --noEmit`, `test:unit` (5149), `test:chain` (737) en `build` groen.
+
+## "Je september": het maandblok telt per maand (23 september 2026)
+
+Het blok bovenaan de startpagina heette "Zo werkt je maand", maar elk getal erin telde de hele
+looptijd. Nagerekend op productie bij Van den Udenhout op 23 september: "Plannen ✓ 18 ingepland" was
+het hele plan, terwijl de 14 pagina's van september (gepland 23 tot en met 28 september) nog op
+`ter_goedkeuring` stonden. "Schrijven ✓ 3 teksten" telde een briefing mee, terwijl de rij eronder
+"0 geschreven, 2 geoptimaliseerd" zei. De eigenaar wilde een blok dat zegt wat er deze maand gedaan
+is en nog moet gebeuren, met de naam van de maand erin.
+
+**Wat een maand is.** De kalendermaand in UTC, dezelfde klok als de meetcron (`0 6 1 * *`). Vanaf de
+tweede maand valt dat samen met de periode tussen twee metingen; de eerste maand begint bij de
+nulmeting ("sinds je nulmeting op 20 september"). Plannen, schrijven en publiceren tellen de pagina's
+met `scheduled_for` in deze maand, van het lopende plan en zonder reserves. Teksten buiten het plan
+tellen op hun aanmaakdatum (er is geen schrijfdatum) en staan er apart bij ("en 2 buiten het plan").
+
+**Vijf stappen in plaats van zes.** Kansen kwamen uit dezelfde meting, op dezelfde dag, en stonden
+dus altijd tegelijk met Meten op klaar. Het aantal staat nu onder Meten.
+
+**"2 van de 14" mag nu wel.** Het bezwaar tegen een noemer was dat een doel dat de klant niet zelf
+stelde als verwijt leest. De pagina's van een maand geeft de klant zelf vrij, dus die noemer is zijn
+eigen afspraak. Een stap is klaar als het werk van deze maand af is.
+
+**Vormgeving.** De stap van nu krijgt een eigen vlak en een limoenchip ("jij, nu", "je consultant,
+nu" of "ORBIT ENGINE, nu"); "jij" stond eerst ook bij stappen die al klaar waren. De vaste zin
+rechtsboven is vervangen door "Volgende meting op 1 oktober, over 8 dagen". Onderaan staat wat er
+vorige maand gebeurde ("In september: 3 teksten geschreven en 1 live gezet."), zodat een klant op
+2 oktober niet denkt dat zijn werk verdwenen is. Bewust geen knoppen: "Wat er op je wacht" staat
+direct eronder. "Maand 4 sinds de start" boven de merknaam is weg: dat telde planmaanden, en twee
+maandtellingen op één scherm lieten de klant zoeken welke de echte was.
+
+Code: `lib/ronde.ts` (puur), `loadMaandBronnen()` in `lib/overview-data.ts`,
+`_components/ronde-balk.tsx`. De test in `scripts/test-unit.ts` gebruikt de productiestand van Van
+den Udenhout als hoofdgeval. Verwachte uitkomst daar: Meten klaar (20 september, 22 kansen), Plannen
+aan de beurt met "14 pagina's, wachten op je akkoord", Schrijven "0 van de 14, en 2 buiten het
+plan". Controles: `tsc --noEmit`, `test:unit` (5163), `test:chain` (737) en `build` groen.
