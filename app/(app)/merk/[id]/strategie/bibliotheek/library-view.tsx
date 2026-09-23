@@ -41,6 +41,10 @@ import type { PaginaRij } from "@/lib/pagina-data";
  * van `docs/designsystem.md` §11: status is nooit kleur alleen). Het getal
  * rechts heet nu "Kwaliteit": los stond "72/100" er zonder te zeggen waarvan.
  *
+ * Later die avond, op verzoek van de eigenaar: de oranje zin van een rij die op
+ * jou wacht staat nu rechts als oranje chip (`chip-warning`), net als de groene
+ * "Klaar voor jouw akkoord". De chip is zelf het teken, dus de stip viel weg.
+ *
  * Een filter staat nooit meer uit. Met twee teksten van dezelfde soort hadden
  * Status, Content en Type elk één keuze en werden ze grijs: de eigenaar las
  * dat terecht als "de filters doen het niet".
@@ -236,21 +240,10 @@ function Rij({ rij: r, wacht, profileId }: { rij: PaginaRij; wacht: boolean; pro
         <p className="type-caption text-muted">
           {[r.soort, r.cluster, r.datum ? `gepland ${formatDag(r.datum)}` : null].filter(Boolean).join(" · ")}
         </p>
-        <p
-          className={`type-compact mt-0.5 flex items-baseline gap-2 ${wacht ? "" : "text-secondary"}`}
-          style={wacht ? { color: "var(--intent-warning-content)" } : undefined}
-        >
-          {wacht && (
-            <span
-              className="inline-block size-1.5 shrink-0 translate-y-[-2px] rounded-full"
-              style={{ backgroundColor: "var(--intent-warning-solid)" }}
-              aria-hidden
-            />
-          )}
-          {statusRegel(r)}
-        </p>
+        {!wacht && <p className="type-compact mt-0.5 text-secondary">{statusRegel(r)}</p>}
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-3">
+        {wacht && <span className="chip chip-warning">{statusRegel(r)}</span>}
         {r.stand.looptAchter && <span className="chip chip-danger">Loopt achter</span>}
         {r.score !== null && (
           <span className="type-caption text-muted">
