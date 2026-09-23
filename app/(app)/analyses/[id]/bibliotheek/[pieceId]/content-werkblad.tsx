@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ErrorNotice, networkProblem } from "@/components/error-notice";
+import { ErrorNotice, networkProblem, problemFromResponse } from "@/components/error-notice";
 import type { FaqEditItem } from "@/components/faq-editor";
 import type { UserFacingError } from "@/lib/errors";
 import { extractHeadings, renderMarkdown } from "@/lib/markdown";
@@ -10,9 +10,24 @@ import { markeerZinnen, zinInBron } from "@/lib/tekst-markering";
 import { ContentCanvas, NieuweVersieBalk } from "./content-canvas";
 import { ContentTopbar, Menu, StatusChip, type PaginaStand } from "./content-topbar";
 import { ContextRail } from "./context-rail";
-import { QualityFindings } from "./quality-findings";
-import type { Bevindingengroepen } from "@/lib/pipeline/quality-groups";
+import { QualityFindings, useLaatStaan } from "./quality-findings";
+import type { Bevindingengroepen, GegroepeerdeBevinding } from "@/lib/pipeline/quality-groups";
 import { HerschrijfProvider, type Herschrijfopdracht } from "./herschrijf-context";
+import { Puntvenster } from "./puntvenster";
+import { PUNTEN_OPLOSSEN } from "@/components/pagina/punten-knop";
+import { isAccepteerbaar } from "@/lib/geaccepteerde-zinnen";
+import {
+  lijstVoorOrbit,
+  opdrachtVan,
+  puntSleutel,
+  rondeVolgorde,
+  schrijfopdracht,
+  telKeuzes,
+  vervangBereik,
+  volgendOpen,
+  type Keuze,
+  type Keuzes,
+} from "@/lib/puntenronde";
 import type { ContentStatusResponse } from "@/app/api/analyses/[id]/content/[pieceId]/status/route";
 
 /**
@@ -325,7 +340,182 @@ export function ContentWerkblad({
     );
   }, []);
 
-  async function bewaar() {
+  // ── De punten één voor één (`lib/puntenronde.ts`, `puntvenster.tsx`) ──────
+  //
+  // De keuzes leven alleen in dit scherm: wie de pagina ververst voordat hij
+  // iets verstuurt of opslaat, begint opnieuw. Dat is bewust. Een keuze die
+  // nergens toe geleid heeft, hoort niet als half werk in de database te staan,
+  // en wat er wél toe leidt (een zin laten staan, opslaan, een nieuwe versie)
+  // gaat direct naar de server.
+  const [keuzes, setKeuzes] = useState<Keuzes>({});
+  const [venster, setVenster] = useState<{ sleutel: string } | "slot" | null>(null);
+  const [rondeBezig, setRondeBezig] = useState(false);
+  const [rondeFout, setRondeFout] = useState<string | null>(null);
+  const [rondeProbleem, setRondeProbleem] = useState<UserFacingError | null>(null);
+  const laatStaan = useLaatStaan(analysisId, pieceId);
+
+  const volgorde = useMemo(() => rondeVolgorde(groepen.blokkades), [groepen]);
+  const telling = useMemo(() => telKeuzes(volgorde, keuzes), [volgorde, keuzes]);
+  const lijst = useMemo(
+    () =>
+      volgorde
+        .filter((item) => keuzes[puntSleutel(item)]?.soort === "orbit")
+        .map((item) => ({ sleutel: puntSleutel(item), tekst: opdrachtVan(item) })),
+    [volgorde, keuzes],
+  );
+  const orbitMag: { mag: true } | { mag: false; reden: string } =
+    poortOpen && !schrijft
+      ? { mag: true }
+      : {
+          mag: false,
+          reden: schrijft
+            ? "ORBIT ENGINE schrijft al aan deze pagina. Wacht tot die versie klaar is."
+            : "Dit kan pas als je openstaande vragen beantwoord zijn. Je vindt ze onder Openstaande vragen.",
+        };
+
+  const sluitVenster = useCallback(() => setVenster(null), []);
+
+  const openPunt = useCallback((item: GegroepeerdeBevinding) => {
+    setRondeFout(null);
+    setRondeProbleem(null);
+    setVenster({ sleutel: puntSleutel(item) });
+  }, []);
+
+  const startRonde = useCallback(() => {
+    setRondeFout(null);
+    setRondeProbleem(null);
+    const eerste = volgendOpen(volgorde, keuzes, null);
+    setVenster(eerste ? { sleutel: eerste } : volgorde.length > 0 ? "slot" : null);
+  }, [volgorde, keuzes]);
+
+  // De knop in de kaart "Aan zet" staat in een servercomponent en kan dit
+  // scherm niet rechtstreeks aanroepen; hij stuurt een gebeurtenis.
+  useEffect(() => {
+    window.addEventListener(PUNTEN_OPLOSSEN, startRonde);
+    return () => window.removeEventListener(PUNTEN_OPLOSSEN, startRonde);
+  }, [startRonde]);
+
+  const huidigeSleutel = venster && venster !== "slot" ? venster.sleutel : null;
+  const huidigItem = huidigeSleutel ? volgorde.find((i) => puntSleutel(i) === huidigeSleutel) ?? null : null;
+
+  // Het punt in beeld verdween (bijvoorbeeld na "Klopt, laat staan" en de
+  // verversing daarna): door naar het volgende.
+  useEffect(() => {
+    if (huidigeSleutel && !huidigItem) {
+      const volgende = volgendOpen(volgorde, keuzes, null);
+      setVenster(volgende ? { sleutel: volgende } : volgorde.length > 0 ? "slot" : null);
+    }
+  }, [huidigeSleutel, huidigItem, volgorde, keuzes]);
+
+  /** Leg de keuze voor dit punt vast en ga naar het volgende punt zonder keuze. */
+  function legVast(sleutel: string, keuze: Keuze) {
+    const nieuw = { ...keuzes, [sleutel]: keuze };
+    setKeuzes(nieuw);
+    const volgende = volgendOpen(volgorde, nieuw, sleutel);
+    setVenster(volgende ? { sleutel: volgende } : "slot");
+  }
+
+  function blad(stap: 1 | -1) {
+    if (venster === "slot") {
+      // Terug vanaf het slot: naar het eerste punt zonder keuze, anders het laatste.
+      const open = volgendOpen(volgorde, keuzes, null);
+      const doel = open ?? (volgorde.length > 0 ? puntSleutel(volgorde[volgorde.length - 1]) : null);
+      if (doel) setVenster({ sleutel: doel });
+      return;
+    }
+    const i = volgorde.findIndex((it) => puntSleutel(it) === huidigeSleutel);
+    const j = i + stap;
+    if (j >= volgorde.length) setVenster("slot");
+    else if (j >= 0) setVenster({ sleutel: puntSleutel(volgorde[j]) });
+  }
+
+  async function kies(soort: "orbit" | "staan" | "overslaan") {
+    if (!huidigItem || !huidigeSleutel) return;
+    setRondeFout(null);
+    if (soort === "staan") {
+      // Direct naar de server, net als de knop in de rail altijd deed: de zin
+      // laten staan is een besluit, geen voorlopige keuze.
+      // Mislukt het, dan staat de melding van `useLaatStaan` in het venster.
+      if (!(await laatStaan.doe([huidigItem.issue.evidence ?? ""], false))) return;
+    }
+    legVast(huidigeSleutel, { soort });
+  }
+
+  function zelfInTekst(nieuw: string) {
+    if (!huidigItem || !huidigeSleutel) return;
+    const bereik = zinInBron(tekst, huidigItem.issue.evidence ?? "");
+    if (!bereik) return;
+    setTekst(vervangBereik(tekst, bereik, nieuw));
+    legVast(huidigeSleutel, { soort: "zelf" });
+  }
+
+  function zelfInBewerken() {
+    if (!huidigItem || !huidigeSleutel) return;
+    setKeuzes((k) => ({ ...k, [huidigeSleutel]: { soort: "zelf" } }));
+    setVenster(null);
+    pasZelfAan(huidigItem.issue.evidence ?? "");
+  }
+
+  /** Alles zonder keuze op de lijst, en meteen naar het slot. */
+  function allesNaarOrbit() {
+    const nieuw: Partial<Record<string, Keuze>> = { ...keuzes };
+    for (const item of volgorde) nieuw[puntSleutel(item)] ??= { soort: "orbit" };
+    setKeuzes(nieuw);
+    setRondeFout(null);
+    setRondeProbleem(null);
+    setVenster("slot");
+  }
+
+  /** De lijst is verstuurd: van de lijst af, en het scherm weet dat er geschreven wordt. */
+  const naVersturen = useCallback(() => {
+    setKeuzes((k) => Object.fromEntries(Object.entries(k).filter(([, v]) => v?.soort !== "orbit")));
+    setSchrijft(true);
+  }, []);
+
+  async function verstuur(extra: string) {
+    const opdracht = schrijfopdracht(lijstVoorOrbit(volgorde, keuzes), extra);
+    if (!opdracht) return;
+    setRondeBezig(true);
+    setRondeFout(null);
+    setRondeProbleem(null);
+    try {
+      // Eigen aanpassingen eerst vastleggen: de nieuwe versie bouwt voort op
+      // de tekst die op de server staat, en anders gaat dat werk verloren.
+      if (eigenWerk && !(await bewaar())) {
+        setRondeFout("Je aanpassingen konden niet worden opgeslagen. Er is nog niets naar ORBIT ENGINE gegaan.");
+        return;
+      }
+      const res = await fetch(`/api/analyses/${analysisId}/content/${pieceId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: opdracht }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setRondeProbleem(problemFromResponse(json));
+        return;
+      }
+      naVersturen();
+      setVenster(null);
+      router.refresh();
+    } catch (err) {
+      setRondeProbleem(networkProblem(err));
+    } finally {
+      setRondeBezig(false);
+    }
+  }
+
+  async function opslaanUitVenster() {
+    setRondeBezig(true);
+    setRondeFout(null);
+    const ok = await bewaar();
+    setRondeBezig(false);
+    if (ok) setVenster(null);
+    else setRondeFout("Opslaan is niet gelukt. De melding staat boven de tekst.");
+  }
+
+  /** Slaat de tekst op. `true` als dat lukte. */
+  async function bewaar(): Promise<boolean> {
     setOpslaan("bezig");
     setProbleem(null);
     try {
@@ -363,7 +553,7 @@ export function ContentWerkblad({
           canRetry: res.status !== 409,
           detail: "",
         });
-        return;
+        return false;
       }
 
       const nieuweStand = typeof json?.updatedAt === "string" ? json.updatedAt : updatedAt;
@@ -380,9 +570,11 @@ export function ContentWerkblad({
       });
       setOpslaan("bewaard");
       router.refresh();
+      return true;
     } catch (err) {
       setOpslaan("rust");
       setProbleem(networkProblem(err));
+      return false;
     }
   }
 
@@ -457,7 +649,18 @@ export function ContentWerkblad({
       )}
 
       <div className="content-split">
-        <div className="content-canvas-kolom flex flex-col gap-6">
+        <div
+          className="content-canvas-kolom flex flex-col gap-6"
+          // Een klik op een oranje zin in de leestekst opent zijn punt. De
+          // markeringen staan in HTML uit `markeerZinnen()`, dus één luisteraar
+          // hier in plaats van een knop per zin.
+          onClick={(e) => {
+            const mark = (e.target as HTMLElement).closest<HTMLElement>("mark.tekst-punt");
+            const index = mark ? Number(mark.id.replace("punt-", "")) : NaN;
+            const item = Number.isInteger(index) ? groepen.blokkades[index] : undefined;
+            if (item) openPunt(item);
+          }}
+        >
           <ContentCanvas
             titel={titel}
             tekst={tekst}
@@ -513,9 +716,54 @@ export function ContentWerkblad({
             }
           />
 
+          {!venster && lijst.length > 0 && !schrijft && (
+            // Zolang er iets op de lijst staat, blijft dat in beeld: anders
+            // vergeet je dat er nog een knop te drukken valt.
+            <div className="lijstbalk card flex flex-wrap items-center justify-between gap-3" role="status">
+              <span className="text-sm">
+                <span className="font-medium">
+                  {lijst.length === 1 ? "1 punt" : `${lijst.length} punten`} op je lijst voor ORBIT ENGINE
+                </span>
+                {telling.open > 0 && (
+                  <span className="text-secondary">
+                    {" "}
+                    · {telling.open === 1 ? "nog 1 punt zonder keuze" : `nog ${telling.open} punten zonder keuze`}
+                  </span>
+                )}
+              </span>
+              <span className="flex flex-wrap items-center gap-3">
+                {telling.open > 0 && (
+                  <button type="button" onClick={startRonde} className="text-sm text-secondary hover:underline">
+                    Verder met de punten
+                  </button>
+                )}
+                <button type="button" onClick={() => setVenster("slot")} className="btn-primary btn-sm">
+                  Bekijk en verstuur
+                </button>
+              </span>
+            </div>
+          )}
+
           <div id="aanpassen" className="content-canvas-maat flex flex-col gap-3 scroll-mt-24">
-            {kop && <h2 className="type-section">Een aanpassing vragen</h2>}
-            <HerschrijfProvider value={{ opdracht, bezig: schrijft }}>
+            {kop && (
+              <div className="flex flex-col gap-1">
+                <h2 className="type-section">Laat ORBIT ENGINE iets aanpassen</h2>
+                <p className="text-sm text-secondary">
+                  Voor alles wat niet onder Te verbeteren staat: een andere toon, iets korter, een onderwerp dat
+                  ontbreekt.
+                </p>
+              </div>
+            )}
+            <HerschrijfProvider
+              value={{
+                opdracht,
+                bezig: schrijft,
+                lijst,
+                onVanLijst: (sleutel) =>
+                  setKeuzes((k) => Object.fromEntries(Object.entries(k).filter(([s]) => s !== sleutel))),
+                onVerstuurd: naVersturen,
+              }}
+            >
               {herschrijfvak}
             </HerschrijfProvider>
           </div>
@@ -534,8 +782,10 @@ export function ContentWerkblad({
               gevonden={markering.gevonden}
               sectieBestaat={sectieBestaat}
               onGaNaarSectie={gaNaarSectie}
-              onToonInTekst={toonInTekst}
-              onPasZelfAan={pasZelfAan}
+              onOpenPunt={openPunt}
+              onStartRonde={startRonde}
+              onAllesNaarOrbit={allesNaarOrbit}
+              keuzes={keuzes}
               onLaatOplossen={laatOplossen}
               kanOplossen={poortOpen && !schrijft}
             />
@@ -550,8 +800,57 @@ export function ContentWerkblad({
           inhoud={inhoud}
         />
       </div>
+
+      {venster && (
+        <Puntvenster
+          stap={
+            huidigItem && huidigeSleutel
+              ? {
+                  item: huidigItem,
+                  sleutel: huidigeSleutel,
+                  positie: volgorde.indexOf(huidigItem) + 1,
+                  keuze: keuzes[huidigeSleutel],
+                  zinInTekst: zinUitBron(tekst, huidigItem),
+                  gemarkeerd: markering.gevonden[groepen.blokkades.indexOf(huidigItem)] === true,
+                  accepteerbaar: isAccepteerbaar(huidigItem.issue),
+                }
+              : null
+          }
+          totaal={volgorde.length}
+          voortgang={volgorde.map((item) => ({
+            soort: keuzes[puntSleutel(item)]?.soort ?? null,
+            huidig: puntSleutel(item) === huidigeSleutel,
+          }))}
+          telling={telling}
+          orbit={orbitMag}
+          eigenWerk={eigenWerk}
+          bezig={rondeBezig || laatStaan.bezig}
+          fout={rondeFout ?? laatStaan.fout}
+          probleem={rondeProbleem}
+          onKies={(soort) => void kies(soort)}
+          onZelfInTekst={zelfInTekst}
+          onZelfInBewerken={zelfInBewerken}
+          onVorige={() => blad(-1)}
+          onVolgende={() => blad(1)}
+          onNaarEinde={() => setVenster("slot")}
+          onToonInTekst={() => {
+            const index = huidigItem ? groepen.blokkades.indexOf(huidigItem) : -1;
+            setVenster(null);
+            if (index >= 0) toonInTekst(index);
+          }}
+          onVerstuur={(extra) => void verstuur(extra)}
+          onOpslaan={() => void opslaanUitVenster()}
+          onSluit={sluitVenster}
+        />
+      )}
     </div>
   );
+}
+
+/** De zin van een punt zoals hij letterlijk in de brontekst staat, of `null`. */
+function zinUitBron(tekst: string, item: GegroepeerdeBevinding): string | null {
+  const bereik = zinInBron(tekst, item.issue.evidence ?? "");
+  return bereik ? tekst.slice(bereik.begin, bereik.eind) : null;
 }
 
 /** Selecteer een stuk tekst in het meegroeiende tekstvak en scrol ernaartoe. */

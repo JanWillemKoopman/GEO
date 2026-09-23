@@ -39,6 +39,16 @@ export interface Herschrijfstand {
   opdracht: Herschrijfopdracht | null;
   /** Er loopt al een schrijfronde voor deze pagina. */
   bezig: boolean;
+  /**
+   * De punten die de klant in het puntenvenster aan ORBIT ENGINE gaf
+   * (`lib/puntenronde.ts`). Ze gaan mee in dezelfde schrijfronde als wat er in
+   * het vak getypt wordt, zodat er één knop is en niet twee.
+   */
+  lijst: { sleutel: string; tekst: string }[];
+  /** Haal één punt van de lijst. */
+  onVanLijst: (sleutel: string) => void;
+  /** De schrijfronde is gestart: de lijst is verwerkt. */
+  onVerstuurd: () => void;
 }
 
 /**
@@ -46,7 +56,13 @@ export interface Herschrijfstand {
  * `ReviseBox` ook zonder provider, bijvoorbeeld als hij ooit op een ander
  * scherm hergebruikt wordt.
  */
-const HerschrijfContext = createContext<Herschrijfstand>({ opdracht: null, bezig: false });
+const HerschrijfContext = createContext<Herschrijfstand>({
+  opdracht: null,
+  bezig: false,
+  lijst: [],
+  onVanLijst: () => undefined,
+  onVerstuurd: () => undefined,
+});
 
 export const HerschrijfProvider = HerschrijfContext.Provider;
 
