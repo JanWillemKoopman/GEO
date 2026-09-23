@@ -135,7 +135,7 @@ export function PackageBox({
         <label className="flex flex-col gap-1.5">
           <span className="mono-label">Pagina&apos;s per maand</span>
           <select
-            className="field"
+            className="field field-select"
             value={maat}
             onChange={(e) => setMaat(e.target.value === "" ? "" : Number(e.target.value))}
             disabled={busy}

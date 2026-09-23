@@ -1,5 +1,5 @@
 import type { AnalysisStatus } from "@/lib/types/database";
-import { STATUS_META, TONE_STYLE, WHOSE_TURN_LABEL } from "@/lib/analysis-status";
+import { STATUS_META, TONE_CHIP, WHOSE_TURN_LABEL } from "@/lib/analysis-status";
 
 /**
  * `showWhoseTurn` staat aan op de plekken waar de klant maar één status per
@@ -16,7 +16,7 @@ export function StatusBadge({
   const meta = STATUS_META[status];
   return (
     <span className="flex items-center gap-2">
-      <span className="chip" style={{ ...TONE_STYLE[meta.tone] }}>
+      <span className={TONE_CHIP[meta.tone]}>
         {meta.actionRequired && (
           <span className="live-dot" />
         )}

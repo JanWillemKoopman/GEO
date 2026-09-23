@@ -45,7 +45,7 @@ export function PaginaKop({
               hier dus het accent, net als de stang van de kaart "Aan zet"
               eronder. In de lijsten (bibliotheek, plan) blijft hij oranje: daar
               is hij het signaal tussen tientallen rijen. */}
-          <span className={`${stand.toon === "wacht" ? "chip chip-attention" : STAND_CHIP[stand.toon]} shrink-0`}>
+          <span className={`${STAND_CHIP[stand.toon]} shrink-0`}>
             {stand.label}
           </span>
           {stand.looptAchter && <span className="chip chip-danger shrink-0">Loopt achter</span>}

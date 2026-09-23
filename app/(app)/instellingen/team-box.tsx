@@ -203,7 +203,7 @@ export function TeamBox({
               disabled={busy}
             />
             <select
-              className="field sm:w-40"
+              className="field field-select sm:w-40"
               value={role}
               onChange={(e) => setRole(e.target.value as AccountRole)}
               aria-label="Rol"

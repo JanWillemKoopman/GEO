@@ -92,7 +92,7 @@ export function WhyThisPage({
           antwoord gaven. */}
       {opdracht && (
         <div className="flex flex-col gap-1.5">
-          <span className="mono-label" style={{ fontSize: "0.65rem" }}>
+          <span className="mono-label">
             Voor wie deze tekst geschreven is
           </span>
           <p className="text-sm text-secondary">
@@ -101,7 +101,7 @@ export function WhyThisPage({
           </p>
           {opdracht.keuzeredenen.length > 0 && (
             <>
-              <span className="mono-label" style={{ fontSize: "0.65rem" }}>
+              <span className="mono-label">
                 Waarom hij voor jou zou kiezen
               </span>
               <ul className="flex flex-col gap-1">
@@ -118,7 +118,7 @@ export function WhyThisPage({
 
       {targets.length > 0 && (
         <div className="flex flex-col gap-1.5">
-          <span className="mono-label" style={{ fontSize: "0.65rem" }}>
+          <span className="mono-label">
             Deze pagina moet deze vragen winnen
           </span>
           <ul className="flex flex-col gap-1">

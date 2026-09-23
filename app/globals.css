@@ -1574,6 +1574,18 @@ input[type="radio"] {
   background-color: var(--bg-layer-2);
   color: var(--text-tertiary);
 }
+/* Stijging en daling (23 september 2026). Richting en niet oordeel: §2.6 houdt
+   `--trend-*` bewust los van succes en fout, want een dalende zichtbaarheid is
+   geen foutmelding. Op het overzicht en in de clustertabel stond hier
+   `chip-success`/`chip-danger`. Tekst in de `-text`-variant: dit is 12px. */
+.chip-stijging {
+  background-color: var(--trend-up-surface);
+  color: var(--trend-up-text);
+}
+.chip-daling {
+  background-color: var(--trend-down-surface);
+  color: var(--trend-down-text);
+}
 /* De omlijnde variant, voor een chip op een vlak dat zelf al gevuld is. */
 .chip-outline {
   background-color: transparent;
@@ -1706,6 +1718,17 @@ input[type="radio"] {
   padding: 0 16px;
   font-size: 1rem; /* 16px */
 }
+/* De kleine trede: 36px, even hoog als `.btn-sm` ernaast. Voor een filterveld
+   in een smalle kolom (de voorraad op het planscherm), waar hier tot
+   23 september 2026 met de hand 30 en 34 pixels stond, met 13px tekst die in
+   de schaal niet voorkomt. */
+.field-sm {
+  height: 36px;
+  padding-inline: 10px;
+}
+.field-sm.field-select {
+  padding-right: 28px;
+}
 /* Ruimte voor een IconButton md (32px) rechts in het veld, zoals de
    wachtwoordwissel op een wachtwoordveld. */
 .field-toggle-inset {
@@ -1717,6 +1740,33 @@ textarea.field {
   padding: 10px 12px;
   resize: vertical;
   line-height: 1.5;
+}
+
+/* ── Elk veld op een telefoon (23 september 2026) ───────────────────────────
+   Hierboven stond al dat `.field-lg` onder 768px de maat voor élk veld zou
+   moeten zijn, en dat dat nooit was doorgevoerd
+   (`docs/tasks/openstaand-na-okx-omzetting.md` punt 1). De reden is hard:
+   Safari op een iPhone zoomt in zodra je een veld aantikt met tekst onder
+   16px, en zoomt daarna niet vanzelf terug. Eén regel hier in plaats van
+   vijftig schermen. `.field-sm` gaat mee naar 16px tekst maar blijft een
+   trede kleiner, want die staat in een smalle filterkolom. */
+@media (max-width: 767px) {
+  .field {
+    height: 48px;
+    padding-inline: 16px;
+    font-size: 1rem;
+  }
+  .field-select {
+    padding-right: 36px;
+  }
+  .field-sm {
+    height: 40px;
+    padding-inline: 12px;
+  }
+  textarea.field {
+    height: auto;
+    padding: 12px 16px;
+  }
 }
 
 /* Skeleton: de vorm van wat er komt. Een skeleton zegt WAAR de inhoud komt,
@@ -1768,21 +1818,33 @@ textarea.field {
    (1440px). Dat is niet kapot maar alleen minder breed, en dat is precies het
    soort degradatie dat je wilt. */
 .stand {
+  /* GEMETEN bij OKX: 16 op een telefoon, 20 op een tablet, 24 op een desktop.
+     Als variabele, zodat een balk die tot de rand moet lopen (`.volle-breedte`
+     hieronder) met dezelfde maat terugrekent in plaats van met een vaste 24. */
+  --stand-marge: 16px;
   width: 100%;
   max-width: var(--stand-werken);
   margin-inline: auto;
-  /* GEMETEN bij OKX: 16 op een telefoon, 20 op een tablet, 24 op een desktop. */
-  padding: 24px 16px;
+  padding: 24px var(--stand-marge);
 }
 @media (min-width: 768px) {
   .stand {
-    padding: 24px 20px;
+    --stand-marge: 20px;
   }
 }
 @media (min-width: 1024px) {
   .stand {
-    padding: 24px;
+    --stand-marge: 24px;
   }
+}
+/* Een balk die van rand tot rand loopt binnen de pagina (de filterbalk van
+   Analytics, de hoofdstukbalk, de voet van de merkwizard). Stond op vier
+   plekken als `-mx-6 px-6`: vast 24 pixels, terwijl de marge op een telefoon
+   16 is en op een tablet 20. De balk stak daar 8 of 4 pixels uit, en de
+   rechterkant viel weg achter `overflow-x: hidden` op `html`. */
+.volle-breedte {
+  margin-inline: calc(-1 * var(--stand-marge, 24px));
+  padding-inline: var(--stand-marge, 24px);
 }
 .stand:has(.wil-lezen) {
   max-width: var(--stand-lezen);
@@ -3230,6 +3292,24 @@ textarea.field {
   letter-spacing: -0.07em;
 }
 
+/* ── De link in lopende tekst (23 september 2026) ───────────────────────────
+   Er waren vijf behandelingen: altijd onderstreept, pas bij hover, secundair
+   grijs, in kapitalen, en in de accentkleur. Die laatste is precies wat
+   §2.4 verbiedt ("niet op links in lopende tekst"). Nu één: de kleur van de
+   tekst eromheen, met een onderstreping die zegt dat het een link is en bij
+   hover voller wordt. Een TITEL die een link is (een regel in een lijst) is
+   een andere rol en houdt `hover:underline`. */
+.link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 2px;
+  transition: text-decoration-color var(--duration-fast) var(--ease-standard);
+}
+.link:hover {
+  text-decoration-color: currentColor;
+}
+
 /* Gerenderde Markdown (contentbibliotheek, rapport). */
 .prose {
   color: var(--text-secondary);
@@ -3270,8 +3350,11 @@ textarea.field {
   color: var(--text-primary);
 }
 .prose a {
-  color: var(--intent-intelligence-text);
+  /* Tekstkleur en niet het accent: zie `.link` hierboven. */
+  color: var(--text-primary);
   text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 2px;
   /* Een link in gegenereerde content is vaak een kale URL. */
   overflow-wrap: anywhere;
 }

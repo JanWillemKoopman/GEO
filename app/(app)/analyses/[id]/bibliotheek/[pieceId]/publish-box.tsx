@@ -215,7 +215,7 @@ function NogNiet({
           </button>
           <button
             type="button"
-            className="btn-outline btn-sm"
+            className="btn-ghost btn-sm"
             disabled={bezig}
             onClick={() => setConfirming(false)}
           >

@@ -102,30 +102,21 @@ export function telPerStatus<T extends { status: AnalysisStatus }>(
   return telling;
 }
 
-export const TONE_STYLE: Record<StatusTone, React.CSSProperties> = {
-  attention: {
-    background: "var(--intent-intelligence-surface)",
-    color: "var(--intent-intelligence-text)",
-    borderColor: "var(--intent-intelligence-border)",
-  },
-  progress: {
-    background: "var(--intent-neutral-surface)",
-    color: "var(--text-secondary)",
-    borderColor: "var(--intent-neutral-border)",
-  },
-  info: {
-    background: "var(--intent-information-surface)",
-    color: "var(--intent-information-text)",
-    borderColor: "var(--intent-information-border)",
-  },
-  success: {
-    background: "var(--intent-growth-surface)",
-    color: "var(--intent-growth-text)",
-    borderColor: "var(--intent-growth-border)",
-  },
-  error: {
-    background: "var(--intent-danger-surface)",
-    color: "var(--intent-danger-text)",
-    borderColor: "var(--intent-danger-border)",
-  },
+/**
+ * De chipklasse per toon (`app/globals.css`).
+ *
+ * ⚠️ Tot 23 september 2026 stond hier een object met inline kleuren op de oude
+ * Nova-namen, en `attention` ("actie nodig") wees via `intelligence` naar het
+ * accent: een donkergroen label dat in de lichte stand nauwelijks te
+ * onderscheiden was van "klaar" (#2b6d17 op #e9f4d1 tegenover #1d7a3f op
+ * #e0f5e8). "Jij bent aan zet" is in de bibliotheek en het plan al oranje
+ * (`STAND_CHIP` in `lib/pagina-stand.ts`), dus hier ook: één betekenis, één
+ * kleur, op elk scherm.
+ */
+export const TONE_CHIP: Record<StatusTone, string> = {
+  attention: "chip chip-warning",
+  progress: "chip chip-neutral",
+  info: "chip chip-info",
+  success: "chip chip-success",
+  error: "chip chip-danger",
 };

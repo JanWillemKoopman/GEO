@@ -143,17 +143,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-const RAND: Record<ToastIntent, string> = {
-  succes: "var(--border-default)",
-  fout: "var(--intent-danger-border)",
-  info: "var(--intent-intelligence-border)",
-  waarschuwing: "var(--intent-warning-border)",
-};
-
+/* De streep die leegloopt draagt de betekenis; de rand blijft neutraal, zoals
+   bij elk ander zwevend vlak. Tot 23 september 2026 kreeg "info" hier de
+   accentkleur (via de oude `intelligence`-naam) en "succes" de stijgkleur:
+   informatie is grijs (§2.5) en gelukt is succes, geen richting (§2.6). */
 const STREEP: Record<ToastIntent, string> = {
-  succes: "var(--trend-up)",
+  succes: "var(--intent-success-solid)",
   fout: "var(--intent-danger-solid)",
-  info: "var(--intent-intelligence-solid)",
+  info: "var(--intent-info-solid)",
   waarschuwing: "var(--intent-warning-solid)",
 };
 
@@ -162,9 +159,8 @@ function ToastCard({ toast, onClose }: { toast: ToastItem; onClose: () => void }
 
   return (
     <div
-      className="toast-card pointer-events-auto w-full max-w-sm"
+      className="toast-card pointer-events-auto"
       data-leaving={toast.leaving ? "" : undefined}
-      style={{ borderColor: RAND[intent] }}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-0.5">
@@ -176,7 +172,7 @@ function ToastCard({ toast, onClose }: { toast: ToastItem; onClose: () => void }
         <button
           type="button"
           onClick={onClose}
-          className="-m-1 shrink-0 rounded-[var(--radius-lg)] p-1 text-muted transition-colors hover:text-[var(--text-primary)]"
+          className="icon-btn icon-btn-sm -m-1"
           aria-label="Melding sluiten"
         >
           <Icon naam="sluiten" size={16} />

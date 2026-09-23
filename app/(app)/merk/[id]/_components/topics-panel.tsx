@@ -332,7 +332,7 @@ export function TopicsPanel({
               </button>
               <button
                 type="button"
-                className="btn-outline btn-sm"
+                className="btn-ghost btn-sm"
                 onClick={() => setMixFor(null)}
               >
                 Annuleren
@@ -393,7 +393,7 @@ export function TopicsPanel({
               >
                 Bewaren
               </button>
-              <button type="button" className="btn-outline btn-sm" onClick={() => setBriefFor(null)}>
+              <button type="button" className="btn-ghost btn-sm" onClick={() => setBriefFor(null)}>
                 Annuleren
               </button>
             </div>
@@ -531,7 +531,7 @@ export function TopicsPanel({
           (docs/tasks/clusters-ontdekken.md). */}
       <p className="text-sm text-secondary">
         Meer onderwerpen zoeken?{" "}
-        <Link href={`/merk/${profileId}/ontdekken`} className="underline">
+        <Link href={`/merk/${profileId}/ontdekken`} className="link">
           Ga naar Clusters ontdekken
         </Link>
         .

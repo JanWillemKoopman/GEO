@@ -119,9 +119,10 @@ export function StatusChip({
       <button
         type="button"
         onClick={onNaarOpslaan}
-        className="chip chip-attention shrink-0"
+        className="chip chip-warning shrink-0"
         title="Naar de opslagknop"
       >
+        <Icon naam="letop" size={12} />
         Niet opgeslagen
       </button>
     );

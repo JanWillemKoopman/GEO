@@ -59,7 +59,7 @@ export function FaqEditor({
           className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3"
         >
           <div className="flex items-start justify-between gap-2">
-            <span className="mono-label" style={{ fontSize: "0.65rem" }}>
+            <span className="mono-label">
               Vraag {i + 1}
             </span>
             <div className="flex shrink-0 items-center gap-2">

@@ -129,7 +129,7 @@ export function WorkspaceChrome({
           `top: var(--header-h)` exact onder. Lopen die twee uit elkaar, dan
           ontstaat er een kier waar de pagina-inhoud doorheen schuift. */}
       <header className={`topbar no-print${inSalesContext ? " topbar-sales" : ""}`}>
-        <div className="flex h-full items-center justify-between gap-3 px-4 sm:px-6">
+        <div className="flex h-full items-center justify-between gap-3 px-4 md:px-5 lg:px-6">
           <div className="flex min-w-0 items-center gap-2">
             {logo}
             <span className="hidden text-muted sm:inline" aria-hidden>

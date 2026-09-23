@@ -397,7 +397,7 @@ function VraagRow({
             </button>
             <button
               type="button"
-              className="text-sm text-secondary hover:underline"
+              className="btn-ghost btn-sm"
               onClick={() => {
                 setWaarde(fact.answer ?? "");
                 setBewerken(false);

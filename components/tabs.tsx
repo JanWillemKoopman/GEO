@@ -93,7 +93,7 @@ export function Segment<T extends string>({
   onKies,
   label,
 }: {
-  opties: { waarde: T; label: string }[];
+  opties: { waarde: T; label: string; titel?: string }[];
   gekozen: T;
   onKies: (waarde: T) => void;
   label: string;

@@ -106,7 +106,7 @@ export function ManualPagesBox({
                 href={p.url}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="truncate text-[var(--intent-intelligence-text)] hover:underline"
+                className="link truncate"
               >
                 {p.title || shortUrl(p.url)}
               </a>
@@ -152,7 +152,7 @@ export function ManualPagesBox({
             </button>
             <button
               type="button"
-              className="btn-outline btn-sm"
+              className="btn-ghost btn-sm"
               disabled={wacht}
               onClick={() => {
                 setOpen(false);

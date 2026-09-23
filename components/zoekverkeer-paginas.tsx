@@ -115,7 +115,7 @@ export function ZoekverkeerPaginas({ rows }: { rows: OnzePaginaRij[] }) {
       {toonTypeFilter && (
         <label className="flex items-center gap-2 text-sm">
           <span className="mono-label">Paginatype</span>
-          <select className="field" value={typeFilter ?? ""} onChange={(e) => setTypeFilter(e.target.value || null)}>
+          <select className="field field-select" value={typeFilter ?? ""} onChange={(e) => setTypeFilter(e.target.value || null)}>
             <option value="">Alle types</option>
             {types.map((t) => (
               <option key={t} value={t}>

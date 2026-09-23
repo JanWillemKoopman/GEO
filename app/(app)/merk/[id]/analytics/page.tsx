@@ -431,10 +431,10 @@ export default async function AnalyticsPage({
           <span className="mono-label">Wat dit cluster laat zien</span>
           <p className="text-secondary">{clusterConclusie.samenvatting}</p>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <Link href={`/merk/${id}/strategie/vragen`} className="mono-label underline">
+            <Link href={`/merk/${id}/strategie/vragen`} className="link type-caption">
               Wat ORBIT ENGINE nog van je wil weten
             </Link>
-            <Link href={`/merk/${id}/strategie/plan`} className="mono-label underline">
+            <Link href={`/merk/${id}/strategie/plan`} className="link type-caption">
               De pagina&apos;s die hieruit volgen
             </Link>
           </div>
@@ -478,7 +478,7 @@ export default async function AnalyticsPage({
           <span className="mono-label">Nog niet gemeten</span>
           <p className="text-secondary">
             Zodra de eerste meetronde klaar is, staat je zichtbaarheid hier.{" "}
-            <Link href={`/merk/${id}/strategie/clusters`} className="underline">
+            <Link href={`/merk/${id}/strategie/clusters`} className="link">
               Start een cluster
             </Link>{" "}
             om te laten meten waar je klanten naar vragen.

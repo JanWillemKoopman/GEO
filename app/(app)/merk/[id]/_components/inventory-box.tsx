@@ -237,7 +237,7 @@ export function InventoryBox({
             </button>
             <button
               type="button"
-              className="btn-outline btn-sm"
+              className="btn-ghost btn-sm"
               disabled={wacht}
               onClick={() => setBevestigOpnieuw(false)}
             >

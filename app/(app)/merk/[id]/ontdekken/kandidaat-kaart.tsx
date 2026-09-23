@@ -191,7 +191,7 @@ export function KandidaatKaart({
       {kandidaat.status === "toegevoegd" && (
         <p className="text-sm text-secondary">
           Staat nu bij Voorgesteld op{" "}
-          <Link href={`/merk/${merkId}/strategie/clusters`} className="underline">
+          <Link href={`/merk/${merkId}/strategie/clusters`} className="link">
             Mijn clusters
           </Link>
           .{" "}

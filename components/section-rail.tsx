@@ -67,7 +67,7 @@ export function SectionRail({ sections }: { sections: RailSection[] }) {
           4 pixels waren een kier waar de inhoud doorheen schoof. */}
       <nav
         aria-label="Hoofdstukken"
-        className="no-print sticky top-[var(--header-h)] z-20 -mx-6 mb-2 flex gap-2 overflow-x-auto border-b border-[var(--line-muted)] bg-[var(--bg-base)] px-6 py-2.5 lg:hidden"
+        className="no-print sticky top-[var(--header-h)] z-20 volle-breedte mb-2 flex gap-2 overflow-x-auto border-b border-[var(--line-muted)] bg-[var(--bg-base)] py-2.5 lg:hidden"
       >
         {sections.map((s, i) => {
           const on = active === s.id;

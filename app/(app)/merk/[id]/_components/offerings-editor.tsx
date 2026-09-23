@@ -227,7 +227,7 @@ export function OfferingsEditor({
           <label className="flex flex-col gap-1 text-sm">
             <span className="mono-label">Soort</span>
             <select
-              className="field"
+              className="field field-select"
               value={form.kind}
               onChange={(e) => setForm({ ...form, kind: e.target.value as OfferingKind })}
               disabled={wacht}
@@ -243,7 +243,7 @@ export function OfferingsEditor({
         <label className="flex flex-col gap-1 text-sm">
           <span className="mono-label">Hangt onder</span>
           <select
-            className="field"
+            className="field field-select"
             value={form.parentId}
             onChange={(e) => setForm({ ...form, parentId: e.target.value })}
             disabled={wacht}
@@ -306,7 +306,7 @@ export function OfferingsEditor({
           >
             {wacht ? "Bezig…" : "Opslaan"}
           </button>
-          <button type="button" className="btn-outline btn-sm" disabled={wacht} onClick={annuleer}>
+          <button type="button" className="btn-ghost btn-sm" disabled={wacht} onClick={annuleer}>
             Annuleren
           </button>
         </div>
@@ -375,7 +375,7 @@ export function OfferingsEditor({
                 href={o.evidence_url}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="text-sm text-[var(--intent-intelligence-text)] hover:underline"
+                className="link text-sm"
               >
                 gevonden op {shortUrl(o.evidence_url)}
               </a>
@@ -436,7 +436,7 @@ export function OfferingsEditor({
                     <span className="text-muted line-through">{o.name}</span>
                     <button
                       type="button"
-                      className="shrink-0 text-[var(--intent-intelligence-text)] hover:underline"
+                      className="link shrink-0"
                       onClick={() => void zetTerug(o)}
                       disabled={wacht}
                     >

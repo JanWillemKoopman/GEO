@@ -71,7 +71,7 @@ export function RondeKnop({
         <button type="button" className="btn-actie" disabled={wacht} onClick={start}>
           {wacht ? "Bezig met starten" : "Ja, start de ronde"}
         </button>
-        <button type="button" className="btn-outline" disabled={wacht} onClick={() => setBevestigen(false)}>
+        <button type="button" className="btn-ghost" disabled={wacht} onClick={() => setBevestigen(false)}>
           Annuleren
         </button>
       </div>

@@ -343,14 +343,13 @@ export default async function OverzichtPage({
           verhuizing. De duiding blijft: de drie zinnen van `insights()` gaan nog
           steeds over de meting, en de knop ernaast gaat naar het cijfer zelf.
 
-          ⚠️ De stang links is sinds 21 september 2026 altijd groen (#25a750) en
+          ⚠️ De stang links is sinds 21 september 2026 altijd groen (`.card-rail-success`, `--trend-up`) en
           niet meer afhankelijk van `insights()`. Dit is het hoofdgetal van het
           hele scherm en verdient dezelfde nadruk ongeacht de richting van de
           laatste meting; `railKlasse()` bestaat daarom niet meer. */}
       <SectionErrorBoundary label="Je programma">
         <div
-          className="card card-rail flex flex-col gap-5"
-          style={{ borderLeftColor: "#25a750" }}
+          className="card card-rail card-rail-success flex flex-col gap-5"
         >
           {laatste && band && samengevoegd && (
             <div className="flex flex-wrap items-end gap-x-6 gap-y-2 border-b border-[var(--border-subtle)] pb-5">
@@ -371,7 +370,7 @@ export default async function OverzichtPage({
                       product niet kan waarmaken. Zelfde regel als op
                       Analytics. */}
                   {verschil?.changed ? (
-                    <span className={verschil.delta > 0 ? "chip chip-success" : "chip chip-danger"}>
+                    <span className={verschil.delta > 0 ? "chip chip-stijging" : "chip chip-daling"}>
                       <Icon naam={verschil.delta > 0 ? "stijging" : "daling"} size={12} />
                       {Math.abs(Math.round(verschil.delta))} sinds de vorige meting
                     </span>

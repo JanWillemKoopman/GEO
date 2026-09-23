@@ -587,8 +587,7 @@ export function PlanView({
               {backlog.length > 0 && (
                 <>
                   <input
-                    className="field"
-                    style={{ height: 34, fontSize: "0.875rem" }}
+                    className="field field-sm"
                     value={filters.zoek}
                     onChange={(e) => setFilters((f) => ({ ...f, zoek: e.target.value }))}
                     placeholder="Zoeken"
@@ -597,8 +596,7 @@ export function PlanView({
                   <div className="flex flex-wrap gap-1.5">
                     {clusters.length > 1 && (
                       <select
-                        className="field"
-                        style={{ height: 30, width: "auto", fontSize: "0.8125rem", paddingRight: 28 }}
+                        className="field field-sm field-select w-auto"
                         value={filters.cluster}
                         onChange={(e) => setFilters((f) => ({ ...f, cluster: e.target.value }))}
                         aria-label="Filter op cluster"

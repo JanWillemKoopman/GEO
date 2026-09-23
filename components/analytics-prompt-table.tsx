@@ -74,7 +74,6 @@ function promptKolommen(merkId: string, ownTerms: string[]): AnalyticsColumn<Pro
           <summary className="flex cursor-pointer items-start gap-2">
             <span
               className={`mt-0.5 shrink-0 chip ${r.ownMentioned === true ? "chip-success" : "chip-neutral"}`}
-              style={{ fontSize: "0.6rem" }}
             >
               {r.ownMentioned === true ? "genoemd" : r.ownMentioned === false ? "gemist" : "onbeoordeeld"}
             </span>

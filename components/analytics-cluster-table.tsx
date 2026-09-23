@@ -158,7 +158,7 @@ function clusterKolommen(
         const delta = nu - toen;
         if (!betekenisvol) return <span className="chip chip-neutral">gelijk</span>;
         return (
-          <span className={delta > 0 ? "chip chip-success" : "chip chip-danger"}>
+          <span className={delta > 0 ? "chip chip-stijging" : "chip chip-daling"}>
             <Icon naam={delta > 0 ? "stijging" : "daling"} size={12} />
             {Math.abs(Math.round(delta))}
           </span>

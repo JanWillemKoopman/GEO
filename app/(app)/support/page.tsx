@@ -179,7 +179,7 @@ function Hero({ brandId }: { brandId: string | null }) {
               </span>
               <div className="flex flex-col gap-0.5 pb-6 pt-1.5">
                 <span className="flex items-baseline gap-2">
-                  <span className="mono-label" style={{ fontSize: "0.65rem" }}>
+                  <span className="mono-label">
                     {stap.nummer}
                   </span>
                   <span className="font-medium">{stap.titel}</span>
@@ -342,7 +342,7 @@ function MobielNav({ groepen }: { groepen: NavHoofdstuk[] }) {
   return (
     <nav
       aria-label="Ga naar onderdeel"
-      className="no-print -mx-6 flex gap-2 overflow-x-auto border-y border-[var(--border-subtle)] px-6 py-2.5 lg:hidden"
+      className="no-print volle-breedte flex gap-2 overflow-x-auto border-y border-[var(--border-subtle)] py-2.5 lg:hidden"
     >
       {groepen.map((groep) => (
         <a key={groep.naam} href={`#${slug(groep.naam)}`} className="chip chip-neutral shrink-0">
@@ -435,7 +435,7 @@ function Tip({ children }: { children: React.ReactNode }) {
     >
       <span
         className="mono-label mr-1.5"
-        style={{ fontSize: "0.65rem", color: "var(--intent-info-content)" }}
+        style={{ color: "var(--intent-info-content)" }}
       >
         Tip
       </span>

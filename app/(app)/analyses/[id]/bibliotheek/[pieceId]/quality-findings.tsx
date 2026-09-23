@@ -352,7 +352,7 @@ function Punt({
         type="button"
         data-sluit-lade
         onClick={() => onOpenPunt(eersteOpen)}
-        className="w-fit text-sm font-medium text-[var(--intent-intelligence-text)] hover:underline"
+        className="link w-fit text-sm font-medium"
       >
         {allesGekozen ? "Keuze wijzigen" : items.length > 1 ? "Los ze op" : "Los op"}
       </button>

@@ -135,7 +135,7 @@ export function StrategyBox({
           >
             <div className="flex flex-wrap gap-2">
               <select
-                className="field flex-1"
+                className="field field-select flex-1"
                 value={f.kind}
                 onChange={(e) =>
                   update(i, { kind: e.target.value as ContextFactorKind })

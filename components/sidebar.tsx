@@ -380,8 +380,7 @@ function Item({
           // (`docs/designsystem.md` §5.1). Twee ronde stempels in een app vol
           // vlakken van 6, 8 en 12 pixels zijn geen accent maar een afwijking,
           // en de zijbalk staat naast élk scherm.
-          className="chip chip-neutral shrink-0"
-          style={{ fontSize: "0.625rem", padding: "0 6px", letterSpacing: "0.04em", textTransform: "uppercase" }}
+          className="chip chip-outline shrink-0"
           title="Alleen zichtbaar voor jou, niet voor de klant"
         >
           alleen jij

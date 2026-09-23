@@ -89,7 +89,7 @@ export function RondeBalk({ ronde }: { ronde: RondeMaand }) {
             {fase.detail && <span className="text-sm text-muted">{fase.detail}</span>}
 
             {fase.actief && (
-              <span className="chip chip-attention mt-1 w-fit">
+              <span className={`chip ${fase.aanZet === "jij" ? "chip-warning" : "chip-info"} mt-1 w-fit`}>
                 {fase.aanZet === "jij"
                   ? "jij, nu"
                   : fase.aanZet === "consultant"

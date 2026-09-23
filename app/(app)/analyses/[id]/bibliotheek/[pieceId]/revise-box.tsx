@@ -9,6 +9,7 @@ import type { PoortOordeel } from "@/lib/content-final-gate";
 import { MAX_STRATEGY_NOTE_LENGTH } from "@/lib/plan-constants";
 import { schrijfopdracht } from "@/lib/puntenronde";
 import { useHerschrijfstand } from "./herschrijf-context";
+import { Icon } from "@/components/icon";
 
 /**
  * "Wat moet er anders?" (optimalisatie.md 4.8).
@@ -221,7 +222,7 @@ function RewriteFlow({
         aria-label="Wat moet er anders aan deze tekst?"
       />
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="chip-select-groep">
         {SUGGESTIONS.map((s) => (
           <button
             key={s}
@@ -229,15 +230,10 @@ function RewriteFlow({
             // Aanvullen in plaats van vervangen: de klant kan meerdere punten
             // stapelen, en wat hij al getypt had gaat niet verloren.
             onClick={() => setNote((n) => (n.trim() ? `${n.trim()}\n${s}` : s))}
-            className="chip"
-            style={{
-              fontSize: "0.7rem",
-              background: "transparent",
-              color: "var(--text-muted)",
-              borderColor: "var(--border-subtle)",
-            }}
+            className="chip-select"
           >
-            + {s}
+            <Icon naam="toevoegen" size={14} />
+            {s}
           </button>
         ))}
       </div>
@@ -394,7 +390,7 @@ function StrategyNoteBox({
         placeholder="Vanaf november openen we in Breda"
         aria-label="Notitie voor de schrijver, voor het hele merk"
       />
-      <span className="mono-label" style={{ fontSize: "0.65rem" }}>
+      <span className="mono-label">
         {note.length}/{MAX_STRATEGY_NOTE_LENGTH}
       </span>
 
@@ -413,7 +409,7 @@ function StrategyNoteBox({
             setNote(opgeslagenNote);
             setOpen(false);
           }}
-          className="text-sm text-secondary hover:underline"
+          className="btn-ghost btn-sm"
         >
           Annuleren
         </button>

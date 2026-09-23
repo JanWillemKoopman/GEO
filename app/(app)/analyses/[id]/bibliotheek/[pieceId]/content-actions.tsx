@@ -76,7 +76,7 @@ export function ContentActions({
     <div className="flex flex-col gap-4">
       {opties.length > 0 && (
         <div className="flex flex-col gap-2">
-          <p className="mono-label" style={{ fontSize: "0.65rem" }}>
+          <p className="mono-label">
             Kies het formaat dat bij je CMS past
           </p>
           <ul className="flex flex-col gap-2">

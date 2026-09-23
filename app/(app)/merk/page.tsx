@@ -89,7 +89,7 @@ export default async function ProfielenPage() {
           <ul className="flex flex-col gap-1">
             {failedProfiles.map((p) => (
               <li key={p.id}>
-                <Link href={`/merk/${p.id}/merkprofiel/bewerken`} className="text-sm underline">
+                <Link href={`/merk/${p.id}/merkprofiel/bewerken`} className="link text-sm">
                   {p.name}
                 </Link>
               </li>

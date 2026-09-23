@@ -111,7 +111,7 @@ export function NewAnalysisForm({
             setLabelKeuze("");
             setNieuwLabel("");
           }}
-          className="field"
+          className="field field-select"
         >
           {profiles.map((p) => (
             <option key={p.id} value={p.id}>
@@ -146,7 +146,7 @@ export function NewAnalysisForm({
           <select
             value={labelKeuze}
             onChange={(e) => setLabelKeuze(e.target.value)}
-            className="field"
+            className="field field-select"
           >
             <option value="">Geen label</option>
             {labels.map((l) => (

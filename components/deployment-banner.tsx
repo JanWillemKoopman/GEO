@@ -35,7 +35,7 @@ const CONTROLE_INTERVAL_MS = 5 * 60 * 1000;
  * Toasts (`components/toast.tsx`) verschijnen rechtsboven en verdwijnen
  * vanzelf: prima voor een gebeurtenis, verkeerd voor iets dat moet blijven
  * staan tot de klant een keuze maakt. Deze balk zit onderin het scherm, met
- * dezelfde glasachtige kaart en schaduw (`.toast-card`), zodat hij bij de rest
+ * dezelfde kaart en schaduw (`.toast-card`), zodat hij bij de rest
  * van de meldingstaal hoort zonder ermee te kunnen overlappen.
  */
 export function DeploymentBanner() {
@@ -78,7 +78,7 @@ export function DeploymentBanner() {
       role="status"
       aria-live="polite"
     >
-      <div className="toast-card pointer-events-auto flex w-full max-w-sm flex-col items-center gap-5 text-center pt-8">
+      <div className="toast-card pointer-events-auto items-center gap-5 pt-8 text-center">
         <Icon naam="opnieuw" size={36} className="text-[var(--text-secondary)]" />
         <div className="flex flex-col gap-1">
           <p className="text-sm font-medium">Er is een nieuwe versie van ORBIT ENGINE</p>

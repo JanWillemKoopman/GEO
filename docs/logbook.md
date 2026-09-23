@@ -11862,3 +11862,20 @@ onderrand. Een gevaarlijke bevestiging is `.btn-danger` (was de hoofdknop met ee
 die rood bleef als hij uitgeschakeld was). De lettertekens ✓, !, ↑, ↓, →, + en ? zijn iconen
 geworden; `toevoegen` is nieuw in `lib/icons.ts`. Vinkjes en keuzerondjes staan in de
 selectiekleur in plaats van browserblauw.
+
+**Stap 2: de snelle verbeteringen.** Elke keuzelijst heeft nu `.field-select` (17 misten hem; het
+pijltje plakte tegen de tekst). Onder 768px is elk veld 48px met 16px tekst, want Safari zoomt bij
+kleinere tekst in zodra je een veld aantikt; dat was punt 1 van
+`docs/tasks/openstaand-na-okx-omzetting.md` en is daar weggestreept. `.field-sm` (36px) is nieuw,
+voor de voorraadkolom op het planscherm, waar met de hand 30 en 34 pixels stond. 21 losse
+lettermaten van 9,6 tot 11,2px zijn weg (een overblijfsel van het Nova-label van 11px). `.link` is
+de ene stijl voor een link in lopende tekst (15 plekken), ook in `.prose`; vier links stonden in de
+accentkleur, wat §2.4 verbiedt. "Wacht op jou" is overal oranje: de paginakop maakte hem limoen en
+het clusterlabel "actie nodig" donkergroen, bijna gelijk aan "klaar". `TONE_STYLE` met inline
+kleuren is `TONE_CHIP` met chipklassen geworden. Limoen (`chip-attention`) staat alleen nog op
+"kans". `.chip-stijging` en `.chip-daling` vervangen `chip-success`/`chip-danger` bij een verschil
+(§2.6). "Annuleren" is overal `btn-ghost` (was 9 keer outline). Laadvlakken zijn 8px rond, gelijk
+aan de kaart die komt, en de titelbalk is 40px hoog zoals de echte kop. De streep op het overzicht
+was met de hand `#25a750`; nu `.card-rail-success`. `.volle-breedte` en de variabele
+`--stand-marge` vervangen vier keer `-mx-6 px-6`, die op een telefoon 8px buiten de pagina stak.
+Meldingen rechtsonder hebben een neutrale rand en een streep in de betekenis (info was groen).

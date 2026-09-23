@@ -268,7 +268,7 @@ function EntityRow({
             meetelt. Kiezen zet role_source op 'handmatig', waarna de
             automatische classificatie deze rij voorgoed met rust laat. */}
         <select
-          className="field"
+          className="field field-select"
           disabled={busy}
           value={entity.entity_role}
           aria-label={`Rol van ${entity.canonical_name}`}
@@ -290,7 +290,7 @@ function EntityRow({
         {mergeTargets.length > 0 &&
           (merging ? (
             <select
-              className="field"
+              className="field field-select"
               autoFocus
               disabled={busy}
               defaultValue=""

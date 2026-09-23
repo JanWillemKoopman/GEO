@@ -188,7 +188,7 @@ export function ContentCanvas({
             />
 
             <label className="flex flex-col gap-1 text-sm">
-              <span className="mono-label" style={{ fontSize: "0.65rem" }}>
+              <span className="mono-label">
                 Meta-title ({metaTitle.length}/60)
               </span>
               <input
@@ -203,7 +203,7 @@ export function ContentCanvas({
             </label>
 
             <label className="flex flex-col gap-1 text-sm">
-              <span className="mono-label" style={{ fontSize: "0.65rem" }}>
+              <span className="mono-label">
                 Meta-description ({metaDescription.length}/160)
               </span>
               <textarea
@@ -219,7 +219,7 @@ export function ContentCanvas({
             </label>
 
             <div className="flex flex-col gap-1.5">
-              <span className="mono-label" style={{ fontSize: "0.65rem" }}>
+              <span className="mono-label">
                 Veelgestelde vragen
               </span>
               <FaqEditor

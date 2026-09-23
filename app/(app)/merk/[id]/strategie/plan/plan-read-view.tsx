@@ -145,12 +145,12 @@ export function PlanReadView({
       <p className="text-sm text-muted">
         ORBIT ENGINE begint tien dagen voor elke publicatiedatum met schrijven. Zodra een tekst
         klaar is, staat hij in je{" "}
-        <Link href={`/merk/${profileId}/strategie/bibliotheek`} className="underline">
+        <Link href={`/merk/${profileId}/strategie/bibliotheek`} className="link">
           bibliotheek
         </Link>{" "}
         om na te lezen en te publiceren. Wil je zelf schuiven met wat wanneer geschreven wordt, ga
         dan naar{" "}
-        <Link href={`/merk/${profileId}/strategie/plan?weergave=plannen`} className="underline">
+        <Link href={`/merk/${profileId}/strategie/plan?weergave=plannen`} className="link">
           Plannen
         </Link>
         .

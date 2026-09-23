@@ -431,7 +431,7 @@ export function OnboardingSession({
                               </button>
                               <button
                                 type="button"
-                                className="text-sm text-secondary underline-offset-2 hover:underline"
+                                className="btn-ghost btn-sm"
                                 onClick={() => {
                                   setUrlBewerken(false);
                                   setUrlWaarde(initial.url);
