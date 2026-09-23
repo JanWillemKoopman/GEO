@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import { getProfile } from "@/lib/profiles";
+import { requireUser } from "@/lib/auth";
+import { isStaff } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
 import { CollapsibleSection } from "@/components/collapsible-section";
@@ -77,6 +79,9 @@ export default async function BewerkenPage({
   const profile = await getProfile(id);
   if (!profile) notFound();
 
+  const user = await requireUser();
+  const staf = await isStaff(user.id);
+
   const supabase = await createClient();
   const [{ data: sourceRows }, { count }] = await Promise.all([
     supabase.from("profile_field_sources").select("field, source").eq("profile_id", id),
@@ -121,7 +126,12 @@ export default async function BewerkenPage({
         }
       />
 
-      <DossierStatus profileId={id} brandName={profile.name} />
+      {/* Blok B punt 9/12: de statuskaart ("compleet, 7 van de 7") is een
+          verkoopinstrument voor de consultant, geen klantinformatie (zie
+          docs/ux-design.md §"Wat de klant ziet"). Alleen tonen aan staf, en
+          niet aan een staflid dat zelf de klantweergave aan heeft staan
+          (`isStaff()` regelt dat al). */}
+      {staf && <DossierStatus profileId={id} brandName={profile.name} />}
 
       <BrandWizard
         profileId={id}

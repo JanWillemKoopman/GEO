@@ -11532,6 +11532,21 @@ pagina's zonder fase zou die telling nog steeds te laag uitvallen.
 
 Controles: `tsc --noEmit`, `test:unit` (5149), `test:chain` (737) en `build` groen.
 
+## 23 september 2026: de statuskaart van het merkdossier weer alleen voor staf
+
+De statuskaart ("Dossier compleet, 7 van de 7") stond sinds 16 september 2026 (`DossierStatus`) ook
+op `/merk/[id]/merkprofiel/bewerken`, het scherm dat de klant zelf ziet. Dat druist in tegen de
+beslissing van 17 augustus 2026 (`docs/ux-design.md` §"Wat de klant ziet"): het is een percentage
+over werk dat de klant niet doet en voor de consultant een verkoopinstrument ("kan ik dit scherm
+delen"), geen klantinformatie. De koppeling van 16 september haalde het paneel terug uit de
+onboardingsessie zonder die eerdere afspraak te herlezen.
+
+Fix: `BewerkenPage` vraagt nu `isStaff(user.id)` op en toont `DossierStatus` alleen als dat waar is.
+`isStaff()` neemt de klantweergave (de wisselknop rechtsboven) al mee, dus een staflid dat zelf op
+klantweergave staat ziet het paneel ook niet, precies zoals bij elk ander stafblok in de app.
+
+Controles: `tsc --noEmit`, `test:unit` (5149), `test:chain` (737) en `build` groen.
+
 ## "Wat er op jou wacht" wordt het hart van het overzicht (23 september 2026)
 
 Op verzoek van de eigenaar, na een schermafbeelding van Van den Udenhout. Het blok "Je contentplan" onderaan
