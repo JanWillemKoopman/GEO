@@ -11,6 +11,8 @@ import type { RecommendationPayload } from "@/lib/jobs/types";
 import type { ContentAction, ContentType } from "@/lib/types/database";
 import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 import { checkBudgetForProfile } from "@/lib/spend-limit";
+import { openVragenVanPagina } from "@/lib/open-questions";
+import { probeerNaAntwoord, probeerTeSchrijven } from "@/lib/plan-write-start";
 
 /**
  * POST /api/analyses/[id]/briefing, antwoorden opslaan en (optioneel) het
@@ -243,6 +245,31 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
               ? { target_intent: keuze.tekst }
               : { write_mode: "algemeen" };
         await admin.from("content_pieces").update(update).eq("id", keuze.id);
+        // Laten vallen hoort ook in het contentplan te landen (23 september
+        // 2026). Anders blijft de plan-pagina op "gepland" staan met een tekst
+        // die niet meer bestaat, en pakt de cron hem de volgende ochtend weer op.
+        if (keuze.mode === "laten_vallen") {
+          await admin
+            .from("planned_pages")
+            .update({ status: "afgewezen" })
+            .eq("content_piece_id", keuze.id)
+            .eq("status", "gepland");
+        }
+      }
+    }
+
+    // ── Pagina's uit het contentplan gaan vanzelf (contentflow-een-lijn.md §3) ──
+    //
+    // Was dit het laatste antwoord van een pagina, of koos de klant "schrijf hem
+    // algemeen", dan begint het schrijven nu, zonder dat er nog een knop nodig is.
+    // `probeerTeSchrijven()` doet niets bij pagina's die niet in het plan staan.
+    await probeerNaAntwoord(admin, answers.map((a) => a.id));
+    for (const keuze of pageChoices) {
+      if (keuze.mode === "laten_vallen") continue;
+      try {
+        await probeerTeSchrijven(admin, keuze.id, new Date());
+      } catch (err) {
+        console.error(`Schrijven na keuze voor ${keuze.id} mislukte:`, err);
       }
     }
 
@@ -275,6 +302,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const gewaarschuwd: { id: string; title: string; melding: string; graad: number | null }[] = [];
 
     for (const piece of wachtend) {
+      // ⚠️ Eerst alle vragen (besluit 23 september 2026, contentflow-een-lijn.md
+      // §1). Ook op deze oude route: een knop die om de regel heen schrijft zou
+      // de garantie van de schrijfpoort waardeloos maken.
+      const rij = piece as unknown as { id: string; title: string };
+      const open = await openVragenVanPagina(admin, rij.id);
+      if (open > 0) {
+        geblokkeerd.push({
+          id: rij.id,
+          title: rij.title,
+          melding:
+            open === 1
+              ? "Er staat nog 1 vraag open. Beantwoord of sla hem over, daarna schrijven we deze pagina."
+              : `Er staan nog ${open} vragen open. Beantwoord of sla ze over, daarna schrijven we deze pagina.`,
+          graad: null,
+        });
+        continue;
+      }
+
       const oordeel = await beoordeelPagina(admin, {
         analysisId: id,
         profileId: analysis.profile_id,

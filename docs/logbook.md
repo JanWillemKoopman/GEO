@@ -11532,6 +11532,21 @@ pagina's zonder fase zou die telling nog steeds te laag uitvallen.
 
 Controles: `tsc --noEmit`, `test:unit` (5149), `test:chain` (737) en `build` groen.
 
+## 23 september 2026: de statuskaart van het merkdossier weer alleen voor staf
+
+De statuskaart ("Dossier compleet, 7 van de 7") stond sinds 16 september 2026 (`DossierStatus`) ook
+op `/merk/[id]/merkprofiel/bewerken`, het scherm dat de klant zelf ziet. Dat druist in tegen de
+beslissing van 17 augustus 2026 (`docs/ux-design.md` §"Wat de klant ziet"): het is een percentage
+over werk dat de klant niet doet en voor de consultant een verkoopinstrument ("kan ik dit scherm
+delen"), geen klantinformatie. De koppeling van 16 september haalde het paneel terug uit de
+onboardingsessie zonder die eerdere afspraak te herlezen.
+
+Fix: `BewerkenPage` vraagt nu `isStaff(user.id)` op en toont `DossierStatus` alleen als dat waar is.
+`isStaff()` neemt de klantweergave (de wisselknop rechtsboven) al mee, dus een staflid dat zelf op
+klantweergave staat ziet het paneel ook niet, precies zoals bij elk ander stafblok in de app.
+
+Controles: `tsc --noEmit`, `test:unit` (5149), `test:chain` (737) en `build` groen.
+
 ## "Wat er op jou wacht" wordt het hart van het overzicht (23 september 2026)
 
 Op verzoek van de eigenaar, na een schermafbeelding van Van den Udenhout. Het blok "Je contentplan" onderaan
@@ -11593,6 +11608,72 @@ Code: `lib/ronde.ts` (puur), `loadMaandBronnen()` in `lib/overview-data.ts`,
 den Udenhout als hoofdgeval. Verwachte uitkomst daar: Meten klaar (20 september, 22 kansen), Plannen
 aan de beurt met "14 pagina's, wachten op je akkoord", Schrijven "0 van de 14, en 2 buiten het
 plan". Controles: `tsc --noEmit`, `test:unit` (5173 na samenvoegen met main), `test:chain` (737) en `build` groen.
+
+## 23 september 2026: de contentflow als één lijn, eerst alle vragen
+
+**Besluit van de eigenaar.** Er wordt pas geschreven als elke vraag van een pagina beantwoord of
+overgeslagen is. Geen uiterste datum waarna het toch gebeurt. Uitvoering volgens
+`docs/tasks/contentflow-een-lijn.md`; aanleiding was Van den Udenhout, waar een pagina drie dagen op
+"Wacht op jouw input" stond met alle vijf de vragen beantwoord, en waar het contentplan tien dagen
+vóór de datum schreef zonder één vraag te stellen.
+
+**Wat er nu gebeurt.** Vrijgeven van een maand start meteen de voorbereiding van alle pagina's van
+die maand: één vragenmoment per maand in plaats van vijf losse (`startVoorbereiding()` in
+`lib/plan-write-start.ts`). Het laatste antwoord of de laatste overgeslagen vraag start het
+schrijven zonder extra knop (`probeerTeSchrijven()`, aangeroepen vanuit de antwoordroutes, na de
+voorbereiding en elke ochtend door de cron als vangnet). De schrijfpoort (`lib/content-write-gate.ts`)
+weegt drie dingen: alle vragen gedaan, genoeg om op te schrijven (de bestaande inputpoort), en de
+schrijfdatum bereikt (nog steeds tien dagen voor publicatie). Geen enkele route schrijft nog om de
+vragen heen, ook de beheerdersknop en `skipBriefing` niet. Kostenrem: het akkoord op de kosten is het
+vrijgeven van de maand (besluit 18); het schrijven daarna volgt uit de antwoorden van de klant.
+
+**Eén telling voor twee poorten.** Schrijfpoort en eindpoort tellen alleen de open vragen die aan de
+pagina hangen (`openVragenVanPagina()`). Nagerekend over de hele database: alle 26 open vragen zonder
+pagina zijn `aanvulling`-vragen uit een meting of de onboarding; elke vraag uit de voorbereiding hing
+aan zijn pagina. De eindpoort telde tot vandaag ook die losse clustervragen, waardoor zes
+meetvragen van "APK Den Bosch" elke pagina van dat cluster tegenhielden.
+
+**Eén live-handeling.** "Markeer als geplaatst" in het contentplan zette alleen een label en startte
+geen publicatiecontrole en geen nameting. Nu zet `markPosted()` eerst de tekst live via
+`markPublished()`, en `markPublished()` zet de plan-pagina op geplaatst. Goedkeuren doet vanuit plan
+en bibliotheek hetzelfde (`keurTekstGoed()` in `lib/content-approve.ts`).
+
+**Eén stand, afgeleid en niet opgeslagen.** `lib/pagina-stand.ts` leidt uit plan-pagina, tekst en
+open vragen precies één stand af, met vijf fasen op het scherm. Afwijking van het plan: geen nieuwe
+waarden in `planned_pages.status`, want die kolom heeft een check-constraint die alleen met `drop` te
+verruimen is (conventie 4); alles wat de nieuwe standen nodig hebben stond er al. Er is dus geen
+migratie.
+
+**Schermen.** Elke pagina heeft één adres onder de bibliotheek
+(`/merk/[id]/strategie/bibliotheek/[paginaId]`) met naam, standbalk en de kaart "Aan zet" met hooguit
+één hoofdknop; het oude adres onder het cluster stuurt de huidige versie door. "Openstaande vragen"
+heet "Jouw beurt" en bevat alles wat op de klant wacht. De bibliotheek telt de stand, het contentplan
+toont dezelfde naam en stand en linkt per regel naar het paginascherm. Het tekstscherm opent
+standaard in de leesweergave, de rail is een accordeon en kwaliteitspunten zijn gebundeld per soort.
+
+**Nog niet gedaan.** Herinneringsmails (e-mail staat uit), het koppelen van bestaande teksten zonder
+plan-pagina (§5 van het taakdocument, wacht op akkoord van de eigenaar omdat het schrijfwerk start),
+"Zet in het plan" in plaats van "Schrijf deze pagina" in een cluster, en schermafbeeldingen van de
+nieuwe schermen (de voorbeeldversie vraagt om inloggen). Controles: `tsc --noEmit`, `test:unit`
+(5241), `test:chain` (758) en `build` groen.
+
+**Later op 23 september 2026: terug naar "Openstaande vragen", en een filterbalk in de bibliotheek.**
+Op verzoek van de eigenaar heet het menu-onderdeel weer "Openstaande vragen" en toont het alleen nog
+vragen: eerst per pagina, daarna de losse vragen over het merk, op de volle breedte van de app.
+Teksten om goed te keuren en pagina's om live te zetten staan alleen in de bibliotheek, bovenaan
+omdat de lijst begint bij wat op de klant wacht. De drie klikbare tegels bovenaan de bibliotheek zijn
+vervangen door een zoekbalk en vier filters (status, cluster, soort content, type), omdat een tegel
+er niet uitziet als een knop. Pure filterlogica in `lib/pagina-lijst.ts`, getest in `test-unit.ts`.
+
+**23 september 2026: de contentpagina draait om "wat moet er beter", en goedkeuren kan altijd.**
+Op verzoek van de eigenaar is "Keur goed" altijd de hoofdknop, ook met open punten; dan vraagt hij
+één keer extra bevestiging met het aantal. De route weigerde dat nooit, alleen het scherm verborg de
+knop. De rail begint met "Te verbeteren" (per punt wat, hoe en waar, plus één knop voor alles), de
+overige suggesties (op die pagina 53 van de 58 bevindingen) en de naslag staan ingeklapt eronder, en de zinnen van de punten
+staan gemarkeerd in de leestekst (`lib/tekst-markering.ts`; alle 5 gevonden op die pagina). Tabellen
+in een tekst verschijnen nu als tabel, op het scherm en in de export, in plaats van als streepjes. Details in
+`docs/tasks/herontwerp-contentpagina.md` bijlage D. Controles: `tsc --noEmit`, `test:unit` (5262),
+`test:chain` (758) en `build` groen.
 
 ## 23 september 2026: Clusters ontdekken, drie besluiten en een proefscript
 

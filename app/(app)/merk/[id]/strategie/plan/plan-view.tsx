@@ -1,5 +1,6 @@
 "use client";
 
+import { STAND_CHIP, streefdatum, formatDag, type StandToon } from "@/lib/pagina-stand";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -7,14 +8,13 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/components/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { MONTH_STATUS_META, PLAN_STATUS_META, planRunningDate } from "@/lib/plan-status";
-import { contentHref, sharedNotice } from "@/lib/plan-overview";
+import { sharedNotice } from "@/lib/plan-overview";
 import {
   monthCalendar,
   isRunningMonth,
   isPastMonth,
   formatDagNL,
   datumProbleem,
-  schrijfBelofte,
 } from "@/lib/plan-schedule";
 import {
   filterBacklog,
@@ -112,7 +112,14 @@ export function PlanView({
   funnels,
   topics,
   staff,
+  standen = {},
 }: {
+  /**
+   * De ene stand per plan-pagina (`lib/pagina-stand.ts`, 23 september 2026).
+   * Het plan toonde tot die dag zijn eigen labels ("Tekst klaar voor akkoord"),
+   * terwijl de bibliotheek over dezelfde pagina iets anders zei.
+   */
+  standen?: Record<string, RijStand>;
   profileId: string;
   plan: ContentPlan;
   months: PlanMonth[];
@@ -345,21 +352,6 @@ export function PlanView({
     }
   }
 
-  /**
-   * De vroegste publicatiedatum in een maand, voor `schrijfBelofte()`: zonder
-   * dit blijft de vrijgeef-melding "tien dagen voor elke publicatiedatum"
-   * beloven terwijl de eerste pagina al over drie dagen moet (punt 5 van
-   * docs/tasks/opdracht-bevindingen-5-tot-9.md).
-   */
-  function eersteDatumVanMaand(monthId: string): string | null {
-    return (
-      echt
-        .filter((p) => p.plan_month_id === monthId && p.scheduled_for && p.status !== "geplaatst")
-        .map((p) => p.scheduled_for as string)
-        .sort()[0] ?? null
-    );
-  }
-
   async function maandActie(month: PlanMonth, actie: "goedkeuren" | "afwijzen") {
     setBusy(month.id);
     try {
@@ -376,6 +368,24 @@ export function PlanView({
           description: j?.error ?? "Probeer het opnieuw.",
         });
         return;
+      }
+      // Wat er na vrijgeven gebeurde, in één melding (23 september 2026): de
+      // voorbereiding start meteen, en een pagina zonder onderwerp kan niet
+      // voorbereid worden. Zonder die tweede zin bleef zo'n pagina stil op
+      // "Gepland" staan.
+      if (actie === "goedkeuren") {
+        const j = (await res.json().catch(() => null)) as { voorbereid?: number; zonderOnderwerp?: number } | null;
+        const n = j?.voorbereid ?? 0;
+        const los = j?.zonderOnderwerp ?? 0;
+        toast({
+          intent: los > 0 ? "waarschuwing" : "succes",
+          title: n > 0 ? `De vragen voor ${n === 1 ? "1 pagina" : `${n} pagina's`} worden klaargezet` : "Maand vrijgegeven",
+          description:
+            (n > 0 ? "Binnen een paar minuten staan ze onder Openstaande vragen." : "") +
+            (los > 0
+              ? ` ${los === 1 ? "1 pagina hangt" : `${los} pagina's hangen`} nog aan geen cluster en ${los === 1 ? "wordt" : "worden"} dus niet voorbereid. Koppel ${los === 1 ? "hem" : "ze"} eerst aan een cluster.`
+              : ""),
+        });
       }
       router.refresh();
     } finally {
@@ -895,12 +905,8 @@ export function PlanView({
                           key={page.id}
                           page={page}
                           profileId={profileId}
-                          href={contentHref(
-                            page.content_piece_id,
-                            page.topic_id
-                              ? (onderwerp.get(page.topic_id)?.analysisId ?? null)
-                              : null,
-                          )}
+                          href={`/merk/${profileId}/strategie/bibliotheek/${page.id}?van=plan`}
+                          stand={standen[page.id] ?? null}
                           funnel={
                             page.funnel_stage_id ? (funnelNaam.get(page.funnel_stage_id) ?? null) : null
                           }
@@ -932,11 +938,6 @@ export function PlanView({
                           }}
                           staff={staff}
                           onSchrijfNu={() => void schrijfNu(page)}
-                          onApprove={() => void paginaActie(page, "goedkeuren")}
-                          onPost={() => {
-                            setPostDialog(page);
-                            setPostUrl(page.url_path ?? "");
-                          }}
                           onRemove={() => setRemoveDialog(page)}
                         />
                       ))}
@@ -1112,15 +1113,13 @@ export function PlanView({
       <ConfirmDialog
         open={monthDialog !== null}
         title={`Maand ${monthDialog?.month_number ?? ""} vrijgeven`}
-        body={`Je geeft ${
-          echt.filter((p) => p.plan_month_id === monthDialog?.id).length
-        } pagina's in één keer vrij om geschreven te worden. ${schrijfBelofte(
-          monthDialog ? eersteDatumVanMaand(monthDialog.id) : null,
-        )}, en legt elke tekst daarna aan jou voor.`}
+        body={vrijgeefTekst(
+          echt.filter((p) => p.plan_month_id === monthDialog?.id),
+        )}
         irreversible={{
-          title: "Dit zet het schrijven in gang",
+          title: "Dit zet het werk in gang",
           description:
-            "Elke pagina die geschreven wordt kost geld. Haal pagina's terug naar de voorraad als ze er nog niet in horen.",
+            "Elke pagina die geschreven wordt kost geld. Haal pagina's terug naar de voorraad als ze er nog niet in horen. Geschreven wordt er pas als de vragen van een pagina gedaan zijn.",
         }}
         confirmLabel="Vrijgeven"
         confirmingLabel="Bezig…"
@@ -1482,13 +1481,14 @@ function PageRij({
   onDatum,
   staff,
   onSchrijfNu,
-  onApprove,
-  onPost,
   onRemove,
+  stand,
 }: {
+  /** De ene stand van deze pagina, of null als die (nog) niet bekend is. */
+  stand: RijStand | null;
   page: PlannedPage;
   profileId: string;
-  /** Waar de geschreven tekst staat. `null` = er is nog niets geschreven. */
+  /** Het paginascherm van deze regel (sinds 23 september 2026 altijd gevuld). */
   href: string | null;
   funnel: string | null;
   blokkade: { text: string; whoseTurn: "klant" | "orbit_engine" | null } | null;
@@ -1510,8 +1510,6 @@ function PageRij({
   /** Beheerder? Dan staat "schrijf deze pagina nu" in het menu. */
   staff: boolean;
   onSchrijfNu: () => void;
-  onApprove: () => void;
-  onPost: () => void;
   onRemove: () => void;
 }) {
   const meta = PLAN_STATUS_META[page.status];
@@ -1532,10 +1530,6 @@ function PageRij({
       : page.status === "schrijven" || page.status === "geplaatst"
         ? planRunningDate(page)
         : null;
-  // Er is één pad waarbij een pagina om akkoord vraagt zonder gekoppelde tekst:
-  // schreef de pijplijn eerder al iets met dezelfde titel, dan wordt alleen de
-  // status omgezet (`alreadyDone` in `lib/plan-write-start.ts`).
-  const losseTekst = href === null && page.status === "ter_goedkeuring";
 
   return (
     <li
@@ -1562,8 +1556,8 @@ function PageRij({
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex min-w-0 items-baseline gap-x-2">
           {href ? (
-            <Link href={href} className="truncate text-sm font-medium hover:underline">
-              {page.title}
+            <Link href={href} className="truncate text-sm font-medium hover:underline" title={stand?.naam ?? page.title}>
+              {stand?.naam ?? page.title}
             </Link>
           ) : (
             <span className="truncate text-sm font-medium">{page.title}</span>
@@ -1583,14 +1577,6 @@ function PageRij({
             }}
           >
             {eigenBlokkade.text}
-          </span>
-        )}
-        {losseTekst && (
-          <span className="text-xs text-secondary">
-            De tekst hangt niet aan deze regel.{" "}
-            <Link href={`/merk/${profileId}/strategie/bibliotheek`} className="hover:underline">
-              Zoek hem in de bibliotheek
-            </Link>
           </span>
         )}
       </div>
@@ -1624,48 +1610,28 @@ function PageRij({
           <span className="shrink-0 text-xs text-muted">{datum}</span>
         ))}
 
-      {toonStatus && (
-        <span
-          className={
-            meta.tone === "wacht"
-              ? "chip chip-warning shrink-0"
-              : meta.tone === "klaar"
-                ? "chip chip-success shrink-0"
-                : meta.tone === "fout"
-                  ? "chip chip-danger shrink-0"
-                  : "chip chip-neutral shrink-0"
-          }
-        >
-          {meta.label}
-        </span>
+      {stand ? (
+        stand.sleutel !== "gepland" && (
+          <span className={`${STAND_CHIP[stand.toon]} shrink-0`}>{stand.label}</span>
+        )
+      ) : (
+        toonStatus && (
+          <span className="chip chip-neutral shrink-0">{meta.label}</span>
+        )
       )}
+      {stand?.looptAchter && <span className="chip chip-danger shrink-0">Loopt achter</span>}
 
       {/* De twee handelingen die om de klant vragen, blijven zichtbaar: dit is
           waar het scherm voor bestaat. */}
-      {page.status === "ter_goedkeuring" && href && (
-        <Link href={href} className="btn-ghost btn-sm shrink-0">
-          Lezen
+      {/* ── Eén knop, en die gaat naar het paginascherm (23 september 2026) ──
+          Hier stonden "Lezen", "Goedkeuren" en "Geplaatst". Goedkeuren zonder
+          de tekst te zien, en een live-knop die geen nameting startte, zijn
+          precies de twee dingen die de ombouw rechtzette. De handeling zelf
+          staat nu op het paginascherm, met de tekst en het adresveld erbij. */}
+      {stand?.handeling && href && (
+        <Link href={href} className="btn-primary btn-sm shrink-0">
+          {stand.handeling}
         </Link>
-      )}
-      {page.status === "ter_goedkeuring" && (
-        <button
-          type="button"
-          className="btn-primary btn-sm shrink-0"
-          onClick={onApprove}
-          disabled={busy}
-        >
-          Goedkeuren
-        </button>
-      )}
-      {page.status === "goedgekeurd" && (
-        <button
-          type="button"
-          className="btn-primary btn-sm shrink-0"
-          onClick={onPost}
-          disabled={busy}
-        >
-          Geplaatst
-        </button>
       )}
 
       {(magVerhuizen || page.status === "ter_goedkeuring") && (
@@ -1767,4 +1733,42 @@ function PageRij({
       )}
     </li>
   );
+}
+
+/** Wat het plan van de ene stand van een pagina nodig heeft (`lib/pagina-stand.ts`). */
+export interface RijStand {
+  /** De ene naam van de pagina (`paginaNaam()`), dezelfde als in de bibliotheek. */
+  naam: string;
+  label: string;
+  toon: StandToon;
+  handeling: string | null;
+  sleutel: string;
+  looptAchter: boolean;
+}
+
+/**
+ * De tekst van de vrijgeefdialoog (`docs/tasks/contentflow-een-lijn.md` §3.1).
+ *
+ * Tot 23 september 2026 zei hij dat ORBIT ENGINE "begint te schrijven" en de
+ * teksten daarna voorlegt. Sinds die dag gebeurt eerst iets anders: alle vragen
+ * van de maand worden klaargezet, en geschreven wordt er pas als die gedaan zijn.
+ * De dialoog zegt dat vooraf, met de streefdatum voor de antwoorden.
+ */
+function vrijgeefTekst(paginas: PlannedPage[]): string {
+  const n = paginas.length;
+  const zonderOnderwerp = paginas.filter((p) => !p.topic_id).length;
+  const eerste = paginas
+    .map((p) => p.scheduled_for?.slice(0, 10))
+    .filter((d): d is string => Boolean(d))
+    .sort()[0];
+  const streef = eerste ? streefdatum(eerste) : null;
+  const delen = [
+    `Na vrijgeven zetten we binnen een paar minuten de vragen voor ${n === 1 ? "deze pagina" : `deze ${n} pagina's`} klaar, onder Openstaande vragen.`,
+    streef ? `Beantwoord ze graag vóór ${formatDag(streef)} om op schema te blijven.` : "",
+    "Een pagina wordt geschreven zodra al zijn vragen beantwoord of overgeslagen zijn, en daarna leggen we de tekst aan je voor.",
+    zonderOnderwerp > 0
+      ? `Let op: ${zonderOnderwerp === 1 ? "1 pagina hangt" : `${zonderOnderwerp} pagina's hangen`} nog aan geen cluster. Die ${zonderOnderwerp === 1 ? "wordt" : "worden"} niet voorbereid tot je ${zonderOnderwerp === 1 ? "hem" : "ze"} koppelt.`
+      : "",
+  ];
+  return delen.filter(Boolean).join(" ");
 }

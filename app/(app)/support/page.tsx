@@ -244,7 +244,7 @@ const CYCLUS: CyclusStap[] = [
     icoon: "plannen",
     tekst: (
       <>
-        <b>Openstaande vragen</b> maakt de meting scherper, en <b>Contentplan</b> zet wat er
+        <b>Openstaande vragen</b> zet alle vragen aan jou bij elkaar, en <b>Contentplan</b> zet wat er
         geschreven wordt in de tijd.
       </>
     ),
@@ -472,7 +472,7 @@ const KICKER: Record<string, string> = {
   Clusters: "Eén onderwerp, gemeten op hoe vaak AI je noemt.",
   "Openstaande vragen": "Wat ORBIT ENGINE nog van je wil weten.",
   Contentplan: "Wat er wanneer geschreven en gepubliceerd wordt.",
-  Bibliotheek: "Alles wat ORBIT ENGINE al schreef, op één plek.",
+  Bibliotheek: "Alle pagina's, van de eerste vragen tot het gemeten effect.",
   "Zichtbaarheid in AI": "Je hoofdcijfer: hoe vaak je genoemd wordt.",
   Zoekverkeer: "Levert je content ook bezoekers op uit Google?",
   Concurrenten: "Wie er nog meer genoemd wordt, en waar jij staat.",
@@ -562,20 +562,20 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
     "Openstaande vragen": (
       <>
         <p className="text-secondary">
-          Alles wat ORBIT ENGINE nog van jou wil weten, op één plek: vragen over je merk in het
-          algemeen, en vragen die specifiek gaan over de content van een cluster.
+          Alle vragen die ORBIT ENGINE nog aan jou heeft, op één plek: eerst de vragen per pagina,
+          de pagina met de vroegste streefdatum bovenaan, en daaronder de losse vragen over je merk.
         </p>
         <p className="text-secondary">
-          Elk antwoord maakt de meting scherper en de teksten concreter. Zolang er vragen open staan
-          over een pagina, kan ORBIT ENGINE die pagina niet afronden: dit scherm houdt dus
-          rechtstreeks je contentplan op gang.
+          Een pagina wordt pas geschreven als elke vraag van die pagina beantwoord of overgeslagen
+          is. Het laatste antwoord is genoeg: daarna begint het schrijven vanzelf. Teksten om goed te
+          keuren en pagina&apos;s om live te zetten vind je in de Bibliotheek.
         </p>
         <Kader
           label="Wat je hier kunt doen"
           items={[
-            "Beantwoord een vraag in het invoerveld, of sla hem over: overslaan telt ook als antwoord en houdt niets tegen.",
-            "Filter op je merk of op een los cluster om te zien waar een vraag vandaan komt.",
-            "Staat er niets open, dan heeft ORBIT ENGINE alles wat het op dit moment nodig heeft.",
+            "Beantwoord een vraag, of sla hem over. Overslaan telt als antwoord; de knop zegt erbij welk onderdeel dan niet op de pagina komt.",
+            "Open een pagina om te zien waar de vragen voor zijn.",
+            "Staat er niets open, dan heeft ORBIT ENGINE alles wat het nu nodig heeft.",
           ]}
         />
         <Tip>

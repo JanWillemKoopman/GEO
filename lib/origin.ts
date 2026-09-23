@@ -24,7 +24,7 @@
  * (conventie 2).
  */
 
-export const HERKOMSTEN = ["bibliotheek", "cluster", "plan"] as const;
+export const HERKOMSTEN = ["bibliotheek", "cluster", "plan", "taken"] as const;
 
 export type Herkomst = (typeof HERKOMSTEN)[number];
 
@@ -80,6 +80,9 @@ export function terugLink(
     }
     if (herkomst === "plan") {
       return { href: `/merk/${profileId}/strategie/plan`, label: "Contentplan" };
+    }
+    if (herkomst === "taken") {
+      return { href: `/merk/${profileId}/strategie/vragen`, label: "Openstaande vragen" };
     }
   }
   return { href: `/analyses/${analysisId}/bibliotheek`, label: "Bibliotheek van dit cluster" };

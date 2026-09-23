@@ -6,6 +6,7 @@ import { approveMonth, markPosted } from "@/lib/plans";
 import { kiesVoorBulk, bulkMelding, OVERSLAAN_TEKST, type BulkKandidaat } from "@/lib/plan-bulk";
 import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 import { checkBudgetForProfile } from "@/lib/spend-limit";
+import { startVoorbereiding, SCHRIJFPAGINA_KOLOMMEN, type TeSchrijvenPagina } from "@/lib/plan-write-start";
 
 /**
  * POST /api/profiles/[id]/plan/months/[monthId], een hele maand goedkeuren of
@@ -98,7 +99,42 @@ export async function POST(
     if (!ok) {
       return NextResponse.json({ error: "Goedkeuren is niet gelukt." }, { status: 500 });
     }
-    return NextResponse.json({ ok: true });
+
+    // ── Vrijgeven start de voorbereiding van de hele maand (23 september 2026) ──
+    //
+    // Eén vragenmoment per maand in plaats van vijf losse
+    // (`docs/tasks/contentflow-een-lijn.md` §3.1). Voorheen gebeurde er na deze
+    // klik tot tien dagen voor de eerste datum niets, en daarna werd er
+    // geschreven zonder één vraag. Nu staan binnen een paar minuten alle vragen
+    // van deze maand klaar. Het schrijven zelf wacht op de antwoorden.
+    //
+    // Mislukt dit, dan blijft de maand wel vrijgegeven: de cron pakt de
+    // voorbereiding morgenochtend op, en het scherm zegt eerlijk dat die nog loopt.
+    let voorbereid = 0;
+    let zonderOnderwerp = 0;
+    try {
+      const { data: paginaRijen } = await admin
+        .from("planned_pages")
+        .select(SCHRIJFPAGINA_KOLOMMEN)
+        .eq("plan_month_id", monthId)
+        .eq("profile_id", id)
+        .eq("status", "gepland")
+        .eq("is_buffer", false);
+      const uitkomsten = await startVoorbereiding(
+        admin,
+        (paginaRijen ?? []) as unknown as TeSchrijvenPagina[],
+        new Date(),
+      );
+      for (const u of uitkomsten.values()) {
+        if (u.uitkomst === "gestart" || u.uitkomst === "al_voorbereid") voorbereid++;
+        if (u.uitkomst === "geblokkeerd" && (u.reden === "geen_onderwerp" || u.reden === "geen_analyse")) {
+          zonderOnderwerp++;
+        }
+      }
+    } catch (err) {
+      console.error(`Voorbereiding na vrijgeven van maand ${monthId} mislukte:`, err);
+    }
+    return NextResponse.json({ ok: true, voorbereid, zonderOnderwerp });
   }
 
   if (body.actie === "afwijzen") {
@@ -137,9 +173,9 @@ export async function POST(
     // eigen tijdstip vast. Een `update ... in (...)` zou ze allemaal hetzelfde
     // adres geven, en dat is precies de meting die nergens over gaat.
     for (const p of selectie.mee) {
-      const ok = await markPosted(admin, p.id, { url: p.url, userId: user.id });
-      if (ok) gelukt.push(p.title);
-      else mislukt.push({ title: p.title, reden: "opslaan mislukte" });
+      const uitkomst = await markPosted(admin, p.id, { url: p.url, userId: user.id });
+      if (uitkomst.ok) gelukt.push(p.title);
+      else mislukt.push({ title: p.title, reden: uitkomst.reden });
     }
 
     return NextResponse.json({

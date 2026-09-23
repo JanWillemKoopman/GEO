@@ -136,7 +136,13 @@ import { faseVoorPagina } from "@/lib/plan-funnel";
 import { buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change-format";
 import type { PeriodChange } from "@/lib/pipeline/period-change-format";
 import { domainOf } from "@/lib/offsite/domain";
-import { checkUrlFormat, isOnBrandDomain, isRedirectedElsewhere } from "@/lib/url";
+import { schrijfpoort, schrijfdatum } from "@/lib/content-write-gate";
+import { paginaNaam } from "@/lib/pagina-naam";
+import { tellingen, filterPaginas, groepVan, LEEG_FILTER, filterKeuzes } from "@/lib/pagina-lijst";
+import { bundelOpSoort } from "@/lib/pipeline/quality-groups";
+import { markeerZinnen, zinInBron } from "@/lib/tekst-markering";
+import { paginaStand, streefdatum, standVolgorde, FASEN, type PaginaStandInput } from "@/lib/pagina-stand";
+import { checkUrlFormat, isOnBrandDomain, isRedirectedElsewhere, volledigAdres } from "@/lib/url";
 import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import { PRIMARY_ENGINE } from "@/lib/engines/types";
@@ -668,7 +674,6 @@ import {
   resequenceMonth,
   datumProbleem,
   maandIsVol,
-  schrijfBelofte,
   LAATSTE_DAG,
 } from "@/lib/plan-schedule";
 import { calendarDagen } from "@/lib/plan-calendar";
@@ -2061,6 +2066,223 @@ group("webadres controleren", () => {
 
 // Herstelplan na audit T3.1: op 2 september 2026 gaf de publiceerroute een 202
 // voor https://www.example.com/, een adres dat niets met het merk te maken had.
+group("bundelOpSoort: vijf keer dezelfde bevinding wordt één bundel", () => {
+  const b = (finding: string) => ({ issue: { finding } as never, herkomst: "nieuw" as never, aangebodenInRonde: null });
+  const uit = bundelOpSoort([
+    b("Deze zin zegt iets over je bedrijf zonder bron: \"Je wilt weten wat het kost.\""),
+    b("De inleiding is te lang."),
+    b("Deze zin zegt iets over je bedrijf zonder bron: \"Vanaf 359 euro.\""),
+    b("Deze zin zegt iets over je bedrijf zonder bron: \"Binnen 24 uur vervangend vervoer.\""),
+  ]);
+  ok("twee groepen: de bundel en de losse", uit.length === 2);
+  ok("de bundel draagt de gedeelde aanhef", uit[0].kop === "Deze zin zegt iets over je bedrijf zonder bron" && uit[0].items.length === 3);
+  ok("met alleen het citaat per regel", uit[0].details[1] === '"Vanaf 359 euro."');
+  ok("een losse bevinding blijft los", uit[1].kop === null && uit[1].details[0] === "De inleiding is te lang.");
+  const uniek = bundelOpSoort([b("Sectie prijs: te vaag."), b("Sectie werkgebied: ontbreekt.")]);
+  ok("verschillende aanhef wordt niet samengevoegd", uniek.every((x) => x.kop === null));
+});
+
+// 23 september 2026: de zinnen van een verbeterpunt staan gemarkeerd in de
+// leestekst, en de lijst ernaast springt ernaartoe. Een markering op de
+// verkeerde plek of een kapotte tag is erger dan geen markering.
+group("markeerZinnen: verbeterpunten in de leestekst", () => {
+  const html = '<p>Wij leveren binnen 24 uur. Bel ons op &quot;werkdagen&quot; voor een offerte.</p><p><a href="/binnen-24-uur-geleverd">link</a></p>';
+  const uit = markeerZinnen(html, [
+    "Wij leveren binnen 24 uur.",
+    '"Bel ons op "werkdagen" voor een offerte."',
+    "Deze zin staat er niet in.",
+    "Ja.",
+  ]);
+  ok("gevonden zinnen krijgen een markering", uit.html.includes('<mark class="tekst-punt" id="punt-0">Wij leveren binnen 24 uur.</mark>'));
+  ok("aanhalingstekens in de zin volgen de escaping van de renderer", uit.html.includes('id="punt-1">Bel ons op &quot;werkdagen&quot; voor een offerte.</mark>'));
+  ok("per zin of hij gevonden is", JSON.stringify(uit.gevonden) === "[true,true,false,false]");
+  ok("een te kort stuk wordt niet gemarkeerd", !uit.html.includes('id="punt-3"'));
+  const inHref = markeerZinnen('<a href="/binnen-24-uur-geleverd-vandaag">binnen-24-uur-geleverd-vandaag</a>', ["binnen-24-uur-geleverd-vandaag"]);
+  ok("nooit binnen een tag", inHref.html.startsWith('<a href="/binnen-24-uur-geleverd-vandaag"><mark'));
+  const dubbel = markeerZinnen("<p>Onderhoud in zes werkplaatsen.</p>", ["Onderhoud in zes werkplaatsen.", "Onderhoud in zes werkplaatsen."]);
+  ok("dezelfde zin twee keer: de tweede nestelt niet in de eerste", (dubbel.html.match(/<mark/g) ?? []).length === 1 && dubbel.gevonden[1] === false);
+  const bron = "## Kop\n\nWij leveren binnen 24 uur. En meer.";
+  const plek = zinInBron(bron, "Wij leveren binnen 24 uur.");
+  ok("zinInBron vindt de plek in de markdown", plek !== null && bron.slice(plek.begin, plek.eind) === "Wij leveren binnen 24 uur.");
+  ok("zinInBron geeft null bij een onbekende zin", zinInBron(bron, "Niet aanwezig in de tekst.") === null);
+});
+
+group("renderMarkdown en de WordPress-export herkennen een tabel", () => {
+  const md = "Inleiding.\n\n| Bedrijfswagen | Vanafprijs |\n|---|---:|\n| Caddy Cargo | € 359 |\n| Crafter | € 589 |\n\nNa de tabel.";
+  const html = renderMarkdown(md);
+  ok("een tabel wordt een tabel", html.includes("<table><thead><tr><th>Bedrijfswagen</th><th>Vanafprijs</th></tr></thead>"));
+  ok("met alle rijen", html.includes("<tr><td>Caddy Cargo</td><td>€ 359</td></tr><tr><td>Crafter</td><td>€ 589</td></tr>"));
+  ok("en de alinea erna blijft een alinea", html.includes("<p>Na de tabel.</p>"));
+  ok("geen streepjes meer in de tekst", !html.includes("|---"));
+  ok("zonder scheidingsregel is het geen tabel", !renderMarkdown("| dit | is een zin |").includes("<table"));
+  const wp = markdownToGutenbergBlocks(md);
+  ok("de export zet hem in een tabelblok", wp.includes("<!-- wp:table -->") && wp.includes("<td>Crafter</td>"));
+});
+
+group("contentpagina: goedkeuren kan altijd, ook met open punten", () => {
+  const aanZet = leesBestand("components/pagina/tekst-aan-zet.tsx");
+  ok("de goedkeurknop krijgt het aantal open punten mee", aanZet.includes("openPunten={blokkades}"));
+  ok("en wordt niet meer vervangen door een verwijzing naar de lijst", !aanZet.includes('href="#rail"'));
+  const knop = leesBestand("components/pagina/knoppen.tsx");
+  ok("met open punten vraagt de knop eerst om bevestiging", knop.includes("openPunten > 0 ? setBevestigen(true)"));
+});
+
+group("bibliotheek: tegels en chips tellen dezelfde stand", () => {
+  const vandaag = "2026-09-23";
+  const mk = (naam: string, i: Partial<PaginaStandInput>) => ({
+    naam,
+    cluster: "Wagenparkbeheer",
+    stand: paginaStand({ plan: null, tekst: null, openVragen: 0, vandaag, ...i }),
+  });
+  const tekst = (status: string, needs_review = false) => ({ status, needs_review, voorbereid: true });
+  const rijen = [
+    mk("Maandprijs", { tekst: tekst("ready", true) }),
+    mk("Wagenparkbeheer", { tekst: tekst("ready", true) }),
+    mk("Kosten", { plan: { status: "gepland", scheduled_for: "2026-10-20", maandVrij: true }, tekst: tekst("briefing"), openVragen: 2 }),
+    mk("APK", { plan: { status: "schrijven", scheduled_for: "2026-09-26", maandVrij: true } }),
+    mk("Live", { tekst: tekst("published") }),
+    mk("Weg", { plan: { status: "afgewezen", scheduled_for: null, maandVrij: true } }),
+  ];
+  const t = tellingen(rijen);
+  // Van den Udenhout, 23 september 2026: "Klaar voor vrijgave 0" boven twee
+  // rijen die op vrijgave wachtten.
+  ok("wat op jou wacht telt de twee teksten en de vragen", t.wacht === 3);
+  ok("wordt gemaakt", t.gemaakt === 1);
+  ok("staat live", t.live === 1);
+  ok("vervallen telt nergens", groepVan(rijen[5].stand) === null);
+  ok("filter op status", filterPaginas(rijen, { ...LEEG_FILTER, status: "goedkeuren" }).length === 2);
+  ok("zoeken op naam", filterPaginas(rijen, { ...LEEG_FILTER, zoek: "maandprijs" }).length === 1);
+  ok("zoeken op cluster", filterPaginas(rijen, { ...LEEG_FILTER, zoek: "wagenpark" }).length === 5);
+  const soorten = [
+    { naam: "A", cluster: "X", clusterId: "c1", soort: "Artikel", actie: "nieuw", stand: rijen[0].stand },
+    { naam: "B", cluster: "Y", clusterId: "c2", soort: "Landingspagina", actie: "verbeteren", stand: rijen[0].stand },
+  ];
+  ok("filter op content", filterPaginas(soorten, { ...LEEG_FILTER, soort: "Artikel" }).length === 1);
+  ok("filter op type", filterPaginas(soorten, { ...LEEG_FILTER, actie: "verbeteren" })[0]?.naam === "B");
+  ok("filter op cluster", filterPaginas(soorten, { ...LEEG_FILTER, cluster: "c2" }).length === 1);
+  ok("vervallen staat niet in de keuzes", !filterKeuzes(rijen).status.some(([k]) => k === "vervallen"));
+});
+
+group("paginaNaam: één naam per pagina, overal", () => {
+  ok(
+    "zoektitel zonder merk",
+    paginaNaam({ title: "Maak één pagina", meta_title: "Bedrijfswagen leasen vanaf € 359 p/m | Van den Udenhout" }) ===
+      "Bedrijfswagen leasen vanaf € 359 p/m",
+  );
+  ok("zoektitel zonder merkdeel blijft heel", paginaNaam({ title: "x", meta_title: "Wagenparkbeheer in Brabant" }) === "Wagenparkbeheer in Brabant");
+  ok("zonder zoektitel de opdracht", paginaNaam({ title: "Leg helder uit wat het kost", meta_title: null }) === "Leg helder uit wat het kost");
+  ok("lege zoektitel telt niet", paginaNaam({ title: "Opdracht", meta_title: "  " }) === "Opdracht");
+  ok("nooit leeg", paginaNaam({ title: " " }) === "Pagina zonder titel");
+});
+
+// contentflow-een-lijn.md fase C: één stand per pagina, uit twee rijen.
+group("paginaStand: elke combinatie geeft precies één stand", () => {
+  const vandaag = "2026-09-23";
+  const plan = (status: string, maandVrij = true, scheduled_for = "2026-10-20") =>
+    ({ status, scheduled_for, maandVrij }) as PaginaStandInput["plan"];
+  const tekst = (status: string, extra: Partial<NonNullable<PaginaStandInput["tekst"]>> = {}) => ({
+    status,
+    needs_review: false,
+    voorbereid: true,
+    ...extra,
+  });
+  const st = (i: Partial<PaginaStandInput>) =>
+    paginaStand({ plan: null, tekst: null, openVragen: 0, vandaag, ...i });
+
+  ok("maand niet vrij: gepland", st({ plan: plan("gepland", false) }).sleutel === "gepland");
+  ok("maand vrij, nog geen rij: wordt voorbereid", st({ plan: plan("gepland") }).sleutel === "voorbereiden");
+  ok(
+    "rij zonder vragen-snapshot: wordt voorbereid",
+    st({ plan: plan("gepland"), tekst: tekst("briefing", { voorbereid: false }) }).sleutel === "voorbereiden",
+  );
+  const vragen = st({ plan: plan("gepland"), tekst: tekst("briefing"), openVragen: 3 });
+  ok("open vragen: jouw antwoorden nodig", vragen.sleutel === "vragen" && vragen.aanZet === "klant");
+  ok("met de handeling erbij", vragen.handeling === "Beantwoord 3 vragen");
+  ok("en de streefdatum 12 dagen voor de datum", vragen.streefdatum === "2026-10-08" && vragen.zin.includes("8 oktober"));
+  const achter = st({ plan: plan("gepland", true, "2026-09-28"), tekst: tekst("briefing"), openVragen: 1 });
+  ok("streefdatum voorbij: loopt achter", achter.looptAchter && achter.zin.includes("loopt achter"));
+  // Het geval 9332a0fb bij Van den Udenhout: alles beantwoord, stond drie dagen op
+  // "Wacht op jouw input".
+  const udenhout = st({ plan: plan("gepland", true, "2026-09-28"), tekst: tekst("briefing"), openVragen: 0 });
+  ok("alles beantwoord is nooit 'wacht op jou' (Van den Udenhout)", udenhout.aanZet !== "klant" && udenhout.sleutel === "schrijven");
+  const vroeg = st({ plan: plan("gepland", true, "2026-11-20"), tekst: tekst("briefing"), openVragen: 0 });
+  ok("alles gedaan, datum ver weg: wacht op de schrijfdatum", vroeg.sleutel === "wacht_op_datum" && vroeg.zin.includes("10 november"));
+  ok(
+    "te weinig feiten: jouw keuze",
+    st({ plan: plan("gepland"), tekst: tekst("briefing"), inputStand: "tegenhouden" }).sleutel === "keuze",
+  );
+  ok(
+    "oude route zonder plan, alles gedaan: niet ingepland, nooit 'wordt geschreven'",
+    st({ tekst: tekst("briefing"), openVragen: 0 }).sleutel === "niet_ingepland",
+  );
+  ok("plan schrijft: wordt geschreven", st({ plan: plan("schrijven"), tekst: tekst("briefing") }).sleutel === "schrijven");
+  // Het geval c4db492e: 'ready' met needs_review, bibliotheek zei "Klaar om te publiceren".
+  const nakijken = st({ tekst: tekst("ready", { needs_review: true }) });
+  ok("klaar maar niet goedgekeurd: lees en keur goed", nakijken.sleutel === "goedkeuren" && nakijken.handeling === "Keur goed");
+  ok("goedgekeurd: zet hem live", st({ tekst: tekst("ready") }).sleutel === "live_zetten");
+  ok("plan goedgekeurd telt ook", st({ plan: plan("goedgekeurd"), tekst: tekst("ready", { needs_review: true }) }).sleutel === "live_zetten");
+  ok("plan ter goedkeuring: keur goed", st({ plan: plan("ter_goedkeuring"), tekst: tekst("ready", { needs_review: true }) }).sleutel === "goedkeuren");
+  ok("gepubliceerd: staat live", st({ tekst: tekst("published") }).sleutel === "effect_meten");
+  ok("plan geplaatst telt ook als live", st({ plan: plan("geplaatst") }).sleutel === "effect_meten");
+  ok("met oordeel: effect bekend", st({ tekst: tekst("published"), effectBekend: true }).sleutel === "effect_bekend");
+  ok("mislukt", st({ plan: plan("mislukt") }).sleutel === "mislukt");
+  ok("afgewezen vervalt", st({ plan: plan("afgewezen"), tekst: tekst("ready") }).fase === null);
+  ok("vijf fasen, niet acht", FASEN.length === 5);
+  ok("stand streefdatum zonder datum is onbekend", streefdatum(null) === null);
+
+  // Precies één hoofdhandeling: alleen als de klant aan zet is.
+  const alle = [vragen, achter, udenhout, vroeg, nakijken, st({ tekst: tekst("ready") }), st({ tekst: tekst("published") })];
+  ok("een handeling alleen als de klant aan zet is", alle.every((a) => (a.aanZet === "klant") === (a.handeling !== null)));
+  ok("wat achterloopt komt bovenaan", standVolgorde(achter) < standVolgorde(vragen) && standVolgorde(vragen) < standVolgorde(udenhout));
+  ok("geen gedachtestreepje of en/of", !alle.some((a) => /[—–]|en\/of/.test(a.zin + a.label)));
+});
+
+// contentflow-een-lijn.md fase B: pas schrijven als elke vraag gedaan is.
+group("schrijfpoort: eerst alle vragen, dan pas schrijven", () => {
+  const basis = {
+    openVragen: 0,
+    voorbereidingKlaar: true,
+    inputStand: "schrijven" as const,
+    writeMode: null,
+    publicatiedatum: "2026-10-20",
+    vandaag: "2026-10-15",
+  };
+  ok("alles gedaan en binnen tien dagen: schrijven", schrijfpoort(basis).mag);
+  ok("voorbereiding loopt nog: niet", schrijfpoort({ ...basis, voorbereidingKlaar: false }).reden === "voorbereiding_loopt");
+  const open = schrijfpoort({ ...basis, openVragen: 2 });
+  ok("twee open vragen: niet", !open.mag && open.reden === "vragen_open");
+  ok("en de melding noemt het aantal", open.melding.includes("Nog 2 vragen"));
+  ok("één open vraag in enkelvoud", schrijfpoort({ ...basis, openVragen: 1 }).melding.includes("Nog 1 vraag."));
+  ok("een onbekend aantal is geen nul", !schrijfpoort({ ...basis, openVragen: Number.NaN }).mag);
+  ok("een negatief aantal is geen nul", !schrijfpoort({ ...basis, openVragen: -1 }).mag);
+  const weinig = schrijfpoort({ ...basis, inputStand: "tegenhouden" });
+  ok("alles gedaan maar te weinig feiten: de klant kiest", !weinig.mag && weinig.reden === "te_weinig_onderbouwd");
+  ok("koos hij algemeen, dan schrijven", schrijfpoort({ ...basis, inputStand: "tegenhouden", writeMode: "algemeen" }).mag);
+  ok("een waarschuwing houdt niet tegen", schrijfpoort({ ...basis, inputStand: "waarschuwing" }).mag);
+  ok("zonder contract geldt de inputpoort niet", schrijfpoort({ ...basis, inputStand: null }).mag);
+  const vroeg = schrijfpoort({ ...basis, vandaag: "2026-10-01" });
+  ok("alles gedaan maar weken te vroeg: wachten", !vroeg.mag && vroeg.reden === "nog_niet_aan_de_beurt");
+  ok("en zegt vanaf wanneer", vroeg.schrijftVanaf === "2026-10-10" && vroeg.melding.includes("10 oktober"));
+  ok("precies op de schrijfdatum mag het", schrijfpoort({ ...basis, vandaag: "2026-10-10" }).mag);
+  ok("zonder datum niet wachten", schrijfpoort({ ...basis, publicatiedatum: null, vandaag: "2026-01-01" }).mag);
+  ok("open vragen gaan vóór de datum", schrijfpoort({ ...basis, openVragen: 3, vandaag: "2026-10-01" }).reden === "vragen_open");
+  ok("schrijfdatum over een maandgrens", schrijfdatum("2026-11-03") === "2026-10-24");
+  ok("geen gedachtestreepje in de meldingen", ![open, weinig, vroeg].some((o) => /[—–]/.test(o.melding)));
+});
+
+// contentflow-een-lijn.md fase A: het contentplan vraagt om een pad, de
+// nameting heeft een volledig adres nodig.
+group("volledigAdres maakt van een pad uit het plan een echt adres", () => {
+  ok("pad met slash", volledigAdres("/diensten/apk", "https://udenhout.nl") === "https://udenhout.nl/diensten/apk");
+  ok("pad zonder slash", volledigAdres("diensten/apk", "udenhout.nl") === "https://udenhout.nl/diensten/apk");
+  ok("www van het merk blijft", volledigAdres("/x", "https://www.udenhout.nl/") === "https://www.udenhout.nl/x");
+  ok("heel adres blijft heel", volledigAdres("https://udenhout.nl/x", null) === "https://udenhout.nl/x");
+  ok("adres zonder schema krijgt https", volledigAdres("udenhout.nl/x", null) === "https://udenhout.nl/x");
+  ok("pad zonder merk is onbekend, geen gok", volledigAdres("/x", null) === null);
+  ok("spaties zijn geen adres", volledigAdres("/mijn pagina", "udenhout.nl") === null);
+  ok("leeg is onbekend", volledigAdres("  ", "udenhout.nl") === null);
+});
+
 group("publiceren mag alleen op het domein van het merk (T3.1)", () => {
   ok("hetzelfde domein mag", isOnBrandDomain("https://voorbeeld.nl/pagina", "voorbeeld.nl"));
   ok("www telt niet als ander domein", isOnBrandDomain("https://www.voorbeeld.nl/pagina", "voorbeeld.nl"));
@@ -6323,30 +6545,6 @@ group("een volle maand levert een lege lijst, nooit een datum in het verleden (p
   );
 });
 
-group("de voorsprongzin past zich aan (plan-schedule, schrijfBelofte)", () => {
-  // ⚠️ "ORBIT ENGINE begint tien dagen voor elke publicatiedatum" klopt niet
-  // als de eerste pagina al over drie dagen moet. Zie punt 5 van
-  // docs/tasks/opdracht-bevindingen-5-tot-9.md.
-  const nu = new Date("2026-08-20T10:00:00Z");
-  ok(
-    "geen datum: de gewone voorsprongzin",
-    schrijfBelofte(null, nu) === "ORBIT ENGINE begint tien dagen voor elke publicatiedatum",
-  );
-  ok(
-    "een datum ver genoeg weg: dezelfde voorsprongzin",
-    schrijfBelofte("2026-09-05", nu) === "ORBIT ENGINE begint tien dagen voor elke publicatiedatum",
-    `precies tien dagen verschil`,
-  );
-  ok(
-    "een datum over drie dagen: de zin past zich aan",
-    schrijfBelofte("2026-08-23", nu) === "ORBIT ENGINE begint zodra de maand is vrijgegeven",
-  );
-  ok(
-    "vandaag zelf: ook aangepast",
-    schrijfBelofte("2026-08-20", nu) === "ORBIT ENGINE begint zodra de maand is vrijgegeven",
-  );
-});
-
 group("één melding voor de hele maand (plan-overview)", () => {
   // ⚠️ De aanleiding: bij elk van de tien regels van maand 1 stond dezelfde
   // oranje zin. Dat is een eigenschap van de maand, niet van de regel.
@@ -8869,6 +9067,9 @@ group("welk menu-item licht op", () => {
     hoofdstuk: "Merkprofiel" as const,
   };
   ok("een kind laat de ouder niet oplichten", !navActief("/merk/abc/merkprofiel/bewerken", dossier));
+  // contentflow-een-lijn.md §4.6: het paginascherm woont onder de bibliotheek.
+  ok("het paginascherm laat de Bibliotheek oplichten", navActief("/merk/abc/strategie/bibliotheek/p1", bibliotheek));
+  ok("en niet Clusters", !navActief("/merk/abc/strategie/bibliotheek/p1", clusters));
 });
 
 group("overzichtCijfers: drie totalen en één stand van nu", () => {
@@ -21533,7 +21734,7 @@ group("De bedrading van de paginakeuze (O1 tot en met O6)", () => {
   ok("behalve de pagina die verbeterd wordt", content.includes("excludeUrl"));
 
   // ── Het scherm laat zien wat er verandert ────────────────────────────────
-  const scherm = leesBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/page.tsx");
+  const scherm = leesBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/content-detail.tsx");
   ok("de contentpagina toont het verbeterplan", scherm.includes("ImprovementList"));
   const gids = leesBestand("components/publish-guide.tsx");
   ok("en de publicatiegids verwijst ernaar", gids.includes("Wat er aan je pagina verandert"));
@@ -24715,7 +24916,7 @@ group("Geen functie-props vanuit een servercomponent", () => {
 
   // De reparatie zelf: de contentpagina geeft een kant-en-klaar element door en
   // de stand loopt via een context aan de clientkant.
-  const pagina = leesBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/page.tsx");
+  const pagina = leesBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/content-detail.tsx");
   ok("het herschrijfvak gaat als element mee", pagina.includes("herschrijfvak={"));
   ok("en niet meer als functie", !pagina.includes("herschrijven={("));
 

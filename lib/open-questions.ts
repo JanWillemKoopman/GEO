@@ -150,6 +150,42 @@ export async function countOpenQuestionsForBrand(db: Db, profileId: string): Pro
 }
 
 /**
+ * Hoeveel vragen van DEZE pagina staan nog open?
+ *
+ * ── EÉN TELLING VOOR TWEE POORTEN (contentflow-een-lijn.md §4.1) ────────────
+ *
+ * De schrijfpoort (`lib/content-write-gate.ts`, vóór het schrijven) en de
+ * eindpoort (`lib/content-final-gate.ts`, vóór goedkeuren) tellen sinds
+ * 23 september 2026 precies dezelfde vragen: de vragen met status `open` die
+ * aan deze pagina hangen (`content_piece_ids`). Dat zijn de vragen uit de
+ * voorbereiding van deze pagina, ook als ze merkbreed zijn.
+ *
+ * ⚠️ Open vragen van het cluster die aan GEEN pagina hangen tellen niet meer
+ * mee. Nagerekend op 23 september 2026 over de hele database: alle 26 zulke
+ * open vragen zijn `aanvulling`-vragen uit een meting of de onboarding. Elke
+ * vraag die de voorbereiding van een pagina stelde (bewijs, grenzen,
+ * onderscheid, praktisch, verificatie) hing aan die pagina. Zouden de losse
+ * vragen meetellen, dan hield bij Van den Udenhout één meting van het cluster
+ * "APK Den Bosch" (zes vragen) elke pagina van dat cluster tegen, ook als de
+ * vragen van die pagina zelf allemaal beantwoord waren.
+ *
+ * ⚠️ Overgeslagen telt als gedaan: dat is de uitweg die de poort leefbaar houdt.
+ *
+ * Gooit bij een storing. Voor de SCHRIJFPOORT is dat bewust: een telling die
+ * stil op 0 uitkomt zou de dure schrijfstap starten terwijl er misschien nog
+ * vragen open staan, en dat is precies wat het besluit van de eigenaar verbiedt.
+ */
+export async function openVragenVanPagina(db: Db, pieceId: string): Promise<number> {
+  const { data, error } = await db
+    .from("fact_requests")
+    .select("id")
+    .eq("status", "open")
+    .contains("content_piece_ids", [pieceId]);
+  if (error) throw new Error(`Open vragen van pagina ${pieceId} tellen mislukte: ${error.message}`);
+  return (data ?? []).length;
+}
+
+/**
  * Hoeveel vragen houden de definitieve versie van een pagina tegen?
  *
  * ── WAT ER MEETELT, EN WAAROM NIET MEER DAN DAT ─────────────────────────────
@@ -178,12 +214,17 @@ export async function countBlockingQuestions(
   analysisId: string,
   pieceId: string | null,
 ): Promise<number> {
+  // ⚠️ Met een pagina: alleen de vragen van die pagina (zie
+  // `openVragenVanPagina`). Zonder pagina, op het herschrijfpad van een cluster,
+  // blijft het de open vragen van het hele cluster.
   const [{ data: clusterRows }, { data: pieceRows }] = await Promise.all([
-    db
-      .from("fact_requests")
-      .select("id")
-      .eq("analysis_id", analysisId)
-      .eq("status", "open"),
+    pieceId
+      ? Promise.resolve({ data: [] as { id: string }[] })
+      : db
+          .from("fact_requests")
+          .select("id")
+          .eq("analysis_id", analysisId)
+          .eq("status", "open"),
     pieceId
       ? db
           .from("fact_requests")

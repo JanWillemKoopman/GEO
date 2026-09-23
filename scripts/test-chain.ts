@@ -1443,6 +1443,164 @@ async function main(): Promise<void> {
       `status is ${naFout[0].status}`,
     );
 
+    // ── Eén live-handeling (contentflow-een-lijn.md fase A) ─────────────────
+    //
+    // Tot 23 september 2026 zette "Markeer als geplaatst" in het plan alleen
+    // het label. Geen publicatiecontrole, geen nameting: het plan was een
+    // weg naar "Staat live" waarop het effect nooit gemeten werd.
+    {
+      const { markPosted } = await import("@/lib/plans");
+      const stukId = naSchrijven[0].content_piece_id as string;
+      await db.client.query("update public.content_pieces set needs_review = true where id = $1", [stukId]);
+      const { rows: merkRij } = await db.client.query(
+        "select url from public.profiles where id = $1",
+        [profileId],
+      );
+      const nietGoedgekeurd = await markPosted(admin as never, binnenVenster, {
+        url: "/hardloopblessures",
+        userId: planUserId,
+      });
+      ok("fase A: een tekst die niet goedgekeurd is gaat via het plan niet live", !nietGoedgekeurd.ok);
+
+      // Fase C: goedkeuren via de gedeelde functie werkt beide rijen bij.
+      const { keurTekstGoed } = await import("@/lib/content-approve");
+      const goed = await keurTekstGoed(admin as never, { pieceId: stukId, analysisId, userId: planUserId });
+      ok("fase C: goedkeuren lukt", goed.ok, JSON.stringify(goed));
+      const { rows: naGoed } = await db.client.query(
+        `select c.needs_review, p.status from public.content_pieces c
+           join public.planned_pages p on p.content_piece_id = c.id where c.id = $1`,
+        [stukId],
+      );
+      ok("fase C: de tekst is vrijgegeven", naGoed[0].needs_review === false);
+      eqc("fase C: en het plan zegt hetzelfde", String(naGoed[0].status), "goedgekeurd");
+      const uitkomst = await markPosted(admin as never, binnenVenster, {
+        url: "/hardloopblessures",
+        userId: planUserId,
+      });
+      ok(
+        "fase A: geplaatst markeren in het plan lukt",
+        uitkomst.ok && uitkomst.effectmeting === "gepland",
+        JSON.stringify(uitkomst),
+      );
+      const { rows: stukNa } = await db.client.query(
+        "select status, published_url from public.content_pieces where id = $1",
+        [stukId],
+      );
+      ok("fase A: en zet de tekst zelf op gepubliceerd", stukNa[0].status === "published", String(stukNa[0].status));
+      ok(
+        "fase A: op het volledige adres van het merk",
+        String(stukNa[0].published_url).endsWith("/hardloopblessures") &&
+          String(stukNa[0].published_url).startsWith("https://"),
+        `${stukNa[0].published_url} (merk ${merkRij[0].url})`,
+      );
+      const { rows: controle } = await db.client.query(
+        "select count(*)::int as n from public.jobs where type = 'verify_publication' and payload_json->>'contentPieceId' = $1",
+        [stukId],
+      );
+      ok("fase A: en de publicatiecontrole staat klaar", controle[0].n === 1, `${controle[0].n} taken`);
+      const { rows: planNa } = await db.client.query(
+        "select status from public.planned_pages where id = $1",
+        [binnenVenster],
+      );
+      eqc("fase A: de plan-pagina staat op geplaatst", String(planNa[0].status), "geplaatst");
+    }
+
+    // ── Fase D: eerst voorbereiden, schrijven pas na de laatste vraag ────────
+    //
+    // Het besluit van 23 september 2026 (contentflow-een-lijn.md §1): er wordt
+    // pas geschreven als elke vraag van de pagina beantwoord of overgeslagen
+    // is. Dit scenario loopt de hele lijn door met de echte functies.
+    {
+      const { startVoorbereiding, probeerTeSchrijven, probeerNaAntwoord, laadSchrijfpagina } =
+        await import("@/lib/plan-write-start");
+      const titel = "Hardloopblessures · Vragen eerst";
+      const { rows: nieuw } = await db.client.query(
+        `insert into public.planned_pages
+           (plan_month_id, profile_id, title, page_type, funnel_stage_id, topic_id,
+            sort_order, is_buffer, scheduled_for, source)
+         values ($1, $2, $3, 'informatief', $4, $5, 5, false, current_date + 20, 'plan')
+         returning id`,
+        [maandRij[0].id, profileId, titel, funnelRij[0].id, topicRij[0].id],
+      );
+      const paginaId = nieuw[0].id as string;
+      const laad = async () => (await laadSchrijfpagina(admin as never, { id: paginaId }))!;
+      const tijdstip = new Date();
+
+      const uitkomsten = await startVoorbereiding(admin as never, [await laad()], tijdstip);
+      const u = uitkomsten.get(paginaId);
+      ok("fase D: vrijgeven start de voorbereiding", u?.uitkomst === "gestart", JSON.stringify(u));
+      const { rows: gekoppeld } = await db.client.query(
+        `select p.content_piece_id, c.status from public.planned_pages p
+           left join public.content_pieces c on c.id = p.content_piece_id where p.id = $1`,
+        [paginaId],
+      );
+      const stukId = gekoppeld[0].content_piece_id as string;
+      ok("fase D: het plan kent zijn rij al tijdens de voorbereiding", Boolean(stukId));
+      eqc("fase D: en die rij wacht op vragen, niet op tekst", String(gekoppeld[0].status), "briefing");
+      const { rows: taken } = await db.client.query(
+        `select type, dedupe_key from public.jobs where payload_json->'recommendation'->>'title' = $1`,
+        [titel],
+      );
+      ok(
+        "fase D: er staat een voorbereidingstaak klaar",
+        taken.some((t: { type: string; dedupe_key: string }) => t.type === "content_plan" && t.dedupe_key.endsWith(":briefing")),
+        JSON.stringify(taken),
+      );
+      ok(
+        "fase D: en nog geen schrijftaak",
+        !taken.some(
+          (t: { type: string; dedupe_key: string }) =>
+            t.type === "content_draft" || (t.type === "content_plan" && !t.dedupe_key.endsWith(":briefing")),
+        ),
+      );
+
+      // De voorbereiding is klaar en stelde één vraag.
+      await db.client.query(
+        `update public.content_pieces set briefing_snapshot_json = '{"facts":[]}'::jsonb where id = $1`,
+        [stukId],
+      );
+      const { rows: vraag } = await db.client.query(
+        `insert into public.fact_requests
+           (profile_id, analysis_id, question, reason, status, scope, kind, answer_type, required, content_piece_ids)
+         values ($1, $2, 'Hoe snel kan iemand bij jullie terecht?', 'wachttijd', 'open',
+                 'pagina', 'praktisch', 'tekst_kort', true, array[$3::uuid])
+         returning id`,
+        [profileId, analysisId, stukId],
+      );
+      const wacht = await probeerTeSchrijven(admin as never, stukId, tijdstip);
+      ok(
+        "fase D: met een open vraag wordt er niet geschreven",
+        wacht.uitkomst === "wacht" && wacht.reden === "vragen_open",
+        JSON.stringify(wacht),
+      );
+
+      // Overslaan telt als antwoord; de datum ligt nog ver weg.
+      await db.client.query("update public.fact_requests set status = 'overgeslagen' where id = $1", [vraag[0].id]);
+      await probeerNaAntwoord(admin as never, [vraag[0].id as string], tijdstip);
+      const { rows: naOverslaan } = await db.client.query(
+        "select status from public.planned_pages where id = $1",
+        [paginaId],
+      );
+      eqc("fase D: alles gedaan maar weken te vroeg: nog niet schrijven", String(naOverslaan[0].status), "gepland");
+
+      // De datum komt binnen tien dagen: de cron vraagt het opnieuw.
+      await db.client.query("update public.planned_pages set scheduled_for = current_date + 5 where id = $1", [paginaId]);
+      const nuWel = await probeerTeSchrijven(admin as never, stukId, tijdstip);
+      ok("fase D: binnen tien dagen en alles gedaan: schrijven", nuWel.uitkomst === "geschreven_ingepland", JSON.stringify(nuWel));
+      const { rows: naStart } = await db.client.query(
+        "select status from public.planned_pages where id = $1",
+        [paginaId],
+      );
+      eqc("fase D: het plan staat op schrijven", String(naStart[0].status), "schrijven");
+      const { rows: schrijftaak } = await db.client.query(
+        `select count(*)::int as n from public.jobs
+          where type = 'content_plan' and payload_json->'recommendation'->>'title' = $1
+            and not dedupe_key like '%:briefing'`,
+        [titel],
+      );
+      ok("fase D: en de schrijftaak staat in de rij", schrijftaak[0].n === 1, `${schrijftaak[0].n} taken`);
+    }
+
 
     // ══════════════════════════════════════════════════════════════════════
     // De aanbodstap kapt de keten niet meer af (Teamsessie 18 augustus 2026)
@@ -6557,18 +6715,35 @@ async function main(): Promise<void> {
       eindpoort(await countBlockingQuestions(admin as never, poortCluster, poortPieceId)).mag,
     );
 
-    // 1. Een open vraag uit DIT cluster blokkeert.
+    // 1. Een open vraag van DEZE pagina blokkeert. Een open vraag van het
+    //    cluster die aan geen pagina hangt (een aanvulling uit een meting) niet
+    //    meer: sinds 23 september 2026 tellen schrijfpoort en eindpoort precies
+    //    dezelfde vragen (`openVragenVanPagina`, contentflow-een-lijn.md §4.1).
     await db.client.query(
       `insert into public.fact_requests
          (profile_id, analysis_id, question, reason, status, scope, kind, answer_type, required)
-       values ($1, $2, 'Wat kost een onderhoudsbeurt bij jullie?', 'prijs', 'open',
-               'analyse', 'bewijs', 'tekst_kort', true)`,
+       values ($1, $2, 'Op welke locaties doen jullie onderhoud?', 'meting', 'open',
+               'analyse', 'aanvulling', 'tekst_kort', true)`,
       [poortProfiel, poortCluster],
     );
     ok(
-      "een open vraag uit dit cluster houdt de definitieve versie tegen",
+      "een losse clustervraag uit een meting houdt deze pagina niet tegen",
+      eindpoort(await countBlockingQuestions(admin as never, poortCluster, poortPieceId)).mag,
+    );
+    await db.client.query(
+      `insert into public.fact_requests
+         (profile_id, analysis_id, question, reason, status, scope, kind, answer_type, required,
+          content_piece_ids)
+       values ($1, $2, 'Wat kost een onderhoudsbeurt bij jullie?', 'prijs', 'open',
+               'analyse', 'bewijs', 'tekst_kort', true, array[$3::uuid])`,
+      [poortProfiel, poortCluster, poortPieceId],
+    );
+    ok(
+      "een open vraag van deze pagina houdt de definitieve versie tegen",
       !eindpoort(await countBlockingQuestions(admin as never, poortCluster, poortPieceId)).mag,
     );
+    const { openVragenVanPagina } = await import("@/lib/open-questions");
+    eqc("en de schrijfpoort telt precies dezelfde vraag", String(await openVragenVanPagina(admin as never, poortPieceId)), "1");
 
     // 2. Een open vraag uit een ANDER cluster blokkeert deze pagina niet.
     //    Zonder deze grens zet één vraag over installaties de onderhoudspagina

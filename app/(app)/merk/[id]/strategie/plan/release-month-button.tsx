@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRefresh } from "@/components/use-refresh";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useToast } from "@/components/toast";
-import { schrijfBelofte } from "@/lib/plan-schedule";
+import { streefdatum, formatDag } from "@/lib/pagina-stand";
 
 /**
  * De enige knop van de leesweergave: geef deze maand vrij.
@@ -27,9 +27,8 @@ export function ReleaseMonthButton({
   monthNumber: number;
   paginas: number;
   /**
-   * De vroegste publicatiedatum in deze maand, of `null`. Bepaalt of de
-   * voorsprongzin hieronder klopt: `schrijfBelofte()` in `lib/plan-schedule.ts`
-   * (punt 5 van docs/tasks/opdracht-bevindingen-5-tot-9.md).
+   * De vroegste publicatiedatum in deze maand, of `null`. Daaruit volgt de
+   * streefdatum voor de antwoorden die de dialoog noemt (`streefdatum()`).
    */
   eersteDatum: string | null;
 }) {
@@ -58,10 +57,16 @@ export function ReleaseMonthButton({
         });
         return;
       }
+      const j = (await res.json().catch(() => null)) as { voorbereid?: number; zonderOnderwerp?: number } | null;
+      const los = j?.zonderOnderwerp ?? 0;
       toast({
-        intent: "succes",
+        intent: los > 0 ? "waarschuwing" : "succes",
         title: `Maand ${monthNumber} vrijgegeven`,
-        description: `${schrijfBelofte(eersteDatum)} met schrijven.`,
+        description:
+          "De vragen voor deze maand staan binnen een paar minuten onder Openstaande vragen." +
+          (los > 0
+            ? ` ${los === 1 ? "1 pagina hangt" : `${los} pagina's hangen`} nog aan geen cluster en ${los === 1 ? "wordt" : "worden"} niet voorbereid.`
+            : ""),
       });
       refresh();
     } catch {
@@ -90,11 +95,18 @@ export function ReleaseMonthButton({
       <ConfirmDialog
         open={open}
         title={`Maand ${monthNumber} vrijgeven`}
-        body={`Je geeft ${paginas} ${
-          paginas === 1 ? "pagina" : "pagina's"
-        } in één keer vrij om geschreven te worden. ${schrijfBelofte(eersteDatum)}, en legt elke tekst daarna aan jou voor.`}
+        // Sinds 23 september 2026 (`docs/tasks/contentflow-een-lijn.md` §3.1):
+        // vrijgeven zet eerst de vragen klaar; geschreven wordt er pas als die
+        // gedaan zijn. De oude zin beloofde dat het schrijven meteen begon.
+        body={`Na vrijgeven zetten we binnen een paar minuten de vragen voor ${
+          paginas === 1 ? "deze pagina" : `deze ${paginas} pagina's`
+        } klaar, onder Openstaande vragen.${
+          eersteDatum && streefdatum(eersteDatum)
+            ? ` Beantwoord ze graag vóór ${formatDag(streefdatum(eersteDatum)!)} om op schema te blijven.`
+            : ""
+        } Een pagina wordt geschreven zodra al zijn vragen beantwoord of overgeslagen zijn, en daarna leggen we de tekst aan je voor.`}
         irreversible={{
-          title: "Dit zet het schrijven in gang",
+          title: "Dit zet het werk in gang",
           description:
             "Elke pagina die geschreven wordt kost geld. Klopt de indeling niet, overleg dan eerst met je consultant.",
         }}

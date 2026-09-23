@@ -58,6 +58,17 @@ export async function markPublished(
     dedupeKey: dedupe.verifyPublication(args.contentPieceId),
   });
 
+  // De plan-pagina die bij deze tekst hoort volgt mee (23 september 2026). Tot
+  // die dag bleef een pagina die in de bibliotheek live gezet werd in het
+  // contentplan op "Goedgekeurd" of "Tekst klaar voor akkoord" staan: twee
+  // schermen die over dezelfde pagina iets anders zeiden.
+  const { error: planFout } = await admin
+    .from("planned_pages")
+    .update({ status: "geplaatst", posted_at: publishedAt.toISOString(), posted_url: args.url })
+    .eq("content_piece_id", args.contentPieceId)
+    .neq("status", "geplaatst");
+  if (planFout) console.error(`Plan-pagina bij ${args.contentPieceId} bijwerken mislukte:`, planFout.message);
+
   const { planned } = await planImpactWaves(admin, {
     analysisId: args.analysisId,
     contentPieceId: args.contentPieceId,

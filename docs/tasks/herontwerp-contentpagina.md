@@ -614,3 +614,43 @@ pagina die straks gepubliceerd wordt; `.canvas-veld` stond op `background: trans
 de grijze app-achtergrond (`--bg-base`) over. Het bewerkbare vlak (titel plus tekst) staat nu op een
 `.card`: wit, met dezelfde rand en ronding als elke andere kaart in de app, zodat het zich zichtbaar
 onderscheidt van de app eromheen in plaats van als een grijs formulierveld te ogen.
+
+## Bijlage D, het scherm rond één vraag: wat moet er beter (23 september 2026)
+
+De eigenaar vond de rail onoverzichtelijk en wilde een tekst altijd kunnen goedkeuren, ook met een
+lage score. Nageteld op de pagina "Bedrijfswagen leasen vanaf € 359 p/m" van Van den Udenhout:
+vóór het eerste punt stonden vier regels uitleg, waarvan de klantzin van zes regels letterlijk het
+eerste punt herhaalde; de vijf punten waren één soort op vijf plekken; en "Keur goed" was weg zolang
+er een punt openstond. De route zelf weigerde dat nooit: `keurTekstGoed()` kijkt alleen naar open
+vragen. Het slot zat alleen in het scherm.
+
+**1. Goedkeuren kan altijd.** "Keur goed" is in de stand `goedkeuren` altijd de hoofdknop. Met open
+punten wordt één klik er twee, en de tweede noemt het aantal (`KeurGoedKnop`, `openPunten`). De
+eindpoort op open vragen blijft staan (`lib/content-final-gate.ts`).
+
+**2. "Te verbeteren" staat altijd open, bovenaan de rail.** Per punt: wat er mis is, "Zo los je het
+op", de plekken in de tekst en twee knoppen ("Laat ORBIT ENGINE het oplossen", "Zelf aanpassen").
+Boven de lijst één knop voor alle punten tegelijk. Wat publicatie niet tegenhoudt staat ingeklapt
+onder "Overige suggesties", met de zin over eerdere pogingen erin. Weg: de klantzin (behalve als er
+niets meer openstaat) en "Waarop dit oordeel rust" onder elk punt.
+
+**3. De zinnen staan gemarkeerd in de tekst.** `lib/tekst-markering.ts` markeert in de leesweergave
+de zin van elk punt (`issue.evidence`, op productie letterlijk de zin uit de tekst). Een plek in de
+rail aanklikken springt ernaartoe; "Zelf aanpassen" schakelt naar bewerken en selecteert de zin.
+Staat er opmaak midden in de zin, dan wordt hij niet gevonden en komt er geen spring-knop.
+
+**4. De rest van de rail is naslag.** Inhoudsopgave, waarop de tekst rust, waarom deze pagina,
+versies en intern staan onder "Meer over deze pagina", allemaal dicht en in kleinere letter.
+
+**5. Opslaan en het menu staan in een werkbalk die bovenaan de tekst plakt.** De losse regel met
+alleen `⋯` boven de tekst is weg, net als de opslagknop onder een tekst van ruim duizend woorden.
+Een klik op "Laat ORBIT ENGINE ... oplossen" scrolt nu naar het herschrijfvak, dat eerst buiten beeld
+gevuld werd. In dat vak staat de aanpassing van deze tekst voortaan vóór de merkbrede notitie.
+
+**6. Een tabel is een tabel.** `renderMarkdown()` en de WordPress-export kenden geen tabellen: de
+prijstabel op deze pagina stond als één alinea met `|---|---:|` op het scherm en in de gekopieerde
+HTML. Beide herkennen hem nu via dezelfde `leesTabel()` in `lib/markdown.ts`.
+
+Nagerekend op de opgeslagen tekst van deze pagina (317065f5): 58 bevindingen, 5 blokkerend, en alle
+5 zinnen worden in de leestekst gevonden en gemarkeerd. Nog niet bekeken op het echte scherm:
+schermafbeeldingen vragen om inloggen op de preview.

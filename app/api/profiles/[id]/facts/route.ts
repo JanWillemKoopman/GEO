@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { answerFact } from "@/lib/facts";
 import { publicFactRequest } from "@/lib/fact-request-public";
+import { probeerNaAntwoord } from "@/lib/plan-write-start";
 
 /**
  * PATCH /api/profiles/[id]/facts, de klant beantwoordt (of slaat over) een
@@ -70,6 +71,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       .eq("id", factId)
       .select("*")
       .single();
+    // Overslaan telt als antwoord: misschien was dit de laatste vraag van een
+    // pagina, en dan begint het schrijven nu (contentflow-een-lijn.md §3).
+    await probeerNaAntwoord(admin, [factId]);
     return NextResponse.json(data ? publicFactRequest(data) : data);
   }
 
@@ -85,6 +89,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!resultaat.ok) {
     return NextResponse.json({ error: resultaat.error }, { status: resultaat.status });
   }
+
+  // Was dit de laatste open vraag van een pagina, dan begint het schrijven nu.
+  // Geen knop "schrijf nu": het laatste antwoord ís de handeling.
+  await probeerNaAntwoord(admin, [factId]);
 
   const { fact, needsEvidence, evidenceHint } = resultaat.outcome;
   const veilig = publicFactRequest(fact as unknown as Record<string, unknown>);

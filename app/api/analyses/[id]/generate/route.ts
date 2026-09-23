@@ -125,7 +125,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // rij in (via de briefing-route). `skipBriefing` is de uitweg voor het
     // opnieuw genereren van een al bestaande pagina: daar is de briefing al
     // doorlopen en zou hem herhalen alleen maar wrijving zijn.
-    if (body.regenerate !== true && body.skipBriefing !== true) {
+    // ⚠️ `skipBriefing` bestaat niet meer als uitweg (23 september 2026): hij
+    // schreef een nieuwe pagina zonder één vraag, en dat verbiedt het besluit in
+    // `docs/tasks/contentflow-een-lijn.md` §1. Geen enkel scherm gebruikte hem.
+    // Alleen `regenerate` (een nieuwe versie van een al afgeronde pagina, achter
+    // de eindpoort hierboven) slaat de vragenronde nog over.
+    if (body.regenerate !== true) {
       const { created, pages } = await planContentBriefing(admin, {
         analysisId: id,
         userId: user.id,

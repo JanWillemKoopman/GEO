@@ -8,21 +8,9 @@ import { Icon } from "@/components/icon";
  * De CONTEXTRAIL naast het canvas
  * (`docs/tasks/herontwerp-contentpagina.md` §6).
  *
- * Zes tabbladen: de inhoudsopgave, de kwaliteit, waarop de tekst rust, waarom
- * deze pagina bestaat, de versies en (alleen voor een beheerder) de interne
- * cijfers. Alles wat op het oude scherm als losse kaart onder de tekst hing,
- * staat hier naast de tekst.
- *
- * ── ⚠️ TABBLADEN EN NIET LANGER EEN ACCORDION (22 september 2026) ───────────
- *
- * Tot vandaag stonden alle secties onder elkaar, opengeklapt of dicht. Op een
- * groot scherm stond "Kwaliteit" standaard open, en die sectie is op een
- * pagina met veel bevindingen zelf al lang: de rail werd dan één doorlopende
- * kolom zo lang als de tekst zelf, met de inhoudsopgave er nog eens bovenop.
- * Er is hooguit één sectie tegelijk waar iemand naar kijkt, dus toont de rail
- * er nu ook maar één: de rest is een klik verderop in plaats van een stuk
- * scrollen. De sticky kolom in `globals.css` blijft even hoog als het canvas
- * ernaast; wat verandert is dat de INHOUD van die kolom nu bij de vraag past.
+ * Bovenaan, altijd open: "Te verbeteren" (`quality-findings.tsx`). Daaronder,
+ * klein en dicht: de inhoudsopgave, waarop de tekst rust, waarom deze pagina
+ * bestaat, de versies en (alleen voor een beheerder) de interne cijfers.
  *
  * ── WAAROM DE RAIL SOMS EEN LADE IS ─────────────────────────────────────────
  *
@@ -32,14 +20,14 @@ import { Icon } from "@/components/icon";
  * knop naar een lade, en die lade is `components/drawer.tsx`: bestaand, met
  * Escape erin en op een telefoon een blad dat van onderen komt.
  *
- * Dezelfde tabbladen staan in beide gevallen in de boom, maar er is er altijd
+ * Hetzelfde paneel staat in beide gevallen in de boom, maar er is er altijd
  * hooguit één die iemand kan bedienen: is de kolom er, dan is de ladeknop weg,
  * en is de kolom weg, dan staat hij op `display: none` en rendert de lade zijn
  * inhoud alleen zolang hij open is. Twee zichtbare kopieën zouden twee keer
- * moeten bijhouden welk tabblad openstaat, en dat doet `actief` hieronder maar
+ * moeten bijhouden welke kop openstaat, en dat doet `actief` hieronder maar
  * één keer, gedeeld door de kolom en de lade.
  */
-type SectieSleutel = "inhoud" | "kwaliteit" | "onderbouwing" | "waarom" | "versies" | "intern";
+type SectieSleutel = "inhoud" | "onderbouwing" | "waarom" | "versies" | "intern";
 
 export function ContextRail({
   kwaliteit,
@@ -52,6 +40,7 @@ export function ContextRail({
   intern,
   inhoud,
 }: {
+  /** "Te verbeteren". Staat altijd open, bovenaan. */
   kwaliteit: React.ReactNode;
   /** Het aantal blokkades, of leeg als er geen zijn. */
   kwaliteitBadge?: string;
@@ -67,54 +56,63 @@ export function ContextRail({
   inhoud: React.ReactNode;
 }) {
   const [lade, setLade] = useState(false);
-  // Kwaliteit is het eerste wat iemand hier hoort te zien: dat is de sectie
-  // die tot vandaag standaard openstond, en de bevindingen zijn meestal de
-  // reden dat iemand de rail openklapt.
-  const [actief, setActief] = useState<SectieSleutel>("kwaliteit");
+  // ── Alles dicht behalve "Te verbeteren" (23 september 2026) ───────────────
+  //
+  // Tot vandaag was "Kwaliteit" één van zes gelijkwaardige accordeonkoppen,
+  // met "Inhoud" erboven. Maar er is op dit scherm maar één vraag die de rail
+  // moet beantwoorden: wat moet er nog beter aan deze tekst. De inhoudsopgave,
+  // de onderbouwing, het waarom en de versies zijn naslag. Die staan nu onder
+  // "Meer over deze pagina", allemaal dicht, in een kleinere letter.
+  const [actief, setActief] = useState<SectieSleutel | null>(null);
 
   const secties: {
     sleutel: SectieSleutel;
     titel: string;
     badge?: string;
-    badgeClassName?: string;
     inhoud: React.ReactNode;
   }[] = [
-    { sleutel: "inhoud", titel: "Inhoud", inhoud },
-    {
-      sleutel: "kwaliteit",
-      titel: "Kwaliteit",
-      badge: kwaliteitBadge,
-      badgeClassName: kwaliteitBadge ? "chip chip-danger" : undefined,
-      inhoud: kwaliteit,
-    },
-    { sleutel: "onderbouwing", titel: "Onderbouwing", badge: onderbouwingBadge, inhoud: onderbouwing },
-    { sleutel: "waarom", titel: "Waarom", inhoud: waarom },
+    { sleutel: "inhoud", titel: "Inhoudsopgave", inhoud },
+    { sleutel: "onderbouwing", titel: "Waarop de tekst rust", badge: onderbouwingBadge, inhoud: onderbouwing },
+    { sleutel: "waarom", titel: "Waarom deze pagina", inhoud: waarom },
     { sleutel: "versies", titel: "Versies", badge: versieBadge, inhoud: versies },
-    ...(intern
-      ? [{ sleutel: "intern" as const, titel: "Intern", inhoud: intern }]
-      : []),
+    ...(intern ? [{ sleutel: "intern" as const, titel: "Intern", inhoud: intern }] : []),
   ];
-  const huidige = secties.find((s) => s.sleutel === actief) ?? secties[1];
 
   const paneel = (
-    <div className="flex flex-col">
-      <div className="rail-tabs" role="tablist" aria-label="Context bij deze pagina">
-        {secties.map((s) => (
-          <button
-            key={s.sleutel}
-            type="button"
-            role="tab"
-            aria-selected={s.sleutel === huidige.sleutel}
-            className="tab"
-            onClick={() => setActief(s.sleutel)}
-          >
-            {s.titel}
-            {s.badge && <span className={s.badgeClassName ?? "chip"}>{s.badge}</span>}
-          </button>
-        ))}
-      </div>
-      <div role="tabpanel" className="rail-paneel">
-        {huidige.inhoud}
+    <div
+      className="flex flex-col gap-6"
+      // Een sprong naar de tekst vanuit de lade sluit de lade: anders springt
+      // de pagina naar een zin die achter de lade verborgen blijft.
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest("[data-sluit-lade]")) setLade(false);
+      }}
+    >
+      {kwaliteit}
+
+      <div className="flex flex-col">
+        <span className="type-caption text-muted pb-1">Meer over deze pagina</span>
+        <div className="flex flex-col divide-y divide-[var(--border-subtle)] border-t border-[var(--border-subtle)]">
+          {secties.map((s) => {
+            const open = s.sleutel === actief;
+            return (
+              <section key={s.sleutel} className="flex flex-col">
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  className="flex w-full items-center justify-between gap-2 py-2 text-left text-sm text-secondary hover:text-[var(--text-primary)]"
+                  onClick={() => setActief(open ? null : s.sleutel)}
+                >
+                  <span className="flex items-center gap-2">
+                    {s.titel}
+                    {s.badge && <span className="chip chip-neutral">{s.badge}</span>}
+                  </span>
+                  <Icon naam={open ? "inklappen" : "uitklappen"} size={14} />
+                </button>
+                {open && <div className="pb-4">{s.inhoud}</div>}
+              </section>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -122,7 +120,7 @@ export function ContextRail({
   return (
     <>
       {/* De kolomversie. Verdwijnt via de containerquery zodra hij niet past. */}
-      <aside className="content-rail" aria-label="Context bij deze pagina">
+      <aside id="rail" className="content-rail" aria-label="Te verbeteren en meer over deze pagina">
         {paneel}
       </aside>
 
@@ -131,8 +129,7 @@ export function ContextRail({
       <div className="content-rail-knop">
         <button type="button" onClick={() => setLade(true)} className="btn-outline btn-sm w-fit">
           <span className="flex items-center gap-1.5">
-            <Icon naam="feit" size={14} />
-            Kwaliteit en onderbouwing
+            Te verbeteren
             {kwaliteitBadge && <span className="chip chip-danger">{kwaliteitBadge}</span>}
           </span>
         </button>
@@ -140,8 +137,8 @@ export function ContextRail({
 
       <Drawer
         open={lade}
-        titel="Context bij deze pagina"
-        onderschrift="De kwaliteit, de onderbouwing en de versies"
+        titel="Te verbeteren"
+        onderschrift="Wat er nog beter moet aan deze tekst"
         onSluit={() => setLade(false)}
       >
         {lade ? paneel : null}

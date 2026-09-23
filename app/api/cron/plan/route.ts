@@ -2,10 +2,9 @@ import { NextResponse } from "next/server";
 import { serverEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
-import type { WriteBlock } from "@/lib/plan-writing";
-import { SCHRIJFVOORSPRONG_DAGEN } from "@/lib/plan-status";
 import {
-  startPaginaSchrijven,
+  startVoorbereiding,
+  probeerTeSchrijven,
   SCHRIJFPAGINA_KOLOMMEN,
   type TeSchrijvenPagina,
 } from "@/lib/plan-write-start";
@@ -55,20 +54,28 @@ export async function GET(request: Request) {
   const admin = createAdminClient();
   const nu = new Date();
 
-  // Het venster is de enige grens die in de query hoort: alles wat verder in de
-  // toekomst ligt is niet aan de beurt, en dat zijn er bij twaalf maanden vér de
-  // meeste. De rest van de beslissing staat in `writeDecision()`, want daar is
-  // hij te testen.
-  const grens = new Date(nu);
-  grens.setDate(grens.getDate() + SCHRIJFVOORSPRONG_DAGEN);
-
+  // ── Sinds 23 september 2026: voorbereiden en de schrijfpoort, nooit direct schrijven ──
+  //
+  // Deze cron schreef tot die dag elke pagina van een vrijgegeven maand zodra
+  // hij binnen tien dagen viel, zonder één vraag te stellen. Dat botst met het
+  // besluit dat er pas geschreven wordt als elke vraag van de pagina beantwoord
+  // of overgeslagen is (`docs/tasks/contentflow-een-lijn.md` §1).
+  //
+  // Nu is hij het VANGNET onder twee dingen die elders gebeuren: het vrijgeven
+  // van een maand start de voorbereiding, en het laatste antwoord start het
+  // schrijven. Hier worden pagina's opgepakt die daar doorheen glipten:
+  //
+  //   1. pagina's van vrijgegeven maanden zonder rij in `content_pieces`:
+  //      voorbereiding starten;
+  //   2. pagina's met een rij die nog op `briefing` staat: de schrijfpoort
+  //      opnieuw vragen. Dat is ook hoe de tiendaagse schrijfdatum bereikt
+  //      wordt: de poort zegt "nog niet" tot die dag, en daarna "ja".
   const { data, error } = await admin
     .from("planned_pages")
-    .select(SCHRIJFPAGINA_KOLOMMEN)
+    .select(`${SCHRIJFPAGINA_KOLOMMEN}, content_piece_id`)
     .eq("status", "gepland")
     .eq("is_buffer", false)
     .not("scheduled_for", "is", null)
-    .lte("scheduled_for", grens.toISOString().slice(0, 10))
     .eq("plan_months.status", "goedgekeurd")
     .order("scheduled_for");
 
@@ -77,30 +84,34 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Ophalen mislukt.", detail: error.message }, { status: 500 });
   }
 
-  const pages = (data ?? []) as unknown as TeSchrijvenPagina[];
+  const pages = (data ?? []) as unknown as (TeSchrijvenPagina & { content_piece_id: string | null })[];
   const geblokkeerd: Record<string, number> = {};
+  const wacht: Record<string, number> = {};
+  let voorbereiding = 0;
   let ingepland = 0;
-  let alBezig = 0;
 
-  for (const page of pages) {
-    const uitkomst = await startPaginaSchrijven(admin, page, nu);
-    if (uitkomst.uitkomst === "ingepland") ingepland++;
-    else if (uitkomst.uitkomst === "al_bezig" || uitkomst.uitkomst === "al_klaar") alBezig++;
+  const zonderRij = pages.filter((p) => !p.content_piece_id);
+  const uitkomsten = await startVoorbereiding(admin, zonderRij, nu);
+  for (const u of uitkomsten.values()) {
+    if (u.uitkomst === "gestart") voorbereiding++;
+    else if (u.uitkomst === "geblokkeerd") tel(geblokkeerd, u.reden);
+  }
+
+  for (const page of pages.filter((p) => p.content_piece_id)) {
+    const uitkomst = await probeerTeSchrijven(admin, page.content_piece_id!, nu);
+    if (uitkomst.uitkomst === "geschreven_ingepland") ingepland++;
+    else if (uitkomst.uitkomst === "wacht") tel(wacht, uitkomst.reden);
     else if (uitkomst.uitkomst === "geblokkeerd") tel(geblokkeerd, uitkomst.reden);
     else tel(geblokkeerd, "inplannen_mislukt");
   }
 
-  // ── De zoekcijfers, in dezelfde dagelijkse ronde ──────────────────────────
-  //
-  // Bewust géén tweede cron. Beide taken zijn dagelijks, allebei plannen ze
-  // alleen werk in, en twee pg_cron-taken die een minuut na elkaar hetzelfde
-  // doen zijn twee dingen om te vergeten bij de volgende migratie.
   const zoekdata = await planSearchConsoleSync(admin, nu);
 
   return NextResponse.json({
     bekeken: pages.length,
+    voorbereiding,
     ingepland,
-    alBezig,
+    wacht,
     geblokkeerd,
     zoekdata,
   });
@@ -140,6 +151,6 @@ async function planSearchConsoleSync(
   return { merken: merken.length, ingepland };
 }
 
-function tel(teller: Record<string, number>, sleutel: WriteBlock | "inplannen_mislukt"): void {
+function tel(teller: Record<string, number>, sleutel: string): void {
   teller[sleutel] = (teller[sleutel] ?? 0) + 1;
 }

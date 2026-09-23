@@ -126,3 +126,29 @@ export function getClusterDisplayName(analysisName: string): string {
   }
   return analysisName;
 }
+
+/**
+ * Het volledige adres van een pagina, uit wat iemand in het contentplan invulde.
+ *
+ * Het plan vraagt om "het pad waar de pagina live staat". Mensen vullen daar drie
+ * vormen in: `/diensten/apk`, `diensten/apk` of het hele adres. De nameting en de
+ * publicatiecontrole hebben een volledig adres nodig (`markPublished()` haalt
+ * de pagina echt op), dus een los pad wordt aan het domein van het merk
+ * geplakt. `null` als er niets bruikbaars van te maken is: dan hoort de aanroeper
+ * te zeggen dat het adres niet klopt, niet een half adres op te slaan
+ * (conventie 3).
+ */
+export function volledigAdres(invoer: string, merkUrl: string | null): string | null {
+  const s = invoer.trim();
+  if (!s || /\s/.test(s)) return null;
+  if (/^https?:\/\//i.test(s)) return s;
+  // "voorbeeld.nl/pad": een host met een punt vóór de eerste slash.
+  const eersteDeel = s.split("/")[0];
+  if (!s.startsWith("/") && eersteDeel.includes(".")) return `https://${s}`;
+  if (!merkUrl) return null;
+  const host = normalizeUrl(merkUrl)?.split("/")[0];
+  if (!host) return null;
+  const pad = s.startsWith("/") ? s : `/${s}`;
+  const www = /^(https?:\/\/)?www\./i.test(merkUrl.trim()) ? "www." : "";
+  return `https://${www}${host}${pad}`;
+}
