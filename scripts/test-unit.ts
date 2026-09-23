@@ -25350,3 +25350,15 @@ group("De spoorexport van één merk (kwaliteitsdoorlichting, 23 september 2026)
   ok("alleen voor beheerders", route.includes("isStaff(user.id)") && route.includes("status: 404"));
   ok("alleen lezen", !/\.(insert|update|upsert|delete)\(/.test(route));
 });
+
+group("Het gespreksscherm slaat de waarde van de laatste klik op (23 september 2026)", () => {
+  // Gevonden in de kwaliteitsdoorlichting: bij een lijst of keuzeknop las het
+  // opslaan de waarde van vóór de klik, dus het laatste lijstpunt en elke keuze
+  // gingen verloren terwijl het scherm "opgeslagen" toonde.
+  const scherm = leesBestand("app/(app)/merk/[id]/_components/onboarding-session.tsx");
+  const zet = scherm.slice(scherm.indexOf("function zet("), scherm.indexOf("async function bewaarVeld("));
+  ok("zet() werkt de ref meteen bij", zet.includes("waardenRef.current = { ...waardenRef.current, [key]: value }"));
+  const bewaar = scherm.slice(scherm.indexOf("async function bewaarVeld("), scherm.indexOf("A4: opslaan bij het sluiten"));
+  ok("bewaarVeld leest uit de ref", bewaar.includes("const waarde = waardenRef.current[key]"));
+  ok("bewaarVeld leest niet de oude state", !bewaar.includes("waarden[key]"));
+});
