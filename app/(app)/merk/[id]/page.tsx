@@ -16,7 +16,6 @@ import { SectionHeading } from "@/components/section-heading";
 import { InsightLines } from "@/components/loop-blocks";
 import { SectionErrorBoundary } from "@/components/section-error-boundary";
 import { ProfileProgress } from "./_components/profile-progress";
-import { InfoHint } from "@/components/info-hint";
 import { loadContentTotalen } from "@/lib/overview-data";
 import { loadLoop } from "@/lib/insights-data";
 import { loadBrandWork, sortWork } from "@/lib/work";
@@ -24,15 +23,12 @@ import { groepeerPerSectie } from "@/lib/wachtrij";
 import { WachtrijLijst } from "./_components/wachtrij-lijst";
 import { enkelOfMeervoud } from "@/lib/format";
 import {
-  isEersteMaand,
   overzichtCijfers,
   totalenKop,
   type OverzichtCijfer,
-  planRegels,
   versheidsregel,
-  volgendeMeting,
 } from "@/lib/overview";
-import { contentMix, planTotalen, type VoortgangPagina } from "@/lib/plan-progress";
+import { planTotalen, type VoortgangPagina } from "@/lib/plan-progress";
 import { Icon } from "@/components/icon";
 import { ronde, rondeZin } from "@/lib/ronde";
 import { RondeBalk } from "./_components/ronde-balk";
@@ -93,12 +89,16 @@ export const dynamic = "force-dynamic";
  * enige waar hij vandaag iets aan kan doen. De eerste kans krijgt bewust
  * `btn-outline` en niet nog een primaire knop.
  *
- * ── ⚠️ IN DE EERSTE MAAND VALT DE VERDIEPING WEG ────────────────────────────
+ * ── ⚠️ HET SCHERM EINDIGT BIJ WAT ER OP JE WACHT (23 september 2026) ────────
  *
- * Bij één meting en zonder contentplan stonden hier drie mijlpalen op nul, vier
- * voortgangsbalken op nul en een ingeklapt blok zonder inhoud. Dat is het eerste
- * beeld dat een nieuwe klant van het product krijgt, en het meldde vooral wat er
- * nog niet was. Zie `isEersteMaand` in `lib/overview.ts`.
+ * Onder de wachtrij stond "Je contentplan": twee voortgangsbalken en de mix van
+ * paginatypes. Bij Van den Udenhout zei dat blok "18 pagina's gepland, nog geen
+ * live", terwijl de ronde bovenaan al "18 ingepland" en de cijferrij "0
+ * gepubliceerd" meldde. Drie keer hetzelfde feit, en het laatste blok van het
+ * scherm trok de aandacht weg van de taken erboven. Het contentplan zelf staat op
+ * Strategie → Contentplan. Daarmee verviel ook de regel voor de eerste maand
+ * (`isEersteMaand`): die kondigde alleen aan wat dat blok later zou tonen, en de
+ * datum van de volgende meting staat al onder de merknaam.
  *
  * ── ⚠️ HET LAATSTE BLOK SUGGEREERT GEEN AUTONOMIE ───────────────────────────
  *
@@ -235,8 +235,8 @@ export default async function OverzichtPage({
   // ── Het plan ─────────────────────────────────────────────────────────────
   // ⚠️ Geen query meer op `profile_funnel_stages`: die voedde alleen "Per fase
   // van de klantreis", en dat blok is op 21 september 2026 weggehaald omdat
-  // `planned_pages.funnel_stage_id` toen nooit gevuld werd (zie `PlanKaart`
-  // hieronder).
+  // `planned_pages.funnel_stage_id` toen nooit gevuld werd. De pagina's zelf
+  // blijven nodig: `totalen.gepland` voedt de ronde bovenaan.
   const [{ data: paginaRijen }, { data: maandRijen }] = await Promise.all([
     admin
       .from("planned_pages")
@@ -252,7 +252,6 @@ export default async function OverzichtPage({
   ]);
 
   const paginas = (paginaRijen ?? []) as VoortgangPagina[];
-  const mix = contentMix(paginas);
   const totalen = planTotalen(paginas);
 
   // ⚠️ "Maand 4 sinds de start", nooit "maand 4 van 12". Besluit 7 maakte het
@@ -307,10 +306,6 @@ export default async function OverzichtPage({
 
   const merknaam = profile.brand_name ?? profile.name;
   const nu = new Date();
-  const eersteMaand = isEersteMaand({
-    metingen: periodes.length,
-    geplandePaginas: totalen.gepland,
-  });
 
   return (
     // ⚠️ 32 pixels tussen de secties en 12 binnen een sectie. Het was overal 24,
@@ -453,12 +448,13 @@ export default async function OverzichtPage({
       <SectionErrorBoundary label="Wat er op je wacht">
         <div className="flex flex-col gap-3">
           <SectionHeading
-            title={
-              eigenWerk.length === 0
-                ? "Er wacht niets op jou"
-                : eigenWerk.length === 1
-                  ? "Eén ding wacht op jou"
-                  : `${eigenWerk.length} dingen wachten op jou`
+            title={eigenWerk.length === 0 ? "Er wacht niets op jou" : "Wat er op jou wacht"}
+            badge={
+              eigenWerk.length > 0 ? (
+                <span className="chip chip-success">
+                  {eigenWerk.length} open {enkelOfMeervoud(eigenWerk.length, "taak", "taken")}
+                </span>
+              ) : undefined
             }
             meta={bijOns > 0 ? `Bij ORBIT ENGINE · ${bijOns}` : undefined}
           />
@@ -471,43 +467,10 @@ export default async function OverzichtPage({
               </p>
             </div>
           ) : (
-            <WachtrijLijst overzicht={wachtrijOverzicht} />
+            <WachtrijLijst overzicht={wachtrijOverzicht} eersteId={eigenWerk[0]?.id} />
           )}
         </div>
       </SectionErrorBoundary>
-
-      {/* ── De verdieping ──────────────────────────────────────────────────
-          In de eerste maand staan hier alleen nullen, en dat is precies het
-          moment waarop een nieuwe klant besluit of dit serieus is. Dan één
-          regel over wat er gaat gebeuren, en verder niets. */}
-      {eersteMaand ? (
-        <p className="text-sm text-muted">
-          ORBIT ENGINE meet opnieuw op{" "}
-          {volgendeMeting(nu).toLocaleDateString("nl-NL", {
-            day: "numeric",
-            month: "long",
-            timeZone: "UTC",
-          })}
-          . Dan staat hier wat je zichtbaarheid gedaan heeft, en hoe ver je contentplan is.
-        </p>
-      ) : (
-        /* ── 3. Het contentplan, over de volle breedte ─────────────────────
-            ⚠️ Stond tot 26 augustus 2026 in een kolom van de helft, naast het
-            activiteitenblok dat op 21 september 2026 helemaal is verdwenen
-            (`docs/logbook.md`, "Wat ORBIT ENGINE deed"). Over de volle breedte
-            staan de voortgang en de mix naast elkaar in plaats van onder
-            elkaar. */
-        <SectionErrorBoundary label="Je contentplan">
-          <div className="flex flex-col gap-3">
-            <SectionHeading title="Je contentplan" />
-            {totalen.gepland === 0 ? (
-              <LeegPlan id={id} />
-            ) : (
-              <PlanKaart mix={mix} totalen={totalen} gepubliceerdTotaal={gepubliceerd} />
-            )}
-          </div>
-        </SectionErrorBoundary>
-      )}
     </div>
   );
 }
@@ -554,162 +517,6 @@ function CijferRij({ cijfers, kop }: { cijfers: OverzichtCijfer[]; kop: string }
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-/**
- * Het contentplan: hoe ver is het, en waar zit het.
- *
- * ── ⚠️ VIER VOORTGANGSBALKEN WERDEN ÉÉN (25 AUGUSTUS 2026) ──────────────────
- *
- * Elke funnelfase had een eigen balk over de volle breedte. Bij Gasservice
- * Brabant stonden die alle vier op 0%, dus er stonden vier lege grijze banen
- * onder elkaar en vijf keer het woord nul. Een voortgangsbalk die nul toont,
- * toont niets: het cijfer ernaast zei het al.
- *
- * ── ⚠️ "PER FASE VAN DE KLANTREIS" IS OP 21 SEPTEMBER 2026 VERWIJDERD ───────
- *
- * Dat blok stond hier tot vandaag, en toonde bij ÉLK merk "niets gepland" voor
- * alle vier fasen, ook bij een plan van 18 pagina's. Nagerekend op productie:
- * `planned_pages.funnel_stage_id` staat op nul rijen ingevuld. Sinds de
- * jaarverdeling op 25 augustus 2026 verdween (`createPlan()` in `lib/plans.ts`)
- * kiest niets in de pijplijn nog een fase per pagina; de kolom bestaat nog,
- * maar wordt nergens meer geschreven. Een blok dat gegarandeerd "niets
- * gepland" zegt terwijl er wél gepland is, is een grotere leugen dan geen
- * blok.
- *
- * Sinds 23 september 2026 vult `syncBacklog()` de fase wel, uit de doelvragen
- * van de pagina (`lib/plan-funnel.ts`). Het blok komt toch niet terug: op
- * productie kreeg 32 van de 42 pagina's een fase, de rest heeft een gelijkspel
- * tussen twee fasen, en een los toegevoegde pagina heeft geen doelvragen. Een
- * telling per fase zou dus nog steeds te laag uitvallen.
- *
- * Nu draagt één balk de voortgang van het hele plan (wat ervan live staat),
- * met daarboven een tweede balk voor de omvang van het plan zelf (hoeveel
- * pagina's er in totaal ingepland staan). De mix eronder staat over de volle
- * breedte in plaats van naast een kapotte kolom.
- */
-function PlanKaart({
-  mix,
-  totalen,
-  gepubliceerdTotaal,
-}: {
-  mix: ReturnType<typeof contentMix>;
-  totalen: ReturnType<typeof planTotalen>;
-  gepubliceerdTotaal: number;
-}) {
-  const percentage = totalen.gepland > 0 ? (totalen.geplaatst / totalen.gepland) * 100 : 0;
-
-  return (
-    <div className="card flex flex-col gap-4">
-      <div className="flex flex-col gap-3">
-        {/* De omvang van het plan: hoeveel pagina's staan er in totaal
-            ingepland, los van hoeveel daarvan al live staan. */}
-        <div className="flex flex-col gap-1">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <span className="mono-label">Aantal ingeplande pagina&apos;s</span>
-            <span className="text-sm font-medium">
-              {totalen.gepland} {totalen.gepland === 1 ? "pagina" : "pagina's"}
-            </span>
-          </div>
-          <span
-            className="h-2 w-full overflow-hidden rounded-[var(--radius-pill)]"
-            style={{ background: "var(--bg-elevated)" }}
-          >
-            <span
-              className="block h-full rounded-[var(--radius-pill)]"
-              style={{ width: "100%", background: "var(--border-emphasis)" }}
-            />
-          </span>
-        </div>
-
-        {/* ⚠️ Twee tellingen die elkaar tegenspraken, staan nu naast elkaar met
-            hun verschil erbij (`lib/overview.ts`, `planRegels`). */}
-        {planRegels({
-          gepland: totalen.gepland,
-          geplaatst: totalen.geplaatst,
-          gepubliceerdTotaal,
-        }).map((regel, i) => (
-          <p key={i} className={i === 0 ? "text-secondary" : "text-sm text-muted"}>
-            {regel}
-          </p>
-        ))}
-        <span
-          className="h-2 w-full overflow-hidden rounded-[var(--radius-pill)]"
-          style={{ background: "var(--bg-elevated)" }}
-        >
-          <span
-            className="block h-full rounded-[var(--radius-pill)]"
-            style={{ width: `${percentage}%`, background: "var(--trend-up)" }}
-          />
-        </span>
-      </div>
-
-      {mix.length > 0 && (
-        <div className="flex flex-col gap-3 border-t border-[var(--border-subtle)] pt-4">
-          <span className="mono-label flex items-center gap-1">
-            Wat voor content er gepland staat
-            <InfoHint label="Welke types zijn dit?">
-              De indeling uit je contentplan: informatief, categorie en dienst. Dezelfde
-              as als bij &ldquo;klikken per paginatype&rdquo; op Zoekverkeer, zodat je
-              kunt zien welk soort content het meeste oplevert en je plan daarop kunt
-              bijstellen.
-            </InfoHint>
-          </span>
-          <span className="flex h-3 w-full overflow-hidden rounded-[var(--radius-pill)]">
-            {mix.map((m, i) => (
-              <span
-                key={m.type}
-                title={`${m.type}: ${m.aantal}`}
-                style={{
-                  width: `${m.percentage}%`,
-                  background: `var(--chart-${(i % 6) + 1})`,
-                }}
-              />
-            ))}
-          </span>
-          <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
-            {mix.map((m, i) => (
-              <li key={m.type} className="mono-label flex items-center gap-1.5">
-                <span
-                  aria-hidden
-                  className="inline-block h-2 w-2 rounded-[var(--radius-pill)]"
-                  style={{ background: `var(--chart-${(i % 6) + 1})` }}
-                />
-                <span className="capitalize">{m.type}</span>
-                <span className="text-muted">
-                  {m.aantal} ({Math.round(m.percentage)}%)
-                </span>
-              </li>
-            ))}
-          </ul>
-          {totalen.reserve > 0 && (
-            <p className="text-sm text-muted">
-              {totalen.reserve === 1
-                ? "Eén reservepagina staat klaar als er iets afvalt."
-                : `${totalen.reserve} reservepagina's staan klaar als er iets afvalt.`}{" "}
-              Ze tellen niet mee in je maandtotaal.
-            </p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function LeegPlan({ id }: { id: string }) {
-  return (
-    <div className="card flex flex-col gap-2">
-      <span className="mono-label">Nog geen contentplan</span>
-      <p className="text-secondary">
-        Zodra er een contentplan staat, zie je hier hoeveel pagina&apos;s er per fase van de
-        klantreis gepland zijn en hoeveel er al live staan.
-      </p>
-      <Link href={`/merk/${id}/strategie/plan`} className="btn-outline w-fit">
-        <Icon naam="strategie" size={18} />
-        Naar het contentplan
-      </Link>
     </div>
   );
 }
