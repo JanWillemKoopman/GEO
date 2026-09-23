@@ -355,6 +355,162 @@ verwijst door naar "Jouw beurt", gefilterd op dat cluster.
 **Bibliotheek.** Toont alle pagina's vanaf stand 2 met de ene stand; filter op stand in plaats
 van op de oude status.
 
+### 4.6a Vormgeving: van rommelig naar af
+
+Dit onderdeel is net zo zwaar als de motor. De eigenaar beoordeelde op 23 september 2026 drie
+schermen als rommelig, onduidelijk en ondermaats. Alles hieronder blijft binnen het bestaande
+systeem (`docs/designsystem.md`: OKX-tokens, de drie opmaakstanden van §8, de negen regels van
+§11, de primitieven van §9). Er komt geen nieuw visueel idioom, wel strengere toepassing ervan.
+Het scherm bouwt voort op `docs/tasks/herontwerp-contentpagina.md` (drie zones, gebouwd op
+22 september); waar dit document daarvan afwijkt, staat de reden erbij.
+
+#### Wat er nu mis is (screenshots van 23 september 2026, Van den Udenhout)
+
+**Het paginascherm met een geschreven tekst**
+1. Het canvas toont ruwe markdown: `##` voor koppen, een tabel als `| --- |`, links als
+   `[tekst](url)`. De "Schrijven"-stand staat standaard aan. Dat oogt als een halffabricaat.
+2. Drie namen voor één pagina: de actiebalk toont de opdracht ("Maak één duidelijke pagina over de
+   all-in maandprijs..."), de bibliotheek de zoektitel ("Bedrijfswagen leasen vanaf € 359 p/m | Van
+   den Udenhout"), het canvas weer de opdracht, afgekapt ("...van een bec").
+3. Tegenspraak: de chip zegt "Concept", de bibliotheek "Klaar om te publiceren", de rail "Nog niet
+   naar je site" met 5 punten die publicatie tegenhouden, en toch staat de groene hoofdknop "Zet
+   deze pagina live" klaar. De bibliotheek zegt 100/100, de rail 74/100.
+4. De contextrail is een muur van kleine tekst: vijf tabs die over twee regels breken, elke
+   bevinding met dezelfde zin "Deze zin zegt iets over je bedrijf zonder bron" plus twee knoppen.
+5. Een uitlegregel in vaktaal bovenaan ("gaat buiten de schrijfpijplijn om").
+6. Onderaan drie losse knoppen zonder samenhang: een grijze "Opslaan", "Notitie voor de schrijver
+   aanpassen", "Iets aanpassen aan deze tekst".
+7. In het menu licht "Clusters" op; bovenin staat "6 openstaande vragen" die niet over deze pagina
+   gaan.
+
+**Het paginascherm dat op input wacht**
+1. Een leeg wit vlak van 650 pixels hoog met alleen een afgekapte titel.
+2. "Er staan geen opmerkingen meer open" met een groen vinkje: valse geruststelling, er is nog niets.
+3. De hoofdknop "Zet deze pagina live" op een pagina zonder tekst.
+4. Nergens staat wat er aan de hand is, wie aan zet is of wat de volgende stap is.
+
+**De bibliotheek**
+1. De kerncijfers spreken de lijst tegen: "Klaar voor vrijgave 0" boven twee rijen "Klaar om te
+   publiceren"; "Geschreven 3" terwijl één pagina leeg is.
+2. Een zware filterkaart voor drie pagina's.
+3. Titels in twee soorten (opdracht en zoektitel door elkaar), een los streepje als score.
+4. Geen enkele rij zegt wat de klant nu moet doen.
+
+#### Uitgangspunten voor alle drie
+
+1. **Eén naam per pagina.** Vanaf stand 4 is dat de paginatitel (H1) uit de tekst. Daarvóór de
+   werktitel, gemaakt uit de opdracht zonder gebiedende wijs; de opdracht zelf staat onder
+   "Waarom deze pagina". De zoektitel (meta title) staat alleen in "Titel en zoekresultaat". Leg
+   dit vast in één pure functie `paginaNaam()` en gebruik die overal (plan, bibliotheek, Jouw beurt,
+   actiebalk, tabbladtitel).
+2. **Eén stand, één kleur, één zin.** De chip komt uit `lib/pagina-stand.ts` (§4.5), overal gelijk.
+   Betekenislaag van `designsystem.md` §2.5: wacht op jou = waarschuwing, ORBIT ENGINE bezig =
+   informatie, live = succes, mislukt = gevaar. Altijd kleur plus tekst (regel 4).
+3. **Eén cijfer per begrip, uit één bron.** Er is één kwaliteitscijfer en dat is overal hetzelfde.
+   Zoek uit waar 100 en 74 vandaan komen (vermoedelijk verschillende kolommen of versies) en kies
+   er één; de rest verdwijnt uit beeld.
+4. **De hoofdknop is de handeling van de huidige stand, en niets anders.** Hooguit één accentknop
+   per scherm (regel 8). Kan de handeling niet, dan staat de knop er niet, in plaats van dat hij
+   er is en daarna een foutmelding geeft.
+5. **Geen leeg vlak zonder uitleg.** Elke stand zonder tekst krijgt een eigen, gevulde weergave
+   (§8 hieronder), nooit een leeg canvas.
+6. **Geen vaktaal op het scherm.** Grep op "pijplijn", "briefing", "contract", "poort" in de
+   schermcomponenten; alles eruit.
+
+#### Het paginascherm (`/merk/[id]/strategie/bibliotheek/[paginaId]`)
+
+Opmaak: stand `werken`, met de drie zones uit het herontwerp (containerquery `.content-zones`,
+drempel 1064px). Bovenaan, vóór de zones, over de volle breedte:
+
+```
+‹ Bibliotheek                                                      [⋯]
+Wat kost wagenparkbeheer bij Van den Udenhout                 (H1, 1 regel, afkappen met … en title-attribuut)
+Landingspagina · Wagenparkbeheer voor mkb · gepland 28 september
+
+ ● Vragen ─── ○ Schrijven ─── ○ Goedkeuren ─── ○ Live ─── ○ Effect      (standbalk, §4.6)
+
+┌ Aan zet: jij ─────────────────────────────────────────────────────────┐
+│ Nog 2 van de 5 vragen. Daarna schrijven we hem, vanaf 18 september.   │
+│                                                   [Naar de vragen ▸]  │  (één accentknop)
+└───────────────────────────────────────────────────────────────────────┘
+```
+
+De "Aan zet"-kaart is de enige plek met de hoofdknop; de actiebalk bovenin draagt alleen nog terug,
+titel en het menu met drie puntjes (versies, opnieuw keuren, archiveren). Daarmee verdwijnt de
+tegenspraak uit punt 3: de knop volgt de stand. De kaart gebruikt de stang links (`designsystem.md`
+§5.5) in de kleur van de stand.
+
+Daaronder per stand:
+
+| Stand | Hoofdvlak (links, 720px) | Rail (rechts, 320px) |
+|---|---|---|
+| 1 Gepland | Kaart "Wat deze pagina gaat doen": waarom, voor wie, welke vragen van AI-assistenten hij moet winnen (de doelvragen), datum. | Leeg laten, rail verbergen |
+| 2 Wordt voorbereid | Dezelfde kaart met een rustige laadregel "We zoeken uit wat erop moet. Dit duurt een paar minuten." Skeletregels in de vorm van de vragenlijst, geen draaiend icoon | Verborgen |
+| 3 Jouw antwoorden nodig | **De vragenlijst**: per vraag een kaart met de vraag (kop), één zin waarom hij ertoe doet ("Nodig voor het onderdeel *Wat kost het*"), het antwoordveld, en rechtsonder een tekstknop "Overslaan". Beantwoord: de kaart klapt in tot één regel met vinkje en het antwoord, met "Wijzig". Voortgang als balk met "3 van 5" boven de lijst | "Wat er op de pagina komt": de inhoudsopgave als lijst, onderdelen die van een open vraag afhangen gemarkeerd. Zo ziet de klant wat een overgeslagen vraag kost |
+| 4 Wordt geschreven | Inhoudsopgave als lijst met "Wordt geschreven, meestal binnen 15 minuten" of bij `vragen_klaar` "We schrijven hem vanaf 14 oktober". Geen leeg canvas | Samenvatting van de antwoorden die meegaan |
+| 5 Lees en keur goed | **De tekst opgemaakt**, als leesweergave (renderMarkdown, dezelfde als de export). Bewerken is een tweede stand achter de knop "Bewerken" in de werkbalk van het canvas, niet de standaard | Kwaliteit, zie hieronder |
+| 6 Zet hem live | De tekst opgemaakt, daarboven een kaart "Zo zet je hem live": 1 kopieer de tekst (knoppen per formaat), 2 plak op je site, 3 vul het adres in (domein vast, alleen het pad invullen) | Kopieerbaar: paginatitel, meta-omschrijving, voorgesteld pad, FAQ, schema |
+| 7 en 8 | Live-adres, uitkomst van de controle, nameting (golf 1 en 2) met de uitleg uit `lib/impact-uitleg.ts` | Versies |
+
+**Kwaliteit in de rail, rustig gemaakt:**
+- Bovenaan één regel: cijfer plus oordeel ("74 van 100, klaar na 5 kleine punten"), niet drie
+  losse getallen.
+- Bevindingen **gegroepeerd per soort**, met de telling in de kop ("5 zinnen zonder bron"), niet vijf
+  keer dezelfde zin. Per groep één knop "Laat ORBIT ENGINE ze oplossen". Klik op een bevinding
+  scrollt naar de zin in de tekst en markeert hem (ankers bestaan al, herontwerp §5.3).
+- Zolang er punten zijn die publicatie tegenhouden, heet de hoofdknop in de Aan zet-kaart "Los de 5
+  punten op" en niet "Keur goed". Pas als ze weg zijn: "Keur goed".
+- De tabs worden een verticale accordeon met vier koppen (Kwaliteit, Waarop dit rust, Waarom deze
+  pagina, Versies), zoals het herontwerp al tekende in §3.1. Geen tabs die over twee regels breken.
+
+**De knoppen onderaan** verdwijnen als losse rij. "Opslaan" komt alleen in de werkbalk van het
+canvas als er iets gewijzigd is. "Iets aanpassen aan deze tekst" wordt de tweede knop in de Aan
+zet-kaart ("Vraag een aanpassing"). "Notitie voor de schrijver" gaat in het menu met drie puntjes.
+
+**Tekstregels op dit scherm:** de uitlegregel in vaktaal verdwijnt; bij bewerken verschijnt één
+zin: "Wat je zelf aanpast, controleert ORBIT ENGINE niet opnieuw. Wil je dat wel, kies dan
+Opnieuw keuren." Het menu en de bovenbalk tonen alleen vragen van deze pagina.
+
+#### De bibliotheek
+
+- **Kerncijfers die de lijst volgen:** drie tegels uit dezelfde `pagina-stand`: "Wacht op jou",
+  "Wordt gemaakt", "Staat live". Klik op een tegel filtert de lijst.
+- **Filters licht:** zoekveld en de standfilter als chips in één regel boven de lijst; type en
+  cluster in een uitklapper "Meer filters". De filterkaart verdwijnt. Onder 10 pagina's alleen het
+  zoekveld.
+- **Rij:** links de paginanaam (§ uitgangspunt 1) met daaronder type, cluster, datum; rechts de
+  standchip en, als de klant aan zet is, een tekstknop met de handeling ("Beantwoord 2 vragen",
+  "Keur goed", "Zet live"). Kwaliteitscijfer alleen vanaf stand 5, nooit een streepje.
+- **Volgorde:** eerst wat op de klant wacht (vroegste streefdatum), dan wat ORBIT ENGINE doet, dan
+  wat live staat.
+- **Lege staat:** "Nog geen pagina's. Ze verschijnen hier zodra je een maand in het contentplan
+  vrijgeeft." met een knop naar het contentplan.
+
+#### Jouw beurt
+
+Stand `lezen` (720px): het is een lijst om af te werken, geen dashboard. Kop met één zin ("7 dingen
+wachten op je. De eerste vóór 12 oktober."). Groepen als secties met een kleine kop, elke regel een
+rij met paginanaam, wat er gevraagd wordt en de streefdatum. Vragen zijn in de lijst zelf te
+beantwoorden met hetzelfde kaartje als op het paginascherm (één component, `components/vraagkaart.tsx`,
+op basis van `components/antwoordveld.tsx`). Lege staat met het vinkje: "Niets te doen. De volgende
+vragen komen als je november vrijgeeft."
+
+#### Het contentplan
+
+Per paginarij: naam, datum, standchip, en bij de klant aan zet dezelfde tekstknop als in de
+bibliotheek. De hele rij linkt naar het paginascherm. Per maand in de kop: "5 pagina's · 2 wachten
+op jou" en de knop "Maand vrijgeven" alleen bij een maand die nog niet vrij is. De
+vrijgeefdialoog uit §3.1 en §4.6 gebruikt de dialoogprimitief uit `designsystem.md` §9.
+
+#### Hoe dit gecontroleerd wordt
+
+- Voor en na: screenshots met Playwright (Chromium staat klaar) van elk paginascherm in elke stand,
+  plus bibliotheek, Jouw beurt en contentplan, op 1440px en op 390px breed, licht en donker. Bewaar
+  ze in de scratchpad en toon ze aan de eigenaar vóór de merge.
+- `designsystem.md` §12 (controle vóór een commit) voor elk gewijzigd bestand: geen hexwaarden,
+  geen tweede accentknop, iconen uit `lib/icons.ts`.
+- Test in `test-unit.ts`: `paginaNaam()` en per stand precies één hoofdhandeling.
+
 ### 4.7 Tekst
 
 Alle nieuwe teksten volgen `docs/schrijfstijl.md`, zonder gedachtestreepjes en zonder "en/of"
@@ -384,7 +540,8 @@ eigenaar en neem ze mee in deze stap.
 | B | Schrijfpoort en `openVragenVanPagina` (§4.1, §4.2), puur met tests | Fundament voor alles erna |
 | C | Migratie standen en kolom, `lib/pagina-stand.ts`, synchronisatie goedkeuren (§4.5) | Eén waarheid voordat de schermen erop bouwen |
 | D | Motor (§4.3): cron start voorbereiding, trigger na antwoord, vangnet, route 2 zonder vragen dicht | Hier gaat het besluit van §1 echt gelden |
-| E | Paginascherm onder bibliotheek met standbalk en vragen (§4.6) | De klant ziet één plek per pagina |
+| E | Paginascherm onder bibliotheek: standbalk, Aan zet-kaart, weergave per stand, rustige kwaliteitsrail (§4.6, §4.6a) | De klant ziet één plek per pagina, en die oogt af |
+| E2 | Bibliotheek en Jouw beurt in de nieuwe vormgeving (§4.6a) | Dezelfde taal en dezelfde standen als het paginascherm |
 | F | "Jouw beurt", contentplan-rijen, dialoog maand vrijgeven, clusterknoppen | Alle ingangen wijzen naar het paginascherm |
 | G | Herinneringen, loopt achter, nieuwe datum (§4.4) | Pas zinvol als D draait |
 | H | Bestaande data (§5), na akkoord eigenaar | Laatste, zodat alles wat gekoppeld wordt meteen goed werkt |
@@ -414,4 +571,7 @@ Udenhout. Leg de uitkomst vast.
 - Eén pagina heeft overal dezelfde stand; goedkeuren en live zetten werken vanaf plan en
   bibliotheek gelijk, en live zetten plant altijd controle en nameting.
 - Elke klik op een pagina, waar dan ook, komt op hetzelfde scherm, en "Bibliotheek" licht op.
+- Geen scherm toont ruwe markdown als standaard, een leeg vlak zonder uitleg, een hoofdknop die
+  niet kan, of twee verschillende namen of cijfers voor dezelfde pagina. Gecontroleerd met de
+  screenshots uit §4.6a en goedgekeurd door de eigenaar.
 - Bij Van den Udenhout is dit nagelopen met echte data en vastgelegd in het logboek.
