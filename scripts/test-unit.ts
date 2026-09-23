@@ -141,7 +141,7 @@ import { paginaNaam } from "@/lib/pagina-naam";
 import { tellingen, filterPaginas, groepVan, LEEG_FILTER, filterKeuzes } from "@/lib/pagina-lijst";
 import { bundelOpSoort } from "@/lib/pipeline/quality-groups";
 import { markeerZinnen, zinInBron } from "@/lib/tekst-markering";
-import { paginaStand, streefdatum, standVolgorde, FASEN, type PaginaStandInput } from "@/lib/pagina-stand";
+import { paginaStand, streefdatum, standVolgorde, FASEN, heeftEigenScherm, inBibliotheek, type PaginaStandInput } from "@/lib/pagina-stand";
 import { checkUrlFormat, isOnBrandDomain, isRedirectedElsewhere, volledigAdres } from "@/lib/url";
 import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
@@ -1043,6 +1043,19 @@ import {
   MAX_MELDINGEN,
   type ClusterStand,
 } from "@/lib/cluster-melding";
+import {
+  kiesConcurrenten,
+  variantSleutel,
+  voegVariantenSamen,
+  voorfilter,
+  alleenBestaandeTermen,
+  kandidaatFeiten,
+  kandidaatSoort,
+  kandidaatScore,
+  lijktOp,
+  kaartFeiten,
+  type OntdekTerm,
+} from "@/lib/cluster-discovery";
 import type {
   ProfileOffering,
   ProfileTopic,
@@ -2177,11 +2190,24 @@ group("paginaStand: elke combinatie geeft precies één stand", () => {
     paginaStand({ plan: null, tekst: null, openVragen: 0, vandaag, ...i });
 
   ok("maand niet vrij: gepland", st({ plan: plan("gepland", false) }).sleutel === "gepland");
-  ok("maand vrij, nog geen rij: wordt voorbereid", st({ plan: plan("gepland") }).sleutel === "voorbereiden");
+  // Van den Udenhout, 23 september 2026: vijf pagina's zonder rij en zonder
+  // taak zeiden "Dat duurt een paar minuten".
+  const nietGestart = st({ plan: plan("gepland") });
+  ok(
+    "maand vrij, nog geen rij: voorbereiding volgt, geen belofte van minuten",
+    nietGestart.sleutel === "voorbereiden" && nietGestart.label === "Voorbereiding volgt" && !nietGestart.zin.includes("minuten"),
+  );
+  const gestart = st({ plan: plan("gepland"), tekst: tekst("briefing", { voorbereid: false }) });
   ok(
     "rij zonder vragen-snapshot: wordt voorbereid",
-    st({ plan: plan("gepland"), tekst: tekst("briefing", { voorbereid: false }) }).sleutel === "voorbereiden",
+    gestart.sleutel === "voorbereiden" && gestart.label === "Wordt voorbereid",
   );
+  ok("voorbereiden heeft geen eigen scherm", !heeftEigenScherm("voorbereiden") && !heeftEigenScherm("niet_ingepland"));
+  ok("vragen en keuze wel", heeftEigenScherm("vragen") && heeftEigenScherm("keuze"));
+  ok("tekst om te lezen wel", heeftEigenScherm("goedkeuren") && heeftEigenScherm("effect_bekend"));
+  ok("bibliotheek: geen tekst, niet erin", !inBibliotheek(nietGestart) && !inBibliotheek(st({ plan: plan("schrijven"), tekst: tekst("briefing") })));
+  ok("bibliotheek: goedkeuren en live wel", inBibliotheek(st({ tekst: tekst("ready", { needs_review: true }) })) && inBibliotheek(st({ tekst: tekst("published") })));
+  ok("bibliotheek: vervallen niet", !inBibliotheek(st({ plan: plan("afgewezen") })));
   const vragen = st({ plan: plan("gepland"), tekst: tekst("briefing"), openVragen: 3 });
   ok("open vragen: jouw antwoorden nodig", vragen.sleutel === "vragen" && vragen.aanZet === "klant");
   ok("met de handeling erbij", vragen.handeling === "Beantwoord 3 vragen");
@@ -10727,12 +10753,12 @@ group("vijf controles bij een handmatige bewerking (blok C punt 14)", () => {
 group("de vragenpagina staat in Strategie, tussen plan en bibliotheek", () => {
   const items = brandNav("00000000-0000-0000-0000-000000000001", false);
   const strategie = items.filter((i) => i.hoofdstuk === "Strategie").map((i) => i.label);
-  // ⚠️ Clusters blijft eerst: zonder meting valt er niets te plannen. Op 22
-  // september 2026 (commit 91d9a18) zijn Contentplan en Openstaande vragen op
-  // verzoek van de eigenaar van plek gewisseld; deze test volgt dat besluit.
+  // ⚠️ Op 22 september 2026 (commit 91d9a18) zijn Contentplan en Openstaande
+  // vragen op verzoek van de eigenaar van plek gewisseld; deze test volgt dat
+  // besluit. Clusters staat sinds 23 september 2026 onder een eigen kop.
   ok(
-    "de volgorde is clusters, plan, vragen, bibliotheek",
-    strategie.join(" · ") === "Clusters · Contentplan · Openstaande vragen · Bibliotheek",
+    "de volgorde is plan, vragen, bibliotheek",
+    strategie.join(" · ") === "Contentplan · Openstaande vragen · Bibliotheek",
     strategie.join(" · "),
   );
   // ⚠️ En hij staat niet meer onder Merkprofiel. Twee vragenschermen naast
@@ -10767,6 +10793,17 @@ group("de zijbalk kent vijf klanthoofdstukken plus Sales en Admin", () => {
   ok(
     "en Overzicht staat vóór allebei",
     HOOFDSTUKKEN.indexOf("Overzicht") < HOOFDSTUKKEN.indexOf("Strategie"),
+  );
+  // Clusters vóór Strategie: zonder meting valt er niets te plannen.
+  ok(
+    "Clusters staat tussen Overzicht en Strategie",
+    HOOFDSTUKKEN.indexOf("Overzicht") < HOOFDSTUKKEN.indexOf("Clusters") &&
+      HOOFDSTUKKEN.indexOf("Clusters") < HOOFDSTUKKEN.indexOf("Strategie"),
+  );
+  eq(
+    "met eerst Clusters ontdekken, dan Mijn clusters",
+    (klant.find((k) => k.naam === "Clusters")?.items ?? []).map((i) => i.label).join(", "),
+    "Clusters ontdekken, Mijn clusters",
   );
 
   // Dit is het hele punt van de herindeling: van 7 regels met een bak van
@@ -10818,11 +10855,13 @@ group("de zijbalk kent vijf klanthoofdstukken plus Sales en Admin", () => {
   // blijven op drie, met Analytics en Strategie als de twee genoemde
   // uitzonderingen op vier.
   const klantKoppen = HOOFDSTUKKEN.filter((n) => n !== "Sales" && n !== "Admin");
+  // Strategie is sinds 23 september 2026 terug op drie: Clusters werd een eigen
+  // hoofdstuk. Alleen Analytics houdt zijn vierde.
   const teRuim = klantKoppen.filter(
-    (n) => GRENS_PER_HOOFDSTUK[n] > (n === "Analytics" || n === "Strategie" ? 4 : 3),
+    (n) => GRENS_PER_HOOFDSTUK[n] > (n === "Analytics" ? 4 : 3),
   );
   ok(
-    "de klanthoofdstukken blijven op drie, alleen Analytics en Strategie mogen er vier",
+    "de klanthoofdstukken blijven op drie, alleen Analytics mag er vier",
     teRuim.length === 0,
     teRuim.join(", "),
   );
@@ -24898,4 +24937,121 @@ group("Geen functie-props vanuit een servercomponent", () => {
   ok("het werkblad zet er de context omheen", werkblad.includes("<HerschrijfProvider"));
   const vak = leesBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/revise-box.tsx");
   ok("en het herschrijfvak leest hem daar", vak.includes("useHerschrijfstand()"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Clusters ontdekken (docs/tasks/clusters-ontdekken.md). De hoofdgevallen zijn
+// de cijfers uit de proefronde van 23 september 2026 op udenhout.nl.
+
+function term(t: Partial<OntdekTerm> & { keyword: string }): OntdekTerm {
+  return {
+    volume: null,
+    bronnen: ["suggestie"],
+    eigenPositie: null,
+    eigenUrl: null,
+    vertoningen: null,
+    klikken: null,
+    concurrent: null,
+    ...t,
+  };
+}
+
+group("Clusters ontdekken: portalen vallen af als concurrent, dealers blijven", () => {
+  const gekozen = kiesConcurrenten(
+    [
+      { domein: "udenhout.nl", omvang: 2423, overlap: 2426 },
+      { domein: "autoscout24.nl", omvang: 104988, overlap: 1704 },
+      { domein: "viabovag.nl", omvang: 59165, overlap: 1143 },
+      { domein: "broekhuis.nl", omvang: 28910, overlap: 1066 },
+      { domein: "vanmossel.nl", omvang: 18112, overlap: 1056 },
+      { domein: "www.pouw.nl", omvang: 6319, overlap: 934 },
+      { domein: "facebook.com", omvang: 3735952, overlap: 1500 },
+      { domein: "onbekend.nl", omvang: null, overlap: 2000 },
+      { domein: "piepklein.nl", omvang: 100, overlap: 900 },
+    ],
+    "https://www.udenhout.nl/",
+    2423,
+  );
+  eq("drie dealers, op overlap", gekozen.map((g) => g.domein).join(","), "broekhuis.nl,vanmossel.nl,pouw.nl");
+  eq2("zonder eigen omvang geen keuze", kiesConcurrenten([{ domein: "pouw.nl", omvang: 6319, overlap: 1 }], "udenhout.nl", null).length, 0);
+});
+
+group("Clusters ontdekken: varianten zijn één zoekvraag, niet zes", () => {
+  eq("woordvolgorde telt niet", variantSleutel("Private lease occasion"), variantSleutel("occasion private-lease"));
+  const samen = voegVariantenSamen([
+    term({ keyword: "private lease occasion", volume: 22200 }),
+    term({ keyword: "occasion private lease", volume: 22200, bronnen: ["concurrent"], concurrent: { domein: "dewaalautogroep.nl", positie: 5 } }),
+    term({ keyword: "private lease occasion", volume: null, bronnen: ["gsc"], vertoningen: 300, eigenPositie: 14 }),
+    term({ keyword: "apk", volume: 22200 }),
+  ]);
+  eq2("twee termen over", samen.length, 2);
+  const lease = samen.find((t) => t.keyword.includes("lease"))!;
+  eq2("volume niet opgeteld", lease.volume, 22200);
+  eq2("vertoningen wel", lease.vertoningen, 300);
+  eq2("beste eigen positie blijft", lease.eigenPositie, 14);
+  eq("bronnen samengevoegd", [...lease.bronnen].sort().join(","), "concurrent,gsc,suggestie");
+  eq2("concurrent blijft", lease.concurrent?.positie ?? null, 5);
+});
+
+group("Clusters ontdekken: voorfilter en verzonnen termen", () => {
+  const uit = voorfilter(
+    [
+      term({ keyword: "van den udenhout occasions", volume: 900 }),
+      term({ keyword: "laadpaal thuis kosten", volume: 2900 }),
+      term({ keyword: "apk", volume: 5 }),
+      term({ keyword: "apk keuring rosmalen", volume: null, vertoningen: 40, bronnen: ["gsc"] }),
+      term({ keyword: "een heel lange zin die echt geen zoekterm meer is maar een vraag", volume: 5000 }),
+    ],
+    ["Van den Udenhout", "udenhout"],
+  );
+  eq("merkterm, te weinig volume en te lang eruit", uit.map((t) => t.keyword).join("|"), "apk keuring rosmalen|laadpaal thuis kosten");
+  // Eén bron kan de rest niet verdringen: 20 brede concurrenttermen met een
+  // enorm volume tegen 5 kleine eigen termen, bij 10 plekken. Zonder vast deel
+  // per bron waren dat 10 concurrenttermen (udenhout.nl, 23 september 2026:
+  // 220 van de 400).
+  const breed = Array.from({ length: 20 }, (_, i) =>
+    term({ keyword: `merk${i} auto`, volume: 100000 - i, bronnen: ["concurrent"], concurrent: { domein: "x.nl", positie: 3 } }),
+  );
+  const klein = Array.from({ length: 5 }, (_, i) =>
+    term({ keyword: `occasion ${i} kopen`, volume: 50, bronnen: ["eigen"], eigenPositie: 9 }),
+  );
+  const verdeeld = voorfilter([...breed, ...klein], [], 10);
+  eq2("de eigen termen krijgen hun deel", verdeeld.filter((t) => t.bronnen.includes("eigen")).length, 2);
+  eq2("en de lijst blijft op tien", verdeeld.length, 10);
+
+  const invoer = [term({ keyword: "occasion kopen", volume: 1900 }), term({ keyword: "auto kopen occasion", volume: 1000 })];
+  const gekozen = alleenBestaandeTermen(["kopen occasion", "occasion kopen", "verzonnen term"], invoer);
+  eq("model mag bundelen, niet verzinnen of dubbel tellen", gekozen.map((t) => t.keyword).join("|"), "occasion kopen");
+});
+
+group("Clusters ontdekken: soort, score en zinnen", () => {
+  const snel = kandidaatFeiten([
+    term({ keyword: "audi occasions", volume: 9900, eigenPositie: 10, eigenUrl: "https://www.udenhout.nl/occasions" }),
+    term({ keyword: "audi occasion kopen", volume: 480, eigenPositie: 15 }),
+  ]);
+  eq2("volumes van verschillende vragen tellen op", snel.totaalVolume, 10380);
+  eq("plek 10 is snelle winst", kandidaatSoort(snel), "snelle_winst");
+  const gat = kandidaatFeiten([term({ keyword: "occasion private lease", volume: 22200, concurrent: { domein: "dewaalautogroep.nl", positie: 5 } })]);
+  eq("concurrent in top 20, jij nergens", kandidaatSoort(gat), "concurrent_voor");
+  eq("niemand, geen positie", kandidaatSoort(kandidaatFeiten([term({ keyword: "laadpaal thuis", volume: 12100 })])), "nieuw_terrein");
+  eq("al bovenaan is geen snelle winst", kandidaatSoort(kandidaatFeiten([term({ keyword: "apk den bosch", volume: 300, eigenPositie: 2 })])), "nieuw_terrein");
+  eq2("onbekend volume blijft onbekend", kandidaatFeiten([term({ keyword: "x" })]).totaalVolume, null);
+
+  const s = kandidaatScore(snel, "sterk", false);
+  // vraag log10(10380) × 8 = 32, positie plek 10 = 25 - 6/16 × 20 = 17,5 → 18, pasvorm 20.
+  eq2("score snelle winst", s.score, 32 + 18 + 0 + 20);
+  eq2("overlap trekt 30 af", kandidaatScore(snel, "sterk", true).score, s.score - 30);
+  eq2("nooit onder nul", kandidaatScore(kandidaatFeiten([]), "redelijk", true).score, 0);
+
+  const zinnen = kaartFeiten(snel, "snelle_winst");
+  ok("volume met gevolg", zinnen[0]?.includes("10.380") && zinnen[0]?.includes("AI-assistent"), zinnen[0]);
+  ok("positie met gevolg", zinnen[1]?.includes("plek 10") && zinnen[1]?.includes("eerste pagina"), zinnen[1]);
+  ok("geen nul-volume-zin", !kaartFeiten(kandidaatFeiten([term({ keyword: "x" })]), "nieuw_terrein").some((z) => z.includes(" 0 keer")));
+  ok("geen gedachtestreepjes", !zinnen.join(" ").match(/[\u2013\u2014]/));
+});
+
+group("Clusters ontdekken: lijkt op een bestaand cluster", () => {
+  const regio = ["Den Bosch", "Eindhoven", "Noord-Brabant"];
+  eq("zelfde vraag, andere stad", lijktOp("APK in Eindhoven", ["APK Den Bosch", "Goedkope prive lease"], regio) ?? "", "APK Den Bosch");
+  eq("ander onderwerp", lijktOp("Laadpaal thuis laten installeren", ["APK Den Bosch", "Occasion kopen in Noord-Brabant"], regio) ?? "geen", "geen");
 });

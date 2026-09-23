@@ -362,6 +362,10 @@ van op de oude status.
 
 ### 4.6a Vormgeving: van rommelig naar af
 
+> **Bijgesteld op de avond van 23 september 2026** (`docs/logbook.md`): de bibliotheek toont alleen
+> nog pagina's met tekst, en het paginascherm alleen de standen waar de klant iets doet of leest.
+> Waar hieronder staat dat de bibliotheek elke pagina vanaf het plan toont, geldt dat niet meer.
+
 Dit onderdeel is net zo zwaar als de motor. De eigenaar beoordeelde op 23 september 2026 drie
 schermen als rommelig, onduidelijk en ondermaats. Alles hieronder blijft binnen het bestaande
 systeem (`docs/designsystem.md`: OKX-tokens, de drie opmaakstanden van §8, de negen regels van

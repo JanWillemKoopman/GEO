@@ -11675,6 +11675,68 @@ in een tekst verschijnen nu als tabel, op het scherm en in de export, in plaats 
 `docs/tasks/herontwerp-contentpagina.md` bijlage D. Controles: `tsc --noEmit`, `test:unit` (5262),
 `test:chain` (758) en `build` groen.
 
+## 23 september 2026: Clusters ontdekken, drie besluiten en een proefscript
+
+De eigenaar wil een pagina "Clusters ontdekken" naast de voorgestelde clusters uit de onboarding. Het
+plan staat in `docs/tasks/clusters-ontdekken.md`. Drie besluiten van vandaag:
+
+1. **De consultant start, de klant kijkt mee en vraagt aan.** Een ronde en een meting starten blijft
+   beheerderswerk (`lib/cost-rules.ts`); de klant ziet de kandidaten en kan er een aanvragen. Reden: elk
+   cluster kost blijvend ~$0,82 per meetronde, bij 50 clusters ~€43 per maand tegen een plafond van €50.
+2. **DataForSEO komt terug, maar alleen voor deze pagina.** Dit draait het parkeerbesluit van
+   20 september (2) deels terug, op een reden die daar zelf genoemd werd: onderwerpen kiezen in het
+   gesprek schaalt niet meer. Nagekeken in Vercel: `SEARCH_DEMAND_ENABLED` bestaat niet, de oude laag
+   staat dus nog uit; het account zelf is actief voor AI Overview en Gemini. De ontdekkingspagina krijgt
+   een eigen schakelaar en schrijft niets in de potentiescore, want daar ontstonden de twee fouten.
+3. **Een eigen kop "Clusters" met "Clusters ontdekken" en "Mijn clusters"**, in die volgorde op verzoek
+   van de eigenaar. Strategie gaat daardoor van vier naar drie bestemmingen, zodat de regel van
+   17 augustus weer zonder uitzondering klopt.
+
+Fase 0 is een proefronde (`scripts/probe-clusters-ontdekken.ts`, ~$0,50) die op Van den Udenhout
+nameet of DataForSEO Labs werkt voor Nederland, wat een ronde echt kost en hoeveel ruis erin zit. Het
+script is nog niet gedraaid: de sleutels staan in Vercel en niet in de ontwikkelomgeving.
+
+## 23 september 2026 (2): Clusters ontdekken gebouwd, nog niet nagerekend op productie
+
+Vervolg op (1). De proefronde kostte $0,57 en liet zien dat DataForSEO Labs werkt voor Nederland,
+dat de prijs tot op de cent klopt ($0,012 per aanroep plus $0,00012 per resultaat), en waar de ruis
+zit: portalen als concurrent (viabovag.nl, 24% relevant) en `keyword_ideas` (10%, "weer amsterdam").
+Echte dealergroepen en `keyword_suggestions` scoorden ruim boven de helft. Fase 1 en 2 zijn daarom
+samen gebouwd; alles staat in `docs/tasks/clusters-ontdekken.md`, "Stand van de bouw".
+
+Drie keuzes die de uitkomst sturen, alle drie met een cijfer:
+
+1. **Concurrenten op omvang, niet op wat Google eerst noemt.** Hooguit 15 keer het eigen domein:
+   dealergroepen zitten op 2 tot 12 keer, portalen op 24 keer en hoger.
+2. **Varianten zijn één zoekvraag.** "private lease occasion" en "occasion private lease" hebben
+   allebei 22.200; optellen telde dezelfde vraag zes keer.
+3. **Elke bron een vast deel van de 400 plekken in het schiften.** Op volume alleen kregen de
+   concurrenten er 220 en de termen waar udenhout.nl al op plek 4 tot 20 staat er 60.
+
+De oude knop "Stel nieuwe clusters voor" is van Mijn clusters weg; er staat een verwijzing naar het
+nieuwe scherm. Strategie gaat terug naar drie bestemmingen, Clusters wordt een eigen kop.
+
+**Niet nagerekend, en waarom.** Een echte ronde kan pas als dit op `main` staat: de werker op
+productie draait de code van `main`, dus een ronde vanaf een testversie zou daar mislukken. Er is
+hier ook geen OpenAI-sleutel. Het deel zonder AI is wel nagerekend op de echte antwoorden uit de
+proefronde. Migratie 0109 staat op productie, `CLUSTER_DISCOVERY_ENABLED` staat op `true` in Vercel.
+
+Getest: `tsc --noEmit`, `test:unit` (5209), `test:chain` (756) en `build` groen.
+
+**Avond 23 september 2026: de bibliotheek toont alleen teksten, en schermen zonder inhoud vallen weg.**
+De eigenaar kon in de bibliotheek niet zien wat op hem wachtte en wat vanzelf liep: vijf van de acht
+rijen bij Van den Udenhout zeiden "Wordt voorbereid", en klikken gaf een scherm met een laadbalk en
+de opdracht die ook in het contentplan staat. Die vijf pagina's hadden bovendien geen enkele taak:
+de maand ging om 08:29 UTC vrij, de code die bij vrijgeven voorbereidt stond pas om 09:56 live. De
+plan-cron van 04:00 UTC pakt ze de volgende ochtend op, behalve de twee zonder cluster, die het
+contentplan als geblokkeerd toont. Wat er veranderde: de bibliotheek toont alleen pagina's met tekst
+(`inBibliotheek()`), in twee groepen "Wacht op jou" en "Staat live", met onderaan één regel hoeveel
+pagina's nog geen tekst hebben en waar je die volgt. Het paginascherm bestaat alleen nog waar de
+klant iets moet doen of lezen (`heeftEigenScherm()`); de andere standen sturen door naar het
+contentplan, dat er ook niet meer naartoe linkt. Een pagina zonder rij in `content_pieces` heet
+"Voorbereiding volgt" en belooft geen minuten meer. Controles: `tsc --noEmit`, `test:unit` (5268),
+`test:chain` (758) en `build` groen.
+
 **Later op 23 september 2026: kleur en breedte van de contentpagina.** Oranje is op het paginascherm
 alleen nog de kleur van "Te verbeteren"; "Aan zet" en de melding dat ORBIT ENGINE schrijft krijgen
 een groene stang. De rail en "Titel en zoekresultaat" staan op wit, de tekst vult naast de rail de

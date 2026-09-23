@@ -660,7 +660,9 @@ export interface ProfileTopic {
    * Herkomst op het moment van voorstellen (migratie 0076): aanbod, of aanbod
    * plus het strategisch gesprek. Null voor onderwerpen van vóór 0076.
    */
-  origin: "aanbod" | "aanbod_en_gesprek" | null;
+  origin: "aanbod" | "aanbod_en_gesprek" | "ontdekking" | null;
+  /** De kandidaat uit Clusters ontdekken waar dit uit kwam (migratie 0109). */
+  discovery_candidate_id?: string | null;
   /** Stond er gemeten bewijs in de aanroep die dit onderwerp opleverde (migratie 0077)? */
   origin_uses_measurement: boolean;
   /** Waarom dit onderwerp is afgewezen (migratie 0077), instructie voor een volgende ronde. */

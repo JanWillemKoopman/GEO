@@ -56,6 +56,7 @@ import type { IcoonNaam } from "@/lib/icons";
  */
 export const HOOFDSTUKKEN = [
   "Overzicht",
+  "Clusters",
   "Strategie",
   "Analytics",
   "Merkprofiel",
@@ -130,7 +131,10 @@ export type Hoofdstuk = (typeof HOOFDSTUKKEN)[number];
  */
 export const GRENS_PER_HOOFDSTUK: Record<Hoofdstuk, number> = {
   Overzicht: 3,
-  Strategie: 4,
+  Clusters: 3,
+  // Terug naar de regel van drie sinds 23 september 2026: Clusters is een eigen
+  // hoofdstuk geworden, dus Strategie heeft er geen vier meer nodig.
+  Strategie: 3,
   Analytics: 4,
   Merkprofiel: 3,
   Sales: 5,
@@ -162,6 +166,7 @@ export const GRENS_PER_HOOFDSTUK: Record<Hoofdstuk, number> = {
  */
 export const HOOFDSTUK_ICOON: Record<Hoofdstuk, IcoonNaam> = {
   Overzicht: "overzicht",
+  Clusters: "clusters",
   Strategie: "strategie",
   Analytics: "analytics",
   Merkprofiel: "merkprofiel",
@@ -220,29 +225,41 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
       hoofdstuk: "Overzicht",
     },
 
-    // ── STRATEGIE ────────────────────────────────────────────────────────
+    // ── CLUSTERS ─────────────────────────────────────────────────────────
     //
-    // ⚠️ DE VOLGORDE IS OP 28 AUGUSTUS 2026 OMGEZET, EN HET ZIJN ER VIER.
+    // ⚠️ EEN EIGEN HOOFDSTUK SINDS 23 SEPTEMBER 2026 (docs/tasks/clusters-ontdekken.md).
     //
-    // Clusters staat eerst: Contentplan stond vóór Clusters, en dat las als
-    // "begin bij het plan" terwijl er zonder meting niets te plannen valt. Op
-    // 22 september 2026 zijn Contentplan en Openstaande vragen op verzoek van
-    // de eigenaar van plek gewisseld: eerst het plan, dan wat ervoor nodig is.
+    // Tot die dag was "Clusters" de eerste van vier bestemmingen onder
+    // Strategie. Met "Clusters ontdekken" erbij zouden het er vijf worden, en
+    // een vijfde bestaat niet zonder eerst iets samen te voegen (besluit
+    // 22 augustus 2026). Een eigen kop lost dat op en herstelt meteen de
+    // regel van drie voor Strategie.
     //
-    // ⚠️ Vier bestemmingen, waar drie de regel was (besluit 1 tot en met 8 van
-    // 17 augustus 2026). De reden is van dezelfde soort als bij Analytics: de
-    // andere drie TONEN wat ORBIT ENGINE deed, "Openstaande vragen" is de enige
-    // plek in dit hoofdstuk waar de klant zelf iets moet DOEN. Sinds de
-    // eindpoort (`lib/content-final-gate.ts`) houdt een openstaande vraag een
-    // pagina tegen, en dan hoort dat werk niet weggestopt te staan onder een
-    // ander hoofdstuk. Het stond tot vandaag onder Merkprofiel, als "Vraagt
-    // jouw input"; dat hoofdstuk gaat over wie je bent, niet over wat er
-    // geschreven wordt.
+    // De kop staat vóór Strategie om dezelfde reden als Clusters daar eerst
+    // stond (28 augustus 2026): zonder meting valt er niets te plannen.
+    //
+    // "Clusters ontdekken" staat bovenaan op verzoek van de eigenaar. Het
+    // adres van "Mijn clusters" is ongewijzigd: het wordt op 27 plekken
+    // gebruikt, en verhuizen levert alleen een mooier adres op.
+    {
+      href: `/merk/${brandId}/ontdekken`,
+      label: "Clusters ontdekken",
+      hoofdstuk: "Clusters",
+    },
     {
       href: `/merk/${brandId}/strategie/clusters`,
-      label: "Clusters",
-      hoofdstuk: "Strategie",
+      label: "Mijn clusters",
+      hoofdstuk: "Clusters",
     },
+
+    // ── STRATEGIE ────────────────────────────────────────────────────────
+    //
+    // Op 22 september 2026 zijn Contentplan en Openstaande vragen op verzoek
+    // van de eigenaar van plek gewisseld: eerst het plan, dan wat ervoor nodig
+    // is. "Openstaande vragen" is de enige plek hier waar de klant zelf iets
+    // moet DOEN: sinds de eindpoort (`lib/content-final-gate.ts`) houdt een
+    // openstaande vraag een pagina tegen. Hij stond tot 28 augustus 2026 onder
+    // Merkprofiel, als "Vraagt jouw input".
     {
       href: `/merk/${brandId}/strategie/plan`,
       label: "Contentplan",

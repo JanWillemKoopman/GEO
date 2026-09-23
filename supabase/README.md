@@ -625,3 +625,12 @@ dat account zo buiten kon sluiten. De app roept de functie alleen aan via de ser
 (`lib/rate-limit.ts`), dus er verandert niets aan het gewone inloggen. Op productie toegepast op 22
 september 2026, nagerekend met `has_function_privilege`: `anon` nee, `authenticated` nee,
 `service_role` ja.
+
+## 0109 — Clusters ontdekken
+
+Twee tabellen voor de ontdekkingsronde (`docs/tasks/clusters-ontdekken.md`):
+`cluster_discovery_runs` (status, invoer, ruwe DataForSEO-antwoorden, kosten gesplitst in zoekdata
+en AI) en `cluster_discovery_candidates` (kandidaat-clusters met zoektermen, score, status en
+afwijsreden). Lezen mag wie het merk mag lezen, schrijven alleen de server. Op `profile_topics`
+komt `discovery_candidate_id` bij, en de herkomst `ontdekking` mag in `origin`. De zoekvolumes gaan
+bewust nergens de potentiescore in. Op productie toegepast op 23 september 2026.

@@ -5,19 +5,25 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { laadPaginas } from "@/lib/pagina-data";
+import { inBibliotheek } from "@/lib/pagina-stand";
 import { LibraryView } from "./library-view";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Bibliotheek" };
 
 /**
- * De bibliotheek van dit merk: elke pagina, van gepland tot live.
+ * De bibliotheek van dit merk: de pagina's waar al tekst van is.
  *
- * Sinds 23 september 2026 (`docs/tasks/contentflow-een-lijn.md` §4.6a) staan
- * hier ook de pagina's die nog geen tekst hebben, zodra ze in het plan staan,
- * met dezelfde stand als op het paginascherm, in het contentplan en in "Jouw
- * beurt". Eén lader (`laadPaginas()`), zodat die vier schermen nooit meer iets
- * anders zeggen over dezelfde pagina.
+ * Eén lader (`laadPaginas()`) voor de bibliotheek, het contentplan, "Openstaande
+ * vragen" en het paginascherm, zodat die vier nooit iets anders zeggen over
+ * dezelfde pagina.
+ *
+ * Eerder op 23 september 2026 stonden hier ook de pagina's zonder tekst. De
+ * eigenaar kon daardoor niet zien wat op hem wachtte en wat vanzelf liep: vijf
+ * van de acht rijen bij Van den Udenhout zeiden "Wordt voorbereid" en waren
+ * niet aan te klikken zonder op een leeg scherm te komen. Die pagina's staan
+ * nu alleen in het contentplan (`inBibliotheek()`), en hier staat één regel
+ * die zegt hoeveel het er zijn.
  */
 export default async function BibliotheekPage({
   params,
@@ -33,10 +39,14 @@ export default async function BibliotheekPage({
   const profile = await getOwnedProfile(admin, id, gebruiker.id);
   if (!profile) notFound();
 
-  // Alleen wat in een vrijgegeven maand staat, of al tekst heeft: een pagina
-  // die ergens in maand 7 gepland staat, hoort in het contentplan en nog niet
-  // in de bibliotheek.
-  const rows = (await laadPaginas(admin, id)).filter((r) => r.stand.sleutel !== "gepland");
+  const alle = await laadPaginas(admin, id);
+  const rows = alle.filter((r) => inBibliotheek(r.stand));
+  // Wat in een vrijgegeven maand zit maar nog geen tekst heeft: in voorbereiding,
+  // wachtend op antwoorden, of aan het schrijven. Pagina's in een maand die nog
+  // niet vrij is tellen niet mee; die zijn nog een plan, geen werk.
+  const onderweg = alle.filter(
+    (r) => !inBibliotheek(r.stand) && r.stand.sleutel !== "gepland" && r.stand.sleutel !== "vervallen",
+  ).length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -51,8 +61,9 @@ export default async function BibliotheekPage({
           title="Nog geen pagina's"
           action={{ href: `/merk/${id}/strategie/plan`, label: "Naar het contentplan" }}
         >
-          Pagina&apos;s verschijnen hier zodra je een maand in het contentplan vrijgeeft. Dan zetten we
-          de vragen voor die maand klaar, en daarna schrijven we de pagina&apos;s.
+          {onderweg > 0
+            ? `${onderweg === 1 ? "Er is 1 pagina" : `Er zijn ${onderweg} pagina's`} in de maak. Een pagina verschijnt hier zodra zijn tekst klaar is om te lezen. Tot die tijd zie je in het contentplan hoe hij ervoor staat.`
+            : "Een pagina verschijnt hier zodra zijn tekst klaar is om te lezen. Dat begint als je een maand in het contentplan vrijgeeft."}
         </EmptyState>
       ) : (
         // `?cluster=` komt van de doorverwijzing die de bibliotheek per cluster
@@ -61,6 +72,7 @@ export default async function BibliotheekPage({
         <LibraryView
           profileId={id}
           rows={rows}
+          onderweg={onderweg}
           beginCluster={rows.some((r) => r.clusterId === clusterUitAdres) ? clusterUitAdres! : ""}
         />
       )}

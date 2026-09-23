@@ -216,9 +216,14 @@ export function paginaStand(input: PaginaStandInput): PaginaStand {
         { streefdatum: streef },
       );
     }
-    return voorbereidend(streef);
+    // Nog geen rij in `content_pieces`: er draait dan nog niets. Tot
+    // 23 september 2026 stond hier "Dat duurt een paar minuten", terwijl bij
+    // Van den Udenhout vijf pagina's van een vrijgegeven maand geen enkele taak
+    // hadden (de maand ging vrij om 08:29, de code die voorbereidt stond pas om
+    // 09:56 live). De plan-cron van 04:00 UTC pakt ze op; dat zegt deze zin.
+    return voorbereidend(streef, false);
   }
-  if (!tekst.voorbereid) return voorbereidend(streef);
+  if (!tekst.voorbereid) return voorbereidend(streef, true);
 
   const poort = schrijfpoort({
     openVragen: input.openVragen,
@@ -304,19 +309,61 @@ function schrijvend(): PaginaStand {
   });
 }
 
-function voorbereidend(streef: string | null): PaginaStand {
+function voorbereidend(streef: string | null, gestart: boolean): PaginaStand {
   return stand(
     "voorbereiden",
-    {
-      label: "Wordt voorbereid",
-      aanZet: "orbit_engine",
-      toon: "loopt",
-      fase: 0,
-      zin: "We zoeken uit wat er op deze pagina moet en welke vragen we je moeten stellen. Dat duurt een paar minuten.",
-      handeling: null,
-    },
+    gestart
+      ? {
+          label: "Wordt voorbereid",
+          aanZet: "orbit_engine",
+          toon: "loopt",
+          fase: 0,
+          zin: "We zoeken uit wat er op deze pagina moet en welke vragen we je moeten stellen. Dat duurt een paar minuten.",
+          handeling: null,
+        }
+      : {
+          label: "Voorbereiding volgt",
+          aanZet: "orbit_engine",
+          toon: "neutraal",
+          fase: 0,
+          zin: "We beginnen uiterlijk morgenochtend met de voorbereiding. Hebben we vragen, dan staan die daarna bij Openstaande vragen.",
+          handeling: null,
+        },
     { streefdatum: streef },
   );
+}
+
+/**
+ * Heeft deze pagina een eigen scherm dat iets toevoegt?
+ *
+ * Op 23 september 2026 vond de eigenaar dat het paginascherm bij "Wordt
+ * voorbereid" en "Nog niet ingepland" niets toevoegde: een laadbalk of een zin,
+ * en daaronder de opdracht die ook in het contentplan staat. Een eigen scherm
+ * heeft een pagina alleen als de klant er iets moet doen (vragen, een keuze) of
+ * als er tekst is om te lezen. De rest staat in het contentplan, met zijn stand.
+ */
+export function heeftEigenScherm(sleutel: PaginaStandSleutel): boolean {
+  return (
+    sleutel === "vragen" ||
+    sleutel === "keuze" ||
+    sleutel === "goedkeuren" ||
+    sleutel === "live_zetten" ||
+    sleutel === "effect_meten" ||
+    sleutel === "effect_bekend"
+  );
+}
+
+/**
+ * Hoort deze pagina in de bibliotheek? Alleen als er tekst is.
+ *
+ * Tot 23 september 2026 stond daar elke pagina van een vrijgegeven maand, ook
+ * de vijf van Van den Udenhout die nog niet eens voorbereid waren. Wat nog geen
+ * tekst heeft, hoort in het contentplan (wanneer) of bij Openstaande vragen
+ * (wat we van je nodig hebben). Zo is de bibliotheek wat het woord belooft:
+ * de teksten.
+ */
+export function inBibliotheek(stand: PaginaStand): boolean {
+  return stand.fase !== null && stand.fase >= 2;
 }
 
 /** De chipklasse bij een toon (`docs/designsystem.md` §2.5, vier betekenissen). */

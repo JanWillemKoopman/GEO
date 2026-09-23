@@ -111,6 +111,7 @@ import {
   Upload,
   UserRound,
   Waypoints,
+  Boxes,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -122,6 +123,7 @@ import {
 export type IcoonNaam =
   // ── De zeven hoofdstukken van de zijbalk ────────────────────────────────
   | "overzicht"
+  | "clusters"
   | "strategie"
   | "analytics"
   | "merkprofiel"
@@ -218,6 +220,10 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // eerst `Route`, maar die leek op 18 pixels te veel op de schuifjes van
   // Instellingen, en juist ingeklapt staan die twee koppen vlak bij elkaar.
   strategie: Waypoints,
+  // Losse blokjes die bij elkaar horen: een cluster is precies dat, een groep
+  // vragen over één onderwerp. Toegevoegd op 23 september 2026, toen Clusters
+  // een eigen hoofdstuk werd (docs/tasks/clusters-ontdekken.md).
+  clusters: Boxes,
   analytics: ChartNoAxesCombined,
   // Merkprofiel gaat over identiteit: wie ben jij volgens ORBIT ENGINE. Een
   // vingerafdrukpatroon zegt dat abstract, zonder een persoon te tekenen (dit
