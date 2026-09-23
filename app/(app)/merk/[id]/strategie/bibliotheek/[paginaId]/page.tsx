@@ -1,11 +1,11 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { requireUser } from "@/lib/auth";
 import { getOwnedProfile } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { laadPagina } from "@/lib/pagina-data";
 import { leesHerkomst } from "@/lib/origin";
-import { formatDag, type PaginaStand } from "@/lib/pagina-stand";
+import { formatDag, heeftEigenScherm } from "@/lib/pagina-stand";
 import { schrijfdatum } from "@/lib/content-write-gate";
 import { sectiesVanPagina } from "@/lib/pipeline/input-coverage";
 import type { ContentContract } from "@/lib/schemas/content-contract";
@@ -43,6 +43,14 @@ export async function generateMetadata({
  * adres. Bovenaan staan altijd de naam, de standbalk en de kaart "Aan zet", met
  * hooguit één hoofdknop. Daaronder volgt per stand een eigen, gevulde
  * weergave. Nooit een leeg vlak zonder uitleg.
+ *
+ * Later op 23 september 2026 viel een deel weer weg. Bij "Wordt voorbereid",
+ * "Wordt geschreven", "Alle vragen gedaan" en "Nog niet ingepland" liet dit
+ * scherm een laadbalk of één zin zien, met daaronder de opdracht die ook in het
+ * contentplan staat: de eigenaar vond dat het niets toevoegde. Die standen
+ * sturen nu door naar het contentplan (`heeftEigenScherm()`), tenzij er
+ * beantwoorde vragen zijn om nog aan te passen, en geen lijst linkt er nog naartoe. Het adres blijft bestaan voor de standen waar de klant
+ * iets moet doen of iets kan lezen.
  *
  * `paginaId` is het id van de plan-pagina, of, voor een tekst uit de oude route
  * die nog niet aan het plan hangt, het id van de tekst.
@@ -101,6 +109,13 @@ export default async function PaginaScherm({
 
   // ── Nog geen tekst: het voortraject ───────────────────────────────────────
   const voortraject = await laadVoortraject(admin, rij.pieceId, rij.plannedPageId);
+  // Zonder eigen scherm en zonder vragen valt er hier niets te zien of te doen.
+  // Met gegeven antwoorden wel: wie net de laatste vraag beantwoordde, blijft
+  // op dit scherm (de lijst ververst na elk antwoord) en kan een antwoord nog
+  // aanpassen tot het schrijven begint.
+  if (!heeftEigenScherm(rij.stand.sleutel) && voortraject.vragen.length === 0) {
+    redirect(`/merk/${id}/strategie/plan`);
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -119,7 +134,7 @@ export default async function PaginaScherm({
         }
       />
 
-      {(rij.stand.sleutel === "vragen" || rij.stand.sleutel === "keuze") && voortraject.vragen.length > 0 && (
+      {voortraject.vragen.length > 0 && (
         <section id="vragen" className="scroll-mt-24">
           <Vragenlijst
             profileId={id}
@@ -133,26 +148,12 @@ export default async function PaginaScherm({
         </section>
       )}
 
-      {rij.stand.sleutel === "voorbereiden" && <Laadregels />}
-
       <WatDezePaginaDoet
         why={voortraject.why}
         voorWie={voortraject.voorWie}
         doelvragen={voortraject.doelvragen}
         secties={voortraject.secties}
-        stand={rij.stand}
       />
-    </div>
-  );
-}
-
-function Laadregels() {
-  return (
-    <div className="card flex flex-col gap-3" aria-hidden>
-      <div className="skeleton h-4 w-2/3" />
-      <div className="skeleton h-10 w-full" />
-      <div className="skeleton h-4 w-1/2" />
-      <div className="skeleton h-10 w-full" />
     </div>
   );
 }
@@ -162,18 +163,12 @@ function WatDezePaginaDoet({
   voorWie,
   doelvragen,
   secties,
-  stand,
 }: {
   why: string | null;
   voorWie: string | null;
   doelvragen: string[];
   secties: { heading: string; wachtOpVraag: boolean }[];
-  stand: PaginaStand;
 }) {
-  const inhoudKop =
-    stand.sleutel === "schrijven" || stand.sleutel === "wacht_op_datum"
-      ? "Wat er op de pagina komt"
-      : "Wat er op de pagina moet";
   return (
     <div className="flex flex-col gap-4">
       {(why || voorWie || doelvragen.length > 0) && (
@@ -202,7 +197,7 @@ function WatDezePaginaDoet({
       )}
       {secties.length > 0 && (
         <section className="card flex flex-col gap-3">
-          <h2 className="type-section">{inhoudKop}</h2>
+          <h2 className="type-section">Wat er op de pagina moet</h2>
           <ol className="flex flex-col gap-1.5">
             {secties.map((s, i) => (
               <li key={`${s.heading}-${i}`} className="flex items-baseline justify-between gap-3 type-body">

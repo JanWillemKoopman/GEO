@@ -1,6 +1,6 @@
 "use client";
 
-import { STAND_CHIP, streefdatum, formatDag, type StandToon } from "@/lib/pagina-stand";
+import { STAND_CHIP, streefdatum, formatDag, heeftEigenScherm, type PaginaStandSleutel, type StandToon } from "@/lib/pagina-stand";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -905,7 +905,14 @@ export function PlanView({
                           key={page.id}
                           page={page}
                           profileId={profileId}
-                          href={`/merk/${profileId}/strategie/bibliotheek/${page.id}?van=plan`}
+                          // Alleen een link als het paginascherm iets toevoegt
+                          // (`heeftEigenScherm()`): een voorbereidende pagina
+                          // had daar alleen een laadbalk (23 september 2026).
+                          href={
+                            standen[page.id] && heeftEigenScherm(standen[page.id].sleutel)
+                              ? `/merk/${profileId}/strategie/bibliotheek/${page.id}?van=plan`
+                              : null
+                          }
                           stand={standen[page.id] ?? null}
                           funnel={
                             page.funnel_stage_id ? (funnelNaam.get(page.funnel_stage_id) ?? null) : null
@@ -1742,7 +1749,7 @@ export interface RijStand {
   label: string;
   toon: StandToon;
   handeling: string | null;
-  sleutel: string;
+  sleutel: PaginaStandSleutel;
   looptAchter: boolean;
 }
 

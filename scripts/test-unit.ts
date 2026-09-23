@@ -141,7 +141,7 @@ import { paginaNaam } from "@/lib/pagina-naam";
 import { tellingen, filterPaginas, groepVan, LEEG_FILTER, filterKeuzes } from "@/lib/pagina-lijst";
 import { bundelOpSoort } from "@/lib/pipeline/quality-groups";
 import { markeerZinnen, zinInBron } from "@/lib/tekst-markering";
-import { paginaStand, streefdatum, standVolgorde, FASEN, type PaginaStandInput } from "@/lib/pagina-stand";
+import { paginaStand, streefdatum, standVolgorde, FASEN, heeftEigenScherm, inBibliotheek, type PaginaStandInput } from "@/lib/pagina-stand";
 import { checkUrlFormat, isOnBrandDomain, isRedirectedElsewhere, volledigAdres } from "@/lib/url";
 import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
@@ -2190,11 +2190,24 @@ group("paginaStand: elke combinatie geeft precies één stand", () => {
     paginaStand({ plan: null, tekst: null, openVragen: 0, vandaag, ...i });
 
   ok("maand niet vrij: gepland", st({ plan: plan("gepland", false) }).sleutel === "gepland");
-  ok("maand vrij, nog geen rij: wordt voorbereid", st({ plan: plan("gepland") }).sleutel === "voorbereiden");
+  // Van den Udenhout, 23 september 2026: vijf pagina's zonder rij en zonder
+  // taak zeiden "Dat duurt een paar minuten".
+  const nietGestart = st({ plan: plan("gepland") });
+  ok(
+    "maand vrij, nog geen rij: voorbereiding volgt, geen belofte van minuten",
+    nietGestart.sleutel === "voorbereiden" && nietGestart.label === "Voorbereiding volgt" && !nietGestart.zin.includes("minuten"),
+  );
+  const gestart = st({ plan: plan("gepland"), tekst: tekst("briefing", { voorbereid: false }) });
   ok(
     "rij zonder vragen-snapshot: wordt voorbereid",
-    st({ plan: plan("gepland"), tekst: tekst("briefing", { voorbereid: false }) }).sleutel === "voorbereiden",
+    gestart.sleutel === "voorbereiden" && gestart.label === "Wordt voorbereid",
   );
+  ok("voorbereiden heeft geen eigen scherm", !heeftEigenScherm("voorbereiden") && !heeftEigenScherm("niet_ingepland"));
+  ok("vragen en keuze wel", heeftEigenScherm("vragen") && heeftEigenScherm("keuze"));
+  ok("tekst om te lezen wel", heeftEigenScherm("goedkeuren") && heeftEigenScherm("effect_bekend"));
+  ok("bibliotheek: geen tekst, niet erin", !inBibliotheek(nietGestart) && !inBibliotheek(st({ plan: plan("schrijven"), tekst: tekst("briefing") })));
+  ok("bibliotheek: goedkeuren en live wel", inBibliotheek(st({ tekst: tekst("ready", { needs_review: true }) })) && inBibliotheek(st({ tekst: tekst("published") })));
+  ok("bibliotheek: vervallen niet", !inBibliotheek(st({ plan: plan("afgewezen") })));
   const vragen = st({ plan: plan("gepland"), tekst: tekst("briefing"), openVragen: 3 });
   ok("open vragen: jouw antwoorden nodig", vragen.sleutel === "vragen" && vragen.aanZet === "klant");
   ok("met de handeling erbij", vragen.handeling === "Beantwoord 3 vragen");

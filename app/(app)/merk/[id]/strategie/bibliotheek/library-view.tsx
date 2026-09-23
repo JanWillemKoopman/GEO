@@ -21,18 +21,25 @@ import type { PaginaRij } from "@/lib/pagina-data";
  * filters op status, cluster, soort content en type. Een filter toont alleen
  * keuzes die in de lijst voorkomen, en staat uit als er maar één keuze is.
  *
- * Wat bleef: elke rij zegt wat de klant moet doen als hij aan zet is, het
- * kwaliteitscijfer staat er pas als er tekst is, en de volgorde begint bij wat
- * op de klant wacht. Zo staan de teksten om goed te keuren en de pagina's om
- * live te zetten bovenaan, zonder aparte lijst.
+ * ── TWEE GROEPEN: WACHT OP JOU, STAAT LIVE ──────────────────────────────────
+ *
+ * Later die dag vond de eigenaar het nog steeds onduidelijk wat actie nodig
+ * had en wat vanzelf liep. Sindsdien staan hier alleen pagina's met tekst
+ * (`inBibliotheek()`), in twee groepen met een kop. Wat nog geen tekst heeft
+ * staat in het contentplan; onderaan zegt één regel hoeveel dat er zijn.
+ * Het label van de chip is de handeling ("Lees en keur goed", "Zet hem live"),
+ * dus een tweede regel met dezelfde handeling ernaast viel weg.
  */
 export function LibraryView({
   profileId,
   rows,
+  onderweg,
   beginCluster,
 }: {
   profileId: string;
   rows: PaginaRij[];
+  /** Pagina's zonder tekst die in de maak zijn: die staan in het contentplan. */
+  onderweg: number;
   /** Een cluster-id uit het adres, of leeg. */
   beginCluster: string;
 }) {
@@ -96,39 +103,34 @@ export function LibraryView({
           </p>
         </div>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {deel.rijen.map((r) => (
-            <li key={r.routeId}>
-              <Link
-                href={`/merk/${profileId}/strategie/bibliotheek/${r.routeId}?van=bibliotheek`}
-                className="card card-interactive flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate type-body-emphasis" title={r.naam}>
-                    {r.naam}
-                  </p>
-                  <p className="type-caption mt-1 text-muted">
-                    {[r.soort, r.cluster, r.datum ? `gepland ${formatDag(r.datum)}` : null]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-3">
-                  {r.score !== null && (
-                    <span className="type-caption tabular text-secondary">{Math.round(r.score)}/100</span>
-                  )}
-                  <span className={STAND_CHIP[r.stand.toon]}>{r.stand.label}</span>
-                  {r.stand.looptAchter && <span className="chip chip-danger">Loopt achter</span>}
-                  {r.stand.handeling && (
-                    <span className="type-caption-emphasis text-[var(--text-primary)] underline">
-                      {r.stand.handeling}
-                    </span>
-                  )}
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <>
+          <Groep
+            titel="Wacht op jou"
+            leeg="Er wacht nu geen tekst op jou."
+            rijen={deel.rijen.filter((r) => r.stand.aanZet === "klant")}
+            profileId={profileId}
+          />
+          <Groep
+            titel="Staat live"
+            rijen={deel.rijen.filter((r) => r.stand.aanZet !== "klant")}
+            profileId={profileId}
+          />
+        </>
+      )}
+
+      {onderweg > 0 && (
+        <p className="type-caption text-muted">
+          {onderweg === 1 ? "1 pagina heeft" : `${onderweg} pagina's hebben`} nog geen tekst. Hoe het
+          daarmee staat zie je in het{" "}
+          <Link href={`/merk/${profileId}/strategie/plan`} className="underline">
+            contentplan
+          </Link>
+          . Wat we daarvoor van je nodig hebben staat bij{" "}
+          <Link href={`/merk/${profileId}/strategie/vragen`} className="underline">
+            Openstaande vragen
+          </Link>
+          .
+        </p>
       )}
 
       {deel.paginas > 1 && (
@@ -188,5 +190,58 @@ function Keuze({
         ))}
       </select>
     </label>
+  );
+}
+
+function Groep({
+  titel,
+  leeg,
+  rijen,
+  profileId,
+}: {
+  titel: string;
+  /** Tekst als de groep leeg is. Zonder deze tekst valt een lege groep weg. */
+  leeg?: string;
+  rijen: PaginaRij[];
+  profileId: string;
+}) {
+  if (rijen.length === 0 && !leeg) return null;
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className="type-section">
+        {titel} <span className="text-muted tabular">({rijen.length})</span>
+      </h2>
+      {rijen.length === 0 ? (
+        <p className="type-body text-secondary">{leeg}</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {rijen.map((r) => (
+            <li key={r.routeId}>
+              <Link
+                href={`/merk/${profileId}/strategie/bibliotheek/${r.routeId}?van=bibliotheek`}
+                className="card card-interactive flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate type-body-emphasis" title={r.naam}>
+                    {r.naam}
+                  </p>
+                  <p className="type-caption mt-1 text-muted">
+                    {[r.soort, r.cluster, r.datum ? `gepland ${formatDag(r.datum)}` : null]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center gap-3">
+                  {r.score !== null && (
+                    <span className="type-caption tabular text-secondary">{Math.round(r.score)}/100</span>
+                  )}
+                  <span className={STAND_CHIP[r.stand.toon]}>{r.stand.label}</span>
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
