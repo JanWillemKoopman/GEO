@@ -21,6 +21,7 @@ import {
 import { syncBacklog, meetbareVragenPerAnalyse, loadDeclinedOpportunities } from "@/lib/plan-backlog-data";
 import { sortBacklog, compareByPotential, type BacklogItem, type DeclinedItem } from "@/lib/plan-backlog";
 import { bepaalVulling, type OpenMaand } from "@/lib/plan-fill";
+import { canonicalKey } from "@/lib/crawl-urls";
 import type { TopicWritingState } from "@/lib/plan-writing";
 import type {
   AnalysisStatus,
@@ -456,6 +457,38 @@ export type CreatePlanResult =
  * staan, met zijn maanden en zijn pagina's. Als de klant halverwege zegt dat het
  * vorige plan beter was, moet dat terug te vinden zijn.
  */
+async function zetOudPlanTerug(admin: Admin, profileId: string): Promise<number> {
+  const { data: lopend } = await admin
+    .from("content_plans")
+    .select("id")
+    .eq("profile_id", profileId)
+    .neq("status", "gestopt");
+  const planIds = ((lopend ?? []) as { id: string }[]).map((p) => p.id);
+  if (planIds.length === 0) return 0;
+
+  const { data: maanden } = await admin
+    .from("plan_months")
+    .select("id, status")
+    .in("plan_id", planIds);
+  const open = ((maanden ?? []) as { id: string; status: string }[])
+    .filter((m) => m.status !== "goedgekeurd")
+    .map((m) => m.id);
+  if (open.length === 0) return 0;
+
+  const { data: terug, error } = await admin
+    .from("planned_pages")
+    .update({ plan_month_id: null, scheduled_for: null, is_buffer: false, scheduled_manual: false })
+    .in("plan_month_id", open)
+    .eq("status", "gepland")
+    .is("content_piece_id", null)
+    .select("id");
+  if (error) {
+    console.warn(`Oude planpagina's terugzetten mislukt voor ${profileId}: ${error.message}`);
+    return 0;
+  }
+  return (terug ?? []).length;
+}
+
 export async function createPlan(
   admin: Admin,
   input: {
@@ -490,6 +523,17 @@ export async function createPlan(
   // een lege voorraad is niet te onderscheiden van een storing, en de klant
   // hoort het verschil te zien tussen "er is niets gemeten" en "er ging iets mis".
   await syncBacklog(admin, input.profileId);
+
+  // ── Opnieuw opzetten: de kansen uit het oude plan terug in de voorraad ────
+  //
+  // Punt 32 van de kwaliteitsdoorlichting. De voorraad telde alleen pagina's
+  // zonder maand, en bij een nieuwe klant staat alles al in het eerste plan:
+  // opnieuw opzetten antwoordde dan "er zijn nog geen gemeten kansen", en met
+  // wel losse voorraad bleven de kansen van het oude plan in zijn niet
+  // vrijgegeven maanden hangen. Wat nog niet vrijgegeven en nog niet begonnen
+  // is, gaat terug naar de voorraad; een vrijgegeven maand blijft staan, daar
+  // loopt het werk al.
+  await zetOudPlanTerug(admin, input.profileId);
 
   const { data: voorraadRows } = await admin
     .from("planned_pages")
@@ -647,6 +691,31 @@ export async function vulOpenMaanden(
     .select("plan_month_id, is_buffer")
     .in("plan_month_id", monthIds)
     .neq("status", "afgewezen");
+
+  // ── Punt 31: welke pagina's worden al verbeterd, en in welke maand ────────
+  // Over ALLE maanden van dit plan, ook de vrijgegeven: daar loopt het werk al,
+  // en juist die verbetering mag niet binnen drie maanden een tweede krijgen.
+  const { data: alleMaanden } = await admin
+    .from("plan_months")
+    .select("id, month_number")
+    .eq("plan_id", plan.id);
+  const maandNummer = new Map(
+    ((alleMaanden ?? []) as { id: string; month_number: number }[]).map((m) => [m.id, m.month_number]),
+  );
+  const { data: verbeterRows } = await admin
+    .from("planned_pages")
+    .select("plan_month_id, existing_url")
+    .in("plan_month_id", [...maandNummer.keys()])
+    .eq("recommendation_action", "verbeteren")
+    .not("existing_url", "is", null)
+    .neq("status", "afgewezen");
+  const bezet = new Map<string, number[]>();
+  for (const r of (verbeterRows ?? []) as { plan_month_id: string; existing_url: string }[]) {
+    const nr = maandNummer.get(r.plan_month_id);
+    if (nr === undefined) continue;
+    const adres = canonicalKey(r.existing_url);
+    bezet.set(adres, [...(bezet.get(adres) ?? []), nr]);
+  }
   const aantalPerMaand = new Map<string, number>();
   const buffersPerMaand = new Map<string, number>();
   for (const r of (bestaandRows ?? []) as { plan_month_id: string; is_buffer: boolean }[]) {
@@ -672,11 +741,15 @@ export async function vulOpenMaanden(
   // (`naarBacklogItem()` verwacht die schermopening juist zeldzaam te zijn).
   const { data: voorraadRows } = await admin
     .from("planned_pages")
-    .select("id, potential, target_weight, title")
+    .select("id, potential, target_weight, title, recommendation_action, existing_url")
     .eq("profile_id", profileId)
     .is("plan_month_id", null)
     .eq("status", "gepland")
     .eq("taken_out", false);
+  const adresVan = new Map<string, string>();
+  for (const r of (voorraadRows ?? []) as { id: string; recommendation_action: string | null; existing_url: string | null }[]) {
+    if (r.recommendation_action === "verbeteren" && r.existing_url) adresVan.set(r.id, canonicalKey(r.existing_url));
+  }
   const voorraadIds = ((voorraadRows ?? []) as { id: string; potential: number | null; target_weight: number | null; title: string }[])
     .map((r) => ({
       id: r.id,
@@ -687,7 +760,7 @@ export async function vulOpenMaanden(
     .sort(compareByPotential)
     .map((r) => r.id);
 
-  const uitkomst = bepaalVulling({ openMaanden, voorraadIds, pagesPerMonth });
+  const uitkomst = bepaalVulling({ openMaanden, voorraadIds, pagesPerMonth, adresVan, bezet });
 
   for (const opdracht of uitkomst.opdrachten) {
     // Ver genoeg naar achteren zodat ze na bestaande content komen;

@@ -252,6 +252,37 @@ export function rangschikAanbevelingen(
 }
 
 /**
+ * Eén verbetering per bestaande pagina per rapport (punt 31 van de
+ * kwaliteitsdoorlichting, besluit eigenaar: hooguit één per drie maanden).
+ *
+ * Bij de installateur gingen vier van de vijf aanbevelingen over
+ * `/warmtepomp`: keuzehulp, controle vooraf, prijs en lokaal voor Geldrop, elk
+ * een aparte verbeteropdracht voor dezelfde pagina. De drie blinde lezers
+ * raadden alle drie aparte pagina's aan. Dus: de belangrijkste blijft de
+ * verbetering, de rest wordt een nieuwe pagina met die pagina als verwante
+ * pagina, zodat de schrijver zich ervan onderscheidt. Verwacht de lijst al op
+ * volgorde van belang (`rangschikAanbevelingen()`).
+ */
+export function eenVerbeteringPerAdres(
+  recommendations: StoredRecommendation[],
+  sleutel: (url: string) => string,
+): { aanbevelingen: StoredRecommendation[]; omgezet: string[] } {
+  const gezien = new Set<string>();
+  const omgezet: string[] = [];
+  const aanbevelingen = recommendations.map((r) => {
+    if (r.action !== "verbeteren" || !r.existingUrl) return r;
+    const k = sleutel(r.existingUrl);
+    if (!gezien.has(k)) {
+      gezien.add(k);
+      return r;
+    }
+    omgezet.push(r.title);
+    return { ...r, action: "nieuw" as ContentAction, relatedUrl: r.existingUrl, existingUrl: null };
+  });
+  return { aanbevelingen, omgezet };
+}
+
+/**
  * Getallen tot en met twaalf voluit, zoals `docs/schrijfstijl.md` voorschrijft
  * voor lopende tekst ("Eén van de zes" leest beter dan "1 van de 6").
  * Cijfers erboven blijven cijfers: niemand schrijft "zeventien" in een zin.

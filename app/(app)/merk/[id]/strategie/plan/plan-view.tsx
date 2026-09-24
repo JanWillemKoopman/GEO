@@ -1,6 +1,6 @@
 "use client";
 
-import { STAND_CHIP, streefdatum, formatDag, heeftEigenScherm, type PaginaStandSleutel, type StandToon } from "@/lib/pagina-stand";
+import { STAND_CHIP, streefzin, heeftEigenScherm, type PaginaStandSleutel, type StandToon } from "@/lib/pagina-stand";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -1151,7 +1151,8 @@ export function PlanView({
       <ConfirmDialog
         open={opnieuwDialog}
         title="Het plan opnieuw opzetten"
-        body={`Je krijgt twaalf verse maanden terug, meteen gevuld met de sterkste kansen uit je voorraad. Alles wat je nu hebt ingepland (${echt.length} ${echt.length === 1 ? "pagina" : "pagina's"}) verdwijnt uit dit scherm.`}
+        // Punt 32: de pagina's uit de nog niet vrijgegeven maanden gaan terug naar de voorraad.
+        body={`Je krijgt twaalf verse maanden terug, meteen gevuld met de sterkste kansen. De pagina's uit maanden die nog niet vrijgegeven zijn, gaan eerst terug naar de voorraad en tellen dus mee. Wat al vrijgegeven is, loopt door.`}
         irreversible={{
           title: "Wat er blijft en wat er weggaat",
           description:
@@ -1774,10 +1775,10 @@ function vrijgeefTekst(paginas: PlannedPage[]): string {
     .map((p) => p.scheduled_for?.slice(0, 10))
     .filter((d): d is string => Boolean(d))
     .sort()[0];
-  const streef = eerste ? streefdatum(eerste) : null;
   const delen = [
     `Na vrijgeven zetten we binnen een paar minuten de vragen voor ${n === 1 ? "deze pagina" : `deze ${n} pagina's`} klaar, onder Openstaande vragen.`,
-    streef ? `Beantwoord ze graag vóór ${formatDag(streef)} om op schema te blijven.` : "",
+    // Punt 33: nooit een streefdatum in het verleden.
+    streefzin(eerste, new Date().toISOString()),
     "Een pagina wordt geschreven zodra al zijn vragen beantwoord of overgeslagen zijn, en daarna leggen we de tekst aan je voor.",
     zonderOnderwerp > 0
       ? `Let op: ${zonderOnderwerp === 1 ? "1 pagina hangt" : `${zonderOnderwerp} pagina's hangen`} nog aan geen cluster. Die ${zonderOnderwerp === 1 ? "wordt" : "worden"} niet voorbereid tot je ${zonderOnderwerp === 1 ? "hem" : "ze"} koppelt.`

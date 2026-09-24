@@ -19,7 +19,9 @@ import {
   resolveTargets,
   mergeOverlappingRecommendations,
   rangschikAanbevelingen,
+  eenVerbeteringPerAdres,
 } from "@/lib/pipeline/recommendation";
+import { canonicalKey } from "@/lib/crawl-urls";
 import { reconcileExistingPageActions } from "@/lib/pipeline/existing-page-match";
 import {
   bronnenDieWelNoemden,
@@ -968,6 +970,15 @@ export async function generateReport(
       }).woorden,
       raaktGroeidoel,
     );
+    // Punt 31: één verbetering per bestaande pagina, de rest wordt een nieuwe
+    // pagina ernaast.
+    const { aanbevelingen: perAdres, omgezet } = eenVerbeteringPerAdres(gerangschikt, canonicalKey);
+    if (omgezet.length > 0) {
+      console.info(
+        `Analyse ${id} periode ${weekNo}: ${omgezet.length} tweede verbetering(en) van dezelfde pagina ` +
+          `omgezet naar een nieuwe pagina: ${omgezet.map((t) => `"${t}"`).join(", ")}.`,
+      );
+    }
     if (nietGewenst.length > 0) {
       console.warn(
         `Analyse ${id} periode ${weekNo}: ${nietGewenst.length} aanbeveling(en) over aanbod dat ` +
@@ -1014,7 +1025,7 @@ export async function generateReport(
         change_json: change as never,
         summary: samenvatting.summary,
         gaps_json: gaps as never,
-        recommendations_json: gerangschikt as never,
+        recommendations_json: perAdres as never,
         declined_json: report.parsed.declinedGaps as never,
         stripped_claims_json: stripped as never,
         gap_analysis_raw_json: gap.raw as never, // volledige ruwe OpenAI-output B1 (§5)

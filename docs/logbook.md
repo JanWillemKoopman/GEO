@@ -12236,3 +12236,13 @@ De keuring telt alinea's die met de naam beginnen en feiten die vaker dan twee k
 staan. (46 en 49) Een belofte wordt overgenomen zoals hij er staat, en een onderwerp zonder feit
 valt weg in plaats van "bespreek dat vooraf"; `checkVoorbehoud()` vangt de zinnen die het toch doen.
 Of de citeerbaarheid onder de minder zichtbare naam lijdt, meet de herhaling van de doorloop.
+
+## 24 september 2026: verbeterronde blok E, een plan dat uitvoerbaar is
+
+Drie punten uit de kwaliteitsdoorlichting. (31, besluit eigenaar) Hooguit één verbetering per
+bestaande pagina per drie maanden: het rapport maakt van een tweede verbetering van dezelfde pagina
+een nieuwe pagina ernaast, en het plan houdt drie maanden tussen twee verbeteringen van hetzelfde
+adres. Bij de installateur stonden er vier van `/warmtepomp` in één week. (32) Opnieuw opzetten
+haalt eerst de pagina's uit de niet vrijgegeven maanden terug naar de voorraad; zonder dat faalde
+het bij elke klant wiens kansen allemaal in het eerste plan stonden. (33) De vrijgeefdialoog noemt
+geen streefdatum in het verleden meer, maar zegt "zo snel mogelijk" en dat de datum meeschuift.
