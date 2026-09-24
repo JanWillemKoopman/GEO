@@ -1,0 +1,332 @@
+{
+ "analysis_id": "3dd41da2-ffbc-4676-9bc2-2866807366da",
+ "summary": "In ChatGPT is Wesley Keeris Installatietechniek nog beperkt zichtbaar: de score is ongeveer 20/100, of ongeveer 23/100 wanneer populaire en koopgerichte vragen zwaarder meetellen. Dit zijn indicaties, geen exacte cijfers: de meting is gebaseerd op 30 vragen en de onzekerheidsmarge is ±17 punten. Er is nog geen eerdere meting om mee te vergelijken. Het merk werd wel genoemd in Google AI Overview. Vooral vragen van mensen die in Geldrop of Eindhoven een installateur, offerte of advies voor een hybride warmtepomp zoeken, bieden kansen. De website heeft al een warmtepomppagina; die kan concreter antwoord geven op deze vragen.",
+ "gaps_json": [
+  {
+   "cluster": "Installateur vinden Geldrop",
+   "problem": "Bij het zoeken naar een installateur voor plaatsing in Geldrop werd Wesley niet genoemd. In dit antwoord stonden Connect Techniek en Saman Groep.",
+   "evidenceRunIds": [
+    "62d7deb4-bbb8-4efc-a186-9e344dce0cd4"
+   ]
+  },
+  {
+   "cluster": "Installateur kiezen en combinatie met cv-ketel",
+   "problem": "Bij vragen over het kiezen van een installateur en advies over de huidige cv-ketel werd Wesley niet genoemd. Bij de eerste vraag noemde ChatGPT STEK, het Centraal Register Techniek en NVKL; bij de vraag over de cv-ketel noemde het 040 Warmtepomp.",
+   "evidenceRunIds": [
+    "756452fc-2ff5-455a-afd0-0ca66ce032a4",
+    "547bcdd3-28f9-46e4-9d32-8d8c2bad2318"
+   ]
+  },
+  {
+   "cluster": "Offertes en installatiekosten",
+   "problem": "Bij vragen over offertes vergelijken in Eindhoven en installatiekosten in Geldrop werd Wesley niet genoemd. ChatGPT noemde bij de offertevraag 040 Warmtepomp, Warmtepomp.nu, Werkspot en Trustoo; bij de prijsvraag noemde het Zoofy, maar geen installatiebedrijf bij naam. Bij de vraag naar ongeveer de kosten in Geldrop noemde het Connect Techniek.",
+   "evidenceRunIds": [
+    "44b751ca-6bc8-4521-8cd8-ffd479227aab",
+    "0519e3b9-34f2-4f1a-a38f-3041369a435b",
+    "752f517f-7988-401f-95d4-02c59f19d509"
+   ]
+  },
+  {
+   "cluster": "Betrouwbare installateur en cv-aanpassing",
+   "problem": "Bij de vraag naar een betrouwbare installateur in Eindhoven noemde ChatGPT 040 Warmtepomp en Kuppens Energie Techniek. Bij de vraag over aanpassing van de bestaande cv-installatie noemde het Onderhoud CV Ketel Eindhoven, Kuppens Energie Techniek, Verwarming Service Brabant en Klimaat Service Beheer.",
+   "evidenceRunIds": [
+    "6d002daa-4f7d-4c31-9345-29c74102645f",
+    "47a46379-f174-4e99-83f3-2411153c2dbd"
+   ]
+  },
+  {
+   "cluster": "Controle van radiatoren en installatiegeschiktheid",
+   "problem": "Bij de vraag over een offerte met radiatorcontrole noemde ChatGPT Onderhoud CV Ketel Eindhoven, CV Monteur Eindhoven en 040 Warmtepomp. Bij de vraag over vooraf controleren of de cv-installatie geschikt is, noemde het Kemkens Eindhoven, Feenstra Eindhoven, Saman Groep Eindhoven, Peeters Duurzaam, 040 Warmtepomp, Elektro Service Eindhoven en VAN DEN HOFF Installatiebedrijf.",
+   "evidenceRunIds": [
+    "f5f5e5d1-2df6-4569-abea-4f300c4a5896",
+    "25c161b1-04e3-4454-a96e-5de9ec7366f0"
+   ]
+  },
+  {
+   "cluster": "Hybride of volledig elektrisch en systemen vergelijken",
+   "problem": "Bij het vergelijken van hybride met volledig elektrisch noemde ChatGPT VoltaNXT, DeWarmte en Gaslicht.com. Bij het vergelijken van verschillende hybride systemen noemde het Nastech en 040 Warmtepomp.",
+   "evidenceRunIds": [
+    "65b9245b-aa15-490a-804b-3f39e5126c3f",
+    "4bf027b2-c2fb-47e0-bf52-444ba28bbf01"
+   ]
+  },
+  {
+   "cluster": "Installatie en onderhoud in Geldrop",
+   "problem": "Bij vragen over plaatsing én onderhoud in Geldrop noemde ChatGPT Broers Installatiebedrijf, Verwarming Service Brabant en InstallBrabant. Bij onderhoud aan zowel de cv-ketel als warmtepomp noemde het Broers Installatiebedrijf, Broers Hybride en Verwarming Service Brabant.",
+   "evidenceRunIds": [
+    "2411aebc-8e82-4886-bcb6-6a5760c895a0",
+    "cd44f0a8-d121-47b2-bc46-3303a72b31eb"
+   ]
+  },
+  {
+   "cluster": "Advies en prijsindicatie Geldrop",
+   "problem": "Bij de vraag over vergelijking met de huidige cv-ketel en een vooraf duidelijke prijsindicatie noemde ChatGPT Saman Groep en Connect Techniek.",
+   "evidenceRunIds": [
+    "787f5883-6381-46a1-97d0-4eb9627c319b"
+   ]
+  }
+ ],
+ "recommendations_json": [
+  {
+   "why": "Mensen die in Geldrop een installateur zoeken, krijgen nu onder meer Connect Techniek en Saman Groep te zien. Maak op de bestaande warmtepomppagina duidelijk dat Wesley in Geldrop werkt, wat een plaatsing in een bestaande woning inhoudt en hoe iemand een afspraak of offerte aanvraagt. Zet deze informatie ruim vóór het najaar klaar, zodat de pagina al vindbaar is wanneer de drukke periode begint.",
+   "type": "landing",
+   "title": "Maak de warmtepomppagina een duidelijk lokaal antwoord voor Geldrop",
+   "action": "verbeteren",
+   "targets": [
+    {
+     "text": "Welke installateur in Geldrop kan een hybride warmtepomp in mijn bestaande woning plaatsen?",
+     "runId": "62d7deb4-bbb8-4efc-a186-9e344dce0cd4",
+     "weight": 0.5,
+     "cluster": "Installateur vinden Geldrop",
+     "promptId": "a0934bee-df8e-4430-970f-9cce3ea5af41"
+    }
+   ],
+   "priority": 1,
+   "relatedUrl": null,
+   "existingUrl": "https://www.wkinstallatie.nl/warmtepomp",
+   "targetIntent": "Een huiseigenaar in Geldrop met een bestaande woning die een hybride warmtepomp wil laten plaatsen en wil bepalen welke lokale installateur hij om een beoordeling of offerte vraagt."
+  },
+  {
+   "why": "Bij zoekvragen over kosten en offertes verschijnen onder meer Connect Techniek, 040 Warmtepomp en vergelijkingssites. Voeg op de warmtepomppagina een heldere uitleg toe over wat bij een offerte wordt bekeken, welke werkzaamheden wel of niet zijn inbegrepen en hoe iemand een prijs op maat aanvraagt. Noem alleen bedragen en subsidie-informatie die Wesley daadwerkelijk kan onderbouwen.",
+   "type": "faq",
+   "title": "Beantwoord prijs- en offertevragen met concrete uitleg",
+   "action": "verbeteren",
+   "targets": [
+    {
+     "text": "Waar kan ik in Eindhoven offertes aanvragen voor een hybride warmtepomp in mijn bestaande woning, zodat ik installatiekosten en inbegrepen werkzaamheden kan vergelijken?",
+     "runId": "44b751ca-6bc8-4521-8cd8-ffd479227aab",
+     "weight": 0.3,
+     "cluster": "Offertes vergelijken",
+     "promptId": "5eae4392-80ef-4c90-a4cb-a7a27b9bfaad"
+    },
+    {
+     "text": "Wat kost het om een hybride warmtepomp te laten installeren in een bestaande woning in Geldrop, inclusief montage?",
+     "runId": "0519e3b9-34f2-4f1a-a38f-3041369a435b",
+     "weight": 0.3,
+     "cluster": "Installatiekosten Geldrop",
+     "promptId": "ce32a005-f39e-43d6-80f1-dd2456e11480"
+    },
+    {
+     "text": "Wat kost een hybride warmtepomp inclusief installatie bij een bestaande woning in Geldrop ongeveer?",
+     "runId": "752f517f-7988-401f-95d4-02c59f19d509",
+     "weight": 0.15,
+     "cluster": "Kosten",
+     "promptId": "4ce985ad-3a09-478e-a186-7b2581356890"
+    },
+    {
+     "text": "Welke installateurs in Geldrop vergelijken een hybride warmtepomp met mijn huidige cv-ketel en geven vooraf een duidelijke prijsindicatie?",
+     "runId": "787f5883-6381-46a1-97d0-4eb9627c319b",
+     "weight": 0.12,
+     "cluster": "Advies en prijsvergelijking",
+     "promptId": "ab373b17-0f87-4f00-b491-9086826a5950"
+    }
+   ],
+   "priority": 2,
+   "relatedUrl": null,
+   "existingUrl": "https://www.wkinstallatie.nl/warmtepomp",
+   "targetIntent": "Een woningeigenaar in Geldrop of Eindhoven die de kosten van een hybride warmtepomp wil inschatten en wil beslissen bij wie hij een offerte aanvraagt."
+  },
+  {
+   "why": "Bij vragen over betrouwbaarheid, cv-aanpassingen, radiatorcontrole en geschiktheid worden andere installatiebedrijven genoemd. Beschrijf stap voor stap welke onderdelen Wesley vooraf controleert, hoe eventuele aanpassingen aan de cv-installatie worden besproken en wat de klant na die controle ontvangt. Zo kan de pagina antwoord geven op praktische vragen voordat iemand een offerte aanvraagt.",
+   "type": "article",
+   "title": "Leg uit hoe de woning en cv-installatie vooraf worden gecontroleerd",
+   "action": "verbeteren",
+   "targets": [
+    {
+     "text": "Waar kan ik in Eindhoven een betrouwbare installateur vinden voor een hybride warmtepomp bij mijn bestaande cv-ketel?",
+     "runId": "6d002daa-4f7d-4c31-9345-29c74102645f",
+     "weight": 0.3,
+     "cluster": "Betrouwbare installateur Eindhoven",
+     "promptId": "987351b2-9a81-4ee7-8308-19fbea8f23a4"
+    },
+    {
+     "text": "Waar kan ik in Eindhoven een hybride warmtepomp laten installeren door een partij die ook mijn bestaande cv-installatie aanpast?",
+     "runId": "47a46379-f174-4e99-83f3-2411153c2dbd",
+     "weight": 0.2,
+     "cluster": "Installatie en cv-aanpassing",
+     "promptId": "0dea2a0d-e2ac-4e65-a158-7f47c404d638"
+    },
+    {
+     "text": "Waar kan ik in Eindhoven een offerte aanvragen voor een hybride warmtepomp inclusief controle van mijn bestaande radiatoren?",
+     "runId": "f5f5e5d1-2df6-4569-abea-4f300c4a5896",
+     "weight": 0.2,
+     "cluster": "Offerte en radiatoren",
+     "promptId": "6ff0e99a-f98e-4d15-960f-b20118bc2d08"
+    },
+    {
+     "text": "Wie kan in Eindhoven een hybride warmtepomp installeren en vooraf controleren of mijn cv-installatie erop aansluit?",
+     "runId": "25c161b1-04e3-4454-a96e-5de9ec7366f0",
+     "weight": 0.12,
+     "cluster": "Installatiegeschiktheid",
+     "promptId": "188c35f4-c30c-4fc6-a574-ff99c9af5864"
+    }
+   ],
+   "priority": 3,
+   "relatedUrl": null,
+   "existingUrl": "https://www.wkinstallatie.nl/warmtepomp",
+   "targetIntent": "Een huiseigenaar in Eindhoven met een bestaande cv-ketel of radiatoren die wil weten of zijn woning geschikt is en daarna een installateur voor de uitvoering wil kiezen."
+  },
+  {
+   "why": "Bij vragen over het combineren met een cv-ketel en het vergelijken van systemen noemt ChatGPT andere aanbieders en informatiebronnen. Leg in gewone taal uit welke woningkenmerken en wensen de systeemkeuze beïnvloeden en hoe Wesley de mogelijkheden met een klant bespreekt. Doe geen algemene beloftes over besparingen; gebruik eigen praktijkvoorbeelden als die beschikbaar zijn.",
+   "type": "faq",
+   "title": "Voeg keuzehulp toe over cv-ketel en type warmtepomp",
+   "action": "verbeteren",
+   "targets": [
+    {
+     "text": "Waar moet ik op letten als ik in Eindhoven een installateur kies voor een hybride warmtepomp in een bestaande woning?",
+     "runId": "756452fc-2ff5-455a-afd0-0ca66ce032a4",
+     "weight": 0.3,
+     "cluster": "Installateur kiezen",
+     "promptId": "c63c561a-1a5d-46f8-b12f-bcf0104b1771"
+    },
+    {
+     "text": "Waar kan ik in Eindhoven terecht voor advies over het combineren van een hybride warmtepomp met mijn huidige cv-ketel?",
+     "runId": "547bcdd3-28f9-46e4-9d32-8d8c2bad2318",
+     "weight": 0.3,
+     "cluster": "Combinatie cv-ketel",
+     "promptId": "60eea867-15c7-4f0f-b5d4-a8cca8f6c73f"
+    },
+    {
+     "text": "Is een hybride warmtepomp in een bestaande woning in Eindhoven meestal voordeliger dan meteen overstappen op een volledig elektrische warmtepomp?",
+     "runId": "65b9245b-aa15-490a-804b-3f39e5126c3f",
+     "weight": 0.15,
+     "cluster": "Type warmtepomp vergelijken",
+     "promptId": "50ab1af4-25bd-4e62-b4f2-6ca78c8836db"
+    },
+    {
+     "text": "Welke installateur in Eindhoven kan verschillende hybride warmtepompen vergelijken voor mijn bestaande hoekwoning?",
+     "runId": "4bf027b2-c2fb-47e0-bf52-444ba28bbf01",
+     "weight": 0.12,
+     "cluster": "Systeemkeuze",
+     "promptId": "79aae40e-9ae8-4d37-833e-f5488f518102"
+    }
+   ],
+   "priority": 4,
+   "relatedUrl": null,
+   "existingUrl": "https://www.wkinstallatie.nl/warmtepomp",
+   "targetIntent": "Een huiseigenaar in Eindhoven die twijfelt over de combinatie van een warmtepomp met zijn cv-ketel of over verschillende systemen en wil bepalen welk advies hij nodig heeft."
+  },
+  {
+   "why": "Bij vragen over installatie met vervolgonderhoud worden in ChatGPT onder meer Broers Installatiebedrijf, Verwarming Service Brabant en InstallBrabant genoemd. De bestaande servicepagina noemt onderhoud slechts zijdelings. Beschrijf daar specifiek of Wesley onderhoud aan warmtepompen en cv-ketels aanbiedt, wat dat omvat, hoe vaak onderhoud plaatsvindt en hoe klanten het aanvragen.",
+   "type": "landing",
+   "title": "Maak de onderhoudsdienst voor cv-ketel en warmtepomp concreet",
+   "action": "verbeteren",
+   "targets": [
+    {
+     "text": "Welke installateur rond Geldrop kan een hybride warmtepomp plaatsen en daarna ook het onderhoud verzorgen?",
+     "runId": "2411aebc-8e82-4886-bcb6-6a5760c895a0",
+     "weight": 0.12,
+     "cluster": "Installatie en onderhoud Geldrop",
+     "promptId": "3c46745d-ea4d-4f68-b7c5-b91943d76f25"
+    },
+    {
+     "text": "Welke installateur in Geldrop biedt bij een hybride warmtepomp ook onderhoud aan de cv-ketel en warmtepomp?",
+     "runId": "cd44f0a8-d121-47b2-bc46-3303a72b31eb",
+     "weight": 0.12,
+     "cluster": "Onderhoud",
+     "promptId": "093c81fe-c663-4f6e-a11b-f5e264e0b3af"
+    }
+   ],
+   "priority": 5,
+   "relatedUrl": null,
+   "existingUrl": "https://www.wkinstallatie.nl/service",
+   "targetIntent": "Een eigenaar van een hybride warmtepomp in Geldrop die ook onderhoud aan de cv-ketel wil regelen en wil beslissen of Wesley die zorg kan overnemen."
+  }
+ ],
+ "declined_json": [],
+ "rapport_invoer": "Eigen merk: Wesley Keeris Installatietechniek (Hybride warmtepomp voor een bestaande woning)\nEigen zichtbaarheidsscore: 20/100 (elke vraag telt gelijk), GEWOGEN naar volumeband × koopwaarde: 23/100 (2% van de vermeldingen, over 53 bevestigde merken)\nBETROUWBAARHEID: de score rust op 30 metingen; de 95%-marge is ±17 punten. Presenteer de score dus als een ORDE VAN GROOTTE, niet als een exact cijfer, en trek geen conclusies uit verschillen die binnen die marge vallen.\nBRONNEN: de score hierboven gaat alleen over ChatGPT. In Google AI Overview werd het merk WEL genoemd. Schrijf dus nooit dat het merk nergens, bij geen enkele vraag of in geen enkel AI-antwoord genoemd werd; zeg dan \"in ChatGPT\".\nAANTAL ONDERZOCHTE VRAGEN: 30. Noem dit getal als je in de samenvatting zegt hoeveel vragen er onderzocht zijn, en verzin er geen ander. Die zijn samen 129 keer gemeten, want de zwaarstwegende vragen worden herhaald.\n\nDit is de EERSTE meting (periode 0); er is nog niets om mee te vergelijken. Beschrijf de stand.\n\nBEWIJSDOSSIER: de vragen waarop het eigen merk NIET genoemd werd, gesorteerd op gewicht (hoog gewicht = populair en of koopklaar). Per vraag staat hieronder precies welke bedrijven er in DAT antwoord voorkwamen.\n\n⚠️ HARDE REGEL: noem een concurrent alleen bij naam in verband met een specifieke vraag als die naam hieronder ONDER DIE VRAAG staat. Staat er dat er geen enkel bedrijf genoemd werd, dan is dát je conclusie. Haal er geen concurrent bij uit een andere vraag.\n\nV1 [gewicht 0.50, Beslissing, transactional, cluster: Installateur vinden Geldrop] \"Welke installateur in Geldrop kan een hybride warmtepomp in mijn bestaande woning plaatsen?\"\n  Genoemd in dit antwoord:\n  - Connect Techniek (concurrent, positie 1; bronnen: https://connect-techniek.nl/warmtepomp-geldrop/)\n  - Saman Groep (concurrent, positie 4; bronnen: https://www.samangroep.nl/warmtepomp-geldrop)\n  Antwoord (begin): \"In Geldrop zijn verschillende installateurs actief die een hybride warmtepomp in je bestaande woning kunnen plaatsen.\n\n### Installateurs in en rond Geldrop\n\n- **[Connect Techniek](https://connect-techniek.nl/warmtepomp-geldrop/)** : Een specialistische warmtepomp installateur in Geldrop met een eigen showroom.\n-…\"\n\nV2 [gewicht 0.30, Oriëntatie, commercial, cluster: Installateur kiezen] \"Waar moet ik op letten als ik in Eindhoven een installateur kies voor een hybride warmtepomp in een bestaande woning?\"\n  Genoemd in dit antwoord:\n  - STEK (brancheorganisatie, positie 4)\n  - Centraal Register Techniek (brancheorganisatie, positie 5)\n  - NVKL (brancheorganisatie, positie 6; bronnen: https://www.nvkl.nl/vraag/welke-certificaten-zijn-er-bij-de-installatie-van-een-warmtepomp-nodig/)\n  Antwoord (begin): \"Kies niet alleen op de laagste prijs of het merk. Een goede installateur moet vooral laten zien **waarom het systeem bij jouw woning past, hoe het wordt geplaatst en wie je helpt als er iets misgaat**. Vergelijk liefst twee of drie offertes.\n\n### Waarop letten\n\n1. **Een echte opname van de woning**  \n   De…\"\n\nV3 [gewicht 0.30, Overweging, commercial, cluster: Offertes vergelijken] \"Waar kan ik in Eindhoven offertes aanvragen voor een hybride warmtepomp in mijn bestaande woning, zodat ik installatiekosten en inbegrepen werkzaamheden kan vergelijken?\"\n  Genoemd in dit antwoord:\n  - 040 Warmtepomp (concurrent, positie 1; bronnen: https://www.040warmtepomp.nl/)\n  - Warmtepomp.nu (vergelijker, positie 3; bronnen: https://warmtepomp.nu/nl/warmtepomp-eindhoven)\n  - Werkspot (vergelijker, positie 4; bronnen: https://www.werkspot.nl/verwarming/warmtepomp-installateur-vakmannen/eindhoven)\n  - Trustoo (vergelijker, positie 5; bronnen: https://trustoo.nl/noord-brabant/eindhoven/warmtepomp-installateur/)\n  Antwoord (begin): \"In Eindhoven kun je offertes aanvragen bij zowel **lokale installateurs** als **vergelijkingsplatforms**. Voor een eerlijke vergelijking zou ik één of twee partijen rechtstreeks benaderen én eventueel een platform gebruiken.\n\n### Rechtstreeks bij installateurs\n- **040 Warmtepomp** — actief in Eindhoven, Veldhoven en…\"\n\nV4 [gewicht 0.30, Beslissing, commercial, cluster: Betrouwbare installateur Eindhoven] \"Waar kan ik in Eindhoven een betrouwbare installateur vinden voor een hybride warmtepomp bij mijn bestaande cv-ketel?\"\n  Genoemd in dit antwoord:\n  - 040 Warmtepomp (concurrent, positie 1; bronnen: https://www.040warmtepomp.nl/)\n  - Kuppens Energie Techniek (concurrent, positie 2; bronnen: https://kuppensenergietechniek.nl/verduurzaming/)\n  - Centraal Register Techniek (brancheorganisatie, positie 5)\n  Antwoord (begin): \"Ik zou **minstens twee offertes** aanvragen en ze vergelijken. Twee passende startpunten in de regio:\n\n- **040 Warmtepomp** — gevestigd in Veldhoven en actief in Eindhoven. Het bedrijf vermeldt dat het hybride systemen naast een bestaande cv-ketel levert, installeert en onderhoudt. Er staat ook een project met een…\"\n\nV5 [gewicht 0.30, Oriëntatie, commercial, cluster: Combinatie cv-ketel] \"Waar kan ik in Eindhoven terecht voor advies over het combineren van een hybride warmtepomp met mijn huidige cv-ketel?\"\n  Genoemd in dit antwoord:\n  - 040 Warmtepomp (concurrent, positie 5; bronnen: https://www.040warmtepomp.nl/)\n  Antwoord (begin): \"In Eindhoven kun je het beste op twee plekken beginnen:\n\n- **Voor onafhankelijk, oriënterend advies:** **040energie** is een Eindhovense vereniging die woningeigenaren helpt met verduurzamingsadvies. Er is elke tweede zaterdag van de maand een spreekuur van **11.00 tot 13.00 uur** in ’t Struikske, Struykenstraat 10.…\"\n\nV6 [gewicht 0.30, Beslissing, commercial, cluster: Installatiekosten Geldrop] \"Wat kost het om een hybride warmtepomp te laten installeren in een bestaande woning in Geldrop, inclusief montage?\"\n  Genoemd in dit antwoord:\n  - Zoofy (vergelijker, positie 3; bronnen: https://zoofy.nl/prijsgidsen/hybride-warmtepomp-kosten/)\n  Antwoord (begin): \"Een hybride warmtepomp inclusief installatie en montage kost gemiddeld **€5.000 tot €8.500** (bruto aanschafprijs voor het aparaat en de installateur samen). Houd er rekening mee dat hier de landelijke **ISDE-subsidie** nog van afgaat, die vaak minimaal zo'n €2.500 tot €3.000…\"\n\nV7 [gewicht 0.20, Beslissing, transactional, cluster: Installatie en cv-aanpassing] \"Waar kan ik in Eindhoven een hybride warmtepomp laten installeren door een partij die ook mijn bestaande cv-installatie aanpast?\"\n  Genoemd in dit antwoord:\n  - Onderhoud CV Ketel Eindhoven (concurrent, positie 1; bronnen: https://onderhoudcvketeleindhoven.nl/over-ons/, https://onderhoudcvketeleindhoven.nl/diensten/hybride-warmtepomp/)\n  - Kuppens Energie Techniek (concurrent, positie 2; bronnen: https://kuppensenergietechniek.nl/verduurzaming/?utm_source=openai)\n  - Verwarming Service Brabant (concurrent, positie 3; bronnen: https://www.verwarmingservicebrabant.nl/cv-installateur-eindhoven/)\n  - Klimaat Service Beheer (concurrent, positie 4; bronnen: https://www.klimaatservicebeheer.nl/diensten/verwarming-cv-ketels-warmtepompen-aircos)\n  Antwoord (begin): \"Voor jouw vraag — **hybride warmtepomp én aanpassing van de bestaande cv-installatie** — lijken deze partijen in Eindhoven het meest relevant:\n\n1. **Onderhoud CV Ketel Eindhoven** — Lakerstraat 26, 5613 ES Eindhoven · **085 226 06 24**. Ze doen zowel hybride warmtepompen als cv-werk, waaronder radiatoren en…\"\n\nV8 [gewicht 0.20, Beslissing, transactional, cluster: Offerte en radiatoren] \"Waar kan ik in Eindhoven een offerte aanvragen voor een hybride warmtepomp inclusief controle van mijn bestaande radiatoren?\"\n  Genoemd in dit antwoord:\n  - Onderhoud CV Ketel Eindhoven (concurrent, positie 1; bronnen: https://onderhoudcvketeleindhoven.nl/diensten/hybride-warmtepomp/)\n  - CV Monteur Eindhoven (concurrent, positie 2; bronnen: https://cvmonteureindhoven.nl/diensten/hybride-warmtepomp-plaatsen/)\n  - 040 Warmtepomp (concurrent, positie 3; bronnen: https://www.040warmtepomp.nl/)\n  Antwoord (begin): \"In Eindhoven kun je hier een offerte aanvragen:\n\n- **Onderhoud CV Ketel Eindhoven** — lijkt het meest gericht op jouw vraag: ze zeggen dat ze bij een woningopname de radiatoren nalopen en in de offerte eventueel radiatorwerk apart benoemen. Aanvragen via **‘Situatie laten beoordelen’** op hun hybride-warmtepomppagina,…\"\n\nV9 [gewicht 0.15, Oriëntatie, informational, cluster: Kosten] \"Wat kost een hybride warmtepomp inclusief installatie bij een bestaande woning in Geldrop ongeveer?\"\n  Genoemd in dit antwoord:\n  - Connect Techniek (concurrent, positie 3; bronnen: https://connect-techniek.nl/warmtepomp-geldrop/)\n  Antwoord (begin): \"Een hybride warmtepomp kost voor een bestaande woning gemiddeld tussen de **€ 5.000 en € 8.500** inclusief installatie, voor of na subsidie afhankelijk van hoe je berekent. Bruto ligt de prijs vaak rond de **€ 6.000 tot € 8.300** , waarna je nog zo'n **€ 2.100 of meer** aan ISDE-subsidie terugkrijgt. Netto betaal je…\"\n\nV10 [gewicht 0.15, Overweging, informational, cluster: Type warmtepomp vergelijken] \"Is een hybride warmtepomp in een bestaande woning in Eindhoven meestal voordeliger dan meteen overstappen op een volledig elektrische warmtepomp?\"\n  Genoemd in dit antwoord:\n  - VoltaNXT (concurrent, positie 2; bronnen: https://www.voltanxt.nl/kennisbank/warmtepompen/wat-is-het-verschil-tussen-een-hybride-en-elektrische-warmtepomp)\n  - DeWarmte (concurrent, positie 5; bronnen: https://www.dewarmte.nl/kennisbank/warmtepomp-oud-huis/)\n  - Gaslicht.com (vergelijker, positie 6; bronnen: https://www.gaslicht.com/energie-informatie/hybride-warmtepomp)\n  Antwoord (begin): \"`Ja` , een hybride warmtepomp is in een bestaande woning in Eindhoven meestal een stuk voordeliger in aanschaf en installatie dan direct kiezen voor een volledig elektrische (all-electric)…\"\n\nV11 [gewicht 0.12, Overweging, commercial, cluster: Installatiegeschiktheid] \"Wie kan in Eindhoven een hybride warmtepomp installeren en vooraf controleren of mijn cv-installatie erop aansluit?\"\n  Genoemd in dit antwoord:\n  - Kemkens Eindhoven (concurrent, positie 1; bronnen: https://www.kemkens.nl/werkgebied/warmtepompen-eindhoven/)\n  - Feenstra Eindhoven (concurrent, positie 2; bronnen: https://www.feenstra.com/klantenservice/vestiging/eindhoven/)\n  - Saman Groep Eindhoven (concurrent, positie 3; bronnen: https://www.samangroep.nl/hybride-warmtepomp-eindhoven)\n  - Peeters Duurzaam (concurrent, positie 4; bronnen: https://www.peetersduurzaam.nl/warmtepomp-eindhoven/)\n  - 040 Warmtepomp (concurrent, positie 5; bronnen: https://www.040warmtepomp.nl/)\n  - Elektro Service Eindhoven (concurrent, positie 10; bronnen: https://www.elektroserviceeindhoven.nl/warmtepomp-installeren/)\n  - VAN DEN HOFF Installatiebedrijf (concurrent, positie 13; bronnen: https://www.vandenhoff.nl/referenties/warmtepomp-installatie)\n  - Techniek Nederland (brancheorganisatie, positie 14)\n  Antwoord (begin): \"In **Eindhoven** en omgeving zijn er `verschillende gecertificeerde installatiebedrijven` die een hybride warmtepomp kunnen installeren én vooraf een uitgebreide cv- en isolatiecheck uitvoeren. Juist die voorafgaande controle is essentieel om te bepalen of jouw huidige cv-ketel geschikt is en of je afgiftesysteem…\"\n\nV12 [gewicht 0.12, Beslissing, commercial, cluster: Installatie en onderhoud Geldrop] \"Welke installateur rond Geldrop kan een hybride warmtepomp plaatsen en daarna ook het onderhoud verzorgen?\"\n  Genoemd in dit antwoord:\n  - Broers Installatiebedrijf (concurrent, positie 1; bronnen: https://broersinstallatie.nl/installatiebedrijf-geldrop/)\n  - Verwarming Service Brabant (VSB) (concurrent, positie 2; bronnen: https://www.verwarmingservicebrabant.nl/warmtepomp-geldrop/)\n  - InstallBrabant (concurrent, positie 3; bronnen: https://www.installbrabant.nl/warmtepomp/)\n  Antwoord (begin): \"Ja. **Broers Installatiebedrijf** lijkt de meest lokale match: ze zitten in Geldrop en zeggen zowel warmtepompen te plaatsen als te onderhouden. Ze bieden ook een *Broers Hybride*-abonnement aan voor cv-ketelonderhoud in combinatie met een warmtepomp. Bel **06 15 40 57 24**.…\"\n\nV13 [gewicht 0.12, Overweging, commercial, cluster: Onderhoud] \"Welke installateur in Geldrop biedt bij een hybride warmtepomp ook onderhoud aan de cv-ketel en warmtepomp?\"\n  Genoemd in dit antwoord:\n  - Broers Installatiebedrijf (concurrent, positie 1; bronnen: https://broersinstallatie.nl/installatiebedrijf-geldrop/?utm_source=openai)\n  - Broers Hybride (concurrent, positie 2; bronnen: https://broersinstallatie.nl/installatiebedrijf-geldrop/?utm_source=openai)\n  - Verwarming Service Brabant (concurrent, positie 3; bronnen: https://www.verwarmingservicebrabant.nl/cv-installateur-geldrop/?utm_source=openai)\n  Antwoord (begin): \"**Broers Installatiebedrijf** lijkt een goede lokale match: ze verzorgen installatie en onderhoud van cv-ketels en warmtepompen in Geldrop. Hun **Broers Hybride**-abonnement kost volgens hun website **€14,95 per maand** en omvat periodiek onderhoud aan de cv-ketel in combinatie met de warmtepomp, plus 24/7…\"\n\nV14 [gewicht 0.12, Overweging, commercial, cluster: Advies en prijsvergelijking] \"Welke installateurs in Geldrop vergelijken een hybride warmtepomp met mijn huidige cv-ketel en geven vooraf een duidelijke prijsindicatie?\"\n  Genoemd in dit antwoord:\n  - Saman Groep (concurrent, positie 2; bronnen: https://www.samangroep.nl/warmtepomp-geldrop)\n  - Connect Techniek (concurrent, positie 3; bronnen: https://connect-techniek.nl/warmtepomp-geldrop/?utm_source=openai)\n  Antwoord (begin): \"**De duidelijkste match is GOG Group**: ze bedienen Geldrop vanuit Eindhoven, beoordelen bij opname je radiatoren en installatie, en publiceren vooraf een richtprijs voor een hybride warmtepomp: **€5.000–€8.000 inclusief btw en standaardmontage**. Ze noemen een geschatte ISDE-subsidie van €1.500–€2.400, maar meerwerk…\"\n\nV15 [gewicht 0.12, Overweging, commercial, cluster: Systeemkeuze] \"Welke installateur in Eindhoven kan verschillende hybride warmtepompen vergelijken voor mijn bestaande hoekwoning?\"\n  Genoemd in dit antwoord:\n  - Nastech (concurrent, positie 1; bronnen: https://nastech.nl/)\n  - 040 Warmtepomp (concurrent, positie 6; bronnen: https://www.040warmtepomp.nl/)\n  Antwoord (begin): \"**Nastech lijkt de beste eerste partij om te benaderen** als je juist verschillende merken naast elkaar wilt leggen. Het bedrijf werkt met hybride warmtepompen en noemt naast Weheat ook Intergas, LG en Mitsubishi. Vraag wel expliciet of ze voor jouw woning **twee of meer concrete systemen** willen vergelijken; hun…\"\n\nConcurrentie-gap-analyse (JSON):\n{\n  \"gaps\": [\n    {\n      \"competitor\": \"Connect Techniek; Saman Groep\",\n      \"cluster\": \"Installateur vinden Geldrop\",\n      \"evidence\": \"Bij de vraag met het hoogste gewicht (0,50) naar een installateur in Geldrop voor plaatsing in een bestaande woning werd Wesley Keeris Installatietechniek niet genoemd. Connect Techniek stond op positie 1 en Saman Groep op positie 4.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://connect-techniek.nl/warmtepomp-geldrop/\",\n        \"https://www.samangroep.nl/warmtepomp-geldrop\"\n      ]\n    },\n    {\n      \"competitor\": \"040 Warmtepomp; Kuppens Energie Techniek\",\n      \"cluster\": \"Betrouwbare installateur Eindhoven\",\n      \"evidence\": \"Bij deze beslissingsvraag met gewicht 0,30 werd het eigen merk niet genoemd. 040 Warmtepomp stond op positie 1 en Kuppens Energie Techniek op positie 2.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.040warmtepomp.nl/\",\n        \"https://kuppensenergietechniek.nl/verduurzaming/\"\n      ]\n    },\n    {\n      \"competitor\": \"040 Warmtepomp; Warmtepomp.nu; Werkspot; Trustoo\",\n      \"cluster\": \"Offertes vergelijken\",\n      \"evidence\": \"Bij de vraag met gewicht 0,30 over offertes en vergelijkbare installatiekosten in Eindhoven werd Wesley Keeris Installatietechniek niet genoemd. 040 Warmtepomp stond op positie 1; Warmtepomp.nu, Werkspot en Trustoo werden ook genoemd.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.040warmtepomp.nl/\",\n        \"https://warmtepomp.nu/nl/warmtepomp-eindhoven\",\n        \"https://www.werkspot.nl/verwarming/warmtepomp-installateur-vakmannen/eindhoven\",\n        \"https://trustoo.nl/noord-brabant/eindhoven/warmtepomp-installateur/\"\n      ]\n    },\n    {\n      \"competitor\": \"040 Warmtepomp\",\n      \"cluster\": \"Combinatie cv-ketel\",\n      \"evidence\": \"Bij de adviesvraag over het combineren van een hybride warmtepomp met de huidige cv-ketel in Eindhoven (gewicht 0,30) werd het eigen merk niet genoemd. 040 Warmtepomp stond op positie 5.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.040warmtepomp.nl/\"\n      ]\n    },\n    {\n      \"competitor\": \"Onderhoud CV Ketel Eindhoven; Kuppens Energie Techniek; Verwarming Service Brabant; Klimaat Service Beheer\",\n      \"cluster\": \"Installatie en cv-aanpassing\",\n      \"evidence\": \"Bij de vraag met gewicht 0,20 naar installatie én aanpassing van de bestaande cv-installatie in Eindhoven werd Wesley Keeris Installatietechniek niet genoemd. De vier genoemde installatiebedrijven stonden respectievelijk op positie 1, 2, 3 en 4.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://onderhoudcvketeleindhoven.nl/over-ons/\",\n        \"https://onderhoudcvketeleindhoven.nl/diensten/hybride-warmtepomp/\",\n        \"https://kuppensenergietechniek.nl/verduurzaming/?utm_source=openai\",\n        \"https://www.verwarmingservicebrabant.nl/cv-installateur-eindhoven/\",\n        \"https://www.klimaatservicebeheer.nl/diensten/verwarming-cv-ketels-warmtepompen-aircos\"\n      ]\n    },\n    {\n      \"competitor\": \"Onderhoud CV Ketel Eindhoven; CV Monteur Eindhoven; 040 Warmtepomp\",\n      \"cluster\": \"Offerte en radiatoren\",\n      \"evidence\": \"Bij de vraag met gewicht 0,20 naar een offerte inclusief controle van bestaande radiatoren in Eindhoven werd het eigen merk niet genoemd. Onderhoud CV Ketel Eindhoven stond op positie 1, CV Monteur Eindhoven op positie 2 en 040 Warmtepomp op positie 3.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://onderhoudcvketeleindhoven.nl/diensten/hybride-warmtepomp/\",\n        \"https://cvmonteureindhoven.nl/diensten/hybride-warmtepomp-plaatsen/\",\n        \"https://www.040warmtepomp.nl/\"\n      ]\n    },\n    {\n      \"competitor\": \"Zoofy\",\n      \"cluster\": \"Installatiekosten Geldrop\",\n      \"evidence\": \"Bij de beslissingsvraag met gewicht 0,30 over installatiekosten inclusief montage in Geldrop werd Wesley Keeris Installatietechniek niet genoemd. Zoofy werd genoemd op positie 3; in dit antwoord werd geen installatiebedrijf bij naam genoemd.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://zoofy.nl/prijsgidsen/hybride-warmtepomp-kosten/\"\n      ]\n    },\n    {\n      \"competitor\": \"Connect Techniek\",\n      \"cluster\": \"Kosten\",\n      \"evidence\": \"Bij de informatieve vraag naar de prijs inclusief installatie in Geldrop (gewicht 0,15) werd het eigen merk niet genoemd. Connect Techniek stond op positie 3.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://connect-techniek.nl/warmtepomp-geldrop/\"\n      ]\n    },\n    {\n      \"competitor\": \"Kemkens Eindhoven; Feenstra Eindhoven; Saman Groep Eindhoven; Peeters Duurzaam; 040 Warmtepomp; Elektro Service Eindhoven; VAN DEN HOFF Installatiebedrijf\",\n      \"cluster\": \"Installatiegeschiktheid\",\n      \"evidence\": \"Bij de vraag met gewicht 0,12 naar installatie en vooraf controleren of de cv-installatie aansluit, werd Wesley Keeris Installatietechniek niet genoemd. De genoemde installatiebedrijven stonden op posities 1, 2, 3, 4, 5, 10 en 13.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.kemkens.nl/werkgebied/warmtepompen-eindhoven/\",\n        \"https://www.feenstra.com/klantenservice/vestiging/eindhoven/\",\n        \"https://www.samangroep.nl/hybride-warmtepomp-eindhoven\",\n        \"https://www.peetersduurzaam.nl/warmtepomp-eindhoven/\",\n        \"https://www.040warmtepomp.nl/\",\n        \"https://www.elektroserviceeindhoven.nl/warmtepomp-installeren/\",\n        \"https://www.vandenhoff.nl/referenties/warmtepomp-installatie\"\n      ]\n    },\n    {\n      \"competitor\": \"Broers Installatiebedrijf; Verwarming Service Brabant; InstallBrabant\",\n      \"cluster\": \"Installatie en onderhoud Geldrop\",\n      \"evidence\": \"Bij de vraag met gewicht 0,12 naar een installateur rond Geldrop die na plaatsing ook onderhoud verzorgt, werd het eigen merk niet genoemd. Broers Installatiebedrijf stond op positie 1, Verwarming Service Brabant op positie 2 en InstallBrabant op positie 3.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://broersinstallatie.nl/installatiebedrijf-geldrop/\",\n        \"https://www.verwarmingservicebrabant.nl/warmtepomp-geldrop/\",\n        \"https://www.installbrabant.nl/warmtepomp/\"\n      ]\n    },\n    {\n      \"competitor\": \"Broers Installatiebedrijf; Broers Hybride; Verwarming Service Brabant\",\n      \"cluster\": \"Onderhoud\",\n      \"evidence\": \"Bij de onderhoudsvraag over cv-ketel én warmtepomp in Geldrop (gewicht 0,12) werd Wesley Keeris Installatietechniek niet genoemd. Broers Installatiebedrijf, Broers Hybride en Verwarming Service Brabant stonden op posities 1, 2 en 3.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://broersinstallatie.nl/installatiebedrijf-geldrop/?utm_source=openai\",\n        \"https://www.verwarmingservicebrabant.nl/cv-installateur-geldrop/?utm_source=openai\"\n      ]\n    },\n    {\n      \"competitor\": \"Saman Groep; Connect Techniek\",\n      \"cluster\": \"Advies en prijsvergelijking\",\n      \"evidence\": \"Bij de vraag met gewicht 0,12 naar vergelijking met de huidige cv-ketel en vooraf een prijsindicatie in Geldrop werd het eigen merk niet genoemd. Saman Groep stond op positie 2 en Connect Techniek op positie 3. Het antwoord noemt daarnaast GOG Group als duidelijke match, maar daarvoor is in het dossier geen bron opgegeven.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.samangroep.nl/warmtepomp-geldrop\",\n        \"https://connect-techniek.nl/warmtepomp-geldrop/?utm_source=openai\"\n      ]\n    },\n    {\n      \"competitor\": \"Nastech; 040 Warmtepomp\",\n      \"cluster\": \"Systeemkeuze\",\n      \"evidence\": \"Bij de vraag met gewicht 0,12 naar het vergelijken van verschillende hybride warmtepompen voor een bestaande hoekwoning in Eindhoven werd Wesley Keeris Installatietechniek niet genoemd. Nastech stond op positie 1 en 040 Warmtepomp op positie 6.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://nastech.nl/\",\n        \"https://www.040warmtepomp.nl/\"\n      ]\n    }\n  ],\n  \"strengths\": [\n    {\n      \"cluster\": \"Warmtepompaanbod en service\",\n      \"evidence\": \"Volgens de aangeleverde website-informatie biedt Wesley Keeris Installatietechniek installatie van (hybride) warmtepompen en service en onderhoud aan. De website noemt energiezuinigheid, lagere energiekosten en minder CO₂-uitstoot als voordelen.\"\n    },\n    {\n      \"cluster\": \"Zichtbaarheid\",\n      \"evidence\": \"De ChatGPT-zichtbaarheidsscore is ongeveer 20/100 en gewogen naar vraagvolume en koopwaarde ongeveer 23/100. De meting omvat 30 waarnemingen met een onzekerheidsmarge van ±17 punten; behandel de scores daarom als orde van grootte. Het merk werd ook genoemd in Google AI Overview.\"\n    }\n  ]\n}\n\nBestaande pagina's op de website van de klant (voor de nieuw/verbeteren-beslissing):\n- https://www.wkinstallatie.nl/post/nieuwe-servicemonteur-gezocht · \"Nieuwe servicemonteur gezocht!\"\n- https://www.wkinstallatie.nl/post/onze-website-is-vernieuwd · \"Onze website is vernieuwd!\"\n- https://www.wkinstallatie.nl · \"Wesley Keeris Installatietechniek | Installatiebedrijf - Loodgieter Geldrop - Eindhoven\"\n- https://www.wkinstallatie.nl/service · \"Wesley Keeris Installatietechniek | Service en onderhoud | Geldrop - Eindhoven\"\n- https://www.wkinstallatie.nl/contact · \"Wesley Keeris Installatietechniek | Contact | Geldrop - Eindhoven\"\n- https://www.wkinstallatie.nl/over-ons · \"Wesley Keeris Installatietechniek | Loodgieter | Geldrop - Eindhoven\"\n- https://www.wkinstallatie.nl/projecten · \"Wesley Keeris Installatietechniek | Projecten | Geldrop - Eindhoven\"\n- https://www.wkinstallatie.nl/airconditioning · \"Wesley Keeris Installatietechniek | Airconditioning | Geldrop - Eindhoven\"\n- https://www.wkinstallatie.nl/badkamers · \"Wesley Keeris Installatietechniek | Badkamers | Geldrop - Eindhoven\"\n- https://www.wkinstallatie.nl/installatiewerk · \"Wesley Keeris Installatietechniek | Installatiewerk | Geldrop - Eindhoven\"\n- https://www.wkinstallatie.nl/ketelvervanging · \"Wesley Keeris Installatietechniek | CV ketel vervangen | Geldrop - Eindhoven\"\n- https://www.wkinstallatie.nl/lekkage · \"Wesley Keeris Installatietechniek | Water lekkage | Geldrop - Eindhoven\"\n- https://www.wkinstallatie.nl/loodgieterswerk · \"Wesley Keeris Installatietechniek | Loodgieterswerk | Geldrop - Eindhoven\"\n- https://www.wkinstallatie.nl/mechanische-ventilatie · \"Wesley Keeris Installatietechniek | Mechanische ventilatie | Geldrop - Eindhoven\"\n- https://www.wkinstallatie.nl/renovatie · \"Wesley Keeris Installatietechniek | Renovatie | Geldrop - Eindhoven\"\n- https://www.wkinstallatie.nl/vloerverwarming · \"Wesley Keeris Installatietechniek | Vloerverwarming | Geldrop - Eindhoven\"\n- https://www.wkinstallatie.nl/warmtepomp · \"Wesley Keeris Installatietechniek | Warmtepomp installatie | Geldrop - Eindhoven\"\n- https://www.wkinstallatie.nl/waterontharder · \"Wesley Keeris Installatietechniek | Waterontharder | Geldrop - Eindhoven\"\n- https://www.wkinstallatie.nl/zink-koperwerken · \"Wesley Keeris Installatietechniek | Zink en Koperwerken | Geldrop - Eindhoven\"\n- https://www.wkinstallatie.nl/nieuws · \"Wesley Keeris Installatietechniek | Nieuws en Vacatures | Geldrop - Eindhoven\"\n- https://www.wkinstallatie.nl/post/vacature-servicemonteur · \"Vacature Servicemonteur\"\n- https://www.wkinstallatie.nl/post/wij-zoeken-nieuwe-monteurs-hulpmonteurs · \"Wij zoeken nieuwe monteurs / hulpmonteurs\"\n- https://www.wkinstallatie.nl/post/wijziging-kantoortijden · \"Wijziging kantoortijden\"\n\n\nSTRUCTURELE GATEN IN DE SITE: dit komt uit het aanbod van de klant zelf, niet uit de meting. Een dienst zonder eigen pagina kan door een assistent niet genoemd worden, ook al is er nooit een vraag over gesteld. Weeg deze mee in je aanbevelingen:\n- Service en onderhoud van installaties (dienst): alleen zijdelings op /service\n- Aanleggen van gasleidingen (dienst): alleen zijdelings op /loodgieterswerk\n- Aanleggen van waterleidingen (dienst): alleen zijdelings op /loodgieterswerk\n- Aanleggen van riolering (dienst): alleen zijdelings op /loodgieterswerk\n- Repareren van lekkages (dienst): alleen zijdelings op /lekkage\n- Lekdetectie (dienst): alleen zijdelings op /lekkage\n- Verhelpen van lekkages aan centrale verwarming (dienst): alleen zijdelings op /lekkage\n- Verhelpen van lekkages aan riool en afvoer (dienst): alleen zijdelings op /lekkage\n- Verhelpen van lekkages door bevroren leidingen en kranen (dienst): alleen zijdelings op /lekkage\n- Verhelpen van lekkages aan dakgoten (dienst): alleen zijdelings op /lekkage\n- Verhelpen van lekkages door gesprongen leidingen (dienst): alleen zijdelings op /lekkage\n- Waterontharder leveren (dienst): alleen zijdelings op /waterontharder\n(en nog 16 andere)\n\n\n\nHET DOEL OVER TWAALF MAANDEN: in geldrop, mierlo en nuenen het eerste adres zijn voor een hybride warmtepomp\nPIEKEN EN DALEN IN HET JAAR: oktober tot februari druk met storingen en vervanging. voorjaar rustiger, dan vooral warmtepompen en airco. Zet werk dat op een piek mikt ruim vóór die piek in de planning.\n\nSchrijf op basis hiervan een kort, jargonvrij rapport. Noem in elk gap-item expliciet welke concurrent het betreft. PRIORITEER de aanbevelingen op de zwaarwegende gemiste vragen hierboven (hoog gewicht = populair en of koopklaar). Geef 5 tot 8 concrete, geprioriteerde aanbevelingen, genoeg om de zwaarste gemiste vragen te dekken, niet zoveel dat het een boodschappenlijst wordt. Koppel elke aanbeveling aan de vraagcodes (V1, V2, …) die hij moet winnen. Schrijf de toelichting bij een aanbeveling in gewone taal: NOOIT een vraagcode (V1, V2) en NOOIT een gewicht in de lopende tekst. Beschrijf de vraag in woorden, dus niet \"V5 heeft gewicht 0,50\" maar \"wie in Breda een occasion zoekt\". In `targetIntent` beschrijf je de LEZER van die pagina in één zin, in deze vorm: welk type persoon het is, welk probleem die persoon heeft, en welke beslissing hij daarna moet nemen. Dus niet \"Daklekkage Apeldoorn\" of \"informatie over dakisolatie\", maar \"iemand met water door zijn plafond die vandaag hulp zoekt en wil weten wat een reparatie kost\". Een onderwerp is geen lezer. Laat dit veld nooit leeg en schrijf er nooit \"onbekend\" in: kun je de lezer niet benoemen, doe dan geen aanbeveling.",
+ "paginas": [
+  {
+   "url": "https://www.wkinstallatie.nl/post/nieuwe-servicemonteur-gezocht",
+   "titel": "Nieuwe servicemonteur gezocht!"
+  },
+  {
+   "url": "https://www.wkinstallatie.nl/post/onze-website-is-vernieuwd",
+   "titel": "Onze website is vernieuwd!"
+  },
+  {
+   "url": "https://www.wkinstallatie.nl",
+   "titel": "Wesley Keeris Installatietechniek | Installatiebedrijf - Loodgieter Geldrop - Eindhoven"
+  },
+  {
+   "url": "https://www.wkinstallatie.nl/service",
+   "titel": "Wesley Keeris Installatietechniek | Service en onderhoud | Geldrop - Eindhoven"
+  },
+  {
+   "url": "https://www.wkinstallatie.nl/contact",
+   "titel": "Wesley Keeris Installatietechniek | Contact | Geldrop - Eindhoven"
+  },
+  {
+   "url": "https://www.wkinstallatie.nl/over-ons",
+   "titel": "Wesley Keeris Installatietechniek | Loodgieter | Geldrop - Eindhoven"
+  },
+  {
+   "url": "https://www.wkinstallatie.nl/projecten",
+   "titel": "Wesley Keeris Installatietechniek | Projecten | Geldrop - Eindhoven"
+  },
+  {
+   "url": "https://www.wkinstallatie.nl/airconditioning",
+   "titel": "Wesley Keeris Installatietechniek | Airconditioning | Geldrop - Eindhoven"
+  },
+  {
+   "url": "https://www.wkinstallatie.nl/badkamers",
+   "titel": "Wesley Keeris Installatietechniek | Badkamers | Geldrop - Eindhoven"
+  },
+  {
+   "url": "https://www.wkinstallatie.nl/installatiewerk",
+   "titel": "Wesley Keeris Installatietechniek | Installatiewerk | Geldrop - Eindhoven"
+  },
+  {
+   "url": "https://www.wkinstallatie.nl/ketelvervanging",
+   "titel": "Wesley Keeris Installatietechniek | CV ketel vervangen | Geldrop - Eindhoven"
+  },
+  {
+   "url": "https://www.wkinstallatie.nl/lekkage",
+   "titel": "Wesley Keeris Installatietechniek | Water lekkage | Geldrop - Eindhoven"
+  },
+  {
+   "url": "https://www.wkinstallatie.nl/loodgieterswerk",
+   "titel": "Wesley Keeris Installatietechniek | Loodgieterswerk | Geldrop - Eindhoven"
+  },
+  {
+   "url": "https://www.wkinstallatie.nl/mechanische-ventilatie",
+   "titel": "Wesley Keeris Installatietechniek | Mechanische ventilatie | Geldrop - Eindhoven"
+  },
+  {
+   "url": "https://www.wkinstallatie.nl/renovatie",
+   "titel": "Wesley Keeris Installatietechniek | Renovatie | Geldrop - Eindhoven"
+  },
+  {
+   "url": "https://www.wkinstallatie.nl/vloerverwarming",
+   "titel": "Wesley Keeris Installatietechniek | Vloerverwarming | Geldrop - Eindhoven"
+  },
+  {
+   "url": "https://www.wkinstallatie.nl/warmtepomp",
+   "titel": "Wesley Keeris Installatietechniek | Warmtepomp installatie | Geldrop - Eindhoven"
+  },
+  {
+   "url": "https://www.wkinstallatie.nl/waterontharder",
+   "titel": "Wesley Keeris Installatietechniek | Waterontharder | Geldrop - Eindhoven"
+  },
+  {
+   "url": "https://www.wkinstallatie.nl/zink-koperwerken",
+   "titel": "Wesley Keeris Installatietechniek | Zink en Koperwerken | Geldrop - Eindhoven"
+  },
+  {
+   "url": "https://www.wkinstallatie.nl/nieuws",
+   "titel": "Wesley Keeris Installatietechniek | Nieuws en Vacatures | Geldrop - Eindhoven"
+  },
+  {
+   "url": "https://www.wkinstallatie.nl/post/vacature-servicemonteur",
+   "titel": "Vacature Servicemonteur"
+  },
+  {
+   "url": "https://www.wkinstallatie.nl/post/wij-zoeken-nieuwe-monteurs-hulpmonteurs",
+   "titel": "Wij zoeken nieuwe monteurs / hulpmonteurs"
+  },
+  {
+   "url": "https://www.wkinstallatie.nl/post/wijziging-kantoortijden",
+   "titel": "Wijziging kantoortijden"
+  }
+ ]
+}

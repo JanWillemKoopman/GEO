@@ -1,0 +1,9 @@
+{
+  "name": "doorlichting",
+  "private": true,
+  "description": "Schermbesturing voor de kwaliteitsdoorlichting, los van de app. Zie docs/tasks/kwaliteitsdoorlichting-herhaling.md.",
+  "type": "module",
+  "dependencies": {
+    "playwright": "^1.63.0"
+  }
+}

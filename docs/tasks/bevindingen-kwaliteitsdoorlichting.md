@@ -21,8 +21,8 @@
 >
 > **Stand 24 september 2026:** de hele keten doorlopen, 16 teksten blind beoordeeld, proeven met de
 > reparatieknop en een ideale klant gedaan. Het eindverslag staat hieronder; het stap-voor-stapdossier
-> met cijfers in `docs/tasks/kwaliteitsdoorlichting-stappen.md`. Het
-> stap-voor-stapdossier met cijfers per stap staat in `docs/tasks/kwaliteitsdoorlichting-stappen.md`.
+> met cijfers in `docs/tasks/kwaliteitsdoorlichting-stappen.md`. De herhaling en de overdracht naar een
+> nieuwe werksessie: `docs/tasks/kwaliteitsdoorlichting-herhaling.md`.
 
 ## Verbeterronde vanaf 24 september 2026: besluiten en stand
 
@@ -51,6 +51,7 @@ tot en met #127). Van de 54 bevindingen staan er nog open: 15 en 16 (eenmalig, n
 drie die pas op een nieuwe doorloop te toetsen zijn: 47 en 45 (geen nieuwe tekst geschreven sinds de
 reparatie) en 50 (de reparatieknop, oorzaak weg via 39). Wat nog ontbreekt, is de afsluiting uit het
 plan: dezelfde drie bedrijven opnieuw door de keten, met dezelfde blinde lezers, tegen de 4,1 op 10.
+Hoe, en wat daarvoor in de repository staat: `docs/tasks/kwaliteitsdoorlichting-herhaling.md`.
 
 | Blok | Punten | Stand |
 |---|---|---|

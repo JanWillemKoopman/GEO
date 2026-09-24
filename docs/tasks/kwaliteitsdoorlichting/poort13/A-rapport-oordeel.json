@@ -1,0 +1,164 @@
+{
+  "samenvatting": {
+    "oordeel": "met_gebreken",
+    "problemen": [
+      {
+        "citaat": "In ChatGPT werd Hans Verstraaten Hoveniers in ongeveer 15 van de 100 punten genoemd; de ruime onzekerheidsmarge van ±15 punten betekent dat dit een grove indicatie is",
+        "probleem": "\"15 van de 100 punten\" zegt een hovenier niets. Een marge van plus of min 15 betekent dat het echte getal ergens tussen 0 en 30 ligt. Dat hoort er in gewone woorden bij, met wat het betekent: in de meeste gevallen noemt ChatGPT je niet als iemand een hovenier zoekt.",
+        "ernst": "middel"
+      },
+      {
+        "citaat": "De gewogen score is ongeveer 17/100. Er zijn 30 vragen onderzocht, samen 119 metingen.",
+        "probleem": "Er staat een tweede cijfer zonder uitleg (wat is 'gewogen'?). Dit botst ook met de meetgegevens: daar staat 'De ChatGPT-score van ongeveer 15/100 is gebaseerd op 30 metingen', en in de samenvatting zijn het 119 metingen. De eigenaar kan niet nagaan welk cijfer klopt.",
+        "ernst": "middel"
+      },
+      {
+        "citaat": "Google AI Overview noemde het bedrijf wel.",
+        "probleem": "Er staat niet bij welke vraag of hoe vaak. Zo leest het als een geruststelling die niet onderbouwd is. De meetgegevens geven alleen 'werd ... wel genoemd in Google AI Overview', zonder vraag of plaats.",
+        "ernst": "laag"
+      },
+      {
+        "citaat": "Vooral bij vragen van mensen die in Best of Nuenen een complete tuin zoeken, is er ruimte om vaker genoemd te worden.",
+        "probleem": "De richting klopt met zijn doel, maar het gevolg staat er te zacht. Bij alle vijftien getoonde vragen over een complete tuin met bestrating (Best, Nuenen, Veldhoven, Helmond, Eindhoven) noemt ChatGPT concurrenten en hem geen enkele keer, ook bij de koopklare vragen. Dat de zwemvijver, zijn tweede poot, helemaal niet is gemeten, staat nergens in de samenvatting.",
+        "ernst": "middel"
+      }
+    ]
+  },
+  "paginas": [
+    {
+      "nummer": 1,
+      "oordeel": "niet_maken",
+      "nieuw_of_verbeteren_klopt": false,
+      "problemen": [
+        {
+          "citaat": "Een huiseigenaar in Helmond die zijn tuin compleet wil vernieuwen",
+          "probleem": "Helmond staat niet in zijn doelen. Hij wil groeien in 'Best, Nuenen, Son en Breugel', en het doel is 'Meer aanvragen voor complete tuinen in Best en Nuenen'. De pagina die bovenaan staat mikt op een plaats die de eigenaar zelf niet noemt.",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "\"bestaande_pagina\": \"https://hansverstraatenhoveniers.nl\"",
+          "probleem": "Een vraag over Helmond win je niet met de hoofdpagina, die over 'hovenier in Eindhoven' gaat. Er bestaat al een Helmond-pagina: https://hansverstraatenhoveniers.nl/de-beste-hovenier-in-helmond-groene-kwaliteit-van-hans/. Als Helmond al aandacht krijgt, dan hoort het daar.",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "Maak daarop duidelijk wat het bedrijf in een totaalproject verzorgt, hoe bestrating en ontwerp worden meegenomen, in welke plaatsen het werkt en hoe iemand een offerte aanvraagt.",
+          "probleem": "Dit is bijna hetzelfde als aanbeveling 4 ('Leg op de bestaande pagina uit welke plaatsen en projecten het bedrijf bedient'), op dezelfde hoofdpagina. Het zijn twee aanbevelingen voor één klus.",
+          "ernst": "middel"
+        }
+      ],
+      "overlapt_met": [4]
+    },
+    {
+      "nummer": 2,
+      "oordeel": "maken_met_aanpassing",
+      "nieuw_of_verbeteren_klopt": false,
+      "problemen": [
+        {
+          "citaat": "\"nieuw_of_verbeteren\": \"nieuw\", \"bestaande_pagina\": null",
+          "probleem": "De pagina bestaat al: https://hansverstraatenhoveniers.nl/hovenier-in-best/ ('Dé hovenier in Best en omstreken'). Een tweede Best-pagina laat twee pagina's met elkaar concurreren. Deze moet worden verbeterd, niet opnieuw gemaakt. Het rapport kende alleen de hoofdpagina ('Pagina's die het rapport van deze website kende: https://hansverstraatenhoveniers.nl').",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "Van het eerste schetsontwerp tot en met het wieden van het laatste onkruid",
+          "probleem": "Nu gaat de Best-pagina ook over tuinonderhoud. Juist daar wil de eigenaar minder op inzetten ('Los tuinonderhoud bij particulieren'). Bij het verbeteren moet de nadruk naar complete aanleg met bestrating, met zijn eigen bewijs: 'Eigen vaste ploeg van vijf man', '3D-ontwerp € 450, verrekend bij opdracht', 'vijf jaar op bestrating (verzakking)' en 'twee tot drie weken uitvoering'.",
+          "ernst": "middel"
+        },
+        {
+          "citaat": "Neem ook heldere uitleg op over de factoren die de prijs bepalen.",
+          "probleem": "Alleen factoren noemen is te weinig. Bij de prijsvragen noemt ChatGPT nu Homedeal met '€ 1.500 tot € 25.000'. De eigenaar heeft een echte bandbreedte ('meestal € 12.000 tot € 35.000'), en juist die beantwoordt het bezwaar 'Ik weet niet wat een tuin ongeveer kost'. Twee prijsvragen in één plaatspagina stoppen is bovendien zwakker dan één eigen kostenpagina waar alle plaatspagina's naar verwijzen.",
+          "ernst": "middel"
+        }
+      ],
+      "overlapt_met": [4]
+    },
+    {
+      "nummer": 3,
+      "oordeel": "maken_met_aanpassing",
+      "nieuw_of_verbeteren_klopt": false,
+      "problemen": [
+        {
+          "citaat": "\"nieuw_of_verbeteren\": \"nieuw\", \"bestaande_pagina\": null",
+          "probleem": "https://hansverstraatenhoveniers.nl/hovenier-in-nuenen/ bestaat al ('Dé hovenier in Nuenen en omstreken'). Dit is een verbeteropdracht. Een tweede Nuenen-pagina zou versnipperen.",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "Met diepgaande kennis van de regio Nuenen begrijpen we de lokale bodem- en beplantingsomstandigheden.",
+          "probleem": "De bestaande tekst is algemeen en ook gelijk aan de pagina's voor Best, Geldrop en Veldhoven. Er staat geen enkel concreet feit in. De verbetering moet de vragen zelf beantwoorden (ontwerp, bestrating en aanleg bij één partij), met de feiten die de eigenaar heeft: gratis eerste gesprek thuis, 3D-ontwerp, betaling in drie delen, garantie en doorlooptijd. Het rapport noemt die feiten niet.",
+          "ernst": "middel"
+        }
+      ],
+      "overlapt_met": []
+    },
+    {
+      "nummer": 4,
+      "oordeel": "maken_met_aanpassing",
+      "nieuw_of_verbeteren_klopt": false,
+      "problemen": [
+        {
+          "citaat": "Voeg, zodra de bedragen en werkwijze zijn bevestigd, duidelijke informatie toe over prijsbepalende factoren",
+          "probleem": "De bedragen zijn er al: 'Tuinaanleg met bestrating meestal € 12.000 tot € 35.000', '3D-ontwerp € 450', 'Betaling: 30 procent bij opdracht, 60 procent bij start, 10 procent bij oplevering'. Het rapport stelt uit wat nu al kan.",
+          "ernst": "middel"
+        },
+        {
+          "citaat": "De bestaande hoofdpagina is de passende plek",
+          "probleem": "Kostenvragen komen in de meting drie keer terug (Best twee keer, Eindhoven één keer). Daar staan nu alleen vergelijkers als Homedeal en Werkspot.nl. Daarvoor is één eigen pagina 'Wat kost een complete tuin met bestrating' nodig. Een alinea op de hoofdpagina wint die vragen niet. Deze aanbeveling overlapt bovendien met 1 (dezelfde hoofdpagina) en met 2 (de prijsuitleg voor Best).",
+          "ernst": "middel"
+        }
+      ],
+      "overlapt_met": [1, 2]
+    },
+    {
+      "nummer": 5,
+      "oordeel": "niet_maken",
+      "nieuw_of_verbeteren_klopt": true,
+      "problemen": [
+        {
+          "citaat": "Een inwoner van Eindhoven die minder tijd aan tuinonderhoud wil besteden",
+          "probleem": "Er is één gemiste vraag, over Eindhoven, en Eindhoven staat niet in zijn groeidoelen. Een los artikel hiervoor is geld dat beter naar Best, Nuenen of de zwemvijver gaat. Hooguit hoort er een alinea over weinig onderhoud op de bestaande pagina https://hansverstraatenhoveniers.nl/tuinaanleg/.",
+          "ernst": "middel"
+        },
+        {
+          "citaat": "welke keuzes in bestrating en beplanting het onderhoud beperken",
+          "probleem": "Hier is het risico groot dat de tekst 'onderhoudsvrij' gaat beloven, een woord dat de eigenaar verboden heeft. Het rapport waarschuwt daar niet voor.",
+          "ernst": "laag"
+        }
+      ],
+      "overlapt_met": []
+    }
+  ],
+  "volgorde_klopt": false,
+  "betere_volgorde": [2, 3, 4, 1, 5],
+  "waarom_volgorde": "De eigenaar wil meer aanvragen voor complete tuinen in Best en Nuenen. Bij tien van de vijftien gemiste vragen gaat het om die twee plaatsen, waaronder de koopklare vragen. Toch staat de Helmond-aanbeveling bovenaan, terwijl het rapport die zelf een lagere prioriteit geeft (9 tegenover 10). Best en Nuenen horen bovenaan, daarna één eigen kostenpagina (drie kostenvragen). Helmond en het onderhoudsarme artikel komen laatst of vervallen.",
+  "ontbreekt": [
+    {
+      "pagina": "Zwemvijver aanleggen verbeteren (bestaande pagina https://hansverstraatenhoveniers.nl/zwemvijver-aanleggen/)",
+      "waarom": "Het doel over een jaar is 'de zwemvijver als tweede poot', en een zwemvijver is € 30.000 tot € 60.000 waard. Toch gaat geen enkele aanbeveling erover, en er is ook niets over gemeten. De bestaande pagina mist prijsindicatie, onderhoudscontract (€ 350 per jaar) en een direct antwoord op het bezwaar 'Blijft een zwemvijver wel helder?'. Wees voorzichtig met het aantal aangelegde zwemvijvers: de eigenaar schat 'een stuk of vijftien', dus zet er geen hard getal op."
+    },
+    {
+      "pagina": "Opruimen van proef- en voorbeeldpagina's (onder meer /contact-2/, /over-ons/, /provincie/, /wp-zonder-adres/, /wp-met-adrrs/, /dienst-content/, /voorbeeld-blog/)",
+      "waarom": "Deze pagina's staan online met 'Adres Jalan Cempaka Wangi No 22 Jakarta - Indonesia', 'KvK: 00000000', 'An honest, trustworthy cleaner' en 'Dakgoot schoonmaken'. Een AI-assistent of een klant die hierop terechtkomt, leest tegenstrijdige bedrijfsgegevens. Dat ondermijnt elk ander advies en kost bijna niets om op te lossen."
+    },
+    {
+      "pagina": "Een echte Over ons-pagina met het bewijs van de eigenaar",
+      "waarom": "/over-ons/ is nu lorem ipsum met '15+ Jaar ervaring', terwijl de hoofdpagina '35+ Jaar ervaring' zegt. Het sterkste onderscheid ontbreekt op de site: 'Eigen vaste ploeg van vijf man, geen inhuur van zzp'ers', '60 tot 70 tuinen per jaar' en de gratis terugkomafspraak na zes weken. Vermeld hier ook dat Verstraaten Groenvoorziening (Oss) een ander bedrijf is."
+    },
+    {
+      "pagina": "Hovenier in Veldhoven verbeteren, gericht op nieuwbouw in Zilverackers (en Meerhoven, Brandevoort)",
+      "waarom": "Het rapport meldt de gemiste Veldhoven-vraag (Make Hoveniers, Vado Tuinmeesters en anderen), maar doet er niets mee. Gezinnen met een nieuwbouwwoning zijn een groeigroep die de eigenaar zelf noemt, en /hovenier-in-veldhoven/ bestaat al."
+    },
+    {
+      "pagina": "Doorlooptijd en planning: hoe lang lig je met een kale tuin",
+      "waarom": "Het rapport zegt bij wachttijd 'Vraag eerst naar die feiten', maar ze staan al in het gesprek: 'twee tot drie weken uitvoering, planning vier tot acht weken vooruit in het voorjaar'. ChatGPT zegt zelf dat 'een betrouwbare actuele wachttijd ... niet openbaar te vinden' is. Wie het wel publiceert, heeft een open kans, en het beantwoordt het bezwaar 'Hoe lang lig ik met een kale tuin?'."
+    },
+    {
+      "pagina": "Hovenier in Son en Breugel",
+      "waarom": "Son en Breugel staat in zijn lijst van plaatsen waar hij nog weinig zit, en er is geen pagina voor gevonden in de kopie. Het werd ook niet gemeten, dus dit hoort als aanvulling op de lijst, na Best en Nuenen."
+    },
+    {
+      "pagina": "Bestaande teksten langs zijn woordenlijst halen",
+      "waarom": "Op de site staat 'vakkundige tuinmannen' (/tuinaanleg/), terwijl 'tuinman' verboden is. Er staat 'De nummer 1 hovenier in Eindhoven', wat verkooppraat is. En kunstgras wordt uitgebreid aangeprezen, terwijl de eigenaar daar juist minder op wil inzetten. Nieuwe pagina's die naar deze teksten linken, nemen die fouten mee."
+    }
+  ],
+  "klaar_voor_contentplan": "met_aanpassingen",
+  "belangrijkste_verbetering": "Maak van de Best- en Nuenen-aanbevelingen verbeteropdrachten voor de bestaande pagina's /hovenier-in-best/ en /hovenier-in-nuenen/, vul ze met zijn eigen prijzen, doorlooptijd en bewijs, en zet de zwemvijver als tweede poot in het plan in plaats van Helmond."
+}

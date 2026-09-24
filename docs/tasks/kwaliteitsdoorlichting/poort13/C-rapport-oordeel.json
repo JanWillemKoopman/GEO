@@ -1,0 +1,206 @@
+{
+  "samenvatting": {
+    "oordeel": "met_gebreken",
+    "problemen": [
+      {
+        "citaat": "De zichtbaarheidsscore is ongeveer 0 op 100; de meetmarge is ±8 punten, dus zie dit als een orde van grootte en niet als een exact cijfer.",
+        "probleem": "Dit is jargon waar de eigenaar niets mee kan. Een marge van plus of min 8 bij een score van 0 zegt hem niets. Hij moet horen wat het betekent: wie ChatGPT vraagt naar een rijschool voor faalangst in Eindhoven, krijgt vrijwel altijd Rijschool Feka te horen en nooit Pompert. Feka staat in 11 van de 15 gemiste antwoorden, vaak bovenaan (\"Rijschool Feka (concurrent, positie 1; ...)\"). Die hoofdconcurrent komt in de samenvatting niet voor.",
+        "ernst": "hoog"
+      },
+      {
+        "citaat": "niet genoemd bij de 30 onderzochte vragen",
+        "probleem": "Het bewijsdossier bevat 15 gemiste vragen. Als Pompert bij alle 30 ontbrak, blijft onduidelijk wat de andere 15 waren. Het getal is niet na te gaan in de meetgegevens en roept vragen op in plaats van ze te beantwoorden.",
+        "ernst": "middel"
+      },
+      {
+        "citaat": "Google AI Overview noemde Pompert wel.",
+        "probleem": "Er staat niet bij welke vragen dit gebeurde en wat het betekent. Toch is dit het enige positieve punt, en het is bruikbaar: de site wordt dus wel gevonden, maar ChatGPT kiest hem niet. Dat verdient één verklarende zin.",
+        "ernst": "laag"
+      },
+      {
+        "citaat": "De meeste kansen liggen bij vragen van mensen die in Eindhoven, Best of Helmond direct een rijschool met faalangstbegeleiding zoeken.",
+        "probleem": "Autisme en ADHD, het eerste groeidoel van de eigenaar (\"Rijles bij faalangst, autisme en ADHD. Lessen in de automaat.\"), komen in de samenvatting en in het hele rapport niet voor. Ook ouders en begeleiders ontbreken. Het rapport zegt nergens dat de meting alleen over faalangst ging en dus niets zegt over autisme, automaat of ouders. De eigenaar denkt daardoor dat zijn doel gedekt is.",
+        "ernst": "hoog"
+      }
+    ]
+  },
+  "paginas": [
+    {
+      "nummer": 1,
+      "oordeel": "maken_met_aanpassing",
+      "nieuw_of_verbeteren_klopt": false,
+      "problemen": [
+        {
+          "citaat": "\"bestaande_pagina\": \"https://www.autorijschoolpompert.nl/angst-voor-autorijden/\"",
+          "probleem": "Dit is de verkeerde pagina. In het menu van de site staat een aparte dienstpagina \"Rijles met faalangst & autisme\" (/rijles-met-faalangst-autisme/). Die hoort de hoofdpagina te zijn. Het rapport kende die pagina niet en koos een infopagina. Daarnaast bestaan er al /hoe-je-angst-voor-autorijden-kunt-overwinnen/, /alles-over-verkeersangst/ en /rijlessen-met-add/. Wie de verkeerde pagina opwaardeert, maakt vier pagina's die met elkaar concurreren. Maak de menupagina de centrale pagina en laat de blogs ernaar verwijzen.",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "\"voor_wie\": \"Iemand uit Eindhoven met faalangst achter het stuur die een rijschool zoekt en wil beslissen waar die een proefles boekt.\"",
+          "probleem": "Autisme, ADHD en ouders die meezoeken ontbreken, terwijl dat precies het doel over een jaar is: \"aangeraden worden door begeleiders en ouders\". Deze pagina moet ook een ouder van een zeventienjarige met autisme bedienen, zonder medische uitspraken te doen. Dat laatste mag volgens de eigenaar niet.",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "\"moet duidelijker uitleggen hoe Pompert begeleiding aanpast, hoe je kennismaakt en hoe je een proefles aanvraagt\"",
+          "probleem": "Het rapport blijft algemeen, terwijl de eigenaar de feiten klaar heeft liggen: intake van een uur, lessen van 75 minuten omdat de eerste tien minuten nodig zijn om tot rust te komen, vaste rustige routes, proefexamen met een andere instructeur, simulator, hulp bij de aanvraag van het faalangstexamen, 93 procent geslaagd bij de eerste poging over 2025 tegen ongeveer 50 procent landelijk, en een artikel in CBR magazine (\"staat in de hele regio Eindhoven bekend als de rijschool voor kandidaten met faalangst, ADHD\"). Dat onderscheidt Pompert van Feka. Het rapport noemt geen van deze feiten.",
+          "ernst": "middel"
+        },
+        {
+          "citaat": "\"hoe je kennismaakt en hoe je een proefles aanvraagt\"",
+          "probleem": "Feka wint op \"een gratis, vrijblijvende proefles van 60 minuten\". Bij Pompert heet dat \"Vrijblijvende proefles Intake van 60 minuten ... € 50\", en dat bedrag krijg je terug als je daarna lessen neemt. Het rapport ziet dit verschil niet. Zonder uitleg waarom een betaalde intake meer oplevert dan een gratis proefles, verliest Pompert juist op dit punt.",
+          "ernst": "middel"
+        }
+      ],
+      "overlapt_met": [4, 5, 6, 7]
+    },
+    {
+      "nummer": 2,
+      "oordeel": "maken_met_aanpassing",
+      "nieuw_of_verbeteren_klopt": true,
+      "problemen": [
+        {
+          "citaat": "\"voor_wie\": \"Iemand uit Best met faalangst die snel rijles wil nemen\"",
+          "probleem": "Best is terecht gekozen, want het is een groeiplaats van de eigenaar. Maar de woorden \"snel\" en \"snel starten\" botsen met zijn toon en verboden woorden (\"snel je rijbewijs\"). Bedoeld is \"binnenkort beginnen\". Schrijf het zo, zodat de tekstschrijver het woord niet overneemt.",
+          "ernst": "laag"
+        },
+        {
+          "citaat": "\"willen ook weten hoe snel lessen kunnen beginnen\"",
+          "probleem": "De eigenaar heeft geen wachttijd opgegeven. Het rapport had moeten zeggen dat hij die eerst moet aanleveren. Anders wordt er een starttijd verzonnen. Ook autisme en de ophaalplek (\"bij de leerling thuis, op school of op het werk\") ontbreken, terwijl die in Best het verschil maken.",
+          "ernst": "middel"
+        }
+      ],
+      "overlapt_met": [1]
+    },
+    {
+      "nummer": 3,
+      "oordeel": "maken_met_aanpassing",
+      "nieuw_of_verbeteren_klopt": true,
+      "problemen": [
+        {
+          "citaat": "\"titel\": \"Vul de pagina voor Helmond aan met faalangstbegeleiding en beschikbaarheid\"",
+          "probleem": "Helmond staat niet bij de plaatsen waar de eigenaar wil groeien (\"Veldhoven, Best, Son en Breugel\"). Het doel is Eindhoven. Helmond heeft vier eigen rijscholen in het antwoord, dus winnen kost veel moeite. Dat het eerste antwoord zwaar weegt, rechtvaardigt een kleine aanvulling op de bestaande pagina, geen derde plek in de volgorde. Check eerst of Pompert daar echt ophaalt.",
+          "ernst": "middel"
+        }
+      ],
+      "overlapt_met": [1]
+    },
+    {
+      "nummer": 4,
+      "oordeel": "maken_met_aanpassing",
+      "nieuw_of_verbeteren_klopt": false,
+      "problemen": [
+        {
+          "citaat": "\"bestaande_pagina\": \"https://www.autorijschoolpompert.nl/autorijschool-pompert/cbr-peter-pompert-2/\"",
+          "probleem": "Dat is geen echte pagina. Het is een automatisch aangemaakte fotopagina (bijlage) van een afbeelding \"CBR - Peter Pompert\", net als de drie andere \"cbr-peter-pompert\"-adressen in de lijst. Daar kun je geen tekst op zetten. Het rapport zegt zelf elders dat het faalangstexamen \"alleen zijdelings\" op die bijlage staat. Dit moet een nieuwe pagina worden, of een duidelijk blok op de centrale faalangstpagina.",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "\"kan duidelijker beschrijven of Pompert helpt oefenen voor een faalangstexamen\"",
+          "probleem": "Het antwoord ligt er al. De eigenaar helpt met de aanvraag, laat de examenroute oefenen, doet een proefexamen met een andere instructeur, en de prijs staat op de site (\"Faalangst examen CBR € 400,-\"). Het rapport vraagt \"of\" terwijl het \"hoe\" had moeten voorschrijven. Dit is een sterk onderscheidend onderwerp en past bij het bezwaar \"Ik word zenuwachtig van examens\".",
+          "ernst": "middel"
+        }
+      ],
+      "overlapt_met": [1]
+    },
+    {
+      "nummer": 5,
+      "oordeel": "maken_met_aanpassing",
+      "nieuw_of_verbeteren_klopt": false,
+      "problemen": [
+        {
+          "citaat": "\"bestaande_pagina\": \"https://www.autorijschoolpompert.nl/wat-kan-ik-verwachten-tijdens-mijn-eerste-rijles/\"",
+          "probleem": "Een blog over de eerste rijles is de verkeerde plek. Het rapport meldt zelf: \"Vrijblijvende proefles (dienst): alleen zijdelings\" en \"Intake voor rijlessen (dienst): alleen zijdelings\". Beide hebben dus geen eigen pagina. De logische stap is een nieuwe pagina \"Intake en proefles\": een uur, € 50, terug bij inschrijving, daarna een lesplan en een schatting van het aantal lessen. Die beantwoordt meteen het bezwaar \"Hoeveel lessen heb ik echt nodig?\".",
+          "ernst": "middel"
+        },
+        {
+          "citaat": "\"Maak kennismaken vóór een lespakket eenvoudig te begrijpen\"",
+          "probleem": "Dit overlapt sterk met pagina 1 (proefles) en pagina 7 (eerst uitproberen voor je een pakket kiest). Het zijn drie aanbevelingen voor één onderwerp.",
+          "ernst": "middel"
+        }
+      ],
+      "overlapt_met": [1, 7]
+    },
+    {
+      "nummer": 6,
+      "oordeel": "niet_maken",
+      "nieuw_of_verbeteren_klopt": true,
+      "problemen": [
+        {
+          "citaat": "\"titel\": \"Maak de pagina voor Waalre concreet over lessen bij spanning\"",
+          "probleem": "Het gaat om één lichte oriënterende vraag in een plaats die de eigenaar niet noemt als groeigebied. De inhoud (de les aanpassen als spanning oploopt) hoort op de centrale faalangstpagina. De Waalre-pagina kan daar met één zin naar verwijzen. Een aparte aanbeveling maakt het plan langer zonder dat het doel dichterbij komt.",
+          "ernst": "laag"
+        }
+      ],
+      "overlapt_met": [1]
+    },
+    {
+      "nummer": 7,
+      "oordeel": "maken_met_aanpassing",
+      "nieuw_of_verbeteren_klopt": true,
+      "problemen": [
+        {
+          "citaat": "\"om helder te maken of losse lessen mogelijk zijn, wat die kosten\"",
+          "probleem": "Dat staat er al: \"Losse autorijles van 60 minuten ** € 80,-\" en pakketten van 5 en 10 uur. Het probleem is niet de prijs maar het verband met faalangst. De prijspagina zegt nergens dat je bij spanning eerst de intake en een paar losse lessen kunt nemen. Hier hoort ook het bezwaar \"Waarom zijn jullie duurder dan een spoedcursus?\" beantwoord te worden, met de terugbetaling van ongebruikte lessen en het gratis herexamen. Het is een kleine aanpassing en geen eigen project.",
+          "ernst": "middel"
+        }
+      ],
+      "overlapt_met": [1, 5]
+    },
+    {
+      "nummer": 8,
+      "oordeel": "niet_maken",
+      "nieuw_of_verbeteren_klopt": true,
+      "problemen": [
+        {
+          "citaat": "\"titel\": \"Maak extra begeleiding in Geldrop zichtbaar\"",
+          "probleem": "Geldrop is geen groeiplaats van de eigenaar en de vraag is licht en oriënterend. Het budget is beter besteed aan Veldhoven en Son en Breugel, die hij wel noemt en waarvoor nog geen pagina bestaat.",
+          "ernst": "laag"
+        }
+      ],
+      "overlapt_met": [1]
+    }
+  ],
+  "volgorde_klopt": false,
+  "betere_volgorde": [1, 5, 4, 2, 7, 3, 6, 8],
+  "waarom_volgorde": "De centrale faalangst- en autismepagina blijft terecht bovenaan. Direct daarna horen de twee dingen waarmee Pompert Feka kan verslaan in Eindhoven: een eigen pagina voor intake en proefles (dat is waar Feka nu op wint) en het faalangstexamen (dat maakt Pompert uniek). Best volgt als groeiplaats. Daarna komt de kleine aanpassing aan de prijzen. Helmond, Waalre en Geldrop horen achteraan omdat de eigenaar daar niet wil groeien. In het rapport staan Helmond en Waalre boven het onderscheidende faalangstexamen en boven de kennismaking in Eindhoven, en dat sluit niet aan bij het doel \"in Eindhoven de bekendste\".",
+  "ontbreekt": [
+    {
+      "pagina": "Rijles bij autisme en ADHD (op de bestaande menupagina /rijles-met-faalangst-autisme/ of als eigen pagina)",
+      "waarom": "Dit is het eerste groeidoel en het rapport noemt autisme geen enkele keer. Het rapport meldt ook niet dat de meting geen vragen over autisme stelde. Er zijn genoeg bewijzen: een extra training rond autisme, CBR magazine en reviews. Let op dat er geen medische uitspraken in mogen en het woord \"stoornis\" niet."
+    },
+    {
+      "pagina": "Informatie voor ouders en begeleiders",
+      "waarom": "Het doel over een jaar is \"aangeraden worden door begeleiders en ouders\". Ouders die meezoeken zijn een genoemde klantgroep. Het rapport heeft geen pagina en geen lezer die daarop is gericht."
+    },
+    {
+      "pagina": "Plaatspagina's voor Veldhoven en Son en Breugel",
+      "waarom": "De eigenaar noemt ze als plaatsen waar hij nog weinig zit. In de lijst met bekende pagina's staat geen van beide, terwijl er wel pagina's zijn voor Best, Geldrop, Helmond en Waalre. Het rapport adviseert pagina's voor plaatsen die hij niet noemde en slaat de plaatsen over die hij wel noemde."
+    },
+    {
+      "pagina": "Rijles in de automaat, gericht op faalangst en volwassenen",
+      "waarom": "Dit is een groeidoel. Het rapport noemt het zelf een structureel gat (\"alleen zijdelings op /prijzen-lespakketten\"), maar doet er geen aanbeveling voor. In het menu staat wel een automaatpagina; controleer of die bestaat en werk hem bij."
+    },
+    {
+      "pagina": "Opnieuw beginnen na zakken bij een andere rijschool",
+      "waarom": "Dit is een van de vaakst gehoorde bezwaren. Op de site staat al \"Ook wanneer je bent vastgelopen bij je vorige rijschool\" en er zijn sterke reviews over precies dit onderwerp (Tom, Florijne, Naomi Kortekaas). Het levert een pagina met veel bewijs op."
+    },
+    {
+      "pagina": "Volwassenen die het rijbewijs lang hebben uitgesteld (30 tot 50 jaar)",
+      "waarom": "Dit is een genoemde groeigroep waar het rapport niets voor doet. Deze groep overlapt vaak met rijangst en met de automaat."
+    },
+    {
+      "pagina": "Technisch onderhoud: kapotte opstappuntpagina en losse fotopagina's",
+      "waarom": "De menulink \"Opstappunt\" geeft \"Pagina niet gevonden\", terwijl ophalen thuis, op school of op het werk een verkooppunt is. Tientallen fotobijlagen (WhatsApp Image, Autorijschool_Pompert_Eindhoven_8 enzovoort) staan als losse pagina's online en vervuilen wat een assistent over de site leest. Het rapport ziet een van die bijlagen zelfs aan voor een echte pagina."
+    },
+    {
+      "pagina": "Herschrijven van de blog \"Sneller én goedkoper je rijbewijs\"",
+      "waarom": "Deze blog botst met wat de eigenaar juist niet wil (spoedcursussen) en met zijn verboden woorden (\"snel je rijbewijs\"). Hij ondermijnt de positionering waar de rest van het plan op bouwt."
+    },
+    {
+      "pagina": "Planning richting de drukte in januari",
+      "waarom": "De eigenaar noemt januari en september als drukke maanden. September is nu voorbij. Het rapport geeft geen tijdpad. Om in januari effect te hebben moeten de faalangst- en intakepagina's in oktober en november live staan."
+    }
+  ],
+  "klaar_voor_contentplan": "met_aanpassingen",
+  "belangrijkste_verbetering": "Bouw het plan rond één centrale pagina over rijles bij faalangst, autisme en ADHD op de bestaande menupagina, met de harde feiten van de eigenaar en een aparte pagina voor intake en proefles, en vervang de losse plaatsaanvullingen voor Helmond, Waalre en Geldrop door pagina's voor Veldhoven, Son en Breugel en voor ouders."
+}

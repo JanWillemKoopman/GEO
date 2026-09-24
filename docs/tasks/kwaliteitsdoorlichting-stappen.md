@@ -240,7 +240,7 @@ te klikken (**B25**, opgelost). Als consultant ziet dezelfde pagina nul clusters
 **Blinde poort.** Drie onafhankelijke lezers (Claude, blind voor de app) kregen per merk: wat de
 ondernemer wil (uit het waarheidsdossier), de eigen kopie van de site, de lijst pagina's die de app
 kende, de meetgegevens onder het rapport en het rapport zoals de klant het krijgt. Opdracht en
-oordelen staan in de kladmap (`doorlichting/poort13/`), niet in de repo.
+oordelen staan in `docs/tasks/kwaliteitsdoorlichting/poort13/`.
 
 | | A | B | C |
 |---|---|---|---|
@@ -345,7 +345,7 @@ briefingtaak (`content_brief`) die de vragen aan de klant opstelt.
 
 Antwoorden alleen uit het waarheidsdossier en de eigen site, kort, zonder opmaak; wat de ondernemer
 niet paraat heeft, overgeslagen. Verstuurd met de klantsessie via dezelfde route als het scherm
-(`PATCH /api/profiles/[id]/facts`). Antwoorden en log in de kladmap (`doorlichting/antwoorden/`).
+(`PATCH /api/profiles/[id]/facts`). Antwoorden in `docs/tasks/kwaliteitsdoorlichting/antwoorden/`.
 
 | | Beantwoord | Overgeslagen |
 |---|---|---|
@@ -402,8 +402,8 @@ en dat de keuring het bedrag van de klant afkeurde tegen een verouderde opzet (*
 - Drie volledige, verschillende teksten voor hetzelfde adres `/warmtepomp` (**B31**), en een tekst van
   1.050 woorden voor het adres van een fotobijlage bij de rijschool (**B28**).
 
-Teksten en opdrachten voor de blinde lezers staan in de kladmap (`doorlichting/teksten/`,
-`doorlichting/poort19/`).
+Teksten en opdrachten voor de blinde lezers staan in `docs/tasks/kwaliteitsdoorlichting/teksten/` en
+`docs/tasks/kwaliteitsdoorlichting/poort19/`.
 
 **Blinde poort.** Per merk één onafhankelijke lezer (Claude, blind voor de app), als copywriter en
 SEO-specialist, met: het waarheidsdossier (site plus gesprek), per tekst de nieuwe versie, en waar er

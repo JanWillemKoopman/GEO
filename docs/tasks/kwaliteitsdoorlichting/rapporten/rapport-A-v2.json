@@ -1,0 +1,236 @@
+{
+ "analysis_id": "2d4ce398-57d6-4f09-9ad3-faab83773870",
+ "summary": "Dit is de eerste meting, dus er is nog geen eerdere stand om mee te vergelijken. In ChatGPT werd Hans Verstraaten Hoveniers in ongeveer 15 van de 100 punten genoemd; de ruime onzekerheidsmarge van ±15 punten betekent dat dit een grove indicatie is, geen exact resultaat. De gewogen score is ongeveer 17/100. Er zijn 30 vragen onderzocht, samen 119 metingen. Google AI Overview noemde het bedrijf wel. Vooral bij vragen van mensen die in Best of Nuenen een complete tuin zoeken, is er ruimte om vaker genoemd te worden.",
+ "gaps_json": [
+  {
+   "cluster": "Complete tuin en bestrating in Helmond",
+   "problem": "Bij de vraag om een complete tuinvernieuwing in Helmond, inclusief bestrating en offerte, noemt ChatGPT Tuin en Buiten Hovenier en Thijssen Hoveniers, maar Hans Verstraaten Hoveniers niet. Bij de vraag naar een totaalpakket voor ontwerp, bestrating en aanleg worden Hoveniersbedrijf Martens, Bart Rovers Hoveniers, Thijssen Hoveniers en De Nooijer Hoveniers genoemd.",
+   "evidenceRunIds": [
+    "edd95baa-6551-43f4-902b-fb4588a318d7",
+    "c7fa5541-a742-45ad-b724-e8140eeef57a"
+   ]
+  },
+  {
+   "cluster": "Complete tuin en bestrating in Nuenen",
+   "problem": "Bij vragen over ontwerp en complete aanleg in Nuenen noemt ChatGPT onder meer Sparq Tuinen, Nuenhem Tuinen B.V., Tuintechnisch Bureau Smeulders, Bart Rovers Hoveniers, Hoveniersbedrijf Ton Bouman, Jos Kanters Hoveniers, Hoveniersbedrijf Setz en Wegro Tuinen. Hans Verstraaten Hoveniers wordt niet genoemd.",
+   "evidenceRunIds": [
+    "e4c6fbda-fdb3-4d3a-9883-14105744db1d",
+    "ba7948e4-c17a-4fd7-8db1-e17a30ea804d",
+    "eb61af48-2bb6-41f8-9d61-abe7657991dc",
+    "d5d80922-b185-406d-9a01-7f9b60bd1f86"
+   ]
+  },
+  {
+   "cluster": "Complete tuin, renovatie en bestrating in Best",
+   "problem": "Bij de vraag naar een complete tuin in Best met terras en bestrating noemt ChatGPT Stijlvol Groen Hoveniers en Hoveniersbedrijf Het Klaverblad David De Leeuw. Voor tuinrenovatie noemt het R. Kerkhofs Hovenier & Boomkwekerij; voor ontwerp en aanleg noemt het R. Kerkhofs en Stijlvol Groen Hoveniers.",
+   "evidenceRunIds": [
+    "115ebb11-7434-4bec-a1e7-c584c840d2b0",
+    "9da9b2c6-9823-4e45-bf8b-444ecc66391c",
+    "a3278b69-c8c0-4c5a-82d6-ea9db76fb01d"
+   ]
+  },
+  {
+   "cluster": "Kosten van een complete tuin in Best",
+   "problem": "Bij de vragen over kosten en offertes noemt ChatGPT Homedeal en Trustoo, en bij de prijsvraag ook Werkspot.nl en Stratenmakers-gigant.nl. Bij de vraag over offertes noemt het daarnaast R. Kerkhofs en Totaaltuin Brabant. Hans Verstraaten Hoveniers wordt niet genoemd.",
+   "evidenceRunIds": [
+    "843c0827-220a-4ce0-a1bb-ac6962b50be0",
+    "81dde336-4324-40f5-906a-3220fc31707f"
+   ]
+  },
+  {
+   "cluster": "Complete tuin met bestrating in Veldhoven",
+   "problem": "Bij de vraag wie in Veldhoven een betrouwbare hovenier is voor een complete tuin met bestrating noemt ChatGPT Make Hoveniers, Vado Tuinmeesters, Dirks Allround Tuinen en Hoveniersbedrijf van Laarhoven.",
+   "evidenceRunIds": [
+    "23f0af2b-84f4-43fd-8c50-3b485cbe0118"
+   ]
+  },
+  {
+   "cluster": "Onderhoudsarme tuin in Eindhoven",
+   "problem": "Bij de vraag naar een onderhoudsarme tuin met bestrating noemt ChatGPT Jan Abrahams Hoveniers, Hoveniersbedrijf Het Rullen en Hoevenaars Tuinen.",
+   "evidenceRunIds": [
+    "8c08f1cc-8a62-4a2b-a276-70be1b6cb18e"
+   ]
+  },
+  {
+   "cluster": "Kosten van een complete tuin in Eindhoven",
+   "problem": "Bij de vraag naar kosten en goed vergelijkbare offertes noemt ChatGPT Homedeal en Werkspot.nl. Hans Verstraaten Hoveniers wordt niet genoemd.",
+   "evidenceRunIds": [
+    "ea83945d-6b1c-4952-9461-af3ab9d2a156"
+   ]
+  },
+  {
+   "cluster": "Wachttijd en planning in Best",
+   "problem": "Bij de vraag naar wachttijd noemt ChatGPT R. Kerkhofs Hovenier & Boomkwekerij en Der Kinderen Hoveniers, maar zegt ook dat actuele wachttijden niet betrouwbaar openbaar te vinden zijn.",
+   "evidenceRunIds": [
+    "61ebe273-92fc-4f0b-932a-21ddfeababdd"
+   ]
+  }
+ ],
+ "recommendations_json": [
+  {
+   "why": "De bestaande pagina gaat al over het hoveniersbedrijf en complete tuinaanleg. Maak daarop duidelijk wat het bedrijf in een totaalproject verzorgt, hoe bestrating en ontwerp worden meegenomen, in welke plaatsen het werkt en hoe iemand een offerte aanvraagt. Plan deze verbetering ruim vóór februari, wanneer aanvragen pieken.",
+   "type": "landing",
+   "title": "Maak de bestaande hoofdpagina concreter over complete tuinen en bestrating",
+   "action": "verbeteren",
+   "targets": [
+    {
+     "text": "Ik wil mijn tuin in Helmond helemaal laten vernieuwen. Welke hovenier kan ook de bestrating verzorgen en een offerte maken?",
+     "runId": "edd95baa-6551-43f4-902b-fb4588a318d7",
+     "weight": 0.5,
+     "cluster": "Tuinrenovatie Helmond met bestrating",
+     "promptId": "f6ad0292-866d-4f42-8a26-9d4269880064"
+    },
+    {
+     "text": "Welke hoveniers in Helmond bieden een totaalpakket voor tuinontwerp, bestrating en de volledige aanleg van een nieuwe tuin?",
+     "runId": "c7fa5541-a742-45ad-b724-e8140eeef57a",
+     "weight": 0.3,
+     "cluster": "Totaalaanleg en ontwerp",
+     "promptId": "68f6be44-7a76-4e18-bd94-cbdef16c3fa2"
+    }
+   ],
+   "priority": 9,
+   "relatedUrl": null,
+   "existingUrl": "https://hansverstraatenhoveniers.nl",
+   "targetIntent": "Een huiseigenaar in Helmond die zijn tuin compleet wil vernieuwen en ontwerp, bestrating en aanleg bij één hovenier wil onderbrengen, en daarna wil beslissen wie hij om een offerte vraagt."
+  },
+  {
+   "why": "Bij verschillende vragen over complete aanleg, renovatie en ontwerp in Best wordt het bedrijf niet genoemd. Een eigen pagina voor Best kan uitleggen wat één totaalproject inhoudt en hoe iemand een vrijblijvende offerte aanvraagt. Neem ook heldere uitleg op over de factoren die de prijs bepalen. Werk hier vóór de aanvraagpiek van februari tot april aan.",
+   "type": "landing",
+   "title": "Maak een pagina voor complete tuinaanleg in Best",
+   "action": "nieuw",
+   "targets": [
+    {
+     "text": "Waar kan ik in Best een hovenier inschakelen voor een complete tuin met terras en bestrating?",
+     "runId": "115ebb11-7434-4bec-a1e7-c584c840d2b0",
+     "weight": 0.5,
+     "cluster": "Complete tuin Best met terras",
+     "promptId": "88c4fb13-0541-4f6e-9b90-9e622f773250"
+    },
+    {
+     "text": "Waar vind ik in Best een betrouwbare hovenier voor een complete tuinrenovatie met nieuwe bestrating?",
+     "runId": "9da9b2c6-9823-4e45-bf8b-444ecc66391c",
+     "weight": 0.3,
+     "cluster": "Tuinrenovatie",
+     "promptId": "2d1b4dd1-7094-4b40-9b5b-ca5320dee8a4"
+    },
+    {
+     "text": "Welke hoveniers in Best nemen zowel het tuinontwerp als de aanleg van bestrating en beplanting op zich?",
+     "runId": "a3278b69-c8c0-4c5a-82d6-ea9db76fb01d",
+     "weight": 0.3,
+     "cluster": "Ontwerp en aanleg Best",
+     "promptId": "b02472cd-6a3d-4979-91b6-104ed4c71ab5"
+    },
+    {
+     "text": "Wat kost het ongeveer om een complete tuin met bestrating te laten aanleggen door een hovenier in Best?",
+     "runId": "81dde336-4324-40f5-906a-3220fc31707f",
+     "weight": 0.3,
+     "cluster": "Prijs tuinaanleg Best",
+     "promptId": "d6eea6b7-1286-4c16-bcbc-6ada98149840"
+    },
+    {
+     "text": "Wat kost het ongeveer om in Best een complete tuin met nieuwe bestrating te laten aanleggen, en hoe vraag ik daarvoor offertes aan?",
+     "runId": "843c0827-220a-4ce0-a1bb-ac6962b50be0",
+     "weight": 0.3,
+     "cluster": "Kosten en offertes",
+     "promptId": "0e6221f6-8e3f-4d32-955b-12d16266370b"
+    }
+   ],
+   "priority": 10,
+   "relatedUrl": null,
+   "existingUrl": null,
+   "targetIntent": "Een inwoner van Best die zijn tuin wil vernieuwen of compleet laten aanleggen, inclusief terras en bestrating, en wil kiezen welke hovenier hij benadert."
+  },
+  {
+   "why": "Meerdere vragen over precies dit totaalpakket in Nuenen leveren geen vermelding op. Beschrijf op één pagina de aanpak van ontwerp tot bestrating en aanleg, met een duidelijke uitnodiging om de wensen te bespreken. Plan publicatie ruim vóór de drukke aanvraagmaanden.",
+   "type": "landing",
+   "title": "Maak een pagina voor complete tuinen in Nuenen",
+   "action": "nieuw",
+   "targets": [
+    {
+     "text": "Kan ik in Nuenen een hovenier boeken voor het ontwerp en de complete aanleg van mijn tuin, inclusief bestrating?",
+     "runId": "e4c6fbda-fdb3-4d3a-9883-14105744db1d",
+     "weight": 0.5,
+     "cluster": "Hovenier boeken Nuenen",
+     "promptId": "d7975480-983c-44d0-afd8-1a58e76e71df"
+    },
+    {
+     "text": "Hoe vind ik in Nuenen een hovenier die zowel het tuinontwerp als de bestrating en aanleg kan verzorgen?",
+     "runId": "ba7948e4-c17a-4fd7-8db1-e17a30ea804d",
+     "weight": 0.3,
+     "cluster": "Ontwerp en aanleg",
+     "promptId": "aaf982f1-55a4-4fd8-ba1c-644e2040341d"
+    },
+    {
+     "text": "Kan ik in Nuenen één hovenier inschakelen voor het ontwerp, de bestrating en de volledige aanleg van mijn tuin?",
+     "runId": "eb61af48-2bb6-41f8-9d61-abe7657991dc",
+     "weight": 0.3,
+     "cluster": "Totaalproject",
+     "promptId": "a7231674-c654-4d1d-bc38-4d13f1133aa7"
+    },
+    {
+     "text": "Welke hoveniers in Nuenen nemen complete tuinaanleg aan, van ontwerp tot bestrating?",
+     "runId": "d5d80922-b185-406d-9a01-7f9b60bd1f86",
+     "weight": 0.3,
+     "cluster": "Ontwerp en aanleg Nuenen",
+     "promptId": "a660862f-531d-41b7-9d3d-1ab40c6e5562"
+    }
+   ],
+   "priority": 10,
+   "relatedUrl": null,
+   "existingUrl": null,
+   "targetIntent": "Een inwoner van Nuenen die ontwerp, bestrating en de volledige aanleg van zijn tuin bij één partij wil regelen, en wil beslissen welke hovenier om een offerte te vragen."
+  },
+  {
+   "why": "De bestaande hoofdpagina is de passende plek om de dienstverlening en werkregio uit te leggen. Voeg, zodra de bedragen en werkwijze zijn bevestigd, duidelijke informatie toe over prijsbepalende factoren en welke gegevens nodig zijn om een offerte goed te vergelijken. Dat maakt de pagina nuttiger voor mensen die kosten onderzoeken.",
+   "type": "landing",
+   "title": "Leg op de bestaande pagina uit welke plaatsen en projecten het bedrijf bedient",
+   "action": "verbeteren",
+   "targets": [
+    {
+     "text": "Wat kost het ongeveer om in Eindhoven een complete tuin met nieuwe bestrating te laten ontwerpen en aanleggen, en welke offertes zijn goed vergelijkbaar?",
+     "runId": "ea83945d-6b1c-4952-9461-af3ab9d2a156",
+     "weight": 0.3,
+     "cluster": "Kosten en offertes Eindhoven",
+     "promptId": "02d7e6a2-b1d2-4f9b-b666-5251fd56184b"
+    }
+   ],
+   "priority": 7,
+   "relatedUrl": null,
+   "existingUrl": "https://hansverstraatenhoveniers.nl",
+   "targetIntent": "Een huiseigenaar in Eindhoven die een complete tuin met nieuwe bestrating wil laten ontwerpen en aanleggen, en wil beslissen of hij een offerte aanvraagt."
+  },
+  {
+   "why": "De vraag over een onderhoudsarme tuin wordt niet door het bedrijf beantwoord in ChatGPT. Een praktische pagina kan uitleggen welke keuzes in bestrating en beplanting het onderhoud beperken en hoe die keuzes in een compleet tuinplan passen. Publiceer dit bij voorkeur in de winter, wanneer er vooral aan ontwerp en bestrating wordt gewerkt.",
+   "type": "article",
+   "title": "Maak een pagina voor onderhoudsarme tuinen met bestrating",
+   "action": "nieuw",
+   "targets": [
+    {
+     "text": "Welke hovenier in Eindhoven kan een complete tuin aanleggen met bestrating die past bij een onderhoudsarme tuin?",
+     "runId": "8c08f1cc-8a62-4a2b-a276-70be1b6cb18e",
+     "weight": 0.3,
+     "cluster": "Onderhoudsarme tuinaanleg en bestrating",
+     "promptId": "efed98a7-25b1-49f4-b7a5-f40794407af6"
+    }
+   ],
+   "priority": 6,
+   "relatedUrl": null,
+   "existingUrl": null,
+   "targetIntent": "Een inwoner van Eindhoven die minder tijd aan tuinonderhoud wil besteden maar wel een complete tuin met bestrating zoekt, en wil bepalen welke inrichting bij zijn wensen past."
+  }
+ ],
+ "declined_json": [
+  {
+   "reason": "Nog geen aanbeveling: zonder concrete, actuele informatie van het bedrijf over wachttijd of planning kan een pagina hierover geen betrouwbaar antwoord geven. Vraag eerst naar die feiten.",
+   "cluster": "Wachttijd en planning in Best",
+   "problem": "De gemeten vraag over actuele wachttijd en het vergelijken van planningen leverde geen betrouwbare openbare wachttijden op; het antwoord noemt alleen dat informatie hierover niet beschikbaar is."
+  }
+ ],
+ "rapport_invoer": "Eigen merk: Hans Verstraaten Hoveniers (Complete tuin laten aanleggen met bestrating)\nEigen zichtbaarheidsscore: 15/100 (elke vraag telt gelijk), GEWOGEN naar volumeband × koopwaarde: 17/100 (2% van de vermeldingen, over 102 bevestigde merken)\nBETROUWBAARHEID: de score rust op 30 metingen; de 95%-marge is ±15 punten. Presenteer de score dus als een ORDE VAN GROOTTE, niet als een exact cijfer, en trek geen conclusies uit verschillen die binnen die marge vallen.\nBRONNEN: de score hierboven gaat alleen over ChatGPT. In Google AI Overview werd het merk WEL genoemd. Schrijf dus nooit dat het merk nergens, bij geen enkele vraag of in geen enkel AI-antwoord genoemd werd; zeg dan \"in ChatGPT\".\nAANTAL ONDERZOCHTE VRAGEN: 30. Noem dit getal als je in de samenvatting zegt hoeveel vragen er onderzocht zijn, en verzin er geen ander. Die zijn samen 119 keer gemeten, want de zwaarstwegende vragen worden herhaald.\n\nDit is de EERSTE meting (periode 0); er is nog niets om mee te vergelijken. Beschrijf de stand.\n\nBEWIJSDOSSIER: de vragen waarop het eigen merk NIET genoemd werd, gesorteerd op gewicht (hoog gewicht = populair en of koopklaar). Per vraag staat hieronder precies welke bedrijven er in DAT antwoord voorkwamen.\n\n⚠️ HARDE REGEL: noem een concurrent alleen bij naam in verband met een specifieke vraag als die naam hieronder ONDER DIE VRAAG staat. Staat er dat er geen enkel bedrijf genoemd werd, dan is dát je conclusie. Haal er geen concurrent bij uit een andere vraag.\n\nV1 [gewicht 0.50, Beslissing, transactional, cluster: Tuinrenovatie Helmond met bestrating] \"Ik wil mijn tuin in Helmond helemaal laten vernieuwen. Welke hovenier kan ook de bestrating verzorgen en een offerte maken?\"\n  Genoemd in dit antwoord:\n  - Tuin en Buiten Hovenier (concurrent, positie 1; bronnen: https://tuinenbuitenhovenier.nl/hovenier-helmond/)\n  - Thijssen Hoveniers (concurrent, positie 2; bronnen: https://www.thijssenhoveniers.nl/)\n  Antwoord (begin): \"Ja. Voor een **complete tuinvernieuwing inclusief bestrating** zou ik deze partijen in Helmond/regio benaderen:\n\n1. **Tuin en Buiten Hovenier** – doet tuinrenovatie en complete tuinaanleg, inclusief bestrating, grondwerk, beplanting en puinafvoer. Op de site kun je een **gratis en vrijblijvende offerte** aanvragen.…\"\n\nV2 [gewicht 0.50, Beslissing, transactional, cluster: Hovenier boeken Nuenen] \"Kan ik in Nuenen een hovenier boeken voor het ontwerp en de complete aanleg van mijn tuin, inclusief bestrating?\"\n  Genoemd in dit antwoord:\n  - Sparq Tuinen (concurrent, positie 1; bronnen: http://www.sparqtuinen.nl/)\n  - Nuenhem Tuinen B.V. (concurrent, positie 3)\n  - Tuintechnisch Bureau Smeulders (concurrent, positie 4)\n  Antwoord (begin): \"`Ja, in Nuenen zijn verschillende gespecialiseerde hoveniers te boeken die zowel het tuinontwerp, de complete aanleg als de bestrating voor hun rekening…\"\n\nV3 [gewicht 0.50, Beslissing, transactional, cluster: Complete tuin Best met terras] \"Waar kan ik in Best een hovenier inschakelen voor een complete tuin met terras en bestrating?\"\n  Genoemd in dit antwoord:\n  - Stijlvol Groen Hoveniers (concurrent, positie 1; bronnen: https://stijlvolgroenhoveniers.nl/, https://www.google.com/searchviewer/10?svid=CAwSHRIbCgNwdnESFENnMHZaeTh4TVdOc2FISnFjbkF3GAo)\n  - Hoveniersbedrijf Het Klaverblad David De Leeuw (concurrent, positie 2; bronnen: https://www.google.com/searchviewer/10?svid=CAwSHRIbCgNwdnESFENnMHZaeTh4TVdOc2FISnFjbkF3GAo)\n  Antwoord (begin): \"Je kunt in Best terecht bij [Stijlvol Groen Hoveniers](https://stijlvolgroenhoveniers.nl/) en Hoveniersbedrijf Het Klaverblad David De Leeuw voor de complete aanleg van je tuin inclusief terras en…\"\n\nV4 [gewicht 0.30, Oriëntatie, commercial, cluster: Kosten en offertes] \"Wat kost het ongeveer om in Best een complete tuin met nieuwe bestrating te laten aanleggen, en hoe vraag ik daarvoor offertes aan?\"\n  Genoemd in dit antwoord:\n  - Homedeal (vergelijker, positie 1; bronnen: https://www.homedeal.nl/tuinaanleg/tuinaanleg-prijzen/?utm_source=openai)\n  - Trustoo (vergelijker, positie 3)\n  - R. Kerkhofs (concurrent, positie 4; bronnen: https://www.kerkhofs-best.nl/?utm_source=openai)\n  - Totaaltuin Brabant (concurrent, positie 5; bronnen: https://www.kerkhofs-best.nl/?utm_source=openai)\n  Antwoord (begin): \"In Best is er geen vast lokaal tarief; de prijs hangt vooral af van het aantal vierkante meters, de gekozen tegels en hoeveel grondwerk nodig is. Als **globale richtprijs voor 2026** kun je rekenen op:\n\n- **Alleen nieuwe bestrating:** ongeveer **€40–€130 per m²**, afhankelijk van materiaal, ondergrond en arbeid.  \n-…\"\n\nV5 [gewicht 0.30, Oriëntatie, commercial, cluster: Tuinrenovatie] \"Waar vind ik in Best een betrouwbare hovenier voor een complete tuinrenovatie met nieuwe bestrating?\"\n  Genoemd in dit antwoord:\n  - R. Kerkhofs Hovenier & Boomkwekerij (concurrent, positie 1; bronnen: https://www.kerkhofs-best.nl/, https://hovenier.website/best/r-kerkhofs-hovenier-boomkwekerij/)\n  - hovenier.website (vergelijker, positie 3; bronnen: https://hovenier.website/best/r-kerkhofs-hovenier-boomkwekerij/)\n  - VHG (brancheorganisatie, positie 4; bronnen: https://www.vhg.nl/je-tuin-of-terrein-aanpassen)\n  Antwoord (begin): \"Ik zou beginnen bij **R. Kerkhofs Hovenier & Boomkwekerij**: die zit in Best en doet naar eigen zeggen ontwerp, tuinaanleg, bestrating en beplanting—handig als je de renovatie liefst bij één partij neerlegt. Je kunt bellen naar **06 17 85 06 28**.…\"\n\nV6 [gewicht 0.30, Overweging, commercial, cluster: Ontwerp en aanleg Best] \"Welke hoveniers in Best nemen zowel het tuinontwerp als de aanleg van bestrating en beplanting op zich?\"\n  Genoemd in dit antwoord:\n  - R. Kerkhofs Hovenier & Boomkwekerij (concurrent, positie 1; bronnen: https://www.kerkhofs-best.nl/tuinen-aanleggen/)\n  - Stijlvol Groen Hoveniers (concurrent, positie 3; bronnen: https://stijlvolgroenhoveniers.nl/?x=98108795874&utm_source=openai)\n  Antwoord (begin): \"In Best vond ik deze hoveniers die tuinontwerp en aanleg combineren, inclusief bestrating en beplanting:\n\n- **R. Kerkhofs Hovenier & Boomkwekerij** — gevestigd in Best. Maakt tuinontwerpen met beplantingsplan en verzorgt onder meer terrassen, borders, beplanting en bestrating. Tel. **06 17850628**.…\"\n\nV7 [gewicht 0.30, Overweging, commercial, cluster: Beschikbaarheid Best] \"Hoe lang is de wachttijd bij hoveniers in Best voor een complete tuinaanleg met bestrating, en hoe vergelijk ik hun planning?\"\n  Genoemd in dit antwoord:\n  - Vaktuinaanleg.nl (vergelijker, positie 1; bronnen: https://vaktuinaanleg.nl/blog/hoe-lang-duurt-tuinaanleg/)\n  - R. Kerkhofs Hovenier & Boomkwekerij (concurrent, positie 2; bronnen: https://www.kerkhofs-best.nl/)\n  - Der Kinderen Hoveniers (concurrent, positie 3; bronnen: https://www.kerkhofs-best.nl/)\n  Antwoord (begin): \"**Een betrouwbare actuele wachttijd voor hoveniers in Best is niet openbaar te vinden.** Bedrijven publiceren meestal geen actuele agenda, dus ik kan niet onderbouwen of je bijvoorbeeld weken of maanden moet wachten. Vraag daarom naar de **eerst mogelijke startdatum** én hoe lang de uitvoering zelf duurt: dat zijn…\"\n\nV8 [gewicht 0.30, Overweging, commercial, cluster: Totaalaanleg en ontwerp] \"Welke hoveniers in Helmond bieden een totaalpakket voor tuinontwerp, bestrating en de volledige aanleg van een nieuwe tuin?\"\n  Genoemd in dit antwoord:\n  - Hoveniersbedrijf Martens (concurrent, positie 1; bronnen: https://www.hoveniersbedrijfmartens.nl/)\n  - Bart Rovers Hoveniers (concurrent, positie 3; bronnen: https://rovershoveniers.nl/hovenier-helmond/)\n  - Thijssen Hoveniers (concurrent, positie 4; bronnen: https://www.thijssenhoveniers.nl/)\n  - De Nooijer Hoveniers (concurrent, positie 5; bronnen: https://www.hovenier.nl/helmond/de-nooijer-hoveniers)\n  Antwoord (begin): \"Deze bedrijven in Helmond en omgeving vermelden zowel **tuinontwerp, bestrating als complete tuinaanleg**:\n\n- **Hoveniersbedrijf Martens** – ontwerpt en legt tuinen aan in de regio Helmond. Het pakket omvat onder meer ontwerp met beplantingsplan, grondwerk, bestrating, gazon en beplanting. Er is volgens het bedrijf…\"\n\nV9 [gewicht 0.30, Beslissing, commercial, cluster: Prijs tuinaanleg Best] \"Wat kost het ongeveer om een complete tuin met bestrating te laten aanleggen door een hovenier in Best?\"\n  Genoemd in dit antwoord:\n  - Homedeal (vergelijker, positie 1; bronnen: https://www.homedeal.nl/tuinaanleg/tuinaanleg-prijzen/)\n  - Werkspot.nl (vergelijker, positie 2; bronnen: https://www.werkspot.nl/tuinieren-buiten/prijzen-kosten/tuinaanleg, https://www.werkspot.nl/tuinieren-buiten/prijzen-kosten/bestrating-aanleggen)\n  - Trustoo (vergelijker, positie 3; bronnen: https://trustoo.nl/noord-brabant/best/hovenier/)\n  - Stratenmakers-gigant.nl (concurrent, positie 4; bronnen: https://www.stratenmakers-gigant.nl/bestraten-prijs/)\n  Antwoord (begin): \"Het laten aanleggen van een complete tuin met bestrating door een hovenier in Best kost gemiddeld tussen de **€ 50 en € 300 per m²** , wat voor een complete tuin neerkomt op een totaalbedrag van **€ 1.500 tot € 25.000**.[[1]](https://www.homedeal.nl/tuinaanleg/tuinaanleg-prijzen/)\n\n### Kostenopbouw per onderdeel\n\n-…\"\n\nV10 [gewicht 0.30, Oriëntatie, commercial, cluster: Ontwerp en aanleg] \"Hoe vind ik in Nuenen een hovenier die zowel het tuinontwerp als de bestrating en aanleg kan verzorgen?\"\n  Genoemd in dit antwoord:\n  - Bobex (vergelijker, positie 1; bronnen: https://www.bobex.nl/nl-nl/hoveniers-tuinonderhoud/noord-brabant/nuenen/#:~:text=Ben%20je%20op%20zoek%20naar,onderhoud., https://www.bobex.nl/nl-nl/hoveniers-tuinonderhoud/noord-brabant/nuenen/)\n  - Werkspot.nl (vergelijker, positie 2; bronnen: https://www.werkspot.nl/tuinieren-buiten/hovenier-vakmannen/nuenen)\n  - Het Rullen Hoveniers (concurrent, positie 3; bronnen: https://hetrullen.nl/)\n  - Jos Kanters Hoveniers (concurrent, positie 4; bronnen: https://www.jkgv.nl/tuinman-nuenen/)\n  - Rovers Hoveniers (concurrent, positie 5; bronnen: https://rovershoveniers.nl/hovenier-nuenen/)\n  - VHG (Vereniging Hoveniers en Groenvoorzieners) (brancheorganisatie, positie 6)\n  Antwoord (begin): \"Een totaalaannemer voor tuinontwerp, bestrating en aanleg in Nuenen vind je door [lokaal te zoeken naar allround hoveniersbedrijven of via…\"\n\nV11 [gewicht 0.30, Oriëntatie, commercial, cluster: Onderhoudsarme tuinaanleg en bestrating] \"Welke hovenier in Eindhoven kan een complete tuin aanleggen met bestrating die past bij een onderhoudsarme tuin?\"\n  Genoemd in dit antwoord:\n  - Jan Abrahams Hoveniers (concurrent, positie 1; bronnen: https://www.janabrahams.nl/hovenier/hovenier-eindhoven/)\n  - Hoveniersbedrijf Het Rullen (concurrent, positie 2; bronnen: https://hetrullen.nl/hovenier-eindhoven/)\n  - Hoevenaars Tuinen (concurrent, positie 3; bronnen: https://www.hoevenaars-tuinen.nl/hovenier-in-de-regio-geldrop-en-eindhoven/)\n  - Homedeal (vergelijker, positie 4; bronnen: https://www.homedeal.nl/tuinaanleg/tuinaanleg-prijzen/)\n  - Bobex (vergelijker, positie 5; bronnen: https://www.bobex.be/nl-be/tuinonderhoud-hoveniers/)\n  - Hovenier Gigant (vergelijker, positie 6; bronnen: https://www.hovenier-gigant.nl/)\n  Antwoord (begin): \"In Eindhoven kun je voor de complete aanleg van een onderhoudsarme tuin met bijpassende bestrating terecht bij gespecialiseerde hoveniers zoals [Jan Abrahams Hoveniers](https://www.janabrahams.nl/hovenier/hovenier-eindhoven/) en [Hoveniersbedrijf Het Rullen](https://hetrullen.nl/hovenier-eindhoven/).\n\n### Hoveniers in…\"\n\nV12 [gewicht 0.30, Oriëntatie, commercial, cluster: Totaalproject] \"Kan ik in Nuenen één hovenier inschakelen voor het ontwerp, de bestrating en de volledige aanleg van mijn tuin?\"\n  Genoemd in dit antwoord:\n  - Bart Rovers Hoveniers (concurrent, positie 1; bronnen: https://rovershoveniers.nl/hovenier-nuenen/)\n  - Hoveniersbedrijf Ton Bouman (concurrent, positie 2; bronnen: https://www.hovenier.nl/nuenen/hoveniersbedrijf-ton-bouman)\n  - Jos Kanters Hoveniers (concurrent, positie 3; bronnen: https://www.jkgv.nl/tuinaanleg-nuenen/)\n  Antwoord (begin): \"`Ja, in Nuenen kun je zeker één hovenier inschakelen voor het volledige pakket van ontwerp, bestrating en aanleg` . Veel lokale hoveniersbedrijven bieden een totaalservice aan van A tot Z.[[1]](https://rovershoveniers.nl/hovenier-nuenen/)[[2]](https://www.hovenier.nl/nuenen/hoveniersbedrijf-ton-bouman)\n\n###…\"\n\nV13 [gewicht 0.30, Beslissing, commercial, cluster: Hovenier Veldhoven complete tuin] \"Ik zoek een betrouwbare hovenier in Veldhoven voor een complete tuin met bestrating. Wie kan ik daarvoor benaderen?\"\n  Genoemd in dit antwoord:\n  - Make Hoveniers (concurrent, positie 1; bronnen: https://www.google.com/searchviewer/10?svid=CAwSHRIbCgNwdnESFENnMHZaeTh4TVhacU1XWXhaemR4GAo, https://www.google.com/searchviewer/10?svid=CAwSHRIbCgNwdnESFENnMHZaeTh4TVhSemNUVmlNamxtGAo)\n  - Vado Tuinmeesters (concurrent, positie 2; bronnen: https://www.google.com/searchviewer/10?svid=CAwSHRIbCgNwdnESFENnMHZaeTh4TVhGdWF6aG1iR0prGAo)\n  - Dirks Allround Tuinen (concurrent, positie 3; bronnen: https://www.google.com/searchviewer/10?svid=CAwSHRIbCgNwdnESFENnMHZaeTh4TVhSemNUVmlNamxtGAo)\n  - Hoveniersbedrijf van Laarhoven (concurrent, positie 4; bronnen: https://www.google.com/searchviewer/10?svid=CAwSHRIbCgNwdnESFENnMHZaeTh4TVhSemNUVmlNamxtGAo)\n  Antwoord (begin): \"Voor een complete tuin en bestrating in de regio Veldhoven kunt u terecht bij `een aantal lokaal goed beoordeelde hoveniers`:\n\n- [Make Hoveniers](http://www.makehoveniers.nl/) (Sabelmarter 8, Veldhoven) – Bekend om het ontwerpen, aanleggen en onderhouden van complete tuinen met een hoge klantwaardering…\"\n\nV14 [gewicht 0.30, Overweging, commercial, cluster: Kosten en offertes Eindhoven] \"Wat kost het ongeveer om in Eindhoven een complete tuin met nieuwe bestrating te laten ontwerpen en aanleggen, en welke offertes zijn goed vergelijkbaar?\"\n  Genoemd in dit antwoord:\n  - Homedeal (vergelijker, positie 1; bronnen: https://www.homedeal.nl/tuinaanleg/tuinaanleg-prijzen/, https://www.homedeal.nl/bestraten/bestraten-prijzen/)\n  - Werkspot.nl (vergelijker, positie 2; bronnen: https://www.werkspot.nl/tuinieren-buiten/prijzen-kosten/tuinaanleg)\n  Antwoord (begin): \"De kosten voor een complete tuin met bestrating ontwerpen en aanleggen in Eindhoven liggen gemiddeld tussen de **€ 50 en € 250 per m²** , wat voor een complete tuin neerkomt op een totaalbedrag van **€ 1.500 tot € 25.000**.[[1]](https://www.homedeal.nl/tuinaanleg/tuinaanleg-prijzen/)\n\n### Kostenoverzicht\n\n-…\"\n\nV15 [gewicht 0.30, Beslissing, commercial, cluster: Ontwerp en aanleg Nuenen] \"Welke hoveniers in Nuenen nemen complete tuinaanleg aan, van ontwerp tot bestrating?\"\n  Genoemd in dit antwoord:\n  - Hoveniersbedrijf Ton Bouman (concurrent, positie 1; bronnen: https://www.hovenier.nl/nuenen/hoveniersbedrijf-ton-bouman)\n  - Hovenier.nl (vergelijker, positie 2; bronnen: https://www.hovenier.nl/nuenen/hoveniersbedrijf-ton-bouman)\n  - Sparq Tuinen (concurrent, positie 3; bronnen: https://sparqtuinen.nl/contact/)\n  - Hoveniersbedrijf Setz (concurrent, positie 4; bronnen: https://www.vakbladdehovenier.nl/article/52020/chris-setz-rijdt-met-zijn-nieuwe-minigraver-desnoods-door-een-woning-heen)\n  - Wegro Tuinen (concurrent, positie 6; bronnen: https://www.wegro-tuinen.nl/)\n  - Tuintechnisch Bureau Smeulders (concurrent, positie 7; bronnen: https://www.ttbsmeulders.nl/)\n  Antwoord (begin): \"Deze hoveniers lijken het best aan te sluiten op **complete tuinaanleg in Nuenen, van ontwerp tot bestrating**:\n\n- **Hoveniersbedrijf Ton Bouman** — ontwerpt en realiseert complete tuinen en noemt ook sierbestrating voor bijvoorbeeld terrassen, opritten en tuinpaden.…\"\n\nConcurrentie-gap-analyse (JSON):\n{\n  \"gaps\": [\n    {\n      \"competitor\": \"Tuin en Buiten Hovenier; Thijssen Hoveniers\",\n      \"cluster\": \"Tuinrenovatie Helmond met bestrating\",\n      \"evidence\": \"Bij de hooggewogen beslissingsvraag over een complete tuinvernieuwing in Helmond inclusief bestrating en offerte worden deze twee bedrijven genoemd; Hans Verstraaten Hoveniers ontbreekt in het ChatGPT-antwoord.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://tuinenbuitenhovenier.nl/hovenier-helmond/\",\n        \"https://www.thijssenhoveniers.nl/\"\n      ]\n    },\n    {\n      \"competitor\": \"Sparq Tuinen; Nuenhem Tuinen B.V.; Tuintechnisch Bureau Smeulders\",\n      \"cluster\": \"Hovenier boeken Nuenen\",\n      \"evidence\": \"Bij de hooggewogen beslissingsvraag over ontwerp en complete tuinaanleg inclusief bestrating in Nuenen worden deze bedrijven genoemd; Hans Verstraaten Hoveniers ontbreekt in het ChatGPT-antwoord.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"http://www.sparqtuinen.nl/\"\n      ]\n    },\n    {\n      \"competitor\": \"Stijlvol Groen Hoveniers; Hoveniersbedrijf Het Klaverblad David De Leeuw\",\n      \"cluster\": \"Complete tuin Best met terras\",\n      \"evidence\": \"Bij de hooggewogen beslissingsvraag over een complete tuin met terras en bestrating in Best worden deze bedrijven genoemd; Hans Verstraaten Hoveniers ontbreekt in het ChatGPT-antwoord.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://stijlvolgroenhoveniers.nl/\",\n        \"https://www.google.com/searchviewer/10?svid=CAwSHRIbCgNwdnESFENnMHZaeTh4TVdOc2FISnFjbkF3GAo\"\n      ]\n    },\n    {\n      \"competitor\": \"R. Kerkhofs Hovenier & Boomkwekerij; Stijlvol Groen Hoveniers\",\n      \"cluster\": \"Ontwerp en aanleg Best\",\n      \"evidence\": \"Bij de vraag welke hoveniers in Best zowel ontwerp als aanleg van bestrating en beplanting doen, worden deze twee bedrijven genoemd; Hans Verstraaten Hoveniers ontbreekt in het ChatGPT-antwoord.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.kerkhofs-best.nl/tuinen-aanleggen/\",\n        \"https://stijlvolgroenhoveniers.nl/?x=98108795874&utm_source=openai\"\n      ]\n    },\n    {\n      \"competitor\": \"Hoveniersbedrijf Martens; Bart Rovers Hoveniers; Thijssen Hoveniers; De Nooijer Hoveniers\",\n      \"cluster\": \"Totaalaanleg en ontwerp Helmond\",\n      \"evidence\": \"Bij de vraag naar een totaalpakket in Helmond voor tuinontwerp, bestrating en volledige tuinaanleg worden deze bedrijven genoemd; Hans Verstraaten Hoveniers ontbreekt in het ChatGPT-antwoord.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.hoveniersbedrijfmartens.nl/\",\n        \"https://rovershoveniers.nl/hovenier-helmond/\",\n        \"https://www.thijssenhoveniers.nl/\",\n        \"https://www.hovenier.nl/helmond/de-nooijer-hoveniers\"\n      ]\n    },\n    {\n      \"competitor\": \"Hoveniersbedrijf Ton Bouman; Sparq Tuinen; Hoveniersbedrijf Setz; Wegro Tuinen; Tuintechnisch Bureau Smeulders\",\n      \"cluster\": \"Ontwerp en aanleg Nuenen\",\n      \"evidence\": \"Bij de beslissingsvraag welke hoveniers in Nuenen complete tuinaanleg van ontwerp tot bestrating aannemen, worden deze bedrijven genoemd; Hans Verstraaten Hoveniers ontbreekt in het ChatGPT-antwoord.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.hovenier.nl/nuenen/hoveniersbedrijf-ton-bouman\",\n        \"https://sparqtuinen.nl/contact/\",\n        \"https://www.vakbladdehovenier.nl/article/52020/chris-setz-rijdt-met-zijn-nieuwe-minigraver-desnoods-door-een-woning-heen\",\n        \"https://www.wegro-tuinen.nl/\",\n        \"https://www.ttbsmeulders.nl/\"\n      ]\n    },\n    {\n      \"competitor\": \"R. Kerkhofs Hovenier & Boomkwekerij\",\n      \"cluster\": \"Tuinrenovatie Best\",\n      \"evidence\": \"Bij de vraag naar een betrouwbare hovenier in Best voor complete tuinrenovatie met nieuwe bestrating wordt R. Kerkhofs genoemd; Hans Verstraaten Hoveniers ontbreekt in het ChatGPT-antwoord.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.kerkhofs-best.nl/\",\n        \"https://hovenier.website/best/r-kerkhofs-hovenier-boomkwekerij/\"\n      ]\n    },\n    {\n      \"competitor\": \"R. Kerkhofs Hovenier & Boomkwekerij; Der Kinderen Hoveniers\",\n      \"cluster\": \"Beschikbaarheid Best\",\n      \"evidence\": \"Bij de vraag over wachttijd en het vergelijken van planningen in Best worden deze hoveniers genoemd. Het antwoord stelt tegelijk dat er geen betrouwbare actuele wachttijd openbaar te vinden is; Hans Verstraaten Hoveniers ontbreekt.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.kerkhofs-best.nl/\"\n      ]\n    },\n    {\n      \"competitor\": \"Bart Rovers Hoveniers; Hoveniersbedrijf Ton Bouman; Jos Kanters Hoveniers\",\n      \"cluster\": \"Totaalproject Nuenen\",\n      \"evidence\": \"Bij de vraag of één hovenier in Nuenen ontwerp, bestrating en volledige aanleg kan verzorgen, worden deze bedrijven genoemd; Hans Verstraaten Hoveniers ontbreekt in het ChatGPT-antwoord.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://rovershoveniers.nl/hovenier-nuenen/\",\n        \"https://www.hovenier.nl/nuenen/hoveniersbedrijf-ton-bouman\",\n        \"https://www.jkgv.nl/tuinaanleg-nuenen/\"\n      ]\n    },\n    {\n      \"competitor\": \"Make Hoveniers; Vado Tuinmeesters; Dirks Allround Tuinen; Hoveniersbedrijf van Laarhoven\",\n      \"cluster\": \"Hovenier Veldhoven complete tuin\",\n      \"evidence\": \"Bij de beslissingsvraag naar een betrouwbare hovenier in Veldhoven voor een complete tuin met bestrating worden deze bedrijven genoemd; Hans Verstraaten Hoveniers ontbreekt in het ChatGPT-antwoord.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.google.com/searchviewer/10?svid=CAwSHRIbCgNwdnESFENnMHZaeTh4TVhacU1XWXhaemR4GAo\",\n        \"https://www.google.com/searchviewer/10?svid=CAwSHRIbCgNwdnESFENnMHZaeTh4TVhGdWF6aG1iR0prGAo\",\n        \"https://www.google.com/searchviewer/10?svid=CAwSHRIbCgNwdnESFENnMHZaeTh4TVhSemNUVmlNamxtGAo\"\n      ]\n    },\n    {\n      \"competitor\": \"Homedeal; Werkspot.nl; Trustoo; Stratenmakers-gigant.nl\",\n      \"cluster\": \"Prijs tuinaanleg Best\",\n      \"evidence\": \"Bij de hooggewogen beslissingsvraag over de prijs van een complete tuin met bestrating in Best worden deze partijen genoemd. De eerste drie zijn vergelijkers; Stratenmakers-gigant.nl is de genoemde concurrent. Hans Verstraaten Hoveniers ontbreekt in het ChatGPT-antwoord.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.homedeal.nl/tuinaanleg/tuinaanleg-prijzen/\",\n        \"https://www.werkspot.nl/tuinieren-buiten/prijzen-kosten/tuinaanleg\",\n        \"https://trustoo.nl/noord-brabant/best/hovenier/\",\n        \"https://www.stratenmakers-gigant.nl/bestraten-prijs/\"\n      ]\n    },\n    {\n      \"competitor\": \"Homedeal; Trustoo; R. Kerkhofs; Totaaltuin Brabant\",\n      \"cluster\": \"Kosten en offertes\",\n      \"evidence\": \"Bij de vraag naar kosten en offertes voor een complete tuin met nieuwe bestrating in Best worden deze partijen genoemd; de eerste twee zijn vergelijkers. Hans Verstraaten Hoveniers ontbreekt in het ChatGPT-antwoord.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.homedeal.nl/tuinaanleg/tuinaanleg-prijzen/?utm_source=openai\",\n        \"https://www.kerkhofs-best.nl/?utm_source=openai\"\n      ]\n    },\n    {\n      \"competitor\": \"Bobex; Werkspot.nl; Het Rullen Hoveniers; Jos Kanters Hoveniers; Rovers Hoveniers\",\n      \"cluster\": \"Ontwerp en aanleg Nuenen\",\n      \"evidence\": \"Bij de oriëntatievraag hoe je in Nuenen een hovenier vindt voor ontwerp, bestrating en aanleg worden deze partijen genoemd; Bobex en Werkspot.nl zijn vergelijkers. Hans Verstraaten Hoveniers ontbreekt in het ChatGPT-antwoord.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.bobex.nl/nl-nl/hoveniers-tuinonderhoud/noord-brabant/nuenen/#:~:text=Ben%20je%20op%20zoek%20naar,onderhoud.\",\n        \"https://www.bobex.nl/nl-nl/hoveniers-tuinonderhoud/noord-brabant/nuenen/\",\n        \"https://www.werkspot.nl/tuinieren-buiten/hovenier-vakmannen/nuenen\",\n        \"https://hetrullen.nl/\",\n        \"https://www.jkgv.nl/tuinman-nuenen/\",\n        \"https://rovershoveniers.nl/hovenier-nuenen/\"\n      ]\n    },\n    {\n      \"competitor\": \"Jan Abrahams Hoveniers; Hoveniersbedrijf Het Rullen; Hoevenaars Tuinen\",\n      \"cluster\": \"Onderhoudsarme tuinaanleg en bestrating\",\n      \"evidence\": \"Bij de oriëntatievraag naar een hovenier in Eindhoven voor een complete tuin met bestrating passend bij weinig onderhoud worden deze bedrijven genoemd; Hans Verstraaten Hoveniers ontbreekt in het ChatGPT-antwoord.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.janabrahams.nl/hovenier/hovenier-eindhoven/\",\n        \"https://hetrullen.nl/hovenier-eindhoven/\",\n        \"https://www.hoevenaars-tuinen.nl/hovenier-in-de-regio-geldrop-en-eindhoven/\"\n      ]\n    },\n    {\n      \"competitor\": \"Homedeal; Werkspot.nl\",\n      \"cluster\": \"Kosten en offertes Eindhoven\",\n      \"evidence\": \"Bij de vraag naar kosten en vergelijkbare offertes voor ontwerp en aanleg van een complete tuin met nieuwe bestrating in Eindhoven worden deze vergelijkers genoemd; Hans Verstraaten Hoveniers ontbreekt in het ChatGPT-antwoord.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.homedeal.nl/tuinaanleg/tuinaanleg-prijzen/\",\n        \"https://www.homedeal.nl/bestraten/bestraten-prijzen/\",\n        \"https://www.werkspot.nl/tuinieren-buiten/prijzen-kosten/tuinaanleg\"\n      ]\n    }\n  ],\n  \"strengths\": [\n    {\n      \"cluster\": \"Complete tuinaanleg en bestrating\",\n      \"evidence\": \"De aangeleverde websitebeschrijving vermeldt complete tuinaanleg en bestrating in Eindhoven en omgeving, afstemming op wensen en budget en een vrijblijvende offerte. De bestratingsinformatie noemt onder meer looppaden, terrassen, opritten, materialen, legpatronen en voorbereiding van de ondergrond. Dit vormt inhoudelijke basis voor de beschreven vraagclusters.\"\n    },\n    {\n      \"cluster\": \"Zichtbaarheid buiten ChatGPT\",\n      \"evidence\": \"Volgens de aangeleverde meetinformatie werd Hans Verstraaten Hoveniers wel genoemd in Google AI Overview. De ChatGPT-score van ongeveer 15/100 is gebaseerd op 30 metingen met een marge van ±15 punten; behandel deze daarom als orde van grootte, niet als exact cijfer.\"\n    }\n  ]\n}\n\nBestaande pagina's op de website van de klant (voor de nieuw/verbeteren-beslissing):\n- https://hansverstraatenhoveniers.nl · \"Uw hovenier in Eindhoven | Hans Verstraaten Hoveniers\"\n\n\nSTRUCTURELE GATEN IN DE SITE: dit komt uit het aanbod van de klant zelf, niet uit de meting. Een dienst zonder eigen pagina kan door een assistent niet genoemd worden, ook al is er nooit een vraag over gesteld. Weeg deze mee in je aanbevelingen:\n- Tuinaanleg (dienst): alleen zijdelings op /\n- Tuinrenovatie (dienst): alleen zijdelings op /\n- Kleine veranderingen in de tuin (dienst): alleen zijdelings op /\n- Tuinontwerp (categorie): alleen zijdelings op /\n- Tuinontwerp (dienst): alleen zijdelings op /\n- Tuinbestrating (dienst): alleen zijdelings op /\n- Beregeningssystemen (dienst): alleen zijdelings op /\n- Tuinverlichting (dienst): alleen zijdelings op /\n- Bouwkundige werken (dienst): alleen zijdelings op /\n- Aanleg van golf putting greens (dienst): alleen zijdelings op /\n- Kunstgras (dienst): alleen zijdelings op /\n- Aanleg van vijvers (dienst): alleen zijdelings op /\n(en nog 5 andere)\n\n\n\nHET DOEL OVER TWAALF MAANDEN: meer aanvragen voor complete tuinen in best en nuenen, en de zwemvijver als tweede poot\nPIEKEN EN DALEN IN HET JAAR: aanvragen pieken van februari tot april. uitvoering vooral april tot oktober. in de winter vooral bestrating en ontwerp. Zet werk dat op een piek mikt ruim vóór die piek in de planning.\n\nSchrijf op basis hiervan een kort, jargonvrij rapport. Noem in elk gap-item expliciet welke concurrent het betreft. PRIORITEER de aanbevelingen op de zwaarwegende gemiste vragen hierboven (hoog gewicht = populair en of koopklaar). Geef 5 tot 8 concrete, geprioriteerde aanbevelingen, genoeg om de zwaarste gemiste vragen te dekken, niet zoveel dat het een boodschappenlijst wordt. Koppel elke aanbeveling aan de vraagcodes (V1, V2, …) die hij moet winnen. Schrijf de toelichting bij een aanbeveling in gewone taal: NOOIT een vraagcode (V1, V2) en NOOIT een gewicht in de lopende tekst. Beschrijf de vraag in woorden, dus niet \"V5 heeft gewicht 0,50\" maar \"wie in Breda een occasion zoekt\". In `targetIntent` beschrijf je de LEZER van die pagina in één zin, in deze vorm: welk type persoon het is, welk probleem die persoon heeft, en welke beslissing hij daarna moet nemen. Dus niet \"Daklekkage Apeldoorn\" of \"informatie over dakisolatie\", maar \"iemand met water door zijn plafond die vandaag hulp zoekt en wil weten wat een reparatie kost\". Een onderwerp is geen lezer. Laat dit veld nooit leeg en schrijf er nooit \"onbekend\" in: kun je de lezer niet benoemen, doe dan geen aanbeveling.",
+ "paginas": [
+  {
+   "url": "https://hansverstraatenhoveniers.nl",
+   "titel": "Uw hovenier in Eindhoven | Hans Verstraaten Hoveniers"
+  }
+ ]
+}
