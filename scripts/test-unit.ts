@@ -25503,3 +25503,23 @@ group("Het rapport zegt niet 'nergens genoemd' als Google het merk wel noemde (2
   ok("het rapport gebruikt het vangnet", bron.includes("vulBronnenAan("));
   ok("en geeft de regel mee", bron.includes("bronnenRegel("));
 });
+
+group("Rapport na de herhaling op echte data: drie restfouten (24 september 2026)", () => {
+  const echt =
+    "In ChatGPT is Pompert niet genoemd. Ook bij de gewogen score is Pompert niet genoemd. Dit zegt alleen iets over ChatGPT: in Google AI Overview werd Pompert wél genoemd.";
+  ok("het model noemde Google al: geen tweede zin", !vulBronnenAan(echt, ["Google AI Overview"]).aangevuld);
+  const vsb = stripUnsupportedClaims("In dat antwoord stonden Broers en Verwarming Service Brabant.", {
+    knownNames: ["Verwarming Service Brabant", "Verwarming Service Brabant (VSB)", "Broers"],
+    allowedNames: ["Broers", "Verwarming Service Brabant (VSB)"],
+    where: "test",
+  });
+  eq("de korte naam telt als de lange met haakjes", vsb.stripped.length === 0 ? "blijft" : "weg", "blijft");
+  const ander = stripUnsupportedClaims("In dat antwoord stond Kemkens.", {
+    knownNames: ["Kemkens"],
+    allowedNames: ["Kemkens Eindhoven (KE)"],
+    where: "test",
+  });
+  eq("maar een andere naam blijft verboden", ander.stripped.length === 1 ? "weg" : "blijft", "weg");
+  const bron = leesBestand("lib/pipeline/evidence.ts");
+  ok("een eigen product telt niet als concurrentnaam", bron.includes('if (e.entity_role === "eigen_product") continue;'));
+});

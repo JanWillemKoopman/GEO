@@ -120,12 +120,17 @@ export function stripUnsupportedClaims(
   const { knownNames, allowedNames, where } = args;
   if (!text.trim() || knownNames.length === 0) return { text, stripped: [] };
 
-  const allowedLower = new Set(allowedNames.map((n) => n.trim().toLowerCase()));
+  // Zonder de toevoeging tussen haakjes vergelijken: het register had op 24
+  // september 2026 zowel "Verwarming Service Brabant" als "Verwarming Service
+  // Brabant (VSB)", en een juiste zin met de korte naam ging eruit omdat het
+  // bewijs de lange had.
+  const kern = (n: string) => n.replace(/\s*\([^)]*\)\s*$/, "").trim().toLowerCase();
+  const allowedLower = new Set(allowedNames.flatMap((n) => [n.trim().toLowerCase(), kern(n)]));
   const stripped: StrippedClaim[] = [];
 
   const kept = splitSentences(text).filter((sentence) => {
     const unsupported = namesIn(sentence, knownNames).filter(
-      (n) => !allowedLower.has(n.trim().toLowerCase()),
+      (n) => !allowedLower.has(n.trim().toLowerCase()) && !allowedLower.has(kern(n)),
     );
     if (unsupported.length === 0) return true;
 
