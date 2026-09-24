@@ -415,6 +415,19 @@ async function main(): Promise<void> {
       [profileId],
     );
 
+    // Punt 51 van de kwaliteitsdoorlichting: een plantaak wijst naar de
+    // huidige versie, en moet na een nieuwe versie meeverhuizen.
+    const { rows: voorVersie } = await db.client.query(
+      `select id from public.content_pieces where analysis_id = $1 and is_current = true`,
+      [analysisId],
+    );
+    const plantaakId = randomUUID();
+    await db.client.query(
+      `insert into public.planned_pages (id, profile_id, title, content_piece_id)
+       values ($1, $2, 'Plantaak voor de versietest', $3)`,
+      [plantaakId, profileId, voorVersie[0]?.id],
+    );
+
     await draftContentPiece({
       analysisId,
       userId,
@@ -422,6 +435,18 @@ async function main(): Promise<void> {
       recommendation: aanbeveling,
       regenerate: true,
     });
+
+    const { rows: naVersie } = await db.client.query(
+      `select pp.content_piece_id, cp.is_current, cp.version
+         from public.planned_pages pp join public.content_pieces cp on cp.id = pp.content_piece_id
+        where pp.id = $1`,
+      [plantaakId],
+    );
+    ok(
+      "punt 51: de plantaak wijst na een nieuwe versie naar die nieuwe versie",
+      naVersie[0]?.is_current === true && naVersie[0]?.content_piece_id !== voorVersie[0]?.id,
+      JSON.stringify(naVersie[0] ?? null),
+    );
 
     const opnieuw = await db.client.query(
       `select briefing_snapshot_json from public.content_pieces

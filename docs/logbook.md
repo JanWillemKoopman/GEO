@@ -12161,3 +12161,6 @@ losstaand kastlijntje een komma. (3) De bibliotheek zegt bij een tegengehouden p
 "wordt nu geschreven": het opgeslagen oordeel over de onderbouwing gaat nu mee naar de status. (4)
 Het planscherm zegt "wacht op vrijgave door je consultant" in plaats van "wacht op jouw vrijgave".
 Punt 26, 34, 37 en 44 in `docs/tasks/bevindingen-kwaliteitsdoorlichting.md`.
+Nagekomen dezelfde dag: een nieuwe versie van een pagina liet de plantaak naar de oude versie wijzen,
+waardoor de bibliotheek elke herschreven pagina twee keer toonde. `persistDraft()` verhuist de
+plantaak nu mee (punt 51).
