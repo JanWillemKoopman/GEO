@@ -28,6 +28,8 @@
  * Puur en zonder `server-only` (conventie 2).
  */
 import type { PlannedPageStatus } from "@/lib/types/database";
+import { inputpoort } from "@/lib/content-input-gate";
+import { poortGraad } from "@/lib/pipeline/evidence-weight";
 import { schrijfpoort } from "@/lib/content-write-gate";
 import type { InputStand, WriteMode } from "@/lib/content-input-gate";
 
@@ -389,4 +391,35 @@ export function standVolgorde(s: PaginaStand): number {
   if (s.aanZet === "orbit_engine") return 2;
   if (s.sleutel === "gepland" || s.sleutel === "wacht_op_datum" || s.sleutel === "niet_ingepland") return 3;
   return 4;
+}
+
+/**
+ * Het oordeel van de schrijfpoort over de onderbouwing, uit de cijfers die bij
+ * de pagina zijn opgeslagen (`input_coverage`, `weighted_evidence_coverage`,
+ * `critical_evidence_coverage`). Dezelfde regel als `beoordeelPagina()`:
+ * `poortGraad()` en dan `inputpoort()`.
+ *
+ * ⚠️ Waarom dit bestaat (kwaliteitsdoorlichting, punt 44, 24 september 2026):
+ * de bibliotheek riep `paginaStand()` aan zonder dit oordeel. Een pagina die de
+ * poort had tegengehouden (33 procent onderbouwd) stond daardoor voor de klant
+ * als "Alle gegevens bekend, wordt nu geschreven", terwijl er niets gebeurde en
+ * de klant juist moest kiezen. `null` zolang er nog geen oordeel is.
+ */
+export function inputStandUitOpslag(rij: {
+  input_coverage?: number | string | null;
+  weighted_evidence_coverage?: number | string | null;
+  critical_evidence_coverage?: number | string | null;
+  write_mode?: string | null;
+}): InputStand | null {
+  const getal = (w: number | string | null | undefined) =>
+    w === null || w === undefined || w === "" || !Number.isFinite(Number(w)) ? null : Number(w);
+  const graad = getal(rij.input_coverage);
+  if (graad === null) return null;
+  const gewogen = getal(rij.weighted_evidence_coverage);
+  const kritiek = getal(rij.critical_evidence_coverage);
+  return inputpoort({
+    graad: poortGraad({ graad, gewogen, kritiek } as never),
+    ongedekteSecties: 0,
+    writeMode: rij.write_mode === "algemeen" ? "algemeen" : null,
+  }).stand;
 }

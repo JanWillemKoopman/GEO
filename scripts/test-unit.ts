@@ -938,6 +938,8 @@ import {
   discontinuedNames,
 } from "@/lib/pipeline/context-factors";
 import { moetNaarProofPoints } from "@/lib/proof-point-regel";
+import { pasSchrijfregelsToe } from "@/lib/schrijfregel-vangnet";
+import { inputStandUitOpslag } from "@/lib/pagina-stand";
 import { bronnenDieWelNoemden, bronnenRegel, correctQuestionCount, kortSamengevat, questionCountLine, vulBronnenAan } from "@/lib/pipeline/report-summary";
 import {
   PACKAGE_SIZES,
@@ -12369,7 +12371,9 @@ group("een klant ziet nooit twee merken tegelijk", () => {
   ok("de werklader kent geen 'over alle merken heen' meer", !werk.includes("loadWorkAcross"));
   ok(
     "en het merk gaat mee de database in",
-    /\.eq\("user_id", userId\)\.eq\("profile_id", profileId\)/.test(werk),
+    // Sinds 24 september 2026 op merk alleen (punt 26 van de
+    // kwaliteitsdoorlichting); de database bepaalt wie het mag zien.
+    /from\("analyses"\)\.select\("\*"\)\.eq\("profile_id", profileId\)/.test(werk),
   );
 
   const dash = zonderUitleg(readFileSync("lib/dashboard.ts", "utf8"));
@@ -25601,4 +25605,36 @@ group("Het paginaplan krijgt alleen beweringen van die pagina (24 september 2026
   ok("niet meer via de ruime vraagkoppeling", !bron.includes("plan: audit.parsed.claims.filter((c) => paginaVanClaim(c.neededFor).includes(pieceId))"));
   const helper = bron.slice(bron.indexOf("const claimHoortBijPagina"), bron.indexOf("const claimHoortBijPagina") + 400);
   ok("sectieverwijzing eerst, dan de doelvraag", helper.includes("sectieVanClaim") && helper.includes("treffersVoor(c.neededFor)"));
+});
+
+group("De consultant en de accountleden zien de clusters van een merk (24 september 2026)", () => {
+  const work = leesBestand("lib/work.ts").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const q = work.slice(work.indexOf("export async function loadBrandWork("), work.indexOf("const analyses = (data ?? []) as Analysis[];"));
+  ok("de clusterlijst filtert op het merk", q.includes('.eq("profile_id", profileId)'));
+  ok("en niet meer op wie hem aanmaakte", !q.includes('.eq("user_id"'));
+  const pagina = leesBestand("app/(app)/merk/[id]/strategie/clusters/page.tsx");
+  ok("de prullenbak ook niet", !pagina.includes('.eq("user_id", user.id)'));
+  ok("en de lijst gebruikt de client met de sessie", pagina.includes("const supabase = await createClient();") && pagina.includes("loadDashboard(supabase,"));
+});
+
+
+group("Vragen aan de klant volgen de schrijfregels (24 september 2026)", () => {
+  eq("de echte vraag van de rijschool", pasSchrijfregelsToe("Voor welke begeleidingsvragen hebben instructeurs ervaring: faalangst, ADHD en" + "/of autisme?"), "Voor welke begeleidingsvragen hebben instructeurs ervaring: faalangst, ADHD of autisme?");
+  eq("ook met spaties en hoofdletter", pasSchrijfregelsToe("Prijs En / Of levertijd"), "Prijs of levertijd");
+  eq("een kastlijntje met spaties wordt een komma", pasSchrijfregelsToe("De intake \u2014 een uur \u2014 kost 50 euro"), "De intake, een uur, kost 50 euro");
+  eq("een bereik blijft staan", pasSchrijfregelsToe("5\u20138 lessen"), "5\u20138 lessen");
+  eq("gewone tekst ongemoeid", pasSchrijfregelsToe("Werk je ook in Nuenen?"), "Werk je ook in Nuenen?");
+  ok("de voorbereiding gebruikt het vangnet", leesBestand("lib/pipeline/briefing.ts").includes("question: pasSchrijfregelsToe(vraag.question)"));
+  ok("het rapport ook", leesBestand("lib/pipeline/report.ts").includes("question: pasSchrijfregelsToe(r.question.trim())"));
+});
+
+
+group("Een tegengehouden pagina zegt niet dat hij geschreven wordt (24 september 2026)", () => {
+  // De echte cijfers van de pagina die de app tegenhield: 33,3 / 35,7 / 50.
+  eq("de tegengehouden pagina", String(inputStandUitOpslag({ input_coverage: "33.30", weighted_evidence_coverage: "35.70", critical_evidence_coverage: "50.00" })), "tegenhouden");
+  eq("een goed onderbouwde pagina", String(inputStandUitOpslag({ input_coverage: 100, weighted_evidence_coverage: 100, critical_evidence_coverage: 100 })), "schrijven");
+  eq("de klant koos voor algemeen", String(inputStandUitOpslag({ input_coverage: 20, write_mode: "algemeen" })), "schrijven");
+  eq("nog geen oordeel", String(inputStandUitOpslag({ input_coverage: null })), "null");
+  ok("de bibliotheek geeft het oordeel mee", leesBestand("lib/pagina-data.ts").includes("inputStand: i.tekst ? inputStandUitOpslag(i.tekst as never) : null"));
+  ok("en de maandregel zegt wie vrijgeeft", leesBestand("lib/plan-read.ts").includes("wacht op vrijgave door je consultant"));
 });

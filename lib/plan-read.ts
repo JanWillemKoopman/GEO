@@ -105,7 +105,10 @@ export function planStap(input: StapInput): string {
     return "Er staat voor deze maand nog niets ingepland. Vul hem bij Plannen, of laat je consultant meekijken.";
   }
   if (input.maandStatus !== "goedgekeurd") {
-    return "Deze maand wacht op jouw vrijgave. Daarna begint ORBIT ENGINE te schrijven.";
+    // Niet "jouw vrijgave": vrijgeven doet de consultant (`plan_goedkeuren`
+    // in `lib/cost-rules.ts`), en in hetzelfde blok staat dat ook. Twee
+    // tegenstrijdige zinnen in één oogopslag (kwaliteitsdoorlichting, punt 34).
+    return "Deze maand wacht op vrijgave door je consultant. Laat weten of je akkoord bent, daarna begint ORBIT ENGINE te schrijven.";
   }
   return "Je hoeft nu niets. ORBIT ENGINE schrijft door en legt elke tekst aan je voor.";
 }

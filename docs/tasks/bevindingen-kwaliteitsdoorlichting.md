@@ -52,7 +52,7 @@
 | 23 | laag | Hetzelfde bedrijf staat twee keer in het namenregister, met en zonder "(VSB)" | open, gevolg opgevangen |
 | 24 | laag | De rapportinstructie zegt niet of prioriteit 1 de belangrijkste is; de hovenier kreeg 6 tot 10 met de belangrijkste pagina's op 10 | open |
 | 25 | middel | Een klaar cluster (status "gereed") heeft geen link op zijn kaart | ✅ opgelost, PR #113 |
-| 26 | **hoog** | De consultant ziet de clusters van een klantmerk niet en krijgt "Start het eerste cluster" | open |
+| 26 | **hoog** | De consultant ziet de clusters van een klantmerk niet en krijgt "Start het eerste cluster" | ✅ opgelost, PR volgt |
 | 27 | **hoog** | Het rapport kent de groeidoelen en feiten uit het gesprek niet | open |
 | 28 | **hoog** | De site-inventaris mist de hoofdpagina uit het menu en bevat fotobijlagen; het rapport adviseert een fotopagina te verbeteren | open |
 | 29 | middel | Het planscherm zegt de klant "stel je het plan zelf op", maar alleen de consultant mag het | ✅ opgelost, PR #114 |
@@ -60,17 +60,17 @@
 | 31 | **hoog** | Het plan zet vier verbeteringen van dezelfde pagina in dezelfde week | open |
 | 32 | **hoog** | "Opnieuw opzetten" van het plan faalt als alle kansen al in het huidige plan staan, en laat ze anders achter | open |
 | 33 | middel | Een plan dat laat in de maand start, vraagt de klant zijn vragen te beantwoorden vóór een datum in het verleden | open |
-| 34 | laag | De klant leest "wacht op jouw vrijgave" en in hetzelfde blok dat de consultant goedkeurt | open |
+| 34 | laag | De klant leest "wacht op jouw vrijgave" en in hetzelfde blok dat de consultant goedkeurt | ✅ opgelost, PR volgt |
 | 35 | **hoog** | Vragen die het gesprek al beantwoordde, blijven openstaan voor de klant | open |
 | 36 | middel | Elk rapport zet zijn eigen vragen klaar; alleen letterlijk gelijke vragen worden samengevoegd | open |
-| 37 | laag | Een vraag aan de klant bevat "en" en "of" met een schuine streep ertussen | open |
+| 37 | laag | Een vraag aan de klant bevat "en" en "of" met een schuine streep ertussen | ✅ opgelost, PR volgt |
 | 38 | middel | Het laatste antwoord van een pagina laat de klant 9 tot 30 seconden wachten | open |
-| 39 | **hoog** | Een beantwoorde vraag maakt de bewering erachter nooit "onderbouwd": de keuring blijft "beantwoord deze vraag" zeggen | ✅ opgelost, PR volgt |
-| 40 | **hoog** | De keuring van een pagina blokkeert op beweringen van andere pagina's van hetzelfde merk | ✅ opgelost, PR volgt |
-| 41 | middel | Antwoorden van de klant op paginavragen worden opgeslagen als feit van de site | ✅ opgelost, PR volgt |
+| 39 | **hoog** | Een beantwoorde vraag maakt de bewering erachter nooit "onderbouwd": de keuring blijft "beantwoord deze vraag" zeggen | ✅ opgelost, PR #115 |
+| 40 | **hoog** | De keuring van een pagina blokkeert op beweringen van andere pagina's van hetzelfde merk | ✅ opgelost, PR #115 |
+| 41 | middel | Antwoorden van de klant op paginavragen worden opgeslagen als feit van de site | ✅ opgelost, PR #115 |
 | 42 | **hoog** | De klant krijgt "Tekst is klaar, keur hem goed" bij een tekst die de eigen keuring tegenhoudt | open |
 | 43 | middel | De keuring noemt het bedrag van de klant "in strijd met de instructie", omdat de opzet van vóór zijn antwoord is | open |
-| 44 | laag | Een tegengehouden pagina staat voor de klant als "Alle gegevens bekend, wordt nu geschreven" | open |
+| 44 | laag | Een tegengehouden pagina staat voor de klant als "Alle gegevens bekend, wordt nu geschreven" | ✅ opgelost, PR volgt |
 | 45 | **hoog** | Een "verbetering" vervangt de functie van de bestaande pagina (homepage wordt Helmond, prijzenpagina wordt losse les bij faalangst) | open |
 | 46 | **hoog** | De tekst draait een belofte van de site om: "binnen 4 uur een scherpe offerte" wordt "geen termijn voor de offerte" | open |
 | 47 | **hoog** | Het sterkste bewijs van de klant staat in geen enkele tekst, hoewel het op de feitenkaart staat | open |
@@ -390,6 +390,10 @@ niet opgelost:** het raakt aan wie wat mag zien. De veilige richting is filteren
 toegang aan de database laten (die staat dat al goed toe), maar dat verdient een eigen controle
 van alle plekken die `loadBrandWork()` gebruiken (`app/(app)/merk/[id]/page.tsx` en de
 clusterpagina).
+
+**Opgelost (24 september 2026).** `loadBrandWork()` en de prullenbak filteren alleen nog op het merk.
+Wie wat mag zien bepaalt de database al (`analyses_select_own`, `_account`, `_staff`); het extra
+filter verborg de clusters ook voor een collega die als lid in het account zit.
 
 ## 27. Het rapport kent de groeidoelen en feiten uit het gesprek niet
 

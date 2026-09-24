@@ -28,6 +28,7 @@ import "server-only";
  * Eén AI-aanroep per BATCH (mini, geen web_search): ongeveer $0,002, ongeacht
  * hoeveel pagina's de klant koos.
  */
+import { pasSchrijfregelsToe } from "@/lib/schrijfregel-vangnet";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
@@ -710,8 +711,10 @@ export async function runBriefing(args: {
     const { error } = await admin.from("fact_requests").insert({
       profile_id: profileId,
       analysis_id: vraag.scope === "merk" ? null : analysisId,
-      question: vraag.question,
-      reason: vraag.reason,
+      // Het vangnet onder de schrijfregels (punt 37): deze tekst gaat
+      // rechtstreeks naar de klant.
+      question: pasSchrijfregelsToe(vraag.question),
+      reason: vraag.reason ? pasSchrijfregelsToe(vraag.reason) : vraag.reason,
       status: "open",
       scope: vraag.scope,
       content_piece_ids: vraag.contentPieceIds,
