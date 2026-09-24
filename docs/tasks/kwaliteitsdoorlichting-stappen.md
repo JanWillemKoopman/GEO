@@ -272,9 +272,52 @@ naast elkaar niet begrijpt.
 
 ---
 
+## Stap 14. Contentplan (consultant, `/merk/[id]/strategie/plan`, geen AI)
+
+**Voorwaarde: een pakket.** Zonder pakket staat er "Er is nog geen pakket gekozen". Het pakket zet de
+consultant op `/merk/[id]/admin/toewijzen` onder "Verkoopafspraak": 10 pagina's per maand gekozen.
+Het hangt aan het klantaccount, dus geldt voor alle drie de merken samen.
+
+**Als klant geprobeerd.** Het scherm zei "stel je het plan zelf op" en de knop werkte, maar de server
+weigerde (403) omdat alleen de consultant het plan opstelt (**B29**, opgelost in PR #114). Daarna als
+consultant opgesteld, met een opmerking bij A ("vanaf februari word het druk met aanvragen, en de
+zwemvijver willen we meer gaan doen") en C ("veel leerlingen met autisme of adhd, ouders bellen vaak
+zelf"), bij B leeg. Beide opmerkingen komen letterlijk uit het waarheidsdossier.
+
+| | A hovenier | B installateur | C rijschool |
+|---|---|---|---|
+| Pagina's in maand 1 (pakket 10) | 5 | 5 | 8 |
+| Nieuw / verbeteren | 3 / 2 | 0 / 5 | 0 / 8 |
+| Gepland op | 25 tot 28 september | 25 tot 28 september | 25 tot 28 september |
+| Zelfde bestaande pagina meer dan eens | homepage 2x | `/warmtepomp` 4x | nee |
+
+**Bevindingen:**
+- De volgorde komt uit de meting (gewicht en potentie), niet uit het getal van het model. Bij A staan
+  Best en Nuenen daardoor terecht bovenaan (**B24** heeft hier geen gevolg).
+- De zwaarste gemiste vraag van B kreeg potentie 0 en kwam achteraan (**B30**, opgelost in PR #114).
+  Opnieuw opzetten om dat na te rekenen lukte niet (**B32**, open).
+- Vier verbeteringen van dezelfde pagina in dezelfde week (**B31**, open). De klant ziet in zijn
+  overzicht geen adres per regel, dus merkt niet dat het om één pagina gaat.
+- De fotobijlagepagina van C staat in het plan als "Leg uit hoe Pompert helpt bij voorbereiding op een
+  faalangstexamen" (gevolg van **B28**).
+
+## Stap 15. Maand vrijgeven (consultant)
+
+De klant ziet "Deze maand wacht op jouw vrijgave" en in hetzelfde blok "Deze maand goedkeuren doet je
+consultant bij Outer Orbit samen met jou". Klein, maar tegenstrijdig in één oogopslag. Als consultant
+vrijgegeven: 5, 5 en 8 pagina's voorbereid, geen pagina zonder onderwerp.
+
+Het venster zegt: "Beantwoord ze graag vóór 13 september om op schema te blijven." Het is 24
+september. De eerste pagina staat op 25 september en de app rekent tien dagen schrijftijd plus twee
+dagen voor de vragen; een plan dat op de 24e van de maand start, heeft zijn deadline dus al gehad.
+**Richting:** een plan dat laat in de maand start, plant zijn eerste pagina's minstens twaalf dagen
+vooruit, of het venster noemt dan geen datum in het verleden.
+
+---
+
 ## Nog te doen in deze doorloop
 
-- Stap 14 tot en met 18: contentplan, onderzoek per pagina, inhoudsopgave, vragen aan de klant,
+- Stap 16 tot en met 18: contentplan, onderzoek per pagina, inhoudsopgave, vragen aan de klant,
   antwoorden uit het waarheidsdossier (ideale en realistische klant).
 - Stap 19 tot en met 23: schrijfopdracht, eerste versie, keuring door de app, reparatierondes,
   goedkeuren; de vier blinde lezers en de blinde vergelijking met de huidige pagina en de beste

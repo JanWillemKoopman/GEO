@@ -53,9 +53,12 @@
 | 26 | **hoog** | De consultant ziet de clusters van een klantmerk niet en krijgt "Start het eerste cluster" | open |
 | 27 | **hoog** | Het rapport kent de groeidoelen en feiten uit het gesprek niet | open |
 | 28 | **hoog** | De site-inventaris mist de hoofdpagina uit het menu en bevat fotobijlagen; het rapport adviseert een fotopagina te verbeteren | open |
-| 29 | middel | Het planscherm zegt de klant "stel je het plan zelf op", maar alleen de consultant mag het | ✅ opgelost, PR volgt |
-| 30 | **hoog** | Het plan gaf de zwaarste gemiste vraag potentie 0 en zette die pagina achteraan | ✅ opgelost, PR volgt |
+| 29 | middel | Het planscherm zegt de klant "stel je het plan zelf op", maar alleen de consultant mag het | ✅ opgelost, PR #114 |
+| 30 | **hoog** | Het plan gaf de zwaarste gemiste vraag potentie 0 en zette die pagina achteraan | ✅ opgelost, PR #114 (nog niet op een nieuw plan nagerekend, zie 32) |
 | 31 | **hoog** | Het plan zet vier verbeteringen van dezelfde pagina in dezelfde week | open |
+| 32 | **hoog** | "Opnieuw opzetten" van het plan faalt als alle kansen al in het huidige plan staan, en laat ze anders achter | open |
+| 33 | middel | Een plan dat laat in de maand start, vraagt de klant zijn vragen te beantwoorden vóór een datum in het verleden | open |
+| 34 | laag | De klant leest "wacht op jouw vrijgave" en in hetzelfde blok dat de consultant goedkeurt | open |
 | 22 | **hoog** | Het rapport zegt "niet genoemd, 0 op 100" terwijl Google het merk wel noemde | ✅ opgelost, PR #111 en #112 |
 
 ---
@@ -430,6 +433,37 @@ homepage op dezelfde dag. De drie blinde lezers van stap 13 raadden alle drie ap
 vraag aan. **Richting:** `mergeOverlappingRecommendations()` voegt adviezen al samen; dezelfde
 `existingUrl` hoort daar als samenvoegreden bij, of het rapport moet bij een tweede advies voor
 dezelfde pagina een nieuwe pagina voorstellen.
+
+## 32. "Opnieuw opzetten" faalt, of laat de kansen van het oude plan achter
+
+**Gezien.** Na de reparatie van punt 30 wilde ik het plan van de hovenier opnieuw opzetten om de
+nieuwe volgorde na te rekenen. Het venster belooft "Je krijgt twaalf verse maanden terug, meteen
+gevuld met de sterkste kansen uit je voorraad". De server antwoordde 422: "Er zijn nog geen gemeten
+kansen om in te plannen." Het oude plan bleef ongewijzigd staan (geen schade).
+
+**Oorzaak.** `createPlan()` (`lib/plans.ts`) telt als voorraad alleen `planned_pages` zonder maand
+(`plan_month_id is null`). De vijf kansen van de hovenier stonden al in maand 1 van het huidige plan
+en tellen dus niet. Bij een nieuwe klant staat alles in het eerste plan, dus faalt opnieuw opzetten
+altijd. Is er wel losse voorraad, dan lukt het, maar de kansen in de niet vrijgegeven maanden van het
+oude plan blijven daar hangen: `syncBacklog()` maakt ze niet opnieuw aan omdat ze al bestaan.
+
+**Richting.** Bij opnieuw opzetten de pagina's uit de nog niet vrijgegeven maanden van het oude plan,
+zonder tekst, terugzetten in de voorraad (maand en datum leeg) voordat de voorraad geteld wordt. Het
+oude plan houdt dan zijn maanden maar niet die pagina's; het venster moet dat dan ook zo zeggen.
+
+## 33. Een deadline in het verleden
+
+Het vrijgeefvenster zei op 24 september: "Beantwoord ze graag vóór 13 september om op schema te
+blijven." Het plan zette de eerste pagina op 25 september; met tien dagen schrijftijd en twee dagen
+voor de vragen lag de deadline elf dagen terug. Details in stap 15 van
+`docs/tasks/kwaliteitsdoorlichting-stappen.md`.
+
+## 34. "Wacht op jouw vrijgave" terwijl de consultant vrijgeeft
+
+Op het planscherm van de klant staat bovenaan "Deze maand wacht op jouw vrijgave. Daarna begint ORBIT
+ENGINE te schrijven." en onderaan hetzelfde blok "Deze maand goedkeuren doet je consultant bij Outer
+Orbit samen met jou." Beter: "Deze maand wacht op vrijgave door je consultant. Laat weten of je
+akkoord bent."
 
 ---
 
