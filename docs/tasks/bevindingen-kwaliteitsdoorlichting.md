@@ -19,7 +19,8 @@
 > zit, en een voorstel. Is een punt opgelost: de regel "Status" bijwerken met de datum en de PR, en
 > een alinea in `docs/logbook.md`.
 >
-> **Doorlopend bijgewerkt** zolang de doorloop loopt. Stand: meting van de drie clusters loopt. Het
+> **Doorlopend bijgewerkt** zolang de doorloop loopt. Stand 24 september 2026: alle stappen tot en met
+> het schrijven doorlopen, 16 teksten blind beoordeeld; proeven met de reparatieknop en een ideale klant lopen. Het
 > stap-voor-stapdossier met cijfers per stap staat in `docs/tasks/kwaliteitsdoorlichting-stappen.md`.
 
 ## Overzicht
@@ -47,6 +48,7 @@
 | 19 | **hoog** | Een definitief mislukte Gemini- of Google-meting laat de analyse eeuwig op "meten" staan | ✅ opgelost, PR #110 |
 | 20 | **hoog** | Het rapport schrapt elke zin over welke concurrent een vraag wint, ook de juiste | ✅ opgelost, PR #111 en #112 |
 | 21 | middel | Een eigen product ("Hybride warmtepomp") telde in de naamcontrole als concurrent | ✅ opgelost, PR #112 |
+| 22 | **hoog** | Het rapport zegt "niet genoemd, 0 op 100" terwijl Google het merk wel noemde | ✅ opgelost, PR #111 en #112 |
 | 23 | laag | Hetzelfde bedrijf staat twee keer in het namenregister, met en zonder "(VSB)" | open, gevolg opgevangen |
 | 24 | laag | De rapportinstructie zegt niet of prioriteit 1 de belangrijkste is; de hovenier kreeg 6 tot 10 met de belangrijkste pagina's op 10 | open |
 | 25 | middel | Een klaar cluster (status "gereed") heeft geen link op zijn kaart | ✅ opgelost, PR #113 |
@@ -74,7 +76,6 @@
 | 47 | **hoog** | Het sterkste bewijs van de klant staat in geen enkele tekst, hoewel het op de feitenkaart staat | open |
 | 48 | **hoog** | De teksten lezen als een formulier: bedrijfsnaam voor elke alinea, dezelfde feiten drie tot vier keer, voorbehouden, zinnen uit de bronnen | open |
 | 49 | middel | Waar de klant een vraag oversloeg, wijkt de tekst uit naar "bespreek dat vooraf" in plaats van het onderwerp los te laten | open |
-| 22 | **hoog** | Het rapport zegt "niet genoemd, 0 op 100" terwijl Google het merk wel noemde | ✅ opgelost, PR #111 en #112 |
 
 ---
 
