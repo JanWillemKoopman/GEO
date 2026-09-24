@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
-import { profileProgress, formatEta } from "@/lib/jobs/progress";
-import { buildSteps } from "@/lib/pipeline/research-steps";
+import { profileProgress, formatEta, etaMetWachtendeStappen } from "@/lib/jobs/progress";
+import { buildSteps, researchRunning } from "@/lib/pipeline/research-steps";
 import { scopeSummary } from "@/lib/pipeline/field-merge";
 
 /**
@@ -129,7 +129,16 @@ export async function GET(
     failedJobs: progress.failed,
     retrying: progress.retrying,
     attempts: progress.attempts,
-    etaText: formatEta(progress.etaSeconds),
+    // Punt 14: ook de stappen die pas na de vorige ingepland worden.
+    etaText: formatEta(
+      etaMetWachtendeStappen(
+        progress.etaSeconds,
+        steps.filter((s) => s.state === "wacht").map((s) => s.job),
+      ),
+    ),
+    // `status` wordt al "klaar" na de tweede van acht stappen (het profiel is
+    // dan bruikbaar); dit zegt of er nog iets van het onderzoek loopt.
+    onderzoekLoopt: researchRunning(steps),
     steps,
     // Alles wat `assessReadiness()` nodig heeft, zodat het afrondingsblok
     // meebeweegt met de polling in plaats van pas na een harde herlaadbeurt.

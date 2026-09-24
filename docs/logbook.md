@@ -12258,3 +12258,14 @@ start, in plaats van een knop die pas na de klik weigert. (18) Een aanroep met o
 `ai_calls`. (23) "Naam (AFKORTING)" valt samen met "Naam" in het namenregister. (38) Het laatste
 antwoord op een pagina wordt meteen bevestigd; het klaarzetten van het schrijven gebeurt daarna.
 (13) bleek al opgelost door de UX-audit van 23 september.
+
+## 24 september 2026: verbeterronde blok F deel 2
+
+(8) Een meetvraag die alleen in de plaatsnaam verschilt van een andere, telt als dubbel; de
+twijfels uit het verkoopgesprek worden een bron voor oriëntatievragen. Dat elke vraag een plaats
+noemt, blijft: dat is de regel van 11 augustus. (9) Een dienst waarvan het bewijs een advies is ("moet
+regelmatig worden schoongemaakt"), komt niet in de aanbodboom; op de echte bomen valt precies die ene
+af. (11) Een blok op het gespreksscherm blijft open zolang er velden zijn die het onderzoek vulde en
+niemand langsliep. (14) De voortgang telt wachtende stappen mee in de tijdschatting en zet een stap met
+resultaat niet op "wacht". (17) Gemini-taken worden gespreid, vier seconden ertussen, over clusters
+heen.

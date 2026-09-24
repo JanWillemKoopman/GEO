@@ -274,6 +274,8 @@ export async function generateAnalysisPrompts(
         // Waar het merk heen wil (migratie 0060). Levert extra vragen op in een
         // gebied waar het vandaag nog niet gevonden wordt.
         growthRegions: profile.growth_regions,
+        // Punt 8: de twijfels van kopers als bron voor oriëntatievragen.
+        salesObjections: profile.sales_objections ?? [],
       };
 
       const mix = resolveMix(analysis);

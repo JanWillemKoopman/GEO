@@ -53,7 +53,7 @@ doorloop met dezelfde drie bedrijven en dezelfde blinde lezers (meetlat: 4,1 op 
 | C, de keuring | 42, 43, 50, 53, 54 | ✅ live, PR #123; 50 wacht op de herhaling (oorzaak al weg via 39) |
 | D, schrijfstijl | 46, 48, 49 | ✅ live, PR #124 |
 | E, planning | 31, 32, 33 | ✅ live, PR #125 |
-| F, kleine punten | 3, 6, 8, 9, 11 tot 18, 23, 38 | deel 1 gebouwd (3, 6, 12, 13, 18, 23, 38); 8, 9, 11, 14, 17 volgen; 15 en 16 niet herhaald |
+| F, kleine punten | 3, 6, 8, 9, 11 tot 18, 23, 38 | ✅ deel 1 live (PR #126), deel 2 gebouwd (8, 9, 11, 14, 17); 15 en 16 niet herhaald, alleen oppakken bij herhaling |
 
 ## Eindverslag: de vijf verbeteringen die het meest opleveren
 
@@ -112,16 +112,16 @@ bronzinnen, het ontbrekende bewijs).
 | 5 | hoog | Meetvragen negeren de groeigebieden: de opdracht spreekt zichzelf tegen | ✅ opgelost, verbeterronde blok A |
 | 6 | middel | "Herkend door ChatGPT bij 5 van 6 vragen" telt gokken op de naam als herkenning | ✅ opgelost, verbeterronde blok F |
 | 7 | middel | Het sterkste bewijs van een bedrijf valt tussen crawl en dossier weg | ✅ opgelost, verbeterronde blok B (vangnet op de feitenkaart; het merkonderzoek zelf niet aangepast) |
-| 8 | middel | Meetvragen: veel dubbel, weinig realistisch, altijd een plaatsnaam | open |
-| 9 | middel | Een adviesregel op de site wordt een dienst en een onderwerp | open |
+| 8 | middel | Meetvragen: veel dubbel, weinig realistisch, altijd een plaatsnaam | ✅ deels opgelost, verbeterronde blok F (dubbel en bezwaren; "altijd een plaatsnaam" is een bewuste regel) |
+| 9 | middel | Een adviesregel op de site wordt een dienst en een onderwerp | ✅ opgelost, verbeterronde blok F |
 | 10 | middel | Crawl neemt fotopagina's, tag- en auteurspagina's mee | ✅ opgelost, verbeterronde blok B |
-| 11 | middel | Blok met gecontroleerd te bevestigen voorstellen klapt dicht als het "compleet" is | open |
+| 11 | middel | Blok met gecontroleerd te bevestigen voorstellen klapt dicht als het "compleet" is | ✅ opgelost, verbeterronde blok F |
 | 12 | laag | Klant ziet "Bevestig en start de meting" maar mag de meting niet starten | ✅ opgelost, verbeterronde blok F |
 | 13 | laag | Klant ziet "Nieuw merk" en het hele formulier, de server weigert pas na verzenden | ✅ al opgelost door de UX-audit van 23 september (P1.3), op productie nagekeken |
-| 14 | laag | Voortgang zegt "klaar" en "nog minder dan een minuut" terwijl er nog stappen wachten | open |
+| 14 | laag | Voortgang zegt "klaar" en "nog minder dan een minuut" terwijl er nog stappen wachten | ✅ opgelost, verbeterronde blok F |
 | 15 | laag | Conceptscherm gaf één keer een foutpagina bij het openen, direct na het afronden | open, niet herhaald |
 | 16 | laag | Een taak van een merk stond op "bezig" en daarna weer in de wachtrij met 0 pogingen | open, niet herhaald |
-| 17 | hoog | Gemini-meting viel volledig uit op een limiet van de leverancier | open, wordt gevolgd |
+| 17 | hoog | Gemini-meting viel volledig uit op een limiet van de leverancier | ✅ gespreid, verbeterronde blok F; na te rekenen op de volgende meting |
 | 18 | laag | Beoordeling "genoemd of niet" geeft soms platte tekst in plaats van JSON, en de mislukte uitvoer wordt niet bewaard | ✅ vastleggen opgelost, verbeterronde blok F; het aandeel is nu te meten |
 | 19 | **hoog** | Een definitief mislukte Gemini- of Google-meting laat de analyse eeuwig op "meten" staan | ✅ opgelost, PR #110 |
 | 20 | **hoog** | Het rapport schrapt elke zin over welke concurrent een vraag wint, ook de juiste | ✅ opgelost, PR #111 en #112 |
@@ -327,6 +327,15 @@ praktijk er 15.
 één), een minimum aantal vragen zonder plaatsnaam, en de bezwaren uit het gesprek als bron voor
 oriëntatievragen. Te meten tegen de blinde lezer.
 
+**Deels opgelost (24 september 2026, verbeterronde blok F).** Dezelfde vraag met een andere
+plaatsnaam telt als dubbel (`vraagZonderPlaats()` in `lib/pipeline/geo-share.ts`), gemeten tegen de
+vragen die blijven staan: een vraag over een groeiplaats naast dezelfde vraag over het huidige
+werkgebied mag wel, want die meet een andere markt (punt 5). De twijfels uit het verkoopgesprek zijn
+nu een bron voor de oriëntatie- en overwegingsvragen. Niet veranderd: dat elke vraag een plaats of
+"in de buurt" noemt. Dat is een bewuste regel van 11 augustus 2026 (`REGIO_DREMPEL`, een score is een
+aandeel, en een landelijke vraag kan een lokaal bedrijf niet winnen). Of de vragen realistischer
+klinken, meet de herhaling met de blinde lezer.
+
 ## 9. Een adviesregel op de site wordt een dienst en een onderwerp
 
 **Wat misgaat.** B's site zegt "het ventilatiesysteem moet regelmatig worden schoongemaakt" (advies).
@@ -336,6 +345,11 @@ De aanbodboom maakte er de dienst "ventilatie laten schoonmaken" van, en dat wer
 
 **Voorstel.** In de aanbodstap alleen diensten opnemen met een aanbiedende formulering ("wij …",
 "u kunt bij ons …"), en het bewijscitaat daarop controleren.
+
+**Opgelost (24 september 2026, verbeterronde blok F).** De aanbodstap krijgt de regel dat een
+advies geen dienst is, en `isAdviesCitaat()` (`lib/pipeline/aanbod-citaat.ts`) haalt een dienst eruit
+waarvan het bewijscitaat een advies is zonder enig teken van aanbod. Op de echte aanbodboom van de
+drie merken valt precies één knoop af: "Mechanische ventilatie schoonmaken".
 
 ## 10. Crawl neemt fotopagina's, tag- en auteurspagina's mee
 
@@ -360,6 +374,11 @@ naamuitsluitingen van punt 3. Compleet betekent hier niet gecontroleerd.
 
 **Voorstel.** Velden die door het onderzoek gevuld zijn en nog niet door de consultant bevestigd,
 tellen niet als compleet; het blok blijft open met een zichtbare "controleer dit".
+
+**Opgelost (24 september 2026, verbeterronde blok F).** Een veld dat het onderzoek vulde en dat
+nog niemand in het gesprek langsliep, telt niet als compleet: het blok blijft open met "3 van de 4
+ingevuld, 2 nog te controleren". Een veld aanklikken en verlaten telt als gecontroleerd, want dan
+wordt het opgeslagen met het gesprek als bron.
 
 ## 12. Klant ziet "Bevestig en start de meting" maar mag de meting niet starten
 
@@ -392,6 +411,12 @@ dan een minuut" bij acht open stappen.
 **Voorstel.** De status afleiden uit de openstaande taken, en de tijdschatting uit het aantal open
 stappen.
 
+**Opgelost (24 september 2026, verbeterronde blok F).** Een stap met een resultaat staat niet meer
+op "wacht" (de technische controle loopt naast de keten), de tijdschatting telt de stappen die pas
+na de vorige worden ingepland mee, en de statusroute zegt apart of het onderzoek nog loopt
+(`onderzoekLoopt`). Het veld `status` blijft "klaar" na de tweede stap, omdat het profiel dan al
+bruikbaar is en het wachtscherm daarop doorschakelt.
+
 ## 15. Conceptscherm gaf één keer een foutpagina
 
 Direct na het afronden van het cluster gaf `/analyses/[id]/concept` voor de klant één keer "Deze
@@ -416,6 +441,12 @@ dat Gemini ontbrak, of rekent het stil zonder?
 
 **Voorstel.** Gemini-verzoeken spreiden (een maximum per minuut in de takenlaag) en in het rapport
 zichtbaar maken welke bronnen meetelden.
+
+**Gespreid (24 september 2026, verbeterronde blok F).** Gemini-taken krijgen vier seconden tussen
+elkaar, en een nieuwe reeks sluit aan achter wat er al klaarstaat, ook van een ander cluster
+(`spreidTijden()` in `lib/jobs/spreiding.ts`). Dertig vragen duren zo twee minuten. De limiet van de
+leverancier is niet gepubliceerd; of vier seconden genoeg is, zegt de volgende meting. Welke bronnen
+meetelden, zegt het rapport sinds PR #111 al.
 
 ## 18. Beoordeling "genoemd of niet" geeft soms platte tekst in plaats van JSON
 

@@ -91,7 +91,10 @@ export function buildSteps(input: StepInput): ResearchStep[] {
     let state: StepState;
     if (openstaand) {
       state = "bezig";
-    } else if (eersteOpenstaande !== -1 && i > eersteOpenstaande) {
+    } else if (eersteOpenstaande !== -1 && i > eersteOpenstaande && result === null) {
+      // Alleen "wacht" als er ook nog geen resultaat is. De technische controle
+      // loopt naast de keten en was al klaar, maar stond op "wacht" omdat een
+      // eerdere stap nog liep (punt 14 van de kwaliteitsdoorlichting).
       state = "wacht";
     } else {
       state = result === null ? "overgeslagen" : "klaar";

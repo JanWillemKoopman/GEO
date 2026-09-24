@@ -34,6 +34,7 @@ import {
   droppableIndices,
   groeiBalans,
   toegestanePlaatsen,
+  vraagZonderPlaats,
   wijkbaarVoorGroei,
   REGIO_DREMPEL,
 } from "@/lib/pipeline/geo-share";
@@ -89,6 +90,12 @@ export interface BrandContext {
    * een gebied waar het merk vandaag nog niet gevonden wordt.
    */
   growthRegions?: string[];
+  /**
+   * De bezwaren die de klant in elk verkoopgesprek hoort (migratie 0060). Bron
+   * voor oriëntatie- en overwegingsvragen: "is een warmtepomp niet te lawaaiig",
+   * "wat is een faalangstexamen" (punt 8 van de kwaliteitsdoorlichting).
+   */
+  salesObjections?: string[];
 }
 
 export interface GeneratedPrompt {
@@ -343,8 +350,19 @@ async function generateForFunnelStage(args: {
     `Schrijf natuurlijke, gesproken vragen, geen losse zoekwoorden. Varieer in toon en specificiteit. Nederlands. ` +
     neutralityRule;
 
+  // Punt 8: de bezwaren uit het gesprek als bron, alleen in de fasen waarin
+  // iemand nog twijfelt. In de beslisfase kiest hij al een aanbieder.
+  const bezwaren = (brand.salesObjections ?? []).map((b) => b.trim()).filter(Boolean);
+  const bezwaarRegel =
+    bezwaren.length > 0 && (category === "Oriëntatie" || category === "Overweging")
+      ? `DE TWIJFELS DIE KOPERS IN DEZE MARKT HEBBEN (uit het verkoopgesprek): ${bezwaren.join(" · ")}. ` +
+        `Laat minstens één vraag over zo'n twijfel gaan, gesteld zoals een koper hem aan een ` +
+        `AI-assistent stelt.\n`
+      : "";
+
   const user =
     `${buildContextBlock(url, topic, brand)}\n\n` +
+    bezwaarRegel +
     (briefRule ? `${briefRule}\n\n` : "") +
     `Genereer precies ${count} prompts voor de FUNNELFASE "${category}": ${CATEGORY_BRIEF[category] ?? ""}\n` +
     `${scopeRule}\n${geoRule ? `${geoRule}\n` : ""}${groeiRegel ? `${groeiRegel}\n` : ""}${neutralityRule}\n` +
@@ -360,6 +378,20 @@ async function generateForFunnelStage(args: {
   // meetbasis betekent een grovere, minder betrouwbare score.
   const collected: PromptSet["prompts"] = [];
   const seen = new Set<string>();
+  // Punt 8: dezelfde vraag met een andere plaatsnaam telt als dubbel, gemeten
+  // tegen de vragen die blijven staan (`tegen`). Dat onderscheid telt in de
+  // bijvulrondes: een regionale versie van een landelijke vraag die er straks
+  // uitgaat, is geen dubbel maar precies de vervanger. En een vraag over een
+  // groeiplaats naast dezelfde vraag over het huidige werkgebied meet een andere
+  // markt, dus die rondes vergelijken alleen met hun eigen soort.
+  const nieuweVraag = (tekst: string, tegen: readonly string[]): boolean => {
+    const key = tekst.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    const zonder = vraagZonderPlaats(tekst, regios);
+    if (zonder && tegen.some((t) => vraagZonderPlaats(t, regios) === zonder)) return false;
+    seen.add(key);
+    return true;
+  };
   let lastRaw: unknown = null;
 
   for (let attempt = 0; attempt < MAX_TOPUP_ATTEMPTS && collected.length < count; attempt++) {
@@ -383,10 +415,8 @@ async function generateForFunnelStage(args: {
 
     for (const p of result.parsed.prompts) {
       if (collected.length >= count) break;
-      const key = p.text.trim().toLowerCase();
-      if (seen.has(key)) continue;
       if (containsForbidden(p.text, tokens)) continue;
-      seen.add(key);
+      if (!nieuweVraag(p.text, collected.map((c) => c.text))) continue;
       collected.push(p);
     }
   }
@@ -422,14 +452,14 @@ async function generateForFunnelStage(args: {
       lastRaw = result.raw;
 
       const nieuw = result.parsed.prompts.filter((p) => {
-        const key = p.text.trim().toLowerCase();
-        if (seen.has(key)) return false;
         if (containsForbidden(p.text, tokens)) return false;
         // Alleen wat écht regionaal is telt mee; anders vervangt de bijvulronde
         // een landelijke vraag door een andere landelijke vraag.
         if (!containsRegion(p.text, regios)) return false;
-        seen.add(key);
-        return true;
+        return nieuweVraag(
+          p.text,
+          collected.map((c) => c.text).filter((t) => containsRegion(t, regios)),
+        );
       });
       if (nieuw.length === 0) break; // het model komt er niet uit, niet blijven betalen
 
@@ -496,12 +526,12 @@ async function generateForFunnelStage(args: {
       lastRaw = result.raw;
 
       const nieuw = result.parsed.prompts.filter((p) => {
-        const key = p.text.trim().toLowerCase();
-        if (seen.has(key)) return false;
         if (containsForbidden(p.text, tokens)) return false;
         if (!containsPlace(p.text, groei)) return false;
-        seen.add(key);
-        return true;
+        return nieuweVraag(
+          p.text,
+          collected.map((c) => c.text).filter((t) => containsPlace(t, groei)),
+        );
       });
       if (nieuw.length === 0) break;
 

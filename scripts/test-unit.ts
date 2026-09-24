@@ -780,9 +780,13 @@ import {
   groeiBalans,
   toegestanePlaatsen,
   wijkbaarVoorGroei,
+  vraagZonderPlaats,
 } from "@/lib/pipeline/geo-share";
 import { COST_DENIED } from "@/lib/cost-rules";
 import { gesprekBeantwoordt, zelfdeVraag } from "@/lib/vraag-dekking";
+import { isAdviesCitaat } from "@/lib/pipeline/aanbod-citaat";
+import { spreidTijden, GEMINI_AFSTAND_MS } from "@/lib/jobs/spreiding";
+import { buildSteps as bouwStappen } from "@/lib/pipeline/research-steps";
 import { paginaSoort, isFunctiepagina, functieblok } from "@/lib/pipeline/paginafunctie";
 import { knowsBrand as kentMerk, extractConfusions as haalVerwarringen, isEigenSchrijfwijze } from "@/lib/pipeline/baseline-verdict";
 import { vindKerncijfers } from "@/lib/pipeline/kerncijfers";
@@ -26139,4 +26143,50 @@ group("Kleine punten uit de doorlichting (verbeterronde blok F, punt 12, 18, 23 
   // Punt 12: de klant krijgt vooraf te horen wie de meting start.
   const concept = leesBestand("app/(app)/analyses/[id]/concept/page.tsx");
   ok("het conceptscherm kijkt of de meting gestart mag worden", concept.includes("mayTriggerCost(user.id, \"meting_starten\")") && concept.includes("COST_DENIED.meting_starten"));
+});
+
+
+group("Kleine punten uit de doorlichting, deel 2 (verbeterronde blok F, punt 8, 9, 11, 14 en 17)", () => {
+  // Punt 8: dezelfde vraag met een andere plaats.
+  const plaatsen = ["Geldrop", "Eindhoven", "Mierlo"];
+  eq(
+    "Geldrop en Eindhoven geven dezelfde sleutel",
+    String(vraagZonderPlaats("Welke installateur in Geldrop vervangt een cv-ketel?", plaatsen) === vraagZonderPlaats("Welke installateur in Eindhoven vervangt een cv-ketel?", plaatsen)),
+    "true",
+  );
+  ok("een andere vraag niet", vraagZonderPlaats("Wat kost een warmtepomp in Geldrop?", plaatsen) !== vraagZonderPlaats("Welke installateur in Geldrop vervangt een cv-ketel?", plaatsen));
+  ok("ook met 'in de buurt' en de provincie", vraagZonderPlaats("Welke installateur bij mij in de buurt vervangt een cv-ketel?", plaatsen) === vraagZonderPlaats("Welke installateur in Brabant vervangt een cv-ketel?", plaatsen));
+  const prompts = leesBestand("lib/pipeline/prompts.ts");
+  ok("de generator gebruikt de sleutel", prompts.includes("vraagZonderPlaats(tekst, regios)"));
+  ok("en de bezwaren uit het gesprek", prompts.includes("DE TWIJFELS DIE KOPERS IN DEZE MARKT HEBBEN"));
+
+  // Punt 9: de echte citaten van de installateur en de rijschool.
+  ok("een advies is geen dienst", isAdviesCitaat("Het ventilatiesysteem moet regelmatig worden schoongemaakt."));
+  ok("een aanbod wel", !isAdviesCitaat("Wij zorgen voor een professionele vervanging van uw oude ketel"));
+  ok("ook met 'kun je'", !isAdviesCitaat("dan kun je er misschien aan denken om een theoriecursus te nemen, waarin je begeleid wordt"));
+  ok("een los woord uit een menu ook", !isAdviesCitaat("Tuinaanleg"));
+
+  // Punt 11: gevuld is niet gecontroleerd.
+  const sessie = leesBestand("app/(app)/merk/[id]/_components/onboarding-session.tsx");
+  ok("een blok blijft open met nog te controleren velden", sessie.includes("!isHumanSet(states[k as string]?.source)") && sessie.includes("nog te controleren"));
+
+  // Punt 14: de technische controle is klaar als hij een resultaat heeft, en
+  // de schatting telt de stappen die nog moeten komen.
+  const stappen = bouwStappen({
+    pendingByType: { profile_offering: 1 },
+    facetSummaries: {},
+    counts: { topics: 0, auditChecks: 12, researchDone: true },
+  });
+  eq("technische controle met resultaat staat niet op wacht", stappen.find((st) => st.job === "technical_audit")?.state ?? "", "klaar");
+  const wachtend = stappen.filter((st) => st.state === "wacht").map((st) => st.job);
+  ok("er wachten nog stappen na het aanbod", wachtend.length >= 3);
+  // `etaMetWachtendeStappen()` staat in een server-module; hier de bedrading.
+  ok("de statusroute telt de wachtende stappen mee", leesBestand("app/api/profiles/[id]/status/route.ts").includes("etaMetWachtendeStappen("));
+
+  // Punt 17: Gemini-taken gespreid, achter wat er al klaarstaat.
+  const nu = new Date("2026-09-24T12:00:00Z");
+  const t = spreidTijden(nu, null, 3, GEMINI_AFSTAND_MS);
+  eq("vanaf nu, vier seconden ertussen", t.map((d) => d.toISOString().slice(11, 19)).join(","), "12:00:00,12:00:04,12:00:08");
+  const achter = spreidTijden(nu, new Date("2026-09-24T12:02:00Z"), 2, GEMINI_AFSTAND_MS);
+  eq("een tweede cluster sluit aan", achter.map((d) => d.toISOString().slice(11, 19)).join(","), "12:02:04,12:02:08");
 });
