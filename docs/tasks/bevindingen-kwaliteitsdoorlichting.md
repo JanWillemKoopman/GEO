@@ -53,6 +53,9 @@
 | 26 | **hoog** | De consultant ziet de clusters van een klantmerk niet en krijgt "Start het eerste cluster" | open |
 | 27 | **hoog** | Het rapport kent de groeidoelen en feiten uit het gesprek niet | open |
 | 28 | **hoog** | De site-inventaris mist de hoofdpagina uit het menu en bevat fotobijlagen; het rapport adviseert een fotopagina te verbeteren | open |
+| 29 | middel | Het planscherm zegt de klant "stel je het plan zelf op", maar alleen de consultant mag het | ✅ opgelost, PR volgt |
+| 30 | **hoog** | Het plan gaf de zwaarste gemiste vraag potentie 0 en zette die pagina achteraan | ✅ opgelost, PR volgt |
+| 31 | **hoog** | Het plan zet vier verbeteringen van dezelfde pagina in dezelfde week | open |
 | 22 | **hoog** | Het rapport zegt "niet genoemd, 0 op 100" terwijl Google het merk wel noemde | ✅ opgelost, PR #111 en #112 |
 
 ---
@@ -397,6 +400,36 @@ wil een fotobijlage (`/autorijschool-pompert/cbr-peter-pompert-2/`) "verbeteren"
 faalangstexamen. **Bij de hovenier** kende de app één pagina (punt 4), dus adviseerde het rapport
 "nieuwe pagina voor Best" en "voor Nuenen" terwijl `/hovenier-in-best/` en `/hovenier-in-nuenen/`
 bestaan. Punt 4 en 10 hebben hier dus een direct zichtbaar gevolg in het advies aan de klant.
+
+## 29. Het planscherm belooft de klant iets wat hij niet mag ✅
+
+Als klant stond er "Zodra hieronder alles klaarstaat, stel je het plan zelf op" met een actieve knop
+"Stel het contentplan op". Klikken gaf een 403 met de melding dat de consultant het schrijven in gang
+zet (`content_schrijven` in `lib/cost-rules.ts`, sinds 2 september 2026 alleen voor de consultant).
+Het scherm zei het dus pas achteraf. Nu staat de melding er vooraf, zoals bij "Geef deze maand vrij"
+sinds de UX-audit van 23 september.
+
+## 30. Het plan gaf de zwaarste gemiste vraag potentie 0 ✅
+
+`loadPotentialForTargets()` (`lib/potential-data.ts`) telde een vraag als "genoemd" zodra het merk
+in één meting van één bron stond. Het rapport gebruikt een meerderheidsregel (eerst per bron over de
+herhalingen, dan één stem per bron, `lib/pipeline/missed-prompts.ts`). Bij de installateur noemde
+ChatGPT hem bij de zwaarste vraag ("Welke installateur in Geldrop kan een hybride warmtepomp in mijn
+bestaande woning plaatsen?", gewicht 0,50) in een van de drie herhalingen en Google in geen van de
+drie. Het rapport: gemist, en de eerste aanbeveling. Het plan: potentie 0, dus de laatste pagina van
+de maand. Bij de hovenier kregen twee pagina's om dezelfde reden 0. Nu volgt de potentie dezelfde
+regel (`genoemdPerVraag()`).
+
+## 31. Het plan zet vier verbeteringen van dezelfde pagina in dezelfde week
+
+Bij de installateur gaan vier van de vijf geplande pagina's over `https://www.wkinstallatie.nl/warmtepomp`
+(keuzehulp, controle vooraf, prijs, lokaal voor Geldrop), gepland op 25, 26, 27 en 28 september. Elk
+wordt een aparte verbeteropdracht voor dezelfde pagina: vier herschrijvingen die elkaar overschrijven
+of een klant die er zelf één pagina van moet maken. Bij de hovenier twee verbeteringen van de
+homepage op dezelfde dag. De drie blinde lezers van stap 13 raadden alle drie aparte pagina's per
+vraag aan. **Richting:** `mergeOverlappingRecommendations()` voegt adviezen al samen; dezelfde
+`existingUrl` hoort daar als samenvoegreden bij, of het rapport moet bij een tweede advies voor
+dezelfde pagina een nieuwe pagina voorstellen.
 
 ---
 

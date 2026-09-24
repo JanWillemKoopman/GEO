@@ -181,7 +181,7 @@ import {
   LLM_RESPONSE_REPEATS,
   LLM_RESPONSE_POGINGEN,
 } from "@/lib/llm-responses/types";
-import { bepaalGemisteVragen } from "@/lib/pipeline/missed-prompts";
+import { bepaalGemisteVragen, genoemdPerVraag } from "@/lib/pipeline/missed-prompts";
 import { formatEvidenceDossier, excerpt, resolveGapEvidence, schoonGapCluster } from "@/lib/pipeline/evidence-format";
 import type { EvidenceEntry } from "@/lib/pipeline/evidence-format";
 import { stripUnsupportedClaims, validateField, NEUTRAL_FALLBACK } from "@/lib/pipeline/validate-claims";
@@ -25529,4 +25529,26 @@ group("Een klaar cluster is aan te klikken (24 september 2026)", () => {
   const kop = kaart.slice(kaart.indexOf("const kopLink ="), kaart.indexOf("const analyticsLink ="));
   ok("de kop linkt ook bij gereed", kop.includes('analyse.status === "gereed"'));
   ok("de links onder de kaart ook", kaart.includes('(analyse.status === "gemeten" || analyse.status === "gereed") && ('));
+});
+
+group("Het contentplan zegt de klant vooraf dat de consultant het opstelt (24 september 2026)", () => {
+  const box = leesBestand("app/(app)/merk/[id]/strategie/plan/create-plan-box.tsx");
+  ok("de klant krijgt de melding in plaats van de knop", box.includes("{mag && !staff && (") && box.includes("COST_DENIED.content_schrijven"));
+  ok("de knop alleen voor de consultant", box.includes("{mag && staff && ("));
+  ok("geen belofte dat de klant het zelf doet", !box.includes("stel je het plan zelf op"));
+});
+
+group("De potentie van een geplande pagina volgt de regel van het rapport (24 september 2026)", () => {
+  // De echte stand bij de installateur: ChatGPT noemde hem 1 van de 3 keer,
+  // Google 0 van de 3. Het rapport: gemist. Het plan gaf potentie 0.
+  const m = (runId: string, engine: string, mentioned: boolean) => ({ runId, promptId: "geldrop", engine, mentioned });
+  const geldrop = [m("a", "openai", true), m("b", "openai", false), m("c", "openai", false), m("d", "google_ai_overview", false), m("e", "google_ai_overview", false), m("f", "google_ai_overview", false)];
+  eq("één keer genoemd is niet genoeg", String(genoemdPerVraag(geldrop).get("geldrop")), "false");
+  const beide = [m("a", "openai", true), m("d", "google_ai_overview", true)];
+  eq("genoemd in beide bronnen telt als genoemd", String(genoemdPerVraag(beide).get("geldrop")), "true");
+  const gelijk = [m("a", "openai", true), m("d", "google_ai_overview", false)];
+  eq("een gelijke stand tussen bronnen telt als gemist, net als in het rapport", String(genoemdPerVraag(gelijk).get("geldrop")), "false");
+  const bron = leesBestand("lib/potential-data.ts");
+  ok("de potentie gebruikt die regel", bron.includes("genoemdPerVraag("));
+  ok("en niet meer 'genoemd wint'", !bron.includes("(mentioned && !huidig)"));
 });

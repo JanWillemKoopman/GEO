@@ -101,3 +101,24 @@ export function bepaalGemisteVragen(metingen: BeoordeeldeMeting[]): GemisteVraag
   }
   return resultaat;
 }
+
+/**
+ * Per vraag: telt hij als "genoemd"? Precies het omgekeerde van
+ * `bepaalGemisteVragen()`, zodat elke plek die per vraag zichtbaarheid rekent
+ * dezelfde regel volgt als het rapport.
+ *
+ * ── DE FOUT DIE DIT REPAREERT ───────────────────────────────────────────────
+ *
+ * ⚠️ Gevonden op 24 september 2026 (kwaliteitsdoorlichting, punt 30). De
+ * potentie van een geplande pagina (`lib/potential-data.ts`) gebruikte "één
+ * keer genoemd, in welke bron ook, wint". Bij de installateur noemde ChatGPT
+ * hem bij de zwaarste vraag (Geldrop, gewicht 0,50) in een van de herhalingen
+ * en Google in geen enkele. Het rapport noemde de vraag terecht gemist, het
+ * plan gaf hem potentie 0 en zette de pagina achteraan.
+ */
+export function genoemdPerVraag(metingen: BeoordeeldeMeting[]): Map<string, boolean> {
+  const gemist = new Set(bepaalGemisteVragen(metingen).map((g) => g.promptId));
+  const uit = new Map<string, boolean>();
+  for (const m of metingen) uit.set(m.promptId, !gemist.has(m.promptId));
+  return uit;
+}
