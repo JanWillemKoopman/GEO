@@ -48,7 +48,7 @@ import {
   leesKwaliteitsrondes,
 } from "@/lib/pipeline/quality-run";
 import { kiesBesteVersie, nietSlechterDan } from "@/lib/pipeline/quality-score";
-import { claimIsOnderbouwd } from "@/lib/pipeline/evidence-weight";
+import { claimIsOnderbouwd, feitUitAntwoord } from "@/lib/pipeline/evidence-weight";
 import { beschrijfRootCause, reparatieHeeftZin } from "@/lib/pipeline/root-cause";
 import {
   prioriteerIssues,
@@ -430,16 +430,20 @@ function buildPlanBlock(plan: AuditedClaim[], facts: FactItem[]): string {
     // klant heeft "nee" geantwoord. Dat onderscheid weglaten zou het model laten
     // redeneren dat het waarschijnlijk tóch wel zo is. Precies de fout uit de
     // Udenhout-run, maar dan mét een antwoord in de hand.
-    const weerlegd = facts.some(
-      (f) =>
-        !f.allowed &&
-        f.ref &&
-        claim.sourceRef &&
-        claim.sourceRef.toUpperCase().includes(f.ref.toUpperCase()),
-    );
+    const weerlegd =
+      facts.some(
+        (f) =>
+          !f.allowed &&
+          f.ref &&
+          claim.sourceRef &&
+          claim.sourceRef.toUpperCase().includes(f.ref.toUpperCase()),
+      ) || feitUitAntwoord(claim, facts, false) !== null;
+    // Een bewering die pas na de voorbereiding door een antwoord gedekt werd,
+    // heeft geen `sourceRef`; noem dan het feit uit dat antwoord.
+    const bron = claim.sourceRef?.trim() || feitUitAntwoord(claim, facts, true)?.ref || "een feit op de kaart";
 
     const stand = gedekt
-      ? `GEDEKT door ${claim.sourceRef}`
+      ? `GEDEKT door ${bron}`
       : weerlegd
         ? "WEERLEGD: de klant heeft dit ontkend, dus VERBODEN"
         : "GEEN BRON: laat deze passage weg";

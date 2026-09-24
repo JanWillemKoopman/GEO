@@ -136,7 +136,7 @@ export async function buildFactBase(
       // verdween de helft van wat de klant invulde.
       admin
         .from("fact_requests")
-        .select("question, answer, answer_type, answered_at, scope, analysis_id, content_piece_ids")
+        .select("question, answer, answer_type, answered_at, scope, analysis_id, content_piece_ids, claim_key")
         .eq("profile_id", profileId)
         .eq("status", "beantwoord")
         .not("answer", "is", null),
@@ -158,10 +158,17 @@ export async function buildFactBase(
   // identiteit dan een feit bij de verkeerde pagina.
   const paginaAntwoorden = new Set<string>();
 
+  // Welk antwoord hoort bij welke bewering van de voorbereiding (punt 39 van de
+  // kwaliteitsdoorlichting): op de tekst van het feit, want de bank geeft de
+  // tekst terug en niet de vraag.
+  const sleutelPerTekst = new Map<string, string>();
+
   for (const row of answers ?? []) {
     if (!answerBelongsHere(row as never, analysisId, contentPieceIds)) continue;
     const feit = factFromAnswer(row as never);
     if (!feit) continue;
+    const sleutel = (row as { claim_key?: string | null }).claim_key;
+    if (sleutel) sleutelPerTekst.set(feit.text, sleutel);
     if ((row.scope as string) === "pagina") paginaAntwoorden.add(feit.text);
     rauw.push(feit);
   }
@@ -313,7 +320,14 @@ export async function buildFactBase(
   );
 
   return numberFacts(
-    gesorteerd.map(({ id, text, source, allowed, citable }) => ({ id, text, source, allowed, citable })),
+    gesorteerd.map(({ id, text, source, allowed, citable }) => ({
+      id,
+      text,
+      source,
+      allowed,
+      citable,
+      claimKey: sleutelPerTekst.get(text) ?? null,
+    })),
   );
 }
 

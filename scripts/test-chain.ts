@@ -6286,6 +6286,53 @@ async function main(): Promise<void> {
         !kaartZonderPagina.some((f) => f.text.includes("Werken jullie in Tilburg")),
       );
 
+      // ── Een beantwoorde vraag dekt de bewering erachter (punt 39 en 41 van
+      // de kwaliteitsdoorlichting, 24 september 2026) ─────────────────────────
+      //
+      // ⚠️ DE SAMENHANG DIE HIER FOUT GING. De claim-audit stelt een vraag omdat
+      // een bewering geen bron heeft, de klant antwoordt, en daarna moet de
+      // keuring die bewering als gedekt zien. Dat gebeurde niet: niets legde de
+      // lijn van het antwoord terug naar de bewering, en de keuring bleef
+      // "Beantwoord deze vraag" zeggen. Tegelijk ging het antwoord als "site"-feit
+      // naar proof_points en dus naar de kaart van elke pagina.
+      {
+        const { answerFact } = await import("@/lib/facts");
+        const { claimKey } = await import("@/lib/pipeline/factcard");
+        const { claimIsOnderbouwd } = await import("@/lib/pipeline/evidence-weight");
+        const bewering = "Het bedrijf geeft een prijsband voor een complete behandelreeks.";
+        const vraagId = randomUUID();
+        await db.client.query(
+          `insert into public.fact_requests
+             (id, profile_id, analysis_id, question, reason, status, scope, kind,
+              answer_type, required, claim_key, content_piece_ids)
+           values ($1, $2, $3, 'Welke prijsband mogen we noemen voor een behandelreeks?',
+                   'aanvulling', 'open', 'pagina', 'aanvulling', 'tekst_kort', true, $4, $5)`,
+          [vraagId, ptProfileId, ptAnalysisId, claimKey(bewering), [ptContentPieceId]],
+        );
+        const { rows: voor } = await db.client.query("select proof_points from public.profiles where id = $1", [ptProfileId]);
+        const uitkomst = await answerFact(admin as never, {
+          profileId: ptProfileId,
+          factId: vraagId,
+          answer: "meestal tussen 300 en 450 euro",
+          existingProofPoints: (voor[0]?.proof_points as string[]) ?? [],
+        });
+        ok("het antwoord is opgeslagen", uitkomst.ok);
+        const { rows: na } = await db.client.query("select proof_points from public.profiles where id = $1", [ptProfileId]);
+        ok(
+          "een antwoord op een paginavraag gaat niet naar proof_points",
+          JSON.stringify(na[0]?.proof_points ?? []) === JSON.stringify(voor[0]?.proof_points ?? []),
+        );
+        const kaart = await buildFactBase(admin as never, ptProfileId, ptAnalysisId, [], [ptContentPieceId as string]);
+        const feit = kaart.find((f) => f.text.includes("300 en 450"));
+        ok("het antwoord staat op de kaart van de pagina", Boolean(feit));
+        ok("als klantfeit, niet als sitefeit", Boolean(feit?.source.startsWith("klant")), feit?.source);
+        ok("met de sleutel van de bewering", feit?.claimKey === claimKey(bewering), String(feit?.claimKey));
+        ok(
+          "en de bewering telt nu als onderbouwd",
+          claimIsOnderbouwd({ claim: bewering, sourceRef: null, supportQuote: null }, kaart),
+        );
+      }
+
       await db.client.query(`update public.content_pieces set status = 'ready' where id = $1`, [
         ptContentPieceId,
       ]);

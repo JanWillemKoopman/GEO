@@ -89,6 +89,7 @@ import {
   berekenGewogenDekking,
   berekenClaimDekking,
   claimIsOnderbouwd,
+  feitUitAntwoord,
   bewijsDimensie,
   claimSoortVan,
   poortGraad,
@@ -936,6 +937,7 @@ import {
   regionsFromDescription,
   discontinuedNames,
 } from "@/lib/pipeline/context-factors";
+import { moetNaarProofPoints } from "@/lib/proof-point-regel";
 import { bronnenDieWelNoemden, bronnenRegel, correctQuestionCount, kortSamengevat, questionCountLine, vulBronnenAan } from "@/lib/pipeline/report-summary";
 import {
   PACKAGE_SIZES,
@@ -25551,4 +25553,52 @@ group("De potentie van een geplande pagina volgt de regel van het rapport (24 se
   const bron = leesBestand("lib/potential-data.ts");
   ok("de potentie gebruikt die regel", bron.includes("genoemdPerVraag("));
   ok("en niet meer 'genoemd wint'", !bron.includes("(mentioned && !huidig)"));
+});
+
+
+group("Een beantwoorde vraag dekt de bewering erachter (24 september 2026)", () => {
+  // De echte situatie bij de hovenier: de claim-audit had geen bron voor de
+  // prijsband, stelde de vraag, de klant antwoordde. Daarna bleef de keuring
+  // "Beantwoord deze vraag" zeggen (punt 39 van de kwaliteitsdoorlichting).
+  const bewering = "Het bedrijf geeft een richtprijs of prijsband voor een complete tuin met terras en bestrating.";
+  const claim = { claim: bewering, sourceRef: null, supportQuote: null };
+  const kaart = (claimKeyVan: string | null, allowed = true) => [
+    {
+      ref: "F1",
+      id: null,
+      text: "Hebben jullie een prijsvoorbeeld: meestal tussen 12.000 en 35.000 euro",
+      source: "klant, bevestigd 24-9-2026",
+      allowed,
+      citable: true,
+      claimKey: claimKeyVan,
+    },
+  ];
+  ok("zonder koppeling onbewezen, zoals voorheen", !claimIsOnderbouwd(claim, kaart(null)));
+  ok("met de sleutel van de bewering gedekt", claimIsOnderbouwd(claim, kaart(claimKey(bewering))));
+  ok("een andere sleutel dekt niets", !claimIsOnderbouwd(claim, kaart(claimKey("Iets heel anders over vijvers."))));
+  ok("een NEE dekt niets", !claimIsOnderbouwd(claim, kaart(claimKey(bewering), false)));
+  eq("maar is wel het verbod", feitUitAntwoord(claim, kaart(claimKey(bewering), false), false)?.ref ?? "geen", "F1");
+  eq("het dekkende feit is aan te wijzen", feitUitAntwoord(claim, kaart(claimKey(bewering)), true)?.ref ?? "geen", "F1");
+  ok("zonder beweringstekst geen koppeling", feitUitAntwoord({ claim: "" }, kaart(claimKey(bewering)), true) === null);
+  const content = leesBestand("lib/pipeline/content.ts");
+  ok("de schrijfopdracht kent het verbod uit een antwoord", content.includes("feitUitAntwoord(claim, facts, false) !== null"));
+  const factbase = leesBestand("lib/pipeline/factbase.ts");
+  ok("de feitenkaart draagt de sleutel mee", factbase.includes("claimKey: sleutelPerTekst.get(text) ?? null"));
+  ok("en haalt hem uit de vraag", factbase.includes("content_piece_ids, claim_key"));
+});
+
+group("Antwoorden op paginavragen worden geen sitefeit (24 september 2026)", () => {
+  ok("vraag uit de voorbereiding blijft bij de pagina", !moetNaarProofPoints({ claim_key: "prijsband tuin", scope: "pagina" }));
+  ok("ook zonder sleutel als hij aan een pagina hangt", !moetNaarProofPoints({ claim_key: null, scope: "pagina" }));
+  ok("ook een analysevraag met sleutel", !moetNaarProofPoints({ claim_key: "iets", scope: "analyse" }));
+  ok("een losse merkvraag gaat wel mee", moetNaarProofPoints({ claim_key: null, scope: "merk" }));
+  ok("answerFact gebruikt de regel", leesBestand("lib/facts.ts").includes("if (!moetNaarProofPoints(fact))"));
+});
+
+group("Het paginaplan krijgt alleen beweringen van die pagina (24 september 2026)", () => {
+  const bron = leesBestand("lib/pipeline/briefing.ts");
+  ok("het plan koppelt strikt", bron.includes("plan: audit.parsed.claims.filter((c) => claimHoortBijPagina(c, pieceId))"));
+  ok("niet meer via de ruime vraagkoppeling", !bron.includes("plan: audit.parsed.claims.filter((c) => paginaVanClaim(c.neededFor).includes(pieceId))"));
+  const helper = bron.slice(bron.indexOf("const claimHoortBijPagina"), bron.indexOf("const claimHoortBijPagina") + 400);
+  ok("sectieverwijzing eerst, dan de doelvraag", helper.includes("sectieVanClaim") && helper.includes("treffersVoor(c.neededFor)"));
 });

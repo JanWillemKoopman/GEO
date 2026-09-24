@@ -35,6 +35,7 @@ import {
   splitRefs,
   isSupported,
   normalizeForQuote,
+  claimKey,
   type FactItem,
   type WrittenClaim,
 } from "@/lib/pipeline/factcard";
@@ -216,10 +217,11 @@ export function claimSoortVan(claim: AuditedClaim): "bedrijfsspecifiek" | "contr
  * heeft dit ontkend), en een verbod onderbouwt niets.
  */
 export function claimIsOnderbouwd(
-  claim: Pick<AuditedClaim, "sourceRef" | "supportQuote">,
+  claim: Pick<AuditedClaim, "sourceRef" | "supportQuote"> & { claim?: string },
   facts: readonly FactItem[],
 ): boolean {
   if (isSupported(claim.sourceRef, facts as FactItem[], claim.supportQuote)) return true;
+  if (feitUitAntwoord(claim, facts, true)) return true;
 
   const citaat = (claim.supportQuote ?? "").trim();
   if (citaat.length < MIN_CITAAT_TEKENS) return false;
@@ -227,6 +229,27 @@ export function claimIsOnderbouwd(
   const genormaliseerd = normalizeForQuote(citaat);
   return facts.some(
     (f) => f.allowed && f.citable && normalizeForQuote(f.text).includes(genormaliseerd),
+  );
+}
+
+/**
+ * Het feit uit een beantwoorde vraag van de voorbereiding dat bij deze bewering
+ * hoort, op de sleutel van de bewering (`claimKey()`), of `null`.
+ *
+ * `toegestaan: true` zoekt het feit dat de bewering DEKT; `false` het VERBOD
+ * (de klant antwoordde "nee"). Zie `FactItem.claimKey` voor waarom dit nodig is.
+ */
+export function feitUitAntwoord(
+  claim: { claim?: string },
+  facts: readonly FactItem[],
+  toegestaan: boolean,
+): FactItem | null {
+  if (!claim.claim?.trim()) return null;
+  const sleutel = claimKey(claim.claim);
+  if (!sleutel) return null;
+  return (
+    facts.find((f) => f.claimKey === sleutel && f.allowed === toegestaan && (!toegestaan || f.citable)) ??
+    null
   );
 }
 

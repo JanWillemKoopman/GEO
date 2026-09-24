@@ -77,6 +77,17 @@ export interface FactItem {
    * onder ACHTERGROND te staan, zonder nummer, expliciet niet als bron.
    */
   citable: boolean;
+  /**
+   * De sleutel van de bewering waar dit feit het antwoord op is (`claimKey()`),
+   * als het uit een beantwoorde vraag van de voorbereiding komt.
+   *
+   * ⚠️ Zonder deze sleutel bleef zo'n bewering voorgoed "onbewezen"
+   * (kwaliteitsdoorlichting, punt 39, 24 september 2026): de claim-audit gaf hem
+   * geen bronnummer of citaat mee, juist omdat er nog geen feit was, en na het
+   * antwoord legde niets de lijn terug. De keuring zei dan "Beantwoord deze
+   * vraag" over een vraag die de klant net beantwoord had.
+   */
+  claimKey?: string | null;
 }
 
 /** Bron-categorie, alleen om de kaart te kunnen sorteren op betrouwbaarheid. */

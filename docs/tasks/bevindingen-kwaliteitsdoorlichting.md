@@ -19,7 +19,8 @@
 > zit, en een voorstel. Is een punt opgelost: de regel "Status" bijwerken met de datum en de PR, en
 > een alinea in `docs/logbook.md`.
 >
-> **Doorlopend bijgewerkt** zolang de doorloop loopt. Stand: meting van de drie clusters loopt. Het
+> **Doorlopend bijgewerkt** zolang de doorloop loopt. Stand 24 september 2026: alle stappen tot en met
+> het schrijven doorlopen, 16 teksten blind beoordeeld; proeven met de reparatieknop en een ideale klant lopen. Het
 > stap-voor-stapdossier met cijfers per stap staat in `docs/tasks/kwaliteitsdoorlichting-stappen.md`.
 
 ## Overzicht
@@ -47,16 +48,34 @@
 | 19 | **hoog** | Een definitief mislukte Gemini- of Google-meting laat de analyse eeuwig op "meten" staan | ✅ opgelost, PR #110 |
 | 20 | **hoog** | Het rapport schrapt elke zin over welke concurrent een vraag wint, ook de juiste | ✅ opgelost, PR #111 en #112 |
 | 21 | middel | Een eigen product ("Hybride warmtepomp") telde in de naamcontrole als concurrent | ✅ opgelost, PR #112 |
+| 22 | **hoog** | Het rapport zegt "niet genoemd, 0 op 100" terwijl Google het merk wel noemde | ✅ opgelost, PR #111 en #112 |
 | 23 | laag | Hetzelfde bedrijf staat twee keer in het namenregister, met en zonder "(VSB)" | open, gevolg opgevangen |
 | 24 | laag | De rapportinstructie zegt niet of prioriteit 1 de belangrijkste is; de hovenier kreeg 6 tot 10 met de belangrijkste pagina's op 10 | open |
 | 25 | middel | Een klaar cluster (status "gereed") heeft geen link op zijn kaart | ✅ opgelost, PR #113 |
 | 26 | **hoog** | De consultant ziet de clusters van een klantmerk niet en krijgt "Start het eerste cluster" | open |
 | 27 | **hoog** | Het rapport kent de groeidoelen en feiten uit het gesprek niet | open |
 | 28 | **hoog** | De site-inventaris mist de hoofdpagina uit het menu en bevat fotobijlagen; het rapport adviseert een fotopagina te verbeteren | open |
-| 29 | middel | Het planscherm zegt de klant "stel je het plan zelf op", maar alleen de consultant mag het | ✅ opgelost, PR volgt |
-| 30 | **hoog** | Het plan gaf de zwaarste gemiste vraag potentie 0 en zette die pagina achteraan | ✅ opgelost, PR volgt |
+| 29 | middel | Het planscherm zegt de klant "stel je het plan zelf op", maar alleen de consultant mag het | ✅ opgelost, PR #114 |
+| 30 | **hoog** | Het plan gaf de zwaarste gemiste vraag potentie 0 en zette die pagina achteraan | ✅ opgelost, PR #114 (nog niet op een nieuw plan nagerekend, zie 32) |
 | 31 | **hoog** | Het plan zet vier verbeteringen van dezelfde pagina in dezelfde week | open |
-| 22 | **hoog** | Het rapport zegt "niet genoemd, 0 op 100" terwijl Google het merk wel noemde | ✅ opgelost, PR #111 en #112 |
+| 32 | **hoog** | "Opnieuw opzetten" van het plan faalt als alle kansen al in het huidige plan staan, en laat ze anders achter | open |
+| 33 | middel | Een plan dat laat in de maand start, vraagt de klant zijn vragen te beantwoorden vóór een datum in het verleden | open |
+| 34 | laag | De klant leest "wacht op jouw vrijgave" en in hetzelfde blok dat de consultant goedkeurt | open |
+| 35 | **hoog** | Vragen die het gesprek al beantwoordde, blijven openstaan voor de klant | open |
+| 36 | middel | Elk rapport zet zijn eigen vragen klaar; alleen letterlijk gelijke vragen worden samengevoegd | open |
+| 37 | laag | Een vraag aan de klant bevat "en" en "of" met een schuine streep ertussen | open |
+| 38 | middel | Het laatste antwoord van een pagina laat de klant 9 tot 30 seconden wachten | open |
+| 39 | **hoog** | Een beantwoorde vraag maakt de bewering erachter nooit "onderbouwd": de keuring blijft "beantwoord deze vraag" zeggen | ✅ opgelost, PR volgt |
+| 40 | **hoog** | De keuring van een pagina blokkeert op beweringen van andere pagina's van hetzelfde merk | ✅ opgelost, PR volgt |
+| 41 | middel | Antwoorden van de klant op paginavragen worden opgeslagen als feit van de site | ✅ opgelost, PR volgt |
+| 42 | **hoog** | De klant krijgt "Tekst is klaar, keur hem goed" bij een tekst die de eigen keuring tegenhoudt | open |
+| 43 | middel | De keuring noemt het bedrag van de klant "in strijd met de instructie", omdat de opzet van vóór zijn antwoord is | open |
+| 44 | laag | Een tegengehouden pagina staat voor de klant als "Alle gegevens bekend, wordt nu geschreven" | open |
+| 45 | **hoog** | Een "verbetering" vervangt de functie van de bestaande pagina (homepage wordt Helmond, prijzenpagina wordt losse les bij faalangst) | open |
+| 46 | **hoog** | De tekst draait een belofte van de site om: "binnen 4 uur een scherpe offerte" wordt "geen termijn voor de offerte" | open |
+| 47 | **hoog** | Het sterkste bewijs van de klant staat in geen enkele tekst, hoewel het op de feitenkaart staat | open |
+| 48 | **hoog** | De teksten lezen als een formulier: bedrijfsnaam voor elke alinea, dezelfde feiten drie tot vier keer, voorbehouden, zinnen uit de bronnen | open |
+| 49 | middel | Waar de klant een vraag oversloeg, wijkt de tekst uit naar "bespreek dat vooraf" in plaats van het onderwerp los te laten | open |
 
 ---
 
@@ -431,6 +450,245 @@ vraag aan. **Richting:** `mergeOverlappingRecommendations()` voegt adviezen al s
 `existingUrl` hoort daar als samenvoegreden bij, of het rapport moet bij een tweede advies voor
 dezelfde pagina een nieuwe pagina voorstellen.
 
+## 32. "Opnieuw opzetten" faalt, of laat de kansen van het oude plan achter
+
+**Gezien.** Na de reparatie van punt 30 wilde ik het plan van de hovenier opnieuw opzetten om de
+nieuwe volgorde na te rekenen. Het venster belooft "Je krijgt twaalf verse maanden terug, meteen
+gevuld met de sterkste kansen uit je voorraad". De server antwoordde 422: "Er zijn nog geen gemeten
+kansen om in te plannen." Het oude plan bleef ongewijzigd staan (geen schade).
+
+**Oorzaak.** `createPlan()` (`lib/plans.ts`) telt als voorraad alleen `planned_pages` zonder maand
+(`plan_month_id is null`). De vijf kansen van de hovenier stonden al in maand 1 van het huidige plan
+en tellen dus niet. Bij een nieuwe klant staat alles in het eerste plan, dus faalt opnieuw opzetten
+altijd. Is er wel losse voorraad, dan lukt het, maar de kansen in de niet vrijgegeven maanden van het
+oude plan blijven daar hangen: `syncBacklog()` maakt ze niet opnieuw aan omdat ze al bestaan.
+
+**Richting.** Bij opnieuw opzetten de pagina's uit de nog niet vrijgegeven maanden van het oude plan,
+zonder tekst, terugzetten in de voorraad (maand en datum leeg) voordat de voorraad geteld wordt. Het
+oude plan houdt dan zijn maanden maar niet die pagina's; het venster moet dat dan ook zo zeggen.
+
+## 33. Een deadline in het verleden
+
+Het vrijgeefvenster zei op 24 september: "Beantwoord ze graag vóór 13 september om op schema te
+blijven." Het plan zette de eerste pagina op 25 september; met tien dagen schrijftijd en twee dagen
+voor de vragen lag de deadline elf dagen terug. Details in stap 15 van
+`docs/tasks/kwaliteitsdoorlichting-stappen.md`.
+
+## 34. "Wacht op jouw vrijgave" terwijl de consultant vrijgeeft
+
+Op het planscherm van de klant staat bovenaan "Deze maand wacht op jouw vrijgave. Daarna begint ORBIT
+ENGINE te schrijven." en onderaan hetzelfde blok "Deze maand goedkeuren doet je consultant bij Outer
+Orbit samen met jou." Beter: "Deze maand wacht op vrijgave door je consultant. Laat weten of je
+akkoord bent."
+
+## 35. Vragen die het gesprek al beantwoordde, blijven openstaan
+
+Bij de installateur vraagt de app de klant onder "Vragen over je merk": "Hoeveel eigen monteurs werken
+er momenteel bij het bedrijf?", "Kunnen klanten buiten kantoortijden een storing melden?", "Biedt u
+onderhoudscontracten aan?" en "In welke plaatsen buiten Geldrop en Eindhoven neemt u opdrachten
+aan?". Alle vier staan in het gesprek (`profiles.offline_proof`: "Twaalf monteurs in dienst",
+"binnen 24 uur bij een storing, ook in het weekend", "Meer dan 1.800 onderhoudscontracten";
+`profiles.growth_regions`: Mierlo, Heeze-Leende, Nuenen). De vragen zijn om 21:41 gemaakt tijdens het
+onderzoek, het gesprek is om 22:00 opgeslagen (`profile_field_sources.set_at`), en niets sluit een
+vraag af die het gesprek beantwoordt. Bij de rapportvragen hetzelfde: "Welke plaatsen bedient Wesley,
+specifiek Geldrop, Mierlo en Nuenen?". **Gevolg:** de klant typt opnieuw wat hij net vertelde, en
+leest daaruit dat er niet geluisterd is. **Richting:** na het opslaan van het gesprek de open
+merkvragen langs de ingevulde velden leggen en een beantwoorde vraag sluiten met het antwoord uit het
+gesprek.
+
+## 36. Elk rapport zet zijn eigen vragen klaar
+
+`saveFactRequests()` (`lib/pipeline/report.ts`) bewaart de feitvragen van het rapport per merk, met
+een unieke sleutel op de letterlijke vraagtekst. Een nieuw rapport (volgende periode, of opnieuw
+gemaakt) formuleert dezelfde vraag net anders en zet hem er dus opnieuw bij. Na drie rapportversies
+had de installateur vier varianten van "welke controles doet u bij een woningbezoek" en drie van
+"welke merken levert u". Ook zonder herhaling overlappen de rapportvragen met de vragen per pagina
+("Wat is doorgaans de wachttijd voor een eerste gesprek" en "Wat is de gebruikelijke wachttijd voor
+een eerste gesprek en voor de start van tuinaanleg" stonden allebei bij de hovenier). Voor de
+doorlichting zijn de vragen van de twee gearchiveerde rapportversies op `verlopen` gezet (31 rijen,
+niets verwijderd).
+
+## 37. "En" en "of" met een schuine streep in een vraag aan de klant
+
+"Voor welke begeleidingsvragen hebben instructeurs specifieke ervaring of scholing: faalangst, ADD,
+ADHD" met daarna "en" en "of" met een schuine streep, en dan "autisme?". De schrijfregels
+(`docs/schrijfstijl.md` §10) verbieden die combinatie overal; de
+vraagtekst komt rechtstreeks uit het model zonder controle. Hetzelfde vangnet als voor de
+gedachtestreepjes hoort ook over vraagteksten te gaan.
+
+## 38. Het laatste antwoord van een pagina laat de klant wachten
+
+Gemeten over 70 antwoorden: een gewoon antwoord kost 0,3 tot 1,3 seconden. Het laatste antwoord van
+een pagina kost 9 tot 18 seconden, en het allereerste van de hovenier meer dan 30. De route
+(`app/api/profiles/[id]/facts/route.ts`) roept na het opslaan `probeerNaAntwoord()` aan, en die
+beoordeelt voor elke gekoppelde pagina de onderbouwing en start het schrijven, binnen dezelfde klik.
+Een vraag die aan vijf pagina's hangt, doet dat vijf keer. **Richting:** het opslaan meteen
+bevestigen en de beoordeling als taak inplannen.
+
+## 39. Een beantwoorde vraag maakt de bewering erachter nooit "onderbouwd"
+
+**Gezien bij de hovenier, pagina Best.** De klant beantwoordde de prijsband ("meestal tussen 12.000 en
+35.000 euro"), de duur ("2 tot 3 weken uitvoering") en bestraten in de winter ("Ja"). De schrijver
+gebruikte prijs en duur. Toch staan ze in de keuring als "Deze pagina leunt op een bewering die we
+niet kunnen onderbouwen", met als oplossing "Beantwoord deze vraag: Hebben jullie een prijsvoorbeeld
+of prijsband...". Dezelfde vraag die de klant net beantwoordde.
+
+**Oorzaak.** `claimIsOnderbouwd()` (`lib/pipeline/evidence-weight.ts`) herkent een bewering alleen via
+het bronnummer (`sourceRef`) of het citaat (`supportQuote`) dat de claim-audit tijdens de voorbereiding
+meegaf. Een bewering zonder bron op dat moment heeft geen van beide; juist die wordt een vraag aan de
+klant. Het antwoord komt als feit binnen (`brand_facts.origin_fact_request_id` wijst naar de vraag),
+maar niets legt de lijn terug naar de bewering. `buildPlanBlock()` (`lib/pipeline/content.ts`) zegt de
+schrijver daardoor ook "GEEN BRON: laat deze passage weg" over precies wat de klant aanleverde.
+**Richting:** de vraag draagt al een `claim_key`; een feit uit een beantwoorde vraag dekt de bewering
+met dezelfde sleutel.
+
+**Opgelost (24 september 2026).** Een feit uit een beantwoorde vraag draagt nu de sleutel van de
+bewering mee (`FactItem.claimKey`, gevuld in `buildFactBase()`), en `claimIsOnderbouwd()` telt een
+bewering als gedekt als een toegestaan feit dezelfde sleutel heeft (`feitUitAntwoord()` in
+`lib/pipeline/evidence-weight.ts`). Een "nee" van de klant wordt in de schrijfopdracht een verbod.
+Ketentest: antwoord op een paginavraag, daarna is de bewering onderbouwd.
+
+## 40. De keuring blokkeert op beweringen van andere pagina's
+
+In de keuring van de pagina voor Best staan blokkades als "nodig voor: De pagina moet laten zien dat
+één hovenier ontwerp, bestrating en aanleg kan combineren voor een tuin in Nuenen" en "De bezoeker
+vraagt om een ongeveer-bedrag voor ontwerp en aanleg" (bestrating in Eindhoven). **Oorzaak:**
+`paginaVanClaim()` in `lib/pipeline/briefing.ts` koppelt een bewering die op geen enkele doelvraag
+matcht bewust aan alle pagina's van de batch ("kost hooguit een dubbele vraag"). Dat is goed voor het
+stellen van vragen, maar het paginaplan dat dezelfde koppeling gebruikt, gaat naar de schrijver en de
+keuring, en daar wordt een bewering van een andere pagina een blokkade. Dezelfde bewering stond vier
+keer in één keuring.
+
+**Opgelost (24 september 2026).** Het paginaplan koppelt nu strikt (`claimHoortBijPagina()` in
+`lib/pipeline/briefing.ts`): via de sectieverwijzing, anders via de doelvraag, en anders niet. Het
+stellen van vragen houdt de ruime koppeling, want daar kost een dubbele vraag weinig.
+
+## 41. Antwoorden van de klant opgeslagen als feit van de site
+
+In `brand_facts` staan de antwoorden op de paginavragen van de hovenier met `kind = site` en `source =
+"site hansverstraatenhoveniers.nl"`, als aan elkaar geplakte vraag en antwoord ("Leggen jullie
+bestrating ook in de winter aan? Ja, in de winter doen we vooral bestrating en ontwerp"). De
+antwoorden op de merk- en rapportvragen staan wel goed als `kind = klant`, "klant, bevestigd
+24-9-2026". Verkeerde herkomst maakt de audit-trail onbetrouwbaar en laat een schrijver een klantfeit
+als sitefeit citeren.
+
+**Oorzaak en oplossing (24 september 2026).** `answerFact()` (`lib/facts.ts`) zette elk antwoord als
+"vraag + antwoord" ook in `profiles.proof_points`, en `buildFactBase()` labelt die lijst als "site" en
+zet hem merkbreed op elke kaart. Zo kwam een antwoord dat bij één pagina hoort op alle pagina's. Nu
+gaat een antwoord op een vraag uit de voorbereiding (met `claim_key`) of een paginavraag niet meer naar
+`proof_points` (`moetNaarProofPoints()` in `lib/proof-point-regel.ts`); het bereikt de schrijver al met
+de bron "klant, bevestigd" en alleen bij zijn eigen pagina. **Niet teruggedraaid:** de 12 regels die
+de doorlichting al in `proof_points` van de drie merken zette, blijven staan.
+
+## 42. "Tekst is klaar, keur hem goed" bij een tegengehouden tekst
+
+Vier teksten van de hovenier stonden op `ready` met `quality_verdict = block` (100 procent zeker). De
+klant ziet in de bibliotheek "Tekst is klaar: lees hem en keur hem goed" met "Kwaliteit 65 tot 73 op
+100", en op de pagina "Er staan nog 15 punten open" met de knoppen "Los de 15 punten op" en "Keur toch
+goed". Twaalf van die vijftien kan hij niet oplossen (punt 39 en 40). Gevolg: óf hij keurt toch goed en
+leert dat de punten niets betekenen, óf hij blijft hangen.
+
+## 43. Het bedrag van de klant "in strijd met de instructie"
+
+De opzet van de pagina (`contract_json`) is gemaakt vóór de klant zijn prijsband gaf en zegt daarom
+"geen prijsbedragen noemen". De schrijver kreeg daarna wel de prijsband en gebruikte hem. De keuring
+toetst tegen de oude opzet: "De genoemde prijsband is in strijd met de instructie om geen
+prijsbedragen op te nemen", en hetzelfde voor de doorlooptijd. De opzet hoort na de antwoorden bij te
+werken, of de keuring hoort de feitenkaart boven de opzet te laten gaan.
+
+## 44. Tegengehouden pagina: "Alle gegevens bekend, wordt nu geschreven"
+
+"Leg op de bestaande pagina uit welke plaatsen en projecten het bedrijf bedient" werd niet geschreven
+omdat de dekking 33 procent was (`te_weinig_onderbouwd`). De bibliotheek toont de klant "Alle
+gegevens bekend, wordt nu geschreven". De melding uit `schrijfpoort()` ("er is te weinig over je
+bedrijf bekend... kies of we hem algemeen schrijven") bereikt dat scherm niet.
+
+## 45. Een "verbetering" vervangt de functie van de bestaande pagina
+
+Het advies was "Maak de bestaande hoofdpagina concreter over complete tuinen en bestrating", met
+`existing_url = https://hansverstraatenhoveniers.nl`. De geschreven tekst heet "Complete tuin met
+bestrating in Helmond | Hans Verstraaten", opent met "Wil je jouw tuin in Helmond helemaal
+vernieuwen" en de doelgroep (`target_intent`) is "Een huiseigenaar in Helmond". Wie hem publiceert
+op het adres waar hij voor bedoeld is, vervangt de homepage van een hovenier met zeven werkplaatsen
+en vijftien diensten door een pagina over één plaats en één dienst. **Oorzaak, vermoedelijk:** de
+zwaarste doelvraag van dit advies ging over Helmond, en de opzet (`content_contract`) neemt de
+doelvraag als onderwerp en niet het soort pagina. Het rapport koos "verbeter de homepage" omdat de
+app maar één pagina van de site kende (punt 4).
+
+**Het is een patroon, geen uitzondering.** Bij de rijschool werd de prijzenpagina
+(`/prijzen-lespakketten/`) "Losse rijles bij faalangst in Eindhoven": proefles, automaat en de prijs
+van de simulatorcursus staan er niet meer in. De pagina "Wat kan ik verwachten tijdens mijn eerste
+rijles" werd een tekst over de intake. Bij de installateur werd `/warmtepomp` drie keer herschreven,
+elke keer rond een andere doelvraag (punt 31). De blinde lezers zeiden bij 5 van de 16 teksten "past
+niet bij het adres". **Richting:** bij "verbeteren" hoort de huidige functie van de pagina (wat er nu
+op staat en waarom) een vaste eis in de opzet te zijn, en de doelvraag een aanvulling.
+
+## 46. De tekst draait een belofte van de site om
+
+De site: "wij doen ons best om je binnen 4 uur te voorzien van een scherpe offerte". De nieuwe tekst
+(Helmond, punt 45): "Voor een offerteaanvraag noemt onze contactpagina een beoogde reactietijd van
+binnen 4 uur. Dat is geen termijn voor het ontwerp of de offerte." Waarschijnlijk een voorzichtige
+herformulering door het model, maar het resultaat spreekt de ondernemer tegen, en juist in de richting
+die hem een verkoopargument kost. De keuring van de app zag dit niet: ze toetst of een bewering een
+bron heeft, niet of hij met die bron overeenkomt.
+
+## 47. Het sterkste bewijs staat in geen enkele tekst
+
+De rijschool: "Slagingspercentage 93 procent bij de eerste poging over 2025" (tegen ongeveer 50 procent
+bij het CBR) staat als bevestigd klantfeit in `brand_facts` en op de feitenkaart van alle acht
+pagina's. Het komt in geen enkele tekst voor, net als de 108 Google-recensies. De installateur:
+"Meer dan 1.800 onderhoudscontracten" en "Twaalf monteurs in dienst" op de feitenkaart van alle
+vier de pagina's, in geen enkele tekst, ook niet op de onderhoudspagina. **Oorzaak:** de app kiest per
+pagina vijf bewijspunten (`proof_points_json`) op "wat de lezer zich afvraagt", en die gaan over het
+proces ("je kunt vooraf vertellen wat je spannend vindt", "intakekosten terug"). Het onderscheidende
+cijfer valt buiten de vijf en de schrijfopdracht (`writer_brief_json`) noemt het niet. Alle drie de
+blinde lezers noemden dit als eerste wat een ondernemer zou toevoegen. **Richting:** de sterkste
+onderscheidende feiten van het merk (uit het gesprek: `offline_proof`) horen een vaste plek in elke
+pagina te hebben, los van de vijf gekozen punten.
+
+## 48. De teksten lezen als een formulier
+
+Drie blinde lezers, onafhankelijk, over 16 teksten (gemiddeld cijfer 4,1 op 10, zie stap 19 tot en met
+23 in `docs/tasks/kwaliteitsdoorlichting-stappen.md`):
+- Bijna elke alinea begint met de volledige bedrijfsnaam ("Hans Verstraaten Hoveniers verzorgt...",
+  "Bij Autorijschool Pompert...", "Wesley Keeris Installatietechniek biedt..."). Waarschijnlijk een
+  bijwerking van de regel dat elke bewering herleidbaar moet zijn: de schrijver zet de naam ervoor
+  om te laten zien over wie het gaat.
+- Dezelfde twee of drie feiten staan drie tot vier keer op één pagina (prijsband en terugkomafspraak
+  bij de hovenier, "isolatie, radiatoren en leeftijd van de ketel" meer dan tien keer op één pagina van
+  de installateur, "75 minuten" en "rustige routes" bij de rijschool).
+- Zinnen uit de bronnen lekken op de pagina: "Voor het ontwerp is hier geen vaste duur genoemd" (twee
+  teksten), "DUBOkeur wordt ook genoemd", "Het genoemde onderhoudscontract kost", "Dat zijn de drie
+  onderdelen die wij voor dit bezoek noemen". Nagerekend in de opgeslagen teksten.
+- Voorbehouden als hoofdtoon: "Dat wij die andere punten tijdens dit adviesbezoek controleren, zeggen
+  we hiermee niet toe", "daarover doen we geen algemene toezegging", "Vraag bij uw aanvraag welke
+  controles de beurt omvat". Het bedrijf klinkt als een buitenstaander.
+- Clichés die de schrijfstijl van de klant tegenspreken: "We staan graag voor je klaar!" (hovenier,
+  "geen verkooppraat"), "Een goed werkende verwarmingsinstallatie is onmisbaar".
+- Kromme koppen: "Beoordeel ervaring aan projecten en duidelijke afspraken", "Een onderhoudsbeurt
+  hoort beide toestellen te benoemen".
+
+De keuring van de app vond wel herhaling in het vraag-en-antwoordblok, maar niet de herhaling in de
+tekst, de naam voor elke alinea of de gelekte bronzinnen. **Richting:** een deterministische controle
+op (1) het aantal alinea's dat met de merknaam begint, (2) dezelfde bewering vaker dan twee keer, (3)
+woorden als "genoemd", "volgens de bron", "zeggen we niet toe".
+
+## 49. Een overgeslagen vraag wordt "bespreek dat vooraf"
+
+Waar de realistische klant een vraag oversloeg (garantie, extra grondwerk, wat de controle kost), laat
+de tekst het onderwerp niet weg maar vult het met "bespreek vooraf", "vraag na" of "daarover doen we
+geen toezegging". De lezer leest daaruit dat het bedrijf het zelf niet weet. Bij de hovenier kende de
+ondernemer de garantie wel (één jaar op aanplant, vijf jaar op bestrating), maar hij werd er niet naar
+gevraagd; de tekst "Bespreek garantieafspraken voordat de aanleg begint" is dan het slechtste van twee
+werelden. De schrijfopdracht zegt "GEEN BRON: laat deze passage weg" (punt 39); de schrijver doet
+iets anders.
+
+**Kanttekening bij de blinde lezers.** Hun oordelen zijn nagerekend voordat ze hier staan. Twee
+"ernstige" punten over de installateur klopten niet: de CO-certificering volgens de Gasketelwet staat
+wél op zijn site, en Eindhoven staat in elke paginatitel van zijn site ("Geldrop - Eindhoven"). Het
+waarheidsdossier was op die twee punten onvolledig. Ook de telefoonnummers van de rijschool staan wel op
+de site. Die punten zijn niet meegeteld.
+
 ---
 
 ## Wat goed ging, om niet kapot te maken
@@ -438,4 +696,14 @@ dezelfde pagina een nieuwe pagina voorstellen.
 - **Het gesprek heeft aantoonbaar effect.** Na het vastleggen sloten de onderwerpen van alle drie de
   merken aan op de groeidoelen: C ging van "automaat" bovenaan naar "faalangst" en "autisme", B van
   "waterontharder" naar "hybride warmtepomp".
+- **De antwoorden van de klant komen in de tekst.** Prijsband, doorlooptijd, de gratis
+  terugkomafspraak na zes weken, de vaste ploeg van vijf man, het 3D-ontwerp boven 15.000 euro en de
+  4,9 uit 5 van de hovenier staan letterlijk en correct in de geschreven pagina's.
+- **Verboden woorden worden gerespecteerd.** "goedkoopste", "tuinman" en "onderhoudsvrij" komen in
+  geen van de vier teksten van de hovenier voor.
+- **De schrijfrem werkt.** Een pagina met 33 procent onderbouwing werd niet geschreven.
+- **De vragen zeggen waarom ze gesteld worden**, met bij elke vraag een knop "Overslaan" en uitleg wat
+  er dan met de tekst gebeurt.
+- **De naamcontrole onder het rapport** houdt na de reparatie van punt 20 alleen nog zinnen tegen die
+  het bewijs niet draagt (0 onterecht geschrapt bij de herhaling).
 - **De crawl kwam binnen** bij twee van de drie sites die sommige automatische bezoekers weigeren.

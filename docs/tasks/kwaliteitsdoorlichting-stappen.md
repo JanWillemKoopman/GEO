@@ -272,11 +272,173 @@ naast elkaar niet begrijpt.
 
 ---
 
+## Stap 14. Contentplan (consultant, `/merk/[id]/strategie/plan`, geen AI)
+
+**Voorwaarde: een pakket.** Zonder pakket staat er "Er is nog geen pakket gekozen". Het pakket zet de
+consultant op `/merk/[id]/admin/toewijzen` onder "Verkoopafspraak": 10 pagina's per maand gekozen.
+Het hangt aan het klantaccount, dus geldt voor alle drie de merken samen.
+
+**Als klant geprobeerd.** Het scherm zei "stel je het plan zelf op" en de knop werkte, maar de server
+weigerde (403) omdat alleen de consultant het plan opstelt (**B29**, opgelost in PR #114). Daarna als
+consultant opgesteld, met een opmerking bij A ("vanaf februari word het druk met aanvragen, en de
+zwemvijver willen we meer gaan doen") en C ("veel leerlingen met autisme of adhd, ouders bellen vaak
+zelf"), bij B leeg. Beide opmerkingen komen letterlijk uit het waarheidsdossier.
+
+| | A hovenier | B installateur | C rijschool |
+|---|---|---|---|
+| Pagina's in maand 1 (pakket 10) | 5 | 5 | 8 |
+| Nieuw / verbeteren | 3 / 2 | 0 / 5 | 0 / 8 |
+| Gepland op | 25 tot 28 september | 25 tot 28 september | 25 tot 28 september |
+| Zelfde bestaande pagina meer dan eens | homepage 2x | `/warmtepomp` 4x | nee |
+
+**Bevindingen:**
+- De volgorde komt uit de meting (gewicht en potentie), niet uit het getal van het model. Bij A staan
+  Best en Nuenen daardoor terecht bovenaan (**B24** heeft hier geen gevolg).
+- De zwaarste gemiste vraag van B kreeg potentie 0 en kwam achteraan (**B30**, opgelost in PR #114).
+  Opnieuw opzetten om dat na te rekenen lukte niet (**B32**, open).
+- Vier verbeteringen van dezelfde pagina in dezelfde week (**B31**, open). De klant ziet in zijn
+  overzicht geen adres per regel, dus merkt niet dat het om één pagina gaat.
+- De fotobijlagepagina van C staat in het plan als "Leg uit hoe Pompert helpt bij voorbereiding op een
+  faalangstexamen" (gevolg van **B28**).
+
+## Stap 15. Maand vrijgeven (consultant)
+
+De klant ziet "Deze maand wacht op jouw vrijgave" en in hetzelfde blok "Deze maand goedkeuren doet je
+consultant bij Outer Orbit samen met jou". Klein, maar tegenstrijdig in één oogopslag. Als consultant
+vrijgegeven: 5, 5 en 8 pagina's voorbereid, geen pagina zonder onderwerp.
+
+Het venster zegt: "Beantwoord ze graag vóór 13 september om op schema te blijven." Het is 24
+september. De eerste pagina staat op 25 september en de app rekent tien dagen schrijftijd plus twee
+dagen voor de vragen; een plan dat op de 24e van de maand start, heeft zijn deadline dus al gehad.
+**Richting:** een plan dat laat in de maand start, plant zijn eerste pagina's minstens twaalf dagen
+vooruit, of het venster noemt dan geen datum in het verleden.
+
+---
+
+## Stap 16. Voorbereiding per pagina (`content_plan`: `item_dossier`, `content_contract`, `fact_atomise`, Luna)
+
+Na het vrijgeven 18 taken (5, 5 en 8), samen ongeveer 17 minuten. Per pagina een itemdossier met
+webzoeken (Luna, redeneren laag, rond $0,012 per pagina), een contract met de opzet van de pagina
+(rond $0,002) en losse feiten. Bij de hovenier kwamen identieke feitenaanroepen twee keer voor (zelfde
+invoer, zelfde lengte): goedkoop ($0,0002), maar tegen conventie 9 in. Daarna per merk één
+briefingtaak (`content_brief`) die de vragen aan de klant opstelt.
+
+## Stap 17. Vragen aan de klant (`/merk/[id]/strategie/vragen`)
+
+| | A hovenier | B installateur | C rijschool |
+|---|---|---|---|
+| Open vragen (na opruimen, zie B36) | 22 | 23 | 25 |
+| Waarvan verplicht | 7 | 10 | 5 |
+| Vragen over het merk, zonder pagina | 13 | 12 | 14 |
+
+**Bevindingen:**
+- Vragen die het gesprek al beantwoordde, staan open (**B35**): monteurs, storingsdienst,
+  onderhoudscontracten, werkgebied.
+- Elk rapport zet zijn eigen vragen klaar, drie versies gaven drie varianten (**B36**).
+- Elke pagina staat op dag één op "Loopt achter · vóór 16 september" (gevolg van **B33**).
+- Eén vraag met "en" en "of" met een schuine streep ertussen (**B37**).
+- Goed: de vragen per pagina zijn concreet en zeggen waarom ze gesteld worden ("Zonder prijs en
+  betaalvorm kan de klant de onderhoudsdienst niet financieel beoordelen"), en er is overal een knop
+  "Overslaan" met uitleg wat er dan gebeurt.
+
+## Stap 18. Antwoorden als realistische klant
+
+Antwoorden alleen uit het waarheidsdossier en de eigen site, kort, zonder opmaak; wat de ondernemer
+niet paraat heeft, overgeslagen. Verstuurd met de klantsessie via dezelfde route als het scherm
+(`PATCH /api/profiles/[id]/facts`). Antwoorden en log in de kladmap (`doorlichting/antwoorden/`).
+
+| | Beantwoord | Overgeslagen |
+|---|---|---|
+| A hovenier | 16 | 6 |
+| B installateur | 17 | 6 |
+| C rijschool | 14 | 11 |
+
+Wachttijd per antwoord: 0,3 tot 1,3 seconden, behalve het laatste antwoord van een pagina (9 tot 18
+seconden, één keer meer dan 30), zie **B38**. Na het laatste antwoord startte het schrijven meteen voor
+vier van de vijf pagina's van de hovenier. De vijfde ("Leg op de bestaande pagina uit welke plaatsen
+en projecten het bedrijf bedient", dekking 33 procent) hield de app terecht tegen.
+
+De ideale-klantvariant volgt later als wisselproef op twee pagina's.
+
+---
+
+## Stap 19 tot en met 23. Schrijven, keuren, repareren (`writer_brief`, `content_draft`, vier keurders, `content_revise`)
+
+Het schrijven start vanzelf zodra de laatste vraag van een pagina gedaan is en de publicatiedatum
+binnen tien dagen ligt (dat was bij alle pagina's al zo, zie **B33**). 16 van de 18 pagina's zijn
+geschreven, twee hield de app tegen wegens te weinig onderbouwing.
+
+| AI-stap | Model | Aanroepen | Kosten |
+|---|---|---|---|
+| `content_draft` (eerste versie) | Sol | 16 | $1,200 |
+| `content_revise` (reparatieronde) | Sol | 21 | $1,184 |
+| `item_dossier` | Luna | 18 | $0,219 |
+| keurders (`content_factuality`, `content_citability`, `content_craft`, `content_critique`) | Luna | 4 x 37 | $0,224 |
+| `content_contract`, `writer_brief`, `claim_audit`, `fact_atomise` en rest | Luna | | $0,121 |
+| **Samen, 16 pagina's** | | | **ongeveer $2,95, 18 cent per pagina** |
+
+**De eigen keuring van de app:** alle 16 teksten `quality_verdict = block`, met 100 procent
+zekerheid, en toch status `ready` met "Tekst is klaar: lees hem en keur hem goed" voor de klant
+(**B42**). Kwaliteitsscores 32 tot 86. Tussen 1 en 18 blokkerende punten per tekst.
+
+| | Blokkerend (waarvan bewijs) | Gedeelde claimdekking |
+|---|---|---|
+| A, drie pagina's | 15 tot 18 (13) | 27,6 bij alle drie |
+| A, onderhoudsarm | 1 (0) | geen |
+| B, twee warmtepompteksten | 12 (7) | 45,5 bij beide |
+| C, zes pagina's | 7 tot 8 (3) | 78,4 of 78,9 |
+
+Dezelfde claimdekking over meerdere pagina's bevestigt **B40**: de keuring toetst een gedeelde lijst
+beweringen, niet die van de pagina. Een steekproef (A, Best) liet zien dat de bewijsblokkades
+beweringen betreffen die de klant beantwoordde (**B39**) of die van een andere pagina komen (**B40**),
+en dat de keuring het bedrag van de klant afkeurde tegen een verouderde opzet (**B43**).
+
+**Wat opviel bij het lezen, nagerekend tegen de site en het waarheidsdossier:**
+- De antwoorden van de klant komen correct in de tekst: prijsband, doorlooptijd, de gratis
+  terugkomafspraak na zes weken, de ploeg van vijf man, het 3D-ontwerp boven 15.000 euro, de 4,9.
+- Geen van de verboden woorden van de hovenier.
+- "Verbeter de homepage" werd een pagina over Helmond voor het adres van de homepage (**B45**).
+- De belofte "binnen 4 uur een scherpe offerte" werd "geen termijn voor de offerte" (**B46**).
+- Drie volledige, verschillende teksten voor hetzelfde adres `/warmtepomp` (**B31**), en een tekst van
+  1.050 woorden voor het adres van een fotobijlage bij de rijschool (**B28**).
+
+Teksten en opdrachten voor de blinde lezers staan in de kladmap (`doorlichting/teksten/`,
+`doorlichting/poort19/`).
+
+**Blinde poort.** Per merk één onafhankelijke lezer (Claude, blind voor de app), als copywriter en
+SEO-specialist, met: het waarheidsdossier (site plus gesprek), per tekst de nieuwe versie, en waar er
+een is de huidige pagina op dat adres. Vragen: klopt het, publiceert de ondernemer het, neemt een
+bezoeker contact op, copywritercijfer, citeerbaar voor AI, nieuw tegen huidig, past het bij het adres.
+
+| | A hovenier (4) | B installateur (4) | C rijschool (8) |
+|---|---|---|---|
+| Copywritercijfer per tekst | 5, 4, 6, 4 | 4, 4, 5, 2 | 5, 3, 5, 3, 4, 5, 3, 4 |
+| Ondernemer publiceert: met aanpassingen / nee | 3 / 1 | 2 / 2 | 6 / 2 |
+| Bezoeker neemt contact op: ja / misschien / nee | 1 / 3 / 0 | 0 / 3 / 1 | 2 / 6 / 0 |
+| Nieuw beter / huidig beter dan de huidige pagina | 2 / 1 | 3 / 1 | 6 / 2 |
+| Past niet bij het adres | 1 | 1 | 3 |
+| Niveau professionele copywriter | nee | nee | nee |
+
+Gemiddeld cijfer over 16 teksten: **4,1 op 10**. Geen enkele tekst zou de ondernemer zonder aanpassing
+publiceren. Wel is de nieuwe tekst in 11 van de 15 vergelijkingen beter dan wat er nu staat: de huidige
+pagina's zijn algemene reclame zonder prijs, planning of werkwijze (en bij de rijschool staat er "gegarandeerd
+goedkope rijlessen" op vier plaatspagina's). De teksten beginnen dus boven de huidige site, maar
+ver onder een professionele copywriter.
+
+**Wat de lezers bij alle drie de merken noemden:** het sterkste bewijs ontbreekt (**B47**), de tekst
+leest als een formulier (**B48**), een "verbetering" vervangt de functie van de pagina (**B45**), en waar
+een vraag overgeslagen werd staat "bespreek dat vooraf" (**B49**). Twee oordelen over de installateur
+en één over de rijschool bleken bij narekenen onterecht (zie de kanttekening onder B49).
+
+Vergeleken met de eigen keuring van de app: die hield alle 16 teksten tegen, maar vooral om
+bewijsredenen die zelf niet klopten (**B39**, **B40**, **B43**). De dingen die de blinde lezers als
+eerste noemden (herhaling, bedrijfsnaam voor elke alinea, gelekte bronzinnen, ontbrekend onderscheidend
+bewijs, verkeerde pagina op het adres) staan niet of nauwelijks in de keuring. De keuring meet dus iets
+anders dan wat een lezer merkt.
+
+---
+
 ## Nog te doen in deze doorloop
 
-- Stap 14 tot en met 18: contentplan, onderzoek per pagina, inhoudsopgave, vragen aan de klant,
-  antwoorden uit het waarheidsdossier (ideale en realistische klant).
-- Stap 19 tot en met 23: schrijfopdracht, eerste versie, keuring door de app, reparatierondes,
-  goedkeuren; de vier blinde lezers en de blinde vergelijking met de huidige pagina en de beste
-  concurrent.
-- De wisselproeven en het verslag met hooguit vijf verbeteringen.
+- Goedkeuren als klant ("Keur toch goed" of "Los de punten op"), en wat de reparatieknop doet.
+- De ideale-klantvariant op twee pagina's, de wisselproeven en het verslag met hooguit vijf verbeteringen.

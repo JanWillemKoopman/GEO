@@ -12138,3 +12138,15 @@ de eerste aanbeveling van het rapport de laatste pagina van de maand werd. Nu ge
 `genoemdPerVraag()` en `bepaalGemisteVragen()` uit `lib/pipeline/missed-prompts.ts`. Daarnaast zegt
 het planscherm de klant nu vooraf dat de consultant het plan opstelt (punt 29 en 30 in
 `docs/tasks/bevindingen-kwaliteitsdoorlichting.md`).
+
+## 24 september 2026: een antwoord van de klant dekt nu de bewering waar het voor gevraagd werd
+
+Drie samenhangende fouten uit stap 19 tot en met 23 van de kwaliteitsdoorlichting. (1) Een bewering
+die bij de voorbereiding geen bron had, werd een vraag aan de klant, maar na het antwoord legde niets
+de lijn terug: de keuring bleef "Beantwoord deze vraag" zeggen en de schrijfopdracht "GEEN BRON: laat
+weg" over precies wat de klant aanleverde. Nu draagt een feit uit een antwoord de sleutel van zijn
+bewering (`claimKey()`), en telt de bewering daarmee als gedekt. (2) Het paginaplan koppelde een
+bewering zonder duidelijke pagina aan alle pagina's; drie pagina's van de hovenier hadden daardoor
+dezelfde 13 blokkades en dezelfde claimdekking van 27,6 procent. Nu koppelt het plan strikt. (3) Een
+antwoord op een paginavraag ging ook naar `proof_points` en kwam zo als "sitefeit" op de kaart van
+elke pagina. Punt 39, 40 en 41 in `docs/tasks/bevindingen-kwaliteitsdoorlichting.md`.

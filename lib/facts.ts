@@ -1,4 +1,5 @@
 import "server-only";
+import { moetNaarProofPoints } from "@/lib/proof-point-regel";
 
 /**
  * Het antwoord op een feitenvraag verwerken: opslaan, beoordelen of het een
@@ -136,6 +137,17 @@ export async function answerFact(
   // Behalve bij een omgezet open punt uit de synthese, zie de uitleg
   // hierboven bij de functie.
   if (isGapQuestion(fact.raw_json)) {
+    return { ok: true, outcome: { fact: updated, needsEvidence: false, evidenceHint: null } };
+  }
+
+  // Ook niet bij een vraag uit de voorbereiding van een pagina (hij draagt een
+  // `claim_key`) of een vraag die aan één pagina hangt. Die antwoorden bereiken
+  // de schrijver al via `buildFactBase()`, met de bron "klant, bevestigd", en
+  // alleen bij de pagina waar ze horen. Als proof point kregen ze de bron "site"
+  // en belandden ze op de kaart van ELKE pagina van het merk
+  // (kwaliteitsdoorlichting, punt 41, 24 september 2026: "Leggen jullie
+  // bestrating ook in de winter aan? Ja" stond als sitefeit in de bank).
+  if (!moetNaarProofPoints(fact)) {
     return { ok: true, outcome: { fact: updated, needsEvidence: false, evidenceHint: null } };
   }
 
