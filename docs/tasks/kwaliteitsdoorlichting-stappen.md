@@ -202,11 +202,78 @@ DataForSEO.
   (**B18**); de herhaling vangt het op, maar de mislukte uitvoer wordt niet bewaard.
 - Voortgang om 05:39: A 115, B 118, C 115 van 166 taken; de rest wacht op Gemini.
 
+**Afloop (24 september, 06:00).** Alle 90 Gemini-taken gaven na vier pogingen definitief op. Daarna
+bleven alle drie de analyses op "meten" staan: de aggregatie werd na een opgegeven Gemini- of
+Google-taak nooit ingepland (**B19**, opgelost in PR #110). Met de hand ingepland om 06:05; om 06:10
+waren alle drie gereed. Het rapport zegt nergens dat Gemini ontbrak. Gemini telt niet mee in de
+score; hoe het scherm "Zichtbaarheid in AI" een bron zonder metingen toont, is nog niet bekeken.
+
+---
+
+## Stap 13. Rapport en aanbevolen pagina's (`gap_analysis` en `report`, Luna)
+
+| | A hovenier | B installateur | C rijschool |
+|---|---|---|---|
+| Score ChatGPT (gewogen) | 15 (17) | 20 (23) | 0 (0) |
+| Score Google AI Overview | 27 | 15 | 23 |
+| Invoer rapport (tekens) | 28.705 | 28.887 | 39.706 |
+| Kosten gap + rapport | $0,006 | $0,006 | $0,006 |
+| Aanbevelingen (eerste versie, na reparatie) | 5 | 5 | 8 |
+| Zinnen geschrapt door de naamcontrole, eerste versie | 17 | 17 | 15 |
+| Idem na PR #111 en #112 | 0 | 0 | 0 |
+
+**Wat de app zelf fout deed en is gerepareerd (zelfde dag):**
+- De naamcontrole schrapte elke zin over wie een vraag wint, ook de juiste: 49 zinnen, 47 juist
+  (**B20**, PR #111). Een eigen product telde als concurrent en een naam met "(VSB)" werd afgekeurd
+  (**B21**, **B23**, PR #112).
+- Het rijschoolrapport opende met "niet genoemd, 0 op 100" terwijl Google hem in 17 van 74 antwoorden
+  noemde (**B22**, PR #111 en #112).
+- De clusternamen in het rijschoolrapport begonnen met "V1" plus een kastlijntje (PR #111).
+- De drie rapporten zijn na de reparaties opnieuw gemaakt; de oude versies staan bewaard als periode
+  -1 en -2 in `reports`.
+
+**Wat de klant op het scherm ziet.** Als klant stuurt `/analyses/[id]/rapport` door naar de
+clusterlijst. Daar staat het cluster met "0% zichtbaarheid" (rijschool), maar de kaart was niet aan
+te klikken (**B25**, opgelost). Als consultant ziet dezelfde pagina nul clusters en een knop
+"Start het eerste cluster" (**B26**, open).
+
+**Blinde poort.** Drie onafhankelijke lezers (Claude, blind voor de app) kregen per merk: wat de
+ondernemer wil (uit het waarheidsdossier), de eigen kopie van de site, de lijst pagina's die de app
+kende, de meetgegevens onder het rapport en het rapport zoals de klant het krijgt. Opdracht en
+oordelen staan in de kladmap (`doorlichting/poort13/`), niet in de repo.
+
+| | A | B | C |
+|---|---|---|---|
+| Samenvatting | met gebreken | met gebreken | met gebreken |
+| Pagina's: maken met aanpassing / niet maken | 3 / 2 | 5 / 0 | 6 / 2 |
+| "Nieuw of verbeteren" fout volgens de lezer | 4 van 5 | 3 van 5 | 3 van 8 |
+| Volgorde klopt | nee | nee | nee |
+| Klaar voor het contentplan | met aanpassingen | met aanpassingen | met aanpassingen |
+
+Nagerekend voordat het hier staat: dat `/hovenier-in-best/` en `/hovenier-in-nuenen/` bestaan
+(ja), dat de site van de hovenier een proefpagina met een adres in Jakarta en KvK 00000000 heeft
+(ja), dat de menupagina "Rijles met faalangst & autisme" niet tussen de 108 bekende pagina's zit
+(ja, **B28**), dat de rapportinvoer van de installateur zijn groeiplaatsen en feiten niet bevat
+(ja, nul treffers, **B27**). Eén opmerking van lezer A klopt niet: hij las "30 vragen, 119
+metingen" als tegenspraak. Dat is het niet, maar het laat wel zien dat een leek die twee getallen
+naast elkaar niet begrijpt.
+
+**De rode draad uit de drie oordelen:**
+1. Het rapport stuurt op de meting en niet op de groeidoelen van de ondernemer (**B27**). Bij C
+   drie van de acht adviezen voor plaatsen die geen groeiplaats zijn; bij B niets over de tweede
+   groeidienst.
+2. "Nieuw of verbeteren" klopt vaak niet, omdat de app de site onvolledig kent (**B4**, **B28**).
+3. De adviezen vragen de ondernemer om feiten ("noem alleen bedragen die je kunt onderbouwen") die
+   hij in het gesprek al gaf.
+4. Bij B gaan vier van de vijf adviezen naar dezelfde pagina; alle drie de lezers vinden eigen
+   pagina's per vraag sterker.
+5. De score met marge ("15, plus of min 15") zegt de ondernemer niets; alle drie de lezers vragen om
+   het gevolg in plaats van het getal.
+
 ---
 
 ## Nog te doen in deze doorloop
 
-- Stap 13: rapport en aanbevolen pagina's, met de blinde poortvraag.
 - Stap 14 tot en met 18: contentplan, onderzoek per pagina, inhoudsopgave, vragen aan de klant,
   antwoorden uit het waarheidsdossier (ideale en realistische klant).
 - Stap 19 tot en met 23: schrijfopdracht, eerste versie, keuring door de app, reparatierondes,

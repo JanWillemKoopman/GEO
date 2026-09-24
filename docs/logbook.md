@@ -12119,3 +12119,12 @@ Nagekomen dezelfde dag, na het opnieuw maken van de drie rapporten op productie:
 van de klant telde in de naamcontrole als concurrent (4 juiste zinnen weg), een toevoeging tussen
 haakjes ("(VSB)") liet een juiste naam afkeuren (1 zin), en de rechtzetting over Google stond er
 twee keer als het model hem zelf al schreef. Alle drie opgelost; punt 21 en 23 in de bevindingenlijst.
+
+## 24 september 2026: een klaar cluster is weer aan te klikken
+
+De kaart op de clusterpagina gaf alleen bij status "gemeten" een link naar de cijfers en de
+pagina's van het cluster. Na het rapport is de status "gereed", de eindtoestand, dus bij elk klaar
+cluster viel er niets aan te klikken behalve het menu met de drie puntjes. Gezien bij alle drie de
+merken van de kwaliteitsdoorlichting; "gereed" hoort er nu bij. Punt 25 in
+`docs/tasks/bevindingen-kwaliteitsdoorlichting.md`, waar ook de open punten 24 en 26 tot en met 28
+uit dezelfde stap staan.

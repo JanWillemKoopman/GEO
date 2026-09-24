@@ -48,6 +48,11 @@
 | 20 | **hoog** | Het rapport schrapt elke zin over welke concurrent een vraag wint, ook de juiste | ✅ opgelost, PR #111 en #112 |
 | 21 | middel | Een eigen product ("Hybride warmtepomp") telde in de naamcontrole als concurrent | ✅ opgelost, PR #112 |
 | 23 | laag | Hetzelfde bedrijf staat twee keer in het namenregister, met en zonder "(VSB)" | open, gevolg opgevangen |
+| 24 | laag | De rapportinstructie zegt niet of prioriteit 1 de belangrijkste is; de hovenier kreeg 6 tot 10 met de belangrijkste pagina's op 10 | open |
+| 25 | middel | Een klaar cluster (status "gereed") heeft geen link op zijn kaart | ✅ opgelost, PR #113 |
+| 26 | **hoog** | De consultant ziet de clusters van een klantmerk niet en krijgt "Start het eerste cluster" | open |
+| 27 | **hoog** | Het rapport kent de groeidoelen en feiten uit het gesprek niet | open |
+| 28 | **hoog** | De site-inventaris mist de hoofdpagina uit het menu en bevat fotobijlagen; het rapport adviseert een fotopagina te verbeteren | open |
 | 22 | **hoog** | Het rapport zegt "niet genoemd, 0 op 100" terwijl Google het merk wel noemde | ✅ opgelost, PR #111 en #112 |
 
 ---
@@ -334,6 +339,64 @@ en punt 23 (1), die daarna ook opgelost zijn. Geen gap meer zonder bewijs (was 1
 installateur). De samenvatting van alle drie noemt nu dat de score over ChatGPT gaat en dat Google het
 merk wel noemde. Bij de rijschool stond de rechtzetting er toen twee keer in (model en vangnet); het
 vangnet zwijgt nu als de samenvatting de bron al noemt.
+
+## 24. Prioriteit van de aanbevelingen heeft geen afgesproken richting
+
+De code (`mergeOverlappingRecommendations()`, de rapportmail) leest "laagste getal is het
+belangrijkst". De instructie aan het model zegt daar niets over. Installateur en rijschool kregen
+1 tot en met 5 en 1 tot en met 8; de hovenier kreeg 9, 10, 10, 7 en 6, met de twee pagina's waar
+de ondernemer op wil groeien (Best en Nuenen) op 10, dus achteraan. Gevolg nu klein: het getal
+bepaalt alleen de top 3 in de rapportmail (standaard uit) en welke van twee dubbele adviezen blijft.
+**Richting:** de volgorde uit de meting afleiden (som van de gewichten van de doelvragen), zoals
+bij punt 2, en het getal van het model alleen als tweede sleutel.
+
+## 25. Een klaar cluster heeft geen link op zijn kaart ✅
+
+`cluster-kaart.tsx` gaf de kop en de links "Cijfers van dit cluster" en "Pagina's van dit cluster"
+alleen bij status "gemeten". Na het rapport is de status "gereed", de eindtoestand. De klant zag bij
+alle drie de merken een kaart waar niets op te klikken viel, behalve het menu met de drie puntjes.
+Opgelost: "gereed" hoort er nu bij.
+
+## 26. De consultant ziet de clusters van een klantmerk niet
+
+`loadBrandWork()` (`lib/work.ts`) en de prullenbak op de clusterpagina filteren op
+`user_id = de ingelogde gebruiker`. De database laat een consultant alles lezen, maar dit extra
+filter verbergt precies de clusters van de klant: bij alle drie de merken zag de consultant
+"Alle clusters (0)" en de knop "Start het eerste cluster", terwijl er een gereed cluster was. Een
+consultant die daarop klikt, start een tweede cluster en betaalt de meting dubbel. **Waarom nog
+niet opgelost:** het raakt aan wie wat mag zien. De veilige richting is filteren op merk en de
+toegang aan de database laten (die staat dat al goed toe), maar dat verdient een eigen controle
+van alle plekken die `loadBrandWork()` gebruiken (`app/(app)/merk/[id]/page.tsx` en de
+clusterpagina).
+
+## 27. Het rapport kent de groeidoelen en feiten uit het gesprek niet
+
+**Gezien.** Drie blinde lezers (stap 13) kwamen onafhankelijk op hetzelfde uit: het rapport stuurt
+op wat de meting laat zien, niet op wat de ondernemer wil. De rijschool kreeg pagina's voor Helmond,
+Waalre en Geldrop (geen groeiplaatsen) en niets over autisme en ADHD (zijn eerste groeidoel). De
+installateur kreeg niets over Mierlo en Nuenen (zijn groeiplaatsen) en niets over ketelvervanging en
+het onderhoudscontract (zijn tweede groeidoel). Adviezen zeggen "noem alleen bedragen die je kunt
+onderbouwen" terwijl de ondernemer die bedragen in het gesprek al gaf.
+
+**Nagerekend.** In de invoer van het installateursrapport komen "Mierlo", "1.800", "Remeha",
+"24 uur", "4.500" en "VvE" nul keer voor. `generateReport()` haalt `profile_strategy` op, maar geeft
+alleen `context_factors` door (`lib/pipeline/report.ts`, de `strategyRow`).
+
+**Richting.** De groeidoelen, groeiplaatsen, klantgroepen en verboden onderwerpen uit het gesprek
+horen in de rapportinvoer, als weegfactor bij de volgorde en als filter (geen advies over een
+verboden onderwerp). Het deel van punt 5 (de meetvragen negeren de groeiplaatsen) zit hier
+stroomopwaarts van: vraagt de meting niet naar Mierlo, dan kan het rapport er ook niets over zeggen.
+
+## 28. De site-inventaris mist de hoofdpagina uit het menu en bevat fotobijlagen
+
+**Gezien bij de rijschool.** De pagina `/rijles-met-faalangst-autisme/` staat in het hoofdmenu en is
+de belangrijkste pagina voor het cluster, maar zit niet tussen de 108 pagina's die de app van de
+site kent. Wel bekend: vijf fotobijlagepagina's (`/cbr-peter-pompert-2/` tot en met `-5/`) en een
+tagpagina. Het rapport adviseert daardoor de blog "angst voor autorijden" als faalangstpagina, en
+wil een fotobijlage (`/autorijschool-pompert/cbr-peter-pompert-2/`) "verbeteren" met uitleg over het
+faalangstexamen. **Bij de hovenier** kende de app één pagina (punt 4), dus adviseerde het rapport
+"nieuwe pagina voor Best" en "voor Nuenen" terwijl `/hovenier-in-best/` en `/hovenier-in-nuenen/`
+bestaan. Punt 4 en 10 hebben hier dus een direct zichtbaar gevolg in het advies aan de klant.
 
 ---
 

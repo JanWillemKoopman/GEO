@@ -25523,3 +25523,10 @@ group("Rapport na de herhaling op echte data: drie restfouten (24 september 2026
   const bron = leesBestand("lib/pipeline/evidence.ts");
   ok("een eigen product telt niet als concurrentnaam", bron.includes('if (e.entity_role === "eigen_product") continue;'));
 });
+
+group("Een klaar cluster is aan te klikken (24 september 2026)", () => {
+  const kaart = leesBestand("app/(app)/merk/[id]/strategie/clusters/cluster-kaart.tsx");
+  const kop = kaart.slice(kaart.indexOf("const kopLink ="), kaart.indexOf("const analyticsLink ="));
+  ok("de kop linkt ook bij gereed", kop.includes('analyse.status === "gereed"'));
+  ok("de links onder de kaart ook", kaart.includes('(analyse.status === "gemeten" || analyse.status === "gereed") && ('));
+});

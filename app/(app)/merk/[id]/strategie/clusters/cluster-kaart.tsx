@@ -228,7 +228,10 @@ export function ClusterKaart({
   const kopLink =
     analyse.status === "concept_klaar"
       ? `/analyses/${analyse.id}/concept`
-      : analyse.status === "gemeten"
+      : // "gereed" hoort erbij: dat is de eindtoestand na het rapport. Zonder
+        // stond een klaar cluster op 24 september 2026 zonder enige link op de
+        // kaart; alleen het menu met de drie puntjes leidde nog ergens heen.
+        analyse.status === "gemeten" || analyse.status === "gereed"
         ? `/merk/${analyse.profile_id}/analytics?cluster=${analyse.id}`
         : null;
 
@@ -442,7 +445,7 @@ export function ClusterKaart({
           Bibliotheek, allebei met een filter per cluster. Zonder deze twee
           links moest de klant dat filter zelf vinden en instellen. Alleen bij
           een gemeten cluster, want daarvoor staat er op die schermen nog niets. */}
-      {!gearchiveerd && analyse.status === "gemeten" && (
+      {!gearchiveerd && (analyse.status === "gemeten" || analyse.status === "gereed") && (
         <div
           className="flex flex-wrap items-center gap-x-4 gap-y-1"
           onClick={(e) => e.stopPropagation()}
