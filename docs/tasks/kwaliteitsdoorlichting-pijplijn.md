@@ -5,7 +5,8 @@
 > wisselproeven. De uitkomst en de vijf verbeteringen staan in
 > `docs/tasks/bevindingen-kwaliteitsdoorlichting.md`, het dossier per stap in
 > `docs/tasks/kwaliteitsdoorlichting-stappen.md`. Niet gedaan: goedkeuren en publiceren als klant en de
-> effectmeting; die hangen aan echte publicatie. Opgesteld op verzoek van de
+> effectmeting; die hangen aan echte publicatie. De herhaling na de verbeterronde en de overdracht
+> naar een nieuwe werksessie: `docs/tasks/kwaliteitsdoorlichting-herhaling.md`. Opgesteld op verzoek van de
 > eigenaar na een analyse van de code en van productie. Elk cijfer hieronder is die dag nagerekend
 > op de code of op de database (Supabase-project `GEO`), tenzij er "schatting" bij staat.
 >

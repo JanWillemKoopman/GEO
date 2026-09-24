@@ -1,0 +1,10 @@
+f1 basis=A keuze=A goed zekerheid=5
+f1 basis=B keuze=B goed zekerheid=5
+f2 basis=A keuze=A goed zekerheid=5
+f2 basis=B keuze=B goed zekerheid=4
+f3 basis=A keuze=A goed zekerheid=5
+f3 basis=B keuze=B goed zekerheid=4
+f4 basis=A keuze=A goed zekerheid=5
+f4 basis=B keuze=B goed zekerheid=5
+f5 basis=A keuze=A goed zekerheid=5
+f5 basis=B keuze=B goed zekerheid=5

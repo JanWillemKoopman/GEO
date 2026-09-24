@@ -1,0 +1,165 @@
+{
+  "samenvatting": {
+    "oordeel": "met_gebreken",
+    "problemen": [
+      {
+        "citaat": "de meting is gebaseerd op 30 vragen",
+        "probleem": "De meetgegevens spreken van \"30 waarnemingen\", niet van 30 vragen. Het dossier toont 15 gemiste vragen. De eigenaar denkt nu dat er 30 verschillende vragen zijn gesteld en kan het cijfer niet naast de lijst leggen.",
+        "ernst": "laag"
+      },
+      {
+        "citaat": "Vooral vragen van mensen die in Geldrop of Eindhoven een installateur, offerte of advies voor een hybride warmtepomp zoeken, bieden kansen.",
+        "probleem": "Het doel van de eigenaar is \"In Geldrop, Mierlo en Nuenen het eerste adres zijn voor een hybride warmtepomp\". Mierlo en Nuenen komen in het hele rapport niet voor. Ook zijn tweede groeidoel, ketelvervanging met onderhoudscontract, noemt de samenvatting niet. De eigenaar ziet dus niet hoe ver hij van zijn eigen doel af zit.",
+        "ernst": "hoog"
+      },
+      {
+        "citaat": "de score is ongeveer 20/100, of ongeveer 23/100 wanneer populaire en koopgerichte vragen zwaarder meetellen",
+        "probleem": "Het cijfer staat er, maar niet wat het betekent: dat hij op de vraag die het meest oplevert (een installateur in zijn eigen Geldrop) niet genoemd werd, terwijl hij daar gevestigd is. Dat is de zin die de eigenaar moet horen. Bij een marge van ±17 punten zegt het verschil tussen 20 en 23 bovendien niets. Dat tweede getal verwart eerder dan dat het helpt.",
+        "ernst": "middel"
+      },
+      {
+        "citaat": "De website heeft al een warmtepomppagina; die kan concreter antwoord geven op deze vragen.",
+        "probleem": "Hier zit al de denkfout van het hele rapport: alles moet op één bestaande pagina (\"/warmtepomp\"). Die pagina bestaat nu uit één alinea algemene voordelen (\"Deze systemen zijn uiterst energie-efficiënt\"). Om tien verschillende vragen te beantwoorden is meer nodig dan die pagina concreter maken.",
+        "ernst": "middel"
+      }
+    ]
+  },
+  "paginas": [
+    {
+      "nummer": 1,
+      "oordeel": "maken_met_aanpassing",
+      "nieuw_of_verbeteren_klopt": true,
+      "problemen": [
+        {
+          "citaat": "Zet deze informatie ruim vóór het najaar klaar, zodat de pagina al vindbaar is wanneer de drukke periode begint.",
+          "probleem": "Hier is het seizoen verkeerd gelezen. Volgens de eigenaar is oktober tot februari druk met \"storingen en vervanging\" en is het voorjaar de tijd voor \"vooral warmtepompen en airco\". Een warmtepomppagina moet dus klaar zijn vóór het voorjaar. Wat nu vóór oktober klaar moet, is ketelvervanging en onderhoud, en daar zegt het rapport niets over. Het rapport is gemaakt op 23 september: \"ruim vóór het najaar\" kan niet meer.",
+          "ernst": "middel"
+        },
+        {
+          "citaat": "Maak op de bestaande warmtepomppagina duidelijk dat Wesley in Geldrop werkt",
+          "probleem": "Het bedrijf is gevestigd op \"Hooge Akker 15 5661 NG, Geldrop\" en dat staat al op elke pagina. Wat mist is inhoud die laat zien dat hij hybrides in bestaande woningen plaatst: de merken (Remeha Elga Ace, Nefit EnviLine), installatie in één dag, twee tot vier weken levertijd, twaalf monteurs, InstallQ-erkenning (niet gevonden in de kopie) en projecten (de pagina /projecten is in de kopie leeg). Mierlo en Nuenen horen hier ook bij, want daar ligt het doel.",
+          "ernst": "middel"
+        },
+        {
+          "citaat": "\"titel\": \"Maak de warmtepomppagina een duidelijk lokaal antwoord voor Geldrop\"",
+          "probleem": "Vier van de vijf aanbevelingen gaan naar dezelfde pagina /warmtepomp. Dan krijg je één overvolle pagina over plaatsing, prijs, geschiktheid en systeemkeuze. Een assistent haalt makkelijker een antwoord uit een pagina die over één vraag gaat. Laat deze pagina het lokale hoofdantwoord zijn en zet de rest op eigen pagina's.",
+          "ernst": "hoog"
+        }
+      ],
+      "overlapt_met": [2, 3, 4]
+    },
+    {
+      "nummer": 2,
+      "oordeel": "maken_met_aanpassing",
+      "nieuw_of_verbeteren_klopt": false,
+      "problemen": [
+        {
+          "citaat": "Noem alleen bedragen en subsidie-informatie die Wesley daadwerkelijk kan onderbouwen.",
+          "probleem": "De eigenaar heeft \"Uitspraken over de hoogte van subsidie in euro's\" verboden. Het rapport laat die deur open. Er moet duidelijk staan: geen subsidiebedragen, wel een verwijzing naar de officiële regeling. Het bedrag dat hij wel kan geven (\"€ 4.500 tot € 7.500 voor subsidie\") gebruikt het rapport niet, terwijl dat precies is wat de concurrentie wint (het antwoord op de prijsvraag noemt \"€5.000 tot €8.500\").",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "\"soort\": \"faq\", \"nieuw_of_verbeteren\": \"verbeteren\", \"bestaande_pagina\": \"https://www.wkinstallatie.nl/warmtepomp\"",
+          "probleem": "Een eigen pagina \"Wat kost een hybride warmtepomp in Geldrop\" met prijsopbouw, wat wel en niet in de offerte zit en het veelgehoorde bezwaar \"Wat houd ik over na subsidie?\" is sterker dan een vragenblok onderaan /warmtepomp. Dit hoort een nieuwe pagina te zijn.",
+          "ernst": "middel"
+        },
+        {
+          "citaat": "\"Welke installateurs in Geldrop vergelijken een hybride warmtepomp met mijn huidige cv-ketel en geven vooraf een duidelijke prijsindicatie?\"",
+          "probleem": "Deze vraag gaat over vergelijken met de huidige ketel en staat ook inhoudelijk dicht bij aanbeveling 4. Dezelfde soort vraag staat nu over twee aanbevelingen verdeeld.",
+          "ernst": "laag"
+        }
+      ],
+      "overlapt_met": [1, 4]
+    },
+    {
+      "nummer": 3,
+      "oordeel": "maken_met_aanpassing",
+      "nieuw_of_verbeteren_klopt": false,
+      "problemen": [
+        {
+          "citaat": "Beschrijf stap voor stap welke onderdelen Wesley vooraf controleert",
+          "probleem": "De eigenaar heeft dit antwoord al klaar: een adviesbezoek waarbij \"isolatie, radiatoren en ketelleeftijd bekeken worden\" en \"Een hybride werkt samen met de bestaande ketel\". Het rapport laat hem het zelf uitzoeken. \"Is mijn huis wel geschikt voor een warmtepomp?\" is het eerste bezwaar dat hij hoort. Dat verdient een eigen nieuwe pagina, niet een extra stuk op /warmtepomp. Let op het woord \"gratis\": dat mag alleen bij de offerte, dus het adviesbezoek anders omschrijven.",
+          "ernst": "middel"
+        },
+        {
+          "citaat": "\"voor_wie\": \"Een huiseigenaar in Eindhoven met een bestaande cv-ketel of radiatoren",
+          "probleem": "Alle vier de vragen gaan over Eindhoven, terwijl het doel Geldrop, Mierlo en Nuenen is. Eindhoven is de grote markt vol concurrenten zoals 040 Warmtepomp en Onderhoud CV Ketel Eindhoven. De pagina kan blijven, maar dan geschreven voor de woningen uit 1970 tot 2000 in zijn eigen regio en met Eindhoven als werkgebied erbij.",
+          "ernst": "middel"
+        }
+      ],
+      "overlapt_met": [1, 4]
+    },
+    {
+      "nummer": 4,
+      "oordeel": "maken_met_aanpassing",
+      "nieuw_of_verbeteren_klopt": false,
+      "problemen": [
+        {
+          "citaat": "Bij vragen over het combineren met een cv-ketel en het vergelijken van systemen noemt ChatGPT andere aanbieders en informatiebronnen.",
+          "probleem": "Hier zitten vier heel verschillende vragen op één hoop: hoe kies je een installateur (in dat antwoord stonden alleen brancheorganisaties STEK, Centraal Register Techniek en NVKL, dus geen concurrent), hybride tegenover volledig elektrisch, advies over combineren met de ketel en merken vergelijken. Dat is geen samenhangende pagina.",
+          "ernst": "middel"
+        },
+        {
+          "citaat": "Leg in gewone taal uit welke woningkenmerken en wensen de systeemkeuze beïnvloeden",
+          "probleem": "De bezwaren die de eigenaar zelf opgeeft ontbreken: \"Maakt een warmtepomp geen herrie?\" (antwoord bekend: trillingdempers, minstens drie meter van de erfgrens) en \"Kan ik nog wel een gewone ketel nemen?\". Juist de laatste vraag verbindt zijn twee groeidiensten, hybride en ketelvervanging. Ook de merken (Remeha Elga Ace, Nefit EnviLine) staan er niet in, terwijl de vraag over systemen vergelijken daar om vraagt.",
+          "ernst": "middel"
+        },
+        {
+          "citaat": "Doe geen algemene beloftes over besparingen",
+          "probleem": "Terecht, want de eigenaar weet de besparing in euro's niet. Maar het rapport had kunnen zeggen wat hij wel mag zeggen: \"ergens tussen een kwart en de helft minder gas\", afhankelijk van de woning.",
+          "ernst": "laag"
+        }
+      ],
+      "overlapt_met": [1, 2, 3]
+    },
+    {
+      "nummer": 5,
+      "oordeel": "maken_met_aanpassing",
+      "nieuw_of_verbeteren_klopt": true,
+      "problemen": [
+        {
+          "citaat": "Beschrijf daar specifiek of Wesley onderhoud aan warmtepompen en cv-ketels aanbiedt",
+          "probleem": "Dat hoeft niet uitgezocht te worden: de eigenaar heeft \"Meer dan 1.800 onderhoudscontracten\", een contract van \"€ 12 tot € 15 per maand\" met \"jaarlijkse beurt, voorrang bij storing, geen voorrijkosten\" en een storingsdienst \"binnen 24 uur bij een storing, ook in het weekend\". Concurrent Broers noemt zijn prijs ook (€14,95 per maand) en wint daarmee. Dit sterkste bewijs gebruikt het rapport niet.",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "\"voor_wie\": \"Een eigenaar van een hybride warmtepomp in Geldrop die ook onderhoud aan de cv-ketel wil regelen",
+          "probleem": "Het onderhoudscontract is een groeidoel op zich, ook voor wie alleen een cv-ketel heeft of die laat vervangen. De pagina is nu te smal: alleen voor hybride-eigenaren. Maak er een eigen pagina van over het onderhoudscontract (voor ketel, hybride en VvE), en zet hem vóór oktober live omdat dan de storingen beginnen.",
+          "ernst": "middel"
+        }
+      ],
+      "overlapt_met": []
+    }
+  ],
+  "volgorde_klopt": false,
+  "betere_volgorde": [1, 5, 3, 2, 4],
+  "waarom_volgorde": "Nummer 1 hoort bovenaan: het is de zwaarste gemiste vraag, over de eigen vestigingsplaats en precies het groeidoel. Onderhoud (5) moet omhoog. Het onderhoudscontract is een groeidoel, het bewijs ligt klaar (1.800 contracten, hulp binnen 24 uur) en het drukke seizoen begint in oktober, dus nu. Daarna komt geschiktheid (3), omdat dat het eerste bezwaar van klanten is. Prijs (2) en de keuzehulp (4) volgen, want die raken meer aan vergelijkingssites en algemene uitleg. Belangrijker dan de volgorde: 2, 3 en 4 moeten eigen pagina's worden in plaats van aanvullingen op /warmtepomp.",
+  "ontbreekt": [
+    {
+      "pagina": "Hybride warmtepomp in Mierlo, Nuenen en Heeze-Leende (per plaats een pagina of een goed gevuld werkgebiedsblok)",
+      "waarom": "Het doel over een jaar is het eerste adres zijn in Geldrop, Mierlo en Nuenen. Op deze plaatsen zit de eigenaar nog weinig, en het rapport noemt ze nergens. Zonder zo'n pagina kan geen assistent hem daar aanbevelen."
+    },
+    {
+      "pagina": "Verbeteren van /ketelvervanging: cv-ketel vervangen in Geldrop, met prijsindicatie (€ 2.200 tot € 3.200), merken, doorlooptijd en de keuze gewone ketel of hybride",
+      "waarom": "Ketelvervanging is een van de twee groeidiensten, en oktober tot februari is juist het seizoen voor vervanging. Het rapport slaat deze dienst helemaal over. Het is ook de logische plek om het bezwaar \"Kan ik nog wel een gewone ketel nemen?\" te beantwoorden."
+    },
+    {
+      "pagina": "Collectieve installaties en onderhoud voor VvE's",
+      "waarom": "De eigenaar noemt VvE's met collectieve installaties als groeiende klantgroep. Nergens in de kopie gevonden en niet in het rapport."
+    },
+    {
+      "pagina": "Opschonen van teksten die tegen de eigen regels ingaan en de verkeerde dienst voorop zetten",
+      "waarom": "Op /over-ons en /contact staat \"heeft de beste prijs-kwaliteit verhouding\", en \"de beste\" is een verboden woord. De homepage opent met \"Geniet van uw nieuwe Badkamer & Sanitair\", terwijl de eigenaar minder op badkamers wil inzetten. Wie de homepage leest, denkt aan een badkamerbedrijf en niet aan een warmtepompinstallateur."
+    },
+    {
+      "pagina": "Duidelijk maken dat het bedrijf niet WK Installaties uit Weert is (volledige naam, adres, KvK en erkenning consequent op de over-ons-pagina)",
+      "waarom": "De eigenaar noemt een gelijknamig bedrijf. Het rapport doet er niets mee. Een assistent die de twee verwart, stuurt klanten naar de verkeerde partij."
+    },
+    {
+      "pagina": "Projectpagina's met echte hybride-installaties in de regio",
+      "waarom": "/projecten is in de kopie leeg. Concurrenten worden genoemd met projecten en referenties (\"Er staat ook een project met een…\" bij 040 Warmtepomp). Echte voorbeelden uit Geldrop en omgeving zijn het beste bewijs dat hij dit werk doet."
+    }
+  ],
+  "klaar_voor_contentplan": "met_aanpassingen",
+  "belangrijkste_verbetering": "Stop niet vier aanbevelingen in één warmtepomppagina. Maak aparte pagina's per vraag en per plaats (Geldrop, Mierlo, Nuenen), vul ze met de feiten die de eigenaar al heeft en voeg ketelvervanging en het onderhoudscontract toe, zodat die vóór het drukke seizoen in oktober live staan."
+}

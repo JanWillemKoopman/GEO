@@ -1,0 +1,108 @@
+{
+  "paginas": [
+    {
+      "pagina": 1,
+      "fout_of_verzonnen": [
+        {"citaat": "Bespreek garantieafspraken voordat de aanleg begint.", "probleem": "Ontwijkend terwijl de ondernemer een concrete garantie heeft: één jaar op aanplant bij gevolgde verzorgingsinstructie, vijf jaar op bestrating tegen verzakking. De bezoeker krijgt geen antwoord en het bedrijf lijkt iets te verbergen.", "ernst": "middel"},
+        {"citaat": "Halfverharding is bodembedekking die water doorlaat, zoals schelpen of boomschors.", "probleem": "Vaktechnisch slordig: boomschors is geen halfverharding (dat is grind, split, schelpen). Een hovenier met 35 jaar ervaring zet dit niet onder zijn naam.", "ernst": "laag"},
+        {"citaat": "verzorgt bij een complete tuin het ontwerp, grondwerk, de bestrating, beplanting en afvoer zelf", "probleem": "Grondwerk en afvoer staan niet letterlijk in de waarheid; aannemelijk bij complete aanleg, maar het wordt als vaste formule herhaald. Het echte bewijs (eigen vaste ploeg van vijf man, geen zzp'ers) ontbreekt juist.", "ernst": "laag"}
+      ],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "De garantievraag concreet beantwoorden (1 jaar aanplant, 5 jaar bestrating) en de eigen ploeg van vijf man, het 3D-ontwerp boven € 15.000 en de 4,9 toevoegen; daarna de eindeloze herhaling van 'Hans Verstraaten Hoveniers verzorgt...' aan het begin van elke alinea eruit.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 5,
+      "copywriter_problemen": [
+        {"citaat": "Hans Verstraaten Hoveniers verzorgt bij een complete tuin in Best zelf het ontwerp, grondwerk, de bestrating, beplanting en afvoer.", "probleem": "Dezelfde opsomming staat in de intro, hier, en weer in twee latere alinea's. Bijna elke alinea opent met de bedrijfsnaam: leest als een formulier, niet als een tekst."},
+        {"citaat": "Beoordeel ervaring aan projecten en duidelijke afspraken", "probleem": "Kromme, ongrammaticale kop."},
+        {"citaat": "Zo weet je dat je voor jouw tuin in Best bij ons terechtkunt.", "probleem": "Holle afsluitzin zonder informatie."},
+        {"citaat": "Tuinaanleg met bestrating kost meestal €12.000 tot €35.000", "probleem": "De prijsband staat drie keer op de pagina, telkens met dezelfde disclaimer over materiaal."},
+        {"citaat": "We staan graag voor je klaar!", "probleem": "Cliché, botst met 'geen verkooppraat'."},
+        {"citaat": "Leg voorbereiding, bereikbaarheid en planning vooraf vast", "probleem": "Koppen zijn gebiedende adviezen aan de lezer; de pagina leest als een consumentenchecklist in plaats van als het verhaal van een Brabantse hovenier. Nergens hartelijkheid."}
+      ],
+      "ai_citeerbaar": "ja",
+      "beste_citeerbare_zin": "Hans Verstraaten Hoveniers doet gemiddeld 2 tot 3 weken over de uitvoering van een complete tuin en plant in het voorjaar meestal 4 tot 8 weken vooruit.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "De huidige pagina is algemene verkooppraat met onbewezen claims (kennis van bodemsoorten in Best, milieuvriendelijke materialen, subsidiebegeleiding) en het verboden richting 'onderhoudsvriendelijke' taalgebruik. De nieuwe geeft prijs, doorlooptijd en nazorg, wat bezoeker en AI-assistent direct bruikbaar vinden. Wel verliest hij het zoekwoord 'hovenier in Best' in titel en kop, en er is geen H1.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 2,
+      "fout_of_verzonnen": [
+        {"citaat": "Voor de kosten van een afzonderlijk tuinontwerp noemen we geen vast bedrag.", "probleem": "Onjuist: een 3D-ontwerp kost € 450 en wordt verrekend bij opdracht. De tekst ontkent een feit dat de ondernemer paraat heeft.", "ernst": "hoog"},
+        {"citaat": "Titel in Google: Complete tuin met bestrating in Helmond | Hans Verstraaten", "probleem": "De hoofdpagina van een bedrijf uit Eindhoven wordt op Helmond gericht, een plaats die de ondernemer niet als groeiplaats noemt (dat zijn Best, Nuenen, Son en Breugel). Eindhoven verdwijnt als zoekterm van de belangrijkste pagina.", "ernst": "hoog"},
+        {"citaat": "Voor een offerteaanvraag noemt onze contactpagina een beoogde reactietijd van binnen 4 uur. Dat is geen termijn voor het ontwerp of de offerte.", "probleem": "Spreekt de site tegen: daar staat 'binnen 4 uur te voorzien van een scherpe offerte'. Het is dus juist wel een termijn voor de offerte. Bovendien een vreemde meta-verwijzing naar de eigen contactpagina.", "ernst": "middel"},
+        {"citaat": "over een specifiek patroon doen we vooraf geen toezegging.", "probleem": "Verzonnen terughoudendheid die nergens op gebaseerd is en afschrikt; de echte informatie (gebakken klinkers en keramische tegels, geen kunststof) ontbreekt.", "ernst": "middel"},
+        {"citaat": "Wie voert oude bestrating, grond en groenafval af?", "probleem": "De zwemvijver, door de ondernemer als tweede poot genoemd, is van de hoofdpagina verdwenen, net als het hele dienstenoverzicht. Strategisch fout voor de homepage.", "ernst": "middel"}
+      ],
+      "ondernemer_publiceert": "nee",
+      "ondernemer_verandert_eerst": "De hoofdpagina terug naar Eindhoven en het hele bedrijf, met complete tuinen en zwemvijvers voorop, en de onjuiste zin over de ontwerpkosten vervangen door € 450, verrekend bij opdracht. Een Helmond-pagina hoort op een eigen adres.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 4,
+      "copywriter_problemen": [
+        {"citaat": "Vind je een hovenier duur en overweeg je het werk zelf te doen? Met deze prijsband heb je alvast een bedrag om je plannen aan af te meten.", "probleem": "Het bezwaar wordt opgeworpen en niet beantwoord; een prijsband is geen argument tegen zelf doen."},
+        {"citaat": "Alles zelf, van ontwerp tot oplevering.", "probleem": "Losse herhaling direct na een zin die hetzelfde zegt."},
+        {"citaat": "Meerwerk betekent extra of gewijzigde werkzaamheden buiten het oorspronkelijk afgesproken werk.", "probleem": "Meerwerk wordt drie keer gedefinieerd (twee alinea's en een FAQ)."},
+        {"citaat": "Het bedrijf is gevestigd in Eindhoven en richt zich op de omgeving", "probleem": "Slappe, ambtelijke kop op de hoofdpagina."},
+        {"citaat": "Wij staan graag voor je klaar!", "probleem": "Cliché."},
+        {"citaat": "De vergunningscheck kan daar uitsluitsel over geven.", "probleem": "Onduidelijk welke check bedoeld is en geen link; de lezer blijft zitten."}
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "Hans Verstraaten Hoveniers is gevestigd in Eindhoven en werkt ook in Helmond, Best, Nuenen, Geldrop, Veldhoven en Eersel.",
+      "vergelijking_huidig": "huidig_beter",
+      "waarom_vergelijking": "De huidige homepage is algemeen maar doet wat een homepage moet: Eindhoven als vestigingsplaats en zoekterm, 35 jaar ervaring, het volledige dienstenoverzicht met doorlinks inclusief zwemvijvers. De nieuwe tekst is concreter over prijs en planning, maar maakt van de hoofdpagina een Helmond-landingspagina, laat diensten en de tweede groeipoot weg en bevat een feitelijke fout over de ontwerpkosten.",
+      "past_bij_adres": false
+    },
+    {
+      "pagina": 3,
+      "fout_of_verzonnen": [
+        {"citaat": "Bespreek ook wat buiten de offerte valt en hoe je wijzigingen, meerwerk, garanties en nazorg wilt afspreken.", "probleem": "De garantie ligt al vast (1 jaar aanplant, 5 jaar bestrating); de tekst doet alsof de klant die nog moet uitonderhandelen.", "ernst": "middel"},
+        {"citaat": "Voor het ontwerp is hier geen vaste duur genoemd.", "probleem": "Meta-zin die verraadt dat er uit een bronlijst is geschreven; hoort niet op een publieke pagina.", "ernst": "middel"},
+        {"citaat": "Grind, schelpen en boomschors zijn voorbeelden.", "probleem": "Boomschors is geen halfverharding; vaktechnisch onjuist.", "ernst": "laag"}
+      ],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "De meta-zin over de ontwerpduur schrappen, garantie en het gratis eerste gesprek bij de klant thuis concreet noemen, en bewijs toevoegen (vaste ploeg van vijf man, 3D-ontwerp, 4,9 klanttevredenheid).",
+      "bezoeker_neemt_contact_op": "ja",
+      "copywriter_cijfer": 6,
+      "copywriter_problemen": [
+        {"citaat": "Hans Verstraaten Hoveniers verzorgt bij een complete tuin zelf het grondwerk, de bestrating, de beplanting en de afvoer.", "probleem": "Opnieuw opent vrijwel elke alinea met de bedrijfsnaam en dezelfde opsomming."},
+        {"citaat": "Zes weken na de aanleg komen we gratis terug om te kijken hoe je tuin erbij staat.", "probleem": "Staat drie keer op de pagina (intro, offertealinea, FAQ)."},
+        {"citaat": "Het is een handige voorbereiding, geen vaste lijst die je eerst moet afwerken.", "probleem": "Overbodige indekzin."},
+        {"citaat": "Leg onze offerte naast jouw wensen: staan ontwerp, werkzaamheden, materialen, afvoer en planning er duidelijk in?", "probleem": "Vreemd perspectief: het bedrijf adviseert de klant zijn eigen offerte te wantrouwen, onder een kop over offertes vergelijken."}
+      ],
+      "ai_citeerbaar": "ja",
+      "beste_citeerbare_zin": "Bij Hans Verstraaten Hoveniers kost tuinaanleg met bestrating meestal €12.000 tot €35.000.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "De huidige pagina belooft veel zonder bewijs (diepgaande kennis van de regio, onderhoudsarme oplossingen, subsidiebegeleiding) en geeft geen prijs of planning. De nieuwe heeft een duidelijke H1, beantwoordt de kernvragen in de eerste alinea en in de FAQ letterlijk, en sluit aan bij het groeidoel complete tuinen in Nuenen.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 4,
+      "fout_of_verzonnen": [
+        {"citaat": "Je kunt onderhoud zelf doen of tuinonderhoud met ons bespreken.", "probleem": "De ondernemer wil juist minder los tuinonderhoud bij particulieren; de pagina stuurt er actief naartoe.", "ernst": "middel"},
+        {"citaat": "Let bij tegels eventueel op het EU Ecolabel, een Europees milieukeurmerk. DUBOkeur wordt ook genoemd als optie bij betonnen tuintegels.", "probleem": "Niets uit de waarheid; het bedrijf werkt met gebakken klinkers en keramische tegels, niet met betonnen tegels. 'Wordt ook genoemd' verraadt een bron die de lezer niet ziet.", "ernst": "middel"},
+        {"citaat": "de staat van de ondergrond met het oog op verzakking", "probleem": "Het sterkste feit voor dit onderwerp ontbreekt: vijf jaar garantie op bestrating tegen verzakking. Ook 'geen kunststof tegels, wel klinkers en keramiek' had hier moeten staan.", "ernst": "middel"},
+        {"citaat": "Bij tuinen boven €15.000 maken we een eigen 3D-ontwerp", "probleem": "Klopt, maar zonder de prijs van € 450 (verrekend bij opdracht) kan de lezer denken dat het gratis is.", "ernst": "laag"},
+        {"citaat": "heeft een reviewscore van 4,9 uit 5", "probleem": "De site spreekt van klanttevredenheid, niet van een reviewscore; kleine herinterpretatie.", "ernst": "laag"}
+      ],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "De verwijzing naar tuinonderhoud en de keurmerkalinea eruit, de pagina met de helft inkorten, en de echte troeven erin: vijf jaar garantie tegen verzakking, gebakken klinkers en keramische tegels.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 4,
+      "copywriter_problemen": [
+        {"citaat": "Hans Verstraaten Hoveniers verzorgt tuinonderhoud en heeft een reviewscore van 4,9 uit 5, maar hoeveel werk jouw tuin vraagt, hangt van de gekozen indeling af.", "probleem": "Onlogische zin: drie ongerelateerde gedachten met 'maar' aan elkaar geplakt."},
+        {"citaat": "Voor het ontwerp is geen vaste duur genoemd.", "probleem": "Meta-zin uit de bronnen die op de pagina is beland."},
+        {"citaat": "Een aanleg met bestrating kost bij ons meestal tussen €12.000 en €35.000; de prijs hangt onder meer af van het materiaal.", "probleem": "Letterlijk twee keer, plus een derde variant; ook 'verzorgt ontwerp, grondwerk, bestrating, beplanting en afvoer zelf' komt vier keer terug."},
+        {"citaat": "Of onverwacht grondwerk tot meerwerk leidt, hangt af van de situatie en de gemaakte afspraken; daarover doen we geen algemene toezegging.", "probleem": "Juridisch-defensief, schrikt af, geen Brabantse hartelijkheid."},
+        {"citaat": "ga er niet zonder afspraak van uit dat je de hele uitvoering aanwezig hoeft te zijn.", "probleem": "Krom en dubbel ontkennend; de lezer weet daarna nog steeds niet of hij thuis moet zijn."},
+        {"citaat": "Zonder die informatie is geen enkele plantenlijst voor iedere tuin geschikt.", "probleem": "Hol; veertien secties met veel algemeen advies en weinig bedrijf. Geen H1."}
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "Minder beplanting betekent niet vanzelf minder werk: ook bestrating vraagt onderhoud.",
+      "vergelijking_huidig": "geen_huidige",
+      "waarom_vergelijking": "Nieuwe pagina. Het onderwerp is zinnig als instap naar complete tuinaanleg, maar de uitwerking is te lang, te algemeen en duwt deels naar tuinonderhoud, waar de ondernemer vanaf wil.",
+      "past_bij_adres": true
+    }
+  ],
+  "rode_draad": "Elke alinea opent met de bedrijfsnaam en dezelfde opsomming, en dezelfde drie feiten (prijsband, 2 tot 3 weken, terugkomafspraak na zes weken) worden per pagina tot vier keer herhaald, waardoor de teksten lezen als een ingevuld formulier zonder Brabantse warmte. Tegelijk wordt op vragen waar de ondernemer een concreet antwoord heeft (garantie 1 en 5 jaar, 3D-ontwerp € 450, klinkers en keramiek, vaste ploeg) uitgeweken naar 'bespreek dat vooraf', en op twee plekken lekken meta-zinnen uit de bronnen op de pagina.",
+  "niveau_professionele_copywriter": "nee"
+}

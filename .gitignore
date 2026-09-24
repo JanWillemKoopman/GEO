@@ -42,3 +42,8 @@ yarn-error.log*
 
 # uitvoer van proefscripts (ruwe API-antwoorden)
 /probe-uitvoer
+
+# schermbesturing van de kwaliteitsdoorlichting (eigen installatie)
+/scripts/doorlichting/node_modules
+/scripts/doorlichting/package-lock.json
+__pycache__/

@@ -1,0 +1,107 @@
+{
+  "paginas": [
+    {
+      "pagina": 1,
+      "fout_of_verzonnen": [
+        {"citaat": "Wesley Keeris Installatietechniek beschikt over een CO-certificering volgens de Gasketelwet.", "probleem": "Staat nergens in wat het bedrijf of de ondernemer heeft opgegeven. Het bewezen keurmerk is Erkend installateur (InstallQ), en dat ontbreekt juist. Een certificaat verzinnen is juridisch en reputatietechnisch gevaarlijk.", "ernst": "hoog"},
+        {"citaat": "Vraag bij uw aanvraag welke controles de beurt voor elk toestel omvat", "probleem": "Het bedrijf doet alsof het zijn eigen onderhoudsbeurt niet kent. Dat klopt niet met een bedrijf met meer dan 1.800 onderhoudscontracten en wekt twijfel over de eigen dienst.", "ernst": "middel"},
+        {"citaat": "Dat betekent niet vanzelf dat beide toestellen elk een afzonderlijke jaarlijkse beurt krijgen.", "probleem": "Suggereert een beperking van het contract die de ondernemer nooit genoemd heeft. Ondermijnt het eigen aanbod.", "ernst": "middel"},
+        {"citaat": "A: De werkzaamheden zijn niet per toestel gespecificeerd.", "probleem": "In een FAQ van het bedrijf zelf klinkt dit als een tekortkoming van de dienst, terwijl het alleen een gat in de aangeleverde informatie is.", "ernst": "middel"},
+        {"citaat": "Onderhoud warmtepomp en cv-ketel Geldrop | Wesley", "probleem": "Merknaam afgekapt tot alleen de voornaam. Ook in de FAQ: 'Kan Wesley mijn hybride warmtepomp'. Het bedrijf heet Wesley Keeris Installatietechniek.", "ernst": "laag"}
+      ],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "De verzonnen CO-certificering eruit en InstallQ, twaalf monteurs en meer dan 1.800 contracten erin; daarna alle zinnen schrappen waarin hij klanten vraagt bij hemzelf na te vragen wat zijn eigen onderhoudsbeurt inhoudt.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 4,
+      "copywriter_problemen": [
+        {"citaat": "Het genoemde onderhoudscontract kost €12 tot €15 per maand", "probleem": "Meta-taal ('genoemde', 'Dit is een genoemd maandbedrag', 'blijkt niet uit die informatie'): de schrijver citeert een bron in plaats van als het bedrijf te spreken."},
+        {"citaat": "Wesley Keeris Installatietechniek biedt voor de cv-ketel en warmtepomp een onderhoudscontract", "probleem": "Elke alinea opent met de volledige bedrijfsnaam; leest als een robot en niet als een bedrijf dat 'wij' zegt."},
+        {"citaat": "Een onderhoudsbeurt hoort beide toestellen te benoemen", "probleem": "Kromme kop: een beurt benoemt niets. Idem 'De onderhoudsfrequentie moet per toestel duidelijk zijn'."},
+        {"citaat": "Een goed werkende verwarmingsinstallatie is onmisbaar voor een comfortabel en energiezuinig huis.", "probleem": "Holle clichézin die niets toevoegt en ook op andere pagina's terugkomt."},
+        {"citaat": "vraag bij uw aanvraag", "probleem": "De opdracht 'vraag na' komt in bijna elke alinea terug; de prijs, de beurt en de 24-uursservice worden vier keer herhaald."}
+      ],
+      "ai_citeerbaar": "ja",
+      "beste_citeerbare_zin": "Het genoemde onderhoudscontract kost €12 tot €15 per maand en omvat één jaarlijkse beurt, voorrang bij storing en geen voorrijkosten. Contractklanten krijgen bij een storing binnen 24 uur hulp, ook in het weekend.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "De huidige pagina is een lege belofte ('Service en onderhoud staan bij ons op nummer 1') zonder één feit. De nieuwe noemt prijs, inhoud van het contract, 24 uur storingshulp en werkgebied, wat zowel bezoekers als Google en AI-assistenten iets concreets geeft. Wel is hij onnodig lang en twijfelend.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 2,
+      "fout_of_verzonnen": [
+        {"citaat": "A: Of Wesley Keeris Installatietechniek daarbij helpt, kunt u via onze contactpagina vragen.", "probleem": "Het bedrijf weet in zijn eigen FAQ niet of het zelf helpt met subsidie. Leest als onkunde.", "ernst": "middel"},
+        {"citaat": "Bij een adviesbezoek kijken we naar de isolatie, radiatoren en hoe oud de cv-ketel is.", "probleem": "Klopt, maar het belangrijkste feit ontbreekt: het adviesbezoek kost niets. Dat mag zonder het verboden woord 'gratis' gezegd worden ('kosteloos', 'zonder kosten'). Nu blijft de sterkste drempelverlager weg.", "ernst": "middel"},
+        {"citaat": "Daarbij telt ook hoe het apparaat aansluit op uw bestaande cv-installatie en welke afspraken gelden als de samenwerking niet goed werkt.", "probleem": "Onduidelijk of het om de samenwerking tussen toestellen of met de installateur gaat; die tweede lezing suggereert problemen met het bedrijf zelf.", "ernst": "laag"}
+      ],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "Het kosteloze adviesbezoek en zijn antwoorden op de vier bezwaren toevoegen (geluid: trillingdempers en minstens drie meter van de erfgrens; hybride werkt met de bestaande ketel), en de vier keer herhaalde opsomming isolatie, radiatoren en ketelleeftijd terugbrengen tot één keer.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 4,
+      "copywriter_problemen": [
+        {"citaat": "Bij het adviesbezoek kijken we naar de isolatie, radiatoren en hoe oud de cv-ketel is.", "probleem": "Dezelfde zin staat in vijf varianten op de pagina (intro, drie tussenkoppen, slot)."},
+        {"citaat": "Wesley Keeris Installatietechniek nodigt u uit contact op te nemen of een vrijblijvende offerte aan te vragen als u meer wilt weten over een warmtepomp.", "probleem": "Holle openingszin boven een alinea over subsidie; heeft niets met de kop te maken."},
+        {"citaat": "Zo heeft u concrete typen om bij uw aanvraag te bespreken.", "probleem": "Lege afsluiter; zegt niet waarom juist deze twee merken."},
+        {"citaat": "Een goed werkende verwarmingsinstallatie is onmisbaar voor een comfortabel en energiezuinig huis. Daarom is beoordeling belangrijker dan een aanname vooraf.", "probleem": "Cliché plus een 'daarom' dat niet uit de vorige zin volgt."},
+        {"citaat": "Een installatiebedrijf uit Geldrop voor uw warmtepompvraag", "probleem": "Slappe kop; 'warmtepompvraag' is een samengesteld woord dat niemand zegt."}
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "Wesley Keeris Installatietechniek geeft een levertijd van 2 tot 4 weken en een installatieduur van 1 dag op; dat is een eerste beeld van de planning, geen garantie voor iedere woning.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "De huidige tekst is algemene reclame (energie-efficiënt, milieuvriendelijk) zonder plaats, merk of werkwijze. De nieuwe noemt Geldrop en omliggende plaatsen, de merken Remeha Elga Ace en Nefit EnviLine, het adviesbezoek, levertijd en installatieduur. Beter voor lokale vindbaarheid, maar de sterke antwoorden op bezwaren ontbreken.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 3,
+      "fout_of_verzonnen": [
+        {"citaat": "neemt ook opdrachten aan in Eindhoven", "probleem": "Eindhoven komt nergens in de opgave voor. De ondernemer wil groeien in Geldrop, Mierlo en Nuenen; de hele pagina (titel, omschrijving, intro) mikt op een plaats die hij niet noemde.", "ernst": "hoog"},
+        {"citaat": "Vergelijk offertes op dezelfde onderdelen en totale kosten", "probleem": "Het bedrijf spoort de bezoeker op zijn eigen pagina aan om concurrenten te vergelijken ('Offertes met een verschillend bedrag hoeven niet dezelfde werkzaamheden of service te omvatten'). Dat is een consumentengids, geen bedrijfspagina.", "ernst": "middel"},
+        {"citaat": "Bij een buitenunit tellen ook geluid en trillingen mee: de praktische plek hangt af van de woning en mogelijke hinder.", "probleem": "Vaag, terwijl de ondernemer een concreet antwoord heeft: trillingdempers, plaatsing in overleg, minstens drie meter van de erfgrens. Het bezwaar 'maakt het geen herrie' blijft onbeantwoord.", "ernst": "middel"},
+        {"citaat": "Een hoekwoning vraagt dus om een eigen afweging, niet om een standaardantwoord.", "probleem": "Hoekwoning komt uit het niets; nergens eerder genoemd en niet uit de opgave.", "ernst": "laag"},
+        {"citaat": "Volgens Milieu Centraal kan volledig elektrisch passen bij een redelijk tot goed geïsoleerde woning.", "probleem": "Externe bronvermelding zonder link; waarschijnlijk juist, maar niet door de ondernemer aangeleverd.", "ernst": "laag"}
+      ],
+      "ondernemer_publiceert": "nee",
+      "ondernemer_verandert_eerst": "Eindhoven eruit en Geldrop, Mierlo en Nuenen erin, en de alinea die bezoekers aanmoedigt offertes bij anderen te vergelijken schrappen; daarna de pagina halveren.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 5,
+      "copywriter_problemen": [
+        {"citaat": "Bij Wesley Keeris Installatietechniek kunt u uw energieverbruik en wensen betrekken bij de bespreking van een merk- en typekeuze", "probleem": "Geforceerde bedrijfsnaam aan het begin van elke alinea, gevolgd door een zin die niets belooft."},
+        {"citaat": "Wesley Keeris Installatietechniek levert ook warmtepompinstallaties met een buitenunit.", "probleem": "Als antwoord op de FAQ 'Is er geluid binnen te horen?' is dit een non-antwoord."},
+        {"citaat": "Een hybride systeem dat later geschikt kan zijn voor volledig elektrisch gebruik heet *all-electric-ready*.", "probleem": "Vakjargon terwijl de tone of voice 'geen vakjargon' vraagt; ook 'pendelen', 'moduleren' en 'inregelen' maken er een technisch naslagwerk van."},
+        {"citaat": "Een goed advies kijkt verder dan het aantal vierkante meters", "probleem": "Te lange pagina (elf tussenkoppen) die de hybride keuze waar de ondernemer op wil groeien niet duidelijk aanbeveelt."}
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "Bij een hybride systeem verzorgt de warmtepomp een groot deel van de ruimteverwarming, de ketel kan bij kou bijspringen en verwarmt doorgaans het tapwater; bij volledig elektrisch wordt warm tapwater doorgaans geleverd met een voorraadvat.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "Inhoudelijk veel rijker dan de huidige reclametekst en beter bruikbaar voor AI-assistenten bij de vraag hybride of volledig elektrisch. Maar de verkeerde plaats (Eindhoven) maakt hem lokaal zwakker dan hij zou moeten zijn, en hij concurreert met pagina 2 en 4 om hetzelfde adres.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 4,
+      "fout_of_verzonnen": [
+        {"citaat": "Vraag vóór de afspraak wat de controle kost", "probleem": "Gaat in tegen de waarheid: het adviesbezoek is kosteloos. De pagina wekt de indruk dat er kosten aan kunnen hangen ('hier koppelen we geen bedrag of voorwaarde aan de controle') en verstopt zo het sterkste verkoopargument.", "ernst": "hoog"},
+        {"citaat": "Wesley Keeris Installatietechniek beschikt over een CO-certificering volgens de Gasketelwet", "probleem": "Verzonnen keurmerk, twee keer genoemd en zelfs als kop ('Gaswerk vraagt om een CO-vrij gecertificeerd bedrijf'). Het echte keurmerk InstallQ ontbreekt.", "ernst": "hoog"},
+        {"citaat": "Heeft u in Eindhoven een bestaande cv-ketel of radiatoren", "probleem": "Eindhoven staat niet in de opgave en is geen groeigebied van de ondernemer.", "ernst": "hoog"},
+        {"citaat": "Wesley Keeris Installatietechniek noemt isolatie, radiatoren en ketelleeftijd als onderdelen van het adviesbezoek, niet een controle van vloerverwarming.", "probleem": "Het bedrijf legt zelf vloerverwarming aan (ook infrezen), maar zegt hier vloerverwarming niet te bekijken. Schaadt de geloofwaardigheid.", "ernst": "middel"},
+        {"citaat": "het adviesbezoek omvat volgens de genoemde punten geen beoordeling van die toestemming", "probleem": "VvE's zijn een groeigroep van de ondernemer; hier wordt die klant juist afgewezen.", "ernst": "middel"}
+      ],
+      "ondernemer_publiceert": "nee",
+      "ondernemer_verandert_eerst": "Alles. Als eerste het idee dat het adviesbezoek iets kan kosten: dat is kosteloos en moet bovenaan staan. Daarna alle zinnen die zeggen wat het bedrijf niet toezegt.",
+      "bezoeker_neemt_contact_op": "nee",
+      "copywriter_cijfer": 2,
+      "copywriter_problemen": [
+        {"citaat": "Dat wij die andere punten tijdens dit adviesbezoek controleren, zeggen we hiermee niet toe.", "probleem": "Juridische disclaimers als hoofdtoon; zie ook 'Dat is geen vereiste die wij aan het bezoek verbinden' en 'Welke posten in uw offerte staan, leggen we hier niet op voorhand vast'. Een klant leest: dit bedrijf belooft niets."},
+        {"citaat": "Dat zijn de drie onderdelen die wij voor dit bezoek noemen.", "probleem": "Meta-taal: het bedrijf citeert zichzelf. Ook 'We werken in Geldrop en omgeving en noemen daarbij ook Mierlo'."},
+        {"citaat": "Een lagere keteltemperatuur geeft een eerste praktische aanwijzing", "probleem": "Kop die in de eerste zin al wordt teruggenomen ('een temperatuurtest hoort niet bij de onderdelen'). Hetzelfde bij 'Vaak begint een aanpassing met beter verdelen van de warmte' en 'Waterzijdig inregelen verdeelt het warme water beter'."},
+        {"citaat": "Zo blijven uw bestaande radiatoren niet buiten het gesprek", "probleem": "Krom en betekenisloos."},
+        {"citaat": "isolatie, radiatoren en leeftijd van de ketel", "probleem": "Staat ruim tien keer op de pagina; verder is er vrijwel geen informatie."}
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "Bij het adviesbezoek van Wesley Keeris Installatietechniek kijken we naar de isolatie van uw woning, de radiatoren en de leeftijd van uw ketel voordat we een hybride warmtepomp adviseren.",
+      "vergelijking_huidig": "huidig_beter",
+      "waarom_vergelijking": "De huidige tekst is algemeen, maar positief en nodigt uit tot contact. De nieuwe vervangt de hoofdpagina over warmtepompen door een lijst voorbehouden, suggereert kosten voor een kosteloos bezoek en richt zich op Eindhoven. Een bezoeker haakt af en Google krijgt op dit adres geen productpagina meer.",
+      "past_bij_adres": false
+    }
+  ],
+  "rode_draad": "De teksten spreken over het bedrijf als een buitenstaander die niet weet wat het bedrijf doet ('vraag na', 'zeggen we niet toe'), laten de sterkste feiten van de ondernemer liggen (kosteloos adviesbezoek, trillingdempers en drie meter afstand, InstallQ, twaalf monteurs, meer dan 1.800 contracten) en verzinnen tegelijk dingen die er niet staan (CO-certificering, Eindhoven). Daarbij concurreren drie verschillende teksten om hetzelfde adres /warmtepomp, en elke alinea opent met de volledige bedrijfsnaam, gevolgd door dezelfde herhaalde opsomming.",
+  "niveau_professionele_copywriter": "nee"
+}

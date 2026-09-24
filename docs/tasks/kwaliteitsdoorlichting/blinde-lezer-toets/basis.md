@@ -1,0 +1,37 @@
+Ja. Voor een mkb-wagenpark van tien tot dertig bedrijfswagens biedt Van den Udenhout in Noord-Brabant één regionaal aanspreekpunt voor onderhoud, banden, APK, administratie en schadeafhandeling, met zes eigen werkplaatsen en vervangend vervoer als aanvullende dienst. Voor vijftien voertuigen ligt het wagenparkbeheer op ongeveer € 1.450 tot € 1.850 per maand, afhankelijk van het serviceniveau.
+
+Van den Udenhout plant gemiddeld zes tot acht voertuigen per vestiging twee tot vier weken vooruit. Zo kan onderhoud beter aansluiten op de inzet van je wagenpark.
+
+## Voor wagenparken van tien tot dertig voertuigen nemen wij het beheer over
+
+Van den Udenhout richt wagenparkbeheer op mkb-bedrijven met ongeveer tien tot dertig voertuigen. Je kunt het beheer integraal laten overnemen, of beginnen met een deel van de taken. Wagenparkbeheer betekent dat dagelijkse zaken rond je voertuigen centraal worden geregeld. Bij gedeeltelijk uitbesteden spreek je vooraf af welke taken bij jou blijven en welke wij overnemen.
+
+## Onderhoud, administratie en schade komen samen in één beheeroplossing
+
+Van den Udenhout brengt onderhoud, banden, APK, kenteken- en verzekeringsadministratie en schadeafhandeling samen in het wagenparkbeheer. APK is de periodieke keuring van een voertuig. Schadeafhandeling is de begeleiding van schadezaken. Aanvullend kunnen brandstofpasbeheer, bandenhotel en bandenwissel, boeteafhandeling, kilometerregistratie, rapportage en berijdersbegeleiding worden geregeld. Een bandenhotel is de opslag van je zomer- of winterbanden. Vervangend vervoer boek je desgewenst tegen meerprijs bij. Koop, lease en huur kunnen naast elkaar bestaan binnen één aanpak.
+
+## Eén contactpersoon houdt het hele wagenpark overzichtelijk
+
+Van den Udenhout biedt één vast aanspreekpunt voor koop, lease en huur binnen je wagenpark. Wij voeren private lease, private groeilease, occasion lease, shortlease en verhuur zelf uit. Bij grote wagenparken met een lange looptijd kunnen externe leasemaatschappijen betrokken zijn, terwijl wij aanspreekpunt blijven voor levering, onderhoud, banden en schade. Bereikbaarheid, escalatie en verantwoordelijkheden leg je vast in de afspraken.
+
+## Onderhoud wordt vooraf gepland en persoonlijk opgevolgd
+
+Van den Udenhout plant gemiddeld zes tot acht voertuigen tegelijk per vestiging, twee tot vier weken vooruit en in overleg met de wagenparkbeheerder. De kilometerstand en leeftijd van de auto geven automatische onderhoudsherinneringen. Daarna volgt waar nodig persoonlijk telefonisch contact vanuit de vestiging voor onderhoud, banden of APK. Zo kun je onderhoud in blokken afstemmen op monteurs, buitendienst en andere inzet.
+
+## Bij uitval of schade blijft de bedrijfsvoering zo veel mogelijk doorgaan
+
+Van den Udenhout handelt schade af en kan vervangend vervoer als aanvullende dienst regelen. Bij meerdere voertuigen tegelijk plannen we vervangend vervoer per voertuig vooraf in, zodat er nooit meer dan één auto per keer zonder vervanging staat. Bij grotere wagenparken reserveren we vooraf een aantal leenauto's. De verhuurvloot telt ongeveer 250 voertuigen, vooral bestelbussen. Bij pech of schade staat er binnen vier uur vervangend vervoer klaar vanaf een van onze zes vestigingen in Noord-Brabant. Voorwaarden, duur en eventuele meerkosten van vervangend vervoer hangen af van de gemaakte afspraken.
+
+## Zes eigen werkplaatsen houden onderhoud dichtbij in Noord-Brabant
+
+Van den Udenhout onderhoudt bedrijfswagens in Eindhoven, Veldhoven, Oss, Boxtel en op Balkweg 1 en Balkweg 6 in Den Bosch. Deze werkplaatsen zijn voor bedrijfswagenonderhoud geopend van maandag tot en met vrijdag, van 8.00 tot 17.30 uur. Regionale werkplaatsen zijn praktisch wanneer je voertuigen vooral in Noord-Brabant rijden en onderhoud in blokken moet plannen. Landelijke dekking kan beter passen bij veel inzet buiten de regio. Pechhulp en stilstand in andere provincies regel je daarom nadrukkelijk in de afspraken.
+
+## Vergelijk totale kosten, niet alleen de beheervergoeding
+
+Van den Udenhout rekent voor vijftien voertuigen ongeveer € 1.450 tot € 1.850 per maand en voor twintig voertuigen ongeveer € 1.900 tot € 2.400 per maand. Het gekozen serviceniveau bepaalt de maandprijs. De btw-behandeling van deze richtbedragen wordt in de offerte gespecificeerd. Zelf beheren kan passen als je intern tijd hebt voor planning en administratie. Een leasemaatschappij kan passen wanneer lease centraal staat. Uitbesteden past wanneer je taken wilt bundelen. Vergelijk naast de beheervergoeding ook interne uren, stilstand, banden, reparaties, schade en vervangend vervoer. Een rekenvoorbeeld voor tien, vijftien en dertig voertuigen maakt die keuze concreet.
+
+## Voertuigkeuze en laadoplossingen kunnen meegroeien met nieuwe regels
+
+Van den Udenhout kan adviseren hoe je de verduurzaming van je bedrijfswagenpark het slimst vormgeeft. Toegangsregels en vervangingstermijnen zijn reden om voertuigkeuze, aandrijving, gebruikspatroon en laadbehoefte samen te beoordelen. Elektrische bedrijfswagens, zoals de Volkswagen e-Transporter en de Volkswagen ID. Buzz Cargo, en elektrische Škoda-bestelmodellen zijn zakelijke opties. Voor laden op kantoor kan een Cube-laadpaal met maximaal 22 kW worden geplaatst.
+
+Bespreek jouw wagenpark, de gewenste verdeling van taken en het serviceniveau via onze contactpagina.
