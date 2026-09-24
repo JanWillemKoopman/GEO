@@ -36,6 +36,7 @@ export function Drawer({
   onderschrift,
   onSluit,
   voet,
+  kant = "rechts",
   children,
 }: {
   open: boolean;
@@ -44,6 +45,12 @@ export function Drawer({
   onSluit: () => void;
   /** Knoppen onderaan, achter een streep. Weglaten als de lade alleen leest. */
   voet?: React.ReactNode;
+  /**
+   * Van welke kant hij inschuift. Links is voor de navigatie (UX-audit 23
+   * september 2026, P0.1): het menu komt van de kant waar op een breed scherm de
+   * zijbalk staat, zodat het dezelfde plek blijft in het hoofd van de gebruiker.
+   */
+  kant?: "rechts" | "links";
   children: React.ReactNode;
 }) {
   const paneel = useRef<HTMLDivElement>(null);
@@ -89,7 +96,7 @@ export function Drawer({
         role="dialog"
         aria-modal="true"
         aria-label={titel}
-        className="drawer"
+        className={kant === "links" ? "drawer drawer-links" : "drawer"}
       >
         {/* Alleen zichtbaar op een telefoon; zie het blok in globals.css. */}
         <span className="drawer-greep" aria-hidden />

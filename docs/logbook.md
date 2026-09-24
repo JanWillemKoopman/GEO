@@ -12025,3 +12025,72 @@ integer: de hele insert mislukte. De concepten waren al weg, de taak stond op "k
 nul onderwerpen. Nu komt de volgorde uit de positie in de lijst (`lib/topic-volgorde.ts`, conventie
 1: het model zet ze al op volgorde, zijn getal is niet te vertrouwen), gaan de concepten bij een
 mislukte opslag terug, en mislukt de taak zichtbaar in plaats van stil.
+
+## 23 september 2026 (12): UX-audit, de app doorgelopen als nieuwe gebruiker
+
+Een doorloop van de hele app vanuit de klant (inloggen, overzicht, clusters, contentplan, vragen,
+bibliotheek, live melden, analytics) en vanuit de consultant (merk aanmaken, onderzoek, onboarding,
+toewijzen), gelezen in de code en niet in een draaiende app met echte data. Drie P0-punten werden
+twee, tien P1 en dertien P2. De eigenaar koos ze allemaal. Vier ervan draaien een eerder besluit
+terug; die staan hieronder met het besluit erbij, zodat ze met één blik terug te zetten zijn.
+
+**P0.1, geen menu tussen 768 en 1023 pixels.** De zijbalk verschijnt vanaf 1024 pixels, de
+onderbalk alleen als de server op de useragent een telefoon herkent. Een iPad of een half
+laptopvenster kreeg geen van beide. Nu opent een menuknop in de bovenbalk dezelfde zijbalk als lade
+van links (`components/nav-lade.tsx`).
+
+**P0.2, de bevestigknop onder de onderbalk.** "Bevestig en start de meting" zat met `bottom-0` op
+dezelfde plek als de onderbalk van 56 pixels, en de onderbalk lag erbovenop. `.vaste-actiebalk`
+schuift omhoog zodra er een onderbalk is (`body:has(.onderbalk)`), op dezelfde manier als de
+opslagbalk van het merkdossier dat al deed.
+
+**P1.1, het startscherm draait om.** Volgorde: wat er op je wacht (alleen als er iets is), het cijfer,
+Deze maand. De maandbalk stond sinds 27 augustus 2026 bovenaan ("eerst hoe het werkt"); hij blijft,
+maar onderaan. De vier grote tellers zijn één zin geworden (`totalenZin()`), omdat de maandbalk
+sinds 23 september ook "geschreven" en "live" telt, over een andere periode.
+
+**P1.2 en P1.10, één woord per begrip.** De meetvragen heten AI-vragen, zodat "Openstaande vragen"
+alleen nog gaat over wat de klant beantwoordt. De zeven weigermeldingen zeiden "customer success
+manager bij Outer Orbit" (herstelplan T4.2, 2 september 2026), de rest van de app 24 keer "je
+consultant". Het is nu overal "je consultant", met "bij Outer Orbit" erachter in de weigermeldingen.
+Verder: merkdossier (niet merkprofiel of profiel), opslaan (niet bewaren), "Mijn account" opent op
+"Mijn account", "Alle merken" op "Alle merken". De lijst staat in `docs/schrijfstijl.md` §11.
+
+**P1.3, knoppen die vooraf zeggen wat ze doen.** Een klant zag "Cluster starten" bij elk voorstel,
+de accentknop "Nieuwe cluster" en het volledige formulier "Nieuw merk", en hoorde pas na de klik
+dat de consultant dat doet. De functie blijft zichtbaar (kader 2 van het herstelplan), maar de
+belofte klopt nu vooraf, zoals de reputatieknop al deed.
+
+**P1.4, live melden.** "Zet deze pagina live" klonk alsof de app de pagina op de site zet. Overal is
+het nu "Meld dat hij live staat".
+
+**P1.5, P1.6, P1.7, drie besluiten van de eigenaar herzien.** De klant ziet onder Clusters eerst
+"Mijn clusters" (de consultant houdt "Clusters ontdekken" bovenaan, zoals gevraagd). Het contentplan
+opent voor de klant op Overzicht en voor de consultant op Plannen: van 22 tot 23 september landde
+iedereen op het bord. Zichtbaarheid in AI opent met het AI-cijfer; de Google-opbrengst, die
+bovenaan stond als "eerste vraag van de eigenaar", staat onderaan onder de kop "Wat het in Google
+opleverde". Label, AI-assistent en fase staan achter "Meer filters".
+
+**P1.8 en P1.9.** Het uitleesgereedschap (tempo, mappen met voorrang, aantal pagina's) staat op het
+merkdossier alleen nog voor de consultant; onderaan staan twee knoppen in plaats van vier, en
+Volgende slaat zelf op. Op Support ontbrak het hoofdstuk Clusters helemaal (de uitleg hing nog onder
+Strategie) en stonden vijf verouderde zinnen, onder meer over "Waar je begint", een technische
+diagnose onderaan Analytics en een voortgangsbalk in het contentplan. De audit zei eerst dat vier
+bestemmingen geen uitleg hadden; dat klopte niet, de teksten stonden er, alleen verouderd. Een test
+eist nu uitleg voor elke klantbestemming in de zijbalk.
+
+**P2.** Open werk in een neutrale chip in plaats van groen, "jij, nu" in de aandachtskleur in plaats
+van oranje, taakregels van vier naar twee regels, "Deze maand" in plaats van "Je september", de
+merkenlijst opent het overzicht, de onderbalk krijgt Clusters en de woorden van de zijbalk, "alleen
+jij" één keer per kop in plaats van tot 14 keer, Overzicht en Merkdossier als één regel, vijf lege
+staten naar `EmptyState`, bovenlabels gelijk aan het hoofdstuk, geen accentknop per regel, twee
+links op een gemeten clusterkaart, het bedrag van een reputatieanalyse alleen voor wie hem start,
+een lopende analyse die vanzelf ververst, een 404 binnen de app en Sales in het Nederlands (Kansen,
+Bedrijven, Verstuurd).
+
+Wat niet gedaan is en waarom: de schermen zijn niet in de browser met echte data bekeken, want
+daarvoor is een database nodig die in deze werkomgeving niet beschikbaar is. P0.1 en P0.2 zijn dus
+in de code opgelost maar niet op een tablet en een telefoon nagekeken. Nagekomen: ook "Geef deze
+maand vrij" op het contentplan (Overzicht en het bord) zegt een klant nu vooraf dat dit via de
+consultant gaat, in de woorden van de weigermelding zelf. Getest, na het samenvoegen met `main`: `tsc --noEmit`,
+`test:unit` (5448), `test:chain` (781) en `build` groen.

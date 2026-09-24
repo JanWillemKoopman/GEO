@@ -241,16 +241,14 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
     // "Clusters ontdekken" staat bovenaan op verzoek van de eigenaar. Het
     // adres van "Mijn clusters" is ongewijzigd: het wordt op 27 plekken
     // gebruikt, en verhuizen levert alleen een mooier adres op.
-    {
-      href: `/merk/${brandId}/ontdekken`,
-      label: "Clusters ontdekken",
-      hoofdstuk: "Clusters",
-    },
-    {
-      href: `/merk/${brandId}/strategie/clusters`,
-      label: "Mijn clusters",
-      hoofdstuk: "Clusters",
-    },
+    //
+    // ⚠️ DE VOLGORDE HANGT SINDS DE UX-AUDIT VAN 23 SEPTEMBER 2026 (P1.5) AF VAN
+    // DE ROL. De consultant draait de ontdekkingsrondes en houdt "Clusters
+    // ontdekken" bovenaan, zoals de eigenaar vroeg. Voor de klant was dat het
+    // eerste item van het hoofdstuk en meestal een wachtscherm ("je consultant
+    // zoekt nieuwe onderwerpen voor je"): hij opende Clusters en zag niet wat hij
+    // had, maar wat er nog niet was. Voor hem staat "Mijn clusters" bovenaan.
+    ...(staff ? [ontdekken(brandId), mijnClusters(brandId)] : [mijnClusters(brandId), ontdekken(brandId)]),
 
     // ── STRATEGIE ────────────────────────────────────────────────────────
     //
@@ -410,6 +408,14 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
   ];
 }
 
+function ontdekken(brandId: string): NavItem {
+  return { href: `/merk/${brandId}/ontdekken`, label: "Clusters ontdekken", hoofdstuk: "Clusters" };
+}
+
+function mijnClusters(brandId: string): NavItem {
+  return { href: `/merk/${brandId}/strategie/clusters`, label: "Mijn clusters", hoofdstuk: "Clusters" };
+}
+
 /**
  * Wat over de app als geheel gaat.
  *
@@ -490,13 +496,13 @@ export function salesNav(sales = false): NavItem[] {
     { href: "/sales", label: "Overzicht", hoofdstuk: "Sales", staffOnly: true },
     {
       href: "/sales/opportunities",
-      label: "Opportunities",
+      label: "Kansen",
       hoofdstuk: "Sales",
       staffOnly: true,
     },
-    { href: "/sales/prospects", label: "Prospects", hoofdstuk: "Sales", staffOnly: true },
+    { href: "/sales/prospects", label: "Bedrijven", hoofdstuk: "Sales", staffOnly: true },
     { href: "/sales/markten", label: "Markten", hoofdstuk: "Sales", staffOnly: true },
-    { href: "/sales/outreach", label: "Outreach", hoofdstuk: "Sales", staffOnly: true },
+    { href: "/sales/outreach", label: "Verstuurd", hoofdstuk: "Sales", staffOnly: true },
   ];
 }
 

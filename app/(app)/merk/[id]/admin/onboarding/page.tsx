@@ -101,6 +101,7 @@ export default async function OnboardingSessiePagina({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        eyebrow="Admin"
         title="Onboardinggesprek"
         description={`Samen nalopen wat ORBIT ENGINE over ${merknaam} heeft gevonden, aanvullen wat een website niet kan vertellen, en vastleggen wat we afspreken. Alles wat je hier invult wordt meteen bewaard.`}
       />

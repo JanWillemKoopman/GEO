@@ -183,12 +183,12 @@ export function paginaStand(input: PaginaStandInput): PaginaStand {
   }
   if (plan?.status === "goedgekeurd" || (tekst?.status === "ready" && !tekst.needs_review)) {
     return stand("live_zetten", {
-      label: "Zet hem live",
+      label: "Plaats hem op je site",
       aanZet: "klant",
       toon: "wacht",
       fase: 3,
       zin: "De tekst is goedgekeurd. Plaats hem op je site en vul daarna het adres in.",
-      handeling: "Zet live",
+      handeling: "Meld dat hij live staat",
     });
   }
   if (heeftTekst || plan?.status === "ter_goedkeuring") {

@@ -22,12 +22,7 @@ import { loadBrandWork, sortWork } from "@/lib/work";
 import { groepeerPerSectie } from "@/lib/wachtrij";
 import { WachtrijLijst } from "./_components/wachtrij-lijst";
 import { enkelOfMeervoud } from "@/lib/format";
-import {
-  overzichtCijfers,
-  totalenKop,
-  type OverzichtCijfer,
-  versheidsregel,
-} from "@/lib/overview";
+import { totalenZin, versheidsregel } from "@/lib/overview";
 import { Icon } from "@/components/icon";
 import { ronde } from "@/lib/ronde";
 import { RondeBalk } from "./_components/ronde-balk";
@@ -187,30 +182,20 @@ export default async function OverzichtPage({
   // niet in een filter dat een volgend scherm kan vergeten.
   const eigenClusters = analyses;
 
-  // ── De vier cijfers bovenaan ─────────────────────────────────────────────
-  //
-  // ⚠️ Het zichtbaarheidspercentage stond hier tot 26 augustus 2026 als
-  // hoofdgetal. Zie `overzichtCijfers()` in `lib/overview.ts` voor waarom het
-  // verhuisd is naar Analytics en wat ervoor in de plaats komt.
-  //
-  // De meetreeks blijft nodig: hij bepaalt hoe vers de kop is en of dit merk nog
-  // in zijn eerste maand zit. `lus.periods` komt uit dezelfde bundel als de
-  // inzichten, dus dit scherm doet zijn eigen scorequery niet.
+  // De meetreeks bepaalt hoe vers de kop is en wat het hoofdgetal zegt.
+  // `lus.periods` komt uit dezelfde bundel als de inzichten, dus dit scherm doet
+  // zijn eigen scorequery niet.
   const periodes = lus.periods;
   const laatste = periodes.length > 0 ? periodes[periodes.length - 1] : null;
-  //
-  // ⚠️ Sinds 28 augustus 2026 tellen drie van de vier cijfers wat er GEMAAKT is
-  // en niet meer wat er voorgesteld is. "Nieuwe pagina's" en "Optimalisaties"
-  // kwamen hiervoor uit `lus.opportunities`, dus uit de kansenlijst: bij Van den
-  // Udenhout stond de rij daardoor op 0 · 0 · 7 · 5 terwijl er nog niets gedaan
-  // was. Die voorstellen staan nog steeds op dit scherm, in het kansenblok
-  // eronder, want dáár gaan ze over wat je kunt doen.
-  const gepubliceerd = contentTotalen.gepubliceerd;
-  const cijfers = overzichtCijfers({
+
+  // ⚠️ Hier stond tot de UX-audit van 23 september 2026 (P1.1) een rij van vier
+  // grote tellingen. Het zijn nu dezelfde vier getallen in één zin, zie
+  // `totalenZin()` in `lib/overview.ts` voor het waarom.
+  const totalen = totalenZin({
     clusters: eigenClusters.length,
     geschreven: contentTotalen.geschreven,
     geoptimaliseerd: contentTotalen.geoptimaliseerd,
-    gepubliceerd,
+    gepubliceerd: contentTotalen.gepubliceerd,
   });
 
   // ── De wachtrij, alleen wat op de klant wacht, ingedeeld in de vaste
@@ -282,20 +267,30 @@ export default async function OverzichtPage({
 
   const merknaam = profile.brand_name ?? profile.name;
 
+  // Wat er op de klant wacht, als die lijst leeg is: één regel onder het cijfer
+  // in plaats van een eigen blok met een kop die zegt dat er niets is.
+  const rustRegel =
+    bijOns > 0
+      ? `Er wacht niets op jou. ORBIT ENGINE is bezig met ${bijOns} ${enkelOfMeervoud(bijOns, "taak", "taken")} en laat het weten zodra er iets beweegt.`
+      : "Er wacht niets op jou. ORBIT ENGINE meet maandelijks door en laat het weten zodra er iets beweegt.";
+
   return (
-    // ⚠️ 32 pixels tussen de secties en 12 binnen een sectie. Het was overal 24,
-    // dus nergens was in witruimte uitgedrukt dat zes kansen bij elkaar horen en
-    // het opbrengstblok een nieuw hoofdstuk is.
+    // ⚠️ 32 pixels tussen de secties en 12 binnen een sectie.
+    //
+    // ── DE VOLGORDE (UX-AUDIT 23 SEPTEMBER 2026, P1.1) ──────────────────────
+    //
+    // Kop, dan wat er op jou wacht, dan het cijfer, dan de maand. Tot die dag
+    // stond de wachtrij onderaan, onder de maandbalk en een kaart met score,
+    // marge, vier tellers, drie inzichtzinnen en een knop. Dit is het scherm
+    // van elke sessie, en de enige handeling die de klant hier kan doen zakte
+    // onder twee drukke blokken. De maandbalk stond bovenaan sinds 27 augustus
+    // 2026 ("eerst hoe het werkt"); hij blijft, maar als naslag onderaan: wie
+    // wil weten waar het toe leidt, scrolt; wie iets moet doen, hoeft dat niet.
     <div className="flex flex-col gap-8">
       {/* ── Kop ────────────────────────────────────────────────────────────
-          ⚠️ Geen cijfer in de subkop. Het hoofdgetal staat één blok lager, en
-          twee keer hetzelfde getal in twee formuleringen laat de klant zoeken
-          welke van de twee nu de echte is (`docs/ux-design.md` §1).
-
-          De beschrijving was een opsomming van de blokken eronder ("hoe
-          zichtbaar je bent, wat er op je wacht en waar je begint"), dus hij zei
-          op elk bezoek hetzelfde. Nu zegt hij of dit bezoek iets nieuws
-          oplevert. */}
+          Geen cijfer in de subkop: het hoofdgetal staat verderop, en twee keer
+          hetzelfde getal laat de klant zoeken welke de echte is. De regel zegt
+          hoe vers de meting is (`docs/ux-design.md` §5). */}
       <PageHeader
         title={merknaam}
         description={versheidsregel({
@@ -304,14 +299,6 @@ export default async function OverzichtPage({
           now: nu,
         })}
       />
-
-      {/* ── De maand ───────────────────────────────────────────────────────
-          Het eerste blok van de app, en met opzet vóór de cijfers: eerst wat
-          er deze maand gedaan is en nog moet, dan pas hoe het ervoor staat.
-          Zie `lib/ronde.ts`. */}
-      <SectionErrorBoundary label={`Je ${maand.maand}`}>
-        <RondeBalk ronde={maand} />
-      </SectionErrorBoundary>
 
       {/* ── De fase, alleen voor jou (deel B4) ────────────────────────────
           Een smalle regel en geen kaart: dit is stafinformatie en hoort niet
@@ -336,26 +323,37 @@ export default async function OverzichtPage({
         </div>
       )}
 
-      {/* ── 1. De stand: vier tellingen, en wat de meting ervan zegt ───────
-          ⚠️ Hier stond tot 26 augustus 2026 het zichtbaarheidspercentage als
-          hoofdgetal, met de marge, het verschil en het verloop eromheen. Zie
-          `overzichtCijfers()` in `lib/overview.ts` voor het waarom van de
-          verhuizing. De duiding blijft: de drie zinnen van `insights()` gaan nog
-          steeds over de meting, en de knop ernaast gaat naar het cijfer zelf.
+      {/* ── 1. Wat er nu op jou wacht ─────────────────────────────────────
+          Alleen als er iets is. Ingedeeld naar Cluster, Contentplan,
+          Openstaande vragen en Bibliotheek, zie `lib/wachtrij.ts`. De ene
+          primaire knop van het scherm staat op de dringendste regel. */}
+      {eigenWerk.length > 0 && (
+        <SectionErrorBoundary label="Wat er op je wacht">
+          <div className="flex flex-col gap-3">
+            <SectionHeading
+              title="Wat er op jou wacht"
+              badge={
+                // Neutraal en niet groen (P2.1): groen betekent "gelukt", en
+                // open werk is dat nog niet.
+                <span className="chip chip-neutral">
+                  {eigenWerk.length} open {enkelOfMeervoud(eigenWerk.length, "taak", "taken")}
+                </span>
+              }
+              meta={bijOns > 0 ? `Bij ORBIT ENGINE · ${bijOns}` : undefined}
+            />
+            <WachtrijLijst overzicht={wachtrijOverzicht} eersteId={eigenWerk[0]?.id} />
+          </div>
+        </SectionErrorBoundary>
+      )}
 
-          ⚠️ De stang links is sinds 21 september 2026 altijd groen (`.card-rail-success`, `--trend-up`) en
-          niet meer afhankelijk van `insights()`. Dit is het hoofdgetal van het
-          hele scherm en verdient dezelfde nadruk ongeacht de richting van de
-          laatste meting; `railKlasse()` bestaat daarom niet meer. */}
+      {/* ── 2. Hoe het ervoor staat ────────────────────────────────────────
+          Het hoofdgetal met zijn marge, de duiding in drie zinnen, en de
+          totalen van het programma in één zin eronder. De stang links is
+          altijd groen (`.card-rail-success`, sinds 21 september 2026). */}
       <SectionErrorBoundary label="Je programma">
-        <div
-          className="card card-rail card-rail-success flex flex-col gap-5"
-        >
+        <div className="card card-rail card-rail-success flex flex-col gap-5">
           {laatste && band && samengevoegd && (
-            <div className="flex flex-wrap items-end gap-x-6 gap-y-2 border-b border-[var(--border-subtle)] pb-5">
-              {/* ⚠️ Weer een percentage als hoofdgetal (21 september 2026), na
-                  de band-in-antwoorden van 20 september. De marge staat er nog
-                  wel bij, in de regel eronder. */}
+            <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
               <div className="flex min-w-0 flex-col gap-0.5">
                 <span className="mono-label">Zichtbaarheid in AI</span>
                 <span className="stat-value text-5xl">{samengevoegd.score}%</span>
@@ -366,9 +364,7 @@ export default async function OverzichtPage({
               <div className="flex min-w-0 flex-1 flex-col gap-1 pb-1">
                 <span className="flex flex-wrap items-center gap-2">
                   {/* Een verandering binnen de onzekerheidsmarge is geen
-                      verandering. Hem tonen als winst is de belofte die het
-                      product niet kan waarmaken. Zelfde regel als op
-                      Analytics. */}
+                      verandering. Zelfde regel als op Analytics. */}
                   {verschil?.changed ? (
                     <span className={verschil.delta > 0 ? "chip chip-stijging" : "chip chip-daling"}>
                       <Icon naam={verschil.delta > 0 ? "stijging" : "daling"} size={12} />
@@ -380,7 +376,7 @@ export default async function OverzichtPage({
                     </span>
                   )}
                   {laatste.vragen > 0 && (
-                    <span className="mono-label">over {laatste.vragen} vragen</span>
+                    <span className="mono-label">over {laatste.vragen} AI-vragen</span>
                   )}
                 </span>
                 {band.margin > 0 && (
@@ -392,11 +388,11 @@ export default async function OverzichtPage({
             </div>
           )}
 
-          <CijferRij cijfers={cijfers} kop={totalenKop()} />
-
           <div className="flex flex-wrap items-start justify-between gap-4 border-t border-[var(--border-subtle)] pt-4">
-            <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
               <InsightLines insights={lus.insights} />
+              <p className="text-sm text-muted">{totalen}</p>
+              {eigenWerk.length === 0 && <p className="text-sm text-secondary">{rustRegel}</p>}
             </div>
             <Link
               href={
@@ -406,91 +402,21 @@ export default async function OverzichtPage({
               }
               className="btn-outline shrink-0"
             >
-              {/* Het icoon van het hoofdstuk waar de knop heen gaat: Strategie
-                  of Analytics, dezelfde tekening als in de zijbalk. Zo wijst de
-                  knop naar een plek die de klant herkent voordat hij klikt, in
-                  plaats van naar een woord. */}
-              <Icon naam={laatste === null ? "strategie" : "analytics"} size={18} />
+              {/* Het icoon van het hoofdstuk waar de knop heen gaat, dezelfde
+                  tekening als in de zijbalk. */}
+              <Icon naam={laatste === null ? "clusters" : "analytics"} size={18} />
               {laatste === null ? "Naar je clusters" : "Bekijk je zichtbaarheid"}
             </Link>
           </div>
         </div>
       </SectionErrorBoundary>
 
-      {/* ── 2. Wat er nu op jou wacht, ingedeeld naar Cluster, Contentplan,
-          Openstaande vragen en Bibliotheek. Zie `lib/wachtrij.ts`. */}
-      <SectionErrorBoundary label="Wat er op je wacht">
-        <div className="flex flex-col gap-3">
-          <SectionHeading
-            title={eigenWerk.length === 0 ? "Er wacht niets op jou" : "Wat er op jou wacht"}
-            badge={
-              eigenWerk.length > 0 ? (
-                <span className="chip chip-success">
-                  {eigenWerk.length} open {enkelOfMeervoud(eigenWerk.length, "taak", "taken")}
-                </span>
-              ) : undefined
-            }
-            meta={bijOns > 0 ? `Bij ORBIT ENGINE · ${bijOns}` : undefined}
-          />
-          {eigenWerk.length === 0 ? (
-            <div className="card">
-              <p className="text-secondary">
-                {bijOns > 0
-                  ? `ORBIT ENGINE is bezig met ${bijOns} ${enkelOfMeervoud(bijOns, "taak", "taken")}. Je hoeft daar niets voor te doen; ORBIT ENGINE laat het weten zodra er iets beweegt.`
-                  : "ORBIT ENGINE meet maandelijks door en laat het weten zodra er iets beweegt."}
-              </p>
-            </div>
-          ) : (
-            <WachtrijLijst overzicht={wachtrijOverzicht} eersteId={eigenWerk[0]?.id} />
-          )}
-        </div>
+      {/* ── 3. Deze maand ──────────────────────────────────────────────────
+          De vijf stappen van de ronde, met wie er aan zet is. Zie
+          `lib/ronde.ts`. Onderaan sinds de UX-audit (zie de volgorde hierboven). */}
+      <SectionErrorBoundary label="Deze maand">
+        <RondeBalk ronde={maand} />
       </SectionErrorBoundary>
-    </div>
-  );
-}
-
-/**
- * De vier cijfers boven aan het scherm, over de volle breedte van hun kaart.
- *
- * ── ⚠️ VIER KOLOMMEN IN ÉÉN KAART, GEEN VIER KAARTEN ────────────────────────
- *
- * Zelfde vorm als het opbrengstblok dat hier tot 26 augustus 2026 onderaan stond:
- * één kaart met scheidingslijnen ertussen. Vier kaders naast elkaar die samen
- * één ding zeggen, is de kaartinflatie waar `docs/ux-design.md` §1 voor
- * waarschuwt. Op mobiel zakken ze naar twee kolommen, want vier getallen naast
- * elkaar op 375 pixels is per kolom nog geen 90 pixels.
- *
- * ⚠️ De getallen staan in `stat-value` (cijfermono, tabellarisch), zodat ze
- * onder elkaar uitlijnen als er een cijfer bij komt. De labels niet: die zijn
- * tekst.
- */
-function CijferRij({ cijfers, kop }: { cijfers: OverzichtCijfer[]; kop: string }) {
-  return (
-    <div className="flex flex-col gap-3">
-      {/* ⚠️ Deze regel is geen versiering. Drie van de vier getallen gaan over de
-          hele looptijd van de klant, en zonder die regel leest iemand met twaalf
-          geschreven pagina's ze als "deze maand". Het eerste cijfer is de
-          uitzondering, en dat staat in zijn eigen toelichting ("Nu actief"):
-          een tweede regel erbij om die uitzondering uit te leggen zou meer
-          uitleg zijn dan de rij zelf. */}
-      <span className="mono-label">{kop}</span>
-      <div className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
-        {cijfers.map((c, i) => (
-          <div
-            key={c.label}
-            className={`flex min-w-0 flex-col gap-0.5 ${
-              // De scheidingslijn hoort tussen de kolommen en niet eromheen. Op
-              // twee kolommen valt hij op de even posities, op vier op alles
-              // behalve de eerste.
-              i % 2 === 1 ? "border-l border-[var(--border-subtle)] pl-6" : ""
-            } ${i > 0 ? "lg:border-l lg:border-[var(--border-subtle)] lg:pl-6" : "lg:border-l-0 lg:pl-0"}`}
-          >
-            <span className="data-card-waarde">{c.waarde}</span>
-            <span className="text-sm font-medium">{c.label}</span>
-            <span className="text-sm text-muted">{c.detail}</span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

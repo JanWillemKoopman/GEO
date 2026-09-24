@@ -68,7 +68,7 @@ function promptKolommen(merkId: string, ownTerms: string[]): AnalyticsColumn<Pro
     },
     {
       key: "prompt",
-      header: "Prompt",
+      header: "AI-vraag",
       render: (r) => (
         <details>
           <summary className="flex cursor-pointer items-start gap-2">

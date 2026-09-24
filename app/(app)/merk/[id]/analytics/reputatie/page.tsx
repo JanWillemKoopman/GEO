@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/page-header";
 import { SectionHeading } from "@/components/section-heading";
+import { EmptyState } from "@/components/empty-state";
+import { VanzelfVerversen } from "@/components/vanzelf-verversen";
 import { InfoHint } from "@/components/info-hint";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { ExternalLink } from "@/components/external-link";
@@ -132,17 +134,13 @@ export default async function ReputatiePage({
     return (
       <div className="flex flex-col gap-8">
         <Kop />
-        <div className="card flex flex-col gap-2">
-          <span className="mono-label">Kan nog niet</span>
-          <p className="text-secondary">
-            Een reputatieanalyse meet per product of dienst hoe AI over je praat. In het
-            merkprofiel van {merk} staan nog geen diensten of producten, dus er valt nog niets te
-            meten.
-          </p>
-          <Link className="btn-outline btn-sm w-fit" href={`/merk/${id}/merkprofiel/bewerken`}>
-            Vul het aanbod aan
-          </Link>
-        </div>
+        <EmptyState
+          title="Nog niets om te meten"
+          action={{ href: `/merk/${id}/merkprofiel/bewerken`, label: "Vul het aanbod aan" }}
+        >
+          Een reputatieanalyse meet per product of dienst hoe AI over je praat. In het merkdossier
+          van {merk} staan nog geen diensten of producten, dus er valt nog niets te meten.
+        </EmptyState>
       </div>
     );
   }
@@ -159,8 +157,13 @@ export default async function ReputatiePage({
             bronnen erbij, en met de vraag die een koper stelt. Je ziet per product of ChatGPT je
             noemt als iemand kiest, wie hij anders noemt, en welke bezwaren hij aan je koppelt.
           </p>
+          {/* Het bedrag alleen voor wie hem start (UX-audit P2.10). De klant
+              betaalt niet per aanroep, en "75 cent" op zijn scherm roept de
+              vraag op wat hij dan wél betaalt. */}
           <p className="text-sm text-muted">
-            Ongeveer 50 vragen aan ChatGPT, een halfuur werk, ongeveer 75 cent.
+            {magStarten
+              ? "Ongeveer 50 vragen aan ChatGPT, een halfuur werk, ongeveer 75 cent."
+              : "Ongeveer 50 vragen aan ChatGPT, een halfuur werk."}
           </p>
         </div>
         <StartReputationButton
@@ -195,9 +198,11 @@ export default async function ReputatiePage({
             open.
           </p>
           <p className="text-sm text-muted">
-            Je hoeft hier niet bij te wachten. Kom over een paar minuten terug, of ververs deze
-            pagina.
+            Je hoeft hier niet bij te wachten. Deze pagina werkt zichzelf bij zolang hij openstaat.
           </p>
+          {/* Zelfde gedrag als de andere wachtstanden in de app (UX-audit P2.10):
+              de voortgang komt vanzelf, zonder dat de klant hoeft te verversen. */}
+          <VanzelfVerversen />
         </div>
         <Voorbehoud run={laatste} />
       </div>

@@ -36,6 +36,7 @@ export function PlanReadView({
   pages,
   topics,
   clusterNaam,
+  staff,
 }: {
   profileId: string;
   plan: ContentPlan;
@@ -43,6 +44,8 @@ export function PlanReadView({
   pages: PlannedPage[];
   topics: TopicWritingState[];
   clusterNaam: Record<string, string | null>;
+  /** Mag deze gebruiker zelf een maand vrijgeven? Zie `ReleaseMonthButton`. */
+  staff: boolean;
 }) {
   const nu = new Date();
   const analyseVanOnderwerp = new Map(topics.map((t) => [t.topicId, t.analysisId]));
@@ -91,6 +94,7 @@ export function PlanReadView({
           clusterNaam={clusterNaam}
           lopend={lopend === deze.monthNumber}
           magVrijgeven
+          staff={staff}
         />
       )}
 
@@ -104,6 +108,7 @@ export function PlanReadView({
           clusterNaam={clusterNaam}
           lopend={false}
           magVrijgeven={false}
+          staff={staff}
         />
       )}
 
@@ -168,6 +173,7 @@ function MaandKaart({
   clusterNaam,
   lopend,
   magVrijgeven,
+  staff,
 }: {
   profileId: string;
   plan: ContentPlan;
@@ -177,6 +183,7 @@ function MaandKaart({
   clusterNaam: Record<string, string | null>;
   lopend: boolean;
   magVrijgeven: boolean;
+  staff: boolean;
 }) {
   const kalender = monthCalendar(plan.started_on, month.month_number);
   const maandMeta = MONTH_STATUS_META[month.status];
@@ -289,6 +296,7 @@ function MaandKaart({
             monthNumber={month.month_number}
             paginas={telling.echt}
             eersteDatum={eerste?.scheduled_for ?? null}
+            staff={staff}
           />
         </div>
       )}

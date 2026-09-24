@@ -191,7 +191,7 @@ export function Vraagkaart({
           disabled={bezig || !waarde.trim()}
           onClick={() => void stuur({ answer: waarde.trim() })}
         >
-          {bezig ? "Opslaan…" : "Bewaar antwoord"}
+          {bezig ? "Opslaan…" : "Antwoord opslaan"}
         </button>
         <span className="flex flex-col items-end gap-0.5 text-right">
           <button

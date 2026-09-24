@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { isStaff } from "@/lib/staff";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/page-header";
+import { EmptyState } from "@/components/empty-state";
 import { PagesTrafficChart } from "@/components/pages-traffic-chart";
 import { ZoekverkeerPaginas, type OnzePaginaRij } from "@/components/zoekverkeer-paginas";
 import { AnalyticsFilters } from "@/components/analytics-filters";
@@ -234,13 +235,10 @@ export default async function ZoekverkeerPage({
           labelfilter={labelfilter}
           clusterfilter={clusterfilter}
         />
-        <div className="card flex flex-col gap-1">
-          <span className="mono-label">Geen pagina&apos;s in deze selectie</span>
-          <p className="text-secondary">
-            Er staan wel pagina&apos;s van ORBIT ENGINE live, alleen niet in het cluster of label dat
-            je hier gekozen hebt. Kies een andere selectie.
-          </p>
-        </div>
+        <EmptyState title="Geen pagina's in deze selectie">
+          Er staan wel pagina&apos;s van ORBIT ENGINE live, alleen niet in het cluster of label dat
+          je hier gekozen hebt. Kies een andere selectie.
+        </EmptyState>
       </div>
     );
   }

@@ -9,7 +9,7 @@ import { mayInvite } from "@/lib/invite-rules";
 import { listPendingInvites } from "@/lib/invites";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Mijn instellingen" };
+export const metadata = { title: "Mijn account" };
 
 export default async function InstellingenPage() {
   const user = await requireUser();
@@ -39,9 +39,9 @@ export default async function InstellingenPage() {
   return (
     <div className="wil-lezen flex flex-col gap-6">
       <PageHeader
-        eyebrow="ORBIT ENGINE · account"
-        title="Mijn instellingen"
-        description="Je persoonlijke account. Instellingen per merk en per cluster staan bij het merk of het cluster zelf."
+        eyebrow="Account"
+        title="Mijn account"
+        description="Je gegevens, je wachtwoord en je team. Wat bij een merk hoort, staat bij dat merk."
       />
 
       <SecurityBox email={user.email ?? ""} />

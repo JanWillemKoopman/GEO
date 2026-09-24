@@ -134,7 +134,7 @@ export function PublishBox({
            knop naar de gegevens. */
         className={publishedAt ? "btn-outline btn-sm" : "btn-accent btn-sm"}
       >
-        {publishedAt ? "Publicatie" : "Zet deze pagina live"}
+        {publishedAt ? "Publicatie" : "Meld dat hij live staat"}
       </button>
 
       {open && (

@@ -169,8 +169,8 @@ export function KandidaatKaart({
               </div>
             ) : (
               <div className="flex flex-wrap items-center gap-2">
-                <button type="button" className="btn-actie btn-sm" disabled={wacht} onClick={() => doe("toevoegen")}>
-                  Toevoegen aan Mijn clusters
+                <button type="button" className="btn-outline btn-sm" disabled={wacht} onClick={() => doe("toevoegen")}>
+                  Bewaar als voorstel
                 </button>
                 <button type="button" className="btn-outline btn-sm" disabled={wacht} onClick={() => setAfwijzen(true)}>
                   Niet relevant
@@ -180,8 +180,8 @@ export function KandidaatKaart({
             )
           ) : (
             <div>
-              <button type="button" className="btn-actie btn-sm" disabled={wacht} onClick={() => doe("toevoegen")}>
-                Toevoegen aan Mijn clusters
+              <button type="button" className="btn-outline btn-sm" disabled={wacht} onClick={() => doe("toevoegen")}>
+                Bewaar als voorstel
               </button>
             </div>
           )}

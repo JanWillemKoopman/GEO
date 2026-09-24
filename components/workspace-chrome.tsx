@@ -8,6 +8,7 @@ import { Icon } from "@/components/icon";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BottomNav } from "@/components/bottom-nav";
 import { MobileTopbar } from "@/components/mobile-topbar";
+import { NavLade } from "@/components/nav-lade";
 import { brandNav, generalNav, salesNav, titelVoorPad, type NavItem } from "@/lib/nav";
 import type { BrandOption } from "@/lib/workspace";
 
@@ -131,6 +132,9 @@ export function WorkspaceChrome({
       <header className={`topbar no-print${inSalesContext ? " topbar-sales" : ""}`}>
         <div className="flex h-full items-center justify-between gap-3 px-4 md:px-5 lg:px-6">
           <div className="flex min-w-0 items-center gap-2">
+            {/* Onder 1024 pixels staat de zijbalk er niet; deze knop opent hem
+                als lade (UX-audit 23 september 2026, P0.1). */}
+            <NavLade activeBrand={activeBrand} staff={staff} sales={sales} openVragen={openVragen} />
             {logo}
             <span className="hidden text-muted sm:inline" aria-hidden>
               /

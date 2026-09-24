@@ -324,7 +324,7 @@ export function TopicsPanel({
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                className="btn-actie btn-sm"
+                className="btn-primary btn-sm"
                 disabled={bezig || !checkMix(mix).ok}
                 onClick={() => void start(t.id, mix)}
               >
@@ -391,7 +391,7 @@ export function TopicsPanel({
                   }).then(() => setBriefFor(null));
                 }}
               >
-                Bewaren
+                Opslaan
               </button>
               <button type="button" className="btn-ghost btn-sm" onClick={() => setBriefFor(null)}>
                 Annuleren
@@ -400,10 +400,23 @@ export function TopicsPanel({
           </div>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {!t.analysis_id && t.stage !== "concept" && (
+            {/* ── Wie start dit? (UX-audit 23 september 2026, P1.3) ─────────
+                Een cluster starten is van de consultant (`lib/cost-rules.ts`).
+                Tot die dag zag de klant hier een opvallende knop "Cluster
+                starten" die na de klik zei dat hij dat niet mocht. Nu zegt de
+                regel het vooraf, net als de reputatieknop al deed: de functie
+                blijft zichtbaar, de belofte klopt. Rustige knoppen per regel en
+                geen accentkleur (P2.9): een lijst van zes accentknoppen is een
+                muur van gelijkwaardige hoofdacties. */}
+            {!t.analysis_id && t.stage !== "concept" && !staff && (
+              <span className="text-sm text-secondary">
+                Wil je dit laten meten? Je consultant start het voor je.
+              </span>
+            )}
+            {!t.analysis_id && t.stage !== "concept" && staff && (
               <button
                 type="button"
-                className="btn-actie btn-sm"
+                className="btn-outline btn-sm"
                 disabled={bezig}
                 onClick={() => void start(t.id)}
               >
@@ -413,7 +426,7 @@ export function TopicsPanel({
             {/* ⚠️ Een aparte knop en geen veld dat altijd openstaat. Negen van de
                 tien keer is 10/10/10 goed, en dan hoort er één klik te zijn.
                 Wie het anders wil, klapt het open en ziet meteen wat het kost. */}
-            {!t.analysis_id && t.stage !== "concept" && mixFor !== t.id && (
+            {!t.analysis_id && t.stage !== "concept" && staff && mixFor !== t.id && (
               <button
                 type="button"
                 className="btn-outline btn-sm"

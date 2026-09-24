@@ -122,7 +122,7 @@ function Hero({ brandId }: { brandId: string | null }) {
       <p className="max-w-2xl text-lg leading-8 text-secondary">
         ORBIT ENGINE onderzoekt hoe zichtbaar je merk is in AI-antwoorden, adviseert wat daaraan te
         doen is, schrijft de content die daarvoor nodig is, en meet daarna of het gewerkt heeft.
-        Niet als losse tools naast elkaar, maar als één doorlopend proces. Je merkprofiel staat al
+        Niet als losse tools naast elkaar, maar als één doorlopend proces. Je merkdossier staat al
         klaar voordat je voor het eerst inlogt: dat werk is gedaan door je consultant.
       </p>
 
@@ -155,8 +155,9 @@ function Hero({ brandId }: { brandId: string | null }) {
             <span className="font-medium">Zoekmachineoptimalisatie.</span> Zichtbaarheid in
             traditionele zoekresultaten, zoals Google. Op{" "}
             <span className="font-medium">Zoekverkeer</span> zie je de echte cijfers uit Google
-            Search Console: leveren je gepubliceerde pagina&apos;s ook daar bezoekers op? ORBIT
-            ENGINE doet vandaag geen zoekwoordonderzoek en houdt geen posities in Google bij.
+            Search Console: leveren je gepubliceerde pagina&apos;s ook daar bezoekers op? Zoekvolumes
+            uit Google gebruikt ORBIT ENGINE op één plek, bij Clusters ontdekken, om nieuwe
+            onderwerpen te vinden. Een ranglijst van je posities in Google houdt het niet bij.
           </p>
         </div>
       </div>
@@ -455,7 +456,8 @@ function slug(label: string): string {
 /** Eén icoon per bestemming. Vier lenen die van hun eigen hoofdstuk, de rest staat voor het eerst in `lib/icons.ts`. */
 const ICOON_PER_LABEL: Record<string, IcoonNaam> = {
   "Hoe sta je ervoor": "overzicht",
-  Clusters: "meten",
+  "Mijn clusters": "meten",
+  "Clusters ontdekken": "zoekmachine",
   "Openstaande vragen": "feit",
   Contentplan: "plannen",
   Bibliotheek: "bibliotheek",
@@ -469,7 +471,8 @@ const ICOON_PER_LABEL: Record<string, IcoonNaam> = {
 /** De belofte in één zin, zichtbaar naast de titel (schrijfstijl.md §4: kop is de belofte, subkop is één zin uitleg). */
 const KICKER: Record<string, string> = {
   "Hoe sta je ervoor": "Is er iets nieuws sinds je hier voor het laatst was?",
-  Clusters: "Eén onderwerp, gemeten op hoe vaak AI je noemt.",
+  "Mijn clusters": "Eén onderwerp, gemeten op hoe vaak AI je noemt.",
+  "Clusters ontdekken": "Nieuwe onderwerpen die bij je merk passen.",
   "Openstaande vragen": "Wat ORBIT ENGINE nog van je wil weten.",
   Contentplan: "Wat er wanneer geschreven en gepubliceerd wordt.",
   Bibliotheek: "Alle pagina's, van de eerste vragen tot het gemeten effect.",
@@ -498,28 +501,22 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
           label="Wat je hier ziet"
           items={[
             <>
-              <span className="font-medium">Zichtbaarheid in AI</span> bovenaan is je hoofdcijfer:
-              hoe vaak AI-assistenten je noemen, met de onzekerheidsmarge erbij. Een verandering
-              binnen die marge telt niet als winst of verlies, dat is meetruis.
+              <span className="font-medium">Wat er op jou wacht</span> staat bovenaan, maar
+              alleen als er iets is: een vraag beantwoorden, een tekst lezen, een pagina live
+              melden. De knop bij de bovenste regel is de belangrijkste van het scherm.
             </>,
             <>
-              <span className="font-medium">Wat er op je wacht</span> toont hooguit vijf punten
-              die om jouw actie vragen, zoals een concept goedkeuren of een vraag beantwoorden.
+              <span className="font-medium">Zichtbaarheid in AI</span> is je hoofdcijfer: hoe vaak
+              AI-assistenten je noemen, met de onzekerheidsmarge erbij. Een verandering binnen die
+              marge telt niet als winst of verlies, dat is meetruis. Eronder staat in één zin wat
+              er sinds de start gemaakt is.
             </>,
             <>
-              <span className="font-medium">Waar je begint</span> wijst naar de kans die het
-              meeste oplevert als er nog niets gepland staat.
-            </>,
-            <>
-              Daaronder zie je je <span className="font-medium">contentplan</span> in het kort en
-              wat ORBIT ENGINE de afgelopen week deed.
+              <span className="font-medium">Deze maand</span> onderaan laat de vijf stappen van
+              de maand zien, van meten tot hermeten, en bij wie de beurt ligt.
             </>,
           ]}
         />
-        <p className="text-secondary">
-          In je eerste maand, vóór de eerste meting en zonder contentplan, blijft dit scherm bewust
-          leeg onder de kansen: er is dan simpelweg nog niets om te tonen.
-        </p>
         <Tip>
           Onder je merknaam staat altijd wanneer er voor het laatst gemeten is. Zie je hetzelfde
           cijfer als vorige week, kijk dan eerst naar die datum: er is dan nog geen nieuwe meting
@@ -529,36 +526,54 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
     ),
   },
 
-  Strategie: {
-    Clusters: (
+  Clusters: {
+    "Mijn clusters": (
       <>
         <p className="text-secondary">
           Een cluster is één onderwerp of product waarop ORBIT ENGINE je zichtbaarheid volgt,
           bijvoorbeeld &ldquo;cv-ketel onderhoud&rdquo; of &ldquo;dameskleding online
-          bestellen&rdquo;. Dit is het startpunt van elke ronde: zonder een cluster is er niets om
-          te meten en dus ook niets om over te schrijven.
+          bestellen&rdquo;. Zonder een cluster is er niets om te meten en dus ook niets om over te
+          schrijven.
         </p>
         <Kader
           label="Wat je hier ziet en kunt doen"
           items={[
-            "Bovenaan staat wat je actie vraagt: een cluster dat niet gelukt is, of een concept dat wacht op jouw goedkeuring.",
-            "Elk cluster opent in een eigen dossier met vier hoofdstukken: hoe je ervoor staat, waar je wint en mist, wat je nu moet doen, en wat het heeft opgeleverd.",
-            "Onderaan staan onderwerpen die ORBIT ENGINE voorstelt op basis van je merkonderzoek. Kies je er een, dan wordt het een echt cluster dat gaat meten.",
+            "Bovenaan staat wat je aandacht vraagt: een cluster dat niet gelukt is, of een meetplan dat wacht op goedkeuring.",
+            "Bij een gemeten cluster staan twee links: de cijfers van dat cluster op Analytics, en de pagina's die eruit volgen in de Bibliotheek.",
+            "Onder Voorgesteld staan onderwerpen die ORBIT ENGINE voorstelt, uit je merkonderzoek en uit Clusters ontdekken. Je consultant start daar de meting.",
             "Een label hangt een cluster aan een eigen groep. Een cluster in de prullenbak wordt niet meer gemeten, maar blijft bewaard en kan altijd terug.",
           ]}
         />
         <p className="text-secondary">
-          Start een nieuw cluster met de knop bovenaan. Kies een website en een onderwerp: ORBIT
-          ENGINE stelt daarna een meetplan voor, dat je eerst moet goedkeuren voordat de eerste
-          meting start.
+          Een nieuw cluster start je consultant voor je. Na de start stelt ORBIT ENGINE een
+          meetplan voor, en pas als dat is goedgekeurd gaan de vragen naar de AI-assistenten.
         </p>
         <Tip>
           Website en onderwerp liggen na de start vast, want anders is de trend niet meer te lezen.
-          Wil je iets anders afbakenen, start dan een nieuw cluster in plaats van dit ene aan te
-          passen.
+          Wil je iets anders afbakenen, dan wordt dat een nieuw cluster.
         </Tip>
       </>
     ),
+    "Clusters ontdekken": (
+      <>
+        <p className="text-secondary">
+          Nieuwe onderwerpen die bij je merk passen, gevonden in je eigen Google-cijfers, je
+          onboarding en de zoekdata van Google. Je consultant start een ronde over één thema;
+          daarna staan hier hooguit twaalf voorstellen, met per voorstel waarom het de moeite
+          waard is.
+        </p>
+        <Kader
+          label="Wat je hier kunt doen"
+          items={[
+            "Bewaar een voorstel dat je aanspreekt. Het komt dan bij Voorgesteld op Mijn clusters te staan, waar je consultant de meting start.",
+            "Het zoekvolume is hoe vaak iets in Google gezocht wordt: een aanwijzing voor wat mensen aan een AI-assistent vragen, geen meting daarvan.",
+          ]}
+        />
+      </>
+    ),
+  },
+
+  Strategie: {
     "Openstaande vragen": (
       <>
         <p className="text-secondary">
@@ -592,28 +607,26 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
           staan. Dit is de brug tussen wat er gemeten is en wat er daadwerkelijk gepubliceerd wordt.
         </p>
         <Kader
-          label="Wat je hier ziet"
+          label="Drie weergaven"
           items={[
             <>
-              De <span className="font-medium">voortgangsbalk</span> toont hoeveel van de
-              geplande pagina&apos;s al geplaatst zijn.
+              <span className="font-medium">Overzicht</span> is waar je landt: eerst wat er van
+              jou gevraagd wordt, dan deze maand en volgende maand, en de rest van je jaar
+              ingeklapt.
             </>,
             <>
-              <span className="font-medium">Per fase van de klantreis</span> laat zien of het
-              plan in balans is: alleen informatieve pagina&apos;s bereikt bijvoorbeeld niemand die
-              al klaar is om te kopen.
+              <span className="font-medium">Plannen</span> is het bord waarop je consultant
+              pagina&apos;s naar een maand sleept. Het staat ook voor jou open.
             </>,
             <>
-              <span className="font-medium">Wat voor content er gepland staat</span> toont de
-              verdeling over informatief, categorie en dienst.
+              <span className="font-medium">Kalender</span> toont het hele jaar in één oogopslag,
+              zodat je ziet waar een gat valt.
             </>,
-            "Een reservepagina telt niet mee in je maandtotaal en staat klaar voor het geval er iets afvalt.",
           ]}
         />
         <p className="text-secondary">
-          Staat er nog geen plan, dan zie je hier een uitnodiging om er een te starten. Daarna toont
-          dit scherm standaard een overzicht om te lezen; een sleepbord om zelf pagina&apos;s tussen
-          maanden te schuiven staat via de knop &ldquo;Plannen&rdquo; ook voor jou open.
+          Een maand vrijgeven doe je samen met je consultant. Daarna zet ORBIT ENGINE de vragen
+          voor die pagina&apos;s klaar onder Openstaande vragen.
         </p>
       </>
     ),
@@ -626,15 +639,14 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
         <Kader
           label="Wat je hier ziet"
           items={[
-            "Elke rij toont het onderwerp, het cluster waar de pagina bij hoort, de status, en of de pagina nog nagekeken moet worden.",
-            "Alleen de huidige versie van elke pagina staat in dit overzicht. Oudere versies blijven bewaard en zijn te vinden vanaf de detailpagina van een tekst.",
-            "Dit is de enige bibliotheek. Klik je vanuit een cluster op Bibliotheek, dan kom je hier uit met dat cluster al als filter ingesteld.",
+            "De pagina's staan in drie groepen: wat op jou wacht, wat op de planning staat (daar hoef je niets voor te doen) en wat live staat.",
+            "Open een pagina om hem te lezen, goed te keuren, of te melden dat hij live staat zodra je hem op je site hebt gezet. ORBIT ENGINE zet zelf niets op je website.",
+            "Dit is de enige bibliotheek. Klik je vanuit een cluster op zijn pagina's, dan kom je hier uit met dat cluster al als filter ingesteld.",
           ]}
         />
         <p className="text-secondary">
-          Is je bibliotheek nog leeg, dan heeft ORBIT ENGINE nog geen pagina geschreven. Ga naar je
-          clusters en kijk onder &ldquo;Wat je nu moet doen&rdquo; welke pagina&apos;s klaarstaan om
-          te schrijven.
+          Is je bibliotheek nog leeg, dan heeft ORBIT ENGINE nog geen pagina geschreven. In het
+          contentplan zie je welke pagina&apos;s eraan komen.
         </p>
       </>
     ),
@@ -650,16 +662,16 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
         <Kader
           label="Wat je hier ziet"
           items={[
-            "Het grote percentage bovenaan is je gewogen gemiddelde over alle clusters, met de onzekerheidsmarge erbij: dat is geen slordigheid maar de breedte van een steekproef.",
+            "Het grote percentage is je gewogen gemiddelde over alle clusters, met de onzekerheidsmarge erbij: dat is geen slordigheid maar de breedte van een steekproef.",
             "Het raster ernaast toont per cluster hoe de lijn loopt: staven bij één of twee metingen, een lijn vanaf drie.",
-            "De tabel eronder zet elk cluster naast elkaar, zodat je in één oogopslag ziet welk onderwerp achterblijft.",
+            "De tabel eronder zet elk cluster naast elkaar, zodat je in één oogopslag ziet welk onderwerp achterblijft. Daaronder staat elke AI-vraag los, met het antwoord erbij.",
+            "Helemaal onderaan staat wat je gepubliceerde pagina's in Google opleverden: klikken sinds de start en in de laatste 28 dagen.",
             "Staat er een blokkade bovenaan, los die dan als eerste op: zolang een AI-assistent je site niet mag lezen, blijft je score lager dan hij zou zijn, en helpt nieuwe content daar niets aan.",
           ]}
         />
         <p className="text-secondary">
-          Gebruik de filterbalk om te kijken naar een andere periode, een label of één los cluster.
-          Onderaan staat een technische diagnose: of AI-assistenten je site mogen lezen, en of je
-          gegevens overal hetzelfde zijn.
+          Met de filterbalk kijk je naar een andere periode of één los cluster. Onder &ldquo;Meer
+          filters&rdquo; staan label, AI-assistent en fase van de klantreis.
         </p>
       </>
     ),
@@ -750,11 +762,11 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
           ]}
         />
         <p className="text-secondary">
-          Dit profiel is de basis onder alles: hoe scherper het klopt, hoe beter de vragen die ORBIT
+          Dit dossier is de basis onder alles: hoe scherper het klopt, hoe beter de vragen die ORBIT
           ENGINE stelt en hoe raker de content die het schrijft.
         </p>
         <Tip>
-          Klopt er iets in je profiel niet meer, bijvoorbeeld een nieuwe dienst of een ander
+          Klopt er iets in je dossier niet meer, bijvoorbeeld een nieuwe dienst of een ander
           werkgebied? Werk het hier bij. Dat werkt door in de volgende meetronde en in nieuwe
           content, niet met terugwerkende kracht in wat er al geschreven is.
         </Tip>
