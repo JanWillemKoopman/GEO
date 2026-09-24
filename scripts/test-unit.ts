@@ -784,6 +784,7 @@ import {
 import { COST_DENIED } from "@/lib/cost-rules";
 import { gesprekBeantwoordt, zelfdeVraag } from "@/lib/vraag-dekking";
 import { paginaSoort, isFunctiepagina, functieblok } from "@/lib/pipeline/paginafunctie";
+import { knowsBrand as kentMerk, extractConfusions as haalVerwarringen, isEigenSchrijfwijze } from "@/lib/pipeline/baseline-verdict";
 import { vindKerncijfers } from "@/lib/pipeline/kerncijfers";
 import { contractMetFeiten } from "@/lib/pipeline/contract-format";
 import { vindKernbewijs, kernbewijsblok, checkKernbewijs, kernFeitInTekst, GESPREK_BRON } from "@/lib/pipeline/kernbewijs";
@@ -5638,11 +5639,15 @@ group("het model dat de naam niet kan thuisbrengen, kent het merk niet", () => {
     "behandelaren, openingstijden, specialisaties of reviews.";
 
   ok("twijfel over een detail is geen twijfel over het merk", !admitsUnknown(b1));
-  ok("'geen betrouwbare details' evenmin", !admitsUnknown(b2));
-  ok(
-    "het model kent het merk in allebei",
-    knowsBrand(b1, "Fysi-Unique", []) && knowsBrand(b2, "Fysi-Unique", []),
-  );
+  ok("het model kent het merk in b1", knowsBrand(b1, "Fysi-Unique", []));
+  // ⚠️ Bijgesteld op 24 september 2026 (punt 6 van de kwaliteitsdoorlichting).
+  // b2 telde hier als kennen. Maar "lijkt een fysiotherapiepraktijk in
+  // Amersfoort te zijn" is dezelfde vorm als "lijkt de naam van een
+  // hoveniersbedrijf in Eindhoven te zijn": de soort komt uit de naam (Fysi),
+  // de plaats uit de vraag. Bij de drie merken van de doorlichting maakte juist
+  // deze vorm van "weet het niet" een hoge herkenning. b1 blijft kennen: daar
+  // staat iets wat niet uit de naam of de vraag af te leiden is.
+  ok("een gok op de soort bedrijf telt niet meer als kennen", !knowsBrand(b2, "Fysi-Unique", []));
 
   // Het omgekeerde moet blijven werken: een echt antwoord is geen twijfel.
   ok(
@@ -25418,7 +25423,8 @@ group("Elke AI-aanroep bewaart wat erin ging (migratie 0112, 23 september 2026)"
 
   // De opname gebeurt op de plek waar élke OpenAI-aanroep langskomt, zodat geen stap hem kan vergeten.
   const structured = leesBestand("lib/openai/structured.ts");
-  eq("beide aanroepvormen geven de invoer door", String((structured.match(/invoerVan\(opts, verstuurd/g) ?? []).length), "2");
+  // Drie sinds 24 september 2026: ook een mislukte JSON-aanroep wordt vastgelegd (punt 18).
+  eq("beide aanroepvormen en de mislukte parse geven de invoer door", String((structured.match(/invoerVan\(opts, verstuurd/g) ?? []).length), "3");
   const ledger = leesBestand("lib/openai/ledger.ts");
   ok("het logboek schrijft input_json en prompt_hash", ledger.includes("input_json:") && ledger.includes("prompt_hash:"));
   for (const bestand of ["lib/engines/gemini.ts", "lib/pipeline/measure-llm-response.ts", "lib/pipeline/measure-ai-overview.ts", "lib/discovery/labs.ts"]) {
@@ -26079,4 +26085,58 @@ group("Het plan is uitvoerbaar (verbeterronde, punt 31, 32 en 33)", () => {
   ok("te laat: zo snel mogelijk, zonder datum in het verleden", streefzin("2026-09-25", "2026-09-24").startsWith("Beantwoord ze zo snel mogelijk") && !streefzin("2026-09-25", "2026-09-24").includes("13 september"));
   eq("zonder datum niets", streefzin(null, "2026-09-24"), "");
   ok("beide vrijgeefdialogen gebruiken het", leesBestand("app/(app)/merk/[id]/strategie/plan/plan-view.tsx").includes("streefzin(eerste, new Date().toISOString())") && leesBestand("app/(app)/merk/[id]/strategie/plan/release-month-button.tsx").includes("streefzin(eersteDatum"));
+});
+
+
+group("De kennistest en de naamlijst meten het merk eerlijk (verbeterronde, punt 3 en 6)", () => {
+  // Punt 3: de echte voorstellen van de drie merken.
+  const rijschool = ["Autorijschool Pompert", "Rijschool Pompert", "Pompert"];
+  ok("Pompert Autorijschool is het merk zelf", isEigenSchrijfwijze("Pompert Autorijschool", rijschool));
+  ok("Autorijschool Pompert / Pompert ook", isEigenSchrijfwijze("Autorijschool Pompert / Pompert", rijschool));
+  ok("een andere Pompert blijft op de lijst", !isEigenSchrijfwijze("Pompert Bouw", rijschool));
+  ok("Rijschool Peter Pompert beslist de consultant", !isEigenSchrijfwijze("Rijschool Peter Pompert", rijschool));
+  const installateur = ["Wesley Keeris Installatietechniek", "WK Installatie", "Wesley Keeris"];
+  ok("Wesley Keeris Installatiebedrijf B.V is het merk", isEigenSchrijfwijze("Wesley Keeris Installatiebedrijf B.V", installateur));
+  ok("Wesley Keeris Beheer B.V ook", isEigenSchrijfwijze("Wesley Keeris Beheer B.V", installateur));
+  ok("Hoveniersbedrijf Hans Verstraaten B.V ook", isEigenSchrijfwijze("Hoveniersbedrijf Hans Verstraaten B.V", ["Hans Verstraaten Hoveniers", "Hans Verstraaten"]));
+  eq(
+    "de verwarringslijst houdt alleen de andere partij over",
+    haalVerwarringen("- **Pompert Autorijschool**\n- **Pompert Bouw** in Tilburg", rijschool).join(","),
+    "Pompert Bouw",
+  );
+  ok("de meting filtert ook een al gevulde lijst", leesBestand("lib/pipeline/measure.ts").includes("!isEigenSchrijfwijze(n, [base"));
+
+  // Punt 6: de echte antwoorden van de kennistest.
+  const nee = [
+    "Autorijschool Pompert lijkt een lokale rijschool in Eindhoven. Ik kan niet betrouwbaar bevestigen wie de eigenaar is.",
+    "Ik heb geen betrouwbare, actuele gegevens over Autorijschool Pompert in Eindhoven en wil daarom geen details verzinnen.",
+    "Hans Verstraaten Hoveniers lijkt de naam van een hoveniersbedrijf in Eindhoven te zijn. Ik kan niet met zekerheid bevestigen wie de eigenaar is.",
+    "Wesley Keeris Installatietechniek is een installatiebedrijf in Geldrop. Op basis van de bedrijfsnaam lijkt het zich bezig te houden met installatiewerk.",
+    "Ik heb geen betrouwbare, actuele informatie over **Wesley Keeris Installatietechniek** paraat. De naam suggereert een installatiebedrijf.",
+  ];
+  for (const a of nee) ok(`geen herkenning: ${a.slice(0, 45)}`, !kentMerk(a, "Autorijschool Pompert", ["Hans Verstraaten Hoveniers", "Wesley Keeris Installatietechniek"]));
+  ok(
+    "echte kennis blijft herkenning",
+    kentMerk("Voor zover bekend is Hans Verstraaten Hoveniers een hoveniersbedrijf in Eindhoven. Het houdt zich bezig met tuinontwerp, tuinaanleg en tuinonderhoud.", "Hans Verstraaten Hoveniers"),
+  );
+  ok(
+    "ook met een voorbehoud over details (Fysi-Unique)",
+    kentMerk("Fysi-Unique in Amersfoort is een fysiotherapiepraktijk. Ik kan zonder actuele website-informatie niet met zekerheid zeggen welke specialisaties zij aanbieden.", "Fysi-Unique"),
+  );
+});
+
+
+group("Kleine punten uit de doorlichting (verbeterronde blok F, punt 12, 18, 23 en 38)", () => {
+  // Punt 23: dezelfde concurrent met en zonder afkorting.
+  ok("met afkorting tussen haakjes is hetzelfde bedrijf", isSameEntity("Verwarming Service Brabant (VSB)", "Verwarming Service Brabant"));
+  ok("een ander bedrijf blijft anders", !isSameEntity("VSB Hybride", "Verwarming Service Brabant"));
+  // Punt 18: een mislukte JSON-aanroep komt in het logboek.
+  const structured = leesBestand("lib/openai/structured.ts");
+  ok("mislukte parse wordt vastgelegd", structured.includes("isParseFout(err)") && structured.includes("mislukt: true"));
+  // Punt 38: het werk na het laatste antwoord wacht niet op de klant.
+  const facts = leesBestand("app/api/profiles/[id]/facts/route.ts");
+  ok("na het antwoord, niet ervoor", facts.includes("after(() => probeerNaAntwoord(admin, [factId]))") && !facts.includes("await probeerNaAntwoord("));
+  // Punt 12: de klant krijgt vooraf te horen wie de meting start.
+  const concept = leesBestand("app/(app)/analyses/[id]/concept/page.tsx");
+  ok("het conceptscherm kijkt of de meting gestart mag worden", concept.includes("mayTriggerCost(user.id, \"meting_starten\")") && concept.includes("COST_DENIED.meting_starten"));
 });

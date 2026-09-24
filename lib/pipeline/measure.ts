@@ -35,6 +35,7 @@ import { elicitLabel } from "@/lib/pipeline/elicit-rate";
 // beoordeelt en niet een kopie die kan gaan afwijken (optimalisatie.md 0.7).
 import { MENTION_SYSTEM, buildMentionUser } from "@/lib/openai/mention-prompt";
 import type { Analysis, AnalysisStatus, Prompt, TrackingRun } from "@/lib/types/database";
+import { isEigenSchrijfwijze } from "@/lib/pipeline/baseline-verdict";
 
 /**
  * Geëxporteerd zodat `lib/llm-responses/client.ts` (Gemini via DataForSEO)
@@ -1120,7 +1121,14 @@ export async function loadMeasureContext(admin: Admin, analysisId: string): Prom
     ownAliases: (profile?.aliases as string[] | null) ?? [],
     // Migratie 0060: gelijknamige partijen die dit merk NIET zijn. Zonder deze
     // lijst valt de score te hoog uit, en dat is de fout die er goed uitziet.
-    ownExclusions: (profile?.name_exclusions as string[] | null) ?? [],
+    //
+    // ⚠️ Punt 3 van de kwaliteitsdoorlichting: op de lijst stonden ook
+    // schrijfwijzen van het merk zelf ("Pompert Autorijschool"). Die gaan eruit
+    // voordat de lijst naar de beoordeling gaat, ook bij profielen die al gevuld
+    // zijn; anders telt een vermelding van het merk zelf als "een ander".
+    ownExclusions: ((profile?.name_exclusions as string[] | null) ?? []).filter(
+      (n) => !isEigenSchrijfwijze(n, [base, ...(((profile?.aliases as string[] | null) ?? []))]),
+    ),
   };
 }
 

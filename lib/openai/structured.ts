@@ -237,6 +237,27 @@ export async function callStructured<T>(
       },
       budget,
     );
+  }).catch(async (err: unknown) => {
+    // ⚠️ Punt 18 van de kwaliteitsdoorlichting: het model begon soms met
+    // hardop denken ("We need ou...") in plaats van met het gevraagde JSON, en
+    // de SDK gooit dan bij het parsen, vóór `recordUsage()`. Zo'n aanroep kost
+    // wel geld maar stond nergens, en het aandeel was niet te meten. Nu komt
+    // hij in `ai_calls` met de foutmelding als uitvoer; kosten en tokens zijn
+    // dan onbekend (0 en null), want het antwoordobject is er niet.
+    if (opts.meta && isParseFout(err)) {
+      await logAiCall(opts.meta, {
+        model: opts.model,
+        inputTokens: null,
+        outputTokens: null,
+        totalTokens: null,
+        webSearch: Boolean(opts.webSearch),
+        costUsd: 0,
+        responseId: null,
+        raw: { mislukt: true, fout: String((err as Error)?.message ?? err).slice(0, 2000) },
+        input: invoerVan(opts, verstuurd, opts.schemaName),
+      });
+    }
+    throw err;
   });
 
   const parsed = response.output_parsed;
@@ -402,4 +423,11 @@ export async function callPlain(opts: PlainCallOptions): Promise<PlainCallResult
   );
 
   return { text: response.output_text ?? "", raw: response, ...usage };
+}
+
+/** Is dit een fout bij het lezen van het antwoord als JSON, en niet bij het versturen? */
+export function isParseFout(err: unknown): boolean {
+  const naam = (err as { name?: string } | null)?.name ?? "";
+  const tekst = String((err as { message?: string } | null)?.message ?? err ?? "");
+  return naam === "SyntaxError" || /is not valid JSON|Unexpected token|Unexpected end of JSON/i.test(tekst);
 }
