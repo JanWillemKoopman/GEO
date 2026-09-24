@@ -59,6 +59,10 @@
 | 32 | **hoog** | "Opnieuw opzetten" van het plan faalt als alle kansen al in het huidige plan staan, en laat ze anders achter | open |
 | 33 | middel | Een plan dat laat in de maand start, vraagt de klant zijn vragen te beantwoorden vóór een datum in het verleden | open |
 | 34 | laag | De klant leest "wacht op jouw vrijgave" en in hetzelfde blok dat de consultant goedkeurt | open |
+| 35 | **hoog** | Vragen die het gesprek al beantwoordde, blijven openstaan voor de klant | open |
+| 36 | middel | Elk rapport zet zijn eigen vragen klaar; alleen letterlijk gelijke vragen worden samengevoegd | open |
+| 37 | laag | Een vraag aan de klant bevat "en" en "of" met een schuine streep ertussen | open |
+| 38 | middel | Het laatste antwoord van een pagina laat de klant 9 tot 30 seconden wachten | open |
 | 22 | **hoog** | Het rapport zegt "niet genoemd, 0 op 100" terwijl Google het merk wel noemde | ✅ opgelost, PR #111 en #112 |
 
 ---
@@ -464,6 +468,50 @@ Op het planscherm van de klant staat bovenaan "Deze maand wacht op jouw vrijgave
 ENGINE te schrijven." en onderaan hetzelfde blok "Deze maand goedkeuren doet je consultant bij Outer
 Orbit samen met jou." Beter: "Deze maand wacht op vrijgave door je consultant. Laat weten of je
 akkoord bent."
+
+## 35. Vragen die het gesprek al beantwoordde, blijven openstaan
+
+Bij de installateur vraagt de app de klant onder "Vragen over je merk": "Hoeveel eigen monteurs werken
+er momenteel bij het bedrijf?", "Kunnen klanten buiten kantoortijden een storing melden?", "Biedt u
+onderhoudscontracten aan?" en "In welke plaatsen buiten Geldrop en Eindhoven neemt u opdrachten
+aan?". Alle vier staan in het gesprek (`profiles.offline_proof`: "Twaalf monteurs in dienst",
+"binnen 24 uur bij een storing, ook in het weekend", "Meer dan 1.800 onderhoudscontracten";
+`profiles.growth_regions`: Mierlo, Heeze-Leende, Nuenen). De vragen zijn om 21:41 gemaakt tijdens het
+onderzoek, het gesprek is om 22:00 opgeslagen (`profile_field_sources.set_at`), en niets sluit een
+vraag af die het gesprek beantwoordt. Bij de rapportvragen hetzelfde: "Welke plaatsen bedient Wesley,
+specifiek Geldrop, Mierlo en Nuenen?". **Gevolg:** de klant typt opnieuw wat hij net vertelde, en
+leest daaruit dat er niet geluisterd is. **Richting:** na het opslaan van het gesprek de open
+merkvragen langs de ingevulde velden leggen en een beantwoorde vraag sluiten met het antwoord uit het
+gesprek.
+
+## 36. Elk rapport zet zijn eigen vragen klaar
+
+`saveFactRequests()` (`lib/pipeline/report.ts`) bewaart de feitvragen van het rapport per merk, met
+een unieke sleutel op de letterlijke vraagtekst. Een nieuw rapport (volgende periode, of opnieuw
+gemaakt) formuleert dezelfde vraag net anders en zet hem er dus opnieuw bij. Na drie rapportversies
+had de installateur vier varianten van "welke controles doet u bij een woningbezoek" en drie van
+"welke merken levert u". Ook zonder herhaling overlappen de rapportvragen met de vragen per pagina
+("Wat is doorgaans de wachttijd voor een eerste gesprek" en "Wat is de gebruikelijke wachttijd voor
+een eerste gesprek en voor de start van tuinaanleg" stonden allebei bij de hovenier). Voor de
+doorlichting zijn de vragen van de twee gearchiveerde rapportversies op `verlopen` gezet (31 rijen,
+niets verwijderd).
+
+## 37. "En" en "of" met een schuine streep in een vraag aan de klant
+
+"Voor welke begeleidingsvragen hebben instructeurs specifieke ervaring of scholing: faalangst, ADD,
+ADHD" met daarna "en" en "of" met een schuine streep, en dan "autisme?". De schrijfregels
+(`docs/schrijfstijl.md` §10) verbieden die combinatie overal; de
+vraagtekst komt rechtstreeks uit het model zonder controle. Hetzelfde vangnet als voor de
+gedachtestreepjes hoort ook over vraagteksten te gaan.
+
+## 38. Het laatste antwoord van een pagina laat de klant wachten
+
+Gemeten over 70 antwoorden: een gewoon antwoord kost 0,3 tot 1,3 seconden. Het laatste antwoord van
+een pagina kost 9 tot 18 seconden, en het allereerste van de hovenier meer dan 30. De route
+(`app/api/profiles/[id]/facts/route.ts`) roept na het opslaan `probeerNaAntwoord()` aan, en die
+beoordeelt voor elke gekoppelde pagina de onderbouwing en start het schrijven, binnen dezelfde klik.
+Een vraag die aan vijf pagina's hangt, doet dat vijf keer. **Richting:** het opslaan meteen
+bevestigen en de beoordeling als taak inplannen.
 
 ---
 

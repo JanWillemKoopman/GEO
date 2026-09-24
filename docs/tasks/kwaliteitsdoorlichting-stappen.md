@@ -315,11 +315,56 @@ vooruit, of het venster noemt dan geen datum in het verleden.
 
 ---
 
+## Stap 16. Voorbereiding per pagina (`content_plan`: `item_dossier`, `content_contract`, `fact_atomise`, Luna)
+
+Na het vrijgeven 18 taken (5, 5 en 8), samen ongeveer 17 minuten. Per pagina een itemdossier met
+webzoeken (Luna, redeneren laag, rond $0,012 per pagina), een contract met de opzet van de pagina
+(rond $0,002) en losse feiten. Bij de hovenier kwamen identieke feitenaanroepen twee keer voor (zelfde
+invoer, zelfde lengte): goedkoop ($0,0002), maar tegen conventie 9 in. Daarna per merk één
+briefingtaak (`content_brief`) die de vragen aan de klant opstelt.
+
+## Stap 17. Vragen aan de klant (`/merk/[id]/strategie/vragen`)
+
+| | A hovenier | B installateur | C rijschool |
+|---|---|---|---|
+| Open vragen (na opruimen, zie B36) | 22 | 23 | 25 |
+| Waarvan verplicht | 7 | 10 | 5 |
+| Vragen over het merk, zonder pagina | 13 | 12 | 14 |
+
+**Bevindingen:**
+- Vragen die het gesprek al beantwoordde, staan open (**B35**): monteurs, storingsdienst,
+  onderhoudscontracten, werkgebied.
+- Elk rapport zet zijn eigen vragen klaar, drie versies gaven drie varianten (**B36**).
+- Elke pagina staat op dag één op "Loopt achter · vóór 16 september" (gevolg van **B33**).
+- Eén vraag met "en" en "of" met een schuine streep ertussen (**B37**).
+- Goed: de vragen per pagina zijn concreet en zeggen waarom ze gesteld worden ("Zonder prijs en
+  betaalvorm kan de klant de onderhoudsdienst niet financieel beoordelen"), en er is overal een knop
+  "Overslaan" met uitleg wat er dan gebeurt.
+
+## Stap 18. Antwoorden als realistische klant
+
+Antwoorden alleen uit het waarheidsdossier en de eigen site, kort, zonder opmaak; wat de ondernemer
+niet paraat heeft, overgeslagen. Verstuurd met de klantsessie via dezelfde route als het scherm
+(`PATCH /api/profiles/[id]/facts`). Antwoorden en log in de kladmap (`doorlichting/antwoorden/`).
+
+| | Beantwoord | Overgeslagen |
+|---|---|---|
+| A hovenier | 16 | 6 |
+| B installateur | 17 | 6 |
+| C rijschool | 14 | 11 |
+
+Wachttijd per antwoord: 0,3 tot 1,3 seconden, behalve het laatste antwoord van een pagina (9 tot 18
+seconden, één keer meer dan 30), zie **B38**. Na het laatste antwoord startte het schrijven meteen voor
+vier van de vijf pagina's van de hovenier. De vijfde ("Leg op de bestaande pagina uit welke plaatsen
+en projecten het bedrijf bedient", dekking 33 procent) hield de app terecht tegen.
+
+De ideale-klantvariant volgt later als wisselproef op twee pagina's.
+
+---
+
 ## Nog te doen in deze doorloop
 
-- Stap 16 tot en met 18: contentplan, onderzoek per pagina, inhoudsopgave, vragen aan de klant,
-  antwoorden uit het waarheidsdossier (ideale en realistische klant).
 - Stap 19 tot en met 23: schrijfopdracht, eerste versie, keuring door de app, reparatierondes,
   goedkeuren; de vier blinde lezers en de blinde vergelijking met de huidige pagina en de beste
   concurrent.
-- De wisselproeven en het verslag met hooguit vijf verbeteringen.
+- De ideale-klantvariant op twee pagina's, de wisselproeven en het verslag met hooguit vijf verbeteringen.
