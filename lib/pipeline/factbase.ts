@@ -52,6 +52,7 @@ import { atomiseSitePages } from "@/lib/pipeline/fact-atomise";
 import { syncBrandFacts } from "@/lib/pipeline/factstore";
 import { answerBelongsHere } from "@/lib/pipeline/answer-scope";
 import type { Contradiction } from "@/lib/pipeline/fact-merge";
+import { vindKerncijfers } from "@/lib/pipeline/kerncijfers";
 
 type Admin = SupabaseClient;
 
@@ -79,6 +80,8 @@ const PAGE_EXCERPT_CHARS = 400;
  * elk testprofiel (Coolblue/HEMA/Van der Valk: 40, Fysi-Unique: 30).
  */
 const PAGE_POOL = 60;
+/** Alle pagina's die de crawl kan opleveren (`MAX_PAGES_HARD_CAP`), voor de kerncijfers. */
+const KERNCIJFER_POOL = 150;
 
 /**
  * Bouwt de feitenindex voor één analyse.
@@ -204,6 +207,28 @@ export async function buildFactBase(
       citable: true,
       kind: "klant",
     });
+  }
+
+  // ── Kerncijfers van de site (punt 7 van de kwaliteitsdoorlichting) ───────
+  //
+  // Het vangnet onder het merkonderzoek: "een slagingspercentage van 93%"
+  // stond op de homepage van de rijschool en op geen enkele kaart die van de
+  // site kwam. Over ALLE gelezen pagina's en niet over de selectie hieronder,
+  // want dat cijfer staat zelden op de pagina over het onderwerp. Letterlijke
+  // zinnen, dus citeerbaar, met de pagina als bron.
+  const { data: allePaginas } = await admin
+    .from("profile_pages")
+    .select("url, text_excerpt")
+    .eq("profile_id", profileId)
+    .limit(KERNCIJFER_POOL);
+  for (const k of vindKerncijfers(
+    ((allePaginas ?? []) as { url: string; text_excerpt: string | null }[]).map((p) => ({
+      url: p.url,
+      text: p.text_excerpt,
+    })),
+    (profile?.brand_name as string | null) ?? null,
+  )) {
+    rauw.push({ text: k.text, source: `site ${k.url}`, allowed: true, citable: true, kind: "site" });
   }
 
   // ── S1: welke pagina's gaan er mee, en wat halen we eruit? ────────────────

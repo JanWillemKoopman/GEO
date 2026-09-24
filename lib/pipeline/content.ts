@@ -65,6 +65,7 @@ import { objectionsRule, offlineProofFacts } from "@/lib/pipeline/commercial-con
 import { vindKlantinstructies, instructieblok, verbiedtAdres } from "@/lib/klantinstructies";
 import { bewijspuntenblok, bewijspuntenBehoudblok } from "@/lib/pipeline/bewijspunten";
 import { kernbewijsblok, vindKernbewijs } from "@/lib/pipeline/kernbewijs";
+import { functieblok } from "@/lib/pipeline/paginafunctie";
 import { maakSchrijfopdracht } from "@/lib/pipeline/writer-brief";
 import { vergelijkVersies } from "@/lib/pipeline/version-compare";
 import { bruikbareOpdracht, opdrachtblok } from "@/lib/schrijfopdracht";
@@ -705,6 +706,8 @@ function buildContentInput(args: {
             `dan je hier ziet. Gooi niets weg waarvan je niet zeker weet dat het er niet meer toe doet.`
           : "";
       return (
+        // Punt 45 van de kwaliteitsdoorlichting: de functie van de pagina eerst.
+        `\n${functieblok(existingPage.url, existingPage.title)}\n` +
         `\nBESTAANDE PAGINA om te verbeteren of aan te vullen (${existingPage.url}). Bouw hierop voort, ` +
         `herschrijf niet vanaf nul, behoud wat al goed is en vul alleen de ontbrekende delen aan.` +
         `${waarschuwing}\n"""\n${gekozen.text}\n"""\n` +

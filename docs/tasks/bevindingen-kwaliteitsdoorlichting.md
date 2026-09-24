@@ -45,8 +45,8 @@ doorloop met dezelfde drie bedrijven en dezelfde blinde lezers (meetlat: 4,1 op 
 
 | Blok | Punten | Stand |
 |---|---|---|
-| A, wat de app van de klant weet | 5, 24, 27, 35, 36, 47 | ✅ gebouwd en getest; 7 schuift naar blok B (crawl) |
-| B, wat de app van de site leest | 4, 7, 10, 28, 45 | open |
+| A, wat de app van de klant weet | 5, 24, 27, 35, 36, 47 | ✅ live, PR #121; 7 schuift naar blok B (crawl) |
+| B, wat de app van de site leest | 4, 7, 10, 28, 45 | ✅ gebouwd en getest |
 | C, de keuring | 42, 43, 50, 53, 54 | open |
 | D, schrijfstijl | 46, 48, 49 | open |
 | E, planning | 31, 32, 33 | open |
@@ -105,13 +105,13 @@ bronzinnen, het ontbrekende bewijs).
 | 1 | hoog | Gespreksscherm slaat de waarde van vóór de klik op | ✅ opgelost, PR #108 |
 | 2 | hoog | Definitieve onderwerpenronde kan alle onderwerpen wissen | ✅ opgelost, PR #108 |
 | 3 | hoog | Het merk zelf komt op de lijst "gelijknamige bedrijven die jij niet bent" | open |
-| 4 | hoog | De crawl leest 1 pagina van een site van ~70, zonder waarschuwing | open |
+| 4 | hoog | De crawl leest 1 pagina van een site van ~70, zonder waarschuwing | ✅ opgelost, verbeterronde blok B |
 | 5 | hoog | Meetvragen negeren de groeigebieden: de opdracht spreekt zichzelf tegen | ✅ opgelost, verbeterronde blok A |
 | 6 | middel | "Herkend door ChatGPT bij 5 van 6 vragen" telt gokken op de naam als herkenning | open |
-| 7 | middel | Het sterkste bewijs van een bedrijf valt tussen crawl en dossier weg | open |
+| 7 | middel | Het sterkste bewijs van een bedrijf valt tussen crawl en dossier weg | ✅ opgelost, verbeterronde blok B (vangnet op de feitenkaart; het merkonderzoek zelf niet aangepast) |
 | 8 | middel | Meetvragen: veel dubbel, weinig realistisch, altijd een plaatsnaam | open |
 | 9 | middel | Een adviesregel op de site wordt een dienst en een onderwerp | open |
-| 10 | middel | Crawl neemt fotopagina's, tag- en auteurspagina's mee | open |
+| 10 | middel | Crawl neemt fotopagina's, tag- en auteurspagina's mee | ✅ opgelost, verbeterronde blok B |
 | 11 | middel | Blok met gecontroleerd te bevestigen voorstellen klapt dicht als het "compleet" is | open |
 | 12 | laag | Klant ziet "Bevestig en start de meting" maar mag de meting niet starten | open |
 | 13 | laag | Klant ziet "Nieuw merk" en het hele formulier, de server weigert pas na verzenden | open |
@@ -129,7 +129,7 @@ bronzinnen, het ontbrekende bewijs).
 | 25 | middel | Een klaar cluster (status "gereed") heeft geen link op zijn kaart | ✅ opgelost, PR #113 |
 | 26 | **hoog** | De consultant ziet de clusters van een klantmerk niet en krijgt "Start het eerste cluster" | ✅ opgelost, PR #116 |
 | 27 | **hoog** | Het rapport kent de groeidoelen en feiten uit het gesprek niet | ✅ opgelost, verbeterronde blok A |
-| 28 | **hoog** | De site-inventaris mist de hoofdpagina uit het menu en bevat fotobijlagen; het rapport adviseert een fotopagina te verbeteren | open |
+| 28 | **hoog** | De site-inventaris mist de hoofdpagina uit het menu en bevat fotobijlagen; het rapport adviseert een fotopagina te verbeteren | ✅ opgelost, verbeterronde blok B |
 | 29 | middel | Het planscherm zegt de klant "stel je het plan zelf op", maar alleen de consultant mag het | ✅ opgelost, PR #114 |
 | 30 | **hoog** | Het plan gaf de zwaarste gemiste vraag potentie 0 en zette die pagina achteraan | ✅ opgelost, PR #114 (nog niet op een nieuw plan nagerekend, zie 32) |
 | 31 | **hoog** | Het plan zet vier verbeteringen van dezelfde pagina in dezelfde week | open |
@@ -146,7 +146,7 @@ bronzinnen, het ontbrekende bewijs).
 | 42 | **hoog** | De klant krijgt "Tekst is klaar, keur hem goed" bij een tekst die de eigen keuring tegenhoudt | open |
 | 43 | middel | De keuring noemt het bedrag van de klant "in strijd met de instructie", omdat de opzet van vóór zijn antwoord is | open |
 | 44 | laag | Een tegengehouden pagina staat voor de klant als "Alle gegevens bekend, wordt nu geschreven" | ✅ opgelost, PR #116 |
-| 45 | **hoog** | Een "verbetering" vervangt de functie van de bestaande pagina (homepage wordt Helmond, prijzenpagina wordt losse les bij faalangst) | open |
+| 45 | **hoog** | Een "verbetering" vervangt de functie van de bestaande pagina (homepage wordt Helmond, prijzenpagina wordt losse les bij faalangst) | ✅ opgelost, verbeterronde blok B (nog niet op een nieuwe tekst nagerekend) |
 | 46 | **hoog** | De tekst draait een belofte van de site om: "binnen 4 uur een scherpe offerte" wordt "geen termijn voor de offerte" | open |
 | 47 | **hoog** | Het sterkste bewijs van de klant staat in geen enkele tekst, hoewel het op de feitenkaart staat | ✅ opgelost, verbeterronde blok A (nog niet op een nieuwe tekst nagerekend) |
 | 48 | **hoog** | De teksten lezen als een formulier: bedrijfsnaam voor elke alinea, dezelfde feiten drie tot vier keer, voorbehouden, zinnen uit de bronnen | deels opgelost (bronzinnen, PR #119), rest is een afweging |
@@ -217,6 +217,19 @@ en `collectPageUrls()` in `lib/crawler.ts:379` valt dan stil terug op de links v
 zichtbaar wordt. Daarna: een waarschuwing op het scherm als de crawl veel minder pagina's vindt dan
 de lichte scan of de sitemap aankondigt, met de uitweg "sitemap handmatig opgeven".
 
+**Opgelost (24 september 2026, verbeterronde blok B).** Oorzaak gevonden, en het was niet de
+blokkade van datacenter-IP's: de site is traag. Gemeten vanaf hier deed hij 5 tot 12 seconden over
+elke sitemap en 4 tot 10 over een pagina, en acht pagina's tegelijk kostten elk 30 seconden (de
+server werkt ze na elkaar af). Met een wachttijd van 12 seconden viel de sitemap weg, haalde de
+terugval op links de homepage ook niet, en bleef er één pagina over. Nu: sitemaps en robots.txt
+krijgen 30 seconden (`SITEMAP_TIMEOUT_MS`), een pagina 25 bij de ontdekkingsstap, de crawl vraagt
+minder tegelijk zodra een batch een time-out geeft (`volgendeBatchgrootte()`), en er is een
+tijdbudget van 180 seconden in plaats van doorlopen tot de taak wordt afgekapt. Wat niet op tijd
+kwam, leest een aanvulronde daarna rustig bij (`crawl_inventory`, modus "meer", tempo
+"langzaam", hooguit vier rondes), en het scherm zegt "je site reageerde traag" in plaats van te
+zwijgen of JavaScript de schuld te geven. Lokaal nagemeten: 102 adressen gevonden in plaats van 1,
+28 gelezen binnen het budget, de rest voor de aanvulronde.
+
 ## 5. Meetvragen negeren de groeigebieden: de opdracht spreekt zichzelf tegen
 
 **Wat misgaat.** B wil groeien in Mierlo, Heeze-Leende en Nuenen: 0 van de 30 meetvragen noemt een
@@ -273,6 +286,14 @@ cover ontbreken.
 nu zien wat elke stap te lezen kreeg). Een deterministische zoektocht naar percentages, jaartallen en
 bedragen in de gelezen pagina's, als vangnet naast de AI.
 
+**Opgelost als vangnet (24 september 2026, verbeterronde blok B).** `vindKerncijfers()`
+(`lib/pipeline/kerncijfers.ts`) zoekt in alle gelezen pagina's zinnen met een percentage, een aantal
+klanten of projecten, jaren ervaring of een beoordeling, alleen als ze over het bedrijf zelf gaan
+(homepage, "wij", "onze" of de merknaam), en zet ze als citeerbaar sitefeit op de feitenkaart. Op de
+opgeslagen pagina's van de rijschool levert dat "Lovende reviews op Google en een
+slagingspercentage van 93%" op, bij de hovenier "35+ jaar ervaring". Het merkonderzoek zelf is niet
+aangepast; waarom het het getal miste, is niet verder uitgezocht.
+
 ## 8. Meetvragen: veel dubbel, weinig realistisch, altijd een plaatsnaam
 
 **Wat misgaat.** Volgens de blinde lezer klinken 12, 10 en 17 van de 30 vragen als echte vragen aan
@@ -305,6 +326,12 @@ De aanbodboom maakte er de dienst "ventilatie laten schoonmaken" van, en dat wer
 **Gevolg.** Ze eten de grens van 150 pagina's op en verdunnen het merkonderzoek.
 
 **Voorstel.** In `lib/crawl-urls.ts` WordPress-bijlagen, tags, categorieën en auteurs overslaan.
+
+**Opgelost (24 september 2026, verbeterronde blok B).** Archief- en bijlageadressen gaan er vóór het
+ophalen uit (`isArchiefOfBijlage()` in `lib/crawl-urls.ts`: tags, categorieën, auteurs, bestanden,
+fotonamen onder een bericht), de archiefsitemaps van Yoast worden niet meer geopend, en een bijlage
+met een gewone naam valt na het ophalen alsnog af op de klasse `single-attachment` in `<body>`. Bij
+de rijschool gaat de lijst van 109 naar 76 adressen.
 
 ## 11. Blok met te bevestigen voorstellen klapt dicht als het "compleet" is
 
@@ -526,6 +553,12 @@ faalangstexamen. **Bij de hovenier** kende de app één pagina (punt 4), dus adv
 "nieuwe pagina voor Best" en "voor Nuenen" terwijl `/hovenier-in-best/` en `/hovenier-in-nuenen/`
 bestaan. Punt 4 en 10 hebben hier dus een direct zichtbaar gevolg in het advies aan de klant.
 
+**Opgelost (24 september 2026, verbeterronde blok B).** De sitemap van de rijschool miste de
+pagina's uit het hoofdmenu, waaronder de faalangstpagina die het hele cluster draagt. De app leest
+nu ook het menu van de homepage (`menuLinks()`: binnen `<nav>` en `<header>`, en de menu-items van
+WordPress, want daar stond het menu van de rijschool) en zet die pagina's vooraan bij het kiezen
+(`metMenuVoorrang()`). Lokaal nagemeten: 18 menupagina's, de faalangstpagina op plek 10 van 150.
+
 ## 29. Het planscherm belooft de klant iets wat hij niet mag ✅
 
 Als klant stond er "Zodra hieronder alles klaarstaat, stel je het plan zelf op" met een actieve knop
@@ -745,6 +778,14 @@ rijles" werd een tekst over de intake. Bij de installateur werd `/warmtepomp` dr
 elke keer rond een andere doelvraag (punt 31). De blinde lezers zeiden bij 5 van de 16 teksten "past
 niet bij het adres". **Richting:** bij "verbeteren" hoort de huidige functie van de pagina (wat er nu
 op staat en waarom) een vaste eis in de opzet te zijn, en de doelvraag een aanvulling.
+
+**Opgelost (24 september 2026, verbeterronde blok B).** Twee lagen (`lib/pipeline/paginafunctie.ts`).
+De homepage, de contactpagina en de pagina over het bedrijf worden nooit meer vervangen door een
+onderwerppagina: een aanbeveling die er een aanwijst, wordt een nieuwe pagina met die pagina als
+verwante pagina. Bij elke andere verbetering krijgen de opzet en de schrijver de functie van de
+pagina als vaste eis bovenaan ("Dit is de PRIJZENPAGINA. Alle prijzen en pakketten die er nu op
+staan, blijven erop"), met de doelvraag als sectie en niet als nieuw onderwerp. Nog na te rekenen
+op een nieuwe tekst.
 
 ## 46. De tekst draait een belofte van de site om
 

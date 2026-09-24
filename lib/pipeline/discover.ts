@@ -46,9 +46,27 @@ import "server-only";
  * een kennistest op baseert.
  */
 import { createAdminClient } from "@/lib/supabase/admin";
-import { collectPageUrls, crawlPages, MAX_PAGES_HARD_CAP } from "@/lib/crawler";
+import {
+  collectPageUrls,
+  crawlPages,
+  MAX_PAGES_HARD_CAP,
+  type CrawlLeesstand,
+} from "@/lib/crawler";
+
+/**
+ * Het tijdbudget van de ontdekkingsstap, sitemap en pagina's samen.
+ *
+ * De werker houdt voor een zware taak ~220 van de 240 seconden vrij
+ * (`lib/jobs/worker.ts`), en de route heeft er 300. 180 laat ruim tijd voor het
+ * opslaan. Ondergrens voor de pagina's zelf: ook na een trage sitemap nog een
+ * minuut lezen, anders is de hele stap zinloos.
+ */
+const DISCOVER_BUDGET_MS = 180_000;
+const DISCOVER_MIN_CRAWL_MS = 60_000;
+/** Per pagina: de hovenier deed 4 tot 10 seconden over één pagina, 30 bij acht tegelijk. */
+const DISCOVER_PAGE_TIMEOUT_MS = 25_000;
 import { assessInventory, buildTaxonomy, type SiteSection } from "@/lib/pipeline/inventory-quality";
-import { selectUrls } from "@/lib/pipeline/url-priority";
+import { selectUrls, metMenuVoorrang } from "@/lib/pipeline/url-priority";
 import { loadPageSignals } from "@/lib/pipeline/light-scan";
 import { chooseCrawlFocus } from "@/lib/pipeline/crawl-focus";
 import { mergeTextFacts } from "@/lib/pipeline/text-facts";
@@ -64,6 +82,11 @@ import type { InventoryQuality, Profile } from "@/lib/types/database";
 export interface DiscoveryResult {
   /** Hoeveel pagina's er gelezen zijn. */
   pagesFound: number;
+  /**
+   * Gekozen pagina's die de site niet op tijd leverde (punt 4 van de
+   * kwaliteitsdoorlichting). De taak plant daarvoor een rustige aanvulronde in.
+   */
+  traagNietGelezen: number;
   /**
    * Hoeveel pagina's de site in totaal heeft. Groter dan `pagesFound` betekent
    * dat we een keuze hebben moeten maken, en dat is het cijfer dat tot 22
@@ -112,7 +135,8 @@ export async function discoverSite(profileId: string): Promise<DiscoveryResult> 
   // augustus 2026 stopte de crawl bij 150 URL's, waardoor "de site heeft precies
   // 150 pagina's" en "de site heeft er 8.000" in de data niet te onderscheiden
   // waren.
-  const { urls: alleUrls } = await collectPageUrls(profile.url, profile.sitemap_url);
+  const gestart = Date.now();
+  const { urls: alleUrls, menu } = await collectPageUrls(profile.url, profile.sitemap_url);
 
   // Bewust het maximum en niet de instelling van het profiel: dit is een
   // eenmalige onboarding en het kost alleen tijd, geen geld. De per-profiel
@@ -157,8 +181,26 @@ export async function discoverSite(profileId: string): Promise<DiscoveryResult> 
   // bestaande pad-alleen-gedrag.
   const signalen = await loadPageSignals(admin, profileId);
   const selectie = selectUrls(alleUrls, maxPages, priorityPaths, new Set(), signalen);
-  const urls = selectie.urls;
-  const pages = await crawlPages(urls, { harvest: true });
+  // De pagina's uit het hoofdmenu vooraan (punt 28 van de kwaliteitsdoorlichting).
+  const urls = metMenuVoorrang(selectie.urls, menu, maxPages);
+  // Een tijdbudget en meer geduld per pagina (punt 4 van de
+  // kwaliteitsdoorlichting): een trage site gaf eerder na 12 seconden op en
+  // leverde stil één pagina. De taak heeft ~220 seconden; de sitemaps zijn dan
+  // al gelezen, dus wat er over is minus een marge voor het opslaan.
+  const leesstand: CrawlLeesstand = { gevraagd: 0, gelezen: 0, timeouts: 0, overgeslagen: 0, bijlagen: [] };
+  const pages = await crawlPages(urls, {
+    harvest: true,
+    timeoutMs: DISCOVER_PAGE_TIMEOUT_MS,
+    budgetMs: Math.max(DISCOVER_MIN_CRAWL_MS, DISCOVER_BUDGET_MS - (Date.now() - gestart)),
+    opLeesstand: (s) => Object.assign(leesstand, s),
+  });
+  const traagNietGelezen = leesstand.timeouts + leesstand.overgeslagen;
+  if (traagNietGelezen > 0) {
+    console.warn(
+      `Profiel ${profileId}: ${traagNietGelezen} van de ${urls.length} pagina's niet op tijd gelezen ` +
+        `(${JSON.stringify(leesstand)}).`,
+    );
+  }
 
   if (selectie.truncated) {
     console.info(
@@ -172,11 +214,14 @@ export async function discoverSite(profileId: string): Promise<DiscoveryResult> 
   // is: een site waarvan 140 van de 150 pagina's een time-out geven is geen
   // site met 10 pagina's. Dat is een probleem, en het oordeel moet dat zien.
   const inventory = assessInventory(
-    urls.map((url) => {
-      const page = pages.find((p) => p.url === url);
-      return { url, title: page?.title ?? null, text: page?.text ?? null };
-    }),
-    { totalFound: selectie.totalFound },
+    // Een herkende bijlagepagina telt niet als "pagina zonder tekst" (punt 10).
+    urls
+      .filter((url) => !leesstand.bijlagen.includes(url))
+      .map((url) => {
+        const page = pages.find((p) => p.url === url);
+        return { url, title: page?.title ?? null, text: page?.text ?? null };
+      }),
+    { totalFound: selectie.totalFound, traagNietGelezen },
   );
 
   const schemaTypes = new Set<string>();
@@ -222,6 +267,7 @@ export async function discoverSite(profileId: string): Promise<DiscoveryResult> 
 
   const result: DiscoveryResult = {
     pagesFound: urls.length,
+    traagNietGelezen,
     totalFound: selectie.totalFound,
     priorityPaths,
     focusReasoning,

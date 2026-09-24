@@ -29,11 +29,18 @@ import {
   extractLocs,
   isProductSitemap,
   isProductUrl,
+  isArchiefOfBijlage,
+  isArchiefSitemap,
+  isBijlageHtml,
+  canonicalKey,
+  linksIn,
+  menuLinks,
+  volgendeBatchgrootte,
   isSitemapIndex,
   sameDomain,
   toFetchUrl,
 } from "@/lib/crawl-urls";
-import { scoreUrl, selectUrls, type UrlSelection, type UrlSignal } from "@/lib/pipeline/url-priority";
+import { metMenuVoorrang, scoreUrl, selectUrls, type UrlSelection, type UrlSignal } from "@/lib/pipeline/url-priority";
 import { speedProfile, nextDelayMs, slowerThan, type CrawlSpeed } from "@/lib/crawl-speed";
 
 export { decodeXmlEntities, extractLocs, isProductSitemap, isProductUrl, isSitemapIndex, sameDomain };
@@ -87,6 +94,17 @@ const MAX_CHARS = 6000; // genoeg context, houdt de tokenkost laag
  */
 const PAGE_MAX_CHARS = 4000;
 const FETCH_TIMEOUT_MS = 12000;
+/**
+ * Sitemaps en robots.txt krijgen meer geduld dan een pagina.
+ *
+ * ⚠️ Kwaliteitsdoorlichting 24 september 2026, punt 4. De hovenier (Yoast op een
+ * trage server) deed 5 tot 12 seconden over elke sitemap, gemeten vanaf hier. Met
+ * 12 seconden viel de hele sitemap weg, de terugval op links haalde de homepage
+ * ook niet binnen de tijd, en de app kende 1 van de ~70 pagina's zonder dat
+ * iemand het zag. Een sitemap is één bestand dat de hele site ontsluit; daar
+ * dertig seconden op wachten kost niets vergeleken met wat het oplevert.
+ */
+const SITEMAP_TIMEOUT_MS = 30_000;
 /** Korter dan een gewone fetch: dit blokkeert een formulier, dus snel antwoord telt. */
 const REACHABLE_TIMEOUT_MS = 6000;
 
@@ -192,8 +210,8 @@ export async function isReachable(host: string): Promise<boolean> {
   }
 }
 
-export async function fetchText(url: string): Promise<string | null> {
-  return (await fetchPage(url))?.html ?? null;
+export async function fetchText(url: string, timeoutMs: number = FETCH_TIMEOUT_MS): Promise<string | null> {
+  return (await fetchPage(url, timeoutMs))?.html ?? null;
 }
 
 /**
@@ -203,9 +221,25 @@ export async function fetchText(url: string): Promise<string | null> {
  * een opgegeven link doorstuurde naar een andere pagina (bevinding 1 van de
  * verificatie van 22 september 2026).
  */
-export async function fetchPage(url: string): Promise<{ html: string; finalUrl: string } | null> {
+export async function fetchPage(
+  url: string,
+  timeoutMs: number = FETCH_TIMEOUT_MS,
+): Promise<{ html: string; finalUrl: string } | null> {
+  const r = await fetchPageDetail(url, timeoutMs);
+  return "html" in r ? r : null;
+}
+
+/**
+ * Als `fetchPage()`, met de reden erbij als het mislukt. De crawl moet een
+ * time-out kunnen onderscheiden van een 404: bij een time-out vraagt hij minder
+ * tegelijk (`volgendeBatchgrootte()`), bij een 404 niet.
+ */
+async function fetchPageDetail(
+  url: string,
+  timeoutMs: number,
+): Promise<{ html: string; finalUrl: string } | { fout: "timeout" | "status" | "netwerk" }> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(url, {
       signal: controller.signal,
@@ -215,11 +249,11 @@ export async function fetchPage(url: string): Promise<{ html: string; finalUrl: 
         Accept: "text/html,application/xhtml+xml,application/xml,text/xml",
       },
     });
-    if (!res.ok) return null;
+    if (!res.ok) return { fout: "status" };
     // `res.url` is leeg bij een gemockte Response; dan is er niet doorverwezen.
     return { html: await res.text(), finalUrl: res.url || url };
   } catch {
-    return null;
+    return { fout: controller.signal.aborted ? "timeout" : "netwerk" };
   } finally {
     clearTimeout(timeout);
   }
@@ -258,13 +292,13 @@ async function collectSitemapPageUrls(
   // Door de klant opgegeven sitemap krijgt voorrang (staat vooraan in de queue).
   if (sitemapUrl && sitemapUrl.trim()) entryPoints.push(sitemapUrl.trim());
 
-  const robots = await fetchText(`${base}/robots.txt`);
+  const robots = await fetchText(`${base}/robots.txt`, SITEMAP_TIMEOUT_MS);
   if (robots) {
     for (const m of robots.matchAll(/^\s*sitemap:\s*(\S+)/gim)) entryPoints.push(m[1].trim());
   }
   entryPoints.push(`${base}/sitemap.xml`, `${base}/sitemap_index.xml`);
 
-  let queue = Array.from(new Set(entryPoints)).filter((u) => !isProductSitemap(u));
+  let queue = Array.from(new Set(entryPoints)).filter((u) => !isProductSitemap(u) && !isArchiefSitemap(u));
   const seen = new Set<string>();
   const pageUrls = new Set<string>();
   let fetched = 0;
@@ -275,7 +309,7 @@ async function collectSitemapPageUrls(
     if (ronde.length === 0) continue;
     for (const sm of ronde) seen.add(sm);
 
-    const xmls = await Promise.all(ronde.map((sm) => fetchText(sm)));
+    const xmls = await Promise.all(ronde.map((sm) => fetchText(sm, SITEMAP_TIMEOUT_MS)));
     fetched += ronde.length;
 
     for (const xml of xmls) {
@@ -283,31 +317,18 @@ async function collectSitemapPageUrls(
       const locs = extractLocs(xml);
       if (isSitemapIndex(xml)) {
         for (const loc of locs) {
-          if (!seen.has(loc) && !isProductSitemap(loc)) queue.push(loc);
+          if (!seen.has(loc) && !isProductSitemap(loc) && !isArchiefSitemap(loc)) queue.push(loc);
         }
       } else {
         for (const loc of locs) {
           if (pageUrls.size >= MAX_INDEXED_URLS) break;
-          if (sameDomain(loc, baseHost) && !isProductUrl(loc)) pageUrls.add(loc);
+          if (sameDomain(loc, baseHost) && !isProductUrl(loc) && !isArchiefOfBijlage(loc)) pageUrls.add(loc);
         }
       }
     }
   }
 
   return Array.from(pageUrls);
-}
-
-/** Alle zelfde-domein-links uit één stuk HTML, absoluut gemaakt. */
-function linksIn(html: string, base: string, baseHost: string): string[] {
-  return Array.from(html.matchAll(/<a\s[^>]*href=["']([^"'#]+)["']/gi))
-    .map((m) => {
-      try {
-        return new URL(m[1], base).toString();
-      } catch {
-        return null;
-      }
-    })
-    .filter((u): u is string => u !== null && sameDomain(u, baseHost) && !isProductUrl(u));
 }
 
 /**
@@ -321,7 +342,9 @@ function linksIn(html: string, base: string, baseHost: string): string[] {
  * geopend om ook hún links op te halen.
  */
 async function discoverByLinks(base: string, baseHost: string): Promise<string[]> {
-  const html = await fetchText(base);
+  // Dezelfde ruimere wachttijd als een sitemap: zonder deze pagina is er niets
+  // om links uit te halen (punt 4 van de kwaliteitsdoorlichting).
+  const html = await fetchText(base, SITEMAP_TIMEOUT_MS);
   if (!html) return [base];
 
   const niveau1 = Array.from(new Set([base, ...linksIn(html, base, baseHost)]));
@@ -379,15 +402,30 @@ export type UrlSource = "sitemap" | "links";
 export async function collectPageUrls(
   host: string,
   sitemapUrl?: string | null,
-): Promise<{ urls: string[]; source: UrlSource }> {
+): Promise<{ urls: string[]; source: UrlSource; menu: string[] }> {
   const base = toFetchUrl(host);
   const baseHost = new URL(base).hostname;
 
   const sitemapUrls = await collectSitemapPageUrls(base, baseHost, sitemapUrl);
-  if (sitemapUrls.length > 0) return { urls: sitemapUrls, source: "sitemap" };
+  if (sitemapUrls.length > 0) {
+    // ── Het menu van de homepage erbij (punt 28 van de kwaliteitsdoorlichting) ──
+    //
+    // De sitemap van de rijschool miste de pagina uit het hoofdmenu die het
+    // hele cluster droeg (faalangst en autisme), plus de automaat, de
+    // simulator en het team. Een sitemap is wat de site ZEGT te hebben; het
+    // menu is wat de eigenaar belangrijk vindt. Eén extra fetch, en de
+    // menupagina's krijgen voorrang bij het kiezen (`metMenuVoorrang`).
+    const homepage = await fetchText(base, SITEMAP_TIMEOUT_MS);
+    const menu = homepage ? menuLinks(homepage, base, baseHost) : [];
+    const bekend = new Set(sitemapUrls.map(canonicalKey));
+    const erbij = menu.filter((u) => !bekend.has(canonicalKey(u)));
+    return { urls: [...sitemapUrls, ...erbij], source: "sitemap", menu };
+  }
 
-  return { urls: await discoverByLinks(base, baseHost), source: "links" };
+  const urls = await discoverByLinks(base, baseHost);
+  return { urls, source: "links", menu: [] };
 }
+
 
 /** Alleen de gekozen URL's. Voor aanroepers die de dekkingscijfers niet nodig hebben. */
 export async function discoverPageUrls(
@@ -452,23 +490,67 @@ export interface CrawlPagesOptions {
    * zoeken telt volledigheid, bij bewaren leesbaarheid.
    */
   fullText?: boolean;
+  /** Wachttijd per pagina. Standaard `FETCH_TIMEOUT_MS`. */
+  timeoutMs?: number;
+  /**
+   * Tijdbudget voor de hele crawl. Geen nieuwe batch als die er niet meer in
+   * past; de lijst is op belang gesorteerd, dus wat afvalt is de staart.
+   */
+  budgetMs?: number;
+  /** Krijgt te horen hoeveel pagina's niet gelezen zijn, en waarom. */
+  opLeesstand?: (stand: CrawlLeesstand) => void;
+}
+
+export interface CrawlLeesstand {
+  gevraagd: number;
+  gelezen: number;
+  timeouts: number;
+  /** Niet meer geprobeerd omdat het tijdbudget op was. */
+  overgeslagen: number;
+  /** Opgehaald maar herkend als bijlagepagina, dus niet in de inventaris. */
+  bijlagen: string[];
 }
 
 /**
  * Haalt meerdere pagina's op in batches (niet alles tegelijk, voorkomt dat we
  * een site platleggen of de 60s-route overschrijden). Faalt per pagina zacht.
+ *
+ * Reageert een site traag (time-outs in een batch), dan vraagt de volgende batch
+ * minder tegelijk (`volgendeBatchgrootte()`): de hovenier van de doorlichting
+ * handelde verzoeken na elkaar af, en acht tegelijk betekende acht keer 30
+ * seconden in plaats van acht keer 4 (punt 4 van de kwaliteitsdoorlichting).
  */
 export async function crawlPages(
   urls: string[],
   opts: CrawlPagesOptions = {},
 ): Promise<CrawledPage[]> {
   const out: CrawledPage[] = [];
-  for (let i = 0; i < urls.length; i += CRAWL_BATCH_SIZE) {
-    const batch = urls.slice(i, i + CRAWL_BATCH_SIZE);
+  const timeoutMs = opts.timeoutMs ?? FETCH_TIMEOUT_MS;
+  const start = Date.now();
+  let batchgrootte = CRAWL_BATCH_SIZE;
+  let timeouts = 0;
+  let overgeslagen = 0;
+  const bijlagen: string[] = [];
+  for (let i = 0; i < urls.length; i += batchgrootte) {
+    if (opts.budgetMs !== undefined && Date.now() - start + timeoutMs > opts.budgetMs) {
+      overgeslagen = urls.length - i;
+      break;
+    }
+    const batch = urls.slice(i, i + batchgrootte);
+    let timeoutsDezeBatch = 0;
     const results = await Promise.allSettled(
       batch.map(async (url): Promise<CrawledPage | null> => {
-        const html = await fetchText(url);
-        if (!html) return null;
+        const r = await fetchPageDetail(url, timeoutMs);
+        if (!("html" in r)) {
+          if (r.fout === "timeout") timeoutsDezeBatch++;
+          return null;
+        }
+        const html = r.html;
+        // Een bijlagepagina die het adresfilter niet herkende (punt 10).
+        if (isBijlageHtml(html)) {
+          bijlagen.push(url);
+          return null;
+        }
         const volledigeTekst = htmlToText(html);
         // Wat we BEWAREN is de tekst zonder menu, koptekst en voettekst; wat we
         // METEN (renderbaarheid, telefoonnummers) blijft de volledige tekst,
@@ -498,7 +580,10 @@ export async function crawlPages(
     for (const r of results) {
       if (r.status === "fulfilled" && r.value && r.value.text.length > 0) out.push(r.value);
     }
+    timeouts += timeoutsDezeBatch;
+    batchgrootte = volgendeBatchgrootte(batchgrootte, timeoutsDezeBatch);
   }
+  opts.opLeesstand?.({ gevraagd: urls.length, gelezen: out.length, timeouts, overgeslagen, bijlagen });
   return out;
 }
 
@@ -775,7 +860,7 @@ export async function crawlInventory(
   // bekende URL's eruit filteren, dan levert een site waarvan de topplekken
   // allemaal al gecrawld zijn een lege aanvulling op, ook als er nog honderden
   // ongelezen pagina's zijn.
-  const { urls: alleUrls } = await collectPageUrls(host, opts.sitemapUrl);
+  const { urls: alleUrls, menu } = await collectPageUrls(host, opts.sitemapUrl);
   // `selectUrls()` filtert `exclude` VÓÓR het kiezen (§17.8) en telt
   // `totalFound` over de volledige, ongefilterde lijst, dus "meer" bij een
   // grotendeels gecrawlde site toont nog steeds de ware omvang van de site.
@@ -810,7 +895,8 @@ export async function crawlInventory(
     lightlyScanned = signals.size;
     index = selectUrls(alleUrls, maxPages, opts.priorityPaths, exclude, signals);
   }
-  const teCrawlen = index.urls;
+  // De pagina's uit het hoofdmenu vooraan (punt 28 van de kwaliteitsdoorlichting).
+  const teCrawlen = metMenuVoorrang(index.urls, menu, maxPages, exclude);
 
   let speed = opts.speed ?? "normaal";
   let profile = speedProfile(speed);
@@ -844,6 +930,14 @@ export async function crawlInventory(
         blocked = true;
         continue;
       }
+      // Een time-out (status 0) zegt hetzelfde als een 503: de server kan het
+      // tempo niet aan. Eerder telde hij als een gewone mislukte pagina, en bleef
+      // de crawl bij een trage site in hetzelfde tempo doorgaan (punt 4 van de
+      // kwaliteitsdoorlichting).
+      if (r.status === 0) {
+        vertraagIets = true;
+        continue;
+      }
       if (r.status === 429 || r.status === 503) {
         vertraagIets = true;
         if (r.retryAfterMs) await sleep(r.retryAfterMs);
@@ -852,8 +946,9 @@ export async function crawlInventory(
       if (r.html) {
         // Zelfde keuze als in `crawlPages`: het menu eruit vóór het knippen.
         const inhoudTekst = htmlToText(stripChrome(r.html));
-        if (inhoudTekst.length > 0) {
-          gehaald.set(url, { title: extractTitle(r.html), text: inhoudTekst.slice(0, PAGE_MAX_CHARS) });
+        const titel = extractTitle(r.html);
+        if (inhoudTekst.length > 0 && !isBijlageHtml(r.html)) {
+          gehaald.set(url, { title: titel, text: inhoudTekst.slice(0, PAGE_MAX_CHARS) });
         }
       }
     }

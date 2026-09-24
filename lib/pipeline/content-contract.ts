@@ -50,6 +50,7 @@ import type { ItemDossier } from "@/lib/schemas/item-dossier";
 import type { AuditedClaim } from "@/lib/schemas/claim-audit";
 import type { RecommendationTarget } from "@/lib/pipeline/recommendation";
 import type { ContentType } from "@/lib/types/database";
+import { functieblok } from "@/lib/pipeline/paginafunctie";
 
 const SYSTEM =
   "Je maakt de INHOUDSOPGAVE van één webpagina voor de eigen site van een ondernemer. Je schrijft " +
@@ -149,6 +150,8 @@ export interface ContractInput {
    * dan blijft het oordeel per sectie op `niet_van_toepassing` staan.
    */
   existingText?: string | null;
+  /** De titel van de bestaande pagina uit de inventaris, voor de functie-eis (punt 45). */
+  existingTitle?: string | null;
   /** Het adres erbij, zodat de opdracht kan zeggen om welke pagina het gaat. */
   existingUrl?: string | null;
   /**
@@ -257,6 +260,11 @@ export async function buildContentContract(input: ContractInput): Promise<{
 }> {
   const user = [
     `Te maken pagina: "${input.title}" (type: ${input.type})`,
+    // Punt 45 van de kwaliteitsdoorlichting: bij een verbetering gaat de
+    // functie van de bestaande pagina vóór de doelvraag. Bovenaan, want wat
+    // bovenaan staat wordt het best gevolgd; de bestaande TEKST blijft
+    // onderaan (zie `bestaandePaginaBlok`).
+    input.existingText || input.existingUrl ? functieblok(input.existingUrl, input.existingTitle) : "",
     `Doel: ${input.targetIntent}`,
     input.typeGuidance,
     input.targets.length

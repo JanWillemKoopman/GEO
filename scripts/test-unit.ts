@@ -635,8 +635,13 @@ import {
   sameDomain,
   sectionOf,
   parseUrlList,
+  isArchiefOfBijlage,
+  isArchiefSitemap,
+  isBijlageHtml,
+  volgendeBatchgrootte,
+  menuLinks,
 } from "@/lib/crawl-urls";
-import { scoreUrl, selectUrls, type UrlSignal } from "@/lib/pipeline/url-priority";
+import { scoreUrl, selectUrls, metMenuVoorrang, type UrlSignal } from "@/lib/pipeline/url-priority";
 import { openCandidates } from "@/lib/pipeline/light-scan-select";
 import { buildPageBlocks } from "@/lib/pipeline/page-select";
 import {
@@ -775,6 +780,8 @@ import {
 } from "@/lib/pipeline/geo-share";
 import { COST_DENIED } from "@/lib/cost-rules";
 import { gesprekBeantwoordt, zelfdeVraag } from "@/lib/vraag-dekking";
+import { paginaSoort, isFunctiepagina, functieblok } from "@/lib/pipeline/paginafunctie";
+import { vindKerncijfers } from "@/lib/pipeline/kerncijfers";
 import { vindKernbewijs, kernbewijsblok, checkKernbewijs, kernFeitInTekst, GESPREK_BRON } from "@/lib/pipeline/kernbewijs";
 import { requireCount } from "@/lib/require-count";
 import { mayMeasureAgain, MIN_DAGEN_TUSSEN_PERIODES } from "@/lib/measure-cadence";
@@ -25839,4 +25846,90 @@ group("Bewijs uit het gesprek komt ook op een eerder bevroren kaart (verbeterron
   eq("met zijn identiteit uit de bank", String(met[1].id), "abc");
   eq("niets nieuws, dan dezelfde kaart", String(metGespreksbewijs(kaart, []) === kaart), "true");
   ok("de schrijfroute gebruikt het", leesBestand("lib/pipeline/content.ts").includes("const metGesprek = metGespreksbewijs("));
+});
+
+
+group("De crawl leest de site zoals de eigenaar hem bedoelt (verbeterronde, punt 4, 10 en 28)", () => {
+  // Punt 10: de echte adressen van de rijschool.
+  const r = "https://www.autorijschoolpompert.nl";
+  for (const pad of [
+    "/tag/rijlessen/", "/category/uncategorized/", "/author/wetalkseo/",
+    "/autorijschool-pompert/autorijschool_pompert_eindhoven_10/",
+    "/ons-team-en-wagenpark/whatsapp-image-2022-06-21-at-4-42-28-pm/",
+    "/ons-team-en-wagenpark/95588177_255747952474662_8504102822831612049_n/",
+    "/rijsimulator/img_20220711_162136/", "/pech-onderweg-moet/pexels-photo-1/",
+    "/hoe-werkt-een-tussentijdse-toets-bij-rijexamens/attachment/8722/",
+    "/wp-content/uploads/2022/07/rijopleiding-in-stappen.jpeg", "/feed/",
+  ]) ok(`weg: ${pad}`, isArchiefOfBijlage(r + pad));
+  for (const pad of ["/", "/rijschool-best/", "/prijzen-lespakketten/", "/faalangst-autisme-spectrum-stoornissen-en-ad-h-d/", "/diensten/tuinaanleg/", "/foto-galerij/"]) {
+    ok(`blijft: ${pad}`, !isArchiefOfBijlage(r + pad));
+  }
+  ok("de tagsitemap van Yoast gaat niet open", isArchiefSitemap("https://hansverstraatenhoveniers.nl/post_tag-sitemap.xml"));
+  ok("de paginasitemap wel", !isArchiefSitemap("https://hansverstraatenhoveniers.nl/page-sitemap.xml"));
+  // Een bijlage met een gewone naam valt pas na het ophalen op (echte body-klassen van de rijschool).
+  ok("bijlage na ophalen herkend", isBijlageHtml(`<html><body class="attachment attachment-template-default single single-attachment postid-534 attachmentid-534 attachment-jpeg min-h-full">`));
+  ok("een gewone pagina niet", !isBijlageHtml(`<html><body class="page-template-default page page-id-2789 min-h-full">`));
+
+  // Punt 4: een trage server vraagt minder tegelijk.
+  eq("acht met een time-out wordt vier", String(volgendeBatchgrootte(8, 1)), "4");
+  eq("niet onder de twee", String(volgendeBatchgrootte(2, 3)), "2");
+  eq("zonder time-out gelijk", String(volgendeBatchgrootte(8, 0)), "8");
+  const traag = assessInventory(
+    [{ url: "https://h.nl/", title: "Home", text: "x".repeat(900) }, ...Array.from({ length: 9 }, (_, i) => ({ url: `https://h.nl/p${i}/`, title: "P", text: i < 5 ? "x".repeat(900) : null }))],
+    { totalFound: 70, traagNietGelezen: 4 },
+  );
+  ok("een trage site krijgt een eerlijke melding", (traag.advice ?? "").includes("reageerde traag"));
+  ok("en geen JavaScript-diagnose", !(traag.advice ?? "").includes("JavaScript"));
+
+  // Punt 28: het menu van de homepage, en de menupagina's vooraan.
+  const html = `<header><nav><a href="/">Home</a><a href="/faalangst-autisme-spectrum-stoornissen-en-ad-h-d/">Faalangst</a><a href="/wp-content/uploads/a.jpg">x</a></nav></header><main><a href="/blog/iets/">blog</a></main>`;
+  const wpMenu = `<div><ul><li id="menu-item-2099" class="menu-item menu-item-type-post_type"><a href="https://www.autorijschoolpompert.nl/faalangst-autisme-spectrum-stoornissen-en-ad-h-d/">Rijles met faalangst</a></li></ul></div><p><a href="/blog/x/">blog</a></p>`;
+  eq("ook de menu-items van WordPress buiten een nav", menuLinks(wpMenu, r, "www.autorijschoolpompert.nl").map((u) => u.replace(r, "")).join(","), "/faalangst-autisme-spectrum-stoornissen-en-ad-h-d/");
+  eq("alleen de menulinks, zonder bestanden", menuLinks(html, r, "www.autorijschoolpompert.nl").map((u) => u.replace(r, "")).join(","), "/,/faalangst-autisme-spectrum-stoornissen-en-ad-h-d/");
+  const gekozen = [r + "/", r + "/blog-a/", r + "/blog-b/", r + "/blog-c/"];
+  eq(
+    "homepage eerst, dan het menu, binnen het maximum",
+    metMenuVoorrang(gekozen, [r + "/faalangst/", r], 3).map((u) => u.replace(r, "")).join(","),
+    "/,/faalangst/,/blog-a/",
+  );
+  ok("de ontdekkingsstap zet het menu vooraan", leesBestand("lib/pipeline/discover.ts").includes("metMenuVoorrang(selectie.urls, menu, maxPages)"));
+  ok("en plant bij een trage site een aanvulronde", leesBestand("lib/jobs/handlers.ts").includes("ontdekt.traagNietGelezen > 0"));
+});
+
+
+group("Een verbetering houdt de functie van de pagina (verbeterronde, punt 45)", () => {
+  eq("homepage", paginaSoort("https://hansverstraatenhoveniers.nl"), "homepage");
+  eq("de prijzenpagina van de rijschool", paginaSoort("https://www.autorijschoolpompert.nl/prijzen-lespakketten/"), "prijzen");
+  eq("contact met volgnummer", paginaSoort("https://hansverstraatenhoveniers.nl/contact-2/"), "contact");
+  eq("een plaatspagina is een onderwerp", paginaSoort("https://hansverstraatenhoveniers.nl/hovenier-in-best/"), "onderwerp");
+  ok("de homepage is niet te vervangen", isFunctiepagina("https://hansverstraatenhoveniers.nl/"));
+  ok("een prijzenpagina wel te verbeteren", !isFunctiepagina("https://www.autorijschoolpompert.nl/prijzen-lespakketten/"));
+  const blok = functieblok("https://www.autorijschoolpompert.nl/prijzen-lespakketten/", "Autorijles pakketten & prijzen");
+  ok("het blok zegt dat alle prijzen blijven", blok.includes("Alle prijzen en pakketten") && blok.includes("Autorijles pakketten & prijzen"));
+  eq("zonder bestaande pagina geen blok", functieblok(null, null), "");
+
+  // De echte aanbeveling van de hovenier: de homepage verbeteren.
+  const { recommendations, overrides } = reconcileExistingPageActions(
+    [{ title: "Maak de bestaande hoofdpagina concreter over complete tuinen en bestrating", targetIntent: "Een huiseigenaar in Helmond", why: "", action: "verbeteren" as "verbeteren" | "nieuw", existingUrl: "https://hansverstraatenhoveniers.nl" as string | null, relatedUrl: null as string | null }],
+    [{ url: "https://hansverstraatenhoveniers.nl", title: "Hovenier Eindhoven", text: "Tuinaanleg, bestrating, tuinontwerp" }],
+  );
+  eq("wordt een nieuwe pagina", recommendations[0].action, "nieuw");
+  eq("met de homepage als verwante pagina", String(recommendations[0].relatedUrl), "https://hansverstraatenhoveniers.nl");
+  eq("en de reden staat erbij", overrides[0]?.reason ?? "", "functiepagina");
+  ok("de opzet krijgt de functie", leesBestand("lib/pipeline/content-contract.ts").includes("functieblok(input.existingUrl, input.existingTitle)"));
+  ok("de schrijver ook", leesBestand("lib/pipeline/content.ts").includes("functieblok(existingPage.url, existingPage.title)"));
+});
+
+
+group("Kerncijfers van de site komen op de kaart (verbeterronde, punt 7)", () => {
+  const paginas = [
+    { url: "https://www.autorijschoolpompert.nl", text: "Lees het artikel (PDF) CBR magazine, september 2022 \u201c Lovende reviews op Google en een slagings\u00adpercentage van 93%. Rijschool Peter Pompert staat bekend." },
+    { url: "https://www.autorijschoolpompert.nl/cijfers-en-veranderingen-theorie-examen/", text: "Landelijk slaagt maar 45% van de kandidaten in één keer voor het theorie-examen. Dat is weinig." },
+    { url: "https://www.autorijschoolpompert.nl/prijzen/", text: "Alle prijzen zijn inclusief 21% btw en wij geven 10% korting op pakketten." },
+  ];
+  const uit = vindKerncijfers(paginas, "Autorijschool Pompert");
+  eq("het cijfer van de homepage, zonder afbreekstreepje", uit.map((k) => k.text).join(" | "), "Lovende reviews op Google en een slagingspercentage van 93%.");
+  ok("een landelijk cijfer uit een blog niet", !uit.some((k) => k.text.includes("45%")));
+  ok("btw en korting niet", !uit.some((k) => k.text.includes("btw")));
+  ok("de feitenbank gebruikt het", leesBestand("lib/pipeline/factbase.ts").includes("vindKerncijfers("));
 });
