@@ -1063,7 +1063,7 @@ async function loadContentContext(
     admin
       .from("fact_requests")
       .select(
-        "id, question, answer, answer_type, answered_at, status, required, scope, analysis_id, kind, content_piece_ids",
+        "id, question, answer, answer_type, answered_at, status, required, scope, analysis_id, kind, content_piece_ids, claim_key",
       )
       .eq("profile_id", analysis.profile_id),
     // De externe profielen die fase 0 uit de opmaak van de klant oogstte. Geen
@@ -1136,6 +1136,7 @@ async function loadContentContext(
               // Wordt hieronder ingevuld zodra het antwoord in de feitenbank
               // staat; blijft null als dat wegschrijven mislukt.
               id: null as string | null,
+              claimKey: (f.claim_key as string | null) ?? null,
               scope: f.scope as string,
               requestId: f.id as string,
             },
@@ -1947,10 +1948,29 @@ async function persistDraft(
   // losse pagina zonder datum. Bij de hovenier na één klik op "Schrijf een
   // nieuwe versie" 7 regels voor 5 pagina's.
   if (opts.currentId) {
+    const nieuwId = data.id as string;
     await admin
       .from("planned_pages")
-      .update({ content_piece_id: data.id as string })
+      .update({ content_piece_id: nieuwId })
       .eq("content_piece_id", opts.currentId);
+
+    // En de vragen die aan deze pagina hangen verhuizen ook mee. Alles wat per
+    // pagina naar vragen kijkt (`answerBelongsHere`, de telling "vragen voor deze
+    // pagina", de schrijfpoort) doet dat via `content_piece_ids`, en die wezen
+    // na een nieuwe versie naar een rij die niet meer de huidige is (punt 51).
+    const { data: vragen } = await admin
+      .from("fact_requests")
+      .select("id, content_piece_ids")
+      .contains("content_piece_ids", [opts.currentId]);
+    for (const vraag of vragen ?? []) {
+      const ids = ((vraag.content_piece_ids as string[] | null) ?? []).map((id) =>
+        id === opts.currentId ? nieuwId : id,
+      );
+      await admin
+        .from("fact_requests")
+        .update({ content_piece_ids: Array.from(new Set(ids)) })
+        .eq("id", vraag.id as string);
+    }
   }
   return data.id as string;
 }

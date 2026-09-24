@@ -180,6 +180,8 @@ export interface AnsweredFactInput {
    * `factId` in `claims_json` krijgen en achteraf niet na te trekken zijn.
    */
   id?: string | null;
+  /** De sleutel van de bewering waar deze vraag voor gesteld werd (punt 39). */
+  claimKey?: string | null;
 }
 
 /**
@@ -237,12 +239,16 @@ export function mergeAnsweredFacts(
   // positie; de identiteit van een feit verandert niet doordat er iets vóór komt
   // te staan (migratie 0036).
   const samen: Omit<FactItem, "ref">[] = [
+    // De sleutel van de bewering gaat mee (punt 39 van de kwaliteitsdoorlichting):
+    // zonder die sleutel ziet de schrijfronde een beantwoorde vraag niet als
+    // onderbouwing van de bewering waarvoor hij gesteld werd.
     ...answered.map((a) => ({
       id: a.id ?? null,
       text: a.fact.text,
       source: a.fact.source,
       allowed: a.fact.allowed,
       citable: a.fact.citable,
+      claimKey: a.claimKey ?? null,
     })),
     ...behouden.map((f) => ({
       id: f.id ?? null,
@@ -250,6 +256,7 @@ export function mergeAnsweredFacts(
       source: f.source,
       allowed: f.allowed,
       citable: f.citable,
+      claimKey: f.claimKey ?? null,
     })),
   ];
 

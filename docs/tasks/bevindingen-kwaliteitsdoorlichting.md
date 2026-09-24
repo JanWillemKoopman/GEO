@@ -77,7 +77,7 @@
 | 48 | **hoog** | De teksten lezen als een formulier: bedrijfsnaam voor elke alinea, dezelfde feiten drie tot vier keer, voorbehouden, zinnen uit de bronnen | open |
 | 49 | middel | Waar de klant een vraag oversloeg, wijkt de tekst uit naar "bespreek dat vooraf" in plaats van het onderwerp los te laten | open |
 | 50 | **hoog** | De reparatieknop van de klant haalde een juist klantfeit uit de tekst | oorzaak opgelost (punt 39), PR #115 |
-| 51 | middel | Na een nieuwe versie staat een pagina twee keer in de bibliotheek | ✅ opgelost, PR volgt |
+| 51 | middel | Na een nieuwe versie staat een pagina twee keer in de bibliotheek | ✅ opgelost, PR #117 en de volgende |
 
 ---
 
@@ -712,7 +712,16 @@ meer meekrijgen. **Nog na te rekenen** op een nieuwe keuring.
 nieuwe toe, maar `planned_pages.content_piece_id` bleef naar de oude rij wijzen. De bibliotheek van de
 hovenier toonde daarna 7 regels voor 5 pagina's: "Maak een pagina voor complete tuinaanleg in Best"
 (plantaak, datum, geen score) en "Complete tuinaanleg in Best" (geen datum, score 75). Opgelost: de
-plantaak verhuist mee naar de nieuwe versie, met een ketentest.
+plantaak verhuist mee naar de nieuwe versie, met een ketentest. Hetzelfde gold voor
+`fact_requests.content_piece_ids`: de vragen van een pagina wezen na een nieuwe versie naar de oude
+rij. Die verhuizen nu ook mee. Een vermoeden dat daardoor antwoorden van de kaart vielen, bleek bij
+narekenen in de ketentest niet te kloppen (de kaart van een nieuwe versie bouwt voort op de vorige);
+die controle staat er als bewaking.
+
+**Ook gevonden bij het repareren van punt 39:** de schrijfronde bouwt zijn feitenkaart via
+`mergeAnsweredFacts()`, die de sleutel van de bewering niet meenam. De reparatie van PR #115 werkte
+daardoor alleen in `buildFactBase()` en niet in de schrijfronde en de keuring daarna. Nu gaat de
+sleutel ook daar mee (`AnsweredFactInput.claimKey`).
 
 ---
 

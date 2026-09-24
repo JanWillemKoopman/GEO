@@ -12164,3 +12164,7 @@ Punt 26, 34, 37 en 44 in `docs/tasks/bevindingen-kwaliteitsdoorlichting.md`.
 Nagekomen dezelfde dag: een nieuwe versie van een pagina liet de plantaak naar de oude versie wijzen,
 waardoor de bibliotheek elke herschreven pagina twee keer toonde. `persistDraft()` verhuist de
 plantaak nu mee (punt 51).
+Aanvulling, dezelfde dag: de reparatie van punt 39 werkte alleen in `buildFactBase()`. De schrijfronde
+voegt klantantwoorden samen met `mergeAnsweredFacts()`, en die liet de sleutel van de bewering vallen.
+Nu gaat hij mee. Daarnaast verhuizen bij een nieuwe versie ook de paginavragen mee
+(`fact_requests.content_piece_ids`), zoals de plantaak al deed.

@@ -25638,3 +25638,15 @@ group("Een tegengehouden pagina zegt niet dat hij geschreven wordt (24 september
   ok("de bibliotheek geeft het oordeel mee", leesBestand("lib/pagina-data.ts").includes("inputStand: i.tekst ? inputStandUitOpslag(i.tekst as never) : null"));
   ok("en de maandregel zegt wie vrijgeeft", leesBestand("lib/plan-read.ts").includes("wacht op vrijgave door je consultant"));
 });
+
+
+group("De schrijfroute bewaart de sleutel van de bewering (24 september 2026)", () => {
+  const samen = mergeAnsweredFacts(
+    [{ ref: "F1", id: null, text: "Sitefeit", source: "site /", allowed: true, citable: true, claimKey: null }],
+    [{ question: "Hoe lang duurt het?", fact: { text: "Hoe lang duurt het: 2 tot 3 weken", source: "klant, bevestigd 24-9-2026", allowed: true, citable: true, kind: "klant" }, claimKey: "duur aanleg" }],
+  );
+  eq("het antwoord houdt zijn sleutel", String(samen.find((f) => f.text.includes("2 tot 3 weken"))?.claimKey), "duur aanleg");
+  eq("een sitefeit heeft er geen", String(samen.find((f) => f.text === "Sitefeit")?.claimKey), "null");
+  const content = leesBestand("lib/pipeline/content.ts");
+  ok("de schrijfroute leest de sleutel uit de vraag", content.includes("claimKey: (f.claim_key as string | null) ?? null"));
+});
