@@ -69,6 +69,8 @@
 | 42 | **hoog** | De klant krijgt "Tekst is klaar, keur hem goed" bij een tekst die de eigen keuring tegenhoudt | open |
 | 43 | middel | De keuring noemt het bedrag van de klant "in strijd met de instructie", omdat de opzet van vóór zijn antwoord is | open |
 | 44 | laag | Een tegengehouden pagina staat voor de klant als "Alle gegevens bekend, wordt nu geschreven" | open |
+| 45 | **hoog** | "Maak de homepage concreter" leverde een Helmond-pagina op voor het adres van de homepage | open |
+| 46 | **hoog** | De tekst draait een belofte van de site om: "binnen 4 uur een scherpe offerte" wordt "geen termijn voor de offerte" | open |
 | 22 | **hoog** | Het rapport zegt "niet genoemd, 0 op 100" terwijl Google het merk wel noemde | ✅ opgelost, PR #111 en #112 |
 
 ---
@@ -579,6 +581,27 @@ omdat de dekking 33 procent was (`te_weinig_onderbouwd`). De bibliotheek toont d
 gegevens bekend, wordt nu geschreven". De melding uit `schrijfpoort()` ("er is te weinig over je
 bedrijf bekend... kies of we hem algemeen schrijven") bereikt dat scherm niet.
 
+## 45. De homepage wordt een Helmond-pagina
+
+Het advies was "Maak de bestaande hoofdpagina concreter over complete tuinen en bestrating", met
+`existing_url = https://hansverstraatenhoveniers.nl`. De geschreven tekst heet "Complete tuin met
+bestrating in Helmond | Hans Verstraaten", opent met "Wil je jouw tuin in Helmond helemaal
+vernieuwen" en de doelgroep (`target_intent`) is "Een huiseigenaar in Helmond". Wie hem publiceert
+op het adres waar hij voor bedoeld is, vervangt de homepage van een hovenier met zeven werkplaatsen
+en vijftien diensten door een pagina over één plaats en één dienst. **Oorzaak, vermoedelijk:** de
+zwaarste doelvraag van dit advies ging over Helmond, en de opzet (`content_contract`) neemt de
+doelvraag als onderwerp en niet het soort pagina. Het rapport koos "verbeter de homepage" omdat de
+app maar één pagina van de site kende (punt 4).
+
+## 46. De tekst draait een belofte van de site om
+
+De site: "wij doen ons best om je binnen 4 uur te voorzien van een scherpe offerte". De nieuwe tekst
+(Helmond, punt 45): "Voor een offerteaanvraag noemt onze contactpagina een beoogde reactietijd van
+binnen 4 uur. Dat is geen termijn voor het ontwerp of de offerte." Waarschijnlijk een voorzichtige
+herformulering door het model, maar het resultaat spreekt de ondernemer tegen, en juist in de richting
+die hem een verkoopargument kost. De keuring van de app zag dit niet: ze toetst of een bewering een
+bron heeft, niet of hij met die bron overeenkomt.
+
 ---
 
 ## Wat goed ging, om niet kapot te maken
@@ -586,4 +609,14 @@ bedrijf bekend... kies of we hem algemeen schrijven") bereikt dat scherm niet.
 - **Het gesprek heeft aantoonbaar effect.** Na het vastleggen sloten de onderwerpen van alle drie de
   merken aan op de groeidoelen: C ging van "automaat" bovenaan naar "faalangst" en "autisme", B van
   "waterontharder" naar "hybride warmtepomp".
+- **De antwoorden van de klant komen in de tekst.** Prijsband, doorlooptijd, de gratis
+  terugkomafspraak na zes weken, de vaste ploeg van vijf man, het 3D-ontwerp boven 15.000 euro en de
+  4,9 uit 5 van de hovenier staan letterlijk en correct in de geschreven pagina's.
+- **Verboden woorden worden gerespecteerd.** "goedkoopste", "tuinman" en "onderhoudsvrij" komen in
+  geen van de vier teksten van de hovenier voor.
+- **De schrijfrem werkt.** Een pagina met 33 procent onderbouwing werd niet geschreven.
+- **De vragen zeggen waarom ze gesteld worden**, met bij elke vraag een knop "Overslaan" en uitleg wat
+  er dan met de tekst gebeurt.
+- **De naamcontrole onder het rapport** houdt na de reparatie van punt 20 alleen nog zinnen tegen die
+  het bewijs niet draagt (0 onterecht geschrapt bij de herhaling).
 - **De crawl kwam binnen** bij twee van de drie sites die sommige automatische bezoekers weigeren.

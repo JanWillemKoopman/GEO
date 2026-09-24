@@ -362,9 +362,52 @@ De ideale-klantvariant volgt later als wisselproef op twee pagina's.
 
 ---
 
+## Stap 19 tot en met 23. Schrijven, keuren, repareren (`writer_brief`, `content_draft`, vier keurders, `content_revise`)
+
+Het schrijven start vanzelf zodra de laatste vraag van een pagina gedaan is en de publicatiedatum
+binnen tien dagen ligt (dat was bij alle pagina's al zo, zie **B33**). 16 van de 18 pagina's zijn
+geschreven, twee hield de app tegen wegens te weinig onderbouwing.
+
+| AI-stap | Model | Aanroepen | Kosten |
+|---|---|---|---|
+| `content_draft` (eerste versie) | Sol | 16 | $1,200 |
+| `content_revise` (reparatieronde) | Sol | 21 | $1,184 |
+| `item_dossier` | Luna | 18 | $0,219 |
+| keurders (`content_factuality`, `content_citability`, `content_craft`, `content_critique`) | Luna | 4 x 37 | $0,224 |
+| `content_contract`, `writer_brief`, `claim_audit`, `fact_atomise` en rest | Luna | | $0,121 |
+| **Samen, 16 pagina's** | | | **ongeveer $2,95, 18 cent per pagina** |
+
+**De eigen keuring van de app:** alle 16 teksten `quality_verdict = block`, met 100 procent
+zekerheid, en toch status `ready` met "Tekst is klaar: lees hem en keur hem goed" voor de klant
+(**B42**). Kwaliteitsscores 32 tot 86. Tussen 1 en 18 blokkerende punten per tekst.
+
+| | Blokkerend (waarvan bewijs) | Gedeelde claimdekking |
+|---|---|---|
+| A, drie pagina's | 15 tot 18 (13) | 27,6 bij alle drie |
+| A, onderhoudsarm | 1 (0) | geen |
+| B, twee warmtepompteksten | 12 (7) | 45,5 bij beide |
+| C, zes pagina's | 7 tot 8 (3) | 78,4 of 78,9 |
+
+Dezelfde claimdekking over meerdere pagina's bevestigt **B40**: de keuring toetst een gedeelde lijst
+beweringen, niet die van de pagina. Een steekproef (A, Best) liet zien dat de bewijsblokkades
+beweringen betreffen die de klant beantwoordde (**B39**) of die van een andere pagina komen (**B40**),
+en dat de keuring het bedrag van de klant afkeurde tegen een verouderde opzet (**B43**).
+
+**Wat opviel bij het lezen, nagerekend tegen de site en het waarheidsdossier:**
+- De antwoorden van de klant komen correct in de tekst: prijsband, doorlooptijd, de gratis
+  terugkomafspraak na zes weken, de ploeg van vijf man, het 3D-ontwerp boven 15.000 euro, de 4,9.
+- Geen van de verboden woorden van de hovenier.
+- "Verbeter de homepage" werd een pagina over Helmond voor het adres van de homepage (**B45**).
+- De belofte "binnen 4 uur een scherpe offerte" werd "geen termijn voor de offerte" (**B46**).
+- Drie volledige, verschillende teksten voor hetzelfde adres `/warmtepomp` (**B31**), en een tekst van
+  1.050 woorden voor het adres van een fotobijlage bij de rijschool (**B28**).
+
+Teksten en opdrachten voor de blinde lezers staan in de kladmap (`doorlichting/teksten/`,
+`doorlichting/poort19/`).
+
+---
+
 ## Nog te doen in deze doorloop
 
-- Stap 19 tot en met 23: schrijfopdracht, eerste versie, keuring door de app, reparatierondes,
-  goedkeuren; de vier blinde lezers en de blinde vergelijking met de huidige pagina en de beste
-  concurrent.
+- Stap 19 tot en met 23: de oordelen van de blinde lezers verwerken, en goedkeuren als klant.
 - De ideale-klantvariant op twee pagina's, de wisselproeven en het verslag met hooguit vijf verbeteringen.
