@@ -6,6 +6,7 @@ import { useRefresh } from "@/components/use-refresh";
 import { useToast } from "@/components/toast";
 import { MONTHS_AHEAD, MAX_STRATEGY_NOTE_LENGTH } from "@/lib/plan-constants";
 import { Icon } from "@/components/icon";
+import { COST_DENIED } from "@/lib/cost-rules";
 
 /**
  * Er is nog geen plan.
@@ -44,11 +45,10 @@ export function CreatePlanBox({
   const wacht = busy || refreshing;
   const [note, setNote] = useState("");
 
-  // ⚠️ Hier stond tot 27 augustus 2026 `staff &&` voor. Het plan opstellen is
-  // werk binnen het pakket dat de klant al betaalt, dus hangt het nu alleen nog
-  // aan de twee voorwaarden die er inhoudelijk toe doen: er is een pakket, en
-  // er is minstens één gemeten kans om in te plannen. Zonder die twee levert
-  // opstellen een plan op dat nooit geschreven kan worden.
+  // De twee voorwaarden die er inhoudelijk toe doen: er is een pakket, en er
+  // is minstens één gemeten kans om in te plannen. Zonder die twee levert
+  // opstellen een plan op dat nooit geschreven kan worden. Wie het plan
+  // opstelt (de consultant) staat verderop bij de knop.
   const mag = Boolean(quota) && kansCount > 0;
 
   async function maak() {
@@ -125,8 +125,8 @@ export function CreatePlanBox({
           // hieronder". Zodra het wél kan, verdwijnt deze regel en staat de
           // knop er: sinds 27 augustus 2026 stelt de klant het plan zelf op.
           <p className="text-sm text-muted">
-            Zodra hieronder alles klaarstaat, stel je het plan zelf op. Twijfel je
-            over de indeling, loop hem dan samen met je consultant door.
+            Zodra hieronder alles klaarstaat, stelt je consultant bij Outer Orbit
+            het plan op. Twijfel je over de indeling, loop hem dan samen door.
           </p>
         )}
 
@@ -173,7 +173,19 @@ export function CreatePlanBox({
         </ul>
       </div>
 
-      {mag && (
+      {/* ⚠️ Sinds 2 september 2026 stelt alleen de consultant het plan op
+          (`content_schrijven` in `lib/cost-rules.ts`). Tot 24 september stond
+          hier voor de klant toch de knop, met de zin "stel je het plan zelf
+          op"; de klant klikte en kreeg pas daarna te horen dat het niet mocht
+          (kwaliteitsdoorlichting, punt 29). Nu zegt het scherm het vooraf,
+          zoals "Geef deze maand vrij" dat sinds de UX-audit ook doet. */}
+      {mag && !staff && (
+        <div className="card">
+          <p className="text-sm text-secondary">{COST_DENIED.content_schrijven}</p>
+        </div>
+      )}
+
+      {mag && staff && (
         <div className="card flex flex-col gap-3">
           <label htmlFor="notitie" className="mono-label">
             Iets wat ORBIT ENGINE moet weten (mag leeg)

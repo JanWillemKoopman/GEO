@@ -12128,3 +12128,13 @@ cluster viel er niets aan te klikken behalve het menu met de drie puntjes. Gezie
 merken van de kwaliteitsdoorlichting; "gereed" hoort er nu bij. Punt 25 in
 `docs/tasks/bevindingen-kwaliteitsdoorlichting.md`, waar ook de open punten 24 en 26 tot en met 28
 uit dezelfde stap staan.
+
+## 24 september 2026: de potentie in het contentplan volgt nu de regel van het rapport
+
+Het rapport bepaalt met een meerderheidsregel (eerst per bron, dan één stem per bron) welke vragen
+gemist zijn. De potentie van een geplande pagina telde een vraag al als gewonnen bij één vermelding in
+één bron. Bij de installateur gaf dat de zwaarste gemiste vraag (gewicht 0,50) potentie 0, waardoor
+de eerste aanbeveling van het rapport de laatste pagina van de maand werd. Nu gebruiken beide
+`genoemdPerVraag()` en `bepaalGemisteVragen()` uit `lib/pipeline/missed-prompts.ts`. Daarnaast zegt
+het planscherm de klant nu vooraf dat de consultant het plan opstelt (punt 29 en 30 in
+`docs/tasks/bevindingen-kwaliteitsdoorlichting.md`).

@@ -6,6 +6,7 @@ import "server-only";
  */
 import { visibilityIndex, potentialScore, isConfident, type PotentialTriple } from "@/lib/potential";
 import { binomialStderr } from "@/lib/stats/uncertainty";
+import { genoemdPerVraag } from "@/lib/pipeline/missed-prompts";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -133,12 +134,12 @@ async function loadPotentialForTargets(
 
   const { data: runRows } = await admin
     .from("tracking_runs")
-    .select("id, prompt_id")
+    .select("id, prompt_id, engine")
     .eq("analysis_id", analysisId)
     .eq("week_no", laatsteWeek)
     .eq("purpose", "periodic")
     .in("prompt_id", promptIds);
-  const runs = (runRows ?? []) as { id: string; prompt_id: string | null }[];
+  const runs = (runRows ?? []) as { id: string; prompt_id: string | null; engine: string | null }[];
   if (runs.length === 0) return { ...LEEG, volume };
 
   const { data: mentionRows } = await admin
@@ -156,16 +157,21 @@ async function loadPotentialForTargets(
     ]),
   );
 
-  // Eén oordeel per vraag. Wordt een vraag toevallig twee keer gemeten in
-  // dezelfde week, dan wint "genoemd" van "niet genoemd" (zelfde regel als
-  // measure.ts): een gemiste beoordeling mag een echte winst niet wegstrepen.
-  const perPrompt = new Map<string, boolean>();
-  for (const r of runs) {
-    if (!r.prompt_id) continue;
-    const mentioned = mentionedByRun.get(r.id) ?? false;
-    const huidig = perPrompt.get(r.prompt_id);
-    if (huidig === undefined || (mentioned && !huidig)) perPrompt.set(r.prompt_id, mentioned);
-  }
+  // Eén oordeel per vraag, met dezelfde meerderheidsregel als het rapport
+  // (`genoemdPerVraag()`): eerst binnen een bron over de herhalingen, dan één
+  // stem per bron. Hier stond "één keer genoemd wint", en dat gaf de zwaarste
+  // gemiste vraag van de installateur potentie 0 (punt 30 van de
+  // kwaliteitsdoorlichting, 24 september 2026).
+  const perPrompt = genoemdPerVraag(
+    runs
+      .filter((r) => r.prompt_id)
+      .map((r) => ({
+        runId: r.id,
+        promptId: r.prompt_id as string,
+        engine: r.engine ?? "onbekend",
+        mentioned: mentionedByRun.get(r.id) ?? false,
+      })),
+  );
 
   const total = promptIds.filter((id) => perPrompt.has(id)).length;
   const mentionedCount = [...perPrompt.values()].filter(Boolean).length;
