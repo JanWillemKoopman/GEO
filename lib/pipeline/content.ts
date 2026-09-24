@@ -269,9 +269,16 @@ const CONTENT_SYSTEM =
   "NOOIT beginnen met de bedrijfsnaam en nooit met 'Ja' als er geen vraag boven staat. Beantwoord " +
   "de DOELVRAAG daarna volledig, nog in diezelfde eerste alinea en vóór elke verdere inleiding: " +
   "een AI die een antwoord zoekt, leest de opwarmer niet uit. " +
-  "(5) In die eerste alinea en in de eerste zin van elke sectie noem je het BEDRIJF EXPLICIET bij " +
-  "naam, want dat zijn de zinnen die een AI-assistent oppakt, en een assistent die alleen 'wij' " +
-  "leest weet niet wie hij moet noemen. In de RÉST van de tekst schrijf je gewoon in de wij-vorm, " +
+  // ⚠️ 24 september 2026, besluit eigenaar na de kwaliteitsdoorlichting (punt
+  // 48): "de naam in de eerste zin van elke sectie" was de eerste reden die drie
+  // blinde lezers noemden dat de teksten als een formulier lezen. De naam staat
+  // nu in de eerste alinea en de afsluiting; voor zoekmachines en assistenten
+  // draagt de gestructureerde data (JSON-LD, `about` en `author`) de koppeling
+  // tussen deze pagina en het bedrijf, en die ziet de lezer niet.
+  "(5) Noem het BEDRIJF bij naam in de eerste alinea (één keer) en in de afsluitende oproep om " +
+  "contact op te nemen, en verder niet. Begin NOOIT een alinea of sectie met de bedrijfsnaam. Een " +
+  "AI-assistent koppelt de pagina aan het bedrijf via de titel, de eerste alinea en de " +
+  "gestructureerde gegevens die wij eronder zetten. In de RÉST van de tekst schrijf je in de wij-vorm, " +
   "zoals een ondernemer op zijn eigen site praat: 'wij komen binnen 24 uur' in plaats van " +
   "'[Bedrijfsnaam] kan binnen 24 uur ter plaatse zijn'. Schrijf ook nooit over 'de klant' in de " +
   "derde persoon: de lezer IS de klant. " +
@@ -732,7 +739,12 @@ function buildContentInput(args: {
     "",
     `Schrijf de volledige pagina in Markdown (zonder concurrentnamen), plus meta-title (max 60 tekens), ` +
       `meta-description (max 160 tekens), FAQ en schema.org JSON-LD. Noem "${brandName}" bij naam in de ` +
-      `eerste alinea en in de eerste zin van elke sectie; daarbuiten schrijf je in de wij-vorm. ` +
+      `eerste alinea en in de afsluitende oproep, en begin geen alinea met die naam; verder schrijf je ` +
+      `in de wij-vorm. Zet de naam wel in de meta-title. ` +
+      // Punt 48: de prijsband drie keer, "isolatie, radiatoren en leeftijd van de
+      // ketel" tien keer op één pagina. Het vangnet is `checkHerhalingOpPagina()`.
+      `Noem elk feit één keer, op de plek waar de lezer het nodig heeft; herhaal een bedrag, termijn ` +
+      `of opsomming niet in elke sectie. ` +
       `Maak van de meeste koppen een MEDEDELING en niet een vraag: een pagina waarvan elke kop een ` +
       `vraag is, is een vragenlijst en geen verhaal. Vul daarna \`claims\` met elke concrete bewering ` +
       `die je over ${brandName} hebt gedaan, het F-nummer dat hem dekt, en de letterlijke zin uit dat ` +
@@ -766,9 +778,9 @@ const REPAIR_SYSTEM =
   "staat, laat de passage dan weg of schrijf hem algemener. " +
   // ⚠️ Begrensd op 3 september 2026 (V1), zelfde reden als regel 5 hierboven:
   // absoluut toegepast kostte deze regel de hele merkstem.
-  "(3) Noem het bedrijf bij naam in de eerste zin van elke sectie, want die zinnen pakt een " +
-  "AI-assistent op. In de rest van de sectie schrijf je in de wij-vorm, zoals een ondernemer op " +
-  "zijn eigen site praat. " +
+  // Punt 48 van de kwaliteitsdoorlichting, zelfde besluit als regel 5 van de schrijver.
+  "(3) Begin geen alinea of sectie met de bedrijfsnaam; schrijf in de wij-vorm, zoals een " +
+  "ondernemer op zijn eigen site praat. De naam hoort alleen in de eerste alinea en de afsluiting. " +
   "(4) Elke sectie bevat minstens één zin die LOSSTAAND te begrijpen is. " +
   "(5) Raak niets aan wat niet in een bevinding genoemd wordt. Een sectie die je niet teruggeeft, " +
   "blijft letterlijk staan, en dat is de bedoeling. " +

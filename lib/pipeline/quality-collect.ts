@@ -40,9 +40,9 @@ import type {
   OpeningResult,
   VraagkoppenResult,
 } from "@/lib/pipeline/paginavorm";
-import type { AdviestoonResult, ZelfondermijningResult } from "@/lib/pipeline/adviestoon";
+import type { AdviestoonResult, ZelfondermijningResult, VoorbehoudResult } from "@/lib/pipeline/adviestoon";
 import type { FaqResult } from "@/lib/pipeline/faqblokken";
-import type { HerhalingResult } from "@/lib/pipeline/similarity";
+import type { HerhalingResult, HerhalingOpPaginaResult } from "@/lib/pipeline/similarity";
 import type {
   AanspreekvormResult,
   AdresResult,
@@ -104,8 +104,12 @@ export interface KwaliteitsInvoer {
   faqBlokken?: FaqResult;
   /** V6: stuurt de pagina de bezoeker weg om de klant te controleren? */
   zelfondermijning?: ZelfondermijningResult;
+  /** Punt 46 en 49: een afgezwakte belofte, of huiswerk waar een antwoord hoort. */
+  voorbehoud?: VoorbehoudResult;
   /** V12: staat op elke pagina van deze ronde hetzelfde rijtje feiten? */
   herhaling?: HerhalingResult;
+  /** Punt 48: hetzelfde feit drie of meer keer op één pagina. */
+  herhalingOpPagina?: HerhalingOpPaginaResult;
   taboo: TabooCheckResult;
   verbodenOnderwerpen: TabooCheckResult;
   typeOvertredingen: TypeRegel[];
@@ -785,10 +789,10 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
         section: null,
         finding: zin,
         evidence: `${invoer.merkstem?.merkvermeldingen ?? 0} merkvermeldingen, ${invoer.merkstem?.wijZinnen ?? 0} zinnen in de wij-vorm`,
-        expected: "Het bedrijf praat zelf, met de merknaam in de citeerbare zinnen.",
+        expected: "Het bedrijf praat zelf, met de merknaam in de eerste alinea en de afsluiting.",
         recommendation:
-          "Zet de zinnen die over het werk gaan in de wij-vorm en houd de merknaam in het " +
-          "openingsantwoord en de eerste zin van elke sectie.",
+          "Zet de zinnen die over het werk gaan in de wij-vorm, begin geen alinea met de " +
+          "bedrijfsnaam, en houd de naam in de eerste alinea en de afsluiting.",
         blocking: false,
         confidence: ZEKER,
         bron: "paginavorm",
@@ -883,6 +887,28 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
     );
   }
 
+  // ── Een afgezwakte belofte of huiswerk voor de lezer (punt 46 en 49) ─────
+  // Hoog en niet blokkerend: de zin is niet onwaar, hij kost het bedrijf een
+  // argument. De reparatieronde kan hem gericht weghalen.
+  for (const zin of invoer.voorbehoud?.issues ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "overtuiging",
+        severity: "hoog",
+        section: null,
+        finding: zin,
+        evidence: invoer.voorbehoud?.zinnen[0] ?? null,
+        expected: "Een belofte staat er zoals het bedrijf hem doet, en een onbekend onderwerp ontbreekt.",
+        recommendation:
+          "Haal het voorbehoud weg. Staat er een feit op de kaart, zeg dan wat er geldt; anders laat " +
+          "je het onderwerp weg.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "adviestoon",
+      }),
+    );
+  }
+
   // ── V12: elke pagina hetzelfde rijtje feiten ──────────────────────────────
   for (const zin of invoer.herhaling?.issues ?? []) {
     issues.push(
@@ -896,6 +922,27 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
         recommendation:
           "Kies per pagina de feiten die voor die ene lezer het meeste betekenen, en laat de rest " +
           "aan de pagina waar ze thuishoren.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "herhaling",
+      }),
+    );
+  }
+
+  // ── Hetzelfde feit drie of meer keer op één pagina (punt 48) ─────────────
+  // Midden en niet blokkerend: de tekst klopt, hij leest alleen als een
+  // formulier. Dat was wel de klacht die alle drie de blinde lezers deelden.
+  for (const zin of invoer.herhalingOpPagina?.issues ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "leesbaarheid",
+        severity: "midden",
+        section: null,
+        finding: zin,
+        evidence: invoer.herhalingOpPagina?.herhaald[0]?.feit ?? null,
+        expected: "Elk feit staat één keer op de pagina, op de plek waar de lezer het nodig heeft.",
+        recommendation:
+          "Laat het feit staan op de plek waar het het meest zegt en haal de herhalingen weg.",
         blocking: false,
         confidence: ZEKER,
         bron: "herhaling",

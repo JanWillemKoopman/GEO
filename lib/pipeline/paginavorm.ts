@@ -110,8 +110,18 @@ export interface MerkstemResult {
   woorden: number;
   /** Merkvermeldingen per honderd woorden. */
   perHonderd: number;
+  /** Alinea's (geen koppen) die met de merknaam beginnen. */
+  alineasMetMerk: number;
   issues: string[];
 }
+
+/**
+ * Hoeveel alinea's mogen met de merknaam beginnen: één, de opening. Punt 48
+ * van de kwaliteitsdoorlichting: bijna elke alinea begon met "Hans Verstraaten
+ * Hoveniers verzorgt...", en drie blinde lezers noemden dat als eerste reden dat
+ * de tekst als een formulier leest.
+ */
+export const MAX_ALINEAS_MET_MERK = 1;
 
 /** Boven dit aantal merkvermeldingen per honderd woorden praat de pagina óver het bedrijf. */
 export const MERK_PER_HONDERD_MAX = 1.5;
@@ -157,6 +167,22 @@ export function checkMerkstem(
 
   const issues: string[] = [];
 
+  const lager = naam.toLowerCase();
+  const alineasMetMerk = naam
+    ? tekst
+        .split(/\n\s*\n/)
+        .map((a) => a.trim().replace(/^[*_>\-\s]+/, ""))
+        .filter((a) => a && !a.startsWith("#"))
+        .filter((a) => a.toLowerCase().startsWith(lager) || a.toLowerCase().startsWith(`bij ${lager}`))
+        .length
+    : 0;
+  if (alineasMetMerk > MAX_ALINEAS_MET_MERK) {
+    issues.push(
+      `${alineasMetMerk} alinea's beginnen met de bedrijfsnaam. Zo leest de tekst als een formulier. ` +
+        `Noem de naam in de eerste alinea en de afsluiting, en schrijf verder in de wij-vorm.`,
+    );
+  }
+
   // Allebei nodig: veel merknaam is prima zolang het bedrijf ook zelf praat, en
   // geen "wij" is prima op een korte pagina die de naam twee keer noemt.
   if (wijZinnen === 0 && perHonderd > MERK_PER_HONDERD_MAX) {
@@ -164,11 +190,11 @@ export function checkMerkstem(
       `Het bedrijf zegt nergens "wij" op zijn eigen pagina, en de merknaam staat er ` +
         `${merkvermeldingen} keer in de derde persoon (${perHonderd.toFixed(1)} per honderd ` +
         `woorden). Zo leest het als een beschrijving óver het bedrijf. Laat het bedrijf zelf ` +
-        `praten, en houd de merknaam in het openingsantwoord en de eerste zin van elke sectie.`,
+        `praten, en houd de merknaam in de eerste alinea en de afsluiting.`,
     );
   }
 
-  return { wijZinnen, merkvermeldingen, woorden, perHonderd, issues };
+  return { wijZinnen, merkvermeldingen, woorden, perHonderd, alineasMetMerk, issues };
 }
 
 export interface VraagkoppenResult {

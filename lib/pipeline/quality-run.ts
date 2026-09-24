@@ -45,6 +45,7 @@ import { containsCompetitor } from "@/lib/pipeline/redact";
 import { splitByTerms } from "@/lib/highlight";
 import {
   checkHerhaling,
+  checkHerhalingOpPagina,
   mostSimilar as vindGelijkende,
   type SimilarPage,
 } from "@/lib/pipeline/similarity";
@@ -71,7 +72,7 @@ import { checkKernbewijs, vindKernbewijs } from "@/lib/pipeline/kernbewijs";
 import { checkSchrijfopdracht } from "@/lib/schrijfopdracht";
 import { checkKlantcitaten, vindCiteerbareAntwoorden } from "@/lib/pipeline/klantcitaten";
 import { checkOpening, checkMerkstem, checkVraagkoppen, eersteAlinea } from "@/lib/pipeline/paginavorm";
-import { checkAdviestoon, checkZelfondermijning } from "@/lib/pipeline/adviestoon";
+import { checkAdviestoon, checkZelfondermijning, checkVoorbehoud } from "@/lib/pipeline/adviestoon";
 import { checkFaqBlokken } from "@/lib/pipeline/faqblokken";
 import type { AuditedClaim } from "@/lib/schemas/claim-audit";
 import type { ContentContract } from "@/lib/schemas/content-contract";
@@ -294,6 +295,8 @@ export async function keurPagina(invoer: KeuringInput): Promise<Keuring> {
   // het huiswerk zich ophoopt, in plaats van naar de pagina als geheel.
   const adviestoon = checkAdviestoon({ tekst: body, secties: paginaSecties });
   const zelfondermijning = checkZelfondermijning(body);
+  // Punt 46 en 49: een afgezwakte belofte, of huiswerk waar een antwoord hoort.
+  const voorbehoud = checkVoorbehoud(body);
 
   // ── Herhaalt de FAQ de tekst erboven? (optimalisatie 9) ─────────────────
   //
@@ -311,6 +314,11 @@ export async function keurPagina(invoer: KeuringInput): Promise<Keuring> {
     feiten: input.facts.filter((f) => f.citable && f.allowed).map((f) => f.text),
     tekst: body,
     anderePaginas: input.siblingPages.map((p) => p.body),
+  });
+  // Punt 48: hetzelfde feit drie of meer keer op deze ene pagina.
+  const herhalingOpPagina = checkHerhalingOpPagina({
+    feiten: input.facts.filter((f) => f.citable && f.allowed).map((f) => f.text),
+    tekst: body,
   });
 
   const taboo = checkTabooWords(body, faq, input.profile?.taboo_phrases ?? []);
@@ -396,7 +404,9 @@ export async function keurPagina(invoer: KeuringInput): Promise<Keuring> {
     vraagkoppen,
     adviestoon,
     zelfondermijning,
+    voorbehoud,
     herhaling,
+    herhalingOpPagina,
     taboo,
     verbodenOnderwerpen,
     typeOvertredingen,
