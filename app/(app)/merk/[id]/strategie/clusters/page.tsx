@@ -135,7 +135,7 @@ export default async function ClustersPage({
   const { data: archiefRijen } = await supabase
     .from("analyses")
     .select("*")
-    .eq("user_id", user.id)
+    // Op merk, niet op maker: zie `loadBrandWork()` (punt 26).
     .eq("profile_id", id)
     .not("archived_at", "is", null)
     .order("archived_at", { ascending: false });

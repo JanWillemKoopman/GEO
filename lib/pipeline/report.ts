@@ -25,6 +25,7 @@ import {
   vulBronnenAan,
 } from "@/lib/pipeline/report-summary";
 import { BRONNEN } from "@/lib/engines/bron";
+import { pasSchrijfregelsToe } from "@/lib/schrijfregel-vangnet";
 import {
   buildEvidenceDossier,
   loadBrandsByRun,
@@ -554,8 +555,9 @@ async function saveFactRequests(
     .map((r) => ({
       profile_id: analysis.profile_id,
       analysis_id: analysis.id,
-      question: r.question.trim(),
-      reason: r.reason?.trim() || null,
+      // Het vangnet onder de schrijfregels (punt 37 van de kwaliteitsdoorlichting).
+      question: pasSchrijfregelsToe(r.question.trim()),
+      reason: r.reason?.trim() ? pasSchrijfregelsToe(r.reason.trim()) : null,
     }));
 
   // Botsingen (de vraag stond er al) negeren in plaats van de hele insert laten

@@ -19,7 +19,7 @@ import "server-only";
  * vragen over meerdere tabellen gaan (conventie 6).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { paginaStand, standVolgorde, type PaginaStand } from "@/lib/pagina-stand";
+import { inputStandUitOpslag, paginaStand, standVolgorde, type PaginaStand } from "@/lib/pagina-stand";
 import { paginaNaam } from "@/lib/pagina-naam";
 import type { PlannedPageStatus } from "@/lib/types/database";
 
@@ -110,7 +110,7 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
     analyseIds.length > 0
       ? admin
           .from("content_pieces")
-          .select("id, analysis_id, title, meta_title, type, action, status, needs_review, briefing_snapshot_json, write_mode, quality_score, quality_json, updated_at")
+          .select("id, analysis_id, title, meta_title, type, action, status, needs_review, briefing_snapshot_json, write_mode, quality_score, quality_json, updated_at, input_coverage, weighted_evidence_coverage, critical_evidence_coverage")
           .in("analysis_id", analyseIds)
           .eq("is_current", true)
           .neq("status", "archived")
@@ -144,6 +144,9 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
     write_mode: string | null;
     quality_score: number | null;
     quality_json: { score?: number | null } | null;
+    input_coverage: number | string | null;
+    weighted_evidence_coverage: number | string | null;
+    critical_evidence_coverage: number | string | null;
   };
   const tekstOpId = new Map(((teksten ?? []) as Tekst[]).map((t) => [t.id, t]));
   const gekoppeld = new Set<string>();
@@ -239,6 +242,9 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
           }
         : null,
       openVragen: i.open,
+      // Het oordeel over de onderbouwing, anders zegt een tegengehouden pagina
+      // "wordt nu geschreven" (punt 44 van de kwaliteitsdoorlichting).
+      inputStand: i.tekst ? inputStandUitOpslag(i.tekst as never) : null,
       effectBekend: i.effectBekend,
       vandaag: i.vandaag,
     });

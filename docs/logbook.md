@@ -12150,3 +12150,14 @@ bewering zonder duidelijke pagina aan alle pagina's; drie pagina's van de hoveni
 dezelfde 13 blokkades en dezelfde claimdekking van 27,6 procent. Nu koppelt het plan strikt. (3) Een
 antwoord op een paginavraag ging ook naar `proof_points` en kwam zo als "sitefeit" op de kaart van
 elke pagina. Punt 39, 40 en 41 in `docs/tasks/bevindingen-kwaliteitsdoorlichting.md`.
+
+## 24 september 2026: vier kleinere reparaties uit de kwaliteitsdoorlichting
+
+(1) De consultant zag de clusters van een klantmerk niet ("Alle clusters (0)" en de knop "Start het
+eerste cluster"), omdat `loadBrandWork()` naast het merk ook op de maker filterde. Nu alleen op het
+merk; de database bepaalt wie wat ziet. (2) Vragen aan de klant gaan door een vangnet voor de
+schrijfregels (`pasSchrijfregelsToe()`): "en" en "of" met een schuine streep wordt "of", een
+losstaand kastlijntje een komma. (3) De bibliotheek zegt bij een tegengehouden pagina niet meer
+"wordt nu geschreven": het opgeslagen oordeel over de onderbouwing gaat nu mee naar de status. (4)
+Het planscherm zegt "wacht op vrijgave door je consultant" in plaats van "wacht op jouw vrijgave".
+Punt 26, 34, 37 en 44 in `docs/tasks/bevindingen-kwaliteitsdoorlichting.md`.
