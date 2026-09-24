@@ -52,7 +52,7 @@
 | 23 | laag | Hetzelfde bedrijf staat twee keer in het namenregister, met en zonder "(VSB)" | open, gevolg opgevangen |
 | 24 | laag | De rapportinstructie zegt niet of prioriteit 1 de belangrijkste is; de hovenier kreeg 6 tot 10 met de belangrijkste pagina's op 10 | open |
 | 25 | middel | Een klaar cluster (status "gereed") heeft geen link op zijn kaart | ✅ opgelost, PR #113 |
-| 26 | **hoog** | De consultant ziet de clusters van een klantmerk niet en krijgt "Start het eerste cluster" | ✅ opgelost, PR volgt |
+| 26 | **hoog** | De consultant ziet de clusters van een klantmerk niet en krijgt "Start het eerste cluster" | ✅ opgelost, PR #116 |
 | 27 | **hoog** | Het rapport kent de groeidoelen en feiten uit het gesprek niet | open |
 | 28 | **hoog** | De site-inventaris mist de hoofdpagina uit het menu en bevat fotobijlagen; het rapport adviseert een fotopagina te verbeteren | open |
 | 29 | middel | Het planscherm zegt de klant "stel je het plan zelf op", maar alleen de consultant mag het | ✅ opgelost, PR #114 |
@@ -60,22 +60,24 @@
 | 31 | **hoog** | Het plan zet vier verbeteringen van dezelfde pagina in dezelfde week | open |
 | 32 | **hoog** | "Opnieuw opzetten" van het plan faalt als alle kansen al in het huidige plan staan, en laat ze anders achter | open |
 | 33 | middel | Een plan dat laat in de maand start, vraagt de klant zijn vragen te beantwoorden vóór een datum in het verleden | open |
-| 34 | laag | De klant leest "wacht op jouw vrijgave" en in hetzelfde blok dat de consultant goedkeurt | ✅ opgelost, PR volgt |
+| 34 | laag | De klant leest "wacht op jouw vrijgave" en in hetzelfde blok dat de consultant goedkeurt | ✅ opgelost, PR #116 |
 | 35 | **hoog** | Vragen die het gesprek al beantwoordde, blijven openstaan voor de klant | open |
 | 36 | middel | Elk rapport zet zijn eigen vragen klaar; alleen letterlijk gelijke vragen worden samengevoegd | open |
-| 37 | laag | Een vraag aan de klant bevat "en" en "of" met een schuine streep ertussen | ✅ opgelost, PR volgt |
+| 37 | laag | Een vraag aan de klant bevat "en" en "of" met een schuine streep ertussen | ✅ opgelost, PR #116 |
 | 38 | middel | Het laatste antwoord van een pagina laat de klant 9 tot 30 seconden wachten | open |
 | 39 | **hoog** | Een beantwoorde vraag maakt de bewering erachter nooit "onderbouwd": de keuring blijft "beantwoord deze vraag" zeggen | ✅ opgelost, PR #115 |
 | 40 | **hoog** | De keuring van een pagina blokkeert op beweringen van andere pagina's van hetzelfde merk | ✅ opgelost, PR #115 |
 | 41 | middel | Antwoorden van de klant op paginavragen worden opgeslagen als feit van de site | ✅ opgelost, PR #115 |
 | 42 | **hoog** | De klant krijgt "Tekst is klaar, keur hem goed" bij een tekst die de eigen keuring tegenhoudt | open |
 | 43 | middel | De keuring noemt het bedrag van de klant "in strijd met de instructie", omdat de opzet van vóór zijn antwoord is | open |
-| 44 | laag | Een tegengehouden pagina staat voor de klant als "Alle gegevens bekend, wordt nu geschreven" | ✅ opgelost, PR volgt |
+| 44 | laag | Een tegengehouden pagina staat voor de klant als "Alle gegevens bekend, wordt nu geschreven" | ✅ opgelost, PR #116 |
 | 45 | **hoog** | Een "verbetering" vervangt de functie van de bestaande pagina (homepage wordt Helmond, prijzenpagina wordt losse les bij faalangst) | open |
 | 46 | **hoog** | De tekst draait een belofte van de site om: "binnen 4 uur een scherpe offerte" wordt "geen termijn voor de offerte" | open |
 | 47 | **hoog** | Het sterkste bewijs van de klant staat in geen enkele tekst, hoewel het op de feitenkaart staat | open |
 | 48 | **hoog** | De teksten lezen als een formulier: bedrijfsnaam voor elke alinea, dezelfde feiten drie tot vier keer, voorbehouden, zinnen uit de bronnen | open |
 | 49 | middel | Waar de klant een vraag oversloeg, wijkt de tekst uit naar "bespreek dat vooraf" in plaats van het onderwerp los te laten | open |
+| 50 | **hoog** | De reparatieknop van de klant haalde een juist klantfeit uit de tekst | oorzaak opgelost (punt 39), PR #115 |
+| 51 | middel | Na een nieuwe versie staat een pagina twee keer in de bibliotheek | ✅ opgelost, PR volgt |
 
 ---
 
@@ -692,6 +694,25 @@ iets anders.
 wél op zijn site, en Eindhoven staat in elke paginatitel van zijn site ("Geldrop - Eindhoven"). Het
 waarheidsdossier was op die twee punten onvolledig. Ook de telefoonnummers van de rijschool staan wel op
 de site. Die punten zijn niet meegeteld.
+
+## 50. De reparatieknop haalde een juist klantfeit uit de tekst
+
+Als klant op de pagina voor Best "laat ORBIT ENGINE ze alle 15 in één keer oplossen" gekozen. De
+reparatieopdracht aan de schrijver bevatte de blokkades van punt 39 en 40 letterlijk: "Deze pagina
+leunt op een bewering die we niet kunnen onderbouwen: Het bedrijf verzorgt tuinontwerp, tuinrenovatie
+en tuinbestrating. Onderbouw hem, of haal hem uit de pagina." De nieuwe versie (score 86, nog steeds
+tegengehouden) mist de doorlooptijd die de klant gaf ("2 tot 3 weken uitvoering"); de bedrijfsnaam
+staat er nog steeds 9 keer in. Een klant die op de knop vertrouwt, krijgt een slechtere tekst. De
+oorzaak is punt 39 en 40, opgelost in PR #115; na die reparatie zou dezelfde klik deze blokkades niet
+meer meekrijgen. **Nog na te rekenen** op een nieuwe keuring.
+
+## 51. Na een nieuwe versie staat een pagina twee keer in de bibliotheek
+
+`persistDraft()` (`lib/pipeline/content.ts`) vlagt bij een nieuwe versie de oude rij af en voegt een
+nieuwe toe, maar `planned_pages.content_piece_id` bleef naar de oude rij wijzen. De bibliotheek van de
+hovenier toonde daarna 7 regels voor 5 pagina's: "Maak een pagina voor complete tuinaanleg in Best"
+(plantaak, datum, geen score) en "Complete tuinaanleg in Best" (geen datum, score 75). Opgelost: de
+plantaak verhuist mee naar de nieuwe versie, met een ketentest.
 
 ---
 

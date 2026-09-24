@@ -1939,6 +1939,19 @@ async function persistDraft(
       `Opslaan van de gegenereerde pagina mislukt: ${error?.message ?? "geen rij teruggekregen"}`,
     );
   }
+
+  // ⚠️ De plantaak verhuist mee naar de nieuwe versie (kwaliteitsdoorlichting,
+  // punt 51, 24 september 2026). Zonder dit bleef `planned_pages` naar de
+  // afgevlagde versie wijzen: de bibliotheek toonde dezelfde pagina daarna twee
+  // keer, één keer als plantaak met de plantitel en zonder score, één keer als
+  // losse pagina zonder datum. Bij de hovenier na één klik op "Schrijf een
+  // nieuwe versie" 7 regels voor 5 pagina's.
+  if (opts.currentId) {
+    await admin
+      .from("planned_pages")
+      .update({ content_piece_id: data.id as string })
+      .eq("content_piece_id", opts.currentId);
+  }
   return data.id as string;
 }
 
