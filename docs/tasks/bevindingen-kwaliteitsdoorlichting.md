@@ -121,11 +121,11 @@ bronzinnen, het ontbrekende bewijs).
 | 45 | **hoog** | Een "verbetering" vervangt de functie van de bestaande pagina (homepage wordt Helmond, prijzenpagina wordt losse les bij faalangst) | open |
 | 46 | **hoog** | De tekst draait een belofte van de site om: "binnen 4 uur een scherpe offerte" wordt "geen termijn voor de offerte" | open |
 | 47 | **hoog** | Het sterkste bewijs van de klant staat in geen enkele tekst, hoewel het op de feitenkaart staat | open |
-| 48 | **hoog** | De teksten lezen als een formulier: bedrijfsnaam voor elke alinea, dezelfde feiten drie tot vier keer, voorbehouden, zinnen uit de bronnen | deels opgelost (bronzinnen), rest is een afweging, PR volgt |
+| 48 | **hoog** | De teksten lezen als een formulier: bedrijfsnaam voor elke alinea, dezelfde feiten drie tot vier keer, voorbehouden, zinnen uit de bronnen | deels opgelost (bronzinnen, PR #119), rest is een afweging |
 | 49 | middel | Waar de klant een vraag oversloeg, wijkt de tekst uit naar "bespreek dat vooraf" in plaats van het onderwerp los te laten | open |
 | 50 | **hoog** | De reparatieknop van de klant haalde een juist klantfeit uit de tekst | oorzaak opgelost (punt 39), PR #115 |
 | 51 | middel | Na een nieuwe versie staat een pagina twee keer in de bibliotheek | ✅ opgelost, PR #117 en de volgende |
-| 52 | **hoog** | De opmerking van de klant bij "Schrijf een nieuwe versie" bereikte de schrijver niet | ✅ opgelost, PR volgt |
+| 52 | **hoog** | De opmerking van de klant bij "Schrijf een nieuwe versie" bereikte de schrijver niet | ✅ opgelost, PR #119, nagerekend op productie |
 | 53 | middel | Een nieuwe versie verliest het beweringenplan, en wordt daarna niet meer op onderbouwing getoetst | open |
 | 54 | middel | Een zin met een omschreven klantfeit telt als "zin zonder bron" | open |
 
@@ -801,7 +801,10 @@ opmerking. **Oorzaak:** `revisionNote` ging alleen naar `buildRepairInput()`, ni
 `buildContentInput()`, en de feiten erin stonden niet op de feitenkaart, dus de reparatieronde mocht ze
 ook niet gebruiken. **Opgelost:** de schrijfopdracht krijgt de opmerking bovenaan, en
 `metKlantopmerking()` (`lib/pipeline/factcard.ts`) zet hem als citeerbaar klantfeit op de kaart.
-Ketentest op de echte schrijfopdracht.
+Ketentest op de echte schrijfopdracht. **Nagerekend op productie:** de volgende versie kreeg de
+opmerking wel in de schrijfaanroep en gebruikte 2 van de 6 feiten (was 1). Dat de rest achterblijft,
+komt waarschijnlijk door de opzet van de pagina, die van vóór de opmerking is (zie de wisselproeven in
+`docs/tasks/kwaliteitsdoorlichting-stappen.md`).
 
 ## 53. Een nieuwe versie verliest het beweringenplan
 
