@@ -25438,3 +25438,10 @@ group("Voorgestelde onderwerpen: volgorde uit de positie, en nooit nul na een mi
   ok("bij een mislukte opslag gaan de concepten terug", opslaan.includes("insert(weggehaald)"));
   ok("en de taak mislukt zichtbaar", opslaan.includes("throw new Error(`Topicvoorstellen opslaan mislukt"));
 });
+
+group("Een definitief mislukte Gemini- of Google-meting laat de analyse niet hangen (24 september 2026)", () => {
+  const bron = leesBestand("lib/jobs/handlers.ts");
+  const tak = bron.slice(bron.indexOf("REPUTATION_STEPS.includes(job.type"), bron.indexOf("export async function runJob("));
+  ok("alle drie de meetsoorten plannen de aggregatie na opgeven", tak.includes('"measure_ai_overview", "measure_llm_response"'));
+  ok("en ook voor die twee volgt scheduleAggregateIfLastPrompt", (tak.match(/scheduleAggregateIfLastPrompt\(/g) ?? []).length >= 2);
+});

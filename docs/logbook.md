@@ -12094,3 +12094,12 @@ in de code opgelost maar niet op een tablet en een telefoon nagekeken. Nagekomen
 maand vrij" op het contentplan (Overzicht en het bord) zegt een klant nu vooraf dat dit via de
 consultant gaat, in de woorden van de weigermelding zelf. Getest, na het samenvoegen met `main`: `tsc --noEmit`,
 `test:unit` (5448), `test:chain` (781) en `build` groen.
+
+## 24 september 2026: een opgegeven Gemini-meting liet de analyse eeuwig op "meten" staan
+
+Gevonden in de kwaliteitsdoorlichting. Alle 90 Gemini-taken (via DataForSEO) van drie clusters gaven
+na vier pogingen op wegens "rate_limit_exceeded". Sinds 20 september wacht de aggregatie op alle drie
+de meetbronnen, maar `scheduleFollowUpAfterFailure()` plande de aggregatie na een opgegeven taak
+alleen in voor `measure_prompt`. De drie analyses bleven daardoor op "meten" staan, zonder rapport en
+zonder melding. Nu plant een opgegeven `measure_ai_overview` of `measure_llm_response` de aggregatie
+net zo goed in; de aggregatie beslist zelf of er genoeg gemeten is (de 70%-drempel).
