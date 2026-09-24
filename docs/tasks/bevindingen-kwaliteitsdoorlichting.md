@@ -52,8 +52,8 @@ doorloop met dezelfde drie bedrijven en dezelfde blinde lezers (meetlat: 4,1 op 
 | B, wat de app van de site leest | 4, 7, 10, 28, 45 | ✅ live, PR #122; crawl van de hovenier op productie nagerekend (68 adressen, was 1) |
 | C, de keuring | 42, 43, 50, 53, 54 | ✅ live, PR #123; 50 wacht op de herhaling (oorzaak al weg via 39) |
 | D, schrijfstijl | 46, 48, 49 | ✅ live, PR #124 |
-| E, planning | 31, 32, 33 | ✅ gebouwd en getest |
-| F, kleine punten | 3, 6, 8, 9, 11 tot 18, 23, 38 | open |
+| E, planning | 31, 32, 33 | ✅ live, PR #125 |
+| F, kleine punten | 3, 6, 8, 9, 11 tot 18, 23, 38 | deel 1 gebouwd (3, 6, 12, 13, 18, 23, 38); 8, 9, 11, 14, 17 volgen; 15 en 16 niet herhaald |
 
 ## Eindverslag: de vijf verbeteringen die het meest opleveren
 
@@ -107,27 +107,27 @@ bronzinnen, het ontbrekende bewijs).
 |---|---|---|---|
 | 1 | hoog | Gespreksscherm slaat de waarde van vóór de klik op | ✅ opgelost, PR #108 |
 | 2 | hoog | Definitieve onderwerpenronde kan alle onderwerpen wissen | ✅ opgelost, PR #108 |
-| 3 | hoog | Het merk zelf komt op de lijst "gelijknamige bedrijven die jij niet bent" | open |
+| 3 | hoog | Het merk zelf komt op de lijst "gelijknamige bedrijven die jij niet bent" | ✅ opgelost, verbeterronde blok F |
 | 4 | hoog | De crawl leest 1 pagina van een site van ~70, zonder waarschuwing | ✅ opgelost, verbeterronde blok B |
 | 5 | hoog | Meetvragen negeren de groeigebieden: de opdracht spreekt zichzelf tegen | ✅ opgelost, verbeterronde blok A |
-| 6 | middel | "Herkend door ChatGPT bij 5 van 6 vragen" telt gokken op de naam als herkenning | open |
+| 6 | middel | "Herkend door ChatGPT bij 5 van 6 vragen" telt gokken op de naam als herkenning | ✅ opgelost, verbeterronde blok F |
 | 7 | middel | Het sterkste bewijs van een bedrijf valt tussen crawl en dossier weg | ✅ opgelost, verbeterronde blok B (vangnet op de feitenkaart; het merkonderzoek zelf niet aangepast) |
 | 8 | middel | Meetvragen: veel dubbel, weinig realistisch, altijd een plaatsnaam | open |
 | 9 | middel | Een adviesregel op de site wordt een dienst en een onderwerp | open |
 | 10 | middel | Crawl neemt fotopagina's, tag- en auteurspagina's mee | ✅ opgelost, verbeterronde blok B |
 | 11 | middel | Blok met gecontroleerd te bevestigen voorstellen klapt dicht als het "compleet" is | open |
-| 12 | laag | Klant ziet "Bevestig en start de meting" maar mag de meting niet starten | open |
-| 13 | laag | Klant ziet "Nieuw merk" en het hele formulier, de server weigert pas na verzenden | open |
+| 12 | laag | Klant ziet "Bevestig en start de meting" maar mag de meting niet starten | ✅ opgelost, verbeterronde blok F |
+| 13 | laag | Klant ziet "Nieuw merk" en het hele formulier, de server weigert pas na verzenden | ✅ al opgelost door de UX-audit van 23 september (P1.3), op productie nagekeken |
 | 14 | laag | Voortgang zegt "klaar" en "nog minder dan een minuut" terwijl er nog stappen wachten | open |
 | 15 | laag | Conceptscherm gaf één keer een foutpagina bij het openen, direct na het afronden | open, niet herhaald |
 | 16 | laag | Een taak van een merk stond op "bezig" en daarna weer in de wachtrij met 0 pogingen | open, niet herhaald |
 | 17 | hoog | Gemini-meting viel volledig uit op een limiet van de leverancier | open, wordt gevolgd |
-| 18 | laag | Beoordeling "genoemd of niet" geeft soms platte tekst in plaats van JSON, en de mislukte uitvoer wordt niet bewaard | open |
+| 18 | laag | Beoordeling "genoemd of niet" geeft soms platte tekst in plaats van JSON, en de mislukte uitvoer wordt niet bewaard | ✅ vastleggen opgelost, verbeterronde blok F; het aandeel is nu te meten |
 | 19 | **hoog** | Een definitief mislukte Gemini- of Google-meting laat de analyse eeuwig op "meten" staan | ✅ opgelost, PR #110 |
 | 20 | **hoog** | Het rapport schrapt elke zin over welke concurrent een vraag wint, ook de juiste | ✅ opgelost, PR #111 en #112 |
 | 21 | middel | Een eigen product ("Hybride warmtepomp") telde in de naamcontrole als concurrent | ✅ opgelost, PR #112 |
 | 22 | **hoog** | Het rapport zegt "niet genoemd, 0 op 100" terwijl Google het merk wel noemde | ✅ opgelost, PR #111 en #112 |
-| 23 | laag | Hetzelfde bedrijf staat twee keer in het namenregister, met en zonder "(VSB)" | open, gevolg opgevangen |
+| 23 | laag | Hetzelfde bedrijf staat twee keer in het namenregister, met en zonder "(VSB)" | ✅ opgelost voor nieuwe namen, verbeterronde blok F; de twee bestaande rijen zijn niet samengevoegd |
 | 24 | laag | De rapportinstructie zegt niet of prioriteit 1 de belangrijkste is; de hovenier kreeg 6 tot 10 met de belangrijkste pagina's op 10 | ✅ opgelost, verbeterronde blok A |
 | 25 | middel | Een klaar cluster (status "gereed") heeft geen link op zijn kaart | ✅ opgelost, PR #113 |
 | 26 | **hoog** | De consultant ziet de clusters van een klantmerk niet en krijgt "Start het eerste cluster" | ✅ opgelost, PR #116 |
@@ -142,7 +142,7 @@ bronzinnen, het ontbrekende bewijs).
 | 35 | **hoog** | Vragen die het gesprek al beantwoordde, blijven openstaan voor de klant | ✅ opgelost, verbeterronde blok A (streng: alleen als het gesprek de hele vraag dekt) |
 | 36 | middel | Elk rapport zet zijn eigen vragen klaar; alleen letterlijk gelijke vragen worden samengevoegd | ✅ grotendeels opgelost, verbeterronde blok A (sterk anders geformuleerde varianten komen nog door) |
 | 37 | laag | Een vraag aan de klant bevat "en" en "of" met een schuine streep ertussen | ✅ opgelost, PR #116 |
-| 38 | middel | Het laatste antwoord van een pagina laat de klant 9 tot 30 seconden wachten | open |
+| 38 | middel | Het laatste antwoord van een pagina laat de klant 9 tot 30 seconden wachten | ✅ opgelost, verbeterronde blok F |
 | 39 | **hoog** | Een beantwoorde vraag maakt de bewering erachter nooit "onderbouwd": de keuring blijft "beantwoord deze vraag" zeggen | ✅ opgelost, PR #115 |
 | 40 | **hoog** | De keuring van een pagina blokkeert op beweringen van andere pagina's van hetzelfde merk | ✅ opgelost, PR #115 |
 | 41 | middel | Antwoorden van de klant op paginavragen worden opgeslagen als feit van de site | ✅ opgelost, PR #115 |
@@ -202,6 +202,13 @@ zelf op. Het veld wordt in `lib/pipeline/llm-baseline.ts:415` automatisch gevuld
 een handelsnaam van" of "dezelfde", niet opnemen. En deze voorstellen niet in het veld zelf zetten,
 maar als voorstel dat de consultant moet bevestigen (zie punt 11). In dit document gecorrigeerd met
 de hand, als consultant.
+
+**Opgelost (24 september 2026, verbeterronde blok F).** `isEigenSchrijfwijze()`
+(`lib/pipeline/baseline-verdict.ts`): een kandidaat waarvan elk woord bij een eigen naam hoort of een
+rechtsvorm is ("Pompert Autorijschool", "Wesley Keeris Beheer B.V", "Hoveniersbedrijf Hans Verstraaten
+B.V"), komt niet meer op de lijst. Met een woord dat niet bij het merk hoort ("Rijschool Peter
+Pompert", "Pompert Bouw") blijft hij staan: dat kan een echte andere partij zijn. De meting filtert
+de lijst ook bij profielen die al gevuld zijn, dus zonder de data aan te passen.
 
 ## 4. De crawl leest 1 pagina van een site van ~70, zonder waarschuwing
 
@@ -276,6 +283,15 @@ staat niet in die lijst.
 **Voorstel.** "lijkt … te zijn", "op basis van de naam", "vermoedelijk" en "ik kan niet bevestigen
 wat voor bedrijf" toevoegen, met tests op de antwoorden van deze doorloop. Voorzichtig: de lijst is
 eerder te ruim geweest (zie het commentaar boven `UNKNOWN_PHRASES`).
+
+**Opgelost (24 september 2026, verbeterronde blok F).** Op de achttien echte antwoorden van de
+kennistest bleek meer mis dan de doorlichting noemde: "Ik heb geen betrouwbare, actuele informatie
+over X" telde als herkenning, omdat de komma "geen betrouwbare informatie" brak. Nu vallen ook die
+vorm, "op basis van de (bedrijfs)naam", "de naam suggereert", "de naam verwijst naar" en "X lijkt een
+lokale rijschool" (een soort bedrijf direct na "lijkt een") onder niet kennen. Op de opgeslagen
+antwoorden gaat de herkenning (hovenier, installateur, rijschool) van 5, 4 en 5 van 6 naar 2, 0 en 2 van 6, nagerekend met de nieuwe regel. Een test uit augustus
+(Fysi-Unique, "lijkt een fysiotherapiepraktijk in Amersfoort te zijn") is bewust omgedraaid: dat is
+dezelfde gok, de soort uit de naam en de plaats uit de vraag.
 
 ## 7. Het sterkste bewijs van een bedrijf valt tussen crawl en dossier weg
 
@@ -353,12 +369,19 @@ verschijnt pas een rode regel dat de consultant de meting start.
 **Voorstel.** Voor een klant een andere tekst en knop, bijvoorbeeld "Akkoord, laat mijn consultant
 starten", of de knop weglaten.
 
+**Opgelost (24 september 2026, verbeterronde blok F).** Wie de meting niet mag starten, ziet op
+het conceptscherm "Je consultant start de meting" en de uitleg in plaats van de knop.
+
 ## 13. Klant ziet "Nieuw merk"
 
 **Wat misgaat.** De klant ziet de knop en het hele formulier; `app/api/profiles/route.ts:67` weigert
 pas na verzenden (403).
 
 **Voorstel.** Knop en pagina alleen voor beheerders tonen.
+
+**Al opgelost** door de UX-audit van 23 september 2026 (P1.3): de klant ziet "Nieuw merk
+aanvragen" en op `/merk/nieuw` de uitleg in plaats van het formulier. Op productie nagekeken als klant
+op 24 september.
 
 ## 14. Voortgang zegt "klaar" terwijl er nog stappen wachten
 
@@ -410,6 +433,11 @@ niet in `ai_calls`.
 **Voorstel.** In `callStructured()` ook een mislukte parse loggen (met de ruwe tekst), zodat het
 aandeel meetbaar wordt; nagaan of het vaker gebeurt op GPT-6 Luna met `none` dan op de vorige Luna.
 
+**Vastleggen opgelost (24 september 2026, verbeterronde blok F).** Een aanroep waarvan het antwoord
+geen geldige JSON is, komt nu in `ai_calls` met `raw_json = { mislukt: true, fout }` en de volledige
+invoer; kosten en tokens zijn dan onbekend. Daarmee is het aandeel te meten. De oorzaak zelf (hardop
+denken bij redeneerinspanning `none`) is niet aangepakt.
+
 ## 19. Een definitief mislukte Gemini- of Google-meting laat de analyse eeuwig op "meten" staan ✅
 
 **Wat misging.** Sinds 20 september 2026 wacht de aggregatie op alle drie de meetbronnen
@@ -459,6 +487,11 @@ concurrenten, en ook "VSB Hybride" (als niet relevant). Het gevolg voor het rapp
 geschrapt) is opgevangen: de naamcontrole negeert nu een toevoeging tussen haakjes. De dubbeling zelf
 staat nog open en telt de vermeldingen van dat bedrijf over twee namen uit. **Waar te zoeken:**
 `isSameEntity()` in `lib/entities/normalize.ts`.
+
+**Opgelost voor nieuwe namen (24 september 2026, verbeterronde blok F).** `normalizeEntityName()`
+haalt een toevoeging tussen haakjes achteraan weg, dus "Verwarming Service Brabant (VSB)" valt samen
+met "Verwarming Service Brabant". De twee rijen die er al staan, zijn niet samengevoegd: dat vraagt
+het omhangen van alle vermeldingen en is een onomkeerbare datawijziging.
 
 ## 22. Het rapport zegt "niet genoemd, 0 op 100" terwijl Google het merk wel noemde ✅
 
@@ -704,6 +737,10 @@ een pagina kost 9 tot 18 seconden, en het allereerste van de hovenier meer dan 3
 beoordeelt voor elke gekoppelde pagina de onderbouwing en start het schrijven, binnen dezelfde klik.
 Een vraag die aan vijf pagina's hangt, doet dat vijf keer. **Richting:** het opslaan meteen
 bevestigen en de beoordeling als taak inplannen.
+
+**Opgelost (24 september 2026, verbeterronde blok F).** De route bevestigt het antwoord meteen en
+doet het beoordelen en klaarzetten van het schrijven daarna (`after()` van Next.js, met ruimte tot
+60 seconden).
 
 ## 39. Een beantwoorde vraag maakt de bewering erachter nooit "onderbouwd"
 

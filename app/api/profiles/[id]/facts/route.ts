@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
@@ -28,6 +28,13 @@ import { probeerNaAntwoord } from "@/lib/plan-write-start";
  * docs/tasks/opdracht-bevindingen-5-tot-9.md).
  */
 const MAX_ANSWER_LENGTH = 500;
+
+/**
+ * Ruimte voor het werk ná het antwoord (`after()` hieronder): het beoordelen
+ * van de onderbouwing en het klaarzetten van het schrijven, per gekoppelde
+ * pagina. Gemeten in de kwaliteitsdoorlichting: 9 tot 30 seconden.
+ */
+export const maxDuration = 60;
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -73,7 +80,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       .single();
     // Overslaan telt als antwoord: misschien was dit de laatste vraag van een
     // pagina, en dan begint het schrijven nu (contentflow-een-lijn.md §3).
-    await probeerNaAntwoord(admin, [factId]);
+    after(() => probeerNaAntwoord(admin, [factId]));
     return NextResponse.json(data ? publicFactRequest(data) : data);
   }
 
@@ -92,7 +99,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   // Was dit de laatste open vraag van een pagina, dan begint het schrijven nu.
   // Geen knop "schrijf nu": het laatste antwoord ís de handeling.
-  await probeerNaAntwoord(admin, [factId]);
+  //
+  // ⚠️ Ná het antwoord aan de klant (punt 38 van de kwaliteitsdoorlichting).
+  // Gemeten over 70 antwoorden: een gewoon antwoord 0,3 tot 1,3 seconden, het
+  // laatste van een pagina 9 tot 30, omdat dit binnen dezelfde klik voor elke
+  // gekoppelde pagina de onderbouwing beoordeelde en het schrijven startte. Het
+  // opslaan is dan al gebeurd; wat hierna komt, hoeft de klant niet af te wachten.
+  after(() => probeerNaAntwoord(admin, [factId]));
 
   const { fact, needsEvidence, evidenceHint } = resultaat.outcome;
   const veilig = publicFactRequest(fact as unknown as Record<string, unknown>);

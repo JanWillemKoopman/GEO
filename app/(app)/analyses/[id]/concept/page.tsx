@@ -7,6 +7,9 @@ import { TopicResearchEditor } from "../_editors/topic-research-editor";
 import { ContentBriefEditor } from "../_editors/content-brief-editor";
 import { PromptsManager } from "../_editors/prompts-manager";
 import { ConfirmBar } from "../_editors/confirm-bar";
+import { requireUser } from "@/lib/auth";
+import { mayTriggerCost } from "@/lib/cost-guard";
+import { COST_DENIED } from "@/lib/cost-rules";
 import { PrepareProgress } from "../prepare-progress";
 import { determineStage } from "@/lib/pipeline/stage";
 
@@ -47,6 +50,11 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const analysis = await getAnalysis(id);
   if (!analysis) notFound();
+  // Punt 12 van de kwaliteitsdoorlichting: de klant las "Bevestigen is genoeg"
+  // en kreeg de knop, en pas na de klik een rode regel dat de consultant de
+  // meting start. Nu zegt het scherm dat vooraf.
+  const user = await requireUser();
+  const magStarten = await mayTriggerCost(user.id, "meting_starten");
 
   // Het concept wordt nog opgesteld (of dat liep vast): dan is dít scherm de
   // wachtkamer, want dit is waar je op wacht.
@@ -100,7 +108,9 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
           AI-assistenten.
         </p>
         <p className="text-sm text-muted">
-          Klopt het? Dan hoef je niets te veranderen. Bevestigen is genoeg.
+          {magStarten
+            ? "Klopt het? Dan hoef je niets te veranderen. Bevestigen is genoeg."
+            : "Klopt het? Dan hoef je niets te veranderen. Je consultant start de meting."}
         </p>
       </div>
 
@@ -159,7 +169,11 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
           hangen op een voortgangsscherm dat nooit verder komt. Dus zeggen we
           hier wat er moet gebeuren in plaats van een knop aan te bieden die
           doodloopt. */}
-      {activeCount > 0 ? (
+      {activeCount > 0 && !magStarten ? (
+        <div className="card flex flex-col gap-2">
+          <p className="text-secondary">{COST_DENIED.meting_starten}</p>
+        </div>
+      ) : activeCount > 0 ? (
         <ConfirmBar analysisId={id} profileId={analysis.profile_id} activeCount={activeCount} />
       ) : (
         <div className="card card-danger">

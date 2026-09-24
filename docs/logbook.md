@@ -12246,3 +12246,15 @@ adres. Bij de installateur stonden er vier van `/warmtepomp` in één week. (32)
 haalt eerst de pagina's uit de niet vrijgegeven maanden terug naar de voorraad; zonder dat faalde
 het bij elke klant wiens kansen allemaal in het eerste plan stonden. (33) De vrijgeefdialoog noemt
 geen streefdatum in het verleden meer, maar zegt "zo snel mogelijk" en dat de datum meeschuift.
+
+## 24 september 2026: verbeterronde blok F deel 1, kleine punten met grote gevolgen
+
+(3) Schrijfwijzen van het merk zelf staan niet meer op de lijst "gelijknamige bedrijven die jij niet
+bent", ook niet bij al gevulde profielen: de meting filtert ze eruit. (6) De kennistest telt een gok op
+de naam en "geen betrouwbare, actuele informatie" niet meer als herkenning; op de opgeslagen
+antwoorden gaat dat (hovenier, installateur, rijschool) van 5, 4 en 5 van 6 naar 2, 0 en 2. Een test uit augustus (Fysi-Unique) is
+daarvoor bewust omgedraaid. (12) De klant ziet op het conceptscherm dat de consultant de meting
+start, in plaats van een knop die pas na de klik weigert. (18) Een aanroep met ongeldige JSON komt in
+`ai_calls`. (23) "Naam (AFKORTING)" valt samen met "Naam" in het namenregister. (38) Het laatste
+antwoord op een pagina wordt meteen bevestigd; het klaarzetten van het schrijven gebeurt daarna.
+(13) bleek al opgelost door de UX-audit van 23 september.

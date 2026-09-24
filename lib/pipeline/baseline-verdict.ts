@@ -181,7 +181,38 @@ const UNKNOWN_PHRASES = [
   "welk bedrijf bedoel je",
   "meerdere bedrijven met de naam",
   "meerdere organisaties met de naam",
+  // ⚠️ Punt 6 van de kwaliteitsdoorlichting (24 september 2026): gokken op de
+  // naam. Bij alle drie de merken meldde het dossier een hoge herkenning (5, 4
+  // en 5 van 6), terwijl antwoorden zeiden "lijkt de naam van een
+  // hoveniersbedrijf in Eindhoven te zijn". Dat is geen kennen maar afleiden
+  // uit de vraag. Ook hier alleen zinnen over WIE, niet over details.
+  "op basis van de naam",
+  "op basis van de bedrijfsnaam",
+  "afgaande op de naam",
+  "de naam verwijst naar",
+  "de naam doet vermoeden",
+  "de naam suggereert",
+  "lijkt de naam van",
+  "kan niet bevestigen wat voor bedrijf",
+  "kan niet bevestigen welk bedrijf",
+  "kan niet bevestigen of het bedrijf",
 ];
+
+/**
+ * "X lijkt een lokale rijschool in Eindhoven": een gok op identiteit. Als
+ * patroon en niet als woordgroep, want "lijkt een" slaat ook op details ("lijkt
+ * een betrouwbare keuze"); alleen met een soort bedrijf erna gaat het over wie
+ * het is.
+ */
+const GOK_OP_IDENTITEIT =
+  /lijkt (?:een|het) (?:[\p{L}-]+ ){0,2}[\p{L}-]*(?:bedrijf|praktijk|winkel|zaak|rijschool|hovenier|installateur|kantoor|organisatie)/iu;
+
+/**
+ * "Ik heb geen betrouwbare, actuele informatie over X": door de komma ving
+ * "geen betrouwbare informatie" dit niet, en op de echte antwoorden van de drie
+ * merken telde het zo vijf keer als herkenning (punt 6).
+ */
+const GEEN_INFORMATIE = /geen (?:betrouwbare|actuele)[ ,]+(?:(?:en |of )?(?:betrouwbare|actuele)[ ,]+)?(?:informatie|gegevens)/i;
 
 /**
  * Zo kort dat er onmogelijk iets in kan staan. Dezelfde drempel als
@@ -192,7 +223,11 @@ const MIN_SUBSTANTIVE_CHARS = 40;
 
 export function admitsUnknown(answer: string): boolean {
   const n = normalize(answer);
-  return UNKNOWN_PHRASES.some((p) => n.includes(normalize(p)));
+  return (
+    UNKNOWN_PHRASES.some((p) => n.includes(normalize(p))) ||
+    GOK_OP_IDENTITEIT.test(answer) ||
+    GEEN_INFORMATIE.test(answer)
+  );
 }
 
 /**
@@ -574,6 +609,47 @@ export function baselineFacetState(input: {
 /** Hoeveel voorstellen we hooguit teruggeven. Meer is geen lijst maar ruis. */
 const MAX_CONFUSIONS = 8;
 
+/**
+ * Is deze "gelijknamige partij" in werkelijkheid een schrijfwijze van het merk
+ * zelf? (punt 3 van de kwaliteitsdoorlichting, 24 september 2026)
+ *
+ * Bij alle drie de merken zette het onderzoek eigen namen op de lijst van
+ * bedrijven die het merk NIET zijn: "Pompert Autorijschool", "Wesley Keeris
+ * Installatiebedrijf B.V", "Hoveniersbedrijf Hans Verstraaten B.V". De meting
+ * geeft die lijst mee als "andere bedrijven", dus vermeldingen van het merk zelf
+ * telden niet mee en de score viel te laag uit.
+ *
+ * Een kandidaat is een eigen schrijfwijze als ELK woord erin ook in een eigen
+ * naam staat (of er een vorm van is: "hoveniersbedrijf" bij "hoveniers"), of een
+ * rechtsvorm is, en er minstens één eigen naamwoord in zit. Staat er een woord
+ * in dat niet bij het merk hoort ("Rijschool Peter Pompert", "Pompert Bouw"),
+ * dan blijft hij op de lijst: dat kan een echte andere partij zijn, en dat
+ * beslist de consultant.
+ */
+const RECHTSVORM = new Set(["bv", "b", "v", "vof", "holding", "beheer", "groep", "group", "nl", "com", "www", "en"]);
+
+function naamWoorden(naam: string): string[] {
+  return naam
+    .toLowerCase()
+    .replace(/https?:\/\//g, " ")
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((w) => w.length >= 1);
+}
+
+export function isEigenSchrijfwijze(kandidaat: string, ownNames: readonly string[]): boolean {
+  const eigen = [...new Set(ownNames.flatMap(naamWoorden).filter((w) => !RECHTSVORM.has(w)))];
+  if (eigen.length === 0) return false;
+  const woorden = naamWoorden(kandidaat);
+  if (woorden.length === 0) return false;
+  const lijktEigen = (w: string) =>
+    eigen.some(
+      (e) => e === w || (e.length >= 5 && w.length >= 5 && (e.includes(w) || w.includes(e) || e.slice(0, 6) === w.slice(0, 6))),
+    );
+  const allesEigen = woorden.every((w) => RECHTSVORM.has(w) || lijktEigen(w));
+  const heeftNaam = woorden.some((w) => w.length >= 4 && eigen.includes(w));
+  return allesEigen && heeftNaam;
+}
+
 export function extractConfusions(
   answer: string,
   /** De eigen namen en aliassen. Die horen per definitie niet in de lijst. */
@@ -600,6 +676,9 @@ export function extractConfusions(
 
     const sleutel = kandidaat.toLowerCase();
     if (eigen.has(sleutel) || gezien.has(sleutel)) continue;
+    // Punt 3: een schrijfwijze of handelsnaam van het merk zelf is geen
+    // gelijknamige andere partij.
+    if (isEigenSchrijfwijze(kandidaat, ownNames)) continue;
     gezien.add(sleutel);
     uit.push(kandidaat);
     if (uit.length >= MAX_CONFUSIONS) break;
