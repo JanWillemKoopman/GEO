@@ -696,3 +696,25 @@ export function buildFactFindingAddendum(gaps: ContextGap[]): string {
     "komen, precies zoals de rest van deze pagina."
   );
 }
+
+/**
+ * Zet de opmerking die de klant bij "Schrijf een nieuwe versie" gaf als
+ * citeerbaar klantfeit op de kaart (kwaliteitsdoorlichting, punt 52, 24
+ * september 2026). Vooraan, zoals alle klantfeiten, en daarna opnieuw
+ * genummerd zodat de F-nummers aaneengesloten blijven.
+ *
+ * Leeg of alleen witruimte: de kaart blijft ongewijzigd.
+ */
+export function metKlantopmerking(facts: FactItem[], opmerking: string | null): FactItem[] {
+  const tekst = (opmerking ?? "").trim();
+  if (!tekst) return facts;
+  const feit: Omit<FactItem, "ref"> = {
+    id: null,
+    text: `Opmerking van de klant bij deze versie: ${tekst}`,
+    source: "klant, opmerking bij een nieuwe versie",
+    allowed: true,
+    citable: true,
+    claimKey: null,
+  };
+  return numberFacts([feit, ...facts.map(({ ref: _ref, ...rest }) => rest)]);
+}

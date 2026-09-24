@@ -98,6 +98,7 @@ import {
   sourceCoverage,
   factFromAnswer,
   mergeAnsweredFacts,
+  metKlantopmerking,
   normalizeForQuote,
   buildFactFindingAddendum,
   type AnsweredFactInput,
@@ -526,6 +527,18 @@ function buildContentInput(args: {
     // het best gevolgd, en de feitenkaart blijft er compleet onder staan: minder
     // informatie was uitdrukkelijk niet het advies.
     opdrachtblok(opdracht),
+    // ⚠️ Wat de klant bij "Schrijf een nieuwe versie" vroeg (punt 52 van de
+    // kwaliteitsdoorlichting, 24 september 2026). Stond tot dan alleen in de
+    // REPARATIEopdracht (`buildRepairInput`), niet in deze schrijfopdracht:
+    // de nieuwe versie werd geschreven zonder dat de schrijver wist wat de klant
+    // vroeg. Bij de hovenier gaf de klant garantie, de prijs van het 3D-ontwerp,
+    // materialen en betaalregeling op; in de nieuwe versie kwam er één van de
+    // zes terecht. De feiten uit de opmerking staan ook op de feitenkaart
+    // (`metKlantopmerking()`), zodat de schrijver ze mag gebruiken.
+    rec.revisionNote?.trim()
+      ? `\nWAT DE KLANT ZELF VRAAGT VOOR DEZE VERSIE (dit weegt het ZWAARST: dit is zijn website). ` +
+        `Noemt hij feiten, bedragen of termijnen, gebruik ze; ze staan ook op de feitenkaart:\n"""\n${rec.revisionNote.trim()}\n"""`
+      : "",
     `Bedrijf: ${brandName}`,
     `Website: ${analysis.url}`,
     // S10: gelabeld als CLUSTER en niet als "onderwerp/scope" van deze pagina.
@@ -1425,7 +1438,11 @@ async function loadContentContext(
     antwoord.id = idPerTekst.get(normalizeForQuote(antwoord.fact.text)) ?? null;
   }
 
-  const facts = mergeAnsweredFacts(basis, answeredFacts);
+  const samengevoegd = mergeAnsweredFacts(basis, answeredFacts);
+  // De opmerking van de klant bij een nieuwe versie is zijn eigen woord, en dus
+  // een bruikbaar klantfeit (punt 52). Zonder deze regel stond een bedrag uit
+  // die opmerking niet op de kaart en mocht de schrijver het niet gebruiken.
+  const facts = metKlantopmerking(samengevoegd, recommendation.revisionNote ?? null);
 
   const proofCount = facts.filter((f) => f.allowed).length;
 

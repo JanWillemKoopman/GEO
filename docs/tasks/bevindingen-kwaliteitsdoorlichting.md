@@ -74,10 +74,12 @@
 | 45 | **hoog** | Een "verbetering" vervangt de functie van de bestaande pagina (homepage wordt Helmond, prijzenpagina wordt losse les bij faalangst) | open |
 | 46 | **hoog** | De tekst draait een belofte van de site om: "binnen 4 uur een scherpe offerte" wordt "geen termijn voor de offerte" | open |
 | 47 | **hoog** | Het sterkste bewijs van de klant staat in geen enkele tekst, hoewel het op de feitenkaart staat | open |
-| 48 | **hoog** | De teksten lezen als een formulier: bedrijfsnaam voor elke alinea, dezelfde feiten drie tot vier keer, voorbehouden, zinnen uit de bronnen | open |
+| 48 | **hoog** | De teksten lezen als een formulier: bedrijfsnaam voor elke alinea, dezelfde feiten drie tot vier keer, voorbehouden, zinnen uit de bronnen | deels opgelost (bronzinnen), rest is een afweging, PR volgt |
 | 49 | middel | Waar de klant een vraag oversloeg, wijkt de tekst uit naar "bespreek dat vooraf" in plaats van het onderwerp los te laten | open |
 | 50 | **hoog** | De reparatieknop van de klant haalde een juist klantfeit uit de tekst | oorzaak opgelost (punt 39), PR #115 |
 | 51 | middel | Na een nieuwe versie staat een pagina twee keer in de bibliotheek | ✅ opgelost, PR #117 en de volgende |
+| 52 | **hoog** | De opmerking van de klant bij "Schrijf een nieuwe versie" bereikte de schrijver niet | ✅ opgelost, PR volgt |
+| 53 | middel | Een nieuwe versie verliest het beweringenplan, en wordt daarna niet meer op onderbouwing getoetst | open |
 
 ---
 
@@ -675,7 +677,21 @@ Drie blinde lezers, onafhankelijk, over 16 teksten (gemiddeld cijfer 4,1 op 10, 
   hoort beide toestellen te benoemen".
 
 De keuring van de app vond wel herhaling in het vraag-en-antwoordblok, maar niet de herhaling in de
-tekst, de naam voor elke alinea of de gelekte bronzinnen. **Richting:** een deterministische controle
+tekst, de naam voor elke alinea of de gelekte bronzinnen.
+
+**Deels opgelost (24 september 2026).** De gelekte bronzinnen: `checkSourceTalk()`
+(`lib/pipeline/content-gate.ts`) had een lijst met zulke formuleringen, maar juist deze vormen
+ontbraken. Familie 6 voegt de letterlijke gevonden zinnen toe ("geen vaste duur genoemd", "wordt ook
+genoemd", "het genoemde", "zeggen we hiermee niet toe", "geen algemene toezegging" en drie meer), met
+een test op de echte zinnen en een test dat een gewone zin er niet onder valt.
+
+**Een afweging voor de eigenaar, niet gerepareerd:** de naam voor elke alinea is geen fout van de
+schrijver maar een bewuste regel. `checkMerkstem()` (`lib/pipeline/paginavorm.ts`) zegt: "houd de
+merknaam in het openingsantwoord en de eerste zin van elke sectie", omdat een AI-assistent die "wij"
+leest niet weet welk bedrijf hij moet citeren. De drie blinde lezers noemden precies die herhaling als
+eerste reden dat de tekst als een formulier leest. Keuze: de naam in het openingsantwoord en in de
+zinnen die een feit geven (die citeert een assistent), en elders "wij". Dat vraagt een aanpassing van
+de schrijfregel en van `checkMerkstem()`, en een meting of de citeerbaarheid daaronder lijdt. **Richting:** een deterministische controle
 op (1) het aantal alinea's dat met de merknaam begint, (2) dezelfde bewering vaker dan twee keer, (3)
 woorden als "genoemd", "volgens de bron", "zeggen we niet toe".
 
@@ -722,6 +738,30 @@ die controle staat er als bewaking.
 `mergeAnsweredFacts()`, die de sleutel van de bewering niet meenam. De reparatie van PR #115 werkte
 daardoor alleen in `buildFactBase()` en niet in de schrijfronde en de keuring daarna. Nu gaat de
 sleutel ook daar mee (`AnsweredFactInput.claimKey`).
+
+## 52. De opmerking van de klant bereikte de schrijver niet
+
+**Gezien.** Proef met een ideale klant op de pagina voor Nuenen: via "Laat ORBIT ENGINE iets aanpassen"
+gaf hij zes feiten op die hij paraat heeft (garantie 1 en 5 jaar, eerste gesprek gratis, 3D-ontwerp
+450 euro verrekend bij opdracht, klinkers en keramische tegels, vaste ploeg van vijf man, betaling 30,
+60 en 10 procent). In de nieuwe versie kwam er één terecht (de ploeg). In de invoer van de
+schrijfaanroep (`content_draft`) kwam "450" nul keer voor; alleen de reparatieronde daarna kreeg de
+opmerking. **Oorzaak:** `revisionNote` ging alleen naar `buildRepairInput()`, niet naar
+`buildContentInput()`, en de feiten erin stonden niet op de feitenkaart, dus de reparatieronde mocht ze
+ook niet gebruiken. **Opgelost:** de schrijfopdracht krijgt de opmerking bovenaan, en
+`metKlantopmerking()` (`lib/pipeline/factcard.ts`) zet hem als citeerbaar klantfeit op de kaart.
+Ketentest op de echte schrijfopdracht.
+
+## 53. Een nieuwe versie verliest het beweringenplan
+
+De eerste versies van de hovenier hadden een claimdekking (27,6) en bewijsblokkades; elke nieuwe
+versie (via de reparatieknop of "Schrijf een nieuwe versie") had `claimdekking` leeg en nul
+bewijsblokkades. `briefing_snapshot_json` van de nieuwe versie bevat alleen `facts`, `writtenAt` en
+`recommendation`, geen `plan`: de voorbereiding die bij een nieuwe versie opnieuw draait
+(`content_plan`), schrijft een snapshot zonder het plan uit de claim-audit. Gevolg: de nieuwe versie
+wordt niet meer getoetst op wat hij over het bedrijf beweert. Dat oogt als verbetering (minder
+blokkades), maar is een gat in de keuring. **Richting:** het plan van de vorige versie meenemen naar de
+snapshot van de nieuwe.
 
 ---
 
