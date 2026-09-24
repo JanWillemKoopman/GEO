@@ -63,6 +63,12 @@
 | 36 | middel | Elk rapport zet zijn eigen vragen klaar; alleen letterlijk gelijke vragen worden samengevoegd | open |
 | 37 | laag | Een vraag aan de klant bevat "en" en "of" met een schuine streep ertussen | open |
 | 38 | middel | Het laatste antwoord van een pagina laat de klant 9 tot 30 seconden wachten | open |
+| 39 | **hoog** | Een beantwoorde vraag maakt de bewering erachter nooit "onderbouwd": de keuring blijft "beantwoord deze vraag" zeggen | open |
+| 40 | **hoog** | De keuring van een pagina blokkeert op beweringen van andere pagina's van hetzelfde merk | open |
+| 41 | middel | Antwoorden van de klant op paginavragen worden opgeslagen als feit van de site | open |
+| 42 | **hoog** | De klant krijgt "Tekst is klaar, keur hem goed" bij een tekst die de eigen keuring tegenhoudt | open |
+| 43 | middel | De keuring noemt het bedrag van de klant "in strijd met de instructie", omdat de opzet van vóór zijn antwoord is | open |
+| 44 | laag | Een tegengehouden pagina staat voor de klant als "Alle gegevens bekend, wordt nu geschreven" | open |
 | 22 | **hoog** | Het rapport zegt "niet genoemd, 0 op 100" terwijl Google het merk wel noemde | ✅ opgelost, PR #111 en #112 |
 
 ---
@@ -512,6 +518,66 @@ een pagina kost 9 tot 18 seconden, en het allereerste van de hovenier meer dan 3
 beoordeelt voor elke gekoppelde pagina de onderbouwing en start het schrijven, binnen dezelfde klik.
 Een vraag die aan vijf pagina's hangt, doet dat vijf keer. **Richting:** het opslaan meteen
 bevestigen en de beoordeling als taak inplannen.
+
+## 39. Een beantwoorde vraag maakt de bewering erachter nooit "onderbouwd"
+
+**Gezien bij de hovenier, pagina Best.** De klant beantwoordde de prijsband ("meestal tussen 12.000 en
+35.000 euro"), de duur ("2 tot 3 weken uitvoering") en bestraten in de winter ("Ja"). De schrijver
+gebruikte prijs en duur. Toch staan ze in de keuring als "Deze pagina leunt op een bewering die we
+niet kunnen onderbouwen", met als oplossing "Beantwoord deze vraag: Hebben jullie een prijsvoorbeeld
+of prijsband...". Dezelfde vraag die de klant net beantwoordde.
+
+**Oorzaak.** `claimIsOnderbouwd()` (`lib/pipeline/evidence-weight.ts`) herkent een bewering alleen via
+het bronnummer (`sourceRef`) of het citaat (`supportQuote`) dat de claim-audit tijdens de voorbereiding
+meegaf. Een bewering zonder bron op dat moment heeft geen van beide; juist die wordt een vraag aan de
+klant. Het antwoord komt als feit binnen (`brand_facts.origin_fact_request_id` wijst naar de vraag),
+maar niets legt de lijn terug naar de bewering. `buildPlanBlock()` (`lib/pipeline/content.ts`) zegt de
+schrijver daardoor ook "GEEN BRON: laat deze passage weg" over precies wat de klant aanleverde.
+**Richting:** de vraag draagt al een `claim_key`; een feit uit een beantwoorde vraag dekt de bewering
+met dezelfde sleutel.
+
+## 40. De keuring blokkeert op beweringen van andere pagina's
+
+In de keuring van de pagina voor Best staan blokkades als "nodig voor: De pagina moet laten zien dat
+één hovenier ontwerp, bestrating en aanleg kan combineren voor een tuin in Nuenen" en "De bezoeker
+vraagt om een ongeveer-bedrag voor ontwerp en aanleg" (bestrating in Eindhoven). **Oorzaak:**
+`paginaVanClaim()` in `lib/pipeline/briefing.ts` koppelt een bewering die op geen enkele doelvraag
+matcht bewust aan alle pagina's van de batch ("kost hooguit een dubbele vraag"). Dat is goed voor het
+stellen van vragen, maar het paginaplan dat dezelfde koppeling gebruikt, gaat naar de schrijver en de
+keuring, en daar wordt een bewering van een andere pagina een blokkade. Dezelfde bewering stond vier
+keer in één keuring.
+
+## 41. Antwoorden van de klant opgeslagen als feit van de site
+
+In `brand_facts` staan de antwoorden op de paginavragen van de hovenier met `kind = site` en `source =
+"site hansverstraatenhoveniers.nl"`, als aan elkaar geplakte vraag en antwoord ("Leggen jullie
+bestrating ook in de winter aan? Ja, in de winter doen we vooral bestrating en ontwerp"). De
+antwoorden op de merk- en rapportvragen staan wel goed als `kind = klant`, "klant, bevestigd
+24-9-2026". Verkeerde herkomst maakt de audit-trail onbetrouwbaar en laat een schrijver een klantfeit
+als sitefeit citeren.
+
+## 42. "Tekst is klaar, keur hem goed" bij een tegengehouden tekst
+
+Vier teksten van de hovenier stonden op `ready` met `quality_verdict = block` (100 procent zeker). De
+klant ziet in de bibliotheek "Tekst is klaar: lees hem en keur hem goed" met "Kwaliteit 65 tot 73 op
+100", en op de pagina "Er staan nog 15 punten open" met de knoppen "Los de 15 punten op" en "Keur toch
+goed". Twaalf van die vijftien kan hij niet oplossen (punt 39 en 40). Gevolg: óf hij keurt toch goed en
+leert dat de punten niets betekenen, óf hij blijft hangen.
+
+## 43. Het bedrag van de klant "in strijd met de instructie"
+
+De opzet van de pagina (`contract_json`) is gemaakt vóór de klant zijn prijsband gaf en zegt daarom
+"geen prijsbedragen noemen". De schrijver kreeg daarna wel de prijsband en gebruikte hem. De keuring
+toetst tegen de oude opzet: "De genoemde prijsband is in strijd met de instructie om geen
+prijsbedragen op te nemen", en hetzelfde voor de doorlooptijd. De opzet hoort na de antwoorden bij te
+werken, of de keuring hoort de feitenkaart boven de opzet te laten gaan.
+
+## 44. Tegengehouden pagina: "Alle gegevens bekend, wordt nu geschreven"
+
+"Leg op de bestaande pagina uit welke plaatsen en projecten het bedrijf bedient" werd niet geschreven
+omdat de dekking 33 procent was (`te_weinig_onderbouwd`). De bibliotheek toont de klant "Alle
+gegevens bekend, wordt nu geschreven". De melding uit `schrijfpoort()` ("er is te weinig over je
+bedrijf bekend... kies of we hem algemeen schrijven") bereikt dat scherm niet.
 
 ---
 
