@@ -43,6 +43,7 @@
 | 15 | laag | Conceptscherm gaf één keer een foutpagina bij het openen, direct na het afronden | open, niet herhaald |
 | 16 | laag | Een taak van een merk stond op "bezig" en daarna weer in de wachtrij met 0 pogingen | open, niet herhaald |
 | 17 | hoog | Gemini-meting viel volledig uit op een limiet van de leverancier | open, wordt gevolgd |
+| 19 | **hoog** | Een definitief mislukte Gemini- of Google-meting laat de analyse eeuwig op "meten" staan | ✅ opgelost, PR volgt |
 | 18 | laag | Beoordeling "genoemd of niet" geeft soms platte tekst in plaats van JSON, en de mislukte uitvoer wordt niet bewaard | open |
 
 ---
@@ -260,6 +261,17 @@ niet in `ai_calls`.
 
 **Voorstel.** In `callStructured()` ook een mislukte parse loggen (met de ruwe tekst), zodat het
 aandeel meetbaar wordt; nagaan of het vaker gebeurt op GPT-6 Luna met `none` dan op de vorige Luna.
+
+## 19. Een definitief mislukte Gemini- of Google-meting laat de analyse eeuwig op "meten" staan ✅
+
+**Wat misging.** Sinds 20 september 2026 wacht de aggregatie op alle drie de meetbronnen
+(`scheduleAggregateIfLastPrompt()` in `lib/jobs/handlers.ts`). Maar `scheduleFollowUpAfterFailure()`
+plande de aggregatie na een definitief opgegeven taak alleen in voor `measure_prompt`. Op 24
+september gaven alle 90 Gemini-taken van A, B en C op (punt 17), en alle drie de analyses bleven op
+"meten" staan: geen rapport, geen pagina's, geen melding.
+
+**Status.** Opgelost: de tak kent nu alle drie de meetsoorten, met een unittest en een
+ketentestscenario. De drie vastgelopen analyses zijn na de reparatie met de hand aangezet.
 
 ---
 

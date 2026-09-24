@@ -1813,7 +1813,23 @@ export async function scheduleFollowUpAfterFailure(
     return;
   }
 
-  if ((job.type as JobType) !== "measure_prompt" || !job.analysis_id) return;
+  // ⚠️ Alle drie de meetsoorten, niet alleen `measure_prompt`. Sinds 20 september
+  // 2026 wacht de aggregatie op álle bronnen (`scheduleAggregateIfLastPrompt`),
+  // maar deze tak kende alleen de ChatGPT-meting. Gevolg, gemeten op 24 september
+  // 2026 in de kwaliteitsdoorlichting: alle 90 Gemini-taken van drie clusters
+  // gaven op wegens een limiet van DataForSEO, en de drie analyses bleven op
+  // 'meten' staan zonder dat er ooit een rapport kwam.
+  if (
+    !job.analysis_id ||
+    !["measure_prompt", "measure_ai_overview", "measure_llm_response"].includes(job.type)
+  ) {
+    return;
+  }
+  if ((job.type as JobType) !== "measure_prompt") {
+    const meting = (job.payload_json ?? {}) as JobPayloads["measure_llm_response"];
+    await scheduleAggregateIfLastPrompt(admin, job.analysis_id, meting.weekNo, job.id);
+    return;
+  }
 
   const payload = (job.payload_json ?? {}) as JobPayloads["measure_prompt"];
   if (payload.impact) {

@@ -1443,6 +1443,35 @@ async function main(): Promise<void> {
       `status is ${naFout[0].status}`,
     );
 
+    // ── Een definitief mislukte Gemini-meting laat de analyse niet hangen ──
+    // Gevonden op 24 september 2026 in de kwaliteitsdoorlichting: alle 90
+    // Gemini-taken van drie clusters gaven op (limiet bij DataForSEO) en de
+    // analyses bleven op 'meten' staan, omdat alleen een opgegeven
+    // `measure_prompt` de aggregatie inplande.
+    {
+      const week = 97;
+      const { rows: geminiTaak } = await db.client.query(
+        `insert into public.jobs (analysis_id, type, payload_json, dedupe_key, status, attempts)
+         values ($1, 'measure_llm_response', $2, $3, 'running', 4) returning *`,
+        [
+          analysisId,
+          JSON.stringify({ promptId: "00000000-0000-0000-0000-000000000097", weekNo: week }),
+          `chain-gemini-fout:${analysisId}`,
+        ],
+      );
+      await handleFailure(admin as never, geminiTaak[0], "rate_limit_exceeded");
+      const { rows: aggregatie } = await db.client.query(
+        `select id from public.jobs
+          where analysis_id = $1 and type = 'aggregate_week' and payload_json->>'weekNo' = $2`,
+        [analysisId, String(week)],
+      );
+      ok(
+        "een opgegeven Gemini-meting plant de aggregatie alsnog in",
+        aggregatie.length === 1,
+        `aantal aggregatietaken: ${aggregatie.length}`,
+      );
+    }
+
     // ── Eén live-handeling (contentflow-een-lijn.md fase A) ─────────────────
     //
     // Tot 23 september 2026 zette "Markeer als geplaatst" in het plan alleen

@@ -12025,3 +12025,12 @@ integer: de hele insert mislukte. De concepten waren al weg, de taak stond op "k
 nul onderwerpen. Nu komt de volgorde uit de positie in de lijst (`lib/topic-volgorde.ts`, conventie
 1: het model zet ze al op volgorde, zijn getal is niet te vertrouwen), gaan de concepten bij een
 mislukte opslag terug, en mislukt de taak zichtbaar in plaats van stil.
+
+## 24 september 2026: een opgegeven Gemini-meting liet de analyse eeuwig op "meten" staan
+
+Gevonden in de kwaliteitsdoorlichting. Alle 90 Gemini-taken (via DataForSEO) van drie clusters gaven
+na vier pogingen op wegens "rate_limit_exceeded". Sinds 20 september wacht de aggregatie op alle drie
+de meetbronnen, maar `scheduleFollowUpAfterFailure()` plande de aggregatie na een opgegeven taak
+alleen in voor `measure_prompt`. De drie analyses bleven daardoor op "meten" staan, zonder rapport en
+zonder melding. Nu plant een opgegeven `measure_ai_overview` of `measure_llm_response` de aggregatie
+net zo goed in; de aggregatie beslist zelf of er genoeg gemeten is (de 70%-drempel).
