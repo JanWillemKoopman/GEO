@@ -193,8 +193,14 @@ DataForSEO.
 | Gemini via DataForSEO | 30: **30 mislukt** ("rate_limit_exceeded") | $0,000 |
 | **Samen** | | **~$0,97** |
 
-**Bevinding:** de Gemini-meting viel voor A helemaal uit op een limiet van de leverancier (**B17**).
-De takenlaag probeert opnieuw; nog na te gaan of dat lukt en of het rapport zegt dat Gemini ontbrak.
+**Bevindingen:**
+- De Gemini-meting viel bij alle drie de clusters bij de eerste poging volledig uit op een limiet van
+  de leverancier: 90 van 90 (**B17**). De takenlaag probeert opnieuw; nog na te gaan of dat lukt en
+  of het rapport zegt dat Gemini ontbrak.
+- Google AI-overzichten: 12 keer "Internal SE Server Error" bij de eerste poging.
+- De vermeldingsbeoordeling gaf een paar keer hardop denken ("We need ou…") in plaats van JSON
+  (**B18**); de herhaling vangt het op, maar de mislukte uitvoer wordt niet bewaard.
+- Voortgang om 05:39: A 115, B 118, C 115 van 166 taken; de rest wacht op Gemini.
 
 ---
 

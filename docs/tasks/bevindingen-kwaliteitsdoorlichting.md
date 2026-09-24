@@ -43,6 +43,7 @@
 | 15 | laag | Conceptscherm gaf één keer een foutpagina bij het openen, direct na het afronden | open, niet herhaald |
 | 16 | laag | Een taak van een merk stond op "bezig" en daarna weer in de wachtrij met 0 pogingen | open, niet herhaald |
 | 17 | hoog | Gemini-meting viel volledig uit op een limiet van de leverancier | open, wordt gevolgd |
+| 18 | laag | Beoordeling "genoemd of niet" geeft soms platte tekst in plaats van JSON, en de mislukte uitvoer wordt niet bewaard | open |
 
 ---
 
@@ -232,15 +233,33 @@ pogingen, en liep later gewoon door. Niet herhaald. Alleen oppakken als het teru
 
 ## 17. Gemini-meting viel volledig uit op een limiet van de leverancier
 
-**Wat misgaat.** Bij de meting van A gaven alle 30 Gemini-aanroepen via DataForSEO "3rd Party API
-Service Unavailable (rate_limit_exceeded)" (`ai_calls.raw_json`, kind `measure_llm_response`). De
-drie clusters werden tegelijk gemeten, 90 Gemini-verzoeken kort na elkaar.
+**Wat misgaat.** Alle 90 Gemini-aanroepen via DataForSEO (30 per cluster, A, B en C) gaven bij de
+eerste poging "3rd Party API Service Unavailable (rate_limit_exceeded)" (`jobs.last_error`, type
+`measure_llm_response`; `ai_calls.raw_json` bij A: 30 van 30 "mislukt"). De drie clusters werden
+kort na elkaar gemeten. De Google AI-overzichten liepen via dezelfde leverancier wel, met 12
+"Internal SE Server Error" die bij de tweede poging meestal lukten.
 
 **Gevolg.** Een van de meetbronnen ontbreekt. Nog na te gaan: lukt de herhaling, en zegt het rapport
 dat Gemini ontbrak, of rekent het stil zonder?
 
 **Voorstel.** Gemini-verzoeken spreiden (een maximum per minuut in de takenlaag) en in het rapport
 zichtbaar maken welke bronnen meetelden.
+
+## 18. Beoordeling "genoemd of niet" geeft soms platte tekst in plaats van JSON
+
+**Wat misgaat.** Een handvol taken (`measure_prompt` en `measure_ai_overview`, samen minstens 5 van
+ruim 400 beoordelingen) faalde met "Unexpected token 'W', "We need ou"… is not valid JSON" of
+"We need id…". De beoordeling draait op GPT-6 Luna met redeneerinspanning `none`
+(`work: "deterministic"`, `lib/pipeline/measure.ts:314`); het model begon met hardop denken in
+plaats van met het JSON-antwoord. Sinds 23 september 2026 op GPT-6; niet bekend of het daarvoor ook
+gebeurde.
+
+**Gevolg.** Klein: de takenlaag probeert opnieuw. Maar de mislukte uitvoer wordt nergens bewaard,
+want de fout valt vóór `recordUsage()` in `callStructured()`; deze aanroepen kosten wel geld en staan
+niet in `ai_calls`.
+
+**Voorstel.** In `callStructured()` ook een mislukte parse loggen (met de ruwe tekst), zodat het
+aandeel meetbaar wordt; nagaan of het vaker gebeurt op GPT-6 Luna met `none` dan op de vorige Luna.
 
 ---
 
