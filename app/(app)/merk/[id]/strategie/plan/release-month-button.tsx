@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRefresh } from "@/components/use-refresh";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useToast } from "@/components/toast";
-import { streefdatum, formatDag } from "@/lib/pagina-stand";
+import { streefzin } from "@/lib/pagina-stand";
 import { COST_DENIED } from "@/lib/cost-rules";
 
 /**
@@ -115,9 +115,8 @@ export function ReleaseMonthButton({
         body={`Na vrijgeven zetten we binnen een paar minuten de vragen voor ${
           paginas === 1 ? "deze pagina" : `deze ${paginas} pagina's`
         } klaar, onder Openstaande vragen.${
-          eersteDatum && streefdatum(eersteDatum)
-            ? ` Beantwoord ze graag vóór ${formatDag(streefdatum(eersteDatum)!)} om op schema te blijven.`
-            : ""
+          // Punt 33: nooit een streefdatum in het verleden.
+          streefzin(eersteDatum, new Date().toISOString()) ? ` ${streefzin(eersteDatum, new Date().toISOString())}` : ""
         } Een pagina wordt geschreven zodra al zijn vragen beantwoord of overgeslagen zijn, en daarna leggen we de tekst aan je voor.`}
         irreversible={{
           title: "Dit zet het werk in gang",

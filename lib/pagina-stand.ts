@@ -125,6 +125,28 @@ export function streefdatum(publicatiedatum: string | null): string | null {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * De zin over de streefdatum in de vrijgeefdialoog (punt 33 van de
+ * kwaliteitsdoorlichting).
+ *
+ * Op 24 september stond er "Beantwoord ze graag vóór 13 september": het plan zette
+ * de eerste pagina op de 25e, en twaalf dagen daarvoor lag elf dagen terug. Een
+ * datum in het verleden is geen streefdatum. Dan zegt de zin wat er wel geldt:
+ * zo snel mogelijk, en schrijven begint pas als de vragen gedaan zijn.
+ */
+export function streefzin(eersteDatum: string | null | undefined, vandaag: string): string {
+  if (!eersteDatum) return "";
+  const streef = streefdatum(eersteDatum);
+  if (!streef) return "";
+  if (streef >= vandaag.slice(0, 10)) {
+    return `Beantwoord ze graag vóór ${formatDag(streef)} om op schema te blijven.`;
+  }
+  return (
+    `Beantwoord ze zo snel mogelijk: de eerste pagina staat op ${formatDag(eersteDatum)}, en ` +
+    `we schrijven pas als de vragen gedaan zijn. Die datum schuift dus mee.`
+  );
+}
+
 export function formatDag(iso: string): string {
   const d = new Date(`${iso.slice(0, 10)}T00:00:00Z`);
   return d.toLocaleDateString("nl-NL", { day: "numeric", month: "long", timeZone: "UTC" });

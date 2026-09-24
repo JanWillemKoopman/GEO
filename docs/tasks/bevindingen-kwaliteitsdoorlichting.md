@@ -41,15 +41,18 @@ doorloop met dezelfde drie bedrijven en dezelfde blinde lezers (meetlat: 4,1 op 
 - **31, verbeteringen van één pagina:** hooguit één per pagina per drie maanden. Te bouwen in blok E.
 - **42, tegengehouden tekst:** mag aan de klant getoond worden, met een duidelijke melding. Te bouwen
   in blok C.
-- **33 en 53:** geen keuze maar een fout; de ontwikkelaar lost ze op zonder besluit.
+- **33 en 53:** geen keuze maar een fout; opgelost zonder besluit. 33: de vrijgeefdialoog noemde
+  "beantwoord vóór 13 september" op 24 september, omdat de eerste pagina de volgende dag gepland
+  stond en de streefdatum twaalf dagen daarvoor ligt. 53: een nieuwe versie van een tekst werd niet
+  meer gecontroleerd op wat hij over het bedrijf beweert.
 
 | Blok | Punten | Stand |
 |---|---|---|
 | A, wat de app van de klant weet | 5, 24, 27, 35, 36, 47 | ✅ live, PR #121; 7 schuift naar blok B (crawl) |
 | B, wat de app van de site leest | 4, 7, 10, 28, 45 | ✅ live, PR #122; crawl van de hovenier op productie nagerekend (68 adressen, was 1) |
 | C, de keuring | 42, 43, 50, 53, 54 | ✅ live, PR #123; 50 wacht op de herhaling (oorzaak al weg via 39) |
-| D, schrijfstijl | 46, 48, 49 | ✅ gebouwd en getest |
-| E, planning | 31, 32, 33 | open |
+| D, schrijfstijl | 46, 48, 49 | ✅ live, PR #124 |
+| E, planning | 31, 32, 33 | ✅ gebouwd en getest |
 | F, kleine punten | 3, 6, 8, 9, 11 tot 18, 23, 38 | open |
 
 ## Eindverslag: de vijf verbeteringen die het meest opleveren
@@ -132,9 +135,9 @@ bronzinnen, het ontbrekende bewijs).
 | 28 | **hoog** | De site-inventaris mist de hoofdpagina uit het menu en bevat fotobijlagen; het rapport adviseert een fotopagina te verbeteren | ✅ opgelost, verbeterronde blok B |
 | 29 | middel | Het planscherm zegt de klant "stel je het plan zelf op", maar alleen de consultant mag het | ✅ opgelost, PR #114 |
 | 30 | **hoog** | Het plan gaf de zwaarste gemiste vraag potentie 0 en zette die pagina achteraan | ✅ opgelost, PR #114 (nog niet op een nieuw plan nagerekend, zie 32) |
-| 31 | **hoog** | Het plan zet vier verbeteringen van dezelfde pagina in dezelfde week | open |
-| 32 | **hoog** | "Opnieuw opzetten" van het plan faalt als alle kansen al in het huidige plan staan, en laat ze anders achter | open |
-| 33 | middel | Een plan dat laat in de maand start, vraagt de klant zijn vragen te beantwoorden vóór een datum in het verleden | open |
+| 31 | **hoog** | Het plan zet vier verbeteringen van dezelfde pagina in dezelfde week | ✅ opgelost, verbeterronde blok E (besluit eigenaar: één per drie maanden) |
+| 32 | **hoog** | "Opnieuw opzetten" van het plan faalt als alle kansen al in het huidige plan staan, en laat ze anders achter | ✅ opgelost, verbeterronde blok E |
+| 33 | middel | Een plan dat laat in de maand start, vraagt de klant zijn vragen te beantwoorden vóór een datum in het verleden | ✅ opgelost, verbeterronde blok E |
 | 34 | laag | De klant leest "wacht op jouw vrijgave" en in hetzelfde blok dat de consultant goedkeurt | ✅ opgelost, PR #116 |
 | 35 | **hoog** | Vragen die het gesprek al beantwoordde, blijven openstaan voor de klant | ✅ opgelost, verbeterronde blok A (streng: alleen als het gesprek de hele vraag dekt) |
 | 36 | middel | Elk rapport zet zijn eigen vragen klaar; alleen letterlijk gelijke vragen worden samengevoegd | ✅ grotendeels opgelost, verbeterronde blok A (sterk anders geformuleerde varianten komen nog door) |
@@ -589,6 +592,13 @@ vraag aan. **Richting:** `mergeOverlappingRecommendations()` voegt adviezen al s
 `existingUrl` hoort daar als samenvoegreden bij, of het rapport moet bij een tweede advies voor
 dezelfde pagina een nieuwe pagina voorstellen.
 
+**Opgelost (24 september 2026, verbeterronde blok E, besluit eigenaar).** Twee lagen. In het
+rapport blijft per bestaande pagina één verbetering over; de volgende wordt een nieuwe pagina met die
+pagina als verwante pagina (`eenVerbeteringPerAdres()`). In het plan zit er minstens drie maanden
+tussen twee verbeteringen van dezelfde pagina, ook over vrijgegeven maanden heen
+(`VERBETER_TUSSENRUIMTE_MAANDEN` in `lib/plan-fill.ts`); een tweede schuift door naar een latere
+maand, en past hij niet meer, dan blijft hij in de voorraad.
+
 ## 32. "Opnieuw opzetten" faalt, of laat de kansen van het oude plan achter
 
 **Gezien.** Na de reparatie van punt 30 wilde ik het plan van de hovenier opnieuw opzetten om de
@@ -606,12 +616,26 @@ oude plan blijven daar hangen: `syncBacklog()` maakt ze niet opnieuw aan omdat z
 zonder tekst, terugzetten in de voorraad (maand en datum leeg) voordat de voorraad geteld wordt. Het
 oude plan houdt dan zijn maanden maar niet die pagina's; het venster moet dat dan ook zo zeggen.
 
+**Opgelost (24 september 2026, verbeterronde blok E).** Bij opnieuw opzetten gaan de pagina's uit
+de nog niet vrijgegeven maanden van het lopende plan, zonder tekst en nog niet begonnen, eerst terug
+naar de voorraad (`zetOudPlanTerug()` in `lib/plans.ts`); een vrijgegeven maand blijft staan. Het
+venster zegt dat nu ook. De ketentest geeft zonder de reparatie precies de melding van productie
+("Er zijn nog geen gemeten kansen om in te plannen").
+
 ## 33. Een deadline in het verleden
 
 Het vrijgeefvenster zei op 24 september: "Beantwoord ze graag vóór 13 september om op schema te
 blijven." Het plan zette de eerste pagina op 25 september; met tien dagen schrijftijd en twee dagen
 voor de vragen lag de deadline elf dagen terug. Details in stap 15 van
 `docs/tasks/kwaliteitsdoorlichting-stappen.md`.
+
+**Opgelost (24 september 2026, verbeterronde blok E).** De vrijgeefdialoog noemt nooit meer een
+datum in het verleden: ligt de streefdatum al achter ons, dan staat er "Beantwoord ze zo snel
+mogelijk: de eerste pagina staat op 25 september, en we schrijven pas als de vragen gedaan zijn.
+Die datum schuift dus mee." (`streefzin()` in `lib/pagina-stand.ts`). Wat niet veranderd is: het
+plan zet de eerste pagina in de lopende maand nog steeds vanaf morgen. Of die eerste datum pas
+twaalf dagen na vrijgeven hoort te liggen, is een planningsvraag die de dialoog nu eerlijk maakt
+maar niet beslist.
 
 ## 34. "Wacht op jouw vrijgave" terwijl de consultant vrijgeeft
 

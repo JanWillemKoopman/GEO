@@ -115,6 +115,7 @@ import {
   describeActionRatio,
   rangschikAanbevelingen,
   GROEI_FACTOR,
+  eenVerbeteringPerAdres,
 } from "@/lib/pipeline/recommendation";
 
 
@@ -158,7 +159,7 @@ import {
 } from "@/lib/puntenronde";
 import { markeerZinnen, zinInBron } from "@/lib/tekst-markering";
 import { isAccepteerbaar, leesGeaccepteerd, voegToe, haalWeg, zonderGeaccepteerd } from "@/lib/geaccepteerde-zinnen";
-import { paginaStand, streefdatum, standVolgorde, FASEN, heeftEigenScherm, type PaginaStandInput } from "@/lib/pagina-stand";
+import { paginaStand, streefdatum, streefzin, standVolgorde, FASEN, heeftEigenScherm, type PaginaStandInput } from "@/lib/pagina-stand";
 import { checkUrlFormat, isOnBrandDomain, isRedirectedElsewhere, volledigAdres } from "@/lib/url";
 import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
@@ -641,6 +642,7 @@ import {
   isBijlageHtml,
   volgendeBatchgrootte,
   menuLinks,
+  canonicalKey,
 } from "@/lib/crawl-urls";
 import { scoreUrl, selectUrls, metMenuVoorrang, type UrlSignal } from "@/lib/pipeline/url-priority";
 import { openCandidates } from "@/lib/pipeline/light-scan-select";
@@ -717,7 +719,7 @@ import {
   LEGE_BACKLOG_FILTERS,
   type BacklogItem,
 } from "@/lib/plan-backlog";
-import { bepaalVulling, type OpenMaand } from "@/lib/plan-fill";
+import { bepaalVulling, VERBETER_TUSSENRUIMTE_MAANDEN, type OpenMaand } from "@/lib/plan-fill";
 import {
   PLAN_STATUS_META,
   planRunningDate,
@@ -21871,7 +21873,7 @@ group("De bedrading van de paginakeuze (O1 tot en met O6)", () => {
   ok("de handeling wordt nagerekend", report.includes("reconcileExistingPageActions"));
   ok(
     "en dat gebeurt vóór het wegschrijven",
-    report.indexOf("reconcileExistingPageActions") < report.indexOf("recommendations_json: gerangschikt"),
+    report.indexOf("reconcileExistingPageActions") < report.indexOf("recommendations_json: perAdres"),
   );
   // ⚠️ Eén beslisser, niet twee. Twee modules die dezelfde vraag beantwoorden
   // kunnen het oneens worden; dat is precies wat er op 2 september dreigde toen
@@ -25774,7 +25776,7 @@ group("Het rapport weegt de groeidoelen zwaar (verbeterronde, punt 24 en 27)", (
   ok("en het bewijs uit het gesprek, als niet opnieuw te vragen", stuur.includes("1.800") && stuur.includes("NIET opnieuw"));
   ok("een leeg profiel levert niets op", reportSteering({ priority_offerings: [], deprioritised_offerings: [], growth_regions: [], target_segments: [], forbidden_topics: [], offline_proof: [] }) === "");
   const report = leesBestand("lib/pipeline/report.ts");
-  ok("het rapport slaat de gerangschikte volgorde op", report.includes("recommendations_json: gerangschikt as never"));
+  ok("het rapport slaat de gerangschikte volgorde op", report.includes("eenVerbeteringPerAdres(gerangschikt, canonicalKey)") && report.includes("recommendations_json: perAdres as never"));
   ok("en de instructie zegt welke kant priority op gaat", report.includes("1 is de belangrijkste aanbeveling"));
 });
 
@@ -26035,4 +26037,46 @@ group("Schrijven als het bedrijf, niet als een formulier (verbeterronde, punt 46
   ]) ok(`voorbehoud herkend: ${zin.slice(0, 40)}`, checkVoorbehoud(zin).zinnen.length >= 1);
   ok("een gewone belofte niet", checkVoorbehoud("Wij sturen binnen 4 uur een scherpe offerte.").zinnen.length === 0);
   ok("en wij bespreken is geen huiswerk", checkVoorbehoud("We bespreken de planning samen met je.").zinnen.length === 0);
+});
+
+
+group("Het plan is uitvoerbaar (verbeterronde, punt 31, 32 en 33)", () => {
+  // Punt 31: vier verbeteringen van /warmtepomp in dezelfde week bij de installateur.
+  const maanden: OpenMaand[] = [1, 2, 3, 4, 5].map((n) => ({
+    id: `m${n}`, monthNumber: n, status: n === 1 ? "ter_goedkeuring" : "concept", huidigAantal: 0, huidigBuffers: 0, magNogVullen: true,
+  }));
+  const adres = "wkinstallatie.nl/warmtepomp";
+  const uit = bepaalVulling({
+    openMaanden: maanden,
+    voorraadIds: ["keuzehulp", "controle", "prijs", "nieuwe-pagina"],
+    pagesPerMonth: 5,
+    adresVan: new Map([["keuzehulp", adres], ["controle", adres], ["prijs", adres]]),
+  });
+  const maandVan = (id: string) => uit.opdrachten.find((o) => o.backlogIds.includes(id) || o.bufferIds.includes(id))?.monthNumber ?? 0;
+  eq("de eerste verbetering in maand 1, samen met de nieuwe pagina", `${maandVan("keuzehulp")},${maandVan("nieuwe-pagina")}`, "1,1");
+  eq("de tweede pas drie maanden later", String(maandVan("controle")), "4");
+  eq("de derde past niet meer in vijf maanden", String(uit.restendeVoorraadIds.includes("prijs")), "true");
+  ok("de tussenruimte is drie maanden", VERBETER_TUSSENRUIMTE_MAANDEN === 3);
+  const alBezet = bepaalVulling({
+    openMaanden: maanden.slice(1), voorraadIds: ["controle"], pagesPerMonth: 5,
+    adresVan: new Map([["controle", adres]]), bezet: new Map([[adres, [1]]]),
+  });
+  eq("een verbetering in een vrijgegeven maand telt ook mee", String(alBezet.opdrachten.find((o) => o.backlogIds.includes("controle"))?.monthNumber), "4");
+
+  // En in het rapport: de tweede verbetering van dezelfde pagina wordt een nieuwe pagina.
+  const rec = (title: string, url: string | null, action: "nieuw" | "verbeteren") => ({
+    title, type: "landing" as const, targetIntent: "", why: "", priority: 1, action, existingUrl: url, relatedUrl: null, targets: [],
+  });
+  const r = eenVerbeteringPerAdres(
+    [rec("Keuzehulp", "https://www.wkinstallatie.nl/warmtepomp", "verbeteren"), rec("Prijs", "https://wkinstallatie.nl/warmtepomp/", "verbeteren"), rec("Mierlo", null, "nieuw")],
+    canonicalKey,
+  );
+  eq("de eerste blijft een verbetering", r.aanbevelingen.map((a) => a.action).join(","), "verbeteren,nieuw,nieuw");
+  eq("de tweede wijst naar de pagina als verwante pagina", String(r.aanbevelingen[1].relatedUrl), "https://wkinstallatie.nl/warmtepomp/");
+
+  // Punt 33: nooit een streefdatum in het verleden.
+  eq("op tijd", streefzin("2026-10-20", "2026-09-24"), "Beantwoord ze graag vóór 8 oktober om op schema te blijven.");
+  ok("te laat: zo snel mogelijk, zonder datum in het verleden", streefzin("2026-09-25", "2026-09-24").startsWith("Beantwoord ze zo snel mogelijk") && !streefzin("2026-09-25", "2026-09-24").includes("13 september"));
+  eq("zonder datum niets", streefzin(null, "2026-09-24"), "");
+  ok("beide vrijgeefdialogen gebruiken het", leesBestand("app/(app)/merk/[id]/strategie/plan/plan-view.tsx").includes("streefzin(eerste, new Date().toISOString())") && leesBestand("app/(app)/merk/[id]/strategie/plan/release-month-button.tsx").includes("streefzin(eersteDatum"));
 });

@@ -3742,6 +3742,39 @@ async function main(): Promise<void> {
         versies[1]?.maandenGoedgekeurd === 1 && versies[1]?.maandenTotaal === 12,
       );
       ok("het nieuwe voorstel heeft nog geen enkele maand vrijgegeven", versies[0]?.maandenGoedgekeurd === 0);
+
+      // Punt 32 van de kwaliteitsdoorlichting: nog een keer opzetten ZONDER
+      // nieuwe kans. Alle kansen staan in het tweede voorstel; vroeger
+      // antwoordde dit "er zijn nog geen gemeten kansen om in te plannen".
+      const { rows: inVoorstel2 } = await db.client.query(
+        `select pp.id from public.planned_pages pp
+           join public.plan_months m on m.id = pp.plan_month_id
+           join public.content_plans c on c.id = m.plan_id
+          where c.profile_id = $1 and c.version = 2 and m.status <> 'goedgekeurd' and pp.status = 'gepland'`,
+        [planPotProfileId],
+      );
+      const derdeVersie = await createPlan(admin as never, {
+        profileId: planPotProfileId,
+        pagesPerMonth: 1,
+        startedOn: new Date("2027-06-10T00:00:00Z"),
+      });
+      ok(
+        "punt 32: opnieuw opzetten lukt ook als alle kansen al in het plan staan",
+        derdeVersie.ok && inVoorstel2.length > 0,
+        JSON.stringify({ derdeVersie, inVoorstel2: inVoorstel2.length }),
+      );
+      const { rows: waarNu } = await db.client.query(
+        `select c.version from public.planned_pages pp
+           join public.plan_months m on m.id = pp.plan_month_id
+           join public.content_plans c on c.id = m.plan_id
+          where pp.id = any($1)`,
+        [inVoorstel2.map((r: { id: string }) => r.id)],
+      );
+      ok(
+        "punt 32: en de kansen uit het vorige voorstel staan nu in het nieuwe",
+        waarNu.length > 0 && waarNu.every((r: { version: number }) => r.version === 3),
+        JSON.stringify(waarNu),
+      );
     }
 
     // ══════════════════════════════════════════════════════════════════════
