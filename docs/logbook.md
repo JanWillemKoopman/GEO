@@ -12168,3 +12168,13 @@ Aanvulling, dezelfde dag: de reparatie van punt 39 werkte alleen in `buildFactBa
 voegt klantantwoorden samen met `mergeAnsweredFacts()`, en die liet de sleutel van de bewering vallen.
 Nu gaat hij mee. Daarnaast verhuizen bij een nieuwe versie ook de paginavragen mee
 (`fact_requests.content_piece_ids`), zoals de plantaak al deed.
+
+## 24 september 2026: de opmerking van de klant bij een nieuwe versie bereikt nu de schrijver
+
+Wat de klant bij "Schrijf een nieuwe versie" invulde, ging alleen naar de reparatieronde en niet naar
+de schrijfaanroep, en de feiten erin stonden niet op de feitenkaart. In de proef met een ideale klant
+kwam één van zes opgegeven feiten in de tekst. Nu staat de opmerking bovenaan de schrijfopdracht en als
+klantfeit op de kaart (`metKlantopmerking()`). Daarnaast herkent de controle op bronzinnen nu de
+vormen die de blinde lezers vonden ("geen vaste duur genoemd", "het genoemde", "zeggen we hiermee niet
+toe"). Punt 48 en 52 in `docs/tasks/bevindingen-kwaliteitsdoorlichting.md`; punt 53 (een nieuwe versie
+verliest het beweringenplan) staat open.

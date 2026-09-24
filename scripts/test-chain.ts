@@ -499,6 +499,27 @@ async function main(): Promise<void> {
       [analysisId],
     );
     const kaartDerde = derdeVersie.rows[0]?.briefing_snapshot_json as { facts?: { text: string }[] };
+    // Punt 52: de opmerking van de klant bij een nieuwe versie bereikt de
+    // SCHRIJFopdracht, en een bedrag daaruit staat op de feitenkaart.
+    const promptsVoorOpmerking = log.length;
+    await draftContentPiece({
+      analysisId,
+      userId,
+      reportId: null,
+      recommendation: { ...aanbeveling, revisionNote: "Een traject van zes behandelingen kost 390 euro." },
+      regenerate: true,
+    });
+    const schrijfMetOpmerking =
+      log.slice(promptsVoorOpmerking).find((l) => l.schemaName === "content_piece")?.user ?? "";
+    ok(
+      "punt 52: de opmerking van de klant staat in de schrijfopdracht",
+      schrijfMetOpmerking.includes("WAT DE KLANT ZELF VRAAGT VOOR DEZE VERSIE") &&
+        schrijfMetOpmerking.includes("390 euro"),
+    );
+    ok(
+      "punt 52: en als klantfeit op de feitenkaart",
+      /F\d+.*Opmerking van de klant bij deze versie: Een traject van zes behandelingen kost 390 euro/.test(schrijfMetOpmerking),
+    );
     ok(
       "punt 51 (bewaking): een paginagebonden antwoord staat ook na twee nieuwe versies op de kaart",
       (kaartDerde?.facts ?? []).some((f) => f.text.includes("zes tot acht weken")),

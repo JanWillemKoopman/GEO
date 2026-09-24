@@ -196,6 +196,7 @@ import {
   topicKey,
   factFromAnswer,
   mergeAnsweredFacts,
+  metKlantopmerking,
   sourceCoverage,
   buildFactFindingAddendum,
 } from "@/lib/pipeline/factcard";
@@ -25649,4 +25650,33 @@ group("De schrijfroute bewaart de sleutel van de bewering (24 september 2026)", 
   eq("een sitefeit heeft er geen", String(samen.find((f) => f.text === "Sitefeit")?.claimKey), "null");
   const content = leesBestand("lib/pipeline/content.ts");
   ok("de schrijfroute leest de sleutel uit de vraag", content.includes("claimKey: (f.claim_key as string | null) ?? null"));
+});
+
+
+group("Bronzinnen uit de doorlichting worden herkend (24 september 2026)", () => {
+  const echt = [
+    "Voor het ontwerp is hier geen vaste duur genoemd.",
+    "DUBOkeur wordt ook genoemd als optie bij betonnen tuintegels.",
+    "Het genoemde onderhoudscontract kost 12 tot 15 euro per maand.",
+    "Dat zijn de drie onderdelen die wij voor dit bezoek noemen.",
+    "Voor een offerteaanvraag noemt onze contactpagina een beoogde reactietijd van binnen 4 uur.",
+    "Dat wij die andere punten controleren, zeggen we hiermee niet toe.",
+    "Of onverwacht grondwerk tot meerwerk leidt, daarover doen we geen algemene toezegging.",
+  ];
+  for (const zin of echt) ok(`herkend: ${zin.slice(0, 40)}`, checkSourceTalk(zin).sentences.length === 1);
+  ok("een gewone zin niet", checkSourceTalk("De aanleg duurt gemiddeld twee tot drie weken.").sentences.length === 0);
+  ok("ook niet een vergunningszin", checkSourceTalk("Voor een schutting tot een meter is hier geen vergunning nodig.").sentences.length === 0);
+  ok("ook niet met genoemd in een gewone betekenis", checkSourceTalk("Onze klanten hebben ons een 4,9 gegeven.").sentences.length === 0);
+});
+
+
+group("De opmerking van de klant bij een nieuwe versie is een klantfeit (24 september 2026)", () => {
+  const kaart = [{ ref: "F1", id: null, text: "Sitefeit", source: "site /", allowed: true, citable: true, claimKey: null }];
+  const met = metKlantopmerking(kaart, "3D-ontwerp kost 450 euro, verrekend bij opdracht.");
+  eq("de opmerking staat vooraan", met[0].text, "Opmerking van de klant bij deze versie: 3D-ontwerp kost 450 euro, verrekend bij opdracht.");
+  eq("als klantfeit", met[0].source.startsWith("klant") ? "klant" : met[0].source, "klant");
+  eq("opnieuw genummerd", met.map((f) => f.ref).join(","), "F1,F2");
+  eq("zonder opmerking ongewijzigd", String(metKlantopmerking(kaart, "  ").length), "1");
+  const content = leesBestand("lib/pipeline/content.ts");
+  ok("de schrijfopdracht noemt de opmerking", content.includes("WAT DE KLANT ZELF VRAAGT VOOR DEZE VERSIE"));
 });

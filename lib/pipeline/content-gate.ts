@@ -842,6 +842,26 @@ const BRONVERWIJZINGEN = [
   "vervangen nooit",
   "is geen persoonlijke voorspelling",
   "geen persoonlijke voorspelling",
+
+  // ── Familie 6: verslag over de bronnen in plaats van tekst voor de lezer ──
+  //
+  // Gevonden door de blinde lezers in de kwaliteitsdoorlichting van 24
+  // september 2026, en nagerekend in de opgeslagen teksten: "Voor het ontwerp is
+  // hier geen vaste duur genoemd" (twee pagina's van de hovenier), "DUBOkeur
+  // wordt ook genoemd als optie", "Het genoemde onderhoudscontract kost",
+  // "Dat zijn de drie onderdelen die wij voor dit bezoek noemen", "noemt onze
+  // contactpagina een beoogde reactietijd", en de voorbehouden "zeggen we
+  // hiermee niet toe" en "daarover doen we geen algemene toezegging". Niets in
+  // deze lijst ving ze.
+  "geen vaste duur genoemd",
+  "wordt ook genoemd",
+  "het genoemde ",
+  "dit is een genoemd",
+  "die wij voor dit bezoek noemen",
+  "noemt onze contactpagina",
+  "zeggen we hiermee niet toe",
+  "zeggen we niet toe",
+  "geen algemene toezegging",
 ];
 
 export interface SourceTalkResult {
