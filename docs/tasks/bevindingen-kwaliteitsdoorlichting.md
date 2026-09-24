@@ -65,9 +65,9 @@
 | 36 | middel | Elk rapport zet zijn eigen vragen klaar; alleen letterlijk gelijke vragen worden samengevoegd | open |
 | 37 | laag | Een vraag aan de klant bevat "en" en "of" met een schuine streep ertussen | open |
 | 38 | middel | Het laatste antwoord van een pagina laat de klant 9 tot 30 seconden wachten | open |
-| 39 | **hoog** | Een beantwoorde vraag maakt de bewering erachter nooit "onderbouwd": de keuring blijft "beantwoord deze vraag" zeggen | open |
-| 40 | **hoog** | De keuring van een pagina blokkeert op beweringen van andere pagina's van hetzelfde merk | open |
-| 41 | middel | Antwoorden van de klant op paginavragen worden opgeslagen als feit van de site | open |
+| 39 | **hoog** | Een beantwoorde vraag maakt de bewering erachter nooit "onderbouwd": de keuring blijft "beantwoord deze vraag" zeggen | ✅ opgelost, PR volgt |
+| 40 | **hoog** | De keuring van een pagina blokkeert op beweringen van andere pagina's van hetzelfde merk | ✅ opgelost, PR volgt |
+| 41 | middel | Antwoorden van de klant op paginavragen worden opgeslagen als feit van de site | ✅ opgelost, PR volgt |
 | 42 | **hoog** | De klant krijgt "Tekst is klaar, keur hem goed" bij een tekst die de eigen keuring tegenhoudt | open |
 | 43 | middel | De keuring noemt het bedrag van de klant "in strijd met de instructie", omdat de opzet van vóór zijn antwoord is | open |
 | 44 | laag | Een tegengehouden pagina staat voor de klant als "Alle gegevens bekend, wordt nu geschreven" | open |
@@ -542,6 +542,12 @@ schrijver daardoor ook "GEEN BRON: laat deze passage weg" over precies wat de kl
 **Richting:** de vraag draagt al een `claim_key`; een feit uit een beantwoorde vraag dekt de bewering
 met dezelfde sleutel.
 
+**Opgelost (24 september 2026).** Een feit uit een beantwoorde vraag draagt nu de sleutel van de
+bewering mee (`FactItem.claimKey`, gevuld in `buildFactBase()`), en `claimIsOnderbouwd()` telt een
+bewering als gedekt als een toegestaan feit dezelfde sleutel heeft (`feitUitAntwoord()` in
+`lib/pipeline/evidence-weight.ts`). Een "nee" van de klant wordt in de schrijfopdracht een verbod.
+Ketentest: antwoord op een paginavraag, daarna is de bewering onderbouwd.
+
 ## 40. De keuring blokkeert op beweringen van andere pagina's
 
 In de keuring van de pagina voor Best staan blokkades als "nodig voor: De pagina moet laten zien dat
@@ -553,6 +559,10 @@ stellen van vragen, maar het paginaplan dat dezelfde koppeling gebruikt, gaat na
 keuring, en daar wordt een bewering van een andere pagina een blokkade. Dezelfde bewering stond vier
 keer in één keuring.
 
+**Opgelost (24 september 2026).** Het paginaplan koppelt nu strikt (`claimHoortBijPagina()` in
+`lib/pipeline/briefing.ts`): via de sectieverwijzing, anders via de doelvraag, en anders niet. Het
+stellen van vragen houdt de ruime koppeling, want daar kost een dubbele vraag weinig.
+
 ## 41. Antwoorden van de klant opgeslagen als feit van de site
 
 In `brand_facts` staan de antwoorden op de paginavragen van de hovenier met `kind = site` en `source =
@@ -561,6 +571,14 @@ bestrating ook in de winter aan? Ja, in de winter doen we vooral bestrating en o
 antwoorden op de merk- en rapportvragen staan wel goed als `kind = klant`, "klant, bevestigd
 24-9-2026". Verkeerde herkomst maakt de audit-trail onbetrouwbaar en laat een schrijver een klantfeit
 als sitefeit citeren.
+
+**Oorzaak en oplossing (24 september 2026).** `answerFact()` (`lib/facts.ts`) zette elk antwoord als
+"vraag + antwoord" ook in `profiles.proof_points`, en `buildFactBase()` labelt die lijst als "site" en
+zet hem merkbreed op elke kaart. Zo kwam een antwoord dat bij één pagina hoort op alle pagina's. Nu
+gaat een antwoord op een vraag uit de voorbereiding (met `claim_key`) of een paginavraag niet meer naar
+`proof_points` (`moetNaarProofPoints()` in `lib/proof-point-regel.ts`); het bereikt de schrijver al met
+de bron "klant, bevestigd" en alleen bij zijn eigen pagina. **Niet teruggedraaid:** de 12 regels die
+de doorlichting al in `proof_points` van de drie merken zette, blijven staan.
 
 ## 42. "Tekst is klaar, keur hem goed" bij een tegengehouden tekst
 

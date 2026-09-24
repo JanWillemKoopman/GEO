@@ -629,6 +629,15 @@ export async function runBriefing(args: {
     return bestaat ? { pieceId, sectionId: gelezen.sectionId } : null;
   };
 
+  // Hoort deze bewering in het paginaplan van `pieceId`? Zie de toelichting bij
+  // `plan:` verderop (punt 40): een sectieverwijzing wint, anders de doelvraag,
+  // en zonder een van beide hoort hij bij geen enkel paginaplan.
+  const claimHoortBijPagina = (c: { sectionId?: string | null; neededFor: string }, pieceId: string): boolean => {
+    const sectie = sectieVanClaim(c.sectionId ?? null);
+    if (sectie) return sectie.pieceId === pieceId;
+    return treffersVoor(c.neededFor).includes(pieceId);
+  };
+
   const kandidaten: BriefingQuestion[] = teVragen.map((c) => {
     const sectie = sectieVanClaim(c.sectionId);
     // Hangt deze vraag aan een KERNsectie, dan is hij niet optioneel: zonder dat
@@ -752,7 +761,15 @@ export async function runBriefing(args: {
           // `draftContentPiece()` rekent dit plan vlak vóór het schrijven
           // opnieuw door tegen de dan-geldende feiten, inclusief de antwoorden
           // die de klant ná de briefing gaf.
-          plan: audit.parsed.claims.filter((c) => paginaVanClaim(c.neededFor).includes(pieceId)),
+          //
+          // ⚠️ STRIKT gekoppeld (kwaliteitsdoorlichting, punt 40, 24 september
+          // 2026): via de sectieverwijzing, anders via de doelvraag, en bij geen
+          // van beide NIET. Hier stond `paginaVanClaim()`, die bij twijfel alle
+          // pagina's teruggeeft. Dat is goed voor het stellen van een vraag, maar
+          // dit plan gaat naar de schrijver en de keuring, en daar werd een
+          // bewering over Nuenen een blokkade op de pagina over Best. Drie
+          // pagina's van één merk hadden daardoor exact dezelfde claimdekking.
+          plan: audit.parsed.claims.filter((c) => claimHoortBijPagina(c, pieceId)),
           // ── DE ALGEMENE CONTEXT-GATEN BEWAREN (S9, terugvalroute aangescherpt S10) ──
           //
           // Zelfde koppeling als het paginaplan hierboven, maar met `paginaVanGat()`
