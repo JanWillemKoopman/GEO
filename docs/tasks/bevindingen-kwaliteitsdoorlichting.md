@@ -2,12 +2,22 @@
 
 > **Wat dit is.** De fouten en verbeterpunten die boven kwamen bij het doorlopen van de hele keten op
 > productie (`docs/tasks/kwaliteitsdoorlichting-pijplijn.md`), vanaf 23 september 2026, met drie echte
-> bedrijven uit de regio Eindhoven. In dit document heten ze A (hovenier, grote site), B (installateur,
-> middelgrote site) en C (rijschool). Hun dossiers staan bewust niet in de repo.
+> bedrijven uit de regio Eindhoven:
+>
+> | | Merk | Site | Profiel-id |
+> |---|---|---|---|
+> | A | Hans Verstraaten Hoveniers (Eindhoven) | hansverstraatenhoveniers.nl, ~70 pagina's | `f14e89ab-6db2-41ea-8bbc-0827d6025470` |
+> | B | Wesley Keeris Installatietechniek (Geldrop) | wkinstallatie.nl, ~23 pagina's | `ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b` |
+> | C | Autorijschool Pompert (Eindhoven) | autorijschoolpompert.nl, ~15 pagina's in het menu | `467f8307-74dd-4e84-b443-40cc1ce88f9e` |
+>
+> Clusters: A "Complete tuin laten aanleggen met bestrating" (`2d4ce398-57d6-4f09-9ad3-faab83773870`),
+> B "Hybride warmtepomp voor een bestaande woning" (`3dd41da2-ffbc-4676-9bc2-2866807366da`),
+> C "Autorijles met faalangst" (`a3419688-ab38-4d8a-b03d-3ab0c78dc968`). Accounts:
+> `demo-consultant@example.com` (beheerder) en `demo-klant@example.com` (klant). De data blijft staan.
 >
 > **Hoe te gebruiken.** Elk punt heeft wat er misgaat, wat de klant ervan merkt, waar het in de code
 > zit, en een voorstel. Is een punt opgelost: de regel "Status" bijwerken met de datum en de PR, en
-> een alinea in `docs/logbook.md`. Zijn alle punten opgelost, dan kan dit bestand weg.
+> een alinea in `docs/logbook.md`.
 >
 > **Doorlopend bijgewerkt** zolang de doorloop loopt. Stand: meting van de drie clusters loopt.
 
@@ -56,9 +66,10 @@ Nagemeten: A heeft na het gesprek vijf onderwerpen.
 
 ## 3. Het merk zelf komt op de lijst "gelijknamige bedrijven die jij niet bent"
 
-**Wat misgaat.** Bij alle drie de merken zette het onderzoek eigen namen op `name_exclusions`. C: drie
-schrijfwijzen van de eigen naam, waaronder de naam met de voornaam van de eigenaar erin. B: de eigen
-B.V. en de beheer-B.V. A: een tweede website van hetzelfde bedrijf en de eigen B.V.
+**Wat misgaat.** Bij alle drie de merken zette het onderzoek eigen namen op `name_exclusions`. C:
+"Autorijschool Pompert / Pompert", "Rijschool Peter Pompert", "Pompert Autorijschool". B: "Wesley Keeris
+Installatiebedrijf B.V", "Wesley Keeris Beheer B.V". A: "Hovenier Eindhoven / hoveniereindhoven.nl" (een tweede
+site van hetzelfde bedrijf) en "Hoveniersbedrijf Hans Verstraaten B.V".
 
 **Gevolg.** De meting geeft deze lijst mee als "andere bedrijven" (`lib/pipeline/measure.ts:1123`,
 `ownExclusions` naar `judgeRun()`). Vermeldingen van het merk zelf kunnen daardoor niet meetellen: de
@@ -167,7 +178,7 @@ De aanbodboom maakte er de dienst "ventilatie laten schoonmaken" van, en dat wer
 ## 10. Crawl neemt fotopagina's, tag- en auteurspagina's mee
 
 **Wat misgaat.** C: 108 gelezen adressen, waarvan tientallen bijlagepagina's van foto's
-(`/whatsapp-image-…/` en dergelijke), `/tag/…`, `/category/…` en `/author/…`.
+(`/whatsapp-image-…/`, `/cbr-peter-pompert-2/`), `/tag/…`, `/category/…` en `/author/…`.
 
 **Gevolg.** Ze eten de grens van 150 pagina's op en verdunnen het merkonderzoek.
 
