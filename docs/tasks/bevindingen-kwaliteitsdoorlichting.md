@@ -19,7 +19,8 @@
 > zit, en een voorstel. Is een punt opgelost: de regel "Status" bijwerken met de datum en de PR, en
 > een alinea in `docs/logbook.md`.
 >
-> **Doorlopend bijgewerkt** zolang de doorloop loopt. Stand: meting van de drie clusters loopt.
+> **Doorlopend bijgewerkt** zolang de doorloop loopt. Stand: meting van de drie clusters loopt. Het
+> stap-voor-stapdossier met cijfers per stap staat in `docs/tasks/kwaliteitsdoorlichting-stappen.md`.
 
 ## Overzicht
 
@@ -41,6 +42,7 @@
 | 14 | laag | Voortgang zegt "klaar" en "nog minder dan een minuut" terwijl er nog stappen wachten | open |
 | 15 | laag | Conceptscherm gaf één keer een foutpagina bij het openen, direct na het afronden | open, niet herhaald |
 | 16 | laag | Een taak van een merk stond op "bezig" en daarna weer in de wachtrij met 0 pogingen | open, niet herhaald |
+| 17 | hoog | Gemini-meting viel volledig uit op een limiet van de leverancier | open, wordt gevolgd |
 
 ---
 
@@ -227,6 +229,18 @@ terugkomt.
 
 De lichte scan van B stond op "bezig" (gestart 21:28:17) en daarna weer in de wachtrij met 0
 pogingen, en liep later gewoon door. Niet herhaald. Alleen oppakken als het terugkomt.
+
+## 17. Gemini-meting viel volledig uit op een limiet van de leverancier
+
+**Wat misgaat.** Bij de meting van A gaven alle 30 Gemini-aanroepen via DataForSEO "3rd Party API
+Service Unavailable (rate_limit_exceeded)" (`ai_calls.raw_json`, kind `measure_llm_response`). De
+drie clusters werden tegelijk gemeten, 90 Gemini-verzoeken kort na elkaar.
+
+**Gevolg.** Een van de meetbronnen ontbreekt. Nog na te gaan: lukt de herhaling, en zegt het rapport
+dat Gemini ontbrak, of rekent het stil zonder?
+
+**Voorstel.** Gemini-verzoeken spreiden (een maximum per minuut in de takenlaag) en in het rapport
+zichtbaar maken welke bronnen meetelden.
 
 ---
 
