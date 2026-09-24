@@ -174,9 +174,14 @@ function applyOwnFields(
   if (input.datePublished) out.datePublished = input.datePublished;
   if (input.dateModified) out.dateModified = input.dateModified;
   if (input.organization) {
-    out.publisher = {
-      "@id": `${input.organization.url.replace(/\/+$/, "")}/#organization`,
-    };
+    const org = { "@id": `${input.organization.url.replace(/\/+$/, "")}/#organization` };
+    out.publisher = org;
+    // Punt 48 van de kwaliteitsdoorlichting: de merknaam staat niet meer voor
+    // elke alinea in de zichtbare tekst. De koppeling tussen deze pagina en het
+    // bedrijf, die een AI-assistent nodig heeft om te weten wie hij moet noemen,
+    // staat hier: de pagina is VAN en OVER deze organisatie.
+    out.author = org;
+    out.about = org;
   }
   // De pagina-URL komt uit onze database en niet uit het model.
   out.url = input.url;

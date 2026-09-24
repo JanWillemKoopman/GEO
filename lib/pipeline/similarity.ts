@@ -232,3 +232,56 @@ export function checkHerhaling(input: {
 
   return { overal: overal.slice(0, 6), vergeleken: anderen.length, issues };
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// HETZELFDE FEIT DRIE KEER OP ÉÉN PAGINA (punt 48 van de kwaliteitsdoorlichting)
+// ════════════════════════════════════════════════════════════════════════════
+//
+// `checkHerhaling()` hierboven kijkt over pagina's heen. De blinde lezers vonden
+// het binnen één pagina: de prijsband en de terugkomafspraak drie tot vier keer
+// bij de hovenier, "isolatie, radiatoren en leeftijd van de ketel" meer dan tien
+// keer op één pagina van de installateur. De keuring zag het alleen in het
+// vraag-en-antwoordblok.
+
+/** Vaker dan dit aantal zinnen met hetzelfde feit is herhaling. */
+export const FEIT_MAX_KEER = 2;
+
+export interface HerhalingOpPaginaResult {
+  /** Feiten die vaker dan `FEIT_MAX_KEER` in de tekst terugkomen, met het aantal. */
+  herhaald: { feit: string; keer: number }[];
+  issues: string[];
+}
+
+export function checkHerhalingOpPagina(input: {
+  feiten: readonly string[];
+  tekst: string;
+}): HerhalingOpPaginaResult {
+  const zinnen = (input.tekst ?? "")
+    .replace(/^#{1,6} .*$/gm, " ")
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map((z) => z.toLowerCase())
+    .filter((z) => z.trim().length > 0);
+
+  const herhaald: { feit: string; keer: number }[] = [];
+  for (const feit of input.feiten) {
+    // Lange woorden én getallen: "12.000 tot 35.000" is precies het deel dat
+    // de blinde lezers drie keer op één pagina tegenkwamen.
+    const woorden = Array.from(new Set(words(feit))).filter((w) => w.length > 4 || /^\d{2,}$/.test(w));
+    // Een feit van één of twee kenmerken komt in elke zin over het onderwerp
+    // terug; dat is geen herhaling maar het onderwerp.
+    if (woorden.length < 3) continue;
+    const keer = zinnen.filter((z) => {
+      const zinWoorden = new Set(words(z));
+      return woorden.filter((w) => zinWoorden.has(w)).length / woorden.length >= 0.6;
+    }).length;
+    if (keer > FEIT_MAX_KEER) herhaald.push({ feit, keer });
+  }
+  herhaald.sort((a, b) => b.keer - a.keer);
+
+  const issues = herhaald.slice(0, 3).map(
+    (h) =>
+      `"${h.feit}" staat ${h.keer} keer op deze pagina. Noem het één keer, op de plek waar de ` +
+      `lezer het nodig heeft, en verwijs daarna niet opnieuw.`,
+  );
+  return { herhaald: herhaald.slice(0, 6), issues };
+}

@@ -208,6 +208,64 @@ export function checkZelfondermijning(tekst: string): ZelfondermijningResult {
   };
 }
 
+/**
+ * Een voorbehoud dat een belofte afzwakt of een onbekend onderwerp invult met
+ * huiswerk voor de lezer (punt 46 en 49 van de kwaliteitsdoorlichting).
+ *
+ * De site van de hovenier: "wij doen ons best om je binnen 4 uur te voorzien van
+ * een scherpe offerte". De nieuwe tekst: "noemt onze contactpagina een beoogde
+ * reactietijd van binnen 4 uur. Dat is geen termijn voor het ontwerp of de
+ * offerte." Een verkoopargument omgedraaid. En waar de klant een vraag oversloeg
+ * (garantie, extra grondwerk), liet de tekst het onderwerp niet weg maar schreef
+ * "Bespreek garantieafspraken voordat de aanleg begint": de lezer leest dat het
+ * bedrijf het zelf niet weet.
+ */
+const VOORBEHOUD = [
+  "is geen termijn",
+  "geen termijn voor",
+  "beoogde reactietijd",
+  "dat is geen belofte",
+  "dat is geen garantie",
+  "is geen harde toezegging",
+  "bespreek dat vooraf",
+  "bespreek dit vooraf",
+  "bespreek vooraf",
+  "bespreek garantie",
+  "vraag dat na",
+  "vraag dit na",
+  "vraag bij je aanvraag",
+  "vraag bij uw aanvraag",
+  "vraag bij de aanvraag",
+  "stem dat vooraf af",
+  "stem dit vooraf af",
+];
+
+export interface VoorbehoudResult {
+  zinnen: string[];
+  issues: string[];
+}
+
+export function checkVoorbehoud(tekst: string): VoorbehoudResult {
+  const zinnen = (tekst ?? "")
+    .replace(/^#{1,6} .*$/gm, " ")
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map((z) => z.trim())
+    .filter((z) => {
+      const laag = z.toLowerCase();
+      return VOORBEHOUD.some((t) => laag.includes(t));
+    })
+    .slice(0, 3);
+  return {
+    zinnen,
+    issues: zinnen.map(
+      (z) =>
+        `Deze zin zwakt een belofte af of geeft de lezer huiswerk waar het bedrijf het antwoord ` +
+        `hoort te geven: "${z}". Weten we het niet, laat het onderwerp dan weg; weten we het wel, ` +
+        `zeg dan wat er geldt.`,
+    ),
+  };
+}
+
 /** Het promptblok bij deze twee regels. */
 export function adviestoonblok(): string {
   return (
@@ -217,6 +275,11 @@ export function adviestoonblok(): string {
     `bedrijf doet. "Vraag vooraf naar de prijs" wordt "u hoort de prijs voordat wij beginnen".\n` +
     `- Zet de lezer NOOIT aan om aanbieders te vergelijken of om de papieren van dit bedrijf na te ` +
     `trekken. Geen checklists om een vakman mee te beoordelen, geen links naar een beroepsregister.\n` +
+    `- Neem een belofte van het bedrijf over zoals hij op de kaart staat. Zet er geen voorbehoud ` +
+    `achter dat hem afzwakt ("dat is geen termijn voor de offerte").\n` +
+    `- Is er over een onderwerp geen feit, laat het onderwerp dan WEG. Schrijf nooit "bespreek dat ` +
+    `vooraf", "vraag dat na" of "daarover doen we geen toezegging": de lezer leest daaruit dat het ` +
+    `bedrijf het zelf niet weet.\n` +
     `Voorzichtig blijven mag waar het moet, zeker in de zorg, maar laat een voorbehoud nooit de ` +
     `dominante stem van de pagina worden.`
   );

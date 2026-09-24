@@ -264,10 +264,11 @@ import {
 import {
   checkAdviestoon,
   checkZelfondermijning,
+  checkVoorbehoud,
   GEBIEDEND_PER_HONDERD_MAX,
   SLAP_PER_HONDERD_MAX,
 } from "@/lib/pipeline/adviestoon";
-import { checkHerhaling } from "@/lib/pipeline/similarity";
+import { checkHerhaling, checkHerhalingOpPagina } from "@/lib/pipeline/similarity";
 import {
   rangcorrelatie,
   berekenIjking,
@@ -25985,4 +25986,53 @@ group("Een tegengehouden tekst krijgt een duidelijke melding (verbeterronde, pun
   ok("de klant is nog steeds aan zet", tegen.aanZet === "klant" && tegen.sleutel === "goedkeuren");
   ok("en de zin noemt bewust toch goedkeuren", tegen.zin.includes("bewust toch goed"));
   ok("de bibliotheek leest het oordeel", leesBestand("lib/pagina-data.ts").includes("tegengehouden: i.tekst.quality_verdict === \"block\""));
+});
+
+
+group("Schrijven als het bedrijf, niet als een formulier (verbeterronde, punt 46, 48 en 49)", () => {
+  // Punt 48: de naam voor elke alinea, zoals in de teksten van de hovenier.
+  const formulier = [
+    "Wil je een complete tuin? Hans Verstraaten Hoveniers helpt je daarbij.",
+    "Hans Verstraaten Hoveniers verzorgt het ontwerp.",
+    "## Bestrating",
+    "Hans Verstraaten Hoveniers legt de bestrating aan.",
+    "Bij Hans Verstraaten Hoveniers werk je met een vaste ploeg.",
+  ].join("\n\n");
+  const m = checkMerkstem(formulier, "Hans Verstraaten Hoveniers");
+  eq("drie alinea's beginnen met de naam", String(m.alineasMetMerk), "3");
+  ok("en dat wordt een bevinding", m.issues.some((i) => i.includes("beginnen met de bedrijfsnaam")));
+  const goed = checkMerkstem("Wil je een complete tuin? Hans Verstraaten Hoveniers helpt je.\n\nWij verzorgen het ontwerp.", "Hans Verstraaten Hoveniers");
+  eq("een tekst in de wij-vorm niet", String(goed.alineasMetMerk), "0");
+  const content = leesBestand("lib/pipeline/content.ts");
+  ok("de schrijfregel noemt de naam niet meer per sectie", !content.includes("in de eerste zin van elke sectie; daarbuiten"));
+  ok("en zegt geen alinea met de naam te beginnen", content.includes("Begin NOOIT een alinea of sectie met de bedrijfsnaam"));
+
+  // De koppeling voor assistenten zit nu in de gestructureerde gegevens.
+  const jsonld = JSON.parse(validateOrRebuildJsonLd(null, {
+    type: "landing", title: "Complete tuin", description: "x", url: "https://h.nl/tuin", faq: [],
+    businessModel: "dienstverlener" as const, organization: { name: "Hans Verstraaten Hoveniers", url: "https://h.nl", sameAs: [] },
+    datePublished: null, dateModified: null,
+  } as never));
+  const pagina = jsonld["@graph"][0];
+  ok("de pagina is van en over de organisatie", pagina.about?.["@id"] === "https://h.nl/#organization" && pagina.author?.["@id"] === "https://h.nl/#organization");
+
+  // Punt 48: hetzelfde feit drie keer op één pagina.
+  const tekst = [
+    "Een complete tuin kost meestal 12.000 tot 35.000 euro.",
+    "Voor een complete tuin rekenen we meestal 12.000 tot 35.000 euro.",
+    "Houd bij een complete tuin rekening met meestal 12.000 tot 35.000 euro.",
+    "Na de aanleg komen we na zes weken terug.",
+  ].join(" ");
+  const h = checkHerhalingOpPagina({ feiten: ["Complete tuin kost meestal 12.000 tot 35.000 euro", "Gratis terugkomafspraak na zes weken"], tekst });
+  eq("de prijsband drie keer", h.herhaald.map((x) => `${x.keer}`).join(","), "3");
+  eq("de terugkomafspraak één keer is geen herhaling", String(h.herhaald.length), "1");
+
+  // Punt 46 en 49: de echte zinnen uit de doorlichting.
+  for (const zin of [
+    "Voor een offerteaanvraag noemt onze contactpagina een beoogde reactietijd van binnen 4 uur. Dat is geen termijn voor het ontwerp of de offerte.",
+    "Bespreek garantieafspraken voordat de aanleg begint.",
+    "Vraag bij uw aanvraag welke controles de beurt omvat.",
+  ]) ok(`voorbehoud herkend: ${zin.slice(0, 40)}`, checkVoorbehoud(zin).zinnen.length >= 1);
+  ok("een gewone belofte niet", checkVoorbehoud("Wij sturen binnen 4 uur een scherpe offerte.").zinnen.length === 0);
+  ok("en wij bespreken is geen huiswerk", checkVoorbehoud("We bespreken de planning samen met je.").zinnen.length === 0);
 });

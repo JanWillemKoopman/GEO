@@ -32,10 +32,10 @@ doorloop met dezelfde drie bedrijven en dezelfde blinde lezers (meetlat: 4,1 op 
 
 **Besluiten van de eigenaar (24 september 2026):**
 
-- **48, de merknaam:** niet voor elke alinea in de zichtbare tekst. Gevraagd: kan het anders? Te
-  bouwen in blok D: de naam in de kop, het openingsantwoord en de zinnen die een feit geven; elders
-  "wij". De naam voor zoekmachines en AI-assistenten gaat mee in de gestructureerde gegevens van de
-  pagina (die ziet de lezer niet).
+- **48, de merknaam:** niet voor elke alinea in de zichtbare tekst. Gevraagd: kan het anders? Gebouwd
+  in blok D: de naam in de meta-title, de eerste alinea en de afsluiting; elders "wij". De koppeling
+  voor zoekmachines en AI-assistenten staat in de gestructureerde gegevens van de pagina (`about` en
+  `author` naar de organisatie), die de lezer niet ziet.
 - **27, groeidoelen:** tellen zwaar. Gebouwd in blok A: twee keer het gewicht van een even zware
   gemiste vraag.
 - **31, verbeteringen van één pagina:** hooguit één per pagina per drie maanden. Te bouwen in blok E.
@@ -47,8 +47,8 @@ doorloop met dezelfde drie bedrijven en dezelfde blinde lezers (meetlat: 4,1 op 
 |---|---|---|
 | A, wat de app van de klant weet | 5, 24, 27, 35, 36, 47 | ✅ live, PR #121; 7 schuift naar blok B (crawl) |
 | B, wat de app van de site leest | 4, 7, 10, 28, 45 | ✅ live, PR #122; crawl van de hovenier op productie nagerekend (68 adressen, was 1) |
-| C, de keuring | 42, 43, 50, 53, 54 | ✅ gebouwd en getest; 50 wacht op de herhaling (oorzaak al weg via 39) |
-| D, schrijfstijl | 46, 48, 49 | open |
+| C, de keuring | 42, 43, 50, 53, 54 | ✅ live, PR #123; 50 wacht op de herhaling (oorzaak al weg via 39) |
+| D, schrijfstijl | 46, 48, 49 | ✅ gebouwd en getest |
 | E, planning | 31, 32, 33 | open |
 | F, kleine punten | 3, 6, 8, 9, 11 tot 18, 23, 38 | open |
 
@@ -147,10 +147,10 @@ bronzinnen, het ontbrekende bewijs).
 | 43 | middel | De keuring noemt het bedrag van de klant "in strijd met de instructie", omdat de opzet van vóór zijn antwoord is | ✅ opgelost, verbeterronde blok C |
 | 44 | laag | Een tegengehouden pagina staat voor de klant als "Alle gegevens bekend, wordt nu geschreven" | ✅ opgelost, PR #116 |
 | 45 | **hoog** | Een "verbetering" vervangt de functie van de bestaande pagina (homepage wordt Helmond, prijzenpagina wordt losse les bij faalangst) | ✅ opgelost, verbeterronde blok B (nog niet op een nieuwe tekst nagerekend) |
-| 46 | **hoog** | De tekst draait een belofte van de site om: "binnen 4 uur een scherpe offerte" wordt "geen termijn voor de offerte" | open |
+| 46 | **hoog** | De tekst draait een belofte van de site om: "binnen 4 uur een scherpe offerte" wordt "geen termijn voor de offerte" | ✅ opgelost, verbeterronde blok D (instructie plus controle op de zinsvorm; of een bewering met zijn bron overeenkomt, meet de app nog niet) |
 | 47 | **hoog** | Het sterkste bewijs van de klant staat in geen enkele tekst, hoewel het op de feitenkaart staat | ✅ opgelost, verbeterronde blok A (nog niet op een nieuwe tekst nagerekend) |
-| 48 | **hoog** | De teksten lezen als een formulier: bedrijfsnaam voor elke alinea, dezelfde feiten drie tot vier keer, voorbehouden, zinnen uit de bronnen | deels opgelost (bronzinnen, PR #119), rest is een afweging |
-| 49 | middel | Waar de klant een vraag oversloeg, wijkt de tekst uit naar "bespreek dat vooraf" in plaats van het onderwerp los te laten | open |
+| 48 | **hoog** | De teksten lezen als een formulier: bedrijfsnaam voor elke alinea, dezelfde feiten drie tot vier keer, voorbehouden, zinnen uit de bronnen | ✅ opgelost, verbeterronde blok D (besluit eigenaar: naam niet voor elke alinea) |
+| 49 | middel | Waar de klant een vraag oversloeg, wijkt de tekst uit naar "bespreek dat vooraf" in plaats van het onderwerp los te laten | ✅ opgelost, verbeterronde blok D |
 | 50 | **hoog** | De reparatieknop van de klant haalde een juist klantfeit uit de tekst | oorzaak opgelost (punt 39), PR #115 |
 | 51 | middel | Na een nieuwe versie staat een pagina twee keer in de bibliotheek | ✅ opgelost, PR #117 en de volgende |
 | 52 | **hoog** | De opmerking van de klant bij "Schrijf een nieuwe versie" bereikte de schrijver niet | ✅ opgelost, PR #119, nagerekend op productie |
@@ -808,6 +808,12 @@ herformulering door het model, maar het resultaat spreekt de ondernemer tegen, e
 die hem een verkoopargument kost. De keuring van de app zag dit niet: ze toetst of een bewering een
 bron heeft, niet of hij met die bron overeenkomt.
 
+**Opgelost (24 september 2026, verbeterronde blok D).** De schrijfopdracht zegt nu dat een belofte
+van het bedrijf wordt overgenomen zoals hij op de kaart staat, zonder voorbehoud dat hem afzwakt, en
+`checkVoorbehoud()` (`lib/pipeline/adviestoon.ts`) vangt de vorm ervan ("is geen termijn", "beoogde
+reactietijd"), als bevinding "hoog". Wat nog niet bestaat: een controle of een bewering met zijn
+bron overeenkomt in plaats van alleen of hij een bron heeft.
+
 ## 47. Het sterkste bewijs staat in geen enkele tekst
 
 De rijschool: "Slagingspercentage 93 procent bij de eerste poging over 2025" (tegen ongeveer 50 procent
@@ -871,6 +877,16 @@ de schrijfregel en van `checkMerkstem()`, en een meting of de citeerbaarheid daa
 op (1) het aantal alinea's dat met de merknaam begint, (2) dezelfde bewering vaker dan twee keer, (3)
 woorden als "genoemd", "volgens de bron", "zeggen we niet toe".
 
+**Opgelost (24 september 2026, verbeterronde blok D, besluit eigenaar).** De naam staat in de
+schrijfregel nu alleen nog in de eerste alinea en de afsluiting, nooit aan het begin van een alinea;
+de reparatieronde volgt dezelfde regel. De koppeling tussen pagina en bedrijf die een AI-assistent
+nodig heeft, staat in de gestructureerde gegevens (`about` en `author` in `lib/schema-jsonld.ts`).
+Twee nieuwe tellingen in de keuring: alinea's die met de naam beginnen (`checkMerkstem`, meer dan
+één is een bevinding) en hetzelfde feit vaker dan twee keer op één pagina
+(`checkHerhalingOpPagina()`, ook op getallen, want "12.000 tot 35.000" was het echte voorbeeld).
+Nog te meten: of de citeerbaarheid in AI-antwoorden hieronder lijdt; dat hoort bij de nameting van
+de herhaling.
+
 ## 49. Een overgeslagen vraag wordt "bespreek dat vooraf"
 
 Waar de realistische klant een vraag oversloeg (garantie, extra grondwerk, wat de controle kost), laat
@@ -886,6 +902,10 @@ iets anders.
 wél op zijn site, en Eindhoven staat in elke paginatitel van zijn site ("Geldrop - Eindhoven"). Het
 waarheidsdossier was op die twee punten onvolledig. Ook de telefoonnummers van de rijschool staan wel op
 de site. Die punten zijn niet meegeteld.
+
+**Opgelost (24 september 2026, verbeterronde blok D).** De toonregel zegt nu: geen feit, dan het
+onderwerp weglaten, en nooit "bespreek dat vooraf" of "vraag dat na". `checkVoorbehoud()` vangt de
+zinnen die het toch doen, met de echte zinnen uit de doorlichting als test.
 
 ## 50. De reparatieknop haalde een juist klantfeit uit de tekst
 

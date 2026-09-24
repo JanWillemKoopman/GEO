@@ -12225,3 +12225,14 @@ zonder bron", langs twee strenge wegen (dezelfde getallen, of twee gedeelde kern
 klantfeit), zodat een verzonnen zin nog steeds blokkeert. (42) Besluit eigenaar: een tekst die de
 keuring tegenhoudt mag de klant zien, met de melding "onze controle houdt hem tegen: bekijk eerst
 de punten" in plaats van "keur hem goed".
+
+## 24 september 2026: verbeterronde blok D, schrijven als het bedrijf
+
+Drie punten uit de kwaliteitsdoorlichting. (48, besluit eigenaar) De bedrijfsnaam hoeft niet meer in
+de eerste zin van elke sectie: alleen in de eerste alinea, de afsluiting en de meta-title, en nooit
+aan het begin van een alinea. De koppeling tussen pagina en bedrijf voor zoekmachines en
+AI-assistenten staat nu in de gestructureerde gegevens (`about` en `author` naar de organisatie).
+De keuring telt alinea's die met de naam beginnen en feiten die vaker dan twee keer op één pagina
+staan. (46 en 49) Een belofte wordt overgenomen zoals hij er staat, en een onderwerp zonder feit
+valt weg in plaats van "bespreek dat vooraf"; `checkVoorbehoud()` vangt de zinnen die het toch doen.
+Of de citeerbaarheid onder de minder zichtbare naam lijdt, meet de herhaling van de doorloop.
