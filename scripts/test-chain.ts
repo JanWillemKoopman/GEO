@@ -427,6 +427,18 @@ async function main(): Promise<void> {
        values ($1, $2, 'Plantaak voor de versietest', $3)`,
       [plantaakId, profileId, voorVersie[0]?.id],
     );
+    // En een paginagebonden antwoord aan die versie: dat moet na de nieuwe
+    // versie nog steeds op de kaart staan (punt 50 en 51).
+    const paginaVraagId = randomUUID();
+    await db.client.query(
+      `insert into public.fact_requests
+         (id, profile_id, analysis_id, question, reason, answer, status, answered_at, scope, kind,
+          answer_type, required, claim_key, content_piece_ids)
+       values ($1, $2, $3, 'Hoe lang duurt een behandeltraject gemiddeld?', 'aanvulling',
+               'zes tot acht weken', 'beantwoord', now(), 'pagina', 'aanvulling', 'tekst_kort',
+               false, 'duur-traject', $4)`,
+      [paginaVraagId, profileId, analysisId, [voorVersie[0]?.id]],
+    );
 
     await draftContentPiece({
       analysisId,
@@ -441,6 +453,15 @@ async function main(): Promise<void> {
          from public.planned_pages pp join public.content_pieces cp on cp.id = pp.content_piece_id
         where pp.id = $1`,
       [plantaakId],
+    );
+    const { rows: vraagNa } = await db.client.query(
+      "select content_piece_ids from public.fact_requests where id = $1",
+      [paginaVraagId],
+    );
+    ok(
+      "punt 51: de paginavraag verhuist mee naar de nieuwe versie",
+      ((vraagNa[0]?.content_piece_ids ?? []) as string[]).includes(naVersie[0]?.content_piece_id),
+      JSON.stringify(vraagNa[0] ?? null),
     );
     ok(
       "punt 51: de plantaak wijst na een nieuwe versie naar die nieuwe versie",
@@ -458,6 +479,30 @@ async function main(): Promise<void> {
       "bug 5: een nieuw antwoord bereikt ook een hergenereerde pagina",
       (kaartNa?.facts ?? []).some((f) => f.text.includes("Binnen 24 uur")),
       "de bevroren kaart plantte zichzelf voort over versies",
+    );
+    // Bewaking, geen bewijs: ook na twee nieuwe versies moet een
+    // paginagebonden antwoord op de kaart blijven staan. Nagegaan op 24
+    // september 2026: deze controle slaagt ook zonder het meeverhuizen van de
+    // vraag, want de kaart van een nieuwe versie bouwt voort op die van de
+    // vorige. Hij staat hier zodat een wijziging aan die opbouw het niet stil
+    // kan breken.
+    await draftContentPiece({
+      analysisId,
+      userId,
+      reportId: null,
+      recommendation: aanbeveling,
+      regenerate: true,
+    });
+    const derdeVersie = await db.client.query(
+      `select briefing_snapshot_json from public.content_pieces
+        where analysis_id = $1 and is_current = true`,
+      [analysisId],
+    );
+    const kaartDerde = derdeVersie.rows[0]?.briefing_snapshot_json as { facts?: { text: string }[] };
+    ok(
+      "punt 51 (bewaking): een paginagebonden antwoord staat ook na twee nieuwe versies op de kaart",
+      (kaartDerde?.facts ?? []).some((f) => f.text.includes("zes tot acht weken")),
+      JSON.stringify((kaartDerde?.facts ?? []).map((f) => f.text).slice(0, 8)),
     );
 
     // ── De feitenbank (migratie 0036) ───────────────────────────────────────
