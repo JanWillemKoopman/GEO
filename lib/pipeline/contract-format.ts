@@ -400,6 +400,37 @@ function beoordeelSectie(
   };
 }
 
+/**
+ * Het contract bijgewerkt met wat de klant daarna vertelde (punt 43 van de
+ * kwaliteitsdoorlichting).
+ *
+ * De opzet van een pagina wordt gemaakt vóór de klant zijn vragen beantwoordt.
+ * Bij de hovenier zei hij daarom "geen prijsbedragen noemen"; de klant gaf
+ * daarna een prijsband, de schrijver gebruikte hem terecht, en de keuring
+ * meldde "de genoemde prijsband is in strijd met de instructie". Hetzelfde met
+ * de doorlooptijd. Een feit van de klant gaat voor een verbod dat gemaakt is
+ * toen dat feit er nog niet was: zo'n verbod valt hier weg, voor de schrijver
+ * én voor de keuring.
+ */
+const PRIJSVERBOD = /\b(prijs|prijzen|prijsbedrag\w*|bedrag\w*|tarie[fv]\w*|kosten|euro)\b/i;
+const DUURVERBOD = /\b(duur|doorlooptijd\w*|termijn\w*|levertijd\w*|wachttijd\w*|planning|weken|dagen)\b/i;
+const KLANTBRON = /^(klant|opgegeven in het gesprek)/i;
+
+export function contractMetFeiten<C extends { avoid?: string[] } | null>(
+  contract: C,
+  facts: readonly { text: string; source: string; allowed: boolean }[],
+): C {
+  if (!contract || !contract.avoid?.length) return contract;
+  const klant = facts.filter((f) => f.allowed && KLANTBRON.test(f.source.trim()));
+  const bedrag = klant.some((f) => /€\s?\d|\d[\d.,]*\s?(euro|,-)/i.test(f.text));
+  const duur = klant.some((f) => /\d+\s*(tot\s*\d+\s*)?(weken|week|dagen|dag|werkdagen|uur|maanden|maand)\b/i.test(f.text));
+  if (!bedrag && !duur) return contract;
+  const avoid = contract.avoid.filter(
+    (a) => !(bedrag && PRIJSVERBOD.test(a)) && !(duur && DUURVERBOD.test(a)),
+  );
+  return avoid.length === contract.avoid.length ? contract : { ...contract, avoid };
+}
+
 /** Het contract als opdracht in de schrijfprompt. */
 export function formatContract(contract: ContentContract | null): string {
   if (!contract || contract.sections.length === 0) return "";

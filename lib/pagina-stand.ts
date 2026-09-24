@@ -73,6 +73,9 @@ export interface PaginaStand {
   streefdatum: string | null;
 }
 
+/** Het label van een tekst die klaar is maar door de keuring wordt tegengehouden (punt 42). */
+export const CONTROLE_HOUDT_TEGEN = "Controle houdt hem tegen";
+
 export interface PaginaStandInput {
   plan: {
     status: PlannedPageStatus;
@@ -88,6 +91,14 @@ export interface PaginaStandInput {
     /** Is de voorbereiding klaar (`briefing_snapshot_json` gevuld)? */
     voorbereid: boolean;
     write_mode?: WriteMode;
+    /**
+     * Houdt de eigen keuring deze tekst tegen (`quality_verdict = block`)?
+     * Punt 42 van de kwaliteitsdoorlichting: de klant las "De tekst is klaar,
+     * keur hem goed" bij vier teksten die de keuring met zekerheid tegenhield.
+     * De eigenaar besliste op 24 september 2026: tonen mag, met een duidelijke
+     * melding.
+     */
+    tegengehouden?: boolean;
   } | null;
   /** Open vragen van deze pagina (`openVragenVanPagina`). */
   openVragen: number;
@@ -191,6 +202,18 @@ export function paginaStand(input: PaginaStandInput): PaginaStand {
       fase: 3,
       zin: "De tekst is goedgekeurd. Plaats hem op je site en vul daarna het adres in.",
       handeling: "Meld dat hij live staat",
+    });
+  }
+  if ((heeftTekst || plan?.status === "ter_goedkeuring") && tekst?.tegengehouden) {
+    return stand("goedkeuren", {
+      label: CONTROLE_HOUDT_TEGEN,
+      aanZet: "klant",
+      toon: "wacht",
+      fase: 2,
+      zin:
+        "De tekst is klaar, maar onze controle houdt hem nog tegen. Bekijk eerst de punten die " +
+        "openstaan: los ze op, of keur hem bewust toch goed als je vindt dat ze niet kloppen.",
+      handeling: "Bekijk de punten",
     });
   }
   if (heeftTekst || plan?.status === "ter_goedkeuring") {

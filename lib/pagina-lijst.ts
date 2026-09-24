@@ -13,7 +13,7 @@
  *
  * Puur (conventie 2).
  */
-import { formatDag, type PaginaStand } from "@/lib/pagina-stand";
+import { formatDag, CONTROLE_HOUDT_TEGEN, type PaginaStand } from "@/lib/pagina-stand";
 import { schrijfdatum } from "@/lib/content-write-gate";
 
 /**
@@ -70,7 +70,10 @@ export function statusRegel(r: { stand: PaginaStand; openVragen: number; datum: 
     case "keuze":
       return "Te weinig gegevens om goed te schrijven: kies hoe we verder gaan";
     case "goedkeuren":
-      return "Tekst is klaar: lees hem en keur hem goed";
+      // Punt 42: niet "keur hem goed" bij een tekst die de keuring tegenhoudt.
+      return stand.label === CONTROLE_HOUDT_TEGEN
+        ? "Tekst is klaar, maar onze controle houdt hem tegen: bekijk eerst de punten"
+        : "Tekst is klaar: lees hem en keur hem goed";
     case "live_zetten":
       return "Goedgekeurd: zet hem op je site";
     case "voorbereiden":

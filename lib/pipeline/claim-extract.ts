@@ -337,13 +337,78 @@ function feitWoordenAantal(tekst: string): number {
  * achtergrondblok mag nooit als bewijs tellen.
  */
 function zinIsOnderbouwdDoorKaart(sentence: string, facts: readonly FactItem[]): boolean {
-  return facts.some(
-    (f) =>
-      f.allowed &&
-      f.citable &&
-      feitWoordenAantal(f.text) >= MIN_FEIT_WOORDEN &&
-      claimMatchesSentence(f.text, sentence),
+  return (
+    facts.some(
+      (f) =>
+        f.allowed &&
+        f.citable &&
+        feitWoordenAantal(f.text) >= MIN_FEIT_WOORDEN &&
+        claimMatchesSentence(f.text, sentence),
+    ) || zinParafraseertFeit(sentence, facts)
   );
+}
+
+/** De getallen in een tekst, zonder duizendtalpunt en zonder euroteken. */
+function getallenIn(tekst: string): string[] {
+  return (tekst.match(/\d[\d.,]*/g) ?? [])
+    .map((g) => g.replace(/[.,](?=\d{3}\b)/g, "").replace(/[.,]$/, ""))
+    .filter((g) => g.length > 0);
+}
+
+/** Inhoudswoorden van vijf letters of meer, afgekapt op vijf: "ploeg", "vaste", "verzo". */
+function kernwoorden(tekst: string): Set<string> {
+  return new Set(
+    normalizeForQuote(tekst)
+      .split(" ")
+      .filter((w) => w.length >= 5)
+      .map((w) => w.slice(0, 5)),
+  );
+}
+
+/**
+ * Een zin die een feit van de kaart in eigen woorden weergeeft
+ * (punt 54 van de kwaliteitsdoorlichting, 24 september 2026).
+ *
+ * `claimMatchesSentence()` eist dat 60% van de woorden van het FEIT in de zin
+ * staat. Een klantantwoord is vaak lang ("Wat kost een complete tuin: meestal
+ * 12.000 tot 35.000 euro, afhankelijk van ..."), en de zin die de schrijver
+ * ervan maakt kort ("Reken meestal op €12.000 tot €35.000"). Die zin haalt de
+ * 60% nooit, en bleef bij elke nieuwe versie van de pagina voor Best blokkeren
+ * als "zin zonder bron", terwijl hij klopte.
+ *
+ * Twee strikte wegen, zodat een verzonnen zin er niet doorheen glipt:
+ *
+ *   1. GETALLEN: de zin heeft getallen en ze staan ALLEMAAL in één feit (bij
+ *      één getal ook minstens één gedeeld woord). Een verzonnen bedrag of
+ *      termijn heeft per definitie geen feit met datzelfde getal.
+ *   2. WOORDEN, alleen bij een feit van de klant: minstens twee kernwoorden
+ *      gedeeld, en die vormen minstens 40% van de kernwoorden van de zin.
+ *      "Eén vaste ploeg verzorgt het hele tuinproject" tegenover "Eigen vaste
+ *      ploeg van vijf man": vaste en ploeg, twee van de vijf.
+ */
+function zinParafraseertFeit(sentence: string, facts: readonly FactItem[]): boolean {
+  const bruikbaar = facts.filter((f) => f.allowed && f.citable);
+  const zinGetallen = getallenIn(sentence);
+  const zinWoorden = kernwoorden(sentence);
+  if (zinGetallen.length > 0) {
+    // Eén los getal ("2") kan toevallig in een ander feit staan ("2 jaar
+    // garantie"); dan moet er ook een woord gedeeld worden.
+    return bruikbaar.some((f) => {
+      const feitGetallen = new Set(getallenIn(f.text));
+      if (!zinGetallen.every((g) => feitGetallen.has(g))) return false;
+      if (zinGetallen.length >= 2) return true;
+      const feitWoorden = kernwoorden(f.text);
+      return [...zinWoorden].some((w) => feitWoorden.has(w));
+    });
+  }
+  if (zinWoorden.size === 0) return false;
+  return bruikbaar
+    .filter((f) => /^(klant|opgegeven in het gesprek)/i.test(f.source.trim()))
+    .some((f) => {
+      const feitWoorden = kernwoorden(f.text);
+      const gedeeld = [...zinWoorden].filter((w) => feitWoorden.has(w)).length;
+      return gedeeld >= 2 && gedeeld / zinWoorden.size >= 0.4;
+    });
 }
 
 /**
