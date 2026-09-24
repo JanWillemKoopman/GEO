@@ -66,6 +66,7 @@ import { geoScore as geoScoreVanModel } from "@/lib/schemas/critique";
 import { kiesAanspreekvorm } from "@/lib/pipeline/tone-sliders";
 import { vindKlantinstructies, verbiedtAdres } from "@/lib/klantinstructies";
 import { checkBewijspunten } from "@/lib/pipeline/bewijspunten";
+import { checkKernbewijs, vindKernbewijs } from "@/lib/pipeline/kernbewijs";
 import { checkSchrijfopdracht } from "@/lib/schrijfopdracht";
 import { checkKlantcitaten, vindCiteerbareAntwoorden } from "@/lib/pipeline/klantcitaten";
 import { checkOpening, checkMerkstem, checkVraagkoppen, eersteAlinea } from "@/lib/pipeline/paginavorm";
@@ -251,6 +252,8 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
     // verwijzing naar een niet-bestaand feit. Gevonden op 4 september 2026.
     factRefs: input.facts.map((f) => f.ref).filter(Boolean),
   });
+  // Punt 47: het sterkste bewijs uit het gesprek, los van de gekozen bewijspunten.
+  const kernbewijs = checkKernbewijs({ kern: vindKernbewijs(input.facts), tekst: heleTekstVoorBewijs });
   const klantcitaten = checkKlantcitaten({
     citaten: vindCiteerbareAntwoorden(input.facts.map((f) => f.text)),
     tekst: heleTekstVoorBewijs,
@@ -379,6 +382,7 @@ export async function keurPagina(input: KeuringInput): Promise<Keuring> {
     aanspreekvorm,
     adres,
     bewijspunten,
+    kernbewijs,
     schrijfopdracht,
     faqBlokken,
     klantcitaten,

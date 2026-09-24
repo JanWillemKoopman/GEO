@@ -15,7 +15,11 @@ import { Report } from "@/lib/schemas/report";
 import { NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { bepaalGemisteVragen } from "@/lib/pipeline/missed-prompts";
 import { PRIMARY_ENGINE } from "@/lib/engines/types";
-import { resolveTargets, mergeOverlappingRecommendations } from "@/lib/pipeline/recommendation";
+import {
+  resolveTargets,
+  mergeOverlappingRecommendations,
+  rangschikAanbevelingen,
+} from "@/lib/pipeline/recommendation";
 import { reconcileExistingPageActions } from "@/lib/pipeline/existing-page-match";
 import {
   bronnenDieWelNoemden,
@@ -55,11 +59,18 @@ import {
   assessStructureCoverage,
   formatCoverageForReport,
 } from "@/lib/pipeline/structure-gap";
-import { siteStructureRule, goalRule } from "@/lib/pipeline/commercial-context";
+import {
+  siteStructureRule,
+  goalRule,
+  reportSteering,
+  groeiKernwoorden,
+  raaktGroeidoel,
+} from "@/lib/pipeline/commercial-context";
 import { sendReportEmail } from "@/lib/email/report-email";
 import { emailsEnabled } from "@/lib/env";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { requireCount } from "@/lib/require-count";
+import { filterNieuweMerkvragen } from "@/lib/vraag-sluiten";
 import type {
   Analysis,
   AnalysisStatus,
@@ -132,6 +143,9 @@ const REPORT_SYSTEM =
   "met welke van de vier eisen hij niet haalde (geen bewijs, niets waars te zeggen, al gedekt door een " +
   "bestaande pagina, of overlapt met een andere aanbeveling). Dat is geen extra werk maar de andere " +
   "kant van dezelfde beslissing die je toch al nam. " +
+  // Punt 24 van de kwaliteitsdoorlichting: de richting stond nergens. De code
+  // rangschikt daarna zelf opnieuw (`rangschikAanbevelingen`).
+  "Geef priority als rangnummer: 1 is de belangrijkste aanbeveling, 2 de volgende, enzovoort. " +
   "Vraag daarnaast in factRequests om CONCRETE FEITEN die je mist en die de content aantoonbaar beter " +
   "zouden maken (bv. 'Hoeveel jaar bestaan jullie?', 'Wat is jullie levertijd?', 'Hoeveel klanten per " +
   "jaar?'). Alleen feiten die een ondernemer uit zijn hoofd weet, en alleen als ze deze pagina's echt " +
@@ -343,6 +357,16 @@ function buildReportInput(
       goal_12m: profile?.goal_12m ?? null,
       seasonality: profile?.seasonality ?? null,
     }),
+    // Punt 27 van de kwaliteitsdoorlichting: waar de klant naartoe wil en wat
+    // hij al vertelde. De weging erachter staat in `rangschikAanbevelingen()`.
+    reportSteering({
+      priority_offerings: profile?.priority_offerings ?? [],
+      deprioritised_offerings: profile?.deprioritised_offerings ?? [],
+      growth_regions: profile?.growth_regions ?? [],
+      target_segments: profile?.target_segments ?? [],
+      forbidden_topics: profile?.forbidden_topics ?? [],
+      offline_proof: profile?.offline_proof ?? [],
+    }),
     "",
     "Schrijf op basis hiervan een kort, jargonvrij rapport. Noem in elk gap-item expliciet welke " +
       "concurrent het betreft. PRIORITEER de aanbevelingen op de zwaarwegende gemiste vragen hierboven " +
@@ -539,8 +563,9 @@ async function computeMissedPrompts(
  *
  * Bij het profiel en niet bij de analyse, want "hoeveel jaar bestaan jullie?"
  * is één keer beantwoorden en daarna weten we het voor elke pagina van dit merk.
- * De unieke index op (profile_id, question) zorgt dat een tweede rapport
- * dezelfde vraag niet opnieuw stelt, ook niet als de klant hem al oversloeg.
+ * De unieke index op (profile_id, question) houdt exact dezelfde vraag tegen;
+ * `filterNieuweMerkvragen()` ook dezelfde vraag in andere woorden en wat het
+ * gesprek al beantwoordde.
  */
 async function saveFactRequests(
   admin: ReturnType<typeof createAdminClient>,
@@ -549,8 +574,24 @@ async function saveFactRequests(
 ): Promise<void> {
   if (!requests || requests.length === 0) return;
 
-  const rows = requests
-    .filter((r) => r.question?.trim())
+  // Punt 35 en 36 van de kwaliteitsdoorlichting. De unieke index op de
+  // letterlijke tekst hield alleen exact dezelfde vraag tegen; na drie
+  // rapportversies had de installateur vier varianten van "welke controles doet
+  // u bij een woningbezoek". Nu ook: niet in andere woorden, en niet wat het
+  // gesprek al zei.
+  const { door, weg } = await filterNieuweMerkvragen(
+    admin,
+    analysis.profile_id,
+    requests.filter((r) => r.question?.trim()),
+  );
+  if (weg.length > 0) {
+    console.log(
+      `Rapport ${analysis.id}: ${weg.length} feitvraag of feitvragen niet gesteld: ` +
+        weg.map((w) => `"${w.vraag}" (${w.reden})`).join("; "),
+    );
+  }
+
+  const rows = door
     .slice(0, FACT_REQUEST_CAP)
     .map((r) => ({
       profile_id: analysis.profile_id,
@@ -912,6 +953,28 @@ export async function generateReport(
         dossier,
       },
     );
+    // ── De volgorde (punt 24 en 27 van de kwaliteitsdoorlichting) ──────────
+    // Gewicht van de gemiste vragen, groeidoelen zwaar, het getal van het
+    // model alleen als tweede sleutel. Aanbod dat de klant niet wil gaat eruit.
+    const { aanbevelingen: gerangschikt, geschrapt: nietGewenst } = rangschikAanbevelingen(
+      recommendations,
+      groeiKernwoorden({
+        priority_offerings: profileTyped?.priority_offerings ?? null,
+        growth_regions: profileTyped?.growth_regions ?? null,
+      }),
+      groeiKernwoorden({
+        priority_offerings: profileTyped?.deprioritised_offerings ?? null,
+        growth_regions: null,
+      }).woorden,
+      raaktGroeidoel,
+    );
+    if (nietGewenst.length > 0) {
+      console.warn(
+        `Analyse ${id} periode ${weekNo}: ${nietGewenst.length} aanbeveling(en) over aanbod dat ` +
+          `de klant niet wil, weggelaten: ${nietGewenst.map((r) => `"${r.title}"`).join(", ")}. ` +
+          `De ruwe modeluitvoer staat in reports.raw_json.`,
+      );
+    }
     if (stripped.length > 0) {
       console.warn(
         `Analyse ${id} periode ${weekNo}: ${stripped.length} niet-onderbouwde bewering(en) ` +
@@ -951,7 +1014,7 @@ export async function generateReport(
         change_json: change as never,
         summary: samenvatting.summary,
         gaps_json: gaps as never,
-        recommendations_json: recommendations as never,
+        recommendations_json: gerangschikt as never,
         declined_json: report.parsed.declinedGaps as never,
         stripped_claims_json: stripped as never,
         gap_analysis_raw_json: gap.raw as never, // volledige ruwe OpenAI-output B1 (§5)

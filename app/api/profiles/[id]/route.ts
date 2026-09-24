@@ -8,6 +8,7 @@ import { EDITABLE_PROFILE_FIELDS } from "@/lib/profile-editable";
 import { resolveWriteSource } from "@/lib/profile-source";
 import { isStaff } from "@/lib/staff";
 import { normalizeUrl, checkUrlFormat } from "@/lib/url";
+import { sluitVragenUitGesprek } from "@/lib/vraag-sluiten";
 
 /**
  * PATCH /api/profiles/[id], klantprofiel bewerken. Geen AI-call: pure CRUD op
@@ -302,6 +303,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         `Herkomst vastleggen mislukt voor profiel ${id} ` +
           `(${bewerkteVelden.length} veld(en) wél opgeslagen): ${bronError.message}`,
       );
+    }
+  }
+
+  // ── Vragen die het gesprek nu beantwoordt, dicht (punt 35) ──────────────
+  // Het merkonderzoek zet zijn vragen klaar vóór het gesprek; bij de
+  // installateur 19 minuten ervoor. Zonder deze stap vroeg de app daarna nog
+  // steeds hoeveel monteurs er werken, terwijl "Twaalf monteurs in dienst" net
+  // was opgeslagen.
+  if (bewerkteVelden.some((f) => ["offline_proof", "service_regions", "growth_regions"].includes(f))) {
+    const gesloten = await sluitVragenUitGesprek(admin, id);
+    if (gesloten > 0) {
+      console.log(`Profiel ${id}: ${gesloten} open vraag of vragen gesloten, het gesprek beantwoordt ze.`);
     }
   }
 

@@ -123,6 +123,126 @@ export function topicSteering(p: Pick<CommercialFields,
 }
 
 /**
+ * Voor `report.ts`: waar de klant naartoe wil, als weegfactor bij de adviezen.
+ *
+ * ⚠️ Kwaliteitsdoorlichting 24 september 2026, punt 27. Het rapport kreeg alleen
+ * de meting en de site mee. Drie blinde lezers kwamen onafhankelijk op hetzelfde
+ * uit: het advies stuurt op wat gemeten is, niet op wat de ondernemer wil. De
+ * rijschool kreeg pagina's voor Helmond en Waalre (geen groeiplaatsen) en niets
+ * over autisme en ADHD (het eerste groeidoel). In de invoer van het
+ * installateursrapport kwamen "Mierlo" en "1.800" nul keer voor.
+ *
+ * De eigenaar besliste dezelfde dag: groeidoelen tellen zwaar. De instructie
+ * staat hier, de weging zelf in `rangschikAanbevelingen()` (recommendation.ts),
+ * want een instructie is een intentie (conventie 1).
+ */
+export function reportSteering(
+  p: Pick<
+    CommercialFields,
+    | "priority_offerings"
+    | "deprioritised_offerings"
+    | "growth_regions"
+    | "target_segments"
+    | "forbidden_topics"
+    | "offline_proof"
+  >,
+): string {
+  const regels: string[] = [];
+  const voorop = lijst(p.priority_offerings);
+  const achteraan = lijst(p.deprioritised_offerings);
+  const regios = lijst(p.growth_regions);
+  const segmenten = lijst(p.target_segments);
+  const verboden = lijst(p.forbidden_topics);
+  const bewijs = lijst(p.offline_proof);
+
+  if (voorop.length > 0 || regios.length > 0) {
+    regels.push(
+      `DE GROEIDOELEN VAN DE KLANT WEGEN ZWAAR. ` +
+        (voorop.length > 0 ? `Het aanbod waarin hij wil groeien: ${voorop.join(", ")}. ` : "") +
+        (regios.length > 0 ? `De plaatsen waar hij wil groeien: ${regios.join(", ")}. ` : "") +
+        `Een aanbeveling die hierop aansluit gaat vóór een even zware gemiste vraag die dat niet ` +
+        `doet. Is er een gemeten gemis over een groeidoel of groeiplaats, laat het dan niet liggen.`,
+    );
+  }
+  if (segmenten.length > 0) {
+    regels.push(`DE KLANTGROEPEN WAAR DE GROEI ZIT: ${segmenten.join(" · ")}.`);
+  }
+  if (achteraan.length > 0) {
+    regels.push(
+      `NIET ADVISEREN (te weinig marge of wordt uitgefaseerd): ${achteraan.join(", ")}.`,
+    );
+  }
+  if (verboden.length > 0) {
+    regels.push(
+      `VERBODEN ONDERWERPEN (nooit adviseren, ook niet als de meting erom vraagt): ${verboden.join(", ")}.`,
+    );
+  }
+  // Punt 35 en 36: de rapportvragen vroegen de klant naar wat hij net vertelde.
+  if (bewijs.length > 0) {
+    regels.push(
+      `WAT DE KLANT AL VERTELDE (bevestigd, gebruik het en vraag er NIET opnieuw naar in ` +
+        `factRequests): ${bewijs.join(" · ")}.`,
+    );
+  }
+  return regels.length === 0 ? "" : `\n${regels.join("\n")}`;
+}
+
+/**
+ * De woorden waaraan een aanbeveling als "groeidoel" herkend wordt.
+ *
+ * Groeiplaatsen letterlijk; het aanbod op zijn kernwoorden, want "Rijles bij
+ * faalangst, autisme en ADHD" staat nooit letterlijk in een titel, "faalangst"
+ * wel. Woorden die in elke aanbeveling van de branche staan ("rijles",
+ * "complete") vallen af, anders telt alles als groeidoel en weegt niets zwaar.
+ */
+const GEEN_KERNWOORD = new Set([
+  "complete", "compleet", "particulieren", "particuliere", "zakelijke", "losse", "opdracht",
+  "rijles", "rijlessen", "service", "diensten", "advies", "klanten", "woning", "woningen",
+]);
+
+function stam(w: string): string {
+  if (w.length > 7 && w.endsWith("en")) return w.slice(0, -2);
+  if (w.length > 6 && w.endsWith("s")) return w.slice(0, -1);
+  return w;
+}
+
+export function groeiKernwoorden(p: {
+  priority_offerings: string[] | null | undefined;
+  growth_regions: string[] | null | undefined;
+}): { plaatsen: string[]; woorden: string[] } {
+  const woorden = new Set<string>();
+  for (const aanbod of lijst(p.priority_offerings)) {
+    for (const ruw of aanbod.split(/[^\p{L}\p{N}]+/u)) {
+      const acroniem = ruw.length >= 3 && ruw === ruw.toUpperCase() && /\p{L}/u.test(ruw);
+      const w = ruw.toLowerCase();
+      if (!acroniem && w.length < 6) continue;
+      if (GEEN_KERNWOORD.has(w)) continue;
+      woorden.add(stam(w));
+    }
+  }
+  return { plaatsen: lijst(p.growth_regions), woorden: [...woorden] };
+}
+
+/** Raakt deze tekst een groeidoel? Plaats op woordgrens, aanbod als deel van een woord. */
+export function raaktGroeidoel(
+  tekst: string,
+  doel: { plaatsen: string[]; woorden: string[] },
+): boolean {
+  const lower = tekst.toLowerCase();
+  const esc = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  for (const pl of doel.plaatsen) {
+    if (new RegExp(`(^|[^\\p{L}\\p{N}])${esc(pl.toLowerCase())}([^\\p{L}\\p{N}]|$)`, "u").test(lower)) return true;
+  }
+  for (const w of doel.woorden) {
+    // Ook midden in een woord: "warmtepomp" raakt "hybridewarmtepomp" en
+    // "warmtepompen", "ketelvervanging" raakt "cv-ketelvervanging". De woorden
+    // zijn minstens zes letters, dus toevallige treffers zijn zeldzaam.
+    if (lower.includes(w)) return true;
+  }
+  return false;
+}
+
+/**
  * Voor `prompts.ts`: waar het merk heen wil.
  *
  * ⚠️ Naast `service_regions` en niet in plaats daarvan. Het werkgebied is waar
@@ -130,12 +250,21 @@ export function topicSteering(p: Pick<CommercialFields,
  * de ambitie, en die levert extra vragen op in een gebied waar het merk vandaag
  * nog niet gevonden wordt. Dat is precies het gat dat een klant wil zien.
  */
-export function growthRegionsRule(p: Pick<CommercialFields, "growth_regions">): string {
+export function growthRegionsRule(
+  p: Pick<CommercialFields, "growth_regions">,
+  aantal?: { nodig: number; van: number },
+): string {
   const regios = lijst(p.growth_regions);
   if (regios.length === 0) return "";
+  // ⚠️ "Een deel" leverde 0 van de 30 op (kwaliteitsdoorlichting, punt 5): naast
+  // een harde regel in hoofdletters verliest een zachte altijd. Nu een aantal,
+  // met een telling in code erachter (`groeiBalans` in geo-share.ts).
+  const hoeveel = aantal
+    ? `MINSTENS ${aantal.nodig} van de ${aantal.van} vragen`
+    : "een deel van de vragen";
   return (
-    `\n\nDit bedrijf WIL groeien in: ${regios.join(", ")}. Het werkt daar nog niet, dus stel ` +
-    `over deze plaatsen een deel van de vragen alsof een koper daar zoekt. Zo wordt zichtbaar ` +
+    `\n\nDit bedrijf WIL groeien in: ${regios.join(", ")}. Het werkt daar nog niet, dus laat ` +
+    `${hoeveel} over een van deze plaatsen gaan, alsof een koper daar zoekt. Zo wordt zichtbaar ` +
     `of het merk daar al genoemd wordt.`
   );
 }

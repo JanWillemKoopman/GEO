@@ -43,6 +43,7 @@ import { claimKey } from "@/lib/pipeline/factcard";
 import { remainingBudgetUsd } from "@/lib/pipeline/onboarding-budget";
 import { quoteOnPage } from "@/lib/pipeline/quote-check";
 import { gapQuestions, GAP_SOURCE } from "@/lib/pipeline/gap-questions";
+import { filterNieuweMerkvragen } from "@/lib/vraag-sluiten";
 import { synthesisPremium } from "@/lib/config";
 import type {
   Profile,
@@ -276,7 +277,15 @@ async function storeGapQuestions(
   profileId: string,
   gaps: string[],
 ): Promise<number> {
-  const vragen = gapQuestions(gaps);
+  // Punt 35 en 36 van de kwaliteitsdoorlichting: niet vragen wat het gesprek al
+  // zei, en niet dezelfde vraag in andere woorden nog een keer.
+  const { door: vragen, weg } = await filterNieuweMerkvragen(admin, profileId, gapQuestions(gaps));
+  if (weg.length > 0) {
+    console.log(
+      `Merkonderzoek ${profileId}: ${weg.length} vraag of vragen niet gesteld: ` +
+        weg.map((w) => `"${w.vraag}" (${w.reden})`).join("; "),
+    );
+  }
   let bewaard = 0;
 
   for (const vraag of vragen) {

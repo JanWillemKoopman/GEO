@@ -526,6 +526,66 @@ async function main(): Promise<void> {
       JSON.stringify((kaartDerde?.facts ?? []).map((f) => f.text).slice(0, 8)),
     );
 
+    // ── Verbeterronde, punt 35 en 47: wat de klant in het gesprek zei ────────
+    //
+    // Punt 35: een open merkvraag die het gesprek beantwoordt, gaat dicht
+    // zodra het gesprek is opgeslagen; een paginavraag met dezelfde tekst niet,
+    // die hangt aan een bewering van de voorbereiding. Punt 47: het sterkste
+    // bewijs uit het gesprek krijgt een eigen blok in de schrijfopdracht.
+    const { sluitVragenUitGesprek } = await import("@/lib/vraag-sluiten");
+    await db.client.query(
+      `update public.profiles
+          set offline_proof = array['Twaalf monteurs in dienst'],
+              service_regions = array['Geldrop', 'Eindhoven']
+        where id = $1`,
+      [profileId],
+    );
+    const merkvraagId = randomUUID();
+    const paginavraagId = randomUUID();
+    await db.client.query(
+      `insert into public.fact_requests (id, profile_id, question, status, scope, kind, answer_type, content_piece_ids)
+       values ($1, $3, 'Hoeveel eigen monteurs werken er momenteel bij het bedrijf?', 'open', 'merk', 'aanvulling', 'tekst_kort', '{}'),
+              ($2, $3, 'Hoeveel eigen monteurs werken er momenteel bij het bedrijf?', 'open', 'pagina', 'aanvulling', 'tekst_kort', $4)`,
+      [merkvraagId, paginavraagId, profileId, [naVersie[0]?.content_piece_id]],
+    ).catch(async () => {
+      // De unieke index op (profiel, vraag) laat twee keer dezelfde tekst niet
+      // toe; dan de paginavraag met een iets andere tekst.
+      await db.client.query(
+        `insert into public.fact_requests (id, profile_id, question, status, scope, kind, answer_type, content_piece_ids)
+         values ($1, $3, 'Hoeveel eigen monteurs werken er momenteel bij het bedrijf?', 'open', 'merk', 'aanvulling', 'tekst_kort', '{}'),
+                ($2, $3, 'Hoeveel monteurs werken er momenteel?', 'open', 'pagina', 'aanvulling', 'tekst_kort', $4)`,
+        [merkvraagId, paginavraagId, profileId, [naVersie[0]?.content_piece_id]],
+      );
+    });
+    const gesloten = await sluitVragenUitGesprek(createShimClient(db.client) as never, profileId);
+    const { rows: naGesprek } = await db.client.query(
+      "select id, status, answer from public.fact_requests where id = any($1)",
+      [[merkvraagId, paginavraagId]],
+    );
+    const merkNa = naGesprek.find((r) => r.id === merkvraagId);
+    const paginaNa = naGesprek.find((r) => r.id === paginavraagId);
+    ok(
+      "punt 35: de merkvraag die het gesprek beantwoordt, gaat dicht",
+      merkNa?.status === "verlopen" && String(merkNa?.answer ?? "").includes("Twaalf monteurs in dienst"),
+      JSON.stringify({ gesloten, merkNa }),
+    );
+    ok("punt 35: een paginavraag blijft open", paginaNa?.status === "open", JSON.stringify(paginaNa));
+
+    const promptsVoorKern = log.length;
+    await draftContentPiece({
+      analysisId,
+      userId,
+      reportId: null,
+      recommendation: aanbeveling,
+      regenerate: true,
+    });
+    const schrijfMetKern =
+      log.slice(promptsVoorKern).find((l) => l.schemaName === "content_piece")?.user ?? "";
+    ok(
+      "punt 47: het sterkste bewijs uit het gesprek staat als eigen blok in de schrijfopdracht",
+      /HET STERKSTE BEWIJS VAN DIT BEDRIJF[\s\S]*F\d+: Twaalf monteurs in dienst/.test(schrijfMetKern),
+    );
+
     // ── De feitenbank (migratie 0036) ───────────────────────────────────────
     const bank = await db.client.query(
       `select id, text, analysis_id, kind, allowed from public.brand_facts

@@ -12178,3 +12178,22 @@ klantfeit op de kaart (`metKlantopmerking()`). Daarnaast herkent de controle op 
 vormen die de blinde lezers vonden ("geen vaste duur genoemd", "het genoemde", "zeggen we hiermee niet
 toe"). Punt 48 en 52 in `docs/tasks/bevindingen-kwaliteitsdoorlichting.md`; punt 53 (een nieuwe versie
 verliest het beweringenplan) staat open.
+
+## 24 september 2026: verbeterronde blok A, wat de klant weet bereikt meting, rapport en tekst
+
+Eerste blok van de verbeterronde na de kwaliteitsdoorlichting (besluiten en stand bovenaan
+`docs/tasks/bevindingen-kwaliteitsdoorlichting.md`). Zes punten. (5) De meetvragen gaan nu ook over
+de groeiplaatsen: minstens 3 van de 10 per funnelfase, met een telling en bijvraag in code; eerder
+0 van de 30, omdat de harde regel "alleen het werkgebied" won van de zachte "een deel over de
+groeiplaatsen". (27 en 24) Het rapport krijgt de groeidoelen, klantgroepen, ongewenst aanbod en het
+bewijs uit het gesprek mee, en de volgorde van de aanbevelingen staat in code: gewicht van de gemiste
+vragen, keer twee bij een groeidoel (besluit eigenaar: groeidoelen tellen zwaar), 1 is het
+belangrijkst. Op het opgeslagen rapport van de hovenier gaan Best en Nuenen van plek 10 naar 1 en 2.
+(35 en 36) Een open merkvraag die het gesprek beantwoordt, gaat bij het opslaan van het gesprek
+dicht, en rapport en merkonderzoek stellen geen vraag die het gesprek al beantwoordt of die er in
+andere woorden al staat. Streng gehouden: alleen als elk inhoudswoord van de vraag in één
+gespreksfeit staat; van de vier vragen van de installateur gaan er twee dicht. (47) Het bewijs uit het
+gesprek krijgt een eigen blok in de schrijfopdracht en een telling in de keuring. Daarbij bleek dat
+bewijs dat na de voorbereiding in het gesprek kwam, een eerder voorbereide pagina nooit bereikte;
+`metGespreksbewijs()` zet het nu alsnog op de kaart. Punt 7 (bewijs dat tussen crawl en dossier
+wegvalt) schuift naar blok B, bij de crawl.

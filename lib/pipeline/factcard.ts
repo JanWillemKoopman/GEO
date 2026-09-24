@@ -718,3 +718,31 @@ export function metKlantopmerking(facts: FactItem[], opmerking: string | null): 
   };
   return numberFacts([feit, ...facts.map(({ ref: _ref, ...rest }) => rest)]);
 }
+
+/**
+ * Het bewijs uit het gesprek alsnog op een bevroren kaart (verbeterronde, punt 47).
+ *
+ * De kaart van een pagina wordt bevroren tijdens de voorbereiding. Vertelt de
+ * ondernemer daarna in het gesprek "Twaalf monteurs in dienst", dan stond dat
+ * nooit op de kaart van die pagina, ook niet bij een nieuwe versie: die bouwt
+ * voort op de bevroren kaart. Dit voegt de feiten toe die er nog niet op staan
+ * (op genormaliseerde tekst), met dezelfde bron als `offlineProofFacts()`.
+ */
+export function metGespreksbewijs(
+  facts: FactItem[],
+  bewijs: readonly { text: string; source: string; id?: string | null }[],
+): FactItem[] {
+  const bekend = new Set(facts.map((f) => normalizeForQuote(f.text)));
+  const nieuw: Omit<FactItem, "ref">[] = bewijs
+    .filter((b) => b.text.trim() && !bekend.has(normalizeForQuote(b.text)))
+    .map((b) => ({
+      id: b.id ?? null,
+      text: b.text.trim(),
+      source: b.source,
+      allowed: true,
+      citable: true,
+      claimKey: null,
+    }));
+  if (nieuw.length === 0) return facts;
+  return numberFacts([...facts.map(({ ref: _ref, ...rest }) => rest), ...nieuw]);
+}
