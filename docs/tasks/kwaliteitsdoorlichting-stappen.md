@@ -405,9 +405,40 @@ en dat de keuring het bedrag van de klant afkeurde tegen een verouderde opzet (*
 Teksten en opdrachten voor de blinde lezers staan in de kladmap (`doorlichting/teksten/`,
 `doorlichting/poort19/`).
 
+**Blinde poort.** Per merk één onafhankelijke lezer (Claude, blind voor de app), als copywriter en
+SEO-specialist, met: het waarheidsdossier (site plus gesprek), per tekst de nieuwe versie, en waar er
+een is de huidige pagina op dat adres. Vragen: klopt het, publiceert de ondernemer het, neemt een
+bezoeker contact op, copywritercijfer, citeerbaar voor AI, nieuw tegen huidig, past het bij het adres.
+
+| | A hovenier (4) | B installateur (4) | C rijschool (8) |
+|---|---|---|---|
+| Copywritercijfer per tekst | 5, 4, 6, 4 | 4, 4, 5, 2 | 5, 3, 5, 3, 4, 5, 3, 4 |
+| Ondernemer publiceert: met aanpassingen / nee | 3 / 1 | 2 / 2 | 6 / 2 |
+| Bezoeker neemt contact op: ja / misschien / nee | 1 / 3 / 0 | 0 / 3 / 1 | 2 / 6 / 0 |
+| Nieuw beter / huidig beter dan de huidige pagina | 2 / 1 | 3 / 1 | 6 / 2 |
+| Past niet bij het adres | 1 | 1 | 3 |
+| Niveau professionele copywriter | nee | nee | nee |
+
+Gemiddeld cijfer over 16 teksten: **4,1 op 10**. Geen enkele tekst zou de ondernemer zonder aanpassing
+publiceren. Wel is de nieuwe tekst in 11 van de 15 vergelijkingen beter dan wat er nu staat: de huidige
+pagina's zijn algemene reclame zonder prijs, planning of werkwijze (en bij de rijschool staat er "gegarandeerd
+goedkope rijlessen" op vier plaatspagina's). De teksten beginnen dus boven de huidige site, maar
+ver onder een professionele copywriter.
+
+**Wat de lezers bij alle drie de merken noemden:** het sterkste bewijs ontbreekt (**B47**), de tekst
+leest als een formulier (**B48**), een "verbetering" vervangt de functie van de pagina (**B45**), en waar
+een vraag overgeslagen werd staat "bespreek dat vooraf" (**B49**). Twee oordelen over de installateur
+en één over de rijschool bleken bij narekenen onterecht (zie de kanttekening onder B49).
+
+Vergeleken met de eigen keuring van de app: die hield alle 16 teksten tegen, maar vooral om
+bewijsredenen die zelf niet klopten (**B39**, **B40**, **B43**). De dingen die de blinde lezers als
+eerste noemden (herhaling, bedrijfsnaam voor elke alinea, gelekte bronzinnen, ontbrekend onderscheidend
+bewijs, verkeerde pagina op het adres) staan niet of nauwelijks in de keuring. De keuring meet dus iets
+anders dan wat een lezer merkt.
+
 ---
 
 ## Nog te doen in deze doorloop
 
-- Stap 19 tot en met 23: de oordelen van de blinde lezers verwerken, en goedkeuren als klant.
+- Goedkeuren als klant ("Keur toch goed" of "Los de punten op"), en wat de reparatieknop doet.
 - De ideale-klantvariant op twee pagina's, de wisselproeven en het verslag met hooguit vijf verbeteringen.

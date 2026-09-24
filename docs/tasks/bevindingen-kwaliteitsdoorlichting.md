@@ -69,8 +69,11 @@
 | 42 | **hoog** | De klant krijgt "Tekst is klaar, keur hem goed" bij een tekst die de eigen keuring tegenhoudt | open |
 | 43 | middel | De keuring noemt het bedrag van de klant "in strijd met de instructie", omdat de opzet van vóór zijn antwoord is | open |
 | 44 | laag | Een tegengehouden pagina staat voor de klant als "Alle gegevens bekend, wordt nu geschreven" | open |
-| 45 | **hoog** | "Maak de homepage concreter" leverde een Helmond-pagina op voor het adres van de homepage | open |
+| 45 | **hoog** | Een "verbetering" vervangt de functie van de bestaande pagina (homepage wordt Helmond, prijzenpagina wordt losse les bij faalangst) | open |
 | 46 | **hoog** | De tekst draait een belofte van de site om: "binnen 4 uur een scherpe offerte" wordt "geen termijn voor de offerte" | open |
+| 47 | **hoog** | Het sterkste bewijs van de klant staat in geen enkele tekst, hoewel het op de feitenkaart staat | open |
+| 48 | **hoog** | De teksten lezen als een formulier: bedrijfsnaam voor elke alinea, dezelfde feiten drie tot vier keer, voorbehouden, zinnen uit de bronnen | open |
+| 49 | middel | Waar de klant een vraag oversloeg, wijkt de tekst uit naar "bespreek dat vooraf" in plaats van het onderwerp los te laten | open |
 | 22 | **hoog** | Het rapport zegt "niet genoemd, 0 op 100" terwijl Google het merk wel noemde | ✅ opgelost, PR #111 en #112 |
 
 ---
@@ -581,7 +584,7 @@ omdat de dekking 33 procent was (`te_weinig_onderbouwd`). De bibliotheek toont d
 gegevens bekend, wordt nu geschreven". De melding uit `schrijfpoort()` ("er is te weinig over je
 bedrijf bekend... kies of we hem algemeen schrijven") bereikt dat scherm niet.
 
-## 45. De homepage wordt een Helmond-pagina
+## 45. Een "verbetering" vervangt de functie van de bestaande pagina
 
 Het advies was "Maak de bestaande hoofdpagina concreter over complete tuinen en bestrating", met
 `existing_url = https://hansverstraatenhoveniers.nl`. De geschreven tekst heet "Complete tuin met
@@ -593,6 +596,14 @@ zwaarste doelvraag van dit advies ging over Helmond, en de opzet (`content_contr
 doelvraag als onderwerp en niet het soort pagina. Het rapport koos "verbeter de homepage" omdat de
 app maar één pagina van de site kende (punt 4).
 
+**Het is een patroon, geen uitzondering.** Bij de rijschool werd de prijzenpagina
+(`/prijzen-lespakketten/`) "Losse rijles bij faalangst in Eindhoven": proefles, automaat en de prijs
+van de simulatorcursus staan er niet meer in. De pagina "Wat kan ik verwachten tijdens mijn eerste
+rijles" werd een tekst over de intake. Bij de installateur werd `/warmtepomp` drie keer herschreven,
+elke keer rond een andere doelvraag (punt 31). De blinde lezers zeiden bij 5 van de 16 teksten "past
+niet bij het adres". **Richting:** bij "verbeteren" hoort de huidige functie van de pagina (wat er nu
+op staat en waarom) een vaste eis in de opzet te zijn, en de doelvraag een aanvulling.
+
 ## 46. De tekst draait een belofte van de site om
 
 De site: "wij doen ons best om je binnen 4 uur te voorzien van een scherpe offerte". De nieuwe tekst
@@ -601,6 +612,63 @@ binnen 4 uur. Dat is geen termijn voor het ontwerp of de offerte." Waarschijnlij
 herformulering door het model, maar het resultaat spreekt de ondernemer tegen, en juist in de richting
 die hem een verkoopargument kost. De keuring van de app zag dit niet: ze toetst of een bewering een
 bron heeft, niet of hij met die bron overeenkomt.
+
+## 47. Het sterkste bewijs staat in geen enkele tekst
+
+De rijschool: "Slagingspercentage 93 procent bij de eerste poging over 2025" (tegen ongeveer 50 procent
+bij het CBR) staat als bevestigd klantfeit in `brand_facts` en op de feitenkaart van alle acht
+pagina's. Het komt in geen enkele tekst voor, net als de 108 Google-recensies. De installateur:
+"Meer dan 1.800 onderhoudscontracten" en "Twaalf monteurs in dienst" op de feitenkaart van alle
+vier de pagina's, in geen enkele tekst, ook niet op de onderhoudspagina. **Oorzaak:** de app kiest per
+pagina vijf bewijspunten (`proof_points_json`) op "wat de lezer zich afvraagt", en die gaan over het
+proces ("je kunt vooraf vertellen wat je spannend vindt", "intakekosten terug"). Het onderscheidende
+cijfer valt buiten de vijf en de schrijfopdracht (`writer_brief_json`) noemt het niet. Alle drie de
+blinde lezers noemden dit als eerste wat een ondernemer zou toevoegen. **Richting:** de sterkste
+onderscheidende feiten van het merk (uit het gesprek: `offline_proof`) horen een vaste plek in elke
+pagina te hebben, los van de vijf gekozen punten.
+
+## 48. De teksten lezen als een formulier
+
+Drie blinde lezers, onafhankelijk, over 16 teksten (gemiddeld cijfer 4,1 op 10, zie stap 19 tot en met
+23 in `docs/tasks/kwaliteitsdoorlichting-stappen.md`):
+- Bijna elke alinea begint met de volledige bedrijfsnaam ("Hans Verstraaten Hoveniers verzorgt...",
+  "Bij Autorijschool Pompert...", "Wesley Keeris Installatietechniek biedt..."). Waarschijnlijk een
+  bijwerking van de regel dat elke bewering herleidbaar moet zijn: de schrijver zet de naam ervoor
+  om te laten zien over wie het gaat.
+- Dezelfde twee of drie feiten staan drie tot vier keer op één pagina (prijsband en terugkomafspraak
+  bij de hovenier, "isolatie, radiatoren en leeftijd van de ketel" meer dan tien keer op één pagina van
+  de installateur, "75 minuten" en "rustige routes" bij de rijschool).
+- Zinnen uit de bronnen lekken op de pagina: "Voor het ontwerp is hier geen vaste duur genoemd" (twee
+  teksten), "DUBOkeur wordt ook genoemd", "Het genoemde onderhoudscontract kost", "Dat zijn de drie
+  onderdelen die wij voor dit bezoek noemen". Nagerekend in de opgeslagen teksten.
+- Voorbehouden als hoofdtoon: "Dat wij die andere punten tijdens dit adviesbezoek controleren, zeggen
+  we hiermee niet toe", "daarover doen we geen algemene toezegging", "Vraag bij uw aanvraag welke
+  controles de beurt omvat". Het bedrijf klinkt als een buitenstaander.
+- Clichés die de schrijfstijl van de klant tegenspreken: "We staan graag voor je klaar!" (hovenier,
+  "geen verkooppraat"), "Een goed werkende verwarmingsinstallatie is onmisbaar".
+- Kromme koppen: "Beoordeel ervaring aan projecten en duidelijke afspraken", "Een onderhoudsbeurt
+  hoort beide toestellen te benoemen".
+
+De keuring van de app vond wel herhaling in het vraag-en-antwoordblok, maar niet de herhaling in de
+tekst, de naam voor elke alinea of de gelekte bronzinnen. **Richting:** een deterministische controle
+op (1) het aantal alinea's dat met de merknaam begint, (2) dezelfde bewering vaker dan twee keer, (3)
+woorden als "genoemd", "volgens de bron", "zeggen we niet toe".
+
+## 49. Een overgeslagen vraag wordt "bespreek dat vooraf"
+
+Waar de realistische klant een vraag oversloeg (garantie, extra grondwerk, wat de controle kost), laat
+de tekst het onderwerp niet weg maar vult het met "bespreek vooraf", "vraag na" of "daarover doen we
+geen toezegging". De lezer leest daaruit dat het bedrijf het zelf niet weet. Bij de hovenier kende de
+ondernemer de garantie wel (één jaar op aanplant, vijf jaar op bestrating), maar hij werd er niet naar
+gevraagd; de tekst "Bespreek garantieafspraken voordat de aanleg begint" is dan het slechtste van twee
+werelden. De schrijfopdracht zegt "GEEN BRON: laat deze passage weg" (punt 39); de schrijver doet
+iets anders.
+
+**Kanttekening bij de blinde lezers.** Hun oordelen zijn nagerekend voordat ze hier staan. Twee
+"ernstige" punten over de installateur klopten niet: de CO-certificering volgens de Gasketelwet staat
+wél op zijn site, en Eindhoven staat in elke paginatitel van zijn site ("Geldrop - Eindhoven"). Het
+waarheidsdossier was op die twee punten onvolledig. Ook de telefoonnummers van de rijschool staan wel op
+de site. Die punten zijn niet meegeteld.
 
 ---
 
