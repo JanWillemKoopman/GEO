@@ -133,3 +133,73 @@ export function kortSamengevat(summary: string, maxZinnen = 5): string {
     .map((zin) => zin.trim())
     .join(" ");
 }
+
+/**
+ * Welke andere bronnen dan ChatGPT noemden het merk wél? Leest `per_engine_json`
+ * van de score. Alleen bronnen met minstens één beoordeelde meting en een score
+ * boven nul tellen; een ontbrekende of onleesbare bron telt niet (conventie 3).
+ */
+export function bronnenDieWelNoemden(
+  perEngine: unknown,
+  primair: string,
+  labels: { id: string; label: string }[],
+): string[] {
+  if (!perEngine || typeof perEngine !== "object") return [];
+  const uit: string[] = [];
+  for (const [id, waarde] of Object.entries(perEngine as Record<string, unknown>)) {
+    if (id === primair || !waarde || typeof waarde !== "object") continue;
+    const { score, judged_runs } = waarde as { score?: unknown; judged_runs?: unknown };
+    if (typeof score === "number" && score > 0 && typeof judged_runs === "number" && judged_runs > 0) {
+      uit.push(labels.find((l) => l.id === id)?.label ?? id);
+    }
+  }
+  return uit;
+}
+
+/**
+ * De regel voor de schrijfinstructie: de score gaat over ChatGPT, en andere
+ * bronnen noemden het merk wél. Bewust zonder hun cijfer: de eigenaar wil naast
+ * de ChatGPT-score nergens een tweede getal zien (`lib/engines/bron.ts`).
+ */
+export function bronnenRegel(welGenoemdIn: string[]): string {
+  if (welGenoemdIn.length === 0) return "";
+  return (
+    `\nBRONNEN: de score hierboven gaat alleen over ChatGPT. In ${welGenoemdIn.join(" en ")} werd ` +
+    `het merk WEL genoemd. Schrijf dus nooit dat het merk nergens, bij geen enkele vraag of in geen ` +
+    `enkel AI-antwoord genoemd werd; zeg dan "in ChatGPT".`
+  );
+}
+
+/**
+ * Het vangnet onder `bronnenRegel()` (conventie 1).
+ *
+ * ── DE FOUT DIE DIT REPAREERT ───────────────────────────────────────────────
+ *
+ * ⚠️ Gevonden op 24 september 2026 in de kwaliteitsdoorlichting. Het rapport
+ * van een rijschool opende met "Pompert werd niet genoemd bij de 30 onderzochte
+ * vragen. De zichtbaarheid is daarmee ongeveer 0 op 100", terwijl de rijschool
+ * in 17 van de 74 AI-overzichten van Google wél stond. Het model kreeg alleen
+ * het ChatGPT-cijfer mee en kon het verschil niet weten. Voor de klant is dit de
+ * eerste zin van zijn rapport: hij leest dat hij onzichtbaar is, en dat klopt niet.
+ *
+ * Staat er een zin die "niet genoemd" of "nergens genoemd" zegt zonder ChatGPT
+ * erbij, terwijl een andere bron het merk wel noemde, dan komt er één zin
+ * achter die het rechtzet. Er wordt niets herschreven: een zin herschrijven
+ * zonder model is gokken, een zin toevoegen niet.
+ */
+export function vulBronnenAan(
+  summary: string,
+  welGenoemdIn: string[],
+): { summary: string; aangevuld: boolean } {
+  if (welGenoemdIn.length === 0 || !summary.trim()) return { summary, aangevuld: false };
+  const zinnen = summary.match(/[^.!?]+[.!?]*/g) ?? [summary];
+  const absoluut = zinnen.some(
+    (z) =>
+      /\b(niet|nergens|nooit)\s+(\S+\s+){0,3}genoemd\b|\bgeen enkele\b|\b0 op 100\b/i.test(z) &&
+      !/chatgpt/i.test(z),
+  );
+  if (!absoluut) return { summary, aangevuld: false };
+  const zin =
+    ` Dat gaat over ChatGPT: in ${welGenoemdIn.join(" en ")} werd het merk wel genoemd.`;
+  return { summary: summary.trimEnd() + zin, aangevuld: true };
+}

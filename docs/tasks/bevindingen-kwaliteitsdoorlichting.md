@@ -44,7 +44,10 @@
 | 16 | laag | Een taak van een merk stond op "bezig" en daarna weer in de wachtrij met 0 pogingen | open, niet herhaald |
 | 17 | hoog | Gemini-meting viel volledig uit op een limiet van de leverancier | open, wordt gevolgd |
 | 18 | laag | Beoordeling "genoemd of niet" geeft soms platte tekst in plaats van JSON, en de mislukte uitvoer wordt niet bewaard | open |
-| 19 | **hoog** | Een definitief mislukte Gemini- of Google-meting laat de analyse eeuwig op "meten" staan | ✅ opgelost, PR volgt |
+| 19 | **hoog** | Een definitief mislukte Gemini- of Google-meting laat de analyse eeuwig op "meten" staan | ✅ opgelost, PR #110 |
+| 20 | **hoog** | Het rapport schrapt elke zin over welke concurrent een vraag wint, ook de juiste | ✅ opgelost, PR volgt |
+| 21 | middel | Een productnaam ("Hybride warmtepomp") staat als bedrijf in het namenregister | open |
+| 22 | **hoog** | Het rapport zegt "niet genoemd, 0 op 100" terwijl Google het merk wel noemde | ✅ opgelost, PR volgt |
 
 ---
 
@@ -272,6 +275,45 @@ september gaven alle 90 Gemini-taken van A, B en C op (punt 17), en alle drie de
 
 **Status.** Opgelost: de tak kent nu alle drie de meetsoorten, met een unittest en een
 ketentestscenario. De drie vastgelopen analyses zijn na de reparatie met de hand aangezet.
+
+## 20. Het rapport schrapt elke zin over welke concurrent een vraag wint, ook de juiste ✅
+
+**Wat misging.** Het bewijsdossier dat het rapportmodel krijgt, noemt de gemiste vragen V1, V2,
+enzovoort, zonder meet-id. Het schema vraagt per gap wel om meet-id's (`evidenceRunIds`). Het model
+gaf dus codes ("V1") terug (hovenier, rijschool) of een lege lijst (installateur). De naamcontrole
+(`validateReportClaims()` in `lib/pipeline/report.ts`) zocht die codes als meet-id op, vond niets, en
+had dus bij elke gap een lege lijst toegestane namen. Gevolg: elke zin met een concurrentnaam ging
+eruit. Vandaag 17 (A), 17 (B) en 15 (C) zinnen, in `reports.stripped_claims_json`, alle 49 met
+`supportedNames: []`. Juist het deel van het rapport dat de klant het meest wil lezen ("wie staat er
+wel, en waarom") verdween.
+
+**Nagerekend.** Met de reparatie had 47 van de 49 zinnen mogen blijven staan: de genoemde naam stond
+echt onder die vraag in het dossier. De overige 2 zijn punt 21.
+
+**Oplossing.** `resolveGapEvidence()` (`lib/pipeline/evidence-format.ts`) vertaalt codes naar
+meet-id's vóór de naamcontrole, met als terugval de codes in de clusternaam en daarna de dossiervragen
+met dezelfde clusternaam. `schoonGapCluster()` haalt ook de code voor de clusternaam weg: alle 15 gaps
+van de rijschool begonnen met "V1" plus een kastlijntje, zichtbaar voor de klant.
+
+## 21. Een productnaam staat als bedrijf in het namenregister
+
+**Wat misging.** Bij de installateur werd twee keer een zin geschrapt omdat "Hybride warmtepomp" als
+naam in het entiteitenregister van het profiel staat. Elke zin die het product noemt, telt daardoor
+als een bewering over een concurrent. **Waar te zoeken:** de indeling van namen (`classify_entities`)
+en `looksLikeBrandName()` in `lib/pipeline/evidence.ts`, die dit filter voor het dossier wel heeft
+maar niet voor `knownNames` in de naamcontrole.
+
+## 22. Het rapport zegt "niet genoemd, 0 op 100" terwijl Google het merk wel noemde ✅
+
+**Wat misging.** Het rijschoolrapport opende met "Pompert werd niet genoemd bij de 30 onderzochte
+vragen. De zichtbaarheid is daarmee ongeveer 0 op 100". In de meting stond Pompert in 17 van de 74
+AI-overzichten van Google (score 23). Het rapportmodel kreeg alleen het ChatGPT-cijfer en kon het
+verschil niet weten. De klant leest in de eerste zin dat hij onzichtbaar is, en dat klopt niet.
+
+**Oplossing.** De schrijfinstructie zegt nu welke andere bronnen het merk wel noemden (zonder hun
+cijfer, want de eigenaar wil naast de ChatGPT-score nergens een tweede getal), en `vulBronnenAan()`
+(`lib/pipeline/report-summary.ts`) zet er één zin achter als de samenvatting toch "niet genoemd" zegt
+zonder ChatGPT erbij.
 
 ---
 

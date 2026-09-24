@@ -17,7 +17,14 @@ import { bepaalGemisteVragen } from "@/lib/pipeline/missed-prompts";
 import { PRIMARY_ENGINE } from "@/lib/engines/types";
 import { resolveTargets, mergeOverlappingRecommendations } from "@/lib/pipeline/recommendation";
 import { reconcileExistingPageActions } from "@/lib/pipeline/existing-page-match";
-import { correctQuestionCount, questionCountLine } from "@/lib/pipeline/report-summary";
+import {
+  bronnenDieWelNoemden,
+  bronnenRegel,
+  correctQuestionCount,
+  questionCountLine,
+  vulBronnenAan,
+} from "@/lib/pipeline/report-summary";
+import { BRONNEN } from "@/lib/engines/bron";
 import {
   buildEvidenceDossier,
   loadBrandsByRun,
@@ -30,6 +37,8 @@ import {
 } from "@/lib/pipeline/context-factors";
 import {
   formatEvidenceDossier,
+  resolveGapEvidence,
+  schoonGapCluster,
   type EvidenceEntry,
 } from "@/lib/pipeline/evidence-format";
 import {
@@ -186,7 +195,13 @@ function scoreLine(score: VisibilityScore | null): string {
         `binnen die marge vallen.`
       : "";
 
-  return base + weighted + sov + uncertainty;
+  // Zonder deze regel schreef het rapport "niet genoemd bij de 30 vragen" over
+  // een merk dat Google wel noemde (zie `vulBronnenAan()`).
+  const bronnen = bronnenRegel(
+    bronnenDieWelNoemden(score?.per_engine_json, PRIMARY_ENGINE, BRONNEN),
+  );
+
+  return base + weighted + sov + uncertainty + bronnen;
 }
 
 /**
@@ -582,7 +597,16 @@ async function validateReportClaims(
   gaps: Report["gaps"];
   stripped: StrippedClaim[];
 }> {
-  const { profileId, recommendations, gaps, dossier } = args;
+  const { profileId, recommendations, dossier } = args;
+  // Eerst de codes van het model ("V1") naar echte meet-id's; zonder die stap
+  // bleef er van elke gap geen enkele toegestane naam over (zie
+  // `resolveGapEvidence()`). De opgeloste id's gaan ook de opslag in, zodat
+  // de audit-trail naar echte metingen wijst.
+  const gaps = args.gaps.map((gap) => ({
+    ...gap,
+    cluster: schoonGapCluster(gap.cluster),
+    evidenceRunIds: resolveGapEvidence(gap, dossier),
+  }));
 
   // Alle metingen waar het rapport naar verwijst: de doelvragen van de
   // aanbevelingen plus het bewijs onder de gaps. Die laatste hoeven niet in het
@@ -626,7 +650,7 @@ async function validateReportClaims(
   });
 
   const checkedGaps = gaps.map((gap) => {
-    const allowed = (gap.evidenceRunIds ?? []).flatMap((runId) =>
+    const allowed = gap.evidenceRunIds.flatMap((runId) =>
       namesForRun(runId),
     );
     const result = validateField(gap.problem, {
@@ -898,10 +922,16 @@ export async function generateReport(
     // Zie `lib/pipeline/report-summary.ts` voor de fout uit de doorloop van
     // 31 augustus 2026, waar het rapport "15 onderzochte vragen" schreef bij
     // een meting van 30 vragen en zichzelf drie zinnen verder tegensprak.
-    const samenvatting = correctQuestionCount(
+    const geteld = correctQuestionCount(
       report.parsed.summary,
       measurementSize.questions,
     );
+    // En "niet genoemd" rechtzetten als een andere bron het merk wél noemde.
+    const bronnen = vulBronnenAan(
+      geteld.summary,
+      bronnenDieWelNoemden(score?.per_engine_json, PRIMARY_ENGINE, BRONNEN),
+    );
+    const samenvatting = { ...geteld, summary: bronnen.summary };
     if (samenvatting.corrected.length > 0) {
       console.warn(
         `Analyse ${id} periode ${weekNo}: het rapport noemde ` +
