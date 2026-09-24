@@ -24,6 +24,34 @@
 > met cijfers in `docs/tasks/kwaliteitsdoorlichting-stappen.md`. Het
 > stap-voor-stapdossier met cijfers per stap staat in `docs/tasks/kwaliteitsdoorlichting-stappen.md`.
 
+## Verbeterronde vanaf 24 september 2026: besluiten en stand
+
+De eigenaar koos op 24 september 2026 om alle open punten op te lossen, in blokken van één PR per
+thema, elk getest en op productie nagerekend, en af te sluiten met een volledige herhaling van de
+doorloop met dezelfde drie bedrijven en dezelfde blinde lezers (meetlat: 4,1 op 10).
+
+**Besluiten van de eigenaar (24 september 2026):**
+
+- **48, de merknaam:** niet voor elke alinea in de zichtbare tekst. Gevraagd: kan het anders? Te
+  bouwen in blok D: de naam in de kop, het openingsantwoord en de zinnen die een feit geven; elders
+  "wij". De naam voor zoekmachines en AI-assistenten gaat mee in de gestructureerde gegevens van de
+  pagina (die ziet de lezer niet).
+- **27, groeidoelen:** tellen zwaar. Gebouwd in blok A: twee keer het gewicht van een even zware
+  gemiste vraag.
+- **31, verbeteringen van één pagina:** hooguit één per pagina per drie maanden. Te bouwen in blok E.
+- **42, tegengehouden tekst:** mag aan de klant getoond worden, met een duidelijke melding. Te bouwen
+  in blok C.
+- **33 en 53:** geen keuze maar een fout; de ontwikkelaar lost ze op zonder besluit.
+
+| Blok | Punten | Stand |
+|---|---|---|
+| A, wat de app van de klant weet | 5, 24, 27, 35, 36, 47 | ✅ gebouwd en getest; 7 schuift naar blok B (crawl) |
+| B, wat de app van de site leest | 4, 7, 10, 28, 45 | open |
+| C, de keuring | 42, 43, 50, 53, 54 | open |
+| D, schrijfstijl | 46, 48, 49 | open |
+| E, planning | 31, 32, 33 | open |
+| F, kleine punten | 3, 6, 8, 9, 11 tot 18, 23, 38 | open |
+
 ## Eindverslag: de vijf verbeteringen die het meest opleveren
 
 **De uitkomst in één alinea.** Drie echte bedrijven zijn op 23 en 24 september 2026 door de hele keten
@@ -78,7 +106,7 @@ bronzinnen, het ontbrekende bewijs).
 | 2 | hoog | Definitieve onderwerpenronde kan alle onderwerpen wissen | ✅ opgelost, PR #108 |
 | 3 | hoog | Het merk zelf komt op de lijst "gelijknamige bedrijven die jij niet bent" | open |
 | 4 | hoog | De crawl leest 1 pagina van een site van ~70, zonder waarschuwing | open |
-| 5 | hoog | Meetvragen negeren de groeigebieden: de opdracht spreekt zichzelf tegen | open |
+| 5 | hoog | Meetvragen negeren de groeigebieden: de opdracht spreekt zichzelf tegen | ✅ opgelost, verbeterronde blok A |
 | 6 | middel | "Herkend door ChatGPT bij 5 van 6 vragen" telt gokken op de naam als herkenning | open |
 | 7 | middel | Het sterkste bewijs van een bedrijf valt tussen crawl en dossier weg | open |
 | 8 | middel | Meetvragen: veel dubbel, weinig realistisch, altijd een plaatsnaam | open |
@@ -97,10 +125,10 @@ bronzinnen, het ontbrekende bewijs).
 | 21 | middel | Een eigen product ("Hybride warmtepomp") telde in de naamcontrole als concurrent | ✅ opgelost, PR #112 |
 | 22 | **hoog** | Het rapport zegt "niet genoemd, 0 op 100" terwijl Google het merk wel noemde | ✅ opgelost, PR #111 en #112 |
 | 23 | laag | Hetzelfde bedrijf staat twee keer in het namenregister, met en zonder "(VSB)" | open, gevolg opgevangen |
-| 24 | laag | De rapportinstructie zegt niet of prioriteit 1 de belangrijkste is; de hovenier kreeg 6 tot 10 met de belangrijkste pagina's op 10 | open |
+| 24 | laag | De rapportinstructie zegt niet of prioriteit 1 de belangrijkste is; de hovenier kreeg 6 tot 10 met de belangrijkste pagina's op 10 | ✅ opgelost, verbeterronde blok A |
 | 25 | middel | Een klaar cluster (status "gereed") heeft geen link op zijn kaart | ✅ opgelost, PR #113 |
 | 26 | **hoog** | De consultant ziet de clusters van een klantmerk niet en krijgt "Start het eerste cluster" | ✅ opgelost, PR #116 |
-| 27 | **hoog** | Het rapport kent de groeidoelen en feiten uit het gesprek niet | open |
+| 27 | **hoog** | Het rapport kent de groeidoelen en feiten uit het gesprek niet | ✅ opgelost, verbeterronde blok A |
 | 28 | **hoog** | De site-inventaris mist de hoofdpagina uit het menu en bevat fotobijlagen; het rapport adviseert een fotopagina te verbeteren | open |
 | 29 | middel | Het planscherm zegt de klant "stel je het plan zelf op", maar alleen de consultant mag het | ✅ opgelost, PR #114 |
 | 30 | **hoog** | Het plan gaf de zwaarste gemiste vraag potentie 0 en zette die pagina achteraan | ✅ opgelost, PR #114 (nog niet op een nieuw plan nagerekend, zie 32) |
@@ -108,8 +136,8 @@ bronzinnen, het ontbrekende bewijs).
 | 32 | **hoog** | "Opnieuw opzetten" van het plan faalt als alle kansen al in het huidige plan staan, en laat ze anders achter | open |
 | 33 | middel | Een plan dat laat in de maand start, vraagt de klant zijn vragen te beantwoorden vóór een datum in het verleden | open |
 | 34 | laag | De klant leest "wacht op jouw vrijgave" en in hetzelfde blok dat de consultant goedkeurt | ✅ opgelost, PR #116 |
-| 35 | **hoog** | Vragen die het gesprek al beantwoordde, blijven openstaan voor de klant | open |
-| 36 | middel | Elk rapport zet zijn eigen vragen klaar; alleen letterlijk gelijke vragen worden samengevoegd | open |
+| 35 | **hoog** | Vragen die het gesprek al beantwoordde, blijven openstaan voor de klant | ✅ opgelost, verbeterronde blok A (streng: alleen als het gesprek de hele vraag dekt) |
+| 36 | middel | Elk rapport zet zijn eigen vragen klaar; alleen letterlijk gelijke vragen worden samengevoegd | ✅ grotendeels opgelost, verbeterronde blok A (sterk anders geformuleerde varianten komen nog door) |
 | 37 | laag | Een vraag aan de klant bevat "en" en "of" met een schuine streep ertussen | ✅ opgelost, PR #116 |
 | 38 | middel | Het laatste antwoord van een pagina laat de klant 9 tot 30 seconden wachten | open |
 | 39 | **hoog** | Een beantwoorde vraag maakt de bewering erachter nooit "onderbouwd": de keuring blijft "beantwoord deze vraag" zeggen | ✅ opgelost, PR #115 |
@@ -120,7 +148,7 @@ bronzinnen, het ontbrekende bewijs).
 | 44 | laag | Een tegengehouden pagina staat voor de klant als "Alle gegevens bekend, wordt nu geschreven" | ✅ opgelost, PR #116 |
 | 45 | **hoog** | Een "verbetering" vervangt de functie van de bestaande pagina (homepage wordt Helmond, prijzenpagina wordt losse les bij faalangst) | open |
 | 46 | **hoog** | De tekst draait een belofte van de site om: "binnen 4 uur een scherpe offerte" wordt "geen termijn voor de offerte" | open |
-| 47 | **hoog** | Het sterkste bewijs van de klant staat in geen enkele tekst, hoewel het op de feitenkaart staat | open |
+| 47 | **hoog** | Het sterkste bewijs van de klant staat in geen enkele tekst, hoewel het op de feitenkaart staat | ✅ opgelost, verbeterronde blok A (nog niet op een nieuwe tekst nagerekend) |
 | 48 | **hoog** | De teksten lezen als een formulier: bedrijfsnaam voor elke alinea, dezelfde feiten drie tot vier keer, voorbehouden, zinnen uit de bronnen | deels opgelost (bronzinnen, PR #119), rest is een afweging |
 | 49 | middel | Waar de klant een vraag oversloeg, wijkt de tekst uit naar "bespreek dat vooraf" in plaats van het onderwerp los te laten | open |
 | 50 | **hoog** | De reparatieknop van de klant haalde een juist klantfeit uit de tekst | oorzaak opgelost (punt 39), PR #115 |
@@ -208,6 +236,13 @@ kregen beide regels; het model volgde de harde. Plek: `lib/pipeline/prompts.ts:3
 **Voorstel.** De groeiplaatsen opnemen in de lijst toegestane plaatsen van de lokale regel, met een
 aantal ("minstens 3 van de 10 vragen over …"), en in code tellen: haalt een ronde het minimum niet,
 dan opnieuw of aanvullen.
+
+**Opgelost (24 september 2026, verbeterronde blok A).** De groeiplaatsen horen nu bij de toegestane
+plaatsen van de lokale regel (`toegestanePlaatsen()` in `lib/pipeline/geo-share.ts`), de opdracht
+vraagt een aantal ("MINSTENS 3 van de 10 vragen") in plaats van "een deel", en de generator telt na
+(`groeiBalans()`): haalt een funnelfase het niet, dan vraagt hij gericht bij en ruilt de laatste
+vraag zonder groeiplaats in. Ook een handgeschreven vraag over een groeiplaats mag nu. Nog na te
+rekenen op een nieuwe meting.
 
 ## 6. "Herkend door ChatGPT bij 5 van 6 vragen" telt gokken op de naam als herkenning
 
@@ -424,6 +459,12 @@ bepaalt alleen de top 3 in de rapportmail (standaard uit) en welke van twee dubb
 **Richting:** de volgorde uit de meting afleiden (som van de gewichten van de doelvragen), zoals
 bij punt 2, en het getal van het model alleen als tweede sleutel.
 
+**Opgelost (24 september 2026, verbeterronde blok A).** `rangschikAanbevelingen()`
+(`lib/pipeline/recommendation.ts`) bepaalt de volgorde: het gewicht van de gemiste vragen, keer twee
+bij een groeidoel, het getal van het model alleen als tweede sleutel, en daarna opnieuw genummerd
+met 1 als belangrijkste. De instructie zegt dat nu ook. Nagerekend op het opgeslagen rapport van de
+hovenier: Best en Nuenen gaan van 10 naar 1 en 2.
+
 ## 25. Een klaar cluster heeft geen link op zijn kaart ✅
 
 `cluster-kaart.tsx` gaf de kop en de links "Cijfers van dit cluster" en "Pagina's van dit cluster"
@@ -464,6 +505,15 @@ alleen `context_factors` door (`lib/pipeline/report.ts`, de `strategyRow`).
 horen in de rapportinvoer, als weegfactor bij de volgorde en als filter (geen advies over een
 verboden onderwerp). Het deel van punt 5 (de meetvragen negeren de groeiplaatsen) zit hier
 stroomopwaarts van: vraagt de meting niet naar Mierlo, dan kan het rapport er ook niets over zeggen.
+
+**Opgelost (24 september 2026, verbeterronde blok A).** De rapportinvoer krijgt de groeidoelen,
+groeiplaatsen, klantgroepen, het aanbod dat de klant niet wil, de verboden onderwerpen en het bewijs
+uit het gesprek (`reportSteering()` in `lib/pipeline/commercial-context.ts`). De weging staat in code:
+een aanbeveling die een groeiplaats of een kernwoord van het groeiaanbod raakt, telt dubbel, en een
+aanbeveling over aanbod dat de klant niet wil, gaat eruit (zie punt 24). Kanttekening uit het
+narekenen: bij een cluster dat zelf over het groeiaanbod gaat (warmtepomp, faalangst) raken bijna
+alle aanbevelingen het kernwoord, en dan beslissen vooral de groeiplaatsen. Dat de rijschool geen
+pagina voor Veldhoven kreeg, komt door punt 5: de meting vroeg er niet naar.
 
 ## 28. De site-inventaris mist de hoofdpagina uit het menu en bevat fotobijlagen
 
@@ -552,6 +602,15 @@ leest daaruit dat er niet geluisterd is. **Richting:** na het opslaan van het ge
 merkvragen langs de ingevulde velden leggen en een beantwoorde vraag sluiten met het antwoord uit het
 gesprek.
 
+**Opgelost (24 september 2026, verbeterronde blok A).** Bij het opslaan van het gesprek sluit
+`sluitVragenUitGesprek()` (`lib/vraag-sluiten.ts`) de open merkvragen die het gesprek beantwoordt,
+met status `verlopen` en het antwoord erbij; het merkonderzoek en het rapport stellen zulke vragen
+niet meer (`filterNieuweMerkvragen()`). Bewust streng (`lib/vraag-dekking.ts`): alleen als elk
+inhoudswoord van de vraag in één gespreksfeit terugkomt. Op de echte vragen van de installateur gaan
+de monteursvraag en de plaatsvraag dicht; "onderhoudscontracten voor cv-ketels, warmtepompen of
+airco's" en "storing buiten kantoortijden" blijven open, want het gesprek zegt niet voor welke
+toestellen of op welke tijden. Paginavragen blijven altijd open: die hangen aan een bewering.
+
 ## 36. Elk rapport zet zijn eigen vragen klaar
 
 `saveFactRequests()` (`lib/pipeline/report.ts`) bewaart de feitvragen van het rapport per merk, met
@@ -563,6 +622,14 @@ had de installateur vier varianten van "welke controles doet u bij een woningbez
 een eerste gesprek en voor de start van tuinaanleg" stonden allebei bij de hovenier). Voor de
 doorlichting zijn de vragen van de twee gearchiveerde rapportversies op `verlopen` gezet (31 rijen,
 niets verwijderd).
+
+**Grotendeels opgelost (24 september 2026, verbeterronde blok A).** Een nieuwe rapportvraag wordt
+vergeleken met alle vragen die al bij het merk staan, ook beantwoorde en overgeslagen
+(`zelfdeVraag()` in `lib/vraag-dekking.ts`). Herkend: dezelfde vraag korter gesteld, en dezelfde
+vraag met een ander slot ("welke merken en modellen hybride warmtepompen"). Niet herkend: twee
+vragen die hetzelfde bedoelen met andere woorden ("woningopname" tegenover "woningbezoek"). Dat
+vraagt een taalmodel en blijft voorlopig liggen: liever één vraag dubbel dan een terechte vraag
+weggelaten.
 
 ## 37. "En" en "of" met een schuine streep in een vraag aan de klant
 
@@ -701,6 +768,14 @@ cijfer valt buiten de vijf en de schrijfopdracht (`writer_brief_json`) noemt het
 blinde lezers noemden dit als eerste wat een ondernemer zou toevoegen. **Richting:** de sterkste
 onderscheidende feiten van het merk (uit het gesprek: `offline_proof`) horen een vaste plek in elke
 pagina te hebben, los van de vijf gekozen punten.
+
+**Opgelost (24 september 2026, verbeterronde blok A).** De feiten uit het gesprek krijgen een eigen
+blok in de schrijfopdracht ("HET STERKSTE BEWIJS VAN DIT BEDRIJF"), bovenop de vijf bewijspunten, en
+de keuring telt na of er minstens één met het getal in de tekst staat (`lib/pipeline/kernbewijs.ts`,
+een bevinding "hoog", niet blokkerend). Bij het bouwen kwam een tweede gat boven: een pagina schrijft
+tegen de kaart die tijdens de voorbereiding bevroren is, dus bewijs dat daarna in het gesprek werd
+opgeslagen, bereikte die pagina nooit, ook niet bij een nieuwe versie. `metGespreksbewijs()` voegt het
+nu alsnog toe, met een identiteit uit de feitenbank. Nog na te rekenen op een nieuwe tekst.
 
 ## 48. De teksten lezen als een formulier
 

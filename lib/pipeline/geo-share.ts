@@ -117,9 +117,19 @@ export function containsRegion(text: string, regions: string[]): boolean {
     if (lower.includes(zin)) return true;
   }
 
-  const termen = [...regions, ...PROVINCIES]
-    .map((r) => r.trim().toLowerCase())
-    .filter((r) => r.length > 1);
+  return containsPlace(lower, [...regions, ...PROVINCIES]);
+}
+
+/**
+ * Noemt deze vraag een van precies deze plaatsen?
+ *
+ * Strenger dan `containsRegion`: geen provincie en geen "in de buurt". Nodig
+ * voor de groeiplaatsen (punt 5 van de kwaliteitsdoorlichting), want "welke
+ * installateur in Brabant" zegt niets over Mierlo, en daar gaat het om.
+ */
+export function containsPlace(text: string, places: string[]): boolean {
+  const lower = text.toLowerCase();
+  const termen = places.map((r) => r.trim().toLowerCase()).filter((r) => r.length > 1);
 
   for (const term of termen) {
     const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -131,6 +141,71 @@ export function containsRegion(text: string, regions: string[]): boolean {
     }
   }
   return false;
+}
+
+/**
+ * Het werkgebied plus de groeiplaatsen, zonder dubbelen.
+ *
+ * ⚠️ Kwaliteitsdoorlichting 24 september 2026, punt 5. De opdracht zei eerst
+ * "ALLE vragen moeten een van deze plaatsen bevatten" met alleen het huidige
+ * werkgebied, en daarna zacht "stel een deel over de groeiplaatsen". Het model
+ * volgde de harde regel: 0 van de 30 vragen over Mierlo, Heeze-Leende of Nuenen
+ * bij de installateur, 0 over Veldhoven of Son en Breugel bij de rijschool.
+ * Een groeiplaats is dus ook een toegestane plaats, anders sluiten de twee
+ * regels elkaar uit.
+ */
+export function toegestanePlaatsen(
+  serviceRegions: string[] | null | undefined,
+  growthRegions: string[] | null | undefined,
+): string[] {
+  const uit = new Map<string, string>();
+  for (const r of [...(serviceRegions ?? []), ...(growthRegions ?? [])]) {
+    const t = r.trim();
+    if (t && !uit.has(t.toLowerCase())) uit.set(t.toLowerCase(), t);
+  }
+  return [...uit.values()];
+}
+
+/**
+ * Welk deel van de vragen van een funnelfase over een groeiplaats moet gaan.
+ *
+ * Drie van de tien. Genoeg om per plaats iets te zien (drie groeiplaatsen, drie
+ * fasen: ongeveer drie vragen per plaats over de hele meting), en weinig genoeg
+ * dat de score over het huidige werkgebied niet gaat over waar de klant nog
+ * niet werkt. Een groeivraag die niet genoemd wordt is geen fout van het merk
+ * maar precies het gat dat de klant wil zien.
+ */
+export const GROEI_AANDEEL = 0.3;
+
+export interface GroeiBalans {
+  aantal: number;
+  nodig: number;
+  tekort: number;
+}
+
+/** Hoeveel vragen noemen een groeiplaats, en hoeveel moeten dat er zijn. */
+export function groeiBalans(
+  texts: string[],
+  growthRegions: string[],
+  doel: number,
+  aandeel: number = GROEI_AANDEEL,
+): GroeiBalans {
+  if (growthRegions.length === 0 || doel === 0) return { aantal: 0, nodig: 0, tekort: 0 };
+  const aantal = texts.filter((t) => containsPlace(t, growthRegions)).length;
+  const nodig = Math.min(doel, Math.ceil(doel * aandeel));
+  return { aantal, nodig, tekort: Math.max(0, nodig - aantal) };
+}
+
+/**
+ * Welke vragen mogen wijken voor een groeivraag: de laatste die geen
+ * groeiplaats noemen, hoogste index eerst (zelfde reden als `droppableIndices`).
+ */
+export function wijkbaarVoorGroei(texts: string[], growthRegions: string[], aantal: number): number[] {
+  const weg: number[] = [];
+  for (let i = texts.length - 1; i >= 0 && weg.length < aantal; i--) {
+    if (!containsPlace(texts[i], growthRegions)) weg.push(i);
+  }
+  return weg;
 }
 
 /**

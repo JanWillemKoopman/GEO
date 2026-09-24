@@ -32,6 +32,7 @@ import { GEO_CRITERIA_LABELS } from "@/lib/schemas/critique";
 import type { CitabilityVerdict, FactualityVerdict } from "@/lib/schemas/content-panel";
 import type { CraftVerdict } from "@/lib/schemas/content-craft";
 import type { BewijspuntenResult } from "@/lib/pipeline/bewijspunten";
+import type { KernbewijsResult } from "@/lib/pipeline/kernbewijs";
 import type { OpdrachtResult } from "@/lib/schrijfopdracht";
 import type { KlantcitatenResult } from "@/lib/pipeline/klantcitaten";
 import type {
@@ -85,6 +86,8 @@ export interface KwaliteitsInvoer {
   adres?: AdresResult;
   /** V9: is een feit omgezet naar een argument voor de lezer? */
   bewijspunten?: BewijspuntenResult;
+  /** Punt 47 van de kwaliteitsdoorlichting: staat het sterkste bewijs uit het gesprek erin? */
+  kernbewijs?: KernbewijsResult;
   /** Is de schrijfopdracht uitgevoerd? (optimalisatie 5 en 6, migratie 0094) */
   schrijfopdracht?: OpdrachtResult;
   /** V4: is er iets van de eigen woorden van de ondernemer blijven staan? */
@@ -665,6 +668,31 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
         recommendation:
           "Schrijf per gekozen feit één zin die zegt wat de lezer eraan heeft, en zet die zin op " +
           "de plek waar hij dat argument nodig heeft.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "bewijspunt",
+      }),
+    );
+  }
+
+  // ── Het sterkste bewijs uit het gesprek ontbreekt (punt 47) ──────────────
+  //
+  // Hoog en niet blokkerend. Hoog, want alle drie de blinde lezers van de
+  // doorlichting noemden juist dit als eerste wat er ontbrak. Niet blokkerend,
+  // want de tekst is zonder dat cijfer niet onwaar, alleen zwakker; zelfde
+  // afweging als bij de bewijspunten hierboven.
+  for (const zin of invoer.kernbewijs?.issues ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "overtuiging",
+        severity: "hoog",
+        section: null,
+        finding: zin,
+        evidence: invoer.kernbewijs?.kern[0]?.text ?? null,
+        expected: "Minstens één feit dat de ondernemer zelf gaf, met het getal, staat in de tekst.",
+        recommendation:
+          "Zet het feit dat het best bij deze pagina past erin, met het getal zoals de ondernemer " +
+          "het gaf, op de plek waar het de keuze van de lezer onderbouwt.",
         blocking: false,
         confidence: ZEKER,
         bron: "bewijspunt",

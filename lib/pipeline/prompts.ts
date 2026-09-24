@@ -30,7 +30,11 @@ import {
   isLokaal,
   geoBalance,
   containsRegion,
+  containsPlace,
   droppableIndices,
+  groeiBalans,
+  toegestanePlaatsen,
+  wijkbaarVoorGroei,
   REGIO_DREMPEL,
 } from "@/lib/pipeline/geo-share";
 import { growthRegionsRule } from "@/lib/pipeline/commercial-context";
@@ -207,6 +211,19 @@ function geoTopUpNote(missing: number, regions: string[], existing: string[]): s
   );
 }
 
+/** De bijvulronde die om vragen over een groeiplaats vraagt (punt 5). */
+function groeiTopUpNote(missing: number, groei: string[], existing: string[]): string {
+  return (
+    `AANVULLING: geef er precies ${missing}, en in ELKE vraag moet een van deze plaatsen letterlijk ` +
+    `voorkomen: ${groei.join(", ")}.\n` +
+    `WAAROM: het bedrijf wil in deze plaatsen groeien, en de meting moet laten zien of het daar al ` +
+    `genoemd wordt. Een vraag over de provincie of "in de buurt" telt hier niet.\n` +
+    `Schrijf ze zoals een koper uit die plaats ze stelt: over het vinden, kiezen of inschakelen van ` +
+    `een aanbieder daar.\n` +
+    `Herhaal NIET de vragen die er al zijn:\n${existing.map((t) => `- ${t}`).join("\n")}`
+  );
+}
+
 function topUpNote(missing: number, existing: string[], verboden: string[]): string {
   const namen = verboden.length ? verboden.join(", ") : "de eigen merknaam";
   return (
@@ -284,10 +301,17 @@ async function generateForFunnelStage(args: {
   // eronder telt of er een plaats in staat, niet of de vraag natuurlijk klinkt.
   // Dat laatste is niet deterministisch te meten, en dat hoort hier te staan in
   // plaats van gesuggereerd te worden.
+  // De groeiplaatsen horen bij de toegestane plaatsen (punt 5 van de
+  // kwaliteitsdoorlichting, 24 september 2026): zonder die regel eiste de ene
+  // zin "alleen het werkgebied" en vroeg de volgende om groeiplaatsen, en won
+  // de harde zin altijd.
+  const groei = brand.growthRegions ?? [];
+  const regios = toegestanePlaatsen(brand.serviceRegions, groei);
   const geoRule =
     geoNodig > 0
-      ? `Dit is een LOKAAL bedrijf dat uitsluitend werkt in: ${brand.serviceRegions!.join(", ")}. ` +
-        `ALLE ${count} vragen moeten een van deze plaatsen of de provincie bevatten, ` +
+      ? `Dit is een LOKAAL bedrijf dat nu werkt in: ${brand.serviceRegions!.join(", ")}` +
+        (groei.length > 0 ? `, en wil groeien in: ${groei.join(", ")}` : "") +
+        `. ALLE ${count} vragen moeten een van deze plaatsen of de provincie bevatten, ` +
         `zoals een zoeker uit die streek ze stelt. Een vraag zonder plaats gaat over heel Nederland, en ` +
         `daar concurreert dit bedrijf niet.\n` +
         `⚠️ De plaats moet de vraag ECHT lokaal maken, niet er los achter geplakt worden. Een vraag ` +
@@ -308,7 +332,11 @@ async function generateForFunnelStage(args: {
 
   // Waar het merk heen wil (migratie 0060, fase 4). Staat ná de geo-regel: die
   // gaat over waar het bedrijf nú werkt, dit over waar het bij wil komen.
-  const groeiRegel = growthRegionsRule({ growth_regions: brand.growthRegions ?? [] });
+  const groeiNodig = groeiBalans([], groei, count).nodig;
+  const groeiRegel = growthRegionsRule(
+    { growth_regions: groei },
+    groeiNodig > 0 ? { nodig: groeiNodig, van: count } : undefined,
+  );
 
   const system =
     `Je bedenkt realistische vragen ("prompts") die een echte koper aan een AI-assistent zoals ChatGPT stelt. ` +
@@ -376,7 +404,6 @@ async function generateForFunnelStage(args: {
   // De instructie hierboven vraagt om een aantal; deze lus garandeert het. Zonder
   // dit haalde het model 38% waar 70% nodig is, en dan meet twee derde van het
   // budget vragen die dit bedrijf structureel niet kan winnen.
-  const regios = brand.serviceRegions ?? [];
   if (geoNodig > 0 && collected.length > 0) {
     for (let ronde = 0; ronde < MAX_TOPUP_ATTEMPTS; ronde++) {
       const balans = geoBalance(collected.map((p) => p.text), regios, collected.length);
@@ -440,6 +467,58 @@ async function generateForFunnelStage(args: {
         `Funnelfase "${category}": ${landelijk.length} landelijke vragen geschrapt na ` +
           `${MAX_TOPUP_ATTEMPTS} bijvulrondes; ${collected.length} regionale vragen over. ` +
           `Regio's: ${regios.join(", ")}.`,
+      );
+    }
+  }
+
+  // ── Het groeivangnet (conventie 1, punt 5 van de kwaliteitsdoorlichting) ──
+  //
+  // Zelfde vorm als het regionale vangnet: tellen, gericht bijvragen, ruilen.
+  // Een groeivraag vervangt de laatste vraag die geen groeiplaats noemt, zodat
+  // het aantal (en daarmee de meetkosten) gelijk blijft. Lukt het niet, dan
+  // blijft de set zoals hij is: een meting zonder groeivraag is minder
+  // informatief, niet onwaar.
+  if (groei.length > 0 && collected.length > 0) {
+    for (let ronde = 0; ronde < MAX_TOPUP_ATTEMPTS; ronde++) {
+      const balans = groeiBalans(collected.map((p) => p.text), groei, collected.length);
+      if (balans.tekort === 0) break;
+
+      const result = await callStructured({
+        model: MODELS.quality,
+        system,
+        user: `${user}\n\n${groeiTopUpNote(balans.tekort, groei, collected.map((p) => p.text))}`,
+        schema: PromptSet,
+        schemaName: "prompt_set",
+        webSearch: false,
+        work: "creative",
+        meta: { kind: "prompts", analysisId: args.analysisId },
+      });
+      lastRaw = result.raw;
+
+      const nieuw = result.parsed.prompts.filter((p) => {
+        const key = p.text.trim().toLowerCase();
+        if (seen.has(key)) return false;
+        if (containsForbidden(p.text, tokens)) return false;
+        if (!containsPlace(p.text, groei)) return false;
+        seen.add(key);
+        return true;
+      });
+      if (nieuw.length === 0) break;
+
+      const weg = wijkbaarVoorGroei(
+        collected.map((p) => p.text),
+        groei,
+        Math.min(nieuw.length, balans.tekort),
+      );
+      if (weg.length === 0) break;
+      for (const i of weg) collected.splice(i, 1);
+      collected.push(...nieuw.slice(0, weg.length));
+    }
+    const eind = groeiBalans(collected.map((p) => p.text), groei, collected.length);
+    if (eind.tekort > 0) {
+      console.warn(
+        `Funnelfase "${category}": ${eind.aantal} van de ${eind.nodig} gewenste vragen over ` +
+          `een groeiplaats na ${MAX_TOPUP_ATTEMPTS} bijvulrondes. Groeiplaatsen: ${groei.join(", ")}.`,
       );
     }
   }

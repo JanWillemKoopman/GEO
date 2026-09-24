@@ -61,9 +61,10 @@ import { issuesUitJson } from "@/lib/pipeline/quality-issue";
 import { formatExplainerBlock, type VerifiedExplainer } from "@/lib/pipeline/explainer-verify";
 import { describeToneSliders, describePronoun, kiesAanspreekvorm } from "@/lib/pipeline/tone-sliders";
 import { bepaalLezersopdracht, lezersblok } from "@/lib/lezersopdracht";
-import { objectionsRule } from "@/lib/pipeline/commercial-context";
+import { objectionsRule, offlineProofFacts } from "@/lib/pipeline/commercial-context";
 import { vindKlantinstructies, instructieblok, verbiedtAdres } from "@/lib/klantinstructies";
 import { bewijspuntenblok, bewijspuntenBehoudblok } from "@/lib/pipeline/bewijspunten";
+import { kernbewijsblok, vindKernbewijs } from "@/lib/pipeline/kernbewijs";
 import { maakSchrijfopdracht } from "@/lib/pipeline/writer-brief";
 import { vergelijkVersies } from "@/lib/pipeline/version-compare";
 import { bruikbareOpdracht, opdrachtblok } from "@/lib/schrijfopdracht";
@@ -99,6 +100,7 @@ import {
   factFromAnswer,
   mergeAnsweredFacts,
   metKlantopmerking,
+  metGespreksbewijs,
   normalizeForQuote,
   buildFactFindingAddendum,
   type AnsweredFactInput,
@@ -616,6 +618,11 @@ function buildContentInput(args: {
     citatenblok(vindCiteerbareAntwoorden(facts.map((f) => f.text))),
     // ✅ V9: van feit naar betekenis, met de voorbeelden van de copywriter erin.
     bewijspuntenblok(),
+    // ✅ Punt 47 van de kwaliteitsdoorlichting: het sterkste bewijs uit het
+    // gesprek ("93 procent geslaagd", "1.800 onderhoudscontracten") stond op
+    // elke kaart en in geen enkele tekst. Nu een eigen blok, bovenop de vijf
+    // bewijspunten, met een telling achteraf (`checkKernbewijs`).
+    kernbewijsblok(vindKernbewijs(facts)),
     // ✅ V6: dit is de site van de ondernemer, geen consumentengids. Op drie
     // pagina's van 3 september sloeg het advies door tot tekst die de bezoeker
     // wegstuurde om de klant zelf te controleren.
@@ -1416,10 +1423,15 @@ async function loadContentContext(
   const antwoordHerkomst = new Map<string, { factRequestId: string | null; documentId: null }>(
     answeredFacts.map((a) => [a.fact.text, { factRequestId: a.requestId, documentId: null }]),
   );
+  // Het bewijs uit het gesprek (punt 47) gaat ook de bank in, merkbreed: het
+  // geldt voor het hele bedrijf, en zo krijgt het een identiteit op de kaart.
+  const gespreksbewijs = offlineProofFacts({
+    offline_proof: (profile?.offline_proof as string[] | null) ?? [],
+  }).map((f) => ({ ...f, allowed: true, citable: true, kind: "klant" as const }));
   const bank = await syncBrandFacts(admin, {
     profileId: analysis.profile_id,
     analysisId,
-    brandWide: answeredFacts.filter((a) => a.scope === "merk").map((a) => a.fact),
+    brandWide: [...answeredFacts.filter((a) => a.scope === "merk").map((a) => a.fact), ...gespreksbewijs],
     // ⚠️ Paginagebonden antwoorden gaan er NIET in. De bank leest terug wat
     // merkbreed is of bij deze analyse hoort, dus een antwoord dat aan één
     // pagina hangt zou daarna op de kaart van élke andere pagina in dit cluster
@@ -1442,7 +1454,14 @@ async function loadContentContext(
   // De opmerking van de klant bij een nieuwe versie is zijn eigen woord, en dus
   // een bruikbaar klantfeit (punt 52). Zonder deze regel stond een bedrag uit
   // die opmerking niet op de kaart en mocht de schrijver het niet gebruiken.
-  const facts = metKlantopmerking(samengevoegd, recommendation.revisionNote ?? null);
+  // En het bewijs uit het gesprek dat na het bevriezen van de kaart is
+  // opgeslagen (punt 47): zonder dit bereikte "Twaalf monteurs in dienst" een
+  // eerder voorbereide pagina nooit, ook niet bij een nieuwe versie.
+  const metGesprek = metGespreksbewijs(
+    samengevoegd,
+    gespreksbewijs.map((f) => ({ ...f, id: idPerTekst.get(normalizeForQuote(f.text)) ?? null })),
+  );
+  const facts = metKlantopmerking(metGesprek, recommendation.revisionNote ?? null);
 
   const proofCount = facts.filter((f) => f.allowed).length;
 

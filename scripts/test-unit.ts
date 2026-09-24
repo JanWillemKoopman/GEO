@@ -113,6 +113,8 @@ import {
   readRecommendations,
   mergeOverlappingRecommendations,
   describeActionRatio,
+  rangschikAanbevelingen,
+  GROEI_FACTOR,
 } from "@/lib/pipeline/recommendation";
 
 
@@ -197,6 +199,7 @@ import {
   factFromAnswer,
   mergeAnsweredFacts,
   metKlantopmerking,
+  metGespreksbewijs,
   sourceCoverage,
   buildFactFindingAddendum,
 } from "@/lib/pipeline/factcard";
@@ -765,8 +768,14 @@ import {
   isLokaal,
   REGIO_DREMPEL,
   regionGateMessage,
+  containsPlace,
+  groeiBalans,
+  toegestanePlaatsen,
+  wijkbaarVoorGroei,
 } from "@/lib/pipeline/geo-share";
 import { COST_DENIED } from "@/lib/cost-rules";
+import { gesprekBeantwoordt, zelfdeVraag } from "@/lib/vraag-dekking";
+import { vindKernbewijs, kernbewijsblok, checkKernbewijs, kernFeitInTekst, GESPREK_BRON } from "@/lib/pipeline/kernbewijs";
 import { requireCount } from "@/lib/require-count";
 import { mayMeasureAgain, MIN_DAGEN_TUSSEN_PERIODES } from "@/lib/measure-cadence";
 import { poolRecent, describePooled, MAX_POOLED_ROUNDS } from "@/lib/stats/pooling";
@@ -883,6 +892,9 @@ import {
   forbiddenTopicHits,
   siteStructureRule,
   goalRule,
+  reportSteering,
+  groeiKernwoorden,
+  raaktGroeidoel,
 } from "@/lib/pipeline/commercial-context";
 import { buildTopicBrief } from "@/lib/pipeline/topic-brief";
 import {
@@ -21850,7 +21862,7 @@ group("De bedrading van de paginakeuze (O1 tot en met O6)", () => {
   ok("de handeling wordt nagerekend", report.includes("reconcileExistingPageActions"));
   ok(
     "en dat gebeurt vóór het wegschrijven",
-    report.indexOf("reconcileExistingPageActions") < report.indexOf("recommendations_json: recommendations"),
+    report.indexOf("reconcileExistingPageActions") < report.indexOf("recommendations_json: gerangschikt"),
   );
   // ⚠️ Eén beslisser, niet twee. Twee modules die dezelfde vraag beantwoorden
   // kunnen het oneens worden; dat is precies wat er op 2 september dreigde toen
@@ -25679,4 +25691,152 @@ group("De opmerking van de klant bij een nieuwe versie is een klantfeit (24 sept
   eq("zonder opmerking ongewijzigd", String(metKlantopmerking(kaart, "  ").length), "1");
   const content = leesBestand("lib/pipeline/content.ts");
   ok("de schrijfopdracht noemt de opmerking", content.includes("WAT DE KLANT ZELF VRAAGT VOOR DEZE VERSIE"));
+});
+
+
+group("Meetvragen over de groeiplaatsen (verbeterronde, punt 5)", () => {
+  const groei = ["Mierlo", "Heeze-Leende", "Nuenen"];
+  eq("werkgebied plus groeiplaatsen, zonder dubbelen", toegestanePlaatsen(["Geldrop", "Eindhoven"], ["Nuenen", "eindhoven"]).join(","), "Geldrop,Eindhoven,Nuenen");
+  eq("zonder groeiplaatsen alleen het werkgebied", toegestanePlaatsen(["Geldrop"], null).join(","), "Geldrop");
+  ok("een groeiplaats telt", containsPlace("Welke installateur in Mierlo vervangt een cv-ketel?", groei));
+  ok("met koppelteken ook", containsPlace("Wie doet onderhoud in Heeze-Leende?", groei));
+  ok("de provincie telt hier niet", !containsPlace("Welke installateur in Brabant?", groei));
+  ok("in de buurt ook niet", !containsPlace("Welke installateur bij mij in de buurt?", groei));
+  // De echte uitkomst van de doorlichting: 10 vragen over Geldrop en Eindhoven.
+  const oud = Array.from({ length: 10 }, (_, i) => `Welke installateur in ${i % 2 ? "Geldrop" : "Eindhoven"} doet ${i}?`);
+  const b = groeiBalans(oud, groei, 10);
+  eq("drie van de tien moeten over een groeiplaats", `${b.aantal}/${b.nodig}/${b.tekort}`, "0/3/3");
+  eq("zonder groeiplaatsen is er geen eis", String(groeiBalans(oud, [], 10).nodig), "0");
+  eq("de laatste drie wijken, hoogste eerst", wijkbaarVoorGroei(oud, groei, 3).join(","), "9,8,7");
+  const gemengd = [...oud.slice(0, 9), "Wie in Nuenen plaatst een warmtepomp?"];
+  eq("een groeivraag wijkt nooit", wijkbaarVoorGroei(gemengd, groei, 2).join(","), "8,7");
+  const prompts = leesBestand("lib/pipeline/prompts.ts");
+  ok("de generator telt de groeivragen na", prompts.includes("groeiBalans(collected.map((p) => p.text), groei, collected.length)"));
+  ok("en de lokale regel noemt de groeiplaatsen als toegestaan", prompts.includes("toegestanePlaatsen(brand.serviceRegions, groei)"));
+  ok("de opdracht vraagt een aantal, geen deel", growthRegionsRule({ growth_regions: groei }, { nodig: 3, van: 10 }).includes("MINSTENS 3 van de 10 vragen"));
+});
+
+
+group("Het rapport weegt de groeidoelen zwaar (verbeterronde, punt 24 en 27)", () => {
+  // De echte gespreksvelden van de drie bedrijven uit de doorlichting.
+  const rijschool = groeiKernwoorden({
+    priority_offerings: ["Rijles bij faalangst, autisme en ADHD", "Rijles in de automaat"],
+    growth_regions: ["Veldhoven", "Best", "Son en Breugel"],
+  });
+  ok("faalangst is een kernwoord", rijschool.woorden.includes("faalangst"));
+  ok("ADHD als afkorting ook", rijschool.woorden.includes("adhd"));
+  ok("rijles niet, dat staat in elke aanbeveling", !rijschool.woorden.includes("rijles"));
+  ok("een pagina over autisme raakt het groeidoel", raaktGroeidoel("Rijles met autisme in Eindhoven", rijschool));
+  ok("een pagina voor Son en Breugel ook", raaktGroeidoel("Rijschool in Son en Breugel", rijschool));
+  ok("Best niet in 'beste'", !raaktGroeidoel("De beste rijschool in Helmond", rijschool));
+  ok("Helmond is geen groeiplaats", !raaktGroeidoel("Rijschool in Helmond", rijschool));
+  const installateur = groeiKernwoorden({
+    priority_offerings: ["Hybride warmtepompen", "Cv-ketelvervanging met onderhoudscontract"],
+    growth_regions: ["Mierlo"],
+  });
+  ok("warmtepompen wordt warmtepomp", installateur.woorden.includes("warmtepomp"));
+  ok("en raakt het enkelvoud", raaktGroeidoel("Wat kost een hybride warmtepomp?", installateur));
+
+  const rec = (title: string, weight: number, priority: number) => ({
+    title, type: "landing" as const, targetIntent: "", why: "", priority,
+    action: "nieuw" as const, existingUrl: null, relatedUrl: null,
+    targets: [{ promptId: title, runId: null, text: title, cluster: null, weight }],
+  });
+  // De hovenier kreeg Best en Nuenen op prioriteit 10, achteraan.
+  const hovenier = groeiKernwoorden({ priority_offerings: ["Zwemvijvers"], growth_regions: ["Best", "Nuenen"] });
+  const uit = rangschikAanbevelingen(
+    [rec("Tuinaanleg in Eindhoven", 0.6, 1), rec("Hovenier in Nuenen", 0.4, 10), rec("Kunstgras leggen", 0.9, 2)],
+    hovenier,
+    groeiKernwoorden({ priority_offerings: ["Kunstgras als losse opdracht"], growth_regions: [] }).woorden,
+    raaktGroeidoel,
+  );
+  eq("de groeiplaats gaat voor (0,4 keer 2 tegen 0,6)", uit.aanbevelingen.map((r) => r.title).join(" | "), "Hovenier in Nuenen | Tuinaanleg in Eindhoven");
+  eq("opnieuw genummerd, 1 is het belangrijkst", uit.aanbevelingen.map((r) => r.priority).join(","), "1,2");
+  eq("kunstgras wil de klant niet", uit.geschrapt.map((r) => r.title).join(","), "Kunstgras leggen");
+  ok("de factor is twee", GROEI_FACTOR === 2);
+  const gelijk = rangschikAanbevelingen([rec("B", 0.5, 2), rec("A", 0.5, 1)], { plaatsen: [], woorden: [] }, [], raaktGroeidoel);
+  eq("bij gelijk gewicht beslist het getal van het model", gelijk.aanbevelingen.map((r) => r.title).join(","), "A,B");
+
+  const stuur = reportSteering({
+    priority_offerings: ["Hybride warmtepompen"], deprioritised_offerings: [], growth_regions: ["Mierlo"],
+    target_segments: [], forbidden_topics: [], offline_proof: ["Meer dan 1.800 onderhoudscontracten"],
+  });
+  ok("de rapportinvoer noemt Mierlo", stuur.includes("Mierlo"));
+  ok("en het bewijs uit het gesprek, als niet opnieuw te vragen", stuur.includes("1.800") && stuur.includes("NIET opnieuw"));
+  ok("een leeg profiel levert niets op", reportSteering({ priority_offerings: [], deprioritised_offerings: [], growth_regions: [], target_segments: [], forbidden_topics: [], offline_proof: [] }) === "");
+  const report = leesBestand("lib/pipeline/report.ts");
+  ok("het rapport slaat de gerangschikte volgorde op", report.includes("recommendations_json: gerangschikt as never"));
+  ok("en de instructie zegt welke kant priority op gaat", report.includes("1 is de belangrijkste aanbeveling"));
+});
+
+
+group("Vragen die het gesprek al beantwoordde of die er al staan (verbeterronde, punt 35 en 36)", () => {
+  // De echte gespreksvelden en vragen van de installateur.
+  const gesprek = {
+    offline_proof: [
+      "Twaalf monteurs in dienst",
+      "Storingsdienst voor contractklanten: binnen 24 uur bij een storing, ook in het weekend",
+      "Meer dan 1.800 onderhoudscontracten",
+    ],
+    service_regions: ["Geldrop", "Eindhoven"],
+    growth_regions: ["Mierlo", "Heeze-Leende", "Nuenen"],
+  };
+  eq("de monteursvraag", String(gesprekBeantwoordt("Hoeveel eigen monteurs werken er momenteel bij het bedrijf?", gesprek)), "Twaalf monteurs in dienst");
+  eq("de plaatsvraag", String(gesprekBeantwoordt("In welke plaatsen buiten Geldrop en Eindhoven neemt u opdrachten aan?", gesprek)), "Werkt nu in Geldrop, Eindhoven, wil groeien in Mierlo, Heeze-Leende, Nuenen.");
+  eq("de contractvraag zonder meer", String(gesprekBeantwoordt("Biedt u onderhoudscontracten aan?", gesprek)), "Meer dan 1.800 onderhoudscontracten");
+  // Streng: een vraag die meer vraagt dan het gesprek zegt, blijft open.
+  eq("contracten voor welke toestellen zegt het gesprek niet", String(gesprekBeantwoordt("Biedt u onderhoudscontracten aan voor cv-ketels, warmtepompen of airco's?", gesprek)), "null");
+  eq("een ander feit over monteurs ook niet", String(gesprekBeantwoordt("Hoeveel monteurs hebben een F-gassencertificaat?", gesprek)), "null");
+  eq("buiten kantoortijden staat er niet", String(gesprekBeantwoordt("Kunnen klanten buiten kantoortijden een storing melden, en voor welke storingen rijdt u dan uit?", gesprek)), "null");
+  eq("een plaatsvraag met een afstand erbij blijft open", String(gesprekBeantwoordt("In welke plaatsen nemen jullie opdrachten aan, en tot hoeveel kilometer vanaf Eindhoven?", gesprek)), "null");
+  eq("zonder werkgebied geen antwoord", String(gesprekBeantwoordt("In welke plaatsen werkt u?", { offline_proof: [], service_regions: [], growth_regions: [] })), "null");
+
+  ok("dezelfde vraag, korter gesteld", zelfdeVraag("Wat is doorgaans de wachttijd voor een eerste gesprek?", "Wat is de gebruikelijke wachttijd voor een eerste gesprek en voor de start van tuinaanleg?"));
+  ok("dezelfde vraag, ander slot", zelfdeVraag("Welke merken en modellen hybride warmtepompen leveren of installeren jullie?", "Welke merken of modellen hybride warmtepompen kunnen jullie leveren of met elkaar vergelijken?"));
+  ok("prijs en levensduur zijn twee vragen", !zelfdeVraag("Wat kost een hybride warmtepomp?", "Hoe lang gaat een hybride warmtepomp mee?"));
+  ok("ook met een plaats erbij", !zelfdeVraag("Wat kost een hybride warmtepomp in Mierlo?", "Hoe lang duurt de installatie van een hybride warmtepomp in Mierlo?"));
+  ok("onderhoud en merken zijn twee vragen", !zelfdeVraag("Welk onderhoud voeren jullie uit aan hybride warmtepompen?", "Welke merken hybride warmtepompen leveren jullie?"));
+
+  ok("het rapport filtert zijn vragen", leesBestand("lib/pipeline/report.ts").includes("filterNieuweMerkvragen("));
+  ok("het merkonderzoek ook", leesBestand("lib/pipeline/synthesis.ts").includes("filterNieuweMerkvragen("));
+  ok("en opslaan van het gesprek sluit open vragen", leesBestand("app/api/profiles/[id]/route.ts").includes("sluitVragenUitGesprek(admin, id)"));
+  ok("alleen vragen die niet aan een pagina hangen", leesBestand("lib/vraag-sluiten.ts").includes("if ((rij.content_piece_ids ?? []).length > 0) continue;"));
+});
+
+
+group("Het sterkste bewijs uit het gesprek staat in de tekst (verbeterronde, punt 47)", () => {
+  ok("dezelfde bron als het gesprek aan de feiten geeft", offlineProofFacts({ offline_proof: ["x"] })[0].source === GESPREK_BRON);
+  const kaart = [
+    { ref: "F1", text: "Je kunt vooraf vertellen wat je spannend vindt", source: "site /faalangst", allowed: true },
+    { ref: "F2", text: "Slagingspercentage 93 procent bij de eerste poging over 2025", source: GESPREK_BRON, allowed: true },
+    { ref: "F3", text: "Vier instructeurs", source: GESPREK_BRON, allowed: true },
+    { ref: "F4", text: "Niet te gebruiken", source: GESPREK_BRON, allowed: false },
+  ];
+  eq("alleen de toegestane gespreksfeiten", vindKernbewijs(kaart).map((f) => f.ref).join(","), "F2,F3");
+  ok("het blok noemt het cijfer met F-nummer", kernbewijsblok(vindKernbewijs(kaart)).includes("F2: Slagingspercentage 93 procent"));
+  eq("zonder gespreksfeiten geen blok", kernbewijsblok([]), "");
+  // De echte tekst van de rijschool noemde het percentage nergens.
+  const zonder = "Bij faalangst kun je vooraf vertellen wat je spannend vindt. We rijden rustige routes.";
+  eq("ontbreekt: één bevinding", String(checkKernbewijs({ kern: vindKernbewijs(kaart), tekst: zonder }).issues.length), "1");
+  const met = zonder + " Vorig jaar slaagde 93 procent van onze leerlingen in één keer.";
+  eq("staat erin: niets te melden", String(checkKernbewijs({ kern: vindKernbewijs(kaart), tekst: met }).issues.length), "0");
+  ok("1.800 en 1800 zijn hetzelfde", kernFeitInTekst("Meer dan 1.800 onderhoudscontracten", "Wij onderhouden 1800 installaties via een contract."));
+  ok("twaalf monteurs op het telwoord", kernFeitInTekst("Twaalf monteurs in dienst", "Onze twaalf monteurs in dienst kennen de wijk."));
+  ok("een ander getal telt niet", !kernFeitInTekst("Slagingspercentage 93 procent", "Slagingspercentage 89 procent."));
+  eq("zonder gespreksfeiten ook geen bevinding", String(checkKernbewijs({ kern: [], tekst: zonder }).issues.length), "0");
+  ok("de schrijfopdracht krijgt het blok", leesBestand("lib/pipeline/content.ts").includes("kernbewijsblok(vindKernbewijs(facts))"));
+  ok("en de keuring telt het na", leesBestand("lib/pipeline/quality-run.ts").includes("checkKernbewijs({ kern: vindKernbewijs(input.facts)"));
+});
+
+
+group("Bewijs uit het gesprek komt ook op een eerder bevroren kaart (verbeterronde, punt 47)", () => {
+  const kaart = [{ ref: "F1", id: null, text: "Sitefeit", source: "site /", allowed: true, citable: true, claimKey: null }];
+  const met = metGespreksbewijs(kaart, [
+    { text: "Twaalf monteurs in dienst", source: "opgegeven in het gesprek", id: "abc" },
+    { text: "sitefeit", source: "opgegeven in het gesprek" },
+  ]);
+  eq("het nieuwe feit komt erbij, een bekend feit niet", met.map((f) => `${f.ref} ${f.text}`).join(" | "), "F1 Sitefeit | F2 Twaalf monteurs in dienst");
+  eq("met zijn identiteit uit de bank", String(met[1].id), "abc");
+  eq("niets nieuws, dan dezelfde kaart", String(metGespreksbewijs(kaart, []) === kaart), "true");
+  ok("de schrijfroute gebruikt het", leesBestand("lib/pipeline/content.ts").includes("const metGesprek = metGespreksbewijs("));
 });
