@@ -74,6 +74,14 @@ export interface InventoryContext {
    * plaats van te doen alsof de site precies zo groot is als wat we lazen.
    */
   totalFound?: number;
+  /**
+   * Hoeveel gekozen pagina's niet gelezen zijn omdat de site niet op tijd
+   * antwoordde (time-out of tijdbudget op). Punt 4 van de
+   * kwaliteitsdoorlichting: zonder dit meldde het scherm "1 pagina's gevonden"
+   * als gewoon resultaat, en zei het advies bij weinig tekst dat de site
+   * waarschijnlijk JavaScript gebruikt, terwijl hij gewoon traag was.
+   */
+  traagNietGelezen?: number;
 }
 
 /**
@@ -91,6 +99,12 @@ export interface InventoryContext {
  * waarin de consultant iets moet doen, en het was het enige geval dat er
  * hetzelfde uitzag als een site die volledig gelezen is.
  */
+/**
+ * Vanaf welk deel niet-gelezen pagina's het oordeel "afgekapt" wordt. Een op de
+ * tien: daaronder is het beeld nog vrijwel compleet en is een melding ruis.
+ */
+export const TRAAG_DREMPEL = 0.1;
+
 export function assessInventory(
   pages: InventoryPageLike[],
   context: InventoryContext = {},
@@ -112,20 +126,30 @@ export function assessInventory(
   }
 
   const usable = pages.filter((p) => (p.text ?? "").trim().length >= USABLE_TEXT_CHARS).length;
+  const traag = context.traagNietGelezen ?? 0;
   const products = pages.filter((p) => looksLikeProductPage(p.url)).length;
 
   const usableTextRatio = round2(usable / total);
   const productPageRatio = round2(products / total);
   const basis = { pages: total, totalFound, usableTextRatio, productPageRatio };
 
+  // Traag gaat vóór de andere verklaringen: "JavaScript" of "te weinig
+  // pagina's" is dan een verkeerde diagnose met een verkeerde uitweg.
+  const traagAdvies =
+    traag > 0
+      ? `Je site reageerde traag: ${traag} van de ${total} gekozen pagina's konden we niet op tijd ` +
+        `lezen. Wat we wel lazen staat op belang, dus de belangrijkste pagina's zitten er meestal bij. ` +
+        `Lees de site later opnieuw in, of voeg hieronder de pagina's toe die er zeker bij horen.`
+      : null;
+
   if (usable < MIN_USABLE_PAGES) {
     return {
       ...basis,
       verdict: "dun",
-      advice:
-        total < MIN_USABLE_PAGES
+      advice: traagAdvies ??
+        (total < MIN_USABLE_PAGES
           ? "We vonden te weinig pagina's om een betrouwbaar beeld van de site te krijgen. Vul de sitemap-URL in, of verhoog het paginamaximum bij de instellingen van dit merk."
-          : `Van de ${total} gevonden pagina's bevatten er maar ${usable} bruikbare tekst. Vaak betekent dat de site zijn inhoud met JavaScript opbouwt. Dan lezen AI-assistenten hem ook niet.`,
+          : `Van de ${total} gevonden pagina's bevatten er maar ${usable} bruikbare tekst. Vaak betekent dat de site zijn inhoud met JavaScript opbouwt. Dan lezen AI-assistenten hem ook niet.`),
     };
   }
 
@@ -140,6 +164,10 @@ export function assessInventory(
   // Ná 'vervuild': bij een grote webshop zijn beide waar, en dan is "we zien
   // vooral het assortiment" de nuttigere melding. Die zegt iets over wat we
   // hebben; deze alleen iets over wat we misten.
+  if (traagAdvies && traag / total >= TRAAG_DREMPEL) {
+    return { ...basis, verdict: "afgekapt", advice: traagAdvies };
+  }
+
   if (afgekapt) {
     return {
       ...basis,

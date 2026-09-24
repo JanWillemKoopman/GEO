@@ -376,6 +376,13 @@ async function scheduleImpactIfLastRun(
   });
 }
 
+/**
+ * Hoeveel aanvulrondes een trage site hooguit krijgt. Vier rondes op
+ * "langzaam" zijn samen ruim tien minuten lezen, genoeg voor de ~70 pagina's van
+ * de hovenier uit de kwaliteitsdoorlichting (4 tot 10 seconden per pagina).
+ */
+const MAX_AANVULRONDES = 4;
+
 const handlers: { [T in JobType]: Handler<T> } = {
   // ── Profielonderzoek ──────────────────────────────────────────────────────
   /**
@@ -412,7 +419,19 @@ const handlers: { [T in JobType]: Handler<T> } = {
   // volgende (docs/tasks/onboarding-2.0.md blok B).
   profile_discover: async ({ admin, job }) => {
     if (!job.profile_id) throw new Error("profile_discover zonder profile_id.");
-    await discoverSite(job.profile_id);
+    const ontdekt = await discoverSite(job.profile_id);
+
+    // Een trage site: de pagina's die niet op tijd kwamen, alsnog rustig lezen
+    // in de achtergrond (punt 4 van de kwaliteitsdoorlichting). Aanvullen en
+    // niet vervangen, één pagina tegelijk.
+    if (ontdekt.traagNietGelezen > 0) {
+      await enqueue(admin, {
+        type: "crawl_inventory",
+        payload: { mode: "meer", maxPages: ontdekt.traagNietGelezen, speed: "langzaam", aanvulronde: 1 },
+        profileId: job.profile_id,
+        dedupeKey: `${dedupe.crawlInventory(job.profile_id)}:aanvul1`,
+      });
+    }
 
     // Het onderzoek volgt hier pas ná, en niet parallel zoals voorheen. Dat is
     // het hele punt: `prepare-profile.ts` startte de inventaris naast de
@@ -1543,14 +1562,27 @@ const handlers: { [T in JobType]: Handler<T> } = {
    * raken; de consultant kan de knop gewoon nog een keer gebruiken, "meer"
    * pakt automatisch verder waar deze ronde bleef steken.
    */
-  crawl_inventory: async ({ job }, payload) => {
+  crawl_inventory: async ({ admin, job }, payload) => {
     if (!job.profile_id) throw new Error("crawl_inventory zonder profile_id.");
-    await refreshInventory(job.profile_id, {
+    const uitkomst = await refreshInventory(job.profile_id, {
       mode: payload.mode,
       maxPages: payload.maxPages,
       speed: payload.speed,
       budgetMs: 180_000,
     });
+    // Een aanvulronde na een trage ontdekking gaat door tot alles gelezen is,
+    // met een plafond zodat een site die nooit antwoordt geen eindeloze reeks
+    // taken oplevert. Een eigen sleutel per ronde: de lopende taak houdt de
+    // gewone sleutel nog bezet.
+    const ronde = payload.aanvulronde ?? 0;
+    if (ronde > 0 && ronde < MAX_AANVULRONDES && uitkomst.remaining > 0 && !uitkomst.blocked) {
+      await enqueue(admin, {
+        type: "crawl_inventory",
+        payload: { mode: "meer", maxPages: uitkomst.remaining, speed: "langzaam", aanvulronde: ronde + 1 },
+        profileId: job.profile_id,
+        dedupeKey: `${dedupe.crawlInventory(job.profile_id)}:aanvul${ronde + 1}`,
+      });
+    }
   },
 };
 

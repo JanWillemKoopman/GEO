@@ -263,6 +263,8 @@ export async function planContentPiece(args: {
   // geschreven zoals vóór deze wijziging, en niet slechter.
   let existingText: string | null = null;
   let existingFetchedAt: string | null = null;
+  /** De titel van de te verbeteren pagina, voor de functie-eis (punt 45). */
+  let existingTitle: string | null = null;
   // Blok D, §3.4 (docs/tasks/zoekdata-in-de-keten.md): echte zoekopdrachten
   // die deze pagina al vertoningen opleveren, als achtergrond voor het
   // contract. Leeg bij een nieuwe pagina of zonder Search Console-koppeling.
@@ -272,12 +274,13 @@ export async function planContentPiece(args: {
   if (recommendation.action === "verbeteren" && recommendation.existingUrl) {
     const { data: pageRows } = await admin
       .from("profile_pages")
-      .select("url")
+      .select("url, title")
       .eq("profile_id", analysis.profile_id);
     const bekend = matchExistingPage(
       recommendation.existingUrl,
-      ((pageRows ?? []) as { url: string }[]),
+      ((pageRows ?? []) as { url: string; title: string | null }[]),
     );
+    existingTitle = bekend?.title ?? null;
 
     if (!bekend) {
       console.warn(
@@ -347,6 +350,7 @@ export async function planContentPiece(args: {
     profileId: analysis.profile_id,
     existingText,
     existingUrl: recommendation.existingUrl ?? null,
+    existingTitle,
     existingQueries,
   });
 

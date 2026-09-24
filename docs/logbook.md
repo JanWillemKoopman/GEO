@@ -12197,3 +12197,19 @@ gesprek krijgt een eigen blok in de schrijfopdracht en een telling in de keuring
 bewijs dat na de voorbereiding in het gesprek kwam, een eerder voorbereide pagina nooit bereikte;
 `metGespreksbewijs()` zet het nu alsnog op de kaart. Punt 7 (bewijs dat tussen crawl en dossier
 wegvalt) schuift naar blok B, bij de crawl.
+
+## 24 september 2026: verbeterronde blok B, de app leest de site zoals de eigenaar hem bedoelt
+
+Vijf punten uit de kwaliteitsdoorlichting. (4) De crawl van de hovenier leverde één pagina op omdat
+de site traag is, niet omdat hij blokkeert: 5 tot 12 seconden per sitemap, terwijl de app na 12
+opgaf. Nu 30 seconden voor sitemaps, 25 per pagina bij de ontdekkingsstap, minder tegelijk na een
+time-out, een tijdbudget van 180 seconden, en een rustige aanvulronde voor wat niet op tijd kwam.
+Lokaal nagemeten: 102 adressen in plaats van 1. (10) Tags, categorieën, auteurs en fotobijlagen gaan
+eruit, op het adres en daarna op de klasse `single-attachment`; de rijschool gaat van 109 naar 76
+adressen. (28) Het menu van de homepage wordt gelezen en gaat vooraan; de faalangstpagina van de
+rijschool, die in de sitemap ontbrak, zit er nu bij. (45) De homepage, contact en over-ons worden
+nooit meer vervangen door een onderwerppagina, en bij elke andere verbetering krijgen opzet en
+schrijver de functie van de pagina als vaste eis. (7) Kerncijfers van de site ("slagingspercentage
+van 93%") komen als citeerbaar feit op de kaart, als vangnet naast het merkonderzoek. Geen
+ketentest voor de aanvulronde: die hangt aan echte wachttijden, en een test van drie minuten per
+draai is erger dan de controle op de bedrading die er nu staat.

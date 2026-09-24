@@ -555,6 +555,12 @@ export interface JobPayloads {
     maxPages?: number;
     /** Het tempo voor deze ronde, of `profiles.crawl_speed` als afwezig. */
     speed?: CrawlSpeed;
+    /**
+     * Een aanvulronde die de ontdekkingsstap zelf inplande omdat de site te
+     * traag was (punt 4 van de kwaliteitsdoorlichting). Zolang er pagina's
+     * overblijven plant de taak een volgende ronde, tot `MAX_AANVULRONDES`.
+     */
+    aanvulronde?: number;
   };
 }
 
