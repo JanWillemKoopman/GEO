@@ -2604,10 +2604,13 @@ textarea.field {
     background-color var(--duration-fast) var(--ease-standard),
     color var(--duration-fast) var(--ease-standard);
 }
-.segment-item:hover:not([aria-pressed="true"]) {
+.segment-item:hover:not([aria-pressed="true"]):not([aria-current="page"]) {
   color: var(--text-primary);
 }
-.segment-item[aria-pressed="true"] {
+/* Een segment van links (de weergaven van het contentplan) markeert de gekozen
+   optie met `aria-current`, een van knoppen met `aria-pressed`. Dezelfde vorm. */
+.segment-item[aria-pressed="true"],
+.segment-item[aria-current="page"] {
   background-color: var(--bg-surface);
   color: var(--text-primary);
   font-weight: 500;
@@ -2712,6 +2715,23 @@ textarea.field {
   max-width: 90vw;
   border-inline-start: var(--border-width-xs) solid var(--border-primary);
   animation: drawer-in var(--duration-slow) var(--ease-out);
+}
+/* De navigatielade komt van links, waar op een breed scherm de zijbalk staat. */
+.drawer-links {
+  inset-inline-start: 0;
+  inset-inline-end: auto;
+  width: 320px;
+  border-inline-start: none;
+  border-inline-end: var(--border-width-xs) solid var(--border-primary);
+  animation-name: drawer-links-in;
+}
+@keyframes drawer-links-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 .drawer-kop {
   display: flex;
@@ -3619,6 +3639,22 @@ textarea.field {
   padding: 12px 16px;
   background-color: var(--bg-base);
   border-top: var(--border-width-xs) solid var(--line-muted);
+}
+
+/* Een actiebalk die onderaan het scherm vastzit, zoals "Bevestig en start de
+   meting" (`ConfirmBar`). Op een telefoon staat daar al de onderbalk (56px plus
+   zijn veilige zone), en die lag er tot de UX-audit van 23 september 2026
+   precies overheen: de enige knop van het scherm viel erachter. De regel kijkt
+   of de onderbalk er is in plaats van naar een breedte, want welke structuur er
+   komt beslist de server op de useragent (`lib/apparaat.ts`), niet de CSS. */
+.vaste-actiebalk {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 20;
+}
+body:has(.onderbalk) .vaste-actiebalk {
+  bottom: calc(56px + env(safe-area-inset-bottom));
 }
 
 @media print {

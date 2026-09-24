@@ -3,10 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Dialog, DialogKnoppen } from "@/components/dialog";
-import { KLANT_ZONDER_CLUSTERS } from "@/lib/cluster-start";
+import { COST_DENIED } from "@/lib/cost-rules";
 
 /**
- * De knop "Nieuwe cluster" rechtsboven op het clustersscherm.
+ * De knop "Nieuw cluster" rechtsboven op het clustersscherm.
  *
  * ── WAAROM DIT EEN CLIENT COMPONENT IS EN GEEN LINK MET EEN `staff`-CHECK ────
  *
@@ -29,21 +29,27 @@ export function NieuweClusterKnop({ merkId, staff }: { merkId: string; staff: bo
   if (staff) {
     return (
       <Link href={`/analyses/new?merk=${merkId}`} className="btn-actie">
-        Nieuwe cluster
+        Nieuw cluster
       </Link>
     );
   }
 
   return (
     <>
-      <button type="button" className="btn-actie" onClick={() => setOpen(true)}>
-        Nieuwe cluster
+      {/* Voor de klant een rustige knop die zegt wat hij doet (UX-audit 23
+          september 2026, P1.3). Hij was de accentknop "Nieuwe cluster", en die
+          beloofde een cluster dat de klant niet zelf mag starten: pas na de
+          klik hoorde hij dat de consultant dat doet. */}
+      <button type="button" className="btn-outline" onClick={() => setOpen(true)}>
+        Nieuw cluster aanvragen
       </button>
       {open && (
-        <Dialog label={KLANT_ZONDER_CLUSTERS.titel} onSluit={() => setOpen(false)}>
+        <Dialog label="Een nieuw cluster aanvragen" onSluit={() => setOpen(false)}>
           <div className="flex flex-col gap-3">
-            <h2 className="type-title">{KLANT_ZONDER_CLUSTERS.titel}</h2>
-            <p className="text-secondary">{KLANT_ZONDER_CLUSTERS.uitleg}</p>
+            <h2 className="type-title">Een nieuw cluster aanvragen</h2>
+            {/* De melding van de kostenpoort zelf, zodat de klant hier precies
+                leest wat hij bij een geweigerde aanvraag ook zou lezen. */}
+            <p className="text-secondary">{COST_DENIED.analyse_starten}</p>
             <DialogKnoppen>
               <button type="button" className="btn-outline" onClick={() => setOpen(false)}>
                 Sluiten

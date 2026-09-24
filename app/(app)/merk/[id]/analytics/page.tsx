@@ -4,6 +4,8 @@ import { getProfile } from "@/lib/profiles";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
+import { EmptyState } from "@/components/empty-state";
+import { SectionHeading } from "@/components/section-heading";
 import { AnalyticsFilters } from "@/components/analytics-filters";
 import { AnalyticsClusterTable } from "@/components/analytics-cluster-table";
 import { AnalyticsPromptTable } from "@/components/analytics-prompt-table";
@@ -344,6 +346,123 @@ export default async function AnalyticsPage({
         description="Hoe vaak AI-assistenten je noemen, over al je clusters heen, en wat dat cijfer verklaart."
       />
 
+      {/* ── 1. Blokkade, alleen als die er is ───────────────────────────────
+          Bovenaan, want dit verklaart het cijfer eronder. Onderaan zetten
+          betekent dat de klant eerst zijn score leest en pas daarna waarom hij
+          niet kan kloppen. */}
+      {blokkades.length > 0 && (
+        <div className="card card-danger flex flex-col gap-2">
+          <span className="chip chip-danger w-fit">
+            {blokkades.length === 1
+              ? "AI-assistenten mogen je site niet lezen"
+              : `${blokkades.length} blokkades op je site`}
+          </span>
+          <p className="text-secondary">
+            Zolang dit zo staat, kan een AI-assistent je pagina&apos;s niet ophalen. Je score
+            hieronder is daardoor lager dan hij zou zijn, en nieuwe content verandert daar niets
+            aan.
+          </p>
+          <ul className="flex flex-col gap-1">
+            {blokkades.map((b) => (
+              <li key={b.id} className="text-sm">
+                <span className="font-medium">{b.label}</span>
+                {b.fix && <span className="text-secondary">: {b.fix}</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <AnalyticsFilters
+        periodes={periodes}
+        labels={labels}
+        clustersBijLabel={clustersBijLabel}
+        bronnen={bronnen}
+        bronfilter={bronfilter}
+        funnelfasen={funnelfasen}
+        funnelfilter={funnelfilter}
+        periodefilter={periodefilter}
+        labelfilter={labelfilter}
+        clusterfilter={clusterfilter}
+      />
+
+      {/* ── De conclusie van het gekozen cluster ────────────────────────────
+          Onder de filterbalk en boven de cijfers: eerst wat het betekent, dan
+          waar het vandaan komt. De twee links eronder wijzen naar de plekken
+          waar het werk uit deze meting staat; sinds 22 september 2026 is dat
+          de enige plek waar een klant dat verband nog te zien krijgt. */}
+      {clusterConclusie && (
+        <div className="card flex flex-col gap-3">
+          <span className="mono-label">Wat dit cluster laat zien</span>
+          <p className="text-secondary">{clusterConclusie.samenvatting}</p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <Link href={`/merk/${id}/strategie/vragen`} className="link type-caption">
+              Wat ORBIT ENGINE nog van je wil weten
+            </Link>
+            <Link href={`/merk/${id}/strategie/plan`} className="link type-caption">
+              De pagina&apos;s die hieruit volgen
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* ── 2. De score, met het hoofdbeeld ernaast (plan Z1, Z2) ────────────
+          Eén hoofdgetal (`docs/ux-design.md` §1), met de onzekerheidsmarge
+          zichtbaar en niet alleen in een comment. Het raster ernaast groeit
+          zelf mee met de data: staven bij één of twee metingen, een lijn
+          vanaf drie (`components/cluster-visibility-grid.tsx`). */}
+      {merkScore === null ? (
+        // De lege staat van de app zelf (UX-audit P2.7), en geen link "Start een
+        // cluster" meer: dat doet de consultant, niet de klant (P1.3).
+        <EmptyState
+          title="Nog niet gemeten"
+          action={{ href: `/merk/${id}/strategie/clusters`, label: "Naar je clusters" }}
+        >
+          Zodra de eerste meetronde klaar is, staat je zichtbaarheid hier. Gemeten wordt er per
+          cluster: een onderwerp waar je klanten een AI-assistent naar vragen.
+        </EmptyState>
+      ) : (
+        <ClusterVisibilityGrid clusters={visibilityGridData} />
+      )}
+
+      {/* ── 3. Per cluster, als tabel (plan Z3) ──────────────────────────────
+          Was een lijst kaarten, één grafiek per stuk. Bij 329 rijen in de
+          beheerlijst op Concurrenten en soortgelijke aantallen elders is een
+          kaart per rij geen overzicht meer maar een muur; een tabel met vaste
+          kolommen wél. */}
+      {perCluster.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <SectionHeading title="Per cluster" />
+          {/* ── Z4: de ene duidende zin, uit de cijfers zelf gerekend ────── */}
+          {duidendeZin && <p className="text-secondary">{duidendeZin}</p>}
+          <AnalyticsClusterTable
+            rows={perCluster}
+            labelNaamPerId={labelNaamPerId}
+            merkId={id}
+            bron={bronfilter}
+          />
+        </div>
+      )}
+
+      {/* ── 4. Per prompt: elke gemeten vraag, sterkste zichtbaarheid boven ── */}
+      {promptVisibility.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <SectionHeading title="AI-vragen" />
+          <AnalyticsPromptTable
+            rows={promptVisibilityGefilterd}
+            merkId={id}
+            ownTerms={[profile.brand_name, ...(profile.aliases ?? [])].filter(
+              (t): t is string => Boolean(t && t.trim()),
+            )}
+          />
+        </div>
+      )}
+      {/* ── Wat het in Google opleverde (UX-audit 23 september 2026, P1.7) ──
+          Stond bovenaan, als eerste vraag van de eigenaar. Maar deze pagina
+          heet "Zichtbaarheid in AI" en het eerste blok ging over klikken uit
+          Google: titel en inhoud zeiden iets anders, en het cijfer waar de
+          pagina naar heet zakte onder de vouw. Het blok staat nu onderaan, met
+          een kop die zegt waar de cijfers vandaan komen. */}
       {/* ── §7.5: wat ORBIT ENGINE tot nu toe opleverde ──────────────────────
           Merkbreed en bovenaan: dit is de eerste vraag van de eigenaar, vóór
           de AI-zichtbaarheidsscore, want het is het bewijs dat er iets
@@ -358,7 +477,7 @@ export default async function AnalyticsPage({
         </div>
       ) : (
         <div className="card flex flex-col gap-3">
-          <span className="mono-label">Wat ORBIT ENGINE tot nu toe opleverde</span>
+          <span className="mono-label">Wat het in Google opleverde</span>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div className="flex flex-col gap-1">
               <span className="data-card-label">Pagina&apos;s live</span>
@@ -408,118 +527,6 @@ export default async function AnalyticsPage({
         </div>
       )}
 
-      <AnalyticsFilters
-        periodes={periodes}
-        labels={labels}
-        clustersBijLabel={clustersBijLabel}
-        bronnen={bronnen}
-        bronfilter={bronfilter}
-        funnelfasen={funnelfasen}
-        funnelfilter={funnelfilter}
-        periodefilter={periodefilter}
-        labelfilter={labelfilter}
-        clusterfilter={clusterfilter}
-      />
-
-      {/* ── De conclusie van het gekozen cluster ────────────────────────────
-          Onder de filterbalk en boven de cijfers: eerst wat het betekent, dan
-          waar het vandaan komt. De twee links eronder wijzen naar de plekken
-          waar het werk uit deze meting staat; sinds 22 september 2026 is dat
-          de enige plek waar een klant dat verband nog te zien krijgt. */}
-      {clusterConclusie && (
-        <div className="card flex flex-col gap-3">
-          <span className="mono-label">Wat dit cluster laat zien</span>
-          <p className="text-secondary">{clusterConclusie.samenvatting}</p>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <Link href={`/merk/${id}/strategie/vragen`} className="link type-caption">
-              Wat ORBIT ENGINE nog van je wil weten
-            </Link>
-            <Link href={`/merk/${id}/strategie/plan`} className="link type-caption">
-              De pagina&apos;s die hieruit volgen
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {/* ── 1. Blokkade, alleen als die er is ───────────────────────────────
-          Bovenaan, want dit verklaart het cijfer eronder. Onderaan zetten
-          betekent dat de klant eerst zijn score leest en pas daarna waarom hij
-          niet kan kloppen. */}
-      {blokkades.length > 0 && (
-        <div className="card card-danger flex flex-col gap-2">
-          <span className="chip chip-danger w-fit">
-            {blokkades.length === 1
-              ? "AI-assistenten mogen je site niet lezen"
-              : `${blokkades.length} blokkades op je site`}
-          </span>
-          <p className="text-secondary">
-            Zolang dit zo staat, kan een AI-assistent je pagina&apos;s niet ophalen. Je score
-            hieronder is daardoor lager dan hij zou zijn, en nieuwe content verandert daar niets
-            aan.
-          </p>
-          <ul className="flex flex-col gap-1">
-            {blokkades.map((b) => (
-              <li key={b.id} className="text-sm">
-                <span className="font-medium">{b.label}</span>
-                {b.fix && <span className="text-secondary">: {b.fix}</span>}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* ── 2. De score, met het hoofdbeeld ernaast (plan Z1, Z2) ────────────
-          Eén hoofdgetal (`docs/ux-design.md` §1), met de onzekerheidsmarge
-          zichtbaar en niet alleen in een comment. Het raster ernaast groeit
-          zelf mee met de data: staven bij één of twee metingen, een lijn
-          vanaf drie (`components/cluster-visibility-grid.tsx`). */}
-      {merkScore === null ? (
-        <div className="card flex flex-col gap-2">
-          <span className="mono-label">Nog niet gemeten</span>
-          <p className="text-secondary">
-            Zodra de eerste meetronde klaar is, staat je zichtbaarheid hier.{" "}
-            <Link href={`/merk/${id}/strategie/clusters`} className="link">
-              Start een cluster
-            </Link>{" "}
-            om te laten meten waar je klanten naar vragen.
-          </p>
-        </div>
-      ) : (
-        <ClusterVisibilityGrid clusters={visibilityGridData} />
-      )}
-
-      {/* ── 3. Per cluster, als tabel (plan Z3) ──────────────────────────────
-          Was een lijst kaarten, één grafiek per stuk. Bij 329 rijen in de
-          beheerlijst op Concurrenten en soortgelijke aantallen elders is een
-          kaart per rij geen overzicht meer maar een muur; een tabel met vaste
-          kolommen wél. */}
-      {perCluster.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <span className="mono-label">Per cluster</span>
-          {/* ── Z4: de ene duidende zin, uit de cijfers zelf gerekend ────── */}
-          {duidendeZin && <p className="text-secondary">{duidendeZin}</p>}
-          <AnalyticsClusterTable
-            rows={perCluster}
-            labelNaamPerId={labelNaamPerId}
-            merkId={id}
-            bron={bronfilter}
-          />
-        </div>
-      )}
-
-      {/* ── 4. Per prompt: elke gemeten vraag, sterkste zichtbaarheid boven ── */}
-      {promptVisibility.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <span className="mono-label">Prompts</span>
-          <AnalyticsPromptTable
-            rows={promptVisibilityGefilterd}
-            merkId={id}
-            ownTerms={[profile.brand_name, ...(profile.aliases ?? [])].filter(
-              (t): t is string => Boolean(t && t.trim()),
-            )}
-          />
-        </div>
-      )}
     </div>
   );
 }

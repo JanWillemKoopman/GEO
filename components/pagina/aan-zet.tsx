@@ -24,7 +24,7 @@ export function AanZet({
   actie?: React.ReactNode;
   /** Een tweede, rustige handeling ("Vraag een aanpassing"). */
   tweede?: React.ReactNode;
-  /** Extra inhoud onder de zin, bijvoorbeeld het adresveld bij "Zet hem live". */
+  /** Extra inhoud onder de zin, bijvoorbeeld het adresveld bij "Plaats hem op je site". */
   children?: React.ReactNode;
 }) {
   // Groen als de klant aan zet is (23 september 2026, besluit van de

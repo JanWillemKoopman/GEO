@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { AnalysisCardMetrics } from "@/components/analysis-card-metrics";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
+import { SectionHeading } from "@/components/section-heading";
 import {
   STATUS_META,
   STATUSFILTER_ALLES,
@@ -35,7 +36,7 @@ import { NieuweClusterKnop } from "./nieuwe-cluster-knop";
 import { LanceringMelding } from "./lancering-melding";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Clusters" };
+export const metadata = { title: "Mijn clusters" };
 
 /**
  * CLUSTERS van één merk.
@@ -183,8 +184,8 @@ export default async function ClustersPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Strategie"
-        title="Clusters"
+        eyebrow="Clusters"
+        title="Mijn clusters"
         description="Elk cluster is één onderwerp waarop ORBIT ENGINE je zichtbaarheid volgt."
         // Het merk gaat mee in de link: dan staat het goede merk al
         // voorgeselecteerd én weet dat scherm waar "terug" heen moet.
@@ -281,14 +282,10 @@ export default async function ClustersPage({
             <EmptyState title={KLANT_ZONDER_CLUSTERS.titel}>{KLANT_ZONDER_CLUSTERS.uitleg}</EmptyState>
           )
         ) : zichtbaar.length === 0 ? (
-          <div className="card flex flex-col gap-1">
-            <span className="mono-label">Geen clusters met dit filter</span>
-            <p className="text-secondary">
-              Je hebt {analyses.length === 1 ? "één cluster" : `${analyses.length} clusters`}, maar
-              geen enkele met dit label of deze status. Kies een ander filter, of hang er hieronder
-              een cluster aan.
-            </p>
-          </div>
+          <EmptyState title="Geen clusters met dit filter">
+            Je hebt {analyses.length === 1 ? "één cluster" : `${analyses.length} clusters`}, maar
+            geen enkele met dit label of deze status. Kies een ander filter.
+          </EmptyState>
         ) : (
           <ul className="flex flex-col gap-3">
             {zichtbaar.map((a) => (
@@ -314,15 +311,22 @@ export default async function ClustersPage({
           niet tussen. */}
       {!inPrullenbak && (
         <div className="flex flex-col gap-3">
-          <span className="mono-label">Voorgesteld</span>
+          {/* Een echte sectiekop, geen grijs label (UX-audit P2.7), met de weg
+              naar waar de nieuwe voorstellen vandaan komen (P1.5). */}
+          <SectionHeading
+            title="Voorgesteld"
+            action={
+              <Link href={`/merk/${id}/ontdekken`} className="link type-caption">
+                Meer onderwerpen ontdekken
+              </Link>
+            }
+          />
           {topics.length === 0 ? (
-            <div className="card flex flex-col gap-1">
-              <span className="mono-label">Nog geen voorstellen</span>
-              <p className="text-secondary">
-                ORBIT ENGINE heeft voor {profile.brand_name ?? profile.name} nog geen onderwerpen
-                voorgesteld. Zodra de nulmeting daar iets over zegt, staat het hier.
-              </p>
-            </div>
+            <EmptyState title="Nog geen voorstellen">
+              ORBIT ENGINE heeft voor {profile.brand_name ?? profile.name} nog geen onderwerpen
+              voorgesteld. Zodra de nulmeting of een ontdekkingsronde daar iets over zegt, staat het
+              hier.
+            </EmptyState>
           ) : (
             <TopicsPanel
               profileId={id}

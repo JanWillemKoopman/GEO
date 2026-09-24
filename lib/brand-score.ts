@@ -19,7 +19,7 @@
  * Hier valt de som één keer. Wie het merkcijfer nodig heeft, roept dit aan.
  *
  * ⚠️ Sinds 26 augustus 2026 staat het percentage zelf niet meer op het
- * merkoverzicht (zie `overzichtCijfers()` in `lib/overview.ts`). Deze som blijft
+ * merkoverzicht (zie `totalenZin()` in `lib/overview.ts`). Deze som blijft
  * daar wél nodig: de meetreeks bepaalt hoe vers de kop is en of een merk nog in
  * zijn eerste maand zit, en `lib/insights.ts` rekent er de drie duidingszinnen
  * mee door. Analytics toont het cijfer.

@@ -258,6 +258,31 @@ function Hoofdstuk({
     );
   }
 
+  // ── EEN HOOFDSTUK MET ÉÉN BESTEMMING IS ÉÉN REGEL (UX-AUDIT P2.6) ────────
+  //
+  // Overzicht ("Hoe sta je ervoor") en Merkprofiel ("Merkdossier") hebben er
+  // elk maar één. Een kop met één kind eronder is twee regels lezen voor één
+  // klik, en de kop zelf is geen link. Nu is het één regel: het icoon van het
+  // hoofdstuk met de naam van de bestemming.
+  if (kop.items.length === 1 && !kop.afgeschermd) {
+    const item = kop.items[0];
+    return (
+      <div className={eerste ? "" : "mt-4"}>
+        <Link
+          href={item.href}
+          onClick={onClick}
+          aria-current={navActief(pathname, item) ? "page" : undefined}
+          className="nav-item"
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <Icon naam={kop.icoon} size={16} />
+            <span className="truncate">{item.label}</span>
+          </span>
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <>
       {scheiding && <div className="mb-1 mt-4 border-t border-[var(--line-muted)]" />}
@@ -275,6 +300,16 @@ function Hoofdstuk({
         <span className="nav-kop">
           <Icon naam={kop.icoon} size={16} />
           <span className="min-w-0 flex-1 truncate">{kop.naam}</span>
+          {/* Eén stempel per afgeschermd hoofdstuk en niet bij elke regel (UX-audit
+              P2.6): veertien keer "alleen jij" onder elkaar markeerde niets meer. */}
+          {kop.afgeschermd && (
+            <span
+              className="chip chip-outline shrink-0 normal-case tracking-normal"
+              title="Alleen zichtbaar voor jou, niet voor de klant"
+            >
+              alleen jij
+            </span>
+          )}
         </span>
         {/* 24 pixels inspringen is niet willekeurig: dat is precies de breedte
             van het icoon (16) plus de tussenruimte (8), waardoor de tekst van
@@ -363,31 +398,6 @@ function Item({
           </>
         )}
       </span>
-      {item.staffOnly && (
-        <span
-          // Een stempel en niet los grijs hoofdlettertekst: los in de regel las
-          // het als een tweede label bij de bestemming, terwijl het een stempel
-          // op die bestemming is. Zelfde vlak als de actieve regel, zodat de
-          // balk twee tinten kent en geen vier.
-          //
-          // Neutraal en niet paars, sinds 24 augustus 2026, om dezelfde reden
-          // als de actieve regel hierboven: dit stempel zegt "van jou", niet
-          // "hier doet de AI iets". Er stonden er vier onder elkaar, en dat was
-          // het eerste wat het oog in de zijbalk raakte.
-          //
-          // ⚠️ Een omlijnde chip (`chip-outline`, 4px) en geen pil, sinds
-          // 23 september 2026 ook zonder eigen lettermaat van 10px: de gewone
-          // chipmaat past in de regel van 36px. Dit was een pil, in dezelfde ronde
-          // waarin de chips van de app dat juist óphielden te zijn
-          // (`docs/designsystem.md` §5.1). Twee ronde stempels in een app vol
-          // vlakken van 6, 8 en 12 pixels zijn geen accent maar een afwijking,
-          // en de zijbalk staat naast élk scherm.
-          className="chip chip-outline shrink-0"
-          title="Alleen zichtbaar voor jou, niet voor de klant"
-        >
-          alleen jij
-        </span>
-      )}
     </Link>
   );
 }

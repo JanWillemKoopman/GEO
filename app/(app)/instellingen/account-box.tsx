@@ -171,7 +171,7 @@ export function AccountBox({
       {mayEdit && (
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" className="btn-primary btn-sm w-fit" onClick={() => void bewaar()} disabled={wacht}>
-            {wacht ? "Bezig…" : "Bewaar"}
+            {wacht ? "Bezig…" : "Opslaan"}
           </button>
           {actief && (
             <button

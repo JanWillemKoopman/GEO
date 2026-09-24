@@ -110,7 +110,6 @@ export default async function BewerkenPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Merkprofiel"
         title="Merkdossier"
         description="ORBIT ENGINE heeft het meeste al van je website gehaald. Kijk het na, corrigeer wat niet klopt, en vul aan wat het niet kon weten. Alles wat je hier vastlegt blijft staan, ook als het onderzoek opnieuw draait."
         action={
@@ -121,7 +120,7 @@ export default async function BewerkenPage({
             className="btn-outline inline-flex items-center gap-1.5"
           >
             <Icon naam="downloaden" size={16} />
-            Download profiel
+            Download merkdossier
           </a>
         }
       />
@@ -140,29 +139,37 @@ export default async function BewerkenPage({
         startStap={startStap}
       />
 
-      {/* ── Gereedschap ─────────────────────────────────────────────────────
-          Ingeklapt, want dit is naslag en niet de stap waar de klant voor kwam.
-          Zie `docs/ux-design.md` §5: `naslag` staat overal dicht. */}
-      <div className="flex flex-col gap-2">
-        <span className="mono-label">Gereedschap</span>
-        <CollapsibleSection title="Wat er al op je site staat">
-          <InventoryBox
-            profileId={id}
-            initialCount={count ?? 0}
-            initialMax={profile.max_inventory_pages}
-            initialTotalFound={profile.sitemap_total_urls}
-            initialPriorityPaths={profile.crawl_priority_paths ?? []}
-            initialSpeed={profile.crawl_speed}
-            initialLastRunAt={profile.crawl_last_run_at}
-            initialLastMode={profile.crawl_last_mode}
-            initialBlockedAt={profile.crawl_last_blocked_at}
-            initialLightlyScanned={profile.crawl_lightly_scanned}
-          />
-        </CollapsibleSection>
-        <CollapsibleSection title="Wat je al hebt liggen">
-          <DossierBox profileId={id} />
-        </CollapsibleSection>
-      </div>
+      {/* ── Wat je al hebt liggen ───────────────────────────────────────────
+          Ingeklapt, want dit is naslag en niet de stap waar de klant voor kwam
+          (`docs/ux-design.md` §5). */}
+      <CollapsibleSection title="Wat je al hebt liggen">
+        <DossierBox profileId={id} />
+      </CollapsibleSection>
+
+      {/* ── Het uitlezen van de site, alleen voor de consultant ─────────────
+          ⚠️ Tot de UX-audit van 23 september 2026 (P1.8) stond dit voor iedereen
+          onder "Gereedschap": tempo, mappen met voorrang, het aantal pagina's
+          per ronde. Een ondernemer weet niet wat hij met crawltempo moet en kan
+          er het onderzoek mee kapotzetten. De consultant zet het klaar. */}
+      {staf && (
+        <div className="flex flex-col gap-2">
+          <span className="mono-label">Alleen jij ziet dit</span>
+          <CollapsibleSection title="Wat er al op de site staat">
+            <InventoryBox
+              profileId={id}
+              initialCount={count ?? 0}
+              initialMax={profile.max_inventory_pages}
+              initialTotalFound={profile.sitemap_total_urls}
+              initialPriorityPaths={profile.crawl_priority_paths ?? []}
+              initialSpeed={profile.crawl_speed}
+              initialLastRunAt={profile.crawl_last_run_at}
+              initialLastMode={profile.crawl_last_mode}
+              initialBlockedAt={profile.crawl_last_blocked_at}
+              initialLightlyScanned={profile.crawl_lightly_scanned}
+            />
+          </CollapsibleSection>
+        </div>
+      )}
     </div>
   );
 }

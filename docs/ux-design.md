@@ -347,7 +347,9 @@ die de hoofdknop van paars naar inkt bracht (destijds Nova's inktkleur; sinds de
 hoofdknop neutraal en de accentkleur limoen, met dezelfde redenering, zie `designsystem.md` §2.4).
 Deze hele alinea is geschiedenis uit de Nova-periode; zie `designsystem.md` bijlage A.
 
-⚠️ **"Alleen jij" is een gevuld stempeltje geworden**, in dezelfde tint als de actieve regel. Los
+⚠️ **"Alleen jij" is een gevuld stempeltje geworden**, in dezelfde tint als de actieve regel. Sinds
+de UX-audit van 23 september 2026 staat het één keer bij de kop van Sales en Admin, niet bij elke
+regel: veertien stempels onder elkaar markeerden niets meer. Los
 grijs hoofdlettertekst achter de bestemming las als een tweede label van die bestemming, terwijl het
 een stempel erop is: dit ziet de klant niet. Het staat op `--radius-sm`, dezelfde vorm als de chips
 elders in de app.
@@ -548,6 +550,25 @@ het verschil in plaats van het te laten raden.
 | De wachtrijregel toont `WorkItem.why` | Er stond `analysisName`, in de praktijk een rauw adres in hoofdletters. Het scherm toonde het minst bruikbare veld en gooide het bruikbaarste weg |
 | De toon van de soort werk zit op de kaart | `card-danger` bij een blokkade, in plaats van een chip van 60 pixels. Het onderscheid uit §2 blijft, maar draagt verder |
 
+### De UX-audit van 23 september 2026
+
+Het overzicht is omgedraaid, en dat vervangt de volgorde in de twee secties hierboven en die
+hieronder. **Nu: kop, wat er op jou wacht (alleen als er iets is), het cijfer, Deze maand.** De
+reden: dit is het scherm van elke sessie, en de enige handeling die de klant er kan doen stond onder
+twee drukke blokken. De vier tellers onder het cijfer zijn één zin (`totalenZin()` in
+`lib/overview.ts`), want de maandbalk telt "geschreven" en "live" ook, over een andere periode.
+
+Drie regels die hieruit volgen en voor elk scherm gelden:
+
+- **Een knop zegt vooraf wat er gebeurt.** Mag de klant iets niet zelf starten, dan staat dat er
+  vóór de klik ("Je consultant start het voor je", "Nieuw cluster aanvragen"), niet pas in een
+  foutmelding erna.
+- **Een menu-item en de kop van de pagina dragen hetzelfde woord.** De lijst staat in
+  `schrijfstijl.md` §11.
+- **Een hoofdstuk met één bestemming is één regel in de zijbalk**, met het icoon van het hoofdstuk.
+
+De volledige lijst, met wat er per punt veranderde, staat in `docs/logbook.md`, 23 september 2026 (12).
+
 ### Het contentplan heeft twee gedaanten (27 augustus 2026)
 
 Het planscherm was één scherm voor twee gebruikers met tegengestelde behoeften. De consultant plant:
@@ -558,6 +579,8 @@ uitleg "sleep beschikbare content items naar de maand waarin ze geschreven moete
 
 **Er zijn sinds vandaag twee weergaven, allebei voor iedereen.** Een schakelaar bovenaan het scherm
 zet ze om, en de rol bepaalt alleen waar je landt: de klant op Overzicht, de consultant op Plannen.
+(Van 22 tot 23 september 2026 landde iedereen op Plannen; de UX-audit van 23 september zette de
+regel hierboven terug. Er is inmiddels een derde weergave, Kalender.)
 Een weergave in de URL (`?weergave=`) wint van de rol, zodat een gedeelde link bij beiden hetzelfde
 opent. Het bord is ongewijzigd; de klant mag daar alles wat de consultant er mag.
 
@@ -589,7 +612,8 @@ er staat.
 Twee wijzigingen aan de startpagina, uit de structuurreview van 27 augustus 2026, en de tweede
 draait de beslissing van de dag ervoor terug.
 
-**Nieuw bovenaan: de ronde** (`lib/ronde.ts`, `RondeBalk`). Zes stappen naast elkaar, meten, kansen,
+**Nieuw bovenaan: de ronde** (`lib/ronde.ts`, `RondeBalk`). ⚠️ Sinds de UX-audit van 23 september
+2026 staat hij onderaan als "Deze maand"; zie "De UX-audit van 23 september 2026" hieronder. Zes stappen naast elkaar, meten, kansen,
 plannen, schrijven, publiceren, hermeten, met per stap de stand van nu en één zin eronder die zegt
 wie er aan zet is. Het product ís een kringloop, maar het menu is een kast met laden, en een kast
 vertelt niet dat de laden samen één ronde zijn. Wat de klant miste was niet zijn takenlijst, die is

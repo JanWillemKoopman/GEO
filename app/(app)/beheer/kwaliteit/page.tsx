@@ -84,9 +84,9 @@ export default async function KwaliteitslabPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Beheer"
+        eyebrow="Admin"
         title="Kwaliteitslab"
-        description="Wat ORBIT ENGINE van elke geschreven pagina vond, wat een mens ervan vond, en waar die twee uit elkaar lopen. Dit scherm ziet alleen jij."
+        description="Wat ORBIT ENGINE van elke geschreven pagina vond, wat een mens ervan vond, en waar die twee uit elkaar lopen."
       />
 
       <div className="card flex flex-col gap-3">

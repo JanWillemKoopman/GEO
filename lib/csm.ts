@@ -68,7 +68,7 @@ export const CSM_SEGMENT_META: Record<CsmSegment, SegmentMeta> = {
   },
   nakijken: {
     label: "Wacht op jouw nakijkwerk",
-    banner: "Het onderzoek is klaar en het merkprofiel is nog niet nagekeken. Doe dat vóór het demogesprek.",
+    banner: "Het onderzoek is klaar en het merkdossier is nog niet nagekeken. Doe dat vóór het demogesprek.",
     leeg: "Alle merkprofielen zijn nagekeken.",
     actie: true,
   },

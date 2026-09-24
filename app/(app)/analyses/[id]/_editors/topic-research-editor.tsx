@@ -67,7 +67,7 @@ export function TopicResearchEditor({
           placeholder="Nieuwe concurrent…"
         />
         <span className="text-sm text-muted">
-          Naast de bedrijfsbrede concurrenten uit het merkprofiel.
+          Naast de bedrijfsbrede concurrenten uit het merkdossier.
         </span>
       </div>
 

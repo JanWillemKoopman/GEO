@@ -161,9 +161,9 @@ export default async function AdminPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Admin · alleen jij"
+        eyebrow="Admin"
         title="Diagnose"
-        description="Wat er technisch gebeurde: welke taken draaiden, hoe lang, wat er faalde en wat het kostte. De klant ziet dit scherm niet en kan het adres niet raden: hij krijgt een 404. Het werk mét de klant staat op Onboarding."
+        description="Wat er technisch gebeurde: welke taken draaiden, hoe lang, wat er faalde en wat het kostte. Het werk mét de klant staat op Onboardinggesprek."
       />
 
       {/* ── De negen secties die de klant zelf ziet ─────────────────────────

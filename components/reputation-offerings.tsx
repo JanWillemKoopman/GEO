@@ -32,7 +32,7 @@ export function ReputationOfferings({ views, brand }: { views: OfferingView[]; b
       <div className="card flex flex-col gap-1">
         <span className="mono-label">Niets per product gemeten</span>
         <p className="text-secondary">
-          Deze analyse leverde geen uitkomst per product op. Dat gebeurt als het merkprofiel nog
+          Deze analyse leverde geen uitkomst per product op. Dat gebeurt als het merkdossier nog
           geen diensten of producten bevat.
         </p>
       </div>

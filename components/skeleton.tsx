@@ -56,19 +56,16 @@ export function OverviewSkeleton() {
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-4 w-96 max-w-full" />
       </div>
-      {/* De standkaart. */}
-      <Skeleton className="h-48 rounded-[var(--radius-xl)]" />
-      {/* Wat op je wacht: kop plus één regel. */}
+      {/* Wat op je wacht: kop plus één blok. Bovenaan sinds de UX-audit van 23
+          september 2026 (P1.1), in dezelfde volgorde als het scherm zelf. */}
       <div className="flex flex-col gap-3">
         <Skeleton className="h-6 w-56" />
         <Skeleton className="h-24 rounded-[var(--radius-xl)]" />
       </div>
-      {/* Waar je begint: kop, de gemarkeerde eerste kans, dan de lijst. */}
-      <div className="flex flex-col gap-3">
-        <Skeleton className="h-6 w-40" />
-        <Skeleton className="h-32 rounded-[var(--radius-xl)]" />
-        <Skeleton className="h-64 rounded-[var(--radius-xl)]" />
-      </div>
+      {/* De standkaart. */}
+      <Skeleton className="h-48 rounded-[var(--radius-xl)]" />
+      {/* Deze maand: vijf stappen. */}
+      <Skeleton className="h-36 rounded-[var(--radius-xl)]" />
     </div>
   );
 }

@@ -34,8 +34,12 @@ export function RondeBalk({ ronde }: { ronde: RondeMaand }) {
     <div className="card flex flex-col gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h2 className="type-section">Je {ronde.maand}</h2>
-          {ronde.periode && <span className="text-sm text-muted">{ronde.periode}</span>}
+          {/* "Deze maand" en niet "Je september" (UX-audit P2.3): de kop zegt
+              wat het is, de naam van de maand staat er klein naast. */}
+          <h2 className="type-section">Deze maand</h2>
+          <span className="text-sm text-muted">
+            {ronde.periode ? `${ronde.maand}, ${ronde.periode}` : ronde.maand}
+          </span>
         </span>
         <span className="text-sm text-muted">{ronde.volgende}</span>
       </div>
@@ -89,7 +93,9 @@ export function RondeBalk({ ronde }: { ronde: RondeMaand }) {
             {fase.detail && <span className="text-sm text-muted">{fase.detail}</span>}
 
             {fase.actief && (
-              <span className={`chip ${fase.aanZet === "jij" ? "chip-warning" : "chip-info"} mt-1 w-fit`}>
+              // Aan de beurt is geen waarschuwing (UX-audit P2.1): oranje zegt
+              // "let op", en jouw beurt is gewoon de volgende stap.
+              <span className={`chip ${fase.aanZet === "jij" ? "chip-attention" : "chip-info"} mt-1 w-fit`}>
                 {fase.aanZet === "jij"
                   ? "jij, nu"
                   : fase.aanZet === "consultant"

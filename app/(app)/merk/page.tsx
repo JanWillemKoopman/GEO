@@ -67,15 +67,24 @@ export default async function ProfielenPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Een klant mag geen merk laten onderzoeken (`merk_onderzoeken` in
+          `lib/cost-rules.ts`), dus krijgt hij een rustige knop die zegt dat het
+          een aanvraag is; /merk/nieuw toont hem de uitleg in plaats van het
+          formulier (UX-audit 23 september 2026, P1.3). */}
       <PageHeader
-        eyebrow="ORBIT ENGINE · merkdossiers"
         title="Merken"
-        description="ORBIT ENGINE leert je merk eerst kennen: branche, aanbod, concurrenten, doelgroep en tone-of-voice. Dat onderzoek doen we één keer per merk, en elk cluster eronder bouwt erop voort."
+        description="Kies een merk om te zien hoe het ervoor staat."
         action={
-          <Link href="/merk/nieuw" className="btn-primary">
-            <Icon naam="toevoegen" size={18} />
-            Nieuw merk
-          </Link>
+          staff ? (
+            <Link href="/merk/nieuw" className="btn-primary">
+              <Icon naam="toevoegen" size={18} />
+              Nieuw merk
+            </Link>
+          ) : (
+            <Link href="/merk/nieuw" className="btn-outline">
+              Nieuw merk aanvragen
+            </Link>
+          )
         }
       />
 
@@ -99,19 +108,31 @@ export default async function ProfielenPage() {
       )}
 
       {profiles.length === 0 ? (
-        <EmptyState
-          title="Nog geen merken"
-          action={{ href: "/merk/nieuw", label: "Eerste merk toevoegen" }}
-        >
-          Begin met het merk waarvan je de zichtbaarheid wilt meten. ORBIT ENGINE brengt het in kaart;
-          daarna koppel je er clusters aan voor losse producten en onderwerpen.
-        </EmptyState>
+        staff ? (
+          <EmptyState
+            title="Nog geen merken"
+            action={{ href: "/merk/nieuw", label: "Eerste merk toevoegen" }}
+          >
+            Begin met het merk waarvan je de zichtbaarheid wilt meten. ORBIT ENGINE brengt het in
+            kaart; daarna koppel je er clusters aan voor losse producten en onderwerpen.
+          </EmptyState>
+        ) : (
+          <EmptyState title="Je consultant zet je merk klaar">
+            ORBIT ENGINE onderzoekt eerst je website en je markt. Zodra je consultant je merk aan je
+            account heeft gekoppeld, staat het hier en kom je na het inloggen meteen op je overzicht.
+          </EmptyState>
+        )
       ) : (
         <ul className="flex flex-col gap-3">
           {profiles.map((p) => (
             <li key={p.id}>
+              {/* Naar het overzicht, net als na het inloggen (UX-audit P2.4). Tot
+                  23 september 2026 opende een merk hier het bewerkscherm van
+                  het merkdossier: een formulier waar je een startscherm
+                  verwacht. Een mislukt merk gaat wel naar het dossier, want
+                  daar staat wat er mis is. */}
               <Link
-                href={`/merk/${p.id}/merkprofiel/bewerken`}
+                href={p.status === "mislukt" ? `/merk/${p.id}/merkprofiel/bewerken` : `/merk/${p.id}`}
                 className="card card-interactive flex flex-wrap items-center justify-between gap-4"
               >
                 <div className="min-w-0">
