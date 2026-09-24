@@ -46,8 +46,8 @@ doorloop met dezelfde drie bedrijven en dezelfde blinde lezers (meetlat: 4,1 op 
 | Blok | Punten | Stand |
 |---|---|---|
 | A, wat de app van de klant weet | 5, 24, 27, 35, 36, 47 | ✅ live, PR #121; 7 schuift naar blok B (crawl) |
-| B, wat de app van de site leest | 4, 7, 10, 28, 45 | ✅ gebouwd en getest |
-| C, de keuring | 42, 43, 50, 53, 54 | open |
+| B, wat de app van de site leest | 4, 7, 10, 28, 45 | ✅ live, PR #122; crawl van de hovenier op productie nagerekend (68 adressen, was 1) |
+| C, de keuring | 42, 43, 50, 53, 54 | ✅ gebouwd en getest; 50 wacht op de herhaling (oorzaak al weg via 39) |
 | D, schrijfstijl | 46, 48, 49 | open |
 | E, planning | 31, 32, 33 | open |
 | F, kleine punten | 3, 6, 8, 9, 11 tot 18, 23, 38 | open |
@@ -143,8 +143,8 @@ bronzinnen, het ontbrekende bewijs).
 | 39 | **hoog** | Een beantwoorde vraag maakt de bewering erachter nooit "onderbouwd": de keuring blijft "beantwoord deze vraag" zeggen | ✅ opgelost, PR #115 |
 | 40 | **hoog** | De keuring van een pagina blokkeert op beweringen van andere pagina's van hetzelfde merk | ✅ opgelost, PR #115 |
 | 41 | middel | Antwoorden van de klant op paginavragen worden opgeslagen als feit van de site | ✅ opgelost, PR #115 |
-| 42 | **hoog** | De klant krijgt "Tekst is klaar, keur hem goed" bij een tekst die de eigen keuring tegenhoudt | open |
-| 43 | middel | De keuring noemt het bedrag van de klant "in strijd met de instructie", omdat de opzet van vóór zijn antwoord is | open |
+| 42 | **hoog** | De klant krijgt "Tekst is klaar, keur hem goed" bij een tekst die de eigen keuring tegenhoudt | ✅ opgelost, verbeterronde blok C (besluit eigenaar: tonen met duidelijke melding) |
+| 43 | middel | De keuring noemt het bedrag van de klant "in strijd met de instructie", omdat de opzet van vóór zijn antwoord is | ✅ opgelost, verbeterronde blok C |
 | 44 | laag | Een tegengehouden pagina staat voor de klant als "Alle gegevens bekend, wordt nu geschreven" | ✅ opgelost, PR #116 |
 | 45 | **hoog** | Een "verbetering" vervangt de functie van de bestaande pagina (homepage wordt Helmond, prijzenpagina wordt losse les bij faalangst) | ✅ opgelost, verbeterronde blok B (nog niet op een nieuwe tekst nagerekend) |
 | 46 | **hoog** | De tekst draait een belofte van de site om: "binnen 4 uur een scherpe offerte" wordt "geen termijn voor de offerte" | open |
@@ -154,8 +154,8 @@ bronzinnen, het ontbrekende bewijs).
 | 50 | **hoog** | De reparatieknop van de klant haalde een juist klantfeit uit de tekst | oorzaak opgelost (punt 39), PR #115 |
 | 51 | middel | Na een nieuwe versie staat een pagina twee keer in de bibliotheek | ✅ opgelost, PR #117 en de volgende |
 | 52 | **hoog** | De opmerking van de klant bij "Schrijf een nieuwe versie" bereikte de schrijver niet | ✅ opgelost, PR #119, nagerekend op productie |
-| 53 | middel | Een nieuwe versie verliest het beweringenplan, en wordt daarna niet meer op onderbouwing getoetst | open |
-| 54 | middel | Een zin met een omschreven klantfeit telt als "zin zonder bron" | open |
+| 53 | middel | Een nieuwe versie verliest het beweringenplan, en wordt daarna niet meer op onderbouwing getoetst | ✅ opgelost, verbeterronde blok C |
+| 54 | middel | Een zin met een omschreven klantfeit telt als "zin zonder bron" | ✅ grotendeels opgelost, verbeterronde blok C |
 
 ---
 
@@ -744,6 +744,12 @@ klant ziet in de bibliotheek "Tekst is klaar: lees hem en keur hem goed" met "Kw
 goed". Twaalf van die vijftien kan hij niet oplossen (punt 39 en 40). Gevolg: óf hij keurt toch goed en
 leert dat de punten niets betekenen, óf hij blijft hangen.
 
+**Opgelost (24 september 2026, verbeterronde blok C).** Besluit van de eigenaar: tonen mag, met een
+duidelijke melding. De bibliotheek leest nu het oordeel van de keuring (`quality_verdict`), en bij
+"block" staat er "Tekst is klaar, maar onze controle houdt hem tegen: bekijk eerst de punten" in
+plaats van "keur hem goed", met als volgende stap "Bekijk de punten" en de zin dat de klant hem
+bewust toch kan goedkeuren als hij vindt dat de punten niet kloppen (`lib/pagina-stand.ts`).
+
 ## 43. Het bedrag van de klant "in strijd met de instructie"
 
 De opzet van de pagina (`contract_json`) is gemaakt vóór de klant zijn prijsband gaf en zegt daarom
@@ -751,6 +757,12 @@ De opzet van de pagina (`contract_json`) is gemaakt vóór de klant zijn prijsba
 toetst tegen de oude opzet: "De genoemde prijsband is in strijd met de instructie om geen
 prijsbedragen op te nemen", en hetzelfde voor de doorlooptijd. De opzet hoort na de antwoorden bij te
 werken, of de keuring hoort de feitenkaart boven de opzet te laten gaan.
+
+**Opgelost (24 september 2026, verbeterronde blok C).** `contractMetFeiten()`
+(`lib/pipeline/contract-format.ts`) haalt een verbod uit de opzet weg als een later klantfeit het
+tegenspreekt: "geen prijsbedragen" valt weg zodra de klant een bedrag gaf, "geen vaste
+doorlooptijd" zodra hij een termijn gaf. Voor de schrijver én voor de keuring; een sitefeit met een
+bedrag heft het verbod niet op, alleen de klant zelf.
 
 ## 44. Tegengehouden pagina: "Alle gegevens bekend, wordt nu geschreven"
 
@@ -933,6 +945,11 @@ wordt niet meer getoetst op wat hij over het bedrijf beweert. Dat oogt als verbe
 blokkades), maar is een gat in de keuring. **Richting:** het plan van de vorige versie meenemen naar de
 snapshot van de nieuwe.
 
+**Opgelost (24 september 2026, verbeterronde blok C).** `buildDraftRow()` neemt het beweringenplan
+en de algemene context-gaten mee in de snapshot van elke versie. De ketentest laat het verschil
+zien: zonder de reparatie bevat de snapshot van de derde versie alleen `facts`, `writtenAt` en
+`recommendation`, met de reparatie ook `plan`.
+
 ## 54. Een omschreven klantfeit telt als "zin zonder bron"
 
 Versie 2, 3 en 4 van de pagina voor Best hadden elk 5 blokkerende punten, allemaal "Deze zin zegt iets
@@ -945,6 +962,15 @@ bronherleidbaarheidscontrole in `lib/pipeline/quality-run.ts` en `sourceCoverage
 `lib/pipeline/factcard.ts`.
 
 ---
+
+**Grotendeels opgelost (24 september 2026, verbeterronde blok C).** De bronherleidbaarheid herkent
+nu een zin die een feit in eigen woorden weergeeft (`zinParafraseertFeit()` in
+`lib/pipeline/claim-extract.ts`), langs twee strenge wegen: alle getallen van de zin staan in één
+feit (bij één getal ook een gedeeld woord), of bij een feit van de klant delen zin en feit minstens
+twee kernwoorden die samen 40% van de zin zijn. Op de echte zinnen: "Reken meestal op €12.000 tot
+€35.000" en "Eén vaste ploeg verzorgt het hele tuinproject" zijn gedekt, "de goedkoopste hovenier
+van Eindhoven" en een verzonnen termijn niet. "Wij verzorgen ook de afvoer zelf" blijft een
+grensgeval: één gedeeld woord is te weinig om zeker te zijn.
 
 ## Wat goed ging, om niet kapot te maken
 

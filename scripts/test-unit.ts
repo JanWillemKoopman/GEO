@@ -782,6 +782,7 @@ import { COST_DENIED } from "@/lib/cost-rules";
 import { gesprekBeantwoordt, zelfdeVraag } from "@/lib/vraag-dekking";
 import { paginaSoort, isFunctiepagina, functieblok } from "@/lib/pipeline/paginafunctie";
 import { vindKerncijfers } from "@/lib/pipeline/kerncijfers";
+import { contractMetFeiten } from "@/lib/pipeline/contract-format";
 import { vindKernbewijs, kernbewijsblok, checkKernbewijs, kernFeitInTekst, GESPREK_BRON } from "@/lib/pipeline/kernbewijs";
 import { requireCount } from "@/lib/require-count";
 import { mayMeasureAgain, MIN_DAGEN_TUSSEN_PERIODES } from "@/lib/measure-cadence";
@@ -25932,4 +25933,56 @@ group("Kerncijfers van de site komen op de kaart (verbeterronde, punt 7)", () =>
   ok("een landelijk cijfer uit een blog niet", !uit.some((k) => k.text.includes("45%")));
   ok("btw en korting niet", !uit.some((k) => k.text.includes("btw")));
   ok("de feitenbank gebruikt het", leesBestand("lib/pipeline/factbase.ts").includes("vindKerncijfers("));
+});
+
+
+group("De keuring toetst niet tegen een verouderde opzet en herkent omschreven klantfeiten (verbeterronde, punt 43 en 54)", () => {
+  const contract = { avoid: ["Geen prijsbedragen noemen", "Geen vaste doorlooptijd beloven", "Geen kunstgras aanbevelen"] };
+  const prijs = { text: "Wat kost een complete tuin: meestal 12.000 tot 35.000 euro", source: "klant, bevestigd 24-9-2026", allowed: true };
+  eq("het prijsverbod valt weg na een prijsband van de klant", contractMetFeiten(contract, [prijs]).avoid.join(" | "), "Geen vaste doorlooptijd beloven | Geen kunstgras aanbevelen");
+  const duur = { text: "Hoe lang duurt de aanleg: 2 tot 3 weken", source: "klant, bevestigd 24-9-2026", allowed: true };
+  eq("en het duurverbod na een termijn", contractMetFeiten(contract, [prijs, duur]).avoid.join(" | "), "Geen kunstgras aanbevelen");
+  eq("een sitefeit met een bedrag heft het verbod niet op", contractMetFeiten(contract, [{ ...prijs, source: "site /prijzen" }]).avoid.length.toString(), "3");
+  eq("zonder verboden ongewijzigd", String(contractMetFeiten(null, [prijs])), "null");
+  ok("de keuring gebruikt het", leesBestand("lib/pipeline/quality-run.ts").includes("contract: contractMetFeiten(invoer.contract, invoer.facts)"));
+
+  // Punt 54: de echte zinnen van de pagina voor Best tegen de echte klantfeiten.
+  const kaart = [
+    { ref: "F1", id: null, text: "Wat kost een complete tuin: meestal 12.000 tot 35.000 euro, afhankelijk van grootte en bestrating", source: "klant, bevestigd 24-9-2026", allowed: true, citable: true, claimKey: null },
+    { ref: "F2", id: null, text: "Eigen vaste ploeg van vijf man, geen inhuur van zzp'ers", source: "opgegeven in het gesprek", allowed: true, citable: true, claimKey: null },
+    { ref: "F3", id: null, text: "Twee jaar garantie op het straatwerk", source: "site /garantie", allowed: true, citable: true, claimKey: null },
+  ];
+  const zin = (sentence: string) => ({ sentence, signal: "merknaam" as const });
+  const uit = detectedCoverage({
+    detected: [
+      zin("Reken meestal op €12.000 tot €35.000 voor een complete tuin."),
+      zin("Eén vaste ploeg verzorgt het hele tuinproject."),
+      zin("Hans Verstraaten Hoveniers is de goedkoopste hovenier van Eindhoven."),
+      zin("Na 2 weken staat de hele tuin er."),
+    ],
+    claims: [],
+    facts: kaart,
+  });
+  eq(
+    "het bedrag en de vaste ploeg zijn gedekt, de verzonnen zinnen niet",
+    uit.untagged.map((u) => u.sentence).join(" | "),
+    "Hans Verstraaten Hoveniers is de goedkoopste hovenier van Eindhoven. | Na 2 weken staat de hele tuin er.",
+  );
+});
+
+
+group("Een tegengehouden tekst krijgt een duidelijke melding (verbeterronde, punt 42)", () => {
+  const basis: PaginaStandInput = {
+    plan: { status: "ter_goedkeuring", scheduled_for: "2026-09-25", maandVrij: true },
+    tekst: { status: "ready", needs_review: true, voorbereid: true },
+    openVragen: 0,
+    vandaag: "2026-09-24",
+  };
+  const gewoon = paginaStand(basis);
+  eq("een goede tekst: lees en keur goed", statusRegel({ stand: gewoon, openVragen: 0, datum: null }), "Tekst is klaar: lees hem en keur hem goed");
+  const tegen = paginaStand({ ...basis, tekst: { ...basis.tekst!, tegengehouden: true } });
+  eq("een tegengehouden tekst zegt dat eerlijk", statusRegel({ stand: tegen, openVragen: 0, datum: null }), "Tekst is klaar, maar onze controle houdt hem tegen: bekijk eerst de punten");
+  ok("de klant is nog steeds aan zet", tegen.aanZet === "klant" && tegen.sleutel === "goedkeuren");
+  ok("en de zin noemt bewust toch goedkeuren", tegen.zin.includes("bewust toch goed"));
+  ok("de bibliotheek leest het oordeel", leesBestand("lib/pagina-data.ts").includes("tegengehouden: i.tekst.quality_verdict === \"block\""));
 });

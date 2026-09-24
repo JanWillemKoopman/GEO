@@ -36,7 +36,7 @@ import { ContentPiece } from "@/lib/schemas/content-piece";
 import { ContentPatch } from "@/lib/schemas/content-patch";
 import type { ContentContract } from "@/lib/schemas/content-contract";
 import type { ItemDossier } from "@/lib/schemas/item-dossier";
-import { formatContract } from "@/lib/pipeline/contract-format";
+import { formatContract, contractMetFeiten } from "@/lib/pipeline/contract-format";
 import { answerBelongsHere } from "@/lib/pipeline/answer-scope";
 import { MAX_BEVINDINGEN_PER_RONDE } from "@/lib/pipeline/content-issues";
 import { beslisReparatieRonde, binnenRuis } from "@/lib/pipeline/content-repair-decision";
@@ -79,7 +79,7 @@ import {
 } from "@/lib/pipeline/existing-page-match";
 import { canonicalPath } from "@/lib/pipeline/page-relevance";
 import { detectClaimSentences, detectedCoverage, resolveFactId } from "@/lib/pipeline/claim-extract";
-import type { AuditedClaim } from "@/lib/schemas/claim-audit";
+import type { AuditedClaim, GeneralContextGap } from "@/lib/schemas/claim-audit";
 import {
   validateOrRebuildJsonLd,
   withFreshnessLine,
@@ -633,7 +633,8 @@ function buildContentInput(args: {
     // wat bovenaan een prompt staat wordt het best gevolgd. Wij rekenen hem
     // achteraf sectie voor sectie na (`content-coverage.ts`), dus dit is de
     // enige instructie in dit blok die een deterministisch vangnet heeft.
-    formatContract(contract),
+    // Punt 43: een verbod uit de opzet dat een later klantfeit tegenspreekt, valt weg.
+    formatContract(contractMetFeiten(contract, facts)),
     // ✅ Geverifieerde algemene uitleg (A7): de tweede laag van een complete
     // pagina, mét bron nagerekend. Zonder deze laag blijft een pagina correct
     // maar dun, precies de klacht die dit werk oplost.
@@ -889,7 +890,8 @@ function buildRepairInput(args: {
     bewijspuntenBehoudblok(piece.proofPoints),
     citatenblok(vindCiteerbareAntwoorden(facts.map((f) => f.text))),
     formatFactCard(facts),
-    formatContract(contract),
+    // Punt 43: een verbod uit de opzet dat een later klantfeit tegenspreekt, valt weg.
+    formatContract(contractMetFeiten(contract, facts)),
     explainerBlock,
     // De klant gaat vóór de redacteur. Dit is zijn website; vraagt hij om een
     // andere toon of een ander accent, dan is dat geen suggestie (4.8).
@@ -1818,6 +1820,15 @@ function buildDraftRow(args: {
    * versie de opdracht niet meer kunnen vinden.
    */
   opdracht: WriterBrief | null;
+  /**
+   * Het beweringenplan van de voorbereiding en de algemene context-gaten, zodat
+   * ze in de snapshot van DEZE versie blijven staan (punt 53 van de
+   * kwaliteitsdoorlichting). Zonder dit had elke nieuwe versie een snapshot met
+   * alleen feiten en aanbeveling, en werd hij niet meer getoetst op wat hij
+   * over het bedrijf beweert: nul bewijsblokkades, wat op verbetering leek.
+   */
+  plan?: AuditedClaim[];
+  generalContextGaps?: GeneralContextGap[];
 }) {
   const {
     analysisId,
@@ -1901,6 +1912,10 @@ function buildDraftRow(args: {
       facts,
       recommendation,
       writtenAt: new Date().toISOString(),
+      ...(args.plan && args.plan.length > 0 ? { plan: args.plan } : {}),
+      ...(args.generalContextGaps && args.generalContextGaps.length > 0
+        ? { generalContextGaps: args.generalContextGaps }
+        : {}),
     } as never,
     source_coverage: coverage,
     word_count: countWords(draft.parsed.bodyMarkdown),
@@ -2159,6 +2174,11 @@ export async function draftContentPiece(args: {
     businessModel: ctx.profile?.business_model ?? null,
     schemaOrg: ctx.schemaOrg,
     opdracht: ctx.opdracht,
+    // Punt 53: het plan reist mee naar de snapshot van deze versie.
+    plan: ctx.plan,
+    // Uit dezelfde snapshot gelezen, dus de volledige vorm (met `neededFor`);
+    // het type in de context is smaller omdat de schrijver alleen de term leest.
+    generalContextGaps: ctx.generalContextGaps as GeneralContextGap[],
     version: nextVersion,
     supersedesId: resumeId ? null : (current?.id ?? null),
   });

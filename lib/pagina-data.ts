@@ -110,7 +110,7 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
     analyseIds.length > 0
       ? admin
           .from("content_pieces")
-          .select("id, analysis_id, title, meta_title, type, action, status, needs_review, briefing_snapshot_json, write_mode, quality_score, quality_json, updated_at, input_coverage, weighted_evidence_coverage, critical_evidence_coverage")
+          .select("id, analysis_id, title, meta_title, type, action, status, needs_review, briefing_snapshot_json, write_mode, quality_score, quality_json, quality_verdict, updated_at, input_coverage, weighted_evidence_coverage, critical_evidence_coverage")
           .in("analysis_id", analyseIds)
           .eq("is_current", true)
           .neq("status", "archived")
@@ -144,6 +144,7 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
     write_mode: string | null;
     quality_score: number | null;
     quality_json: { score?: number | null } | null;
+    quality_verdict: string | null;
     input_coverage: number | string | null;
     weighted_evidence_coverage: number | string | null;
     critical_evidence_coverage: number | string | null;
@@ -239,6 +240,8 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
             needs_review: i.tekst.needs_review,
             voorbereid: Boolean(i.tekst.briefing_snapshot_json),
             write_mode: i.tekst.write_mode === "algemeen" ? "algemeen" : null,
+            // Punt 42: de klant mag een tegengehouden tekst zien, met een duidelijke melding.
+            tegengehouden: i.tekst.quality_verdict === "block",
           }
         : null,
       openVragen: i.open,

@@ -12213,3 +12213,15 @@ schrijver de functie van de pagina als vaste eis. (7) Kerncijfers van de site ("
 van 93%") komen als citeerbaar feit op de kaart, als vangnet naast het merkonderzoek. Geen
 ketentest voor de aanvulronde: die hangt aan echte wachttijden, en een test van drie minuten per
 draai is erger dan de controle op de bedrading die er nu staat.
+
+## 24 september 2026: verbeterronde blok C, de keuring meet wat klopt
+
+Vier punten uit de kwaliteitsdoorlichting. (53) Een nieuwe versie van een pagina bewaarde het
+beweringenplan niet in zijn snapshot, en werd daarna niet meer op onderbouwing getoetst; dat oogde
+als verbetering (nul bewijsblokkades). Het plan reist nu mee, en de ketentest faalt zonder de
+reparatie. (43) Een verbod uit de opzet ("geen prijsbedragen") valt weg zodra de klant daarna een
+bedrag gaf, voor schrijver en keuring. (54) Een klantfeit in eigen woorden telt niet meer als "zin
+zonder bron", langs twee strenge wegen (dezelfde getallen, of twee gedeelde kernwoorden bij een
+klantfeit), zodat een verzonnen zin nog steeds blokkeert. (42) Besluit eigenaar: een tekst die de
+keuring tegenhoudt mag de klant zien, met de melding "onze controle houdt hem tegen: bekijk eerst
+de punten" in plaats van "keur hem goed".

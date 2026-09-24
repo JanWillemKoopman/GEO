@@ -520,6 +520,13 @@ async function main(): Promise<void> {
       "punt 52: en als klantfeit op de feitenkaart",
       /F\d+.*Opmerking van de klant bij deze versie: Een traject van zes behandelingen kost 390 euro/.test(schrijfMetOpmerking),
     );
+    // Punt 53: de derde versie houdt het beweringenplan van de voorbereiding.
+    const planDerde = (derdeVersie.rows[0]?.briefing_snapshot_json as { plan?: unknown[] })?.plan ?? [];
+    ok(
+      "punt 53: een nieuwe versie houdt het beweringenplan in zijn snapshot",
+      Array.isArray(planDerde) && planDerde.length > 0,
+      JSON.stringify(Object.keys(derdeVersie.rows[0]?.briefing_snapshot_json ?? {})),
+    );
     ok(
       "punt 51 (bewaking): een paginagebonden antwoord staat ook na twee nieuwe versies op de kaart",
       (kaartDerde?.facts ?? []).some((f) => f.text.includes("zes tot acht weken")),

@@ -66,6 +66,7 @@ import { geoScore as geoScoreVanModel } from "@/lib/schemas/critique";
 import { kiesAanspreekvorm } from "@/lib/pipeline/tone-sliders";
 import { vindKlantinstructies, verbiedtAdres } from "@/lib/klantinstructies";
 import { checkBewijspunten } from "@/lib/pipeline/bewijspunten";
+import { contractMetFeiten } from "@/lib/pipeline/contract-format";
 import { checkKernbewijs, vindKernbewijs } from "@/lib/pipeline/kernbewijs";
 import { checkSchrijfopdracht } from "@/lib/schrijfopdracht";
 import { checkKlantcitaten, vindCiteerbareAntwoorden } from "@/lib/pipeline/klantcitaten";
@@ -176,7 +177,11 @@ export function heeftVervolgstap(bodyMarkdown: string, faq: { q: string; a: stri
  * hem bepaalt (eerst de tekst, dan het oordeel), en dat is wat een afgebroken
  * werker-aanroep overleefbaar maakt.
  */
-export async function keurPagina(input: KeuringInput): Promise<Keuring> {
+export async function keurPagina(invoer: KeuringInput): Promise<Keuring> {
+  // Punt 43 van de kwaliteitsdoorlichting: de keuring toetst tegen de opzet
+  // ZONDER de verboden die een later klantfeit tegenspreekt ("geen bedragen"
+  // terwijl de klant een prijsband gaf). Zelfde regel als bij de schrijver.
+  const input: KeuringInput = { ...invoer, contract: contractMetFeiten(invoer.contract, invoer.facts) };
   const profiel = profielVoorType(input.type);
   const body = input.piece.bodyMarkdown;
   const faq = input.piece.faq ?? [];
