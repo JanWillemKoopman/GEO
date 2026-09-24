@@ -12115,3 +12115,7 @@ model kreeg alleen het ChatGPT-cijfer. Nu krijgt het te horen welke andere bron 
 zonder dat cijfer (de eigenaar wil naast de ChatGPT-score geen tweede getal), en zet
 `vulBronnenAan()` het recht als het toch misgaat. Details: `docs/tasks/bevindingen-kwaliteitsdoorlichting.md`
 punt 20 en 22.
+Nagekomen dezelfde dag, na het opnieuw maken van de drie rapporten op productie: een eigen product
+van de klant telde in de naamcontrole als concurrent (4 juiste zinnen weg), een toevoeging tussen
+haakjes ("(VSB)") liet een juiste naam afkeuren (1 zin), en de rechtzetting over Google stond er
+twee keer als het model hem zelf al schreef. Alle drie opgelost; punt 21 en 23 in de bevindingenlijst.

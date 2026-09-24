@@ -45,9 +45,10 @@
 | 17 | hoog | Gemini-meting viel volledig uit op een limiet van de leverancier | open, wordt gevolgd |
 | 18 | laag | Beoordeling "genoemd of niet" geeft soms platte tekst in plaats van JSON, en de mislukte uitvoer wordt niet bewaard | open |
 | 19 | **hoog** | Een definitief mislukte Gemini- of Google-meting laat de analyse eeuwig op "meten" staan | ✅ opgelost, PR #110 |
-| 20 | **hoog** | Het rapport schrapt elke zin over welke concurrent een vraag wint, ook de juiste | ✅ opgelost, PR volgt |
-| 21 | middel | Een productnaam ("Hybride warmtepomp") staat als bedrijf in het namenregister | open |
-| 22 | **hoog** | Het rapport zegt "niet genoemd, 0 op 100" terwijl Google het merk wel noemde | ✅ opgelost, PR volgt |
+| 20 | **hoog** | Het rapport schrapt elke zin over welke concurrent een vraag wint, ook de juiste | ✅ opgelost, PR #111 en #112 |
+| 21 | middel | Een eigen product ("Hybride warmtepomp") telde in de naamcontrole als concurrent | ✅ opgelost, PR #112 |
+| 23 | laag | Hetzelfde bedrijf staat twee keer in het namenregister, met en zonder "(VSB)" | open, gevolg opgevangen |
+| 22 | **hoog** | Het rapport zegt "niet genoemd, 0 op 100" terwijl Google het merk wel noemde | ✅ opgelost, PR #111 en #112 |
 
 ---
 
@@ -295,13 +296,25 @@ meet-id's vóór de naamcontrole, met als terugval de codes in de clusternaam en
 met dezelfde clusternaam. `schoonGapCluster()` haalt ook de code voor de clusternaam weg: alle 15 gaps
 van de rijschool begonnen met "V1" plus een kastlijntje, zichtbaar voor de klant.
 
-## 21. Een productnaam staat als bedrijf in het namenregister
+## 21. Een eigen product telde in de naamcontrole als concurrent ✅
 
 **Wat misging.** Bij de installateur werd twee keer een zin geschrapt omdat "Hybride warmtepomp" als
 naam in het entiteitenregister van het profiel staat. Elke zin die het product noemt, telt daardoor
 als een bewering over een concurrent. **Waar te zoeken:** de indeling van namen (`classify_entities`)
 en `looksLikeBrandName()` in `lib/pipeline/evidence.ts`, die dit filter voor het dossier wel heeft
 maar niet voor `knownNames` in de naamcontrole.
+
+**Oorzaak en oplossing.** De naam staat in het register met de rol `eigen_product`: terecht, het is
+het product van de klant zelf. `loadKnownBrandNames()` nam die rol mee als naam om te controleren.
+Een eigen product is geen bewering over een concurrent, dus die rol valt er nu uit.
+
+## 23. Hetzelfde bedrijf staat twee keer in het namenregister
+
+Bij de installateur staan "Verwarming Service Brabant" en "Verwarming Service Brabant (VSB)" als twee
+concurrenten, en ook "VSB Hybride" (als niet relevant). Het gevolg voor het rapport (een juiste zin
+geschrapt) is opgevangen: de naamcontrole negeert nu een toevoeging tussen haakjes. De dubbeling zelf
+staat nog open en telt de vermeldingen van dat bedrijf over twee namen uit. **Waar te zoeken:**
+`isSameEntity()` in `lib/entities/normalize.ts`.
 
 ## 22. Het rapport zegt "niet genoemd, 0 op 100" terwijl Google het merk wel noemde ✅
 
@@ -314,6 +327,13 @@ verschil niet weten. De klant leest in de eerste zin dat hij onzichtbaar is, en 
 cijfer, want de eigenaar wil naast de ChatGPT-score nergens een tweede getal), en `vulBronnenAan()`
 (`lib/pipeline/report-summary.ts`) zet er één zin achter als de samenvatting toch "niet genoemd" zegt
 zonder ChatGPT erbij.
+
+**Nagerekend op productie (24 september 2026).** De drie rapporten opnieuw gemaakt (de oude staan
+bewaard als periode -1). Geschrapte zinnen: van 17, 17 en 15 naar 0, 5 en 0; de 5 waren punt 21 (4)
+en punt 23 (1), die daarna ook opgelost zijn. Geen gap meer zonder bewijs (was 15 van 15 bij de
+installateur). De samenvatting van alle drie noemt nu dat de score over ChatGPT gaat en dat Google het
+merk wel noemde. Bij de rijschool stond de rechtzetting er toen twee keer in (model en vangnet); het
+vangnet zwijgt nu als de samenvatting de bron al noemt.
 
 ---
 

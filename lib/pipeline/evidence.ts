@@ -138,6 +138,11 @@ export async function loadKnownBrandNames(admin: Admin, profileId: string): Prom
   const names = new Set<string>();
   for (const e of (data ?? []) as Pick<Entity, "canonical_name" | "aliases" | "entity_role">[]) {
     if (!RELEVANTE_ROLLEN.has(e.entity_role)) continue;
+    // Een eigen product is geen concurrent, dus ook geen bewering die het bewijs
+    // moet dragen. Zonder deze regel haalde de controle op 24 september 2026 vier
+    // juiste zinnen uit het rapport van een installateur, omdat zijn eigen
+    // "Hybride warmtepomp" als naam telde (kwaliteitsdoorlichting, punt 21).
+    if (e.entity_role === "eigen_product") continue;
     // Alleen namen die er als BEDRIJF uitzien. Zonder dit filter stripte de
     // claimvalidator twee volstrekt correcte zinnen uit een Fysi-Unique-rapport,
     // omdat "manuele therapie" en "fysiotherapie" als entiteit in een relevante

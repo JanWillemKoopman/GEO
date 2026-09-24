@@ -192,6 +192,13 @@ export function vulBronnenAan(
   welGenoemdIn: string[],
 ): { summary: string; aangevuld: boolean } {
   if (welGenoemdIn.length === 0 || !summary.trim()) return { summary, aangevuld: false };
+  // Noemt de samenvatting die bron al, dan heeft het model de regel gevolgd.
+  // Zonder deze controle stond de rechtzetting er op 24 september 2026 twee
+  // keer in: één keer van het model, één keer van dit vangnet.
+  const eersteWoord = (label: string) => label.split(/\s+/)[0].toLowerCase();
+  if (welGenoemdIn.some((b) => summary.toLowerCase().includes(eersteWoord(b)))) {
+    return { summary, aangevuld: false };
+  }
   const zinnen = summary.match(/[^.!?]+[.!?]*/g) ?? [summary];
   const absoluut = zinnen.some(
     (z) =>
