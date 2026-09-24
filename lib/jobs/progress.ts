@@ -275,6 +275,22 @@ const EMPTY: JobProgress = {
   pendingByType: {},
 };
 
+/**
+ * De geschatte resterende tijd, inclusief stappen die nog niet in de wachtrij
+ * staan omdat ze pas na de vorige worden ingepland (punt 14 van de
+ * kwaliteitsdoorlichting: "nog minder dan een minuut" bij acht open stappen,
+ * omdat alleen de taken telden die al klaarstonden). Die stappen draaien na
+ * elkaar, dus hun tijd telt op en wordt niet door de parallelliteit gedeeld.
+ */
+export function etaMetWachtendeStappen(
+  etaSeconds: number | null,
+  wachtend: readonly JobType[],
+): number | null {
+  const erbij = wachtend.reduce((som, t) => som + (TYPICAL_SECONDS[t] ?? 30), 0);
+  if (etaSeconds === null && erbij === 0) return null;
+  return (etaSeconds ?? SCHEDULING_LAG_SECONDS) + erbij;
+}
+
 function summarize(jobs: Job[]): JobProgress {
   if (jobs.length === 0) return EMPTY;
 

@@ -35,6 +35,7 @@ import { OfferingTree } from "@/lib/schemas/offering";
 import { buildTaxonomy } from "@/lib/pipeline/inventory-quality";
 import { buildPageBlocks } from "@/lib/pipeline/page-select";
 import { quoteConfidence } from "@/lib/pipeline/quote-check";
+import { isAdviesCitaat } from "@/lib/pipeline/aanbod-citaat";
 import {
   relinkOfferingIds,
   type LinkableNode,
@@ -205,6 +206,10 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
     `beter antwoord dan een aanname.\n` +
     `4. Zet in 'gaps' wat je niet kon vaststellen maar wel had willen weten. Dat wordt de agenda voor ` +
     `het gesprek met de klant.\n` +
+    // Punt 9 van de kwaliteitsdoorlichting: een adviesregel werd een dienst.
+    `5. Een advies of tip op de site ("het ventilatiesysteem moet regelmatig worden schoongemaakt") is ` +
+    `GEEN dienst. Neem een dienst alleen op als de site zegt dat het bedrijf hem levert, en kies als ` +
+    `evidenceQuote de zin waarin dat staat ("wij reinigen ...", "u kunt bij ons ...").\n` +
     `Antwoord in het Nederlands.`;
 
   const user =
@@ -361,7 +366,11 @@ async function persistTree(
 ): Promise<PersistedTree> {
   const textByUrl = new Map(knownPages.map((p) => [p.url, p.text]));
   const metNaam = nodes.filter((n) => n.name.trim() !== "");
-  const metBron = metNaam.filter((n) => textByUrl.has(n.evidenceUrl));
+  // Het vangnet onder regel 5: een dienst met alleen een adviescitaat gaat eruit
+  // (punt 9). Telt mee als "zonder bruikbaar bewijs", want dat is het.
+  const metBron = metNaam.filter(
+    (n) => textByUrl.has(n.evidenceUrl) && !(n.kind === "dienst" && isAdviesCitaat(n.evidenceQuote)),
+  );
   const geldig = metBron.slice(0, MAX_NODES);
 
   const droppedByEvidence = metNaam.length - metBron.length;

@@ -296,3 +296,28 @@ export function droppableIndices(
   }
   return weg;
 }
+
+/**
+ * De vraag zonder plaatsnamen, als sleutel om dubbelen te herkennen (punt 8 van
+ * de kwaliteitsdoorlichting).
+ *
+ * Volgens de blinde lezer waren 14 tot 16 van de 30 meetvragen per merk in feite
+ * dubbel: dezelfde vraag met een andere plaats ("Welke installateur in Geldrop
+ * vervangt een cv-ketel" en "... in Eindhoven ..."). Zo meten 30 vragen er 15.
+ * Twee vragen met dezelfde sleutel tellen als één.
+ */
+export function vraagZonderPlaats(text: string, plaatsen: readonly string[]): string {
+  let laag = ` ${text.toLowerCase()} `;
+  // Langste eerst: anders blijft van "bij mij in de buurt" "bij mij" over.
+  for (const zin of [...NABIJHEID].sort((a, b) => b.length - a.length)) laag = laag.split(zin).join(" ");
+  const termen = [...plaatsen, ...PROVINCIES].map((r) => r.trim().toLowerCase()).filter((r) => r.length > 1);
+  for (const term of termen) {
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    laag = laag.replace(new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}(?=[^\\p{L}\\p{N}]|$)`, "giu"), "$1 ");
+  }
+  return laag
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\b(in|uit|rond|rondom|omgeving|regio|bij)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}

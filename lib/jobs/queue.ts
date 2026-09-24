@@ -1,5 +1,6 @@
 import "server-only";
 import { maySkip } from "@/lib/pipeline/elicit-rate";
+import { spreidTijden, GEMINI_AFSTAND_MS } from "@/lib/jobs/spreiding";
 import { aiOverviewEnabled } from "@/lib/ai-overview/registry";
 import { AI_OVERVIEW_ENGINE, AI_OVERVIEW_REPEATS } from "@/lib/ai-overview/types";
 import { llmResponseGeminiEnabled } from "@/lib/llm-responses/registry";
@@ -447,15 +448,37 @@ export async function enqueueLlmResponseMeasurement(
     .in("status", ["queued", "running"]);
   const alIngepland = new Set((openRows ?? []).map((r) => r.dedupe_key as string));
 
+  // ── Gespreid, over alle clusters heen (punt 17 van de kwaliteitsdoorlichting) ──
+  //
+  // Alle 90 Gemini-aanroepen van de drie merken kregen bij de eerste poging
+  // "rate_limit_exceeded" van de leverancier: drie clusters kort na elkaar, elk
+  // met dertig vragen die tegelijk klaarstonden. Nu staat er tussen twee
+  // Gemini-taken een vaste afstand, en een nieuwe reeks sluit aan achter wat
+  // er al klaarstaat, ook als dat van een ander cluster is.
+  const { data: laatsteRij } = await admin
+    .from("jobs")
+    .select("scheduled_for")
+    .eq("type", "measure_llm_response")
+    .eq("status", "queued")
+    .order("scheduled_for", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const tijden = spreidTijden(
+    new Date(),
+    laatsteRij?.scheduled_for ? new Date(laatsteRij.scheduled_for as string) : null,
+    kandidaten.length,
+    GEMINI_AFSTAND_MS,
+  );
+
   const rows = kandidaten
     .filter((c) => !alIngepland.has(dedupe.measureLlmResponse(analysisId, c.promptId, weekNo, c.repeat)))
-    .map((c) => ({
+    .map((c, i) => ({
       type: "measure_llm_response" as const,
       payload_json: { promptId: c.promptId, weekNo, repeatIndex: c.repeat } as never,
       analysis_id: analysisId,
       dedupe_key: dedupe.measureLlmResponse(analysisId, c.promptId, weekNo, c.repeat),
       status: "queued" as const,
-      scheduled_for: new Date().toISOString(),
+      scheduled_for: tijden[i].toISOString(),
     }));
 
   if (rows.length === 0) return { planned: 0, totalPrompts: all.length };

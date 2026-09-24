@@ -25,6 +25,7 @@ import {
   FIELD_TASKS,
 } from "@/lib/pipeline/onboarding-refresh";
 import { sessionMeter, notApplicableFields, type FieldState } from "@/lib/profile-meter";
+import { isHumanSet } from "@/lib/pipeline/field-merge";
 import type { ContextFactor, Profile } from "@/lib/types/database";
 
 /**
@@ -308,10 +309,16 @@ export function OnboardingSession({
       Object.fromEntries(
         SESSION_BLOCKS.map((blok) => {
           const gevuld = blok.velden.filter((k) => isFilled(waarden[k as string])).length;
-          return [blok.id, { gevuld, totaal: blok.velden.length }];
+          // Punt 11 van de kwaliteitsdoorlichting: gevuld is niet gecontroleerd.
+          // Een veld dat het onderzoek vulde en dat nog geen mens bevestigde (de
+          // naamuitsluitingen van punt 3 bijvoorbeeld), houdt het blok open.
+          const teControleren = blok.velden.filter(
+            (k) => isFilled(waarden[k as string]) && !isHumanSet(states[k as string]?.source),
+          ).length;
+          return [blok.id, { gevuld, totaal: blok.velden.length, teControleren }];
         }),
       ),
-    [waarden],
+    [waarden, states],
   );
 
   function veld(key: string) {
@@ -388,14 +395,22 @@ export function OnboardingSession({
               met wat alleen het gesprek kan opleveren; de herkomstchip per veld
               (`BrandFieldInput`) laat zien welke van de twee het is. */}
           {SESSION_BLOCKS.map((blok) => {
-            const p = { ...blokVoortgang[blok.id], compleet: blokVoortgang[blok.id].gevuld === blokVoortgang[blok.id].totaal };
+            const p = {
+              ...blokVoortgang[blok.id],
+              compleet:
+                blokVoortgang[blok.id].gevuld === blokVoortgang[blok.id].totaal &&
+                blokVoortgang[blok.id].teControleren === 0,
+            };
             return (
               <section key={blok.id} id={blok.id} className="flex flex-col gap-3">
                 <Kop nummer={blok.volgnummer} titel={blok.titel} uitleg={blok.uitleg} />
                 {/* A1, toegepast op de negen blokken: een blok dat al compleet is
                     hoeft niet in de weg te staan tijdens het gesprek. */}
                 <CollapsibleSection
-                  title={`${p.gevuld} van de ${p.totaal} ingevuld`}
+                  title={
+                    `${p.gevuld} van de ${p.totaal} ingevuld` +
+                    (p.teControleren > 0 ? `, ${p.teControleren} nog te controleren` : "")
+                  }
                   defaultOpen={!p.compleet}
                 >
                   {blok.velden.map((k) => veld(k as string))}
