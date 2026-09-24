@@ -1,8 +1,11 @@
 # Kwaliteitsdoorlichting: één merk van aanmaken tot opgeleverde pagina, stap voor stap nagemeten
 
-> **Status (23 september 2026): in uitvoering.** Fase 0.1 is gebouwd (migratie 0112, zie
-> `docs/logbook.md`), de blinde lezer is getoetst (§4, 0.5: vergelijken werkt, losse cijfers niet),
-> de drie merken zijn gekozen (regio Eindhoven: een hovenier, een installateur en een rijschool). Opgesteld op verzoek van de
+> **Status (24 september 2026): uitgevoerd.** De hele keten is doorlopen met drie merken uit de regio
+> Eindhoven (een hovenier, een installateur en een rijschool), tot en met 16 geschreven pagina's en de
+> wisselproeven. De uitkomst en de vijf verbeteringen staan in
+> `docs/tasks/bevindingen-kwaliteitsdoorlichting.md`, het dossier per stap in
+> `docs/tasks/kwaliteitsdoorlichting-stappen.md`. Niet gedaan: goedkeuren en publiceren als klant en de
+> effectmeting; die hangen aan echte publicatie. Opgesteld op verzoek van de
 > eigenaar na een analyse van de code en van productie. Elk cijfer hieronder is die dag nagerekend
 > op de code of op de database (Supabase-project `GEO`), tenzij er "schatting" bij staat.
 >

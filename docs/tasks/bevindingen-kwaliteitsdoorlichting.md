@@ -19,9 +19,56 @@
 > zit, en een voorstel. Is een punt opgelost: de regel "Status" bijwerken met de datum en de PR, en
 > een alinea in `docs/logbook.md`.
 >
-> **Doorlopend bijgewerkt** zolang de doorloop loopt. Stand 24 september 2026: alle stappen tot en met
-> het schrijven doorlopen, 16 teksten blind beoordeeld; proeven met de reparatieknop en een ideale klant lopen. Het
+> **Stand 24 september 2026:** de hele keten doorlopen, 16 teksten blind beoordeeld, proeven met de
+> reparatieknop en een ideale klant gedaan. Het eindverslag staat hieronder; het stap-voor-stapdossier
+> met cijfers in `docs/tasks/kwaliteitsdoorlichting-stappen.md`. Het
 > stap-voor-stapdossier met cijfers per stap staat in `docs/tasks/kwaliteitsdoorlichting-stappen.md`.
+
+## Eindverslag: de vijf verbeteringen die het meest opleveren
+
+**De uitkomst in één alinea.** Drie echte bedrijven zijn op 23 en 24 september 2026 door de hele keten
+gegaan, van merk aanmaken tot 16 geschreven pagina's. Drie onafhankelijke blinde lezers gaven de
+teksten gemiddeld een **4,1 op 10** als copywriter. Geen enkele tekst zou de ondernemer zonder
+aanpassing publiceren. Wel is de nieuwe tekst in 11 van de 15 vergelijkingen beter dan wat er nu op
+de site staat. De teksten beginnen dus boven de huidige sites, maar ver onder een professionele
+copywriter. Van de 54 bevindingen zijn er 18 opgelost en live gezet (PR #108 tot en met #119).
+De rest staat hieronder, per punt met de plek in de code.
+
+**De vijf, op volgorde van wat ze opleveren voor de tekst:**
+
+1. **Wat de klant weet, moet de tekst bereiken.** Het sterkste bewijs (93 procent geslaagd, 1.800
+   onderhoudscontracten, twaalf monteurs) stond op de feitenkaart en kwam in geen enkele tekst
+   (punt 47). Het rapport kent de groeidoelen niet (27), de meetvragen negeren de groeiplaatsen (5),
+   en de klant krijgt vragen die hij al beantwoordde (35). Opgelost in deze doorloop: antwoorden
+   dekken nu hun bewering (39), blijven bij hun pagina (41), en de opmerking bij een nieuwe versie
+   bereikt de schrijver (52). **Open:** het onderscheidende bewijs uit het gesprek een vaste plek in
+   elke pagina geven, en groeidoelen en groeiplaatsen meenemen in meting en rapport.
+2. **De app moet de site kennen voordat hij iets "verbetert".** De hovenier: 1 van ~70 pagina's
+   gelezen (4), dus "nieuwe pagina voor Best" terwijl die bestaat. De rijschool: de hoofdpagina uit het
+   menu ontbrak, fotobijlagen niet (10, 28). Gevolg: een "verbetering" vervangt de functie van de
+   pagina (de homepage wordt Helmond, de prijzenpagina wordt een losse les, 45), en drie teksten voor
+   één adres (31).
+3. **De keuring moet meten wat een lezer merkt.** Alle 16 teksten werden tegengehouden, grotendeels om
+   redenen die niet klopten (39, 40, 43, opgelost of deels), terwijl wat de blinde lezers als eerste
+   noemden (herhaling, gelekte bronzinnen, ontbrekend bewijs, verkeerde pagina op het adres) er niet of
+   nauwelijks in stond. De klant krijgt "tekst is klaar, keur hem goed" bij een tegengehouden tekst
+   (42), omschreven klantfeiten tellen als "zonder bron" (54), en een nieuwe versie wordt niet meer op
+   onderbouwing getoetst (53).
+4. **Schrijven als het bedrijf, niet als een formulier.** Bedrijfsnaam voor elke alinea en dezelfde
+   feiten drie tot vier keer (48; de naam is een bewuste regel en een afweging voor de eigenaar),
+   "bespreek dat vooraf" waar een vraag overgeslagen werd (49), en één keer een belofte van de site
+   omgedraaid (46).
+5. **Het plan moet uitvoerbaar zijn.** Eén adres, één tekst (31); een plan dat op de 24e start, vraagt
+   antwoorden vóór de 13e (33); "opnieuw opzetten" werkt niet bij een nieuwe klant (32).
+
+**Buiten de tekst, wel dringend:** de Gemini-meting viel volledig uit op een limiet van de leverancier
+(17), en de crawl leest bij sommige sites maar één pagina zonder waarschuwing (4).
+
+**Hoe de meetlat werkte.** Elke bewering van een blinde lezer is nagerekend voordat hij hier staat.
+Drie klopten niet (de CO-certificering en Eindhoven staan wél op de site van de installateur, de
+telefoonnummers van de rijschool ook) en zijn niet meegeteld. Omgekeerd vond de lezer dingen die de
+keuring van de app niet zag, en die bij narekenen klopten (de omgedraaide 4-urenbelofte, de gelekte
+bronzinnen, het ontbrekende bewijs).
 
 ## Overzicht
 
@@ -74,12 +121,13 @@
 | 45 | **hoog** | Een "verbetering" vervangt de functie van de bestaande pagina (homepage wordt Helmond, prijzenpagina wordt losse les bij faalangst) | open |
 | 46 | **hoog** | De tekst draait een belofte van de site om: "binnen 4 uur een scherpe offerte" wordt "geen termijn voor de offerte" | open |
 | 47 | **hoog** | Het sterkste bewijs van de klant staat in geen enkele tekst, hoewel het op de feitenkaart staat | open |
-| 48 | **hoog** | De teksten lezen als een formulier: bedrijfsnaam voor elke alinea, dezelfde feiten drie tot vier keer, voorbehouden, zinnen uit de bronnen | deels opgelost (bronzinnen), rest is een afweging, PR volgt |
+| 48 | **hoog** | De teksten lezen als een formulier: bedrijfsnaam voor elke alinea, dezelfde feiten drie tot vier keer, voorbehouden, zinnen uit de bronnen | deels opgelost (bronzinnen, PR #119), rest is een afweging |
 | 49 | middel | Waar de klant een vraag oversloeg, wijkt de tekst uit naar "bespreek dat vooraf" in plaats van het onderwerp los te laten | open |
 | 50 | **hoog** | De reparatieknop van de klant haalde een juist klantfeit uit de tekst | oorzaak opgelost (punt 39), PR #115 |
 | 51 | middel | Na een nieuwe versie staat een pagina twee keer in de bibliotheek | ✅ opgelost, PR #117 en de volgende |
-| 52 | **hoog** | De opmerking van de klant bij "Schrijf een nieuwe versie" bereikte de schrijver niet | ✅ opgelost, PR volgt |
+| 52 | **hoog** | De opmerking van de klant bij "Schrijf een nieuwe versie" bereikte de schrijver niet | ✅ opgelost, PR #119, nagerekend op productie |
 | 53 | middel | Een nieuwe versie verliest het beweringenplan, en wordt daarna niet meer op onderbouwing getoetst | open |
+| 54 | middel | Een zin met een omschreven klantfeit telt als "zin zonder bron" | open |
 
 ---
 
@@ -730,9 +778,12 @@ hovenier toonde daarna 7 regels voor 5 pagina's: "Maak een pagina voor complete 
 (plantaak, datum, geen score) en "Complete tuinaanleg in Best" (geen datum, score 75). Opgelost: de
 plantaak verhuist mee naar de nieuwe versie, met een ketentest. Hetzelfde gold voor
 `fact_requests.content_piece_ids`: de vragen van een pagina wezen na een nieuwe versie naar de oude
-rij. Die verhuizen nu ook mee. Een vermoeden dat daardoor antwoorden van de kaart vielen, bleek bij
-narekenen in de ketentest niet te kloppen (de kaart van een nieuwe versie bouwt voort op de vorige);
-die controle staat er als bewaking.
+rij. Die verhuizen nu ook mee. In de ketentest vielen daardoor geen antwoorden van de kaart (die route
+bouwt voort op de kaart van de vorige versie), maar op productie wel: bij een nieuwe versie draait de
+voorbereiding opnieuw en bouwt de kaart via `buildFactBase()` met het id van de huidige versie. Bij de
+hovenier misten versie 3 en 4 van Best daardoor de doorlooptijd die de klant opgaf ("2 tot 3 weken"),
+een antwoord op een paginavraag die nog naar versie 1 wees. De vragen van de hovenier zijn met de hand
+rechtgezet; nieuwe versies verhuizen ze sinds PR #118 zelf.
 
 **Ook gevonden bij het repareren van punt 39:** de schrijfronde bouwt zijn feitenkaart via
 `mergeAnsweredFacts()`, die de sleutel van de bewering niet meenam. De reparatie van PR #115 werkte
@@ -750,7 +801,10 @@ opmerking. **Oorzaak:** `revisionNote` ging alleen naar `buildRepairInput()`, ni
 `buildContentInput()`, en de feiten erin stonden niet op de feitenkaart, dus de reparatieronde mocht ze
 ook niet gebruiken. **Opgelost:** de schrijfopdracht krijgt de opmerking bovenaan, en
 `metKlantopmerking()` (`lib/pipeline/factcard.ts`) zet hem als citeerbaar klantfeit op de kaart.
-Ketentest op de echte schrijfopdracht.
+Ketentest op de echte schrijfopdracht. **Nagerekend op productie:** de volgende versie kreeg de
+opmerking wel in de schrijfaanroep en gebruikte 2 van de 6 feiten (was 1). Dat de rest achterblijft,
+komt waarschijnlijk door de opzet van de pagina, die van vóór de opmerking is (zie de wisselproeven in
+`docs/tasks/kwaliteitsdoorlichting-stappen.md`).
 
 ## 53. Een nieuwe versie verliest het beweringenplan
 
@@ -762,6 +816,17 @@ bewijsblokkades. `briefing_snapshot_json` van de nieuwe versie bevat alleen `fac
 wordt niet meer getoetst op wat hij over het bedrijf beweert. Dat oogt als verbetering (minder
 blokkades), maar is een gat in de keuring. **Richting:** het plan van de vorige versie meenemen naar de
 snapshot van de nieuwe.
+
+## 54. Een omschreven klantfeit telt als "zin zonder bron"
+
+Versie 2, 3 en 4 van de pagina voor Best hadden elk 5 blokkerende punten, allemaal "Deze zin zegt iets
+over je bedrijf zonder bron", en een deel daarvan zijn juiste klantfeiten in eigen woorden: "Reken
+meestal op €12.000 tot €35.000", "Eén vaste ploeg verzorgt het hele tuinproject", "Wij verzorgen ook de
+afvoer zelf". De controle op bronherleidbaarheid (`content_factuality` en de koppeling van zinnen aan
+F-nummers) herkent een parafrase van een feit dat op de kaart staat niet. Gevolg: dezelfde blokkade
+blijft bij elke versie terugkomen en de klant krijgt hem niet weg. **Waar te zoeken:** de
+bronherleidbaarheidscontrole in `lib/pipeline/quality-run.ts` en `sourceCoverage()` in
+`lib/pipeline/factcard.ts`.
 
 ---
 

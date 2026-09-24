@@ -438,7 +438,35 @@ anders dan wat een lezer merkt.
 
 ---
 
+## Wisselproeven: de reparatieknop en de ideale klant
+
+**De reparatieknop (hovenier, Best).** Als klant "laat ORBIT ENGINE ze alle 15 in één keer oplossen".
+De reparatieopdracht bevatte de onterechte bewijsblokkades letterlijk ("Onderbouw hem, of haal hem uit
+de pagina" over een juiste bewering). De nieuwe versie scoorde hoger bij de app (86 tegen 82), maar
+miste de doorlooptijd die de klant opgaf; de bedrijfsnaam stond er nog steeds 9 keer in (**B50**).
+Twee volgende versies (3 en 4) misten de doorlooptijd ook, doordat de paginavragen naar versie 1
+bleven wijzen (**B51**). Alle drie de nieuwe versies hadden geen beweringenplan meer en daardoor nul
+bewijsblokkades (**B53**), maar wel 5 blokkades "zin zonder bron" op omschreven klantfeiten (**B54**).
+
+**De ideale klant (hovenier, Nuenen).** Via "Laat ORBIT ENGINE iets aanpassen" zes feiten opgegeven die
+hij paraat heeft (garantie 1 en 5 jaar, eerste gesprek gratis, 3D-ontwerp 450 euro verrekend bij
+opdracht, klinkers en keramische tegels, vaste ploeg van vijf man, betaling 30, 60 en 10 procent).
+
+| | Feiten uit de opmerking in de tekst | Opmerking in de schrijfaanroep |
+|---|---|---|
+| Versie 2, vóór de reparatie | 1 van 6 (de ploeg) | nee, alleen in de reparatieronde (**B52**) |
+| Versie 3, na PR #119 | 2 van 6 (de ploeg, 450 euro) | ja, bovenaan en als klantfeit op de kaart |
+
+De reparatie werkt: de opmerking bereikt de schrijver. Dat hij er daarna maar twee van zes gebruikt,
+komt waarschijnlijk doordat de opzet van de pagina (`contract_json`) vóór de opmerking gemaakt is en
+geen plek heeft voor garantie, materialen en betaling. Dat is niet nagerekend. **Conclusie voor de
+vraag "investeren in betere vragen of in beter schrijven":** betere input helpt alleen als hij ook in de
+opzet van de pagina terechtkomt. De klant die meer weet, krijgt nu niet vanzelf een betere tekst.
+
+---
+
 ## Nog te doen in deze doorloop
 
-- Goedkeuren als klant ("Keur toch goed" of "Los de punten op"), en wat de reparatieknop doet.
-- De ideale-klantvariant op twee pagina's, de wisselproeven en het verslag met hooguit vijf verbeteringen.
+- Het eindverslag staat bovenaan `docs/tasks/bevindingen-kwaliteitsdoorlichting.md`. Niet gedaan:
+  goedkeuren en publiceren als klant, en de effectmeting na publicatie; die hangen aan echte
+  publicatie op de site van de klant en vallen buiten deze doorloop.
