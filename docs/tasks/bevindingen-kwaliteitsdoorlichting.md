@@ -46,14 +46,20 @@ doorloop met dezelfde drie bedrijven en dezelfde blinde lezers (meetlat: 4,1 op 
   stond en de streefdatum twaalf dagen daarvoor ligt. 53: een nieuwe versie van een tekst werd niet
   meer gecontroleerd op wat hij over het bedrijf beweert.
 
+**Stand na de verbeterronde (24 september 2026, eind van de dag):** alle zes blokken live (PR #121
+tot en met #127). Van de 54 bevindingen staan er nog open: 15 en 16 (eenmalig, niet herhaald), en
+drie die pas op een nieuwe doorloop te toetsen zijn: 47 en 45 (geen nieuwe tekst geschreven sinds de
+reparatie) en 50 (de reparatieknop, oorzaak weg via 39). Wat nog ontbreekt, is de afsluiting uit het
+plan: dezelfde drie bedrijven opnieuw door de keten, met dezelfde blinde lezers, tegen de 4,1 op 10.
+
 | Blok | Punten | Stand |
 |---|---|---|
 | A, wat de app van de klant weet | 5, 24, 27, 35, 36, 47 | ✅ live, PR #121; 7 schuift naar blok B (crawl) |
-| B, wat de app van de site leest | 4, 7, 10, 28, 45 | ✅ live, PR #122; crawl van de hovenier op productie nagerekend (68 adressen, was 1) |
+| B, wat de app van de site leest | 4, 7, 10, 28, 45 | ✅ live, PR #122; op productie nagerekend: de hovenier had 1 pagina, nu 68 adressen gevonden en na vier aanvulrondes 60 gelezen, met de pagina's voor Best, Nuenen, Geldrop en Veldhoven |
 | C, de keuring | 42, 43, 50, 53, 54 | ✅ live, PR #123; 50 wacht op de herhaling (oorzaak al weg via 39) |
 | D, schrijfstijl | 46, 48, 49 | ✅ live, PR #124 |
 | E, planning | 31, 32, 33 | ✅ live, PR #125 |
-| F, kleine punten | 3, 6, 8, 9, 11 tot 18, 23, 38 | ✅ deel 1 live (PR #126), deel 2 gebouwd (8, 9, 11, 14, 17); 15 en 16 niet herhaald, alleen oppakken bij herhaling |
+| F, kleine punten | 3, 6, 8, 9, 11 tot 18, 23, 38 | ✅ live, PR #126 en #127; 15 en 16 niet herhaald, alleen oppakken bij herhaling |
 
 ## Eindverslag: de vijf verbeteringen die het meest opleveren
 
