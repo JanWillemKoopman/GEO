@@ -12103,3 +12103,15 @@ de meetbronnen, maar `scheduleFollowUpAfterFailure()` plande de aggregatie na ee
 alleen in voor `measure_prompt`. De drie analyses bleven daardoor op "meten" staan, zonder rapport en
 zonder melding. Nu plant een opgegeven `measure_ai_overview` of `measure_llm_response` de aggregatie
 net zo goed in; de aggregatie beslist zelf of er genoeg gemeten is (de 70%-drempel).
+
+## 24 september 2026: twee fouten in het rapport, gevonden op drie echte rapporten
+
+(1) De naamcontrole onder het rapport haalde elke zin weg die zegt welke concurrent een vraag wint,
+ook als die klopte: 49 zinnen in drie rapporten, 47 daarvan juist. Het model ziet de gemiste vragen
+alleen als V1, V2 en gaf die codes terug waar de controle meet-id's verwachtte, dus er was nooit een
+toegestane naam. Nu vertaalt `resolveGapEvidence()` de codes eerst. (2) Het rapport van een rijschool
+zei "niet genoemd, 0 op 100" terwijl Google AI Overview de school in 17 van 74 antwoorden noemde. Het
+model kreeg alleen het ChatGPT-cijfer. Nu krijgt het te horen welke andere bron het merk wel noemde,
+zonder dat cijfer (de eigenaar wil naast de ChatGPT-score geen tweede getal), en zet
+`vulBronnenAan()` het recht als het toch misgaat. Details: `docs/tasks/bevindingen-kwaliteitsdoorlichting.md`
+punt 20 en 22.

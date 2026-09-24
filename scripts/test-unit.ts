@@ -182,7 +182,7 @@ import {
   LLM_RESPONSE_POGINGEN,
 } from "@/lib/llm-responses/types";
 import { bepaalGemisteVragen } from "@/lib/pipeline/missed-prompts";
-import { formatEvidenceDossier, excerpt } from "@/lib/pipeline/evidence-format";
+import { formatEvidenceDossier, excerpt, resolveGapEvidence, schoonGapCluster } from "@/lib/pipeline/evidence-format";
 import type { EvidenceEntry } from "@/lib/pipeline/evidence-format";
 import { stripUnsupportedClaims, validateField, NEUTRAL_FALLBACK } from "@/lib/pipeline/validate-claims";
 import { normalizePosition, averagePosition, weightedAveragePosition } from "@/lib/pipeline/position";
@@ -936,7 +936,7 @@ import {
   regionsFromDescription,
   discontinuedNames,
 } from "@/lib/pipeline/context-factors";
-import { correctQuestionCount, kortSamengevat, questionCountLine } from "@/lib/pipeline/report-summary";
+import { bronnenDieWelNoemden, bronnenRegel, correctQuestionCount, kortSamengevat, questionCountLine, vulBronnenAan } from "@/lib/pipeline/report-summary";
 import {
   PACKAGE_SIZES,
   DEFAULT_PACKAGE_SIZE,
@@ -25444,4 +25444,62 @@ group("Een definitief mislukte Gemini- of Google-meting laat de analyse niet han
   const tak = bron.slice(bron.indexOf("REPUTATION_STEPS.includes(job.type"), bron.indexOf("export async function runJob("));
   ok("alle drie de meetsoorten plannen de aggregatie na opgeven", tak.includes('"measure_ai_overview", "measure_llm_response"'));
   ok("en ook voor die twee volgt scheduleAggregateIfLastPrompt", (tak.match(/scheduleAggregateIfLastPrompt\(/g) ?? []).length >= 2);
+});
+
+group("Het bewijs onder een gap wijst naar echte metingen (24 september 2026)", () => {
+  // Gevonden in de kwaliteitsdoorlichting: het model ziet alleen V1, V2, …, gaf
+  // die (of niets) terug, en de naamcontrole vond daardoor bij geen enkele gap
+  // een toegestane naam. 49 juiste zinnen over concurrenten verdwenen.
+  const r1 = "11111111-1111-4111-8111-111111111111";
+  const r2 = "22222222-2222-4222-8222-222222222222";
+  const dossier = [
+    { code: "V1", runId: r1, cluster: "Installateur vinden Geldrop" },
+    { code: "V2", runId: r2, cluster: "Offertes vergelijken" },
+  ];
+  eq("code wordt meet-id", resolveGapEvidence({ cluster: "x", evidenceRunIds: ["V1"] }, dossier).join(), r1);
+  eq("kleine letter en tekst eromheen", resolveGapEvidence({ cluster: "x", evidenceRunIds: ["v2, gewicht 0,50"] }, dossier).join(), r2);
+  eq("echte meet-id blijft staan", resolveGapEvidence({ cluster: "x", evidenceRunIds: [r2] }, dossier).join(), r2);
+  eq("verzonnen code valt weg", resolveGapEvidence({ cluster: "x", evidenceRunIds: ["V23"] }, dossier).length === 0 ? "leeg" : "gevuld", "leeg");
+  eq("leeg: code uit de clusternaam", resolveGapEvidence({ cluster: "V2 \u2014 Offertes", evidenceRunIds: [] }, dossier).join(), r2);
+  eq("leeg: dezelfde clusternaam", resolveGapEvidence({ cluster: "installateur vinden geldrop", evidenceRunIds: [] }, dossier).join(), r1);
+  eq("niets te vinden blijft leeg", resolveGapEvidence({ cluster: "Onbekend", evidenceRunIds: [] }, dossier).length === 0 ? "leeg" : "gevuld", "leeg");
+  eq("geen dubbelingen", resolveGapEvidence({ cluster: "x", evidenceRunIds: ["V1", r1, "V1"] }, dossier).length === 1 ? "één" : "meer", "één");
+  eq("code voor de clusternaam gaat weg", schoonGapCluster("V1 \u2014 Proefles bij faalangst"), "Proefles bij faalangst");
+  eq("ook met dubbele punt", schoonGapCluster("V12: Kosten"), "Kosten");
+  eq("gewone naam blijft", schoonGapCluster("Vijver aanleggen in Best"), "Vijver aanleggen in Best");
+  eq("alleen een code blijft staan", schoonGapCluster("V3"), "V3");
+  const bron = leesBestand("lib/pipeline/report.ts");
+  const controle = bron.slice(bron.indexOf("async function validateReportClaims("), bron.indexOf("export async function generateReport("));
+  ok("de naamcontrole vertaalt eerst de codes", controle.includes("evidenceRunIds: resolveGapEvidence(gap, dossier)"));
+});
+
+group("Het rapport zegt niet 'nergens genoemd' als Google het merk wel noemde (24 september 2026)", () => {
+  const labels = [
+    { id: "openai", label: "ChatGPT" },
+    { id: "google_ai_overview", label: "Google AI Overview" },
+  ];
+  // De echte cijfers van de rijschool: ChatGPT 0, Google 23.
+  const rijschool = {
+    openai: { score: 0, judged_runs: 30 },
+    google_ai_overview: { score: 23, judged_runs: 25 },
+  };
+  eq("Google telt mee", bronnenDieWelNoemden(rijschool, "openai", labels).join(), "Google AI Overview");
+  eq("ChatGPT zelf telt niet", bronnenDieWelNoemden({ openai: { score: 40, judged_runs: 30 } }, "openai", labels).length === 0 ? "leeg" : "gevuld", "leeg");
+  eq("zonder metingen telt niet", bronnenDieWelNoemden({ google_ai_overview: { score: 20, judged_runs: 0 } }, "openai", labels).length === 0 ? "leeg" : "gevuld", "leeg");
+  eq("onleesbaar telt niet", bronnenDieWelNoemden("rommel", "openai", labels).length === 0 ? "leeg" : "gevuld", "leeg");
+  ok("de schrijfregel noemt de bron", bronnenRegel(["Google AI Overview"]).includes("In Google AI Overview werd het merk WEL genoemd"));
+  ok("en geen cijfer van die bron", !/\d/.test(bronnenRegel(["Google AI Overview"])));
+  eq("zonder andere bron geen regel", bronnenRegel([]), "");
+  const echt =
+    "Dit is de eerste meting. Pompert werd niet genoemd bij de 30 onderzochte vragen. De zichtbaarheid is daarmee ongeveer 0 op 100.";
+  const aangevuld = vulBronnenAan(echt, ["Google AI Overview"]);
+  ok("de echte zin wordt aangevuld", aangevuld.aangevuld);
+  ok("met Google erbij", aangevuld.summary.endsWith("in Google AI Overview werd het merk wel genoemd."));
+  ok("de oorspronkelijke tekst blijft staan", aangevuld.summary.startsWith(echt));
+  ok("een zin met ChatGPT erin is al juist", !vulBronnenAan("In ChatGPT werd Pompert niet genoemd.", ["Google AI Overview"]).aangevuld);
+  ok("een gewone score-zin blijft", !vulBronnenAan("Het merk komt uit op ongeveer 15 op 100.", ["Google AI Overview"]).aangevuld);
+  ok("zonder andere bron niets", !vulBronnenAan(echt, []).aangevuld);
+  const bron = leesBestand("lib/pipeline/report.ts");
+  ok("het rapport gebruikt het vangnet", bron.includes("vulBronnenAan("));
+  ok("en geeft de regel mee", bron.includes("bronnenRegel("));
 });
