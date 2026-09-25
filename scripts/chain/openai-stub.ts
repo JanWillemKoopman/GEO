@@ -711,6 +711,10 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
         },
         { claim: zin2, factRef: tweede.ref, quote: citaatUit(tweede.text) },
       ],
+      // WP4: wat de schrijver uit de opbouw van de strategie wegliet.
+      weggelaten: /DE PAGINASTRATEGIE/.test(user)
+        ? [{ punt: "Wat een behandeling kost", reden: "Daar staat geen feit over op de kaart." }]
+        : [],
     };
   },
 
@@ -956,6 +960,7 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
     metaTitle: "Hardloopblessure in Amersfoort",
     metaDescription: "Fysi-Unique behandelt hardloopblessures in Amersfoort.",
     notes: ["De sectie over de afspraak is aangevuld."],
+    weghalen: [],
   }),
 
   /**

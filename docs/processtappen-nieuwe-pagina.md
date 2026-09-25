@@ -234,10 +234,11 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
     onderwerpen uit het contract zijn daarbij mogelijkheden en geen opdracht. Code rekent de keuzes
     na en zet ze recht. Is een feit dat de pagina nodig heeft betwist (twee versies die niet allebei
     waar kunnen zijn), dan wacht de pagina tot de adviseur het conflict oplost, en start daarna
-    vanzelf opnieuw. Daarna plant het systeem de schrijftaak in. Tot werkpakket 4 van
-    `docs/tasks/contentpijplijn-publicatiewaardig.md` wordt de strategie wel bewaard, maar schrijft
-    de schrijver nog op de oude opdracht.
-72. Het beste, duurste AI-model schrijft de eerste volledige versie: een titel, de tekst in
+    vanzelf opnieuw. Daarna plant het systeem de schrijftaak in.
+72. Het beste, duurste AI-model schrijft de eerste volledige versie op de paginastrategie: het krijgt
+    de keuzes, de opbouw die daaruit volgt en alleen de gekozen feiten, en mag een punt weglaten als
+    het dat niet goed kan schrijven (het meldt dat dan apart). Een pagina zonder strategie wordt
+    geschreven zoals hieronder. De versie bestaat uit een titel, de tekst in
     Markdown, losse FAQ-vragen met antwoord, en technische metadata voor zoekmachines en
     AI-assistenten. De tekst wordt gegrond op de feitenkaart, de vragen die het merk in de meting
     miste, het winnende antwoord van de concurrent zonder diens naam erin, en op wat de bronnen die

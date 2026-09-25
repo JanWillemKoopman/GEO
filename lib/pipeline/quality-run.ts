@@ -39,7 +39,9 @@ import {
   checkSourceTalk,
   checkTabooWords,
 } from "@/lib/pipeline/content-gate";
-import { checkContractCoverage } from "@/lib/pipeline/content-coverage";
+import { checkContractCoverage, checkStrategieDekking } from "@/lib/pipeline/content-coverage";
+import { gekozenRefs } from "@/lib/pipeline/strategie-opdracht";
+import type { PageStrategy } from "@/lib/schemas/page-strategy";
 import { splitSections } from "@/lib/pipeline/content-sections";
 import { containsCompetitor } from "@/lib/pipeline/redact";
 import { splitByTerms } from "@/lib/highlight";
@@ -87,6 +89,8 @@ export interface KeuringInput {
   piece: Pick<ContentPiece, "bodyMarkdown" | "faq" | "claims"> & {
     /** V9, migratie 0093. Ontbreekt bij een pagina van vóór die migratie. */
     proofPoints?: ContentPiece["proofPoints"];
+    /** WP4: wat de schrijver uit de opbouw van de strategie wegliet. */
+    weggelaten?: ContentPiece["weggelaten"];
   };
   title: string;
   type: ContentType;
@@ -131,6 +135,12 @@ export interface KeuringInput {
    * 62, `lib/pipeline/feitbehoud.ts`). Leeg of weglaten bij een eerste versie.
    */
   teBehouden?: readonly TeBehoudenFeit[];
+  /**
+   * De paginastrategie waarop geschreven is (WP4). Met een strategie meet de
+   * dekking de gekozen en de uitgesloten onderwerpen in plaats van 85 procent
+   * van het contract (`checkStrategieDekking`).
+   */
+  strategie?: PageStrategy | null;
 }
 
 export interface Keuring {
@@ -239,12 +249,21 @@ export async function keurPagina(invoer: KeuringInput): Promise<Keuring> {
     distinctiveAnswers: input.distinctiveAnswers,
   });
 
-  const coverage = checkContractCoverage({
-    contract: input.contract,
-    bodyMarkdown: body,
-    faq,
-    claims,
-  });
+  const coverage = input.strategie
+    ? checkStrategieDekking({
+        strategie: input.strategie,
+        bodyMarkdown: body,
+        faq,
+        claims,
+        proofPoints: input.piece.proofPoints ?? [],
+        weggelaten: input.piece.weggelaten ?? [],
+      })
+    : checkContractCoverage({
+        contract: input.contract,
+        bodyMarkdown: body,
+        faq,
+        claims,
+      });
 
   const gelijkenis = vindGelijkende(body, input.siblingPages);
   const quality = checkQuality({ bodyMarkdown: body, mostSimilar: gelijkenis });
@@ -283,7 +302,14 @@ export async function keurPagina(invoer: KeuringInput): Promise<Keuring> {
     factRefs: input.facts.map((f) => f.ref).filter(Boolean),
   });
   // Punt 47: het sterkste bewijs uit het gesprek, los van de gekozen bewijspunten.
-  const kernbewijs = checkKernbewijs({ kern: vindKernbewijs(input.facts), tekst: heleTekstVoorBewijs });
+  // Met een strategie alleen het kernbewijs dat de strategie koos: een sterk feit
+  // dat hij bewust uitsloot, hoort niet als ontbrekend terug te komen.
+  const kernbewijs = checkKernbewijs({
+    kern: vindKernbewijs(
+      input.strategie ? input.facts.filter((f) => gekozenRefs(input.strategie!).has(f.ref.toUpperCase())) : input.facts,
+    ),
+    tekst: heleTekstVoorBewijs,
+  });
   const klantcitaten = checkKlantcitaten({
     citaten: vindCiteerbareAntwoorden(input.facts.map((f) => f.text)),
     tekst: heleTekstVoorBewijs,
@@ -403,8 +429,11 @@ export async function keurPagina(invoer: KeuringInput): Promise<Keuring> {
   const { coverage: bronherleidbaarheid, untagged } = verfijnd;
 
   // ── Blok H: is er een feit van de vorige versie verdwenen? ──────────────
+  // Met een strategie telt een feit dat de strategie bewust uitsloot niet als
+  // verloren: "behalve wat er bewust uit moest" (feitbehoud.ts).
+  const uitgesloten = new Set((input.strategie?.uitgeslotenFeiten ?? []).map((u) => u.feit.toUpperCase()));
   const verlorenFeiten = vindVerlorenFeiten({
-    teBehouden: input.teBehouden ?? [],
+    teBehouden: (input.teBehouden ?? []).filter((t) => !uitgesloten.has(t.ref.toUpperCase())),
     bodyMarkdown: body,
     faq,
     claims,

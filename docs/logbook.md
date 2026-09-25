@@ -12375,6 +12375,25 @@ gemeente vanaf 50.000 inwoners) houden een eigen pagina. De schrijfstijl hoort v
 alleen tegen als het betwiste feit op die pagina nodig is. Het bouwplan staat in drie fases en zestien
 werkpakketten in het plan zelf.
 
+## 25 september 2026: WP1, de invoer van de schrijver zonder herkomsttaal
+
+Eerste werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`. De waardeproposities gingen
+letterlijk de schrijfopdracht in, met herkomst en dubbelingen: bij de hovenier 11 regels, waarvan 5
+tweemaal dezelfde en 5 met "volgens de website" of "naar eigen zeggen". Nu schoont
+`lib/pipeline/waardeproposities.ts` ze vóór de schrijfopdracht en bij het opslaan van het
+profielonderzoek: van 11 naar 7 regels bij de hovenier, van 8 naar 4 bij de installateur, van 9 naar
+6 bij de rijschool, en geen herkomsttaal meer. Een regel die niet zonder omzetting schoon te krijgen is
+("De website stelt dat het bedrijf tuinen ... realiseert") vervalt; bij alle drie stond dezelfde
+propositie ook in een schone vorm.
+
+Bij het narekenen op de schrijfaanroepen van 25 september bleek de feitenkaart zelf dezelfde afstand
+te dragen: 26 van de 45 proof points van de drie merken begonnen met "De website vermeldt" of "De
+website noemt". De kaart toont ze nu zonder dat voorvoegsel; wat overblijft is letterlijk een stuk van
+het feit, zodat de citaatcontrole blijft kloppen. Het profielonderzoek vraagt voortaan om de bewering
+zelf. De zes stemvelden die nergens heen gingen (kennisniveau, eigen uitdrukkingen, kernwoorden,
+onderscheid, USP, kernboodschappen) gaan nu mee in de schrijfopdracht (`lib/pipeline/stemvelden.ts`).
+Ze zijn bij alle drie de merken nog leeg; het voorstel om ze te vullen staat in
+`docs/tasks/schrijfstijl-voorstel-drie-klanten.md` en wacht op akkoord van de eigenaar.
 ## 25 september 2026: WP2, het feitenregister en de conflictpoort
 
 Tweede werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`, migratie `0113`. Tot nu toe
@@ -12414,3 +12433,17 @@ draaien de volgende in de achtergrondmodus van de API, zodat een time-out de duu
 twee keer laat betalen. Er is nog geen gemeten strategieaanroep; de modus staat dus nog uit. De
 schrijver gebruikt de strategie pas vanaf WP4. Kosten en duur worden bij de nareken-plicht na fase 1
 op `ai_calls` gemeten.
+
+## 25 september 2026: WP4, de schrijver op de paginastrategie
+
+Vierde werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`. Heeft een pagina een
+strategie, dan krijgt de schrijver voortaan de keuzes van de strategie, de opbouw die code daaruit
+afleidt, alleen de gekozen feiten (plus de verboden), de stem en de harde regels. Niet meer: het
+contract met "Alles wat hier staat MOET erop komen", de hele feitenkaart, het paginaplan met "GEEN
+BRON", het winnende antwoord, de bronanalyse en de lat van de concurrenten; die zijn al in de
+strategie gewogen. Weglaten mag en wordt gemeld in een eigen veld. De dekking meet voortaan de
+strategie in plaats van 85 procent van het contract; een uitgesloten onderwerp op de pagina en een
+ontbrekend prioriteitsfeit blokkeren (§12.1). Met een strategie wordt er geen schrijfopdracht op Luna
+meer gemaakt. Afwijking van het plan: het schrijven keurt nog zelf; de keuring verhuist in WP5 naar
+de eindredactie, zodat de keten na elk werkpakket werkt. De omvang van de schrijfinvoer (doel: onder
+9.000 tokens, was gemiddeld 14.100) wordt na merge op `ai_calls` gemeten.

@@ -38,6 +38,14 @@ export const ContentPatch = z.object({
   metaDescription: z.string().max(160),
   /** Wat je hebt aangepast en waarom, in één zin per bevinding. Voor de audit-trail. */
   notes: z.array(z.string()),
+  /**
+   * Koppen van secties die weg moeten (WP4 van contentpijplijn-publicatiewaardig.md):
+   * een sectie die volgens de paginastrategie niet op de pagina hoort. Een eigen
+   * lijst en geen lege tekst in `sections`, want een lege patch mag nooit een
+   * sectie leegmaken (A6). Alleen toegepast bij een pagina met strategie; de
+   * aanhef gaat nooit weg.
+   */
+  weghalen: z.array(z.string()),
 });
 
 export type ContentPatch = z.infer<typeof ContentPatch>;

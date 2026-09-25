@@ -344,7 +344,7 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Eerlijk advies",
     kind: "lijst",
     derivable: true,
-    usage: "Gaat mee in de schrijfopdracht als reden waarom klanten kiezen.",
+    usage: "Gaat mee in de schrijfopdracht als reden waarom klanten kiezen, zonder herkomsttaal zoals 'volgens de website' en zonder dubbelingen.",
     priority: "aanbevolen",
   },
 
@@ -380,7 +380,7 @@ export const BRAND_FIELDS: BrandField[] = [
     kind: "schuif",
     options: ["Weinig", "Redelijk wat", "Veel, is vakgenoot"],
     derivable: false,
-    usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment niet verder gebruikt.",
+    usage: "Gaat mee in de schrijfopdracht: bepaalt hoeveel uitleg een vakterm krijgt.",
     priority: "optioneel",
   },
   {
@@ -403,7 +403,7 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Bij ons staat er altijd iemand aan de balie die je herkent",
     kind: "lange-tekst",
     derivable: true,
-    usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment nog niet in de teksten gebruikt.",
+    usage: "Gaat mee in de schrijfopdracht als wat de doorslag geeft tegenover andere aanbieders.",
     priority: "aanbevolen",
   },
   {
@@ -511,7 +511,7 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Altijd dichtbij",
     kind: "lijst",
     derivable: true,
-    usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment niet in de teksten gebruikt.",
+    usage: "Gaan mee in de schrijfopdracht: ze mogen letterlijk terugkomen, hooguit één of twee per pagina.",
     priority: "optioneel",
   },
   {
@@ -548,7 +548,7 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "vakmanschap",
     kind: "lijst",
     derivable: true,
-    usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment niet in de teksten gebruikt.",
+    usage: "Gaan mee in de schrijfopdracht als woorden die bij je horen.",
     priority: "optioneel",
   },
   {
@@ -659,7 +659,7 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Als enige in Brabant een eigen schadeherstelbedrijf én verhuur",
     kind: "lange-tekst",
     derivable: true,
-    usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment nog niet in de teksten gebruikt.",
+    usage: "Gaat mee in de schrijfopdracht als het ene punt waarop je wint.",
     priority: "aanbevolen",
   },
   {
@@ -670,7 +670,7 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Altijd een vervangende auto",
     kind: "lijst",
     derivable: true,
-    usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment nog niet in de teksten gebruikt.",
+    usage: "Gaan mee in de schrijfopdracht: waar het past komt er minstens één terug.",
     priority: "aanbevolen",
   },
   {

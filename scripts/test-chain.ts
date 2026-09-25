@@ -6569,6 +6569,19 @@ async function main(): Promise<void> {
       );
       const ptContentPieceId = ptStukRows[0]?.id as string | undefined;
       ok("de pagina is geschreven", Boolean(ptContentPieceId));
+
+      // ── WP4: de schrijver schrijft op de strategie ──────────────────────────
+      const schrijfOpdracht = log.filter((l) => l.schemaName === "content_piece").at(-1)?.user ?? "";
+      ok("WP4: de schrijver krijgt de paginastrategie", schrijfOpdracht.includes("DE PAGINASTRATEGIE"));
+      ok("WP4: en niet meer het contract als verplichte inhoudsopgave", !schrijfOpdracht.includes("MOET erop"));
+      ok("WP4: en niet meer het paginaplan met GEEN BRON", !schrijfOpdracht.includes("GEEN BRON"));
+      const { rows: wp4Rij } = await db.client.query(
+        "select strategy_json, writer_brief_json from public.content_pieces where id = $1",
+        [ptContentPieceId],
+      );
+      ok("WP4: wat de schrijver wegliet staat bij de strategie van de versie", Array.isArray(wp4Rij[0]?.strategy_json?.weggelaten) && wp4Rij[0].strategy_json.weggelaten.length === 1);
+      // Een versie zonder opdracht bewaart `{}` (buildDraftRow), geen null.
+      ok("WP4: en er is geen schrijfopdracht van luna meer gemaakt", Object.keys(wp4Rij[0]?.writer_brief_json ?? {}).length === 0);
       ok(
         "en draagt het rapport waar hij uit voortkomt",
         ptStukRows[0]?.report_id === ptReportId,

@@ -41,7 +41,7 @@ import { answerBelongsHere } from "@/lib/pipeline/answer-scope";
 import { MAX_BEVINDINGEN_PER_RONDE } from "@/lib/pipeline/content-issues";
 import { beslisReparatieRonde, binnenRuis } from "@/lib/pipeline/content-repair-decision";
 import { usdToEur } from "@/lib/spend-rules";
-import { applySectionPatch, splitSections } from "@/lib/pipeline/content-sections";
+import { applySectionPatch, splitSections, haalSectiesWeg } from "@/lib/pipeline/content-sections";
 import {
   keurPagina,
   bewaarKwaliteitsronde,
@@ -72,6 +72,16 @@ import { bruikbareOpdracht, opdrachtblok } from "@/lib/schrijfopdracht";
 import type { WriterBrief } from "@/lib/schemas/writer-brief";
 import { vindCiteerbareAntwoorden, citatenblok } from "@/lib/pipeline/klantcitaten";
 import { adviestoonblok } from "@/lib/pipeline/adviestoon";
+import { merkstemblok } from "@/lib/pipeline/stemvelden";
+import {
+  REGEL_7_STRATEGIE,
+  REGELS_STRATEGIE,
+  strategieblok,
+  gekozenRefs,
+  strategieUitRij,
+  type StrategieRecord,
+} from "@/lib/pipeline/strategie-opdracht";
+import { schoneWaardeproposities } from "@/lib/pipeline/waardeproposities";
 import {
   chooseExistingText,
   matchExistingPage,
@@ -232,7 +242,7 @@ export const TARGET_WORDS: Record<ContentType, { min: number; max: number }> = {
  * binnen 24 uur" is voor een lezer duidelijk en voor een model waardeloos,
  * omdat het niet weet wie "wij" is.
  */
-const CONTENT_SYSTEM =
+const CONTENT_SYSTEM_BASIS = (regel7: string): string =>
   "Je bent een ervaren contentschrijver die pagina's schrijft voor de EIGEN website van een lokale " +
   "ondernemer, klaar om te publiceren. On-brand, Nederlands. " +
   "HARDE REGELS: " +
@@ -287,7 +297,7 @@ const CONTENT_SYSTEM =
   "(6) Zorg dat elke sectie minstens één zin bevat die LOSSTAAND te begrijpen is, zonder de rest van de " +
   "pagina: één zin die het complete antwoord op één deelvraag geeft. Dat is de eenheid waarin een " +
   "AI-assistent knipt. " +
-  "(7) Beantwoord naast de hoofdvraag ook de logische vervolgvragen die iemand daarna stelt. " +
+  regel7 +
   "(8) Voeg geldige schema.org JSON-LD toe passend bij het type. " +
   "Vermijd generieke 'AI-slop' en cliché-vulzinnen ('in de snel veranderende wereld van…'): elke zin moet iets toevoegen. " +
   "(9) INTERPUNCTIE. Gebruik GEEN gedachtestreepjes (— of –) en GEEN schuine streep tussen twee " +
@@ -295,7 +305,17 @@ const CONTENT_SYSTEM =
   "waaraan een lezer AI-tekst herkent, en deze pagina verschijnt onder de naam van de klant zelf. " +
   "Splits zo'n zin in twee zinnen, of gebruik een komma, een dubbele punt of het woord 'of'. " +
   "Een koppelteken in een samenstelling ('AI-assistent') is gewoon goed en mag blijven. " +
-  // ── Het contentcontract (A2/A3) ──────────────────────────────────────────
+  "";
+
+/**
+ * Regel 7, 10 en 11 van de OUDE route: het contract als verplichte
+ * inhoudsopgave. Blijft voor een pagina zonder paginastrategie (van vóór WP3, of
+ * als de strategie definitief mislukte), zodat die precies zo geschreven wordt
+ * als tot 25 september 2026.
+ */
+const REGEL_7_CONTRACT =
+  "(7) Beantwoord naast de hoofdvraag ook de logische vervolgvragen die iemand daarna stelt. ";
+const REGELS_CONTRACT =
   // Dit is de enige regel in deze lijst die de VOLLEDIGHEID bewaakt, en de enige
   // die achteraf sectie voor sectie nagerekend wordt (`content-coverage.ts`).
   // De vorige vorm hiervan was "beantwoord ook de logische vervolgvragen", een
@@ -311,6 +331,15 @@ const CONTENT_SYSTEM =
   "want hij maakt hem compleet. Hij gaat over het ONDERWERP en nooit over dit bedrijf, dus er " +
   "hoort geen F-nummer bij. Andere algemene uitleg mag ook, maar houd hem dan bij wat algemeen " +
   "bekend is: verzin nooit een cijfer, een norm of een termijn die je niet hebt gekregen.";
+
+const CONTENT_SYSTEM = CONTENT_SYSTEM_BASIS(REGEL_7_CONTRACT) + REGELS_CONTRACT;
+
+/**
+ * De schrijver op de PAGINASTRATEGIE (WP4 van contentpijplijn-publicatiewaardig.md).
+ * Regel 7, 10 en 11 komen uit `strategie-opdracht.ts`: weglaten mag, en
+ * "alles wat hier staat MOET erop" en "je mag er niets uit weglaten" vervallen.
+ */
+const CONTENT_SYSTEM_STRATEGIE = CONTENT_SYSTEM_BASIS(REGEL_7_STRATEGIE) + REGELS_STRATEGIE;
 
 // De vangnet-instructie bij web-zoeken tijdens het schrijven (optimalisatie.md
 // 4.6) staat als `buildFactFindingAddendum()` in `factcard.ts`: puur en
@@ -604,7 +633,12 @@ function buildContentInput(args: {
     profile?.compliance_notes?.trim()
       ? `REGELS WAAR DEZE PAGINA AAN MOET VOLDOEN: ${profile.compliance_notes.trim()}`
       : "",
-    profile?.value_props?.length ? `Waardeproposities (waarom klanten kiezen): ${profile.value_props.join(", ")}` : "",
+    // ✅ WP1 van contentpijplijn-publicatiewaardig.md: de waardeproposities
+    // geschoond van herkomsttaal ("volgens de website", "naar eigen zeggen") en
+    // dubbelingen, samen met de zes stemvelden die tot 25 september 2026 nergens
+    // de schrijfopdracht in gingen. Een schrijver die "volgens de website" leest,
+    // neemt die afstand over (§1.2, O2).
+    profile ? merkstemblok(profile) : "",
     // ✅ Migratie 0060, de bezwaren uit het verkoopgesprek. Het meest
     // ondergewaardeerde veld van de commerciële laag: een AI-antwoord heeft
     // vaak precies de vorm van een bezwaar, en de pagina die het bezwaar
@@ -757,6 +791,103 @@ function buildContentInput(args: {
 }
 
 /**
+ * De schrijfopdracht op de PAGINASTRATEGIE (WP4 van
+ * contentpijplijn-publicatiewaardig.md, §5 L7).
+ *
+ * Wat erin zit: de strategie, de opbouw die code eruit afleidt, ALLEEN de
+ * gekozen feiten (plus de verboden, want een verbod geldt altijd), de stem, de
+ * doelvragen en de harde regels. Wat er niet meer in zit: het contract als
+ * verplichte inhoudsopgave, de hele feitenkaart (die gaat alleen nog naar de
+ * feitcontrole), het paginaplan met "GEEN BRON", het winnende antwoord, de
+ * bronanalyse en de lat van de concurrenten; die zijn al in de strategie
+ * gewogen. Gemeten op 25 september 2026 was de oude opdracht gemiddeld 14.100
+ * tokens; het doel van WP4 is minder dan 9.000.
+ */
+function buildContentInputStrategie(args: {
+  analysis: Analysis;
+  profile: Profile | null;
+  existingPage: ProfilePage | null;
+  existingText: string | null;
+  competitors: string[];
+  rec: RecommendationInput;
+  targets: RecommendationTarget[];
+  facts: FactItem[];
+  explainerBlock: string;
+  strategie: StrategieRecord;
+}): string {
+  const { analysis, profile, existingPage, existingText, competitors, rec, targets, facts, explainerBlock } = args;
+  const s = args.strategie.strategie;
+  const brandName = profile?.brand_name ?? analysis.url;
+  const gekozen = gekozenRefs(s);
+  // Alleen de gekozen feiten, met hun eigen F-nummer: de feitcontrole rekent
+  // de beweringen daarna na tegen de HELE kaart, dus de nummers moeten gelijk
+  // blijven. Een verbod gaat altijd mee.
+  const kaart = facts.filter((f) => !f.allowed || (f.citable && gekozen.has(f.ref.toUpperCase())));
+  const styleSamples = profile?.style_samples ?? [];
+
+  return [
+    strategieblok(s),
+    rec.revisionNote?.trim()
+      ? `\nWAT DE KLANT ZELF VRAAGT VOOR DEZE VERSIE (dit weegt het ZWAARST: dit is zijn website). ` +
+        `Noemt hij feiten, bedragen of termijnen, gebruik ze; ze staan ook op de feitenkaart:\n"""\n${rec.revisionNote.trim()}\n"""`
+      : "",
+    "",
+    `Bedrijf: ${brandName}`,
+    `Website: ${analysis.url}`,
+    `Branche: ${profile?.industry ?? "onbekend"}`,
+    `Tone of voice: ${profile?.tone_of_voice ?? "professioneel, helder"}` +
+      (() => {
+        const schuiven = describeToneSliders({
+          formality: profile?.tone_formality as 1 | 2 | 3 | null,
+          energy: profile?.tone_energy as 1 | 2 | 3 | null,
+          complexity: profile?.tone_complexity as 1 | 2 | 3 | null,
+          humor: profile?.tone_humor as 1 | 2 | 3 | null,
+        });
+        return schuiven ? ` (${schuiven})` : "";
+      })(),
+    describePronoun(
+      kiesAanspreekvorm({
+        voorkeur: profile?.pronoun_preference ?? null,
+        formaliteit: (profile?.tone_formality ?? null) as 1 | 2 | 3 | null,
+        bestaandeTekst: existingText ?? existingPage?.text_excerpt ?? null,
+      }).vorm,
+    ),
+    profile ? merkstemblok(profile) : "",
+    profile?.taboo_phrases?.length
+      ? `VERBODEN WOORDEN EN CLAIMS. Gebruik deze woorden of formuleringen NERGENS op deze pagina, ` +
+        `ook niet in een andere vervoeging: ${profile.taboo_phrases.join(", ")}.`
+      : "",
+    profile?.compliance_notes?.trim() ? `REGELS WAAR DEZE PAGINA AAN MOET VOLDOEN: ${profile.compliance_notes.trim()}` : "",
+    instructieblok(vindKlantinstructies(facts.map((f) => f.text))),
+    styleSamples.length ? `Voorbeeldzinnen in de merkstem (toon nabootsen):\n- ${styleSamples.join("\n- ")}` : "",
+    "",
+    formatFactCard(kaart),
+    citatenblok(vindCiteerbareAntwoorden(kaart.map((f) => f.text))),
+    bewijspuntenblok(),
+    adviestoonblok(),
+    explainerBlock,
+    competitors.length ? `NIET noemen op deze pagina (concurrenten): ${competitors.join(", ")}` : "",
+    "",
+    `Te maken pagina: "${rec.title}" (type: ${rec.type})`,
+    buildTargetBlock(targets),
+    existingPage ? `\n${functieblok(existingPage.url, existingPage.title)}` : "",
+    relatedPageWarning(rec.relatedUrl ?? null),
+    "",
+    `Schrijf de volledige pagina in Markdown (zonder concurrentnamen), plus meta-title (max 60 tekens), ` +
+      `meta-description (max 160 tekens), FAQ en schema.org JSON-LD. Noem "${brandName}" bij naam in de ` +
+      `eerste alinea en in de afsluitende oproep, en begin geen alinea met die naam; verder schrijf je ` +
+      `in de wij-vorm. Zet de naam wel in de meta-title. Noem elk feit één keer, op de plek waar de lezer ` +
+      `het nodig heeft. De FAQ bevat alleen vragen die de tekst niet al beantwoordt en waarvan het ` +
+      `antwoord op een feit hierboven rust; nul vragen mag. Vul daarna \`claims\` met elke concrete ` +
+      `bewering over ${brandName}, het F-nummer dat hem dekt en de letterlijke zin uit dat feit, ` +
+      `\`proofPoints\` met de feiten die je hebt omgezet naar een reden voor de lezer, en \`weggelaten\` ` +
+      `met elk punt uit de opbouw dat je niet hebt geschreven, met de reden.`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/**
  * De rol voor de GERICHTE REPARATIE (A6).
  *
  * Een eigen systeemprompt en niet `CONTENT_SYSTEM` met een zin erbij, want de
@@ -771,8 +902,9 @@ const REPAIR_SYSTEM =
   "WAT JE TERUGGEEFT: per sectie de bestaande KOP (letterlijk overnemen, zodat wij hem terug kunnen " +
   "zetten op zijn plek) en de volledige nieuwe tekst van die sectie zonder de kopregel. Voor de " +
   "tekst vóór de eerste kop gebruik je een lege kop. " +
-  "Ontbreekt er een sectie die het CONTRACT eist, dan geef je hem met zijn nieuwe kop terug; wij " +
-  "voegen hem toe. " +
+  "Ontbreekt er een sectie die het CONTRACT of de OPBOUW van de strategie eist, dan geef je hem met " +
+  "zijn nieuwe kop terug; wij voegen hem toe. Hoort een sectie volgens de strategie NIET op de pagina, " +
+  "zet dan zijn kop letterlijk in `weghalen`; wij halen hem weg. " +
   "HARDE REGELS (ongewijzigd, ook tijdens repareren): " +
   "(1) Noem NOOIT concurrenten of andere bedrijven bij naam. " +
   "(2) De FEITENKAART is de ENIGE toegestane bron van concrete beweringen over dit bedrijf. Los een " +
@@ -852,6 +984,12 @@ function buildRepairInput(args: {
    * toe te voegen.
    */
   opdracht?: WriterBrief | null;
+  /**
+   * De paginastrategie van deze versie (WP4). Is hij er, dan krijgt de reparatie
+   * de strategie en alleen de gekozen feiten in plaats van het contract en de
+   * hele kaart: een reparatie mag de keuzes van de redactie niet terugdraaien.
+   */
+  strategie?: StrategieRecord | null;
 }): string {
   const {
     piece,
@@ -903,9 +1041,19 @@ function buildRepairInput(args: {
     // ondernemer. Allebei worden ze na afloop nagerekend.
     bewijspuntenBehoudblok(piece.proofPoints),
     citatenblok(vindCiteerbareAntwoorden(facts.map((f) => f.text))),
-    formatFactCard(facts),
-    // Punt 43: een verbod uit de opzet dat een later klantfeit tegenspreekt, valt weg.
-    formatContract(contractMetFeiten(contract, facts)),
+    ...(args.strategie
+      ? (() => {
+          const gekozen = gekozenRefs(args.strategie.strategie);
+          return [
+            strategieblok(args.strategie.strategie),
+            formatFactCard(facts.filter((f) => !f.allowed || (f.citable && gekozen.has(f.ref.toUpperCase())))),
+          ];
+        })()
+      : [
+          formatFactCard(facts),
+          // Punt 43: een verbod uit de opzet dat een later klantfeit tegenspreekt, valt weg.
+          formatContract(contractMetFeiten(contract, facts)),
+        ]),
     explainerBlock,
     // De klant gaat vóór de redacteur. Dit is zijn website; vraagt hij om een
     // andere toon of een ander accent, dan is dat geen suggestie (4.8).
@@ -948,6 +1096,12 @@ export interface ContentContext {
   winningAnswers: string[];
   /** De actuele situatie die de klant bij het contentplan meegaf (blok A/D punt 22). */
   strategyNote: string | null;
+  /**
+   * De paginastrategie waarop geschreven wordt (WP4). `null` = geen strategie
+   * (een pagina van vóór WP3, of de strategie mislukte definitief); dan schrijft
+   * de pijplijn op de oude opdracht, met het contract.
+   */
+  strategie: StrategieRecord | null;
   profile: Profile | null;
   competitors: string[];
   targets: RecommendationTarget[];
@@ -1078,6 +1232,8 @@ async function loadContentContext(
     /** De verse tekst van de te verbeteren pagina (O3, migratie 0083). */
     existingText?: string | null;
     existingFetchedAt?: string | null;
+    /** De paginastrategie uit `content_strategy` (WP3/WP4). */
+    strategie?: unknown;
   } | null,
   /**
    * Mag deze aanroep een SCHRIJFOPDRACHT maken als er nog geen ligt?
@@ -1128,7 +1284,7 @@ async function loadContentContext(
     // paginagebonden antwoord er niet bij horen (verbetering 1).
     admin
       .from("content_pieces")
-      .select("id, briefing_snapshot_json, contract_json, dossier_json, existing_page_text, existing_page_fetched_at, writer_brief_json")
+      .select("id, briefing_snapshot_json, contract_json, dossier_json, existing_page_text, existing_page_fetched_at, writer_brief_json, strategy_json")
       .eq("analysis_id", analysisId)
       .eq("title", recommendation.title)
       .eq("is_current", true)
@@ -1519,10 +1675,21 @@ async function loadContentContext(
   // pagina zonder redactionele keuze is de pagina die we tot 4 september 2026
   // schreven; die kwaliteit is de ondergrens en geen reden om de klant een
   // foutmelding te geven.
+  // ── De paginastrategie (WP4) ──────────────────────────────────────────────
+  //
+  // Eerst wat de strategietaak meegaf, anders wat bij de pagina staat. Een
+  // strategie met een wachtstand telt niet: die pagina wacht op een conflict en
+  // hoort niet geschreven te worden.
+  const uitRij = strategieUitRij(pieceRow?.strategy_json ?? null) as (StrategieRecord & { wacht?: unknown }) | null;
+  const strategie =
+    strategieUitRij(voorbereid?.strategie ?? null) ?? (uitRij && !uitRij.wacht ? uitRij : null);
+
   let opdracht = bruikbareOpdracht(
     (pieceRow?.writer_brief_json ?? null) as Partial<WriterBrief> | null,
   );
-  if (!opdracht && maakOpdracht) {
+  // Met een strategie geen schrijfopdracht meer: die stap gaat op in de
+  // strategie (§5 L5), en een tweede redactionele keuze ernaast zou botsen.
+  if (!opdracht && maakOpdracht && !strategie) {
     try {
       opdracht = await maakSchrijfopdracht({
         title: recommendation.title,
@@ -1532,7 +1699,8 @@ async function loadContentContext(
         targets,
         facts,
         contract,
-        valueProps: profile?.value_props ?? [],
+        // Geschoond, zelfde reden als in `buildContentInput` (WP1).
+        valueProps: schoneWaardeproposities(profile?.value_props),
         objections: profile?.sales_objections ?? [],
         situationalNote: strategyNote,
         analysisId,
@@ -1554,6 +1722,7 @@ async function loadContentContext(
     analysis,
     winningAnswers,
     strategyNote,
+    strategie,
     opdracht,
     facts,
     plan,
@@ -1580,7 +1749,20 @@ async function loadContentContext(
     needsFactFinding:
       contentWebSearchEnabled &&
       (proofCount < minProofPointsForConcreteContent || generalContextGaps.length > 0),
-    baseInput: buildContentInput({
+    baseInput: strategie
+      ? buildContentInputStrategie({
+          analysis,
+          profile,
+          existingPage,
+          existingText,
+          competitors,
+          rec: recommendation,
+          targets,
+          facts,
+          explainerBlock: formatExplainerBlock(explainers),
+          strategie,
+        })
+      : buildContentInput({
       analysis,
       profile,
       opdracht,
@@ -1632,6 +1814,14 @@ function pieceFromRow(row: ContentPieceRow): ContentPiece {
         // niet, en dat mag geen lege plek in de tekst opleveren (conventie 3).
         relevantie: typeof p.relevantie === "string" ? p.relevantie : "",
       })),
+    // WP4: wat de schrijver uit de opbouw wegliet, bewaard bij de strategie van
+    // deze versie. Leeg bij een pagina zonder strategie.
+    weggelaten: (((row.strategy_json as { weggelaten?: unknown } | null)?.weggelaten ?? []) as {
+      punt?: string;
+      reden?: string;
+    }[])
+      .filter((w) => typeof w?.punt === "string")
+      .map((w) => ({ punt: w.punt as string, reden: typeof w.reden === "string" ? w.reden : "" })),
   };
 }
 
@@ -2239,9 +2429,10 @@ export async function draftContentPiece(args: {
       model: MODELS.content,
       // Gerichte zoekopdracht bij concrete context-gaten in DEZE pagina, anders
       // het generieke vangnet bij een dunne feitenlijst (S9, was 4.6).
-      system: ctx.needsFactFinding
-        ? CONTENT_SYSTEM + buildFactFindingAddendum(ctx.generalContextGaps)
-        : CONTENT_SYSTEM,
+      // Met een strategie de regels waarin weglaten mag (WP4).
+      system:
+        (ctx.strategie ? CONTENT_SYSTEM_STRATEGIE : CONTENT_SYSTEM) +
+        (ctx.needsFactFinding ? buildFactFindingAddendum(ctx.generalContextGaps) : ""),
       user: baseInput + behoudblok(teBehouden),
       schema: ContentPiece,
       schemaName: "content_piece",
@@ -2330,6 +2521,8 @@ export async function draftContentPiece(args: {
     bestaandeTekst: ctx.existing.text ?? ctx.existing.page?.text_excerpt ?? null,
     // De schrijfopdracht waarop deze pagina geschreven is (optimalisatie 5).
     opdracht: ctx.opdracht,
+    // WP4: de dekking meet de strategie in plaats van het contract.
+    strategie: ctx.strategie?.strategie ?? null,
     // Blok H: staat alles van de vorige versie er nog?
     teBehouden,
   });
@@ -2383,7 +2576,11 @@ export async function draftContentPiece(args: {
         : null) as never,
       // De paginastrategie bij de versie die erop geschreven is (WP3). Alleen
       // als hij er is: een lege waarde mag een al bewaarde strategie niet wissen.
-      ...(args.voorbereid?.strategie ? { strategy_json: args.voorbereid.strategie as never } : {}),
+      // WP4: met wat de schrijver uit de opbouw wegliet erbij, zodat bij elke
+      // versie te zien is welke keuze van de strategie niet geschreven werd.
+      ...(ctx.strategie
+        ? { strategy_json: { ...ctx.strategie, weggelaten: draft.parsed.weggelaten ?? [] } as never }
+        : {}),
       // ⚠️ `needs_review` blijft de boolean die zes schermen lezen, en hij staat
       // nu aan bij álles wat geen `pass` is. Eerder kon een pagina met
       // tientallen openstaande bevindingen op `ready` eindigen met
@@ -2502,6 +2699,7 @@ export async function reviseContentPiece(args: {
       targetIntent: recommendation.targetIntent,
       doelvragen: targets.map((t) => t.text),
       opdracht: ctx.opdracht,
+      strategie: ctx.strategie,
     }),
     schema: ContentPatch,
     schemaName: "content_patch",
@@ -2511,7 +2709,11 @@ export async function reviseContentPiece(args: {
   });
 
   // ── De patch toepassen, in code ──────────────────────────────────────────
-  const toegepast = applySectionPatch(huidig.bodyMarkdown, patch.parsed.sections ?? []);
+  const gepatcht = applySectionPatch(huidig.bodyMarkdown, patch.parsed.sections ?? []);
+  // WP4: een sectie die de strategie uitsloot, mag de reparatie weghalen. Alleen
+  // bij een pagina met strategie; zonder strategie blijft de reparatie zoals hij was.
+  const weg = ctx.strategie ? haalSectiesWeg(gepatcht.bodyMarkdown, patch.parsed.weghalen ?? []) : null;
+  const toegepast = weg ? { ...gepatcht, bodyMarkdown: weg.bodyMarkdown } : gepatcht;
   const final: ContentPiece = {
     ...huidig,
     bodyMarkdown: toegepast.bodyMarkdown,
@@ -2559,6 +2761,8 @@ export async function reviseContentPiece(args: {
     bestaandeTekst: ctx.existing.text ?? ctx.existing.page?.text_excerpt ?? null,
     // De schrijfopdracht waarop deze pagina geschreven is (optimalisatie 5).
     opdracht: ctx.opdracht,
+    // WP4: de dekking meet de strategie in plaats van het contract.
+    strategie: ctx.strategie?.strategie ?? null,
     // Blok H: een reparatieronde mag een feit van de vorige versie evenmin kwijtraken.
     teBehouden: await laadTeBehouden(
       admin,
@@ -2840,6 +3044,8 @@ export async function herkeurContentPiece(args: {
     bestaandeTekst: ctx.existing.text ?? ctx.existing.page?.text_excerpt ?? null,
     // De schrijfopdracht waarop deze pagina geschreven is (optimalisatie 5).
     opdracht: ctx.opdracht,
+    // WP4: de dekking meet de strategie in plaats van het contract.
+    strategie: ctx.strategie?.strategie ?? null,
     teBehouden: await laadTeBehouden(
       admin,
       (pieceRow.supersedes_id as string | null) ?? null,

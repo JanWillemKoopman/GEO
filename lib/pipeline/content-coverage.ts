@@ -39,6 +39,7 @@ import type { ContentContract, ContractSection } from "@/lib/schemas/content-con
 import { splitSections, normalizeHeading } from "@/lib/pipeline/content-sections";
 import { topicTerms, scoreTermOverlap } from "@/lib/pipeline/page-relevance";
 import { splitRefs } from "@/lib/pipeline/factcard";
+import type { PageStrategy } from "@/lib/schemas/page-strategy";
 
 /**
  * Welk deel van de kernwoorden van een deelvraag in een sectie moet voorkomen
@@ -106,6 +107,16 @@ export interface CoverageResult {
    * weet welke sectie hij mag aanraken.
    */
   issues: string[];
+  /**
+   * Alleen bij een pagina met paginastrategie (WP4): onderwerpen die de
+   * strategie uitsloot en die toch als sectie op de pagina staan. Blokkerend
+   * (§12.1).
+   */
+  uitgeslotenAanwezig?: string[];
+  /** Prioriteitsfeiten van de strategie die niet in de tekst zijn gebruikt. Blokkerend (§12.1). */
+  ontbrekendePrioriteit?: string[];
+  /** Secties die bij geen gekozen onderwerp horen. Hoog, niet blokkerend. */
+  vreemdeSecties?: string[];
 }
 
 export interface CoverageInput {
@@ -341,5 +352,126 @@ export function checkContractCoverage(input: CoverageInput): CoverageResult {
     ontbrekendeFaq,
     openingKlopt,
     issues,
+  };
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// De dekking tegen de PAGINASTRATEGIE (WP4 van contentpijplijn-publicatiewaardig.md)
+//
+// Met een strategie telt niet meer of 85 procent van een contract erop staat,
+// maar of de pagina doet wat de redactie koos: de gekozen onderwerpen staan
+// erop (of de schrijver meldde ze als weggelaten), de uitgesloten onderwerpen
+// staan er NIET op, en de prioriteitsfeiten zijn gebruikt. Een sectie die bij
+// geen gekozen onderwerp hoort, is een bevinding: dat is precies de
+// consumentengids die de strategie wegliet.
+// ════════════════════════════════════════════════════════════════════════════
+
+/** Een kop hoort bij een onderwerp als de kernwoorden van het onderwerp voor minstens deze fractie in de kop en de eerste zinnen staan. */
+const ONDERWERP_DREMPEL = 0.5;
+/** Strenger voor een UITGESLOTEN onderwerp, want dat blokkeert: de kop zelf moet het raken. */
+const UITGESLOTEN_DREMPEL = 0.6;
+
+function begin(tekst: string, tekens = 400): string {
+  return tekst.slice(0, tekens);
+}
+
+export interface StrategieDekkingInput {
+  strategie: PageStrategy;
+  bodyMarkdown: string;
+  faq: { q: string; a: string }[];
+  claims: { factRef: string }[];
+  proofPoints: { factRef: string }[];
+  /** Wat de schrijver meldde als weggelaten; een gemeld punt is geen gat. */
+  weggelaten: { punt: string }[];
+}
+
+export function checkStrategieDekking(input: StrategieDekkingInput): CoverageResult {
+  const { strategie: s, bodyMarkdown, claims, proofPoints } = input;
+  const geschreven = splitSections(bodyMarkdown).map((x) => ({ heading: x.heading, body: x.body }));
+  const metKop = geschreven.filter((g) => g.heading.trim());
+  const gebruikt = new Set(
+    [...claims.map((c) => c.factRef), ...proofPoints.map((p) => p.factRef)].flatMap(factNummers).filter(Boolean),
+  );
+  const gemeld = input.weggelaten.map((w) => w.punt);
+
+  const opnemen = s.onderwerpen.filter((o) => o.besluit === "opnemen");
+  const uitgesloten = s.onderwerpen.filter((o) => o.besluit !== "opnemen").map((o) => o.onderwerp);
+
+  const raakt = (onderwerp: string, g: { heading: string; body: string }) =>
+    dekkingsgraad(onderwerp, `${g.heading} ${begin(g.body)}`) >= ONDERWERP_DREMPEL;
+
+  const secties: SectionCoverage[] = opnemen.map((o, i) => {
+    const gevonden = metKop.find((g) => raakt(o.onderwerp, g)) ?? null;
+    const gemeldWeg = gemeld.some((p) => dekkingsgraad(o.onderwerp, p) >= ONDERWERP_DREMPEL);
+    return {
+      id: `onderwerp-${i + 1}`,
+      heading: o.onderwerp,
+      // Een punt dat de schrijver meldde als weggelaten, telt als afgehandeld:
+      // weglaten mag, een gat opschrijven niet (§5 L7).
+      aanwezig: Boolean(gevonden) || gemeldWeg,
+      beantwoordt: Boolean(gevonden) || gemeldWeg,
+      uitgewerkt: Boolean(gevonden) ? woorden(gevonden!.body) >= MIN_WOORDEN_PER_SECTIE : gemeldWeg,
+      ongebruikteFeiten: [],
+      ontbrekendeUitleg: [],
+    };
+  });
+
+  const uitgeslotenAanwezig = uitgesloten.filter((onderwerp) =>
+    metKop.some(
+      (g) => dekkingsgraad(onderwerp, g.heading) >= UITGESLOTEN_DREMPEL && dekkingsgraad(onderwerp, g.body) >= ONDERWERP_DREMPEL,
+    ),
+  );
+
+  const ontbrekendePrioriteit = s.prioriteitsfeiten
+    .map((p) => p.feit.trim().toUpperCase())
+    .filter((ref) => ref && !gebruikt.has(ref.toLowerCase()));
+
+  // De laatste sectie mag de oproep zijn; die hoort bij geen onderwerp.
+  const vreemdeSecties = metKop
+    .filter((g, i) => !(i === metKop.length - 1 && dekkingsgraad(s.oproep, `${g.heading} ${g.body}`) >= ONDERWERP_DREMPEL))
+    .filter((g) => !opnemen.some((o) => raakt(o.onderwerp, g)))
+    .map((g) => g.heading);
+
+  const aanhef = geschreven.find((g) => !g.heading)?.body ?? bodyMarkdown.slice(0, 600);
+  const openingKlopt = !s.openingsantwoord.trim() || dekkingsgraad(s.openingsantwoord, aanhef) >= DEELVRAAG_DREMPEL;
+
+  const issues: string[] = [];
+  if (!openingKlopt) {
+    issues.push(`De pagina begint niet met het gekozen openingsantwoord. Zet dit bovenaan: "${s.openingsantwoord}"`);
+  }
+  for (const sectie of secties) {
+    if (!sectie.aanwezig) {
+      issues.push(`Het onderwerp "${sectie.heading}" uit de opbouw staat er niet op. Schrijf het, of laat het bewust weg.`);
+    }
+  }
+  for (const o of uitgeslotenAanwezig) {
+    issues.push(`Het onderwerp "${o}" hoort volgens de strategie niet op deze pagina en staat er toch op. Haal het weg.`);
+  }
+  for (const ref of ontbrekendePrioriteit) {
+    issues.push(`Het prioriteitsfeit ${ref} is niet gebruikt. Zet het stellig in de tekst, op de plek waar de lezer het nodig heeft.`);
+  }
+  for (const kop of vreemdeSecties) {
+    issues.push(`De sectie "${kop}" hoort bij geen onderwerp uit de opbouw. Haal hem weg of voeg hem samen.`);
+  }
+
+  let gehaald = openingKlopt ? 1 : 0;
+  let totaal = 1;
+  for (const x of secties) {
+    totaal += 1;
+    if (x.aanwezig && x.uitgewerkt) gehaald += 1;
+  }
+  totaal += s.prioriteitsfeiten.length + uitgesloten.length;
+  gehaald += s.prioriteitsfeiten.length - ontbrekendePrioriteit.length;
+  gehaald += uitgesloten.length - uitgeslotenAanwezig.length;
+
+  return {
+    score: totaal > 0 ? Math.round((gehaald / totaal) * 100) : null,
+    secties,
+    ontbrekendeFaq: [],
+    openingKlopt,
+    issues,
+    uitgeslotenAanwezig,
+    ontbrekendePrioriteit,
+    vreemdeSecties,
   };
 }

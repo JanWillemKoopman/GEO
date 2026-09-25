@@ -71,6 +71,8 @@ const BRON_FASE: Record<IssueBron, PipelinePhase> = {
   // Blok H: het feit stond op de kaart én in de vorige versie; wie het
   // weglaat, is de schrijver.
   feitbehoud: "schrijven",
+  // De strategie koos, de schrijver week af: een schrijfprobleem.
+  strategie: "schrijven",
   // V8, V1 en V10: opening, merkstem en koppen zijn alle drie schrijfkeuzes.
   paginavorm: "schrijven",
   adviestoon: "schrijven",

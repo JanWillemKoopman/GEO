@@ -102,6 +102,8 @@ export const ISSUE_BRONNEN = [
   "faq",
   /** Blok H, punt 50 en 62: een feit uit de vorige versie is verdwenen. */
   "feitbehoud",
+  /** WP4 van contentpijplijn-publicatiewaardig.md: voert de tekst de paginastrategie uit? */
+  "strategie",
 ] as const;
 export type IssueBron = (typeof ISSUE_BRONNEN)[number];
 
