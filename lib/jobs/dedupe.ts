@@ -218,4 +218,15 @@ export const dedupe = {
   // tweede brief zolang de eerste loopt, en de brief zelf slaat over als er al
   // een `brief_json` staat (conventie 9).
   paginaBrief: (pieceId: string) => `pagina_brief:${pieceId}`,
+  /** De start van het schrijven. Eén per pagina tegelijk. */
+  paginaSchrijven: (pieceId: string) => `pagina_schrijven:${pieceId}`,
+  /**
+   * Een ophaalronde van de achtergrondmodus. Het response-id en het
+   * rondenummer horen erin: ronde N plant ronde N+1 in terwijl hij zelf nog op
+   * 'running' staat, en zonder nummer zou die sleutel tegen zichzelf botsen.
+   */
+  paginaOphalen: (soort: string, pieceId: string, responseId: string, poging: number) =>
+    `${soort}:${pieceId}:${responseId}:p${poging}`,
+  paginaControle: (pieceId: string) => `pagina_controle:${pieceId}`,
+  paginaHerschrijven: (pieceId: string) => `pagina_herschrijven:${pieceId}`,
 };

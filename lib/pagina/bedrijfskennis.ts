@@ -74,8 +74,6 @@ export interface BedrijfsInvoer {
   bezwaren: string[];
   /** Antwoorden op eerder gestelde vragen die voor het hele merk gelden. */
   merkAntwoorden: { vraag: string; antwoord: string }[];
-  /** Het ene ding waarop het bedrijf wint (`profiles.usp`). */
-  usp?: string | null;
   /** Wat het anders doet dan anderen (`profiles.differentiator`). */
   onderscheid?: string | null;
   /** Bewijs dat nergens op de site staat (`profiles.offline_proof`). */
@@ -91,7 +89,6 @@ export function blokA(invoer: BedrijfsInvoer): string {
   if (invoer.waardeproposities.length > 0) {
     delen.push("Waar het bedrijf voor staat:\n" + invoer.waardeproposities.map((w) => `- ${w}`).join("\n"));
   }
-  if (invoer.usp?.trim()) delen.push(`Waarop het bedrijf wint: ${invoer.usp.trim()}`);
   if (invoer.onderscheid?.trim()) delen.push(`Wat het bedrijf anders doet dan anderen: ${invoer.onderscheid.trim()}`);
   if ((invoer.offlineBewijs ?? []).length > 0) {
     delen.push("Bewijs dat niet op de site staat:\n" + (invoer.offlineBewijs ?? []).map((b) => `- ${b}`).join("\n"));

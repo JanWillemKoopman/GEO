@@ -10,6 +10,11 @@ import { schrijfdatum } from "@/lib/pagina/schrijfpoort";
 import { PaginaKop } from "@/components/pagina/pagina-kop";
 import { AanZet } from "@/components/pagina/aan-zet";
 import { Vragenlijst, type Vraag } from "@/components/pagina/vragenlijst";
+import { Goedkeuren } from "@/components/pagina/goedkeuren";
+import { PublishBox } from "@/components/pagina/publish-box";
+import { nogGeel } from "@/lib/pagina/goedkeuren";
+import type { ControleJson } from "@/lib/pagina/controle-regels";
+import type { PublishCheck } from "@/lib/pipeline/publish-check";
 
 export const dynamic = "force-dynamic";
 
@@ -50,8 +55,8 @@ export async function generateMetadata({
  *
  * `paginaId` is het id van de plan-pagina, of het id van de tekst.
  *
- * De weergave van een geschreven tekst (lezen, gele zinnen, goedkeuren) komt
- * in WP7 van `docs/tasks/contentketen-opnieuw.md` (§6.9).
+ * Een geschreven tekst: lezen, gele zinnen nalopen, goedkeuren, en daarna op
+ * de site zetten (§6.9 van `docs/tasks/contentketen-opnieuw.md`).
  */
 export default async function PaginaScherm({
   params,
@@ -89,9 +94,41 @@ export default async function PaginaScherm({
   );
 
   // ── Er is tekst ─────────────────────────────────────────────────────────
-  // Tot WP7 van de ombouw staat hier alleen de stand (§6.9).
   const metTekst = ["goedkeuren", "live_zetten", "effect_meten", "effect_bekend"].includes(rij.stand.sleutel);
-  if (metTekst) {
+  if (metTekst && rij.pieceId) {
+    const tekst = await laadTekst(admin, rij.pieceId);
+    if (tekst) {
+      return (
+        <div className="flex flex-col gap-6">
+          {kop}
+          <AanZet stand={rij.stand} />
+          <Goedkeuren
+            profileId={id}
+            analysisId={tekst.analysisId}
+            pieceId={rij.pieceId}
+            tekst={tekst.body}
+            updatedAt={tekst.updatedAt}
+            geel={tekst.geel}
+            bevestigd={tekst.bevestigd}
+            notitie={tekst.notitie}
+            punten={tekst.punten}
+            goedgekeurd={!tekst.needsReview}
+            aanpassingLoopt={tekst.aanpassingLoopt}
+          />
+          {!tekst.needsReview && (
+            <PublishBox
+              analysisId={tekst.analysisId}
+              pieceId={rij.pieceId}
+              publishedAt={tekst.publishedAt}
+              publishedUrl={tekst.publishedUrl}
+              check={tekst.check}
+              checkedAt={tekst.checkedAt}
+              blokkades={0}
+            />
+          )}
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col gap-6">
         {kop}
@@ -158,6 +195,57 @@ function WatDezePaginaDoet({ why, voorWie }: { why: string | null; voorWie: stri
       )}
     </section>
   );
+}
+
+/** Wat het goedkeuringsscherm nodig heeft. */
+async function laadTekst(admin: ReturnType<typeof createAdminClient>, pieceId: string) {
+  const [{ data }, { data: lopend }] = await Promise.all([
+    admin
+      .from("content_pieces")
+      .select(
+        "analysis_id, body_markdown, updated_at, controle_json, raw_json, needs_review, published_at, published_url, publish_check_json, publish_checked_at",
+      )
+      .eq("id", pieceId)
+      .maybeSingle(),
+    admin
+      .from("jobs")
+      .select("id")
+      .eq("type", "pagina_herschrijven")
+      .in("status", ["queued", "running"])
+      .contains("payload_json", { pieceId })
+      .limit(1),
+  ]);
+  const r = data as {
+    analysis_id: string;
+    body_markdown: string | null;
+    updated_at: string;
+    controle_json: ControleJson | null;
+    raw_json: { notitie_voor_ondernemer?: string | null } | null;
+    needs_review: boolean;
+    published_at: string | null;
+    published_url: string | null;
+    publish_check_json: unknown;
+    publish_checked_at: string | null;
+  } | null;
+  if (!r?.body_markdown) return null;
+  const controle = r.controle_json;
+  return {
+    analysisId: r.analysis_id,
+    body: r.body_markdown,
+    updatedAt: r.updated_at,
+    geel: nogGeel(r.body_markdown, controle),
+    bevestigd: controle?.bevestigd ?? [],
+    notitie: r.raw_json?.notitie_voor_ondernemer ?? null,
+    // Na een herschrijving zijn de punten van de eindredacteur verwerkt; dan
+    // horen ze niet meer als "wat we nog zien" op het scherm.
+    punten: controle && !controle.herschreven ? (controle.beoordeling?.punten ?? []) : [],
+    needsReview: r.needs_review,
+    aanpassingLoopt: (lopend ?? []).length > 0,
+    publishedAt: r.published_at,
+    publishedUrl: r.published_url,
+    check: (r.publish_check_json as PublishCheck | null) ?? null,
+    checkedAt: r.publish_checked_at,
+  };
 }
 
 /** Wat het voortraject van een pagina nodig heeft: de vragen en het waarom. */

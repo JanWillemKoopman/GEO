@@ -948,6 +948,8 @@ import { schoneAdressen, vanafEersteAlinea, MAX_STEMVOORBEELDEN } from "@/lib/pa
 import { openVraagTekst, OPEN_VRAAG_MAX } from "@/lib/pagina/open-vraag-tekst";
 import { verwerkBrief, normaliseerVraag, kindVoorSoort, MAX_BRIEFVRAGEN, type ContentBrief } from "@/lib/pagina/brief-regels";
 import { briefInvoer, BRIEF_SYSTEEM } from "@/lib/pagina/brief-opdracht";
+import { schrijfSysteem, schrijfInvoer, herschrijfInvoer, type SchrijfBlokken } from "@/lib/pagina/schrijfopdracht";
+import { moetHerschrijven, kiesVersie, geleZinnenNa, allesBevestigd } from "@/lib/pagina/controle-regels";
 import type {
   ProfileOffering,
   ProfileTopic,
@@ -21256,4 +21258,41 @@ group("de opdracht voor de brief (§6.1)", () => {
   });
   ok("een winnend antwoord gaat ingekort mee", invoer.length < 3000);
   ok("eerdere vragen met id en stand", invoer.includes("[q1] (open) Hoe lang?"));
+});
+
+group("de schrijfopdracht: vier blokken, geen budget (§6.4)", () => {
+  const sys = schrijfSysteem({ aanspreekvorm: "u", verbodenOnderwerpen: ["politiek"], verbodenWoorden: ["goedkoop"] });
+  ok("de kern staat erin", sys.includes("Schrijf de beste pagina die iemand met deze vraag zou kunnen lezen."));
+  ok("geen woordenbudget", !/\b\d{3,4}\s*woorden\b/.test(sys));
+  ok("de aanspreekvorm", sys.includes("Spreek de lezer aan met u."));
+  ok("de verboden onderwerpen en woorden", sys.includes("politiek") && sys.includes("goedkoop"));
+  const b: SchrijfBlokken = {
+    titel: "Tuinontwerp", paginasoort: "dienstpagina", handeling: "nieuw", bedrijf: "Bedrijf: Groen",
+    stem: [{ bron: "https://groen.nl", tekst: "Wij zijn nuchter." }], eigenVerhaal: "Aan de keukentafel.",
+    antwoorden: [{ vraag: "Hoe begin je?", antwoord: "Met koffie." }], onderzoek: null, zoekintentie: "Een tuin laten ontwerpen",
+    doelvragen: ["Wat kost een tuinontwerp?"], andereTitels: ["Onderhoud"], huidigeTekst: null,
+  };
+  const invoer = schrijfInvoer(b);
+  ok("het eigen verhaal letterlijk", invoer.includes('"""Aan de keukentafel."""'));
+  ok("de stem met de ene zin", invoer.includes("Neem de toon, de zinsbouw en de woordkeus over, niet de inhoud en niet de zinnen zelf."));
+  ok("zonder onderzoek geen leeg blok C", !invoer.includes("(onderzoek)"));
+  ok("geen bronverwijzingen gevraagd", !/\[F\d|bron:/i.test(invoer));
+  const her = herschrijfInvoer(b, { vorige: "Oud.", punten: [{ waar: "opening", probleem: "vaag", hoe: "concreter" }], verzonnen: [], ongedekt: ["Wij geven 10 jaar garantie."], notitieKlant: null });
+  ok("herschrijven: vorige versie en feedback", her.includes("SCHRIJF EEN BETERE VERSIE") && her.includes("10 jaar garantie") && her.includes("opening: vaag"));
+});
+
+group("de controle: herschrijven, welke versie, welke zinnen geel (§6.6, §6.7)", () => {
+  const goed = { oordeel: "goed" as const, verzonnen: [], punten: [] };
+  ok("goed en niets ongedekt: niet herschrijven", !moetHerschrijven(goed, []));
+  ok("goed maar een ongedekte zin: wel", moetHerschrijven(goed, ["Wij bestaan 30 jaar."]));
+  ok("niet goed: wel", moetHerschrijven({ ...goed, oordeel: "niet_goed" }, []));
+  ok("een verzonnen zin: wel", moetHerschrijven({ ...goed, verzonnen: [{ zin: "x", waarom: "y" }] }, []));
+  ok("mislukte beoordeling: niet", !moetHerschrijven(null, ["Wij bestaan 30 jaar."]));
+  eq("gelijk aantal ongedekt: de nieuwe blijft", kiesVersie(2, 2), "nieuw");
+  eq("meer ongedekt: de vorige blijft", kiesVersie(1, 2), "vorige");
+  const geel = geleZinnenNa("Wij bestaan 30 jaar. Wij zijn de beste.", ["Wij bestaan 30 jaar."], ["Wij zijn de beste.", "Weggeschreven zin."]);
+  eq("ongedekt plus verzonnen die er nog staan", geel.join(" | "), "Wij bestaan 30 jaar. | Wij zijn de beste.");
+  ok("alles bevestigd", allesBevestigd({ gele_zinnen: ["A zin."], bevestigd: ["a zin"] }));
+  ok("niet alles bevestigd", !allesBevestigd({ gele_zinnen: ["A zin.", "B zin."], bevestigd: ["A zin."] }));
+  ok("geen controle telt als niet bevestigd", !allesBevestigd(null));
 });

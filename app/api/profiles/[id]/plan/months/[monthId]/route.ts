@@ -6,6 +6,7 @@ import { approveMonth, markPosted } from "@/lib/plans";
 import { kiesVoorBulk, bulkMelding, OVERSLAAN_TEKST, type BulkKandidaat } from "@/lib/plan-bulk";
 import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 import { checkBudgetForProfile } from "@/lib/spend-limit";
+import { bereidMaandVoor } from "@/lib/pagina/start";
 
 /**
  * POST /api/profiles/[id]/plan/months/[monthId], een hele maand goedkeuren of
@@ -109,10 +110,15 @@ export async function POST(
     //
     // Mislukt dit, dan blijft de maand wel vrijgegeven: de cron pakt de
     // voorbereiding morgenochtend op, en het scherm zegt eerlijk dat die nog loopt.
-    // De voorbereiding van de hele maand start hier (WP6 van
-    // `docs/tasks/contentketen-opnieuw.md`, `lib/pagina/start.ts`).
-    const voorbereid = 0;
-    const zonderOnderwerp = 0;
+    let voorbereid = 0;
+    let zonderOnderwerp = 0;
+    try {
+      const uitslag = await bereidMaandVoor(admin, monthId);
+      voorbereid = uitslag.voorbereid;
+      zonderOnderwerp = uitslag.zonderCluster;
+    } catch (err) {
+      console.error(`Voorbereiding van maand ${monthId} mislukte, de ochtendronde pakt hem op:`, err);
+    }
     return NextResponse.json({ ok: true, voorbereid, zonderOnderwerp });
   }
 

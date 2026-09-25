@@ -275,6 +275,18 @@ export const JOB_TYPES = [
    * zodat elke brief de vragen van de vorige al ziet (§6.1).
    */
   "pagina_brief",
+  /**
+   * De pagina schrijven, altijd in de achtergrondmodus (§6.4): de eerste ronde
+   * start de aanroep, een ophaalronde met `responseId` haalt hem op.
+   */
+  "pagina_schrijven",
+  /** De controle in code plus één beoordeling (§6.6). */
+  "pagina_controle",
+  /**
+   * Hooguit één herschrijving na de controle, of een aanpassing op verzoek van
+   * de klant (§6.7). Zelfde achtergrondmodus als het schrijven.
+   */
+  "pagina_herschrijven",
 ] as const;
 
 export type JobType = (typeof JOB_TYPES)[number];
@@ -481,6 +493,20 @@ export interface JobPayloads {
    * afwezig = dit is de laatste (of een losse pagina).
    */
   pagina_brief: { pieceId: string; rij?: string[] };
+  pagina_schrijven: PaginaAchtergrondPayload;
+  pagina_controle: { pieceId: string };
+  pagina_herschrijven: PaginaAchtergrondPayload;
+}
+
+/** Schrijven en herschrijven: starten, of ophalen als `responseId` er is. */
+export interface PaginaAchtergrondPayload {
+  pieceId: string;
+  responseId?: string;
+  gestartOp?: string;
+  poging?: number;
+  herstart?: number;
+  /** Alleen bij een aanpassing op verzoek van de klant. */
+  klantNotitie?: string | null;
 }
 
 /**
@@ -544,6 +570,11 @@ export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "crawl_inventory",
   // Eén aanroep op het sterke model met zoeken op het web: ruim een minuut.
   "pagina_brief",
+  // Starten en ophalen zijn kort, maar de controle is één directe aanroep op
+  // het sterke model over de hele tekst.
+  "pagina_schrijven",
+  "pagina_controle",
+  "pagina_herschrijven",
 ]);
 
 /**
@@ -620,6 +651,9 @@ export const PARALLEL_CONTENT_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   // briefs van één merk lopen na elkaar via hun rij; die van verschillende
   // merken mogen naast elkaar.
   "pagina_brief",
+  "pagina_schrijven",
+  "pagina_controle",
+  "pagina_herschrijven",
 ]);
 
 export const CONTENT_PARALLELISM = 3;

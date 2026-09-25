@@ -70,7 +70,16 @@ import { availableEngineIds } from "@/lib/engines/registry";
 import type { Kandidaat } from "@/lib/sales/discovery";
 import { refreshInventory } from "@/lib/pipeline/refresh-inventory";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
-import { voerBriefUit, briefGafOp } from "@/lib/pagina/taken";
+import {
+  voerBriefUit,
+  briefGafOp,
+  voerSchrijvenUit,
+  schrijvenGafOp,
+  voerControleUit,
+  controleGafOp,
+  voerHerschrijvenUit,
+  herschrijvenGafOp,
+} from "@/lib/pagina/taken";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import { measureAiOverviewById } from "@/lib/pipeline/measure-ai-overview";
 import { measureLlmResponseById } from "@/lib/pipeline/measure-llm-response";
@@ -708,6 +717,15 @@ const handlers: { [T in JobType]: Handler<T> } = {
   // ── De contentketen (docs/tasks/contentketen-opnieuw.md §7.4) ────────────
   pagina_brief: async ({ admin }, payload) => {
     await voerBriefUit(admin, payload);
+  },
+  pagina_schrijven: async ({ admin, job }, payload) => {
+    await voerSchrijvenUit(admin, job, payload);
+  },
+  pagina_controle: async ({ admin }, payload) => {
+    await voerControleUit(admin, payload);
+  },
+  pagina_herschrijven: async ({ admin, job }, payload) => {
+    await voerHerschrijvenUit(admin, job, payload);
   },
 
   // ── Technische GEO-audit (optimalisatie.md 3B) ────────────────────────────
@@ -1470,8 +1488,17 @@ export async function scheduleFollowUpAfterFailure(
   // De opvolger hangt daarom niet meer aan het slagen van de stap maar aan de
   // tabel in `lib/jobs/chain.ts`, en die geldt in beide takken.
   // ── Een opgegeven brief houdt de rij en de pagina niet op (§6.1) ─────────
-  if ((job.type as JobType) === "pagina_brief") {
-    await briefGafOp(admin, job);
+  // En een opgegeven schrijf-, controle- of herschrijftaak laat de pagina niet
+  // eeuwig op "ORBIT ENGINE is bezig" staan (§6.6 en §6.7).
+  const gafOp: Partial<Record<JobType, (a: Admin, j: Job) => Promise<void>>> = {
+    pagina_brief: briefGafOp,
+    pagina_schrijven: schrijvenGafOp,
+    pagina_controle: controleGafOp,
+    pagina_herschrijven: herschrijvenGafOp,
+  };
+  const naOpgeven = gafOp[job.type as JobType];
+  if (naOpgeven) {
+    await naOpgeven(admin, job);
     return;
   }
 

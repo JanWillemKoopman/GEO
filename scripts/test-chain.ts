@@ -5161,7 +5161,7 @@ async function main(): Promise<void> {
     {
       const { runJob } = await import("@/lib/jobs/handlers");
       const { handleFailure } = await import("@/lib/jobs/worker");
-      const { planBriefs } = await import("@/lib/pagina/taken");
+      const { planBriefs } = await import("@/lib/pagina/start");
       const { maakOpenVraag } = await import("@/lib/pagina/open-vraag");
       const { MAX_ATTEMPTS } = await import("@/lib/jobs/types");
 
@@ -5330,6 +5330,313 @@ async function main(): Promise<void> {
         [stukken[2]],
       );
       ok("en heeft alleen de open vraag", vragen3.length === 1 && vragen3[0].open_vraag === true);
+
+      __setTestTransport(createOpenAiStub(log));
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Van plan tot goedgekeurde pagina (contentketen-opnieuw.md WP6 en WP7)
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: zes ingangen kunnen een pagina aan
+    // het schrijven zetten (vrijgeven, inplannen, antwoord, overslaan, de
+    // ochtendronde, "nu laten schrijven"), en geen van allen mag dat doen zolang
+    // er een vraag open staat. Daarna: schrijven in de achtergrondmodus zonder
+    // dubbele aanroep, één controle, hooguit één herschrijving, en goedkeuren
+    // pas als elke gele zin bevestigd is.
+    // ════════════════════════════════════════════════════════════════════════
+    console.log("\nVan plan tot goedgekeurde pagina (WP6 en WP7)");
+    {
+      const { runJob } = await import("@/lib/jobs/handlers");
+      const { handleFailure } = await import("@/lib/jobs/worker");
+      const { MAX_ATTEMPTS } = await import("@/lib/jobs/types");
+      const { bereidMaandVoor, bereidVoor, probeerTeSchrijven, probeerNaAntwoord, ochtendronde } = await import("@/lib/pagina/start");
+      const { answerFact } = await import("@/lib/facts");
+      const { bevestigZin, keurGoed } = await import("@/lib/pagina/goedkeuren");
+      const { __aantalAchtergrondStarts, __zetAchtergrondBezig } = await import("@/lib/openai/structured");
+
+      const eigenaar = randomUUID();
+      const merk = randomUUID();
+      const cluster = randomUUID();
+      await db.client.query("insert into auth.users (id, email) values ($1, 'plantest@example.com')", [eigenaar]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, stem_voorbeelden)
+         values ($1, $2, 'Hovenier Groen', 'https://hovenier-groen.nl', 'Hovenier Groen', 'klaar', $3::jsonb)`,
+        [merk, eigenaar, JSON.stringify([{ url: "https://hovenier-groen.nl/over", tekst: "Wij zijn nuchtere tuinmensen uit Ede.", opgehaald_op: "2026-09-25", fout: null }])],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'Hovenier Groen, tuinen', 'https://hovenier-groen.nl', 'tuinen', 'gereed')`,
+        [cluster, eigenaar, merk],
+      );
+      await db.client.query(
+        `insert into public.brand_facts (profile_id, text, source, kind, fact_key)
+         values ($1, 'Een tuinontwerp kost vanaf 450 euro.', 'site', 'site', 'ontwerp-prijs')`,
+        [merk],
+      );
+      const { rows: plan } = await db.client.query(
+        "insert into public.content_plans (profile_id, pages_per_month, status) values ($1, 3, 'actief') returning id",
+        [merk],
+      );
+      const { rows: maanden } = await db.client.query(
+        `insert into public.plan_months (plan_id, month_number, status) values ($1, 1, 'goedgekeurd'), ($1, 2, 'concept')
+         returning id, month_number`,
+        [plan[0].id],
+      );
+      const vrij = maanden.find((m) => m.month_number === 1).id as string;
+      const dicht = maanden.find((m) => m.month_number === 2).id as string;
+      const dag = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+      const { rows: planPaginas } = await db.client.query(
+        `insert into public.planned_pages (plan_month_id, profile_id, title, page_type, status, source_analysis_id, scheduled_for, sort_order)
+         values ($1, $3, 'Tuinontwerp laten maken', 'dienst', 'gepland', $4, $5, 1),
+                ($1, $3, 'Onderhoud van je tuin', 'dienst', 'gepland', $4, $6, 2),
+                ($2, $3, 'Schutting plaatsen', 'dienst', 'gepland', $4, $6, 1)
+         returning id, title`,
+        [vrij, dicht, merk, cluster, dag(3), dag(40)],
+      );
+      const planId = (t: string) => planPaginas.find((r) => r.title === t).id as string;
+
+      const aanroepen: { schema: string; user: string }[] = [];
+      const tekstEen = "## Tuinontwerp\n\nEen goed ontwerp begint bij hoe je je tuin gebruikt—en dat vragen we eerst. Een tuinontwerp kost vanaf 450 euro. Wij geven 10 jaar garantie op elke tuin.";
+      const tekstTwee = "## Tuinontwerp\n\nEen goed ontwerp begint bij hoe je je tuin gebruikt. Een tuinontwerp kost vanaf 450 euro.";
+      __setTestTransport((async (opts: { schemaName: string; user: string; schema: { parse: (x: unknown) => unknown } }) => {
+        aanroepen.push({ schema: opts.schemaName, user: opts.user });
+        // Op de kop van de invoer en niet op de hele tekst: de titels van de
+        // andere pagina's van het merk staan er ook in.
+        const isOnderhoud = /[Pp]agina: Onderhoud van je tuin/.test(opts.user);
+        const isSlechter = /[Pp]agina: Borders aanleggen/.test(opts.user);
+        let antwoord: unknown;
+        if (opts.schemaName === "content_brief") {
+          antwoord = {
+            zoekintentie: "Een tuin laten ontwerpen",
+            deelvragen: [],
+            concurrentie: { goed: [], gaten: [] },
+            vakkennis: [],
+            valkuilen: [],
+            vragen: isOnderhoud
+              ? []
+              : [{ vraag: "Hoe verloopt een eerste gesprek bij jullie?", waarom: "Dan weet de lezer wat hij kan verwachten.", soort: "werkwijze", antwoord_type: "tekst_lang", opties: null, merkbreed: false }],
+            ook_voor_deze_pagina: [],
+          };
+        } else if (opts.schemaName === "pagina") {
+          const herschrijf = opts.user.includes("SCHRIJF EEN BETERE VERSIE");
+          const klant = opts.user.includes("Wat de ondernemer anders wil");
+          antwoord = {
+            titel: "Tuinontwerp laten maken",
+            meta_titel: "Tuinontwerp laten maken",
+            meta_beschrijving: "Een tuin die past bij hoe je leeft.",
+            tekst_markdown: isSlechter
+              ? "## Borders\n\nWij leggen borders aan binnen 3 dagen. Wij zijn de beste van Ede."
+              : isOnderhoud
+                ? "## Onderhoud\n\nEen tuin vraagt elk seizoen iets anders."
+                : klant
+                  ? `${tekstTwee}\n\nWe beginnen altijd met koffie.`
+                  : herschrijf
+                    ? tekstTwee
+                    : tekstEen,
+            faq: [],
+            notitie_voor_ondernemer: null,
+          };
+        } else if (opts.schemaName === "pagina_controle") {
+          antwoord = isOnderhoud
+            ? { oordeel: "goed", verzonnen: [], punten: [] }
+            : {
+                oordeel: "niet_goed",
+                verzonnen: [{ zin: "Wij geven 10 jaar garantie op elke tuin.", waarom: "Staat nergens." }],
+                punten: [{ waar: "de opening", probleem: "te algemeen", hoe: "begin met de vraag van de bezoeker" }],
+              };
+        } else throw new Error(`onverwacht schema ${opts.schemaName}`);
+        return { parsed: opts.schema.parse(antwoord), raw: { stub: true } };
+      }) as never);
+
+      async function wachtrij(type: string): Promise<Record<string, unknown>[]> {
+        const { rows } = await db.client.query(
+          "select * from public.jobs where type = $1 and status = 'queued' and analysis_id = $2 order by created_at asc",
+          [type, cluster],
+        );
+        return rows;
+      }
+      async function draai(type: string): Promise<number> {
+        let n = 0;
+        for (let i = 0; i < 20; i++) {
+          const [taak] = await wachtrij(type);
+          if (!taak) break;
+          await db.client.query("update public.jobs set status = 'running' where id = $1", [taak.id]);
+          await runJob({ admin: admin as never, job: { ...taak, status: "running" } as never });
+          await db.client.query("update public.jobs set status = 'done' where id = $1", [taak.id]);
+          n++;
+        }
+        return n;
+      }
+      async function stuk(pieceId: string): Promise<Record<string, unknown>> {
+        const { rows } = await db.client.query("select * from public.content_pieces where id = $1", [pieceId]);
+        return rows[0];
+      }
+      async function stukVan(planPaginaId: string): Promise<string | null> {
+        const { rows } = await db.client.query("select content_piece_id from public.planned_pages where id = $1", [planPaginaId]);
+        return rows[0]?.content_piece_id ?? null;
+      }
+      const geenSchrijftaak = async () => (await wachtrij("pagina_schrijven")).length === 0;
+
+      // ── Vrijgeven: rijen, open vragen, briefs na elkaar ─────────────────────
+      const uitslag = await bereidMaandVoor(admin as never, vrij);
+      ok("vrijgeven bereidt de twee pagina's van de maand voor", uitslag.voorbereid === 2, JSON.stringify(uitslag));
+      const ontwerp = (await stukVan(planId("Tuinontwerp laten maken")))!;
+      const onderhoud = (await stukVan(planId("Onderhoud van je tuin")))!;
+      ok("elke plan-pagina wijst naar zijn rij", Boolean(ontwerp && onderhoud));
+      ok("een pagina in een maand die niet vrij is, niet", (await stukVan(planId("Schutting plaatsen"))) === null);
+      await bereidVoor(admin as never, [planId("Schutting plaatsen")]);
+      ok("inplannen in een maand die niet vrij is, doet niets", (await stukVan(planId("Schutting plaatsen"))) === null);
+      const { rows: registers } = await db.client.query("select count(*)::int as n from public.jobs where type = 'fact_register' and profile_id = $1", [merk]);
+      ok("het feitenregister gaat vóór de briefs", registers[0].n === 1);
+
+      await draai("pagina_brief");
+      ok("na de briefs geen schrijftaak: er staan vragen open", await geenSchrijftaak());
+
+      // ── Elke ingang, met open vragen: geen schrijftaak ─────────────────────
+      const nuSchrijven = await probeerTeSchrijven(admin as never, ontwerp, { negeerDatum: true });
+      ok("nu laten schrijven met een open vraag: wacht", nuSchrijven.uitkomst === "wacht" && nuSchrijven.reden === "vragen_open");
+      await ochtendronde(admin as never);
+      ok("de ochtendronde met open vragen: geen schrijftaak", await geenSchrijftaak());
+      await bereidVoor(admin as never, [planId("Tuinontwerp laten maken")]);
+      ok("opnieuw inplannen: geen schrijftaak, geen tweede brief", (await geenSchrijftaak()) && (await wachtrij("pagina_brief")).length === 0);
+
+      const { rows: vragenOntwerp } = await db.client.query(
+        "select id, open_vraag from public.fact_requests where $1 = any(content_piece_ids) order by open_vraag desc",
+        [ontwerp],
+      );
+      ok("de ontwerppagina heeft de open vraag en één gerichte vraag", vragenOntwerp.length === 2);
+      const openVraag = vragenOntwerp.find((v) => v.open_vraag).id as string;
+      const gericht = vragenOntwerp.find((v) => !v.open_vraag).id as string;
+      await answerFact(admin as never, { profileId: merk, factId: openVraag, answer: "We tekenen altijd met de klant samen aan de keukentafel.", existingProofPoints: [] });
+      await probeerNaAntwoord(admin as never, openVraag);
+      ok("een antwoord met nog één open vraag: geen schrijftaak", await geenSchrijftaak());
+
+      await db.client.query("update public.fact_requests set status = 'overgeslagen' where id = $1", [gericht]);
+      await probeerNaAntwoord(admin as never, gericht);
+      const schrijfTaken = await wachtrij("pagina_schrijven");
+      ok("overslaan van de laatste vraag start het schrijven", schrijfTaken.length === 1);
+      ok("de pagina staat op schrijven", (await stuk(ontwerp)).status === "draft");
+      const { rows: planStand } = await db.client.query("select status from public.planned_pages where id = $1", [planId("Tuinontwerp laten maken")]);
+      ok("en de plan-pagina ook", planStand[0].status === "schrijven");
+      await probeerNaAntwoord(admin as never, gericht);
+      ok("een tweede keer vragen levert geen tweede schrijftaak", (await wachtrij("pagina_schrijven")).length === 1);
+
+      // De onderhoudspagina heeft alleen de open vraag, en een datum over 40 dagen.
+      const { rows: vragenOnderhoud } = await db.client.query("select id from public.fact_requests where $1 = any(content_piece_ids)", [onderhoud]);
+      ok("de onderhoudspagina heeft alleen de open vraag", vragenOnderhoud.length === 1);
+      await db.client.query("update public.fact_requests set status = 'overgeslagen' where id = $1", [vragenOnderhoud[0].id]);
+      const teVroeg = await probeerTeSchrijven(admin as never, onderhoud);
+      ok("vragen klaar, datum ver weg: wachten", teVroeg.uitkomst === "wacht" && teVroeg.reden === "nog_niet_aan_de_beurt");
+
+      // ── Schrijven in de achtergrondmodus ──────────────────────────────────
+      const startsVoor = __aantalAchtergrondStarts();
+      await draai("pagina_schrijven");
+      // Die ene ronde startte de aanroep en plande de ophaalronde; de lus hierboven
+      // draaide die meteen mee. Opnieuw, nu met een ophaalronde die nog bezig is.
+      ok("schrijven start precies één aanroep", __aantalAchtergrondStarts() === startsVoor + 1);
+      ok("de tekst staat er", Boolean((await stuk(ontwerp)).body_markdown));
+
+      const nu = await probeerTeSchrijven(admin as never, onderhoud, { negeerDatum: true });
+      ok("nu laten schrijven zonder open vraag: ingepland", nu.uitkomst === "ingepland");
+      const [start] = await wachtrij("pagina_schrijven");
+      await db.client.query("update public.jobs set status = 'running' where id = $1", [start.id]);
+      await runJob({ admin: admin as never, job: { ...start, status: "running" } as never });
+      await db.client.query("update public.jobs set status = 'done' where id = $1", [start.id]);
+      const na = __aantalAchtergrondStarts();
+      __zetAchtergrondBezig(1);
+      const [ophaal] = await wachtrij("pagina_schrijven");
+      await db.client.query("update public.jobs set status = 'running' where id = $1", [ophaal.id]);
+      await runJob({ admin: admin as never, job: { ...ophaal, status: "running" } as never });
+      await db.client.query("update public.jobs set status = 'done' where id = $1", [ophaal.id]);
+      const volgende = await wachtrij("pagina_schrijven");
+      ok("een ophaalronde die nog bezig is, plant zichzelf opnieuw in", volgende.length === 1 && (volgende[0].payload_json as { poging: number }).poging === 1);
+      ok("zonder tweede aanroep", __aantalAchtergrondStarts() === na);
+      await draai("pagina_schrijven");
+
+      const geschreven = await stuk(ontwerp);
+      ok("een verboden teken is gerepareerd", !(geschreven.body_markdown as string).includes("—"));
+      ok("de ruwe uitvoer en het versienummer van de opdracht zijn bewaard", (geschreven.raw_json as { schrijfopdracht_versie: number }).schrijfopdracht_versie === 1);
+      ok("versie 1", geschreven.version === 1);
+      ok("de schrijver kreeg het eigen verhaal letterlijk", aanroepen.some((a) => a.schema === "pagina" && a.user.includes("aan de keukentafel")));
+      ok("en de stemvoorbeelden", aanroepen.some((a) => a.schema === "pagina" && a.user.includes("nuchtere tuinmensen")));
+      ok("de controle is ingepland", (await wachtrij("pagina_controle")).length === 2);
+
+      // ── Controle en hooguit één herschrijving ─────────────────────────────
+      await draai("pagina_controle");
+      const goed = await stuk(onderhoud);
+      ok("goed zonder ongedekte zinnen: klaar zonder herschrijving", goed.status === "ready" && goed.needs_review === true && !(goed.controle_json as { herschreven: boolean }).herschreven);
+      ok("niet goed: er komt precies één herschrijving", (await wachtrij("pagina_herschrijven")).length === 1);
+      await draai("pagina_herschrijven");
+      const herschreven = await stuk(ontwerp);
+      const cj = herschreven.controle_json as { herschreven: boolean; herschrijving: { behouden: string }; gele_zinnen: string[] };
+      ok("de herschreven versie is bewaard", cj.herschreven && cj.herschrijving.behouden === "nieuw" && !(herschreven.body_markdown as string).includes("garantie"));
+      ok("en staat klaar om te lezen", herschreven.status === "ready" && herschreven.needs_review === true);
+      ok("geen tweede controle, geen tweede herschrijving", (await wachtrij("pagina_controle")).length === 0 && (await wachtrij("pagina_herschrijven")).length === 0);
+      const { rows: planKlaar } = await db.client.query("select status from public.planned_pages where id = $1", [planId("Tuinontwerp laten maken")]);
+      ok("de plan-pagina staat op goedkeuren", planKlaar[0].status === "ter_goedkeuring");
+
+      // ── Een herschrijving met meer ongedekte zinnen blijft niet ───────────
+      const { rows: border } = await db.client.query(
+        `insert into public.content_pieces (analysis_id, title, type, status, action, body_markdown, brief_json, controle_json)
+         values ($1, 'Borders aanleggen', 'landing', 'draft', 'nieuw', 'Een border geeft kleur aan je tuin.', '{"onderzoek":null,"bedrijf":{"feiten":[]},"versie":1}',
+                 '{"ongedekt":[],"beoordeling":{"oordeel":"niet_goed","verzonnen":[],"punten":[]},"herschreven":false,"gele_zinnen":[],"bevestigd":[]}')
+         returning id`,
+        [cluster],
+      );
+      await enqueueHerschrijven(border[0].id);
+      await draai("pagina_herschrijven");
+      const slechter = await stuk(border[0].id);
+      ok("een herschrijving met meer ongedekte zinnen wordt niet bewaard", (slechter.body_markdown as string) === "Een border geeft kleur aan je tuin." && (slechter.controle_json as { herschrijving: { behouden: string } }).herschrijving.behouden === "vorige");
+
+      // ── Een mislukte controle: klaar, met gele zinnen ─────────────────────
+      const { rows: mislukt } = await db.client.query(
+        `insert into public.content_pieces (analysis_id, title, type, status, action, body_markdown, brief_json)
+         values ($1, 'Vijver aanleggen', 'landing', 'draft', 'nieuw', 'Wij leggen een vijver aan in 2 dagen.', '{"onderzoek":null,"bedrijf":{"feiten":[]},"versie":1}')
+         returning id`,
+        [cluster],
+      );
+      const { rows: controleTaak } = await db.client.query(
+        `insert into public.jobs (type, payload_json, analysis_id, dedupe_key, status, attempts)
+         values ('pagina_controle', $1, $2, 'test-controle-mislukt', 'running', $3) returning *`,
+        [JSON.stringify({ pieceId: mislukt[0].id }), cluster, MAX_ATTEMPTS],
+      );
+      await handleFailure(admin as never, controleTaak[0], "model onbereikbaar");
+      const vijver = await stuk(mislukt[0].id);
+      const vcj = vijver.controle_json as { beoordeling: unknown; gele_zinnen: string[] };
+      ok("een mislukte controle gaat naar klaar", vijver.status === "ready" && vcj.beoordeling === null);
+      ok("met de ongedekte zin geel", vcj.gele_zinnen.length === 1 && vcj.gele_zinnen[0].includes("2 dagen"));
+
+      // ── Goedkeuren pas als elke gele zin bevestigd is ─────────────────────
+      const eerst = await keurGoed(admin as never, { pieceId: mislukt[0].id, analysisId: cluster, userId: eigenaar });
+      ok("goedkeuren met een gele zin kan niet", !eerst.ok && eerst.status === 409);
+      const vreemd = await bevestigZin(admin as never, { pieceId: mislukt[0].id, analysisId: cluster, zin: "Een zin die niet geel is." });
+      ok("een zin die niet geel is, kan niet bevestigd worden", !vreemd.ok);
+      await bevestigZin(admin as never, { pieceId: mislukt[0].id, analysisId: cluster, zin: vcj.gele_zinnen[0] });
+      const daarna = await keurGoed(admin as never, { pieceId: mislukt[0].id, analysisId: cluster, userId: eigenaar });
+      ok("na bevestigen wel", daarna.ok && (await stuk(mislukt[0].id)).needs_review === false);
+
+      // ── Een aanpassing van de klant: versie 2, zonder nieuwe beoordeling ──
+      await db.client.query(
+        "insert into public.jobs (type, payload_json, analysis_id, dedupe_key, status) values ('pagina_herschrijven', $1, $2, 'test-klant', 'queued')",
+        [JSON.stringify({ pieceId: ontwerp, klantNotitie: "Vertel ook dat we met koffie beginnen." }), cluster],
+      );
+      const controlesVoor = aanroepen.filter((a) => a.schema === "pagina_controle").length;
+      await draai("pagina_herschrijven");
+      const { rows: versies } = await db.client.query(
+        "select id, version, is_current, supersedes_id, status from public.content_pieces where analysis_id = $1 and title = 'Tuinontwerp laten maken' order by version",
+        [cluster],
+      );
+      ok("een aanpassing maakt versie 2", versies.length === 2 && versies[1].version === 2 && versies[1].supersedes_id === ontwerp);
+      ok("de nieuwe is de actuele", versies[1].is_current === true && versies[0].is_current === false && versies[1].status === "ready");
+      ok("zonder nieuwe beoordeling", aanroepen.filter((a) => a.schema === "pagina_controle").length === controlesVoor && (await wachtrij("pagina_controle")).length === 0);
+      ok("de plan-pagina wijst naar versie 2", (await stukVan(planId("Tuinontwerp laten maken"))) === versies[1].id);
+
+      async function enqueueHerschrijven(pieceId: string): Promise<void> {
+        await db.client.query(
+          "insert into public.jobs (type, payload_json, analysis_id, dedupe_key, status) values ('pagina_herschrijven', $1, $2, $3, 'queued')",
+          [JSON.stringify({ pieceId }), cluster, `test-herschrijven-${pieceId}`],
+        );
+      }
 
       __setTestTransport(createOpenAiStub(log));
     }

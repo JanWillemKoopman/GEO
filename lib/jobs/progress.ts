@@ -65,6 +65,10 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   // Eén aanroep op het sterke model met zoeken op het web (§10 van
   // contentketen-opnieuw.md: ongeveer een minuut). Nog niet nagemeten.
   pagina_brief: 90,
+  // Starten of één keer ophalen; het schrijven zelf loopt bij OpenAI door.
+  pagina_schrijven: 10,
+  pagina_controle: 60, // één beoordeling op het sterke model
+  pagina_herschrijven: 10,
   technical_audit: 10, // een handvol HTTP-verzoeken, geen AI
   verify_publication: 8, // één pagina ophalen en vergelijken
   measure_impact: 2, // plant alleen taken in

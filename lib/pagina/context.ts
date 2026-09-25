@@ -47,7 +47,10 @@ export interface MerkBasis {
   concurrenten: string[];
   aanspreekvorm: "je" | "u" | "wij" | null;
   verbodenWoorden: string[];
+  verbodenOnderwerpen: string[];
   stemVoorbeelden: StemVoorbeeld[];
+  /** De hoofd-URL van het merk. */
+  url: string;
 }
 
 export async function laadPagina(admin: Admin, pieceId: string): Promise<PaginaBasis | null> {
@@ -100,22 +103,23 @@ interface ProfielRij {
   service_regions: string[] | null;
   competitors: string[] | null;
   value_props: string[] | null;
-  usp: string | null;
   differentiator: string | null;
   offline_proof: string[] | null;
   sales_objections: string[] | null;
   verhalen: string | null;
   pronoun_preference: "je" | "u" | "wij" | null;
   taboo_phrases: string[] | null;
+  forbidden_topics: string[] | null;
   stem_voorbeelden: StemVoorbeeld[] | null;
+  url: string;
 }
 
 async function laadProfiel(admin: Admin, profileId: string): Promise<ProfielRij> {
   const { data, error } = await admin
     .from("profiles")
     .select(
-      "brand_name, name, service_regions, competitors, value_props, usp, differentiator, offline_proof, " +
-        "sales_objections, verhalen, pronoun_preference, taboo_phrases, stem_voorbeelden",
+      "brand_name, name, service_regions, competitors, value_props, differentiator, offline_proof, " +
+        "sales_objections, verhalen, pronoun_preference, taboo_phrases, forbidden_topics, stem_voorbeelden, url",
     )
     .eq("id", profileId)
     .maybeSingle();
@@ -139,6 +143,8 @@ export async function laadMerk(admin: Admin, pagina: PaginaBasis): Promise<MerkB
     concurrenten,
     aanspreekvorm: profiel.pronoun_preference,
     verbodenWoorden: profiel.taboo_phrases ?? [],
+    verbodenOnderwerpen: profiel.forbidden_topics ?? [],
+    url: profiel.url,
     stemVoorbeelden: (profiel.stem_voorbeelden ?? []).filter((v) => v?.tekst?.trim()),
   };
 }
@@ -174,7 +180,6 @@ export async function laadBedrijf(admin: Admin, pagina: PaginaBasis): Promise<Be
     merkAntwoorden: ((antwoorden ?? []) as { question: string; answer: string | null }[])
       .filter((a) => a.answer?.trim())
       .map((a) => ({ vraag: a.question, antwoord: (a.answer as string).trim() })),
-    usp: profiel.usp,
     onderscheid: profiel.differentiator,
     offlineBewijs: (profiel.offline_proof ?? []).filter((b) => b?.trim()),
   };

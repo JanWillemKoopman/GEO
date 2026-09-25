@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { serverEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
+import { ochtendronde } from "@/lib/pagina/start";
 
 /**
  * GET /api/cron/plan, de motor onder het contentplan (fase 4, zie `docs/logbook.md`).
@@ -33,10 +34,8 @@ export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 /**
- * ⚠️ De rijvorm en de vijf stappen die erop volgen staan sinds 22 september
- * 2026 in `lib/plan-write-start.ts`, want de beheerder kan dezelfde pagina nu
- * ook met de hand laten schrijven vanuit het contentplan. Twee kopieën van die
- * stappen zouden gegarandeerd uit elkaar lopen.
+ * ⚠️ Wat er per pagina gebeurt, staat in `lib/pagina/start.ts` (de twee
+ * ingangen van de contentketen). Deze route roept alleen de ochtendronde aan.
  */
 
 export async function GET(request: Request) {
@@ -48,11 +47,12 @@ export async function GET(request: Request) {
   const admin = createAdminClient();
   const nu = new Date();
 
-  // Het vangnet onder de contentketen (voorbereiding starten, schrijfpoort
-  // opnieuw vragen) komt terug in WP6 van `docs/tasks/contentketen-opnieuw.md`.
+  // Het vangnet onder de contentketen: de voorbereiding die niet startte, en de
+  // schrijfpoort opnieuw vragen nu de datum dichterbij is (§6.8).
+  const paginas = await ochtendronde(admin);
   const zoekdata = await planSearchConsoleSync(admin, nu);
 
-  return NextResponse.json({ zoekdata });
+  return NextResponse.json({ paginas, zoekdata });
 }
 
 /**
