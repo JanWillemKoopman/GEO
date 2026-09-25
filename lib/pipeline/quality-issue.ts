@@ -100,6 +100,8 @@ export const ISSUE_BRONNEN = [
   "schrijfopdracht",
   /** Optimalisatie 9: herhaalt de FAQ onderaan de tekst erboven? */
   "faq",
+  /** Blok H, punt 50 en 62: een feit uit de vorige versie is verdwenen. */
+  "feitbehoud",
 ] as const;
 export type IssueBron = (typeof ISSUE_BRONNEN)[number];
 

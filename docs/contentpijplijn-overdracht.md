@@ -128,7 +128,7 @@ De overige drie draaien per batch of per analyse en worden dus over meerdere pag
 | 8 | `content_factuality`, feitelijkheid | AI | Luna | medium | nee | $0,0046 |
 | 9 | `content_citability`, volledigheid | AI | Luna | medium | nee | $0,0036 |
 | 10 | `content_craft`, vakmanschap | AI | Luna | medium | nee | $0,0019 |
-| 10b | `content_claim_judge`, is een ongedekte zin een bewering over het bedrijf (sinds 25 september 2026, alleen als er zo'n zin is) | AI | Luna | medium | nee | nog niet gemeten |
+| 10b | `content_claim_judge`, is een ongedekte zin een bewering over het bedrijf (sinds 25 september 2026, alleen als er zo'n zin is) | AI | Luna | medium | nee | $0,0010 |
 |  | **De deterministische controles** | code |  |  |  | gratis |
 |  | **Weging**: score, zekerheid, oordeel | code |  |  |  | gratis |
 | 11 | `content_revise`, gerichte reparatie (max 3x) | AI | **Terra** | medium | nee | **$0,083** |

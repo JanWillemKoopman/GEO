@@ -188,7 +188,7 @@ bronzinnen, het ontbrekende bewijs).
 | 47 | **hoog** | Het sterkste bewijs van de klant staat in geen enkele tekst, hoewel het op de feitenkaart staat | ✅ grotendeels opgelost, verbeterronde blok A; bevestigd bij de herhaling: 19 van de 21 nieuwe teksten bevatten minstens één sterk klantfeit |
 | 48 | **hoog** | De teksten lezen als een formulier: bedrijfsnaam voor elke alinea, dezelfde feiten drie tot vier keer, voorbehouden, zinnen uit de bronnen | ✅ opgelost, verbeterronde blok D (besluit eigenaar: naam niet voor elke alinea) |
 | 49 | middel | Waar de klant een vraag oversloeg, wijkt de tekst uit naar "bespreek dat vooraf" in plaats van het onderwerp los te laten | ✅ opgelost, verbeterronde blok D |
-| 50 | **hoog** | De reparatieknop van de klant haalde een juist klantfeit uit de tekst | ⚠️ teruggevallen, herhaling 24/25 september 2026: dezelfde uitkomst via een andere route, zie punt 62 |
+| 50 | **hoog** | De reparatieknop van de klant haalde een juist klantfeit uit de tekst | ✅ opgelost in code met punt 62, PR #PRNUM (reparatieplan blok H, 25 september 2026) |
 | 51 | middel | Na een nieuwe versie staat een pagina twee keer in de bibliotheek | ✅ opgelost, PR #117 en de volgende |
 | 52 | **hoog** | De opmerking van de klant bij "Schrijf een nieuwe versie" bereikte de schrijver niet | ✅ opgelost, PR #119, nagerekend op productie |
 | 53 | middel | Een nieuwe versie verliest het beweringenplan, en wordt daarna niet meer op onderbouwing getoetst | ✅ opgelost, verbeterronde blok C |
@@ -197,11 +197,12 @@ bronzinnen, het ontbrekende bewijs).
 | 56 | **hoog** | Een analyse wordt al na de eerste mislukte rapportpoging op "vastgelopen" gezet en toont de klant een foutmelding, terwijl de taak zelf nog drie keer op de achtergrond opnieuw probeert (tot 30 minuten) | open, herhaling 24/25 september 2026 |
 | 57 | middel | Bij één pagina kwamen na het beantwoorden van de eerste vragen 12 nieuwe vervolgvragen over hetzelfde onderwerp (wat zit inbegrepen bij een ketelvervanging), in steeds andere bewoordingen | open, bevestigt dat punt 36 nog niet volledig is opgelost, herhaling 24/25 september 2026 |
 | 58 | laag | De crawl van een grote site (~70 pagina's) las dit keer maar 33 van de 68 pagina's, ook na een extra aanvulronde, tegen 60 van de 68 bij de nulmeting; de site reageerde traag | open, lijkt aan de externe site te liggen en niet aan de code, herhaling 24/25 september 2026 |
-| 59 | **hoog** | De bronherleidbaarheidscontrole blokkeert op zinnen die geen bewering over het bedrijf zijn (een datumstempel, een veiligheidsinstructie, een definitie); 20 van de 21 nieuwe pagina's kregen "block" | ✅ opgelost in code, PR #132 (reparatieplan blok G, 25 september 2026); nameting op productie volgt na de merge |
+| 59 | **hoog** | De bronherleidbaarheidscontrole blokkeert op zinnen die geen bewering over het bedrijf zijn (een datumstempel, een veiligheidsinstructie, een definitie); 20 van de 21 nieuwe pagina's kregen "block" | ✅ opgelost, PR #132 (reparatieplan blok G, 25 september 2026), op productie nagerekend: 3 van 3 herkeurde pagina's van 5 naar 0, 1 en 4 blokkades, resterende 4 grotendeels opgelost in punt 64 |
 | 60 | **hoog** | Een verzonnen veiligheidscertificering ("CO-gecertificeerd volgens de Gasketelwet") staat op alle 7 van de 7 nieuwe pagina's van de installateur; de keuring hield hem niet tegen | ❌ onterecht bij narekenen: de certificering staat letterlijk op de site; wel een vangnet voor keurmerken gebouwd, PR #132 |
 | 61 | middel | Twee echte cijfers uit dezelfde feitenkaart verwisseld (intake € 50 wordt € 80 op minstens 2 van de 8 pagina's), en een groeiwens ("willen groeien in Son en Breugel") werd een bevestigde aanwezigheidsclaim | ❌ onterecht bij narekenen: de site noemt een intake van € 50 (kantoor) én € 80 (auto), en de klant antwoordde "ja" op Son en Breugel |
-| 62 | **hoog** | De reparatieknop ("los alles op") haalt bij een volledige herschrijving een juist klantfeit weg dat niet eens gemeld was, en lost soms zelfs de gemelde punten zelf niet op | teruggevallen, herhaling 24/25 september 2026, rechtstreeks getest en nagerekend |
+| 62 | **hoog** | De reparatieknop ("los alles op") haalt bij een volledige herschrijving een juist klantfeit weg dat niet eens gemeld was, en lost soms zelfs de gemelde punten zelf niet op | ✅ opgelost in code, PR #PRNUM (reparatieplan blok H, 25 september 2026); nameting op productie volgt na de merge |
 | 63 | laag | Feiten van de site bevatten letterlijke HTML-codes ("offici&euml;le", "&euro; 50") | ✅ opgelost, PR #132 (reparatieplan blok G, 25 september 2026) |
+| 64 | middel | Na blok G bleven op productie zinnen tegenhouden waarin "ons" lijdend voorwerp is ("Vertel ons bij je aanvraag ..."), en een zin met twee bedragen uit twee feiten | ✅ opgelost, PR #PRNUM (reparatieplan blok H, 25 september 2026) |
 
 ---
 
@@ -1243,8 +1244,13 @@ het model niet wegzetten, en een aangewezen feit telt alleen als de getallen van
 zin en feit een kernwoord delen (`verwerkZinOordelen()`). Van de 67 tegengehouden zinnen van de
 herhaling vallen er 6 op de eerste laag weg, 14 kan alleen een feit nog vrijspreken, en 47 legt de
 code aan het model voor. Eenheidstests op de vijf voorbeeldzinnen hierboven en op de echte feiten van
-de rijschool en de installateur. **Nog na te rekenen op productie** met een herkeuring van bestaande
-pagina's.
+de rijschool en de installateur. **Op productie nagerekend (25 september 2026)** met een herkeuring van drie bestaande pagina's, één per
+merk, zonder de tekst te veranderen: de zwemvijverpagina van de hovenier van 5 naar 1 blokkade
+(bronherleidbaarheid 40 naar 80), de pagina "repareren of vervangen" van de installateur van 5 naar 0
+(van tegengehouden naar goed, bronherleidbaarheid 31 naar 100), en de prijzenpagina van de rijschool
+van 5 naar 4. Van de 27 voorgelegde zinnen sprak de beoordelaar er 19 vrij als geen bewering en koppelde
+hij er 3 aan een feit. De aanroep kost gemeten $0,0010 per keuring (`ai_calls`). Drie van de vier
+blokkades die bij de rijschool bleven staan, kwamen door het vangnet zelf; zie punt 64.
 
 ## 60. Een verzonnen veiligheidscertificering op alle zeven nieuwe pagina's van één merk
 
@@ -1370,6 +1376,33 @@ niet als bedrag.
 **Opgelost (25 september 2026, reparatieplan blok G, PR #132).** Het euroteken en alle letters met
 trema, accent aigu, grave, circonflexe, cedille of tilde worden nu omgezet. Feiten die al op de kaart
 staan, worden bij de volgende crawl van het merk vervangen.
+
+**Opgelost in code (25 september 2026, reparatieplan blok H, PR #PRNUM).** Nagerekend op de twee echte
+versies: versie 2 miste niet één maar drie juiste feiten die geen van de vijf gemelde punten raakten
+(twaalf monteurs, de levertijd van twee tot vier weken, het jaarlijkse onderhoudscontract). De oorzaak:
+bij "los alles op" kreeg de schrijver de vorige tekst niet te zien. Twee reparaties
+(`lib/pipeline/feitbehoud.ts`): (1) de schrijver krijgt bij een nieuwe versie de feiten van de vorige
+mee, met de opdracht ze allemaal te behouden, behalve wat de nota zelf aanwijst; (2) na het schrijven,
+bij elke reparatieronde en bij een herkeuring telt de code na of die feiten er nog staan. Ontbreekt er
+een, dan is dat een blokkerende bevinding ("Dit feit stond in de vorige versie en is verdwenen"), die
+de reparatieronde terug kan zetten. Op de twee echte versies vindt die controle precies de drie
+verdwenen feiten en niets anders; wat alleen in de gegevens voor zoekmachines stond (adres,
+telefoonnummer) telt niet mee. Dat de Nuenen-zin bleef staan, was geen fout van de schrijver: die zin
+klopt (klantantwoord "ook Mierlo, Nuenen en Heeze-Leende"), en sinds blok G houdt de keuring hem niet
+meer tegen. **Nog na te rekenen op productie.**
+
+## 64. Twee gevallen die het vangnet van blok G te streng maakte
+
+Gevonden bij de nameting van blok G op productie (prijzenpagina van de rijschool, 4 blokkades over):
+(1) drie zinnen hielden tegen omdat ze "ons" bevatten, terwijl "ons" daar lijdend voorwerp is in een
+oproep aan de lezer: "Vertel ons bij je aanvraag hoe vaak je zou willen lessen", "kun je ons vragen
+welke intake-afspraak mogelijk is". (2) "De intake staat vermeld voor € 50 en € 80" klopt, maar de
+twee bedragen staan als twee feiten op de kaart, en de code eiste dat één feit alle getallen droeg.
+
+**Opgelost (25 september 2026, reparatieplan blok H, PR #PRNUM).** Alleen "wij", "we" en "onze" maken
+een zin nog tot een bewering die het model niet mag wegzetten (`magGeenBeweringZijn()`), en de
+zinnenbeoordelaar mag twee feiten aanwijzen die een zin samen dragen; elk getal moet dan in een van
+beide staan (`feitenOnderbouwenZin()`). Een verzonnen bedrag blijft tegenhouden.
 
 ## Wat goed ging, om niet kapot te maken
 

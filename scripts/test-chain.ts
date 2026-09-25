@@ -553,6 +553,80 @@ async function main(): Promise<void> {
       JSON.stringify((kaartDerde?.facts ?? []).map((f) => f.text).slice(0, 8)),
     );
 
+    // ── Blok H, punt 50 en 62: een nieuwe versie houdt de feiten van de vorige ──
+    //
+    // De vorige versie noemt twee klantfeiten die de stub-schrijver nooit
+    // schrijft: het nazorgprogramma van zes weken (niet gemeld) en het
+    // preventieve traject na herstel (wél gemeld in de nota). Na "los alles op" moet de schrijver het eerste
+    // meekrijgen, en omdat de stub het toch weglaat, moet de keuring dat
+    // melden in plaats van het stil te laten verdwijnen. Het tweede mag weg.
+    console.log("\nBlok H: een nieuwe versie houdt de feiten van de vorige");
+    const { rows: feitRijen } = await db.client.query(
+      `select id, text from public.brand_facts
+        where profile_id = $1 and superseded_by is null
+          and text ilike '%nazorgprogramma%'`,
+      [profileId],
+    );
+    const nazorg = feitRijen.find((r) => String(r.text).includes("nazorgprogramma van zes weken"));
+    const traject = feitRijen.find((r) => String(r.text).includes("preventief nazorgprogramma"));
+    ok("blok H: beide klantfeiten staan in de feitenbank", Boolean(nazorg && traject), JSON.stringify(feitRijen));
+    const nazorgZin = "Na de behandeling volgt bij ons een nazorgprogramma van zes weken.";
+    const trajectZin = "Na herstel bieden wij ook een preventief traject aan.";
+    const { rows: vorigeRij } = await db.client.query(
+      `select id, body_markdown, claims_json from public.content_pieces
+        where analysis_id = $1 and is_current = true`,
+      [analysisId],
+    );
+    await db.client.query(
+      `update public.content_pieces set body_markdown = $2, claims_json = $3 where id = $1`,
+      [
+        vorigeRij[0]?.id,
+        `${vorigeRij[0]?.body_markdown}\n\n${nazorgZin} ${trajectZin}\n`,
+        JSON.stringify([
+          ...((vorigeRij[0]?.claims_json ?? []) as unknown[]),
+          { claim: nazorgZin, factRef: "F1", factId: nazorg?.id, quote: "nazorgprogramma van zes weken" },
+          { claim: trajectZin, factRef: "F2", factId: traject?.id, quote: "preventief nazorgprogramma na herstel" },
+        ]),
+      ],
+    );
+    const promptsVoorH = log.length;
+    await draftContentPiece({
+      analysisId,
+      userId,
+      reportId: null,
+      recommendation: {
+        ...aanbeveling,
+        revisionNote: `Deze zin zegt iets over je bedrijf zonder bron: "${trajectZin}". Onderbouw hem met een feit, of haal hem weg.`,
+      },
+      regenerate: true,
+    });
+    const schrijfH = log.slice(promptsVoorH).find((l) => l.schemaName === "content_piece")?.user ?? "";
+    const behoudDeel = schrijfH.slice(schrijfH.indexOf("MOET BLIJVEN"));
+    ok(
+      "blok H: de schrijver krijgt het niet-gemelde feit mee om te behouden",
+      schrijfH.includes("WAT ER IN DE VORIGE VERSIE STOND EN MOET BLIJVEN") && behoudDeel.includes("nazorgprogramma"),
+      behoudDeel.slice(0, 400),
+    );
+    ok("blok H: het gemelde feit hoeft niet terug", !behoudDeel.includes("preventief"));
+    const { rows: naH } = await db.client.query(
+      `select quality_json, version from public.content_pieces where analysis_id = $1 and is_current = true`,
+      [analysisId],
+    );
+    const qH = naH[0]?.quality_json as {
+      feitbehoud?: { verloren: { tekst: string }[] };
+      issues?: { bron: string; blocking: boolean; finding: string }[];
+    } | null;
+    ok(
+      "blok H: het verdwenen feit is een blokkerende bevinding, geen stil verlies",
+      (qH?.issues ?? []).some((i) => i.bron === "feitbehoud" && i.blocking && i.finding.includes("nazorgprogramma")),
+      JSON.stringify(qH?.feitbehoud ?? null),
+    );
+    ok(
+      "blok H: het gemelde punt komt niet terug als verloren feit",
+      !(qH?.feitbehoud?.verloren ?? []).some((f) => f.tekst.includes("preventief")) &&
+        !(qH?.issues ?? []).some((i) => i.bron === "feitbehoud" && i.finding.includes("preventief")),
+    );
+
     // ── Verbeterronde, punt 35 en 47: wat de klant in het gesprek zei ────────
     //
     // Punt 35: een open merkvraag die het gesprek beantwoordt, gaat dicht

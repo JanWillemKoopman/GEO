@@ -12313,3 +12313,19 @@ keurmerken is toch een vangnet gebouwd: alle keurmerkwoorden van een zin moeten 
 stam. Onderweg gerepareerd: HTML-codes als "&euro;" en "&euml;" kwamen letterlijk op de feitenkaart
 (punt 63).
 
+## 25 september 2026: reparatieplan blok G nagerekend, blok H, de reparatieknop houdt feiten vast
+
+Blok G op productie nagerekend met een herkeuring van drie bestaande pagina's (één per merk, samen
+$0,023): de blokkades gingen van 5, 5 en 5 naar 1, 0 en 4, en de pagina van de installateur van
+tegengehouden naar goed. De zinnenbeoordelaar kost $0,0010 per keuring. Drie van de vier resterende
+blokkades bij de rijschool kwamen door "ons" als lijdend voorwerp; dat telt niet meer als wij-vorm,
+en een zin met twee bedragen mag door twee feiten samen gedekt worden (punt 64).
+
+Blok H (punt 50 en 62): "los alles op" schreef een volledig nieuwe versie zonder de vorige tekst te
+zien, en verloor bij de installateur drie juiste klantfeiten (twaalf monteurs, levertijd,
+onderhoudscontract), niet één zoals de bevinding zei. Nu krijgt de schrijver de feiten van de vorige
+versie mee met de opdracht ze te behouden, en telt de keuring na of ze er nog staan
+(`lib/pipeline/feitbehoud.ts`); ontbreekt er een, dan is dat een blokkerende bevinding. Een feit dat de
+nota zelf aanwijst, mag weg; een feit dat alleen in de gegevens voor zoekmachines stond, telt niet.
+Geen migratie nodig: de vorige versie staat al in `supersedes_id`, de nota in `revision_note`.
+

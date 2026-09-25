@@ -130,6 +130,8 @@ export interface KwaliteitsInvoer {
   onbewezenBeweringen: { claim: string }[];
   /** Zinnen die iets over het bedrijf zeggen zonder dat het model ze aanmeldde. */
   ongetagdeZinnen: { sentence: string }[];
+  /** Blok H: feiten uit de vorige versie die in deze niet meer staan. */
+  verlorenFeiten?: { ref: string; tekst: string; vorigeZin: string }[];
   /** Staat er een concurrent bij naam in de tekst? Deterministisch vastgesteld. */
   concurrentGenoemd: string | null;
 
@@ -340,6 +342,29 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
         blocking: true,
         confidence: ZEKER,
         bron: "bronherleidbaarheid",
+      }),
+    );
+  }
+
+  // ── Een feit uit de vorige versie is verdwenen (blok H, punt 50 en 62) ──
+  //
+  // Blokkerend, net als een zin zonder bron: bij de installateur verdwenen bij
+  // "los alles op" drie juiste klantfeiten zonder dat iemand het zag, en de
+  // klant vertrouwt erop dat wat hij zelf gaf blijft staan. Als bevinding gaat
+  // hij de reparatieronde in, die het feit terug kan zetten.
+  for (const feit of invoer.verlorenFeiten ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "volledigheid",
+        severity: "blokkerend",
+        section: null,
+        finding: `Dit feit stond in de vorige versie en is verdwenen: "${feit.tekst}".`,
+        evidence: feit.vorigeZin,
+        expected: "Een nieuwe versie houdt elk feit van de vorige, behalve wat er bewust uit moest.",
+        recommendation: `Zet het terug met ${feit.ref}, op de plek waar het de lezer helpt.`,
+        blocking: true,
+        confidence: ZEKER,
+        bron: "feitbehoud",
       }),
     );
   }

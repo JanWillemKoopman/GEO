@@ -67,7 +67,8 @@ const SYSTEM =
   "feit op de FEITENKAART dat precies zegt wat de zin beweert. Een feit dat over iets anders gaat, of " +
   "maar een deel dekt, telt niet. Een wens of groeidoel onderbouwt geen bewering dat het al zo is. " +
   "Een keurmerk, certificering of erkenning telt alleen als precies dat keurmerk op de kaart staat. " +
-  "Is er zo'n feit niet, geef dan null. " +
+  "Draagt de zin twee feiten tegelijk (bijvoorbeeld twee prijzen), geef dan beide F-nummers, gescheiden " +
+  "door een komma. Is er zo'n feit niet, geef dan null. " +
   "Geef bij elke zin in één korte zin de reden. Antwoord in het Nederlands.";
 
 /**

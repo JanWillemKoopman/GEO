@@ -52,6 +52,7 @@ import {
 import { sourceCoverage, type FactItem, type WrittenClaim } from "@/lib/pipeline/factcard";
 import { detectClaimSentences, detectedCoverage, verwerkZinOordelen } from "@/lib/pipeline/claim-extract";
 import { beoordeelZinnen } from "@/lib/pipeline/claim-judge";
+import { vindVerlorenFeiten, type TeBehoudenFeit } from "@/lib/pipeline/feitbehoud";
 import {
   berekenGewogenDekking,
   berekenClaimDekking,
@@ -125,6 +126,11 @@ export interface KeuringInput {
    * verandert er niets aan het oordeel (conventie 3).
    */
   opdracht?: WriterBrief | null;
+  /**
+   * De feiten die deze versie van de vorige moet overnemen (blok H, punt 50 en
+   * 62, `lib/pipeline/feitbehoud.ts`). Leeg of weglaten bij een eerste versie.
+   */
+  teBehouden?: readonly TeBehoudenFeit[];
 }
 
 export interface Keuring {
@@ -396,6 +402,14 @@ export async function keurPagina(invoer: KeuringInput): Promise<Keuring> {
   });
   const { coverage: bronherleidbaarheid, untagged } = verfijnd;
 
+  // ── Blok H: is er een feit van de vorige versie verdwenen? ──────────────
+  const verlorenFeiten = vindVerlorenFeiten({
+    teBehouden: input.teBehouden ?? [],
+    bodyMarkdown: body,
+    faq,
+    claims,
+  });
+
   const secties = paginaSecties;
   const typeOvertredingen = checkTypeRegels(profiel, {
     secties: secties.length,
@@ -440,6 +454,7 @@ export async function keurPagina(invoer: KeuringInput): Promise<Keuring> {
     bronherleidbaarheid,
     onbewezenBeweringen: unsupported,
     ongetagdeZinnen: untagged,
+    verlorenFeiten,
     concurrentGenoemd: genoemd,
     contractAanwezig: input.contract !== null,
     bewijsAanwezig: input.bewijsAanwezig,
@@ -499,6 +514,11 @@ export async function keurPagina(invoer: KeuringInput): Promise<Keuring> {
         geslaagd: zinnen !== null,
         geenBewering: verfijnd.geenBewering,
         gekoppeld: verfijnd.gekoppeld,
+      },
+      // Blok H: wat de vorige versie noemde en deze niet meer.
+      feitbehoud: {
+        teBehouden: (input.teBehouden ?? []).length,
+        verloren: verlorenFeiten.map((f) => ({ factId: f.factId, tekst: f.tekst })),
       },
       // De claimdekking apart van de sectiedekking: een sectie kan een feit
       // hebben terwijl de bewering die de pagina draagt er niet aan hangt (R1).

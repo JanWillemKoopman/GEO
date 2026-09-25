@@ -16,7 +16,7 @@ export const ClaimJudgeVerdict = z.object({
       nummer: z.number().int(),
       /** Beweert de zin iets controleerbaars over DIT bedrijf? */
       overBedrijf: z.boolean(),
-      /** Het F-nummer van het feit dat de zin exact onderbouwt, of `null`. */
+      /** Het F-nummer van het feit dat de zin exact onderbouwt (hooguit twee, met een komma), of `null`. */
       feit: z.string().nullable(),
       /** Eén korte zin waarom, voor de audit-trail. */
       reden: z.string(),
