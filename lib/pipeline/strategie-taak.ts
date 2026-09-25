@@ -48,6 +48,10 @@ import { zetWacht } from "@/lib/pipeline/strategie-wacht";
 import { selecteerFaq } from "@/lib/pipeline/faq-selectie";
 import { faqKandidaten, pasFaqSelectieToe } from "@/lib/pipeline/faq-criteria";
 import type { RecommendationInput } from "@/lib/pipeline/content";
+import { strategievragen } from "@/lib/pipeline/strategievragen";
+import { bewaarVragen, loadKnownClaimKeys } from "@/lib/pipeline/briefing";
+import { beoordeelVragen } from "@/lib/pipeline/vraag-judge";
+import { voegVragenSamen } from "@/lib/pipeline/vraag-samenvoegen";
 
 type Admin = SupabaseClient;
 type Payload = JobPayloads["content_strategy"];
@@ -255,7 +259,62 @@ async function rondAf(
     console.warn(`Strategie wil wachten op een conflict, maar de pagina heeft nog geen rij; schrijven zonder het feit.`);
   }
 
+  // De vragen uit de strategie naar de ondernemer (strategievragen.ts). Een
+  // mislukking hier houdt het schrijven niet tegen: de pagina is het product,
+  // de vragen maken de volgende versie beter.
+  try {
+    await zetStrategievragenKlaar(admin, analysisId, pieceId, record);
+  } catch (err) {
+    console.warn(`Vragen uit de strategie klaarzetten mislukt: ${String(err)}`);
+  }
+
   await planSchrijven(admin, job, analysisId, payload, record);
+}
+
+/**
+ * De vragen uit de strategie langs dezelfde ontdubbeling en opslag als de
+ * briefing. Eerst op sleutel (geen aanroep), daarna alleen bij iets nieuws één
+ * lichte aanroep die dezelfde vraag in andere woorden herkent (`vraag-judge.ts`).
+ */
+async function zetStrategievragenKlaar(
+  admin: Admin,
+  analysisId: string,
+  pieceId: string | null,
+  record: StrategieRecord,
+): Promise<void> {
+  const { data: analyse } = await admin.from("analyses").select("profile_id").eq("id", analysisId).maybeSingle();
+  const profileId = (analyse?.profile_id as string | null) ?? null;
+  if (!profileId) return;
+  const kandidaten = strategievragen({
+    strategie: record.strategie,
+    faqVragen: record.faq?.vragenAanOndernemer ?? [],
+    pieceId,
+  });
+  if (kandidaten.length === 0) return;
+  const bekend = await loadKnownClaimKeys(admin, profileId, analysisId);
+  const nieuw = kandidaten.filter((k) => !bekend.keys.has(k.claimKey));
+  if (nieuw.length === 0) return;
+  const oordeel = await beoordeelVragen({
+    nieuw: nieuw.map((v) => v.question),
+    bestaande: bekend.bestaande,
+    analysisId,
+    profileId,
+  });
+  const samengevoegd = voegVragenSamen({
+    kandidaten: nieuw,
+    bestaande: oordeel?.bestaande ?? [],
+    oordelen: oordeel?.oordelen ?? null,
+  });
+  const geschreven = await bewaarVragen(admin, {
+    profileId,
+    analysisId,
+    samengevoegd,
+    raw: { bron: "paginastrategie", oordeel: oordeel?.raw ?? null },
+  });
+  console.log(
+    `Strategie ${pieceId ?? analysisId}: ${geschreven} nieuwe vragen aan de ondernemer, ` +
+      `${samengevoegd.aanvullingen.length} bij een open vraag gevoegd, ${samengevoegd.vervallen.length} al gesteld.`,
+  );
 }
 
 async function planSchrijven(

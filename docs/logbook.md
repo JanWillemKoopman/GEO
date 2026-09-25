@@ -12544,3 +12544,15 @@ schrijver hoort dat hij elk feit één keer noemt; (3) de FAQ-selectie weegt of 
 onderwerp van deze pagina gaat. Bewust niet gebouwd: een lijst met holle formuleringen en een
 woordfilter op FAQ-vragen. Het eerste is lapwerk dat de volgende ronde niet vangt; het tweede gooide in
 de ketentest een algemeen bezwaar ("jullie zijn duurder") weg dat bij elke pagina hoort.
+
+## 25 september 2026: de vragenroute gesloten
+
+De paginastrategie en de FAQ-selectie bepalen per pagina wat de ondernemer eerst moet vertellen, maar
+die vragen bleven in `strategy_json.vragenAanOndernemer` liggen: geen code zette ze bij de ondernemer.
+Bij Best waren het er acht. Nu gaan hoogstens vier per pagina (kernvragen eerst, dan kernuitleg die
+concreter kan, dan onzekerheden met bestemming A, dan bijzaken en FAQ) langs dezelfde ontdubbeling en
+opslag als de briefing (`strategievragen.ts`, `bewaarVragen` in `briefing.ts`): een vraag die de
+ondernemer al beantwoordde of oversloeg komt niet terug, een open vraag die hetzelfde vraagt krijgt de
+pagina erbij. De vragen zijn niet verplicht en gelden voor het hele merk; het antwoord komt via de
+feitenkaart in de volgende versie. Eerst op sleutel zonder aanroep, alleen bij een nieuwe vraag één
+lichte aanroep (`briefing_vraag_judge`). Een mislukking hier houdt het schrijven niet tegen.

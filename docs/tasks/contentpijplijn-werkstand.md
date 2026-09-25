@@ -62,11 +62,11 @@ feitbehoud volgt de strategie, algemene uitleg zonder bron kort of weg, FAQ bij 
 staan op de branch en zijn nog niet nagemeten. De eigenaar vroeg daarna uitdrukkelijk om verbeteringen
 aan de pijplijn in plaats van reparaties op de twee meetpagina's. Het voorstel, op volgorde van impact:
 
-1. **De vragenroute sluiten.** De strategie en de FAQ-selectie maken per pagina vragen aan de
-   ondernemer (`vragenAanOndernemer` in `strategy_json`; bij Best acht), maar die komen nergens aan: er
-   is geen code die ze naar de bestaande vragenroute (`fact_requests`) zet. Het zijn precies de
-   antwoorden die een pagina voller en specifieker maken. Zonder dit blijft elke pagina begrensd door
-   wat bij de eerste ronde bekend was.
+1. **De vragenroute sluiten.** Gebouwd op 25 september 2026 (`strategievragen.ts`, logboek): hoogstens
+   vier vragen per pagina gaan langs de ontdubbeling van de briefing naar `fact_requests`, en het
+   antwoord komt via de feitenkaart in de volgende versie. Nog na te rekenen op productie: staan de
+   vragen van een nieuwe strategie bij de ondernemer, zonder dubbele, en wordt de volgende versie
+   concreter na een antwoord.
 2. **De eigenaarstoets in de pijplijn (WP9).** Kwaliteit wordt nu alleen achteraf gemeten, met de
    blinde lezer. In de pijplijn kijken de controles naar feiten en formuleringen, niet naar herhaling,
    holle alinea's of een kop die niet bij de tekst past. Dezelfde vragenlijst als de blinde lezer als

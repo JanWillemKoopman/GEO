@@ -58,6 +58,7 @@ import { faqKandidaten, pasFaqSelectieToe, faqblok, checkFaqNaSchrijven, alBeant
 import { gatzinnen, voorbehoudNaBewijs, checkBestemmingen, isToezegging } from "@/lib/pipeline/onzekerheid";
 import { controleerRedactie, getalReeksen } from "@/lib/pipeline/redactie-check";
 import { heelMetabeschrijving, heelMetatitel, MAX_METABESCHRIJVING } from "@/lib/pipeline/metatitel";
+import { strategievragen, MAX_STRATEGIEVRAGEN } from "@/lib/pipeline/strategievragen";
 import { strategieblok, gekozenRefs, opbouwUitStrategie, REGELS_STRATEGIE, REGEL_7_STRATEGIE } from "@/lib/pipeline/strategie-opdracht";
 import { checkStrategieDekking } from "@/lib/pipeline/content-coverage";
 import { haalSectiesWeg } from "@/lib/pipeline/content-sections";
@@ -26550,7 +26551,7 @@ group("Dezelfde vraag in andere woorden gaat er niet opnieuw in (reparatieplan b
   ok("de blijver erft 'verplicht' en de pagina's van de verliezer", verplicht.nieuw[0].required && verplicht.nieuw[0].contentPieceIds.includes("01a2727d"));
 
   const briefing = leesBestand("lib/pipeline/briefing.ts");
-  ok("de voorbereiding legt de vragen voor vóór het wegschrijven", briefing.indexOf("beoordeelVragen({") < briefing.indexOf("for (const vraag of samengevoegd.nieuw)"));
+  ok("de voorbereiding legt de vragen voor vóór het wegschrijven", briefing.indexOf("beoordeelVragen({") < briefing.indexOf("await bewaarVragen(admin, {") && briefing.includes("for (const vraag of samengevoegd.nieuw)"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -26795,6 +26796,32 @@ group("Tweede ronde: feitbehoud, losse vakkennis, FAQ bij de pagina", () => {
   eq("vakkennis met gecontroleerde uitleg blijft zoals hij was", `${rook.besluit}/${rook.woorden}`, "opnemen/60");
 
   ok("de FAQ-selectie weegt of een vraag bij het onderwerp van de pagina hoort", leesBestand("lib/pipeline/faq-selectie.ts").includes("over het onderwerp van DEZE pagina"));
+});
+
+group("De vragenroute: van de strategie naar de ondernemer", () => {
+  const o = (x: Partial<PageStrategy["onderwerpen"][number]>): PageStrategy["onderwerpen"][number] => ({
+    onderwerp: "o", besluit: "eerst vragen", bron: "geen", feiten: [], uitleg: [], woorden: null,
+    vraag: null, wachtOpConflict: [], kern: false, reden: "", ...x,
+  });
+  const s = strategie({
+    onderwerpen: [
+      o({ onderwerp: "Fasering", vraag: "Kan de aanleg in fases worden uitgevoerd?", kern: false }),
+      o({ onderwerp: "Wat zit er in de prijs", vraag: "Wat zit er standaard in uw aanlegprijs?", kern: true }),
+      o({ onderwerp: "Rookgasafvoer", besluit: "opnemen", bron: "vakkennis", vraag: "Vervangt u de rookgasafvoer standaard?", kern: true }),
+      o({ onderwerp: "Invul", vraag: 'Wat kunnen we over "Invul" zeggen?', kern: true }),
+      o({ onderwerp: "Weg", besluit: "weglaten", vraag: "Deze vraag hoort er niet bij?" }),
+    ],
+    onzekerheden: [{ punt: "Of er een wachtlijst is", bestemming: "A", reden: null, formulering: null, vraag: "Is er een wachtlijst in het voorjaar?" }],
+  });
+  const v = strategievragen({ strategie: s, faqVragen: ["Wat gebeurt er bij een slechte bodem?", "Wat zit er standaard in uw aanlegprijs"], pieceId: "p1" });
+  eq("kernvragen eerst, dan uitleg met vraag, dan onzekerheid, dan bijzaak", v.map((x) => x.question).join(" | "),
+    "Wat zit er standaard in uw aanlegprijs? | Vervangt u de rookgasafvoer standaard? | Is er een wachtlijst in het voorjaar? | Kan de aanleg in fases worden uitgevoerd?");
+  eq(`hoogstens ${MAX_STRATEGIEVRAGEN}`, String(v.length), String(MAX_STRATEGIEVRAGEN));
+  ok("geen invulvraag van de code en niets uit een weggelaten onderwerp", !v.some((x) => /Invul|hoort er niet bij/.test(x.question)));
+  ok("dezelfde vraag uit de FAQ telt niet dubbel", new Set(v.map((x) => x.claimKey)).size === v.length);
+  ok("niet verplicht, voor het hele merk, aan de pagina gekoppeld", v.every((x) => !x.required && x.scope === "merk" && x.contentPieceIds[0] === "p1"));
+  ok("met een eigen sleutel, zodat een gestelde vraag niet terugkomt", v.every((x) => x.claimKey.startsWith("strategie:")));
+  ok("de taak gebruikt de ontdubbeling van de briefing", /beoordeelVragen[\s\S]*voegVragenSamen[\s\S]*bewaarVragen/.test(leesBestand("lib/pipeline/strategie-taak.ts")));
 });
 
 group("Metabeschrijving zonder halve naam (werkstand §4, punt 4)", () => {
