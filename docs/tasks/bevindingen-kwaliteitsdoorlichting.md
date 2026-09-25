@@ -19,10 +19,11 @@
 > zit, en een voorstel. Is een punt opgelost: de regel "Status" bijwerken met de datum en de PR, en
 > een alinea in `docs/logbook.md`.
 >
-> **Stand 24 september 2026:** de hele keten doorlopen, 16 teksten blind beoordeeld, proeven met de
-> reparatieknop en een ideale klant gedaan. Het eindverslag staat hieronder; het stap-voor-stapdossier
-> met cijfers in `docs/tasks/kwaliteitsdoorlichting-stappen.md`. De herhaling en de overdracht naar een
-> nieuwe werksessie: `docs/tasks/kwaliteitsdoorlichting-herhaling.md`.
+> **Stand 25 september 2026:** de hele keten twee keer doorlopen (nulmeting 23/24 september, herhaling
+> 24/25 september), 37 teksten blind beoordeeld, proeven met de reparatieknop en een ideale klant
+> gedaan. Het eindverslag van de nulmeting staat hieronder; het stap-voor-stapdossier met cijfers in
+> `docs/tasks/kwaliteitsdoorlichting-stappen.md`. De uitslag van de herhaling staat bij §"Herhaling"
+> verderop en bij de punten 45, 47, 50, 55 tot en met 62.
 
 ## Verbeterronde vanaf 24 september 2026: besluiten en stand
 
@@ -47,11 +48,8 @@ doorloop met dezelfde drie bedrijven en dezelfde blinde lezers (meetlat: 4,1 op 
   meer gecontroleerd op wat hij over het bedrijf beweert.
 
 **Stand na de verbeterronde (24 september 2026, eind van de dag):** alle zes blokken live (PR #121
-tot en met #127). Van de 54 bevindingen staan er nog open: 15 en 16 (eenmalig, niet herhaald), en
-drie die pas op een nieuwe doorloop te toetsen zijn: 47 en 45 (geen nieuwe tekst geschreven sinds de
-reparatie) en 50 (de reparatieknop, oorzaak weg via 39). Wat nog ontbreekt, is de afsluiting uit het
-plan: dezelfde drie bedrijven opnieuw door de keten, met dezelfde blinde lezers, tegen de 4,1 op 10.
-Hoe, en wat daarvoor in de repository staat: `docs/tasks/kwaliteitsdoorlichting-herhaling.md`.
+tot en met #127). De afsluiting uit het plan, dezelfde drie bedrijven opnieuw door de keten met
+dezelfde blinde lezers, is gedaan op 24/25 september; de uitslag staat in §"Herhaling" hieronder.
 
 | Blok | Punten | Stand |
 |---|---|---|
@@ -61,6 +59,32 @@ Hoe, en wat daarvoor in de repository staat: `docs/tasks/kwaliteitsdoorlichting-
 | D, schrijfstijl | 46, 48, 49 | ✅ live, PR #124 |
 | E, planning | 31, 32, 33 | ✅ live, PR #125 |
 | F, kleine punten | 3, 6, 8, 9, 11 tot 18, 23, 38 | ✅ live, PR #126 en #127; 15 en 16 niet herhaald, alleen oppakken bij herhaling |
+
+## Herhaling: dezelfde drie bedrijven opnieuw door de keten (24/25 september 2026)
+
+Zelfde drie merken, dezelfde clusters (met per merk één nieuw cluster erbij, gekoppeld aan het
+groeidoel uit het gesprek), dezelfde blinde lezers, dezelfde meetlat als de nulmeting.
+
+| Maat | Nulmeting (16 teksten) | Herhaling (21 teksten) |
+|---|---|---|
+| Gemiddeld copywritercijfer | 4,1 op 10 | **4,9 op 10** |
+| Ondernemer publiceert: zo / met aanpassingen / nee | 0 / 11 / 5 | 4 / 11 / 6 |
+| Bezoeker neemt contact op: ja / misschien / nee | 3 / 12 / 1 | 12 / 9 / 0 |
+| Nieuwe tekst beter dan de huidige pagina | 11 van 15 | 10 van 10 |
+| Past niet bij het adres | 5 van 16 | **0 van 21** |
+| Niveau professionele copywriter | bij geen van de drie | nog steeds niet; C komt het dichtst in de buurt |
+
+**De vier getoetste punten:** 45 (functie van de pagina) en 47 (sterkste bewijs) zijn bevestigd
+opgelost. 17 (Gemini-limiet) faalde opnieuw volledig bij drie merken tegelijk, waarna de eigenaar
+Gemini als meetbron op 25 september heeft uitgezet in productie (punt 55). 50 (de reparatieknop)
+viel terug via een nieuwe route: een volledige herschrijving nam een juist klantfeit niet meer over
+(punt 62). Onderweg vier nieuwe bevindingen (58 tot en met 61) en een tijdelijk, vermoedelijk
+ongerelateerd productieprobleem met de edge-middleware.
+
+**Wat na de herhaling nog open staat:** 50 en 55 (allebei hierboven), 57 (deels, twaalf
+bijna-identieke vervolgvragen op één pagina), 58 en 59 (crawldekking en de bronherleidbaarheidscontrole),
+60 en 61 (een verzonnen certificering en verwisselde cijfers), 15 en 16 (eenmalig, niet teruggekomen),
+en de wisselproef met een ideale klant (niet meegenomen in deze herhaling).
 
 ## Eindverslag: de vijf verbeteringen die het meest opleveren
 
