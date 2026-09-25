@@ -170,6 +170,7 @@ bronzinnen, het ontbrekende bewijs).
 | 56 | **hoog** | Een analyse wordt al na de eerste mislukte rapportpoging op "vastgelopen" gezet en toont de klant een foutmelding, terwijl de taak zelf nog drie keer op de achtergrond opnieuw probeert (tot 30 minuten) | open, herhaling 24/25 september 2026 |
 | 57 | middel | Bij één pagina kwamen na het beantwoorden van de eerste vragen 12 nieuwe vervolgvragen over hetzelfde onderwerp (wat zit inbegrepen bij een ketelvervanging), in steeds andere bewoordingen | open, bevestigt dat punt 36 nog niet volledig is opgelost, herhaling 24/25 september 2026 |
 | 58 | laag | De crawl van een grote site (~70 pagina's) las dit keer maar 33 van de 68 pagina's, ook na een extra aanvulronde, tegen 60 van de 68 bij de nulmeting; de site reageerde traag | open, lijkt aan de externe site te liggen en niet aan de code, herhaling 24/25 september 2026 |
+| 59 | **hoog** | De bronherleidbaarheidscontrole blokkeert op zinnen die geen bewering over het bedrijf zijn (een datumstempel, een veiligheidsinstructie, een definitie); 20 van de 21 nieuwe pagina's kregen "block" | open, gekend gat sinds 3 september, omvang nu voor het eerst gemeten, herhaling 24/25 september 2026 |
 
 ---
 
@@ -1170,6 +1171,35 @@ site gelezen is het risico groter dat een aanbeveling de functie van een onbeken
 over het hoofd ziet. **Voorstel, als dit vaker voorkomt:** `MAX_AANVULRONDES` optioneel maken zodat de
 consultant handmatig kan doorgaan tot de dekking voldoende is, in plaats van na vier rondes te stoppen
 ongeacht de dekking.
+
+## 59. De bronherleidbaarheidscontrole blokkeert nog op zinnen die geen bewering over het bedrijf zijn
+
+Gevonden bij de herhaling: van de 21 nieuw geschreven pagina's kregen er 20 het oordeel "block", en bij
+19 daarvan komt minstens één reden van `bronherleidbaarheid` ("Deze zin zegt iets over je bedrijf
+zonder bron"), terwijl de aangewezen zin vaak helemaal geen bewering over het bedrijf is:
+
+- Een datumstempel: **"Laatst bijgewerkt: 25 september 2026."** (drie keer gevonden, bij drie
+  verschillende merken).
+- Algemene veiligheidsinstructies, los van het bedrijf: **"Gaat een koolmonoxidemelder af of is er
+  direct gevaar, verlaat dan de woning en bel 112."**
+- Een definitie die niets over het bedrijf zegt: **"ASS verwijst naar autisme binnen het spectrum;
+  AD(H)D omvat ADD en ADHD."**
+- Een retorisch antwoord: **"Nee, dat kun je niet in het algemeen zeggen."**
+- Een verwijzing naar een derde partij: **"Voor vragen over een gezondheidsverklaring... kun je de
+  actuele informatie van het CBR raadplegen."**
+
+Dit is een gekend en met opzet niet volledig opgelost gat: `isInstructieAanLezer()` in
+`lib/pipeline/claim-extract.ts` (3 september 2026) filtert al zinnen die met een instructiewerkwoord
+beginnen ("Maak foto's van de lekkage"), met de expliciete kanttekening in de code dat dit "niet elke
+instructiezin oplost" omdat het onderscheid "begrip van de zin vraagt, niet van het eerste woord". De
+herhaling laat zien hoe groot dat gat in de praktijk is: het is nu de belangrijkste reden waarom bijna
+elke nieuwe pagina in deze ronde "block" kreeg, ook pagina's met een score van 74 tot 83 op 100.
+**Waar te zoeken:** `detectClaimSentences()` en `isInstructieAanLezer()` in
+`lib/pipeline/claim-extract.ts`. **Voorstel:** de herkenning van "is dit een bewering over het
+bedrijf" uitbreiden voorbij het eerste woord van de zin, bijvoorbeeld met een korte modelaanroep die
+alleen die ja/nee-vraag stelt per kandidaatzin (dezelfde soort aanpak als `zinParafraseertFeit()` bij
+punt 54), en in elk geval datumstempels ("Laatst bijgewerkt: ...") en verwijzingen naar een externe
+partij (CBR, hulpdiensten) categorisch uitsluiten.
 
 ## Wat goed ging, om niet kapot te maken
 
