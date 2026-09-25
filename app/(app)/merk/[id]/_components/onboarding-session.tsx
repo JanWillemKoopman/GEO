@@ -616,6 +616,13 @@ export function OnboardingSession({
                 ? `Het gesprek is vastgelegd op ${nlDatum(recordedAt)}. Pas je hierboven iets aan, bewaar het dan opnieuw bij "Veranderingen die eraan komen".`
                 : "Leg het gesprek vast bij “Veranderingen die eraan komen”. Dan staat er wat je hebt afgesproken, met de datum erbij."}
             </p>
+            {/* Contentketen WP4: de open vraag per pagina is de belangrijkste
+                invoer van de schrijver, en mag niet afhangen van of de klant
+                later zelf gaat typen. */}
+            <p className="text-sm text-secondary">
+              Staan er pagina&apos;s in het plan, vul dan de open vraag per pagina samen met de
+              ondernemer in, in de woorden van de ondernemer. Die vind je bij Openstaande vragen.
+            </p>
           </div>
 
           {/* B9, hoofdstuk 8.8: een samenvatting om terug te sturen. De

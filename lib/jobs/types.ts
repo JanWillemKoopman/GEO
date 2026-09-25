@@ -266,6 +266,15 @@ export const JOB_TYPES = [
    * hooguit 300 seconden (`app/api/cron/worker/route.ts`).
    */
   "crawl_inventory",
+
+  // ── De contentketen (docs/tasks/contentketen-opnieuw.md §7.4) ────────────
+  /**
+   * De content brief van één pagina: onderzoek met zoeken op het web, plus de
+   * gerichte vragen aan de ondernemer. De briefs van één maand draaien na
+   * elkaar: de taak geeft bij het afronden de volgende pagina van de rij door,
+   * zodat elke brief de vragen van de vorige al ziet (§6.1).
+   */
+  "pagina_brief",
 ] as const;
 
 export type JobType = (typeof JOB_TYPES)[number];
@@ -466,6 +475,12 @@ export interface JobPayloads {
      */
     aanvulronde?: number;
   };
+
+  /**
+   * `rij` zijn de pagina's die na deze aan de beurt zijn, in volgorde. Leeg of
+   * afwezig = dit is de laatste (of een losse pagina).
+   */
+  pagina_brief: { pieceId: string; rij?: string[] };
 }
 
 /**
@@ -527,6 +542,8 @@ export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   // Tot 500 pagina's in batches tot 8, met een pauze op "langzaam" tempo.
   // Zelfde soort werk als profile_discover, alleen groter en instelbaar.
   "crawl_inventory",
+  // Eén aanroep op het sterke model met zoeken op het web: ruim een minuut.
+  "pagina_brief",
 ]);
 
 /**
@@ -599,8 +616,10 @@ export const IO_BOUND_PARALLELISM = 3;
  * boven de twaalf open verbindingen uit.
  */
 export const PARALLEL_CONTENT_TYPES: ReadonlySet<JobType> = new Set<JobType>([
-  // De taken van de nieuwe contentketen komen hier in WP5 tot en met WP7
-  // (`docs/tasks/contentketen-opnieuw.md` §7.4).
+  // De nieuwe contentketen (`docs/tasks/contentketen-opnieuw.md` §7.4). De
+  // briefs van één merk lopen na elkaar via hun rij; die van verschillende
+  // merken mogen naast elkaar.
+  "pagina_brief",
 ]);
 
 export const CONTENT_PARALLELISM = 3;

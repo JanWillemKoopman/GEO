@@ -212,4 +212,10 @@ export const dedupe = {
    * vorige ronde nog loopt, mag geen tweede crawl van dezelfde site opleveren.
    */
   crawlInventory: (profileId: string) => `crawl_inventory:${profileId}`,
+
+  // ── De contentketen (docs/tasks/contentketen-opnieuw.md §7.4) ────────────
+  // Per pagina: een tweede start (vrijgeven en de ochtendcontrole) plant geen
+  // tweede brief zolang de eerste loopt, en de brief zelf slaat over als er al
+  // een `brief_json` staat (conventie 9).
+  paginaBrief: (pieceId: string) => `pagina_brief:${pieceId}`,
 };

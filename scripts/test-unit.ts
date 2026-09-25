@@ -946,6 +946,8 @@ import { kiesFeiten, hoortBijPagina, blokA, MAX_FEITEN, type FeitRij } from "@/l
 import { schrijfpoort, schrijfdatum } from "@/lib/pagina/schrijfpoort";
 import { schoneAdressen, vanafEersteAlinea, MAX_STEMVOORBEELDEN } from "@/lib/pagina/stemvoorbeelden-regels";
 import { openVraagTekst, OPEN_VRAAG_MAX } from "@/lib/pagina/open-vraag-tekst";
+import { verwerkBrief, normaliseerVraag, kindVoorSoort, MAX_BRIEFVRAGEN, type ContentBrief } from "@/lib/pagina/brief-regels";
+import { briefInvoer, BRIEF_SYSTEEM } from "@/lib/pagina/brief-opdracht";
 import type {
   ProfileOffering,
   ProfileTopic,
@@ -21198,4 +21200,60 @@ group("de open vraag: tekst per pagina (B3)", () => {
   ok("de titel staat in de vraag, want de vraagtekst is uniek per merk", openVraagTekst("Cv-ketel vervangen").includes("Cv-ketel vervangen"));
   ok("twee pagina's geven twee vragen", openVraagTekst("A") !== openVraagTekst("B"));
   eq("een lang antwoord mag", String(OPEN_VRAAG_MAX), "3000");
+});
+
+group("de content brief: wat code met de uitvoer doet (§6.1)", () => {
+  const vraag = (v: string, extra: Partial<ContentBrief["vragen"][number]> = {}): ContentBrief["vragen"][number] => ({
+    vraag: v, waarom: "Omdat het de pagina eigener maakt.", soort: "praktijk", antwoord_type: "tekst_lang", opties: null, merkbreed: false, ...extra,
+  });
+  const ruw: ContentBrief = {
+    zoekintentie: "Een rijschool vinden — snel",
+    deelvragen: [],
+    concurrentie: { goed: [], gaten: [] },
+    vakkennis: [
+      { uitleg: "Met bron", bron_url: "https://www.cbr.nl" },
+      { uitleg: "Zonder bron", bron_url: "geen adres" },
+      { uitleg: "Ftp telt niet", bron_url: "ftp://cbr.nl" },
+    ],
+    valkuilen: [],
+    vragen: [
+      vraag("Wat kost een rijles?"),
+      vraag("Welke keuze?", { antwoord_type: "keuze", opties: ["Alleen"] }),
+      vraag("Welke dag?", { antwoord_type: "keuze", opties: ["Maandag", "Dinsdag"] }),
+      vraag("Een vraag", { antwoord_type: "tekst_kort", opties: ["x", "y"] }),
+      vraag("een VRAAG!"),
+      ...Array.from({ length: 10 }, (_, i) => vraag(`Voorbeeld ${i}?`)),
+    ],
+    ook_voor_deze_pagina: ["a", "b", "a", "c"],
+  };
+  const eerdere = [
+    { id: "a", question: "Iets open", status: "open" },
+    { id: "b", question: "Wat kost een rijles", status: "beantwoord" },
+  ];
+  const uit = verwerkBrief(ruw, eerdere);
+  eq("vakkennis alleen met een webadres", String(uit.onderzoek.vakkennis.length), "1");
+  ok("de schrijfregels gaan over de tekst", !uit.onderzoek.zoekintentie.includes("—"));
+  ok("een vraag die het merk al kreeg valt weg", !uit.vragen.some((v) => v.vraag.startsWith("Wat kost")));
+  ok("een gelijke vraag in dezelfde brief ook", uit.vragen.filter((v) => normaliseerVraag(v.vraag) === "een vraag").length === 1);
+  eq("hooguit acht", String(uit.vragen.length), String(MAX_BRIEFVRAGEN));
+  eq("keuze met één optie wordt korte tekst", uit.vragen.find((v) => v.vraag === "Welke keuze?")?.antwoord_type ?? "", "tekst_kort");
+  eq("keuze met twee opties blijft keuze", String(uit.vragen.find((v) => v.vraag === "Welke dag?")?.opties?.length), "2");
+  eq("opties bij een gewone vraag vallen weg", String(uit.vragen.find((v) => v.vraag === "Een vraag")?.opties), "null");
+  eq("alleen open vragen van dit merk worden gekoppeld, één keer", uit.koppel.join(","), "a");
+  eq("praktijk wordt praktisch", kindVoorSoort("praktijk"), "praktisch");
+  eq("twijfel wordt grenzen", kindVoorSoort("twijfel"), "grenzen");
+  eq("feit wordt aanvulling", kindVoorSoort("feit"), "aanvulling");
+});
+
+group("de opdracht voor de brief (§6.1)", () => {
+  ok("de voorbeeldvragen staan er letterlijk in", BRIEF_SYSTEEM.includes("Slecht: \"Wat is faalangst?\"") && BRIEF_SYSTEEM.includes("Beter: \"Kun je een typisch voorbeeld"));
+  ok("acht is een bovengrens, nul mag", BRIEF_SYSTEEM.includes("Nul vragen is een goed antwoord"));
+  ok("geen gedachtestreepje in de opdracht", !/[—–]/.test(BRIEF_SYSTEEM));
+  const invoer = briefInvoer({
+    titel: "Rijles in Zwolle", paginasoort: "dienstpagina", handeling: "nieuw", zoekintentie: null, waarom: null,
+    doelvragen: [{ vraag: "Beste rijschool Zwolle?", antwoord: "x".repeat(5000) }], merknaam: "Rijschool Rem",
+    werkgebied: ["Zwolle"], bedrijf: "Bedrijf: Rijschool Rem", huidigeTekst: null, eerdereVragen: [{ id: "q1", vraag: "Hoe lang?", stand: "open" }],
+  });
+  ok("een winnend antwoord gaat ingekort mee", invoer.length < 3000);
+  ok("eerdere vragen met id en stand", invoer.includes("[q1] (open) Hoe lang?"));
 });

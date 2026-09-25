@@ -62,6 +62,9 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   // Tot twaalf batches indelen (vier tegelijk) plus twintig korte oordelen,
   // allemaal op het goedkope model; de eerste run van een merk is de langste.
   fact_register: 30,
+  // Eén aanroep op het sterke model met zoeken op het web (§10 van
+  // contentketen-opnieuw.md: ongeveer een minuut). Nog niet nagemeten.
+  pagina_brief: 90,
   technical_audit: 10, // een handvol HTTP-verzoeken, geen AI
   verify_publication: 8, // één pagina ophalen en vergelijken
   measure_impact: 2, // plant alleen taken in

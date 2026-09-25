@@ -5149,6 +5149,192 @@ async function main(): Promise<void> {
     }
 
     // ════════════════════════════════════════════════════════════════════════
+    // De content brief (contentketen-opnieuw.md WP5, §6.1)
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: de briefs van een maand draaien na
+    // elkaar, zodat de tweede de vragen van de eerste ziet. Draaien ze naast
+    // elkaar, of ziet de tweede de eerste niet, dan stellen vijf pagina's
+    // dezelfde vraag in vijf varianten. En een brief die opgeeft mag de rij
+    // en de pagina niet ophouden.
+    // ════════════════════════════════════════════════════════════════════════
+    console.log("\nDe content brief (WP5)");
+    {
+      const { runJob } = await import("@/lib/jobs/handlers");
+      const { handleFailure } = await import("@/lib/jobs/worker");
+      const { planBriefs } = await import("@/lib/pagina/taken");
+      const { maakOpenVraag } = await import("@/lib/pagina/open-vraag");
+      const { MAX_ATTEMPTS } = await import("@/lib/jobs/types");
+
+      const eigenaar = randomUUID();
+      const merk = randomUUID();
+      const ander = randomUUID();
+      const cluster = randomUUID();
+      await db.client.query("insert into auth.users (id, email) values ($1, 'brieftest@example.com')", [eigenaar]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, service_regions, verhalen)
+         values ($1, $3, 'Rijschool Rem', 'https://rijschool-rem.nl', 'Rijschool Rem', 'klaar', '{Zwolle}',
+                 'Onze eerste leerling was de buurvrouw.'),
+                ($2, $3, 'Ander Merk', 'https://ander-merk.nl', 'Ander Merk', 'klaar', '{}', null)`,
+        [merk, ander, eigenaar],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'Rijschool Rem, rijlessen', 'https://rijschool-rem.nl', 'rijlessen', 'gereed')`,
+        [cluster, eigenaar, merk],
+      );
+      await db.client.query(
+        `insert into public.brand_facts (profile_id, text, source, kind, fact_key)
+         values ($1, 'Een rijles duurt 60 minuten.', 'site', 'site', 'rijles-duur')`,
+        [merk],
+      );
+      const { rows: bestaand } = await db.client.query(
+        `insert into public.fact_requests (profile_id, question, reason, status, scope, answer)
+         values ($1, 'Hoeveel lessen heeft een leerling gemiddeld nodig?', 'test', 'open', 'merk', null),
+                ($1, 'Wat kost een rijles?', 'test', 'beantwoord', 'merk', 'Een rijles kost 62 euro.'),
+                ($2, 'Een vraag van een ander merk?', 'test', 'open', 'merk', null)
+         returning id, profile_id, question`,
+        [merk, ander],
+      );
+      const openVanMerk = bestaand.find((r) => r.question.startsWith("Hoeveel")).id as string;
+      const vanAnder = bestaand.find((r) => r.profile_id === ander).id as string;
+
+      const stukken: string[] = [];
+      for (const titel of ["Rijles in Zwolle", "Faalangst bij rijles", "Spoedcursus rijbewijs"]) {
+        const { rows } = await db.client.query(
+          `insert into public.content_pieces (analysis_id, title, type, status, action)
+           values ($1, $2, 'landing', 'briefing', 'nieuw') returning id`,
+          [cluster, titel],
+        );
+        stukken.push(rows[0].id as string);
+        await maakOpenVraag(admin as never, { profileId: merk, analysisId: cluster, pieceId: rows[0].id, paginaTitel: titel, onderwerp: titel });
+      }
+
+      const briefLog: string[] = [];
+      const brief = (vragen: { vraag: string; merkbreed?: boolean }[], ookVoor: string[]) => ({
+        zoekintentie: "Een goede rijschool in de buurt vinden",
+        deelvragen: ["Hoeveel lessen heb ik nodig?"],
+        concurrentie: { goed: ["Duidelijke prijzen"], gaten: ["Geen uitleg over het examen"] },
+        vakkennis: [
+          { uitleg: "Het praktijkexamen duurt 55 minuten.", bron_url: "https://www.cbr.nl/nl/rijbewijs-halen" },
+          { uitleg: "Een uitleg zonder bron.", bron_url: "" },
+        ],
+        valkuilen: ["Denken dat een pakket altijd goedkoper is"],
+        vragen: vragen.map((v) => ({
+          vraag: v.vraag,
+          waarom: "Dan staat er een echt voorbeeld op de pagina.",
+          soort: "praktijk",
+          antwoord_type: "tekst_lang",
+          opties: null,
+          merkbreed: v.merkbreed ?? false,
+        })),
+        ook_voor_deze_pagina: ookVoor,
+      });
+      let beurt = 0;
+      __setTestTransport((async (opts: { schemaName: string; user: string; schema: { parse: (x: unknown) => unknown } }) => {
+        if (opts.schemaName !== "content_brief") throw new Error(`onverwacht schema ${opts.schemaName}`);
+        briefLog.push(opts.user);
+        beurt++;
+        const antwoord =
+          beurt === 1
+            ? brief(
+                [
+                  { vraag: "Wat kost een rijles." },
+                  ...Array.from({ length: 10 }, (_, i) => ({ vraag: `Welk voorbeeld nummer ${i + 1} kun je geven?` })),
+                ],
+                [openVanMerk, vanAnder, "verzonnen-id"],
+              )
+            : brief([{ vraag: "Welk voorbeeld nummer 1 kun je geven?" }, { vraag: "Hoe begin je met een bange leerling?", merkbreed: true }], []);
+        return { parsed: opts.schema.parse(antwoord), raw: { stub: true } };
+      }) as never);
+
+      async function briefTaken(): Promise<{ id: string; payload_json: { pieceId: string } }[]> {
+        const { rows } = await db.client.query(
+          "select * from public.jobs where type = 'pagina_brief' and status = 'queued' order by created_at asc",
+        );
+        return rows;
+      }
+      async function draaiEen(): Promise<void> {
+        const [taak] = await briefTaken();
+        await db.client.query("update public.jobs set status = 'running' where id = $1", [taak.id]);
+        await runJob({ admin: admin as never, job: { ...(taak as never as object), status: "running" } as never });
+        await db.client.query("update public.jobs set status = 'done' where id = $1", [taak.id]);
+      }
+
+      await planBriefs(admin as never, stukken);
+      const eerste = await briefTaken();
+      ok("de briefs van een maand staan na elkaar: één taak in de rij", eerste.length === 1, String(eerste.length));
+      ok("en die taak is voor de eerste pagina", eerste[0]?.payload_json.pieceId === stukken[0]);
+
+      await draaiEen();
+      const { rows: na1 } = await db.client.query("select brief_json from public.content_pieces where id = $1", [stukken[0]]);
+      const b1 = na1[0].brief_json as { onderzoek: { vakkennis: { bron_url: string }[] }; versie: number };
+      ok("de brief is bewaard", Boolean(b1?.onderzoek) && b1.versie === 1);
+      ok("vakkennis zonder adres valt weg", b1.onderzoek.vakkennis.length === 1);
+      const { rows: vragen1 } = await db.client.query(
+        `select question, reason from public.fact_requests
+          where $1 = any(content_piece_ids) and not open_vraag and profile_id = $2 and question like 'Welk%'`,
+        [stukken[0], merk],
+      );
+      ok("hooguit 8 vragen", vragen1.length === 8, String(vragen1.length));
+      ok("elk met een reden", vragen1.every((v) => Boolean(v.reason)));
+      const { rows: dubbel } = await db.client.query(
+        "select count(*)::int as n from public.fact_requests where profile_id = $1 and lower(question) like 'wat kost een rijles%'",
+        [merk],
+      );
+      ok("een vraag die het merk al kreeg, komt er niet nog eens", dubbel[0].n === 1, String(dubbel[0].n));
+      const { rows: koppeling } = await db.client.query(
+        "select id, content_piece_ids from public.fact_requests where id = any($1::uuid[])",
+        [[openVanMerk, vanAnder]],
+      );
+      ok(
+        "een open vraag uit ook_voor_deze_pagina hangt nu ook aan de pagina",
+        (koppeling.find((r) => r.id === openVanMerk)?.content_piece_ids as string[]).includes(stukken[0]),
+      );
+      ok(
+        "een vraag van een ander merk niet",
+        !((koppeling.find((r) => r.id === vanAnder)?.content_piece_ids as string[]) ?? []).includes(stukken[0]),
+      );
+      ok("het model kreeg blok A mee", briefLog[0].includes("Een rijles duurt 60 minuten.") && briefLog[0].includes("Onze eerste leerling"));
+      ok("en het merkbrede antwoord", briefLog[0].includes("Een rijles kost 62 euro."));
+
+      const tweede = await briefTaken();
+      ok("daarna is de volgende pagina aan de beurt", tweede.length === 1 && tweede[0].payload_json.pieceId === stukken[1]);
+      await draaiEen();
+      ok("de tweede brief ziet de vragen van de eerste", briefLog[1].includes("Welk voorbeeld nummer 3 kun je geven?"));
+      const { rows: vragen2 } = await db.client.query(
+        "select question, scope, analysis_id from public.fact_requests where $1 = any(content_piece_ids) and not open_vraag",
+        [stukken[1]],
+      );
+      ok("en stelt de vraag van de eerste niet opnieuw", vragen2.length === 1, vragen2.map((v) => v.question).join(" | "));
+      ok("een merkbrede vraag hangt aan geen cluster", vragen2[0]?.scope === "merk" && vragen2[0]?.analysis_id === null);
+
+      const aantalAanroepen = briefLog.length;
+      await db.client.query(
+        "insert into public.jobs (type, payload_json, analysis_id, dedupe_key, status) values ('pagina_brief', $1, $2, 'test-herhaal', 'queued')",
+        [JSON.stringify({ pieceId: stukken[0], rij: [] }), cluster],
+      );
+      const herhaal = (await briefTaken()).find((t) => t.payload_json.pieceId === stukken[0])!;
+      await db.client.query("update public.jobs set status = 'running' where id = $1", [herhaal.id]);
+      await runJob({ admin: admin as never, job: { ...(herhaal as never as object), status: "running" } as never });
+      await db.client.query("update public.jobs set status = 'done' where id = $1", [herhaal.id]);
+      ok("een tweede run doet geen aanroep", briefLog.length === aantalAanroepen);
+
+      // De derde brief geeft definitief op: de rij loopt af, de pagina gaat door.
+      const [derde] = await briefTaken();
+      ok("de derde pagina is aan de beurt", derde?.payload_json.pieceId === stukken[2]);
+      await handleFailure(admin as never, { ...(derde as never as object), attempts: MAX_ATTEMPTS } as never, "model onbereikbaar");
+      const { rows: na3 } = await db.client.query("select brief_json from public.content_pieces where id = $1", [stukken[2]]);
+      ok("een opgegeven brief krijgt een brief zonder onderzoek", na3[0].brief_json && na3[0].brief_json.onderzoek === null);
+      const { rows: vragen3 } = await db.client.query(
+        "select open_vraag from public.fact_requests where $1 = any(content_piece_ids)",
+        [stukken[2]],
+      );
+      ok("en heeft alleen de open vraag", vragen3.length === 1 && vragen3[0].open_vraag === true);
+
+      __setTestTransport(createOpenAiStub(log));
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
     // Onderwerpen zijn concept vóór het gesprek, definitief erna (0074,
     // docs/optimalisatielab-orbit-engine.md werkpakket A §3.2).
     //

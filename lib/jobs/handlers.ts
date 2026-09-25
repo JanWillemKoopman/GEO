@@ -70,6 +70,7 @@ import { availableEngineIds } from "@/lib/engines/registry";
 import type { Kandidaat } from "@/lib/sales/discovery";
 import { refreshInventory } from "@/lib/pipeline/refresh-inventory";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
+import { voerBriefUit, briefGafOp } from "@/lib/pagina/taken";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import { measureAiOverviewById } from "@/lib/pipeline/measure-ai-overview";
 import { measureLlmResponseById } from "@/lib/pipeline/measure-llm-response";
@@ -702,6 +703,11 @@ const handlers: { [T in JobType]: Handler<T> } = {
         `${u.beoordeeld} beoordeeld, ${u.echteConflicten} echte conflicten, ` +
         `${u.automatischOpgelost} vanzelf opgelost (klant vóór site).`,
     );
+  },
+
+  // ── De contentketen (docs/tasks/contentketen-opnieuw.md §7.4) ────────────
+  pagina_brief: async ({ admin }, payload) => {
+    await voerBriefUit(admin, payload);
   },
 
   // ── Technische GEO-audit (optimalisatie.md 3B) ────────────────────────────
@@ -1463,6 +1469,12 @@ export async function scheduleFollowUpAfterFailure(
   //
   // De opvolger hangt daarom niet meer aan het slagen van de stap maar aan de
   // tabel in `lib/jobs/chain.ts`, en die geldt in beide takken.
+  // ── Een opgegeven brief houdt de rij en de pagina niet op (§6.1) ─────────
+  if ((job.type as JobType) === "pagina_brief") {
+    await briefGafOp(admin, job);
+    return;
+  }
+
   const volgende = nextInChain(job.type as JobType);
   if (volgende && job.profile_id) {
     // Alleen als deze stap wél in de keten stond. Een stap die los is

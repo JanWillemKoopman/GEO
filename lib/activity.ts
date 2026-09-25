@@ -59,6 +59,7 @@ export const TAAK_TEKST: Record<JobType, string | null> = {
   // Intern: de klant ziet het conflictscherm niet (§8.3 van
   // contentpijplijn-publicatiewaardig.md), dus ook deze taak niet.
   fact_register: null,
+  pagina_brief: "een pagina voorbereid en de vragen erbij opgesteld",
   technical_audit: "gecontroleerd of AI-assistenten je site mogen lezen",
   verify_publication: "gecontroleerd of je pagina echt live staat",
   measure_impact: "een hermeting ingepland",
