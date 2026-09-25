@@ -67,8 +67,10 @@ daarna de index in `supabase/README.md` bij.
 
 Rationale met cijfers per punt staat in `docs/logbook.md`.
 
-1. Elke promptinstructie krijgt een deterministisch vangnet in code, nooit alleen vertrouwen op
-   wat het model belooft te doen.
+1. Een instructie over harde feiten (bedragen, getallen, termijnen, garanties, keurmerken) of
+   een mechanische regel krijgt een deterministisch vangnet in code, nooit alleen vertrouwen op wat
+   het model belooft. Een instructie over stijl, toon of lengte krijgt dat níet: dat maakte de
+   vorige contentketen star (`docs/tasks/contentketen-opnieuw.md` §3).
 2. Rekenkunde staat in een pure module zonder `server-only`, testbaar vanuit `scripts/test-unit.ts`.
 3. Onbekend is een betere waarde dan een verkeerde: onbruikbare modeloutput wordt `null`, nooit 0
    en nooit een gok.

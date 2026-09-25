@@ -5,15 +5,7 @@ import { getOwnedProfile } from "@/lib/profiles";
 import { markPosted, removePage, assignToMonth, moveToBacklog, setPageDate } from "@/lib/plans";
 import { swapWithNeighbour, type OrderablePage } from "@/lib/plan-order";
 import { isStaff } from "@/lib/staff";
-import { keurTekstGoed } from "@/lib/content-approve";
 import { checkBudgetForProfile } from "@/lib/spend-limit";
-import {
-  startVoorbereiding,
-  probeerTeSchrijven,
-  SCHRIJFPAGINA_KOLOMMEN,
-  SCHRIJFBLOKKADE_TEKST,
-  type TeSchrijvenPagina,
-} from "@/lib/plan-write-start";
 
 /**
  * POST /api/profiles/[id]/plan/pages/[pageId], een handeling op één pagina.
@@ -103,69 +95,9 @@ export async function POST(
     const budget = await checkBudgetForProfile(id);
     if (!budget.ok) return NextResponse.json({ error: budget.message }, { status: 402 });
 
-    const { data: volledig } = await admin
-      .from("planned_pages")
-      .select(SCHRIJFPAGINA_KOLOMMEN)
-      .eq("id", pageId)
-      .eq("profile_id", id)
-      .maybeSingle();
-
-    if (!volledig) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
-
-    // ── Ook de beheerder schrijft niet om de vragen heen (23 september 2026) ──
-    //
-    // Deze knop sloeg tot die dag de vragenronde over. Nu slaat hij alleen nog
-    // de twee WACHTREGELS over (de vrijgegeven maand en de schrijfdatum), en
-    // nooit de vragen: het besluit in `docs/tasks/contentflow-een-lijn.md` §1
-    // geldt voor iedereen. Nog niet voorbereid: voorbereiding starten. Wel
-    // voorbereid: de schrijfpoort vragen, zonder datumregel.
-    const nu = new Date();
-    const pagina = volledig as unknown as TeSchrijvenPagina & { content_piece_id?: string | null };
-    const { data: koppeling } = await admin
-      .from("planned_pages")
-      .select("content_piece_id")
-      .eq("id", pageId)
-      .maybeSingle();
-    let pieceId = (koppeling?.content_piece_id as string | null) ?? null;
-
-    if (!pieceId) {
-      const uitkomsten = await startVoorbereiding(admin, [pagina], nu, { negeerPlanning: true });
-      const u = uitkomsten.get(pageId);
-      if (!u) return NextResponse.json({ error: "Deze pagina wordt al geschreven of is al klaar." }, { status: 409 });
-      if (u.uitkomst === "geblokkeerd") {
-        return NextResponse.json({ error: SCHRIJFBLOKKADE_TEKST[u.reden] }, { status: 409 });
-      }
-      if (u.uitkomst === "al_klaar") {
-        return NextResponse.json({ ok: true, melding: "Er stond al een afgeronde tekst voor deze pagina klaar." });
-      }
-      if (u.uitkomst === "gestart") {
-        return NextResponse.json({
-          ok: true,
-          melding: "ORBIT ENGINE bereidt deze pagina nu voor. Zodra de vragen beantwoord zijn, begint het schrijven.",
-        });
-      }
-      pieceId = u.pieceId;
-    }
-
-    const probeer = await probeerTeSchrijven(admin, pieceId, nu, { negeerPlanning: true });
-    if (probeer.uitkomst === "geschreven_ingepland") {
-      return NextResponse.json({ ok: true, melding: "ORBIT ENGINE begint nu aan deze pagina." });
-    }
-    if (probeer.uitkomst === "geblokkeerd") {
-      return NextResponse.json({ error: SCHRIJFBLOKKADE_TEKST[probeer.reden] }, { status: 409 });
-    }
-    if (probeer.uitkomst === "mislukt") {
-      return NextResponse.json({ error: "ORBIT ENGINE kon het schrijven niet starten." }, { status: 500 });
-    }
-    const WACHT_TEKST: Record<string, string> = {
-      vragen_open: "Er staan nog vragen open voor deze pagina. Daarna begint het schrijven vanzelf.",
-      voorbereiding_loopt: "De voorbereiding loopt nog. Daarna volgen de vragen.",
-      te_weinig_onderbouwd: "Er is te weinig bekend om deze pagina te schrijven. De klant kiest eerst: algemeen schrijven of laten vallen.",
-    };
-    return NextResponse.json(
-      { error: WACHT_TEKST[probeer.reden] ?? "Deze pagina wordt al geschreven of is al klaar." },
-      { status: 409 },
-    );
+    // De voorbereiding en het schrijven komen terug in WP6 van
+    // `docs/tasks/contentketen-opnieuw.md` (`lib/pagina/start.ts`).
+    return NextResponse.json({ error: "Schrijven is tijdelijk niet beschikbaar." }, { status: 503 });
   }
 
   // ── Inplannen en terugleggen ─────────────────────────────────────────────
@@ -197,22 +129,8 @@ export async function POST(
       return NextResponse.json({ error: result.probleem }, { status: 409 });
     }
 
-    // In een maand die al vrijgegeven is: meteen voorbereiden, zodat de vragen
-    // er vandaag staan en niet pas na de cron van morgenochtend. Kost ongeveer
-    // twee dollarcent (contentflow-een-lijn.md §3.1); het schrijven zelf wacht
-    // op de antwoorden en valt dus niet onder deze klik.
-    try {
-      const { data: rij } = await admin
-        .from("planned_pages")
-        .select(SCHRIJFPAGINA_KOLOMMEN)
-        .eq("id", pageId)
-        .eq("status", "gepland")
-        .eq("plan_months.status", "goedgekeurd")
-        .maybeSingle();
-      if (rij) await startVoorbereiding(admin, [rij as unknown as TeSchrijvenPagina], new Date());
-    } catch (err) {
-      console.error(`Voorbereiding na inplannen van ${pageId} mislukte:`, err);
-    }
+    // In een vrijgegeven maand start hier de voorbereiding (WP6 van
+    // `docs/tasks/contentketen-opnieuw.md`, `lib/pagina/start.ts`).
     return NextResponse.json({ ok: true });
   }
 
@@ -276,27 +194,9 @@ export async function POST(
   }
 
   if (actie === "goedkeuren") {
-    // ── Goedkeuren is overal hetzelfde (23 september 2026) ──────────────────
-    // Met een tekst: `keurTekstGoed()`, dezelfde eindpoort en dezelfde twee
-    // rijen als in de bibliotheek. Zonder tekst valt er niets goed te keuren.
-    const { data: rij } = await admin
-      .from("planned_pages")
-      .select("content_piece_id, content_pieces(analysis_id)")
-      .eq("id", pageId)
-      .maybeSingle();
-    const pieceId = (rij?.content_piece_id as string | null) ?? null;
-    const analysisId =
-      ((rij as { content_pieces?: { analysis_id?: string } | null } | null)?.content_pieces?.analysis_id as
-        | string
-        | undefined) ?? null;
-    if (!pieceId || !analysisId) {
-      return NextResponse.json({ error: "Er is nog geen tekst om goed te keuren." }, { status: 409 });
-    }
-    const uitkomst = await keurTekstGoed(admin, { pieceId, analysisId, userId: user.id });
-    if (!uitkomst.ok) {
-      return NextResponse.json({ error: uitkomst.error, openVragen: uitkomst.openVragen }, { status: uitkomst.status });
-    }
-    return NextResponse.json({ ok: true });
+    // Goedkeuren komt terug in WP7 van `docs/tasks/contentketen-opnieuw.md`
+    // (`lib/pagina/goedkeuren.ts`).
+    return NextResponse.json({ error: "Goedkeuren is tijdelijk niet beschikbaar." }, { status: 503 });
   }
 
   if (actie === "afwijzen") {

@@ -13,8 +13,8 @@
  *
  * Puur (conventie 2).
  */
-import { formatDag, CONTROLE_HOUDT_TEGEN, type PaginaStand } from "@/lib/pagina-stand";
-import { schrijfdatum } from "@/lib/content-write-gate";
+import { formatDag, type PaginaStand } from "@/lib/pagina-stand";
+import { schrijfdatum } from "@/lib/pagina/schrijfpoort";
 
 /**
  * ── DE DRIE GROEPEN VAN DE BIBLIOTHEEK (avond 23 september 2026) ───────────
@@ -67,13 +67,8 @@ export function statusRegel(r: { stand: PaginaStand; openVragen: number; datum: 
       if (n > 1) return `${n} openstaande vragen om de pagina te kunnen schrijven`;
       return "Openstaande vragen om de pagina te kunnen schrijven";
     }
-    case "keuze":
-      return "Te weinig gegevens om goed te schrijven: kies hoe we verder gaan";
     case "goedkeuren":
-      // Punt 42: niet "keur hem goed" bij een tekst die de keuring tegenhoudt.
-      return stand.label === CONTROLE_HOUDT_TEGEN
-        ? "Tekst is klaar, maar onze controle houdt hem tegen: bekijk eerst de punten"
-        : "Tekst is klaar: lees hem en keur hem goed";
+      return "Tekst is klaar: lees hem en keur hem goed";
     case "live_zetten":
       return "Goedgekeurd: zet hem op je site";
     case "voorbereiden":

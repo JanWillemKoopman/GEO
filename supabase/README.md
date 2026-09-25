@@ -678,3 +678,12 @@ conflict, straks het logboek van de eindredactie (WP5) en het oordeel over publi
 Voegt `ai_calls.duration_ms` toe (integer, de duur van de aanroep in milliseconden) met een index
 op soort en tijd, voor het besluit over de achtergrondmodus. Additief en idempotent. WP3 van
 `docs/tasks/contentpijplijn-publicatiewaardig.md`. Op productie toegepast op 25 september 2026.
+
+## 0115 — De contentketen opnieuw
+
+Voegt `content_pieces.brief_json` (de content brief) en `content_pieces.controle_json` (de uitkomst
+van de controle en de bevestigde gele zinnen) toe, `fact_requests.open_vraag` (de vaste open vraag per
+pagina, met een unieke index zodat er per pagina hooguit één is), en `profiles.verhalen` en
+`profiles.stem_voorbeelden`. Een kolom `open_vraag` en geen nieuwe `kind`, omdat die check-constraint
+alleen te verruimen is door hem eerst te verwijderen. Additief en idempotent. Zie
+`docs/tasks/contentketen-opnieuw.md` §7.1. Op productie toegepast op 25 september 2026.

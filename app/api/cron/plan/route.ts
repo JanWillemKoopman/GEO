@@ -2,12 +2,6 @@ import { NextResponse } from "next/server";
 import { serverEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
-import {
-  startVoorbereiding,
-  probeerTeSchrijven,
-  SCHRIJFPAGINA_KOLOMMEN,
-  type TeSchrijvenPagina,
-} from "@/lib/plan-write-start";
 
 /**
  * GET /api/cron/plan, de motor onder het contentplan (fase 4, zie `docs/logbook.md`).
@@ -54,67 +48,11 @@ export async function GET(request: Request) {
   const admin = createAdminClient();
   const nu = new Date();
 
-  // ── Sinds 23 september 2026: voorbereiden en de schrijfpoort, nooit direct schrijven ──
-  //
-  // Deze cron schreef tot die dag elke pagina van een vrijgegeven maand zodra
-  // hij binnen tien dagen viel, zonder één vraag te stellen. Dat botst met het
-  // besluit dat er pas geschreven wordt als elke vraag van de pagina beantwoord
-  // of overgeslagen is (`docs/tasks/contentflow-een-lijn.md` §1).
-  //
-  // Nu is hij het VANGNET onder twee dingen die elders gebeuren: het vrijgeven
-  // van een maand start de voorbereiding, en het laatste antwoord start het
-  // schrijven. Hier worden pagina's opgepakt die daar doorheen glipten:
-  //
-  //   1. pagina's van vrijgegeven maanden zonder rij in `content_pieces`:
-  //      voorbereiding starten;
-  //   2. pagina's met een rij die nog op `briefing` staat: de schrijfpoort
-  //      opnieuw vragen. Dat is ook hoe de tiendaagse schrijfdatum bereikt
-  //      wordt: de poort zegt "nog niet" tot die dag, en daarna "ja".
-  const { data, error } = await admin
-    .from("planned_pages")
-    .select(`${SCHRIJFPAGINA_KOLOMMEN}, content_piece_id`)
-    .eq("status", "gepland")
-    .eq("is_buffer", false)
-    .not("scheduled_for", "is", null)
-    .eq("plan_months.status", "goedgekeurd")
-    .order("scheduled_for");
-
-  if (error) {
-    console.error("Plan-cron: pagina's ophalen mislukt:", error.message);
-    return NextResponse.json({ error: "Ophalen mislukt.", detail: error.message }, { status: 500 });
-  }
-
-  const pages = (data ?? []) as unknown as (TeSchrijvenPagina & { content_piece_id: string | null })[];
-  const geblokkeerd: Record<string, number> = {};
-  const wacht: Record<string, number> = {};
-  let voorbereiding = 0;
-  let ingepland = 0;
-
-  const zonderRij = pages.filter((p) => !p.content_piece_id);
-  const uitkomsten = await startVoorbereiding(admin, zonderRij, nu);
-  for (const u of uitkomsten.values()) {
-    if (u.uitkomst === "gestart") voorbereiding++;
-    else if (u.uitkomst === "geblokkeerd") tel(geblokkeerd, u.reden);
-  }
-
-  for (const page of pages.filter((p) => p.content_piece_id)) {
-    const uitkomst = await probeerTeSchrijven(admin, page.content_piece_id!, nu);
-    if (uitkomst.uitkomst === "geschreven_ingepland") ingepland++;
-    else if (uitkomst.uitkomst === "wacht") tel(wacht, uitkomst.reden);
-    else if (uitkomst.uitkomst === "geblokkeerd") tel(geblokkeerd, uitkomst.reden);
-    else tel(geblokkeerd, "inplannen_mislukt");
-  }
-
+  // Het vangnet onder de contentketen (voorbereiding starten, schrijfpoort
+  // opnieuw vragen) komt terug in WP6 van `docs/tasks/contentketen-opnieuw.md`.
   const zoekdata = await planSearchConsoleSync(admin, nu);
 
-  return NextResponse.json({
-    bekeken: pages.length,
-    voorbereiding,
-    ingepland,
-    wacht,
-    geblokkeerd,
-    zoekdata,
-  });
+  return NextResponse.json({ zoekdata });
 }
 
 /**
@@ -149,8 +87,4 @@ async function planSearchConsoleSync(
   }
 
   return { merken: merken.length, ingepland };
-}
-
-function tel(teller: Record<string, number>, sleutel: string): void {
-  teller[sleutel] = (teller[sleutel] ?? 0) + 1;
 }

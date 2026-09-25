@@ -299,6 +299,14 @@ export interface ClusterLabel {
 export type BusinessModel = "retailer" | "platform" | "dienstverlener" | "fabrikant" | "overig";
 
 /** Klantprofiel (accountniveau): het grondige, bedrijfsbrede onderzoek, één keer per merk. */
+/** Eén stemvoorbeeld (migratie 0115, `docs/tasks/contentketen-opnieuw.md` §6.10). */
+export interface StemVoorbeeld {
+  url: string;
+  tekst: string | null;
+  opgehaald_op: string | null;
+  fout: string | null;
+}
+
 export interface Profile {
   id: string;
   user_id: string;
@@ -327,6 +335,10 @@ export interface Profile {
   personas: Persona[];
   proof_points: string[]; // ✅ contentkwaliteit (A2): citeerbare feiten uit de site
   style_samples: string[]; // ✅ contentkwaliteit (A3): letterlijke stijlvoorbeelden
+  /** De verhalen uit het gesprek met de ondernemer (migratie 0115, §6.3). */
+  verhalen?: string | null;
+  /** Eén tot drie adressen met de stem van het bedrijf, met de opgehaalde tekst (migratie 0115, B14). */
+  stem_voorbeelden?: StemVoorbeeld[] | null;
   raw_json: unknown | null;
   status: ProfileStatus;
   /** Search Console (migratie 0052). Leeg = niet gekoppeld. */
@@ -1021,6 +1033,14 @@ export interface ContentPiece {
   edit_log_json: unknown;
   /** Het oordeel over publicatiegereedheid (migratie 0114, §12.3). */
   readiness_json: unknown;
+  /**
+   * De content brief (migratie 0115, `docs/tasks/contentketen-opnieuw.md` §6.1):
+   * het onderzoek plus de bedrijfskennis die de schrijver kreeg. Gevuld betekent:
+   * de voorbereiding van deze pagina is klaar.
+   */
+  brief_json: unknown | null;
+  /** De uitkomst van de controle en de bevestigde gele zinnen (migratie 0115, §6.6). */
+  controle_json: unknown | null;
   cluster: string | null;
   body_markdown: string | null;
   meta_title: string | null;
@@ -1270,6 +1290,8 @@ export interface FactRequest {
   claim_key?: string | null;
   fact_ref?: string | null;
   verify_after?: string | null;
+  /** De vaste open vraag van een pagina (migratie 0115, besluit B3). */
+  open_vraag?: boolean;
 }
 
 /**

@@ -52,11 +52,7 @@ export function PublishBox({
   publishedUrl: string | null;
   check: PublishCheck | null;
   checkedAt: string | null;
-  /**
-   * Hoeveel bevindingen publicatie tegenhouden. Uit dezelfde bron als de
-   * kwaliteitsrail (`quality_json`), zodat er nooit twee tellingen naast elkaar
-   * staan die elkaar tegenspreken.
-   */
+  /** Hoeveel gele zinnen de ondernemer nog niet bevestigd heeft (`controle_json`). */
   blokkades: number;
 }) {
   const router = useRouter();

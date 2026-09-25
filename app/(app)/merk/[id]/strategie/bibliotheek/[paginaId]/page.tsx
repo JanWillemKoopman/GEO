@@ -6,14 +6,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { laadPagina } from "@/lib/pagina-data";
 import { leesHerkomst } from "@/lib/origin";
 import { formatDag, heeftEigenScherm } from "@/lib/pagina-stand";
-import { schrijfdatum } from "@/lib/content-write-gate";
-import { sectiesVanPagina } from "@/lib/pipeline/input-coverage";
-import type { ContentContract } from "@/lib/schemas/content-contract";
+import { schrijfdatum } from "@/lib/pagina/schrijfpoort";
 import { PaginaKop } from "@/components/pagina/pagina-kop";
 import { AanZet } from "@/components/pagina/aan-zet";
 import { Vragenlijst, type Vraag } from "@/components/pagina/vragenlijst";
-import { KeuzeKnoppen } from "@/components/pagina/knoppen";
-import { ContentDetail } from "@/app/(app)/analyses/[id]/bibliotheek/[pieceId]/content-detail";
 
 export const dynamic = "force-dynamic";
 
@@ -52,8 +48,10 @@ export async function generateMetadata({
  * beantwoorde vragen zijn om nog aan te passen, en geen lijst linkt er nog naartoe. Het adres blijft bestaan voor de standen waar de klant
  * iets moet doen of iets kan lezen.
  *
- * `paginaId` is het id van de plan-pagina, of, voor een tekst uit de oude route
- * die nog niet aan het plan hangt, het id van de tekst.
+ * `paginaId` is het id van de plan-pagina, of het id van de tekst.
+ *
+ * De weergave van een geschreven tekst (lezen, gele zinnen, goedkeuren) komt
+ * in WP7 van `docs/tasks/contentketen-opnieuw.md` (§6.9).
  */
 export default async function PaginaScherm({
   params,
@@ -90,20 +88,15 @@ export default async function PaginaScherm({
     />
   );
 
-  // ── Er is tekst: het bestaande scherm met de nieuwe kop erboven ────────────
+  // ── Er is tekst ─────────────────────────────────────────────────────────
+  // Tot WP7 van de ombouw staat hier alleen de stand (§6.9).
   const metTekst = ["goedkeuren", "live_zetten", "effect_meten", "effect_bekend"].includes(rij.stand.sleutel);
-  if (metTekst && rij.pieceId && rij.analysisId) {
-    const pieceId = rij.pieceId;
-    const analysisId = rij.analysisId;
+  if (metTekst) {
     return (
-      <ContentDetail
-        id={analysisId}
-        pieceId={pieceId}
-        terug={terug}
-        leesTitel={rij.naam}
-        paginaKop={kop}
-        stand={rij.stand}
-      />
+      <div className="flex flex-col gap-6">
+        {kop}
+        <AanZet stand={rij.stand} />
+      </div>
     );
   }
 
@@ -128,8 +121,6 @@ export default async function PaginaScherm({
             <a href="#vragen" className="btn-primary">
               {rij.stand.handeling}
             </a>
-          ) : rij.stand.sleutel === "keuze" && rij.pieceId && rij.analysisId ? (
-            <KeuzeKnoppen analysisId={rij.analysisId} pieceId={rij.pieceId} />
           ) : undefined
         }
       />
@@ -148,89 +139,36 @@ export default async function PaginaScherm({
         </section>
       )}
 
-      <WatDezePaginaDoet
-        why={voortraject.why}
-        voorWie={voortraject.voorWie}
-        doelvragen={voortraject.doelvragen}
-        secties={voortraject.secties}
-      />
+      <WatDezePaginaDoet why={voortraject.why} voorWie={voortraject.voorWie} />
     </div>
   );
 }
 
-function WatDezePaginaDoet({
-  why,
-  voorWie,
-  doelvragen,
-  secties,
-}: {
-  why: string | null;
-  voorWie: string | null;
-  doelvragen: string[];
-  secties: { heading: string; wachtOpVraag: boolean }[];
-}) {
+function WatDezePaginaDoet({ why, voorWie }: { why: string | null; voorWie: string | null }) {
+  if (!why && !voorWie) return null;
   return (
-    <div className="flex flex-col gap-4">
-      {(why || voorWie || doelvragen.length > 0) && (
-        <section className="card flex flex-col gap-3">
-          <h2 className="type-section">Waarom deze pagina</h2>
-          {why && <p className="type-body text-secondary">{why}</p>}
-          {voorWie && (
-            <p className="type-body">
-              <span className="text-muted">Voor wie: </span>
-              {voorWie}
-            </p>
-          )}
-          {doelvragen.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              <span className="type-caption text-muted">Vragen aan AI-assistenten waar deze pagina het antwoord op moet zijn</span>
-              <ul className="flex flex-col gap-1">
-                {doelvragen.slice(0, 6).map((v) => (
-                  <li key={v} className="type-body">
-                    {v}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </section>
+    <section className="card flex flex-col gap-3">
+      <h2 className="type-section">Waarom deze pagina</h2>
+      {why && <p className="type-body text-secondary">{why}</p>}
+      {voorWie && (
+        <p className="type-body">
+          <span className="text-muted">Voor wie: </span>
+          {voorWie}
+        </p>
       )}
-      {secties.length > 0 && (
-        <section className="card flex flex-col gap-3">
-          <h2 className="type-section">Wat er op de pagina moet</h2>
-          <ol className="flex flex-col gap-1.5">
-            {secties.map((s, i) => (
-              <li key={`${s.heading}-${i}`} className="flex items-baseline justify-between gap-3 type-body">
-                <span>{s.heading}</span>
-                {s.wachtOpVraag && <span className="chip chip-warning shrink-0">Wacht op een vraag</span>}
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
-    </div>
+    </section>
   );
 }
 
-/** Wat het voortraject van een pagina nodig heeft: de vragen, het contract, het waarom. */
+/** Wat het voortraject van een pagina nodig heeft: de vragen en het waarom. */
 async function laadVoortraject(
   admin: ReturnType<typeof createAdminClient>,
   pieceId: string | null,
   plannedPageId: string | null,
-): Promise<{
-  vragen: Vraag[];
-  secties: { heading: string; wachtOpVraag: boolean }[];
-  why: string | null;
-  voorWie: string | null;
-  doelvragen: string[];
-}> {
+): Promise<{ vragen: Vraag[]; why: string | null; voorWie: string | null }> {
   const [{ data: piece }, { data: plan }, { data: vraagRijen }] = await Promise.all([
     pieceId
-      ? admin
-          .from("content_pieces")
-          .select("contract_json, target_intent, brief_instruction, briefing_snapshot_json")
-          .eq("id", pieceId)
-          .maybeSingle()
+      ? admin.from("content_pieces").select("target_intent").eq("id", pieceId).maybeSingle()
       : Promise.resolve({ data: null }),
     plannedPageId
       ? admin.from("planned_pages").select("why, target_intent").eq("id", plannedPageId).maybeSingle()
@@ -238,16 +176,12 @@ async function laadVoortraject(
     pieceId
       ? admin
           .from("fact_requests")
-          .select("id, question, reason, kind, answer_type, options, suggested_answer, required, status, answer, section_refs, content_piece_ids, created_at")
+          .select("id, question, reason, kind, answer_type, options, suggested_answer, required, status, answer, content_piece_ids, open_vraag, created_at")
           .contains("content_piece_ids", [pieceId])
           .in("status", ["open", "beantwoord", "overgeslagen"])
           .order("created_at")
       : Promise.resolve({ data: [] }),
   ]);
-
-  const contract = (piece?.contract_json ?? null) as ContentContract | null;
-  const secties = contract?.sections ?? [];
-  const kopVan = new Map(secties.map((s) => [s.id, s.heading]));
 
   const rijen = (vraagRijen ?? []) as {
     id: string;
@@ -260,45 +194,31 @@ async function laadVoortraject(
     required: boolean | null;
     status: string;
     answer: string | null;
-    section_refs: string[] | null;
     content_piece_ids: string[] | null;
+    open_vraag: boolean | null;
   }[];
 
-  const openSecties = new Set<string>();
-  const vragen: Vraag[] = rijen.map((r) => {
-    const ids = pieceId ? sectiesVanPagina(r.section_refs, pieceId) : [];
-    if (r.status === "open") ids.forEach((s) => openSecties.add(s));
-    return {
-      id: r.id,
-      question: r.question,
-      reason: r.reason,
-      kind: r.kind,
-      answer_type: r.answer_type,
-      options: r.options,
-      suggested_answer: r.suggested_answer,
-      required: r.required,
-      status: r.status,
-      answer: r.answer,
-      onderdelen: ids.map((s) => kopVan.get(s)).filter((k): k is string => Boolean(k)),
-      paginas: (r.content_piece_ids ?? []).length,
-    };
-  });
+  const vragen: Vraag[] = rijen.map((r) => ({
+    id: r.id,
+    question: r.question,
+    reason: r.reason,
+    kind: r.kind,
+    answer_type: r.answer_type,
+    options: r.options,
+    suggested_answer: r.suggested_answer,
+    required: r.required,
+    status: r.status,
+    answer: r.answer,
+    onderdelen: [],
+    paginas: (r.content_piece_ids ?? []).length,
+  }));
   // Eerst wat nog open staat: daar begint de klant, en een beantwoorde vraag
   // bovenaan laat de lijst langer lijken dan het werk is.
   vragen.sort((a, b) => Number(a.status !== "open") - Number(b.status !== "open"));
 
-  const snapshot = (piece?.briefing_snapshot_json ?? null) as {
-    recommendation?: { targets?: { text?: string }[] };
-  } | null;
-  const doelvragen = (snapshot?.recommendation?.targets ?? [])
-    .map((t) => t.text?.trim())
-    .filter((t): t is string => Boolean(t));
-
   return {
     vragen,
-    secties: secties.map((s) => ({ heading: s.heading, wachtOpVraag: openSecties.has(s.id) })),
-    why: (plan?.why as string | null) ?? (piece?.brief_instruction as string | null) ?? null,
+    why: (plan?.why as string | null) ?? null,
     voorWie: (plan?.target_intent as string | null) ?? (piece?.target_intent as string | null) ?? null,
-    doelvragen,
   };
 }

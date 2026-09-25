@@ -1,5 +1,5 @@
 /**
- * EÉN STAND PER PAGINA (`docs/tasks/contentflow-een-lijn.md` §3 en §4.5).
+ * EÉN STAND PER PAGINA (`docs/tasks/contentketen-opnieuw.md` §7.5).
  *
  * ── WAAROM DEZE MODULE ─────────────────────────────────────────────────────
  *
@@ -21,23 +21,19 @@
  * heeft een check-constraint (migratie 0049), en die verruimen kan alleen door
  * hem eerst weg te halen: dat verbiedt conventie 4. Alles wat de nieuwe
  * standen nodig hebben staat er bovendien al: de voorbereiding is klaar zodra
- * `content_pieces.briefing_snapshot_json` gevuld is (`runBriefing()`), en de
- * vragen tellen we per pagina. Een opgeslagen stand zou daarnaast een derde
+ * `content_pieces.brief_json` gevuld is (de content brief), en de vragen
+ * tellen we per pagina. Een opgeslagen stand zou daarnaast een derde
  * waarheid zijn die uit de pas kan lopen.
  *
  * Puur en zonder `server-only` (conventie 2).
  */
 import type { PlannedPageStatus } from "@/lib/types/database";
-import { inputpoort } from "@/lib/content-input-gate";
-import { poortGraad } from "@/lib/pipeline/evidence-weight";
-import { schrijfpoort } from "@/lib/content-write-gate";
-import type { InputStand, WriteMode } from "@/lib/content-input-gate";
+import { schrijfpoort } from "@/lib/pagina/schrijfpoort";
 
 export type PaginaStandSleutel =
   | "gepland"
   | "voorbereiden"
   | "vragen"
-  | "keuze"
   | "wacht_op_datum"
   | "niet_ingepland"
   | "schrijven"
@@ -73,9 +69,6 @@ export interface PaginaStand {
   streefdatum: string | null;
 }
 
-/** Het label van een tekst die klaar is maar door de keuring wordt tegengehouden (punt 42). */
-export const CONTROLE_HOUDT_TEGEN = "Controle houdt hem tegen";
-
 export interface PaginaStandInput {
   plan: {
     status: PlannedPageStatus;
@@ -88,22 +81,11 @@ export interface PaginaStandInput {
   tekst: {
     status: string;
     needs_review: boolean;
-    /** Is de voorbereiding klaar (`briefing_snapshot_json` gevuld)? */
+    /** Is de content brief klaar (`brief_json` gevuld)? */
     voorbereid: boolean;
-    write_mode?: WriteMode;
-    /**
-     * Houdt de eigen keuring deze tekst tegen (`quality_verdict = block`)?
-     * Punt 42 van de kwaliteitsdoorlichting: de klant las "De tekst is klaar,
-     * keur hem goed" bij vier teksten die de keuring met zekerheid tegenhield.
-     * De eigenaar besliste op 24 september 2026: tonen mag, met een duidelijke
-     * melding.
-     */
-    tegengehouden?: boolean;
   } | null;
   /** Open vragen van deze pagina (`openVragenVanPagina`). */
   openVragen: number;
-  /** Het oordeel van de inputpoort, als dat bekend is. */
-  inputStand?: InputStand | null;
   /** Staat er een eindoordeel van de nameting? */
   effectBekend?: boolean;
   /** Vandaag als `YYYY-MM-DD`. */
@@ -212,8 +194,9 @@ export function paginaStand(input: PaginaStandInput): PaginaStand {
   }
 
   // ── Er is tekst ──────────────────────────────────────────────────────────
-  const heeftTekst = tekst !== null && (tekst.status === "ready" || tekst.status === "draft");
-  if (plan?.status === "schrijven" && !(tekst?.status === "ready")) {
+  // `draft` is schrijven of controleren: pas bij `ready` is er iets om te lezen.
+  const heeftTekst = tekst !== null && tekst.status === "ready";
+  if ((plan?.status === "schrijven" || tekst?.status === "draft") && !(tekst?.status === "ready")) {
     return schrijvend();
   }
   if (plan?.status === "goedgekeurd" || (tekst?.status === "ready" && !tekst.needs_review)) {
@@ -224,18 +207,6 @@ export function paginaStand(input: PaginaStandInput): PaginaStand {
       fase: 3,
       zin: "De tekst is goedgekeurd. Plaats hem op je site en vul daarna het adres in.",
       handeling: "Meld dat hij live staat",
-    });
-  }
-  if ((heeftTekst || plan?.status === "ter_goedkeuring") && tekst?.tegengehouden) {
-    return stand("goedkeuren", {
-      label: CONTROLE_HOUDT_TEGEN,
-      aanZet: "klant",
-      toon: "wacht",
-      fase: 2,
-      zin:
-        "De tekst is klaar, maar onze controle houdt hem nog tegen. Bekijk eerst de punten die " +
-        "openstaan: los ze op, of keur hem bewust toch goed als je vindt dat ze niet kloppen.",
-      handeling: "Bekijk de punten",
     });
   }
   if (heeftTekst || plan?.status === "ter_goedkeuring") {
@@ -270,8 +241,7 @@ export function paginaStand(input: PaginaStandInput): PaginaStand {
     // Van den Udenhout vijf pagina's van een vrijgegeven maand geen enkele taak
     // hadden (de maand ging vrij om 08:29, de code die voorbereidt stond pas om
     // 09:56 live). De plan-cron van 04:00 UTC pakt ze op; dat zegt deze zin.
-    // Zonder cluster weigert `bouwOpdracht()` de voorbereiding elke ochtend
-    // opnieuw (`geen_onderwerp`). Bij Van den Udenhout gold dat op
+    // Zonder cluster weigert de voorbereiding elke ochtend opnieuw. Bij Van den Udenhout gold dat op
     // 23 september 2026 voor twee van de vijf vrijgegeven pagina's; "we
     // beginnen morgenochtend" zou voor die twee niet waar zijn.
     if (plan && plan.onderwerp === false && !tekst) {
@@ -293,10 +263,8 @@ export function paginaStand(input: PaginaStandInput): PaginaStand {
   if (!tekst.voorbereid) return voorbereidend(streef, true);
 
   const poort = schrijfpoort({
+    briefKlaar: true,
     openVragen: input.openVragen,
-    voorbereidingKlaar: true,
-    inputStand: input.inputStand ?? null,
-    writeMode: tekst.write_mode ?? null,
     publicatiedatum: datum,
     vandaag,
   });
@@ -320,24 +288,9 @@ export function paginaStand(input: PaginaStandInput): PaginaStand {
       { looptAchter: achter, streefdatum: streef },
     );
   }
-  if (poort.reden === "te_weinig_onderbouwd") {
-    return stand(
-      "keuze",
-      {
-        label: "Jouw keuze nodig",
-        aanZet: "klant",
-        toon: "wacht",
-        fase: 0,
-        zin: poort.melding,
-        handeling: "Kies hoe verder",
-      },
-      { looptAchter: achter, streefdatum: streef },
-    );
-  }
-  // Een pagina uit de oude route vanuit een cluster, zonder plek in het plan:
-  // die wordt nooit vanzelf geschreven (`probeerTeSchrijven()` doet alleen
-  // plan-pagina's). "Wordt geschreven" zou hier een belofte zijn die niemand
-  // nakomt; dit zegt wat er echt nodig is.
+  // Een pagina zonder plek in het plan wordt nooit vanzelf geschreven: alleen
+  // het contentplan plant schrijven in (besluit B7). "Wordt geschreven" zou hier
+  // een belofte zijn die niemand nakomt; dit zegt wat er echt nodig is.
   if (!plan && poort.mag) {
     return stand("niet_ingepland", {
       label: "Nog niet ingepland",
@@ -371,7 +324,7 @@ function schrijvend(): PaginaStand {
     aanZet: "orbit_engine",
     toon: "loopt",
     fase: 1,
-    zin: "We schrijven en keuren de tekst. Dat duurt meestal een kwartier; je hoeft niets te doen.",
+    zin: "We schrijven en controleren de tekst. Dat duurt meestal een kwartier; je hoeft niets te doen.",
     handeling: null,
   });
 }
@@ -412,7 +365,6 @@ function voorbereidend(streef: string | null, gestart: boolean): PaginaStand {
 export function heeftEigenScherm(sleutel: PaginaStandSleutel): boolean {
   return (
     sleutel === "vragen" ||
-    sleutel === "keuze" ||
     sleutel === "goedkeuren" ||
     sleutel === "live_zetten" ||
     sleutel === "effect_meten" ||
@@ -436,35 +388,4 @@ export function standVolgorde(s: PaginaStand): number {
   if (s.aanZet === "orbit_engine") return 2;
   if (s.sleutel === "gepland" || s.sleutel === "wacht_op_datum" || s.sleutel === "niet_ingepland") return 3;
   return 4;
-}
-
-/**
- * Het oordeel van de schrijfpoort over de onderbouwing, uit de cijfers die bij
- * de pagina zijn opgeslagen (`input_coverage`, `weighted_evidence_coverage`,
- * `critical_evidence_coverage`). Dezelfde regel als `beoordeelPagina()`:
- * `poortGraad()` en dan `inputpoort()`.
- *
- * ⚠️ Waarom dit bestaat (kwaliteitsdoorlichting, punt 44, 24 september 2026):
- * de bibliotheek riep `paginaStand()` aan zonder dit oordeel. Een pagina die de
- * poort had tegengehouden (33 procent onderbouwd) stond daardoor voor de klant
- * als "Alle gegevens bekend, wordt nu geschreven", terwijl er niets gebeurde en
- * de klant juist moest kiezen. `null` zolang er nog geen oordeel is.
- */
-export function inputStandUitOpslag(rij: {
-  input_coverage?: number | string | null;
-  weighted_evidence_coverage?: number | string | null;
-  critical_evidence_coverage?: number | string | null;
-  write_mode?: string | null;
-}): InputStand | null {
-  const getal = (w: number | string | null | undefined) =>
-    w === null || w === undefined || w === "" || !Number.isFinite(Number(w)) ? null : Number(w);
-  const graad = getal(rij.input_coverage);
-  if (graad === null) return null;
-  const gewogen = getal(rij.weighted_evidence_coverage);
-  const kritiek = getal(rij.critical_evidence_coverage);
-  return inputpoort({
-    graad: poortGraad({ graad, gewogen, kritiek } as never),
-    ongedekteSecties: 0,
-    writeMode: rij.write_mode === "algemeen" ? "algemeen" : null,
-  }).stand;
 }

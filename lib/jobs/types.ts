@@ -74,38 +74,6 @@ export const JOB_TYPES = [
   "profile_competitors",
   /** Gap-analyse + rapport (B1 + B2) en de rapportmail. */
   "generate_report",
-  /** Contentbriefing: feitenindex + claim-audit → vragen aan de klant (R5.1). */
-  "content_brief",
-  /**
-   * Contentgeneratie stap 0: uitzoeken wat DEZE pagina nodig heeft
-   * (docs/tasks/contentpijplijn-herontwerp.md A1/A2). Het itemdossier plus het
-   * contentcontract. Een eigen taaksoort en geen uitbreiding van
-   * `content_draft` (conventie 7): het onderzoek doet een web-zoekactie van 20
-   * tot 40 seconden, en dat past niet vóór een schrijfaanroep die zelf al tot
-   * 150 seconden mag duren.
-   */
-  "content_plan",
-  /**
-   * De paginastrategie (L5, WP3 van contentpijplijn-publicatiewaardig.md): wat
-   * er op de pagina komt en wat niet, op Sol met denktijd hoog. Een eigen
-   * taaksoort (conventie 7): één zware aanroep, tussen `content_plan` en
-   * `content_draft`. Kan zichzelf opnieuw inplannen om een achtergrondaanroep op
-   * te halen.
-   */
-  "content_strategy",
-  /** Contentgeneratie stap 1: schrijven + beoordelen. */
-  "content_draft",
-  /**
-   * De eindredactie (L8, WP5 van contentpijplijn-publicatiewaardig.md) en daarna
-   * de keuring. Alleen voor een pagina met strategie; een eigen taaksoort want
-   * een eigen zware aanroep (conventie 7). Kan zichzelf opnieuw inplannen om
-   * een achtergrondaanroep op te halen.
-   */
-  "content_edit",
-  /** Contentgeneratie stap 2: herschrijven + herbeoordelen. */
-  "content_revise",
-  /** Dezelfde tekst opnieuw keuren, zonder herschrijven (migratie 0092). */
-  "content_recheck",
   /**
    * Het feitenregister van één merk bijwerken: feiten indelen (L1), conflicten
    * zoeken en beoordelen (L2). WP2 van contentpijplijn-publicatiewaardig.md.
@@ -416,127 +384,6 @@ export interface JobPayloads {
   aggregate_week: { weekNo: number };
   profile_competitors: { weekNo: number };
   generate_report: { weekNo: number };
-  content_brief: {
-    userId: string;
-    /** De hele batch gekozen pagina's: één briefing voor alles samen (§2). */
-    recommendations: RecommendationPayload[];
-  };
-  content_plan: {
-    userId: string;
-    recommendation: RecommendationPayload;
-    /** Opnieuw genereren: dan ook opnieuw onderzoeken (optimalisatie.md 4.7). */
-    regenerate?: boolean;
-    /** Zie `content_draft.plannedPageId`; gaat ongewijzigd door naar die taak. */
-    plannedPageId?: string;
-    /**
-     * Draait deze plantaak VÓÓR de briefing?
-     * (docs/tasks/vragen-voor-het-schrijven.md §3)
-     *
-     * Dan plant hij geen schrijftaak in. Het contract is hier het IDEAAL waar de
-     * briefing zijn vragen uit haalt, en de klant beslist daarna zelf of en
-     * wanneer er geschreven wordt. De hele batch reist mee, zodat de laatste
-     * plantaak van de batch de briefing kan starten; zonder die lijst zou de
-     * briefing niet weten welke pagina's erbij horen.
-     */
-    voorBriefing?: {
-      recommendations: RecommendationPayload[];
-    };
-  };
-  content_strategy: {
-    userId: string;
-    recommendation: RecommendationPayload;
-    regenerate?: boolean;
-    plannedPageId?: string;
-    /** Wat `content_plan` opleverde; gaat ongewijzigd door naar `content_draft`. */
-    voorbereid?: JobPayloads["content_draft"]["voorbereid"];
-    /**
-     * Een achtergrondaanroep die nog opgehaald moet worden
-     * (`lib/openai/achtergrond.ts`). Met alles wat nodig is om het resultaat te
-     * verwerken zonder de context opnieuw te bouwen: de invoer kan intussen
-     * veranderd zijn, en het resultaat hoort bij de invoer waarop het gemaakt is.
-     */
-    ophalen?: {
-      responseId: string;
-      gestartOp: string;
-      poging: number;
-      voorbereiding: unknown;
-    };
-  };
-  content_draft: {
-    userId: string;
-    recommendation: RecommendationPayload;
-    /** Opnieuw genereren bovenop een afgeronde versie (optimalisatie.md 4.7). */
-    regenerate?: boolean;
-    /**
-     * De pagina uit het contentplan waar deze tekst bij hoort (fase 4).
-     * Afwezig bij een schrijftaak die uit een rapport-aanbeveling komt; dat is
-     * elke schrijftaak van vóór augustus 2026.
-     *
-     * Hierdoor kan de taak terugmelden: de plan-pagina krijgt zijn
-     * `content_piece_id` en gaat van `schrijven` naar `ter_goedkeuring`. Zonder
-     * dit veld schrijft de pijplijn wel, maar blijft de pagina in het plan op
-     * "ORBIT ENGINE is bezig" staan tot iemand het handmatig opmerkt.
-     */
-    plannedPageId?: string;
-    /**
-     * Het contract en het dossier uit `content_plan` (migratie 0082).
-     *
-     * Bewust in de payload en niet alleen op de contentpagina: lukt het
-     * wegschrijven daar niet, dan schrijft deze taak alsnog mét contract. Zonder
-     * deze kopie zou een mislukte update betekenen dat de pagina zonder
-     * inhoudsopgave geschreven wordt, precies wat dit werk oplost.
-     */
-    voorbereid?: {
-      contract: unknown;
-      dossier: unknown;
-      explainers: unknown[];
-      /**
-       * De verse tekst van de te verbeteren pagina (O3). Zelfde reden als de
-       * andere drie: lukt het wegschrijven in `content_plan` niet, dan schrijft
-       * deze taak alsnog tegen de pagina die de klant vandaag heeft staan.
-       *
-       * ⚠️ Bij een NIEUWE pagina bestaat de rij in `content_pieces` tijdens de
-       * planstap nog niet: die wordt pas hier aangemaakt. Deze payload is dan de
-       * enige plek waar de opgehaalde tekst staat.
-       */
-      existingText?: string | null;
-      /** Wanneer die tekst is opgehaald (migratie 0083). */
-      existingFetchedAt?: string | null;
-      /**
-       * De paginastrategie uit `content_strategy` (WP3, migratie 0114). Hier en
-       * niet alleen op de rij, om dezelfde reden als het contract: bij een
-       * nieuwe pagina bestaat de rij pas na het schrijven.
-       */
-      strategie?: unknown;
-    } | null;
-  };
-  content_edit: {
-    userId: string;
-    contentPieceId: string;
-    recommendation: RecommendationPayload;
-    plannedPageId?: string;
-    /** Een achtergrondaanroep die nog opgehaald moet worden (`lib/openai/achtergrond.ts`). */
-    ophalen?: { responseId: string; gestartOp: string; user: string; poging: number };
-  };
-  content_revise: {
-    userId: string;
-    contentPieceId: string;
-    recommendation: RecommendationPayload;
-    /** Verbeterpunten uit de eerste beoordeling, sturen de herschrijfstap. */
-    issues: string[];
-    /** Zie `content_draft.plannedPageId`; de herschrijfstap meldt hetzelfde terug. */
-    plannedPageId?: string;
-  };
-  /**
-   * Herkeuren: dezelfde tekst, nieuw oordeel. Geen `issues` en geen
-   * `plannedPageId`, want er wordt niets herschreven en er verandert niets aan
-   * de planning.
-   */
-  content_recheck: {
-    userId: string;
-    contentPieceId: string;
-    recommendation: RecommendationPayload;
-  };
   /** Het merk staat op de taak zelf (`profile_id`). */
   fact_register: Record<string, never>;
   technical_audit: Record<string, never>;
@@ -659,13 +506,6 @@ export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "prepare_analysis", // onderwerp-onderzoek: één gegrondde AI-aanroep
   "generate_prompts", // één funnelfase, met bijvul- en geo-rondes
   "profile_competitors", // destilleert eigenschappen uit alle antwoordfragmenten
-  "content_brief", // claim-audit over de hele batch, plus alle winnende antwoorden
-  "content_plan", // itemdossier met web_search plus het contract
-  "content_strategy", // Sol met denktijd hoog, tot 150 seconden
-  "content_draft", // het premium model schrijft een volledige pagina
-  "content_edit", // Sol met denktijd hoog redigeert, daarna de vier beoordelaars
-  "content_revise", // idem
-  "content_recheck", // geen schrijfaanroep, wel de vier beoordelaars
   "offsite_scan", // crawlt niets maar doet wel een gegroundde AI-aanroep + externe API's
   // Mijn reputatie. `reputation_start` staat er bewust NIET bij: die doet geen
   // enkele AI-aanroep en leest alleen wat er al staat.
@@ -759,12 +599,8 @@ export const IO_BOUND_PARALLELISM = 3;
  * boven de twaalf open verbindingen uit.
  */
 export const PARALLEL_CONTENT_TYPES: ReadonlySet<JobType> = new Set<JobType>([
-  "content_plan",
-  "content_strategy",
-  "content_draft",
-  "content_edit",
-  "content_revise",
-  "content_recheck",
+  // De taken van de nieuwe contentketen komen hier in WP5 tot en met WP7
+  // (`docs/tasks/contentketen-opnieuw.md` §7.4).
 ]);
 
 export const CONTENT_PARALLELISM = 3;

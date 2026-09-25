@@ -535,6 +535,8 @@ Algemene infrastructuur, geen contentlogica:
 | Concurrentnamen weghalen | `redactCompetitors` in `lib/pipeline/redact.ts` |
 | Huidige sitetekst ophalen | `fetchExistingPage` in `lib/pipeline/existing-page-fetch.ts` |
 | Waardeproposities zonder herkomsttaal | `schoneWaardeproposities` in `lib/pipeline/waardeproposities.ts` |
+| Het contentplan: schrijfvoorsprong, onderwerp en meting, paginasoort naar teksttype | `lib/plan-status.ts`, `lib/plan-writing.ts` |
+| JSON-LD opbouwen en valideren | `lib/schema-jsonld.ts` |
 | Verboden tekens, metalengtes | `stripProseDashes` in `lib/pipeline/dash-guard.ts`, `heelMetatitel` en `heelMetabeschrijving` in `lib/pipeline/metatitel.ts` |
 | Gestructureerde gegevens, export naar de site | `lib/pipeline/structured-data.ts`, `lib/pipeline/content-export.ts` |
 
@@ -598,8 +600,10 @@ routes `briefing`, `generate`, `generate-all`, `recheck`, `content/[pieceId]/dif
 van `feitenregister.ts` naar `strategie-wacht.ts` gaat eruit: een betwist feit komt gewoon niet in
 blok A.
 
-**Weg, en in WP6 opnieuw geschreven:** `lib/plan-write-start.ts` en `lib/plan-writing.ts` in hun
-geheel. Daar zit de oude logica in (de opdracht samenstellen, de oude schrijfpoort, de briefing). Het
+**Weg, en in WP6 opnieuw geschreven:** `lib/plan-write-start.ts` in zijn geheel.
+(Afwijking, 25 september 2026: `lib/plan-writing.ts` blijft. Het bevat geen contentlogica maar de
+regels van het contentplan zelf, "hangt deze pagina aan een gemeten onderwerp", die het plan ook op
+het scherm toont.) Daar zit de oude logica in (de opdracht samenstellen, de oude schrijfpoort, de briefing). Het
 contentplan (de cron `/api/cron/plan`, het vrijgeven van een maand, inplannen, "nu laten schrijven",
 de route achter de antwoorden) roept tot WP6 niets aan; op die plekken staat één regel commentaar met
 een verwijzing naar WP6. De knoppen "Schrijf deze pagina" en "genereer alles" in een cluster
@@ -811,8 +815,8 @@ $0,03, herschrijven (niet altijd) ongeveer $0,10 tot $0,15. Totaal ongeveer $0,1
 | WP | Wat | Stand | Commit en datum |
 |---|---|---|---|
 | B2 | Klantdata verwijderd | Gedaan: 6 merken met alles eronder; kostenlog bewaard | 25 september 2026 |
-| WP1 | Het oude weghalen | Niet begonnen | |
-| WP2 | Migratie en typen | Niet begonnen | |
+| WP1 | Het oude weghalen | Gedaan. Ongeveer 60 modules, 7 taaksoorten, de oude bibliotheekschermen en 9 documenten weg; de tests van de oude keten ook (test-unit van 6.039 naar 4.739, test-chain van 886 naar 662). Twee dingen naar voren gehaald omdat het opruimen ze nodig had: de schrijfpoort (`lib/pagina/schrijfpoort.ts`, §6.8) en de organisatieknoop (`lib/pagina/organisatie.ts`) | 25 september 2026 |
+| WP2 | Migratie en typen | Gedaan: migratie 0115 op productie, typen, en de twee bewakingstests | 25 september 2026 |
 | WP3 | De controle in code | Niet begonnen | |
 | WP4 | Open vraag en verhalen | Niet begonnen | |
 | WP5 | Content brief | Niet begonnen | |

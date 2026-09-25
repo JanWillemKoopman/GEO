@@ -1,10 +1,9 @@
-import { NextResponse, after } from "next/server";
+import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { answerFact } from "@/lib/facts";
 import { publicFactRequest } from "@/lib/fact-request-public";
-import { probeerNaAntwoord } from "@/lib/plan-write-start";
 
 /**
  * PATCH /api/profiles/[id]/facts, de klant beantwoordt (of slaat over) een
@@ -80,7 +79,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       .single();
     // Overslaan telt als antwoord: misschien was dit de laatste vraag van een
     // pagina, en dan begint het schrijven nu (contentflow-een-lijn.md §3).
-    after(() => probeerNaAntwoord(admin, [factId]));
+    // Na het laatste antwoord start hier het schrijven (WP6 van
+    // `docs/tasks/contentketen-opnieuw.md`).
     return NextResponse.json(data ? publicFactRequest(data) : data);
   }
 
@@ -105,7 +105,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // laatste van een pagina 9 tot 30, omdat dit binnen dezelfde klik voor elke
   // gekoppelde pagina de onderbouwing beoordeelde en het schrijven startte. Het
   // opslaan is dan al gebeurd; wat hierna komt, hoeft de klant niet af te wachten.
-  after(() => probeerNaAntwoord(admin, [factId]));
+
 
   const { fact, needsEvidence, evidenceHint } = resultaat.outcome;
   const veilig = publicFactRequest(fact as unknown as Record<string, unknown>);
