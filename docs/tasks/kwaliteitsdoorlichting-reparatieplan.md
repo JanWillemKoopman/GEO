@@ -65,7 +65,7 @@ was, en bleef één van de vijf gemelde punten zelf onopgelost staan.
 haalt en controleert dat het feit blijft staan; een scenario dat controleert dat elk gemeld punt na de
 herschrijving niet meer als issue terugkomt.
 
-**Stand (25 september 2026):** gebouwd, PR #PRNUM. De ketentest toetst met een vaste schrijver: die kan
+**Stand (25 september 2026):** gebouwd, PR #133. De ketentest toetst met een vaste schrijver: die kan
 een feit niet terugzetten, dus het scenario controleert dat de schrijver het feit meekrijgt en dat het
 verlies een blokkerende bevinding wordt, en dat een gemeld punt dat niet wordt. Of de echte schrijver
 het feit ook terugzet, blijkt pas op productie.
