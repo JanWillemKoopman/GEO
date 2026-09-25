@@ -300,6 +300,7 @@ import { duplicatePromptIds } from "@/lib/pipeline/prompt-dedupe";
 import { dedupeCompetitorNames } from "@/lib/pipeline/competitor-dedupe";
 import { htmlToText } from "@/lib/pipeline/html-text";
 import { bepaalTeBehouden, vindVerlorenFeiten, behoudblok } from "@/lib/pipeline/feitbehoud";
+import { voegVragenSamen } from "@/lib/pipeline/vraag-samenvoegen";
 import { identifyEmptyProfiles } from "@/lib/profile-status";
 import { ontwijkendeZinnen } from "@/lib/pipeline/content-gate";
 import { isRapportageVorm } from "@/lib/pipeline/factcard";
@@ -26435,6 +26436,23 @@ group("Een nieuwe versie houdt de feiten van de vorige (reparatieplan blok H, pu
     "1",
   );
 
+  // Punt 65: versie 3 wordt alleen met versie 2 vergeleken, waar de monteurs al
+  // niet meer in stonden. Wat de keuring van versie 2 als verdwenen meldde,
+  // schuift door tot het terug is.
+  const versie3Lijst = bepaalTeBehouden({
+    vorigeClaims: versie2Claims,
+    facts: kaart,
+    notitie: "Dit feit stond in de vorige versie en is verdwenen: \"Twaalf monteurs in dienst\". Zet het terug met F71.",
+    vorigeTekst: { bodyMarkdown: versie2 },
+    alVerloren: verloren,
+  });
+  ok("de verdwenen feiten van versie 2 blijven op de lijst voor versie 3", ["F15", "F38", "F71"].every((r) => versie3Lijst.some((f) => f.ref === r)));
+  ok(
+    "maar niet als de klant het feit intussen ontkende",
+    !bepaalTeBehouden({ vorigeClaims: [], facts: kaart.map((f) => (f.ref === "F71" ? { ...f, allowed: false } : f)), notitie: null, alVerloren: verloren })
+      .some((f) => f.ref === "F71"),
+  );
+
   // De opdracht aan de schrijver en de bedrading.
   const blok = behoudblok(teBehouden);
   ok("de schrijver krijgt de monteurs mee met hun F-nummer", blok.includes("F71: Twaalf monteurs in dienst"));
@@ -26444,4 +26462,64 @@ group("Een nieuwe versie houdt de feiten van de vorige (reparatieplan blok H, pu
   ok("de schrijver krijgt het blok bij een nieuwe versie", content.includes("user: baseInput + behoudblok(teBehouden)"));
   ok("schrijven, reparatie en herkeuring tellen allemaal na", (content.match(/teBehouden/g) ?? []).length >= 4 && (content.match(/laadTeBehouden\(/g) ?? []).length === 4);
   ok("een verdwenen feit wordt een blokkerende bevinding", leesBestand("lib/pipeline/quality-collect.ts").includes('bron: "feitbehoud"'));
+});
+
+
+group("Dezelfde vraag in andere woorden gaat er niet opnieuw in (reparatieplan blok I, punt 57)", () => {
+  // De echte vragen van de installateur van 25 september: één die de klant om
+  // 05:48 oversloeg, en acht die de voorbereiding om 06:03 alsnog stelde.
+  const bestaande = [
+    { id: "efa00d8e", status: "overgeslagen" as const, question: "Wat zit bij een standaard ketelvervanging inbegrepen, bijvoorbeeld het verwijderen en afvoeren van de oude ketel, aansluiting en inbedrijfstelling?" },
+    { id: "28dee428", status: "beantwoord" as const, question: "Bied je bij ketelvervanging een onderhoudscontract aan, en wat is daarin precies inbegrepen?" },
+    { id: "open0001", status: "open" as const, question: "Welke controles voert u uit bij het in gebruik nemen van een nieuwe ketel?" },
+  ];
+  const vraag = (question: string, pagina: string, extra: Partial<BriefingQuestion> = {}): BriefingQuestion => ({
+    claimKey: question, question, reason: "", kind: "verificatie", answerType: "tekst_kort", options: [],
+    suggestedAnswer: null, required: false, scope: "pagina", contentPieceIds: [pagina], sectionRefs: [`${pagina}:s2`], priority: 1, ...extra,
+  });
+  const nieuw = [
+    vraag("Sluit u bij ketelvervanging de bestaande radiatoren en thermostaat weer aan?", "01a2727d"),
+    vraag("Staat in uw offerte welke werkzaamheden inbegrepen zijn en welke extra kosten kunnen geven?", "97231b80"),
+    vraag("Welke werkzaamheden zijn standaard inbegrepen bij een ketelvervanging?", "01a2727d", { required: true }),
+    vraag("Voert u de oude ketel af na vervanging?", "97231b80"),
+    vraag("Welke werkzaamheden voert u zelf uit bij een volledige ketelvervanging?", "97231b80"),
+    vraag("Controleert u bij ketelvervanging de rookgasafvoer?", "97231b80"),
+    vraag("Welke controles voert u uit voordat u een nieuwe ketel in gebruik neemt?", "97231b80"),
+    vraag("Welke onderdelen haalt u los en sluit u weer aan bij ketelvervanging?", "97231b80"),
+  ];
+  // Het oordeel zoals de beoordelaar het hoort te geven: zes varianten van de
+  // overgeslagen vraag, de rookgasafvoer en de ingebruikname horen bij de open
+  // vraag over controles, en de vraag over de offerte is iets eigens.
+  const oordelen = [
+    { nummer: 1, zelfdeAls: "B1" },
+    { nummer: 2, zelfdeAls: null },
+    { nummer: 3, zelfdeAls: "B1" },
+    { nummer: 4, zelfdeAls: "b1" },
+    { nummer: 5, zelfdeAls: "N3" },
+    { nummer: 6, zelfdeAls: "B3" },
+    { nummer: 7, zelfdeAls: "N6" },
+    { nummer: 8, zelfdeAls: "N1" },
+  ];
+  const uit = voegVragenSamen({ kandidaten: nieuw, bestaande, oordelen });
+  eq("van acht nieuwe vragen blijft er één over", uit.nieuw.map((v) => v.question).join(" | "), "Staat in uw offerte welke werkzaamheden inbegrepen zijn en welke extra kosten kunnen geven?");
+  eq("zeven vervallen", uit.vervallen.length.toString(), "7");
+  eq("de open vraag over controles krijgt de pagina erbij", uit.aanvullingen.map((a) => `${a.id}:${a.contentPieceIds.join("+")}`).join(","), "open0001:97231b80");
+  ok("met de secties, zodat overslaan ze ook raakt", uit.aanvullingen[0]?.sectionRefs.includes("97231b80:s2") === true);
+  ok("een variant van een overgeslagen vraag komt niet terug", !uit.nieuw.some((v) => v.question.includes("standaard inbegrepen")));
+  eq("samen: van negen vragen naar drie verschillende", String(uit.nieuw.length + 2), "3");
+
+  // De regels die de code bepaalt, niet het model.
+  const slot = vraag("Welk telefoonnummer moet er op deze pagina staan?", "p1", { fixedSlot: true });
+  const onderscheid = vraag("Wat kun jij wat zij niet kunnen?", "p1", { kind: "onderscheid" });
+  const beschermd = voegVragenSamen({ kandidaten: [nieuw[0], slot, onderscheid], bestaande, oordelen: [{ nummer: 2, zelfdeAls: "B1" }, { nummer: 3, zelfdeAls: "N1" }] });
+  eq("een vaste slotvraag en de onderscheidsvraag voegen nooit samen", beschermd.nieuw.length.toString(), "3");
+  const vooruit = voegVragenSamen({ kandidaten: nieuw.slice(0, 2), bestaande, oordelen: [{ nummer: 1, zelfdeAls: "N2" }] });
+  eq("een verwijzing naar een latere vraag telt niet", vooruit.nieuw.length.toString(), "2");
+  eq("een verwijzing die niet bestaat ook niet", voegVragenSamen({ kandidaten: nieuw.slice(0, 1), bestaande, oordelen: [{ nummer: 1, zelfdeAls: "B9" }] }).nieuw.length.toString(), "1");
+  eq("zonder oordeel verandert er niets", voegVragenSamen({ kandidaten: nieuw, bestaande, oordelen: null }).nieuw.length.toString(), "8");
+  const verplicht = voegVragenSamen({ kandidaten: nieuw.slice(0, 3), bestaande: [], oordelen: [{ nummer: 3, zelfdeAls: "N1" }] });
+  ok("de blijver erft 'verplicht' en de pagina's van de verliezer", verplicht.nieuw[0].required && verplicht.nieuw[0].contentPieceIds.includes("01a2727d"));
+
+  const briefing = leesBestand("lib/pipeline/briefing.ts");
+  ok("de voorbereiding legt de vragen voor vóór het wegschrijven", briefing.indexOf("beoordeelVragen({") < briefing.indexOf("for (const vraag of samengevoegd.nieuw)"));
 });

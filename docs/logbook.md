@@ -12329,3 +12329,20 @@ versie mee met de opdracht ze te behouden, en telt de keuring na of ze er nog st
 nota zelf aanwijst, mag weg; een feit dat alleen in de gegevens voor zoekmachines stond, telt niet.
 Geen migratie nodig: de vorige versie staat al in `supersedes_id`, de nota in `revision_note`.
 
+## 25 september 2026: reparatieplan blok I, dezelfde vraag in andere woorden
+
+Punt 57: van de twaalf vervolgvragen die de installateur in één ronde kreeg, waren er acht een
+variant van een vraag die hij die ochtend al had overgeslagen, terwijl de claim-audit die vraag
+meekreeg met "stel deze niet opnieuw, ook niet in andere bewoordingen". De vragen ontstaan in
+`runBriefing()`, niet in `lib/facts.ts`. Nu legt één kleine modelaanroep per voorbereidingsronde de
+nieuwe vragen naast de bestaande (`vraag-judge.ts`), en de code voegt samen (`vraag-samenvoegen.ts`):
+een variant van een beantwoorde of overgeslagen vraag vervalt, een variant van een open vraag geeft
+die de nieuwe pagina's erbij. Op de negen echte vragen blijven er drie over, getest met een vast
+oordeel; het echte model is op productie nog niet nagerekend, omdat opnieuw voorbereiden bij een
+pagina zonder vragen meteen het schrijven kan starten. Punt 65: een verdwenen feit blijft na blok H
+op de lijst tot het terug is, ook over meerdere versies.
+
+Blok H op productie nagerekend (zelfde dag): een herkeuring van de echte versie 2 meldde precies de
+drie verdwenen feiten, en één keer "los alles op" leverde een versie 3 met alle drie terug en zonder
+blokkades, voor $0,18.
+

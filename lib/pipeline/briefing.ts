@@ -28,6 +28,8 @@ import "server-only";
  * Eén AI-aanroep per BATCH (mini, geen web_search): ongeveer $0,002, ongeacht
  * hoeveel pagina's de klant koos.
  */
+import { beoordeelVragen } from "@/lib/pipeline/vraag-judge";
+import { voegVragenSamen, type BestaandeVraag } from "@/lib/pipeline/vraag-samenvoegen";
 import { pasSchrijfregelsToe } from "@/lib/schrijfregel-vangnet";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { callStructured } from "@/lib/openai/structured";
@@ -300,14 +302,18 @@ async function loadKnownClaimKeys(
   admin: Admin,
   profileId: string,
   analysisId: string,
-): Promise<{ keys: Set<string>; questions: string[] }> {
+): Promise<{ keys: Set<string>; questions: string[]; bestaande: BestaandeVraag[] }> {
   const { data } = await admin
     .from("fact_requests")
-    .select("claim_key, question, status, scope, analysis_id")
-    .eq("profile_id", profileId);
+    .select("id, claim_key, question, status, scope, analysis_id, created_at")
+    .eq("profile_id", profileId)
+    // Nieuwste eerst: de vragenbeoordelaar (punt 57) krijgt er hooguit zestig,
+    // en een net overgeslagen vraag weegt zwaarder dan een van maanden terug.
+    .order("created_at", { ascending: false });
 
   const keys = new Set<string>();
   const questions: string[] = [];
+  const bestaande: BestaandeVraag[] = [];
   for (const row of data ?? []) {
     const status = row.status as string;
     // 'verlopen' hoort er NIET bij: een verlopen feit moet juist opnieuw
@@ -318,9 +324,16 @@ async function loadKnownClaimKeys(
     if (row.claim_key) keys.add(row.claim_key as string);
     // De vraagteksten gaan mee de audit in (R8.4): het model kan pas ophouden
     // met varianten verzinnen als het ziet wat er al gevraagd is.
-    if (row.question) questions.push(row.question as string);
+    if (row.question) {
+      questions.push(row.question as string);
+      bestaande.push({
+        id: row.id as string,
+        question: row.question as string,
+        status: status as BestaandeVraag["status"],
+      });
+    }
   }
-  return { keys, questions };
+  return { keys, questions, bestaande };
 }
 
 /**
@@ -700,6 +713,51 @@ export async function runBriefing(args: {
     );
   }
 
+  // ── 4b. Dezelfde vraag in andere woorden (punt 57, blok I) ───────────────
+  //
+  // De audit kreeg de al gestelde vragen mee en maakte er bij de installateur
+  // toch acht varianten van, over een vraag die de klant die ochtend al had
+  // overgeslagen. Een instructie is een intentie; dit is het vangnet.
+  const vraagOordeel = await beoordeelVragen({
+    nieuw: gekozen.map((v) => v.question),
+    bestaande: bekend.bestaande,
+    analysisId,
+    profileId,
+  });
+  const samengevoegd = voegVragenSamen({
+    kandidaten: gekozen,
+    bestaande: vraagOordeel?.bestaande ?? [],
+    oordelen: vraagOordeel?.oordelen ?? null,
+  });
+  if (samengevoegd.vervallen.length > 0) {
+    console.log(
+      `Briefing ${analysisId}: ${samengevoegd.vervallen.length} van de ${gekozen.length} vragen ` +
+        `vroegen hetzelfde als een andere en zijn samengevoegd.`,
+    );
+  }
+  // Een open vraag die hetzelfde vraagt, krijgt de pagina's en secties erbij:
+  // het antwoord voedt dan ook de nieuwe pagina, en overslaan raakt hem ook.
+  for (const aanvulling of samengevoegd.aanvullingen) {
+    const { data: rij } = await admin
+      .from("fact_requests")
+      .select("content_piece_ids, section_refs, required")
+      .eq("id", aanvulling.id)
+      .eq("profile_id", profileId)
+      .eq("status", "open")
+      .maybeSingle();
+    if (!rij) continue;
+    await admin
+      .from("fact_requests")
+      .update({
+        content_piece_ids: Array.from(
+          new Set([...((rij.content_piece_ids ?? []) as string[]), ...aanvulling.contentPieceIds]),
+        ),
+        section_refs: Array.from(new Set([...((rij.section_refs ?? []) as string[]), ...aanvulling.sectionRefs])),
+        required: Boolean(rij.required) || aanvulling.required,
+      })
+      .eq("id", aanvulling.id);
+  }
+
   // ── 5. Wegschrijven ──────────────────────────────────────────────────────
   //
   // Eén voor één en fouttolerant: de unieke index op (analyse, claim_key) is
@@ -707,7 +765,7 @@ export async function runBriefing(args: {
   // niet als doel gebruiken, Postgres eist daar dezelfde WHERE-clausule. Botst
   // hij toch, dan staat de vraag er al en is er niets aan de hand.
   let geschreven = 0;
-  for (const vraag of gekozen) {
+  for (const vraag of samengevoegd.nieuw) {
     const { error } = await admin.from("fact_requests").insert({
       profile_id: profileId,
       analysis_id: vraag.scope === "merk" ? null : analysisId,
@@ -728,6 +786,9 @@ export async function runBriefing(args: {
       // de vraag over, dan vervallen precies deze secties en wordt de pagina
       // korter in plaats van vager.
       section_refs: vraag.sectionRefs ?? [],
+      // Het oordeel van de vragenbeoordelaar staat volledig in `ai_calls`
+      // (kind `briefing_vraag_judge`); de vorm van deze kolom blijft gelijk,
+      // want `isGapQuestion()` en de schoonmaak voor de browser lezen hem.
       raw_json: audit.raw as never,
     });
     if (!error) geschreven++;

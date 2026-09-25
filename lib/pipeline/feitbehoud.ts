@@ -122,6 +122,13 @@ export function bepaalTeBehouden(args: {
    * terug te komen. Weglaten: dan telt elke bewering.
    */
   vorigeTekst?: { bodyMarkdown: string; faq?: { q: string; a: string }[] } | null;
+  /**
+   * Wat de keuring van de vorige versie al als verdwenen meldde (punt 65).
+   * Zonder dit vergeet de keten een verloren feit na één versie: versie 2
+   * verloor de twaalf monteurs van versie 1, en versie 3 werd alleen nog met
+   * versie 2 vergeleken, waar ze al niet meer in stonden.
+   */
+  alVerloren?: readonly TeBehoudenFeit[] | null;
 }): TeBehoudenFeit[] {
   const uit: TeBehoudenFeit[] = [];
   const gezien = new Set<string>();
@@ -139,13 +146,25 @@ export function bepaalTeBehouden(args: {
     gezien.add(id);
     uit.push({ factId: id, ref: feit.ref, tekst: feit.text, vorigeZin: c.claim.trim(), kern, getallen });
   }
-  if (!args.vorigeTekst) return uit;
-  // Dezelfde herkenning als straks bij de nieuwe versie, zonder de feit-ids:
-  // de vraag is hier of een lezer het feit in de vorige versie kon zien.
-  const nietZichtbaar = new Set(
-    vindVerlorenFeiten({ teBehouden: uit, ...args.vorigeTekst, claims: [] }).map((f) => f.factId),
-  );
-  return uit.filter((f) => !nietZichtbaar.has(f.factId));
+  let zichtbaar = uit;
+  if (args.vorigeTekst) {
+    // Dezelfde herkenning als straks bij de nieuwe versie, zonder de feit-ids:
+    // de vraag is hier of een lezer het feit in de vorige versie kon zien.
+    const nietZichtbaar = new Set(
+      vindVerlorenFeiten({ teBehouden: uit, ...args.vorigeTekst, claims: [] }).map((f) => f.factId),
+    );
+    zichtbaar = uit.filter((f) => !nietZichtbaar.has(f.factId));
+  }
+  // Wat eerder verdween, blijft op de lijst tot het terug is, zolang het feit
+  // nog op de kaart staat en gebruikt mag worden. Niet opnieuw langs "gemeld":
+  // de nota die erbij hoort, vraagt juist om het terug te zetten.
+  const ids = new Set(zichtbaar.map((f) => f.factId));
+  const doorgeschoven = (args.alVerloren ?? []).filter((f) => {
+    if (!f?.factId || ids.has(f.factId)) return false;
+    const feit = args.facts.find((x) => x.id === f.factId);
+    return Boolean(feit && feit.allowed && feit.citable);
+  }).map((f) => ({ ...f, ref: args.facts.find((x) => x.id === f.factId)!.ref }));
+  return [...zichtbaar, ...doorgeschoven];
 }
 
 /**

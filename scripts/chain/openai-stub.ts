@@ -575,7 +575,10 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
    * ongedekt. Die laatste wordt de vraag aan de klant, en beide horen straks in
    * het paginaplan te staan (S2).
    */
-  claim_audit: () => ({
+  claim_audit: (user) =>
+    // Blok I (punt 57): de pagina over ketelvervanging krijgt de acht echte
+    // vervolgvragen van de installateur van 25 september, letterlijk.
+    user.includes("Wat zit er bij een ketelvervanging") ? ketelAudit() : ({
     claims: [
       {
         claim: "Fysi-Unique wordt met een 9,4 beoordeeld op Zorgkaart.",
@@ -623,6 +626,27 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
     // niet-bedrijfsspecifieke uitleg nodig heeft.
     generalContextGaps: [],
   }),
+
+  /**
+   * De vragenbeoordelaar (blok I): wijst varianten aan zoals het model dat
+   * hoort te doen, zodat de keten de BEDRADING toetst (wat er daarna in de
+   * tabel belandt), niet het model.
+   */
+  briefing_vraag_judge: (user) => {
+    const bestaand = [...user.matchAll(/^B(\d+) \((\w+)\): (.+)$/gm)].map((m) => ({ nr: m[1], tekst: m[3] }));
+    const bNr = (patroon: RegExp) => bestaand.find((b) => patroon.test(b.tekst))?.nr ?? null;
+    const inbegrepen = bNr(/standaard ketelvervanging inbegrepen/);
+    const controles = bNr(/controles voert u uit/);
+    return {
+      vragen: [...user.matchAll(/^N(\d+): (.+)$/gm)].map((m) => {
+        const tekst = m[2];
+        let zelfdeAls: string | null = null;
+        if (/radiatoren|oude ketel af|zelf uit|los en sluit|standaard inbegrepen/.test(tekst) && inbegrepen) zelfdeAls = `B${inbegrepen}`;
+        if (/rookgasafvoer|in gebruik neemt/.test(tekst) && controles) zelfdeAls = `B${controles}`;
+        return { nummer: Number(m[1]), zelfdeAls, reden: "stub" };
+      }),
+    };
+  },
 
   /**
    * De geschreven pagina. Drie dingen zijn met opzet zo gekozen:
@@ -1250,5 +1274,41 @@ export function createPlainStub(log: StubLog[]) {
         "https://fysi-unique.nl/over-ons.",
       raw: { stub: true },
     };
+  };
+}
+
+/** De acht vervolgvragen van de installateur uit punt 57, letterlijk. */
+const KETEL_VRAGEN = [
+  "Sluit u bij ketelvervanging de bestaande radiatoren en thermostaat weer aan?",
+  "Staat in uw offerte welke werkzaamheden inbegrepen zijn en welke extra kosten kunnen geven?",
+  "Welke werkzaamheden zijn standaard inbegrepen bij een ketelvervanging?",
+  "Voert u de oude ketel af na vervanging?",
+  "Welke werkzaamheden voert u zelf uit bij een volledige ketelvervanging?",
+  "Controleert u bij ketelvervanging de rookgasafvoer?",
+  "Welke controles voert u uit voordat u een nieuwe ketel in gebruik neemt?",
+  "Welke onderdelen haalt u los en sluit u weer aan bij ketelvervanging?",
+];
+
+/** De claim-audit voor de ketelpagina: elke vraag een eigen ongedekte bewering. */
+function ketelAudit() {
+  return {
+    claims: KETEL_VRAGEN.map((vraag) => ({
+      claim: `Antwoord op: ${vraag}`,
+      neededFor: "Wat kost een nieuwe cv-ketel inclusief installatie?",
+      supported: false,
+      sourceRef: null,
+      supportQuote: null,
+      importance: "ondersteunend",
+      claimClass: "bedrijfsspecifiek",
+      questionIfMissing: vraag,
+      reason: "De lezer wil weten wat er bij de prijs hoort.",
+      kind: "verificatie",
+      answerType: "tekst_kort",
+      options: [],
+      suggestedAnswer: null,
+      scope: "pagina",
+      sectionId: null,
+    })),
+    generalContextGaps: [],
   };
 }

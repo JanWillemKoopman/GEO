@@ -188,21 +188,22 @@ bronzinnen, het ontbrekende bewijs).
 | 47 | **hoog** | Het sterkste bewijs van de klant staat in geen enkele tekst, hoewel het op de feitenkaart staat | ✅ grotendeels opgelost, verbeterronde blok A; bevestigd bij de herhaling: 19 van de 21 nieuwe teksten bevatten minstens één sterk klantfeit |
 | 48 | **hoog** | De teksten lezen als een formulier: bedrijfsnaam voor elke alinea, dezelfde feiten drie tot vier keer, voorbehouden, zinnen uit de bronnen | ✅ opgelost, verbeterronde blok D (besluit eigenaar: naam niet voor elke alinea) |
 | 49 | middel | Waar de klant een vraag oversloeg, wijkt de tekst uit naar "bespreek dat vooraf" in plaats van het onderwerp los te laten | ✅ opgelost, verbeterronde blok D |
-| 50 | **hoog** | De reparatieknop van de klant haalde een juist klantfeit uit de tekst | ✅ opgelost in code met punt 62, PR #133 (reparatieplan blok H, 25 september 2026) |
+| 50 | **hoog** | De reparatieknop van de klant haalde een juist klantfeit uit de tekst | ✅ opgelost met punt 62, PR #133 (reparatieplan blok H, 25 september 2026), op productie nagerekend |
 | 51 | middel | Na een nieuwe versie staat een pagina twee keer in de bibliotheek | ✅ opgelost, PR #117 en de volgende |
 | 52 | **hoog** | De opmerking van de klant bij "Schrijf een nieuwe versie" bereikte de schrijver niet | ✅ opgelost, PR #119, nagerekend op productie |
 | 53 | middel | Een nieuwe versie verliest het beweringenplan, en wordt daarna niet meer op onderbouwing getoetst | ✅ opgelost, verbeterronde blok C |
 | 54 | middel | Een zin met een omschreven klantfeit telt als "zin zonder bron" | ✅ grotendeels opgelost, verbeterronde blok C |
 | 55 | **hoog** | Bij drie merken tegelijk meten faalt de Gemini-meting nog steeds volledig op de leverancierslimiet, ondanks de spreiding van blok F | open, herhaling 24/25 september 2026 |
 | 56 | **hoog** | Een analyse wordt al na de eerste mislukte rapportpoging op "vastgelopen" gezet en toont de klant een foutmelding, terwijl de taak zelf nog drie keer op de achtergrond opnieuw probeert (tot 30 minuten) | open, herhaling 24/25 september 2026 |
-| 57 | middel | Bij één pagina kwamen na het beantwoorden van de eerste vragen 12 nieuwe vervolgvragen over hetzelfde onderwerp (wat zit inbegrepen bij een ketelvervanging), in steeds andere bewoordingen | open, bevestigt dat punt 36 nog niet volledig is opgelost, herhaling 24/25 september 2026 |
+| 57 | middel | Bij één pagina kwamen na het beantwoorden van de eerste vragen 12 nieuwe vervolgvragen over hetzelfde onderwerp (wat zit inbegrepen bij een ketelvervanging), in steeds andere bewoordingen | ✅ opgelost in code, PR #134 (reparatieplan blok I, 25 september 2026); het oordeel van het model is nog niet op een echte voorbereidingsronde nagerekend |
 | 58 | laag | De crawl van een grote site (~70 pagina's) las dit keer maar 33 van de 68 pagina's, ook na een extra aanvulronde, tegen 60 van de 68 bij de nulmeting; de site reageerde traag | open, lijkt aan de externe site te liggen en niet aan de code, herhaling 24/25 september 2026 |
 | 59 | **hoog** | De bronherleidbaarheidscontrole blokkeert op zinnen die geen bewering over het bedrijf zijn (een datumstempel, een veiligheidsinstructie, een definitie); 20 van de 21 nieuwe pagina's kregen "block" | ✅ opgelost, PR #132 (reparatieplan blok G, 25 september 2026), op productie nagerekend: 3 van 3 herkeurde pagina's van 5 naar 0, 1 en 4 blokkades, resterende 4 grotendeels opgelost in punt 64 |
 | 60 | **hoog** | Een verzonnen veiligheidscertificering ("CO-gecertificeerd volgens de Gasketelwet") staat op alle 7 van de 7 nieuwe pagina's van de installateur; de keuring hield hem niet tegen | ❌ onterecht bij narekenen: de certificering staat letterlijk op de site; wel een vangnet voor keurmerken gebouwd, PR #132 |
 | 61 | middel | Twee echte cijfers uit dezelfde feitenkaart verwisseld (intake € 50 wordt € 80 op minstens 2 van de 8 pagina's), en een groeiwens ("willen groeien in Son en Breugel") werd een bevestigde aanwezigheidsclaim | ❌ onterecht bij narekenen: de site noemt een intake van € 50 (kantoor) én € 80 (auto), en de klant antwoordde "ja" op Son en Breugel |
-| 62 | **hoog** | De reparatieknop ("los alles op") haalt bij een volledige herschrijving een juist klantfeit weg dat niet eens gemeld was, en lost soms zelfs de gemelde punten zelf niet op | ✅ opgelost in code, PR #133 (reparatieplan blok H, 25 september 2026); nameting op productie volgt na de merge |
+| 62 | **hoog** | De reparatieknop ("los alles op") haalt bij een volledige herschrijving een juist klantfeit weg dat niet eens gemeld was, en lost soms zelfs de gemelde punten zelf niet op | ✅ opgelost, PR #133 (reparatieplan blok H, 25 september 2026), op productie nagerekend: "los alles op" zette alle drie de verdwenen feiten terug, 0 blokkades |
 | 63 | laag | Feiten van de site bevatten letterlijke HTML-codes ("offici&euml;le", "&euro; 50") | ✅ opgelost, PR #132 (reparatieplan blok G, 25 september 2026) |
 | 64 | middel | Na blok G bleven op productie zinnen tegenhouden waarin "ons" lijdend voorwerp is ("Vertel ons bij je aanvraag ..."), en een zin met twee bedragen uit twee feiten | ✅ opgelost, PR #133 (reparatieplan blok H, 25 september 2026) |
+| 65 | middel | Een feit dat bij een nieuwe versie verdween, werd bij de versie daarna niet meer gemist: de keuring vergeleek alleen met de direct vorige versie | ✅ opgelost, PR #134 (reparatieplan blok I, 25 september 2026) |
 
 ---
 
@@ -1189,6 +1190,23 @@ punt 35/36 in blok A). **Voorstel:** dit is nu genoeg materiaal om de samenvoegc
 van "letterlijk gelijk" naar een semantische vergelijking (bijvoorbeeld dezelfde aanpak als
 `zinParafraseertFeit()` bij punt 54, of een aparte modelaanroep die vraagt "zijn dit dezelfde vraag").
 
+**Opgelost in code (25 september 2026, reparatieplan blok I, PR #134).** De vragen ontstaan niet in
+`lib/facts.ts` maar in de voorbereiding (`runBriefing()` in `lib/pipeline/briefing.ts`), en nagerekend op
+productie bleken acht van de twaalf een variant van een vraag die de klant diezelfde ochtend al had
+overgeslagen ("Wat zit bij een standaard ketelvervanging inbegrepen ..."). De claim-audit kreeg die
+vraag mee met de opdracht hem "ook niet in andere bewoordingen" opnieuw te stellen; de instructie
+alleen werkte dus niet. Nu legt de voorbereiding de nieuwe vragen, vóór ze worden opgeslagen, in één
+kleine modelaanroep naast de bestaande vragen van het merk (`lib/pipeline/vraag-judge.ts`): vraagt
+deze in essentie hetzelfde als een bestaande of een eerdere nieuwe vraag. De code past dat toe
+(`voegVragenSamen()` in `lib/pipeline/vraag-samenvoegen.ts`): een variant van een beantwoorde of
+overgeslagen vraag vervalt, een variant van een open vraag geeft die vraag de nieuwe pagina's en
+secties erbij, en varianten onderling worden één vraag. Vaste slotvragen en de onderscheidsvraag
+voegen nooit samen. Eenheids- en ketentest op de acht echte vragen plus de overgeslagen vraag: van
+negen naar drie verschillende vragen, waarvan er één nieuw wordt gesteld (die over de offerte). De
+keten toetst de bedrading met een vast oordeel; **of het echte model dezelfde groepen maakt, is nog
+niet nagerekend**: opnieuw voorbereiden op productie kan bij een pagina zonder vragen meteen het
+schrijven starten, en dat is niet gedaan om een test.
+
 ## 58. Een trage site levert dit keer veel minder gelezen pagina's op dan bij de nulmeting
 
 Bij de herhaling reageerde de site van de hovenier trager dan bij de nulmeting: van de 68 gevonden
@@ -1389,7 +1407,11 @@ de reparatieronde terug kan zetten. Op de twee echte versies vindt die controle 
 verdwenen feiten en niets anders; wat alleen in de gegevens voor zoekmachines stond (adres,
 telefoonnummer) telt niet mee. Dat de Nuenen-zin bleef staan, was geen fout van de schrijver: die zin
 klopt (klantantwoord "ook Mierlo, Nuenen en Heeze-Leende"), en sinds blok G houdt de keuring hem niet
-meer tegen. **Nog na te rekenen op productie.**
+meer tegen. **Op productie nagerekend (25 september 2026).** Een herkeuring van versie 2 meldde precies
+de drie verdwenen feiten als blokkade (en de vijf onterechte blokkades van punt 59 waren weg). Daarna
+één keer "los alles op" met die drie punten: versie 3 noemt de twaalf monteurs, de levertijd van twee
+tot vier weken en het onderhoudscontract weer, de keuring vindt niets meer verdwenen, en de pagina heeft
+geen enkele blokkade meer (score 77,7 naar 79,8). Die ronde kostte $0,18.
 
 ## 64. Twee gevallen die het vangnet van blok G te streng maakte
 
@@ -1403,6 +1425,18 @@ twee bedragen staan als twee feiten op de kaart, en de code eiste dat één feit
 een zin nog tot een bewering die het model niet mag wegzetten (`magGeenBeweringZijn()`), en de
 zinnenbeoordelaar mag twee feiten aanwijzen die een zin samen dragen; elk getal moet dan in een van
 beide staan (`feitenOnderbouwenZin()`). Een verzonnen bedrag blijft tegenhouden.
+
+## 65. Een verdwenen feit werd na één versie vergeten
+
+Gevonden bij het narekenen van blok H op productie. De keuring vergelijkt een nieuwe versie met de
+versie die hij vervangt. Versie 2 van de hybride-pagina miste drie feiten van versie 1, en de keuring
+meldde dat terecht. Maar bij "los alles op" op versie 2 zou versie 3 alleen met versie 2 vergeleken
+worden, waarin die drie feiten al niet meer stonden: zet de schrijver ze niet terug, dan zag niemand
+het meer.
+
+**Opgelost (25 september 2026, reparatieplan blok I, PR #134).** De keuring bewaart het hele
+verdwenen feit, en de volgende versie neemt het over in de lijst van wat er moet staan, tot het terug
+is of de klant het feit intussen ontkende (`alVerloren` in `bepaalTeBehouden()`).
 
 ## Wat goed ging, om niet kapot te maken
 

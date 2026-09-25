@@ -68,7 +68,7 @@ herschrijving niet meer als issue terugkomt.
 **Stand (25 september 2026):** gebouwd, PR #133. De ketentest toetst met een vaste schrijver: die kan
 een feit niet terugzetten, dus het scenario controleert dat de schrijver het feit meekrijgt en dat het
 verlies een blokkerende bevinding wordt, en dat een gemeld punt dat niet wordt. Of de echte schrijver
-het feit ook terugzet, blijkt pas op productie.
+het feit ook terugzet, blijkt pas op productie. **Op productie nagerekend:** ja, alle drie terug, zie punt 62.
 
 ### Blok I, middel: dubbele vervolgvragen (punt 57)
 
@@ -82,6 +82,9 @@ gelijk is.
 
 **Test:** de negen echte vragen uit punt 57 als vast voorbeeld; moet uitkomen op twee tot drie
 werkelijk verschillende vragen in plaats van negen.
+
+**Stand (25 september 2026):** gebouwd, PR #134. Van negen naar drie in de eenheids- en ketentest,
+met een vast oordeel; het echte model is nog niet op een voorbereidingsronde nagerekend (zie punt 57).
 
 ### Blok J, laag, alleen bij herhaling: crawldekking (punt 58)
 
