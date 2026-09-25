@@ -18,6 +18,7 @@ herhaling (24/25 september 2026) staat in `docs/tasks/bevindingen-kwaliteitsdoor
 | `rapporten/` | Het rapport per merk zoals de lezer van `poort13/` het kreeg |
 | `teksten/` | De 16 geschreven teksten van de nulmeting, zoals ze uit `content_pieces` kwamen |
 | `poort19/` | Opdracht en oordeel van de blinde lezer over die teksten: **de nulmeting, 4,1 op 10** |
+| `nameting-fase1/` | De nameting van fase 1 van `contentpijplijn-publicatiewaardig.md` (25 september 2026): twee pagina's, oud en nieuw, met de opdrachten en oordelen van de blinde lezer, los en in vergelijking. Gemaakt met `scripts/doorlichting/nameting-opdracht.py` |
 | `blinde-lezer-toets/` | De toets vooraf die liet zien dat de lezer betrouwbaar vergelijkt, maar geen betrouwbaar los cijfer geeft |
 | `bevindingen-log.md` | Het logboek dat tijdens de doorloop werd bijgehouden, vóór de uitwerking in de bevindingenlijst |
 

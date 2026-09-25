@@ -12488,3 +12488,20 @@ vragen: "Hoe lang lig ik met een kale tuin?" blijft, regenwater in Best en aanbe
 ontbreken van een feit en worden een vraag aan de ondernemer, "kopen of huren" valt af bij een bedrijf
 dat niet verhuurt. De schrijver krijgt precies de gekozen vragen, of de opdracht om geen FAQ te
 schrijven.
+
+## 25 september 2026: nameting fase 1, het doel niet gehaald
+
+Zuinig nagemeten op verzoek van de eigenaar: Best van de hovenier en de kostenpagina van de
+installateur door de hele nieuwe keten op productie, beoordeeld door dezelfde blinde lezer en
+vragenlijst als de doorlichting, plus een directe vergelijking met de vorige versie. Copywritercijfer 5
+en 3, gelijk aan de vorige versies; het doel na fase 1 was 6,5. De lezer koos bij Best de oude versie
+en bij de kostenpagina de nieuwe. Wat wel gehaald is: nul zinnen over wat wij niet weten, alle zinnen
+uit §14.3 weg, $0,26 en $0,31 per pagina, schrijfinvoer rond 5.500 tokens. De oorzaak van het lage
+cijfer is nu het omgekeerde van 25 september: niet te voorzichtig maar te dun. De strategie schrapt elk
+onderwerp zonder feit, ook de uitleg waar de lezer voor kwam, en laat sterk bewijs liggen. De meting
+vond drie fouten die met test zijn hersteld: een F-nummer met de feittekst erachter werd weggegooid
+(alle prioriteitsfeiten weg), en de eindredactie mocht een prioriteitsfeit schrappen, de tekst
+leegschrappen (345 naar 115 woorden) en de bedrijfsnaam in de metatitel afkappen. Een verdwenen
+prioriteitsfeit en leegschrappen draaien de redactie nu terug; in de laatste ronde gebeurde dat bij
+Best (417 naar 171 woorden, teruggedraaid). De cijfers per pagina staan in
+`docs/tasks/contentpijplijn-publicatiewaardig.md` §14.2.

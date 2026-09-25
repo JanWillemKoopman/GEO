@@ -841,8 +841,11 @@ in de app legt nu zijn duur vast in `ai_calls.duration_ms`. Komt een aanroep van
 van de Responses API: de taak start de aanroep en bewaart het response-id, een vervolgtaak haalt
 het resultaat op (`startStructuredAchtergrond()` en `haalStructuredOp()` in
 `lib/openai/structured.ts`). Een nieuwe poging haalt op in plaats van opnieuw te starten, dus een
-time-out betaalt de duurste aanroep nooit twee keer. Bij de bouw is de modus nog niet actief: er is
-geen gemeten strategieaanroep.
+time-out betaalt de duurste aanroep nooit twee keer. Gemeten bij de nameting van fase 1 (25 september
+2026): de strategie duurt 93 tot 108 seconden en blijft dus direct, de eindredactie 134 tot 359
+seconden en loopt sindsdien in de achtergrond. Een pagina met strategie en redactie kostte $0,26 en
+$0,31: strategie ongeveer $0,06, FAQ-keuze $0,002, schrijven $0,05, eindredactie $0,09 tot $0,11,
+een of twee reparatierondes $0,04 tot $0,07 en de keuring met Luna ongeveer $0,01.
 
 ### De AI-aanroepen van het feitenregister (25 september 2026, migratie `0113`)
 
