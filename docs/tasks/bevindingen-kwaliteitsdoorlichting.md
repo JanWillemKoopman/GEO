@@ -156,12 +156,12 @@ bronzinnen, het ontbrekende bewijs).
 | 42 | **hoog** | De klant krijgt "Tekst is klaar, keur hem goed" bij een tekst die de eigen keuring tegenhoudt | ✅ opgelost, verbeterronde blok C (besluit eigenaar: tonen met duidelijke melding) |
 | 43 | middel | De keuring noemt het bedrag van de klant "in strijd met de instructie", omdat de opzet van vóór zijn antwoord is | ✅ opgelost, verbeterronde blok C |
 | 44 | laag | Een tegengehouden pagina staat voor de klant als "Alle gegevens bekend, wordt nu geschreven" | ✅ opgelost, PR #116 |
-| 45 | **hoog** | Een "verbetering" vervangt de functie van de bestaande pagina (homepage wordt Helmond, prijzenpagina wordt losse les bij faalangst) | ✅ opgelost, verbeterronde blok B (nog niet op een nieuwe tekst nagerekend) |
+| 45 | **hoog** | Een "verbetering" vervangt de functie van de bestaande pagina (homepage wordt Helmond, prijzenpagina wordt losse les bij faalangst) | ✅ opgelost, verbeterronde blok B; bevestigd bij de herhaling: "past niet bij het adres" ging van 5 van 16 (nulmeting) naar 0 van 21 |
 | 46 | **hoog** | De tekst draait een belofte van de site om: "binnen 4 uur een scherpe offerte" wordt "geen termijn voor de offerte" | ✅ opgelost, verbeterronde blok D (instructie plus controle op de zinsvorm; of een bewering met zijn bron overeenkomt, meet de app nog niet) |
-| 47 | **hoog** | Het sterkste bewijs van de klant staat in geen enkele tekst, hoewel het op de feitenkaart staat | ✅ opgelost, verbeterronde blok A (nog niet op een nieuwe tekst nagerekend) |
+| 47 | **hoog** | Het sterkste bewijs van de klant staat in geen enkele tekst, hoewel het op de feitenkaart staat | ✅ grotendeels opgelost, verbeterronde blok A; bevestigd bij de herhaling: 19 van de 21 nieuwe teksten bevatten minstens één sterk klantfeit |
 | 48 | **hoog** | De teksten lezen als een formulier: bedrijfsnaam voor elke alinea, dezelfde feiten drie tot vier keer, voorbehouden, zinnen uit de bronnen | ✅ opgelost, verbeterronde blok D (besluit eigenaar: naam niet voor elke alinea) |
 | 49 | middel | Waar de klant een vraag oversloeg, wijkt de tekst uit naar "bespreek dat vooraf" in plaats van het onderwerp los te laten | ✅ opgelost, verbeterronde blok D |
-| 50 | **hoog** | De reparatieknop van de klant haalde een juist klantfeit uit de tekst | oorzaak opgelost (punt 39), PR #115 |
+| 50 | **hoog** | De reparatieknop van de klant haalde een juist klantfeit uit de tekst | ⚠️ teruggevallen, herhaling 24/25 september 2026: dezelfde uitkomst via een andere route, zie punt 62 |
 | 51 | middel | Na een nieuwe versie staat een pagina twee keer in de bibliotheek | ✅ opgelost, PR #117 en de volgende |
 | 52 | **hoog** | De opmerking van de klant bij "Schrijf een nieuwe versie" bereikte de schrijver niet | ✅ opgelost, PR #119, nagerekend op productie |
 | 53 | middel | Een nieuwe versie verliest het beweringenplan, en wordt daarna niet meer op onderbouwing getoetst | ✅ opgelost, verbeterronde blok C |
@@ -173,6 +173,7 @@ bronzinnen, het ontbrekende bewijs).
 | 59 | **hoog** | De bronherleidbaarheidscontrole blokkeert op zinnen die geen bewering over het bedrijf zijn (een datumstempel, een veiligheidsinstructie, een definitie); 20 van de 21 nieuwe pagina's kregen "block" | open, gekend gat sinds 3 september, omvang nu voor het eerst gemeten, herhaling 24/25 september 2026 |
 | 60 | **hoog** | Een verzonnen veiligheidscertificering ("CO-gecertificeerd volgens de Gasketelwet") staat op alle 7 van de 7 nieuwe pagina's van de installateur; de keuring hield hem niet tegen | open, blinde lezer herhaling 24/25 september 2026, nagerekend tegen het waarheidsdossier |
 | 61 | middel | Twee echte cijfers uit dezelfde feitenkaart verwisseld (intake € 50 wordt € 80 op minstens 2 van de 8 pagina's), en een groeiwens ("willen groeien in Son en Breugel") werd een bevestigde aanwezigheidsclaim | open, blinde lezer herhaling 24/25 september 2026, nagerekend tegen het waarheidsdossier |
+| 62 | **hoog** | De reparatieknop ("los alles op") haalt bij een volledige herschrijving een juist klantfeit weg dat niet eens gemeld was, en lost soms zelfs de gemelde punten zelf niet op | teruggevallen, herhaling 24/25 september 2026, rechtstreeks getest en nagerekend |
 
 ---
 
@@ -1262,6 +1263,37 @@ feit eisen wanneer er meerdere prijzen voor vergelijkbare diensten op de kaart s
 "intake" tegenover "losse les"), niet alleen bij één los getal; en bij het promoveren van een
 klantantwoord naar een feit een woord als "willen" of "streven naar" laten meetellen als onderdeel van
 het feit zelf, niet alleen van het antwoord.
+
+## 62. De reparatieknop haalt opnieuw een juist klantfeit uit de tekst (punt 50, teruggevallen)
+
+Getoetst bij de herhaling, op de pagina "Vergelijk een nieuwe ketel met een hybride warmtepomp" van
+de installateur (tegengehouden op 5 punten, geen van de 5 over de monteurs). Versie 1 bevatte de
+zin "U kiest daarbij voor een installatiebedrijf met twaalf monteurs in dienst" (feit F-nummer,
+klopt met het gesprek: "Twaalf monteurs in dienst"). Na "laat ORBIT ENGINE ze alle 5 in één keer
+oplossen" verving de app de hele pagina door versie 2, waarin **"monteurs" nul keer voorkomt**: het
+juiste klantfeit is verdwenen, niet als correctie van een van de 5 gemelde punten (dat feit stond
+niet in de revisienota) maar als bijvangst van een volledige herschrijving.
+
+Erger nog: de herschrijving loste niet eens alle 5 gemelde punten zelf op. De revisienota vroeg
+uitdrukkelijk om de zin "Woont u in Nuenen, dan valt uw woonplaats binnen ons werkgebied voor
+warmtepompen" te onderbouwen of te schrappen; in versie 2 staat exact diezelfde zin, woord voor
+woord, nog steeds onopgelost.
+
+Dit is dezelfde soort fout als de oorspronkelijke bevinding 50 (nulmeting), met een andere route
+ernaartoe: destijds haalde de keuring een juist antwoord van de klant onterecht neer als
+"onderbouwing ontbreekt", en werd het feit bij een verbetering meegesleept. Punt 39 loste dat
+specifieke mechanisme op (een beantwoorde vraag maakt een bewering wél onderbouwd). Hier is de
+oorzaak breder: "los alles op" vraagt de schrijver om een VOLLEDIGE nieuwe versie van de hele pagina
+("ORBIT ENGINE schrijft één nieuwe versie van de hele tekst met deze 5 punten erin"), niet om een
+gerichte reparatie van alleen de 5 gemelde zinnen. Bij een volledige herschrijving is er geen garantie
+dat de schrijver dezelfde feiten weer kiest, ook al staan ze nog gewoon op de feitenkaart.
+**Waar te zoeken:** de content_plan/content_draft-taken die `los-alles-op` (`regenerate: true`) in
+`lib/jobs/content-jobs.ts` en de bijbehorende route inplant. **Voorstel:** ofwel de revisienota
+expliciet laten zeggen "behoud alle overige feiten die al in de tekst stonden en nog kloppen", ofwel
+"los alles op" een gerichte zin-voor-zin reparatie laten doen (zoals de "stap voor stap"-wizard al
+per punt aanbiedt) in plaats van een volledige herschrijving, en na de herschrijving controleren of
+elk feit dat in de vorige versie stond en niet als probleem gemeld was, nog in de nieuwe versie
+voorkomt.
 
 ## Wat goed ging, om niet kapot te maken
 
