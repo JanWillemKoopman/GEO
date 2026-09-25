@@ -53,9 +53,18 @@ export const MODELS = {
    */
   quality: "gpt-6-luna",
   /**
-   * Premium, uitsluitend het schrijven/herschrijven van de content zelf
-   * (Fase C, §8). Content ís het betaalde product, dus dit is de enige tier die
-   * boven Luna uitkomt. Zie contentkwaliteit-analyse.md (C4).
+   * Premium: al het REDACTIONELE werk aan de content (Fase C, §8). Content ís het
+   * betaalde product, dus dit is de enige tier die boven Luna uitkomt. Zie
+   * contentkwaliteit-analyse.md (C4).
+   *
+   * **Sinds 25 september 2026 niet meer uitsluitend het schrijven.** Besluit van
+   * de eigenaar (docs/tasks/contentpijplijn-publicatiewaardig.md §2 en §4.1):
+   * ook de paginastrategie, de eindredactie, de eigenaarstoets, de
+   * merkstemtoets, het stemvoorstel en de portfolio draaien op deze tier. Er komt
+   * geen vierde tier bij; het verschil zit in de denktijd (werksoort
+   * `redactioneel` in `lib/openai/sampling.ts`). Reden: de keuze wat er op een
+   * pagina komt maakte tot dan het goedkoopste model voor een halve cent, en de
+   * dure schrijver voerde alleen uit.
    *
    * ⚠️ **Van Sol naar Terra op 4 september 2026.** Terra kost $2/$12 per miljoen
    * tokens tegen $5/$30 voor Sol: 2,5× goedkoper op zowel input als output.

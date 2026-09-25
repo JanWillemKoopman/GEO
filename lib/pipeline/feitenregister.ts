@@ -24,6 +24,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { alleRijen } from "@/lib/supabase/pagineer";
 import { deelFeitenIn, INDEEL_BATCH } from "@/lib/pipeline/fact-classify";
 import { beoordeelConflict } from "@/lib/pipeline/conflict-judge";
+import { herstartWachtendePaginas } from "@/lib/pipeline/strategie-wacht";
 import {
   vindKandidaten,
   automatischeWinnaar,
@@ -295,6 +296,9 @@ export async function werkRegisterBij(admin: Admin, profileId: string): Promise<
   // ── 4. Beantwoorde vragen verwerken ───────────────────────────────────────
   await verwerkBeantwoordeVragen(admin, profileId, rijen);
 
+  // ── 5. Pagina's die op een opgelost conflict wachtten, opnieuw starten (WP3) ──
+  await herstartWachtendePaginas(admin, profileId);
+
   return uitkomst;
 }
 
@@ -398,7 +402,10 @@ export async function losConflictOp(
         updated_at: nu,
       })
       .eq("id", c.id);
-    return error ? `Opslaan mislukt: ${error.message}` : null;
+    if (error) return `Opslaan mislukt: ${error.message}`;
+    // Een pagina die hierop wachtte, begint opnieuw bij de strategie (§8.3).
+    await herstartWachtendePaginas(admin, args.profileId);
+    return null;
   }
 
   // Vraag het de ondernemer: één keuzevraag met de twee zinnen letterlijk.

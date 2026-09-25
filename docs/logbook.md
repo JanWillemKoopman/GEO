@@ -12394,3 +12394,23 @@ beslissen zou een schijnrangorde zijn. Die conflicten gaan naar de adviseur. Het
 geen eigen menu-item (Admin heeft er hooguit negen, `scripts/test-unit.ts`) maar een teller met link
 op Diagnose. De drie proefmerken hebben samen 408 actuele feiten; de eerste run (twaalf batches, vier
 tegelijk) kan pas draaien als de code op productie staat.
+
+## 25 september 2026: WP3, de paginastrategie
+
+Derde werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`, migratie `0114`. Tussen
+`content_plan` en `content_draft` staat nu `content_strategy`: Sol met denktijd hoog (nieuwe
+werksoort `redactioneel`) beslist wat er op de pagina komt en wat niet, met het contract als lijst
+van mogelijkheden in plaats van als opdracht. De code rekent de keuzes na en zet ze recht: een
+F-nummer dat niet op de kaart staat of betwist is valt eruit, hoogstens zes prioriteitsfeiten, een
+voorbehoud zonder een van de vijf redenen uit §7.2 wordt een vraag aan de ondernemer, een
+kernonderwerp zonder feit en zonder vakkennis wordt een vraag in plaats van een sectie, en het
+lengtebudget blijft binnen het vertrekpunt plus 30 procent (`lib/lengtebudget.ts`). De ruwe keuze en
+de correcties worden allebei bewaard.
+
+De conflictpoort uit WP2 is aangesloten: heeft een pagina een betwist feit nodig, dan wacht hij en
+start hij vanzelf opnieuw zodra de adviseur het conflict oplost. Elke AI-aanroep legt sinds deze
+migratie zijn duur vast (`ai_calls.duration_ms`); komt een strategieaanroep boven 120 seconden, dan
+draaien de volgende in de achtergrondmodus van de API, zodat een time-out de duurste aanroep nooit
+twee keer laat betalen. Er is nog geen gemeten strategieaanroep; de modus staat dus nog uit. De
+schrijver gebruikt de strategie pas vanaf WP4. Kosten en duur worden bij de nareken-plicht na fase 1
+op `ai_calls` gemeten.

@@ -128,6 +128,13 @@ export const dedupe = {
    * hem opnieuw probeert nadat het inplannen halverwege strandde.
    */
   contentDraftNa: (planJobId: string) => `content_draft_na:${planJobId}`,
+  /**
+   * De strategie na één plantaak (WP3). Op het id van de plantaak, zelfde reden
+   * als `contentDraftNa`: elke plantaak is een eigen opdracht.
+   */
+  contentStrategyNa: (planJobId: string) => `content_strategy_na:${planJobId}`,
+  /** Een achtergrondaanroep ophalen, per poging een eigen taak. */
+  contentStrategyOphalen: (responseId: string, poging: number) => `content_strategy_ophalen:${responseId}:${poging}`,
   // Per DAG en per merk: twee rondes op dezelfde dag halen exact dezelfde
   // cijfers op, want Google levert pas definitieve data met twee dagen
   // vertraging (`lib/search-console/window.ts`).

@@ -227,7 +227,16 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
 
 ## Fase 9. Het eerste concept schrijven
 
-71. Het systeem plant voor elke pagina de schrijftaak in.
+71. Het systeem bepaalt eerst per pagina de paginastrategie (sinds 25 september 2026): het duurste
+    model beslist met extra denktijd wat er op de pagina komt en vooral wat niet, welke drie tot zes
+    feiten voorop gaan, waar elke onzekerheid heen gaat (een vraag aan de klant, één uitleg aan de
+    lezer met een van vijf vaste redenen, of weglaten) en hoeveel woorden de pagina krijgt. De
+    onderwerpen uit het contract zijn daarbij mogelijkheden en geen opdracht. Code rekent de keuzes
+    na en zet ze recht. Is een feit dat de pagina nodig heeft betwist (twee versies die niet allebei
+    waar kunnen zijn), dan wacht de pagina tot de adviseur het conflict oplost, en start daarna
+    vanzelf opnieuw. Daarna plant het systeem de schrijftaak in. Tot werkpakket 4 van
+    `docs/tasks/contentpijplijn-publicatiewaardig.md` wordt de strategie wel bewaard, maar schrijft
+    de schrijver nog op de oude opdracht.
 72. Het beste, duurste AI-model schrijft de eerste volledige versie: een titel, de tekst in
     Markdown, losse FAQ-vragen met antwoord, en technische metadata voor zoekmachines en
     AI-assistenten. De tekst wordt gegrond op de feitenkaart, de vragen die het merk in de meting

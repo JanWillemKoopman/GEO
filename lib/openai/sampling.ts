@@ -31,6 +31,7 @@ export type WorkKind =
   | "creative"
   | "content"
   | "judging"
+  | "redactioneel"
   | "simulation";
 
 /**
@@ -94,6 +95,16 @@ interface WorkProfile {
  *   en de goedkoopste manier om een dure ronde te voorkomen. De temperatuur vervalt daarmee, zoals bij elke stand boven `none`:
  *   de reproduceerbaarheid komt hier van de deterministische poorten die
  *   naast het panel draaien, niet van de sampling.
+ * - `redactioneel`, de paginastrategie, de eindredactie, het stemvoorstel en
+ *   de portfolio (docs/tasks/contentpijplijn-publicatiewaardig.md §4.1, besluit
+ *   2 van de eigenaar op 25 september 2026). Op Sol, denktijd `high`: dit zijn
+ *   de stappen waarin gekozen wordt wat er op een pagina komt en wat eruit mag,
+ *   en daar was de goedkoopste stap in de keten precies het probleem. Het
+ *   tijdsrisico dat bij `content` hierboven staat, geldt hier ook: elke aanroep
+ *   legt zijn duur vast (`ai_calls.duration_ms`, migratie 0114), en boven 120
+ *   seconden gaat de soort aanroep naar de achtergrondmodus van de API
+ *   (`lib/openai/achtergrond.ts`), zodat een time-out nooit twee keer betaald
+ *   wordt.
  * - `simulation`, halte 3a. Niets meegeven, in beide kolommen. We willen weten
  *   wat een AI-assistent een echte gebruiker antwoordt, en die draait ook op de
  *   standaardinstellingen. Een eigen temperatuur of effort zou de meting juist
@@ -105,6 +116,7 @@ const WORK: Record<WorkKind, WorkProfile> = {
   creative: { temperature: TEMPERATURES.creative, effort: "none" },
   content: { temperature: TEMPERATURES.content, effort: "medium" },
   judging: { effort: "medium" },
+  redactioneel: { effort: "high" },
   simulation: {},
 };
 

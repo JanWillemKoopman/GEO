@@ -64,7 +64,29 @@ export default async function AdminFeitenPage({ params }: { params: Promise<{ id
     ((feitRijen ?? []) as { id: string; text: string; source: string; created_at: string }[]).map((f) => [f.id, f]),
   );
 
+  // ── Pagina's die op een conflict wachten (WP3) ────────────────────────────
+  // De conflictpoort houdt een pagina tegen als een betwist feit er nodig is;
+  // dit is de melding daarvan aan de adviseur (§8.3).
+  const { data: analyseRijen } = await admin.from("analyses").select("id").eq("profile_id", id);
+  const analyseIds = ((analyseRijen ?? []) as { id: string }[]).map((a) => a.id);
+  const { data: stukRijen } = analyseIds.length
+    ? await admin
+        .from("content_pieces")
+        .select("id, title, strategy_json")
+        .in("analysis_id", analyseIds)
+        .eq("is_current", true)
+        .not("strategy_json", "is", null)
+    : { data: [] };
+  const wachtPerConflict = new Map<string, string[]>();
+  for (const stuk of (stukRijen ?? []) as { title: string; strategy_json: { wacht?: unknown; tegengehouden?: { conflictId: string }[] } | null }[]) {
+    if (!stuk.strategy_json?.wacht) continue;
+    for (const t of stuk.strategy_json.tegengehouden ?? []) {
+      wachtPerConflict.set(t.conflictId, [...(wachtPerConflict.get(t.conflictId) ?? []), stuk.title]);
+    }
+  }
+
   const conflicten: ConflictWeergave[] = rijen.map((r) => ({
+    wachtendePaginas: wachtPerConflict.get(r.id) ?? [],
     id: r.id,
     soort: r.soort,
     blokkerend: r.ernst === "blokkerend",

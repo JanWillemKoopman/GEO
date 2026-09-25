@@ -1208,6 +1208,7 @@ vangnet; `docs/contentpijplijn-overdracht.md` herschrijven.
 
 | Werkpakket | Stand |
 |---|---|
+| WP3 | Code klaar, migratie `0114` op productie (25 september 2026): taak `content_strategy` tussen plannen en schrijven, L5 op Sol met denktijd hoog (werksoort `redactioneel`), de controles in code, de conflictpoort met wachten en vanzelf herstarten, de duur van elke aanroep in `ai_calls.duration_ms`, en de achtergrondmodus (starten, in een vervolgtaak ophalen, nooit dubbel starten), die aangaat zodra een aanroep boven 120 seconden komt. De strategie wordt bewaard maar stuurt de schrijver pas vanaf WP4. Afwijking: het dossier labelt zijn vragen nog niet als beslis-, oriëntatie- of randvraag; de strategie doet die weging zelf. "Klaar als" (geen consumentenadviessecties en een budget onder de 800 woorden op de kostenpagina van de installateur en op Best, en de gemeten duur) kan pas na merge worden nagerekend |
 | WP2 | Code klaar, migratie `0113` op productie (25 september 2026): feiten indelen (L1), kandidaat-conflicten in code, beoordelen (L2), het conflictscherm `admin/feiten`, en betwiste feiten van de kaart. De poort per pagina (`houdtPaginaTegen()`) wordt in WP3 aangesloten. "Klaar als" pas na de eerste run op de drie merken en het nalopen van elk gevonden conflict; dat kan pas als de code op productie staat |
 
 ### Volgorde en afhankelijkheden
