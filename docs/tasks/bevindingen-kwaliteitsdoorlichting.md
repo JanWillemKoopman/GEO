@@ -19,10 +19,11 @@
 > zit, en een voorstel. Is een punt opgelost: de regel "Status" bijwerken met de datum en de PR, en
 > een alinea in `docs/logbook.md`.
 >
-> **Stand 24 september 2026:** de hele keten doorlopen, 16 teksten blind beoordeeld, proeven met de
-> reparatieknop en een ideale klant gedaan. Het eindverslag staat hieronder; het stap-voor-stapdossier
-> met cijfers in `docs/tasks/kwaliteitsdoorlichting-stappen.md`. De herhaling en de overdracht naar een
-> nieuwe werksessie: `docs/tasks/kwaliteitsdoorlichting-herhaling.md`.
+> **Stand 25 september 2026:** de hele keten twee keer doorlopen (nulmeting 23/24 september, herhaling
+> 24/25 september), 37 teksten blind beoordeeld, proeven met de reparatieknop en een ideale klant
+> gedaan. Het eindverslag van de nulmeting staat hieronder; het stap-voor-stapdossier met cijfers in
+> `docs/tasks/kwaliteitsdoorlichting-stappen.md`. De uitslag van de herhaling staat bij §"Herhaling"
+> verderop en bij de punten 45, 47, 50, 55 tot en met 62.
 
 ## Verbeterronde vanaf 24 september 2026: besluiten en stand
 
@@ -47,11 +48,8 @@ doorloop met dezelfde drie bedrijven en dezelfde blinde lezers (meetlat: 4,1 op 
   meer gecontroleerd op wat hij over het bedrijf beweert.
 
 **Stand na de verbeterronde (24 september 2026, eind van de dag):** alle zes blokken live (PR #121
-tot en met #127). Van de 54 bevindingen staan er nog open: 15 en 16 (eenmalig, niet herhaald), en
-drie die pas op een nieuwe doorloop te toetsen zijn: 47 en 45 (geen nieuwe tekst geschreven sinds de
-reparatie) en 50 (de reparatieknop, oorzaak weg via 39). Wat nog ontbreekt, is de afsluiting uit het
-plan: dezelfde drie bedrijven opnieuw door de keten, met dezelfde blinde lezers, tegen de 4,1 op 10.
-Hoe, en wat daarvoor in de repository staat: `docs/tasks/kwaliteitsdoorlichting-herhaling.md`.
+tot en met #127). De afsluiting uit het plan, dezelfde drie bedrijven opnieuw door de keten met
+dezelfde blinde lezers, is gedaan op 24/25 september; de uitslag staat in §"Herhaling" hieronder.
 
 | Blok | Punten | Stand |
 |---|---|---|
@@ -61,6 +59,32 @@ Hoe, en wat daarvoor in de repository staat: `docs/tasks/kwaliteitsdoorlichting-
 | D, schrijfstijl | 46, 48, 49 | ✅ live, PR #124 |
 | E, planning | 31, 32, 33 | ✅ live, PR #125 |
 | F, kleine punten | 3, 6, 8, 9, 11 tot 18, 23, 38 | ✅ live, PR #126 en #127; 15 en 16 niet herhaald, alleen oppakken bij herhaling |
+
+## Herhaling: dezelfde drie bedrijven opnieuw door de keten (24/25 september 2026)
+
+Zelfde drie merken, dezelfde clusters (met per merk één nieuw cluster erbij, gekoppeld aan het
+groeidoel uit het gesprek), dezelfde blinde lezers, dezelfde meetlat als de nulmeting.
+
+| Maat | Nulmeting (16 teksten) | Herhaling (21 teksten) |
+|---|---|---|
+| Gemiddeld copywritercijfer | 4,1 op 10 | **4,9 op 10** |
+| Ondernemer publiceert: zo / met aanpassingen / nee | 0 / 11 / 5 | 4 / 11 / 6 |
+| Bezoeker neemt contact op: ja / misschien / nee | 3 / 12 / 1 | 12 / 9 / 0 |
+| Nieuwe tekst beter dan de huidige pagina | 11 van 15 | 10 van 10 |
+| Past niet bij het adres | 5 van 16 | **0 van 21** |
+| Niveau professionele copywriter | bij geen van de drie | nog steeds niet; C komt het dichtst in de buurt |
+
+**De vier getoetste punten:** 45 (functie van de pagina) en 47 (sterkste bewijs) zijn bevestigd
+opgelost. 17 (Gemini-limiet) faalde opnieuw volledig bij drie merken tegelijk, waarna de eigenaar
+Gemini als meetbron op 25 september heeft uitgezet in productie (punt 55). 50 (de reparatieknop)
+viel terug via een nieuwe route: een volledige herschrijving nam een juist klantfeit niet meer over
+(punt 62). Onderweg vier nieuwe bevindingen (58 tot en met 61) en een tijdelijk, vermoedelijk
+ongerelateerd productieprobleem met de edge-middleware.
+
+**Wat na de herhaling nog open staat:** 50 en 55 (allebei hierboven), 57 (deels, twaalf
+bijna-identieke vervolgvragen op één pagina), 58 en 59 (crawldekking en de bronherleidbaarheidscontrole),
+60 en 61 (een verzonnen certificering en verwisselde cijfers), 15 en 16 (eenmalig, niet teruggekomen),
+en de wisselproef met een ideale klant (niet meegenomen in deze herhaling).
 
 ## Eindverslag: de vijf verbeteringen die het meest opleveren
 
@@ -116,7 +140,7 @@ bronzinnen, het ontbrekende bewijs).
 | 2 | hoog | Definitieve onderwerpenronde kan alle onderwerpen wissen | ✅ opgelost, PR #108 |
 | 3 | hoog | Het merk zelf komt op de lijst "gelijknamige bedrijven die jij niet bent" | ✅ opgelost, verbeterronde blok F |
 | 4 | hoog | De crawl leest 1 pagina van een site van ~70, zonder waarschuwing | ✅ opgelost, verbeterronde blok B |
-| 5 | hoog | Meetvragen negeren de groeigebieden: de opdracht spreekt zichzelf tegen | ✅ opgelost, verbeterronde blok A |
+| 5 | hoog | Meetvragen negeren de groeigebieden: de opdracht spreekt zichzelf tegen | ✅ opgelost, verbeterronde blok A; bevestigd bij de herhaling (groeiplaatsen Best, Nuenen, Son en Breugel, Veldhoven kwamen letterlijk terug in de nieuwe meetvragen van alle drie de merken) |
 | 6 | middel | "Herkend door ChatGPT bij 5 van 6 vragen" telt gokken op de naam als herkenning | ✅ opgelost, verbeterronde blok F |
 | 7 | middel | Het sterkste bewijs van een bedrijf valt tussen crawl en dossier weg | ✅ opgelost, verbeterronde blok B (vangnet op de feitenkaart; het merkonderzoek zelf niet aangepast) |
 | 8 | middel | Meetvragen: veel dubbel, weinig realistisch, altijd een plaatsnaam | ✅ deels opgelost, verbeterronde blok F (dubbel en bezwaren; "altijd een plaatsnaam" is een bewuste regel) |
@@ -128,26 +152,26 @@ bronzinnen, het ontbrekende bewijs).
 | 14 | laag | Voortgang zegt "klaar" en "nog minder dan een minuut" terwijl er nog stappen wachten | ✅ opgelost, verbeterronde blok F |
 | 15 | laag | Conceptscherm gaf één keer een foutpagina bij het openen, direct na het afronden | open, niet herhaald |
 | 16 | laag | Een taak van een merk stond op "bezig" en daarna weer in de wachtrij met 0 pogingen | open, niet herhaald |
-| 17 | hoog | Gemini-meting viel volledig uit op een limiet van de leverancier | ✅ gespreid, verbeterronde blok F; na te rekenen op de volgende meting |
+| 17 | hoog | Gemini-meting viel volledig uit op een limiet van de leverancier | ⚠️ open, spreiding gebouwd in blok F maar bij de herhaling opnieuw volledig uitgevallen bij alle drie de merken, zie punt 55 |
 | 18 | laag | Beoordeling "genoemd of niet" geeft soms platte tekst in plaats van JSON, en de mislukte uitvoer wordt niet bewaard | ✅ vastleggen opgelost, verbeterronde blok F; het aandeel is nu te meten |
 | 19 | **hoog** | Een definitief mislukte Gemini- of Google-meting laat de analyse eeuwig op "meten" staan | ✅ opgelost, PR #110 |
 | 20 | **hoog** | Het rapport schrapt elke zin over welke concurrent een vraag wint, ook de juiste | ✅ opgelost, PR #111 en #112 |
 | 21 | middel | Een eigen product ("Hybride warmtepomp") telde in de naamcontrole als concurrent | ✅ opgelost, PR #112 |
 | 22 | **hoog** | Het rapport zegt "niet genoemd, 0 op 100" terwijl Google het merk wel noemde | ✅ opgelost, PR #111 en #112 |
 | 23 | laag | Hetzelfde bedrijf staat twee keer in het namenregister, met en zonder "(VSB)" | ✅ opgelost voor nieuwe namen, verbeterronde blok F; de twee bestaande rijen zijn niet samengevoegd |
-| 24 | laag | De rapportinstructie zegt niet of prioriteit 1 de belangrijkste is; de hovenier kreeg 6 tot 10 met de belangrijkste pagina's op 10 | ✅ opgelost, verbeterronde blok A |
+| 24 | laag | De rapportinstructie zegt niet of prioriteit 1 de belangrijkste is; de hovenier kreeg 6 tot 10 met de belangrijkste pagina's op 10 | ✅ opgelost, verbeterronde blok A; bevestigd bij de herhaling |
 | 25 | middel | Een klaar cluster (status "gereed") heeft geen link op zijn kaart | ✅ opgelost, PR #113 |
 | 26 | **hoog** | De consultant ziet de clusters van een klantmerk niet en krijgt "Start het eerste cluster" | ✅ opgelost, PR #116 |
-| 27 | **hoog** | Het rapport kent de groeidoelen en feiten uit het gesprek niet | ✅ opgelost, verbeterronde blok A |
+| 27 | **hoog** | Het rapport kent de groeidoelen en feiten uit het gesprek niet | ✅ opgelost, verbeterronde blok A; bevestigd bij de herhaling (bij alle drie de merken staat het expliciete groeidoel op prioriteit 1, met actie "verbeteren" op de bestaande pagina) |
 | 28 | **hoog** | De site-inventaris mist de hoofdpagina uit het menu en bevat fotobijlagen; het rapport adviseert een fotopagina te verbeteren | ✅ opgelost, verbeterronde blok B |
 | 29 | middel | Het planscherm zegt de klant "stel je het plan zelf op", maar alleen de consultant mag het | ✅ opgelost, PR #114 |
 | 30 | **hoog** | Het plan gaf de zwaarste gemiste vraag potentie 0 en zette die pagina achteraan | ✅ opgelost, PR #114 (nog niet op een nieuw plan nagerekend, zie 32) |
 | 31 | **hoog** | Het plan zet vier verbeteringen van dezelfde pagina in dezelfde week | ✅ opgelost, verbeterronde blok E (besluit eigenaar: één per drie maanden) |
-| 32 | **hoog** | "Opnieuw opzetten" van het plan faalt als alle kansen al in het huidige plan staan, en laat ze anders achter | ✅ opgelost, verbeterronde blok E |
-| 33 | middel | Een plan dat laat in de maand start, vraagt de klant zijn vragen te beantwoorden vóór een datum in het verleden | ✅ opgelost, verbeterronde blok E |
+| 32 | **hoog** | "Opnieuw opzetten" van het plan faalt als alle kansen al in het huidige plan staan, en laat ze anders achter | ✅ opgelost, verbeterronde blok E; bevestigd bij de herhaling (drie keer foutloos opnieuw opgezet) |
+| 33 | middel | Een plan dat laat in de maand start, vraagt de klant zijn vragen te beantwoorden vóór een datum in het verleden | ✅ opgelost, verbeterronde blok E; bevestigd bij de herhaling (streefdata lagen steeds in de toekomst) |
 | 34 | laag | De klant leest "wacht op jouw vrijgave" en in hetzelfde blok dat de consultant goedkeurt | ✅ opgelost, PR #116 |
 | 35 | **hoog** | Vragen die het gesprek al beantwoordde, blijven openstaan voor de klant | ✅ opgelost, verbeterronde blok A (streng: alleen als het gesprek de hele vraag dekt) |
-| 36 | middel | Elk rapport zet zijn eigen vragen klaar; alleen letterlijk gelijke vragen worden samengevoegd | ✅ grotendeels opgelost, verbeterronde blok A (sterk anders geformuleerde varianten komen nog door) |
+| 36 | middel | Elk rapport zet zijn eigen vragen klaar; alleen letterlijk gelijke vragen worden samengevoegd | ⚠️ grotendeels opgelost, verbeterronde blok A; bij de herhaling kwamen opnieuw sterk anders geformuleerde varianten door, nu met 12 tegelijk over één pagina, zie punt 57 |
 | 37 | laag | Een vraag aan de klant bevat "en" en "of" met een schuine streep ertussen | ✅ opgelost, PR #116 |
 | 38 | middel | Het laatste antwoord van een pagina laat de klant 9 tot 30 seconden wachten | ✅ opgelost, verbeterronde blok F |
 | 39 | **hoog** | Een beantwoorde vraag maakt de bewering erachter nooit "onderbouwd": de keuring blijft "beantwoord deze vraag" zeggen | ✅ opgelost, PR #115 |
@@ -156,16 +180,24 @@ bronzinnen, het ontbrekende bewijs).
 | 42 | **hoog** | De klant krijgt "Tekst is klaar, keur hem goed" bij een tekst die de eigen keuring tegenhoudt | ✅ opgelost, verbeterronde blok C (besluit eigenaar: tonen met duidelijke melding) |
 | 43 | middel | De keuring noemt het bedrag van de klant "in strijd met de instructie", omdat de opzet van vóór zijn antwoord is | ✅ opgelost, verbeterronde blok C |
 | 44 | laag | Een tegengehouden pagina staat voor de klant als "Alle gegevens bekend, wordt nu geschreven" | ✅ opgelost, PR #116 |
-| 45 | **hoog** | Een "verbetering" vervangt de functie van de bestaande pagina (homepage wordt Helmond, prijzenpagina wordt losse les bij faalangst) | ✅ opgelost, verbeterronde blok B (nog niet op een nieuwe tekst nagerekend) |
+| 45 | **hoog** | Een "verbetering" vervangt de functie van de bestaande pagina (homepage wordt Helmond, prijzenpagina wordt losse les bij faalangst) | ✅ opgelost, verbeterronde blok B; bevestigd bij de herhaling: "past niet bij het adres" ging van 5 van 16 (nulmeting) naar 0 van 21 |
 | 46 | **hoog** | De tekst draait een belofte van de site om: "binnen 4 uur een scherpe offerte" wordt "geen termijn voor de offerte" | ✅ opgelost, verbeterronde blok D (instructie plus controle op de zinsvorm; of een bewering met zijn bron overeenkomt, meet de app nog niet) |
-| 47 | **hoog** | Het sterkste bewijs van de klant staat in geen enkele tekst, hoewel het op de feitenkaart staat | ✅ opgelost, verbeterronde blok A (nog niet op een nieuwe tekst nagerekend) |
+| 47 | **hoog** | Het sterkste bewijs van de klant staat in geen enkele tekst, hoewel het op de feitenkaart staat | ✅ grotendeels opgelost, verbeterronde blok A; bevestigd bij de herhaling: 19 van de 21 nieuwe teksten bevatten minstens één sterk klantfeit |
 | 48 | **hoog** | De teksten lezen als een formulier: bedrijfsnaam voor elke alinea, dezelfde feiten drie tot vier keer, voorbehouden, zinnen uit de bronnen | ✅ opgelost, verbeterronde blok D (besluit eigenaar: naam niet voor elke alinea) |
 | 49 | middel | Waar de klant een vraag oversloeg, wijkt de tekst uit naar "bespreek dat vooraf" in plaats van het onderwerp los te laten | ✅ opgelost, verbeterronde blok D |
-| 50 | **hoog** | De reparatieknop van de klant haalde een juist klantfeit uit de tekst | oorzaak opgelost (punt 39), PR #115 |
+| 50 | **hoog** | De reparatieknop van de klant haalde een juist klantfeit uit de tekst | ⚠️ teruggevallen, herhaling 24/25 september 2026: dezelfde uitkomst via een andere route, zie punt 62 |
 | 51 | middel | Na een nieuwe versie staat een pagina twee keer in de bibliotheek | ✅ opgelost, PR #117 en de volgende |
 | 52 | **hoog** | De opmerking van de klant bij "Schrijf een nieuwe versie" bereikte de schrijver niet | ✅ opgelost, PR #119, nagerekend op productie |
 | 53 | middel | Een nieuwe versie verliest het beweringenplan, en wordt daarna niet meer op onderbouwing getoetst | ✅ opgelost, verbeterronde blok C |
 | 54 | middel | Een zin met een omschreven klantfeit telt als "zin zonder bron" | ✅ grotendeels opgelost, verbeterronde blok C |
+| 55 | **hoog** | Bij drie merken tegelijk meten faalt de Gemini-meting nog steeds volledig op de leverancierslimiet, ondanks de spreiding van blok F | open, herhaling 24/25 september 2026 |
+| 56 | **hoog** | Een analyse wordt al na de eerste mislukte rapportpoging op "vastgelopen" gezet en toont de klant een foutmelding, terwijl de taak zelf nog drie keer op de achtergrond opnieuw probeert (tot 30 minuten) | open, herhaling 24/25 september 2026 |
+| 57 | middel | Bij één pagina kwamen na het beantwoorden van de eerste vragen 12 nieuwe vervolgvragen over hetzelfde onderwerp (wat zit inbegrepen bij een ketelvervanging), in steeds andere bewoordingen | open, bevestigt dat punt 36 nog niet volledig is opgelost, herhaling 24/25 september 2026 |
+| 58 | laag | De crawl van een grote site (~70 pagina's) las dit keer maar 33 van de 68 pagina's, ook na een extra aanvulronde, tegen 60 van de 68 bij de nulmeting; de site reageerde traag | open, lijkt aan de externe site te liggen en niet aan de code, herhaling 24/25 september 2026 |
+| 59 | **hoog** | De bronherleidbaarheidscontrole blokkeert op zinnen die geen bewering over het bedrijf zijn (een datumstempel, een veiligheidsinstructie, een definitie); 20 van de 21 nieuwe pagina's kregen "block" | open, gekend gat sinds 3 september, omvang nu voor het eerst gemeten, herhaling 24/25 september 2026 |
+| 60 | **hoog** | Een verzonnen veiligheidscertificering ("CO-gecertificeerd volgens de Gasketelwet") staat op alle 7 van de 7 nieuwe pagina's van de installateur; de keuring hield hem niet tegen | open, blinde lezer herhaling 24/25 september 2026, nagerekend tegen het waarheidsdossier |
+| 61 | middel | Twee echte cijfers uit dezelfde feitenkaart verwisseld (intake € 50 wordt € 80 op minstens 2 van de 8 pagina's), en een groeiwens ("willen groeien in Son en Breugel") werd een bevestigde aanwezigheidsclaim | open, blinde lezer herhaling 24/25 september 2026, nagerekend tegen het waarheidsdossier |
+| 62 | **hoog** | De reparatieknop ("los alles op") haalt bij een volledige herschrijving een juist klantfeit weg dat niet eens gemeld was, en lost soms zelfs de gemelde punten zelf niet op | teruggevallen, herhaling 24/25 september 2026, rechtstreeks getest en nagerekend |
 
 ---
 
@@ -1090,6 +1122,202 @@ twee kernwoorden die samen 40% van de zin zijn. Op de echte zinnen: "Reken meest
 €35.000" en "Eén vaste ploeg verzorgt het hele tuinproject" zijn gedekt, "de goedkoopste hovenier
 van Eindhoven" en een verzonnen termijn niet. "Wij verzorgen ook de afvoer zelf" blijft een
 grensgeval: één gedeeld woord is te weinig om zeker te zijn.
+
+---
+
+## 55. De Gemini-meting valt nog steeds volledig uit bij drie merken tegelijk
+
+Gevonden bij de herhaling van 24/25 september 2026, precies de proef die punt 17 moest afsluiten.
+Bij alle drie de merken tegelijk een cluster laten meten: bij elk van de drie merken zijn **alle 30
+Gemini-metingen mislukt**, met `last_error` steeds "Gemini-via-DataForSEO ophalen mislukt ...: 3rd
+Party API Service Unavailable (rate_limit_exceeded)". De primaire meting bij ChatGPT (`measure_prompt`)
+bleef vrijwel foutloos (43 tot 45 van de 46 gelukt per merk), dus de klant krijgt gewoon een score en
+een rapport; het is de secundaire Gemini-bron die telkens volledig wegvalt.
+
+De spreiding uit blok F (`GEMINI_AFSTAND_MS = 4_000` in `lib/jobs/spreiding.ts`, "4 seconden is 15 per
+minuut") is dus niet genoeg: de aanname over de leverancierslimiet ("gekozen en niet gemeten") lijkt
+te optimistisch, zeker met drie merken kort na elkaar. **Waar te zoeken:** `enqueueLlmResponseMeasurement()`
+in `lib/jobs/queue.ts` en `spreidTijden()`/`GEMINI_AFSTAND_MS` in `lib/jobs/spreiding.ts`.
+**Voorstel:** de afstand vergroten (of configureerbaar maken) en/of de retries van
+`measure_llm_response` een langere backoff geven dan de andere taaktypes, zodat een taak die op de
+limiet loopt niet binnen dezelfde uitbarsting nog drie keer opnieuw op diezelfde limiet knalt. Dit is
+een aparte bron (`AI_OVERVIEW_ENGINE`/Gemini is optioneel per `CLAUDE.md`), dus geen dringende
+blokkade voor de klant, maar de meting mist wel een compleet beeld.
+
+## 56. Een analyse toont al "vastgelopen" bij de eerste mislukte rapportpoging, niet pas na de laatste
+
+Gevonden toen het OpenAI-tegoed tijdens de herhaling tijdelijk op was: alle drie de analyses
+kregen meteen bij de eerste `generate_report`-poging de status `mislukt`
+(`lib/pipeline/report.ts`, regel 1129: `await admin.from("analyses").update({ status: "mislukt" })`
+in de catch-tak van `generateReport()`), en de klant zag meteen "De meting van [merk] is vastgelopen"
+(`maakMelding()` in `lib/cluster-melding.ts`). Maar de taak zelf was pas bij poging 1 van de 4
+(`MAX_ATTEMPTS = 4` in `lib/jobs/types.ts`, met een backoff van 2, 4, 8 en 16 minuten via
+`backoffMinutes()`) en zou zonder ingrijpen op eigen kracht tot drie keer opnieuw hebben geprobeerd,
+in totaal bijna 30 minuten lang. Bij een taak die op de laatste poging alsnog lukt (bijvoorbeeld een
+kortstondige storing bij de leverancier) staat de analyse dus onterecht op "vastgelopen" terwijl de
+taak zelf gewoon doorwerkt en het achteraf zelf herstelt (`status` gaat terug naar `gereed`
+bij een geslaagde `generateReport()`, regel 762 en 1083). De klant ziet in de tussentijd een
+foutmelding en een "opnieuw proberen"-knop voor iets dat vanzelf goed komt.
+
+**Waar te zoeken:** de catch-tak van `generateReport()` in `lib/pipeline/report.ts` (regel 1129) zet
+de analyse te vroeg op `mislukt`; dat hoort pas te gebeuren als de taak zijn `MAX_ATTEMPTS` heeft
+opgebruikt (zoals `handleFailure()` in `lib/jobs/worker.ts` dat via `markOwnerFailed()` al voor
+andere blokkerende taaktypes doet). **Voorstel:** de status-update in de catch-tak van
+`generateReport()` alleen laten lopen als dit al de laatste toegestane poging is (`job.attempts >=
+MAX_ATTEMPTS`, net als `handleFailure()`), of de statuswijziging helemaal overlaten aan de worker in
+plaats van aan de pijplijnfunctie zelf.
+
+## 57. Twaalf bijna-dezelfde vervolgvragen over één onderwerp
+
+Gevonden bij de herhaling: nadat de eerste feitenvragen van de installateur beantwoord waren, kwamen
+er voor dezelfde pagina (ketelvervanging) in één keer 12 nieuwe vragen bij die vrijwel allemaal
+hetzelfde vragen, in andere bewoordingen: "Welke werkzaamheden zijn standaard inbegrepen bij een
+ketelvervanging?", "Welke werkzaamheden voert u zelf uit bij een volledige ketelvervanging?", "Welke
+onderdelen haalt u los en sluit u weer aan bij ketelvervanging?", "Sluit u bij ketelvervanging de
+bestaande radiatoren en thermostaat weer aan?", "Voert u de oude ketel af na vervanging?" zijn in de
+kern allemaal dezelfde vraag ("wat zit er bij het werk inbegrepen"). Dit is het deel van punt 36 dat
+bij de verbeterronde bewust openstond ("sterk anders geformuleerde varianten komen nog door,
+verbeterronde blok A") en blijkt bij deze herhaling nog steeds voor te komen, en dan niet incidenteel
+maar met 12 vragen tegelijk over één pagina. **Waar te zoeken:** het samenvoegen van vragen gebeurt
+in dezelfde route als punt 36 (`lib/facts.ts`/de aanmaak van `fact_requests`, zie de reparatie van
+punt 35/36 in blok A). **Voorstel:** dit is nu genoeg materiaal om de samenvoegcontrole te verscherpen
+van "letterlijk gelijk" naar een semantische vergelijking (bijvoorbeeld dezelfde aanpak als
+`zinParafraseertFeit()` bij punt 54, of een aparte modelaanroep die vraagt "zijn dit dezelfde vraag").
+
+## 58. Een trage site levert dit keer veel minder gelezen pagina's op dan bij de nulmeting
+
+Bij de herhaling reageerde de site van de hovenier trager dan bij de nulmeting: van de 68 gevonden
+pagina's zijn er dit keer, ook na een extra handmatige aanvulronde boven op de vier automatische,
+maar 33 gelezen (`inventory_quality_json.verdict = "afgekapt"`), tegen 60 van de 68 bij de
+nulmeting. De vier aanvulrondes zijn een harde grens (`MAX_AANVULRONDES = 4` in
+`lib/jobs/handlers.ts`, "genoeg voor de ~70 pagina's van de hovenier"), en die aanname klopte deze
+keer niet. Dit lijkt aan de externe site te liggen (die op een ander moment sneller of trager
+reageert) en niet aan een fout in de code, maar het raakt wel de betrouwbaarheid van punt 45 (de app
+moet de bestaande site kennen voordat hij een pagina "verbetert"): met minder dan de helft van de
+site gelezen is het risico groter dat een aanbeveling de functie van een onbekende bestaande pagina
+over het hoofd ziet. **Voorstel, als dit vaker voorkomt:** `MAX_AANVULRONDES` optioneel maken zodat de
+consultant handmatig kan doorgaan tot de dekking voldoende is, in plaats van na vier rondes te stoppen
+ongeacht de dekking.
+
+## 59. De bronherleidbaarheidscontrole blokkeert nog op zinnen die geen bewering over het bedrijf zijn
+
+Gevonden bij de herhaling: van de 21 nieuw geschreven pagina's kregen er 20 het oordeel "block", en bij
+19 daarvan komt minstens één reden van `bronherleidbaarheid` ("Deze zin zegt iets over je bedrijf
+zonder bron"), terwijl de aangewezen zin vaak helemaal geen bewering over het bedrijf is:
+
+- Een datumstempel: **"Laatst bijgewerkt: 25 september 2026."** (drie keer gevonden, bij drie
+  verschillende merken).
+- Algemene veiligheidsinstructies, los van het bedrijf: **"Gaat een koolmonoxidemelder af of is er
+  direct gevaar, verlaat dan de woning en bel 112."**
+- Een definitie die niets over het bedrijf zegt: **"ASS verwijst naar autisme binnen het spectrum;
+  AD(H)D omvat ADD en ADHD."**
+- Een retorisch antwoord: **"Nee, dat kun je niet in het algemeen zeggen."**
+- Een verwijzing naar een derde partij: **"Voor vragen over een gezondheidsverklaring... kun je de
+  actuele informatie van het CBR raadplegen."**
+
+Dit is een gekend en met opzet niet volledig opgelost gat: `isInstructieAanLezer()` in
+`lib/pipeline/claim-extract.ts` (3 september 2026) filtert al zinnen die met een instructiewerkwoord
+beginnen ("Maak foto's van de lekkage"), met de expliciete kanttekening in de code dat dit "niet elke
+instructiezin oplost" omdat het onderscheid "begrip van de zin vraagt, niet van het eerste woord". De
+herhaling laat zien hoe groot dat gat in de praktijk is: het is nu de belangrijkste reden waarom bijna
+elke nieuwe pagina in deze ronde "block" kreeg, ook pagina's met een score van 74 tot 83 op 100.
+**Waar te zoeken:** `detectClaimSentences()` en `isInstructieAanLezer()` in
+`lib/pipeline/claim-extract.ts`. **Voorstel:** de herkenning van "is dit een bewering over het
+bedrijf" uitbreiden voorbij het eerste woord van de zin, bijvoorbeeld met een korte modelaanroep die
+alleen die ja/nee-vraag stelt per kandidaatzin (dezelfde soort aanpak als `zinParafraseertFeit()` bij
+punt 54), en in elk geval datumstempels ("Laatst bijgewerkt: ...") en verwijzingen naar een externe
+partij (CBR, hulpdiensten) categorisch uitsluiten.
+
+## 60. Een verzonnen veiligheidscertificering op alle zeven nieuwe pagina's van één merk
+
+Gevonden door de blinde lezer van de herhaling, nagerekend tegen het waarheidsdossier: alle zeven
+nieuwe pagina's van de installateur beweren dat het bedrijf **"CO-gecertificeerd is volgens de
+Gasketelwet"**, op één pagina zelfs met een verwijzing naar een concreet "Register
+gasverbrandingsinstallaties" om het te controleren. Het waarheidsdossier noemt alleen "Erkend
+installateur (InstallQ)"; een CO-certificering volgens de Gasketelwet staat nergens, niet op de
+site en niet in het gesprek. Dit is geen parafrase van een bestaand feit (zoals bij punt 54) maar een
+volledig verzonnen, en voor een installatiebedrijf gevoelig, veiligheidskeurmerk, dat bovendien
+consequent terugkomt: alle 7 van de 7 pagina's.
+
+Daarnaast bevestigde het narekenen drie kleinere feiten uit hetzelfde oordeel: twee pagina's noemen
+"Eindhoven" als werkgebied terwijl het dossier alleen Geldrop als vestigingsplaats en Mierlo,
+Heeze-Leende en Nuenen als groeiplaatsen noemt; vier pagina's plakken de levertijd en installatieduur
+van de hybride warmtepomp ("twee tot vier weken", "installatie in één dag") zonder onderbouwing op
+gewone ketelvervanging, waar het dossier daar niets specifieks over zegt; en meerdere pagina's noemen
+Intergas en Vaillant als ketelmerken naast de bevestigde Nefit en Remeha. Op één pagina staat
+bovendien herhaaldelijk "gratis adviesbezoek", terwijl "gratis" (behalve bij de offerte) op de
+verboden-woordenlijst van de ondernemer staat (besluit eigenaar, punt 48).
+
+**Waarom dit langs de keuring komt.** De bronherleidbaarheidscontrole (punt 54, 59) toetst of een zin
+een feit op de kaart *parafraseert*; een verzonnen certificering die er zelfstandig, zelfverzekerd en
+vakkundig klinkend uitziet, wordt niet als "zin zonder bron" gemarkeerd zolang de zin op zichzelf
+grammaticaal een bewering met een bron lijkt te zijn, of samenvalt met een naastgelegen wél-onderbouwde
+zin over InstallQ. Dat is een ander gat dan punt 59: daar wordt een niet-bewering onterecht
+tegengehouden, hier wordt een onterechte bewering onterecht doorgelaten.
+
+**Voorstel:** een tweede, strengere controle specifiek voor keurmerken, certificeringen en wettelijke
+kwalificaties (een korte lijst met veelvoorkomende woorden als "gecertificeerd", "erkend volgens",
+"keurmerk", "wettelijk") die *altijd* een letterlijke matching regel op de feitenkaart vereist, zonder
+de coulance van `zinParafraseertFeit()`: een verzonnen keurmerk is nooit een parafrase, het is een
+ander feit.
+
+## 61. Twee echte cijfers uit dezelfde feitenkaart verwisseld
+
+Gevonden door de blinde lezer van de herhaling bij de rijschool, nagerekend tegen het
+waarheidsdossier: minstens twee van de acht nieuwe pagina's noemen "€ 80" als prijs voor de intake
+van 60 minuten. Het dossier noemt voor de intake van 60 minuten € 50; € 80 is de prijs van "losse les
+60 minuten". Dit is geen verzonnen getal (beide bedragen staan op de feitenkaart) maar een
+**verwisseling tussen twee echte cijfers**, wat het onopvallender maakt dan een volledig verzonnen
+bedrag: een controle die alleen toetst "komt dit getal ergens op de kaart voor" zou dit niet
+opmerken, want € 80 staat er wél, alleen bij een andere dienst.
+
+Bij dezelfde herhaling, nu bij de hovenier: één pagina beweert "Wij nemen opdrachten aan in Son en
+Breugel", terwijl het gesprek Son en Breugel alleen noemt als plaats "waar je nog weinig zit"
+(groeiwens, geen bevestigd werkgebied). Dit ontstond waarschijnlijk uit het antwoord dat de klant in
+deze herhaling zelf gaf op de vraag "Nemen jullie ook opdrachten aan in Son en Breugel?" ("Ja, dat is
+juist een van de plaatsen waar we willen groeien"): de nuance "willen groeien" is onderweg naar de
+tekst weggevallen en werd een kale, bevestigde aanwezigheidsclaim.
+
+**Waar te zoeken:** `zinParafraseertFeit()` in `lib/pipeline/claim-extract.ts` matcht op gedeelde
+getallen en kernwoorden, maar controleert niet of het getal bij het JUISTE feit (dezelfde dienst,
+dezelfde voorwaarde) hoort; en de omzetting van een klantantwoord naar een feit op de kaart (`lib/facts.ts`)
+lijkt een hedge als "willen groeien" niet consequent te bewaren richting de schrijver.
+**Voorstel:** bij de getallenmatch in `zinParafraseertFeit()` ook een gedeeld kernwoord tussen zin en
+feit eisen wanneer er meerdere prijzen voor vergelijkbare diensten op de kaart staan (zoals hier
+"intake" tegenover "losse les"), niet alleen bij één los getal; en bij het promoveren van een
+klantantwoord naar een feit een woord als "willen" of "streven naar" laten meetellen als onderdeel van
+het feit zelf, niet alleen van het antwoord.
+
+## 62. De reparatieknop haalt opnieuw een juist klantfeit uit de tekst (punt 50, teruggevallen)
+
+Getoetst bij de herhaling, op de pagina "Vergelijk een nieuwe ketel met een hybride warmtepomp" van
+de installateur (tegengehouden op 5 punten, geen van de 5 over de monteurs). Versie 1 bevatte de
+zin "U kiest daarbij voor een installatiebedrijf met twaalf monteurs in dienst" (feit F-nummer,
+klopt met het gesprek: "Twaalf monteurs in dienst"). Na "laat ORBIT ENGINE ze alle 5 in één keer
+oplossen" verving de app de hele pagina door versie 2, waarin **"monteurs" nul keer voorkomt**: het
+juiste klantfeit is verdwenen, niet als correctie van een van de 5 gemelde punten (dat feit stond
+niet in de revisienota) maar als bijvangst van een volledige herschrijving.
+
+Erger nog: de herschrijving loste niet eens alle 5 gemelde punten zelf op. De revisienota vroeg
+uitdrukkelijk om de zin "Woont u in Nuenen, dan valt uw woonplaats binnen ons werkgebied voor
+warmtepompen" te onderbouwen of te schrappen; in versie 2 staat exact diezelfde zin, woord voor
+woord, nog steeds onopgelost.
+
+Dit is dezelfde soort fout als de oorspronkelijke bevinding 50 (nulmeting), met een andere route
+ernaartoe: destijds haalde de keuring een juist antwoord van de klant onterecht neer als
+"onderbouwing ontbreekt", en werd het feit bij een verbetering meegesleept. Punt 39 loste dat
+specifieke mechanisme op (een beantwoorde vraag maakt een bewering wél onderbouwd). Hier is de
+oorzaak breder: "los alles op" vraagt de schrijver om een VOLLEDIGE nieuwe versie van de hele pagina
+("ORBIT ENGINE schrijft één nieuwe versie van de hele tekst met deze 5 punten erin"), niet om een
+gerichte reparatie van alleen de 5 gemelde zinnen. Bij een volledige herschrijving is er geen garantie
+dat de schrijver dezelfde feiten weer kiest, ook al staan ze nog gewoon op de feitenkaart.
+**Waar te zoeken:** de content_plan/content_draft-taken die `los-alles-op` (`regenerate: true`) in
+`lib/jobs/content-jobs.ts` en de bijbehorende route inplant. **Voorstel:** ofwel de revisienota
+expliciet laten zeggen "behoud alle overige feiten die al in de tekst stonden en nog kloppen", ofwel
+"los alles op" een gerichte zin-voor-zin reparatie laten doen (zoals de "stap voor stap"-wizard al
+per punt aanbiedt) in plaats van een volledige herschrijving, en na de herschrijving controleren of
+elk feit dat in de vorige versie stond en niet als probleem gemeld was, nog in de nieuwe versie
+voorkomt.
 
 ## Wat goed ging, om niet kapot te maken
 

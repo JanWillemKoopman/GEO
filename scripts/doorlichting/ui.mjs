@@ -27,8 +27,11 @@ const SHOTS = `${WERK}/shots`;
 mkdirSync(SHOTS, { recursive: true });
 const staat = `${WERK}/state-${rol}.json`;
 // De vingerafdruk van de CA van de sessieproxy, zodat Chromium alleen die extra vertrouwt.
+// ca-bundle.crt is de volledige systeembundel (150+ CA's); de proxy-CA zelf staat apart in
+// agent-proxy-ca.crt. Die laatste gebruiken zolang hij bestaat, anders terugvallen op de bundel.
+const caPad = existsSync('/root/.ccr/agent-proxy-ca.crt') ? '/root/.ccr/agent-proxy-ca.crt' : '/root/.ccr/ca-bundle.crt';
 const spki = execSync(
-  'openssl x509 -in /root/.ccr/ca-bundle.crt -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64',
+  `openssl x509 -in ${caPad} -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64`,
 ).toString().trim();
 
 const browser = await chromium.launch({

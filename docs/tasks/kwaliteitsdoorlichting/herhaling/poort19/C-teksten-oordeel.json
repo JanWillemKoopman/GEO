@@ -1,0 +1,208 @@
+{
+  "paginas": [
+    {
+      "pagina": 1,
+      "fout_of_verzonnen": [
+        {
+          "citaat": "De intake kost € 80; die kosten krijg je terug als je daarna bij ons gaat lessen.",
+          "probleem": "De waarheid noemt expliciet één bedrag voor de intake van 60 minuten: € 50. Hier staat € 80, zonder enige kanttekening dat er onduidelijkheid over dit bedrag bestaat (zoals pagina 3 en 7 dat wel doen). Dat is een harde feitenfout.",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "De vrijblijvende intake duurt 60 minuten en kost € 80; je krijgt die kosten terug als je daarna bij ons lest.",
+          "probleem": "Dezelfde fout wordt verderop in de pagina herhaald, waardoor de pagina intern consequent het verkeerde bedrag communiceert.",
+          "ernst": "hoog"
+        }
+      ],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "Het intakebedrag van € 80 corrigeren naar het juiste bedrag (of, net als op andere pagina's, de onduidelijkheid over het bedrag benoemen in plaats van een fout bedrag als feit te presenteren).",
+      "bezoeker_neemt_contact_op": "ja",
+      "copywriter_cijfer": 5,
+      "copywriter_problemen": [
+        {
+          "citaat": "we kijken samen wat spanning geeft",
+          "probleem": "Deze exacte zin komt binnen deze ene pagina al vijf keer voor. Dat leest robotachtig en voelt aan als opvulling in plaats van nieuwe informatie per alinea."
+        },
+        {
+          "citaat": "Automaatles staat in onze prijslijst; welke lesauto bij jou past, kun je vooraf bespreken.",
+          "probleem": "Kromme, vage zin die niets concreets zegt over de automaatoptie; mist een directe koppeling naar de eerder genoemde Golf 8/ID.3."
+        }
+      ],
+      "ai_citeerbaar": "ja",
+      "beste_citeerbare_zin": "Onze instructeurs hebben een extra training rijles bij autisme gevolgd.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "De huidige pagina is generieke, wollige marketingtekst zonder enige specifieke informatie over Best, ADHD, autisme of automaatkeuze, met loze claims als 'gegarandeerd goedkope rijlessen'. De nieuwe tekst is specifiek voor de doelgroep en feitelijker, al bevat hij een prijsfout die eerst moet worden hersteld.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 2,
+      "fout_of_verzonnen": [],
+      "ondernemer_publiceert": "ja",
+      "ondernemer_verandert_eerst": "De herhaling van vaste zinsneden ('we kijken samen wat spanning geeft', 'in het begin rijden we vaste rustige routes') iets meer variëren.",
+      "bezoeker_neemt_contact_op": "ja",
+      "copywriter_cijfer": 6,
+      "copywriter_problemen": [
+        {
+          "citaat": "we kijken samen wat spanning geeft; daarna maken we een lesplan",
+          "probleem": "Ook op deze pagina keert dezelfde formule meerdere keren terug, wat de tekst voorspelbaar maakt."
+        },
+        {
+          "citaat": "De les wordt overzichtelijk opgebouwd",
+          "probleem": "Kopje is vaag en zegt zelf niets; pas de alinea eronder geeft inhoud."
+        }
+      ],
+      "ai_citeerbaar": "ja",
+      "beste_citeerbare_zin": "Een losse autorijles van 60 minuten kost €80.",
+      "vergelijking_huidig": "geen_huidige",
+      "waarom_vergelijking": "Dit is een nieuwe pagina; er is geen bestaande tekst op dit adres om mee te vergelijken.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 3,
+      "fout_of_verzonnen": [],
+      "ondernemer_publiceert": "ja",
+      "ondernemer_verandert_eerst": "Wellicht niets; de pagina is voorzichtig en feitelijk correct, inclusief het eerlijk benoemen dat het intakebedrag onduidelijk is in plaats van te gokken.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 7,
+      "copywriter_problemen": [
+        {
+          "citaat": "Vraag vooraf wat handig is om mee te nemen",
+          "probleem": "Vage kop die weinig toevoegt aan de inhoud eronder."
+        }
+      ],
+      "ai_citeerbaar": "ja",
+      "beste_citeerbare_zin": "In 2025 was ons slagingspercentage bij de eerste poging 93 procent.",
+      "vergelijking_huidig": "geen_huidige",
+      "waarom_vergelijking": "Dit is een nieuwe pagina; er is geen bestaande tekst op dit adres om mee te vergelijken.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 4,
+      "fout_of_verzonnen": [],
+      "ondernemer_publiceert": "ja",
+      "ondernemer_verandert_eerst": "De herhaalde zinnen over 'wat spanning geeft' en 'vaste rustige routes' iets inkorten of variëren; verder klopt de pagina met de waarheid.",
+      "bezoeker_neemt_contact_op": "ja",
+      "copywriter_cijfer": 6,
+      "copywriter_problemen": [
+        {
+          "citaat": "Tijdens de intake kijken we samen wat spanning geeft.",
+          "probleem": "Komt vier keer voor op deze ene pagina, telkens vrijwel letterlijk."
+        }
+      ],
+      "ai_citeerbaar": "ja",
+      "beste_citeerbare_zin": "Onze instructeurs hebben een extra training rijles bij autisme gevolgd.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "De huidige pagina is opsommerige, generieke tekst ('Denk niet in beperkingen, maar in mogelijkheden!') met een intake die 'in principe in de auto' plaatsvindt, een detail dat niet in de waarheid staat. De nieuwe tekst legt het verschil tussen rijgeschiktheid en rijvaardigheid uit en is specifieker en eerlijker.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 5,
+      "fout_of_verzonnen": [
+        {
+          "citaat": "Als je minder lessen nodig hebt dan er in je pakket zitten, krijg je het geld van de overige lessen terug.",
+          "probleem": "De waarheid en de huidige pagina noemen alleen een terugbetaling in het specifieke geval dat een leerling al mag examineren terwijl het pakket nog niet op is ('een echt talent'). Hier wordt dat verbreed tot elke leerling die 'minder lessen nodig heeft', een ruimere coulanceregeling dan bevestigd is.",
+          "ernst": "middel"
+        }
+      ],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "De terugbetalingsvoorwaarde weer beperken tot de situatie waarin een leerling eerder dan verwacht klaar is voor examen, in plaats van een algemene coulanceregeling te beloven.",
+      "bezoeker_neemt_contact_op": "ja",
+      "copywriter_cijfer": 6,
+      "copywriter_problemen": [
+        {
+          "citaat": "Met een rijbewijs kun je zelf naar je werk rijden of familie bezoeken. Voor zulke ritten hoef je dan niet van iemand anders afhankelijk te zijn.",
+          "probleem": "Algemene open-deur-alinea die niets met ADHD, examenstress of Geldrop te maken heeft en niet aansluit bij de doelgroep uit de briefing."
+        },
+        {
+          "citaat": "we kijken samen wat spanning geeft",
+          "probleem": "Ook hier meerdere keren letterlijk herhaald."
+        }
+      ],
+      "ai_citeerbaar": "ja",
+      "beste_citeerbare_zin": "In 2025 slaagde 93 procent van onze leerlingen bij de eerste poging.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "De huidige pagina is generieke SEO-tekst zonder specifieke aandacht voor ADHD of examenstress, met claims als 'gegarandeerd goedkope rijlessen'. De nieuwe tekst gaat concreet in op examenspanning en ADHD, al moet de terugbetalingsclaim worden aangescherpt.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 6,
+      "fout_of_verzonnen": [],
+      "ondernemer_publiceert": "ja",
+      "ondernemer_verandert_eerst": "Niets wezenlijks; de pagina blijft dicht bij de waarheid en overdrijft niet over de voordelen van een automaat, in tegenstelling tot de huidige tekst.",
+      "bezoeker_neemt_contact_op": "ja",
+      "copywriter_cijfer": 6,
+      "copywriter_problemen": [
+        {
+          "citaat": "Tijdens de intake kijken we samen wat spanning geeft, bijvoorbeeld bij het schakelen of in het verkeer.",
+          "probleem": "Weer dezelfde vaste formule als op de andere zeven pagina's; over de hele set teksten ontstaat bijna-letterlijke doubling van alinea's."
+        }
+      ],
+      "ai_citeerbaar": "ja",
+      "beste_citeerbare_zin": "Onze instructeurs hebben een extra training voor rijles bij autisme gevolgd.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "De huidige pagina noemt het bedrijf abusievelijk 'Rijschool Pompert' in plaats van 'Autorijschool Pompert' en doet ongeverifieerde efficiëntieclaims ('minder lessen nodig, dus voordeliger'). De nieuwe tekst is voorzichtiger en feitelijk beter onderbouwd, al verliest hij de praktische informatie over kosten per uur die de oude pagina wel gaf.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 7,
+      "fout_of_verzonnen": [
+        {
+          "citaat": "We rekenen geen extra begeleidingstarief voor begeleiding bij faalangst, ASS of AD(H)D.",
+          "probleem": "Dit prijsbeleid staat niet in de waarheid en is ook geen algemene vakkennis; het is een concrete commerciële toezegging die niet is geverifieerd.",
+          "ernst": "middel"
+        },
+        {
+          "citaat": "Heb je minder lessen nodig dan er in je pakket zitten, dan krijg je het geld voor de overige lessen terug.",
+          "probleem": "Verbreedt, net als op pagina 5, de specifieke terugbetalingsvoorwaarde uit de huidige pagina (alleen bij eerder toegelaten examen) tot een algemene coulanceregeling.",
+          "ernst": "middel"
+        }
+      ],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "De ongeverifieerde toezeggingen over het begeleidingstarief en de terugbetaling van ongebruikte lessen laten checken voordat ze naar buiten gaan.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 6,
+      "copywriter_problemen": [
+        {
+          "citaat": "In het begin rijden we vaste, rustige routes.",
+          "probleem": "Weer dezelfde formule uit de andere pagina's; deze pagina is bovendien erg lang met veel bijna-identieke boodschappen over hetzelfde onderwerp (spanning, lesplan, intake)."
+        }
+      ],
+      "ai_citeerbaar": "ja",
+      "beste_citeerbare_zin": "Het starterspakket kost volgens de prijslijst € 2.525 en omvat 25 uur rijles in 20 lessen van 75 minuten.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "De huidige pagina is een overzichtelijke prijstabel maar bevat verwarrende overlappende regels (bijvoorbeeld 'Intake (kantoor) € 50' naast 'Intake (auto) € 80' zonder uitleg). De nieuwe tekst benoemt die onduidelijkheid expliciet in plaats van hem te verdoezelen, wat eerlijker is, maar verliest de snelle scanbaarheid van een tabel en voegt twee ongeverifieerde beloftes toe.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 8,
+      "fout_of_verzonnen": [
+        {
+          "citaat": "We noemen ervaring met begeleiding bij AD(H)D en rekenen daarvoor geen extra begeleidingstarief.",
+          "probleem": "Zelfde ongeverifieerde prijsclaim als op pagina 7; staat niet in de waarheid.",
+          "ernst": "middel"
+        }
+      ],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "De claim over het ontbreken van een begeleidingstarief laten bevestigen voordat die online gaat.",
+      "bezoeker_neemt_contact_op": "ja",
+      "copywriter_cijfer": 5,
+      "copywriter_problemen": [
+        {
+          "citaat": "Onze experts op het gebied van verkeerssituaties bespreken daarom met jou stap voor stap wat je moet weten en wat essentieel is.",
+          "probleem": "Vage, ingevoegd aandoende zin die niet aansluit bij de rest van de alinea en een ongeconcretiseerde 'expert'-claim toevoegt."
+        },
+        {
+          "citaat": "Bij de intake kijken we samen wat jou spanning geeft.",
+          "probleem": "Weer dezelfde formule die op alle acht pagina's terugkeert."
+        }
+      ],
+      "ai_citeerbaar": "ja",
+      "beste_citeerbare_zin": "Van de leerlingen die in 2025 bij ons examen deden, slaagde 93 procent bij de eerste poging.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "De huidige pagina is bijna woordelijk gelijk aan de generieke teksten van Best en Geldrop, alleen de plaatsnaam is verwisseld; dat is zwakke, dunne content. De nieuwe tekst is specifiek voor Helmond en ADHD, al bevat hij een ongeverifieerde prijsclaim en een vage vulzin.",
+      "past_bij_adres": true
+    }
+  ],
+  "rode_draad": "Dezelfde vaste zinnen ('we kijken samen wat spanning geeft', 'in het begin rijden we vaste rustige routes', 'de lessen duren 75 minuten omdat de eerste 10 minuten vaak nodig zijn', 'na de intake maken we een lesplan') komen op alle acht pagina's en vaak meerdere keren per pagina bijna letterlijk terug, wat de teksten dun en robotachtig maakt. Daarnaast bevatten de teksten één harde prijsfout (€80 in plaats van €50 op pagina 1) en een paar concrete beloftes over tarieven en terugbetaling die niet in de waarheid staan en dus ongeverifieerd zijn.",
+  "niveau_professionele_copywriter": "bijna"
+}

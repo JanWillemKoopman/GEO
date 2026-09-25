@@ -1,0 +1,100 @@
+[
+ {
+  "merk": "ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b",
+  "factId": "2a70099d-2355-48a7-b3bf-931107dbdbbc",
+  "status": 200,
+  "ms": 1299,
+  "antwoord": "{\"id\":\"2a70099d-2355-48a7-b3bf-931107dbdbbc\",\"profile_id\":\"ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b\",\"analysis_id\":null,\"question\":\"Biedt u spoedservice aan, en zo ja: op welke tijden?\",\"reason\":\"ORBIT ENGINE kon dit niet op je site vinden.\",\"answer\":\"Ja, storingsdienst voor contractklanten: binnen 24 u"
+ },
+ {
+  "merk": "ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b",
+  "factId": "a6db4f7b-d8a3-4e09-8680-ca9a436734ee",
+  "status": 200,
+  "ms": 438,
+  "antwoord": "{\"id\":\"a6db4f7b-d8a3-4e09-8680-ca9a436734ee\",\"profile_id\":\"ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b\",\"analysis_id\":null,\"question\":\"Voor welke installaties en merken verzorgt u service en onderhoud?\",\"reason\":\"ORBIT ENGINE kon dit niet op je site vinden.\",\"answer\":\"Nefit en Remeha cv-ketels als official"
+ },
+ {
+  "merk": "ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b",
+  "factId": "837a0d7e-9b98-4bd8-8ec6-b2112d5f5352",
+  "status": 200,
+  "ms": 331,
+  "antwoord": "{\"id\":\"837a0d7e-9b98-4bd8-8ec6-b2112d5f5352\",\"profile_id\":\"ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b\",\"analysis_id\":null,\"question\":\"Wanneer is het bedrijf opgericht of hoeveel jaar is het actief?\",\"reason\":\"ORBIT ENGINE kon dit niet op je site vinden.\",\"answer\":null,\"status\":\"overgeslagen\",\"answered_at\""
+ },
+ {
+  "merk": "ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b",
+  "factId": "df3be022-497c-42f7-bd3a-438afc059170",
+  "status": 200,
+  "ms": 516,
+  "antwoord": "{\"id\":\"df3be022-497c-42f7-bd3a-438afc059170\",\"profile_id\":\"ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b\",\"analysis_id\":null,\"question\":\"Geldt de CO-certificering alleen voor cv-ketelvervanging of voor alle werkzaamheden aan gastoestellen?\",\"reason\":\"ORBIT ENGINE kon dit niet op je site vinden.\",\"answer\":nul"
+ },
+ {
+  "merk": "ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b",
+  "factId": "fcbf64e1-f722-40be-868b-c1c9d2ee26b0",
+  "status": 200,
+  "ms": 516,
+  "antwoord": "{\"id\":\"fcbf64e1-f722-40be-868b-c1c9d2ee26b0\",\"profile_id\":\"ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b\",\"analysis_id\":null,\"question\":\"Welke garanties geeft u op installaties en uitgevoerd werk?\",\"reason\":\"ORBIT ENGINE kon dit niet op je site vinden.\",\"answer\":null,\"status\":\"overgeslagen\",\"answered_at\":nul"
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "2cf6d2c5-19f1-44fa-9bbb-d0e6e7e086b4",
+  "status": 200,
+  "ms": 404,
+  "antwoord": "{\"id\":\"2cf6d2c5-19f1-44fa-9bbb-d0e6e7e086b4\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":null,\"question\":\"Welke twee vestigingen zijn in het aanbodonderzoek gevonden, en wat zijn daarvan de adressen?\",\"reason\":\"ORBIT ENGINE kon dit niet op je site vinden.\",\"answer\":null,\"status"
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "a3a17073-160f-47f7-b67d-019643a7ff49",
+  "status": 200,
+  "ms": 319,
+  "antwoord": "{\"id\":\"a3a17073-160f-47f7-b67d-019643a7ff49\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":null,\"question\":\"In welke plaatsen buiten Eindhoven en Best worden momenteel rijlessen aangeboden?\",\"reason\":\"ORBIT ENGINE kon dit niet op je site vinden.\",\"answer\":null,\"status\":\"overgesla"
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "b319d960-b97d-419f-867d-1b8ce808debf",
+  "status": 200,
+  "ms": 334,
+  "antwoord": "{\"id\":\"b319d960-b97d-419f-867d-1b8ce808debf\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":null,\"question\":\"Hoeveel leerlingen volgen jaarlijks een rijopleiding bij Pompert?\",\"reason\":\"ORBIT ENGINE kon dit niet op je site vinden.\",\"answer\":null,\"status\":\"overgeslagen\",\"answered_a"
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "efd9b8bc-1d96-4b1d-abac-1e458fada131",
+  "status": 200,
+  "ms": 422,
+  "antwoord": "{\"id\":\"efd9b8bc-1d96-4b1d-abac-1e458fada131\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":null,\"question\":\"Wat is het actuele slagingspercentage per examenonderdeel en over welke periode is dat berekend?\",\"reason\":\"ORBIT ENGINE kon dit niet op je site vinden.\",\"answer\":\"93 proce"
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "100fd41c-433c-48ca-8350-197883cbd3ce",
+  "status": 200,
+  "ms": 333,
+  "antwoord": "{\"id\":\"100fd41c-433c-48ca-8350-197883cbd3ce\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":null,\"question\":\"Welke opleiding of certificering hebben de instructeurs voor begeleiding bij faalangst, autisme en AD(H)D?\",\"reason\":\"ORBIT ENGINE kon dit niet op je site vinden.\",\"answer\""
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "28c13429-fc35-4c15-93aa-fd8337fc28c3",
+  "status": 200,
+  "ms": 326,
+  "antwoord": "{\"id\":\"28c13429-fc35-4c15-93aa-fd8337fc28c3\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":null,\"question\":\"Hoeveel simulatoruren kunnen een leerling maximaal laten meetellen als vervanging van autorijlessen?\",\"reason\":\"ORBIT ENGINE kon dit niet op je site vinden.\",\"answer\":null,"
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "3ec6e786-9ec1-45f8-85e8-08e658036739",
+  "status": 200,
+  "ms": 321,
+  "antwoord": "{\"id\":\"3ec6e786-9ec1-45f8-85e8-08e658036739\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":null,\"question\":\"Welke les- en examenprijzen gelden op dit moment, en wanneer worden die tarieven bijgewerkt?\",\"reason\":\"ORBIT ENGINE kon dit niet op je site vinden.\",\"answer\":null,\"status\""
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "e7dfb022-b773-4ef2-98be-2d499e02285c",
+  "status": 200,
+  "ms": 387,
+  "antwoord": "{\"id\":\"e7dfb022-b773-4ef2-98be-2d499e02285c\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":null,\"question\":\"Hoeveel leerlingen kiezen voor automaat- of elektrische autorijles?\",\"reason\":\"ORBIT ENGINE kon dit niet op je site vinden.\",\"answer\":null,\"status\":\"overgeslagen\",\"answered"
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "e01e9d19-f988-449e-b670-b5be896f62aa",
+  "status": 200,
+  "ms": 395,
+  "antwoord": "{\"id\":\"e01e9d19-f988-449e-b670-b5be896f62aa\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":null,\"question\":\"Welke theoriecursus wordt aangeboden, waar en hoe lang duurt die?\",\"reason\":\"ORBIT ENGINE kon dit niet op je site vinden.\",\"answer\":null,\"status\":\"overgeslagen\",\"answered_a"
+ }
+]

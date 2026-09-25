@@ -1,8 +1,10 @@
 # De proefset van de kwaliteitsdoorlichting
 
 De vaste invoer en de nulmeting van de doorloop van 23 en 24 september 2026, zodat een herhaling
-dezelfde merken met dezelfde waarheid en dezelfde blinde lezers kan meten. Hoe je hem gebruikt, staat
-in `docs/tasks/kwaliteitsdoorlichting-herhaling.md`; de hulpscripts in `scripts/doorlichting/`.
+dezelfde merken met dezelfde waarheid en dezelfde blinde lezers kan meten. De uitslag van de eerste
+herhaling (24/25 september 2026) staat in `docs/tasks/bevindingen-kwaliteitsdoorlichting.md`
+§"Herhaling", de teksten en oordelen van die herhaling in `herhaling/`; de hulpscripts in
+`scripts/doorlichting/`.
 
 | Bestand of map | Wat het is |
 |---|---|

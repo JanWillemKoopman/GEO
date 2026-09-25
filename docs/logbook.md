@@ -12269,3 +12269,28 @@ af. (11) Een blok op het gespreksscherm blijft open zolang er velden zijn die he
 niemand langsliep. (14) De voortgang telt wachtende stappen mee in de tijdschatting en zet een stap met
 resultaat niet op "wacht". (17) Gemini-taken worden gespreid, vier seconden ertussen, over clusters
 heen.
+
+## 25 september 2026: Gemini als meetbron tijdelijk uit
+
+Besluit van de eigenaar: `DATAFORSEO_LLM_ENABLED` staat in productie op `false`. ChatGPT
+(`measure_prompt`, de primaire bron) en Google AI Overview (`AI_OVERVIEW_ENABLED`, ongewijzigd aan)
+blijven meten. Aanleiding: bij de herhaling van de kwaliteitsdoorlichting op 24/25 september
+faalden bij alle drie de meetronden tegelijk (drie merken) alle 30 Gemini-metingen op de
+leverancierslimiet, ondanks de spreiding van vier seconden tussen taken uit blok F. Zie
+`docs/tasks/bevindingen-kwaliteitsdoorlichting.md` punt 55.
+
+## 25 september 2026: de herhaling afgesloten
+
+Dezelfde drie bedrijven (hovenier, installateur, rijschool) zijn op 24 en 25 september opnieuw door
+de hele keten gegaan, met dezelfde blinde lezers en dezelfde meetlat als de nulmeting van 4,1 op 10.
+Uitslag over 21 nieuwe teksten: gemiddeld copywritercijfer 4,9 op 10 (was 4,1), "past niet bij het
+adres" van 5 van de 16 naar 0 van de 21, bezoeker neemt contact op van 3 naar 12 van de respectievelijk
+16 en 21 teksten "ja". Punt 45 (functie van de pagina) en 47 (sterkste bewijs) zijn bevestigd
+opgelost. Twee punten bleven of vielen terug: 17 (Gemini-limiet) faalde opnieuw volledig bij drie
+merken tegelijk, waarna Gemini als meetbron is uitgezet (zie hierboven); 50 (de reparatieknop) haalde
+bij een volledige herschrijving een juist klantfeit weg dat niet eens gemeld was als probleem. Vier
+nieuwe bevindingen kwamen boven water: een crawl die dit keer minder pagina's las dan de nulmeting
+(58), de bronherleidbaarheidscontrole die nog op niet-beweringen blokkeert zoals een datumstempel
+(59), een volledig verzonnen veiligheidscertificering die de keuring niet tegenhield (60), en twee
+verwisselde cijfers uit dezelfde feitenkaart (61). Alle details en de vergelijkingstabel staan in
+`docs/tasks/bevindingen-kwaliteitsdoorlichting.md` §"Herhaling" en bij de punten zelf.
