@@ -4,7 +4,7 @@
 de teksten voor Hans Verstraaten Hoveniers, Wesley Keeris Installatietechniek en Autorijschool
 Pompert.
 
-**Status: fase 1 gebouwd en nagemeten (25 september 2026), doel niet gehaald; wacht op het besluit van de eigenaar over fase 2.** De uitslag staat in §14.2 onder "Nameting fase 1". Per werkpakket staat de stand onder "Stand van de bouw" aan het
+**Status: fase 1 gebouwd en nagemeten (25 september 2026), doel niet gehaald; wacht op het besluit van de eigenaar over fase 2.** De uitslag staat in §14.2 onder "Nameting fase 1"; waar de uitvoering staat en hoe je verdergaat in een nieuwe sessie, in `contentpijplijn-werkstand.md`. Per werkpakket staat de stand onder "Stand van de bouw" aan het
 eind van §13. De eigenaar heeft op
 25 september 2026 de keuzes gemaakt die in §2 staan. Er gaat geen losse proef of modelvergelijking
 aan de bouw vooraf; elke fase wordt wel, zoals conventie 10 vraagt, na de bouw nagerekend op echte
