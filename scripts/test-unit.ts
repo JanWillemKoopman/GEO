@@ -58,7 +58,7 @@ import { faqKandidaten, pasFaqSelectieToe, faqblok, checkFaqNaSchrijven, alBeant
 import { gatzinnen, voorbehoudNaBewijs, checkBestemmingen, isToezegging } from "@/lib/pipeline/onzekerheid";
 import { controleerRedactie, getalReeksen } from "@/lib/pipeline/redactie-check";
 import { heelMetabeschrijving, heelMetatitel, MAX_METABESCHRIJVING } from "@/lib/pipeline/metatitel";
-import { strategievragen, MAX_STRATEGIEVRAGEN } from "@/lib/pipeline/strategievragen";
+import { isEchteVraag, strategievragen, MAX_STRATEGIEVRAGEN } from "@/lib/pipeline/strategievragen";
 import { strategieblok, gekozenRefs, opbouwUitStrategie, REGELS_STRATEGIE, REGEL_7_STRATEGIE } from "@/lib/pipeline/strategie-opdracht";
 import { checkStrategieDekking } from "@/lib/pipeline/content-coverage";
 import { haalSectiesWeg } from "@/lib/pipeline/content-sections";
@@ -26821,6 +26821,11 @@ group("De vragenroute: van de strategie naar de ondernemer", () => {
   ok("dezelfde vraag uit de FAQ telt niet dubbel", new Set(v.map((x) => x.claimKey)).size === v.length);
   ok("niet verplicht, voor het hele merk, aan de pagina gekoppeld", v.every((x) => !x.required && x.scope === "merk" && x.contentPieceIds[0] === "p1"));
   ok("met een eigen sleutel, zodat een gestelde vraag niet terugkomt", v.every((x) => x.claimKey.startsWith("strategie:")));
+  // Letterlijk van productie, 25 september 2026.
+  ok("'Geen vraag nodig.' is geen vraag", !isEchteVraag("Geen vraag nodig."));
+  ok("een zin zonder vraagteken ook niet", !isEchteVraag("De offerte beschrijft de posten"));
+  ok("een echte vraag wel", isEchteVraag("Welke posten specificeren jullie zelf in een offerte en hoe behandelen jullie onverwacht extra werk?"));
+  eq("en hij komt niet in de lijst", String(strategievragen({ strategie: strategie({ onderwerpen: [o({ besluit: "opnemen", bron: "feit", feiten: ["F1"], vraag: "Geen vraag nodig." })] }), pieceId: null }).length), "0");
   ok("de taak gebruikt de ontdubbeling van de briefing", /beoordeelVragen[\s\S]*voegVragenSamen[\s\S]*bewaarVragen/.test(leesBestand("lib/pipeline/strategie-taak.ts")));
 });
 
