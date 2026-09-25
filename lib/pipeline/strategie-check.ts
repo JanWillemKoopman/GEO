@@ -51,9 +51,18 @@ export interface GecontroleerdeStrategie {
   vragenAanOndernemer: string[];
 }
 
-/** "f3", " F3 ", "F3." worden allemaal "F3". */
+/**
+ * "f3", " F3 ", "F3." worden allemaal "F3", en "F15: Het bedrijf werkt in Best."
+ * ook. Dat laatste deed het model bij de nameting van fase 1 (25 september 2026)
+ * bij elk prioriteitsfeit van beide pagina's: alle tien werden als "niet op de
+ * kaart" weggegooid, want de oude versie maakte er "F15HETBEDRIJFWERKTINBEST"
+ * van. Het eerste nummer in de tekst telt; zonder nummer blijft het oude gedrag.
+ */
 export function normaliseerRef(ref: string): string {
-  return ref.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const kaal = ref.trim().toUpperCase();
+  const nummer = kaal.match(/(?:^|[^A-Z0-9])([A-Z])\s?-?\s?(\d{1,4})(?![0-9])/);
+  if (nummer) return `${nummer[1]}${nummer[2]}`;
+  return kaal.replace(/[^A-Z0-9]/g, "");
 }
 
 export function controleerStrategie(ruw: PageStrategy, invoer: StrategieInvoer): GecontroleerdeStrategie {

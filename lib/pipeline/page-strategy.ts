@@ -81,7 +81,8 @@ const SYSTEM =
   "niet relevant genoeg. NOOIT een voorbehoud direct na een bewijsstuk ('35 jaar ervaring, maar dat " +
   "zegt op zichzelf niets'), nooit een zin over wat wij niet weten ('is niet vastgelegd', 'de " +
   "beschikbare informatie'), nooit een voorbehoud dat een belofte van de site omdraait. " +
-  "(5) PRIORITEITSFEITEN: drie tot zes F-nummers die deze pagina dragen, elk met wat het voor deze lezer " +
+  "(5) PRIORITEITSFEITEN: drie tot zes F-nummers die deze pagina dragen (in `feit` alleen het nummer, " +
+  "zoals F12, zonder de tekst van het feit), elk met wat het voor deze lezer " +
   "betekent. Bewijs wordt stellig gebracht. Een feit dat vooral op een andere pagina thuishoort, zet je " +
   "bij de uitgesloten feiten met reden 'elders gedekt'. " +
   "(6) BETWISTE FEITEN (B-nummers) mag je niet kiezen. Kan een onderwerp echt niet zonder zo'n feit, " +
