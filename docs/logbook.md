@@ -12346,3 +12346,24 @@ Blok H op productie nagerekend (zelfde dag): een herkeuring van de echte versie 
 drie verdwenen feiten, en één keer "los alles op" leverde een versie 3 met alle drie terug en zonder
 blokkades, voor $0,18.
 
+
+## 25 september 2026: plan voor publicatiewaardige content, besluiten van de eigenaar
+
+Externe feedback op de teksten van de hovenier, de installateur en de rijschool: te lang, te
+voorzichtig, schrijven als consumentengids, dezelfde stem bij elke klant, plaatspagina's als
+template. De analyse (`docs/tasks/contentpijplijn-publicatiewaardig.md`) legt de oorzaak vóór het
+schrijven: het contract is een verplichte checklist uit onderzoek zonder bedrijf, een ontbrekend feit
+krijgt tegenstrijdige opdrachten (gemiddeld zes indekformuleringen per pagina, ruwe telling), en de
+keuze wat er op de pagina komt maakt het goedkoopste model voor ongeveer een halve cent. Het
+merkdossier van alle drie de klanten bleek voor de stem op één zin te rusten; schuiven,
+kennisniveau, onderscheid en kernboodschappen zijn leeg, en de voorbeeldzinnen werken tegen de
+opgegeven toon in.
+
+Besluiten van de eigenaar: al het redactionele werk (paginastrategie, schrijven, eindredactie) op
+GPT-6 Sol, met extra denktijd voor strategie en redactie en de eigenaarstoets en merkstemtoets ook
+op Sol; geschat ongeveer $0,37 per artikel en $0,30 per landingspagina, tegen $0,155 en $0,142
+gemeten over de pagina's sinds 24 september. Geen losse proef vooraf; elke fase wordt wel nagerekend
+op de proefset van de doorlichting. Een werkgebiedpagina mag geadviseerd worden, grote steden houden
+een eigen pagina. De schrijfstijl hoort volledig in het merkdossier. Een bronconflict houdt een pagina
+alleen tegen als het betwiste feit op die pagina nodig is. Het bouwplan staat in drie fases en zestien
+werkpakketten in het plan zelf.

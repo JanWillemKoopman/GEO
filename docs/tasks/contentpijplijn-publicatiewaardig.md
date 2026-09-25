@@ -1,90 +1,69 @@
-# Van vindbare tekst naar publicatiewaardige tekst: analyse en plan voor de contentpijplijn
+# Van vindbare tekst naar publicatiewaardige tekst: plan voor de contentpijplijn
 
 **Opgesteld:** 25 september 2026, op verzoek van de eigenaar, naar aanleiding van externe feedback op
 de teksten voor Hans Verstraaten Hoveniers, Wesley Keeris Installatietechniek en Autorijschool
-Pompert. **Status: voorstel, niets hiervan is gebouwd.** Bijgewerkt op dezelfde dag met de besluiten van de
-eigenaar (§15), een zuinigere kostenvariant (§11) en de controle van het merkdossier (§7.5). Dit document beschrijft wat er vandaag
-gebeurt, waarom dat tot de gemelde problemen leidt, en hoe de pijplijn eruit zou moeten zien als
-contentkwaliteit net zo zwaar weegt als vindbaarheid. Er is geen code gewijzigd.
+Pompert.
+
+**Status: besloten plan, klaar om te bouwen. Niets hiervan is gebouwd.** De eigenaar heeft op
+25 september 2026 de keuzes gemaakt die in §2 staan. Er gaat geen losse proef of modelvergelijking
+aan de bouw vooraf; elke fase wordt wel, zoals conventie 10 vraagt, na de bouw nagerekend op echte
+data (§14).
+
+**Leeswijzer.** §0 is het plan op één pagina. §1 is de diagnose met het bewijs uit de echte teksten.
+§2 tot en met §12 beschrijven de nieuwe keten, onderdeel voor onderdeel. §13 is het bouwplan in
+werkpakketten, met per pakket de bestanden, de migratie, de tests en wanneer het af is. §14 zegt
+wanneer een pagina publicatiewaardig is.
 
 **Waar het op rust.** De code van de hele keten (`lib/pipeline/content.ts`, `content-contract.ts`,
 `item-dossier.ts`, `writer-brief.ts`, `content-panel.ts`, `factcard.ts`, `fact-merge.ts`,
-`adviestoon.ts`, `similarity.ts`, `contract-format.ts`, `brand-fields.ts`, `lib/openai/models.ts` en
-`sampling.ts`), de productiedatabase van 25 september 2026 (de 10 huidige teksten van de hovenier en
-de 11 van de installateur, hun schrijfopdrachten, contracten, feitenkaarten en `ai_calls`), en de
-proefset van de kwaliteitsdoorlichting (`docs/tasks/kwaliteitsdoorlichting/`). De teksten die als
-bijlage bij de opdracht hoorden, zijn niet bij mij aangekomen; ik heb de huidige versies uit
-`content_pieces` gebruikt. Van de genoemde plaatspagina's staan daar Best en Nuenen (hovenier) en
-Geldrop (installateur); Helmond en Veldhoven komen voor in de hoofdpagina en de zwemvijverpagina.
-Elk citaat hieronder staat letterlijk in een opgeslagen tekst.
+`adviestoon.ts`, `similarity.ts`, `contract-format.ts`, `brand-fields.ts`, `lib/jobs/handlers.ts`,
+`lib/jobs/content-jobs.ts`, `lib/openai/models.ts` en `sampling.ts`), de productiedatabase van
+25 september 2026 (de 10 huidige teksten van de hovenier en de 11 van de installateur, hun
+schrijfopdrachten, contracten, feitenkaarten, merkdossiers en `ai_calls`), en de proefset van de
+kwaliteitsdoorlichting (`docs/tasks/kwaliteitsdoorlichting/`). De teksten die als bijlage bij de
+opdracht hoorden, zijn niet aangekomen; de huidige versies uit `content_pieces` zijn gebruikt. Van de
+genoemde plaatspagina's staan daar Best en Nuenen (hovenier) en Geldrop (installateur); Helmond en
+Veldhoven komen voor in de hoofdpagina en de zwemvijverpagina. Elk citaat hieronder staat letterlijk
+in een opgeslagen tekst.
 
 ---
 
-## 0. De conclusie op één pagina
+## 0. Het plan op één pagina
 
-**De problemen ontstaan niet in de schrijfstap en zijn dus niet met betere schrijfinstructies op te
-lossen.** Ze ontstaan eerder in de keten, en de schrijver voert ze trouw uit:
+**Het probleem.** De teksten zijn feitelijk betrouwbaar, maar te lang, te voorzichtig, schrijven als
+een consumentengids, klinken bij elke klant hetzelfde en lijken per plaats op elkaar. Na tientallen
+reparaties sinds 3 september gaf de blinde lezer een 4,9 op 10, en de ondernemer zou 4 van de 21
+teksten zonder aanpassing publiceren.
 
-1. **Het contract is een verplichte checklist.** Een onderzoeksstap die bewust niets van het bedrijf
-   weet, bedenkt alle vragen die een lezer kan hebben. Het contract maakt van elke vraag een sectie,
-   de schrijfprompt zegt "alles wat hier staat MOET erop", en de keuring rekent na of dat gelukt is.
-   Niets in de keten beloont weglaten. Gevolg: gemiddeld tien secties en 880 tot 980 woorden per
-   pagina; ook de landingspagina's zitten met ongeveer 700 woorden tegen de bovengrens van hun doel.
-2. **De keten geeft de schrijver tegenstrijdige opdrachten over ontbrekende feiten.** Het contract
-   eist een sectie, de feitenkaart verbiedt er iets over te beweren, het paginaplan zegt "laat weg",
-   en de keuring meldt elke zin die als belofte gelezen kan worden. De enige uitweg die aan alle vier
-   voldoet: de sectie schrijven en het gat benoemen. Dat is waar "is niet vastgelegd" en "valt niet
-   af te leiden" vandaan komen. Bij de kostenpagina van de installateur schrijft de redactionele
-   stap zelfs letterlijk voor: "Maak expliciet dat de beschikbare informatie niet benoemt wat precies
-   standaard in de installatieprijs zit."
-3. **Onzekerheid heeft maar één uitgang: de tekst.** De keten kent drie standen voor een feit
-   (bruikbaar, verboden, achtergrond), maar geen stand voor "dit moeten wij intern uitzoeken" of
-   "dit is niet belangrijk genoeg". Wat de klant niet weet, wordt daarom verwoord.
-4. **Bronconflicten zijn onzichtbaar.** Tegenspraak wordt alleen herkend als twee feiten dezelfde
-   sleutel hebben en de klant van antwoord veranderde. Twee intakeprijzen van de rijschool (op
-   kantoor en in de auto, maar dat onderscheid viel bij het uitlezen weg) kwamen allebei op de
-   kaart, en de schrijver schreef: "De beschikbare informatie over de intakeprijs spreekt elkaar
-   tegen."
-5. **De belangrijkste beslissingen worden door het goedkoopste model genomen.** Welke secties er
-   komen en wat de pagina moet zeggen, beslist `gpt-6-luna` met weinig denktijd, voor $0,001 tot
-   $0,003 per pagina. De dure schrijver krijgt daarna ongeveer 14.000 tokens aan achttien
-   gelijkwaardige opdrachtblokken en voert het contract uit.
-6. **De merkstem is één zin plus drie zinnen van de site.** Voor de hovenier is een van die drie
-   "Wij staan graag voor je klaar!", precies het cliché dat de blinde lezers afkeurden. Negen velden
-   die de adviseur in het gesprek vastlegt (positionering, onderscheid, kernboodschappen, eigen
-   uitdrukkingen, kennisniveau van de doelgroep) gaan nergens de schrijfopdracht in.
-7. **Elke pagina wordt los geschreven.** De schrijver van Nuenen weet niet wat er op Best staat. De
-   duplicaatcontrole achteraf telt letterlijke woordreeksen en ziet niet dat twee pagina's dezelfde
-   opbouw en dezelfde vijf feiten hebben.
+**De oorzaak** zit niet in het schrijven maar in de opdracht aan de schrijver (§1):
 
-**De rode draad:** de pijplijn is ontworpen om geen fouten te maken, en dat lukt goed. Er is geen
-enkele stap die als opdracht heeft een goede pagina te maken: kiezen, weglaten, stellig zijn waar het
-kan, en klinken als dit bedrijf. Na tientallen gerichte reparaties sinds 3 september steeg het oordeel van
-de blinde lezers van 4,1 naar 4,9 op 10, en de ondernemer zou 4 van de 21 teksten zonder
-aanpassing publiceren. De lijsten met verboden formuleringen worden langer, en het model vindt
-nieuwe formuleringen voor hetzelfde gat. Dat is het teken dat het probleem structureel is.
+1. De inhoudsopgave is een verplichte checklist uit onderzoek dat niets van het bedrijf weet.
+2. Voor een ontbrekend feit krijgt de schrijver tegenstrijdige opdrachten, en de enige uitweg is het
+   gat opschrijven ("is niet vastgelegd").
+3. Onzekerheid heeft geen andere uitgang dan de tekst.
+4. Bronconflicten worden niet herkend.
+5. De keuze wat er op de pagina komt, maakt het goedkoopste model; de dure schrijver voert uit.
+6. De schrijfstijl in het merkdossier is één zin, en de voorbeeldzinnen werken tegen die zin in.
+7. Elke pagina wordt los geschreven.
 
-**Het voorstel in vijf wijzigingen**, de rest van dit document werkt ze uit:
+**De oplossing** in zes onderdelen:
 
-1. **Een contentstrateeg vóór het schrijven**, op GPT-6 Sol, die kiest wat
-   er op de pagina komt en vooral wat niet, met per onderwerp een reden en per onzekerheid een
-   bestemming (intern oplossen, uitleggen, of weglaten). Deze stap vervangt het contract en de
-   schrijfopdracht als twee losse stappen.
-2. **Een feitenregister met conflictdetectie en een poort**: tegenstrijdige prijzen, termijnen,
-   plaatsen, certificeringen en garanties houden de pagina tegen en gaan als vraag naar de adviseur,
-   nooit als zin naar de lezer.
-3. **Een uitgebreide schrijfstijl in het merkdossier**, voorgesteld uit alles wat we weten en één
-   keer goedgekeurd door de adviseur, die meegaat naar de schrijver, de redacteur en een eigen
-   beoordelaar.
-4. **Een eindredacteur na het schrijven**, die schrapt, relativeringen weghaalt die niet nodig zijn,
-   herhaling eruit haalt en de tekst op de merkstem zet, met een logboek van wat hij veranderde.
-5. **Een portfoliostap per plan** die pagina's over hetzelfde onderwerp in verschillende plaatsen
-   elk een eigen hoek geeft, of zegt dat een aparte pagina hier geen zin heeft.
+| # | Onderdeel | Wat het oplost | Paragraaf |
+|---|---|---|---|
+| 1 | **Paginastrategie** op GPT-6 Sol met extra denktijd: kiest wat er op de pagina komt en vooral wat niet, geeft elke onzekerheid een bestemming en zet een lengtebudget | checklist, lengte, consumentengids, indekken | §5, §7 |
+| 2 | **Feitenregister met conflictpoort**: tegenstrijdige feiten gaan naar de adviseur, nooit naar de lezer | "spreekt elkaar tegen", omgedraaide beloftes | §8 |
+| 3 | **Schrijfstijl in het merkdossier**, volledig ingevuld en goedgekeurd door de adviseur, gebruikt door schrijver, redacteur en een eigen beoordelaar | dezelfde AI-stem bij elke klant | §9 |
+| 4 | **Eindredactie** op GPT-6 Sol met extra denktijd: schrapt, haalt onnodige relativering en herhaling weg, zet de tekst op de merkstem | relativering, herhaling, lengte | §5 |
+| 5 | **Eigenaarstoets en merkstemtoets** op GPT-6 Sol: vergelijkend oordeel of de ondernemer dit zou publiceren | de keuring beloont nu het verkeerde | §12 |
+| 6 | **Portfolio per plan**: elke pagina een eigen hoek; grote steden een eigen pagina, kleine plaatsen zo nodig één werkgebiedpagina | plaatspagina's als template | §10 |
 
-De kosten per pagina blijven naar schatting in dezelfde orde: van ongeveer $0,18 nu naar $0,20 tot
-$0,30, met GPT-6 Sol voor strategie, schrijven en eindredactie op dezelfde denktijd als het schrijven
-nu. De eerste versie van dit plan noemde $0,70 tot $1,00; §11 legt uit waar dat verschil zit. Ter
-vergelijking: één meetronde kost $0,82.
+**Kosten:** een artikel ongeveer $0,37, een landingspagina ongeveer $0,30, in het ongunstigste geval
+ongeveer $0,50. Nu is dat ongeveer $0,16 tot $0,18. Een plan van twaalf artikelen komt op ongeveer
+$4,50 (§4).
+
+**Bouwen in drie fases** (§13): fase 1 haalt het indekken, de checklist, de consumentengids en de
+conflicten weg; fase 2 brengt de merkstem en de nieuwe keuring; fase 3 de portfolio over pagina's
+heen en het opruimen van wat vervalt.
 
 ---
 
@@ -378,276 +357,286 @@ AI-schrijftool mist:
 
 ---
 
-## 2. De gewenste pipeline
+## 2. Besluiten van de eigenaar (25 september 2026)
+
+| # | Besluit | Gevolg in dit plan |
+|---|---|---|
+| 1 | Al het redactionele werk (paginastrategie, schrijven, eindredactie) op **GPT-6 Sol** | geen nieuw model; Sol is de tier die het schrijven nu al gebruikt (`MODELS.content`) |
+| 2 | De beperkingen die de kwaliteit kunnen drukken weghalen: **eigenaarstoets en merkstemtoets op Sol**, **extra denktijd voor strategie en eindredactie** | §4; ongeveer $0,37 per artikel |
+| 3 | Geen losse proef en geen vergelijking met een duurder model vooraf | fase 0 vervalt; de nareken-plicht per fase blijft (conventie 10) |
+| 4 | Een **werkgebiedpagina** mag geadviseerd worden; **grote steden** zoals Eindhoven, Tilburg en 's-Hertogenbosch houden een eigen pagina | §10 |
+| 5 | De **schrijfstijl hoort duidelijk in het merkdossier**; nagekeken voor de drie klanten | §9; de controle laat zien dat het merkdossier de lading nu niet dekt |
+| 6 | Een **bronconflict** houdt een pagina alleen tegen als het betwiste feit op die pagina nodig is | §8 |
+
+**Nog open, met een voorstel:** wie conflicten afhandelt en de stemvoorstellen goedkeurt. Dit plan
+legt dat bij de adviseur (sales-led, zoals het hele merkprofiel), ongeveer een kwartier tot een half
+uur per merk vóór de eerste pagina. De klant ziet het conflictscherm niet.
+
+---
+
+## 3. De nieuwe keten
 
 Het uitgangspunt: **eerst beslissen, dan schrijven, dan redigeren, dan pas keuren.** Elke beslissing
-wordt een gestructureerd object dat de volgende stap krijgt en dat code kan narekenen. De
-deterministische vangnetten verschuiven van "komt deze formulering voor" naar "is de beslissing
-uitgevoerd": staat er een onderwerp dat was uitgesloten, wordt een feit genoemd dat intern open
-staat.
+wordt een object dat de volgende stap krijgt en dat code kan narekenen. De vangnetten in code
+verschuiven daarmee van "komt deze formulering voor" naar "is de beslissing uitgevoerd": staat er een
+onderwerp dat was uitgesloten, wordt een feit genoemd dat intern open staat.
 
-De keten heeft drie lagen, omdat niet alles per pagina opnieuw hoeft.
+### 3.1 Drie lagen
 
-### Laag 1. Per merk: wat we weten en hoe het bedrijf klinkt (eenmalig, bijgewerkt bij wijzigingen)
+**Laag 1, per merk** (eenmalig, bijgewerkt bij wijzigingen): het feitenregister met soort en waarde
+per feit, de conflictdetectie, de bewijsbank, en de schrijfstijl in het merkdossier.
 
-**1a. Feitenregister.** De feitenbank bestaat al (`factstore.ts`). Elk feit krijgt er vier dingen
-bij: een soort (prijs, termijn, plaats, dienst, certificering, garantie, werkwijze, cijfer,
-openingstijd, contact, product), een genormaliseerde waarde waar dat kan (bedrag, bandbreedte, duur,
-plaatsnaam), een geldigheid (merkbreed, per dienst, per plaats), en een publicatiestand
-(bevestigd door de klant, van de site, uit onderzoek, betwist). Een licht model classificeert, code
-normaliseert de waarden.
+**Laag 2, per plan:** de portfolio. Welke pagina welke taak heeft, welke hoek, welk bewijs voorop, en
+of een plaats een eigen pagina krijgt.
 
-**1b. Conflictdetectie.** Code vergelijkt feiten van dezelfde soort en hetzelfde onderwerp op hun
-genormaliseerde waarde (twee intakeprijzen, twee levertijden, twee werkgebieden). Kandidaat-paren
-gaan naar een licht model met één vraag: spreken deze twee elkaar echt tegen, of gaan ze over iets
-anders (een intake op kantoor tegenover een intake in de auto)? Een echt conflict komt in een conflictregister
-en gaat als vraag naar de adviseur. Zie §6.3 voor welke soorten tegenhouden.
+**Laag 3, per pagina:** onderzoek, paginastrategie, schrijven, eindredactie, keuring, en zo nodig
+reparatie.
 
-**1c. Bewijsbank.** Uit het register: de feiten die als bewijs kunnen dienen (35 jaar, eigen ploeg
-van vijf, 60 tot 70 tuinen per jaar, twaalf monteurs, 1.800 onderhoudscontracten, CO-certificering),
-elk met een sterkte en een regel voor hoe stellig hij gebracht mag worden. Standaard: stellig en
-zonder voorbehoud, want de klant heeft hem bevestigd of hij staat op zijn eigen site.
+### 3.2 De taken per pagina, oud en nieuw
 
-**1d. Schrijfstijl in het merkdossier.** Zie §7. GPT-6 Sol stelt een voorstel op uit de hele sitetekst, het gesprek, de
-letterlijke antwoorden van de ondernemer en de velden die nu ongebruikt blijven. De adviseur keurt
-het één keer goed, vóór de eerste pagina.
+De voorbereiding vóór de vragen aan de klant blijft zoals hij is: `content_plan` met `voorBriefing`
+maakt het itemdossier en het contract, en `content_brief` maakt daar de vragen aan de klant van. Het
+contract krijgt daarmee één rol: het **ideaal waar de vragen uit komen**. Het gaat niet meer als
+verplichte inhoudsopgave naar de schrijver.
 
-### Laag 2. Per plan of cluster: welke pagina welke taak heeft
+Het schrijven, na de antwoorden:
 
-**2a. Portfolio en hoeken.** Eén aanroep die alle geplande pagina's van een plan naast elkaar legt,
-samen met de bestaande sitepagina's, en per pagina vastlegt: de zoekintentie die hij bedient, het
-doel, de unieke hoek, welk bewijs hier voorop gaat (en welk op een andere pagina), wat deze pagina
-bewust niet behandelt omdat een andere pagina dat doet, en welke interne links logisch zijn. Deze
-stap mag ook zeggen: voor deze plaats is geen eigen pagina te verdedigen, voeg hem samen met de
-werkgebiedpagina, of stel de ondernemer eerst een vraag over projecten daar. Zie §9.
+| Nu | Nieuw |
+|---|---|
+| `content_plan` (hergebruikt dossier en contract) | `content_plan` (ongewijzigd, hergebruikt dossier en contract) |
+| | **`content_strategy`** (nieuw): paginastrategie op Sol met extra denktijd; de conflictpoort en de strategiecontroles in code |
+| `content_draft`: schrijfopdracht (luna) plus schrijven (Sol) plus volledige keuring | `content_draft`: schrijven (Sol) plus de feitcontrole in code, **zonder** keuring door beoordelaars |
+| | **`content_edit`** (nieuw): eindredactie op Sol met extra denktijd, daarna de volledige keuring |
+| `content_revise` (tot 3 rondes) | `content_revise` (tot 2 rondes), gestuurd door de bevindingen van eigenaarstoets en redactie |
 
-### Laag 3. Per pagina
+Waarom zo: conventie 7 (één zware aanroep per taak). De strategie en de eindredactie zijn elk een
+zware Sol-aanroep en krijgen dus een eigen taak. De keuring verhuist van na het schrijven naar na de
+redactie: een oordeel over een tekst die de redacteur daarna toch verandert, is weggegooid geld.
+`content_edit` heeft daarmee dezelfde vorm als `content_draft` nu (één zware aanroep plus de keuring),
+en past in dezelfde tijdreserve van de werker (`HEAVY_JOB_RESERVE_MS` in `lib/jobs/worker.ts`).
 
-| # | Stap | Soort | Wat hij doet |
+### 3.3 Wat er per taak gebeurt
+
+1. **`content_plan`** (bestaat): itemdossier (luna met web) en contract. Het dossier labelt vragen
+   voortaan als beslisvraag, oriëntatievraag of randvraag.
+2. **`content_strategy`** (nieuw): leest register, bewijsbank, schrijfstijl, portfoliotoewijzing,
+   dossier, contract, antwoorden van de klant, bestaande pagina en zusterpagina's, en levert de
+   `PageStrategy` (§6). Code controleert de strategie (§5, L5) en de conflictpoort (§8). Faalt de
+   poort, dan wordt er niet geschreven en krijgt de adviseur een melding met het conflict.
+3. **`content_draft`**: schrijft op basis van de strategie, met alleen de gekozen feiten. Daarna de
+   feitcontrole in code (beweringen tegen het register, uitgesloten onderwerpen, intern open punten,
+   bronpraat).
+4. **`content_edit`** (nieuw): eindredactie, daarna de vangnetten op de redactie (geen nieuw feit,
+   geen kernfeit weg, lengte naar het budget), daarna de volledige keuring (§12).
+5. **`content_revise`**: alleen als de keuring het vraagt, hoogstens twee rondes. Wat daarna nog open
+   staat, is bijna altijd een ontbrekend feit en gaat als vraag naar de ondernemer, zoals nu.
+
+---
+
+## 4. Modellen, denktijd en kosten
+
+### 4.1 Welk model waarvoor
+
+| Stap | Model | Denktijd | Waarom |
 |---|---|---|---|
-| 3a | Zoekintentie en lezersvragen | licht model met web (het huidige itemdossier, bijgesteld) | welke vragen iemand met deze intentie heeft, nu ook: wat verwacht deze lezer van een aanbieder te horen |
-| 3b | **Paginastrategie** | **GPT-6 Sol** | de redactionele keuze: doel, lezer, kernboodschap, gekozen feiten en onderwerpen, uitgesloten onderwerpen met reden, bestemming per onzekerheid, lengtebudget, oproep tot actie, FAQ-kandidaten |
-| 3c | Poort vóór het schrijven | code | open conflict op een gekozen feit, of een kernonderwerp zonder feit: niet schrijven, vraag naar adviseur of ondernemer |
-| 3d | Opbouw | code, uit 3b | secties met doel, feiten en woordbudget; alleen onderwerpen die 3b opnam |
-| 3e | FAQ-selectie | licht model plus code | kandidaten toetsen: niet al in de tekst, commercieel relevant, te beantwoorden met een feit of vaste vakkennis; nul vragen is een geldige uitkomst |
-| 3f | **Schrijven** | **GPT-6 Sol** | de pagina, met een korte opdracht: strategie, opbouw, alleen de gekozen feiten, merkstem met voorbeelden |
-| 3g | Feitcontrole | code plus licht model | zoals nu (beweringen tegen het register), plus: staat er een onderwerp uit de uitsluitlijst, staat er een intern open punt als zin |
-| 3h | **Eindredactie** | **GPT-6 Sol** | schrappen, relativeringen weg waar ze niet nodig zijn, herhaling eruit, stem erop, lengte naar het budget; met een logboek per wijziging |
-| 3i | Keuring door specialisten | mix | merkstem, eigenaarstoets, SEO en GEO, feitelijkheid; vergelijkend in plaats van alleen een los cijfer |
-| 3j | Publicatiepoort | code | harde blokkades, waarschuwingen, en welke menselijke controle nodig is |
+| Paginastrategie | GPT-6 Sol | hoog | de moeilijkste denkstap: uit tientallen feiten kiezen en bepalen wat weg mag |
+| Schrijven | GPT-6 Sol | medium (zoals nu) | de opdracht wordt beter en korter; het schrijven zelf was niet het probleem |
+| Eindredactie | GPT-6 Sol | hoog | de hele tekst overzien: herhaling, relativering, stem, lengte |
+| Reparatie | GPT-6 Sol | medium (zoals nu) | gerichte sectiereparatie |
+| Eigenaarstoets | GPT-6 Sol | medium | beslist mee of een pagina publicatiewaardig is; het goedkope model was aantoonbaar te mild |
+| Merkstemtoets | GPT-6 Sol | medium | toon is een fijnmazig oordeel |
+| Stemvoorstel voor het merkdossier | GPT-6 Sol | hoog | eenmalig per merk |
+| Portfolio per plan | GPT-6 Sol | hoog | eenmalig per plan |
+| Itemdossier, feiten indelen, conflicten beoordelen, FAQ-selectie, feitelijkheid, citeerbaarheid | luna | zoals nu | mechanisch werk dat code narekent |
 
-Reparatie blijft bestaan, maar wordt gestuurd door de redacteur en de eigenaarstoets en niet meer
-alleen door de veiligheidsblokkades. Hoogstens twee rondes; wat daarna nog openstaat is bijna
-altijd een ontbrekend feit en gaat als vraag naar de ondernemer, zoals nu.
+In de code: `MODELS.content` (Sol) wordt de tier voor al het redactionele werk en de twee
+Sol-beoordelaars. Er komt geen vierde tier bij (CLAUDE.md: drie tiers vast). Het commentaar in
+`lib/openai/models.ts` dat de contenttier "uitsluitend het schrijven" noemt, wordt bijgewerkt. In
+`lib/openai/sampling.ts` komt één nieuwe werksoort, `redactioneel`, met denktijd hoog, voor de
+strategie, de eindredactie, het stemvoorstel en de portfolio.
 
-**Waarom deze volgorde beter is dan de huidige.** De huidige keten beslist wat er op de pagina komt
-in het contract (goedkoop, volledigheid als doel) en probeert daarna in drie lagen (schrijfopdracht,
-schrijfprompt, reparatie) de gevolgen te beperken. De nieuwe keten beslist het één keer, op het
-sterkste model, met weglaten als volwaardige uitkomst, en laat alles daarna die beslissing uitvoeren.
-De architectuur uit de opdracht (onderzoek, feiten, zoekintentie, lezersintentie, paginadoel,
-prioritering, opbouw, copy, redactie, publicatietoets) komt daarmee overeen, met twee verschillen:
-zoekintentie, lezersintentie, doel en prioritering zijn één aanroep (ze hangen zo sterk samen dat
-losse aanroepen elkaar zouden tegenspreken, precies het probleem van nu), en er komt een laag per
-merk en per plan boven, omdat stem, conflicten en uniciteit niet per pagina op te lossen zijn.
+### 4.2 Kosten per artikel
 
----
+Geschat op de huidige tokengroottes uit `ai_calls` (schrijven nu gemiddeld 14.100 tokens in en 4.300
+uit, $0,071; een reparatieronde $0,057).
 
-## 3. Concrete wijzigingen in de applicatie
-
-### Aanpassen
-
-| Onderdeel | Nu | Wordt |
+| Stap | Model | Per artikel |
 |---|---|---|
-| `item-dossier.ts` | "nooit over een specifiek bedrijf", levert een volledige vragenlijst | blijft algemeen (geen bedrijfsfeiten, dat is terecht), maar levert vragen met een gewicht en een label: beslisvraag, oriëntatievraag, randvraag. Randvragen gaan niet automatisch mee |
-| `content-contract.ts` | aparte stap, "compleet", "laat niets weg" | vervalt als losse stap; de opbouw wordt afgeleid uit de paginastrategie. Harde regels (a) en (d) verdwijnen |
-| `writer-brief.ts` | goedkope keuze ná het contract | wordt de paginastrategie, op GPT-6 Sol, vóór de opbouw |
-| `formatContract()` | "Alles wat hier staat MOET erop komen" | "dit is de opbouw; een sectie waarvoor je geen feit of vaste vakkennis hebt, laat je weg en je zet hem in `weggelaten`" |
-| `content.ts`, `CONTENT_SYSTEM` en `buildContentInput()` | elf regels plus achttien blokken, ongeveer 14.000 tokens | kortere opdracht: strategie, opbouw, gekozen feiten (niet de hele kaart van 84), merkstem met voorbeelden, de harde regels die blijven (feiten, concurrenten, leestekens). De hele kaart gaat alleen mee naar de feitcontrole |
-| `content-coverage.ts` | 85 procent van de contractsecties | meet of de gekozen onderwerpen en kernfeiten erin staan, en of de uitgesloten onderwerpen er niet in staan |
-| `content-panel.ts` | vier beoordelaars op luna, los cijfer | zie §6: specialisten met een stemprofiel, eigenaarstoets en een vergelijkend oordeel |
-| `quality-repair.ts` en de reparatielus | stuurt op blokkades, repareert met "nuanceer of laat weg" | stuurt op de bevindingen van redacteur en eigenaarstoets; "laat weg" wordt de enige route bij ontbrekend bewijs, "nuanceer" verdwijnt |
-| `fact-merge.ts`, `factstore.ts` | tegenspraak alleen op dezelfde sleutel | soort, waarde en geldigheid per feit; conflictdetectie op soort en waarde (§2, 1b) |
-| waardeproposities in het profiel | "volgens de website", dubbel | opgeschoond naar stellige uitspraken met herkomst in een apart veld; dubbelingen eruit. Herkomst is administratie, geen tekst |
-| `similarity.ts` | vijfwoordreeksen, achteraf | aangevuld met vergelijking op hoek, feitenset en opbouw, vóór het schrijven (portfolio) en erna (§9) |
-| `lib/openai/models.ts` en `sampling.ts` | alleen het schrijven op sol, denktijd medium | strategie, schrijven en eindredactie op sol (`MODELS.content`) met denktijd medium, zoals het schrijven nu; zie §11 |
+| Paginastrategie | Sol, hoog | $0,085 |
+| Schrijven | Sol, medium | $0,065 |
+| Eindredactie | Sol, hoog | $0,08 |
+| Reparatie (gemiddeld een halve ronde) | Sol, medium | $0,03 |
+| Eigenaarstoets | Sol, medium | $0,04 |
+| Merkstemtoets | Sol, medium | $0,035 |
+| Itemdossier, feitcontrole, FAQ en overige beoordelaars | luna | $0,03 |
+| Aandeel van het werk per merk en per plan | Sol, hoog | $0,005 |
+| **Totaal** | | **ongeveer $0,37** |
 
-### Toevoegen
+Een landingspagina is korter en komt op ongeveer $0,30. Een plan van twaalf artikelen kost ongeveer
+$4,50, tegen ongeveer $2 nu; één artikel kost minder dan de helft van één meetronde ($0,82).
 
-- Feitsoort, waarde, geldigheid en publicatiestand op de feitenbank (migratie, additief).
-- Conflictregister met een scherm voor de adviseur (bij het merk, niet bij de klant).
-- Merkstemprofiel als eigen object bij het merk, met goedkeuring door de adviseur.
-- Paginastrategie als eigen kolom op `content_pieces`, net als `writer_brief_json` nu.
-- Taaksoorten voor paginastrategie en eindredactie (conventie 7: één zware aanroep per taak).
-- Portfoliostap per plan, met per pagina een toegewezen hoek.
-- Een acceptatietest die de proefset van de doorlichting opnieuw draait (§14).
+**Wat de uitkomst kan verschuiven.** Blijven de reparaties even vaak nodig als nu (1,3 ronde per
+pagina), of worden artikelen langer dan het budget, dan komt het uit op ongeveer $0,50. Dat de
+eindredacteur het grootste deel van de reparaties overneemt, is een verwachting. Na fase 1 worden de
+kosten per pagina nagerekend op `ai_calls` en komen ze in `docs/architecture.md` §6.
 
-### Verwijderen of afschalen
+**Wat nu gemeten is, ter vergelijking:** een artikel gemiddeld $0,155 en een landingspagina $0,142
+over de pagina's van de hovenier en de installateur sinds 24 september 2026 (aanroepen met een
+`content_piece_id`); met het voorwerk dat niet aan één pagina hangt ongeveer $0,16 tot $0,18.
 
-- Systeemregel 10 ("je mag er niets uit weglaten") en contractregels (a) en (d).
-- De instructie aan de reparatie om te "nuanceren".
-- De opdracht aan de feitelijkheidsbeoordelaar om algemene uitleg te melden "die als belofte gelezen
-  kan worden", als losstaande jacht. Die vraag verhuist naar de feitcontrole met een gesloten
-  definitie van wat een belofte is (een zin met "wij" of de merknaam plus een toezegging).
-- De groeiende formuleringlijsten (`SLAP`, `VOORBEHOUD`, de families van `checkSourceTalk`) blijven
-  als vangnet, maar zijn niet meer de hoofdroute. Geen nieuwe families toevoegen.
-- `style_samples` als enige stembron.
+### 4.3 Doorlooptijd en de tijdslimiet
+
+Per pagina komen er twee zware aanroepen bij, dus een pagina duurt enkele minuten langer. Dat voelt
+niemand, want het draait op de achtergrond.
+
+**Het echte aandachtspunt is de tijdslimiet per aanroep** (150 seconden, `CALL_BUDGET_MS` in
+`lib/openai/client.ts`). Het schrijven staat op medium omdat hoog daar tegenaan zat; de traagste
+geslaagde schrijfaanroep op medium duurde 98,8 seconden. De strategie en de eindredactie op hoog
+maken minder tekst dan de schrijver, maar denken langer. Maatregel bij de bouw, geen losse proef:
+
+- elke aanroep van `content_strategy` en `content_edit` legt zijn duur vast;
+- komt één van beide in productie boven 120 seconden, dan gaat die aanroep in de achtergrondmodus van
+  de API (de taak start de aanroep, een vervolgtaak haalt het resultaat op), zodat een time-out nooit
+  de duurste aanroep dubbel laat betalen.
 
 ---
 
-## 4. Nieuwe LLM-stappen
+## 5. De LLM-stappen in detail
 
-Per stap: wat hij doet, wat hij krijgt, wat hij oplevert, en waarom hij nodig is. Modellen zijn de
-tiers uit `lib/openai/pricing.ts`: luna ($0,10 in, $0,50 uit per miljoen tokens) en sol ($2 en $10).
-Besluit van de eigenaar: al het redactionele werk (strategie, schrijven, eindredactie) op GPT-6 Sol.
-Dat is de tier die het schrijven nu al gebruikt (`MODELS.content`), dus er komt geen nieuw model bij.
-
-### L1. Feiten classificeren (per merk, per batch nieuwe feiten)
+### L1. Feiten indelen (per merk, per batch nieuwe feiten)
 - **Doet:** geeft elk feit een soort, een genormaliseerde waarde en een geldigheid.
-- **Krijgt:** de feiten zoals ze nu in de bank staan, plus de sitepagina waar ze vandaan komen.
-- **Levert:** per feit `soort`, `waarde`, `eenheid`, `geldtVoor` (merk, dienst, plaats), en of het
-  een bewijsstuk kan zijn.
-- **Model:** luna, geen denktijd. Code rekent de waarde na (een bedrag in de waarde moet in de
-  feittekst staan).
+- **Krijgt:** de feiten uit `brand_facts`, met de zin en de pagina waar ze vandaan komen.
+- **Levert:** per feit `soort`, `waarde`, `eenheid`, `geldtVoor`, en of het bewijs kan zijn.
+- **Model:** luna. **Vangnet:** een getal in `waarde` moet in de feittekst staan; anders blijft de
+  waarde leeg (conventie 3).
 - **Waarom:** zonder soort en waarde is geen conflict te vinden en geen feit te kiezen.
 
 ### L2. Conflict beoordelen (per kandidaat-paar)
 - **Doet:** beslist of twee feiten van dezelfde soort elkaar echt tegenspreken.
 - **Krijgt:** de twee feiten met bron, datum en de zin eromheen.
-- **Levert:** `echtConflict` ja of nee, `soort`, een uitleg in één zin voor de adviseur, en een
-  voorstel welke bron waarschijnlijk klopt (nooit automatisch toegepast).
-- **Model:** luna met denktijd laag.
-- **Waarom:** code vindt kandidaten (twee intakeprijzen bij de rijschool), maar ziet niet dat het
-  ene bedrag over een intake op kantoor gaat en het andere over een intake in de auto. Zonder deze
-  stap wordt de poort vals alarm; met deze stap wordt het een feit met twee varianten, en alleen als
-  het model het niet kan uitmaken een vraag aan de adviseur.
-- **Lost op:** "De beschikbare informatie over de intakeprijs spreekt elkaar tegen" (rijschool).
+- **Levert:** `echtConflict`, een uitleg in één zin voor de adviseur, een voorstel welke bron
+  waarschijnlijk klopt (nooit automatisch toegepast), of `varianten` als het twee verschillende dingen
+  zijn.
+- **Model:** luna.
+- **Waarom:** code vindt kandidaten, maar ziet niet dat de intake van € 50 op kantoor en die van € 80
+  in de auto bij de rijschool twee producten zijn. Zonder deze stap wordt de poort vals alarm.
 
-### L3. Merkstemprofiel opstellen (per merk, eenmalig)
-- **Doet:** vertaalt alles wat we van het bedrijf weten naar een bruikbaar stemprofiel (§7).
+### L3. Stemvoorstel voor het merkdossier (per merk, eenmalig)
+- **Doet:** stelt voor elk leeg of dun stemveld van het merkdossier een waarde voor (§9).
 - **Krijgt:** de hele sitetekst die de crawl las, de gespreksnotities, alle letterlijke antwoorden van
-  de ondernemer, de toonvelden en de nu ongebruikte merkvelden, de verboden woorden.
-- **Levert:** een voorstel voor de stemvelden van het merkdossier (§7.1), inclusief goede en foute
-  voorbeeldzinnen die het zelf schrijft uit bestaande feiten. De adviseur keurt het voorstel goed in
-  het merkdossier; pas daarna telt het.
-- **Model:** sol, denktijd medium. Draait één keer per merk.
-- **Waarom:** "nuchter en vakkundig" is geen instructie waar een schrijver iets mee kan; tien
-  concrete regels en twintig voorbeeldzinnen wel.
+  de ondernemer, de bestaande stemvelden, de verboden woorden.
+- **Levert:** een voorstel per veld, met goede en foute voorbeeldzinnen die het zelf schrijft uit
+  bestaande feiten, en per regel de bron.
+- **Model:** Sol, denktijd hoog.
+- **Na afloop:** de adviseur keurt goed in het merkdossier; een voorstel dat niet is goedgekeurd, gaat
+  niet mee in het schrijven.
 
-### L4. Portfolio en hoeken (per plan of per batch pagina's)
-- **Doet:** geeft elke pagina een eigen taak binnen het geheel.
-- **Krijgt:** alle geplande pagina's met doelvragen en lezer, de bestaande sitepagina's (titel, adres,
-  korte inhoud), de bewijsbank, het werkgebied en de groeiplaatsen.
-- **Levert:** per pagina `PageAssignment` (§5): primaire intentie, hoek, voorrangsbewijs, wat hij
-  niet behandelt en waar dat wel staat, interne links, en een advies: schrijven, samenvoegen met
-  pagina X, of eerst een vraag aan de ondernemer.
-- **Model:** sol, denktijd medium.
-- **Waarom:** uniciteit is een eigenschap van de verzameling, niet van één pagina. Een schrijver die
-  alleen Nuenen ziet, kan niet weten dat Best al over offertes vergelijken gaat.
+### L4. Portfolio (per plan)
+- **Doet:** geeft elke pagina van een plan een eigen taak binnen het geheel (§10).
+- **Krijgt:** alle geplande pagina's met doelvragen en lezer, de bestaande sitepagina's, de bewijsbank,
+  het werkgebied, de groeiplaatsen, en de uitkomst van de plaatsregel (§10.1).
+- **Levert:** per pagina een `PageAssignment` (§6), met het advies schrijven, samenvoegen, of eerst een
+  vraag aan de ondernemer.
+- **Model:** Sol, denktijd hoog.
 
 ### L5. Paginastrategie (per pagina), de belangrijkste nieuwe stap
-- **Doet:** de redactionele keuze die nu over contract en schrijfopdracht verdeeld is.
-- **Krijgt:** de toewijzing uit L4, het dossier met gewogen vragen, het feitenregister (alle feiten
-  met soort en stand), de bewijsbank, het stemprofiel (samenvatting), de bestaande pagina als die
-  er is, de doelvragen uit de meting, het winnende AI-antwoord zonder namen, de bezwaren uit het
-  verkoopgesprek, en de korte inhoud van de zusterpagina's.
-- **Levert:** `PageStrategy` (§5). De kern: welke onderwerpen en feiten erop komen, welke niet en
-  waarom, per onzekerheid de bestemming A, B of C, het lengtebudget met onderbouwing, en de
-  oproep tot actie.
-- **Model:** sol, denktijd medium.
-- **Waarom:** dit is de stap die een copywriter het zwaarst vindt en die nu het minst kost. Hij moet
-  kunnen zeggen: "deze pagina heeft vijf feiten en twee echte beslisvragen, dus vier secties en
-  500 woorden."
-- **Vangnet:** code rekent na dat elk gekozen feit in het register staat en niet betwist is, dat
-  elke bestemming B een reden uit de gesloten lijst heeft (§8.3), en dat het lengtebudget binnen
-  de grenzen van het paginadoel valt.
+- **Doet:** de redactionele keuze die nu over contract en schrijfopdracht verdeeld is, en die nu door
+  het goedkoopste model gemaakt wordt.
+- **Krijgt:** de toewijzing uit L4, het dossier met gelabelde vragen, het contract als lijst van
+  mogelijke onderwerpen (niet als opdracht), het feitenregister met soort en stand, de bewijsbank, de
+  schrijfstijl, de antwoorden van de klant, de bestaande pagina, de doelvragen uit de meting, het
+  winnende AI-antwoord zonder namen, de bezwaren uit het verkoopgesprek, en per zusterpagina de hoek
+  en de gekozen feiten.
+- **Levert:** `PageStrategy` (§6).
+- **Model:** Sol, denktijd hoog.
+- **Vangnet in code:** elk gekozen feit staat in het register en is niet betwist; elke bestemming B
+  heeft een reden uit de gesloten lijst van §7.2; het lengtebudget valt binnen de grenzen van §7.4;
+  een kernonderwerp zonder feit en zonder vaste vakkennis is een vraag aan de ondernemer en geen
+  sectie; er staan hoogstens zes prioriteitsfeiten in.
+- **Vervangt:** de schrijfopdracht (`writer-brief.ts`) en de rol van het contract als opdracht.
 
 ### L6. FAQ-selectie (per pagina)
-- **Doet:** kiest nul tot vijf vragen die echt iets toevoegen.
-- **Krijgt:** de opbouw uit L5, de kandidaatvragen (uit het dossier, de meting, de bezwaren, en de
-  vervolgvragen die de beoordelaars nu al melden), het register.
-- **Levert:** per kandidaat: houden of afwijzen, met de reden (al beantwoord in sectie X, geen feit,
-  niet commercieel relevant, dubbel), en voor een gehouden vraag het feit of de vakkennis waarop het
-  antwoord rust.
-- **Model:** luna, denktijd laag. Code gooit elke vraag weg zonder onderbouwing en elke vraag die
-  woordelijk overlapt met een sectie.
-- **Waarom:** zie §10.
+- **Doet:** kiest nul tot vijf vragen die echt iets toevoegen (§11).
+- **Krijgt:** de strategie, de kandidaatvragen (bezwaren, gemeten vragen, dossier, vervolgvragen uit
+  eerdere keuringen), het register.
+- **Levert:** per kandidaat houden of afwijzen, met de reden en voor een gehouden vraag het feit of de
+  vakkennis waarop het antwoord rust.
+- **Model:** luna. **Vangnet:** code gooit elke vraag weg zonder onderbouwing of met grote overlap met
+  een sectie.
+- **Plek:** een eigen aanroep binnen `content_strategy`, na de strategie. Luna is licht genoeg om naast
+  de ene zware aanroep te passen.
 
 ### L7. Schrijven (per pagina)
-- **Doet:** zoals nu, met een andere opdracht.
-- **Krijgt:** strategie, opbouw, alleen de gekozen feiten (met F-nummer), de goedgekeurde FAQ met
-  onderbouwing, het stemprofiel met voorbeelden, de harde regels.
+- **Krijgt:** de strategie, de opbouw die code uit de strategie afleidt, alleen de gekozen feiten met
+  F-nummer, de goedgekeurde FAQ met onderbouwing, de schrijfstijl met voorbeelden, de harde regels die
+  blijven (feiten, concurrenten, leestekens, naam in de eerste alinea en de afsluiting).
 - **Levert:** zoals nu (tekst, FAQ, meta, JSON-LD, claims, bewijspunten), plus `weggelaten`: welke
-  opbouwpunten hij niet heeft kunnen schrijven en waarom.
-- **Model:** sol, denktijd medium.
+  opbouwpunten hij niet kon schrijven en waarom.
+- **Model:** Sol, denktijd medium.
+- **Wat verdwijnt uit de opdracht:** "alles wat hier staat MOET erop" en "je mag er niets uit
+  weglaten", de hele feitenkaart van 44 tot 84 regels (die gaat alleen nog naar de feitcontrole), het
+  paginaplan met "GEEN BRON", en de meeste van de achttien blokken; wat er van die blokken toe doet,
+  zit in de strategie.
 
-### L8. Eindredactie (per pagina, één of twee rondes)
+### L8. Eindredactie (per pagina, één ronde)
 - **Doet:** wat een eindredacteur doet: de tekst beter maken zonder feiten toe te voegen.
-- **Krijgt:** de tekst, de strategie, het stemprofiel, de lijst gekozen feiten, en de bevindingen uit
-  de feitcontrole.
-- **Levert:** de geredigeerde tekst plus een logboek per wijziging: wat, waarom (overbodige
-  relativering, herhaling, adviestoon, stem, lengte, onduidelijke zin), en of het een feit raakte.
-- **Model:** sol, denktijd medium.
-- **Vangnet:** code controleert dat er geen nieuw feit bij kwam (dezelfde claimcontrole als nu), dat
-  geen gekozen kernfeit verdween, en dat de lengte naar het budget ging en niet erboven.
-- **Waarom:** de reparatielus van nu is een monteur die bevindingen afwerkt. Wat ontbreekt is iemand
-  die de hele tekst leest en zegt: deze drie alinea's zeggen hetzelfde, en deze zin maakt ons sterkste
-  punt kapot.
+- **Krijgt:** de tekst, de strategie, de schrijfstijl, de gekozen feiten, de bevindingen van de
+  feitcontrole.
+- **Levert:** de geredigeerde tekst en een logboek per wijziging: wat, waarom (overbodige
+  relativering, herhaling, adviestoon, stem, lengte, helderheid), en of het een feit raakte.
+- **Model:** Sol, denktijd hoog.
+- **Vangnet in code:** geen nieuwe bewering zonder feit (dezelfde controle als nu), geen kernfeit
+  weg (`feitbehoud.ts` bestaat), lengte naar het budget en niet erboven.
 
-### L9. Merkstemtoets (per pagina)
-- **Doet:** legt de tekst naast het stemprofiel.
-- **Levert:** per regel uit het profiel of hij gehaald is, met de zin uit de tekst; de drie zinnen die
-  het verst van de stem af staan, met een voorstel.
-- **Model:** luna, denktijd medium; naar sol als fase 0 laat zien dat luna te mild is op stem.
+### L9. Merkstemtoets (per versie)
+- **Doet:** legt de tekst naast de schrijfstijl in het merkdossier.
+- **Levert:** per stemregel gehaald of niet, met de zin uit de tekst; de drie zinnen die het verst van
+  de stem af staan, met een voorstel.
+- **Model:** Sol, denktijd medium.
 
-### L10. Eigenaarstoets (per pagina)
-- **Doet:** leest de pagina als de ondernemer. Zou hij dit zonder aanpassing publiceren, en wat zou
-  hij als eerste veranderen?
-- **Krijgt:** de tekst, het stemprofiel, het bewijs, en de huidige sitepagina of de vorige versie.
-- **Levert:** een vergelijkend oordeel (nieuw beter, gelijk, slechter), publiceerbaar ja of nee, en
-  de eerste wijziging die de ondernemer zou maken.
-- **Model:** luna als startpunt, sol als de volgorde in fase 0 niet klopt (ongeveer $0,03 extra per
-  versie). Een beoordelaar van een andere leverancier verkleint het risico dat een model zijn
-  eigen soort tekst goed vindt; Gemini staat klaar maar is uit, dit is een optie om te toetsen.
-- **Waarom:** de blinde-lezertoets liet zien dat een lezer betrouwbaar vergelijkt en geen
-  betrouwbaar los cijfer geeft. Deze toets vergelijkt.
+### L10. Eigenaarstoets (per versie)
+- **Doet:** leest de pagina als de ondernemer. Zou hij dit zonder aanpassing publiceren, en wat zou hij
+  als eerste veranderen?
+- **Krijgt:** de tekst, de schrijfstijl, het bewijs, en de huidige sitepagina of de vorige versie.
+- **Levert:** een vergelijkend oordeel (nieuw beter, gelijk, slechter), publiceerbaar ja of nee, en de
+  eerste wijziging die de ondernemer zou maken, met de sectie.
+- **Model:** Sol, denktijd medium.
+- **Waarom vergelijkend:** de blinde-lezertoets van de doorlichting liet zien dat een lezer
+  betrouwbaar vergelijkt en geen betrouwbaar los cijfer geeft.
 
-### Wat vervalt of samengaat
-- Contract (luna) en schrijfopdracht (luna) gaan op in L5.
-- De redactiebeoordelaar en de vakmanschapsbeoordelaar gaan op in L9 en L10.
-- De feitelijkheidsbeoordelaar blijft, gericht op de feitcontrole van 3g.
-- De citeerbaarheidsbeoordelaar blijft, maar zijn vraag "wat houdt de lezer nog over" wordt input voor
-  de volgende strategie en de FAQ-kandidaten, en geen reparatieopdracht om secties toe te voegen.
+### Wat blijft, wat vervalt
+- **Blijft (luna):** itemdossier, claim-audit en vragen, feitelijkheidsbeoordelaar (gericht op de
+  feitcontrole), citeerbaarheidsbeoordelaar (zijn "wat houdt de lezer nog over" wordt invoer voor FAQ
+  en volgende strategie, geen opdracht om secties toe te voegen), zinnenbeoordelaar, versievergelijking.
+- **Vervalt:** de schrijfopdracht als losse stap (gaat op in L5); de redactiebeoordelaar en de
+  vakmanschapsbeoordelaar (gaan op in L9 en L10).
 
 ---
 
-## 5. Gestructureerde tussenobjecten
+## 6. De gestructureerde objecten
 
-De velden hieronder zijn het voorstel. Elk object wordt als JSON bewaard naast de pagina (conventie
-8), zodat achteraf bij elke zin te zien is welke beslissing hem veroorzaakte.
+Elk object wordt als JSON bewaard naast de pagina of het merk (conventie 8), zodat achteraf bij elke
+zin te zien is welke beslissing hem veroorzaakte. Elk krijgt een Zod-schema in `lib/schemas/`.
 
-### FactRecord (per merk)
+### FactRecord (uitbreiding van `brand_facts`)
 | Veld | Betekenis |
 |---|---|
-| `id`, `tekst`, `bron`, `bronUrl`, `datum` | zoals nu |
 | `soort` | prijs, termijn, plaats, werkgebied, dienst, product, certificering, garantie, werkwijze, cijfer, openingstijd, contact |
-| `waarde`, `eenheid` | genormaliseerd: `{min: 2200, max: 3200, eenheid: "EUR"}`, `{min: 2, max: 4, eenheid: "week"}` |
-| `geldtVoor` | merk, een dienst, een plaats |
-| `stand` | bevestigd door klant, van de site, uit onderzoek, betwist |
+| `waarde` | genormaliseerd, bijvoorbeeld `{min: 2200, max: 3200, eenheid: "EUR"}` of `{min: 2, max: 4, eenheid: "week"}` |
+| `geldt_voor` | merk, een dienst, een plaats |
+| `stand` | bevestigd door de klant, van de site, uit onderzoek, betwist |
 | `bewijskracht` | geen, gewoon, sterk (35 jaar, eigen ploeg, 1.800 contracten) |
 
-### SourceConflict (per merk)
+### FactConflict (nieuwe tabel)
 | Veld | Betekenis |
 |---|---|
-| `feiten` | de twee of meer feit-id's |
+| `feit_ids` | de twee of meer feiten |
 | `soort` | zoals bij FactRecord |
-| `ernst` | blokkerend of waarschuwing, volgens de tabel in §6.3 |
-| `uitleg` | één zin voor de adviseur |
-| `voorstel` | welke bron waarschijnlijk klopt, met reden |
-| `oplossing` | door wie, wanneer, welk feit geldt; tot die tijd staat het feit op "betwist" |
+| `ernst` | blokkerend of waarschuwing (§8.2) |
+| `uitleg`, `voorstel` | voor de adviseur |
+| `oplossing`, `opgelost_door`, `opgelost_op` | welk feit geldt; tot dan staat het feit op "betwist" |
 
-### De schrijfstijl in het merkdossier (per merk), zie §7
-
-### PageAssignment (per pagina, uit het portfolio)
+### PageAssignment (per pagina, uit de portfolio)
 | Veld | Betekenis |
 |---|---|
 | `primaireIntentie` | de ene zoekintentie die deze URL bedient |
@@ -656,249 +645,199 @@ De velden hieronder zijn het voorstel. Elk object wordt als JSON bewaard naast d
 | `voorrangsbewijs` | welke bewijsstukken hier voorop gaan |
 | `nietHier` | onderwerpen die op een andere pagina staan, met die pagina |
 | `interneLinks` | naar welke pagina's, met welke aanleiding |
-| `advies` | schrijven, samenvoegen met X, eerst vraag Y aan de ondernemer |
+| `advies` | schrijven, samenvoegen met pagina X, of eerst vraag Y aan de ondernemer |
 
 ### PageStrategy (per pagina, uit L5)
 | Veld | Betekenis |
 |---|---|
-| `zoekintentie` | wat iemand zoekt als hij hier landt (informeren, vergelijken, kopen, lokaal vinden) |
-| `lezer` | één persoon in één situatie (zoals nu) |
+| `zoekintentie` | informeren, vergelijken, kopen, lokaal vinden |
+| `lezer` | één persoon in één situatie |
 | `fase` | oriëntatie, overweging, beslissing |
 | `paginadoel` | wat de lezer na afloop doet |
 | `kernboodschap` | wat blijft hangen, in één zin |
 | `openingsantwoord` | het antwoord op de hoofdvraag in hoogstens twee zinnen |
-| `hoek` | overgenomen uit de toewijzing, eventueel aangescherpt |
-| `prioriteitsfeiten` | drie tot zes feit-id's die de pagina dragen, elk met de betekenis voor deze lezer |
+| `hoek` | uit de toewijzing, eventueel aangescherpt |
+| `prioriteitsfeiten` | drie tot zes feit-id's, elk met de betekenis voor deze lezer |
 | `optioneleFeiten` | mag, hoeft niet |
-| `uitgeslotenFeiten` | met reden: elders gedekt, niet relevant voor deze lezer, betwist |
-| `onderwerpen` | per onderwerp: opnemen, weglaten, of eerst vragen; bij opnemen de bron (feit of vaste vakkennis) |
-| `onzekerheden` | per open punt de bestemming A (intern: wordt vraag), B (uitleggen: met reden en formulering) of C (weglaten) |
-| `bezwaar` | het ene bezwaar uit het verkoopgesprek dat deze pagina wegneemt, als dat er is |
-| `lengtebudget` | woorden, met de onderbouwing (zie §8.4) |
+| `uitgeslotenFeiten` | met reden: elders gedekt, niet relevant, betwist |
+| `onderwerpen` | per onderwerp opnemen, weglaten of eerst vragen; bij opnemen de bron (feit of vaste vakkennis) en een woordbudget |
+| `onzekerheden` | per open punt de bestemming A, B of C (§7.1); bij B de reden en de formulering |
+| `bezwaar` | het bezwaar uit het verkoopgesprek dat deze pagina wegneemt, als dat er is |
+| `lengtebudget` | woorden, met de onderbouwing (§7.4) |
 | `oproep` | wat de lezer moet doen, in de woorden van het merk |
-| `risico` | gevoelige onderwerpen (veiligheid, wet, zorg) met de nuance die daar wel moet |
+| `gevoelig` | onderwerpen waar nuance wel moet (veiligheid, wet, zorg), met de nuance |
+| `faq` | de uitkomst van L6 |
 
-### FaqPlan (per pagina, uit L6)
-Per vraag: `vraag`, `gehouden`, `reden`, `onderbouwing` (feit-id of vakkennis met bron).
-
-### EditorialLog (per pagina, uit L8)
+### EditorialLog (per versie, uit L8)
 Per wijziging: `was`, `wordt`, `soort` (relativering, herhaling, adviestoon, stem, lengte, helderheid),
 `raaktFeit`.
 
-### ReadinessReport (per pagina, uit 3i en 3j)
-Zie §6.4.
+### ReadinessReport (per versie, uit de keuring)
+Zie §12.3.
 
-**Maakt dit de kwaliteit voorspelbaarder?** Ja, om twee redenen die niets met het model te maken
-hebben. Ten eerste wordt elke fout aanwijsbaar: staat er een consumentenadviessectie, dan is in de
-strategie te zien of die daar gekozen is of dat de schrijver hem bedacht. Nu is dat niet te
-onderscheiden. Ten tweede kunnen de vangnetten op beslissingen controleren in plaats van op
-formuleringen, en een beslissing heeft maar één vorm. Het risico is een tekst die als ingevuld
-formulier leest; daarom krijgt de schrijver de beslissingen en de voorbeelden, niet de velden als
-invullijst, en komt er een redacteur na.
+**Waarom dit de kwaliteit voorspelbaarder maakt.** Elke fout wordt aanwijsbaar: staat er een
+consumentenadviessectie, dan is in de strategie te zien of die daar gekozen is of dat de schrijver
+hem bedacht. En de vangnetten controleren beslissingen in plaats van formuleringen; een beslissing
+heeft maar één vorm, een formulering duizend. De schrijver krijgt de beslissingen en voorbeelden, niet
+de velden als invullijst, zodat de tekst geen formulier wordt.
 
 ---
 
-## 6. Quality gates
+## 7. Onzekerheid, nuance en wat er op de pagina komt
 
-### 6.1 Harde blokkades (de pagina gaat niet naar "klaar")
+### 7.1 Drie bestemmingen voor onzekerheid
+- **A. Intern oplossen.** Wij weten het niet, de ondernemer wel. Het wordt een vraag aan de
+  ondernemer via de bestaande vragenroute, en de tekst zwijgt erover tot er een antwoord is. Dit is
+  de standaard voor alles wat over het bedrijf gaat.
+- **B. Uitleggen aan de lezer.** Alleen met een reden uit §7.2, één keer, in de formulering die de
+  strategie vastlegt.
+- **C. Weglaten.** Niet relevant genoeg voor deze lezer. Geen vraag en geen zin.
 
-| Blokkade | Waarom hard | Nu |
+Een punt met bestemming A of C dat toch als zin in de tekst staat, is een blokkade (§12.1).
+
+### 7.2 Noodzakelijke nuance tegenover overbodige relativering
+Een voorbehoud mag alleen bij één van deze vijf redenen, en dan één keer per feit:
+1. **Geld:** de lezer begroot anders verkeerd. Een bandbreedte is al een voorbehoud; één korte reden
+   van de spreiding is genoeg ("vooral de stenen maken het verschil").
+2. **Veiligheid:** gas, elektra, bouwkundig.
+3. **Wet en regels:** vergunning, subsidievoorwaarden. Eén verwijzing naar de officiële bron.
+4. **Zorg en gezondheid.**
+5. **De klant wil het:** een voorbehoud dat de ondernemer zelf opgaf.
+
+Nooit: een voorbehoud direct na een bewijsstuk ("35 jaar ervaring, maar dat zegt op zichzelf niets"),
+een voorbehoud over wat wij niet weten ("is niet vastgelegd"), een voorbehoud dat een belofte van de
+site omdraait, en een voorbehoud op algemene uitleg die niemand als belofte leest.
+
+### 7.3 Welke feiten op de pagina komen
+Een feit komt erop als het minstens één van deze drie doet:
+1. **Een beslisvraag beantwoorden** (prijs, termijn, werkgebied, of dit bedrijf het doet).
+2. **Bewijs zijn dat voor deze lezer telt** (eigen ploeg voor wie onderaannemers vreest,
+   storingsdienst voor wie een oude ketel heeft).
+3. **Een bezwaar wegnemen** uit het verkoopgesprek ("Hoe lang lig ik met een kale tuin?": uitvoering
+   in twee tot drie weken).
+
+En het staat niet als hoofdpunt op een zusterpagina, tenzij het voor deze lezer net zo zwaar weegt.
+Bewijs wordt standaard stellig gebracht: de klant heeft het bevestigd of het staat op zijn eigen site.
+Algemene uitleg mag, maar alleen als de lezer hem nodig heeft om een feit te begrijpen.
+
+### 7.4 Lengte volgt uit de inhoud
+De strategie zet een budget met onderbouwing:
+- **Vertrekpunt per paginadoel:** lokale landingspagina 350 tot 550 woorden, dienstpagina 450 tot 750,
+  uitlegartikel 600 tot 1.100, vergelijking 500 tot 900.
+- **Plus** ongeveer 80 woorden per extra beslisvraag met een feit, ongeveer 50 per uitleg die nodig is
+  om een feit te begrijpen.
+- **Min** wat de bestaande site al goed zegt en waar alleen naar gelinkt hoeft te worden, en wat een
+  zusterpagina behandelt.
+- **Plafond:** vertrekpunt plus 30 procent; daarboven moet de strategie zeggen waarom.
+
+De getallen zijn een startwaarde (gekozen, niet geijkt) en worden na fase 1 bijgesteld op de
+nameting. `TARGET_WORDS` in `content.ts` wordt daarmee het vertrekpunt en niet meer de opdracht. Voor
+GEO is korter geen verlies: een assistent citeert een korte, stellige, concrete zin, en de beste
+citeerbare zin die de blinde lezer bij Best aanwees was precies zo'n zin.
+
+---
+
+## 8. Bronconflicten
+
+### 8.1 Hoe een conflict gevonden wordt
+1. Code vergelijkt feiten van dezelfde soort en hetzelfde onderwerp op hun waarde (twee
+   intakeprijzen, twee levertijden, twee werkgebieden).
+2. Elk kandidaat-paar gaat naar L2: echt conflict, of twee varianten van iets anders.
+3. Een echt conflict komt in `fact_conflicts`; het feit krijgt de stand "betwist".
+4. **Automatisch oplossen** alleen bij een eenduidige rangorde: een antwoord van de klant gaat vóór
+   de site, en een recentere pagina van de eigen site vóór een oudere. Ook dan ziet de adviseur een
+   melding.
+
+### 8.2 Wanneer een conflict tegenhoudt
+**Besluit van de eigenaar:** alleen als het betwiste feit op deze pagina nodig is (het staat in de
+prioriteitsfeiten van de strategie, of het onderwerp kan niet zonder). Anders laat de strategie het
+feit weg, schrijft de pagina door, en krijgt het merk een waarschuwing.
+
+| Soort | Houdt tegen als het nodig is | Reden |
 |---|---|---|
-| Een bewering over het bedrijf zonder feit in het register | onjuist onder de naam van de klant | bestaat |
-| Een open bronconflict op een feit dat op de pagina staat (§6.3) | de tekst kiest dan een kant of beschrijft de tegenspraak | nieuw |
-| Een intern open punt (bestemming A) staat als zin in de tekst | dit is "is niet vastgelegd" | nieuw |
-| Een zin die over de bronnen of het werkproces praat ("de beschikbare informatie", "niet vastgelegd", "wordt hier niet genoemd") | de lezer weet niet dat er een proces is | bestaat als waarschuwing, wordt blokkade |
-| Een uitgesloten onderwerp staat erin | de beslissing is niet uitgevoerd | nieuw |
-| Verboden woord, verboden onderwerp, concurrent bij naam, adres tegen de instructie in | zoals nu | bestaat |
-| De lezer wordt aangezet om aanbieders te vergelijken of het bedrijf na te trekken | zoals nu | bestaat |
-| Gemengde aanspreekvorm | zoals nu | bestaat |
-| Kernfeit uit de strategie ontbreekt | de pagina doet zijn werk niet | bestaat als bevinding |
-| De eigenaarstoets zegt "nee, niet publiceren" twee keer op rij | dan is er iets fundamenteels mis, geen detail | nieuw |
-
-### 6.2 Waarschuwingen (de pagina mag door, met een zichtbare melding)
-- Lengte meer dan 15 procent boven het budget.
-- Meer dan één relativering bij hetzelfde feit, of een relativering direct na een bewijsstuk.
-- Hetzelfde feit vaker dan twee keer (bestaat).
-- Meer dan één gebiedende zin per 200 woorden die de lezer iets laat regelen.
-- Een bewijsstuk uit de voorrangslijst ontbreekt.
-- De merkstemtoets meldt een regel als niet gehaald.
-- De hoek lijkt op die van een zusterpagina (§9).
-- Een FAQ-antwoord korter dan 25 woorden of zonder feit.
-
-### 6.3 Welke bronconflicten tegenhouden
-
-Een conflict houdt tegen als het feit op deze pagina gebruikt zou worden. Staat het betwiste feit
-niet in de strategie, dan valt het weg en schrijft de pagina door, met een waarschuwing bij het merk.
-Zo blokkeert één oude prijs op een vergeten sitepagina niet alle pagina's.
-
-| Soort | Blokkerend | Reden |
-|---|---|---|
-| Prijzen en tarieven | ja | de lezer begroot erop; een verkeerde prijs kost de ondernemer een discussie of een klant |
+| Prijzen en tarieven | ja | de lezer begroot erop |
 | Openingstijden | ja | een lezer komt voor een dichte deur |
-| Adres, vestigingen, contactgegevens | ja | ook een GEO-probleem: een assistent die twee adressen ziet, vertrouwt geen van beide |
-| Werkgebied (komen jullie in plaats X) | ja, op pagina's over die plaats | het hele doel van een plaatspagina |
+| Adres, vestigingen, contactgegevens | ja | een assistent die twee adressen ziet, vertrouwt geen van beide |
+| Werkgebied | ja, op pagina's over die plaats | het doel van een plaatspagina |
 | Diensten (wel of niet aangeboden) | ja, op pagina's over die dienst | een pagina voor een dienst die niet bestaat |
 | Certificeringen en keurmerken | ja | juridisch risico |
-| Garanties | ja | juridisch risico, en een belofte die de ondernemer moet nakomen |
-| Termijnen (levertijd, reactietijd, doorlooptijd) | ja als het een prioriteitsfeit is, anders waarschuwing | de 4-urenbelofte van de hovenier |
-| Cijfers als bewijs (jaren ervaring, aantallen) | ja als het een bewijsstuk op de pagina is, anders waarschuwing | "35 jaar" tegenover "30 jaar" op twee pagina's ondermijnt het bewijs |
-| Productinformatie (merken, typen) | waarschuwing, blokkerend op een productpagina | minder kritisch, wel storend |
-| Werkwijze | waarschuwing, blokkerend als kernfeit | vaak twee beschrijvingen van hetzelfde |
+| Garanties | ja | juridisch risico en een belofte die de ondernemer moet nakomen |
+| Termijnen | ja als het een prioriteitsfeit is | de 4-urenbelofte van de hovenier |
+| Cijfers als bewijs | ja als het een bewijsstuk op de pagina is | "35 jaar" tegenover "30 jaar" ondermijnt het bewijs |
+| Productinformatie | alleen op een productpagina | minder kritisch |
+| Werkwijze | alleen als het een prioriteitsfeit is | vaak twee beschrijvingen van hetzelfde |
 
-**Wat de adviseur ziet:** per conflict de twee zinnen met bron en datum, het voorstel van L2, en drie
-knoppen: dit geldt, dat geldt, vraag het de ondernemer. De keuze wordt een bevestigd feit en het
-andere feit krijgt de stand "vervangen". De klant ziet dit scherm niet (sales-led, de adviseur
-beheert het profiel).
-
-**Automatisch oplossen** alleen bij een eenduidige rangorde: een antwoord van de klant gaat vóór de
-site, en een recentere sitepagina gaat vóór een oudere als ze allebei van de eigen site komen. Ook
-dan ziet de adviseur het, als melding.
-
-### 6.4 De publicatiegereedheid
-
-Het doel uit de opdracht: een interne poort, geen rapportcijfer voor de klant.
-
-| Dimensie | Gemeten door | Soort meting |
-|---|---|---|
-| Feitelijke zekerheid | feitcontrole (code) | aandeel beweringen met een bevestigd feit; hard |
-| Volledigheid van de bronnen | strategie tegen register | zijn alle kernonderwerpen onderbouwd of bewust weggelaten |
-| Merkfit | L9 | per stemregel gehaald of niet, met zin |
-| Natuurlijkheid | L10 plus code | eigenaarsoordeel; code telt relativeringen, adviestoon, bronpraat |
-| Redundantie | code | herhaalde feiten, overlap tussen secties en met de FAQ |
-| Specificiteit | L10 | zou deze pagina op de site van een concurrent kunnen staan |
-| Nut | citeerbaarheidsbeoordelaar | worden de beslisvragen beantwoord |
-| Commerciële relevantie | L10 | weet de lezer waarom hij dit bedrijf kiest |
-| Leesbaarheid | code | zinslengte, alinealengte, tegen het stemprofiel en niet tegen een vaste norm |
-| SEO | code | titel, meta, kop, intentie, interne links |
-| GEO | code plus beoordelaar | openingsantwoord, losstaande zinnen, concrete cijfers, organisatie in de gestructureerde data |
-| Publicatiegereedheid | poort | geen blokkade, en de eigenaarstoets zegt ja |
-
-**Eén beoordeling of meerdere?** Meerdere, om drie redenen. Eén aanroep die alles doet, gaf in deze
-app al eens 100 van de 100 op een pagina waarvan dezelfde aanroep schreef dat de hoofdvraag niet
-beantwoord werd (§7.1 van `contentpijplijn-overdracht.md`). Specialisten met één vraag en een eigen
-maatstaf (het stemprofiel, het register, de strategie) geven oordelen die je kunt narekenen. En het
-belangrijkste oordeel, publiceerbaar of niet, moet vergelijkend zijn: nieuw tegenover de huidige
-sitepagina of de vorige versie, en periodiek tegenover een set referentiepagina's die mensen als
-goed hebben aangemerkt. Losse cijfers blijven bestaan voor de administratie, maar de poort beslist
-op blokkades plus het vergelijkende oordeel.
-
-**Ijking:** elke fase wordt gemeten met dezelfde blinde lezers op dezelfde drie merken (§14). De
-eigenaarstoets moet op die set dezelfde volgorde geven als de blinde lezers; de norm uit
-`contentpijplijn-overdracht.md` §12.1 (rangcorrelatie 0,6) blijft staan.
+### 8.3 Wat de adviseur ziet
+Een conflictlijst bij het merk, alleen voor medewerkers: per conflict de twee zinnen met bron en
+datum, het voorstel van L2, en drie knoppen: dit geldt, dat geldt, vraag het de ondernemer. De keuze
+wordt een bevestigd feit, het andere feit krijgt de stand "vervangen". Een pagina die op het conflict
+wacht, start vanzelf opnieuw bij `content_strategy` zodra het is opgelost.
 
 ---
 
-## 7. De merkstem
+## 9. De schrijfstijl in het merkdossier
 
-### 7.1 Wat er in het merkdossier over de schrijfstijl moet staan
-
-Besluit van de eigenaar (25 september 2026): de schrijfstijl hoort duidelijk in het merkdossier te
-staan, en niet in een apart, onzichtbaar object. Een deel van de velden bestaat al in
-`lib/pipeline/brand-fields.ts` maar gaat nu niet mee in het schrijven; die worden aangesloten. Wat
-ontbreekt, komt erbij.
+### 9.1 Wat er in het merkdossier moet staan
+**Besluit van de eigenaar:** de schrijfstijl hoort duidelijk in het merkdossier, niet in een apart,
+onzichtbaar object. Een deel van de velden bestaat al in `lib/pipeline/brand-fields.ts` maar gaat nu
+niet mee in het schrijven; die worden aangesloten. Wat ontbreekt, komt erbij.
 
 | Veld | Wat het vastlegt | Nu |
 |---|---|---|
 | `tone_of_voice` | de toon in één of twee zinnen | bestaat, gaat mee |
 | `pronoun_preference` | je of u | bestaat, gaat mee |
-| vijf schuiven (`tone_formality`, `tone_energy`, `tone_complexity`, `tone_humor`, `tone_emotional`) | formeel of informeel, rustig of energiek, eenvoudig of vaktaal, humor, emotie | bestaan; vier gaan mee als ze gevuld zijn |
+| `tone_formality`, `tone_energy`, `tone_complexity`, `tone_humor`, `tone_emotional` | de vijf schuiven | bestaan; vier gaan mee als ze gevuld zijn, emotie niet |
 | `audience_knowledge_level` | hoeveel vakkennis de lezer heeft, en dus hoeveel uitleg | bestaat, gaat niet mee |
 | `signature_phrases` | uitdrukkingen die het bedrijf zelf gebruikt | bestaat, gaat niet mee |
 | `identity_keywords` | woorden die het bedrijf typeren | bestaat, gaat niet mee |
-| `differentiator`, `usp`, `key_messages` | waarin het bedrijf verschilt en wat elke tekst mag uitstralen | bestaan, gaan niet mee |
+| `differentiator`, `usp`, `key_messages` | waarin het bedrijf verschilt, wat elke tekst mag uitstralen | bestaan, gaan niet mee |
 | `taboo_phrases` | verboden woorden | bestaat, gaat mee |
-| `style_samples` | voorbeeldzinnen | bestaat, gaat mee; moet uit het gesprek of goedgekeurd zijn, niet los van de site geplukt |
+| `style_samples` | voorbeeldzinnen | bestaat, gaat mee; moet uit het gesprek komen of goedgekeurd zijn |
 
-Daarnaast, nieuw in het merkdossier:
+Nieuw in het merkdossier:
 
 | Veld | Wat het vastlegt |
 |---|---|
-| `zelfbenoeming` | hoe het bedrijf zichzelf noemt in de lopende tekst: "we", "wij", "ons team", "onze ploeg", de voornaam |
-| `zinslengte` | doelgemiddelde en maximum, gemeten op wat de ondernemer zelf zei en schreef |
-| `directheid` | antwoord eerst of aanloop; hoeveel voorbehoud past |
-| `persoonlijkheid` | hoe warm, hoeveel ik of wij, mag er een knipoog in |
-| `commercieel` | hoe hard mag worden aangeprezen; welke woorden te veel verkoop zijn |
-| `stelligheid` | hoe bewijs wordt gebracht (feitelijk, trots, bescheiden) en hoeveel relativering past |
-| `cliches` | clichés en verkoopwoorden die bij deze stem niet passen, als aanvulling op de verboden woorden |
-| `oproep` | hoe een oproep tot actie klinkt, met twee of drie voorbeelden |
-| `goedeZinnen` | tien tot twintig zinnen in deze stem, gebouwd op echte feiten van dit bedrijf |
-| `fouteZinnen` | tien zinnen die nu in de teksten staan en niet passen, met de verbeterde versie |
-| `bronnen` | waar elke regel op rust (gesprek, antwoord van de ondernemer, site) |
+| `voice_self_reference` | hoe het bedrijf zichzelf noemt in de lopende tekst: "we", "wij", "onze ploeg", de voornaam |
+| `voice_sentence_length` | doelgemiddelde en maximum aantal woorden per zin |
+| `voice_directness` | antwoord eerst of aanloop; hoeveel voorbehoud past |
+| `voice_commercial` | hoe hard mag worden aangeprezen, en welke woorden te veel verkoop zijn |
+| `voice_assertiveness` | hoe bewijs wordt gebracht (feitelijk, trots, bescheiden) |
+| `voice_cta_style` | hoe een oproep tot contact klinkt, met twee of drie voorbeelden |
+| `voice_cliches` | clichés die bij deze stem niet passen, als aanvulling op de verboden woorden |
+| `voice_good_examples` | vijf tot twintig zinnen in deze stem, gebouwd op echte feiten van dit bedrijf |
+| `voice_bad_examples` | vijf tot tien zinnen die niet passen, met de verbeterde versie |
+| `voice_approved_at`, `voice_approved_by` | wanneer en door wie de stem is goedgekeurd |
 
-**De rangorde van bronnen** is de belangrijkste ontwerpkeuze. Wat de ondernemer zelf zegt (gesprek,
-antwoorden) weegt het zwaarst, dan de toon die hij opgaf, dan de sitetekst. Sitetekst is vaak door een
-webbureau geschreven en is bewijs, geen wet: bij de installateur is "zakelijk" de opgegeven toon en
-"zodat u weer jarenlang zorgeloos kunt genieten van een warm en behaaglijk thuis" de sitezin. Het
-profiel moet die spanning zien en kiezen.
+**De rangorde van bronnen** bij een voorstel: wat de ondernemer zelf zegt (gesprek, antwoorden) weegt
+het zwaarst, dan de toon die hij opgaf, dan de sitetekst. Sitetekst is vaak door een webbureau
+geschreven en is bewijs, geen wet.
 
-### 7.2 Hoe het tot stand komt
-1. L3 stelt voor elk leeg of dun stemveld een waarde voor, uit alles wat er is (§4).
-2. De adviseur ziet de voorstellen in het merkdossier, met de voorbeeldzinnen, en keurt ze goed, past
-   ze aan, of laat ze leeg. Dit hoort bij de voorbereiding van het gesprek of vlak erna; het kost een
-   kwartier. Een voorstel dat niet is goedgekeurd, gaat niet mee in het schrijven.
-3. Het merkdossier toont een waarschuwing zolang de stemvelden onder een minimum zitten (toon,
+### 9.2 Hoe het gevuld wordt
+1. L3 stelt voor elk leeg of dun stemveld een waarde voor.
+2. De adviseur keurt goed, past aan, of laat leeg, in het merkdossier. Ongeveer een kwartier per merk.
+   Een voorstel dat niet is goedgekeurd, gaat niet mee.
+3. Het merkdossier toont een waarschuwing zolang de stem onder een minimum zit (toon, aanspreekvorm,
    kennisniveau, zelfbenoeming, stelligheid, minstens vijf goede en vijf foute zinnen). Het schrijven
    gaat door, maar de adviseur ziet dat de stem nog niet is vastgelegd.
-4. Elke handmatige aanpassing die de klant of adviseur later in een tekst doet, wordt als paar (was,
-   werd) bewaard. Na vijf of meer paren stelt L3 een bijwerking van de stemvelden voor (fase 3).
+4. Elke handmatige aanpassing in een tekst wordt als paar (was, werd) bewaard. Vanaf vijf paren stelt
+   L3 een bijwerking van de stemvelden voor (fase 3).
 
-### 7.3 Waar het gebruikt wordt
-- **De strategie** krijgt de samenvatting (commercieel, stelligheid, oproep).
-- **De schrijver** krijgt het hele profiel met de goede en foute zinnen. Voorbeelden sturen een model
-  sterker dan bijvoeglijke naamwoorden.
-- **De redacteur** krijgt het als maatstaf.
-- **De merkstemtoets** toetst er regel voor regel tegen.
+### 9.3 Waar de stem gebruikt wordt
+- De **strategie** krijgt commercieel, stelligheid en oproep.
+- De **schrijver** en de **redacteur** krijgen alle stemvelden met de goede en foute zinnen; voorbeelden
+  sturen een model sterker dan bijvoeglijke naamwoorden.
+- De **merkstemtoets** toetst er regel voor regel tegen.
 - **Code** meet wat meetbaar is: zinslengte tegen het doel, aanspreekvorm, verboden woorden en
   clichés, hoe vaak de naam valt.
 
-### 7.4 Hoe dat er voor deze twee klanten uit zou kunnen zien
-
-Ter illustratie, alleen op feiten uit het register; een echt profiel komt uit L3 en de adviseur.
-
-**Hans Verstraaten Hoveniers.** Je-vorm; "we" en "onze ploeg"; korte zinnen, gemiddeld 12 tot 14
-woorden; antwoord eerst; vakkennis in gewone woorden; warm door directheid en gastvrijheid, niet door
-uitroeptekens of dialect; bewijs feitelijk en zonder voorbehoud ("we doen dit al ruim 35 jaar");
-prijs één keer als bandbreedte met de reden van de spreiding, en daarna niet meer herhalen; geen
-"ontzorgen", geen "van A tot Z", geen "wij staan graag voor je klaar"; oproep als uitnodiging ("het
-eerste gesprek is gratis en bij je thuis").
-
-Een zin uit de pagina voor Best, en dezelfde inhoud in dat profiel:
-
-> Nu: "Tuinaanleg met bestrating kost bij ons meestal €12.000 tot €35.000; het gekozen materiaal
-> heeft invloed op de prijs. Dat bedrag is een eerste houvast, geen offerte voor jouw tuin."
->
-> In het profiel: "Een complete tuin met bestrating kost bij ons meestal tussen de € 12.000 en
-> € 35.000. Vooral de stenen die je kiest maken het verschil."
-
-**Wesley Keeris Installatietechniek.** U-vorm; "wij"; middellange zinnen; elke vakterm direct in
-dezelfde zin uitgelegd; zakelijk, geen gevoelswoorden ("zorgeloos", "behaaglijk"); bewijs met cijfers
-en stellig (twaalf monteurs in dienst, meer dan 1.800 onderhoudscontracten, CO-gecertificeerd
-volgens de Gasketelwet); oproep concreet (telefoonnummer en contactpagina).
-
-> Nu: "U wilt uw cv-ketel in Geldrop vervangen en zoekt vóór een offerte een bruikbare
-> prijsindicatie: Wesley Keeris Installatietechniek noemt € 2.200 tot € 3.200 inclusief
-> installatie. Dat is een eerste houvast, geen prijs voor uw specifieke woning. De beschikbare
-> prijsinformatie benoemt niet welke werkzaamheden standaard in de installatieprijs zitten ..."
->
-> In het profiel: "Een nieuwe cv-ketel kost bij Wesley Keeris Installatietechniek tussen de € 2.200
-> en € 3.200, inclusief installatie. Welke ketel bij uw woning past, bepalen we samen op basis van uw
-> woning, uw energieverbruik en uw wensen. De levertijd is 2 tot 4 weken; de installatie zelf duurt
-> één dag."
-
-Wat in die tweede versie ontbreekt (wat er precies in de installatieprijs zit) is geen zin meer maar
-een vraag aan de ondernemer (bestemming A). Zodra hij antwoordt, kan het erbij.
-
----
-
-### 7.5 Controle van het merkdossier van de drie klanten (25 september 2026)
-
-Nagekeken in `profiles` op productie:
+### 9.4 Controle van het merkdossier van de drie klanten (25 september 2026)
 
 | Veld | Autorijschool Pompert | Hans Verstraaten Hoveniers | Wesley Keeris Installatietechniek |
 |---|---|---|---|
 | Toon | "Warm, geruststellend, eerlijk, zonder beloftes die we niet waar kunnen maken." | "Nuchter en vakkundig, Brabants hartelijk, geen verkooppraat." | "Zakelijk en betrouwbaar, geen vakjargon zonder uitleg." |
 | Aanspreekvorm | je | je | u |
-| Vijf schuiven | alle vijf leeg | alle vijf leeg | alle vijf leeg |
+| Vijf schuiven | leeg | leeg | leeg |
 | Kennisniveau doelgroep | leeg | leeg | leeg |
 | Eigen uitdrukkingen, kernwoorden | leeg | leeg | leeg |
 | Onderscheid, USP, kernboodschappen | leeg | leeg | leeg |
@@ -906,352 +845,348 @@ Nagekeken in `profiles` op productie:
 | Voorbeeldzinnen | 3 uitroepen van de site ("Voor ons ben je geen nummer.", "Denk niet in beperkingen, maar in mogelijkheden!") | 3 sitezinnen, waaronder "Wij staan graag voor je klaar!" | 3 sitezinnen, waaronder "Service, vakmanschap en nauwkeurigheid staan bij ons hoog in het vaandel." en een zin met "m.b.t." |
 | Persona's | 4, door het onderzoek gemaakt | 3, door het onderzoek gemaakt | 3, door het onderzoek gemaakt |
 
-**Conclusie: het merkdossier dekt de lading niet.** De hele stem rust op één zin per klant. Alle
-velden die die zin concreet zouden maken, zijn leeg. De voorbeeldzinnen werken bij twee van de drie
-klanten tegen de opgegeven toon in: bij de hovenier is "Wij staan graag voor je klaar!" precies de
-verkooppraat die hij niet wil, en de schrijver nam die zin over op de pagina voor Best. Bij de
-installateur zijn "hoog in het vaandel" en "m.b.t." het tegendeel van zakelijk zonder vakjargon. En
-juist bij de installateur, die "geen vakjargon zonder uitleg" vraagt, is het kennisniveau van de
-lezer niet ingevuld, terwijl dat bepaalt hoeveel er uitgelegd moet worden.
+**Conclusie: het merkdossier dekt de lading niet.** De hele stem rust op één zin per klant. De
+voorbeeldzinnen werken bij twee van de drie klanten tegen de opgegeven toon in: "Wij staan graag voor
+je klaar!" is de verkooppraat die de hovenier niet wil, en de schrijver nam die zin over op de pagina
+voor Best; "hoog in het vaandel" en "m.b.t." zijn het tegendeel van zakelijk zonder jargon. Bij de
+installateur, die "geen vakjargon zonder uitleg" vraagt, ontbreekt juist het kennisniveau van de
+lezer. **Actie in fase 1 (werkpakket 1):** de adviseur vult de stemvelden van deze drie klanten aan.
 
-**Wat er per klant moet gebeuren, vóór fase 0:** de adviseur vult met de ondernemer de schuiven, het
-kennisniveau, het onderscheid en de kernboodschappen in, vervangt de voorbeeldzinnen door zinnen die
-de ondernemer zelf zei of goedkeurt, en vult de nieuwe velden uit §7.1. Tot L3 bestaat, kan ik een
-voorstel per klant uitschrijven dat de adviseur alleen hoeft na te lopen. Ik heb niets in de
-database aangepast.
+### 9.5 Hoe dat er voor twee klanten uit kan zien
+Ter illustratie, alleen op bestaande feiten; het echte voorstel komt uit L3 en de adviseur.
 
-## 8. Welke feiten wel en niet op de pagina komen
+**Hans Verstraaten Hoveniers.** Je-vorm; "we" en "onze ploeg"; korte zinnen, gemiddeld 12 tot 14
+woorden; antwoord eerst; warm door directheid en gastvrijheid, niet door uitroeptekens of dialect;
+bewijs feitelijk en zonder voorbehoud; prijs één keer als bandbreedte met de reden van de spreiding;
+geen "ontzorgen", geen "van A tot Z", geen "wij staan graag voor je klaar"; oproep als uitnodiging.
 
-### 8.1 Het principe
-Niet "alles wat klopt en relevant is", maar "wat deze lezer nodig heeft om zijn volgende stap te
-zetten, en wat dit bedrijf onderscheidt". Een feit komt op de pagina als het aan minstens één van
-deze drie doet:
+> Nu: "Tuinaanleg met bestrating kost bij ons meestal €12.000 tot €35.000; het gekozen materiaal
+> heeft invloed op de prijs. Dat bedrag is een eerste houvast, geen offerte voor jouw tuin."
+>
+> In deze stem: "Een complete tuin met bestrating kost bij ons meestal tussen de € 12.000 en
+> € 35.000. Vooral de stenen die je kiest maken het verschil."
 
-1. **Het beantwoordt een beslisvraag** van deze lezer (prijs, termijn, werkgebied, of dit bedrijf het
-   doet).
-2. **Het is bewijs** dat voor deze lezer telt (eigen ploeg voor wie bang is voor onderaannemers,
-   storingsdienst voor wie een oude ketel heeft).
-3. **Het neemt een bezwaar weg** uit het verkoopgesprek ("Hoe lang lig ik met een kale tuin?":
-   uitvoering in twee tot drie weken).
+**Wesley Keeris Installatietechniek.** U-vorm; "wij"; middellange zinnen; elke vakterm in dezelfde zin
+uitgelegd; zakelijk, geen gevoelswoorden ("zorgeloos", "behaaglijk"); bewijs met cijfers en stellig
+(twaalf monteurs, meer dan 1.800 onderhoudscontracten, CO-gecertificeerd volgens de Gasketelwet);
+oproep concreet (telefoonnummer en contactpagina).
 
-En het staat niet op een zusterpagina als hoofdpunt, tenzij het voor deze lezer net zo zwaar weegt.
+> Nu: "U wilt uw cv-ketel in Geldrop vervangen en zoekt vóór een offerte een bruikbare
+> prijsindicatie: Wesley Keeris Installatietechniek noemt € 2.200 tot € 3.200 inclusief
+> installatie. Dat is een eerste houvast, geen prijs voor uw specifieke woning. De beschikbare
+> prijsinformatie benoemt niet welke werkzaamheden standaard in de installatieprijs zitten ..."
+>
+> In deze stem: "Een nieuwe cv-ketel kost bij Wesley Keeris Installatietechniek tussen de € 2.200 en
+> € 3.200, inclusief installatie. Welke ketel bij uw woning past, bepalen we samen op basis van uw
+> woning, uw energieverbruik en uw wensen. De levertijd is 2 tot 4 weken; de installatie zelf duurt
+> één dag."
 
-### 8.2 Hoe de strategie kiest
-L5 krijgt het register met per feit soort, bewijskracht en de pagina's waar het al voorop staat, en
-de vragen met hun gewicht. Hij kiest drie tot zes prioriteitsfeiten, zet de rest op optioneel of
-uitgesloten met een reden, en code rekent na dat elk uitgesloten feit ook echt niet in de tekst
-staat. Algemene uitleg (wat is een rookgasafvoer) mag, maar telt als onderwerp en moet een reden
-hebben: de lezer heeft hem nodig om een feit te begrijpen.
-
-### 8.3 Noodzakelijke nuance tegenover overbodige relativering
-Een voorbehoud mag alleen bij één van deze vijf redenen, en dan één keer per feit:
-
-1. **Geld:** de lezer begroot anders verkeerd. Een bandbreedte is al een voorbehoud; één korte
-   reden van de spreiding is genoeg ("vooral de stenen maken het verschil").
-2. **Veiligheid:** gas, elektra, bouwkundig.
-3. **Wet en regels:** vergunning, subsidievoorwaarden. Eén verwijzing naar de officiële bron, geen
-   "controleer zelf of".
-4. **Zorg en gezondheid:** bij klanten in de zorg.
-5. **De klant wil het:** een voorbehoud dat de ondernemer zelf opgaf.
-
-Nooit: een voorbehoud direct na een bewijsstuk ("35 jaar ervaring, maar dat zegt op zichzelf
-niets"), een voorbehoud over wat wij niet weten ("is niet vastgelegd"), een voorbehoud dat een
-belofte van de site omdraait, en een voorbehoud op algemene uitleg die niemand als belofte leest. De
-strategie legt per onzekerheid vast of hij B is en met welke reden; de feitcontrole en de redacteur
-toetsen daartegen.
-
-### 8.4 Lengte, dynamisch
-De strategie zet een budget met onderbouwing:
-
-- **Vertrekpunt per paginadoel:** een lokale landingspagina 350 tot 550 woorden, een dienstpagina 450
-  tot 750, een uitlegartikel 600 tot 1.100, een vergelijking 500 tot 900.
-- **Plus** per extra beslisvraag met een feit ongeveer 80 woorden, per uitleg die nodig is om een
-  feit te begrijpen ongeveer 50.
-- **Min** wat de bestaande site al goed zegt en waar alleen naar gelinkt hoeft te worden, en wat een
-  zusterpagina behandelt.
-- **Plafond:** het vertrekpunt plus 30 procent. Daarboven moet de strategie zeggen waarom.
-
-Die getallen zijn een startwaarde en worden geijkt op de blinde lezers. Wat vaststaat: de meeste
-pagina's van de hovenier en de installateur zouden met dit budget 450 tot 700 woorden worden in plaats
-van 880 tot 980. De eindredactie krijgt de opdracht de tekst naar het budget te brengen door te
-schrappen, niet door in te korten. Voor GEO is dat geen verlies: een assistent citeert een korte,
-stellige, concrete zin, en de beste citeerbare zin die de blinde lezer bij Best aanwees was precies
-zo'n zin ("... doet gemiddeld 2 tot 3 weken over de uitvoering van een complete tuin en plant in het
-voorjaar meestal 4 tot 8 weken vooruit").
+Wat er precies in de installatieprijs zit, is in die tweede versie geen zin meer maar een vraag aan
+de ondernemer (bestemming A).
 
 ---
 
-## 9. Elke pagina een eigen reden om te bestaan
+## 10. Plaatspagina's en uniciteit
 
-### 9.1 Wat een plaatspagina uniek maakt
-Niet de plaatsnaam, maar iets wat alleen over die plaats waar is:
+### 10.1 De plaatsregel
+**Besluit van de eigenaar:** een werkgebiedpagina mag geadviseerd worden, maar grote steden houden een
+eigen pagina. De regel in code (`lib/plaatsregel.ts`, puur):
 
-- **Echte lokale feiten**, van de ondernemer: projecten in die plaats, hoe vaak hij er werkt, hoe
-  snel hij er is, wat hij er vaak tegenkomt. Die zijn er nu niet, omdat niemand erom vraagt. De
-  portfoliostap maakt er een vraag van: "Welke tuinen heb je in Best aangelegd die we mogen noemen?"
-  of "Hoe lang duurt het voor een monteur in Nuenen is?"
-- **Verifieerbare lokale context**, alleen met bron: woningtype of bouwjaar van een wijk als dat voor
-  de dienst uitmaakt, een gemeentelijke regel met link. Nooit gegokt.
+| Situatie | Uitkomst |
+|---|---|
+| Gemeente met minstens 100.000 inwoners (vaste lijst uit CBS-cijfers, in de code) | eigen pagina |
+| De vestigingsplaats van het bedrijf | eigen pagina |
+| De ondernemer levert minstens twee feiten die alleen over deze plaats gaan | eigen pagina |
+| Anders | onderdeel van één werkgebiedpagina, met een eigen alinea en kop per plaats |
+
+De grens van 100.000 is gekozen en bij te stellen; Eindhoven, Tilburg en 's-Hertogenbosch vallen
+erboven, Helmond (ruim 90.000) net eronder en krijgt dus alleen een eigen pagina met lokale feiten of
+als het de vestigingsplaats is. Ook een stadspagina krijgt een eigen hoek; zonder lokaal feit vraagt
+de portfolio de ondernemer eerst naar projecten in die stad.
+
+### 10.2 Wat een plaatspagina uniek maakt
+- **Echte lokale feiten** van de ondernemer: projecten in die plaats, hoe vaak hij er werkt, hoe snel
+  hij er is. De portfolio maakt er een vraag van ("Welke tuinen heb je in Best aangelegd die we mogen
+  noemen?").
+- **Verifieerbare lokale context** met bron, alleen als die voor de dienst uitmaakt. Nooit gegokt.
 - **Een andere lezer of vraag** per plaats, als de meting die laat zien.
 
-### 9.2 Wat de portfoliostap beslist
-Voor elke groep plaatspagina's rond één dienst:
+### 10.3 Wat de portfolio verdeelt
+- **Onderwerpen:** de prijsuitleg uitgebreid op één pagina, op de andere één zin met een link.
+- **Bewijs:** niet elke pagina opent met dezelfde ploeg van vijf man.
+- **Intentie:** elke URL krijgt één primaire intentie in een register per merk. Een nieuwe pagina met
+  dezelfde primaire intentie als een bestaande is een verbetering of een samenvoeging, geen nieuwe
+  pagina.
 
-1. **Grote steden krijgen een eigen pagina** (besluit eigenaar, 25 september 2026), bijvoorbeeld
-   Eindhoven, Tilburg en 's-Hertogenbosch: daar is genoeg zoekvraag om een aparte pagina te dragen.
-   Voorstel voor de regel in code: een eigen pagina bij een gemeente van minstens 100.000 inwoners
-   (vaste lijst uit CBS-cijfers), bij de vestigingsplaats, of zodra de ondernemer minstens twee
-   feiten levert die alleen over die plaats gaan. De grens van 100.000 is gekozen en bij te stellen.
-   Ook een stadspagina krijgt een eigen hoek; zonder lokaal feit vraagt het portfolio de ondernemer
-   eerst naar projecten in die stad.
-2. **Kleinere plaatsen: is er per plaats iets unieks te zeggen?** Ja: elke pagina krijgt een hoek en
-   een eigen voorrangsbewijs. Nee, en de ondernemer kan het ook niet leveren: één werkgebiedpagina
-   ("Tuinaanleg in Eindhoven en omgeving: Best, Nuenen, Son en Breugel ...") met per plaats een korte
-   alinea, in plaats van vijf dunne pagina's. Dat is voor een menselijke bezoeker beter, en het
-   voorkomt dat vijf pagina's met elkaar concurreren om dezelfde vraag.
-3. **Verdeling van onderwerpen:** de prijsuitleg staat uitgebreid op één pagina en wordt op de andere
-   in één zin genoemd met een link. Hetzelfde voor de werkwijze.
-4. **Verdeling van bewijs:** niet elke pagina opent met de ploeg van vijf man. Bij Best misschien de
-   terugkomafspraak na zes weken, bij Nuenen de doorlooptijd, als dat bij de lezers daar past.
-
-Dit wijkt af van hoe de opdracht het probleem formuleert, en dat is bewust: het beste antwoord op
-"steeds dezelfde pagina met een andere plaatsnaam" is soms minder pagina's. De visie (`docs/visie.md`)
-zegt het ook: geen systeem dat zoveel mogelijk content produceert zonder strategie.
-
-### 9.3 Kannibalisatie en overlap bewaken
-- **Vóór het schrijven:** elke URL krijgt één primaire intentie in een register per merk. Een nieuwe
-  pagina met dezelfde primaire intentie als een bestaande is geen nieuwe pagina maar een
-  verbetering of een samenvoeging (het bestaande `existing-page-match.ts` doet dit al gedeeltelijk
-  per adres, nog niet per intentie).
-- **Na het schrijven:** naast de vijfwoordreeksen een vergelijking op drie dingen: dezelfde
-  prioriteitsfeiten (code, uit de strategie), dezelfde opbouw (code, koppen en secties naast elkaar),
-  en inhoudelijke gelijkenis per sectie (tekstrepresentaties, een goedkope aanroep per sectie). Hoge
-  overlap op alle drie is een waarschuwing met de zusterpagina erbij.
-- **Zoekintenties niet verliezen:** de werkgebiedpagina noemt elke plaats in een eigen alinea met een
-  eigen kop, en de meetvragen voor die plaatsen blijven gekoppeld aan die ene pagina. Of een
-  assistent daarmee net zo vaak het merk noemt als met losse pagina's, is een open vraag die de
-  nameting (fase 15 van de keten) moet beantwoorden.
+### 10.4 Overlap bewaken
+- **Vóór het schrijven:** de strategie krijgt per zusterpagina de hoek en de gekozen feiten mee.
+- **Na het schrijven:** naast de bestaande vijfwoordreeksen (`similarity.ts`) een vergelijking op
+  dezelfde prioriteitsfeiten (uit de strategie) en dezelfde opbouw (koppen en secties). Hoge overlap
+  op beide is een waarschuwing met de zusterpagina erbij.
+- **Zoekintenties niet verliezen:** de meetvragen van plaatsen in een werkgebiedpagina blijven aan die
+  pagina gekoppeld, zodat de nameting laat zien of het merk er even vaak genoemd wordt.
 
 ---
 
-## 10. De FAQ
+## 11. De FAQ
 
-### 10.1 Waar vragen vandaan komen
-In volgorde van waarde: de bezwaren uit het verkoopgesprek (die zijn echt), de gemeten vragen waarop
-het merk ontbrak, de vervolgvragen die de beoordelaars nu melden, en pas daarna het algemene dossier.
+**Bronnen van vragen,** in volgorde van waarde: bezwaren uit het verkoopgesprek, gemeten vragen
+waarop het merk ontbrak, vervolgvragen uit eerdere keuringen, en pas daarna het algemene dossier.
 
-### 10.2 Wanneer een vraag blijft
-Alle vier:
+**Een vraag blijft alleen als hij aan alle vier voldoet:**
 1. Een echte lezer van deze pagina stelt hem, in de fase waarin hij is.
 2. De tekst beantwoordt hem niet al (code meet overlap met de secties).
 3. Het antwoord rust op een feit uit het register of op vaste vakkennis met bron.
 4. Het antwoord helpt de lezer richting dit bedrijf, of neemt een drempel weg.
 
-Een vraag zonder onderbouwing wordt geen voorbehoud maar een vraag aan de ondernemer. Een pagina
-zonder vragen die aan alle vier voldoen, krijgt geen FAQ. Hoogstens vijf.
+Een vraag zonder onderbouwing wordt een vraag aan de ondernemer, geen voorbehoud. Nul vragen is een
+geldige uitkomst; hoogstens vijf. Antwoorden: eerste zin het antwoord, hoogstens twee zinnen
+toelichting, 30 tot 80 woorden, geen herhaling van een zin uit de tekst.
 
-### 10.3 Hoe het antwoord eruitziet
-Eerste zin het antwoord, dan hoogstens twee zinnen toelichting, 30 tot 80 woorden. Geen herhaling
-van een zin uit de tekst.
+**Wat dit oplost:** "Welke regels gelden in Best voor het afvoeren van regenwater" en "Hoeveel moet
+ik aanbetalen" vallen af op criterium 3; "kopen of huren" valt af op criterium 4 bij een bedrijf dat
+niet verhuurt; "Hoe lang lig ik met een kale tuin?" komt erin.
 
-### 10.4 Wat dit oplost
-- "Welke regels gelden in Best voor het afvoeren van regenwater" valt af op 3 (geen feit) en wordt,
-  als hij belangrijk is, een vraag aan de ondernemer.
-- "Hoeveel moet ik aanbetalen" valt af op 3; de ondernemer weet het vast.
-- "Kopen of huren" valt af op 4 bij een bedrijf dat niet verhuurt.
-- "Hoe lang lig ik met een kale tuin?" (bezwaar uit het gesprek) komt erin, met twee tot drie weken
-  uitvoering en de planning van vier tot acht weken in het voorjaar.
+De contractregel "Vraag NIET na wat er in de secties hierboven al beantwoord wordt", die de FAQ tot
+restcategorie maakte, vervalt.
 
 ---
 
-## 11. Kosten en doorlooptijd
+## 12. Keuring en publicatiepoort
 
-### 11.1 Nu (gemeten)
-Ongeveer $0,18 per geschreven versie over de hovenier en de installateur sinds 24 september 2026
-($4,96 over 28 schrijfaanroepen, `ai_calls`):
+### 12.1 Harde blokkades (de pagina gaat niet naar "klaar")
 
-| Onderdeel | Per pagina |
+| Blokkade | Nu |
 |---|---|
-| Schrijven (sol, gemiddeld 14.100 tokens in, 4.300 uit) | $0,071 |
-| Reparatie (sol, $0,057 per ronde, gemiddeld 1,3 ronde per pagina) | $0,073 |
-| Onderzoek per pagina (luna met web) | $0,012 |
-| Vier beoordelaars, over alle versies samen (luna) | $0,013 |
-| Contract, schrijfopdracht, feiten, bronanalyse (luna) | $0,006 |
-| **Totaal** | **ongeveer $0,18** |
+| Een bewering over het bedrijf zonder feit in het register | bestaat |
+| Een betwist feit op de pagina | nieuw |
+| Een punt met bestemming A of C staat als zin in de tekst | nieuw |
+| Een zin over bronnen of het werkproces ("de beschikbare informatie", "niet vastgelegd", "wordt hier niet genoemd") | bestaat als waarschuwing, wordt blokkade |
+| Een uitgesloten onderwerp staat erin | nieuw |
+| Verboden woord, verboden onderwerp, concurrent bij naam, adres tegen de instructie in | bestaat |
+| De lezer wordt aangezet om aanbieders te vergelijken of het bedrijf na te trekken | bestaat |
+| Gemengde aanspreekvorm | bestaat |
+| Een prioriteitsfeit uit de strategie ontbreekt | bestaat als bevinding, wordt blokkade |
+| Een feit van de vorige versie is verdwenen (`feitbehoud.ts`) | bestaat |
+| De eigenaarstoets zegt twee keer op rij "niet publiceren" | nieuw |
 
-De reparatie kost dus al evenveel als het schrijven zelf.
+### 12.2 Waarschuwingen (de pagina mag door, met een zichtbare melding)
+- Lengte meer dan 15 procent boven het budget.
+- Meer dan één voorbehoud buiten §7.2, of een voorbehoud direct na een bewijsstuk.
+- Hetzelfde feit vaker dan twee keer (bestaat).
+- Meer dan één gebiedende zin per 200 woorden die de lezer iets laat regelen.
+- Een bewijsstuk uit het voorrangsbewijs ontbreekt.
+- De merkstemtoets meldt een stemregel als niet gehaald.
+- Hoge overlap met een zusterpagina (§10.4).
+- Een FAQ-antwoord korter dan 25 woorden of zonder feit.
+- De stem in het merkdossier is niet goedgekeurd.
 
-### 11.2 Waar de eerste schatting van $0,70 tot $1,00 vandaan kwam
-De eerste versie van dit plan ging uit van "kosten zijn geen beperking" en koos daarom op vier
-plekken de duurste stand. Samen met het nieuwe werk zelf (strategie en eindredactie, ongeveer $0,10)
-leverde dat het verschil op:
+### 12.3 De publicatiegereedheid (intern, niet voor de klant)
 
-| Keuze in de eerste versie | Extra per pagina | Waarom het duur is |
-|---|---|---|
-| Denktijd hoog op strategie, schrijven en eindredactie | $0,15 tot $0,20 | denktijd wordt als uitvoer afgerekend, tegen $10 per miljoen tokens op Sol |
-| Merkstemtoets en eigenaarstoets op Sol, op elke versie | ongeveer $0,15 | twee extra Sol-aanroepen, bij gemiddeld twee versies per pagina |
-| Eindredactie gemiddeld anderhalve ronde | ongeveer $0,05 | een tweede volledige Sol-aanroep bij de helft van de pagina's |
-| De reparatielus volledig laten staan naast de redacteur | ongeveer $0,05 | dubbel werk: redacteur en reparatie lossen deels hetzelfde op |
-| Ruime marges op de invoergrootte | ongeveer $0,10 | geschat in plaats van gemeten |
+| Dimensie | Gemeten door |
+|---|---|
+| Feitelijke zekerheid | feitcontrole in code: aandeel beweringen met een bevestigd feit |
+| Volledigheid van de bronnen | strategie tegen register: alle kernonderwerpen onderbouwd of bewust weggelaten |
+| Merkfit | L9 |
+| Natuurlijkheid | L10, plus tellingen in code op voorbehoud, adviestoon en bronpraat |
+| Redundantie | code: herhaalde feiten, overlap tussen secties en met de FAQ |
+| Specificiteit | L10: zou deze pagina op de site van een concurrent kunnen staan |
+| Nut | citeerbaarheidsbeoordelaar: worden de beslisvragen beantwoord |
+| Commerciële relevantie | L10: weet de lezer waarom hij dit bedrijf kiest |
+| Leesbaarheid | code: zinslengte tegen het stemprofiel, alinealengte |
+| SEO | code: titel, meta, kop, intentie, interne links |
+| GEO | code plus beoordelaar: openingsantwoord, losstaande zinnen, concrete cijfers, organisatie in de gestructureerde data |
+| Publicatiegereedheid | de poort: geen blokkade, en de eigenaarstoets zegt ja |
 
-Het duurste model voor strategie en eindredactie kostte daarbovenop vijf keer de prijs van Sol op die
-twee stappen; dat verklaart de $2 tot $2,50. Die variant vervalt met het besluit van de eigenaar.
+**Meerdere beoordelaars, geen enkel cijfer.** Eén aanroep die alles deed, gaf in deze app al eens 100
+van de 100 op een pagina waarvan dezelfde aanroep schreef dat de hoofdvraag niet beantwoord werd.
+Specialisten met één vraag en een eigen maatstaf (stem, register, strategie) geven oordelen die je
+kunt narekenen, en het doorslaggevende oordeel is vergelijkend. De bestaande twaalf dimensies en vier
+profielen (`quality-dimensions.ts`, `quality-profile.ts`) blijven de administratie; de poort beslist
+op blokkades plus het oordeel van L10.
 
-### 11.3 De variant met GPT-6 Sol voor al het redactionele werk (advies)
-Strategie, schrijven en eindredactie op Sol met denktijd medium (dezelfde stand als het schrijven
-nu), alle beoordelaars op luna, en de eindredacteur in de plaats van het grootste deel van de
-reparatielus:
-
-| Stap | Model | Aanname | Per pagina |
-|---|---|---|---|
-| Paginastrategie | Sol, medium | ongeveer 12.000 tokens in, 3.000 uit | $0,055 |
-| Schrijven | Sol, medium | ongeveer 8.000 in (nu 14.100: alleen de gekozen feiten, niet de hele kaart en achttien blokken), 3.500 uit (kortere pagina) | $0,05 |
-| Eindredactie, één ronde | Sol, medium | ongeveer 6.000 in, 3.000 uit | $0,04 |
-| Reparatie | Sol, medium | gemiddeld een halve ronde in plaats van 1,3 | $0,025 |
-| Onderzoek per pagina | luna met web | zoals nu | $0,012 |
-| Beoordelaars, inclusief merkstem- en eigenaarstoets | luna | zoals nu, twee meer | $0,015 |
-| FAQ-selectie en feitcontrole | luna plus code | | $0,005 |
-| Per merk en per plan, omgeslagen | Sol, medium | stemvoorstel ongeveer $0,05 per merk, portfolio ongeveer $0,05 per plan | $0,005 |
-| **Totaal** | | | **ongeveer $0,21** |
-
-**Per pagina $0,20 tot $0,30**, tegen ongeveer $0,18 nu. Voor een plan van twaalf pagina's is dat
-$2,50 tot $3,60 tegen ongeveer $2,20 nu. Dat het bijna gelijk blijft, komt door drie dingen: de
-schrijver krijgt ongeveer de helft minder invoer, de pagina's worden korter, en de eindredacteur neemt
-het werk over van de reparatierondes, die nu de tweede kostenpost zijn.
-
-**Wat deze schatting onzeker maakt.** Dat de redacteur de reparaties halveert, is een verwachting en
-geen meting. Blijft de reparatie op 1,3 ronde, dan komt de pagina op ongeveer $0,26. Blijkt de
-eigenaarstoets op luna te mild (de vakmanschapsbeoordelaar op luna had een rangcorrelatie van +0,29),
-dan gaat die ene toets naar Sol, ongeveer $0,03 per versie. De ongunstigste combinatie komt uit rond
-$0,35 per pagina. Fase 0 meet het na op `ai_calls` (conventie 10).
-
-**Twee knoppen die pas omgaan als de blinde lezers het verschil zien:** denktijd hoog op de strategie
-(ongeveer $0,05 per pagina) en de eigenaarstoets op Sol (ongeveer $0,03 tot $0,06).
-
-### 11.4 Doorlooptijd
-Per pagina komen er twee opeenvolgende Sol-aanroepen bij (strategie en eindredactie), op dezelfde
-denktijd als het schrijven nu. De traagste geslaagde schrijfaanroep duurde 98,8 seconden
-(`lib/openai/sampling.ts`), ruim binnen de grens van 150 seconden per aanroep
-(`lib/openai/client.ts`). Omdat de strategie en de redactie minder tekst maken dan de schrijver,
-verwacht ik geen nieuw risico op een tijdslimiet. Een pagina duurt enkele minuten langer, en dat
-voelt niemand, want het draait op de achtergrond.
+### 12.4 De reparatie
+- Gestuurd door de bevindingen van L10 en L9 en de blokkades, in die volgorde van gewicht.
+- Bij ontbrekend bewijs is weglaten de enige route; de instructie "nuanceer" in de reparatieopdracht
+  (`content.ts`, `REPAIR_SYSTEM` en `quality-repair.ts`) vervalt.
+- Hoogstens twee rondes (`REPAIR_MAX` van 3 naar 2); daarna gaat wat openstaat als vraag naar de
+  ondernemer, zoals nu.
 
 ---
 
-## 12. Haalbaarheid
+## 13. Het bouwplan
 
-### Eenvoudig (dagen, weinig risico)
-- De verplichting uit het contract halen (systeemregel 10, contractregels a en d, `formatContract`)
-  en weglaten toestaan met een `weggelaten`-lijst.
-- De "nuanceer"-route uit de reparatie halen.
-- Waardeproposities opschonen (herkomst eruit, dubbelingen eruit).
-- De FAQ-regel omdraaien (niet de restcategorie, maar de vier criteria) en de code die vragen zonder
-  onderbouwing weggooit.
-- Bronpraat van waarschuwing naar blokkade.
-- Strategie en eindredactie op dezelfde tier en denktijd als het schrijven nu (sol, medium).
+Werkwijze per werkpakket, volgens CLAUDE.md: branch vanaf `main`, migratie eerst, dan code, dan
+scherm. Elke wijziging die een uitkomst beïnvloedt krijgt een test in `scripts/test-unit.ts`, elke
+wijziging in de samenhang tussen taken een scenario in `scripts/test-chain.ts`. Vóór elke commit
+`tsc --noEmit`, `test:unit`, `test:chain` en `build`. Migraties additief en idempotent, via
+`apply_migration`, met een regel in `supabase/README.md`. Rekenwerk in pure modules zonder
+`server-only` (conventie 2). Elke nieuwe AI-aanroep bewaart zijn ruwe JSON (conventie 8) en controleert
+eerst of zijn resultaat al bestaat (conventie 9). De volgende vrije migratie is `0113`.
 
-### Middel (een tot twee weken per onderdeel)
-- De paginastrategie als nieuwe taaksoort met object en vangnetten, ter vervanging van contract en
-  schrijfopdracht.
-- De eindredactie als nieuwe taaksoort met logboek en vangnetten.
-- Feitsoort, waarde en geldigheid, conflictdetectie en het conflictscherm voor de adviseur.
-- Het merkstemprofiel met goedkeuring en de merkstemtoets.
-- De eigenaarstoets als vergelijkend oordeel.
+### Fase 1. De grootste problemen weg
 
-### Complex
-- De portfoliostap, omdat hij over pagina's heen werkt, de planning raakt (wanneer is de verzameling
-  compleet genoeg om te verdelen) en een nieuwe soort advies aan de klant oplevert (samenvoegen).
-- De reparatielus omzetten van blokkades naar redactie, zonder de veiligheid te verliezen die nu
-  werkt.
-- Het leren van handmatige aanpassingen.
+**WP1. De invoer opschonen en de stem van de drie klanten aanvullen**
+- *Wat:* de waardeproposities zonder herkomsttaal ("volgens de website", "naar eigen zeggen") en
+  zonder dubbelingen de schrijfopdracht in; de bron verbeteren waar ze gemaakt worden. De bestaande
+  stemvelden (`audience_knowledge_level`, `signature_phrases`, `identity_keywords`, `differentiator`,
+  `usp`, `key_messages`) gaan mee in de schrijfopdracht. De adviseur vult voor de drie klanten de
+  stemvelden aan en vervangt de voorbeeldzinnen (§9.4).
+- *Bestanden:* nieuw `lib/pipeline/waardeproposities.ts` (puur, opschonen en ontdubbelen); aanpassen
+  `lib/pipeline/content.ts` (`buildContentInput`), de prompt die `value_props` maakt
+  (`prepare-profile.ts` en het onderzoek dat hem voedt), `brand-fields.ts` (de tekst "gaat niet mee"
+  bijwerken).
+- *Tests:* unit op het opschonen met de echte zinnen van de drie klanten.
+- *Klaar als:* de schrijfopdracht van een echte pagina van elk van de drie merken geen herkomsttaal
+  meer bevat en de stemvelden erin staan.
 
-### Onzeker
-- **Of denktijd medium genoeg is voor de strategie**, of dat hoog het verschil maakt (ongeveer $0,05
-  extra per pagina). Te toetsen in fase 0 met dezelfde strategie op beide standen.
-- **Of weglaten de citeerbaarheid kost.** Minder secties betekent minder zinnen die een assistent kan
-  oppakken. De verwachting is dat stelliger zinnen dat ruim goedmaken; de nameting moet het zeggen.
-- **Of een werkgebiedpagina in AI-antwoorden net zo goed werkt als losse plaatspagina's.**
-- **Of de redacteur feiten laat staan.** De reparatieknop haalde twee keer een juist klantfeit weg
-  (punt 50 en 62); de redacteur heeft dezelfde vangnetten nodig, en die bestaan al (`feitbehoud.ts`).
-- **Of de adviseur tijd heeft** voor stemprofiel en conflicten. Een kwartier per merk is het doel.
+**WP2. Feitenregister en conflictpoort**
+- *Wat:* soort, waarde, geldigheid, stand en bewijskracht per feit (L1); conflictdetectie in code plus
+  L2; de conflictlijst voor de adviseur; de poort in `content_strategy`.
+- *Migratie `0113_feitsoort_en_conflicten.sql`:* kolommen op `brand_facts` (`soort`, `waarde jsonb`,
+  `geldt_voor`, `stand`, `bewijskracht`); tabel `fact_conflicts` met RLS alleen voor medewerkers.
+- *Bestanden:* nieuw `lib/pipeline/fact-classify.ts` (L1), `lib/pipeline/conflict-detect.ts` (puur,
+  kandidaten op soort en waarde), `lib/pipeline/conflict-judge.ts` (L2),
+  `lib/schemas/fact-classification.ts`, `lib/schemas/conflict-judge.ts`; aanpassen `factstore.ts`,
+  `fact-merge.ts`; scherm bij het merk voor medewerkers (onder `app/(app)/merk/[id]/admin/`) plus een
+  API-route met ownership-check (conventie 6).
+- *Tests:* unit op kandidaatdetectie (de twee intakeprijzen van de rijschool worden kandidaat, L2 met
+  een vast oordeel maakt er varianten van); keten: een pagina met een betwist prioriteitsfeit wordt
+  niet geschreven en start opnieuw na oplossing; een betwist feit dat niet nodig is laat de pagina door.
+- *Klaar als:* op de feitenbanken van de drie merken gedraaid, en elk gevonden conflict met de hand
+  nagelopen.
 
-### Eerst testen
-1. **Een handmatige proef zonder bouwen.** Voor vier pagina's (Best en de kostenpagina van de
-   installateur, plus twee andere) de strategie, het schrijven en de eindredactie met de hand als
-   drie aanroepen draaien, met de prompts uit dit plan, en de blinde lezers laten vergelijken met de
-   huidige versie. Kosten: enkele dollars. Dit toetst de kern van het plan voordat er een week in gaat.
-2. De stemvelden in het merkdossier van de drie klanten aanvullen (§7.5), want zonder die velden
-   meet de proef de merkstem niet.
-3. De conflictdetectie los draaien op de feitenbanken van de drie merken en tellen hoeveel echte en
-   hoeveel valse conflicten eruit komen.
+**WP3. De paginastrategie**
+- *Wat:* taaksoort `content_strategy` met L5 (en L6 erbij, zie WP7); de vangnetten op de strategie;
+  de werksoort `redactioneel` (Sol, denktijd hoog); de duurmeting per aanroep.
+- *Migratie `0114_paginastrategie_en_redactie.sql`:* op `content_pieces` de kolommen `strategy_json`,
+  `edit_log_json`, `readiness_json`.
+- *Bestanden:* nieuw `lib/pipeline/page-strategy.ts`, `lib/schemas/page-strategy.ts`,
+  `lib/pipeline/strategie-check.ts` (puur), `lib/lengtebudget.ts` (puur); aanpassen
+  `lib/jobs/types.ts`, `lib/jobs/handlers.ts` (`content_plan` plant `content_strategy` in plaats van
+  `content_draft`), `lib/jobs/dedupe.ts`, `lib/openai/sampling.ts`, `lib/openai/models.ts`
+  (commentaar); de schrijfopdracht (`writer-brief.ts`) blijft staan als terugval tot WP16.
+- *Tests:* unit op elk vangnet (onbestaand feit, betwist feit, bestemming B zonder reden, budget buiten
+  grenzen, meer dan zes prioriteitsfeiten); keten: `content_plan` → `content_strategy` →
+  `content_draft`, en hervatten zonder dubbele aanroep.
+- *Klaar als:* de strategie voor de kostenpagina van de installateur en de pagina voor Best geen
+  consumentenadviessecties meer kiest en een budget onder de 800 woorden zet.
 
----
+**WP4. De schrijver op de strategie**
+- *Wat:* de schrijfopdracht wordt de strategie plus de afgeleide opbouw plus alleen de gekozen feiten;
+  weglaten mag en wordt vastgelegd in `weggelaten`; de dekkingscontrole meet de gekozen onderwerpen en
+  de uitgesloten onderwerpen in plaats van 85 procent van het contract.
+- *Bestanden:* aanpassen `lib/pipeline/content.ts` (`CONTENT_SYSTEM` regel 10 en 11,
+  `buildContentInput`, `buildPlanBlock` vervalt als opdracht), `lib/pipeline/contract-format.ts`
+  (`formatContract` gaat niet meer naar de schrijver), `lib/pipeline/content-coverage.ts`,
+  `lib/schemas/content-piece.ts` (`weggelaten`); `content_draft` roept de beoordelaars niet meer aan.
+- *Tests:* unit op de nieuwe dekking; keten: een onderwerp zonder bron komt niet in de tekst en geeft
+  geen blokkade.
+- *Klaar als:* de schrijfinvoer van een echte pagina minder dan 9.000 tokens is (nu gemiddeld 14.100)
+  en de tekst geen sectie heeft die niet in de strategie staat.
 
-## 13. Gefaseerde implementatie
+**WP5. De eindredactie**
+- *Wat:* taaksoort `content_edit` met L8, de vangnetten op de redactie, en de volledige keuring
+  daarna (verhuist uit `content_draft`).
+- *Bestanden:* nieuw `lib/pipeline/editorial-pass.ts`, `lib/schemas/editorial-pass.ts`,
+  `lib/pipeline/redactie-check.ts` (puur); aanpassen `lib/jobs/handlers.ts` (`content_draft` →
+  `content_edit` → eventueel `content_revise`), `lib/pipeline/quality-run.ts`.
+- *Tests:* unit: een redactie die een nieuw bedrag toevoegt wordt teruggedraaid naar de vorige versie;
+  een verdwenen kernfeit is een blokkade; keten: draft → edit → revise, en hervatten na een time-out.
+- *Klaar als:* "maar dat zegt op zichzelf niets over het aantal zwemvijvers" en de prijsband vier keer
+  op Nuenen bij een nieuwe versie weg zijn.
 
-Elke fase eindigt met dezelfde meting: de drie merken van de doorlichting, dezelfde pagina's, dezelfde
-blinde lezers (§14). Een fase is pas af als die meting gedaan is (conventie 10).
+**WP6. Onzekerheid en bronpraat als blokkade**
+- *Wat:* de bestemmingen A, B en C uit de strategie worden nagerekend in de tekst; bronpraat wordt een
+  blokkade; de reparatie verliest "nuanceer"; `REPAIR_MAX` naar 2.
+- *Bestanden:* nieuw `lib/pipeline/onzekerheid.ts` (puur); aanpassen `content-gate.ts`
+  (`checkSourceTalk` naar blokkade), `quality-issue.ts`, `quality-repair.ts`, `content.ts`
+  (`REPAIR_SYSTEM`, `REPAIR_MAX`), `content-panel.ts` (de feitelijkheidsbeoordelaar jaagt niet meer
+  los op "algemene uitleg die als belofte gelezen kan worden"; die vraag gaat met een gesloten
+  definitie naar de feitcontrole).
+- *Tests:* unit met de echte zinnen uit §1 ("is niet vastgelegd", "staat niet als vaste werkwijze
+  vast", "valt niet af te leiden", "De beschikbare prijsinformatie benoemt niet").
+- *Klaar als:* geen van de zinnen uit de tabel in §14.3 in een nieuwe versie terugkomt, ook niet in
+  andere woorden (nagelopen door de eigenaarstoets en met de hand).
 
-### Fase 0. De proef (één tot twee dagen)
-De handmatige proef uit §12. Uitkomst: gaat het oordeel van de blinde lezers omhoog met alleen
-strategie, schrijven en redactie? Zo niet, dan klopt de diagnose niet en moet dit plan eerst herzien.
+**WP7. De FAQ volgens de vier criteria**
+- *Wat:* L6 in `content_strategy`; de filter in code; de contractregel die de FAQ tot restcategorie
+  maakte vervalt.
+- *Bestanden:* nieuw `lib/pipeline/faq-selectie.ts`, `lib/pipeline/faq-criteria.ts` (puur),
+  `lib/schemas/faq-selection.ts`; aanpassen `content-contract.ts` (regel 3), `faqblokken.ts`.
+- *Tests:* unit met de FAQ-vragen van Best en de kostenpagina.
+- *Klaar als:* geen FAQ-antwoord meer zonder feit of vaste vakkennis.
 
-### Fase 1. De grootste problemen weg (twee tot drie weken)
-Doel: geen indekken, geen consumentengids, geen tegenspraak, kortere pagina's.
+**Einde fase 1:** documentatie bijwerken (§15), een logboekalinea met de cijfers, en de nareken-plicht
+uit §14.2.
 
-1. **Weglaten wordt toegestaan en verplicht bij gebrek aan bron.** Contractverplichting eruit,
-   `weggelaten`-lijst erin, dekkingspoort meet de gekozen onderwerpen. *Lost op:* "is niet
-   vastgelegd", "staat niet als vaste werkwijze vast" (installateur, woningbezoek), en de acht
-   algemene secties van de kostenpagina.
-2. **Onzekerheid krijgt een bestemming.** A wordt een vraag en de tekst zwijgt, B alleen met een reden
-   uit §8.3, C weglaten. Een intern open punt als zin is een blokkade. *Lost op:* "De beschikbare
-   prijsinformatie benoemt niet ..." (installateur, kosten), "Deze pagina geeft geen bevestigde
-   lokale eis voor Best".
-3. **De paginastrategie op sol**, in plaats van contract plus schrijfopdracht op
-   luna, met lengtebudget. *Lost op:* tien secties en 980 woorden; de consumentenadviessecties
-   ("Vergelijk offertes op dezelfde onderdelen").
-4. **Conflictdetectie met een blokkade** voor prijzen, termijnen, plaatsen, contactgegevens,
-   certificeringen en garanties, en het scherm voor de adviseur. *Lost op:* "De beschikbare
-   informatie over de intakeprijs spreekt elkaar tegen" (rijschool), de omgedraaide 4-urenbelofte.
-5. **Eén ronde eindredactie** met logboek, gericht op relativering, herhaling en adviestoon. *Lost
-   op:* "maar dat zegt op zichzelf niets over het aantal zwemvijvers", de prijsband vier keer op
-   Nuenen.
-6. **Opschoning van de invoer:** waardeproposities zonder "volgens de website", FAQ volgens de vier
-   criteria. *Lost op:* de regenwater- en aanbetalingsvraag bij Best, kopen of huren bij de
-   installateur.
+### Fase 2. De stem en de keuring
 
-**Meetdoel na fase 1:** gemiddeld cijfer van de blinde lezers minstens 6,5 (nu 4,9), minstens de
-helft "publiceert zo" (nu 4 van 21), nul teksten met een zin over de bronnen.
+**WP8. De schrijfstijl in het merkdossier**
+- *Wat:* de nieuwe stemvelden (§9.1), L3 als voorstel, goedkeuring door de adviseur, de waarschuwing
+  bij een dunne stem, en de meetbare stemregels in code.
+- *Migratie `0115_schrijfstijl_merkdossier.sql`:* de `voice_`-kolommen op `profiles`.
+- *Bestanden:* nieuw `lib/pipeline/voice-proposal.ts` (L3), `lib/schemas/voice-proposal.ts`,
+  `lib/stemregels.ts` (puur: zinslengte, clichés, naam, aanspreekvorm); aanpassen `brand-fields.ts`,
+  `lib/profile-editable.ts`, het merkprofielscherm (`app/(app)/merk/[id]/merkprofiel/`), de
+  schrijfopdracht en de redactie.
+- *Tests:* unit op de stemregels; keten: een voorstel dat niet is goedgekeurd gaat niet mee.
+- *Klaar als:* de drie klanten een goedgekeurde stem hebben en "Wij staan graag voor je klaar" niet
+  meer op een nieuwe pagina van de hovenier staat.
 
-### Fase 2. De stem en de keuring (twee tot drie weken)
-1. **De schrijfstijl in het merkdossier** uitgebreid (§7.1) en voorgesteld door L3, met goedkeuring
-   door de adviseur, gebruikt door schrijver en redacteur.
-   *Lost op:* "Wij staan graag voor je klaar", "zorgeloos genieten van een warm en behaaglijk thuis"
-   in een zakelijke stem, de naam aan het begin van elke alinea.
-2. **Merkstemtoets en eigenaarstoets** als vergelijkend oordeel; de reparatie stuurt daarop.
-3. **Feitenregister met soort, waarde en bewijskracht**, en de bewijsbank met de regel "stellig tenzij".
-   *Lost op:* twaalf monteurs en 1.800 contracten die niet in de Geldrop-pagina staan.
-4. **FAQ-selectie als eigen stap** (L6).
-5. **Een lichte versie van uniciteit:** de strategie krijgt de korte inhoud en de gekozen feiten van
-   de zusterpagina's mee, en een waarschuwing bij overlap in feiten en opbouw. *Lost op:* de
-   gelijke opbouw van Best en Nuenen, gedeeltelijk.
+**WP9. Eigenaarstoets en merkstemtoets op Sol, en de poort daarop**
+- *Wat:* L9 en L10 vervangen de redactie- en vakmanschapsbeoordelaar; de poort beslist op blokkades
+  plus L10; de reparatie stuurt op L10 en L9.
+- *Bestanden:* aanpassen `lib/pipeline/content-panel.ts`, `lib/schemas/content-panel.ts`,
+  `quality-run.ts`, `quality-score.ts`, `quality-dimensions.ts` (de bronnen per dimensie),
+  `content-repair-decision.ts`.
+- *Tests:* unit op de poortbeslissing; keten: twee keer "niet publiceren" is een blokkade.
+- *Klaar als:* de eigenaarstoets op de pagina's van de doorlichting dezelfde volgorde geeft als de
+  blinde lezers (rangcorrelatie minstens 0,6).
 
-**Meetdoel na fase 2:** gemiddeld minstens 7,0, minstens 70 procent "publiceert zo", nul "nee";
-de eigenaarstoets geeft dezelfde volgorde als de blinde lezers (rangcorrelatie 0,6 of hoger).
+**WP10. Bewijsbank en stelligheid**
+- *Wat:* de bewijsbank uit het register; standaard stellig; de voorrang per pagina.
+- *Bestanden:* aanpassen `kernbewijs.ts`, `bewijspunten.ts`, de strategie.
+- *Klaar als:* twaalf monteurs en 1.800 onderhoudscontracten op de Geldrop-pagina van de installateur
+  staan, zonder voorbehoud erachter.
 
-### Fase 3. De architectuur (vier weken of meer)
-1. **Portfoliostap per plan**, met het advies samenvoegen of eerst vragen, en het register van
-   primaire intenties per merk. *Lost op:* plaatspagina's die templates zijn.
-2. **Lokale vragen aan de ondernemer** vanuit het portfolio.
-3. **Leren van handmatige aanpassingen** in het stemprofiel.
-4. **Denktijd en beoordelaars bijstellen op metingen:** denktijd hoog of een beoordelaar van een andere
-   leverancier alleen waar de blinde lezers het verschil zien.
-5. **De reparatielus volledig vanuit de redactie**, en de oude formuleringlijsten terugbrengen tot
-   een klein vangnet.
-6. **Ijking van de getallen** (lengtebudget, drempels) op de gemeten rondes.
+**WP11. Zusterpagina's in de strategie en de overlapcontrole**
+- *Wat:* de strategie krijgt hoek en gekozen feiten van de zusterpagina's; de overlapcontrole op feiten
+  en opbouw.
+- *Bestanden:* aanpassen `page-strategy.ts`, `similarity.ts` (of een nieuwe pure module ernaast).
+- *Klaar als:* Best en Nuenen bij een nieuwe versie een andere opbouw en ander voorrangsbewijs hebben.
 
-**Meetdoel na fase 3:** gemiddeld minstens 7,5, minstens 80 procent "publiceert zo", en de
-nameting laat zien dat de pagina's in AI-antwoorden niet slechter scoren dan de huidige.
+**Einde fase 2:** documentatie, logboek, nareken-plicht.
+
+### Fase 3. Over pagina's heen, en opruimen
+
+**WP12. Portfolio en plaatsregel**
+- *Wat:* L4 per plan, de plaatsregel (§10.1), het intentieregister per merk, het advies samenvoegen
+  of eerst vragen, en de werkgebiedpagina als paginasoort.
+- *Migratie `0116_portfolio.sql`:* `assignment_json` op `planned_pages`, en een intentiekolom per
+  pagina.
+- *Bestanden:* nieuw `lib/pipeline/portfolio.ts`, `lib/schemas/portfolio.ts`, `lib/plaatsregel.ts`
+  (puur, met de vaste CBS-lijst); aanpassen `content-plan.ts`, `plan-fill.ts`, `recommendation.ts`,
+  het planscherm.
+- *Klaar als:* een plan met Best, Nuenen, Son en Breugel en Eindhoven één werkgebiedpagina en één
+  Eindhoven-pagina oplevert, of losse pagina's met elk een lokaal feit.
+
+**WP13. Lokale vragen aan de ondernemer** vanuit de portfolio, via de bestaande vragenroute.
+
+**WP14. Leren van handmatige aanpassingen:** de paren (was, werd) bewaren en L3 een bijwerking laten
+voorstellen.
+
+**WP15. Getallen bijstellen:** lengtebudget, drempels en de 100.000-grens op de gemeten rondes.
+
+**WP16. Opruimen:** de schrijfopdracht (`writer-brief.ts`, `schrijfopdracht.ts`) vervalt als stap; de
+kolom `writer_brief_json` blijft bestaan voor oude pagina's (additief, nooit `drop`); de
+formuleringlijsten (`SLAP`, `VOORBEHOUD`, de families van `checkSourceTalk`) terug naar een klein
+vangnet; `docs/contentpijplijn-overdracht.md` herschrijven.
+
+### Volgorde en afhankelijkheden
+WP1 en WP2 kunnen parallel. WP3 hangt aan WP2 (de poort) en levert wat WP4, WP5, WP6 en WP7 nodig
+hebben. WP8 kan starten zodra fase 1 staat; WP9 hangt aan WP8 (de stem is de maatstaf). WP12 hangt aan
+WP3 en WP11.
 
 ---
 
@@ -1259,98 +1194,100 @@ nameting laat zien dat de pagina's in AI-antwoorden niet slechter scoren dan de 
 
 ### 14.1 De toets
 **Zou de ondernemer deze pagina zonder aanvullende copywriting op zijn eigen website publiceren?**
-Gemeten door dezelfde blinde lezers als in de doorlichting, met de vraag uit
-`kwaliteitsdoorlichting/poort19/` ("ondernemer publiceert: zo, met aanpassingen, nee"), en per
-versie door de eigenaarstoets. Een pagina is publicatiewaardig als het antwoord "zo" is, en de
-eigenaarstoets en de poort het met elkaar eens zijn.
-
-### 14.2 De criteria per pagina
+Per versie beantwoord door de eigenaarstoets, en na elke fase door de blinde lezers van de
+doorlichting. Een pagina is publicatiewaardig als het antwoord "zo" is en de poort geen blokkade
+heeft.
 
 **Juist**
-1. Elke bewering over het bedrijf rust op een feit uit het register (bestaat, blijft hard).
-2. Geen feit met een open conflict.
-3. Geen zin over bronnen, informatie of het werkproces ("beschikbare informatie", "niet vastgelegd",
-   "wordt hier niet genoemd", "valt niet af te leiden").
+1. Elke bewering over het bedrijf rust op een feit uit het register.
+2. Geen betwist feit.
+3. Geen zin over bronnen, informatie of het werkproces.
 
 **Gekozen**
 4. De opening beantwoordt de hoofdvraag in hoogstens twee zinnen, met een concreet feit.
 5. De lezer weet binnen de eerste vijfde van de tekst waarom hij dit bedrijf zou kiezen.
 6. Elke sectie hoort bij een onderwerp dat de strategie koos; geen uitgesloten onderwerp.
 7. Lengte binnen het budget, hoogstens 15 procent erboven.
-8. Geen feit vaker dan twee keer, en de prijs hoogstens één keer met toelichting.
+8. Geen feit vaker dan twee keer; de prijs hoogstens één keer met toelichting.
 
 **Stellig waar het kan**
-9. De bewijsstukken uit de voorrangslijst staan erin, zonder voorbehoud erachter.
-10. Hoogstens één voorbehoud per pagina buiten de gevallen van §8.3, en geen enkel voorbehoud direct
-    na een bewijsstuk.
-11. Geen zin die de lezer aanzet om aanbieders te vergelijken, offertes na te lopen of het bedrijf
-    na te trekken.
+9. Het voorrangsbewijs staat erin, zonder voorbehoud erachter.
+10. Hoogstens één voorbehoud buiten §7.2, en geen voorbehoud direct na een bewijsstuk.
+11. Geen zin die de lezer aanzet om aanbieders te vergelijken, offertes na te lopen of het bedrijf na
+    te trekken.
 
 **Van dit bedrijf**
-12. Aanspreekvorm consistent (bestaat).
-13. De merkstemtoets meldt geen regel als duidelijk niet gehaald.
-14. Geen cliché uit de foutlijst van het stemprofiel.
-15. De naam in de eerste alinea en de afsluiting, niet aan het begin van andere alinea's (bestaat).
+12. Aanspreekvorm consistent.
+13. De merkstemtoets meldt geen stemregel als duidelijk niet gehaald.
+14. Geen cliché uit de stemvelden.
+15. De naam in de eerste alinea en de afsluiting, niet aan het begin van andere alinea's.
 16. De eigenaarstoets vindt hem beter dan de huidige sitepagina of de vorige versie.
 
 **Uniek en nuttig**
-17. Een plaatspagina heeft minstens één feit dat alleen over die plaats waar is, of is onderdeel van
-    een werkgebiedpagina.
-18. Geen hoge overlap met een zusterpagina op feiten, opbouw en inhoud tegelijk.
-19. Elke FAQ-vraag voldoet aan de vier criteria van §10.2; nul vragen is toegestaan.
+17. Een plaatspagina voldoet aan de plaatsregel en heeft een eigen hoek.
+18. Geen hoge overlap met een zusterpagina op feiten en opbouw tegelijk.
+19. Elke FAQ-vraag voldoet aan de vier criteria van §11.
 
 **Vindbaar**
 20. Metatitel en -beschrijving binnen de grenzen, met plaats en dienst waar dat de intentie is.
 21. Minstens één losstaand citeerbare zin per sectie, met een concreet feit.
-22. De organisatie in de gestructureerde gegevens (bestaat).
+22. De organisatie in de gestructureerde gegevens.
 
-### 14.3 De acceptatietest voor dit plan
-De proefset uit `docs/tasks/kwaliteitsdoorlichting/`: dezelfde drie merken, dezelfde clusters en
-pagina's, hetzelfde waarheidsdossier, dezelfde antwoorden van de klant, dezelfde blinde lezers en
-dezelfde vragenlijst. Per fase:
+### 14.2 De nareken-plicht per fase
+Geen losse proef vooraf (besluit eigenaar). Wel, na elke fase, zoals conventie 10 vraagt: dezelfde
+drie merken van de doorlichting opnieuw door de keten, met hetzelfde waarheidsdossier, dezelfde
+antwoorden van de klant en dezelfde blinde lezers en vragenlijst
+(`docs/tasks/kwaliteitsdoorlichting/`), en de kosten per pagina nagerekend op `ai_calls`.
 
-| Maat | Nulmeting | Herhaling (nu) | Na fase 1 | Na fase 2 | Na fase 3 |
+| Maat | Nulmeting | Nu | Na fase 1 | Na fase 2 | Na fase 3 |
 |---|---|---|---|---|---|
 | Gemiddeld copywritercijfer | 4,1 | 4,9 | 6,5 of hoger | 7,0 of hoger | 7,5 of hoger |
-| Publiceert zo | 0 van 16 | 4 van 21 | de helft | 70 procent | 80 procent |
-| Publiceert niet | 5 van 16 | 6 van 21 | hoogstens 2 | 0 | 0 |
-| Zinnen over bronnen of werkproces | niet geteld | 63 en 61 indekformuleringen bij installateur en hovenier (ruwe telling) | 0 | 0 | 0 |
-| Gemiddelde lengte, landingspagina | niet geteld | ongeveer 700 | binnen budget | binnen budget | binnen budget |
-| Rangcorrelatie eigenaarstoets met blinde lezers | n.v.t. | +0,29 (vakmanschap, 3 september) | gemeten | 0,6 of hoger | 0,6 of hoger |
+| Ondernemer publiceert zo | 0 van 16 | 4 van 21 | de helft | 70 procent | 80 procent |
+| Ondernemer publiceert niet | 5 van 16 | 6 van 21 | hoogstens 2 | 0 | 0 |
+| Zinnen over bronnen of werkproces | niet geteld | ruwe telling 61 en 63 indekformuleringen bij hovenier en installateur | 0 | 0 | 0 |
+| Kosten per artikel | | ongeveer $0,16 tot $0,18 | ongeveer $0,37 | ongeveer $0,37 | ongeveer $0,37 |
 
-Daarnaast per tekst uit de opdracht de concrete controle dat de genoemde zin weg is en niet door een
-nieuwe formulering van hetzelfde gat is vervangen:
+### 14.3 De zinnen die weg moeten
 
-| Tekst | Zin die weg moet | Door welke wijziging |
+| Tekst | Zin | Werkpakket |
 |---|---|---|
-| Installateur, kosten | "De beschikbare prijsinformatie benoemt niet welke werkzaamheden standaard in de installatieprijs zitten" | onzekerheid A, strategie |
-| Installateur, kosten | "die zegt op zichzelf niets over welke afzonderlijke werkzaamheden in een installatieprijs zijn opgenomen" | stelligheidsregel, redactie |
-| Installateur, woningbezoek | "Welke van deze punten tijdens een ketelbezoek worden bekeken, staat niet als vaste werkwijze vast." | weglaten toegestaan, blokkade op intern open punt |
-| Installateur, Geldrop | "dat is een eerste beeld van de planning, geen garantie voor iedere woning" | stelligheidsregel, redactie |
-| Installateur, Geldrop | twaalf monteurs en 1.800 contracten ontbreken | bewijsbank, strategie |
-| Hovenier, Best | "Vergelijk dezelfde werkzaamheden en afwerking" als sectie | strategie, geen consumentengids |
-| Hovenier, Best | FAQ over regenwater en aanbetaling | FAQ-criteria |
-| Hovenier, Best | "Wij staan graag voor je klaar." | merkstemprofiel |
-| Hovenier, Nuenen | de prijsband vier keer | redactie, herhalingscontrole |
-| Hovenier, Best en Nuenen | dezelfde opbouw en dezelfde feiten | portfolio, zusterpagina's in de strategie |
-| Hovenier, zwemvijver | "Wij hebben meer dan 35 jaar ervaring, maar dat zegt op zichzelf niets ..." | stelligheidsregel, redactie |
-| Rijschool, intake | "De beschikbare informatie over de intakeprijs spreekt elkaar tegen" | conflictdetectie en blokkade |
+| Installateur, kosten | "De beschikbare prijsinformatie benoemt niet welke werkzaamheden standaard in de installatieprijs zitten" | WP3, WP6 |
+| Installateur, kosten | "die zegt op zichzelf niets over welke afzonderlijke werkzaamheden in een installatieprijs zijn opgenomen" | WP5, WP10 |
+| Installateur, woningbezoek | "Welke van deze punten tijdens een ketelbezoek worden bekeken, staat niet als vaste werkwijze vast." | WP4, WP6 |
+| Installateur, Geldrop | "dat is een eerste beeld van de planning, geen garantie voor iedere woning" | WP5, WP10 |
+| Installateur, Geldrop | twaalf monteurs en 1.800 contracten ontbreken | WP10 |
+| Hovenier, Best | "Vergelijk dezelfde werkzaamheden en afwerking" als sectie | WP3 |
+| Hovenier, Best | FAQ over regenwater en aanbetaling | WP7 |
+| Hovenier, Best | "Wij staan graag voor je klaar." | WP1, WP8 |
+| Hovenier, Nuenen | de prijsband vier keer | WP5 |
+| Hovenier, Best en Nuenen | dezelfde opbouw en dezelfde feiten | WP11, WP12 |
+| Hovenier, zwemvijver | "Wij hebben meer dan 35 jaar ervaring, maar dat zegt op zichzelf niets ..." | WP5, WP10 |
+| Rijschool, intake | "De beschikbare informatie over de intakeprijs spreekt elkaar tegen" | WP2 |
 
 ---
 
-## 15. Besluiten van de eigenaar (25 september 2026)
+## 15. Documentatie die meegaat
 
-1. **Model:** al het redactionele werk (paginastrategie, schrijven, eindredactie) op GPT-6 Sol. Dat is
-   de tier die het schrijven nu al gebruikt. Denktijd medium als standaard; hoog alleen als fase 0
-   laat zien dat het verschil zichtbaar is. De beoordelaars blijven op luna.
-2. **Kosten:** de eerste schatting van $0,70 tot $1,00 is te hoog bevonden. De variant uit §11.3 komt
-   uit op $0,20 tot $0,30 per pagina en is het uitgangspunt.
-3. **Werkgebiedpagina:** mag geadviseerd worden. Grote steden zoals Eindhoven, Tilburg en
-   's-Hertogenbosch krijgen wel een eigen pagina (regel in §9.2).
-4. **Schrijfstijl:** hoort duidelijk in het merkdossier. Bij de drie klanten dekt het merkdossier de
-   lading niet (§7.5); aanvullen gebeurt vóór fase 0.
-5. **Bronconflicten:** houden een pagina alleen tegen als het betwiste feit op die pagina nodig is.
-   Anders valt het feit weg en krijgt het merk een melding.
+Per fase, in dezelfde commit als de code (CLAUDE.md):
+- `docs/logbook.md`: een alinea met datum en cijfers per afgeronde fase.
+- `docs/architecture.md`: de nieuwe taaksoorten, de AI-aanroepen en de kostenrekensom in §6.
+- `docs/processtappen-nieuwe-pagina.md`: fase 9 tot en met 11 herschrijven naar strategie, schrijven,
+  redactie en keuring.
+- `docs/contentpijplijn-overdracht.md`: bijwerken in WP16.
+- `supabase/README.md`: de migraties `0113` tot en met `0116`.
+- `docs/merkstrategie.md` §30: nagaan of een belofte over teksten verandert.
+- Dit document gaat uit `docs/tasks/` zodra fase 3 af is; de besluiten staan dan in het logboek.
 
-**Nog open:** wie conflicten afhandelt en de stemvoorstellen goedkeurt. Dit plan gaat uit van de
-adviseur (sales-led), ongeveer een kwartier tot een half uur per merk vóór de eerste pagina.
+---
+
+## 16. Risico's en maatregelen
+
+| Risico | Maatregel |
+|---|---|
+| De strategie of de redactie op denktijd hoog loopt tegen de tijdslimiet van 150 seconden | duurmeting per aanroep; boven 120 seconden de achtergrondmodus van de API (§4.3) |
+| De redacteur haalt een juist feit weg (zoals de reparatieknop bij punt 50 en 62) | `feitbehoud.ts` en de kernfeitcontrole op elke redactie; een verdwenen feit is een blokkade |
+| Kortere pagina's worden minder vaak geciteerd | de nameting na publicatie per pagina (bestaat); de lengtegetallen zijn een startwaarde (WP15) |
+| Een werkgebiedpagina werkt in AI-antwoorden slechter dan losse plaatspagina's | meetvragen blijven per plaats gekoppeld; grote steden houden altijd een eigen pagina |
+| De adviseur heeft geen tijd voor stem en conflicten | een voorstel om goed te keuren in plaats van een leeg formulier; waarschuwing in plaats van blokkade bij een dunne stem |
+| Sol beoordeelt tekst in zijn eigen stijl te gunstig | vaste lijsten per toets, een vergelijkend oordeel, en de blinde lezers als onafhankelijke nareken-plicht per fase |
+| Kosten lopen op boven $0,50 per artikel | de kostencontrole per pagina bestaat (`bewaakPaginaBudget` in `content.ts`, drempel €1); de rekensom na fase 1 in `architecture.md` §6 |
