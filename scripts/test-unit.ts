@@ -944,6 +944,8 @@ import { controleerHardeBeweringen, getallenIn as hardeGetallen, geleZinnen, spl
 import { repareerMechanisch } from "@/lib/pagina/mechanisch";
 import { kiesFeiten, hoortBijPagina, blokA, MAX_FEITEN, type FeitRij } from "@/lib/pagina/bedrijfskennis";
 import { schrijfpoort, schrijfdatum } from "@/lib/pagina/schrijfpoort";
+import { schoneAdressen, vanafEersteAlinea, MAX_STEMVOORBEELDEN } from "@/lib/pagina/stemvoorbeelden-regels";
+import { openVraagTekst, OPEN_VRAAG_MAX } from "@/lib/pagina/open-vraag-tekst";
 import type {
   ProfileOffering,
   ProfileTopic,
@@ -6177,9 +6179,11 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   // (`brand_name`), en 60 sinds stap B8: `style_samples`, `max_inventory_pages`
   // en `crawl_priority_paths` stonden al in de database maar niet in de
   // catalogus, alleen op `/merkprofiel/bewerken`.
+  // 51 sinds de contentketen opnieuw (25 september 2026, besluit B14): elf
+  // stemvelden eruit, `stem_voorbeelden` en `verhalen` erbij.
   ok(
-    `het zijn er 60 aan beide kanten (nu ${BRAND_FIELDS.length} en ${EDITABLE_PROFILE_FIELDS.length})`,
-    BRAND_FIELDS.length === 60 && EDITABLE_PROFILE_FIELDS.length === 60,
+    `het zijn er 51 aan beide kanten (nu ${BRAND_FIELDS.length} en ${EDITABLE_PROFILE_FIELDS.length})`,
+    BRAND_FIELDS.length === 51 && EDITABLE_PROFILE_FIELDS.length === 51,
   );
 
   ok(
@@ -6193,10 +6197,13 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   const perStap = STEP_ORDER.map((s) => `${s}:${fieldsOfStep(s).length}`).join(" ");
   // Onboarding ronde B, stap B8: `max_inventory_pages` en `crawl_priority_paths`
   // erbij in "bedrijf" (9 → 11), `style_samples` erbij in "stem" (6 → 7).
+  // Contentketen opnieuw (B14): "stem" van 7 naar 1 (alleen de stemvoorbeelden),
+  // "woorden" van 5 naar 3, "klant" en "bekend" elk één minder, "strategie"
+  // één meer (`verhalen`).
   ok(
-    `de verdeling is 11-3-6-7-5-7-6-12-3 (nu ${perStap})`,
+    `de verdeling is 11-3-5-1-3-7-5-13-3 (nu ${perStap})`,
     perStap ===
-      "bedrijf:11 merk:3 klant:6 stem:7 woorden:5 auteur:7 bekend:6 strategie:12 contact:3",
+      "bedrijf:11 merk:3 klant:5 stem:1 woorden:3 auteur:7 bekend:5 strategie:13 contact:3",
   );
   ok(
     "elke stap heeft velden",
@@ -6216,9 +6223,8 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
       (f) => (f.options?.length ?? 0) >= 2,
     ),
   );
-  // De vijfde schuif is de enige met vier standen, net als bij Nova.
-  const lading = BRAND_FIELDS.find((f) => f.key === "tone_emotional");
-  ok("de emotionele lading heeft vier standen", lading?.options?.length === 4);
+  // De stemschuiven zijn weg (besluit B14): toon laten zien, niet beschrijven.
+  ok("geen stemschuif meer in de catalogus", !BRAND_FIELDS.some((f) => String(f.key).startsWith("tone_")));
 
   // ⚠️ Een `keuze` slaat een wóórd op dat in een database-constraint staat, geen
   // nummer. Loopt de waardenlijst niet gelijk met de labels, dan kiest de klant
@@ -6272,12 +6278,12 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   // `csm-data.ts` gebruikt om te bepalen of een dossier deelbaar is, en staat
   // élk merk eeuwig in "wacht op jouw nakijkwerk".
   const klantVelden = BRAND_FIELDS.filter((f) => CLIENT_STEPS.includes(f.step));
-  // 45 sinds stap B8: de drie nieuwe velden staan in "bedrijf" en "stem", allebei
-  // klantstappen.
+  // 45 sinds stap B8; 35 sinds de contentketen opnieuw (B14): tien stemvelden
+  // uit de klantstappen, `stem_voorbeelden` erbij.
   ok(
-    `de noemer is de klantlijst van 45 (nu ${overallProgress(leeg).totaal})`,
+    `de noemer is de klantlijst van 35 (nu ${overallProgress(leeg).totaal})`,
     overallProgress(leeg).totaal === klantVelden.length &&
-      klantVelden.length === 45,
+      klantVelden.length === 35,
   );
   ok(
     "de sessie kan alle negen stappen meetellen",
@@ -6286,17 +6292,11 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   ok("geen enkele stap is compleet", allStepsIncompleet(leeg));
 
   const stem = {
-    tone_formality: 2,
-    tone_energy: 2,
-    tone_complexity: 2,
-    tone_humor: 1,
-    tone_emotional: 2,
-    tone_of_voice: "Een ervaren monteur",
-    style_samples: ["Een stukje uit de eigen tarievenpagina"],
+    stem_voorbeelden: [{ url: "https://voorbeeld.nl/over-ons", tekst: null, opgehaald_op: null, fout: null }],
   } as never;
   const p = stepProgress(stem, "stem");
   ok("een volledig ingevulde stap is compleet", p.compleet === true);
-  ok("en telt al zijn velden", p.gevuld === p.totaal && p.totaal === 7);
+  ok("en telt al zijn velden", p.gevuld === p.totaal && p.totaal === 1);
   ok(
     "terwijl een andere stap dan nog leeg is",
     stepProgress(stem, "auteur").gevuld === 0,
@@ -6359,7 +6359,7 @@ group("drie oppervlakken, één veldenlijst (onboarding 3.0 fase 1)", () => {
   const commercieel = BRAND_FIELDS.filter(
     (f) => f.step === "strategie" || f.step === "contact",
   );
-  ok("het zijn er vijftien", commercieel.length === 15);
+  ok("het zijn er zestien (met de verhalen)", commercieel.length === 16);
   ok(
     "en geen enkele is af te leiden",
     commercieel.every((f) => !f.derivable),
@@ -6470,8 +6470,8 @@ group("microcopy, verplichtstelling en de negen blokken (onboarding ronde B)", (
     teveelB4.length === 0,
   );
   ok(
-    "samen zijn het er 60",
-    samenB4.length === 60 && samenB4.length === BRAND_FIELDS.length,
+    "samen zijn het er 51",
+    samenB4.length === 51 && samenB4.length === BRAND_FIELDS.length,
   );
   ok("zeven blokken met velden", SESSION_BLOCKS.length === 7);
   ok(
@@ -11862,9 +11862,10 @@ group("het formulier praat de taal van de branche", () => {
   ok("automotive bestaat", CATEGORIES.includes("automotive"));
 
   const echteCategorieen = CATEGORIES.filter((c) => c !== "algemeen");
-  const teWeinig = echteCategorieen.filter((c) => exampleCount(c) < 18);
+  // Achttien tot 25 september 2026; twee per branche vielen weg met de stemvelden (besluit B14).
+  const teWeinig = echteCategorieen.filter((c) => exampleCount(c) < 16);
   ok(
-    `elke branche heeft minstens achttien eigen voorbeelden${teWeinig.length ? " (te weinig: " + teWeinig.join(", ") + ")" : ""}`,
+    `elke branche heeft minstens zestien eigen voorbeelden${teWeinig.length ? " (te weinig: " + teWeinig.join(", ") + ")" : ""}`,
     teWeinig.length === 0,
   );
   ok("en algemeen heeft er nul, want dat is de terugval", exampleCount("algemeen") === 0);
@@ -21181,4 +21182,20 @@ group("de schrijfpoort: alleen de vragen en de datum (§6.8)", () => {
   eq("de schrijfdatum is 10 dagen ervoor", schrijfdatum("2026-11-20"), "2026-11-10");
   ok("alles gedaan, binnen 10 dagen: schrijven", schrijfpoort({ briefKlaar: true, openVragen: 0, publicatiedatum: "2026-10-05", vandaag }).mag);
   ok("zonder datum: schrijven", schrijfpoort({ briefKlaar: true, openVragen: 0, publicatiedatum: null, vandaag }).mag);
+});
+
+group("stemvoorbeelden: de adressen van de ondernemer (B14)", () => {
+  const a = schoneAdressen(["  wesleykeeris.nl/over-ons ", "https://wesleykeeris.nl/over-ons", "geen adres", "", { url: "http://voorbeeld.nl/blog" }, "vierde.nl"]);
+  eq("schema erbij, dubbel en ongeldig eruit", a.join(" "), "https://wesleykeeris.nl/over-ons http://voorbeeld.nl/blog https://vierde.nl/");
+  eq("hooguit drie", String(schoneAdressen(["a.nl", "b.nl", "c.nl", "d.nl"]).length), String(MAX_STEMVOORBEELDEN));
+  eq("geen lijst is leeg", String(schoneAdressen("wesleykeeris.nl").length), "0");
+  const pagina = "Home\nOver ons\nContact\nWij zijn een familiebedrijf uit Zwolle en werken al sinds 1990 aan cv-ketels in de regio.\nTweede alinea.";
+  ok("menu bovenaan valt weg", vanafEersteAlinea(pagina).startsWith("Wij zijn een familiebedrijf"));
+  eq("zonder echte alinea blijft alles", vanafEersteAlinea("Kort\nOok kort"), "Kort\nOok kort");
+});
+
+group("de open vraag: tekst per pagina (B3)", () => {
+  ok("de titel staat in de vraag, want de vraagtekst is uniek per merk", openVraagTekst("Cv-ketel vervangen").includes("Cv-ketel vervangen"));
+  ok("twee pagina's geven twee vragen", openVraagTekst("A") !== openVraagTekst("B"));
+  eq("een lang antwoord mag", String(OPEN_VRAAG_MAX), "3000");
 });

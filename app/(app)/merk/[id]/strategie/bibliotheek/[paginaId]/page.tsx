@@ -211,6 +211,7 @@ async function laadVoortraject(
     answer: r.answer,
     onderdelen: [],
     paginas: (r.content_piece_ids ?? []).length,
+    open_vraag: Boolean(r.open_vraag),
   }));
   // Eerst wat nog open staat: daar begint de klant, en een beantwoorde vraag
   // bovenaan laat de lijst langer lijken dan het werk is.

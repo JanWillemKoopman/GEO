@@ -27,6 +27,8 @@ import { publicFactRequest } from "@/lib/fact-request-public";
  * docs/tasks/opdracht-bevindingen-5-tot-9.md).
  */
 const MAX_ANSWER_LENGTH = 500;
+/** De open vraag van een pagina krijgt ruimte voor een verhaal (besluit B3). */
+const MAX_OPEN_ANTWOORD = 3000;
 
 /**
  * Ruimte voor het werk ná het antwoord (`after()` hieronder): het beoordelen
@@ -61,7 +63,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // body opleveren in plaats van de 404 die er hoort te staan.
   const { data: factRow } = await admin
     .from("fact_requests")
-    .select("id")
+    .select("id, open_vraag")
     .eq("id", factId)
     .eq("profile_id", id)
     .maybeSingle();
@@ -84,7 +86,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json(data ? publicFactRequest(data) : data);
   }
 
-  const answer = typeof body.answer === "string" ? body.answer.trim().slice(0, MAX_ANSWER_LENGTH) : "";
+  const grens = (factRow as { open_vraag?: boolean | null }).open_vraag ? MAX_OPEN_ANTWOORD : MAX_ANSWER_LENGTH;
+  const answer = typeof body.answer === "string" ? body.answer.trim().slice(0, grens) : "";
   if (!answer) return NextResponse.json({ error: "Vul een antwoord in." }, { status: 400 });
 
   const resultaat = await answerFact(admin, {

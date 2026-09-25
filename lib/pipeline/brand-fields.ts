@@ -76,7 +76,9 @@ export type FieldKind =
   /** Twee standen die een `boolean` opslaan in plaats van een woord of een nummer. */
   | "janee"
   /** Onboarding ronde B, stap B8: een geheel getal, zoals `max_inventory_pages`. */
-  | "getal";
+  | "getal"
+  /** Eén tot drie webadressen met hun opgehaalde tekst (besluit B14). */
+  | "adressen";
 
 export interface BrandField {
   /** De kolomnaam in `profiles`. Ook de sleutel in `profile_field_sources`. */
@@ -372,18 +374,6 @@ export const BRAND_FIELDS: BrandField[] = [
     priority: "optioneel",
   },
   {
-    key: "audience_knowledge_level",
-    step: "klant",
-    label: "Hoeveel weet je lezer al",
-    description:
-      "Bepaalt hoeveel een tekst mag aannemen. Bij 'expert' slaat ORBIT ENGINE de basisuitleg over.",
-    kind: "schuif",
-    options: ["Weinig", "Redelijk wat", "Veel, is vakgenoot"],
-    derivable: false,
-    usage: "Gaat mee in de schrijfopdracht: bepaalt hoeveel uitleg een vakterm krijgt.",
-    priority: "optioneel",
-  },
-  {
     key: "personas",
     step: "klant",
     label: "Je klanttypes",
@@ -403,7 +393,7 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Bij ons staat er altijd iemand aan de balie die je herkent",
     kind: "lange-tekst",
     derivable: true,
-    usage: "Gaat mee in de schrijfopdracht als wat de doorslag geeft tegenover andere aanbieders.",
+    usage: "Gaat als bedrijfskennis mee naar de schrijver: wat de doorslag geeft tegenover andere aanbieders.",
     priority: "aanbevolen",
   },
   {
@@ -420,100 +410,24 @@ export const BRAND_FIELDS: BrandField[] = [
   },
 
   // ── 4. Hoe je klinkt ──────────────────────────────────────────────────────
+
   {
-    key: "tone_formality",
+    // Besluit B14 (docs/tasks/contentketen-opnieuw.md §6.10): toon niet
+    // beschrijven maar laten zien. Vervangt de vijf schuiven, de omschrijving
+    // van het merk als persoon en de stijlvoorbeelden.
+    key: "stem_voorbeelden",
     step: "stem",
-    label: "Hoe formeel",
-    description: "Van losjes tot zakelijk.",
-    kind: "schuif",
-    options: ["Informeel", "Tussenin", "Formeel"],
-    derivable: false,
-    usage: "Bepaalt de toon van elke tekst die ORBIT ENGINE schrijft.",
-    priority: "aanbevolen",
-  },
-  {
-    key: "tone_energy",
-    step: "stem",
-    label: "Hoeveel energie",
-    description: "Van rustig en feitelijk tot aanstekelijk.",
-    kind: "schuif",
-    options: ["Rustig", "Gebalanceerd", "Energiek"],
-    derivable: false,
-    usage: "Bepaalt de toon van elke tekst die ORBIT ENGINE schrijft.",
-    priority: "aanbevolen",
-  },
-  {
-    key: "tone_complexity",
-    step: "stem",
-    label: "Hoe technisch",
-    description: "Hoe diep je teksten de materie in mogen.",
-    kind: "schuif",
-    options: ["Eenvoudig", "Toegankelijk expert", "Diep expert"],
-    derivable: false,
-    usage: "Bepaalt hoe diep de teksten de materie in gaan.",
-    priority: "aanbevolen",
-  },
-  {
-    key: "tone_humor",
-    step: "stem",
-    label: "Hoeveel humor",
-    description: "Van helemaal niet tot speels.",
-    kind: "schuif",
-    options: ["Geen", "Subtiel", "Speels"],
-    derivable: false,
-    usage: "Bepaalt de toon van elke tekst die ORBIT ENGINE schrijft.",
-    priority: "aanbevolen",
-  },
-  {
-    key: "tone_emotional",
-    step: "stem",
-    label: "Welke lading",
-    description: "Het gevoel dat je teksten meegeven.",
-    kind: "schuif",
-    options: ["Neutraal", "Geruststellend", "Enthousiast", "Urgent"],
-    derivable: false,
-    usage: "Alleen vastgelegd voor het gesprek. De vier andere schuiven sturen de teksten wel.",
-    priority: "optioneel",
-  },
-  {
-    key: "tone_of_voice",
-    step: "stem",
-    label: "Je merk als persoon",
+    label: "Pagina's waarop jullie stem goed te horen is",
     description:
-      "Beschrijf in een paar zinnen hoe je merk zou klinken als het iemand was. Los van de schuiven hierboven: dit is jouw eigen omschrijving.",
-    placeholder: "Een ervaren monteur die het uitlegt zonder je dom te laten voelen",
-    kind: "lange-tekst",
-    derivable: true,
-    usage: "Gaat mee in het onderzoek en in elke schrijfopdracht.",
-    priority: "aanbevolen",
-  },
-  {
-    // Onboarding ronde B, stap B8: letterlijke stijlvoorbeelden. Stond tot deze
-    // stap alleen in `EDITABLE_PROFILE_FIELDS` en werd uitsluitend door het
-    // AI-onderzoek gevuld; de klant kon geen voorbeeld toevoegen of weghalen.
-    key: "style_samples",
-    step: "stem",
-    label: "Stukjes eigen tekst als voorbeeld",
-    description: "Twee of drie alinea's uit je eigen teksten die je goed vindt.",
-    placeholder: "Een stukje uit je tarievenpagina of een blog dat je zelf schreef",
-    kind: "lijst",
-    derivable: true,
-    usage: "Gaan letterlijk mee in de schrijfopdracht, zodat teksten in je eigen stem klinken.",
+      "Kies één tot drie pagina's waarvan je zegt: zo praten wij. Dat mag ook een blog of een pagina van een andere site van jou zijn.",
+    placeholder: "https://www.jouwbedrijf.nl/over-ons",
+    kind: "adressen",
+    derivable: false,
+    usage: "De tekst van deze pagina's gaat als voorbeeld mee naar de schrijver: hij neemt de toon over, niet de inhoud.",
     priority: "aanbevolen",
   },
 
   // ── 5. Je woorden ─────────────────────────────────────────────────────────
-  {
-    key: "signature_phrases",
-    step: "woorden",
-    label: "Uitdrukkingen die van jou zijn",
-    description: "Zinnen die je vaker gebruikt en die terug mogen komen.",
-    placeholder: "Altijd dichtbij",
-    kind: "lijst",
-    derivable: true,
-    usage: "Gaan mee in de schrijfopdracht: ze mogen letterlijk terugkomen, hooguit één of twee per pagina.",
-    priority: "optioneel",
-  },
   {
     key: "taboo_phrases",
     step: "woorden",
@@ -538,17 +452,6 @@ export const BRAND_FIELDS: BrandField[] = [
     values: ["je", "u", "wij"],
     derivable: false,
     usage: "Gaat mee in de schrijfprompt: ORBIT ENGINE spreekt de lezer aan zoals je hier kiest.",
-    priority: "optioneel",
-  },
-  {
-    key: "identity_keywords",
-    step: "woorden",
-    label: "Woorden die bij je horen",
-    description: "Termen die je merk kenmerken en die in je teksten terug mogen komen.",
-    placeholder: "vakmanschap",
-    kind: "lijst",
-    derivable: true,
-    usage: "Gaan mee in de schrijfopdracht als woorden die bij je horen.",
     priority: "optioneel",
   },
   {
@@ -659,18 +562,7 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Als enige in Brabant een eigen schadeherstelbedrijf én verhuur",
     kind: "lange-tekst",
     derivable: true,
-    usage: "Gaat mee in de schrijfopdracht als het ene punt waarop je wint.",
-    priority: "aanbevolen",
-  },
-  {
-    key: "key_messages",
-    step: "bekend",
-    label: "Wat in elke tekst terug moet komen",
-    description: "De kernboodschappen die je overal wilt herhalen.",
-    placeholder: "Altijd een vervangende auto",
-    kind: "lijst",
-    derivable: true,
-    usage: "Gaan mee in de schrijfopdracht: waar het past komt er minstens één terug.",
+    usage: "Gaat als bedrijfskennis mee naar de schrijver: het ene punt waarop je wint.",
     priority: "aanbevolen",
   },
   {
@@ -801,6 +693,20 @@ export const BRAND_FIELDS: BrandField[] = [
     derivable: false,
     usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment nog niet meegewogen in de app.",
     priority: "optioneel",
+  },
+  {
+    // Contentketen opnieuw §6.3: het materiaal dat een tekst eigen maakt, en dat
+    // een website nooit vertelt.
+    key: "verhalen",
+    step: "strategie",
+    label: "Verhalen van de ondernemer",
+    description:
+      "Twee of drie typische klussen; hoe jullie werken, in je eigen woorden; welke bezwaren je altijd hoort en wat je dan zegt; wat jullie bewust niet doen; waarom je ooit begon. Vul later per pagina ook de open vraag samen met de ondernemer in, in zijn woorden.",
+    placeholder: "Vorige maand belde een klant met een ketel die al drie keer was gerepareerd...",
+    kind: "lange-tekst",
+    derivable: false,
+    usage: "Gaat als bedrijfskennis mee naar de schrijver van elke pagina.",
+    priority: "aanbevolen",
   },
   {
     key: "seasonality",
@@ -1203,7 +1109,7 @@ export const SESSION_BLOCKS: SessionBlock[] = [
     volgnummer: "4",
     titel: "Je markt en je concurrenten",
     uitleg: "Dit blok bepaalt waarmee je vergeleken wordt, en waarop je wint.",
-    velden: ["competitors", "differentiator", "usp", "sales_objections"],
+    velden: ["competitors", "differentiator", "usp", "sales_objections", "verhalen"],
   },
   {
     id: "bewijs",
@@ -1215,7 +1121,6 @@ export const SESSION_BLOCKS: SessionBlock[] = [
       "offline_proof",
       "summary",
       "value_props",
-      "key_messages",
       "brand_mission",
       "brand_positioning",
       "intake_description",
@@ -1229,19 +1134,10 @@ export const SESSION_BLOCKS: SessionBlock[] = [
     velden: [
       "intake_audience",
       "audience_secondary",
-      "audience_knowledge_level",
       "personas",
-      "tone_formality",
-      "tone_energy",
-      "tone_complexity",
-      "tone_humor",
-      "tone_emotional",
-      "tone_of_voice",
-      "style_samples",
+      "stem_voorbeelden",
       "taboo_phrases",
       "compliance_notes",
-      "signature_phrases",
-      "identity_keywords",
       "pronoun_preference",
     ],
   },

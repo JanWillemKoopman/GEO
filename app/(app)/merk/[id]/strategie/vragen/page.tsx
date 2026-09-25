@@ -198,7 +198,7 @@ async function laadVragenPerPagina(
 
   const { data } = await admin
     .from("fact_requests")
-    .select("id, question, reason, kind, answer_type, options, suggested_answer, required, status, answer, content_piece_ids, created_at")
+    .select("id, question, reason, kind, answer_type, options, suggested_answer, required, status, answer, content_piece_ids, open_vraag, created_at")
     .eq("status", "open")
     .overlaps("content_piece_ids", pieceIds)
     .order("created_at");
@@ -219,6 +219,7 @@ async function laadVragenPerPagina(
       status: string;
       answer: string | null;
       content_piece_ids: string[] | null;
+      open_vraag: boolean | null;
     }[]) {
       if (gezien.has(r.id) || !(r.content_piece_ids ?? []).includes(p.pieceId)) continue;
       gezien.add(r.id);
@@ -235,6 +236,7 @@ async function laadVragenPerPagina(
         answer: r.answer,
         onderdelen: [],
         paginas: (r.content_piece_ids ?? []).length,
+        open_vraag: Boolean(r.open_vraag),
       });
     }
     uit.set(p.routeId, lijst);

@@ -85,6 +85,16 @@ export async function answerFact(
   if (error || !updatedRow) return { ok: false, error: "Opslaan is niet gelukt.", status: 500 };
   const updated = updatedRow as FactRequest;
 
+  // ── De open vraag van een pagina (besluit B3, contentketen-opnieuw.md §6.2) ──
+  //
+  // Dit antwoord is het verhaal van de ondernemer over déze pagina, tot 3.000
+  // tekens. Het gaat letterlijk naar de schrijver als blok B. Het wordt geen
+  // feit, geen proof point en geen marktclaim: een verhaal van tien zinnen in
+  // losse feiten knippen is precies de opsomming die de klant niet wil.
+  if (fact.open_vraag) {
+    return { ok: true, outcome: { fact: updated, needsEvidence: false, evidenceHint: null } };
+  }
+
   // ── Een bestaand antwoord wijzigen (potloodje op "Openstaande vragen") ────
   //
   // `buildFactBase()` leest dit antwoord telkens vers uit `fact_requests`, dus

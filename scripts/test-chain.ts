@@ -5101,6 +5101,54 @@ async function main(): Promise<void> {
     }
 
     // ════════════════════════════════════════════════════════════════════════
+    // De open vraag per pagina (contentketen-opnieuw.md WP4, besluit B3)
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: de voorbereiding kan twee keer
+    // starten (vrijgeven en de nachtelijke controle). Er mag dan nog steeds
+    // één open vraag per pagina staan, en een lang antwoord erop hoort bij die
+    // pagina en niet als bewijspunt in het merkprofiel.
+    // ════════════════════════════════════════════════════════════════════════
+    console.log("\nDe open vraag per pagina (WP4)");
+    {
+      const { maakOpenVraag } = await import("@/lib/pagina/open-vraag");
+      const { answerFact } = await import("@/lib/facts");
+      const { rows: stuk } = await db.client.query(
+        "select id from public.content_pieces where analysis_id = $1 limit 1",
+        [analysisId],
+      );
+      const pieceId = stuk[0].id as string;
+      const invoer = { profileId, analysisId, pieceId, paginaTitel: "Pagina over hardloopblessures", onderwerp: "hardloopblessures" };
+      await maakOpenVraag(admin as never, invoer);
+      await maakOpenVraag(admin as never, invoer);
+      const { rows: vragen } = await db.client.query(
+        "select id, answer_type from public.fact_requests where open_vraag and $1 = any(content_piece_ids)",
+        [pieceId],
+      );
+      ok("twee keer voorbereiden geeft één open vraag", vragen.length === 1, String(vragen.length));
+      ok("met ruimte voor een lang antwoord", vragen[0]?.answer_type === "tekst_lang");
+
+      const { rows: voor } = await db.client.query("select proof_points from public.profiles where id = $1", [profileId]);
+      const lang = "Wij begonnen in 2004 in een garagebox. ".repeat(65).trim();
+      ok("het antwoord is echt lang", lang.length > 2400, String(lang.length));
+      const uitkomst = await answerFact(admin as never, {
+        profileId,
+        factId: vragen[0].id as string,
+        answer: lang,
+        existingProofPoints: (voor[0]?.proof_points as string[] | null) ?? [],
+      });
+      ok("het antwoord wordt opgeslagen", uitkomst.ok);
+      const { rows: na } = await db.client.query(
+        "select p.proof_points, f.answer, f.status from public.profiles p, public.fact_requests f where p.id = $1 and f.id = $2",
+        [profileId, vragen[0].id],
+      );
+      ok("helemaal, niet ingekort", (na[0]?.answer as string)?.length === lang.length);
+      ok(
+        "en het merkprofiel blijft zoals het was",
+        JSON.stringify(na[0]?.proof_points) === JSON.stringify(voor[0]?.proof_points),
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
     // Onderwerpen zijn concept vóór het gesprek, definitief erna (0074,
     // docs/optimalisatielab-orbit-engine.md werkpakket A §3.2).
     //
