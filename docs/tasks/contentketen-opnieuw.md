@@ -96,6 +96,8 @@ naast elkaar te leggen (de blinde lezer en de eigenaar zelf), nooit met een los 
 | B8 | Eerst de oude contentcode weghalen, dan de nieuwe bouwen. Er is geen periode waarin beide bestaan. Tot WP6 kan de app tijdelijk geen pagina's schrijven; er zijn geen klanten die dat merken | 25 september 2026 |
 | B9 | De schrijver hoeft geen bronnen aan te wijzen. Hij krijgt de opdracht niets te verzinnen; de controle daarop gebeurt daarna, buiten het schrijven | 25 september 2026 |
 | B10 | Geen woordbudget, ook niet als richtgetal. Het onderwerp bepaalt de lengte | 25 september 2026 |
+| B11 | De adviseur mag de open vraag invullen namens de ondernemer, in diens woorden | 25 september 2026 |
+| B12 | De plaatsregel (§13.1) blijft een besluit, maar wordt pas na deze ombouw gebouwd | 25 september 2026 (regel zelf: 25 september 2026) |
 
 Wat hiermee vervalt uit eerdere besluiten: de inputpoort van 40 en 70 procent met de keuze "algemeen
 schrijven of laten vallen", en de verdeling van het redactionele werk over strategie, schrijven en
@@ -468,10 +470,13 @@ routes `briefing`, `generate`, `generate-all`, `recheck`, `content/[pieceId]/dif
 van `feitenregister.ts` naar `strategie-wacht.ts` gaat eruit: een betwist feit komt gewoon niet in
 blok A.
 
-**Tijdelijk leeg (en zo benoemd in de code, met verwijzing naar WP6):** `startVoorbereiding()` en
-`probeerTeSchrijven()` in `lib/plan-write-start.ts` doen niets en geven "wacht" terug. De knoppen
-"Schrijf deze pagina" en "genereer alles" in een cluster verdwijnen; "Zet in het plan" komt in WP6.
-Het paginascherm toont bij een pagina zonder tekst alleen de stand.
+**Weg, en in WP6 opnieuw geschreven:** `lib/plan-write-start.ts` en `lib/plan-writing.ts` in hun
+geheel. Daar zit de oude logica in (de opdracht samenstellen, de oude schrijfpoort, de briefing). Het
+contentplan (de cron `/api/cron/plan`, het vrijgeven van een maand, inplannen, "nu laten schrijven",
+de route achter de antwoorden) roept tot WP6 niets aan; op die plekken staat één regel commentaar met
+een verwijzing naar WP6. De knoppen "Schrijf deze pagina" en "genereer alles" in een cluster
+verdwijnen; "Zet in het plan" komt in WP6. Het paginascherm toont bij een pagina zonder tekst alleen
+de stand.
 
 **Weg (tests):** elk testblok dat een verwijderde module importeert. Niet repareren, weghalen.
 
@@ -508,6 +513,11 @@ geeft alleen nog `lib/types/database.ts`.
 - `answerFact()` en `/api/profiles/[id]/facts`: bij `open_vraag` tot 3.000 tekens, geen promotie naar
   `proof_points`, niet opknippen.
 - Het vragenscherm toont de open vraag als eerste, groot, met de tekst uit §6.2.
+- De adviseur kan de open vraag invullen namens de ondernemer, op hetzelfde vragenscherm (hij heeft
+  al toegang tot het merk). Het gespreksscherm zegt dat erbij: "Vul de open vraag per pagina samen met
+  de ondernemer in, in zijn woorden." Zo hangt het belangrijkste stuk invoer niet af van of de klant
+  zelf gaat typen. Geen nieuwe kolom: wie antwoordde, staat al bij het antwoord als dat veld bestaat;
+  bestaat het niet, dan komt het er niet bij.
 - Het tekstvak "Verhalen" in het gespreksscherm (§6.3).
 - **Klaar als:** een ketentest laat zien dat een voorbereide pagina precies één open vraag heeft, ook als
   de brief mislukt; een antwoord van 2.500 tekens wordt bewaard en niet naar `proof_points` gezet.
@@ -523,8 +533,12 @@ geeft alleen nog `lib/types/database.ts`.
 - `lib/pagina/schrijfopdracht.ts`, `lib/pagina/schrijven.ts`, taaksoort `pagina_schrijven` met de
   ophaalronde van de achtergrondmodus, volgens §6.4. De schrijfpoort `lib/pagina/schrijfpoort.ts`
   (§6.8).
-- `startVoorbereiding()`: open vraag plus `pagina_brief` per pagina. `probeerTeSchrijven()`:
-  schrijfpoort, dan `pagina_schrijven`.
+- Nieuw en klein, in `lib/pagina/start.ts`: `bereidVoor(paginas)` (rij in `content_pieces`, open
+  vraag, `pagina_brief` per pagina) en `probeerTeSchrijven(pagina)` (schrijfpoort, dan
+  `pagina_schrijven`). Het contentplan roept alleen deze twee aan, op de plekken uit WP1. Niets uit
+  het oude `plan-write-start.ts` komt terug; wat de invoer van de brief nodig heeft (titel, soort,
+  voor wie, waarom, doelvragen, bestaand adres) leest `start.ts` rechtstreeks van de plan-pagina en de
+  aanbeveling.
 - "Zet in het plan" in een cluster: de kaart gaat naar de lopende maand via de bestaande actie
   `inplannen`.
 - **Klaar als:** een ketentest schrijft een pagina met testtransport, repareert een verboden teken,
@@ -551,13 +565,22 @@ geeft alleen nog `lib/types/database.ts`.
   testhandeling met SQL klaar. Dat is een testhandeling, geen functie in de app.
 - Beantwoord de vragen alleen met wat in `waarheidsdossiers.md` staat; de open vraag in de woorden van
   de ondernemer uit dat dossier; de rest overslaan.
-- Blinde vergelijking per paar (oud tegen nieuw), in beide volgordes, met de opdracht uit
-  `kwaliteitsdoorlichting/nameting-fase1/A-paar-opdracht.md`. De eigenaar beoordeelt zes paren zelf,
-  zonder te weten welke welke is. Controleer met de hand elke harde bewering in de negen teksten tegen
-  het waarheidsdossier.
-- **Geslaagd als:** nieuw wint bij minstens 7 van de 9 paren; de eigenaar kiest minstens 5 van de 6
-  keer nieuw; niet meer fouten in harde beweringen dan de oude teksten; onder $0,50 per pagina
-  (gemeten op `ai_calls`).
+- Winnen van de oude teksten (4 tot 5 op 10) is een te lage lat. Daarom drie vergelijkingen per
+  nieuwe tekst, blind en in beide volgordes, met de opdracht uit
+  `kwaliteitsdoorlichting/nameting-fase1/A-paar-opdracht.md`:
+  1. tegen de oude tekst uit `kwaliteitsdoorlichting/teksten/`;
+  2. tegen de huidige pagina van het bedrijf over dit onderwerp (uit `kwaliteitsdoorlichting/sites/`,
+     of de pagina die het dichtst in de buurt komt);
+  3. tegen de beste pagina van een concurrent over dit onderwerp. Die kiest de eigenaar met de hand
+     uit de bronnen die de AI-antwoorden in de meting aanhaalden; de tekst gaat als testmateriaal in
+     `kwaliteitsdoorlichting/concurrent/`.
+- De eigenaar beoordeelt zes paren zelf, zonder te weten welke welke is, met de vraag "zou jij deze
+  op je site zetten?". Controleer met de hand elke harde bewering in de negen teksten tegen het
+  waarheidsdossier.
+- **Geslaagd als:** nieuw wint van de oude tekst bij minstens 8 van de 9; van de huidige sitepagina bij
+  minstens 7 van de 9; van de concurrent bij minstens 5 van de 9; de eigenaar kiest minstens 5 van de
+  6 keer nieuw; niet meer fouten in harde beweringen dan de oude teksten; onder $0,50 per pagina
+  (gemeten op `ai_calls`). Deze grenzen zijn gekozen, niet geijkt.
 - **Niet geslaagd:** ga naar WP9 met deze pagina's. Geen nieuwe stap.
 - Leg de uitslag vast in §12 en in `docs/logbook.md`.
 
@@ -614,6 +637,8 @@ $0,03, herschrijven (niet altijd) ongeveer $0,10 tot $0,15. Totaal ongeveer $0,1
 | 11 | Of het beter scoort, blijkt pas weken na publicatie | WP8 meet kwaliteit; de nameting na 14 en 28 dagen blijft het bewijs voor effect |
 | 12 | De blinde lezer is ook een model en de proefset is klein | De eigenaar beoordeelt zes paren zelf |
 | 13 | Tussen WP1 en WP6 kan de app geen pagina's schrijven | Bewust (B8); er zijn geen klanten |
+| 14 | De ondernemer vult de open vraag niet in, en dan mist het belangrijkste stuk invoer | De adviseur vult hem in het gesprek samen met de ondernemer in (WP4) |
+| 15 | Een plan met vijf bijna gelijke plaatspagina's levert sjabloonteksten op, hoe goed de schrijver ook is | Buiten deze ombouw; staat als eerste vervolgwerk in §13 |
 
 ---
 
@@ -632,3 +657,28 @@ $0,03, herschrijven (niet altijd) ongeveer $0,10 tot $0,15. Totaal ongeveer $0,1
 | WP8 | Toetsen op een schone lei | Niet begonnen | |
 | WP9 | De verbeterlus | Na WP8 | |
 | WP10 | Narekenen en documenteren | Niet begonnen | |
+
+---
+
+## 13. Vervolgwerk (na WP10, niet eerder, en niet stil meenemen)
+
+### 13.1 Bijna gelijke plaatspagina's
+
+Van de oude teksten van de rijschool gingen er zes over faalangst, alleen in een andere plaats
+(Eindhoven, Best, Helmond, Waalre, Geldrop); bij de hovenier drie keer "complete tuin" in drie plaatsen.
+Geen schrijver maakt daar vijf verschillende pagina's van. Dit is een keuze bij het samenstellen van het
+plan, niet bij het schrijven.
+
+Het besluit van de eigenaar van 25 september 2026 blijft staan (overgenomen uit
+`contentpijplijn-publicatiewaardig.md` §10.1, dat in WP1 verdwijnt; nog niet gebouwd):
+
+| Situatie | Uitkomst |
+|---|---|
+| Gemeente met minstens 50.000 inwoners (vaste lijst uit CBS-cijfers, in code) | eigen pagina |
+| De vestigingsplaats van het bedrijf | eigen pagina |
+| De ondernemer levert minstens twee feiten die alleen over deze plaats gaan | eigen pagina |
+| Anders | onderdeel van één werkgebiedpagina, met een eigen alinea per plaats |
+
+Dit wordt een pure regel bij het vullen van de voorraad en het plan, geen AI-stap en geen stap in de
+contentketen. Het krijgt een eigen plan in `docs/tasks/` als WP10 af is.
+
