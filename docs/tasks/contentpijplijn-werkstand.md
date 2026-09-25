@@ -22,10 +22,10 @@ Weg zodra fase 3 af is, samen met het plan (§15 van het plan).
 | Stemvoorstel drie klanten (WP1) | Goedgekeurd en in het merkdossier op productie (25 september 2026) | `docs/tasks/schrijfstijl-voorstel-drie-klanten.md` |
 | Fase 2 (WP8 tot en met WP10) | Niet begonnen. Pas na akkoord van de eigenaar | plan §13 "Fase 2" |
 
-**De uitslag in één zin.** Na stem, vragenroute en eigenaarstoets blijft het copywritercijfer 5 (Best)
-en 4 (kostenpagina) tegen een doel van 6,5; de eigenaarstoets vindt de juiste problemen, maar de
-reparatie lost ze nog niet op (logboek, 25 september 2026, "nameting van stem, vragenroute en
-eigenaarstoets").
+**De uitslag in één zin.** Na vier metingen op rij blijft het copywritercijfer 5 (Best) en 4
+(kostenpagina) tegen een doel van 6,5; de inhoud is sterk verbeterd (bewijs, merken, geen gatzinnen),
+maar de vorm niet: beide lezers noemen de pagina "losse feiten onder elkaar" (logboek, 25 september
+2026, "nameting na reparatie volgt de eigenaarstoets").
 
 ## 2. Wat de eigenaar nog moet beslissen
 
@@ -86,8 +86,12 @@ aan de pijplijn in plaats van reparaties op de twee meetpagina's. Het voorstel, 
    Vaillant), terwijl elke lezer daarom vraagt; (c) welke versie blijft, beslist nog de score van de
    oude redactiebeoordelaar in plaats van de eigenaarstoets. Daarnaast krijgt de keuring de huidige
    sitepagina niet mee, dus vergelijkt de eigenaarstoets nooit.
-4. **De stemregels in code (WP8)** en de merkstemtoets (L9). De lezer noemt de toon nog "ambtelijk".
-5. **Sterk bewijs dat het register niet als sterk ziet.** De lezer mist elke keer het 3D-ontwerp,
+4. **Van losse blokjes naar een verhaal (volgende stap).** De strategie groepeert onderwerpen tot drie
+   tot vijf secties die elk een vraag van de lezer beantwoorden, en de schrijfopdracht vraagt niet meer
+   één kop per onderwerp. Daarnaast: een reparatie mag de pagina niet onder het budget schrappen (bij
+   Best 435 naar 280 woorden in twee rondes, ook sterk bewijs weg).
+5. **De stemregels in code (WP8)** en de merkstemtoets (L9). De lezer noemt de toon nog "ambtelijk".
+6. **Sterk bewijs dat het register niet als sterk ziet.** De lezer mist elke keer het 3D-ontwerp,
    de garantie van vijf jaar, de offerte binnen 4 uur en de reviews; die staan in het register als
    gewoon of zonder bewijskracht, dus het vangnet voor sterk bewijs pakt ze niet.
 

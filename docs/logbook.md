@@ -12598,3 +12598,20 @@ stonden de 4,9 uit 5 en het eigen 3D-ontwerp daardoor buiten de keuze. De garant
 niet in zijn register, dus die lost dit niet op. (3) Merken die het bedrijf zelf plaatst op de
 feitenkaart mogen genoemd worden; de reparatie liet de ketelmerken weg "omdat de instructie verbiedt
 andere bedrijven bij naam te noemen". De code controleert op de lijst met concurrenten, niet op merken.
+
+## 25 september 2026: nameting na "reparatie volgt de eigenaarstoets"
+
+Copywritercijfer 5 (Best) en 4 (kosten), gelijk aan de vorige meting. De kostenpagina werd beter
+(lezer kiest nieuw, zekerheid 3): de ketelmerken, 1.800 contracten, storingsdienst binnen 24 uur en de
+twaalf monteurs staan er nu in. Best werd slechter (lezer kiest oud, zekerheid 4): de eigenaarstoets
+zei drie keer "nee" om herhaling, de reparatie loste dat op door te schrappen (435 naar 280 woorden,
+de 35 jaar ervaring verdween), en omdat het oordeel steeds "nee" bleef, kon `eigenaarVoorkeur` niet
+kiezen en hield de oude regel de kortere versie. Kosten $0,39 en $0,31.
+
+Wat vier metingen op rij gemeen hebben: beide lezers noemen de pagina "losse feiten onder elkaar",
+"dunne blokjes", "een ingevuld sjabloon". Dat is de vorm die de keten oplegt: de strategie zet elk
+onderwerp als eigen punt in de opbouw (acht tot tien, vaak 30 tot 50 woorden), en de schrijfopdracht
+zegt "elk punt van de opbouw krijgt een kop". Een reparatie of eindredactie kan van losse blokjes geen
+verhaal maken. De volgende hefboom zit daarom vóór het schrijven: onderwerpen groeperen tot drie tot
+vijf secties die elk een vraag van de lezer beantwoorden, en een reparatie die de pagina niet onder het
+budget mag schrappen. Oordelen in `kwaliteitsdoorlichting/nameting-reparatie-eigenaar/`.
