@@ -23,7 +23,8 @@
 > 24/25 september), 37 teksten blind beoordeeld, proeven met de reparatieknop en een ideale klant
 > gedaan. Het eindverslag van de nulmeting staat hieronder; het stap-voor-stapdossier met cijfers in
 > `docs/tasks/kwaliteitsdoorlichting-stappen.md`. De uitslag van de herhaling staat bij §"Herhaling"
-> verderop en bij de punten 45, 47, 50, 55 tot en met 62.
+> verderop en bij de punten 45, 47, 50, 55 tot en met 62. De aanpak om de nog openstaande punten (50,
+> 57, 59, 60, 61) op te lossen staat in `docs/tasks/kwaliteitsdoorlichting-reparatieplan.md`.
 
 ## Verbeterronde vanaf 24 september 2026: besluiten en stand
 
