@@ -463,20 +463,15 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
   zodra een analyse haar eerste rapport krijgt: herberekent `search_volume_index` op ALLE
   onderwerpen van dat merk in één aanroep (`lib/pipeline/search-demand.ts`), zie
   `docs/tasks/potentiescore.md`.
-- **`content_strategy`** (migratie `0114`, WP3 van `docs/tasks/contentpijplijn-publicatiewaardig.md`)
-  staat tussen `content_plan` en `content_draft`: de paginastrategie op Sol met denktijd hoog, de
-  controles in code (`strategie-check.ts`), en de conflictpoort. Een pagina die op een conflict
-  wacht, krijgt een wachtstand in `content_pieces.strategy_json` en start opnieuw zodra het
-  conflict is opgelost (`strategie-wacht.ts`). In de achtergrondmodus plant de taak zichzelf
-  opnieuw in om het resultaat op te halen (`lib/openai/achtergrond.ts`).
-- **`content_edit`** (WP5 van `docs/tasks/contentpijplijn-publicatiewaardig.md`) volgt op
-  `content_draft` bij een pagina met strategie: de eindredactie op Sol met denktijd hoog
-  (`editorial-pass.ts`), de vangnetten in code (`redactie-check.ts`), het logboek in
-  `content_pieces.edit_log_json`, en daarna de volledige keuring (`keurEnRondAf` in `content.ts`),
-  die bij zo'n pagina niet meer in `content_draft` zit. Zelfde achtergrondmodus als de strategie.
+- **De contentketen wordt opnieuw gebouwd** (25 september 2026, `docs/tasks/contentketen-opnieuw.md`).
+  De taaksoorten `content_brief`, `content_plan`, `content_strategy`, `content_draft`,
+  `content_edit`, `content_revise` en `content_recheck` zijn weg. In hun plaats komen
+  `pagina_brief`, `pagina_schrijven`, `pagina_controle` en `pagina_herschrijven` (§7.4 van dat
+  plan). De rest van dit document beschrijft de contentstappen nog zoals ze waren; WP10 van het plan
+  werkt dit bij.
 - **`fact_register`** (migratie `0113`, WP2 van `docs/tasks/contentpijplijn-publicatiewaardig.md`)
-  hangt aan een merk (`profile_id`), is licht werk en wordt ingepland na elke `content_brief` en met
-  de knop op het conflictscherm (`admin/feiten`). Hij deelt nieuwe feiten in, zoekt kandidaat-
+  hangt aan een merk (`profile_id`), is licht werk en wordt ingepland bij het voorbereiden van de
+  pagina's van een maand en met de knop op het conflictscherm (`admin/feiten`). Hij deelt nieuwe feiten in, zoekt kandidaat-
   conflicten in code en laat alleen nieuwe paren beoordelen; zie §6.
 - **De Sales-keten** (de dertien `sales_*`-taken, migraties `0069` tot en met `0081`) hangt aan een MARKT en niet aan
   een merk. Daarvoor is `jobs.sales_market_id` de derde soort taakeigenaar naast `analysis_id` en

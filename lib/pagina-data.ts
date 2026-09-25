@@ -19,7 +19,7 @@ import "server-only";
  * vragen over meerdere tabellen gaan (conventie 6).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { inputStandUitOpslag, paginaStand, standVolgorde, type PaginaStand } from "@/lib/pagina-stand";
+import { paginaStand, standVolgorde, type PaginaStand } from "@/lib/pagina-stand";
 import { paginaNaam } from "@/lib/pagina-naam";
 import type { PlannedPageStatus } from "@/lib/types/database";
 
@@ -41,8 +41,6 @@ export interface PaginaRij {
   clusterId: string | null;
   /** Publicatiedatum als `YYYY-MM-DD`, of null. */
   datum: string | null;
-  /** Het kwaliteitscijfer, alleen zodra er tekst is die de klant moet beoordelen. */
-  score: number | null;
   openVragen: number;
   stand: PaginaStand;
 }
@@ -110,7 +108,7 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
     analyseIds.length > 0
       ? admin
           .from("content_pieces")
-          .select("id, analysis_id, title, meta_title, type, action, status, needs_review, briefing_snapshot_json, write_mode, quality_score, quality_json, quality_verdict, updated_at, input_coverage, weighted_evidence_coverage, critical_evidence_coverage")
+          .select("id, analysis_id, title, meta_title, type, action, status, needs_review, brief_json, updated_at")
           .in("analysis_id", analyseIds)
           .eq("is_current", true)
           .neq("status", "archived")
@@ -140,14 +138,7 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
     action: string | null;
     status: string;
     needs_review: boolean;
-    briefing_snapshot_json: unknown;
-    write_mode: string | null;
-    quality_score: number | null;
-    quality_json: { score?: number | null } | null;
-    quality_verdict: string | null;
-    input_coverage: number | string | null;
-    weighted_evidence_coverage: number | string | null;
-    critical_evidence_coverage: number | string | null;
+    brief_json: unknown;
   };
   const tekstOpId = new Map(((teksten ?? []) as Tekst[]).map((t) => [t.id, t]));
   const gekoppeld = new Set<string>();
@@ -238,20 +229,13 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
         ? {
             status: i.tekst.status,
             needs_review: i.tekst.needs_review,
-            voorbereid: Boolean(i.tekst.briefing_snapshot_json),
-            write_mode: i.tekst.write_mode === "algemeen" ? "algemeen" : null,
-            // Punt 42: de klant mag een tegengehouden tekst zien, met een duidelijke melding.
-            tegengehouden: i.tekst.quality_verdict === "block",
+            voorbereid: Boolean(i.tekst.brief_json),
           }
         : null,
       openVragen: i.open,
-      // Het oordeel over de onderbouwing, anders zegt een tegengehouden pagina
-      // "wordt nu geschreven" (punt 44 van de kwaliteitsdoorlichting).
-      inputStand: i.tekst ? inputStandUitOpslag(i.tekst as never) : null,
       effectBekend: i.effectBekend,
       vandaag: i.vandaag,
     });
-    const heeftOordeel = stand.fase !== null && stand.fase >= 2;
     return {
       routeId: i.routeId,
       plannedPageId: i.plannedPageId,
@@ -263,10 +247,6 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
       cluster: i.cluster,
       clusterId: i.clusterId,
       datum: i.plan?.scheduled_for ?? null,
-      // Eén cijfer, uit één bron: dezelfde als de kwaliteitsrail op het
-      // paginascherm (`quality_json.score`, anders `quality_score`). Op
-      // 23 september 2026 toonde de bibliotheek 100 en de rail 74.
-      score: heeftOordeel ? (i.tekst?.quality_json?.score ?? i.tekst?.quality_score ?? null) : null,
       openVragen: i.open,
       stand,
     };

@@ -245,11 +245,6 @@ function Rij({ rij: r, wacht, profileId }: { rij: PaginaRij; wacht: boolean; pro
       <div className="flex shrink-0 flex-wrap items-center gap-3">
         {wacht && <span className="chip chip-warning">{statusRegel(r)}</span>}
         {r.stand.looptAchter && <span className="chip chip-danger">Loopt achter</span>}
-        {r.score !== null && (
-          <span className="type-caption text-muted">
-            Kwaliteit <span className="tabular text-secondary">{Math.round(r.score)}/100</span>
-          </span>
-        )}
         {link && (
           <span className="text-muted" aria-hidden>
             <Icon naam="verder" size={16} />

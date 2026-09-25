@@ -17,7 +17,6 @@ export interface ConflictWeergave {
   oplossing: string | null;
   feiten: { id: string; tekst: string; bron: string; datum: string }[];
   /** Pagina's die op dit conflict wachten (WP3): die worden pas geschreven na een besluit. */
-  wachtendePaginas: string[];
 }
 
 /** Datum zoals de adviseur hem leest: "24 sep 2026". */
@@ -112,17 +111,11 @@ export function ConflictLijst({
                 <span className="mono-label">{c.soort}</span>
                 {c.blokkerend && (
                   <span className="text-xs text-secondary">
-                    Houdt een pagina tegen als dit feit daar nodig is
+                    Geen van beide feiten gaat naar de schrijver tot je beslist
                   </span>
                 )}
               </div>
               {c.uitleg && <p className="text-sm">{c.uitleg}</p>}
-              {c.wachtendePaginas.length > 0 && (
-                <p className="text-sm text-secondary">
-                  Houdt nu tegen: {c.wachtendePaginas.map((t) => `"${t}"`).join(", ")}. Na je besluit wordt
-                  {c.wachtendePaginas.length === 1 ? " die pagina" : " elke pagina"} vanzelf opnieuw opgezet.
-                </p>
-              )}
               <ul className="flex flex-col gap-2">
                 {c.feiten.map((f) => (
                   <li key={f.id} className="vlak flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

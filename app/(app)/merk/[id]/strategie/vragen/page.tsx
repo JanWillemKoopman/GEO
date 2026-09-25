@@ -53,7 +53,7 @@ export default async function JouwBeurtPage({ params }: { params: Promise<{ id: 
   const actieveIds = new Set(analyses.map((a) => a.id));
 
   // ── 1. Vragen per pagina ──────────────────────────────────────────────────
-  const metVragen = paginas.filter((p) => p.stand.sleutel === "vragen" || p.stand.sleutel === "keuze");
+  const metVragen = paginas.filter((p) => p.stand.sleutel === "vragen");
   const perPagina = await laadVragenPerPagina(admin, metVragen);
 
   // ── 4. De losse vragen: aan geen pagina gekoppeld ─────────────────────────
@@ -119,17 +119,11 @@ export default async function JouwBeurtPage({ params }: { params: Promise<{ id: 
                   )}
                 </span>
               </div>
-              {p.stand.sleutel === "keuze" ? (
-                <Link href={paginaHref(id, p.routeId, "taken")} className="card card-rail card-rail-warning type-body">
-                  {p.stand.zin} <span className="link">Kies op de pagina</span>
-                </Link>
-              ) : (
-                <Vragenlijst
-                  profileId={id}
-                  vragen={perPagina.get(p.routeId) ?? []}
-                  naAfronden="Alles voor deze pagina is binnen. We gaan hem schrijven."
-                />
-              )}
+              <Vragenlijst
+                profileId={id}
+                vragen={perPagina.get(p.routeId) ?? []}
+                naAfronden="Alles voor deze pagina is binnen. We gaan hem schrijven."
+              />
             </div>
           ))}
         </Sectie>
@@ -204,7 +198,7 @@ async function laadVragenPerPagina(
 
   const { data } = await admin
     .from("fact_requests")
-    .select("id, question, reason, kind, answer_type, options, suggested_answer, required, status, answer, content_piece_ids, created_at")
+    .select("id, question, reason, kind, answer_type, options, suggested_answer, required, status, answer, content_piece_ids, open_vraag, created_at")
     .eq("status", "open")
     .overlaps("content_piece_ids", pieceIds)
     .order("created_at");
@@ -225,6 +219,7 @@ async function laadVragenPerPagina(
       status: string;
       answer: string | null;
       content_piece_ids: string[] | null;
+      open_vraag: boolean | null;
     }[]) {
       if (gezien.has(r.id) || !(r.content_piece_ids ?? []).includes(p.pieceId)) continue;
       gezien.add(r.id);
@@ -241,6 +236,7 @@ async function laadVragenPerPagina(
         answer: r.answer,
         onderdelen: [],
         paginas: (r.content_piece_ids ?? []).length,
+        open_vraag: Boolean(r.open_vraag),
       });
     }
     uit.set(p.routeId, lijst);

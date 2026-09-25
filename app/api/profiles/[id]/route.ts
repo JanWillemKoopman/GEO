@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
@@ -8,6 +8,8 @@ import { EDITABLE_PROFILE_FIELDS } from "@/lib/profile-editable";
 import { resolveWriteSource } from "@/lib/profile-source";
 import { isStaff } from "@/lib/staff";
 import { normalizeUrl, checkUrlFormat } from "@/lib/url";
+import { schoneAdressen } from "@/lib/pagina/stemvoorbeelden-regels";
+import { haalStemvoorbeeldenOp } from "@/lib/pagina/stemvoorbeelden";
 import { sluitVragenUitGesprek } from "@/lib/vraag-sluiten";
 
 /**
@@ -17,6 +19,9 @@ import { sluitVragenUitGesprek } from "@/lib/vraag-sluiten";
  * instellingen voor de content-inventaris (§12.23).
  */
 const EDITABLE_FIELDS = EDITABLE_PROFILE_FIELDS;
+
+/** Ruimte voor het ophalen van hooguit drie stemvoorbeelden na het antwoord (§6.10). */
+export const maxDuration = 60;
 
 /** Lijstvelden: lege en niet-tekstuele items eruit, de rest getrimd. */
 const LIST_FIELDS = [
@@ -64,6 +69,8 @@ const NULLABLE_TEXT_FIELDS = [
   "contact_name",
   "contact_email",
   "contact_phone",
+  // Migratie 0115 (contentketen-opnieuw.md §6.3).
+  "verhalen",
 ] as const;
 
 /** De aanspreekvorm van de CONTENT, niet van ORBIT ENGINE's eigen interface. */
@@ -164,6 +171,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           .filter((v) => v !== "/"),
       ),
     ].slice(0, 10);
+  }
+  // Stemvoorbeelden (besluit B14): alleen de adressen komen van de client. De
+  // tekst haalt de server zelf op, na het antwoord (`after()`), zodat een
+  // trage site het opslaan niet ophoudt. Tot dan staat er geen tekst.
+  let stemAdressen: string[] | null = null;
+  if ("stem_voorbeelden" in body) {
+    stemAdressen = schoneAdressen(body.stem_voorbeelden);
+    update.stem_voorbeelden = stemAdressen.map((url) => ({ url, tekst: null, opgehaald_op: null, fout: null }));
   }
   // Tone-sliders: geklemd naar 1-3, of null bij een lege/ontbrekende waarde.
   // Nooit rechtstreeks een client-getal doorlaten naar de databaseconstraint.
@@ -316,6 +331,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (gesloten > 0) {
       console.log(`Profiel ${id}: ${gesloten} open vraag of vragen gesloten, het gesprek beantwoordt ze.`);
     }
+  }
+
+  if (stemAdressen && stemAdressen.length > 0) {
+    const adressen = stemAdressen;
+    after(() => haalStemvoorbeeldenOp(admin, id, adressen).then(() => undefined));
   }
 
   return NextResponse.json({ ok: true });

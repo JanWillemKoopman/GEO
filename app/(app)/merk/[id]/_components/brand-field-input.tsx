@@ -2,7 +2,8 @@
 
 import { TagListEditor } from "@/components/tag-list-editor";
 import { isFilled, type BrandField } from "@/lib/pipeline/brand-fields";
-import type { Persona } from "@/lib/types/database";
+import type { Persona, StemVoorbeeld } from "@/lib/types/database";
+import { MAX_STEMVOORBEELDEN } from "@/lib/pagina/stemvoorbeelden-regels";
 
 /**
  * ÉÉN veld, op alle oppervlakken hetzelfde.
@@ -202,6 +203,14 @@ export function BrandFieldInput({
           onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
           onBlur={() => onCommit?.()}
           placeholder={voorbeeld}
+        />
+      ) : field.kind === "adressen" ? (
+        <Adressen
+          id={id}
+          waarde={Array.isArray(value) ? (value as StemVoorbeeld[]) : []}
+          placeholder={voorbeeld}
+          onChange={onChange}
+          onCommit={onCommit}
         />
       ) : field.kind === "lange-tekst" ? (
         <textarea
@@ -404,6 +413,60 @@ function Standen({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * Eén tot drie adressen met hun opgehaalde tekst (besluit B14,
+ * `docs/tasks/contentketen-opnieuw.md` §6.10). Bij elk adres staat of de tekst
+ * er is: een adres dat we niet konden lezen, bereikt de schrijver niet, en dat
+ * moet de adviseur zien.
+ */
+function Adressen({
+  id,
+  waarde,
+  placeholder,
+  onChange,
+  onCommit,
+}: {
+  id: string;
+  waarde: StemVoorbeeld[];
+  placeholder?: string;
+  onChange: (value: unknown) => void;
+  onCommit?: () => void;
+}) {
+  const rijen = [...waarde];
+  while (rijen.length < MAX_STEMVOORBEELDEN) rijen.push({ url: "", tekst: null, opgehaald_op: null, fout: null });
+  const zet = (i: number, url: string) => {
+    const nieuw = rijen.map((r, j) => (j === i ? { url, tekst: null, opgehaald_op: null, fout: null } : r));
+    onChange(nieuw.filter((r) => r.url.trim()));
+  };
+  return (
+    <div className="flex flex-col gap-2">
+      {rijen.map((r, i) => (
+        <div key={i} className="flex flex-col gap-1">
+          <input
+            id={i === 0 ? id : `${id}-${i}`}
+            className="field"
+            type="url"
+            inputMode="url"
+            value={r.url}
+            placeholder={i === 0 ? placeholder : undefined}
+            onChange={(e) => zet(i, e.target.value)}
+            onBlur={() => onCommit?.()}
+          />
+          {r.url.trim() && (
+            <span className="text-xs text-muted">
+              {r.fout
+                ? r.fout
+                : r.tekst
+                  ? `Tekst opgehaald (${r.tekst.length} tekens).`
+                  : "De tekst wordt na het opslaan opgehaald."}
+            </span>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

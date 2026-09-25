@@ -3,8 +3,8 @@ import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { answerFact } from "@/lib/facts";
+import { probeerNaAntwoord } from "@/lib/pagina/start";
 import { publicFactRequest } from "@/lib/fact-request-public";
-import { probeerNaAntwoord } from "@/lib/plan-write-start";
 
 /**
  * PATCH /api/profiles/[id]/facts, de klant beantwoordt (of slaat over) een
@@ -28,6 +28,8 @@ import { probeerNaAntwoord } from "@/lib/plan-write-start";
  * docs/tasks/opdracht-bevindingen-5-tot-9.md).
  */
 const MAX_ANSWER_LENGTH = 500;
+/** De open vraag van een pagina krijgt ruimte voor een verhaal (besluit B3). */
+const MAX_OPEN_ANTWOORD = 3000;
 
 /**
  * Ruimte voor het werk ná het antwoord (`after()` hieronder): het beoordelen
@@ -62,7 +64,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // body opleveren in plaats van de 404 die er hoort te staan.
   const { data: factRow } = await admin
     .from("fact_requests")
-    .select("id")
+    .select("id, open_vraag")
     .eq("id", factId)
     .eq("profile_id", id)
     .maybeSingle();
@@ -78,13 +80,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       .eq("id", factId)
       .select("*")
       .single();
-    // Overslaan telt als antwoord: misschien was dit de laatste vraag van een
-    // pagina, en dan begint het schrijven nu (contentflow-een-lijn.md §3).
-    after(() => probeerNaAntwoord(admin, [factId]));
+    // Overslaan telt als antwoord (B5): misschien was dit de laatste vraag van
+    // een pagina, en dan begint het schrijven nu (§6.8 van
+    // `docs/tasks/contentketen-opnieuw.md`).
+    after(() => probeerNaAntwoord(admin, factId));
     return NextResponse.json(data ? publicFactRequest(data) : data);
   }
 
-  const answer = typeof body.answer === "string" ? body.answer.trim().slice(0, MAX_ANSWER_LENGTH) : "";
+  const grens = (factRow as { open_vraag?: boolean | null }).open_vraag ? MAX_OPEN_ANTWOORD : MAX_ANSWER_LENGTH;
+  const answer = typeof body.answer === "string" ? body.answer.trim().slice(0, grens) : "";
   if (!answer) return NextResponse.json({ error: "Vul een antwoord in." }, { status: 400 });
 
   const resultaat = await answerFact(admin, {
@@ -105,7 +109,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // laatste van een pagina 9 tot 30, omdat dit binnen dezelfde klik voor elke
   // gekoppelde pagina de onderbouwing beoordeelde en het schrijven startte. Het
   // opslaan is dan al gebeurd; wat hierna komt, hoeft de klant niet af te wachten.
-  after(() => probeerNaAntwoord(admin, [factId]));
+  after(() => probeerNaAntwoord(admin, factId));
 
   const { fact, needsEvidence, evidenceHint } = resultaat.outcome;
   const veilig = publicFactRequest(fact as unknown as Record<string, unknown>);

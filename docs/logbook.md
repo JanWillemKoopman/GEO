@@ -38,6 +38,7 @@ verwijzing in de code straks nergens meer heen.
 | `css.css`, `docs/nova-i18n.json`, `docs/inspace-app-i18n.json`, `docs/inspace-marketing.txt` | De ruwe brondata achter de Nova/InSpace-vergelijking: Nova's gecompileerde CSS-bundel en de drie tekstcatalogi uit de server-gerenderde loginpagina's | De conclusies eruit staan uitgeschreven in `docs/nova-vs-orbit-engine-proces.md` en `docs/tasks/nova-vergelijking-verbeterpunten.md`, die verder geen ruwe data meer nodig hebben. Verwijderd 21 september 2026, bij de OKX-herontwerpronde |
 | `redesign2026.md` §1 t/m §14 | Het volledige herontwerpplan van Nova naar OKX: de research, het nieuwe design system (§5 t/m §7), de schermspecs (§8), de elf uitvoeringsstappen (§10) en de drie besluiten van de eigenaar (§13, limoen als accent, mobiel een eigen ontwerp, oplevering in stappen) | Gebouwd en op `main`. Het design system zelf staat nu in `docs/designsystem.md`, de mobiele en desktop-indeling in `docs/ux-design.md`. Tientallen componenten citeren nog een paragraafnummer uit dit plan in hun eigen commentaar (bijv. "§8.5", "GEMETEN bij OKX"); dat commentaar blijft staan zoals het geschreven is, want het legt het waarom van die ene regel uit en niet de volledige herkomst. Verwijderd 21 september 2026, toen stap 11 (deze documentatie) klaar was |
 | `tasks/clusters-resultaatscherm-vereenvoudigen.md` A/B/C | De analyse van 16 september 2026 over de dichtheid van het clusterscherm: drie richtingen om de hoofdstukken dunner te maken | Ingehaald. Het scherm zelf is er op 22 september 2026 uit gehaald, zie `tasks/clusterresultaat-zonder-eigen-scherm.md` en de alinea van die datum hieronder. Verwijderd 22 september 2026 |
+| `contentpijplijn-overdracht.md`, `tasks/contentpijplijn-publicatiewaardig.md` (§1 t/m §16, WP1 t/m WP16, L1 t/m L10), `tasks/contentpijplijn-werkstand.md`, `tasks/contentpijplijn-herontwerp.md` (A1 t/m A6), `tasks/vragen-voor-het-schrijven.md`, `tasks/contentkwaliteit-framework.md`, `tasks/contentkwaliteit-copywriterronde.md` (V1 t/m V9), `tasks/customer-journey-cluster-tot-schrijven.md`, `tasks/contentflow-een-lijn.md` (§1 t/m §6) | De vorige contentketen: contract, briefing, paginastrategie, schrijven, eindredactie, vier beoordelaars, reparatierondes, en de flow van contentplan tot pagina | Vervangen door `tasks/contentketen-opnieuw.md` (25 september 2026). De besluiten die bleven (pas schrijven als elke vraag gedaan is, één vragenmoment per maand, de plaatsregel) staan daar als B5, B6 en B12. De code van de oude keten is in WP1 weggehaald; wat er gebeurde en waarom staat in de alinea's van 1 tot en met 25 september hieronder. Verwijderd 25 september 2026 |
 | `tasks/bevindingen-verificatie-processtappen-22-september-2026.md` punt 1 en 2 | De twee van de 117 processtappen die op 22 september 2026 niet klopten met de code: de doorverwijzingscontrole bij publiceren deed niets, en de nameting toonde de klant alleen een eindoordeel | Beide gebouwd op 23 september 2026, zie de alinea van die datum onderaan. Verwijderd 23 september 2026 |
 | `tasks/funnelfase-nooit-gevuld.md` | `planned_pages.funnel_stage_id` werd sinds 25 augustus 2026 nergens meer geschreven (0 van 18 pagina's bij Van den Udenhout) | Gerepareerd op 23 september 2026: `syncBacklog()` leidt de fase af uit de doelvragen (`lib/plan-funnel.ts`), zie de alinea van die datum onderaan. Verwijderd 23 september 2026 |
 
@@ -12598,3 +12599,34 @@ stonden de 4,9 uit 5 en het eigen 3D-ontwerp daardoor buiten de keuze. De garant
 niet in zijn register, dus die lost dit niet op. (3) Merken die het bedrijf zelf plaatst op de
 feitenkaart mogen genoemd worden; de reparatie liet de ketelmerken weg "omdat de instructie verbiedt
 andere bedrijven bij naam te noemen". De code controleert op de lijst met concurrenten, niet op merken.
+
+## 25 september 2026: de contentketen gaat opnieuw, van vijftien stappen naar vier
+
+Besluit van de eigenaar na de nameting van fase 1: de keten van pagina tot tekst is zo gegroeid (zeven
+taaksoorten voor content, ongeveer 12.700 regels, 12 tot 15 AI-aanroepen per pagina) dat kwaliteit niet
+meer te sturen is, en elke stap haalt alleen weg. Het cijfer van de blinde lezer bleef op 5 en 4 bij
+een doel van 6,5. Aangescherpt met de feedback van een senior collega, met als principe: de keten niet
+slimmer maken met meer beslissingen, maar de schrijver betere informatie geven. Nieuw: content brief
+(met hooguit drie gerichte vragen), klantinput (vast één open vraag per pagina), één schrijfbeurt,
+één kwaliteitscontrole, hooguit één herschrijving. De schrijver wijst geen bronnen aan; code en
+controle zoeken daarna naar verzonnen harde beweringen, en een zin zonder bron wordt geel voor de
+ondernemer in plaats van een blokkade. Geen woordbudget. Eerst de oude code weg, dan bouwen. Alle
+klantdata (6 merken) is verwijderd; de kostenlog is bewaard. Grens: $0,50 per pagina. Plan:
+`docs/tasks/contentketen-opnieuw.md`.
+
+Aangescherpt na een tweede review van dezelfde collega (zelfde dag): publiceerbaarheid is de enige
+maatstaf, met unieke klantinput als signaal; acht vragen is een bovengrens en geen doel, en een vraag
+moet iets opleveren wat niet uit bestaande kennis of webonderzoek te halen is; de brief mag geen keuzes
+voor de schrijver maken; de controle op harde beweringen is een conservatieve detectie en geen
+factchecker; geen scores op de tekst; en vooraf vastgelegd (B15) dat een tegenvallende uitslag nooit
+leidt tot een extra stap of beoordelaar.
+
+Gebouwd (zelfde dag, WP1 tot en met WP7): de nieuwe keten staat in `lib/pagina/` met vier taaksoorten
+(`pagina_brief`, `pagina_schrijven`, `pagina_controle`, `pagina_herschrijven`) en twee ingangen voor
+het contentplan (`bereidVoor`, `probeerTeSchrijven` in `lib/pagina/start.ts`). Getoetst met 4.844
+eenheidstests en 731 ketentests, zonder één echte AI-aanroep. Twee dingen die de ketentest vond en
+die zonder test in productie waren gegaan: een schrijver die de titel van een andere pagina kiest,
+liet de opslag stil mislukken op de unieke index uit migratie 0023 (de titel van de rij blijft nu
+de plantitel), en de testdatabase gaf een datum als Date-object terug waar PostgREST tekst geeft (nu
+gelijkgetrokken in `scripts/chain/postgres.ts`). Nog niet gedaan: WP8 tot en met WP10, want die vragen
+de code op productie en echte aanroepen; de kosten per pagina zijn dus nog een schatting.

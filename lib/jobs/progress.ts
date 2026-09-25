@@ -59,21 +59,16 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   aggregate_week: 3, // puur rekenwerk
   profile_competitors: 15, // één destillatie-aanroep over de antwoordfragmenten
   generate_report: 25, // gap-analyse + rapport
-  content_brief: 12, // één mini-aanroep voor de hele batch, geen web_search
-  content_plan: 35, // onderzoek met web_search plus het contract, twee goedkope aanroepen
-  // Sol met denktijd hoog; nog niet gemeten, geschat op het dubbele van het
-  // schrijven op denktijd medium (WP3, `ai_calls.duration_ms` meet het).
-  content_strategy: 90,
-  content_draft: 50, // het premium model schrijft een volledige pagina
-  // Redactie op denktijd hoog plus de keuring; nog niet gemeten (WP5).
-  content_edit: 90,
-  content_revise: 50,
-  // Alleen de vier beoordelaars, geen schrijfaanroep. Die draaien parallel, dus
-  // dit is de traagste van de vier plus wat marge.
-  content_recheck: 20,
   // Tot twaalf batches indelen (vier tegelijk) plus twintig korte oordelen,
   // allemaal op het goedkope model; de eerste run van een merk is de langste.
   fact_register: 30,
+  // Eén aanroep op het sterke model met zoeken op het web (§10 van
+  // contentketen-opnieuw.md: ongeveer een minuut). Nog niet nagemeten.
+  pagina_brief: 90,
+  // Starten of één keer ophalen; het schrijven zelf loopt bij OpenAI door.
+  pagina_schrijven: 10,
+  pagina_controle: 60, // één beoordeling op het sterke model
+  pagina_herschrijven: 10,
   technical_audit: 10, // een handvol HTTP-verzoeken, geen AI
   verify_publication: 8, // één pagina ophalen en vergelijken
   measure_impact: 2, // plant alleen taken in

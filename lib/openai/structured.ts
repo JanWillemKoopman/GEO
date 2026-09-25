@@ -467,6 +467,14 @@ export function isParseFout(err: unknown): boolean {
 const testAchtergrond = new Map<string, StructuredCallOptions<unknown>>();
 let testAchtergrondTeller = 0;
 
+/** In de ketentest: zoveel volgende ophaalpogingen melden nog "bezig". */
+let testNogBezig = 0;
+
+/** Voor de ketentest: laat de volgende `aantal` ophaalpogingen "bezig" teruggeven. */
+export function __zetAchtergrondBezig(aantal: number): void {
+  testNogBezig = aantal;
+}
+
 /** Voor de ketentest: hoeveel achtergrondaanroepen er gestart zijn (dus betaald zouden worden). */
 export function __aantalAchtergrondStarts(): number {
   return testAchtergrondTeller;
@@ -544,6 +552,10 @@ export async function haalStructuredOp<T>(
   if (testTransport) {
     const gestart = testAchtergrond.get(responseId);
     if (!gestart) return { stand: "mislukt", status: "onbekend", fout: `Geen gestarte aanroep ${responseId}.` };
+    if (testNogBezig > 0) {
+      testNogBezig--;
+      return { stand: "bezig", status: "in_progress" };
+    }
     // Niet uit de lijst halen: de echte API geeft een voltooide aanroep bij elke
     // opvraging opnieuw terug, en een tweede ophaalpoging moet dat ook kunnen.
     const { parsed, raw } = await testTransport(opts);

@@ -4,9 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Antwoordveld } from "@/components/antwoordveld";
 import { Icon } from "@/components/icon";
+import { OPEN_VRAAG_MAX, OPEN_VRAAG_VOORBEELDEN } from "@/lib/pagina/open-vraag-tekst";
 
 /**
- * De vragen van een pagina (`docs/tasks/contentflow-een-lijn.md` §3.2 en §4.6a).
+ * De vragen van een pagina (`docs/tasks/contentketen-opnieuw.md` §6.2).
  *
  * Eén kaart per vraag, en dezelfde kaart op het paginascherm en in "Jouw
  * beurt": wie een vraag op de ene plek ziet, herkent hem op de andere.
@@ -37,6 +38,8 @@ export interface Vraag {
   onderdelen: string[];
   /** Voor hoeveel pagina's deze vraag geldt. */
   paginas: number;
+  /** De vaste open vraag van de pagina (besluit B3): altijd bovenaan, groot tekstvak. */
+  open_vraag?: boolean;
 }
 
 export function Vragenlijst({
@@ -80,7 +83,7 @@ export function Vragenlijst({
       )}
 
       <ul className="flex flex-col gap-3">
-        {vragen.map((v) => (
+        {[...vragen].sort((a, b) => Number(Boolean(b.open_vraag)) - Number(Boolean(a.open_vraag))).map((v) => (
           <li key={v.id}>
             <Vraagkaart
               profileId={profileId}
@@ -107,7 +110,8 @@ export function Vraagkaart({
   onKlaar: (s: { status: string; answer: string | null }) => void;
 }) {
   const router = useRouter();
-  const [waarde, setWaarde] = useState(stand.answer ?? vraag.suggested_answer ?? "");
+  // De open vraag krijgt geen concept-antwoord: het is het verhaal van de ondernemer.
+  const [waarde, setWaarde] = useState(stand.answer ?? (vraag.open_vraag ? "" : vraag.suggested_answer ?? ""));
   const [bewerken, setBewerken] = useState(stand.status === "open");
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState<string | null>(null);
@@ -166,8 +170,9 @@ export function Vraagkaart({
     );
   }
 
-  const kost =
-    vraag.onderdelen.length > 0
+  const kost = vraag.open_vraag
+    ? "Dan schrijven we deze pagina zonder jouw eigen verhaal."
+    : vraag.onderdelen.length > 0
       ? `Dan komt ${vraag.onderdelen.length === 1 ? "het onderdeel" : "de onderdelen"} ${somOp(vraag.onderdelen)} niet op de pagina.`
       : "Dan schrijven we dit deel zonder dit gegeven, en noemen we het niet.";
 
@@ -182,7 +187,25 @@ export function Vraagkaart({
           <span className="type-caption text-secondary">Geldt voor {vraag.paginas} pagina&apos;s</span>
         )}
       </div>
-      <Antwoordveld id={labelId} vraag={vraag} waarde={waarde} zetWaarde={setWaarde} uitgeschakeld={bezig} />
+      {vraag.open_vraag ? (
+        <div className="flex flex-col gap-2">
+          <textarea
+            aria-labelledby={labelId}
+            className="field min-h-[14rem]"
+            rows={10}
+            maxLength={OPEN_VRAAG_MAX}
+            value={waarde}
+            disabled={bezig}
+            onChange={(e) => setWaarde(e.target.value)}
+            placeholder={OPEN_VRAAG_VOORBEELDEN.join("\n\n")}
+          />
+          <span className="type-caption text-muted tabular self-end">
+            {waarde.length} van {OPEN_VRAAG_MAX} tekens
+          </span>
+        </div>
+      ) : (
+        <Antwoordveld id={labelId} vraag={vraag} waarde={waarde} zetWaarde={setWaarde} uitgeschakeld={bezig} />
+      )}
       {fout && <p className="type-caption text-[var(--intent-danger-content)]">{fout}</p>}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button

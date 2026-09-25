@@ -18,6 +18,9 @@ Geen gedachtestreepjes (`—`/`–`) en geen "en/of" — overal, ook in code en 
 **Sales-led, niet self-serve** (`docs/logbook.md` §15): eigenaar zet merkprofiel klaar vóór
 demogesprek, pijplijn doet onderzoek, profiel wordt pas ná verkoop aan klantaccount gekoppeld.
 
+**De contentketen wordt opnieuw gebouwd** volgens `docs/tasks/contentketen-opnieuw.md`. Werk je aan
+iets rond het schrijven van pagina's, lees dan eerst §0 en §3 daarvan: bouw niets wat daar niet staat.
+
 **De Sales-module** (`lib/sales/`, `app/(app)/sales/`, `docs/tasks/geo-prospect-engine.md`) is
 intern: een klant ziet er niets van, en de scheiding staat in de database en niet alleen in de
 schermen. Hij zoekt uit een markt de beste saleskansen, onderbouwt ze en zet een conceptmail klaar.
@@ -64,8 +67,10 @@ daarna de index in `supabase/README.md` bij.
 
 Rationale met cijfers per punt staat in `docs/logbook.md`.
 
-1. Elke promptinstructie krijgt een deterministisch vangnet in code, nooit alleen vertrouwen op
-   wat het model belooft te doen.
+1. Een instructie over harde feiten (bedragen, getallen, termijnen, garanties, keurmerken) of
+   een mechanische regel krijgt een deterministisch vangnet in code, nooit alleen vertrouwen op wat
+   het model belooft. Een instructie over stijl, toon of lengte krijgt dat níet: dat maakte de
+   vorige contentketen star (`docs/tasks/contentketen-opnieuw.md` §3).
 2. Rekenkunde staat in een pure module zonder `server-only`, testbaar vanuit `scripts/test-unit.ts`.
 3. Onbekend is een betere waarde dan een verkeerde: onbruikbare modeloutput wordt `null`, nooit 0
    en nooit een gok.
