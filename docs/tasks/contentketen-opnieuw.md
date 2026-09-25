@@ -17,6 +17,12 @@ WP1 samen met de code die het beschrijft.
 > betere informatie te geven. Minder intelligentie rondom het schrijven, meer intelligentie vóór en
 > tijdens het schrijven.
 
+**En het speerpunt van de app (besluit B13):**
+
+> Content wordt samen met de klant gemaakt. Wij halen bij de ondernemer op wat alleen hij weet, met de
+> juiste vragen, en schrijven daar een ijzersterke pagina mee. Dat is wat onze teksten onderscheidt
+> van de AI-teksten die overal online staan. Zonder goede invoer van de klant wordt het nooit goed.
+
 De vorige keten is mislukt doordat elke sessie er een stap, een regel of een beoordelaar bij bouwde,
 tot de schrijver gevangen zat. De regels hieronder zijn er om dat te voorkomen.
 
@@ -58,7 +64,7 @@ CONTENTVOORSTEL        bestaat: een pagina in het contentplan
       ↓
 CONTENT BRIEF          één AI-aanroep met zoeken op het web + bedrijfsinformatie uit code
       ↓
-KLANTINPUT             de open vraag (altijd) + hooguit 3 gerichte vragen (alleen als iets echt ontbreekt)
+KLANTINPUT             de open vraag (altijd) + de gerichte vragen die de pagina nodig heeft (tot 8)
       ↓
 SCHRIJVEN              één sterke schrijfbeurt
       ↓
@@ -98,6 +104,8 @@ naast elkaar te leggen (de blinde lezer en de eigenaar zelf), nooit met een los 
 | B10 | Geen woordbudget, ook niet als richtgetal. Het onderwerp bepaalt de lengte | 25 september 2026 |
 | B11 | De adviseur mag de open vraag invullen namens de ondernemer, in diens woorden | 25 september 2026 |
 | B12 | De plaatsregel (§13.1) blijft een besluit, maar wordt pas na deze ombouw gebouwd | 25 september 2026 (regel zelf: 25 september 2026) |
+| B13 | Content wordt samen met de klant gemaakt: we vragen de ondernemer uitgebreid naar wat alleen hij weet. Vragen stellen is geen last die we klein houden, maar de kern van het product. Wel: elke vraag moet de pagina aantoonbaar beter maken, en de klant ziet waarom we hem stellen | 25 september 2026 |
+| B14 | In het merkprofiel geeft de ondernemer één tot drie adressen van pagina's waarop zijn stem goed te horen is. De tekst daarvan is het stemvoorbeeld voor de schrijver, en vervangt de stemvelden (schuifjes, kernwoorden, kernboodschappen) als invoer | 25 september 2026 |
 
 Wat hiermee vervalt uit eerdere besluiten: de inputpoort van 40 en 70 procent met de keuze "algemeen
 schrijven of laten vallen", en de verdeling van het redactionele werk over strategie, schrijven en
@@ -147,7 +155,7 @@ De schrijver krijgt precies vier blokken, in deze volgorde, en niets anders:
 
 | Blok | Wat | Waar het vandaan komt |
 |---|---|---|
-| **A. Bedrijfskennis** | Wat we zeker weten over het bedrijf: diensten, plaatsen, prijzen, werkwijze, ervaring, certificeringen, wat het anders doet, de verhalen, de bezwaren van klanten met het antwoord van de ondernemer, de stem | Code, geen AI: het feitenregister (gefilterd per pagina), `profiles.verhalen`, `sales_objections`, de stemvelden, de antwoorden op eerdere merkbrede vragen |
+| **A. Bedrijfskennis** | Wat we zeker weten over het bedrijf: diensten, plaatsen, prijzen, werkwijze, ervaring, certificeringen, wat het anders doet, de verhalen, de bezwaren van klanten met het antwoord van de ondernemer, en hoe het bedrijf klinkt | Code, geen AI: het feitenregister (gefilterd per pagina), `profiles.verhalen`, `sales_objections`, de antwoorden op eerdere merkbrede vragen, en de stemvoorbeelden (§6.10) |
 | **B. Klantinput** | Wat de ondernemer over déze pagina vertelde | Het antwoord op de open vraag, letterlijk, plus de antwoorden op de gerichte vragen |
 | **C. Externe kennis** | Wat een goede pagina over dit onderwerp inhoudelijk moet behandelen: uitleg, stappen, aandachtspunten, veelgestelde vragen, wat concurrenten goed doen en waar gaten zitten | De content brief (§6.1) |
 | **D. Zoekintentie** | Wat de bezoeker probeert te bereiken, in zijn eigen woorden | De content brief, gevoed door de doelvragen van de meting |
@@ -179,29 +187,48 @@ deelvragen: string[]                                   // wat hij verder wil wet
 concurrentie: { goed: string[], gaten: string[] }      // zonder bedrijfsnamen
 vakkennis: { uitleg: string, bron_url: string }[]
 valkuilen: string[]                                    // wat klanten vaak verkeerd begrijpen
-ontbreekt: {                                           // 0 tot 3; 0 is prima
-  vraag: string, waarom: string,
+vragen: {                                              // tot 8
+  vraag: string,
+  waarom: string,          // voor de klant: wat dit antwoord aan de pagina toevoegt
+  soort: "feit"|"praktijk"|"werkwijze"|"twijfel"|"onderscheid",
   antwoord_type: "ja_nee"|"bedrag"|"getal"|"tekst_kort"|"tekst_lang"|"keuze",
   opties: string[] | null, merkbreed: boolean
 }[]
+ook_voor_deze_pagina: string[]                         // id's van al open vragen die hier ook gelden
 ```
 
-De opdracht voor `ontbreekt`: alleen informatie over het bedrijf die de pagina echt nodig heeft en die
-niet in blok A staat. Geen vraag over algemene vakkennis. Niets vragen is een goede uitkomst.
+De opdracht voor `vragen` (B13): stel de vragen waarvan het antwoord deze pagina duidelijk beter en
+eigener maakt dan wat een concurrent of een AI zonder deze ondernemer kan schrijven. Denk in vijf
+soorten: **feit** (prijs, termijn, wat is inbegrepen, voor wie wel en niet), **praktijk** (een typische
+klant of situatie, een voorbeeld dat je mag noemen), **werkwijze** (hoe verloopt het, wat doe je eerst),
+**twijfel** (wat vragen klanten hierover, wat zeg je dan) en **onderscheid** (wat doe je anders dan
+anderen). Vraag niet naar wat al in blok A staat, niet naar algemene vakkennis, en niet opnieuw naar
+wat al gevraagd is, ook niet in andere woorden: je krijgt alle eerder gestelde vragen van het merk mee
+(open, beantwoord, overgeslagen). Geldt een al open vraag ook voor deze pagina, noem dan zijn id in
+`ook_voor_deze_pagina` in plaats van hem opnieuw te stellen. Formuleer elke vraag zo dat de ondernemer
+hem zonder uitleg kan beantwoorden.
+
+Waarom tot 8 en niet onbeperkt: samen met de open vraag is dat ongeveer tien minuten per pagina, en
+een merkbreed antwoord geldt daarna voor elke volgende pagina, dus het aantal zakt vanzelf naarmate we
+het bedrijf beter kennen. Het getal is gekozen, niet gemeten; WP10 kijkt hoeveel er beantwoord worden.
 
 **Code daarna:** vakkennis zonder geldig `http`-adres valt weg. Bewaar in `content_pieces.brief_json`
 één compact object: `{ onderzoek: <de uitvoer>, bedrijf: <de feiten die blok A vormden>, versie }`.
-Maak van `ontbreekt` rijen in `fact_requests` (hooguit 3; een vraag die na normaliseren gelijk is aan
-een al gestelde vraag van het merk valt weg; `pasSchrijfregelsToe()` over elke tekst). Staat er al een
+Maak van `vragen` rijen in `fact_requests` met `waarom` in `reason` (hooguit 8; een vraag die na
+normaliseren gelijk is aan een al gestelde vraag van het merk valt weg; `pasSchrijfregelsToe()` over
+elke tekst). Voeg de pagina toe aan `content_piece_ids` van elke vraag in `ook_voor_deze_pagina`, als
+die echt open is en van dit merk. Staat er al een
 `brief_json`, dan geen nieuwe aanroep (conventie 9). Daarna de schrijfpoort (§6.8).
 
 **Bij definitief mislukken:** `brief_json` wordt `{ onderzoek: null, bedrijf: ..., versie }`; de pagina
 gaat door met alleen de open vraag. Schrijven zonder onderzoek is minder goed, niet kapot.
 
-**Bewust geaccepteerd:** pagina's van dezelfde maand krijgen elk hun eigen brief. Twee pagina's
-kunnen daardoor een bijna gelijke vraag krijgen. Gelijke vragen vallen weg in code; een variant in
-andere woorden niet. Dat kost de klant hooguit één keer overslaan, en is goedkoper dan een aparte
-vragenstap.
+**Na elkaar, niet tegelijk:** de briefs van één maand draaien één voor één (de taak geeft bij het
+afronden de volgende pagina van de rij door in zijn payload), zodat elke brief de vragen van de vorige
+al ziet. Anders stellen vijf pagina's tegelijk dezelfde vraag in vijf varianten, en dat is bij
+uitgebreid vragen (B13) precies wat de klant wegjaagt. Vijf pagina's van ongeveer een minuut: de vragen
+van de maand staan er binnen ongeveer tien minuten. Mislukt een brief definitief, dan gaat de rij door
+met de volgende.
 
 ### 6.2 Klantinput
 
@@ -220,8 +247,13 @@ zodat hij er altijd is:
   letterlijk naar de schrijver als blok B.
 - Op het scherm altijd als eerste, met een groot tekstvak. Overslaan mag.
 
-**De gerichte vragen:** hooguit drie, uit de brief (§6.1). Gewone vragen zoals nu: tot 500 tekens,
+**De gerichte vragen:** tot acht per pagina, uit de brief (§6.1). Tot 500 tekens per antwoord,
 merkbreed als het model dat aangaf.
+
+**Hoe de klant ze ziet:** op "Jouw beurt" per pagina gegroepeerd, met de open vraag bovenaan. Bij elke
+vraag staat in één zin waarom we hem stellen (`reason`), zodat de klant ziet dat zijn antwoord in de
+tekst terechtkomt. Een merkbrede vraag staat er één keer, met "geldt voor 2 pagina's". Een teller "3 van
+7 gedaan" per pagina. Overslaan mag altijd, en overslaan telt als antwoord (B5).
 
 ### 6.3 De verhalen van het merk (onboarding)
 
@@ -260,8 +292,10 @@ draait om de kwaliteit te verbeteren. De kern, en niet meer dan dat:
 > Schrijf in de stem van dit bedrijf. Noem nooit een ander bedrijf bij naam. Schrijf als een vakman,
 > niet als een AI die informatie afvinkt.
 
-Daaronder alleen de vaste huisregels die niet over stijl gaan: de verboden onderwerpen en woorden van
-het merk, de aanspreekvorm, en de verboden tekens uit `docs/schrijfstijl.md` §10.
+Daaronder de stemvoorbeelden (§6.10) met deze ene zin: "Zo klinkt dit bedrijf. Neem de toon, de
+zinsbouw en de woordkeus over, niet de inhoud en niet de zinnen zelf." En de vaste huisregels die niet
+over stijl gaan: de verboden onderwerpen en woorden van het merk, de aanspreekvorm, en de verboden
+tekens uit `docs/schrijfstijl.md` §10.
 
 **Uitvoer (zod-schema `Pagina`):**
 
@@ -312,7 +346,8 @@ wil. **Invoer:** de tekst, blok A tot en met D, en de zinnen die de code als `on
 - *Klopt het?* Staan er bedrijfsclaims, cijfers, prijzen, garanties, certificeringen of andere
   concrete beweringen in die niet uit de informatie blijken?
 - *Is het goed?* Is de hoofdvraag meteen beantwoord; is de zoekintentie afgedekt; is het prettig en
-  natuurlijk geschreven; is er genoeg diepgang; is er onnodige herhaling; voelt het als echte content
+  natuurlijk geschreven en klinkt het als de stemvoorbeelden; is er genoeg diepgang; is er onnodige
+  herhaling; zijn er zinnen letterlijk uit de stemvoorbeelden overgenomen; voelt het als echte content
   en niet als AI-content; staat er iets in dat echt van dit bedrijf komt; heeft de lezer er iets aan?
 
 **Uitvoer:**
@@ -365,6 +400,24 @@ klein onderdeel `components/pagina/goedkeuren.tsx`; de oude bibliotheekcomponent
 - Daarna de bestaande publicatiestappen (kopiëren naar de site, adres invullen).
 - Geen cijfers, geen tabbladen met bevindingen.
 
+### 6.10 De stemvoorbeelden (B14)
+
+- In het merkprofiel (bewerken) en in het gespreksscherm een veld "Pagina's waarop jullie stem goed te
+  horen is": één tot drie adressen. Hulptekst: "Kies pagina's waarvan je zegt: zo praten wij. Dat mag
+  ook een blog of een pagina van een andere site van jou zijn."
+- Bij opslaan haalt de route (service role, eigenaarschapscontrole) de tekst op met `fetchExistingPage`,
+  na het antwoord aan de gebruiker (`after()`). Per adres hooguit 2.000 tekens, vanaf de eerste echte
+  alinea. Opslaan in `profiles.stem_voorbeelden` als `{ url, tekst, opgehaald_op, fout }[]`. Lukt ophalen
+  niet, dan staat de fout erbij en ziet de adviseur "Deze pagina konden we niet lezen".
+- Geen AI: de tekst gaat letterlijk naar de schrijver en de controle.
+- Zijn er geen stemvoorbeelden, dan gebruikt de schrijver de tekst van de homepage uit `profile_pages`
+  (`text_excerpt`), en toont het merkprofiel "Nog geen stemvoorbeelden".
+- De stemvoorbeelden tellen als bron voor de harde beweringen (§6.5): het is de eigen tekst van het
+  bedrijf.
+- De stemvelden (schuifjes voor toon, kernwoorden, eigen uitdrukkingen, kernboodschappen, USP) gaan
+  niet meer naar de schrijver. De kolommen blijven staan (conventie 4); het merkprofiel toont ze niet
+  meer in WP4.
+
 ---
 
 ## 7. Datamodel en code
@@ -378,6 +431,7 @@ alter table content_pieces add column if not exists brief_json jsonb;
 alter table content_pieces add column if not exists controle_json jsonb;
 alter table fact_requests  add column if not exists open_vraag boolean not null default false;
 alter table profiles       add column if not exists verhalen text;
+alter table profiles       add column if not exists stem_voorbeelden jsonb;
 ```
 
 `open_vraag` is een kolom en geen nieuwe `kind`, omdat `fact_requests_kind_check` een check-constraint
@@ -406,7 +460,7 @@ Algemene infrastructuur, geen contentlogica:
 | Schrijfregels op tekst naar de klant | `pasSchrijfregelsToe()` in `lib/schrijfregel-vangnet.ts` |
 | Concurrentnamen weghalen | `redactCompetitors` in `lib/pipeline/redact.ts` |
 | Huidige sitetekst ophalen | `fetchExistingPage` in `lib/pipeline/existing-page-fetch.ts` |
-| Stem van het merk als tekst | `merkstemblok` in `lib/pipeline/stemvelden.ts`, `schoneWaardeproposities` in `lib/pipeline/waardeproposities.ts` |
+| Waardeproposities zonder herkomsttaal | `schoneWaardeproposities` in `lib/pipeline/waardeproposities.ts` |
 | Verboden tekens, metalengtes | `stripProseDashes` in `lib/pipeline/dash-guard.ts`, `heelMetatitel` en `heelMetabeschrijving` in `lib/pipeline/metatitel.ts` |
 | Gestructureerde gegevens, export naar de site | `lib/pipeline/structured-data.ts`, `lib/pipeline/content-export.ts` |
 
@@ -498,7 +552,7 @@ geeft alleen nog `lib/types/database.ts`.
 ### WP2. Migratie en typen
 - Migratie §7.1 via `apply_migration`. `supabase/README.md` en `lib/types/database.ts` bijwerken.
 - De importtest van §7.3 en de kolomtest van §7.2 (die mogen nu al, `lib/pagina/` is nog leeg).
-- **Klaar als:** de vier kolommen bestaan in productie, beide tests draaien, alles groen.
+- **Klaar als:** de vijf kolommen bestaan in productie, beide tests draaien, alles groen.
 
 ### WP3. De controle in code (puur)
 - `lib/pagina/harde-beweringen.ts`, `lib/pagina/mechanisch.ts`, en de samenstelling van blok A als pure
@@ -507,7 +561,7 @@ geeft alleen nog `lib/types/database.ts`.
   hooguit 150).
 - **Klaar als:** minstens 30 tests voor harde beweringen en tests voor de filter en de reparatie, groen.
 
-### WP4. De open vraag en de verhalen
+### WP4. De open vraag, de verhalen en de stemvoorbeelden
 - Open vraag aanmaken bij het starten van de voorbereiding (§6.2), idempotent: hooguit één rij met
   `open_vraag = true` per pagina.
 - `answerFact()` en `/api/profiles/[id]/facts`: bij `open_vraag` tot 3.000 tekens, geen promotie naar
@@ -519,15 +573,21 @@ geeft alleen nog `lib/types/database.ts`.
   zelf gaat typen. Geen nieuwe kolom: wie antwoordde, staat al bij het antwoord als dat veld bestaat;
   bestaat het niet, dan komt het er niet bij.
 - Het tekstvak "Verhalen" in het gespreksscherm (§6.3).
+- De stemvoorbeelden (§6.10): het veld in merkprofiel en gespreksscherm, de route die de tekst ophaalt
+  en bewaart, en het weghalen van de stemvelden uit het merkprofiel.
+- "Jouw beurt" per pagina gegroepeerd, met `reason` bij elke vraag en de teller (§6.2).
 - **Klaar als:** een ketentest laat zien dat een voorbereide pagina precies één open vraag heeft, ook als
-  de brief mislukt; een antwoord van 2.500 tekens wordt bewaard en niet naar `proof_points` gezet.
+  de brief mislukt; een antwoord van 2.500 tekens wordt bewaard en niet naar `proof_points` gezet; drie
+  stem-adressen leveren drie tekstblokken op, een onleesbaar adres een foutmelding en geen lege tekst.
 
 ### WP5. De content brief
-- Schema `ContentBrief`, `lib/pagina/brief.ts`, taaksoort `pagina_brief` volgens §6.1.
+- Schema `ContentBrief`, `lib/pagina/brief.ts`, taaksoort `pagina_brief` volgens §6.1, met de briefs
+  van een maand na elkaar.
 - **Klaar als:** een ketentest met `__setTestTransport` bewaart `brief_json`, doet bij een tweede run
-  geen aanroep, gooit vakkennis zonder adres weg, maakt hooguit 3 vragen en laat een gelijke vraag
-  weg, en vraagt daarna de schrijfpoort. Bij definitief mislukken gaat de pagina door met alleen de
-  open vraag.
+  geen aanroep, gooit vakkennis zonder adres weg, maakt hooguit 8 vragen met een `reason`, laat een
+  gelijke vraag weg, koppelt een vraag uit `ook_voor_deze_pagina` aan de pagina (en een id van een ander
+  merk niet), laat de tweede brief van een rij de vragen van de eerste zien, en vraagt daarna de
+  schrijfpoort. Bij definitief mislukken gaat de rij door en heeft de pagina alleen de open vraag.
 
 ### WP6. Schrijven, en het plan weer aansluiten
 - `lib/pagina/schrijfopdracht.ts`, `lib/pagina/schrijven.ts`, taaksoort `pagina_schrijven` met de
@@ -559,7 +619,8 @@ geeft alleen nog `lib/types/database.ts`.
 ### WP8. Toetsen op een schone lei
 - Maak de drie merken van de proefset opnieuw aan (hovenier, installateur, rijschool), laat het
   onderzoek draaien, voer het gesprek in met `kwaliteitsdoorlichting/gesprek-A.json` tot en met `C`,
-  vul "Verhalen" uit `waarheidsdossiers.md`, en meet één cluster per merk.
+  vul "Verhalen" uit `waarheidsdossiers.md`, geef als stemvoorbeelden twee pagina's van de eigen site
+  van het merk, en meet één cluster per merk.
 - Zet drie pagina's per merk in het plan met dezelfde `plantitel` als de oude teksten in
   `kwaliteitsdoorlichting/teksten/`. Komt een titel niet uit het rapport, zet de plan-pagina dan als
   testhandeling met SQL klaar. Dat is een testhandeling, geen functie in de app.
@@ -588,6 +649,12 @@ geeft alleen nog `lib/types/database.ts`.
 Kwaliteit verbeteren is: `lib/pagina/schrijfopdracht.ts` of de samenstelling van blok A tot en met D
 aanpassen, `SCHRIJFOPDRACHT_VERSIE` ophogen, de pagina's van WP8 opnieuw laten schrijven, paarsgewijs
 vergelijken met de vorige versie. Een wijziging blijft als hij wint. Geen andere manier.
+
+**De beste bron voor wat er beter moet:** wat klanten zelf veranderen. Elke handmatige wijziging vóór
+het goedkeuren en elke "vraag een aanpassing" staat al vast (elke versie wordt bewaard, met
+`supersedes_id` en `revision_note`). Eens per maand lees je die door, zoek je het patroon ("klanten
+halen steeds de eerste alinea weg", "ze vragen om meer over de werkwijze") en pas je daarop de
+schrijfopdracht of de vragen in de brief aan. Er komt geen stap en geen scherm bij.
 
 ### WP10. Narekenen en documenteren
 - Eén echte maand van één merk door de keten. Meet op `ai_calls` de kosten en de duur per aanroep,
@@ -632,7 +699,8 @@ $0,03, herschrijven (niet altijd) ongeveer $0,10 tot $0,15. Totaal ongeveer $0,1
 | 6 | De beoordelaar is mild over tekst van zijn eigen soort | "Goed" of "niet goed" met concrete punten en letterlijke zinnen, geen cijfer; zijn oordeel leidt hooguit tot één herschrijving |
 | 7 | De ondernemer keurt goed zonder te lezen | Goedkeuren kan pas na de gele zinnen |
 | 8 | Schrijven duurt langer dan de routelimiet van 300 seconden | Achtergrondmodus altijd, voor schrijven en herschrijven |
-| 9 | Bijna gelijke vragen tussen pagina's van dezelfde maand | Gelijke vragen vallen weg in code; varianten accepteren we (§6.1) |
+| 9 | Bijna gelijke vragen tussen pagina's van dezelfde maand | De briefs draaien na elkaar en zien elkaars vragen; gelijke vragen vallen weg in code (§6.1) |
+| 9b | Te veel vragen, en de klant haakt af | Elke vraag zegt waarom; merkbrede antwoorden gelden daarna overal; de adviseur kan in het gesprek helpen; WP10 telt hoeveel er beantwoord en overgeslagen worden |
 | 10 | De kosten zijn geschat | WP8 en WP10 meten; B4 is de grens |
 | 11 | Of het beter scoort, blijkt pas weken na publicatie | WP8 meet kwaliteit; de nameting na 14 en 28 dagen blijft het bewijs voor effect |
 | 12 | De blinde lezer is ook een model en de proefset is klein | De eigenaar beoordeelt zes paren zelf |
@@ -681,4 +749,18 @@ Het besluit van de eigenaar van 25 september 2026 blijft staan (overgenomen uit
 
 Dit wordt een pure regel bij het vullen van de voorraad en het plan, geen AI-stap en geen stap in de
 contentketen. Het krijgt een eigen plan in `docs/tasks/` als WP10 af is.
+
+### 13.2 Eén leesbaar bedrijfsboek in plaats van honderden losse feiten
+
+De onboarding knipt de site nu in 100 tot 220 losse feiten per merk, die daarna door een AI worden
+ingedeeld en door een tweede AI op tegenstrijdigheden worden nagelopen. Mogelijk beter: één leesbaar
+bedrijfsboek (diensten, prijzen, werkwijze, bewijs, verhalen) dat de adviseur met de ondernemer
+doorloopt, waarbij tegenstrijdigheden in het gesprek worden opgelost. De losse feiten blijven dan alleen
+als achtergrond voor de controle op harde beweringen. **Alleen doen als WP8 laat zien dat blok A de
+zwakste schakel is.**
+
+### 13.3 Minder pagina's per maand, als de kwaliteit dat vraagt
+
+Drie pagina's die de klant zo plaatst leveren meer op dan vijf middelmatige. Dit is een instelling en een
+verkoopkeuze, geen bouwwerk. Beslissen na WP8 en WP10, op de gemeten kosten en kwaliteit per pagina.
 
