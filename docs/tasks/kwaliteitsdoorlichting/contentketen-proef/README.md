@@ -40,3 +40,25 @@ of nergens. Alles hieronder is verzonnen, net als het gespreksdeel van het dossi
   door te snel rijden (examenroute, twee proefexamens met een andere instructeur, faalangstexamen,
   geslaagd bij de derde keer).
 - Leerlingen uit Best vinden het fijn eerst in hun eigen dorp te leren rijden.
+
+### A. Hans Verstraaten Hoveniers
+
+- Werkt met het hele pakket (ontwerp, grondwerk, bestrating, beplanting, verlichting) ook in Son en
+  Breugel; niet verder dan Eindhoven en de dorpen eromheen.
+- Twee projecten: een nieuwbouwtuin in Nuenen van ongeveer 120 m² (grond afgevoerd, terras van
+  keramische tegels, pad van gebakken klinkers, borders en een haag, rond € 18.000); een oude tuin in
+  Best van ongeveer 200 m² (alles eruit, nieuwe bestrating, drainage, beplanting, rond € 30.000).
+- De belofte "binnen vier uur" is doordeweeks meestal een eerste prijsindicatie; bij een grote tuin met
+  ontwerp komen ze eerst langs.
+- Voorbeeld afwatering in Meerhoven: terras met afschot van het huis af, border met grindkoffer,
+  drainage naar achter in de tuin waar de grond dicht zat.
+- Voorbeeld nieuwbouw in Brandevoort: bouwgrond vol puin en aangereden, bovenlaag afgegraven, nieuwe
+  tuinaarde; terras achter in de tuin vanwege schaduw, met een klinkerpad.
+- Onderhoudsarm: keramische tegels, gebakken klinkers, vaste planten en siergrassen die de grond
+  bedekken; "een paar keer per jaar snoeien". Voorbeeld: een stel van rond de 60 in Veldhoven.
+- Eigen ploeg doet alles; niet: bomen kappen, kapvergunningen, elektra in huis.
+- Volgorde: oude tuin eruit en grondwerk, drainage en leidingen, bestrating, beplanting en gazon,
+  afwerking.
+- Foto's in het fotoalbum op de site; plaats noemen mag, naam van de klant niet.
+- Offerteaanvraag: foto's en maten sturen of bellen, gratis bezoek, offerte vaak binnen een paar dagen,
+  met 3D-ontwerp een week of twee.
