@@ -60,7 +60,7 @@ import { controleerRedactie, getalReeksen } from "@/lib/pipeline/redactie-check"
 import { strategieblok, gekozenRefs, opbouwUitStrategie, REGELS_STRATEGIE, REGEL_7_STRATEGIE } from "@/lib/pipeline/strategie-opdracht";
 import { checkStrategieDekking } from "@/lib/pipeline/content-coverage";
 import { haalSectiesWeg } from "@/lib/pipeline/content-sections";
-import { controleerStrategie, MAX_PRIORITEITSFEITEN } from "@/lib/pipeline/strategie-check";
+import { controleerStrategie, MAX_PRIORITEITSFEITEN, normaliseerRef } from "@/lib/pipeline/strategie-check";
 import { budgetgrenzen, klemBudget, paginadoelVan, titelOverPlaats, verwachtBudget } from "@/lib/lengtebudget";
 import { moetAchtergrond, ophaalVertragingSeconden, ACHTERGROND_GRENS_MS } from "@/lib/openai/achtergrond";
 import type { PageStrategy } from "@/lib/schemas/page-strategy";
@@ -26645,6 +26645,17 @@ group("Vangnetten op de paginastrategie (WP3)", () => {
   const onbestaand = controleerStrategie(strategie({ prioriteitsfeiten: [{ feit: "F1", betekenis: "" }, { feit: "F42", betekenis: "" }, { feit: " f2 ", betekenis: "" }] }), invoerWP3);
   eq("een onbestaand feit valt eruit, een slordig genoteerd niet", onbestaand.strategie.prioriteitsfeiten.map((p) => p.feit).join(","), "F1,F2");
   ok("en dat staat in de correcties", onbestaand.correcties.some((c) => c.includes("F42")));
+
+  // Nameting fase 1 (25 september 2026): het model schreef bij beide pagina's
+  // het nummer mét de feittekst, en alle tien prioriteitsfeiten vielen eruit.
+  const metTekst = controleerStrategie(strategie({ prioriteitsfeiten: [
+    { feit: "F5: Het bedrijf werkt in Best.", betekenis: "" },
+    { feit: "F7: Tuinaanleg met bestrating kost meestal € 12.000 tot € 35.000, afhankelijk van het materiaal.", betekenis: "" },
+  ] }), invoerWP3);
+  eq("een F-nummer met de feittekst erachter blijft staan", metTekst.strategie.prioriteitsfeiten.map((p) => p.feit).join(","), "F5,F7");
+  eq("en er is niets gecorrigeerd", String(metTekst.correcties.filter((c) => c.includes("feitenkaart")).length), "0");
+  eq("\"Feit F3\" wordt F3", normaliseerRef("Feit F3"), "F3");
+  eq("een B-nummer met tekst blijft een B-nummer", normaliseerRef("B1: intakeprijs"), "B1");
 
   const betwist = controleerStrategie(strategie({ prioriteitsfeiten: [{ feit: "B1", betekenis: "" }, { feit: "F1", betekenis: "" }] }), invoerWP3);
   eq("een betwist feit valt eruit", betwist.strategie.prioriteitsfeiten.map((p) => p.feit).join(","), "F1");
