@@ -1126,7 +1126,15 @@ export async function generateReport(
 
     return "gereed";
   } catch (err) {
-    await admin.from("analyses").update({ status: "mislukt" }).eq("id", id);
+    // ⚠️ De analyse gaat hier NIET meer op 'mislukt' (punt 56 van de
+    // kwaliteitsdoorlichting, 25 september 2026). Dat gebeurde bij de eerste
+    // mislukte poging, terwijl de wachtrij daarna nog drie keer opnieuw
+    // probeert (`MAX_ATTEMPTS` = 4, met 2, 4 en 8 minuten ertussen). Bij de
+    // herhaling, toen het OpenAI-tegoed even op was, zagen de klanten van alle
+    // drie de merken daardoor meteen "De meting is vastgelopen" voor iets dat
+    // vanzelf goed had kunnen komen. De status blijft nu 'gemeten' zolang er
+    // pogingen over zijn; na de laatste zet `handleFailure()` in
+    // `lib/jobs/worker.ts` hem op 'mislukt', zoals bij elke blokkerende taak.
     throw err;
   }
 }
