@@ -31,6 +31,8 @@ import type { Critique } from "@/lib/schemas/critique";
 import { GEO_CRITERIA_LABELS } from "@/lib/schemas/critique";
 import type { CitabilityVerdict, FactualityVerdict } from "@/lib/schemas/content-panel";
 import type { CraftVerdict } from "@/lib/schemas/content-craft";
+import type { Eigenaarstoets } from "@/lib/schemas/eigenaarstoets";
+import { eigenaarBevindingen } from "@/lib/pipeline/eigenaarstoets";
 import type { BewijspuntenResult } from "@/lib/pipeline/bewijspunten";
 import type { KernbewijsResult } from "@/lib/pipeline/kernbewijs";
 import type { OpdrachtResult } from "@/lib/schrijfopdracht";
@@ -74,6 +76,13 @@ export interface KwaliteitsInvoer {
   factuality: FactualityVerdict | null;
   citability: CitabilityVerdict | null;
   craft: CraftVerdict | null;
+  /**
+   * De eigenaarstoets (L10, WP9). `undefined` = niet gevraagd (een pagina
+   * zonder strategie), `null` = gevraagd en uitgevallen: dan daalt de zekerheid.
+   */
+  eigenaar?: Eigenaarstoets | null;
+  /** De tekst waarin de citaten van de eigenaarstoets moeten staan. */
+  eigenaarTekst?: string;
 
   /** De deterministische controles. */
   gate: GateResult;
@@ -568,6 +577,31 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
           bron: "vakmanschap",
         }),
       );
+    }
+  }
+
+  // De eigenaarstoets (WP9): "nee" blokkeert en stuurt de reparatie, de
+  // problemen met een echt citaat gaan als werk mee (`eigenaarstoets.ts`).
+  if (invoer.eigenaar !== undefined) {
+    gevraagd++;
+    if (invoer.eigenaar) {
+      geslaagd++;
+      for (const b of eigenaarBevindingen(invoer.eigenaar, invoer.eigenaarTekst ?? "")) {
+        issues.push(
+          maak(invoer, {
+            dimension: b.dimension,
+            severity: b.blocking ? "blokkerend" : "hoog",
+            section: b.section,
+            finding: b.finding,
+            evidence: b.evidence,
+            expected: null,
+            recommendation: b.recommendation,
+            blocking: b.blocking,
+            confidence: MODELOORDEEL,
+            bron: "eigenaarstoets",
+          }),
+        );
+      }
     }
   }
 

@@ -59,6 +59,7 @@ import { gatzinnen, voorbehoudNaBewijs, checkBestemmingen, isToezegging } from "
 import { controleerRedactie, getalReeksen } from "@/lib/pipeline/redactie-check";
 import { heelMetabeschrijving, heelMetatitel, MAX_METABESCHRIJVING } from "@/lib/pipeline/metatitel";
 import { isEchteVraag, strategievragen, MAX_STRATEGIEVRAGEN } from "@/lib/pipeline/strategievragen";
+import { citaatStaatErin, eigenaarBevindingen } from "@/lib/pipeline/eigenaarstoets";
 import { strategieblok, gekozenRefs, opbouwUitStrategie, REGELS_STRATEGIE, REGEL_7_STRATEGIE } from "@/lib/pipeline/strategie-opdracht";
 import { checkStrategieDekking } from "@/lib/pipeline/content-coverage";
 import { haalSectiesWeg } from "@/lib/pipeline/content-sections";
@@ -19786,7 +19787,14 @@ group("De bedrading van de nieuwe contentpijplijn", () => {
       panel.includes("content_craft"),
   );
   ok("ze draaien tegelijk", panel.includes("Promise.all"));
-  ok("op de goedkope tier", panel.includes("MODELS.quality") && !panel.includes("MODELS.content"));
+  // Sinds WP9 (25 september 2026) één uitzondering: de eigenaarstoets draait op
+  // het sterke model, omdat hij de poort en de reparatie stuurt.
+  ok(
+    "de vier op de goedkope tier, alleen de eigenaarstoets op het sterke model",
+    panel.includes("MODELS.quality") &&
+      (panel.match(/MODELS\.content/g) ?? []).length === 1 &&
+      /model: MODELS\.content,\s*system: EIGENAAR_SYSTEM/.test(panel),
+  );
   ok("met redeneertijd", panel.includes('work: "judging"'));
 
   // ── Algemene uitleg komt alleen met nagerekende bron op de pagina (A7) ───
@@ -26827,6 +26835,37 @@ group("De vragenroute: van de strategie naar de ondernemer", () => {
   ok("een echte vraag wel", isEchteVraag("Welke posten specificeren jullie zelf in een offerte en hoe behandelen jullie onverwacht extra werk?"));
   eq("en hij komt niet in de lijst", String(strategievragen({ strategie: strategie({ onderwerpen: [o({ besluit: "opnemen", bron: "feit", feiten: ["F1"], vraag: "Geen vraag nodig." })] }), pieceId: null }).length), "0");
   ok("de taak gebruikt de ontdubbeling van de briefing", /beoordeelVragen[\s\S]*voegVragenSamen[\s\S]*bewaarVragen/.test(leesBestand("lib/pipeline/strategie-taak.ts")));
+});
+
+group("De eigenaarstoets stuurt de keuring (WP9)", () => {
+  // De tekst van Best na de reparatie, met de twee zinnen die de blinde lezer noemde.
+  const tekst = "## Prijsindicatie voor aanleg met bestrating\n\nDe prijsband hierboven is onze gebruikelijke indicatie voor tuinaanleg met bestrating. " +
+    "In het algemeen kan een aanlegprijs betrekking hebben op werkzaamheden als grondwerk, bestrating en beplanting.";
+  const oordeel = (x: Partial<Parameters<typeof eigenaarBevindingen>[0] & object> = {}) => ({
+    publiceert: "met_aanpassingen" as const,
+    waarom: "Drie keer de prijs.",
+    eersteWijziging: { sectie: "Prijsindicatie voor aanleg met bestrating", citaat: "De prijsband hierboven is onze gebruikelijke indicatie", wat: "Voeg de drie prijssecties samen." },
+    problemen: [
+      { soort: "herhaling" as const, citaat: "De prijsband hierboven is onze gebruikelijke indicatie voor tuinaanleg met bestrating.", voorstel: "Schrappen." },
+      { soort: "hol" as const, citaat: "**In het algemeen** kan een aanlegprijs betrekking hebben op werkzaamheden", voorstel: "Eén stellige zin." },
+      { soort: "hol" as const, citaat: "Een zin die het model verzon over de zwemvijver.", voorstel: "Weg." },
+    ],
+    vergelijking: "nieuw_beter" as const,
+    ...x,
+  });
+  const b = eigenaarBevindingen(oordeel(), tekst);
+  eq("de eerste wijziging en twee echte problemen", String(b.length), "3");
+  ok("een verzonnen citaat telt niet", !b.some((x) => x.finding.includes("zwemvijver")));
+  ok("met aanpassingen blokkeert niet", b.every((x) => !x.blocking));
+  ok("opmaak in het citaat maakt niet uit", citaatStaatErin("**In het algemeen** kan een aanlegprijs", tekst));
+  const nee = eigenaarBevindingen(oordeel({ publiceert: "nee" }), tekst);
+  ok("nee blokkeert, met de eerste wijziging als opdracht", nee[0].blocking && nee[0].recommendation === "Voeg de drie prijssecties samen.");
+  eq("geen oordeel, geen bevindingen", String(eigenaarBevindingen(null, tekst).length), "0");
+  const veel = eigenaarBevindingen(oordeel({ problemen: Array.from({ length: 12 }, (_, i) => ({ soort: "hol" as const, citaat: `zin nummer ${i} op de pagina`, voorstel: "x" })) }), Array.from({ length: 12 }, (_, i) => `zin nummer ${i} op de pagina.`).join(" "));
+  ok("hoogstens zes problemen naast de eerste wijziging", veel.length <= 7, String(veel.length));
+  const keuring = leesBestand("lib/pipeline/quality-run.ts");
+  ok("alleen bij een pagina met strategie", /eigenaar: input\.strategie\s*\?/.test(keuring));
+  ok("de bevindingen komen in de keuring", leesBestand("lib/pipeline/quality-collect.ts").includes('bron: "eigenaarstoets"'));
 });
 
 group("Metabeschrijving zonder halve naam (werkstand §4, punt 4)", () => {

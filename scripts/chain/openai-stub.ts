@@ -739,6 +739,30 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
    * zodra een KERNsectie geen bewijs heeft. Zou deze stub laag scoren, dan zou
    * die blokkade ook uit de score kunnen komen en bewijst de test niets.
    */
+  /**
+   * L10, de eigenaarstoets (WP9). Citeert de eerste gewone zin van de pagina
+   * uit de opdracht, zodat het citaatvangnet hem laat staan, en een verzonnen
+   * zin die het vangnet moet weggooien.
+   */
+  content_eigenaarstoets: (user) => {
+    const na = user.split("Pagina-inhoud (Markdown):")[1] ?? "";
+    const zin =
+      na
+        .split("\n")
+        .map((r) => r.trim())
+        .find((r) => r && !r.startsWith("#"))
+        ?.split(/(?<=[.!?])\s/)[0] ?? "";
+    return {
+      publiceert: "met_aanpassingen",
+      waarom: "De inhoud klopt, maar een zin herhaalt wat er al staat.",
+      eersteWijziging: { sectie: null, citaat: zin, wat: "Maak de opening concreter met de termijn." },
+      problemen: [
+        { soort: "herhaling", citaat: zin, voorstel: "Schrap de herhaling." },
+        { soort: "hol", citaat: "Deze zin staat nergens op de pagina.", voorstel: "Weg ermee." },
+      ],
+      vergelijking: "geen_huidige",
+    };
+  },
   content_craft: () => ({
     specificiteit: {
       score: 78,

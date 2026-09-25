@@ -12556,3 +12556,16 @@ ondernemer al beantwoordde of oversloeg komt niet terug, een open vraag die hetz
 pagina erbij. De vragen zijn niet verplicht en gelden voor het hele merk; het antwoord komt via de
 feitenkaart in de volgende versie. Eerst op sleutel zonder aanroep, alleen bij een nieuwe vraag één
 lichte aanroep (`briefing_vraag_judge`). Een mislukking hier houdt het schrijven niet tegen.
+
+## 25 september 2026: de eigenaarstoets in de keuring (WP9, eerste stap)
+
+Kwaliteit werd tot nu toe alleen achteraf gemeten, met de blinde lezer. In de pijplijn letten de
+controles op feiten en formuleringen, niet op herhaling, holle alinea's of een kop die niet bij de
+tekst past, precies wat die lezer bij beide nagemeten pagina's als eerste noemde. Nu leest een vijfde
+beoordelaar (L10, `content_eigenaarstoets`, Sol met denktijd medium) elke versie van een pagina met
+strategie als de ondernemer: publiceert hij zo, wat verandert hij eerst, welke zinnen haalt een
+copywriter eruit, en is de nieuwe beter dan de huidige sitepagina. "Nee" blokkeert en stuurt de
+reparatie met de eerste wijziging als opdracht; de problemen gaan als bevinding mee. Vangnet in code:
+een probleem telt alleen als het citaat letterlijk in de tekst staat, hoogstens zes. De vier bestaande
+beoordelaars blijven voorlopig staan; ze vervangen (WP9 volledig) wacht tot de eigenaarstoets op
+productie is nagemeten tegen de blinde lezer.

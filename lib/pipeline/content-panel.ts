@@ -50,6 +50,8 @@ import { MODELS } from "@/lib/openai/models";
 import { Critique } from "@/lib/schemas/critique";
 import { FactualityVerdict, CitabilityVerdict } from "@/lib/schemas/content-panel";
 import { CraftVerdict } from "@/lib/schemas/content-craft";
+import { Eigenaarstoets } from "@/lib/schemas/eigenaarstoets";
+import { eigenaarBevindingen } from "@/lib/pipeline/eigenaarstoets";
 import { formatFactCard, type FactItem } from "@/lib/pipeline/factcard";
 import type { ContentContract } from "@/lib/schemas/content-contract";
 import type { ContentQualityProfile } from "@/lib/pipeline/quality-profile";
@@ -227,6 +229,23 @@ export interface PanelInput {
    * maatstaven gemeten. Weglaten mag en verandert niets (conventie 3).
    */
   opdracht?: WriterBrief | null;
+  /**
+   * De EIGENAARSTOETS (L10, WP9). Alleen bij een pagina met paginastrategie: dan
+   * weten we voor wie de pagina is en wat hij moet bereiken. `null` of weglaten
+   * = geen vijfde beoordelaar, en dan verandert er niets.
+   */
+  eigenaar?: EigenaarInput | null;
+}
+
+/** Wat de eigenaarstoets naast de pagina nodig heeft. */
+export interface EigenaarInput {
+  lezer: string;
+  paginadoel: string;
+  toon: string | null;
+  aanspreekvorm: string | null;
+  verbodenWoorden: string[];
+  /** De huidige pagina op de site, als die er is: daartegen vergelijkt hij. */
+  huidigeTekst: string | null;
 }
 
 export interface PanelResult {
@@ -243,6 +262,8 @@ export interface PanelResult {
   factuality: FactualityVerdict | null;
   citability: CitabilityVerdict | null;
   craft: CraftVerdict | null;
+  /** De eigenaarstoets (L10). `null` als hij niet gevraagd is of uitviel. */
+  eigenaar: Eigenaarstoets | null;
   /** Alle ruwe antwoorden, voor `critique_raw_json` (§5: we bewaren alles). */
   raw: unknown[];
   /** De bevindingen van alle vier samen, klaar voor de reparatiestap. */
@@ -287,6 +308,38 @@ function contractBlok(contract: ContentContract | null): string {
         `- "${s.heading}": ${s.subQuestion}` +
         (s.successCriterion ? ` (geslaagd als: ${s.successCriterion})` : ""),
     ),
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+const EIGENAAR_SYSTEM =
+  "Je bent de ondernemer zelf. Je leest een nieuwe pagina voor je eigen website, geschreven door een " +
+  "bureau. Je kent je bedrijf, je klanten en je vak, en je leest kritisch: je zet er alleen iets op dat " +
+  "je zelf zo zou zeggen. Beantwoord: (1) PUBLICEERT je dit zo? 'ja' als je het zonder aanpassing " +
+  "plaatst, 'met_aanpassingen' als je een paar zinnen verandert, 'nee' als je hem terugstuurt. " +
+  "(2) Wat verander je ALS EERSTE, met de letterlijke zin waar het om gaat (of leeg als er iets " +
+  "ontbreekt) en wat er moet gebeuren, als opdracht aan de schrijver. (3) Hoogstens zes PROBLEMEN die " +
+  "een goede copywriter eruit zou halen, elk met de LETTERLIJKE zin uit de pagina en een concreet " +
+  "voorstel. Let vooral op: herhaling (een feit of een gedachte die al eerder staat, ook in andere " +
+  "woorden), holle zinnen (zinnen die over het onderwerp praten zonder iets te zeggen, 'in het " +
+  "algemeen', 'kan betrekking hebben op', 'dat zegt op zichzelf niet'), een kop die iets anders " +
+  "belooft dan de tekst eronder, een toon die niet bij je bedrijf past, en bewijs dat je hebt maar dat " +
+  "er niet staat. (4) VERGELIJK met je huidige pagina als die er is: is de nieuwe beter voor je " +
+  "klanten, gelijk, of was de huidige beter? Je controleert geen feiten; dat doet iemand anders. " +
+  "Verzin geen citaten: een citaat dat niet letterlijk in de pagina staat, telt niet. Antwoord in het " +
+  "Nederlands.";
+
+function eigenaarBlok(e: EigenaarInput): string {
+  return [
+    `Voor wie deze pagina is: ${e.lezer}`,
+    `Wat de lezer na afloop moet doen: ${e.paginadoel}`,
+    e.toon ? `Zo klinkt je bedrijf: ${e.toon}` : "",
+    e.aanspreekvorm ? `Je spreekt je klanten aan met: ${e.aanspreekvorm}` : "",
+    e.verbodenWoorden.length ? `Woorden die je nooit gebruikt: ${e.verbodenWoorden.join(", ")}` : "",
+    e.huidigeTekst?.trim()
+      ? `JE HUIDIGE PAGINA OP DE SITE:\n"""\n${e.huidigeTekst.trim().slice(0, 4000)}\n"""`
+      : "Er is nog geen pagina over dit onderwerp op je site.",
   ]
     .filter(Boolean)
     .join("\n");
@@ -352,6 +405,25 @@ export async function runPanel(input: PanelInput): Promise<PanelResult> {
   const pagina = paginaBlok(input);
   const meta = { analysisId: input.analysisId, profileId: input.profileId ?? undefined };
 
+  // De eigenaarstoets draait op het sterke model (Sol, denktijd medium via
+  // `judging`): het is het oordeel dat de poort en de reparatie stuurt, en
+  // daar was het goedkoopste model met losse cijfers juist het zwakke punt.
+  const eigenaarAanroep = input.eigenaar
+    ? callStructured({
+        model: MODELS.content,
+        system: EIGENAAR_SYSTEM,
+        user: `${eigenaarBlok(input.eigenaar)}\n\n${pagina}`,
+        schema: Eigenaarstoets,
+        schemaName: "content_eigenaarstoets",
+        webSearch: false,
+        work: "judging",
+        meta: { kind: "content_eigenaarstoets", ...meta },
+      }).catch((err) => {
+        console.warn(`Eigenaarstoets mislukt, de zekerheid daalt: ${String(err)}`);
+        return null;
+      })
+    : Promise.resolve(null);
+
   const [redactie, feiten, citeerbaar, vakmanschap] = await Promise.all([
     callStructured({
       model: MODELS.quality,
@@ -411,6 +483,8 @@ export async function runPanel(input: PanelInput): Promise<PanelResult> {
   const factuality = feiten?.parsed ?? null;
   const citability = citeerbaar?.parsed ?? null;
   const craft = vakmanschap?.parsed ?? null;
+  const eigenaarUitkomst = await eigenaarAanroep;
+  const eigenaar = eigenaarUitkomst?.parsed ?? null;
 
   const issues = [
     ...(critique?.issues ?? []),
@@ -438,17 +512,30 @@ export async function runPanel(input: PanelInput): Promise<PanelResult> {
       : []),
   ];
 
-  const geslaagd = [critique, factuality, citability, craft].filter(Boolean).length;
+  const tekst = [input.bodyMarkdown, ...input.faq.map((f) => `${f.q}\n${f.a}`)].join("\n");
+  for (const b of eigenaarBevindingen(eigenaar, tekst)) {
+    issues.push(
+      `${b.section ? `In de sectie "${b.section}": ` : ""}${b.finding}${b.recommendation ? ` ${b.recommendation}` : ""}`,
+    );
+  }
+
+  const gevraagd = input.eigenaar ? 5 : 4;
+  const geslaagd = [critique, factuality, citability, craft, input.eigenaar ? eigenaar : null].filter(Boolean).length;
 
   return {
     critique,
     factuality,
     citability,
     craft,
-    raw: [redactie?.raw ?? null, feiten?.raw ?? null, citeerbaar?.raw ?? null, vakmanschap?.raw ?? null].filter(
-      Boolean,
-    ),
+    eigenaar,
+    raw: [
+      redactie?.raw ?? null,
+      feiten?.raw ?? null,
+      citeerbaar?.raw ?? null,
+      vakmanschap?.raw ?? null,
+      eigenaarUitkomst?.raw ?? null,
+    ].filter(Boolean),
     issues,
-    beoordelaars: { geslaagd, gevraagd: 4 },
+    beoordelaars: { geslaagd, gevraagd },
   };
 }
