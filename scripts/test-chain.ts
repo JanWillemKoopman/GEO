@@ -2718,6 +2718,66 @@ async function main(): Promise<void> {
     ok("en er is geen betaald werk gedaan", rapporten.length === 0);
 
     // ══════════════════════════════════════════════════════════════════════
+    // Punt 56: een mislukte rapportpoging is nog geen vastgelopen meting
+    //
+    // De AI-stub kent de rapportschema's niet en gooit dus, precies zoals
+    // OpenAI toen het tegoed op was. Na de eerste poging moet de analyse op
+    // 'gemeten' blijven staan (de wachtrij probeert het opnieuw); pas na de
+    // laatste toegestane poging mag de klant "vastgelopen" zien.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nPunt 56: een mislukte rapportpoging is nog geen vastgelopen meting");
+
+    const rapportAnalyse = randomUUID();
+    await db.client.query(
+      `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+       values ($1, $2, $3, 'Rapport faalt', 'https://fysi-unique.nl', 'iets', 'gemeten')`,
+      [rapportAnalyse, userId, profileId],
+    );
+    await db.client.query(
+      "insert into public.visibility_scores (analysis_id, week_no, score) values ($1, 0, 40)",
+      [rapportAnalyse],
+    );
+    await db.client.query(
+      `insert into public.jobs (analysis_id, type, payload_json, dedupe_key, status, scheduled_for)
+       values ($1, 'generate_report', '{"weekNo":0}'::jsonb, $2, 'queued', now())`,
+      [rapportAnalyse, `chain-rapport-faalt:${rapportAnalyse}`],
+    );
+
+    await runWorker();
+    const { rows: rapportNaEerste } = await db.client.query(
+      `select a.status as analyse, j.status as taak, j.attempts
+         from public.analyses a join public.jobs j on j.analysis_id = a.id where a.id = $1`,
+      [rapportAnalyse],
+    );
+    ok(
+      "punt 56: na de eerste mislukte poging probeert de wachtrij het opnieuw",
+      rapportNaEerste[0]?.taak === "queued" && rapportNaEerste[0]?.attempts === 1,
+      JSON.stringify(rapportNaEerste[0] ?? null),
+    );
+    ok(
+      "punt 56: en ziet de klant nog geen vastgelopen meting",
+      rapportNaEerste[0]?.analyse === "gemeten",
+      JSON.stringify(rapportNaEerste[0] ?? null),
+    );
+
+    // De laatste poging: nu mag, en moet, de klant het zien.
+    await db.client.query(
+      "update public.jobs set attempts = 3, scheduled_for = now() where analysis_id = $1",
+      [rapportAnalyse],
+    );
+    await runWorker();
+    const { rows: rapportNaLaatste } = await db.client.query(
+      `select a.status as analyse, j.status as taak, j.attempts
+         from public.analyses a join public.jobs j on j.analysis_id = a.id where a.id = $1`,
+      [rapportAnalyse],
+    );
+    ok(
+      "punt 56: na de laatste poging staat de analyse wel op mislukt",
+      rapportNaLaatste[0]?.taak === "failed" && rapportNaLaatste[0]?.analyse === "mislukt",
+      JSON.stringify(rapportNaLaatste[0] ?? null),
+    );
+
+    // ══════════════════════════════════════════════════════════════════════
     // Labels op clusters, en wat de prullenbak echt stopt (migratie 0083)
     //
     // ⚠️ Hier en niet in test-unit.ts: dit gaat over wat de DATABASE afdwingt

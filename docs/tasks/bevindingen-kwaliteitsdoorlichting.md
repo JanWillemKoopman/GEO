@@ -194,7 +194,7 @@ bronzinnen, het ontbrekende bewijs).
 | 53 | middel | Een nieuwe versie verliest het beweringenplan, en wordt daarna niet meer op onderbouwing getoetst | ✅ opgelost, verbeterronde blok C |
 | 54 | middel | Een zin met een omschreven klantfeit telt als "zin zonder bron" | ✅ grotendeels opgelost, verbeterronde blok C |
 | 55 | **hoog** | Bij drie merken tegelijk meten faalt de Gemini-meting nog steeds volledig op de leverancierslimiet, ondanks de spreiding van blok F | open, herhaling 24/25 september 2026 |
-| 56 | **hoog** | Een analyse wordt al na de eerste mislukte rapportpoging op "vastgelopen" gezet en toont de klant een foutmelding, terwijl de taak zelf nog drie keer op de achtergrond opnieuw probeert (tot 30 minuten) | open, herhaling 24/25 september 2026 |
+| 56 | **hoog** | Een analyse wordt al na de eerste mislukte rapportpoging op "vastgelopen" gezet en toont de klant een foutmelding, terwijl de taak zelf nog drie keer op de achtergrond opnieuw probeert (tot 30 minuten) | ✅ opgelost, PR #135 (25 september 2026) |
 | 57 | middel | Bij één pagina kwamen na het beantwoorden van de eerste vragen 12 nieuwe vervolgvragen over hetzelfde onderwerp (wat zit inbegrepen bij een ketelvervanging), in steeds andere bewoordingen | ✅ opgelost in code, PR #134 (reparatieplan blok I, 25 september 2026); het oordeel van het model is nog niet op een echte voorbereidingsronde nagerekend |
 | 58 | laag | De crawl van een grote site (~70 pagina's) las dit keer maar 33 van de 68 pagina's, ook na een extra aanvulronde, tegen 60 van de 68 bij de nulmeting; de site reageerde traag | open, lijkt aan de externe site te liggen en niet aan de code, herhaling 24/25 september 2026 |
 | 59 | **hoog** | De bronherleidbaarheidscontrole blokkeert op zinnen die geen bewering over het bedrijf zijn (een datumstempel, een veiligheidsinstructie, een definitie); 20 van de 21 nieuwe pagina's kregen "block" | ✅ opgelost, PR #132 (reparatieplan blok G, 25 september 2026), op productie nagerekend: 3 van 3 herkeurde pagina's van 5 naar 0, 1 en 4 blokkades, resterende 4 grotendeels opgelost in punt 64 |
@@ -1172,6 +1172,15 @@ andere blokkerende taaktypes doet). **Voorstel:** de status-update in de catch-t
 `generateReport()` alleen laten lopen als dit al de laatste toegestane poging is (`job.attempts >=
 MAX_ATTEMPTS`, net als `handleFailure()`), of de statuswijziging helemaal overlaten aan de worker in
 plaats van aan de pijplijnfunctie zelf.
+
+**Opgelost (25 september 2026, PR #135).** De tweede weg uit het voorstel: `generateReport()` zet de
+analyse niet meer zelf op `mislukt`, dat doet alleen nog de wachtrij na de laatste toegestane poging
+(`handleFailure()` en `markOwnerFailed()` in `lib/jobs/worker.ts`, al zo voor elke blokkerende taak).
+Alleen de wachtrij roept `generateReport()` aan, dus er is geen andere weg die de status nodig had.
+Tussen de pogingen blijft de analyse op `gemeten`, en daar hoort geen melding bij. Een ketenscenario in
+`test-chain.ts` laat het rapport mislukken zoals toen het tegoed op was: na de eerste poging staat de
+taak weer in de wachtrij en de analyse op `gemeten`, na de laatste op `mislukt`. Tegen de oude code
+faalt dat scenario op precies die tweede controle.
 
 ## 57. Twaalf bijna-dezelfde vervolgvragen over één onderwerp
 

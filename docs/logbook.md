@@ -12346,3 +12346,11 @@ Blok H op productie nagerekend (zelfde dag): een herkeuring van de echte versie 
 drie verdwenen feiten, en één keer "los alles op" leverde een versie 3 met alle drie terug en zonder
 blokkades, voor $0,18.
 
+## 25 september 2026: een mislukte rapportpoging is nog geen vastgelopen meting (punt 56)
+
+`generateReport()` zette de analyse bij de eerste mislukte poging op `mislukt`, terwijl de wachtrij
+nog drie keer opnieuw probeert (2, 4 en 8 minuten ertussen). Bij de herhaling, toen het OpenAI-tegoed
+even op was, zagen de klanten van alle drie de merken daardoor meteen "De meting is vastgelopen". Nu
+zet alleen de wachtrij de analyse op `mislukt`, na de vierde poging, zoals bij elke andere blokkerende
+taak. Getoetst met een ketenscenario dat tegen de oude code faalt.
+
