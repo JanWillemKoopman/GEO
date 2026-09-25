@@ -12566,3 +12566,13 @@ moet iets opleveren wat niet uit bestaande kennis of webonderzoek te halen is; d
 voor de schrijver maken; de controle op harde beweringen is een conservatieve detectie en geen
 factchecker; geen scores op de tekst; en vooraf vastgelegd (B15) dat een tegenvallende uitslag nooit
 leidt tot een extra stap of beoordelaar.
+
+Gebouwd (zelfde dag, WP1 tot en met WP7): de nieuwe keten staat in `lib/pagina/` met vier taaksoorten
+(`pagina_brief`, `pagina_schrijven`, `pagina_controle`, `pagina_herschrijven`) en twee ingangen voor
+het contentplan (`bereidVoor`, `probeerTeSchrijven` in `lib/pagina/start.ts`). Getoetst met 4.844
+eenheidstests en 731 ketentests, zonder één echte AI-aanroep. Twee dingen die de ketentest vond en
+die zonder test in productie waren gegaan: een schrijver die de titel van een andere pagina kiest,
+liet de opslag stil mislukken op de unieke index uit migratie 0023 (de titel van de rij blijft nu
+de plantitel), en de testdatabase gaf een datum als Date-object terug waar PostgREST tekst geeft (nu
+gelijkgetrokken in `scripts/chain/postgres.ts`). Nog niet gedaan: WP8 tot en met WP10, want die vragen
+de code op productie en echte aanroepen; de kosten per pagina zijn dus nog een schatting.
