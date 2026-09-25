@@ -79,6 +79,7 @@ import {
 } from "@/lib/pipeline/existing-page-match";
 import { canonicalPath } from "@/lib/pipeline/page-relevance";
 import { detectClaimSentences, detectedCoverage, resolveFactId } from "@/lib/pipeline/claim-extract";
+import { bepaalTeBehouden, behoudblok, type TeBehoudenFeit } from "@/lib/pipeline/feitbehoud";
 import type { AuditedClaim, GeneralContextGap } from "@/lib/schemas/claim-audit";
 import {
   validateOrRebuildJsonLd,
@@ -1719,6 +1720,46 @@ async function loadSavedDraft(
  * Eén functie voor de schrijf- én de herschrijfronde, zodat die twee niet elk
  * hun eigen variant krijgen.
  */
+/**
+ * De feiten die een nieuwe versie van de vorige moet overnemen (punt 50 en 62,
+ * reparatieplan blok H). `vorigeId` is de versie die deze vervangt; zonder
+ * vorige versie is er niets te behouden. Zie `lib/pipeline/feitbehoud.ts`.
+ *
+ * Wordt bij het schrijven, bij elke reparatieronde en bij een herkeuring
+ * opnieuw bepaald, tegen de HUIDIGE kaart: een feit dat de klant intussen
+ * ontkende, hoeft niet meer terug te komen.
+ */
+async function supersedesVan(
+  admin: ReturnType<typeof createAdminClient>,
+  pieceId: string,
+): Promise<string | null> {
+  const { data } = await admin.from("content_pieces").select("supersedes_id").eq("id", pieceId).maybeSingle();
+  return (data?.supersedes_id as string | null) ?? null;
+}
+
+async function laadTeBehouden(
+  admin: ReturnType<typeof createAdminClient>,
+  vorigeId: string | null,
+  facts: FactItem[],
+  notitie: string | null,
+): Promise<TeBehoudenFeit[]> {
+  if (!vorigeId) return [];
+  const { data } = await admin
+    .from("content_pieces")
+    .select("claims_json, body_markdown, faq_json")
+    .eq("id", vorigeId)
+    .maybeSingle();
+  return bepaalTeBehouden({
+    vorigeClaims: ((data?.claims_json ?? []) as WrittenClaim[]) ?? [],
+    facts,
+    notitie,
+    vorigeTekst: {
+      bodyMarkdown: (data?.body_markdown as string | null) ?? "",
+      faq: ((data?.faq_json ?? []) as { q: string; a: string }[]) ?? [],
+    },
+  });
+}
+
 function assessClaims(piece: ContentPiece, facts: FactItem[], brandName: string) {
   const detected = detectClaimSentences(
     { bodyMarkdown: piece.bodyMarkdown, faq: piece.faq },
@@ -2140,6 +2181,19 @@ export async function draftContentPiece(args: {
   // product, het premium model dat een volledige pagina schrijft, en die twee keer
   // betalen omdat de vórige poging ná het schrijven strandde, is puur verlies.
   const saved = resumeId ? await loadSavedDraft(admin, resumeId) : null;
+
+  // ── Blok H: wat de vorige versie al goed had, blijft staan ───────────────
+  //
+  // Een nieuwe versie (`regenerate`) schreef tot 25 september 2026 zonder de
+  // vorige tekst te zien, en verloor zo drie juiste klantfeiten (punt 62).
+  // Bij het hervatten van zo'n versie staat de vorige op de rij zelf.
+  const vorigeId = regenerate
+    ? (current?.id ?? null)
+    : resumeId
+      ? await supersedesVan(admin, resumeId)
+      : null;
+  const teBehouden = await laadTeBehouden(admin, vorigeId, ctx.facts, recommendation.revisionNote ?? null);
+
   const draft =
     saved ??
     (await callStructured({
@@ -2149,7 +2203,7 @@ export async function draftContentPiece(args: {
       system: ctx.needsFactFinding
         ? CONTENT_SYSTEM + buildFactFindingAddendum(ctx.generalContextGaps)
         : CONTENT_SYSTEM,
-      user: baseInput,
+      user: baseInput + behoudblok(teBehouden),
       schema: ContentPiece,
       schemaName: "content_piece",
       webSearch: ctx.needsFactFinding,
@@ -2237,6 +2291,8 @@ export async function draftContentPiece(args: {
     bestaandeTekst: ctx.existing.text ?? ctx.existing.page?.text_excerpt ?? null,
     // De schrijfopdracht waarop deze pagina geschreven is (optimalisatie 5).
     opdracht: ctx.opdracht,
+    // Blok H: staat alles van de vorige versie er nog?
+    teBehouden,
   });
 
   // De gemeten waarden altijd loggen, ook onder de drempel: zonder die reeks kan
@@ -2461,6 +2517,13 @@ export async function reviseContentPiece(args: {
     bestaandeTekst: ctx.existing.text ?? ctx.existing.page?.text_excerpt ?? null,
     // De schrijfopdracht waarop deze pagina geschreven is (optimalisatie 5).
     opdracht: ctx.opdracht,
+    // Blok H: een reparatieronde mag een feit van de vorige versie evenmin kwijtraken.
+    teBehouden: await laadTeBehouden(
+      admin,
+      (pieceRow.supersedes_id as string | null) ?? null,
+      ctx.facts,
+      (pieceRow.revision_note as string | null) ?? null,
+    ),
   });
 
   const openstaand = keuring.teksten;
@@ -2735,6 +2798,12 @@ export async function herkeurContentPiece(args: {
     bestaandeTekst: ctx.existing.text ?? ctx.existing.page?.text_excerpt ?? null,
     // De schrijfopdracht waarop deze pagina geschreven is (optimalisatie 5).
     opdracht: ctx.opdracht,
+    teBehouden: await laadTeBehouden(
+      admin,
+      (pieceRow.supersedes_id as string | null) ?? null,
+      ctx.facts,
+      (pieceRow.revision_note as string | null) ?? null,
+    ),
   });
 
   // Alleen het oordeel. `body_markdown`, `version`, `repair_round` en `status`

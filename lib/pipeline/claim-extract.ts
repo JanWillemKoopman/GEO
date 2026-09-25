@@ -236,6 +236,16 @@ const EXTERNE_PARTIJEN = [
 /** Praat de zin over het bedrijf zelf, in de wij-vorm? */
 const EERSTE_PERSOON = /(^| )(wij|we|ons|onze)( |$)/;
 
+/**
+ * De wij-vorm als ONDERWERP of bezit, zonder "ons" (punt 64, 25 september
+ * 2026). "Ons" staat in een oproep net zo vaak als lijdend voorwerp ("Vertel
+ * ons bij je aanvraag hoe vaak je wilt lessen", "kun je ons vragen"), en bij
+ * de nameting op productie waren dat drie van de vier blokkades die bleven
+ * staan op de prijzenpagina van de rijschool. Zo'n zin mag het model dus wel
+ * als "geen bewering" beoordelen; "wij bieden" en "onze monteurs" niet.
+ */
+const WIJ_ALS_ONDERWERP = /(^| )(wij|we|onze)( |$)/;
+
 /** Een bedrag of percentage: altijd een bewering die iemand kan natrekken. */
 const BEDRAG = /€|%|(^| )(euro|procent)( |$)/;
 
@@ -265,7 +275,7 @@ export function isGeenBewering(zin: string, brandName: string): boolean {
  */
 export function magGeenBeweringZijn(zin: string, brandName: string): boolean {
   const sleutel = normalizeForQuote(zin);
-  return !bevatMerknaam(zin, brandName) && !EERSTE_PERSOON.test(sleutel) && !BEDRAG.test(zin.toLowerCase());
+  return !bevatMerknaam(zin, brandName) && !WIJ_ALS_ONDERWERP.test(sleutel) && !BEDRAG.test(zin.toLowerCase());
 }
 
 /**
@@ -499,14 +509,14 @@ function zinIsOnderbouwdDoorKaart(sentence: string, facts: readonly FactItem[]):
 }
 
 /** De getallen in een tekst, zonder duizendtalpunt en zonder euroteken. */
-function getallenIn(tekst: string): string[] {
+export function getallenIn(tekst: string): string[] {
   return (tekst.match(/\d[\d.,]*/g) ?? [])
     .map((g) => g.replace(/[.,](?=\d{3}\b)/g, "").replace(/[.,]$/, ""))
     .filter((g) => g.length > 0);
 }
 
 /** Inhoudswoorden van vijf letters of meer, afgekapt op vijf: "ploeg", "vaste", "verzo". */
-function kernwoorden(tekst: string): Set<string> {
+export function kernwoorden(tekst: string): Set<string> {
   return new Set(
     normalizeForQuote(tekst)
       .split(" ")
@@ -582,7 +592,7 @@ export interface ZinOordeel {
   sentence: string;
   /** Is dit een controleerbare bewering over DIT bedrijf? */
   overBedrijf: boolean;
-  /** Het F-nummer van het feit dat hem exact onderbouwt, of `null`. */
+  /** Het F-nummer van het feit dat hem exact onderbouwt, of twee ("F12, F25"), of `null`. */
   feit: string | null;
 }
 
@@ -604,12 +614,24 @@ export interface ZinOordeel {
  * Plus de keurmerkregel: die geldt hier net zo streng als overal.
  */
 export function feitOnderbouwtZin(sentence: string, feit: FactItem | undefined): boolean {
-  if (!feit || !feit.allowed || !feit.citable) return false;
-  const feitGetallen = new Set(getallenIn(feit.text));
+  return feitenOnderbouwenZin(sentence, feit ? [feit] : []);
+}
+
+/**
+ * Hetzelfde voor een zin die twee feiten samen draagt (punt 64): "De intake
+ * staat vermeld voor € 50 en € 80" noemt het bedrag voor de intake op kantoor
+ * én dat in de auto, en die staan op de kaart als twee feiten. Elk getal moet
+ * dan in een van de aangewezen feiten staan, en elk aangewezen feit moet
+ * bruikbaar zijn; een verzonnen bedrag blijft dus tegenhouden.
+ */
+export function feitenOnderbouwenZin(sentence: string, feiten: readonly (FactItem | undefined)[]): boolean {
+  if (feiten.length === 0 || feiten.some((f) => !f || !f.allowed || !f.citable)) return false;
+  const bruikbaar = feiten as readonly FactItem[];
+  const feitGetallen = new Set(bruikbaar.flatMap((f) => getallenIn(f.text)));
   if (!getallenIn(zonderContactgegevens(sentence)).every((g) => feitGetallen.has(g))) return false;
-  const feitWoorden = kernwoorden(feit.text);
-  if (![...kernwoorden(sentence)].some((w) => feitWoorden.has(w))) return false;
-  return keurmerkGedekt(sentence, [feit]);
+  const zinWoorden = [...kernwoorden(sentence)];
+  if (!bruikbaar.some((f) => zinWoorden.some((w) => kernwoorden(f.text).has(w)))) return false;
+  return keurmerkGedekt(sentence, bruikbaar);
 }
 
 export interface VerfijndeDekking extends CoverageResult {
@@ -652,10 +674,15 @@ export function verwerkZinOordelen(args: {
       geenBewering.push(d.sentence);
       continue;
     }
-    const ref = oordeel?.feit?.trim().toUpperCase() ?? "";
-    const feit = ref ? facts.find((f) => f.ref.toUpperCase() === ref) : undefined;
-    if (oordeel?.overBedrijf && feitOnderbouwtZin(d.sentence, feit)) {
-      gekoppeld.push({ sentence: d.sentence, feit: ref });
+    // Eén F-nummer, of twee die de zin samen dragen ("F12, F25").
+    const refs = (oordeel?.feit ?? "")
+      .toUpperCase()
+      .split(/[,;/\s]+/)
+      .filter((r) => /^F\d+$/.test(r))
+      .slice(0, 2);
+    const feiten = refs.map((ref) => facts.find((f) => f.ref.toUpperCase() === ref));
+    if (oordeel?.overBedrijf && feitenOnderbouwenZin(d.sentence, feiten)) {
+      gekoppeld.push({ sentence: d.sentence, feit: refs.join(", ") });
       continue;
     }
     untagged.push(d);

@@ -39,7 +39,7 @@ woord/getal-matchen meer). Daarbinnen:
 **Test:** de vijf voorbeeldzinnen uit punt 59 en de "Gasketelwet"-zin uit punt 60 als vaste gevallen in
 `test-unit.ts`, plus de bestaande gevallen uit punt 54 (die moeten blijven werken).
 
-**Stand (25 september 2026):** gebouwd, PR #132. Punt 60 en 61 bleken bij narekenen onterecht (zie
+**Stand (25 september 2026):** live en nagerekend, PR #132 (zie punt 59 en 64). Punt 60 en 61 bleken bij narekenen onterecht (zie
 de bevindingenlijst); het vangnet voor keurmerken is er toch, en de echte Gasketelwet-zin gaat erdoor.
 Nameting op productie: een herkeuring van bestaande pagina's (vier beoordelaars plus de nieuwe
 aanroep, ongeveer $0,02 per pagina) in plaats van nieuwe teksten, want dan is het verschil op
@@ -64,6 +64,11 @@ was, en bleef één van de vijf gemelde punten zelf onopgelost staan.
 **Test:** een scenario in `test-chain.ts` dat een pagina met een niet-gemeld feit door "los alles op"
 haalt en controleert dat het feit blijft staan; een scenario dat controleert dat elk gemeld punt na de
 herschrijving niet meer als issue terugkomt.
+
+**Stand (25 september 2026):** gebouwd, PR #133. De ketentest toetst met een vaste schrijver: die kan
+een feit niet terugzetten, dus het scenario controleert dat de schrijver het feit meekrijgt en dat het
+verlies een blokkerende bevinding wordt, en dat een gemeld punt dat niet wordt. Of de echte schrijver
+het feit ook terugzet, blijkt pas op productie.
 
 ### Blok I, middel: dubbele vervolgvragen (punt 57)
 

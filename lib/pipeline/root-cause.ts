@@ -68,6 +68,9 @@ const BRON_FASE: Record<IssueBron, PipelinePhase> = {
   // Een schrijfprobleem, niet een kennisprobleem.
   bewijspunt: "schrijven",
   klantcitaat: "schrijven",
+  // Blok H: het feit stond op de kaart én in de vorige versie; wie het
+  // weglaat, is de schrijver.
+  feitbehoud: "schrijven",
   // V8, V1 en V10: opening, merkstem en koppen zijn alle drie schrijfkeuzes.
   paginavorm: "schrijven",
   adviestoon: "schrijven",

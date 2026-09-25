@@ -299,6 +299,7 @@ import {
 import { duplicatePromptIds } from "@/lib/pipeline/prompt-dedupe";
 import { dedupeCompetitorNames } from "@/lib/pipeline/competitor-dedupe";
 import { htmlToText } from "@/lib/pipeline/html-text";
+import { bepaalTeBehouden, vindVerlorenFeiten, behoudblok } from "@/lib/pipeline/feitbehoud";
 import { identifyEmptyProfiles } from "@/lib/profile-status";
 import { ontwijkendeZinnen } from "@/lib/pipeline/content-gate";
 import { isRapportageVorm } from "@/lib/pipeline/factcard";
@@ -26223,7 +26224,10 @@ group("De keuring ziet wat een bewering over het bedrijf is (reparatieplan blok 
   ok("het model mag de definitie wegzetten", magGeenBeweringZijn(definitie, rijschool));
   ok("en het retorische antwoord", magGeenBeweringZijn(retorisch, hovenier));
   ok("maar geen zin met de merknaam", !magGeenBeweringZijn("Neem contact op met Wesley Keeris Installatietechniek voor een gratis adviesbezoek.", installateur));
-  ok("geen zin in de wij-vorm", !magGeenBeweringZijn("Ga je na de intake bij ons lessen, dan krijg je de intakekosten terug.", rijschool));
+  ok("geen zin in de wij-vorm", !magGeenBeweringZijn("Wij bieden een duidelijke en overzichtelijke offerte.", hovenier));
+  ok("geen zin met 'onze'", !magGeenBeweringZijn("Onze beschikbare prijsinformatie zegt alleen 'inclusief installatie'.", installateur));
+  // Punt 64: drie van de vier blokkades die na de nameting bleven staan.
+  ok("'ons' als lijdend voorwerp mag het model wel beoordelen", magGeenBeweringZijn("Vertel ons bij je aanvraag hoe vaak je zou willen lessen en vraag meteen welke vervolgdata mogelijk zijn.", rijschool));
   ok("en geen zin met een bedrag", !magGeenBeweringZijn("De intake staat vermeld voor € 50 en € 80", rijschool));
 
   // De echte feiten van de rijschool en de installateur (brand_facts, 25 september 2026).
@@ -26249,7 +26253,7 @@ group("De keuring ziet wat een bewering over het bedrijf is (reparatieplan blok 
     { sentence: retorisch, signal: "toezegging" as const },
     { sentence: intake, signal: "toezegging" as const },
     { sentence: nuenen, signal: "toezegging" as const },
-    { sentence: "Een offerte van ons is duidelijk en overzichtelijk en ontvang je per mail.", signal: "toezegging" as const },
+    { sentence: "Wij bieden een duidelijke en overzichtelijke offerte.", signal: "toezegging" as const },
   ];
   const basis = { coverage: 0, detected: 6, tagged: 0, unsupported: [], untagged: alle };
   const oordelen = [
@@ -26258,14 +26262,28 @@ group("De keuring ziet wat een bewering over het bedrijf is (reparatieplan blok 
     { sentence: intake, overBedrijf: true, feit: "f1" },
     { sentence: nuenen, overBedrijf: true, feit: "F2" },
     // Het model probeert een wij-zin weg te zetten: dat mag niet.
-    { sentence: "Een offerte van ons is duidelijk en overzichtelijk en ontvang je per mail.", overBedrijf: false, feit: null },
+    { sentence: "Wij bieden een duidelijke en overzichtelijke offerte.", overBedrijf: false, feit: null },
   ];
   const uit = verwerkZinOordelen({ dekking: basis, oordelen, facts: feiten, brandName: rijschool });
   eq("twee zinnen zijn geen bewering", uit.geenBewering.length.toString(), "2");
   eq("twee zinnen hebben nu een feit", uit.gekoppeld.map((g) => g.feit).join(","), "F1,F2");
-  eq("alleen de wij-zin zonder feit blijft tegenhouden", uit.untagged.map((u) => u.sentence).join(" | "), "Een offerte van ons is duidelijk en overzichtelijk en ontvang je per mail.");
+  eq("alleen de wij-zin zonder feit blijft tegenhouden", uit.untagged.map((u) => u.sentence).join(" | "), "Wij bieden een duidelijke en overzichtelijke offerte.");
   eq2("de noemer krimpt met de twee niet-beweringen", uit.detected, 4);
   eq2("en de dekking rekent daarmee", uit.coverage, 75);
+  // Punt 64: een zin met twee bedragen, gedekt door twee feiten samen.
+  const prijzen = [
+    { ref: "F7", id: null, text: "Een intake van 60 minuten kost € 50.", source: "site /prijzen-lespakketten/", allowed: true, citable: true, claimKey: null },
+    { ref: "F8", id: null, text: "Een vrijblijvende intake in de auto duurt 60 minuten en kost € 80.", source: "site /prijzen-lespakketten/", allowed: true, citable: true, claimKey: null },
+  ];
+  const tweeBedragen = { sentence: "De intake staat vermeld voor € 50 en € 80", signal: "getal" as const };
+  const tweeDekking = { coverage: 0, detected: 1, tagged: 0, unsupported: [], untagged: [tweeBedragen] };
+  eq("twee feiten samen dekken twee bedragen", verwerkZinOordelen({ dekking: tweeDekking, oordelen: [{ sentence: tweeBedragen.sentence, overBedrijf: true, feit: "F7, F8" }], facts: prijzen, brandName: rijschool }).untagged.length.toString(), "0");
+  eq("één van de twee is niet genoeg", verwerkZinOordelen({ dekking: tweeDekking, oordelen: [{ sentence: tweeBedragen.sentence, overBedrijf: true, feit: "F7" }], facts: prijzen, brandName: rijschool }).untagged.length.toString(), "1");
+  eq(
+    "een verzonnen bedrag blijft tegenhouden, ook met twee feiten",
+    verwerkZinOordelen({ dekking: { ...tweeDekking, untagged: [{ sentence: "De intake staat vermeld voor € 50 en € 95", signal: "getal" as const }] }, oordelen: [{ sentence: "De intake staat vermeld voor € 50 en € 95", overBedrijf: true, feit: "F7, F8" }], facts: prijzen, brandName: rijschool }).untagged.length.toString(),
+    "1",
+  );
   eq("een mislukte aanroep verandert niets", verwerkZinOordelen({ dekking: basis, oordelen: null, facts: feiten, brandName: rijschool }).untagged.length.toString(), "5");
 
   // Punt 60: de echte zin van de installateur moet erdoor, een verzonnen keurmerk niet.
@@ -26306,4 +26324,124 @@ group("Het euroteken en letters met een accent komen goed van de site (punt 63)"
   eq("de rijschool", htmlToText("Meer info over de intake &euro; 50"), "Meer info over de intake € 50");
   eq("hoofdletters en andere accenten", htmlToText("&Eacute;&eacute;n caf&eacute; &agrave; la carte, gar&ccedil;on"), "Één café à la carte, garçon");
   eq("een onbekende naam blijft staan", htmlToText("A &foo; B"), "A &foo; B");
+});
+
+
+group("Een nieuwe versie houdt de feiten van de vorige (reparatieplan blok H, punt 50 en 62)", () => {
+  // De echte pagina "Vergelijk een nieuwe ketel met een hybride warmtepomp" van
+  // de installateur: versie 1 (98ca3609) en versie 2 na "los alles op" (4c58c6ab).
+  const feit = (ref: string, id: string, text: string, source = "klant, bevestigd 24-9-2026") =>
+    ({ ref, id, text, source, allowed: true, citable: true, claimKey: null });
+  const kaart = [
+    feit("F11", "5653be02", "Welke woningkenmerken controleer je bij advies over een hybride warmtepomp, en wanneer raad je die juist niet aan: Eerst een gratis adviesbezoek bij de klant, waarbij isolatie, radiatoren en ketelleeftijd bekeken worden. Een hybride werkt samen met de bestaande ketel"),
+    feit("F14", "0fb1a008", "Welke plaatsen bedient Wesley voor hybride warmtepompen, specifiek Geldrop, Mierlo en Nuenen: Geldrop en omgeving, ook Mierlo, Nuenen en Heeze-Leende"),
+    feit("F15", "5f2bab42", "Biedt Wesley onderhoud aan zowel hybride warmtepompen als cv-ketels aan? Zo ja, wat houdt dat in en hoe vaak wordt het uitgevoerd: ja via een onderhoudscontract, 1 keer per jaar een beurt"),
+    feit("F16", "6b60072c", "Welke merken of typen hybride warmtepompen kan Wesley leveren of installeren, en kan hij meerdere opties voor een woning vergelijken: Remeha Elga Ace en Nefit EnviLine"),
+    feit("F34", "ad064267", "Wat is uw prijs voor een hybride warmtepomp inclusief installatie, of welke vanafprijs kunt u noemen? 4.500 tot 7.500 euro inclusief installatie, dat is voor subsidie", "site wkinstallatie.nl"),
+    feit("F38", "b4326f7d", "Hoe lang duurt het meestal vanaf een offerteaanvraag tot de installatie? levertijd 2 tot 4 weken, installatie in 1 dag", "site wkinstallatie.nl"),
+    feit("F46", "2745067a", "Het bedrijf levert warmtepompinstallaties met water/lucht en een buitenunit, of water/water met grondboringen.", "site /warmtepomp"),
+    feit("F67", "c82917b3", "Wij zorgen voor een professionele vervanging van uw oude ketel, zodat u weer jarenlang zorgeloos kunt genieten van een warm en behaaglijk thuis.", "site /ketelvervanging"),
+    feit("F71", "5ec173c3", "Twaalf monteurs in dienst", "opgegeven in het gesprek"),
+  ];
+  const claim = (tekst: string, ref: string, factId: string | null) => ({ claim: tekst, factRef: ref, factId });
+  const versie1 = [
+    claim("Wesley Keeris Installatietechniek biedt een gratis adviesbezoek waarbij isolatie, radiatoren en ketelleeftijd worden bekeken.", "F11", "5653be02"),
+    claim("Een hybride warmtepomp werkt bij dit aanbod samen met de bestaande ketel.", "F69", null),
+    claim("Nuenen behoort tot het werkgebied voor warmtepompen.", "F14", "0fb1a008"),
+    claim("Het bedrijf noemt Remeha Elga Ace en Nefit EnviLine voor hybride warmtepompen.", "F16", "6b60072c"),
+    claim("De gepubliceerde prijs voor een hybride warmtepomp is € 4.500 tot € 7.500 inclusief installatie, vóór subsidie.", "F34", "ad064267"),
+    claim("Het bedrijf levert warmtepompinstallaties met een buitenunit.", "F46", "2745067a"),
+    claim("De genoemde levertijd is twee tot vier weken en de installatie-indicatie één dag.", "F38", "b4326f7d"),
+    claim("Het bedrijf heeft twaalf monteurs in dienst.", "F71", "5ec173c3"),
+    claim("Voor cv-ketels en warmtepompen biedt het bedrijf jaarlijks onderhoud via een contract.", "F15", "5f2bab42"),
+    claim("Het bedrijf gebruikt de belofte van een professionele ketelvervanging voor een warm thuis.", "F67", "c82917b3"),
+  ];
+  // De revisienota die "los alles op" op 25 september meestuurde, letterlijk.
+  const nota = [
+    "Woont u in Nuenen, dan valt uw woonplaats binnen ons werkgebied voor warmtepompen.",
+    "Bij een hybride warmtepomp werken de warmtepomp en een cv-ketel samen: de warmtepomp verzorgt een groot deel van de verwarming, terwijl de ketel bij kou kan bijspringen en warm tapwater levert.",
+    "Ook bij een woning uit 1970 tot 2000 zijn isolatie, warmteverlies en het afgiftesysteem van belang.",
+    "Welke aanpassingen nodig zijn, verschilt per woning; het gratis adviesbezoek helpt om uw eigen situatie te beoordelen.",
+    "Neem contact op met Wesley Keeris Installatietechniek voor een gratis adviesbezoek.",
+  ].map((z) => `Deze zin zegt iets over je bedrijf zonder bron: "${z}". Onderbouw hem met een feit, of haal hem weg.`).join("\n");
+
+  const teBehouden = bepaalTeBehouden({ vorigeClaims: versie1, facts: kaart, notitie: nota });
+  const refs = teBehouden.map((f) => f.ref);
+  ok("de twaalf monteurs moeten blijven", refs.includes("F71"));
+  ok("de levertijd en het onderhoudscontract ook", refs.includes("F38") && refs.includes("F15"));
+  ok("een bewering zonder feit-id valt erbuiten", !refs.includes("F69"));
+  ok("de gemelde Nuenen-zin mag weg", !refs.includes("F14"));
+  ok("het gratis adviesbezoek blijft: de nota wees een andere zin erover aan", refs.includes("F11"));
+  ok(
+    "een feit dat de klant intussen ontkende, hoeft niet terug",
+    !bepaalTeBehouden({ vorigeClaims: versie1, facts: kaart.map((f) => (f.ref === "F71" ? { ...f, allowed: false } : f)), notitie: nota })
+      .some((f) => f.ref === "F71"),
+  );
+  ok(
+    "vraagt de klant zelf om het weghalen, dan hoeft het niet terug",
+    !bepaalTeBehouden({ vorigeClaims: versie1, facts: kaart, notitie: "Haal de zin over de twaalf monteurs in dienst weg." })
+      .some((f) => f.ref === "F71"),
+  );
+
+  const adres = claim("Het adres in de gestructureerde gegevens is Hooge Akker 15, 5661 NG Geldrop.", "F39", "18725cb2");
+  const metAdres = [...kaart, feit("F39", "18725cb2", "Wesley Keeris Installatietechniek is gevestigd aan Hooge Akker 15, 5661 NG Geldrop.", "site /contact")];
+  ok(
+    "wat alleen in de gegevens voor zoekmachines stond, hoeft niet in de tekst terug",
+    !bepaalTeBehouden({
+      vorigeClaims: [...versie1, adres],
+      facts: metAdres,
+      notitie: nota,
+      vorigeTekst: { bodyMarkdown: "U kiest daarbij voor een installatiebedrijf met twaalf monteurs in dienst." },
+    }).some((f) => f.ref === "F39"),
+  );
+  ok(
+    "maar wat zichtbaar in de vorige tekst stond wel",
+    bepaalTeBehouden({
+      vorigeClaims: versie1,
+      facts: kaart,
+      notitie: nota,
+      vorigeTekst: { bodyMarkdown: "U kiest daarbij voor een installatiebedrijf met twaalf monteurs in dienst." },
+    }).some((f) => f.ref === "F71"),
+  );
+
+  // Versie 2 zoals hij op productie staat (de relevante secties, letterlijk).
+  const versie2 =
+    "Er is geen keuze die voor iedere oudere woning in Eindhoven of Nuenen slimmer is: een nieuwe cv-ketel vervangt de oude ketel, terwijl een hybride warmtepomp met een cv-ketel samenwerkt. Laat vooral de isolatie, radiatoren en leeftijd van uw ketel meewegen; Wesley Keeris Installatietechniek bekijkt die punten tijdens een gratis adviesbezoek.\n\n" +
+    "## Binnenruimte, buitenunit en geluid vragen aandacht\n\nWij leveren warmtepompinstallaties met een buitenunit. Voor warmtepompen noemen wij onder meer de Remeha Elga Ace en Nefit EnviLine.\n\n" +
+    "## De investering bestaat uit meer dan het apparaat\n\nKetelvervanging kost bij ons € 2.200 tot € 3.200 inclusief installatie. Voor een hybride warmtepomp noemen wij € 4.500 tot € 7.500 inclusief installatie, vóór subsidie.\n\n" +
+    "## Een nieuwe ketel kan later een extra stap betekenen\n\nVoor contractklanten hebben wij een storingsdienst die ook in het weekend bij een storing binnen 24 uur helpt.\n\n" +
+    "Wij zorgen voor een professionele vervanging van uw oude ketel, zodat u weer jarenlang zorgeloos kunt genieten van een warm en behaaglijk thuis.";
+  const versie2Claims = [claim("x", "F16", "6b60072c"), claim("x", "F34", "ad064267"), claim("x", "F67", "c82917b3")];
+  const verloren = vindVerlorenFeiten({ teBehouden, bodyMarkdown: versie2, claims: versie2Claims });
+  eq("versie 2 verloor precies de drie feiten van punt 62", verloren.map((f) => f.ref).sort().join(","), "F15,F38,F71");
+
+  const hersteld = vindVerlorenFeiten({
+    teBehouden,
+    bodyMarkdown:
+      versie2 +
+      "\n\nMet twaalf eigen monteurs in dienst plannen wij snel. De levertijd is 2 tot 4 weken en de installatie duurt 1 dag. " +
+      "Onderhoud van uw cv-ketel en warmtepomp regelen wij via een onderhoudscontract met één beurt per jaar.",
+    claims: versie2Claims,
+  });
+  eq("in eigen woorden teruggezet telt als behouden", hersteld.map((f) => f.ref).join(","), "");
+  eq(
+    "hetzelfde feit-id in de nieuwe beweringen telt ook",
+    vindVerlorenFeiten({ teBehouden, bodyMarkdown: versie2, claims: [...versie2Claims, claim("x", "F71", "5ec173c3"), claim("x", "F38", "b4326f7d"), claim("x", "F15", "5f2bab42")] }).length.toString(),
+    "0",
+  );
+  eq(
+    "een los woord als 'warmtepomp' is geen bewijs dat de levertijd er nog staat",
+    vindVerlorenFeiten({ teBehouden: teBehouden.filter((f) => f.ref === "F38"), bodyMarkdown: "De installatie van een warmtepomp vraagt voorbereiding.", claims: [] }).length.toString(),
+    "1",
+  );
+
+  // De opdracht aan de schrijver en de bedrading.
+  const blok = behoudblok(teBehouden);
+  ok("de schrijver krijgt de monteurs mee met hun F-nummer", blok.includes("F71: Twaalf monteurs in dienst"));
+  ok("met de harde opdracht", blok.includes("laat geen van deze feiten weg"));
+  eq("zonder vorige versie geen blok", behoudblok([]), "");
+  const content = leesBestand("lib/pipeline/content.ts");
+  ok("de schrijver krijgt het blok bij een nieuwe versie", content.includes("user: baseInput + behoudblok(teBehouden)"));
+  ok("schrijven, reparatie en herkeuring tellen allemaal na", (content.match(/teBehouden/g) ?? []).length >= 4 && (content.match(/laadTeBehouden\(/g) ?? []).length === 4);
+  ok("een verdwenen feit wordt een blokkerende bevinding", leesBestand("lib/pipeline/quality-collect.ts").includes('bron: "feitbehoud"'));
 });
