@@ -64,10 +64,15 @@ aan de pijplijn in plaats van reparaties op de twee meetpagina's. Het voorstel, 
 
 1. **De vragenroute sluiten.** Gebouwd op 25 september 2026 (`strategievragen.ts`, logboek): hoogstens
    vier vragen per pagina gaan langs de ontdubbeling van de briefing naar `fact_requests`, en het
-   antwoord komt via de feitenkaart in de volgende versie. Nog na te rekenen op productie: staan de
-   vragen van een nieuwe strategie bij de ondernemer, zonder dubbele, en wordt de volgende versie
-   concreter na een antwoord.
-2. **De eigenaarstoets in de pijplijn (WP9).** Kwaliteit wordt nu alleen achteraf gemeten, met de
+   antwoord komt via de feitenkaart in de volgende versie. Nagerekend op productie met Best (25
+   september 2026, $0,0004 voor de ontdubbeling): twee vragen bij de hovenier, zonder dubbele. Eén
+   daarvan was "Geen vraag nodig.", een invulling van het model; hersteld in PR 151 (alleen een zin
+   met vraagteken gaat door) en de rij verwijderd met akkoord van de eigenaar. Nog open: of de
+   volgende versie concreter wordt nadat de ondernemer antwoordt.
+2. **De eigenaarstoets in de pijplijn (WP9).** Eerste stap gebouwd op 25 september 2026 (logboek):
+   L10 als vijfde beoordelaar bij pagina's met strategie, "nee" blokkeert, problemen met een echt
+   citaat sturen de reparatie. Nog te doen: nameten op productie (kosten, duur, en of zijn oordeel met
+   de blinde lezer overeenkomt), daarna de redactie- en vakmanschapsbeoordelaar laten vervallen. Kwaliteit wordt nu alleen achteraf gemeten, met de
    blinde lezer. In de pijplijn kijken de controles naar feiten en formuleringen, niet naar herhaling,
    holle alinea's of een kop die niet bij de tekst past. Dezelfde vragenlijst als de blinde lezer als
    poort en als stuur voor de reparatie vervangt de formuleringlijsten.

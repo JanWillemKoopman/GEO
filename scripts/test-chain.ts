@@ -6600,6 +6600,16 @@ async function main(): Promise<void> {
       // WP7: de FAQ volgens de vier criteria, na de strategie.
       eqc("WP7: de FAQ-selectie houdt één vraag met een feit eronder", String(wp4Rij[0]?.strategy_json?.faq?.gekozen?.length), "1");
       ok("WP7: en de schrijver krijgt precies die vraag", schrijfOpdracht.includes("FAQ: precies deze vraag"));
+      // WP9: de eigenaarstoets zit in de keuring van een pagina met strategie.
+      const { rows: eigenaarRij } = await db.client.query(
+        "select quality_json from public.content_pieces where id = $1",
+        [ptContentPieceId],
+      );
+      const eigenaarIssues = ((eigenaarRij[0]?.quality_json?.issues ?? []) as { bron: string; finding: string }[]).filter(
+        (i) => i.bron === "eigenaarstoets",
+      );
+      ok("WP9: de eigenaarstoets levert bevindingen in de keuring", eigenaarIssues.length > 0, String(eigenaarIssues.length));
+      ok("WP9: een verzonnen citaat valt eruit", !eigenaarIssues.some((i) => i.finding.includes("staat nergens op de pagina")));
       // De vragenroute (strategievragen.ts): wat de strategie de ondernemer wil
       // vragen, staat nu echt bij zijn openstaande vragen.
       const { rows: stratVragen } = await db.client.query(

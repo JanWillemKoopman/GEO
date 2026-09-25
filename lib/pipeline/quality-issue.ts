@@ -106,6 +106,8 @@ export const ISSUE_BRONNEN = [
   "strategie",
   /** WP6: een punt met bestemming A of C in de tekst, of een voorbehoud na een bewijsstuk. */
   "onzekerheid",
+  /** WP9: de eigenaarstoets (L10), de pagina gelezen als de ondernemer. */
+  "eigenaarstoets",
 ] as const;
 export type IssueBron = (typeof ISSUE_BRONNEN)[number];
 

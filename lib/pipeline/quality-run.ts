@@ -242,6 +242,18 @@ export async function keurPagina(invoer: KeuringInput): Promise<Keuring> {
     // Optimalisatie 12: de vakmanschapsbeoordelaar meet de pagina aan de
     // opdracht die hij meekreeg, en niet aan een pagina die hij zelf bedenkt.
     opdracht: input.opdracht ?? null,
+    // WP9: de eigenaarstoets, alleen bij een pagina met strategie (dan weten we
+    // voor wie hij is en wat hij moet bereiken).
+    eigenaar: input.strategie
+      ? {
+          lezer: input.strategie.lezer,
+          paginadoel: input.strategie.paginadoel,
+          toon: input.profile?.tone_of_voice ?? null,
+          aanspreekvorm: input.profile?.pronoun_preference ?? null,
+          verbodenWoorden: input.profile?.taboo_phrases ?? [],
+          huidigeTekst: input.bestaandeTekst ?? null,
+        }
+      : null,
   });
 
   // ── 2. De deterministische controles ──────────────────────────────────────
@@ -489,6 +501,8 @@ export async function keurPagina(invoer: KeuringInput): Promise<Keuring> {
     onzekerheid,
     citability: panel.citability,
     craft: panel.craft,
+    eigenaar: input.strategie ? panel.eigenaar : undefined,
+    eigenaarTekst: [body, ...faq.map((f) => `${f.q}\n${f.a}`)].join("\n"),
     gate,
     coverage,
     quality,

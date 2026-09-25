@@ -74,6 +74,8 @@ const BRON_FASE: Record<IssueBron, PipelinePhase> = {
   // De strategie koos, de schrijver week af: een schrijfprobleem.
   strategie: "schrijven",
   onzekerheid: "schrijven",
+  // WP9: wat de ondernemer als eerste zou veranderen, is werk voor de schrijver.
+  eigenaarstoets: "schrijven",
   // V8, V1 en V10: opening, merkstem en koppen zijn alle drie schrijfkeuzes.
   paginavorm: "schrijven",
   adviestoon: "schrijven",
