@@ -83,7 +83,7 @@ gelijk is.
 **Test:** de negen echte vragen uit punt 57 als vast voorbeeld; moet uitkomen op twee tot drie
 werkelijk verschillende vragen in plaats van negen.
 
-**Stand (25 september 2026):** gebouwd, PR #PRNUM. Van negen naar drie in de eenheids- en ketentest,
+**Stand (25 september 2026):** gebouwd, PR #134. Van negen naar drie in de eenheids- en ketentest,
 met een vast oordeel; het echte model is nog niet op een voorbereidingsronde nagerekend (zie punt 57).
 
 ### Blok J, laag, alleen bij herhaling: crawldekking (punt 58)

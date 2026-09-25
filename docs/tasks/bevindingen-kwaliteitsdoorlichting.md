@@ -195,7 +195,7 @@ bronzinnen, het ontbrekende bewijs).
 | 54 | middel | Een zin met een omschreven klantfeit telt als "zin zonder bron" | ✅ grotendeels opgelost, verbeterronde blok C |
 | 55 | **hoog** | Bij drie merken tegelijk meten faalt de Gemini-meting nog steeds volledig op de leverancierslimiet, ondanks de spreiding van blok F | open, herhaling 24/25 september 2026 |
 | 56 | **hoog** | Een analyse wordt al na de eerste mislukte rapportpoging op "vastgelopen" gezet en toont de klant een foutmelding, terwijl de taak zelf nog drie keer op de achtergrond opnieuw probeert (tot 30 minuten) | open, herhaling 24/25 september 2026 |
-| 57 | middel | Bij één pagina kwamen na het beantwoorden van de eerste vragen 12 nieuwe vervolgvragen over hetzelfde onderwerp (wat zit inbegrepen bij een ketelvervanging), in steeds andere bewoordingen | ✅ opgelost in code, PR #PRNUM (reparatieplan blok I, 25 september 2026); het oordeel van het model is nog niet op een echte voorbereidingsronde nagerekend |
+| 57 | middel | Bij één pagina kwamen na het beantwoorden van de eerste vragen 12 nieuwe vervolgvragen over hetzelfde onderwerp (wat zit inbegrepen bij een ketelvervanging), in steeds andere bewoordingen | ✅ opgelost in code, PR #134 (reparatieplan blok I, 25 september 2026); het oordeel van het model is nog niet op een echte voorbereidingsronde nagerekend |
 | 58 | laag | De crawl van een grote site (~70 pagina's) las dit keer maar 33 van de 68 pagina's, ook na een extra aanvulronde, tegen 60 van de 68 bij de nulmeting; de site reageerde traag | open, lijkt aan de externe site te liggen en niet aan de code, herhaling 24/25 september 2026 |
 | 59 | **hoog** | De bronherleidbaarheidscontrole blokkeert op zinnen die geen bewering over het bedrijf zijn (een datumstempel, een veiligheidsinstructie, een definitie); 20 van de 21 nieuwe pagina's kregen "block" | ✅ opgelost, PR #132 (reparatieplan blok G, 25 september 2026), op productie nagerekend: 3 van 3 herkeurde pagina's van 5 naar 0, 1 en 4 blokkades, resterende 4 grotendeels opgelost in punt 64 |
 | 60 | **hoog** | Een verzonnen veiligheidscertificering ("CO-gecertificeerd volgens de Gasketelwet") staat op alle 7 van de 7 nieuwe pagina's van de installateur; de keuring hield hem niet tegen | ❌ onterecht bij narekenen: de certificering staat letterlijk op de site; wel een vangnet voor keurmerken gebouwd, PR #132 |
@@ -203,7 +203,7 @@ bronzinnen, het ontbrekende bewijs).
 | 62 | **hoog** | De reparatieknop ("los alles op") haalt bij een volledige herschrijving een juist klantfeit weg dat niet eens gemeld was, en lost soms zelfs de gemelde punten zelf niet op | ✅ opgelost in code, PR #133 (reparatieplan blok H, 25 september 2026); nameting op productie volgt na de merge |
 | 63 | laag | Feiten van de site bevatten letterlijke HTML-codes ("offici&euml;le", "&euro; 50") | ✅ opgelost, PR #132 (reparatieplan blok G, 25 september 2026) |
 | 64 | middel | Na blok G bleven op productie zinnen tegenhouden waarin "ons" lijdend voorwerp is ("Vertel ons bij je aanvraag ..."), en een zin met twee bedragen uit twee feiten | ✅ opgelost, PR #133 (reparatieplan blok H, 25 september 2026) |
-| 65 | middel | Een feit dat bij een nieuwe versie verdween, werd bij de versie daarna niet meer gemist: de keuring vergeleek alleen met de direct vorige versie | ✅ opgelost, PR #PRNUM (reparatieplan blok I, 25 september 2026) |
+| 65 | middel | Een feit dat bij een nieuwe versie verdween, werd bij de versie daarna niet meer gemist: de keuring vergeleek alleen met de direct vorige versie | ✅ opgelost, PR #134 (reparatieplan blok I, 25 september 2026) |
 
 ---
 
@@ -1190,7 +1190,7 @@ punt 35/36 in blok A). **Voorstel:** dit is nu genoeg materiaal om de samenvoegc
 van "letterlijk gelijk" naar een semantische vergelijking (bijvoorbeeld dezelfde aanpak als
 `zinParafraseertFeit()` bij punt 54, of een aparte modelaanroep die vraagt "zijn dit dezelfde vraag").
 
-**Opgelost in code (25 september 2026, reparatieplan blok I, PR #PRNUM).** De vragen ontstaan niet in
+**Opgelost in code (25 september 2026, reparatieplan blok I, PR #134).** De vragen ontstaan niet in
 `lib/facts.ts` maar in de voorbereiding (`runBriefing()` in `lib/pipeline/briefing.ts`), en nagerekend op
 productie bleken acht van de twaalf een variant van een vraag die de klant diezelfde ochtend al had
 overgeslagen ("Wat zit bij een standaard ketelvervanging inbegrepen ..."). De claim-audit kreeg die
@@ -1430,7 +1430,7 @@ meldde dat terecht. Maar bij "los alles op" op versie 2 zou versie 3 alleen met 
 worden, waarin die drie feiten al niet meer stonden: zet de schrijver ze niet terug, dan zag niemand
 het meer.
 
-**Opgelost (25 september 2026, reparatieplan blok I, PR #PRNUM).** De keuring bewaart het hele
+**Opgelost (25 september 2026, reparatieplan blok I, PR #134).** De keuring bewaart het hele
 verdwenen feit, en de volgende versie neemt het over in de lijst van wat er moet staan, tot het terug
 is of de klant het feit intussen ontkende (`alVerloren` in `bepaalTeBehouden()`).
 
