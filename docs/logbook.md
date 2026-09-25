@@ -12342,3 +12342,7 @@ oordeel; het echte model is op productie nog niet nagerekend, omdat opnieuw voor
 pagina zonder vragen meteen het schrijven kan starten. Punt 65: een verdwenen feit blijft na blok H
 op de lijst tot het terug is, ook over meerdere versies.
 
+Blok H op productie nagerekend (zelfde dag): een herkeuring van de echte versie 2 meldde precies de
+drie verdwenen feiten, en één keer "los alles op" leverde een versie 3 met alle drie terug en zonder
+blokkades, voor $0,18.
+
