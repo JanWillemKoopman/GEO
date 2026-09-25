@@ -1,8 +1,9 @@
 """Bouwt de opdrachten voor de blinde lezer (nameting fase 1) in het formaat van poort19."""
 import json, re, sys
 K = '/home/user/GEO/docs/tasks/kwaliteitsdoorlichting/'
-UIT = '/home/user/GEO/docs/tasks/kwaliteitsdoorlichting/nameting-fase1/'
-d = json.load(open(sys.argv[1]))  # nameting-fase1/teksten.json: per merk de nieuwe en de oude versie
+# Tweede argument: de map voor deze meting (standaard nameting-fase1/, de eerste).
+UIT = (sys.argv[2].rstrip('/') + '/') if len(sys.argv) > 2 else '/home/user/GEO/docs/tasks/kwaliteitsdoorlichting/nameting-fase1/'
+d = json.load(open(sys.argv[1]))  # per merk de nieuwe en de oude versie, zoals nameting-fase1/teksten.json
 
 def blok(bestand, begin, eind):
     t = open(bestand).read()

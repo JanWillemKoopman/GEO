@@ -32,7 +32,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { currentPiece } from "@/lib/jobs/content-jobs";
 import { callStructured, startStructuredAchtergrond, haalStructuredOp } from "@/lib/openai/structured";
 import { bouwRedactieOpdracht, redactieOpties } from "@/lib/pipeline/editorial-pass";
-import { heelMetatitel } from "@/lib/pipeline/metatitel";
+import { heelMetabeschrijving, heelMetatitel } from "@/lib/pipeline/metatitel";
 import { controleerRedactie } from "@/lib/pipeline/redactie-check";
 import type { EditorialPass } from "@/lib/schemas/editorial-pass";
 import { MODELS } from "@/lib/openai/models";
@@ -2180,7 +2180,7 @@ function buildDraftRow(args: {
     // belofte, geen garantie) ná de versheidsregel, die zet geen streepjes.
     body_markdown: withFreshnessLine(stripProseDashes(draft.parsed.bodyMarkdown), nu),
     meta_title: heelMetatitel(draft.parsed.metaTitle, brandName),
-    meta_description: draft.parsed.metaDescription,
+    meta_description: heelMetabeschrijving(draft.parsed.metaDescription, brandName),
     schema_jsonld: validateOrRebuildJsonLd(draft.parsed.schemaJsonLd, {
       type: recommendation.type,
       title: recommendation.title,
@@ -3003,7 +3003,7 @@ export async function reviseContentPiece(args: {
     // waarop de rest van de app deze pagina terugvindt.
     body_markdown: withFreshnessLine(stripProseDashes(final.bodyMarkdown), herzienOp),
     meta_title: heelMetatitel(final.metaTitle, brandName),
-    meta_description: final.metaDescription,
+    meta_description: heelMetabeschrijving(final.metaDescription, brandName),
     schema_jsonld: validateOrRebuildJsonLd(final.schemaJsonLd, {
       type: recommendation.type,
       title: recommendation.title,
@@ -3398,7 +3398,7 @@ export async function redigeerContentPiece(args: {
         ? {
             body_markdown: withFreshnessLine(stripProseDashes(geredigeerd.bodyMarkdown), nu),
             meta_title: heelMetatitel(geredigeerd.metaTitle, ctx.brandName),
-            meta_description: geredigeerd.metaDescription,
+            meta_description: heelMetabeschrijving(geredigeerd.metaDescription, ctx.brandName),
             faq_json: geredigeerd.faq.map((f) => ({ ...f, a: stripProseDashes(f.a) })) as never,
             claims_json: (geredigeerd.claims ?? []).map((c) => ({
               ...c,

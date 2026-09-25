@@ -73,7 +73,7 @@ export function titelOverPlaats(titel: string, plaatsen: readonly string[]): boo
 
 export interface Budgetgrenzen {
   doel: Paginadoel;
-  /** Ondergrens: het vertrekpunt. */
+  /** Het vertrekpunt. Geen ondergrens meer: daaronder volgt een waarschuwing, geen ophoging. */
   min: number;
   /** Plafond zonder reden. */
   plafond: number;
@@ -103,7 +103,7 @@ export function verwachtBudget(doel: Paginadoel, beslisvragenMetFeit: number, ui
 }
 
 /**
- * Het budget van de strategie binnen de grenzen zetten. Geeft het geklemde
+ * Het budget van de strategie onder het plafond houden. Geeft het geklemde
  * getal en, als er geklemd is, de reden in gewone taal voor de correctielijst.
  */
 export function klemBudget(
@@ -122,8 +122,34 @@ export function klemBudget(
       correctie: `Lengtebudget ${woorden} boven het plafond van ${boven}${metReden ? " (ook met reden)" : " zonder reden"}; teruggezet.`,
     };
   }
-  if (woorden < grenzen.min) {
-    return { woorden: grenzen.min, correctie: `Lengtebudget ${woorden} onder het vertrekpunt van ${grenzen.min}; opgehoogd.` };
-  }
+  // Onder het vertrekpunt wordt NIET meer opgehoogd. Nameting fase 1 (25
+  // september 2026): de strategie van de kostenpagina plande 395 woorden, de
+  // code maakte er 600 van, en de schrijver schreef er 227, want hij volgde de
+  // woorden per onderwerp (samen 210). Bij Best vulde de schrijver een budget
+  // dat groter was dan de inhoud met herhaling. Een te kort budget is een
+  // signaal over de inhoud (`budgetUitOnderwerpen` meldt het), geen getal om op
+  // te hogen.
   return { woorden: Math.round(woorden), correctie: null };
+}
+
+/** Zoveel mag het budget van de strategie afwijken van de som van de onderwerpen. */
+export const BUDGET_MARGE = 0.15;
+
+/**
+ * Het budget volgt de som van de onderwerpen die erop komen (werkstand §4,
+ * punt 3). De schrijver schrijft per onderwerp; een totaal dat daar meer dan
+ * 15 procent van afwijkt, wordt de som. Zonder woorden per onderwerp blijft het
+ * getal van de strategie staan.
+ */
+export function budgetUitOnderwerpen(
+  budget: number,
+  woordenPerOnderwerp: readonly (number | null)[],
+): { woorden: number; correctie: string | null } {
+  const som = woordenPerOnderwerp.reduce<number>((t, w) => t + (typeof w === "number" && w > 0 ? w : 0), 0);
+  if (som <= 0) return { woorden: budget, correctie: null };
+  if (Math.abs(budget - som) <= som * BUDGET_MARGE) return { woorden: budget, correctie: null };
+  return {
+    woorden: som,
+    correctie: `Lengtebudget ${budget} wijkt meer dan ${Math.round(BUDGET_MARGE * 100)} procent af van de som van de onderwerpen (${som}); die som geldt.`,
+  };
 }

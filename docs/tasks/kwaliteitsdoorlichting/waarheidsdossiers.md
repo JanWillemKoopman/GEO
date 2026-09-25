@@ -10,6 +10,8 @@
 > dan zegt de klant "weet ik niet" of slaat hij de vraag over, precies zoals een echte ondernemer
 > dat zou doen. Dit bestand verandert na 23 september 2026 niet meer; zo is achteraf elke bewering
 > in een geschreven tekst te toetsen: staat hij op de site, in dit dossier, of nergens.
+> Eén uitzondering, op 25 september 2026: bij merk B ontbraken twee feiten die wél op de site stonden
+> (zie daar); die zijn toegevoegd, het verzonnen deel is niet veranderd.
 >
 > **Klantpersona, voor alle drie gelijk.** Antwoorden zijn kort (één tot drie zinnen), zonder
 > opmaak, soms met een tikfout. Weet de ondernemer het niet paraat, dan slaat hij de vraag over.
@@ -85,6 +87,9 @@ bezoekers (HTTP 429 gezien bij onze eigen download), dus toetst ook of de crawl 
   cv-ketelvervanging, service en onderhoud.
 - Voor particulieren en bedrijven. Regelt badkamer, toilet en keuken van A tot Z met
   onderaannemers. Zoekt servicemonteurs (groeiend bedrijf).
+- Aangevuld op 25 september 2026, ook van de site (`/ketelvervanging`), bij de eerste bevriezing
+  gemist: officieel CO-gecertificeerd volgens de Gasketelwet; plaatst bij ketelvervanging ketels
+  van Intergas, Remeha, Nefit en Vaillant.
 
 ### Uit het gesprek (verzonnen)
 

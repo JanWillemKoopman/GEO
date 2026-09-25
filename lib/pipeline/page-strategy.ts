@@ -37,6 +37,7 @@ import { redactCompetitors, containsCompetitor } from "@/lib/pipeline/redact";
 import {
   controleerStrategie,
   type BetwistVoorStrategie,
+  type SterkBewijs,
   type StrategieInvoer,
 } from "@/lib/pipeline/strategie-check";
 import { conflictpoort } from "@/lib/pipeline/conflict-detect";
@@ -71,8 +72,14 @@ const SYSTEM =
   "een bezwaar uit het verkoopgesprek wegneemt. Algemene uitleg alleen als de lezer hem nodig heeft om " +
   "een feit te begrijpen. " +
   "(3) Een onderwerp dat op opnemen staat, rust op een feit van de FEITENKAART (F-nummer) of op vaste " +
-  "vakkennis die niemand betwist. Een kernonderwerp waarover wij niets weten wordt 'eerst vragen', met " +
-  "de vraag aan de ondernemer; het wordt nooit een sectie die zegt dat iets niet bekend is. " +
+  "vakkennis die niemand betwist (bron vakkennis; noem de U-nummers van de GECONTROLEERDE ALGEMENE " +
+  "UITLEG in `uitleg` als die erbij past). Een KERNVRAAG van de lezer (wat zit er in de prijs, wat " +
+  "gebeurt er bij het werk, waar moet ik rekening mee houden) laat je niet vallen omdat een bedrijfsfeit " +
+  "ontbreekt: beantwoord hem met algemene vakkennis, geformuleerd als wat gebruikelijk is en nooit als " +
+  "toezegging van dit bedrijf, en zet in `vraag` wat je de ondernemer wilt vragen om het later concreet " +
+  "te maken. 'Eerst vragen' alleen als het onderwerp uitsluitend over dit bedrijf gaat (zijn eigen " +
+  "werkwijze, garantie of voorwaarden) en een algemeen antwoord de lezer niet helpt. Een onderwerp wordt " +
+  "nooit een sectie die zegt dat iets niet bekend is. " +
   "(4) ONZEKERHEID heeft drie bestemmingen. A: wij weten het niet, de ondernemer wel; dat wordt een vraag " +
   "en de pagina zwijgt erover. Dit is de standaard voor alles wat over het bedrijf gaat. B: uitleggen " +
   "aan de lezer, alleen bij een van deze redenen: geld (een prijs is een bandbreedte, één korte reden " +
@@ -83,14 +90,17 @@ const SYSTEM =
   "beschikbare informatie'), nooit een voorbehoud dat een belofte van de site omdraait. " +
   "(5) PRIORITEITSFEITEN: drie tot zes F-nummers die deze pagina dragen (in `feit` alleen het nummer, " +
   "zoals F12, zonder de tekst van het feit), elk met wat het voor deze lezer " +
-  "betekent. Bewijs wordt stellig gebracht. Een feit dat vooral op een andere pagina thuishoort, zet je " +
+  "betekent. Bewijs wordt stellig gebracht. Minstens twee feiten met STERK BEWIJS horen erbij als de " +
+  "kaart ze heeft, en laat sterk bewijs niet weg omdat de huidige site het al noemt: deze pagina " +
+  "vervangt of versterkt die. Een feit dat vooral op een andere pagina thuishoort, zet je " +
   "bij de uitgesloten feiten met reden 'elders gedekt'. " +
   "(6) BETWISTE FEITEN (B-nummers) mag je niet kiezen. Kan een onderwerp echt niet zonder zo'n feit, " +
   "noem het B-nummer dan bij dat onderwerp onder wachtOpConflict. " +
   "(7) LENGTE volgt uit de inhoud. Je krijgt het vertrekpunt en het plafond; reken met ongeveer " +
   `${PER_BESLISVRAAG} woorden per extra beslisvraag met een feit en ${PER_UITLEG} per nodige uitleg, ` +
-  "en trek af wat de bestaande site al goed zegt. Boven het plafond alleen met een reden. Korter is " +
-  "geen verlies: een AI-assistent citeert een korte, stellige zin. " +
+  "en trek af wat de bestaande site al goed zegt. Het budget is de som van de woorden van de " +
+  "onderwerpen die je opneemt; de schrijver schrijft per onderwerp. Boven het plafond alleen met een " +
+  "reden. Korter is geen verlies: een AI-assistent citeert een korte, stellige zin. " +
   "(8) Het OPENINGSANTWOORD beantwoordt de hoofdvraag in hoogstens twee zinnen, met een concreet feit. " +
   "De OPROEP is wat de lezer moet doen, in de woorden van dit bedrijf. " +
   "Gebruik geen gedachtestreepjes en geen schuine streep tussen twee woorden. Antwoord in het Nederlands.";
@@ -195,6 +205,18 @@ export async function bereidStrategieVoor(
   const doel = paginadoelVan(recommendation.type, overPlaats);
   const grenzen = budgetgrenzen(doel);
 
+  // Het sterke bewijs, voor het vangnet dat er minstens twee meegaan (werkstand §4, punt 2).
+  const sterk: SterkBewijs[] = bruikbaar.flatMap((f) => {
+    const r = f.id ? register.get(f.id) : undefined;
+    return r?.bewijskracht === "sterk"
+      ? [{ ref: f.ref, text: f.text, vanOndernemer: f.source.startsWith("klant") || f.source.includes("gesprek") }]
+      : [];
+  });
+  // De gecontroleerde algemene uitleg, met U-nummer: een kernvraag zonder
+  // bedrijfsfeit kan daarop rusten (werkstand §4, punt 1).
+  const uitleg = (args.voorbereid?.explainers ?? ctx.explainers).filter((e) => e.verified);
+  const uitlegRefs = uitleg.map((e, i) => ({ ref: `U${i + 1}`, term: e.term }));
+
   const kaartRegels = bruikbaar.map((f) => {
     const r = f.id ? register.get(f.id) : undefined;
     const kenmerken = [
@@ -244,6 +266,10 @@ export async function bereidStrategieVoor(
           .map((b) => `${b.ref} (${b.soort}): ${b.feitIds.map((id) => `"${tekstVan.get(id) ?? "?"}"`).join(" tegenover ")}`)
           .join("\n")
       : "",
+    uitleg.length
+      ? "\nGECONTROLEERDE ALGEMENE UITLEG (over het onderwerp, niet over dit bedrijf; de bron is nagerekend):\n" +
+        uitleg.map((e, i) => `U${i + 1}  ${e.term}: ${e.explanation}`).join("\n")
+      : "",
     "",
     contract
       ? "MOGELIJKE ONDERWERPEN uit het onderzoek (geen opdracht; het onderzoek wist niets van dit bedrijf):\n" +
@@ -278,13 +304,14 @@ export async function bereidStrategieVoor(
       k: kaartRegels,
       b: betwist.map((b) => b.feitIds),
       c: contract?.sections.map((s) => s.heading) ?? [],
+      u: uitlegRefs.map((u) => u.term),
     }),
   );
 
   return {
     system: SYSTEM,
     user,
-    controle: { kaartRefs: bruikbaar.map((f) => f.ref), betwist, grenzen },
+    controle: { kaartRefs: bruikbaar.map((f) => f.ref), betwist, grenzen, uitleg: uitlegRefs, sterk },
     overPlaats,
     overDienst,
     invoerSleutel,

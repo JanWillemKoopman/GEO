@@ -24,6 +24,9 @@ bezoekers (HTTP 429 gezien bij onze eigen download), dus toetst ook of de crawl 
   cv-ketelvervanging, service en onderhoud.
 - Voor particulieren en bedrijven. Regelt badkamer, toilet en keuken van A tot Z met
   onderaannemers. Zoekt servicemonteurs (groeiend bedrijf).
+- Aangevuld op 25 september 2026, ook van de site (`/ketelvervanging`), bij de eerste bevriezing
+  gemist: officieel CO-gecertificeerd volgens de Gasketelwet; plaatst bij ketelvervanging ketels
+  van Intergas, Remeha, Nefit en Vaillant.
 
 ### Uit het gesprek (verzonnen)
 
