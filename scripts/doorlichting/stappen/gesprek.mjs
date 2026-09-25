@@ -44,6 +44,14 @@ export default async ({ page, shot, args, BASIS }) => {
         await inp.press('Enter');
         await page.waitForTimeout(700);
       }
+    } else if (v.kind === 'adressen') {
+      // Stemvoorbeelden (contentketen-opnieuw.md §6.10): tot drie adressen.
+      const velden = box.locator('input[type=url]');
+      for (let i = 0; i < v.value.length; i++) {
+        await velden.nth(i).fill(v.value[i]);
+        await velden.nth(i).blur();
+        await page.waitForTimeout(900);
+      }
     } else if (v.kind === 'keuze') {
       const knop = box.getByRole('radio').filter({ hasText: v.value }).first();
       if ((await knop.getAttribute('aria-checked')) !== 'true') await knop.click();
