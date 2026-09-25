@@ -1015,6 +1015,12 @@ export interface ContentPiece {
   proof_points_json: unknown;
   /** Migratie 0094: de redactionele keuze vóór het schrijven (optimalisatie 5). */
   writer_brief_json: unknown;
+  /** De paginastrategie van deze versie (migratie 0114, WP3), met `weggelaten` van de schrijver (WP4). */
+  strategy_json: unknown;
+  /** Het logboek van de eindredactie (migratie 0114, WP5). */
+  edit_log_json: unknown;
+  /** Het oordeel over publicatiegereedheid (migratie 0114, §12.3). */
+  readiness_json: unknown;
   cluster: string | null;
   body_markdown: string | null;
   meta_title: string | null;

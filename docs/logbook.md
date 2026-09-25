@@ -12433,3 +12433,17 @@ draaien de volgende in de achtergrondmodus van de API, zodat een time-out de duu
 twee keer laat betalen. Er is nog geen gemeten strategieaanroep; de modus staat dus nog uit. De
 schrijver gebruikt de strategie pas vanaf WP4. Kosten en duur worden bij de nareken-plicht na fase 1
 op `ai_calls` gemeten.
+
+## 25 september 2026: WP4, de schrijver op de paginastrategie
+
+Vierde werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`. Heeft een pagina een
+strategie, dan krijgt de schrijver voortaan de keuzes van de strategie, de opbouw die code daaruit
+afleidt, alleen de gekozen feiten (plus de verboden), de stem en de harde regels. Niet meer: het
+contract met "Alles wat hier staat MOET erop komen", de hele feitenkaart, het paginaplan met "GEEN
+BRON", het winnende antwoord, de bronanalyse en de lat van de concurrenten; die zijn al in de
+strategie gewogen. Weglaten mag en wordt gemeld in een eigen veld. De dekking meet voortaan de
+strategie in plaats van 85 procent van het contract; een uitgesloten onderwerp op de pagina en een
+ontbrekend prioriteitsfeit blokkeren (§12.1). Met een strategie wordt er geen schrijfopdracht op Luna
+meer gemaakt. Afwijking van het plan: het schrijven keurt nog zelf; de keuring verhuist in WP5 naar
+de eindredactie, zodat de keten na elk werkpakket werkt. De omvang van de schrijfinvoer (doel: onder
+9.000 tokens, was gemiddeld 14.100) wordt na merge op `ai_calls` gemeten.

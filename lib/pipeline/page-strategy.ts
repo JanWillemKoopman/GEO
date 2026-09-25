@@ -41,6 +41,8 @@ import {
 } from "@/lib/pipeline/strategie-check";
 import { conflictpoort } from "@/lib/pipeline/conflict-detect";
 import type { FeitSoort } from "@/lib/pipeline/conflict-detect";
+import { strategieUitRij, type StrategieRecord } from "@/lib/pipeline/strategie-opdracht";
+export { strategieUitRij, type StrategieRecord };
 import { budgetgrenzen, paginadoelVan, titelOverPlaats, VERTREKPUNT, PER_BESLISVRAAG, PER_UITLEG } from "@/lib/lengtebudget";
 
 type Admin = SupabaseClient;
@@ -108,26 +110,6 @@ export interface StrategieVoorbereiding {
   bestaand: StrategieRecord | null;
 }
 
-/** Wat er in `content_pieces.strategy_json` staat (migratie 0114). */
-export interface StrategieRecord {
-  versie: 1;
-  invoerSleutel: string;
-  strategie: PageStrategy;
-  /** Wat het model koos, vóór de correcties (conventie 8). */
-  ruw: PageStrategy;
-  correcties: string[];
-  waarschuwingen: string[];
-  vragenAanOndernemer: string[];
-  /** Het F-nummer en het feit-id, zodat de keuze na te lezen is als de nummering verschuift. */
-  feitIds: Record<string, string | null>;
-  model: string;
-  duurMs: number | null;
-  achtergrond: boolean;
-  gemaaktOp: string;
-  /** Conflicten die deze pagina tegenhouden. Leeg = de pagina mag geschreven worden. */
-  tegengehouden: { conflictId: string; soort: string; ref: string }[];
-}
-
 /** Een korte, stabiele vingerafdruk (FNV-1a), genoeg om "zelfde invoer" te herkennen. */
 export function vingerafdruk(tekst: string): string {
   let h = 0x811c9dc5;
@@ -136,13 +118,6 @@ export function vingerafdruk(tekst: string): string {
     h = Math.imul(h, 0x01000193);
   }
   return (h >>> 0).toString(16).padStart(8, "0");
-}
-
-/** Leest een opgeslagen strategie terug, of `null` als het geen bruikbare is. */
-export function strategieUitRij(json: unknown): StrategieRecord | null {
-  const r = json as Partial<StrategieRecord> | null;
-  if (!r || r.versie !== 1 || !r.strategie || !r.invoerSleutel) return null;
-  return r as StrategieRecord;
 }
 
 /**

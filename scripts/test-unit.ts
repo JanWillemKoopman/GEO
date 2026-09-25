@@ -54,6 +54,9 @@ import {
   leesStartdatum,
 } from "@/lib/verkoopafspraak";
 import { rateLimitWindowStart, rateLimitVerdict } from "@/lib/rate-limit-rules";
+import { strategieblok, gekozenRefs, opbouwUitStrategie, REGELS_STRATEGIE, REGEL_7_STRATEGIE } from "@/lib/pipeline/strategie-opdracht";
+import { checkStrategieDekking } from "@/lib/pipeline/content-coverage";
+import { haalSectiesWeg } from "@/lib/pipeline/content-sections";
 import { controleerStrategie, MAX_PRIORITEITSFEITEN } from "@/lib/pipeline/strategie-check";
 import { budgetgrenzen, klemBudget, paginadoelVan, titelOverPlaats, verwachtBudget } from "@/lib/lengtebudget";
 import { moetAchtergrond, ophaalVertragingSeconden, ACHTERGROND_GRENS_MS } from "@/lib/openai/achtergrond";
@@ -25868,7 +25871,8 @@ group("Het sterkste bewijs uit het gesprek staat in de tekst (verbeterronde, pun
   ok("een ander getal telt niet", !kernFeitInTekst("Slagingspercentage 93 procent", "Slagingspercentage 89 procent."));
   eq("zonder gespreksfeiten ook geen bevinding", String(checkKernbewijs({ kern: [], tekst: zonder }).issues.length), "0");
   ok("de schrijfopdracht krijgt het blok", leesBestand("lib/pipeline/content.ts").includes("kernbewijsblok(vindKernbewijs(facts))"));
-  ok("en de keuring telt het na", leesBestand("lib/pipeline/quality-run.ts").includes("checkKernbewijs({ kern: vindKernbewijs(input.facts)"));
+  // Sinds WP4 op de gekozen feiten als er een strategie is, anders op alle.
+  ok("en de keuring telt het na", /checkKernbewijs\(\{\s*kern: vindKernbewijs\(/.test(leesBestand("lib/pipeline/quality-run.ts")));
 });
 
 
@@ -26812,4 +26816,78 @@ group("De feitenkaart zonder 'De website vermeldt' (WP1)", () => {
   ]);
   ok("de kaart toont het feit zonder vindplaats", kaart.includes("F27  35+ Jaar ervaring") && !kaart.includes("De website vermeldt"));
   ok("het profielonderzoek vraagt om de bewering zelf", leesBestand("lib/pipeline/profile-research.ts").includes("Schrijf de bewering zelf op, niet dat de site hem doet"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// WP4 van docs/tasks/contentpijplijn-publicatiewaardig.md: de schrijver op de strategie.
+function bestStrategie(): PageStrategy {
+  // Nagebouwd op de pagina voor Best van de hovenier (§1.2, O1): de consumentengids
+  // ("Vergelijk dezelfde werkzaamheden en afwerking") is uitgesloten.
+  return strategie({
+    prioriteitsfeiten: [
+      { feit: "F2", betekenis: "Je weet wie er in je tuin werkt" },
+      { feit: "F5", betekenis: "Je kunt begroten" },
+      { feit: "F7", betekenis: "Je ligt niet lang met een kale tuin" },
+    ],
+    optioneleFeiten: ["F9"],
+    onderwerpen: [
+      { onderwerp: "Een complete tuin van ontwerp tot oplevering", besluit: "opnemen", bron: "feit", feiten: ["F2", "F3"], woorden: 150, vraag: null, wachtOpConflict: [], kern: true, reden: "" },
+      { onderwerp: "Wat een tuin met bestrating kost", besluit: "opnemen", bron: "feit", feiten: ["F5"], woorden: 100, vraag: null, wachtOpConflict: [], kern: true, reden: "" },
+      { onderwerp: "Vergelijk dezelfde werkzaamheden en afwerking", besluit: "weglaten", bron: "vakkennis", feiten: [], woorden: null, vraag: null, wachtOpConflict: [], kern: false, reden: "consumentengids" },
+      { onderwerp: "Tuinen die we in Best aanlegden", besluit: "eerst vragen", bron: "geen", feiten: [], woorden: null, vraag: "Welke tuinen in Best mogen we noemen?", wachtOpConflict: [], kern: true, reden: "" },
+    ],
+    onzekerheden: [
+      { punt: "Welke regels in Best gelden voor regenwater", bestemming: "C", reden: null, formulering: null, vraag: null },
+      { punt: "Spreiding van de prijs", bestemming: "B", reden: "geld", formulering: "Vooral de stenen die je kiest maken het verschil.", vraag: null },
+    ],
+    oproep: "Plan een eerste gesprek bij je thuis",
+  });
+}
+
+group("De schrijfopdracht op de strategie (WP4)", () => {
+  const s = bestStrategie();
+  const blok = strategieblok(s);
+  eq("de gekozen feiten", Array.from(gekozenRefs(s)).sort().join(","), "F2,F3,F5,F7,F9");
+  eq("de opbouw volgt de strategie", opbouwUitStrategie(s).map((o) => o.onderwerp).join(" | "), "Een complete tuin van ontwerp tot oplevering | Wat een tuin met bestrating kost");
+  ok("het uitgesloten onderwerp staat onder NIET OP DEZE PAGINA", /NIET OP DEZE PAGINA[\s\S]*Vergelijk dezelfde werkzaamheden/.test(blok));
+  ok("de regenwatervraag van Best ook", blok.includes("Welke regels in Best gelden voor regenwater"));
+  ok("een lokale vraag wordt een vraag, geen zin", blok.includes("Tuinen die we in Best aanlegden (daar vragen wij de ondernemer eerst naar)"));
+  ok("het ene toegestane voorbehoud staat er letterlijk", blok.includes("Vooral de stenen die je kiest maken het verschil."));
+  ok("geen 'MOET erop' meer", !/MOET erop|niets uit weglaten/i.test(blok + REGELS_STRATEGIE + REGEL_7_STRATEGIE));
+  ok("weglaten mag en wordt gemeld", REGELS_STRATEGIE.includes("`weggelaten`"));
+  ok("en geen zin dat iets niet bekend is", REGELS_STRATEGIE.includes("ook geen zin dat iets niet bekend of niet vastgelegd is"));
+  const content = leesBestand("lib/pipeline/content.ts");
+  ok("de schrijver krijgt de strategieregels als er een strategie is", content.includes("ctx.strategie ? CONTENT_SYSTEM_STRATEGIE : CONTENT_SYSTEM"));
+  ok("en dan geen schrijfopdracht van luna ernaast", content.includes("if (!opdracht && maakOpdracht && !strategie)"));
+  ok("en alleen de gekozen feiten op de kaart", content.includes("gekozen.has(f.ref.toUpperCase())"));
+});
+
+group("De dekking meet de strategie in plaats van het contract (WP4)", () => {
+  const s = bestStrategie();
+  const goed = [
+    "Een complete tuin met bestrating in Best kost bij ons meestal tussen de € 12.000 en € 35.000.",
+    "",
+    "## Een complete tuin van ontwerp tot oplevering",
+    "We doen alles zelf, van ontwerp tot oplevering, met een vaste ploeg van vijf man. Zo weet je wie er in je tuin werkt, elke dag weer.",
+    "",
+    "## Wat een tuin met bestrating kost",
+    "Een tuin met bestrating kost meestal tussen de € 12.000 en € 35.000. Vooral de stenen die je kiest maken het verschil.",
+  ].join("\n");
+  const claims = [{ factRef: "F2" }, { factRef: "F5, F7" }];
+  const uitslag = checkStrategieDekking({ strategie: s, bodyMarkdown: goed, faq: [], claims, proofPoints: [], weggelaten: [] });
+  eq("een pagina die de strategie volgt heeft geen bevindingen", uitslag.issues.join(" | "), "");
+  const metGids = goed + "\n\n## Vergelijk dezelfde werkzaamheden en afwerking\nVergelijk offertes altijd op dezelfde werkzaamheden en afwerking, anders vergelijk je appels met peren.";
+  const gids = checkStrategieDekking({ strategie: s, bodyMarkdown: metGids, faq: [], claims, proofPoints: [], weggelaten: [] });
+  eq("de consumentengids van Best wordt gevonden", (gids.uitgeslotenAanwezig ?? []).join(","), "Vergelijk dezelfde werkzaamheden en afwerking");
+  const zonderF7 = checkStrategieDekking({ strategie: s, bodyMarkdown: goed, faq: [], claims: [{ factRef: "F2" }, { factRef: "F5" }], proofPoints: [], weggelaten: [] });
+  eq("een ontbrekend prioriteitsfeit wordt gevonden", (zonderF7.ontbrekendePrioriteit ?? []).join(","), "F7");
+  const zonderPrijs = goed.split("## Wat een tuin")[0];
+  const gemeld = checkStrategieDekking({ strategie: s, bodyMarkdown: zonderPrijs, faq: [], claims, proofPoints: [], weggelaten: [{ punt: "Wat een tuin met bestrating kost" }] });
+  ok("een onderwerp dat de schrijver meldde als weggelaten is geen gat", gemeld.secties.every((x) => x.aanwezig));
+  const vreemd = checkStrategieDekking({ strategie: s, bodyMarkdown: goed + "\n\n## Onderhoud na de aanleg\nWe komen twee keer per jaar langs voor onderhoud aan je vijver en borders.", faq: [], claims, proofPoints: [], weggelaten: [] });
+  eq("een sectie buiten de opbouw wordt gemeld", (vreemd.vreemdeSecties ?? []).join(","), "Onderhoud na de aanleg");
+  const weg = haalSectiesWeg(metGids, ["Vergelijk dezelfde werkzaamheden en afwerking", ""]);
+  ok("de reparatie kan een uitgesloten sectie weghalen", !weg.bodyMarkdown.includes("appels met peren") && weg.bodyMarkdown.includes("vaste ploeg"));
+  ok("maar nooit de aanhef", haalSectiesWeg(goed, [""]).bodyMarkdown.startsWith("Een complete tuin"));
+  ok("de keuring gebruikt de strategiedekking", leesBestand("lib/pipeline/quality-run.ts").includes("checkStrategieDekking({"));
 });

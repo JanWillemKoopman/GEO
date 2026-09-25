@@ -78,6 +78,18 @@ export const ContentPiece = z.object({
       quote: z.string(),
     }),
   ),
+  /**
+   * Wat de schrijver uit de opbouw van de paginastrategie NIET schreef, en
+   * waarom (WP4 van contentpijplijn-publicatiewaardig.md, §5 L7). Weglaten mag;
+   * een gat opschrijven ("is niet vastgelegd") niet. Leeg bij een pagina zonder
+   * strategie. Structured output eist elk veld, dus desnoods een lege lijst.
+   */
+  weggelaten: z.array(
+    z.object({
+      punt: z.string(),
+      reden: z.string(),
+    }),
+  ),
 });
 
 export type ContentPiece = z.infer<typeof ContentPiece>;

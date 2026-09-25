@@ -611,6 +611,63 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
     );
   }
 
+  // ── WP4: voert de tekst de paginastrategie uit? ───────────────────────────
+  //
+  // Een uitgesloten onderwerp op de pagina en een ontbrekend prioriteitsfeit
+  // zijn blokkerend (§12.1 van contentpijplijn-publicatiewaardig.md): dat zijn
+  // precies de twee manieren waarop de schrijver de redactionele keuze
+  // ongedaan maakt. Een sectie die bij geen onderwerp hoort, is hoog maar niet
+  // blokkerend: soms is het een goed gekozen kop voor een gekozen onderwerp die
+  // de woordvergelijking niet herkent.
+  for (const onderwerp of invoer.coverage.uitgeslotenAanwezig ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "relevantie",
+        severity: "blokkerend",
+        section: null,
+        finding: `Het onderwerp "${onderwerp}" staat op de pagina, terwijl de strategie het uitsloot.`,
+        evidence: onderwerp,
+        expected: "Alleen de onderwerpen uit de opbouw van de strategie.",
+        recommendation: `Haal de sectie over "${onderwerp}" weg.`,
+        blocking: true,
+        confidence: ZEKER,
+        bron: "strategie",
+      }),
+    );
+  }
+  for (const ref of invoer.coverage.ontbrekendePrioriteit ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "specificiteit",
+        severity: "blokkerend",
+        section: null,
+        finding: `Het prioriteitsfeit ${ref} staat niet in de tekst.`,
+        evidence: ref,
+        expected: "Elk prioriteitsfeit van de strategie staat erin, stellig en zonder voorbehoud erachter.",
+        recommendation: `Zet ${ref} in de tekst, met het F-nummer in de beweringen.`,
+        blocking: true,
+        confidence: ZEKER,
+        bron: "strategie",
+      }),
+    );
+  }
+  for (const kop of invoer.coverage.vreemdeSecties ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "relevantie",
+        severity: "hoog",
+        section: kop,
+        finding: "Deze sectie hoort bij geen onderwerp uit de opbouw van de strategie.",
+        evidence: null,
+        expected: "Alleen de onderwerpen uit de opbouw.",
+        recommendation: "Haal de sectie weg, of voeg hem samen met het onderwerp waar hij bij hoort.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "strategie",
+      }),
+    );
+  }
+
   for (const zin of invoer.bronpraat.sentences.slice(0, 5)) {
     issues.push(
       maak(invoer, {
