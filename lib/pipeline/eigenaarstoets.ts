@@ -120,3 +120,37 @@ export function eigenaarBevindingen(oordeel: Eigenaarstoets | null, tekst: strin
   }
   return uit;
 }
+
+/** Wat er van het oordeel bij een versie bewaard wordt (`quality_json.eigenaar`). */
+export interface EigenaarSamenvatting {
+  publiceert: "ja" | "met_aanpassingen" | "nee";
+  /** Het aantal bevindingen van de eigenaarstoets die de code liet staan. */
+  problemen: number;
+}
+
+const RANG: Record<EigenaarSamenvatting["publiceert"], number> = { ja: 0, met_aanpassingen: 1, nee: 2 };
+
+/** Zoveel problemen minder telt als echt beter; één verschil is ruis van de lezer. */
+export const EIGENAAR_MARGE = 2;
+
+/**
+ * Welke van twee versies vindt de eigenaarstoets beter? Eerst of hij zou
+ * publiceren, dan het aantal problemen met een echt citaat. `null` als een van
+ * beide geen oordeel heeft, of het verschil binnen de marge valt: dan beslist
+ * de bestaande regel (`nietSlechterDan`).
+ *
+ * Waarom: bij de nameting van 25 september 2026 besliste de score van de
+ * redactiebeoordelaar welke versie bleef, terwijl de eigenaarstoets als enige
+ * dezelfde zinnen aanwees als de blinde lezer.
+ */
+export function eigenaarVoorkeur(
+  huidig: EigenaarSamenvatting | null | undefined,
+  nieuw: EigenaarSamenvatting | null | undefined,
+): "huidig" | "nieuw" | null {
+  if (!huidig || !nieuw || !(huidig.publiceert in RANG) || !(nieuw.publiceert in RANG)) return null;
+  if (RANG[nieuw.publiceert] !== RANG[huidig.publiceert]) {
+    return RANG[nieuw.publiceert] < RANG[huidig.publiceert] ? "nieuw" : "huidig";
+  }
+  if (Math.abs(nieuw.problemen - huidig.problemen) < EIGENAAR_MARGE) return null;
+  return nieuw.problemen < huidig.problemen ? "nieuw" : "huidig";
+}

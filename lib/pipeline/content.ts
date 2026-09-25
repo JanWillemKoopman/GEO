@@ -72,6 +72,7 @@ import { kernbewijsblok, vindKernbewijs } from "@/lib/pipeline/kernbewijs";
 import { functieblok } from "@/lib/pipeline/paginafunctie";
 import { maakSchrijfopdracht } from "@/lib/pipeline/writer-brief";
 import { vergelijkVersies } from "@/lib/pipeline/version-compare";
+import { eigenaarVoorkeur, type EigenaarSamenvatting } from "@/lib/pipeline/eigenaarstoets";
 import { bruikbareOpdracht, opdrachtblok } from "@/lib/schrijfopdracht";
 import type { WriterBrief } from "@/lib/schemas/writer-brief";
 import { vindCiteerbareAntwoorden, citatenblok } from "@/lib/pipeline/klantcitaten";
@@ -252,12 +253,23 @@ export const TARGET_WORDS: Record<ContentType, { min: number; max: number }> = {
  * binnen 24 uur" is voor een lezer duidelijk en voor een model waardeloos,
  * omdat het niet weet wie "wij" is.
  */
+/** De uitzondering op harde regel 1, gedeeld door schrijver en reparatie. */
+export const MERKEN_UITZONDERING =
+  "Merken en producten die dit bedrijf zelf verkoopt, plaatst of gebruikt en die op de FEITENKAART " +
+  "staan (bijvoorbeeld de ketelmerken die een installateur plaatst), zijn GEEN concurrenten: die noem " +
+  "je wel, met hun F-nummer. ";
+
 const CONTENT_SYSTEM_BASIS = (regel7: string): string =>
   "Je bent een ervaren contentschrijver die pagina's schrijft voor de EIGEN website van een lokale " +
   "ondernemer, klaar om te publiceren. On-brand, Nederlands. " +
   "HARDE REGELS: " +
   "(1) Noem NOOIT concurrenten of andere bedrijven bij naam: dit is de site van de klant zelf; " +
   "vergelijkingen met bij naam genoemde bedrijven zijn absoluut verboden. " +
+  // Nameting van 25 september 2026: de reparatie liet de ketelmerken van de
+  // installateur weg "omdat de instructie verbiedt andere bedrijven bij naam te
+  // noemen", terwijl de lezer ze bij elke meting miste. De code controleert op
+  // de lijst met concurrenten (`containsCompetitor`), niet op merknamen.
+  MERKEN_UITZONDERING +
   // ── R5.3: de feitenkaart is een GRENS, geen suggestie ────────────────────
   // Hier stond "je mag de concrete feiten gebruiken die onder 'Feiten over dit
   // bedrijf' staan". Dat is een uitnodiging: het zegt wat mag, niet wat niet
@@ -930,6 +942,7 @@ const REPAIR_SYSTEM =
   "zet dan zijn kop letterlijk in `weghalen`; wij halen hem weg. " +
   "HARDE REGELS (ongewijzigd, ook tijdens repareren): " +
   "(1) Noem NOOIT concurrenten of andere bedrijven bij naam. " +
+  MERKEN_UITZONDERING +
   "(2) De FEITENKAART is de ENIGE toegestane bron van concrete beweringen over dit bedrijf. Los een " +
   "bevinding NOOIT op door een feit te verzinnen: kun je hem niet oplossen met wat er op de kaart " +
   "staat, laat de passage dan weg. Los hem ook nooit op met een voorbehoud of met een zin dat iets " +
@@ -2968,7 +2981,30 @@ export async function reviseContentPiece(args: {
       vergelijking: vergelijking?.beter ?? null,
     });
 
-  const nietSlechter = nietSlechterRedactioneel && gewogenNietSlechter;
+  // WP9: bij gelijke blokkades beslist de eigenaarstoets, als hij over beide
+  // versies een duidelijk oordeel heeft (`eigenaarVoorkeur`). Anders de regel
+  // van hierboven.
+  const eigenaarKeuze =
+    besteTotNuToe !== null && dezeVersie.blokkades === besteTotNuToe.blokkades
+      ? eigenaarVoorkeur(
+          (pieceRow.quality_json as { eigenaar?: EigenaarSamenvatting | null } | null)?.eigenaar ?? null,
+          keuring.panel.eigenaar
+            ? {
+                publiceert: keuring.panel.eigenaar.publiceert,
+                problemen: keuring.issues.filter((i) => i.bron === "eigenaarstoets").length,
+              }
+            : null,
+        )
+      : null;
+  if (eigenaarKeuze) {
+    console.info(
+      `Contentpagina ${contentPieceId}, ronde ${ronde}: de eigenaarstoets kiest de ` +
+        `${eigenaarKeuze === "nieuw" ? "nieuwe" : "bestaande"} versie.`,
+    );
+  }
+  const nietSlechter = eigenaarKeuze
+    ? eigenaarKeuze === "nieuw"
+    : nietSlechterRedactioneel && gewogenNietSlechter;
 
   // ── Heeft nog een ronde zin? (punt 19 van de opdracht) ────────────────────
   //

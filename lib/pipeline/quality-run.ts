@@ -576,6 +576,18 @@ export async function keurPagina(invoer: KeuringInput): Promise<Keuring> {
       rootCause,
       rootCauseTekst: beschrijfRootCause(rootCause),
       beoordelaars,
+      // WP9: het oordeel van de eigenaarstoets, zodat de volgende reparatieronde
+      // kan zien of de nieuwe versie beter is (`eigenaarVoorkeur`). Ontbreekt
+      // zonder strategie; `null` als hij uitviel.
+      eigenaar: input.strategie
+        ? panel.eigenaar
+          ? {
+              publiceert: panel.eigenaar.publiceert,
+              problemen: issues.filter((i) => i.bron === "eigenaarstoets").length,
+              vergelijking: panel.eigenaar.vergelijking,
+            }
+          : null
+        : undefined,
       dekking: {
         graad: dekking.graad,
         gewogen: dekking.gewogen,

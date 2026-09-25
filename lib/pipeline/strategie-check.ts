@@ -29,8 +29,42 @@ export const MIN_PRIORITEITSFEITEN = 3;
  * ervaring en de 4,9 uit 5 bleven liggen omdat "de bestaande site ervaring al
  * noemt". Die pagina vervangt juist de bestaande. Beide blinde lezers misten
  * het. Twee, omdat één stuk bewijs op een pagina een toevalstreffer lijkt.
+ *
+ * Drie sinds de nameting van de eigenaarstoets (25 september 2026): met twee
+ * waren het bij Best de vaste ploeg en 60 tot 70 tuinen, en bleven de 4,9 uit
+ * 5 en het eigen 3D-ontwerp liggen. De blinde lezer noemde die als eerste wat
+ * de ondernemer zou toevoegen, bij elke meting.
  */
-export const MIN_STERK_BEWIJS = 2;
+export const MIN_STERK_BEWIJS = 3;
+
+/**
+ * Wat als sterk bewijs telt, ook als het register het als gewoon indeelde: een
+ * reviewcijfer ("4,9 uit 5", "4.9/5.0") en een garantie. Het register (L1)
+ * deelde bij de hovenier het eigen 3D-ontwerp en de offerte binnen 4 uur als
+ * gewoon in; bewijs dat de ondernemer zelf in het gesprek gaf, telt daarom ook
+ * (`isSterkBewijs`).
+ */
+const REVIEWCIJFER = /\b\d[,.]\d\s*(?:uit|\/|van)\s*(?:de\s*)?(?:5|10)\b/i;
+const GARANTIE = /\bgarantie\b/i;
+
+/**
+ * Hoort dit feit bij het sterke bewijs, en met welke rang? 0 = sterk volgens het
+ * register én van de ondernemer, 1 = sterk volgens het register, 2 = een
+ * reviewcijfer of garantie, 3 = door de ondernemer in het gesprek gegeven.
+ * `null` = geen sterk bewijs.
+ */
+export function sterkBewijsRang(args: {
+  text: string;
+  bewijskracht: string | null;
+  vanOndernemer: boolean;
+  uitGesprek: boolean;
+}): number | null {
+  if (args.bewijskracht === "geen") return REVIEWCIJFER.test(args.text) ? 2 : null;
+  if (args.bewijskracht === "sterk") return args.vanOndernemer ? 0 : 1;
+  if (REVIEWCIJFER.test(args.text) || GARANTIE.test(args.text)) return 2;
+  if (args.uitGesprek) return 3;
+  return null;
+}
 /**
  * Algemene uitleg zonder feit en zonder gecontroleerde uitleg eronder krijgt
  * hoogstens zoveel woorden: genoeg voor één of twee stellige zinnen over wat
@@ -55,6 +89,8 @@ export interface SterkBewijs {
   text: string;
   /** Door de ondernemer zelf verteld: gaat voor, want dat kan geen concurrent zeggen. */
   vanOndernemer: boolean;
+  /** De rang uit `sterkBewijsRang`; lager gaat voor. Ontbreekt = 0. */
+  rang?: number;
 }
 
 export interface StrategieInvoer {
@@ -172,7 +208,9 @@ export function controleerStrategie(ruw: PageStrategy, invoer: StrategieInvoer):
         return b ? [bewijsKern(b.text)] : [];
       }),
     );
-    const kandidaten = [...sterk.filter((b) => b.vanOndernemer), ...sterk.filter((b) => !b.vanOndernemer)];
+    const kandidaten = [...sterk].sort(
+      (a, b) => (a.rang ?? 0) - (b.rang ?? 0) || Number(b.vanOndernemer) - Number(a.vanOndernemer),
+    );
     for (const b of kandidaten) {
       if (aanwezig.size >= MIN_STERK_BEWIJS) break;
       const kern = bewijsKern(b.text);

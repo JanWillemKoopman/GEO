@@ -22,9 +22,10 @@ Weg zodra fase 3 af is, samen met het plan (§15 van het plan).
 | Stemvoorstel drie klanten (WP1) | Goedgekeurd en in het merkdossier op productie (25 september 2026) | `docs/tasks/schrijfstijl-voorstel-drie-klanten.md` |
 | Fase 2 (WP8 tot en met WP10) | Niet begonnen. Pas na akkoord van de eigenaar | plan §13 "Fase 2" |
 
-**De uitslag in één zin.** Na de reparatie kiest de blinde lezer bij beide pagina's de nieuwe versie en
-is de kostenpagina twee keer zo lang, maar het copywritercijfer is 5 (Best) en 4 (kostenpagina) tegen
-een doel van 6,5, vooral door herhaling en holle algemene uitleg; kosten $0,26 tot $0,29 per pagina.
+**De uitslag in één zin.** Na stem, vragenroute en eigenaarstoets blijft het copywritercijfer 5 (Best)
+en 4 (kostenpagina) tegen een doel van 6,5; de eigenaarstoets vindt de juiste problemen, maar de
+reparatie lost ze nog niet op (logboek, 25 september 2026, "nameting van stem, vragenroute en
+eigenaarstoets").
 
 ## 2. Wat de eigenaar nog moet beslissen
 
@@ -76,8 +77,19 @@ aan de pijplijn in plaats van reparaties op de twee meetpagina's. Het voorstel, 
    blinde lezer. In de pijplijn kijken de controles naar feiten en formuleringen, niet naar herhaling,
    holle alinea's of een kop die niet bij de tekst past. Dezelfde vragenlijst als de blinde lezer als
    poort en als stuur voor de reparatie vervangt de formuleringlijsten.
-3. **De stemregels in code (WP8).** De stem staat in het merkdossier; zinslengte, clichés en
-   aanspreekvorm als meetbare regels.
+3. **De reparatie laten doen wat de eigenaarstoets zegt.** Gebouwd op 25 september 2026 samen met
+   sterk bewijs (minstens drie, ook reviewcijfers, garanties en gesprekbewijs) en de eigen merken
+   (logboek); nog na te meten. Wat hieronder stond als oorzaak: Drie oorzaken uit de
+   laatste nameting: (a) de reparatie verliest onderweg prioriteitsfeiten (bij Best de
+   terugkomafspraak) en de versievergelijking houdt dan de oude tekst; (b) de regel "noem geen ander
+   bedrijf" houdt ook de merken tegen die het bedrijf zelf plaatst (Intergas, Remeha, Nefit,
+   Vaillant), terwijl elke lezer daarom vraagt; (c) welke versie blijft, beslist nog de score van de
+   oude redactiebeoordelaar in plaats van de eigenaarstoets. Daarnaast krijgt de keuring de huidige
+   sitepagina niet mee, dus vergelijkt de eigenaarstoets nooit.
+4. **De stemregels in code (WP8)** en de merkstemtoets (L9). De lezer noemt de toon nog "ambtelijk".
+5. **Sterk bewijs dat het register niet als sterk ziet.** De lezer mist elke keer het 3D-ontwerp,
+   de garantie van vijf jaar, de offerte binnen 4 uur en de reviews; die staan in het register als
+   gewoon of zonder bewijskracht, dus het vangnet voor sterk bewijs pakt ze niet.
 
 ## 5. Zo meet je zuinig na
 
