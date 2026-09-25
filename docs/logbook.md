@@ -12505,3 +12505,20 @@ leegschrappen (345 naar 115 woorden) en de bedrijfsnaam in de metatitel afkappen
 prioriteitsfeit en leegschrappen draaien de redactie nu terug; in de laatste ronde gebeurde dat bij
 Best (417 naar 171 woorden, teruggedraaid). De cijfers per pagina staan in
 `docs/tasks/contentpijplijn-publicatiewaardig.md` §14.2.
+
+## 25 september 2026: reparatie van de dunne pagina's na de nameting van fase 1
+
+Vier vangnetten, elk op het echte geval uit de nameting. (1) Een kernvraag van de lezer valt niet meer
+weg omdat een bedrijfsfeit ontbreekt: de strategie krijgt de gecontroleerde algemene uitleg met
+U-nummer en mag een kernvraag daarmee beantwoorden, als wat gebruikelijk is en niet als belofte van het
+bedrijf; de vraag gaat toch naar de ondernemer. In code wordt een kernonderwerp op "eerst vragen" met
+passende uitleg of met bron vakkennis een uitlegsectie. Bij de kostenpagina stonden drie kernonderwerpen
+op "eerst vragen" en bleven er 210 woorden over. (2) Minstens twee verschillende stukken sterk bewijs
+van de kaart staan bij de prioriteitsfeiten, die van de ondernemer eerst, ook als de strategie ze
+uitsloot omdat "de site het al noemt"; 35 jaar en 35+ jaar tellen als één. (3) Het budget volgt de som
+van de opgenomen onderwerpen (meer dan 15 procent verschil wordt de som) en wordt niet meer opgehoogd
+naar het vertrekpunt: bij de kostenpagina werd 395 opgehoogd naar 600 en schreef de schrijver 227. Een
+budget onder het vertrekpunt is nu een waarschuwing. (4) De metabeschrijving krijgt hetzelfde vangnet
+als de metatitel ("... bij Wesley Keeris Installatietechnh" wordt "... bij Wesley Keeris."). Niet in
+code: het waarheidsdossier van de blinde lezer miste CO-certificering en de ketelmerken van
+`/ketelvervanging` en is daarmee aangevuld.

@@ -1222,9 +1222,9 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
       optioneleFeiten: refs.slice(3, 5),
       uitgeslotenFeiten: [],
       onderwerpen: [
-        { onderwerp: "Wat we behandelen", besluit: "opnemen", bron: "feit", feiten: refs.slice(0, 1), woorden: 150, vraag: null, wachtOpConflict: [], kern: true, reden: "beslisvraag" },
-        { onderwerp: "Wat een behandeling kost", besluit: "opnemen", bron: "geen", feiten: [], woorden: 80, vraag: null, wachtOpConflict: betwist.slice(0, 1), kern: true, reden: "beslisvraag" },
-        { onderwerp: "Vergelijk aanbieders", besluit: "weglaten", bron: "vakkennis", feiten: [], woorden: null, vraag: null, wachtOpConflict: [], kern: false, reden: "consumentengids" },
+        { onderwerp: "Wat we behandelen", besluit: "opnemen", bron: "feit", feiten: refs.slice(0, 1), woorden: 150, vraag: null, uitleg: [], wachtOpConflict: [], kern: true, reden: "beslisvraag" },
+        { onderwerp: "Wat een behandeling kost", besluit: "opnemen", bron: "geen", feiten: [], woorden: 80, vraag: null, uitleg: [], wachtOpConflict: betwist.slice(0, 1), kern: true, reden: "beslisvraag" },
+        { onderwerp: "Vergelijk aanbieders", besluit: "weglaten", bron: "vakkennis", feiten: [], woorden: null, vraag: null, uitleg: [], wachtOpConflict: [], kern: false, reden: "consumentengids" },
       ],
       onzekerheden: [
         { punt: "Of er een wachtlijst is", bestemming: "B", reden: null, formulering: null, vraag: null },

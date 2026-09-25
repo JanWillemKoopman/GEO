@@ -48,9 +48,20 @@ export const PageStrategy = z.object({
       bron: z.enum(["feit", "vakkennis", "geen"]),
       /** De F-nummers waarop het rust. */
       feiten: z.array(z.string()),
+      /**
+       * De U-nummers van de gecontroleerde algemene uitleg waarop het rust (bron
+       * "vakkennis"). De code zet ze om naar de term van die uitleg, zodat de
+       * schrijver hem terugvindt zonder dat de nummering hoeft te kloppen.
+       * Ontbreekt in strategieën van vóór 25 september 2026.
+       */
+      uitleg: z.array(z.string()),
       /** Woorden voor dit onderwerp, bij opnemen. */
       woorden: z.number().int().nullable(),
-      /** Bij "eerst vragen": de vraag aan de ondernemer. */
+      /**
+       * De vraag aan de ondernemer. Bij "eerst vragen" verplicht; bij "opnemen"
+       * met vakkennis mag hij er ook staan: dan maakt het antwoord de algemene
+       * uitleg later concreet, zonder dat de pagina erop wacht.
+       */
       vraag: z.string().nullable(),
       /** Kan dit onderwerp niet zonder een betwist feit? De B-nummers. */
       wachtOpConflict: z.array(z.string()),

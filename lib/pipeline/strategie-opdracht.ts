@@ -42,13 +42,22 @@ export interface OpbouwPunt {
   woorden: number | null;
   bron: "feit" | "vakkennis" | "geen";
   feiten: string[];
+  /** De termen van de gecontroleerde algemene uitleg waarop het rust. */
+  uitleg: string[];
 }
 
 /** De opbouw: de onderwerpen die erop komen, in de volgorde van de strategie. */
 export function opbouwUitStrategie(s: PageStrategy): OpbouwPunt[] {
   return s.onderwerpen
     .filter((o) => o.besluit === "opnemen")
-    .map((o) => ({ onderwerp: o.onderwerp, woorden: o.woorden, bron: o.bron, feiten: o.feiten.map(normaliseerRef) }));
+    .map((o) => ({
+      onderwerp: o.onderwerp,
+      woorden: o.woorden,
+      bron: o.bron,
+      feiten: o.feiten.map(normaliseerRef),
+      // Een strategie van vóór 25 september 2026 heeft dit veld niet.
+      uitleg: o.uitleg ?? [],
+    }));
 }
 
 /** Wat niet op de pagina komt: weggelaten onderwerpen, vragen aan de ondernemer, en onzekerheden A en C. */
@@ -85,11 +94,20 @@ export function strategieblok(s: PageStrategy, faq?: FaqSelectie | null): string
       `citeert een korte, stellige zin.`,
     "",
     "OPBOUW, in deze volgorde, één kop per punt (een mededeling, geen vraag):",
-    ...opbouw.map(
-      (o, i) =>
-        `${i + 1}. ${o.onderwerp}${o.woorden ? ` (ongeveer ${o.woorden} woorden)` : ""}; ` +
-        (o.feiten.length ? `rust op ${o.feiten.join(", ")}` : o.bron === "vakkennis" ? "algemene uitleg, geen belofte van dit bedrijf" : ""),
-    ),
+    ...opbouw.map((o, i) => {
+      const waarop = [
+        o.feiten.length ? `rust op ${o.feiten.join(", ")}` : "",
+        o.uitleg.length
+          ? `gebruik de gecontroleerde uitleg over ${o.uitleg.join(" en ")}`
+          : o.bron === "vakkennis" && !o.feiten.length
+            ? "algemene vakkennis"
+            : "",
+        // Algemene uitleg zegt wat gebruikelijk is, niet wat dit bedrijf doet: anders
+        // wordt het een belofte die niemand heeft gedaan (werkstand §4, punt 1).
+        o.bron === "vakkennis" ? "zeg wat gebruikelijk is, niet wat dit bedrijf doet of belooft" : "",
+      ].filter(Boolean);
+      return `${i + 1}. ${o.onderwerp}${o.woorden ? ` (ongeveer ${o.woorden} woorden)` : ""}; ${waarop.join("; ")}`;
+    }),
     "",
     "PRIORITEITSFEITEN. Deze staan erin, stellig, zonder voorbehoud erachter:",
     ...s.prioriteitsfeiten.map((p) => `- ${normaliseerRef(p.feit)}: ${p.betekenis}`),

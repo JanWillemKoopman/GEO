@@ -57,12 +57,12 @@ import { rateLimitWindowStart, rateLimitVerdict } from "@/lib/rate-limit-rules";
 import { faqKandidaten, pasFaqSelectieToe, faqblok, checkFaqNaSchrijven, alBeantwoord, MAX_FAQ } from "@/lib/pipeline/faq-criteria";
 import { gatzinnen, voorbehoudNaBewijs, checkBestemmingen, isToezegging } from "@/lib/pipeline/onzekerheid";
 import { controleerRedactie, getalReeksen } from "@/lib/pipeline/redactie-check";
-import { heelMetatitel } from "@/lib/pipeline/metatitel";
+import { heelMetabeschrijving, heelMetatitel, MAX_METABESCHRIJVING } from "@/lib/pipeline/metatitel";
 import { strategieblok, gekozenRefs, opbouwUitStrategie, REGELS_STRATEGIE, REGEL_7_STRATEGIE } from "@/lib/pipeline/strategie-opdracht";
 import { checkStrategieDekking } from "@/lib/pipeline/content-coverage";
 import { haalSectiesWeg } from "@/lib/pipeline/content-sections";
-import { controleerStrategie, MAX_PRIORITEITSFEITEN, normaliseerRef } from "@/lib/pipeline/strategie-check";
-import { budgetgrenzen, klemBudget, paginadoelVan, titelOverPlaats, verwachtBudget } from "@/lib/lengtebudget";
+import { bewijsKern, controleerStrategie, MAX_PRIORITEITSFEITEN, normaliseerRef, uitlegPastBij } from "@/lib/pipeline/strategie-check";
+import { budgetgrenzen, budgetUitOnderwerpen, klemBudget, paginadoelVan, titelOverPlaats, verwachtBudget } from "@/lib/lengtebudget";
 import { moetAchtergrond, ophaalVertragingSeconden, ACHTERGROND_GRENS_MS } from "@/lib/openai/achtergrond";
 import type { PageStrategy } from "@/lib/schemas/page-strategy";
 import {
@@ -26674,7 +26674,7 @@ group("Vangnetten op de paginastrategie (WP3)", () => {
 
   const onderwerp = (o: Partial<PageStrategy["onderwerpen"][number]>) => ({
     onderwerp: "Wat er in de installatieprijs zit", besluit: "opnemen" as const, bron: "feit" as const, feiten: [], woorden: 80,
-    vraag: null, wachtOpConflict: [], kern: true, reden: "", ...o,
+    vraag: null, wachtOpConflict: [], uitleg: [], kern: true, reden: "", ...o,
   });
   // Het echte geval van de installateur (§1.2, O2): "De beschikbare prijsinformatie
   // benoemt niet welke werkzaamheden standaard in de installatieprijs zitten".
@@ -26691,8 +26691,98 @@ group("Vangnetten op de paginastrategie (WP3)", () => {
   eq("een budget boven het plafond wordt teruggezet", String(lang.strategie.lengtebudget.woorden), String(budgetgrenzen("dienst").plafond));
   const langMetReden = controleerStrategie(strategie({ lengtebudget: { woorden: 1000, onderbouwing: "", redenBovenPlafond: "Vijf beslisvragen met een feit" } }), invoerWP3);
   eq("met een reden mag het tot de harde grens", String(langMetReden.strategie.lengtebudget.woorden), "1000");
+  // Sinds de nameting van fase 1 (25 september 2026) niet meer opgehoogd: de
+  // kostenpagina kreeg 600 in plaats van 395 en de schrijver schreef er 227.
   const kort = controleerStrategie(strategie({ lengtebudget: { woorden: 120, onderbouwing: "", redenBovenPlafond: null } }), invoerWP3);
-  eq("onder het vertrekpunt wordt opgehoogd", String(kort.strategie.lengtebudget.woorden), "450");
+  eq("onder het vertrekpunt wordt niet meer opgehoogd", String(kort.strategie.lengtebudget.woorden), "120");
+  ok("maar wel gemeld", kort.waarschuwingen.some((w) => w.includes("onder het vertrekpunt")));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Reparatie van de dunne pagina's (werkstand contentpijplijn §4, 25 september 2026).
+group("Dunne pagina's: kernvraag, sterk bewijs en budget (nameting fase 1)", () => {
+  const onderwerp = (o: Partial<PageStrategy["onderwerpen"][number]>): PageStrategy["onderwerpen"][number] => ({
+    onderwerp: "o", besluit: "opnemen", bron: "feit", feiten: [], uitleg: [], woorden: 60,
+    vraag: null, wachtOpConflict: [], kern: false, reden: "", ...o,
+  });
+  const uitleg = [{ ref: "U1", term: "HR-ketel" }, { ref: "U2", term: "Rookgasafvoer" }];
+  const metUitleg = { ...invoerWP3, uitleg };
+
+  // Punt 1. Letterlijk de drie kernonderwerpen van de kostenpagina die op
+  // "eerst vragen" stonden, met bron "geen".
+  const kosten = controleerStrategie(strategie({ onderwerpen: [
+    onderwerp({ onderwerp: "Prijs van ketelvervanging inclusief installatie", feiten: ["F1"], kern: true, woorden: 65 }),
+    onderwerp({ onderwerp: "Rookgasafvoer bij ketelvervanging", besluit: "eerst vragen", bron: "geen", kern: true, woorden: 55, vraag: "Vervangt u de rookgasafvoer standaard?" }),
+    onderwerp({ onderwerp: "Wat bij de prijs is inbegrepen", besluit: "eerst vragen", bron: "vakkennis", kern: true, woorden: null, vraag: "Wat zit er standaard in uw prijs?" }),
+    onderwerp({ onderwerp: "Werkzaamheden die boven op de standaardvervanging kunnen komen", besluit: "eerst vragen", bron: "geen", kern: true, woorden: 55, vraag: "Welk meerwerk komt vaak voor?" }),
+  ] }), metUitleg);
+  const [, rook, prijsinhoud, meerwerk] = kosten.strategie.onderwerpen;
+  eq("een kernvraag met passende uitleg komt erop als vakkennis", `${rook.besluit}/${rook.bron}`, "opnemen/vakkennis");
+  eq("met de term van de uitleg, ook zonder U-nummer van het model", rook.uitleg.join(","), "Rookgasafvoer");
+  eq("een kernvraag die de strategie zelf vakkennis noemt, ook", prijsinhoud.besluit, "opnemen");
+  eq("zonder woorden krijgt hij die van een beslisvraag", String(prijsinhoud.woorden), "80");
+  eq("zonder uitleg en zonder vakkennis blijft het een vraag", meerwerk.besluit, "eerst vragen");
+  ok("de vraag gaat hoe dan ook naar de ondernemer", ["Vervangt u de rookgasafvoer standaard?", "Wat zit er standaard in uw prijs?", "Welk meerwerk komt vaak voor?"].every((v) => kosten.vragenAanOndernemer.includes(v)));
+  ok("en de omzetting staat in de correcties", kosten.correcties.some((c) => c.includes("Rookgasafvoer bij ketelvervanging")));
+  const uNummer = controleerStrategie(strategie({ onderwerpen: [onderwerp({ onderwerp: "Hoe zuinig een nieuwe ketel is", bron: "vakkennis", uitleg: ["U1: HR-ketel", "U9"] })] }), metUitleg);
+  eq("een U-nummer wordt de term, een onbekend nummer valt weg", uNummer.strategie.onderwerpen[0].uitleg.join(","), "HR-ketel");
+  ok("een bijzaak op eerst vragen blijft een vraag", controleerStrategie(strategie({ onderwerpen: [onderwerp({ onderwerp: "Rookgasafvoer", besluit: "eerst vragen", kern: false })] }), metUitleg).strategie.onderwerpen[0].besluit === "eerst vragen");
+  ok("'Rookgasafvoer' past bij 'Rookgasafvoer bij ketelvervanging'", uitlegPastBij("Rookgasafvoer", "Rookgasafvoer bij ketelvervanging"));
+  ok("'CW-waarde' past niet bij de prijs", !uitlegPastBij("CW-waarde", "Prijs van ketelvervanging"));
+  ok("'HR-ketel' niet bij ketelvervanging", !uitlegPastBij("HR-ketel", "Prijs van ketelvervanging"));
+
+  // Punt 2. De kaart van de hovenier: 35 jaar vier keer, 4,9 twee keer, en de
+  // vaste ploeg als enige sterk bewijs bij de prioriteitsfeiten.
+  const sterk = [
+    { ref: "F4", text: "Hans Verstraaten Hoveniers heeft meer dan 35 jaar ervaring.", vanOndernemer: false },
+    { ref: "F5", text: "De website vermeldt: “35+ Jaar ervaring”.", vanOndernemer: false },
+    { ref: "F6", text: "Klanttevredenheid van 4.9/5.0", vanOndernemer: false },
+    { ref: "F7", text: "Welke reviewscore willen jullie als actueel aanhouden: 4,9 uit 5", vanOndernemer: true },
+    { ref: "F3", text: "Eigen vaste ploeg van vijf man, geen inhuur van zzp'ers", vanOndernemer: true },
+  ];
+  const best = controleerStrategie(strategie({
+    prioriteitsfeiten: [{ feit: "F1", betekenis: "b" }, { feit: "F3", betekenis: "b" }],
+    uitgeslotenFeiten: [{ feit: "F7", reden: "elders gedekt" }],
+  }), { ...invoerWP3, sterk });
+  eq("een tweede stuk sterk bewijs komt erbij, van de ondernemer eerst", best.strategie.prioriteitsfeiten.map((p) => p.feit).join(","), "F1,F3,F7");
+  ok("ook als de strategie het uitsloot", !best.strategie.uitgeslotenFeiten.some((u) => u.feit === "F7"));
+  ok("en dat staat in de correcties", best.correcties.some((c) => c.includes("F7")));
+  const dubbel = controleerStrategie(strategie({ prioriteitsfeiten: [{ feit: "F4", betekenis: "b" }] }), { ...invoerWP3, sterk: sterk.filter((b) => b.ref !== "F3" && b.ref !== "F7") });
+  eq("hetzelfde bewijs twee keer telt als één", dubbel.strategie.prioriteitsfeiten.map((p) => p.feit).join(","), "F4,F6");
+  eq("'35 jaar' en '35+ Jaar' zijn één stuk", bewijsKern("meer dan 35 jaar ervaring"), bewijsKern("35+ Jaar ervaring"));
+  eq("'Twaalf monteurs' en '12 monteurs' ook", bewijsKern("Twaalf monteurs in dienst"), bewijsKern("Hoeveel eigen monteurs: 12 monteurs"));
+  const vol = controleerStrategie(strategie({ prioriteitsfeiten: ["F1", "F2", "F8", "F4", "F5", "F6"].map((feit) => ({ feit, betekenis: "b" })) }), { ...invoerWP3, sterk: [{ ref: "F3", text: "Vaste ploeg van vijf", vanOndernemer: true }] });
+  eq(`bij ${MAX_PRIORITEITSFEITEN} prioriteitsfeiten maakt het laatste gewone feit plaats`, vol.strategie.prioriteitsfeiten.map((p) => p.feit).join(","), "F1,F2,F8,F4,F5,F3");
+  ok("dat wordt optioneel", vol.strategie.optioneleFeiten.includes("F6"));
+  const betwistSterk = controleerStrategie(strategie({}), { ...invoerWP3, sterk: [{ ref: "B1", text: "35 jaar", vanOndernemer: true }] });
+  ok("betwist sterk bewijs gaat niet mee", !betwistSterk.strategie.prioriteitsfeiten.some((p) => p.feit === "B1"));
+
+  // Punt 3. De kostenpagina: 395 gepland, opgenomen onderwerpen samen 210.
+  eq("het budget volgt de som van de onderwerpen", String(budgetUitOnderwerpen(395, [65, 35, 25, 35, 35, 15]).woorden), "210");
+  eq("binnen 15 procent blijft het getal van de strategie (Best: 390 tegen 365)", String(budgetUitOnderwerpen(390, [95, 55, 50, 75, 25, 65]).woorden), "390");
+  eq("zonder woorden per onderwerp blijft het budget", String(budgetUitOnderwerpen(500, [null, null]).woorden), "500");
+  const som = controleerStrategie(strategie({
+    lengtebudget: { woorden: 900, onderbouwing: "", redenBovenPlafond: null },
+    onderwerpen: [onderwerp({ woorden: 300, feiten: ["F1"] }), onderwerp({ woorden: 250, feiten: ["F2"] }), onderwerp({ besluit: "weglaten", woorden: 400 })],
+  }), invoerWP3);
+  eq("in de strategie: alleen opgenomen onderwerpen tellen", String(som.strategie.lengtebudget.woorden), "550");
+  const hoog = controleerStrategie(strategie({ onderwerpen: [onderwerp({ woorden: 2000, feiten: ["F1"] })] }), invoerWP3);
+  eq("en de som blijft onder het plafond", String(hoog.strategie.lengtebudget.woorden), String(budgetgrenzen("dienst").plafond));
+});
+
+group("Metabeschrijving zonder halve naam (werkstand §4, punt 4)", () => {
+  const naam = "Wesley Keeris Installatietechniek";
+  const echt = "Lees de prijs voor cv-ketelvervanging inclusief installatie, de levertijd en de kosten van het aangeboden onderhoudscontract bij Wesley Keeris Installatietechnh";
+  eq("het echte geval van de nameting", String(echt.length), "160");
+  const heel = heelMetabeschrijving(echt, naam);
+  ok("de halve naam gaat eraf", !heel.includes("Installatietechnh"), heel);
+  ok("en hij blijft binnen de grens", heel.length <= MAX_METABESCHRIJVING, String(heel.length));
+  ok("met de hele woorden van de naam en een punt", heel.endsWith("bij Wesley Keeris."), heel);
+  eq("past de hele naam, dan komt die terug", heelMetabeschrijving("Kosten van een nieuwe ketel bij Wesley Keeris Install", naam), "Kosten van een nieuwe ketel bij Wesley Keeris Installatietechniek.");
+  eq("een beschrijving met een punt blijft staan", heelMetabeschrijving("Tuinaanleg in Best. Lees meer.", "Hans Verstraaten Hoveniers"), "Tuinaanleg in Best. Lees meer.");
+  const lang = "Tuinaanleg in Best met ontwerp, grondwerk, bestrating en beplanting door een vaste ploeg. Lees wat aanleg kost en hoe lang de uitvoering in het voorjaar ongeveer duur";
+  ok("tegen de grens zonder naam valt het afgekapte woord weg", heelMetabeschrijving(lang.slice(0, 160), "Hans Verstraaten Hoveniers").endsWith("voorjaar."), heelMetabeschrijving(lang.slice(0, 160), "Hans Verstraaten Hoveniers"));
+  ok("elke opslag van een metabeschrijving gaat erdoor", (leesBestand("lib/pipeline/content.ts").match(/meta_description: heelMetabeschrijving\(/g) ?? []).length === 3);
 });
 
 group("Het lengtebudget volgt uit de inhoud (WP3, §7.4)", () => {
@@ -26847,10 +26937,10 @@ function bestStrategie(): PageStrategy {
     ],
     optioneleFeiten: ["F9"],
     onderwerpen: [
-      { onderwerp: "Een complete tuin van ontwerp tot oplevering", besluit: "opnemen", bron: "feit", feiten: ["F2", "F3"], woorden: 150, vraag: null, wachtOpConflict: [], kern: true, reden: "" },
-      { onderwerp: "Wat een tuin met bestrating kost", besluit: "opnemen", bron: "feit", feiten: ["F5"], woorden: 100, vraag: null, wachtOpConflict: [], kern: true, reden: "" },
-      { onderwerp: "Vergelijk dezelfde werkzaamheden en afwerking", besluit: "weglaten", bron: "vakkennis", feiten: [], woorden: null, vraag: null, wachtOpConflict: [], kern: false, reden: "consumentengids" },
-      { onderwerp: "Tuinen die we in Best aanlegden", besluit: "eerst vragen", bron: "geen", feiten: [], woorden: null, vraag: "Welke tuinen in Best mogen we noemen?", wachtOpConflict: [], kern: true, reden: "" },
+      { onderwerp: "Een complete tuin van ontwerp tot oplevering", besluit: "opnemen", bron: "feit", feiten: ["F2", "F3"], woorden: 150, vraag: null, wachtOpConflict: [], uitleg: [], kern: true, reden: "" },
+      { onderwerp: "Wat een tuin met bestrating kost", besluit: "opnemen", bron: "feit", feiten: ["F5"], woorden: 100, vraag: null, wachtOpConflict: [], uitleg: [], kern: true, reden: "" },
+      { onderwerp: "Vergelijk dezelfde werkzaamheden en afwerking", besluit: "weglaten", bron: "vakkennis", feiten: [], woorden: null, vraag: null, wachtOpConflict: [], uitleg: [], kern: false, reden: "consumentengids" },
+      { onderwerp: "Tuinen die we in Best aanlegden", besluit: "eerst vragen", bron: "geen", feiten: [], woorden: null, vraag: "Welke tuinen in Best mogen we noemen?", wachtOpConflict: [], uitleg: [], kern: true, reden: "" },
     ],
     onzekerheden: [
       { punt: "Welke regels in Best gelden voor regenwater", bestemming: "C", reden: null, formulering: null, vraag: null },
