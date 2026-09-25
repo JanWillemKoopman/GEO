@@ -100,9 +100,15 @@ const FEITEN_SYSTEM =
   "voorwaarden, wat er wel of niet bij zit, openingstijden, keurmerken, aantallen, ervaring, " +
   "garanties) zonder dat een feit op de kaart hem dekt. Noem per zin de kop van de sectie waarin " +
   "hij staat. " +
-  "Noem daarnaast onder overreachingClaims elke ALGEMENE uitleg die als belofte van dit bedrijf " +
-  "gelezen kan worden. 'Een APK duurt meestal een uur' is algemene uitleg; 'bij ons duurt een APK " +
-  "een uur' is een belofte en hoort op de kaart te staan. " +
+  // ⚠️ WP6 van contentpijplijn-publicatiewaardig.md: hier stond "noem elke
+  // ALGEMENE uitleg die als belofte gelezen kan worden". De goedkoopste
+  // reparatie van zo'n melding was een voorbehoud erachter, en zo ontstond de
+  // relativering van sterk bewijs (§1.2, O2). Nu een gesloten definitie, en
+  // de code filtert erop (`isToezegging()` in onzekerheid.ts).
+  "Noem daarnaast onder overreachingClaims alleen een TOEZEGGING zonder feit: een zin in de " +
+  "wij-vorm ('wij', 'we', 'onze', 'bij ons') of met de bedrijfsnaam, die een termijn, prijs, aantal, " +
+  "garantie of dienst toezegt die niet op de kaart staat. 'Een APK duurt meestal een uur' is " +
+  "algemene uitleg en noem je NIET; 'bij ons duurt een APK een uur' is een toezegging. " +
   "HARDE REGELS: bij twijfel noem je de zin. Een terechte melding kost de ondernemer dertig " +
   "seconden nakijken; een gemiste verzonnen zin kost hem zijn geloofwaardigheid. Een zin die " +
   "letterlijk uit een feit op de kaart volgt, noem je NIET. Antwoord in het Nederlands.";

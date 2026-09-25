@@ -41,6 +41,7 @@ import {
 } from "@/lib/pipeline/content-gate";
 import { checkContractCoverage, checkStrategieDekking } from "@/lib/pipeline/content-coverage";
 import { gekozenRefs } from "@/lib/pipeline/strategie-opdracht";
+import { gatzinnen, voorbehoudNaBewijs, checkBestemmingen, isToezegging } from "@/lib/pipeline/onzekerheid";
 import type { PageStrategy } from "@/lib/schemas/page-strategy";
 import { splitSections } from "@/lib/pipeline/content-sections";
 import { containsCompetitor } from "@/lib/pipeline/redact";
@@ -449,11 +450,30 @@ export async function keurPagina(invoer: KeuringInput): Promise<Keuring> {
     woorden: telWoorden(body),
   });
 
+  // ── WP6: onzekerheid en bronpraat nagerekend ─────────────────────────────
+  const tekstVoorOnzekerheid = [body, ...faq.map((f) => `${f.q} ${f.a}`)].join("\n");
+  const onzekerheid = {
+    gatzinnen: gatzinnen(tekstVoorOnzekerheid),
+    voorbehoudNaBewijs: voorbehoudNaBewijs(tekstVoorOnzekerheid),
+    bestemmingen: input.strategie ? checkBestemmingen(input.strategie, tekstVoorOnzekerheid) : null,
+  };
+  // De feitelijkheidsbeoordelaar jaagde op "algemene uitleg die als belofte
+  // gelezen kan worden", en de goedkoopste reparatie was er een voorbehoud
+  // achter zetten (§1.2, O2). Nu telt alleen een toezegging in de gesloten
+  // definitie van `isToezegging()`: de wij-vorm of de bedrijfsnaam.
+  const factuality = panel.factuality
+    ? {
+        ...panel.factuality,
+        overreachingClaims: panel.factuality.overreachingClaims.filter((z) => isToezegging(z, input.brandName)),
+      }
+    : panel.factuality;
+
   // ── 4. Alles naar getypeerde bevindingen ──────────────────────────────────
   const { issues, dimensies, beoordelaars } = verzamelKwaliteit({
     profiel,
     critique: panel.critique,
-    factuality: panel.factuality,
+    factuality,
+    onzekerheid,
     citability: panel.citability,
     craft: panel.craft,
     gate,

@@ -73,6 +73,7 @@ const BRON_FASE: Record<IssueBron, PipelinePhase> = {
   feitbehoud: "schrijven",
   // De strategie koos, de schrijver week af: een schrijfprobleem.
   strategie: "schrijven",
+  onzekerheid: "schrijven",
   // V8, V1 en V10: opening, merkstem en koppen zijn alle drie schrijfkeuzes.
   paginavorm: "schrijven",
   adviestoon: "schrijven",
