@@ -57,6 +57,7 @@ import { rateLimitWindowStart, rateLimitVerdict } from "@/lib/rate-limit-rules";
 import { faqKandidaten, pasFaqSelectieToe, faqblok, checkFaqNaSchrijven, alBeantwoord, MAX_FAQ } from "@/lib/pipeline/faq-criteria";
 import { gatzinnen, voorbehoudNaBewijs, checkBestemmingen, isToezegging } from "@/lib/pipeline/onzekerheid";
 import { controleerRedactie, getalReeksen } from "@/lib/pipeline/redactie-check";
+import { heelMetatitel } from "@/lib/pipeline/metatitel";
 import { strategieblok, gekozenRefs, opbouwUitStrategie, REGELS_STRATEGIE, REGEL_7_STRATEGIE } from "@/lib/pipeline/strategie-opdracht";
 import { checkStrategieDekking } from "@/lib/pipeline/content-coverage";
 import { haalSectiesWeg } from "@/lib/pipeline/content-sections";
@@ -26939,12 +26940,30 @@ group("Vangnetten op de eindredactie (WP5)", () => {
   const lang = controleerRedactie({ concept, redactie: { ...concept, bodyMarkdown: concept.bodyMarkdown + " woord".repeat(200) }, feiten, budget: 100, prioriteit: [] });
   ok("langer maken dan het budget ook", !lang.akkoord);
   const weg = controleerRedactie({ concept, redactie: { ...concept, claims: [{ factRef: "F3" }] }, feiten, budget: 600, prioriteit: ["F3", "F5"] });
-  ok("een verdwenen prioriteitsfeit draait niet terug, de keuring blokkeert het", weg.akkoord && weg.verdwenenPrioriteit.join(",") === "F5");
+  ok("een verdwenen prioriteitsfeit draait de redactie terug (nameting fase 1)", !weg.akkoord && weg.verdwenenPrioriteit.join(",") === "F5");
+  // Best, nameting fase 1: 345 woorden werden er 115 bij een budget van 365.
+  const vol = { ...concept, bodyMarkdown: "woord ".repeat(345) };
+  const leeg = controleerRedactie({ concept: vol, redactie: { ...vol, bodyMarkdown: "woord ".repeat(115) }, feiten, budget: 365, prioriteit: [] });
+  ok("leegschrappen tot onder 60 procent van het budget draait terug", !leeg.akkoord && leeg.redenen.some((r) => r.includes("leeg")));
+  // De kostenpagina van dezelfde dag: 227 naar 165 woorden, alleen herhaling eraf.
+  const kort = { ...concept, bodyMarkdown: "woord ".repeat(227) };
+  const ingekort = controleerRedactie({ concept: kort, redactie: { ...kort, bodyMarkdown: "woord ".repeat(165) }, feiten, budget: 600, prioriteit: [] });
+  ok("herhaling weghalen van een al kort concept blijft staan", ingekort.akkoord, ingekort.redenen.join(" "));
   eq("Nederlandse getallen gelijk gelezen", Array.from(getalReeksen("€ 2.200 en 2200 en 4,9")).join(","), "2200,4.9");
   const content = leesBestand("lib/pipeline/content.ts");
   ok("het schrijven met strategie keurt niet zelf maar gaat naar de redactie", content.includes("naarRedactie: true"));
   ok("de redactie bewaart zijn log vóór de keuring", content.indexOf("edit_log_json: log as never") < content.lastIndexOf("return keur(geredigeerd);"));
   ok("en draait op denktijd hoog", leesBestand("lib/pipeline/editorial-pass.ts").includes('work: "redactioneel"'));
+});
+
+group("Een afgekapte bedrijfsnaam in de metatitel (nameting fase 1)", () => {
+  const naam = "Wesley Keeris Installatietechniek";
+  eq("de halve naam gaat eraf, de hele woorden blijven", heelMetatitel("Cv-ketel vervangen in Geldrop | Wesley Keeris InstallatieteO", naam), "Cv-ketel vervangen in Geldrop | Wesley Keeris");
+  eq("ook zonder rare letter aan het eind", heelMetatitel("Cv-ketel vervangen in Geldrop | Wesley Keeris Installatiete", naam), "Cv-ketel vervangen in Geldrop | Wesley Keeris");
+  eq("een hele naam blijft staan", heelMetatitel("Ketel vervangen | Wesley Keeris Installatietechniek", naam), "Ketel vervangen | Wesley Keeris Installatietechniek");
+  eq("een bewust verkorte naam ook", heelMetatitel("Tuinaanleg in Best | Hans Verstraaten", "Hans Verstraaten Hoveniers"), "Tuinaanleg in Best | Hans Verstraaten");
+  eq("een titel zonder naam blijft onaangeroerd", heelMetatitel("Hybride warmtepomp: wat bekijken we vooraf?", naam), "Hybride warmtepomp: wat bekijken we vooraf?");
+  ok("elke opslag van een metatitel gaat erdoor", (leesBestand("lib/pipeline/content.ts").match(/meta_title: heelMetatitel\(/g) ?? []).length === 3);
 });
 
 // ════════════════════════════════════════════════════════════════════════════

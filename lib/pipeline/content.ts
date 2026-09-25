@@ -32,6 +32,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { currentPiece } from "@/lib/jobs/content-jobs";
 import { callStructured, startStructuredAchtergrond, haalStructuredOp } from "@/lib/openai/structured";
 import { bouwRedactieOpdracht, redactieOpties } from "@/lib/pipeline/editorial-pass";
+import { heelMetatitel } from "@/lib/pipeline/metatitel";
 import { controleerRedactie } from "@/lib/pipeline/redactie-check";
 import type { EditorialPass } from "@/lib/schemas/editorial-pass";
 import { MODELS } from "@/lib/openai/models";
@@ -2178,7 +2179,7 @@ function buildDraftRow(args: {
     // T8.8: het gedachtestreepje-vangnet (regel 9 van de schrijfprompt is een
     // belofte, geen garantie) ná de versheidsregel, die zet geen streepjes.
     body_markdown: withFreshnessLine(stripProseDashes(draft.parsed.bodyMarkdown), nu),
-    meta_title: draft.parsed.metaTitle,
+    meta_title: heelMetatitel(draft.parsed.metaTitle, brandName),
     meta_description: draft.parsed.metaDescription,
     schema_jsonld: validateOrRebuildJsonLd(draft.parsed.schemaJsonLd, {
       type: recommendation.type,
@@ -3001,7 +3002,7 @@ export async function reviseContentPiece(args: {
     // `title` bewust NIET bijwerken: de titel uit het rapport is de sleutel
     // waarop de rest van de app deze pagina terugvindt.
     body_markdown: withFreshnessLine(stripProseDashes(final.bodyMarkdown), herzienOp),
-    meta_title: final.metaTitle,
+    meta_title: heelMetatitel(final.metaTitle, brandName),
     meta_description: final.metaDescription,
     schema_jsonld: validateOrRebuildJsonLd(final.schemaJsonLd, {
       type: recommendation.type,
@@ -3396,7 +3397,7 @@ export async function redigeerContentPiece(args: {
       ...(overgenomen
         ? {
             body_markdown: withFreshnessLine(stripProseDashes(geredigeerd.bodyMarkdown), nu),
-            meta_title: geredigeerd.metaTitle,
+            meta_title: heelMetatitel(geredigeerd.metaTitle, ctx.brandName),
             meta_description: geredigeerd.metaDescription,
             faq_json: geredigeerd.faq.map((f) => ({ ...f, a: stripProseDashes(f.a) })) as never,
             claims_json: (geredigeerd.claims ?? []).map((c) => ({

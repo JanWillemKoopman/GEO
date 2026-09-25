@@ -13,15 +13,27 @@
  *      de kaart staat: ook terugdraaien.
  *   3. Niet langer dan het budget. Maakt de redactie de tekst langer dan het
  *      budget plus 15 procent, en langer dan het concept, dan terugdraaien.
- *   4. Een prioriteitsfeit dat verdween, wordt gemeld maar niet teruggedraaid:
- *      de keuring maakt er een blokkade van (`checkStrategieDekking`), en de
- *      reparatie zet het terug. Zo gaat de rest van de redactie niet verloren.
+ *   4. Geen prioriteitsfeit weg. Tot de nameting van fase 1 werd dat alleen
+ *      gemeld, in de verwachting dat de keuring het als blokkade zou zien en de
+ *      reparatie het zou terugzetten. Op 25 september 2026 schrapte de redactie
+ *      bij Best de vaste ploeg, de doorlooptijd en het gratis gesprek (345 naar
+ *      115 woorden), en twee reparatierondes brachten er maar een deel van
+ *      terug (199 woorden). Nu: terugdraaien naar het concept.
+ *   5. Niet leegschrappen. Haalt de redactie meer dan 40 procent van het
+ *      concept weg en komt ze onder 60 procent van het budget, dan terugdraaien.
+ *      Bij de kostenpagina van dezelfde dag ging 227 naar 165 woorden (27 procent
+ *      eraf, herhaling en vulzinnen); dat blijft staan.
  *
  * Puur (conventie 2).
  */
 
 /** Tot zoveel boven het budget geldt nog als binnen het budget (§12.2: waarschuwing boven 15 procent). */
 export const BUDGET_MARGE = 1.15;
+
+/** Onder deze fractie van het budget is een tekst leeggeschrapt, als de redactie er ook veel af haalde. */
+export const ONDER_BUDGET = 0.6;
+/** Zoveel mag de redactie van het concept weghalen voordat de ondergrens telt. */
+export const MAX_GESCHRAPT = 0.4;
 
 export interface RedactieTekst {
   bodyMarkdown: string;
@@ -106,6 +118,17 @@ export function controleerRedactie(args: {
   const voor = refsVan(concept.claims);
   const na = refsVan(redactie.claims);
   const verdwenenPrioriteit = args.prioriteit.map((r) => r.toUpperCase()).filter((r) => voor.has(r) && !na.has(r));
+  if (verdwenenPrioriteit.length) {
+    redenen.push(`De redactie haalde een prioriteitsfeit weg: ${verdwenenPrioriteit.join(", ")}.`);
+  }
+  if (
+    budget &&
+    woordenNa < budget * ONDER_BUDGET &&
+    woordenVoor > 0 &&
+    (woordenVoor - woordenNa) / woordenVoor > MAX_GESCHRAPT
+  ) {
+    redenen.push(`De redactie schrapte de tekst leeg: ${woordenVoor} naar ${woordenNa} woorden, budget ${budget}.`);
+  }
 
   return {
     akkoord: redenen.length === 0,
