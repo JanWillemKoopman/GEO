@@ -891,6 +891,20 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
     allClaimsCovered: true,
   }),
 
+  /**
+   * De zinnenbeoordelaar (punt 59): in de keten de strengste stand, elke zin is
+   * een bewering zonder feit. Zo toetst de keten dat de bedrading de keuring
+   * nooit milder maakt dan de woordvergelijking al was.
+   */
+  content_claim_judge: (user) => ({
+    oordelen: [...user.matchAll(/^(\d+)\. /gm)].map((m) => ({
+      nummer: Number(m[1]),
+      overBedrijf: true,
+      feit: null,
+      reden: "stub",
+    })),
+  }),
+
   /** De citeerbaarheidsbeoordelaar (A5): idem, alles beantwoord. */
   content_citability: () => ({
     subQuestionAnswers: [],

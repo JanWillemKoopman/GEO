@@ -546,7 +546,7 @@ import { verifyDossierFacts, answerTypeOf } from "@/lib/pipeline/dossier-verify"
 import { wilsonBounds, maySkip, elicitLabel, describeElicit } from "@/lib/pipeline/elicit-rate";
 import { planFactMerge, describeContradictions } from "@/lib/pipeline/fact-merge";
 import type { IncomingFact, StoredFact } from "@/lib/pipeline/fact-merge";
-import { detectClaimSentences, claimMatchesSentence, detectedCoverage } from "@/lib/pipeline/claim-extract";
+import { detectClaimSentences, claimMatchesSentence, detectedCoverage, verwerkZinOordelen, magGeenBeweringZijn, feitOnderbouwtZin, keurmerkKern } from "@/lib/pipeline/claim-extract";
 import { resolveTuning, isReasoningModel, isUnsupportedTemperatureError } from "@/lib/openai/sampling";
 import { zoekCliches, telCliches } from "@/lib/solliciteren/cliches";
 import {
@@ -26189,4 +26189,121 @@ group("Kleine punten uit de doorlichting, deel 2 (verbeterronde blok F, punt 8, 
   eq("vanaf nu, vier seconden ertussen", t.map((d) => d.toISOString().slice(11, 19)).join(","), "12:00:00,12:00:04,12:00:08");
   const achter = spreidTijden(nu, new Date("2026-09-24T12:02:00Z"), 2, GEMINI_AFSTAND_MS);
   eq("een tweede cluster sluit aan", achter.map((d) => d.toISOString().slice(11, 19)).join(","), "12:02:04,12:02:08");
+});
+
+
+group("De keuring ziet wat een bewering over het bedrijf is (reparatieplan blok G, punt 59 en 60)", () => {
+  const hovenier = "Hans Verstraaten Hoveniers";
+  const installateur = "Wesley Keeris Installatietechniek";
+  const rijschool = "Autorijschool Pompert";
+  const kandidaat = (zin: string, merk: string) => detectClaimSentences({ bodyMarkdown: zin }, merk).length === 1;
+
+  // Punt 59: de vijf voorbeeldzinnen uit de bevinding, letterlijk van productie.
+  ok("een datumstempel is geen bewering", !kandidaat("Laatst bijgewerkt: 25 september 2026.", hovenier));
+  ok("ook niet in cijfers", !kandidaat("Bijgewerkt op 25-09-2026.", hovenier));
+  ok(
+    "een veiligheidsinstructie met 112 is geen bewering",
+    !kandidaat("Gaat een koolmonoxidemelder af of is er direct gevaar, verlaat dan de woning en bel 112.", installateur),
+  );
+  ok(
+    "een verwijzing naar het CBR is geen bewering",
+    !kandidaat(
+      "Voor vragen over een gezondheidsverklaring, rijgeschiktheid of jouw persoonlijke aanvraag kun je de actuele informatie van het CBR raadplegen.",
+      rijschool,
+    ),
+  );
+  ok("het CBR met een eigen cijfer blijft een bewering", kandidaat("Bij ons slaagt 93 procent de eerste keer bij het CBR.", rijschool));
+  ok("het CBR in de wij-vorm ook", kandidaat("Wij begeleiden je tot en met je examen bij het CBR, altijd met dezelfde instructeur.", rijschool));
+  ok("een langere zin met 'bijgewerkt' blijft gewoon staan", kandidaat("Wij hebben de prijzen bijgewerkt op 25 september 2026 en rekenen € 80 per les.", rijschool));
+
+  // De andere twee voorbeelden kan alleen het model herkennen; de code laat het toe.
+  const definitie = "ASS verwijst naar autisme binnen het spectrum; AD(H)D omvat ADD en ADHD.";
+  const retorisch = "Nee, dat kun je niet in het algemeen zeggen.";
+  ok("de definitie is nog wel een kandidaat", kandidaat(definitie, rijschool));
+  ok("het model mag de definitie wegzetten", magGeenBeweringZijn(definitie, rijschool));
+  ok("en het retorische antwoord", magGeenBeweringZijn(retorisch, hovenier));
+  ok("maar geen zin met de merknaam", !magGeenBeweringZijn("Neem contact op met Wesley Keeris Installatietechniek voor een gratis adviesbezoek.", installateur));
+  ok("geen zin in de wij-vorm", !magGeenBeweringZijn("Ga je na de intake bij ons lessen, dan krijg je de intakekosten terug.", rijschool));
+  ok("en geen zin met een bedrag", !magGeenBeweringZijn("De intake staat vermeld voor € 50 en € 80", rijschool));
+
+  // De echte feiten van de rijschool en de installateur (brand_facts, 25 september 2026).
+  const feiten = [
+    { ref: "F1", id: null, text: "De kosten van de intake worden terugbetaald als de leerling daarna bij Pompert gaat lessen.", source: "site /prijzen-lespakketten/", allowed: true, citable: true, claimKey: null },
+    { ref: "F2", id: null, text: "Welke plaatsen bedient Wesley voor hybride warmtepompen, specifiek Geldrop, Mierlo en Nuenen: Geldrop en omgeving, ook Mierlo, Nuenen en Heeze-Leende", source: "klant, bevestigd 24-9-2026", allowed: true, citable: true, claimKey: null },
+    { ref: "F3", id: null, text: "Het KvK-nummer is 54148014.", source: "site /contact", allowed: true, citable: true, claimKey: null },
+    { ref: "F4", id: null, text: "Storingsdienst voor contractklanten: binnen 24 uur bij een storing, ook in het weekend", source: "opgegeven in het gesprek", allowed: true, citable: true, claimKey: null },
+    { ref: "F5", id: null, text: "Het bedrijf is officieel CO-gecertificeerd volgens de Gasketelwet.", source: "site /ketelvervanging", allowed: true, citable: true, claimKey: null },
+    { ref: "F6", id: null, text: "Wesley Keeris Installatietechniek is een allround erkend installatiebedrijf uit Geldrop dat onder andere werkzaamheden uitvoert met betrekking tot gas, water, CV, ventilatie, warmtepompen en zinkwerk.", source: "site https://www.wkinstallatie.nl", allowed: true, citable: true, claimKey: null },
+  ];
+  const intake = "Ga je na de intake bij ons lessen, dan krijg je de intakekosten terug.";
+  const nuenen = "Woont u in Nuenen, dan valt uw woonplaats binnen ons werkgebied voor warmtepompen.";
+  ok("het juiste feit onderbouwt de intakezin", feitOnderbouwtZin(intake, feiten[0]));
+  ok("het klantantwoord onderbouwt Nuenen", feitOnderbouwtZin(nuenen, feiten[1]));
+  ok("een willekeurig F-nummer niet", !feitOnderbouwtZin(nuenen, feiten[2]));
+  ok("een ander getal dan in het feit niet", !feitOnderbouwtZin("Contractklanten helpen wij binnen 2 uur bij een storing.", feiten[3]));
+  ok("een verboden feit nooit", !feitOnderbouwtZin(intake, { ...feiten[0], allowed: false }));
+  ok("een onbekend feit nooit", !feitOnderbouwtZin(intake, undefined));
+
+  const alle = [
+    { sentence: definitie, signal: "toezegging" as const },
+    { sentence: retorisch, signal: "toezegging" as const },
+    { sentence: intake, signal: "toezegging" as const },
+    { sentence: nuenen, signal: "toezegging" as const },
+    { sentence: "Een offerte van ons is duidelijk en overzichtelijk en ontvang je per mail.", signal: "toezegging" as const },
+  ];
+  const basis = { coverage: 0, detected: 6, tagged: 0, unsupported: [], untagged: alle };
+  const oordelen = [
+    { sentence: definitie, overBedrijf: false, feit: null },
+    { sentence: retorisch, overBedrijf: false, feit: null },
+    { sentence: intake, overBedrijf: true, feit: "f1" },
+    { sentence: nuenen, overBedrijf: true, feit: "F2" },
+    // Het model probeert een wij-zin weg te zetten: dat mag niet.
+    { sentence: "Een offerte van ons is duidelijk en overzichtelijk en ontvang je per mail.", overBedrijf: false, feit: null },
+  ];
+  const uit = verwerkZinOordelen({ dekking: basis, oordelen, facts: feiten, brandName: rijschool });
+  eq("twee zinnen zijn geen bewering", uit.geenBewering.length.toString(), "2");
+  eq("twee zinnen hebben nu een feit", uit.gekoppeld.map((g) => g.feit).join(","), "F1,F2");
+  eq("alleen de wij-zin zonder feit blijft tegenhouden", uit.untagged.map((u) => u.sentence).join(" | "), "Een offerte van ons is duidelijk en overzichtelijk en ontvang je per mail.");
+  eq2("de noemer krimpt met de twee niet-beweringen", uit.detected, 4);
+  eq2("en de dekking rekent daarmee", uit.coverage, 75);
+  eq("een mislukte aanroep verandert niets", verwerkZinOordelen({ dekking: basis, oordelen: null, facts: feiten, brandName: rijschool }).untagged.length.toString(), "5");
+
+  // Punt 60: de echte zin van de installateur moet erdoor, een verzonnen keurmerk niet.
+  const gasketelwet = "Wesley Keeris Installatietechniek neemt opdrachten aan in Heeze-Leende en is CO-gecertificeerd volgens de Gasketelwet.";
+  eq("de keurmerkwoorden van de echte zin", [...keurmerkKern(gasketelwet)].sort().join(","), "co,gasketelwet,~certific");
+  const echt = detectedCoverage({
+    detected: [{ sentence: gasketelwet, signal: "merknaam" }],
+    claims: [{ claim: "Het bedrijf is CO-gecertificeerd volgens de Gasketelwet.", factRef: "F5", quote: "Het bedrijf is officieel CO-gecertificeerd volgens de Gasketelwet." }],
+    facts: feiten,
+  });
+  eq("de CO-certificering die op de site staat, is gedekt", echt.untagged.length.toString(), "0");
+  ok("'certificering' op de site dekt 'gecertificeerd' in de tekst", feitOnderbouwtZin("Wij zijn CO-gecertificeerd volgens de Gasketelwet.", { ...feiten[4], text: "Het bedrijf beschikt over een CO-certificering volgens de Gasketelwet." }));
+
+  const verzonnen = "Wesley Keeris Installatietechniek is erkend installatiebedrijf en VCA-gecertificeerd.";
+  const nep = detectedCoverage({
+    detected: [{ sentence: verzonnen, signal: "merknaam" }],
+    claims: [{ claim: "Wesley Keeris Installatietechniek is een allround erkend installatiebedrijf.", factRef: "F6", quote: "allround erkend installatiebedrijf uit Geldrop" }],
+    facts: feiten,
+  });
+  eq("een verzonnen keurmerk naast een echt feit blijft tegenhouden", nep.untagged.length.toString(), "1");
+  ok("ook als het model het echte feit aanwijst", !feitOnderbouwtZin(verzonnen, feiten[5]));
+  ok("een keurmerk zonder merknaam of getal is een kandidaat", kandidaat("Het team is volledig VCA-gecertificeerd voor werk op hoogte.", installateur));
+  ok(
+    "zonder keurmerk verandert er niets aan de dekking",
+    detectedCoverage({ detected: [{ sentence: intake, signal: "toezegging" }], claims: [], facts: feiten }).untagged.length === 1,
+  );
+
+  // De bedrading: de zinnenbeoordelaar draait naast het panel en de code heeft het laatste woord.
+  const keuring = leesBestand("lib/pipeline/quality-run.ts");
+  ok("de keuring roept de beoordelaar aan vóór het panel", keuring.indexOf("beoordeelZinnen({") < keuring.indexOf("await runPanel({"));
+  ok("en verwerkt zijn oordeel via de code", keuring.includes("verwerkZinOordelen({"));
+  ok("het ruwe antwoord gaat mee in de audit-trail", keuring.includes("[...panel.raw, zinnen.raw]"));
+});
+
+
+group("Het euroteken en letters met een accent komen goed van de site (punt 63)", () => {
+  eq("de installateur", htmlToText("<p>Ons bedrijf beschikt over een offici&euml;le CO-certificering</p>"), "Ons bedrijf beschikt over een officiële CO-certificering");
+  eq("de rijschool", htmlToText("Meer info over de intake &euro; 50"), "Meer info over de intake € 50");
+  eq("hoofdletters en andere accenten", htmlToText("&Eacute;&eacute;n caf&eacute; &agrave; la carte, gar&ccedil;on"), "Één café à la carte, garçon");
+  eq("een onbekende naam blijft staan", htmlToText("A &foo; B"), "A &foo; B");
 });

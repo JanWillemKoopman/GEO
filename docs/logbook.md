@@ -12294,3 +12294,22 @@ nieuwe bevindingen kwamen boven water: een crawl die dit keer minder pagina's la
 (59), een volledig verzonnen veiligheidscertificering die de keuring niet tegenhield (60), en twee
 verwisselde cijfers uit dezelfde feitenkaart (61). Alle details en de vergelijkingstabel staan in
 `docs/tasks/bevindingen-kwaliteitsdoorlichting.md` §"Herhaling" en bij de punten zelf.
+
+## 25 september 2026: reparatieplan blok G, de keuring ziet wat een bewering is
+
+Bij de herhaling hielden 67 zinnen 20 van de 21 nieuwe pagina's tegen als "zin zonder bron", en het
+overgrote deel was advies aan de lezer, een datumstempel of een verwijzing naar het CBR of 112
+(punt 59). Twee lagen: de code sluit een datumstempel en een verwijzing naar een externe partij uit
+(6 van de 67), en wat daarna nog ongedekt is, legt één modelaanroep per keuring voor met de vraag "is
+dit een bewering over het bedrijf, en welk feit onderbouwt hem exact" (`lib/pipeline/claim-judge.ts`,
+goedkope tier, parallel met het panel, alleen als er iets voor te leggen is). De code heeft het laatste
+woord: een zin met merknaam, wij-vorm of bedrag (14 van de 67) kan alleen een feit vrijspreken, en een
+aangewezen feit telt alleen als de getallen kloppen en zin en feit een kernwoord delen. Een mislukte
+aanroep laat de keuring zoals hij was. Punt 60 (verzonnen certificering) en 61 (verwisselde cijfers)
+bleken bij narekenen onterecht: de CO-certificering volgens de Gasketelwet staat letterlijk op de site
+van de installateur, de rijschool noemt een intake van € 50 op kantoor en € 80 in de auto. Daarmee klopt
+de alinea hierboven van dezelfde dag over punt 60 en 61 niet; de bevindingenlijst is leidend. Voor
+keurmerken is toch een vangnet gebouwd: alle keurmerkwoorden van een zin moeten in één feit staan, op
+stam. Onderweg gerepareerd: HTML-codes als "&euro;" en "&euml;" kwamen letterlijk op de feitenkaart
+(punt 63).
+

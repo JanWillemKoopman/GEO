@@ -636,6 +636,8 @@ Uitkomst: 144 blokkerende bevindingen werden er 56, maar alle twaalf pagina's st
 ⚠️ **Dit lost niet elke instructiezin op.** "Dit kun je zelf doen terwijl je wacht" begint niet met
 een werkwoord uit de lijst en glipt er nog doorheen. Dat onderscheid (advies aan de lezer versus een
 belofte, ergens middenin de zin) vraagt begrip van de zin en niet van het eerste woord.
+Sinds 25 september 2026 legt de keuring zulke zinnen voor aan een aparte, kleine modelaanroep
+(`lib/pipeline/claim-judge.ts`, punt 59 van `docs/tasks/bevindingen-kwaliteitsdoorlichting.md`).
 
 **Getest, nog niet herverifieerd tegen de echte benchmarkronde** (conventie 10). Vier nieuwe
 testgroepen in `scripts/test-unit.ts`, inclusief de tegenproef dat een fabricage zonder

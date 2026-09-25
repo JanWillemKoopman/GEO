@@ -37,7 +37,7 @@ import { splitSentences, stripMarkdown } from "@/lib/pipeline/sentences";
 import { isSupported, normalizeForQuote, type FactItem, type WrittenClaim } from "@/lib/pipeline/factcard";
 
 /** Waaróm deze zin als bewering geldt. Gaat mee naar `review_notes`. */
-export type ClaimSignal = "merknaam" | "getal" | "toezegging";
+export type ClaimSignal = "merknaam" | "getal" | "toezegging" | "keurmerk";
 
 export interface DetectedClaim {
   /** De zin zoals hij in de tekst staat, zonder markdown-opmaak. */
@@ -201,6 +201,151 @@ function isInstructieAanLezer(zin: string): boolean {
   return INSTRUCTIE_WERKWOORDEN.includes(eersteWoord);
 }
 
+/**
+ * Zinnen die NOOIT een bewering over het bedrijf zijn
+ * (punt 59 van de kwaliteitsdoorlichting, 25 september 2026).
+ *
+ * Bij de herhaling van 24/25 september kregen 20 van de 21 nieuwe pagina's het
+ * oordeel "block", en bij 19 daarvan was minstens één reden "deze zin zegt iets
+ * over je bedrijf zonder bron" op een zin die niets over het bedrijf zegt. Twee
+ * soorten daarvan zijn zonder begrip van de zin te herkennen, en die vallen hier
+ * weg vóór er een modelaanroep aan te pas komt:
+ *
+ *   1. Een DATUMSTEMPEL: "Laatst bijgewerkt: 25 september 2026." Drie keer
+ *      gevonden, bij drie verschillende merken. Het getal maakte er een
+ *      kandidaat van (`GETAL`).
+ *   2. Een verwijzing naar een EXTERNE PARTIJ zonder bewering van het bedrijf
+ *      zelf: "verlaat dan de woning en bel 112", "kun je de actuele informatie
+ *      van het CBR raadplegen".
+ *
+ * ⚠️ De tweede soort geldt alleen zolang de zin niet over het bedrijf zelf
+ * praat (merknaam of wij-vorm) en er geen ander getal in staat dan het
+ * alarmnummer. "Bij ons slaagt 93 procent bij het CBR" blijft dus een bewering.
+ * Wat hier wel doorheen glipt, is een vergelijking zonder getal en zonder
+ * wij-vorm ("leerlingen van deze rijschool slagen vaker bij het CBR"); dat is
+ * een bewuste afweging tegen 19 van de 21 pagina's die onterecht vastliepen.
+ */
+const DATUMSTEMPEL =
+  /^(laatst\s+)?(bijgewerkt|gewijzigd|aangepast|herzien|gecontroleerd|gepubliceerd)(\s+op)?\s*:?\s*\d{1,2}([\s./-]+\p{L}+|[./-]\d{1,2})[\s./-]+\d{4}\.?$/iu;
+
+const EXTERNE_PARTIJEN = [
+  "112", "alarmnummer", "hulpdienst", "hulpdiensten", "brandweer", "politie", "ambulance",
+  "huisarts", "cbr", "rvo", "netbeheerder", "gemeente", "belastingdienst", "rijksoverheid",
+];
+
+/** Praat de zin over het bedrijf zelf, in de wij-vorm? */
+const EERSTE_PERSOON = /(^| )(wij|we|ons|onze)( |$)/;
+
+/** Een bedrag of percentage: altijd een bewering die iemand kan natrekken. */
+const BEDRAG = /€|%|(^| )(euro|procent)( |$)/;
+
+export function isGeenBewering(zin: string, brandName: string): boolean {
+  if (DATUMSTEMPEL.test(zin.trim())) return true;
+  const sleutel = normalizeForQuote(zin);
+  if (bevatMerknaam(zin, brandName) || EERSTE_PERSOON.test(sleutel)) return false;
+  const woorden = sleutel.split(" ");
+  if (!EXTERNE_PARTIJEN.some((p) => woorden.includes(p))) return false;
+  // Het alarmnummer telt niet als getal; elk ander getal wel.
+  const zonderAlarm = zin.replace(/\b112\b/g, " ");
+  return !GETAL.test(zonderContactgegevens(zonderAlarm));
+}
+
+/**
+ * Mag een model deze zin wegzetten als "geen bewering over het bedrijf"?
+ * (punt 59, het vangnet onder de modelaanroep in `claim-judge.ts`)
+ *
+ * Conventie 1: het model beslist per zin, de code bepaalt waar dat oordeel
+ * NIET mag gelden. Een zin met de merknaam, in de wij-vorm, of met een bedrag
+ * of percentage gaat altijd over het bedrijf, wat het model er ook van vindt.
+ * Die zinnen kan het model alleen nog met een feit onderbouwen, niet meer
+ * wegredeneren. Van de 67 tegengehouden zinnen van de herhaling vallen er 6
+ * al weg op `isGeenBewering()`, en 14 in deze groep; daar zitten ook de echte
+ * beweringen tussen ("Ga je na de intake bij ons lessen, dan krijg je de
+ * intakekosten terug"). De overige 47 legt de code aan het model voor.
+ */
+export function magGeenBeweringZijn(zin: string, brandName: string): boolean {
+  const sleutel = normalizeForQuote(zin);
+  return !bevatMerknaam(zin, brandName) && !EERSTE_PERSOON.test(sleutel) && !BEDRAG.test(zin.toLowerCase());
+}
+
+/**
+ * Keurmerken, certificeringen en wettelijke kwalificaties
+ * (punt 60 van de kwaliteitsdoorlichting, 25 september 2026).
+ *
+ * Een keurmerk is nooit een parafrase: "erkend installateur" en "VCA-
+ * gecertificeerd" delen het woord "erkend" niet, maar ook niet het feit. De
+ * gewone dekkingswegen hieronder zijn daar te ruim voor: een feit van drie
+ * woorden ("Erkend installateur (InstallQ)") dekt via
+ * `claimMatchesSentence()` al een zin die er twee van noemt, ook als die zin er
+ * een tweede keurmerk bij verzint.
+ *
+ * Daarom: een zin met een keurmerkwoord is alleen gedekt als ÉÉN feit alle
+ * keurmerkwoorden van de zin bevat, met het merk of de wet erbij. Op stam en
+ * niet letterlijk op het woord, want de site van de installateur schrijft
+ * "CO-certificering" en de tekst "CO-gecertificeerd"; dat is hetzelfde feit.
+ *
+ * ⚠️ De aanleiding bleek bij narekenen onterecht: de "CO-certificering volgens
+ * de Gasketelwet" staat letterlijk op de site van de installateur
+ * (/ketelvervanging) en dus terecht op de kaart. De regel blijft, als vangnet
+ * voor het geval dat de bevinding beschreef; de echte zin moet erdoor, en dat
+ * toetst `test-unit.ts`.
+ */
+const KEURMERK_STAMMEN: [RegExp, string][] = [
+  [/^(ge)?certific/, "~certific"],
+  [/^keurmerk/, "~keurmerk"],
+  [/^erken/, "~erken"],
+  [/^(ge)?registreerd|^registratie|register$/, "~register"],
+  [/^(ge)?diplomeerd|^diploma/, "~diploma"],
+  [/^(ge)?kwalificeerd|^kwalificatie/, "~kwalific"],
+  [/^bevoegd/, "~bevoegd"],
+  [/^wettelijk/, "~wettelijk"],
+];
+
+/** De stam van een keurmerkwoord, of een wet ("Gasketelwet"), anders `null`. */
+function keurmerkStam(woord: string): string | null {
+  for (const [patroon, stam] of KEURMERK_STAMMEN) if (patroon.test(woord)) return stam;
+  if (woord === "wet" || (woord.length > 5 && woord.endsWith("wet"))) return woord;
+  return null;
+}
+
+/** Hoe ver een afkorting van een keurmerkwoord mag staan om erbij te horen. */
+const KEURMERK_AFSTAND = 3;
+
+/**
+ * De keurmerkwoorden van een tekst: de stammen, plus de afkortingen en namen
+ * die erbij horen ("CO" in "CO-gecertificeerd", "InstallQ" in "erkend door
+ * InstallQ"). Leeg betekent: deze tekst noemt geen keurmerk.
+ */
+export function keurmerkKern(tekst: string): Set<string> {
+  const kern = new Set<string>();
+  const tokens = tekst.split(/\s+/).filter(Boolean);
+  const stamPosities: number[] = [];
+  tokens.forEach((token, i) => {
+    const delen = normalizeForQuote(token).split(" ").filter(Boolean);
+    const stammen = delen.map(keurmerkStam);
+    if (stammen.some(Boolean)) {
+      stamPosities.push(i);
+      delen.forEach((deel, j) => kern.add(stammen[j] ?? deel));
+    }
+  });
+  if (kern.size === 0) return kern;
+  // Afkortingen en namen met twee of meer hoofdletters vlak bij een keurmerkwoord.
+  tokens.forEach((token, i) => {
+    if (!stamPosities.some((p) => Math.abs(p - i) <= KEURMERK_AFSTAND)) return;
+    for (const deel of token.split(/[^\p{L}\d]+/u)) {
+      if ((deel.match(/\p{Lu}/gu) ?? []).length >= 2) kern.add(normalizeForQuote(deel));
+    }
+  });
+  return kern;
+}
+
+/** Bevat dit feit alle keurmerkwoorden van de zin? */
+function feitDraagtKeurmerk(kern: Set<string>, feitTekst: string): boolean {
+  const feitWoorden = normalizeForQuote(feitTekst).split(" ").filter(Boolean);
+  const feit = new Set<string>([...feitWoorden, ...feitWoorden.map(keurmerkStam).filter((s): s is string => !!s)]);
+  return [...kern].every((w) => feit.has(w));
+}
+
 /** Woordgrens-veilige merknaamcontrole, ongevoelig voor koppeltekens en accenten. */
 function bevatMerknaam(zin: string, brandName: string): boolean {
   const merk = normalizeForQuote(brandName);
@@ -238,6 +383,9 @@ export function detectClaimSentences(
 
       const sleutel = normalizeForQuote(zin);
       if (!sleutel || gezien.has(sleutel)) continue;
+      // Punt 59: een datumstempel of een verwijzing naar het CBR of 112 zegt
+      // niets over het bedrijf.
+      if (isGeenBewering(zin, brandName)) continue;
 
       // Volgorde is de sterkte van het signaal: een zin mét de merknaam is een
       // bewering over deze klant, ook zonder getal. Dat is de categorie waarin
@@ -248,6 +396,8 @@ export function detectClaimSentences(
 
       let signal: ClaimSignal | null = null;
       if (bevatMerknaam(zin, brandName)) signal = "merknaam";
+      // Punt 60: een keurmerk is een bewering, ook zonder getal of merknaam.
+      else if (keurmerkKern(zin).size > 0) signal = "keurmerk";
       else if (GETAL.test(zonderContact)) signal = "getal";
       else if (bevatToezegging(normalizeForQuote(zonderContact)) && !isInstructieAanLezer(zin))
         signal = "toezegging";
@@ -412,6 +562,117 @@ function zinParafraseertFeit(sentence: string, facts: readonly FactItem[]): bool
 }
 
 /**
+ * Noemt de zin een keurmerk, dan moet één feit alle keurmerkwoorden dragen
+ * (punt 60). Zonder keurmerk verandert er niets. Dit komt BOVENOP de gewone
+ * dekking, niet in plaats ervan: "Als gecertificeerd bedrijf staan wij binnen
+ * 2 uur bij u" heeft voor de termijn nog steeds een eigen feit nodig.
+ */
+function keurmerkGedekt(sentence: string, facts: readonly FactItem[]): boolean {
+  const kern = keurmerkKern(sentence);
+  if (kern.size === 0) return true;
+  return facts.some((f) => f.allowed && f.citable && feitDraagtKeurmerk(kern, f.text));
+}
+
+/**
+ * Het oordeel van de zinnenbeoordelaar (`claim-judge.ts`) over één zin die de
+ * gewone dekking niet rond kreeg.
+ */
+export interface ZinOordeel {
+  /** De zin, letterlijk zoals hij aan het model is voorgelegd. */
+  sentence: string;
+  /** Is dit een controleerbare bewering over DIT bedrijf? */
+  overBedrijf: boolean;
+  /** Het F-nummer van het feit dat hem exact onderbouwt, of `null`. */
+  feit: string | null;
+}
+
+/**
+ * Onderbouwt dit feit deze zin, volgens de code? (vangnet onder `ZinOordeel.feit`)
+ *
+ * Het model mag een feit aanwijzen dat de woordvergelijking niet vond, maar het
+ * mag geen feit aanwijzen dat de zin aantoonbaar NIET draagt. Drie harde eisen:
+ *
+ *   1. het feit mag gebruikt worden (`allowed` en `citable`);
+ *   2. elk getal uit de zin staat in het feit, want een verzonnen bedrag of
+ *      termijn heeft per definitie geen feit met datzelfde getal;
+ *   3. zin en feit delen minstens één kernwoord (`kernwoorden()`), zodat een
+ *      willekeurig F-nummer niet genoeg is. "Woont u in Nuenen, dan valt uw
+ *      woonplaats binnen ons werkgebied voor warmtepompen" en het klantfeit
+ *      "Welke plaatsen bedient Wesley voor hybride warmtepompen ... Nuenen"
+ *      delen "nuene" en "warmt".
+ *
+ * Plus de keurmerkregel: die geldt hier net zo streng als overal.
+ */
+export function feitOnderbouwtZin(sentence: string, feit: FactItem | undefined): boolean {
+  if (!feit || !feit.allowed || !feit.citable) return false;
+  const feitGetallen = new Set(getallenIn(feit.text));
+  if (!getallenIn(zonderContactgegevens(sentence)).every((g) => feitGetallen.has(g))) return false;
+  const feitWoorden = kernwoorden(feit.text);
+  if (![...kernwoorden(sentence)].some((w) => feitWoorden.has(w))) return false;
+  return keurmerkGedekt(sentence, [feit]);
+}
+
+export interface VerfijndeDekking extends CoverageResult {
+  /** Zinnen die volgens het model geen bewering over het bedrijf zijn, en dat ook mogen zijn. */
+  geenBewering: string[];
+  /** Zinnen die het model aan een feit koppelde en die de code ook zo gedekt vindt. */
+  gekoppeld: { sentence: string; feit: string }[];
+}
+
+/**
+ * Past de oordelen van de zinnenbeoordelaar toe op de dekking
+ * (punt 59 van de kwaliteitsdoorlichting, 25 september 2026).
+ *
+ * Een zin valt uit de noemer als het model zegt dat hij niets over het bedrijf
+ * beweert EN `magGeenBeweringZijn()` dat toestaat. Een zin telt als gedekt als
+ * het model een feit aanwijst EN `feitOnderbouwtZin()` dat bevestigt. In elk
+ * ander geval blijft de zin staan zoals de code hem vond: een ontbrekend, kapot
+ * of te optimistisch oordeel maakt de keuring nooit milder (conventie 3).
+ *
+ * `oordelen: null` betekent dat de aanroep mislukt is; dan verandert er niets.
+ */
+export function verwerkZinOordelen(args: {
+  dekking: CoverageResult;
+  oordelen: ZinOordeel[] | null;
+  facts: FactItem[];
+  brandName: string;
+}): VerfijndeDekking {
+  const { dekking, oordelen, facts, brandName } = args;
+  if (!oordelen || oordelen.length === 0 || dekking.untagged.length === 0) {
+    return { ...dekking, geenBewering: [], gekoppeld: [] };
+  }
+  const perZin = new Map(oordelen.map((o) => [normalizeForQuote(o.sentence), o]));
+  const geenBewering: string[] = [];
+  const gekoppeld: { sentence: string; feit: string }[] = [];
+  const untagged: DetectedClaim[] = [];
+
+  for (const d of dekking.untagged) {
+    const oordeel = perZin.get(normalizeForQuote(d.sentence));
+    if (oordeel && !oordeel.overBedrijf && magGeenBeweringZijn(d.sentence, brandName)) {
+      geenBewering.push(d.sentence);
+      continue;
+    }
+    const ref = oordeel?.feit?.trim().toUpperCase() ?? "";
+    const feit = ref ? facts.find((f) => f.ref.toUpperCase() === ref) : undefined;
+    if (oordeel?.overBedrijf && feitOnderbouwtZin(d.sentence, feit)) {
+      gekoppeld.push({ sentence: d.sentence, feit: ref });
+      continue;
+    }
+    untagged.push(d);
+  }
+
+  const noemer = dekking.detected - geenBewering.length;
+  return {
+    ...dekking,
+    detected: noemer,
+    coverage: noemer === 0 ? null : Math.round(((noemer - untagged.length) / noemer) * 100),
+    untagged,
+    geenBewering,
+    gekoppeld,
+  };
+}
+
+/**
  * Het feit-id opzoeken bij een bronverwijzing (migratie 0036).
  *
  * Het model levert alleen het F-nummer; dat is de handle die het kent. De code
@@ -479,8 +740,11 @@ export function detectedCoverage(args: {
 
   const untagged = detected.filter(
     (d) =>
-      !gedekteClaims.some((c) => claimMatchesSentence(c.claim, d.sentence)) &&
-      !zinIsOnderbouwdDoorKaart(d.sentence, facts),
+      !(
+        (gedekteClaims.some((c) => claimMatchesSentence(c.claim, d.sentence)) ||
+          zinIsOnderbouwdDoorKaart(d.sentence, facts)) &&
+        keurmerkGedekt(d.sentence, facts)
+      ),
   );
 
   const gedekt = detected.length - untagged.length;

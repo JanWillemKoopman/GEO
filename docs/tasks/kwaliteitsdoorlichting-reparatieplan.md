@@ -39,6 +39,12 @@ woord/getal-matchen meer). Daarbinnen:
 **Test:** de vijf voorbeeldzinnen uit punt 59 en de "Gasketelwet"-zin uit punt 60 als vaste gevallen in
 `test-unit.ts`, plus de bestaande gevallen uit punt 54 (die moeten blijven werken).
 
+**Stand (25 september 2026):** gebouwd, PR #132. Punt 60 en 61 bleken bij narekenen onterecht (zie
+de bevindingenlijst); het vangnet voor keurmerken is er toch, en de echte Gasketelwet-zin gaat erdoor.
+Nameting op productie: een herkeuring van bestaande pagina's (vier beoordelaars plus de nieuwe
+aanroep, ongeveer $0,02 per pagina) in plaats van nieuwe teksten, want dan is het verschil op
+dezelfde tekst te zien.
+
 ### Blok H, hoog: de reparatieknop verliest feiten (punt 50, 62)
 
 "Los alles op" (`regenerate: true`) laat de schrijver de hele pagina opnieuw opstellen. Bij de
