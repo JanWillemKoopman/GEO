@@ -391,7 +391,8 @@ Hoe hij werkt:
 - `vindHardeBeweringen(tekst)`: per zin de harde tokens. Bedragen (€, euro), getallen met eenheid
   (jaar, maanden, weken, dagen, uur, procent, en een getal direct voor een zelfstandig naamwoord),
   jaartallen, en de woorden garantie, gegarandeerd, gecertificeerd, erkend, keurmerk, certificaat,
-  lid van, altijd, nooit, binnen, 24/7, de beste, de goedkoopste, de grootste, de enige.
+  lid van, altijd, nooit, 24/7, de beste, de goedkoopste, de grootste, de enige. De woorden tellen
+  alleen in een zin over het bedrijf (wij-vorm of bedrijfsnaam).
 - Geen harde bewering: telefoonnummers (9 of meer cijfers), postcodes, huisnummers direct na een
   straatnaam.
 - `zoekBron(token, bronnen)`, voor getallen en bedragen: gedekt als hetzelfde getal met dezelfde
@@ -817,7 +818,7 @@ $0,03, herschrijven (niet altijd) ongeveer $0,10 tot $0,15. Totaal ongeveer $0,1
 | B2 | Klantdata verwijderd | Gedaan: 6 merken met alles eronder; kostenlog bewaard | 25 september 2026 |
 | WP1 | Het oude weghalen | Gedaan. Ongeveer 60 modules, 7 taaksoorten, de oude bibliotheekschermen en 9 documenten weg; de tests van de oude keten ook (test-unit van 6.039 naar 4.739, test-chain van 886 naar 662). Twee dingen naar voren gehaald omdat het opruimen ze nodig had: de schrijfpoort (`lib/pagina/schrijfpoort.ts`, §6.8) en de organisatieknoop (`lib/pagina/organisatie.ts`) | 25 september 2026 |
 | WP2 | Migratie en typen | Gedaan: migratie 0115 op productie, typen, en de twee bewakingstests | 25 september 2026 |
-| WP3 | De controle in code | Niet begonnen | |
+| WP3 | De controle in code | Gedaan: harde beweringen (34 genummerde gevallen), mechanische reparatie met de lengte van de metadata, blok A met de feitenfilter, en tests voor de schrijfpoort. Afwijking: "binnen" telt niet als los beloftewoord (te vaak vals alarm in gewone zinnen); "binnen 2 weken" wordt al op het getal gevangen. De beloftewoorden tellen alleen in een zin over het bedrijf (wij-vorm of bedrijfsnaam) | 25 september 2026 |
 | WP4 | Open vraag en verhalen | Niet begonnen | |
 | WP5 | Content brief | Niet begonnen | |
 | WP6 | Schrijven en het plan aansluiten | Niet begonnen | |

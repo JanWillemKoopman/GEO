@@ -940,6 +940,10 @@ import {
   themaSuggesties,
   type OntdekTerm,
 } from "@/lib/cluster-discovery";
+import { controleerHardeBeweringen, getallenIn as hardeGetallen, geleZinnen, splitsZinnen, vindHardeBeweringen } from "@/lib/pagina/harde-beweringen";
+import { repareerMechanisch } from "@/lib/pagina/mechanisch";
+import { kiesFeiten, hoortBijPagina, blokA, MAX_FEITEN, type FeitRij } from "@/lib/pagina/bedrijfskennis";
+import { schrijfpoort, schrijfdatum } from "@/lib/pagina/schrijfpoort";
 import type {
   ProfileOffering,
   ProfileTopic,
@@ -21040,4 +21044,141 @@ group("de kolommen van de oude keten leest of schrijft niemand meer (§7.2)", ()
       });
   }
   ok("geen gebruik meer", fout.length === 0, fout.join(", "));
+});
+
+// ── WP3: de controle in code (contentketen-opnieuw.md §6.5) ─────────────────
+console.log("\nDe contentketen opnieuw: harde beweringen, reparatie, bedrijfskennis");
+
+group("harde beweringen: wat is er een, en wat niet", () => {
+  const namen = ["Autorijschool Pompert"];
+  const is = (zin: string) => vindHardeBeweringen(zin, namen).length > 0;
+  // Geen harde bewering: gewone uitleg zonder getal of belofte.
+  ok("1. een paar lessen zonder getal is geen bewering", !is("Veel leerlingen hebben na een paar lessen meer vertrouwen."));
+  ok("2. 'na enkele lessen' ook niet", !is("Na enkele lessen merk je vaak dat het rustiger gaat."));
+  ok("3. een telefoonnummer niet", !is("Bel ons op 040 123 4567 voor een afspraak."));
+  ok("4. een mobiel nummer met streepje niet", !is("Bel ons op 06-12345678."));
+  ok("5. een postcode niet", !is("Ons kantoor zit op 5652 CH in Eindhoven."));
+  ok("6. een huisnummer na een straat niet", !is("Kom langs op de Speelheuvelweg 6A."));
+  ok("7. een opsomming in een kop niet", !is("## 3 tips voor je eerste rijles"));
+  ok("8. 'altijd' in algemeen advies niet (gaat niet over het bedrijf)", !is("Controleer altijd je spiegels voor je afslaat."));
+  // Wel een harde bewering.
+  ok("9. een lesduur is er een", is("De eerste les duurt ongeveer 60 minuten."));
+  ok("10. een aantal instructeurs ook", is("We werken met 3 instructeurs."));
+  ok("11. een prijs met euroteken", is("Een losse les kost € 55."));
+  ok("12. een prijs met 'euro' erachter", is("Een losse les kost 55 euro."));
+  ok("13. een termijn", is("Je kunt binnen 2 weken beginnen."));
+  ok("14. een jaartal", is("Wij rijden sinds 1990 met leerlingen door Eindhoven."));
+  ok("15. garantie in een zin over het bedrijf", is("Wij geven garantie dat je slaagt."));
+  ok("16. 'de beste' met de bedrijfsnaam", is("Autorijschool Pompert is de beste rijschool van de regio."));
+  ok("17. een percentage", is("Ruim 80% van onze leerlingen slaagt in één keer."));
+  const bereik = hardeGetallen("Een ketel kost € 2.200 tot € 3.200.");
+  ok("18. een bereik levert twee bedragen op", bereik.length === 2 && bereik.every((g) => g.eenheid === "euro"));
+  eq("19. duizendtallen worden genormaliseerd", bereik[0]?.waarde ?? "", "2200");
+  eq("20. een komma wordt een punt", hardeGetallen("De les duurt 1,5 uur.")[0]?.waarde ?? "", "1.5");
+});
+
+group("harde beweringen: wanneer is er een bron", () => {
+  const namen = ["Wesley Keeris Installatietechniek", "Wesley Keeris"];
+  const bronnen = [
+    "Twaalf monteurs in dienst. Een nieuwe cv-ketel kost € 2.200 tot € 3.200, inclusief installatie.",
+    "Wij hebben meer dan 35+ jaar ervaring.",
+    "De levertijd is 2 tot 4 weken.",
+    "Wij geven geen garantie op het behalen van je examen.",
+    "Officiële CO-certificering volgens de Gasketelwet.",
+    "Sinds 1990 in Eindhoven.",
+  ];
+  const oordeel = (zin: string) => controleerHardeBeweringen(zin, bronnen, namen)[0];
+  ok("21. een bedrag uit de bron is gedekt", oordeel("Een nieuwe ketel kost bij ons € 2.200 tot € 3.200.")?.ongedekt.length === 0);
+  ok("22. een verzonnen bedrag niet", (oordeel("Een nieuwe ketel kost bij ons € 1.900.")?.ongedekt.length ?? 0) > 0);
+  ok("23. '35 jaar' tegenover '35+ jaar' is gedekt", oordeel("Wij hebben 35 jaar ervaring.")?.ongedekt.length === 0);
+  ok("24. een termijn uit de bron is gedekt", oordeel("We leveren in 2 tot 4 weken.")?.ongedekt.length === 0);
+  ok("25. dezelfde waarde met een andere eenheid niet", (oordeel("We geven 2 jaar garantie.")?.ongedekt.length ?? 0) > 0);
+  ok(
+    "26. 'garantie dat je slaagt' wordt niet gedekt door 'geen garantie'",
+    (oordeel("Wij geven garantie dat je slaagt.")?.ongedekt.length ?? 0) > 0,
+  );
+  ok("27. een keurmerk uit de bron is gedekt", oordeel("Wij zijn gecertificeerd voor CO-metingen.")?.ongedekt.length === 0);
+  ok("28. 'nooit' is altijd geel, want het is zelf een ontkenning", (oordeel("Wij laten je nooit in de kou staan.")?.ongedekt.length ?? 0) > 0);
+  ok("29. een jaartal uit de bron is gedekt", oordeel("Wij werken sinds 1990 in de regio.")?.ongedekt.length === 0);
+  ok("30. vakkennis als bron: een subsidiebedrag dat in de uitleg staat", controleerHardeBeweringen(
+    "De ISDE-subsidie voor een hybride warmtepomp is ongeveer € 2.100.",
+    ["De ISDE-subsidie voor een hybride warmtepomp bedraagt ongeveer € 2.100 (bron: rvo.nl)."],
+  )[0]?.ongedekt.length === 0);
+  ok("31. 'de beste' zonder bron is geel", (oordeel("Wesley Keeris is de beste installateur van Geldrop.")?.ongedekt.length ?? 0) > 0);
+  const tekst = "Een nieuwe ketel kost € 2.200 tot € 3.200.\n\nWij geven 10 jaar garantie. Bel 040 123 4567.";
+  eq("32. alleen de zin zonder bron wordt geel", geleZinnen(controleerHardeBeweringen(tekst, bronnen, namen)).join("|"), "Wij geven 10 jaar garantie.");
+  // De zinnen uit de kwaliteitsdoorlichting die de vorige keten fout deed.
+  ok(
+    "33. 'Wij hebben meer dan 35 jaar ervaring, maar dat zegt niets' draagt geen verzonnen getal",
+    oordeel("Wij hebben meer dan 35 jaar ervaring, maar dat zegt op zichzelf niets over het aantal zwemvijvers.")?.ongedekt.length === 0,
+  );
+  ok("34. twaalf monteurs in woorden wordt niet herkend en dus niet geel (regel 2: geen taalontleding)", vindHardeBeweringen("Wij hebben twaalf monteurs.", namen).length === 0);
+});
+
+group("zinnen splitsen uit markdown", () => {
+  const z = splitsZinnen("## Wat kost het?\n\nEen les kost € 55. Een pakket is goedkoper.\n\n- 1.800 leerlingen\n1. Eerste stap");
+  ok("een kop is een zin", z.includes("Wat kost het?"));
+  ok("twee zinnen op één regel worden er twee", z.includes("Een les kost € 55.") && z.includes("Een pakket is goedkoper."));
+  ok("een lijstteken valt weg, een getal met punt blijft heel", z.includes("1.800 leerlingen"));
+  ok("een genummerde lijst verliest zijn nummer", z.includes("Eerste stap"));
+});
+
+group("mechanische reparatie: repareren, nooit blokkeren", () => {
+  const uit = repareerMechanisch(
+    {
+      titel: "Rijles bij faalangst — rustig beginnen",
+      meta_titel: "Rijles bij faalangst in Eindhoven en omgeving voor iedereen met zenuwen | Autorijschool Pompert",
+      meta_beschrijving: "Nerveus voor je rijles? Bij Autorijschool Pompert begin je rustig, en/of in je eigen tempo.",
+      tekst_markdown: "Veel leerlingen zijn nerveus—dat is normaal. Een pakket van 5–8 lessen is gebruikelijk.",
+      faq: [{ vraag: "Hoe lang duurt een les?", antwoord: "Een les duurt 60 minuten — soms 90." }, { vraag: "", antwoord: "leeg" }],
+    },
+    "Autorijschool Pompert",
+  );
+  ok("een gedachtestreepje met spaties wordt een komma", uit.titel === "Rijles bij faalangst, rustig beginnen");
+  ok("een gedachtestreepje tussen woorden ook", uit.tekst_markdown.includes("nerveus, dat is normaal"));
+  ok("een bereik tussen cijfers blijft staan", uit.tekst_markdown.includes("5–8 lessen"));
+  ok("en/of wordt of", !uit.meta_beschrijving.includes("en/of"));
+  ok("de metatitel blijft binnen 60 tekens", uit.meta_titel.length <= 60, `${uit.meta_titel.length}`);
+  ok("de beschrijving binnen 160", uit.meta_beschrijving.length <= 160);
+  ok("een lege FAQ-vraag valt weg", uit.faq.length === 1);
+  ok("ook in de FAQ", !uit.faq[0].antwoord.includes("—"));
+});
+
+group("bedrijfskennis: welke feiten mee gaan naar de schrijver", () => {
+  const f = (id: string, text: string, extra: Partial<FeitRij> = {}): FeitRij => ({
+    id, text, stand: "site", superseded_by: null, allowed: true, geldt_voor: null, bewijskracht: "gewoon", ...extra,
+  });
+  const pagina = { titel: "Cv-ketel vervangen in Geldrop", onderwerp: "Ketelvervanging", zoekintentie: "Wat kost een nieuwe cv-ketel?" };
+  const gekozen = kiesFeiten(
+    [
+      f("1", "Twaalf monteurs in dienst"),
+      f("2", "Een ketelonderhoud kost € 120.", { stand: "betwist" }),
+      f("3", "Oude prijs", { superseded_by: "x" }),
+      f("4", "Zonnepanelen vanaf € 4.000", { geldt_voor: "zonnepanelen" }),
+      f("5", "Een nieuwe cv-ketel kost € 2.200 tot € 3.200.", { geldt_voor: "cv-ketel", bewijskracht: "sterk" }),
+      f("6", "Niet noemen", { allowed: false }),
+      f("7", "  "),
+    ],
+    pagina,
+  );
+  eq("alleen wat klopt en bij deze pagina hoort, sterk bewijs eerst", gekozen.map((x) => x.id).join(","), "5,1");
+  ok("een feit voor het hele merk hoort er altijd bij", hoortBijPagina(null, pagina));
+  ok("een feit voor een andere dienst niet", !hoortBijPagina("zonnepanelen", pagina));
+  ok("een feit voor deze plaats wel", hoortBijPagina("Geldrop", pagina));
+  const veel = Array.from({ length: 400 }, (_, i) => f(String(i), `Feit ${i}`));
+  eq("hooguit 150 feiten", String(kiesFeiten(veel, pagina).length), String(MAX_FEITEN));
+  const a = blokA({ bedrijfsnaam: "Wesley Keeris", feiten: gekozen, waardeproposities: [], verhalen: null, bezwaren: [], merkAntwoorden: [] });
+  ok("blok A noemt het bedrijf en de feiten", a.startsWith("Bedrijf: Wesley Keeris") && a.includes("- Twaalf monteurs in dienst"));
+  ok("en laat lege onderdelen weg", !a.includes("Verhalen"));
+});
+
+group("de schrijfpoort: alleen de vragen en de datum (§6.8)", () => {
+  const vandaag = "2026-10-01";
+  eq("geen brief: nog niet", String(schrijfpoort({ briefKlaar: false, openVragen: 0, publicatiedatum: null, vandaag }).reden), "voorbereiding_loopt");
+  eq("een open vraag: nog niet", String(schrijfpoort({ briefKlaar: true, openVragen: 1, publicatiedatum: null, vandaag }).reden), "vragen_open");
+  eq("onbekend aantal is geen nul", String(schrijfpoort({ briefKlaar: true, openVragen: Number.NaN, publicatiedatum: null, vandaag }).reden), "vragen_open");
+  eq("alles gedaan, datum ver weg: wachten", String(schrijfpoort({ briefKlaar: true, openVragen: 0, publicatiedatum: "2026-11-20", vandaag }).reden), "nog_niet_aan_de_beurt");
+  eq("de schrijfdatum is 10 dagen ervoor", schrijfdatum("2026-11-20"), "2026-11-10");
+  ok("alles gedaan, binnen 10 dagen: schrijven", schrijfpoort({ briefKlaar: true, openVragen: 0, publicatiedatum: "2026-10-05", vandaag }).mag);
+  ok("zonder datum: schrijven", schrijfpoort({ briefKlaar: true, openVragen: 0, publicatiedatum: null, vandaag }).mag);
 });
