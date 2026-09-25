@@ -27,7 +27,7 @@ export async function maakOpenVraag(
     profile_id: input.profileId,
     analysis_id: input.analysisId,
     question: openVraagTekst(input.paginaTitel),
-    reason: openVraagUitleg(input.onderwerp),
+    reason: openVraagUitleg(),
     status: "open",
     scope: "pagina",
     kind: "aanvulling",
