@@ -12447,3 +12447,17 @@ ontbrekend prioriteitsfeit blokkeren (§12.1). Met een strategie wordt er geen s
 meer gemaakt. Afwijking van het plan: het schrijven keurt nog zelf; de keuring verhuist in WP5 naar
 de eindredactie, zodat de keten na elk werkpakket werkt. De omvang van de schrijfinvoer (doel: onder
 9.000 tokens, was gemiddeld 14.100) wordt na merge op `ai_calls` gemeten.
+
+## 25 september 2026: WP5, de eindredactie
+
+Vijfde werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`. Na het schrijven op een
+paginastrategie volgt de taak `content_edit`: een eindredactie op Sol met denktijd hoog die schrapt,
+voorbehouden na een bewijsstuk en herhaling weghaalt, de adviestoon omzet en de tekst naar de stem en
+het budget brengt, met een logboek per wijziging. De keuring verhuist bij zulke pagina's van het
+schrijven naar na de redactie: een oordeel over een tekst die daarna toch verandert, is weggegooid
+geld. Code rekent de redactie na: een getal dat in het concept en op de kaart ontbreekt, een
+F-nummer dat niet bestaat, of een tekst die langer wordt dan het budget plus 15 procent, en de
+redactie wordt teruggedraaid naar het concept. Een prioriteitsfeit dat verdwijnt, blokkeert via de
+keuring en gaat de reparatie in. Wordt de taak na de redactie onderbroken, dan pakt de volgende
+poging de bewaarde redactie op zonder hem opnieuw te betalen. Pagina's zonder strategie lopen zoals
+voorheen.

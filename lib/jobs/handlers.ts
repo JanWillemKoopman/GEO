@@ -37,10 +37,18 @@ import {
 import { runBriefing } from "@/lib/pipeline/briefing";
 import { generateReport } from "@/lib/pipeline/report";
 import { profileCompetitors } from "@/lib/pipeline/competitor-intel";
-import { draftContentPiece, reviseContentPiece, herkeurContentPiece } from "@/lib/pipeline/content";
+import {
+  draftContentPiece,
+  reviseContentPiece,
+  herkeurContentPiece,
+  redigeerContentPiece,
+  type RedactieUitkomst,
+} from "@/lib/pipeline/content";
+import { REDACTIE_KIND } from "@/lib/pipeline/editorial-pass";
+import { moetAchtergrond, ophaalVertragingSeconden, MAX_OPHAALPOGINGEN } from "@/lib/openai/achtergrond";
 import { planContentPiece } from "@/lib/pipeline/content-plan";
 import { werkRegisterBij } from "@/lib/pipeline/feitenregister";
-import { draaiStrategietaak } from "@/lib/pipeline/strategie-taak";
+import { draaiStrategietaak, recenteDuren } from "@/lib/pipeline/strategie-taak";
 import { runAuditForProfile } from "@/lib/audit/store";
 import { planImpactMeasurements, computeImpact } from "@/lib/pipeline/impact";
 import { verifyPublication } from "@/lib/pipeline/publish";
@@ -983,8 +991,24 @@ const handlers: { [T in JobType]: Handler<T> } = {
     // nog steeds terug te vinden vanaf het plan.
     await linkPlannedPage(admin, payload.plannedPageId, {
       contentPieceId: result.contentPieceId,
-      klaar: !result.needsRevise,
+      klaar: !result.needsRevise && !result.naarRedactie,
     });
+
+    // ── WP5: een concept op strategie gaat eerst naar de eindredactie ───────
+    if (result.naarRedactie) {
+      await enqueue(admin, {
+        type: "content_edit",
+        payload: {
+          userId: payload.userId,
+          contentPieceId: result.contentPieceId,
+          recommendation: payload.recommendation,
+          plannedPageId: payload.plannedPageId,
+        },
+        analysisId: job.analysis_id,
+        dedupeKey: dedupe.contentEdit(result.contentPieceId),
+      });
+      return;
+    }
 
     if (!result.needsRevise) return; // eerste versie kwam al door de poort
 
@@ -1011,6 +1035,77 @@ const handlers: { [T in JobType]: Handler<T> } = {
         `${u.beoordeeld} beoordeeld, ${u.echteConflicten} echte conflicten, ` +
         `${u.automatischOpgelost} vanzelf opgelost (klant vóór site).`,
     );
+  },
+
+  // ── Content stap 1b: eindredactie + keuring (WP5) ─────────────────────────
+  content_edit: async ({ admin, job }, payload) => {
+    if (!job.analysis_id) throw new Error("content_edit zonder analysis_id.");
+    const rec = toRecommendation(payload.recommendation);
+    const achtergrond = payload.ophalen
+      ? false
+      : moetAchtergrond(REDACTIE_KIND, await recenteDuren(admin, REDACTIE_KIND));
+
+    let uitkomst: RedactieUitkomst;
+    try {
+      uitkomst = await redigeerContentPiece({
+        analysisId: job.analysis_id,
+        userId: payload.userId,
+        contentPieceId: payload.contentPieceId,
+        recommendation: rec,
+        achtergrond,
+        ophalen: payload.ophalen ?? null,
+        zonderRedactie: (payload.ophalen?.poging ?? 0) > MAX_OPHAALPOGINGEN,
+      });
+    } catch (err) {
+      // Zelfde keuze als bij `content_plan` en de strategie: bij de laatste
+      // poging keuren we het concept zonder redactie, in plaats van de pagina
+      // in `draft` te laten hangen.
+      if (job.attempts < MAX_ATTEMPTS - 1) throw err;
+      console.warn(`Eindredactie van ${payload.contentPieceId} bleef mislukken; keuren zonder: ${describeError(err)}`);
+      uitkomst = await redigeerContentPiece({
+        analysisId: job.analysis_id,
+        userId: payload.userId,
+        contentPieceId: payload.contentPieceId,
+        recommendation: rec,
+        achtergrond: false,
+        zonderRedactie: true,
+      });
+    }
+
+    if (uitkomst.stand === "gestart" || uitkomst.stand === "bezig") {
+      const vorig = payload.ophalen;
+      const ophalen =
+        uitkomst.stand === "gestart"
+          ? { responseId: uitkomst.responseId, gestartOp: uitkomst.gestartOp, user: uitkomst.user, poging: 0 }
+          : { ...vorig!, poging: vorig!.poging + 1 };
+      await enqueue(admin, {
+        type: "content_edit",
+        payload: { ...payload, ophalen },
+        analysisId: job.analysis_id,
+        dedupeKey: dedupe.contentEditOphalen(ophalen.responseId, ophalen.poging),
+        scheduledFor: new Date(Date.now() + ophaalVertragingSeconden(ophalen.poging) * 1000),
+      });
+      return;
+    }
+
+    const result = uitkomst.result;
+    await linkPlannedPage(admin, payload.plannedPageId, {
+      contentPieceId: result.contentPieceId,
+      klaar: !result.needsRevise,
+    });
+    if (!result.needsRevise) return;
+    await enqueue(admin, {
+      type: "content_revise",
+      payload: {
+        userId: payload.userId,
+        contentPieceId: result.contentPieceId,
+        recommendation: payload.recommendation,
+        issues: result.issues,
+        plannedPageId: payload.plannedPageId,
+      },
+      analysisId: job.analysis_id,
+      dedupeKey: dedupe.contentRevise(result.contentPieceId),
+    });
   },
 
   // ── Content stap 2: herschrijven + herbeoordelen ──────────────────────────

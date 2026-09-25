@@ -54,6 +54,7 @@ import {
   leesStartdatum,
 } from "@/lib/verkoopafspraak";
 import { rateLimitWindowStart, rateLimitVerdict } from "@/lib/rate-limit-rules";
+import { controleerRedactie, getalReeksen } from "@/lib/pipeline/redactie-check";
 import { strategieblok, gekozenRefs, opbouwUitStrategie, REGELS_STRATEGIE, REGEL_7_STRATEGIE } from "@/lib/pipeline/strategie-opdracht";
 import { checkStrategieDekking } from "@/lib/pipeline/content-coverage";
 import { haalSectiesWeg } from "@/lib/pipeline/content-sections";
@@ -26484,7 +26485,8 @@ group("Een nieuwe versie houdt de feiten van de vorige (reparatieplan blok H, pu
   eq("zonder vorige versie geen blok", behoudblok([]), "");
   const content = leesBestand("lib/pipeline/content.ts");
   ok("de schrijver krijgt het blok bij een nieuwe versie", content.includes("user: baseInput + behoudblok(teBehouden)"));
-  ok("schrijven, reparatie en herkeuring tellen allemaal na", (content.match(/teBehouden/g) ?? []).length >= 4 && (content.match(/laadTeBehouden\(/g) ?? []).length === 4);
+  ok("schrijven, reparatie en herkeuring tellen allemaal na", (content.match(/teBehouden/g) ?? []).length >= 4 && (content.match(/laadTeBehouden\(/g) ?? []).length === 5);
+  // Sinds WP5 telt ook de eindredactie na, want die keurt nu (5 = definitie plus vier aanroepen).
   ok("een verdwenen feit wordt een blokkerende bevinding", leesBestand("lib/pipeline/quality-collect.ts").includes('bron: "feitbehoud"'));
 });
 
@@ -26890,4 +26892,44 @@ group("De dekking meet de strategie in plaats van het contract (WP4)", () => {
   ok("de reparatie kan een uitgesloten sectie weghalen", !weg.bodyMarkdown.includes("appels met peren") && weg.bodyMarkdown.includes("vaste ploeg"));
   ok("maar nooit de aanhef", haalSectiesWeg(goed, [""]).bodyMarkdown.startsWith("Een complete tuin"));
   ok("de keuring gebruikt de strategiedekking", leesBestand("lib/pipeline/quality-run.ts").includes("checkStrategieDekking({"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// WP5 van docs/tasks/contentpijplijn-publicatiewaardig.md: de eindredactie.
+group("Vangnetten op de eindredactie (WP5)", () => {
+  // Het echte concept van de zwemvijverpagina van de hovenier (§1.2, O2).
+  const concept = {
+    bodyMarkdown:
+      "Een zwemvijver kost meestal tussen de € 30.000 en € 60.000.\n\n## Ervaring\nWij hebben meer dan 35 jaar ervaring, maar dat zegt op zichzelf niets over het aantal zwemvijvers dat we hebben aangelegd.",
+    faq: [],
+    claims: [{ factRef: "F3" }, { factRef: "F5" }],
+  };
+  const feiten = [
+    { ref: "F3", text: "Een zwemvijver kost meestal 30.000 tot 60.000 euro" },
+    { ref: "F5", text: "Meer dan 35 jaar ervaring" },
+  ];
+  const goed = controleerRedactie({
+    concept,
+    redactie: { ...concept, bodyMarkdown: "Een zwemvijver kost meestal tussen de € 30.000 en € 60.000.\n\n## Ervaring\nWe leggen al meer dan 35 jaar tuinen aan." },
+    feiten, budget: 600, prioriteit: ["F3", "F5"],
+  });
+  ok("de relativering weghalen mag", goed.akkoord, goed.redenen.join(" "));
+  const bedrag = controleerRedactie({
+    concept,
+    redactie: { ...concept, bodyMarkdown: concept.bodyMarkdown + " Een intake kost bij ons € 450." },
+    feiten, budget: 600, prioriteit: [],
+  });
+  ok("een redactie die een nieuw bedrag toevoegt wordt teruggedraaid", !bedrag.akkoord);
+  eq("en noemt het bedrag", bedrag.nieuweGetallen.join(","), "450");
+  const verzonnenRef = controleerRedactie({ concept, redactie: { ...concept, claims: [{ factRef: "F3, F99" }] }, feiten, budget: 600, prioriteit: [] });
+  ok("een verzonnen F-nummer ook", !verzonnenRef.akkoord && verzonnenRef.onbekendeRefs.includes("F99"));
+  const lang = controleerRedactie({ concept, redactie: { ...concept, bodyMarkdown: concept.bodyMarkdown + " woord".repeat(200) }, feiten, budget: 100, prioriteit: [] });
+  ok("langer maken dan het budget ook", !lang.akkoord);
+  const weg = controleerRedactie({ concept, redactie: { ...concept, claims: [{ factRef: "F3" }] }, feiten, budget: 600, prioriteit: ["F3", "F5"] });
+  ok("een verdwenen prioriteitsfeit draait niet terug, de keuring blokkeert het", weg.akkoord && weg.verdwenenPrioriteit.join(",") === "F5");
+  eq("Nederlandse getallen gelijk gelezen", Array.from(getalReeksen("€ 2.200 en 2200 en 4,9")).join(","), "2200,4.9");
+  const content = leesBestand("lib/pipeline/content.ts");
+  ok("het schrijven met strategie keurt niet zelf maar gaat naar de redactie", content.includes("naarRedactie: true"));
+  ok("de redactie bewaart zijn log vóór de keuring", content.indexOf("edit_log_json: log as never") < content.lastIndexOf("return keur(geredigeerd);"));
+  ok("en draait op denktijd hoog", leesBestand("lib/pipeline/editorial-pass.ts").includes('work: "redactioneel"'));
 });

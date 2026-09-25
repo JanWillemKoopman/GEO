@@ -65,6 +65,8 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   // schrijven op denktijd medium (WP3, `ai_calls.duration_ms` meet het).
   content_strategy: 90,
   content_draft: 50, // het premium model schrijft een volledige pagina
+  // Redactie op denktijd hoog plus de keuring; nog niet gemeten (WP5).
+  content_edit: 90,
   content_revise: 50,
   // Alleen de vier beoordelaars, geen schrijfaanroep. Die draaien parallel, dus
   // dit is de traagste van de vier plus wat marge.

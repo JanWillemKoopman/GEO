@@ -248,6 +248,13 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
 
 ## Fase 10. Drie onafhankelijke keuringen
 
+Bij een pagina met paginastrategie komt hier eerst de eindredactie (sinds 25 september 2026): het
+duurste model met extra denktijd schrapt, haalt onnodige voorbehouden en herhaling weg, zet de
+adviestoon om naar wat het bedrijf doet, zet de tekst op de merkstem en brengt hem naar het
+lengtebudget, zonder een feit toe te voegen. Code rekent dat na: voegt de redactie een getal of een
+feitverwijzing toe die nergens op de kaart staat, of maakt hij de tekst langer dan het budget, dan
+geldt het concept. Pas daarna volgen de keuringen hieronder.
+
 74. Een eerste beoordelaar scoort de tekst redactioneel, op een vaste rubric en de harde regels.
 75. Een tweede beoordelaar checkt welke zinnen iets over het bedrijf beweren zonder dat de
     feitenkaart die dekking biedt.

@@ -6562,6 +6562,23 @@ async function main(): Promise<void> {
       ok("de plantaak plant het schrijven in", ptJobRows.length === 1);
       await runJob({ admin: admin as never, job: { ...ptJobRows[0], status: "running" } });
 
+      // Sinds WP5 gaat een concept op strategie eerst naar de eindredactie, die
+      // daarna keurt.
+      const { rows: ptEditRows } = await db.client.query(
+        `select * from public.jobs where analysis_id = $1 and type = 'content_edit'
+          order by created_at desc limit 1`,
+        [ptAnalysisId],
+      );
+      ok("WP5: het schrijven plant de eindredactie in", ptEditRows.length === 1);
+      const redactiesVoor = log.filter((l) => l.schemaName === "editorial_pass").length;
+      await runJob({ admin: admin as never, job: { ...ptEditRows[0], status: "running" } });
+      eqc("WP5: één redactieaanroep", String(log.filter((l) => l.schemaName === "editorial_pass").length - redactiesVoor), "1");
+      // Hervatten na een time-out: dezelfde taak nog een keer. De redactie ligt
+      // er al (edit_log_json), dus geen tweede aanroep.
+      await db.client.query("update public.content_pieces set status = 'draft' where analysis_id = $1", [ptAnalysisId]);
+      await runJob({ admin: admin as never, job: { ...ptEditRows[0], status: "running" } });
+      eqc("WP5: hervatten betaalt de redactie niet opnieuw", String(log.filter((l) => l.schemaName === "editorial_pass").length - redactiesVoor), "1");
+
       const { rows: ptStukRows } = await db.client.query(
         `select id, report_id from public.content_pieces where analysis_id = $1
           order by created_at desc limit 1`,
@@ -10259,6 +10276,86 @@ async function main(): Promise<void> {
       ok("scenario 19: daarna wordt er geschreven", nieuweDrafts.length === 1, String(nieuweDrafts.length));
       ok("scenario 19: met de strategie uit de achtergrond", nieuweDrafts[0]?.payload_json?.voorbereid?.strategie?.achtergrond === true);
       await db.client.query("delete from public.ai_calls where kind = 'content_strategy' and duration_ms = 131000");
+    }
+
+    // ── Scenario 20: de eindredactie (WP5) ─────────────────────────────────
+    //
+    // Het concept uit scenario 19 wordt geschreven en gaat naar de redactie.
+    // Eerst met een redactie die een bedrag verzint (terugdraaien naar het
+    // concept), daarna met een redactie die alleen de relativering na een
+    // bewijsstuk weghaalt, het voorbeeld van de zwemvijverpagina uit §1.2.
+    console.log("\nScenario 20: de eindredactie (WP5)");
+    {
+      const { runJob: rj20 } = await import("@/lib/jobs/handlers");
+      const shim = createShimClient(db.client) as never;
+      const { rows: s20 } = await db.client.query(
+        "select analysis_id from public.content_pieces where title = 'Cv-ketel vervangen' limit 1",
+      );
+      const a20 = s20[0]?.analysis_id as string;
+      const { rows: draftJobs } = await db.client.query(
+        `select * from public.jobs where analysis_id = $1 and type = 'content_draft' and status = 'queued' order by created_at asc limit 1`,
+        [a20],
+      );
+      ok("scenario 20: er ligt een schrijftaak klaar", draftJobs.length === 1);
+      await rj20({ admin: shim, job: { ...draftJobs[0], status: "running" } });
+      await db.client.query("update public.jobs set status = 'done' where id = $1", [draftJobs[0].id]);
+      const { rows: stuk20 } = await db.client.query(
+        "select id, status from public.content_pieces where analysis_id = $1 and is_current = true order by version desc limit 1",
+        [a20],
+      );
+      const id20 = stuk20[0].id as string;
+      eqc("scenario 20: het concept wacht op de redactie, nog niet gekeurd", String(stuk20[0].status), "draft");
+      const editJob = async () =>
+        (await db.client.query(
+          `select * from public.jobs where analysis_id = $1 and type = 'content_edit' order by created_at desc limit 1`,
+          [a20],
+        )).rows[0];
+      const job20 = await editJob();
+      ok("scenario 20: de eindredactie is ingepland", Boolean(job20));
+
+      const relativering =
+        "Wij hebben meer dan 35 jaar ervaring, maar dat zegt op zichzelf niets over het aantal zwemvijvers dat we hebben aangelegd.";
+      await db.client.query(
+        "update public.content_pieces set body_markdown = body_markdown || $1 where id = $2",
+        [`\n\n${relativering} TESTBEDRAG`, id20],
+      );
+      await rj20({ admin: shim, job: { ...job20, status: "running" } });
+      const na1 = (await db.client.query("select body_markdown, edit_log_json, status from public.content_pieces where id = $1", [id20])).rows[0];
+      ok("scenario 20: een redactie met een verzonnen bedrag wordt teruggedraaid", na1.edit_log_json?.overgenomen === false);
+      ok("scenario 20: met de reden erbij", String(na1.edit_log_json?.redenen ?? "").includes("777"));
+      ok("scenario 20: en de tekst is die van het concept", !String(na1.body_markdown).includes("777"));
+
+      await db.client.query(
+        "update public.content_pieces set status = 'draft', edit_log_json = null, body_markdown = replace(body_markdown, ' TESTBEDRAG', '') where id = $1",
+        [id20],
+      );
+      await rj20({ admin: shim, job: { ...job20, status: "running" } });
+      const na2 = (await db.client.query("select body_markdown, edit_log_json, status from public.content_pieces where id = $1", [id20])).rows[0];
+      ok("scenario 20: een redactie zonder nieuw feit wordt overgenomen", na2.edit_log_json?.overgenomen === true);
+      ok("scenario 20: de relativering na het bewijsstuk is weg", !String(na2.body_markdown).includes("zegt op zichzelf niets"));
+      ok("scenario 20: het logboek zegt waarom", (na2.edit_log_json?.wijzigingen ?? []).some((w: { soort: string }) => w.soort === "relativering"));
+      const { rows: revise20 } = await db.client.query(
+        "select id from public.jobs where analysis_id = $1 and type = 'content_revise'",
+        [a20],
+      );
+      ok(
+        "scenario 20: na de redactie de keuring, en daarna klaar of een reparatieronde",
+        String(na2.status) !== "draft" || revise20.length > 0,
+        `status ${na2.status}, ${revise20.length} reparatietaken`,
+      );
+
+      // De achtergrondmodus: één gemeten redactie boven de 120 seconden.
+      await db.client.query(
+        `insert into public.ai_calls (kind, model, duration_ms, cost_usd) values ('content_edit', 'gpt-6-sol', 125000, 0)`,
+      );
+      await db.client.query("update public.content_pieces set status = 'draft', edit_log_json = null where id = $1", [id20]);
+      await rj20({ admin: shim, job: { ...job20, status: "running" } });
+      const ophaal20 = await editJob();
+      ok("scenario 20: boven 120 seconden gaat de redactie naar de achtergrond", Boolean(ophaal20?.payload_json?.ophalen?.responseId));
+      await rj20({ admin: shim, job: { ...ophaal20, status: "running" } });
+      const na3 = (await db.client.query("select edit_log_json from public.content_pieces where id = $1", [id20])).rows[0];
+      ok("scenario 20: en de vervolgtaak haalt het resultaat op", na3.edit_log_json?.achtergrond === true);
+      await db.client.query("delete from public.ai_calls where kind = 'content_edit' and duration_ms = 125000");
     }
 
     __setTestAdminClient(null);

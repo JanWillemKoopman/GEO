@@ -95,6 +95,13 @@ export const JOB_TYPES = [
   "content_strategy",
   /** Contentgeneratie stap 1: schrijven + beoordelen. */
   "content_draft",
+  /**
+   * De eindredactie (L8, WP5 van contentpijplijn-publicatiewaardig.md) en daarna
+   * de keuring. Alleen voor een pagina met strategie; een eigen taaksoort want
+   * een eigen zware aanroep (conventie 7). Kan zichzelf opnieuw inplannen om
+   * een achtergrondaanroep op te halen.
+   */
+  "content_edit",
   /** Contentgeneratie stap 2: herschrijven + herbeoordelen. */
   "content_revise",
   /** Dezelfde tekst opnieuw keuren, zonder herschrijven (migratie 0092). */
@@ -503,6 +510,14 @@ export interface JobPayloads {
       strategie?: unknown;
     } | null;
   };
+  content_edit: {
+    userId: string;
+    contentPieceId: string;
+    recommendation: RecommendationPayload;
+    plannedPageId?: string;
+    /** Een achtergrondaanroep die nog opgehaald moet worden (`lib/openai/achtergrond.ts`). */
+    ophalen?: { responseId: string; gestartOp: string; user: string; poging: number };
+  };
   content_revise: {
     userId: string;
     contentPieceId: string;
@@ -648,6 +663,7 @@ export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "content_plan", // itemdossier met web_search plus het contract
   "content_strategy", // Sol met denktijd hoog, tot 150 seconden
   "content_draft", // het premium model schrijft een volledige pagina
+  "content_edit", // Sol met denktijd hoog redigeert, daarna de vier beoordelaars
   "content_revise", // idem
   "content_recheck", // geen schrijfaanroep, wel de vier beoordelaars
   "offsite_scan", // crawlt niets maar doet wel een gegroundde AI-aanroep + externe API's
@@ -746,6 +762,7 @@ export const PARALLEL_CONTENT_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "content_plan",
   "content_strategy",
   "content_draft",
+  "content_edit",
   "content_revise",
   "content_recheck",
 ]);
