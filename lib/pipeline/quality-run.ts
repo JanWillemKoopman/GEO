@@ -56,7 +56,7 @@ import {
 import { sourceCoverage, type FactItem, type WrittenClaim } from "@/lib/pipeline/factcard";
 import { detectClaimSentences, detectedCoverage, verwerkZinOordelen } from "@/lib/pipeline/claim-extract";
 import { beoordeelZinnen } from "@/lib/pipeline/claim-judge";
-import { vindVerlorenFeiten, type TeBehoudenFeit } from "@/lib/pipeline/feitbehoud";
+import { binnenStrategie, vindVerlorenFeiten, type TeBehoudenFeit } from "@/lib/pipeline/feitbehoud";
 import {
   berekenGewogenDekking,
   berekenClaimDekking,
@@ -433,11 +433,15 @@ export async function keurPagina(invoer: KeuringInput): Promise<Keuring> {
   const { coverage: bronherleidbaarheid, untagged } = verfijnd;
 
   // ── Blok H: is er een feit van de vorige versie verdwenen? ──────────────
-  // Met een strategie telt een feit dat de strategie bewust uitsloot niet als
-  // verloren: "behalve wat er bewust uit moest" (feitbehoud.ts).
-  const uitgesloten = new Set((input.strategie?.uitgeslotenFeiten ?? []).map((u) => u.feit.toUpperCase()));
+  // Met een strategie telt alleen een feit dat de strategie koos: wat zij niet
+  // koos, moest er bewust uit (`binnenStrategie` in feitbehoud.ts). Tot 25
+  // september 2026 alleen wat ze uitdrukkelijk uitsloot, en dan blokkeerde de
+  // keuring op elk feit dat ze stilzwijgend liet liggen.
   const verlorenFeiten = vindVerlorenFeiten({
-    teBehouden: (input.teBehouden ?? []).filter((t) => !uitgesloten.has(t.ref.toUpperCase())),
+    teBehouden: binnenStrategie(
+      input.teBehouden ?? [],
+      input.strategie ? gekozenRefs(input.strategie, input.faqSelectie) : null,
+    ),
     bodyMarkdown: body,
     faq,
     claims,

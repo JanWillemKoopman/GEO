@@ -225,3 +225,25 @@ export function behoudblok(teBehouden: readonly TeBehoudenFeit[]): string {
     ...teBehouden.map((f) => `- ${f.ref}: ${f.tekst}  (vorige versie: "${f.vorigeZin}")`),
   ].join("\n");
 }
+
+/**
+ * Bij een pagina met strategie: alleen de feiten die de strategie koos, moeten
+ * blijven (prioriteit, optioneel, onder een opgenomen onderwerp, onder de FAQ).
+ *
+ * Nameting na de reparatie van de dunne pagina's (25 september 2026): de
+ * keuring hield beide pagina's tegen omdat feiten uit de vorige versie
+ * ontbraken die de strategie bewust niet koos ("Wij zorgen voor een
+ * professionele vervanging ... zorgeloos genieten", het kennismakingsgesprek
+ * naast het gratis eerste gesprek thuis). De schrijver kreeg dezelfde feiten
+ * als "neem ELK over" naast een strategie die zei "voeg niets toe": twee
+ * opdrachten die elkaar tegenspreken, met herhaling als uitkomst. De strategie
+ * is de redactionele keuze (WP3); feitbehoud bewaakt alleen dat een gekozen
+ * feit niet onderweg verdwijnt. `null` = geen strategie, dan telt alles.
+ */
+export function binnenStrategie(
+  teBehouden: readonly TeBehoudenFeit[],
+  gekozen: ReadonlySet<string> | null,
+): TeBehoudenFeit[] {
+  if (!gekozen) return [...teBehouden];
+  return teBehouden.filter((f) => gekozen.has(f.ref.trim().toUpperCase()));
+}

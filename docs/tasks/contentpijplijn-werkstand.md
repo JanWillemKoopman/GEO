@@ -19,7 +19,7 @@ Weg zodra fase 3 af is, samen met het plan (§15 van het plan).
 | Migraties | `0113` en `0114` op productie; volgende vrije nummer is `0115` (controleer met `ls supabase/migrations`) | `supabase/README.md` |
 | Reparaties uit de nameting | PR 144, 145 en 147 staan op productie. PR 147 repareerde de dunne pagina's (§4) | logboek, 25 september 2026 |
 | Documentatie van de nametingen | Eerste nameting in PR 146 (samengevoegd); de tweede in deze branch | `kwaliteitsdoorlichting/nameting-fase1/`, `nameting-dunne-paginas/` |
-| Stemvoorstel drie klanten (WP1) | Geschreven, wacht op akkoord van de eigenaar | `docs/tasks/schrijfstijl-voorstel-drie-klanten.md` |
+| Stemvoorstel drie klanten (WP1) | Goedgekeurd en in het merkdossier op productie (25 september 2026) | `docs/tasks/schrijfstijl-voorstel-drie-klanten.md` |
 | Fase 2 (WP8 tot en met WP10) | Niet begonnen. Pas na akkoord van de eigenaar | plan §13 "Fase 2" |
 
 **De uitslag in één zin.** Na de reparatie kiest de blinde lezer bij beide pagina's de nieuwe versie en
@@ -28,15 +28,16 @@ een doel van 6,5, vooral door herhaling en holle algemene uitleg; kosten $0,26 t
 
 ## 2. Wat de eigenaar nog moet beslissen
 
-1. **De documentatie van de tweede nameting naar main** (alleen documentatie, staat op de branch
-   `claude/vigilant-carson-wseww7`; nog geen PR).
-2. **Het stemvoorstel goedkeuren of aanpassen.** Tot dat akkoord er is, wordt er niets in het
-   merkdossier op productie geschreven (letterlijke opdracht van de eigenaar). Beide lezers noemen de
-   toon nog stijf; de stem is de volgende grote hefboom.
-3. **De levertijd bij de installateur.** Het klantantwoord zet twee tot vier weken en één dag bij de
-   ketel, terwijl ze bij de hybride warmtepomp horen. Op 25 september 2026 besloot de eigenaar het te
-   laten staan; zolang het zo blijft, komt het op elke ketelpagina terug en rekent de lezer het fout.
-4. **Eerst de punten uit §4 of meteen fase 2.**
+1. **De levertijd bij de installateur.** Het klantantwoord zet "levertijd 2 tot 4 weken, installatie
+   in 1 dag" bij de ketel, terwijl het bij de hybride warmtepomp hoort. De eigenaar gaf op 25 september
+   2026 ruimte om dit te corrigeren; de aanpassing in `fact_requests` en `brand_facts` werd in de
+   sessie door de veiligheidscontrole tegengehouden en moet door de eigenaar zelf worden gedaan of
+   toegestaan.
+2. **De richting van de volgende stap** (§4): de eigenaar wil verbeteringen aan de pijplijn, geen
+   reparaties per pagina.
+
+Afgehandeld op 25 september 2026: de documentatie van de tweede nameting staat op main (PR 148), en het
+stemvoorstel is goedgekeurd en staat in het merkdossier van de drie klanten.
 
 ## 3. Werkafspraken van de eigenaar
 
@@ -54,28 +55,24 @@ Deze gelden naast `CLAUDE.md` en zijn in deze uitvoering expliciet gemaakt:
 - **Wijkt de code af van een aanname in het plan,** zeg dat in één alinea en kies de oplossing die
   het dichtst bij het plan ligt.
 
-## 4. Wat de tweede nameting leerde, en wat de volgende stap zou zijn
+## 4. Waar de pijplijn nu staat, en de volgende stap
 
-De reparatie van de dunne pagina's (PR 147) staat op productie en werkt: de oorzaken en het bewijs staan
-in plan §14.2 onder "Nameting na de reparatie van de dunne pagina's". Wat nu het cijfer drukt, met een
-voorstel dat nog niet besproken en niet gebouwd is:
+Na de tweede nameting zijn drie regels gebouwd die voor elke klant gelden (logboek, 25 september 2026:
+feitbehoud volgt de strategie, algemene uitleg zonder bron kort of weg, FAQ bij het onderwerp). Ze
+staan op de branch en zijn nog niet nagemeten. De eigenaar vroeg daarna uitdrukkelijk om verbeteringen
+aan de pijplijn in plaats van reparaties op de twee meetpagina's. Het voorstel, op volgorde van impact:
 
-1. **Feitbehoud botst met de strategie.** De keuring blokkeert beide pagina's omdat feiten uit de vorige
-   versie ontbreken, ook als de strategie ze bewust wegliet, en herkent soms een feit niet dat er wel
-   staat (de prijs "€2.200 tot €3.200", de terugkomafspraak). Voorstel: bij een pagina met strategie
-   telt feitbehoud alleen de feiten die de strategie koos (prioriteit, optioneel, onder een onderwerp);
-   de herkenning krijgt een test met deze twee echte gevallen. Code: `lib/pipeline/feitbehoud.ts`.
-2. **Algemene uitleg zonder bron wordt voorbehoud.** "In het algemeen kan een aanlegprijs betrekking
-   hebben op ..." is uitleg met bron vakkennis maar zonder gecontroleerde uitleg eronder. Voorstel: een
-   kernonderwerp met vakkennis zonder U-nummer krijgt in de opdracht "één stellige zin of weglaten", en
-   `onzekerheid.ts` telt "in het algemeen", "kan betrekking hebben op" en "zegt op zichzelf niet" mee.
-3. **Herhaling.** Drie secties over de prijs bij Best. Voorstel: de strategie mag hetzelfde F-nummer
-   onder hoogstens één onderwerp zetten; de code voegt dubbele onderwerpen samen.
-4. **FAQ buiten het onderwerp.** De kostenpagina kreeg een warmtepompvraag uit de bezwaren. Voorstel:
-   een bezwaar gaat alleen mee als het onderwerp van de pagina erin voorkomt.
-5. **"Gratis" bij het adviesbezoek.** De lezer rekent het fout (de klant wil "gratis" alleen bij de
-   offerte), maar het waarheidsdossier noemt zelf een gratis adviesbezoek. Eerst met de eigenaar
-   afspreken wat de regel is.
+1. **De vragenroute sluiten.** De strategie en de FAQ-selectie maken per pagina vragen aan de
+   ondernemer (`vragenAanOndernemer` in `strategy_json`; bij Best acht), maar die komen nergens aan: er
+   is geen code die ze naar de bestaande vragenroute (`fact_requests`) zet. Het zijn precies de
+   antwoorden die een pagina voller en specifieker maken. Zonder dit blijft elke pagina begrensd door
+   wat bij de eerste ronde bekend was.
+2. **De eigenaarstoets in de pijplijn (WP9).** Kwaliteit wordt nu alleen achteraf gemeten, met de
+   blinde lezer. In de pijplijn kijken de controles naar feiten en formuleringen, niet naar herhaling,
+   holle alinea's of een kop die niet bij de tekst past. Dezelfde vragenlijst als de blinde lezer als
+   poort en als stuur voor de reparatie vervangt de formuleringlijsten.
+3. **De stemregels in code (WP8).** De stem staat in het merkdossier; zinslengte, clichés en
+   aanspreekvorm als meetbare regels.
 
 ## 5. Zo meet je zuinig na
 

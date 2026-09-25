@@ -31,6 +31,15 @@ export const MIN_PRIORITEITSFEITEN = 3;
  * het. Twee, omdat één stuk bewijs op een pagina een toevalstreffer lijkt.
  */
 export const MIN_STERK_BEWIJS = 2;
+/**
+ * Algemene uitleg zonder feit en zonder gecontroleerde uitleg eronder krijgt
+ * hoogstens zoveel woorden: genoeg voor één of twee stellige zinnen over wat
+ * gebruikelijk is. Nameting na de reparatie (25 september 2026): bij Best
+ * werden twee zulke onderwerpen (40 en 45 woorden gepland) samen met de
+ * prijsindicatie drie secties over de prijs, en de lezer noemde "In het
+ * algemeen kan een aanlegprijs betrekking hebben op ..." als holste alinea.
+ */
+export const MAX_WOORDEN_LOSSE_VAKKENNIS = 40;
 
 /** Een betwist feit zoals de strategie het kreeg: met B-nummer. */
 export interface BetwistVoorStrategie {
@@ -233,6 +242,17 @@ export function controleerStrategie(ruw: PageStrategy, invoer: StrategieInvoer):
       correcties.push(
         `Kernonderwerp "${o.onderwerp}" stond op eerst vragen maar heeft algemene uitleg: komt erop als uitleg, de vraag gaat naar de ondernemer.`,
       );
+    }
+    // Algemene uitleg zonder feit en zonder gecontroleerde uitleg: een bijzaak
+    // valt weg, een kernvraag houdt hoogstens één of twee zinnen.
+    if (uit.besluit === "opnemen" && uit.bron === "vakkennis" && feiten.length === 0 && uitleg.length === 0) {
+      if (!uit.kern) {
+        uit = { ...uit, besluit: "weglaten", woorden: null };
+        correcties.push(`Onderwerp "${o.onderwerp}" is algemene uitleg zonder bron en geen kernvraag: weggelaten.`);
+      } else if ((uit.woorden ?? MAX_WOORDEN_LOSSE_VAKKENNIS + 1) > MAX_WOORDEN_LOSSE_VAKKENNIS) {
+        uit = { ...uit, woorden: MAX_WOORDEN_LOSSE_VAKKENNIS };
+        correcties.push(`Kernonderwerp "${o.onderwerp}" is algemene uitleg zonder bron: hoogstens ${MAX_WOORDEN_LOSSE_VAKKENNIS} woorden.`);
+      }
     }
     if (uit.besluit === "opnemen" && (uit.bron === "geen" || (uit.bron === "feit" && feiten.length === 0))) {
       if (uit.kern) {

@@ -92,6 +92,11 @@ export function strategieblok(s: PageStrategy, faq?: FaqSelectie | null): string
     `Oproep aan het eind: ${s.oproep}`,
     `Lengte: ongeveer ${s.lengtebudget.woorden} woorden in bodyMarkdown, niet meer. Een AI-assistent ` +
       `citeert een korte, stellige zin.`,
+    // Nameting na de reparatie (25 september 2026): de lezer van Best noemde
+    // herhaling als eerste probleem ("De prijsband hierboven is onze gebruikelijke
+    // indicatie", "zonder kosten voor die afspraak" na "gratis").
+    "Elk feit staat één keer op de pagina. Wat in het openingsantwoord staat, herhaal je niet in een " +
+      "sectie; een sectie of zin die alleen herhaalt of samenvat wat er al staat, laat je weg.",
     "",
     "OPBOUW, in deze volgorde, één kop per punt (een mededeling, geen vraag):",
     ...opbouw.map((o, i) => {
@@ -104,7 +109,10 @@ export function strategieblok(s: PageStrategy, faq?: FaqSelectie | null): string
             : "",
         // Algemene uitleg zegt wat gebruikelijk is, niet wat dit bedrijf doet: anders
         // wordt het een belofte die niemand heeft gedaan (werkstand §4, punt 1).
-        o.bron === "vakkennis" ? "zeg wat gebruikelijk is, niet wat dit bedrijf doet of belooft" : "",
+        o.bron === "vakkennis"
+          ? "zeg stellig wat gebruikelijk is, niet wat dit bedrijf doet of belooft; geen 'in het algemeen', " +
+            "'kan', 'doorgaans' of 'verschilt per'; lukt dat niet, laat het punt dan weg"
+          : "",
       ].filter(Boolean);
       return `${i + 1}. ${o.onderwerp}${o.woorden ? ` (ongeveer ${o.woorden} woorden)` : ""}; ${waarop.join("; ")}`;
     }),
