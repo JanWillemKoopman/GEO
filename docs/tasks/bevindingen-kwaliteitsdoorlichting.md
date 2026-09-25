@@ -171,6 +171,8 @@ bronzinnen, het ontbrekende bewijs).
 | 57 | middel | Bij één pagina kwamen na het beantwoorden van de eerste vragen 12 nieuwe vervolgvragen over hetzelfde onderwerp (wat zit inbegrepen bij een ketelvervanging), in steeds andere bewoordingen | open, bevestigt dat punt 36 nog niet volledig is opgelost, herhaling 24/25 september 2026 |
 | 58 | laag | De crawl van een grote site (~70 pagina's) las dit keer maar 33 van de 68 pagina's, ook na een extra aanvulronde, tegen 60 van de 68 bij de nulmeting; de site reageerde traag | open, lijkt aan de externe site te liggen en niet aan de code, herhaling 24/25 september 2026 |
 | 59 | **hoog** | De bronherleidbaarheidscontrole blokkeert op zinnen die geen bewering over het bedrijf zijn (een datumstempel, een veiligheidsinstructie, een definitie); 20 van de 21 nieuwe pagina's kregen "block" | open, gekend gat sinds 3 september, omvang nu voor het eerst gemeten, herhaling 24/25 september 2026 |
+| 60 | **hoog** | Een verzonnen veiligheidscertificering ("CO-gecertificeerd volgens de Gasketelwet") staat op alle 7 van de 7 nieuwe pagina's van de installateur; de keuring hield hem niet tegen | open, blinde lezer herhaling 24/25 september 2026, nagerekend tegen het waarheidsdossier |
+| 61 | middel | Twee echte cijfers uit dezelfde feitenkaart verwisseld (intake € 50 wordt € 80 op minstens 2 van de 8 pagina's), en een groeiwens ("willen groeien in Son en Breugel") werd een bevestigde aanwezigheidsclaim | open, blinde lezer herhaling 24/25 september 2026, nagerekend tegen het waarheidsdossier |
 
 ---
 
@@ -1200,6 +1202,66 @@ bedrijf" uitbreiden voorbij het eerste woord van de zin, bijvoorbeeld met een ko
 alleen die ja/nee-vraag stelt per kandidaatzin (dezelfde soort aanpak als `zinParafraseertFeit()` bij
 punt 54), en in elk geval datumstempels ("Laatst bijgewerkt: ...") en verwijzingen naar een externe
 partij (CBR, hulpdiensten) categorisch uitsluiten.
+
+## 60. Een verzonnen veiligheidscertificering op alle zeven nieuwe pagina's van één merk
+
+Gevonden door de blinde lezer van de herhaling, nagerekend tegen het waarheidsdossier: alle zeven
+nieuwe pagina's van de installateur beweren dat het bedrijf **"CO-gecertificeerd is volgens de
+Gasketelwet"**, op één pagina zelfs met een verwijzing naar een concreet "Register
+gasverbrandingsinstallaties" om het te controleren. Het waarheidsdossier noemt alleen "Erkend
+installateur (InstallQ)"; een CO-certificering volgens de Gasketelwet staat nergens, niet op de
+site en niet in het gesprek. Dit is geen parafrase van een bestaand feit (zoals bij punt 54) maar een
+volledig verzonnen, en voor een installatiebedrijf gevoelig, veiligheidskeurmerk, dat bovendien
+consequent terugkomt: alle 7 van de 7 pagina's.
+
+Daarnaast bevestigde het narekenen drie kleinere feiten uit hetzelfde oordeel: twee pagina's noemen
+"Eindhoven" als werkgebied terwijl het dossier alleen Geldrop als vestigingsplaats en Mierlo,
+Heeze-Leende en Nuenen als groeiplaatsen noemt; vier pagina's plakken de levertijd en installatieduur
+van de hybride warmtepomp ("twee tot vier weken", "installatie in één dag") zonder onderbouwing op
+gewone ketelvervanging, waar het dossier daar niets specifieks over zegt; en meerdere pagina's noemen
+Intergas en Vaillant als ketelmerken naast de bevestigde Nefit en Remeha. Op één pagina staat
+bovendien herhaaldelijk "gratis adviesbezoek", terwijl "gratis" (behalve bij de offerte) op de
+verboden-woordenlijst van de ondernemer staat (besluit eigenaar, punt 48).
+
+**Waarom dit langs de keuring komt.** De bronherleidbaarheidscontrole (punt 54, 59) toetst of een zin
+een feit op de kaart *parafraseert*; een verzonnen certificering die er zelfstandig, zelfverzekerd en
+vakkundig klinkend uitziet, wordt niet als "zin zonder bron" gemarkeerd zolang de zin op zichzelf
+grammaticaal een bewering met een bron lijkt te zijn, of samenvalt met een naastgelegen wél-onderbouwde
+zin over InstallQ. Dat is een ander gat dan punt 59: daar wordt een niet-bewering onterecht
+tegengehouden, hier wordt een onterechte bewering onterecht doorgelaten.
+
+**Voorstel:** een tweede, strengere controle specifiek voor keurmerken, certificeringen en wettelijke
+kwalificaties (een korte lijst met veelvoorkomende woorden als "gecertificeerd", "erkend volgens",
+"keurmerk", "wettelijk") die *altijd* een letterlijke matching regel op de feitenkaart vereist, zonder
+de coulance van `zinParafraseertFeit()`: een verzonnen keurmerk is nooit een parafrase, het is een
+ander feit.
+
+## 61. Twee echte cijfers uit dezelfde feitenkaart verwisseld
+
+Gevonden door de blinde lezer van de herhaling bij de rijschool, nagerekend tegen het
+waarheidsdossier: minstens twee van de acht nieuwe pagina's noemen "€ 80" als prijs voor de intake
+van 60 minuten. Het dossier noemt voor de intake van 60 minuten € 50; € 80 is de prijs van "losse les
+60 minuten". Dit is geen verzonnen getal (beide bedragen staan op de feitenkaart) maar een
+**verwisseling tussen twee echte cijfers**, wat het onopvallender maakt dan een volledig verzonnen
+bedrag: een controle die alleen toetst "komt dit getal ergens op de kaart voor" zou dit niet
+opmerken, want € 80 staat er wél, alleen bij een andere dienst.
+
+Bij dezelfde herhaling, nu bij de hovenier: één pagina beweert "Wij nemen opdrachten aan in Son en
+Breugel", terwijl het gesprek Son en Breugel alleen noemt als plaats "waar je nog weinig zit"
+(groeiwens, geen bevestigd werkgebied). Dit ontstond waarschijnlijk uit het antwoord dat de klant in
+deze herhaling zelf gaf op de vraag "Nemen jullie ook opdrachten aan in Son en Breugel?" ("Ja, dat is
+juist een van de plaatsen waar we willen groeien"): de nuance "willen groeien" is onderweg naar de
+tekst weggevallen en werd een kale, bevestigde aanwezigheidsclaim.
+
+**Waar te zoeken:** `zinParafraseertFeit()` in `lib/pipeline/claim-extract.ts` matcht op gedeelde
+getallen en kernwoorden, maar controleert niet of het getal bij het JUISTE feit (dezelfde dienst,
+dezelfde voorwaarde) hoort; en de omzetting van een klantantwoord naar een feit op de kaart (`lib/facts.ts`)
+lijkt een hedge als "willen groeien" niet consequent te bewaren richting de schrijver.
+**Voorstel:** bij de getallenmatch in `zinParafraseertFeit()` ook een gedeeld kernwoord tussen zin en
+feit eisen wanneer er meerdere prijzen voor vergelijkbare diensten op de kaart staan (zoals hier
+"intake" tegenover "losse les"), niet alleen bij één los getal; en bij het promoveren van een
+klantantwoord naar een feit een woord als "willen" of "streven naar" laten meetellen als onderdeel van
+het feit zelf, niet alleen van het antwoord.
 
 ## Wat goed ging, om niet kapot te maken
 

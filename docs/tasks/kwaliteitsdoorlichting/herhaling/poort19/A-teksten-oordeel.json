@@ -1,0 +1,178 @@
+{
+  "paginas": [
+    {
+      "pagina": 1,
+      "fout_of_verzonnen": [
+        {
+          "citaat": "Wij doen ons best om binnen 4 uur op een offerteaanvraag te reageren.",
+          "probleem": "De site belooft \"wij doen ons best om je binnen 4 uur te voorzien van een scherpe offerte\" (een offerte binnen 4 uur). Deze tekst verzwakt dat tot \"reageren op\" een aanvraag, wat een andere, lagere belofte is dan wat er echt staat.",
+          "ernst": "middel"
+        },
+        {
+          "citaat": "Onze website noemt lagere beheerkosten dan bij een klassiek blauw bad, omdat het onderhoud beperkter is.",
+          "probleem": "Dit is een onderbouwde vergelijkende kostenclaim die niet in de waarheid staat en ook nergens met cijfers wordt gestaafd; hij komt alleen terug als ongeverifieerde marketingzin op de bestaande site.",
+          "ernst": "laag"
+        }
+      ],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "De offertebelofte terugzetten naar wat er echt staat (binnen 4 uur een offerte, niet alleen een reactie) en de eindeloze herhaling van \"de prijsband is geen vaste prijs\" over negen kopjes inkorten tot twee of drie keer.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 4,
+      "copywriter_problemen": [
+        {
+          "citaat": "De prijsband uit de inleiding is daarom geen vaste prijs voor iedere tuin.",
+          "probleem": "Deze boodschap (de prijsband is geen vaste prijs) staat letterlijk of bijna letterlijk in minstens vijf van de tien kopjes op deze pagina. Dat is geen nuance meer, dat is een tekst die op de plaats blijft staan."
+        },
+        {
+          "citaat": "Met maten en foto's kan de eerste inschatting gerichter worden",
+          "probleem": "Kromme, lijdende-vorm kop; een bezoeker leest een tussenkopje, geen ambtelijke zin."
+        },
+        {
+          "citaat": "Een bezoek maakt zichtbaar wat de tuin vraagt",
+          "probleem": "Vage, holle kop zonder concrete belofte; had net zo goed boven een heel andere alinea kunnen staan."
+        }
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "Een zwemvijver kost meestal €30.000 tot €60.000, afhankelijk van formaat en techniek.",
+      "vergelijking_huidig": "geen_huidige",
+      "waarom_vergelijking": "Er is geen bestaande pagina op dit adres, dus niets om mee te vergelijken.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 2,
+      "fout_of_verzonnen": [],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "De nadruk op gezondheidsrisico's, blauwalgen en steeds herhaald \"dat is geen garantie/geen bewijs\" afzwakken; dat klinkt niet vakkundig-gerust maar als een aansprakelijkheidsdocument, en past niet bij \"Brabants hartelijk, geen verkooppraat\".",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 4,
+      "copywriter_problemen": [
+        {
+          "citaat": "volgens ons vraagt het onderhoud twee keer per jaar en kun je daarvoor ook een contract afsluiten voor 350 euro per jaar",
+          "probleem": "Dezelfde onderhoudsfrequentie en contractprijs worden op deze ene pagina nog twee keer bijna letterlijk herhaald (\"twee onderhoudsmomenten per jaar\", \"twee keer per jaar onderhoud nodig\")."
+        },
+        {
+          "citaat": "Helder water is haalbaar, maar kan soms veranderen",
+          "probleem": "Vage, hedgende kop die geen concrete belofte of informatie aankondigt."
+        },
+        {
+          "citaat": "De onderhoudsbalans gaat niet alleen over hoeveel werk je doet, maar ook over of de zuivering goed blijft functioneren.",
+          "probleem": "Abstracte volzin zonder nieuwe informatie; typisch voorbeeld van een zin die alleen woorden herhaalt uit de kop erboven."
+        }
+      ],
+      "ai_citeerbaar": "ja",
+      "beste_citeerbare_zin": "Bij het systeem dat Hans Verstraaten Hoveniers zelf aanlegt, houden een apart zuiveringsdeel met beplanting en een pomp het water helder zonder chloor; volgens ons vraagt het onderhoud twee keer per jaar en kun je daarvoor ook een contract afsluiten voor 350 euro per jaar.",
+      "vergelijking_huidig": "geen_huidige",
+      "waarom_vergelijking": "Er is geen bestaande pagina op dit adres, dus niets om mee te vergelijken.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 3,
+      "fout_of_verzonnen": [],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "De Google-titel inkorten, want \"Zwemvijverspecialist of hovenier | Hans Verstraaten Hoveni…\" wordt in de zoekresultaten afgekapt en toont de bedrijfsnaam niet eens volledig.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 5,
+      "copywriter_problemen": [
+        {
+          "citaat": "Zwemvijverspecialist of hovenier | Hans Verstraaten Hoveni…",
+          "probleem": "Titel is te lang voor Google en wordt afgekapt; de eigen bedrijfsnaam is zelfs niet volledig zichtbaar."
+        },
+        {
+          "citaat": "Bij het uitgraven van de zwemvijvers kunnen we gebruik maken van kleine machines zodat de bestaande tuin zoveel mogelijk wordt ontzien.",
+          "probleem": "Deze exacte zin (of een bijna woordelijke variant) komt terug in de Q&A onderaan en op meerdere van de andere vijf pagina's; voelt als kopieer-plakwerk in plaats van op maat geschreven tekst."
+        },
+        {
+          "citaat": "De functienaam vertelt je niet welke werkzaamheden een partij daadwerkelijk op zich neemt.",
+          "probleem": "Abstracte, wat schoolse zin die de lezer niet dichter bij een keuze brengt."
+        }
+      ],
+      "ai_citeerbaar": "ja",
+      "beste_citeerbare_zin": "Bij Hans Verstraaten Hoveniers leggen we zwemvijvers zelf aan en verzorgen we bij een complete tuin ook ontwerp, grondwerk, bestrating, beplanting en afvoer.",
+      "vergelijking_huidig": "geen_huidige",
+      "waarom_vergelijking": "Er is geen bestaande pagina op dit adres, dus niets om mee te vergelijken.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 4,
+      "fout_of_verzonnen": [],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "De klantbeoordeling (4,9/5) en de reviews die op de huidige pagina staan, ontbreken nu volledig; dat vertrouwenselement zou hij willen terugzien, al dan niet elders op de pagina samengevat.",
+      "bezoeker_neemt_contact_op": "ja",
+      "copywriter_cijfer": 6,
+      "copywriter_problemen": [
+        {
+          "citaat": "Bij het uitgraven van de zwemvijvers kunnen we gebruik maken van kleine machines zodat de bestaande tuin zoveel mogelijk wordt ontzien.",
+          "probleem": "Deze zin staat vrijwel woordelijk ook op pagina 1, 3, 5 en 6; sterke herhaling tussen de pagina's onderling, risico op inwisselbare content."
+        },
+        {
+          "citaat": "Bij een complete tuin verzorgen we alles zelf, van ontwerp tot oplevering.",
+          "probleem": "\"Van ontwerp tot oplevering\" komt binnen deze ene pagina nog een keer terug (\"verzorgen we het werk van ontwerp tot oplevering zelf\"), zonder dat de herhaling iets toevoegt."
+        }
+      ],
+      "ai_citeerbaar": "ja",
+      "beste_citeerbare_zin": "Een zwemvijver kost meestal €30.000 tot €60.000, afhankelijk van het formaat en de techniek.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "De huidige pagina mengt een ongeverifieerde kostenclaim (\"beheerskosten opmerkelijk lager dan een klassiek blauw bad\") met reviews, een lang offerteformulier en een volledige dienstenlijst, waardoor een AI-assistent moeilijk één concreet antwoord kan citeren. De nieuwe tekst is opgebouwd rond geverifieerde feiten (prijsband, 3D-ontwerp vanaf €15.000, onderhoudsfrequentie, terugkomafspraak) en is daardoor beter vindbaar en citeerbaar, al mist hij de klantbeoordelingen die op de huidige pagina vertrouwen wekken.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 5,
+      "fout_of_verzonnen": [
+        {
+          "citaat": "Wij nemen opdrachten aan in Son en Breugel. Je hoeft dus niet te gissen of jouw woonplaats binnen ons werkgebied valt.",
+          "probleem": "De ondernemer noemde Son en Breugel als plaats \"waar je nog weinig zit\", dus een groeiwens, niet als bevestigd werkgebied; het officiële werkgebied op de site noemt alleen Eindhoven, Helmond, Best, Nuenen, Geldrop, Veldhoven en Eersel. Deze zin presenteert Son en Breugel als vaststaand werkgebied, wat verder gaat dan wat waar is.",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "Bij Hans Verstraaten Hoveniers leggen we zwemvijvers zelf aan en nemen we daar opdrachten aan.",
+          "probleem": "Zelfde overdrijving als hierboven: \"daar\" verwijst naar Son en Breugel, terwijl dat volgens het gesprek een plek is waar het bedrijf nog nauwelijks zit, niet een bevestigd werkgebied.",
+          "ernst": "hoog"
+        }
+      ],
+      "ondernemer_publiceert": "nee",
+      "ondernemer_verandert_eerst": "De claim dat Son en Breugel werkgebied is, corrigeren naar wat hij echt zei: het is een plek waar hij nog weinig zit en juist meer aanvragen wil.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 4,
+      "copywriter_problemen": [
+        {
+          "citaat": "We werken met een vaste ploeg van vijf mensen, realiseren ongeveer 60 tot 70 tuinen per jaar en komen zes weken na de aanleg gratis terug om te kijken hoe het erbij staat.",
+          "probleem": "Deze combinatie van feiten (vaste ploeg, 60-70 tuinen, terugkomst na zes weken) staat vrijwel letterlijk nog twee keer verderop in dezelfde pagina, en identiek op andere pagina's; voelt als sjabloontekst."
+        },
+        {
+          "citaat": "Een jaarvolume zegt niet alles over persoonlijke aandacht",
+          "probleem": "Vage, algemene kop die op bijna elke dienstverlenende website zou passen; geen concrete, merkspecifieke belofte."
+        }
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "We werken met een vaste ploeg van vijf mensen, realiseren ongeveer 60 tot 70 tuinen per jaar en komen zes weken na de aanleg gratis terug om te kijken hoe het erbij staat.",
+      "vergelijking_huidig": "geen_huidige",
+      "waarom_vergelijking": "Er is geen bestaande pagina op dit adres, dus niets om mee te vergelijken.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 6,
+      "fout_of_verzonnen": [],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "De cirkelredenering aan het eind van de openingsalinea schrappen of herschrijven, die zegt niets nieuws en klinkt vreemd hardop voorgelezen.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 4,
+      "copywriter_problemen": [
+        {
+          "citaat": "Met onze eigen vaste ploeg van vijf man, zonder inhuur van zzp'ers, weet je dat wij met een vaste ploeg werken.",
+          "probleem": "Cirkelredenering: de zin zegt aan het eind hetzelfde als aan het begin (\"met een vaste ploeg... weet je dat wij met een vaste ploeg werken\")."
+        },
+        {
+          "citaat": "Met twee genoemde onderhoudsbeurten en een mogelijk contract van €350 per jaar kun je terugkerend zwemvijveronderhoud meenemen zonder het contract als verplicht te zien.",
+          "probleem": "Deze exacte zin staat twee keer op dezelfde pagina, woord voor woord, eerst in de inleiding en dan nog eens onder \"Vergelijk jaarlijkse én incidentele kosten\"."
+        }
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "Bij Hans Verstraaten Hoveniers kost een zwemvijver meestal €30.000 tot €60.000, afhankelijk van formaat en techniek.",
+      "vergelijking_huidig": "geen_huidige",
+      "waarom_vergelijking": "Er is geen bestaande pagina op dit adres, dus niets om mee te vergelijken.",
+      "past_bij_adres": true
+    }
+  ],
+  "rode_draad": "Alle zes pagina's herhalen dezelfde vaste zinnen (vaste ploeg van vijf man, prijsband €30.000-€60.000, onderhoud twee keer per jaar, kleine machines bij het uitgraven, zes weken gratis terugkomst) tot vervelens toe binnen én tussen pagina's, en verdrinken concrete verkoopargumenten in hedgende, bijna juridische taal (\"dat is geen garantie\", \"zegt op zichzelf niets\") die niet aanvoelt als \"Brabants hartelijk\". Pagina 5 gaat bovendien verder dan de waarheid door Son en Breugel als bevestigd werkgebied te presenteren, terwijl de ondernemer die plaats alleen noemde als groeiwens.",
+  "niveau_professionele_copywriter": "nee"
+}
