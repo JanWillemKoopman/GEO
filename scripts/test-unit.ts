@@ -54,6 +54,7 @@ import {
   leesStartdatum,
 } from "@/lib/verkoopafspraak";
 import { rateLimitWindowStart, rateLimitVerdict } from "@/lib/rate-limit-rules";
+import { faqKandidaten, pasFaqSelectieToe, faqblok, checkFaqNaSchrijven, alBeantwoord, MAX_FAQ } from "@/lib/pipeline/faq-criteria";
 import { gatzinnen, voorbehoudNaBewijs, checkBestemmingen, isToezegging } from "@/lib/pipeline/onzekerheid";
 import { controleerRedactie, getalReeksen } from "@/lib/pipeline/redactie-check";
 import { strategieblok, gekozenRefs, opbouwUitStrategie, REGELS_STRATEGIE, REGEL_7_STRATEGIE } from "@/lib/pipeline/strategie-opdracht";
@@ -26981,4 +26982,52 @@ group("Zinnen over wat wij niet weten zijn een blokkade (WP6)", () => {
   ok("en schrijft niet algemener", !leesBestand("lib/pipeline/content.ts").includes("schrijf hem algemener"));
   ok("hoogstens twee reparatierondes", leesBestand("lib/pipeline/content.ts").includes("const REPAIR_MAX = 2;"));
   ok("de feitelijkheidsbeoordelaar jaagt niet meer op algemene uitleg", !leesBestand("lib/pipeline/content-panel.ts").includes("elke ALGEMENE uitleg die als belofte"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// WP7 van docs/tasks/contentpijplijn-publicatiewaardig.md: de FAQ volgens de vier criteria.
+group("De FAQ volgens de vier criteria (WP7)", () => {
+  // De echte vragen van Best (hovenier) en de kostenpagina (installateur), §1.2 O8,
+  // plus het bezwaar uit het verkoopgesprek van de hovenier.
+  const kandidaten = faqKandidaten({
+    dossier: [
+      "Welke regels gelden in Best voor het afvoeren van regenwater bij een grotendeels betegelde tuin?",
+      "Hoeveel moet ik aanbetalen voor tuinaanleg?",
+      "Wat is op de lange termijn voordeliger: een cv-ketel kopen of huren?",
+    ],
+    bezwaar: ["Hoe lang lig ik met een kale tuin?"],
+  });
+  eq("het bezwaar komt vooraan", kandidaten[0].vraag, "Hoe lang lig ik met een kale tuin?");
+  const oordeel = {
+    kandidaten: [
+      { nummer: 1, houden: true, criterium: null, reden: "", onderbouwing: "feit" as const, feiten: ["F7"], vakkennis: null },
+      { nummer: 2, houden: false, criterium: "geen onderbouwing" as const, reden: "Geen feit over regenwater in Best.", onderbouwing: "geen" as const, feiten: [], vakkennis: null },
+      // Het model houdt hem ten onrechte, zonder feit: de code gooit hem alsnog weg.
+      { nummer: 3, houden: true, criterium: null, reden: "", onderbouwing: "feit" as const, feiten: ["F99"], vakkennis: null },
+      { nummer: 4, houden: false, criterium: "helpt niet" as const, reden: "Het bedrijf verhuurt geen ketels.", onderbouwing: "geen" as const, feiten: [], vakkennis: null },
+    ],
+  };
+  const selectie = pasFaqSelectieToe(kandidaten, oordeel, { kaartRefs: ["F1", "F7"], onderwerpen: ["Wat een tuin met bestrating kost"] });
+  eq("alleen 'Hoe lang lig ik met een kale tuin?' blijft", selectie.gekozen.map((g) => g.vraag).join(" | "), "Hoe lang lig ik met een kale tuin?");
+  ok("regenwater valt af op criterium 3 en wordt een vraag aan de ondernemer", selectie.vragenAanOndernemer.some((v) => v.includes("regenwater")));
+  ok("aanbetalen zonder feit valt alsnog af, ook als het model hem hield", selectie.afgewezen.some((a) => a.vraag.includes("aanbetalen")));
+  ok("kopen of huren valt af op criterium 4 bij een bedrijf dat niet verhuurt", selectie.afgewezen.some((a) => a.vraag.includes("huren")));
+  ok("een vraag die de tekst al beantwoordt, valt af", alBeantwoord("Wat kost een tuin met bestrating?", ["Wat een tuin met bestrating kost"]));
+  const zes = faqKandidaten({ bezwaar: ["Vraag een over tuinen", "Vraag twee over tuinen", "Vraag drie over stenen", "Vraag vier over planten", "Vraag vijf over vijvers", "Vraag zes over hekken"] });
+  const alles = pasFaqSelectieToe(zes, { kandidaten: zes.map((_, i) => ({ nummer: i + 1, houden: true, criterium: null, reden: "", onderbouwing: "feit" as const, feiten: ["F1"], vakkennis: null })) }, { kaartRefs: ["F1"], onderwerpen: [] });
+  eq(`hoogstens ${MAX_FAQ} vragen`, String(alles.gekozen.length), "5");
+  ok("nul vragen is een geldige uitkomst, en de schrijver hoort dat", faqblok({ gekozen: [], afgewezen: [], vragenAanOndernemer: [] }).includes("FAQ: geen"));
+  ok("een strategie van vóór WP7 geeft geen FAQ-blok", faqblok(undefined) === "");
+  const na = checkFaqNaSchrijven({
+    faq: [
+      { q: "Hoe lang lig ik met een kale tuin?", a: "Twee tot drie weken." },
+      { q: "Welke regels gelden in Best voor regenwater?", a: "Dat hangt af van de actuele regels." },
+    ],
+    selectie,
+    claims: [],
+  });
+  eq("een vraag buiten de selectie wordt gemeld", na.buitenSelectie.join(","), "Welke regels gelden in Best voor regenwater?");
+  eq("een antwoord onder 25 woorden ook", na.kort.join(","), "Hoe lang lig ik met een kale tuin?");
+  eq("en een antwoord dat zijn feit niet gebruikt", na.zonderFeit.join(","), "Hoe lang lig ik met een kale tuin?");
+  ok("de contractregel die de FAQ tot restcategorie maakte is weg", !leesBestand("lib/pipeline/content-contract.ts").includes('"Vraag NIET na wat er in de secties hierboven al beantwoord wordt'));
 });

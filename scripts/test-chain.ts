@@ -6597,6 +6597,9 @@ async function main(): Promise<void> {
         [ptContentPieceId],
       );
       ok("WP4: wat de schrijver wegliet staat bij de strategie van de versie", Array.isArray(wp4Rij[0]?.strategy_json?.weggelaten) && wp4Rij[0].strategy_json.weggelaten.length === 1);
+      // WP7: de FAQ volgens de vier criteria, na de strategie.
+      eqc("WP7: de FAQ-selectie houdt één vraag met een feit eronder", String(wp4Rij[0]?.strategy_json?.faq?.gekozen?.length), "1");
+      ok("WP7: en de schrijver krijgt precies die vraag", schrijfOpdracht.includes("FAQ: precies deze vraag"));
       // Een versie zonder opdracht bewaart `{}` (buildDraftRow), geen null.
       ok("WP4: en er is geen schrijfopdracht van luna meer gemaakt", Object.keys(wp4Rij[0]?.writer_brief_json ?? {}).length === 0);
       ok(
@@ -10250,6 +10253,7 @@ async function main(): Promise<void> {
       eqc("scenario 19: en nu wordt er geschreven", String((await drafts()).length), "1");
       const s2 = (await db.client.query("select strategy_json from public.content_pieces where id = $1", [pieceId19])).rows[0].strategy_json;
       ok("scenario 19: de wachtstand is weg", !s2.wacht);
+      ok("scenario 19: zonder kandidaatvragen geen FAQ, en dat is geldig (WP7)", Array.isArray(s2.faq?.gekozen) && s2.faq.gekozen.length === 0);
       ok("scenario 19: de strategie reist mee naar het schrijven", Boolean((await drafts())[0].payload_json.voorbereid?.strategie));
 
       // Hervatten zonder dubbele aanroep: dezelfde invoer, dezelfde strategie.

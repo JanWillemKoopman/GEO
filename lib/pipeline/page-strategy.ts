@@ -106,6 +106,10 @@ export interface StrategieVoorbereiding {
   profileId: string;
   /** F-nummer naar feit-id van de kaart die de strategie kreeg. */
   feitIds: Record<string, string | null>;
+  /** De bruikbare feiten met tekst, voor de FAQ-selectie (WP7). */
+  kaart: { ref: string; text: string }[];
+  /** De kandidaatvragen voor de FAQ, per bron (WP7, §11). */
+  faqBronnen: { bezwaar: string[]; gemeten: string[]; vervolgvraag: string[]; dossier: string[] };
   /** Een al opgeslagen strategie op precies deze invoer (conventie 9). */
   bestaand: StrategieRecord | null;
 }
@@ -145,7 +149,7 @@ export async function bereidStrategieVoor(
 
   const { data: pieceRow } = await admin
     .from("content_pieces")
-    .select("id, strategy_json")
+    .select("id, strategy_json, quality_json")
     .eq("analysis_id", analysisId)
     .eq("title", recommendation.title)
     .eq("is_current", true)
@@ -287,6 +291,17 @@ export async function bereidStrategieVoor(
     analysisId,
     profileId,
     feitIds: feitIdsVan(bruikbaar),
+    kaart: bruikbaar.map((f) => ({ ref: f.ref, text: f.text })),
+    faqBronnen: {
+      bezwaar: ctx.profile?.sales_objections ?? [],
+      gemeten: ctx.targets.map((t) => t.text),
+      // Wat een lezer volgens de vorige keuring nog overhield (§11): een vraag
+      // die de vorige versie open liet, is de beste kandidaat na een bezwaar.
+      vervolgvraag:
+        ((pieceRow as { quality_json?: { panel?: { citability?: { remainingReaderQuestions?: string[] } } } } | null)
+          ?.quality_json?.panel?.citability?.remainingReaderQuestions ?? []),
+      dossier: [...(dossier?.followUps ?? []), ...(contract?.faqQuestions ?? [])],
+    },
     bestaand: (() => {
       const r = strategieUitRij((pieceRow as { strategy_json: unknown } | null)?.strategy_json);
       return r && r.invoerSleutel === invoerSleutel ? r : null;

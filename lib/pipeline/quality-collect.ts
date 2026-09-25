@@ -89,6 +89,8 @@ export interface KwaliteitsInvoer {
     voorbehoudNaBewijs: string[];
     bestemmingen: import("@/lib/pipeline/onzekerheid").BestemmingUitslag | null;
   };
+  /** WP7: de FAQ tegen de selectie van de strategie. `null` zonder selectie. */
+  faqNaSchrijven?: import("@/lib/pipeline/faq-criteria").FaqNaSchrijven | null;
   /** V2: spreekt de pagina de lezer overal hetzelfde aan? */
   aanspreekvorm?: AanspreekvormResult;
   /** V5: negeert de pagina een instructie die de klant zelf gaf? */
@@ -703,6 +705,62 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
       }),
     );
   }
+  // ── WP7: de FAQ volgens de vier criteria (§11, §12.2) ─────────────────────
+  //
+  // Waarschuwingen en geen blokkades, zoals §12.2 zegt: een vraag buiten de
+  // selectie of een te kort antwoord maakt de pagina niet onwaar. Een antwoord
+  // zonder feit is wel verdacht, maar de feitcontrole op de zinnen vangt een
+  // bewering zonder dekking al als blokkade.
+  const faqNa = invoer.faqNaSchrijven;
+  for (const v of faqNa?.buitenSelectie ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "relevantie",
+        severity: "hoog",
+        section: "FAQ",
+        finding: `Deze FAQ-vraag staat niet in de selectie van de strategie: "${v}".`,
+        evidence: v,
+        expected: "Alleen vragen die aan de vier criteria van §11 voldoen.",
+        recommendation: "Haal de vraag weg.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "faq",
+      }),
+    );
+  }
+  for (const v of faqNa?.kort ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "volledigheid",
+        severity: "midden",
+        section: "FAQ",
+        finding: `Het antwoord op "${v}" is korter dan 25 woorden.`,
+        evidence: v,
+        expected: "Eerst het antwoord, dan hoogstens twee zinnen toelichting: 30 tot 80 woorden.",
+        recommendation: "Maak het antwoord af met de toelichting die de lezer nodig heeft.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "faq",
+      }),
+    );
+  }
+  for (const v of faqNa?.zonderFeit ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "feitelijkheid",
+        severity: "hoog",
+        section: "FAQ",
+        finding: `Het antwoord op "${v}" gebruikt het feit niet waarop het zou rusten.`,
+        evidence: v,
+        expected: "Een FAQ-antwoord rust op een feit van de kaart of op vaste vakkennis.",
+        recommendation: "Gebruik het feit uit de selectie, met het F-nummer in de beweringen.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "faq",
+      }),
+    );
+  }
+
   for (const a of invoer.onzekerheid?.bestemmingen?.aOfCInTekst ?? []) {
     issues.push(
       maak(invoer, {

@@ -45,6 +45,8 @@ import {
   type StrategieVoorbereiding,
 } from "@/lib/pipeline/page-strategy";
 import { zetWacht } from "@/lib/pipeline/strategie-wacht";
+import { selecteerFaq } from "@/lib/pipeline/faq-selectie";
+import { faqKandidaten, pasFaqSelectieToe } from "@/lib/pipeline/faq-criteria";
 import type { RecommendationInput } from "@/lib/pipeline/content";
 
 type Admin = SupabaseClient;
@@ -102,7 +104,7 @@ export async function draaiStrategietaak(
       return;
     }
     const duur = Date.now() - new Date(payload.ophalen.gestartOp).getTime();
-    const record = verwerkStrategie(v, uitkomst.result.parsed, { duurMs: duur, achtergrond: true, feitIds: v.feitIds });
+    const record = await metFaq(v, verwerkStrategie(v, uitkomst.result.parsed, { duurMs: duur, achtergrond: true, feitIds: v.feitIds }));
     logDuur(rec.title, record);
     await rondAf(admin, job, analysisId, payload, v.pieceId, record);
     return;
@@ -161,11 +163,14 @@ export async function draaiStrategietaak(
   let record: StrategieRecord;
   try {
     const res = await callStructured(strategieOpties(v));
-    record = verwerkStrategie(v, res.parsed, {
-      duurMs: res.durationMs,
-      achtergrond: false,
-      feitIds: v.feitIds,
-    });
+    record = await metFaq(
+      v,
+      verwerkStrategie(v, res.parsed, {
+        duurMs: res.durationMs,
+        achtergrond: false,
+        feitIds: v.feitIds,
+      }),
+    );
   } catch (err) {
     if (job.attempts < MAX_ATTEMPTS - 1) throw err;
     console.warn(`Strategie voor "${rec.title}" bleef mislukken; schrijven zonder: ${String(err)}`);
@@ -174,6 +179,34 @@ export async function draaiStrategietaak(
   }
   logDuur(rec.title, record);
   await rondAf(admin, job, analysisId, payload, v.pieceId, record);
+}
+
+/**
+ * De FAQ volgens de vier criteria (L6, WP7), na de strategie: de selectie kent
+ * de gekozen onderwerpen, en een FAQ-vraag die de tekst al beantwoordt valt af.
+ */
+async function metFaq(v: OpgeslagenVoorbereiding, record: StrategieRecord): Promise<StrategieRecord> {
+  const kandidaten = faqKandidaten(v.faqBronnen);
+  const oordeel = await selecteerFaq({
+    strategie: record.strategie,
+    kandidaten,
+    kaart: v.kaart,
+    analysisId: v.analysisId,
+    profileId: v.profileId,
+    contentPieceId: v.pieceId,
+  });
+  const faq = oordeel
+    ? pasFaqSelectieToe(kandidaten, oordeel, {
+        kaartRefs: v.controle.kaartRefs,
+        onderwerpen: record.strategie.onderwerpen.filter((o) => o.besluit === "opnemen").map((o) => o.onderwerp),
+      })
+    : null;
+  return {
+    ...record,
+    faq,
+    // Een FAQ-vraag zonder onderbouwing wordt een vraag aan de ondernemer (§11).
+    vragenAanOndernemer: Array.from(new Set([...record.vragenAanOndernemer, ...(faq?.vragenAanOndernemer ?? [])])),
+  };
 }
 
 /** De duur altijd in de log, naast `ai_calls.duration_ms` (aandachtspunt 1 van §13). */

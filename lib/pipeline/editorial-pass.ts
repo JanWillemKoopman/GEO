@@ -26,6 +26,7 @@ import type { PageStrategy } from "@/lib/schemas/page-strategy";
 import type { ContentPiece } from "@/lib/schemas/content-piece";
 import { formatFactCard, type FactItem } from "@/lib/pipeline/factcard";
 import { gekozenRefs, strategieblok } from "@/lib/pipeline/strategie-opdracht";
+import type { FaqSelectie } from "@/lib/pipeline/faq-criteria";
 import { checkSourceTalk } from "@/lib/pipeline/content-gate";
 import { checkVoorbehoud, checkAdviestoon } from "@/lib/pipeline/adviestoon";
 
@@ -63,6 +64,8 @@ const SYSTEM =
 export interface RedactieInvoer {
   brandName: string;
   strategie: PageStrategy;
+  /** De FAQ-selectie (WP7); zie `StrategieRecord.faq`. */
+  faq?: FaqSelectie | null;
   concept: ContentPiece;
   facts: FactItem[];
   /** De stem: tone, aanspreekvorm, stemvelden, verboden woorden, voorbeeldzinnen. Al als tekst opgebouwd. */
@@ -85,12 +88,12 @@ function codeBevindingen(concept: ContentPiece): string[] {
 }
 
 export function bouwRedactieOpdracht(v: RedactieInvoer): string {
-  const gekozen = gekozenRefs(v.strategie);
+  const gekozen = gekozenRefs(v.strategie, v.faq);
   const kaart = v.facts.filter((f) => !f.allowed || (f.citable && gekozen.has(f.ref.toUpperCase())));
   const bevindingen = codeBevindingen(v.concept);
   return [
     `BEDRIJF: ${v.brandName}`,
-    strategieblok(v.strategie),
+    strategieblok(v.strategie, v.faq),
     "",
     v.stemblok,
     "",

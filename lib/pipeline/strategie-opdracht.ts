@@ -20,10 +20,14 @@
  */
 import type { PageStrategy } from "@/lib/schemas/page-strategy";
 import { normaliseerRef } from "@/lib/pipeline/strategie-check";
+import { faqblok, faqFeiten, type FaqSelectie } from "@/lib/pipeline/faq-criteria";
 
 /** De feiten die de strategie koos: prioriteit, optioneel, en waar een gekozen onderwerp op rust. */
-export function gekozenRefs(s: PageStrategy): Set<string> {
+export function gekozenRefs(s: PageStrategy, faq?: FaqSelectie | null): Set<string> {
   const refs = new Set<string>();
+  // De feiten onder de gekozen FAQ horen er ook bij (WP7): anders krijgt de
+  // schrijver een vraag waarvan hij het antwoord niet op zijn kaart ziet.
+  for (const f of faqFeiten(faq)) refs.add(normaliseerRef(f));
   for (const p of s.prioriteitsfeiten) refs.add(normaliseerRef(p.feit));
   for (const f of s.optioneleFeiten) refs.add(normaliseerRef(f));
   for (const o of s.onderwerpen) {
@@ -62,7 +66,7 @@ export function nietOpDezePagina(s: PageStrategy): string[] {
 }
 
 /** Het blok dat bovenaan de schrijfopdracht staat. */
-export function strategieblok(s: PageStrategy): string {
+export function strategieblok(s: PageStrategy, faq?: FaqSelectie | null): string {
   const opbouw = opbouwUitStrategie(s);
   const niet = nietOpDezePagina(s);
   const voorbehouden = s.onzekerheden.filter((o) => o.bestemming === "B" && o.formulering?.trim());
@@ -97,6 +101,9 @@ export function strategieblok(s: PageStrategy): string {
       ? `\nEEN VOORBEHOUD DAT WEL MAG, precies één keer en in deze woorden:\n- ${voorbehouden.map((o) => o.formulering).join("\n- ")}`
       : "\nGeen voorbehouden: een feit staat stellig, en een bandbreedte is al voorzichtig genoeg.",
     s.gevoelig.length ? `\nGEVOELIG, hier hoort nuance:\n- ${s.gevoelig.map((g) => `${g.onderwerp}: ${g.nuance}`).join("\n- ")}` : "",
+    // WP7: de FAQ volgens de vier criteria. Ontbreekt de selectie (een strategie
+    // van vóór WP7), dan geen blok en beslist de schrijver zoals voorheen.
+    faq !== undefined ? `\n${faqblok(faq)}` : "",
   ];
   return regels.filter((r) => r !== "").join("\n");
 }
@@ -138,6 +145,11 @@ export interface StrategieRecord {
   duurMs: number | null;
   achtergrond: boolean;
   gemaaktOp: string;
+  /**
+   * De FAQ volgens de vier criteria (L6, WP7). Ontbreekt bij een strategie van
+   * vóór WP7; `null` als de selectie mislukte (dan geen FAQ).
+   */
+  faq?: FaqSelectie | null;
   /** Conflicten die deze pagina tegenhouden. Leeg = de pagina mag geschreven worden. */
   tegengehouden: { conflictId: string; soort: string; ref: string }[];
 }

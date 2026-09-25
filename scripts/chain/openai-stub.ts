@@ -1143,6 +1143,22 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
     };
   },
   /**
+   * L6, de FAQ-selectie (WP7). Houdt de eerste kandidaat met het eerste feit
+   * van de kaart, en wijst de rest af op criterium 3: dan moeten die als vraag
+   * aan de ondernemer terugkomen.
+   */
+  faq_selection: (user) => {
+    const eersteFeit = /^(F\d+)\s\s/m.exec(user)?.[1] ?? "F1";
+    const kandidaten = Array.from(user.matchAll(/^(\d+)\. /gm)).map((m) => Number(m[1]));
+    return {
+      kandidaten: kandidaten.map((nummer) =>
+        nummer === 1
+          ? { nummer, houden: true, criterium: null, reden: "Een bezwaar uit het gesprek.", onderbouwing: "feit", feiten: [eersteFeit], vakkennis: null }
+          : { nummer, houden: false, criterium: "geen onderbouwing", reden: "Geen feit.", onderbouwing: "geen", feiten: [], vakkennis: null },
+      ),
+    };
+  },
+  /**
    * L8, de eindredactie (WP5). Leest het concept uit de opdracht terug, haalt
    * de relativering na een bewijsstuk weg (het voorbeeld van de zwemvijver in
    * §1.2) en houdt de beweringen met hun citaat. Staat er in het concept het

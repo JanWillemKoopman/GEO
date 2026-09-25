@@ -864,14 +864,14 @@ function buildContentInputStrategie(args: {
   const { analysis, profile, existingPage, existingText, competitors, rec, targets, facts, explainerBlock } = args;
   const s = args.strategie.strategie;
   const brandName = profile?.brand_name ?? analysis.url;
-  const gekozen = gekozenRefs(s);
+  const gekozen = gekozenRefs(s, args.strategie.faq);
   // Alleen de gekozen feiten, met hun eigen F-nummer: de feitcontrole rekent
   // de beweringen daarna na tegen de HELE kaart, dus de nummers moeten gelijk
   // blijven. Een verbod gaat altijd mee.
   const kaart = facts.filter((f) => !f.allowed || (f.citable && gekozen.has(f.ref.toUpperCase())));
 
   return [
-    strategieblok(s),
+    strategieblok(s, args.strategie.faq),
     rec.revisionNote?.trim()
       ? `\nWAT DE KLANT ZELF VRAAGT VOOR DEZE VERSIE (dit weegt het ZWAARST: dit is zijn website). ` +
         `Noemt hij feiten, bedragen of termijnen, gebruik ze; ze staan ook op de feitenkaart:\n"""\n${rec.revisionNote.trim()}\n"""`
@@ -1066,9 +1066,9 @@ function buildRepairInput(args: {
     citatenblok(vindCiteerbareAntwoorden(facts.map((f) => f.text))),
     ...(args.strategie
       ? (() => {
-          const gekozen = gekozenRefs(args.strategie.strategie);
+          const gekozen = gekozenRefs(args.strategie.strategie, args.strategie.faq);
           return [
-            strategieblok(args.strategie.strategie),
+            strategieblok(args.strategie.strategie, args.strategie.faq),
             formatFactCard(facts.filter((f) => !f.allowed || (f.citable && gekozen.has(f.ref.toUpperCase())))),
           ];
         })()
@@ -2635,6 +2635,8 @@ async function keurEnRondAf(
     opdracht: ctx.opdracht,
     // WP4: de dekking meet de strategie in plaats van het contract.
     strategie: ctx.strategie?.strategie ?? null,
+    // WP7: de FAQ tegen de selectie van de strategie.
+    faqSelectie: ctx.strategie?.faq ?? null,
     // Blok H: staat alles van de vorige versie er nog?
     teBehouden,
   });
@@ -2854,6 +2856,8 @@ export async function reviseContentPiece(args: {
     opdracht: ctx.opdracht,
     // WP4: de dekking meet de strategie in plaats van het contract.
     strategie: ctx.strategie?.strategie ?? null,
+    // WP7: de FAQ tegen de selectie van de strategie.
+    faqSelectie: ctx.strategie?.faq ?? null,
     // Blok H: een reparatieronde mag een feit van de vorige versie evenmin kwijtraken.
     teBehouden: await laadTeBehouden(
       admin,
@@ -3137,6 +3141,8 @@ export async function herkeurContentPiece(args: {
     opdracht: ctx.opdracht,
     // WP4: de dekking meet de strategie in plaats van het contract.
     strategie: ctx.strategie?.strategie ?? null,
+    // WP7: de FAQ tegen de selectie van de strategie.
+    faqSelectie: ctx.strategie?.faq ?? null,
     teBehouden: await laadTeBehouden(
       admin,
       (pieceRow.supersedes_id as string | null) ?? null,
@@ -3304,6 +3310,7 @@ export async function redigeerContentPiece(args: {
     bouwRedactieOpdracht({
       brandName: ctx.brandName,
       strategie: ctx.strategie.strategie,
+      faq: ctx.strategie.faq,
       concept,
       facts: ctx.facts,
       stemblok: stemblok(ctx.profile, ctx.existing.text ?? ctx.existing.page?.text_excerpt ?? null),

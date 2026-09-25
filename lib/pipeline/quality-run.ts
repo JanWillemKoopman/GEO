@@ -41,6 +41,7 @@ import {
 } from "@/lib/pipeline/content-gate";
 import { checkContractCoverage, checkStrategieDekking } from "@/lib/pipeline/content-coverage";
 import { gekozenRefs } from "@/lib/pipeline/strategie-opdracht";
+import { checkFaqNaSchrijven, type FaqSelectie } from "@/lib/pipeline/faq-criteria";
 import { gatzinnen, voorbehoudNaBewijs, checkBestemmingen, isToezegging } from "@/lib/pipeline/onzekerheid";
 import type { PageStrategy } from "@/lib/schemas/page-strategy";
 import { splitSections } from "@/lib/pipeline/content-sections";
@@ -142,6 +143,8 @@ export interface KeuringInput {
    * van het contract (`checkStrategieDekking`).
    */
   strategie?: PageStrategy | null;
+  /** De FAQ-selectie van de strategie (WP7). Met een selectie telt de FAQ na tegen de vier criteria. */
+  faqSelectie?: FaqSelectie | null;
 }
 
 export interface Keuring {
@@ -468,8 +471,14 @@ export async function keurPagina(invoer: KeuringInput): Promise<Keuring> {
       }
     : panel.factuality;
 
+  // ── WP7: houdt de FAQ zich aan de selectie? ──────────────────────────────
+  const faqNaSchrijven = input.faqSelectie
+    ? checkFaqNaSchrijven({ faq, selectie: input.faqSelectie, claims })
+    : null;
+
   // ── 4. Alles naar getypeerde bevindingen ──────────────────────────────────
   const { issues, dimensies, beoordelaars } = verzamelKwaliteit({
+    faqNaSchrijven,
     profiel,
     critique: panel.critique,
     factuality,

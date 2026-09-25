@@ -12475,3 +12475,16 @@ waarschuwing, zoals §12.2 zegt. De reparatie mag niet meer nuanceren of algemen
 weglaten, en krijgt hoogstens twee rondes (was drie). De feitelijkheidsbeoordelaar meldt nog alleen
 een toezegging in de wij-vorm of met de bedrijfsnaam; zijn vroegere jacht op "algemene uitleg die als
 belofte gelezen kan worden" was de bron van de voorbehouden achter sterk bewijs.
+
+## 25 september 2026: WP7, de FAQ volgens de vier criteria
+
+Zevende werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`, en het laatste van fase 1.
+De FAQ was per ontwerp een restcategorie: het contract vroeg om vragen die de tekst niet al
+beantwoordde, meestal zonder feit, en het antwoord werd een voorbehoud ("Deze pagina geeft geen
+bevestigde lokale eis voor Best"). Nu kiest een Luna-aanroep na de paginastrategie nul tot vijf vragen
+uit kandidaten in volgorde van waarde (bezwaren uit het verkoopgesprek, gemeten vragen, vervolgvragen
+uit de vorige keuring, het dossier), en de code past de vier criteria van §11 opnieuw toe. Met de echte
+vragen: "Hoe lang lig ik met een kale tuin?" blijft, regenwater in Best en aanbetalen vallen af op het
+ontbreken van een feit en worden een vraag aan de ondernemer, "kopen of huren" valt af bij een bedrijf
+dat niet verhuurt. De schrijver krijgt precies de gekozen vragen, of de opdracht om geen FAQ te
+schrijven.
