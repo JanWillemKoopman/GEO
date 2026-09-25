@@ -1746,9 +1746,15 @@ async function laadTeBehouden(
   if (!vorigeId) return [];
   const { data } = await admin
     .from("content_pieces")
-    .select("claims_json, body_markdown, faq_json")
+    .select("claims_json, body_markdown, faq_json, quality_json")
     .eq("id", vorigeId)
     .maybeSingle();
+  const vorigeKeuring = data?.quality_json as { feitbehoud?: { verloren?: unknown } } | null;
+  const alVerloren = Array.isArray(vorigeKeuring?.feitbehoud?.verloren)
+    ? (vorigeKeuring.feitbehoud.verloren as TeBehoudenFeit[]).filter(
+        (f) => typeof f?.factId === "string" && Array.isArray(f.kern) && Array.isArray(f.getallen),
+      )
+    : [];
   return bepaalTeBehouden({
     vorigeClaims: ((data?.claims_json ?? []) as WrittenClaim[]) ?? [],
     facts,
@@ -1757,6 +1763,7 @@ async function laadTeBehouden(
       bodyMarkdown: (data?.body_markdown as string | null) ?? "",
       faq: ((data?.faq_json ?? []) as { q: string; a: string }[]) ?? [],
     },
+    alVerloren,
   });
 }
 

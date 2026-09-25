@@ -518,7 +518,8 @@ export async function keurPagina(invoer: KeuringInput): Promise<Keuring> {
       // Blok H: wat de vorige versie noemde en deze niet meer.
       feitbehoud: {
         teBehouden: (input.teBehouden ?? []).length,
-        verloren: verlorenFeiten.map((f) => ({ factId: f.factId, tekst: f.tekst })),
+        // Het hele feit, zodat de volgende versie het kan doorschuiven (punt 65).
+        verloren: verlorenFeiten,
       },
       // De claimdekking apart van de sectiedekking: een sectie kan een feit
       // hebben terwijl de bewering die de pagina draagt er niet aan hangt (R1).

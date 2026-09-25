@@ -627,6 +627,83 @@ async function main(): Promise<void> {
         !(qH?.issues ?? []).some((i) => i.bron === "feitbehoud" && i.finding.includes("preventief")),
     );
 
+    // ── Blok I, punt 57: dezelfde vraag in andere woorden ────────────────────
+    //
+    // Een tweede pagina in dezelfde analyse, waarvoor de audit de acht echte
+    // vervolgvragen van de installateur oplevert. De klant sloeg de brede vraag
+    // al over, en een vraag over de controles staat nog open. Er mag daarna
+    // één nieuwe vraag bij komen (die over de offerte); de open vraag krijgt
+    // de nieuwe pagina erbij.
+    console.log("\nBlok I: dezelfde vraag in andere woorden");
+    const overgeslagenId = randomUUID();
+    const openControlesId = randomUUID();
+    await db.client.query(
+      `insert into public.fact_requests
+         (id, profile_id, analysis_id, question, reason, status, scope, kind, answer_type, required, claim_key)
+       values
+         ($1, $3, $4, 'Wat zit bij een standaard ketelvervanging inbegrepen, bijvoorbeeld het verwijderen en afvoeren van de oude ketel, aansluiting en inbedrijfstelling?',
+          'aanvulling', 'overgeslagen', 'analyse', 'aanvulling', 'tekst_kort', false, 'ketel-inbegrepen'),
+         ($2, $3, $4, 'Welke controles voert u uit bij het in gebruik nemen van een nieuwe ketel?',
+          'aanvulling', 'open', 'analyse', 'aanvulling', 'tekst_kort', false, 'ketel-controles')`,
+      [overgeslagenId, openControlesId, profileId, analysisId],
+    );
+    const promptsVoorI = log.length;
+    const ketelBriefing = await runBriefing({
+      analysisId,
+      recommendations: [
+        {
+          ...aanbeveling,
+          title: "Wat zit er bij een ketelvervanging",
+          targets: [{ ...aanbeveling.targets[0], text: "Wat kost een nieuwe cv-ketel inclusief installatie?" }],
+        },
+      ],
+    });
+    ok(
+      "blok I: de vragenbeoordelaar kreeg de nieuwe en de bestaande vragen voorgelegd",
+      log.slice(promptsVoorI).some((l) => l.schemaName === "briefing_vraag_judge" && l.user.includes("(overgeslagen)")),
+    );
+    const ketelPagina = ketelBriefing.contentPieceIds[0];
+    const { rows: ketelVragen } = await db.client.query(
+      `select question from public.fact_requests
+        where profile_id = $1 and $2 = any(content_piece_ids) and status = 'open'
+          and question = any($3::text[])`,
+      [profileId, ketelPagina, [
+        "Sluit u bij ketelvervanging de bestaande radiatoren en thermostaat weer aan?",
+        "Staat in uw offerte welke werkzaamheden inbegrepen zijn en welke extra kosten kunnen geven?",
+        "Welke werkzaamheden zijn standaard inbegrepen bij een ketelvervanging?",
+        "Voert u de oude ketel af na vervanging?",
+        "Welke werkzaamheden voert u zelf uit bij een volledige ketelvervanging?",
+        "Controleert u bij ketelvervanging de rookgasafvoer?",
+        "Welke controles voert u uit voordat u een nieuwe ketel in gebruik neemt?",
+        "Welke onderdelen haalt u los en sluit u weer aan bij ketelvervanging?",
+      ]],
+    );
+    eqc(
+      "blok I: van de acht varianten komt er alleen een nieuwe vraag bij over de offerte",
+      ketelVragen.map((r) => r.question).join(" | "),
+      "Staat in uw offerte welke werkzaamheden inbegrepen zijn en welke extra kosten kunnen geven?",
+    );
+    const { rows: openNa } = await db.client.query(
+      `select content_piece_ids, status from public.fact_requests where id = $1`,
+      [openControlesId],
+    );
+    ok(
+      "blok I: de open vraag over controles hoort nu ook bij de nieuwe pagina",
+      ((openNa[0]?.content_piece_ids ?? []) as string[]).includes(ketelPagina) && openNa[0]?.status === "open",
+      JSON.stringify(openNa[0] ?? null),
+    );
+    const { rows: overgeslagenNa } = await db.client.query(
+      `select status from public.fact_requests where id = $1`,
+      [overgeslagenId],
+    );
+    ok("blok I: de overgeslagen vraag blijft overgeslagen", overgeslagenNa[0]?.status === "overgeslagen");
+    // Opruimen: de rest van dit scenario gaat uit van één pagina in deze analyse.
+    await db.client.query(`delete from public.fact_requests where $1 = any(content_piece_ids) or id = any($2::uuid[])`, [
+      ketelPagina,
+      [overgeslagenId, openControlesId],
+    ]);
+    await db.client.query(`delete from public.content_pieces where id = $1`, [ketelPagina]);
+
     // ── Verbeterronde, punt 35 en 47: wat de klant in het gesprek zei ────────
     //
     // Punt 35: een open merkvraag die het gesprek beantwoordt, gaat dicht
