@@ -54,6 +54,17 @@ import {
   leesStartdatum,
 } from "@/lib/verkoopafspraak";
 import { rateLimitWindowStart, rateLimitVerdict } from "@/lib/rate-limit-rules";
+import {
+  getallenIn,
+  veiligeWaarde,
+  vindKandidaten,
+  automatischeWinnaar,
+  houdtPaginaTegen,
+  conflictpoort,
+  ernstVan,
+  zonderBetwisteFeiten,
+  type RegisterFeit,
+} from "@/lib/pipeline/conflict-detect";
 // ── Het kwaliteitsraamwerk (migratie 0091) ─────────────────────────────────
 import {
   QUALITY_DIMENSIONS,
@@ -26522,4 +26533,75 @@ group("Dezelfde vraag in andere woorden gaat er niet opnieuw in (reparatieplan b
 
   const briefing = leesBestand("lib/pipeline/briefing.ts");
   ok("de voorbereiding legt de vragen voor vóór het wegschrijven", briefing.indexOf("beoordeelVragen({") < briefing.indexOf("for (const vraag of samengevoegd.nieuw)"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// WP2 van docs/tasks/contentpijplijn-publicatiewaardig.md: het feitenregister.
+group("Het vangnet op L1: een getal moet in de feittekst staan (WP2)", () => {
+  eq("Nederlandse notatie", getallenIn("€ 2.200 tot € 3.200, beoordeling 4,9").join(","), "2200,3200,4.9");
+  ok("telwoorden tellen mee", getallenIn("Twaalf monteurs in dienst").includes(12));
+  const band = veiligeWaarde("Tuinaanleg met bestrating kost meestal € 12.000 tot € 35.000.", { min: 12000, max: 35000, eenheid: "EUR" });
+  eq("een bandbreedte die er staat blijft", `${band?.min}-${band?.max}-${band?.eenheid}`, "12000-35000-eur");
+  eq("een verzonnen getal maakt de waarde leeg", String(veiligeWaarde("Tuinaanleg kost meestal € 12.000.", { min: 15000, max: 15000, eenheid: "EUR" })), "null");
+  eq("twaalf monteurs voluit geschreven", String(veiligeWaarde("Twaalf monteurs in dienst", { min: 12, max: 12, eenheid: "monteurs" })?.min), "12");
+  eq("zonder getal en zonder tekst is onbekend", String(veiligeWaarde("Iets", { min: null, max: null, tekst: "" })), "null");
+});
+
+group("Kandidaat-conflicten op soort, geldigheid en waarde (WP2)", () => {
+  const feit = (id: string, text: string, extra: Partial<RegisterFeit>): RegisterFeit => ({
+    id, text, kind: "site", factKey: id, soort: "prijs", waarde: null, geldtVoor: null, stand: "site", bewijskracht: "gewoon", ...extra,
+  });
+  // De rijschool (§1.2, O4): na het uitlezen stonden er twee intakeprijzen
+  // zonder het onderscheid kantoor of auto. Code ziet een kandidaat; L2 beslist.
+  const kantoor = feit("a", "Intake € 50", { geldtVoor: "intake", waarde: { min: 50, max: 50, eenheid: "eur" } });
+  const auto = feit("b", "Intake € 80", { geldtVoor: "intake", waarde: { min: 80, max: 80, eenheid: "eur" } });
+  const kandidaten = vindKandidaten([kantoor, auto]);
+  eq("de twee intakeprijzen van de rijschool zijn een kandidaat", String(kandidaten.length), "1");
+  eq("geen kandidaat als L1 de geldigheid wel onderscheidt", String(vindKandidaten([{ ...kantoor, geldtVoor: "intake op kantoor" }, { ...auto, geldtVoor: "intake in de auto" }]).length), "0");
+  eq("dezelfde prijs is geen kandidaat", String(vindKandidaten([kantoor, { ...auto, waarde: { min: 50, max: 50, eenheid: "EUR" } }]).length), "0");
+  eq("een andere eenheid is niet te vergelijken", String(vindKandidaten([kantoor, { ...auto, waarde: { min: 12, max: 15, eenheid: "eur per maand" } }]).length), "0");
+  eq("overig doet niet mee", String(vindKandidaten([{ ...kantoor, soort: "overig" }, { ...auto, soort: "overig" }]).length), "0");
+  eq("een vervangen feit doet niet mee", String(vindKandidaten([kantoor, { ...auto, stand: "vervangen" }]).length), "0");
+  const gebiedA = feit("c", "werkgebied a", { soort: "werkgebied", waarde: { tekst: "Eindhoven, Helmond, Best" } });
+  const gebiedB = feit("d", "werkgebied b", { soort: "werkgebied", waarde: { tekst: "Eindhoven, Helmond, Best, Eersel" } });
+  eq("een ander werkgebied in woorden is een kandidaat", String(vindKandidaten([gebiedA, gebiedB]).length), "1");
+  const dienstA = feit("e", "d a", { soort: "dienst", waarde: { tekst: "tuinaanleg" } });
+  const dienstB = feit("f", "d b", { soort: "dienst", waarde: { tekst: "tuinontwerp" } });
+  eq("twee diensten in woorden niet: dat zijn twee kanten van hetzelfde bedrijf", String(vindKandidaten([dienstA, dienstB]).length), "0");
+
+  const klant = { ...auto, kind: "klant" };
+  eq("een antwoord van de klant wint van de site", automatischeWinnaar(kantoor, klant)?.id ?? "", "b");
+  eq("twee sitefeiten beslist de adviseur", String(automatischeWinnaar(kantoor, auto)), "null");
+});
+
+group("De conflictpoort: alleen als het betwiste feit op deze pagina nodig is (WP2)", () => {
+  const prijs = { soort: "prijs" as const, feitIds: ["p1", "p2"] };
+  const leeg = new Set<string>();
+  ok("een betwiste prijs die de pagina niet nodig heeft houdt niets tegen", !houdtPaginaTegen(prijs, { prioriteitsFeitIds: leeg }));
+  ok("als prioriteitsfeit wel", houdtPaginaTegen(prijs, { prioriteitsFeitIds: new Set(["p1"]) }));
+  ok("of als een onderwerp niet zonder kan", houdtPaginaTegen(prijs, { prioriteitsFeitIds: leeg, benodigdeFeitIds: new Set(["p2"]) }));
+  const gebied = { soort: "werkgebied" as const, feitIds: ["w1", "w2"] };
+  ok("een werkgebied alleen op een pagina over die plaats", !houdtPaginaTegen(gebied, { prioriteitsFeitIds: new Set(["w1"]) }) && houdtPaginaTegen(gebied, { prioriteitsFeitIds: new Set(["w1"]), overPlaats: true }));
+  const termijn = { soort: "termijn" as const, feitIds: ["t1", "t2"] };
+  ok("een termijn alleen als prioriteitsfeit", !houdtPaginaTegen(termijn, { prioriteitsFeitIds: leeg, benodigdeFeitIds: new Set(["t1"]) }) && houdtPaginaTegen(termijn, { prioriteitsFeitIds: new Set(["t1"]) }));
+  const product = { soort: "product" as const, feitIds: ["x1", "x2"] };
+  ok("productinformatie alleen op een productpagina", !houdtPaginaTegen(product, { prioriteitsFeitIds: new Set(["x1"]) }) && houdtPaginaTegen(product, { prioriteitsFeitIds: new Set(["x1"]), isProductpagina: true }));
+  eq("de poort geeft de tegenhoudende conflicten", conflictpoort([prijs, gebied], { prioriteitsFeitIds: new Set(["p1", "w1"]) }).map((c) => c.soort).join(","), "prijs");
+  eq("een prijsconflict is blokkerend", ernstVan("prijs"), "blokkerend");
+  eq("een werkwijze hooguit een waarschuwing", ernstVan("werkwijze"), "waarschuwing");
+});
+
+group("Een betwist feit gaat niet naar de schrijver (WP2)", () => {
+  const kaart = [
+    { id: "a", text: "Een intake op kantoor kost € 50." },
+    { id: null, text: "De intake kost € 80." },
+    { id: "c", text: "Vier instructeurs" },
+  ];
+  eq(
+    "op id en, zonder id, op tekst",
+    zonderBetwisteFeiten(kaart, [{ id: "a", text: "x" }, { id: "z", text: "de intake kost € 80" }]).map((f) => f.text).join("|"),
+    "Vier instructeurs",
+  );
+  eq("niets betwist, niets weg", String(zonderBetwisteFeiten(kaart, []).length), "3");
+  ok("de schrijfopdracht filtert ze eruit", leesBestand("lib/pipeline/content.ts").includes("zonderBetwisteFeiten("));
 });

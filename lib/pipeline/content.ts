@@ -93,6 +93,7 @@ import { analyzeCitedSources } from "@/lib/pipeline/source-analysis";
 import { topicTerms, scoreTermOverlap } from "@/lib/pipeline/page-relevance";
 import { contentWebSearchEnabled, minProofPointsForConcreteContent } from "@/lib/config";
 import { buildFactBase } from "@/lib/pipeline/factbase";
+import { zonderBetwisteFeiten } from "@/lib/pipeline/conflict-detect";
 import { syncBrandFacts } from "@/lib/pipeline/factstore";
 import { factsFromSnapshot, planFromSnapshot, generalContextGapsFromSnapshot } from "@/lib/pipeline/briefing";
 import { enkelOfMeervoud } from "@/lib/format";
@@ -1479,7 +1480,23 @@ async function loadContentContext(
     samengevoegd,
     gespreksbewijs.map((f) => ({ ...f, id: idPerTekst.get(normalizeForQuote(f.text)) ?? null })),
   );
-  const facts = metKlantopmerking(metGesprek, recommendation.revisionNote ?? null);
+  // ── Betwist of vervangen? Dan niet op de kaart (WP2, migratie 0113) ─────
+  //
+  // Een feit dat met een ander feit botst, staat op "betwist" tot de adviseur
+  // kiest; het verliezende feit daarna op "vervangen". Tot 25 september 2026
+  // kreeg de schrijver beide, en schreef hij "De beschikbare informatie over de
+  // intakeprijs spreekt elkaar tegen". Wat niet op de kaart staat, schrijft hij
+  // niet op.
+  const { data: betwisteRijen } = await admin
+    .from("brand_facts")
+    .select("id, text")
+    .eq("profile_id", analysis.profile_id)
+    .is("superseded_by", null)
+    .in("stand", ["betwist", "vervangen"]);
+  const facts = zonderBetwisteFeiten(
+    metKlantopmerking(metGesprek, recommendation.revisionNote ?? null),
+    (betwisteRijen ?? []) as { id: string; text: string }[],
+  );
 
   const proofCount = facts.filter((f) => f.allowed).length;
 

@@ -114,6 +114,12 @@ export const dedupe = {
    */
   contentPlan: (analysisId: string, title: string) => `content_plan:${analysisId}:${title}`,
   /**
+   * Eén register-run per merk tegelijk. Na afloop mag er meteen een nieuwe
+   * komen: de index geldt alleen voor `queued` en `running`, en elke run doet
+   * alleen wat nog niet gedaan is.
+   */
+  factRegister: (profileId: string) => `fact_register:${profileId}`,
+  /**
    * De schrijftaak die uit één plantaak voortkomt.
    *
    * Op het TAAK-id van de plantaak en niet op de pagina, want de plantaak heeft

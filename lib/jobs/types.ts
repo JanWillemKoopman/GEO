@@ -91,6 +91,12 @@ export const JOB_TYPES = [
   "content_revise",
   /** Dezelfde tekst opnieuw keuren, zonder herschrijven (migratie 0092). */
   "content_recheck",
+  /**
+   * Het feitenregister van één merk bijwerken: feiten indelen (L1), conflicten
+   * zoeken en beoordelen (L2). WP2 van contentpijplijn-publicatiewaardig.md.
+   * Licht werk: alleen korte aanroepen op het goedkope model.
+   */
+  "fact_register",
   /** Technische GEO-audit: mag een AI-crawler de site überhaupt bezoeken? */
   "technical_audit",
   /** Controleren of een gepubliceerde pagina er echt staat (optimalisatie.md 5.2). */
@@ -482,6 +488,8 @@ export interface JobPayloads {
     contentPieceId: string;
     recommendation: RecommendationPayload;
   };
+  /** Het merk staat op de taak zelf (`profile_id`). */
+  fact_register: Record<string, never>;
   technical_audit: Record<string, never>;
   verify_publication: { contentPieceId: string };
   measure_impact: { contentPieceId: string; wave: number };

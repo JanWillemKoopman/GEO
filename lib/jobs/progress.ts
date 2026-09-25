@@ -66,6 +66,9 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   // Alleen de vier beoordelaars, geen schrijfaanroep. Die draaien parallel, dus
   // dit is de traagste van de vier plus wat marge.
   content_recheck: 20,
+  // Tot twaalf batches indelen (vier tegelijk) plus twintig korte oordelen,
+  // allemaal op het goedkope model; de eerste run van een merk is de langste.
+  fact_register: 30,
   technical_audit: 10, // een handvol HTTP-verzoeken, geen AI
   verify_publication: 8, // één pagina ophalen en vergelijken
   measure_impact: 2, // plant alleen taken in

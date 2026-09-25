@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProfile } from "@/lib/profiles";
 import { requireUser } from "@/lib/auth";
@@ -97,6 +98,14 @@ export default async function AdminPage({
     admin.from("profile_topics").select("id").eq("profile_id", id),
   ]);
 
+  const { count: openConflictTelling } = await admin
+    .from("fact_conflicts")
+    .select("id", { count: "exact", head: true })
+    .eq("profile_id", id)
+    .eq("echt_conflict", true)
+    .in("status", ["open", "gevraagd"]);
+  const openConflicten = openConflictTelling ?? 0;
+
   const taken = (jobRijen ?? []) as {
     type: string;
     status: string;
@@ -165,6 +174,20 @@ export default async function AdminPage({
         title="Diagnose"
         description="Wat er technisch gebeurde: welke taken draaiden, hoe lang, wat er faalde en wat het kostte. Het werk mét de klant staat op Onboardinggesprek."
       />
+
+      {/* ── Tegenstrijdige feiten (WP2 van contentpijplijn-publicatiewaardig.md) ──
+          Geen eigen menu-item: Admin houdt hooguit negen bestemmingen. Een
+          open conflict houdt een pagina tegen, dus de teller staat hier bovenaan. */}
+      <div className="card flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-secondary">
+          {openConflicten === 0
+            ? "Geen tegenstrijdige feiten open."
+            : `${openConflicten} tegenstrijdige ${openConflicten === 1 ? "feit" : "feiten"} open. Zolang dat zo is, gaat geen van de twee versies op een pagina.`}
+        </p>
+        <Link href={`/merk/${id}/admin/feiten`} className="btn-outline btn-sm">
+          Tegenstrijdige feiten
+        </Link>
+      </div>
 
       {/* ── De negen secties die de klant zelf ziet ─────────────────────────
           In zijn volgorde, zodat je in een demo weet welk scherm hij voor zich

@@ -39,6 +39,7 @@ import { generateReport } from "@/lib/pipeline/report";
 import { profileCompetitors } from "@/lib/pipeline/competitor-intel";
 import { draftContentPiece, reviseContentPiece, herkeurContentPiece } from "@/lib/pipeline/content";
 import { planContentPiece } from "@/lib/pipeline/content-plan";
+import { werkRegisterBij } from "@/lib/pipeline/feitenregister";
 import { runAuditForProfile } from "@/lib/audit/store";
 import { planImpactMeasurements, computeImpact } from "@/lib/pipeline/impact";
 import { verifyPublication } from "@/lib/pipeline/publish";
@@ -822,6 +823,27 @@ const handlers: { [T in JobType]: Handler<T> } = {
         `${result.facts} bekende feiten, ${result.questions} vragen aan de klant.`,
     );
 
+    // ── Het feitenregister bijwerken (WP2, contentpijplijn-publicatiewaardig.md) ──
+    //
+    // De briefing heeft net de feiten van dit merk in de bank gezet. Daarna
+    // indelen en op conflicten nalopen, als eigen lichte taak: dan draait het
+    // parallel met de klant die de vragen invult, en heeft de paginastrategie
+    // bij het schrijven een ingedeeld register.
+    const { data: briefingAnalyse } = await admin
+      .from("analyses")
+      .select("profile_id")
+      .eq("id", job.analysis_id)
+      .maybeSingle();
+    const registerProfiel = (briefingAnalyse as { profile_id: string } | null)?.profile_id;
+    if (registerProfiel) {
+      await enqueue(admin, {
+        type: "fact_register",
+        payload: {},
+        profileId: registerProfiel,
+        dedupeKey: dedupe.factRegister(registerProfiel),
+      });
+    }
+
     // ── Geen vragen? Dan niet wachten (contentflow-een-lijn.md §3) ──────────
     //
     // Een pagina uit het contentplan waarvoor de voorbereiding nul vragen
@@ -966,6 +988,17 @@ const handlers: { [T in JobType]: Handler<T> } = {
       analysisId: job.analysis_id,
       dedupeKey: dedupe.contentRevise(result.contentPieceId),
     });
+  },
+
+  // ── Het feitenregister van één merk (WP2) ─────────────────────────────────
+  fact_register: async ({ admin, job }) => {
+    if (!job.profile_id) throw new Error("fact_register zonder profile_id.");
+    const u = await werkRegisterBij(admin, job.profile_id);
+    console.log(
+      `Feitenregister ${job.profile_id}: ${u.ingedeeld} feiten ingedeeld, ${u.kandidaten} kandidaat-paren, ` +
+        `${u.beoordeeld} beoordeeld, ${u.echteConflicten} echte conflicten, ` +
+        `${u.automatischOpgelost} vanzelf opgelost (klant vóór site).`,
+    );
   },
 
   // ── Content stap 2: herschrijven + herbeoordelen ──────────────────────────

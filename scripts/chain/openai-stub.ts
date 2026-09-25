@@ -1137,6 +1137,60 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
           ],
     };
   },
+  /**
+   * L1, feiten indelen (WP2 van contentpijplijn-publicatiewaardig.md). Een
+   * echt model leest de genummerde lijst; deze stub doet dat met een paar vaste
+   * regels, zodat het scenario zelf bepaalt welke feiten botsen.
+   */
+  fact_classification: (user) => {
+    const feiten = user
+      .split("\n")
+      .map((r) => /^(\d+)\.\s(.*)$/.exec(r))
+      .filter((m): m is RegExpExecArray => Boolean(m));
+    return {
+      feiten: feiten.map((m) => {
+        const tekst = m[2];
+        const getallen = Array.from(tekst.matchAll(/\d{1,3}(?:\.\d{3})+|\d+/g)).map((g) =>
+          Number(g[0].replace(/\./g, "")),
+        );
+        const prijs = /€|euro/i.test(tekst);
+        const termijn = /week|weken|dag/i.test(tekst);
+        const geldtVoor = /intake/i.test(tekst)
+          ? "intake"
+          : /ketel/i.test(tekst)
+            ? "cv-ketel"
+            : /levertijd/i.test(tekst)
+              ? "levertijd"
+              : null;
+        return {
+          nummer: Number(m[1]),
+          soort: prijs ? "prijs" : termijn ? "termijn" : "overig",
+          waardeMin: getallen[0] ?? null,
+          waardeMax: getallen[1] ?? getallen[0] ?? null,
+          eenheid: prijs ? "EUR" : termijn ? "week" : null,
+          waardeTekst: null,
+          geldtVoor,
+          bewijskracht: "gewoon",
+        };
+      }),
+    };
+  },
+  /**
+   * L2, een conflict beoordelen. Het vaste oordeel dat het plan in §5 noemt:
+   * de intake op kantoor en die in de auto zijn twee producten, geen conflict.
+   * Al het andere is een echt conflict, met voorstel "onbekend".
+   */
+  conflict_judge: (user) => {
+    const varianten = /kantoor/i.test(user) && /auto/i.test(user);
+    return {
+      echtConflict: !varianten,
+      uitleg: varianten
+        ? "Twee verschillende intakes: op kantoor en in de auto."
+        : "Twee verschillende waarden voor hetzelfde.",
+      voorstel: "onbekend",
+      voorstelReden: "",
+    };
+  },
 };
 
 

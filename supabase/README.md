@@ -660,3 +660,12 @@ systeemopdracht, zodat twee rondes met een andere prompt uit elkaar te houden zi
 plek (`lib/openai/ledger.ts`, via `lib/openai/input-capture.ts`). Rijen van vóór deze migratie
 blijven leeg. Besluit van de eigenaar op 23 september 2026: altijd bewaren. Op productie toegepast
 op 23 september 2026.
+
+## 0113 — Feitsoort en conflicten
+
+Voegt aan `brand_facts` de kolommen `soort`, `waarde` (jsonb), `geldt_voor`, `stand`, `bewijskracht`
+en `ingedeeld_at` toe, met controles op de toegestane waarden, en de tabel `fact_conflicts`: per
+beoordeeld paar feiten het oordeel van het model, de ernst, de status (open, opgelost, gevraagd,
+geen_conflict) en het besluit. Lezen alleen voor medewerkers (`is_staff()`); schrijven alleen via
+`app/api/profiles/[id]/fact-conflicts/route.ts` en de taak `fact_register`. Additief en idempotent.
+WP2 van `docs/tasks/contentpijplijn-publicatiewaardig.md`. Op productie toegepast op 25 september 2026.

@@ -9984,6 +9984,117 @@ async function main(): Promise<void> {
       }
     }
 
+    // ── Scenario 18: het feitenregister en de conflictpoort (WP2) ──────────
+    //
+    // docs/tasks/contentpijplijn-publicatiewaardig.md §8. Drie paren, elk met
+    // een eigen uitkomst: de twee intakes van de rijschool zijn varianten, een
+    // klantantwoord wint vanzelf van de site, en twee sitefeiten over dezelfde
+    // ketelprijs wachten op de adviseur. Daarna: een tweede run betaalt niets
+    // opnieuw, en de keuze van de adviseur zet de stand om.
+    console.log("\nScenario 18: het feitenregister en de conflictpoort (WP2)");
+    {
+      const { werkRegisterBij, losConflictOp, GEEN_VAN_BEIDE } = await import("@/lib/pipeline/feitenregister");
+      const { claimKey } = await import("@/lib/pipeline/factcard");
+      const reg = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status)
+         values ($1, $2, 'Registertest', 'https://registertest.nl', 'Registertest', 'klaar')`,
+        [reg, userId],
+      );
+      const feiten: [string, string, string][] = [
+        ["Een intake op kantoor kost € 50.", "site /prijzen", "site"],
+        ["Een intake in de auto kost € 80.", "site /prijzen", "site"],
+        ["De levertijd is 2 tot 4 weken.", "site /ketel", "site"],
+        ["De levertijd bij ons is 3 tot 5 weken", "klant, bevestigd 25-9-2026", "klant"],
+        ["Een nieuwe cv-ketel kost € 2.200.", "site /ketel", "site"],
+        ["Een cv-ketel vervangen kost bij ons € 2.500.", "site /service", "site"],
+      ];
+      const ids: string[] = [];
+      for (const [tekst, bron, kind] of feiten) {
+        const { rows } = await db.client.query(
+          `insert into public.brand_facts (profile_id, text, source, kind, fact_key) values ($1, $2, $3, $4, $5) returning id`,
+          [reg, tekst, bron, kind, claimKey(tekst)],
+        );
+        ids.push(rows[0].id as string);
+      }
+      const shim = createShimClient(db.client) as never;
+      const oordelenVoor = log.filter((l) => l.schemaName === "conflict_judge").length;
+      const eerste = await werkRegisterBij(shim, reg);
+      eqc("scenario 18: alle zes feiten ingedeeld", String(eerste.ingedeeld), "6");
+      eqc("scenario 18: drie kandidaat-paren", String(eerste.kandidaten), "3");
+      eqc("scenario 18: twee echte conflicten, de intakes zijn varianten", String(eerste.echteConflicten), "2");
+      eqc("scenario 18: het klantantwoord wint vanzelf van de site", String(eerste.automatischOpgelost), "1");
+
+      const stand = async (i: number) =>
+        String((await db.client.query("select stand from public.brand_facts where id = $1", [ids[i]])).rows[0].stand);
+      eqc("scenario 18: een intake blijft bruikbaar", await stand(0), "site");
+      eqc("scenario 18: de sitelevertijd is vervangen", await stand(2), "vervangen");
+      eqc("scenario 18: het klantantwoord is bevestigd", await stand(3), "bevestigd");
+      eqc("scenario 18: de ene ketelprijs is betwist", await stand(4), "betwist");
+      eqc("scenario 18: de andere ook", await stand(5), "betwist");
+
+      const tweede = await werkRegisterBij(shim, reg);
+      eqc("scenario 18: een tweede run deelt niets opnieuw in", String(tweede.ingedeeld), "0");
+      eqc(
+        "scenario 18: en laat geen paar opnieuw beoordelen (conventie 9)",
+        String(log.filter((l) => l.schemaName === "conflict_judge").length - oordelenVoor),
+        "3",
+      );
+
+      const { rows: open } = await db.client.query(
+        "select id from public.fact_conflicts where profile_id = $1 and status = 'open'",
+        [reg],
+      );
+      eqc("scenario 18: één conflict staat open voor de adviseur", String(open.length), "1");
+      const fout = await losConflictOp(shim, { profileId: reg, conflictId: open[0].id, userId, keuze: { feitId: ids[0] } });
+      ok("scenario 18: een feit buiten het conflict kiezen mag niet", Boolean(fout));
+      const goed = await losConflictOp(shim, { profileId: reg, conflictId: open[0].id, userId, keuze: { feitId: ids[4] } });
+      ok("scenario 18: de adviseur kiest de ketelprijs van € 2.200", goed === null, String(goed));
+      eqc("scenario 18: die is nu bevestigd", await stand(4), "bevestigd");
+      eqc("scenario 18: en de andere vervangen", await stand(5), "vervangen");
+
+      // Een vervangen feit dat bij een volgende crawl als nieuwe rij terugkomt,
+      // krijgt het besluit opnieuw, zonder nieuwe beoordeling.
+      await db.client.query("update public.brand_facts set superseded_by = id where id = $1", [ids[5]]);
+      const terug = await db.client.query(
+        `insert into public.brand_facts (profile_id, text, source, kind, fact_key) values ($1, $2, 'site /service', 'site', $3) returning id`,
+        [reg, feiten[5][0], claimKey(feiten[5][0])],
+      );
+      const oordelenNu = log.filter((l) => l.schemaName === "conflict_judge").length;
+      await werkRegisterBij(shim, reg);
+      eqc(
+        "scenario 18: het teruggekomen feit is meteen weer vervangen",
+        String((await db.client.query("select stand from public.brand_facts where id = $1", [terug.rows[0].id])).rows[0].stand),
+        "vervangen",
+      );
+      eqc(
+        "scenario 18: zonder nieuwe beoordeling",
+        String(log.filter((l) => l.schemaName === "conflict_judge").length - oordelenNu),
+        "0",
+      );
+
+      // Vraag het de ondernemer: een keuzevraag met de twee zinnen letterlijk.
+      await db.client.query("update public.fact_conflicts set status = 'open', gekozen_feit_id = null where id = $1", [open[0].id]);
+      const gevraagd = await losConflictOp(shim, { profileId: reg, conflictId: open[0].id, userId, keuze: { vraag: true } });
+      ok("scenario 18: de vraag aan de ondernemer is uitgezet", gevraagd === null, String(gevraagd));
+      const { rows: vraag } = await db.client.query(
+        "select fr.id, fr.options, fr.kind from public.fact_requests fr join public.fact_conflicts c on c.fact_request_id = fr.id where c.id = $1",
+        [open[0].id],
+      );
+      ok("scenario 18: met beide zinnen en 'geen van beide' als keuze", (vraag[0]?.options ?? []).length === 3 && vraag[0].options.includes(GEEN_VAN_BEIDE));
+      await db.client.query(
+        "update public.fact_requests set status = 'beantwoord', answer = $1, answered_at = now() where id = $2",
+        [feiten[4][0], vraag[0].id],
+      );
+      await werkRegisterBij(shim, reg);
+      eqc(
+        "scenario 18: het antwoord van de ondernemer beslist",
+        String((await db.client.query("select status, oplossing from public.fact_conflicts where id = $1", [open[0].id])).rows.map((r) => `${r.status}/${r.oplossing}`)[0]),
+        "opgelost/vraag",
+      );
+      eqc("scenario 18: en zijn keuze is bevestigd", await stand(4), "bevestigd");
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

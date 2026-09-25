@@ -12374,3 +12374,23 @@ op de proefset van de doorlichting. Een werkgebiedpagina mag geadviseerd worden,
 gemeente vanaf 50.000 inwoners) houden een eigen pagina. De schrijfstijl hoort volledig in het merkdossier. Een bronconflict houdt een pagina
 alleen tegen als het betwiste feit op die pagina nodig is. Het bouwplan staat in drie fases en zestien
 werkpakketten in het plan zelf.
+
+## 25 september 2026: WP2, het feitenregister en de conflictpoort
+
+Tweede werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`, migratie `0113`. Tot nu toe
+zag de feitenbank alleen tegenspraak tussen twee feiten met dezelfde tekstsleutel; twee zinnen over
+dezelfde prijs in andere woorden stonden allebei op de kaart, en de schrijver schreef dan "De
+beschikbare informatie over de intakeprijs spreekt elkaar tegen". Nu krijgt elk feit een soort, een
+waarde, een geldigheid, een stand en een bewijskracht (L1, Luna, 40 feiten per aanroep, ongeveer een
+tiende cent per batch). Code zoekt paren met dezelfde soort en geldigheid en een andere waarde, en
+alleen die paren gaan naar een tweede Luna-aanroep die beslist of het echt een conflict is of twee
+varianten (L2). Een oordeel wordt per paar één keer betaald. Een antwoord van de klant wint vanzelf
+van de site; de rest beslist de adviseur op `admin/feiten` (dit geldt, dat geldt, of vraag het de
+ondernemer). Een betwist of vervangen feit gaat niet meer op de feitenkaart.
+
+Afwijking van het plan: "een recentere pagina van de eigen site vóór een oudere" wint niet vanzelf.
+Het register kent geen publicatiedatum per sitepagina, alleen wanneer wij hem lazen; op die volgorde
+beslissen zou een schijnrangorde zijn. Die conflicten gaan naar de adviseur. Het conflictscherm heeft
+geen eigen menu-item (Admin heeft er hooguit negen, `scripts/test-unit.ts`) maar een teller met link
+op Diagnose. De drie proefmerken hebben samen 408 actuele feiten; de eerste run (twaalf batches, vier
+tegelijk) kan pas draaien als de code op productie staat.
