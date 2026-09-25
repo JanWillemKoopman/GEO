@@ -1143,6 +1143,38 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
     };
   },
   /**
+   * L8, de eindredactie (WP5). Leest het concept uit de opdracht terug, haalt
+   * de relativering na een bewijsstuk weg (het voorbeeld van de zwemvijver in
+   * §1.2) en houdt de beweringen met hun citaat. Staat er in het concept het
+   * woord TESTBEDRAG, dan voegt de stub een bedrag toe dat nergens op de kaart
+   * staat, zodat de ketentest het terugdraaien kan toetsen.
+   */
+  editorial_pass: (user) => {
+    const concept = user.split("── HET CONCEPT ──")[1] ?? "";
+    const metaTitle = /Metatitel: (.*)/.exec(concept)?.[1]?.slice(0, 60) ?? "Titel";
+    const metaDescription = /Metabeschrijving: (.*)/.exec(concept)?.[1]?.slice(0, 160) ?? "Beschrijving";
+    const na = concept.split(/Metabeschrijving: .*\n/)[1] ?? "";
+    const body = na.split(/\n\[FAQ\]|\nBeweringen in het concept/)[0].trim();
+    const faq = Array.from((na.split("[FAQ]")[1] ?? "").matchAll(/Q: (.*)\nA: (.*)/g)).map((m) => ({ q: m[1], a: m[2] }));
+    const claims = Array.from(na.matchAll(/^- (F[\d, F]+): (.*) \(citaat: "(.*)"\)$/gm)).map((m) => ({
+      factRef: m[1],
+      claim: m[2],
+      quote: m[3],
+    }));
+    const zonderRelativering = body.replace(/,? maar dat zegt op zichzelf niets[^.]*\./g, ".");
+    return {
+      bodyMarkdown: /TESTBEDRAG/.test(body) ? `${zonderRelativering}\n\nEen intake kost bij ons € 777.` : zonderRelativering,
+      faq,
+      metaTitle,
+      metaDescription,
+      claims,
+      proofPoints: [],
+      wijzigingen: [
+        { was: "maar dat zegt op zichzelf niets", wordt: "", soort: "relativering", raaktFeit: false },
+      ],
+    };
+  },
+  /**
    * L5, de paginastrategie (WP3). Met opzet ongemakkelijk, zodat elk vangnet
    * in `strategie-check.ts` iets te doen krijgt: een F-nummer dat niet bestaat,
    * een kernonderwerp zonder feit, een voorbehoud zonder reden, en een budget

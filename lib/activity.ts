@@ -60,6 +60,7 @@ export const TAAK_TEKST: Record<JobType, string | null> = {
   content_plan: "uitgezocht wat er op een pagina moet staan",
   content_strategy: "bepaald wat er op een pagina komt",
   content_draft: "een pagina geschreven",
+  content_edit: "een pagina eindgeredigeerd",
   content_revise: "een pagina herschreven",
   content_recheck: "een pagina opnieuw beoordeeld",
   // Intern: de klant ziet het conflictscherm niet (§8.3 van

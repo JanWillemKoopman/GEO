@@ -135,6 +135,9 @@ export const dedupe = {
   contentStrategyNa: (planJobId: string) => `content_strategy_na:${planJobId}`,
   /** Een achtergrondaanroep ophalen, per poging een eigen taak. */
   contentStrategyOphalen: (responseId: string, poging: number) => `content_strategy_ophalen:${responseId}:${poging}`,
+  /** De eindredactie van één versie (WP5). Op het id van de versie: elke versie wordt één keer geredigeerd. */
+  contentEdit: (contentPieceId: string) => `content_edit:${contentPieceId}`,
+  contentEditOphalen: (responseId: string, poging: number) => `content_edit_ophalen:${responseId}:${poging}`,
   // Per DAG en per merk: twee rondes op dezelfde dag halen exact dezelfde
   // cijfers op, want Google levert pas definitieve data met twee dagen
   // vertraging (`lib/search-console/window.ts`).

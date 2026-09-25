@@ -469,6 +469,11 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
   wacht, krijgt een wachtstand in `content_pieces.strategy_json` en start opnieuw zodra het
   conflict is opgelost (`strategie-wacht.ts`). In de achtergrondmodus plant de taak zichzelf
   opnieuw in om het resultaat op te halen (`lib/openai/achtergrond.ts`).
+- **`content_edit`** (WP5 van `docs/tasks/contentpijplijn-publicatiewaardig.md`) volgt op
+  `content_draft` bij een pagina met strategie: de eindredactie op Sol met denktijd hoog
+  (`editorial-pass.ts`), de vangnetten in code (`redactie-check.ts`), het logboek in
+  `content_pieces.edit_log_json`, en daarna de volledige keuring (`keurEnRondAf` in `content.ts`),
+  die bij zo'n pagina niet meer in `content_draft` zit. Zelfde achtergrondmodus als de strategie.
 - **`fact_register`** (migratie `0113`, WP2 van `docs/tasks/contentpijplijn-publicatiewaardig.md`)
   hangt aan een merk (`profile_id`), is licht werk en wordt ingepland na elke `content_brief` en met
   de knop op het conflictscherm (`admin/feiten`). Hij deelt nieuwe feiten in, zoekt kandidaat-
