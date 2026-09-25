@@ -12569,3 +12569,18 @@ reparatie met de eerste wijziging als opdracht; de problemen gaan als bevinding 
 een probleem telt alleen als het citaat letterlijk in de tekst staat, hoogstens zes. De vier bestaande
 beoordelaars blijven voorlopig staan; ze vervangen (WP9 volledig) wacht tot de eigenaarstoets op
 productie is nagemeten tegen de blinde lezer.
+
+## 25 september 2026: nameting van stem, vragenroute en eigenaarstoets
+
+Dezelfde twee pagina's, na PR 147 tot en met 152. Copywritercijfer 5 (Best, was 5) en 4 (kosten, was
+4). De lezer kiest bij de kostenpagina de nieuwe versie (zekerheid 4: de verkeerde levertijd is weg,
+de FAQ past bij het onderwerp) en bij Best de vorige (zekerheid 3: meer opvulling). Kosten $0,33 en
+$0,31 per pagina; de eigenaarstoets kost $0,013 per keuring en duurt 18 tot 21 seconden, parallel met
+de andere beoordelaars. Belangrijkste uitkomst: de eigenaarstoets vindt dezelfde problemen als de
+blinde lezer (bij Best "Dat bedrag geeft je houvast", "Een offerte beschrijft de werkzaamheden en de
+prijs" en de dubbele offerte-oproep; bij de kosten de kop "Wij plaatsen ook gewone cv-ketels" en dat
+niet staat wat er in de prijs zit), maar de reparatie lost ze niet op. Bij Best verloor de reparatie de
+terugkomafspraak en koos de versievergelijking de oude tekst; bij de kosten weigerde de reparatie de
+ketelmerken te noemen "omdat de instructie verbiedt andere bedrijven bij naam te noemen". De
+vergelijking met de huidige sitepagina stond steeds op "geen huidige": de keuring kreeg de huidige tekst
+niet mee. Bestanden in `kwaliteitsdoorlichting/nameting-eigenaarstoets/`.
