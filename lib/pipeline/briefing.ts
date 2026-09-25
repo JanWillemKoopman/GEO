@@ -29,7 +29,7 @@ import "server-only";
  * hoeveel pagina's de klant koos.
  */
 import { beoordeelVragen } from "@/lib/pipeline/vraag-judge";
-import { voegVragenSamen, type BestaandeVraag } from "@/lib/pipeline/vraag-samenvoegen";
+import { voegVragenSamen, type BestaandeVraag, type Samenvoeging } from "@/lib/pipeline/vraag-samenvoegen";
 import { pasSchrijfregelsToe } from "@/lib/schrijfregel-vangnet";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { callStructured } from "@/lib/openai/structured";
@@ -297,8 +297,86 @@ export async function ensureBriefingPieces(
   return ids;
 }
 
+
+/**
+ * De uitkomst van het samenvoegen wegschrijven: open vragen die hetzelfde
+ * vragen krijgen de pagina's en secties erbij, nieuwe vragen komen als rij in
+ * `fact_requests`. Gedeeld door de briefing en de paginastrategie
+ * (`strategievragen.ts`), zodat een vraag uit beide routes dezelfde
+ * schrijfregels en dezelfde ontdubbeling krijgt. Geeft het aantal nieuwe rijen.
+ */
+export async function bewaarVragen(
+  admin: Admin,
+  args: { profileId: string; analysisId: string; samengevoegd: Samenvoeging; raw: unknown },
+): Promise<number> {
+  const { profileId, analysisId, samengevoegd } = args;
+  // Een open vraag die hetzelfde vraagt, krijgt de pagina's en secties erbij:
+  // het antwoord voedt dan ook de nieuwe pagina, en overslaan raakt hem ook.
+  for (const aanvulling of samengevoegd.aanvullingen) {
+    const { data: rij } = await admin
+      .from("fact_requests")
+      .select("content_piece_ids, section_refs, required")
+      .eq("id", aanvulling.id)
+      .eq("profile_id", profileId)
+      .eq("status", "open")
+      .maybeSingle();
+    if (!rij) continue;
+    await admin
+      .from("fact_requests")
+      .update({
+        content_piece_ids: Array.from(
+          new Set([...((rij.content_piece_ids ?? []) as string[]), ...aanvulling.contentPieceIds]),
+        ),
+        section_refs: Array.from(new Set([...((rij.section_refs ?? []) as string[]), ...aanvulling.sectionRefs])),
+        required: Boolean(rij.required) || aanvulling.required,
+      })
+      .eq("id", aanvulling.id);
+  }
+
+  // ── 5. Wegschrijven ──────────────────────────────────────────────────────
+  //
+  // Eén voor één en fouttolerant: de unieke index op (analyse, claim_key) is
+  // PARTIEEL (alleen status 'open'), dus `.upsert(..., { onConflict })` kan hem
+  // niet als doel gebruiken, Postgres eist daar dezelfde WHERE-clausule. Botst
+  // hij toch, dan staat de vraag er al en is er niets aan de hand.
+  let geschreven = 0;
+  for (const vraag of samengevoegd.nieuw) {
+    const { error } = await admin.from("fact_requests").insert({
+      profile_id: profileId,
+      analysis_id: vraag.scope === "merk" ? null : analysisId,
+      // Het vangnet onder de schrijfregels (punt 37): deze tekst gaat
+      // rechtstreeks naar de klant.
+      question: pasSchrijfregelsToe(vraag.question),
+      reason: vraag.reason ? pasSchrijfregelsToe(vraag.reason) : vraag.reason,
+      status: "open",
+      scope: vraag.scope,
+      content_piece_ids: vraag.contentPieceIds,
+      kind: vraag.kind,
+      answer_type: vraag.answerType,
+      options: vraag.options,
+      suggested_answer: vraag.suggestedAnswer,
+      required: vraag.required,
+      claim_key: vraag.claimKey,
+      // De secties die op dit antwoord wachten (migratie 0087). Slaat de klant
+      // de vraag over, dan vervallen precies deze secties en wordt de pagina
+      // korter in plaats van vager.
+      section_refs: vraag.sectionRefs ?? [],
+      // Het oordeel van de vragenbeoordelaar staat volledig in `ai_calls`
+      // (kind `briefing_vraag_judge`); de vorm van deze kolom blijft gelijk,
+      // want `isGapQuestion()` en de schoonmaak voor de browser lezen hem.
+      raw_json: args.raw as never,
+    });
+    if (!error) geschreven++;
+    else if (!error.message.includes("duplicate key")) {
+      console.warn(`Briefingvraag opslaan mislukt (${vraag.claimKey}): ${error.message}`);
+    }
+  }
+
+  return geschreven;
+}
+
 /** Claim-sleutels die we al kennen: beantwoord, of al als open vraag klaar. */
-async function loadKnownClaimKeys(
+export async function loadKnownClaimKeys(
   admin: Admin,
   profileId: string,
   analysisId: string,
@@ -735,67 +813,7 @@ export async function runBriefing(args: {
         `vroegen hetzelfde als een andere en zijn samengevoegd.`,
     );
   }
-  // Een open vraag die hetzelfde vraagt, krijgt de pagina's en secties erbij:
-  // het antwoord voedt dan ook de nieuwe pagina, en overslaan raakt hem ook.
-  for (const aanvulling of samengevoegd.aanvullingen) {
-    const { data: rij } = await admin
-      .from("fact_requests")
-      .select("content_piece_ids, section_refs, required")
-      .eq("id", aanvulling.id)
-      .eq("profile_id", profileId)
-      .eq("status", "open")
-      .maybeSingle();
-    if (!rij) continue;
-    await admin
-      .from("fact_requests")
-      .update({
-        content_piece_ids: Array.from(
-          new Set([...((rij.content_piece_ids ?? []) as string[]), ...aanvulling.contentPieceIds]),
-        ),
-        section_refs: Array.from(new Set([...((rij.section_refs ?? []) as string[]), ...aanvulling.sectionRefs])),
-        required: Boolean(rij.required) || aanvulling.required,
-      })
-      .eq("id", aanvulling.id);
-  }
-
-  // ── 5. Wegschrijven ──────────────────────────────────────────────────────
-  //
-  // Eén voor één en fouttolerant: de unieke index op (analyse, claim_key) is
-  // PARTIEEL (alleen status 'open'), dus `.upsert(..., { onConflict })` kan hem
-  // niet als doel gebruiken, Postgres eist daar dezelfde WHERE-clausule. Botst
-  // hij toch, dan staat de vraag er al en is er niets aan de hand.
-  let geschreven = 0;
-  for (const vraag of samengevoegd.nieuw) {
-    const { error } = await admin.from("fact_requests").insert({
-      profile_id: profileId,
-      analysis_id: vraag.scope === "merk" ? null : analysisId,
-      // Het vangnet onder de schrijfregels (punt 37): deze tekst gaat
-      // rechtstreeks naar de klant.
-      question: pasSchrijfregelsToe(vraag.question),
-      reason: vraag.reason ? pasSchrijfregelsToe(vraag.reason) : vraag.reason,
-      status: "open",
-      scope: vraag.scope,
-      content_piece_ids: vraag.contentPieceIds,
-      kind: vraag.kind,
-      answer_type: vraag.answerType,
-      options: vraag.options,
-      suggested_answer: vraag.suggestedAnswer,
-      required: vraag.required,
-      claim_key: vraag.claimKey,
-      // De secties die op dit antwoord wachten (migratie 0087). Slaat de klant
-      // de vraag over, dan vervallen precies deze secties en wordt de pagina
-      // korter in plaats van vager.
-      section_refs: vraag.sectionRefs ?? [],
-      // Het oordeel van de vragenbeoordelaar staat volledig in `ai_calls`
-      // (kind `briefing_vraag_judge`); de vorm van deze kolom blijft gelijk,
-      // want `isGapQuestion()` en de schoonmaak voor de browser lezen hem.
-      raw_json: audit.raw as never,
-    });
-    if (!error) geschreven++;
-    else if (!error.message.includes("duplicate key")) {
-      console.warn(`Briefingvraag opslaan mislukt (${vraag.claimKey}): ${error.message}`);
-    }
-  }
+  const geschreven = await bewaarVragen(admin, { profileId, analysisId, samengevoegd, raw: audit.raw });
 
   // De feitenkaart bevriezen op de gekozen pagina's, net als prompt_text_snapshot
   // (abcplan.md §5): wijzigt de klant later een feit, dan blijft achterhaalbaar

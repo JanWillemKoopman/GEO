@@ -6600,6 +6600,18 @@ async function main(): Promise<void> {
       // WP7: de FAQ volgens de vier criteria, na de strategie.
       eqc("WP7: de FAQ-selectie houdt één vraag met een feit eronder", String(wp4Rij[0]?.strategy_json?.faq?.gekozen?.length), "1");
       ok("WP7: en de schrijver krijgt precies die vraag", schrijfOpdracht.includes("FAQ: precies deze vraag"));
+      // De vragenroute (strategievragen.ts): wat de strategie de ondernemer wil
+      // vragen, staat nu echt bij zijn openstaande vragen.
+      const { rows: stratVragen } = await db.client.query(
+        "select question, status, scope, raw_json, content_piece_ids, profile_id from public.fact_requests where claim_key like 'strategie:%'",
+      );
+      ok("vragenroute: de vragen uit de strategie staan bij de ondernemer", stratVragen.length > 0, String(stratVragen.length));
+      const perPagina = new Map<string, number>();
+      for (const r of stratVragen) for (const id of (r.content_piece_ids ?? []) as string[]) perPagina.set(id, (perPagina.get(id) ?? 0) + 1);
+      ok("vragenroute: hoogstens vier per pagina", [...perPagina.values()].every((n) => n <= 4), JSON.stringify([...perPagina.values()]));
+      ok("vragenroute: dezelfde vraag staat per merk maar één keer", new Set(stratVragen.map((r) => `${r.profile_id}:${r.question}`)).size === stratVragen.length, JSON.stringify(stratVragen.map((r) => [String(r.profile_id).slice(0, 4), r.question])));
+      ok("vragenroute: open, voor het hele merk, met de strategie als bron", stratVragen.every((r) => r.status === "open" && r.scope === "merk" && r.raw_json?.bron === "paginastrategie"));
+      ok("vragenroute: geen invulvraag van de code zelf", !stratVragen.some((r) => /^Wat kunnen we over/.test(r.question)));
       // Een versie zonder opdracht bewaart `{}` (buildDraftRow), geen null.
       ok("WP4: en er is geen schrijfopdracht van luna meer gemaakt", Object.keys(wp4Rij[0]?.writer_brief_json ?? {}).length === 0);
       ok(
