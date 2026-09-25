@@ -32,6 +32,15 @@ export async function haalStemvoorbeeldenOp(admin: SupabaseClient, profileId: st
       uit.push({ url, tekst: null, opgehaald_op: new Date().toISOString(), fout: "Deze pagina konden we niet lezen." });
     }
   }
+  // Alleen bewaren als de adressen nog dezelfde zijn. Twee keer kort na elkaar
+  // opslaan (elk adresveld bewaart bij het verlaten) start twee ophaalrondes;
+  // zonder deze controle overschrijft de trage eerste ronde met één adres het
+  // resultaat van de tweede met twee.
+  const { data } = await admin.from("profiles").select("stem_voorbeelden").eq("id", profileId).maybeSingle();
+  const huidig = (((data as { stem_voorbeelden?: { url: string }[] | null } | null)?.stem_voorbeelden ?? []) as { url: string }[])
+    .map((v) => v.url)
+    .join("|");
+  if (huidig !== uit.map((v) => v.url).join("|")) return uit;
   await admin.from("profiles").update({ stem_voorbeelden: uit }).eq("id", profileId);
   return uit;
 }
