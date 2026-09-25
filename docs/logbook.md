@@ -12269,3 +12269,12 @@ af. (11) Een blok op het gespreksscherm blijft open zolang er velden zijn die he
 niemand langsliep. (14) De voortgang telt wachtende stappen mee in de tijdschatting en zet een stap met
 resultaat niet op "wacht". (17) Gemini-taken worden gespreid, vier seconden ertussen, over clusters
 heen.
+
+## 25 september 2026: Gemini als meetbron tijdelijk uit
+
+Besluit van de eigenaar: `DATAFORSEO_LLM_ENABLED` staat in productie op `false`. ChatGPT
+(`measure_prompt`, de primaire bron) en Google AI Overview (`AI_OVERVIEW_ENABLED`, ongewijzigd aan)
+blijven meten. Aanleiding: bij de herhaling van de kwaliteitsdoorlichting op 24/25 september
+faalden bij alle drie de meetronden tegelijk (drie merken) alle 30 Gemini-metingen op de
+leverancierslimiet, ondanks de spreiding van vier seconden tussen taken uit blok F. Zie
+`docs/tasks/bevindingen-kwaliteitsdoorlichting.md` punt 55.
