@@ -197,11 +197,11 @@ bronzinnen, het ontbrekende bewijs).
 | 56 | **hoog** | Een analyse wordt al na de eerste mislukte rapportpoging op "vastgelopen" gezet en toont de klant een foutmelding, terwijl de taak zelf nog drie keer op de achtergrond opnieuw probeert (tot 30 minuten) | open, herhaling 24/25 september 2026 |
 | 57 | middel | Bij één pagina kwamen na het beantwoorden van de eerste vragen 12 nieuwe vervolgvragen over hetzelfde onderwerp (wat zit inbegrepen bij een ketelvervanging), in steeds andere bewoordingen | open, bevestigt dat punt 36 nog niet volledig is opgelost, herhaling 24/25 september 2026 |
 | 58 | laag | De crawl van een grote site (~70 pagina's) las dit keer maar 33 van de 68 pagina's, ook na een extra aanvulronde, tegen 60 van de 68 bij de nulmeting; de site reageerde traag | open, lijkt aan de externe site te liggen en niet aan de code, herhaling 24/25 september 2026 |
-| 59 | **hoog** | De bronherleidbaarheidscontrole blokkeert op zinnen die geen bewering over het bedrijf zijn (een datumstempel, een veiligheidsinstructie, een definitie); 20 van de 21 nieuwe pagina's kregen "block" | ✅ opgelost in code, PR #PRNUM (reparatieplan blok G, 25 september 2026); nameting op productie volgt na de merge |
-| 60 | **hoog** | Een verzonnen veiligheidscertificering ("CO-gecertificeerd volgens de Gasketelwet") staat op alle 7 van de 7 nieuwe pagina's van de installateur; de keuring hield hem niet tegen | ❌ onterecht bij narekenen: de certificering staat letterlijk op de site; wel een vangnet voor keurmerken gebouwd, PR #PRNUM |
+| 59 | **hoog** | De bronherleidbaarheidscontrole blokkeert op zinnen die geen bewering over het bedrijf zijn (een datumstempel, een veiligheidsinstructie, een definitie); 20 van de 21 nieuwe pagina's kregen "block" | ✅ opgelost in code, PR #132 (reparatieplan blok G, 25 september 2026); nameting op productie volgt na de merge |
+| 60 | **hoog** | Een verzonnen veiligheidscertificering ("CO-gecertificeerd volgens de Gasketelwet") staat op alle 7 van de 7 nieuwe pagina's van de installateur; de keuring hield hem niet tegen | ❌ onterecht bij narekenen: de certificering staat letterlijk op de site; wel een vangnet voor keurmerken gebouwd, PR #132 |
 | 61 | middel | Twee echte cijfers uit dezelfde feitenkaart verwisseld (intake € 50 wordt € 80 op minstens 2 van de 8 pagina's), en een groeiwens ("willen groeien in Son en Breugel") werd een bevestigde aanwezigheidsclaim | ❌ onterecht bij narekenen: de site noemt een intake van € 50 (kantoor) én € 80 (auto), en de klant antwoordde "ja" op Son en Breugel |
 | 62 | **hoog** | De reparatieknop ("los alles op") haalt bij een volledige herschrijving een juist klantfeit weg dat niet eens gemeld was, en lost soms zelfs de gemelde punten zelf niet op | teruggevallen, herhaling 24/25 september 2026, rechtstreeks getest en nagerekend |
-| 63 | laag | Feiten van de site bevatten letterlijke HTML-codes ("offici&euml;le", "&euro; 50") | ✅ opgelost, PR #PRNUM (reparatieplan blok G, 25 september 2026) |
+| 63 | laag | Feiten van de site bevatten letterlijke HTML-codes ("offici&euml;le", "&euro; 50") | ✅ opgelost, PR #132 (reparatieplan blok G, 25 september 2026) |
 
 ---
 
@@ -1232,7 +1232,7 @@ alleen die ja/nee-vraag stelt per kandidaatzin (dezelfde soort aanpak als `zinPa
 punt 54), en in elk geval datumstempels ("Laatst bijgewerkt: ...") en verwijzingen naar een externe
 partij (CBR, hulpdiensten) categorisch uitsluiten.
 
-**Opgelost in code (25 september 2026, reparatieplan blok G, PR #PRNUM).** Twee lagen. (1) De code
+**Opgelost in code (25 september 2026, reparatieplan blok G, PR #132).** Twee lagen. (1) De code
 laat een datumstempel en een verwijzing naar een externe partij (112, CBR, RVO, de gemeente) niet meer
 als bewering tellen, zolang de zin geen merknaam, wij-vorm of ander getal heeft
 (`isGeenBewering()` in `lib/pipeline/claim-extract.ts`). (2) Wat de woordvergelijking daarna nog niet
@@ -1288,7 +1288,7 @@ de kleinere punten: Intergas en Vaillant staan op dezelfde pagina, Eindhoven sta
 "gratis" staat niet op de verbodenlijst van dit merk (die noemt "de beste" en "goedkoop"). Het eindverslag
 van de nulmeting had dezelfde vergissing al eens weggestreept. Alleen de levertijd van de hybride
 warmtepomp op een pagina over ketelvervanging blijft een terecht, klein punt. Toch gebouwd, als
-vangnet (PR #PRNUM): een zin met een keurmerkwoord is alleen gedekt als één feit alle keurmerkwoorden
+vangnet (PR #132): een zin met een keurmerkwoord is alleen gedekt als één feit alle keurmerkwoorden
 bevat, op stam ("certificering" dekt "gecertificeerd"), bovenop de gewone dekking
 (`keurmerkKern()`). De echte Gasketelwet-zin gaat erdoor, "erkend installatiebedrijf en
 VCA-gecertificeerd" naast alleen het feit "allround erkend installatiebedrijf" niet.
@@ -1367,7 +1367,7 @@ intake &euro; 50". `htmlToText()` in `lib/pipeline/html-text.ts` kende het eurot
 met een accent niet. Gevolg: zo'n feit leest slordig in de prompt, en de keuring herkent "&euro;"
 niet als bedrag.
 
-**Opgelost (25 september 2026, reparatieplan blok G, PR #PRNUM).** Het euroteken en alle letters met
+**Opgelost (25 september 2026, reparatieplan blok G, PR #132).** Het euroteken en alle letters met
 trema, accent aigu, grave, circonflexe, cedille of tilde worden nu omgezet. Feiten die al op de kaart
 staan, worden bij de volgende crawl van het merk vervangen.
 
