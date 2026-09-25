@@ -12546,6 +12546,60 @@ onderwerp van deze pagina gaat. Bewust niet gebouwd: een lijst met holle formule
 woordfilter op FAQ-vragen. Het eerste is lapwerk dat de volgende ronde niet vangt; het tweede gooide in
 de ketentest een algemeen bezwaar ("jullie zijn duurder") weg dat bij elke pagina hoort.
 
+## 25 september 2026: de vragenroute gesloten
+
+De paginastrategie en de FAQ-selectie bepalen per pagina wat de ondernemer eerst moet vertellen, maar
+die vragen bleven in `strategy_json.vragenAanOndernemer` liggen: geen code zette ze bij de ondernemer.
+Bij Best waren het er acht. Nu gaan hoogstens vier per pagina (kernvragen eerst, dan kernuitleg die
+concreter kan, dan onzekerheden met bestemming A, dan bijzaken en FAQ) langs dezelfde ontdubbeling en
+opslag als de briefing (`strategievragen.ts`, `bewaarVragen` in `briefing.ts`): een vraag die de
+ondernemer al beantwoordde of oversloeg komt niet terug, een open vraag die hetzelfde vraagt krijgt de
+pagina erbij. De vragen zijn niet verplicht en gelden voor het hele merk; het antwoord komt via de
+feitenkaart in de volgende versie. Eerst op sleutel zonder aanroep, alleen bij een nieuwe vraag één
+lichte aanroep (`briefing_vraag_judge`). Een mislukking hier houdt het schrijven niet tegen.
+
+## 25 september 2026: de eigenaarstoets in de keuring (WP9, eerste stap)
+
+Kwaliteit werd tot nu toe alleen achteraf gemeten, met de blinde lezer. In de pijplijn letten de
+controles op feiten en formuleringen, niet op herhaling, holle alinea's of een kop die niet bij de
+tekst past, precies wat die lezer bij beide nagemeten pagina's als eerste noemde. Nu leest een vijfde
+beoordelaar (L10, `content_eigenaarstoets`, Sol met denktijd medium) elke versie van een pagina met
+strategie als de ondernemer: publiceert hij zo, wat verandert hij eerst, welke zinnen haalt een
+copywriter eruit, en is de nieuwe beter dan de huidige sitepagina. "Nee" blokkeert en stuurt de
+reparatie met de eerste wijziging als opdracht; de problemen gaan als bevinding mee. Vangnet in code:
+een probleem telt alleen als het citaat letterlijk in de tekst staat, hoogstens zes. De vier bestaande
+beoordelaars blijven voorlopig staan; ze vervangen (WP9 volledig) wacht tot de eigenaarstoets op
+productie is nagemeten tegen de blinde lezer.
+
+## 25 september 2026: nameting van stem, vragenroute en eigenaarstoets
+
+Dezelfde twee pagina's, na PR 147 tot en met 152. Copywritercijfer 5 (Best, was 5) en 4 (kosten, was
+4). De lezer kiest bij de kostenpagina de nieuwe versie (zekerheid 4: de verkeerde levertijd is weg,
+de FAQ past bij het onderwerp) en bij Best de vorige (zekerheid 3: meer opvulling). Kosten $0,33 en
+$0,31 per pagina; de eigenaarstoets kost $0,013 per keuring en duurt 18 tot 21 seconden, parallel met
+de andere beoordelaars. Belangrijkste uitkomst: de eigenaarstoets vindt dezelfde problemen als de
+blinde lezer (bij Best "Dat bedrag geeft je houvast", "Een offerte beschrijft de werkzaamheden en de
+prijs" en de dubbele offerte-oproep; bij de kosten de kop "Wij plaatsen ook gewone cv-ketels" en dat
+niet staat wat er in de prijs zit), maar de reparatie lost ze niet op. Bij Best verloor de reparatie de
+terugkomafspraak en koos de versievergelijking de oude tekst; bij de kosten weigerde de reparatie de
+ketelmerken te noemen "omdat de instructie verbiedt andere bedrijven bij naam te noemen". De
+vergelijking met de huidige sitepagina stond steeds op "geen huidige": de keuring kreeg de huidige tekst
+niet mee. Bestanden in `kwaliteitsdoorlichting/nameting-eigenaarstoets/`.
+
+## 25 september 2026: de reparatie doet wat de eigenaarstoets zegt, sterk bewijs, eigen merken
+
+Drie wijzigingen uit de nameting van de eigenaarstoets. (1) De reparatie kreeg de tien zwaarste
+bevindingen, en de eigenaarstoets (zekerheid 0,7, gewicht 7) zakte onder de tientallen vaste controles
+(gewicht 10): geen van zijn punten kwam aan. Nu gaat wat blokkeert voor, dan de eigenaarstoets, dan de
+rest. Welke versie blijft, beslist bij gelijke blokkades de eigenaarstoets (`eigenaarVoorkeur`: eerst
+publiceren ja, met aanpassingen of nee, dan twee of meer problemen minder); zijn oordeel staat daarvoor
+in `quality_json.eigenaar`. (2) Sterk bewijs is ook een reviewcijfer, een garantie en bewijs dat de
+ondernemer zelf in het gesprek gaf, en er gaan er minstens drie mee (was twee). Bij de hovenier
+stonden de 4,9 uit 5 en het eigen 3D-ontwerp daardoor buiten de keuze. De garantie van vijf jaar staat
+niet in zijn register, dus die lost dit niet op. (3) Merken die het bedrijf zelf plaatst op de
+feitenkaart mogen genoemd worden; de reparatie liet de ketelmerken weg "omdat de instructie verbiedt
+andere bedrijven bij naam te noemen". De code controleert op de lijst met concurrenten, niet op merken.
+
 ## 25 september 2026: de contentketen gaat opnieuw, van vijftien stappen naar vier
 
 Besluit van de eigenaar na de nameting van fase 1: de keten van pagina tot tekst is zo gegroeid (zeven
