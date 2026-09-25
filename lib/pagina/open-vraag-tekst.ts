@@ -22,10 +22,16 @@ export function openVraagTekst(paginaTitel: string): string {
   return `Wat wil je zelf vertellen op de pagina "${paginaTitel.trim()}"?`;
 }
 
-export function openVraagUitleg(onderwerp: string): string {
-  const over = onderwerp.trim() ? `over ${onderwerp.trim().toLowerCase()} ` : "";
+/**
+ * De uitleg eronder. Zonder het onderwerp erin: de titel van een plan-pagina is
+ * een opdracht ("Breid de pagina over rijles in Best uit met..."), en die
+ * midden in een zin gezet leverde op de eerste proef van 25 september 2026
+ * "over breid de pagina over rijles in best uit met faalangstbegeleiding weet".
+ * De titel staat al in de vraag erboven.
+ */
+export function openVraagUitleg(): string {
   return (
-    `Vertel wat jij belangrijk vindt dat een potentiële klant ${over}weet. Denk aan een typische ` +
+    "Vertel wat jij belangrijk vindt dat een potentiële klant hierover weet. Denk aan een typische " +
     "situatie van een klant, een aanpak waar jullie trots op zijn, vragen die je vaak krijgt, " +
     "voorbeelden uit de praktijk, dingen die klanten vaak verkeerd begrijpen, of wat jullie anders " +
     "doen dan anderen."
