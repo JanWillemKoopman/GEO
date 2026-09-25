@@ -18,6 +18,9 @@ Geen gedachtestreepjes (`—`/`–`) en geen "en/of" — overal, ook in code en 
 **Sales-led, niet self-serve** (`docs/logbook.md` §15): eigenaar zet merkprofiel klaar vóór
 demogesprek, pijplijn doet onderzoek, profiel wordt pas ná verkoop aan klantaccount gekoppeld.
 
+**De contentketen wordt opnieuw gebouwd** volgens `docs/tasks/contentketen-opnieuw.md`. Werk je aan
+iets rond het schrijven van pagina's, lees dan eerst §0 en §3 daarvan: bouw niets wat daar niet staat.
+
 **De Sales-module** (`lib/sales/`, `app/(app)/sales/`, `docs/tasks/geo-prospect-engine.md`) is
 intern: een klant ziet er niets van, en de scheiding staat in de database en niet alleen in de
 schermen. Hij zoekt uit een markt de beste saleskansen, onderbouwt ze en zet een conceptmail klaar.

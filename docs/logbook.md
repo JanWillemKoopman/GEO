@@ -12550,8 +12550,11 @@ de ketentest een algemeen bezwaar ("jullie zijn duurder") weg dat bij elke pagin
 Besluit van de eigenaar na de nameting van fase 1: de keten van pagina tot tekst is zo gegroeid (zeven
 taaksoorten voor content, ongeveer 12.700 regels, 12 tot 15 AI-aanroepen per pagina) dat kwaliteit niet
 meer te sturen is, en elke stap haalt alleen weg. Het cijfer van de blinde lezer bleef op 5 en 4 bij
-een doel van 6,5. Nieuw: lezersbrief, vragen (met vast één open vraag per pagina), schrijven met de
-volledige context, en controle met hooguit één herschrijving. Streng alleen op harde beweringen, en een
-zin zonder bron wordt geel voor de ondernemer in plaats van een blokkade. Alle bestaande klantdata was
-ontwikkelmateriaal en gaat weg; de nieuwe keten wordt getoetst op merken die opnieuw door de hele keten
-gaan. Grens: $0,50 per pagina. Plan: `docs/tasks/contentketen-opnieuw.md`.
+een doel van 6,5. Aangescherpt met de feedback van een senior collega, met als principe: de keten niet
+slimmer maken met meer beslissingen, maar de schrijver betere informatie geven. Nieuw: content brief
+(met hooguit drie gerichte vragen), klantinput (vast één open vraag per pagina), één schrijfbeurt,
+één kwaliteitscontrole, hooguit één herschrijving. De schrijver wijst geen bronnen aan; code en
+controle zoeken daarna naar verzonnen harde beweringen, en een zin zonder bron wordt geel voor de
+ondernemer in plaats van een blokkade. Geen woordbudget. Eerst de oude code weg, dan bouwen. Alle
+klantdata (6 merken) is verwijderd; de kostenlog is bewaard. Grens: $0,50 per pagina. Plan:
+`docs/tasks/contentketen-opnieuw.md`.
