@@ -12461,3 +12461,17 @@ redactie wordt teruggedraaid naar het concept. Een prioriteitsfeit dat verdwijnt
 keuring en gaat de reparatie in. Wordt de taak na de redactie onderbroken, dan pakt de volgende
 poging de bewaarde redactie op zonder hem opnieuw te betalen. Pagina's zonder strategie lopen zoals
 voorheen.
+
+## 25 september 2026: WP6, onzekerheid en bronpraat als blokkade
+
+Zesde werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`. Een zin over wat wij niet
+weten of over onze bronnen ("is niet vastgelegd", "staat niet als vaste werkwijze vast", "valt niet af
+te leiden", "De beschikbare prijsinformatie benoemt niet") was een waarschuwing en is nu een blokkade;
+`lib/pipeline/onzekerheid.ts` vangt ze als vorm in plaats van als losse zin, en alle acht voorbeelden
+uit de teksten van 25 september worden gevangen, de vier goede zinnen ernaast niet. Staat een punt dat
+de strategie naar de ondernemer (A) of naar de prullenbak (C) stuurde toch in de tekst, dan blokkeert
+dat ook. Een voorbehoud direct na een bewijsstuk ("maar dat zegt op zichzelf niets") is een
+waarschuwing, zoals §12.2 zegt. De reparatie mag niet meer nuanceren of algemener schrijven, alleen
+weglaten, en krijgt hoogstens twee rondes (was drie). De feitelijkheidsbeoordelaar meldt nog alleen
+een toezegging in de wij-vorm of met de bedrijfsnaam; zijn vroegere jacht op "algemene uitleg die als
+belofte gelezen kan worden" was de bron van de voorbehouden achter sterk bewijs.

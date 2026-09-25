@@ -162,6 +162,12 @@ const COVERAGE_THRESHOLD = 85;
 /**
  * Hoeveel gerichte reparatierondes een pagina hoogstens krijgt (A6).
  *
+ * ⚠️ Sinds 25 september 2026 twee (WP6 van contentpijplijn-publicatiewaardig.md,
+ * §12.4). De eindredactie (WP5) neemt het grootste deel van het reparatiewerk
+ * over, en wat er na twee rondes nog openstaat is bijna altijd een ontbrekend
+ * feit: dat gaat als vraag naar de ondernemer. De tekst hieronder over drie
+ * rondes is de onderbouwing van toen.
+ *
  * Drie. Er was er één, en die herschreef de HELE pagina: op productie kostte
  * dat $0,162 per keer en kregen alle vijf de pagina's van 26 augustus er één.
  *
@@ -176,7 +182,7 @@ const COVERAGE_THRESHOLD = 85;
  * een ontbrekend FEIT is, en dat lost geen herschrijving op maar een vraag aan
  * de klant, niet omdat een vierde ronde geld zou verspillen.
  */
-const REPAIR_MAX = 3;
+const REPAIR_MAX = 2;
 
 /**
  * Herstelplan na audit, T1.5: "Eén contentpagina kost een euro of minder."
@@ -925,7 +931,8 @@ const REPAIR_SYSTEM =
   "(1) Noem NOOIT concurrenten of andere bedrijven bij naam. " +
   "(2) De FEITENKAART is de ENIGE toegestane bron van concrete beweringen over dit bedrijf. Los een " +
   "bevinding NOOIT op door een feit te verzinnen: kun je hem niet oplossen met wat er op de kaart " +
-  "staat, laat de passage dan weg of schrijf hem algemener. " +
+  "staat, laat de passage dan weg. Los hem ook nooit op met een voorbehoud of met een zin dat iets " +
+  "niet bekend of niet vastgelegd is: wat wij niet weten, vragen wij de ondernemer. " +
   // ⚠️ Begrensd op 3 september 2026 (V1), zelfde reden als regel 5 hierboven:
   // absoluut toegepast kostte deze regel de hele merkstem.
   // Punt 48 van de kwaliteitsdoorlichting, zelfde besluit als regel 5 van de schrijver.

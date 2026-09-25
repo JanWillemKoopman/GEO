@@ -54,6 +54,7 @@ import {
   leesStartdatum,
 } from "@/lib/verkoopafspraak";
 import { rateLimitWindowStart, rateLimitVerdict } from "@/lib/rate-limit-rules";
+import { gatzinnen, voorbehoudNaBewijs, checkBestemmingen, isToezegging } from "@/lib/pipeline/onzekerheid";
 import { controleerRedactie, getalReeksen } from "@/lib/pipeline/redactie-check";
 import { strategieblok, gekozenRefs, opbouwUitStrategie, REGELS_STRATEGIE, REGEL_7_STRATEGIE } from "@/lib/pipeline/strategie-opdracht";
 import { checkStrategieDekking } from "@/lib/pipeline/content-coverage";
@@ -26932,4 +26933,52 @@ group("Vangnetten op de eindredactie (WP5)", () => {
   ok("het schrijven met strategie keurt niet zelf maar gaat naar de redactie", content.includes("naarRedactie: true"));
   ok("de redactie bewaart zijn log vóór de keuring", content.indexOf("edit_log_json: log as never") < content.lastIndexOf("return keur(geredigeerd);"));
   ok("en draait op denktijd hoog", leesBestand("lib/pipeline/editorial-pass.ts").includes('work: "redactioneel"'));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// WP6 van docs/tasks/contentpijplijn-publicatiewaardig.md: onzekerheid als blokkade.
+group("Zinnen over wat wij niet weten zijn een blokkade (WP6)", () => {
+  // Letterlijk uit de opgeslagen teksten van 25 september 2026 (§1.2, O2 en O4).
+  const gaten = [
+    "De beschikbare prijsinformatie benoemt niet welke werkzaamheden standaard in de installatieprijs zitten of wanneer extra kosten gelden.",
+    "Welke controles standaard tijdens een ketelbezoek plaatsvinden en hoe het benodigde vermogen precies wordt berekend, is niet vastgelegd.",
+    "Welke van deze punten tijdens een ketelbezoek worden bekeken, staat niet als vaste werkwijze vast.",
+    "Of een hybride warmtepomp past, valt niet af te leiden uit de leeftijd van de ketel alleen.",
+    "Dit is een lijst met nuttige gegevens, geen toezegging over documenten die wij standaard verstrekken.",
+    "Deze pagina geeft geen bevestigde lokale eis voor Best.",
+    "Een vast aanbetalingsbedrag voor een tuinproject wordt hier niet genoemd.",
+    "De beschikbare informatie over de intakeprijs spreekt elkaar tegen, dus hier noemen we geen actueel bedrag.",
+  ];
+  for (const z of gaten) ok(`gevangen: "${z.slice(0, 50)}..."`, gatzinnen(z).length === 1);
+  const goed = [
+    "Een nieuwe cv-ketel kost bij ons tussen de € 2.200 en € 3.200, inclusief installatie.",
+    "De levertijd is 2 tot 4 weken; de installatie zelf duurt één dag.",
+    "Een complete tuin met bestrating kost bij ons meestal tussen de € 12.000 en € 35.000.",
+    "Bij het adviesbezoek kijken we naar de isolatie, de radiatoren en de leeftijd van de ketel.",
+  ];
+  for (const z of goed) ok(`niet gevangen: "${z.slice(0, 50)}..."`, gatzinnen(z).length === 0);
+
+  const vnb = [
+    "Wij hebben meer dan 35 jaar ervaring, maar dat zegt op zichzelf niets over het aantal zwemvijvers dat we hebben aangelegd.",
+    "Onze CO-certificering volgens de Gasketelwet is hierboven genoemd; die zegt op zichzelf niets over welke afzonderlijke werkzaamheden in een installatieprijs zijn opgenomen.",
+    "Wesley Keeris Installatietechniek geeft een levertijd van 2 tot 4 weken en een installatieduur van 1 dag op; dat is een eerste beeld van de planning, geen garantie voor iedere woning.",
+  ];
+  for (const z of vnb) ok(`voorbehoud na bewijs: "${z.slice(0, 45)}..."`, voorbehoudNaBewijs(z).length === 1);
+
+  ok("een toezegging in de wij-vorm", isToezegging("Bij ons duurt een APK een uur.", "Garage Test"));
+  ok("met de bedrijfsnaam", isToezegging("Garage Test levert binnen een week.", "Garage Test"));
+  ok("algemene uitleg is geen toezegging", !isToezegging("Een APK duurt meestal een uur.", "Garage Test"));
+
+  const s = bestStrategie();
+  const metRegenwater = checkBestemmingen(s, "Een tuin in Best kost meestal € 20.000.\nWelke regels in Best gelden voor het afvoeren van regenwater, hangt af van de gemeente.");
+  eq("een punt met bestemming C in de tekst wordt gevonden", metRegenwater.aOfCInTekst.map((a) => a.bestemming).join(","), "C");
+  const tweeKeer = checkBestemmingen(s, "Vooral de stenen die je kiest maken het verschil. En nogmaals: vooral de stenen die je kiest maken het verschil.");
+  eq("het toegestane voorbehoud twee keer is een waarschuwing", String(tweeKeer.bVaker[0]?.aantal ?? 0), "2");
+
+  const collect = leesBestand("lib/pipeline/quality-collect.ts");
+  ok("bronpraat is blokkerend", /bron: "bronpraat",/.test(collect) && collect.includes("De pagina schrijft namens het bedrijf. Wat wij niet weten"));
+  ok("de reparatie nuanceert niet meer", !/nuanceer/i.test(leesBestand("lib/pipeline/quality-repair.ts")));
+  ok("en schrijft niet algemener", !leesBestand("lib/pipeline/content.ts").includes("schrijf hem algemener"));
+  ok("hoogstens twee reparatierondes", leesBestand("lib/pipeline/content.ts").includes("const REPAIR_MAX = 2;"));
+  ok("de feitelijkheidsbeoordelaar jaagt niet meer op algemene uitleg", !leesBestand("lib/pipeline/content-panel.ts").includes("elke ALGEMENE uitleg die als belofte"));
 });

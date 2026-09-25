@@ -104,6 +104,8 @@ export const ISSUE_BRONNEN = [
   "feitbehoud",
   /** WP4 van contentpijplijn-publicatiewaardig.md: voert de tekst de paginastrategie uit? */
   "strategie",
+  /** WP6: een punt met bestemming A of C in de tekst, of een voorbehoud na een bewijsstuk. */
+  "onzekerheid",
 ] as const;
 export type IssueBron = (typeof ISSUE_BRONNEN)[number];
 

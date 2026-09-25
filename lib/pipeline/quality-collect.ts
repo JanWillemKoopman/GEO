@@ -80,6 +80,15 @@ export interface KwaliteitsInvoer {
   coverage: CoverageResult;
   quality: QualityResult;
   bronpraat: SourceTalkResult;
+  /**
+   * WP6: zinnen over wat wij niet weten (blokkerend), een voorbehoud na een
+   * bewijsstuk (waarschuwing), en de bestemmingen uit de strategie.
+   */
+  onzekerheid?: {
+    gatzinnen: string[];
+    voorbehoudNaBewijs: string[];
+    bestemmingen: import("@/lib/pipeline/onzekerheid").BestemmingUitslag | null;
+  };
   /** V2: spreekt de pagina de lezer overal hetzelfde aan? */
   aanspreekvorm?: AanspreekvormResult;
   /** V5: negeert de pagina een instructie die de klant zelf gaf? */
@@ -437,10 +446,10 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
           dimension: "feitelijkheid",
           severity: "midden",
           section: null,
-          finding: `Deze algemene uitleg leest als een belofte van dit bedrijf: "${claim}".`,
+          finding: `Deze zin zegt iets toe namens het bedrijf zonder feit op de kaart: "${claim}".`,
           evidence: claim,
-          expected: "Algemene uitleg blijft algemeen geformuleerd.",
-          recommendation: "Formuleer hem algemeen, of onderbouw hem als belofte.",
+          expected: "Een toezegging van het bedrijf rust op een feit van de kaart.",
+          recommendation: "Onderbouw hem met een F-nummer of haal de toezegging weg. Zet er geen voorbehoud achter.",
           blocking: false,
           confidence: MODELOORDEEL,
           bron: "feitelijkheid",
@@ -668,19 +677,80 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
     );
   }
 
-  for (const zin of invoer.bronpraat.sentences.slice(0, 5)) {
+  // ── Bronpraat en gatzinnen: blokkerend sinds WP6 (§12.1) ──────────────────
+  //
+  // Een zin over onze bronnen of over wat wij niet weten ("is niet
+  // vastgelegd", "De beschikbare prijsinformatie benoemt niet") was een
+  // waarschuwing, en de pagina ging erdoor. De fase-1-norm van het plan is nul
+  // zulke zinnen (§14.2). De reparatie haalt ze weg; aanvullen kan niet, want er
+  // is geen feit.
+  const bronzinnen = Array.from(
+    new Set([...invoer.bronpraat.sentences, ...(invoer.onzekerheid?.gatzinnen ?? [])]),
+  );
+  for (const zin of bronzinnen.slice(0, 8)) {
     issues.push(
       maak(invoer, {
         dimension: "feitelijkheid",
-        severity: "hoog",
+        severity: "blokkerend",
         section: null,
-        finding: `Deze zin gaat over onze eigen bronnen in plaats van over het onderwerp: "${zin}".`,
+        finding: `Deze zin gaat over onze bronnen of over wat wij niet weten, in plaats van over het onderwerp: "${zin}".`,
         evidence: zin,
-        expected: "De pagina schrijft namens het bedrijf, niet over onze feitenkaart.",
-        recommendation: "Herschrijf hem als gewone zin op de site van de klant.",
-        blocking: false,
+        expected: "De pagina schrijft namens het bedrijf. Wat wij niet weten, is een vraag aan de ondernemer en geen zin op de site.",
+        recommendation: "Haal de zin weg. Schrijf niet op dat iets niet bekend of niet vastgelegd is.",
+        blocking: true,
         confidence: ZEKER,
         bron: "bronpraat",
+      }),
+    );
+  }
+  for (const a of invoer.onzekerheid?.bestemmingen?.aOfCInTekst ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "relevantie",
+        severity: "blokkerend",
+        section: null,
+        finding:
+          a.bestemming === "A"
+            ? `Hierover vragen wij de ondernemer eerst, en toch staat het in de tekst: "${a.zin}".`
+            : `Dit punt liet de strategie bewust weg, en toch staat het in de tekst: "${a.zin}".`,
+        evidence: a.punt,
+        expected: "Een punt met bestemming A of C staat niet op de pagina (§7.1).",
+        recommendation: "Haal de zin weg.",
+        blocking: true,
+        confidence: ZEKER,
+        bron: "onzekerheid",
+      }),
+    );
+  }
+  for (const zin of (invoer.onzekerheid?.voorbehoudNaBewijs ?? []).slice(0, 3)) {
+    issues.push(
+      maak(invoer, {
+        dimension: "toon",
+        severity: "hoog",
+        section: null,
+        finding: `Dit voorbehoud zwakt een bewijsstuk direct weer af: "${zin}".`,
+        evidence: zin,
+        expected: "Bewijs staat stellig; een voorbehoud alleen bij geld, veiligheid, wet, zorg of op verzoek van de klant (§7.2).",
+        recommendation: "Haal het voorbehoud weg en laat het bewijs staan.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "onzekerheid",
+      }),
+    );
+  }
+  for (const b of invoer.onzekerheid?.bestemmingen?.bVaker ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "toon",
+        severity: "midden",
+        section: null,
+        finding: `Het toegestane voorbehoud staat ${b.aantal} keer op de pagina: "${b.formulering}".`,
+        evidence: b.formulering,
+        expected: "Een toegestaan voorbehoud staat één keer op de pagina.",
+        recommendation: "Laat het één keer staan, op de plek waar het de lezer helpt.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "onzekerheid",
       }),
     );
   }

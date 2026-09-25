@@ -122,9 +122,12 @@ export function bouwReparatieOpdracht(input: ReparatieOpdrachtInput): string {
               .join("\n")}`
           : "  TOEGESTAAN BEWIJS: geen. Er is voor deze sectie geen bevestigd feit.",
         ontbreekt.length > 0 || bewijs.length === 0
-          ? "  ONTBREKEND BEWIJS: verzin hier niets bij. Kan de bewering niet verantwoord onderbouwd " +
-            "worden, nuanceer hem of laat hem weg. Schrijf ook NIET dat iets niet bekend is en vraag " +
-            "de lezer niet om contact op te nemen om het na te vragen: dat is geen antwoord."
+          ? // WP6 van contentpijplijn-publicatiewaardig.md (§12.4): de opdracht om te nuanceren is weg.
+            // Een afgezwakte bewering is een voorbehoud, en dat was precies de
+            // relativering die de lezers als eerste noemden. Weglaten is de enige route.
+            "  ONTBREKEND BEWIJS: verzin hier niets bij. Kan de bewering niet onderbouwd worden, laat " +
+            "hem weg. Zet er geen voorbehoud bij, schrijf NIET dat iets niet bekend of niet vastgelegd " +
+            "is, en vraag de lezer niet om contact op te nemen om het na te vragen: dat is geen antwoord."
           : "",
         lijst
           .filter((i) => i.recommendation?.trim())
