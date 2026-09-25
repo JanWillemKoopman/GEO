@@ -1,0 +1,74 @@
+{
+  "paginas": [
+    {
+      "pagina": 1,
+      "fout_of_verzonnen": [
+        {
+          "citaat": "de uitvoering duurt 2 tot 3 weken",
+          "probleem": "De ondernemer noemt twee tot drie weken als doorlooptijd van een gemiddelde tuinaanleg. De tekst maakt er een vaste belofte van, ook voor tuinen van € 35.000. Er hoort 'gemiddeld' of 'meestal' bij.",
+          "ernst": "middel"
+        },
+        {
+          "citaat": "van ontwerp en grondwerk tot bestrating, beplanting, afvoer en oplevering",
+          "probleem": "Grondwerk en afvoer staan niet in de gegevens van het bedrijf. Het is aannemelijke vakkennis, maar niet bevestigd.",
+          "ernst": "laag"
+        },
+        {
+          "citaat": "Je kunt daarna gratis een offerte aanvragen.",
+          "probleem": "Klopt met de site, maar de sterkste belofte van de site ontbreekt: een scherpe offerte binnen 4 uur. De tekst wekt zo de indruk van een trager traject.",
+          "ernst": "laag"
+        },
+        {
+          "citaat": "A: Beperk verharding waar mogelijk en laat regenwater op eigen terrein infiltreren.",
+          "probleem": "Geen verzonnen feit, maar een advies dat ingaat tegen wat de pagina verkoopt (tuinaanleg met bestrating). Bij de vraag over verzakking ontbreekt de echte garantie van vijf jaar op bestrating.",
+          "ernst": "laag"
+        }
+      ],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "Hij zou de dunne, herhalende blokken over prijs en materiaal vervangen door wat hem echt onderscheidt: 3D-ontwerp voor € 450 (verrekend bij opdracht), vijf jaar garantie op bestrating, een jaar op aanplant, werken met gebakken klinkers en keramische tegels, 35 jaar ervaring, 4,9 uit 5 en de offerte binnen 4 uur. Daarnaast zou hij de toon Brabantser en hartelijker maken, want nu klinkt het als een formulier.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 5,
+      "copywriter_problemen": [
+        {
+          "citaat": "De uitvoering duurt 2 tot 3 weken; in het voorjaar plannen we 4 tot 8 weken vooruit.",
+          "probleem": "Letterlijke herhaling van de intro. Dezelfde cijfers staan twee keer op een korte pagina."
+        },
+        {
+          "citaat": "De genoemde prijsindicatie geldt voor tuinaanleg met bestrating. Daarmee heb je een bedrag om je plannen voor een nieuwe tuin in Best tegen af te zetten.",
+          "probleem": "Een hele sectie die alleen naar de intro terugverwijst en niets nieuws zegt. Het bedrag staat niet eens in de sectie met die kop."
+        },
+        {
+          "citaat": "De keuze van materialen maakt verschil in de prijs van tuinaanleg met bestrating. Dat is een onderdeel om mee te nemen wanneer je bedenkt hoe je jouw tuin wilt inrichten.",
+          "probleem": "Holle sectie: geen materialen, geen voorbeeld, geen prijsverschil. Klinkers en keramische tegels waren bekend en worden niet genoemd."
+        },
+        {
+          "citaat": "Zo weet je dat ons vaste team in jouw tuin aan de slag gaat.",
+          "probleem": "Rondredenering die het vorige zinsdeel herhaalt in plaats van het voordeel uit te leggen (vaste aanspreekpunten, kennis van elkaars werk)."
+        },
+        {
+          "citaat": "Daarmee houdt het contact niet op zodra de tuin is aangelegd.",
+          "probleem": "Vulzin. Het waarom van de terugkomafspraak (planten controleren, bestrating nalopen) blijft onbenoemd."
+        },
+        {
+          "citaat": "Die vooruitplanning geeft aan hoe ver we ons werk in die periode inplannen, niet op welke dag jouw project begint.",
+          "probleem": "Kromme, ambtelijke uitleg die verwarring oproept in plaats van weg te nemen."
+        },
+        {
+          "citaat": "Vertel Hans Verstraaten Hoveniers wat je met je tuin in Best wilt",
+          "probleem": "Springt van wij-vorm naar derde persoon, duidelijk ingevoegd voor zoekmachines."
+        },
+        {
+          "citaat": "Complete tuinaanleg in Best",
+          "probleem": "Best wordt als zoekwoord herhaald, maar er staat niets lokaals in: geen wijken, geen grondsoort, geen voorbeeldproject, geen Son en Breugel."
+        }
+      ],
+      "ai_citeerbaar": "ja",
+      "beste_citeerbare_zin": "Tuinaanleg met bestrating kost bij ons meestal € 12.000 tot € 35.000; de gekozen materialen maken verschil in de prijs.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "De huidige pagina is algemene verkooppraat zonder één concreet cijfer en bevat beweringen die nergens bevestigd worden (subsidiebegeleiding, milieuvriendelijke materialen). De nieuwe tekst geeft prijs, doorlooptijd, planning, ploeggrootte en aantal tuinen per jaar: beter voor de bezoeker en voor AI-antwoorden. Wel verliest de nieuwe tekst de reviews, het offerteformulier en de belofte van een offerte binnen 4 uur, en is hij dun en herhalend.",
+      "past_bij_adres": true
+    }
+  ],
+  "rode_draad": "De tekst zet de juiste harde feiten neer, maar herhaalt ze in plaats van ze uit te werken, waardoor hele secties hol worden. De sterkste bewijzen (3D-ontwerp, garanties, materialen, offerte binnen 4 uur, 4,9 uit 5) en de Brabantse, hartelijke toon ontbreken, net als elke lokale inhoud over Best.",
+  "niveau_professionele_copywriter": "nee"
+}

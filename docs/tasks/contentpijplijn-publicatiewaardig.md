@@ -4,7 +4,7 @@
 de teksten voor Hans Verstraaten Hoveniers, Wesley Keeris Installatietechniek en Autorijschool
 Pompert.
 
-**Status: in aanbouw, fase 1.** Per werkpakket staat de stand onder "Stand van de bouw" aan het
+**Status: fase 1 gebouwd en nagemeten (25 september 2026), doel niet gehaald; wacht op het besluit van de eigenaar over fase 2.** De uitslag staat in §14.2 onder "Nameting fase 1". Per werkpakket staat de stand onder "Stand van de bouw" aan het
 eind van §13. De eigenaar heeft op
 25 september 2026 de keuzes gemaakt die in §2 staan. Er gaat geen losse proef of modelvergelijking
 aan de bouw vooraf; elke fase wordt wel, zoals conventie 10 vraagt, na de bouw nagerekend op echte
@@ -1213,8 +1213,8 @@ vangnet; `docs/contentpijplijn-overdracht.md` herschrijven.
 | WP5 | Code klaar (25 september 2026): taak `content_edit` na het schrijven bij een pagina met strategie; L8 op Sol met denktijd hoog; de vangnetten (nieuw getal of verzonnen F-nummer of langer dan het budget draait terug naar het concept, een verdwenen prioriteitsfeit blokkeert via de keuring); het logboek per wijziging in `edit_log_json`; daarna de keuring, die bij zo'n pagina uit `content_draft` is gehaald. Hergebruik na een time-out zonder tweede aanroep, en dezelfde achtergrondmodus als WP3. "Klaar als" (de zwemvijverzin en de prijsband vier keer op Nuenen weg, de gemeten duur) na merge |
 | WP4 | Code klaar (25 september 2026): met een strategie krijgt de schrijver de strategie, de afgeleide opbouw, alleen de gekozen feiten plus de verboden, de stem en de harde regels; regel 7, 10 en 11 van de schrijfprompt zeggen dat weglaten mag (`weggelaten`, bewaard bij de strategie van de versie). De dekking meet de strategie: een uitgesloten onderwerp en een ontbrekend prioriteitsfeit blokkeren, een sectie buiten de opbouw is een bevinding. De reparatie krijgt de strategie in plaats van het contract en kan een uitgesloten sectie weghalen. Afwijking: `content_draft` keurt nog zelf; dat verhuist in WP5 naar `content_edit`, zodat elke tussenstand een werkende keten is. "Klaar als" (schrijfinvoer onder 9.000 tokens, geen sectie buiten de strategie) wordt na merge op `ai_calls` nagerekend |
 | WP1 | Code klaar (25 september 2026): waardeproposities en feitenkaart zonder herkomsttaal, de zes stemvelden in de schrijfopdracht. Het stemvoorstel voor de drie klanten wacht op akkoord (`schrijfstijl-voorstel-drie-klanten.md`); "klaar als" pas na dat akkoord en een nieuwe schrijfaanroep per merk |
-| WP3 | Code klaar, migratie `0114` op productie (25 september 2026): taak `content_strategy` tussen plannen en schrijven, L5 op Sol met denktijd hoog (werksoort `redactioneel`), de controles in code, de conflictpoort met wachten en vanzelf herstarten, de duur van elke aanroep in `ai_calls.duration_ms`, en de achtergrondmodus (starten, in een vervolgtaak ophalen, nooit dubbel starten), die aangaat zodra een aanroep boven 120 seconden komt. De strategie wordt bewaard maar stuurt de schrijver pas vanaf WP4. Afwijking: het dossier labelt zijn vragen nog niet als beslis-, oriëntatie- of randvraag; de strategie doet die weging zelf. "Klaar als" (geen consumentenadviessecties en een budget onder de 800 woorden op de kostenpagina van de installateur en op Best, en de gemeten duur) kan pas na merge worden nagerekend |
-| WP2 | Code klaar, migratie `0113` op productie (25 september 2026): feiten indelen (L1), kandidaat-conflicten in code, beoordelen (L2), het conflictscherm `admin/feiten`, en betwiste feiten van de kaart. De poort per pagina (`houdtPaginaTegen()`) wordt in WP3 aangesloten. "Klaar als" pas na de eerste run op de drie merken en het nalopen van elk gevonden conflict; dat kan pas als de code op productie staat |
+| WP3 | Code klaar, migratie `0114` op productie (25 september 2026): taak `content_strategy` tussen plannen en schrijven, L5 op Sol met denktijd hoog (werksoort `redactioneel`), de controles in code, de conflictpoort met wachten en vanzelf herstarten, de duur van elke aanroep in `ai_calls.duration_ms`, en de achtergrondmodus (starten, in een vervolgtaak ophalen, nooit dubbel starten), die aangaat zodra een aanroep boven 120 seconden komt. De strategie wordt bewaard maar stuurt de schrijver pas vanaf WP4. Afwijking: het dossier labelt zijn vragen nog niet als beslis-, oriëntatie- of randvraag; de strategie doet die weging zelf. "Klaar als" gehaald bij de nameting van fase 1: geen consumentenadviessecties, budget 390 (Best) en 600 (kosten), duur 93 tot 108 seconden |
+| WP2 | Code klaar, migratie `0113` op productie (25 september 2026): feiten indelen (L1), kandidaat-conflicten in code, beoordelen (L2), het conflictscherm `admin/feiten`, en betwiste feiten van de kaart. De poort per pagina (`houdtPaginaTegen()`) wordt in WP3 aangesloten. "Klaar als" gehaald op 25 september 2026: eerste run op de drie merken, 408 feiten ingedeeld, geen conflict gevonden, met de hand nagelopen (zie §14.2, nameting fase 1) |
 
 ### Volgorde en afhankelijkheden
 WP1 en WP2 kunnen parallel. WP3 hangt aan WP2 (de poort) en levert wat WP4, WP5, WP6 en WP7 nodig
@@ -1279,6 +1279,49 @@ antwoorden van de klant en dezelfde blinde lezers en vragenlijst
 | Ondernemer publiceert niet | 5 van 16 | 6 van 21 | hoogstens 2 | 0 | 0 |
 | Zinnen over bronnen of werkproces | niet geteld | ruwe telling 61 en 63 indekformuleringen bij hovenier en installateur | 0 | 0 | 0 |
 | Kosten per artikel | | ongeveer $0,16 tot $0,18 | ongeveer $0,37 | ongeveer $0,37 | ongeveer $0,37 |
+
+#### Nameting fase 1 (25 september 2026)
+Op verzoek van de eigenaar zuinig: twee pagina's in plaats van alle drie de merken, Best van de
+hovenier en de kostenpagina van de installateur (de twee referentiepagina's van WP3). Beide door de
+hele nieuwe keten op productie, met de voorbereiding van de vorige versie (geen nieuw onderzoek).
+Opdrachten, teksten en oordelen staan in `kwaliteitsdoorlichting/nameting-fase1/`.
+
+| Maat | Doel na fase 1 | Best | Kostenpagina |
+|---|---|---|---|
+| Copywritercijfer (vorige versie) | 6,5 of hoger | 5 (was 5) | 3 (was 3) |
+| Ondernemer publiceert | zo | met aanpassingen | nee |
+| Vergelijking oud tegen nieuw | nieuw beter | oud beter, zekerheid 3 van 5 | nieuw beter, zekerheid 2 van 5 |
+| Zinnen over bronnen of werkproces | 0 | 0 | 0 |
+| Zinnen uit §14.3 | weg | weg | weg |
+| Kosten per pagina | ongeveer $0,37 | $0,26 | $0,31 |
+| Schrijfinvoer | onder 9.000 tokens | 5.835 | 5.339 |
+
+**Wat werkt.** Alle zinnen uit §14.3 voor deze twee pagina's zijn weg, net als elke zin over wat wij
+niet weten. De strategie kiest vier tot zes prioriteitsfeiten en laat de consumentenadviessecties weg
+(offertes vergelijken, gedeelde rookgasafvoer, aanbetaling). De achtergrondmodus werkt: de
+eindredactie duurde 179 tot 359 seconden en is zonder dubbele aanroep opgehaald. Het feitenregister
+deelde 408 feiten in voor $0,016 en vond geen conflict; met de hand nagelopen klopt dat, ook bij de
+twee intakeprijzen van de rijschool (kantoor en auto).
+
+**Wat niet werkt.** De pagina's zijn te dun. De strategie schrapt alles waar geen feit onder ligt,
+en zet de vraag waar de lezer voor kwam ("wat zit er in de prijs") op "eerst vragen". De schrijver
+vult het budget dan met herhaling (bij Best staan doorlooptijd en prijs twee keer, en twee secties
+zeggen niets nieuws). Sterk bewijs dat wel op de kaart staat, blijft liggen: 35 jaar ervaring, 4,9 uit
+5, het 3D-ontwerp en de offerte binnen 4 uur bij de hovenier. De stem is nog de oude (het voorstel
+wacht op akkoord); beide lezers noemen de toon "als een formulier".
+
+**Kanttekeningen bij de meting.** Twee lezers per pagina is geen steekproef. De lezer van de
+kostenpagina rekent de CO-certificering en de merken Intergas en Vaillant als verzonnen; die staan wel
+op `/ketelvervanging` en ontbreken in het waarheidsdossier, dus dat dossier is onvolledig. Wel echt
+fout: de levertijd van twee tot vier weken en de installatie in één dag horen bij de hybride
+warmtepomp, niet bij de ketel. Het klantantwoord zegt dat niet, dus de fout zit in de invoer en niet
+in de keten.
+
+**Gevonden en hersteld tijdens de nameting** (met test, op productie): een F-nummer met de feittekst
+erachter werd weggegooid, waardoor de strategie alle prioriteitsfeiten verloor (PR 144); de
+eindredactie mocht een prioriteitsfeit schrappen en de tekst leegschrappen, en de metatitel eindigde
+op een halve bedrijfsnaam (PR 145). Nog open: de metabeschrijving kan op dezelfde manier midden in de
+naam afbreken ("Installatietechnh").
 
 ### 14.3 De zinnen die weg moeten
 

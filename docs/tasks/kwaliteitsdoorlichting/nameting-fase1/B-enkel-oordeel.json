@@ -1,0 +1,77 @@
+{
+  "paginas": [
+    {
+      "pagina": 1,
+      "fout_of_verzonnen": [
+        {
+          "citaat": "Wij beschikken over een CO-certificering volgens de Gasketelwet.",
+          "probleem": "Dit staat nergens in de waarheid. Het bewijs dat de ondernemer noemt is erkend installateur via InstallQ. Een verzonnen certificering is juridisch riskant en staat ook nog eens in de opening en in de FAQ.",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "Wij plaatsen ketels van Intergas, Remeha, Nefit en Vaillant.",
+          "probleem": "Het bedrijf is official dealer van Nefit en Remeha. Intergas en Vaillant zijn verzonnen, en daarmee valt ook het dealerschap als argument weg.",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "A: Een CO-certificering volgens de Gasketelwet is relevant voor werkzaamheden aan een gasketel. Wij beschikken over die certificering.",
+          "probleem": "Herhaalt dezelfde verzonnen claim, nu in een FAQ-antwoord dat AI-assistenten letterlijk overnemen.",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "V: Maakt een warmtepomp geen herrie?\nA: Nee, een warmtepomp is tijdens bedrijf niet geluidloos.",
+          "probleem": "Een vraag over warmtepompen op een pagina over ketelvervanging. Het antwoord spreekt zichzelf tegen ('Nee' gevolgd door 'niet geluidloos') en laat de echte feiten weg: trillingdempers, plaatsing in overleg, minstens drie meter van de erfgrens.",
+          "ernst": "middel"
+        },
+        {
+          "citaat": "De levertijd na uw offerteaanvraag is 2 tot 4 weken",
+          "probleem": "De levertijd van twee tot vier weken hoort bij de hybride warmtepomp. Voor ketelvervanging is geen levertijd opgegeven, en 'na uw offerteaanvraag' is een aanname.",
+          "ernst": "middel"
+        },
+        {
+          "citaat": "De installatie duurt 1 dag.",
+          "probleem": "De ondernemer noemt één dag voor de installatie van een hybride warmtepomp, niet voor een ketelvervanging. Het getal wordt dus overgeplant naar een andere dienst.",
+          "ernst": "middel"
+        },
+        {
+          "citaat": "Omschrijving in Google: ... bij Wesley Keeris Installatietechnh",
+          "probleem": "De bedrijfsnaam is afgekapt en bevat een tikfout, en dat in het eerste dat een zoeker ziet.",
+          "ernst": "laag"
+        }
+      ],
+      "ondernemer_publiceert": "nee",
+      "ondernemer_verandert_eerst": "De verzonnen CO-certificering en de merken Intergas en Vaillant eruit halen, en in plaats daarvan InstallQ-erkenning en het dealerschap van Nefit en Remeha noemen.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 3,
+      "copywriter_problemen": [
+        {
+          "citaat": "De prijs verschilt per gekozen ketel en het werk dat voor uw installatie nodig is.",
+          "probleem": "Een holle zin. De pagina belooft uit te leggen wat bij de prijs hoort, maar noemt geen enkel onderdeel: afvoer, montage, afvoeren van de oude ketel, btw."
+        },
+        {
+          "citaat": "## Een gewone cv-ketel laten plaatsen is mogelijk\n\nBij ketelvervanging plaatsen wij cv-ketels.",
+          "probleem": "Een tautologie, en een kromme kop die antwoord geeft op een vraag die de lezer hier niet stelt."
+        },
+        {
+          "citaat": "## U kunt een offerte aanvragen via Neem contact op",
+          "probleem": "Een kromme kop: de linktekst staat als zin in de kop."
+        },
+        {
+          "citaat": "## De prijs voor ketelvervanging ligt in een bandbreedte",
+          "probleem": "Een ambtelijke, nietszeggende kop. Het bedrag zelf hoort in de kop."
+        },
+        {
+          "citaat": "Wesley Keeris Installatietechniek noemt €2.200 tot €3.200 inclusief installatie.",
+          "probleem": "Het bedrijf spreekt over zichzelf in de derde persoon en direct daarna in de wij-vorm. De tekst is extreem dun en laat sterk bewijs liggen: twaalf monteurs, meer dan 1.800 contracten, storingsdienst binnen 24 uur."
+        }
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "Na ketelvervanging bieden wij een onderhoudscontract aan voor €12 tot €15 per maand. Het contract omvat een jaarlijkse beurt, voorrang bij storing en geen voorrijkosten.",
+      "vergelijking_huidig": "geen_huidige",
+      "waarom_vergelijking": "Het is een nieuwe pagina; er is geen huidige tekst om mee te vergelijken.",
+      "past_bij_adres": true
+    }
+  ],
+  "rode_draad": "De tekst vult gaten met verzonnen bewijs (een certificering en extra ketelmerken) en haalt feiten over de warmtepomp naar de ketelpagina, terwijl de echte sterke punten van de ondernemer ongebruikt blijven. Daarnaast is hij zo dun en houterig dat hij de belofte 'wat hoort bij de prijs' niet waarmaakt.",
+  "niveau_professionele_copywriter": "nee"
+}
