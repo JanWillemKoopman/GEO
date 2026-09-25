@@ -4,7 +4,8 @@
 de teksten voor Hans Verstraaten Hoveniers, Wesley Keeris Installatietechniek en Autorijschool
 Pompert.
 
-**Status: besloten plan, klaar om te bouwen. Niets hiervan is gebouwd.** De eigenaar heeft op
+**Status: in aanbouw, fase 1.** Per werkpakket staat de stand onder "Stand van de bouw" aan het
+eind van §13. De eigenaar heeft op
 25 september 2026 de keuzes gemaakt die in §2 staan. Er gaat geen losse proef of modelvergelijking
 aan de bouw vooraf; elke fase wordt wel, zoals conventie 10 vraagt, na de bouw nagerekend op echte
 data (§14).
@@ -1202,6 +1203,12 @@ inwoners is een besluit van de eigenaar en verandert alleen op zijn verzoek.
 kolom `writer_brief_json` blijft bestaan voor oude pagina's (additief, nooit `drop`); de
 formuleringlijsten (`SLAP`, `VOORBEHOUD`, de families van `checkSourceTalk`) terug naar een klein
 vangnet; `docs/contentpijplijn-overdracht.md` herschrijven.
+
+### Stand van de bouw
+
+| Werkpakket | Stand |
+|---|---|
+| WP1 | Code klaar (25 september 2026): waardeproposities en feitenkaart zonder herkomsttaal, de zes stemvelden in de schrijfopdracht. Het stemvoorstel voor de drie klanten wacht op akkoord (`schrijfstijl-voorstel-drie-klanten.md`); "klaar als" pas na dat akkoord en een nieuwe schrijfaanroep per merk |
 
 ### Volgorde en afhankelijkheden
 WP1 en WP2 kunnen parallel. WP3 hangt aan WP2 (de poort) en levert wat WP4, WP5, WP6 en WP7 nodig

@@ -12374,3 +12374,23 @@ op de proefset van de doorlichting. Een werkgebiedpagina mag geadviseerd worden,
 gemeente vanaf 50.000 inwoners) houden een eigen pagina. De schrijfstijl hoort volledig in het merkdossier. Een bronconflict houdt een pagina
 alleen tegen als het betwiste feit op die pagina nodig is. Het bouwplan staat in drie fases en zestien
 werkpakketten in het plan zelf.
+
+## 25 september 2026: WP1, de invoer van de schrijver zonder herkomsttaal
+
+Eerste werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`. De waardeproposities gingen
+letterlijk de schrijfopdracht in, met herkomst en dubbelingen: bij de hovenier 11 regels, waarvan 5
+tweemaal dezelfde en 5 met "volgens de website" of "naar eigen zeggen". Nu schoont
+`lib/pipeline/waardeproposities.ts` ze vóór de schrijfopdracht en bij het opslaan van het
+profielonderzoek: van 11 naar 7 regels bij de hovenier, van 8 naar 4 bij de installateur, van 9 naar
+6 bij de rijschool, en geen herkomsttaal meer. Een regel die niet zonder omzetting schoon te krijgen is
+("De website stelt dat het bedrijf tuinen ... realiseert") vervalt; bij alle drie stond dezelfde
+propositie ook in een schone vorm.
+
+Bij het narekenen op de schrijfaanroepen van 25 september bleek de feitenkaart zelf dezelfde afstand
+te dragen: 26 van de 45 proof points van de drie merken begonnen met "De website vermeldt" of "De
+website noemt". De kaart toont ze nu zonder dat voorvoegsel; wat overblijft is letterlijk een stuk van
+het feit, zodat de citaatcontrole blijft kloppen. Het profielonderzoek vraagt voortaan om de bewering
+zelf. De zes stemvelden die nergens heen gingen (kennisniveau, eigen uitdrukkingen, kernwoorden,
+onderscheid, USP, kernboodschappen) gaan nu mee in de schrijfopdracht (`lib/pipeline/stemvelden.ts`).
+Ze zijn bij alle drie de merken nog leeg; het voorstel om ze te vullen staat in
+`docs/tasks/schrijfstijl-voorstel-drie-klanten.md` en wacht op akkoord van de eigenaar.
