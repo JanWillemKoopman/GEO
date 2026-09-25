@@ -2,7 +2,8 @@
 
 **Opgesteld:** 25 september 2026, op verzoek van de eigenaar, naar aanleiding van externe feedback op
 de teksten voor Hans Verstraaten Hoveniers, Wesley Keeris Installatietechniek en Autorijschool
-Pompert. **Status: voorstel, niets hiervan is gebouwd.** Dit document beschrijft wat er vandaag
+Pompert. **Status: voorstel, niets hiervan is gebouwd.** Bijgewerkt op dezelfde dag met de besluiten van de
+eigenaar (§15), een zuinigere kostenvariant (§11) en de controle van het merkdossier (§7.5). Dit document beschrijft wat er vandaag
 gebeurt, waarom dat tot de gemelde problemen leidt, en hoe de pijplijn eruit zou moeten zien als
 contentkwaliteit net zo zwaar weegt als vindbaarheid. Er is geen code gewijzigd.
 
@@ -65,23 +66,25 @@ nieuwe formuleringen voor hetzelfde gat. Dat is het teken dat het probleem struc
 
 **Het voorstel in vijf wijzigingen**, de rest van dit document werkt ze uit:
 
-1. **Een contentstrateeg vóór het schrijven**, op een sterk model met veel denktijd, die kiest wat
+1. **Een contentstrateeg vóór het schrijven**, op GPT-6 Sol, die kiest wat
    er op de pagina komt en vooral wat niet, met per onderwerp een reden en per onzekerheid een
    bestemming (intern oplossen, uitleggen, of weglaten). Deze stap vervangt het contract en de
    schrijfopdracht als twee losse stappen.
 2. **Een feitenregister met conflictdetectie en een poort**: tegenstrijdige prijzen, termijnen,
    plaatsen, certificeringen en garanties houden de pagina tegen en gaan als vraag naar de adviseur,
    nooit als zin naar de lezer.
-3. **Een merkstemprofiel per klant**, opgesteld uit alles wat we weten en één keer goedgekeurd door
-   de adviseur, dat meegaat naar de schrijver, de redacteur en een eigen beoordelaar.
+3. **Een uitgebreide schrijfstijl in het merkdossier**, voorgesteld uit alles wat we weten en één
+   keer goedgekeurd door de adviseur, die meegaat naar de schrijver, de redacteur en een eigen
+   beoordelaar.
 4. **Een eindredacteur na het schrijven**, die schrapt, relativeringen weghaalt die niet nodig zijn,
    herhaling eruit haalt en de tekst op de merkstem zet, met een logboek van wat hij veranderde.
 5. **Een portfoliostap per plan** die pagina's over hetzelfde onderwerp in verschillende plaatsen
    elk een eigen hoek geeft, of zegt dat een aparte pagina hier geen zin heeft.
 
-De kosten per pagina gaan naar schatting van ongeveer $0,18 nu naar $0,70 tot $1,00, en naar
-ongeveer $2,50 als het duurste model de strategie en de eindredactie doet. Ter vergelijking: één
-meetronde kost $0,82.
+De kosten per pagina blijven naar schatting in dezelfde orde: van ongeveer $0,18 nu naar $0,20 tot
+$0,30, met GPT-6 Sol voor strategie, schrijven en eindredactie op dezelfde denktijd als het schrijven
+nu. De eerste versie van dit plan noemde $0,70 tot $1,00; §11 legt uit waar dat verschil zit. Ter
+vergelijking: één meetronde kost $0,82.
 
 ---
 
@@ -405,7 +408,7 @@ van vijf, 60 tot 70 tuinen per jaar, twaalf monteurs, 1.800 onderhoudscontracten
 elk met een sterkte en een regel voor hoe stellig hij gebracht mag worden. Standaard: stellig en
 zonder voorbehoud, want de klant heeft hem bevestigd of hij staat op zijn eigen site.
 
-**1d. Merkstemprofiel.** Zie §7. Een sterk model stelt het op uit de hele sitetekst, het gesprek, de
+**1d. Schrijfstijl in het merkdossier.** Zie §7. GPT-6 Sol stelt een voorstel op uit de hele sitetekst, het gesprek, de
 letterlijke antwoorden van de ondernemer en de velden die nu ongebruikt blijven. De adviseur keurt
 het één keer goed, vóór de eerste pagina.
 
@@ -423,13 +426,13 @@ werkgebiedpagina, of stel de ondernemer eerst een vraag over projecten daar. Zie
 | # | Stap | Soort | Wat hij doet |
 |---|---|---|---|
 | 3a | Zoekintentie en lezersvragen | licht model met web (het huidige itemdossier, bijgesteld) | welke vragen iemand met deze intentie heeft, nu ook: wat verwacht deze lezer van een aanbieder te horen |
-| 3b | **Paginastrategie** | **sterk model, veel denktijd** | de redactionele keuze: doel, lezer, kernboodschap, gekozen feiten en onderwerpen, uitgesloten onderwerpen met reden, bestemming per onzekerheid, lengtebudget, oproep tot actie, FAQ-kandidaten |
+| 3b | **Paginastrategie** | **GPT-6 Sol** | de redactionele keuze: doel, lezer, kernboodschap, gekozen feiten en onderwerpen, uitgesloten onderwerpen met reden, bestemming per onzekerheid, lengtebudget, oproep tot actie, FAQ-kandidaten |
 | 3c | Poort vóór het schrijven | code | open conflict op een gekozen feit, of een kernonderwerp zonder feit: niet schrijven, vraag naar adviseur of ondernemer |
 | 3d | Opbouw | code, uit 3b | secties met doel, feiten en woordbudget; alleen onderwerpen die 3b opnam |
 | 3e | FAQ-selectie | licht model plus code | kandidaten toetsen: niet al in de tekst, commercieel relevant, te beantwoorden met een feit of vaste vakkennis; nul vragen is een geldige uitkomst |
-| 3f | **Schrijven** | **sterk model, veel denktijd** | de pagina, met een korte opdracht: strategie, opbouw, alleen de gekozen feiten, merkstem met voorbeelden |
+| 3f | **Schrijven** | **GPT-6 Sol** | de pagina, met een korte opdracht: strategie, opbouw, alleen de gekozen feiten, merkstem met voorbeelden |
 | 3g | Feitcontrole | code plus licht model | zoals nu (beweringen tegen het register), plus: staat er een onderwerp uit de uitsluitlijst, staat er een intern open punt als zin |
-| 3h | **Eindredactie** | **sterk model** | schrappen, relativeringen weg waar ze niet nodig zijn, herhaling eruit, stem erop, lengte naar het budget; met een logboek per wijziging |
+| 3h | **Eindredactie** | **GPT-6 Sol** | schrappen, relativeringen weg waar ze niet nodig zijn, herhaling eruit, stem erop, lengte naar het budget; met een logboek per wijziging |
 | 3i | Keuring door specialisten | mix | merkstem, eigenaarstoets, SEO en GEO, feitelijkheid; vergelijkend in plaats van alleen een los cijfer |
 | 3j | Publicatiepoort | code | harde blokkades, waarschuwingen, en welke menselijke controle nodig is |
 
@@ -457,7 +460,7 @@ merk en per plan boven, omdat stem, conflicten en uniciteit niet per pagina op t
 |---|---|---|
 | `item-dossier.ts` | "nooit over een specifiek bedrijf", levert een volledige vragenlijst | blijft algemeen (geen bedrijfsfeiten, dat is terecht), maar levert vragen met een gewicht en een label: beslisvraag, oriëntatievraag, randvraag. Randvragen gaan niet automatisch mee |
 | `content-contract.ts` | aparte stap, "compleet", "laat niets weg" | vervalt als losse stap; de opbouw wordt afgeleid uit de paginastrategie. Harde regels (a) en (d) verdwijnen |
-| `writer-brief.ts` | goedkope keuze ná het contract | wordt de paginastrategie, op het sterke model, vóór de opbouw |
+| `writer-brief.ts` | goedkope keuze ná het contract | wordt de paginastrategie, op GPT-6 Sol, vóór de opbouw |
 | `formatContract()` | "Alles wat hier staat MOET erop komen" | "dit is de opbouw; een sectie waarvoor je geen feit of vaste vakkennis hebt, laat je weg en je zet hem in `weggelaten`" |
 | `content.ts`, `CONTENT_SYSTEM` en `buildContentInput()` | elf regels plus achttien blokken, ongeveer 14.000 tokens | kortere opdracht: strategie, opbouw, gekozen feiten (niet de hele kaart van 84), merkstem met voorbeelden, de harde regels die blijven (feiten, concurrenten, leestekens). De hele kaart gaat alleen mee naar de feitcontrole |
 | `content-coverage.ts` | 85 procent van de contractsecties | meet of de gekozen onderwerpen en kernfeiten erin staan, en of de uitgesloten onderwerpen er niet in staan |
@@ -466,7 +469,7 @@ merk en per plan boven, omdat stem, conflicten en uniciteit niet per pagina op t
 | `fact-merge.ts`, `factstore.ts` | tegenspraak alleen op dezelfde sleutel | soort, waarde en geldigheid per feit; conflictdetectie op soort en waarde (§2, 1b) |
 | waardeproposities in het profiel | "volgens de website", dubbel | opgeschoond naar stellige uitspraken met herkomst in een apart veld; dubbelingen eruit. Herkomst is administratie, geen tekst |
 | `similarity.ts` | vijfwoordreeksen, achteraf | aangevuld met vergelijking op hoek, feitenset en opbouw, vóór het schrijven (portfolio) en erna (§9) |
-| `lib/openai/models.ts` en `sampling.ts` | alleen het schrijven op sol, denktijd medium | strategie, schrijven en eindredactie op sol met denktijd hoog, met een proef op astra; zie §11 |
+| `lib/openai/models.ts` en `sampling.ts` | alleen het schrijven op sol, denktijd medium | strategie, schrijven en eindredactie op sol (`MODELS.content`) met denktijd medium, zoals het schrijven nu; zie §11 |
 
 ### Toevoegen
 
@@ -494,8 +497,9 @@ merk en per plan boven, omdat stem, conflicten en uniciteit niet per pagina op t
 ## 4. Nieuwe LLM-stappen
 
 Per stap: wat hij doet, wat hij krijgt, wat hij oplevert, en waarom hij nodig is. Modellen zijn de
-tiers uit `lib/openai/pricing.ts`: luna ($0,10 in, $0,50 uit per miljoen tokens), sol ($2 en $10),
-astra ($10 en $50). Astra staat in de prijstabel maar wordt nu nergens gebruikt.
+tiers uit `lib/openai/pricing.ts`: luna ($0,10 in, $0,50 uit per miljoen tokens) en sol ($2 en $10).
+Besluit van de eigenaar: al het redactionele werk (strategie, schrijven, eindredactie) op GPT-6 Sol.
+Dat is de tier die het schrijven nu al gebruikt (`MODELS.content`), dus er komt geen nieuw model bij.
 
 ### L1. Feiten classificeren (per merk, per batch nieuwe feiten)
 - **Doet:** geeft elk feit een soort, een genormaliseerde waarde en een geldigheid.
@@ -522,9 +526,10 @@ astra ($10 en $50). Astra staat in de prijstabel maar wordt nu nergens gebruikt.
 - **Doet:** vertaalt alles wat we van het bedrijf weten naar een bruikbaar stemprofiel (§7).
 - **Krijgt:** de hele sitetekst die de crawl las, de gespreksnotities, alle letterlijke antwoorden van
   de ondernemer, de toonvelden en de nu ongebruikte merkvelden, de verboden woorden.
-- **Levert:** het object `BrandVoice` uit §5, inclusief goede en foute voorbeeldzinnen die het zelf
-  schrijft uit bestaande feiten.
-- **Model:** astra of sol, denktijd hoog. Draait één keer per merk.
+- **Levert:** een voorstel voor de stemvelden van het merkdossier (§7.1), inclusief goede en foute
+  voorbeeldzinnen die het zelf schrijft uit bestaande feiten. De adviseur keurt het voorstel goed in
+  het merkdossier; pas daarna telt het.
+- **Model:** sol, denktijd medium. Draait één keer per merk.
 - **Waarom:** "nuchter en vakkundig" is geen instructie waar een schrijver iets mee kan; tien
   concrete regels en twintig voorbeeldzinnen wel.
 
@@ -535,7 +540,7 @@ astra ($10 en $50). Astra staat in de prijstabel maar wordt nu nergens gebruikt.
 - **Levert:** per pagina `PageAssignment` (§5): primaire intentie, hoek, voorrangsbewijs, wat hij
   niet behandelt en waar dat wel staat, interne links, en een advies: schrijven, samenvoegen met
   pagina X, of eerst een vraag aan de ondernemer.
-- **Model:** sol, denktijd hoog.
+- **Model:** sol, denktijd medium.
 - **Waarom:** uniciteit is een eigenschap van de verzameling, niet van één pagina. Een schrijver die
   alleen Nuenen ziet, kan niet weten dat Best al over offertes vergelijken gaat.
 
@@ -548,7 +553,7 @@ astra ($10 en $50). Astra staat in de prijstabel maar wordt nu nergens gebruikt.
 - **Levert:** `PageStrategy` (§5). De kern: welke onderwerpen en feiten erop komen, welke niet en
   waarom, per onzekerheid de bestemming A, B of C, het lengtebudget met onderbouwing, en de
   oproep tot actie.
-- **Model:** sol, denktijd hoog; proef met astra.
+- **Model:** sol, denktijd medium.
 - **Waarom:** dit is de stap die een copywriter het zwaarst vindt en die nu het minst kost. Hij moet
   kunnen zeggen: "deze pagina heeft vijf feiten en twee echte beslisvragen, dus vier secties en
   500 woorden."
@@ -573,7 +578,7 @@ astra ($10 en $50). Astra staat in de prijstabel maar wordt nu nergens gebruikt.
   onderbouwing, het stemprofiel met voorbeelden, de harde regels.
 - **Levert:** zoals nu (tekst, FAQ, meta, JSON-LD, claims, bewijspunten), plus `weggelaten`: welke
   opbouwpunten hij niet heeft kunnen schrijven en waarom.
-- **Model:** sol, denktijd hoog.
+- **Model:** sol, denktijd medium.
 
 ### L8. Eindredactie (per pagina, één of twee rondes)
 - **Doet:** wat een eindredacteur doet: de tekst beter maken zonder feiten toe te voegen.
@@ -581,7 +586,7 @@ astra ($10 en $50). Astra staat in de prijstabel maar wordt nu nergens gebruikt.
   de feitcontrole.
 - **Levert:** de geredigeerde tekst plus een logboek per wijziging: wat, waarom (overbodige
   relativering, herhaling, adviestoon, stem, lengte, onduidelijke zin), en of het een feit raakte.
-- **Model:** sol, denktijd hoog; proef met astra.
+- **Model:** sol, denktijd medium.
 - **Vangnet:** code controleert dat er geen nieuw feit bij kwam (dezelfde claimcontrole als nu), dat
   geen gekozen kernfeit verdween, en dat de lengte naar het budget ging en niet erboven.
 - **Waarom:** de reparatielus van nu is een monteur die bevindingen afwerkt. Wat ontbreekt is iemand
@@ -592,7 +597,7 @@ astra ($10 en $50). Astra staat in de prijstabel maar wordt nu nergens gebruikt.
 - **Doet:** legt de tekst naast het stemprofiel.
 - **Levert:** per regel uit het profiel of hij gehaald is, met de zin uit de tekst; de drie zinnen die
   het verst van de stem af staan, met een voorstel.
-- **Model:** sol, denktijd medium (luna blijkt te mild op stem; te toetsen).
+- **Model:** luna, denktijd medium; naar sol als fase 0 laat zien dat luna te mild is op stem.
 
 ### L10. Eigenaarstoets (per pagina)
 - **Doet:** leest de pagina als de ondernemer. Zou hij dit zonder aanpassing publiceren, en wat zou
@@ -600,7 +605,8 @@ astra ($10 en $50). Astra staat in de prijstabel maar wordt nu nergens gebruikt.
 - **Krijgt:** de tekst, het stemprofiel, het bewijs, en de huidige sitepagina of de vorige versie.
 - **Levert:** een vergelijkend oordeel (nieuw beter, gelijk, slechter), publiceerbaar ja of nee, en
   de eerste wijziging die de ondernemer zou maken.
-- **Model:** sol. Een beoordelaar van een andere leverancier verkleint het risico dat een model zijn
+- **Model:** luna als startpunt, sol als de volgorde in fase 0 niet klopt (ongeveer $0,03 extra per
+  versie). Een beoordelaar van een andere leverancier verkleint het risico dat een model zijn
   eigen soort tekst goed vindt; Gemini staat klaar maar is uit, dit is een optie om te toetsen.
 - **Waarom:** de blinde-lezertoets liet zien dat een lezer betrouwbaar vergelijkt en geen
   betrouwbaar los cijfer geeft. Deze toets vergelijkt.
@@ -639,7 +645,7 @@ De velden hieronder zijn het voorstel. Elk object wordt als JSON bewaard naast d
 | `voorstel` | welke bron waarschijnlijk klopt, met reden |
 | `oplossing` | door wie, wanneer, welk feit geldt; tot die tijd staat het feit op "betwist" |
 
-### BrandVoice (per merk), zie §7
+### De schrijfstijl in het merkdossier (per merk), zie §7
 
 ### PageAssignment (per pagina, uit het portfolio)
 | Veld | Betekenis |
@@ -784,19 +790,36 @@ eigenaarstoets moet op die set dezelfde volgorde geven als de blinde lezers; de 
 
 ## 7. De merkstem
 
-### 7.1 Wat er in het profiel staat
+### 7.1 Wat er in het merkdossier over de schrijfstijl moet staan
+
+Besluit van de eigenaar (25 september 2026): de schrijfstijl hoort duidelijk in het merkdossier te
+staan, en niet in een apart, onzichtbaar object. Een deel van de velden bestaat al in
+`lib/pipeline/brand-fields.ts` maar gaat nu niet mee in het schrijven; die worden aangesloten. Wat
+ontbreekt, komt erbij.
+
+| Veld | Wat het vastlegt | Nu |
+|---|---|---|
+| `tone_of_voice` | de toon in één of twee zinnen | bestaat, gaat mee |
+| `pronoun_preference` | je of u | bestaat, gaat mee |
+| vijf schuiven (`tone_formality`, `tone_energy`, `tone_complexity`, `tone_humor`, `tone_emotional`) | formeel of informeel, rustig of energiek, eenvoudig of vaktaal, humor, emotie | bestaan; vier gaan mee als ze gevuld zijn |
+| `audience_knowledge_level` | hoeveel vakkennis de lezer heeft, en dus hoeveel uitleg | bestaat, gaat niet mee |
+| `signature_phrases` | uitdrukkingen die het bedrijf zelf gebruikt | bestaat, gaat niet mee |
+| `identity_keywords` | woorden die het bedrijf typeren | bestaat, gaat niet mee |
+| `differentiator`, `usp`, `key_messages` | waarin het bedrijf verschilt en wat elke tekst mag uitstralen | bestaan, gaan niet mee |
+| `taboo_phrases` | verboden woorden | bestaat, gaat mee |
+| `style_samples` | voorbeeldzinnen | bestaat, gaat mee; moet uit het gesprek of goedgekeurd zijn, niet los van de site geplukt |
+
+Daarnaast, nieuw in het merkdossier:
 
 | Veld | Wat het vastlegt |
 |---|---|
-| `aanspreekvorm` | je of u (bestaat) |
 | `zelfbenoeming` | hoe het bedrijf zichzelf noemt in de lopende tekst: "we", "wij", "ons team", "onze ploeg", de voornaam |
 | `zinslengte` | doelgemiddelde en maximum, gemeten op wat de ondernemer zelf zei en schreef |
 | `directheid` | antwoord eerst of aanloop; hoeveel voorbehoud past |
-| `uitleg` | hoeveel vakkennis de lezer heeft en hoe vaktermen worden uitgelegd |
 | `persoonlijkheid` | hoe warm, hoeveel ik of wij, mag er een knipoog in |
 | `commercieel` | hoe hard mag worden aangeprezen; welke woorden te veel verkoop zijn |
 | `stelligheid` | hoe bewijs wordt gebracht (feitelijk, trots, bescheiden) en hoeveel relativering past |
-| `woorden` | wel: woorden die het bedrijf zelf gebruikt; niet: verboden woorden plus clichés die bij deze stem niet passen |
+| `cliches` | clichés en verkoopwoorden die bij deze stem niet passen, als aanvulling op de verboden woorden |
 | `oproep` | hoe een oproep tot actie klinkt, met twee of drie voorbeelden |
 | `goedeZinnen` | tien tot twintig zinnen in deze stem, gebouwd op echte feiten van dit bedrijf |
 | `fouteZinnen` | tien zinnen die nu in de teksten staan en niet passen, met de verbeterde versie |
@@ -809,11 +832,15 @@ webbureau geschreven en is bewijs, geen wet: bij de installateur is "zakelijk" d
 profiel moet die spanning zien en kiezen.
 
 ### 7.2 Hoe het tot stand komt
-1. L3 stelt het op uit alles wat er is (§4).
-2. De adviseur ziet het profiel met de voorbeeldzinnen en keurt het goed, past het aan, of zet
-   regels uit. Dit hoort bij de voorbereiding van het gesprek of vlak erna; het kost een kwartier.
-3. Elke handmatige aanpassing die de klant of adviseur later in een tekst doet, wordt als paar (was,
-   werd) bewaard. Na vijf of meer paren stelt L3 een bijgewerkt profiel voor (fase 3).
+1. L3 stelt voor elk leeg of dun stemveld een waarde voor, uit alles wat er is (§4).
+2. De adviseur ziet de voorstellen in het merkdossier, met de voorbeeldzinnen, en keurt ze goed, past
+   ze aan, of laat ze leeg. Dit hoort bij de voorbereiding van het gesprek of vlak erna; het kost een
+   kwartier. Een voorstel dat niet is goedgekeurd, gaat niet mee in het schrijven.
+3. Het merkdossier toont een waarschuwing zolang de stemvelden onder een minimum zitten (toon,
+   kennisniveau, zelfbenoeming, stelligheid, minstens vijf goede en vijf foute zinnen). Het schrijven
+   gaat door, maar de adviseur ziet dat de stem nog niet is vastgelegd.
+4. Elke handmatige aanpassing die de klant of adviseur later in een tekst doet, wordt als paar (was,
+   werd) bewaard. Na vijf of meer paren stelt L3 een bijwerking van de stemvelden voor (fase 3).
 
 ### 7.3 Waar het gebruikt wordt
 - **De strategie** krijgt de samenvatting (commercieel, stelligheid, oproep).
@@ -862,6 +889,36 @@ Wat in die tweede versie ontbreekt (wat er precies in de installatieprijs zit) i
 een vraag aan de ondernemer (bestemming A). Zodra hij antwoordt, kan het erbij.
 
 ---
+
+### 7.5 Controle van het merkdossier van de drie klanten (25 september 2026)
+
+Nagekeken in `profiles` op productie:
+
+| Veld | Autorijschool Pompert | Hans Verstraaten Hoveniers | Wesley Keeris Installatietechniek |
+|---|---|---|---|
+| Toon | "Warm, geruststellend, eerlijk, zonder beloftes die we niet waar kunnen maken." | "Nuchter en vakkundig, Brabants hartelijk, geen verkooppraat." | "Zakelijk en betrouwbaar, geen vakjargon zonder uitleg." |
+| Aanspreekvorm | je | je | u |
+| Vijf schuiven | alle vijf leeg | alle vijf leeg | alle vijf leeg |
+| Kennisniveau doelgroep | leeg | leeg | leeg |
+| Eigen uitdrukkingen, kernwoorden | leeg | leeg | leeg |
+| Onderscheid, USP, kernboodschappen | leeg | leeg | leeg |
+| Verboden woorden | 3 | 3 | 2 |
+| Voorbeeldzinnen | 3 uitroepen van de site ("Voor ons ben je geen nummer.", "Denk niet in beperkingen, maar in mogelijkheden!") | 3 sitezinnen, waaronder "Wij staan graag voor je klaar!" | 3 sitezinnen, waaronder "Service, vakmanschap en nauwkeurigheid staan bij ons hoog in het vaandel." en een zin met "m.b.t." |
+| Persona's | 4, door het onderzoek gemaakt | 3, door het onderzoek gemaakt | 3, door het onderzoek gemaakt |
+
+**Conclusie: het merkdossier dekt de lading niet.** De hele stem rust op één zin per klant. Alle
+velden die die zin concreet zouden maken, zijn leeg. De voorbeeldzinnen werken bij twee van de drie
+klanten tegen de opgegeven toon in: bij de hovenier is "Wij staan graag voor je klaar!" precies de
+verkooppraat die hij niet wil, en de schrijver nam die zin over op de pagina voor Best. Bij de
+installateur zijn "hoog in het vaandel" en "m.b.t." het tegendeel van zakelijk zonder vakjargon. En
+juist bij de installateur, die "geen vakjargon zonder uitleg" vraagt, is het kennisniveau van de
+lezer niet ingevuld, terwijl dat bepaalt hoeveel er uitgelegd moet worden.
+
+**Wat er per klant moet gebeuren, vóór fase 0:** de adviseur vult met de ondernemer de schuiven, het
+kennisniveau, het onderscheid en de kernboodschappen in, vervangt de voorbeeldzinnen door zinnen die
+de ondernemer zelf zei of goedkeurt, en vult de nieuwe velden uit §7.1. Tot L3 bestaat, kan ik een
+voorstel per klant uitschrijven dat de adviseur alleen hoeft na te lopen. Ik heb niets in de
+database aangepast.
 
 ## 8. Welke feiten wel en niet op de pagina komen
 
@@ -940,14 +997,21 @@ Niet de plaatsnaam, maar iets wat alleen over die plaats waar is:
 ### 9.2 Wat de portfoliostap beslist
 Voor elke groep plaatspagina's rond één dienst:
 
-1. **Is er per plaats iets unieks te zeggen?** Ja: elke pagina krijgt een hoek en een eigen
-   voorrangsbewijs. Nee, en de ondernemer kan het ook niet leveren: één werkgebiedpagina
+1. **Grote steden krijgen een eigen pagina** (besluit eigenaar, 25 september 2026), bijvoorbeeld
+   Eindhoven, Tilburg en 's-Hertogenbosch: daar is genoeg zoekvraag om een aparte pagina te dragen.
+   Voorstel voor de regel in code: een eigen pagina bij een gemeente van minstens 100.000 inwoners
+   (vaste lijst uit CBS-cijfers), bij de vestigingsplaats, of zodra de ondernemer minstens twee
+   feiten levert die alleen over die plaats gaan. De grens van 100.000 is gekozen en bij te stellen.
+   Ook een stadspagina krijgt een eigen hoek; zonder lokaal feit vraagt het portfolio de ondernemer
+   eerst naar projecten in die stad.
+2. **Kleinere plaatsen: is er per plaats iets unieks te zeggen?** Ja: elke pagina krijgt een hoek en
+   een eigen voorrangsbewijs. Nee, en de ondernemer kan het ook niet leveren: één werkgebiedpagina
    ("Tuinaanleg in Eindhoven en omgeving: Best, Nuenen, Son en Breugel ...") met per plaats een korte
    alinea, in plaats van vijf dunne pagina's. Dat is voor een menselijke bezoeker beter, en het
    voorkomt dat vijf pagina's met elkaar concurreren om dezelfde vraag.
-2. **Verdeling van onderwerpen:** de prijsuitleg staat uitgebreid op één pagina en wordt op de andere
+3. **Verdeling van onderwerpen:** de prijsuitleg staat uitgebreid op één pagina en wordt op de andere
    in één zin genoemd met een link. Hetzelfde voor de werkwijze.
-3. **Verdeling van bewijs:** niet elke pagina opent met de ploeg van vijf man. Bij Best misschien de
+4. **Verdeling van bewijs:** niet elke pagina opent met de ploeg van vijf man. Bij Best misschien de
    terugkomafspraak na zes weken, bij Nuenen de doorlooptijd, als dat bij de lezers daar past.
 
 Dit wijkt af van hoe de opdracht het probleem formuleert, en dat is bewust: het beste antwoord op
@@ -1003,44 +1067,74 @@ van een zin uit de tekst.
 ## 11. Kosten en doorlooptijd
 
 ### 11.1 Nu (gemeten)
-Ongeveer $0,18 per geschreven versie over de hovenier en de installateur sinds 24 september 2026:
-schrijven $0,071, reparatie $0,057 per ronde, dossier $0,012, al het andere samen minder dan $0,02.
+Ongeveer $0,18 per geschreven versie over de hovenier en de installateur sinds 24 september 2026
+($4,96 over 28 schrijfaanroepen, `ai_calls`):
 
-### 11.2 De voorgestelde keten (geschat, te meten)
+| Onderdeel | Per pagina |
+|---|---|
+| Schrijven (sol, gemiddeld 14.100 tokens in, 4.300 uit) | $0,071 |
+| Reparatie (sol, $0,057 per ronde, gemiddeld 1,3 ronde per pagina) | $0,073 |
+| Onderzoek per pagina (luna met web) | $0,012 |
+| Vier beoordelaars, over alle versies samen (luna) | $0,013 |
+| Contract, schrijfopdracht, feiten, bronanalyse (luna) | $0,006 |
+| **Totaal** | **ongeveer $0,18** |
 
-| Stap | Hoe vaak | Model | Schatting per keer |
+De reparatie kost dus al evenveel als het schrijven zelf.
+
+### 11.2 Waar de eerste schatting van $0,70 tot $1,00 vandaan kwam
+De eerste versie van dit plan ging uit van "kosten zijn geen beperking" en koos daarom op vier
+plekken de duurste stand. Samen met het nieuwe werk zelf (strategie en eindredactie, ongeveer $0,10)
+leverde dat het verschil op:
+
+| Keuze in de eerste versie | Extra per pagina | Waarom het duur is |
+|---|---|---|
+| Denktijd hoog op strategie, schrijven en eindredactie | $0,15 tot $0,20 | denktijd wordt als uitvoer afgerekend, tegen $10 per miljoen tokens op Sol |
+| Merkstemtoets en eigenaarstoets op Sol, op elke versie | ongeveer $0,15 | twee extra Sol-aanroepen, bij gemiddeld twee versies per pagina |
+| Eindredactie gemiddeld anderhalve ronde | ongeveer $0,05 | een tweede volledige Sol-aanroep bij de helft van de pagina's |
+| De reparatielus volledig laten staan naast de redacteur | ongeveer $0,05 | dubbel werk: redacteur en reparatie lossen deels hetzelfde op |
+| Ruime marges op de invoergrootte | ongeveer $0,10 | geschat in plaats van gemeten |
+
+Het duurste model voor strategie en eindredactie kostte daarbovenop vijf keer de prijs van Sol op die
+twee stappen; dat verklaart de $2 tot $2,50. Die variant vervalt met het besluit van de eigenaar.
+
+### 11.3 De variant met GPT-6 Sol voor al het redactionele werk (advies)
+Strategie, schrijven en eindredactie op Sol met denktijd medium (dezelfde stand als het schrijven
+nu), alle beoordelaars op luna, en de eindredacteur in de plaats van het grootste deel van de
+reparatielus:
+
+| Stap | Model | Aanname | Per pagina |
 |---|---|---|---|
-| Feiten classificeren, conflicten | per merk, per batch | luna | $0,01 tot $0,05 per merk |
-| Merkstemprofiel | per merk, eenmalig | astra, hoog | $0,20 tot $0,40 |
-| Portfolio en hoeken | per plan, per 10 pagina's | sol, hoog | $0,15 tot $0,25, dus ongeveer $0,02 per pagina |
-| Onderzoek per pagina | per pagina | luna, web | $0,012 (zoals nu) |
-| Paginastrategie | per pagina | sol, hoog | $0,10 tot $0,15 |
-| FAQ-selectie | per pagina | luna | minder dan $0,005 |
-| Schrijven | per pagina | sol, hoog | $0,12 tot $0,15 |
-| Feitcontrole | per versie | luna plus code | $0,005 |
-| Eindredactie | 1 tot 2 per pagina | sol, hoog | $0,10 tot $0,13 per ronde |
-| Merkstemtoets en eigenaarstoets | per versie | sol, medium | $0,08 tot $0,10 samen |
-| Overige beoordelaars | per versie | luna | $0,005 |
-| Reparatie | 0 tot 2 per pagina | sol | $0,06 per ronde |
+| Paginastrategie | Sol, medium | ongeveer 12.000 tokens in, 3.000 uit | $0,055 |
+| Schrijven | Sol, medium | ongeveer 8.000 in (nu 14.100: alleen de gekozen feiten, niet de hele kaart en achttien blokken), 3.500 uit (kortere pagina) | $0,05 |
+| Eindredactie, één ronde | Sol, medium | ongeveer 6.000 in, 3.000 uit | $0,04 |
+| Reparatie | Sol, medium | gemiddeld een halve ronde in plaats van 1,3 | $0,025 |
+| Onderzoek per pagina | luna met web | zoals nu | $0,012 |
+| Beoordelaars, inclusief merkstem- en eigenaarstoets | luna | zoals nu, twee meer | $0,015 |
+| FAQ-selectie en feitcontrole | luna plus code | | $0,005 |
+| Per merk en per plan, omgeslagen | Sol, medium | stemvoorstel ongeveer $0,05 per merk, portfolio ongeveer $0,05 per plan | $0,005 |
+| **Totaal** | | | **ongeveer $0,21** |
 
-**Per pagina ongeveer $0,70 tot $1,00 op sol.** Met astra voor strategie en eindredactie (vijf keer
-de prijs van sol) ongeveer $2 tot $2,50. De per-merkstappen komen daar eenmalig bij, ongeveer $0,50.
-Voor een plan van twaalf pagina's betekent dat $9 tot $13 op sol, of $25 tot $30 met astra, tegen
-ongeveer $2,20 nu. Het aantal aanroepen per pagina blijft in dezelfde orde (nu ongeveer vijftien,
-inclusief de herkeuring na elke reparatieronde), maar het gewicht verschuift van goedkope keuringen
-naar drie zware aanroepen die de tekst maken.
+**Per pagina $0,20 tot $0,30**, tegen ongeveer $0,18 nu. Voor een plan van twaalf pagina's is dat
+$2,50 tot $3,60 tegen ongeveer $2,20 nu. Dat het bijna gelijk blijft, komt door drie dingen: de
+schrijver krijgt ongeveer de helft minder invoer, de pagina's worden korter, en de eindredacteur neemt
+het werk over van de reparatierondes, die nu de tweede kostenpost zijn.
 
-Deze schattingen rekenen denktijd als uitvoertokens en zijn gebaseerd op de huidige invoergroottes
-(de schrijver krijgt minder invoer dan nu, de strategie meer). Ze zijn niet gemeten, en conventie 10
-vraagt dat ze na de eerste ronde op `ai_calls` worden nagerekend.
+**Wat deze schatting onzeker maakt.** Dat de redacteur de reparaties halveert, is een verwachting en
+geen meting. Blijft de reparatie op 1,3 ronde, dan komt de pagina op ongeveer $0,26. Blijkt de
+eigenaarstoets op luna te mild (de vakmanschapsbeoordelaar op luna had een rangcorrelatie van +0,29),
+dan gaat die ene toets naar Sol, ongeveer $0,03 per versie. De ongunstigste combinatie komt uit rond
+$0,35 per pagina. Fase 0 meet het na op `ai_calls` (conventie 10).
 
-### 11.3 Doorlooptijd
-Per pagina komen er twee tot drie opeenvolgende zware aanroepen bij; met denktijd hoog elk
-waarschijnlijk 60 tot 150 seconden. Een pagina duurt dan enkele minuten langer dan nu. Dat voelt niemand, want het draait op de achtergrond. **Het echte risico
-is de tijdslimiet per aanroep** (150 seconden, `lib/openai/client.ts`): de reden dat het schrijven nu
-op medium staat. Denktijd hoog moet eerst gemeten worden; past het niet, dan zijn er twee
-uitwegen: de aanroep in de achtergrondmodus van de API laten draaien en in een volgende taak
-ophalen, of de strategie in twee delen knippen.
+**Twee knoppen die pas omgaan als de blinde lezers het verschil zien:** denktijd hoog op de strategie
+(ongeveer $0,05 per pagina) en de eigenaarstoets op Sol (ongeveer $0,03 tot $0,06).
+
+### 11.4 Doorlooptijd
+Per pagina komen er twee opeenvolgende Sol-aanroepen bij (strategie en eindredactie), op dezelfde
+denktijd als het schrijven nu. De traagste geslaagde schrijfaanroep duurde 98,8 seconden
+(`lib/openai/sampling.ts`), ruim binnen de grens van 150 seconden per aanroep
+(`lib/openai/client.ts`). Omdat de strategie en de redactie minder tekst maken dan de schrijver,
+verwacht ik geen nieuw risico op een tijdslimiet. Een pagina duurt enkele minuten langer, en dat
+voelt niemand, want het draait op de achtergrond.
 
 ---
 
@@ -1054,7 +1148,7 @@ ophalen, of de strategie in twee delen knippen.
 - De FAQ-regel omdraaien (niet de restcategorie, maar de vier criteria) en de code die vragen zonder
   onderbouwing weggooit.
 - Bronpraat van waarschuwing naar blokkade.
-- Schrijven, strategie en eindredactie op denktijd hoog zetten, na een tijdmeting.
+- Strategie en eindredactie op dezelfde tier en denktijd als het schrijven nu (sol, medium).
 
 ### Middel (een tot twee weken per onderdeel)
 - De paginastrategie als nieuwe taaksoort met object en vangnetten, ter vervanging van contract en
@@ -1072,8 +1166,8 @@ ophalen, of de strategie in twee delen knippen.
 - Het leren van handmatige aanpassingen.
 
 ### Onzeker
-- **Of een sterker model voor de strategie het verschil maakt**, of dat een goede opdracht op sol
-  genoeg is. Te toetsen met dezelfde strategie op sol en astra.
+- **Of denktijd medium genoeg is voor de strategie**, of dat hoog het verschil maakt (ongeveer $0,05
+  extra per pagina). Te toetsen in fase 0 met dezelfde strategie op beide standen.
 - **Of weglaten de citeerbaarheid kost.** Minder secties betekent minder zinnen die een assistent kan
   oppakken. De verwachting is dat stelliger zinnen dat ruim goedmaken; de nameting moet het zeggen.
 - **Of een werkgebiedpagina in AI-antwoorden net zo goed werkt als losse plaatspagina's.**
@@ -1086,7 +1180,8 @@ ophalen, of de strategie in twee delen knippen.
    installateur, plus twee andere) de strategie, het schrijven en de eindredactie met de hand als
    drie aanroepen draaien, met de prompts uit dit plan, en de blinde lezers laten vergelijken met de
    huidige versie. Kosten: enkele dollars. Dit toetst de kern van het plan voordat er een week in gaat.
-2. De tijdmeting van denktijd hoog op het schrijven.
+2. De stemvelden in het merkdossier van de drie klanten aanvullen (§7.5), want zonder die velden
+   meet de proef de merkstem niet.
 3. De conflictdetectie los draaien op de feitenbanken van de drie merken en tellen hoeveel echte en
    hoeveel valse conflicten eruit komen.
 
@@ -1112,7 +1207,7 @@ Doel: geen indekken, geen consumentengids, geen tegenspraak, kortere pagina's.
    uit §8.3, C weglaten. Een intern open punt als zin is een blokkade. *Lost op:* "De beschikbare
    prijsinformatie benoemt niet ..." (installateur, kosten), "Deze pagina geeft geen bevestigde
    lokale eis voor Best".
-3. **De paginastrategie op sol met denktijd hoog**, in plaats van contract plus schrijfopdracht op
+3. **De paginastrategie op sol**, in plaats van contract plus schrijfopdracht op
    luna, met lengtebudget. *Lost op:* tien secties en 980 woorden; de consumentenadviessecties
    ("Vergelijk offertes op dezelfde onderdelen").
 4. **Conflictdetectie met een blokkade** voor prijzen, termijnen, plaatsen, contactgegevens,
@@ -1129,7 +1224,8 @@ Doel: geen indekken, geen consumentengids, geen tegenspraak, kortere pagina's.
 helft "publiceert zo" (nu 4 van 21), nul teksten met een zin over de bronnen.
 
 ### Fase 2. De stem en de keuring (twee tot drie weken)
-1. **Merkstemprofiel** met goedkeuring door de adviseur, gebruikt door schrijver en redacteur.
+1. **De schrijfstijl in het merkdossier** uitgebreid (§7.1) en voorgesteld door L3, met goedkeuring
+   door de adviseur, gebruikt door schrijver en redacteur.
    *Lost op:* "Wij staan graag voor je klaar", "zorgeloos genieten van een warm en behaaglijk thuis"
    in een zakelijke stem, de naam aan het begin van elke alinea.
 2. **Merkstemtoets en eigenaarstoets** als vergelijkend oordeel; de reparatie stuurt daarop.
@@ -1148,8 +1244,8 @@ de eigenaarstoets geeft dezelfde volgorde als de blinde lezers (rangcorrelatie 0
    primaire intenties per merk. *Lost op:* plaatspagina's die templates zijn.
 2. **Lokale vragen aan de ondernemer** vanuit het portfolio.
 3. **Leren van handmatige aanpassingen** in het stemprofiel.
-4. **Modelroutering op basis van metingen:** astra waar het aantoonbaar helpt, een beoordelaar van een
-   andere leverancier als dat de volgorde verbetert.
+4. **Denktijd en beoordelaars bijstellen op metingen:** denktijd hoog of een beoordelaar van een andere
+   leverancier alleen waar de blinde lezers het verschil zien.
 5. **De reparatielus volledig vanuit de redactie**, en de oude formuleringlijsten terugbrengen tot
    een klein vangnet.
 6. **Ijking van de getallen** (lengtebudget, drempels) op de gemeten rondes.
@@ -1242,21 +1338,19 @@ nieuwe formulering van hetzelfde gat is vervangen:
 
 ---
 
-## 15. Wat ik aan de eigenaar voorleg
+## 15. Besluiten van de eigenaar (25 september 2026)
 
-Drie beslissingen die de uitkomst wezenlijk veranderen, en die ik niet zelf wil nemen:
+1. **Model:** al het redactionele werk (paginastrategie, schrijven, eindredactie) op GPT-6 Sol. Dat is
+   de tier die het schrijven nu al gebruikt. Denktijd medium als standaard; hoog alleen als fase 0
+   laat zien dat het verschil zichtbaar is. De beoordelaars blijven op luna.
+2. **Kosten:** de eerste schatting van $0,70 tot $1,00 is te hoog bevonden. De variant uit §11.3 komt
+   uit op $0,20 tot $0,30 per pagina en is het uitgangspunt.
+3. **Werkgebiedpagina:** mag geadviseerd worden. Grote steden zoals Eindhoven, Tilburg en
+   's-Hertogenbosch krijgen wel een eigen pagina (regel in §9.2).
+4. **Schrijfstijl:** hoort duidelijk in het merkdossier. Bij de drie klanten dekt het merkdossier de
+   lading niet (§7.5); aanvullen gebeurt vóór fase 0.
+5. **Bronconflicten:** houden een pagina alleen tegen als het betwiste feit op die pagina nodig is.
+   Anders valt het feit weg en krijgt het merk een melding.
 
-1. **Mag ORBIT ENGINE adviseren om minder pagina's te maken?** Voor plaatsen zonder eigen feiten stelt
-   dit plan een werkgebiedpagina voor in plaats van losse pagina's. Dat kan ingaan tegen wat er in
-   het verkoopgesprek beloofd is.
-2. **Wie beheert conflicten en het stemprofiel?** Dit plan legt ze bij de adviseur (sales-led). Dat
-   kost per merk een kwartier tot een half uur extra, vóór de eerste pagina.
-3. **Welk kostenniveau als standaard?** Sol voor alles (ongeveer $0,70 tot $1,00 per pagina) of
-   astra voor strategie en redactie (ongeveer $2 tot $2,50). Mijn advies: sol als standaard, astra
-   in fase 0 en fase 1 naast sol proberen op dezelfde pagina's, en alleen overstappen als de blinde
-   lezers het verschil zien.
-
-En één punt waar dit plan afwijkt van de opdracht: die stelt voor een bronconflict de hele pagina te
-blokkeren. Dit plan blokkeert alleen als het betwiste feit op de pagina nodig is, en laat het anders
-weg met een melding bij het merk. Anders houdt één oude prijs op een vergeten sitepagina alle
-pagina's van een klant tegen.
+**Nog open:** wie conflicten afhandelt en de stemvoorstellen goedkeurt. Dit plan gaat uit van de
+adviseur (sales-led), ongeveer een kwartier tot een half uur per merk vóór de eerste pagina.
