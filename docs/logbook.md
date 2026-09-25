@@ -12558,3 +12558,10 @@ controle zoeken daarna naar verzonnen harde beweringen, en een zin zonder bron w
 ondernemer in plaats van een blokkade. Geen woordbudget. Eerst de oude code weg, dan bouwen. Alle
 klantdata (6 merken) is verwijderd; de kostenlog is bewaard. Grens: $0,50 per pagina. Plan:
 `docs/tasks/contentketen-opnieuw.md`.
+
+Aangescherpt na een tweede review van dezelfde collega (zelfde dag): publiceerbaarheid is de enige
+maatstaf, met unieke klantinput als signaal; acht vragen is een bovengrens en geen doel, en een vraag
+moet iets opleveren wat niet uit bestaande kennis of webonderzoek te halen is; de brief mag geen keuzes
+voor de schrijver maken; de controle op harde beweringen is een conservatieve detectie en geen
+factchecker; geen scores op de tekst; en vooraf vastgelegd (B15) dat een tegenvallende uitslag nooit
+leidt tot een extra stap of beoordelaar.

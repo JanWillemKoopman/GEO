@@ -17,6 +17,9 @@ WP1 samen met de code die het beschrijft.
 > betere informatie te geven. Minder intelligentie rondom het schrijven, meer intelligentie vóór en
 > tijdens het schrijven.
 
+**In één zin:** ORBIT ENGINE probeert niet de beste AI-tekst te maken, maar de kennis van een
+ondernemer zo goed mogelijk aan een goede AI-schrijver te geven.
+
 **En het speerpunt van de app (besluit B13):**
 
 > Content wordt samen met de klant gemaakt. Wij halen bij de ondernemer op wat alleen hij weet, met de
@@ -25,6 +28,19 @@ WP1 samen met de code die het beschrijft.
 
 De vorige keten is mislukt doordat elke sessie er een stap, een regel of een beoordelaar bij bouwde,
 tot de schrijver gevangen zat. De regels hieronder zijn er om dat te voorkomen.
+
+**Drie soorten regels in dit document, en ze mogen niet in elkaar overlopen:**
+
+| Soort | Hoeveel | Waar |
+|---|---|---|
+| Productprincipes (waarom) | Heel weinig: de twee citaten hierboven | §0, §1 |
+| Contentlogica (wat er met de tekst gebeurt) | Weinig: brief, klantinput, schrijven, controle, hooguit één herschrijving | §1, §5, §6 |
+| Technische uitvoering (hoe het gebouwd wordt) | Mag uitgebreid zijn: taken, database, tests, routes, herhaalpogingen | §6 tot en met §9 |
+
+Uitgebreide technische regels zijn geen probleem. Het probleem ontstaat als een technische regel
+ongemerkt contentlogica wordt: een controle die de tekst beoordeelt, een drempel die bepaalt wat erin
+mag, een getal dat de schrijver stuurt. Twijfel je bij een regel in welke soort hij valt, behandel hem
+dan als contentlogica, en die komt er alleen bij via een besluit in §2.
 
 1. **Lees eerst `CLAUDE.md`, dan dit hele document.** Niet alleen het werkpakket waar je aan
    begint.
@@ -37,7 +53,11 @@ tot de schrijver gevangen zat. De regels hieronder zijn er om dat te voorkomen.
 4. **De verboden in §3 zijn absoluut.** Ze staan er omdat ze in de vorige keten precies zo zijn
    ingeslopen.
 5. **Is de kwaliteit tegenvallend?** Verander dan de schrijfopdracht of de invoer van de schrijver
-   (WP9). Bouw geen nieuwe stap. Dat is de hele les van de vorige keten.
+   (WP9). Bouw geen nieuwe stap. Dat is de hele les van de vorige keten, en het is de belangrijkste
+   regel van dit document. Het moeilijkste moment komt niet tijdens het bouwen, maar als de eerste
+   uitslag tegenvalt (bijvoorbeeld een 5,8) en de reflex opkomt om er "nog één beoordelaar" of "nog één
+   kwaliteitslaag" bij te zetten. Dat is precies de fout van de vorige keten. De eigenaar heeft
+   vooraf vastgelegd dat deze regel dan blijft gelden (B15).
 6. **Gebruik geen oude contentcode.** De nieuwe keten staat in `lib/pagina/` en mag alleen importeren
    uit de lijst in §7.3. Wat daar niet op staat, schrijf je opnieuw en eenvoudig, of je laat het weg.
    Geen compatibiliteitslaag, geen vlag "oude of nieuwe keten", geen hergebruikte kolom met een
@@ -57,7 +77,8 @@ pagina die hij zou kunnen lezen?** Wat daarvoor nodig is, hebben we zelf in de h
 volledig beantwoorden, de deelvragen, concrete antwoorden, informatie die alleen dit bedrijf heeft,
 een duidelijke opbouw, natuurlijke taal, goede metadata en gestructureerde gegevens. Een
 AI-assistent citeert zo'n pagina omdat hij hem kan begrijpen en vertrouwen, niet omdat hij "naar GEO
-klinkt".
+klinkt". **Zoekmachines en AI-assistenten zijn het kanaal waarlangs de pagina gevonden wordt, niet het
+doel waarvoor hij geschreven wordt.**
 
 ```
 CONTENTVOORSTEL        bestaat: een pagina in het contentplan
@@ -82,9 +103,16 @@ verantwoordelijkheden blijven simpel.
 code en 12 tot 15 AI-aanroepen per pagina. Elke stap haalde alleen weg. De blinde lezer gaf 4,1,
 daarna 4,9, daarna 5 en 4, bij een doel van 6,5. Het resultaat was een opsomming van feiten.
 
-**Maatstaf:** zou de ondernemer deze pagina zonder aanpassingen publiceren? We meten door twee teksten
-naast elkaar te leggen (de blinde lezer en de eigenaar zelf), nooit met een los cijfer: dat schommelt
-6 punten op dezelfde tekst (`kwaliteitsdoorlichting/blinde-lezer-toets/`).
+**De maatstaf, en er is er één: publiceerbaarheid.** Zou de ondernemer deze pagina zonder inhoudelijke
+wijziging op zijn website plaatsen? Dat is de uitkomst voor de gebruiker, en daar sturen we op. Per
+pagina: "ja, zo", "met kleine wijzigingen", of "nee".
+
+Daarnaast twee signalen die helpen verklaren waarom, maar geen doel op zich zijn:
+- **Unieke klantinput in de tekst:** staat er iets in wat zonder deze ondernemer niet in de tekst had
+  kunnen staan (uit de open vraag, de gerichte vragen, de verhalen)? Dat is de waarde van B13.
+- **Vergelijking met andere teksten:** de nieuwe tekst naast een andere tekst leggen (de blinde lezer en
+  de eigenaar zelf). Nooit met een los cijfer: dat schommelt 6 punten op dezelfde tekst
+  (`kwaliteitsdoorlichting/blinde-lezer-toets/`).
 
 ---
 
@@ -106,6 +134,7 @@ naast elkaar te leggen (de blinde lezer en de eigenaar zelf), nooit met een los 
 | B12 | De plaatsregel (§13.1) blijft een besluit, maar wordt pas na deze ombouw gebouwd | 25 september 2026 (regel zelf: 25 september 2026) |
 | B13 | Content wordt samen met de klant gemaakt: we vragen de ondernemer uitgebreid naar wat alleen hij weet. Vragen stellen is geen last die we klein houden, maar de kern van het product. Wel: elke vraag moet de pagina aantoonbaar beter maken, en de klant ziet waarom we hem stellen | 25 september 2026 |
 | B14 | In het merkprofiel geeft de ondernemer één tot drie adressen van pagina's waarop zijn stem goed te horen is. De tekst daarvan is het stemvoorbeeld voor de schrijver, en vervangt de stemvelden (schuifjes, kernwoorden, kernboodschappen) als invoer | 25 september 2026 |
+| B15 | Valt de uitslag van WP8 tegen, dan verbeteren we de invoer of de schrijfopdracht (WP9) en voegen we geen stap, beoordelaar of kwaliteitslaag toe. Dit is vooraf vastgelegd, juist voor het moment dat de reflex opkomt | 25 september 2026 |
 
 Wat hiermee vervalt uit eerdere besluiten: de inputpoort van 40 en 70 procent met de keuze "algemeen
 schrijven of laten vallen", en de verdeling van het redactionele werk over strategie, schrijven en
@@ -132,6 +161,9 @@ eindredactie (`contentpijplijn-publicatiewaardig.md` §2).
 7. **Geen tweede route naar het schrijven.** Alleen het contentplan plant `pagina_schrijven` in.
 8. **De open vraag wordt nooit door een model gemaakt en nooit weggelaten.** Code zet hem klaar.
 9. **Geen import van oude contentcode** in `lib/pagina/` (§0 regel 6, §7.3). Een test bewaakt dit.
+10. **Geen scores op de tekst.** Geen SEO-score, GEO-score, E-E-A-T-score, leesbaarheidsscore,
+    AI-detectie, uniciteitsscore, semantische dekking, betrouwbaarheid per feit of volledigheidsscore.
+    Ook niet "alleen om te meten": wat gemeten wordt, gaat sturen. De enige maatstaf staat in §1.
 
 ---
 
@@ -174,6 +206,13 @@ Alle nieuwe code staat in `lib/pagina/`. Eén bestand per verantwoordelijkheid.
 intelligentie vóór het schrijven zit, dus hier het sterke model. Werkt zoeken op het web niet op Sol,
 gebruik dan `MODELS.quality` (Luna) en leg dat vast in §2.
 
+**De brief mag niet de nieuwe strategie worden.** Elk veld hieronder bestaat alleen omdat het de vraag
+beantwoordt: *wat moet de schrijver weten om een betere pagina te schrijven?* Niet: wat kunnen we
+allemaal over dit onderwerp analyseren. De brief bevat geen keuzes voor de schrijver (wat erop moet,
+wat eruit moet, hoe lang, in welke volgorde); die keuzes maakt de schrijver. WP8 kijkt per veld of het
+zichtbaar iets toevoegt aan de tekst. Een veld dat niets toevoegt (bijvoorbeeld `concurrentie.gaten`),
+gaat eruit via een besluit in §2. Er komt nooit een veld bij zonder zo'n besluit.
+
 **Invoer:** titel, paginasoort, `targetIntent`, `why`, de doelvragen uit de meting met de winnende
 antwoorden (concurrentnamen weggehaald met `redactCompetitors`), merknaam, werkgebied, en blok A
 (§5) zodat het model weet wat er al bekend is. Bij `verbeteren`: de huidige sitetekst, opgehaald met
@@ -208,9 +247,25 @@ wat al gevraagd is, ook niet in andere woorden: je krijgt alle eerder gestelde v
 `ook_voor_deze_pagina` in plaats van hem opnieuw te stellen. Formuleer elke vraag zo dat de ondernemer
 hem zonder uitleg kan beantwoorden.
 
-Waarom tot 8 en niet onbeperkt: samen met de open vraag is dat ongeveer tien minuten per pagina, en
-een merkbreed antwoord geldt daarna voor elke volgende pagina, dus het aantal zakt vanzelf naarmate we
-het bedrijf beter kennen. Het getal is gekozen, niet gemeten; WP10 kijkt hoeveel er beantwoord worden.
+**Wanneer een vraag gerechtvaardigd is.** Alleen als hij aan beide voorwaarden voldoet:
+1. de schrijver kan het antwoord gebruiken in deze pagina; en
+2. het antwoord is niet betrouwbaar te halen uit blok A, uit algemene vakkennis of uit webonderzoek.
+
+Voorbeelden, die ook letterlijk in de opdracht aan het model staan:
+- Slecht: "Wat is faalangst?" (algemene kennis, dat weet het model zelf).
+- Goed: "Welke situatie komt bij jullie het vaakst voor bij leerlingen met faalangst?"
+- Beter: "Kun je een typisch voorbeeld geven van een leerling met faalangst, en hoe jullie daarmee
+  omgingen?"
+
+**Acht is een technische bovengrens, geen doel.** De opdracht aan het model is: stel zo weinig vragen
+als nodig is om de kennis op te halen die alleen deze ondernemer heeft. Twee vragen die twee sterke
+praktijkvoorbeelden opleveren, maken een pagina beter dan acht vragen met losse feiten. Het aantal
+vragen zegt op zichzelf niets over de kwaliteit, en wordt nooit als maatstaf gebruikt.
+
+**Het gewenste verloop:** omdat merkbrede antwoorden daarna voor elke pagina gelden en elke brief de
+eerder gestelde vragen ziet, hoort het aantal vragen per pagina te dalen naarmate we het bedrijf beter
+kennen, bijvoorbeeld 7, 5, 3, 1, 0 over vijf pagina's. WP10 kijkt of dat gebeurt. De eigenlijke vraag
+daarachter: hoeveel klantinput is nodig voordat een volgende vraag weinig meer toevoegt?
 
 **Code daarna:** vakkennis zonder geldig `http`-adres valt weg. Bewaar in `content_pieces.brief_json`
 één compact object: `{ onderzoek: <de uitvoer>, bedrijf: <de feiten die blok A vormden>, versie }`.
@@ -321,19 +376,38 @@ Geen bronverwijzingen (B9).
 metatitel en metabeschrijving via `heelMetatitel` en `heelMetabeschrijving`. Repareren, nooit
 blokkeren.
 
-**Harde beweringen** (`lib/pagina/harde-beweringen.ts`):
+**Harde beweringen** (`lib/pagina/harde-beweringen.ts`). **Wat deze module is:** een conservatieve
+detectie van zinnen die de ondernemer misschien moet nalopen. **Wat hij niet is:** een factchecker of
+een waarheidsmachine. Hij bewijst niet of een zin waar is; hij maakt zichtbaar welke zinnen het
+controleren waard zijn. Het inhoudelijke oordeel ("wordt deze claim door de bron gesteund?") hoort bij
+de beoordeling in §6.6 en bij de ondernemer, niet bij deze code.
+
+Twee regels die voorkomen dat hij uitgroeit:
+- **Liever onterecht geel dan onterecht gedekt.** Twijfelt de code, dan is de zin geel.
+- **Te veel vals alarm? Maak de lijst korter, niet de code slimmer.** Deze module krijgt nooit
+  zinsontleding, synoniemen, een model of een betrouwbaarheidsgetal.
+
+Hoe hij werkt:
 - `vindHardeBeweringen(tekst)`: per zin de harde tokens. Bedragen (€, euro), getallen met eenheid
   (jaar, maanden, weken, dagen, uur, procent, en een getal direct voor een zelfstandig naamwoord),
   jaartallen, en de woorden garantie, gegarandeerd, gecertificeerd, erkend, keurmerk, certificaat,
   lid van, altijd, nooit, binnen, 24/7, de beste, de goedkoopste, de grootste, de enige.
 - Geen harde bewering: telefoonnummers (9 of meer cijfers), postcodes, huisnummers direct na een
   straatnaam.
-- `zoekBron(token, bronnen)`: gedekt als het token voorkomt in blok A, B of de vakkennis van C, na
-  normaliseren (`1.800` is `1800`, `3,5` is `3.5`, `€ 359` is `359 euro`). Een woord als "garantie" is
-  gedekt als het in een bron staat samen met minstens één ander inhoudswoord van de zin.
+- `zoekBron(token, bronnen)`, voor getallen en bedragen: gedekt als hetzelfde getal met dezelfde
+  eenheid voorkomt in blok A, B, de stemvoorbeelden of de vakkennis van C, na normaliseren (`1.800` is
+  `1800`, `3,5` is `3.5`, `€ 359` is `359 euro`).
+- Voor de woorden (garantie, gecertificeerd, altijd, nooit, de beste, enzovoort): gedekt alleen als
+  hetzelfde woord in een bron staat **en** er in geen van beide zinnen een ontkenning staat (geen, niet,
+  nooit, zonder). Staat er ergens een ontkenning, dan is de zin geel. Zo wordt "Wij geven garantie dat
+  je slaagt" nooit gedekt door "Wij geven geen garantie op het behalen van je examen"; welke van de twee
+  klopt, is een vraag voor de ondernemer, niet voor de code.
 - Uitkomst: per zin `gedekt` of `ongedekt`.
-- **Minstens 30 testgevallen**, waaronder de valse alarmen uit §11 en de zinnen uit
-  `kwaliteitsdoorlichting` die de vorige keten fout deed.
+- **Minstens 30 testgevallen**, waaronder de valse alarmen uit §11, het garantievoorbeeld hierboven,
+  zinnen zonder harde bewering die er wel op lijken ("Veel leerlingen hebben na een paar lessen meer
+  vertrouwen", "Na enkele lessen merk je vaak..."), zinnen die er wel een zijn ("De eerste les duurt
+  ongeveer 60 minuten", "We werken met 3 instructeurs"), en de zinnen uit `kwaliteitsdoorlichting` die
+  de vorige keten fout deed.
 
 ### 6.6 De kwaliteitscontrole (`pagina_controle`)
 
@@ -638,11 +712,27 @@ geeft alleen nog `lib/types/database.ts`.
 - De eigenaar beoordeelt zes paren zelf, zonder te weten welke welke is, met de vraag "zou jij deze
   op je site zetten?". Controleer met de hand elke harde bewering in de negen teksten tegen het
   waarheidsdossier.
-- **Geslaagd als:** nieuw wint van de oude tekst bij minstens 8 van de 9; van de huidige sitepagina bij
-  minstens 7 van de 9; van de concurrent bij minstens 5 van de 9; de eigenaar kiest minstens 5 van de
-  6 keer nieuw; niet meer fouten in harde beweringen dan de oude teksten; onder $0,50 per pagina
-  (gemeten op `ai_calls`). Deze grenzen zijn gekozen, niet geijkt.
-- **Niet geslaagd:** ga naar WP9 met deze pagina's. Geen nieuwe stap.
+- **De hoofdvraag (§1): publiceerbaarheid.** De eigenaar leest alle negen nieuwe teksten los, als
+  ondernemer, en zegt per tekst: "ja, zo", "met kleine wijzigingen" of "nee". Dit is de uitkomst waar
+  het om gaat. Een concurrent kan zelf slechte content hebben, dus winnen van de concurrent zegt minder
+  dan dit oordeel.
+- **Vier dingen die we daarnaast bekijken, zonder er een nieuwe stap van te maken:**
+  1. *Unieke klantinput:* per tekst, welke zinnen komen uit wat de ondernemer vertelde (open vraag,
+     gerichte vragen, verhalen)? Een tekst zonder zo'n zin mist het punt van B13.
+  2. *Blok A:* is de bedrijfskennis begrijpelijk genoeg voor de schrijver, of verdwijnen goede feiten
+     omdat ze in een lange lijst staan? Dat bepaalt of §13.2 nodig is.
+  3. *De brief:* welke velden zie je terug in de tekst? Een veld dat nergens zichtbaar iets toevoegt, gaat
+     eruit (§6.1).
+  4. *De vragen:* hoeveel werden er per pagina gesteld, daalt dat over de pagina's van een merk, en
+     welke antwoorden kwamen zichtbaar in de tekst terecht?
+- **Signalen, geen bewijs:** nieuw wint van de oude tekst bij minstens 8 van de 9; van de huidige
+  sitepagina bij minstens 7 van de 9; van de concurrent bij minstens 5 van de 9; de eigenaar kiest in de
+  blinde paren minstens 5 van de 6 keer nieuw; minstens 6 van de 9 teksten "ja, zo" of "met kleine
+  wijzigingen"; niet meer fouten in harde beweringen dan de oude teksten; onder $0,50 per pagina
+  (gemeten op `ai_calls`). Deze grenzen zijn gekozen, niet geijkt. Samen zijn ze een signaal om door te
+  gaan, geen bewijs dat de keten goed is; dat bewijs komt van echte klanten (WP10) en de nameting.
+- **Valt het tegen:** ga naar WP9 met deze pagina's (B15). Geen nieuwe stap, beoordelaar of
+  kwaliteitslaag. Kijk eerst naar de vier punten hierboven: daar staat meestal waar het zit.
 - Leg de uitslag vast in §12 en in `docs/logbook.md`.
 
 ### WP9. De verbeterlus (blijvend)
@@ -659,6 +749,9 @@ schrijfopdracht of de vragen in de brief aan. Er komt geen stap en geen scherm b
 ### WP10. Narekenen en documenteren
 - Eén echte maand van één merk door de keten. Meet op `ai_calls` de kosten en de duur per aanroep,
   tel de gele zinnen en hoeveel daarvan vals alarm waren, en kijk of er een pagina blijft hangen.
+- Tel per pagina hoeveel vragen er gesteld, beantwoord en overgeslagen werden, en of dat aantal over de
+  pagina's daalt (§6.1). Vraag de ondernemer per pagina de publiceerbaarheidsvraag van §1, en tel hoe
+  vaak hij de tekst wijzigde vóór het goedkeuren.
 - Werk de kostenschattingen in de app bij (de tekst bij het vrijgeven van een maand, de kostenrem),
   `docs/architecture.md` §6, `docs/processtappen-nieuwe-pagina.md` en `docs/merkstrategie.md` §30.
 - **Klaar als:** de cijfers staan in §12 en in `docs/logbook.md`, en de pagina's staan op "Lees en keur
@@ -700,7 +793,10 @@ $0,03, herschrijven (niet altijd) ongeveer $0,10 tot $0,15. Totaal ongeveer $0,1
 | 7 | De ondernemer keurt goed zonder te lezen | Goedkeuren kan pas na de gele zinnen |
 | 8 | Schrijven duurt langer dan de routelimiet van 300 seconden | Achtergrondmodus altijd, voor schrijven en herschrijven |
 | 9 | Bijna gelijke vragen tussen pagina's van dezelfde maand | De briefs draaien na elkaar en zien elkaars vragen; gelijke vragen vallen weg in code (§6.1) |
-| 9b | Te veel vragen, en de klant haakt af | Elke vraag zegt waarom; merkbrede antwoorden gelden daarna overal; de adviseur kan in het gesprek helpen; WP10 telt hoeveel er beantwoord en overgeslagen worden |
+| 9b | Vragenmoeheid: bij vijf pagina's per maand kan een klant in theorie vijf open vragen en tot veertig gerichte vragen krijgen, en haakt dan af | Acht is een bovengrens, geen doel; elke vraag moet aan beide voorwaarden van §6.1 voldoen en zegt waarom; merkbrede antwoorden gelden daarna overal, dus het aantal hoort per pagina te dalen; de adviseur kan in het gesprek helpen; WP10 meet het verloop |
+| 9c | De brief groeit uit tot een nieuwe strategie | Elk veld moet de schrijver helpen, de brief maakt geen keuzes, en WP8 haalt velden weg die niets toevoegen (§6.1) |
+| 9d | De controle op harde beweringen groeit uit tot een factchecker | Conservatief, en bij te veel vals alarm de lijst korter maken, niet de code slimmer (§6.5) |
+| 9e | Na een tegenvallende uitslag komt de reflex om een laag toe te voegen | B15 en §0 regel 5 |
 | 10 | De kosten zijn geschat | WP8 en WP10 meten; B4 is de grens |
 | 11 | Of het beter scoort, blijkt pas weken na publicatie | WP8 meet kwaliteit; de nameting na 14 en 28 dagen blijft het bewijs voor effect |
 | 12 | De blinde lezer is ook een model en de proefset is klein | De eigenaar beoordeelt zes paren zelf |
