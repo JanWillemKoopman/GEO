@@ -938,8 +938,16 @@ function buildRepairInput(args: {
  * De context die beide contentstappen nodig hebben. Puur databasewerk plus
  * hooguit één bronanalyse-aanroep.
  */
-interface ContentContext {
+export interface ContentContext {
   analysis: Analysis;
+  /**
+   * De antwoorden waarin een concurrent won, al opgehaald voor de schrijver
+   * (4.3). Nu ook apart, voor de paginastrategie (WP3): die krijgt ze zonder
+   * namen als "wat de AI nu antwoordt".
+   */
+  winningAnswers: string[];
+  /** De actuele situatie die de klant bij het contentplan meegaf (blok A/D punt 22). */
+  strategyNote: string | null;
   profile: Profile | null;
   competitors: string[];
   targets: RecommendationTarget[];
@@ -1544,6 +1552,8 @@ async function loadContentContext(
 
   return {
     analysis,
+    winningAnswers,
+    strategyNote,
     opdracht,
     facts,
     plan,
@@ -2141,6 +2151,11 @@ export async function draftContentPiece(args: {
     /** De verse tekst van de te verbeteren pagina (O3, migratie 0083). */
     existingText?: string | null;
     existingFetchedAt?: string | null;
+    /**
+     * De paginastrategie uit `content_strategy` (WP3, migratie 0114). Wordt
+     * hier bij de versie bewaard; de schrijver gebruikt hem vanaf WP4.
+     */
+    strategie?: unknown;
   } | null;
 }): Promise<DraftResult> {
   const { analysisId, userId, reportId, recommendation, regenerate = false } = args;
@@ -2366,6 +2381,9 @@ export async function draftContentPiece(args: {
       dossier_json: (ctx.dossier || ctx.explainers.length > 0
         ? { dossier: ctx.dossier, explainers: ctx.explainers }
         : null) as never,
+      // De paginastrategie bij de versie die erop geschreven is (WP3). Alleen
+      // als hij er is: een lege waarde mag een al bewaarde strategie niet wissen.
+      ...(args.voorbereid?.strategie ? { strategy_json: args.voorbereid.strategie as never } : {}),
       // ⚠️ `needs_review` blijft de boolean die zes schermen lezen, en hij staat
       // nu aan bij álles wat geen `pass` is. Eerder kon een pagina met
       // tientallen openstaande bevindingen op `ready` eindigen met
@@ -2868,4 +2886,20 @@ export async function herkeurContentPiece(args: {
     blokkades: keuring.evaluatie.blokkades.length,
     ronde,
   };
+}
+
+/**
+ * De context van de schrijver, voor de paginastrategie (WP3 van
+ * contentpijplijn-publicatiewaardig.md). Dezelfde loader, zodat strategie en
+ * schrijver exact dezelfde feitenkaart zien, met dezelfde F-nummers. Maakt nooit
+ * een schrijfopdracht (`maakOpdracht = false`): die stap vervangt de strategie.
+ */
+export async function laadStrategiecontext(
+  admin: ReturnType<typeof createAdminClient>,
+  analysisId: string,
+  userId: string,
+  recommendation: RecommendationInput,
+  voorbereid: Parameters<typeof loadContentContext>[4],
+): Promise<ContentContext> {
+  return loadContentContext(admin, analysisId, userId, recommendation, voorbereid, false);
 }

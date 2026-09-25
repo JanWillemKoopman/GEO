@@ -463,6 +463,12 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
   zodra een analyse haar eerste rapport krijgt: herberekent `search_volume_index` op ALLE
   onderwerpen van dat merk in één aanroep (`lib/pipeline/search-demand.ts`), zie
   `docs/tasks/potentiescore.md`.
+- **`content_strategy`** (migratie `0114`, WP3 van `docs/tasks/contentpijplijn-publicatiewaardig.md`)
+  staat tussen `content_plan` en `content_draft`: de paginastrategie op Sol met denktijd hoog, de
+  controles in code (`strategie-check.ts`), en de conflictpoort. Een pagina die op een conflict
+  wacht, krijgt een wachtstand in `content_pieces.strategy_json` en start opnieuw zodra het
+  conflict is opgelost (`strategie-wacht.ts`). In de achtergrondmodus plant de taak zichzelf
+  opnieuw in om het resultaat op te halen (`lib/openai/achtergrond.ts`).
 - **`fact_register`** (migratie `0113`, WP2 van `docs/tasks/contentpijplijn-publicatiewaardig.md`)
   hangt aan een merk (`profile_id`), is licht werk en wordt ingepland na elke `content_brief` en met
   de knop op het conflictscherm (`admin/feiten`). Hij deelt nieuwe feiten in, zoekt kandidaat-
@@ -820,6 +826,18 @@ naar ongeveer $2,57, een besparing van ~$0,32 per pagina. De onderbouwing waarom
 kwaliteitsverlies hoeft te zijn staat in `lib/openai/models.ts`; dat het dat ook niet is, is nog
 niet nagemeten (conventie 10, de nameting staat in
 `docs/tasks/contentkwaliteit-copywriterronde.md` §7).
+
+### De paginastrategie en de achtergrondmodus (25 september 2026, migratie `0114`)
+
+Werksoort `redactioneel` (`lib/openai/sampling.ts`): Sol, denktijd `high`, voor de paginastrategie
+(`content_strategy`, WP3) en straks de eindredactie, het stemvoorstel en de portfolio. Elke aanroep
+in de app legt nu zijn duur vast in `ai_calls.duration_ms`. Komt een aanroep van een soort boven de
+120 seconden (`moetAchtergrond()`), dan draaien de volgende van die soort in de achtergrondmodus
+van de Responses API: de taak start de aanroep en bewaart het response-id, een vervolgtaak haalt
+het resultaat op (`startStructuredAchtergrond()` en `haalStructuredOp()` in
+`lib/openai/structured.ts`). Een nieuwe poging haalt op in plaats van opnieuw te starten, dus een
+time-out betaalt de duurste aanroep nooit twee keer. Bij de bouw is de modus nog niet actief: er is
+geen gemeten strategieaanroep.
 
 ### De AI-aanroepen van het feitenregister (25 september 2026, migratie `0113`)
 

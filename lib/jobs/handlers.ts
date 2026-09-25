@@ -40,6 +40,7 @@ import { profileCompetitors } from "@/lib/pipeline/competitor-intel";
 import { draftContentPiece, reviseContentPiece, herkeurContentPiece } from "@/lib/pipeline/content";
 import { planContentPiece } from "@/lib/pipeline/content-plan";
 import { werkRegisterBij } from "@/lib/pipeline/feitenregister";
+import { draaiStrategietaak } from "@/lib/pipeline/strategie-taak";
 import { runAuditForProfile } from "@/lib/audit/store";
 import { planImpactMeasurements, computeImpact } from "@/lib/pipeline/impact";
 import { verifyPublication } from "@/lib/pipeline/publish";
@@ -931,8 +932,13 @@ const handlers: { [T in JobType]: Handler<T> } = {
       return;
     }
 
+    // ── Eerst de paginastrategie, dan pas schrijven (WP3) ───────────────────
+    //
+    // Tot 25 september 2026 plande deze taak meteen `content_draft`. Nu komt
+    // daar de strategie tussen: de keuze wat er op de pagina komt, op Sol met
+    // denktijd hoog, als eigen taak (conventie 7). Die plant het schrijven zelf.
     await enqueue(admin, {
-      type: "content_draft",
+      type: "content_strategy",
       payload: {
         userId: payload.userId,
         recommendation: payload.recommendation,
@@ -941,8 +947,13 @@ const handlers: { [T in JobType]: Handler<T> } = {
         voorbereid,
       },
       analysisId: job.analysis_id,
-      dedupeKey: dedupe.contentDraftNa(job.id),
+      dedupeKey: dedupe.contentStrategyNa(job.id),
     });
+  },
+
+  // ── Content stap 0b: de paginastrategie (WP3) ─────────────────────────────
+  content_strategy: async ({ admin, job }, payload) => {
+    await draaiStrategietaak(admin, job, payload, toRecommendation(payload.recommendation));
   },
 
   // ── Content stap 1: schrijven + beoordelen ────────────────────────────────
@@ -961,6 +972,7 @@ const handlers: { [T in JobType]: Handler<T> } = {
             explainers: (payload.voorbereid.explainers ?? []) as never,
             existingText: payload.voorbereid.existingText ?? null,
             existingFetchedAt: payload.voorbereid.existingFetchedAt ?? null,
+            strategie: payload.voorbereid.strategie ?? null,
           }
         : null,
     });

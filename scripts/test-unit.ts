@@ -54,6 +54,10 @@ import {
   leesStartdatum,
 } from "@/lib/verkoopafspraak";
 import { rateLimitWindowStart, rateLimitVerdict } from "@/lib/rate-limit-rules";
+import { controleerStrategie, MAX_PRIORITEITSFEITEN } from "@/lib/pipeline/strategie-check";
+import { budgetgrenzen, klemBudget, paginadoelVan, titelOverPlaats, verwachtBudget } from "@/lib/lengtebudget";
+import { moetAchtergrond, ophaalVertragingSeconden, ACHTERGROND_GRENS_MS } from "@/lib/openai/achtergrond";
+import type { PageStrategy } from "@/lib/schemas/page-strategy";
 import {
   getallenIn,
   veiligeWaarde,
@@ -19736,7 +19740,9 @@ group("De bedrading van de nieuwe contentpijplijn", () => {
   ok("en niet meer rechtstreeks het schrijven", !planner.includes('type: "content_draft"'));
 
   const handlers = leesBestand("lib/jobs/handlers.ts");
-  ok("de plantaak plant daarna het schrijven in", handlers.includes('type: "content_draft"'));
+  // Sinds WP3 plant de plantaak eerst de paginastrategie in, en die het schrijven.
+  ok("de plantaak plant daarna de strategie in", handlers.includes('type: "content_strategy"'));
+  ok("en de strategie het schrijven", leesBestand("lib/pipeline/strategie-taak.ts").includes('type: "content_draft"'));
   ok("en geeft het contract mee in de payload", handlers.includes("voorbereid"));
 
   // ── Contenttaken draaien parallel (A10) ──────────────────────────────────
@@ -26604,4 +26610,91 @@ group("Een betwist feit gaat niet naar de schrijver (WP2)", () => {
   );
   eq("niets betwist, niets weg", String(zonderBetwisteFeiten(kaart, []).length), "3");
   ok("de schrijfopdracht filtert ze eruit", leesBestand("lib/pipeline/content.ts").includes("zonderBetwisteFeiten("));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// WP3 van docs/tasks/contentpijplijn-publicatiewaardig.md: de paginastrategie.
+function strategie(over: Partial<PageStrategy> = {}): PageStrategy {
+  return {
+    zoekintentie: "informeren", lezer: "Een woningeigenaar met een oude ketel", fase: "overweging",
+    paginadoel: "Contact opnemen", kernboodschap: "k", openingsantwoord: "o", hoek: "h",
+    prioriteitsfeiten: [{ feit: "F1", betekenis: "b" }, { feit: "F2", betekenis: "b" }, { feit: "F3", betekenis: "b" }],
+    optioneleFeiten: [], uitgeslotenFeiten: [], onderwerpen: [], onzekerheden: [], bezwaar: null,
+    lengtebudget: { woorden: 500, onderbouwing: "o", redenBovenPlafond: null }, oproep: "Bel ons", gevoelig: [],
+    ...over,
+  };
+}
+const invoerWP3 = {
+  kaartRefs: ["F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8"],
+  betwist: [{ ref: "B1", conflictId: "c1", feitIds: ["x1", "x2"], soort: "prijs" }],
+  grenzen: budgetgrenzen("dienst"),
+};
+
+group("Vangnetten op de paginastrategie (WP3)", () => {
+  const onbestaand = controleerStrategie(strategie({ prioriteitsfeiten: [{ feit: "F1", betekenis: "" }, { feit: "F42", betekenis: "" }, { feit: " f2 ", betekenis: "" }] }), invoerWP3);
+  eq("een onbestaand feit valt eruit, een slordig genoteerd niet", onbestaand.strategie.prioriteitsfeiten.map((p) => p.feit).join(","), "F1,F2");
+  ok("en dat staat in de correcties", onbestaand.correcties.some((c) => c.includes("F42")));
+
+  const betwist = controleerStrategie(strategie({ prioriteitsfeiten: [{ feit: "B1", betekenis: "" }, { feit: "F1", betekenis: "" }] }), invoerWP3);
+  eq("een betwist feit valt eruit", betwist.strategie.prioriteitsfeiten.map((p) => p.feit).join(","), "F1");
+  eq("en gaat naar de conflictpoort", betwist.prioriteitBetwist.join(","), "B1");
+
+  const zeven = controleerStrategie(strategie({ prioriteitsfeiten: ["F1", "F2", "F3", "F4", "F5", "F6", "F7"].map((feit) => ({ feit, betekenis: "" })) }), invoerWP3);
+  eq(`hoogstens ${MAX_PRIORITEITSFEITEN} prioriteitsfeiten`, String(zeven.strategie.prioriteitsfeiten.length), "6");
+  ok("de zevende wordt optioneel", zeven.strategie.optioneleFeiten.includes("F7"));
+
+  const zonderReden = controleerStrategie(strategie({ onzekerheden: [{ punt: "Wat er in de prijs zit", bestemming: "B", reden: null, formulering: "Wat er in de prijs zit, verschilt.", vraag: null }] }), invoerWP3);
+  eq("bestemming B zonder reden wordt A", zonderReden.strategie.onzekerheden[0].bestemming, "A");
+  ok("en een vraag aan de ondernemer", zonderReden.vragenAanOndernemer.includes("Wat er in de prijs zit"));
+  const metReden = controleerStrategie(strategie({ onzekerheden: [{ punt: "Prijs", bestemming: "B", reden: "geld", formulering: "Vooral de stenen maken het verschil.", vraag: null }] }), invoerWP3);
+  eq("bestemming B met reden uit §7.2 blijft", metReden.strategie.onzekerheden[0].bestemming, "B");
+
+  const onderwerp = (o: Partial<PageStrategy["onderwerpen"][number]>) => ({
+    onderwerp: "Wat er in de installatieprijs zit", besluit: "opnemen" as const, bron: "feit" as const, feiten: [], woorden: 80,
+    vraag: null, wachtOpConflict: [], kern: true, reden: "", ...o,
+  });
+  // Het echte geval van de installateur (§1.2, O2): "De beschikbare prijsinformatie
+  // benoemt niet welke werkzaamheden standaard in de installatieprijs zitten".
+  const kern = controleerStrategie(strategie({ onderwerpen: [onderwerp({})] }), invoerWP3);
+  eq("een kernonderwerp zonder feit wordt een vraag, geen sectie", kern.strategie.onderwerpen[0].besluit, "eerst vragen");
+  const bijzaak = controleerStrategie(strategie({ onderwerpen: [onderwerp({ kern: false, onderwerp: "Vergelijk dezelfde werkzaamheden en afwerking", bron: "geen" })] }), invoerWP3);
+  eq("een bijzaak zonder feit valt weg", bijzaak.strategie.onderwerpen[0].besluit, "weglaten");
+  const vakkennis = controleerStrategie(strategie({ onderwerpen: [onderwerp({ bron: "vakkennis" })] }), invoerWP3);
+  eq("vaste vakkennis mag zonder feit", vakkennis.strategie.onderwerpen[0].besluit, "opnemen");
+  const wacht = controleerStrategie(strategie({ onderwerpen: [onderwerp({ bron: "vakkennis", wachtOpConflict: ["B1", "B9"] })] }), invoerWP3);
+  eq("een onderwerp dat op een conflict wacht, meldt alleen bestaande B-nummers", wacht.benodigdBetwist.join(","), "B1");
+
+  const lang = controleerStrategie(strategie({ lengtebudget: { woorden: 1400, onderbouwing: "", redenBovenPlafond: null } }), invoerWP3);
+  eq("een budget boven het plafond wordt teruggezet", String(lang.strategie.lengtebudget.woorden), String(budgetgrenzen("dienst").plafond));
+  const langMetReden = controleerStrategie(strategie({ lengtebudget: { woorden: 1000, onderbouwing: "", redenBovenPlafond: "Vijf beslisvragen met een feit" } }), invoerWP3);
+  eq("met een reden mag het tot de harde grens", String(langMetReden.strategie.lengtebudget.woorden), "1000");
+  const kort = controleerStrategie(strategie({ lengtebudget: { woorden: 120, onderbouwing: "", redenBovenPlafond: null } }), invoerWP3);
+  eq("onder het vertrekpunt wordt opgehoogd", String(kort.strategie.lengtebudget.woorden), "450");
+});
+
+group("Het lengtebudget volgt uit de inhoud (WP3, §7.4)", () => {
+  eq("een landingspagina over een plaats is lokaal", paginadoelVan("landing", true), "lokaal");
+  eq("een andere landingspagina is een dienstpagina", paginadoelVan("landing", false), "dienst");
+  eq("een artikel is uitleg", paginadoelVan("article", false), "uitleg");
+  ok("de titel 'Tuinaanleg in Best' gaat over Best", titelOverPlaats("Tuinaanleg in Best", ["Eindhoven", "Best"]));
+  ok("'De beste tuin' gaat niet over Best", !titelOverPlaats("De beste tuin", ["Best"]));
+  ok("'Son en Breugel' als geheel", titelOverPlaats("Hovenier in Son en Breugel", ["Son en Breugel"]));
+  const lokaal = budgetgrenzen("lokaal");
+  eq("lokaal: vertrekpunt 350, plafond 715", `${lokaal.min}-${lokaal.plafond}`, "350-715");
+  eq("plus 80 per extra beslisvraag en 50 per uitleg", String(verwachtBudget("lokaal", 3, 1)), String(450 + 160 + 50));
+  ok("geen getal wordt het midden, met een correctie", klemBudget(null, lokaal, false).correctie !== null);
+});
+
+group("De achtergrondmodus en de werksoort redactioneel (WP3, §4.3)", () => {
+  ok("zonder metingen direct", !moetAchtergrond("content_strategy", []));
+  ok("tot 120 seconden direct", !moetAchtergrond("content_strategy", [98_800, ACHTERGROND_GRENS_MS]));
+  ok("één aanroep boven 120 seconden: achtergrond", moetAchtergrond("content_strategy", [40_000, 121_000]));
+  ok("een onbekende duur telt niet mee", !moetAchtergrond("content_edit", [null, undefined]));
+  eq("ophalen na 30, 60, 120 en hoogstens 240 seconden", [0, 1, 2, 5].map(ophaalVertragingSeconden).join(","), "30,60,120,240");
+  const t = resolveTuning("gpt-6-sol", "redactioneel");
+  eq("redactioneel draait op denktijd hoog", String(t.reasoningEffort), "high");
+  eq("zonder temperatuur", String(t.temperature), "undefined");
+  const handlers = leesBestand("lib/jobs/handlers.ts");
+  ok("de plantaak plant de strategie in, niet meer het schrijven", handlers.includes("dedupe.contentStrategyNa(job.id)"));
+  ok("elke aanroep legt zijn duur vast", leesBestand("lib/openai/ledger.ts").includes("duration_ms:"));
 });

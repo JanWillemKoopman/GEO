@@ -1138,6 +1138,52 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
     };
   },
   /**
+   * L5, de paginastrategie (WP3). Met opzet ongemakkelijk, zodat elk vangnet
+   * in `strategie-check.ts` iets te doen krijgt: een F-nummer dat niet bestaat,
+   * een kernonderwerp zonder feit, een voorbehoud zonder reden, en een budget
+   * ver boven het plafond. Staat er een betwist feit in de opdracht, dan kiest
+   * de stub het toch als prioriteitsfeit, zodat de conflictpoort het ziet.
+   */
+  page_strategy: (user) => {
+    const refs = user
+      .split("\n")
+      .map((r) => /^(F\d+)\s\s+/.exec(r)?.[1])
+      .filter((r): r is string => Boolean(r));
+    const betwist = user
+      .split("\n")
+      .map((r) => /^(B\d+) \(/.exec(r)?.[1])
+      .filter((r): r is string => Boolean(r));
+    return {
+      zoekintentie: "lokaal vinden",
+      lezer: "Iemand met een hardloopblessure die snel geholpen wil worden",
+      fase: "beslissing",
+      paginadoel: "Een afspraak maken",
+      kernboodschap: "Bij een hardloopblessure ben je hier snel en deskundig geholpen.",
+      openingsantwoord: "Voor een hardloopblessure kun je in Amersfoort bij ons terecht.",
+      hoek: "De pagina voor hardlopers met een blessure.",
+      prioriteitsfeiten: [
+        ...betwist.slice(0, 1).map((b) => ({ feit: b, betekenis: "betwist, hoort eruit" })),
+        ...refs.slice(0, 3).map((f) => ({ feit: f, betekenis: "Dit telt voor deze lezer." })),
+        { feit: "F99", betekenis: "bestaat niet" },
+      ],
+      optioneleFeiten: refs.slice(3, 5),
+      uitgeslotenFeiten: [],
+      onderwerpen: [
+        { onderwerp: "Wat we behandelen", besluit: "opnemen", bron: "feit", feiten: refs.slice(0, 1), woorden: 150, vraag: null, wachtOpConflict: [], kern: true, reden: "beslisvraag" },
+        { onderwerp: "Wat een behandeling kost", besluit: "opnemen", bron: "geen", feiten: [], woorden: 80, vraag: null, wachtOpConflict: betwist.slice(0, 1), kern: true, reden: "beslisvraag" },
+        { onderwerp: "Vergelijk aanbieders", besluit: "weglaten", bron: "vakkennis", feiten: [], woorden: null, vraag: null, wachtOpConflict: [], kern: false, reden: "consumentengids" },
+      ],
+      onzekerheden: [
+        { punt: "Of er een wachtlijst is", bestemming: "B", reden: null, formulering: null, vraag: null },
+        { punt: "Prijs verschilt per behandeling", bestemming: "B", reden: "geld", formulering: "De prijs hangt af van het aantal behandelingen.", vraag: null },
+      ],
+      bezwaar: null,
+      lengtebudget: { woorden: 2000, onderbouwing: "veel te zeggen", redenBovenPlafond: null },
+      oproep: "Maak een afspraak.",
+      gevoelig: [],
+    };
+  },
+  /**
    * L1, feiten indelen (WP2 van contentpijplijn-publicatiewaardig.md). Een
    * echt model leest de genummerde lijst; deze stub doet dat met een paar vaste
    * regels, zodat het scenario zelf bepaalt welke feiten botsen.

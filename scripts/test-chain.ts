@@ -6545,6 +6545,15 @@ async function main(): Promise<void> {
       ok("de planstap staat vóór het schrijven in de rij", ptPlanRows.length === 1);
       await runJob({ admin: admin as never, job: { ...ptPlanRows[0], status: "running" } });
 
+      // Sinds WP3 staat de paginastrategie tussen plannen en schrijven.
+      const { rows: ptStratRows } = await db.client.query(
+        `select * from public.jobs where analysis_id = $1 and type = 'content_strategy'
+          order by created_at desc limit 1`,
+        [ptAnalysisId],
+      );
+      ok("de plantaak plant de paginastrategie in (WP3)", ptStratRows.length === 1);
+      await runJob({ admin: admin as never, job: { ...ptStratRows[0], status: "running" } });
+
       const { rows: ptJobRows } = await db.client.query(
         `select * from public.jobs where analysis_id = $1 and type = 'content_draft'
           order by created_at desc limit 1`,
@@ -6899,6 +6908,13 @@ async function main(): Promise<void> {
         // pagina is niet via de briefing binnengekomen, dus de schrijfstap maakt
         // hem straks pas aan. Daarom loopt de opgehaalde tekst hier via de
         // payload, en controleren we de kolommen verderop, ná het schrijven.
+        const { rows: vbStratRows } = await db.client.query(
+          `select * from public.jobs where analysis_id = $1 and type = 'content_strategy'
+            order by created_at desc limit 1`,
+          [vbAnalysisId],
+        );
+        ok("de plantaak plant de paginastrategie in (WP3)", vbStratRows.length === 1);
+        await vbRunJob({ admin: admin as never, job: { ...vbStratRows[0], status: "running" } });
         const { rows: vbDraftRows } = await db.client.query(
           `select * from public.jobs where analysis_id = $1 and type = 'content_draft'
             order by created_at desc limit 1`,
@@ -10093,6 +10109,143 @@ async function main(): Promise<void> {
         "opgelost/vraag",
       );
       eqc("scenario 18: en zijn keuze is bevestigd", await stand(4), "bevestigd");
+    }
+
+    // ── Scenario 19: de paginastrategie (WP3) ──────────────────────────────
+    //
+    // docs/tasks/contentpijplijn-publicatiewaardig.md §5 L5 en §13 WP3. De
+    // stub kiest met opzet verkeerd (een F-nummer dat niet bestaat, een betwist
+    // feit, een budget van 2.000 woorden); de code moet het rechtzetten. Daarna
+    // de conflictpoort (wachten en vanzelf herstarten), hergebruik zonder
+    // nieuwe aanroep, en de achtergrondmodus zonder dubbele start.
+    console.log("\nScenario 19: de paginastrategie (WP3)");
+    {
+      const { runJob: rj } = await import("@/lib/jobs/handlers");
+      const { enqueue: eq19 } = await import("@/lib/jobs/queue");
+      const { losConflictOp: los19 } = await import("@/lib/pipeline/feitenregister");
+      const { __aantalAchtergrondStarts } = await import("@/lib/openai/structured");
+      const shim = createShimClient(db.client) as never;
+
+      const sp = randomUUID();
+      const sa = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, service_regions, tone_of_voice)
+         values ($1, $2, 'Strategietest', 'https://strategietest.nl', 'Strategietest', 'klaar', array['Geldrop'], 'Zakelijk')`,
+        [sp, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'Strategietest', 'https://strategietest.nl', 'cv-ketel', 'gereed')`,
+        [sa, userId, sp],
+      );
+      const feitRij = async (tekst: string) =>
+        (await db.client.query(
+          `insert into public.brand_facts (profile_id, text, source, kind, fact_key, stand) values ($1, $2, 'site /', 'site', $3, 'site') returning id`,
+          [sp, tekst, tekst.toLowerCase()],
+        )).rows[0].id as string;
+      const f1 = await feitRij("Een nieuwe cv-ketel kost € 2.200 tot € 3.200, inclusief installatie.");
+      const f2 = await feitRij("Twaalf monteurs in dienst");
+      const f3 = await feitRij("De levertijd is 2 tot 4 weken.");
+      const x1 = await feitRij("Een ketelonderhoud kost € 120.");
+      const x2 = await feitRij("Een ketelonderhoud kost € 150.");
+      const titel19 = "Cv-ketel vervangen";
+      const { rows: stuk19 } = await db.client.query(
+        `insert into public.content_pieces (analysis_id, title, type, status, version, is_current, briefing_snapshot_json)
+         values ($1, $2, 'landing', 'briefing', 1, true, $3::jsonb) returning id`,
+        [sa, titel19, JSON.stringify({ facts: [
+          { ref: "F1", id: f1, text: "Een nieuwe cv-ketel kost € 2.200 tot € 3.200, inclusief installatie.", source: "site /", allowed: true, citable: true },
+          { ref: "F2", id: f2, text: "Twaalf monteurs in dienst", source: "opgegeven in het gesprek", allowed: true, citable: true },
+          { ref: "F3", id: f3, text: "De levertijd is 2 tot 4 weken.", source: "site /", allowed: true, citable: true },
+        ] })],
+      );
+      const pieceId19 = stuk19[0].id as string;
+      const { rows: conflict19 } = await db.client.query(
+        `insert into public.fact_conflicts (profile_id, feit_ids, paar_sleutel, soort, echt_conflict, ernst, status)
+         values ($1, $2, 'onderhoud|prijs', 'prijs', true, 'blokkerend', 'open') returning id`,
+        [sp, [x1, x2]],
+      );
+      await db.client.query("update public.brand_facts set stand = 'betwist' where id in ($1, $2)", [x1, x2]);
+
+      const aanbeveling19 = {
+        title: titel19, type: "landing" as const, targetIntent: "Wat kost een nieuwe cv-ketel?", why: "De AI noemt ons niet.",
+        action: "nieuw" as const, existingUrl: null, reportId: null, targets: [], revisionNote: null,
+      };
+      const strategieJob = async () =>
+        (await db.client.query(
+          `select * from public.jobs where analysis_id = $1 and type = 'content_strategy' and status = 'queued' order by created_at desc limit 1`,
+          [sa],
+        )).rows[0];
+      const draaiLaatste = async () => {
+        const job = await strategieJob();
+        if (!job) return false;
+        await rj({ admin: shim, job: { ...job, status: "running" } });
+        await db.client.query("update public.jobs set status = 'done' where id = $1", [job.id]);
+        return true;
+      };
+      const drafts = async () =>
+        (await db.client.query(`select payload_json from public.jobs where analysis_id = $1 and type = 'content_draft'`, [sa])).rows;
+      const strategieLog = () => log.filter((l) => l.schemaName === "page_strategy").length;
+
+      await eq19(shim, {
+        type: "content_strategy",
+        payload: { userId, recommendation: aanbeveling19, voorbereid: null },
+        analysisId: sa,
+        dedupeKey: "scenario19:1",
+      });
+      const voor1 = strategieLog();
+      await draaiLaatste();
+      eqc("scenario 19: één strategieaanroep", String(strategieLog() - voor1), "1");
+      const opdracht = log.filter((l) => l.schemaName === "page_strategy").at(-1)?.user ?? "";
+      ok("scenario 19: de strategie krijgt het contract als mogelijkheden, niet als opdracht", !opdracht.includes("MOET erop"));
+      ok("scenario 19: en de betwiste feiten met een B-nummer", opdracht.includes("B1 (prijs)"));
+      const s1 = (await db.client.query("select strategy_json from public.content_pieces where id = $1", [pieceId19])).rows[0].strategy_json;
+      ok("scenario 19: de strategie staat bij de pagina", Boolean(s1?.strategie));
+      ok("scenario 19: het F-nummer dat niet bestaat is eruit", !s1.strategie.prioriteitsfeiten.some((p: { feit: string }) => p.feit === "F99"));
+      ok("scenario 19: het betwiste feit is geen prioriteitsfeit", !s1.strategie.prioriteitsfeiten.some((p: { feit: string }) => p.feit.startsWith("B")));
+      ok("scenario 19: een voorbehoud zonder reden wordt een vraag", s1.strategie.onzekerheden[0].bestemming === "A");
+      ok("scenario 19: een voorbehoud met reden blijft", s1.strategie.onzekerheden[1].bestemming === "B");
+      ok("scenario 19: een kernonderwerp zonder feit wordt een vraag", s1.strategie.onderwerpen[1].besluit === "eerst vragen");
+      ok("scenario 19: het budget van 2.000 woorden is teruggezet", s1.strategie.lengtebudget.woorden < 2000, String(s1.strategie.lengtebudget.woorden));
+      ok("scenario 19: de ruwe keuze van het model is ook bewaard", s1.ruw.lengtebudget.woorden === 2000);
+      eqc("scenario 19: de betwiste onderhoudsprijs houdt de pagina tegen", String(s1.tegengehouden?.length ?? 0), "1");
+      eqc("scenario 19: dus er wordt niet geschreven", String((await drafts()).length), "0");
+      ok("scenario 19: de pagina wacht", Boolean(s1.wacht?.payload));
+
+      const opgelost = await los19(shim, { profileId: sp, conflictId: conflict19[0].id, userId, keuze: { feitId: x1 } });
+      ok("scenario 19: de adviseur lost het conflict op", opgelost === null, String(opgelost));
+      ok("scenario 19: de pagina start vanzelf opnieuw bij de strategie", Boolean(await strategieJob()));
+      const voor2 = strategieLog();
+      await draaiLaatste();
+      eqc("scenario 19: met een nieuwe strategie, want er is een feit veranderd", String(strategieLog() - voor2), "1");
+      eqc("scenario 19: en nu wordt er geschreven", String((await drafts()).length), "1");
+      const s2 = (await db.client.query("select strategy_json from public.content_pieces where id = $1", [pieceId19])).rows[0].strategy_json;
+      ok("scenario 19: de wachtstand is weg", !s2.wacht);
+      ok("scenario 19: de strategie reist mee naar het schrijven", Boolean((await drafts())[0].payload_json.voorbereid?.strategie));
+
+      // Hervatten zonder dubbele aanroep: dezelfde invoer, dezelfde strategie.
+      await eq19(shim, { type: "content_strategy", payload: { userId, recommendation: aanbeveling19, voorbereid: null }, analysisId: sa, dedupeKey: "scenario19:2" });
+      const voor3 = strategieLog();
+      await draaiLaatste();
+      eqc("scenario 19: dezelfde invoer, geen nieuwe aanroep (conventie 9)", String(strategieLog() - voor3), "0");
+
+      // De achtergrondmodus: één gemeten aanroep boven de 120 seconden.
+      await db.client.query(
+        `insert into public.ai_calls (kind, model, duration_ms, cost_usd) values ('content_strategy', 'gpt-6-sol', 131000, 0)`,
+      );
+      const startsVoor = __aantalAchtergrondStarts();
+      await eq19(shim, { type: "content_strategy", payload: { userId, recommendation: aanbeveling19, voorbereid: null, regenerate: true }, analysisId: sa, dedupeKey: "scenario19:3" });
+      await draaiLaatste();
+      eqc("scenario 19: boven 120 seconden gaat de aanroep naar de achtergrond", String(__aantalAchtergrondStarts() - startsVoor), "1");
+      const ophaal = await strategieJob();
+      ok("scenario 19: een vervolgtaak haalt het resultaat op", Boolean(ophaal?.payload_json?.ophalen?.responseId));
+      const draftsVoor = (await drafts()).length;
+      await rj({ admin: shim, job: { ...ophaal, status: "running" } });
+      await rj({ admin: shim, job: { ...ophaal, status: "running" } });
+      eqc("scenario 19: opnieuw proberen haalt op en start niets opnieuw", String(__aantalAchtergrondStarts() - startsVoor), "1");
+      const nieuweDrafts = (await drafts()).slice(draftsVoor);
+      ok("scenario 19: daarna wordt er geschreven", nieuweDrafts.length === 1, String(nieuweDrafts.length));
+      ok("scenario 19: met de strategie uit de achtergrond", nieuweDrafts[0]?.payload_json?.voorbereid?.strategie?.achtergrond === true);
+      await db.client.query("delete from public.ai_calls where kind = 'content_strategy' and duration_ms = 131000");
     }
 
     __setTestAdminClient(null);
