@@ -35,6 +35,7 @@
  * Bewust ZONDER `server-only`: pure opmaak en pure validatie, testbaar in een
  * kaal script, zelfde patroon als evidence-format.ts en question-share.ts.
  */
+import { zonderVindplaats } from "@/lib/pipeline/waardeproposities";
 
 /** Eén feit op de kaart. `ref` is het F-nummer waarnaar de content verwijst. */
 export interface FactItem {
@@ -290,7 +291,10 @@ export function formatFactCard(facts: FactItem[]): string {
     );
   } else {
     for (const f of bruikbaar) {
-      regels.push(`${f.ref}  ${f.text}`.padEnd(60) + `bron: ${f.source}`);
+      // Zonder "De website vermeldt" ervoor (WP1 van
+      // contentpijplijn-publicatiewaardig.md): de schrijver nam die afstand over.
+      // Wat blijft staan is letterlijk een stuk van het feit, dus het citaat klopt.
+      regels.push(`${f.ref}  ${zonderVindplaats(f.text)}`.padEnd(60) + `bron: ${f.source}`);
     }
   }
 
@@ -315,7 +319,7 @@ export function formatFactCard(facts: FactItem[]): string {
         "is het niet bevestigd en schrijf je het niet op:",
     );
     for (const f of achtergrond) {
-      regels.push(`    ~ ${f.text}   (${f.source})`);
+      regels.push(`    ~ ${zonderVindplaats(f.text)}   (${f.source})`);
     }
   }
 

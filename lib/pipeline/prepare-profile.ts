@@ -24,6 +24,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { crawlSite } from "@/lib/crawler";
 import { generateProfileResearch } from "@/lib/pipeline/profile-research";
+import { schoneWaardeproposities } from "@/lib/pipeline/waardeproposities";
 import {
   filterProtectedFields,
   describeMerge,
@@ -236,7 +237,11 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
         : p.toneOfVoice,
       summary: filled(prof.summary) ? prof.summary : p.summary,
       products: unionList(prof.products, p.products),
-      value_props: unionList(prof.value_props, p.valueProps),
+      // Geschoond en ontdubbeld (WP1 van contentpijplijn-publicatiewaardig.md):
+      // `unionList()` voegt alleen exact gelijke zinnen samen, en bij de hovenier
+      // stonden er na twee onderzoeksrondes 11 regels, waarvan 5 dubbel en 5 met
+      // "volgens de website" of "naar eigen zeggen" erin.
+      value_props: schoneWaardeproposities(unionList(prof.value_props, p.valueProps)),
       competitors: unionList(prof.competitors, p.competitors),
       personas: prof.personas?.length ? prof.personas : p.personas,
       // Klant leidend, net als hierboven: wie zelf 'landelijk' invulde, houdt

@@ -72,6 +72,8 @@ import { bruikbareOpdracht, opdrachtblok } from "@/lib/schrijfopdracht";
 import type { WriterBrief } from "@/lib/schemas/writer-brief";
 import { vindCiteerbareAntwoorden, citatenblok } from "@/lib/pipeline/klantcitaten";
 import { adviestoonblok } from "@/lib/pipeline/adviestoon";
+import { merkstemblok } from "@/lib/pipeline/stemvelden";
+import { schoneWaardeproposities } from "@/lib/pipeline/waardeproposities";
 import {
   chooseExistingText,
   matchExistingPage,
@@ -604,7 +606,12 @@ function buildContentInput(args: {
     profile?.compliance_notes?.trim()
       ? `REGELS WAAR DEZE PAGINA AAN MOET VOLDOEN: ${profile.compliance_notes.trim()}`
       : "",
-    profile?.value_props?.length ? `Waardeproposities (waarom klanten kiezen): ${profile.value_props.join(", ")}` : "",
+    // ✅ WP1 van contentpijplijn-publicatiewaardig.md: de waardeproposities
+    // geschoond van herkomsttaal ("volgens de website", "naar eigen zeggen") en
+    // dubbelingen, samen met de zes stemvelden die tot 25 september 2026 nergens
+    // de schrijfopdracht in gingen. Een schrijver die "volgens de website" leest,
+    // neemt die afstand over (§1.2, O2).
+    profile ? merkstemblok(profile) : "",
     // ✅ Migratie 0060, de bezwaren uit het verkoopgesprek. Het meest
     // ondergewaardeerde veld van de commerciële laag: een AI-antwoord heeft
     // vaak precies de vorm van een bezwaar, en de pagina die het bezwaar
@@ -1532,7 +1539,8 @@ async function loadContentContext(
         targets,
         facts,
         contract,
-        valueProps: profile?.value_props ?? [],
+        // Geschoond, zelfde reden als in `buildContentInput` (WP1).
+        valueProps: schoneWaardeproposities(profile?.value_props),
         objections: profile?.sales_objections ?? [],
         situationalNote: strategyNote,
         analysisId,

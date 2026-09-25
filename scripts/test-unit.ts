@@ -69,6 +69,8 @@ import {
   zonderBetwisteFeiten,
   type RegisterFeit,
 } from "@/lib/pipeline/conflict-detect";
+import { schoonWaardepropositie, schoneWaardeproposities, zelfdePropositie, zonderVindplaats } from "@/lib/pipeline/waardeproposities";
+import { merkstemblok } from "@/lib/pipeline/stemvelden";
 // ── Het kwaliteitsraamwerk (migratie 0091) ─────────────────────────────────
 import {
   QUALITY_DIMENSIONS,
@@ -209,6 +211,7 @@ import { shareByRun, sumShare, roundQuestions } from "@/lib/pipeline/question-sh
 import {
   numberFacts,
   formatFactCard,
+  normalizeForQuote,
   isSupported,
   claimKey,
   topicKey,
@@ -26697,4 +26700,116 @@ group("De achtergrondmodus en de werksoort redactioneel (WP3, §4.3)", () => {
   const handlers = leesBestand("lib/jobs/handlers.ts");
   ok("de plantaak plant de strategie in, niet meer het schrijven", handlers.includes("dedupe.contentStrategyNa(job.id)"));
   ok("elke aanroep legt zijn duur vast", leesBestand("lib/openai/ledger.ts").includes("duration_ms:"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// WP1 van docs/tasks/contentpijplijn-publicatiewaardig.md: de invoer opschonen.
+// De zinnen hieronder staan letterlijk in de merkdossiers van 25 september 2026.
+group("Waardeproposities zonder herkomsttaal en zonder dubbelingen (WP1)", () => {
+  const hovenier = [
+    "Meer dan 35 jaar ervaring, volgens de website",
+    "Diverse tuinwerkzaamheden onder één dak, van ontwerp en aanleg tot onderhoud",
+    "Persoonlijk kennismakingsgesprek om wensen en mogelijkheden te bespreken",
+    "Maatwerk voor ieder budget, volgens de website",
+    "De klant wordt naar eigen zeggen van A tot Z ontzorgd",
+    "De website biedt een gratis, vrijblijvende offerte aan",
+    "Een breed dienstenpakket voor tuinontwerp, aanleg, onderhoud en aanvullende tuinvoorzieningen",
+    "Een persoonlijk kennismakingsgesprek om wensen en mogelijkheden te bespreken",
+    "De website stelt dat het bedrijf tuinen op maat voor ieder budget realiseert",
+    "De klant wordt volgens de website van A tot Z ontzorgd",
+    "Gratis en vrijblijvende offerte; de website zegt te streven naar verzending binnen 4 uur",
+  ];
+  const installateur = [
+    "Breed aanbod aan installatiewerk, loodgieterswerk en woningrenovaties bij één lokaal bedrijf.",
+    "Het bedrijf zegt werkzaamheden aan badkamers, toiletten, keukens en kleine interne verbouwingen van A tot Z te regelen met professionele onderaannemers.",
+    "Persoonlijk afgestemde productkeuze: bij CV-ketelvervanging wordt volgens de site gekeken naar woning, energieverbruik en wensen.",
+    "Nadruk op service, vakmanschap, nauwkeurigheid en een vrijblijvende bezichtiging of offerte.",
+    "Vermeldt officiële CO-certificering volgens de Gasketelwet op de pagina over CV-ketelvervanging.",
+    "Bij CV-ketelvervanging wordt volgens de site gekeken naar de woning, het energieverbruik en de wensen van de klant.",
+    "De communicatie benadrukt service, vakmanschap, nauwkeurigheid en de mogelijkheid van een vrijblijvende bezichtiging of offerte.",
+    "De pagina over CV-ketelvervanging vermeldt een officiële CO-certificering volgens de Gasketelwet.",
+  ];
+  const rijschool = [
+    "Persoonlijke begeleiding door één vaste rijinstructeur",
+    "Rijopleiding afgestemd op de wensen, sterke punten en ontwikkelbehoeften van de leerling",
+    "Een rustige, ongedwongen aanpak met aandacht voor zelfvertrouwen en veilig zelfstandig rijden",
+    "Ervaring met begeleiding van leerlingen met faalangst, ADHD of vergelijkbare extra begeleidingsbehoeften",
+    "Een intake om het benodigde aantal lessen beter in te schatten en een pakket op maat samen te stellen",
+    "Keuze uit rijlessen in een auto, automaatlessen en simulatorlessen",
+    "Een rustige en ongedwongen aanpak met aandacht voor zelfvertrouwen en veilig zelfstandig rijden",
+    "Ervaring met begeleiding van leerlingen met faalangst, ASS of AD(H)D",
+    "Keuze uit autorijlessen, automaatlessen en simulatorlessen",
+  ];
+
+  eq("35 jaar zonder 'volgens de website'", schoonWaardepropositie(hovenier[0]) ?? "", "Meer dan 35 jaar ervaring");
+  eq("'naar eigen zeggen' eruit", schoonWaardepropositie(hovenier[4]) ?? "", "De klant wordt van A tot Z ontzorgd");
+  eq("'De website biedt X aan' wordt X", schoonWaardepropositie(hovenier[5]) ?? "", "Een gratis, vrijblijvende offerte");
+  eq("het deel met herkomst na de puntkomma vervalt", schoonWaardepropositie(hovenier[10]) ?? "", "Gratis en vrijblijvende offerte");
+  eq("een bijzin die niet netjes om te zetten is vervalt", String(schoonWaardepropositie(hovenier[8])), "null");
+  eq("'Het bedrijf zegt ... te regelen' vervalt", String(schoonWaardepropositie(installateur[1])), "null");
+  eq("'volgens de Gasketelwet' is geen herkomst en blijft", schoonWaardepropositie(installateur[4]) ?? "", "Officiële CO-certificering volgens de Gasketelwet");
+  eq("'De pagina over ... vermeldt' wordt de kern", schoonWaardepropositie(installateur[7]) ?? "", "Officiële CO-certificering volgens de Gasketelwet");
+  eq("'De communicatie benadrukt' vervalt", String(schoonWaardepropositie(installateur[6])), "null");
+
+  const herkomst = /volgens de (website|site)|naar eigen zeggen|de website|het bedrijf zegt|de communicatie/i;
+  for (const [naam, lijst, verwacht] of [
+    ["hovenier", hovenier, 7],
+    ["installateur", installateur, 4],
+    ["rijschool", rijschool, 6],
+  ] as const) {
+    const schoon = schoneWaardeproposities(lijst);
+    ok(`${naam}: geen herkomsttaal meer`, !schoon.some((z) => herkomst.test(z)), schoon.join(" | "));
+    eq(`${naam}: van ${lijst.length} naar ${verwacht} regels`, String(schoon.length), String(verwacht));
+  }
+  ok("de lesvormen van de rijschool zijn één propositie", zelfdePropositie(rijschool[5], rijschool[8]));
+  ok("de twee dienstenomschrijvingen van de hovenier niet", !zelfdePropositie(hovenier[1], hovenier[6]));
+  eq("een lege lijst blijft leeg", String(schoneWaardeproposities(null).length), "0");
+});
+
+group("De stemvelden gaan mee in de schrijfopdracht (WP1)", () => {
+  eq("een leeg merkdossier geeft geen blok", merkstemblok({}), "");
+  const blok = merkstemblok({
+    audience_knowledge_level: 1,
+    differentiator: "Twaalf eigen monteurs, geen onderaannemers voor de ketel",
+    usp: "Binnen 24 uur bij een storing, ook in het weekend",
+    key_messages: ["Eén vast aanspreekpunt"],
+    signature_phrases: ["Gewoon goed geregeld"],
+    identity_keywords: ["vakmanschap", "nauwkeurig"],
+    value_props: ["Meer dan 35 jaar ervaring, volgens de website", "Maatwerk voor ieder budget, volgens de website"],
+  });
+  ok("het kennisniveau als instructie", blok.includes("leg elke vakterm in dezelfde zin uit"));
+  ok("het onderscheid", blok.includes("Twaalf eigen monteurs"));
+  ok("de USP", blok.includes("Binnen 24 uur"));
+  ok("de kernboodschap", blok.includes("Eén vast aanspreekpunt"));
+  ok("de eigen uitdrukking", blok.includes('"Gewoon goed geregeld"'));
+  ok("de kernwoorden", blok.includes("vakmanschap, nauwkeurig"));
+  ok("de waardeproposities geschoond", blok.includes("Meer dan 35 jaar ervaring;") && !blok.includes("volgens de website"));
+  const content = leesBestand("lib/pipeline/content.ts");
+  ok("de schrijfopdracht gebruikt het blok", content.includes("merkstemblok(profile)"));
+  ok("de ruwe waardeproposities gaan de schrijfopdracht niet meer in", !content.includes("profile.value_props.join"));
+  ok("de schrijfopdracht van luna krijgt ze geschoond", content.includes("valueProps: schoneWaardeproposities(profile?.value_props)"));
+  ok("het profielonderzoek slaat ze geschoond op", leesBestand("lib/pipeline/prepare-profile.ts").includes("schoneWaardeproposities(unionList("));
+});
+
+group("De feitenkaart zonder 'De website vermeldt' (WP1)", () => {
+  // Letterlijk uit `brand_facts` van de drie proefklanten, 25 september 2026.
+  const gevallen: [string, string][] = [
+    ["De website vermeldt: “35+ Jaar ervaring”.", "35+ Jaar ervaring"],
+    ["De website biedt een gratis offerte aan.", "Een gratis offerte"],
+    ["De site noemt een vrijblijvende intake van 60 minuten.", "Een vrijblijvende intake van 60 minuten."],
+    ["Bedrijfsgegevens volgens de aangeleverde website-informatie: Speelheuvelweg 6A, 5652 CH Eindhoven; KvK 17120470.", "Speelheuvelweg 6A, 5652 CH Eindhoven; KvK 17120470."],
+    ["De website vermeldt: ‘Ons bedrijf beschikt over een officiële CO-certificering volgens de Gasketelwet.’", "Ons bedrijf beschikt over een officiële CO-certificering volgens de Gasketelwet."],
+    ["De website vermeldt in de aangeleverde prijstekst: prijzen gelden per 1 november 2025; prijswijzigingen voorbehouden.", "Prijzen gelden per 1 november 2025; prijswijzigingen voorbehouden."],
+    ["Twaalf monteurs in dienst", "Twaalf monteurs in dienst"],
+  ];
+  for (const [feit, verwacht] of gevallen) {
+    const uit = zonderVindplaats(feit);
+    eq(`"${feit.slice(0, 40)}..."`, uit, verwacht);
+    ok("wat overblijft is letterlijk een stuk van het feit, dus het citaat klopt", normalizeForQuote(feit).includes(normalizeForQuote(uit)));
+  }
+  const kaart = formatFactCard([
+    { ref: "F27", text: "De website vermeldt: “35+ Jaar ervaring”.", source: "site hansverstraatenhoveniers.nl", allowed: true, citable: true, kind: "site" } as never,
+  ]);
+  ok("de kaart toont het feit zonder vindplaats", kaart.includes("F27  35+ Jaar ervaring") && !kaart.includes("De website vermeldt"));
+  ok("het profielonderzoek vraagt om de bewering zelf", leesBestand("lib/pipeline/profile-research.ts").includes("Schrijf de bewering zelf op, niet dat de site hem doet"));
 });
