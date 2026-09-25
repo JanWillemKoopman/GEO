@@ -24,7 +24,9 @@
 > gedaan. Het eindverslag van de nulmeting staat hieronder; het stap-voor-stapdossier met cijfers in
 > `docs/tasks/kwaliteitsdoorlichting-stappen.md`. De uitslag van de herhaling staat bij §"Herhaling"
 > verderop en bij de punten 45, 47, 50, 55 tot en met 62. De aanpak om de nog openstaande punten (50,
-> 57, 59, 60, 61) op te lossen staat in `docs/tasks/kwaliteitsdoorlichting-reparatieplan.md`.
+> 57, 59, 60, 61) op te lossen staat in `docs/tasks/kwaliteitsdoorlichting-reparatieplan.md`. Bij
+> het oppakken daarvan (25 september 2026) bleken 60 en 61 onterecht: wat de blinde lezer verzonnen
+> of verwisseld noemde, staat op de site of in de antwoorden van de klant (zie bij de punten zelf).
 
 ## Verbeterronde vanaf 24 september 2026: besluiten en stand
 
@@ -195,10 +197,11 @@ bronzinnen, het ontbrekende bewijs).
 | 56 | **hoog** | Een analyse wordt al na de eerste mislukte rapportpoging op "vastgelopen" gezet en toont de klant een foutmelding, terwijl de taak zelf nog drie keer op de achtergrond opnieuw probeert (tot 30 minuten) | open, herhaling 24/25 september 2026 |
 | 57 | middel | Bij één pagina kwamen na het beantwoorden van de eerste vragen 12 nieuwe vervolgvragen over hetzelfde onderwerp (wat zit inbegrepen bij een ketelvervanging), in steeds andere bewoordingen | open, bevestigt dat punt 36 nog niet volledig is opgelost, herhaling 24/25 september 2026 |
 | 58 | laag | De crawl van een grote site (~70 pagina's) las dit keer maar 33 van de 68 pagina's, ook na een extra aanvulronde, tegen 60 van de 68 bij de nulmeting; de site reageerde traag | open, lijkt aan de externe site te liggen en niet aan de code, herhaling 24/25 september 2026 |
-| 59 | **hoog** | De bronherleidbaarheidscontrole blokkeert op zinnen die geen bewering over het bedrijf zijn (een datumstempel, een veiligheidsinstructie, een definitie); 20 van de 21 nieuwe pagina's kregen "block" | open, gekend gat sinds 3 september, omvang nu voor het eerst gemeten, herhaling 24/25 september 2026 |
-| 60 | **hoog** | Een verzonnen veiligheidscertificering ("CO-gecertificeerd volgens de Gasketelwet") staat op alle 7 van de 7 nieuwe pagina's van de installateur; de keuring hield hem niet tegen | open, blinde lezer herhaling 24/25 september 2026, nagerekend tegen het waarheidsdossier |
-| 61 | middel | Twee echte cijfers uit dezelfde feitenkaart verwisseld (intake € 50 wordt € 80 op minstens 2 van de 8 pagina's), en een groeiwens ("willen groeien in Son en Breugel") werd een bevestigde aanwezigheidsclaim | open, blinde lezer herhaling 24/25 september 2026, nagerekend tegen het waarheidsdossier |
+| 59 | **hoog** | De bronherleidbaarheidscontrole blokkeert op zinnen die geen bewering over het bedrijf zijn (een datumstempel, een veiligheidsinstructie, een definitie); 20 van de 21 nieuwe pagina's kregen "block" | ✅ opgelost in code, PR #PRNUM (reparatieplan blok G, 25 september 2026); nameting op productie volgt na de merge |
+| 60 | **hoog** | Een verzonnen veiligheidscertificering ("CO-gecertificeerd volgens de Gasketelwet") staat op alle 7 van de 7 nieuwe pagina's van de installateur; de keuring hield hem niet tegen | ❌ onterecht bij narekenen: de certificering staat letterlijk op de site; wel een vangnet voor keurmerken gebouwd, PR #PRNUM |
+| 61 | middel | Twee echte cijfers uit dezelfde feitenkaart verwisseld (intake € 50 wordt € 80 op minstens 2 van de 8 pagina's), en een groeiwens ("willen groeien in Son en Breugel") werd een bevestigde aanwezigheidsclaim | ❌ onterecht bij narekenen: de site noemt een intake van € 50 (kantoor) én € 80 (auto), en de klant antwoordde "ja" op Son en Breugel |
 | 62 | **hoog** | De reparatieknop ("los alles op") haalt bij een volledige herschrijving een juist klantfeit weg dat niet eens gemeld was, en lost soms zelfs de gemelde punten zelf niet op | teruggevallen, herhaling 24/25 september 2026, rechtstreeks getest en nagerekend |
+| 63 | laag | Feiten van de site bevatten letterlijke HTML-codes ("offici&euml;le", "&euro; 50") | ✅ opgelost, PR #PRNUM (reparatieplan blok G, 25 september 2026) |
 
 ---
 
@@ -1229,6 +1232,20 @@ alleen die ja/nee-vraag stelt per kandidaatzin (dezelfde soort aanpak als `zinPa
 punt 54), en in elk geval datumstempels ("Laatst bijgewerkt: ...") en verwijzingen naar een externe
 partij (CBR, hulpdiensten) categorisch uitsluiten.
 
+**Opgelost in code (25 september 2026, reparatieplan blok G, PR #PRNUM).** Twee lagen. (1) De code
+laat een datumstempel en een verwijzing naar een externe partij (112, CBR, RVO, de gemeente) niet meer
+als bewering tellen, zolang de zin geen merknaam, wij-vorm of ander getal heeft
+(`isGeenBewering()` in `lib/pipeline/claim-extract.ts`). (2) Wat de woordvergelijking daarna nog niet
+rond krijgt, gaat in één modelaanroep per keuring naar de zinnenbeoordelaar
+(`lib/pipeline/claim-judge.ts`): is dit een controleerbare bewering over het bedrijf, en welk feit
+onderbouwt hem exact. De code controleert dat antwoord: een zin met merknaam, wij-vorm of bedrag mag
+het model niet wegzetten, en een aangewezen feit telt alleen als de getallen van de zin erin staan en
+zin en feit een kernwoord delen (`verwerkZinOordelen()`). Van de 67 tegengehouden zinnen van de
+herhaling vallen er 6 op de eerste laag weg, 14 kan alleen een feit nog vrijspreken, en 47 legt de
+code aan het model voor. Eenheidstests op de vijf voorbeeldzinnen hierboven en op de echte feiten van
+de rijschool en de installateur. **Nog na te rekenen op productie** met een herkeuring van bestaande
+pagina's.
+
 ## 60. Een verzonnen veiligheidscertificering op alle zeven nieuwe pagina's van één merk
 
 Gevonden door de blinde lezer van de herhaling, nagerekend tegen het waarheidsdossier: alle zeven
@@ -1262,6 +1279,20 @@ kwalificaties (een korte lijst met veelvoorkomende woorden als "gecertificeerd",
 de coulance van `zinParafraseertFeit()`: een verzonnen keurmerk is nooit een parafrase, het is een
 ander feit.
 
+**Onterecht bij narekenen (25 september 2026).** Het "waarheidsdossier" van de blinde lezer was
+onvollediger dan de feitenkaart van de app. De site van de installateur zegt op /ketelvervanging
+letterlijk "Ons bedrijf beschikt over een officiële CO-certificering volgens de Gasketelwet", en dat
+feit staat zes keer op de kaart (`brand_facts`, bron "site /ketelvervanging"). Hetzelfde geldt voor
+de kleinere punten: Intergas en Vaillant staan op dezelfde pagina, Eindhoven staat in het klantantwoord
+"buiten Geldrop en Eindhoven", het gratis adviesbezoek in een klantantwoord van 25 september, en
+"gratis" staat niet op de verbodenlijst van dit merk (die noemt "de beste" en "goedkoop"). Het eindverslag
+van de nulmeting had dezelfde vergissing al eens weggestreept. Alleen de levertijd van de hybride
+warmtepomp op een pagina over ketelvervanging blijft een terecht, klein punt. Toch gebouwd, als
+vangnet (PR #PRNUM): een zin met een keurmerkwoord is alleen gedekt als één feit alle keurmerkwoorden
+bevat, op stam ("certificering" dekt "gecertificeerd"), bovenop de gewone dekking
+(`keurmerkKern()`). De echte Gasketelwet-zin gaat erdoor, "erkend installatiebedrijf en
+VCA-gecertificeerd" naast alleen het feit "allround erkend installatiebedrijf" niet.
+
 ## 61. Twee echte cijfers uit dezelfde feitenkaart verwisseld
 
 Gevonden door de blinde lezer van de herhaling bij de rijschool, nagerekend tegen het
@@ -1288,6 +1319,14 @@ feit eisen wanneer er meerdere prijzen voor vergelijkbare diensten op de kaart s
 "intake" tegenover "losse les"), niet alleen bij één los getal; en bij het promoveren van een
 klantantwoord naar een feit een woord als "willen" of "streven naar" laten meetellen als onderdeel van
 het feit zelf, niet alleen van het antwoord.
+
+**Onterecht bij narekenen (25 september 2026).** De prijslijst op
+autorijschoolpompert.nl/prijzen-lespakketten noemt "Intake (kantoor) van 60 minuten € 50,-" én
+"Intake (auto) van 60 minuten € 80,-", en de kaart heeft het feit "Een vrijblijvende intake in de auto
+duurt 60 minuten en kost € 80". De zin "De intake staat vermeld voor € 50 en € 80" klopt dus. En op
+de vraag "Nemen jullie ook opdrachten aan in Son en Breugel?" antwoordde de hovenier "Ja, Son en
+Breugel is juist een van de plaatsen waar we willen groeien": "wij nemen opdrachten aan in Son en
+Breugel" is dan geen verloren nuance maar het antwoord. Geen codewijziging.
 
 ## 62. De reparatieknop haalt opnieuw een juist klantfeit uit de tekst (punt 50, teruggevallen)
 
@@ -1319,6 +1358,18 @@ expliciet laten zeggen "behoud alle overige feiten die al in de tekst stonden en
 per punt aanbiedt) in plaats van een volledige herschrijving, en na de herschrijving controleren of
 elk feit dat in de vorige versie stond en niet als probleem gemeld was, nog in de nieuwe versie
 voorkomt.
+
+## 63. Feiten van de site bevatten letterlijke HTML-codes
+
+Gevonden bij het narekenen van punt 60 en 61: op de feitenkaart van de installateur staat "Ons
+bedrijf beschikt over een offici&euml;le CO-certificering", en bij de rijschool "Meer info over de
+intake &euro; 50". `htmlToText()` in `lib/pipeline/html-text.ts` kende het euroteken en de letters
+met een accent niet. Gevolg: zo'n feit leest slordig in de prompt, en de keuring herkent "&euro;"
+niet als bedrag.
+
+**Opgelost (25 september 2026, reparatieplan blok G, PR #PRNUM).** Het euroteken en alle letters met
+trema, accent aigu, grave, circonflexe, cedille of tilde worden nu omgezet. Feiten die al op de kaart
+staan, worden bij de volgende crawl van het merk vervangen.
 
 ## Wat goed ging, om niet kapot te maken
 

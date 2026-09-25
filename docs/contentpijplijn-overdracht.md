@@ -128,12 +128,13 @@ De overige drie draaien per batch of per analyse en worden dus over meerdere pag
 | 8 | `content_factuality`, feitelijkheid | AI | Luna | medium | nee | $0,0046 |
 | 9 | `content_citability`, volledigheid | AI | Luna | medium | nee | $0,0036 |
 | 10 | `content_craft`, vakmanschap | AI | Luna | medium | nee | $0,0019 |
+| 10b | `content_claim_judge`, is een ongedekte zin een bewering over het bedrijf (sinds 25 september 2026, alleen als er zo'n zin is) | AI | Luna | medium | nee | nog niet gemeten |
 |  | **De deterministische controles** | code |  |  |  | gratis |
 |  | **Weging**: score, zekerheid, oordeel | code |  |  |  | gratis |
 | 11 | `content_revise`, gerichte reparatie (max 3x) | AI | **Terra** | medium | nee | **$0,083** |
 | 12 | `version_compare`, welke versie is beter (alleen bij een gelijkspel) | AI | Luna | medium | nee | ongeveer $0,004 |
 
-Stap 7 tot en met 10 draaien **parallel**, dus ze kosten samen evenveel tijd als de traagste.
+Stap 7 tot en met 10b draaien **parallel**, dus ze kosten samen evenveel tijd als de traagste.
 
 De verhouding is het punt: één pagina schrijven kost meer dan alle andere stappen bij elkaar. Alle
 vier de beoordelaars samen kosten $0,0119 per keuring. Eén vermeden reparatieronde betaalt zeven

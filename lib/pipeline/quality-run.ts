@@ -50,7 +50,8 @@ import {
   type SimilarPage,
 } from "@/lib/pipeline/similarity";
 import { sourceCoverage, type FactItem, type WrittenClaim } from "@/lib/pipeline/factcard";
-import { detectClaimSentences, detectedCoverage } from "@/lib/pipeline/claim-extract";
+import { detectClaimSentences, detectedCoverage, verwerkZinOordelen } from "@/lib/pipeline/claim-extract";
+import { beoordeelZinnen } from "@/lib/pipeline/claim-judge";
 import {
   berekenGewogenDekking,
   berekenClaimDekking,
@@ -188,7 +189,24 @@ export async function keurPagina(invoer: KeuringInput): Promise<Keuring> {
   const faq = input.piece.faq ?? [];
   const claims = input.piece.claims ?? [];
 
-  // ── 1. Het beoordelaarspanel ──────────────────────────────────────────────
+  // ── 0. Welke zinnen beweren iets zonder aanwijsbaar feit? ─────────────────
+  //
+  // Vóór het panel, omdat de zinnenbeoordelaar (punt 59) deze lijst nodig heeft
+  // en dan parallel met het panel kan draaien in plaats van erna.
+  const woordDekking = detectedCoverage({
+    detected: detectClaimSentences({ bodyMarkdown: body, faq }, input.brandName),
+    claims,
+    facts: input.facts,
+  });
+
+  // ── 1. Het beoordelaarspanel, en de zinnenbeoordelaar ernaast ─────────────
+  const zinnenOordeel = beoordeelZinnen({
+    zinnen: woordDekking.untagged.map((d) => d.sentence),
+    facts: input.facts,
+    brandName: input.brandName,
+    analysisId: input.analysisId,
+    profileId: input.profileId,
+  });
   const panel = await runPanel({
     bodyMarkdown: body,
     faq,
@@ -364,12 +382,19 @@ export async function keurPagina(invoer: KeuringInput): Promise<Keuring> {
   // `unsupported` komt wél uit `sourceCoverage()`: dat is de lijst aangemelde
   // beweringen waarvan het F-nummer nergens naar wijst, en die lijst noemt de
   // bewering letterlijk. Daar kan de reparatie iets mee; een percentage niet.
+  //
+  // Punt 59: wat de woordvergelijking niet rond kreeg, legt de
+  // zinnenbeoordelaar langs "is dit een bewering over het bedrijf, en welk feit
+  // hoort erbij". De code controleert zijn antwoord (`verwerkZinOordelen()`).
   const { unsupported } = sourceCoverage(claims, input.facts);
-  const { coverage: bronherleidbaarheid, untagged } = detectedCoverage({
-    detected: detectClaimSentences({ bodyMarkdown: body, faq }, input.brandName),
-    claims,
+  const zinnen = await zinnenOordeel;
+  const verfijnd = verwerkZinOordelen({
+    dekking: woordDekking,
+    oordelen: zinnen?.oordelen ?? null,
     facts: input.facts,
+    brandName: input.brandName,
   });
+  const { coverage: bronherleidbaarheid, untagged } = verfijnd;
 
   const secties = paginaSecties;
   const typeOvertredingen = checkTypeRegels(profiel, {
@@ -434,7 +459,9 @@ export async function keurPagina(invoer: KeuringInput): Promise<Keuring> {
   const geoScore = gate.score ?? (panel.critique ? geoScoreVanModel(panel.critique.geo) : null);
 
   const kolommen: Record<string, unknown> = {
-    critique_raw_json: panel.raw,
+    // De zinnenbeoordelaar achter het panel, zodat de audit-trail compleet is
+    // (conventie 8).
+    critique_raw_json: zinnen?.raw ? [...panel.raw, zinnen.raw] : panel.raw,
     // `quality_score` blijft het redactionele cijfer, om dezelfde reden als de
     // GEO-score hierboven. Het nieuwe, gewogen cijfer staat in `quality_json`
     // en in `content_quality_runs`.
@@ -465,6 +492,14 @@ export async function keurPagina(invoer: KeuringInput): Promise<Keuring> {
         aantallen: dekking.aantallen,
       },
       bronherleidbaarheid,
+      // Punt 59: wat de zinnenbeoordelaar vrijsprak of aan een feit koppelde,
+      // zodat na te lezen is waarom een zin niet meer tegenhoudt.
+      zinnenbeoordeling: {
+        voorgelegd: woordDekking.untagged.length,
+        geslaagd: zinnen !== null,
+        geenBewering: verfijnd.geenBewering,
+        gekoppeld: verfijnd.gekoppeld,
+      },
       // De claimdekking apart van de sectiedekking: een sectie kan een feit
       // hebben terwijl de bewering die de pagina draagt er niet aan hangt (R1).
       claimdekking: claimDekking

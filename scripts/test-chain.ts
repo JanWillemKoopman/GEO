@@ -279,7 +279,7 @@ async function main(): Promise<void> {
 
     const na = await db.client.query(
       `select id, version, is_current, status, body_markdown, source_coverage, needs_review,
-              briefing_snapshot_json, writer_brief_json
+              briefing_snapshot_json, writer_brief_json, quality_json
          from public.content_pieces where analysis_id = $1 order by version`,
       [analysisId],
     );
@@ -310,6 +310,26 @@ async function main(): Promise<void> {
       "bug 7: het paginaplan gaat mee de schrijfprompt in",
       schrijfprompt.includes("PAGINAPLAN"),
       "het plan werd na de briefing weggegooid",
+    );
+
+    // ── Punt 59: de zinnenbeoordelaar draait mee in de keuring ────────────
+    //
+    // De stubpagina heeft een zin zonder bron, dus er valt iets voor te
+    // leggen. De stub zegt bij elke zin "bewering, geen feit": de strengste
+    // stand. Dan moet de zin blijven tegenhouden, precies zoals zonder deze stap.
+    const zinnenbeoordeling = (na.rows[0]?.quality_json as {
+      zinnenbeoordeling?: { voorgelegd: number; geslaagd: boolean; geenBewering: string[]; gekoppeld: unknown[] };
+    } | null)?.zinnenbeoordeling;
+    ok(
+      "blok G: de zinnenbeoordelaar kreeg de zinnen zonder bron voorgelegd",
+      log.some((l) => l.schemaName === "content_claim_judge") && (zinnenbeoordeling?.voorgelegd ?? 0) > 0,
+      JSON.stringify(zinnenbeoordeling ?? null),
+    );
+    ok(
+      "blok G: een streng oordeel maakt de keuring niet milder",
+      zinnenbeoordeling?.geslaagd === true &&
+        zinnenbeoordeling.geenBewering.length === 0 &&
+        zinnenbeoordeling.gekoppeld.length === 0,
     );
 
     // ── De schrijfopdracht gaat vóór het schrijven (optimalisatie 5) ─────
