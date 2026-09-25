@@ -42,6 +42,17 @@ export const MAX_STRATEGIEVRAGEN = 4;
  */
 const EIGEN_INVULVRAAG = /^Wat kunnen we over ".*" zeggen\?$/;
 
+/**
+ * Is dit een vraag die een ondernemer kan beantwoorden? Nameting op productie
+ * (25 september 2026): het model vulde bij een onderwerp zonder vraag letterlijk
+ * "Geen vraag nodig." in, en die stond daarna bij de ondernemer. Een vraag
+ * eindigt op een vraagteken en is geen opmerking over dat er niets te vragen is.
+ */
+export function isEchteVraag(tekst: string): boolean {
+  const t = tekst.trim();
+  return t.length >= 8 && t.endsWith("?") && !/^(geen|n\.?v\.?t|niet van toepassing|nvt)\b/i.test(t) && !EIGEN_INVULVRAAG.test(t);
+}
+
 /** Volgorde van waarde: waar de pagina het meest op wacht, eerst. */
 const PRIORITEIT = {
   kernVraag: 1,
@@ -81,7 +92,7 @@ export function strategievragen(args: {
 
   const gezien = new Set<string>();
   return kandidaten
-    .filter((k) => k.vraag.length >= 8 && !EIGEN_INVULVRAAG.test(k.vraag))
+    .filter((k) => isEchteVraag(k.vraag))
     .sort((a, b) => a.prioriteit - b.prioriteit)
     .filter((k) => {
       const sleutel = claimKey(k.vraag);
