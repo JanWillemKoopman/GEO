@@ -1,0 +1,32 @@
+{
+  "paginas": [
+    {
+      "pagina": 1,
+      "fout_of_verzonnen": [
+        {"citaat": "De levertijd voor ketelvervanging is bij ons 2 tot 4 weken. De installatie duurt 1 dag.", "probleem": "De ondernemer noemde deze levertijd en installatieduur alleen voor een hybride warmtepomp. Voor ketelvervanging zijn ze niet genoemd. De tekst plakt ze op de verkeerde dienst, en de omschrijving in Google belooft het ook ('hoe lang de installatie duurt').", "ernst": "hoog"},
+        {"citaat": "Dat bespreken wij tijdens een gratis adviesbezoek bij u thuis.", "probleem": "Het woord 'gratis' mag alleen bij de offerte. Daarbij gaat deze vraag over een warmtepomp en hoort hij niet op een pagina over de prijs van ketelvervanging.", "ernst": "middel"},
+        {"citaat": "Een CO-vrij gecertificeerd bedrijf mag gasverbrandingsinstallaties installeren, onderhouden en repareren.", "probleem": "'CO-vrij gecertificeerd' is geen bestaande term. De site zegt 'officieel CO-gecertificeerd volgens de Gasketelwet'. De zin klinkt vaktechnisch, maar de term klopt niet.", "ernst": "middel"},
+        {"citaat": "kost het vervangen van een cv-ketel €2.200 tot €3.200 inclusief installatie", "probleem": "De ondernemer gaf dit bedrag als ruwe schatting van wat een klant waard is. 'Inclusief installatie' zei hij alleen bij de warmtepomp. Als vaste prijs op de site is het een toezegging die hij misschien niet zo bedoelde.", "ernst": "laag"},
+        {"citaat": "wij bieden een onderhoudscontract aan vanaf €12 tot €15 per maand", "probleem": "Het bedrag klopt, maar 'vanaf ... tot' is een kromme formulering. De storingsdienst binnen 24 uur, ook in het weekend, ontbreekt, terwijl juist dat het contract verkoopt.", "ernst": "laag"}
+      ],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "De levertijd en installatieduur van de warmtepomp eruit halen of vervangen door de echte cijfers voor ketelvervanging. De warmtepompvraag met 'gratis' vervangen door een vraag over ketelvervanging, bijvoorbeeld 'Kan ik nog wel een gewone ketel nemen?'.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 4,
+      "copywriter_problemen": [
+        {"citaat": "## Een gewone cv-ketel blijft een mogelijkheid", "probleem": "De kop belooft een antwoord op de vraag of een gewone ketel nog mag. De tekst eronder legt alleen uit wat een hr-ketel is. Kop en tekst sluiten niet op elkaar aan."},
+        {"citaat": "Een gebruikelijke installatie bestaat dus uit meer dan het ophangen van een nieuw toestel.", "probleem": "Een holle conclusie. De bezoeker wil weten wat er in de offerte en in de prijs zit, zoals afvoer, afpersen en afvoer van de oude ketel. Dat staat er nergens."},
+        {"citaat": "Een geschikte afvoer is daarom belangrijk voor de veilige werking van de installatie.", "probleem": "Herhaalt de zin ervoor. Er staat niet wat het voor de klant of voor de prijs betekent."},
+        {"citaat": "## De vervangingsprijs is inclusief installatie", "probleem": "Stijve koppen die als stellingen zijn geschreven ('... speelt mee bij ...', '... hebben elk een eigen termijn'). Ze lezen als een opsomming, niet als tekst die verkoopt."},
+        {"citaat": "Wij hebben twaalf monteurs in dienst.", "probleem": "Staat los achter de certificering, zonder verband. Ook ontbreken de ketelmerken (Intergas, Remeha, Nefit, Vaillant), het dealerschap en Geldrop, terwijl de pagina zich op Geldrop richt."}
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "Bij Wesley Keeris Installatietechniek kost het vervangen van een cv-ketel €2.200 tot €3.200 inclusief installatie.",
+      "vergelijking_huidig": "geen_huidige",
+      "waarom_vergelijking": "Het is een nieuwe pagina, dus er is geen huidige tekst om mee te vergelijken.",
+      "past_bij_adres": true
+    }
+  ],
+  "rode_draad": "De tekst gebruikt echte feiten, maar zet ze bij de verkeerde dienst: de levertijd, de installatieduur en de veelgestelde vraag komen van de warmtepomp, niet van ketelvervanging. Wat de bezoeker zoekt, wat er precies in de prijs en de offerte zit, komt niet verder dan algemene zinnen.",
+  "niveau_professionele_copywriter": "nee"
+}

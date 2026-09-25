@@ -1,0 +1,34 @@
+{
+  "paginas": [
+    {
+      "pagina": 1,
+      "fout_of_verzonnen": [
+        {"citaat": "We verzorgen het ontwerp, grondwerk, de bestrating, beplanting en afvoer zelf.", "probleem": "In de waarheid staat niets over grondwerk en afvoer. Grondwerk hoort bij het vak, maar 'afvoer' is een toezegging die de ondernemer niet heeft gedaan: afvoer van grond, groenafval of regenwater? Een klant kan hier later op terugkomen.", "ernst": "laag"},
+        {"citaat": "Voor tuinen boven € 15.000 maken we een eigen 3D-ontwerp.", "probleem": "Klopt, maar het is maar een half verhaal. Het 3D-ontwerp kost € 450 en wordt verrekend bij opdracht. Wie leest dat het ontwerp bij het traject hoort, gaat ervan uit dat het gratis is. Zo komt er gedoe bij de offerte.", "ernst": "middel"},
+        {"citaat": "Een goed verdichte ondergrond helpt verzakking te beperken en afschot van de woning af helpt water de juiste kant op te leiden.", "probleem": "Hier had de vijf jaar garantie op verzakking van bestrating moeten staan. Dat is het sterkste bewijs dat het bedrijf voor precies deze vraag heeft. Het ontbreekt, en het antwoord blijft algemeen doe-het-zelfadvies.", "ernst": "middel"},
+        {"citaat": "Je kunt gratis een offerte aanvragen via onze contactpagina", "probleem": "De belofte van de site, een scherpe offerte binnen 4 uur, ontbreekt, en ook de klantwaardering van 4,9 uit 5. Beide staan op de huidige pagina en verdwijnen nu. Het is niet fout, maar er valt echt bewijs weg.", "ernst": "laag"}
+      ],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "De drie prijsblokken ('Prijsindicatie', 'Wat bepaalt de prijs?', 'Wat zit doorgaans in een aanlegprijs?') tot één blok met concrete materialen (gebakken klinkers, keramische tegels). Daarna Best echt een plek op de pagina geven, de 5 jaar garantie op bestrating en de offerte binnen 4 uur toevoegen, en de toon wat hartelijker en Brabantser maken.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 5,
+      "copywriter_problemen": [
+        {"citaat": "De prijsband hierboven is onze gebruikelijke indicatie voor tuinaanleg met bestrating. Je hebt daarmee meteen een bedrag om je plannen aan te toetsen.", "probleem": "Een hele sectie die alleen de prijs uit de eerste alinea herhaalt. Hij voegt niets toe."},
+        {"citaat": "In het algemeen kan een aanlegprijs betrekking hebben op werkzaamheden als grondwerk, bestrating en beplanting. De precieze werkzaamheden verschillen per tuinplan. Een prijs voor tuinaanleg zegt op zichzelf dus niet welke afzonderlijke onderdelen erin zijn opgenomen.", "probleem": "Een holle alinea vol voorbehouden ('in het algemeen', 'kan', 'doorgaans') die geen vraag beantwoordt. Hij overlapt bijna volledig met 'Wat bepaalt de prijs?'."},
+        {"citaat": "Je kunt zo onderscheid maken tussen de tijd tot de start en de tijd die de aanleg zelf duurt. De planning vooraf is geen onderdeel van die 2 tot 3 weken uitvoering.", "probleem": "Twee zinnen die uitleggen wat de lezer al begreep. Het leest als opvulling."},
+        {"citaat": "Ook tuinbestrating voor een terras valt onder de werkzaamheden die we uitvoeren.", "probleem": "Herhaalt de zin ervoor ('de bestrating') in stijf ambtelijk Nederlands."},
+        {"citaat": "Je ziet ons dus ook na de uitvoering nog eens terug, zonder kosten voor die afspraak.", "probleem": "Herhaalt 'gratis terugkomafspraak' uit de zin ervoor."},
+        {"citaat": "Benieuwd wat we voor jouw tuin in Best kunnen betekenen?", "probleem": "Een clichéafsluiter. Best komt alleen in de kop en hier voor. Er staat niets lokaals in (Best als dorp, wijken, dat het bedrijf daar wil groeien), dus de pagina is inwisselbaar met elke andere plaats."},
+        {"citaat": "Wat zit doorgaans in een aanlegprijs?", "probleem": "Kromme, vage kop. Samen met 'Prijsindicatie' en 'Wat bepaalt de prijs?' staan er drie koppen over hetzelfde onderwerp."},
+        {"citaat": "Hoe lang lig ik met een kale tuin?", "probleem": "Staat niet op de pagina. De bekende bezwaren van de doelgroep ('een hovenier is duur, ik doe het zelf wel', 'hoe lang lig ik met een kale tuin') worden niet direct aangesproken, en dat zijn juist de vragen die een bezoeker stelt."}
+      ],
+      "ai_citeerbaar": "ja",
+      "beste_citeerbare_zin": "Bij Hans Verstraaten Hoveniers verzorgen we de aanleg van ontwerp tot oplevering met een eigen vaste ploeg; tuinaanleg met bestrating kost bij ons meestal € 12.000 tot € 35.000.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "De huidige pagina is een algemene opsomming vol clichés zonder één prijs, doorlooptijd of hard feit. De nieuwe pagina geeft een richtbedrag, doorlooptijd, planning, de vaste ploeg, het gratis gesprek thuis en de terugkomafspraak. Daarmee kan een bezoeker iets en kan een AI-assistent iets citeren. De nieuwe pagina verliest wel de Google-reviews, de offerte binnen 4 uur, het werkgebied en het formulier. Die moeten terugkomen.",
+      "past_bij_adres": true
+    }
+  ],
+  "rode_draad": "De feiten kloppen en zijn concreet, maar de tekst herhaalt zichzelf en vult secties met voorbehouden in plaats van met het sterkste bewijs dat de ondernemer heeft (garantie, materialen, offerte binnen 4 uur, reviews). De plaats Best en de echte bezwaren van de doelgroep komen nauwelijks aan bod, waardoor de pagina correct maar vlak en inwisselbaar is.",
+  "niveau_professionele_copywriter": "bijna"
+}
