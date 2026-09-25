@@ -12522,3 +12522,10 @@ budget onder het vertrekpunt is nu een waarschuwing. (4) De metabeschrijving kri
 als de metatitel ("... bij Wesley Keeris Installatietechnh" wordt "... bij Wesley Keeris."). Niet in
 code: het waarheidsdossier van de blinde lezer miste CO-certificering en de ketelmerken van
 `/ketelvervanging` en is daarmee aangevuld.
+
+Nagemeten met dezelfde twee pagina's: de lezer kiest nu bij allebei de nieuwe versie (Best zekerheid 3,
+de kostenpagina 4), het copywritercijfer is 5 en 4 (was 5 en 3), de kostenpagina groeit van 164 naar
+326 woorden en de ondernemer zou hem nu met aanpassingen publiceren (was nee). Het doel van 6,5 is niet
+gehaald. De grootste resterende oorzaken: herhaling en holle algemene uitleg zonder bron, en een
+keuring die op feitbehoud blokkeert tegen de keuzes van de strategie in. Kosten $0,29 en $0,26 per
+pagina. Cijfers in `docs/tasks/contentpijplijn-publicatiewaardig.md` §14.2.

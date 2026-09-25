@@ -4,7 +4,7 @@
 de teksten voor Hans Verstraaten Hoveniers, Wesley Keeris Installatietechniek en Autorijschool
 Pompert.
 
-**Status: fase 1 gebouwd en nagemeten (25 september 2026), doel niet gehaald; wacht op het besluit van de eigenaar over fase 2.** De uitslag staat in §14.2 onder "Nameting fase 1"; waar de uitvoering staat en hoe je verdergaat in een nieuwe sessie, in `contentpijplijn-werkstand.md`. Per werkpakket staat de stand onder "Stand van de bouw" aan het
+**Status: fase 1 gebouwd, nagemeten en gerepareerd (25 september 2026), doel nog niet gehaald; wacht op het besluit van de eigenaar over de volgende stap.** De uitslag staat in §14.2 onder "Nameting fase 1" en "Nameting na de reparatie van de dunne pagina's"; waar de uitvoering staat en hoe je verdergaat in een nieuwe sessie, in `contentpijplijn-werkstand.md`. Per werkpakket staat de stand onder "Stand van de bouw" aan het
 eind van §13. De eigenaar heeft op
 25 september 2026 de keuzes gemaakt die in §2 staan. Er gaat geen losse proef of modelvergelijking
 aan de bouw vooraf; elke fase wordt wel, zoals conventie 10 vraagt, na de bouw nagerekend op echte
@@ -1322,6 +1322,36 @@ erachter werd weggegooid, waardoor de strategie alle prioriteitsfeiten verloor (
 eindredactie mocht een prioriteitsfeit schrappen en de tekst leegschrappen, en de metatitel eindigde
 op een halve bedrijfsnaam (PR 145). Nog open: de metabeschrijving kan op dezelfde manier midden in de
 naam afbreken ("Installatietechnh").
+
+#### Nameting na de reparatie van de dunne pagina's (25 september 2026)
+Dezelfde twee pagina's, dezelfde voorbereiding en dezelfde vragenlijst, na PR 147 (kernvraag als
+algemene uitleg, sterk bewijs verplicht, budget uit de onderwerpen, metabeschrijving heel). "Oud" is
+de versie van de eerste nameting. Teksten en oordelen in `kwaliteitsdoorlichting/nameting-dunne-paginas/`.
+
+| Maat | Doel na fase 1 | Best | Kostenpagina |
+|---|---|---|---|
+| Copywritercijfer (eerste nameting) | 6,5 of hoger | 5 (was 5) | 4 (was 3) |
+| Ondernemer publiceert | zo | met aanpassingen (was met aanpassingen) | met aanpassingen (was nee) |
+| Vergelijking oud tegen nieuw | nieuw beter | nieuw beter, zekerheid 3 van 5 (was oud beter) | nieuw beter, zekerheid 4 van 5 |
+| Woorden in de tekst | | 480 (was 417) | 326 (was 164) |
+| Budget van de strategie | | 480 | 445 (was 600, opgehoogd van 395) |
+| Kosten per pagina | ongeveer $0,37 | $0,29 | $0,26 |
+
+**Wat werkt.** De kostenpagina beantwoordt nu wat er bij een vervanging gebeurt, de rookgasafvoer en
+de certificering, op gecontroleerde uitleg; de lezer noemt precies dat als reden voor de nieuwe versie.
+Sterk bewijs staat erin zonder dat het vangnet hoefde in te grijpen: 35 jaar, de vaste ploeg en 60 tot
+70 tuinen bij Best, CO-certificering en twaalf monteurs bij de installateur. De schrijver haalt zijn
+budget (480 van 480, 326 van 445). De metabeschrijvingen zijn heel.
+
+**Wat niet werkt.** (1) Herhaling en opvulling blijven de grootste klacht: Best heeft drie secties over
+de prijs, waarvan één holle uitleg vol voorbehoud ("In het algemeen kan een aanlegprijs betrekking
+hebben op ..."). Dat is algemene uitleg zonder gecontroleerde bron, precies waar de reparatie ruimte
+voor gaf. (2) De levertijd van twee tot vier weken staat weer bij de ketel (het klantantwoord hoort bij
+de hybride warmtepomp; niet aangepast, besluit eigenaar). (3) De FAQ van de kostenpagina gaat over de
+warmtepomp en gebruikt "gratis", dat de klant alleen bij de offerte toestaat. (4) De keuring houdt
+beide pagina's tegen op feitbehoud: hij eist dat feiten uit de vorige versie terugkomen, ook als de
+strategie ze bewust wegliet ("professionele vervanging ... zorgeloos genieten"), en herkent een feit
+soms niet terug dat er wel staat (de prijs, de terugkomafspraak). (5) De stem is nog de oude.
 
 ### 14.3 De zinnen die weg moeten
 
