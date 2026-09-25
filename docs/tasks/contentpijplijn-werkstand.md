@@ -77,7 +77,9 @@ aan de pijplijn in plaats van reparaties op de twee meetpagina's. Het voorstel, 
    blinde lezer. In de pijplijn kijken de controles naar feiten en formuleringen, niet naar herhaling,
    holle alinea's of een kop die niet bij de tekst past. Dezelfde vragenlijst als de blinde lezer als
    poort en als stuur voor de reparatie vervangt de formuleringlijsten.
-3. **De reparatie laten doen wat de eigenaarstoets zegt.** Nu de volgende stap. Drie oorzaken uit de
+3. **De reparatie laten doen wat de eigenaarstoets zegt.** Gebouwd op 25 september 2026 samen met
+   sterk bewijs (minstens drie, ook reviewcijfers, garanties en gesprekbewijs) en de eigen merken
+   (logboek); nog na te meten. Wat hieronder stond als oorzaak: Drie oorzaken uit de
    laatste nameting: (a) de reparatie verliest onderweg prioriteitsfeiten (bij Best de
    terugkomafspraak) en de versievergelijking houdt dan de oude tekst; (b) de regel "noem geen ander
    bedrijf" houdt ook de merken tegen die het bedrijf zelf plaatst (Intergas, Remeha, Nefit,

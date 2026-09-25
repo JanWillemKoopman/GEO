@@ -12584,3 +12584,17 @@ terugkomafspraak en koos de versievergelijking de oude tekst; bij de kosten weig
 ketelmerken te noemen "omdat de instructie verbiedt andere bedrijven bij naam te noemen". De
 vergelijking met de huidige sitepagina stond steeds op "geen huidige": de keuring kreeg de huidige tekst
 niet mee. Bestanden in `kwaliteitsdoorlichting/nameting-eigenaarstoets/`.
+
+## 25 september 2026: de reparatie doet wat de eigenaarstoets zegt, sterk bewijs, eigen merken
+
+Drie wijzigingen uit de nameting van de eigenaarstoets. (1) De reparatie kreeg de tien zwaarste
+bevindingen, en de eigenaarstoets (zekerheid 0,7, gewicht 7) zakte onder de tientallen vaste controles
+(gewicht 10): geen van zijn punten kwam aan. Nu gaat wat blokkeert voor, dan de eigenaarstoets, dan de
+rest. Welke versie blijft, beslist bij gelijke blokkades de eigenaarstoets (`eigenaarVoorkeur`: eerst
+publiceren ja, met aanpassingen of nee, dan twee of meer problemen minder); zijn oordeel staat daarvoor
+in `quality_json.eigenaar`. (2) Sterk bewijs is ook een reviewcijfer, een garantie en bewijs dat de
+ondernemer zelf in het gesprek gaf, en er gaan er minstens drie mee (was twee). Bij de hovenier
+stonden de 4,9 uit 5 en het eigen 3D-ontwerp daardoor buiten de keuze. De garantie van vijf jaar staat
+niet in zijn register, dus die lost dit niet op. (3) Merken die het bedrijf zelf plaatst op de
+feitenkaart mogen genoemd worden; de reparatie liet de ketelmerken weg "omdat de instructie verbiedt
+andere bedrijven bij naam te noemen". De code controleert op de lijst met concurrenten, niet op merken.

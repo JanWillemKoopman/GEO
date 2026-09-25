@@ -195,10 +195,22 @@ export function issueGewicht(issue: QualityIssue): number {
  * aan, en dan is er niets gerichts meer aan een sectiereparatie (verbetering 5
  * van de contentronde van 1 september). Dezelfde grens als voorheen, alleen op
  * ernst in plaats van op woordpatronen.
+ *
+ * Volgorde sinds 25 september 2026: eerst wat blokkeert, dan de eigenaarstoets
+ * (WP9), dan de rest op gewicht. Nameting: de eigenaarstoets wees bij beide
+ * pagina's dezelfde zinnen aan als de blinde lezer, maar als modeloordeel
+ * (zekerheid 0,7, gewicht 7) zakte hij onder de tientallen vaste controles met
+ * gewicht 10, en kwam geen van zijn punten bij de reparatie aan.
  */
 export function prioriteerIssues(issues: readonly QualityIssue[], max: number): QualityIssue[] {
   return [...issues]
-    .sort((a, b) => issueGewicht(b) - issueGewicht(a) || a.finding.localeCompare(b.finding))
+    .sort(
+      (a, b) =>
+        Number(b.blocking) - Number(a.blocking) ||
+        Number(b.bron === "eigenaarstoets") - Number(a.bron === "eigenaarstoets") ||
+        issueGewicht(b) - issueGewicht(a) ||
+        a.finding.localeCompare(b.finding),
+    )
     .slice(0, Math.max(0, max));
 }
 

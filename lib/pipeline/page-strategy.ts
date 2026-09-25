@@ -36,11 +36,13 @@ import { laadStrategiecontext, type RecommendationInput } from "@/lib/pipeline/c
 import { redactCompetitors, containsCompetitor } from "@/lib/pipeline/redact";
 import {
   controleerStrategie,
+  sterkBewijsRang,
   type BetwistVoorStrategie,
   type SterkBewijs,
   type StrategieInvoer,
 } from "@/lib/pipeline/strategie-check";
 import { conflictpoort } from "@/lib/pipeline/conflict-detect";
+import { GESPREK_BRON } from "@/lib/pipeline/kernbewijs";
 import type { FeitSoort } from "@/lib/pipeline/conflict-detect";
 import { strategieUitRij, type StrategieRecord } from "@/lib/pipeline/strategie-opdracht";
 export { strategieUitRij, type StrategieRecord };
@@ -90,7 +92,7 @@ const SYSTEM =
   "beschikbare informatie'), nooit een voorbehoud dat een belofte van de site omdraait. " +
   "(5) PRIORITEITSFEITEN: drie tot zes F-nummers die deze pagina dragen (in `feit` alleen het nummer, " +
   "zoals F12, zonder de tekst van het feit), elk met wat het voor deze lezer " +
-  "betekent. Bewijs wordt stellig gebracht. Minstens twee feiten met STERK BEWIJS horen erbij als de " +
+  "betekent. Bewijs wordt stellig gebracht. Minstens drie feiten met STERK BEWIJS horen erbij als de " +
   "kaart ze heeft, en laat sterk bewijs niet weg omdat de huidige site het al noemt: deze pagina " +
   "vervangt of versterkt die. Een feit dat vooral op een andere pagina thuishoort, zet je " +
   "bij de uitgesloten feiten met reden 'elders gedekt'. " +
@@ -208,10 +210,16 @@ export async function bereidStrategieVoor(
   // Het sterke bewijs, voor het vangnet dat er minstens twee meegaan (werkstand §4, punt 2).
   const sterk: SterkBewijs[] = bruikbaar.flatMap((f) => {
     const r = f.id ? register.get(f.id) : undefined;
-    return r?.bewijskracht === "sterk"
-      ? [{ ref: f.ref, text: f.text, vanOndernemer: f.source.startsWith("klant") || f.source.includes("gesprek") }]
-      : [];
+    const vanOndernemer = f.source.startsWith("klant") || f.source.includes("gesprek");
+    const rang = sterkBewijsRang({
+      text: f.text,
+      bewijskracht: r?.bewijskracht ?? null,
+      vanOndernemer,
+      uitGesprek: f.source === GESPREK_BRON,
+    });
+    return rang === null ? [] : [{ ref: f.ref, text: f.text, vanOndernemer, rang }];
   });
+  const sterkeRefs = new Set(sterk.map((b) => b.ref));
   // De gecontroleerde algemene uitleg, met U-nummer: een kernvraag zonder
   // bedrijfsfeit kan daarop rusten (werkstand §4, punt 1).
   const uitleg = (args.voorbereid?.explainers ?? ctx.explainers).filter((e) => e.verified);
@@ -221,7 +229,7 @@ export async function bereidStrategieVoor(
     const r = f.id ? register.get(f.id) : undefined;
     const kenmerken = [
       r?.soort ? `soort: ${r.soort}` : null,
-      r?.bewijskracht === "sterk" ? "STERK BEWIJS" : null,
+      sterkeRefs.has(f.ref) ? "STERK BEWIJS" : null,
       r?.geldt_voor ? `geldt voor: ${r.geldt_voor}` : null,
       f.source.startsWith("klant") || f.source.includes("gesprek") ? "van de ondernemer zelf" : null,
     ].filter(Boolean);

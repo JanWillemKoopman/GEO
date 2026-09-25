@@ -59,11 +59,11 @@ import { gatzinnen, voorbehoudNaBewijs, checkBestemmingen, isToezegging } from "
 import { controleerRedactie, getalReeksen } from "@/lib/pipeline/redactie-check";
 import { heelMetabeschrijving, heelMetatitel, MAX_METABESCHRIJVING } from "@/lib/pipeline/metatitel";
 import { isEchteVraag, strategievragen, MAX_STRATEGIEVRAGEN } from "@/lib/pipeline/strategievragen";
-import { citaatStaatErin, eigenaarBevindingen } from "@/lib/pipeline/eigenaarstoets";
+import { citaatStaatErin, eigenaarBevindingen, eigenaarVoorkeur } from "@/lib/pipeline/eigenaarstoets";
 import { strategieblok, gekozenRefs, opbouwUitStrategie, REGELS_STRATEGIE, REGEL_7_STRATEGIE } from "@/lib/pipeline/strategie-opdracht";
 import { checkStrategieDekking } from "@/lib/pipeline/content-coverage";
 import { haalSectiesWeg } from "@/lib/pipeline/content-sections";
-import { bewijsKern, controleerStrategie, MAX_PRIORITEITSFEITEN, MAX_WOORDEN_LOSSE_VAKKENNIS, normaliseerRef, uitlegPastBij } from "@/lib/pipeline/strategie-check";
+import { bewijsKern, controleerStrategie, MAX_PRIORITEITSFEITEN, MAX_WOORDEN_LOSSE_VAKKENNIS, normaliseerRef, sterkBewijsRang, uitlegPastBij } from "@/lib/pipeline/strategie-check";
 import { budgetgrenzen, budgetUitOnderwerpen, klemBudget, paginadoelVan, titelOverPlaats, verwachtBudget } from "@/lib/lengtebudget";
 import { moetAchtergrond, ophaalVertragingSeconden, ACHTERGROND_GRENS_MS } from "@/lib/openai/achtergrond";
 import type { PageStrategy } from "@/lib/schemas/page-strategy";
@@ -26753,7 +26753,8 @@ group("Dunne pagina's: kernvraag, sterk bewijs en budget (nameting fase 1)", () 
     prioriteitsfeiten: [{ feit: "F1", betekenis: "b" }, { feit: "F3", betekenis: "b" }],
     uitgeslotenFeiten: [{ feit: "F7", reden: "elders gedekt" }],
   }), { ...invoerWP3, sterk });
-  eq("een tweede stuk sterk bewijs komt erbij, van de ondernemer eerst", best.strategie.prioriteitsfeiten.map((p) => p.feit).join(","), "F1,F3,F7");
+  // Sinds 25 september 2026 drie stukken (MIN_STERK_BEWIJS), van de ondernemer eerst.
+  eq("sterk bewijs vult aan tot drie, van de ondernemer eerst", best.strategie.prioriteitsfeiten.map((p) => p.feit).join(","), "F1,F3,F7,F4");
   ok("ook als de strategie het uitsloot", !best.strategie.uitgeslotenFeiten.some((u) => u.feit === "F7"));
   ok("en dat staat in de correcties", best.correcties.some((c) => c.includes("F7")));
   const dubbel = controleerStrategie(strategie({ prioriteitsfeiten: [{ feit: "F4", betekenis: "b" }] }), { ...invoerWP3, sterk: sterk.filter((b) => b.ref !== "F3" && b.ref !== "F7") });
@@ -26835,6 +26836,37 @@ group("De vragenroute: van de strategie naar de ondernemer", () => {
   ok("een echte vraag wel", isEchteVraag("Welke posten specificeren jullie zelf in een offerte en hoe behandelen jullie onverwacht extra werk?"));
   eq("en hij komt niet in de lijst", String(strategievragen({ strategie: strategie({ onderwerpen: [o({ besluit: "opnemen", bron: "feit", feiten: ["F1"], vraag: "Geen vraag nodig." })] }), pieceId: null }).length), "0");
   ok("de taak gebruikt de ontdubbeling van de briefing", /beoordeelVragen[\s\S]*voegVragenSamen[\s\S]*bewaarVragen/.test(leesBestand("lib/pipeline/strategie-taak.ts")));
+});
+
+group("De reparatie doet wat de eigenaarstoets zegt, sterk bewijs, merken (25 september 2026)", () => {
+  const issue = (x: Partial<QualityIssue>): QualityIssue => ({
+    dimension: "leesbaarheid", severity: "hoog", section: null, finding: "f", evidence: null, expected: null,
+    recommendation: "", blocking: false, confidence: 1, bron: "bronpraat", phase: "schrijven", ...x,
+  });
+  // De nameting: tientallen vaste controles met gewicht 10 tegen de eigenaarstoets met 7.
+  const vast = Array.from({ length: 12 }, (_, i) => issue({ finding: `vaste controle ${i}` }));
+  const eigen = issue({ finding: "Deze zin zegt niets", bron: "eigenaarstoets", confidence: 0.7 });
+  const blok = issue({ finding: "blokkade", blocking: true, severity: "blokkerend" });
+  const gekozen = prioriteerIssues([...vast, eigen, blok], 10);
+  eq("eerst wat blokkeert, dan de eigenaarstoets", gekozen.slice(0, 2).map((i) => i.finding).join(" | "), "blokkade | Deze zin zegt niets");
+
+  eq("met aanpassingen wint van nee", String(eigenaarVoorkeur({ publiceert: "nee", problemen: 3 }, { publiceert: "met_aanpassingen", problemen: 6 })), "nieuw");
+  eq("en andersom", String(eigenaarVoorkeur({ publiceert: "met_aanpassingen", problemen: 2 }, { publiceert: "nee", problemen: 1 })), "huidig");
+  eq("twee problemen minder is beter", String(eigenaarVoorkeur({ publiceert: "met_aanpassingen", problemen: 6 }, { publiceert: "met_aanpassingen", problemen: 3 })), "nieuw");
+  eq("één verschil is ruis", String(eigenaarVoorkeur({ publiceert: "met_aanpassingen", problemen: 4 }, { publiceert: "met_aanpassingen", problemen: 3 })), "null");
+  eq("zonder oordeel beslist de oude regel", String(eigenaarVoorkeur(null, { publiceert: "ja", problemen: 0 })), "null");
+  const content = leesBestand("lib/pipeline/content.ts");
+  ok("de reparatie laat de eigenaarstoets beslissen bij gelijke blokkades", content.includes("eigenaarVoorkeur(") && content.includes("dezeVersie.blokkades === besteTotNuToe.blokkades"));
+  ok("en de keuring bewaart zijn oordeel", leesBestand("lib/pipeline/quality-run.ts").includes("eigenaar: input.strategie"));
+
+  // Het register van de hovenier, 25 september 2026.
+  eq("reviewcijfer zonder bewijskracht telt", String(sterkBewijsRang({ text: "Klanttevredenheid van 4.9/5.0", bewijskracht: "geen", vanOndernemer: false, uitGesprek: false })), "2");
+  eq("het eigen 3D-ontwerp uit het gesprek telt", String(sterkBewijsRang({ text: "Eigen 3D-ontwerp bij tuinen boven de 15.000 euro", bewijskracht: "gewoon", vanOndernemer: true, uitGesprek: true })), "3");
+  eq("een garantie telt", String(sterkBewijsRang({ text: "Vijf jaar garantie op verzakking van bestrating", bewijskracht: "gewoon", vanOndernemer: false, uitGesprek: false })), "2");
+  eq("sterk van de ondernemer gaat voor", String(sterkBewijsRang({ text: "Vaste ploeg van vijf man", bewijskracht: "sterk", vanOndernemer: true, uitGesprek: true })), "0");
+  eq("een gewone site-zin niet", String(sterkBewijsRang({ text: "Vraag een gratis offerte aan", bewijskracht: "gewoon", vanOndernemer: false, uitGesprek: false })), "null");
+
+  ok("schrijver en reparatie mogen de eigen merken noemen", (content.match(/MERKEN_UITZONDERING \+/g) ?? []).length === 2);
 });
 
 group("De eigenaarstoets stuurt de keuring (WP9)", () => {

@@ -63,7 +63,9 @@ const REDACTIE_SYSTEM =
   "REDACTIONEEL: scoor 0-100 op begint-met-het-directe-antwoord, on-brand, concreet-waar-mogelijk " +
   "(zonder verzinsels), scanbaar, en waardevol (geen AI-slop/vulzinnen). " +
   "HARDE REGELS: zet followsRules op false als de tekst een concurrent of een ander bedrijf bij naam " +
-  "noemt, feiten lijkt te verzinnen, of de doelvraag niet in de eerste alinea beantwoordt. " +
+  "noemt, feiten lijkt te verzinnen, of de doelvraag niet in de eerste alinea beantwoordt. Een merk " +
+  "dat het bedrijf zelf verkoopt of plaatst (zoals een ketelmerk bij een installateur) is geen ander " +
+  "bedrijf in deze zin. " +
   "GEO: zou een AI-assistent deze pagina CITEREN? Beoordeel elk criterium streng en apart: " +
   // ⚠️ Twee criteria zijn op 4 september 2026 herschreven, omdat ze de
   // schrijfopdracht van 3 september tegenwerkten (optimalisatie 1 en 2 uit
