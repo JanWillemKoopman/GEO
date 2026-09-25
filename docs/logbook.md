@@ -12363,7 +12363,7 @@ Besluiten van de eigenaar: al het redactionele werk (paginastrategie, schrijven,
 GPT-6 Sol, met extra denktijd voor strategie en redactie en de eigenaarstoets en merkstemtoets ook
 op Sol; geschat ongeveer $0,37 per artikel en $0,30 per landingspagina, tegen $0,155 en $0,142
 gemeten over de pagina's sinds 24 september. Geen losse proef vooraf; elke fase wordt wel nagerekend
-op de proefset van de doorlichting. Een werkgebiedpagina mag geadviseerd worden, grote steden houden
-een eigen pagina. De schrijfstijl hoort volledig in het merkdossier. Een bronconflict houdt een pagina
+op de proefset van de doorlichting. Een werkgebiedpagina mag geadviseerd worden, grote steden (een
+gemeente vanaf 50.000 inwoners) houden een eigen pagina. De schrijfstijl hoort volledig in het merkdossier. Een bronconflict houdt een pagina
 alleen tegen als het betwiste feit op die pagina nodig is. Het bouwplan staat in drie fases en zestien
 werkpakketten in het plan zelf.

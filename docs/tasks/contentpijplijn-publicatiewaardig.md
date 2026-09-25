@@ -364,7 +364,7 @@ AI-schrijftool mist:
 | 1 | Al het redactionele werk (paginastrategie, schrijven, eindredactie) op **GPT-6 Sol** | geen nieuw model; Sol is de tier die het schrijven nu al gebruikt (`MODELS.content`) |
 | 2 | De beperkingen die de kwaliteit kunnen drukken weghalen: **eigenaarstoets en merkstemtoets op Sol**, **extra denktijd voor strategie en eindredactie** | §4; ongeveer $0,37 per artikel |
 | 3 | Geen losse proef en geen vergelijking met een duurder model vooraf | fase 0 vervalt; de nareken-plicht per fase blijft (conventie 10) |
-| 4 | Een **werkgebiedpagina** mag geadviseerd worden; **grote steden** zoals Eindhoven, Tilburg en 's-Hertogenbosch houden een eigen pagina | §10 |
+| 4 | Een **werkgebiedpagina** mag geadviseerd worden; **grote steden** houden een eigen pagina: een gemeente vanaf **50.000 inwoners** | §10 |
 | 5 | De **schrijfstijl hoort duidelijk in het merkdossier**; nagekeken voor de drie klanten | §9; de controle laat zien dat het merkdossier de lading nu niet dekt |
 | 6 | Een **bronconflict** houdt een pagina alleen tegen als het betwiste feit op die pagina nodig is | §8 |
 
@@ -894,14 +894,16 @@ eigen pagina. De regel in code (`lib/plaatsregel.ts`, puur):
 
 | Situatie | Uitkomst |
 |---|---|
-| Gemeente met minstens 100.000 inwoners (vaste lijst uit CBS-cijfers, in de code) | eigen pagina |
+| Gemeente met minstens 50.000 inwoners (vaste lijst uit CBS-cijfers, in de code) | eigen pagina |
 | De vestigingsplaats van het bedrijf | eigen pagina |
 | De ondernemer levert minstens twee feiten die alleen over deze plaats gaan | eigen pagina |
 | Anders | onderdeel van één werkgebiedpagina, met een eigen alinea en kop per plaats |
 
-De grens van 100.000 is gekozen en bij te stellen; Eindhoven, Tilburg en 's-Hertogenbosch vallen
-erboven, Helmond (ruim 90.000) net eronder en krijgt dus alleen een eigen pagina met lokale feiten of
-als het de vestigingsplaats is. Ook een stadspagina krijgt een eigen hoek; zonder lokaal feit vraagt
+De grens van 50.000 inwoners is een besluit van de eigenaar (25 september 2026). In de regio van de
+drie klanten vallen Eindhoven, Helmond, Tilburg en 's-Hertogenbosch erboven; Veldhoven (ruim 45.000),
+Best, Geldrop, Nuenen en Son en Breugel eronder. Die krijgen alleen een eigen pagina met lokale
+feiten of als het de vestigingsplaats is, en anders een alinea op de werkgebiedpagina. De lijst in
+code wordt eens per jaar bijgewerkt met de CBS-cijfers. Ook een stadspagina krijgt een eigen hoek; zonder lokaal feit vraagt
 de portfolio de ondernemer eerst naar projecten in die stad.
 
 ### 10.2 Wat een plaatspagina uniek maakt
@@ -1024,6 +1026,19 @@ wijziging in de samenhang tussen taken een scenario in `scripts/test-chain.ts`. 
 `server-only` (conventie 2). Elke nieuwe AI-aanroep bewaart zijn ruwe JSON (conventie 8) en controleert
 eerst of zijn resultaat al bestaat (conventie 9). De volgende vrije migratie is `0113`.
 
+**Twee aandachtspunten die bij de bouw horen** (geen losse proef, wel verplicht in het werk):
+
+1. **De tijdslimiet per aanroep.** Strategie en eindredactie draaien op Sol met extra denktijd, en een
+   aanroep mag hoogstens 150 seconden duren (`CALL_BUDGET_MS`). Daarom legt elke aanroep van
+   `content_strategy` en `content_edit` zijn duur vast in de log en in `ai_calls`. De aanroep wordt
+   vanaf het begin zo gebouwd dat hij in de achtergrondmodus van de API kan draaien: de taak start de
+   aanroep, een vervolgtaak haalt het resultaat op. Die modus gaat aan zodra een van beide in
+   productie boven 120 seconden komt, zodat een time-out nooit de duurste aanroep dubbel laat betalen.
+   Dit hoort bij WP3 en WP5.
+2. **De grens voor grote steden staat op 50.000 inwoners** (besluit eigenaar). De lijst komt uit de
+   CBS-cijfers en staat vast in `lib/plaatsregel.ts`; hij wordt eens per jaar bijgewerkt. Dit hoort
+   bij WP12.
+
 ### Fase 1. De grootste problemen weg
 
 **WP1. De invoer opschonen en de stem van de drie klanten aanvullen**
@@ -1062,7 +1077,8 @@ eerst of zijn resultaat al bestaat (conventie 9). De volgende vrije migratie is 
 - *Migratie `0114_paginastrategie_en_redactie.sql`:* op `content_pieces` de kolommen `strategy_json`,
   `edit_log_json`, `readiness_json`.
 - *Bestanden:* nieuw `lib/pipeline/page-strategy.ts`, `lib/schemas/page-strategy.ts`,
-  `lib/pipeline/strategie-check.ts` (puur), `lib/lengtebudget.ts` (puur); aanpassen
+  `lib/pipeline/strategie-check.ts` (puur), `lib/lengtebudget.ts` (puur), de achtergrondmodus in
+  `lib/openai/structured.ts` en `lib/openai/client.ts`; aanpassen
   `lib/jobs/types.ts`, `lib/jobs/handlers.ts` (`content_plan` plant `content_strategy` in plaats van
   `content_draft`), `lib/jobs/dedupe.ts`, `lib/openai/sampling.ts`, `lib/openai/models.ts`
   (commentaar); de schrijfopdracht (`writer-brief.ts`) blijft staan als terugval tot WP16.
@@ -1070,7 +1086,9 @@ eerst of zijn resultaat al bestaat (conventie 9). De volgende vrije migratie is 
   grenzen, meer dan zes prioriteitsfeiten); keten: `content_plan` → `content_strategy` →
   `content_draft`, en hervatten zonder dubbele aanroep.
 - *Klaar als:* de strategie voor de kostenpagina van de installateur en de pagina voor Best geen
-  consumentenadviessecties meer kiest en een budget onder de 800 woorden zet.
+  consumentenadviessecties meer kiest en een budget onder de 800 woorden zet; de duur van elke
+  strategieaanroep vastligt; en de achtergrondmodus werkt (aanroep starten, resultaat in een
+  vervolgtaak ophalen, zonder dubbele betaling bij opnieuw proberen).
 
 **WP4. De schrijver op de strategie**
 - *Wat:* de schrijfopdracht wordt de strategie plus de afgeleide opbouw plus alleen de gekozen feiten;
@@ -1089,12 +1107,13 @@ eerst of zijn resultaat al bestaat (conventie 9). De volgende vrije migratie is 
 - *Wat:* taaksoort `content_edit` met L8, de vangnetten op de redactie, en de volledige keuring
   daarna (verhuist uit `content_draft`).
 - *Bestanden:* nieuw `lib/pipeline/editorial-pass.ts`, `lib/schemas/editorial-pass.ts`,
-  `lib/pipeline/redactie-check.ts` (puur); aanpassen `lib/jobs/handlers.ts` (`content_draft` →
+  `lib/pipeline/redactie-check.ts` (puur), de achtergrondmodus uit WP3; aanpassen `lib/jobs/handlers.ts` (`content_draft` →
   `content_edit` → eventueel `content_revise`), `lib/pipeline/quality-run.ts`.
 - *Tests:* unit: een redactie die een nieuw bedrag toevoegt wordt teruggedraaid naar de vorige versie;
   een verdwenen kernfeit is een blokkade; keten: draft → edit → revise, en hervatten na een time-out.
 - *Klaar als:* "maar dat zegt op zichzelf niets over het aantal zwemvijvers" en de prijsband vier keer
-  op Nuenen bij een nieuwe versie weg zijn.
+  op Nuenen bij een nieuwe versie weg zijn, en de duur van elke redactieaanroep vastligt, met dezelfde
+  achtergrondmodus als bij WP3.
 
 **WP6. Onzekerheid en bronpraat als blokkade**
 - *Wat:* de bestemmingen A, B en C uit de strategie worden nagerekend in de tekst; bronpraat wordt een
@@ -1176,7 +1195,8 @@ uit §14.2.
 **WP14. Leren van handmatige aanpassingen:** de paren (was, werd) bewaren en L3 een bijwerking laten
 voorstellen.
 
-**WP15. Getallen bijstellen:** lengtebudget, drempels en de 100.000-grens op de gemeten rondes.
+**WP15. Getallen bijstellen:** lengtebudget en drempels op de gemeten rondes. De grens van 50.000
+inwoners is een besluit van de eigenaar en verandert alleen op zijn verzoek.
 
 **WP16. Opruimen:** de schrijfopdracht (`writer-brief.ts`, `schrijfopdracht.ts`) vervalt als stap; de
 kolom `writer_brief_json` blijft bestaan voor oude pagina's (additief, nooit `drop`); de
