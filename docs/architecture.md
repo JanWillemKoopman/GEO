@@ -463,6 +463,21 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
   zodra een analyse haar eerste rapport krijgt: herberekent `search_volume_index` op ALLE
   onderwerpen van dat merk in één aanroep (`lib/pipeline/search-demand.ts`), zie
   `docs/tasks/potentiescore.md`.
+- **`content_strategy`** (migratie `0114`, WP3 van `docs/tasks/contentpijplijn-publicatiewaardig.md`)
+  staat tussen `content_plan` en `content_draft`: de paginastrategie op Sol met denktijd hoog, de
+  controles in code (`strategie-check.ts`), en de conflictpoort. Een pagina die op een conflict
+  wacht, krijgt een wachtstand in `content_pieces.strategy_json` en start opnieuw zodra het
+  conflict is opgelost (`strategie-wacht.ts`). In de achtergrondmodus plant de taak zichzelf
+  opnieuw in om het resultaat op te halen (`lib/openai/achtergrond.ts`).
+- **`content_edit`** (WP5 van `docs/tasks/contentpijplijn-publicatiewaardig.md`) volgt op
+  `content_draft` bij een pagina met strategie: de eindredactie op Sol met denktijd hoog
+  (`editorial-pass.ts`), de vangnetten in code (`redactie-check.ts`), het logboek in
+  `content_pieces.edit_log_json`, en daarna de volledige keuring (`keurEnRondAf` in `content.ts`),
+  die bij zo'n pagina niet meer in `content_draft` zit. Zelfde achtergrondmodus als de strategie.
+- **`fact_register`** (migratie `0113`, WP2 van `docs/tasks/contentpijplijn-publicatiewaardig.md`)
+  hangt aan een merk (`profile_id`), is licht werk en wordt ingepland na elke `content_brief` en met
+  de knop op het conflictscherm (`admin/feiten`). Hij deelt nieuwe feiten in, zoekt kandidaat-
+  conflicten in code en laat alleen nieuwe paren beoordelen; zie §6.
 - **De Sales-keten** (de dertien `sales_*`-taken, migraties `0069` tot en met `0081`) hangt aan een MARKT en niet aan
   een merk. Daarvoor is `jobs.sales_market_id` de derde soort taakeigenaar naast `analysis_id` en
   `profile_id`; de constraint `jobs_has_owner` uit `0013` eist er nog steeds precies één van.
@@ -816,6 +831,32 @@ naar ongeveer $2,57, een besparing van ~$0,32 per pagina. De onderbouwing waarom
 kwaliteitsverlies hoeft te zijn staat in `lib/openai/models.ts`; dat het dat ook niet is, is nog
 niet nagemeten (conventie 10, de nameting staat in
 `docs/tasks/contentkwaliteit-copywriterronde.md` §7).
+
+### De paginastrategie en de achtergrondmodus (25 september 2026, migratie `0114`)
+
+Werksoort `redactioneel` (`lib/openai/sampling.ts`): Sol, denktijd `high`, voor de paginastrategie
+(`content_strategy`, WP3) en straks de eindredactie, het stemvoorstel en de portfolio. Elke aanroep
+in de app legt nu zijn duur vast in `ai_calls.duration_ms`. Komt een aanroep van een soort boven de
+120 seconden (`moetAchtergrond()`), dan draaien de volgende van die soort in de achtergrondmodus
+van de Responses API: de taak start de aanroep en bewaart het response-id, een vervolgtaak haalt
+het resultaat op (`startStructuredAchtergrond()` en `haalStructuredOp()` in
+`lib/openai/structured.ts`). Een nieuwe poging haalt op in plaats van opnieuw te starten, dus een
+time-out betaalt de duurste aanroep nooit twee keer. Bij de bouw is de modus nog niet actief: er is
+geen gemeten strategieaanroep.
+
+### De AI-aanroepen van het feitenregister (25 september 2026, migratie `0113`)
+
+Twee lichte aanroepen, allebei op `MODELS.quality` (Luna), in de taak `fact_register`
+(`lib/pipeline/feitenregister.ts`):
+
+| Aanroep (`ai_calls.kind`) | Werk | Wat code narekent |
+|---|---|---|
+| `fact_classify` (L1, `fact-classify.ts`) | `deterministic`, 40 feiten per aanroep, vier tegelijk | een getal in de waarde moet in de feittekst staan, anders is de waarde leeg (`veiligeWaarde()`) |
+| `fact_conflict_judge` (L2, `conflict-judge.ts`) | `judging`, één paar per aanroep, hooguit twintig nieuwe paren per run | kandidaten komen uit code (`vindKandidaten()`); een oordeel wordt per paar één keer betaald (`fact_conflicts.paar_sleutel`) en het voorstel welk feit klopt wordt nooit automatisch toegepast |
+
+Alleen een antwoord van de klant tegenover de site wint vanzelf. Een betwist of vervangen feit gaat
+niet meer op de feitenkaart (`zonderBetwisteFeiten()` in `content.ts`); wanneer een conflict een
+pagina tegenhoudt, staat in `houdtPaginaTegen()` en wordt in WP3 aangesloten op de paginastrategie.
 
 ### De AI-aanroepen van Mijn reputatie (22 augustus 2026, migratie `0062`)
 

@@ -12374,3 +12374,117 @@ op de proefset van de doorlichting. Een werkgebiedpagina mag geadviseerd worden,
 gemeente vanaf 50.000 inwoners) houden een eigen pagina. De schrijfstijl hoort volledig in het merkdossier. Een bronconflict houdt een pagina
 alleen tegen als het betwiste feit op die pagina nodig is. Het bouwplan staat in drie fases en zestien
 werkpakketten in het plan zelf.
+
+## 25 september 2026: WP1, de invoer van de schrijver zonder herkomsttaal
+
+Eerste werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`. De waardeproposities gingen
+letterlijk de schrijfopdracht in, met herkomst en dubbelingen: bij de hovenier 11 regels, waarvan 5
+tweemaal dezelfde en 5 met "volgens de website" of "naar eigen zeggen". Nu schoont
+`lib/pipeline/waardeproposities.ts` ze vóór de schrijfopdracht en bij het opslaan van het
+profielonderzoek: van 11 naar 7 regels bij de hovenier, van 8 naar 4 bij de installateur, van 9 naar
+6 bij de rijschool, en geen herkomsttaal meer. Een regel die niet zonder omzetting schoon te krijgen is
+("De website stelt dat het bedrijf tuinen ... realiseert") vervalt; bij alle drie stond dezelfde
+propositie ook in een schone vorm.
+
+Bij het narekenen op de schrijfaanroepen van 25 september bleek de feitenkaart zelf dezelfde afstand
+te dragen: 26 van de 45 proof points van de drie merken begonnen met "De website vermeldt" of "De
+website noemt". De kaart toont ze nu zonder dat voorvoegsel; wat overblijft is letterlijk een stuk van
+het feit, zodat de citaatcontrole blijft kloppen. Het profielonderzoek vraagt voortaan om de bewering
+zelf. De zes stemvelden die nergens heen gingen (kennisniveau, eigen uitdrukkingen, kernwoorden,
+onderscheid, USP, kernboodschappen) gaan nu mee in de schrijfopdracht (`lib/pipeline/stemvelden.ts`).
+Ze zijn bij alle drie de merken nog leeg; het voorstel om ze te vullen staat in
+`docs/tasks/schrijfstijl-voorstel-drie-klanten.md` en wacht op akkoord van de eigenaar.
+## 25 september 2026: WP2, het feitenregister en de conflictpoort
+
+Tweede werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`, migratie `0113`. Tot nu toe
+zag de feitenbank alleen tegenspraak tussen twee feiten met dezelfde tekstsleutel; twee zinnen over
+dezelfde prijs in andere woorden stonden allebei op de kaart, en de schrijver schreef dan "De
+beschikbare informatie over de intakeprijs spreekt elkaar tegen". Nu krijgt elk feit een soort, een
+waarde, een geldigheid, een stand en een bewijskracht (L1, Luna, 40 feiten per aanroep, ongeveer een
+tiende cent per batch). Code zoekt paren met dezelfde soort en geldigheid en een andere waarde, en
+alleen die paren gaan naar een tweede Luna-aanroep die beslist of het echt een conflict is of twee
+varianten (L2). Een oordeel wordt per paar één keer betaald. Een antwoord van de klant wint vanzelf
+van de site; de rest beslist de adviseur op `admin/feiten` (dit geldt, dat geldt, of vraag het de
+ondernemer). Een betwist of vervangen feit gaat niet meer op de feitenkaart.
+
+Afwijking van het plan: "een recentere pagina van de eigen site vóór een oudere" wint niet vanzelf.
+Het register kent geen publicatiedatum per sitepagina, alleen wanneer wij hem lazen; op die volgorde
+beslissen zou een schijnrangorde zijn. Die conflicten gaan naar de adviseur. Het conflictscherm heeft
+geen eigen menu-item (Admin heeft er hooguit negen, `scripts/test-unit.ts`) maar een teller met link
+op Diagnose. De drie proefmerken hebben samen 408 actuele feiten; de eerste run (twaalf batches, vier
+tegelijk) kan pas draaien als de code op productie staat.
+
+## 25 september 2026: WP3, de paginastrategie
+
+Derde werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`, migratie `0114`. Tussen
+`content_plan` en `content_draft` staat nu `content_strategy`: Sol met denktijd hoog (nieuwe
+werksoort `redactioneel`) beslist wat er op de pagina komt en wat niet, met het contract als lijst
+van mogelijkheden in plaats van als opdracht. De code rekent de keuzes na en zet ze recht: een
+F-nummer dat niet op de kaart staat of betwist is valt eruit, hoogstens zes prioriteitsfeiten, een
+voorbehoud zonder een van de vijf redenen uit §7.2 wordt een vraag aan de ondernemer, een
+kernonderwerp zonder feit en zonder vakkennis wordt een vraag in plaats van een sectie, en het
+lengtebudget blijft binnen het vertrekpunt plus 30 procent (`lib/lengtebudget.ts`). De ruwe keuze en
+de correcties worden allebei bewaard.
+
+De conflictpoort uit WP2 is aangesloten: heeft een pagina een betwist feit nodig, dan wacht hij en
+start hij vanzelf opnieuw zodra de adviseur het conflict oplost. Elke AI-aanroep legt sinds deze
+migratie zijn duur vast (`ai_calls.duration_ms`); komt een strategieaanroep boven 120 seconden, dan
+draaien de volgende in de achtergrondmodus van de API, zodat een time-out de duurste aanroep nooit
+twee keer laat betalen. Er is nog geen gemeten strategieaanroep; de modus staat dus nog uit. De
+schrijver gebruikt de strategie pas vanaf WP4. Kosten en duur worden bij de nareken-plicht na fase 1
+op `ai_calls` gemeten.
+
+## 25 september 2026: WP4, de schrijver op de paginastrategie
+
+Vierde werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`. Heeft een pagina een
+strategie, dan krijgt de schrijver voortaan de keuzes van de strategie, de opbouw die code daaruit
+afleidt, alleen de gekozen feiten (plus de verboden), de stem en de harde regels. Niet meer: het
+contract met "Alles wat hier staat MOET erop komen", de hele feitenkaart, het paginaplan met "GEEN
+BRON", het winnende antwoord, de bronanalyse en de lat van de concurrenten; die zijn al in de
+strategie gewogen. Weglaten mag en wordt gemeld in een eigen veld. De dekking meet voortaan de
+strategie in plaats van 85 procent van het contract; een uitgesloten onderwerp op de pagina en een
+ontbrekend prioriteitsfeit blokkeren (§12.1). Met een strategie wordt er geen schrijfopdracht op Luna
+meer gemaakt. Afwijking van het plan: het schrijven keurt nog zelf; de keuring verhuist in WP5 naar
+de eindredactie, zodat de keten na elk werkpakket werkt. De omvang van de schrijfinvoer (doel: onder
+9.000 tokens, was gemiddeld 14.100) wordt na merge op `ai_calls` gemeten.
+
+## 25 september 2026: WP5, de eindredactie
+
+Vijfde werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`. Na het schrijven op een
+paginastrategie volgt de taak `content_edit`: een eindredactie op Sol met denktijd hoog die schrapt,
+voorbehouden na een bewijsstuk en herhaling weghaalt, de adviestoon omzet en de tekst naar de stem en
+het budget brengt, met een logboek per wijziging. De keuring verhuist bij zulke pagina's van het
+schrijven naar na de redactie: een oordeel over een tekst die daarna toch verandert, is weggegooid
+geld. Code rekent de redactie na: een getal dat in het concept en op de kaart ontbreekt, een
+F-nummer dat niet bestaat, of een tekst die langer wordt dan het budget plus 15 procent, en de
+redactie wordt teruggedraaid naar het concept. Een prioriteitsfeit dat verdwijnt, blokkeert via de
+keuring en gaat de reparatie in. Wordt de taak na de redactie onderbroken, dan pakt de volgende
+poging de bewaarde redactie op zonder hem opnieuw te betalen. Pagina's zonder strategie lopen zoals
+voorheen.
+
+## 25 september 2026: WP6, onzekerheid en bronpraat als blokkade
+
+Zesde werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`. Een zin over wat wij niet
+weten of over onze bronnen ("is niet vastgelegd", "staat niet als vaste werkwijze vast", "valt niet af
+te leiden", "De beschikbare prijsinformatie benoemt niet") was een waarschuwing en is nu een blokkade;
+`lib/pipeline/onzekerheid.ts` vangt ze als vorm in plaats van als losse zin, en alle acht voorbeelden
+uit de teksten van 25 september worden gevangen, de vier goede zinnen ernaast niet. Staat een punt dat
+de strategie naar de ondernemer (A) of naar de prullenbak (C) stuurde toch in de tekst, dan blokkeert
+dat ook. Een voorbehoud direct na een bewijsstuk ("maar dat zegt op zichzelf niets") is een
+waarschuwing, zoals §12.2 zegt. De reparatie mag niet meer nuanceren of algemener schrijven, alleen
+weglaten, en krijgt hoogstens twee rondes (was drie). De feitelijkheidsbeoordelaar meldt nog alleen
+een toezegging in de wij-vorm of met de bedrijfsnaam; zijn vroegere jacht op "algemene uitleg die als
+belofte gelezen kan worden" was de bron van de voorbehouden achter sterk bewijs.
+
+## 25 september 2026: WP7, de FAQ volgens de vier criteria
+
+Zevende werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`, en het laatste van fase 1.
+De FAQ was per ontwerp een restcategorie: het contract vroeg om vragen die de tekst niet al
+beantwoordde, meestal zonder feit, en het antwoord werd een voorbehoud ("Deze pagina geeft geen
+bevestigde lokale eis voor Best"). Nu kiest een Luna-aanroep na de paginastrategie nul tot vijf vragen
+uit kandidaten in volgorde van waarde (bezwaren uit het verkoopgesprek, gemeten vragen, vervolgvragen
+uit de vorige keuring, het dossier), en de code past de vier criteria van §11 opnieuw toe. Met de echte
+vragen: "Hoe lang lig ik met een kale tuin?" blijft, regenwater in Best en aanbetalen vallen af op het
+ontbreken van een feit en worden een vraag aan de ondernemer, "kopen of huren" valt af bij een bedrijf
+dat niet verhuurt. De schrijver krijgt precies de gekozen vragen, of de opdracht om geen FAQ te
+schrijven.

@@ -227,8 +227,18 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
 
 ## Fase 9. Het eerste concept schrijven
 
-71. Het systeem plant voor elke pagina de schrijftaak in.
-72. Het beste, duurste AI-model schrijft de eerste volledige versie: een titel, de tekst in
+71. Het systeem bepaalt eerst per pagina de paginastrategie (sinds 25 september 2026): het duurste
+    model beslist met extra denktijd wat er op de pagina komt en vooral wat niet, welke drie tot zes
+    feiten voorop gaan, waar elke onzekerheid heen gaat (een vraag aan de klant, één uitleg aan de
+    lezer met een van vijf vaste redenen, of weglaten) en hoeveel woorden de pagina krijgt. De
+    onderwerpen uit het contract zijn daarbij mogelijkheden en geen opdracht. Code rekent de keuzes
+    na en zet ze recht. Is een feit dat de pagina nodig heeft betwist (twee versies die niet allebei
+    waar kunnen zijn), dan wacht de pagina tot de adviseur het conflict oplost, en start daarna
+    vanzelf opnieuw. Daarna plant het systeem de schrijftaak in.
+72. Het beste, duurste AI-model schrijft de eerste volledige versie op de paginastrategie: het krijgt
+    de keuzes, de opbouw die daaruit volgt en alleen de gekozen feiten, en mag een punt weglaten als
+    het dat niet goed kan schrijven (het meldt dat dan apart). Een pagina zonder strategie wordt
+    geschreven zoals hieronder. De versie bestaat uit een titel, de tekst in
     Markdown, losse FAQ-vragen met antwoord, en technische metadata voor zoekmachines en
     AI-assistenten. De tekst wordt gegrond op de feitenkaart, de vragen die het merk in de meting
     miste, het winnende antwoord van de concurrent zonder diens naam erin, en op wat de bronnen die
@@ -237,6 +247,13 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
     zodat de tekst niet leest als AI-tekst.
 
 ## Fase 10. Drie onafhankelijke keuringen
+
+Bij een pagina met paginastrategie komt hier eerst de eindredactie (sinds 25 september 2026): het
+duurste model met extra denktijd schrapt, haalt onnodige voorbehouden en herhaling weg, zet de
+adviestoon om naar wat het bedrijf doet, zet de tekst op de merkstem en brengt hem naar het
+lengtebudget, zonder een feit toe te voegen. Code rekent dat na: voegt de redactie een getal of een
+feitverwijzing toe die nergens op de kaart staat, of maakt hij de tekst langer dan het budget, dan
+geldt het concept. Pas daarna volgen de keuringen hieronder.
 
 74. Een eerste beoordelaar scoort de tekst redactioneel, op een vaste rubric en de harde regels.
 75. Een tweede beoordelaar checkt welke zinnen iets over het bedrijf beweren zonder dat de

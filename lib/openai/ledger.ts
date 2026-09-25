@@ -90,6 +90,13 @@ export interface LoggedCall {
    * voor waarom dit altijd bewaard wordt.
    */
   input?: AiCallInput | null;
+  /**
+   * Hoe lang de aanroep duurde (migratie 0114, WP3 van
+   * contentpijplijn-publicatiewaardig.md). Strategie en eindredactie draaien op
+   * denktijd hoog; boven 120 seconden gaan ze naar de achtergrondmodus, en dat
+   * besluit rust op deze meting.
+   */
+  durationMs?: number | null;
 }
 
 export async function logAiCall(meta: CallMeta, call: LoggedCall): Promise<void> {
@@ -115,6 +122,7 @@ export async function logAiCall(meta: CallMeta, call: LoggedCall): Promise<void>
       raw_json: call.raw === undefined ? null : (call.raw as never),
       input_json: opname ? (opname.inputJson as never) : null,
       prompt_hash: opname?.promptHash ?? null,
+      duration_ms: call.durationMs == null ? null : Math.round(call.durationMs),
     });
   } catch (err) {
     // Bewust alleen loggen: zie de best-effort-regel bovenaan dit bestand.

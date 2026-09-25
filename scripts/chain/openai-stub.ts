@@ -711,6 +711,10 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
         },
         { claim: zin2, factRef: tweede.ref, quote: citaatUit(tweede.text) },
       ],
+      // WP4: wat de schrijver uit de opbouw van de strategie wegliet.
+      weggelaten: /DE PAGINASTRATEGIE/.test(user)
+        ? [{ punt: "Wat een behandeling kost", reden: "Daar staat geen feit over op de kaart." }]
+        : [],
     };
   },
 
@@ -956,6 +960,7 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
     metaTitle: "Hardloopblessure in Amersfoort",
     metaDescription: "Fysi-Unique behandelt hardloopblessures in Amersfoort.",
     notes: ["De sectie over de afspraak is aangevuld."],
+    weghalen: [],
   }),
 
   /**
@@ -1135,6 +1140,154 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
               priority: 2,
             },
           ],
+    };
+  },
+  /**
+   * L6, de FAQ-selectie (WP7). Houdt de eerste kandidaat met het eerste feit
+   * van de kaart, en wijst de rest af op criterium 3: dan moeten die als vraag
+   * aan de ondernemer terugkomen.
+   */
+  faq_selection: (user) => {
+    const eersteFeit = /^(F\d+)\s\s/m.exec(user)?.[1] ?? "F1";
+    const kandidaten = Array.from(user.matchAll(/^(\d+)\. /gm)).map((m) => Number(m[1]));
+    return {
+      kandidaten: kandidaten.map((nummer) =>
+        nummer === 1
+          ? { nummer, houden: true, criterium: null, reden: "Een bezwaar uit het gesprek.", onderbouwing: "feit", feiten: [eersteFeit], vakkennis: null }
+          : { nummer, houden: false, criterium: "geen onderbouwing", reden: "Geen feit.", onderbouwing: "geen", feiten: [], vakkennis: null },
+      ),
+    };
+  },
+  /**
+   * L8, de eindredactie (WP5). Leest het concept uit de opdracht terug, haalt
+   * de relativering na een bewijsstuk weg (het voorbeeld van de zwemvijver in
+   * §1.2) en houdt de beweringen met hun citaat. Staat er in het concept het
+   * woord TESTBEDRAG, dan voegt de stub een bedrag toe dat nergens op de kaart
+   * staat, zodat de ketentest het terugdraaien kan toetsen.
+   */
+  editorial_pass: (user) => {
+    const concept = user.split("── HET CONCEPT ──")[1] ?? "";
+    const metaTitle = /Metatitel: (.*)/.exec(concept)?.[1]?.slice(0, 60) ?? "Titel";
+    const metaDescription = /Metabeschrijving: (.*)/.exec(concept)?.[1]?.slice(0, 160) ?? "Beschrijving";
+    const na = concept.split(/Metabeschrijving: .*\n/)[1] ?? "";
+    const body = na.split(/\n\[FAQ\]|\nBeweringen in het concept/)[0].trim();
+    const faq = Array.from((na.split("[FAQ]")[1] ?? "").matchAll(/Q: (.*)\nA: (.*)/g)).map((m) => ({ q: m[1], a: m[2] }));
+    const claims = Array.from(na.matchAll(/^- (F[\d, F]+): (.*) \(citaat: "(.*)"\)$/gm)).map((m) => ({
+      factRef: m[1],
+      claim: m[2],
+      quote: m[3],
+    }));
+    const zonderRelativering = body.replace(/,? maar dat zegt op zichzelf niets[^.]*\./g, ".");
+    return {
+      bodyMarkdown: /TESTBEDRAG/.test(body) ? `${zonderRelativering}\n\nEen intake kost bij ons € 777.` : zonderRelativering,
+      faq,
+      metaTitle,
+      metaDescription,
+      claims,
+      proofPoints: [],
+      wijzigingen: [
+        { was: "maar dat zegt op zichzelf niets", wordt: "", soort: "relativering", raaktFeit: false },
+      ],
+    };
+  },
+  /**
+   * L5, de paginastrategie (WP3). Met opzet ongemakkelijk, zodat elk vangnet
+   * in `strategie-check.ts` iets te doen krijgt: een F-nummer dat niet bestaat,
+   * een kernonderwerp zonder feit, een voorbehoud zonder reden, en een budget
+   * ver boven het plafond. Staat er een betwist feit in de opdracht, dan kiest
+   * de stub het toch als prioriteitsfeit, zodat de conflictpoort het ziet.
+   */
+  page_strategy: (user) => {
+    const refs = user
+      .split("\n")
+      .map((r) => /^(F\d+)\s\s+/.exec(r)?.[1])
+      .filter((r): r is string => Boolean(r));
+    const betwist = user
+      .split("\n")
+      .map((r) => /^(B\d+) \(/.exec(r)?.[1])
+      .filter((r): r is string => Boolean(r));
+    return {
+      zoekintentie: "lokaal vinden",
+      lezer: "Iemand met een hardloopblessure die snel geholpen wil worden",
+      fase: "beslissing",
+      paginadoel: "Een afspraak maken",
+      kernboodschap: "Bij een hardloopblessure ben je hier snel en deskundig geholpen.",
+      openingsantwoord: "Voor een hardloopblessure kun je in Amersfoort bij ons terecht.",
+      hoek: "De pagina voor hardlopers met een blessure.",
+      prioriteitsfeiten: [
+        ...betwist.slice(0, 1).map((b) => ({ feit: b, betekenis: "betwist, hoort eruit" })),
+        ...refs.slice(0, 3).map((f) => ({ feit: f, betekenis: "Dit telt voor deze lezer." })),
+        { feit: "F99", betekenis: "bestaat niet" },
+      ],
+      optioneleFeiten: refs.slice(3, 5),
+      uitgeslotenFeiten: [],
+      onderwerpen: [
+        { onderwerp: "Wat we behandelen", besluit: "opnemen", bron: "feit", feiten: refs.slice(0, 1), woorden: 150, vraag: null, wachtOpConflict: [], kern: true, reden: "beslisvraag" },
+        { onderwerp: "Wat een behandeling kost", besluit: "opnemen", bron: "geen", feiten: [], woorden: 80, vraag: null, wachtOpConflict: betwist.slice(0, 1), kern: true, reden: "beslisvraag" },
+        { onderwerp: "Vergelijk aanbieders", besluit: "weglaten", bron: "vakkennis", feiten: [], woorden: null, vraag: null, wachtOpConflict: [], kern: false, reden: "consumentengids" },
+      ],
+      onzekerheden: [
+        { punt: "Of er een wachtlijst is", bestemming: "B", reden: null, formulering: null, vraag: null },
+        { punt: "Prijs verschilt per behandeling", bestemming: "B", reden: "geld", formulering: "De prijs hangt af van het aantal behandelingen.", vraag: null },
+      ],
+      bezwaar: null,
+      lengtebudget: { woorden: 2000, onderbouwing: "veel te zeggen", redenBovenPlafond: null },
+      oproep: "Maak een afspraak.",
+      gevoelig: [],
+    };
+  },
+  /**
+   * L1, feiten indelen (WP2 van contentpijplijn-publicatiewaardig.md). Een
+   * echt model leest de genummerde lijst; deze stub doet dat met een paar vaste
+   * regels, zodat het scenario zelf bepaalt welke feiten botsen.
+   */
+  fact_classification: (user) => {
+    const feiten = user
+      .split("\n")
+      .map((r) => /^(\d+)\.\s(.*)$/.exec(r))
+      .filter((m): m is RegExpExecArray => Boolean(m));
+    return {
+      feiten: feiten.map((m) => {
+        const tekst = m[2];
+        const getallen = Array.from(tekst.matchAll(/\d{1,3}(?:\.\d{3})+|\d+/g)).map((g) =>
+          Number(g[0].replace(/\./g, "")),
+        );
+        const prijs = /€|euro/i.test(tekst);
+        const termijn = /week|weken|dag/i.test(tekst);
+        const geldtVoor = /intake/i.test(tekst)
+          ? "intake"
+          : /ketel/i.test(tekst)
+            ? "cv-ketel"
+            : /levertijd/i.test(tekst)
+              ? "levertijd"
+              : null;
+        return {
+          nummer: Number(m[1]),
+          soort: prijs ? "prijs" : termijn ? "termijn" : "overig",
+          waardeMin: getallen[0] ?? null,
+          waardeMax: getallen[1] ?? getallen[0] ?? null,
+          eenheid: prijs ? "EUR" : termijn ? "week" : null,
+          waardeTekst: null,
+          geldtVoor,
+          bewijskracht: "gewoon",
+        };
+      }),
+    };
+  },
+  /**
+   * L2, een conflict beoordelen. Het vaste oordeel dat het plan in §5 noemt:
+   * de intake op kantoor en die in de auto zijn twee producten, geen conflict.
+   * Al het andere is een echt conflict, met voorstel "onbekend".
+   */
+  conflict_judge: (user) => {
+    const varianten = /kantoor/i.test(user) && /auto/i.test(user);
+    return {
+      echtConflict: !varianten,
+      uitleg: varianten
+        ? "Twee verschillende intakes: op kantoor en in de auto."
+        : "Twee verschillende waarden voor hetzelfde.",
+      voorstel: "onbekend",
+      voorstelReden: "",
     };
   },
 };

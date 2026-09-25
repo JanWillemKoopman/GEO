@@ -151,3 +151,21 @@ export function applySectionPatch(bodyMarkdown: string, patches: SectionPatch[])
 
   return { bodyMarkdown: joinSections(secties), vervangen, toegevoegd };
 }
+
+/**
+ * Secties weghalen op kop (WP4 van contentpijplijn-publicatiewaardig.md): een
+ * sectie die de paginastrategie uitsloot. Nooit de aanhef; een kop die niet
+ * bestaat, verandert niets.
+ */
+export function haalSectiesWeg(bodyMarkdown: string, koppen: readonly string[]): { bodyMarkdown: string; verwijderd: string[] } {
+  const doelen = new Set(koppen.map((k) => normalizeHeading(k)).filter(Boolean));
+  if (doelen.size === 0) return { bodyMarkdown, verwijderd: [] };
+  const secties = splitSections(bodyMarkdown);
+  const verwijderd: string[] = [];
+  const over = secties.filter((s) => {
+    if (!s.heading.trim() || !doelen.has(normalizeHeading(s.heading))) return true;
+    verwijderd.push(s.heading);
+    return false;
+  });
+  return verwijderd.length ? { bodyMarkdown: joinSections(over), verwijderd } : { bodyMarkdown, verwijderd };
+}

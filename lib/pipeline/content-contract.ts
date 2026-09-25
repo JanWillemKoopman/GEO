@@ -77,9 +77,13 @@ const SYSTEM =
   "De deelvraag staat er los bij, dus de kop hoeft hem niet te herhalen: \"Wij zijn er binnen 24 " +
   "uur\" is een betere kop dan \"Hoe snel bent u er?\". Bij een FAQ-pagina zijn vragen juist wel " +
   "het punt. " +
-  "(3) FAQ. De vragen die als veelgestelde vragen op de pagina horen, in de woorden van de lezer. " +
-  "Vraag NIET na wat er in de secties hierboven al beantwoord wordt: een FAQ die de tekst erboven " +
-  "herhaalt, maakt de pagina langer en niet completer. " +
+  // ⚠️ WP7 van contentpijplijn-publicatiewaardig.md: hier stond "Vraag NIET na
+  // wat er in de secties hierboven al beantwoord wordt". Dat maakte de FAQ tot
+  // restcategorie: per definitie wat niet in de tekst paste, meestal zonder
+  // feit (§1.2, O8). Nu levert het contract alleen kandidaten; welke erop
+  // komen, beslist de FAQ-selectie na de paginastrategie (§11).
+  "(3) FAQ. Vragen die een lezer van deze pagina stelt, in zijn eigen woorden. Het zijn kandidaten: " +
+  "welke erop komen, beslist een latere stap. " +
   // ── Het contract als SPECIFICATIE, niet alleen als inhoudsopgave (0091) ──
   // Zonder doel en doelgroep kan de citeerbaarheidsbeoordelaar wel zien of elke
   // deelvraag beantwoord wordt, maar niet of de pagina daarmee bereikt waarvoor

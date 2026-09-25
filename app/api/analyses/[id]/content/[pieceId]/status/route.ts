@@ -47,7 +47,7 @@ export const dynamic = "force-dynamic";
  * dezelfde tekst opnieuw en schrijft niets. Wie daarop zou blokkeren, zet het
  * canvas op slot voor werk dat de tekst niet aanraakt.
  */
-const SCHRIJFTAKEN = ["content_plan", "content_draft", "content_revise"] as const;
+const SCHRIJFTAKEN = ["content_plan", "content_strategy", "content_draft", "content_edit", "content_revise"] as const;
 
 export interface ContentStatusResponse {
   /** Er loopt of wacht een taak die deze pagina herschrijft. */

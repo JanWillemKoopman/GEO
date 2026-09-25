@@ -80,6 +80,17 @@ export interface KwaliteitsInvoer {
   coverage: CoverageResult;
   quality: QualityResult;
   bronpraat: SourceTalkResult;
+  /**
+   * WP6: zinnen over wat wij niet weten (blokkerend), een voorbehoud na een
+   * bewijsstuk (waarschuwing), en de bestemmingen uit de strategie.
+   */
+  onzekerheid?: {
+    gatzinnen: string[];
+    voorbehoudNaBewijs: string[];
+    bestemmingen: import("@/lib/pipeline/onzekerheid").BestemmingUitslag | null;
+  };
+  /** WP7: de FAQ tegen de selectie van de strategie. `null` zonder selectie. */
+  faqNaSchrijven?: import("@/lib/pipeline/faq-criteria").FaqNaSchrijven | null;
   /** V2: spreekt de pagina de lezer overal hetzelfde aan? */
   aanspreekvorm?: AanspreekvormResult;
   /** V5: negeert de pagina een instructie die de klant zelf gaf? */
@@ -437,10 +448,10 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
           dimension: "feitelijkheid",
           severity: "midden",
           section: null,
-          finding: `Deze algemene uitleg leest als een belofte van dit bedrijf: "${claim}".`,
+          finding: `Deze zin zegt iets toe namens het bedrijf zonder feit op de kaart: "${claim}".`,
           evidence: claim,
-          expected: "Algemene uitleg blijft algemeen geformuleerd.",
-          recommendation: "Formuleer hem algemeen, of onderbouw hem als belofte.",
+          expected: "Een toezegging van het bedrijf rust op een feit van de kaart.",
+          recommendation: "Onderbouw hem met een F-nummer of haal de toezegging weg. Zet er geen voorbehoud achter.",
           blocking: false,
           confidence: MODELOORDEEL,
           bron: "feitelijkheid",
@@ -611,19 +622,193 @@ export function verzamelKwaliteit(invoer: KwaliteitsInvoer): KwaliteitsUitkomst 
     );
   }
 
-  for (const zin of invoer.bronpraat.sentences.slice(0, 5)) {
+  // ── WP4: voert de tekst de paginastrategie uit? ───────────────────────────
+  //
+  // Een uitgesloten onderwerp op de pagina en een ontbrekend prioriteitsfeit
+  // zijn blokkerend (§12.1 van contentpijplijn-publicatiewaardig.md): dat zijn
+  // precies de twee manieren waarop de schrijver de redactionele keuze
+  // ongedaan maakt. Een sectie die bij geen onderwerp hoort, is hoog maar niet
+  // blokkerend: soms is het een goed gekozen kop voor een gekozen onderwerp die
+  // de woordvergelijking niet herkent.
+  for (const onderwerp of invoer.coverage.uitgeslotenAanwezig ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "relevantie",
+        severity: "blokkerend",
+        section: null,
+        finding: `Het onderwerp "${onderwerp}" staat op de pagina, terwijl de strategie het uitsloot.`,
+        evidence: onderwerp,
+        expected: "Alleen de onderwerpen uit de opbouw van de strategie.",
+        recommendation: `Haal de sectie over "${onderwerp}" weg.`,
+        blocking: true,
+        confidence: ZEKER,
+        bron: "strategie",
+      }),
+    );
+  }
+  for (const ref of invoer.coverage.ontbrekendePrioriteit ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "specificiteit",
+        severity: "blokkerend",
+        section: null,
+        finding: `Het prioriteitsfeit ${ref} staat niet in de tekst.`,
+        evidence: ref,
+        expected: "Elk prioriteitsfeit van de strategie staat erin, stellig en zonder voorbehoud erachter.",
+        recommendation: `Zet ${ref} in de tekst, met het F-nummer in de beweringen.`,
+        blocking: true,
+        confidence: ZEKER,
+        bron: "strategie",
+      }),
+    );
+  }
+  for (const kop of invoer.coverage.vreemdeSecties ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "relevantie",
+        severity: "hoog",
+        section: kop,
+        finding: "Deze sectie hoort bij geen onderwerp uit de opbouw van de strategie.",
+        evidence: null,
+        expected: "Alleen de onderwerpen uit de opbouw.",
+        recommendation: "Haal de sectie weg, of voeg hem samen met het onderwerp waar hij bij hoort.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "strategie",
+      }),
+    );
+  }
+
+  // ── Bronpraat en gatzinnen: blokkerend sinds WP6 (§12.1) ──────────────────
+  //
+  // Een zin over onze bronnen of over wat wij niet weten ("is niet
+  // vastgelegd", "De beschikbare prijsinformatie benoemt niet") was een
+  // waarschuwing, en de pagina ging erdoor. De fase-1-norm van het plan is nul
+  // zulke zinnen (§14.2). De reparatie haalt ze weg; aanvullen kan niet, want er
+  // is geen feit.
+  const bronzinnen = Array.from(
+    new Set([...invoer.bronpraat.sentences, ...(invoer.onzekerheid?.gatzinnen ?? [])]),
+  );
+  for (const zin of bronzinnen.slice(0, 8)) {
+    issues.push(
+      maak(invoer, {
+        dimension: "feitelijkheid",
+        severity: "blokkerend",
+        section: null,
+        finding: `Deze zin gaat over onze bronnen of over wat wij niet weten, in plaats van over het onderwerp: "${zin}".`,
+        evidence: zin,
+        expected: "De pagina schrijft namens het bedrijf. Wat wij niet weten, is een vraag aan de ondernemer en geen zin op de site.",
+        recommendation: "Haal de zin weg. Schrijf niet op dat iets niet bekend of niet vastgelegd is.",
+        blocking: true,
+        confidence: ZEKER,
+        bron: "bronpraat",
+      }),
+    );
+  }
+  // ── WP7: de FAQ volgens de vier criteria (§11, §12.2) ─────────────────────
+  //
+  // Waarschuwingen en geen blokkades, zoals §12.2 zegt: een vraag buiten de
+  // selectie of een te kort antwoord maakt de pagina niet onwaar. Een antwoord
+  // zonder feit is wel verdacht, maar de feitcontrole op de zinnen vangt een
+  // bewering zonder dekking al als blokkade.
+  const faqNa = invoer.faqNaSchrijven;
+  for (const v of faqNa?.buitenSelectie ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "relevantie",
+        severity: "hoog",
+        section: "FAQ",
+        finding: `Deze FAQ-vraag staat niet in de selectie van de strategie: "${v}".`,
+        evidence: v,
+        expected: "Alleen vragen die aan de vier criteria van §11 voldoen.",
+        recommendation: "Haal de vraag weg.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "faq",
+      }),
+    );
+  }
+  for (const v of faqNa?.kort ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "volledigheid",
+        severity: "midden",
+        section: "FAQ",
+        finding: `Het antwoord op "${v}" is korter dan 25 woorden.`,
+        evidence: v,
+        expected: "Eerst het antwoord, dan hoogstens twee zinnen toelichting: 30 tot 80 woorden.",
+        recommendation: "Maak het antwoord af met de toelichting die de lezer nodig heeft.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "faq",
+      }),
+    );
+  }
+  for (const v of faqNa?.zonderFeit ?? []) {
     issues.push(
       maak(invoer, {
         dimension: "feitelijkheid",
         severity: "hoog",
-        section: null,
-        finding: `Deze zin gaat over onze eigen bronnen in plaats van over het onderwerp: "${zin}".`,
-        evidence: zin,
-        expected: "De pagina schrijft namens het bedrijf, niet over onze feitenkaart.",
-        recommendation: "Herschrijf hem als gewone zin op de site van de klant.",
+        section: "FAQ",
+        finding: `Het antwoord op "${v}" gebruikt het feit niet waarop het zou rusten.`,
+        evidence: v,
+        expected: "Een FAQ-antwoord rust op een feit van de kaart of op vaste vakkennis.",
+        recommendation: "Gebruik het feit uit de selectie, met het F-nummer in de beweringen.",
         blocking: false,
         confidence: ZEKER,
-        bron: "bronpraat",
+        bron: "faq",
+      }),
+    );
+  }
+
+  for (const a of invoer.onzekerheid?.bestemmingen?.aOfCInTekst ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "relevantie",
+        severity: "blokkerend",
+        section: null,
+        finding:
+          a.bestemming === "A"
+            ? `Hierover vragen wij de ondernemer eerst, en toch staat het in de tekst: "${a.zin}".`
+            : `Dit punt liet de strategie bewust weg, en toch staat het in de tekst: "${a.zin}".`,
+        evidence: a.punt,
+        expected: "Een punt met bestemming A of C staat niet op de pagina (§7.1).",
+        recommendation: "Haal de zin weg.",
+        blocking: true,
+        confidence: ZEKER,
+        bron: "onzekerheid",
+      }),
+    );
+  }
+  for (const zin of (invoer.onzekerheid?.voorbehoudNaBewijs ?? []).slice(0, 3)) {
+    issues.push(
+      maak(invoer, {
+        dimension: "toon",
+        severity: "hoog",
+        section: null,
+        finding: `Dit voorbehoud zwakt een bewijsstuk direct weer af: "${zin}".`,
+        evidence: zin,
+        expected: "Bewijs staat stellig; een voorbehoud alleen bij geld, veiligheid, wet, zorg of op verzoek van de klant (§7.2).",
+        recommendation: "Haal het voorbehoud weg en laat het bewijs staan.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "onzekerheid",
+      }),
+    );
+  }
+  for (const b of invoer.onzekerheid?.bestemmingen?.bVaker ?? []) {
+    issues.push(
+      maak(invoer, {
+        dimension: "toon",
+        severity: "midden",
+        section: null,
+        finding: `Het toegestane voorbehoud staat ${b.aantal} keer op de pagina: "${b.formulering}".`,
+        evidence: b.formulering,
+        expected: "Een toegestaan voorbehoud staat één keer op de pagina.",
+        recommendation: "Laat het één keer staan, op de plek waar het de lezer helpt.",
+        blocking: false,
+        confidence: ZEKER,
+        bron: "onzekerheid",
       }),
     );
   }

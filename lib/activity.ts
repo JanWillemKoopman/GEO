@@ -58,9 +58,14 @@ export const TAAK_TEKST: Record<JobType, string | null> = {
   generate_report: "je rapport geschreven",
   content_brief: "de briefing voor een pagina opgesteld",
   content_plan: "uitgezocht wat er op een pagina moet staan",
+  content_strategy: "bepaald wat er op een pagina komt",
   content_draft: "een pagina geschreven",
+  content_edit: "een pagina eindgeredigeerd",
   content_revise: "een pagina herschreven",
   content_recheck: "een pagina opnieuw beoordeeld",
+  // Intern: de klant ziet het conflictscherm niet (§8.3 van
+  // contentpijplijn-publicatiewaardig.md), dus ook deze taak niet.
+  fact_register: null,
   technical_audit: "gecontroleerd of AI-assistenten je site mogen lezen",
   verify_publication: "gecontroleerd of je pagina echt live staat",
   measure_impact: "een hermeting ingepland",

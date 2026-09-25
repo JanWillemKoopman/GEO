@@ -114,6 +114,12 @@ export const dedupe = {
    */
   contentPlan: (analysisId: string, title: string) => `content_plan:${analysisId}:${title}`,
   /**
+   * Eén register-run per merk tegelijk. Na afloop mag er meteen een nieuwe
+   * komen: de index geldt alleen voor `queued` en `running`, en elke run doet
+   * alleen wat nog niet gedaan is.
+   */
+  factRegister: (profileId: string) => `fact_register:${profileId}`,
+  /**
    * De schrijftaak die uit één plantaak voortkomt.
    *
    * Op het TAAK-id van de plantaak en niet op de pagina, want de plantaak heeft
@@ -122,6 +128,16 @@ export const dedupe = {
    * hem opnieuw probeert nadat het inplannen halverwege strandde.
    */
   contentDraftNa: (planJobId: string) => `content_draft_na:${planJobId}`,
+  /**
+   * De strategie na één plantaak (WP3). Op het id van de plantaak, zelfde reden
+   * als `contentDraftNa`: elke plantaak is een eigen opdracht.
+   */
+  contentStrategyNa: (planJobId: string) => `content_strategy_na:${planJobId}`,
+  /** Een achtergrondaanroep ophalen, per poging een eigen taak. */
+  contentStrategyOphalen: (responseId: string, poging: number) => `content_strategy_ophalen:${responseId}:${poging}`,
+  /** De eindredactie van één versie (WP5). Op het id van de versie: elke versie wordt één keer geredigeerd. */
+  contentEdit: (contentPieceId: string) => `content_edit:${contentPieceId}`,
+  contentEditOphalen: (responseId: string, poging: number) => `content_edit_ophalen:${responseId}:${poging}`,
   // Per DAG en per merk: twee rondes op dezelfde dag halen exact dezelfde
   // cijfers op, want Google levert pas definitieve data met twee dagen
   // vertraging (`lib/search-console/window.ts`).

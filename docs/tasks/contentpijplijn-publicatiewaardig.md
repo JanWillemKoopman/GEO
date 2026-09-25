@@ -4,7 +4,8 @@
 de teksten voor Hans Verstraaten Hoveniers, Wesley Keeris Installatietechniek en Autorijschool
 Pompert.
 
-**Status: besloten plan, klaar om te bouwen. Niets hiervan is gebouwd.** De eigenaar heeft op
+**Status: in aanbouw, fase 1.** Per werkpakket staat de stand onder "Stand van de bouw" aan het
+eind van §13. De eigenaar heeft op
 25 september 2026 de keuzes gemaakt die in §2 staan. Er gaat geen losse proef of modelvergelijking
 aan de bouw vooraf; elke fase wordt wel, zoals conventie 10 vraagt, na de bouw nagerekend op echte
 data (§14).
@@ -1202,6 +1203,18 @@ inwoners is een besluit van de eigenaar en verandert alleen op zijn verzoek.
 kolom `writer_brief_json` blijft bestaan voor oude pagina's (additief, nooit `drop`); de
 formuleringlijsten (`SLAP`, `VOORBEHOUD`, de families van `checkSourceTalk`) terug naar een klein
 vangnet; `docs/contentpijplijn-overdracht.md` herschrijven.
+
+### Stand van de bouw
+
+| Werkpakket | Stand |
+|---|---|
+| WP7 | Code klaar (25 september 2026): L6 (Luna) na de strategie, in dezelfde taak; kandidaten in volgorde bezwaar, gemeten vraag, vervolgvraag uit de vorige keuring, dossier; `faq-criteria.ts` past de vier criteria opnieuw toe in code (zonder feit of vaste vakkennis af, een F-nummer dat niet op de kaart staat af, al beantwoord af, hoogstens vijf) en een vraag zonder onderbouwing wordt een vraag aan de ondernemer. De schrijver krijgt precies de gekozen vragen of "geen FAQ"; de keuring waarschuwt bij een vraag buiten de selectie, een antwoord onder 25 woorden of een antwoord zonder zijn feit. De contractregel die de FAQ tot restcategorie maakte, is weg. Afwijking: `faqblokken.ts` bleef ongewijzigd; de nieuwe controles staan in `faq-criteria.ts`. "Klaar als" bij de nameting |
+| WP6 | Code klaar (25 september 2026): `lib/pipeline/onzekerheid.ts` vangt zinnen over wat wij niet weten als vorm (alle zinnen uit §1.2 O2 en O4 als test), en die zijn samen met de bronpraat nu blokkerend; een punt met bestemming A of C in de tekst blokkeert; een voorbehoud na een bewijsstuk en een toegestaan voorbehoud dat vaker dan één keer staat, zijn waarschuwingen. De reparatie verliest "nuanceer" en "schrijf algemener", `REPAIR_MAX` van 3 naar 2, en de feitelijkheidsbeoordelaar meldt alleen nog een toezegging in de wij-vorm of met de bedrijfsnaam (ook in code gefilterd). "Klaar als" (geen zin uit §14.3 terug, ook niet in andere woorden) bij de nameting van fase 1 |
+| WP5 | Code klaar (25 september 2026): taak `content_edit` na het schrijven bij een pagina met strategie; L8 op Sol met denktijd hoog; de vangnetten (nieuw getal of verzonnen F-nummer of langer dan het budget draait terug naar het concept, een verdwenen prioriteitsfeit blokkeert via de keuring); het logboek per wijziging in `edit_log_json`; daarna de keuring, die bij zo'n pagina uit `content_draft` is gehaald. Hergebruik na een time-out zonder tweede aanroep, en dezelfde achtergrondmodus als WP3. "Klaar als" (de zwemvijverzin en de prijsband vier keer op Nuenen weg, de gemeten duur) na merge |
+| WP4 | Code klaar (25 september 2026): met een strategie krijgt de schrijver de strategie, de afgeleide opbouw, alleen de gekozen feiten plus de verboden, de stem en de harde regels; regel 7, 10 en 11 van de schrijfprompt zeggen dat weglaten mag (`weggelaten`, bewaard bij de strategie van de versie). De dekking meet de strategie: een uitgesloten onderwerp en een ontbrekend prioriteitsfeit blokkeren, een sectie buiten de opbouw is een bevinding. De reparatie krijgt de strategie in plaats van het contract en kan een uitgesloten sectie weghalen. Afwijking: `content_draft` keurt nog zelf; dat verhuist in WP5 naar `content_edit`, zodat elke tussenstand een werkende keten is. "Klaar als" (schrijfinvoer onder 9.000 tokens, geen sectie buiten de strategie) wordt na merge op `ai_calls` nagerekend |
+| WP1 | Code klaar (25 september 2026): waardeproposities en feitenkaart zonder herkomsttaal, de zes stemvelden in de schrijfopdracht. Het stemvoorstel voor de drie klanten wacht op akkoord (`schrijfstijl-voorstel-drie-klanten.md`); "klaar als" pas na dat akkoord en een nieuwe schrijfaanroep per merk |
+| WP3 | Code klaar, migratie `0114` op productie (25 september 2026): taak `content_strategy` tussen plannen en schrijven, L5 op Sol met denktijd hoog (werksoort `redactioneel`), de controles in code, de conflictpoort met wachten en vanzelf herstarten, de duur van elke aanroep in `ai_calls.duration_ms`, en de achtergrondmodus (starten, in een vervolgtaak ophalen, nooit dubbel starten), die aangaat zodra een aanroep boven 120 seconden komt. De strategie wordt bewaard maar stuurt de schrijver pas vanaf WP4. Afwijking: het dossier labelt zijn vragen nog niet als beslis-, oriëntatie- of randvraag; de strategie doet die weging zelf. "Klaar als" (geen consumentenadviessecties en een budget onder de 800 woorden op de kostenpagina van de installateur en op Best, en de gemeten duur) kan pas na merge worden nagerekend |
+| WP2 | Code klaar, migratie `0113` op productie (25 september 2026): feiten indelen (L1), kandidaat-conflicten in code, beoordelen (L2), het conflictscherm `admin/feiten`, en betwiste feiten van de kaart. De poort per pagina (`houdtPaginaTegen()`) wordt in WP3 aangesloten. "Klaar als" pas na de eerste run op de drie merken en het nalopen van elk gevonden conflict; dat kan pas als de code op productie staat |
 
 ### Volgorde en afhankelijkheden
 WP1 en WP2 kunnen parallel. WP3 hangt aan WP2 (de poort) en levert wat WP4, WP5, WP6 en WP7 nodig

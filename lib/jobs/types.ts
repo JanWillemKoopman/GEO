@@ -85,12 +85,33 @@ export const JOB_TYPES = [
    * 150 seconden mag duren.
    */
   "content_plan",
+  /**
+   * De paginastrategie (L5, WP3 van contentpijplijn-publicatiewaardig.md): wat
+   * er op de pagina komt en wat niet, op Sol met denktijd hoog. Een eigen
+   * taaksoort (conventie 7): één zware aanroep, tussen `content_plan` en
+   * `content_draft`. Kan zichzelf opnieuw inplannen om een achtergrondaanroep op
+   * te halen.
+   */
+  "content_strategy",
   /** Contentgeneratie stap 1: schrijven + beoordelen. */
   "content_draft",
+  /**
+   * De eindredactie (L8, WP5 van contentpijplijn-publicatiewaardig.md) en daarna
+   * de keuring. Alleen voor een pagina met strategie; een eigen taaksoort want
+   * een eigen zware aanroep (conventie 7). Kan zichzelf opnieuw inplannen om
+   * een achtergrondaanroep op te halen.
+   */
+  "content_edit",
   /** Contentgeneratie stap 2: herschrijven + herbeoordelen. */
   "content_revise",
   /** Dezelfde tekst opnieuw keuren, zonder herschrijven (migratie 0092). */
   "content_recheck",
+  /**
+   * Het feitenregister van één merk bijwerken: feiten indelen (L1), conflicten
+   * zoeken en beoordelen (L2). WP2 van contentpijplijn-publicatiewaardig.md.
+   * Licht werk: alleen korte aanroepen op het goedkope model.
+   */
+  "fact_register",
   /** Technische GEO-audit: mag een AI-crawler de site überhaupt bezoeken? */
   "technical_audit",
   /** Controleren of een gepubliceerde pagina er echt staat (optimalisatie.md 5.2). */
@@ -421,6 +442,26 @@ export interface JobPayloads {
       recommendations: RecommendationPayload[];
     };
   };
+  content_strategy: {
+    userId: string;
+    recommendation: RecommendationPayload;
+    regenerate?: boolean;
+    plannedPageId?: string;
+    /** Wat `content_plan` opleverde; gaat ongewijzigd door naar `content_draft`. */
+    voorbereid?: JobPayloads["content_draft"]["voorbereid"];
+    /**
+     * Een achtergrondaanroep die nog opgehaald moet worden
+     * (`lib/openai/achtergrond.ts`). Met alles wat nodig is om het resultaat te
+     * verwerken zonder de context opnieuw te bouwen: de invoer kan intussen
+     * veranderd zijn, en het resultaat hoort bij de invoer waarop het gemaakt is.
+     */
+    ophalen?: {
+      responseId: string;
+      gestartOp: string;
+      poging: number;
+      voorbereiding: unknown;
+    };
+  };
   content_draft: {
     userId: string;
     recommendation: RecommendationPayload;
@@ -461,7 +502,21 @@ export interface JobPayloads {
       existingText?: string | null;
       /** Wanneer die tekst is opgehaald (migratie 0083). */
       existingFetchedAt?: string | null;
+      /**
+       * De paginastrategie uit `content_strategy` (WP3, migratie 0114). Hier en
+       * niet alleen op de rij, om dezelfde reden als het contract: bij een
+       * nieuwe pagina bestaat de rij pas na het schrijven.
+       */
+      strategie?: unknown;
     } | null;
+  };
+  content_edit: {
+    userId: string;
+    contentPieceId: string;
+    recommendation: RecommendationPayload;
+    plannedPageId?: string;
+    /** Een achtergrondaanroep die nog opgehaald moet worden (`lib/openai/achtergrond.ts`). */
+    ophalen?: { responseId: string; gestartOp: string; user: string; poging: number };
   };
   content_revise: {
     userId: string;
@@ -482,6 +537,8 @@ export interface JobPayloads {
     contentPieceId: string;
     recommendation: RecommendationPayload;
   };
+  /** Het merk staat op de taak zelf (`profile_id`). */
+  fact_register: Record<string, never>;
   technical_audit: Record<string, never>;
   verify_publication: { contentPieceId: string };
   measure_impact: { contentPieceId: string; wave: number };
@@ -604,7 +661,9 @@ export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "profile_competitors", // destilleert eigenschappen uit alle antwoordfragmenten
   "content_brief", // claim-audit over de hele batch, plus alle winnende antwoorden
   "content_plan", // itemdossier met web_search plus het contract
+  "content_strategy", // Sol met denktijd hoog, tot 150 seconden
   "content_draft", // het premium model schrijft een volledige pagina
+  "content_edit", // Sol met denktijd hoog redigeert, daarna de vier beoordelaars
   "content_revise", // idem
   "content_recheck", // geen schrijfaanroep, wel de vier beoordelaars
   "offsite_scan", // crawlt niets maar doet wel een gegroundde AI-aanroep + externe API's
@@ -701,7 +760,9 @@ export const IO_BOUND_PARALLELISM = 3;
  */
 export const PARALLEL_CONTENT_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "content_plan",
+  "content_strategy",
   "content_draft",
+  "content_edit",
   "content_revise",
   "content_recheck",
 ]);

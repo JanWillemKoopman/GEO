@@ -30,7 +30,10 @@ import "server-only";
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { currentPiece } from "@/lib/jobs/content-jobs";
-import { callStructured } from "@/lib/openai/structured";
+import { callStructured, startStructuredAchtergrond, haalStructuredOp } from "@/lib/openai/structured";
+import { bouwRedactieOpdracht, redactieOpties } from "@/lib/pipeline/editorial-pass";
+import { controleerRedactie } from "@/lib/pipeline/redactie-check";
+import type { EditorialPass } from "@/lib/schemas/editorial-pass";
 import { MODELS } from "@/lib/openai/models";
 import { ContentPiece } from "@/lib/schemas/content-piece";
 import { ContentPatch } from "@/lib/schemas/content-patch";
@@ -41,7 +44,7 @@ import { answerBelongsHere } from "@/lib/pipeline/answer-scope";
 import { MAX_BEVINDINGEN_PER_RONDE } from "@/lib/pipeline/content-issues";
 import { beslisReparatieRonde, binnenRuis } from "@/lib/pipeline/content-repair-decision";
 import { usdToEur } from "@/lib/spend-rules";
-import { applySectionPatch, splitSections } from "@/lib/pipeline/content-sections";
+import { applySectionPatch, splitSections, haalSectiesWeg } from "@/lib/pipeline/content-sections";
 import {
   keurPagina,
   bewaarKwaliteitsronde,
@@ -72,6 +75,16 @@ import { bruikbareOpdracht, opdrachtblok } from "@/lib/schrijfopdracht";
 import type { WriterBrief } from "@/lib/schemas/writer-brief";
 import { vindCiteerbareAntwoorden, citatenblok } from "@/lib/pipeline/klantcitaten";
 import { adviestoonblok } from "@/lib/pipeline/adviestoon";
+import { merkstemblok } from "@/lib/pipeline/stemvelden";
+import {
+  REGEL_7_STRATEGIE,
+  REGELS_STRATEGIE,
+  strategieblok,
+  gekozenRefs,
+  strategieUitRij,
+  type StrategieRecord,
+} from "@/lib/pipeline/strategie-opdracht";
+import { schoneWaardeproposities } from "@/lib/pipeline/waardeproposities";
 import {
   chooseExistingText,
   matchExistingPage,
@@ -93,6 +106,7 @@ import { analyzeCitedSources } from "@/lib/pipeline/source-analysis";
 import { topicTerms, scoreTermOverlap } from "@/lib/pipeline/page-relevance";
 import { contentWebSearchEnabled, minProofPointsForConcreteContent } from "@/lib/config";
 import { buildFactBase } from "@/lib/pipeline/factbase";
+import { zonderBetwisteFeiten } from "@/lib/pipeline/conflict-detect";
 import { syncBrandFacts } from "@/lib/pipeline/factstore";
 import { factsFromSnapshot, planFromSnapshot, generalContextGapsFromSnapshot } from "@/lib/pipeline/briefing";
 import { enkelOfMeervoud } from "@/lib/format";
@@ -148,6 +162,12 @@ const COVERAGE_THRESHOLD = 85;
 /**
  * Hoeveel gerichte reparatierondes een pagina hoogstens krijgt (A6).
  *
+ * ⚠️ Sinds 25 september 2026 twee (WP6 van contentpijplijn-publicatiewaardig.md,
+ * §12.4). De eindredactie (WP5) neemt het grootste deel van het reparatiewerk
+ * over, en wat er na twee rondes nog openstaat is bijna altijd een ontbrekend
+ * feit: dat gaat als vraag naar de ondernemer. De tekst hieronder over drie
+ * rondes is de onderbouwing van toen.
+ *
  * Drie. Er was er één, en die herschreef de HELE pagina: op productie kostte
  * dat $0,162 per keer en kregen alle vijf de pagina's van 26 augustus er één.
  *
@@ -162,7 +182,7 @@ const COVERAGE_THRESHOLD = 85;
  * een ontbrekend FEIT is, en dat lost geen herschrijving op maar een vraag aan
  * de klant, niet omdat een vierde ronde geld zou verspillen.
  */
-const REPAIR_MAX = 3;
+const REPAIR_MAX = 2;
 
 /**
  * Herstelplan na audit, T1.5: "Eén contentpagina kost een euro of minder."
@@ -231,7 +251,7 @@ export const TARGET_WORDS: Record<ContentType, { min: number; max: number }> = {
  * binnen 24 uur" is voor een lezer duidelijk en voor een model waardeloos,
  * omdat het niet weet wie "wij" is.
  */
-const CONTENT_SYSTEM =
+const CONTENT_SYSTEM_BASIS = (regel7: string): string =>
   "Je bent een ervaren contentschrijver die pagina's schrijft voor de EIGEN website van een lokale " +
   "ondernemer, klaar om te publiceren. On-brand, Nederlands. " +
   "HARDE REGELS: " +
@@ -286,7 +306,7 @@ const CONTENT_SYSTEM =
   "(6) Zorg dat elke sectie minstens één zin bevat die LOSSTAAND te begrijpen is, zonder de rest van de " +
   "pagina: één zin die het complete antwoord op één deelvraag geeft. Dat is de eenheid waarin een " +
   "AI-assistent knipt. " +
-  "(7) Beantwoord naast de hoofdvraag ook de logische vervolgvragen die iemand daarna stelt. " +
+  regel7 +
   "(8) Voeg geldige schema.org JSON-LD toe passend bij het type. " +
   "Vermijd generieke 'AI-slop' en cliché-vulzinnen ('in de snel veranderende wereld van…'): elke zin moet iets toevoegen. " +
   "(9) INTERPUNCTIE. Gebruik GEEN gedachtestreepjes (— of –) en GEEN schuine streep tussen twee " +
@@ -294,7 +314,17 @@ const CONTENT_SYSTEM =
   "waaraan een lezer AI-tekst herkent, en deze pagina verschijnt onder de naam van de klant zelf. " +
   "Splits zo'n zin in twee zinnen, of gebruik een komma, een dubbele punt of het woord 'of'. " +
   "Een koppelteken in een samenstelling ('AI-assistent') is gewoon goed en mag blijven. " +
-  // ── Het contentcontract (A2/A3) ──────────────────────────────────────────
+  "";
+
+/**
+ * Regel 7, 10 en 11 van de OUDE route: het contract als verplichte
+ * inhoudsopgave. Blijft voor een pagina zonder paginastrategie (van vóór WP3, of
+ * als de strategie definitief mislukte), zodat die precies zo geschreven wordt
+ * als tot 25 september 2026.
+ */
+const REGEL_7_CONTRACT =
+  "(7) Beantwoord naast de hoofdvraag ook de logische vervolgvragen die iemand daarna stelt. ";
+const REGELS_CONTRACT =
   // Dit is de enige regel in deze lijst die de VOLLEDIGHEID bewaakt, en de enige
   // die achteraf sectie voor sectie nagerekend wordt (`content-coverage.ts`).
   // De vorige vorm hiervan was "beantwoord ook de logische vervolgvragen", een
@@ -310,6 +340,15 @@ const CONTENT_SYSTEM =
   "want hij maakt hem compleet. Hij gaat over het ONDERWERP en nooit over dit bedrijf, dus er " +
   "hoort geen F-nummer bij. Andere algemene uitleg mag ook, maar houd hem dan bij wat algemeen " +
   "bekend is: verzin nooit een cijfer, een norm of een termijn die je niet hebt gekregen.";
+
+const CONTENT_SYSTEM = CONTENT_SYSTEM_BASIS(REGEL_7_CONTRACT) + REGELS_CONTRACT;
+
+/**
+ * De schrijver op de PAGINASTRATEGIE (WP4 van contentpijplijn-publicatiewaardig.md).
+ * Regel 7, 10 en 11 komen uit `strategie-opdracht.ts`: weglaten mag, en
+ * "alles wat hier staat MOET erop" en "je mag er niets uit weglaten" vervallen.
+ */
+const CONTENT_SYSTEM_STRATEGIE = CONTENT_SYSTEM_BASIS(REGEL_7_STRATEGIE) + REGELS_STRATEGIE;
 
 // De vangnet-instructie bij web-zoeken tijdens het schrijven (optimalisatie.md
 // 4.6) staat als `buildFactFindingAddendum()` in `factcard.ts`: puur en
@@ -603,7 +642,12 @@ function buildContentInput(args: {
     profile?.compliance_notes?.trim()
       ? `REGELS WAAR DEZE PAGINA AAN MOET VOLDOEN: ${profile.compliance_notes.trim()}`
       : "",
-    profile?.value_props?.length ? `Waardeproposities (waarom klanten kiezen): ${profile.value_props.join(", ")}` : "",
+    // ✅ WP1 van contentpijplijn-publicatiewaardig.md: de waardeproposities
+    // geschoond van herkomsttaal ("volgens de website", "naar eigen zeggen") en
+    // dubbelingen, samen met de zes stemvelden die tot 25 september 2026 nergens
+    // de schrijfopdracht in gingen. Een schrijver die "volgens de website" leest,
+    // neemt die afstand over (§1.2, O2).
+    profile ? merkstemblok(profile) : "",
     // ✅ Migratie 0060, de bezwaren uit het verkoopgesprek. Het meest
     // ondergewaardeerde veld van de commerciële laag: een AI-antwoord heeft
     // vaak precies de vorm van een bezwaar, en de pagina die het bezwaar
@@ -756,6 +800,116 @@ function buildContentInput(args: {
 }
 
 /**
+ * De STEM als blok: toon, schuiven, aanspreekvorm, stemvelden, verboden woorden,
+ * regels en voorbeeldzinnen. Gedeeld door de schrijver op de strategie (WP4) en
+ * de eindredactie (WP5), zodat beide dezelfde stem krijgen.
+ */
+function stemblok(profile: Profile | null, bestaandeTekst: string | null): string {
+  const styleSamples = profile?.style_samples ?? [];
+  return [
+    `Tone of voice: ${profile?.tone_of_voice ?? "professioneel, helder"}` +
+      (() => {
+        const schuiven = describeToneSliders({
+          formality: profile?.tone_formality as 1 | 2 | 3 | null,
+          energy: profile?.tone_energy as 1 | 2 | 3 | null,
+          complexity: profile?.tone_complexity as 1 | 2 | 3 | null,
+          humor: profile?.tone_humor as 1 | 2 | 3 | null,
+        });
+        return schuiven ? ` (${schuiven})` : "";
+      })(),
+    describePronoun(
+      kiesAanspreekvorm({
+        voorkeur: profile?.pronoun_preference ?? null,
+        formaliteit: (profile?.tone_formality ?? null) as 1 | 2 | 3 | null,
+        bestaandeTekst,
+      }).vorm,
+    ),
+    profile ? merkstemblok(profile) : "",
+    profile?.taboo_phrases?.length
+      ? `VERBODEN WOORDEN EN CLAIMS. Gebruik deze woorden of formuleringen NERGENS op deze pagina, ` +
+        `ook niet in een andere vervoeging: ${profile.taboo_phrases.join(", ")}.`
+      : "",
+    profile?.compliance_notes?.trim() ? `REGELS WAAR DEZE PAGINA AAN MOET VOLDOEN: ${profile.compliance_notes.trim()}` : "",
+    styleSamples.length ? `Voorbeeldzinnen in de merkstem (toon nabootsen):\n- ${styleSamples.join("\n- ")}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/**
+ * De schrijfopdracht op de PAGINASTRATEGIE (WP4 van
+ * contentpijplijn-publicatiewaardig.md, §5 L7).
+ *
+ * Wat erin zit: de strategie, de opbouw die code eruit afleidt, ALLEEN de
+ * gekozen feiten (plus de verboden, want een verbod geldt altijd), de stem, de
+ * doelvragen en de harde regels. Wat er niet meer in zit: het contract als
+ * verplichte inhoudsopgave, de hele feitenkaart (die gaat alleen nog naar de
+ * feitcontrole), het paginaplan met "GEEN BRON", het winnende antwoord, de
+ * bronanalyse en de lat van de concurrenten; die zijn al in de strategie
+ * gewogen. Gemeten op 25 september 2026 was de oude opdracht gemiddeld 14.100
+ * tokens; het doel van WP4 is minder dan 9.000.
+ */
+function buildContentInputStrategie(args: {
+  analysis: Analysis;
+  profile: Profile | null;
+  existingPage: ProfilePage | null;
+  existingText: string | null;
+  competitors: string[];
+  rec: RecommendationInput;
+  targets: RecommendationTarget[];
+  facts: FactItem[];
+  explainerBlock: string;
+  strategie: StrategieRecord;
+}): string {
+  const { analysis, profile, existingPage, existingText, competitors, rec, targets, facts, explainerBlock } = args;
+  const s = args.strategie.strategie;
+  const brandName = profile?.brand_name ?? analysis.url;
+  const gekozen = gekozenRefs(s, args.strategie.faq);
+  // Alleen de gekozen feiten, met hun eigen F-nummer: de feitcontrole rekent
+  // de beweringen daarna na tegen de HELE kaart, dus de nummers moeten gelijk
+  // blijven. Een verbod gaat altijd mee.
+  const kaart = facts.filter((f) => !f.allowed || (f.citable && gekozen.has(f.ref.toUpperCase())));
+
+  return [
+    strategieblok(s, args.strategie.faq),
+    rec.revisionNote?.trim()
+      ? `\nWAT DE KLANT ZELF VRAAGT VOOR DEZE VERSIE (dit weegt het ZWAARST: dit is zijn website). ` +
+        `Noemt hij feiten, bedragen of termijnen, gebruik ze; ze staan ook op de feitenkaart:\n"""\n${rec.revisionNote.trim()}\n"""`
+      : "",
+    "",
+    `Bedrijf: ${brandName}`,
+    `Website: ${analysis.url}`,
+    `Branche: ${profile?.industry ?? "onbekend"}`,
+    stemblok(profile, existingText ?? existingPage?.text_excerpt ?? null),
+    instructieblok(vindKlantinstructies(facts.map((f) => f.text))),
+    "",
+    formatFactCard(kaart),
+    citatenblok(vindCiteerbareAntwoorden(kaart.map((f) => f.text))),
+    bewijspuntenblok(),
+    adviestoonblok(),
+    explainerBlock,
+    competitors.length ? `NIET noemen op deze pagina (concurrenten): ${competitors.join(", ")}` : "",
+    "",
+    `Te maken pagina: "${rec.title}" (type: ${rec.type})`,
+    buildTargetBlock(targets),
+    existingPage ? `\n${functieblok(existingPage.url, existingPage.title)}` : "",
+    relatedPageWarning(rec.relatedUrl ?? null),
+    "",
+    `Schrijf de volledige pagina in Markdown (zonder concurrentnamen), plus meta-title (max 60 tekens), ` +
+      `meta-description (max 160 tekens), FAQ en schema.org JSON-LD. Noem "${brandName}" bij naam in de ` +
+      `eerste alinea en in de afsluitende oproep, en begin geen alinea met die naam; verder schrijf je ` +
+      `in de wij-vorm. Zet de naam wel in de meta-title. Noem elk feit één keer, op de plek waar de lezer ` +
+      `het nodig heeft. De FAQ bevat alleen vragen die de tekst niet al beantwoordt en waarvan het ` +
+      `antwoord op een feit hierboven rust; nul vragen mag. Vul daarna \`claims\` met elke concrete ` +
+      `bewering over ${brandName}, het F-nummer dat hem dekt en de letterlijke zin uit dat feit, ` +
+      `\`proofPoints\` met de feiten die je hebt omgezet naar een reden voor de lezer, en \`weggelaten\` ` +
+      `met elk punt uit de opbouw dat je niet hebt geschreven, met de reden.`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/**
  * De rol voor de GERICHTE REPARATIE (A6).
  *
  * Een eigen systeemprompt en niet `CONTENT_SYSTEM` met een zin erbij, want de
@@ -770,13 +924,15 @@ const REPAIR_SYSTEM =
   "WAT JE TERUGGEEFT: per sectie de bestaande KOP (letterlijk overnemen, zodat wij hem terug kunnen " +
   "zetten op zijn plek) en de volledige nieuwe tekst van die sectie zonder de kopregel. Voor de " +
   "tekst vóór de eerste kop gebruik je een lege kop. " +
-  "Ontbreekt er een sectie die het CONTRACT eist, dan geef je hem met zijn nieuwe kop terug; wij " +
-  "voegen hem toe. " +
+  "Ontbreekt er een sectie die het CONTRACT of de OPBOUW van de strategie eist, dan geef je hem met " +
+  "zijn nieuwe kop terug; wij voegen hem toe. Hoort een sectie volgens de strategie NIET op de pagina, " +
+  "zet dan zijn kop letterlijk in `weghalen`; wij halen hem weg. " +
   "HARDE REGELS (ongewijzigd, ook tijdens repareren): " +
   "(1) Noem NOOIT concurrenten of andere bedrijven bij naam. " +
   "(2) De FEITENKAART is de ENIGE toegestane bron van concrete beweringen over dit bedrijf. Los een " +
   "bevinding NOOIT op door een feit te verzinnen: kun je hem niet oplossen met wat er op de kaart " +
-  "staat, laat de passage dan weg of schrijf hem algemener. " +
+  "staat, laat de passage dan weg. Los hem ook nooit op met een voorbehoud of met een zin dat iets " +
+  "niet bekend of niet vastgelegd is: wat wij niet weten, vragen wij de ondernemer. " +
   // ⚠️ Begrensd op 3 september 2026 (V1), zelfde reden als regel 5 hierboven:
   // absoluut toegepast kostte deze regel de hele merkstem.
   // Punt 48 van de kwaliteitsdoorlichting, zelfde besluit als regel 5 van de schrijver.
@@ -851,6 +1007,12 @@ function buildRepairInput(args: {
    * toe te voegen.
    */
   opdracht?: WriterBrief | null;
+  /**
+   * De paginastrategie van deze versie (WP4). Is hij er, dan krijgt de reparatie
+   * de strategie en alleen de gekozen feiten in plaats van het contract en de
+   * hele kaart: een reparatie mag de keuzes van de redactie niet terugdraaien.
+   */
+  strategie?: StrategieRecord | null;
 }): string {
   const {
     piece,
@@ -902,9 +1064,19 @@ function buildRepairInput(args: {
     // ondernemer. Allebei worden ze na afloop nagerekend.
     bewijspuntenBehoudblok(piece.proofPoints),
     citatenblok(vindCiteerbareAntwoorden(facts.map((f) => f.text))),
-    formatFactCard(facts),
-    // Punt 43: een verbod uit de opzet dat een later klantfeit tegenspreekt, valt weg.
-    formatContract(contractMetFeiten(contract, facts)),
+    ...(args.strategie
+      ? (() => {
+          const gekozen = gekozenRefs(args.strategie.strategie, args.strategie.faq);
+          return [
+            strategieblok(args.strategie.strategie, args.strategie.faq),
+            formatFactCard(facts.filter((f) => !f.allowed || (f.citable && gekozen.has(f.ref.toUpperCase())))),
+          ];
+        })()
+      : [
+          formatFactCard(facts),
+          // Punt 43: een verbod uit de opzet dat een later klantfeit tegenspreekt, valt weg.
+          formatContract(contractMetFeiten(contract, facts)),
+        ]),
     explainerBlock,
     // De klant gaat vóór de redacteur. Dit is zijn website; vraagt hij om een
     // andere toon of een ander accent, dan is dat geen suggestie (4.8).
@@ -937,8 +1109,22 @@ function buildRepairInput(args: {
  * De context die beide contentstappen nodig hebben. Puur databasewerk plus
  * hooguit één bronanalyse-aanroep.
  */
-interface ContentContext {
+export interface ContentContext {
   analysis: Analysis;
+  /**
+   * De antwoorden waarin een concurrent won, al opgehaald voor de schrijver
+   * (4.3). Nu ook apart, voor de paginastrategie (WP3): die krijgt ze zonder
+   * namen als "wat de AI nu antwoordt".
+   */
+  winningAnswers: string[];
+  /** De actuele situatie die de klant bij het contentplan meegaf (blok A/D punt 22). */
+  strategyNote: string | null;
+  /**
+   * De paginastrategie waarop geschreven wordt (WP4). `null` = geen strategie
+   * (een pagina van vóór WP3, of de strategie mislukte definitief); dan schrijft
+   * de pijplijn op de oude opdracht, met het contract.
+   */
+  strategie: StrategieRecord | null;
   profile: Profile | null;
   competitors: string[];
   targets: RecommendationTarget[];
@@ -1069,6 +1255,8 @@ async function loadContentContext(
     /** De verse tekst van de te verbeteren pagina (O3, migratie 0083). */
     existingText?: string | null;
     existingFetchedAt?: string | null;
+    /** De paginastrategie uit `content_strategy` (WP3/WP4). */
+    strategie?: unknown;
   } | null,
   /**
    * Mag deze aanroep een SCHRIJFOPDRACHT maken als er nog geen ligt?
@@ -1119,7 +1307,7 @@ async function loadContentContext(
     // paginagebonden antwoord er niet bij horen (verbetering 1).
     admin
       .from("content_pieces")
-      .select("id, briefing_snapshot_json, contract_json, dossier_json, existing_page_text, existing_page_fetched_at, writer_brief_json")
+      .select("id, briefing_snapshot_json, contract_json, dossier_json, existing_page_text, existing_page_fetched_at, writer_brief_json, strategy_json")
       .eq("analysis_id", analysisId)
       .eq("title", recommendation.title)
       .eq("is_current", true)
@@ -1479,7 +1667,23 @@ async function loadContentContext(
     samengevoegd,
     gespreksbewijs.map((f) => ({ ...f, id: idPerTekst.get(normalizeForQuote(f.text)) ?? null })),
   );
-  const facts = metKlantopmerking(metGesprek, recommendation.revisionNote ?? null);
+  // ── Betwist of vervangen? Dan niet op de kaart (WP2, migratie 0113) ─────
+  //
+  // Een feit dat met een ander feit botst, staat op "betwist" tot de adviseur
+  // kiest; het verliezende feit daarna op "vervangen". Tot 25 september 2026
+  // kreeg de schrijver beide, en schreef hij "De beschikbare informatie over de
+  // intakeprijs spreekt elkaar tegen". Wat niet op de kaart staat, schrijft hij
+  // niet op.
+  const { data: betwisteRijen } = await admin
+    .from("brand_facts")
+    .select("id, text")
+    .eq("profile_id", analysis.profile_id)
+    .is("superseded_by", null)
+    .in("stand", ["betwist", "vervangen"]);
+  const facts = zonderBetwisteFeiten(
+    metKlantopmerking(metGesprek, recommendation.revisionNote ?? null),
+    (betwisteRijen ?? []) as { id: string; text: string }[],
+  );
 
   const proofCount = facts.filter((f) => f.allowed).length;
 
@@ -1494,10 +1698,21 @@ async function loadContentContext(
   // pagina zonder redactionele keuze is de pagina die we tot 4 september 2026
   // schreven; die kwaliteit is de ondergrens en geen reden om de klant een
   // foutmelding te geven.
+  // ── De paginastrategie (WP4) ──────────────────────────────────────────────
+  //
+  // Eerst wat de strategietaak meegaf, anders wat bij de pagina staat. Een
+  // strategie met een wachtstand telt niet: die pagina wacht op een conflict en
+  // hoort niet geschreven te worden.
+  const uitRij = strategieUitRij(pieceRow?.strategy_json ?? null) as (StrategieRecord & { wacht?: unknown }) | null;
+  const strategie =
+    strategieUitRij(voorbereid?.strategie ?? null) ?? (uitRij && !uitRij.wacht ? uitRij : null);
+
   let opdracht = bruikbareOpdracht(
     (pieceRow?.writer_brief_json ?? null) as Partial<WriterBrief> | null,
   );
-  if (!opdracht && maakOpdracht) {
+  // Met een strategie geen schrijfopdracht meer: die stap gaat op in de
+  // strategie (§5 L5), en een tweede redactionele keuze ernaast zou botsen.
+  if (!opdracht && maakOpdracht && !strategie) {
     try {
       opdracht = await maakSchrijfopdracht({
         title: recommendation.title,
@@ -1507,7 +1722,8 @@ async function loadContentContext(
         targets,
         facts,
         contract,
-        valueProps: profile?.value_props ?? [],
+        // Geschoond, zelfde reden als in `buildContentInput` (WP1).
+        valueProps: schoneWaardeproposities(profile?.value_props),
         objections: profile?.sales_objections ?? [],
         situationalNote: strategyNote,
         analysisId,
@@ -1527,6 +1743,9 @@ async function loadContentContext(
 
   return {
     analysis,
+    winningAnswers,
+    strategyNote,
+    strategie,
     opdracht,
     facts,
     plan,
@@ -1553,7 +1772,20 @@ async function loadContentContext(
     needsFactFinding:
       contentWebSearchEnabled &&
       (proofCount < minProofPointsForConcreteContent || generalContextGaps.length > 0),
-    baseInput: buildContentInput({
+    baseInput: strategie
+      ? buildContentInputStrategie({
+          analysis,
+          profile,
+          existingPage,
+          existingText,
+          competitors,
+          rec: recommendation,
+          targets,
+          facts,
+          explainerBlock: formatExplainerBlock(explainers),
+          strategie,
+        })
+      : buildContentInput({
       analysis,
       profile,
       opdracht,
@@ -1605,6 +1837,14 @@ function pieceFromRow(row: ContentPieceRow): ContentPiece {
         // niet, en dat mag geen lege plek in de tekst opleveren (conventie 3).
         relevantie: typeof p.relevantie === "string" ? p.relevantie : "",
       })),
+    // WP4: wat de schrijver uit de opbouw wegliet, bewaard bij de strategie van
+    // deze versie. Leeg bij een pagina zonder strategie.
+    weggelaten: (((row.strategy_json as { weggelaten?: unknown } | null)?.weggelaten ?? []) as {
+      punt?: string;
+      reden?: string;
+    }[])
+      .filter((w) => typeof w?.punt === "string")
+      .map((w) => ({ punt: w.punt as string, reden: typeof w.reden === "string" ? w.reden : "" })),
   };
 }
 
@@ -1649,6 +1889,12 @@ export interface DraftResult {
   /** Moet er een herschrijfronde komen? Zo ja, met welke verbeterpunten? */
   needsRevise: boolean;
   issues: string[];
+  /**
+   * WP5: het concept is geschreven op een paginastrategie en gaat eerst naar de
+   * eindredactie (`content_edit`); daar pas wordt het gekeurd. Zonder strategie
+   * altijd `false`, en dan keurt het schrijven zelf, zoals voorheen.
+   */
+  naarRedactie?: boolean;
 }
 
 /** Wat `callStructured` voor een contentpagina teruggeeft, of wat we uit de DB hervatten. */
@@ -2124,6 +2370,11 @@ export async function draftContentPiece(args: {
     /** De verse tekst van de te verbeteren pagina (O3, migratie 0083). */
     existingText?: string | null;
     existingFetchedAt?: string | null;
+    /**
+     * De paginastrategie uit `content_strategy` (WP3, migratie 0114). Wordt
+     * hier bij de versie bewaard; de schrijver gebruikt hem vanaf WP4.
+     */
+    strategie?: unknown;
   } | null;
 }): Promise<DraftResult> {
   const { analysisId, userId, reportId, recommendation, regenerate = false } = args;
@@ -2207,9 +2458,10 @@ export async function draftContentPiece(args: {
       model: MODELS.content,
       // Gerichte zoekopdracht bij concrete context-gaten in DEZE pagina, anders
       // het generieke vangnet bij een dunne feitenlijst (S9, was 4.6).
-      system: ctx.needsFactFinding
-        ? CONTENT_SYSTEM + buildFactFindingAddendum(ctx.generalContextGaps)
-        : CONTENT_SYSTEM,
+      // Met een strategie de regels waarin weglaten mag (WP4).
+      system:
+        (ctx.strategie ? CONTENT_SYSTEM_STRATEGIE : CONTENT_SYSTEM) +
+        (ctx.needsFactFinding ? buildFactFindingAddendum(ctx.generalContextGaps) : ""),
       user: baseInput + behoudblok(teBehouden),
       schema: ContentPiece,
       schemaName: "content_piece",
@@ -2260,6 +2512,89 @@ export async function draftContentPiece(args: {
     ? resumeId!
     : await persistDraft(admin, draftRow, { resumeId, currentId: current?.id ?? null });
 
+  // ── WP5: met een strategie eerst de eindredactie, dan pas de keuring ──────
+  //
+  // De tekst staat er al. De context die bij deze versie hoort (contract,
+  // dossier, bestaande pagina, strategie met wat de schrijver wegliet) gaat nu al
+  // op de rij, want de redactie leest hem daar terug. De keuring komt na de
+  // redactie: een oordeel over een tekst die de redacteur daarna toch
+  // verandert, is weggegooid geld (§3.2).
+  if (ctx.strategie) {
+    const { error: contextFout } = await admin
+      .from("content_pieces")
+      .update({
+        ...contextKolommen(ctx, draft.parsed),
+        needs_review: true,
+        status: "draft" as const,
+      })
+      .eq("id", pieceId);
+    if (contextFout) throw new Error(`Opslaan van het concept mislukt: ${contextFout.message}`);
+    await saveTargets(admin, pieceId, targets);
+    return { contentPieceId: pieceId, needsRevise: false, issues: [], naarRedactie: true };
+  }
+
+  return keurEnRondAf(admin, {
+    piece: draft.parsed,
+    pieceId,
+    ctx,
+    recommendation,
+    analysisId,
+    teBehouden,
+  });
+}
+
+/**
+ * De kolommen met de context waarop deze versie geschreven is (migratie 0082,
+ * 0083, 0114). Gedeeld door het schrijven en de keuring, zodat ze op één plek
+ * staan.
+ */
+function contextKolommen(ctx: ContentContext, piece: ContentPiece) {
+  return {
+    // Het contract en het dossier bewaren bij de tekst die eruit voortkwam
+    // (migratie 0082). Zelfde principe als `briefing_snapshot_json`: achteraf
+    // moet naast "waarop rustte deze zin" ook "wat had deze pagina moeten
+    // behandelen" terug te vinden zijn, ook als het contract later verandert.
+    contract_json: (ctx.contract ?? null) as never,
+    // De bestaande pagina waartegen deze tekst geschreven is (migratie 0083).
+    // Hier en niet in de planstap: bij een nieuwe pagina bestaat de rij op dat
+    // moment nog niet, want die wordt pas bij het schrijven aangemaakt.
+    existing_page_text: ctx.existing.text,
+    existing_page_fetched_at: ctx.existing.fetchedAt,
+    // Dossier én de geverifieerde uitleg samen, in de vorm die
+    // `loadContentContext` terugleest.
+    dossier_json: (ctx.dossier || ctx.explainers.length > 0
+      ? { dossier: ctx.dossier, explainers: ctx.explainers }
+      : null) as never,
+    // De paginastrategie bij de versie die erop geschreven is (WP3). Alleen
+    // als hij er is: een lege waarde mag een al bewaarde strategie niet wissen.
+    // WP4: met wat de schrijver uit de opbouw wegliet erbij, zodat bij elke
+    // versie te zien is welke keuze van de strategie niet geschreven werd.
+    ...(ctx.strategie
+      ? { strategy_json: { ...ctx.strategie, weggelaten: piece.weggelaten ?? [] } as never }
+      : {}),
+  };
+}
+
+/**
+ * De keuring en de eindstand van een versie (A5, migratie 0091). Was het
+ * tweede deel van `draftContentPiece`; sinds WP5 ook aangeroepen na de
+ * eindredactie (`redigeerContentPiece`).
+ */
+async function keurEnRondAf(
+  admin: ReturnType<typeof createAdminClient>,
+  args: {
+    piece: ContentPiece;
+    pieceId: string;
+    ctx: ContentContext;
+    recommendation: RecommendationInput;
+    analysisId: string;
+    teBehouden: TeBehoudenFeit[];
+  },
+): Promise<DraftResult> {
+  const { pieceId, ctx, recommendation, analysisId, teBehouden } = args;
+  const { analysis, targets, brandName } = ctx;
+  const draft = { parsed: args.piece };
+
   // ── De keuring (A5, migratie 0091) ───────────────────────────────────────
   //
   // Vier beoordelaars parallel plus tien deterministische controles, en daarna
@@ -2298,6 +2633,10 @@ export async function draftContentPiece(args: {
     bestaandeTekst: ctx.existing.text ?? ctx.existing.page?.text_excerpt ?? null,
     // De schrijfopdracht waarop deze pagina geschreven is (optimalisatie 5).
     opdracht: ctx.opdracht,
+    // WP4: de dekking meet de strategie in plaats van het contract.
+    strategie: ctx.strategie?.strategie ?? null,
+    // WP7: de FAQ tegen de selectie van de strategie.
+    faqSelectie: ctx.strategie?.faq ?? null,
     // Blok H: staat alles van de vorige versie er nog?
     teBehouden,
   });
@@ -2334,21 +2673,7 @@ export async function draftContentPiece(args: {
     .from("content_pieces")
     .update({
       ...keuring.kolommen,
-      // Het contract en het dossier bewaren bij de tekst die eruit voortkwam
-      // (migratie 0082). Zelfde principe als `briefing_snapshot_json`: achteraf
-      // moet naast "waarop rustte deze zin" ook "wat had deze pagina moeten
-      // behandelen" terug te vinden zijn, ook als het contract later verandert.
-      contract_json: (ctx.contract ?? null) as never,
-      // De bestaande pagina waartegen deze tekst geschreven is (migratie 0083).
-      // Hier en niet in de planstap: bij een nieuwe pagina bestaat de rij op dat
-      // moment nog niet, want die wordt precies hier aangemaakt.
-      existing_page_text: ctx.existing.text,
-      existing_page_fetched_at: ctx.existing.fetchedAt,
-      // Dossier én de geverifieerde uitleg samen, in de vorm die
-      // `loadContentContext` terugleest.
-      dossier_json: (ctx.dossier || ctx.explainers.length > 0
-        ? { dossier: ctx.dossier, explainers: ctx.explainers }
-        : null) as never,
+      ...contextKolommen(ctx, draft.parsed),
       // ⚠️ `needs_review` blijft de boolean die zes schermen lezen, en hij staat
       // nu aan bij álles wat geen `pass` is. Eerder kon een pagina met
       // tientallen openstaande bevindingen op `ready` eindigen met
@@ -2467,6 +2792,7 @@ export async function reviseContentPiece(args: {
       targetIntent: recommendation.targetIntent,
       doelvragen: targets.map((t) => t.text),
       opdracht: ctx.opdracht,
+      strategie: ctx.strategie,
     }),
     schema: ContentPatch,
     schemaName: "content_patch",
@@ -2476,7 +2802,11 @@ export async function reviseContentPiece(args: {
   });
 
   // ── De patch toepassen, in code ──────────────────────────────────────────
-  const toegepast = applySectionPatch(huidig.bodyMarkdown, patch.parsed.sections ?? []);
+  const gepatcht = applySectionPatch(huidig.bodyMarkdown, patch.parsed.sections ?? []);
+  // WP4: een sectie die de strategie uitsloot, mag de reparatie weghalen. Alleen
+  // bij een pagina met strategie; zonder strategie blijft de reparatie zoals hij was.
+  const weg = ctx.strategie ? haalSectiesWeg(gepatcht.bodyMarkdown, patch.parsed.weghalen ?? []) : null;
+  const toegepast = weg ? { ...gepatcht, bodyMarkdown: weg.bodyMarkdown } : gepatcht;
   const final: ContentPiece = {
     ...huidig,
     bodyMarkdown: toegepast.bodyMarkdown,
@@ -2524,6 +2854,10 @@ export async function reviseContentPiece(args: {
     bestaandeTekst: ctx.existing.text ?? ctx.existing.page?.text_excerpt ?? null,
     // De schrijfopdracht waarop deze pagina geschreven is (optimalisatie 5).
     opdracht: ctx.opdracht,
+    // WP4: de dekking meet de strategie in plaats van het contract.
+    strategie: ctx.strategie?.strategie ?? null,
+    // WP7: de FAQ tegen de selectie van de strategie.
+    faqSelectie: ctx.strategie?.faq ?? null,
     // Blok H: een reparatieronde mag een feit van de vorige versie evenmin kwijtraken.
     teBehouden: await laadTeBehouden(
       admin,
@@ -2805,6 +3139,10 @@ export async function herkeurContentPiece(args: {
     bestaandeTekst: ctx.existing.text ?? ctx.existing.page?.text_excerpt ?? null,
     // De schrijfopdracht waarop deze pagina geschreven is (optimalisatie 5).
     opdracht: ctx.opdracht,
+    // WP4: de dekking meet de strategie in plaats van het contract.
+    strategie: ctx.strategie?.strategie ?? null,
+    // WP7: de FAQ tegen de selectie van de strategie.
+    faqSelectie: ctx.strategie?.faq ?? null,
     teBehouden: await laadTeBehouden(
       admin,
       (pieceRow.supersedes_id as string | null) ?? null,
@@ -2851,4 +3189,240 @@ export async function herkeurContentPiece(args: {
     blokkades: keuring.evaluatie.blokkades.length,
     ronde,
   };
+}
+
+/**
+ * De context van de schrijver, voor de paginastrategie (WP3 van
+ * contentpijplijn-publicatiewaardig.md). Dezelfde loader, zodat strategie en
+ * schrijver exact dezelfde feitenkaart zien, met dezelfde F-nummers. Maakt nooit
+ * een schrijfopdracht (`maakOpdracht = false`): die stap vervangt de strategie.
+ */
+export async function laadStrategiecontext(
+  admin: ReturnType<typeof createAdminClient>,
+  analysisId: string,
+  userId: string,
+  recommendation: RecommendationInput,
+  voorbereid: Parameters<typeof loadContentContext>[4],
+): Promise<ContentContext> {
+  return loadContentContext(admin, analysisId, userId, recommendation, voorbereid, false);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// STAP 1b, de EINDREDACTIE (WP5 van docs/tasks/contentpijplijn-publicatiewaardig.md)
+// ════════════════════════════════════════════════════════════════════════════
+
+/** Wat er in `content_pieces.edit_log_json` staat (migratie 0114). */
+export interface RedactieLog {
+  versie: 1;
+  /** Is de redactie overgenomen? `false` = teruggedraaid naar het concept. */
+  overgenomen: boolean;
+  redenen: string[];
+  wijzigingen: EditorialPass["wijzigingen"];
+  verdwenenPrioriteit: string[];
+  woordenVoor: number;
+  woordenNa: number;
+  duurMs: number | null;
+  achtergrond: boolean;
+  gemaaktOp: string;
+}
+
+export type RedactieUitkomst =
+  | { stand: "gestart"; responseId: string; gestartOp: string; user: string }
+  | { stand: "bezig" }
+  | { stand: "klaar"; result: DraftResult };
+
+/**
+ * Redigeert het concept van een pagina op strategie en keurt daarna
+ * (`keurEnRondAf`). Drie routes, zoals bij de strategie: hergebruiken (er ligt
+ * al een redactielog bij deze versie), direct, of in de achtergrond starten en
+ * later ophalen (`ophalen`). Zonder strategie geen redactie, alleen de keuring.
+ */
+export async function redigeerContentPiece(args: {
+  analysisId: string;
+  userId: string;
+  contentPieceId: string;
+  recommendation: RecommendationInput;
+  /** Start de aanroep in de achtergrondmodus (`moetAchtergrond()`). */
+  achtergrond: boolean;
+  /** Een eerder gestarte achtergrondaanroep ophalen. */
+  ophalen?: { responseId: string; gestartOp: string; user: string } | null;
+  /**
+   * Zonder redactie keuren: de laatste poging, als de redactie bleef mislukken.
+   * Een pagina die in `draft` blijft hangen is erger dan een ongeredigeerd
+   * concept dat gewoon de keuring en de reparatie ingaat.
+   */
+  zonderRedactie?: boolean;
+}): Promise<RedactieUitkomst> {
+  const { analysisId, userId, contentPieceId, recommendation } = args;
+  const admin = createAdminClient();
+
+  const { data: rij } = await admin
+    .from("content_pieces")
+    .select("*")
+    .eq("id", contentPieceId)
+    .eq("analysis_id", analysisId)
+    .maybeSingle();
+  if (!rij) throw new Error(`Contentpagina ${contentPieceId} niet gevonden.`);
+  const row = rij as ContentPieceRow;
+  // Al gekeurd (een eerdere poging kwam verder dan de redactie): niets te doen.
+  if (row.status !== "draft") {
+    return { stand: "klaar", result: { contentPieceId, needsRevise: false, issues: [] } };
+  }
+
+  const ctx = await loadContentContext(admin, analysisId, userId, recommendation, null, false);
+  const concept = pieceFromRow(row);
+  const vorigeId = (row.supersedes_id as string | null) ?? null;
+  const teBehouden = await laadTeBehouden(admin, vorigeId, ctx.facts, recommendation.revisionNote ?? null);
+  const keur = async (piece: ContentPiece): Promise<RedactieUitkomst> => ({
+    stand: "klaar",
+    result: await keurEnRondAf(admin, { piece, pieceId: contentPieceId, ctx, recommendation, analysisId, teBehouden }),
+  });
+
+  if (!ctx.strategie) return keur(concept);
+  if (args.zonderRedactie) {
+    await admin
+      .from("content_pieces")
+      .update({
+        edit_log_json: {
+          versie: 1,
+          overgenomen: false,
+          redenen: ["De eindredactie bleef mislukken; het concept is gekeurd."],
+          wijzigingen: [],
+          verdwenenPrioriteit: [],
+          woordenVoor: countWords(concept.bodyMarkdown),
+          woordenNa: countWords(concept.bodyMarkdown),
+          duurMs: null,
+          achtergrond: false,
+          gemaaktOp: new Date().toISOString(),
+        } satisfies RedactieLog as never,
+      })
+      .eq("id", contentPieceId);
+    return keur(concept);
+  }
+
+  // ── Conventie 9: ligt de redactie van deze versie er al? ──────────────────
+  // Dan staat de geredigeerde tekst al op de rij; alleen de keuring volgt nog.
+  const eerder = row.edit_log_json as Partial<RedactieLog> | null;
+  if (eerder?.versie === 1) return keur(concept);
+
+  const user =
+    args.ophalen?.user ??
+    bouwRedactieOpdracht({
+      brandName: ctx.brandName,
+      strategie: ctx.strategie.strategie,
+      faq: ctx.strategie.faq,
+      concept,
+      facts: ctx.facts,
+      stemblok: stemblok(ctx.profile, ctx.existing.text ?? ctx.existing.page?.text_excerpt ?? null),
+    });
+  const opties = redactieOpties({
+    user,
+    analysisId,
+    profileId: ctx.analysis.profile_id,
+    contentPieceId,
+  });
+
+  let uitkomst: { parsed: EditorialPass; durationMs: number | null; achtergrond: boolean } | null = null;
+  if (args.ophalen) {
+    const opgehaald = await haalStructuredOp(args.ophalen.responseId, opties, args.ophalen.gestartOp);
+    if (opgehaald.stand === "bezig") return { stand: "bezig" };
+    if (opgehaald.stand === "klaar") {
+      uitkomst = {
+        parsed: opgehaald.result.parsed,
+        durationMs: Date.now() - new Date(args.ophalen.gestartOp).getTime(),
+        achtergrond: true,
+      };
+    } else {
+      console.warn(`Eindredactie van ${contentPieceId} mislukt (${opgehaald.fout}); het concept gaat naar de keuring.`);
+    }
+  } else if (args.achtergrond) {
+    const { responseId } = await startStructuredAchtergrond(opties);
+    return { stand: "gestart", responseId, gestartOp: new Date().toISOString(), user };
+  } else {
+    const res = await callStructured(opties);
+    uitkomst = { parsed: res.parsed, durationMs: res.durationMs, achtergrond: false };
+  }
+
+  // ── De vangnetten op de redactie ──────────────────────────────────────────
+  const check = uitkomst
+    ? controleerRedactie({
+        concept,
+        redactie: uitkomst.parsed,
+        feiten: ctx.facts.filter((f) => f.citable),
+        budget: ctx.strategie.strategie.lengtebudget.woorden,
+        prioriteit: ctx.strategie.strategie.prioriteitsfeiten.map((p) => p.feit),
+      })
+    : null;
+  const overgenomen = Boolean(uitkomst && check?.akkoord);
+  const geredigeerd: ContentPiece = overgenomen
+    ? {
+        ...concept,
+        bodyMarkdown: uitkomst!.parsed.bodyMarkdown,
+        faq: uitkomst!.parsed.faq,
+        metaTitle: uitkomst!.parsed.metaTitle,
+        metaDescription: uitkomst!.parsed.metaDescription,
+        claims: uitkomst!.parsed.claims,
+        proofPoints: uitkomst!.parsed.proofPoints,
+      }
+    : concept;
+
+  const log: RedactieLog = {
+    versie: 1,
+    overgenomen,
+    redenen: uitkomst ? (check?.redenen ?? []) : ["De redactieaanroep mislukte; het concept is gekeurd."],
+    wijzigingen: uitkomst?.parsed.wijzigingen ?? [],
+    verdwenenPrioriteit: check?.verdwenenPrioriteit ?? [],
+    woordenVoor: check?.woordenVoor ?? countWords(concept.bodyMarkdown),
+    woordenNa: check?.woordenNa ?? countWords(concept.bodyMarkdown),
+    duurMs: uitkomst?.durationMs ?? null,
+    achtergrond: uitkomst?.achtergrond ?? false,
+    gemaaktOp: new Date().toISOString(),
+  };
+  console.log(
+    `Eindredactie ${contentPieceId}: ${overgenomen ? "overgenomen" : "teruggedraaid naar het concept"}, ` +
+      `${log.wijzigingen.length} wijzigingen, ${log.woordenVoor} naar ${log.woordenNa} woorden, ` +
+      `${log.duurMs == null ? "duur onbekend" : `${(log.duurMs / 1000).toFixed(1)}s`}${log.achtergrond ? " (achtergrond)" : ""}` +
+      `${log.redenen.length ? `. ${log.redenen.join(" ")}` : ""}`,
+  );
+
+  // Eerst de redactie en het log wegschrijven, dan pas keuren: valt de taak
+  // tijdens de keuring om, dan pakt de volgende poging de redactie op zonder
+  // hem opnieuw te betalen.
+  const nu = new Date().toISOString();
+  const { error } = await admin
+    .from("content_pieces")
+    .update({
+      edit_log_json: log as never,
+      ...(overgenomen
+        ? {
+            body_markdown: withFreshnessLine(stripProseDashes(geredigeerd.bodyMarkdown), nu),
+            meta_title: geredigeerd.metaTitle,
+            meta_description: geredigeerd.metaDescription,
+            faq_json: geredigeerd.faq.map((f) => ({ ...f, a: stripProseDashes(f.a) })) as never,
+            claims_json: (geredigeerd.claims ?? []).map((c) => ({
+              ...c,
+              factId: resolveFactId(c.factRef, ctx.facts),
+            })) as never,
+            proof_points_json: geredigeerd.proofPoints as never,
+            word_count: countWords(geredigeerd.bodyMarkdown),
+            // De FAQ kan veranderd zijn, en die staat ook in de gestructureerde
+            // data. De publicatiedatum blijft die van het concept.
+            schema_jsonld: validateOrRebuildJsonLd(concept.schemaJsonLd, {
+              type: recommendation.type,
+              title: recommendation.title,
+              description: geredigeerd.metaDescription,
+              url: ctx.analysis.url,
+              faq: geredigeerd.faq,
+              businessModel: ctx.profile?.business_model ?? null,
+              organization: ctx.schemaOrg,
+              datePublished: bestaandeDatePublished(concept.schemaJsonLd) ?? nu,
+              dateModified: nu,
+            }),
+          }
+        : {}),
+    })
+    .eq("id", contentPieceId);
+  if (error) throw new Error(`Eindredactie opslaan mislukt: ${error.message}`);
+
+  return keur(geredigeerd);
 }

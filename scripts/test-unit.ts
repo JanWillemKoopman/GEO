@@ -54,6 +54,29 @@ import {
   leesStartdatum,
 } from "@/lib/verkoopafspraak";
 import { rateLimitWindowStart, rateLimitVerdict } from "@/lib/rate-limit-rules";
+import { faqKandidaten, pasFaqSelectieToe, faqblok, checkFaqNaSchrijven, alBeantwoord, MAX_FAQ } from "@/lib/pipeline/faq-criteria";
+import { gatzinnen, voorbehoudNaBewijs, checkBestemmingen, isToezegging } from "@/lib/pipeline/onzekerheid";
+import { controleerRedactie, getalReeksen } from "@/lib/pipeline/redactie-check";
+import { strategieblok, gekozenRefs, opbouwUitStrategie, REGELS_STRATEGIE, REGEL_7_STRATEGIE } from "@/lib/pipeline/strategie-opdracht";
+import { checkStrategieDekking } from "@/lib/pipeline/content-coverage";
+import { haalSectiesWeg } from "@/lib/pipeline/content-sections";
+import { controleerStrategie, MAX_PRIORITEITSFEITEN } from "@/lib/pipeline/strategie-check";
+import { budgetgrenzen, klemBudget, paginadoelVan, titelOverPlaats, verwachtBudget } from "@/lib/lengtebudget";
+import { moetAchtergrond, ophaalVertragingSeconden, ACHTERGROND_GRENS_MS } from "@/lib/openai/achtergrond";
+import type { PageStrategy } from "@/lib/schemas/page-strategy";
+import {
+  getallenIn,
+  veiligeWaarde,
+  vindKandidaten,
+  automatischeWinnaar,
+  houdtPaginaTegen,
+  conflictpoort,
+  ernstVan,
+  zonderBetwisteFeiten,
+  type RegisterFeit,
+} from "@/lib/pipeline/conflict-detect";
+import { schoonWaardepropositie, schoneWaardeproposities, zelfdePropositie, zonderVindplaats } from "@/lib/pipeline/waardeproposities";
+import { merkstemblok } from "@/lib/pipeline/stemvelden";
 // ── Het kwaliteitsraamwerk (migratie 0091) ─────────────────────────────────
 import {
   QUALITY_DIMENSIONS,
@@ -194,6 +217,7 @@ import { shareByRun, sumShare, roundQuestions } from "@/lib/pipeline/question-sh
 import {
   numberFacts,
   formatFactCard,
+  normalizeForQuote,
   isSupported,
   claimKey,
   topicKey,
@@ -19725,7 +19749,9 @@ group("De bedrading van de nieuwe contentpijplijn", () => {
   ok("en niet meer rechtstreeks het schrijven", !planner.includes('type: "content_draft"'));
 
   const handlers = leesBestand("lib/jobs/handlers.ts");
-  ok("de plantaak plant daarna het schrijven in", handlers.includes('type: "content_draft"'));
+  // Sinds WP3 plant de plantaak eerst de paginastrategie in, en die het schrijven.
+  ok("de plantaak plant daarna de strategie in", handlers.includes('type: "content_strategy"'));
+  ok("en de strategie het schrijven", leesBestand("lib/pipeline/strategie-taak.ts").includes('type: "content_draft"'));
   ok("en geeft het contract mee in de payload", handlers.includes("voorbereid"));
 
   // ── Contenttaken draaien parallel (A10) ──────────────────────────────────
@@ -25848,7 +25874,8 @@ group("Het sterkste bewijs uit het gesprek staat in de tekst (verbeterronde, pun
   ok("een ander getal telt niet", !kernFeitInTekst("Slagingspercentage 93 procent", "Slagingspercentage 89 procent."));
   eq("zonder gespreksfeiten ook geen bevinding", String(checkKernbewijs({ kern: [], tekst: zonder }).issues.length), "0");
   ok("de schrijfopdracht krijgt het blok", leesBestand("lib/pipeline/content.ts").includes("kernbewijsblok(vindKernbewijs(facts))"));
-  ok("en de keuring telt het na", leesBestand("lib/pipeline/quality-run.ts").includes("checkKernbewijs({ kern: vindKernbewijs(input.facts)"));
+  // Sinds WP4 op de gekozen feiten als er een strategie is, anders op alle.
+  ok("en de keuring telt het na", /checkKernbewijs\(\{\s*kern: vindKernbewijs\(/.test(leesBestand("lib/pipeline/quality-run.ts")));
 });
 
 
@@ -26460,7 +26487,8 @@ group("Een nieuwe versie houdt de feiten van de vorige (reparatieplan blok H, pu
   eq("zonder vorige versie geen blok", behoudblok([]), "");
   const content = leesBestand("lib/pipeline/content.ts");
   ok("de schrijver krijgt het blok bij een nieuwe versie", content.includes("user: baseInput + behoudblok(teBehouden)"));
-  ok("schrijven, reparatie en herkeuring tellen allemaal na", (content.match(/teBehouden/g) ?? []).length >= 4 && (content.match(/laadTeBehouden\(/g) ?? []).length === 4);
+  ok("schrijven, reparatie en herkeuring tellen allemaal na", (content.match(/teBehouden/g) ?? []).length >= 4 && (content.match(/laadTeBehouden\(/g) ?? []).length === 5);
+  // Sinds WP5 telt ook de eindredactie na, want die keurt nu (5 = definitie plus vier aanroepen).
   ok("een verdwenen feit wordt een blokkerende bevinding", leesBestand("lib/pipeline/quality-collect.ts").includes('bron: "feitbehoud"'));
 });
 
@@ -26522,4 +26550,484 @@ group("Dezelfde vraag in andere woorden gaat er niet opnieuw in (reparatieplan b
 
   const briefing = leesBestand("lib/pipeline/briefing.ts");
   ok("de voorbereiding legt de vragen voor vóór het wegschrijven", briefing.indexOf("beoordeelVragen({") < briefing.indexOf("for (const vraag of samengevoegd.nieuw)"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// WP2 van docs/tasks/contentpijplijn-publicatiewaardig.md: het feitenregister.
+group("Het vangnet op L1: een getal moet in de feittekst staan (WP2)", () => {
+  eq("Nederlandse notatie", getallenIn("€ 2.200 tot € 3.200, beoordeling 4,9").join(","), "2200,3200,4.9");
+  ok("telwoorden tellen mee", getallenIn("Twaalf monteurs in dienst").includes(12));
+  const band = veiligeWaarde("Tuinaanleg met bestrating kost meestal € 12.000 tot € 35.000.", { min: 12000, max: 35000, eenheid: "EUR" });
+  eq("een bandbreedte die er staat blijft", `${band?.min}-${band?.max}-${band?.eenheid}`, "12000-35000-eur");
+  eq("een verzonnen getal maakt de waarde leeg", String(veiligeWaarde("Tuinaanleg kost meestal € 12.000.", { min: 15000, max: 15000, eenheid: "EUR" })), "null");
+  eq("twaalf monteurs voluit geschreven", String(veiligeWaarde("Twaalf monteurs in dienst", { min: 12, max: 12, eenheid: "monteurs" })?.min), "12");
+  eq("zonder getal en zonder tekst is onbekend", String(veiligeWaarde("Iets", { min: null, max: null, tekst: "" })), "null");
+});
+
+group("Kandidaat-conflicten op soort, geldigheid en waarde (WP2)", () => {
+  const feit = (id: string, text: string, extra: Partial<RegisterFeit>): RegisterFeit => ({
+    id, text, kind: "site", factKey: id, soort: "prijs", waarde: null, geldtVoor: null, stand: "site", bewijskracht: "gewoon", ...extra,
+  });
+  // De rijschool (§1.2, O4): na het uitlezen stonden er twee intakeprijzen
+  // zonder het onderscheid kantoor of auto. Code ziet een kandidaat; L2 beslist.
+  const kantoor = feit("a", "Intake € 50", { geldtVoor: "intake", waarde: { min: 50, max: 50, eenheid: "eur" } });
+  const auto = feit("b", "Intake € 80", { geldtVoor: "intake", waarde: { min: 80, max: 80, eenheid: "eur" } });
+  const kandidaten = vindKandidaten([kantoor, auto]);
+  eq("de twee intakeprijzen van de rijschool zijn een kandidaat", String(kandidaten.length), "1");
+  eq("geen kandidaat als L1 de geldigheid wel onderscheidt", String(vindKandidaten([{ ...kantoor, geldtVoor: "intake op kantoor" }, { ...auto, geldtVoor: "intake in de auto" }]).length), "0");
+  eq("dezelfde prijs is geen kandidaat", String(vindKandidaten([kantoor, { ...auto, waarde: { min: 50, max: 50, eenheid: "EUR" } }]).length), "0");
+  eq("een andere eenheid is niet te vergelijken", String(vindKandidaten([kantoor, { ...auto, waarde: { min: 12, max: 15, eenheid: "eur per maand" } }]).length), "0");
+  eq("overig doet niet mee", String(vindKandidaten([{ ...kantoor, soort: "overig" }, { ...auto, soort: "overig" }]).length), "0");
+  eq("een vervangen feit doet niet mee", String(vindKandidaten([kantoor, { ...auto, stand: "vervangen" }]).length), "0");
+  const gebiedA = feit("c", "werkgebied a", { soort: "werkgebied", waarde: { tekst: "Eindhoven, Helmond, Best" } });
+  const gebiedB = feit("d", "werkgebied b", { soort: "werkgebied", waarde: { tekst: "Eindhoven, Helmond, Best, Eersel" } });
+  eq("een ander werkgebied in woorden is een kandidaat", String(vindKandidaten([gebiedA, gebiedB]).length), "1");
+  const dienstA = feit("e", "d a", { soort: "dienst", waarde: { tekst: "tuinaanleg" } });
+  const dienstB = feit("f", "d b", { soort: "dienst", waarde: { tekst: "tuinontwerp" } });
+  eq("twee diensten in woorden niet: dat zijn twee kanten van hetzelfde bedrijf", String(vindKandidaten([dienstA, dienstB]).length), "0");
+
+  const klant = { ...auto, kind: "klant" };
+  eq("een antwoord van de klant wint van de site", automatischeWinnaar(kantoor, klant)?.id ?? "", "b");
+  eq("twee sitefeiten beslist de adviseur", String(automatischeWinnaar(kantoor, auto)), "null");
+});
+
+group("De conflictpoort: alleen als het betwiste feit op deze pagina nodig is (WP2)", () => {
+  const prijs = { soort: "prijs" as const, feitIds: ["p1", "p2"] };
+  const leeg = new Set<string>();
+  ok("een betwiste prijs die de pagina niet nodig heeft houdt niets tegen", !houdtPaginaTegen(prijs, { prioriteitsFeitIds: leeg }));
+  ok("als prioriteitsfeit wel", houdtPaginaTegen(prijs, { prioriteitsFeitIds: new Set(["p1"]) }));
+  ok("of als een onderwerp niet zonder kan", houdtPaginaTegen(prijs, { prioriteitsFeitIds: leeg, benodigdeFeitIds: new Set(["p2"]) }));
+  const gebied = { soort: "werkgebied" as const, feitIds: ["w1", "w2"] };
+  ok("een werkgebied alleen op een pagina over die plaats", !houdtPaginaTegen(gebied, { prioriteitsFeitIds: new Set(["w1"]) }) && houdtPaginaTegen(gebied, { prioriteitsFeitIds: new Set(["w1"]), overPlaats: true }));
+  const termijn = { soort: "termijn" as const, feitIds: ["t1", "t2"] };
+  ok("een termijn alleen als prioriteitsfeit", !houdtPaginaTegen(termijn, { prioriteitsFeitIds: leeg, benodigdeFeitIds: new Set(["t1"]) }) && houdtPaginaTegen(termijn, { prioriteitsFeitIds: new Set(["t1"]) }));
+  const product = { soort: "product" as const, feitIds: ["x1", "x2"] };
+  ok("productinformatie alleen op een productpagina", !houdtPaginaTegen(product, { prioriteitsFeitIds: new Set(["x1"]) }) && houdtPaginaTegen(product, { prioriteitsFeitIds: new Set(["x1"]), isProductpagina: true }));
+  eq("de poort geeft de tegenhoudende conflicten", conflictpoort([prijs, gebied], { prioriteitsFeitIds: new Set(["p1", "w1"]) }).map((c) => c.soort).join(","), "prijs");
+  eq("een prijsconflict is blokkerend", ernstVan("prijs"), "blokkerend");
+  eq("een werkwijze hooguit een waarschuwing", ernstVan("werkwijze"), "waarschuwing");
+});
+
+group("Een betwist feit gaat niet naar de schrijver (WP2)", () => {
+  const kaart = [
+    { id: "a", text: "Een intake op kantoor kost € 50." },
+    { id: null, text: "De intake kost € 80." },
+    { id: "c", text: "Vier instructeurs" },
+  ];
+  eq(
+    "op id en, zonder id, op tekst",
+    zonderBetwisteFeiten(kaart, [{ id: "a", text: "x" }, { id: "z", text: "de intake kost € 80" }]).map((f) => f.text).join("|"),
+    "Vier instructeurs",
+  );
+  eq("niets betwist, niets weg", String(zonderBetwisteFeiten(kaart, []).length), "3");
+  ok("de schrijfopdracht filtert ze eruit", leesBestand("lib/pipeline/content.ts").includes("zonderBetwisteFeiten("));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// WP3 van docs/tasks/contentpijplijn-publicatiewaardig.md: de paginastrategie.
+function strategie(over: Partial<PageStrategy> = {}): PageStrategy {
+  return {
+    zoekintentie: "informeren", lezer: "Een woningeigenaar met een oude ketel", fase: "overweging",
+    paginadoel: "Contact opnemen", kernboodschap: "k", openingsantwoord: "o", hoek: "h",
+    prioriteitsfeiten: [{ feit: "F1", betekenis: "b" }, { feit: "F2", betekenis: "b" }, { feit: "F3", betekenis: "b" }],
+    optioneleFeiten: [], uitgeslotenFeiten: [], onderwerpen: [], onzekerheden: [], bezwaar: null,
+    lengtebudget: { woorden: 500, onderbouwing: "o", redenBovenPlafond: null }, oproep: "Bel ons", gevoelig: [],
+    ...over,
+  };
+}
+const invoerWP3 = {
+  kaartRefs: ["F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8"],
+  betwist: [{ ref: "B1", conflictId: "c1", feitIds: ["x1", "x2"], soort: "prijs" }],
+  grenzen: budgetgrenzen("dienst"),
+};
+
+group("Vangnetten op de paginastrategie (WP3)", () => {
+  const onbestaand = controleerStrategie(strategie({ prioriteitsfeiten: [{ feit: "F1", betekenis: "" }, { feit: "F42", betekenis: "" }, { feit: " f2 ", betekenis: "" }] }), invoerWP3);
+  eq("een onbestaand feit valt eruit, een slordig genoteerd niet", onbestaand.strategie.prioriteitsfeiten.map((p) => p.feit).join(","), "F1,F2");
+  ok("en dat staat in de correcties", onbestaand.correcties.some((c) => c.includes("F42")));
+
+  const betwist = controleerStrategie(strategie({ prioriteitsfeiten: [{ feit: "B1", betekenis: "" }, { feit: "F1", betekenis: "" }] }), invoerWP3);
+  eq("een betwist feit valt eruit", betwist.strategie.prioriteitsfeiten.map((p) => p.feit).join(","), "F1");
+  eq("en gaat naar de conflictpoort", betwist.prioriteitBetwist.join(","), "B1");
+
+  const zeven = controleerStrategie(strategie({ prioriteitsfeiten: ["F1", "F2", "F3", "F4", "F5", "F6", "F7"].map((feit) => ({ feit, betekenis: "" })) }), invoerWP3);
+  eq(`hoogstens ${MAX_PRIORITEITSFEITEN} prioriteitsfeiten`, String(zeven.strategie.prioriteitsfeiten.length), "6");
+  ok("de zevende wordt optioneel", zeven.strategie.optioneleFeiten.includes("F7"));
+
+  const zonderReden = controleerStrategie(strategie({ onzekerheden: [{ punt: "Wat er in de prijs zit", bestemming: "B", reden: null, formulering: "Wat er in de prijs zit, verschilt.", vraag: null }] }), invoerWP3);
+  eq("bestemming B zonder reden wordt A", zonderReden.strategie.onzekerheden[0].bestemming, "A");
+  ok("en een vraag aan de ondernemer", zonderReden.vragenAanOndernemer.includes("Wat er in de prijs zit"));
+  const metReden = controleerStrategie(strategie({ onzekerheden: [{ punt: "Prijs", bestemming: "B", reden: "geld", formulering: "Vooral de stenen maken het verschil.", vraag: null }] }), invoerWP3);
+  eq("bestemming B met reden uit §7.2 blijft", metReden.strategie.onzekerheden[0].bestemming, "B");
+
+  const onderwerp = (o: Partial<PageStrategy["onderwerpen"][number]>) => ({
+    onderwerp: "Wat er in de installatieprijs zit", besluit: "opnemen" as const, bron: "feit" as const, feiten: [], woorden: 80,
+    vraag: null, wachtOpConflict: [], kern: true, reden: "", ...o,
+  });
+  // Het echte geval van de installateur (§1.2, O2): "De beschikbare prijsinformatie
+  // benoemt niet welke werkzaamheden standaard in de installatieprijs zitten".
+  const kern = controleerStrategie(strategie({ onderwerpen: [onderwerp({})] }), invoerWP3);
+  eq("een kernonderwerp zonder feit wordt een vraag, geen sectie", kern.strategie.onderwerpen[0].besluit, "eerst vragen");
+  const bijzaak = controleerStrategie(strategie({ onderwerpen: [onderwerp({ kern: false, onderwerp: "Vergelijk dezelfde werkzaamheden en afwerking", bron: "geen" })] }), invoerWP3);
+  eq("een bijzaak zonder feit valt weg", bijzaak.strategie.onderwerpen[0].besluit, "weglaten");
+  const vakkennis = controleerStrategie(strategie({ onderwerpen: [onderwerp({ bron: "vakkennis" })] }), invoerWP3);
+  eq("vaste vakkennis mag zonder feit", vakkennis.strategie.onderwerpen[0].besluit, "opnemen");
+  const wacht = controleerStrategie(strategie({ onderwerpen: [onderwerp({ bron: "vakkennis", wachtOpConflict: ["B1", "B9"] })] }), invoerWP3);
+  eq("een onderwerp dat op een conflict wacht, meldt alleen bestaande B-nummers", wacht.benodigdBetwist.join(","), "B1");
+
+  const lang = controleerStrategie(strategie({ lengtebudget: { woorden: 1400, onderbouwing: "", redenBovenPlafond: null } }), invoerWP3);
+  eq("een budget boven het plafond wordt teruggezet", String(lang.strategie.lengtebudget.woorden), String(budgetgrenzen("dienst").plafond));
+  const langMetReden = controleerStrategie(strategie({ lengtebudget: { woorden: 1000, onderbouwing: "", redenBovenPlafond: "Vijf beslisvragen met een feit" } }), invoerWP3);
+  eq("met een reden mag het tot de harde grens", String(langMetReden.strategie.lengtebudget.woorden), "1000");
+  const kort = controleerStrategie(strategie({ lengtebudget: { woorden: 120, onderbouwing: "", redenBovenPlafond: null } }), invoerWP3);
+  eq("onder het vertrekpunt wordt opgehoogd", String(kort.strategie.lengtebudget.woorden), "450");
+});
+
+group("Het lengtebudget volgt uit de inhoud (WP3, §7.4)", () => {
+  eq("een landingspagina over een plaats is lokaal", paginadoelVan("landing", true), "lokaal");
+  eq("een andere landingspagina is een dienstpagina", paginadoelVan("landing", false), "dienst");
+  eq("een artikel is uitleg", paginadoelVan("article", false), "uitleg");
+  ok("de titel 'Tuinaanleg in Best' gaat over Best", titelOverPlaats("Tuinaanleg in Best", ["Eindhoven", "Best"]));
+  ok("'De beste tuin' gaat niet over Best", !titelOverPlaats("De beste tuin", ["Best"]));
+  ok("'Son en Breugel' als geheel", titelOverPlaats("Hovenier in Son en Breugel", ["Son en Breugel"]));
+  const lokaal = budgetgrenzen("lokaal");
+  eq("lokaal: vertrekpunt 350, plafond 715", `${lokaal.min}-${lokaal.plafond}`, "350-715");
+  eq("plus 80 per extra beslisvraag en 50 per uitleg", String(verwachtBudget("lokaal", 3, 1)), String(450 + 160 + 50));
+  ok("geen getal wordt het midden, met een correctie", klemBudget(null, lokaal, false).correctie !== null);
+});
+
+group("De achtergrondmodus en de werksoort redactioneel (WP3, §4.3)", () => {
+  ok("zonder metingen direct", !moetAchtergrond("content_strategy", []));
+  ok("tot 120 seconden direct", !moetAchtergrond("content_strategy", [98_800, ACHTERGROND_GRENS_MS]));
+  ok("één aanroep boven 120 seconden: achtergrond", moetAchtergrond("content_strategy", [40_000, 121_000]));
+  ok("een onbekende duur telt niet mee", !moetAchtergrond("content_edit", [null, undefined]));
+  eq("ophalen na 30, 60, 120 en hoogstens 240 seconden", [0, 1, 2, 5].map(ophaalVertragingSeconden).join(","), "30,60,120,240");
+  const t = resolveTuning("gpt-6-sol", "redactioneel");
+  eq("redactioneel draait op denktijd hoog", String(t.reasoningEffort), "high");
+  eq("zonder temperatuur", String(t.temperature), "undefined");
+  const handlers = leesBestand("lib/jobs/handlers.ts");
+  ok("de plantaak plant de strategie in, niet meer het schrijven", handlers.includes("dedupe.contentStrategyNa(job.id)"));
+  ok("elke aanroep legt zijn duur vast", leesBestand("lib/openai/ledger.ts").includes("duration_ms:"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// WP1 van docs/tasks/contentpijplijn-publicatiewaardig.md: de invoer opschonen.
+// De zinnen hieronder staan letterlijk in de merkdossiers van 25 september 2026.
+group("Waardeproposities zonder herkomsttaal en zonder dubbelingen (WP1)", () => {
+  const hovenier = [
+    "Meer dan 35 jaar ervaring, volgens de website",
+    "Diverse tuinwerkzaamheden onder één dak, van ontwerp en aanleg tot onderhoud",
+    "Persoonlijk kennismakingsgesprek om wensen en mogelijkheden te bespreken",
+    "Maatwerk voor ieder budget, volgens de website",
+    "De klant wordt naar eigen zeggen van A tot Z ontzorgd",
+    "De website biedt een gratis, vrijblijvende offerte aan",
+    "Een breed dienstenpakket voor tuinontwerp, aanleg, onderhoud en aanvullende tuinvoorzieningen",
+    "Een persoonlijk kennismakingsgesprek om wensen en mogelijkheden te bespreken",
+    "De website stelt dat het bedrijf tuinen op maat voor ieder budget realiseert",
+    "De klant wordt volgens de website van A tot Z ontzorgd",
+    "Gratis en vrijblijvende offerte; de website zegt te streven naar verzending binnen 4 uur",
+  ];
+  const installateur = [
+    "Breed aanbod aan installatiewerk, loodgieterswerk en woningrenovaties bij één lokaal bedrijf.",
+    "Het bedrijf zegt werkzaamheden aan badkamers, toiletten, keukens en kleine interne verbouwingen van A tot Z te regelen met professionele onderaannemers.",
+    "Persoonlijk afgestemde productkeuze: bij CV-ketelvervanging wordt volgens de site gekeken naar woning, energieverbruik en wensen.",
+    "Nadruk op service, vakmanschap, nauwkeurigheid en een vrijblijvende bezichtiging of offerte.",
+    "Vermeldt officiële CO-certificering volgens de Gasketelwet op de pagina over CV-ketelvervanging.",
+    "Bij CV-ketelvervanging wordt volgens de site gekeken naar de woning, het energieverbruik en de wensen van de klant.",
+    "De communicatie benadrukt service, vakmanschap, nauwkeurigheid en de mogelijkheid van een vrijblijvende bezichtiging of offerte.",
+    "De pagina over CV-ketelvervanging vermeldt een officiële CO-certificering volgens de Gasketelwet.",
+  ];
+  const rijschool = [
+    "Persoonlijke begeleiding door één vaste rijinstructeur",
+    "Rijopleiding afgestemd op de wensen, sterke punten en ontwikkelbehoeften van de leerling",
+    "Een rustige, ongedwongen aanpak met aandacht voor zelfvertrouwen en veilig zelfstandig rijden",
+    "Ervaring met begeleiding van leerlingen met faalangst, ADHD of vergelijkbare extra begeleidingsbehoeften",
+    "Een intake om het benodigde aantal lessen beter in te schatten en een pakket op maat samen te stellen",
+    "Keuze uit rijlessen in een auto, automaatlessen en simulatorlessen",
+    "Een rustige en ongedwongen aanpak met aandacht voor zelfvertrouwen en veilig zelfstandig rijden",
+    "Ervaring met begeleiding van leerlingen met faalangst, ASS of AD(H)D",
+    "Keuze uit autorijlessen, automaatlessen en simulatorlessen",
+  ];
+
+  eq("35 jaar zonder 'volgens de website'", schoonWaardepropositie(hovenier[0]) ?? "", "Meer dan 35 jaar ervaring");
+  eq("'naar eigen zeggen' eruit", schoonWaardepropositie(hovenier[4]) ?? "", "De klant wordt van A tot Z ontzorgd");
+  eq("'De website biedt X aan' wordt X", schoonWaardepropositie(hovenier[5]) ?? "", "Een gratis, vrijblijvende offerte");
+  eq("het deel met herkomst na de puntkomma vervalt", schoonWaardepropositie(hovenier[10]) ?? "", "Gratis en vrijblijvende offerte");
+  eq("een bijzin die niet netjes om te zetten is vervalt", String(schoonWaardepropositie(hovenier[8])), "null");
+  eq("'Het bedrijf zegt ... te regelen' vervalt", String(schoonWaardepropositie(installateur[1])), "null");
+  eq("'volgens de Gasketelwet' is geen herkomst en blijft", schoonWaardepropositie(installateur[4]) ?? "", "Officiële CO-certificering volgens de Gasketelwet");
+  eq("'De pagina over ... vermeldt' wordt de kern", schoonWaardepropositie(installateur[7]) ?? "", "Officiële CO-certificering volgens de Gasketelwet");
+  eq("'De communicatie benadrukt' vervalt", String(schoonWaardepropositie(installateur[6])), "null");
+
+  const herkomst = /volgens de (website|site)|naar eigen zeggen|de website|het bedrijf zegt|de communicatie/i;
+  for (const [naam, lijst, verwacht] of [
+    ["hovenier", hovenier, 7],
+    ["installateur", installateur, 4],
+    ["rijschool", rijschool, 6],
+  ] as const) {
+    const schoon = schoneWaardeproposities(lijst);
+    ok(`${naam}: geen herkomsttaal meer`, !schoon.some((z) => herkomst.test(z)), schoon.join(" | "));
+    eq(`${naam}: van ${lijst.length} naar ${verwacht} regels`, String(schoon.length), String(verwacht));
+  }
+  ok("de lesvormen van de rijschool zijn één propositie", zelfdePropositie(rijschool[5], rijschool[8]));
+  ok("de twee dienstenomschrijvingen van de hovenier niet", !zelfdePropositie(hovenier[1], hovenier[6]));
+  eq("een lege lijst blijft leeg", String(schoneWaardeproposities(null).length), "0");
+});
+
+group("De stemvelden gaan mee in de schrijfopdracht (WP1)", () => {
+  eq("een leeg merkdossier geeft geen blok", merkstemblok({}), "");
+  const blok = merkstemblok({
+    audience_knowledge_level: 1,
+    differentiator: "Twaalf eigen monteurs, geen onderaannemers voor de ketel",
+    usp: "Binnen 24 uur bij een storing, ook in het weekend",
+    key_messages: ["Eén vast aanspreekpunt"],
+    signature_phrases: ["Gewoon goed geregeld"],
+    identity_keywords: ["vakmanschap", "nauwkeurig"],
+    value_props: ["Meer dan 35 jaar ervaring, volgens de website", "Maatwerk voor ieder budget, volgens de website"],
+  });
+  ok("het kennisniveau als instructie", blok.includes("leg elke vakterm in dezelfde zin uit"));
+  ok("het onderscheid", blok.includes("Twaalf eigen monteurs"));
+  ok("de USP", blok.includes("Binnen 24 uur"));
+  ok("de kernboodschap", blok.includes("Eén vast aanspreekpunt"));
+  ok("de eigen uitdrukking", blok.includes('"Gewoon goed geregeld"'));
+  ok("de kernwoorden", blok.includes("vakmanschap, nauwkeurig"));
+  ok("de waardeproposities geschoond", blok.includes("Meer dan 35 jaar ervaring;") && !blok.includes("volgens de website"));
+  const content = leesBestand("lib/pipeline/content.ts");
+  ok("de schrijfopdracht gebruikt het blok", content.includes("merkstemblok(profile)"));
+  ok("de ruwe waardeproposities gaan de schrijfopdracht niet meer in", !content.includes("profile.value_props.join"));
+  ok("de schrijfopdracht van luna krijgt ze geschoond", content.includes("valueProps: schoneWaardeproposities(profile?.value_props)"));
+  ok("het profielonderzoek slaat ze geschoond op", leesBestand("lib/pipeline/prepare-profile.ts").includes("schoneWaardeproposities(unionList("));
+});
+
+group("De feitenkaart zonder 'De website vermeldt' (WP1)", () => {
+  // Letterlijk uit `brand_facts` van de drie proefklanten, 25 september 2026.
+  const gevallen: [string, string][] = [
+    ["De website vermeldt: “35+ Jaar ervaring”.", "35+ Jaar ervaring"],
+    ["De website biedt een gratis offerte aan.", "Een gratis offerte"],
+    ["De site noemt een vrijblijvende intake van 60 minuten.", "Een vrijblijvende intake van 60 minuten."],
+    ["Bedrijfsgegevens volgens de aangeleverde website-informatie: Speelheuvelweg 6A, 5652 CH Eindhoven; KvK 17120470.", "Speelheuvelweg 6A, 5652 CH Eindhoven; KvK 17120470."],
+    ["De website vermeldt: ‘Ons bedrijf beschikt over een officiële CO-certificering volgens de Gasketelwet.’", "Ons bedrijf beschikt over een officiële CO-certificering volgens de Gasketelwet."],
+    ["De website vermeldt in de aangeleverde prijstekst: prijzen gelden per 1 november 2025; prijswijzigingen voorbehouden.", "Prijzen gelden per 1 november 2025; prijswijzigingen voorbehouden."],
+    ["Twaalf monteurs in dienst", "Twaalf monteurs in dienst"],
+  ];
+  for (const [feit, verwacht] of gevallen) {
+    const uit = zonderVindplaats(feit);
+    eq(`"${feit.slice(0, 40)}..."`, uit, verwacht);
+    ok("wat overblijft is letterlijk een stuk van het feit, dus het citaat klopt", normalizeForQuote(feit).includes(normalizeForQuote(uit)));
+  }
+  const kaart = formatFactCard([
+    { ref: "F27", text: "De website vermeldt: “35+ Jaar ervaring”.", source: "site hansverstraatenhoveniers.nl", allowed: true, citable: true, kind: "site" } as never,
+  ]);
+  ok("de kaart toont het feit zonder vindplaats", kaart.includes("F27  35+ Jaar ervaring") && !kaart.includes("De website vermeldt"));
+  ok("het profielonderzoek vraagt om de bewering zelf", leesBestand("lib/pipeline/profile-research.ts").includes("Schrijf de bewering zelf op, niet dat de site hem doet"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// WP4 van docs/tasks/contentpijplijn-publicatiewaardig.md: de schrijver op de strategie.
+function bestStrategie(): PageStrategy {
+  // Nagebouwd op de pagina voor Best van de hovenier (§1.2, O1): de consumentengids
+  // ("Vergelijk dezelfde werkzaamheden en afwerking") is uitgesloten.
+  return strategie({
+    prioriteitsfeiten: [
+      { feit: "F2", betekenis: "Je weet wie er in je tuin werkt" },
+      { feit: "F5", betekenis: "Je kunt begroten" },
+      { feit: "F7", betekenis: "Je ligt niet lang met een kale tuin" },
+    ],
+    optioneleFeiten: ["F9"],
+    onderwerpen: [
+      { onderwerp: "Een complete tuin van ontwerp tot oplevering", besluit: "opnemen", bron: "feit", feiten: ["F2", "F3"], woorden: 150, vraag: null, wachtOpConflict: [], kern: true, reden: "" },
+      { onderwerp: "Wat een tuin met bestrating kost", besluit: "opnemen", bron: "feit", feiten: ["F5"], woorden: 100, vraag: null, wachtOpConflict: [], kern: true, reden: "" },
+      { onderwerp: "Vergelijk dezelfde werkzaamheden en afwerking", besluit: "weglaten", bron: "vakkennis", feiten: [], woorden: null, vraag: null, wachtOpConflict: [], kern: false, reden: "consumentengids" },
+      { onderwerp: "Tuinen die we in Best aanlegden", besluit: "eerst vragen", bron: "geen", feiten: [], woorden: null, vraag: "Welke tuinen in Best mogen we noemen?", wachtOpConflict: [], kern: true, reden: "" },
+    ],
+    onzekerheden: [
+      { punt: "Welke regels in Best gelden voor regenwater", bestemming: "C", reden: null, formulering: null, vraag: null },
+      { punt: "Spreiding van de prijs", bestemming: "B", reden: "geld", formulering: "Vooral de stenen die je kiest maken het verschil.", vraag: null },
+    ],
+    oproep: "Plan een eerste gesprek bij je thuis",
+  });
+}
+
+group("De schrijfopdracht op de strategie (WP4)", () => {
+  const s = bestStrategie();
+  const blok = strategieblok(s);
+  eq("de gekozen feiten", Array.from(gekozenRefs(s)).sort().join(","), "F2,F3,F5,F7,F9");
+  eq("de opbouw volgt de strategie", opbouwUitStrategie(s).map((o) => o.onderwerp).join(" | "), "Een complete tuin van ontwerp tot oplevering | Wat een tuin met bestrating kost");
+  ok("het uitgesloten onderwerp staat onder NIET OP DEZE PAGINA", /NIET OP DEZE PAGINA[\s\S]*Vergelijk dezelfde werkzaamheden/.test(blok));
+  ok("de regenwatervraag van Best ook", blok.includes("Welke regels in Best gelden voor regenwater"));
+  ok("een lokale vraag wordt een vraag, geen zin", blok.includes("Tuinen die we in Best aanlegden (daar vragen wij de ondernemer eerst naar)"));
+  ok("het ene toegestane voorbehoud staat er letterlijk", blok.includes("Vooral de stenen die je kiest maken het verschil."));
+  ok("geen 'MOET erop' meer", !/MOET erop|niets uit weglaten/i.test(blok + REGELS_STRATEGIE + REGEL_7_STRATEGIE));
+  ok("weglaten mag en wordt gemeld", REGELS_STRATEGIE.includes("`weggelaten`"));
+  ok("en geen zin dat iets niet bekend is", REGELS_STRATEGIE.includes("ook geen zin dat iets niet bekend of niet vastgelegd is"));
+  const content = leesBestand("lib/pipeline/content.ts");
+  ok("de schrijver krijgt de strategieregels als er een strategie is", content.includes("ctx.strategie ? CONTENT_SYSTEM_STRATEGIE : CONTENT_SYSTEM"));
+  ok("en dan geen schrijfopdracht van luna ernaast", content.includes("if (!opdracht && maakOpdracht && !strategie)"));
+  ok("en alleen de gekozen feiten op de kaart", content.includes("gekozen.has(f.ref.toUpperCase())"));
+});
+
+group("De dekking meet de strategie in plaats van het contract (WP4)", () => {
+  const s = bestStrategie();
+  const goed = [
+    "Een complete tuin met bestrating in Best kost bij ons meestal tussen de € 12.000 en € 35.000.",
+    "",
+    "## Een complete tuin van ontwerp tot oplevering",
+    "We doen alles zelf, van ontwerp tot oplevering, met een vaste ploeg van vijf man. Zo weet je wie er in je tuin werkt, elke dag weer.",
+    "",
+    "## Wat een tuin met bestrating kost",
+    "Een tuin met bestrating kost meestal tussen de € 12.000 en € 35.000. Vooral de stenen die je kiest maken het verschil.",
+  ].join("\n");
+  const claims = [{ factRef: "F2" }, { factRef: "F5, F7" }];
+  const uitslag = checkStrategieDekking({ strategie: s, bodyMarkdown: goed, faq: [], claims, proofPoints: [], weggelaten: [] });
+  eq("een pagina die de strategie volgt heeft geen bevindingen", uitslag.issues.join(" | "), "");
+  const metGids = goed + "\n\n## Vergelijk dezelfde werkzaamheden en afwerking\nVergelijk offertes altijd op dezelfde werkzaamheden en afwerking, anders vergelijk je appels met peren.";
+  const gids = checkStrategieDekking({ strategie: s, bodyMarkdown: metGids, faq: [], claims, proofPoints: [], weggelaten: [] });
+  eq("de consumentengids van Best wordt gevonden", (gids.uitgeslotenAanwezig ?? []).join(","), "Vergelijk dezelfde werkzaamheden en afwerking");
+  const zonderF7 = checkStrategieDekking({ strategie: s, bodyMarkdown: goed, faq: [], claims: [{ factRef: "F2" }, { factRef: "F5" }], proofPoints: [], weggelaten: [] });
+  eq("een ontbrekend prioriteitsfeit wordt gevonden", (zonderF7.ontbrekendePrioriteit ?? []).join(","), "F7");
+  const zonderPrijs = goed.split("## Wat een tuin")[0];
+  const gemeld = checkStrategieDekking({ strategie: s, bodyMarkdown: zonderPrijs, faq: [], claims, proofPoints: [], weggelaten: [{ punt: "Wat een tuin met bestrating kost" }] });
+  ok("een onderwerp dat de schrijver meldde als weggelaten is geen gat", gemeld.secties.every((x) => x.aanwezig));
+  const vreemd = checkStrategieDekking({ strategie: s, bodyMarkdown: goed + "\n\n## Onderhoud na de aanleg\nWe komen twee keer per jaar langs voor onderhoud aan je vijver en borders.", faq: [], claims, proofPoints: [], weggelaten: [] });
+  eq("een sectie buiten de opbouw wordt gemeld", (vreemd.vreemdeSecties ?? []).join(","), "Onderhoud na de aanleg");
+  const weg = haalSectiesWeg(metGids, ["Vergelijk dezelfde werkzaamheden en afwerking", ""]);
+  ok("de reparatie kan een uitgesloten sectie weghalen", !weg.bodyMarkdown.includes("appels met peren") && weg.bodyMarkdown.includes("vaste ploeg"));
+  ok("maar nooit de aanhef", haalSectiesWeg(goed, [""]).bodyMarkdown.startsWith("Een complete tuin"));
+  ok("de keuring gebruikt de strategiedekking", leesBestand("lib/pipeline/quality-run.ts").includes("checkStrategieDekking({"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// WP5 van docs/tasks/contentpijplijn-publicatiewaardig.md: de eindredactie.
+group("Vangnetten op de eindredactie (WP5)", () => {
+  // Het echte concept van de zwemvijverpagina van de hovenier (§1.2, O2).
+  const concept = {
+    bodyMarkdown:
+      "Een zwemvijver kost meestal tussen de € 30.000 en € 60.000.\n\n## Ervaring\nWij hebben meer dan 35 jaar ervaring, maar dat zegt op zichzelf niets over het aantal zwemvijvers dat we hebben aangelegd.",
+    faq: [],
+    claims: [{ factRef: "F3" }, { factRef: "F5" }],
+  };
+  const feiten = [
+    { ref: "F3", text: "Een zwemvijver kost meestal 30.000 tot 60.000 euro" },
+    { ref: "F5", text: "Meer dan 35 jaar ervaring" },
+  ];
+  const goed = controleerRedactie({
+    concept,
+    redactie: { ...concept, bodyMarkdown: "Een zwemvijver kost meestal tussen de € 30.000 en € 60.000.\n\n## Ervaring\nWe leggen al meer dan 35 jaar tuinen aan." },
+    feiten, budget: 600, prioriteit: ["F3", "F5"],
+  });
+  ok("de relativering weghalen mag", goed.akkoord, goed.redenen.join(" "));
+  const bedrag = controleerRedactie({
+    concept,
+    redactie: { ...concept, bodyMarkdown: concept.bodyMarkdown + " Een intake kost bij ons € 450." },
+    feiten, budget: 600, prioriteit: [],
+  });
+  ok("een redactie die een nieuw bedrag toevoegt wordt teruggedraaid", !bedrag.akkoord);
+  eq("en noemt het bedrag", bedrag.nieuweGetallen.join(","), "450");
+  const verzonnenRef = controleerRedactie({ concept, redactie: { ...concept, claims: [{ factRef: "F3, F99" }] }, feiten, budget: 600, prioriteit: [] });
+  ok("een verzonnen F-nummer ook", !verzonnenRef.akkoord && verzonnenRef.onbekendeRefs.includes("F99"));
+  const lang = controleerRedactie({ concept, redactie: { ...concept, bodyMarkdown: concept.bodyMarkdown + " woord".repeat(200) }, feiten, budget: 100, prioriteit: [] });
+  ok("langer maken dan het budget ook", !lang.akkoord);
+  const weg = controleerRedactie({ concept, redactie: { ...concept, claims: [{ factRef: "F3" }] }, feiten, budget: 600, prioriteit: ["F3", "F5"] });
+  ok("een verdwenen prioriteitsfeit draait niet terug, de keuring blokkeert het", weg.akkoord && weg.verdwenenPrioriteit.join(",") === "F5");
+  eq("Nederlandse getallen gelijk gelezen", Array.from(getalReeksen("€ 2.200 en 2200 en 4,9")).join(","), "2200,4.9");
+  const content = leesBestand("lib/pipeline/content.ts");
+  ok("het schrijven met strategie keurt niet zelf maar gaat naar de redactie", content.includes("naarRedactie: true"));
+  ok("de redactie bewaart zijn log vóór de keuring", content.indexOf("edit_log_json: log as never") < content.lastIndexOf("return keur(geredigeerd);"));
+  ok("en draait op denktijd hoog", leesBestand("lib/pipeline/editorial-pass.ts").includes('work: "redactioneel"'));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// WP6 van docs/tasks/contentpijplijn-publicatiewaardig.md: onzekerheid als blokkade.
+group("Zinnen over wat wij niet weten zijn een blokkade (WP6)", () => {
+  // Letterlijk uit de opgeslagen teksten van 25 september 2026 (§1.2, O2 en O4).
+  const gaten = [
+    "De beschikbare prijsinformatie benoemt niet welke werkzaamheden standaard in de installatieprijs zitten of wanneer extra kosten gelden.",
+    "Welke controles standaard tijdens een ketelbezoek plaatsvinden en hoe het benodigde vermogen precies wordt berekend, is niet vastgelegd.",
+    "Welke van deze punten tijdens een ketelbezoek worden bekeken, staat niet als vaste werkwijze vast.",
+    "Of een hybride warmtepomp past, valt niet af te leiden uit de leeftijd van de ketel alleen.",
+    "Dit is een lijst met nuttige gegevens, geen toezegging over documenten die wij standaard verstrekken.",
+    "Deze pagina geeft geen bevestigde lokale eis voor Best.",
+    "Een vast aanbetalingsbedrag voor een tuinproject wordt hier niet genoemd.",
+    "De beschikbare informatie over de intakeprijs spreekt elkaar tegen, dus hier noemen we geen actueel bedrag.",
+  ];
+  for (const z of gaten) ok(`gevangen: "${z.slice(0, 50)}..."`, gatzinnen(z).length === 1);
+  const goed = [
+    "Een nieuwe cv-ketel kost bij ons tussen de € 2.200 en € 3.200, inclusief installatie.",
+    "De levertijd is 2 tot 4 weken; de installatie zelf duurt één dag.",
+    "Een complete tuin met bestrating kost bij ons meestal tussen de € 12.000 en € 35.000.",
+    "Bij het adviesbezoek kijken we naar de isolatie, de radiatoren en de leeftijd van de ketel.",
+  ];
+  for (const z of goed) ok(`niet gevangen: "${z.slice(0, 50)}..."`, gatzinnen(z).length === 0);
+
+  const vnb = [
+    "Wij hebben meer dan 35 jaar ervaring, maar dat zegt op zichzelf niets over het aantal zwemvijvers dat we hebben aangelegd.",
+    "Onze CO-certificering volgens de Gasketelwet is hierboven genoemd; die zegt op zichzelf niets over welke afzonderlijke werkzaamheden in een installatieprijs zijn opgenomen.",
+    "Wesley Keeris Installatietechniek geeft een levertijd van 2 tot 4 weken en een installatieduur van 1 dag op; dat is een eerste beeld van de planning, geen garantie voor iedere woning.",
+  ];
+  for (const z of vnb) ok(`voorbehoud na bewijs: "${z.slice(0, 45)}..."`, voorbehoudNaBewijs(z).length === 1);
+
+  ok("een toezegging in de wij-vorm", isToezegging("Bij ons duurt een APK een uur.", "Garage Test"));
+  ok("met de bedrijfsnaam", isToezegging("Garage Test levert binnen een week.", "Garage Test"));
+  ok("algemene uitleg is geen toezegging", !isToezegging("Een APK duurt meestal een uur.", "Garage Test"));
+
+  const s = bestStrategie();
+  const metRegenwater = checkBestemmingen(s, "Een tuin in Best kost meestal € 20.000.\nWelke regels in Best gelden voor het afvoeren van regenwater, hangt af van de gemeente.");
+  eq("een punt met bestemming C in de tekst wordt gevonden", metRegenwater.aOfCInTekst.map((a) => a.bestemming).join(","), "C");
+  const tweeKeer = checkBestemmingen(s, "Vooral de stenen die je kiest maken het verschil. En nogmaals: vooral de stenen die je kiest maken het verschil.");
+  eq("het toegestane voorbehoud twee keer is een waarschuwing", String(tweeKeer.bVaker[0]?.aantal ?? 0), "2");
+
+  const collect = leesBestand("lib/pipeline/quality-collect.ts");
+  ok("bronpraat is blokkerend", /bron: "bronpraat",/.test(collect) && collect.includes("De pagina schrijft namens het bedrijf. Wat wij niet weten"));
+  ok("de reparatie nuanceert niet meer", !/nuanceer/i.test(leesBestand("lib/pipeline/quality-repair.ts")));
+  ok("en schrijft niet algemener", !leesBestand("lib/pipeline/content.ts").includes("schrijf hem algemener"));
+  ok("hoogstens twee reparatierondes", leesBestand("lib/pipeline/content.ts").includes("const REPAIR_MAX = 2;"));
+  ok("de feitelijkheidsbeoordelaar jaagt niet meer op algemene uitleg", !leesBestand("lib/pipeline/content-panel.ts").includes("elke ALGEMENE uitleg die als belofte"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// WP7 van docs/tasks/contentpijplijn-publicatiewaardig.md: de FAQ volgens de vier criteria.
+group("De FAQ volgens de vier criteria (WP7)", () => {
+  // De echte vragen van Best (hovenier) en de kostenpagina (installateur), §1.2 O8,
+  // plus het bezwaar uit het verkoopgesprek van de hovenier.
+  const kandidaten = faqKandidaten({
+    dossier: [
+      "Welke regels gelden in Best voor het afvoeren van regenwater bij een grotendeels betegelde tuin?",
+      "Hoeveel moet ik aanbetalen voor tuinaanleg?",
+      "Wat is op de lange termijn voordeliger: een cv-ketel kopen of huren?",
+    ],
+    bezwaar: ["Hoe lang lig ik met een kale tuin?"],
+  });
+  eq("het bezwaar komt vooraan", kandidaten[0].vraag, "Hoe lang lig ik met een kale tuin?");
+  const oordeel = {
+    kandidaten: [
+      { nummer: 1, houden: true, criterium: null, reden: "", onderbouwing: "feit" as const, feiten: ["F7"], vakkennis: null },
+      { nummer: 2, houden: false, criterium: "geen onderbouwing" as const, reden: "Geen feit over regenwater in Best.", onderbouwing: "geen" as const, feiten: [], vakkennis: null },
+      // Het model houdt hem ten onrechte, zonder feit: de code gooit hem alsnog weg.
+      { nummer: 3, houden: true, criterium: null, reden: "", onderbouwing: "feit" as const, feiten: ["F99"], vakkennis: null },
+      { nummer: 4, houden: false, criterium: "helpt niet" as const, reden: "Het bedrijf verhuurt geen ketels.", onderbouwing: "geen" as const, feiten: [], vakkennis: null },
+    ],
+  };
+  const selectie = pasFaqSelectieToe(kandidaten, oordeel, { kaartRefs: ["F1", "F7"], onderwerpen: ["Wat een tuin met bestrating kost"] });
+  eq("alleen 'Hoe lang lig ik met een kale tuin?' blijft", selectie.gekozen.map((g) => g.vraag).join(" | "), "Hoe lang lig ik met een kale tuin?");
+  ok("regenwater valt af op criterium 3 en wordt een vraag aan de ondernemer", selectie.vragenAanOndernemer.some((v) => v.includes("regenwater")));
+  ok("aanbetalen zonder feit valt alsnog af, ook als het model hem hield", selectie.afgewezen.some((a) => a.vraag.includes("aanbetalen")));
+  ok("kopen of huren valt af op criterium 4 bij een bedrijf dat niet verhuurt", selectie.afgewezen.some((a) => a.vraag.includes("huren")));
+  ok("een vraag die de tekst al beantwoordt, valt af", alBeantwoord("Wat kost een tuin met bestrating?", ["Wat een tuin met bestrating kost"]));
+  const zes = faqKandidaten({ bezwaar: ["Vraag een over tuinen", "Vraag twee over tuinen", "Vraag drie over stenen", "Vraag vier over planten", "Vraag vijf over vijvers", "Vraag zes over hekken"] });
+  const alles = pasFaqSelectieToe(zes, { kandidaten: zes.map((_, i) => ({ nummer: i + 1, houden: true, criterium: null, reden: "", onderbouwing: "feit" as const, feiten: ["F1"], vakkennis: null })) }, { kaartRefs: ["F1"], onderwerpen: [] });
+  eq(`hoogstens ${MAX_FAQ} vragen`, String(alles.gekozen.length), "5");
+  ok("nul vragen is een geldige uitkomst, en de schrijver hoort dat", faqblok({ gekozen: [], afgewezen: [], vragenAanOndernemer: [] }).includes("FAQ: geen"));
+  ok("een strategie van vóór WP7 geeft geen FAQ-blok", faqblok(undefined) === "");
+  const na = checkFaqNaSchrijven({
+    faq: [
+      { q: "Hoe lang lig ik met een kale tuin?", a: "Twee tot drie weken." },
+      { q: "Welke regels gelden in Best voor regenwater?", a: "Dat hangt af van de actuele regels." },
+    ],
+    selectie,
+    claims: [],
+  });
+  eq("een vraag buiten de selectie wordt gemeld", na.buitenSelectie.join(","), "Welke regels gelden in Best voor regenwater?");
+  eq("een antwoord onder 25 woorden ook", na.kort.join(","), "Hoe lang lig ik met een kale tuin?");
+  eq("en een antwoord dat zijn feit niet gebruikt", na.zonderFeit.join(","), "Hoe lang lig ik met een kale tuin?");
+  ok("de contractregel die de FAQ tot restcategorie maakte is weg", !leesBestand("lib/pipeline/content-contract.ts").includes('"Vraag NIET na wat er in de secties hierboven al beantwoord wordt'));
 });
