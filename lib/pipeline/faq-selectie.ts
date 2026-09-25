@@ -17,7 +17,8 @@ import type { FaqKandidaat } from "@/lib/pipeline/faq-criteria";
 const SYSTEM =
   "Je kiest de veelgestelde vragen onder één webpagina van een lokale ondernemer. Een vraag blijft " +
   "alleen als hij aan ALLE VIER voldoet: (1) een echte lezer van deze pagina stelt hem, in de fase " +
-  "waarin hij is; (2) de tekst beantwoordt hem niet al (zie de gekozen onderwerpen); (3) het antwoord " +
+  "waarin hij is, over het onderwerp van DEZE pagina; een bezwaar uit het verkoopgesprek over een andere " +
+  "dienst (een warmtepomp op een pagina over ketelvervanging) sneuvelt op 1; (2) de tekst beantwoordt hem niet al (zie de gekozen onderwerpen); (3) het antwoord " +
   "rust op een feit van de FEITENKAART (noem de F-nummers) of op vaste vakkennis die niemand betwist " +
   "(geef die in één zin); (4) het antwoord helpt de lezer richting dit bedrijf of neemt een drempel " +
   "weg. Een vraag over iets dat dit bedrijf niet doet, sneuvelt op 4. Een vraag waarop alleen 'dat " +
@@ -38,6 +39,7 @@ export async function selecteerFaq(args: {
   const user = [
     `LEZER: ${s.lezer} (fase: ${s.fase})`,
     `DOEL VAN DE PAGINA: ${s.paginadoel}`,
+    `KERNBOODSCHAP: ${s.kernboodschap}`,
     `GEKOZEN ONDERWERPEN (die beantwoordt de tekst al): ${s.onderwerpen
       .filter((o) => o.besluit === "opnemen")
       .map((o) => o.onderwerp)

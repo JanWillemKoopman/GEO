@@ -61,7 +61,7 @@ import { heelMetabeschrijving, heelMetatitel, MAX_METABESCHRIJVING } from "@/lib
 import { strategieblok, gekozenRefs, opbouwUitStrategie, REGELS_STRATEGIE, REGEL_7_STRATEGIE } from "@/lib/pipeline/strategie-opdracht";
 import { checkStrategieDekking } from "@/lib/pipeline/content-coverage";
 import { haalSectiesWeg } from "@/lib/pipeline/content-sections";
-import { bewijsKern, controleerStrategie, MAX_PRIORITEITSFEITEN, normaliseerRef, uitlegPastBij } from "@/lib/pipeline/strategie-check";
+import { bewijsKern, controleerStrategie, MAX_PRIORITEITSFEITEN, MAX_WOORDEN_LOSSE_VAKKENNIS, normaliseerRef, uitlegPastBij } from "@/lib/pipeline/strategie-check";
 import { budgetgrenzen, budgetUitOnderwerpen, klemBudget, paginadoelVan, titelOverPlaats, verwachtBudget } from "@/lib/lengtebudget";
 import { moetAchtergrond, ophaalVertragingSeconden, ACHTERGROND_GRENS_MS } from "@/lib/openai/achtergrond";
 import type { PageStrategy } from "@/lib/schemas/page-strategy";
@@ -324,7 +324,7 @@ import {
 import { duplicatePromptIds } from "@/lib/pipeline/prompt-dedupe";
 import { dedupeCompetitorNames } from "@/lib/pipeline/competitor-dedupe";
 import { htmlToText } from "@/lib/pipeline/html-text";
-import { bepaalTeBehouden, vindVerlorenFeiten, behoudblok } from "@/lib/pipeline/feitbehoud";
+import { bepaalTeBehouden, binnenStrategie, vindVerlorenFeiten, behoudblok } from "@/lib/pipeline/feitbehoud";
 import { voegVragenSamen } from "@/lib/pipeline/vraag-samenvoegen";
 import { identifyEmptyProfiles } from "@/lib/profile-status";
 import { ontwijkendeZinnen } from "@/lib/pipeline/content-gate";
@@ -26720,7 +26720,7 @@ group("Dunne pagina's: kernvraag, sterk bewijs en budget (nameting fase 1)", () 
   eq("een kernvraag met passende uitleg komt erop als vakkennis", `${rook.besluit}/${rook.bron}`, "opnemen/vakkennis");
   eq("met de term van de uitleg, ook zonder U-nummer van het model", rook.uitleg.join(","), "Rookgasafvoer");
   eq("een kernvraag die de strategie zelf vakkennis noemt, ook", prijsinhoud.besluit, "opnemen");
-  eq("zonder woorden krijgt hij die van een beslisvraag", String(prijsinhoud.woorden), "80");
+  eq("zonder bron houdt hij hoogstens de woorden van losse vakkennis", String(prijsinhoud.woorden), String(MAX_WOORDEN_LOSSE_VAKKENNIS));
   eq("zonder uitleg en zonder vakkennis blijft het een vraag", meerwerk.besluit, "eerst vragen");
   ok("de vraag gaat hoe dan ook naar de ondernemer", ["Vervangt u de rookgasafvoer standaard?", "Wat zit er standaard in uw prijs?", "Welk meerwerk komt vaak voor?"].every((v) => kosten.vragenAanOndernemer.includes(v)));
   ok("en de omzetting staat in de correcties", kosten.correcties.some((c) => c.includes("Rookgasafvoer bij ketelvervanging")));
@@ -26768,6 +26768,33 @@ group("Dunne pagina's: kernvraag, sterk bewijs en budget (nameting fase 1)", () 
   eq("in de strategie: alleen opgenomen onderwerpen tellen", String(som.strategie.lengtebudget.woorden), "550");
   const hoog = controleerStrategie(strategie({ onderwerpen: [onderwerp({ woorden: 2000, feiten: ["F1"] })] }), invoerWP3);
   eq("en de som blijft onder het plafond", String(hoog.strategie.lengtebudget.woorden), String(budgetgrenzen("dienst").plafond));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Na de nameting van de reparatie (25 september 2026): de tweede ronde.
+group("Tweede ronde: feitbehoud, losse vakkennis, FAQ bij de pagina", () => {
+  const feit = (ref: string) => ({ factId: `id-${ref}`, ref, tekst: "t", vorigeZin: "v", kern: ["woord"], getallen: [] });
+  eq("met een strategie telt alleen wat die koos", binnenStrategie([feit("F10"), feit("F55"), feit("f67")], new Set(["F10", "F67"])).map((f) => f.ref).join(","), "F10,f67");
+  eq("zonder strategie telt alles", String(binnenStrategie([feit("F10"), feit("F55")], null).length), "2");
+  ok("de schrijver krijgt alleen de gekozen feiten als te behouden", leesBestand("lib/pipeline/content.ts").includes("binnenStrategie("));
+  ok("en de keuring telt alleen die", leesBestand("lib/pipeline/quality-run.ts").includes("binnenStrategie("));
+
+  const onderwerp = (o: Partial<PageStrategy["onderwerpen"][number]>): PageStrategy["onderwerpen"][number] => ({
+    onderwerp: "o", besluit: "opnemen", bron: "vakkennis", feiten: [], uitleg: [], woorden: 45,
+    vraag: null, wachtOpConflict: [], kern: false, reden: "", ...o,
+  });
+  // Letterlijk de twee prijsonderwerpen van Best die de lezer hol noemde.
+  const best = controleerStrategie(strategie({ onderwerpen: [
+    onderwerp({ onderwerp: "Wat bepaalt de prijs?", woorden: 40 }),
+    onderwerp({ onderwerp: "Wat zit doorgaans in een aanlegprijs?", kern: true, woorden: 45 }),
+    onderwerp({ onderwerp: "Rookgasafvoer bij ketelvervanging", kern: false, woorden: 60 }),
+  ] }), { ...invoerWP3, uitleg: [{ ref: "U1", term: "Rookgasafvoer" }] });
+  const [bepaalt, inPrijs, rook] = best.strategie.onderwerpen;
+  eq("losse vakkennis als bijzaak valt weg", bepaalt.besluit, "weglaten");
+  eq(`als kernvraag hoogstens ${MAX_WOORDEN_LOSSE_VAKKENNIS} woorden`, `${inPrijs.besluit}/${inPrijs.woorden}`, `opnemen/${MAX_WOORDEN_LOSSE_VAKKENNIS}`);
+  eq("vakkennis met gecontroleerde uitleg blijft zoals hij was", `${rook.besluit}/${rook.woorden}`, "opnemen/60");
+
+  ok("de FAQ-selectie weegt of een vraag bij het onderwerp van de pagina hoort", leesBestand("lib/pipeline/faq-selectie.ts").includes("over het onderwerp van DEZE pagina"));
 });
 
 group("Metabeschrijving zonder halve naam (werkstand §4, punt 4)", () => {

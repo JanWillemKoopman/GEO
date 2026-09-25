@@ -1,8 +1,9 @@
 # Voorstel schrijfstijl voor drie merkdossiers (WP1)
 
 **Opgesteld:** 25 september 2026, voor werkpakket 1 van `contentpijplijn-publicatiewaardig.md` (§9.4).
-**Status: voorstel, wacht op akkoord van de eigenaar. Er staat nog niets van in het merkdossier op
-productie.** Na akkoord zet ik de waarden per veld in `profiles`, met `profile_field_sources` op
+**Status: goedgekeurd door de eigenaar en op 25 september 2026 in het merkdossier op productie gezet**
+(herkomst "consultant"). Afwijking: voorbeeldzin 2 van merk B noemt de hybride warmtepomp, zie het
+logboek van die dag. Na akkoord zet ik de waarden per veld in `profiles`, met `profile_field_sources` op
 "adviseur", en verdwijnt dit bestand zodra WP8 de stem in het merkdossier zelf laat goedkeuren.
 
 ## Hoe dit voorstel tot stand kwam

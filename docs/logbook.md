@@ -12529,3 +12529,18 @@ de kostenpagina 4), het copywritercijfer is 5 en 4 (was 5 en 3), de kostenpagina
 gehaald. De grootste resterende oorzaken: herhaling en holle algemene uitleg zonder bron, en een
 keuring die op feitbehoud blokkeert tegen de keuzes van de strategie in. Kosten $0,29 en $0,26 per
 pagina. Cijfers in `docs/tasks/contentpijplijn-publicatiewaardig.md` §14.2.
+
+## 25 september 2026: stem in het merkdossier, en drie regels in plaats van lapwerk
+
+Het stemvoorstel (`docs/tasks/schrijfstijl-voorstel-drie-klanten.md`) is door de eigenaar goedgekeurd
+en staat in het merkdossier van de drie klanten, met herkomst "consultant". Eén afwijking: de
+voorbeeldzin over de levertijd noemt nu de hybride warmtepomp, omdat hij anders de fout van de
+kostenpagina (levertijd bij de ketel) aan de schrijver zou leren. Daarna drie wijzigingen die voor
+elke klant gelden: (1) bij een pagina met strategie telt feitbehoud alleen de feiten die de strategie
+koos; de schrijver kreeg daarvoor "neem ELK feit van de vorige versie over" naast "voeg niets toe", en
+de keuring blokkeerde beide nagemeten pagina's daarop; (2) algemene uitleg zonder feit en zonder
+gecontroleerde uitleg valt weg als bijzaak en krijgt hoogstens 40 woorden als kernvraag, en de
+schrijver hoort dat hij elk feit één keer noemt; (3) de FAQ-selectie weegt of een vraag over het
+onderwerp van deze pagina gaat. Bewust niet gebouwd: een lijst met holle formuleringen en een
+woordfilter op FAQ-vragen. Het eerste is lapwerk dat de volgende ronde niet vangt; het tweede gooide in
+de ketentest een algemeen bezwaar ("jullie zijn duurder") weg dat bij elke pagina hoort.

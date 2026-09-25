@@ -93,7 +93,7 @@ import {
 } from "@/lib/pipeline/existing-page-match";
 import { canonicalPath } from "@/lib/pipeline/page-relevance";
 import { detectClaimSentences, detectedCoverage, resolveFactId } from "@/lib/pipeline/claim-extract";
-import { bepaalTeBehouden, behoudblok, type TeBehoudenFeit } from "@/lib/pipeline/feitbehoud";
+import { bepaalTeBehouden, behoudblok, binnenStrategie, type TeBehoudenFeit } from "@/lib/pipeline/feitbehoud";
 import type { AuditedClaim, GeneralContextGap } from "@/lib/schemas/claim-audit";
 import {
   validateOrRebuildJsonLd,
@@ -2451,7 +2451,12 @@ export async function draftContentPiece(args: {
     : resumeId
       ? await supersedesVan(admin, resumeId)
       : null;
-  const teBehouden = await laadTeBehouden(admin, vorigeId, ctx.facts, recommendation.revisionNote ?? null);
+  // Met een strategie alleen wat die koos: anders krijgt de schrijver "neem ELK
+  // over" naast "voeg niets toe" (binnenStrategie in feitbehoud.ts).
+  const teBehouden = binnenStrategie(
+    await laadTeBehouden(admin, vorigeId, ctx.facts, recommendation.revisionNote ?? null),
+    ctx.strategie ? gekozenRefs(ctx.strategie.strategie, ctx.strategie.faq) : null,
+  );
 
   const draft =
     saved ??
