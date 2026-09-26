@@ -8494,6 +8494,109 @@ async function main(): Promise<void> {
       eqc("scenario 19: er is niets verwijderd", String(telling[0].n), "4");
     }
 
+    // ── Scenario 20: het terugvullen van de kennislaag (K3) ────────────────
+    //
+    // docs/tasks/van-pijplijn-naar-kennissysteem.md K3, route van besluit V15:
+    // de leesquery, het plan, dezelfde controles als legVast(), de schrijfquery.
+    // Tegen de echte constraints van 0116 en 0117. Daarna een tweede run die
+    // niets schrijft, en een antwoord dat aan een verwijderde pagina hing.
+    console.log("\nScenario 20: het terugvullen van de kennislaag (K3)");
+    {
+      const { EXPORT_SQL, INSERT_SQL, maakTerugvulplan, dekking, zetOm } = await import("@/lib/kennis/terugvullen");
+      const merk = randomUUID();
+      const analyse = randomUUID();
+      const pagina = randomUUID();
+      const weg = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, aliases, service_regions, growth_regions, taboo_phrases, value_props, proof_points, verhalen, pronoun_preference)
+         values ($1, $2, 'Terugvultest', 'https://terugvul.nl', 'Terugvultest', 'klaar', '{TV}', '{Eindhoven}', '{Eindhoven}', '{gratis}',
+                 '{Persoonlijk}', '{"Hoe lang duurt een les? Een uur","Al 20 jaar actief"}', 'We begonnen in 2004.', 'je')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.profile_field_sources (profile_id, field, source, set_by) values
+         ($1, 'aliases', 'gesprek', $2), ($1, 'taboo_phrases', 'gesprek', $2), ($1, 'verhalen', 'gesprek', $2),
+         ($1, 'service_regions', 'gesprek', $2), ($1, 'growth_regions', 'gesprek', $2), ($1, 'pronoun_preference', 'consultant', $2)`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Terugvultest', 'https://terugvul.nl', 'rijlessen', 'gereed')`,
+        [analyse, userId, merk],
+      );
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, version, is_current) values ($1, $2, 'Rijlessen', 'article', 'ready', 1, true)`,
+        [pagina, analyse],
+      );
+      const knoop = randomUUID();
+      await db.client.query(
+        `insert into public.profile_offerings (id, profile_id, kind, name, description, price_indication, evidence_url, evidence_quote, confidence, source, sort_order)
+         values ($1, $2, 'dienst', 'Rijlessen', 'Lessen in een Golf.', '€ 55', 'https://terugvul.nl/les', 'Een rijles kost € 55', 0.9, 'ai', 1)`,
+        [knoop, merk],
+      );
+      const feit = randomUUID();
+      await db.client.query(
+        `insert into public.brand_facts (id, profile_id, text, source, source_url, kind, fact_key, soort, geldt_voor, stand, bewijskracht)
+         values ($1, $2, 'Een rijles duurt 60 minuten.', 'site /les', 'https://terugvul.nl/les', 'site', 'duurt minuten rijle', 'termijn', 'rijlessen', 'site', 'gewoon')`,
+        [feit, merk],
+      );
+      await db.client.query(
+        `insert into public.profile_facets (profile_id, facet, summary, raw_json, engine, cost_usd, researched_at)
+         values ($1, 'synthese', 's', $2, 'test', 0, now())`,
+        [merk, JSON.stringify({ output_parsed: { facts: [{ text: "Een rijles duurt 60 minuten.", quote: "Elke les duurt 60 minuten", sourceUrl: "https://terugvul.nl/les" }] } })],
+      );
+      await db.client.query(
+        `insert into public.fact_requests (profile_id, analysis_id, question, reason, answer, status, scope, content_piece_ids, open_vraag, answered_at)
+         values ($1, null, 'Hoe lang duurt een les?', 'r', 'Een uur', 'beantwoord', 'merk', '{}', false, now()),
+                ($1, $2, 'Wat wil je zelf vertellen?', 'r', 'Onze eerste leerling slaagde in één keer.', 'beantwoord', 'pagina', $3, true, now())`,
+        [merk, analyse, [pagina, weg]],
+      );
+
+      const leesMerk = async () => {
+        const { rows } = await db.client.query(`select * from (${EXPORT_SQL.replace(/;\s*$/, "")}) x where (x.merk->'profiel'->>'id') = $1`, [merk]);
+        return rows[0].merk;
+      };
+      const bron = await leesMerk();
+      const plan = maakTerugvulplan(bron);
+      eqc("scenario 20: elke oude rij is een item of een bewuste uitsluiting", dekking(bron, plan).join(", "), "");
+      const om = zetOm(plan, randomUUID, new Map(Object.entries(bron.bestaandeSleutels ?? {})));
+      eqc("scenario 20: alles haalt de regels van legVast()", om.geweigerd.map((g) => g.ref).join(", "), "");
+      const eerste = await db.client.query(INSERT_SQL, [JSON.stringify(om.rijen)]);
+      eqc("scenario 20: de database neemt elke rij aan", String(eerste.rowCount), String(om.rijen.length));
+
+      const { rows: feitRij } = await db.client.query(
+        "select status, citaat, geldt_voor from public.klantkennis where herkomst_tabel = 'brand_facts' and herkomst_id = $1",
+        [feit],
+      );
+      const { rows: knoopRij } = await db.client.query(
+        "select id from public.klantkennis where herkomst_tabel = 'profile_offerings' and herkomst_id = $1 and soort = 'dienst'",
+        [knoop],
+      );
+      eqc("scenario 20: het sitefeit is waargenomen, met het citaat uit de samenvatting", `${feitRij[0]?.status}/${feitRij[0]?.citaat}`, "waargenomen/Elke les duurt 60 minuten");
+      eqc("scenario 20: en geldt voor de dienst Rijlessen", (feitRij[0]?.geldt_voor ?? []).join(","), knoopRij[0]?.id ?? "?");
+      const { rows: verhaal } = await db.client.query(
+        "select content_piece_id from public.klantkennis where profile_id = $1 and domein = 'verhaal' and herkomst_tabel = 'fact_requests'",
+        [merk],
+      );
+      eqc("scenario 20: het verhaal hangt alleen aan de pagina die nog bestaat", verhaal.map((r) => r.content_piece_id).join(","), pagina);
+      ok("scenario 20: en de verdwenen pagina staat op de lijst voor de consultant", plan.voorConsultant.some((c) => c.reden.includes("niet meer bestaan")));
+      const { rows: kopie } = await db.client.query(
+        "select count(*)::int as n from public.klantkennis where profile_id = $1 and bewering like 'Hoe lang duurt een les? Een uur%' and herkomst_tabel = 'profiles'",
+        [merk],
+      );
+      eqc("scenario 20: de kopie van het antwoord in proof_points gaat niet dubbel mee", String(kopie[0].n), "0");
+      const { rows: vp } = await db.client.query(
+        "select status, gebruik from public.klantkennis where profile_id = $1 and soort = 'waardepropositie'",
+        [merk],
+      );
+      eqc("scenario 20: een waardepropositie van het model wordt geen paginatekst", vp.map((r) => `${r.status}/${r.gebruik}`).join(","), "afgeleid/intern");
+
+      const tweedeBron = await leesMerk();
+      const tweede = zetOm(maakTerugvulplan(tweedeBron), randomUUID, new Map(Object.entries(tweedeBron.bestaandeSleutels ?? {})));
+      eqc("scenario 20: een tweede run heeft niets nieuws", String(tweede.rijen.length), "0");
+      const nogmaals = await db.client.query(INSERT_SQL, [JSON.stringify(om.rijen.map((r) => ({ ...r, id: randomUUID() })))]);
+      eqc("scenario 20: en ook dezelfde rijen nog eens schrijven doet niets", String(nogmaals.rowCount), "0");
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

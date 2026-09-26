@@ -182,6 +182,8 @@ Vul de kolom "Besluit" in (met datum) in werkpakket F0.3.
 | V12 | Krijgt een kennisitem een eigen veld voor bewijskracht (sterk, gewoon, geen)? | **Ja.** De schrijver zet nu de sterkste feiten eerst (`kiesFeiten()`); zonder dit veld gaat die volgorde verloren in K6 | K1, K6 || **Ja, een eigen veld naast de status**, zoals geadviseerd (26 september 2026) |
 | V13 | Hoe leggen we vast dat kennis alleen voor één onderwerp of één pagina geldt? | **Twee eigen verwijzingen**, naar het cluster (`analysis_id`) en naar de pagina (`content_piece_id`), naast `geldt_voor`. De database controleert dan dat ze bestaan | K1, K5 || **Twee eigen verwijzingen**, zoals geadviseerd (26 september 2026) |
 | V14 | Hoe gaat de kennislaag om met een botsing (twee waarden voor hetzelfde)? Het feitenregister laat een model oordelen | **De code herkent de botsing (`vindKandidaten()`) en zet hem op de bestaande conflictlijst, met een eigen verwijzing naar de kennis (`fact_conflicts.kennis_ids`).** Beide items blijven staan; de consultant beslist op het kennisoverzicht (K7). Geen AI-aanroep (§4 regel 1) | K2, K7 || **Herkennen en bewaren**, zoals geadviseerd (26 september 2026) |
+| V15 | Hoe draait het terugvullen (K3) op productie, als de werkomgeving de sleutel van de productiedatabase niet heeft? | **Het script maakt de lijst met dezelfde regels als `legVast()` (geldigheid, status per actor, ontdubbelsleutel) en schrijft een bestand; dat bestand gaat via de databaseverbinding van de beheertool naar productie, waar de check-constraints alles nog eens toetsen.** Met de sleutel in de omgeving schrijft hetzelfde script rechtstreeks via `legVast()` | K3 || **Via de databaseverbinding**, zoals geadviseerd (26 september 2026). Geen geheime sleutel buiten Vercel |
+| V16 | Wat gebeurt er met een feit waarvan de code niet kan vaststellen voor welke dienst het geldt (11 van de 24 op 26 september 2026)? | **Voorlopig merkbreed, met de oude tekst in `ruw`, en op de lijst voor de consultant.** K6 zet de schrijver pas over als die lijst leeg is, zodat een prijs niet stil op een pagina over iets anders belandt | K3, K6 || **Merkbreed, op een lijst**, zoals geadviseerd (26 september 2026) |
 
 ---
 
@@ -444,6 +446,8 @@ Per werkpakket: **doel**, **wat**, **niet**, **klaar als**. De nummers zijn vast
   harde beweringen komen uit dezelfde set. Eerst als besluit in `contentketen-opnieuw.md` §2, en
   `lib/kennis/` erbij op de importlijst van §7.3 daar.
 - **Niet:** de schrijfopdracht veranderen.
+- **Voorwaarde (besluit V16):** de lijst voor de consultant uit K3 met feiten zonder gekoppelde dienst is
+  leeg.
 - **Klaar als:** een ketentest laat zien dat een afgeleid item niet bij de schrijver komt en een
   verklaard item wel; de vier pagina's van WP9 ronde 2 opnieuw geschreven op productie en paarsgewijs
   vergeleken met de vorige versie (de verbeterlus van de contentketen). Kosten per pagina gelijk of
@@ -780,7 +784,7 @@ per pagina opnieuw.
 | F0.3 | Besluiten V1 tot en met V8 | 1 | Gedaan: zes volgens advies, V5 en V6 anders (zie §3.2); B18 en B19 in `contentketen-opnieuw.md` | 26 september 2026 |
 | K1 | Datamodel en regels van de kennislaag | 1 | Gedaan: migratie 0116 op productie (tabel leeg, RLS aan, vier regels als check-constraint en op productie nagelopen), `lib/kennis/regels.ts`, 55 eenheidstests. Besluiten V11 tot en met V13 | 26 september 2026 |
 | K2 | Eén schrijfingang | 1 | Gedaan: `lib/kennis/vastleggen.ts` (`legVast`, `bevestig`, `wijsAf`, `vervang`) en `samenvoegen.ts`; migratie 0117 op productie (afwijzen, een model-item mag door een mens bevestigd worden, botsingen op de conflictlijst, V14); de twee bewakingstests en ketenscenario 19 | 26 september 2026 |
-| K3 | Terugvullen uit wat er al staat | 1 | Open | |
+| K3 | Terugvullen uit wat er al staat | 1 | Bijna gedaan: `lib/kennis/terugvullen.ts` en `scripts/kennis-terugvullen.ts`, ketenscenario 20. Plan voor productie: 435 items (Pompert 141, Wesley Keeris 158, Verstraaten 136), elke oude rij gedekt, 20 punten in `kennislaag-open-punten.md`. Wacht op het wegschrijven (V15) en de controle op productie | 26 september 2026 |
 | K4 | Het onderzoek schrijft in de kennislaag | 2 | Open | |
 | K5 | Gesprek en antwoorden schrijven in de kennislaag | 1 | Open | |
 | K6 | Blok A leest uit de kennislaag | 1 | Open | |

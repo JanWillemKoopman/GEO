@@ -169,6 +169,7 @@ async function bouwRij(
 
   const sleutel = kennisSleutel({
     domein: item.domein,
+    soort: item.soort ?? null,
     bewering: item.bewering,
     analysis_id: item.analysisId ?? null,
     content_piece_id: item.contentPieceId ?? null,

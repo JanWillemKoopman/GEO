@@ -33,21 +33,28 @@ export interface SamenvoegItem {
 }
 
 /**
- * De ontdubbelsleutel: domein, reikwijdte en de kern van de bewering.
+ * De ontdubbelsleutel: domein, soort, reikwijdte en de kern van de bewering.
+ *
+ * De soort zit erin omdat "Eindhoven" als werkgebied iets anders zegt dan
+ * "Eindhoven" als groeiregio (gevonden bij het terugvullen, K3): zonder soort
+ * zou de tweede stil in de eerste opgaan.
  *
  * De reikwijdte zit erin omdat hetzelfde zinnetje voor één pagina iets anders
  * is dan voor het hele merk: het verhaal bij de open vraag van pagina A mag niet
  * samenvallen met een merkbreed item, anders wordt het stil merkbreed (V13).
  *
- * Leeg als de bewering geen woorden van meer dan twee letters heeft: dan valt er
- * niets te ontdubbelen, en een lege sleutel zou alles samenvoegen.
+ * Heeft de bewering geen woorden van meer dan twee letters ("je", "RT", "€ 45"),
+ * dan is de letterlijke tekst de kern, met een "=" ervoor. Zonder sleutel zou
+ * elke run van het terugvullen zo'n item opnieuw vastleggen (conventie 9).
+ * Alleen een lege bewering heeft geen sleutel.
  */
 export function kennisSleutel(
-  item: Pick<SamenvoegItem, "domein" | "bewering" | "analysis_id" | "content_piece_id">,
+  item: Pick<SamenvoegItem, "domein" | "bewering" | "analysis_id" | "content_piece_id"> & { soort?: string | null },
 ): string | null {
-  const kern = claimKey(item.bewering);
+  const letterlijk = item.bewering.toLowerCase().replace(/\s+/g, " ").trim();
+  const kern = claimKey(item.bewering) || (letterlijk ? `=${letterlijk}` : "");
   if (!kern) return null;
-  return [item.domein, item.analysis_id ?? "", item.content_piece_id ?? "", kern].join("|");
+  return [item.domein, (item.soort ?? "").trim().toLowerCase(), item.analysis_id ?? "", item.content_piece_id ?? "", kern].join("|");
 }
 
 function isFeitSoort(soort: string | null): soort is FeitSoort {

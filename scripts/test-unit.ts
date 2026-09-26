@@ -30,6 +30,15 @@ import {
   type KennisRegelItem,
 } from "@/lib/kennis/regels";
 import { kennisSleutel, botsingenMet, geldigheid, type SamenvoegItem } from "@/lib/kennis/samenvoegen";
+import {
+  maakTerugvulplan,
+  dekking,
+  zetOm,
+  koppelAanAanbod,
+  veldStatus,
+  ouderEerst,
+  type BronMerk,
+} from "@/lib/kennis/terugvullen";
 import { binomialStderr, weightedScoreStderr, confidenceBand, changeIsMeaningful, bandInAntwoorden, Z95 } from "@/lib/stats/uncertainty";
 import {
   normalizeEntityName,
@@ -21612,7 +21621,9 @@ group("de kennislaag: ontdubbelen en botsingen (K2)", () => {
   );
   ok("een verhaal voor één pagina valt niet samen met hetzelfde merkbreed (V13)", kennisSleutel(item({})) !== kennisSleutel(item({ content_piece_id: "p1" })));
   ok("ander domein, andere sleutel", kennisSleutel(item({})) !== kennisSleutel(item({ domein: "bewijs" })));
-  eq("een bewering zonder woorden heeft geen sleutel", String(kennisSleutel(item({ bewering: "€ 45" }))), "null");
+  ok("andere soort, andere sleutel: werkgebied is geen groeiregio (K3)", kennisSleutel({ ...item({ bewering: "Eindhoven en omstreken" }), soort: "werkgebied" }) !== kennisSleutel({ ...item({ bewering: "Eindhoven en omstreken" }), soort: "groeiregio" }));
+  eq("een korte bewering krijgt de letterlijke tekst als sleutel", String(kennisSleutel(item({ bewering: " Je " }))), "aanbod|prijs|||=je");
+  eq("alleen een lege bewering heeft geen sleutel", String(kennisSleutel(item({ bewering: "  " }))), "null");
   eq("de volgorde van geldt_voor maakt niet uit", String(geldigheid(item({ geldt_voor: ["x", "y"] })) === geldigheid(item({ geldt_voor: ["y", "x"] }))), "true");
 
   const nieuw = item({ id: "n", bewering: "Een proefles kost € 50.", waarde: { min: 50, max: 50, eenheid: "EUR" } });
@@ -21649,5 +21660,119 @@ group("de kennislaag: afwijzen (K2, migratie 0117)", () => {
   ] as const) {
     ok(`${naam} ziet alleen conflicten tussen feiten`, leesBestand(pad).includes('.is("kennis_ids", null)'));
   }
+});
+
+// ── K3: het terugvullen ─────────────────────────────────────────────────────
+
+function proefmerk(): BronMerk {
+  const leeg = {
+    brand_name: "Rijschool Test", aliases: ["RT"], name_exclusions: [], industry: "Rijschool", business_model: "dienstverlener",
+    summary: "Een rijschool.", intake_description: null, intake_audience: null, market_language: "nl-NL", service_scope: "lokaal",
+    service_regions: ["Eindhoven"], wikidata_id: null, wikipedia_url: null, products: ["Rijlessen", "Theorie-examen"],
+    priority_offerings: ["Rijlessen"], deprioritised_offerings: [], deal_value_band: "midden", seasonality: "Drukker in de zomer.",
+    goal_12m: "Bekend worden in Eindhoven.", growth_regions: ["Eindhoven"], personas: [{ name: "Scholier", description: "17 jaar" }],
+    target_segments: [], sales_objections: ["Te duur"], competitors: ["Rijschool Snel"], value_props: ["Persoonlijk"],
+    differentiator: null, offline_proof: [], proof_points: ["Hoeveel leerlingen slagen er? 80 procent", "Al 20 jaar actief"],
+    verhalen: "We begonnen in 2004.", stem_voorbeelden: [{ url: "https://rt.nl/over", tekst: "Bij ons leer je rijden." }, { url: "https://rt.nl/x", tekst: null }],
+    pronoun_preference: "je", taboo_phrases: ["goedkoop"], forbidden_topics: [], respect_site_structure: true,
+  };
+  return {
+    profiel: { id: "p1", url: "https://rt.nl", ...leeg },
+    veldHerkomst: [
+      { field: "aliases", source: "gesprek", not_applicable: false },
+      { field: "sales_objections", source: "gesprek", not_applicable: false },
+      { field: "taboo_phrases", source: "gesprek", not_applicable: false },
+      { field: "verhalen", source: "gesprek", not_applicable: false },
+      { field: "growth_regions", source: "gesprek", not_applicable: false },
+      { field: "service_regions", source: "gesprek", not_applicable: false },
+      { field: "pronoun_preference", source: "consultant", not_applicable: false },
+      { field: "seasonality", source: "gesprek", not_applicable: true },
+    ],
+    feiten: [
+      { id: "f1", analysis_id: null, text: "Een intake kost € 50.", source_url: "https://rt.nl/prijzen", kind: "site", allowed: true, superseded_by: null, soort: "prijs", waarde: { min: 50, eenheid: "EUR" }, geldt_voor: "rijlessen", stand: "site", bewijskracht: "gewoon" },
+      { id: "f2", analysis_id: null, text: "Het basispakket omvat 40 uur.", source_url: "https://rt.nl/prijzen", kind: "site", allowed: true, superseded_by: null, soort: "cijfer", waarde: null, geldt_voor: "basispakket", stand: "site", bewijskracht: "sterk" },
+      { id: "f3", analysis_id: null, text: "Oud feit.", source_url: null, kind: "site", allowed: true, superseded_by: "f1", soort: null, waarde: null, geldt_voor: null, stand: "site", bewijskracht: null },
+      { id: "f4", analysis_id: null, text: "Een feit zonder citaat.", source_url: null, kind: "site", allowed: true, superseded_by: null, soort: "overig", waarde: null, geldt_voor: null, stand: "site", bewijskracht: null },
+    ],
+    aanbod: [
+      { id: "o2", parent_id: "o1", kind: "dienst", name: "Proefles", description: "Een eerste les.", audience: "beginners", price_indication: "€ 45", evidence_url: "https://rt.nl/proefles", evidence_quote: "Een proefles voor beginners kost € 45", source: "ai", note: null, removed_at: null },
+      { id: "o1", parent_id: null, kind: "categorie", name: "Rijlessen", description: null, audience: null, price_indication: null, evidence_url: "https://rt.nl", evidence_quote: "Rijlessen", source: "ai", note: null, removed_at: null },
+      { id: "o3", parent_id: "o1", kind: "dienst", name: "Theorie", description: null, audience: null, price_indication: "€ 99", evidence_url: "https://rt.nl/t", evidence_quote: "Theorie", source: "consultant", note: null, removed_at: null },
+      { id: "o4", parent_id: null, kind: "dienst", name: "Oud", description: null, audience: null, price_indication: null, evidence_url: "https://rt.nl/o", evidence_quote: "Oud", source: "ai", note: null, removed_at: "2026-09-01" },
+    ],
+    vragen: [
+      { id: "v1", analysis_id: null, question: "Hoeveel leerlingen slagen er?", answer: "80 procent", status: "beantwoord", scope: "merk", content_piece_ids: [], open_vraag: false, raw_json: { bron: "synthese-gap" } },
+      { id: "v2", analysis_id: "a1", question: "Wat wil je zelf vertellen?", answer: "Onze eerste leerling...", status: "beantwoord", scope: "pagina", content_piece_ids: ["c1", "c2"], open_vraag: true, raw_json: null },
+      { id: "v3", analysis_id: "a1", question: "Open vraag?", answer: null, status: "open", scope: "analyse", content_piece_ids: [], open_vraag: false, raw_json: null },
+      { id: "v4", analysis_id: "a1", question: "Beschrijf een les.", answer: "We rijden eerst op een parkeerplaats.", status: "beantwoord", scope: "analyse", content_piece_ids: ["c1"], open_vraag: false, raw_json: { bron: "pagina_brief", soort: "praktijk" } },
+    ],
+    strategie: { profile_id: "p1", strategy_notes: "Focus op Eindhoven.", context_factors: [] },
+    facetten: [
+      { id: "s1", facet: "synthese", raw_json: { output_parsed: { facts: [{ text: "Een intake kost € 50.", quote: "Intake € 50", sourceUrl: "https://rt.nl/prijzen" }, { text: "Het basispakket omvat 40 uur.", quote: "Basispakket 40 uur", sourceUrl: "https://rt.nl/prijzen" }] } } },
+      { id: "m1", facet: "markt", raw_json: { output_parsed: { positioning: "Een persoonlijke rijschool.", competitors: [{ name: "Rijschool Snel", why: "Goedkoper.", evidenceUrl: "https://snel.nl" }] } } },
+      { id: "t1", facet: "techniek", raw_json: { facts: [{ key: "telefoon", value: "040 123" }, { key: "naam", value: "Home" }] } },
+    ],
+  };
+}
+
+group("het terugvullen: het plan (K3)", () => {
+  const merk = proefmerk();
+  const plan = maakTerugvulplan(merk);
+  const item = (ref: string) => plan.items.find((i) => i.ref === ref);
+  const uit = (ref: string) => plan.uitsluitingen.find((u) => u.ref === ref);
+  eq("elke oude rij is een item of een bewuste uitsluiting", dekking(merk, plan).join(", "), "");
+  eq("een sitefeit met citaat wordt waargenomen", `${item("brand_facts:f1")?.status}/${item("brand_facts:f1")?.citaat}`, "waargenomen/Intake € 50");
+  eq("en geldt voor de dienst waar het bij hoort", (item("brand_facts:f1")?.geldtVoorRefs ?? []).join(","), "profile_offerings:o1");
+  eq("een feit dat aan geen dienst te koppelen is, wordt merkbreed (V16)", String(item("brand_facts:f2")?.geldtVoorRefs.length), "0");
+  ok("en staat op de lijst voor de consultant", plan.voorConsultant.some((c) => c.ref === "brand_facts:f2" && c.reden.includes("basispakket")));
+  ok("een vervangen feit gaat niet mee", Boolean(uit("brand_facts:f3")) && !item("brand_facts:f3"));
+  eq("een sitefeit zonder citaat wordt een vermoeden, intern", `${item("brand_facts:f4")?.status}/${item("brand_facts:f4")?.gebruik}`, "afgeleid/intern");
+  ok("en ook dat ziet de consultant", plan.voorConsultant.some((c) => c.ref === "brand_facts:f4"));
+  eq("een aanbodknoop van het model met citaat is waargenomen", item("profile_offerings:o2")?.status ?? "", "waargenomen");
+  eq("een knoop die een mens aanpaste is verklaard, zonder het citaat van het model", `${item("profile_offerings:o3")?.status}/${item("profile_offerings:o3")?.citaat}`, "verklaard/null");
+  eq("een kind wijst naar zijn ouder", (item("profile_offerings:o2")?.geldtVoorRefs ?? []).join(","), "profile_offerings:o1");
+  ok("ouders staan voor kinderen in het plan", plan.items.findIndex((i) => i.ref === "profile_offerings:o1") < plan.items.findIndex((i) => i.ref === "profile_offerings:o2"));
+  eq("een prijs die in het citaat staat, is gezien", item("profile_offerings:o2:price_indication")?.status ?? "", "waargenomen");
+  eq("een doelgroep die in het citaat staat, is gezien", item("profile_offerings:o2:audience")?.status ?? "", "waargenomen");
+  ok("een weggehaalde knoop gaat niet mee", Boolean(uit("profile_offerings:o4")));
+  eq("een antwoord van de ondernemer wordt verklaard, met de vraag erbij", `${item("fact_requests:v1")?.status}/${item("fact_requests:v1")?.bewering}`, "verklaard/Hoeveel leerlingen slagen er?\n80 procent");
+  eq("de open vraag wordt een verhaal per pagina (V13)", plan.items.filter((i) => i.ref.startsWith("fact_requests:v2:")).map((i) => `${i.domein}:${i.contentPieceId}`).join(","), "verhaal:c1,verhaal:c2");
+  eq("een praktijkvoorbeeld uit het rapport geldt voor het cluster", `${item("fact_requests:v4")?.domein}/${item("fact_requests:v4")?.analysisId}`, "verhaal/a1");
+  ok("een open vraag zonder antwoord gaat niet mee", !plan.items.some((i) => i.ref.startsWith("fact_requests:v3")));
+  ok("een bewijspunt dat een kopie van een antwoord is, gaat niet mee", Boolean(uit("profiles:p1:proof_points:0")));
+  eq("een bewijspunt van het onderzoek wordt een vermoeden", item("profiles:p1:proof_points:1")?.status ?? "", "afgeleid");
+  eq("een verboden woord uit het gesprek is verklaard en verboden", `${item("profiles:p1:taboo_phrases:0")?.status}/${item("profiles:p1:taboo_phrases:0")?.gebruik}`, "verklaard/verboden");
+  eq("waardeproposities van het model zijn intern (inventaris §3 punt 5)", `${item("profiles:p1:value_props:0")?.status}/${item("profiles:p1:value_props:0")?.gebruik}`, "afgeleid/intern");
+  ok("'niet van toepassing' wordt een uitsluiting", Boolean(uit("profiles:p1:seasonality")));
+  ok("een product dat al een knoop is, gaat niet dubbel mee", Boolean(uit("profiles:p1:products:0")) && Boolean(item("profiles:p1:products:1")));
+  eq("een stemvoorbeeld met tekst is waargenomen, met het adres", `${item("profiles:p1:stem_voorbeelden:0")?.status}/${item("profiles:p1:stem_voorbeelden:0")?.bronUrl}`, "waargenomen/https://rt.nl/over");
+  ok("een stemvoorbeeld zonder tekst wordt uitgesloten", Boolean(uit("profiles:p1:stem_voorbeelden:1")));
+  eq("de positie uit het marktonderzoek is een vermoeden", item("profile_facets:m1:positioning")?.status ?? "", "afgeleid");
+  eq("een telefoonnummer uit de HTML is gezien", item("profile_facets:t1:facts:0")?.status ?? "", "waargenomen");
+  ok("een paginanaam uit de HTML is geen klantkennis", !plan.items.some((i) => i.ref === "profile_facets:t1:facts:1"));
+  eq("de aantekeningen van het gesprek zijn verklaard", item("profile_strategy:p1:strategy_notes")?.status ?? "", "verklaard");
+});
+
+group("het terugvullen: omzetten met de regels van legVast (K3)", () => {
+  const merk = proefmerk();
+  const plan = maakTerugvulplan(merk);
+  let n = 0;
+  const id = () => `00000000-0000-0000-0000-${String(++n).padStart(12, "0")}`;
+  const om = zetOm(plan, id);
+  eq("geen enkel item haalt de regels niet", om.geweigerd.map((g) => `${g.ref}: ${g.fouten.join(" ")}`).join(" | "), "");
+  ok("geen enkele rij is afgeleid en content", !om.rijen.some((r) => r.status === "afgeleid" && r.gebruik === "content"));
+  ok("elke waargenomen rij heeft een citaat en een adres", om.rijen.filter((r) => r.status === "waargenomen").every((r) => r.citaat && r.bron_url));
+  ok("de code legt niets als bevestigd vast", !om.rijen.some((r) => r.status === "bevestigd"));
+  ok("elke rij heeft herkomst", om.rijen.every((r) => r.herkomst_tabel && r.herkomst_id));
+  const proefles = om.rijen.find((r) => r.herkomst_id === "o2" && r.soort === "dienst");
+  const rijlessen = om.rijen.find((r) => r.herkomst_id === "o1");
+  eq("geldt_voor wijst naar het id van de ouder", (proefles?.geldt_voor ?? []).join(","), rijlessen?.id ?? "?");
+  ok("werkgebied en groeiregio Eindhoven zijn twee rijen", om.rijen.filter((r) => r.bewering === "Eindhoven").length === 2);
+  const tweede = zetOm(maakTerugvulplan(merk), id, new Map(om.rijen.filter((r) => r.sleutel).map((r) => [r.sleutel!, r.id])));
+  eq("een tweede run schrijft niets nieuws (conventie 9)", String(tweede.rijen.length), "0");
+  eq("koppelen op naam: bevat", koppelAanAanbod("proefles", merk.aanbod).join(","), "o2");
+  eq("koppelen negeert weggehaalde knopen", koppelAanAanbod("oud", merk.aanbod).join(","), "");
+  eq("een veld zonder herkomst is afgeleid", veldStatus([], "summary").status, "afgeleid");
+  eq("ouders eerst, ook als de invoer andersom staat", ouderEerst([{ id: "k", parent_id: "o" }, { id: "o", parent_id: null }]).map((r) => r.id).join(","), "o,k");
 });
 
