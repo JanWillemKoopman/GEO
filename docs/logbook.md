@@ -12654,3 +12654,15 @@ door de controle, zonder hergebruikt voorbeeld, zonder FAQ-antwoord uit het niet
 verboden woord. "Vraag een aanpassing" is op productie nagemeten: een nieuwe versie met de wens erin
 voor $0,028, zonder nieuwe beoordeling. De negen teksten voor de copywriter zijn bewust niet opnieuw
 geschreven: die blijven de uitslag van versie 1.
+
+Tweede verbeterronde (zelfde dag, WP9), na het oordeel van een onafhankelijke copywriter: 9 van de 9
+teksten "met kleine wijzigingen", gemiddeld 8,6. De zwakte die overal terugkwam was algemene kennis die
+als bedrijfskennis in de tekst stond (een vuistregel, een wettelijke termijn, een plantkeuze). Opgelost
+in de invoer en de opdracht, zonder nieuwe stap (B15): de schrijver ziet nu welk deel bedrijfskennis is
+en welk deel algemene kennis, en mag algemene kennis alleen als algemene uitleg schrijven; de bestaande
+controle telt het anders als verzonnen; de brief vraagt hoe het bedrijf iets doet als dat per bedrijf
+verschilt. Bewust niets per pagina bijgestuurd. Vier pagina's opnieuw geschreven voor $0,29: iets
+betrouwbaarder (de KLIC-melding en de leeftijdsregels staan er nu als algemene regel, het verzonnen
+"ja, je mag zelf planten" is weg, de metabeschrijving van de installateur noemt nu de voorwaarden bij
+de prijs) en even natuurlijk, maar geen grote sprong. De proefset is daarmee uitgeput als meetlat: de
+volgende verbeteringen komen uit wat een echte klant verandert vóór het goedkeuren (WP9, WP10).
