@@ -12646,3 +12646,11 @@ pagina's terug, en "gratis" staat bij de installateur in de tekst omdat het niet
 stond (het ontbrak in het gespreksbestand), terwijl het dossier het alleen bij de offerte toestaat. Het oordeel over de kwaliteit komt van een onafhankelijke
 copywriter; de teksten en opdrachten staan in
 `docs/tasks/kwaliteitsdoorlichting/contentketen-proef/teksten-voor-copywriter.md`.
+
+Eerste verbeterronde (zelfde dag, WP9): schrijfopdracht en brief naar versie 2, en de verboden woorden
+van het merk kregen een vangnet in code (besluit B16), omdat een mechanische regel volgens conventie 1
+niet alleen op de belofte van het model mag rusten. Twee extra pagina's op productie gingen direct
+door de controle, zonder hergebruikt voorbeeld, zonder FAQ-antwoord uit het niets, en zonder het
+verboden woord. "Vraag een aanpassing" is op productie nagemeten: een nieuwe versie met de wens erin
+voor $0,028, zonder nieuwe beoordeling. De negen teksten voor de copywriter zijn bewust niet opnieuw
+geschreven: die blijven de uitslag van versie 1.

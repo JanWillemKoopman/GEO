@@ -80,3 +80,22 @@ of nergens. Alles hieronder is verzonnen, net als het gespreksdeel van het dossi
 - Werkgebied voor hybride: Geldrop, Mierlo, Nuenen, Eindhoven, Heeze-Leende; overal dezelfde aanpak en
   prijzen.
 - Wijst bij subsidie naar waar het actuele bedrag te vinden is, zonder zelf een bedrag te noemen.
+
+### Aanvulling voor de twee pagina's van WP9 (26 september 2026)
+
+- B: Heeze-Leende ligt een kwartier van Geldrop; veel vrijstaande huizen en twee-onder-een-kappers uit
+  de jaren 70 en 80. Een adviesbezoek kan meestal binnen een week, de installatie twee tot vier weken
+  later; van oktober tot februari kan het iets langer duren. Onderhoudscontracten voor cv-ketels,
+  hybride warmtepompen en de combinatie. Alleen het verzwaren van de hele aansluiting doet de
+  netbeheerder. Voorbeeld: twee-onder-een-kapwoning in Leende uit 1978, spouwmuur geïsoleerd, ketel van
+  11 jaar bleef hangen, Nefit EnviLine, buitenunit op de zijgevel, extra groep in de meterkast.
+- C: Son en Breugel heeft rustige woonwijken. Voorbeeld: een jongen van 17 uit Son; eerste les op de
+  parkeerplaats bij het sportpark, drie lessen in Son, bij de vierde zelf naar de rotonde bij de
+  A50-afslag.
+- Het verboden woord "gratis (behalve bij de offerte)" van de installateur staat sinds 26 september 2026
+  ook in zijn profiel; het ontbrak in het gespreksbestand.
+
+## Uitkomst
+
+Zie §12 van `docs/tasks/contentketen-opnieuw.md` (WP8 tot en met WP10) en `docs/logbook.md`,
+26 september 2026. De negen teksten voor de copywriter: `teksten-voor-copywriter.md`.
