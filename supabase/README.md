@@ -708,3 +708,16 @@ item dat een model voorstelde wel bevestigen (de tabel was leeg, dus geen rij ve
 betekenis). `fact_conflicts.kennis_ids`: een botsing tussen twee kennisitems (besluit V14); de oude
 lezers kijken alleen naar rijen zonder `kennis_ids`. Additief; het vervangen van de constraint
 verwijdert geen data. Op productie toegepast op 26 september 2026.
+
+## 0118 — Kansen als eigen object
+
+Maakt `kansen` (één kans per te nemen actie: titel, lezer, handeling, het cluster als `analysis_id`,
+commerciële waarde, potentie, kennisgat, status en de uitleg) en `kans_bewijs` (één rij per bron per
+kans: ChatGPT, AI Overview, Gemini, Search Console, de consultant of een dienst zonder pagina, met
+getypte kolommen waarin leeg "geen gegevens" betekent en geen nul). Check-constraints voor de vaste
+waarden, een verbetering eist een adres, genoemd kan niet vaker dan gemeten. Leesbaar voor wie het merk
+mag zien (`readable_profile_ids()`, want het kansenscherm N7 is voor de klant); schrijven alleen met de
+service-role key. Nog niemand schrijft of leest erin (dat is N2 en N7). Volgorde en uitleg:
+`lib/kansen/prioriteit.ts`. Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` N1 en §6.2. Additief
+en idempotent. Op productie toegepast op 26 september 2026; de regels daar nagelopen met proefrijen die
+daarna weer weg zijn.
