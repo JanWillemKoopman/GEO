@@ -586,6 +586,18 @@ Per werkpakket: **doel**, **wat**, **niet**, **klaar als**. De nummers zijn vast
   praktijk, voor wie niet), in code, als uitgangspunt.
 - **Niet:** een model dat bepaalt wat er ontbreekt.
 - **Klaar als:** eenheidstests; op een proefmerk ziet de consultant bij elke kans wat er ontbreekt.
+- **Bijgesteld bij het bouwen (26 september 2026):**
+  - *Bekend is wat op de pagina mag* (`magInBlokA()`, dezelfde regel als blok A in K6); een vermoeden van
+    het model telt als ontbrekend, met de stand "afgeleid", zodat A1 er een bevestigingsvraag van kan maken.
+  - *De lijst per soort pagina:* een dienstpagina heeft werkwijze, prijsindicatie, termijn, een voorbeeld uit
+    de praktijk, voor wie het niet is en bewijs nodig; een vergelijking werkwijze, prijs, voor wie niet en
+    bewijs; een artikel of veelgestelde vragen werkwijze, voorbeeld en bewijs. "Voor wie het niet is" bestaat
+    nog bij geen enkel merk als kennis, en staat dus overal als ontbrekend.
+  - *Alle versies van een pagina* (zelfde cluster en titel) tellen mee voor kennis die voor één pagina
+    geldt. Dat lost voor het kennisgat de notitie "Gevonden in K5" bij K6 op; K6 kan dezelfde koppeling
+    gebruiken (`werkKennisgatBij()` in `lib/kansen/uit-rapport.ts`).
+  - *Waar de consultant het ziet:* op de kaarten van het plan, onder de titel van een geplande pagina en in
+    de uitgeklapte voorraadkaart. Alleen voor de consultant: vragen stellen is zijn werk (V6).
 
 #### N7 Het kansenscherm
 - **Doel:** de voorraad van het plan wordt een lijst kansen met hun onderbouwing.
@@ -856,7 +868,7 @@ per pagina opnieuw.
 | N3 | Search Console als kansbron | 1 | Open, wacht op een merk met Search Console | |
 | N4 | Citaties als bewijs | 1 | Open | |
 | N5 | De handmatige kans | 1 | Open | |
-| N6 | Het kennisgat per kans | 1 | Open | |
+| N6 | Het kennisgat per kans | 1 | Gebouwd: `lib/kansen/kennisgat.ts` (vaste lijst per soort pagina, per behoefte bekend, afgeleid of onbekend, zonder model) en `werkKennisgatBij()` (alle versies van een pagina, bij elke synchronisatie en na het rapport). Het plan toont de consultant per kaart "Nog niet bekend: ...". Eenheidstests en ketenscenario 23 (een antwoord van de klant verkleint het gat, een vermoeden niet, een verhaal bij een oudere versie telt mee). **Nog na te lopen op productie** na de uitrol: het plan van een proefmerk openen en per kaart de zin nakijken | 26 september 2026 |
 | N7 | Het kansenscherm | 2 | Open | |
 | G1 | De gebeurtenissenlaag | 1 | Open | |
 | G2 | Afhankelijkheden vastleggen | 1 | Open | |

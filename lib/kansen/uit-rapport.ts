@@ -28,6 +28,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { alleRijen } from "@/lib/supabase/pagineer";
 import { uitlegVan } from "@/lib/kansen/prioriteit";
+import { kennisgatVan, type KennisVoorGat } from "@/lib/kansen/kennisgat";
 import {
   BEWIJS_REGEL,
   bewijsUitMetingen,
@@ -318,4 +319,98 @@ export async function werkPotentieBij(
       .eq("id", u.kansId);
     if (error) console.error(`Potentie van kans ${u.kansId} bijwerken mislukt: ${error.message}`);
   }
+}
+
+/**
+ * Het kennisgat van elke kans van dit merk opnieuw uitrekenen (N6) en
+ * wegschrijven waar het veranderde. De voorraad roept dit aan bij elke
+ * synchronisatie: een antwoord van de klant of een bevestiging van de
+ * consultant verandert het gat, en dan moet het plan dat tonen.
+ *
+ * De pagina's van een kans zijn álle versies (zelfde cluster en titel): een
+ * herschreven pagina krijgt een nieuw id, en het verhaal op de open vraag hangt
+ * aan de versie waarvoor het gegeven is (gevonden in K5). Gooit nooit.
+ */
+export async function werkKennisgatBij(admin: SupabaseClient, profileId: string): Promise<number> {
+  let bijgewerkt = 0;
+  try {
+    const { data: kansRows } = await admin
+      .from("kansen")
+      .select("id, analysis_id, geldt_voor, ruw, kennis_bekend, kennis_ontbreekt")
+      .eq("profile_id", profileId)
+      .neq("status", "vervallen");
+    const kansen = (kansRows ?? []) as {
+      id: string;
+      analysis_id: string | null;
+      geldt_voor: string[] | null;
+      ruw: { type?: unknown } | null;
+      kennis_bekend: string[] | null;
+      kennis_ontbreekt: string[] | null;
+    }[];
+    if (kansen.length === 0) return 0;
+
+    const { data: kaartRows } = await admin
+      .from("planned_pages")
+      .select("kans_id, content_piece_id")
+      .eq("profile_id", profileId)
+      .not("kans_id", "is", null)
+      .not("content_piece_id", "is", null);
+    const kaarten = (kaartRows ?? []) as { kans_id: string; content_piece_id: string }[];
+    const analyses = [...new Set(kansen.map((k) => k.analysis_id).filter((id): id is string => !!id))];
+    const { data: stukRows } = analyses.length
+      ? await admin.from("content_pieces").select("id, analysis_id, title").in("analysis_id", analyses)
+      : { data: [] };
+    const stukken = (stukRows ?? []) as { id: string; analysis_id: string; title: string }[];
+    const sleutelVan = new Map(stukken.map((s) => [s.id, `${s.analysis_id}\n${s.title}`]));
+    const versies = new Map<string, string[]>();
+    for (const s of stukken) {
+      const sleutel = `${s.analysis_id}\n${s.title}`;
+      versies.set(sleutel, [...(versies.get(sleutel) ?? []), s.id]);
+    }
+    const paginasVan = (kansId: string): string[] => [
+      ...new Set(
+        kaarten
+          .filter((k) => k.kans_id === kansId)
+          .flatMap((k) => versies.get(sleutelVan.get(k.content_piece_id) ?? "") ?? [k.content_piece_id]),
+      ),
+    ];
+
+    const kennis = await alleRijen<KennisVoorGat>((van, tot) =>
+      admin
+        .from("klantkennis")
+        .select(
+          "id, domein, soort, bewering, status, bron, gebruik, bron_url, citaat, bevestigd_door, bevestigd_op, vastgelegd_door, vastgelegd_door_taak, verloopt_op, vervangen_door, afgewezen_op, bewijskracht, geldt_voor, analysis_id, content_piece_id",
+        )
+        .eq("profile_id", profileId)
+        .is("vervangen_door", null)
+        .order("id")
+        .range(van, tot),
+    );
+
+    const nu = new Date();
+    const zelfde = (a: readonly string[] | null, b: readonly string[]) =>
+      a !== null && a.length === b.length && [...a].sort().every((x, i) => x === [...b].sort()[i]);
+    for (const k of kansen) {
+      const gat = kennisgatVan(
+        {
+          analysisId: k.analysis_id,
+          geldtVoor: k.geldt_voor ?? [],
+          paginaIds: paginasVan(k.id),
+          paginaSoort: typeof k.ruw?.type === "string" ? k.ruw.type : null,
+        },
+        kennis.map((i) => ({ ...i, geldt_voor: i.geldt_voor ?? [] })),
+        nu,
+      );
+      if (zelfde(k.kennis_bekend, gat.bekend) && zelfde(k.kennis_ontbreekt, gat.ontbreekt)) continue;
+      const { error } = await admin
+        .from("kansen")
+        .update({ kennis_bekend: gat.bekend, kennis_ontbreekt: gat.ontbreekt, updated_at: nu.toISOString() })
+        .eq("id", k.id);
+      if (error) console.error(`Kennisgat van kans ${k.id} bijwerken mislukt: ${error.message}`);
+      else bijgewerkt++;
+    }
+  } catch (err) {
+    console.error(`Kennisgaten van merk ${profileId} bijwerken mislukt:`, err);
+  }
+  return bijgewerkt;
 }

@@ -34,7 +34,7 @@ import { loadRecommendationPotential } from "@/lib/potential-data";
 import { distributePotentialByWeight } from "@/lib/potential";
 import { faseVoorPagina, type MerkFase } from "@/lib/plan-funnel";
 import { readRecommendations, type RecommendationTarget } from "@/lib/pipeline/recommendation";
-import { legKansenVast, werkPotentieBij } from "@/lib/kansen/uit-rapport";
+import { legKansenVast, werkKennisgatBij, werkPotentieBij } from "@/lib/kansen/uit-rapport";
 import { schoonAdres, tekst, type RuweAanbeveling } from "@/lib/kansen/rapport";
 import type { BacklogItem, BacklogHandeling, DeclinedItem } from "@/lib/plan-backlog";
 import type { PageType } from "@/lib/types/database";
@@ -384,6 +384,10 @@ export async function syncBacklog(
       })
       .eq("id", b.id);
   }
+
+  // N6: het kennisgat per kans, nu elke kaart naar zijn kans wijst. Een antwoord
+  // of een bevestiging sinds de vorige opening verandert het, en het plan toont het.
+  await werkKennisgatBij(admin, profileId);
 
   return { toegevoegd: nieuw.length, bijgewerkt: bijwerken.length, clusters: gezien.size };
 }

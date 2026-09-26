@@ -73,7 +73,7 @@ import { emailsEnabled } from "@/lib/env";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { requireCount } from "@/lib/require-count";
 import { filterNieuweMerkvragen } from "@/lib/vraag-sluiten";
-import { legKansenVast } from "@/lib/kansen/uit-rapport";
+import { legKansenVast, werkKennisgatBij } from "@/lib/kansen/uit-rapport";
 import type {
   Analysis,
   AnalysisStatus,
@@ -1060,6 +1060,8 @@ export async function generateReport(
     // het dure denkwerk hierboven is al betaald, en de voorraad vangt een
     // mislukte poging op bij de volgende schermopening (`syncBacklog()`).
     await legKansenVast(admin, (reportRow as { id: string }).id);
+    // N6: meteen ook wat we voor die kansen al weten en wat ontbreekt.
+    await werkKennisgatBij(admin, analysis.profile_id);
 
     // Off-site scan erachteraan (optimalisatie.md fase 7). Pas nu, want hij
     // leidt het bronnenlandschap af uit de meetdata. Losse taak: faalt hij, dan

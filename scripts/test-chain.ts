@@ -2811,6 +2811,14 @@ async function main(): Promise<void> {
         bundelMetVoorraad?.backlog[0]?.potentie === null,
       `type was ${typeof bundelMetVoorraad?.backlog[0]?.potentie}`,
     );
+    // N6: de voorraadkaart weet uit welke kans hij komt, en het plan geeft het
+    // kennisgat van die kans mee (dit merk heeft geen kennis, dus alles ontbreekt).
+    const kansVanKaart = bundelMetVoorraad?.backlog[0]?.kansId ?? "";
+    ok(
+      "de voorraadkaart wijst naar zijn kans, en het plan kent het kennisgat ervan",
+      kansVanKaart !== "" && (bundelMetVoorraad?.kennisgat[kansVanKaart] ?? []).join(",") === "werkwijze,prijs,termijn,voorbeeld,voor_wie_niet,bewijs",
+      JSON.stringify(bundelMetVoorraad?.kennisgat[kansVanKaart] ?? null),
+    );
     const voorraad = [{ id: bundelMetVoorraad!.backlog[0]!.id }];
 
     // ── Idempotentie (conventie 9) ──────────────────────────────────────────
@@ -9033,6 +9041,38 @@ async function main(): Promise<void> {
         const kans = naSync.find((r) => r.id === k.kans_id);
         eqc(`scenario 23: de potentie op de kans is die van de kaart (${k.title})`, String(kans?.potentie === null || kans?.potentie === undefined ? null : Number(kans.potentie)), String(k.potential === null ? null : Number(k.potential)));
       }
+
+      // ── Het kennisgat (N6) ──
+      const gatVan = async (id: string | undefined) =>
+        (await db.client.query("select kennis_ontbreekt, kennis_bekend from public.kansen where id = $1", [id])).rows[0] as { kennis_ontbreekt: string[] | null; kennis_bekend: string[] | null };
+      eqc("scenario 23: na de synchronisatie is het kennisgat uitgerekend: bij dit merk ontbreekt alles", (await gatVan(best?.id)).kennis_ontbreekt?.join(",") ?? "null", "werkwijze,prijs,termijn,voorbeeld,voor_wie_niet,bewijs");
+      // De klant vertelt hoe het werkt; het model vermoedt een prijs; en er is een
+      // verhaal bij een eerdere versie van de pagina van deze kaart.
+      const [v1, v2] = [randomUUID(), randomUUID()];
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, version, is_current) values
+           ($1, $3, 'Rijles in Best', 'landing', 'ready', 1, false),
+           ($2, $3, 'Rijles in Best', 'landing', 'ready', 2, true)`,
+        [v1, v2, analyse],
+      );
+      await db.client.query("update public.planned_pages set content_piece_id = $1 where id = $2", [v2, oudeKaart[0].id]);
+      const { rows: nieuweKennis } = await db.client.query(
+        `insert into public.klantkennis (profile_id, domein, soort, bewering, status, bron, gebruik, vastgelegd_door, vastgelegd_door_taak, geldt_voor, analysis_id, content_piece_id) values
+           ($1, 'aanbod', 'werkwijze', 'Eerst een proefles.', 'verklaard', 'klant', 'content', $2, null, '{}', null, null),
+           ($1, 'aanbod', 'prijs', 'Ongeveer € 60 per les.', 'afgeleid', 'ai', 'intern', null, 'profile_offering', $3, null, null),
+           ($1, 'verhaal', 'eigen verhaal', 'Een leerling uit Best slaagde na twee keer.', 'verklaard', 'klant', 'content', $2, null, '{}', $4, $5)
+         returning id, soort`,
+        [merk, userId, [kennisId("Rijles")], analyse, v1],
+      );
+      await syncBacklog(shim, merk);
+      const naAntwoord = await gatVan(best?.id);
+      eqc("scenario 23: wat de klant vertelde, telt; een vermoeden niet", naAntwoord.kennis_ontbreekt?.join(",") ?? "null", "prijs,termijn,voor_wie_niet,bewijs");
+      eqc(
+        "scenario 23: het verhaal bij de eerdere versie van de pagina telt mee (gevonden in K5)",
+        [...(naAntwoord.kennis_bekend ?? [])].sort().join(","),
+        nieuweKennis.filter((r: { soort: string }) => r.soort !== "prijs").map((r: { id: string }) => r.id).sort().join(","),
+      );
+      eqc("scenario 23: de tarievenkans (een artikel) heeft geen verhaal van een andere pagina", (await gatVan(tarieven?.id)).kennis_ontbreekt?.join(",") ?? "null", "voorbeeld,bewijs");
 
       // Een rapport zonder kansen (van vóór N2): de voorraad maakt ze alsnog.
       const analyse2 = randomUUID();

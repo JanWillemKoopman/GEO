@@ -56,6 +56,12 @@ export interface PlanBundle {
   metKansen: string[];
   funnels: FunnelStage[];
   topics: TopicWritingState[];
+  /**
+   * N6: per kans wat de pagina nog nodig heeft en we niet weten
+   * (`kansen.kennis_ontbreekt`). `null` = nog niet uitgerekend. Alleen voor de
+   * consultant op het scherm; de pagina zelf geeft het niet aan de klant door.
+   */
+  kennisgat: Record<string, string[] | null>;
 }
 
 /**
@@ -176,6 +182,14 @@ export async function loadPlan(
     [...new Set(voorraad.map((v) => v.source_analysis_id).filter((id): id is string => Boolean(id)))],
   );
   const declined = await loadDeclinedOpportunities(admin, profileId);
+  const { data: gatRows } = await admin
+    .from("kansen")
+    .select("id, kennis_ontbreekt")
+    .eq("profile_id", profileId)
+    .neq("status", "vervallen");
+  const kennisgat = Object.fromEntries(
+    ((gatRows ?? []) as { id: string; kennis_ontbreekt: string[] | null }[]).map((k) => [k.id, k.kennis_ontbreekt]),
+  );
 
   return {
     plan,
@@ -185,6 +199,7 @@ export async function loadPlan(
       voorraad.map((rij) => naarBacklogItem(rij, gemeten, clusterNaam, new Set(buitenBereikIds))),
     ),
     declined,
+    kennisgat,
     clusterNaam: Object.fromEntries(clusterNaam),
     metKansen: [
       ...new Set(
@@ -347,6 +362,7 @@ function naarBacklogItem(
     // schermopening zeldzaam: díe ronde heeft dan al net gedraaid, dus wat
     // overblijft is vrijwel altijd al één van de twee andere redenen.
     reden: rij.taken_out ? "uitgehaald" : buitenBereikIds.has(rij.id) ? "buiten_bereik" : null,
+    kansId: rij.kans_id ?? null,
   };
 }
 
