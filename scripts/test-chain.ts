@@ -5268,7 +5268,7 @@ async function main(): Promise<void> {
       await draaiEen();
       const { rows: na1 } = await db.client.query("select brief_json from public.content_pieces where id = $1", [stukken[0]]);
       const b1 = na1[0].brief_json as { onderzoek: { vakkennis: { bron_url: string }[] }; versie: number };
-      ok("de brief is bewaard", Boolean(b1?.onderzoek) && b1.versie === 1);
+      ok("de brief is bewaard, met het versienummer", Boolean(b1?.onderzoek) && b1.versie === 2);
       ok("vakkennis zonder adres valt weg", b1.onderzoek.vakkennis.length === 1);
       const { rows: vragen1 } = await db.client.query(
         `select question, reason from public.fact_requests
@@ -5359,8 +5359,8 @@ async function main(): Promise<void> {
       const cluster = randomUUID();
       await db.client.query("insert into auth.users (id, email) values ($1, 'plantest@example.com')", [eigenaar]);
       await db.client.query(
-        `insert into public.profiles (id, user_id, name, url, brand_name, status, stem_voorbeelden)
-         values ($1, $2, 'Hovenier Groen', 'https://hovenier-groen.nl', 'Hovenier Groen', 'klaar', $3::jsonb)`,
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, stem_voorbeelden, taboo_phrases)
+         values ($1, $2, 'Hovenier Groen', 'https://hovenier-groen.nl', 'Hovenier Groen', 'klaar', $3::jsonb, '{tuinman}')`,
         [merk, eigenaar, JSON.stringify([{ url: "https://hovenier-groen.nl/over", tekst: "Wij zijn nuchtere tuinmensen uit Ede.", opgehaald_op: "2026-09-25", fout: null }])],
       );
       await db.client.query(
@@ -5555,7 +5555,7 @@ async function main(): Promise<void> {
 
       const geschreven = await stuk(ontwerp);
       ok("een verboden teken is gerepareerd", !(geschreven.body_markdown as string).includes("—"));
-      ok("de ruwe uitvoer en het versienummer van de opdracht zijn bewaard", (geschreven.raw_json as { schrijfopdracht_versie: number }).schrijfopdracht_versie === 1);
+      ok("de ruwe uitvoer en het versienummer van de opdracht zijn bewaard", (geschreven.raw_json as { schrijfopdracht_versie: number }).schrijfopdracht_versie === 2);
       ok("versie 1", geschreven.version === 1);
       ok("de schrijver kreeg het eigen verhaal letterlijk", aanroepen.some((a) => a.schema === "pagina" && a.user.includes("aan de keukentafel")));
       ok("en de stemvoorbeelden", aanroepen.some((a) => a.schema === "pagina" && a.user.includes("nuchtere tuinmensen")));
@@ -5591,7 +5591,7 @@ async function main(): Promise<void> {
       // ── Een mislukte controle: klaar, met gele zinnen ─────────────────────
       const { rows: mislukt } = await db.client.query(
         `insert into public.content_pieces (analysis_id, title, type, status, action, body_markdown, brief_json)
-         values ($1, 'Vijver aanleggen', 'landing', 'draft', 'nieuw', 'Wij leggen een vijver aan in 2 dagen.', '{"onderzoek":null,"bedrijf":{"feiten":[]},"versie":1}')
+         values ($1, 'Vijver aanleggen', 'landing', 'draft', 'nieuw', 'Wij leggen een vijver aan in 2 dagen. Onze tuinman denkt graag met je mee.', '{"onderzoek":null,"bedrijf":{"feiten":[]},"versie":1}')
          returning id`,
         [cluster],
       );
@@ -5604,7 +5604,8 @@ async function main(): Promise<void> {
       const vijver = await stuk(mislukt[0].id);
       const vcj = vijver.controle_json as { beoordeling: unknown; gele_zinnen: string[] };
       ok("een mislukte controle gaat naar klaar", vijver.status === "ready" && vcj.beoordeling === null);
-      ok("met de ongedekte zin geel", vcj.gele_zinnen.length === 1 && vcj.gele_zinnen[0].includes("2 dagen"));
+      ok("met de ongedekte zin geel", vcj.gele_zinnen.some((z) => z.includes("2 dagen")));
+      ok("en de zin met een verboden woord ook (B16)", vcj.gele_zinnen.length === 2 && vcj.gele_zinnen.some((z) => z.includes("tuinman")));
 
       // ── Goedkeuren pas als elke gele zin bevestigd is ─────────────────────
       const eerst = await keurGoed(admin as never, { pieceId: mislukt[0].id, analysisId: cluster, userId: eigenaar });
@@ -5612,6 +5613,9 @@ async function main(): Promise<void> {
       const vreemd = await bevestigZin(admin as never, { pieceId: mislukt[0].id, analysisId: cluster, zin: "Een zin die niet geel is." });
       ok("een zin die niet geel is, kan niet bevestigd worden", !vreemd.ok);
       await bevestigZin(admin as never, { pieceId: mislukt[0].id, analysisId: cluster, zin: vcj.gele_zinnen[0] });
+      const halverwege = await keurGoed(admin as never, { pieceId: mislukt[0].id, analysisId: cluster, userId: eigenaar });
+      ok("met één van de twee bevestigd kan het nog niet", !halverwege.ok);
+      await bevestigZin(admin as never, { pieceId: mislukt[0].id, analysisId: cluster, zin: vcj.gele_zinnen[1] });
       const daarna = await keurGoed(admin as never, { pieceId: mislukt[0].id, analysisId: cluster, userId: eigenaar });
       ok("na bevestigen wel", daarna.ok && (await stuk(mislukt[0].id)).needs_review === false);
 

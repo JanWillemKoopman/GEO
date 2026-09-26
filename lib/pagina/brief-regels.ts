@@ -19,7 +19,13 @@ import { z } from "zod";
 import { pasSchrijfregelsToe } from "@/lib/schrijfregel-vangnet";
 
 /** Verhoog bij een wijziging in schema of opdracht, zodat oude briefs herkenbaar blijven. */
-export const BRIEF_VERSIE = 1;
+/**
+ * Versie 2 (26 september 2026): een voorbeeldvraag wordt niet meer aan andere
+ * pagina's gekoppeld. Op de proef van WP8 hing één voorbeeldvraag van de
+ * rijschool aan alle drie de pagina's, en stond hetzelfde voorbeeld drie keer
+ * op de site.
+ */
+export const BRIEF_VERSIE = 2;
 
 /** Technische bovengrens, geen doel (§6.1). */
 export const MAX_BRIEFVRAGEN = 8;

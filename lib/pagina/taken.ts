@@ -28,6 +28,7 @@ import {
   geleZinnenNa,
   kiesVersie,
   moetHerschrijven,
+  zinnenMetVerbodenWoord,
   type ControleJson,
 } from "@/lib/pagina/controle-regels";
 import { herschrijfInvoer, schrijfInvoer, type PaginaUitvoer } from "@/lib/pagina/schrijfopdracht";
@@ -181,6 +182,11 @@ function ongedektIn(basis: Schrijfbasis, tekst: string): string[] {
   return geleZinnen(controleerHardeBeweringen(tekst, basis.bronnen, [basis.merk.naam]));
 }
 
+/** Zinnen met een woord dat het merk niet wil gebruiken (besluit B16). */
+function verbodenIn(basis: Schrijfbasis, tekst: string): string[] {
+  return zinnenMetVerbodenWoord(tekst, basis.merk.verbodenWoorden);
+}
+
 // ── Schrijven (§6.4) ────────────────────────────────────────────────────────
 
 export async function voerSchrijvenUit(admin: Admin, job: Job, payload: AchtergrondPayload): Promise<void> {
@@ -227,6 +233,7 @@ export async function voerControleUit(admin: Admin, payload: { pieceId: string }
   if (!body?.trim() || controle) return;
 
   const ongedekt = ongedektIn(basis, body);
+  const verboden = verbodenIn(basis, body);
   const { parsed: beoordeling } = await callStructured({
     model: MODELS.content,
     system: CONTROLE_SYSTEEM,
@@ -242,8 +249,8 @@ export async function voerControleUit(admin: Admin, payload: { pieceId: string }
     },
   });
 
-  if (moetHerschrijven(beoordeling, ongedekt)) {
-    const nieuw: ControleJson = { ongedekt, beoordeling, herschreven: false, gele_zinnen: [], bevestigd: [] };
+  if (moetHerschrijven(beoordeling, [...ongedekt, ...verboden])) {
+    const nieuw: ControleJson = { ongedekt, verboden, beoordeling, herschreven: false, gele_zinnen: [], bevestigd: [] };
     await admin.from("content_pieces").update({ controle_json: nieuw }).eq("id", payload.pieceId);
     await enqueue(admin, {
       type: "pagina_herschrijven",
@@ -255,9 +262,10 @@ export async function voerControleUit(admin: Admin, payload: { pieceId: string }
   }
   await zetKlaar(admin, payload.pieceId, {
     ongedekt,
+    verboden,
     beoordeling,
     herschreven: false,
-    gele_zinnen: geleZinnenNa(body, ongedekt, []),
+    gele_zinnen: geleZinnenNa(body, [...ongedekt, ...verboden], []),
     bevestigd: [],
   });
 }
@@ -270,7 +278,15 @@ export async function controleGafOp(admin: Admin, job: Job): Promise<void> {
   const { body, controle } = await lopendeTekst(admin, pieceId);
   if (!basis || !body?.trim() || controle) return;
   const ongedekt = ongedektIn(basis, body);
-  await zetKlaar(admin, pieceId, { ongedekt, beoordeling: null, herschreven: false, gele_zinnen: ongedekt, bevestigd: [] });
+  const verboden = verbodenIn(basis, body);
+  await zetKlaar(admin, pieceId, {
+    ongedekt,
+    verboden,
+    beoordeling: null,
+    herschreven: false,
+    gele_zinnen: geleZinnenNa(body, [...ongedekt, ...verboden], []),
+    bevestigd: [],
+  });
 }
 
 // ── Herschrijven (§6.7) ─────────────────────────────────────────────────────
@@ -290,6 +306,7 @@ export async function voerHerschrijvenUit(admin: Admin, job: Job, payload: Achte
     punten: opVerzoek ? [] : (controle?.beoordeling?.punten ?? []),
     verzonnen: opVerzoek ? [] : (controle?.beoordeling?.verzonnen ?? []),
     ongedekt: opVerzoek ? [] : (controle?.ongedekt ?? []),
+    verboden: opVerzoek ? [] : (controle?.verboden ?? []),
     notitieKlant: opVerzoek ? (payload.klantNotitie ?? null) : null,
   });
   const uitvoer = await achtergrondRonde(admin, job, "pagina_herschrijven", payload, basis, user);
@@ -298,25 +315,39 @@ export async function voerHerschrijvenUit(admin: Admin, job: Job, payload: Achte
   const tekst = gerepareerd(uitvoer, basis.merk.naam);
   const kolommen = await tekstKolommen(admin, basis, tekst, { uitvoer, soort: "herschrijven" });
   const ongedektNieuw = ongedektIn(basis, tekst.tekst_markdown);
+  const verbodenNieuw = verbodenIn(basis, tekst.tekst_markdown);
 
   if (opVerzoek) {
-    await nieuweVersie(admin, basis, kolommen, ongedektNieuw);
+    await nieuweVersie(admin, basis, kolommen, ongedektNieuw, verbodenNieuw);
     return;
   }
 
   const vorige = controle as ControleJson;
-  const behouden = kiesVersie(vorige.ongedekt.length, ongedektNieuw.length);
+  const verbodenVorige = vorige.verboden ?? [];
+  // De verboden woorden tellen mee als nalopen: een herschrijving die er een
+  // bij zet, is net zo goed slechter als een met een extra ongedekte zin.
+  const behouden = kiesVersie(
+    vorige.ongedekt.length + verbodenVorige.length,
+    ongedektNieuw.length + verbodenNieuw.length,
+  );
   if (behouden === "nieuw") {
     const { error } = await admin.from("content_pieces").update(kolommen).eq("id", payload.pieceId);
     if (error) throw new Error(`Herschreven tekst van ${payload.pieceId} bewaren mislukte: ${error.message}`);
   }
   const blijft = behouden === "nieuw" ? tekst.tekst_markdown : body;
   const ongedekt = behouden === "nieuw" ? ongedektNieuw : vorige.ongedekt;
+  const verboden = behouden === "nieuw" ? verbodenNieuw : verbodenVorige;
   await zetKlaar(admin, payload.pieceId, {
     ...vorige,
+    ongedekt,
+    verboden,
     herschreven: true,
-    herschrijving: { ongedekt_vorige: vorige.ongedekt.length, ongedekt_nieuw: ongedektNieuw.length, behouden },
-    gele_zinnen: geleZinnenNa(blijft, ongedekt, (vorige.beoordeling?.verzonnen ?? []).map((v) => v.zin)),
+    herschrijving: {
+      ongedekt_vorige: vorige.ongedekt.length + verbodenVorige.length,
+      ongedekt_nieuw: ongedektNieuw.length + verbodenNieuw.length,
+      behouden,
+    },
+    gele_zinnen: geleZinnenNa(blijft, [...ongedekt, ...verboden], (vorige.beoordeling?.verzonnen ?? []).map((v) => v.zin)),
     bevestigd: [],
   });
 }
@@ -327,7 +358,13 @@ export async function voerHerschrijvenUit(admin: Admin, job: Job, payload: Achte
  * bestaan maar is niet meer de actuele; de vragen en de plan-pagina wijzen
  * daarna ook naar de nieuwe.
  */
-async function nieuweVersie(admin: Admin, basis: Schrijfbasis, kolommen: Record<string, unknown>, ongedekt: string[]): Promise<void> {
+async function nieuweVersie(
+  admin: Admin,
+  basis: Schrijfbasis,
+  kolommen: Record<string, unknown>,
+  ongedekt: string[],
+  verboden: string[],
+): Promise<void> {
   const oudId = basis.pagina.pieceId;
   const { data: oud } = await admin
     .from("content_pieces")
@@ -339,7 +376,14 @@ async function nieuweVersie(admin: Admin, basis: Schrijfbasis, kolommen: Record<
   // Eerst de oude van `is_current` af: de unieke index uit migratie 0023 laat
   // twee actuele pagina's met dezelfde titel onder één cluster niet toe.
   await admin.from("content_pieces").update({ is_current: false }).eq("id", oudId);
-  const controle: ControleJson = { ongedekt, beoordeling: null, herschreven: true, gele_zinnen: ongedekt, bevestigd: [] };
+  const controle: ControleJson = {
+    ongedekt,
+    verboden,
+    beoordeling: null,
+    herschreven: true,
+    gele_zinnen: [...ongedekt, ...verboden],
+    bevestigd: [],
+  };
   // Velden bij naam en niet `...o`: dan kan er nooit een id, een datum of een
   // kolom van de oude keten meeliften naar de nieuwe versie.
   const { data: nieuw, error } = await admin
@@ -390,7 +434,11 @@ export async function herschrijvenGafOp(admin: Admin, job: Job): Promise<void> {
   if (!body?.trim() || !controle || controle.herschreven) return;
   await zetKlaar(admin, payload.pieceId, {
     ...controle,
-    gele_zinnen: geleZinnenNa(body, controle.ongedekt, (controle.beoordeling?.verzonnen ?? []).map((v) => v.zin)),
+    gele_zinnen: geleZinnenNa(
+      body,
+      [...controle.ongedekt, ...(controle.verboden ?? [])],
+      (controle.beoordeling?.verzonnen ?? []).map((v) => v.zin),
+    ),
     bevestigd: [],
   });
 }

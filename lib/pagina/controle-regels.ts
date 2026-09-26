@@ -16,6 +16,7 @@
  */
 import { z } from "zod";
 import { normaliseerVraag } from "@/lib/pagina/brief-regels";
+import { splitsZinnen } from "@/lib/pagina/harde-beweringen";
 
 export const MAX_PUNTEN = 5;
 
@@ -81,10 +82,27 @@ export function geleZinnenNa(tekst: string, ongedekt: readonly string[], verzonn
   return uit;
 }
 
+/**
+ * Zinnen met een woord dat het merk niet wil gebruiken (`profiles.taboo_phrases`,
+ * besluit B16). Een uitzondering tussen haakjes ("gratis (behalve bij de
+ * offerte)") telt niet mee in het zoeken: de code kan die afweging niet maken,
+ * dus de zin wordt geel en de ondernemer beslist. Liever onterecht geel.
+ */
+export function zinnenMetVerbodenWoord(tekst: string, woorden: readonly string[]): string[] {
+  const patronen = woorden
+    .map((w) => w.replace(/\([^)]*\)/g, "").trim().toLowerCase())
+    .filter((w) => w.length >= 3)
+    .map((w) => new RegExp(`(?<![\\p{L}\\d])${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\d])`, "iu"));
+  if (patronen.length === 0) return [];
+  return splitsZinnen(tekst).filter((zin) => patronen.some((re) => re.test(zin)));
+}
+
 /** Wat er in `content_pieces.controle_json` staat. */
 export interface ControleJson {
   /** Zinnen die de code na het schrijven ongedekt vond. */
   ongedekt: string[];
+  /** Zinnen met een woord dat het merk niet wil gebruiken (B16). Afwezig bij oudere controles. */
+  verboden?: string[];
   /** Null als de beoordeling definitief mislukte. */
   beoordeling: Beoordeling | null;
   herschreven: boolean;
