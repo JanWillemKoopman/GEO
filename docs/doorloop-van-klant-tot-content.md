@@ -887,10 +887,10 @@ en `offsite_scan`. De rapportmail slaat over zolang `EMAILS_ENABLED` uit staat.
 
 **Om te bespreken**
 
-- **De opdracht spreekt zichzelf tegen over het aantal aanbevelingen.** De vaste opdracht zegt *"HET
-  AANTAL AANBEVELINGEN LIGT NIET VAST (...) Rond nooit af naar een 'nette' lijst"*, de invoer eronder zegt
-  *"Geef 5 tot 8 concrete, geprioriteerde aanbevelingen"*. Het model moet kiezen welke van de twee het
-  volgt.
+- ~~**De opdracht spreekt zichzelf tegen over het aantal aanbevelingen.**~~ Opgelost op 26 september 2026
+  (N2 van `docs/tasks/van-pijplijn-naar-kennissysteem.md`): de invoer zegt nu ook dat het aantal niet
+  vastligt, en vraagt het aantal dat het meeste gemeten gemis dekt. Elke aanbeveling wordt sindsdien ook
+  een kans (`kansen`), met het bewijs van de meting per bron.
 - **Stelt het rapport nog vragen die de brief per pagina beter kan stellen?** Sinds 26 september 2026 gaan
   de antwoorden wel naar de schrijver (besluit B17), maar de brief vraagt nu per pagina gerichter, en twee
   bronnen van vragen betekent meer werk voor de klant.
@@ -1442,8 +1442,8 @@ het eerst merkt, staat bovenaan.
    (9.6) per pagina. Sinds 26 september 2026 gaan de antwoorden op rapportvragen mee naar de schrijver
    (besluit B17; daarvoor kwamen ze meestal nergens aan). Nu de brief gerichter vraagt: moet het rapport nog
    vragen stellen, of is dat dubbel werk voor de klant?
-3. **De opdracht van het rapport spreekt zichzelf tegen** over het aantal aanbevelingen: "ligt niet vast"
-   tegenover "geef 5 tot 8". Kies er één.
+3. ~~**De opdracht van het rapport spreekt zichzelf tegen** over het aantal aanbevelingen.~~ Opgelost in N2
+   (26 september 2026): "ligt niet vast" staat nu op beide plekken.
 4. **De meting is een nabootsing** met Luna via de API, met een opdracht die vraagt om merken te noemen. Hoe
    dicht zit dat bij wat een echte gebruiker in ChatGPT ziet? Alles (score, rapport, effectmeting) hangt
    eraan.

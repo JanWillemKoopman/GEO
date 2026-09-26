@@ -721,3 +721,10 @@ service-role key. Nog niemand schrijft of leest erin (dat is N2 en N7). Volgorde
 `lib/kansen/prioriteit.ts`. Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` N1 en §6.2. Additief
 en idempotent. Op productie toegepast op 26 september 2026; de regels daar nagelopen met proefrijen die
 daarna weer weg zijn.
+
+## 0119 — Een kaart in de voorraad verwijst naar zijn kans
+
+Voegt `planned_pages.kans_id` toe (verwijzing naar `kansen`, `on delete set null`, zodat een kaart met
+werk eraan nooit verdwijnt). `syncBacklog()` vult hem voor nieuwe en bestaande kaarten; `source_ref`
+blijft staan en is gelijk aan `kansen.sleutel`. Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` N2.
+Additief en idempotent. Op productie toegepast op 26 september 2026.

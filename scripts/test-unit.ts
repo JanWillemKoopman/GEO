@@ -45,6 +45,17 @@ import {
   type KansInvoer,
 } from "@/lib/kansen/prioriteit";
 import {
+  kansUitAanbeveling,
+  kansSleutel,
+  bewijsUitMetingen,
+  bronVanEngine,
+  commercieleWaardeVan,
+  geldtVoorVan,
+  MAX_CONCURRENTEN,
+  type MetingVoorBewijs,
+  type KennisVoorKans,
+} from "@/lib/kansen/rapport";
+import {
   maakTerugvulplan,
   dekking,
   zetOm,
@@ -22321,4 +22332,110 @@ group("kansen: de volgorde en de uitleg (N1)", () => {
   const imports = leesBestand("lib/kansen/prioriteit.ts").split("\n").filter((r) => /^import\b/.test(r)).join("\n");
   ok("de volgorde en de uitleg doen geen AI-aanroep", !/openai|pipeline|jobs|supabase/.test(imports), imports);
   ok("en zijn puur, dus testbaar (conventie 2)", !/server-only/.test(imports), imports);
+});
+
+group("kansen: het rapport maakt kansen (N2)", () => {
+  // ── Van aanbeveling naar kans ──
+  const nieuw = kansUitAanbeveling("r1", 0, {
+    title: " Pagina over rijles in Best ",
+    action: "nieuw",
+    existingUrl: "null",
+    targetIntent: "Iemand uit Best die rijles zoekt",
+    targets: [{ promptId: "p1", weight: 0.5, text: "Rijschool in Best?" }],
+  });
+  eq("de sleutel is gelijk aan de oude source_ref van de kaart", `${nieuw?.sleutel}`, "r1#0");
+  eq("de sleutel komt uit één plek", kansSleutel("r1", 3), "r1#3");
+  eq("titel, lezer en handeling", `${nieuw?.titel}|${nieuw?.lezer}|${nieuw?.handeling}|${nieuw?.bestaandeUrl}`, "Pagina over rijles in Best|Iemand uit Best die rijles zoekt|nieuwe_pagina|null");
+  eq("de doelvragen gaan mee", JSON.stringify(nieuw?.doelvragen), JSON.stringify([{ promptId: "p1", weight: 0.5, text: "Rijschool in Best?" }]));
+  const verbeter = kansUitAanbeveling("r1", 1, { title: "Faalangstpagina", action: "verbeteren", existingUrl: "https://pompert.nl/faalangst/" });
+  eq("verbeteren met een adres", `${verbeter?.handeling}|${verbeter?.bestaandeUrl}`, "pagina_verbeteren|https://pompert.nl/faalangst/");
+  const zonderAdres = kansUitAanbeveling("r1", 2, { title: "Iets", action: "verbeteren", existingUrl: ":" });
+  eq("verbeteren zonder bruikbaar adres wordt een nieuwe pagina (de database weigert het anders)", `${zonderAdres?.handeling}|${zonderAdres?.bestaandeUrl}`, "nieuwe_pagina|null");
+  ok("zonder titel geen kans", kansUitAanbeveling("r1", 3, { title: "  " }) === null);
+  ok("een kapotte aanbeveling breekt niets", kansUitAanbeveling("r1", 4, {}) === null);
+
+  // ── Het bewijs per bron ──
+  eq("ChatGPT is de hoofdbron, ook zonder engine", `${bronVanEngine(null)}|${bronVanEngine("openai")}|${bronVanEngine("google_ai_overview")}|${bronVanEngine("gemini")}|${bronVanEngine("bing")}`, "chatgpt|chatgpt|ai_overview|gemini|null");
+  const m = (runId: string, promptId: string, engine: string | null, genoemd: boolean, concurrenten: string[] = []): MetingVoorBewijs => ({ runId, promptId, engine, genoemd, concurrenten });
+  const doel = [{ promptId: "p1", weight: 0.5, text: null }, { promptId: "p2", weight: 0.3, text: null }];
+  const bewijs = bewijsUitMetingen(doel, [
+    m("a", "p1", "openai", false, ["Rijschool Wit", "Rijschool Zwart"]),
+    m("b", "p2", "openai", true),
+    // AI Overview meet drie keer; de meerderheid per vraag telt, zoals in het rapport.
+    m("c1", "p1", "google_ai_overview", false, ["Rijschool Wit"]),
+    m("c2", "p1", "google_ai_overview", false, ["Rijschool Wit"]),
+    m("c3", "p1", "google_ai_overview", true),
+    // Een meting van een vraag die niet bij deze kans hoort, telt niet.
+    m("d", "p9", "openai", false, ["Ander"]),
+  ]);
+  eq(
+    "per bron: gemeten, genoemd en de concurrenten waar het merk ontbrak",
+    bewijs.map((b) => `${b.bron}:${b.vragenGenoemd}/${b.vragenGemeten}:${(b.concurrenten ?? []).join("+")}`).join(" "),
+    "chatgpt:1/2:Rijschool Wit+Rijschool Zwart ai_overview:0/1:Rijschool Wit",
+  );
+  eq("de metingen gaan als bewijs mee", bewijs.map((b) => b.runIds.join("+")).join(" "), "a+b c1+c2+c3");
+  eq("een bron zonder meting van deze vragen levert geen rij (geen gegevens, geen nul)", bewijs.some((b) => b.bron === "gemini") ? "ja" : "nee", "nee");
+  const gelijk = bewijsUitMetingen([doel[0]!], [m("x", "p1", "openai", false), m("y", "p1", "openai", true)]);
+  eq("bij gelijke stand binnen een bron wint genoemd, net als bij het rapport", `${gelijk[0]?.vragenGenoemd}/${gelijk[0]?.vragenGemeten}`, "1/1");
+  const veel = bewijsUitMetingen([doel[0]!], [m("z", "p1", "openai", false, ["A", "B", "C", "D", "E", "F", "G"])]);
+  eq("hooguit een handvol concurrenten", String(veel[0]?.concurrenten?.length), String(MAX_CONCURRENTEN));
+  eq("zonder doelvragen geen bewijs", String(bewijsUitMetingen([], [m("a", "p1", "openai", false)]).length), "0");
+
+  // ── Commerciële waarde ──
+  const waarde = (diensten: string[], voorrang: string[], minder: string[]) => String(commercieleWaardeVan({ diensten, voorrang, minder }));
+  eq("een dienst met voorrang", waarde(["Rijles automaat"], ["rijles  automaat"], []), "voorrang");
+  eq("een dienst met minder voorrang", waarde(["Motorrijles"], ["Rijles"], ["Motorrijles"]), "minder");
+  eq("voorrang wint als het onderwerp beide raakt", waarde(["Rijles", "Motorrijles"], ["Rijles"], ["Motorrijles"]), "voorrang");
+  eq("wel prioriteiten, deze dienst niet: gewoon", waarde(["Theorie"], ["Rijles"], []), "gewoon");
+  eq("geen enkele opgave van het merk: onbekend, niet gewoon", waarde(["Rijles"], [], []), "null");
+
+  // ── Waarvoor de kans geldt ──
+  const kennis: KennisVoorKans[] = [
+    { id: "k-dienst", soort: "dienst", bewering: "Rijles", herkomstTabel: "profile_offerings", herkomstId: "o1" },
+    { id: "k-prijs", soort: "prijs", bewering: "€ 80", herkomstTabel: "profile_offerings", herkomstId: "o1" },
+    { id: "k-ander", soort: "dienst", bewering: "Motorrijles", herkomstTabel: "profile_offerings", herkomstId: "o2" },
+    { id: "k-best", soort: "werkgebied", bewering: "Best", herkomstTabel: "profiles", herkomstId: null },
+    { id: "k-son", soort: "werkgebied", bewering: "Son en Breugel", herkomstTabel: "profiles", herkomstId: null },
+    { id: "k-ehv", soort: "werkgebied", bewering: "Eindhoven", herkomstTabel: "profiles", herkomstId: null },
+  ];
+  const geldt = (titel: string, vraag = "") =>
+    geldtVoorVan({ kans: { titel, lezer: null, doelvragen: [{ promptId: null, weight: null, text: vraag }] }, dienstIds: ["o1"], kennis }).join(",");
+  eq("de dienst van het onderwerp, niet zijn prijs, niet een andere dienst", geldt("Pagina over rijles"), "k-dienst");
+  eq("een plaats die letterlijk in de titel staat", geldt("Rijles in Best"), "k-dienst,k-best");
+  eq("of in een doelvraag", geldt("Faalangst", "Welke rijschool in Son en Breugel helpt bij faalangst?"), "k-dienst,k-son");
+  eq("'Best' in 'beste rijschool' is geen plaats", geldt("De beste rijschool"), "k-dienst");
+  eq("Eindhovense is niet Eindhoven: alleen het hele woord", geldt("Voor Eindhovense leerlingen"), "k-dienst");
+
+  // ── De opdracht aan het rapport spreekt zichzelf niet meer tegen ──
+  const rapportCode = leesBestand("lib/pipeline/report.ts");
+  ok("geen vast aantal meer in de invoer", !/Geef 5 tot 8/.test(rapportCode));
+  ok("en de systeemopdracht zegt nog steeds dat het niet vastligt", rapportCode.includes("HET AANTAL AANBEVELINGEN LIGT NIET VAST"));
+  ok("de invoer zegt hetzelfde: het aantal dat het meeste gemis dekt", /ligt niet vast: kies het aantal[\s\S]{0,120}meeste gemeten gemis dekt/.test(rapportCode));
+
+  // ── Wie wat doet ──
+  ok("het rapport legt zijn kansen vast, na het opslaan", rapportCode.indexOf("await legKansenVast(") > rapportCode.indexOf('.from("reports")\n      .insert('));
+  const voorraad = leesBestand("lib/plan-backlog-data.ts");
+  ok("de voorraad leest uit kansen", voorraad.includes('.from("kansen")'));
+  ok("en niet meer uit de JSON van het rapport", !/recommendations_json/.test(voorraad.slice(voorraad.indexOf("export async function syncBacklog"), voorraad.indexOf("export async function meetbareVragenPerAnalyse"))));
+  ok("elke nieuwe kaart krijgt zijn kans", voorraad.includes("kans_id: k.kansId"));
+  const schrijver = leesBestand("lib/kansen/uit-rapport.ts");
+  const legVastRomp = schrijver.slice(schrijver.indexOf("export async function legKansenVast"), schrijver.indexOf("export async function werkPotentieBij"));
+  ok("het wegschrijven gooit geen fout naar het rapport: alles zit in één try met een catch", /\{\s*const telling[^\n]*\n\s*try \{/.test(legVastRomp) && legVastRomp.includes("} catch (err) {") && !/\bthrow\b/.test(legVastRomp));
+  ok("en doet geen AI-aanroep", !/lib\/openai|callStructured|responses\.create/.test(schrijver + leesBestand("lib/kansen/rapport.ts")));
+});
+
+group("kansen: één schrijfingang (N2)", () => {
+  const schrijft = (inhoud: string) =>
+    /from\(\s*["'`](kansen|kans_bewijs)["'`]\s*\)\s*\.\s*(insert|update|upsert|delete)\s*\(/.test(inhoud) ||
+    /\b(insert\s+into|update|delete\s+from)\s+(public\.)?(kansen|kans_bewijs)\b/i.test(inhoud);
+  ok("zelftest: een insert wordt herkend", schrijft('admin\n  .from("kansen")\n  .insert({})'));
+  ok("zelftest: lezen is geen schrijven", !schrijft('admin.from("kansen").select("*")'));
+  const buiten = ["app", "lib", "components", "scripts"]
+    .flatMap((m) => [...tsOnder(m), ...tsxOnder(m)])
+    .map((p) => p.split("\\").join("/"))
+    .filter((p) => !p.startsWith("lib/kansen/"))
+    .filter((p) => !p.startsWith("scripts/test-") && !p.startsWith("scripts/chain/"))
+    .filter((p) => schrijft(leesBestand(p)));
+  eq("niemand buiten lib/kansen/ schrijft in kansen of kans_bewijs", buiten.join(", "), "");
+  ok("en lib/kansen/uit-rapport.ts wél", schrijft(leesBestand("lib/kansen/uit-rapport.ts")));
 });

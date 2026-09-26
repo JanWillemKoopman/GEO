@@ -540,6 +540,20 @@ Per werkpakket: **doel**, **wat**, **niet**, **klaar als**. De nummers zijn vast
   opgelost, met het aantal dat het meeste gemeten gemis dekt.
 - **Klaar als:** een ketentest van meting naar kans naar voorraad; het plan toont dezelfde kaarten als
   ervoor.
+- **Bijgesteld bij het bouwen (26 september 2026):**
+  - *Ook de voorraad maakt kansen, als vangnet.* `syncBacklog()` roept dezelfde `legKansenVast()` aan voor
+    het laatste rapport van elk cluster. Dat vult de kansen voor de drie rapporten van vóór N2 zonder apart
+    script (V15 zou anders een omweg via de beheertool vragen), en vangt een rapport op waarvan het
+    wegschrijven mislukte. Er blijft één schrijver: `lib/kansen/uit-rapport.ts`, bewaakt door een test.
+  - *Het bewijs telt per bron opnieuw.* Een doelvraag is gemist volgens alle bronnen samen; in één bron kan
+    het merk er wel genoemd zijn. Het bewijs zegt daarom per bron bij hoeveel doelvragen het merk genoemd
+    werd, met dezelfde meerderheidsregel als het rapport, en welke concurrenten er wel stonden. Of Google de
+    eigen site citeert, blijft leeg tot N4.
+  - *Verbeteren zonder bruikbaar adres wordt een nieuwe pagina.* De tabel weigert een verbetering zonder
+    adres (0118). Op productie had op 26 september 2026 elke verbetering een adres (8 van de 8), dus geen
+    kaart verandert.
+  - *De tekst op de kaart blijft de toelichting van het rapportmodel.* De uitleg van de kans, opgebouwd uit
+    het bewijs, is voor het kansenscherm (N7).
 
 #### N3 Search Console als kansbron
 - **Doel:** kansen waar al vraag naar is in Google, en bewijs bij bestaande kansen.
@@ -838,7 +852,7 @@ per pagina opnieuw.
 | K7 | Het kennisoverzicht | 2 | Open | |
 | K8 | Oude schrijvers en lezers opruimen | 1 | Open | |
 | N1 | Datamodel en prioritering van kansen | 1 | Gedaan: migratie 0118 op productie (`kansen` en `kans_bewijs`, leeg; de regels op productie nagelopen met proefrijen die daarna weer weg zijn: een verbetering zonder adres, een onbekende status of bron, een potentie boven 100, meer keer genoemd dan gemeten en een tweede rij voor dezelfde bron worden geweigerd). `lib/kansen/prioriteit.ts`: de volgorde in vier lagen en de uitleg uit het bewijs, zonder model. Eenheidstests voor de volgorde, voor de uitleg bij alle 64 combinaties van bronnen (steunend en zonder gegevens, bij beide handelingen) en het voorbeeld uit het plan letterlijk. Geen ketenscenario: er schrijft nog niemand in de tabellen (N2) | 26 september 2026 |
-| N2 | Het rapport maakt kansen | 1 | Open | |
+| N2 | Het rapport maakt kansen | 1 | Gedaan: `lib/kansen/rapport.ts` (aanbeveling naar kans, bewijs per bron met de meerderheidsregel van het rapport, commerciële waarde, dienst en regio uit de kennislaag) en `uit-rapport.ts` (de enige schrijver, gooit nooit). `generateReport()` en, als vangnet, `syncBacklog()` maken de kansen; de voorraad leest uit `kansen`, en elke kaart krijgt `kans_id` (migratie 0119 op productie). De opdracht van het rapport spreekt zichzelf niet meer tegen over het aantal. Ketenscenario 23 (meting, kans, voorraad, en een kaart van vóór N2 die zijn kans terugvindt). Op productie vooraf nagelopen: alle 20 kaarten vinden hun aanbeveling terug, met dezelfde titel en handeling. **Nog te doen na de uitrol:** het plan van elk proefmerk één keer openen en nakijken dat er 20 kansen staan en elke kaart er een heeft | 26 september 2026 |
 | N3 | Search Console als kansbron | 1 | Open, wacht op een merk met Search Console | |
 | N4 | Citaties als bewijs | 1 | Open | |
 | N5 | De handmatige kans | 1 | Open | |

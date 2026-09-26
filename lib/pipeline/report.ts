@@ -73,6 +73,7 @@ import { emailsEnabled } from "@/lib/env";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { requireCount } from "@/lib/require-count";
 import { filterNieuweMerkvragen } from "@/lib/vraag-sluiten";
+import { legKansenVast } from "@/lib/kansen/uit-rapport";
 import type {
   Analysis,
   AnalysisStatus,
@@ -372,8 +373,14 @@ function buildReportInput(
     "",
     "Schrijf op basis hiervan een kort, jargonvrij rapport. Noem in elk gap-item expliciet welke " +
       "concurrent het betreft. PRIORITEER de aanbevelingen op de zwaarwegende gemiste vragen hierboven " +
-      "(hoog gewicht = populair en of koopklaar). Geef 5 tot 8 concrete, geprioriteerde aanbevelingen, " +
-      "genoeg om de zwaarste gemiste vragen te dekken, niet zoveel dat het een boodschappenlijst wordt. " +
+      "(hoog gewicht = populair en of koopklaar). " +
+      // N2: hier stond tot 26 september 2026 "geef 5 tot 8", terwijl
+      // `REPORT_SYSTEM` zegt dat het aantal niet vastligt. Twee opdrachten die
+      // elkaar tegenspreken laten het model kiezen welke het volgt; op productie
+      // kwamen er 6, 7 en 7 uit, precies binnen de band. Eén regel nu.
+      "Het aantal aanbevelingen ligt niet vast: kies het aantal " +
+      "dat samen het meeste gemeten gemis dekt, gewogen naar het gewicht van de vragen, volgens de vier eisen " +
+      "in je opdracht. Laat geen zware gemiste vraag onbenoemd, en maak geen aanbeveling die geen gemis dekt. " +
       "Koppel elke aanbeveling aan de vraagcodes (V1, V2, …) die hij moet winnen. " +
       // ⚠️ De vraagcodes en de gewichten zijn ONZE notatie en horen in het veld
       // `targets`, niet in de zin die de klant leest. Ze stonden er wel: op het
@@ -1047,6 +1054,12 @@ export async function generateReport(
     }
 
     await saveFactRequests(admin, analysis, report.parsed.factRequests);
+
+    // N2 (`docs/tasks/van-pijplijn-naar-kennissysteem.md`): elke aanbeveling
+    // wordt meteen een kans, met het bewijs van de meting per bron. Gooit nooit:
+    // het dure denkwerk hierboven is al betaald, en de voorraad vangt een
+    // mislukte poging op bij de volgende schermopening (`syncBacklog()`).
+    await legKansenVast(admin, (reportRow as { id: string }).id);
 
     // Off-site scan erachteraan (optimalisatie.md fase 7). Pas nu, want hij
     // leidt het bronnenlandschap af uit de meetdata. Losse taak: faalt hij, dan

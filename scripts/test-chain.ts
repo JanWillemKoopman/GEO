@@ -8842,6 +8842,197 @@ async function main(): Promise<void> {
       ok("scenario 22: verklaard en bevestigd komen alleen van een mens", statussen.length === 2 && statussen.every((r: { wie: string }) => r.wie === userId), JSON.stringify(statussen));
     }
 
+    // ── Scenario 23: van meting naar kans naar voorraad (N2) ──────────────────
+    //
+    // docs/tasks/van-pijplijn-naar-kennissysteem.md N2: een gemeten cluster met
+    // een rapport van twee aanbevelingen. `legKansenVast()` is precies de aanroep
+    // die `generateReport()` doet na het opslaan (de AI-stub kent het
+    // rapportschema niet, en punt 56 hierboven leunt daarop, dus het rapport zelf
+    // staat hier als rij). Dan de voorraad: dezelfde kaarten als vóór N2, nu met
+    // hun kans erbij, en een kaart die al bestond vindt zijn kans terug.
+    console.log("\nScenario 23: van meting naar kans naar voorraad (N2)");
+    {
+      const { legKansenVast } = await import("@/lib/kansen/uit-rapport");
+      const { syncBacklog } = await import("@/lib/plan-backlog-data");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      const analyse = randomUUID();
+      const aanbod = randomUUID();
+      const [p1, p2] = [randomUUID(), randomUUID()];
+      const rapport = randomUUID();
+
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, priority_offerings)
+         values ($1, $2, 'Kansentest', 'https://kansentest.nl', 'Kansentest', 'klaar', '{Rijles}')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'Rijles', 'https://kansentest.nl', 'rijles', 'gereed')`,
+        [analyse, userId, merk],
+      );
+      await db.client.query(
+        `insert into public.profile_topics (profile_id, analysis_id, title, priority, status, offering_ids, offering_names)
+         values ($1, $2, 'Rijles', 5, 'goedgekeurd', $3, '{Rijles}')`,
+        [merk, analyse, [aanbod]],
+      );
+      // De kennislaag: de dienst van het onderwerp, en twee plaatsen.
+      const { rows: kennisRijen } = await db.client.query(
+        `insert into public.klantkennis (profile_id, domein, soort, bewering, status, bron, gebruik, vastgelegd_door_taak, herkomst_tabel, herkomst_id) values
+           ($1, 'aanbod', 'dienst', 'Rijles', 'afgeleid', 'ai', 'intern', 'kennis_terugvullen', 'profile_offerings', $2),
+           ($1, 'identiteit', 'werkgebied', 'Best', 'afgeleid', 'ai', 'intern', 'kennis_terugvullen', 'profiles', null),
+           ($1, 'identiteit', 'werkgebied', 'Veldhoven', 'afgeleid', 'ai', 'intern', 'kennis_terugvullen', 'profiles', null)
+         returning id, bewering`,
+        [merk, aanbod],
+      );
+      const kennisId = (b: string) => kennisRijen.find((r: { bewering: string }) => r.bewering === b)!.id as string;
+
+      // De meting: ChatGPT mist p1 (en noemt twee concurrenten), noemt p2;
+      // AI Overview meet p1 drie keer en mist hem twee keer.
+      const meting = async (prompt: string, tekst: string, engine: string, herhaling: number, genoemd: boolean, anderen: string[]) => {
+        const run = randomUUID();
+        await db.client.query(
+          `insert into public.tracking_runs (id, analysis_id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, week_no, purpose, engine, repeat_index, brands_in_answer)
+           values ($1, $2, $3, $4, 'Beslissing', 0, 'periodic', $5, $6, $7)`,
+          [run, analyse, prompt, tekst, engine, herhaling, anderen.length + (genoemd ? 1 : 0)],
+        );
+        await db.client.query(
+          "insert into public.tracking_run_mentions (tracking_run_id, entity_name, is_own_brand, mentioned) values ($1, 'Kansentest', true, $2)",
+          [run, genoemd],
+        );
+        for (const a of anderen) {
+          await db.client.query(
+            "insert into public.tracking_run_mentions (tracking_run_id, entity_name, is_own_brand, mentioned) values ($1, $2, false, true)",
+            [run, a],
+          );
+        }
+      };
+      await db.client.query(
+        `insert into public.prompts (id, analysis_id, text, category, active) values
+           ($1, $3, 'Welke rijschool in Best is goed?', 'Beslissing', true),
+           ($2, $3, 'Wat kost rijles?', 'Beslissing', true)`,
+        [p1, p2, analyse],
+      );
+      await meting(p1, "Welke rijschool in Best is goed?", "openai", 0, false, ["Rijschool Wit", "Rijschool Zwart"]);
+      await meting(p2, "Wat kost rijles?", "openai", 0, true, []);
+      await meting(p1, "Welke rijschool in Best is goed?", "google_ai_overview", 0, false, ["Rijschool Wit"]);
+      await meting(p1, "Welke rijschool in Best is goed?", "google_ai_overview", 1, false, ["Rijschool Wit"]);
+      await meting(p1, "Welke rijschool in Best is goed?", "google_ai_overview", 2, true, []);
+
+      await db.client.query(
+        `insert into public.reports (id, analysis_id, period, week_no, recommendations_json) values ($1, $2, 'nulmeting', 0, $3::jsonb)`,
+        [
+          rapport,
+          analyse,
+          JSON.stringify([
+            {
+              title: "Rijles in Best",
+              why: "ChatGPT noemt ons niet in Best.",
+              type: "landing",
+              action: "nieuw",
+              existingUrl: "null",
+              targetIntent: "Iemand uit Best die een rijschool zoekt",
+              targets: [
+                { promptId: p1, weight: 0.5, text: "Welke rijschool in Best is goed?" },
+                { promptId: p2, weight: 0.3, text: "Wat kost rijles?" },
+              ],
+            },
+            {
+              title: "Tarievenpagina verbeteren",
+              why: "De prijzen staan verstopt.",
+              type: "article",
+              action: "verbeteren",
+              existingUrl: "https://kansentest.nl/tarieven/",
+              targetIntent: "Iemand die wil weten wat rijles kost",
+              targets: [{ promptId: p2, weight: 0.3, text: "Wat kost rijles?" }],
+            },
+          ]),
+        ],
+      );
+
+      // Een kaart van vóór N2: hij stond al in de voorraad, zonder kans.
+      const { rows: oudeKaart } = await db.client.query(
+        `insert into public.planned_pages (profile_id, title, page_type, status, sort_order, is_buffer, source, source_analysis_id, source_ref, recommendation_action)
+         values ($1, 'Rijles in Best', 'dienst', 'gepland', 0, false, 'aanbeveling', $2, $3, 'nieuw') returning id`,
+        [merk, analyse, `${rapport}#0`],
+      );
+
+      const eerste = await legKansenVast(shim, rapport);
+      eqc("scenario 23: twee aanbevelingen, twee kansen", `${eerste.aangemaakt}/${eerste.bestond}/${eerste.mislukt}`, "2/0/0");
+      const tweede = await legKansenVast(shim, rapport);
+      eqc("scenario 23: nog een keer maakt niets dubbel (conventie 9)", `${tweede.aangemaakt}/${tweede.bestond}`, "0/2");
+
+      type KansRij = { id: string; sleutel: string; titel: string; lezer: string | null; handeling: string; bestaande_url: string | null; geldt_voor: string[]; commerciele_waarde: string | null; status: string; uitleg: string | null; rapport_id: string; analysis_id: string; vastgelegd_door_taak: string; potentie: string | null };
+      const kansen = (await db.client.query("select * from public.kansen where profile_id = $1 order by sleutel", [merk])).rows as KansRij[];
+      eqc("scenario 23: de sleutels zijn de oude source_ref", kansen.map((k) => k.sleutel).join(","), `${rapport}#0,${rapport}#1`);
+      const [best, tarieven] = kansen;
+      eqc("scenario 23: een nieuwe pagina, zonder het adres 'null'", `${best?.handeling}/${best?.bestaande_url}`, "nieuwe_pagina/null");
+      eqc("scenario 23: verbeteren met zijn adres", `${tarieven?.handeling}/${tarieven?.bestaande_url}`, "pagina_verbeteren/https://kansentest.nl/tarieven/");
+      eqc("scenario 23: met herkomst: rapport, cluster, taak", `${best?.rapport_id}/${best?.analysis_id}/${best?.vastgelegd_door_taak}`, `${rapport}/${analyse}/generate_report`);
+      eqc("scenario 23: de dienst heeft voorrang bij dit merk", String(best?.commerciele_waarde), "voorrang");
+      eqc("scenario 23: geldt voor de dienst en de plaats uit de titel, niet voor een andere plaats", [...(best?.geldt_voor ?? [])].sort().join(","), [kennisId("Rijles"), kennisId("Best")].sort().join(","));
+      eqc("scenario 23: de tarievenkans geldt alleen voor de dienst", (tarieven?.geldt_voor ?? []).join(","), kennisId("Rijles"));
+
+      type BewijsRij = { kans_id: string; bron: string; vragen_gemeten: number; vragen_genoemd: number; concurrenten: string[]; run_ids: string[] };
+      const bewijs = (await db.client.query("select * from public.kans_bewijs where profile_id = $1 order by bron", [merk])).rows as BewijsRij[];
+      const vanKans = (id: string | undefined) => bewijs.filter((b) => b.kans_id === id);
+      eqc(
+        "scenario 23: het bewijs per bron, met de meerderheid binnen AI Overview",
+        vanKans(best?.id).map((b) => `${b.bron}:${b.vragen_genoemd}/${b.vragen_gemeten}:${(b.concurrenten ?? []).join("+")}`).join(" "),
+        "ai_overview:0/1:Rijschool Wit chatgpt:1/2:Rijschool Wit+Rijschool Zwart",
+      );
+      eqc("scenario 23: de metingen zelf staan erbij", String(vanKans(best?.id).reduce((n, b) => n + (b.run_ids ?? []).length, 0)), "5");
+      eqc(
+        "scenario 23: de uitleg komt uit het bewijs",
+        String(best?.uitleg),
+        "ChatGPT noemt je bij 1 van de 2 vragen en noemt twee concurrenten wel. Google AI Overview noemt je niet bij de enige gemeten vraag en noemt één concurrent wel.",
+      );
+      eqc(
+        "scenario 23: zonder gemis zegt de uitleg dat ook",
+        String(tarieven?.uitleg),
+        "ChatGPT noemt je al bij de enige gemeten vraag. Je huidige pagina gaat er deels over.",
+      );
+
+      // ── De voorraad ──
+      await syncBacklog(shim, merk);
+      await syncBacklog(shim, merk);
+      type KaartRij = { id: string; title: string; source_ref: string; kans_id: string | null; recommendation_action: string; existing_url: string | null; why: string | null; target_intent: string | null; potential: string | null; target_count: number | null };
+      const kaarten = (await db.client.query("select * from public.planned_pages where profile_id = $1 order by source_ref", [merk])).rows as KaartRij[];
+      eqc("scenario 23: twee kaarten, geen dubbele na twee rondes", String(kaarten.length), "2");
+      eqc("scenario 23: de oude kaart vond zijn kans terug", `${kaarten[0]?.id}/${kaarten[0]?.kans_id}`, `${oudeKaart[0].id}/${best?.id}`);
+      eqc("scenario 23: de nieuwe kaart komt uit zijn kans", `${kaarten[1]?.kans_id}/${kaarten[1]?.source_ref}`, `${tarieven?.id}/${rapport}#1`);
+      eqc(
+        "scenario 23: dezelfde kaart als vóór N2: handeling, adres, tekst, lezer, doelvragen",
+        `${kaarten[1]?.recommendation_action}|${kaarten[1]?.existing_url}|${kaarten[1]?.why}|${kaarten[1]?.target_intent}|${kaarten[1]?.target_count}`,
+        "verbeteren|https://kansentest.nl/tarieven/|De prijzen staan verstopt.|Iemand die wil weten wat rijles kost|1",
+      );
+      const naSync = (await db.client.query("select id, potentie from public.kansen where profile_id = $1", [merk])).rows as { id: string; potentie: string | null }[];
+      for (const k of kaarten) {
+        const kans = naSync.find((r) => r.id === k.kans_id);
+        eqc(`scenario 23: de potentie op de kans is die van de kaart (${k.title})`, String(kans?.potentie === null || kans?.potentie === undefined ? null : Number(kans.potentie)), String(k.potential === null ? null : Number(k.potential)));
+      }
+
+      // Een rapport zonder kansen (van vóór N2): de voorraad maakt ze alsnog.
+      const analyse2 = randomUUID();
+      const rapport2 = randomUUID();
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Theorie', 'https://kansentest.nl', 'theorie', 'gereed')`,
+        [analyse2, userId, merk],
+      );
+      await db.client.query(
+        `insert into public.reports (id, analysis_id, period, recommendations_json) values ($1, $2, 'nulmeting', $3::jsonb)`,
+        [rapport2, analyse2, JSON.stringify([{ title: "Theorie-examen oefenen", action: "nieuw", type: "article" }])],
+      );
+      await syncBacklog(shim, merk);
+      const { rows: vangnet } = await db.client.query(
+        "select k.id as kans, p.kans_id from public.kansen k left join public.planned_pages p on p.kans_id = k.id where k.rapport_id = $1",
+        [rapport2],
+      );
+      eqc("scenario 23: een rapport van vóór N2 krijgt zijn kans bij de volgende synchronisatie, met kaart", `${vangnet.length}/${vangnet[0]?.kans === vangnet[0]?.kans_id}`, "1/true");
+      const { rows: zonderBewijs } = await db.client.query("select uitleg from public.kansen where rapport_id = $1", [rapport2]);
+      eqc("scenario 23: zonder meting: geen gegevens, geen nul", String(zonderBewijs[0]?.uitleg), "Voor deze kans zijn er nog geen gegevens.");
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);
