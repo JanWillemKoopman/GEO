@@ -223,9 +223,9 @@ Waar het hieronder om bedragen en tijden gaat, zijn die gemeten op de proef van 
 72. De schrijver krijgt vier soorten informatie: wat we zeker weten over het bedrijf (feiten die bij
     deze pagina horen, wat het anders doet, bewijs, verhalen, bezwaren met het antwoord van de
     ondernemer, eerder beantwoorde merkvragen), wat de ondernemer over deze pagina vertelde, het
-    onderzoek uit de brief, en de zoekintentie met de vragen uit de meting. Daarbij twee pagina's van
-    de eigen site als voorbeeld van hoe het bedrijf klinkt, en de titels van de andere pagina's van het
-    merk.
+    onderzoek uit de brief, en de zoekintentie met de vragen uit de meting. Daarbij de één tot drie
+    pagina's die de ondernemer koos als voorbeeld van hoe het bedrijf klinkt (zonder die keuze de
+    homepage), en de titels van de andere pagina's van het merk.
 73. De schrijfopdracht staat in één bestand met een versienummer. Hij vraagt de beste pagina voor
     deze vraag: volledig, natuurlijk, concreet, zonder verzonnen bedrijfsclaims, zo lang als nodig.
     Geen woordenbudget, geen verplichte opbouw, geen bronverwijzingen.
@@ -273,9 +273,11 @@ Waar het hieronder om bedragen en tijden gaat, zijn die gemeten op de proef van 
 93. De klant kan de tekst zelf bewerken, of "Vraag een aanpassing" kiezen: dan schrijft het systeem een
     nieuwe versie met die wens erbij, zonder nieuwe beoordeling.
 94. De klant keurt de pagina goed. Dat kan pas als elke gele zin bevestigd of weggeschreven is.
-95. Het systeem zet de inhoud, de tekst, de FAQ en de technische metadata om naar de opmaak die past
-    bij het sjabloon van de site van de klant, zodat plakken op de eigen site klopt met hoe die site
-    een FAQ of een blok al toont.
+95. De klant neemt de goedgekeurde tekst over op zijn eigen site. ⚠️ Nog niet af (26 september 2026):
+    de app maakt ook een metatitel, een metabeschrijving, een FAQ en technische metadata, maar het
+    paginascherm toont alleen de tekst, en de omzetting naar de opmaak van de site van de klant
+    (`lib/pipeline/content-export.ts`) hangt sinds de ombouw van de contentketen aan geen scherm. Zie
+    `docs/doorloop-van-klant-tot-content.md` bijlage A.
 
 ## Fase 14. Publiceren en controleren
 
