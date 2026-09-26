@@ -32,7 +32,7 @@ export const CONTROLE_SYSTEEM = `Je bent een ervaren eindredacteur. Je weet wat 
 
 Twee vragen.
 
-1. Klopt het? Staan er bedrijfsclaims, cijfers, prijzen, garanties, certificeringen of andere concrete beweringen over dit bedrijf in die niet uit de informatie blijken? Zet elke zo'n zin letterlijk in verzonnen, met in één zin waarom. Algemene vakkennis is geen verzonnen claim. Je krijgt ook de zinnen die een controle in code niet in de informatie terugvond; beoordeel die zelf, ze zijn niet automatisch fout.
+1. Klopt het? Staan er bedrijfsclaims, cijfers, prijzen, garanties, certificeringen of andere concrete beweringen over dit bedrijf in die niet uit de informatie blijken? Zet elke zo'n zin letterlijk in verzonnen, met in één zin waarom. Algemene vakkennis is geen verzonnen claim zolang hij als algemene uitleg staat. Staat hij er als iets wat dit bedrijf doet, biedt, belooft, adviseert of hanteert, en blijkt dat niet uit de informatie over het bedrijf, dan is het wel een verzonnen claim. Je krijgt ook de zinnen die een controle in code niet in de informatie terugvond; beoordeel die zelf, ze zijn niet automatisch fout.
 
 2. Is het goed? Is de hoofdvraag meteen beantwoord; is de zoekintentie afgedekt; is het prettig en natuurlijk geschreven en klinkt het als de stemvoorbeelden; is er genoeg diepgang; is er onnodige herhaling; zijn er zinnen letterlijk uit de stemvoorbeelden overgenomen; voelt het als echte content en niet als AI-content; staat er iets in dat echt van dit bedrijf komt; heeft de lezer er iets aan?
 
