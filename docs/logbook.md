@@ -12698,3 +12698,11 @@ gebouwd maar bij 0 merken gekoppeld, een effectmeting met controlegroep die alle
 `docs/tasks/van-pijplijn-naar-kennissysteem.md`: 38 werkpakketten in negen fases, eerst de eerste echte
 klant op de huidige keten als meetlat, dan de kennislaag. Geen nieuwe AI-aanroepen; de contentketen blijft
 zoals hij is en krijgt alleen betere invoer. Acht besluiten (V1 tot en met V8) liggen bij de eigenaar.
+
+De acht besluiten van `docs/tasks/van-pijplijn-naar-kennissysteem.md` genomen door de eigenaar (26 september
+2026). Zes volgens advies: een nieuwe tabel voor klantkennis, een eigen pagina van de consultant mag zonder
+meting (B18 in de contentketen), alleen de voorbereiding van de pagina stelt nog vragen, de controle leest
+ook FAQ en metabeschrijving (B19), de gebeurtenissenlaag in de bestaande database, leren eerst per merk.
+Twee anders: de eerste echte klant wacht op de verbouwing (uitgewerkt als: na fase 5, zodat de meet- en
+leerfases met zijn pagina's worden afgemaakt; tot die tijd zijn de drie proefmerken de meetlat), en het
+kennisoverzicht is alleen voor de consultant, die vastlegt wat de klant in het gesprek bevestigt.

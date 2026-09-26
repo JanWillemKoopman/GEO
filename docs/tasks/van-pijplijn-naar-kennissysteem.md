@@ -27,9 +27,10 @@ herkomst.
    zijn.
 2. **Werk precies één werkpakket per sessie**, in de volgorde van §9. Begin niet aan het volgende
    voordat de "klaar als"-lijst van het vorige helemaal gehaald is.
-3. **Elk werkpakket laat de app werkend achter.** Er komt een echte klant door de huidige keten
-   (werkpakket F0.1). Anders dan bij de ombouw van de contentketen (besluit B8 daar) is er dus geen
-   periode waarin de app tijdelijk niet schrijft of niet meet.
+3. **Elk werkpakket laat de app werkend achter.** De eerste echte klant wacht op de verbouwing (V5),
+   maar de proefmerken draaien op productie en zijn de meetlat voor elke verandering. Anders dan bij de
+   ombouw van de contentketen (besluit B8 daar) is er dus geen periode waarin de app tijdelijk niet
+   schrijft of niet meet.
 4. **Oud en nieuw bestaan alleen naast elkaar tijdens één overgang**, en die overgang heeft een
    einddatum in de vorm van een werkpakket. Na de omschakeling leest geen code het oude nog, en een
    test in `scripts/test-unit.ts` bewaakt dat (zoals `contentketen-opnieuw.md` §7.2 dat doet).
@@ -165,14 +166,14 @@ Vul de kolom "Besluit" in (met datum) in werkpakket F0.3.
 
 | # | Vraag | Advies | Nodig voor | Besluit |
 |---|---|---|---|---|
-| V1 | Een nieuwe tabel voor klantkennis, of `brand_facts` uitbreiden? | **Nieuwe tabel `klantkennis`.** `brand_facts` is gebouwd voor beweringen; verhalen, stem, grenzen en afgeleide kennis passen er niet in zonder de betekenis van bestaande kolommen te veranderen. `brand_facts` wordt bron voor het terugvullen en daarna alleen-lezen | K1 | |
-| V2 | Mag een handmatige kans van de consultant voorbereid en geschreven worden zonder gemeten cluster? | **Ja**, met het label "niet gemeten". De effectmeting begint dan met een eigen nulmeting op de doelvragen die de consultant opgeeft. Raakt `start.ts` (`clusterVan`), dus ook een besluit in `contentketen-opnieuw.md` §2 | N5 | |
-| V3 | Stopt het rapport met het stellen van vragen aan de klant, zodra de brief vragen stelt op basis van kennisgaten? | **Ja.** Twee bronnen van vragen voor dezelfde pagina is dubbel werk voor de klant, en de brief vraagt gerichter | A3 | |
-| V4 | Controleert de keten ook de FAQ en de metabeschrijving op harde beweringen en verboden woorden? | **Ja**, in code (conventie 1), en de eindredacteur leest de FAQ mee. Een besluit in `contentketen-opnieuw.md` §2 | C1 | |
-| V5 | Gaat de eerste echte klant door de huidige keten, vóór fase 1 klaar is? | **Ja.** Die doorloop is de meetlat waartegen dit plan zich moet bewijzen (`meting-eerste-klant.md`) | F0.1 | |
-| V6 | Ziet de klant zelf het kennisoverzicht, en mag hij bevestigen? | **Ja.** "Bevestigd" is de hoogste status en kan alleen van een mens komen; de klant is de beste bron | K7 | |
-| V7 | Een lichte gebeurtenissenlaag in Postgres, of een externe dienst (berichtenwachtrij)? | **Licht, in Postgres**, op de bestaande wachtrij. Bij drie merken is een externe dienst alleen extra onderhoud | G1 | |
-| V8 | Mag het systeem leren over merken heen ("dit type pagina werkt vaak"), of alleen per merk? | **Eerst alleen per merk.** Over merken heen raakt aan wat klanten van elkaar mogen weten, en vraagt veel meer data dan er is | L2 | |
+| V1 | Een nieuwe tabel voor klantkennis, of `brand_facts` uitbreiden? | **Nieuwe tabel `klantkennis`.** `brand_facts` is gebouwd voor beweringen; verhalen, stem, grenzen en afgeleide kennis passen er niet in zonder de betekenis van bestaande kolommen te veranderen. `brand_facts` wordt bron voor het terugvullen en daarna alleen-lezen | K1 || **Nieuwe tabel**, zoals geadviseerd (26 september 2026) |
+| V2 | Mag een handmatige kans van de consultant voorbereid en geschreven worden zonder gemeten cluster? | **Ja**, met het label "niet gemeten". De effectmeting begint dan met een eigen nulmeting op de doelvragen die de consultant opgeeft. Raakt `start.ts` (`clusterVan`), dus ook een besluit in `contentketen-opnieuw.md` §2 | N5 || **Ja, met het label "niet gemeten"**, zoals geadviseerd (26 september 2026). Staat als B18 in `contentketen-opnieuw.md` §2 |
+| V3 | Stopt het rapport met het stellen van vragen aan de klant, zodra de brief vragen stelt op basis van kennisgaten? | **Ja.** Twee bronnen van vragen voor dezelfde pagina is dubbel werk voor de klant, en de brief vraagt gerichter | A3 || **Ja, alleen de voorbereiding van de pagina vraagt**, zoals geadviseerd (26 september 2026) |
+| V4 | Controleert de keten ook de FAQ en de metabeschrijving op harde beweringen en verboden woorden? | **Ja**, in code (conventie 1), en de eindredacteur leest de FAQ mee. Een besluit in `contentketen-opnieuw.md` §2 | C1 || **Ja, ook de FAQ en de metabeschrijving controleren**, zoals geadviseerd (26 september 2026). Staat als B19 in `contentketen-opnieuw.md` §2 |
+| V5 | Gaat de eerste echte klant door de huidige keten, vóór fase 1 klaar is? | **Ja.** Die doorloop is de meetlat waartegen dit plan zich moet bewijzen (`meting-eerste-klant.md`) | F0.1 || **Nee: de eerste echte klant wacht op de verbouwing** (26 september 2026), tegen het advies in. Uitgewerkt als: de klant komt zodra fase 1 tot en met 5 af zijn (alles wat hij ziet en gebruikt); fase 6 en 7 worden met zijn pagina's afgemaakt, want die hebben gepubliceerde pagina's nodig. Gevolg: er is geen meetlat van de huidige keten; de vergelijking loopt via de proefmerken (K6, A1) |
+| V6 | Ziet de klant zelf het kennisoverzicht, en mag hij bevestigen? | **Ja.** "Bevestigd" is de hoogste status en kan alleen van een mens komen; de klant is de beste bron | K7 || **Nee: alleen de consultant ziet en beheert het kennisoverzicht** (26 september 2026), tegen het advies in. De klant bevestigt in het gesprek; de consultant legt het vast. "Bevestigd" komt daarmee altijd via de consultant |
+| V7 | Een lichte gebeurtenissenlaag in Postgres, of een externe dienst (berichtenwachtrij)? | **Licht, in Postgres**, op de bestaande wachtrij. Bij drie merken is een externe dienst alleen extra onderhoud | G1 || **In de bestaande database**, zoals geadviseerd (26 september 2026) |
+| V8 | Mag het systeem leren over merken heen ("dit type pagina werkt vaak"), of alleen per merk? | **Eerst alleen per merk.** Over merken heen raakt aan wat klanten van elkaar mogen weten, en vraagt veel meer data dan er is | L2 || **Eerst alleen per merk**, zoals geadviseerd (26 september 2026) |
 
 ---
 
@@ -336,10 +337,12 @@ Per werkpakket: **doel**, **wat**, **niet**, **klaar als**. De nummers zijn vast
 
 ### Fase 0. Het fundament vastleggen (geen gedragsverandering)
 
-#### F0.1 De eerste echte klant op de huidige keten
-- **Doel:** een meetlat voordat er iets verandert. Wat verandert de ondernemer aan onze teksten, welke
-  vragen leverden iets op, hoe lang duurde het?
-- **Wat:** PR #163 samenvoegen. De doorloop van `docs/doorloop-van-klant-tot-content.md` met de eerste
+#### F0.1 De eerste echte klant, na fase 5
+- **Verschoven door besluit V5** (26 september 2026): de klant wacht tot fase 1 tot en met 5 af zijn.
+  Het nummer blijft F0.1, de plek in de volgorde (§9) is na C3.
+- **Doel:** de eerste echte klant door de nieuwe opbouw, en daarmee de gepubliceerde pagina's die fase 6
+  en 7 nodig hebben. Wat verandert de ondernemer aan onze teksten, welke vragen leverden iets op?
+- **Wat:** de doorloop van `docs/doorloop-van-klant-tot-content.md` (dan bijgewerkt) met de eerste
   klant. Het rapport uit `docs/tasks/meting-eerste-klant.md`.
 - **Niet:** tussentijds de keten aanpassen, tenzij iets echt kapot is.
 - **Klaar als:** het rapport van de klantmeting staat in `docs/tasks/`, met per pagina het oordeel van
@@ -441,8 +444,10 @@ Per werkpakket: **doel**, **wat**, **niet**, **klaar als**. De nummers zijn vast
   de handelingen bevestigen, aanpassen, dit klopt niet, en dit wil ik niet op mijn site. Afgeleide items
   apart, als "wat we denken". Volgt `docs/designsystem.md` en `docs/schrijfstijl.md`. Vervangt de
   kennisvelden op "merkprofiel bewerken" (de rest van dat scherm blijft).
-- **Klaar als:** met een klantlogin bevestigd en afgewezen op een proefmerk; de status verandert; een
-  afgewezen item verdwijnt uit blok A.
+- **Alleen voor de consultant** (besluit V6): de klant ziet dit scherm niet. Wat de klant in het gesprek
+  bevestigt, legt de consultant hier vast.
+- **Klaar als:** als consultant bevestigd en afgewezen op een proefmerk; de status verandert; een
+  afgewezen item verdwijnt uit blok A; met een klantlogin is het scherm niet te bereiken.
 
 #### K8 De oude schrijvers en lezers opruimen
 - **Doel:** één waarheid, ook in de code.
@@ -685,8 +690,7 @@ Per werkpakket: **doel**, **wat**, **niet**, **klaar als**. De nummers zijn vast
 ## 9. De volgorde
 
 ```
-F0.1 ─┐
-F0.2 ─┼─▶ F0.3 ─▶ K1 ─▶ K2 ─▶ K3 ─▶ K4 ─▶ K5 ─▶ K6 ─▶ K7 ─▶ K8
+F0.2 ──▶ F0.3 ─▶ K1 ─▶ K2 ─▶ K3 ─▶ K4 ─▶ K5 ─▶ K6 ─▶ K7 ─▶ K8
       │                  │                         │
       │                  └─▶ N1 ─▶ N2 ─▶ N6 ───────┼─▶ A1 ─▶ A2 ─▶ A3 ─▶ A4
       │                            │    │          │
@@ -695,13 +699,14 @@ F0.2 ─┼─▶ F0.3 ─▶ K1 ─▶ K2 ─▶ K3 ─▶ K4 ─▶ K5 ─▶ 
       │                            └─▶ N5            G1 ───┴─▶ G3 ─▶ G4 ─▶ G5
       │
       ├─▶ C1 (zodra V4 besloten is)            C2 (los, elk moment)
-      └─▶ M1 ─▶ M3 ─▶ M4 ─▶ L1 ─▶ L2
-          (M2 en N3 zodra er een merk met Search Console is; L1 zodra er een golf 2 is)
+      └─▶ M1 ─▶ M3 ─▶ M4
+      C3 ─▶ F0.1 (eerste echte klant, besluit V5) ─▶ M2 ─▶ L1 ─▶ L2
+          (N3 zodra er een merk met Search Console is; L1 zodra er een golf 2 is)
 ```
 
 **Waarom deze volgorde:**
-1. **Eerst de meetlat (F0.1), dan de verbouwing.** Zonder de uitkomst van een echte klant weten we niet
-   of een verandering iets beter maakt.
+1. **De eerste echte klant na fase 5 (besluit V5).** Tot die tijd zijn de proefmerken de meetlat: elke
+   verandering aan wat de schrijver krijgt, wordt op hun pagina's paarsgewijs vergeleken (K6, A1).
 2. **De kennislaag vóór de kansen.** Een kans verwijst naar dienst, regio en doelgroep in de
    kennislaag, en het kennisgat (N6) kan pas als de kennislaag staat.
 3. **De gebeurtenissen na de kansen.** Er valt pas iets te herzien als er afhankelijkheden zijn.
@@ -731,15 +736,15 @@ per pagina opnieuw.
 
 | # | Risico | Maatregel |
 |---|---|---|
-| 1 | De verbouwing verstoort de eerste echte klant | F0.1 eerst; elk werkpakket laat de app werkend achter (§0 regel 3); de overgangen zijn per werkpakket afgebakend |
+| 1 | Zonder echte klant is er geen meetlat van de huidige keten (besluit V5), en een verbetering is moeilijker te bewijzen | De proefmerken als meetlat (K6, A1); de eerste klant direct na fase 5 (F0.1), zodat fase 6 en 7 met echte pagina's worden afgemaakt |
 | 2 | Oud en nieuw blijven naast elkaar bestaan en er ontstaan twee waarheden | Elke overgang eindigt in een werkpakket met een bewakingstest (K8, en `contentketen-opnieuw.md` §7.2 als voorbeeld) |
 | 3 | De kennislaag groeit uit tot een nieuwe AI-pijplijn | §4 regel 1 en 2: terugvullen en indelen in code; AI schrijft alleen afgeleid of waargenomen met citaat |
 | 4 | De gebeurtenissenlaag wordt complexer dan wat hij vervangt | Licht in Postgres (V7), één gebeurtenis om mee te beginnen, en een expliciet beslismoment om te stoppen (G5) |
 | 5 | Te weinig data om te leren of om Search Console te benutten | N3, M2, L1 en L2 zijn afhankelijk gemaakt van echte data en wachten daarop; tot die tijd toont de app "geen gegevens" |
 | 6 | Het kennisgat maakt de vragenlijst langer in plaats van beter | Hooguit acht vragen blijft (contentketen §6.1); A1 wordt beoordeeld door de eigenaar als ondernemer, niet op aantal |
-| 7 | De klant bevestigt zonder te lezen, en bevestigd krijgt dan te veel gewicht | Bevestigen per item, niet "alles bevestigen"; een bevestigd item dat verloopt (prijs, termijn) moet opnieuw bevestigd worden |
+| 7 | De consultant bevestigt namens de klant zonder dat de klant het echt zei, en bevestigd krijgt dan te veel gewicht | Bevestigen per item, niet "alles bevestigen", met in de herkomst dat het in het gesprek bevestigd is; een bevestigd item dat verloopt (prijs, termijn) moet opnieuw bevestigd worden |
 | 8 | De feedback wordt gelezen als opdracht om alles opnieuw te bouwen | Dit plan behoudt de wachtrij, de onboardingketen, de contentketen en de effectmeting, en verandert het datamodel eromheen (§2) |
-| 9 | De eigenaar is geen ontwikkelaar en kan de schermen pas laat beoordelen | K7, N7, A4 en M4 hebben een klaar-als met een klantlogin, zodat het werk op het scherm beoordeeld wordt en niet alleen in tests |
+| 9 | De eigenaar is geen ontwikkelaar en kan de schermen pas laat beoordelen | K7, N7, A4 en M4 hebben een klaar-als op het scherm (K7 en A4 als consultant, N7 en M4 met een klantlogin), zodat het werk beoordeeld wordt en niet alleen in tests |
 
 ---
 
@@ -747,11 +752,10 @@ per pagina opnieuw.
 
 | Wanneer | Wat | Waarom |
 |---|---|---|
-| Nu | PR #163 samenvoegen | F0.1 heeft het publicatiepakket nodig |
-| Voor F0.1 | De eerste klant door de doorloop begeleiden, de vragen in het gesprek samen invullen | De meetlat voor dit hele plan |
-| F0.3 | De besluiten V1 tot en met V8 | Zonder die besluiten kan fase 1 niet beginnen |
+| Nu | PR #163 samenvoegen | Het publicatiepakket en dit plan staan op die branch |
+| Na fase 5 | De eerste klant door de doorloop begeleiden, de vragen in het gesprek samen invullen (F0.1) | Besluit V5; fase 6 en 7 hebben zijn gepubliceerde pagina's nodig |
 | Voor N3 en M2 | Search Console koppelen bij minstens één merk (een proefmerk met een eigen site, of de eerste klant) | Nu staat er bij nul merken Search Console |
-| Na K7, N7, A4, M4 | Met een klantlogin de nieuwe schermen doorlopen | Het oordeel "begrijpt een ondernemer dit" kan alleen een mens geven |
+| Na K7, N7, A4, M4 | De nieuwe schermen doorlopen (K7 en A4 als consultant, N7 en M4 met een klantlogin) | Het oordeel "begrijpt een ondernemer dit" kan alleen een mens geven |
 
 ---
 
@@ -759,9 +763,9 @@ per pagina opnieuw.
 
 | Werkpakket | Wat | Sessies (schatting) | Stand | Commit en datum |
 |---|---|---|---|---|
-| F0.1 | Eerste echte klant op de huidige keten | 1 tot 2, plus wachttijd | Open | |
+| F0.1 | Eerste echte klant, na fase 5 (V5) | 1 tot 2, plus wachttijd | Open, wacht op fase 1 tot en met 5 | |
 | F0.2 | Inventaris van alle klantkennis | 1 | Open | |
-| F0.3 | Besluiten V1 tot en met V8 | 1 | Open | |
+| F0.3 | Besluiten V1 tot en met V8 | 1 | Gedaan: zes volgens advies, V5 en V6 anders (zie §3.2); B18 en B19 in `contentketen-opnieuw.md` | 26 september 2026 |
 | K1 | Datamodel en regels van de kennislaag | 1 | Open | |
 | K2 | Eén schrijfingang | 1 | Open | |
 | K3 | Terugvullen uit wat er al staat | 1 | Open | |
@@ -791,7 +795,7 @@ per pagina opnieuw.
 | C2 | Het publicatiepakket compleet | 1 | Open | |
 | C3 | Vastleggen welke kennis in een versie zat | 1 | Open | |
 | M1 | Het meetplan vanaf het goedkeuren | 1 | Open | |
-| M2 | Search Console per pagina | 1 | Open, wacht op Search Console en een publicatie | |
+| M2 | Search Console per pagina | 1 | Open, wacht op Search Console en de eerste klant (F0.1) | |
 | M3 | Citaties van de eigen pagina | 1 | Open | |
 | M4 | De bewijsladder | 2 | Open | |
 | L1 | De uitkomst wordt klantkennis | 1 | Open, wacht op een golf 2 | |
