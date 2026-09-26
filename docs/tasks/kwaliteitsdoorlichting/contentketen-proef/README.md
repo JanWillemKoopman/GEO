@@ -62,3 +62,21 @@ of nergens. Alles hieronder is verzonnen, net als het gespreksdeel van het dossi
 - Foto's in het fotoalbum op de site; plaats noemen mag, naam van de klant niet.
 - Offerteaanvraag: foto's en maten sturen of bellen, gratis bezoek, offerte vaak binnen een paar dagen,
   met 3D-ontwerp een week of twee.
+
+### B. Wesley Keeris Installatietechniek
+
+- Adviesbezoek: isolatie, radiatoren, ketel, meterkast, plek voor de buitenunit. Handig: bouwjaar,
+  foto van het typeplaatje, jaarlijks gasverbruik. Een gewone aansluiting is voor een hybride bijna
+  altijd genoeg; anders eerst de meterkast aanpassen of voorlopig een nieuwe ketel.
+- Keuze ketel en hybride: ketel jonger dan ongeveer acht jaar blijft; 12 jaar of ouder meestal ketel en
+  hybride tegelijk; daartussen afhankelijk van storingen en onderhoud.
+- Voorbeelden: rijtjeshuis in Mierlo uit 1972 met enkel glas en een ketel van 16 jaar (alleen een
+  nieuwe ketel); tussenwoning in Geldrop uit 1985 met een ketel van zes jaar (hybride, unit tegen de
+  schuur, één dag); vrijstaande woning in Eindhoven uit de jaren 30 (hybride met twee grotere
+  radiatoren); in Nuenen een ketel van 13 jaar, ketel en hybride op één dag.
+- In het bedrag van € 4.500 tot € 7.500 (inclusief btw, voor subsidie): warmtepomp, buitenunit op
+  trillingdempers, leidingen, aansluiting op de ketel, extra groep in de meterkast, inregelen. Niet:
+  extra radiatoren, isolatie, een nieuwe ketel.
+- Werkgebied voor hybride: Geldrop, Mierlo, Nuenen, Eindhoven, Heeze-Leende; overal dezelfde aanpak en
+  prijzen.
+- Wijst bij subsidie naar waar het actuele bedrag te vinden is, zonder zelf een bedrag te noemen.
