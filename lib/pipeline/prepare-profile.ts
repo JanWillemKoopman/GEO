@@ -25,6 +25,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { crawlSite } from "@/lib/crawler";
 import { generateProfileResearch } from "@/lib/pipeline/profile-research";
 import { schoneWaardeproposities } from "@/lib/pipeline/waardeproposities";
+import { kennisUitMerkonderzoek } from "@/lib/kennis/onderzoek";
+import { legOnderzoekVast } from "@/lib/kennis/uit-onderzoek";
 import {
   filterProtectedFields,
   describeMerge,
@@ -296,6 +298,32 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
         `Profielonderzoek opslaan mislukt voor profiel ${id}: ${saveError.message}`,
       );
     }
+
+    // K4: wat het model voorstelde en wat er op het profiel kwam, ook in de
+    // kennislaag. Alles afgeleid: het merkonderzoek geeft geen citaten.
+    await legOnderzoekVast(
+      admin,
+      id,
+      kennisUitMerkonderzoek({
+        profileId: id,
+        model: {
+          brand_name: p.brandName,
+          industry: p.industry,
+          business_model: p.businessModel,
+          summary: p.summary,
+          market_language: p.marketLanguage,
+          service_scope: bereik.scope,
+          service_regions: bereik.regions,
+          products: p.products,
+          value_props: schoneWaardeproposities(p.valueProps),
+          competitors: p.competitors,
+          proof_points: p.proofPoints,
+          personas: p.personas,
+        },
+        geschreven: allowed,
+      }),
+      "profile_research",
+    );
 
     return "klaar";
   } catch (err) {

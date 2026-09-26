@@ -601,6 +601,42 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
    */
   mention: () => ({ mentions: [] }),
 
+  /**
+   * De aanbodboom (`lib/pipeline/offering.ts`), voor scenario 21 (K4). Drie
+   * knopen op de pagina's van dat scenario: twee met een citaat dat letterlijk
+   * op de pagina staat, één met een citaat dat er NIET staat. Die laatste moet
+   * in de kennislaag een vermoeden worden, geen waarneming.
+   */
+  offering_tree: () => ({
+    businessModel: "dienstverlener" as const,
+    nodes: [
+      {
+        kind: "categorie" as const, name: "Behandelingen", parent: "", description: "", audience: "", priceIndication: "",
+        evidenceUrl: "https://fysi-unique.nl/hardloopklachten", evidenceQuote: "Hardloopklachten behandelen wij",
+      },
+      {
+        kind: "dienst" as const, name: "Dry needling", parent: "Behandelingen", description: "Naaldjes in de spier.",
+        audience: "sporters", priceIndication: "€ 65 per behandeling",
+        evidenceUrl: "https://fysi-unique.nl/dry-needling", evidenceQuote: "Dry needling voor sporters kost € 65",
+      },
+      {
+        kind: "dienst" as const, name: "Sportmassage", parent: "Behandelingen", description: "", audience: "", priceIndication: "",
+        evidenceUrl: "https://fysi-unique.nl/hardloopklachten", evidenceQuote: "Sportmassage na elke wedstrijd",
+      },
+    ],
+    gaps: [],
+  }),
+
+  /** Het marktonderzoek (`lib/pipeline/market.ts`), voor scenario 21 (K4). */
+  market_research: () => ({
+    competitors: [
+      { name: "SMC Amersfoort", why: "Groter team en langere openingstijden.", evidenceUrl: "" },
+      { name: "Fysio Vathorst", why: "Dichter bij de nieuwbouwwijk.", evidenceUrl: "https://fysiovathorst.nl" },
+    ],
+    sourceDomains: [{ domain: "zorgkaartnederland.nl", whyItMatters: "Hier vergelijken patiënten praktijken." }],
+    positioning: "Fysi-Unique is kleiner dan SMC Amersfoort, maar gespecialiseerd in hardloopblessures.",
+  }),
+
   profile_research: () => ({
     brandName: "Fysi-Unique",
     industry: "wellness en massage",

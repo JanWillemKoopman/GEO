@@ -36,6 +36,8 @@ import { buildTaxonomy } from "@/lib/pipeline/inventory-quality";
 import { buildPageBlocks } from "@/lib/pipeline/page-select";
 import { quoteConfidence } from "@/lib/pipeline/quote-check";
 import { isAdviesCitaat } from "@/lib/pipeline/aanbod-citaat";
+import { kennisUitAanbod } from "@/lib/kennis/onderzoek";
+import { legOnderzoekVast } from "@/lib/kennis/uit-onderzoek";
 import {
   relinkOfferingIds,
   type LinkableNode,
@@ -311,6 +313,15 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
     { onConflict: "profile_id,facet" },
   );
 
+  // K4: de knopen ook in de kennislaag. Waargenomen alleen als de code het
+  // citaat op de pagina terugvond (`confidence = 1`), anders afgeleid.
+  await legOnderzoekVast(
+    admin,
+    profileId,
+    kennisUitAanbod(saved.map((n) => ({ ...n, note: null, removed_at: null }))),
+    "profile_offering",
+  );
+
   return {
     nodes: saved.length,
     businessModel: profile.business_model ?? tree.businessModel,
@@ -428,7 +439,9 @@ async function persistTree(
       // Niet naar zichzelf wijzen: dat levert een rij op die in elke
       // boomopbouw een oneindige lus wordt.
       if (!parentId || parentId === stored[i].id) return;
-      await admin.from("profile_offerings").update({ parent_id: parentId }).eq("id", stored[i].id);
+      const { error: ouderFout } = await admin.from("profile_offerings").update({ parent_id: parentId }).eq("id", stored[i].id);
+      // Ook in het geheugen: de kennislaag (K4) hangt het kind aan zijn ouder.
+      if (!ouderFout) stored[i].parent_id = parentId;
     }),
   );
 

@@ -8597,6 +8597,95 @@ async function main(): Promise<void> {
       eqc("scenario 20: en ook dezelfde rijen nog eens schrijven doet niets", String(nogmaals.rowCount), "0");
     }
 
+    // ── Scenario 21: het onderzoek schrijft in de kennislaag (K4) ──────────
+    //
+    // docs/tasks/van-pijplijn-naar-kennissysteem.md K4: de vijf onderzoeks-
+    // stappen draaien echt, met de gestubde AI, en daarna staat in de
+    // kennislaag wat ze vonden, met de goede status en herkomst. Waargenomen
+    // alleen waar de code het citaat op de pagina terugvond. De oude tabellen
+    // worden tijdens de overgang nog gewoon geschreven.
+    console.log("\nScenario 21: het onderzoek schrijft in de kennislaag (K4)");
+    {
+      const { prepareProfile: onderzoek } = await import("@/lib/pipeline/prepare-profile");
+      const { buildOfferingTree } = await import("@/lib/pipeline/offering");
+      const { researchMarket } = await import("@/lib/pipeline/market");
+      const { runLlmBaseline } = await import("@/lib/pipeline/llm-baseline");
+      const { synthesiseProfile } = await import("@/lib/pipeline/synthesis");
+      const { legOnderzoekVast } = await import("@/lib/kennis/uit-onderzoek");
+      const { kennisUitAanbod } = await import("@/lib/kennis/onderzoek");
+      const merk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, status)
+         values ($1, $2, 'Fysi-Unique', 'https://fysi-unique.nl', 'bezig')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.profile_pages (profile_id, url, title, text_excerpt) values
+         ($1, 'https://fysi-unique.nl/hardloopklachten', 'Hardloopklachten',
+          'Wij zitten in Amersfoort. Hardloopklachten behandelen wij met dry needling en oefentherapie.'),
+         ($1, 'https://fysi-unique.nl/dry-needling', 'Dry needling',
+          'Dry needling voor sporters kost € 65 per behandeling van een half uur.')`,
+        [merk],
+      );
+      const kennis = async (taak: string) =>
+        (await db.client.query(
+          `select id, domein, soort, bewering, status, bron, bron_url, citaat, gebruik, geldt_voor, herkomst_tabel, herkomst_id
+           from public.klantkennis where profile_id = $1 and vastgelegd_door_taak = $2 order by vastgelegd_op, bewering`,
+          [merk, taak],
+        )).rows as { id: string; domein: string; soort: string | null; bewering: string; status: string; bron: string; bron_url: string | null; citaat: string | null; gebruik: string; geldt_voor: string[]; herkomst_tabel: string; herkomst_id: string }[];
+
+      await onderzoek(merk);
+      const merkonderzoek = await kennis("profile_research");
+      ok("scenario 21: het merkonderzoek legde kennis vast", merkonderzoek.length > 0);
+      eqc("scenario 21: alles uit het merkonderzoek is een vermoeden van het model", [...new Set(merkonderzoek.map((r) => `${r.status}/${r.bron}/${r.gebruik}`))].join(","), "afgeleid/ai/intern");
+      eqc("scenario 21: de waardepropositie staat erin, als vermoeden", merkonderzoek.filter((r) => r.soort === "waardepropositie").map((r) => r.bewering).join(","), "Ruime openingstijden");
+      ok("scenario 21: met het profiel als herkomst", merkonderzoek.every((r) => r.herkomst_tabel === "profiles" && r.herkomst_id === merk));
+
+      await buildOfferingTree(merk);
+      const aanbod = await kennis("profile_offering");
+      const knoop = (soort: string, begin: string) => aanbod.find((r) => r.soort === soort && r.bewering.startsWith(begin));
+      const needling = knoop("dienst", "Dry needling");
+      eqc("scenario 21: een dienst waarvan de code het citaat vond is waargenomen", `${needling?.status}/${needling?.citaat}/${needling?.bron_url}`, "waargenomen/Dry needling voor sporters kost € 65/https://fysi-unique.nl/dry-needling");
+      eqc("scenario 21: en hangt aan zijn categorie", (needling?.geldt_voor ?? []).join(","), knoop("categorie", "Behandelingen")?.id ?? "?");
+      eqc("scenario 21: de prijs uit dat citaat is waargenomen", knoop("prijs", "Dry needling")?.status ?? "", "waargenomen");
+      const massage = knoop("dienst", "Sportmassage");
+      eqc("scenario 21: een citaat dat niet op de pagina staat maakt een vermoeden", `${massage?.status}/${massage?.citaat}/${massage?.gebruik}`, "afgeleid/null/intern");
+      const { rows: oudAanbod } = await db.client.query("select count(*)::int as n from public.profile_offerings where profile_id = $1", [merk]);
+      eqc("scenario 21: de oude tabel wordt tijdens de overgang nog geschreven", String(oudAanbod[0].n), "3");
+
+      await researchMarket(merk);
+      const markt = await kennis("profile_market");
+      const { rows: marktFacet } = await db.client.query("select id from public.profile_facets where profile_id = $1 and facet = 'markt'", [merk]);
+      eqc("scenario 21: de markt legt positie en redenen vast", markt.filter((r) => r.soort !== "concurrent").map((r) => r.soort).sort().join(","), "positie in de markt,waarom een concurrent wint,waarom een concurrent wint");
+      ok("scenario 21: allemaal als vermoeden, met het marktverslag als herkomst", markt.length > 0 && markt.every((r) => r.status === "afgeleid" && r.herkomst_tabel === "profile_facets" && r.herkomst_id === marktFacet[0]?.id));
+
+      // De kennistest zonder budget: geen vragen, maar het voorstel voor de
+      // gelijknamige bedrijven komt uit wat er al gemeten was.
+      await db.client.query("update public.profiles set onboarding_budget_usd = 0 where id = $1", [merk]);
+      await db.client.query(
+        `insert into public.profile_llm_baseline (profile_id, engine, block, question, verdict_json)
+         values ($1, 'openai', 'verwarring', 'Welke Fysi-Unique bedoel je?', '{"confusions": ["Fysi-Unique Rotterdam"]}')`,
+        [merk],
+      );
+      await runLlmBaseline(merk);
+      const test = await kennis("profile_llm_baseline");
+      eqc("scenario 21: het gelijknamige bedrijf uit de kennistest is een vermoeden", test.map((r) => `${r.soort}/${r.bewering}/${r.status}/${r.gebruik}`).join(","), "niet ons merk/Fysi-Unique Rotterdam/afgeleid/intern");
+      await db.client.query("update public.profiles set onboarding_budget_usd = 2.15 where id = $1", [merk]);
+
+      await synthesiseProfile(merk);
+      const synthese = await kennis("profile_synthesis");
+      const { rows: feit } = await db.client.query("select id from public.brand_facts where profile_id = $1 and text = 'De praktijk zit in Amersfoort.'", [merk]);
+      eqc("scenario 21: het sitefeit is waargenomen, met het gevonden citaat", synthese.map((r) => `${r.bewering}/${r.status}/${r.citaat}/${r.gebruik}`).join(","), "De praktijk zit in Amersfoort./waargenomen/Wij zitten in Amersfoort./content");
+      eqc("scenario 21: en verwijst naar de rij in de oude tabel", `${synthese[0]?.herkomst_tabel}/${synthese[0]?.herkomst_id}`, `brand_facts/${feit[0]?.id}`);
+
+      const { rows: alles } = await db.client.query("select status from public.klantkennis where profile_id = $1", [merk]);
+      ok("scenario 21: het onderzoek zet nooit verklaard of bevestigd", alles.length > 0 && alles.every((r: { status: string }) => r.status === "waargenomen" || r.status === "afgeleid"));
+
+      const { rows: knopen } = await db.client.query("select * from public.profile_offerings where profile_id = $1", [merk]);
+      const tweede = await legOnderzoekVast(createShimClient(db.client) as never, merk, kennisUitAanbod(knopen), "profile_offering");
+      eqc("scenario 21: dezelfde knopen nog eens vastleggen legt niets nieuws vast", String(tweede.vastgelegd), "0");
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);
