@@ -12676,3 +12676,14 @@ rekent `lib/pagina/klantmeting.ts` uit met wat de keten al bewaarde; de andere t
 (`docs/tasks/meting-eerste-klant.md`). Eén gat gedicht: de wens bij "vraag een aanpassing" stond alleen
 in de taak en niet bij de nieuwe versie; die staat nu in `revision_note`.
 
+Twee gaten gedicht die bij het nalopen van de keten voor de doorloop met een testklant naar boven kwamen
+(26 september 2026, `docs/doorloop-van-klant-tot-content.md`). Eén: een antwoord op een vraag uit het
+rapport (tot 8 per rapport, `scope = 'analyse'`) bereikte de schrijver alleen als een brief de vraag aan
+de pagina koppelde, en de brief zag hem als beantwoord en stelde hem niet opnieuw; het antwoord gaat nu
+mee in blok A van elke pagina van dat cluster (besluit B17). Twee: sinds WP1 zag de klant van een
+goedgekeurde pagina alleen de tekst, terwijl de schrijver ook een metatitel, een metabeschrijving en 0 tot
+5 veelgestelde vragen levert en de code gestructureerde gegevens bouwt. Het paginascherm toont die nu om
+te lezen vóór het goedkeuren, en daarna met kopieerknoppen, een download van alles in één HTML-bestand en
+de sjabloonexport die al bestond maar aan geen scherm meer hing. Nog open en bewust niet meegenomen: de
+controle op harde beweringen en de beoordeling kijken alleen naar de tekst, niet naar de FAQ en de
+metabeschrijving (een besluit voor §2 van `contentketen-opnieuw.md`).

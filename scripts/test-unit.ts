@@ -942,7 +942,8 @@ import {
 } from "@/lib/cluster-discovery";
 import { controleerHardeBeweringen, getallenIn as hardeGetallen, geleZinnen, splitsZinnen, vindHardeBeweringen } from "@/lib/pagina/harde-beweringen";
 import { repareerMechanisch } from "@/lib/pagina/mechanisch";
-import { kiesFeiten, hoortBijPagina, blokA, MAX_FEITEN, type FeitRij } from "@/lib/pagina/bedrijfskennis";
+import { kiesFeiten, hoortBijPagina, blokA, antwoordenVoorBlokA, MAX_FEITEN, type FeitRij } from "@/lib/pagina/bedrijfskennis";
+import { faqMarkdown, volledigeMarkdown, htmlDocument, bestandsnaam } from "@/lib/oplevering";
 import { schrijfpoort, schrijfdatum } from "@/lib/pagina/schrijfpoort";
 import { schoneAdressen, vanafEersteAlinea, MAX_STEMVOORBEELDEN } from "@/lib/pagina/stemvoorbeelden-regels";
 import { openVraagTekst, OPEN_VRAAG_MAX } from "@/lib/pagina/open-vraag-tekst";
@@ -21176,6 +21177,57 @@ group("bedrijfskennis: welke feiten mee gaan naar de schrijver", () => {
   const a = blokA({ bedrijfsnaam: "Wesley Keeris", feiten: gekozen, waardeproposities: [], verhalen: null, bezwaren: [], merkAntwoorden: [] });
   ok("blok A noemt het bedrijf en de feiten", a.startsWith("Bedrijf: Wesley Keeris") && a.includes("- Twaalf monteurs in dienst"));
   ok("en laat lege onderdelen weg", !a.includes("Verhalen"));
+});
+
+group("bedrijfskennis: welke beantwoorde vragen in blok A gaan (B17)", () => {
+  const r = (question: string, extra: Partial<Parameters<typeof antwoordenVoorBlokA>[0][number]> = {}) => ({
+    question, answer: "ja", scope: "merk", analysis_id: null, content_piece_ids: [] as string[], open_vraag: false, ...extra,
+  });
+  const uit = antwoordenVoorBlokA(
+    [
+      r("Werken jullie in het weekend?"),
+      r("Hoeveel monteurs hebben jullie?", { scope: "analyse", analysis_id: "cluster-1", answer: "Twaalf" }),
+      r("Vraag uit een ander cluster", { scope: "analyse", analysis_id: "cluster-2" }),
+      r("Rapportvraag die al aan deze pagina hangt", { scope: "analyse", analysis_id: "cluster-1", content_piece_ids: ["pagina-1"] }),
+      r("Merkvraag die aan deze pagina hangt", { content_piece_ids: ["pagina-1"] }),
+      r("Vraag van een pagina", { scope: "pagina", analysis_id: "cluster-1", content_piece_ids: ["pagina-2"] }),
+      r("Wat wil je zelf vertellen?", { scope: "pagina", open_vraag: true, content_piece_ids: ["pagina-1"] }),
+      r("Leeg antwoord", { answer: "  " }),
+    ],
+    { analysisId: "cluster-1", pieceId: "pagina-1" },
+  );
+  eq(
+    "merkvragen en rapportvragen van dit cluster, niet wat al in blok B staat",
+    uit.map((x) => x.vraag).join(" | "),
+    "Werken jullie in het weekend? | Hoeveel monteurs hebben jullie? | Merkvraag die aan deze pagina hangt",
+  );
+  eq("het antwoord gaat mee", uit[1].antwoord, "Twaalf");
+});
+
+group("opleveren: wat de klant meeneemt naar zijn site", () => {
+  const faq = [
+    { q: "Hoe lang duurt de aanleg?", a: "Meestal twee weken." },
+    { q: "  ", a: "leeg" },
+  ];
+  eq("de FAQ als Markdown, lege vragen eruit", faqMarkdown(faq), "## Veelgestelde vragen\n\n### Hoe lang duurt de aanleg?\n\nMeestal twee weken.");
+  eq("geen FAQ: niets", faqMarkdown([]), "");
+  ok("de download heeft de tekst en de FAQ eronder", volledigeMarkdown("## Tuinaanleg\n\nTekst.", faq).startsWith("## Tuinaanleg\n\nTekst.\n\n## Veelgestelde vragen"));
+  eq("zonder FAQ alleen de tekst", volledigeMarkdown("Tekst.\n", []), "Tekst.");
+  const html = htmlDocument({
+    metaTitel: 'Tuin "laten" aanleggen',
+    metaBeschrijving: "Een tuin <op maat>.",
+    tekst: "## Tuinaanleg\n\nTekst.",
+    faq,
+    schemaJsonLd: '{"@type":"FAQPage","text":"</script><b>"}',
+  });
+  ok("de metatitel wordt de titel, veilig", html.includes("<title>Tuin &quot;laten&quot; aanleggen</title>"));
+  ok("de omschrijving een meta-tag, veilig", html.includes('<meta name="description" content="Een tuin &lt;op maat&gt;.">'));
+  ok("de gestructureerde gegevens in de kop", html.includes('<script type="application/ld+json">') && html.indexOf("ld+json") < html.indexOf("<body>"));
+  ok("een </script> in de gegevens sluit het blok niet af", html.includes("<\\/script><b>") && html.split("</script>").length === 2);
+  ok("de FAQ staat in de body", html.includes("Hoe lang duurt de aanleg?"));
+  ok("zonder meta geen lege tags", !htmlDocument({ metaTitel: null, metaBeschrijving: " ", tekst: "x", faq: [], schemaJsonLd: null }).includes("<title>"));
+  eq("een bestandsnaam uit de titel", bestandsnaam("Tuin aanleggen in Één dag!"), "tuin-aanleggen-in-een-dag");
+  eq("nooit leeg", bestandsnaam("???"), "pagina");
 });
 
 group("de schrijfpoort: alleen de vragen en de datum (§6.8)", () => {

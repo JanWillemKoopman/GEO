@@ -891,8 +891,9 @@ en `offsite_scan`. De rapportmail slaat over zolang `EMAILS_ENABLED` uit staat.
   AANTAL AANBEVELINGEN LIGT NIET VAST (...) Rond nooit af naar een 'nette' lijst"*, de invoer eronder zegt
   *"Geef 5 tot 8 concrete, geprioriteerde aanbevelingen"*. Het model moet kiezen welke van de twee het
   volgt.
-- **De vragen die het rapport aan de klant stelt, bereiken de schrijver maar gedeeltelijk.** Zie deel III,
-  punt 2.
+- **Stelt het rapport nog vragen die de brief per pagina beter kan stellen?** Sinds 26 september 2026 gaan
+  de antwoorden wel naar de schrijver (besluit B17), maar de brief vraagt nu per pagina gerichter, en twee
+  bronnen van vragen betekent meer werk voor de klant.
 - **Het rapport leunt op het geschatte zoekvolume** van stap 5.5 voor de volgorde van de kansen.
 
 ---
@@ -994,7 +995,8 @@ krijgt. Code stelt het samen, geen AI (`lib/pagina/bedrijfskennis.ts`):
 3. wat het bedrijf anders doet, en bewijs dat niet op de site staat;
 4. de Verhalen;
 5. de bezwaren van klanten met het antwoord van de ondernemer;
-6. de beantwoorde vragen die voor het hele merk gelden.
+6. de beantwoorde vragen die voor het hele merk gelden, en die uit het rapport van dit cluster (besluit B17,
+   26 september 2026). Een rapportvraag die al aan deze pagina hangt, staat in blok B en niet hier.
 
 **AI-aanroep 9.4: het feitenregister** (licht werk)
 - **Feiten indelen.** Luna, `deterministic`. Gaat erin: nieuwe feiten, genummerd. Opdracht: geef per feit
@@ -1101,7 +1103,8 @@ en telt als antwoord.
 | De open vraag | Letterlijk naar de schrijver van die pagina (blok B). Niet in losse feiten geknipt |
 | Gerichte vraag van deze pagina | De schrijver van die pagina (blok B) |
 | Vraag voor het hele merk | Blok A van elke volgende pagina |
-| Vraag uit het rapport of het onderzoek | Zie deel III, punt 2 |
+| Vraag uit het rapport | Blok A van elke pagina van dat cluster (besluit B17) |
+| Open punt uit het onderzoek | Een vraag voor het hele merk, dus blok A van elke pagina |
 
 Een antwoord kan nog aangepast worden tot het schrijven begint.
 
@@ -1127,8 +1130,8 @@ de klant, `after(() => probeerNaAntwoord(...))`. Het vragenscherm is `components
 - **Er is geen herinnering.** Een klant die zijn vragen laat liggen, houdt zijn eigen pagina onbeperkt
   tegen (bewust, besluit B5), maar de app laat dat niet actief weten (e-mail staat uit).
 - **Drie bronnen stellen vragen aan de klant**: de samenvatting van het onderzoek (2.9), het rapport (7.3)
-  en de content brief (9.6). De klant ziet ze op één lijst, maar ze gaan niet op dezelfde manier naar de
-  schrijver (deel III, punt 2).
+  en de content brief (9.6). Ze komen sinds 26 september 2026 allemaal bij de schrijver, maar is dat
+  aantal nog nodig nu de brief per pagina vraagt?
 
 ---
 
@@ -1353,11 +1356,23 @@ nieuwe versie worden meteen geel.
 **13.5 "Keur goed"** werkt pas als elke gele zin bevestigd of weggeschreven is. Daarna staat de pagina in
 het plan op "goedgekeurd" en op het scherm op "Plaats hem op je site".
 
-**13.6 Opleveren.** De klant neemt de goedgekeurde tekst over op zijn eigen website. ORBIT ENGINE publiceert
-nooit zelf. **Let op**: op dit moment ziet de klant alleen de tekst zelf, niet de metatitel, de
-metabeschrijving, de FAQ en de gestructureerde gegevens (bijlage A, punt 1).
+**13.6 Wat de klant ziet naast de tekst.** Onder de tekst staan de titel en omschrijving voor zoekmachines
+en de veelgestelde vragen. Vóór het goedkeuren om te lezen: ze horen bij wat de ondernemer goedkeurt.
 
-**13.7 Daarna** vult de klant het live-adres in ("Deze pagina staat live"). De app controleert of de tekst er
+**13.7 Opleveren.** Na het goedkeuren komen er knoppen bij:
+- de titel en de omschrijving kopiëren, voor de SEO-velden van zijn site;
+- de tekst kopiëren als HTML, als platte tekst of als Markdown, met per vorm in één zin voor welk soort site;
+- de veelgestelde vragen kopiëren in dezelfde drie vormen;
+- **alles in één bestand** downloaden: een HTML-bestand met de tekst, de FAQ, de titel, de omschrijving en de
+  gestructureerde gegevens in de kop. Handig om aan een webbouwer te geven. Ook als Markdown;
+- de gestructureerde gegevens apart kopiëren;
+- als het onderzoek de opbouw van de site herkende: een versie in de vorm van die site ("Kopieer voor
+  WordPress", of de FAQ als uitklapblok);
+- en een korte handleiding "Wat doe je hiermee?".
+
+ORBIT ENGINE publiceert nooit zelf. De klant plakt de pagina op zijn eigen site.
+
+**13.8 Daarna** vult de klant het live-adres in ("Deze pagina staat live"). De app controleert of de tekst er
 echt staat en plant de nameting na 14 en 28 dagen (`processtappen-nieuwe-pagina.md` fase 14 en 15).
 
 **AI-aanroep 13.4: een aanpassing op verzoek**
@@ -1367,7 +1382,10 @@ echt staat en plant de nameting na 14 en 28 dagen (`processtappen-nieuwe-pagina.
 - **Code daarna:** een nieuwe versie (versie + 1), de controle in code opnieuw, onbewezen zinnen geel.
 
 **Onder de motorkap.** Scherm: `app/(app)/merk/[id]/strategie/bibliotheek/[paginaId]/page.tsx` met
-`components/pagina/goedkeuren.tsx` en `publish-box.tsx`. Een zin bevestigen:
+`components/pagina/goedkeuren.tsx`, `opleveren.tsx` (zoekmachinegegevens, FAQ, kopiëren en downloaden;
+de samenstelling in `lib/oplevering.ts`, de kopieervormen in `lib/kopieervormen.ts`, de sjabloonexport in
+`lib/pipeline/content-export.ts` met het facet `sjabloon` van het merk), `components/publish-guide.tsx` en
+`publish-box.tsx`. Een zin bevestigen:
 `POST /api/profiles/[id]/paginas/[pieceId]/zinnen` (`bevestigZin()`). Goedkeuren en aanpassing:
 `POST /api/profiles/[id]/paginas/[pieceId]` met `actie: "goedkeuren"` (`keurGoed()` in
 `lib/pagina/goedkeuren.ts`) of `actie: "aanpassing"` (dagplafond, `pagina_herschrijven` met
@@ -1379,7 +1397,12 @@ Handmatig bewerken via `PATCH /api/analyses/[id]/content/[pieceId]`; de tekst va
 
 - [ ] De gele zinnen zijn geel, en "Keur goed" werkt niet zolang er één onbevestigd is.
 - [ ] Een aanpassing levert versie 2 op met de wens erin, en het plan wijst naar versie 2.
-- [ ] Na goedkeuren staat de pagina op "Plaats hem op je site".
+- [ ] Vóór goedkeuren staan de titel en omschrijving voor zoekmachines en de FAQ onder de tekst, zonder
+      kopieerknoppen.
+- [ ] Na goedkeuren staat de pagina op "Plaats hem op je site", en werken de kopieerknoppen.
+- [ ] Open de HTML-download in een browser: de titel van het tabblad is de zoekmachinetitel, en de FAQ staat
+      onder de tekst.
+- [ ] Herkende het onderzoek WordPress, dan staat er "Kopieer voor WordPress".
 - [ ] Vraag de ondernemer per pagina: zou je deze zo op je site zetten ("ja, zo", "met kleine wijzigingen"
       of "nee")?
 - [ ] Maak daarna het rapport van wat de ondernemer veranderde, volgens
@@ -1387,7 +1410,12 @@ Handmatig bewerken via `PATCH /api/analyses/[id]/content/[pieceId]`; de tekst va
 
 **Om te bespreken**
 
-- **Het opleveren is niet af** (bijlage A, punt 1). Dit is het eerste wat een echte klant merkt.
+- **De FAQ en de omschrijving voor zoekmachines worden niet gecontroleerd.** De controle op harde
+  beweringen en de beoordeling kijken alleen naar de tekst. Een verzonnen bedrag in een FAQ-antwoord wordt
+  dus nooit geel. De klant ziet de FAQ nu wel vóór het goedkeuren, maar er is geen vangnet (deel III, punt 1).
+- **De klant kan de FAQ en de zoekmachinegegevens niet zelf aanpassen**, alleen via "Vraag een
+  aanpassing". De bewerkroute kent de velden al (`meta_title`, `meta_description`, `faq_json`); het scherm
+  niet.
 - **Wat de klant verandert, is de beste bron voor verbetering.** De tekst van het model en de goedgekeurde
   tekst worden allebei bewaard; `lib/pagina/klantmeting.ts` rekent het verschil uit. Wie leest dat, en hoe
   vaak?
@@ -1401,20 +1429,15 @@ Handmatig bewerken via `PATCH /api/analyses/[id]/content/[pieceId]`; de tekst va
 Gevonden bij het nalopen van de code, 26 september 2026. De volgorde is een voorstel: wat een echte klant
 het eerst merkt, staat bovenaan.
 
-1. **Het opleveren is niet af.** De app maakt een metatitel, een metabeschrijving, een FAQ en gegevens voor
-   zoekmachines, maar het paginascherm toont alleen de tekst. De functie die alles omzet naar de opmaak van
-   de site van de klant (`lib/pipeline/content-export.ts`) bestaat nog en is getest, maar hangt sinds de
-   ombouw van de contentketen aan geen scherm. Gevolg: de klant mist de helft van wat hij betaalt.
-2. **Antwoorden op vragen uit het rapport bereiken de schrijver meestal niet.** Het rapport (7.3) stelt de
-   klant vragen om feiten. Die worden opgeslagen voor het cluster (`scope = 'analyse'`), zonder koppeling
-   aan een pagina. De schrijver leest alleen antwoorden die voor het hele merk gelden (blok A) of aan de
-   pagina hangen (blok B). Zo'n antwoord komt alleen bij de schrijver als een content brief de vraag aan
-   een pagina koppelde (`ook_voor_deze_pagina`); anders gaat het alleen naar `profiles.proof_points`, dat
-   de nieuwe schrijver niet leest. Erger: de brief ziet zo'n beantwoorde vraag wel in zijn lijst "eerder
-   gestelde vragen" (zonder het antwoord) en stelt hem daarom niet opnieuw. De klant beantwoordt dan een
-   vraag waarvan het antwoord nergens in de tekst kan komen. Opties:
-   de vragen uit het rapport schrappen (de brief stelt ze nu per pagina), ze als merkvraag opslaan, of
-   `proof_points` in blok A opnemen.
+1. **De FAQ en de omschrijving voor zoekmachines worden niet gecontroleerd.** De controle op harde
+   beweringen en de beoordeling lezen alleen de tekst. Een verzonnen prijs of garantie in een FAQ-antwoord
+   komt zo zonder gele markering op de site van de klant. De FAQ meenemen in de controle is contentlogica en
+   vraagt een besluit in §2 van `tasks/contentketen-opnieuw.md`. (Het opleveren zelf is op 26 september 2026
+   gerepareerd: de klant ziet nu ook de zoekmachinegegevens en de FAQ, en kan alles kopiëren en downloaden.)
+2. **Twee bronnen van vragen voor dezelfde pagina.** Het rapport (7.3) stelt vragen per cluster, de brief
+   (9.6) per pagina. Sinds 26 september 2026 gaan de antwoorden op rapportvragen mee naar de schrijver
+   (besluit B17; daarvoor kwamen ze meestal nergens aan). Nu de brief gerichter vraagt: moet het rapport nog
+   vragen stellen, of is dat dubbel werk voor de klant?
 3. **De opdracht van het rapport spreekt zichzelf tegen** over het aantal aanbevelingen: "ligt niet vast"
    tegenover "geef 5 tot 8". Kies er één.
 4. **De meting is een nabootsing** met Luna via de API, met een opdracht die vraagt om merken te noemen. Hoe
@@ -1440,9 +1463,8 @@ het eerst merkt, staat bovenaan.
 
 Houd hier rekening mee tijdens de doorloop.
 
-1. **De klant kan de metadata, de FAQ en de gestructureerde gegevens niet meenemen** (deel III, punt 1).
-   Gevolg voor de test: het opleveren is nu handwerk van de consultant, die de velden uit de database haalt
-   (`meta_title`, `meta_description`, `faq_json`, `schema_jsonld`).
+1. **De FAQ en de omschrijving voor zoekmachines worden niet gecontroleerd** (deel III, punt 1). Lees ze bij de
+   test dus zelf na op bedragen, termijnen en beloftes.
 2. **Alles wat geld kost, is sinds 2 september 2026 alleen voor de consultant**: ook een cluster starten, de
    meting bevestigen en het plan opstellen. `docs/architecture.md` §2 en `processtappen-nieuwe-pagina.md`
    fase 4 zeggen op sommige plekken nog dat de klant dat zelf kan. De klant ziet de knoppen wel, maar krijgt
@@ -1579,7 +1601,8 @@ where a.profile_id = '<profiel-id>' and c.is_current
 order by c.title, f.open_vraag desc, f.created_at;
 ```
 
-**Welke vragen uit het rapport hangen aan geen pagina?** (deel III, punt 2)
+**Welke vragen uit het rapport hangen aan geen pagina?** (Hun antwoorden gaan sinds besluit B17 via blok A
+naar elke pagina van het cluster.)
 
 ```sql
 select f.status, f.question, f.answer

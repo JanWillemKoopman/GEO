@@ -5374,6 +5374,20 @@ async function main(): Promise<void> {
          values ($1, 'Een tuinontwerp kost vanaf 450 euro.', 'site', 'site', 'ontwerp-prijs')`,
         [merk],
       );
+      // Een vraag uit het rapport van dit cluster, al beantwoord, en een uit een
+      // ander cluster (besluit B17): de eerste hoort bij de schrijver, de tweede niet.
+      const anderCluster = randomUUID();
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'Hovenier Groen, vijvers', 'https://hovenier-groen.nl', 'vijvers', 'gereed')`,
+        [anderCluster, eigenaar, merk],
+      );
+      await db.client.query(
+        `insert into public.fact_requests (profile_id, analysis_id, question, reason, status, answer)
+         values ($1, $2, 'Hoeveel tuinen leggen jullie per jaar aan?', 'test', 'beantwoord', 'Ongeveer veertig tuinen per jaar.'),
+                ($1, $3, 'Graven jullie ook vijvers uit?', 'test', 'beantwoord', 'Alleen kleine vijvers tot vier meter.')`,
+        [merk, cluster, anderCluster],
+      );
       const { rows: plan } = await db.client.query(
         "insert into public.content_plans (profile_id, pages_per_month, status) values ($1, 3, 'actief') returning id",
         [merk],
@@ -5561,6 +5575,9 @@ async function main(): Promise<void> {
       ok("versie 1", geschreven.version === 1);
       ok("de schrijver kreeg het eigen verhaal letterlijk", aanroepen.some((a) => a.schema === "pagina" && a.user.includes("aan de keukentafel")));
       ok("en de stemvoorbeelden", aanroepen.some((a) => a.schema === "pagina" && a.user.includes("nuchtere tuinmensen")));
+      ok("een beantwoorde vraag uit het rapport van dit cluster gaat mee naar de schrijver (B17)", aanroepen.some((a) => a.schema === "pagina" && a.user.includes("veertig tuinen per jaar")));
+      ok("en naar de brief", aanroepen.some((a) => a.schema === "content_brief" && a.user.includes("veertig tuinen per jaar")));
+      ok("een antwoord uit een ander cluster niet", !aanroepen.some((a) => a.user.includes("kleine vijvers")));
       ok("de controle is ingepland", (await wachtrij("pagina_controle")).length === 2);
 
       // ── Controle en hooguit één herschrijving ─────────────────────────────
