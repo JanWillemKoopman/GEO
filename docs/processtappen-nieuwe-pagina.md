@@ -10,11 +10,9 @@
 > document beantwoordt "wat gebeurt er precies, in welke volgorde". Klopt er iets niet meer, dan is
 > de code leidend: `lib/pipeline/` en `lib/jobs/` zijn de bron waar dit overzicht uit is opgebouwd.
 >
-> ⚠️ **De contentketen wordt opnieuw gebouwd (25 september 2026).** Fase 7 tot en met 12 hieronder
-> beschrijven de oude keten; die code is weggehaald. De nieuwe keten (content brief, vragen aan de klant
-> met vast één open vraag, één schrijfbeurt, één controle, hooguit één herschrijving) staat in
-> `docs/tasks/contentketen-opnieuw.md`. Zodra die gebouwd is, worden fase 7 tot en met 12 hier
-> herschreven (WP10 van dat plan).
+> **De contentketen is op 25 en 26 september 2026 opnieuw gebouwd.** Fase 7 tot en met 12 beschrijven
+> de nieuwe keten (content brief, vragen aan de klant met vast één open vraag, één schrijfbeurt, één
+> controle, hooguit één herschrijving); het plan staat in `docs/tasks/contentketen-opnieuw.md`.
 >
 > **Peildatum: 23 september 2026.** Alle 117 stappen zijn op 22 september 2026 onafhankelijk
 > nagekeken tegen de broncode, in vier losse controles die geen van alle deze documentatie hebben
@@ -172,158 +170,109 @@ resultaat al bestaat, zodat een herhaalde poging nooit voor niets betaalt.
     verwants bestaat, zodat de nieuwe pagina zich onderscheidt in plaats van hetzelfde over te doen.
 53. Het rapport met deze aanbevelingen wordt opgeslagen en getoond aan de klant.
 
-## Fase 7. Een pagina kiezen en uitzoeken wat hij nodig heeft
+## Fase 7. Een pagina inplannen en voorbereiden
 
-54. De klant bekijkt de aanbevolen pagina's.
-55. De klant kiest welke pagina of pagina's geschreven moeten worden, los per aanbeveling of in één
-    keer met "genereer alles".
-56. Het systeem zet voor elke gekozen pagina zelf een taak klaar die op de achtergrond gaat draaien.
-    De klant hoeft niet te wachten en mag het scherm sluiten.
-57. Voor elke pagina onderzoekt het systeem het onderwerp nog verder: welke deelvragen en
-    vervolgvragen hoort een lezer te hebben, welke twijfels leven er, en welke uitleg met bron hoort
-    daarbij. Dit gebeurt met een eigen zoekactie op het web.
-58. Het systeem verifieert die gevonden uitleg: alleen wat aantoonbaar klopt, gaat door naar de
-    volgende stap.
-59. Het systeem stelt het contentcontract op: de inhoudsopgave die deze pagina echt nodig heeft, met
-    per sectie de vraag of daar een uitspraak over dit specifieke bedrijf bij hoort, hoe zwaar die
-    sectie weegt voor het doel van de pagina (kern, ondersteunend of mooi meegenomen), en waaraan je
-    ziet dat hij geslaagd is. Het contract legt ook vast wat de pagina moet bereiken, voor wie hij
-    geschreven is, en wat er juist niet op mag.
-60. Het systeem checkt of er al een vergelijkbare pagina op de site van de klant staat en haalt die
-    op, zodat de nieuwe tekst zich daartegen kan afzetten in plaats van hem te herhalen.
-61. Het systeem bouwt de feitenkaart: alles wat met een bron bekend is over dit bedrijf, uit het
-    onderzoek, uit het gesprek en uit eerder beantwoorde vragen.
-62. Het systeem berekent welk deel van de secties uit het contract met een feit onderbouwd kan
-    worden. Dat gebeurt op drie manieren tegelijk: het kale percentage, hetzelfde percentage met de
-    kernsecties drie keer zo zwaar, en het percentage over alleen de kernsecties. Die drie zeggen
-    verschillende dingen, en het gemiddelde ervan zegt niets: negen randsecties onderbouwd en de ene
-    sectie over de prijs niet, levert negentig procent op terwijl juist het onmisbare stuk ontbreekt.
-63. Dat percentage bepaalt of er al geschreven mag worden: bij 70 procent of hoger gaat het schrijven
-    gewoon door, tussen de 40 en 70 procent mag het schrijven door met een zichtbare waarschuwing
-    welke secties eruit vallen, en onder de 40 procent schrijft het systeem nog niet, tenzij de klant
-    zelf kiest om de pagina bewust algemeen te laten schrijven of te laten vallen. Staat er een
-    kernsectie zonder onderbouwing, dan komt de pagina altijd minstens in de waarschuwingsstand, hoe
-    hoog het percentage verder ook is, en de melding noemt precies die sectie.
+De contentketen is op 25 en 26 september 2026 opnieuw gebouwd (`docs/tasks/contentketen-opnieuw.md`).
+Waar het hieronder om bedragen en tijden gaat, zijn die gemeten op de proef van 26 september 2026
+(`docs/tasks/kwaliteitsdoorlichting/contentketen-proef/`).
 
-## Fase 8. De vragen aan de klant (de briefing)
+54. De aanbevolen pagina's uit het rapport komen in de voorraad van het contentplan. De adviseur stelt
+    het plan op; het systeem zet de pagina's met de meeste kans in de eerste maand.
+55. Een pagina die er nog niet in hoort, gaat terug naar de voorraad. Een pagina uit de voorraad gaat
+    met "inplannen" naar een maand.
+56. De adviseur geeft een maand vrij. Dat is de handeling die geld kost, en daarom alleen de adviseur.
+57. Bij het vrijgeven maakt het systeem voor elke pagina van die maand een rij klaar die aan het
+    gemeten cluster hangt. Een pagina zonder cluster wordt niet voorbereid, en het plan zegt waarom.
+58. Voor elke pagina zet het systeem meteen één open vraag klaar: "Wat wil je zelf vertellen op de
+    pagina ...?", met uitleg en voorbeelden. Die vraag maakt code, geen AI, zodat hij er altijd is.
+59. Het systeem werkt het feitenregister van het merk bij, zodat een feit waarover twee versies bestaan
+    niet naar de schrijver gaat.
+60. Per pagina volgt de content brief, en de pagina's van één maand na elkaar, zodat elke brief de
+    vragen van de vorige ziet. De brief doet onderzoek op het web: wat de bezoeker zoekt, wat hij
+    verder wil weten, wat goede pagina's over dit onderwerp doen en laten liggen, vakkennis met bron,
+    en wat klanten vaak verkeerd begrijpen. Hij maakt geen keuzes voor de schrijver (opbouw, lengte).
+    Gemeten: 6 tot 7,5 dollarcent en 21 tot 30 seconden per pagina.
+61. Code gooit vakkennis zonder webadres weg.
+62. Bij een pagina die een bestaande pagina verbetert, haalt het systeem één keer de huidige tekst op.
 
-64. Zodra de laatste pagina uit de gekozen groep zijn contract heeft, start het systeem de
-    briefingstap voor de hele groep in één keer.
-65. Het systeem controleert alle beweringen: welke beweringen heeft elke pagina nodig, en welke
-    daarvan kunnen nog niet onderbouwd worden met de feitenkaart. Per bewering legt het systeem ook
-    vast wie hem kan bevestigen. Over algemene vakkennis wordt geen vraag gesteld: een vraag
-    waarvan het antwoord op internet staat, kost meer vertrouwen dan hij oplevert.
-66. Van elk zo'n gat maakt het systeem een korte, begrijpelijke vraag.
-67. Overlappende vragen over meerdere gekozen pagina's worden samengevoegd tot één vraag. Er geldt
-    een plafond voor de optionele vragen; een vraag die een kernsectie dekt is verplicht en gaat
-    altijd mee, hoeveel het er ook zijn. Zo hoeft de klant niet drie keer los "wat is er inbegrepen"
-    te beantwoorden, en verdwijnt de vraag die de pagina draagt nooit stilzwijgend uit de lijst.
-68. De klant beantwoordt de vragen. Een vraag overslaan mag ook, en telt dan zelf als antwoord.
-69. Elk antwoord wordt losstaand opgeslagen als bevestigd feit: geldt het voor het hele merk, dan
-    is het meteen bruikbaar voor alle toekomstige pagina's van dat merk, geldt het alleen voor deze
-    analyse, dan blijft het daaraan gekoppeld.
-70. De klant klikt op "Schrijf mijn pagina's". Dit is de tweede bewuste stop in de keten.
+## Fase 8. De vragen aan de klant
 
-## Fase 9. Het eerste concept schrijven
+63. Dezelfde brief stelt hooguit acht gerichte vragen, alleen als het antwoord de pagina duidelijk
+    beter of eigener maakt en niet uit bestaande kennis of webonderzoek te halen is. Per vraag staat
+    erbij waarom hij gesteld wordt.
+64. Een vraag die het merk al eens kreeg, komt niet terug. Staat er al een open vraag die ook voor deze
+    pagina geldt, dan hangt het systeem de pagina aan die vraag in plaats van hem opnieuw te stellen.
+65. Een vraag die voor het hele merk geldt, hangt aan geen cluster; het antwoord gaat daarna mee naar
+    elke pagina van het merk.
+66. Op de proef kreeg elke pagina de open vraag plus vier tot acht gerichte vragen; per merk waren het
+    na het samenvoegen 12 tot 14 vragen voor drie pagina's.
+67. De klant (of de adviseur samen met de klant, in het gesprek) beantwoordt de vragen onder
+    "Openstaande vragen". De open vraag staat bovenaan met een groot tekstvak tot 3.000 tekens.
+68. Overslaan mag altijd en telt als antwoord. Een antwoord op de open vraag gaat letterlijk naar de
+    schrijver en wordt niet in losse feiten geknipt.
 
-71. Het systeem bepaalt eerst per pagina de paginastrategie (sinds 25 september 2026): het duurste
-    model beslist met extra denktijd wat er op de pagina komt en vooral wat niet, welke drie tot zes
-    feiten voorop gaan, waar elke onzekerheid heen gaat (een vraag aan de klant, één uitleg aan de
-    lezer met een van vijf vaste redenen, of weglaten) en hoeveel woorden de pagina krijgt. De
-    onderwerpen uit het contract zijn daarbij mogelijkheden en geen opdracht. Code rekent de keuzes
-    na en zet ze recht. Is een feit dat de pagina nodig heeft betwist (twee versies die niet allebei
-    waar kunnen zijn), dan wacht de pagina tot de adviseur het conflict oplost, en start daarna
-    vanzelf opnieuw. Daarna plant het systeem de schrijftaak in.
-72. Het beste, duurste AI-model schrijft de eerste volledige versie op de paginastrategie: het krijgt
-    de keuzes, de opbouw die daaruit volgt en alleen de gekozen feiten, en mag een punt weglaten als
-    het dat niet goed kan schrijven (het meldt dat dan apart). Een pagina zonder strategie wordt
-    geschreven zoals hieronder. De versie bestaat uit een titel, de tekst in
-    Markdown, losse FAQ-vragen met antwoord, en technische metadata voor zoekmachines en
-    AI-assistenten. De tekst wordt gegrond op de feitenkaart, de vragen die het merk in de meting
-    miste, het winnende antwoord van de concurrent zonder diens naam erin, en op wat de bronnen die
-    de AI aanhaalt inhoudelijk doen.
-73. De schrijfopdracht verbiedt het model expliciet om gedachtestreepjes of "en/of" te gebruiken,
-    zodat de tekst niet leest als AI-tekst.
+## Fase 9. Schrijven
 
-## Fase 10. Drie onafhankelijke keuringen
+69. Na elk antwoord kijkt het systeem of de pagina geschreven mag worden. Twee regels, niet meer: de
+    brief is klaar en er staat geen vraag meer open, en de publicatiedatum is binnen tien dagen.
+    Er komt nooit een schrijftaak met een open vraag.
+70. Elke ochtend kijkt het systeem hetzelfde na voor alle vrijgegeven maanden, als vangnet. Een pagina
+    waarvan het schrijven mislukte, probeert het dan opnieuw.
+71. De adviseur kan een pagina "nu laten schrijven": de maand en de datum tellen dan niet, de vragen
+    wel.
+72. De schrijver krijgt vier soorten informatie: wat we zeker weten over het bedrijf (feiten die bij
+    deze pagina horen, wat het anders doet, bewijs, verhalen, bezwaren met het antwoord van de
+    ondernemer, eerder beantwoorde merkvragen), wat de ondernemer over deze pagina vertelde, het
+    onderzoek uit de brief, en de zoekintentie met de vragen uit de meting. Daarbij twee pagina's van
+    de eigen site als voorbeeld van hoe het bedrijf klinkt, en de titels van de andere pagina's van het
+    merk.
+73. De schrijfopdracht staat in één bestand met een versienummer. Hij vraagt de beste pagina voor
+    deze vraag: volledig, natuurlijk, concreet, zonder verzonnen bedrijfsclaims, zo lang als nodig.
+    Geen woordenbudget, geen verplichte opbouw, geen bronverwijzingen.
+74. Het sterkste model schrijft met veel denktijd in de achtergrondmodus: het systeem start de
+    aanroep en haalt het resultaat een halve minuut later op. Gemeten: 3 tot 4 dollarcent en ongeveer
+    een minuut per pagina.
+75. Code repareert daarna alleen mechanisch: gedachtestreepjes eruit, metatitel en metabeschrijving
+    op lengte. Repareren, nooit tegenhouden.
 
-Bij een pagina met paginastrategie komt hier eerst de eindredactie (sinds 25 september 2026): het
-duurste model met extra denktijd schrapt, haalt onnodige voorbehouden en herhaling weg, zet de
-adviestoon om naar wat het bedrijf doet, zet de tekst op de merkstem en brengt hem naar het
-lengtebudget, zonder een feit toe te voegen. Code rekent dat na: voegt de redactie een getal of een
-feitverwijzing toe die nergens op de kaart staat, of maakt hij de tekst langer dan het budget, dan
-geldt het concept. Pas daarna volgen de keuringen hieronder.
+## Fase 10. De controle
 
-74. Een eerste beoordelaar scoort de tekst redactioneel, op een vaste rubric en de harde regels.
-75. Een tweede beoordelaar checkt welke zinnen iets over het bedrijf beweren zonder dat de
-    feitenkaart die dekking biedt.
-76. Een derde beoordelaar checkt of elke deelvraag uit het contract echt beantwoord wordt, en of een
-    AI-assistent deze pagina zou citeren.
-76a. Een vierde beoordelaar kijkt naar vakmanschap: gaat deze pagina over dit bedrijf of zou hij op
-    elke concurrentensite kunnen staan, laat hij vakkennis zien, gaat hij verder dan de oppervlakte,
-    zegt hij iets eigens, klinkt hij als dit bedrijf, en zet hij aan tot contact. Elk cijfer komt
-    met de zin uit de pagina waarop het rust, want een cijfer zonder aanwijsbare zin is een mening.
-    Deze vier draaien los van elkaar, zodat één gunstig zelfoordeel de andere drie niet kan
-    overstemmen.
-76b. Valt een beoordelaar uit, dan telt dat mee als onzekerheid en niet als goedkeuring. Het systeem
-    zegt dan hoeveel van de keuring echt gedaan is, in plaats van de pagina stilzwijgend door te
-    laten.
-77. Het systeem checkt daarnaast de dekking van het contentcontract: hoeveel van de vereiste secties
-    staan er echt in.
-78. Het systeem checkt op verboden onderwerpen, verboden woorden, en of de tekst niet "over de
-    bronnen praat" in plaats van gewoon antwoord te geven.
-79. Het systeem checkt op te veel gelijkenis met bestaande content.
-80. Het systeem checkt de leesbaarheid van de tekst.
-81. Het systeem controleert de technische metadata met een vaste rekenregel en herstelt kleine
-    fouten daar zelf in, zonder daar het AI-model bij te hoeven halen.
+76. Code zoekt zinnen met een harde bewering (een bedrag, een getal met eenheid, of een woord als
+    "garantie" of "altijd" in een zin over het bedrijf) waarvoor in de informatie van de schrijver
+    geen bron staat.
+77. Eén beoordeling door het sterkste model, als eindredacteur: klopt het (verzonnen claims), en is het
+    goed (hoofdvraag meteen beantwoord, zoekintentie, natuurlijk, stem, diepgang, echt van dit bedrijf)?
+    Uitkomst: goed of niet goed, verzonnen zinnen, en hooguit vijf concrete punten. Gemeten: 1 tot 1,5
+    dollarcent.
+78. Is het oordeel niet goed, of zijn er verzonnen of onbewezen zinnen, dan volgt precies één
+    herschrijving met de punten erbij. Op de proef gebeurde dat bij vijf van de negen pagina's.
+79. De herschreven versie blijft, tenzij hij meer onbewezen zinnen heeft dan de vorige.
+80. Er is geen tweede beoordeling en geen tweede herschrijving.
 
-## Fase 11. De kwaliteitspoort en eventueel herstellen
+## Fase 11. Gele zinnen
 
-81a. Het systeem vertaalt alle uitkomsten van fase 10 naar één soort bevinding, met per bevinding de
-    sectie, waarop hij rust, wat er had moeten staan, wat eraan te doen is, of hij publicatie
-    tegenhoudt, en uit welke stap van de keten hij voortkomt.
-81b. Uit die bevindingen komen drie getallen die het systeem bewust niet samenvoegt: hoe goed de
-    pagina is, hoe zeker het systeem van dat oordeel is, en of er een reden is om niet te
-    publiceren. Een pagina van 91 punten met één onderbouwde belofte die ontbreekt, is niet
-    publiceerbaar; een pagina van 74 punten zonder zo'n punt wel.
-81c. Wat "goed" is, verschilt per soort pagina. Een FAQ wordt op andere dingen beoordeeld dan een
-    dienstenpagina, met andere gewichten en een andere ondergrens.
-82. Scoort de tekst onder de drempel die bij dit soort pagina hoort, of overtreedt hij een harde
-    regel, dan gaat de pagina naar "moet nog nagekeken worden" in plaats van meteen door.
-83. Blijft de score onder de drempel van stap 82, ook nadat de citeerbaarheidsbeoordeling van fase 10
-    (stap 76) is meegewogen, dan stuurt het systeem de gevonden bevindingen terug voor een
-    herstelronde.
-84. Het systeem geeft bij zo'n herstelronde alleen de secties met een concrete bevinding terug aan
-    het model, niet de hele pagina. Per sectie krijgt het model het probleem, waaraan je ziet dat de
-    sectie geslaagd is, welk bewijs het mag gebruiken, en wat de klant expliciet niet beweerd wil
-    hebben. Is er voor een sectie geen bewijs, dan staat dat er letterlijk bij, met het verbod om er
-    iets bij te verzinnen of om de lezer op te dragen het na te vragen.
-85. Het model herschrijft alleen die secties.
-86. De drie beoordelaars beoordelen de nieuwe versie opnieuw.
-87. Het systeem vergelijkt de nieuwe score met de beste score tot nu toe. Alleen bij een echte
-    verbetering blijft de nieuwe versie staan en volgt er nog een ronde; blijft de score gelijk of
-    zakt hij, dan blijft de vorige, betere versie staan en stopt de lus.
-88. Dit herhaalt zich tot maximaal drie herstelrondes.
-88a. Het systeem stopt eerder zodra het probleem niet met herschrijven op te lossen is. Ontbreekt er
-    een feit over het bedrijf, dan levert een nieuwe ronde dezelfde pagina in andere woorden op; dan
-    gaat het punt naar de klant als vraag in plaats van naar het model als opdracht.
-88b. Van elke ronde blijft vastliggen wat hij scoorde, hoeveel er blokkeerde en of zijn tekst
-    behouden is. Daarmee is achteraf op te zoeken welke versie de beste was en waarom.
+81. Zinnen die daarna nog onbewezen zijn, of die de beoordeling verzonnen noemde en die er nog staan,
+    worden geel. Een gele zin houdt de pagina niet tegen, maar moet wel bevestigd of aangepast worden
+    voordat de klant goedkeurt. Op de proef: één gele zin in negen pagina's (vals alarm, inmiddels
+    gerepareerd).
+82. Mislukt de beoordeling helemaal, dan gaat de pagina zonder herschrijving naar de klant, met de
+    onbewezen zinnen geel.
 
-## Fase 12. De eindcontrole
+## Fase 12. Klaar om te lezen
 
-89. Wil de klant de tekst definitief maken, dan checkt het systeem eerst of er nog open vragen staan
-    die bij dit onderwerp of specifiek bij deze pagina horen.
-90. Staan die er nog, dan mag de pagina nog niet definitief worden, tenzij de klant zelf kiest voor
-    "overslaan telt als antwoord".
-91. Blokkeert het systeem hier, dan laat het scherm meteen zien welke vragen dat zijn en waarom, en
-    nooit alleen een blokkade zonder uitweg.
+83. De pagina staat op "Lees en keur goed" voor de klant. Kosten per pagina op de proef: 10 tot 17
+    dollarcent, samen met de brief.
+84. De nummers 85 tot en met 91 zijn vrijgekomen. De herstelrondes, de scores en de eindcontrole op
+    open vragen van de vorige keten bestaan niet meer; de vragen zijn al beantwoord voordat er
+    geschreven wordt. De nummers hierna zijn gelijk gebleven, omdat andere documenten ernaar verwijzen.
 
 ## Fase 13. Vrijgeven en klaarmaken voor de site van de klant
 
-92. De klant leest de definitieve tekst door in het contentscherm.
-93. De klant kan de tekst nog handmatig aanpassen voordat hij hem vrijgeeft.
-94. De klant geeft de pagina vrij voor publicatie.
+92. De klant leest de tekst opgemaakt op het paginascherm, met bovenaan de vraag van de schrijver als
+    die er is, en de gele zinnen geel in de tekst met per zin "Klopt" en "Pas aan".
+93. De klant kan de tekst zelf bewerken, of "Vraag een aanpassing" kiezen: dan schrijft het systeem een
+    nieuwe versie met die wens erbij, zonder nieuwe beoordeling.
+94. De klant keurt de pagina goed. Dat kan pas als elke gele zin bevestigd of weggeschreven is.
 95. Het systeem zet de inhoud, de tekst, de FAQ en de technische metadata om naar de opmaak die past
     bij het sjabloon van de site van de klant, zodat plakken op de eigen site klopt met hoe die site
     een FAQ of een blok al toont.

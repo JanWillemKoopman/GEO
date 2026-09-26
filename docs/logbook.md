@@ -12630,3 +12630,19 @@ liet de opslag stil mislukken op de unieke index uit migratie 0023 (de titel van
 de plantitel), en de testdatabase gaf een datum als Date-object terug waar PostgREST tekst geeft (nu
 gelijkgetrokken in `scripts/chain/postgres.ts`). Nog niet gedaan: WP8 tot en met WP10, want die vragen
 de code op productie en echte aanroepen; de kosten per pagina zijn dus nog een schatting.
+
+## 26 september 2026: de nieuwe contentketen op productie getoetst
+
+Negen pagina's van drie nieuwe proefmerken (hovenier, installateur, rijschool) gingen door de nieuwe
+keten, van vrijgeven tot goedkeuren, zonder handwerk. Kosten per pagina $0,10 tot $0,17, tegen een
+grens van $0,50 en ongeveer $0,97 voor één meetronde; de brief is de duurste stap ($0,06 tot $0,075,
+met zoeken op het web). Vier van de negen gingen na de controle direct door, vijf kregen één
+herschrijving. Eén gele zin in negen pagina's, en die was vals alarm: "tussen de 4.500 en 7.500 euro"
+werd gelezen als 4.500 met de eenheid "en" (gerepareerd). Elk bedrag en elke termijn in de teksten is
+te herleiden naar de site of naar wat de ondernemer vertelde; vier kleine zinnen zonder harde bewering
+niet, en die vangt geen van beide controles (zo is het ontworpen: de code zoekt alleen harde
+beweringen). Twee dingen voor de verbeterlus: één praktijkvoorbeeld van de ondernemer komt op meerdere
+pagina's terug, en een verboden woord ("gratis" bij de installateur) staat erin omdat het ook in de
+eigen woorden van de ondernemer stond. Het oordeel over de kwaliteit komt van een onafhankelijke
+copywriter; de teksten en opdrachten staan in
+`docs/tasks/kwaliteitsdoorlichting/contentketen-proef/teksten-voor-copywriter.md`.
