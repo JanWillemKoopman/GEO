@@ -750,13 +750,16 @@ Kwaliteit verbeteren is: `lib/pagina/schrijfopdracht.ts` of de samenstelling van
 aanpassen, `SCHRIJFOPDRACHT_VERSIE` ophogen, de pagina's van WP8 opnieuw laten schrijven, paarsgewijs
 vergelijken met de vorige versie. Een wijziging blijft als hij wint. Geen andere manier.
 
-**De beste bron voor wat er beter moet:** wat klanten zelf veranderen. Elke handmatige wijziging vóór
-het goedkeuren en elke "vraag een aanpassing" staat al vast (elke versie wordt bewaard, met
-`supersedes_id` en `revision_note`). Eens per maand lees je die door, zoek je het patroon ("klanten
+**De beste bron voor wat er beter moet:** wat klanten zelf veranderen. Een handmatige wijziging
+overschrijft de tekst, maar de tekst van het model blijft staan in `raw_json.uitvoer`; een "vraag een
+aanpassing" wordt een nieuwe versie met `supersedes_id`, en de wens van de klant staat sinds 26
+september 2026 in `revision_note` (daarvoor alleen in de taak). Het rapport daarvan maakt
+`scripts/klantmeting.ts`, zie `docs/tasks/meting-eerste-klant.md`. Eens per maand lees je die door, zoek je het patroon ("klanten
 halen steeds de eerste alinea weg", "ze vragen om meer over de werkwijze") en pas je daarop de
 schrijfopdracht of de vragen in de brief aan. Er komt geen stap en geen scherm bij.
 
 ### WP10. Narekenen en documenteren
+Wat er bij de eerste echte klant gemeten wordt en hoe: `docs/tasks/meting-eerste-klant.md`.
 - Eén echte maand van één merk door de keten. Meet op `ai_calls` de kosten en de duur per aanroep,
   tel de gele zinnen en hoeveel daarvan vals alarm waren, en kijk of er een pagina blijft hangen.
 - Tel per pagina hoeveel vragen er gesteld, beantwoord en overgeslagen werden, en of dat aantal over de

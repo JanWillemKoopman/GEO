@@ -12666,3 +12666,13 @@ betrouwbaarder (de KLIC-melding en de leeftijdsregels staan er nu als algemene r
 "ja, je mag zelf planten" is weg, de metabeschrijving van de installateur noemt nu de voorwaarden bij
 de prijs) en even natuurlijk, maar geen grote sprong. De proefset is daarmee uitgeput als meetlat: de
 volgende verbeteringen komen uit wat een echte klant verandert vóór het goedkeuren (WP9, WP10).
+
+Oordeel van de copywriter over de vier nieuwe teksten (zelfde dag): twee duidelijk beter, twee ongeveer
+gelijk, geen reden om terug te gaan, geen bewijs voor een grote sprong. Zijn advies, overgenomen: geen
+derde vergelijkingsronde, maar bij de eerste echte klant meten welke zinnen de ondernemer verandert,
+welke beweringen de ondernemer niet herkent, of de tekst klinkt als het eigen bedrijf, hoeveel er inhoudelijk
+verandert, of dat feiten zijn of stijl, en welke vragen achteraf iets opleverden. Vier van die zes
+rekent `lib/pagina/klantmeting.ts` uit met wat de keten al bewaarde; de andere twee zijn mensenwerk
+(`docs/tasks/meting-eerste-klant.md`). Eén gat gedicht: de wens bij "vraag een aanpassing" stond alleen
+in de taak en niet bij de nieuwe versie; die staat nu in `revision_note`.
+
