@@ -96,6 +96,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     factId,
     answer,
     existingProofPoints: profile.proof_points ?? [],
+    gebruikerId: user.id,
   });
   if (!resultaat.ok) {
     return NextResponse.json({ error: resultaat.error }, { status: resultaat.status });

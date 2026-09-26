@@ -186,6 +186,8 @@ Vul de kolom "Besluit" in (met datum) in werkpakket F0.3.
 | V16 | Wat gebeurt er met een feit waarvan de code niet kan vaststellen voor welke dienst het geldt (11 van de 24 op 26 september 2026)? | **Voorlopig merkbreed, met de oude tekst in `ruw`, en op de lijst voor de consultant.** K6 zet de schrijver pas over als die lijst leeg is, zodat een prijs niet stil op een pagina over iets anders belandt | K3, K6 || **Merkbreed, op een lijst**, zoals geadviseerd (26 september 2026) |
 | V17 | Wat gebeurt er met de data van de drie proefmerken? De eigenaar hecht er zelf geen waarde aan | **Bewaren tot A1 klaar is, daarna alles verwijderen.** K6 en A1 bewijzen een verbetering door de oude en de nieuwe versie naast elkaar te leggen (V5); zonder de oude data kan dat niet meer | K6, A1 || **Bewaren tot na A1**, zoals geadviseerd (26 september 2026). Tot die tijd hoeft niemand de data te sparen: omzetten mag zonder voorzichtigheid, en na A1 hoeft geen werkpakket er nog rekening mee te houden. Het verwijderen zelf is onomkeerbaar en gebeurt pas na een laatste bevestiging van de eigenaar (§12) |
 | V18 | Krijgt een nieuw sitefeit uit het onderzoek (K4) meteen een soort en een waarde in de kennislaag? De samenvatting kent die niet; het feitenregister deelt feiten pas later in, als eigen taak, en alleen op `brand_facts` | **Nog niet. Tot K8 komt een nieuw sitefeit zonder soort in de kennislaag, in het domein aanbod, net als een feit zonder soort bij K3 (`domeinVanFeit(null)`). In K8 verhuist de indeling naar de kennislaag**, want na K8 schrijft niemand meer in `brand_facts`. Zonder soort vindt de kennislaag bij zo'n feit geen botsing; het feitenregister vindt die tot K8 nog wel op de oude tabel | K4, K8 || **Gekozen bij het bouwen van K4, volgens advies** (26 september 2026). De eigenaar kan dit terugdraaien: dan komt de indeling in K4 of K5 |
+| V19 | Tellen getallen van één of twee cijfers mee in de ontdubbelsleutel van de kennislaag? `claimKey()` laat ze weg, net als "de" en "is" | **Ja, achteraan in de sleutel.** Zonder dat hebben "80 procent" en "85 procent", of € 45 en € 50, dezelfde sleutel, en `legVast()` gooit de tweede stil weg als "bestond al". Gevonden bij het bouwen van K5: een gewijzigd antwoord kwam zo nooit in de kennislaag. Een bewering zonder zo'n getal houdt zijn sleutel; op productie verandert de sleutel van 84 van de 517 items, en bij het terugvullen van K3 is hierdoor niets samengevallen (nagelopen over de vier merken). De sleutels worden herberekend met `scripts/kennis-sleutels-herberekenen.ts`, direct nadat de code op productie staat | K5 || **Gekozen bij het bouwen van K5, volgens advies** (26 september 2026) |
+| V20 | Wordt een veld dat een mens op het gespreksscherm opslaat in zijn geheel verklaard, of alleen wat die mens eraan veranderde? Het terugvullen (K3) nam de herkomst per veld over, dus een veld dat ooit in het gesprek is opgeslagen, heette daar helemaal verklaard | **Alleen wat er veranderde.** Een vermoeden van het model laten staan is geen uitspraak van de klant (P2). Wat erbij komt, wordt verklaard; wat een mens weghaalt, wordt afgewezen (bewaard, telt niet meer mee, komt niet stil terug); een andere tekst op dezelfde plek wordt een nieuwe versie. Bevestigen van wat bleef staan, gebeurt op het kennisoverzicht (K7) | K5, K7 || **Gekozen bij het bouwen van K5, volgens advies** (26 september 2026) |
 
 ---
 
@@ -194,8 +196,9 @@ Vul de kolom "Besluit" in (met datum) in werkpakket F0.3.
 1. **Geen nieuwe AI-aanroep om kennis samen te voegen of op te schonen.** Terugvullen, indelen naar
    domein en ontdubbelen gebeurt in code. Waar een oordeel nodig is, beslist de consultant.
 2. **AI schrijft nooit een item met status *verklaard* of *bevestigd*** in de kennislaag. Een test
-   bewaakt dat alleen de routes voor klantantwoorden, het gesprek en het kennisoverzicht die statussen
-   zetten.
+   bewaakt dat alleen de routes voor klantantwoorden, het gesprek, de keuze bij een tegenstrijdigheid
+   (toegevoegd in K5, zie daar) en het kennisoverzicht die statussen zetten, ook via een omweg door een
+   module die ze aanroept.
 3. **Geen tweede schrijfingang naar de kennislaag.** Alles gaat via `lib/kennis/` (K2). Een test
    faalt bij een `insert` of `update` op `klantkennis` buiten die map.
 4. **Geen afgeleid item in blok A**, ook niet "als achtergrond".
@@ -439,6 +442,20 @@ Per werkpakket: **doel**, **wat**, **niet**, **klaar als**. De nummers zijn vast
   bedrijf geldt (besluit B3 van de contentketen).
 - **Klaar als:** een ketentest beantwoordt een gerichte vraag en de open vraag en vindt beide als
   verklaard terug, met de juiste `geldt_voor`.
+- **Bijgesteld bij het bouwen (26 september 2026), omdat de tekst hierboven niet meer klopte met de code:**
+  - *"Met `geldt_voor` van de vraag (merk, dienst of pagina)":* een vraag kent geen dienst, alleen het
+    merk, het cluster (`analysis_id`) en de pagina's (`content_piece_ids`). Sinds besluit V13 staat de
+    reikwijdte daarom in `analysis_id` en `content_piece_id` van het item, zoals het terugvullen (K3) het
+    al deed, en blijft `geldt_voor` leeg. De koppeling aan een dienst komt met de kans (N2, N6).
+  - *"Met gebruik 'alleen deze pagina'":* `gebruik` kent alleen content, intern en verboden. Het verhaal
+    krijgt gebruik content, en "alleen deze pagina" is `content_piece_id` (V13).
+  - *"Tenzij de ondernemer aangeeft dat het voor zijn hele bedrijf geldt":* op het scherm kan de
+    ondernemer dat bij de open vraag niet aangeven; de open vraag is altijd voor één pagina. De code volgt
+    de reikwijdte van de vraag, dus een open vraag voor het merk zou merkbreed worden. Een knop op het
+    scherm heeft pas zin als de schrijver uit de kennislaag leest (K6), en hoort bij A2.
+  - *De keuze bij een tegenstrijdigheid:* de conflictroute stond niet op de lijst van §4 regel 2; K5 voegt
+    hem toe, en `lib/facts.ts` (dat de route voor klantantwoorden uitvoert).
+  - Besluiten V19 en V20 (§3.2) kwamen uit dit werkpakket.
 
 #### K6 Blok A leest uit de kennislaag
 - **Doel:** de schrijver krijgt gecontroleerde klantkennis, en niets wat alleen AI denkt.
@@ -454,6 +471,10 @@ Per werkpakket: **doel**, **wat**, **niet**, **klaar als**. De nummers zijn vast
   verklaard item wel; de vier pagina's van WP9 ronde 2 opnieuw geschreven op productie en paarsgewijs
   vergeleken met de vorige versie (de verbeterlus van de contentketen). Kosten per pagina gelijk of
   lager.
+- **Gevonden in K5 (26 september 2026):** een nieuwe versie van een pagina krijgt een nieuw id
+  (`lib/pagina/taken.ts` hangt de vragen er dan ook aan), maar een kennisitem met `content_piece_id` wijst
+  naar de versie waarvoor het antwoord gegeven is. `kennisVoor(pagina)` moet dus alle versies van de pagina
+  meenemen, anders verdwijnt het verhaal van de open vraag bij de eerste herschrijving.
 
 #### K7 Het kennisoverzicht
 - **Doel:** de klant en de consultant zien wat ORBIT weet, waar het vandaan komt, en kunnen het
@@ -466,12 +487,23 @@ Per werkpakket: **doel**, **wat**, **niet**, **klaar als**. De nummers zijn vast
   bevestigt, legt de consultant hier vast.
 - **Klaar als:** als consultant bevestigd en afgewezen op een proefmerk; de status verandert; een
   afgewezen item verdwijnt uit blok A; met een klantlogin is het scherm niet te bereiken.
+- **Gevonden in K5 (26 september 2026):** (1) laat de consultant de ondernemer kiezen bij een
+  tegenstrijdigheid, dan komt diens keuze als verklaard antwoord binnen, maar de twee sitefeiten blijven in
+  de kennislaag actueel (in de oude tabel zet de feitentaak ze op vervangen). Die beslissing hoort hier,
+  want bevestigen en afwijzen doet alleen de consultant (V6). (2) "Niet van toepassing" op het
+  gespreksscherm verandert niets in de kennislaag. (3) Botsingen tussen kennisitems staan op de
+  conflictlijst met `kennis_ids`, maar het huidige conflictscherm toont alleen die tussen feiten.
 
 #### K8 De oude schrijvers en lezers opruimen
 - **Doel:** één waarheid, ook in de code.
 - **Wat:** de dubbele schrijfacties van K4 en K5 stoppen. Een test die faalt als de kolommen uit de
   inventaris met "niet meer gebruiken" buiten `lib/types/database.ts` nog gelezen worden.
 - **Klaar als:** die test draait; `docs/architecture.md` §3 beschrijft de kennislaag.
+- **Gevonden in K5 (26 september 2026):** twee plekken schrijven klantkennis nog alleen in de oude tabel,
+  en moeten vóór het stoppen van het dubbele schrijven over: de tekst van de stemvoorbeelden (de code haalt
+  hem op na het opslaan, `haalStemvoorbeeldenOp()`; waargenomen, zoals het terugvullen hem vastlegde) en
+  het merkdossier (`dossier/route.ts`, feiten uit een geplakt document, met de letterlijke bronzin; bron
+  document).
 
 ### Fase 2. Kansen als eigen object
 
@@ -789,7 +821,7 @@ per pagina opnieuw.
 | K2 | Eén schrijfingang | 1 | Gedaan: `lib/kennis/vastleggen.ts` (`legVast`, `bevestig`, `wijsAf`, `vervang`) en `samenvoegen.ts`; migratie 0117 op productie (afwijzen, een model-item mag door een mens bevestigd worden, botsingen op de conflictlijst, V14); de twee bewakingstests en ketenscenario 19 | 26 september 2026 |
 | K3 | Terugvullen uit wat er al staat | 1 | Gedaan: `lib/kennis/terugvullen.ts`, `scripts/kennis-terugvullen.ts`, ketenscenario 20. Op productie 435 items (Pompert 141, Wesley Keeris 158, Verstraaten 136; 137 waargenomen, 161 verklaard, 137 afgeleid; 223 content, 197 intern, 15 verboden), weggeschreven volgens V15 door de eigenaar. Nagelopen: elke tekst en elk citaat gelijk aan de bron, elke oude rij gedekt, geen regel geschonden. 20 open punten in `kennislaag-open-punten.md` | 26 september 2026 |
 | K4 | Het onderzoek schrijft in de kennislaag | 2 | Gedaan: `lib/kennis/onderzoek.ts` (omzetting, zelfde indeling en sleutels als K3) en `uit-onderzoek.ts` (via `legVast()`, gooit nooit een fout naar de onderzoeksstap); de vijf stappen schrijven ook nog de oude tabellen tot K8. Waargenomen alleen waar de code het citaat terugvond (sitefeit van de samenvatting, aanbodknoop met `confidence = 1`), al het andere afgeleid en intern. Ketenscenario 21; besluit V18. Op productie nagelopen met een nieuw proefmerk (Fysiotherapie West Maas en Waal): 82 items (33 merkonderzoek, 30 aanbod, 8 markt, 11 sitefeiten; 32 waargenomen, 50 afgeleid). Elk citaat staat letterlijk op de bronpagina (32 van 32), elke aanbodknoop (19) en elk sitefeit (11) heeft een item met herkomst, de 16 kinderen hangen aan hun ouder, geen afgeleid item als content, niets verklaard of bevestigd. De kennistest vond geen gelijknamig bedrijf, dus 0 items. De drie prijzen uit de aanbodboom zijn afgeleid: ze staan op de tarievenpagina, maar niet in het citaat van hun dienst | 26 september 2026 |
-| K5 | Gesprek en antwoorden schrijven in de kennislaag | 1 | Open | |
+| K5 | Gesprek en antwoorden schrijven in de kennislaag | 1 | Gedaan: `lib/kennis/gesprek.ts` (omzetting, dezelfde als K3 via `planAntwoord`, `planProfielveld` en `planGesprek`) en `uit-gesprek.ts` (via `legVast()`, `vervang()`, `wijsAf()` en `bevestig()`, gooit nooit een fout). `answerFact()`, de profielroute, de strategieroute en de conflictroute schrijven ook in de kennislaag; de oude tabellen blijven tot K8. De bewakingstest van §4 regel 2 volgt nu ook de aanroepers van een module. Ketenscenario 22: een gerichte vraag, de open vraag en een merkvraag komen verklaard terug met de reikwijdte van de vraag; een gewijzigd antwoord wordt een nieuwe versie; de keuze van de consultant bevestigt het ene item en wijst het andere af. Besluiten V19 (getallen in de sleutel) en V20 (alleen wat veranderde). Nog te doen na het samenvoegen: de sleutels op productie herberekenen (V19) | 26 september 2026 |
 | K6 | Blok A leest uit de kennislaag | 1 | Open | |
 | K7 | Het kennisoverzicht | 2 | Open | |
 | K8 | Oude schrijvers en lezers opruimen | 1 | Open | |

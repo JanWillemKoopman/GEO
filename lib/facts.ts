@@ -26,6 +26,8 @@ import { beoordeelClaim, marktclaimUitleg } from "@/lib/pipeline/claim-plausibil
 import { isGapQuestion } from "@/lib/pipeline/gap-questions";
 import { claimKey, factFromAnswer } from "@/lib/pipeline/factcard";
 import type { FactRequest } from "@/lib/types/database";
+import { legAntwoordVast } from "@/lib/kennis/uit-gesprek";
+import type { BronVraag } from "@/lib/kennis/terugvullen";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -65,6 +67,8 @@ export async function answerFact(
     answer: string;
     /** `profiles.proof_points` van dit merk, vóór dit antwoord. */
     existingProofPoints: string[];
+    /** Wie antwoordde: de klant, of de consultant in het gesprek. */
+    gebruikerId: string;
   },
 ): Promise<AnswerFactResult> {
   const { data: factRow } = await admin
@@ -84,6 +88,20 @@ export async function answerFact(
     .single();
   if (error || !updatedRow) return { ok: false, error: "Opslaan is niet gelukt.", status: 500 };
   const updated = updatedRow as FactRequest;
+
+  // ── De kennislaag (K5 van van-pijplijn-naar-kennissysteem.md) ──────────────
+  //
+  // Wat de ondernemer zegt, wordt klantkennis die blijft: verklaard, met de
+  // reikwijdte van de vraag, en bij een gewijzigd antwoord een nieuwe versie
+  // van het oude item. Vóór de vertakkingen hieronder, want die gaan over wat
+  // er met de OUDE tabellen gebeurt; in de kennislaag komt elk antwoord, ook de
+  // open vraag en een marktclaim zonder onderbouwing (die houdt de controle op
+  // harde beweringen tegen, niet het vastleggen). Gooit nooit een fout.
+  await legAntwoordVast(
+    admin,
+    { profileId: input.profileId, vorige: alsBronVraag(fact), nu: alsBronVraag(updated) },
+    { actor: "mens", gebruikerId: input.gebruikerId },
+  );
 
   // ── De open vraag van een pagina (besluit B3, contentketen-opnieuw.md §6.2) ──
   //
@@ -183,4 +201,18 @@ export async function answerFact(
   }
 
   return { ok: true, outcome: { fact: updated, needsEvidence: false, evidenceHint: null } };
+}
+
+function alsBronVraag(r: FactRequest): BronVraag {
+  return {
+    id: r.id,
+    analysis_id: r.analysis_id,
+    question: r.question,
+    answer: r.answer,
+    status: r.status,
+    scope: r.scope ?? null,
+    content_piece_ids: r.content_piece_ids ?? null,
+    open_vraag: r.open_vraag ?? null,
+    raw_json: (r.raw_json as BronVraag["raw_json"]) ?? null,
+  };
 }
