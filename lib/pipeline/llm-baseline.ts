@@ -36,6 +36,8 @@ import "server-only";
  * acht keer de latency kosten en niet in één werker-aanroep passen. Dezelfde
  * vorm als `generate_prompts`, dat drie funnelfases parallel doet.
  */
+import { kennisUitKennistest } from "@/lib/kennis/onderzoek";
+import { legOnderzoekVast } from "@/lib/kennis/uit-onderzoek";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enginesForProfile } from "@/lib/engines/registry";
 import {
@@ -450,6 +452,8 @@ export async function runLlmBaseline(
           `Profiel ${profileId}: ${voorstellen.length} gelijknamige partij(en) voorgesteld ` +
             `als uitsluiting, uit het verwarringblok van de kennistest.`,
         );
+        // K4: het voorstel ook in de kennislaag, als afgeleid.
+        await legOnderzoekVast(admin, profileId, kennisUitKennistest({ profileId, voorstellen }), "profile_llm_baseline");
       }
     }
   }

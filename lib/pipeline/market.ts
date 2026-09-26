@@ -37,6 +37,8 @@ import { webSearchEnabled } from "@/lib/config";
 import { remainingBudgetUsd } from "@/lib/pipeline/onboarding-budget";
 import { domainOf } from "@/lib/offsite/domain";
 import { dedupeCompetitorNames } from "@/lib/pipeline/competitor-dedupe";
+import { kennisUitMarkt } from "@/lib/kennis/onderzoek";
+import { legOnderzoekVast } from "@/lib/kennis/uit-onderzoek";
 import type { Profile, ProfileOffering } from "@/lib/types/database";
 
 export const MarketResearch = z.object({
@@ -210,7 +212,7 @@ export async function researchMarket(profileId: string): Promise<MarketResult> {
     MAX_DOMAINS,
   );
 
-  await admin.from("profile_facets").upsert(
+  const { data: facet } = await admin.from("profile_facets").upsert(
     {
       profile_id: profileId,
       facet: "markt",
@@ -234,7 +236,7 @@ export async function researchMarket(profileId: string): Promise<MarketResult> {
       researched_at: new Date().toISOString(),
     },
     { onConflict: "profile_id,facet" },
-  );
+  ).select("id").single();
 
   // De namen als unie terug naar `profiles.competitors`, want dáár leest de rest
   // van de pijplijn ze. Een unie en geen vervanging: wat de klant zelf opgaf of
@@ -247,11 +249,24 @@ export async function researchMarket(profileId: string): Promise<MarketResult> {
     ...profile.competitors,
     ...concurrenten.map((c) => c.name.trim()),
   ]);
+  let nieuweNamen: string[] = [];
   if (unie.length !== profile.competitors.length) {
-    await admin
+    const { error: namenFout } = await admin
       .from("profiles")
       .update({ competitors: unie })
       .eq("id", profileId);
+    if (!namenFout) nieuweNamen = unie.filter((n) => !profile.competitors.includes(n));
+  }
+
+  // K4: de positie, waarom elke concurrent wint en de nieuwe namen ook in de
+  // kennislaag, als afgeleid. Zonder het id van het facet is er geen herkomst.
+  if (facet) {
+    await legOnderzoekVast(
+      admin,
+      profileId,
+      kennisUitMarkt({ facetId: (facet as { id: string }).id, positioning: parsed.positioning, concurrenten, nieuweNamen }),
+      "profile_market",
+    );
   }
 
   return {

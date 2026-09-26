@@ -38,7 +38,18 @@ import {
   veldStatus,
   ouderEerst,
   type BronMerk,
+  type BronAanbod,
+  type PlanItem,
 } from "@/lib/kennis/terugvullen";
+import {
+  kennisUitMerkonderzoek,
+  kennisUitAanbod,
+  kennisUitSynthese,
+  kennisUitMarkt,
+  kennisUitKennistest,
+  doorVoor,
+  ONDERZOEK_TAKEN,
+} from "@/lib/kennis/onderzoek";
 import { binomialStderr, weightedScoreStderr, confidenceBand, changeIsMeaningful, bandInAntwoorden, Z95 } from "@/lib/stats/uncertainty";
 import {
   normalizeEntityName,
@@ -21776,3 +21787,128 @@ group("het terugvullen: omzetten met de regels van legVast (K3)", () => {
   eq("ouders eerst, ook als de invoer andersom staat", ouderEerst([{ id: "k", parent_id: "o" }, { id: "o", parent_id: null }]).map((r) => r.id).join(","), "o,k");
 });
 
+
+// ── K4: het onderzoek schrijft in de kennislaag ─────────────────────────────
+
+/** Haalt elk item de regels van legVast(), met de actor die doorVoor() kiest? */
+function onderzoekFouten(items: readonly PlanItem[], taak: (typeof ONDERZOEK_TAKEN)[number]): string[] {
+  return items.flatMap((i) => {
+    const door = doorVoor(i, taak);
+    const fouten = controleerItem({
+      domein: i.domein, bewering: i.bewering, status: i.status, bron: i.bron, gebruik: i.gebruik,
+      bron_url: i.bronUrl, citaat: i.citaat, bewijskracht: i.bewijskracht, vastgelegd_door_taak: door.taak,
+    });
+    if (!magNieuwMetStatus(i.status, door.actor, i.bron)) fouten.push(`${door.actor} mag ${i.status} niet`);
+    return fouten.map((f) => `${i.ref}: ${f}`);
+  });
+}
+
+group("het merkonderzoek als kennis (K4)", () => {
+  const model = {
+    brand_name: "Rijschool Test", industry: "Rijschool", business_model: "dienstverlener", summary: "Een rijschool.",
+    market_language: "Nederland, Nederlands", service_scope: "lokaal", service_regions: ["Eindhoven", "Best"],
+    products: ["Rijlessen"], value_props: ["Persoonlijk"], competitors: ["Rijschool Snel"],
+    proof_points: ["Al 20 jaar actief"], personas: [{ name: "Scholier", needs: ["snel slagen", "vaste instructeur"] }],
+  };
+  const items = kennisUitMerkonderzoek({
+    profileId: "p1",
+    model,
+    geschreven: {
+      // De branche zette een mens: filterProtectedFields() liet hem niet door.
+      brand_name: "Rijschool Test", business_model: "dienstverlener", summary: "Een eerdere samenvatting.",
+      market_language: "Nederland, Nederlands", service_scope: "lokaal",
+      service_regions: ["Eindhoven", "Best"], products: ["Theorie", "Rijlessen"], value_props: ["Persoonlijk"],
+      competitors: ["Rijschool Snel", "Door de consultant getypt"], proof_points: model.proof_points, personas: model.personas,
+    },
+  });
+  const met = (soort: string) => items.filter((i) => i.soort === soort).map((i) => i.bewering);
+  ok("alles is afgeleid, van het model", items.every((i) => i.status === "afgeleid" && i.bron === "ai"));
+  ok("niets gaat als paginatekst mee", items.every((i) => i.gebruik !== "content"));
+  eq("een veld dat een mens zette komt niet als vermoeden binnen", met("branche").join(","), "");
+  eq("een waarde die niet van het model is ook niet", met("omschrijving").join(","), "");
+  eq("van een lijst tellen alleen de waarden van het model", met("concurrent").join(","), "Rijschool Snel");
+  eq("wat de consultant typte in een lijst hoort er niet bij", met("product").join(","), "Rijlessen");
+  eq("het werkgebied per plaats", met("werkgebied").join(","), "Eindhoven,Best");
+  eq("de klantgroep met zijn behoeften", met("klantgroep").join(","), "Scholier: snel slagen, vaste instructeur");
+  eq("de merknaam wordt intern, want hij is afgeleid", items.find((i) => i.soort === "merknaam")?.gebruik ?? "", "intern");
+  const zonderPersonas = kennisUitMerkonderzoek({ profileId: "p1", model, geschreven: { personas: [{ name: "Scholier", needs: [] }] } });
+  eq("klantgroepen die er al stonden zijn niet van het model", zonderPersonas.filter((i) => i.soort === "klantgroep").length.toString(), "0");
+  eq("elk item haalt de regels van legVast()", onderzoekFouten(items, "profile_research").join(" | "), "");
+  ok("herkomst is het profiel", items.every((i) => i.herkomst.tabel === "profiles" && i.herkomst.id === "p1"));
+});
+
+group("de aanbodboom als kennis (K4)", () => {
+  const knoop = (over: Partial<BronAanbod>): BronAanbod => ({
+    id: "x", parent_id: null, kind: "dienst", name: "x", description: null, audience: null, price_indication: null,
+    evidence_url: "https://rt.nl", evidence_quote: "Rijlessen voor iedereen", source: "ai", note: null, removed_at: null, confidence: 1, ...over,
+  });
+  const knopen = [
+    knoop({ id: "k2", parent_id: "k1", name: "Proefles", audience: "beginners", price_indication: "€ 45", evidence_url: "https://rt.nl/proefles", evidence_quote: "Een proefles voor beginners kost € 45" }),
+    knoop({ id: "k1", kind: "categorie", name: "Rijlessen" }),
+    knoop({ id: "k3", name: "Theorie", price_indication: "€ 99", evidence_quote: "Theorie in één dag", confidence: 0.5 }),
+    knoop({ id: "k4", name: "Van de consultant", source: "consultant" }),
+  ];
+  const items = kennisUitAanbod(knopen);
+  const item = (ref: string) => items.find((i) => i.ref === ref);
+  eq("een knoop waarvan de code het citaat vond is waargenomen", item("profile_offerings:k2")?.status ?? "", "waargenomen");
+  eq("en wordt vastgelegd door de code", doorVoor(item("profile_offerings:k2")!, "profile_offering").actor, "code");
+  eq("een citaat dat niet op de pagina staat is een vermoeden", item("profile_offerings:k3")?.status ?? "", "afgeleid");
+  eq("en wordt vastgelegd door het model", doorVoor(item("profile_offerings:k3")!, "profile_offering").actor, "model");
+  ok("zonder gecontroleerd citaat geen citaat in het item", !item("profile_offerings:k3")?.citaat);
+  eq("een prijs die in het gevonden citaat staat is waargenomen", item("profile_offerings:k2:price_indication")?.status ?? "", "waargenomen");
+  eq("een prijs bij een vermoeden is ook een vermoeden", item("profile_offerings:k3:price_indication")?.status ?? "", "afgeleid");
+  eq("de ouder komt eerst", items.findIndex((i) => i.ref === "profile_offerings:k1") < items.findIndex((i) => i.ref === "profile_offerings:k2") ? "ja" : "nee", "ja");
+  eq("het kind hangt aan zijn ouder", (item("profile_offerings:k2")?.geldtVoorRefs ?? []).join(","), "profile_offerings:k1");
+  ok("wat een mens toevoegde schrijft het onderzoek niet", !item("profile_offerings:k4"));
+  const alsTekst = kennisUitAanbod([knoop({ id: "k5", name: "Uit de database", confidence: "1.00" as unknown as number })]);
+  eq("een zekerheid die als tekst uit de database komt telt ook", alsTekst[0]?.status ?? "", "waargenomen");
+  eq("elk item haalt de regels van legVast()", onderzoekFouten(items, "profile_offering").join(" | "), "");
+  // Dezelfde sleutel als het terugvullen: een tweede ronde legt niets dubbel vast.
+  const k3plan = maakTerugvulplan({ ...proefmerk(), aanbod: [knopen[1]] });
+  const sleutel = (i: PlanItem | undefined) => (i ? kennisSleutel({ domein: i.domein, soort: i.soort, bewering: i.bewering, analysis_id: null, content_piece_id: null }) : "?");
+  eq("zelfde knoop, zelfde sleutel als bij K3", String(sleutel(item("profile_offerings:k1"))), String(sleutel(k3plan.items.find((i) => i.ref === "profile_offerings:k1"))));
+});
+
+group("de samenvatting, de markt en de kennistest als kennis (K4)", () => {
+  const feiten = kennisUitSynthese([
+    { id: "f1", text: "De praktijk zit in Amersfoort.", sourceUrl: "https://x.nl/over", quote: "Wij zitten in Amersfoort." },
+    { id: "f2", text: "Zonder citaat.", sourceUrl: "https://x.nl", quote: " " },
+  ]);
+  eq("een sitefeit met gevonden citaat is waargenomen, met citaat", `${feiten[0]?.status}/${feiten[0]?.citaat}/${feiten[0]?.bronUrl}`, "waargenomen/Wij zitten in Amersfoort./https://x.nl/over");
+  eq("en verwijst naar de oude rij", `${feiten[0]?.herkomst.tabel}/${feiten[0]?.herkomst.id}`, "brand_facts/f1");
+  eq("zonder citaat geen item", String(feiten.length), "1");
+  eq("een sitefeit mag op een pagina", feiten[0]?.gebruik ?? "", "content");
+  eq("elk feit haalt de regels van legVast()", onderzoekFouten(feiten, "profile_synthesis").join(" | "), "");
+
+  const markt = kennisUitMarkt({
+    facetId: "m1", positioning: "Kleiner dan de rest, maar persoonlijker.",
+    concurrenten: [{ name: "Rijschool Snel", why: "Goedkoper", evidenceUrl: "https://snel.nl" }, { name: "Leeg", why: "" }],
+    nieuweNamen: ["Rijschool Snel"],
+  });
+  ok("alles uit de markt is afgeleid en intern", markt.every((i) => i.status === "afgeleid" && i.gebruik === "intern"));
+  eq("positie, één concurrent met reden, één nieuwe naam", markt.map((i) => i.soort).join(","), "positie in de markt,waarom een concurrent wint,concurrent");
+  ok("een bronadres zonder citaat maakt het geen waarneming", markt.every((i) => !i.citaat && !i.bronUrl));
+  eq("elk marktitem haalt de regels van legVast()", onderzoekFouten(markt, "profile_market").join(" | "), "");
+
+  const test = kennisUitKennistest({ profileId: "p1", voorstellen: ["Rijschool Test Utrecht", " "] });
+  eq("een gelijknamig bedrijf uit de kennistest is een vermoeden", test.map((i) => `${i.soort}/${i.status}/${i.gebruik}`).join(","), "niet ons merk/afgeleid/intern");
+  eq("elk kennistestitem haalt de regels van legVast()", onderzoekFouten(test, "profile_llm_baseline").join(" | "), "");
+});
+
+group("de onderzoeksstappen schrijven via de schrijfingang (K4)", () => {
+  for (const pad of [
+    "lib/pipeline/prepare-profile.ts",
+    "lib/pipeline/offering.ts",
+    "lib/pipeline/market.ts",
+    "lib/pipeline/llm-baseline.ts",
+    "lib/pipeline/synthesis.ts",
+  ]) {
+    ok(`${pad} legt zijn uitkomst vast in de kennislaag`, /await legOnderzoekVast\(/.test(leesBestand(pad)));
+  }
+  const omzetting = leesBestand("lib/kennis/onderzoek.ts");
+  ok("de omzetting doet geen AI-aanroep (§4 regel 1)", !/lib\/openai|callStructured|responses\.create/.test(omzetting));
+  ok("de omzetting zet nooit verklaard of bevestigd (§4 regel 2)", !/["'`](verklaard|bevestigd)["'`]/.test(omzetting));
+  const schrijver = leesBestand("lib/kennis/uit-onderzoek.ts");
+  ok("de schrijver gaat door legVast()", schrijver.includes("await legVast("));
+  ok("de schrijver gooit geen fout naar de onderzoeksstap", !/\bthrow\b/.test(schrijver));
+});

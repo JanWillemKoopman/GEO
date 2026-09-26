@@ -111,6 +111,8 @@ export interface BronAanbod {
   source: string;
   note: string | null;
   removed_at: string | null;
+  /** 1 als de code het citaat op de pagina terugvond (`quoteConfidence()`), anders 0,5 of leeg. */
+  confidence?: number | null;
 }
 
 export interface BronVraag {
@@ -262,14 +264,14 @@ export function domeinVanAntwoord(vraag: Pick<BronVraag, "open_vraag" | "raw_jso
   return vraag.raw_json?.soort === "praktijk" ? "verhaal" : "aanbod";
 }
 
-interface Maker {
+export interface Maker {
   profileId: string;
   items: PlanItem[];
   uitsluitingen: Uitsluiting[];
   voorConsultant: Uitsluiting[];
 }
 
-function voegToe(m: Maker, item: Omit<PlanItem, "gebruik" | "geldtVoorRefs" | "analysisId" | "contentPieceId" | "waarde" | "bewijskracht" | "bronUrl" | "citaat" | "soort" | "ruw"> & Partial<PlanItem>): void {
+export function voegToe(m: Pick<Maker, "items">, item: Omit<PlanItem, "gebruik" | "geldtVoorRefs" | "analysisId" | "contentPieceId" | "waarde" | "bewijskracht" | "bronUrl" | "citaat" | "soort" | "ruw"> & Partial<PlanItem>): void {
   const volledig: PlanItem = {
     soort: null,
     waarde: null,
@@ -290,7 +292,7 @@ function voegToe(m: Maker, item: Omit<PlanItem, "gebruik" | "geldtVoorRefs" | "a
 
 // ── Het merkprofiel ───────────────────────────────────────────────────────────
 
-interface VeldRegel {
+export interface VeldRegel {
   veld: keyof BronProfiel;
   domein: Klantkennis["domein"];
   soort: string;
@@ -299,7 +301,7 @@ interface VeldRegel {
 }
 
 /** De kolommen van `profiles` met "meenemen" in de inventaris (§4.1). */
-const TEKSTVELDEN: VeldRegel[] = [
+export const TEKSTVELDEN: VeldRegel[] = [
   { veld: "brand_name", domein: "identiteit", soort: "merknaam", gebruik: "content" },
   { veld: "industry", domein: "identiteit", soort: "branche", gebruik: "intern" },
   { veld: "business_model", domein: "identiteit", soort: "bedrijfsmodel", gebruik: "intern" },
@@ -316,7 +318,7 @@ const TEKSTVELDEN: VeldRegel[] = [
   { veld: "pronoun_preference", domein: "stem", soort: "aanspreekvorm", gebruik: "content" },
 ];
 
-const LIJSTVELDEN: VeldRegel[] = [
+export const LIJSTVELDEN: VeldRegel[] = [
   { veld: "aliases", domein: "identiteit", soort: "andere naam", gebruik: "intern" },
   { veld: "name_exclusions", domein: "identiteit", soort: "niet ons merk", gebruik: "intern" },
   { veld: "service_regions", domein: "identiteit", soort: "werkgebied", gebruik: "content" },
@@ -473,7 +475,16 @@ export function ouderEerst<T extends { id: string; parent_id: string | null }>(r
   return [...rijen].sort((a, b) => diepte(a) - diepte(b));
 }
 
-function planAanbod(m: Maker, merk: BronMerk): void {
+/**
+ * Het aanbod als kennisitems. Ook gebruikt door het onderzoek zelf (K4,
+ * `lib/kennis/onderzoek.ts`), met een strengere `citaatTelt`: daar is een knoop
+ * pas waargenomen als de code zijn citaat op de pagina terugvond.
+ */
+export function planAanbod(
+  m: Pick<Maker, "items" | "uitsluitingen" | "voorConsultant">,
+  merk: Pick<BronMerk, "aanbod">,
+  citaatTelt: (o: BronAanbod) => boolean = (o) => Boolean(schoon(o.evidence_quote) && schoon(o.evidence_url)),
+): void {
   const actief = new Set(merk.aanbod.filter((o) => !o.removed_at).map((o) => o.id));
   for (const o of ouderEerst(merk.aanbod)) {
     const ref = `profile_offerings:${o.id}`;
@@ -483,7 +494,7 @@ function planAanbod(m: Maker, merk: BronMerk): void {
     }
     const herkomst = { tabel: "profile_offerings" as const, id: o.id };
     const doorMens = o.source === "klant" || o.source === "consultant";
-    const heeftCitaat = Boolean(schoon(o.evidence_quote) && schoon(o.evidence_url));
+    const heeftCitaat = Boolean(schoon(o.evidence_quote) && schoon(o.evidence_url)) && citaatTelt(o);
     const status: KennisStatus = doorMens ? "verklaard" : heeftCitaat ? "waargenomen" : "afgeleid";
     const bron: KennisBron = doorMens ? (o.source === "klant" ? "klant" : "gesprek") : heeftCitaat ? "website" : "ai";
     const ouder = o.parent_id && actief.has(o.parent_id) ? [`profile_offerings:${o.parent_id}`] : [];

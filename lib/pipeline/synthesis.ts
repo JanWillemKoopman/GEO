@@ -42,6 +42,8 @@ import { ProfileSynthesis } from "@/lib/schemas/synthesis";
 import { claimKey } from "@/lib/pipeline/factcard";
 import { remainingBudgetUsd } from "@/lib/pipeline/onboarding-budget";
 import { quoteOnPage } from "@/lib/pipeline/quote-check";
+import { kennisUitSynthese } from "@/lib/kennis/onderzoek";
+import { legOnderzoekVast } from "@/lib/kennis/uit-onderzoek";
 import { gapQuestions, GAP_SOURCE } from "@/lib/pipeline/gap-questions";
 import { filterNieuweMerkvragen } from "@/lib/vraag-sluiten";
 import { synthesisPremium } from "@/lib/config";
@@ -223,7 +225,8 @@ export async function synthesiseProfile(
     );
   }
 
-  const bewaard = await storeBrandFacts(admin, profileId, geldig);
+  const opgeslagen = await storeBrandFacts(admin, profileId, geldig);
+  const bewaard = opgeslagen.length;
 
   await admin.from("profile_facets").upsert(
     {
@@ -255,6 +258,10 @@ export async function synthesiseProfile(
   // invoerveld eronder. Als rij in `fact_requests` pakt het bestaande scherm ze
   // op via de route die er al lag.
   const gesteld = await storeGapQuestions(admin, profileId, parsed.gaps);
+
+  // K4: de nieuwe sitefeiten ook in de kennislaag, als waargenomen: de code
+  // vond hun citaat hierboven letterlijk op de pagina.
+  await legOnderzoekVast(admin, profileId, kennisUitSynthese(opgeslagen), "profile_synthesis");
 
   return {
     facts: bewaard,
@@ -330,8 +337,8 @@ async function storeBrandFacts(
   admin: ReturnType<typeof createAdminClient>,
   profileId: string,
   facts: ProfileSynthesis["facts"],
-): Promise<number> {
-  if (facts.length === 0) return 0;
+): Promise<OpgeslagenFeit[]> {
+  if (facts.length === 0) return [];
 
   const { data: bestaand } = await admin
     .from("brand_facts")
@@ -362,18 +369,32 @@ async function storeBrandFacts(
       fact_key: key,
     }));
 
-  if (rijen.length === 0) return 0;
+  if (rijen.length === 0) return [];
 
-  const { error } = await admin.from("brand_facts").insert(rijen);
-  if (error) {
+  const { data: ingevoegd, error } = await admin.from("brand_facts").insert(rijen).select("id, fact_key");
+  if (error || !ingevoegd) {
     // Verrijking, geen voorwaarde: het profiel is klaar, de feitenkaart valt
     // terug op wat hij vóór deze ronde had.
     console.error(
-      `Feiten opslaan mislukt voor profiel ${profileId}: ${error.message}`,
+      `Feiten opslaan mislukt voor profiel ${profileId}: ${error?.message ?? "geen rijen terug"}`,
     );
-    return 0;
+    return [];
   }
-  return rijen.length;
+  // Terug naar het feit met zijn citaat, via de sleutel: die is binnen deze
+  // batch uniek (de filter hierboven).
+  const feitPerSleutel = new Map(facts.map((f) => [claimKey(f.text), f]));
+  return (ingevoegd as { id: string; fact_key: string }[]).flatMap((r) => {
+    const f = feitPerSleutel.get(r.fact_key);
+    return f ? [{ id: r.id, text: f.text.trim(), sourceUrl: f.sourceUrl, quote: f.quote }] : [];
+  });
+}
+
+/** Een net opgeslagen sitefeit, met het citaat dat de code op de pagina terugvond. */
+interface OpgeslagenFeit {
+  id: string;
+  text: string;
+  sourceUrl: string;
+  quote: string;
 }
 
 /** Hoeveel sitetekst er de aanroep in gaat. De contenttier is duur; dit is de knop. */
