@@ -98,4 +98,5 @@ of nergens. Alles hieronder is verzonnen, net als het gespreksdeel van het dossi
 ## Uitkomst
 
 Zie §12 van `docs/tasks/contentketen-opnieuw.md` (WP8 tot en met WP10) en `docs/logbook.md`,
-26 september 2026. De negen teksten voor de copywriter: `teksten-voor-copywriter.md`.
+26 september 2026. De negen teksten voor de copywriter: `teksten-voor-copywriter.md`. Vier daarvan opnieuw geschreven na
+zijn oordeel, met schrijfopdracht versie 3: `teksten-ronde-2.md`.
