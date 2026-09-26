@@ -150,6 +150,30 @@ export function bronVanEngine(engine: string | null): KansBron | null {
   }
 }
 
+/**
+ * De versie van de regel waarmee het bewijs geteld is; staat in `kans_bewijs.ruw.regel`.
+ * Verandert de telling, dan gaat dit getal omhoog en telt `legKansenVast()` het
+ * bewijs van open kansen opnieuw.
+ *
+ *   1  26 september 2026, N2: elke andere genoemde aanbieder telde als concurrent.
+ *   2  26 september 2026: alleen wie aanbevolen wordt. Op productie stond bij de
+ *      faalangstpagina van Pompert het CBR als concurrent; dat wordt in de
+ *      antwoorden alleen terloops genoemd (`zijdelings`, 982 van de 1852
+ *      vermeldingen van andere namen).
+ */
+export const BEWIJS_REGEL = 2;
+
+/**
+ * Telt deze vermelding als concurrent? Alleen een naam die het antwoord
+ * aanbeveelt (`eerste_aanbeveling`, `een_van_meerdere`). Een naam die terloops
+ * voorbijkomt als bron, voorbeeld of instantie (`zijdelings`) neemt de plek van
+ * het merk niet in. Een oude meting zonder rol telt mee: onbekend is daar geen
+ * reden om een concurrent te verzwijgen.
+ */
+export function isConcurrent(v: { is_own_brand: boolean; mentioned: boolean; mention_role: string | null }): boolean {
+  return !v.is_own_brand && v.mentioned && v.mention_role !== "zijdelings";
+}
+
 /** Hooguit zoveel concurrenten per bron: genoeg voor de uitleg, geen lijst. */
 export const MAX_CONCURRENTEN = 5;
 

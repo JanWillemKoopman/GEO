@@ -52,6 +52,7 @@ import {
   commercieleWaardeVan,
   geldtVoorVan,
   MAX_CONCURRENTEN,
+  isConcurrent,
   type MetingVoorBewijs,
   type KennisVoorKans,
 } from "@/lib/kansen/rapport";
@@ -22380,6 +22381,14 @@ group("kansen: het rapport maakt kansen (N2)", () => {
   const veel = bewijsUitMetingen([doel[0]!], [m("z", "p1", "openai", false, ["A", "B", "C", "D", "E", "F", "G"])]);
   eq("hooguit een handvol concurrenten", String(veel[0]?.concurrenten?.length), String(MAX_CONCURRENTEN));
   eq("zonder doelvragen geen bewijs", String(bewijsUitMetingen([], [m("a", "p1", "openai", false)]).length), "0");
+
+  // ── Wie telt als concurrent ──
+  const v = (rol: string | null, mentioned = true, is_own_brand = false) => isConcurrent({ is_own_brand, mentioned, mention_role: rol });
+  eq(
+    "aanbevolen telt, terloops niet, niet genoemd niet, het eigen merk niet, zonder rol wel",
+    [v("eerste_aanbeveling"), v("een_van_meerdere"), v("zijdelings"), v("een_van_meerdere", false), v("eerste_aanbeveling", true, true), v(null)].join(","),
+    "true,true,false,false,false,true",
+  );
 
   // ── Commerciële waarde ──
   const waarde = (diensten: string[], voorrang: string[], minder: string[]) => String(commercieleWaardeVan({ diensten, voorrang, minder }));

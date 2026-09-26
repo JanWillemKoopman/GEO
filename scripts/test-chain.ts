@@ -8889,7 +8889,7 @@ async function main(): Promise<void> {
 
       // De meting: ChatGPT mist p1 (en noemt twee concurrenten), noemt p2;
       // AI Overview meet p1 drie keer en mist hem twee keer.
-      const meting = async (prompt: string, tekst: string, engine: string, herhaling: number, genoemd: boolean, anderen: string[]) => {
+      const meting = async (prompt: string, tekst: string, engine: string, herhaling: number, genoemd: boolean, anderen: string[]): Promise<string> => {
         const run = randomUUID();
         await db.client.query(
           `insert into public.tracking_runs (id, analysis_id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, week_no, purpose, engine, repeat_index, brands_in_answer)
@@ -8906,6 +8906,7 @@ async function main(): Promise<void> {
             [run, a],
           );
         }
+        return run;
       };
       await db.client.query(
         `insert into public.prompts (id, analysis_id, text, category, active) values
@@ -8913,7 +8914,12 @@ async function main(): Promise<void> {
            ($2, $3, 'Wat kost rijles?', 'Beslissing', true)`,
         [p1, p2, analyse],
       );
-      await meting(p1, "Welke rijschool in Best is goed?", "openai", 0, false, ["Rijschool Wit", "Rijschool Zwart"]);
+      const chatgptP1 = await meting(p1, "Welke rijschool in Best is goed?", "openai", 0, false, ["Rijschool Wit", "Rijschool Zwart"]);
+      // Terloops genoemd (de examenorganisatie): geen concurrent.
+      await db.client.query(
+        "insert into public.tracking_run_mentions (tracking_run_id, entity_name, is_own_brand, mentioned, mention_role) values ($1, 'CBR', false, true, 'zijdelings')",
+        [chatgptP1],
+      );
       await meting(p2, "Wat kost rijles?", "openai", 0, true, []);
       await meting(p1, "Welke rijschool in Best is goed?", "google_ai_overview", 0, false, ["Rijschool Wit"]);
       await meting(p1, "Welke rijschool in Best is goed?", "google_ai_overview", 1, false, ["Rijschool Wit"]);
@@ -8960,7 +8966,7 @@ async function main(): Promise<void> {
       const eerste = await legKansenVast(shim, rapport);
       eqc("scenario 23: twee aanbevelingen, twee kansen", `${eerste.aangemaakt}/${eerste.bestond}/${eerste.mislukt}`, "2/0/0");
       const tweede = await legKansenVast(shim, rapport);
-      eqc("scenario 23: nog een keer maakt niets dubbel (conventie 9)", `${tweede.aangemaakt}/${tweede.bestond}`, "0/2");
+      eqc("scenario 23: nog een keer maakt niets dubbel (conventie 9)", `${tweede.aangemaakt}/${tweede.bestond}/${tweede.ververst}`, "0/2/0");
 
       type KansRij = { id: string; sleutel: string; titel: string; lezer: string | null; handeling: string; bestaande_url: string | null; geldt_voor: string[]; commerciele_waarde: string | null; status: string; uitleg: string | null; rapport_id: string; analysis_id: string; vastgelegd_door_taak: string; potentie: string | null };
       const kansen = (await db.client.query("select * from public.kansen where profile_id = $1 order by sleutel", [merk])).rows as KansRij[];
@@ -8981,6 +8987,22 @@ async function main(): Promise<void> {
         vanKans(best?.id).map((b) => `${b.bron}:${b.vragen_genoemd}/${b.vragen_gemeten}:${(b.concurrenten ?? []).join("+")}`).join(" "),
         "ai_overview:0/1:Rijschool Wit chatgpt:1/2:Rijschool Wit+Rijschool Zwart",
       );
+      ok("scenario 23: een terloops genoemde naam is geen concurrent", !bewijs.some((b) => (b.concurrenten ?? []).includes("CBR")));
+      eqc("scenario 23: het bewijs draagt de regel waarmee het geteld is", String((await db.client.query("select count(*)::int n from public.kans_bewijs where profile_id = $1 and (ruw->>'regel')::int = 2", [merk])).rows[0].n), String(bewijs.length));
+
+      // Bewijs van een oudere regel wordt één keer opnieuw geteld.
+      await db.client.query(
+        "update public.kans_bewijs set concurrenten = '{CBR}', ruw = '{\"regel\": 1}'::jsonb where kans_id = $1 and bron = 'chatgpt'",
+        [best?.id],
+      );
+      await db.client.query("update public.kansen set uitleg = 'oud' where id = $1", [best?.id]);
+      const derde = await legKansenVast(shim, rapport);
+      eqc("scenario 23: een kans met oud bewijs wordt opnieuw geteld", `${derde.aangemaakt}/${derde.ververst}`, "0/1");
+      const { rows: ververst } = await db.client.query("select b.concurrenten, k.uitleg from public.kans_bewijs b join public.kansen k on k.id = b.kans_id where b.kans_id = $1 and b.bron = 'chatgpt'", [best?.id]);
+      eqc("scenario 23: met de juiste concurrenten, en de uitleg mee", `${(ververst[0]?.concurrenten ?? []).join("+")}|${ververst[0]?.uitleg !== "oud"}`, "Rijschool Wit+Rijschool Zwart|true");
+      const vierde = await legKansenVast(shim, rapport);
+      eqc("scenario 23: en daarna niet nog eens", String(vierde.ververst), "0");
+
       eqc("scenario 23: de metingen zelf staan erbij", String(vanKans(best?.id).reduce((n, b) => n + (b.run_ids ?? []).length, 0)), "5");
       eqc(
         "scenario 23: de uitleg komt uit het bewijs",

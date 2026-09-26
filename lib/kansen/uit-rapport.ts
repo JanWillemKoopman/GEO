@@ -29,8 +29,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { alleRijen } from "@/lib/supabase/pagineer";
 import { uitlegVan } from "@/lib/kansen/prioriteit";
 import {
+  BEWIJS_REGEL,
   bewijsUitMetingen,
   commercieleWaardeVan,
+  isConcurrent,
   geldtVoorVan,
   kansUitAanbeveling,
   type KennisVoorKans,
@@ -41,6 +43,8 @@ import {
 export interface KansenTelling {
   aangemaakt: number;
   bestond: number;
+  /** Bestaande kansen waarvan het bewijs met een oudere regel was geteld, nu opnieuw. */
+  ververst: number;
   mislukt: number;
 }
 
@@ -95,12 +99,12 @@ async function metingenVoor(
   const tellend = runs.filter((r) => r.brands_in_answer !== 0);
   if (tellend.length === 0) return [];
 
-  const vermeldingen: { tracking_run_id: string; entity_name: string; is_own_brand: boolean; mentioned: boolean }[] = [];
+  const vermeldingen: { tracking_run_id: string; entity_name: string; is_own_brand: boolean; mentioned: boolean; mention_role: string | null }[] = [];
   for (const stuk of inStukken(tellend.map((r) => r.id))) {
     const rijen = await alleRijen<(typeof vermeldingen)[number]>((van, tot) =>
       admin
         .from("tracking_run_mentions")
-        .select("tracking_run_id, entity_name, is_own_brand, mentioned")
+        .select("tracking_run_id, entity_name, is_own_brand, mentioned, mention_role")
         .in("tracking_run_id", stuk)
         .order("id")
         .range(van, tot),
@@ -112,7 +116,7 @@ async function metingenVoor(
   const anderen = new Map<string, string[]>();
   for (const v of vermeldingen) {
     if (v.is_own_brand) eigen.set(v.tracking_run_id, v.mentioned);
-    else if (v.mentioned) anderen.set(v.tracking_run_id, [...(anderen.get(v.tracking_run_id) ?? []), v.entity_name]);
+    else if (isConcurrent(v)) anderen.set(v.tracking_run_id, [...(anderen.get(v.tracking_run_id) ?? []), v.entity_name]);
   }
 
   // Alleen wat beoordeeld is: een meting zonder oordeel over het eigen merk is
@@ -133,7 +137,7 @@ async function metingenVoor(
  * telling terug.
  */
 export async function legKansenVast(admin: SupabaseClient, rapportId: string): Promise<KansenTelling> {
-  const telling: KansenTelling = { aangemaakt: 0, bestond: 0, mislukt: 0 };
+  const telling: KansenTelling = { aangemaakt: 0, bestond: 0, ververst: 0, mislukt: 0 };
   try {
     const { data: rapport } = await admin
       .from("reports")
@@ -156,13 +160,32 @@ export async function legKansenVast(admin: SupabaseClient, rapportId: string): P
     // Conventie 9: eerst kijken wat er al staat.
     const { data: bestaandRows } = await admin
       .from("kansen")
-      .select("sleutel")
+      .select("id, sleutel, status, vastgelegd_door_taak")
       .eq("profile_id", profileId)
       .in("sleutel", kansen.map((k) => k.sleutel));
-    const bestaand = new Set(((bestaandRows ?? []) as { sleutel: string }[]).map((b) => b.sleutel));
+    const bestaandeRijen = (bestaandRows ?? []) as { id: string; sleutel: string; status: string; vastgelegd_door_taak: string | null }[];
+    const bestaand = new Map(bestaandeRijen.map((b) => [b.sleutel, b]));
     const nieuw = kansen.filter((k) => !bestaand.has(k.sleutel));
     telling.bestond = kansen.length - nieuw.length;
-    if (nieuw.length === 0) return telling;
+
+    // Bewijs dat met een oudere regel geteld is (`BEWIJS_REGEL`), opnieuw tellen.
+    // Alleen bij open kansen die de code zelf maakte: een kans waar al werk aan
+    // hangt, of die een mens aanmaakte, houdt het bewijs waarop hij gekozen werd.
+    const teVerversen: { id: string; kans: (typeof kansen)[number] }[] = [];
+    const kandidaatIds = bestaandeRijen.filter((b) => b.status === "open" && b.vastgelegd_door_taak === TAAK).map((b) => b.id);
+    if (kandidaatIds.length > 0) {
+      const { data: bewijsRows } = await admin.from("kans_bewijs").select("kans_id, ruw").in("kans_id", kandidaatIds);
+      const verouderd = new Set(
+        ((bewijsRows ?? []) as { kans_id: string; ruw: { regel?: number } | null }[])
+          .filter((b) => (b.ruw?.regel ?? 1) < BEWIJS_REGEL)
+          .map((b) => b.kans_id),
+      );
+      for (const k of kansen) {
+        const rij = bestaand.get(k.sleutel);
+        if (rij && verouderd.has(rij.id)) teVerversen.push({ id: rij.id, kans: k });
+      }
+    }
+    if (nieuw.length === 0 && teVerversen.length === 0) return telling;
 
     const [{ data: topicRows }, { data: profiel }, { data: kennisRows }] = await Promise.all([
       admin.from("profile_topics").select("offering_ids, offering_names").eq("analysis_id", r.analysis_id),
@@ -190,8 +213,42 @@ export async function legKansenVast(admin: SupabaseClient, rapportId: string): P
       (kennisRows ?? []) as { id: string; soort: string | null; bewering: string; herkomst_tabel: string | null; herkomst_id: string | null }[]
     ).map((k) => ({ id: k.id, soort: k.soort, bewering: k.bewering, herkomstTabel: k.herkomst_tabel, herkomstId: k.herkomst_id }));
 
-    const promptIds = [...new Set(nieuw.flatMap((k) => k.doelvragen.map((d) => d.promptId)).filter((id): id is string => !!id))];
+    const promptIds = [
+      ...new Set(
+        [...nieuw, ...teVerversen.map((t) => t.kans)].flatMap((k) => k.doelvragen.map((d) => d.promptId)).filter((id): id is string => !!id),
+      ),
+    ];
     const metingen = await metingenVoor(admin, r.analysis_id, r.week_no, promptIds);
+    const bewijsRijen = (kansId: string, k: (typeof kansen)[number], bewijs: ReturnType<typeof bewijsUitMetingen>) =>
+      bewijs.map((b) => ({
+        kans_id: kansId,
+        profile_id: profileId,
+        bron: b.bron,
+        vragen_gemeten: b.vragenGemeten,
+        vragen_genoemd: b.vragenGenoemd,
+        concurrenten: b.concurrenten,
+        run_ids: b.runIds,
+        rapport_id: r.id,
+        ruw: { regel: BEWIJS_REGEL, doelvragen: k.doelvragen } as never,
+        updated_at: new Date().toISOString(),
+      }));
+
+    for (const t of teVerversen) {
+      const bewijs = bewijsUitMetingen(t.kans.doelvragen, metingen);
+      if (bewijs.length > 0) {
+        const { error: fout } = await admin.from("kans_bewijs").upsert(bewijsRijen(t.id, t.kans, bewijs), { onConflict: "kans_id,bron" });
+        if (fout) {
+          telling.mislukt++;
+          console.error(`Bewijs van kans ${t.id} opnieuw tellen mislukt: ${fout.message}`);
+          continue;
+        }
+      }
+      await admin
+        .from("kansen")
+        .update({ uitleg: uitlegVan({ handeling: t.kans.handeling, bewijs }), updated_at: new Date().toISOString() })
+        .eq("id", t.id);
+      telling.ververst++;
+    }
 
     for (const k of nieuw) {
       const bewijs = bewijsUitMetingen(k.doelvragen, metingen);
@@ -227,23 +284,14 @@ export async function legKansenVast(admin: SupabaseClient, rapportId: string): P
       telling.aangemaakt++;
       const kansId = (rij as { id: string }).id;
       if (bewijs.length === 0) continue;
-      const { error: bewijsFout } = await admin.from("kans_bewijs").insert(
-        bewijs.map((b) => ({
-          kans_id: kansId,
-          profile_id: profileId,
-          bron: b.bron,
-          vragen_gemeten: b.vragenGemeten,
-          vragen_genoemd: b.vragenGenoemd,
-          concurrenten: b.concurrenten,
-          run_ids: b.runIds,
-          rapport_id: r.id,
-          ruw: { doelvragen: k.doelvragen } as never,
-        })),
-      );
+      const { error: bewijsFout } = await admin.from("kans_bewijs").insert(bewijsRijen(kansId, k, bewijs));
       if (bewijsFout) console.error(`Bewijs bij kans "${k.titel}" vastleggen mislukt: ${bewijsFout.message}`);
     }
-    if (telling.aangemaakt > 0 || telling.mislukt > 0) {
-      console.log(`Kansen uit rapport ${r.id}: ${telling.aangemaakt} nieuw, ${telling.bestond} bestonden, ${telling.mislukt} mislukt.`);
+    if (telling.aangemaakt > 0 || telling.ververst > 0 || telling.mislukt > 0) {
+      console.log(
+        `Kansen uit rapport ${r.id}: ${telling.aangemaakt} nieuw, ${telling.bestond} bestonden, ` +
+          `${telling.ververst} met opnieuw geteld bewijs, ${telling.mislukt} mislukt.`,
+      );
     }
   } catch (err) {
     telling.mislukt++;
