@@ -21,7 +21,18 @@ import { z } from "zod";
  * alle drie de pagina's, en gaf de hovenier twee keer "ja" op een vraag waar
  * niemand iets over had gezegd.
  */
-export const SCHRIJFOPDRACHT_VERSIE = 2;
+/**
+ * Versie 3 (26 september 2026, na het oordeel van de copywriter over negen
+ * teksten, gemiddeld 8,6): de zwakte die op alle negen terugkwam was algemene
+ * kennis die er stond alsof het bedrijfskennis was (een vuistregel, een wettelijke
+ * termijn, een plantkeuze als "wij doen het zo"). Daarom scheidt de invoer nu
+ * zichtbaar bedrijfskennis (A en B) van algemene kennis (C), en zegt de opdracht
+ * dat algemene kennis mag uitleggen maar nooit als eigenschap van het bedrijf
+ * mag klinken. Daarbij: één gegeven overal hetzelfde, ook in de metabeschrijving,
+ * en een verhaal van het hele bedrijf alleen kort en alleen als het bij de
+ * pagina past (hetzelfde verhaal stond bijna gelijk op meer pagina's).
+ */
+export const SCHRIJFOPDRACHT_VERSIE = 3;
 
 /** Hoogstens zoveel veelgestelde vragen, en alleen als ze iets toevoegen. */
 export const MAX_FAQ = 5;
@@ -41,7 +52,9 @@ const KERN = `Je bent een ervaren vakschrijver en schrijft een pagina voor de ei
 
 Wees inhoudelijk volledig, natuurlijk, concreet en overtuigend. Beantwoord de vraag van de bezoeker meteen, en behandel daarna wat hij verder wil weten. Gebruik algemene vakkennis waar die helpt. Gebruik wat de ondernemer zelf vertelde: daar zit wat deze pagina anders maakt dan die van een concurrent.
 
-Gebruik bedrijfsinformatie betrouwbaar. Verzin geen bedrijfsclaims, cijfers, garanties, prijzen, resultaten, certificeringen, termijnen of andere concrete eigenschappen die niet uit de informatie hieronder blijken. Weet je iets niet, laat het dan weg; schrijf niet over wat je niet weet.
+Houd twee soorten kennis uit elkaar. Bedrijfskennis staat onder "WAT WE ZEKER WETEN OVER HET BEDRIJF" en "WAT DE ONDERNEMER VERTELDE". Alleen daarop bouw je wat dit bedrijf doet, biedt, belooft, rekent, adviseert of hanteert. Algemene kennis (het onderzoek en wat je zelf van het vak weet) gebruik je om het onderwerp uit te leggen. Schrijf die dan als algemene uitleg, over hoe het meestal gaat of wat er in Nederland geldt, en nooit als een werkwijze, belofte, advies of eigenschap van dit bedrijf.
+
+Verzin geen bedrijfsclaims, cijfers, garanties, prijzen, resultaten, certificeringen, termijnen of andere concrete eigenschappen die niet uit de bedrijfskennis blijken. Weet je iets niet, laat het dan weg; schrijf niet over wat je niet weet. Noem een concreet gegeven overal op dezelfde manier en met de voorwaarden die erbij horen, ook in de metabeschrijving en de veelgestelde vragen.
 
 Schrijf zo uitgebreid als nodig is om de vraag volledig en nuttig te beantwoorden. Voeg geen tekst toe alleen om langer te worden, en herhaal niets.
 
@@ -67,10 +80,10 @@ export function schrijfSysteem(h: Huisregels): string {
   if (h.verbodenWoorden.length > 0) regels.push(`Gebruik deze woorden niet: ${h.verbodenWoorden.join(", ")}.`);
   regels.push("Gebruik geen gedachtestreepje (— of –) in lopende tekst en nooit de schuine streep in \"en/of\"; schrijf twee zinnen of gebruik een komma.");
   regels.push(
-    "Een veelgestelde vraag neem je alleen op als het antwoord uit de informatie hierboven blijkt of algemene vakkennis is. Weet je het antwoord voor dit bedrijf niet, laat de vraag dan weg.",
+    "Een veelgestelde vraag neem je alleen op als het antwoord uit de bedrijfskennis blijkt of algemene vakkennis is die je ook als algemene uitleg schrijft. Weet je het antwoord voor dit bedrijf niet, laat de vraag dan weg.",
   );
   regels.push(
-    "Gebruik een voorbeeld uit de praktijk van de ondernemer alleen als het over het onderwerp van deze pagina gaat. De andere pagina's van dit bedrijf vertellen hun eigen voorbeelden.",
+    "Gebruik een voorbeeld uit de praktijk van de ondernemer alleen als het over het onderwerp van deze pagina gaat. De andere pagina's van dit bedrijf vertellen hun eigen voorbeelden. Een verhaal onder \"WAT WE ZEKER WETEN OVER HET BEDRIJF\" hoort bij het hele bedrijf en kan ook op andere pagina's staan: vertel het hooguit kort, en geef een voorbeeld dat de ondernemer voor deze pagina vertelde altijd voorrang.",
   );
   regels.push(
     `Lever een titel, een metatitel van hooguit 60 tekens, een metabeschrijving van hooguit 160 tekens, de tekst in markdown (tussenkoppen met ##), en 0 tot ${MAX_FAQ} veelgestelde vragen die iets toevoegen aan de tekst. Schrijf in notitie_voor_ondernemer wat je nog had willen weten, of null.`,
@@ -130,7 +143,7 @@ export function schrijfInvoer(b: SchrijfBlokken): string {
       .join("\n"),
   );
 
-  delen.push(`WAT WE ZEKER WETEN OVER HET BEDRIJF\n${b.bedrijf}`);
+  delen.push(`WAT WE ZEKER WETEN OVER HET BEDRIJF (bedrijfskennis)\n${b.bedrijf}`);
 
   const klant = [
     b.eigenVerhaal?.trim() ? `Wat de ondernemer zelf over deze pagina vertelt:\n"""${b.eigenVerhaal.trim()}"""` : null,
@@ -138,16 +151,17 @@ export function schrijfInvoer(b: SchrijfBlokken): string {
       ? "Antwoorden van de ondernemer:\n" + b.antwoorden.map((a) => `- ${a.vraag}\n  ${a.antwoord}`).join("\n")
       : null,
   ].filter(Boolean);
-  delen.push(klant.length > 0 ? `WAT DE ONDERNEMER VERTELDE\n${klant.join("\n\n")}` : null);
+  delen.push(klant.length > 0 ? `WAT DE ONDERNEMER VERTELDE (bedrijfskennis)\n${klant.join("\n\n")}` : null);
 
   if (b.onderzoek) {
     delen.push(
       [
-        "WAT EEN GOEDE PAGINA OVER DIT ONDERWERP BEHANDELT (onderzoek)",
+        "WAT EEN GOEDE PAGINA OVER DIT ONDERWERP BEHANDELT (onderzoek, algemene kennis)",
+        "Dit is onderzoek op het web over het onderwerp, niet over dit bedrijf. Het zegt niet wat dit bedrijf doet of belooft.",
         lijst("Wat de bezoeker verder wil weten:", b.onderzoek.deelvragen),
         lijst("Wat goede pagina's goed doen:", b.onderzoek.concurrentie.goed),
         lijst("Wat ze laten liggen:", b.onderzoek.concurrentie.gaten),
-        lijst("Vakkennis:", b.onderzoek.vakkennis.map((v) => v.uitleg)),
+        lijst("Algemene vakkennis:", b.onderzoek.vakkennis.map((v) => v.uitleg)),
         lijst("Wat klanten vaak verkeerd begrijpen:", b.onderzoek.valkuilen),
       ]
         .filter(Boolean)

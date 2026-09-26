@@ -5268,7 +5268,8 @@ async function main(): Promise<void> {
       await draaiEen();
       const { rows: na1 } = await db.client.query("select brief_json from public.content_pieces where id = $1", [stukken[0]]);
       const b1 = na1[0].brief_json as { onderzoek: { vakkennis: { bron_url: string }[] }; versie: number };
-      ok("de brief is bewaard, met het versienummer", Boolean(b1?.onderzoek) && b1.versie === 2);
+      const { BRIEF_VERSIE } = await import("@/lib/pagina/brief-regels");
+      ok("de brief is bewaard, met het versienummer", Boolean(b1?.onderzoek) && b1.versie === BRIEF_VERSIE);
       ok("vakkennis zonder adres valt weg", b1.onderzoek.vakkennis.length === 1);
       const { rows: vragen1 } = await db.client.query(
         `select question, reason from public.fact_requests
@@ -5555,7 +5556,8 @@ async function main(): Promise<void> {
 
       const geschreven = await stuk(ontwerp);
       ok("een verboden teken is gerepareerd", !(geschreven.body_markdown as string).includes("—"));
-      ok("de ruwe uitvoer en het versienummer van de opdracht zijn bewaard", (geschreven.raw_json as { schrijfopdracht_versie: number }).schrijfopdracht_versie === 2);
+      const { SCHRIJFOPDRACHT_VERSIE } = await import("@/lib/pagina/schrijfopdracht");
+      ok("de ruwe uitvoer en het versienummer van de opdracht zijn bewaard", (geschreven.raw_json as { schrijfopdracht_versie: number }).schrijfopdracht_versie === SCHRIJFOPDRACHT_VERSIE);
       ok("versie 1", geschreven.version === 1);
       ok("de schrijver kreeg het eigen verhaal letterlijk", aanroepen.some((a) => a.schema === "pagina" && a.user.includes("aan de keukentafel")));
       ok("en de stemvoorbeelden", aanroepen.some((a) => a.schema === "pagina" && a.user.includes("nuchtere tuinmensen")));

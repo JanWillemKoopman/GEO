@@ -25,7 +25,13 @@ import { pasSchrijfregelsToe } from "@/lib/schrijfregel-vangnet";
  * rijschool aan alle drie de pagina's, en stond hetzelfde voorbeeld drie keer
  * op de site.
  */
-export const BRIEF_VERSIE = 2;
+/**
+ * Versie 3 (26 september 2026, na het oordeel van de copywriter): vraag hoe dit
+ * bedrijf iets doet als de vakkennis een werkwijze, termijn of vuistregel noemt
+ * die per bedrijf verschilt. Op de negen proefteksten stond zo'n algemene regel
+ * een paar keer als werkwijze van het bedrijf, omdat niemand het had gevraagd.
+ */
+export const BRIEF_VERSIE = 3;
 
 /** Technische bovengrens, geen doel (§6.1). */
 export const MAX_BRIEFVRAGEN = 8;

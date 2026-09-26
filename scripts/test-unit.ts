@@ -949,7 +949,7 @@ import { openVraagTekst, OPEN_VRAAG_MAX } from "@/lib/pagina/open-vraag-tekst";
 import { verwerkBrief, normaliseerVraag, kindVoorSoort, MAX_BRIEFVRAGEN, type ContentBrief } from "@/lib/pagina/brief-regels";
 import { briefInvoer, BRIEF_SYSTEEM } from "@/lib/pagina/brief-opdracht";
 import { schrijfSysteem, schrijfInvoer, herschrijfInvoer, type SchrijfBlokken } from "@/lib/pagina/schrijfopdracht";
-import { moetHerschrijven, kiesVersie, geleZinnenNa, allesBevestigd, zinnenMetVerbodenWoord } from "@/lib/pagina/controle-regels";
+import { moetHerschrijven, kiesVersie, geleZinnenNa, allesBevestigd, zinnenMetVerbodenWoord, CONTROLE_SYSTEEM } from "@/lib/pagina/controle-regels";
 import type {
   ProfileOffering,
   ProfileTopic,
@@ -21322,4 +21322,21 @@ group("de schrijfopdracht, versie 2 (WP9)", () => {
   ok("een FAQ alleen met een antwoord dat uit de informatie blijkt", sys.includes("Weet je het antwoord voor dit bedrijf niet, laat de vraag dan weg."));
   ok("een praktijkvoorbeeld hoort bij deze pagina", sys.includes("De andere pagina's van dit bedrijf vertellen hun eigen voorbeelden."));
   ok("de brief koppelt geen voorbeeldvraag aan een andere pagina", BRIEF_SYSTEEM.includes("Een vraag om een voorbeeld uit de praktijk koppel je niet aan een andere pagina"));
+});
+
+group("de schrijfopdracht, versie 3: bedrijfskennis en algemene kennis gescheiden (WP9 ronde 2)", () => {
+  const sys = schrijfSysteem({ aanspreekvorm: null, verbodenOnderwerpen: [], verbodenWoorden: [] });
+  ok("algemene kennis nooit als eigenschap van het bedrijf", sys.includes("nooit als een werkwijze, belofte, advies of eigenschap van dit bedrijf"));
+  ok("één gegeven overal hetzelfde, ook in de meta", sys.includes("ook in de metabeschrijving en de veelgestelde vragen"));
+  ok("een verhaal van het hele bedrijf hooguit kort", sys.includes("vertel het hooguit kort"));
+  const invoer = schrijfInvoer({
+    titel: "Tuinontwerp", paginasoort: "dienstpagina", handeling: "nieuw", bedrijf: "Bedrijf: Groen", stem: [],
+    eigenVerhaal: null, antwoorden: [{ vraag: "Hoe begin je?", antwoord: "Met koffie." }], zoekintentie: null, doelvragen: [], andereTitels: [], huidigeTekst: null,
+    onderzoek: { deelvragen: [], concurrentie: { goed: [], gaten: [] }, vakkennis: [{ uitleg: "Afschot is meestal 1 procent.", bron_url: "https://x.nl" }], valkuilen: [] },
+  });
+  ok("blok A en B heten bedrijfskennis", invoer.includes("WAT WE ZEKER WETEN OVER HET BEDRIJF (bedrijfskennis)") && invoer.includes("WAT DE ONDERNEMER VERTELDE (bedrijfskennis)"));
+  ok("blok C heet algemene kennis en zegt dat het niet over het bedrijf gaat", invoer.includes("(onderzoek, algemene kennis)") && invoer.includes("niet over dit bedrijf") && invoer.includes("Algemene vakkennis:"));
+  ok("de controle telt algemene kennis als bedrijfsclaim als verzonnen", CONTROLE_SYSTEEM.includes("dan is het wel een verzonnen claim"));
+  ok("de brief vraagt hoe dit bedrijf het doet", BRIEF_SYSTEEM.includes("Vraag dan hoe dit bedrijf het doet."));
+  ok("geen gedachtestreepje in de brief", !/[—–]/.test(BRIEF_SYSTEEM));
 });
