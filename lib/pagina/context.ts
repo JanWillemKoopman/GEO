@@ -15,7 +15,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { redactCompetitors } from "@/lib/pipeline/redact";
 import { schoneWaardeproposities } from "@/lib/pipeline/waardeproposities";
-import { kiesFeiten, type BedrijfsInvoer, type FeitRij } from "@/lib/pagina/bedrijfskennis";
+import { antwoordenVoorBlokA, kiesFeiten, type AntwoordRij, type BedrijfsInvoer, type FeitRij } from "@/lib/pagina/bedrijfskennis";
 import type { Doelvraag } from "@/lib/pagina/brief-opdracht";
 import type { ContentAction, ContentType, StemVoorbeeld } from "@/lib/types/database";
 
@@ -151,8 +151,9 @@ export async function laadMerk(admin: Admin, pagina: PaginaBasis): Promise<MerkB
 
 /**
  * Blok A voor deze pagina: de feiten die erbij horen, plus wat de ondernemer
- * over het hele merk vertelde. Betwiste en vervangen feiten gaan niet mee
- * (`kiesFeiten`), een feit van een ander cluster ook niet.
+ * over het hele merk en in antwoord op het rapport van dit cluster vertelde
+ * (`antwoordenVoorBlokA`, besluit B17). Betwiste en vervangen feiten gaan niet
+ * mee (`kiesFeiten`), een feit van een ander cluster ook niet.
  */
 export async function laadBedrijf(admin: Admin, pagina: PaginaBasis): Promise<BedrijfsInvoer> {
   const profiel = await laadProfiel(admin, pagina.profileId);
@@ -163,9 +164,9 @@ export async function laadBedrijf(admin: Admin, pagina: PaginaBasis): Promise<Be
       .eq("profile_id", pagina.profileId),
     admin
       .from("fact_requests")
-      .select("question, answer")
+      .select("question, answer, scope, analysis_id, content_piece_ids, open_vraag")
       .eq("profile_id", pagina.profileId)
-      .eq("scope", "merk")
+      .in("scope", ["merk", "analyse"])
       .eq("status", "beantwoord"),
   ]);
   const feiten = ((feitRijen ?? []) as (FeitRij & { analysis_id: string | null })[]).filter(
@@ -177,9 +178,10 @@ export async function laadBedrijf(admin: Admin, pagina: PaginaBasis): Promise<Be
     waardeproposities: schoneWaardeproposities(profiel.value_props),
     verhalen: profiel.verhalen ?? null,
     bezwaren: (profiel.sales_objections ?? []).filter((b) => b?.trim()),
-    merkAntwoorden: ((antwoorden ?? []) as { question: string; answer: string | null }[])
-      .filter((a) => a.answer?.trim())
-      .map((a) => ({ vraag: a.question, antwoord: (a.answer as string).trim() })),
+    merkAntwoorden: antwoordenVoorBlokA((antwoorden ?? []) as AntwoordRij[], {
+      analysisId: pagina.analysisId,
+      pieceId: pagina.pieceId,
+    }),
     onderscheid: profiel.differentiator,
     offlineBewijs: (profiel.offline_proof ?? []).filter((b) => b?.trim()),
   };

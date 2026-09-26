@@ -65,6 +65,46 @@ export function kiesFeiten(feiten: FeitRij[], pagina: PaginaContext): FeitRij[] 
     .slice(0, MAX_FEITEN);
 }
 
+/** Een beantwoorde vraag aan de ondernemer, zoals hij in `fact_requests` staat. */
+export interface AntwoordRij {
+  question: string;
+  answer: string | null;
+  scope: string | null;
+  analysis_id: string | null;
+  content_piece_ids: string[] | null;
+  open_vraag: boolean | null;
+}
+
+/**
+ * Welke eerder beantwoorde vragen in blok A horen (besluit B17, 26 september 2026).
+ *
+ *   - Een vraag voor het hele merk (`scope = 'merk'`): altijd.
+ *   - Een vraag uit het rapport van DIT cluster (`scope = 'analyse'`): ook. Tot
+ *     26 september 2026 bereikte zo'n antwoord de schrijver alleen als een brief
+ *     de vraag toevallig aan de pagina koppelde; anders ging het alleen naar
+ *     `proof_points`, dat de nieuwe keten niet leest. En de brief zag de vraag
+ *     wel als "beantwoord" en stelde hem daarom niet opnieuw: de ondernemer
+ *     antwoordde voor niets.
+ *   - Niet de open vraag, en niet een rapportvraag die al aan deze pagina hangt:
+ *     die staan in blok B (`klantinput()` in `schrijven.ts`, dat alles behalve
+ *     `scope = 'merk'` neemt), en twee keer hetzelfde antwoord in de invoer maakt
+ *     het niet beter. Een merkvraag die aan deze pagina hangt, staat juist
+ *     alleen hier.
+ */
+export function antwoordenVoorBlokA(
+  rijen: readonly AntwoordRij[],
+  pagina: { analysisId: string; pieceId: string },
+): { vraag: string; antwoord: string }[] {
+  return rijen
+    .filter((r) => r.answer?.trim() && !r.open_vraag)
+    .filter(
+      (r) =>
+        r.scope === "merk" ||
+        (r.scope === "analyse" && r.analysis_id === pagina.analysisId && !(r.content_piece_ids ?? []).includes(pagina.pieceId)),
+    )
+    .map((r) => ({ vraag: r.question, antwoord: (r.answer as string).trim() }));
+}
+
 export interface BedrijfsInvoer {
   bedrijfsnaam: string;
   feiten: FeitRij[];
@@ -72,7 +112,7 @@ export interface BedrijfsInvoer {
   waardeproposities: string[];
   verhalen: string | null;
   bezwaren: string[];
-  /** Antwoorden op eerder gestelde vragen die voor het hele merk gelden. */
+  /** Antwoorden op eerder gestelde vragen: voor het hele merk, en uit het rapport van dit cluster. */
   merkAntwoorden: { vraag: string; antwoord: string }[];
   /** Wat het anders doet dan anderen (`profiles.differentiator`). */
   onderscheid?: string | null;

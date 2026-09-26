@@ -12676,3 +12676,33 @@ rekent `lib/pagina/klantmeting.ts` uit met wat de keten al bewaarde; de andere t
 (`docs/tasks/meting-eerste-klant.md`). Eén gat gedicht: de wens bij "vraag een aanpassing" stond alleen
 in de taak en niet bij de nieuwe versie; die staat nu in `revision_note`.
 
+Twee gaten gedicht die bij het nalopen van de keten voor de doorloop met een testklant naar boven kwamen
+(26 september 2026, `docs/doorloop-van-klant-tot-content.md`). Eén: een antwoord op een vraag uit het
+rapport (tot 8 per rapport, `scope = 'analyse'`) bereikte de schrijver alleen als een brief de vraag aan
+de pagina koppelde, en de brief zag hem als beantwoord en stelde hem niet opnieuw; het antwoord gaat nu
+mee in blok A van elke pagina van dat cluster (besluit B17). Twee: sinds WP1 zag de klant van een
+goedgekeurde pagina alleen de tekst, terwijl de schrijver ook een metatitel, een metabeschrijving en 0 tot
+5 veelgestelde vragen levert en de code gestructureerde gegevens bouwt. Het paginascherm toont die nu om
+te lezen vóór het goedkeuren, en daarna met kopieerknoppen, een download van alles in één HTML-bestand en
+de sjabloonexport die al bestond maar aan geen scherm meer hing. Nog open en bewust niet meegenomen: de
+controle op harde beweringen en de beoordeling kijken alleen naar de tekst, niet naar de FAQ en de
+metabeschrijving (een besluit voor §2 van `contentketen-opnieuw.md`).
+
+Het team besprak de doorloop van de hele keten (`docs/doorloop-van-klant-tot-content.md`) en kwam tot één
+hoofdconclusie: ORBIT ENGINE is opgebouwd als een reeks AI-stappen die elkaars uitvoer opnieuw
+interpreteren, en hoort opgebouwd te zijn rond één klantwaarheid met herkomst, met kansen, contentmotor en
+meetlaag daaromheen (26 september 2026). De code bevestigt het: `profiles` telt 94 kolommen, klantkennis
+staat in zes tabellen, en `proof_points` en de stijlvoorbeelden worden gemaakt maar door de schrijver niet
+gelezen. Op drie punten stond er meer dan de feedback aannam (herkomst in `brand_facts`, Search Console
+gebouwd maar bij 0 merken gekoppeld, een effectmeting met controlegroep die alleen ChatGPT meet). Omgezet in
+`docs/tasks/van-pijplijn-naar-kennissysteem.md`: 38 werkpakketten in negen fases, eerst de eerste echte
+klant op de huidige keten als meetlat, dan de kennislaag. Geen nieuwe AI-aanroepen; de contentketen blijft
+zoals hij is en krijgt alleen betere invoer. Acht besluiten (V1 tot en met V8) liggen bij de eigenaar.
+
+De acht besluiten van `docs/tasks/van-pijplijn-naar-kennissysteem.md` genomen door de eigenaar (26 september
+2026). Zes volgens advies: een nieuwe tabel voor klantkennis, een eigen pagina van de consultant mag zonder
+meting (B18 in de contentketen), alleen de voorbereiding van de pagina stelt nog vragen, de controle leest
+ook FAQ en metabeschrijving (B19), de gebeurtenissenlaag in de bestaande database, leren eerst per merk.
+Twee anders: de eerste echte klant wacht op de verbouwing (uitgewerkt als: na fase 5, zodat de meet- en
+leerfases met zijn pagina's worden afgemaakt; tot die tijd zijn de drie proefmerken de meetlat), en het
+kennisoverzicht is alleen voor de consultant, die vastlegt wat de klant in het gesprek bevestigt.

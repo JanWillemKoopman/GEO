@@ -12,6 +12,11 @@ import { AanZet } from "@/components/pagina/aan-zet";
 import { Vragenlijst, type Vraag } from "@/components/pagina/vragenlijst";
 import { Goedkeuren } from "@/components/pagina/goedkeuren";
 import { PublishBox } from "@/components/pagina/publish-box";
+import { Opleveren } from "@/components/pagina/opleveren";
+import { PublishGuide } from "@/components/publish-guide";
+import { buildTemplateExport } from "@/lib/pipeline/content-export";
+import type { SiteTemplateProfile } from "@/lib/pipeline/template-detect";
+import type { ContentAction, ContentType } from "@/lib/types/database";
 import { nogGeel } from "@/lib/pagina/goedkeuren";
 import type { ControleJson } from "@/lib/pagina/controle-regels";
 import type { PublishCheck } from "@/lib/pipeline/publish-check";
@@ -96,8 +101,14 @@ export default async function PaginaScherm({
   // ── Er is tekst ─────────────────────────────────────────────────────────
   const metTekst = ["goedkeuren", "live_zetten", "effect_meten", "effect_bekend"].includes(rij.stand.sleutel);
   if (metTekst && rij.pieceId) {
-    const tekst = await laadTekst(admin, rij.pieceId);
+    const tekst = await laadTekst(admin, rij.pieceId, profile.id);
     if (tekst) {
+      // De sjabloonexport (WordPress-blokken, FAQ als uitklapblok) als het
+      // onderzoek de opbouw van de site herkende; anders null en geen knop.
+      const templateExport = buildTemplateExport(
+        { title: tekst.titel, bodyMarkdown: tekst.body, faq: tekst.faq },
+        tekst.sjabloon,
+      );
       return (
         <div className="flex flex-col gap-6">
           {kop}
@@ -115,6 +126,26 @@ export default async function PaginaScherm({
             goedgekeurd={!tekst.needsReview}
             aanpassingLoopt={tekst.aanpassingLoopt}
           />
+          <Opleveren
+            titel={tekst.titel}
+            tekst={tekst.body}
+            metaTitel={tekst.metaTitel}
+            metaBeschrijving={tekst.metaBeschrijving}
+            faq={tekst.faq}
+            schemaJsonLd={tekst.schemaJsonLd}
+            templateExport={templateExport}
+            goedgekeurd={!tekst.needsReview}
+          />
+          {!tekst.needsReview && !tekst.publishedAt && (
+            <PublishGuide
+              title={tekst.titel}
+              type={tekst.type}
+              action={tekst.action}
+              existingUrl={tekst.existingUrl}
+              siteUrl={profile.url}
+              hasSchema={Boolean(tekst.schemaJsonLd?.trim())}
+            />
+          )}
           {!tekst.needsReview && (
             <PublishBox
               analysisId={tekst.analysisId}
@@ -198,12 +229,13 @@ function WatDezePaginaDoet({ why, voorWie }: { why: string | null; voorWie: stri
 }
 
 /** Wat het goedkeuringsscherm nodig heeft. */
-async function laadTekst(admin: ReturnType<typeof createAdminClient>, pieceId: string) {
-  const [{ data }, { data: lopend }] = await Promise.all([
+async function laadTekst(admin: ReturnType<typeof createAdminClient>, pieceId: string, profileId: string) {
+  const [{ data }, { data: lopend }, { data: sjabloon }] = await Promise.all([
     admin
       .from("content_pieces")
       .select(
-        "analysis_id, body_markdown, updated_at, controle_json, raw_json, needs_review, published_at, published_url, publish_check_json, publish_checked_at",
+        "analysis_id, title, type, action, existing_url, body_markdown, meta_title, meta_description, faq_json, schema_jsonld, " +
+          "updated_at, controle_json, raw_json, needs_review, published_at, published_url, publish_check_json, publish_checked_at",
       )
       .eq("id", pieceId)
       .maybeSingle(),
@@ -214,13 +246,23 @@ async function laadTekst(admin: ReturnType<typeof createAdminClient>, pieceId: s
       .in("status", ["queued", "running"])
       .contains("payload_json", { pieceId })
       .limit(1),
+    // Hoe de site van de klant is opgebouwd (`discover.ts`), voor de sjabloonexport.
+    admin.from("profile_facets").select("raw_json").eq("profile_id", profileId).eq("facet", "sjabloon").maybeSingle(),
   ]);
-  const r = data as {
+  const r = data as unknown as {
     analysis_id: string;
+    title: string;
+    type: ContentType;
+    action: ContentAction | null;
+    existing_url: string | null;
     body_markdown: string | null;
+    meta_title: string | null;
+    meta_description: string | null;
+    faq_json: unknown;
+    schema_jsonld: string | null;
     updated_at: string;
     controle_json: ControleJson | null;
-    raw_json: { notitie_voor_ondernemer?: string | null } | null;
+    raw_json: { notitie_voor_ondernemer?: string | null; uitvoer?: { titel?: string } } | null;
     needs_review: boolean;
     published_at: string | null;
     published_url: string | null;
@@ -229,8 +271,21 @@ async function laadTekst(admin: ReturnType<typeof createAdminClient>, pieceId: s
   } | null;
   if (!r?.body_markdown) return null;
   const controle = r.controle_json;
+  const faq = (Array.isArray(r.faq_json) ? (r.faq_json as { q?: unknown; a?: unknown }[]) : [])
+    .filter((f) => typeof f?.q === "string" && typeof f?.a === "string")
+    .map((f) => ({ q: f.q as string, a: f.a as string }));
   return {
     analysisId: r.analysis_id,
+    // De titel van de schrijver; `title` zelf is de titel uit het plan.
+    titel: r.raw_json?.uitvoer?.titel?.trim() || r.title,
+    type: r.type,
+    action: (r.action ?? "nieuw") as ContentAction,
+    existingUrl: r.existing_url,
+    metaTitel: r.meta_title,
+    metaBeschrijving: r.meta_description,
+    faq,
+    schemaJsonLd: r.schema_jsonld,
+    sjabloon: ((sjabloon as { raw_json?: unknown } | null)?.raw_json ?? null) as SiteTemplateProfile | null,
     body: r.body_markdown,
     updatedAt: r.updated_at,
     geel: nogGeel(r.body_markdown, controle),

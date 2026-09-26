@@ -4,7 +4,8 @@ App van Outer Orbit: GEO-tracking voor het MKB, meet zichtbaarheid van een merk 
 adviseert, schrijft en publiceert content, meet effect. Taal van app, prompts en code: Nederlands.
 
 **Bestemming**: `docs/visie.md` (productrichting) en `docs/merkstrategie.md` (merkstrategie) zijn
-leidend voor ontwerpkeuzes. Het concrete pad ernaartoe: `docs/tasks/ontwikkelplan-visie.md`.
+leidend voor ontwerpkeuzes. Het concrete pad ernaartoe: `docs/tasks/ontwikkelplan-visie.md`, en voor de architectuur (één
+klantwaarheid, kansen, meetlaag) `docs/tasks/van-pijplijn-naar-kennissysteem.md`.
 Kies bij twijfel de oplossing die richting die bestemming beweegt, en zeg het als een opdracht
 daarvan afwijkt. **Schrijf nooit dat iets al kan wat nog niet gebouwd is** (UI, commentaar, of in
 je antwoord) — `merkstrategie.md` §30 houdt bij waar bouw en belofte uit elkaar lopen.
