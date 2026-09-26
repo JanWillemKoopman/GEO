@@ -145,8 +145,8 @@ export function Goedkeuren({
         <section className="card flex flex-col gap-3">
           <h2 className="type-section">Loop deze zinnen na</h2>
           <p className="type-body text-secondary">
-            Hier staat iets over je bedrijf dat we nergens in jouw informatie terugvonden. Klopt het, bevestig het
-            dan. Klopt het niet, pas de zin aan.
+            In deze zinnen staat iets over je bedrijf dat we niet in jouw informatie terugvonden, of een woord
+            dat je liever niet gebruikt. Klopt de zin, bevestig hem dan. Klopt hij niet, pas hem aan.
           </p>
           <ul className="flex flex-col gap-3">
             {openGeel.map((zin) => (

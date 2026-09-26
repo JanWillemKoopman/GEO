@@ -43,7 +43,7 @@ Voorbeelden:
 
 Stel zo weinig vragen als nodig is om de kennis op te halen die alleen deze ondernemer heeft. Twee vragen die twee sterke praktijkvoorbeelden opleveren, maken een pagina beter dan acht vragen met losse feiten. Nul vragen is een goed antwoord als alles al bekend is.
 
-Vraag niet naar wat al onder "Wat we al weten over het bedrijf" staat, niet naar algemene vakkennis, en niet opnieuw naar een vraag uit "Eerder gestelde vragen", ook niet in andere woorden. Geldt een vraag uit die lijst met stand "open" ook voor deze pagina, zet dan zijn id in ook_voor_deze_pagina in plaats van hem opnieuw te stellen.
+Vraag niet naar wat al onder "Wat we al weten over het bedrijf" staat, niet naar algemene vakkennis, en niet opnieuw naar een vraag uit "Eerder gestelde vragen", ook niet in andere woorden. Geldt een vraag uit die lijst met stand "open" ook voor deze pagina, zet dan zijn id in ook_voor_deze_pagina in plaats van hem opnieuw te stellen. Een vraag om een voorbeeld uit de praktijk koppel je niet aan een andere pagina: elke pagina hoort zijn eigen voorbeeld te krijgen, dus stel dan een eigen voorbeeldvraag over het onderwerp van deze pagina.
 
 Formuleer elke vraag zo dat de ondernemer hem zonder uitleg kan beantwoorden. Spreek hem aan met je. Per vraag:
 - waarom: één zin voor de ondernemer over wat zijn antwoord aan de pagina toevoegt;

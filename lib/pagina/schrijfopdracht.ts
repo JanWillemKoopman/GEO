@@ -14,7 +14,14 @@
  */
 import { z } from "zod";
 
-export const SCHRIJFOPDRACHT_VERSIE = 1;
+/**
+ * Versie 2 (26 september 2026, na de proef van WP8): een veelgestelde vraag
+ * alleen met een antwoord dat uit de informatie blijkt, en een praktijkvoorbeeld
+ * dat bij déze pagina past. Op de proef stond één voorbeeld van de rijschool op
+ * alle drie de pagina's, en gaf de hovenier twee keer "ja" op een vraag waar
+ * niemand iets over had gezegd.
+ */
+export const SCHRIJFOPDRACHT_VERSIE = 2;
 
 /** Hoogstens zoveel veelgestelde vragen, en alleen als ze iets toevoegen. */
 export const MAX_FAQ = 5;
@@ -59,6 +66,12 @@ export function schrijfSysteem(h: Huisregels): string {
   if (h.verbodenOnderwerpen.length > 0) regels.push(`Schrijf niet over: ${h.verbodenOnderwerpen.join("; ")}.`);
   if (h.verbodenWoorden.length > 0) regels.push(`Gebruik deze woorden niet: ${h.verbodenWoorden.join(", ")}.`);
   regels.push("Gebruik geen gedachtestreepje (— of –) in lopende tekst en nooit de schuine streep in \"en/of\"; schrijf twee zinnen of gebruik een komma.");
+  regels.push(
+    "Een veelgestelde vraag neem je alleen op als het antwoord uit de informatie hierboven blijkt of algemene vakkennis is. Weet je het antwoord voor dit bedrijf niet, laat de vraag dan weg.",
+  );
+  regels.push(
+    "Gebruik een voorbeeld uit de praktijk van de ondernemer alleen als het over het onderwerp van deze pagina gaat. De andere pagina's van dit bedrijf vertellen hun eigen voorbeelden.",
+  );
   regels.push(
     `Lever een titel, een metatitel van hooguit 60 tekens, een metabeschrijving van hooguit 160 tekens, de tekst in markdown (tussenkoppen met ##), en 0 tot ${MAX_FAQ} veelgestelde vragen die iets toevoegen aan de tekst. Schrijf in notitie_voor_ondernemer wat je nog had willen weten, of null.`,
   );
@@ -162,6 +175,8 @@ export interface Feedback {
   verzonnen: { zin: string; waarom: string }[];
   /** Zinnen die de code niet in de informatie terugvond. */
   ongedekt: string[];
+  /** Zinnen met een woord dat het bedrijf niet wil gebruiken (B16). */
+  verboden?: string[];
   /** Wat de klant zelf anders wil. */
   notitieKlant: string | null;
 }
@@ -174,6 +189,7 @@ export function herschrijfInvoer(b: SchrijfBlokken, f: Feedback): string {
       "Zinnen die niet uit de informatie blijken (haal ze weg of schrijf ze zonder de bewering):",
       [...f.verzonnen.map((v) => `"${v.zin}" (${v.waarom})`), ...f.ongedekt.map((z) => `"${z}"`)],
     ),
+    lijst("Zinnen met een woord dat dit bedrijf niet wil gebruiken (schrijf ze zonder dat woord):", (f.verboden ?? []).map((z) => `"${z}"`)),
   ].filter(Boolean);
   return `${schrijfInvoer(b)}\n\nHIER IS JE VORIGE VERSIE EN DE FEEDBACK. SCHRIJF EEN BETERE VERSIE.\n\nVorige versie:\n"""${f.vorige.trim()}"""\n\n${feedback.join("\n\n")}`;
 }

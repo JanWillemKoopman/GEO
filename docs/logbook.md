@@ -12642,7 +12642,7 @@ werd gelezen als 4.500 met de eenheid "en" (gerepareerd). Elk bedrag en elke ter
 te herleiden naar de site of naar wat de ondernemer vertelde; vier kleine zinnen zonder harde bewering
 niet, en die vangt geen van beide controles (zo is het ontworpen: de code zoekt alleen harde
 beweringen). Twee dingen voor de verbeterlus: één praktijkvoorbeeld van de ondernemer komt op meerdere
-pagina's terug, en een verboden woord ("gratis" bij de installateur) staat erin omdat het ook in de
-eigen woorden van de ondernemer stond. Het oordeel over de kwaliteit komt van een onafhankelijke
+pagina's terug, en "gratis" staat bij de installateur in de tekst omdat het niet in zijn lijst met verboden woorden
+stond (het ontbrak in het gespreksbestand), terwijl het dossier het alleen bij de offerte toestaat. Het oordeel over de kwaliteit komt van een onafhankelijke
 copywriter; de teksten en opdrachten staan in
 `docs/tasks/kwaliteitsdoorlichting/contentketen-proef/teksten-voor-copywriter.md`.

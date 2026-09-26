@@ -949,7 +949,7 @@ import { openVraagTekst, OPEN_VRAAG_MAX } from "@/lib/pagina/open-vraag-tekst";
 import { verwerkBrief, normaliseerVraag, kindVoorSoort, MAX_BRIEFVRAGEN, type ContentBrief } from "@/lib/pagina/brief-regels";
 import { briefInvoer, BRIEF_SYSTEEM } from "@/lib/pagina/brief-opdracht";
 import { schrijfSysteem, schrijfInvoer, herschrijfInvoer, type SchrijfBlokken } from "@/lib/pagina/schrijfopdracht";
-import { moetHerschrijven, kiesVersie, geleZinnenNa, allesBevestigd } from "@/lib/pagina/controle-regels";
+import { moetHerschrijven, kiesVersie, geleZinnenNa, allesBevestigd, zinnenMetVerbodenWoord } from "@/lib/pagina/controle-regels";
 import type {
   ProfileOffering,
   ProfileTopic,
@@ -21306,4 +21306,20 @@ group("harde beweringen: een bereik met 'en' (proef 26 september 2026)", () => {
     ["Een hybride inclusief installatie ligt meestal tussen de 4.500 en 7.500 euro."],
   );
   eq("het bedrag van de ondernemer dekt de zin", String(geleZinnen(oordeel).length), "0");
+});
+
+group("verboden woorden van het merk worden geel (B16)", () => {
+  const tekst = "Onze tuinman komt langs. Een tuinmannetje staat in de border. Wij zijn nooit de goedkoopste. Het adviesbezoek is gratis.";
+  eq("een los woord, ongeacht hoofdletters", zinnenMetVerbodenWoord(tekst, ["Tuinman"]).join(" | "), "Onze tuinman komt langs.");
+  eq("geen deel van een ander woord", String(zinnenMetVerbodenWoord("Hij is goedkoper.", ["goedkoop"]).length), "0");
+  eq("een uitzondering tussen haakjes telt niet mee: de zin wordt geel", zinnenMetVerbodenWoord(tekst, ["gratis (behalve bij de offerte)"]).join(""), "Het adviesbezoek is gratis.");
+  eq("meer woorden in één regel", zinnenMetVerbodenWoord(tekst, ["de goedkoopste"]).join(""), "Wij zijn nooit de goedkoopste.");
+  eq("geen lijst, niets geel", String(zinnenMetVerbodenWoord(tekst, []).length), "0");
+});
+
+group("de schrijfopdracht, versie 2 (WP9)", () => {
+  const sys = schrijfSysteem({ aanspreekvorm: null, verbodenOnderwerpen: [], verbodenWoorden: [] });
+  ok("een FAQ alleen met een antwoord dat uit de informatie blijkt", sys.includes("Weet je het antwoord voor dit bedrijf niet, laat de vraag dan weg."));
+  ok("een praktijkvoorbeeld hoort bij deze pagina", sys.includes("De andere pagina's van dit bedrijf vertellen hun eigen voorbeelden."));
+  ok("de brief koppelt geen voorbeeldvraag aan een andere pagina", BRIEF_SYSTEEM.includes("Een vraag om een voorbeeld uit de praktijk koppel je niet aan een andere pagina"));
 });
