@@ -11,6 +11,9 @@ import { normalizeUrl, checkUrlFormat } from "@/lib/url";
 import { schoneAdressen } from "@/lib/pagina/stemvoorbeelden-regels";
 import { haalStemvoorbeeldenOp } from "@/lib/pagina/stemvoorbeelden";
 import { sluitVragenUitGesprek } from "@/lib/vraag-sluiten";
+import { legProfielVast } from "@/lib/kennis/uit-gesprek";
+import { GESPREKSVELDEN } from "@/lib/kennis/gesprek";
+import type { BronProfiel } from "@/lib/kennis/terugvullen";
 
 /**
  * PATCH /api/profiles/[id], klantprofiel bewerken. Geen AI-call: pure CRUD op
@@ -319,6 +322,39 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           `(${bewerkteVelden.length} veld(en) wél opgeslagen): ${bronError.message}`,
       );
     }
+  }
+
+  // ── De kennislaag (K5 van van-pijplijn-naar-kennissysteem.md) ────────────
+  //
+  // Wat een mens hier aan een veld veranderde, wordt verklaarde klantkennis:
+  // nieuw gezegd, een nieuwere versie, of weggehaald. Een veld dat hetzelfde
+  // bleef, verandert niet van status: laten staan is geen uitspraak
+  // (`lib/kennis/gesprek.ts`). Na het opslaan, en het gooit nooit een fout: de
+  // oude tabel is tot K8 nog de bron die de rest leest.
+  const kennisVelden = bewerkteVelden.filter((f) => (GESPREKSVELDEN as readonly string[]).includes(f));
+  if (kennisVelden.length > 0) {
+    const [{ data: aanbod }, { data: vragen }] = await Promise.all([
+      kennisVelden.includes("products")
+        ? admin.from("profile_offerings").select("name, removed_at").eq("profile_id", id)
+        : Promise.resolve({ data: [] }),
+      kennisVelden.includes("proof_points")
+        ? admin.from("fact_requests").select("question").eq("profile_id", id).eq("status", "beantwoord")
+        : Promise.resolve({ data: [] }),
+    ]);
+    await legProfielVast(
+      admin,
+      {
+        profileId: id,
+        url: profile.url,
+        velden: kennisVelden,
+        oud: profile as unknown as Partial<BronProfiel>,
+        nieuw: { ...(profile as unknown as Partial<BronProfiel>), ...(update as Partial<BronProfiel>) },
+        bron: bron.source,
+        aanbod: (aanbod ?? []) as { name: string; removed_at: string | null }[],
+        vragen: (vragen ?? []) as { question: string }[],
+      },
+      { actor: "mens", gebruikerId: user.id },
+    );
   }
 
   // ── Vragen die het gesprek nu beantwoordt, dicht (punt 35) ──────────────

@@ -47,12 +47,23 @@ export interface SamenvoegItem {
  * dan is de letterlijke tekst de kern, met een "=" ervoor. Zonder sleutel zou
  * elke run van het terugvullen zo'n item opnieuw vastleggen (conventie 9).
  * Alleen een lege bewering heeft geen sleutel.
+ *
+ * Een getal van één of twee cijfers laat `claimKey()` weg, net als "de" en
+ * "is". Daardoor kregen "80 procent slaagt" en "85 procent slaagt" dezelfde
+ * sleutel, en werd de tweede stil als "bestond al" weggegooid (gevonden in K5,
+ * 26 september 2026: een gewijzigd antwoord kwam zo nooit in de kennislaag).
+ * Die getallen komen er daarom achteraan bij, gesorteerd zoals de woorden. Een
+ * bewering zonder zo'n getal houdt precies de sleutel die hij had.
  */
 export function kennisSleutel(
   item: Pick<SamenvoegItem, "domein" | "bewering" | "analysis_id" | "content_piece_id"> & { soort?: string | null },
 ): string | null {
   const letterlijk = item.bewering.toLowerCase().replace(/\s+/g, " ").trim();
-  const kern = claimKey(item.bewering) || (letterlijk ? `=${letterlijk}` : "");
+  const woorden = claimKey(item.bewering);
+  const korteGetallen = letterlijk.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => /^[0-9]{1,2}$/.test(w)).sort();
+  const kern = woorden
+    ? korteGetallen.length > 0 ? `${woorden} #${korteGetallen.join(" ")}` : woorden
+    : letterlijk ? `=${letterlijk}` : "";
   if (!kern) return null;
   return [item.domein, (item.soort ?? "").trim().toLowerCase(), item.analysis_id ?? "", item.content_piece_id ?? "", kern].join("|");
 }

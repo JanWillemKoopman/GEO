@@ -334,7 +334,7 @@ export const LIJSTVELDEN: VeldRegel[] = [
   { veld: "forbidden_topics", domein: "grens", soort: "verboden onderwerp", gebruik: "verboden" },
 ];
 
-/** De velden die de dekkingstoets per merk verwacht (als ze gevuld zijn). */
+/** De velden die de dekkingstoets per merk verwacht (als ze gevuld zijn), in de volgorde van het terugvullen. */
 export const PROFIEL_MEENEMEN: (keyof BronProfiel)[] = [
   ...TEKSTVELDEN.map((v) => v.veld),
   ...LIJSTVELDEN.map((v) => v.veld),
@@ -348,22 +348,46 @@ export const PROFIEL_MEENEMEN: (keyof BronProfiel)[] = [
 ];
 
 function planProfiel(m: Maker, merk: BronMerk): void {
+  for (const veld of PROFIEL_MEENEMEN) planProfielveld(m, merk, veld);
+}
+
+/**
+ * Eén veld van het merkprofiel als kennisitems. Ook gebruikt als het gesprek
+ * een veld opslaat (K5, `lib/kennis/gesprek.ts`), zodat een item van vandaag
+ * dezelfde sleutel en dezelfde verwijzing (`ref`) krijgt als het item dat K3
+ * uit hetzelfde veld maakte.
+ */
+export function planProfielveld(
+  m: Pick<Maker, "items" | "uitsluitingen">,
+  merk: {
+    profiel: Partial<BronProfiel> & Pick<BronProfiel, "id" | "url">;
+    veldHerkomst: readonly BronVeldHerkomst[];
+    aanbod: readonly Pick<BronAanbod, "name" | "removed_at">[];
+    vragen: readonly Pick<BronVraag, "question">[];
+  },
+  veld: keyof BronProfiel,
+): void {
   const p = merk.profiel;
   const herkomst = { tabel: "profiles" as const, id: p.id };
 
-  for (const regel of TEKSTVELDEN) {
+  const tekstregel = TEKSTVELDEN.find((r) => r.veld === veld);
+  if (tekstregel) {
+    const regel = tekstregel;
     const waarde = schoon(p[regel.veld] as string | null);
     const ref = `profiles:${p.id}:${String(regel.veld)}`;
-    if (!waarde) continue;
+    if (!waarde) return;
     const st = veldStatus(merk.veldHerkomst, String(regel.veld));
     if (st.nvt) {
       m.uitsluitingen.push({ ref, reden: "De consultant koos 'niet van toepassing'." });
-      continue;
+      return;
     }
     voegToe(m, { ref, domein: regel.domein, soort: regel.soort, bewering: waarde, status: st.status, bron: st.bron, gebruik: regel.gebruik, herkomst });
+    return;
   }
 
-  for (const regel of LIJSTVELDEN) {
+  const lijstregel = LIJSTVELDEN.find((r) => r.veld === veld);
+  if (lijstregel) {
+    const regel = lijstregel;
     const waarden = lijst(p[regel.veld] as string[] | null);
     const st = veldStatus(merk.veldHerkomst, String(regel.veld));
     waarden.forEach((w, i) => {
@@ -374,90 +398,106 @@ function planProfiel(m: Maker, merk: BronMerk): void {
       }
       voegToe(m, { ref, domein: regel.domein, soort: regel.soort, bewering: w, status: st.status, bron: st.bron, gebruik: regel.gebruik, herkomst });
     });
+    return;
   }
 
-  // Producten: alleen wat nog geen aanbodknoop is (inventaris §4.1).
-  const knoopNamen = new Set(merk.aanbod.filter((o) => !o.removed_at).map((o) => normaliseerNaam(o.name)));
-  const pst = veldStatus(merk.veldHerkomst, "products");
-  lijst(p.products).forEach((w, i) => {
-    const ref = `profiles:${p.id}:products:${i}`;
-    if (knoopNamen.has(normaliseerNaam(w))) {
-      m.uitsluitingen.push({ ref, reden: "Staat al als knoop in het aanbod, met citaat." });
+  switch (veld) {
+    case "products": {
+      // Producten: alleen wat nog geen aanbodknoop is (inventaris §4.1).
+      const knoopNamen = new Set(merk.aanbod.filter((o) => !o.removed_at).map((o) => normaliseerNaam(o.name)));
+      const pst = veldStatus(merk.veldHerkomst, "products");
+      lijst(p.products).forEach((w, i) => {
+        const ref = `profiles:${p.id}:products:${i}`;
+        if (knoopNamen.has(normaliseerNaam(w))) {
+          m.uitsluitingen.push({ ref, reden: "Staat al als knoop in het aanbod, met citaat." });
+          return;
+        }
+        voegToe(m, { ref, domein: "aanbod", soort: "product", bewering: w, status: pst.status, bron: pst.bron, herkomst });
+      });
       return;
     }
-    voegToe(m, { ref, domein: "aanbod", soort: "product", bewering: w, status: pst.status, bron: pst.bron, herkomst });
-  });
-
-  // Klantgroepen uit het onderzoek: een lijst van {name, description}.
-  const personas = Array.isArray(p.personas) ? (p.personas as { name?: unknown; description?: unknown }[]) : [];
-  const perst = veldStatus(merk.veldHerkomst, "personas");
-  personas.forEach((per, i) => {
-    const naam = typeof per?.name === "string" ? per.name.trim() : "";
-    const oms = typeof per?.description === "string" ? per.description.trim() : "";
-    const tekst = naam && oms ? `${naam}: ${oms}` : naam || oms;
-    const ref = `profiles:${p.id}:personas:${i}`;
-    if (!tekst) {
-      m.uitsluitingen.push({ ref, reden: "Lege klantgroep." });
+    case "personas": {
+      // Klantgroepen uit het onderzoek: een lijst van {name, description}.
+      const personas = Array.isArray(p.personas) ? (p.personas as { name?: unknown; description?: unknown }[]) : [];
+      const perst = veldStatus(merk.veldHerkomst, "personas");
+      personas.forEach((per, i) => {
+        const naam = typeof per?.name === "string" ? per.name.trim() : "";
+        const oms = typeof per?.description === "string" ? per.description.trim() : "";
+        const tekst = naam && oms ? `${naam}: ${oms}` : naam || oms;
+        const ref = `profiles:${p.id}:personas:${i}`;
+        if (!tekst) {
+          m.uitsluitingen.push({ ref, reden: "Lege klantgroep." });
+          return;
+        }
+        voegToe(m, { ref, domein: "doelgroep", soort: "klantgroep", bewering: tekst, status: perst.status, bron: perst.bron, herkomst, ruw: per });
+      });
       return;
     }
-    voegToe(m, { ref, domein: "doelgroep", soort: "klantgroep", bewering: tekst, status: perst.status, bron: perst.bron, herkomst, ruw: per });
-  });
-
-  // Bewijspunten: de kopieën van antwoorden niet, die komen uit fact_requests
-  // (inventaris §3 punt 4). Een kopie is "vraag antwoord" met de vraagtekst vooraan.
-  const vragen = merk.vragen.map((v) => normaliseerNaam(v.question)).filter(Boolean);
-  const ppst = veldStatus(merk.veldHerkomst, "proof_points");
-  lijst(p.proof_points).forEach((w, i) => {
-    const ref = `profiles:${p.id}:proof_points:${i}`;
-    const genormd = normaliseerNaam(w);
-    if (vragen.some((v) => genormd.startsWith(v))) {
-      m.uitsluitingen.push({ ref, reden: "Kopie van een beantwoorde vraag; die komt uit fact_requests." });
+    case "proof_points": {
+      // Bewijspunten: de kopieën van antwoorden niet, die komen uit fact_requests
+      // (inventaris §3 punt 4). Een kopie is "vraag antwoord" met de vraagtekst vooraan.
+      const vragen = merk.vragen.map((v) => normaliseerNaam(v.question)).filter(Boolean);
+      const ppst = veldStatus(merk.veldHerkomst, "proof_points");
+      lijst(p.proof_points).forEach((w, i) => {
+        const ref = `profiles:${p.id}:proof_points:${i}`;
+        const genormd = normaliseerNaam(w);
+        if (vragen.some((v) => genormd.startsWith(v))) {
+          m.uitsluitingen.push({ ref, reden: "Kopie van een beantwoorde vraag; die komt uit fact_requests." });
+          return;
+        }
+        voegToe(m, { ref, domein: "bewijs", soort: "bewijspunt", bewering: w, status: ppst.status, bron: ppst.bron, herkomst });
+      });
       return;
     }
-    voegToe(m, { ref, domein: "bewijs", soort: "bewijspunt", bewering: w, status: ppst.status, bron: ppst.bron, herkomst });
-  });
-
-  // Stemvoorbeelden: de opgehaalde tekst is letterlijk van dat adres.
-  (p.stem_voorbeelden ?? []).forEach((s, i) => {
-    const ref = `profiles:${p.id}:stem_voorbeelden:${i}`;
-    const tekst = schoon(s?.tekst);
-    if (!tekst || !schoon(s?.url)) {
-      m.uitsluitingen.push({ ref, reden: "De tekst van dit adres is (nog) niet opgehaald." });
+    case "stem_voorbeelden": {
+      // Stemvoorbeelden: de opgehaalde tekst is letterlijk van dat adres.
+      (p.stem_voorbeelden ?? []).forEach((s, i) => {
+        const ref = `profiles:${p.id}:stem_voorbeelden:${i}`;
+        const tekst = schoon(s?.tekst);
+        if (!tekst || !schoon(s?.url)) {
+          m.uitsluitingen.push({ ref, reden: "De tekst van dit adres is (nog) niet opgehaald." });
+          return;
+        }
+        voegToe(m, {
+          ref, domein: "stem", soort: "stemvoorbeeld", bewering: tekst, status: "waargenomen", bron: "website",
+          bronUrl: s.url, citaat: tekst, gebruik: "content", herkomst,
+        });
+      });
       return;
     }
-    voegToe(m, {
-      ref, domein: "stem", soort: "stemvoorbeeld", bewering: tekst, status: "waargenomen", bron: "website",
-      bronUrl: s.url, citaat: tekst, gebruik: "content", herkomst,
-    });
-  });
-
-  if (p.respect_site_structure !== null && p.respect_site_structure !== undefined) {
-    const st = veldStatus(merk.veldHerkomst, "respect_site_structure");
-    voegToe(m, {
-      ref: `profiles:${p.id}:respect_site_structure`,
-      domein: "grens",
-      soort: "opbouw van de site",
-      bewering: p.respect_site_structure
-        ? "De opbouw van de site blijft zoals hij is; het advies stelt geen nieuwe structuur voor."
-        : "Het advies mag een andere opbouw van de site voorstellen.",
-      status: st.status,
-      bron: st.bron,
-      herkomst,
-    });
-  }
-
-  if (schoon(p.wikidata_id)) {
-    const id = schoon(p.wikidata_id);
-    voegToe(m, {
-      ref: `profiles:${p.id}:wikidata_id`, domein: "identiteit", soort: "wikidata", bewering: `Het merk staat op Wikidata als ${id}.`,
-      status: "waargenomen", bron: "extern", bronUrl: `https://www.wikidata.org/wiki/${id}`, citaat: id, herkomst,
-    });
-  }
-  if (schoon(p.wikipedia_url)) {
-    voegToe(m, {
-      ref: `profiles:${p.id}:wikipedia_url`, domein: "identiteit", soort: "wikipedia", bewering: "Het merk heeft een pagina op Wikipedia.",
-      status: "waargenomen", bron: "extern", bronUrl: schoon(p.wikipedia_url), citaat: schoon(p.wikipedia_url), herkomst,
-    });
+    case "respect_site_structure": {
+      if (p.respect_site_structure === null || p.respect_site_structure === undefined) return;
+      const st = veldStatus(merk.veldHerkomst, "respect_site_structure");
+      voegToe(m, {
+        ref: `profiles:${p.id}:respect_site_structure`,
+        domein: "grens",
+        soort: "opbouw van de site",
+        bewering: p.respect_site_structure
+          ? "De opbouw van de site blijft zoals hij is; het advies stelt geen nieuwe structuur voor."
+          : "Het advies mag een andere opbouw van de site voorstellen.",
+        status: st.status,
+        bron: st.bron,
+        herkomst,
+      });
+      return;
+    }
+    case "wikidata_id": {
+      if (!schoon(p.wikidata_id)) return;
+      const id = schoon(p.wikidata_id);
+      voegToe(m, {
+        ref: `profiles:${p.id}:wikidata_id`, domein: "identiteit", soort: "wikidata", bewering: `Het merk staat op Wikidata als ${id}.`,
+        status: "waargenomen", bron: "extern", bronUrl: `https://www.wikidata.org/wiki/${id}`, citaat: id, herkomst,
+      });
+      return;
+    }
+    case "wikipedia_url": {
+      if (!schoon(p.wikipedia_url)) return;
+      voegToe(m, {
+        ref: `profiles:${p.id}:wikipedia_url`, domein: "identiteit", soort: "wikipedia", bewering: "Het merk heeft een pagina op Wikipedia.",
+        status: "waargenomen", bron: "extern", bronUrl: schoon(p.wikipedia_url), citaat: schoon(p.wikipedia_url), herkomst,
+      });
+      return;
+    }
   }
 }
 
@@ -606,54 +646,74 @@ function planFeiten(m: Maker, merk: BronMerk, citaten: readonly BronSyntheseFeit
 // ── De antwoorden ─────────────────────────────────────────────────────────────
 
 function planAntwoorden(m: Maker, merk: BronMerk): void {
-  for (const v of merk.vragen) {
-    const ref = `fact_requests:${v.id}`;
-    if (v.status !== "beantwoord") continue;
-    if (!schoon(v.answer)) {
-      m.uitsluitingen.push({ ref, reden: "Beantwoord zonder antwoord." });
-      continue;
-    }
-    const herkomst = { tabel: "fact_requests" as const, id: v.id };
-    const basis = {
-      domein: domeinVanAntwoord(v),
-      soort: v.open_vraag ? "eigen verhaal" : (v.raw_json?.soort ?? "antwoord"),
-      // Vraag en antwoord samen: "Ja" zegt zonder de vraag niets.
-      bewering: v.open_vraag ? schoon(v.answer) : `${schoon(v.question)}\n${schoon(v.answer)}`,
-      status: "verklaard" as const,
-      bron: "klant" as const,
-      gebruik: "content" as const,
-      herkomst,
-      ruw: { vraag: v.question, scope: v.scope, bron: v.raw_json?.bron ?? null },
-    };
-    const bestaat = merk.paginas ? new Set(merk.paginas) : null;
-    const alle = lijst(v.content_piece_ids);
-    const paginas = bestaat ? alle.filter((id) => bestaat.has(id)) : alle;
-    if (v.scope === "pagina" && alle.length > paginas.length) {
-      m.voorConsultant.push({
-        ref,
-        reden: paginas.length > 0
-          ? `Hing ook aan ${alle.length - paginas.length} pagina('s) die niet meer bestaan.`
-          : "Hing alleen aan pagina's die niet meer bestaan; nu voor het hele cluster.",
-      });
-    }
-    if (v.scope === "pagina" && paginas.length > 0) {
-      // Eén item per pagina (V13): het antwoord geldt voor elk van die pagina's
-      // apart, en nergens anders.
-      paginas.forEach((pieceId) =>
-        voegToe(m, { ...basis, ref: `${ref}:${pieceId}`, analysisId: v.analysis_id, contentPieceId: pieceId }),
-      );
-    } else if (v.scope === "merk") {
-      voegToe(m, { ...basis, ref });
-    } else {
-      voegToe(m, { ...basis, ref, analysisId: v.analysis_id });
-    }
+  for (const v of merk.vragen) planAntwoord(m, v, merk.paginas ?? null);
+}
+
+/**
+ * Eén beantwoorde vraag als kennisitems. Ook gebruikt als de ondernemer nu
+ * antwoordt (K5, `lib/kennis/gesprek.ts`), zodat een antwoord van vandaag
+ * dezelfde sleutel krijgt als het item dat K3 uit hetzelfde antwoord maakte.
+ *
+ * De reikwijdte komt uit de vraag (besluit V13): een vraag voor één pagina
+ * wordt één item per pagina (`content_piece_id`), een vraag voor het cluster
+ * krijgt `analysis_id`, een vraag voor het merk geen van beide. `paginas` zijn
+ * de pagina's die nog bestaan; `null` is "alle pagina's gelden als bestaand".
+ */
+export function planAntwoord(m: Pick<Maker, "items" | "uitsluitingen" | "voorConsultant">, v: BronVraag, paginaLijst: readonly string[] | null): void {
+  const ref = `fact_requests:${v.id}`;
+  if (v.status !== "beantwoord") return;
+  if (!schoon(v.answer)) {
+    m.uitsluitingen.push({ ref, reden: "Beantwoord zonder antwoord." });
+    return;
+  }
+  const herkomst = { tabel: "fact_requests" as const, id: v.id };
+  const basis = {
+    domein: domeinVanAntwoord(v),
+    soort: v.open_vraag ? "eigen verhaal" : (v.raw_json?.soort ?? "antwoord"),
+    // Vraag en antwoord samen: "Ja" zegt zonder de vraag niets.
+    bewering: v.open_vraag ? schoon(v.answer) : `${schoon(v.question)}\n${schoon(v.answer)}`,
+    status: "verklaard" as const,
+    bron: "klant" as const,
+    gebruik: "content" as const,
+    herkomst,
+    ruw: { vraag: v.question, scope: v.scope, bron: v.raw_json?.bron ?? null },
+  };
+  const bestaat = paginaLijst ? new Set(paginaLijst) : null;
+  const alle = lijst(v.content_piece_ids);
+  const paginas = bestaat ? alle.filter((id) => bestaat.has(id)) : alle;
+  if (v.scope === "pagina" && alle.length > paginas.length) {
+    m.voorConsultant.push({
+      ref,
+      reden: paginas.length > 0
+        ? `Hing ook aan ${alle.length - paginas.length} pagina('s) die niet meer bestaan.`
+        : "Hing alleen aan pagina's die niet meer bestaan; nu voor het hele cluster.",
+    });
+  }
+  if (v.scope === "pagina" && paginas.length > 0) {
+    // Eén item per pagina (V13): het antwoord geldt voor elk van die pagina's
+    // apart, en nergens anders.
+    paginas.forEach((pieceId) =>
+      voegToe(m, { ...basis, ref: `${ref}:${pieceId}`, analysisId: v.analysis_id, contentPieceId: pieceId }),
+    );
+  } else if (v.scope === "merk") {
+    voegToe(m, { ...basis, ref });
+  } else {
+    voegToe(m, { ...basis, ref, analysisId: v.analysis_id });
   }
 }
 
 // ── Het gesprek en de onderzoeksverslagen ─────────────────────────────────────
 
 function planStrategie(m: Maker, merk: BronMerk): void {
-  const s = merk.strategie;
+  planGesprek(m, merk.strategie);
+}
+
+/**
+ * De aantekeningen en de veranderingen uit het gesprek. Ook gebruikt als de
+ * consultant het gesprek nu vastlegt (K5, `lib/kennis/gesprek.ts`), met
+ * dezelfde sleutels als het terugvullen.
+ */
+export function planGesprek(m: Pick<Maker, "items" | "uitsluitingen">, s: BronStrategie | null): void {
   if (!s) return;
   const herkomst = { tabel: "profile_strategy" as const, id: s.profile_id };
   if (schoon(s.strategy_notes)) {

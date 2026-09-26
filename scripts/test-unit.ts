@@ -50,6 +50,15 @@ import {
   doorVoor,
   ONDERZOEK_TAKEN,
 } from "@/lib/kennis/onderzoek";
+import {
+  GESPREKSVELDEN,
+  kennisUitAntwoord,
+  kennisUitProfielveld,
+  kennisUitGesprek,
+  sleutelVan,
+  wijzigingen,
+} from "@/lib/kennis/gesprek";
+import { sleutelUpdateSql } from "@/lib/kennis/sleutels";
 import { binomialStderr, weightedScoreStderr, confidenceBand, changeIsMeaningful, bandInAntwoorden, Z95 } from "@/lib/stats/uncertainty";
 import {
   normalizeEntityName,
@@ -21569,17 +21578,56 @@ function zetMenselijkeStatus(inhoud: string): boolean {
 
 /**
  * Waar verklaard en bevestigd vandaan mogen komen (§4 regel 2): de route voor
- * klantantwoorden, het gesprek (merkprofiel en het vastleggen van het gesprek),
- * het kennisoverzicht (K7, eigen map), en het terugvullen (K3), dat overneemt
- * wat een mens eerder zei. Een nieuwe plek hoort hier alleen bij met een besluit.
+ * klantantwoorden (met `answerFact()` in `lib/facts.ts`, dat die route uitvoert),
+ * het gesprek (merkprofiel en het vastleggen van het gesprek), de keuze van de
+ * consultant bij een tegenstrijdigheid (K5), het kennisoverzicht (K7, eigen
+ * map), en het terugvullen (K3), dat overneemt wat een mens eerder zei. Een
+ * nieuwe plek hoort hier alleen bij met een besluit.
  */
 const MENSELIJKE_STATUS_TOEGESTAAN = [
   "app/api/profiles/[id]/facts/route.ts",
+  "lib/facts.ts",
   "app/api/profiles/[id]/route.ts",
   "app/api/profiles/[id]/strategy/route.ts",
+  "app/api/profiles/[id]/fact-conflicts/route.ts",
   "app/api/profiles/[id]/kennis/",
   "scripts/kennis-terugvullen.ts",
 ];
+
+function magMenselijkeStatus(pad: string): boolean {
+  return MENSELIJKE_STATUS_TOEGESTAAN.some((t) => (t.endsWith("/") ? pad.startsWith(t) : pad === t));
+}
+
+/** Importeert deze code een van deze modules (paden zonder `.ts`)? */
+function importeertModule(inhoud: string, modules: readonly string[]): boolean {
+  return modules.some((m) => new RegExp(`["'\`]@/${m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["'\`]`).test(inhoud));
+}
+
+/**
+ * De omweg dichtzetten (K5). Een module in `lib/kennis/` mag verklaard zetten,
+ * want de map is de schrijfingang; maar dan kan elk bestand dat die module
+ * aanroept het ook, zonder het woord zelf te bevatten. Dus: wie een module
+ * aanroept die verklaard of bevestigd zet, moet zelf op de lijst staan, en is
+ * dat een module in `lib/`, dan geldt hetzelfde voor wie hem weer aanroept.
+ * Geeft de bestanden terug die dat niet mogen.
+ */
+function omwegenNaarMenselijkeStatus(bestanden: readonly string[], lees: (p: string) => string): { keten: string[]; overtreders: string[] } {
+  const zonderTest = bestanden.filter((p) => !p.startsWith("scripts/test-") && !p.startsWith("scripts/chain/"));
+  const keten = zonderTest
+    .filter((p) => p.startsWith("lib/kennis/") && p !== "lib/kennis/vastleggen.ts")
+    .filter((p) => zetMenselijkeStatus(lees(p)))
+    .map((p) => p.replace(/\.tsx?$/, ""));
+  const overtreders = new Set<string>();
+  for (let i = 0; i < keten.length; i++) {
+    for (const p of zonderTest) {
+      if (p.startsWith("lib/kennis/") || !importeertModule(lees(p), [keten[i]])) continue;
+      if (!magMenselijkeStatus(p)) overtreders.add(p);
+      // Ook een lib-bestand dat niet mag, geeft het door: wie hem aanroept, telt ook.
+      if (p.startsWith("lib/") && !keten.includes(p.replace(/\.tsx?$/, ""))) keten.push(p.replace(/\.tsx?$/, ""));
+    }
+  }
+  return { keten, overtreders: [...overtreders] };
+}
 
 function codebestanden(): string[] {
   return ["app", "lib", "components", "scripts"]
@@ -21611,8 +21659,24 @@ group("de kennislaag: verklaard en bevestigd alleen van een mens (K2, §4 regel 
     .filter((p) => !p.startsWith("lib/kennis/"))
     .filter((p) => !p.startsWith("scripts/test-") && !p.startsWith("scripts/chain/"))
     .filter((p) => zetMenselijkeStatus(leesBestand(p)))
-    .filter((p) => !MENSELIJKE_STATUS_TOEGESTAAN.some((t) => (t.endsWith("/") ? p.startsWith(t) : p === t)));
+    .filter((p) => !magMenselijkeStatus(p));
   eq("verklaard of bevestigd komt alleen uit de toegestane routes", overtreders.join(", "), "");
+
+  // De omweg via een module in lib/kennis/ (K5), met een zelftest op een
+  // verzonnen codebasis: een route die de gespreksmodule aanroept zonder op de
+  // lijst te staan, en een lib-bestand dat hem doorgeeft aan zo'n route.
+  const nep: Record<string, string> = {
+    "lib/kennis/nep-schrijver.ts": 'import { legVast } from "@/lib/kennis/vastleggen";\nlegVast(a, { status: "verklaard" }, d)',
+    "lib/tussen.ts": 'import { schrijf } from "@/lib/kennis/nep-schrijver";',
+    "app/api/iets/route.ts": 'import { doe } from "@/lib/tussen";',
+    "lib/facts.ts": 'import { schrijf } from "@/lib/kennis/nep-schrijver";',
+    "app/api/profiles/[id]/facts/route.ts": 'import { answerFact } from "@/lib/facts";',
+  };
+  const zelftest = omwegenNaarMenselijkeStatus(Object.keys(nep), (p) => nep[p]);
+  eq("zelftest: een omweg via lib/ naar een route wordt gevonden", zelftest.overtreders.sort().join(", "), "app/api/iets/route.ts, lib/tussen.ts");
+  const echt = omwegenNaarMenselijkeStatus(codebestanden(), leesBestand);
+  ok("de gespreksmodule zet verklaard en bevestigd, en de bewaking ziet dat", echt.keten.includes("lib/kennis/uit-gesprek"), echt.keten.join(", "));
+  eq("en alleen de toegestane routes roepen hem aan, ook via een omweg", echt.overtreders.join(", "), "");
   const bron = leesBestand("lib/kennis/vastleggen.ts");
   ok("bevestig() weigert iets anders dan een mens", /export async function bevestig[\s\S]{0,400}door\.actor !== "mens"/.test(bron));
   ok("wijsAf() weigert iets anders dan een mens", /export async function wijsAf[\s\S]{0,400}door\.actor !== "mens"/.test(bron));
@@ -21635,6 +21699,16 @@ group("de kennislaag: ontdubbelen en botsingen (K2)", () => {
   ok("andere soort, andere sleutel: werkgebied is geen groeiregio (K3)", kennisSleutel({ ...item({ bewering: "Eindhoven en omstreken" }), soort: "werkgebied" }) !== kennisSleutel({ ...item({ bewering: "Eindhoven en omstreken" }), soort: "groeiregio" }));
   eq("een korte bewering krijgt de letterlijke tekst als sleutel", String(kennisSleutel(item({ bewering: " Je " }))), "aanbod|prijs|||=je");
   eq("alleen een lege bewering heeft geen sleutel", String(kennisSleutel(item({ bewering: "  " }))), "null");
+  // K5: een getal van één of twee cijfers telt mee in de sleutel.
+  ok("80 en 85 procent zijn twee beweringen", kennisSleutel(item({ bewering: "80 procent slaagt" })) !== kennisSleutel(item({ bewering: "85 procent slaagt" })));
+  ok("een proefles van € 45 en van € 50 ook", kennisSleutel(item({ bewering: "Een proefles kost € 45." })) !== kennisSleutel(item({ bewering: "Een proefles kost € 50." })));
+  eq("de volgorde van de getallen maakt niet uit, net als die van de woorden", String(kennisSleutel(item({ bewering: "Van 10 tot 20 leerlingen" })) === kennisSleutel(item({ bewering: "leerlingen: van 10 tot 20" }))), "true");
+  eq("een bewering zonder kort getal houdt de sleutel die hij had", String(kennisSleutel(item({ bewering: "Al 2004 actief in Eindhoven" }))), "aanbod|prijs|||2004 actief eindhov");
+  const oudeRij = { id: "11111111-1111-1111-1111-111111111111", domein: "aanbod", soort: "prijs", bewering: "Een proefles kost € 45.", analysis_id: null, content_piece_id: null, sleutel: "aanbod|prijs|||kost proefle" };
+  const herberekend = sleutelUpdateSql([oudeRij, { ...oudeRij, id: "2", bewering: "Al 2004 actief", sleutel: String(kennisSleutel(item({ bewering: "Al 2004 actief" }))) }]);
+  eq("herberekenen raakt alleen de rij met een kort getal", String(herberekend.aantal), "1");
+  ok("met de nieuwe sleutel in de update", herberekend.sql.includes("'aanbod|prijs|||een kost proefle #45'"));
+  eq("een tweede run doet niets", String(sleutelUpdateSql([{ ...oudeRij, sleutel: "aanbod|prijs|||een kost proefle #45" }]).aantal), "0");
   eq("de volgorde van geldt_voor maakt niet uit", String(geldigheid(item({ geldt_voor: ["x", "y"] })) === geldigheid(item({ geldt_voor: ["y", "x"] }))), "true");
 
   const nieuw = item({ id: "n", bewering: "Een proefles kost € 50.", waarde: { min: 50, max: 50, eenheid: "EUR" } });
@@ -21912,3 +21986,125 @@ group("de onderzoeksstappen schrijven via de schrijfingang (K4)", () => {
   ok("de schrijver gaat door legVast()", schrijver.includes("await legVast("));
   ok("de schrijver gooit geen fout naar de onderzoeksstap", !/\bthrow\b/.test(schrijver));
 });
+// ── K5: het gesprek en de antwoorden ─────────────────────────────────────────
+
+/** Haalt elk item de regels van legVast(), met een mens als actor? */
+function gesprekFouten(items: readonly PlanItem[]): string[] {
+  return items.flatMap((i) => {
+    const fouten = controleerItem({
+      domein: i.domein, bewering: i.bewering, status: i.status, bron: i.bron, gebruik: i.gebruik,
+      bron_url: i.bronUrl, citaat: i.citaat, bewijskracht: i.bewijskracht, vastgelegd_door: "u1",
+    });
+    if (!magNieuwMetStatus(i.status, "mens", i.bron)) fouten.push("status past niet bij een mens");
+    return fouten.map((f) => `${i.ref}: ${f}`);
+  });
+}
+
+group("het gesprek en de antwoorden als kennisitems (K5)", () => {
+  const merk = proefmerk();
+  const vraag = (id: string) => merk.vragen.find((v) => v.id === id)!;
+
+  // Een gerichte vraag voor één cluster, gekoppeld aan één pagina.
+  const gericht = kennisUitAntwoord({ ...vraag("v4"), scope: "pagina" });
+  eq("een gerichte vraag voor een pagina wordt één item", String(gericht.length), "1");
+  eq(
+    "verklaard, door de klant, als paginatekst",
+    `${gericht[0]?.status}/${gericht[0]?.bron}/${gericht[0]?.gebruik}`,
+    "verklaard/klant/content",
+  );
+  eq("met de reikwijdte van de vraag: dit cluster en deze pagina", `${gericht[0]?.analysisId}/${gericht[0]?.contentPieceId}`, "a1/c1");
+  eq("vraag en antwoord samen, want een los antwoord zegt niets", gericht[0]?.bewering ?? "", "Beschrijf een les.\nWe rijden eerst op een parkeerplaats.");
+  eq("een praktijkvoorbeeld is een verhaal", gericht[0]?.domein ?? "", "verhaal");
+  eq("geldt voor verwijst naar geen ander item: de reikwijdte zit in cluster en pagina (V13)", String(gericht[0]?.geldtVoorRefs.length), "0");
+
+  const merkbreed = kennisUitAntwoord(vraag("v1"));
+  eq("een vraag voor het hele merk heeft geen cluster en geen pagina", `${merkbreed[0]?.analysisId}/${merkbreed[0]?.contentPieceId}`, "null/null");
+  eq("een antwoord zonder praktijkvoorbeeld gaat over het aanbod", merkbreed[0]?.domein ?? "", "aanbod");
+
+  const cluster = kennisUitAntwoord(vraag("v4"));
+  eq("een vraag voor het cluster geldt voor het cluster, niet voor een pagina", `${cluster[0]?.analysisId}/${cluster[0]?.contentPieceId}`, "a1/null");
+
+  // De open vraag (besluit B3).
+  const open = kennisUitAntwoord({ ...vraag("v2"), content_piece_ids: ["c1"] });
+  eq("de open vraag wordt een verhaal, letterlijk", `${open[0]?.domein}/${open[0]?.soort}/${open[0]?.bewering}`, "verhaal/eigen verhaal/Onze eerste leerling...");
+  eq("alleen voor deze pagina", `${open[0]?.analysisId}/${open[0]?.contentPieceId}`, "a1/c1");
+  eq("verklaard en bruikbaar op de pagina", `${open[0]?.status}/${open[0]?.gebruik}`, "verklaard/content");
+  const openMerk = kennisUitAntwoord({ ...vraag("v2"), scope: "merk" });
+  eq("gold de open vraag voor het hele bedrijf, dan zonder cluster en pagina", `${openMerk.length}/${openMerk[0]?.analysisId}/${openMerk[0]?.contentPieceId}`, "1/null/null");
+
+  eq("een open vraag levert niets", String(kennisUitAntwoord(vraag("v3")).length), "0");
+  eq("een overgeslagen vraag levert niets", String(kennisUitAntwoord({ ...vraag("v1"), status: "overgeslagen" }).length), "0");
+  eq("een leeg antwoord levert niets", String(kennisUitAntwoord({ ...vraag("v1"), answer: "  " }).length), "0");
+
+  // Dezelfde sleutel als het terugvullen (K3): een antwoord van vandaag en het
+  // item dat K3 uit hetzelfde antwoord maakte, vallen samen.
+  const k3 = maakTerugvulplan(merk).items.filter((i) => i.herkomst.tabel === "fact_requests");
+  const k5 = merk.vragen.flatMap((v) => kennisUitAntwoord(v));
+  eq("elk antwoord krijgt dezelfde sleutel als bij het terugvullen", k5.map(sleutelVan).sort().join(" ~ "), k3.map(sleutelVan).sort().join(" ~ "));
+  eq("en dezelfde verwijzing naar de bron", k5.map((i) => i.ref).sort().join(","), k3.map((i) => i.ref).sort().join(","));
+  eq("elk antwoord haalt de regels van legVast(), met een mens", gesprekFouten(k5).join(" | "), "");
+
+  // Een gewijzigd antwoord is een nieuwe versie van het oude item.
+  const nu = { ...vraag("v1"), answer: "85 procent" };
+  const w = wijzigingen(kennisUitAntwoord(vraag("v1")), kennisUitAntwoord(nu));
+  eq("een gewijzigd antwoord vervangt het oude", `${w.vervangen.length}/${w.erbij.length}/${w.weg.length}`, "1/0/0");
+  eq("met de nieuwe tekst", w.vervangen[0]?.nieuw.bewering ?? "", "Hoeveel leerlingen slagen er?\n85 procent");
+  const zelfde = wijzigingen(kennisUitAntwoord(vraag("v1")), kennisUitAntwoord(vraag("v1")));
+  eq("hetzelfde antwoord opnieuw opslaan verandert niets", `${zelfde.vervangen.length}/${zelfde.erbij.length}/${zelfde.weg.length}`, "0/0/0");
+  const eerste = wijzigingen(kennisUitAntwoord({ ...vraag("v1"), status: "open", answer: null }), kennisUitAntwoord(vraag("v1")));
+  eq("een eerste antwoord is nieuw", `${eerste.vervangen.length}/${eerste.erbij.length}`, "0/1");
+
+  // Het gespreksscherm.
+  const profiel = { id: "p1", url: "https://rt.nl" };
+  const veld = (veldnaam: keyof typeof merk.profiel, waarde: unknown, bron: "klant" | "gesprek" | "consultant" = "gesprek") =>
+    kennisUitProfielveld({ profiel: { ...profiel, [veldnaam]: waarde }, veld: veldnaam, bron });
+  const onderscheid = veld("differentiator", "Elke leerling houdt dezelfde instructeur.");
+  eq("een veld uit het gesprek is verklaard, door het gesprek", `${onderscheid[0]?.domein}/${onderscheid[0]?.status}/${onderscheid[0]?.bron}/${onderscheid[0]?.gebruik}`, "positionering/verklaard/gesprek/content");
+  eq("van de klant zelf is de bron de klant", veld("differentiator", "Vaste instructeur.", "klant")[0]?.bron ?? "", "klant");
+  eq("de consultant telt als het gesprek", veld("differentiator", "Vaste instructeur.", "consultant")[0]?.bron ?? "", "gesprek");
+  eq("een verboden woord wordt een verbod", veld("taboo_phrases", ["goedkoop"]).map((i) => `${i.domein}/${i.gebruik}`).join(","), "grens/verboden");
+  eq("de verhalen van de ondernemer worden een verhaal", veld("verhalen", "We begonnen in 2004.")[0]?.domein ?? "", "verhaal");
+  eq("dezelfde sleutel als het terugvullen", String(sleutelVan(veld("verhalen", "We begonnen in 2004.")[0]!)), String(sleutelVan(maakTerugvulplan(merk).items.find((i) => i.ref === "profiles:p1:verhalen")!)));
+  eq("stemvoorbeelden niet: de tekst is een waarneming van de code", String(veld("stem_voorbeelden", [{ url: "https://rt.nl", tekst: "x" }]).length), "0");
+  ok("de stemvoorbeelden staan niet bij de gespreksvelden", !GESPREKSVELDEN.includes("stem_voorbeelden"));
+  ok("de verhalen, het onderscheid en de verboden woorden wel", ["verhalen", "differentiator", "taboo_phrases", "service_regions"].every((v) => GESPREKSVELDEN.includes(v as never)));
+  eq("een veld dat geen klantkennis is, levert niets", String(kennisUitProfielveld({ profiel, veld: "wikidata_id", bron: "gesprek" }).length), "0");
+  eq("elk gespreksveld haalt de regels van legVast(), met een mens", gesprekFouten(GESPREKSVELDEN.flatMap((v) => kennisUitProfielveld({ profiel: merk.profiel, veld: v, bron: "gesprek", aanbod: merk.aanbod, vragen: merk.vragen }))).join(" | "), "");
+  eq("een product dat al een dienst is, komt niet dubbel", kennisUitProfielveld({ profiel: { ...profiel, products: ["Rijlessen", "Theorie-examen"] }, veld: "products", bron: "gesprek", aanbod: merk.aanbod }).map((i) => i.bewering).join(","), "Theorie-examen");
+
+  // Een lijst: toevoegen, weghalen, en een naam aanpassen op zijn plek.
+  const regios = (lijst: string[]) => veld("service_regions", lijst);
+  const lijstW = wijzigingen(regios(["Eindhoven", "Best", "Veldhoven"]), regios(["Eindhoven", "Veldhoven", "Son"]));
+  eq("een weggehaalde plaats is weg, een nieuwe erbij", `${lijstW.weg.map((i) => i.bewering)}/${lijstW.erbij.map((i) => i.bewering)}/${lijstW.vervangen.length}`, "Best/Son/0");
+  const aangepast = wijzigingen(regios(["Tilburg"]), regios(["Tilburg en omstreken"]));
+  eq("een plaats aanpassen op dezelfde plek is een nieuwe versie", aangepast.vervangen.map((v) => `${v.oud.bewering} > ${v.nieuw.bewering}`).join(","), "Tilburg > Tilburg en omstreken");
+  const leeggemaakt = wijzigingen(veld("differentiator", "Vaste instructeur."), veld("differentiator", null));
+  eq("een veld leegmaken haalt het weg", `${leeggemaakt.weg.length}/${leeggemaakt.erbij.length}`, "1/0");
+
+  // De aantekeningen van het gesprek.
+  const notities = kennisUitGesprek({ profile_id: "p1", strategy_notes: "Focus op Eindhoven.", context_factors: [{ kind: "nieuwe_regio", description: "Vanaf maart ook in Best." }] });
+  eq("de aantekeningen en veranderingen zijn verklaard, door het gesprek", notities.map((i) => `${i.domein}/${i.status}/${i.bron}`).join(","), "positionering/verklaard/gesprek,identiteit/verklaard/gesprek");
+  eq("dezelfde sleutels als het terugvullen", String(sleutelVan(notities[0]!)), String(sleutelVan(maakTerugvulplan(merk).items.find((i) => i.ref === "profile_strategy:p1:strategy_notes")!)));
+  eq("elk item uit het gesprek haalt de regels van legVast(), met een mens", gesprekFouten(notities).join(" | "), "");
+});
+
+group("het gesprek en de antwoorden schrijven via de schrijfingang (K5)", () => {
+  const facts = leesBestand("lib/facts.ts");
+  ok("answerFact() legt het antwoord vast in de kennislaag", facts.includes("await legAntwoordVast("));
+  ok(
+    "ook de open vraag: het vastleggen staat vóór de vertakking daarop",
+    facts.indexOf("await legAntwoordVast(") > 0 && facts.indexOf("await legAntwoordVast(") < facts.indexOf("if (fact.open_vraag)"),
+  );
+  ok("met de vraag van vóór het antwoord, voor een gewijzigd antwoord", /vorige: alsBronVraag\(fact\)/.test(facts));
+  ok("de route geeft door wie antwoordde", leesBestand("app/api/profiles/[id]/facts/route.ts").includes("gebruikerId: user.id"));
+  ok("het gespreksscherm legt zijn velden vast", leesBestand("app/api/profiles/[id]/route.ts").includes("await legProfielVast("));
+  const strategie = leesBestand("app/api/profiles/[id]/strategy/route.ts");
+  ok("het gesprek legt zijn aantekeningen vast", strategie.includes("await legGesprekVast("));
+  ok("en de namen en plaatsen die het aan het profiel toevoegt", strategie.includes("await legProfielVast("));
+  ok("de keuze bij een tegenstrijdigheid wordt vastgelegd", leesBestand("app/api/profiles/[id]/fact-conflicts/route.ts").includes("await legConflictkeuzeVast("));
+  const schrijver = leesBestand("lib/kennis/uit-gesprek.ts");
+  ok("de schrijver gooit geen fout naar het opslaan", !/\bthrow\b/.test(schrijver));
+  ok("en doet geen AI-aanroep (§4 regel 1)", !/lib\/openai|callStructured|responses\.create/.test(schrijver + leesBestand("lib/kennis/gesprek.ts")));
+  ok("alles wat hij vastlegt, legt een mens vast", !/actor:\s*["'`](code|model)["'`]/.test(schrijver));
+});
+

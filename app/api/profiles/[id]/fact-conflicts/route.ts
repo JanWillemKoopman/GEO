@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { enqueue } from "@/lib/jobs/queue";
 import { dedupe } from "@/lib/jobs/dedupe";
 import { losConflictOp, type Keuze } from "@/lib/pipeline/feitenregister";
+import { legConflictkeuzeVast } from "@/lib/kennis/uit-gesprek";
 
 /**
  * De conflictlijst van één merk (WP2 van contentpijplijn-publicatiewaardig.md, §8.3).
@@ -70,5 +71,23 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     keuze,
   });
   if (fout) return NextResponse.json({ error: fout }, { status: 400 });
+
+  // ── De kennislaag (K5 van van-pijplijn-naar-kennissysteem.md) ────────────
+  // De consultant koos: het item van het gekozen feit wordt bevestigd, de
+  // andere afgewezen. Laat de consultant het de ondernemer vragen, dan komt
+  // diens keuze als antwoord binnen (`answerFact()`), en is er hier niets te doen.
+  if ("feitId" in keuze) {
+    const { data: conflict } = await toegang.admin
+      .from("fact_conflicts")
+      .select("feit_ids")
+      .eq("id", conflictId)
+      .eq("profile_id", id)
+      .maybeSingle();
+    await legConflictkeuzeVast(
+      toegang.admin,
+      { profileId: id, winnaarFeitId: keuze.feitId, feitIds: ((conflict as { feit_ids: string[] } | null)?.feit_ids ?? []) },
+      { actor: "mens", gebruikerId: toegang.user.id },
+    );
+  }
   return NextResponse.json({ ok: true });
 }

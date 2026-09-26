@@ -107,8 +107,12 @@ function alsSamenvoegItem(r: Klantkennis): SamenvoegItem {
   };
 }
 
-/** Het actuele item met deze sleutel (niet vervangen), of null. */
-async function metSleutel(admin: Admin, profileId: string, sleutel: string): Promise<Klantkennis | null> {
+/**
+ * Het item met deze sleutel dat niet vervangen is (ook als het afgewezen is), of
+ * null. Gebruikt door `uit-gesprek.ts` om de vorige versie van een antwoord of
+ * veld terug te vinden.
+ */
+export async function metSleutel(admin: Admin, profileId: string, sleutel: string): Promise<Klantkennis | null> {
   const { data } = await admin
     .from("klantkennis")
     .select("*")

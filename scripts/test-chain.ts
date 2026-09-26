@@ -5022,7 +5022,7 @@ async function main(): Promise<void> {
         profileId: marktclaimProfileId,
         factId: gapMetClaim,
         answer: "Wij zijn de snelste van de regio en reageren sneller dan elke concurrent.",
-        existingProofPoints: [],
+        existingProofPoints: [], gebruikerId: userId,
       });
       ok(
         "een gapvraag met een superlatief levert needsEvidence op",
@@ -5039,7 +5039,7 @@ async function main(): Promise<void> {
         profileId: marktclaimProfileId,
         factId: gapZonderClaim,
         answer: "1998",
-        existingProofPoints: [],
+        existingProofPoints: [], gebruikerId: userId,
       });
       ok(
         "een gapvraag met een gewoon antwoord levert geen needsEvidence op",
@@ -5056,7 +5056,7 @@ async function main(): Promise<void> {
         profileId: marktclaimProfileId,
         factId: clusterMetClaim,
         answer: "Omdat wij marktleider zijn in de regio.",
-        existingProofPoints: await proofPointsVan(marktclaimProfileId),
+        existingProofPoints: await proofPointsVan(marktclaimProfileId), gebruikerId: userId,
       });
       ok(
         "een clustervraag met een superlatief levert óók needsEvidence op",
@@ -5078,7 +5078,7 @@ async function main(): Promise<void> {
         profileId: marktclaimProfileId,
         factId: clusterZonderClaim,
         answer: "Al 25 jaar.",
-        existingProofPoints: await proofPointsVan(marktclaimProfileId),
+        existingProofPoints: await proofPointsVan(marktclaimProfileId), gebruikerId: userId,
       });
       ok(
         "een clustervraag met een gewoon antwoord komt wél in proof_points",
@@ -5134,7 +5134,7 @@ async function main(): Promise<void> {
         profileId,
         factId: vragen[0].id as string,
         answer: lang,
-        existingProofPoints: (voor[0]?.proof_points as string[] | null) ?? [],
+        existingProofPoints: (voor[0]?.proof_points as string[] | null) ?? [], gebruikerId: userId,
       });
       ok("het antwoord wordt opgeslagen", uitkomst.ok);
       const { rows: na } = await db.client.query(
@@ -5522,7 +5522,7 @@ async function main(): Promise<void> {
       ok("de ontwerppagina heeft de open vraag en één gerichte vraag", vragenOntwerp.length === 2);
       const openVraag = vragenOntwerp.find((v) => v.open_vraag).id as string;
       const gericht = vragenOntwerp.find((v) => !v.open_vraag).id as string;
-      await answerFact(admin as never, { profileId: merk, factId: openVraag, answer: "We tekenen altijd met de klant samen aan de keukentafel.", existingProofPoints: [] });
+      await answerFact(admin as never, { profileId: merk, factId: openVraag, answer: "We tekenen altijd met de klant samen aan de keukentafel.", existingProofPoints: [], gebruikerId: userId });
       await probeerNaAntwoord(admin as never, openVraag);
       ok("een antwoord met nog één open vraag: geen schrijftaak", await geenSchrijftaak());
 
@@ -8684,6 +8684,162 @@ async function main(): Promise<void> {
       const { rows: knopen } = await db.client.query("select * from public.profile_offerings where profile_id = $1", [merk]);
       const tweede = await legOnderzoekVast(createShimClient(db.client) as never, merk, kennisUitAanbod(knopen), "profile_offering");
       eqc("scenario 21: dezelfde knopen nog eens vastleggen legt niets nieuws vast", String(tweede.vastgelegd), "0");
+    }
+
+    // ── Scenario 22: het gesprek en de antwoorden schrijven in de kennislaag (K5) ──
+    //
+    // docs/tasks/van-pijplijn-naar-kennissysteem.md K5: de ondernemer beantwoordt
+    // een gerichte vraag, de open vraag en een vraag voor het hele merk via
+    // `answerFact()`, precies wat de route voor klantantwoorden aanroept. Daarna
+    // staan ze in de kennislaag als verklaard, met de reikwijdte van de vraag.
+    // Dan het gesprek (velden, aantekeningen) en de keuze bij een
+    // tegenstrijdigheid, met dezelfde functies die de routes aanroepen.
+    console.log("\nScenario 22: het gesprek en de antwoorden schrijven in de kennislaag (K5)");
+    {
+      const { answerFact } = await import("@/lib/facts");
+      const { legProfielVast, legGesprekVast, legConflictkeuzeVast } = await import("@/lib/kennis/uit-gesprek");
+      const { legVast } = await import("@/lib/kennis/vastleggen");
+      const { setVoorBlokA } = await import("@/lib/kennis/regels");
+      const shim = createShimClient(db.client) as never;
+      const mens = { actor: "mens" as const, gebruikerId: userId };
+      const merk = randomUUID();
+      const analyse = randomUUID();
+      const pagina = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, value_props, service_regions)
+         values ($1, $2, 'Gesprektest', 'https://gesprek.nl', 'Gesprektest', 'klaar', '{Persoonlijk}', '{Eindhoven}')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Gesprektest', 'https://gesprek.nl', 'rijlessen', 'gereed')`,
+        [analyse, userId, merk],
+      );
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, version, is_current) values ($1, $2, 'Rijlessen', 'article', 'ready', 1, true)`,
+        [pagina, analyse],
+      );
+      const { rows: vragen } = await db.client.query(
+        `insert into public.fact_requests (profile_id, analysis_id, question, reason, status, scope, content_piece_ids, open_vraag, raw_json) values
+           ($1, $2, 'Hoe ziet een eerste les eruit?', 'r', 'open', 'pagina', $3, false, '{"bron": "pagina_brief", "soort": "werkwijze"}'),
+           ($1, $2, 'Wat wil je zelf op deze pagina vertellen?', 'r', 'open', 'pagina', $3, true, null),
+           ($1, null, 'Hoeveel leerlingen slagen in één keer?', 'r', 'open', 'merk', '{}', false, '{"bron": "pagina_brief"}')
+         returning id, question`,
+        [merk, analyse, [pagina]],
+      );
+      const vraagId = (begin: string) => vragen.find((v: { question: string }) => v.question.startsWith(begin))!.id as string;
+      const antwoord = (factId: string, answer: string) =>
+        answerFact(shim, { profileId: merk, factId, answer, existingProofPoints: [], gebruikerId: userId });
+
+      await antwoord(vraagId("Hoe ziet"), "We rijden eerst op een rustig industrieterrein.");
+      await antwoord(vraagId("Wat wil je"), "Onze oudste instructeur geeft al dertig jaar les en kent elke rotonde in Eindhoven.");
+      await antwoord(vraagId("Hoeveel"), "80 procent");
+
+      type KennisRij = { id: string; domein: string; soort: string | null; bewering: string; status: string; bron: string; gebruik: string; geldt_voor: string[]; analysis_id: string | null; content_piece_id: string | null; herkomst_tabel: string | null; herkomst_id: string | null; vastgelegd_door: string | null; vervangen_door: string | null; afgewezen_op: string | null; bevestigd_door: string | null; bevestigd_op: string | null; citaat: string | null; bron_url: string | null; verloopt_op: string | null; bewijskracht: string | null };
+      const kennis = async () => (await db.client.query("select * from public.klantkennis where profile_id = $1 order by vastgelegd_op, bewering", [merk])).rows as KennisRij[];
+      const vanVraag = (rijen: KennisRij[], id: string) => rijen.filter((r) => r.herkomst_tabel === "fact_requests" && r.herkomst_id === id);
+
+      let rijen = await kennis();
+      const gericht = vanVraag(rijen, vraagId("Hoe ziet"));
+      eqc("scenario 22: de gerichte vraag is één item", String(gericht.length), "1");
+      eqc("scenario 22: verklaard, door de klant, als paginatekst", `${gericht[0]?.status}/${gericht[0]?.bron}/${gericht[0]?.gebruik}`, "verklaard/klant/content");
+      eqc("scenario 22: met de reikwijdte van de vraag: deze pagina, in dit cluster", `${gericht[0]?.content_piece_id}/${gericht[0]?.analysis_id}`, `${pagina}/${analyse}`);
+      eqc("scenario 22: geldt voor verwijst naar geen ander item (V13)", (gericht[0]?.geldt_voor ?? []).join(","), "");
+      eqc("scenario 22: vastgelegd door wie antwoordde", String(gericht[0]?.vastgelegd_door), userId);
+      eqc("scenario 22: met vraag en antwoord samen", gericht[0]?.bewering ?? "", "Hoe ziet een eerste les eruit?\nWe rijden eerst op een rustig industrieterrein.");
+
+      const open = vanVraag(rijen, vraagId("Wat wil je"));
+      eqc(
+        "scenario 22: de open vraag is een verhaal, letterlijk, verklaard",
+        `${open[0]?.domein}/${open[0]?.status}/${open[0]?.bewering}`,
+        "verhaal/verklaard/Onze oudste instructeur geeft al dertig jaar les en kent elke rotonde in Eindhoven.",
+      );
+      eqc("scenario 22: alleen voor deze pagina (B3)", `${open[0]?.content_piece_id}/${open[0]?.analysis_id}`, `${pagina}/${analyse}`);
+      const { rows: oudePlek } = await db.client.query("select proof_points from public.profiles where id = $1", [merk]);
+      ok("scenario 22: de open vraag gaat nog steeds niet naar de oude bewijspunten", !(oudePlek[0].proof_points ?? []).some((p: string) => p.includes("oudste instructeur")));
+
+      const merkbreed = vanVraag(rijen, vraagId("Hoeveel"));
+      eqc("scenario 22: een vraag voor het hele merk geldt merkbreed", `${merkbreed[0]?.status}/${merkbreed[0]?.content_piece_id}/${merkbreed[0]?.analysis_id}`, "verklaard/null/null");
+
+      // Blok A (K6) zal alle drie mogen gebruiken: gezegd door de klant.
+      const blokA = setVoorBlokA(rijen, new Date());
+      eqc("scenario 22: alle drie mogen straks op een pagina", String(blokA.beweringen.length), "3");
+
+      // Een gewijzigd antwoord: een nieuwe versie, de oude blijft bewaard.
+      await antwoord(vraagId("Hoeveel"), "85 procent");
+      rijen = await kennis();
+      const versies = vanVraag(rijen, vraagId("Hoeveel"));
+      const actueel = versies.filter((r) => !r.vervangen_door);
+      eqc("scenario 22: een gewijzigd antwoord is een nieuwe versie", actueel.map((r) => r.bewering).join(","), "Hoeveel leerlingen slagen in één keer?\n85 procent");
+      eqc("scenario 22: de oude versie wijst naar de nieuwe", String(versies.find((r) => r.vervangen_door)?.vervangen_door), actueel[0]?.id ?? "?");
+      const aantal = rijen.length;
+      await antwoord(vraagId("Hoeveel"), "85 procent");
+      eqc("scenario 22: hetzelfde antwoord opnieuw opslaan legt niets vast", String((await kennis()).length), String(aantal));
+
+      // Het gespreksscherm: een vermoeden van het model weghalen, een plaats
+      // toevoegen, en het onderscheid invullen en daarna aanpassen.
+      const vermoeden = await legVast(shim, {
+        profileId: merk, domein: "positionering", soort: "waardepropositie", bewering: "Persoonlijk",
+        status: "afgeleid", bron: "ai", gebruik: "intern", herkomst: { tabel: "profiles", id: merk },
+      }, { actor: "model", taak: "profile_research" });
+      eqc("scenario 22: het model dacht iets", vermoeden.soort, "vastgelegd");
+      const profiel = { value_props: ["Persoonlijk"], service_regions: ["Eindhoven"], differentiator: null as string | null };
+      const naGesprek = { value_props: [] as string[], service_regions: ["Eindhoven", "Best"], differentiator: "Elke leerling houdt dezelfde instructeur." };
+      const t1 = await legProfielVast(shim, {
+        profileId: merk, url: "https://gesprek.nl", velden: ["value_props", "service_regions", "differentiator"],
+        oud: profiel, nieuw: naGesprek, bron: "gesprek",
+      }, mens);
+      eqc("scenario 22: het gesprek: twee nieuw, één weggehaald", `${t1.vastgelegd}/${t1.afgewezen}/${t1.geweigerd}`, "2/1/0");
+      rijen = await kennis();
+      const best = rijen.find((r) => r.soort === "werkgebied" && r.bewering === "Best");
+      eqc("scenario 22: een plaats uit het gesprek is verklaard, door het gesprek", `${best?.status}/${best?.bron}/${best?.gebruik}`, "verklaard/gesprek/content");
+      ok("scenario 22: het vermoeden dat de consultant weghaalde, is afgewezen en blijft bewaard", Boolean(rijen.find((r) => r.soort === "waardepropositie")?.afgewezen_op));
+      const t2 = await legProfielVast(shim, {
+        profileId: merk, url: "https://gesprek.nl", velden: ["differentiator"],
+        oud: naGesprek, nieuw: { ...naGesprek, differentiator: "Elke leerling houdt van begin tot eind dezelfde instructeur." }, bron: "gesprek",
+      }, mens);
+      eqc("scenario 22: een aangepast veld is een nieuwe versie", String(t2.vervangen), "1");
+      const onderscheid = (await kennis()).filter((r) => r.soort === "onderscheid");
+      eqc("scenario 22: één actuele versie, de oude bewaard", `${onderscheid.length}/${onderscheid.filter((r) => !r.vervangen_door).map((r) => r.bewering).join(",")}`, "2/Elke leerling houdt van begin tot eind dezelfde instructeur.");
+      const t3 = await legProfielVast(shim, {
+        profileId: merk, url: "https://gesprek.nl", velden: ["service_regions"], oud: naGesprek, nieuw: naGesprek, bron: "gesprek",
+      }, mens);
+      eqc("scenario 22: een veld opslaan zonder wijziging doet niets", `${t3.vastgelegd}/${t3.vervangen}/${t3.afgewezen}`, "0/0/0");
+
+      // De aantekeningen van het gesprek.
+      await legGesprekVast(shim, { profileId: merk, vorige: null, nu: { profile_id: merk, strategy_notes: "Focus op spoedcursussen in de zomer.", context_factors: [] } }, mens);
+      const notitie = (await kennis()).find((r) => r.herkomst_tabel === "profile_strategy");
+      eqc("scenario 22: de aantekening is verklaard, door het gesprek", `${notitie?.domein}/${notitie?.status}/${notitie?.bron}/${notitie?.vastgelegd_door}`, `positionering/verklaard/gesprek/${userId}`);
+
+      // De keuze bij een tegenstrijdigheid: twee prijzen van de site.
+      const feitA = randomUUID();
+      const feitB = randomUUID();
+      await db.client.query(
+        `insert into public.brand_facts (id, profile_id, text, source, source_url, kind, fact_key, soort, stand) values
+           ($1, $3, 'Een proefles kost € 45.', 'site /prijzen', 'https://gesprek.nl/prijzen', 'site', 'kost proefle', 'prijs', 'betwist'),
+           ($2, $3, 'Een proefles kost € 50.', 'site /acties', 'https://gesprek.nl/acties', 'site', 'kost proefle 2', 'prijs', 'betwist')`,
+        [feitA, feitB, merk],
+      );
+      for (const [id, tekst, url] of [[feitA, "Een proefles kost € 45.", "https://gesprek.nl/prijzen"], [feitB, "Een proefles kost € 50.", "https://gesprek.nl/acties"]]) {
+        const u = await legVast(shim, {
+          profileId: merk, domein: "aanbod", soort: "prijs", bewering: tekst, status: "waargenomen", bron: "website",
+          bronUrl: url, citaat: tekst, gebruik: "content", herkomst: { tabel: "brand_facts", id },
+        }, { actor: "code", taak: "profile_synthesis" });
+        eqc(`scenario 22: de prijs ${tekst} staat apart in de kennislaag`, u.soort, "vastgelegd");
+      }
+      const keuze = await legConflictkeuzeVast(shim, { profileId: merk, winnaarFeitId: feitB, feitIds: [feitA, feitB] }, mens);
+      eqc("scenario 22: de keuze bevestigt er één en wijst er één af", `${keuze.bevestigd}/${keuze.afgewezen}/${keuze.geweigerd}`, "1/1/0");
+      rijen = await kennis();
+      const prijzen = rijen.filter((r) => r.soort === "prijs");
+      const gekozen = prijzen.find((r) => r.herkomst_id === feitB);
+      eqc("scenario 22: de gekozen prijs is bevestigd, door de consultant", `${gekozen?.status}/${gekozen?.bevestigd_door}`, `bevestigd/${userId}`);
+      ok("scenario 22: de andere prijs is afgewezen, en bewaard", Boolean(prijzen.find((r) => r.herkomst_id === feitA)?.afgewezen_op));
+      eqc("scenario 22: en alleen de gekozen prijs mag straks op een pagina", setVoorBlokA(prijzen, new Date()).beweringen.map((r) => r.bewering).join(","), "Een proefles kost € 50.");
+
+      const { rows: statussen } = await db.client.query(
+        "select distinct status, case when status = 'bevestigd' then bevestigd_door::text else vastgelegd_door::text end as wie from public.klantkennis where profile_id = $1 and status in ('verklaard', 'bevestigd')",
+        [merk],
+      );
+      ok("scenario 22: verklaard en bevestigd komen alleen van een mens", statussen.length === 2 && statussen.every((r: { wie: string }) => r.wie === userId), JSON.stringify(statussen));
     }
 
     __setTestAdminClient(null);
