@@ -318,7 +318,7 @@ export async function voerHerschrijvenUit(admin: Admin, job: Job, payload: Achte
   const verbodenNieuw = verbodenIn(basis, tekst.tekst_markdown);
 
   if (opVerzoek) {
-    await nieuweVersie(admin, basis, kolommen, ongedektNieuw, verbodenNieuw);
+    await nieuweVersie(admin, basis, kolommen, ongedektNieuw, verbodenNieuw, payload.klantNotitie?.trim() ?? null);
     return;
   }
 
@@ -364,6 +364,8 @@ async function nieuweVersie(
   kolommen: Record<string, unknown>,
   ongedekt: string[],
   verboden: string[],
+  /** Wat de klant vroeg. Bewaard in `revision_note`: wat klanten vragen is de beste bron voor WP9. */
+  notitie: string | null,
 ): Promise<void> {
   const oudId = basis.pagina.pieceId;
   const { data: oud } = await admin
@@ -403,6 +405,7 @@ async function nieuweVersie(
       ...kolommen,
       version: ((o.version as number | null) ?? 1) + 1,
       supersedes_id: oudId,
+      revision_note: notitie,
       is_current: true,
       status: "ready",
       needs_review: true,

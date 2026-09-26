@@ -950,6 +950,7 @@ import { verwerkBrief, normaliseerVraag, kindVoorSoort, MAX_BRIEFVRAGEN, type Co
 import { briefInvoer, BRIEF_SYSTEEM } from "@/lib/pagina/brief-opdracht";
 import { schrijfSysteem, schrijfInvoer, herschrijfInvoer, type SchrijfBlokken } from "@/lib/pagina/schrijfopdracht";
 import { moetHerschrijven, kiesVersie, geleZinnenNa, allesBevestigd, zinnenMetVerbodenWoord, CONTROLE_SYSTEEM } from "@/lib/pagina/controle-regels";
+import { zinnenVerschil, antwoordGebruik, kenmerkenVan, meetrapport } from "@/lib/pagina/klantmeting";
 import type {
   ProfileOffering,
   ProfileTopic,
@@ -21322,6 +21323,32 @@ group("de schrijfopdracht, versie 2 (WP9)", () => {
   ok("een FAQ alleen met een antwoord dat uit de informatie blijkt", sys.includes("Weet je het antwoord voor dit bedrijf niet, laat de vraag dan weg."));
   ok("een praktijkvoorbeeld hoort bij deze pagina", sys.includes("De andere pagina's van dit bedrijf vertellen hun eigen voorbeelden."));
   ok("de brief koppelt geen voorbeeldvraag aan een andere pagina", BRIEF_SYSTEEM.includes("Een vraag om een voorbeeld uit de praktijk koppel je niet aan een andere pagina"));
+});
+
+group("de meetlat voor de eerste klant", () => {
+  const machine = "## Kop\n\nWij geven 5 jaar garantie. De intake kost € 50. Een les duurt 75 minuten.";
+  const definitief = "## Kop\n\nWij geven 5 jaar garantie! De intake kost € 40. Een les duurt 75 minuten. Bel ons gerust.";
+  const v = zinnenVerschil(machine, definitief);
+  eq("een leesteken telt niet als wijziging", String(v.gebleven), "3");
+  eq("een ander getal is een gewijzigde zin", v.geschrapt.join(" | "), "De intake kost € 50.");
+  eq("nieuw of in andere woorden", v.toegevoegd.join(" | "), "De intake kost € 40. | Bel ons gerust.");
+  eq("aandeel gebleven", String(Math.round((v.aandeelGebleven ?? 0) * 100)), "75");
+  eq("zonder tekst van het model: onbekend", String(zinnenVerschil("", "Iets.").aandeelGebleven), "null");
+  ok("kenmerken: getallen en lange woorden, geen alledaagse", kenmerkenVan("Meestal twee weken, in januari en september vier. Bijvoorbeeld 50 euro.").join(",") === "50,januari,september");
+  const gebruikt = antwoordGebruik("Een meisje van 18 klapte dicht bij een kruispunt op het bedrijventerrein.", "Een leerling klapte dicht bij een kruispunt; we reden op een bedrijventerrein.");
+  eq("teruggevonden kenmerken", `${gebruikt.teruggevonden}/${gebruikt.kenmerken}`, "2/3");
+  eq("een antwoord zonder kenmerken: onbekend", String(antwoordGebruik("Ja", "Tekst").aandeel), "null");
+  const rapport = meetrapport([{
+    titel: "Proefles", machinetekst: machine, definitief, bewerktDoorKlant: true, goedgekeurd: true,
+    aanpassingen: ["Korter graag."], geel: ["Wij geven 5 jaar garantie.", "De intake kost € 50."], bevestigd: ["Wij geven 5 jaar garantie."],
+    vragen: [{ vraag: "Wat kost de intake?", status: "beantwoord", antwoord: "50 euro" }, { vraag: "Hoe lang?", status: "beantwoord", antwoord: "Anderhalf uur" }],
+  }]);
+  ok("een gele zin die bevestigd is", rapport.includes("bevestigd 1, aangepast of weggehaald 1"));
+  ok("de niet herkende zin staat erbij", rapport.includes('niet herkend: "De intake kost € 50."'));
+  ok("de gevraagde aanpassing staat erbij", rapport.includes('"Korter graag."'));
+  ok("gemeten tegen de tekst van het model", rapport.includes("Wat kost de intake? (beantwoord, 100% terug)") && rapport.includes("Hoe lang? (beantwoord, 0% terug)"));
+  ok("de twee vragen voor een mens", rapport.includes("feiten, of ook stijl en opbouw") && rapport.includes("als het eigen bedrijf"));
+  ok("geen gedachtestreepje in het rapport", !/[—–]/.test(rapport));
 });
 
 group("de schrijfopdracht, versie 3: bedrijfskennis en algemene kennis gescheiden (WP9 ronde 2)", () => {

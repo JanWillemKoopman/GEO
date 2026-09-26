@@ -5629,10 +5629,11 @@ async function main(): Promise<void> {
       const controlesVoor = aanroepen.filter((a) => a.schema === "pagina_controle").length;
       await draai("pagina_herschrijven");
       const { rows: versies } = await db.client.query(
-        "select id, version, is_current, supersedes_id, status from public.content_pieces where analysis_id = $1 and title = 'Tuinontwerp laten maken' order by version",
+        "select id, version, is_current, supersedes_id, status, revision_note from public.content_pieces where analysis_id = $1 and title = 'Tuinontwerp laten maken' order by version",
         [cluster],
       );
       ok("een aanpassing maakt versie 2", versies.length === 2 && versies[1].version === 2 && versies[1].supersedes_id === ontwerp);
+      ok("de wens van de klant staat bij de nieuwe versie", versies[1].revision_note === "Vertel ook dat we met koffie beginnen.");
       ok("de nieuwe is de actuele", versies[1].is_current === true && versies[0].is_current === false && versies[1].status === "ready");
       ok("zonder nieuwe beoordeling", aanroepen.filter((a) => a.schema === "pagina_controle").length === controlesVoor && (await wachtrij("pagina_controle")).length === 0);
       ok("de plan-pagina wijst naar versie 2", (await stukVan(planId("Tuinontwerp laten maken"))) === versies[1].id);
