@@ -446,7 +446,8 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 - **36 taaksoorten:** `profile_discover`, `profile_research`, `profile_offering`, `propose_topics`,
   `profile_market`, `profile_llm_baseline`, `profile_synthesis`, `prepare_analysis`,
   `generate_prompts`, `calibrate_volumes`, `measure_prompt`, `aggregate_week`,
-  `profile_competitors`, `generate_report`, `content_brief`, `content_draft`, `content_revise`,
+  `profile_competitors`, `generate_report`, `pagina_brief`, `pagina_schrijven`, `pagina_controle`,
+  `pagina_herschrijven`, `fact_register`,
   `technical_audit`, `verify_publication`, `measure_impact`, `compute_impact`, `offsite_scan`,
   `gsc_sync`, `recalculate_potential`, `reputation_start`, `reputation_brand`,
   `reputation_offering`, `reputation_compare`, `reputation_sources`, `reputation_synthesis`,
@@ -463,12 +464,14 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
   zodra een analyse haar eerste rapport krijgt: herberekent `search_volume_index` op ALLE
   onderwerpen van dat merk in één aanroep (`lib/pipeline/search-demand.ts`), zie
   `docs/tasks/potentiescore.md`.
-- **De contentketen wordt opnieuw gebouwd** (25 september 2026, `docs/tasks/contentketen-opnieuw.md`).
-  De taaksoorten `content_brief`, `content_plan`, `content_strategy`, `content_draft`,
-  `content_edit`, `content_revise` en `content_recheck` zijn weg. In hun plaats komen
-  `pagina_brief`, `pagina_schrijven`, `pagina_controle` en `pagina_herschrijven` (§7.4 van dat
-  plan). De rest van dit document beschrijft de contentstappen nog zoals ze waren; WP10 van het plan
-  werkt dit bij.
+- **De contentketen** (25 en 26 september 2026, `docs/tasks/contentketen-opnieuw.md`): vier
+  taaksoorten, handlers in `lib/pagina/taken.ts`. `pagina_brief` draait per maand na elkaar (de taak
+  geeft de rest van de rij door in zijn payload); `pagina_schrijven` en `pagina_herschrijven` lopen in
+  de achtergrondmodus, met een ophaalronde die zichzelf opnieuw inplant zolang OpenAI nog rekent;
+  `pagina_controle` is één directe beoordeling. Het contentplan roept alleen `bereidVoor` en
+  `probeerTeSchrijven` aan (`lib/pagina/start.ts`). De vorige taaksoorten (`content_brief`,
+  `content_plan`, `content_strategy`, `content_draft`, `content_edit`, `content_revise`,
+  `content_recheck`) bestaan niet meer.
 - **`fact_register`** (migratie `0113`, WP2 van `docs/tasks/contentpijplijn-publicatiewaardig.md`)
   hangt aan een merk (`profile_id`), is licht werk en wordt ingepland bij het voorbereiden van de
   pagina's van een maand en met de knop op het conflictscherm (`admin/feiten`). Hij deelt nieuwe feiten in, zoekt kandidaat-
@@ -732,16 +735,14 @@ berekenen is, is geld uitgeven aan een slechter antwoord.
 | Entiteitsconsistentie (`audit/entity-consistency.ts`) | Heet het bedrijf overal hetzelfde? Tekstvergelijking. |
 | Het oordeel over de kennistest (`baseline-verdict.ts`) | Het model vragen of zijn eigen antwoord klopt is de meting aan de gemetene vragen. In dit project drie keer misgegaan. |
 | Structurele gap-analyse (`structure-gap.ts`) | Aanbodboom tegen gecrawlde pagina's, met de matcher van `page-relevance.ts`. |
-| Duplicatie en leesbaarheid (`similarity.ts`, `readability.ts`) | Jaccard op vijf-grammen en vier gemeten grootheden. Geen verzonnen score. |
+| Harde beweringen en mechanische reparatie (`lib/pagina/harde-beweringen.ts`, `mechanisch.ts`) | Welke zin een bedrag, getal met eenheid of belofte bevat waar geen bron voor is, en de verboden tekens en metalengtes: tellen en vergelijken, geen oordeel. Een conservatieve detectie, geen factchecker (`docs/tasks/contentketen-opnieuw.md` §6.5). |
 | Crawltempo en de terugval bij een 429/503 (`crawl-speed.ts`) | Drie vaste standen (batchgrootte, pauzebandbreedte) en een deterministische stap omlaag. Geen oordeel nodig over "hoe snel mag dit", dat is een tabel. |
-| Het kwaliteitsoordeel zelf (`quality-collect.ts`, `quality-score.ts`, `evidence-weight.ts`, `root-cause.ts`, migratie `0091`) | Wegen, drempels, blokkadeklassen, zekerheid, versiekeuze en de root cause zijn rekenkunde over wat de beoordelaars al opleverden. Een model laten samenvatten wat je exact kunt optellen, is de fout van 31 juli 2026 in een nieuwe jas: toen gaf de zelfbeoordeling 100 van de 100 op tien van de tien pagina's, inclusief die met vijf verzonnen feiten. |
-| De type-eigen contentregels (`quality-profile.ts`) | Aantal secties, aantal FAQ-paren, lengte van een antwoord, een vervolgstap in de tekst, feiten per honderd woorden. Allemaal tellingen. |
 
 | Constante | Waarde | Tarief (in/uit per 1M) | Voor |
 |---|---|---|---|
 | `MODELS.volume` | `gpt-6-luna` | $0,10 / $0,50 | Mention-beoordeling (3b) |
-| `MODELS.quality` | `gpt-6-luna` | $0,10 / $0,50 | Research, prompts, kalibratie, simulatie (3a), gap-analyse, rapport, entiteiten, de vier contentbeoordelaars, bronanalyse |
-| `MODELS.content` | `gpt-6-sol` | $2 / $10 | Uitsluitend content schrijven/herschrijven |
+| `MODELS.quality` | `gpt-6-luna` | $0,10 / $0,50 | Research, prompts, kalibratie, simulatie (3a), gap-analyse, rapport, entiteiten |
+| `MODELS.content` | `gpt-6-sol` | $2 / $10 | De contentketen: content brief (met zoeken op het web), schrijven, controle, herschrijven. Gemeten op de proef van 26 september 2026: $0,10 tot $0,17 per pagina voor alle vier samen |
 
 Sinds 23 september 2026 op GPT-6; daarvoor Luna en Terra van GPT-5.6. Waarom en wat het scheelt:
 `docs/logbook.md`, 23 september 2026 (8).
@@ -760,7 +761,8 @@ stand is het een unsupported parameter en faalt de call.
 | `deterministic` | `none` | 0 | Classificeren/beoordelen, claim-audit, content-kritiek |
 | `analytical` | `low` |, | Research, kalibratie, gap-analyse, rapport, bronanalyse |
 | `creative` | `none` | 0,8 | Promptgeneratie, variatie is gewenst, redeneren maakt de vragen juist gelijkvormig |
-| `content` | `medium` |, | Content schrijven/herschrijven |
+| `judging` | `medium` |, | De controle van een geschreven pagina (`pagina_controle`) |
+| `redactioneel` | `high` |, | Schrijven en herschrijven van een pagina, altijd in de achtergrondmodus |
 | `simulation` |, |, | Halte 3a: bewust niets meegeven, meet wat een AI-assistent op standaardinstellingen doet |
 
 De effort-standen staan bewust laag: één aanroep moet binnen `TIMEOUT_MS` (100 s,
@@ -828,6 +830,10 @@ niet nagemeten (conventie 10, de nameting staat in
 `docs/tasks/contentkwaliteit-copywriterronde.md` §7).
 
 ### De paginastrategie en de achtergrondmodus (25 september 2026, migratie `0114`)
+
+> De paginastrategie en de eindredactie hieronder zijn met de oude keten weggehaald. De
+> achtergrondmodus is gebleven: `pagina_schrijven` en `pagina_herschrijven` gebruiken hem altijd.
+
 
 Werksoort `redactioneel` (`lib/openai/sampling.ts`): Sol, denktijd `high`, voor de paginastrategie
 (`content_strategy`, WP3) en straks de eindredactie, het stemvoorstel en de portfolio. Elke aanroep
@@ -985,9 +991,9 @@ en wat er verdwijnt.
 Wat er níet geschreven kan worden telt de route apart en verzwijgt hij niet: schrijven leunt op een
 gemeten analyse, en bij Van den Udenhout hebben zes van de acht onderwerpen er nog geen. De regel
 staat in `lib/plan-writing.ts` (`writeDecision`), de reden per pagina staat in het scherm. De brug
-tussen plan en contentpijplijn is `plannedPageId` in de payload van `content_draft`: daarmee weet de
-plan-pagina welke tekst het geworden is, en zet de werker hem op `mislukt` als het schrijven
-definitief niet lukt.
+tussen plan en contentketen is `planned_pages.content_piece_id`, gezet door `bereidVoor` in
+`lib/pagina/start.ts`. Geeft het schrijven definitief op, dan zet `schrijvenGafOp` de plan-pagina op
+`mislukt` en de tekst terug naar de voorbereiding; de ochtendronde probeert het de volgende dag opnieuw.
 
 **Dezelfde ronde haalt de zoekcijfers op.** Elk merk met een `gsc_property` krijgt één `gsc_sync`-taak
 per dag (migratie `0052`). Bewust geen tweede cron: allebei dagelijks, allebei alleen plannend, en

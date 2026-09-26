@@ -72,7 +72,8 @@ export async function POST(
   }
 
   // ⚠️ Een maand goedkeuren is de duurste knop van de app: hij zet tien pagina's
-  // op het premium model in gang, ~$2,80 bij pakket 10. Alleen de beheerder
+  // op het premium model in gang: gemeten op de proef van 26 september 2026 $0,10 tot $0,17 per
+  // pagina, dus ruwweg $1 tot $1,70 bij pakket 10. Alleen de beheerder
   // (besluit 18). De klant zegt akkoord, de consultant drukt.
   //
   // Afwijzen valt hier bewust ook onder. Dat kost niets, maar het gaat over
@@ -86,7 +87,7 @@ export async function POST(
 
   if (body.actie === "goedkeuren") {
     // ⚠️ De TWEEDE rem (F1, lib/spend-limit.ts), en hij staat bewust hier en
-    // niet bij `mayTriggerCost` hierboven. Goedkeuren zet ~$2,80 aan schrijfwerk
+    // niet bij `mayTriggerCost` hierboven. Goedkeuren zet ruwweg $1 tot $1,70 aan schrijfwerk
     // in gang, afwijzen kost niets. Die twee mogen dezelfde rechten delen, maar
     // niet hetzelfde budget: een account met een vol plafond moet zijn maand nog
     // wél kunnen afwijzen.
