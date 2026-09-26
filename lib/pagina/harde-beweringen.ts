@@ -152,9 +152,12 @@ export function getallenIn(zin: string): GetalToken[] {
   const tekst = zonderRuis(zin);
   const uit: GetalToken[] = [];
   // Een getal, eventueel met € ervoor, eventueel een bereik ("2 tot 4 weken",
-  // "€ 2.200 tot € 3.200"), gevolgd door het woord erna.
+  // "€ 2.200 tot € 3.200", "tussen de 4.500 en 7.500 euro"), gevolgd door het
+  // woord erna. "en" hoort bij de bereiken sinds de proef van 26 september 2026:
+  // zonder dat werd "4.500 en" gelezen als 4.500 met de eenheid "en", en was
+  // een bedrag dat de ondernemer zelf noemde toch geel.
   const re =
-    /(€\s*)?(\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:[.,]\d+)?)\+?(?:\s*(%))?(?:\s*(?:tot|à|a|-|–)\s*(€\s*)?(\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:[.,]\d+)?)\+?(?:\s*(%))?)?(?:\s+([\p{L}€%]+))?/gu;
+    /(€\s*)?(\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:[.,]\d+)?)\+?(?:\s*(%))?(?:\s*(?:tot|en|à|a|-|–)\s*(€\s*)?(\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:[.,]\d+)?)\+?(?:\s*(%))?)?(?:\s+([\p{L}€%]+))?/gu;
   for (const m of tekst.matchAll(re)) {
     const [heel, euroVoor1, g1, pct1, euroVoor2, g2, pct2, volgwoord] = m;
     const eenheidNa = eenheidVan(volgwoord);

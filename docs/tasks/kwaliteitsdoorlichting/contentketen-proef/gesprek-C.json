@@ -1,0 +1,121 @@
+[
+ {
+  "key": "priority_offerings",
+  "kind": "lijst",
+  "value": [
+   "Rijles bij faalangst, autisme en ADHD",
+   "Rijles in de automaat"
+  ]
+ },
+ {
+  "key": "deprioritised_offerings",
+  "kind": "lijst",
+  "value": [
+   "Spoedcursussen (rijbewijs in tien dagen)"
+  ]
+ },
+ {
+  "key": "target_segments",
+  "kind": "lijst",
+  "value": [
+   "Jongeren van 17 tot 19 met faalangst of autisme, en hun ouders die meezoeken",
+   "Volwassenen van 30 tot 50 die het rijbewijs lang hebben uitgesteld",
+   "Studenten van de TU/e en Fontys"
+  ]
+ },
+ {
+  "key": "growth_regions",
+  "kind": "lijst",
+  "value": [
+   "Veldhoven",
+   "Best",
+   "Son en Breugel"
+  ]
+ },
+ {
+  "key": "deal_value_band",
+  "kind": "keuze",
+  "value": "Midden"
+ },
+ {
+  "key": "seasonality",
+  "kind": "lange-tekst",
+  "value": "januari en september druk, zomer rustiger"
+ },
+ {
+  "key": "sales_objections",
+  "kind": "lijst",
+  "value": [
+   "Hoeveel lessen heb ik echt nodig?",
+   "Ik ben al een keer gezakt bij een andere rijschool",
+   "Ik word zenuwachtig van examens",
+   "Waarom zijn jullie duurder dan een spoedcursus?"
+  ]
+ },
+ {
+  "key": "forbidden_topics",
+  "kind": "lijst",
+  "value": [
+   "Medische uitspraken over autisme of ADHD (we zijn geen zorgverleners)",
+   "Garanties dat je in één keer slaagt"
+  ]
+ },
+ {
+  "key": "offline_proof",
+  "kind": "lijst",
+  "value": [
+   "Slagingspercentage 93 procent bij de eerste poging over 2025",
+   "Instructeurs hebben een extra training rijles bij autisme gevolgd",
+   "Vier instructeurs"
+  ]
+ },
+ {
+  "key": "name_exclusions",
+  "kind": "lijst",
+  "value": [
+   "Rijschool Pompe (Tilburg)"
+  ]
+ },
+ {
+  "key": "respect_site_structure",
+  "kind": "keuze",
+  "value": "Ja, nieuwe pagina's mogen"
+ },
+ {
+  "key": "goal_12m",
+  "kind": "lange-tekst",
+  "value": "in eindhoven de bekendste rijschool voor faalangst en autisme zijn, en aangeraden worden door begeleiders en ouders"
+ },
+ {
+  "key": "pronoun_preference",
+  "kind": "keuze",
+  "value": "je en jij"
+ },
+ {
+  "key": "taboo_phrases",
+  "kind": "lijst",
+  "value": [
+   "gegarandeerd slagen",
+   "snel je rijbewijs",
+   "stoornis"
+  ]
+ },
+ {
+  "key": "verhalen",
+  "kind": "lange-tekst",
+  "value": "We beginnen met een intake van een uur: samen kijken hoe iemand leert en wat spanning geeft, en daarna maken we een lesplan. Bij faalangst rijden we in het begin vaste rustige routes, we oefenen de examenroute, er is een proefexamen met een andere instructeur en in de simulator kun je oefenen zonder verkeer. Een les duurt 75 minuten, omdat de eerste tien minuten vaak nodig zijn om tot rust te komen. Het CBR heeft een apart faalangstexamen, en we helpen bij de aanvraag. We halen je op bij je thuis, op school of op je werk in Eindhoven en de plaatsen eromheen. Leerlingen vragen vaak hoeveel lessen ze echt nodig hebben, of zeggen dat ze al eens gezakt zijn bij een andere rijschool. Spoedcursussen doen we liever niet, die passen niet bij onze aanpak. We geven geen garantie dat je in één keer slaagt en we doen geen medische uitspraken."
+ },
+ {
+  "key": "stem_voorbeelden",
+  "kind": "adressen",
+  "value": [
+   "https://www.autorijschoolpompert.nl/onze-unieke-benadering/",
+   "https://www.autorijschoolpompert.nl/rijles-met-faalangst-autisme/"
+  ]
+ },
+ {
+  "key": "__strategie",
+  "kind": "x",
+  "value": "Kitty en Peter willen bekend worden als de rijschool voor faalangst, autisme en ADHD in Eindhoven, aangeraden door ouders en begeleiders. Ook automaat. Geen spoedcursussen. Groeien in Veldhoven, Best, Son en Breugel."
+ }
+]

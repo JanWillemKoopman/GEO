@@ -21296,3 +21296,14 @@ group("de controle: herschrijven, welke versie, welke zinnen geel (§6.6, §6.7)
   ok("niet alles bevestigd", !allesBevestigd({ gele_zinnen: ["A zin.", "B zin."], bevestigd: ["A zin."] }));
   ok("geen controle telt als niet bevestigd", !allesBevestigd(null));
 });
+
+group("harde beweringen: een bereik met 'en' (proef 26 september 2026)", () => {
+  const g = hardeGetallen("Een hybride kost tussen de 4.500 en 7.500 euro.");
+  eq("twee getallen", String(g.length), "2");
+  eq("allebei in euro", g.map((x) => x.eenheid).join(","), "euro,euro");
+  const oordeel = controleerHardeBeweringen(
+    "Reken als eerste indicatie op € 4.500 tot € 7.500 inclusief btw.",
+    ["Een hybride inclusief installatie ligt meestal tussen de 4.500 en 7.500 euro."],
+  );
+  eq("het bedrag van de ondernemer dekt de zin", String(geleZinnen(oordeel).length), "0");
+});
