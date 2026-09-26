@@ -1,8 +1,8 @@
 # Inventaris van alle klantkennis (werkpakket F0.2)
 
 **Opgesteld:** 26 september 2026, als werkpakket F0.2 van `docs/tasks/van-pijplijn-naar-kennissysteem.md`.
-**Status:** af, op één punt na: de eigenaar moet de tabel nog gezien hebben (de laatste regel van
-"klaar als"). Er is geen code en geen migratie veranderd.
+**Status:** af. De eigenaar heeft de tabel gezien en de drie vragen van §6 beantwoord (26 september
+2026). Er is geen code en geen migratie veranderd.
 
 Dit document zegt per kolom wat er vandaag over een bedrijf wordt vastgelegd, wie het schrijft, wie het
 leest, en wat er in de kennislaag (`klantkennis`, §6.1 van het plan) mee moet gebeuren. K1 legt het
@@ -125,7 +125,7 @@ het plan. Die staan in §6 als vraag aan de eigenaar.
     `name_exclusions`, `service_scope`, `service_regions`, `competitors` en `market_language` bepalen hoe
     er gemeten wordt en welke meetvragen er komen. Ze zijn kennis over het bedrijf en gaan dus mee, maar
     de meting leest ze nu rechtstreeks uit `profiles`. In de tabellen staan ze als "meenemen
-    (stuurveld)". Hoe ze na K8 bij de meting komen, is een keuze voor K1 (§6, vraag 2).
+    (stuurveld)". Hoe ze na K8 bij de meting komen, is beslist in §6 punt 2 (besluit V9).
 
 ---
 
@@ -451,18 +451,16 @@ consultant wordt verklaard met de consultant als `vastgelegd_door`, ai of geen r
 
 ---
 
-## 6. Vragen aan de eigenaar
+## 6. Besluiten van de eigenaar (26 september 2026)
 
-1. **Klopt §2 van het plan nog?** Daar staat dat `brand_facts` herkomst kent via
-   `origin_fact_request_id` en `origin_document_id` en dat `kind` klant, site of onderzoek is. De
-   kolommen bestaan, maar ze worden nooit gevuld en alle 33 feiten komen van de site (§3 punt 1). Het
-   voorstel is die zin in §2 te corrigeren; dat verandert het plan niet, alleen hoeveel herkomst er al is.
-2. **De stuurvelden** (§3 punt 10). Gaan `brand_name`, `aliases`, `name_exclusions`, `service_scope`,
-   `service_regions`, `competitors` en `market_language` na K8 alleen nog in de kennislaag, zodat de
-   meting daaruit leest? Of blijven ze ook als kolom op `profiles` staan, als kopie die `lib/kennis/`
-   bijwerkt? Het eerste is één waarheid maar raakt de meting; het tweede is sneller maar een tweede
-   plek. Dit hoeft nu niet beslist te worden, wel vóór K1.
-3. **Twaalf lege velden verdwijnen van het formulier** als K7 de kennisvelden op "merkprofiel bewerken"
-   vervangt: de zeven auteursvelden, missie, positionering, unieke verkoopbelofte, tweede doelgroep en
-   de wettelijke beperkingen. Niemand leest ze en ze zijn bij alle drie de merken leeg. Akkoord dat ze
-   niet terugkomen?
+1. **§2 van het plan is gecorrigeerd.** De zin over de herkomst van feiten zegt nu dat de kolommen voor
+   vraag, document en herbevestiging bestaan maar nooit gevuld worden, en dat alle 33 feiten van de site
+   komen (§3 punt 1 hierboven).
+2. **De stuurvelden: kennislaag met kopie** (besluit V9 in §3.2 van het plan). `brand_name`,
+   `aliases`, `name_exclusions`, `service_scope`, `service_regions`, `competitors` en
+   `market_language` worden alleen via `lib/kennis/` geschreven. Die houdt de kolommen op `profiles`
+   bij als kopie, en de meting blijft de kopie lezen. K8 laat een test falen als iets anders dan
+   `lib/kennis/` deze kolommen nog schrijft.
+3. **De twaalf lege velden verdwijnen van het formulier** als K7 de kennisvelden vervangt (besluit V10).
+   De kolommen blijven in de database staan; er wordt niets gewist. Een wettelijke beperking wordt een
+   item in het domein grens.

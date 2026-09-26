@@ -114,8 +114,10 @@ pagina ging live). De wachtrij bepaalt alleen hoe dat asynchroon wordt uitgevoer
 
 **De hoofdconclusie van de feedback klopt**, en de code bevestigt hem. Op drie punten onderschat de
 feedback wel wat er al staat. Dat verandert de volgorde van dit plan, niet de richting. Herkomst van
-feiten is er al voor een deel (`brand_facts` kent bron, soort, stand, bewijskracht en een datum voor
-herbevestiging). Search Console is gebouwd en levert al kansen, maar staat bij geen enkel merk aan. En
+feiten is er al voor een klein deel: `brand_facts` kent bron, bronpagina, soort, stand en
+bewijskracht. De kolommen voor een datum van herbevestiging en voor de vraag of het document waar een
+feit uit kwam, bestaan wel maar worden nooit gevuld, en alle 33 feiten op productie komen van de site
+(gecorrigeerd op 26 september 2026 na de inventaris van F0.2, `kennismodel-inventaris.md` §3). Search Console is gebouwd en levert al kansen, maar staat bij geen enkel merk aan. En
 de nameting met controlegroep bestaat al, maar meet alleen of ChatGPT het merk noemt. Daarnaast één
 punt waar dit plan bewust minder doet dan de feedback voorstelt: een volledig gebeurtenissensysteem
 voor tientallen soorten gebeurtenissen is bij drie proefmerken te vroeg. Fase 3 bouwt daarom een
@@ -126,7 +128,7 @@ lichte versie met een expliciet beslismoment om te stoppen.
 | Onderdeel uit de feedback | Wat er vandaag al is | Wat ontbreekt |
 |---|---|---|
 | Klantkennis als centrale laag | Verspreid: `profiles` (94 kolommen), `brand_facts` (22), `profile_offerings`, `profile_facets`, `profile_strategy`, `fact_requests`, `brand_documents`, `profiles.verhalen`, `stem_voorbeelden`, `taboo_phrases`, `content_pieces.brief_json` | Eén plek, één vorm, één schrijfingang. De schrijver leest een deel (blok A); `proof_points` en de stijlvoorbeelden uit het merkonderzoek leest hij niet |
-| Herkomst per feit | `brand_facts`: `source`, `kind` (klant, site, onderzoek), `stand`, `bewijskracht`, `verify_after`, `origin_fact_request_id`, `origin_document_id`, `superseded_by`. `profile_field_sources`: wie zette welk profielveld (ai, klant, gesprek, consultant). Citaatcontrole bij aanbod en feiten | Onderscheid **waargenomen, verklaard, bevestigd, afgeleid** als één vast veld; regels welke status waarvoor gebruikt mag worden; herkomst voor alles wat geen feit is (verhalen, stem, grenzen) |
+| Herkomst per feit | `brand_facts`: `source`, `kind` (klant, site, onderzoek), `stand`, `bewijskracht`, `superseded_by`; de kolommen `verify_after`, `origin_fact_request_id` en `origin_document_id` bestaan maar worden nooit gevuld, en het gecontroleerde citaat wordt niet bewaard (alleen in de ruwe uitvoer). `profile_field_sources`: wie zette welk profielveld (ai, klant, gesprek, consultant). Citaatcontrole bij aanbod en feiten | Onderscheid **waargenomen, verklaard, bevestigd, afgeleid** als één vast veld; regels welke status waarvoor gebruikt mag worden; herkomst voor alles wat geen feit is (verhalen, stem, grenzen) |
 | Klantinput als kennisverwerving | Vaste open vraag per pagina, tot 8 gerichte vragen per brief, merkbrede vragen, ontdubbeling, "eerder gestelde vragen" (`lib/pagina/brief.ts`) | Vragen op basis van wat er over de dienst **ontbreekt** in de klantkennis; antwoorden die als klantkennis terugkomen en bij latere pagina's hergebruikt worden |
 | Kansen als domeinobject | Aanbevelingen als JSON in `reports.recommendations_json`, gekopieerd naar de voorraad in `planned_pages` (`syncBacklog`); `lib/opportunities.ts` zet bronnen alleen voor het scherm naast elkaar, waaronder `zoekverkeer` uit Search Console; `cluster_discovery_candidates` voor nieuwe clusters | Een kans als eigen object met bewijs per bron, kennisgat en status; handmatige kansen die ook echt voorbereid worden (een kaart zonder cluster blijft nu op "Geen cluster") |
 | Search Console | `search_console_days`, `search_console_queries`, dagelijkse `gsc_sync`, het opbrengstblok op Analytics | **Nul merken gekoppeld** op productie. Geen invloed op de effectmeting per pagina |
@@ -174,6 +176,8 @@ Vul de kolom "Besluit" in (met datum) in werkpakket F0.3.
 | V6 | Ziet de klant zelf het kennisoverzicht, en mag hij bevestigen? | **Ja.** "Bevestigd" is de hoogste status en kan alleen van een mens komen; de klant is de beste bron | K7 || **Nee: alleen de consultant ziet en beheert het kennisoverzicht** (26 september 2026), tegen het advies in. De klant bevestigt in het gesprek; de consultant legt het vast. "Bevestigd" komt daarmee altijd via de consultant |
 | V7 | Een lichte gebeurtenissenlaag in Postgres, of een externe dienst (berichtenwachtrij)? | **Licht, in Postgres**, op de bestaande wachtrij. Bij drie merken is een externe dienst alleen extra onderhoud | G1 || **In de bestaande database**, zoals geadviseerd (26 september 2026) |
 | V8 | Mag het systeem leren over merken heen ("dit type pagina werkt vaak"), of alleen per merk? | **Eerst alleen per merk.** Over merken heen raakt aan wat klanten van elkaar mogen weten, en vraagt veel meer data dan er is | L2 || **Eerst alleen per merk**, zoals geadviseerd (26 september 2026) |
+| V9 | Waar leest de meting de velden die haar sturen (merknaam, andere namen, gelijknamige bedrijven, bereik, werkgebied, concurrenten, markt en taal) na K8? | **De kennislaag is de enige schrijfingang; `lib/kennis/` houdt een kopie op `profiles` bij, en de meting blijft die kopie lezen.** Eén waarheid zonder de meting om te bouwen | K1, K2, K8 || **Kennislaag met kopie**, zoals geadviseerd (26 september 2026). De kopie heeft geen eigen schrijver: alleen `lib/kennis/` schrijft hem, en K8 bewaakt dat met een test |
+| V10 | Komen de twaalf lege, ongelezen velden terug op het kennisoverzicht (auteur, missie, positionering, USP, tweede doelgroep, wettelijke beperkingen)? | **Nee.** Niemand leest ze en ze zijn bij alle drie de merken leeg (`kennismodel-inventaris.md` §2). De kolommen blijven staan (conventie 4); een wettelijke beperking wordt een item in het domein grens | K7, K8 || **Nee, ze verdwijnen van het formulier**, zoals geadviseerd (26 september 2026) |
 
 ---
 
@@ -764,7 +768,7 @@ per pagina opnieuw.
 | Werkpakket | Wat | Sessies (schatting) | Stand | Commit en datum |
 |---|---|---|---|---|
 | F0.1 | Eerste echte klant, na fase 5 (V5) | 1 tot 2, plus wachttijd | Open, wacht op fase 1 tot en met 5 | |
-| F0.2 | Inventaris van alle klantkennis | 1 | Gedaan, wacht nog op het oordeel van de eigenaar: 193 kolommen in `docs/tasks/kennismodel-inventaris.md`, waarvan 55 meenemen, 36 alleen herkomst, 37 niet meer gebruiken, 65 geen klantkennis. Drie vragen aan de eigenaar in §6 daarvan | 26 september 2026 |
+| F0.2 | Inventaris van alle klantkennis | 1 | Gedaan en door de eigenaar gezien: 193 kolommen in `docs/tasks/kennismodel-inventaris.md` (55 meenemen, 36 alleen herkomst, 37 niet meer gebruiken, 65 geen klantkennis). Daaruit besluiten V9 en V10 (§3.2) en een correctie van §2 | 26 september 2026 |
 | F0.3 | Besluiten V1 tot en met V8 | 1 | Gedaan: zes volgens advies, V5 en V6 anders (zie §3.2); B18 en B19 in `contentketen-opnieuw.md` | 26 september 2026 |
 | K1 | Datamodel en regels van de kennislaag | 1 | Open | |
 | K2 | Eén schrijfingang | 1 | Open | |
