@@ -764,7 +764,7 @@ per pagina opnieuw.
 | Werkpakket | Wat | Sessies (schatting) | Stand | Commit en datum |
 |---|---|---|---|---|
 | F0.1 | Eerste echte klant, na fase 5 (V5) | 1 tot 2, plus wachttijd | Open, wacht op fase 1 tot en met 5 | |
-| F0.2 | Inventaris van alle klantkennis | 1 | Open | |
+| F0.2 | Inventaris van alle klantkennis | 1 | Gedaan, wacht nog op het oordeel van de eigenaar: 193 kolommen in `docs/tasks/kennismodel-inventaris.md`, waarvan 55 meenemen, 36 alleen herkomst, 37 niet meer gebruiken, 65 geen klantkennis. Drie vragen aan de eigenaar in §6 daarvan | 26 september 2026 |
 | F0.3 | Besluiten V1 tot en met V8 | 1 | Gedaan: zes volgens advies, V5 en V6 anders (zie §3.2); B18 en B19 in `contentketen-opnieuw.md` | 26 september 2026 |
 | K1 | Datamodel en regels van de kennislaag | 1 | Open | |
 | K2 | Eén schrijfingang | 1 | Open | |
