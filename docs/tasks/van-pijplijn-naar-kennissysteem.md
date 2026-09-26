@@ -184,6 +184,7 @@ Vul de kolom "Besluit" in (met datum) in werkpakket F0.3.
 | V14 | Hoe gaat de kennislaag om met een botsing (twee waarden voor hetzelfde)? Het feitenregister laat een model oordelen | **De code herkent de botsing (`vindKandidaten()`) en zet hem op de bestaande conflictlijst, met een eigen verwijzing naar de kennis (`fact_conflicts.kennis_ids`).** Beide items blijven staan; de consultant beslist op het kennisoverzicht (K7). Geen AI-aanroep (§4 regel 1) | K2, K7 || **Herkennen en bewaren**, zoals geadviseerd (26 september 2026) |
 | V15 | Hoe draait het terugvullen (K3) op productie, als de werkomgeving de sleutel van de productiedatabase niet heeft? | **Het script maakt de lijst met dezelfde regels als `legVast()` (geldigheid, status per actor, ontdubbelsleutel) en schrijft een bestand; dat bestand gaat via de databaseverbinding van de beheertool naar productie, waar de check-constraints alles nog eens toetsen.** Met de sleutel in de omgeving schrijft hetzelfde script rechtstreeks via `legVast()` | K3 || **Via de databaseverbinding**, zoals geadviseerd (26 september 2026). Geen geheime sleutel buiten Vercel |
 | V16 | Wat gebeurt er met een feit waarvan de code niet kan vaststellen voor welke dienst het geldt (11 van de 24 op 26 september 2026)? | **Voorlopig merkbreed, met de oude tekst in `ruw`, en op de lijst voor de consultant.** K6 zet de schrijver pas over als die lijst leeg is, zodat een prijs niet stil op een pagina over iets anders belandt | K3, K6 || **Merkbreed, op een lijst**, zoals geadviseerd (26 september 2026) |
+| V17 | Wat gebeurt er met de data van de drie proefmerken? De eigenaar hecht er zelf geen waarde aan | **Bewaren tot A1 klaar is, daarna alles verwijderen.** K6 en A1 bewijzen een verbetering door de oude en de nieuwe versie naast elkaar te leggen (V5); zonder de oude data kan dat niet meer | K6, A1 || **Bewaren tot na A1**, zoals geadviseerd (26 september 2026). Tot die tijd hoeft niemand de data te sparen: omzetten mag zonder voorzichtigheid, en na A1 hoeft geen werkpakket er nog rekening mee te houden. Het verwijderen zelf is onomkeerbaar en gebeurt pas na een laatste bevestiging van de eigenaar (§12) |
 
 ---
 
@@ -770,6 +771,7 @@ per pagina opnieuw.
 |---|---|---|
 | Nu | PR #163 samenvoegen | Het publicatiepakket en dit plan staan op die branch |
 | Na fase 5 | De eerste klant door de doorloop begeleiden, de vragen in het gesprek samen invullen (F0.1) | Besluit V5; fase 6 en 7 hebben zijn gepubliceerde pagina's nodig |
+| Na A1 | Bevestigen dat de drie proefmerken met alles wat eraan hangt verwijderd mogen worden (besluit V17) | Hun enige nut, de vergelijking met de oude versie in K6 en A1, is dan gebruikt |
 | Voor N3 en M2 | Search Console koppelen bij minstens één merk (een proefmerk met een eigen site, of de eerste klant) | Nu staat er bij nul merken Search Console |
 | Na K7, N7, A4, M4 | De nieuwe schermen doorlopen (K7 en A4 als consultant, N7 en M4 met een klantlogin) | Het oordeel "begrijpt een ondernemer dit" kan alleen een mens geven |
 
