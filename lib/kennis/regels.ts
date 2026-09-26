@@ -16,7 +16,8 @@
  * `value_props`, een oordeel van het merkonderzoek zonder citaat, als "waar het
  * bedrijf voor staat" naar de schrijver (`kennismodel-inventaris.md` §3 punt 5).
  * Dit is een mechanische regel, dus hij krijgt een vangnet in code (conventie 1).
- * De vier belangrijkste staan daarnaast als check-constraint in migratie 0116.
+ * De vier belangrijkste staan daarnaast als check-constraint in migratie 0116
+ * (de regel over modellen versmald in 0117).
  *
  * Puur en zonder `server-only` (conventie 2).
  */
@@ -68,6 +69,8 @@ export interface KennisRegelItem {
   vastgelegd_door_taak?: string | null;
   verloopt_op?: string | null;
   vervangen_door?: string | null;
+  /** Door een mens afgewezen ("dit klopt niet", migratie 0117). */
+  afgewezen_op?: string | null;
   bewijskracht?: string | null;
 }
 
@@ -101,8 +104,10 @@ export function controleerItem(item: KennisRegelItem): string[] {
   if (item.status === "waargenomen" && !(gevuld(item.citaat) && gevuld(item.bron_url))) {
     fouten.push("Waargenomen kan alleen met een bronadres en een letterlijk citaat.");
   }
-  if (item.bron === "ai" && (item.status === "verklaard" || item.status === "bevestigd")) {
-    fouten.push("Een model kan niets verklaren of bevestigen; wat een model denkt is afgeleid.");
+  // Een model verklaart nooit iets namens de klant. Bevestigen van een
+  // model-item mag wel, door een mens (K7): de regel hieronder eist dan wie.
+  if (item.bron === "ai" && item.status === "verklaard") {
+    fouten.push("Een model kan niets verklaren namens de klant; wat een model denkt is afgeleid.");
   }
   if (item.status === "bevestigd" && !(gevuld(item.bevestigd_door) && gevuld(item.bevestigd_op))) {
     fouten.push("Bevestigd kan alleen met wie en wanneer het bevestigde.");
@@ -129,9 +134,14 @@ export function isVerlopen(item: Pick<KennisRegelItem, "verloopt_op">, nu: Date)
   return item.verloopt_op.slice(0, 10) < vandaag;
 }
 
-/** Actueel: niet vervangen en niet verlopen. */
+/** Afgewezen door een mens: telt nergens meer mee, maar blijft bewaard. */
+export function isAfgewezen(item: Pick<KennisRegelItem, "afgewezen_op">): boolean {
+  return Boolean(item.afgewezen_op);
+}
+
+/** Actueel: niet vervangen, niet afgewezen en niet verlopen. */
 export function isActueel(item: KennisRegelItem, nu: Date): boolean {
-  return !item.vervangen_door && !isVerlopen(item, nu);
+  return !item.vervangen_door && !isAfgewezen(item) && !isVerlopen(item, nu);
 }
 
 /**
@@ -148,7 +158,9 @@ export function magInBlokA(item: KennisRegelItem, nu: Date): boolean {
   if (item.gebruik !== "content") return false;
   if (item.status === "afgeleid") return false;
   if (item.status === "waargenomen" && !(gevuld(item.citaat) && gevuld(item.bron_url))) return false;
-  if (item.bron === "ai" && item.status !== "waargenomen") return false;
+  // Een model-item komt alleen in blok A als de code het citaat vond
+  // (waargenomen) of een mens het bevestigde.
+  if (item.bron === "ai" && item.status !== "waargenomen" && item.status !== "bevestigd") return false;
   return item.status === "waargenomen" || item.status === "verklaard" || item.status === "bevestigd";
 }
 
@@ -182,7 +194,7 @@ export function setVoorBlokA<T extends KennisRegelItem>(items: readonly T[], nu:
     )
     .map(({ item }) => item);
   // Een verbod geldt ook als het verlopen is: "zeg nooit gratis" veroudert niet.
-  const verboden = items.filter((i) => !i.vervangen_door && i.gebruik === "verboden");
+  const verboden = items.filter((i) => !i.vervangen_door && !isAfgewezen(i) && i.gebruik === "verboden");
   return { beweringen, verboden };
 }
 
@@ -191,7 +203,7 @@ export function setVoorBlokA<T extends KennisRegelItem>(items: readonly T[], nu:
  * wat verboden is: een onderwerp dat de klant niet wil, hoort geen kans te worden.
  */
 export function magVoorVragenEnKansen(item: KennisRegelItem, nu: Date): boolean {
-  if (item.vervangen_door) return false;
+  if (item.vervangen_door || isAfgewezen(item)) return false;
   if (item.gebruik === "verboden") return false;
   return isEen(STATUSSEN, item.status) && !isVerlopen(item, nu);
 }
@@ -200,10 +212,19 @@ export function magVoorVragenEnKansen(item: KennisRegelItem, nu: Date): boolean 
  * Hoe het item in het kennisoverzicht (K7) staat. Alles staat erin, ook wat
  * verlopen is: de consultant moet juist zien wat opnieuw bevestigd moet worden.
  */
-export type OverzichtRol = "met bron" | "volgens de klant" | "bevestigd" | "we denken" | "verboden" | "verlopen" | "vervangen";
+export type OverzichtRol =
+  | "met bron"
+  | "volgens de klant"
+  | "bevestigd"
+  | "we denken"
+  | "verboden"
+  | "verlopen"
+  | "vervangen"
+  | "afgewezen";
 
 export function rolInOverzicht(item: KennisRegelItem, nu: Date): OverzichtRol {
   if (item.vervangen_door) return "vervangen";
+  if (isAfgewezen(item)) return "afgewezen";
   if (item.gebruik === "verboden") return "verboden";
   if (isVerlopen(item, nu)) return "verlopen";
   switch (item.status) {

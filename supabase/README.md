@@ -698,3 +698,13 @@ niet, bevestigd eist wie en wanneer, afgeleid is nooit content. Alleen medewerke
 schrijven alleen met de service-role key. Nog niemand schrijft of leest erin. Additief en idempotent.
 Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` K1 en §6.1. Op productie toegepast op 26 september
 2026; de vier regels daar nagelopen met proefrijen die daarna weer weg zijn.
+
+## 0117 — De schrijfingang van de kennislaag
+
+Drie aanvullingen op 0116 voor `lib/kennis/vastleggen.ts` (K2). `klantkennis.afgewezen_door` en
+`afgewezen_op`: een mens zegt "dit klopt niet", het item blijft bewaard maar telt niet meer mee. De
+regel over modellen versmald: een model verklaart nooit iets namens de klant, maar een mens mag een
+item dat een model voorstelde wel bevestigen (de tabel was leeg, dus geen rij veranderde van
+betekenis). `fact_conflicts.kennis_ids`: een botsing tussen twee kennisitems (besluit V14); de oude
+lezers kijken alleen naar rijen zonder `kennis_ids`. Additief; het vervangen van de constraint
+verwijdert geen data. Op productie toegepast op 26 september 2026.

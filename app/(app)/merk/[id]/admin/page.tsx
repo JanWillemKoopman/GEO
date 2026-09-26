@@ -103,6 +103,9 @@ export default async function AdminPage({
     .select("id", { count: "exact", head: true })
     .eq("profile_id", id)
     .eq("echt_conflict", true)
+    // Alleen de conflicten tussen feiten; die van de kennislaag (K2, V14) krijgen
+    // hun eigen plek op het kennisoverzicht (K7).
+    .is("kennis_ids", null)
     .in("status", ["open", "gevraagd"]);
   const openConflicten = openConflictTelling ?? 0;
 

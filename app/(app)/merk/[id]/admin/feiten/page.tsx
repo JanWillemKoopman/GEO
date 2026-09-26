@@ -33,6 +33,8 @@ export default async function AdminFeitenPage({ params }: { params: Promise<{ id
       .select("id, feit_ids, soort, ernst, uitleg, voorstel, voorstel_feit_id, status, gekozen_feit_id, oplossing, created_at")
       .eq("profile_id", id)
       .eq("echt_conflict", true)
+      // Conflicten van de kennislaag (K2, V14) hebben geen feiten om te tonen.
+      .is("kennis_ids", null)
       .order("created_at", { ascending: false }),
     admin
       .from("brand_facts")

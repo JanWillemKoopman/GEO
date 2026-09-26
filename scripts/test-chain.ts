@@ -8382,6 +8382,118 @@ async function main(): Promise<void> {
       eqc("scenario 18: en zijn keuze is bevestigd", await stand(4), "bevestigd");
     }
 
+    // ── Scenario 19: de schrijfingang van de kennislaag (K2) ───────────────
+    //
+    // docs/tasks/van-pijplijn-naar-kennissysteem.md K2, "klaar als": vastleggen,
+    // vervangen en bevestigen, met de herkomst intact. Daarbij: ontdubbelen, een
+    // botsing op de conflictlijst, afwijzen, en dat een model niets verklaart.
+    console.log("\nScenario 19: de schrijfingang van de kennislaag (K2)");
+    {
+      const { legVast, bevestig, wijsAf, vervang } = await import("@/lib/kennis/vastleggen");
+      const merk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status)
+         values ($1, $2, 'Kennistest', 'https://kennistest.nl', 'Kennistest', 'klaar')`,
+        [merk, userId],
+      );
+      const shim = createShimClient(db.client) as never;
+      const feitId = randomUUID();
+      const mens = { actor: "mens" as const, gebruikerId: userId };
+      const code = { actor: "code" as const, taak: "kennis_terugvullen" };
+
+      const eerste = await legVast(shim, {
+        profileId: merk, domein: "aanbod", soort: "prijs", bewering: "Een proefles kost € 45.",
+        waarde: { min: 45, max: 45, eenheid: "EUR" }, status: "waargenomen", bron: "website",
+        bronUrl: "https://kennistest.nl/prijzen", citaat: "Proefles € 45", gebruik: "content",
+        herkomst: { tabel: "brand_facts", id: feitId },
+      }, code);
+      eqc("scenario 19: vastgelegd", eerste.soort, "vastgelegd");
+      const eersteId = eerste.soort === "vastgelegd" ? eerste.item.id : "";
+
+      const nogmaals = await legVast(shim, {
+        profileId: merk, domein: "aanbod", soort: "prijs", bewering: "Kost een proefles € 45?",
+        waarde: { min: 45, max: 45, eenheid: "EUR" }, status: "waargenomen", bron: "website",
+        bronUrl: "https://kennistest.nl/prijzen", citaat: "Proefles € 45", gebruik: "content",
+        herkomst: { tabel: "brand_facts", id: randomUUID() },
+      }, code);
+      eqc("scenario 19: dezelfde bewering in andere woorden wordt niet dubbel vastgelegd", nogmaals.soort, "bestond");
+
+      const model = await legVast(shim, {
+        profileId: merk, domein: "positionering", bewering: "Klanten kiezen voor de vaste instructeur.",
+        status: "verklaard", bron: "ai", gebruik: "intern", herkomst: { tabel: "profile_facets", id: randomUUID() },
+      }, { actor: "model", taak: "profile_market" });
+      eqc("scenario 19: een model kan niets verklaren", model.soort, "geweigerd");
+      let dbWeigert = false;
+      try {
+        await db.client.query(
+          `insert into public.klantkennis (profile_id, domein, bewering, status, bron, gebruik, vastgelegd_door_taak)
+           values ($1, 'positionering', 'x', 'verklaard', 'ai', 'intern', 'omweg')`,
+          [merk],
+        );
+      } catch {
+        dbWeigert = true;
+      }
+      ok("scenario 19: en de database weigert het ook buiten de schrijfingang om", dbWeigert);
+
+      const botsend = await legVast(shim, {
+        profileId: merk, domein: "aanbod", soort: "prijs", bewering: "De proefles kost bij ons € 50.",
+        waarde: { min: 50, max: 50, eenheid: "EUR" }, status: "verklaard", bron: "gesprek", gebruik: "content",
+        herkomst: { tabel: "fact_requests", id: randomUUID() },
+      }, mens);
+      eqc("scenario 19: een tweede prijs voor hetzelfde botst", botsend.soort === "vastgelegd" ? String(botsend.botsingen) : botsend.soort, "1");
+      const { rows: conflict } = await db.client.query(
+        "select feit_ids, kennis_ids, status, soort from public.fact_conflicts where profile_id = $1",
+        [merk],
+      );
+      eqc("scenario 19: de botsing staat open op de conflictlijst, met verwijzingen naar de kennis", conflict.map((c) => `${c.status}/${c.soort}/${(c.kennis_ids ?? []).length}/${(c.feit_ids ?? []).length}`).join(","), "open/prijs/2/0");
+
+      const nieuw = await vervang(shim, {
+        profileId: merk, oudId: eersteId,
+        nieuw: {
+          profileId: merk, domein: "aanbod", soort: "prijs", bewering: "Een proefles kost € 50.",
+          waarde: { min: 50, max: 50, eenheid: "EUR" }, status: "waargenomen", bron: "website",
+          bronUrl: "https://kennistest.nl/prijzen", citaat: "Proefles € 50", gebruik: "content",
+          herkomst: { tabel: "brand_facts", id: feitId },
+        },
+      }, code);
+      ok("scenario 19: vervangen", nieuw.ok, nieuw.ok ? "" : nieuw.fout);
+      const nieuwId = nieuw.ok ? nieuw.item.id : "";
+      const bevestigd = await bevestig(shim, { profileId: merk, itemId: nieuwId }, mens);
+      ok("scenario 19: bevestigd door een mens", bevestigd.ok, bevestigd.ok ? "" : bevestigd.fout);
+
+      const { rows: rijen } = await db.client.query(
+        "select id, status, vervangen_door, herkomst_tabel, herkomst_id, bevestigd_door, vastgelegd_door_taak, sleutel from public.klantkennis where profile_id = $1 and domein = 'aanbod' order by created_at",
+        [merk],
+      );
+      const oud = rijen.find((r) => r.id === eersteId);
+      const nw = rijen.find((r) => r.id === nieuwId);
+      eqc("scenario 19: de oude versie bestaat nog en wijst naar de nieuwe", String(oud?.vervangen_door), nieuwId);
+      eqc("scenario 19: de herkomst van de oude versie is intact", `${oud?.herkomst_tabel}/${oud?.herkomst_id}`, `brand_facts/${feitId}`);
+      eqc("scenario 19: de nieuwe versie heeft zijn eigen herkomst", `${nw?.herkomst_tabel}/${nw?.herkomst_id}`, `brand_facts/${feitId}`);
+      eqc("scenario 19: de nieuwe versie is bevestigd, door deze mens", `${nw?.status}/${nw?.bevestigd_door}`, `bevestigd/${userId}`);
+      eqc("scenario 19: wie hem vastlegde blijft zichtbaar", String(nw?.vastgelegd_door_taak), "kennis_terugvullen");
+      ok("scenario 19: de nieuwe versie is de ontdubbelingsrij", Boolean(nw?.sleutel));
+
+      const nogEensBevestigen = await bevestig(shim, { profileId: merk, itemId: eersteId }, mens);
+      ok("scenario 19: een vervangen versie kan niet meer bevestigd worden", !nogEensBevestigen.ok);
+
+      const gedacht = await legVast(shim, {
+        profileId: merk, domein: "positionering", bewering: "Klanten kiezen vooral op prijs.",
+        status: "afgeleid", bron: "ai", gebruik: "intern", herkomst: { tabel: "profile_facets", id: randomUUID() },
+      }, { actor: "model", taak: "profile_market" });
+      eqc("scenario 19: een model legt een vermoeden vast", gedacht.soort, "vastgelegd");
+      const gedachtId = gedacht.soort === "vastgelegd" ? gedacht.item.id : "";
+      const af = await wijsAf(shim, { profileId: merk, itemId: gedachtId }, mens);
+      ok("scenario 19: een mens wijst het af", af.ok && Boolean(af.item.afgewezen_op));
+      const terug = await legVast(shim, {
+        profileId: merk, domein: "positionering", bewering: "Klanten kiezen vooral op prijs.",
+        status: "afgeleid", bron: "ai", gebruik: "intern", herkomst: { tabel: "profile_facets", id: randomUUID() },
+      }, { actor: "model", taak: "profile_market" });
+      eqc("scenario 19: bij een volgende ronde komt het niet stil terug", terug.soort, "eerder_afgewezen");
+      const { rows: telling } = await db.client.query("select count(*)::int as n from public.klantkennis where profile_id = $1", [merk]);
+      eqc("scenario 19: er is niets verwijderd", String(telling[0].n), "4");
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

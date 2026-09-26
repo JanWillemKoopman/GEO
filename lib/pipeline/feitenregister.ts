@@ -196,7 +196,9 @@ export async function werkRegisterBij(admin: Admin, profileId: string): Promise<
   const { data: conflictData, error: conflictError } = await admin
     .from("fact_conflicts")
     .select("id, paar_sleutel, status, echt_conflict, feit_ids, gekozen_feit_id, fact_request_id")
-    .eq("profile_id", profileId);
+    .eq("profile_id", profileId)
+    // Alleen feitenparen; de kennislaag houdt zijn eigen paren bij (K2, V14).
+    .is("kennis_ids", null);
   if (conflictError) throw new Error(`Conflictlijst lezen mislukt: ${conflictError.message}`);
   const bestaand = new Map(((conflictData ?? []) as ConflictRij[]).map((c) => [c.paar_sleutel, c]));
 
@@ -324,7 +326,8 @@ async function verwerkBeantwoordeVragen(admin: Admin, profileId: string, rijen: 
     .from("fact_conflicts")
     .select("id, feit_ids, fact_request_id")
     .eq("profile_id", profileId)
-    .eq("status", "gevraagd");
+    .eq("status", "gevraagd")
+    .is("kennis_ids", null);
   for (const c of (data ?? []) as { id: string; feit_ids: string[]; fact_request_id: string | null }[]) {
     if (!c.fact_request_id) continue;
     const { data: vraag } = await admin

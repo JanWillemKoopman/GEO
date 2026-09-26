@@ -26,8 +26,10 @@ import {
   magOvergaan as kennisMagOvergaan,
   magNieuwMetStatus,
   isVerlopen,
+  isActueel,
   type KennisRegelItem,
 } from "@/lib/kennis/regels";
+import { kennisSleutel, botsingenMet, geldigheid, type SamenvoegItem } from "@/lib/kennis/samenvoegen";
 import { binomialStderr, weightedScoreStderr, confidenceBand, changeIsMeaningful, bandInAntwoorden, Z95 } from "@/lib/stats/uncertainty";
 import {
   normalizeEntityName,
@@ -21441,7 +21443,8 @@ group("de kennislaag: wat mag er worden vastgelegd (K1)", () => {
   ok("waargenomen met alleen spaties als citaat wordt geweigerd", controleerItem({ ...basis, citaat: "   " }).length > 0);
   ok("waargenomen zonder bronadres wordt geweigerd", controleerItem({ ...basis, bron_url: null }).length > 0);
   ok("een model kan niet verklaren", controleerItem({ ...basis, bron: "ai", status: "verklaard", gebruik: "intern" }).some((f) => f.includes("model")));
-  ok("een model kan niet bevestigen", controleerItem({ ...basis, bron: "ai", status: "bevestigd", bevestigd_door: "u1", bevestigd_op: "2026-09-26" }).length > 0);
+  ok("een model-item bevestigen zonder mens wordt geweigerd", controleerItem({ ...basis, bron: "ai", status: "bevestigd" }).some((f) => f.includes("Bevestigd")));
+  eq("een model-item dat een mens bevestigde, mag (K7, migratie 0117)", controleerItem({ ...basis, bron: "ai", status: "bevestigd", bevestigd_door: "u1", bevestigd_op: "2026-09-26" }).join("|"), "");
   ok("bevestigd zonder wie en wanneer wordt geweigerd", controleerItem({ ...basis, status: "bevestigd", bron: "gesprek" }).some((f) => f.includes("Bevestigd")));
   eq("bevestigd door een mens is goed", controleerItem({ ...basis, status: "bevestigd", bron: "gesprek", bevestigd_door: "u1", bevestigd_op: "2026-09-26T10:00:00Z" }).join("|"), "");
   ok("afgeleid mag niet het gebruik content hebben", controleerItem({ ...basis, status: "afgeleid", bron: "ai" }).some((f) => f.includes("Afgeleid")));
@@ -21523,5 +21526,128 @@ group("de kennislaag: de database bewaakt dezelfde regels (migratie 0116)", () =
   ok("afgeleid is nooit content", sql.includes("klantkennis_afgeleid_niet_content_check"));
   ok("alleen medewerkers lezen (V11)", sql.includes("using (public.is_staff())") && !/for (insert|update|delete)/.test(sql));
   ok("geen drop table en geen drop column (conventie 4)", !/drop\s+(table|column)/i.test(sql));
+});
+
+// ── K2: de schrijfingang van de kennislaag ─────────────────────────────────
+//
+// De twee bewakingstests van K2 (§4 regel 2 en 3 van het plan). Ze lezen de
+// code zelf, zoals de controle op gedachtestreepjes dat doet. Elk heeft een
+// zelftest: een bewaking die niets kan vinden, bewaakt niets.
+
+/** Schrijft dit bestand in `klantkennis`, met de Supabase-client of met SQL? */
+function schrijftInKlantkennis(inhoud: string): boolean {
+  const client = /from\(\s*["'`]klantkennis["'`]\s*\)\s*\.\s*(insert|update|upsert|delete)\s*\(/;
+  const sql = /\b(insert\s+into|update|delete\s+from)\s+(public\.)?klantkennis\b/i;
+  return client.test(inhoud) || sql.test(inhoud);
+}
+
+/** Zet dit bestand verklaard of bevestigd via de schrijfingang? */
+function zetMenselijkeStatus(inhoud: string): boolean {
+  if (!/@\/lib\/kennis\/vastleggen/.test(inhoud)) return false;
+  return /\bbevestig\s*\(/.test(inhoud) || /["'`](verklaard|bevestigd)["'`]/.test(inhoud);
+}
+
+/**
+ * Waar verklaard en bevestigd vandaan mogen komen (§4 regel 2): de route voor
+ * klantantwoorden, het gesprek (merkprofiel en het vastleggen van het gesprek),
+ * het kennisoverzicht (K7, eigen map), en het terugvullen (K3), dat overneemt
+ * wat een mens eerder zei. Een nieuwe plek hoort hier alleen bij met een besluit.
+ */
+const MENSELIJKE_STATUS_TOEGESTAAN = [
+  "app/api/profiles/[id]/facts/route.ts",
+  "app/api/profiles/[id]/route.ts",
+  "app/api/profiles/[id]/strategy/route.ts",
+  "app/api/profiles/[id]/kennis/",
+  "scripts/kennis-terugvullen.ts",
+];
+
+function codebestanden(): string[] {
+  return ["app", "lib", "components", "scripts"]
+    .flatMap((m) => [...tsOnder(m), ...tsxOnder(m)])
+    .map((p) => p.split("\\").join("/"))
+    .filter((p, i, a) => a.indexOf(p) === i);
+}
+
+group("de kennislaag: één schrijfingang (K2, §4 regel 3)", () => {
+  ok("zelftest: een insert via de client wordt herkend", schrijftInKlantkennis('admin.from("klantkennis").insert({})'));
+  ok("zelftest: ook met regels ertussen", schrijftInKlantkennis('admin\n  .from("klantkennis")\n  .update({ status: "x" })'));
+  ok("zelftest: SQL wordt herkend", schrijftInKlantkennis("insert into public.klantkennis (id) values ($1)"));
+  ok("zelftest: lezen is geen schrijven", !schrijftInKlantkennis('admin.from("klantkennis").select("*")'));
+  const buiten = codebestanden()
+    .filter((p) => !p.startsWith("lib/kennis/"))
+    // De tests zelf zetten testrijen klaar; dat is geen productiecode.
+    .filter((p) => !p.startsWith("scripts/test-") && !p.startsWith("scripts/chain/"))
+    .filter((p) => schrijftInKlantkennis(leesBestand(p)));
+  ok("de bewaking leest echt de hele code", codebestanden().length > 300, String(codebestanden().length));
+  eq("niemand buiten lib/kennis/ schrijft in klantkennis", buiten.join(", "), "");
+  ok("en lib/kennis/vastleggen.ts wél", schrijftInKlantkennis(leesBestand("lib/kennis/vastleggen.ts")));
+});
+
+group("de kennislaag: verklaard en bevestigd alleen van een mens (K2, §4 regel 2)", () => {
+  ok("zelftest: bevestig() via de schrijfingang wordt herkend", zetMenselijkeStatus('import { bevestig } from "@/lib/kennis/vastleggen";\nawait bevestig(a, b, c);'));
+  ok("zelftest: status verklaard wordt herkend", zetMenselijkeStatus('import { legVast } from "@/lib/kennis/vastleggen";\nlegVast(a, { status: "verklaard" }, d)'));
+  ok("zelftest: afgeleid vastleggen is geen menselijke status", !zetMenselijkeStatus('import { legVast } from "@/lib/kennis/vastleggen";\nlegVast(a, { status: "afgeleid" }, d)'));
+  const overtreders = codebestanden()
+    .filter((p) => !p.startsWith("lib/kennis/"))
+    .filter((p) => !p.startsWith("scripts/test-") && !p.startsWith("scripts/chain/"))
+    .filter((p) => zetMenselijkeStatus(leesBestand(p)))
+    .filter((p) => !MENSELIJKE_STATUS_TOEGESTAAN.some((t) => (t.endsWith("/") ? p.startsWith(t) : p === t)));
+  eq("verklaard of bevestigd komt alleen uit de toegestane routes", overtreders.join(", "), "");
+  const bron = leesBestand("lib/kennis/vastleggen.ts");
+  ok("bevestig() weigert iets anders dan een mens", /export async function bevestig[\s\S]{0,400}door\.actor !== "mens"/.test(bron));
+  ok("wijsAf() weigert iets anders dan een mens", /export async function wijsAf[\s\S]{0,400}door\.actor !== "mens"/.test(bron));
+  ok("legVast() toetst de status aan de actor", bron.includes("magNieuwMetStatus(item.status"));
+  ok("de schrijfingang doet geen AI-aanroep (§4 regel 1)", !/lib\/openai|callStructured|responses\.create/.test(bron));
+});
+
+group("de kennislaag: ontdubbelen en botsingen (K2)", () => {
+  const item = (over: Partial<SamenvoegItem>): SamenvoegItem => ({
+    id: "a", domein: "aanbod", soort: "prijs", bewering: "Een proefles kost € 45.", waarde: { min: 45, max: 45, eenheid: "EUR" },
+    geldt_voor: [], analysis_id: null, content_piece_id: null, sleutel: null, ...over,
+  });
+  eq(
+    "dezelfde bewering in een andere volgorde geeft dezelfde sleutel",
+    String(kennisSleutel(item({ bewering: "Een proefles kost € 45." })) === kennisSleutel(item({ bewering: "Kost een proefles € 45?" }))),
+    "true",
+  );
+  ok("een verhaal voor één pagina valt niet samen met hetzelfde merkbreed (V13)", kennisSleutel(item({})) !== kennisSleutel(item({ content_piece_id: "p1" })));
+  ok("ander domein, andere sleutel", kennisSleutel(item({})) !== kennisSleutel(item({ domein: "bewijs" })));
+  eq("een bewering zonder woorden heeft geen sleutel", String(kennisSleutel(item({ bewering: "€ 45" }))), "null");
+  eq("de volgorde van geldt_voor maakt niet uit", String(geldigheid(item({ geldt_voor: ["x", "y"] })) === geldigheid(item({ geldt_voor: ["y", "x"] }))), "true");
+
+  const nieuw = item({ id: "n", bewering: "Een proefles kost € 50.", waarde: { min: 50, max: 50, eenheid: "EUR" } });
+  const botsing = botsingenMet(nieuw, [item({ id: "o" })]);
+  eq("twee prijzen voor hetzelfde botsen", String(botsing.length), "1");
+  eq("de paarsleutel is apart van de feitenparen en symmetrisch", botsing[0]?.paarSleutel ?? "", "kennis:n|o");
+  eq("een prijsbotsing houdt een pagina tegen", botsing[0]?.ernst ?? "", "blokkerend");
+  eq("een prijs voor een andere dienst botst niet", String(botsingenMet(nieuw, [item({ id: "o", geldt_voor: ["dienst-2"] })]).length), "0");
+  eq("dezelfde waarde botst niet", String(botsingenMet(item({ id: "n" }), [item({ id: "o" })]).length), "0");
+  eq("een afgewezen item botst niet meer", String(botsingenMet(nieuw, [item({ id: "o", afgewezen_op: "2026-09-26" })]).length), "0");
+  eq("een vervangen item botst niet meer", String(botsingenMet(nieuw, [item({ id: "o", vervangen_door: "n" })]).length), "0");
+  eq("zonder waarde geen botsing", String(botsingenMet(item({ id: "n", waarde: null }), [item({ id: "o" })]).length), "0");
+  eq("oude botsingen onderling komen niet terug", String(botsingenMet(item({ id: "n", soort: "termijn", waarde: { min: 2, eenheid: "weken" } }), [item({ id: "o" }), item({ id: "p", waarde: { min: 60, eenheid: "EUR" } })]).length), "0");
+});
+
+group("de kennislaag: afwijzen (K2, migratie 0117)", () => {
+  const nu = new Date("2026-09-26T12:00:00Z");
+  const item: KennisRegelItem = { domein: "bewijs", bewering: "x", status: "verklaard", bron: "gesprek", gebruik: "content", vastgelegd_door: "u1" };
+  ok("een afgewezen item is niet actueel", !isActueel({ ...item, afgewezen_op: "2026-09-26" }, nu));
+  ok("en komt niet in blok A", !magInBlokA({ ...item, afgewezen_op: "2026-09-26" }, nu));
+  ok("ook niet als verbod", setVoorBlokA([{ ...item, gebruik: "verboden", afgewezen_op: "2026-09-26" }], nu).verboden.length === 0);
+  ok("en voedt geen vraag of kans", !magVoorVragenEnKansen({ ...item, afgewezen_op: "2026-09-26" }, nu));
+  eq("het kennisoverzicht toont hem als afgewezen", rolInOverzicht({ ...item, afgewezen_op: "2026-09-26" }, nu), "afgewezen");
+  ok("een model-item dat een mens bevestigde, komt in blok A", magInBlokA({ ...item, bron: "ai", status: "bevestigd", bevestigd_door: "u1", bevestigd_op: "2026-09-26" }, nu));
+  const sql = leesBestand("supabase/migrations/0117_kennislaag_schrijfingang.sql");
+  ok("de database laat een model nog steeds niets verklaren", sql.includes("not (bron = 'ai' and status = 'verklaard')"));
+  ok("afwijzen eist een mens", sql.includes("klantkennis_afgewezen_door_mens_check"));
+  ok("de conflictlijst kent de kennislaag", sql.includes("add column if not exists kennis_ids uuid[]"));
+  ok("geen drop table en geen drop column", !/drop\s+(table|column)/i.test(sql));
+  for (const [pad, naam] of [
+    ["app/(app)/merk/[id]/admin/feiten/page.tsx", "het feitenscherm"],
+    ["app/(app)/merk/[id]/admin/page.tsx", "de teller op het beheerscherm"],
+    ["lib/pipeline/feitenregister.ts", "het feitenregister"],
+  ] as const) {
+    ok(`${naam} ziet alleen conflicten tussen feiten`, leesBestand(pad).includes('.is("kennis_ids", null)'));
+  }
 });
 

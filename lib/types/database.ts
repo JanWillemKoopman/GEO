@@ -1331,6 +1331,9 @@ export interface Klantkennis {
   /** Alleen voor deze pagina (besluit V13). */
   content_piece_id: string | null;
   vervangen_door: string | null;
+  /** Door een mens afgewezen (migratie 0117). */
+  afgewezen_door: string | null;
+  afgewezen_op: string | null;
   herkomst_tabel:
     | "brand_facts"
     | "profile_offerings"
