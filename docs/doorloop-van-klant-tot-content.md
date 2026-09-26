@@ -1424,6 +1424,10 @@ Handmatig bewerken via `PATCH /api/analyses/[id]/content/[pieceId]`; de tekst va
 
 # Deel III. Voor het gesprek met het ontwikkelteam
 
+> Besproken met het team op 26 september 2026. De uitkomst staat als ontwikkelplan in
+> [`tasks/van-pijplijn-naar-kennissysteem.md`](./tasks/van-pijplijn-naar-kennissysteem.md); §14 daar zegt
+> welk punt hieronder in welk werkpakket terechtkomt.
+
 ## De tien belangrijkste punten om te bespreken
 
 Gevonden bij het nalopen van de code, 26 september 2026. De volgorde is een voorstel: wat een echte klant
