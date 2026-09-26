@@ -1,5 +1,6 @@
 import type { EntityRole } from "@/lib/schemas/entity-classification";
 import type { CrawlSpeed } from "@/lib/crawl-speed";
+import type { CommercieleWaarde, KansBron, KansHandeling, KansStatus } from "@/lib/kansen/prioriteit";
 /**
  * TypeScript-representatie van het datamodel (abcplan.md §5).
  * Handgeschreven (in plaats van gegenereerd) zodat de scaffolding zonder
@@ -1346,6 +1347,66 @@ export interface Klantkennis {
     | null;
   herkomst_id: string | null;
   sleutel: string | null;
+  ruw: unknown | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Eén kans (migratie 0118, N1 van `docs/tasks/van-pijplijn-naar-kennissysteem.md`
+ * §6.2). De volgorde en de uitleg staan in `lib/kansen/prioriteit.ts`; de
+ * bronnen van een kans volgen uit zijn bewijs (`bronnenVan()`), niet uit een kolom.
+ */
+export interface Kans {
+  id: string;
+  profile_id: string;
+  /** Het gemeten cluster; leeg bij een handmatige kans (besluit V2). */
+  analysis_id: string | null;
+  titel: string;
+  lezer: string | null;
+  handeling: KansHandeling;
+  /** Verplicht bij `pagina_verbeteren`. */
+  bestaande_url: string | null;
+  /** Kennisitems: deze dienst, deze regio, deze doelgroep. */
+  geldt_voor: string[];
+  /** `null` = niet bekend, iets anders dan gewoon. */
+  commerciele_waarde: CommercieleWaarde | null;
+  /** 0 tot 100, `null` = niet berekend. */
+  potentie: number | null;
+  /** `null` = het kennisgat is nog niet uitgerekend (N6). */
+  kennis_bekend: string[] | null;
+  kennis_ontbreekt: string[] | null;
+  status: KansStatus;
+  /** Opgebouwd in code uit het bewijs, nooit door een model. */
+  uitleg: string | null;
+  rapport_id: string | null;
+  vastgelegd_door: string | null;
+  vastgelegd_door_taak: string | null;
+  sleutel: string | null;
+  ruw: unknown | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Het bewijs voor een kans, één rij per bron (migratie 0118). Leeg is geen gegevens, niet nul. */
+export interface KansBewijsRij {
+  id: string;
+  kans_id: string;
+  profile_id: string;
+  bron: KansBron;
+  vragen_gemeten: number | null;
+  vragen_genoemd: number | null;
+  concurrenten: string[] | null;
+  eigen_site_geciteerd: boolean | null;
+  run_ids: string[] | null;
+  vertoningen: number | null;
+  klikken: number | null;
+  positie: number | null;
+  periode_dagen: number | null;
+  zoekopdrachten: string[] | null;
+  toelichting: string | null;
+  rapport_id: string | null;
+  gemeten_op: string | null;
   ruw: unknown | null;
   created_at: string;
   updated_at: string;

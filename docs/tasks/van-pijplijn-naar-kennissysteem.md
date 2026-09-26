@@ -517,6 +517,18 @@ Per werkpakket: **doel**, **wat**, **niet**, **klaar als**. De nummers zijn vast
 - **Niet:** een model dat de volgorde of de uitleg bepaalt.
 - **Klaar als:** eenheidstests voor de volgorde en voor de uitleg bij elke combinatie van bronnen,
   inclusief "geen gegevens" (conventie 3).
+- **Bijgesteld bij het bouwen (26 september 2026), omdat §6.2 op drie punten niet klopte met de code:**
+  - *`cluster_id`:* in deze database is een cluster een analyse. De kolom heet daarom `analysis_id`, net
+    als in de kennislaag (besluit V13).
+  - *`bronnen` als veld:* de bronnen van een kans volgen uit de rijen in `kans_bewijs` (`bronnenVan()`).
+    Een aparte kolom zou kunnen afwijken van het bewijs zelf, en één feit heeft één eigenaar.
+  - *`commerciele_waarde`:* twee kolommen in plaats van één. `commerciele_waarde` (voorrang, gewoon,
+    minder, of leeg als onbekend) komt uit de commerciële prioriteiten van het merk; `potentie` (0 tot
+    100) is de bestaande potentiescore. Samen in één getal kon de uitleg niet meer zeggen welke van de
+    twee de doorslag gaf.
+  - *De volgorde* is in lagen, niet als gewogen som: eerst commerciële waarde, dan het aantal bronnen
+    dat de kans steunt, dan de potentie, dan het kennisgat. Gewichten zouden een gok zijn zolang er
+    geen gepubliceerde pagina is om ze aan te toetsen; leren welke laag zwaarder weegt, is L2.
 
 #### N2 Het rapport maakt kansen
 - **Doel:** een aanbeveling wordt meteen een kans, met zijn bewijs.
@@ -528,6 +540,20 @@ Per werkpakket: **doel**, **wat**, **niet**, **klaar als**. De nummers zijn vast
   opgelost, met het aantal dat het meeste gemeten gemis dekt.
 - **Klaar als:** een ketentest van meting naar kans naar voorraad; het plan toont dezelfde kaarten als
   ervoor.
+- **Bijgesteld bij het bouwen (26 september 2026):**
+  - *Ook de voorraad maakt kansen, als vangnet.* `syncBacklog()` roept dezelfde `legKansenVast()` aan voor
+    het laatste rapport van elk cluster. Dat vult de kansen voor de drie rapporten van vóór N2 zonder apart
+    script (V15 zou anders een omweg via de beheertool vragen), en vangt een rapport op waarvan het
+    wegschrijven mislukte. Er blijft één schrijver: `lib/kansen/uit-rapport.ts`, bewaakt door een test.
+  - *Het bewijs telt per bron opnieuw.* Een doelvraag is gemist volgens alle bronnen samen; in één bron kan
+    het merk er wel genoemd zijn. Het bewijs zegt daarom per bron bij hoeveel doelvragen het merk genoemd
+    werd, met dezelfde meerderheidsregel als het rapport, en welke concurrenten er wel stonden. Of Google de
+    eigen site citeert, blijft leeg tot N4.
+  - *Verbeteren zonder bruikbaar adres wordt een nieuwe pagina.* De tabel weigert een verbetering zonder
+    adres (0118). Op productie had op 26 september 2026 elke verbetering een adres (8 van de 8), dus geen
+    kaart verandert.
+  - *De tekst op de kaart blijft de toelichting van het rapportmodel.* De uitleg van de kans, opgebouwd uit
+    het bewijs, is voor het kansenscherm (N7).
 
 #### N3 Search Console als kansbron
 - **Doel:** kansen waar al vraag naar is in Google, en bewijs bij bestaande kansen.
@@ -821,12 +847,12 @@ per pagina opnieuw.
 | K2 | Eén schrijfingang | 1 | Gedaan: `lib/kennis/vastleggen.ts` (`legVast`, `bevestig`, `wijsAf`, `vervang`) en `samenvoegen.ts`; migratie 0117 op productie (afwijzen, een model-item mag door een mens bevestigd worden, botsingen op de conflictlijst, V14); de twee bewakingstests en ketenscenario 19 | 26 september 2026 |
 | K3 | Terugvullen uit wat er al staat | 1 | Gedaan: `lib/kennis/terugvullen.ts`, `scripts/kennis-terugvullen.ts`, ketenscenario 20. Op productie 435 items (Pompert 141, Wesley Keeris 158, Verstraaten 136; 137 waargenomen, 161 verklaard, 137 afgeleid; 223 content, 197 intern, 15 verboden), weggeschreven volgens V15 door de eigenaar. Nagelopen: elke tekst en elk citaat gelijk aan de bron, elke oude rij gedekt, geen regel geschonden. 20 open punten in `kennislaag-open-punten.md` | 26 september 2026 |
 | K4 | Het onderzoek schrijft in de kennislaag | 2 | Gedaan: `lib/kennis/onderzoek.ts` (omzetting, zelfde indeling en sleutels als K3) en `uit-onderzoek.ts` (via `legVast()`, gooit nooit een fout naar de onderzoeksstap); de vijf stappen schrijven ook nog de oude tabellen tot K8. Waargenomen alleen waar de code het citaat terugvond (sitefeit van de samenvatting, aanbodknoop met `confidence = 1`), al het andere afgeleid en intern. Ketenscenario 21; besluit V18. Op productie nagelopen met een nieuw proefmerk (Fysiotherapie West Maas en Waal): 82 items (33 merkonderzoek, 30 aanbod, 8 markt, 11 sitefeiten; 32 waargenomen, 50 afgeleid). Elk citaat staat letterlijk op de bronpagina (32 van 32), elke aanbodknoop (19) en elk sitefeit (11) heeft een item met herkomst, de 16 kinderen hangen aan hun ouder, geen afgeleid item als content, niets verklaard of bevestigd. De kennistest vond geen gelijknamig bedrijf, dus 0 items. De drie prijzen uit de aanbodboom zijn afgeleid: ze staan op de tarievenpagina, maar niet in het citaat van hun dienst | 26 september 2026 |
-| K5 | Gesprek en antwoorden schrijven in de kennislaag | 1 | Gedaan: `lib/kennis/gesprek.ts` (omzetting, dezelfde als K3 via `planAntwoord`, `planProfielveld` en `planGesprek`) en `uit-gesprek.ts` (via `legVast()`, `vervang()`, `wijsAf()` en `bevestig()`, gooit nooit een fout). `answerFact()`, de profielroute, de strategieroute en de conflictroute schrijven ook in de kennislaag; de oude tabellen blijven tot K8. De bewakingstest van §4 regel 2 volgt nu ook de aanroepers van een module. Ketenscenario 22: een gerichte vraag, de open vraag en een merkvraag komen verklaard terug met de reikwijdte van de vraag; een gewijzigd antwoord wordt een nieuwe versie; de keuze van de consultant bevestigt het ene item en wijst het andere af. Besluiten V19 (getallen in de sleutel) en V20 (alleen wat veranderde). Na de uitrol (PR #166) de sleutels op productie herberekend: 84 van de 517 items, een tweede run vindt er 0 | 26 september 2026 |
+| K5 | Gesprek en antwoorden schrijven in de kennislaag | 1 | Gedaan: `lib/kennis/gesprek.ts` (omzetting, dezelfde als K3 via `planAntwoord`, `planProfielveld` en `planGesprek`) en `uit-gesprek.ts` (via `legVast()`, `vervang()`, `wijsAf()` en `bevestig()`, gooit nooit een fout). `answerFact()`, de profielroute, de strategieroute en de conflictroute schrijven ook in de kennislaag; de oude tabellen blijven tot K8. De bewakingstest van §4 regel 2 volgt nu ook de aanroepers van een module. Ketenscenario 22: een gerichte vraag, de open vraag en een merkvraag komen verklaard terug met de reikwijdte van de vraag; een gewijzigd antwoord wordt een nieuwe versie; de keuze van de consultant bevestigt het ene item en wijst het andere af. Besluiten V19 (getallen in de sleutel) en V20 (alleen wat veranderde). Na de uitrol (PR #166) de sleutels op productie herberekend: 84 van de 517 items, een tweede run vindt er 0. **Op productie nagelopen** (26 september 2026, met een eigen beheerdersaccount via de routes van de app): een merkvraag van Fysiotherapie West Maas en Waal, de open vraag en een gerichte vraag van de faalangstpagina van Pompert, en een veld op het gespreksscherm. Alle vier verklaard, met het testaccount als vastlegger; het antwoord van de klant met bron klant, het veld met bron gesprek. De merkvraag zonder cluster of pagina, de twee paginavragen met de juiste pagina en het juiste cluster. Elk gewijzigd antwoord werd een nieuwe versie en de oude bleef bewaard met een verwijzing naar de nieuwe (bij Pompert een keten van drie: het item van het terugvullen, de wijziging, en de oorspronkelijke tekst terug). Fysiotherapie heeft nog geen pagina, dus de paginavragen gingen via Pompert | 26 september 2026 |
 | K6 | Blok A leest uit de kennislaag | 1 | Open | |
 | K7 | Het kennisoverzicht | 2 | Open | |
 | K8 | Oude schrijvers en lezers opruimen | 1 | Open | |
-| N1 | Datamodel en prioritering van kansen | 1 | Open | |
-| N2 | Het rapport maakt kansen | 1 | Open | |
+| N1 | Datamodel en prioritering van kansen | 1 | Gedaan: migratie 0118 op productie (`kansen` en `kans_bewijs`, leeg; de regels op productie nagelopen met proefrijen die daarna weer weg zijn: een verbetering zonder adres, een onbekende status of bron, een potentie boven 100, meer keer genoemd dan gemeten en een tweede rij voor dezelfde bron worden geweigerd). `lib/kansen/prioriteit.ts`: de volgorde in vier lagen en de uitleg uit het bewijs, zonder model. Eenheidstests voor de volgorde, voor de uitleg bij alle 64 combinaties van bronnen (steunend en zonder gegevens, bij beide handelingen) en het voorbeeld uit het plan letterlijk. Geen ketenscenario: er schrijft nog niemand in de tabellen (N2) | 26 september 2026 |
+| N2 | Het rapport maakt kansen | 1 | Gedaan: `lib/kansen/rapport.ts` (aanbeveling naar kans, bewijs per bron met de meerderheidsregel van het rapport, commerciële waarde, dienst en regio uit de kennislaag) en `uit-rapport.ts` (de enige schrijver, gooit nooit). `generateReport()` en, als vangnet, `syncBacklog()` maken de kansen; de voorraad leest uit `kansen`, en elke kaart krijgt `kans_id` (migratie 0119 op productie). De opdracht van het rapport spreekt zichzelf niet meer tegen over het aantal. Ketenscenario 23 (meting, kans, voorraad, en een kaart van vóór N2 die zijn kans terugvindt). Op productie vooraf nagelopen: alle 20 kaarten vinden hun aanbeveling terug, met dezelfde titel en handeling. **Nog te doen na de uitrol:** het plan van elk proefmerk één keer openen en nakijken dat er 20 kansen staan en elke kaart er een heeft | 26 september 2026 |
 | N3 | Search Console als kansbron | 1 | Open, wacht op een merk met Search Console | |
 | N4 | Citaties als bewijs | 1 | Open | |
 | N5 | De handmatige kans | 1 | Open | |

@@ -31,6 +31,31 @@ import {
 } from "@/lib/kennis/regels";
 import { kennisSleutel, botsingenMet, geldigheid, type SamenvoegItem } from "@/lib/kennis/samenvoegen";
 import {
+  KANS_BRONNEN,
+  KANS_HANDELINGEN,
+  KANS_STATUSSEN,
+  COMMERCIELE_WAARDEN,
+  steunVan,
+  bronnenVan,
+  bewijsSterkte,
+  ordenKansen,
+  uitlegVan,
+  type KansBewijs,
+  type KansBron,
+  type KansInvoer,
+} from "@/lib/kansen/prioriteit";
+import {
+  kansUitAanbeveling,
+  kansSleutel,
+  bewijsUitMetingen,
+  bronVanEngine,
+  commercieleWaardeVan,
+  geldtVoorVan,
+  MAX_CONCURRENTEN,
+  type MetingVoorBewijs,
+  type KennisVoorKans,
+} from "@/lib/kansen/rapport";
+import {
   maakTerugvulplan,
   dekking,
   zetOm,
@@ -22108,3 +22133,309 @@ group("het gesprek en de antwoorden schrijven via de schrijfingang (K5)", () => 
   ok("alles wat hij vastlegt, legt een mens vast", !/actor:\s*["'`](code|model)["'`]/.test(schrijver));
 });
 
+group("kansen: de volgorde en de uitleg (N1)", () => {
+  // Per bron een voorbeeld dat de kans steunt, zoals N2 en N3 het straks aanleveren.
+  const steunend: Record<KansBron, KansBewijs> = {
+    consultant: { bron: "consultant", toelichting: "De klant vroeg er zelf om" },
+    chatgpt: { bron: "chatgpt", vragenGemeten: 4, vragenGenoemd: 0, concurrenten: ["Rijschool Wit", "Rijschool Zwart"] },
+    ai_overview: { bron: "ai_overview", vragenGemeten: 4, vragenGenoemd: 1, eigenSiteGeciteerd: false },
+    gemini: { bron: "gemini", vragenGemeten: 3, vragenGenoemd: 2 },
+    search_console: { bron: "search_console", vertoningen: 240, klikken: 3, positie: 14.2, periodeDagen: 28 },
+    structuur: { bron: "structuur", toelichting: "Rijles in een automaat heeft geen pagina" },
+  };
+  const kans = (id: string, extra: Partial<KansInvoer> = {}): KansInvoer => ({
+    id,
+    titel: `Kans ${id}`,
+    handeling: "nieuwe_pagina",
+    commercieleWaarde: null,
+    potentie: null,
+    bewijs: [],
+    kennisOntbreekt: null,
+    ...extra,
+  });
+
+  // ── Wanneer een bron steunt ──
+  eq("ChatGPT steunt als het merk bij een gemeten vraag ontbreekt", steunVan(steunend.chatgpt), "steunt");
+  eq("ChatGPT steunt niet als het merk overal genoemd wordt", steunVan({ bron: "chatgpt", vragenGemeten: 4, vragenGenoemd: 4 }), "steunt_niet");
+  eq("niet gemeten is geen gegevens, geen nul", steunVan({ bron: "chatgpt", vragenGemeten: null, vragenGenoemd: null }), "geen_gegevens");
+  eq("nul gemeten vragen is ook geen gegevens", steunVan({ bron: "gemini", vragenGemeten: 0, vragenGenoemd: 0 }), "geen_gegevens");
+  eq("AI Overview steunt als de eigen site niet geciteerd wordt", steunVan({ bron: "ai_overview", vragenGemeten: 4, vragenGenoemd: 4, eigenSiteGeciteerd: false }), "steunt");
+  eq("AI Overview met alleen een citatie steunt niet", steunVan({ bron: "ai_overview", eigenSiteGeciteerd: true }), "steunt_niet");
+  eq("Search Console steunt bij vertoningen", steunVan(steunend.search_console), "steunt");
+  eq("Search Console met 0 vertoningen steunt niet", steunVan({ bron: "search_console", vertoningen: 0, periodeDagen: 28 }), "steunt_niet");
+  eq("Search Console zonder koppeling is geen gegevens", steunVan({ bron: "search_console" }), "geen_gegevens");
+  eq("een oordeel van de consultant steunt altijd", steunVan({ bron: "consultant" }), "steunt");
+  eq("een dienst zonder pagina steunt altijd", steunVan({ bron: "structuur" }), "steunt");
+  eq("de sterkte telt bronnen, niet rijen", String(bewijsSterkte([steunend.chatgpt, steunend.chatgpt, steunend.search_console, { bron: "gemini" }])), "2");
+  eq("de bronnen van een kans volgen uit het bewijs, in vaste volgorde", bronnenVan([steunend.structuur, steunend.chatgpt, steunend.chatgpt]).join(","), "chatgpt,structuur");
+
+  // ── De volgorde ──
+  const ids = (lijst: KansInvoer[]) => ordenKansen(lijst).map((k) => k.id).join(",");
+  eq(
+    "commerciële waarde gaat voor al het andere",
+    ids([
+      kans("minder", { commercieleWaarde: "minder", potentie: 100, bewijs: [steunend.chatgpt, steunend.search_console] }),
+      kans("voorrang", { commercieleWaarde: "voorrang", potentie: 5 }),
+      kans("gewoon", { commercieleWaarde: "gewoon", potentie: 50 }),
+    ]),
+    "voorrang,gewoon,minder",
+  );
+  eq(
+    "onbekende waarde telt als gewoon, niet als minder",
+    ids([kans("minder", { commercieleWaarde: "minder" }), kans("onbekend", { commercieleWaarde: null })]),
+    "onbekend,minder",
+  );
+  eq(
+    "bij gelijke waarde: meer steunende bronnen eerst",
+    ids([
+      kans("een", { potentie: 90, bewijs: [steunend.chatgpt] }),
+      kans("drie", { potentie: 10, bewijs: [steunend.chatgpt, steunend.search_console, steunend.ai_overview] }),
+      kans("twee", { potentie: 50, bewijs: [steunend.chatgpt, steunend.structuur] }),
+    ]),
+    "drie,twee,een",
+  );
+  eq(
+    "een bron die niet steunt, telt niet mee",
+    ids([
+      kans("tegen", { bewijs: [{ bron: "chatgpt", vragenGemeten: 4, vragenGenoemd: 4 }], potentie: 90 }),
+      kans("voor", { bewijs: [steunend.chatgpt], potentie: 10 }),
+    ]),
+    "voor,tegen",
+  );
+  eq(
+    "daarna de potentie, onbekend achteraan",
+    ids([kans("onbekend", { potentie: null }), kans("laag", { potentie: 12 }), kans("hoog", { potentie: 80 })]),
+    "hoog,laag,onbekend",
+  );
+  eq(
+    "een potentie van 0 is bekend, en komt voor onbekend",
+    ids([kans("onbekend", { potentie: null }), kans("nul", { potentie: 0 })]),
+    "nul,onbekend",
+  );
+  eq(
+    "daarna het kennisgat: minder ontbrekend eerst, niet uitgerekend achteraan",
+    ids([
+      kans("onbekend", { kennisOntbreekt: null }),
+      kans("twee", { kennisOntbreekt: ["prijs", "termijn"] }),
+      kans("niets", { kennisOntbreekt: [] }),
+    ]),
+    "niets,twee,onbekend",
+  );
+  eq("bij volledige gelijkheid beslist de titel, dus altijd dezelfde volgorde", ids([kans("b"), kans("a"), kans("c")]), "a,b,c");
+  const invoer = [kans("b"), kans("a")];
+  ordenKansen(invoer);
+  eq("ordenen laat de invoer ongemoeid", invoer.map((k) => k.id).join(","), "b,a");
+
+  // ── De uitleg ──
+  eq(
+    "het voorbeeld uit het plan, letterlijk",
+    uitlegVan({ handeling: "pagina_verbeteren", bewijs: [steunend.search_console, steunend.chatgpt] }),
+    "Mensen zoeken hiernaar (240 vertoningen in Google in 28 dagen), maar ChatGPT noemt je bij 0 van de 4 vragen en noemt twee concurrenten wel. Je huidige pagina gaat er deels over.",
+  );
+  eq("zonder enig bewijs: geen gegevens", uitlegVan({ handeling: "nieuwe_pagina", bewijs: [] }), "Voor deze kans zijn er nog geen gegevens.");
+  eq(
+    "een bron zonder gegevens wordt bij naam genoemd, nooit als nul",
+    uitlegVan({ handeling: "nieuwe_pagina", bewijs: [{ bron: "chatgpt" }, { bron: "search_console" }, { bron: "gemini", vragenGemeten: 0 }] }),
+    "Van Google Search Console, ChatGPT en Gemini zijn er nog geen gegevens.",
+  );
+  eq(
+    "zichtbaar in ChatGPT zegt dat ook",
+    uitlegVan({ handeling: "nieuwe_pagina", bewijs: [{ bron: "chatgpt", vragenGemeten: 4, vragenGenoemd: 4, concurrenten: ["X"] }] }),
+    "ChatGPT noemt je al bij 4 van de 4 vragen.",
+  );
+  eq(
+    "één gemeten vraag leest als zin, niet als 0 van de 1",
+    uitlegVan({ handeling: "nieuwe_pagina", bewijs: [{ bron: "gemini", vragenGemeten: 1, vragenGenoemd: 0, concurrenten: ["X"] }] }),
+    "Gemini noemt je niet bij de enige gemeten vraag en noemt één concurrent wel.",
+  );
+  eq(
+    "zoekverkeer zonder gemis in AI: twee losse zinnen, geen 'maar'",
+    uitlegVan({ handeling: "nieuwe_pagina", bewijs: [steunend.search_console, { bron: "chatgpt", vragenGemeten: 2, vragenGenoemd: 2 }] }),
+    "Mensen zoeken hiernaar (240 vertoningen in Google in 28 dagen). ChatGPT noemt je al bij 2 van de 2 vragen.",
+  );
+  eq(
+    "nul vertoningen is gemeten: dat staat er ook zo",
+    uitlegVan({ handeling: "nieuwe_pagina", bewijs: [{ bron: "search_console", vertoningen: 0, periodeDagen: 28 }] }),
+    "In Google zien we hier nog geen zoekverkeer (0 vertoningen in 28 dagen).",
+  );
+  eq(
+    "grote getallen met een punt",
+    uitlegVan({ handeling: "nieuwe_pagina", bewijs: [{ bron: "search_console", vertoningen: 1248 }] }),
+    "Mensen zoeken hiernaar (1.248 vertoningen in Google).",
+  );
+  eq(
+    "AI Overview: genoemd en citatie in één zin",
+    uitlegVan({ handeling: "nieuwe_pagina", bewijs: [steunend.ai_overview] }),
+    "Google AI Overview noemt je bij 1 van de 4 vragen en citeert je site niet.",
+  );
+  eq(
+    "de consultant met en zonder toelichting",
+    `${uitlegVan({ handeling: "nieuwe_pagina", bewijs: [steunend.consultant] })} | ${uitlegVan({ handeling: "nieuwe_pagina", bewijs: [{ bron: "consultant" }] })}`,
+    "Je consultant zette deze kans erbij: De klant vroeg er zelf om. | Je consultant zette deze kans erbij.",
+  );
+  eq(
+    "een dienst zonder pagina, alleen bij een nieuwe pagina",
+    `${uitlegVan({ handeling: "nieuwe_pagina", bewijs: [steunend.structuur] })} | ${uitlegVan({ handeling: "pagina_verbeteren", bewijs: [steunend.structuur] })}`,
+    "Je biedt dit aan, maar er staat nog geen pagina over op je site. | Je huidige pagina gaat er deels over.",
+  );
+
+  // Elke combinatie van bronnen (2^6 = 64), steunend en zonder gegevens, bij beide handelingen:
+  // nooit leeg, nooit een kaal "null" of "NaN", geen gedachtestreepje, en elke bron die steunt
+  // komt in de zin terug.
+  const AI_OF_ZOEK: readonly KansBron[] = ["chatgpt", "ai_overview", "gemini", "search_console"];
+  const fouten: string[] = [];
+  const vermelding: Record<KansBron, string> = {
+    consultant: "consultant",
+    chatgpt: "ChatGPT",
+    ai_overview: "Google AI Overview",
+    gemini: "Gemini",
+    search_console: "zoeken hiernaar",
+    structuur: "nog geen pagina",
+  };
+  for (let masker = 0; masker < 1 << KANS_BRONNEN.length; masker++) {
+    const gekozen = KANS_BRONNEN.filter((_, i) => masker & (1 << i));
+    for (const soort of ["steunend", "leeg"] as const) {
+      for (const handeling of KANS_HANDELINGEN) {
+        const bewijs = gekozen.map((b) => (soort === "steunend" ? steunend[b] : { bron: b }));
+        const zin = uitlegVan({ handeling, bewijs });
+        const naam = `${gekozen.join("+") || "niets"}/${soort}/${handeling}`;
+        if (zin.trim() === "") fouten.push(`${naam}: leeg`);
+        if (/\b(null|undefined|NaN)\b|[—–]|en\/of|\.\.|\s\s/.test(zin)) fouten.push(`${naam}: ${zin}`);
+        if (!/[.]$/.test(zin)) fouten.push(`${naam}: geen punt aan het eind`);
+        if (soort === "steunend") {
+          for (const b of gekozen) {
+            if (b === "structuur" && handeling === "pagina_verbeteren") continue;
+            if (!zin.includes(vermelding[b])) fouten.push(`${naam}: ${b} ontbreekt in "${zin}"`);
+          }
+        }
+        if (soort === "leeg" && gekozen.some((b) => AI_OF_ZOEK.includes(b)) && !zin.includes("nog geen gegevens")) {
+          fouten.push(`${naam}: zonder gegevens staat er niet "nog geen gegevens"`);
+        }
+        if (/\b0 van de\b/.test(zin) && soort === "leeg") fouten.push(`${naam}: geen gegevens leest als nul`);
+      }
+    }
+  }
+  eq("elke combinatie van bronnen geeft een nette zin (256 gevallen)", fouten.slice(0, 5).join(" | "), "");
+
+  // ── Dezelfde vaste waarden in code en database ──
+  const migratie = leesBestand("supabase/migrations/0118_kansen.sql");
+  const inCheck = (constraint: string, waarden: readonly string[]) => {
+    const blok = migratie.slice(migratie.indexOf(constraint), migratie.indexOf("exception", migratie.indexOf(constraint)));
+    return waarden.filter((w) => !blok.includes(`'${w}'`));
+  };
+  eq("elke bron staat in de check van de database", inCheck("kans_bewijs_bron_check", KANS_BRONNEN).join(","), "");
+  eq("elke status staat in de check van de database", inCheck("kansen_status_check", KANS_STATUSSEN).join(","), "");
+  eq("elke handeling staat in de check van de database", inCheck("kansen_handeling_check", KANS_HANDELINGEN).join(","), "");
+  eq("elke commerciële waarde staat in de check van de database", inCheck("kansen_commerciele_waarde_check", COMMERCIELE_WAARDEN).join(","), "");
+
+  // ── Geen model dat de volgorde of de uitleg bepaalt (N1 "niet") ──
+  const imports = leesBestand("lib/kansen/prioriteit.ts").split("\n").filter((r) => /^import\b/.test(r)).join("\n");
+  ok("de volgorde en de uitleg doen geen AI-aanroep", !/openai|pipeline|jobs|supabase/.test(imports), imports);
+  ok("en zijn puur, dus testbaar (conventie 2)", !/server-only/.test(imports), imports);
+});
+
+group("kansen: het rapport maakt kansen (N2)", () => {
+  // ── Van aanbeveling naar kans ──
+  const nieuw = kansUitAanbeveling("r1", 0, {
+    title: " Pagina over rijles in Best ",
+    action: "nieuw",
+    existingUrl: "null",
+    targetIntent: "Iemand uit Best die rijles zoekt",
+    targets: [{ promptId: "p1", weight: 0.5, text: "Rijschool in Best?" }],
+  });
+  eq("de sleutel is gelijk aan de oude source_ref van de kaart", `${nieuw?.sleutel}`, "r1#0");
+  eq("de sleutel komt uit één plek", kansSleutel("r1", 3), "r1#3");
+  eq("titel, lezer en handeling", `${nieuw?.titel}|${nieuw?.lezer}|${nieuw?.handeling}|${nieuw?.bestaandeUrl}`, "Pagina over rijles in Best|Iemand uit Best die rijles zoekt|nieuwe_pagina|null");
+  eq("de doelvragen gaan mee", JSON.stringify(nieuw?.doelvragen), JSON.stringify([{ promptId: "p1", weight: 0.5, text: "Rijschool in Best?" }]));
+  const verbeter = kansUitAanbeveling("r1", 1, { title: "Faalangstpagina", action: "verbeteren", existingUrl: "https://pompert.nl/faalangst/" });
+  eq("verbeteren met een adres", `${verbeter?.handeling}|${verbeter?.bestaandeUrl}`, "pagina_verbeteren|https://pompert.nl/faalangst/");
+  const zonderAdres = kansUitAanbeveling("r1", 2, { title: "Iets", action: "verbeteren", existingUrl: ":" });
+  eq("verbeteren zonder bruikbaar adres wordt een nieuwe pagina (de database weigert het anders)", `${zonderAdres?.handeling}|${zonderAdres?.bestaandeUrl}`, "nieuwe_pagina|null");
+  ok("zonder titel geen kans", kansUitAanbeveling("r1", 3, { title: "  " }) === null);
+  ok("een kapotte aanbeveling breekt niets", kansUitAanbeveling("r1", 4, {}) === null);
+
+  // ── Het bewijs per bron ──
+  eq("ChatGPT is de hoofdbron, ook zonder engine", `${bronVanEngine(null)}|${bronVanEngine("openai")}|${bronVanEngine("google_ai_overview")}|${bronVanEngine("gemini")}|${bronVanEngine("bing")}`, "chatgpt|chatgpt|ai_overview|gemini|null");
+  const m = (runId: string, promptId: string, engine: string | null, genoemd: boolean, concurrenten: string[] = []): MetingVoorBewijs => ({ runId, promptId, engine, genoemd, concurrenten });
+  const doel = [{ promptId: "p1", weight: 0.5, text: null }, { promptId: "p2", weight: 0.3, text: null }];
+  const bewijs = bewijsUitMetingen(doel, [
+    m("a", "p1", "openai", false, ["Rijschool Wit", "Rijschool Zwart"]),
+    m("b", "p2", "openai", true),
+    // AI Overview meet drie keer; de meerderheid per vraag telt, zoals in het rapport.
+    m("c1", "p1", "google_ai_overview", false, ["Rijschool Wit"]),
+    m("c2", "p1", "google_ai_overview", false, ["Rijschool Wit"]),
+    m("c3", "p1", "google_ai_overview", true),
+    // Een meting van een vraag die niet bij deze kans hoort, telt niet.
+    m("d", "p9", "openai", false, ["Ander"]),
+  ]);
+  eq(
+    "per bron: gemeten, genoemd en de concurrenten waar het merk ontbrak",
+    bewijs.map((b) => `${b.bron}:${b.vragenGenoemd}/${b.vragenGemeten}:${(b.concurrenten ?? []).join("+")}`).join(" "),
+    "chatgpt:1/2:Rijschool Wit+Rijschool Zwart ai_overview:0/1:Rijschool Wit",
+  );
+  eq("de metingen gaan als bewijs mee", bewijs.map((b) => b.runIds.join("+")).join(" "), "a+b c1+c2+c3");
+  eq("een bron zonder meting van deze vragen levert geen rij (geen gegevens, geen nul)", bewijs.some((b) => b.bron === "gemini") ? "ja" : "nee", "nee");
+  const gelijk = bewijsUitMetingen([doel[0]!], [m("x", "p1", "openai", false), m("y", "p1", "openai", true)]);
+  eq("bij gelijke stand binnen een bron wint genoemd, net als bij het rapport", `${gelijk[0]?.vragenGenoemd}/${gelijk[0]?.vragenGemeten}`, "1/1");
+  const veel = bewijsUitMetingen([doel[0]!], [m("z", "p1", "openai", false, ["A", "B", "C", "D", "E", "F", "G"])]);
+  eq("hooguit een handvol concurrenten", String(veel[0]?.concurrenten?.length), String(MAX_CONCURRENTEN));
+  eq("zonder doelvragen geen bewijs", String(bewijsUitMetingen([], [m("a", "p1", "openai", false)]).length), "0");
+
+  // ── Commerciële waarde ──
+  const waarde = (diensten: string[], voorrang: string[], minder: string[]) => String(commercieleWaardeVan({ diensten, voorrang, minder }));
+  eq("een dienst met voorrang", waarde(["Rijles automaat"], ["rijles  automaat"], []), "voorrang");
+  eq("een dienst met minder voorrang", waarde(["Motorrijles"], ["Rijles"], ["Motorrijles"]), "minder");
+  eq("voorrang wint als het onderwerp beide raakt", waarde(["Rijles", "Motorrijles"], ["Rijles"], ["Motorrijles"]), "voorrang");
+  eq("wel prioriteiten, deze dienst niet: gewoon", waarde(["Theorie"], ["Rijles"], []), "gewoon");
+  eq("geen enkele opgave van het merk: onbekend, niet gewoon", waarde(["Rijles"], [], []), "null");
+
+  // ── Waarvoor de kans geldt ──
+  const kennis: KennisVoorKans[] = [
+    { id: "k-dienst", soort: "dienst", bewering: "Rijles", herkomstTabel: "profile_offerings", herkomstId: "o1" },
+    { id: "k-prijs", soort: "prijs", bewering: "€ 80", herkomstTabel: "profile_offerings", herkomstId: "o1" },
+    { id: "k-ander", soort: "dienst", bewering: "Motorrijles", herkomstTabel: "profile_offerings", herkomstId: "o2" },
+    { id: "k-best", soort: "werkgebied", bewering: "Best", herkomstTabel: "profiles", herkomstId: null },
+    { id: "k-son", soort: "werkgebied", bewering: "Son en Breugel", herkomstTabel: "profiles", herkomstId: null },
+    { id: "k-ehv", soort: "werkgebied", bewering: "Eindhoven", herkomstTabel: "profiles", herkomstId: null },
+  ];
+  const geldt = (titel: string, vraag = "") =>
+    geldtVoorVan({ kans: { titel, lezer: null, doelvragen: [{ promptId: null, weight: null, text: vraag }] }, dienstIds: ["o1"], kennis }).join(",");
+  eq("de dienst van het onderwerp, niet zijn prijs, niet een andere dienst", geldt("Pagina over rijles"), "k-dienst");
+  eq("een plaats die letterlijk in de titel staat", geldt("Rijles in Best"), "k-dienst,k-best");
+  eq("of in een doelvraag", geldt("Faalangst", "Welke rijschool in Son en Breugel helpt bij faalangst?"), "k-dienst,k-son");
+  eq("'Best' in 'beste rijschool' is geen plaats", geldt("De beste rijschool"), "k-dienst");
+  eq("Eindhovense is niet Eindhoven: alleen het hele woord", geldt("Voor Eindhovense leerlingen"), "k-dienst");
+
+  // ── De opdracht aan het rapport spreekt zichzelf niet meer tegen ──
+  const rapportCode = leesBestand("lib/pipeline/report.ts");
+  ok("geen vast aantal meer in de invoer", !/Geef 5 tot 8/.test(rapportCode));
+  ok("en de systeemopdracht zegt nog steeds dat het niet vastligt", rapportCode.includes("HET AANTAL AANBEVELINGEN LIGT NIET VAST"));
+  ok("de invoer zegt hetzelfde: het aantal dat het meeste gemis dekt", /ligt niet vast: kies het aantal[\s\S]{0,120}meeste gemeten gemis dekt/.test(rapportCode));
+
+  // ── Wie wat doet ──
+  ok("het rapport legt zijn kansen vast, na het opslaan", rapportCode.indexOf("await legKansenVast(") > rapportCode.indexOf('.from("reports")\n      .insert('));
+  const voorraad = leesBestand("lib/plan-backlog-data.ts");
+  ok("de voorraad leest uit kansen", voorraad.includes('.from("kansen")'));
+  ok("en niet meer uit de JSON van het rapport", !/recommendations_json/.test(voorraad.slice(voorraad.indexOf("export async function syncBacklog"), voorraad.indexOf("export async function meetbareVragenPerAnalyse"))));
+  ok("elke nieuwe kaart krijgt zijn kans", voorraad.includes("kans_id: k.kansId"));
+  const schrijver = leesBestand("lib/kansen/uit-rapport.ts");
+  const legVastRomp = schrijver.slice(schrijver.indexOf("export async function legKansenVast"), schrijver.indexOf("export async function werkPotentieBij"));
+  ok("het wegschrijven gooit geen fout naar het rapport: alles zit in één try met een catch", /\{\s*const telling[^\n]*\n\s*try \{/.test(legVastRomp) && legVastRomp.includes("} catch (err) {") && !/\bthrow\b/.test(legVastRomp));
+  ok("en doet geen AI-aanroep", !/lib\/openai|callStructured|responses\.create/.test(schrijver + leesBestand("lib/kansen/rapport.ts")));
+});
+
+group("kansen: één schrijfingang (N2)", () => {
+  const schrijft = (inhoud: string) =>
+    /from\(\s*["'`](kansen|kans_bewijs)["'`]\s*\)\s*\.\s*(insert|update|upsert|delete)\s*\(/.test(inhoud) ||
+    /\b(insert\s+into|update|delete\s+from)\s+(public\.)?(kansen|kans_bewijs)\b/i.test(inhoud);
+  ok("zelftest: een insert wordt herkend", schrijft('admin\n  .from("kansen")\n  .insert({})'));
+  ok("zelftest: lezen is geen schrijven", !schrijft('admin.from("kansen").select("*")'));
+  const buiten = ["app", "lib", "components", "scripts"]
+    .flatMap((m) => [...tsOnder(m), ...tsxOnder(m)])
+    .map((p) => p.split("\\").join("/"))
+    .filter((p) => !p.startsWith("lib/kansen/"))
+    .filter((p) => !p.startsWith("scripts/test-") && !p.startsWith("scripts/chain/"))
+    .filter((p) => schrijft(leesBestand(p)));
+  eq("niemand buiten lib/kansen/ schrijft in kansen of kans_bewijs", buiten.join(", "), "");
+  ok("en lib/kansen/uit-rapport.ts wél", schrijft(leesBestand("lib/kansen/uit-rapport.ts")));
+});
