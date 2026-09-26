@@ -17,6 +17,17 @@
  * niet te testen zonder een echt project, en een test met een nagebootste
  * database toetst vooral of je nabootsing klopt.
  */
+import {
+  controleerItem,
+  magInBlokA,
+  setVoorBlokA,
+  magVoorVragenEnKansen,
+  rolInOverzicht,
+  magOvergaan as kennisMagOvergaan,
+  magNieuwMetStatus,
+  isVerlopen,
+  type KennisRegelItem,
+} from "@/lib/kennis/regels";
 import { binomialStderr, weightedScoreStderr, confidenceBand, changeIsMeaningful, bandInAntwoorden, Z95 } from "@/lib/stats/uncertainty";
 import {
   normalizeEntityName,
@@ -21419,3 +21430,98 @@ group("de schrijfopdracht, versie 3: bedrijfskennis en algemene kennis gescheide
   ok("de brief vraagt hoe dit bedrijf het doet", BRIEF_SYSTEEM.includes("Vraag dan hoe dit bedrijf het doet."));
   ok("geen gedachtestreepje in de brief", !/[—–]/.test(BRIEF_SYSTEEM));
 });
+
+group("de kennislaag: wat mag er worden vastgelegd (K1)", () => {
+  const basis: KennisRegelItem = {
+    domein: "aanbod", bewering: "Een proefles kost € 45.", status: "waargenomen", bron: "website", gebruik: "content",
+    bron_url: "https://x.nl/prijzen", citaat: "Proefles € 45", vastgelegd_door_taak: "profile_synthesis",
+  };
+  eq("een waargenomen item met citaat en adres is goed", controleerItem(basis).join("|"), "");
+  ok("waargenomen zonder citaat wordt geweigerd", controleerItem({ ...basis, citaat: null }).some((f) => f.includes("citaat")));
+  ok("waargenomen met alleen spaties als citaat wordt geweigerd", controleerItem({ ...basis, citaat: "   " }).length > 0);
+  ok("waargenomen zonder bronadres wordt geweigerd", controleerItem({ ...basis, bron_url: null }).length > 0);
+  ok("een model kan niet verklaren", controleerItem({ ...basis, bron: "ai", status: "verklaard", gebruik: "intern" }).some((f) => f.includes("model")));
+  ok("een model kan niet bevestigen", controleerItem({ ...basis, bron: "ai", status: "bevestigd", bevestigd_door: "u1", bevestigd_op: "2026-09-26" }).length > 0);
+  ok("bevestigd zonder wie en wanneer wordt geweigerd", controleerItem({ ...basis, status: "bevestigd", bron: "gesprek" }).some((f) => f.includes("Bevestigd")));
+  eq("bevestigd door een mens is goed", controleerItem({ ...basis, status: "bevestigd", bron: "gesprek", bevestigd_door: "u1", bevestigd_op: "2026-09-26T10:00:00Z" }).join("|"), "");
+  ok("afgeleid mag niet het gebruik content hebben", controleerItem({ ...basis, status: "afgeleid", bron: "ai" }).some((f) => f.includes("Afgeleid")));
+  eq("afgeleid en intern is goed", controleerItem({ ...basis, status: "afgeleid", bron: "ai", gebruik: "intern", citaat: null, bron_url: null }).join("|"), "");
+  ok("een onbekend domein wordt geweigerd", controleerItem({ ...basis, domein: "overig" }).length > 0);
+  ok("een onbekende bewijskracht wordt geweigerd", controleerItem({ ...basis, bewijskracht: "enorm" }).length > 0);
+  ok("zonder wie het vastlegde wordt geweigerd", controleerItem({ ...basis, vastgelegd_door_taak: null }).some((f) => f.includes("vastlegde")));
+  ok("een lege bewering wordt geweigerd", controleerItem({ ...basis, bewering: " " }).length > 0);
+  ok("drie gebreken geven drie fouten", controleerItem({ ...basis, citaat: null, domein: "x", vastgelegd_door_taak: null }).length === 3);
+});
+
+group("de kennislaag: wat mag in blok A (K1)", () => {
+  const nu = new Date("2026-09-26T12:00:00Z");
+  const item = (over: Partial<KennisRegelItem>): KennisRegelItem => ({
+    domein: "bewijs", bewering: "x", status: "verklaard", bron: "gesprek", gebruik: "content", vastgelegd_door: "u1", ...over,
+  });
+  ok("een afgeleid item komt nooit in blok A", !magInBlokA(item({ status: "afgeleid", bron: "ai", gebruik: "intern" }), nu));
+  ok("ook niet als het gebruik toch op content staat", !magInBlokA(item({ status: "afgeleid", bron: "ai" }), nu));
+  ok("een verklaard item komt in blok A", magInBlokA(item({}), nu));
+  ok("een waargenomen item met citaat komt in blok A", magInBlokA(item({ status: "waargenomen", bron: "website", citaat: "c", bron_url: "https://x.nl" }), nu));
+  ok("een oude waargenomen rij zonder citaat glipt niet door", !magInBlokA(item({ status: "waargenomen", bron: "website" }), nu));
+  ok("een intern item komt niet in blok A", !magInBlokA(item({ gebruik: "intern" }), nu));
+  ok("een vervangen item komt niet in blok A", !magInBlokA(item({ vervangen_door: "k2" }), nu));
+  ok("een verlopen prijs komt niet in blok A", !magInBlokA(item({ verloopt_op: "2026-09-25" }), nu));
+  ok("op de dag zelf is hij nog geldig", magInBlokA(item({ verloopt_op: "2026-09-26" }), nu) && !isVerlopen({ verloopt_op: "2026-09-26" }, nu));
+
+  const set = setVoorBlokA([
+    item({ bewering: "waar", status: "waargenomen", bron: "website", citaat: "c", bron_url: "https://x.nl", bewijskracht: "sterk" }),
+    item({ bewering: "gezegd zwak", bewijskracht: "geen" }),
+    item({ bewering: "gezegd sterk", bewijskracht: "sterk" }),
+    item({ bewering: "bevestigd", status: "bevestigd", bevestigd_door: "u1", bevestigd_op: "2026-09-20" }),
+    item({ bewering: "gedacht", status: "afgeleid", bron: "ai", gebruik: "intern" }),
+    item({ bewering: "zeg nooit gratis", domein: "grens", gebruik: "verboden", verloopt_op: "2026-01-01" }),
+  ], nu);
+  eq("bevestigd eerst, dan verklaard op bewijskracht, dan waargenomen", set.beweringen.map((b) => b.bewering).join(" | "), "bevestigd | gezegd sterk | gezegd zwak | waar");
+  ok("het afgeleide item zit nergens in de set", ![...set.beweringen, ...set.verboden].some((b) => b.bewering === "gedacht"));
+  eq("een verboden item komt alleen als verbod mee", set.verboden.map((b) => b.bewering).join("|"), "zeg nooit gratis");
+  ok("en nooit als bewering", !set.beweringen.some((b) => b.gebruik === "verboden"));
+  ok("een verbod veroudert niet", set.verboden.length === 1);
+});
+
+group("de kennislaag: vragen, kansen en het kennisoverzicht (K1)", () => {
+  const nu = new Date("2026-09-26T12:00:00Z");
+  const item = (over: Partial<KennisRegelItem>): KennisRegelItem => ({
+    domein: "positionering", bewering: "x", status: "afgeleid", bron: "ai", gebruik: "intern", vastgelegd_door_taak: "profile_market", ...over,
+  });
+  ok("afgeleid mag een vraag of kans voeden, als hypothese", magVoorVragenEnKansen(item({}), nu));
+  ok("verboden voedt geen kans", !magVoorVragenEnKansen(item({ gebruik: "verboden" }), nu));
+  ok("vervangen voedt niets meer", !magVoorVragenEnKansen(item({ vervangen_door: "k2" }), nu));
+  eq("afgeleid staat in het overzicht als 'we denken'", rolInOverzicht(item({}), nu), "we denken");
+  eq("verklaard staat er als 'volgens de klant'", rolInOverzicht(item({ status: "verklaard", bron: "gesprek" }), nu), "volgens de klant");
+  eq("verlopen staat erin, zodat de consultant het opnieuw bevestigt", rolInOverzicht(item({ status: "bevestigd", bron: "gesprek", verloopt_op: "2026-08-01" }), nu), "verlopen");
+  eq("verboden staat erin als verboden", rolInOverzicht(item({ gebruik: "verboden" }), nu), "verboden");
+});
+
+group("de kennislaag: wie mag een status veranderen (K1)", () => {
+  const metCitaat = { citaat: "letterlijk", bron_url: "https://x.nl" };
+  const zonder = { citaat: null, bron_url: null };
+  ok("afgeleid naar bevestigd door een mens mag", kennisMagOvergaan("afgeleid", "bevestigd", "mens", zonder));
+  ok("afgeleid naar bevestigd door de code mag niet", !kennisMagOvergaan("afgeleid", "bevestigd", "code", zonder));
+  ok("afgeleid naar bevestigd door een model mag niet", !kennisMagOvergaan("afgeleid", "bevestigd", "model", zonder));
+  ok("afgeleid naar verklaard door een model mag niet", !kennisMagOvergaan("afgeleid", "verklaard", "model", zonder));
+  ok("afgeleid naar waargenomen met citaat mag, door de code", kennisMagOvergaan("afgeleid", "waargenomen", "code", metCitaat));
+  ok("afgeleid naar waargenomen zonder citaat mag niet", !kennisMagOvergaan("afgeleid", "waargenomen", "code", zonder));
+  ok("een model zet nooit een status, ook met citaat niet", !kennisMagOvergaan("afgeleid", "waargenomen", "model", metCitaat));
+  ok("terug naar afgeleid bestaat niet", !kennisMagOvergaan("verklaard", "afgeleid", "mens", zonder));
+  ok("bevestigd is het eindpunt", !kennisMagOvergaan("bevestigd", "verklaard", "mens", zonder));
+  ok("verklaard naar bevestigd door een mens mag", kennisMagOvergaan("verklaard", "bevestigd", "mens", zonder));
+  ok("een model legt alleen afgeleid vast", magNieuwMetStatus("afgeleid", "model", "ai") && !magNieuwMetStatus("waargenomen", "model", "ai"));
+  ok("de code mag verklaard alleen overnemen van wat een mens zei", magNieuwMetStatus("verklaard", "code", "klant") && !magNieuwMetStatus("verklaard", "code", "website"));
+  ok("niemand legt een nieuw item meteen als bevestigd vast", !magNieuwMetStatus("bevestigd", "mens", "gesprek"));
+});
+
+group("de kennislaag: de database bewaakt dezelfde regels (migratie 0116)", () => {
+  const sql = leesBestand("supabase/migrations/0116_klantkennis.sql");
+  ok("waargenomen eist een citaat", sql.includes("klantkennis_waargenomen_citaat_check"));
+  ok("een model verklaart en bevestigt niet", sql.includes("klantkennis_ai_niet_verklaard_check"));
+  ok("bevestigd eist wie en wanneer", sql.includes("klantkennis_bevestigd_door_mens_check"));
+  ok("afgeleid is nooit content", sql.includes("klantkennis_afgeleid_niet_content_check"));
+  ok("alleen medewerkers lezen (V11)", sql.includes("using (public.is_staff())") && !/for (insert|update|delete)/.test(sql));
+  ok("geen drop table en geen drop column (conventie 4)", !/drop\s+(table|column)/i.test(sql));
+});
+

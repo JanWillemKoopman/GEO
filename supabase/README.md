@@ -687,3 +687,14 @@ pagina, met een unieke index zodat er per pagina hooguit één is), en `profiles
 `profiles.stem_voorbeelden`. Een kolom `open_vraag` en geen nieuwe `kind`, omdat die check-constraint
 alleen te verruimen is door hem eerst te verwijderen. Additief en idempotent. Zie
 `docs/tasks/contentketen-opnieuw.md` §7.1. Op productie toegepast op 25 september 2026.
+
+## 0116 — De kennislaag
+
+Maakt `klantkennis`: één rij per kennisitem, met domein, status (waargenomen, verklaard, bevestigd,
+afgeleid), bron, citaat, gebruik (content, intern, verboden), bewijskracht, verwijzingen naar andere
+kennis, cluster en pagina, en de herkomst. Vier regels van `lib/kennis/regels.ts` staan er ook als
+check-constraint in: waargenomen eist een citaat en een bronadres, een model verklaart en bevestigt
+niet, bevestigd eist wie en wanneer, afgeleid is nooit content. Alleen medewerkers lezen (besluit V11);
+schrijven alleen met de service-role key. Nog niemand schrijft of leest erin. Additief en idempotent.
+Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` K1 en §6.1. Op productie toegepast op 26 september
+2026; de vier regels daar nagelopen met proefrijen die daarna weer weg zijn.

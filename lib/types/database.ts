@@ -1295,6 +1295,60 @@ export interface FactRequest {
 }
 
 /**
+ * Eén kennisitem in de kennislaag (migratie 0116, K1 van
+ * `docs/tasks/van-pijplijn-naar-kennissysteem.md` §6.1). De regels over wat
+ * waarheen mag staan in `lib/kennis/regels.ts`; schrijven loopt alleen via
+ * `lib/kennis/` (K2).
+ */
+export interface Klantkennis {
+  id: string;
+  profile_id: string;
+  domein: "identiteit" | "aanbod" | "doelgroep" | "positionering" | "bewijs" | "stem" | "verhaal" | "grens" | "geleerd";
+  soort: string | null;
+  bewering: string;
+  waarde: unknown | null;
+  status: "waargenomen" | "verklaard" | "bevestigd" | "afgeleid";
+  /** sterk, gewoon, geen (besluit V12). */
+  bewijskracht: "geen" | "gewoon" | "sterk" | null;
+  bron: "website" | "klant" | "gesprek" | "document" | "extern" | "meting" | "ai";
+  bron_url: string | null;
+  /** Letterlijk uit de bron. Verplicht bij waargenomen. */
+  citaat: string | null;
+  vastgelegd_door: string | null;
+  /** Bij code en modellen: de taaksoort. */
+  vastgelegd_door_taak: string | null;
+  vastgelegd_op: string;
+  bevestigd_door: string | null;
+  bevestigd_op: string | null;
+  laatst_gecontroleerd_op: string | null;
+  /** Een datum (JJJJ-MM-DD). */
+  verloopt_op: string | null;
+  gebruik: "content" | "intern" | "verboden";
+  /** Andere kennisitems waarvoor dit geldt. Leeg is merkbreed. */
+  geldt_voor: string[];
+  /** Alleen voor dit onderwerp (besluit V13). */
+  analysis_id: string | null;
+  /** Alleen voor deze pagina (besluit V13). */
+  content_piece_id: string | null;
+  vervangen_door: string | null;
+  herkomst_tabel:
+    | "brand_facts"
+    | "profile_offerings"
+    | "profiles"
+    | "fact_requests"
+    | "brand_documents"
+    | "profile_strategy"
+    | "profile_facets"
+    | "content_impact"
+    | null;
+  herkomst_id: string | null;
+  sleutel: string | null;
+  ruw: unknown | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
  * Kostenregistratie per AI-aanroep (optimalisatie.md 0.6, migratie 0012).
  * Deny-all in RLS: uitsluitend te lezen via een service-role route.
  */

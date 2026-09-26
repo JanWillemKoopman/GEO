@@ -178,6 +178,9 @@ Vul de kolom "Besluit" in (met datum) in werkpakket F0.3.
 | V8 | Mag het systeem leren over merken heen ("dit type pagina werkt vaak"), of alleen per merk? | **Eerst alleen per merk.** Over merken heen raakt aan wat klanten van elkaar mogen weten, en vraagt veel meer data dan er is | L2 || **Eerst alleen per merk**, zoals geadviseerd (26 september 2026) |
 | V9 | Waar leest de meting de velden die haar sturen (merknaam, andere namen, gelijknamige bedrijven, bereik, werkgebied, concurrenten, markt en taal) na K8? | **De kennislaag is de enige schrijfingang; `lib/kennis/` houdt een kopie op `profiles` bij, en de meting blijft die kopie lezen.** Eén waarheid zonder de meting om te bouwen | K1, K2, K8 || **Kennislaag met kopie**, zoals geadviseerd (26 september 2026). De kopie heeft geen eigen schrijver: alleen `lib/kennis/` schrijft hem, en K8 bewaakt dat met een test |
 | V10 | Komen de twaalf lege, ongelezen velden terug op het kennisoverzicht (auteur, missie, positionering, USP, tweede doelgroep, wettelijke beperkingen)? | **Nee.** Niemand leest ze en ze zijn bij alle drie de merken leeg (`kennismodel-inventaris.md` §2). De kolommen blijven staan (conventie 4); een wettelijke beperking wordt een item in het domein grens | K7, K8 || **Nee, ze verdwijnen van het formulier**, zoals geadviseerd (26 september 2026) |
+| V11 | Wie mag de tabel `klantkennis` lezen? (K1 zei: eigenaar en staf) | **Alleen medewerkers.** De klant ziet het kennisoverzicht niet (V6), de tabel bevat wat een model alleen denkt, en de app leest hem via de server | K1 || **Alleen medewerkers**, zoals geadviseerd (26 september 2026). Wijkt af van de oorspronkelijke tekst van K1, die hierop is aangepast |
+| V12 | Krijgt een kennisitem een eigen veld voor bewijskracht (sterk, gewoon, geen)? | **Ja.** De schrijver zet nu de sterkste feiten eerst (`kiesFeiten()`); zonder dit veld gaat die volgorde verloren in K6 | K1, K6 || **Ja, een eigen veld naast de status**, zoals geadviseerd (26 september 2026) |
+| V13 | Hoe leggen we vast dat kennis alleen voor één onderwerp of één pagina geldt? | **Twee eigen verwijzingen**, naar het cluster (`analysis_id`) en naar de pagina (`content_piece_id`), naast `geldt_voor`. De database controleert dan dat ze bestaan | K1, K5 || **Twee eigen verwijzingen**, zoals geadviseerd (26 september 2026) |
 
 ---
 
@@ -234,14 +237,17 @@ het gebruikt mag worden.
 | `bewering` | De uitspraak in gewone taal, zoals een schrijver hem kan gebruiken |
 | `waarde` | Genormaliseerd waar het kan (bedrag, getal met eenheid, plaats), anders leeg |
 | `status` | **waargenomen** (uit een bron gehaald, met citaat), **verklaard** (de klant zei het), **bevestigd** (gevonden en door een mens bevestigd), **afgeleid** (AI denkt het) |
+| `bewijskracht` | sterk, gewoon, geen: hoe overtuigend de bewering is, naast hoe zeker we hem weten (besluit V12) |
 | `bron` | website, klant, gesprek, document, extern, meting, ai |
 | `bron_url`, `citaat` | Waar het staat, letterlijk. Verplicht bij *waargenomen* |
-| `vastgelegd_door`, `bevestigd_door`, `bevestigd_op` | Wie; bij AI de taaksoort |
+| `vastgelegd_door`, `vastgelegd_door_taak`, `vastgelegd_op`, `bevestigd_door`, `bevestigd_op` | Wie: een mens, of bij code en modellen de taaksoort. Bevestigd eist wie en wanneer |
 | `laatst_gecontroleerd_op`, `verloopt_op` | Voor feiten die kunnen verouderen (prijzen, termijnen) |
 | `gebruik` | **content** (mag op een pagina), **intern** (alleen voor vragen, kansen en analyse), **verboden** (de klant zei: dit niet) |
 | `geldt_voor` | Verwijzingen naar andere kennisitems: deze dienst, deze regio, deze doelgroep. Leeg is merkbreed |
+| `analysis_id`, `content_piece_id` | Alleen voor dit onderwerp of deze ene pagina (besluit V13). Leeg is geen beperking |
 | `vervangen_door` | Bij een nieuwere versie. Nooit verwijderen |
-| `herkomst_id` | De rij waar het vandaan kwam: een klantvraag, een document, een meting, een oude rij in `brand_facts` |
+| `herkomst_tabel`, `herkomst_id` | De tabel en de rij waar het vandaan kwam: een klantvraag, een document, een meting, een oude rij in `brand_facts` |
+| `sleutel` | Ontdubbelsleutel voor K2: per merk één actueel item per sleutel |
 | `ruw` | Wat de bron letterlijk opleverde (conventie 8) |
 
 **Welke status mag waarheen:**
@@ -374,8 +380,8 @@ Per werkpakket: **doel**, **wat**, **niet**, **klaar als**. De nummers zijn vast
 
 #### K1 Het datamodel en de regels
 - **Doel:** één tabel en één set regels voor alle klantkennis.
-- **Wat:** migratie `klantkennis` volgens §6.1 (met RLS zoals de rest: eigenaar leest, staf leest,
-  schrijven alleen via de service role). Een pure module `lib/kennis/regels.ts`: welke status en welk
+- **Wat:** migratie `klantkennis` volgens §6.1 (met RLS: alleen staf leest, besluit V11 van 26
+  september 2026; schrijven alleen via de service role). Een pure module `lib/kennis/regels.ts`: welke status en welk
   gebruik waarheen mag (de tabel in §6.1), welke overgangen mogen (afgeleid naar bevestigd alleen door
   een mens; waargenomen vereist een citaat), wanneer een item verlopen is. Typen in
   `lib/types/database.ts`, de index in `supabase/README.md`.
@@ -770,7 +776,7 @@ per pagina opnieuw.
 | F0.1 | Eerste echte klant, na fase 5 (V5) | 1 tot 2, plus wachttijd | Open, wacht op fase 1 tot en met 5 | |
 | F0.2 | Inventaris van alle klantkennis | 1 | Gedaan en door de eigenaar gezien: 193 kolommen in `docs/tasks/kennismodel-inventaris.md` (55 meenemen, 36 alleen herkomst, 37 niet meer gebruiken, 65 geen klantkennis). Daaruit besluiten V9 en V10 (§3.2) en een correctie van §2 | 26 september 2026 |
 | F0.3 | Besluiten V1 tot en met V8 | 1 | Gedaan: zes volgens advies, V5 en V6 anders (zie §3.2); B18 en B19 in `contentketen-opnieuw.md` | 26 september 2026 |
-| K1 | Datamodel en regels van de kennislaag | 1 | Open | |
+| K1 | Datamodel en regels van de kennislaag | 1 | Gedaan: migratie 0116 op productie (tabel leeg, RLS aan, vier regels als check-constraint en op productie nagelopen), `lib/kennis/regels.ts`, 55 eenheidstests. Besluiten V11 tot en met V13 | 26 september 2026 |
 | K2 | Eén schrijfingang | 1 | Open | |
 | K3 | Terugvullen uit wat er al staat | 1 | Open | |
 | K4 | Het onderzoek schrijft in de kennislaag | 2 | Open | |
