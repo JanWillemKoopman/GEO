@@ -179,7 +179,9 @@ eindredactie (`contentpijplijn-publicatiewaardig.md` §2).
 - Meting, rapport, aanbevelingen, clusters, analytics.
 - Het feitenregister en de conflictcontrole (`feitenregister.ts`, `fact-classify.ts`,
   `conflict-detect.ts`, `conflict-judge.ts`). Uitzondering: de koppeling naar de oude
-  paginastrategie gaat eruit (WP1).
+  paginastrategie gaat eruit (WP1). Sinds K8 deel 2 van `van-pijplijn-naar-kennissysteem.md`
+  (27 september 2026) deelt `lib/kennis/indelen.ts` de feiten in op de kennislaag; `feitenregister.ts`
+  en `conflict-judge.ts` zijn weg.
 - Publiceren, de publicatiecontrole en de nameting na 14 en 28 dagen.
 - De Sales-module en het zijproject Solliciteren.
 - Het contentplan zelf (maanden, slepen, vrijgeven, data), behalve wat WP1 en WP6 noemen.

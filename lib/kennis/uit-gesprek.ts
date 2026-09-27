@@ -24,7 +24,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Klantkennis } from "@/lib/types/database";
 import { bevestig, legVast, metSleutel, vervang, wijsAf, type Door, type NieuwKennisItem } from "@/lib/kennis/vastleggen";
 import { isAfgewezen } from "@/lib/kennis/regels";
-import { domeinVanFeit, type BronAanbod, type BronProfiel, type BronStrategie, type BronVraag, type PlanItem } from "@/lib/kennis/terugvullen";
+import { type BronAanbod, type BronProfiel, type BronStrategie, type BronVraag, type PlanItem } from "@/lib/kennis/terugvullen";
 import {
   GESPREKSVELDEN,
   kennisUitAntwoord,
@@ -224,85 +224,7 @@ export async function legGesprekVast(
   return verwerk(admin, args.profileId, wijzigingen(kennisUitGesprek(args.vorige), kennisUitGesprek(args.nu)), door, "gesprek (strategie)");
 }
 
-// ── 4. De keuze bij een tegenstrijdigheid ────────────────────────────────────
-
-/**
- * De consultant koos op de conflictlijst welk van twee feiten klopt. Het item
- * van de winnaar wordt bevestigd, met de consultant als wie; de items van de
- * andere feiten worden afgewezen. Heeft de winnaar nog geen item (een feit dat
- * na het terugvullen ontstond), dan legt de consultant het hier vast.
- *
- * Wat de ondernemer zelf kiest als de consultant het hem laat vragen, is een
- * antwoord als elk ander (`legAntwoordVast()`): verklaard, niet bevestigd.
- * Bevestigen doet alleen de consultant (besluit V6).
- */
-export async function legConflictkeuzeVast(
-  admin: SupabaseClient,
-  args: { profileId: string; winnaarFeitId: string; feitIds: readonly string[] },
-  door: Mens,
-): Promise<GesprekTelling> {
-  const telling = nieuweTelling();
-  const redenen: string[] = [];
-  try {
-    const { data } = await admin
-      .from("klantkennis")
-      .select("*")
-      .eq("profile_id", args.profileId)
-      .eq("herkomst_tabel", "brand_facts")
-      .in("herkomst_id", [...new Set([args.winnaarFeitId, ...args.feitIds])])
-      .is("vervangen_door", null);
-    const items = (data ?? []) as Klantkennis[];
-
-    let winnaar = items.find((i) => i.herkomst_id === args.winnaarFeitId && !isAfgewezen(i)) ?? null;
-    if (!winnaar) {
-      const { data: feit } = await admin
-        .from("brand_facts")
-        .select("id, text, soort, waarde")
-        .eq("id", args.winnaarFeitId)
-        .eq("profile_id", args.profileId)
-        .maybeSingle();
-      const f = feit as { id: string; text: string; soort: string | null; waarde: unknown } | null;
-      if (f?.text?.trim()) {
-        const nieuw: NieuwKennisItem = {
-          profileId: args.profileId, domein: domeinVanFeit(f.soort), soort: f.soort, bewering: f.text.trim(), waarde: f.waarde ?? null,
-          status: "verklaard", bron: "gesprek", gebruik: "content", herkomst: { tabel: "brand_facts", id: f.id },
-        };
-        const uitkomst = await legVast(admin, nieuw, door);
-        if (uitkomst.soort === "vastgelegd" || uitkomst.soort === "bestond") {
-          winnaar = uitkomst.item;
-          if (uitkomst.soort === "vastgelegd") telling.vastgelegd++;
-        } else if (uitkomst.soort === "eerder_afgewezen") {
-          const terug = await vervang(admin, { profileId: args.profileId, oudId: uitkomst.item.id, nieuw }, door);
-          if (terug.ok) {
-            winnaar = terug.item;
-            telling.vervangen++;
-          } else redenen.push(terug.fout);
-        } else redenen.push(uitkomst.fouten.join(" "));
-      }
-    }
-
-    if (winnaar && winnaar.status !== "bevestigd") {
-      const b = await bevestig(admin, { profileId: args.profileId, itemId: winnaar.id }, door);
-      if (b.ok) telling.bevestigd++;
-      else redenen.push(b.fout);
-    } else if (!winnaar) {
-      redenen.push(`Het gekozen feit ${args.winnaarFeitId} is niet terug te vinden.`);
-    }
-
-    for (const ander of items.filter((i) => i.herkomst_id !== args.winnaarFeitId && !isAfgewezen(i))) {
-      const a = await wijsAf(admin, { profileId: args.profileId, itemId: ander.id }, door);
-      if (a.ok) telling.afgewezen++;
-      else redenen.push(a.fout);
-    }
-  } catch (err) {
-    redenen.push(err instanceof Error ? err.message : String(err));
-  }
-  telling.geweigerd += redenen.length;
-  log(args.profileId, "keuze bij een tegenstrijdigheid", telling, redenen);
-  return telling;
-}
-
-// ── 5. Feiten uit een aangeleverd document (K8) ──────────────────────────────
+// ── 4. Feiten uit een aangeleverd document (K8) ──────────────────────────────
 
 /**
  * De feiten uit het merkdossier in de kennislaag: verklaard, met het document

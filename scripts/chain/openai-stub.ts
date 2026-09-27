@@ -854,7 +854,11 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
         );
         const prijs = /€|euro/i.test(tekst);
         const termijn = /week|weken|dag/i.test(tekst);
-        const geldtVoor = /intake/i.test(tekst)
+        const geldtVoor = /intake op kantoor/i.test(tekst)
+          ? "intake op kantoor"
+          : /intake in de auto/i.test(tekst)
+            ? "intake in de auto"
+            : /intake/i.test(tekst)
           ? "intake"
           : /ketel/i.test(tekst)
             ? "cv-ketel"
@@ -874,22 +878,7 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
       }),
     };
   },
-  /**
-   * L2, een conflict beoordelen. Het vaste oordeel dat het plan in §5 noemt:
-   * de intake op kantoor en die in de auto zijn twee producten, geen conflict.
-   * Al het andere is een echt conflict, met voorstel "onbekend".
-   */
-  conflict_judge: (user) => {
-    const varianten = /kantoor/i.test(user) && /auto/i.test(user);
-    return {
-      echtConflict: !varianten,
-      uitleg: varianten
-        ? "Twee verschillende intakes: op kantoor en in de auto."
-        : "Twee verschillende waarden voor hetzelfde.",
-      voorstel: "onbekend",
-      voorstelReden: "",
-    };
-  },
+
 };
 
 

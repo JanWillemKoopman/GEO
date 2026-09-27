@@ -160,18 +160,19 @@ export function kennisUitAanbod(knopen: readonly BronAanbod[]): PlanItem[] {
 // ── 3. De samenvatting (`synthesis.ts`) ──────────────────────────────────────
 
 /**
- * De sitefeiten die de samenvatting net opsloeg in `brand_facts`, met het
- * citaat dat de code op de pagina terugvond. De soort en de waarde bestaan nog
- * niet: die zet de indeling van het feitenregister later, alleen op de oude
- * tabel (besluit V18). Zonder soort is het domein "aanbod", dezelfde terugval
- * als bij K3 (`domeinVanFeit(null)`).
+ * De sitefeiten van de samenvatting, met het citaat dat de code op de pagina
+ * terugvond. De herkomst is het verslag van de stap (`profile_facets`, facet
+ * `synthese`); tot K8 deel 2 was dat de rij in `brand_facts`. De soort en de
+ * waarde bestaan nog niet: die zet de indeling daarna op het item zelf
+ * (`lib/kennis/indelen.ts`, besluit V18). Zonder soort is het domein "aanbod",
+ * dezelfde terugval als bij K3 (`domeinVanFeit(null)`).
  */
-export function kennisUitSynthese(feiten: readonly { id: string; text: string; sourceUrl: string; quote: string }[]): PlanItem[] {
+export function kennisUitSynthese(facetId: string, feiten: readonly { text: string; sourceUrl: string; quote: string }[]): PlanItem[] {
   const m = { items: [] as PlanItem[] };
-  for (const f of feiten) {
-    if (!schoon(f.text) || !schoon(f.quote) || !schoon(f.sourceUrl)) continue;
+  feiten.forEach((f, i) => {
+    if (!schoon(f.text) || !schoon(f.quote) || !schoon(f.sourceUrl)) return;
     voegToe(m, {
-      ref: `brand_facts:${f.id}`,
+      ref: `profile_facets:${facetId}:feit:${i}`,
       domein: domeinVanFeit(null),
       bewering: schoon(f.text),
       status: "waargenomen",
@@ -179,9 +180,9 @@ export function kennisUitSynthese(feiten: readonly { id: string; text: string; s
       bronUrl: schoon(f.sourceUrl),
       citaat: schoon(f.quote),
       gebruik: "content",
-      herkomst: { tabel: "brand_facts", id: f.id },
+      herkomst: { tabel: "profile_facets", id: facetId },
     });
-  }
+  });
   return m.items;
 }
 

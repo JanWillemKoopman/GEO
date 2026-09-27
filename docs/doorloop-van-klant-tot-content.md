@@ -971,8 +971,9 @@ dezelfde titel, dan wordt die gebruikt.
 en voorbeelden. Deze vraag maakt de code, geen AI. Hij is er dus altijd, ook als de volgende stap
 mislukt, en nooit dubbel.
 
-**9.4 Het feitenregister van het merk wordt bijgewerkt**, zodat een feit waarover twee versies bestaan
-niet naar de schrijver gaat (zie de AI-aanroepen hieronder).
+**9.4 De nieuwe feiten van de site worden ingedeeld** (prijs, termijn, werkgebied), zodat de kennislaag
+twee versies van hetzelfde gegeven herkent en geen van beide naar de schrijver gaat tot de consultant
+kiest (zie de AI-aanroep hieronder).
 
 **9.5 De pagina's komen in een rij, op volgorde van publicatiedatum.** De content brief draait per pagina,
 **na elkaar**. Zo ziet elke volgende brief de vragen die de vorige al stelde, en krijgt de klant niet vijf
@@ -998,18 +999,17 @@ krijgt. Code stelt het samen, geen AI (`lib/pagina/bedrijfskennis.ts`):
 6. de beantwoorde vragen die voor het hele merk gelden, en die uit het rapport van dit cluster (besluit B17,
    26 september 2026). Een rapportvraag die al aan deze pagina hangt, staat in blok B en niet hier.
 
-**AI-aanroep 9.4: het feitenregister** (licht werk)
-- **Feiten indelen.** Luna, `deterministic`. Gaat erin: nieuwe feiten, genummerd. Opdracht: geef per feit
-  een soort (prijs, termijn, plaats, werkgebied, dienst, product, certificering, garantie, werkwijze,
-  cijfer, openingstijd, contact, overig) en de waarde met eenheid. *"Je herschrijft niets en je voegt niets
-  toe."* Code controleert dat een getal in de waarde ook in de feittekst staat.
-- **Tegenstrijdigheden beoordelen.** Code zoekt kandidaat-paren (zelfde soort, andere waarde). Luna,
-  `judging`, beoordeelt alleen nieuwe paren: spreken ze elkaar echt tegen, of gaan ze over twee
-  verschillende dingen? Een antwoord van de ondernemer weegt zwaarder dan de site, de site zwaarder dan
-  onderzoek. Een echt conflict komt op het conflictscherm van de consultant (Admin, Feiten), die het zelf
-  beslist of er een keuzevraag van maakt voor de ondernemer.
-- **Bestanden:** `lib/pipeline/fact-classify.ts`, `conflict-detect.ts`, `conflict-judge.ts`,
-  `feitenregister.ts`.
+**AI-aanroep 9.4: sitefeiten indelen** (licht werk)
+- **Feiten indelen.** Luna, `deterministic`. Gaat erin: de feiten van de site in de kennislaag die nog
+  geen soort hebben, genummerd. Opdracht: geef per feit een soort (prijs, termijn, plaats, werkgebied,
+  dienst, product, certificering, garantie, werkwijze, cijfer, openingstijd, contact, overig), de waarde
+  met eenheid en waarop het slaat. *"Je herschrijft niets en je voegt niets toe."* Code controleert dat
+  een getal in de waarde ook in de feittekst staat.
+- **Tegenstrijdigheden.** Sinds K8 deel 2 (27 september 2026) zonder model: de code ziet twee waarden voor
+  hetzelfde gegeven (zelfde soort, waarvoor het geldt) en zet ze op het conflictscherm van de consultant
+  (Admin, Feiten), die kiest welke klopt. Het oordeel van een tweede model en de keuzevraag aan de
+  ondernemer zijn weg (besluit V14 en V6).
+- **Bestanden:** `lib/kennis/indelen.ts`, `lib/kennis/indeling.ts`, `lib/pipeline/fact-classify.ts`.
 
 **AI-aanroep 9.6: de content brief**
 - **Model:** Sol, `analytical`, **met** zoeken op het web. Brief versie 3.
@@ -1506,7 +1506,6 @@ Houd hier rekening mee tijdens de doorloop.
 | 7.3 Rapport en aanbevelingen | `generate_report` | Luna | analytical | nee | `pipeline/report.ts` |
 | 7.4 Potentie per onderwerp | `recalculate_potential` | Luna | content | nee | `pipeline/search-demand.ts` |
 | 9.4 Feiten indelen | `fact_register` | Luna | deterministic | nee | `pipeline/fact-classify.ts` |
-| 9.4 Tegenstrijdigheden | `fact_register` | Luna | judging | nee | `pipeline/conflict-judge.ts` |
 | 9.6 Content brief | `pagina_brief` | Sol | analytical | ja | `pagina/brief-opdracht.ts` |
 | 11 Schrijven | `pagina_schrijven` | Sol | redactioneel | nee | `pagina/schrijfopdracht.ts` |
 | 12.3 Beoordeling | `pagina_controle` | Sol | judging | nee | `pagina/controle-regels.ts` |

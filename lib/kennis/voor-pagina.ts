@@ -15,7 +15,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { alleRijen } from "@/lib/supabase/pagineer";
 import { kiesVoorBlokA, type KennisVoorBlokA, type KeuzeVoorBlokA } from "@/lib/kennis/blok-a";
-import { blokkadesVan, type Blokkade, type BlokkadeConflict, type BlokkadeFeit, type BlokkadeKennis } from "@/lib/kennis/betwist";
+import { blokkadesVan, type Blokkade, type BlokkadeConflict, type BlokkadeKennis } from "@/lib/kennis/betwist";
 
 /**
  * Welke kennis van dit merk nu niet naar de schrijver mag (`betwist.ts`). Ook
@@ -27,11 +27,13 @@ export async function blokkadesVoorMerk(
   profileId: string,
   kennis: readonly BlokkadeKennis[],
 ): Promise<Map<string, Blokkade>> {
-  const [{ data: conflicten }, { data: feiten }] = await Promise.all([
-    admin.from("fact_conflicts").select("status, echt_conflict, feit_ids, kennis_ids").eq("profile_id", profileId).in("status", ["open", "gevraagd"]),
-    admin.from("brand_facts").select("id, stand").eq("profile_id", profileId).in("stand", ["betwist", "vervangen"]),
-  ]);
-  return blokkadesVan(kennis, (conflicten ?? []) as BlokkadeConflict[], (feiten ?? []) as BlokkadeFeit[]);
+  const { data: conflicten } = await admin
+    .from("fact_conflicts")
+    .select("status, echt_conflict, kennis_ids")
+    .eq("profile_id", profileId)
+    .eq("status", "open")
+    .not("kennis_ids", "is", null);
+  return blokkadesVan(kennis, (conflicten ?? []) as BlokkadeConflict[]);
 }
 
 export interface PaginaSleutel {

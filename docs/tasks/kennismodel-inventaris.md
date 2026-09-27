@@ -271,6 +271,11 @@ Alle 33 rijen komen uit de samenvatting van het onderzoek: `kind = site`, `stand
 verwijzing naar een vraag of document. Soort en waarde zijn ingedeeld door een model (`fact-classify.ts`,
 via `feitenregister.ts`).
 
+**Sinds K8 deel 2 (27 september 2026)** schrijft niemand meer in deze tabel en leest alleen het
+terugvullen (K3) hem nog. De samenvatting legt haar feiten alleen in de kennislaag vast, de indeling
+gebeurt op het kennisitem (`lib/kennis/indelen.ts`), en een test in `scripts/test-unit.ts` faalt bij een
+nieuwe schrijver of lezer. De kolommen "Schrijft" en "Leest" hieronder zijn de stand van F0.2.
+
 | Kolom | Wat het is | Gevuld | Wordt in `klantkennis` | Schrijft | Leest | Voorstel |
 |---|---|---|---|---|---|---|
 | `id` | Sleutel | 33 | `herkomst_id` | samenvatting | conflicten, schrijver | alleen herkomst |

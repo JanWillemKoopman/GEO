@@ -324,7 +324,7 @@ probleem dan een dollar.
 | `competitor_breakdown` | Per concurrent: aandeel + `attributes_json` (`{attribute, evidence}` met letterlijk citaat) + `why_summary`. Alleen ≥2 vermeldingen of top 8. |
 | `entities` | Gededupliceerd merk-/concurrentregister (`lib/entities/`). Voorkomt dat "Coolblue", "coolblue.nl" en "Coolblue B.V." drie partijen worden. |
 | `reports` | Rapport per periode + trend. `stripped_claims_json` = audit-trail van door de claimvalidator verwijderde zinnen. |
-| `brand_facts` | De oude feitenbank (`0036`): sitefeiten uit de samenvatting, met `fact_key`, `superseded_by` en de indeling van het feitenregister (`soort`, `waarde`, `stand`). Blok A leest hem sinds K6 niet meer; de samenvatting schrijft hem nog tot K8 deel 2, waarin de indeling en de conflictlijst naar de kennislaag verhuizen (besluit V18). |
+| `brand_facts` | De oude feitenbank (`0036`). Sinds K8 deel 2 (27 september 2026) schrijft niemand er meer in en leest alleen het terugvullen (K3) hem nog; de sitefeiten staan in de kennislaag, en een test bewaakt dat. |
 | `brand_documents` | Door de klant geplakte brontekst + sha256-hash, met `facts_extracted`/`facts_rejected`. Sinds K8 is een document de herkomst van de kennisitems die eruit komen (verklaard, met de letterlijke zin als citaat, besluit V21). |
 | `fact_requests` | De vragen aan de klant: het vraagobject, met zijn antwoord. `scope: 'merk'` slaat op met `analysis_id = null`; de open punten uit de synthese dragen `raw_json.bron = 'synthese-gap'`. Een antwoord wordt sinds K5 verklaarde klantkennis met de reikwijdte van de vraag (`answerFact()` in `lib/facts.ts`), en sinds K8 niet meer ook een regel in `profiles.proof_points`. `answerFact()` beoordeelt elk antwoord op een superlatief of marktclaim (`beoordeelClaim()`), zodat de klant altijd ziet wat er nog bij moet. |
 | `klantkennis` | **De kennislaag** (`0116`, `0117`): één rij per kennisitem, met domein, status, gebruik, herkomst en reikwijdte. Zie hieronder. |
@@ -364,7 +364,8 @@ hoe het in de code zit.
   bewaard en komt niet stil terug. Een botsing (twee waarden voor hetzelfde) gaat op de bestaande
   conflictlijst (`fact_conflicts.kennis_ids`); de consultant kiest (besluit V14).
 - **Wie schrijft.** Het onderzoek (`uit-onderzoek.ts`: waargenomen waar de code het citaat
-  terugvond, anders afgeleid), het gesprek, de antwoorden, de conflictkeuze en het merkdossier
+  terugvond, anders afgeleid), de indeling van sitefeiten (`indelen.ts` via `deelIn()`: soort,
+  waarde en waarvoor het geldt, één keer per item), het gesprek, de antwoorden, de conflictkeuze en het merkdossier
   (`uit-gesprek.ts`, altijd een mens), de tekst van de stemvoorbeelden (`uit-stem.ts`, de code), en
   het kennisoverzicht (`uit-overzicht.ts`, de consultant). Verklaard en bevestigd komen alleen van de
   routes in `MENSELIJKE_STATUS_TOEGESTAAN` in `scripts/test-unit.ts` (§4 regel 2 van het plan).
@@ -372,12 +373,13 @@ hoe het in de code zit.
   bevestigd eerst, alleen wat voor deze dienst en deze pagina geldt, niets wat op een open conflict
   staat), het kennisgat van een kans (`lib/kansen/kennisgat.ts`) en het kennisoverzicht onder Admin
   (`/merk/[id]/admin/kennis`, alleen medewerkers, besluit V6 en V11).
-- **Drie bewakingstests** in `scripts/test-unit.ts`: niemand buiten `lib/kennis/` schrijft in
-  `klantkennis`; verklaard en bevestigd alleen van de toegestane routes, ook via een omweg; en geen code
-  noemt een kolom die de inventaris op "niet meer gebruiken" zette.
-- **Wat nog dubbel is.** De onderzoeksstappen en het gespreksscherm schrijven daarnaast nog de oude
-  tabellen (`profiles`, `brand_facts`, `profile_offerings`), omdat de meting, het rapport, de
-  onderwerpen en de aanbodboom die nog lezen. K8 deel 2 en 3 van het plan halen dat weg.
+- **Vier bewakingstests** in `scripts/test-unit.ts`: niemand buiten `lib/kennis/` schrijft in
+  `klantkennis`; verklaard en bevestigd alleen van de toegestane routes, ook via een omweg; geen code
+  noemt een kolom die de inventaris op "niet meer gebruiken" zette; en niemand schrijft of leest nog
+  `brand_facts` (behalve het terugvullen).
+- **Wat nog dubbel is.** De onderzoeksstappen en het gespreksscherm schrijven daarnaast nog `profiles`
+  en `profile_offerings`, omdat de meting, het rapport, de onderwerpen en de aanbodboom die lezen. K8
+  deel 3 van het plan maakt die kolommen een kopie die alleen `lib/kennis/` schrijft (besluit V22).
 
 **De Sales-module (migraties `0068` tot en met `0073`, plus `0081`).** Zestien tabellen die de klantomgeving nergens raken. Ze staan
 bewust apart in deze tabel: een klant mag nooit kunnen zien dat hij ooit als prospect in het systeem
@@ -882,19 +884,19 @@ seconden en loopt sindsdien in de achtergrond. Een pagina met strategie en redac
 $0,31: strategie ongeveer $0,06, FAQ-keuze $0,002, schrijven $0,05, eindredactie $0,09 tot $0,11,
 een of twee reparatierondes $0,04 tot $0,07 en de keuring met Luna ongeveer $0,01.
 
-### De AI-aanroepen van het feitenregister (25 september 2026, migratie `0113`)
+### De indeling van sitefeiten (25 september 2026, migratie `0113`; sinds K8 deel 2 op de kennislaag)
 
-Twee lichte aanroepen, allebei op `MODELS.quality` (Luna), in de taak `fact_register`
-(`lib/pipeline/feitenregister.ts`):
+Eén lichte aanroep op `MODELS.quality` (Luna), in de taak `fact_register` (`lib/kennis/indelen.ts`):
 
 | Aanroep (`ai_calls.kind`) | Werk | Wat code narekent |
 |---|---|---|
-| `fact_classify` (L1, `fact-classify.ts`) | `deterministic`, 40 feiten per aanroep, vier tegelijk | een getal in de waarde moet in de feittekst staan, anders is de waarde leeg (`veiligeWaarde()`) |
-| `fact_conflict_judge` (L2, `conflict-judge.ts`) | `judging`, één paar per aanroep, hooguit twintig nieuwe paren per run | kandidaten komen uit code (`vindKandidaten()`); een oordeel wordt per paar één keer betaald (`fact_conflicts.paar_sleutel`) en het voorstel welk feit klopt wordt nooit automatisch toegepast |
+| `fact_classify` (`fact-classify.ts`) | `deterministic`, 40 sitefeiten per aanroep, vier tegelijk, alleen kennisitems zonder soort | een getal in de waarde moet in de feittekst staan, anders is de waarde leeg (`veiligeWaarde()`); "geldt voor" wordt een verwijzing naar het aanbod met die naam, of blijft merkbreed (`indelingVoorKennis()`) |
 
-Alleen een antwoord van de klant tegenover de site wint vanzelf. Een betwist of vervangen feit gaat
-niet meer op de feitenkaart (`zonderBetwisteFeiten()` in `content.ts`); wanneer een conflict een
-pagina tegenhoudt, staat in `houdtPaginaTegen()` en wordt in WP3 aangesloten op de paginastrategie.
+`deelIn()` in `lib/kennis/vastleggen.ts` zet de indeling op het item zelf, één keer, en zoekt daarna in
+code of het botst met wat er al stond (besluit V14). Tot K8 deel 2 (27 september 2026) liep dit op
+`brand_facts`, met een tweede aanroep die elk paar liet beoordelen (`conflict-judge.ts`) en een
+automatische winnaar; beide zijn weg. Een botsing beslist de consultant op het conflictscherm, en zolang
+hij open staat gaat geen van beide naar de schrijver (`lib/kennis/betwist.ts`).
 
 ### De AI-aanroepen van Mijn reputatie (22 augustus 2026, migratie `0062`)
 

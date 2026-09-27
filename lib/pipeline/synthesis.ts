@@ -22,7 +22,8 @@ import "server-only";
  *
  * ── WAAR DE INVESTERING TERUGKOMT ───────────────────────────────────────────
  *
- * Niet in het dossier. Dat is leesvoer. In `brand_facts`. De contentbriefing
+ * Niet in het dossier. Dat is leesvoer. In de feiten, die sinds K8 deel 2
+ * alleen in de kennislaag staan. De contentbriefing
  * stelt tot acht vragen aan de klant omdat de feitenkaart leeg is; elk feit dat
  * hier al uit de site komt, is een vraag die hij niet hoeft te beantwoorden.
  * Dat is de meetlat die in het plan staat.
@@ -39,7 +40,6 @@ import { callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ProfileSynthesis } from "@/lib/schemas/synthesis";
-import { claimKey } from "@/lib/pipeline/factcard";
 import { remainingBudgetUsd } from "@/lib/pipeline/onboarding-budget";
 import { quoteOnPage } from "@/lib/pipeline/quote-check";
 import { kennisUitSynthese } from "@/lib/kennis/onderzoek";
@@ -225,10 +225,7 @@ export async function synthesiseProfile(
     );
   }
 
-  const opgeslagen = await storeBrandFacts(admin, profileId, geldig);
-  const bewaard = opgeslagen.length;
-
-  await admin.from("profile_facets").upsert(
+  const { data: facetRij } = await admin.from("profile_facets").upsert(
     {
       profile_id: profileId,
       facet: "synthese",
@@ -250,7 +247,7 @@ export async function synthesiseProfile(
       researched_at: new Date().toISOString(),
     },
     { onConflict: "profile_id,facet" },
-  );
+  ).select("id").single();
 
   // De open punten worden vragen die de klant kán beantwoorden. Ze stonden tot
   // 24 augustus 2026 alleen in `raw_json` en verschenen als platte tekst op
@@ -259,9 +256,17 @@ export async function synthesiseProfile(
   // op via de route die er al lag.
   const gesteld = await storeGapQuestions(admin, profileId, parsed.gaps);
 
-  // K4: de nieuwe sitefeiten ook in de kennislaag, als waargenomen: de code
-  // vond hun citaat hierboven letterlijk op de pagina.
-  await legOnderzoekVast(admin, profileId, kennisUitSynthese(opgeslagen), "profile_synthesis");
+  // De sitefeiten gaan de kennislaag in, als waargenomen: de code vond hun
+  // citaat hierboven letterlijk op de pagina. Sinds K8 deel 2 alleen daar, niet
+  // meer ook in `brand_facts`; de herkomst is het verslag van deze stap, en de
+  // indeling (soort, waarde) volgt in de taak `fact_register`. Wat al bekend was,
+  // herkent `legVast()` aan zijn sleutel.
+  const facetId = (facetRij as { id: string } | null)?.id ?? null;
+  const telling = facetId
+    ? await legOnderzoekVast(admin, profileId, kennisUitSynthese(facetId, geldig), "profile_synthesis")
+    : null;
+  if (!facetId) console.error(`Profiel ${profileId}: het verslag van de samenvatting is niet opgeslagen; de feiten gaan niet de kennislaag in.`);
+  const bewaard = telling?.vastgelegd ?? 0;
 
   return {
     facts: bewaard,
@@ -321,80 +326,6 @@ async function storeGapQuestions(
   return bewaard;
 }
 
-/**
- * Merkbrede feiten wegschrijven.
- *
- * Bewust niet via `syncBrandFacts()`: die is gebouwd voor de contentbriefing en
- * eist een `analysisId` om onderwerp-specifieke feiten aan te hangen. De
- * synthese kent geen analyse, alles wat hier uitkomt geldt voor het hele merk.
- * Die API daarvoor buigen zou hem voor beide gevallen minder duidelijk maken.
- *
- * Wél dezelfde ontdubbelsleutel (`claimKey()`), zodat een feit dat later ook uit
- * een klantantwoord komt niet twee keer op de kaart staat.
- */
-async function storeBrandFacts(
-  admin: ReturnType<typeof createAdminClient>,
-  profileId: string,
-  facts: ProfileSynthesis["facts"],
-): Promise<OpgeslagenFeit[]> {
-  if (facts.length === 0) return [];
-
-  const { data: bestaand } = await admin
-    .from("brand_facts")
-    .select("fact_key")
-    .eq("profile_id", profileId)
-    .is("superseded_by", null);
-  const bekend = new Set((bestaand ?? []).map((r) => r.fact_key as string));
-
-  const gezien = new Set<string>();
-  const rijen = facts
-    .map((f) => ({ f, key: claimKey(f.text) }))
-    .filter(({ key }) => {
-      // Binnen deze batch én tegen wat er al staat. Zonder de eerste controle
-      // zou één dubbel feit de hele insert laten mislukken.
-      if (!key || bekend.has(key) || gezien.has(key)) return false;
-      gezien.add(key);
-      return true;
-    })
-    .map(({ f, key }) => ({
-      profile_id: profileId,
-      analysis_id: null,
-      text: f.text.trim(),
-      source: `site ${pathOf(f.sourceUrl)}`,
-      source_url: f.sourceUrl,
-      kind: "site",
-      allowed: true,
-      fact_key: key,
-    }));
-
-  if (rijen.length === 0) return [];
-
-  const { data: ingevoegd, error } = await admin.from("brand_facts").insert(rijen).select("id, fact_key");
-  if (error || !ingevoegd) {
-    // Verrijking, geen voorwaarde: het profiel is klaar, de feitenkaart valt
-    // terug op wat hij vóór deze ronde had.
-    console.error(
-      `Feiten opslaan mislukt voor profiel ${profileId}: ${error?.message ?? "geen rijen terug"}`,
-    );
-    return [];
-  }
-  // Terug naar het feit met zijn citaat, via de sleutel: die is binnen deze
-  // batch uniek (de filter hierboven).
-  const feitPerSleutel = new Map(facts.map((f) => [claimKey(f.text), f]));
-  return (ingevoegd as { id: string; fact_key: string }[]).flatMap((r) => {
-    const f = feitPerSleutel.get(r.fact_key);
-    return f ? [{ id: r.id, text: f.text.trim(), sourceUrl: f.sourceUrl, quote: f.quote }] : [];
-  });
-}
-
-/** Een net opgeslagen sitefeit, met het citaat dat de code op de pagina terugvond. */
-interface OpgeslagenFeit {
-  id: string;
-  text: string;
-  sourceUrl: string;
-  quote: string;
-}
-
 /** Hoeveel sitetekst er de aanroep in gaat. De contenttier is duur; dit is de knop. */
 const MAX_PAGE_CHARS = 45_000;
 
@@ -420,10 +351,3 @@ function buildPageBlock(
   return blokken.join("\n\n");
 }
 
-function pathOf(url: string): string {
-  try {
-    return new URL(url).pathname;
-  } catch {
-    return url;
-  }
-}

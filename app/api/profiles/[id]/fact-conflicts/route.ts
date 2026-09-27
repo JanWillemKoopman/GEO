@@ -4,8 +4,6 @@ import { isStaff } from "@/lib/staff";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enqueue } from "@/lib/jobs/queue";
 import { dedupe } from "@/lib/jobs/dedupe";
-import { losConflictOp, type Keuze } from "@/lib/pipeline/feitenregister";
-import { legConflictkeuzeVast } from "@/lib/kennis/uit-gesprek";
 import { losKennisconflictOp } from "@/lib/kennis/uit-overzicht";
 
 /**
@@ -17,7 +15,11 @@ import { losKennisconflictOp } from "@/lib/kennis/uit-overzicht";
  *
  * Schrijven loopt hier, met de service-role key, nooit vanaf de client
  * (conventie 6). De eigendomscontrole is tweeledig: de gebruiker is medewerker,
- * en het conflict hoort bij dit merk (`losConflictOp()` filtert op beide ids).
+ * en het conflict hoort bij dit merk (`losKennisconflictOp()` filtert op beide ids).
+ *
+ * Sinds K8 deel 2 staan hier alleen botsingen tussen kennisitems (besluit V14).
+ * De conflicten tussen feiten van het oude register, met "vraag het de
+ * ondernemer", zijn weg: op productie stond er op 27 september 2026 geen enkel.
  */
 
 async function magHier(id: string) {
@@ -45,13 +47,13 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   return NextResponse.json({ gestart: created });
 }
 
-/** PATCH: een conflict afhandelen. `{ conflictId, feitId }` of `{ conflictId, vraag: true }`. */
+/** PATCH: een botsing afhandelen. `{ conflictId, kennisId }` of `{ conflictId, geenVanBeide: true }`. */
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const toegang = await magHier(id);
   if ("fout" in toegang) return toegang.fout;
 
-  let body: { conflictId?: unknown; feitId?: unknown; vraag?: unknown; kennisId?: unknown; geenVanBeide?: unknown };
+  let body: { conflictId?: unknown; kennisId?: unknown; geenVanBeide?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -59,50 +61,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
   const conflictId = typeof body.conflictId === "string" ? body.conflictId : "";
   if (!conflictId) return NextResponse.json({ error: "Welk conflict?" }, { status: 400 });
+  const kennisId = typeof body.kennisId === "string" && body.kennisId ? body.kennisId : null;
+  if (!kennisId && body.geenVanBeide !== true) {
+    return NextResponse.json({ error: "Kies welke versie klopt, of dat geen van beide klopt." }, { status: 400 });
+  }
 
-  // ── Een botsing tussen kennisitems (K7, V14) ─────────────────────────────
-  // `{ conflictId, kennisId }` of `{ conflictId, geenVanBeide: true }`. Geen
-  // "vraag het de ondernemer": de consultant legt vast wat de klant in het
+  // Geen "vraag het de ondernemer": de consultant legt vast wat de klant in het
   // gesprek zegt (V6).
-  if ((typeof body.kennisId === "string" && body.kennisId) || body.geenVanBeide === true) {
-    const fout = await losKennisconflictOp(
-      toegang.admin,
-      { profileId: id, conflictId, winnaarId: typeof body.kennisId === "string" ? body.kennisId : null },
-      toegang.user.id,
-    );
-    if (fout) return NextResponse.json({ error: fout }, { status: 400 });
-    return NextResponse.json({ ok: true });
-  }
-
-  let keuze: Keuze;
-  if (body.vraag === true) keuze = { vraag: true };
-  else if (typeof body.feitId === "string" && body.feitId) keuze = { feitId: body.feitId };
-  else return NextResponse.json({ error: "Kies een feit, of laat het de ondernemer vragen." }, { status: 400 });
-
-  const fout = await losConflictOp(toegang.admin, {
-    profileId: id,
-    conflictId,
-    userId: toegang.user.id,
-    keuze,
-  });
+  const fout = await losKennisconflictOp(toegang.admin, { profileId: id, conflictId, winnaarId: kennisId }, toegang.user.id);
   if (fout) return NextResponse.json({ error: fout }, { status: 400 });
-
-  // ── De kennislaag (K5 van van-pijplijn-naar-kennissysteem.md) ────────────
-  // De consultant koos: het item van het gekozen feit wordt bevestigd, de
-  // andere afgewezen. Laat de consultant het de ondernemer vragen, dan komt
-  // diens keuze als antwoord binnen (`answerFact()`), en is er hier niets te doen.
-  if ("feitId" in keuze) {
-    const { data: conflict } = await toegang.admin
-      .from("fact_conflicts")
-      .select("feit_ids")
-      .eq("id", conflictId)
-      .eq("profile_id", id)
-      .maybeSingle();
-    await legConflictkeuzeVast(
-      toegang.admin,
-      { profileId: id, winnaarFeitId: keuze.feitId, feitIds: ((conflict as { feit_ids: string[] } | null)?.feit_ids ?? []) },
-      { actor: "mens", gebruikerId: toegang.user.id },
-    );
-  }
   return NextResponse.json({ ok: true });
 }

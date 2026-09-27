@@ -39,6 +39,7 @@ import {
   type KennisBron,
 } from "@/lib/kennis/regels";
 import { kennisSleutel, botsingenMet, type SamenvoegItem } from "@/lib/kennis/samenvoegen";
+import type { Indeling } from "@/lib/kennis/vastleggen-typen";
 
 type Admin = SupabaseClient;
 
@@ -426,5 +427,51 @@ export async function nietOpSite(
     .select("*")
     .single();
   if (error || !data) return { ok: false, fout: `Opslaan mislukte: ${error?.message ?? "onbekende fout"}` };
+  return { ok: true, item: data as Klantkennis };
+}
+
+
+/**
+ * Een sitefeit indelen: soort, waarde, bewijskracht en waarvoor het geldt, in
+ * dezelfde rij (K8 deel 2, besluit V18). De samenvatting kent die niet; tot K8
+ * deed het feitenregister dit op `brand_facts`, nu hier.
+ *
+ * In dezelfde rij en niet als nieuwe versie, zoals `nietOpSite()`: de bewering,
+ * het citaat en de status veranderen niet, alleen de indeling erbij. Maar alleen
+ * de eerste keer (een item zonder soort): een ingedeeld item opnieuw indelen zou
+ * stil veranderen wat een mens misschien al bevestigde. Daarna zoekt de code of
+ * het nieuwe gegeven botst met wat er al stond (V14).
+ */
+export async function deelIn(
+  admin: Admin,
+  args: { profileId: string; itemId: string; indeling: Indeling },
+  door: Extract<Door, { actor: "code" | "model" }>,
+): Promise<HandelingUitkomst> {
+  const item = await laad(admin, args.profileId, args.itemId);
+  if (!item) return { ok: false, fout: "Dit kennisitem bestaat niet bij dit merk." };
+  if (item.vervangen_door || isAfgewezen(item)) return { ok: false, fout: "Dit item is vervangen of afgewezen." };
+  if (item.soort) return { ok: false, fout: "Dit item is al ingedeeld." };
+  const i = args.indeling;
+  const nu = new Date().toISOString();
+  const sleutel = kennisSleutel({ domein: i.domein, soort: i.soort, bewering: item.bewering, analysis_id: item.analysis_id, content_piece_id: item.content_piece_id });
+  const ruw = { ...(item.ruw && typeof item.ruw === "object" && !Array.isArray(item.ruw) ? (item.ruw as object) : { bron: item.ruw }), indeling: { door: door.taak, op: nu, uitvoer: i.ruw } };
+  const wijziging = {
+    domein: i.domein,
+    soort: i.soort,
+    waarde: i.waarde ?? null,
+    bewijskracht: i.bewijskracht ?? null,
+    geldt_voor: i.geldtVoor,
+    ruw,
+    updated_at: nu,
+  };
+  let { data, error } = await admin.from("klantkennis").update({ ...wijziging, sleutel }).eq("id", item.id).is("soort", null).select("*").maybeSingle();
+  // Dezelfde bewering staat al ingedeeld als een ander actueel item: dan blijft
+  // dit item zonder ontdubbelsleutel, net als bij `vervang()`.
+  if ((error as { code?: string } | null)?.code === "23505") {
+    ({ data, error } = await admin.from("klantkennis").update({ ...wijziging, sleutel: null }).eq("id", item.id).is("soort", null).select("*").maybeSingle());
+  }
+  if (error) return { ok: false, fout: `Opslaan mislukte: ${error.message}` };
+  if (!data) return { ok: false, fout: "Dit item is intussen al ingedeeld." };
+  await zetBotsingen(admin, data as Klantkennis);
   return { ok: true, item: data as Klantkennis };
 }
