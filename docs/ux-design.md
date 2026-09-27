@@ -607,6 +607,15 @@ plannen is erger dan één dat het helemaal kan en één dat leest. Een broncode
 `scripts/test-unit.ts` bewaakt dat de leesweergave geen sleepmachinerie krijgt en dat de schakelaar
 er staat.
 
+### De onderbouwing van een kans staat er nu bij, uitgeklapt op het bord (27 september 2026, N7)
+
+Elke kaart in de voorraad (het bord, "Plannen") toont bij het uitklappen nu ook de zin die de kans
+onderbouwt (`kansen.uitleg`, N1: "Mensen zoeken hiernaar, maar ChatGPT noemt je niet") en, daaronder
+in een eigen `<details>`-blokje "Bewijs per bron", één zin per bron waaruit de kans is opgebouwd
+(ChatGPT, Google AI Overview, Gemini, Search Console, de opbouw van de site, de consultant). Beide
+zijn voor klant en consultant gelijk zichtbaar: de klant mag weten waaróm iets voorgesteld wordt, het
+bewijs blijft standaard dicht (§5, alleen wat onderscheidt staat open) en is één klik verderop.
+
 ### De ronde staat bovenaan, en de score staat er weer onder (27 augustus 2026)
 
 Twee wijzigingen aan de startpagina, uit de structuurreview van 27 augustus 2026, en de tweede

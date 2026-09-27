@@ -239,6 +239,35 @@ function metPunt(tekst: string): string {
 }
 
 /**
+ * Eén zin per bron, voor het uitklapbare bewijs op het kansenscherm (N7).
+ * Anders dan `uitlegVan()` (de kans als geheel, alleen wat meetelt) toont dit
+ * ELKE bron los, ook zonder gegevens, zodat de klant kan zien wat er precies
+ * is nagekeken.
+ */
+export function bewijsRegel(b: KansBewijs): string {
+  const naam = NAAM[b.bron];
+  if (b.bron === "search_console") {
+    const zoek = zoekDeel(b);
+    if (!zoek) return `${naam}: nog geen gegevens.`;
+    const klikken = getal(b.klikken);
+    const positie = getal(b.positie);
+    const extra: string[] = [];
+    if (klikken !== null) extra.push(`${formatNumber(klikken)} ${klikken === 1 ? "klik" : "klikken"}`);
+    if (positie !== null) extra.push(`gemiddelde positie ${positie.toLocaleString("nl-NL", { maximumFractionDigits: 1 })}`);
+    return `${zoek.tekst}${extra.length > 0 ? `, ${extra.join(", ")}` : ""}.`;
+  }
+  if (b.bron === "consultant") {
+    const waarom = b.toelichting?.trim();
+    return waarom ? `Je consultant: ${metPunt(waarom)}` : "Je consultant zette deze kans erbij.";
+  }
+  if (b.bron === "structuur") {
+    return "Je biedt dit aan, maar er staat nog geen pagina over op je site.";
+  }
+  const ai = aiDeel(b);
+  return ai ? `${hoofdletter(ai)}.` : `${naam}: nog geen gegevens.`;
+}
+
+/**
  * De zin die de kans onderbouwt, in gewone taal en alleen uit het bewijs.
  *
  * Voorbeeld uit §8 van het plan: *"Mensen zoeken hiernaar (240 vertoningen in

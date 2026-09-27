@@ -31,6 +31,7 @@
  * geen plaats hangt (conventie 3).
  */
 import type { CommercieleWaarde, KansBewijs, KansBron, KansHandeling } from "@/lib/kansen/prioriteit";
+import { isOnBrandDomain } from "@/lib/url";
 
 /** Een aanbeveling zoals hij in `reports.recommendations_json` staat; alles kan ontbreken. */
 export interface RuweAanbeveling {
@@ -134,6 +135,8 @@ export interface MetingVoorBewijs {
   genoemd: boolean;
   /** De andere aanbieders die in deze meting genoemd werden. */
   concurrenten: readonly string[];
+  /** `tracking_run_mentions.cited_sources` van de eigen-merk-vermelding (N4). */
+  citedSources: readonly string[];
 }
 
 /** `tracking_runs.engine` naar de bron van een kans. Een onbekende bron levert geen bewijs. */
@@ -184,8 +187,16 @@ export interface BewijsUitMeting extends KansBewijs {
 /**
  * Het bewijs per bron voor deze doelvragen. Een bron zonder meting van een
  * doelvraag levert geen rij: niet gemeten is geen bewijs (conventie 3).
+ *
+ * `profileUrl` is nodig voor `eigenSiteGeciteerd` (N4): een bron zonder
+ * bekend webadres van het merk kan de eigen site nooit herkennen in een
+ * citaat, dus dan blijft dat veld `null` (onbekend, geen "nee").
  */
-export function bewijsUitMetingen(doelvragen: readonly Doelvraag[], metingen: readonly MetingVoorBewijs[]): BewijsUitMeting[] {
+export function bewijsUitMetingen(
+  doelvragen: readonly Doelvraag[],
+  metingen: readonly MetingVoorBewijs[],
+  profileUrl: string | null = null,
+): BewijsUitMeting[] {
   const vragen = new Set(doelvragen.map((d) => d.promptId).filter((id): id is string => !!id));
   const perBron = new Map<KansBron, Map<string, MetingVoorBewijs[]>>();
   for (const m of metingen) {
@@ -204,6 +215,7 @@ export function bewijsUitMetingen(doelvragen: readonly Doelvraag[], metingen: re
     let genoemd = 0;
     const telling = new Map<string, number>();
     const runIds: string[] = [];
+    let geciteerd = false;
     for (const lijst of perVraag.values()) {
       // Meerderheid binnen de bron, gelijke stand wint genoemd (`bepaalGemisteVragen()`).
       const gemist = lijst.filter((m) => !m.genoemd).length;
@@ -211,6 +223,7 @@ export function bewijsUitMetingen(doelvragen: readonly Doelvraag[], metingen: re
       if (vraagGenoemd) genoemd++;
       for (const m of lijst) {
         runIds.push(m.runId);
+        if (profileUrl && m.citedSources.some((u) => isOnBrandDomain(u, profileUrl))) geciteerd = true;
         // Alleen waar het merk ontbrak: dat zijn de concurrenten die de plek innemen.
         if (m.genoemd) continue;
         for (const naam of new Set(m.concurrenten.map((c) => c.trim()).filter(Boolean))) {
@@ -222,7 +235,14 @@ export function bewijsUitMetingen(doelvragen: readonly Doelvraag[], metingen: re
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "nl"))
       .slice(0, MAX_CONCURRENTEN)
       .map(([naam]) => naam);
-    uit.push({ bron, vragenGemeten: perVraag.size, vragenGenoemd: genoemd, concurrenten, runIds });
+    uit.push({
+      bron,
+      vragenGemeten: perVraag.size,
+      vragenGenoemd: genoemd,
+      concurrenten,
+      runIds,
+      eigenSiteGeciteerd: profileUrl ? geciteerd : null,
+    });
   }
   return uit;
 }

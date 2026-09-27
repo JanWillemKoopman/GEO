@@ -115,9 +115,15 @@ export function PlanView({
   staff,
   standen = {},
   kennisgat,
+  kansUitleg = {},
+  kansBewijs = {},
 }: {
   /** N6: per kans wat nog ontbreekt. Alleen gevuld voor de consultant. */
   kennisgat?: Record<string, string[] | null>;
+  /** N7: de zin die de kans onderbouwt (N1). Voor iedereen zichtbaar. */
+  kansUitleg?: Record<string, string | null>;
+  /** N7: het bewijs per bron, als leesbare zinnen. Uitklapbaar op het scherm. */
+  kansBewijs?: Record<string, string[]>;
   /**
    * De ene stand per plan-pagina (`lib/pagina-stand.ts`, 23 september 2026).
    * Het plan toonde tot die dag zijn eigen labels ("Tekst klaar voor akkoord"),
@@ -659,6 +665,8 @@ export function PlanView({
                     key={item.id}
                     item={item}
                     gat={gatZin(kennisgat, item.kansId ?? null)}
+                    kansUitleg={item.kansId ? (kansUitleg[item.kansId] ?? null) : null}
+                    bewijs={item.kansId ? (kansBewijs[item.kansId] ?? []) : []}
                     maanden={maandKeuzes}
                     busy={busy === item.id}
                     open={uitgeklapt[item.id] ?? false}
@@ -1342,6 +1350,8 @@ function MenuScheiding() {
 function BacklogRij({
   item,
   gat,
+  kansUitleg,
+  bewijs,
   maanden,
   busy,
   open,
@@ -1354,6 +1364,10 @@ function BacklogRij({
   item: BacklogItem;
   /** N6: "Nog niet bekend: ...", alleen voor de consultant. */
   gat: string | null;
+  /** N7: de zin die de kans onderbouwt (N1). */
+  kansUitleg: string | null;
+  /** N7: het bewijs per bron, als leesbare zinnen. */
+  bewijs: string[];
   maanden: MaandKeuze[];
   busy: boolean;
   open: boolean;
@@ -1414,6 +1428,17 @@ function BacklogRij({
               </span>
             )}
             {uitleg && <p className="text-xs text-secondary" style={{ lineHeight: 1.5 }}>{uitleg}</p>}
+            {kansUitleg && <p className="text-xs text-secondary" style={{ lineHeight: 1.5 }}>{kansUitleg}</p>}
+            {bewijs.length > 0 && (
+              <details className="text-xs text-muted">
+                <summary className="cursor-pointer select-none hover:underline">Bewijs per bron</summary>
+                <ul className="mt-1 flex flex-col gap-0.5 pl-3">
+                  {bewijs.map((regel, i) => (
+                    <li key={i}>{regel}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
             {gat && <p className="text-xs text-muted" style={{ lineHeight: 1.5 }}>{gat}</p>}
           </div>
         )}

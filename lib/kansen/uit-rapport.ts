@@ -101,12 +101,19 @@ async function metingenVoor(
   const tellend = runs.filter((r) => r.brands_in_answer !== 0);
   if (tellend.length === 0) return [];
 
-  const vermeldingen: { tracking_run_id: string; entity_name: string; is_own_brand: boolean; mentioned: boolean; mention_role: string | null }[] = [];
+  const vermeldingen: {
+    tracking_run_id: string;
+    entity_name: string;
+    is_own_brand: boolean;
+    mentioned: boolean;
+    mention_role: string | null;
+    cited_sources: string[] | null;
+  }[] = [];
   for (const stuk of inStukken(tellend.map((r) => r.id))) {
     const rijen = await alleRijen<(typeof vermeldingen)[number]>((van, tot) =>
       admin
         .from("tracking_run_mentions")
-        .select("tracking_run_id, entity_name, is_own_brand, mentioned, mention_role")
+        .select("tracking_run_id, entity_name, is_own_brand, mentioned, mention_role, cited_sources")
         .in("tracking_run_id", stuk)
         .order("id")
         .range(van, tot),
@@ -115,10 +122,13 @@ async function metingenVoor(
   }
 
   const eigen = new Map<string, boolean>();
+  const eigenCitaten = new Map<string, string[]>();
   const anderen = new Map<string, string[]>();
   for (const v of vermeldingen) {
-    if (v.is_own_brand) eigen.set(v.tracking_run_id, v.mentioned);
-    else if (isConcurrent(v)) anderen.set(v.tracking_run_id, [...(anderen.get(v.tracking_run_id) ?? []), v.entity_name]);
+    if (v.is_own_brand) {
+      eigen.set(v.tracking_run_id, v.mentioned);
+      eigenCitaten.set(v.tracking_run_id, v.cited_sources ?? []);
+    } else if (isConcurrent(v)) anderen.set(v.tracking_run_id, [...(anderen.get(v.tracking_run_id) ?? []), v.entity_name]);
   }
 
   // Alleen wat beoordeeld is: een meting zonder oordeel over het eigen merk is
@@ -131,6 +141,7 @@ async function metingenVoor(
       engine: r.engine,
       genoemd: eigen.get(r.id) === true,
       concurrenten: anderen.get(r.id) ?? [],
+      citedSources: eigenCitaten.get(r.id) ?? [],
     }));
 }
 
@@ -191,7 +202,7 @@ export async function legKansenVast(admin: SupabaseClient, rapportId: string): P
 
     const [{ data: topicRows }, { data: profiel }, { data: kennisRows }] = await Promise.all([
       admin.from("profile_topics").select("offering_ids, offering_names").eq("analysis_id", r.analysis_id),
-      admin.from("profiles").select("priority_offerings, deprioritised_offerings").eq("id", profileId).maybeSingle(),
+      admin.from("profiles").select("priority_offerings, deprioritised_offerings, url").eq("id", profileId).maybeSingle(),
       // Alleen actuele, niet afgewezen kennis: een kans hangt niet aan iets wat
       // een mens heeft weggehaald.
       admin
@@ -205,7 +216,8 @@ export async function legKansenVast(admin: SupabaseClient, rapportId: string): P
     const topics = (topicRows ?? []) as { offering_ids: string[] | null; offering_names: string[] | null }[];
     const dienstIds = topics.flatMap((t) => t.offering_ids ?? []);
     const dienstNamen = topics.flatMap((t) => t.offering_names ?? []);
-    const p = profiel as { priority_offerings: string[] | null; deprioritised_offerings: string[] | null } | null;
+    const p = profiel as { priority_offerings: string[] | null; deprioritised_offerings: string[] | null; url: string | null } | null;
+    const profileUrl = p?.url ?? null;
     const commercieel = commercieleWaardeVan({
       diensten: dienstNamen,
       voorrang: p?.priority_offerings ?? [],
@@ -229,6 +241,7 @@ export async function legKansenVast(admin: SupabaseClient, rapportId: string): P
         vragen_gemeten: b.vragenGemeten,
         vragen_genoemd: b.vragenGenoemd,
         concurrenten: b.concurrenten,
+        eigen_site_geciteerd: b.eigenSiteGeciteerd,
         run_ids: b.runIds,
         rapport_id: r.id,
         ruw: { regel: BEWIJS_REGEL, doelvragen: k.doelvragen } as never,
@@ -236,7 +249,7 @@ export async function legKansenVast(admin: SupabaseClient, rapportId: string): P
       }));
 
     for (const t of teVerversen) {
-      const bewijs = bewijsUitMetingen(t.kans.doelvragen, metingen);
+      const bewijs = bewijsUitMetingen(t.kans.doelvragen, metingen, profileUrl);
       if (bewijs.length > 0) {
         const { error: fout } = await admin.from("kans_bewijs").upsert(bewijsRijen(t.id, t.kans, bewijs), { onConflict: "kans_id,bron" });
         if (fout) {
@@ -253,7 +266,7 @@ export async function legKansenVast(admin: SupabaseClient, rapportId: string): P
     }
 
     for (const k of nieuw) {
-      const bewijs = bewijsUitMetingen(k.doelvragen, metingen);
+      const bewijs = bewijsUitMetingen(k.doelvragen, metingen, profileUrl);
       const { data: rij, error } = await admin
         .from("kansen")
         .insert({

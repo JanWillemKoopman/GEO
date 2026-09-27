@@ -8972,7 +8972,7 @@ async function main(): Promise<void> {
       eqc(
         "scenario 23: de uitleg komt uit het bewijs",
         String(best?.uitleg),
-        "ChatGPT noemt je bij 1 van de 2 vragen en noemt twee concurrenten wel. Google AI Overview noemt je niet bij de enige gemeten vraag en noemt één concurrent wel.",
+        "ChatGPT noemt je bij 1 van de 2 vragen en noemt twee concurrenten wel. Google AI Overview noemt je niet bij de enige gemeten vraag en noemt één concurrent wel en citeert je site niet.",
       );
       eqc(
         "scenario 23: zonder gemis zegt de uitleg dat ook",
