@@ -31,7 +31,6 @@ import {
   vulBronnenAan,
 } from "@/lib/pipeline/report-summary";
 import { BRONNEN } from "@/lib/engines/bron";
-import { pasSchrijfregelsToe } from "@/lib/schrijfregel-vangnet";
 import {
   buildEvidenceDossier,
   loadBrandsByRun,
@@ -72,7 +71,6 @@ import { sendReportEmail } from "@/lib/email/report-email";
 import { emailsEnabled } from "@/lib/env";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { requireCount } from "@/lib/require-count";
-import { filterNieuweMerkvragen } from "@/lib/vraag-sluiten";
 import { legKansenVast, werkKennisgatBij } from "@/lib/kansen/uit-rapport";
 import type {
   Analysis,
@@ -568,64 +566,6 @@ async function computeMissedPrompts(
 }
 
 /**
- * Bewaart de feitenvragen bij het PROFIEL (optimalisatie.md 4.6).
- *
- * Bij het profiel en niet bij de analyse, want "hoeveel jaar bestaan jullie?"
- * is één keer beantwoorden en daarna weten we het voor elke pagina van dit merk.
- * De unieke index op (profile_id, question) houdt exact dezelfde vraag tegen;
- * `filterNieuweMerkvragen()` ook dezelfde vraag in andere woorden en wat het
- * gesprek al beantwoordde.
- */
-async function saveFactRequests(
-  admin: ReturnType<typeof createAdminClient>,
-  analysis: Analysis,
-  requests: Report["factRequests"],
-): Promise<void> {
-  if (!requests || requests.length === 0) return;
-
-  // Punt 35 en 36 van de kwaliteitsdoorlichting. De unieke index op de
-  // letterlijke tekst hield alleen exact dezelfde vraag tegen; na drie
-  // rapportversies had de installateur vier varianten van "welke controles doet
-  // u bij een woningbezoek". Nu ook: niet in andere woorden, en niet wat het
-  // gesprek al zei.
-  const { door, weg } = await filterNieuweMerkvragen(
-    admin,
-    analysis.profile_id,
-    requests.filter((r) => r.question?.trim()),
-  );
-  if (weg.length > 0) {
-    console.log(
-      `Rapport ${analysis.id}: ${weg.length} feitvraag of feitvragen niet gesteld: ` +
-        weg.map((w) => `"${w.vraag}" (${w.reden})`).join("; "),
-    );
-  }
-
-  const rows = door
-    .slice(0, FACT_REQUEST_CAP)
-    .map((r) => ({
-      profile_id: analysis.profile_id,
-      analysis_id: analysis.id,
-      // Het vangnet onder de schrijfregels (punt 37 van de kwaliteitsdoorlichting).
-      question: pasSchrijfregelsToe(r.question.trim()),
-      reason: r.reason?.trim() ? pasSchrijfregelsToe(r.reason.trim()) : null,
-    }));
-
-  // Botsingen (de vraag stond er al) negeren in plaats van de hele insert laten
-  // klappen; het rapport mag niet mislukken op een dubbele feitenvraag.
-  const { error } = await admin.from("fact_requests").upsert(rows, {
-    onConflict: "profile_id,question",
-    ignoreDuplicates: true,
-  });
-  if (error)
-    console.warn(
-      `Feitenvragen opslaan mislukt voor analyse ${analysis.id}: ${error.message}`,
-    );
-}
-
-/** Meer dan een handvol vragen is geen uitnodiging meer maar een formulier. */
-const FACT_REQUEST_CAP = 6;
-
-/**
  * Toetst de concurrentnamen in het rapport tegen het bewijs
  * (implementatieplan.md R1.3).
  *
@@ -1053,7 +993,10 @@ export async function generateReport(
       );
     }
 
-    await saveFactRequests(admin, analysis, report.parsed.factRequests);
+    // Tot A3 (`van-pijplijn-naar-kennissysteem.md`) werden de feitvragen van het
+    // rapport hier vragen aan de klant. Sinds besluit V3 vraagt alleen de
+    // voorbereiding van een pagina; wat het rapport voorstelde, staat nog in de
+    // ruwe uitvoer (conventie 8).
 
     // N2 (`docs/tasks/van-pijplijn-naar-kennissysteem.md`): elke aanbeveling
     // wordt meteen een kans, met het bewijs van de meting per bron. Gooit nooit:

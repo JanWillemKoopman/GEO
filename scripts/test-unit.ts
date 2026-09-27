@@ -1018,7 +1018,7 @@ import { blokA } from "@/lib/pagina/bedrijfskennis";
 import { kiesVoorBlokA, blokAUitKennis, MAX_KENNIS, type KennisVoorBlokA, type PaginaVoorBlokA } from "@/lib/kennis/blok-a";
 import { blokkadesVan } from "@/lib/kennis/betwist";
 import { nietVanToepassingVelden, zonderNietVanToepassing, kennisUitStemvoorbeelden, stemPlan, kennisUitDocument } from "@/lib/kennis/gesprek";
-import { maakOverzicht, handelingenVoor, herkomstZin, nieuwGebruikBijAanpassen, type OverzichtItem } from "@/lib/kennis/overzicht";
+import { maakOverzicht, handelingenVoor, herkomstZin, nieuwGebruikBijAanpassen, openPuntenUitOnderzoek, type OverzichtItem } from "@/lib/kennis/overzicht";
 import { faqMarkdown, volledigeMarkdown, htmlDocument, bestandsnaam } from "@/lib/oplevering";
 import { schrijfpoort, schrijfdatum } from "@/lib/pagina/schrijfpoort";
 import { schoneAdressen, vanafEersteAlinea, MAX_STEMVOORBEELDEN } from "@/lib/pagina/stemvoorbeelden-regels";
@@ -20686,8 +20686,9 @@ group("Vragen die het gesprek al beantwoordde of die er al staan (verbeterronde,
   ok("ook met een plaats erbij", !zelfdeVraag("Wat kost een hybride warmtepomp in Mierlo?", "Hoe lang duurt de installatie van een hybride warmtepomp in Mierlo?"));
   ok("onderhoud en merken zijn twee vragen", !zelfdeVraag("Welk onderhoud voeren jullie uit aan hybride warmtepompen?", "Welke merken hybride warmtepompen leveren jullie?"));
 
-  ok("het rapport filtert zijn vragen", leesBestand("lib/pipeline/report.ts").includes("filterNieuweMerkvragen("));
-  ok("het merkonderzoek ook", leesBestand("lib/pipeline/synthesis.ts").includes("filterNieuweMerkvragen("));
+  // Sinds A3 (besluit V3) stellen het rapport en het merkonderzoek geen vragen meer.
+  ok("het rapport stelt geen vragen meer (A3)", !/from\(\s*"fact_requests"\s*\)\s*\.\s*(insert|upsert)/.test(leesBestand("lib/pipeline/report.ts")));
+  ok("het merkonderzoek ook niet", !/from\(\s*"fact_requests"\s*\)\s*\.\s*(insert|upsert)/.test(leesBestand("lib/pipeline/synthesis.ts")));
   ok("en opslaan van het gesprek sluit open vragen", leesBestand("app/api/profiles/[id]/route.ts").includes("sluitVragenUitGesprek(admin, id)"));
   ok("alleen vragen die niet aan een pagina hangen", leesBestand("lib/vraag-sluiten.ts").includes("if ((rij.content_piece_ids ?? []).length > 0) continue;"));
 });
@@ -22998,3 +22999,24 @@ group("A2: een antwoord over een dienst geldt voor de dienst (besluit V23)", () 
   ok("de antwoordroute zoekt de diensten van de pagina op", leesBestand("lib/facts.ts").includes("dienstenVanPaginas(admin, input.profileId"));
   ok("een antwoord van vóór A2 blijft bij zijn pagina als het gewijzigd wordt", /if \(!sleutel \|\| !\(await metSleutel\(admin, args\.profileId, sleutel\)\)\) diensten = \[\];/.test(leesBestand("lib/kennis/uit-gesprek.ts")));
 });
+
+group("A3: één bron van vragen (besluit V3)", () => {
+  const punten = openPuntenUitOnderzoek([
+    { facet: "synthese", raw_json: { gaps: ["- Hoeveel fysiotherapeuten werken er?", "Welke specialisaties per vestiging?", "  "] } },
+    { facet: "aanbod", raw_json: { output_parsed: { gaps: ["De tarieven van de specialisaties ontbreken.", "hoeveel fysiotherapeuten werken er?"] } } },
+    { facet: "markt", raw_json: { gaps: ["Niet van deze stappen."] } },
+  ]);
+  eq("de punten van de samenvatting en het aanbod, zonder opsomteken en zonder dubbele", punten.map((p) => `${p.bron}:${p.punt}`).join(" | "),
+    "samenvatting:Hoeveel fysiotherapeuten werken er? | samenvatting:Welke specialisaties per vestiging? | aanbod:De tarieven van de specialisaties ontbreken.");
+  eq("zonder verslag niets", String(openPuntenUitOnderzoek([{ facet: "synthese", raw_json: null }]).length), "0");
+  ok("het kennisoverzicht toont ze", leesBestand("app/(app)/merk/[id]/admin/kennis/page.tsx").includes("openPuntenUitOnderzoek("));
+  const vraagSchrijvers = codebestanden()
+    .filter((p) => !p.startsWith("scripts/"))
+    .filter((p) => /from\(\s*["'`]fact_requests["'`]\s*\)\s*\.\s*(insert|upsert)\s*\(/.test(codeZonderCommentaar(leesBestand(p))));
+  eq(
+    "vragen aan de klant komen alleen nog uit de voorbereiding van een pagina, de open vraag en het merkdossier",
+    vraagSchrijvers.sort().join(", "),
+    "app/api/profiles/[id]/dossier/route.ts, lib/pagina/brief.ts, lib/pagina/open-vraag.ts",
+  );
+});
+

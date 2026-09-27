@@ -796,6 +796,14 @@ Per werkpakket: **doel**, **wat**, **niet**, **klaar als**. De nummers zijn vast
   van losse vragen.
 - **Klaar als:** bij een nieuw proefmerk tellen we de vragen van onderzoek tot eerste pagina en vergelijken
   met de 12 tot 14 per merk van de proef van 26 september 2026.
+- **Gebouwd (27 september 2026):** het rapport en de samenvatting van het onderzoek schrijven geen vragen
+  meer (`saveFactRequests` en `storeGapQuestions` zijn weg); wat ze voorstelden, blijft in hun ruwe uitvoer.
+  Het kennisoverzicht toont de open punten van de samenvatting en de aanbodboom als "wat het onderzoek niet
+  kon vaststellen" (`openPuntenUitOnderzoek()`). Een test legt vast dat vragen aan de klant alleen nog uit de
+  voorbereiding van een pagina, de open vraag en het merkdossier komen. Vragen die al openstaan, blijven
+  staan. De opdracht van het rapport vraagt nog wel om feitvragen: die veranderen was geen onderdeel van
+  A3, en de uitvoer blijft zo vergelijkbaar. *Niet gedaan:* de telling bij een nieuw proefmerk (dat is een
+  betaalde onderzoeksronde op productie); een taak voor de eigenaar (§12).
 
 #### A4 De kennisronde in het gesprek
 - **Doel:** het gesprek richt zich op wat het meeste oplevert.
@@ -972,6 +980,7 @@ per pagina opnieuw.
 | Voor N3 en M2 | Search Console koppelen bij minstens één merk (een proefmerk met een eigen site, of de eerste klant) | Nu staat er bij nul merken Search Console |
 | Na K8 | Op productie één stemvoorbeeld opslaan en één stuk tekst in het merkdossier plakken, en in het kennisoverzicht kijken of ze erbij staan (stemvoorbeeld: "uit de website"; dossier: "uit een document"). Na een maandvoorbereiding op het conflictscherm kijken of "alle feiten van de site zijn nagelopen" | Claude kon dit niet zelf: de werkomgeving weigert schrijven via de app op productie. In de ketentest werkt het (scenario 18 en 27) |
 | Na A1 | Op de proefmerken een paar pagina's opnieuw laten briefen (brief versie 4) en de vragen naast die van versie 3 leggen; kiezen welke set je als ondernemer liever beantwoordt | Het "klaar als" van A1; kost per pagina één aanroep op Sol met zoeken op het web |
+| Na A3 | Bij het volgende nieuwe proefmerk de vragen tellen van onderzoek tot eerste pagina, en vergelijken met de 12 tot 14 per merk van 26 september 2026 | Het "klaar als" van A3; vraagt een betaalde onderzoeksronde |
 | Na K7, N7, A4, M4 | De nieuwe schermen doorlopen (K7 en A4 als consultant, N7 en M4 met een klantlogin) | Het oordeel "begrijpt een ondernemer dit" kan alleen een mens geven |
 
 ---
@@ -1005,7 +1014,7 @@ per pagina opnieuw.
 | G5 | Beslismoment: verder of stoppen | 1 | Open | |
 | A1 | De brief krijgt de kennisgaten | 1 | Gebouwd: brief versie 4 met het kennisgat van de kans (besluit B21), eenheidstests en ketenscenario 23. Open: opnieuw briefen op de proefmerken en de keuze van de eigenaar (§12) | 27 september 2026 |
 | A2 | Eén keer vertellen, altijd gebruikt | 1 | Gedaan: een antwoord op een gerichte paginavraag geldt voor de dienst van de kans (besluit V23), ketenscenario 30 (het "klaar als" van dit werkpakket is een ketentest) | 27 september 2026 |
-| A3 | Eén bron van vragen | 1 | Open | |
+| A3 | Eén bron van vragen | 1 | Gebouwd: rapport en onderzoek stellen geen vragen meer (besluit V3), de open punten van het onderzoek staan op het kennisoverzicht; eenheidstests en de ketentest van de open punten. Open: de telling bij een nieuw proefmerk (§12) | 27 september 2026 |
 | A4 | De kennisronde in het gesprek | 1 | Open | |
 | A5 | Herinnering bij openstaande vragen | 1 | Open | |
 | C1 | De controle leest ook FAQ en metabeschrijving | 1 | Open | |

@@ -457,8 +457,10 @@ nog niet weten.
   site hem doet. *"Liever tien scherpe dan veertig vage."*
 - **Komt eruit:** dossier, open punten, feiten.
 - **Code daarna:** een feit waarvan het citaat niet letterlijk op de bronpagina staat, vervalt. Feiten
-  gaan naar `brand_facts`. De open punten worden vragen voor het hele merk op "Openstaande vragen".
-- **Bestand:** `lib/pipeline/synthesis.ts`, `gap-questions.ts`.
+  gaan de kennislaag in (sinds K8 deel 2 niet meer naar `brand_facts`). De open punten blijven in het
+  verslag staan en de consultant ziet ze op het kennisoverzicht als onderwerp voor het gesprek; sinds A3
+  (27 september 2026, besluit V3) worden het geen vragen aan de klant meer.
+- **Bestand:** `lib/pipeline/synthesis.ts`.
 
 **2.10 De fase springt naar "Klaar voor het gesprek".** Een stap die niets vindt, toont een
 waarschuwing in plaats van een groen vinkje.
@@ -862,8 +864,8 @@ en er start een onderzoek naar externe websites waarop het merk wel of niet staa
   reden. Plus vragen aan de klant om feiten die de content beter maken.
 - **Komt eruit:** het rapport, de aanbevelingen, de afgewezen kansen met reden, en vragen aan de klant.
 - **Code daarna:** een merknaam die niet in het bewijs van die vraag staat, gaat eruit; vraagcodes en
-  gewichten worden uit de lopende tekst gehaald. De vragen aan de klant worden ontdubbeld tegen alles wat
-  het merk al kreeg en opgeslagen.
+  gewichten worden uit de lopende tekst gehaald. De vragen aan de klant blijven sinds A3 (27 september 2026,
+  besluit V3) in de ruwe uitvoer en worden geen vragen meer: alleen de voorbereiding van een pagina vraagt.
 - **Bestand:** `lib/pipeline/report.ts` (`REPORT_SYSTEM`, `buildReportInput`).
 
 **AI-aanroep 7.4: potentie per onderwerp**
@@ -1133,9 +1135,9 @@ de klant, `after(() => probeerNaAntwoord(...))`. Het vragenscherm is `components
 
 - **Er is geen herinnering.** Een klant die zijn vragen laat liggen, houdt zijn eigen pagina onbeperkt
   tegen (bewust, besluit B5), maar de app laat dat niet actief weten (e-mail staat uit).
-- **Drie bronnen stellen vragen aan de klant**: de samenvatting van het onderzoek (2.9), het rapport (7.3)
-  en de content brief (9.6). Ze komen sinds 26 september 2026 allemaal bij de schrijver, maar is dat
-  aantal nog nodig nu de brief per pagina vraagt?
+- **Eén bron van vragen** (sinds A3, 27 september 2026): alleen de content brief (9.6) stelt nog vragen,
+  naast de open vraag per pagina en het merkdossier. De samenvatting (2.9) en het rapport (7.3) doen het niet
+  meer; de open punten van het onderzoek staan op het kennisoverzicht van de consultant.
 
 ---
 
