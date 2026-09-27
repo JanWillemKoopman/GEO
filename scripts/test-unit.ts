@@ -56,6 +56,8 @@ import {
   type MetingVoorBewijs,
   type KennisVoorKans,
 } from "@/lib/kansen/rapport";
+import { BESLUITEN } from "./kennis-open-punten";
+import { openPuntenSql, foutenVan } from "@/lib/kennis/open-punten";
 import { kennisgatVan, kennisgatZin, behoeftenVoor, hoortBijKans, BEHOEFTE_LABEL, type KennisVoorGat, type KansVoorGat } from "@/lib/kansen/kennisgat";
 import {
   maakTerugvulplan,
@@ -22519,4 +22521,36 @@ group("kansen: het kennisgat per kans (N6)", () => {
   ok("geen model bepaalt wat ontbreekt", !/openai|callStructured|server-only/.test(bron.split("\n").filter((r) => r.startsWith("import")).join("\n")));
   ok("het plan geeft het kennisgat alleen aan de consultant", leesBestand("app/(app)/merk/[id]/strategie/plan/page.tsx").includes("kennisgat={staff ? bundle.kennisgat : undefined}"));
   ok("de voorraad werkt het bij bij elke synchronisatie", leesBestand("lib/plan-backlog-data.ts").includes("await werkKennisgatBij(admin, profileId);"));
+});
+
+group("de open punten van de kennislaag afhandelen (V16)", () => {
+  const twintig = [
+    "c1629728-1d90-4792-b780-64d5000693a6", "94811f89-9330-415d-ae53-52202e75cc35", "ed9ac524-05a2-41ec-9d8c-76221772b5f9",
+    "bfec7a2e-7c69-451c-ae2a-ed996e5dd970", "fbdbd1b9-c187-4568-b304-b0b15b2546d6", "fe5d4bae-b01a-4c9a-8bbc-c59d55ae842b",
+    "c7d404ba-e17b-4d0c-b48f-8d3ffef0bd1f", "ba8eafec-a7d7-43d6-9e87-bb10da27f9b9", "e1cb22a9-faa9-4481-965f-6abf8f471e3a",
+    "84de2e15-7235-4949-a19b-424b5e93cfa3", "1b8ff72a-11d2-4348-b9f6-95456a073181", "b37c7e95-1072-44e1-8f6f-64adfd8d80bb",
+    "fd8f1556-ac2f-40c9-8738-159d783fb27e", "db79b321-40d8-4836-b519-19a1db18fdb0", "94a4e737-c6a9-47e8-9e90-4838dd2088f6",
+    "3aaefec8-11a6-458a-bff7-96586c63885a", "0c691c35-996d-482b-872d-112f772c09cf", "25994597-d02e-41f8-9313-889516ac77e9",
+    "3ad103af-db40-4e88-8fc9-e6af437c4bbe", "6339c1c5-72f0-460a-be5c-519f212cdffa",
+  ];
+  const behandeld = BESLUITEN.flatMap((b) => ("id" in b ? [b.id] : []));
+  eq("elk van de twintig punten heeft precies één besluit", twintig.filter((id) => behandeld.filter((b) => b === id).length !== 1).join(","), "");
+  eq("en er is geen besluit over iets anders", behandeld.filter((id) => !twintig.includes(id)).join(","), "");
+  ok("geen afwijzing en geen bevestiging: dat is voor een mens (V6)", !BESLUITEN.some((b) => ["afwijzen", "bevestigen"].includes(b.soort as string)));
+  const nieuw = BESLUITEN.flatMap((b) => (b.soort === "vervangen" || b.soort === "erbij" ? [b.nieuw] : []));
+  eq("elk nieuw item haalt de regels van de schrijfingang", nieuw.flatMap((n) => foutenVan(n)).join(" | "), "");
+  ok("geen oude prijs van € 76 per uur meer bij handgeschakeld", !nieuw.some((n) => n.bewering.includes("handgeschakeld") && n.bewering.includes("76")));
+  const sql = openPuntenSql(BESLUITEN, "2026-09-27");
+  eq("de SQL controleert elk citaat voordat er iets verandert", String((sql.match(/raise exception 'Citaat niet letterlijk/g) ?? []).length), String(nieuw.length));
+  ok("en de controles staan vóór de eerste wijziging", sql.indexOf("raise exception") < sql.indexOf("insert into") && sql.lastIndexOf("raise exception") < sql.indexOf("update public.klantkennis"));
+  ok("er wordt niets verwijderd", !/\bdelete\b|\bdrop\b|\btruncate\b/i.test(sql));
+  ok("alles in één blok: gaat één stap mis, dan gebeurt er niets", sql.startsWith("do $$") && sql.trim().endsWith("end $$;"));
+  ok("een tweede run doet niets: elke vervanging kijkt eerst of het oude item nog actueel is", (sql.match(/and vervangen_door is null\)/g) ?? []).length >= BESLUITEN.filter((b) => b.soort !== "merkbreed").length);
+  let geweigerd = "";
+  try {
+    openPuntenSql([{ soort: "erbij", nieuw: { ...nieuw[0]!, citaat: "" }, reden: "x" }], "2026-09-27");
+  } catch (e) {
+    geweigerd = String((e as Error).message);
+  }
+  ok("een item zonder citaat levert geen SQL op", geweigerd.length > 0);
 });
