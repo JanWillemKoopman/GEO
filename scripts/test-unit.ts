@@ -1019,7 +1019,7 @@ import { kiesVoorBlokA, blokAUitKennis, MAX_KENNIS, type KennisVoorBlokA, type P
 import { blokkadesVan } from "@/lib/kennis/betwist";
 import { nietVanToepassingVelden, zonderNietVanToepassing, kennisUitStemvoorbeelden, stemPlan, kennisUitDocument } from "@/lib/kennis/gesprek";
 import { maakOverzicht, handelingenVoor, herkomstZin, nieuwGebruikBijAanpassen, openPuntenUitOnderzoek, type OverzichtItem } from "@/lib/kennis/overzicht";
-import { faqMarkdown, volledigeMarkdown, htmlDocument, bestandsnaam } from "@/lib/oplevering";
+import { faqMarkdown, volledigeMarkdown, htmlDocument, bestandsnaam, siteLinksVoorOnderwerp, zusterPaginas } from "@/lib/oplevering";
 import { schrijfpoort, schrijfdatum } from "@/lib/pagina/schrijfpoort";
 import { schoneAdressen, vanafEersteAlinea, MAX_STEMVOORBEELDEN } from "@/lib/pagina/stemvoorbeelden-regels";
 import { openVraagTekst, OPEN_VRAAG_MAX } from "@/lib/pagina/open-vraag-tekst";
@@ -21433,6 +21433,31 @@ group("opleveren: wat de klant meeneemt naar zijn site", () => {
   ok("zonder meta geen lege tags", !htmlDocument({ metaTitel: null, metaBeschrijving: " ", tekst: "x", faq: [], schemaJsonLd: null }).includes("<title>"));
   eq("een bestandsnaam uit de titel", bestandsnaam("Tuin aanleggen in Één dag!"), "tuin-aanleggen-in-een-dag");
   eq("nooit leeg", bestandsnaam("???"), "pagina");
+});
+
+group("C2: het publicatiepakket compleet, interne links", () => {
+  const paginas = [
+    { url: "https://hovenier.nl/diensten/warmtepomp-installatie", title: "Warmtepomp installatie" },
+    { url: "https://hovenier.nl/contact", title: "Contact" },
+    { url: "https://hovenier.nl/blog/onderhoud-warmtepomp", title: null },
+    { url: "https://hovenier.nl/tuinontwerp", title: "Tuinontwerp op maat" },
+  ];
+  const links = siteLinksVoorOnderwerp(paginas, "Warmtepomp", null);
+  eq("een woord uit de dienstnaam in de titel of het adres", links.map((l) => l.url).join(" | "), "https://hovenier.nl/diensten/warmtepomp-installatie | https://hovenier.nl/blog/onderhoud-warmtepomp");
+  ok("zonder titel valt hij terug op het adres", links[1].titel === "https://hovenier.nl/blog/onderhoud-warmtepomp");
+  eq("zonder onderwerp geen voorstel", String(siteLinksVoorOnderwerp(paginas, null, null).length), "0");
+  eq("een te kort woord telt niet mee", String(siteLinksVoorOnderwerp(paginas, "cv", null).length), "0");
+  eq("het eigen adres valt weg", siteLinksVoorOnderwerp(paginas, "Warmtepomp", "https://hovenier.nl/diensten/warmtepomp-installatie").map((l) => l.url).join(""), "https://hovenier.nl/blog/onderhoud-warmtepomp");
+  const veel = Array.from({ length: 10 }, (_, i) => ({ url: `https://hovenier.nl/warmtepomp-${i}`, title: `Warmtepomp ${i}` }));
+  eq("hooguit vijf", String(siteLinksVoorOnderwerp(veel, "Warmtepomp", null).length), "5");
+
+  const kandidaten = [
+    { id: "p1", titel: "Warmtepomp onderhoud", url: "https://hovenier.nl/onderhoud", geldtVoor: ["d-warmtepomp"] },
+    { id: "p2", titel: "Zonnepanelen leggen", url: "https://hovenier.nl/zonnepanelen", geldtVoor: ["d-zon"] },
+    { id: "dit", titel: "Warmtepomp installeren", url: "https://hovenier.nl/installeren", geldtVoor: ["d-warmtepomp"] },
+  ];
+  eq("dezelfde dienst wel, een andere niet, zichzelf niet", zusterPaginas("dit", ["d-warmtepomp"], kandidaten).map((l) => l.url).join(""), "https://hovenier.nl/onderhoud");
+  eq("zonder dienst-id's geen voorstel", String(zusterPaginas("dit", [], kandidaten).length), "0");
 });
 
 group("de schrijfpoort: alleen de vragen en de datum (§6.8)", () => {

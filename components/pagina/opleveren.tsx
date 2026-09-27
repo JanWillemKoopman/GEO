@@ -5,7 +5,8 @@ import { CopyButton } from "@/components/copy-button";
 import { InfoHint } from "@/components/info-hint";
 import { kopieeropties } from "@/lib/kopieervormen";
 import { escapeHtml, renderMarkdown } from "@/lib/markdown";
-import { bestandsnaam, faqMarkdown, htmlDocument, volledigeMarkdown, type FaqPaar } from "@/lib/oplevering";
+import { bestandsnaam, faqMarkdown, htmlDocument, volledigeMarkdown, type FaqPaar, type LinkVoorstel } from "@/lib/oplevering";
+import type { ResolvedUrl } from "@/lib/pipeline/slug";
 import { markeerZinnen } from "@/lib/tekst-markering";
 
 /**
@@ -33,6 +34,14 @@ import { markeerZinnen } from "@/lib/tekst-markering";
  * dezelfde `markeerZinnen()` als op het goedkeuringsscherm. `geel` bevat alle
  * gele zinnen, `bevestigd` welke daarvan al bevestigd zijn; alleen wat nog niet
  * bevestigd is, wordt gemarkeerd.
+ *
+ * ── HET ADRES EN INTERNE LINKS (C2) ──────────────────────────────────────────
+ *
+ * `adres` is een voorstel zolang de pagina niet gepubliceerd is of een
+ * bestaande pagina vervangt (`isReal`, conventie 3): nooit als feit tonen. De
+ * lijsten `naarDeze` en `vanDeze` komen uit `lib/oplevering.ts`, deterministisch
+ * uit de site en de andere goedgekeurde pagina's van het merk; leeg als er geen
+ * kans met een dienst achter deze pagina zit.
  */
 export function Opleveren({
   titel,
@@ -45,6 +54,9 @@ export function Opleveren({
   goedgekeurd,
   geel,
   bevestigd,
+  adres,
+  naarDeze,
+  vanDeze,
 }: {
   /** De titel van de schrijver, voor de bestandsnamen. */
   titel: string;
@@ -57,6 +69,11 @@ export function Opleveren({
   goedgekeurd: boolean;
   geel: string[];
   bevestigd: string[];
+  adres: ResolvedUrl;
+  /** Goedgekeurde pagina's van het merk die naar deze pagina zouden moeten linken. */
+  naarDeze: LinkVoorstel[];
+  /** Bestaande pagina's waar deze pagina naartoe zou moeten linken. */
+  vanDeze: LinkVoorstel[];
 }) {
   const openGeel = useMemo(() => geel.filter((z) => !bevestigd.includes(z)), [geel, bevestigd]);
   const metaHtml = useMemo(
@@ -109,6 +126,50 @@ export function Opleveren({
           )}
         </section>
       )}
+
+      <section className="card flex flex-col gap-3">
+        <h2 className="type-section flex items-center gap-1">
+          Adres en interne links
+          <InfoHint label="Wat is dit?">
+            Het voorgestelde webadres, en welke pagina&apos;s je aan elkaar zou moeten linken. Beide
+            zijn een voorstel: geen pagina op je site verandert hierdoor vanzelf.
+          </InfoHint>
+        </h2>
+        <div className="flex flex-col gap-1">
+          <span className="mono-label">{adres.isReal ? "Adres" : "Voorgesteld adres"}</span>
+          <p className="type-body">
+            <code className="rounded bg-[var(--bg-layer-2)] px-1 py-0.5 text-xs">{adres.url}</code>
+          </p>
+          {goedgekeurd && <CopyButton value={adres.url} label="Kopieer het adres" copiedLabel="Gekopieerd" />}
+        </div>
+        {vanDeze.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <span className="mono-label">Link vanaf deze pagina naar</span>
+            <ul className="flex flex-col gap-1">
+              {vanDeze.map((l) => (
+                <li key={l.url} className="type-body text-secondary">
+                  {l.titel} <span className="text-muted">({l.url})</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {naarDeze.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <span className="mono-label">Zet op deze bestaande pagina&apos;s een link naar deze pagina</span>
+            <ul className="flex flex-col gap-1">
+              {naarDeze.map((l) => (
+                <li key={l.url} className="type-body text-secondary">
+                  {l.titel} <span className="text-muted">({l.url})</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {vanDeze.length === 0 && naarDeze.length === 0 && (
+          <p className="type-body text-muted">Geen passende pagina gevonden om aan te linken.</p>
+        )}
+      </section>
 
       {faq.length > 0 && (
         <section className="card flex flex-col gap-3">

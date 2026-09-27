@@ -18,6 +18,16 @@
  *     metabeschrijving als `<meta name="description">`, en de gestructureerde
  *     gegevens in de `<head>`, waar ze horen.
  *
+ * ── INTERNE LINKS (C2, `van-pijplijn-naar-kennissysteem.md`) ────────────────
+ *
+ * "Link ernaartoe" stond tot nu toe alleen als losse zin in de handleiding
+ * (`publish-guide.tsx`): de klant moest zelf uitzoeken welke van zijn eigen
+ * pagina's daarvoor in aanmerking komt. `siteLinksVoorOnderwerp()` en
+ * `zusterPaginas()` zoeken dat deterministisch uit: een woord uit de
+ * dienstnaam dat terugkomt in een bestaande paginatitel of een adres, en de
+ * kruising van dienst-id's tussen kansen. Geen AI: liever een gemiste link
+ * dan een verzonnen relatie tussen twee pagina's.
+ *
  * Puur en zonder `server-only` (conventie 2).
  */
 import { escapeHtml, renderMarkdown } from "@/lib/markdown";
@@ -25,6 +35,72 @@ import { escapeHtml, renderMarkdown } from "@/lib/markdown";
 export interface FaqPaar {
   q: string;
   a: string;
+}
+
+export interface LinkVoorstel {
+  titel: string;
+  url: string;
+}
+
+const STOPWOORDEN = new Set(["een", "de", "het", "en", "van", "voor", "met", "aan", "bij", "als", "die", "dat", "over"]);
+
+/** Woorden van vier letters of meer, zonder accenten en zonder stopwoorden. */
+function trefwoorden(tekst: string): string[] {
+  return tekst
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 4 && !STOPWOORDEN.has(w));
+}
+
+/**
+ * Bestaande pagina's van de site die over hetzelfde onderwerp lijken te gaan:
+ * een woord uit de dienstnaam komt terug in de titel of het adres. Zonder
+ * onderwerp of zonder bruikbaar woord: geen voorstel, niet een gok.
+ */
+export function siteLinksVoorOnderwerp(
+  paginas: readonly { url: string; title: string | null }[],
+  onderwerp: string | null,
+  ditAdres: string | null,
+  max = 5,
+): LinkVoorstel[] {
+  const woorden = onderwerp ? trefwoorden(onderwerp) : [];
+  if (woorden.length === 0) return [];
+  const gezien = new Set<string>();
+  const uit: LinkVoorstel[] = [];
+  for (const p of paginas) {
+    if (!p.url?.trim() || p.url === ditAdres || gezien.has(p.url)) continue;
+    const hooi = `${p.title ?? ""} ${p.url}`
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "");
+    if (!woorden.some((w) => hooi.includes(w))) continue;
+    gezien.add(p.url);
+    uit.push({ titel: p.title?.trim() || p.url, url: p.url });
+    if (uit.length >= max) break;
+  }
+  return uit;
+}
+
+/**
+ * Andere goedgekeurde pagina's van het merk over dezelfde dienst: de kruising
+ * van hun dienst-id's (`kansen.geldt_voor`) met die van deze pagina. Dezelfde
+ * functie geeft, met dezelfde kandidatenlijst, zowel wat deze pagina zou
+ * moeten linken als wat naar deze pagina zou moeten linken (C2).
+ */
+export function zusterPaginas(
+  ditId: string,
+  ditGeldtVoor: readonly string[],
+  kandidaten: readonly { id: string; titel: string; url: string; geldtVoor: readonly string[] }[],
+  max = 5,
+): LinkVoorstel[] {
+  if (ditGeldtVoor.length === 0) return [];
+  const set = new Set(ditGeldtVoor);
+  return kandidaten
+    .filter((k) => k.id !== ditId && k.geldtVoor.some((g) => set.has(g)))
+    .slice(0, max)
+    .map((k) => ({ titel: k.titel, url: k.url }));
 }
 
 /** De kop boven de FAQ in een download. */
