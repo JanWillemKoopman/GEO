@@ -53,11 +53,31 @@ export const GESPREKSVELDEN: (keyof BronProfiel)[] = PROFIEL_MEENEMEN.filter(
   (v) => v !== "stem_voorbeelden" && (EDITABLE_PROFILE_FIELDS as readonly string[]).includes(v),
 );
 
-/** Een beantwoorde vraag als kennisitems; een open of overgeslagen vraag levert niets. */
-export function kennisUitAntwoord(vraag: BronVraag): PlanItem[] {
+/**
+ * Een beantwoorde vraag als kennisitems; een open of overgeslagen vraag levert niets.
+ *
+ * `diensten` (A2, besluit V23): de diensten van de kans achter de pagina's van de
+ * vraag. Is die er, dan geldt het antwoord op een gerichte vraag van een pagina
+ * voor die dienst, en niet alleen voor die ene pagina: een volgende pagina over
+ * dezelfde dienst krijgt het in blok A en vraagt het niet opnieuw. Niet voor een
+ * praktijkvoorbeeld of het antwoord op de open vraag: dat verhaal hoort bij de
+ * pagina waarvoor het verteld is (besluit B3), tenzij de vraag merkbreed was.
+ */
+export function kennisUitAntwoord(vraag: BronVraag, diensten: readonly string[] = []): PlanItem[] {
   const m = { items: [] as PlanItem[], uitsluitingen: [], voorConsultant: [] };
+  if (diensten.length > 0 && geldtVoorDienst(vraag)) {
+    planAntwoord(m, { ...vraag, scope: "dienst", content_piece_ids: [], analysis_id: null }, null);
+    return m.items.map((i) => ({ ...i, geldtVoorIds: [...new Set(diensten)] }));
+  }
   planAntwoord(m, vraag, null);
   return m.items;
+}
+
+/** Mag het antwoord op deze vraag voor een dienst gelden (A2)? Alleen een gerichte vraag van een pagina, geen verhaal. */
+export function geldtVoorDienst(vraag: Pick<BronVraag, "scope" | "open_vraag" | "raw_json">): boolean {
+  if (vraag.scope !== "pagina") return false;
+  if (vraag.open_vraag) return false;
+  return vraag.raw_json?.soort !== "praktijk";
 }
 
 /** Eén veld van het merkprofiel als kennisitems, verklaard door wie het opsloeg. */

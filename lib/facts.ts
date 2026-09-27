@@ -27,6 +27,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { beoordeelClaim, marktclaimUitleg } from "@/lib/pipeline/claim-plausibility";
 import type { FactRequest } from "@/lib/types/database";
 import { legAntwoordVast } from "@/lib/kennis/uit-gesprek";
+import { geldtVoorDienst } from "@/lib/kennis/gesprek";
+import { dienstenVanPaginas } from "@/lib/kennis/voor-pagina";
 import type { BronVraag } from "@/lib/kennis/terugvullen";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -81,13 +83,18 @@ export async function answerFact(
   //
   // Wat de ondernemer zegt, wordt klantkennis die blijft: verklaard, met de
   // reikwijdte van de vraag, en bij een gewijzigd antwoord een nieuwe versie
-  // van het oude item. Vóór de vertakkingen hieronder, want die gaan over wat
-  // er met de OUDE tabellen gebeurt; in de kennislaag komt elk antwoord, ook de
-  // open vraag en een marktclaim zonder onderbouwing (die houdt de controle op
-  // harde beweringen tegen, niet het vastleggen). Gooit nooit een fout.
+  // van het oude item. In de kennislaag komt elk antwoord, ook de open vraag en
+  // een marktclaim zonder onderbouwing (die houdt de controle op harde
+  // beweringen tegen, niet het vastleggen). Gooit nooit een fout.
+  //
+  // A2 (besluit V23): hangt een gerichte vraag aan een pagina met een kans over
+  // een dienst, dan geldt het antwoord voor die dienst, zodat de volgende
+  // pagina over dezelfde dienst het niet opnieuw vraagt.
+  const nu = alsBronVraag(updated);
+  const diensten = geldtVoorDienst(nu) ? await dienstenVanPaginas(admin, input.profileId, nu.content_piece_ids ?? []) : [];
   await legAntwoordVast(
     admin,
-    { profileId: input.profileId, vorige: alsBronVraag(fact), nu: alsBronVraag(updated) },
+    { profileId: input.profileId, vorige: alsBronVraag(fact), nu, diensten },
     { actor: "mens", gebruikerId: input.gebruikerId },
   );
 

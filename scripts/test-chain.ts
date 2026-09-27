@@ -9566,6 +9566,100 @@ async function main(): Promise<void> {
       ok("scenario 29: terugzetten maakt hem weer actueel", rijen.some((r) => r.soort === "dienst" && r.bewering === "Hybride warmtepomp" && !r.vervangen_door && !r.afgewezen_door), JSON.stringify(rijen));
     }
 
+    // ── Scenario 30: één keer vertellen, altijd gebruikt (A2) ───────────────
+    //
+    // Twee pagina's over dezelfde dienst. De ondernemer beantwoordt een vraag
+    // van de eerste over hoe het in zijn werk gaat, en vertelt een voorbeeld uit
+    // de praktijk. Het antwoord over de werkwijze geldt voor de dienst: de
+    // tweede pagina krijgt het in blok A, en het kennisgat van haar kans vraagt
+    // er niet meer naar. Het voorbeeld blijft bij de eerste pagina (B3).
+    console.log("\nScenario 30: één keer vertellen, altijd gebruikt (A2)");
+    {
+      const { answerFact } = await import("@/lib/facts");
+      const { kennisVoor } = await import("@/lib/kennis/voor-pagina");
+      const { werkKennisgatBij } = await import("@/lib/kansen/uit-rapport");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      const cluster = randomUUID();
+      const [p1, p2] = [randomUUID(), randomUUID()];
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Dienst Test', 'https://dienst.nl', 'Dienst Test', 'klaar')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Warmtepompen', 'https://dienst.nl', 'warmtepomp', 'gereed')`,
+        [cluster, userId, merk],
+      );
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, action, version, is_current) values
+           ($1, $3, 'Warmtepomp installeren', 'landing', 'briefing', 'nieuw', 1, true),
+           ($2, $3, 'Warmtepomp onderhoud', 'landing', 'briefing', 'nieuw', 1, true)`,
+        [p1, p2, cluster],
+      );
+      const { rows: dienst } = await db.client.query(
+        `insert into public.klantkennis (profile_id, domein, soort, bewering, status, bron, bron_url, citaat, gebruik, vastgelegd_door_taak, herkomst_tabel) values
+           ($1, 'aanbod', 'dienst', 'Warmtepomp', 'waargenomen', 'website', 'https://dienst.nl', 'Warmtepomp', 'content', 'test', 'profile_offerings')
+         returning id`,
+        [merk],
+      );
+      const dienstId = dienst[0].id as string;
+      const kans = async (titel: string, stuk: string) => {
+        const { rows } = await db.client.query(
+          `insert into public.kansen (profile_id, analysis_id, titel, handeling, geldt_voor, ruw, vastgelegd_door_taak) values ($1, $2, $3, 'nieuwe_pagina', $4, '{"type":"landing"}'::jsonb, 'test') returning id`,
+          [merk, cluster, titel, [dienstId]],
+        );
+        await db.client.query(`insert into public.planned_pages (profile_id, title, content_piece_id, kans_id) values ($1, $2, $3, $4)`, [merk, titel, stuk, rows[0].id]);
+        return rows[0].id as string;
+      };
+      await kans("Warmtepomp installeren", p1);
+      const kans2 = await kans("Warmtepomp onderhoud", p2);
+      const vraag = async (tekst: string, soort: string) => {
+        const { rows } = await db.client.query(
+          `insert into public.fact_requests (profile_id, analysis_id, question, reason, status, scope, content_piece_ids, raw_json) values ($1, $2, $3, 'test', 'open', 'pagina', $4, $5::jsonb) returning id`,
+          [merk, cluster, tekst, [p1], JSON.stringify({ bron: "pagina_brief", soort })],
+        );
+        return rows[0].id as string;
+      };
+      const werkwijze = await vraag("Hoe verloopt een installatie bij jullie?", "werkwijze");
+      const praktijk = await vraag("Kun je een voorbeeld geven van een recente installatie?", "praktijk");
+      await answerFact(shim, { profileId: merk, factId: werkwijze, answer: "Eerst een adviesbezoek, dan binnen twee weken de installatie in één dag.", gebruikerId: userId });
+      await answerFact(shim, { profileId: merk, factId: praktijk, answer: "Vorige maand een jaren-dertigwoning in Tiel, met vloerverwarming beneden.", gebruikerId: userId });
+
+      const { rows: items } = await db.client.query(
+        `select herkomst_id, geldt_voor, content_piece_id, soort from public.klantkennis where profile_id = $1 and herkomst_tabel = 'fact_requests'`,
+        [merk],
+      );
+      const vanVraag = (id: string) => items.find((r) => r.herkomst_id === id);
+      ok("scenario 30: het antwoord over de werkwijze geldt voor de dienst", (vanVraag(werkwijze)?.geldt_voor ?? []).includes(dienstId) && !vanVraag(werkwijze)?.content_piece_id, JSON.stringify(items));
+      eqc("scenario 30: het voorbeeld blijft bij de eerste pagina", String(vanVraag(praktijk)?.content_piece_id), p1);
+
+      const blokA2 = await kennisVoor(shim, { profileId: merk, analysisId: cluster, pieceId: p2, titel: "Warmtepomp onderhoud", zoekintentie: null });
+      const teksten2 = blokA2.beweringen.map((b) => b.bewering).join(" | ");
+      ok("scenario 30: de tweede pagina krijgt het antwoord in blok A", teksten2.includes("adviesbezoek"), teksten2);
+      ok("scenario 30: maar niet het voorbeeld van de eerste", !teksten2.includes("Tiel"), teksten2);
+
+      await werkKennisgatBij(shim, merk);
+      const { rows: gat } = await db.client.query("select kennis_ontbreekt from public.kansen where id = $1", [kans2]);
+      ok("scenario 30: het kennisgat van de tweede kans vraagt niet meer naar de werkwijze", !(gat[0]?.kennis_ontbreekt ?? ["werkwijze"]).includes("werkwijze"), JSON.stringify(gat));
+      ok("scenario 30: wel nog naar een eigen voorbeeld", (gat[0]?.kennis_ontbreekt ?? []).includes("voorbeeld"), JSON.stringify(gat));
+      // De brief van de tweede pagina (A1) krijgt daardoor één punt minder om naar te vragen.
+      const { kennisgatVoorPagina } = await import("@/lib/kennis/voor-pagina");
+      const gatBrief = (await kennisgatVoorPagina(shim, p2)) ?? [];
+      ok("scenario 30: de brief van de tweede pagina vraagt niet meer hoe het in zijn werk gaat", !gatBrief.includes("hoe het in zijn werk gaat") && gatBrief.includes("een voorbeeld uit de praktijk"), gatBrief.join(" | "));
+
+      // Een gewijzigd antwoord blijft voor de dienst gelden, als nieuwe versie.
+      await answerFact(shim, { profileId: merk, factId: werkwijze, answer: "Eerst een adviesbezoek, dan binnen drie weken de installatie in één dag.", gebruikerId: userId });
+      const { rows: versies } = await db.client.query(
+        `select bewering, geldt_voor, vervangen_door from public.klantkennis where profile_id = $1 and herkomst_id = $2 order by vastgelegd_op`,
+        [merk, werkwijze],
+      );
+      ok(
+        "scenario 30: een gewijzigd antwoord is een nieuwe versie, weer voor de dienst",
+        versies.length === 2 && Boolean(versies[0].vervangen_door) && (versies[1].geldt_voor ?? []).includes(dienstId) && String(versies[1].bewering).includes("drie weken"),
+        JSON.stringify(versies),
+      );
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);
