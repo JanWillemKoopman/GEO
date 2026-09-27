@@ -554,6 +554,9 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         urgency: URGENCY.feit,
         href: `/analyses/${piece.analysis_id}/briefing`,
         actionLabel: "Briefing invullen",
+        // A5: een pagina wacht niet ongemerkt. Dezelfde vorm als de meta van
+        // een geblokkeerde pagina hierboven ("Onveranderd sinds ...").
+        meta: `Wacht sinds ${formatDateShort(piece.created_at)}`,
         analysisId: piece.analysis_id,
         analysisName: analysis.name,
         profileId: analysis.profile_id,

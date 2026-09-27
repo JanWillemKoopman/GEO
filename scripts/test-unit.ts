@@ -60,6 +60,7 @@ import {
 import { BESLUITEN } from "./kennis-open-punten";
 import { openPuntenSql, foutenVan } from "@/lib/kennis/open-punten";
 import { kennisgatVan, kennisgatZin, behoeftenVoor, hoortBijKans, BEHOEFTE_LABEL, type KennisVoorGat, type KansVoorGat } from "@/lib/kansen/kennisgat";
+import { kennisrondeVoorMerk, BEHOEFTE_DOMEIN, type KennisrondeKans } from "@/lib/kansen/kennisronde";
 import {
   maakTerugvulplan,
   dekking,
@@ -7426,6 +7427,8 @@ group("segmentOf: elk merk in precies één segment", () => {
     geplaatstDezeMaand: 10,
     laatstGeplaatst: "2026-08-01",
     pijplijnfouten: 0,
+    paginasWachtenOpAntwoorden: 0,
+    wachtOpAntwoordenSinds: null,
     fase: "overgedragen",
     ...over,
   });
@@ -7502,6 +7505,23 @@ group("segmentOf: elk merk in precies één segment", () => {
   ok(
     "en klaar om te plaatsen ook",
     flagsOf(merk({ paginasTePlaatsen: 2 })).some((v) => v.includes("klaar om te plaatsen")),
+  );
+  // A5: een pagina die op antwoorden wacht, met sinds wanneer.
+  ok(
+    "een pagina die op antwoorden wacht legt de bal bij de klant",
+    segmentOf(merk({ paginasWachtenOpAntwoorden: 1 })) === "wacht_op_klant",
+  );
+  ok(
+    "de vlag noemt het aantal en de oudste datum",
+    flagsOf(merk({ paginasWachtenOpAntwoorden: 2, wachtOpAntwoordenSinds: "2026-09-01" })).some(
+      (v) => v.includes("2 pagina's wachten op antwoorden") && v.includes("sep"),
+    ),
+  );
+  ok(
+    "één pagina krijgt enkelvoud",
+    flagsOf(merk({ paginasWachtenOpAntwoorden: 1, wachtOpAntwoordenSinds: "2026-09-01" })).some((v) =>
+      v.startsWith("1 pagina wacht op antwoorden"),
+    ),
   );
   // Blok D, punt 24: een mislukt onderzoek is een andere oorzaak dan mislukte
   // taken, en moet een eigen vlag krijgen, ook als er geen enkele taak faalde.
@@ -22890,6 +22910,70 @@ group("kansen: het kennisgat per kans (N6)", () => {
   ok("geen model bepaalt wat ontbreekt", !/openai|callStructured|server-only/.test(bron.split("\n").filter((r) => r.startsWith("import")).join("\n")));
   ok("het plan geeft het kennisgat alleen aan de consultant", leesBestand("app/(app)/merk/[id]/strategie/plan/page.tsx").includes("kennisgat={staff ? bundle.kennisgat : undefined}"));
   ok("de voorraad werkt het bij bij elke synchronisatie", leesBestand("lib/plan-backlog-data.ts").includes("await werkKennisgatBij(admin, profileId);"));
+});
+
+group("A4: de kennisronde in het gesprek", () => {
+  const kans = (titel: string, kennisOntbreekt: KennisrondeKans["kennisOntbreekt"]): KennisrondeKans => ({
+    titel,
+    kennisOntbreekt,
+  });
+
+  eq2("zonder kansen niets te vragen", kennisrondeVoorMerk([]).length, 0);
+  eq2("een kans zonder gat levert niets op", kennisrondeVoorMerk([kans("A", [])]).length, 0);
+  eq2("nog niet uitgerekend levert niets op (conventie 3)", kennisrondeVoorMerk([kans("A", null)]).length, 0);
+
+  const ronde = kennisrondeVoorMerk([
+    kans("Warmtepomp installeren", ["prijs", "voorbeeld"]),
+    kans("Onderhoud warmtepomp", ["prijs", "bewijs"]),
+  ]);
+  eq("gegroepeerd per domein: aanbod, verhaal, bewijs, in de volgorde van de eerste kans", ronde.map((d) => d.domein).join(","), "aanbod,verhaal,bewijs");
+  eq("aanbod heeft prijs, want dat komt bij beide kansen voor", ronde[0]!.regels.map((r) => r.behoefte).join(","), "prijs");
+  eq("de eerste kans staat eerst bij prijs", ronde[0]!.regels[0]!.kansen.join(","), "Warmtepomp installeren,Onderhoud warmtepomp");
+  eq("verhaal heeft alleen het voorbeeld van de eerste kans", ronde[1]!.regels.map((r) => r.kansen.join(",")).join(";"), "Warmtepomp installeren");
+  eq("bewijs komt van de tweede kans", ronde[2]!.regels[0]!.kansen.join(","), "Onderhoud warmtepomp");
+
+  eq2("elke behoefte heeft een domein", Object.keys(BEHOEFTE_DOMEIN).length, behoeftenVoor("landing").length);
+
+  // ── Zonder model, en dezelfde volgorde als het kansenscherm ──
+  const bron = leesBestand("lib/kansen/kennisronde.ts");
+  ok("geen model bepaalt de volgorde", !/openai|callStructured|server-only/.test(bron.split("\n").filter((r) => r.startsWith("import")).join("\n")));
+  const pagina = leesBestand("app/(app)/merk/[id]/admin/onboarding/page.tsx");
+  ok("het gesprek gebruikt dezelfde volgorde als het kansenscherm (N1)", pagina.includes("ordenKansen("));
+  ok("alleen kansen die nog geschreven moeten worden", pagina.includes('in("status", ["open", "ingepland", "in_voorbereiding"])'));
+  ok("de sessie toont de kennisronde", leesBestand("app/(app)/merk/[id]/_components/onboarding-session.tsx").includes("kennisronde.map"));
+});
+
+group("A5: een herinnering bij openstaande vragen", () => {
+  // ── Op het startscherm van de klant: sinds wanneer ──
+  const work = leesBestand("lib/work.ts");
+  ok(
+    "de briefing toont sinds wanneer hij wacht",
+    /status === "briefing"[\s\S]{0,600}meta: `Wacht sinds \$\{formatDateShort\(piece\.created_at\)\}`/.test(work),
+  );
+
+  // ── Op het CSM-overzicht van de consultant ──
+  const csm = leesBestand("lib/csm.ts");
+  ok("wachten op antwoorden legt de bal bij de klant", csm.includes("b.paginasWachtenOpAntwoorden > 0"));
+  ok("de vlag noemt het aantal en sinds wanneer", csm.includes("wachten op antwoorden"));
+
+  // ── De e-mail, alleen als EMAILS_ENABLED aanstaat ──
+  const mail = leesBestand("lib/email/question-reminder.ts");
+  ok("de mail controleert de schakelaar", mail.includes("emailsEnabled()"));
+  const route = leesBestand("app/api/cron/reminders/route.ts");
+  ok("de cron stopt zonder de schakelaar", /if \(!emailsEnabled\(\)\)/.test(route));
+  ok("een week wachten voordat er gemaild wordt", route.includes("const cutoff = new Date(Date.now() - WAITING_DAYS * 86_400_000)"));
+  ok("alleen pagina's die nog op antwoorden wachten", route.includes('.eq("status", "briefing")'));
+  ok(
+    "de vlag wordt gezet vóór het versturen, tegen een dubbele mail",
+    route.indexOf('update({ question_reminder_sent_at:') < route.indexOf("sendQuestionReminder("),
+  );
+  ok("één keer per analyse, niet per pagina", route.includes('.is("question_reminder_sent_at", null)'));
+
+  // ── De migratie ──
+  ok(
+    "de kolom is additief (conventie 4)",
+    leesBestand("supabase/migrations/0128_question_reminder.sql").includes("add column if not exists question_reminder_sent_at"),
+  );
 });
 
 group("de open punten van de kennislaag afhandelen (V16)", () => {

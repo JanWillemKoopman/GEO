@@ -2,19 +2,26 @@ import { NextResponse } from "next/server";
 import { emailsEnabled, serverEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPublishReminder } from "@/lib/email/publish-reminder";
+import { sendQuestionReminder } from "@/lib/email/question-reminder";
 import type { Analysis } from "@/lib/types/database";
 import { activeOnly } from "@/lib/archive";
 
 /**
- * GET /api/cron/reminders, één vriendelijke herinnering bij klaarliggende
- * content (optimalisatie.md 5.8).
+ * GET /api/cron/reminders, twee vriendelijke herinneringen in één wekelijkse
+ * ronde: klaarliggende content die niet gepubliceerd wordt (optimalisatie.md
+ * 5.8), en sinds A5 (`docs/tasks/van-pijplijn-naar-kennissysteem.md`) een
+ * pagina die op de antwoorden van de klant wacht (status `briefing`) en
+ * daardoor niet geschreven wordt.
  *
- * Wekelijks. Blijven er pagina's steken bij "geschreven", dan is dát het
- * probleem, en dan moet de app daarop sturen in plaats van meer content aan te
- * bieden.
+ * Wekelijks. Blijven er pagina's steken, dan is dát het probleem, en dan moet
+ * de app daarop sturen in plaats van meer content aan te bieden.
  *
- * De grens ligt bij een week. Korter is opdringerig (een ondernemer publiceert
+ * De grens ligt bij een week. Korter is opdringerig (een ondernemer reageert
  * niet dezelfde dag), langer is te laat om nog te helpen.
+ *
+ * ⚠️ Deze cron staat uit in `vercel.json` (Hobby-limiet: max twee taken, zie
+ * `docs/architecture.md` §1). De vraagherinnering rijdt daarom mee op dezelfde,
+ * nu uitgeschakelde route in plaats van een derde cron te worden.
  */
 export const maxDuration = 60;
 
@@ -89,5 +96,47 @@ export async function GET(request: Request) {
     sent.push({ id: row.id, waiting });
   }
 
-  return NextResponse.json({ sent: sent.length, details: sent });
+  // A5: pagina's die op antwoorden wachten. Een eigen kolom
+  // (`question_reminder_sent_at`, migratie 0128) en een eigen query: een
+  // analyse die de publicatieherinnering al kreeg, mag deze nog krijgen, en
+  // andersom.
+  const { data: questionRows } = await activeOnly(
+    admin.from("analyses").select("*").is("question_reminder_sent_at", null),
+  );
+
+  const sentQuestions: { id: string; waiting: number }[] = [];
+
+  for (const row of (questionRows ?? []) as Analysis[]) {
+    const { data: waitingRows } = await admin
+      .from("content_pieces")
+      .select("id")
+      .eq("analysis_id", row.id)
+      .eq("is_current", true)
+      .eq("status", "briefing")
+      .lt("created_at", cutoff);
+
+    const waiting = waitingRows?.length ?? 0;
+    if (waiting === 0) continue;
+
+    await admin
+      .from("analyses")
+      .update({ question_reminder_sent_at: new Date().toISOString() })
+      .eq("id", row.id);
+
+    const { data: authUser } = await admin.auth.admin.getUserById(row.user_id);
+    const email = authUser?.user?.email;
+    if (!email) continue;
+
+    await sendQuestionReminder(row, email, waiting).catch((err) =>
+      console.error(`Vraagherinnering versturen mislukt voor analyse ${row.id}:`, err),
+    );
+    sentQuestions.push({ id: row.id, waiting });
+  }
+
+  return NextResponse.json({
+    sent: sent.length,
+    details: sent,
+    sentQuestions: sentQuestions.length,
+    questionDetails: sentQuestions,
+  });
 }

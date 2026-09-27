@@ -135,6 +135,28 @@ export async function loadCsmBrands(admin: Admin): Promise<CsmBrand[]> {
     analyseProfiel.set(a.id, a.profile_id);
   }
 
+  // A5: pagina's die op antwoorden van de klant wachten (status `briefing`),
+  // per merk geteld met de oudste datum erbij. Een aparte, kleine query: de
+  // analyse-ids zijn pas na de query hierboven bekend.
+  const analysisIds = [...analyseProfiel.keys()];
+  const { data: briefingRows } = analysisIds.length
+    ? await admin
+        .from("content_pieces")
+        .select("analysis_id, created_at")
+        .in("analysis_id", analysisIds)
+        .eq("is_current", true)
+        .eq("status", "briefing")
+    : { data: [] };
+  const wachtOpAntwoorden = new Map<string, { aantal: number; oudste: string | null }>();
+  for (const r of (briefingRows ?? []) as { analysis_id: string; created_at: string }[]) {
+    const profileId = analyseProfiel.get(r.analysis_id);
+    if (!profileId) continue;
+    const t = wachtOpAntwoorden.get(profileId) ?? { aantal: 0, oudste: null };
+    t.aantal++;
+    if (!t.oudste || r.created_at < t.oudste) t.oudste = r.created_at;
+    wachtOpAntwoorden.set(profileId, t);
+  }
+
   const planVan = new Map<string, string>();
   for (const p of (planRows ?? []) as { id: string; profile_id: string }[]) {
     planVan.set(p.profile_id, p.id);
@@ -259,6 +281,8 @@ export async function loadCsmBrands(admin: Admin): Promise<CsmBrand[]> {
       geplaatstDezeMaand: t.dezeMaand,
       laatstGeplaatst: t.laatst,
       pijplijnfouten: fouten.get(p.id) ?? 0,
+      paginasWachtenOpAntwoorden: wachtOpAntwoorden.get(p.id)?.aantal ?? 0,
+      wachtOpAntwoordenSinds: wachtOpAntwoorden.get(p.id)?.oudste ?? null,
       fase: profileStage({
         openResearchJobs: openWerk.get(p.id) ?? 0,
         researchDone: p.status === "klaar",
