@@ -598,6 +598,10 @@ Per werkpakket: **doel**, **wat**, **niet**, **klaar als**. De nummers zijn vast
   - *Alle versies van een pagina* (zelfde cluster en titel) tellen mee voor kennis die voor één pagina
     geldt. Dat lost voor het kennisgat de notitie "Gevonden in K5" bij K6 op; K6 kan dezelfde koppeling
     gebruiken (`werkKennisgatBij()` in `lib/kansen/uit-rapport.ts`).
+  - *Een prijs en een termijn alleen van de dienst zelf* (27 september 2026, na het nalopen op productie):
+    een merkbreed feit als "een offerte aanvragen is gratis" vulde bij Verstraaten elke prijsbehoefte, zodat
+    er bij geen enkele kans iets ontbrak. Voor die twee behoeften telt alleen kennis met een dienst, een
+    cluster of een pagina.
   - *Waar de consultant het ziet:* op de kaarten van het plan, onder de titel van een geplande pagina en in
     de uitgeklapte voorraadkaart. Alleen voor de consultant: vragen stellen is zijn werk (V6).
 

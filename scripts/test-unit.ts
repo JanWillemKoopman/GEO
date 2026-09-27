@@ -22510,6 +22510,15 @@ group("kansen: het kennisgat per kans (N6)", () => {
   const verlopen = kennisgatVan(kans, [item({ soort: "werkwijze", verloopt_op: "2026-01-01" })], nu);
   eq("een verlopen item is niet meer bekend", verlopen.perBehoefte[0]?.stand ?? "", "onbekend");
 
+  const merkbreedPrijs = kennisgatVan(kans, [item({ soort: "prijs", bewering: "Een offerte is gratis." }), item({ soort: "termijn", bewering: "Offerte binnen vier uur." })], nu);
+  eq(
+    "een prijs of termijn van het hele bedrijf is niet die van deze dienst (productie, 27 september 2026)",
+    merkbreedPrijs.perBehoefte.filter((b) => b.behoefte === "prijs" || b.behoefte === "termijn").map((b) => b.stand).join(","),
+    "onbekend,onbekend",
+  );
+  eq("maar een merkbrede werkwijze telt wel", kennisgatVan(kans, [item({ soort: "werkwijze" })], nu).perBehoefte[0]?.stand ?? "", "bekend");
+  eq("en een prijs voor dit cluster ook", kennisgatVan(kans, [item({ soort: "prijs", analysis_id: "a1" })], nu).perBehoefte[1]?.stand ?? "", "bekend");
+
   // ── De zin voor de consultant ──
   eq("de zin", String(kennisgatZin(["prijs", "termijn", "voor_wie_niet"])), "Nog niet bekend: een prijsindicatie, een termijn en voor wie het niet is.");
   eq("één ding", String(kennisgatZin(["bewijs"])), "Nog niet bekend: bewijs.");
