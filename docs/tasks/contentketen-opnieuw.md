@@ -138,6 +138,7 @@ Daarnaast twee signalen die helpen verklaren waarom, maar geen doel op zich zijn
 | B15 | Valt de uitslag van WP8 tegen, dan verbeteren we de invoer of de schrijfopdracht (WP9) en voegen we geen stap, beoordelaar of kwaliteitslaag toe. Dit is vooraf vastgelegd, juist voor het moment dat de reflex opkomt | 25 september 2026 |
 | B17 | De beantwoorde vragen uit het rapport van hetzelfde cluster (`scope = 'analyse'`) gaan mee in blok A, naast de merkbrede vragen. Aanleiding: bij het nalopen van de keten voor de doorloop bleek zo'n antwoord de schrijver alleen te bereiken als een brief de vraag aan de pagina koppelde; anders ging het naar `proof_points`, dat de nieuwe keten niet leest, terwijl de brief de vraag als beantwoord zag en niet opnieuw stelde. Een wijziging in de invoer (§0 regel 5), geen stap | 26 september 2026 |
 | B18 | Een kans die de consultant zelf toevoegt, mag voorbereid en geschreven worden zonder gemeten cluster, met het label "niet gemeten"; de effectmeting begint dan met een eigen nulmeting op de doelvragen van de consultant. Nog niet gebouwd: werkpakket N5 van `van-pijplijn-naar-kennissysteem.md` (besluit V2 daar) | 26 september 2026 |
+| B20 | Blok A komt uit de kennislaag (`kennisVoor()` in `lib/kennis/`, K6 van `van-pijplijn-naar-kennissysteem.md`) in plaats van uit `brand_facts`, `value_props` en de losse profielvelden. Alleen wat gezien, gezegd of bevestigd is en op een pagina mag (`magInBlokA()`), bevestigd eerst; nooit iets wat alleen een model denkt, ook niet "als achtergrond" (daarmee vervalt "waar het bedrijf voor staat" uit `value_props`, een oordeel van het merkonderzoek zonder citaat). Per pagina: wat voor het hele merk geldt, wat bij de dienst of regio van de kans hoort, wat bij dit cluster hoort, en wat bij deze pagina hoort (alle versies). Verboden woorden en onderwerpen uit de kennislaag gaan als verbod mee. De controle op harde beweringen gebruikt dezelfde set, omdat blok A haar bron is. Een wijziging in de invoer (§0 regel 5), geen stap | 27 september 2026 |
 | B19 | De controle op harde beweringen en verboden woorden loopt ook over de antwoorden in de FAQ en de metabeschrijving, en de eindredacteur leest de FAQ mee. Geen nieuwe stap: dezelfde controle, over meer tekst. Nog niet gebouwd: werkpakket C1 van `van-pijplijn-naar-kennissysteem.md` (besluit V4 daar) | 26 september 2026 |
 
 Wat hiermee vervalt uit eerdere besluiten: de inputpoort van 40 en 70 procent met de keuze "algemeen
@@ -552,6 +553,7 @@ Algemene infrastructuur, geen contentlogica:
 | JSON-LD opbouwen en valideren | `lib/schema-jsonld.ts` |
 | Verboden tekens, metalengtes | `stripProseDashes` in `lib/pipeline/dash-guard.ts`, `heelMetatitel` en `heelMetabeschrijving` in `lib/pipeline/metatitel.ts` |
 | Gestructureerde gegevens, export naar de site | `lib/pipeline/structured-data.ts`, `lib/pipeline/content-export.ts` |
+| Blok A uit de kennislaag (B20) | `kennisVoor()` in `lib/kennis/voor-pagina.ts`, `blokAUitKennis()` en `kiesVoorBlokA()` in `lib/kennis/blok-a.ts` |
 
 Een test in `test-unit.ts` leest alle bestanden in `lib/pagina/` en faalt bij een import die niet op
 deze lijst staat.

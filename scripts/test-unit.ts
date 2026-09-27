@@ -1013,7 +1013,8 @@ import {
 } from "@/lib/cluster-discovery";
 import { controleerHardeBeweringen, getallenIn as hardeGetallen, geleZinnen, splitsZinnen, vindHardeBeweringen } from "@/lib/pagina/harde-beweringen";
 import { repareerMechanisch } from "@/lib/pagina/mechanisch";
-import { kiesFeiten, hoortBijPagina, blokA, antwoordenVoorBlokA, MAX_FEITEN, type FeitRij } from "@/lib/pagina/bedrijfskennis";
+import { blokA } from "@/lib/pagina/bedrijfskennis";
+import { kiesVoorBlokA, blokAUitKennis, MAX_KENNIS, type KennisVoorBlokA, type PaginaVoorBlokA } from "@/lib/kennis/blok-a";
 import { faqMarkdown, volledigeMarkdown, htmlDocument, bestandsnaam } from "@/lib/oplevering";
 import { schrijfpoort, schrijfdatum } from "@/lib/pagina/schrijfpoort";
 import { schoneAdressen, vanafEersteAlinea, MAX_STEMVOORBEELDEN } from "@/lib/pagina/stemvoorbeelden-regels";
@@ -21085,6 +21086,7 @@ group("lib/pagina importeert alleen wat op de lijst van §7.3 staat", () => {
     /^@\/lib\/pipeline\/(redact|existing-page-fetch|waardeproposities|dash-guard|metatitel|content-export|structured-data)$/,
     /^@\/lib\/schema-jsonld$/,
     /^@\/lib\/plan-(status|writing)$/,
+    /^@\/lib\/kennis\/(voor-pagina|blok-a)$/,
     /^zod$/,
     /^server-only$/,
     /^@supabase\/supabase-js$/,
@@ -21222,57 +21224,91 @@ group("mechanische reparatie: repareren, nooit blokkeren", () => {
   ok("ook in de FAQ", !uit.faq[0].antwoord.includes("—"));
 });
 
-group("bedrijfskennis: welke feiten mee gaan naar de schrijver", () => {
-  const f = (id: string, text: string, extra: Partial<FeitRij> = {}): FeitRij => ({
-    id, text, stand: "site", superseded_by: null, allowed: true, geldt_voor: null, bewijskracht: "gewoon", ...extra,
+group("blok A uit de kennislaag: wat mee gaat naar de schrijver (K6, B20)", () => {
+  const nu = new Date("2026-09-27T12:00:00Z");
+  let n = 0;
+  const k = (bewering: string, extra: Partial<KennisVoorBlokA> = {}): KennisVoorBlokA => ({
+    id: extra.id ?? `k${++n}`,
+    domein: "aanbod",
+    soort: null,
+    bewering,
+    status: "verklaard",
+    bron: "klant",
+    gebruik: "content",
+    vastgelegd_door: "u1",
+    geldt_voor: [],
+    analysis_id: null,
+    content_piece_id: null,
+    herkomst_tabel: null,
+    herkomst_id: null,
+    ...extra,
   });
-  const pagina = { titel: "Cv-ketel vervangen in Geldrop", onderwerp: "Ketelvervanging", zoekintentie: "Wat kost een nieuwe cv-ketel?" };
-  const gekozen = kiesFeiten(
-    [
-      f("1", "Twaalf monteurs in dienst"),
-      f("2", "Een ketelonderhoud kost € 120.", { stand: "betwist" }),
-      f("3", "Oude prijs", { superseded_by: "x" }),
-      f("4", "Zonnepanelen vanaf € 4.000", { geldt_voor: "zonnepanelen" }),
-      f("5", "Een nieuwe cv-ketel kost € 2.200 tot € 3.200.", { geldt_voor: "cv-ketel", bewijskracht: "sterk" }),
-      f("6", "Niet noemen", { allowed: false }),
-      f("7", "  "),
-    ],
-    pagina,
-  );
-  eq("alleen wat klopt en bij deze pagina hoort, sterk bewijs eerst", gekozen.map((x) => x.id).join(","), "5,1");
-  ok("een feit voor het hele merk hoort er altijd bij", hoortBijPagina(null, pagina));
-  ok("een feit voor een andere dienst niet", !hoortBijPagina("zonnepanelen", pagina));
-  ok("een feit voor deze plaats wel", hoortBijPagina("Geldrop", pagina));
-  const veel = Array.from({ length: 400 }, (_, i) => f(String(i), `Feit ${i}`));
-  eq("hooguit 150 feiten", String(kiesFeiten(veel, pagina).length), String(MAX_FEITEN));
-  const a = blokA({ bedrijfsnaam: "Wesley Keeris", feiten: gekozen, waardeproposities: [], verhalen: null, bezwaren: [], merkAntwoorden: [] });
-  ok("blok A noemt het bedrijf en de feiten", a.startsWith("Bedrijf: Wesley Keeris") && a.includes("- Twaalf monteurs in dienst"));
-  ok("en laat lege onderdelen weg", !a.includes("Verhalen"));
-});
+  const site = { status: "waargenomen", bron: "website", citaat: "letterlijk", bron_url: "https://x.nl", vastgelegd_door: null, vastgelegd_door_taak: "kennis_terugvullen" };
+  const kennis: KennisVoorBlokA[] = [
+    k("Cv-ketels: vervangen en plaatsen.", { id: "cat-cv", soort: "categorie", ...site }),
+    k("CV-ketel vervangen: een oude ketel vervangen.", { id: "d-cv", soort: "dienst", geldt_voor: ["cat-cv"], ...site }),
+    k("Een nieuwe cv-ketel kost € 2.200 tot € 3.200.", { soort: "prijs", geldt_voor: ["d-cv"], ...site, bewijskracht: "sterk" }),
+    k("Zonnepanelen: leggen op het dak.", { id: "d-zon", soort: "dienst", ...site }),
+    k("Zonnepanelen vanaf € 4.000.", { soort: "prijs", geldt_voor: ["d-zon"], ...site }),
+    k("Twaalf monteurs in dienst.", { domein: "identiteit", ...site }),
+    k("Waarschijnlijk is snelheid belangrijk.", { domein: "positionering", status: "afgeleid", bron: "ai", gebruik: "intern", vastgelegd_door: null, vastgelegd_door_taak: "profile_research" }),
+    k("Een citaat dat ontbreekt.", { ...site, citaat: null }),
+    k("Alleen intern.", { gebruik: "intern" }),
+    k("Afgewezen.", { afgewezen_op: "2026-09-20T00:00:00Z" }),
+    k("Werken jullie in het weekend?\nJa.", { soort: "antwoord", herkomst_tabel: "fact_requests", herkomst_id: "v-merk" }),
+    k("Hoeveel monteurs?\nTwaalf.", { soort: "antwoord", analysis_id: "cl-1", herkomst_tabel: "fact_requests", herkomst_id: "v-cluster" }),
+    k("Vraag van een ander cluster.", { analysis_id: "cl-2" }),
+    k("Rapportvraag die al aan deze pagina hangt.", { analysis_id: "cl-1", herkomst_tabel: "fact_requests", herkomst_id: "v-blokB" }),
+    k("Het verhaal bij een eerdere versie van deze pagina.", { domein: "verhaal", soort: "eigen verhaal", analysis_id: "cl-1", content_piece_id: "v1" }),
+    k("Het verhaal van een andere pagina.", { domein: "verhaal", soort: "eigen verhaal", analysis_id: "cl-1", content_piece_id: "ander" }),
+    k("Een hele pagina van de site als stemvoorbeeld.", { domein: "stem", soort: "stemvoorbeeld", ...site }),
+    k("Bevestigd door de consultant.", { domein: "bewijs", status: "bevestigd", bevestigd_door: "u1", bevestigd_op: "2026-09-26T00:00:00Z" }),
+    k("goedkoopste", { domein: "grens", soort: "verboden woord", gebruik: "verboden", geldt_voor: ["d-zon"] }),
+    k("politiek", { domein: "grens", soort: "verboden onderwerp", gebruik: "verboden" }),
+  ];
+  const pagina: PaginaVoorBlokA = {
+    analysisId: "cl-1",
+    paginaIds: ["v1", "v2"],
+    titel: "Cv-ketel vervangen in Geldrop",
+    zoekintentie: "Wat kost een nieuwe cv-ketel?",
+    kansGeldtVoor: ["cat-cv"],
+    vragenInBlokB: ["v-blokB"],
+  };
+  const keuze = kiesVoorBlokA(kennis, pagina, nu);
+  const teksten = keuze.beweringen.map((b) => b.bewering);
+  ok("een vermoeden van een model komt nooit in blok A (§4 regel 4)", !teksten.some((t) => t.includes("Waarschijnlijk")));
+  ok("wat de klant zei wel", teksten.includes("Werken jullie in het weekend?\nJa."));
+  ok("waargenomen zonder citaat niet", !teksten.includes("Een citaat dat ontbreekt."));
+  ok("alleen intern niet, afgewezen niet", !teksten.includes("Alleen intern.") && !teksten.includes("Afgewezen."));
+  ok("de dienst van de kans, met wat eronder hangt (de prijs)", teksten.includes("CV-ketel vervangen: een oude ketel vervangen.") && teksten.includes("Een nieuwe cv-ketel kost € 2.200 tot € 3.200."));
+  ok("de prijs van een andere dienst niet (V16)", !teksten.includes("Zonnepanelen vanaf € 4.000."));
+  ok("een dienst die nergens onder hangt, staat als overzicht van het aanbod", teksten.includes("Zonnepanelen: leggen op het dak."));
+  ok("een antwoord uit het rapport van dit cluster wel (B17), van een ander cluster niet", teksten.includes("Hoeveel monteurs?\nTwaalf.") && !teksten.includes("Vraag van een ander cluster."));
+  ok("wat al in blok B staat, niet nog eens", !teksten.includes("Rapportvraag die al aan deze pagina hangt."));
+  ok("het verhaal bij een eerdere versie van de pagina wel (gevonden in K5)", teksten.includes("Het verhaal bij een eerdere versie van deze pagina."));
+  ok("het verhaal van een andere pagina niet (B3)", !teksten.includes("Het verhaal van een andere pagina."));
+  ok("de stem gaat apart mee, niet als bewering", !teksten.some((t) => t.includes("stemvoorbeeld")));
+  eq("bevestigd eerst", teksten[0] ?? "", "Bevestigd door de consultant.");
+  eq("een verbod geldt altijd, ook als het aan een andere dienst hangt", `${keuze.verbodenWoorden.join(",")}|${keuze.verbodenOnderwerpen.join(",")}`, "goedkoopste|politiek");
+  ok("en komt niet als bewering mee", !teksten.includes("goedkoopste"));
 
-group("bedrijfskennis: welke beantwoorde vragen in blok A gaan (B17)", () => {
-  const r = (question: string, extra: Partial<Parameters<typeof antwoordenVoorBlokA>[0][number]> = {}) => ({
-    question, answer: "ja", scope: "merk", analysis_id: null, content_piece_ids: [] as string[], open_vraag: false, ...extra,
-  });
-  const uit = antwoordenVoorBlokA(
-    [
-      r("Werken jullie in het weekend?"),
-      r("Hoeveel monteurs hebben jullie?", { scope: "analyse", analysis_id: "cluster-1", answer: "Twaalf" }),
-      r("Vraag uit een ander cluster", { scope: "analyse", analysis_id: "cluster-2" }),
-      r("Rapportvraag die al aan deze pagina hangt", { scope: "analyse", analysis_id: "cluster-1", content_piece_ids: ["pagina-1"] }),
-      r("Merkvraag die aan deze pagina hangt", { content_piece_ids: ["pagina-1"] }),
-      r("Vraag van een pagina", { scope: "pagina", analysis_id: "cluster-1", content_piece_ids: ["pagina-2"] }),
-      r("Wat wil je zelf vertellen?", { scope: "pagina", open_vraag: true, content_piece_ids: ["pagina-1"] }),
-      r("Leeg antwoord", { answer: "  " }),
-    ],
-    { analysisId: "cluster-1", pieceId: "pagina-1" },
+  const zonderKans = kiesVoorBlokA(kennis, { ...pagina, kansGeldtVoor: null, titel: "Zonnepanelen op je dak", zoekintentie: null }, nu);
+  ok(
+    "zonder kans: de dienst waarvan de naam in de titel staat",
+    zonderKans.beweringen.some((b) => b.bewering === "Zonnepanelen vanaf € 4.000.") && !zonderKans.beweringen.some((b) => b.bewering.includes("cv-ketel kost")),
   );
-  eq(
-    "merkvragen en rapportvragen van dit cluster, niet wat al in blok B staat",
-    uit.map((x) => x.vraag).join(" | "),
-    "Werken jullie in het weekend? | Hoeveel monteurs hebben jullie? | Merkvraag die aan deze pagina hangt",
-  );
-  eq("het antwoord gaat mee", uit[1].antwoord, "Twaalf");
+  const veel = Array.from({ length: 400 }, (_, i) => k(`Feit ${i}.`, { domein: "identiteit" }));
+  eq("hooguit 150 items", String(kiesVoorBlokA(veel, pagina, nu).beweringen.length), String(MAX_KENNIS));
+
+  const a = blokAUitKennis("Wesley Keeris", keuze.beweringen);
+  ok("blok A noemt het bedrijf en de kennis per onderwerp", a.startsWith("Bedrijf: Wesley Keeris") && a.includes("Aanbod, prijzen en werkwijze:\n") && a.includes("- Twaalf monteurs in dienst."));
+  ok("en laat lege onderwerpen weg", !a.includes("Wat eerdere pagina's opleverden"));
+  ok("\"waar het bedrijf voor staat\" uit het merkonderzoek bestaat niet meer (P3)", !a.includes("Waar het bedrijf voor staat"));
+  eq("blok A van de keten is dezelfde tekst", blokA({ bedrijfsnaam: "Wesley Keeris", kennis: keuze.beweringen, verbodenWoorden: [], verbodenOnderwerpen: [] }), a);
+
+  const context = leesBestand("lib/pagina/context.ts");
+  ok("de keten leest blok A niet meer uit brand_facts of value_props", !/from\("brand_facts"\)|value_props|schoneWaardeproposities/.test(context.slice(context.indexOf("export async function laadBedrijf"))));
+  ok("maar via kennisVoor()", context.includes("await kennisVoor(admin,"));
 });
 
 group("opleveren: wat de klant meeneemt naar zijn site", () => {

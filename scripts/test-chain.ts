@@ -5203,6 +5203,21 @@ async function main(): Promise<void> {
          returning id, profile_id, question`,
         [merk, ander],
       );
+      // K6 (B20): blok A komt uit de kennislaag. Daar komt dit in het echt via het
+      // terugvullen (K3) en de antwoordroute (K5); hier via dezelfde schrijfingang.
+      {
+        const { legVast } = await import("@/lib/kennis/vastleggen");
+        const beantwoord = bestaand.find((r) => r.question.startsWith("Wat kost")).id as string;
+        const kennis = [
+          [{ profileId: merk, domein: "aanbod", soort: "termijn", bewering: "Een rijles duurt 60 minuten.", status: "waargenomen", bron: "website", bronUrl: "https://rijschool-rem.nl/les", citaat: "Elke les duurt 60 minuten", gebruik: "content", herkomst: { tabel: "brand_facts", id: randomUUID() } }, { actor: "code", taak: "kennis_terugvullen" }],
+          [{ profileId: merk, domein: "verhaal", soort: "verhalen van de ondernemer", bewering: "Onze eerste leerling was de buurvrouw.", status: "verklaard", bron: "gesprek", gebruik: "content" }, { actor: "mens", gebruikerId: eigenaar }],
+          [{ profileId: merk, domein: "aanbod", soort: "antwoord", bewering: "Wat kost een rijles?\nEen rijles kost 62 euro.", status: "verklaard", bron: "klant", gebruik: "content", herkomst: { tabel: "fact_requests", id: beantwoord } }, { actor: "mens", gebruikerId: eigenaar }],
+        ] as const;
+        for (const [item, door] of kennis) {
+          const uit = await legVast(admin as never, item as never, door as never);
+          if (uit.soort === "geweigerd") throw new Error(`Testkennis geweigerd: ${uit.fouten.join(" ")}`);
+        }
+      }
       const openVanMerk = bestaand.find((r) => r.question.startsWith("Hoeveel")).id as string;
       const vanAnder = bestaand.find((r) => r.profile_id === ander).id as string;
 
@@ -5390,12 +5405,28 @@ async function main(): Promise<void> {
          values ($1, $2, $3, 'Hovenier Groen, vijvers', 'https://hovenier-groen.nl', 'vijvers', 'gereed')`,
         [anderCluster, eigenaar, merk],
       );
-      await db.client.query(
+      const { rows: rapportVragen } = await db.client.query(
         `insert into public.fact_requests (profile_id, analysis_id, question, reason, status, answer)
          values ($1, $2, 'Hoeveel tuinen leggen jullie per jaar aan?', 'test', 'beantwoord', 'Ongeveer veertig tuinen per jaar.'),
-                ($1, $3, 'Graven jullie ook vijvers uit?', 'test', 'beantwoord', 'Alleen kleine vijvers tot vier meter.')`,
+                ($1, $3, 'Graven jullie ook vijvers uit?', 'test', 'beantwoord', 'Alleen kleine vijvers tot vier meter.')
+         returning id, analysis_id`,
         [merk, cluster, anderCluster],
       );
+      // K6 (B20): dezelfde kennis in de kennislaag, zoals het terugvullen (K3) en
+      // de antwoordroute (K5) hem daar zetten; blok A leest nu alleen daar.
+      {
+        const { legVast } = await import("@/lib/kennis/vastleggen");
+        const vraagVan = (a: string) => rapportVragen.find((r: { analysis_id: string }) => r.analysis_id === a).id as string;
+        const kennis = [
+          [{ profileId: merk, domein: "aanbod", soort: "prijs", bewering: "Een tuinontwerp kost vanaf 450 euro.", status: "waargenomen", bron: "website", bronUrl: "https://hovenier-groen.nl/ontwerp", citaat: "Een tuinontwerp vanaf 450 euro", gebruik: "content", herkomst: { tabel: "brand_facts", id: randomUUID() } }, { actor: "code", taak: "kennis_terugvullen" }],
+          [{ profileId: merk, domein: "aanbod", soort: "antwoord", bewering: "Hoeveel tuinen leggen jullie per jaar aan?\nOngeveer veertig tuinen per jaar.", status: "verklaard", bron: "klant", gebruik: "content", analysisId: cluster, herkomst: { tabel: "fact_requests", id: vraagVan(cluster) } }, { actor: "mens", gebruikerId: eigenaar }],
+          [{ profileId: merk, domein: "aanbod", soort: "antwoord", bewering: "Graven jullie ook vijvers uit?\nAlleen kleine vijvers tot vier meter.", status: "verklaard", bron: "klant", gebruik: "content", analysisId: anderCluster, herkomst: { tabel: "fact_requests", id: vraagVan(anderCluster) } }, { actor: "mens", gebruikerId: eigenaar }],
+        ] as const;
+        for (const [item, door] of kennis) {
+          const uit = await legVast(admin as never, item as never, door as never);
+          if (uit.soort === "geweigerd") throw new Error(`Testkennis geweigerd: ${uit.fouten.join(" ")}`);
+        }
+      }
       const { rows: plan } = await db.client.query(
         "insert into public.content_plans (profile_id, pages_per_month, status) values ($1, 3, 'actief') returning id",
         [merk],
@@ -9093,6 +9124,74 @@ async function main(): Promise<void> {
       eqc("scenario 23: een rapport van vóór N2 krijgt zijn kans bij de volgende synchronisatie, met kaart", `${vangnet.length}/${vangnet[0]?.kans === vangnet[0]?.kans_id}`, "1/true");
       const { rows: zonderBewijs } = await db.client.query("select uitleg from public.kansen where rapport_id = $1", [rapport2]);
       eqc("scenario 23: zonder meting: geen gegevens, geen nul", String(zonderBewijs[0]?.uitleg), "Voor deze kans zijn er nog geen gegevens.");
+    }
+
+    // ── Scenario 24: blok A leest uit de kennislaag (K6, B20) ─────────────────
+    //
+    // De echte `laadSchrijfbasis()`: wat de schrijver en de controle krijgen. Een
+    // vermoeden van het model komt er niet in, wat de klant zei wel; de prijs van
+    // de dienst van de kans wel, die van een andere dienst niet; het verhaal bij
+    // een eerdere versie van de pagina wel (gevonden in K5); een verbod uit de
+    // kennislaag gaat als verbod mee.
+    console.log("\nScenario 24: blok A leest uit de kennislaag (K6)");
+    {
+      const { laadSchrijfbasis } = await import("@/lib/pagina/schrijven");
+      const { legVast } = await import("@/lib/kennis/vastleggen");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      const cluster = randomUUID();
+      const [v1, v2] = [randomUUID(), randomUUID()];
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, value_props)
+         values ($1, $2, 'Blok A Test', 'https://blok-a.nl', 'Blok A Test', 'klaar', '{"Snelle service volgens het model"}')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Blok A', 'https://blok-a.nl', 'ketels', 'gereed')`,
+        [cluster, userId, merk],
+      );
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, action, version, is_current) values
+           ($1, $3, 'Cv-ketel vervangen', 'landing', 'ready', 'nieuw', 1, false),
+           ($2, $3, 'Cv-ketel vervangen', 'landing', 'briefing', 'nieuw', 2, true)`,
+        [v1, v2, cluster],
+      );
+      const site = (bewering: string, extra: Record<string, unknown> = {}) => ({
+        profileId: merk, domein: "aanbod", bewering, status: "waargenomen", bron: "website", bronUrl: "https://blok-a.nl", citaat: bewering, gebruik: "content",
+        herkomst: { tabel: "profile_offerings", id: randomUUID() }, ...extra,
+      });
+      const code = { actor: "code", taak: "kennis_terugvullen" } as const;
+      const mens = { actor: "mens", gebruikerId: userId } as const;
+      const leg = async (item: Record<string, unknown>, door: unknown) => {
+        const uit = await legVast(shim, item as never, door as never);
+        if (uit.soort === "geweigerd") throw new Error(`Testkennis geweigerd: ${uit.fouten.join(" ")}`);
+        return uit.item.id;
+      };
+      const cv = await leg(site("CV-ketel vervangen: een oude ketel vervangen.", { soort: "dienst" }), code);
+      const zon = await leg(site("Zonnepanelen: leggen op het dak.", { soort: "dienst" }), code);
+      await leg(site("Een nieuwe cv-ketel kost € 2.400.", { soort: "prijs", geldtVoor: [cv] }), code);
+      await leg(site("Zonnepanelen kosten € 4.000.", { soort: "prijs", geldtVoor: [zon] }), code);
+      await leg({ profileId: merk, domein: "positionering", soort: "waardepropositie", bewering: "Waarschijnlijk is snelheid het belangrijkste.", status: "afgeleid", bron: "ai", gebruik: "intern", herkomst: { tabel: "profiles", id: merk } }, { actor: "model", taak: "profile_research" });
+      await leg({ profileId: merk, domein: "doelgroep", soort: "bezwaar", bewering: "Klanten vinden een ketel duur; wij leggen het verschil in verbruik uit.", status: "verklaard", bron: "gesprek", gebruik: "content" }, mens);
+      await leg({ profileId: merk, domein: "verhaal", soort: "eigen verhaal", bewering: "Vorige winter vervingen we in één dag de ketel van een bakkerij.", status: "verklaard", bron: "klant", gebruik: "content", analysisId: cluster, contentPieceId: v1 }, mens);
+      await leg({ profileId: merk, domein: "grens", soort: "verboden woord", bewering: "goedkoopste", status: "verklaard", bron: "gesprek", gebruik: "verboden" }, mens);
+      const { rows: kans } = await db.client.query(
+        `insert into public.kansen (profile_id, analysis_id, titel, handeling, geldt_voor, vastgelegd_door_taak) values ($1, $2, 'Cv-ketel vervangen', 'nieuwe_pagina', $3, 'test') returning id`,
+        [merk, cluster, [cv]],
+      );
+      await db.client.query(
+        `insert into public.planned_pages (profile_id, title, page_type, status, sort_order, is_buffer, content_piece_id, kans_id) values ($1, 'Cv-ketel vervangen', 'dienst', 'gepland', 0, false, $2, $3)`,
+        [merk, v2, kans[0].id],
+      );
+
+      const basis = await laadSchrijfbasis(shim, v2);
+      const a = basis?.blokken.bedrijf ?? "";
+      ok("scenario 24: een vermoeden van het model komt niet bij de schrijver", !a.includes("Waarschijnlijk") && !a.includes("volgens het model"), a);
+      ok("scenario 24: wat de klant in het gesprek zei wel", a.includes("wij leggen het verschil in verbruik uit"));
+      ok("scenario 24: de prijs van de dienst van de kans wel, van een andere dienst niet", a.includes("€ 2.400") && !a.includes("€ 4.000"), a);
+      ok("scenario 24: het verhaal bij een eerdere versie van de pagina telt mee", a.includes("bakkerij"));
+      ok("scenario 24: het verbod gaat mee als verbod, niet als bewering", (basis?.merk.verbodenWoorden ?? []).includes("goedkoopste") && !a.includes("goedkoopste"));
+      ok("scenario 24: de controle op harde beweringen gebruikt dezelfde set", (basis?.bronnen ?? []).some((b) => b.includes("€ 2.400")) && !(basis?.bronnen ?? []).some((b) => b.includes("€ 4.000")));
     }
 
     __setTestAdminClient(null);

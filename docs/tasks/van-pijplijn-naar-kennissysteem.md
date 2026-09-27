@@ -473,6 +473,19 @@ Per werkpakket: **doel**, **wat**, **niet**, **klaar als**. De nummers zijn vast
   verklaard item wel; de vier pagina's van WP9 ronde 2 opnieuw geschreven op productie en paarsgewijs
   vergeleken met de vorige versie (de verbeterlus van de contentketen). Kosten per pagina gelijk of
   lager.
+- **Bijgesteld bij het bouwen (27 september 2026):**
+  - *Besluit B20* in `contentketen-opnieuw.md` §2, en `lib/kennis/voor-pagina.ts` en `blok-a.ts` op de
+    importlijst van §7.3 daar.
+  - *Welke dienst:* die van de kans achter de pagina (N2), met alles wat eronder hangt (een prijs onder een
+    dienst onder een categorie). Zonder kans de diensten waarvan de naam in de titel of de zoekintentie
+    staat, zoals het oude blok A het deed. Een dienst die nergens onder hangt, gaat mee als overzicht van
+    het aanbod; zijn prijs alleen bij zijn eigen pagina.
+  - *Wat verviel:* "waar het bedrijf voor staat" uit `value_props` (een oordeel van het merkonderzoek, P3), en
+    de feiten uit `brand_facts` zonder citaat. De stem gaat niet in blok A: die krijgt de schrijver al apart.
+  - *Verboden:* een verbod uit de kennislaag telt voor elke pagina, ook als het aan een dienst hangt, en
+    naast wat het merkprofiel als kopie draagt (tot K8 schrijven beide).
+  - *De opdracht:* versie 4, alleen omdat de invoer anders is (WP9: elke tekst terug te leiden naar zijn
+    invoer).
 - **Gevonden in K5 (26 september 2026):** een nieuwe versie van een pagina krijgt een nieuw id
   (`lib/pagina/taken.ts` hangt de vragen er dan ook aan), maar een kennisitem met `content_piece_id` wijst
   naar de versie waarvoor het antwoord gegeven is. `kennisVoor(pagina)` moet dus alle versies van de pagina

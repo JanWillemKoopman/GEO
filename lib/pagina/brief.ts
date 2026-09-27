@@ -55,7 +55,8 @@ function vandaag(): string {
 }
 
 function compactBedrijf(b: BedrijfsInvoer): BriefJson["bedrijf"] {
-  return { feiten: b.feiten.map((f) => ({ id: f.id, text: f.text })) };
+  // Sinds B20 zijn het kennisitems; de vorm in `brief_json` blijft dezelfde.
+  return { feiten: b.kennis.map((k) => ({ id: k.id, text: k.bewering })) };
 }
 
 /** De schrijfpoort voor deze pagina, met de stand zoals die nu in de database staat. */
