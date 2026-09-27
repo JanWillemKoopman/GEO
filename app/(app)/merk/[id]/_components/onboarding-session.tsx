@@ -25,6 +25,8 @@ import {
 } from "@/lib/pipeline/onboarding-refresh";
 import { sessionMeter, notApplicableFields, type FieldState } from "@/lib/profile-meter";
 import { isHumanSet } from "@/lib/pipeline/field-merge";
+import { DOMEIN_KOP } from "@/lib/kennis/overzicht";
+import type { KennisrondeDomein } from "@/lib/kansen/kennisronde";
 import type { ContextFactor, Profile } from "@/lib/types/database";
 
 /**
@@ -66,6 +68,7 @@ export function OnboardingSession({
   recordedAt,
   changedSinceResearch,
   openAnalyses,
+  kennisronde,
 }: {
   profileId: string;
   brandName: string;
@@ -80,6 +83,8 @@ export function OnboardingSession({
   changedSinceResearch: string[];
   /** Analyses waarvan de vragen nog opnieuw opgesteld kunnen worden. */
   openAnalyses: number;
+  /** A4: het kennisgat (N6) over alle kansen heen, per domein. */
+  kennisronde: KennisrondeDomein[];
 }) {
   const router = useRouter();
   const [waarden, setWaarden] = useState<Record<string, unknown>>(() => {
@@ -385,6 +390,38 @@ export function OnboardingSession({
               uitleg={`${initial.url} · ${initial.industry ?? "branche nog niet bekend"}. Wat ORBIT ENGINE al weet, en wat er nog moet gebeuren voordat je dit scherm deelt.`}
             />
             <ProfileReadinessPanel profileId={profileId} brandName={brandName} />
+            {/* A4: het gesprek richt zich op wat het meeste oplevert. Geen
+                nieuwe berekening: dit is het kennisgat (N6) van elke kans die
+                nog geschreven moet worden, gegroepeerd per onderwerp en met de
+                belangrijkste kansen het eerst genoemd (`ordenKansen()`). */}
+            {kennisronde.length > 0 && (
+              <div className="card flex flex-col gap-3">
+                <span className="mono-label">Wat dit gesprek het meest oplevert</span>
+                <p className="text-sm text-muted">
+                  Dit weten we nog niet over de onderwerpen waar de belangrijkste pagina&apos;s over
+                  gaan. Vraag dit het eerst.
+                </p>
+                <ul className="flex flex-col gap-3">
+                  {kennisronde.map((d) => (
+                    <li key={d.domein} className="flex flex-col gap-1">
+                      <span className="text-sm font-medium">{DOMEIN_KOP[d.domein] ?? d.domein}</span>
+                      <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-secondary">
+                        {d.regels.map((r) => (
+                          <li key={r.behoefte}>
+                            {r.label}
+                            <span className="text-xs text-muted">
+                              {" "}
+                              (bij {r.kansen.slice(0, 2).join(", ")}
+                              {r.kansen.length > 2 ? ` en ${r.kansen.length - 2} meer` : ""})
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </section>
 
           {/* ── 2 tot en met 6, 8. De blokken van hoofdstuk 3 ─────────────────

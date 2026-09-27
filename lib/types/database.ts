@@ -252,6 +252,8 @@ export interface Analysis {
   prompts_beslissing: number | null;
   /** Eenmalige herinnering bij klaarliggende, niet-gepubliceerde content (5.8). */
   publish_reminder_sent_at: string | null;
+  /** Eenmalige herinnering bij pagina's die op antwoorden wachten (A5, migratie 0128). */
+  question_reminder_sent_at: string | null;
   /**
    * Het label waaronder dit cluster in het overzicht staat (migratie 0083).
    * Null = geen label, en dat is een geldige stand: labels zijn optioneel en

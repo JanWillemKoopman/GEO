@@ -811,3 +811,12 @@ beschermt daarmee een door een mens gezet veld tegen een volgende onderzoeksrond
 onderzoeksronde (`lib/pipeline/prepare-profile.ts`) maakt de kolom weer leeg. Zie
 `docs/tasks/van-pijplijn-naar-kennissysteem.md` G4. Additief en idempotent. Op productie toegepast op
 27 september 2026.
+
+## 0128 — Een herinnering bij openstaande vragen
+
+Voegt `analyses.question_reminder_sent_at` toe (timestamptz), dezelfde vorm als
+`publish_reminder_sent_at` (migratie 0020): één eenmalige mail per analyse als er langer dan een week
+een pagina in status `briefing` op de antwoorden van de klant wacht. `/api/cron/reminders` (nu uit
+`vercel.json`, Hobby-limiet) verstuurt hem naast de bestaande publicatieherinnering, alleen als
+`EMAILS_ENABLED` aanstaat. Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` A5. Additief en
+idempotent. Op productie toegepast op 27 september 2026.

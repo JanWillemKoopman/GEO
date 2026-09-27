@@ -12849,3 +12849,18 @@ vraagt, en dat bouwen zou de laag alleen maar complexer maken zonder dat er iets
 
 N5 (27 september 2026, besluit V2): de consultant kan nu een kans toevoegen die de meting niet vond. `content_pieces.analysis_id` staat overal `not null`, dus zonder een analyse erachter kan zo'n kans nooit een pagina worden; `voegHandmatigeKansToe()` (`lib/kansen/handmatig.ts`) maakt daarom een minimale analyse aan (dezelfde `user_id`/`buildAnalysisName()` als bij een gewoon onderwerp) en archiveert hem meteen, zodat hij niet tussen de echte clusters verschijnt. `kansen.analysis_id` blijft zelf NULL: dat is het "Niet gemeten"-label op het bord. De opgegeven doelvragen worden als `prompts` vastgelegd, klaar voor een latere meting. Bewust nog niet gebouwd: die meting zelf ("een eigen nulmeting", besluit V2 letterlijk). De bestaande wachtrij (`enqueueMeasurement()`) eindigt in `generateReport()` zodra de laatste vraag binnen is, en dat zou voor één handmatige kans een tweede, overbodige aanbeveling en een dubbele kans proberen te maken; een eigen aftakking van die aggregatie is nodig en is met opzet buiten dit werkpakket gelaten. Formulier op het contentplan (`handmatige-kans-formulier.tsx`, staff-only), route `/api/profiles/[id]/kansen/handmatig`. Ketenscenario 34 dekt kans tot en met de aangemaakte pagina (status `briefing`) onder de schaduwanalyse, via dezelfde `bereidVoor()`-ketting als elke andere kans (geen wijziging nodig aan `clusterVan()`: die leest toch al `source_analysis_id` eerst).
 
+
+A4 en A5 van `docs/tasks/van-pijplijn-naar-kennissysteem.md` (27 september 2026). A4: het
+gespreksscherm (`admin/onboarding`) toont nu bovenaan de kennisgaten (N6) van elke kans die nog
+geschreven moet worden, per domein gegroepeerd en met de kansen met de hoogste prioriteit
+(`ordenKansen()`, N1) het eerst genoemd. Geen nieuwe berekening: `kennisrondeVoorMerk()`
+(`lib/kansen/kennisronde.ts`) leest alleen `kansen.kennis_ontbreekt`, al gevuld door N6. A5: een
+pagina die in de briefing wacht op de klant laat nu zien sinds wanneer, op het startscherm van de
+klant (`lib/work.ts`) en op het CSM-overzicht van de consultant, waar het ook meetelt in het segment
+"Wacht op de klant" (`lib/csm.ts`, `lib/csm-data.ts`). De e-mail (`lib/email/question-reminder.ts`)
+rijdt mee op de bestaande cron `/api/cron/reminders`, die al uit `vercel.json` gehaald was vanwege de
+Hobby-limiet van twee cron-taken; een derde, eigen cron kon dus niet. Een eigen kolom
+`analyses.question_reminder_sent_at` (migratie 0128, additief, op productie toegepast) houdt hem apart
+van de bestaande publicatieherinnering. Niet op productie gezien: er staat op dit moment geen enkele
+pagina in `briefing` (alle 11 staan op `ready`), dus de herinnering wacht op de volgende keer dat een
+pagina daar weer in komt te staan.
