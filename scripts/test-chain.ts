@@ -9982,6 +9982,87 @@ async function main(): Promise<void> {
       else process.env.AI_OVERVIEW_ENABLED = oudSchakelaar;
     }
 
+    // ── Scenario 34: N5, de handmatige kans ──────────────────────────────────
+    //
+    // De consultant zet een kans klaar die de meting niet vond (besluit V2).
+    // `voegHandmatigeKansToe()` legt de kans vast zonder gemeten cluster
+    // (`analysis_id` blijft NULL, het "niet gemeten"-label op het scherm), en
+    // maakt er een schaduwanalyse bij die alleen bestaat om
+    // `content_pieces.analysis_id NOT NULL` te dekken: gearchiveerd, dus
+    // onzichtbaar tussen de echte clusters. `bereidVoor()` (dezelfde ketting als
+    // elke andere kans) leest hem via `planned_pages.source_analysis_id` en
+    // maakt de pagina aan; de rest van de ketting (brief, schrijven, keuren) is
+    // dezelfde gedeelde pijplijn die de andere scenario's al dekken.
+    console.log("\nScenario 34: N5, de handmatige kans");
+    {
+      const { voegHandmatigeKansToe } = await import("@/lib/kansen/handmatig");
+      const { bereidVoor } = await import("@/lib/pagina/start");
+      const merk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Isolatiebedrijf Oisterwijk', 'https://isolatiebedrijf-oisterwijk.nl', 'Isolatiebedrijf Oisterwijk', 'klaar')`,
+        [merk, userId],
+      );
+
+      const uitkomst = await voegHandmatigeKansToe(admin as never, {
+        profileId: merk,
+        titel: "Prijzen dakisolatie Oisterwijk",
+        lezer: "Iemand die de prijs van dakisolatie wil weten",
+        handeling: "nieuwe_pagina",
+        bestaandeUrl: null,
+        geldtVoor: [],
+        doelvragen: ["Wat kost dakisolatie in Oisterwijk?", "Welke subsidie geldt er voor dakisolatie?"],
+        gebruikerId: userId,
+      });
+      ok("scenario 34: de kans wordt aangemaakt", uitkomst.ok, JSON.stringify(uitkomst));
+      const kansId = uitkomst.ok ? uitkomst.kansId : "";
+
+      const { rows: kansRows } = await db.client.query("select * from public.kansen where id = $1", [kansId]);
+      ok("scenario 34: geen gemeten cluster, bron consultant", kansRows[0].analysis_id === null && kansRows[0].status === "open", JSON.stringify(kansRows[0]));
+      const { rows: bewijsRows } = await db.client.query("select bron from public.kans_bewijs where kans_id = $1", [kansId]);
+      eqc("scenario 34: het bewijs is 'je consultant zette hem erbij'", bewijsRows.map((b) => b.bron).join(","), "consultant");
+
+      const { rows: kaartRows } = await db.client.query(
+        "select id, source_analysis_id, kans_id, status, plan_month_id from public.planned_pages where kans_id = $1",
+        [kansId],
+      );
+      ok("scenario 34: de voorraadkaart hangt aan de kans en staat nog nergens in een maand", kaartRows.length === 1 && kaartRows[0].plan_month_id === null, JSON.stringify(kaartRows[0]));
+      const planPaginaId = kaartRows[0].id as string;
+      const schaduwAnalyseId = kaartRows[0].source_analysis_id as string;
+
+      const { rows: analyseRows } = await db.client.query("select status, archived_at, profile_id from public.analyses where id = $1", [schaduwAnalyseId]);
+      ok("scenario 34: de schaduwanalyse is meteen gearchiveerd, dus onzichtbaar tussen de echte clusters", analyseRows[0].archived_at !== null && analyseRows[0].profile_id === merk, JSON.stringify(analyseRows[0]));
+
+      const { rows: promptRows } = await db.client.query("select text from public.prompts where analysis_id = $1 order by text", [schaduwAnalyseId]);
+      eqc("scenario 34: de opgegeven doelvragen staan als prompts klaar voor de latere nulmeting", promptRows.map((p) => p.text).join(" | "), "Wat kost dakisolatie in Oisterwijk? | Welke subsidie geldt er voor dakisolatie?");
+
+      // Net als elke andere kans wacht de voorbereiding op een vrijgegeven
+      // maand: de kaart moet eerst ingepland worden, zoals de consultant hem
+      // zou slepen.
+      const { rows: planRows } = await db.client.query(
+        `insert into public.content_plans (profile_id, pages_per_month, started_on, version, status) values ($1, 1, current_date, 1, 'actief') returning id`,
+        [merk],
+      );
+      const { rows: maandRows } = await db.client.query(
+        `insert into public.plan_months (plan_id, month_number, status) values ($1, 1, 'goedgekeurd') returning id`,
+        [planRows[0].id],
+      );
+      await db.client.query("update public.planned_pages set plan_month_id = $1 where id = $2", [maandRows[0].id, planPaginaId]);
+
+      // Dezelfde ketting als elke andere kans: bereidVoor() leest het cluster
+      // via source_analysis_id en maakt de pagina, zonder dat clusterVan() ook
+      // maar hoeft te weten dat dit een handmatige kans is.
+      await bereidVoor(admin as never, [planPaginaId]);
+      const { rows: stukRows } = await db.client.query(
+        "select cp.analysis_id, cp.status, cp.title from public.content_pieces cp join public.planned_pages pp on pp.content_piece_id = cp.id where pp.id = $1",
+        [planPaginaId],
+      );
+      ok(
+        "scenario 34: de pagina wordt aangemaakt onder de schaduwanalyse, klaar voor de brief",
+        stukRows.length === 1 && stukRows[0].analysis_id === schaduwAnalyseId && stukRows[0].status === "briefing",
+        JSON.stringify(stukRows[0]),
+      );
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

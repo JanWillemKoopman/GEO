@@ -77,6 +77,21 @@ export default async function PlanPage({
 
   const kansen = bundle ? 0 : await backlogCount(admin, id);
 
+  // N5: de kennisitems waar de consultant een handmatige kans aan kan hangen.
+  // Alleen opgehaald als er ook iets mee te doen valt (staff, en er is een plan).
+  const { data: kennisRows } =
+    staff && bundle
+      ? await admin
+          .from("klantkennis")
+          .select("id, soort, bewering")
+          .eq("profile_id", id)
+          .in("soort", ["dienst", "werkgebied"])
+          .is("vervangen_door", null)
+          .is("afgewezen_op", null)
+          .order("soort")
+      : { data: [] };
+  const kennisOpties = (kennisRows ?? []) as { id: string; soort: string; bewering: string }[];
+
   // Blok A punt 7: de link naar eerdere voorstellen alleen tonen als die er
   // ook echt zijn. Eén telling in plaats van de volle `loadPlanVersions()`:
   // dit scherm hoeft alleen te weten of er meer dan één versie bestaat.
@@ -155,6 +170,9 @@ export default async function PlanPage({
             // N7: de uitleg en het bewijs zijn voor iedereen, ook de klant.
             kansUitleg={bundle.kansUitleg}
             kansBewijs={bundle.kansBewijs}
+            kansNietGemeten={bundle.kansNietGemeten}
+            // N5: alleen de consultant zet een handmatige kans klaar.
+            kennisOpties={staff ? kennisOpties : undefined}
           />
         ) : modus === "kalender" ? (
           <PlanCalendarView
