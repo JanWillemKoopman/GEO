@@ -24,7 +24,8 @@
  *   - voor een dienst of regio (`geldt_voor`): alleen als de pagina daarvoor
  *     geldt. Welke diensten dat zijn, zegt de kans achter de pagina (N2), met
  *     alles wat eronder hangt; zonder kans de diensten waarvan de naam in de
- *     titel of de zoekintentie staat (zoals het oude blok A het deed);
+ *     titel of de zoekintentie staat (zoals het oude blok A het deed). Een
+ *     dienst of categorie zelf alleen als hij daarbij hoort;
  *   - anders: merkbreed, dus altijd.
  *
  * Een antwoord dat al in blok B staat (een vraag aan deze pagina), gaat niet
@@ -101,8 +102,23 @@ export function dienstenVanPagina(pagina: PaginaVoorBlokA, kennis: readonly Kenn
   return gekozen;
 }
 
+/**
+ * Een knoop van de aanbodboom (dienst of categorie) hoort alleen bij de pagina
+ * als hij bij de kans hoort, ook als hij nergens onder hangt.
+ *
+ * ⚠️ Gevonden bij het herschrijven op productie (27 september 2026): een
+ * categorie zonder ouder telde als merkbreed, en dan kreeg de warmtepomppagina
+ * van Keeris ook airco, zinkwerk en waterontharders als "wat we zeker weten".
+ * Het oude blok A had de aanbodboom helemaal niet; de schrijver kent het aanbod
+ * al uit de kans en de brief.
+ */
+function isAanbodKnoop(item: KennisVoorBlokA): boolean {
+  return (item.soort === "dienst" || item.soort === "categorie") && item.herkomst_tabel === "profile_offerings";
+}
+
 export function hoortBijPagina(item: KennisVoorBlokA, pagina: PaginaVoorBlokA, diensten: ReadonlySet<string>): boolean {
   if (item.herkomst_tabel === "fact_requests" && item.herkomst_id && pagina.vragenInBlokB.includes(item.herkomst_id)) return false;
+  if (isAanbodKnoop(item)) return diensten.has(item.id);
   if (item.content_piece_id) return pagina.paginaIds.includes(item.content_piece_id);
   if (item.analysis_id && item.analysis_id !== pagina.analysisId) return false;
   if (item.geldt_voor.length > 0) return item.geldt_voor.some((g) => diensten.has(g)) || diensten.has(item.id);
