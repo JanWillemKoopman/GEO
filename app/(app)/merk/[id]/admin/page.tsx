@@ -103,9 +103,8 @@ export default async function AdminPage({
     .select("id", { count: "exact", head: true })
     .eq("profile_id", id)
     .eq("echt_conflict", true)
-    // Alleen de conflicten tussen feiten; die van de kennislaag (K2, V14) krijgen
-    // hun eigen plek op het kennisoverzicht (K7).
-    .is("kennis_ids", null)
+    // Ook de botsingen tussen kennisitems (K2, V14): die staan sinds K7 op
+    // hetzelfde conflictscherm.
     .in("status", ["open", "gevraagd"]);
   const openConflicten = openConflictTelling ?? 0;
 
@@ -184,8 +183,8 @@ export default async function AdminPage({
       <div className="card flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-secondary">
           {openConflicten === 0
-            ? "Geen tegenstrijdige feiten open."
-            : `${openConflicten} tegenstrijdige ${openConflicten === 1 ? "feit" : "feiten"} open. Zolang dat zo is, gaat geen van de twee versies op een pagina.`}
+            ? "Geen tegenstrijdigheden open."
+            : `${openConflicten} ${openConflicten === 1 ? "tegenstrijdigheid" : "tegenstrijdigheden"} open. Zolang dat zo is, gaat geen van de versies op een pagina.`}
         </p>
         <Link href={`/merk/${id}/admin/feiten`} className="btn-outline btn-sm">
           Tegenstrijdige feiten

@@ -6,6 +6,7 @@ import { enqueue } from "@/lib/jobs/queue";
 import { dedupe } from "@/lib/jobs/dedupe";
 import { losConflictOp, type Keuze } from "@/lib/pipeline/feitenregister";
 import { legConflictkeuzeVast } from "@/lib/kennis/uit-gesprek";
+import { losKennisconflictOp } from "@/lib/kennis/uit-overzicht";
 
 /**
  * De conflictlijst van één merk (WP2 van contentpijplijn-publicatiewaardig.md, §8.3).
@@ -50,7 +51,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const toegang = await magHier(id);
   if ("fout" in toegang) return toegang.fout;
 
-  let body: { conflictId?: unknown; feitId?: unknown; vraag?: unknown };
+  let body: { conflictId?: unknown; feitId?: unknown; vraag?: unknown; kennisId?: unknown; geenVanBeide?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -58,6 +59,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
   const conflictId = typeof body.conflictId === "string" ? body.conflictId : "";
   if (!conflictId) return NextResponse.json({ error: "Welk conflict?" }, { status: 400 });
+
+  // ── Een botsing tussen kennisitems (K7, V14) ─────────────────────────────
+  // `{ conflictId, kennisId }` of `{ conflictId, geenVanBeide: true }`. Geen
+  // "vraag het de ondernemer": de consultant legt vast wat de klant in het
+  // gesprek zegt (V6).
+  if ((typeof body.kennisId === "string" && body.kennisId) || body.geenVanBeide === true) {
+    const fout = await losKennisconflictOp(
+      toegang.admin,
+      { profileId: id, conflictId, winnaarId: typeof body.kennisId === "string" ? body.kennisId : null },
+      toegang.user.id,
+    );
+    if (fout) return NextResponse.json({ error: fout }, { status: 400 });
+    return NextResponse.json({ ok: true });
+  }
 
   let keuze: Keuze;
   if (body.vraag === true) keuze = { vraag: true };

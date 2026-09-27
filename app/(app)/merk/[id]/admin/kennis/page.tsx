@@ -7,6 +7,8 @@ import { alleRijen } from "@/lib/supabase/pagineer";
 import { PageHeader } from "@/components/page-header";
 import { maakOverzicht, type OverzichtItem } from "@/lib/kennis/overzicht";
 import { KennisOverzicht } from "../../_components/kennis-overzicht";
+import { blokkadesVoorMerk } from "@/lib/kennis/voor-pagina";
+import { BLOKKADE_ZIN } from "@/lib/kennis/betwist";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Wat we over het bedrijf weten" };
@@ -27,16 +29,24 @@ export default async function AdminKennisPage({ params }: { params: Promise<{ id
   if (!(await isStaff(user.id))) notFound();
 
   const admin = createAdminClient();
-  const items = await alleRijen<OverzichtItem>((van, tot) =>
+  const rijen = await alleRijen<OverzichtItem & { herkomst_tabel: string | null; herkomst_id: string | null }>((van, tot) =>
     admin
       .from("klantkennis")
-      .select("id, domein, soort, bewering, status, bron, gebruik, bron_url, citaat, bevestigd_door, bevestigd_op, vastgelegd_door, vastgelegd_door_taak, vastgelegd_op, verloopt_op, vervangen_door, afgewezen_op, bewijskracht")
+      .select("id, domein, soort, bewering, status, bron, gebruik, bron_url, citaat, bevestigd_door, bevestigd_op, vastgelegd_door, vastgelegd_door_taak, vastgelegd_op, verloopt_op, vervangen_door, afgewezen_op, bewijskracht, herkomst_tabel, herkomst_id")
       .eq("profile_id", id)
       .is("vervangen_door", null)
       .order("vastgelegd_op")
       .order("id")
       .range(van, tot),
   );
+
+  // Wat op de conflictlijst staat of daar verloor, krijgt de schrijver niet
+  // (`betwist.ts`); de consultant ziet dat hier, met de reden.
+  const blokkades = await blokkadesVoorMerk(admin, id, rijen);
+  const items = rijen.map((r) => {
+    const b = blokkades.get(r.id);
+    return { ...r, blokkade: b ? BLOKKADE_ZIN[b] : null };
+  });
 
   return (
     <div className="flex flex-col gap-6 wil-lezen">

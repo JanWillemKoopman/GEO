@@ -73,3 +73,54 @@ export async function handelOpOverzicht(
     }
   }
 }
+
+/**
+ * Een botsing tussen kennisitems afhandelen (K7, besluit V14): de consultant
+ * kiest welk item klopt, of zegt dat geen van beide klopt. Het gekozen item wordt
+ * bevestigd (V6: de klant bevestigde het in het gesprek), de andere afgewezen,
+ * en de botsing staat daarna op opgelost. De keuze zelf staat in de kennislaag
+ * (wie bevestigde, wie afwees); `gekozen_feit_id` wijst naar een feit en blijft
+ * hier leeg.
+ *
+ * `winnaarId` null is "geen van beide": alle items van de botsing afgewezen.
+ */
+export async function losKennisconflictOp(
+  admin: SupabaseClient,
+  args: { profileId: string; conflictId: string; winnaarId: string | null },
+  gebruikerId: string,
+): Promise<string | null> {
+  const { data } = await admin
+    .from("fact_conflicts")
+    .select("id, status, kennis_ids")
+    .eq("id", args.conflictId)
+    .eq("profile_id", args.profileId)
+    .maybeSingle();
+  const c = data as { id: string; status: string; kennis_ids: string[] | null } | null;
+  if (!c || !c.kennis_ids) return "Deze botsing bestaat niet (meer).";
+  if (c.status !== "open") return "Deze botsing is al afgehandeld.";
+  if (args.winnaarId && !c.kennis_ids.includes(args.winnaarId)) return "Kies een van de items uit deze botsing.";
+  const mens = { actor: "mens" as const, gebruikerId };
+
+  const { data: rijen } = await admin.from("klantkennis").select("*").eq("profile_id", args.profileId).in("id", c.kennis_ids);
+  const items = (rijen ?? []) as Klantkennis[];
+  const winnaar = items.find((i) => i.id === args.winnaarId);
+  if (winnaar && (winnaar.vervangen_door || winnaar.afgewezen_op)) {
+    return "Dit item is intussen vervangen of afgewezen; kijk het na op het kennisoverzicht.";
+  }
+  for (const item of items) {
+    if (item.vervangen_door || item.afgewezen_op) continue;
+    const uitkomst =
+      item.id === args.winnaarId
+        ? item.status === "bevestigd"
+          ? ({ ok: true } as const)
+          : await bevestig(admin, { profileId: args.profileId, itemId: item.id }, mens)
+        : await wijsAf(admin, { profileId: args.profileId, itemId: item.id }, mens);
+    if (!uitkomst.ok) return uitkomst.fout;
+  }
+  const nu = new Date().toISOString();
+  const { error } = await admin
+    .from("fact_conflicts")
+    .update({ status: "opgelost", oplossing: "adviseur", opgelost_door: gebruikerId, opgelost_op: nu, updated_at: nu })
+    .eq("id", c.id);
+  return error ? `Opslaan mislukt: ${error.message}` : null;
+}

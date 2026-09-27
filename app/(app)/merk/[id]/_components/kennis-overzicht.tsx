@@ -73,6 +73,7 @@ export function KennisOverzicht({ profileId, overzicht }: { profileId: string; o
         <p className="text-xs text-muted">
           {STATUS_LABEL[item.status] ?? item.status}. {herkomstZin(item)} {GEBRUIK_LABEL[item.gebruik] ?? item.gebruik}.
         </p>
+        {item.blokkade && <p className="text-xs text-secondary">{item.blokkade}</p>}
         {item.citaat && item.status === "waargenomen" && (
           <p className="text-xs text-secondary">Op de site: &ldquo;{item.citaat}&rdquo;</p>
         )}

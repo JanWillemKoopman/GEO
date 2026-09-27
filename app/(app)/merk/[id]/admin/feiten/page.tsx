@@ -5,6 +5,8 @@ import { isStaff } from "@/lib/staff";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/page-header";
 import { ConflictLijst, type ConflictWeergave } from "../../_components/conflict-lijst";
+import { KennisConflictLijst, type KennisConflictWeergave } from "../../_components/kennisconflict-lijst";
+import { herkomstZin } from "@/lib/kennis/overzicht";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Tegenstrijdige feiten" };
@@ -27,7 +29,7 @@ export default async function AdminFeitenPage({ params }: { params: Promise<{ id
   if (!(await isStaff(user.id))) notFound();
 
   const admin = createAdminClient();
-  const [{ data: conflictRijen }, { count: nogIndelen }] = await Promise.all([
+  const [{ data: conflictRijen }, { count: nogIndelen }, { data: kennisConflictRijen }] = await Promise.all([
     admin
       .from("fact_conflicts")
       .select("id, feit_ids, soort, ernst, uitleg, voorstel, voorstel_feit_id, status, gekozen_feit_id, oplossing, created_at")
@@ -42,6 +44,16 @@ export default async function AdminFeitenPage({ params }: { params: Promise<{ id
       .eq("profile_id", id)
       .is("superseded_by", null)
       .is("ingedeeld_at", null),
+    // De botsingen tussen kennisitems (K7, V14): alleen de open, want de keuze
+    // zelf staat daarna in de kennislaag (bevestigd en afgewezen).
+    admin
+      .from("fact_conflicts")
+      .select("id, soort, ernst, uitleg, kennis_ids")
+      .eq("profile_id", id)
+      .eq("echt_conflict", true)
+      .eq("status", "open")
+      .not("kennis_ids", "is", null)
+      .order("created_at", { ascending: false }),
   ]);
 
   const rijen = (conflictRijen ?? []) as {
@@ -82,6 +94,25 @@ export default async function AdminFeitenPage({ params }: { params: Promise<{ id
     }),
   }));
 
+  const kennisRijen = (kennisConflictRijen ?? []) as { id: string; soort: string; ernst: string; uitleg: string | null; kennis_ids: string[] }[];
+  const kennisIds = Array.from(new Set(kennisRijen.flatMap((r) => r.kennis_ids)));
+  const { data: itemRijen } = kennisIds.length
+    ? await admin.from("klantkennis").select("id, bewering, bron, vastgelegd_op, vervangen_door, afgewezen_op").eq("profile_id", id).in("id", kennisIds)
+    : { data: [] };
+  const items = new Map(
+    ((itemRijen ?? []) as { id: string; bewering: string; bron: string; vastgelegd_op: string; vervangen_door: string | null; afgewezen_op: string | null }[]).map((i) => [i.id, i]),
+  );
+  const kennisConflicten: KennisConflictWeergave[] = kennisRijen.map((r) => ({
+    id: r.id,
+    soort: r.soort,
+    blokkerend: r.ernst === "blokkerend",
+    uitleg: r.uitleg,
+    items: r.kennis_ids.flatMap((kid) => {
+      const i = items.get(kid);
+      return i ? [{ id: i.id, bewering: i.bewering, herkomst: herkomstZin(i), actueel: !i.vervangen_door && !i.afgewezen_op }] : [];
+    }),
+  }));
+
   return (
     <div className="flex flex-col gap-6 wil-lezen">
       <PageHeader
@@ -90,6 +121,7 @@ export default async function AdminFeitenPage({ params }: { params: Promise<{ id
         description="Twee feiten over hetzelfde die niet allebei waar kunnen zijn. Zolang er een open staat, gaat geen van beide op een pagina."
       />
       <ConflictLijst profileId={id} conflicten={conflicten} nogIndelen={nogIndelen ?? 0} />
+      <KennisConflictLijst profileId={id} conflicten={kennisConflicten} />
     </div>
   );
 }

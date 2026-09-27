@@ -9283,6 +9283,109 @@ async function main(): Promise<void> {
       ok("scenario 25: het bevestigde vermoeden wel", a.includes("spoedreparaties"), a);
     }
 
+    // ── Scenario 26: tegenstrijdigheden en "niet van toepassing" (K7 deel 2) ──
+    //
+    // Sinds K6 leest blok A uit de kennislaag. Wat op de conflictlijst staat,
+    // mag daar niet in: een open conflict tussen feiten, een botsing tussen
+    // kennisitems, en een feit dat bij een keuze verloor. De consultant lost een
+    // botsing op het conflictscherm op; daarna gaat de gekozen versie wel mee.
+    // En "niet van toepassing" op het gespreksscherm wijst af wat er stond.
+    console.log("\nScenario 26: tegenstrijdigheden en niet van toepassing (K7)");
+    {
+      const { laadSchrijfbasis } = await import("@/lib/pagina/schrijven");
+      const { legVast } = await import("@/lib/kennis/vastleggen");
+      const { losKennisconflictOp } = await import("@/lib/kennis/uit-overzicht");
+      const { legProfielVast } = await import("@/lib/kennis/uit-gesprek");
+      const { nietVanToepassingVelden, zonderNietVanToepassing } = await import("@/lib/kennis/gesprek");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      const cluster = randomUUID();
+      const stuk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, differentiator) values ($1, $2, 'Conflict Test', 'https://conflict.nl', 'Conflict Test', 'klaar', 'Wij komen altijd binnen een uur.')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Conflict', 'https://conflict.nl', 'lekkage', 'gereed')`,
+        [cluster, userId, merk],
+      );
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, action, version, is_current) values ($1, $2, 'Lekkage verhelpen', 'landing', 'briefing', 'nieuw', 1, true)`,
+        [stuk, cluster],
+      );
+      const code = { actor: "code", taak: "profile_synthesis" } as const;
+      const mens = { actor: "mens", gebruikerId: userId } as const;
+      const siteFeit = async (tekst: string, stand: string) => {
+        const id = randomUUID();
+        await db.client.query(
+          `insert into public.brand_facts (id, profile_id, text, source, source_url, kind, fact_key, soort, stand) values ($1, $2, $3, 'site', 'https://conflict.nl', 'site', $4, 'termijn', $5)`,
+          [id, merk, tekst, `sleutel ${id}`, stand],
+        );
+        const u = await legVast(shim, {
+          profileId: merk, domein: "aanbod", soort: "termijn", bewering: tekst, status: "waargenomen", bron: "website",
+          bronUrl: "https://conflict.nl", citaat: tekst, gebruik: "content", herkomst: { tabel: "brand_facts", id },
+        } as never, code);
+        if (u.soort !== "vastgelegd") throw new Error(`Testkennis: ${u.soort}`);
+        return id;
+      };
+      const [binnenDag, binnenWeek] = [await siteFeit("Een monteur komt binnen een dag.", "betwist"), await siteFeit("Een monteur komt binnen een week.", "betwist")];
+      await db.client.query(
+        `insert into public.fact_conflicts (profile_id, feit_ids, paar_sleutel, soort, echt_conflict, ernst, status) values ($1, $2, 'test-termijn', 'termijn', true, 'blokkerend', 'open')`,
+        [merk, [binnenDag, binnenWeek]],
+      );
+      await siteFeit("Wij werken ook op zondag.", "vervangen");
+      await siteFeit("Wij geven vijf jaar garantie.", "site");
+
+      const prijs = (bedrag: number, bron: "website" | "gesprek") =>
+        legVast(shim, {
+          profileId: merk, domein: "aanbod", soort: "prijs", bewering: `Een lekkage opsporen kost € ${bedrag}.`,
+          waarde: { min: bedrag, max: bedrag, eenheid: "EUR" }, status: bron === "website" ? "waargenomen" : "verklaard", bron,
+          ...(bron === "website" ? { bronUrl: "https://conflict.nl/prijzen", citaat: `Een lekkage opsporen kost € ${bedrag}.` } : {}),
+          gebruik: "content", herkomst: { tabel: "fact_requests", id: randomUUID() },
+        } as never, bron === "website" ? code : mens);
+      const p1 = await prijs(95, "website");
+      const p2 = await prijs(120, "gesprek");
+      eqc("scenario 26: twee prijzen voor hetzelfde botsen", p2.soort === "vastgelegd" ? String(p2.botsingen) : p2.soort, "1");
+
+      let a = (await laadSchrijfbasis(shim, stuk))?.blokken.bedrijf ?? "";
+      ok("scenario 26: een open conflict tussen feiten: geen van beide naar de schrijver", !a.includes("binnen een dag") && !a.includes("binnen een week"), a);
+      ok("scenario 26: een feit dat bij een keuze verloor ook niet", !a.includes("zondag"), a);
+      ok("scenario 26: een botsing tussen kennisitems: geen van beide", !a.includes("€ 95") && !a.includes("€ 120"), a);
+      ok("scenario 26: wat nergens op botst, gaat wel mee", a.includes("vijf jaar garantie"), a);
+
+      const { rows: botsing } = await db.client.query(`select id from public.fact_conflicts where profile_id = $1 and kennis_ids is not null`, [merk]);
+      const winnaarId = p2.soort === "vastgelegd" ? p2.item.id : "";
+      const verliezerId = p1.soort === "vastgelegd" ? p1.item.id : "";
+      ok("scenario 26: kiezen voor iets buiten de botsing kan niet", Boolean(await losKennisconflictOp(shim, { profileId: merk, conflictId: botsing[0].id, winnaarId: randomUUID() }, userId)));
+      const fout = await losKennisconflictOp(shim, { profileId: merk, conflictId: botsing[0].id, winnaarId }, userId);
+      const { rows: na } = await db.client.query(`select id, status, afgewezen_op from public.klantkennis where id = any($1)`, [[winnaarId, verliezerId]]);
+      const { rows: c2 } = await db.client.query(`select status, opgelost_door from public.fact_conflicts where id = $1`, [botsing[0].id]);
+      ok(
+        "scenario 26: de keuze bevestigt de ene prijs, wijst de andere af en lost de botsing op",
+        !fout && na.find((r) => r.id === winnaarId)?.status === "bevestigd" && Boolean(na.find((r) => r.id === verliezerId)?.afgewezen_op) && c2[0].status === "opgelost" && c2[0].opgelost_door === userId,
+        JSON.stringify({ fout, na, c2 }),
+      );
+      ok("scenario 26: een opgeloste botsing nog eens oplossen kan niet", Boolean(await losKennisconflictOp(shim, { profileId: merk, conflictId: botsing[0].id, winnaarId }, userId)));
+      a = (await laadSchrijfbasis(shim, stuk))?.blokken.bedrijf ?? "";
+      ok("scenario 26: daarna gaat de gekozen prijs mee, de andere niet", a.includes("€ 120") && !a.includes("€ 95"), a);
+
+      // "Niet van toepassing" op het gespreksscherm.
+      const profiel = { differentiator: "Wij komen altijd binnen een uur." };
+      await legProfielVast(shim, { profileId: merk, url: "https://conflict.nl", velden: ["differentiator"], oud: {}, nieuw: profiel, bron: "gesprek" }, mens);
+      const nvt = nietVanToepassingVelden({ differentiator: true, bestaat_niet: true, value_props: false });
+      eqc("scenario 26: alleen de velden die op niet van toepassing gaan", nvt.join(","), "differentiator");
+      const t = await legProfielVast(shim, {
+        profileId: merk, url: "https://conflict.nl", velden: nvt, oud: profiel, nieuw: zonderNietVanToepassing(profiel, nvt), bron: "gesprek",
+      }, mens);
+      const { rows: onderscheid } = await db.client.query(
+        `select afgewezen_door from public.klantkennis where profile_id = $1 and soort = 'onderscheid' and vervangen_door is null`,
+        [merk],
+      );
+      ok("scenario 26: niet van toepassing wijst af wat er stond, door wie het aanvinkte", t.afgewezen === 1 && onderscheid.length === 1 && onderscheid[0].afgewezen_door === userId, JSON.stringify({ t, onderscheid }));
+      a = (await laadSchrijfbasis(shim, stuk))?.blokken.bedrijf ?? "";
+      ok("scenario 26: en de schrijver krijgt het niet meer", !a.includes("binnen een uur"), a);
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

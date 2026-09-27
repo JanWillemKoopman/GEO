@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProfile } from "@/lib/profiles";
 import { requireUser } from "@/lib/auth";
@@ -131,6 +132,21 @@ export default async function BewerkenPage({
           niet aan een staflid dat zelf de klantweergave aan heeft staan
           (`isStaff()` regelt dat al). */}
       {staf && <DossierStatus profileId={id} brandName={profile.name} />}
+
+      {/* K7: wat hier wordt opgeslagen, komt als "volgens de klant" in de
+          kennislaag (K5). Bevestigen, afwijzen en van de site halen doet de
+          consultant op het kennisoverzicht; de klant ziet dat niet (V6), dus de
+          velden hier blijven de plek waar hij zelf iets vertelt. */}
+      {staf && (
+        <div className="card flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-secondary">
+            Alleen jij ziet dit. Wat hier wordt opgeslagen, staat ook op het kennisoverzicht; daar bevestig je het of wijs je het af.
+          </p>
+          <Link href={`/merk/${id}/admin/kennis`} className="btn-outline btn-sm">
+            Kennisoverzicht
+          </Link>
+        </div>
+      )}
 
       <BrandWizard
         profileId={id}

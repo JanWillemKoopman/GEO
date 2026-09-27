@@ -28,6 +28,8 @@
  *     dienst of categorie zelf alleen als hij daarbij hoort;
  *   - anders: merkbreed, dus altijd.
  *
+ * Wat op de conflictlijst staat of daar verloor, gaat niet mee (`betwist.ts`).
+ *
  * Een antwoord dat al in blok B staat (een vraag aan deze pagina), gaat niet
  * nog eens in blok A: twee keer hetzelfde antwoord in de invoer maakt het niet
  * beter (zelfde regel als het oude `antwoordenVoorBlokA`).
@@ -57,6 +59,8 @@ export interface PaginaVoorBlokA {
   kansGeldtVoor: readonly string[] | null;
   /** De vragen die in blok B staan (aan een versie van deze pagina). */
   vragenInBlokB: readonly string[];
+  /** Kennis die nu niet mee mag, van een tegenstrijdigheid (`blokkadesVan()` in `betwist.ts`). */
+  geblokkeerd?: ReadonlySet<string>;
 }
 
 function woorden(tekst: string): string[] {
@@ -135,7 +139,10 @@ export function kiesVoorBlokA(kennis: readonly KennisVoorBlokA[], pagina: Pagina
   const diensten = dienstenVanPagina(pagina, kennis);
   // De stem gaat apart mee (de stemvoorbeelden en de aanspreekvorm): een hele
   // pagina van de site als "wat we zeker weten" leidt alleen af.
-  const passend = kennis.filter((k) => k.domein !== "stem" && hoortBijPagina(k, pagina, diensten));
+  // Wat op een open conflict staat of het verloor, gaat niet mee (K7): twee
+  // versies van een prijs op dezelfde pagina is precies wat de conflictlijst
+  // moet voorkomen.
+  const passend = kennis.filter((k) => k.domein !== "stem" && !pagina.geblokkeerd?.has(k.id) && hoortBijPagina(k, pagina, diensten));
   const { beweringen } = setVoorBlokA(passend, nu);
   // Een verbod geldt altijd, voor elke pagina: ook als het aan een dienst hangt.
   const alleVerboden = setVoorBlokA(kennis, nu).verboden;
