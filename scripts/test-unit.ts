@@ -1023,7 +1023,7 @@ import { faqMarkdown, volledigeMarkdown, htmlDocument, bestandsnaam } from "@/li
 import { schrijfpoort, schrijfdatum } from "@/lib/pagina/schrijfpoort";
 import { schoneAdressen, vanafEersteAlinea, MAX_STEMVOORBEELDEN } from "@/lib/pagina/stemvoorbeelden-regels";
 import { openVraagTekst, OPEN_VRAAG_MAX } from "@/lib/pagina/open-vraag-tekst";
-import { verwerkBrief, normaliseerVraag, kindVoorSoort, MAX_BRIEFVRAGEN, type ContentBrief } from "@/lib/pagina/brief-regels";
+import { verwerkBrief, normaliseerVraag, kindVoorSoort, MAX_BRIEFVRAGEN, BRIEF_VERSIE, type ContentBrief } from "@/lib/pagina/brief-regels";
 import { briefInvoer, BRIEF_SYSTEEM } from "@/lib/pagina/brief-opdracht";
 import { schrijfSysteem, schrijfInvoer, herschrijfInvoer, type SchrijfBlokken } from "@/lib/pagina/schrijfopdracht";
 import { moetHerschrijven, kiesVersie, geleZinnenNa, allesBevestigd, zinnenMetVerbodenWoord, CONTROLE_SYSTEEM } from "@/lib/pagina/controle-regels";
@@ -22967,3 +22967,19 @@ group("K8 deel 4: alleen lib/kennis/ schrijft de aanbodboom", () => {
   ok("het bewerkscherm voegt toe, past aan, haalt weg en zet terug via de kennislaag", ["voegKnoopToe(", "werkKnoopBij(", "haalKnopenWeg(", "zetKnoopTerug("].every((f) => route.includes(`await ${f}`)));
   ok("het onderzoek bewaart de boom via de kennislaag", leesBestand("lib/pipeline/offering.ts").includes("await bewaarAanbodboom("));
 });
+
+group("A1: de brief krijgt de kennisgaten (besluit B21)", () => {
+  const basis = {
+    titel: "Warmtepomp installeren", paginasoort: "dienstpagina", handeling: "nieuw" as const, zoekintentie: null, waarom: null,
+    doelvragen: [], merknaam: "Keeris", werkgebied: [], bedrijf: "- Wij installeren warmtepompen.", huidigeTekst: null, eerdereVragen: [],
+  };
+  const met = briefInvoer({ ...basis, kennisgat: ["een termijn", "voor wie het niet is"] });
+  ok("de invoer noemt wat we voor deze pagina nog niet weten", met.includes("Wat we voor deze pagina nog niet weten over het bedrijf:\n- een termijn\n- voor wie het niet is"));
+  ok("na wat we al weten", met.indexOf("Wat we al weten") < met.indexOf("Wat we voor deze pagina nog niet weten"));
+  ok("zonder kans of zonder gat geen blok", !briefInvoer({ ...basis, kennisgat: null }).includes("nog niet weten") && !briefInvoer({ ...basis, kennisgat: [] }).includes("nog niet weten"));
+  ok("de opdracht zegt: vraag eerst naar wat ontbreekt, en liever om een voorbeeld", BRIEF_SYSTEEM.includes('Staat er een lijst "Wat we voor deze pagina nog niet weten", vraag dan eerst daarnaar, en vraag liever om een voorbeeld uit de praktijk dan om een los feit.'));
+  ok("nog steeds hooguit acht vragen", MAX_BRIEFVRAGEN === 8 && BRIEF_SYSTEEM.includes(`hooguit ${MAX_BRIEFVRAGEN}`));
+  eq("brief versie 4", String(BRIEF_VERSIE), "4");
+  ok("de brief haalt het gat op", leesBestand("lib/pagina/brief.ts").includes("kennisgatVoorPagina(admin, pieceId)"));
+});
+

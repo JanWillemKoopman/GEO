@@ -762,6 +762,13 @@ Per werkpakket: **doel**, **wat**, **niet**, **klaar als**. De nummers zijn vast
   versie 4. Eerst als besluit in `contentketen-opnieuw.md` §2.
 - **Klaar als:** op de proefmerken opnieuw gebriefd; de vragen per pagina naast die van versie 3
   gelegd; de eigenaar kiest welke set hij als ondernemer liever beantwoordt.
+- **Gebouwd (27 september 2026):** besluit B21 in `contentketen-opnieuw.md` §2. `kennisgatVoorPagina()` in
+  `lib/kennis/voor-pagina.ts` leest het gat dat N6 bij de kans bewaarde (`kansen.kennis_ontbreekt`) en zet het in
+  woorden; `briefInvoer()` zet het na "wat we al weten". Zonder kans of zonder uitgerekend gat ontbreekt het
+  blok, zoals bij versie 3. Eenheidstests en ketenscenario 23. *Niet gedaan:* opnieuw briefen op de
+  proefmerken. Dat kost per pagina een aanroep op Sol met zoeken op het web en schrijft vragen op productie,
+  en de werkomgeving mag niet via de app op productie schrijven; het is een taak voor de eigenaar (§12), net
+  als de keuze tussen de twee sets vragen.
 
 #### A2 Eén keer vertellen, altijd gebruikt
 - **Doel:** een antwoord over een dienst helpt ook de volgende pagina over die dienst.
@@ -954,6 +961,7 @@ per pagina opnieuw.
 | Na A1 | Bevestigen dat de drie proefmerken met alles wat eraan hangt verwijderd mogen worden (besluit V17) | Hun enige nut, de vergelijking met de oude versie in K6 en A1, is dan gebruikt |
 | Voor N3 en M2 | Search Console koppelen bij minstens één merk (een proefmerk met een eigen site, of de eerste klant) | Nu staat er bij nul merken Search Console |
 | Na K8 | Op productie één stemvoorbeeld opslaan en één stuk tekst in het merkdossier plakken, en in het kennisoverzicht kijken of ze erbij staan (stemvoorbeeld: "uit de website"; dossier: "uit een document"). Na een maandvoorbereiding op het conflictscherm kijken of "alle feiten van de site zijn nagelopen" | Claude kon dit niet zelf: de werkomgeving weigert schrijven via de app op productie. In de ketentest werkt het (scenario 18 en 27) |
+| Na A1 | Op de proefmerken een paar pagina's opnieuw laten briefen (brief versie 4) en de vragen naast die van versie 3 leggen; kiezen welke set je als ondernemer liever beantwoordt | Het "klaar als" van A1; kost per pagina één aanroep op Sol met zoeken op het web |
 | Na K7, N7, A4, M4 | De nieuwe schermen doorlopen (K7 en A4 als consultant, N7 en M4 met een klantlogin) | Het oordeel "begrijpt een ondernemer dit" kan alleen een mens geven |
 
 ---
@@ -985,7 +993,7 @@ per pagina opnieuw.
 | G3 | Een wijziging maakt zichtbaar wat er geraakt wordt | 1 | Open | |
 | G4 | De verversingslogica wordt een abonnee | 1 | Open | |
 | G5 | Beslismoment: verder of stoppen | 1 | Open | |
-| A1 | De brief krijgt de kennisgaten | 1 | Open | |
+| A1 | De brief krijgt de kennisgaten | 1 | Gebouwd: brief versie 4 met het kennisgat van de kans (besluit B21), eenheidstests en ketenscenario 23. Open: opnieuw briefen op de proefmerken en de keuze van de eigenaar (§12) | 27 september 2026 |
 | A2 | Eén keer vertellen, altijd gebruikt | 1 | Open | |
 | A3 | Eén bron van vragen | 1 | Open | |
 | A4 | De kennisronde in het gesprek | 1 | Open | |

@@ -1012,13 +1012,16 @@ krijgt. Code stelt het samen, geen AI (`lib/pagina/bedrijfskennis.ts`):
 - **Bestanden:** `lib/kennis/indelen.ts`, `lib/kennis/indeling.ts`, `lib/pipeline/fact-classify.ts`.
 
 **AI-aanroep 9.6: de content brief**
-- **Model:** Sol, `analytical`, **met** zoeken op het web. Brief versie 3.
+- **Model:** Sol, `analytical`, **met** zoeken op het web. Brief versie 4.
 - **Gaat erin:**
   - de titel, de soort pagina, nieuw of verbeteren, de zoekintentie en de reden uit het plan;
   - de merknaam en het werkgebied;
   - de meetvragen waarop het merk gemist werd, elk met wat ChatGPT nu antwoordt (tot 1.500 tekens,
     namen van concurrenten weggehaald);
   - blok A (hierboven);
+  - wat we voor deze pagina nog niet weten over het bedrijf: het kennisgat van de kans (sinds 27 september
+    2026, A1), met in de opdracht één zin erbij: vraag eerst daarnaar, en liever om een voorbeeld uit de
+    praktijk dan om een los feit;
   - bij "verbeteren": de huidige tekst van de pagina (tot 8.000 tekens, één keer van de site gehaald);
   - de 200 nieuwste vragen die het merk al kreeg, met id en stand (open, beantwoord, overgeslagen).
 - **Opdracht (kern):** *"Je bereidt één webpagina voor van een Nederlands mkb-bedrijf. Een schrijver

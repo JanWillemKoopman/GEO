@@ -15,6 +15,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { alleRijen } from "@/lib/supabase/pagineer";
 import { naarActueleVersies } from "@/lib/kennis/versies";
+import { BEHOEFTE_LABEL, type Behoefte } from "@/lib/kansen/kennisgat";
 import { kiesVoorBlokA, type KennisVoorBlokA, type KeuzeVoorBlokA } from "@/lib/kennis/blok-a";
 import { blokkadesVan, type Blokkade, type BlokkadeConflict, type BlokkadeKennis } from "@/lib/kennis/betwist";
 
@@ -112,4 +113,22 @@ export async function kennisVoor(admin: SupabaseClient, pagina: PaginaSleutel, n
     nu,
   );
   return { ...keuze, paginaIds };
+}
+
+/**
+ * Wat we voor deze pagina nog niet weten (A1): het kennisgat van de kans achter
+ * de pagina (N6), in woorden. `null` als er geen kans is of het gat nog niet is
+ * uitgerekend (conventie 3); een lege lijst zegt dat er niets ontbreekt. Het gat
+ * zelf rekent `werkKennisgatBij()` uit bij elke synchronisatie van het plan; hier
+ * wordt het alleen gelezen.
+ */
+export async function kennisgatVoorPagina(admin: SupabaseClient, pieceId: string): Promise<string[] | null> {
+  const { data: kaarten } = await admin.from("planned_pages").select("kans_id").eq("content_piece_id", pieceId).not("kans_id", "is", null);
+  const kansIds = [...new Set(((kaarten ?? []) as { kans_id: string }[]).map((k) => k.kans_id))];
+  if (kansIds.length === 0) return null;
+  const { data: kansen } = await admin.from("kansen").select("kennis_ontbreekt").in("id", kansIds);
+  const lijsten = ((kansen ?? []) as { kennis_ontbreekt: string[] | null }[]).map((k) => k.kennis_ontbreekt);
+  if (lijsten.every((l) => l === null)) return null;
+  const ontbreekt = [...new Set(lijsten.flatMap((l) => l ?? []))];
+  return ontbreekt.map((b) => BEHOEFTE_LABEL[b as Behoefte] ?? b);
 }
