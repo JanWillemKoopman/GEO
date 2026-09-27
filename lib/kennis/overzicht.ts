@@ -150,3 +150,36 @@ export function maakOverzicht(items: readonly OverzichtItem[]): Overzicht {
     },
   };
 }
+
+// ── De open punten van het onderzoek (A3) ────────────────────────────────────
+
+export interface OpenPunt {
+  /** Uit welke stap het punt komt. */
+  bron: "samenvatting" | "aanbod";
+  punt: string;
+}
+
+/**
+ * Wat het onderzoek niet kon vaststellen, uit de verslagen van de samenvatting
+ * en de aanbodboom (`profile_facets`, facet `synthese` en `aanbod`). Tot A3
+ * werden de punten van de samenvatting losse vragen aan de klant; sinds besluit
+ * V3 vraagt alleen de voorbereiding van een pagina, en staan deze punten hier,
+ * voor de consultant, als onderwerp voor het gesprek (A3).
+ */
+export function openPuntenUitOnderzoek(facetten: readonly { facet: string; raw_json: unknown }[]): OpenPunt[] {
+  const uit: OpenPunt[] = [];
+  const gezien = new Set<string>();
+  for (const f of facetten) {
+    const bron = f.facet === "synthese" ? "samenvatting" : f.facet === "aanbod" ? "aanbod" : null;
+    if (!bron || !f.raw_json || typeof f.raw_json !== "object") continue;
+    const raw = f.raw_json as { gaps?: unknown; output_parsed?: { gaps?: unknown } };
+    const lijst = Array.isArray(raw.gaps) ? raw.gaps : Array.isArray(raw.output_parsed?.gaps) ? raw.output_parsed!.gaps : [];
+    for (const p of lijst as unknown[]) {
+      const punt = typeof p === "string" ? p.replace(/^\s*[-*•]\s*/, "").trim() : "";
+      if (!punt || gezien.has(punt.toLowerCase())) continue;
+      gezien.add(punt.toLowerCase());
+      uit.push({ bron, punt });
+    }
+  }
+  return uit;
+}
