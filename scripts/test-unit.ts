@@ -40,6 +40,7 @@ import {
   bewijsSterkte,
   ordenKansen,
   uitlegVan,
+  bewijsRegel,
   type KansBewijs,
   type KansBron,
   type KansInvoer,
@@ -22574,6 +22575,36 @@ group("kansen: de volgorde en de uitleg (N1)", () => {
   }
   eq("elke combinatie van bronnen geeft een nette zin (256 gevallen)", fouten.slice(0, 5).join(" | "), "");
 
+  // ── Het bewijs per bron, voor het uitklapbare blok op het kansenscherm (N7) ──
+  eq(
+    "search console met klikken en positie",
+    bewijsRegel({ bron: "search_console", vertoningen: 240, klikken: 3, positie: 8.2, periodeDagen: 28 }),
+    "Mensen zoeken hiernaar (240 vertoningen in Google in 28 dagen), 3 klikken, gemiddelde positie 8,2.",
+  );
+  eq(
+    "search console zonder gegevens",
+    bewijsRegel({ bron: "search_console" }),
+    "Google Search Console: nog geen gegevens.",
+  );
+  eq(
+    "chatgpt steunend",
+    bewijsRegel({ bron: "chatgpt", vragenGemeten: 4, vragenGenoemd: 0, concurrenten: ["X", "Y"] }),
+    "ChatGPT noemt je bij 0 van de 4 vragen en noemt twee concurrenten wel.",
+  );
+  eq("chatgpt zonder gegevens", bewijsRegel({ bron: "chatgpt" }), "ChatGPT: nog geen gegevens.");
+  eq(
+    "ai overview met citatie",
+    bewijsRegel({ bron: "ai_overview", eigenSiteGeciteerd: true }),
+    "Google AI Overview citeert je site wel.",
+  );
+  eq("consultant met toelichting", bewijsRegel({ bron: "consultant", toelichting: "eigen inzicht" }), "Je consultant: eigen inzicht.");
+  eq("consultant zonder toelichting", bewijsRegel({ bron: "consultant" }), "Je consultant zette deze kans erbij.");
+  eq(
+    "structuur",
+    bewijsRegel({ bron: "structuur" }),
+    "Je biedt dit aan, maar er staat nog geen pagina over op je site.",
+  );
+
   // ── Dezelfde vaste waarden in code en database ──
   const migratie = leesBestand("supabase/migrations/0118_kansen.sql");
   const inCheck = (constraint: string, waarden: readonly string[]) => {
@@ -22613,7 +22644,14 @@ group("kansen: het rapport maakt kansen (N2)", () => {
 
   // ── Het bewijs per bron ──
   eq("ChatGPT is de hoofdbron, ook zonder engine", `${bronVanEngine(null)}|${bronVanEngine("openai")}|${bronVanEngine("google_ai_overview")}|${bronVanEngine("gemini")}|${bronVanEngine("bing")}`, "chatgpt|chatgpt|ai_overview|gemini|null");
-  const m = (runId: string, promptId: string, engine: string | null, genoemd: boolean, concurrenten: string[] = []): MetingVoorBewijs => ({ runId, promptId, engine, genoemd, concurrenten });
+  const m = (runId: string, promptId: string, engine: string | null, genoemd: boolean, concurrenten: string[] = [], citedSources: string[] = []): MetingVoorBewijs => ({
+    runId,
+    promptId,
+    engine,
+    genoemd,
+    concurrenten,
+    citedSources,
+  });
   const doel = [{ promptId: "p1", weight: 0.5, text: null }, { promptId: "p2", weight: 0.3, text: null }];
   const bewijs = bewijsUitMetingen(doel, [
     m("a", "p1", "openai", false, ["Rijschool Wit", "Rijschool Zwart"]),
@@ -22637,6 +22675,21 @@ group("kansen: het rapport maakt kansen (N2)", () => {
   const veel = bewijsUitMetingen([doel[0]!], [m("z", "p1", "openai", false, ["A", "B", "C", "D", "E", "F", "G"])]);
   eq("hooguit een handvol concurrenten", String(veel[0]?.concurrenten?.length), String(MAX_CONCURRENTEN));
   eq("zonder doelvragen geen bewijs", String(bewijsUitMetingen([], [m("a", "p1", "openai", false)]).length), "0");
+
+  // ── N4: citeert een bron de eigen site? ──
+  const geciteerd = bewijsUitMetingen(
+    doel,
+    [
+      m("e1", "p1", "openai", true, [], ["https://www.pompert.nl/faalangst/?utm=x"]),
+      m("e2", "p2", "openai", false, ["Concurrent"], ["https://concurrent.nl/faalangst"]),
+    ],
+    "https://pompert.nl",
+  );
+  ok("chatgpt citeert de eigen site (www, trackingcode en slash maken niets uit)", geciteerd.find((b) => b.bron === "chatgpt")?.eigenSiteGeciteerd === true, JSON.stringify(geciteerd));
+  const nietGeciteerd = bewijsUitMetingen(doel, [m("f1", "p1", "openai", true, [], ["https://concurrent.nl/faalangst"])], "https://pompert.nl");
+  eq("wel gemeten, geen citaat van de eigen site: false, geen null", String(nietGeciteerd[0]?.eigenSiteGeciteerd), "false");
+  const zonderUrl = bewijsUitMetingen(doel, [m("g1", "p1", "openai", true, [], ["https://pompert.nl/faalangst"])]);
+  eq("zonder bekend webadres: onbekend (null), geen 'nee'", String(zonderUrl[0]?.eigenSiteGeciteerd), "null");
 
   // ── Wie telt als concurrent ──
   const v = (rol: string | null, mentioned = true, is_own_brand = false) => isConcurrent({ is_own_brand, mentioned, mention_role: rol });

@@ -21,6 +21,7 @@ import {
 import { syncBacklog, meetbareVragenPerAnalyse, loadDeclinedOpportunities } from "@/lib/plan-backlog-data";
 import { sortBacklog, compareByPotential, type BacklogItem, type DeclinedItem } from "@/lib/plan-backlog";
 import { bepaalVulling, type OpenMaand } from "@/lib/plan-fill";
+import { bewijsRegel, type KansBewijs } from "@/lib/kansen/prioriteit";
 import { canonicalKey } from "@/lib/crawl-urls";
 import type { TopicWritingState } from "@/lib/plan-writing";
 import type {
@@ -62,6 +63,10 @@ export interface PlanBundle {
    * consultant op het scherm; de pagina zelf geeft het niet aan de klant door.
    */
   kennisgat: Record<string, string[] | null>;
+  /** N7: de zin die de kans onderbouwt (N1, `kansen.uitleg`). `null` = nog geen bewijs verwerkt. */
+  kansUitleg: Record<string, string | null>;
+  /** N7: het bewijs per bron, als leesbare zinnen, voor het uitklapbare blok op het scherm. */
+  kansBewijs: Record<string, string[]>;
 }
 
 /**
@@ -184,12 +189,52 @@ export async function loadPlan(
   const declined = await loadDeclinedOpportunities(admin, profileId);
   const { data: gatRows } = await admin
     .from("kansen")
-    .select("id, kennis_ontbreekt")
+    .select("id, kennis_ontbreekt, uitleg")
     .eq("profile_id", profileId)
     .neq("status", "vervallen");
-  const kennisgat = Object.fromEntries(
-    ((gatRows ?? []) as { id: string; kennis_ontbreekt: string[] | null }[]).map((k) => [k.id, k.kennis_ontbreekt]),
-  );
+  const kansRijen = (gatRows ?? []) as { id: string; kennis_ontbreekt: string[] | null; uitleg: string | null }[];
+  const kennisgat = Object.fromEntries(kansRijen.map((k) => [k.id, k.kennis_ontbreekt]));
+  const kansUitleg = Object.fromEntries(kansRijen.map((k) => [k.id, k.uitleg]));
+
+  // N7: het bewijs per bron, alleen de kolommen die `bewijsRegel()` nodig heeft
+  // (conventie over kleine, gerichte queries: geen ruwe JSON hier).
+  const kansIds = kansRijen.map((k) => k.id);
+  const { data: bewijsRows } = kansIds.length
+    ? await admin
+        .from("kans_bewijs")
+        .select(
+          "kans_id, bron, vragen_gemeten, vragen_genoemd, concurrenten, eigen_site_geciteerd, vertoningen, klikken, positie, periode_dagen, toelichting",
+        )
+        .in("kans_id", kansIds)
+    : { data: [] };
+  const kansBewijs: Record<string, string[]> = {};
+  for (const r of (bewijsRows ?? []) as {
+    kans_id: string;
+    bron: KansBewijs["bron"];
+    vragen_gemeten: number | null;
+    vragen_genoemd: number | null;
+    concurrenten: string[] | null;
+    eigen_site_geciteerd: boolean | null;
+    vertoningen: number | null;
+    klikken: number | null;
+    positie: number | null;
+    periode_dagen: number | null;
+    toelichting: string | null;
+  }[]) {
+    const regel = bewijsRegel({
+      bron: r.bron,
+      vragenGemeten: r.vragen_gemeten,
+      vragenGenoemd: r.vragen_genoemd,
+      concurrenten: r.concurrenten,
+      eigenSiteGeciteerd: r.eigen_site_geciteerd,
+      vertoningen: r.vertoningen,
+      klikken: r.klikken,
+      positie: r.positie,
+      periodeDagen: r.periode_dagen,
+      toelichting: r.toelichting,
+    });
+    (kansBewijs[r.kans_id] ??= []).push(regel);
+  }
 
   return {
     plan,
@@ -200,6 +245,8 @@ export async function loadPlan(
     ),
     declined,
     kennisgat,
+    kansUitleg,
+    kansBewijs,
     clusterNaam: Object.fromEntries(clusterNaam),
     metKansen: [
       ...new Set(
