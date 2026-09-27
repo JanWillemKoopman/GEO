@@ -192,6 +192,15 @@ export default async function AdminPage({
         </Link>
       </div>
 
+      <div className="card flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-secondary">
+          Wat we over het bedrijf weten, met waar het vandaan komt. Leg hier vast wat de klant bevestigt of verbetert.
+        </p>
+        <Link href={`/merk/${id}/admin/kennis`} className="btn-outline btn-sm">
+          Kennisoverzicht
+        </Link>
+      </div>
+
       {/* ── De negen secties die de klant zelf ziet ─────────────────────────
           In zijn volgorde, zodat je in een demo weet welk scherm hij voor zich
           heeft. Puur een inhoudsopgave: elke regel wijst naar het klantscherm. */}

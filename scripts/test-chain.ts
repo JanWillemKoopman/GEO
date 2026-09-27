@@ -9194,6 +9194,95 @@ async function main(): Promise<void> {
       ok("scenario 24: de controle op harde beweringen gebruikt dezelfde set", (basis?.bronnen ?? []).some((b) => b.includes("€ 2.400")) && !(basis?.bronnen ?? []).some((b) => b.includes("€ 4.000")));
     }
 
+    // ── Scenario 25: het kennisoverzicht (K7) ─────────────────────────────────
+    //
+    // De vier handelingen van de consultant via `handelOpOverzicht()`, en wat de
+    // schrijver daarna krijgt (de echte `laadSchrijfbasis()`): bevestigen zet de
+    // status, afwijzen haalt een item uit blok A, aanpassen maakt een nieuwe
+    // versie die wel meegaat, "niet op de site" houdt het eruit, en een bevestigd
+    // vermoeden mag op een pagina.
+    console.log("\nScenario 25: het kennisoverzicht (K7)");
+    {
+      const { laadSchrijfbasis } = await import("@/lib/pagina/schrijven");
+      const { legVast } = await import("@/lib/kennis/vastleggen");
+      const { handelOpOverzicht } = await import("@/lib/kennis/uit-overzicht");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      const cluster = randomUUID();
+      const stuk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Overzicht Test', 'https://overzicht.nl', 'Overzicht Test', 'klaar')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Overzicht', 'https://overzicht.nl', 'dakgoten', 'gereed')`,
+        [cluster, userId, merk],
+      );
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, action, version, is_current) values ($1, $2, 'Dakgoot vervangen', 'landing', 'briefing', 'nieuw', 1, true)`,
+        [stuk, cluster],
+      );
+      const code = { actor: "code", taak: "kennis_terugvullen" } as const;
+      const mens = { actor: "mens", gebruikerId: userId } as const;
+      const leg = async (item: Record<string, unknown>, door: unknown) => {
+        const uit = await legVast(shim, { profileId: merk, domein: "aanbod", ...item } as never, door as never);
+        if (uit.soort === "geweigerd") throw new Error(`Testkennis geweigerd: ${uit.fouten.join(" ")}`);
+        return uit.item.id;
+      };
+      const site = { status: "waargenomen", bron: "website", bronUrl: "https://overzicht.nl", gebruik: "content", herkomst: { tabel: "profiles", id: merk } };
+      const gezien = await leg({ bewering: "Wij werken al 22 jaar in de regio.", citaat: "Wij werken al 22 jaar in de regio.", ...site }, code);
+      const fout = await leg({ bewering: "Wij leveren ook zonnepanelen.", citaat: "Wij leveren ook zonnepanelen.", ...site }, code);
+      const oud = await leg({ bewering: "Een dakgoot vervangen duurt een dag.", status: "verklaard", bron: "gesprek", gebruik: "content" }, mens);
+      const geheim = await leg({ bewering: "Wij werken met onderaannemers uit Polen.", status: "verklaard", bron: "gesprek", gebruik: "content" }, mens);
+      const vermoeden = await leg({ domein: "positionering", bewering: "Het bedrijf is sterk in spoedreparaties.", status: "afgeleid", bron: "ai", gebruik: "intern", herkomst: { tabel: "profiles", id: merk } }, { actor: "model", taak: "profile_research" });
+      const doe = (itemId: string, actie: string, bewering?: string) => handelOpOverzicht(shim, { profileId: merk, itemId, actie: actie as never, bewering }, userId);
+      const rij = async (id: string) => (await db.client.query(`select * from public.klantkennis where id = $1`, [id])).rows[0];
+
+      const bevestigd = await doe(gezien, "bevestigen");
+      const r1 = await rij(gezien);
+      ok("scenario 25: bevestigen zet de status, met wie en wanneer", bevestigd.ok && r1.status === "bevestigd" && r1.bevestigd_door === userId && r1.bevestigd_op != null, JSON.stringify(bevestigd));
+      ok("scenario 25: nog eens bevestigen kan niet", !(await doe(gezien, "bevestigen")).ok);
+
+      const afgewezen = await doe(fout, "afwijzen");
+      ok("scenario 25: afwijzen bewaart het item met wie", afgewezen.ok && (await rij(fout)).afgewezen_door === userId);
+      ok("scenario 25: een afgewezen item kan niet meer bevestigd worden", !(await doe(fout, "bevestigen")).ok);
+
+      ok("scenario 25: aanpassen zonder nieuwe tekst kan niet", !(await doe(oud, "aanpassen", "  ")).ok);
+      const aangepast = await doe(oud, "aanpassen", "Een dakgoot vervangen duurt meestal twee dagen.");
+      const r3 = await rij(oud);
+      const nieuw = aangepast.ok ? await rij(aangepast.item.id) : null;
+      ok(
+        "scenario 25: aanpassen maakt een nieuwe versie, verklaard uit het gesprek",
+        aangepast.ok && r3.vervangen_door === nieuw?.id && nieuw?.status === "verklaard" && nieuw?.bron === "gesprek" && nieuw?.gebruik === "content",
+        JSON.stringify({ r3, nieuw }),
+      );
+      ok("scenario 25: de oude versie kan niet meer aangepast worden", !(await doe(oud, "aanpassen", "Iets anders.")).ok);
+
+      const eraf = await doe(geheim, "niet_op_site");
+      const r4 = await rij(geheim);
+      ok("scenario 25: niet op de site zet het gebruik op intern, zelfde rij en status", eraf.ok && r4.gebruik === "intern" && r4.status === "verklaard" && r4.vervangen_door == null);
+
+      const zeker = await doe(vermoeden, "bevestigen");
+      const r5 = await rij(vermoeden);
+      ok("scenario 25: een bevestigd vermoeden is een feit en mag op een pagina", zeker.ok && r5.status === "bevestigd" && r5.gebruik === "content", r5);
+
+      const ander = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Ander', 'https://ander.nl', 'Ander', 'klaar')`,
+        [ander, userId],
+      );
+      const vreemd = await handelOpOverzicht(shim, { profileId: ander, itemId: gezien, actie: "afwijzen" }, userId);
+      ok("scenario 25: een item van een ander merk bestaat hier niet", !vreemd.ok && (await rij(gezien)).afgewezen_op == null);
+
+      const basis = await laadSchrijfbasis(shim, stuk);
+      const a = basis?.blokken.bedrijf ?? "";
+      ok("scenario 25: het bevestigde item gaat naar de schrijver", a.includes("22 jaar"), a);
+      ok("scenario 25: het afgewezen item niet", !a.includes("zonnepanelen"), a);
+      ok("scenario 25: de aangepaste tekst wel, de oude niet", a.includes("meestal twee dagen") && !a.includes("duurt een dag"), a);
+      ok("scenario 25: wat niet op de site mag niet", !a.includes("Polen"), a);
+      ok("scenario 25: het bevestigde vermoeden wel", a.includes("spoedreparaties"), a);
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);
