@@ -9495,6 +9495,65 @@ async function main(): Promise<void> {
       eqc("scenario 28: de kopie volgt", JSON.stringify((await profiel()).competitors), JSON.stringify(["Warmte Oost BV"]));
     }
 
+    // ── Scenario 29: de aanbodboom via de kennislaag (K8 deel 4) ─────────────
+    //
+    // Een mens voegt een dienst toe onder een categorie, past hem aan, haalt hem
+    // weg en zet hem terug. Elke stap verandert de tabel (de kopie die de
+    // onderwerpen lezen) en de kennislaag: toevoegen en aanpassen is verklaard,
+    // met de ouder in geldt_voor; weghalen wijst af, door wie het deed.
+    console.log("\nScenario 29: de aanbodboom via de kennislaag (K8 deel 4)");
+    {
+      const { voegKnoopToe, werkKnoopBij, haalKnopenWeg, zetKnoopTerug } = await import("@/lib/kennis/uit-aanbod");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Aanbod Test', 'https://aanbod.nl', 'Aanbod Test', 'klaar')`,
+        [merk, userId],
+      );
+      const mens = { actor: "mens", gebruikerId: userId } as const;
+      const cat = await voegKnoopToe(shim, { profileId: merk, rij: { kind: "categorie", name: "Verwarming", source: "consultant", sort_order: 0 } }, mens);
+      const dienst = await voegKnoopToe(shim, { profileId: merk, rij: { kind: "dienst", name: "Warmtepomp", price_indication: "vanaf € 9.500", parent_id: cat.id, source: "consultant", sort_order: 1 } }, mens);
+      ok("scenario 29: twee knopen toegevoegd", Boolean(cat.id && dienst.id), JSON.stringify({ cat, dienst }));
+      const items = async () =>
+        (
+          await db.client.query(
+            `select id, soort, bewering, status, geldt_voor, vervangen_door, afgewezen_door from public.klantkennis where profile_id = $1 and herkomst_tabel = 'profile_offerings' order by vastgelegd_op, bewering`,
+            [merk],
+          )
+        ).rows;
+      let rijen = await items();
+      const catItem = rijen.find((r) => r.bewering === "Verwarming");
+      const dienstItem = rijen.find((r) => r.soort === "dienst" && !r.vervangen_door);
+      const prijsItem = rijen.find((r) => r.soort === "prijs");
+      ok("scenario 29: de dienst is verklaard en hangt aan zijn categorie", dienstItem?.status === "verklaard" && (dienstItem?.geldt_voor ?? []).includes(catItem?.id), JSON.stringify(rijen));
+      ok("scenario 29: de prijs hangt aan de dienst", (prijsItem?.geldt_voor ?? []).includes(dienstItem?.id), JSON.stringify(prijsItem));
+
+      // Een sitefeit dat bij de dienst hoort (zoals de indeling hem koppelt).
+      const { legVast } = await import("@/lib/kennis/vastleggen");
+      const { naarActueleVersies } = await import("@/lib/kennis/versies");
+      const feit = await legVast(shim, {
+        profileId: merk, domein: "aanbod", soort: "termijn", bewering: "Een warmtepomp hangt binnen twee weken.", status: "waargenomen", bron: "website",
+        bronUrl: "https://aanbod.nl/warmtepomp", citaat: "binnen twee weken", gebruik: "content", geldtVoor: [dienstItem!.id], herkomst: { tabel: "profile_facets", id: randomUUID() },
+      } as never, { actor: "code", taak: "test" });
+      await werkKnoopBij(shim, { profileId: merk, knoopId: dienst.id!, wijziging: { name: "Hybride warmtepomp", source: "consultant" } }, mens);
+      rijen = await items();
+      const nieuweDienst = rijen.find((r) => r.soort === "dienst" && !r.vervangen_door && !r.afgewezen_door);
+      eqc("scenario 29: aanpassen maakt een nieuwe versie", String(nieuweDienst?.bewering), "Hybride warmtepomp");
+      ok("scenario 29: de oude versie blijft bewaard", rijen.some((r) => r.bewering === "Warmtepomp" && r.vervangen_door));
+      const { rows: tabel } = await db.client.query("select name from public.profile_offerings where id = $1", [dienst.id]);
+      eqc("scenario 29: en de tabel volgt", String(tabel[0]?.name), "Hybride warmtepomp");
+      const { rows: feitNa } = await db.client.query("select geldt_voor from public.klantkennis where id = $1", [feit.soort === "vastgelegd" ? feit.item.id : ""]);
+      ok("scenario 29: wat bij de dienst hoorde, wijst nu naar de nieuwe versie", (feitNa[0]?.geldt_voor ?? []).includes(nieuweDienst?.id), JSON.stringify(feitNa));
+      eqc("scenario 29: en een kans die de oude versie noemt, vindt de nieuwe", (await naarActueleVersies(shim, merk, [dienstItem!.id])).join(","), String(nieuweDienst?.id));
+
+      await haalKnopenWeg(shim, { profileId: merk, knoopIds: [dienst.id!] }, mens);
+      rijen = await items();
+      ok("scenario 29: weghalen wijst de dienst en zijn prijs af, door wie het deed", rijen.filter((r) => !r.vervangen_door && r.bewering !== "Verwarming").every((r) => r.afgewezen_door === userId), JSON.stringify(rijen));
+      await zetKnoopTerug(shim, { profileId: merk, knoopId: dienst.id! }, mens);
+      rijen = await items();
+      ok("scenario 29: terugzetten maakt hem weer actueel", rijen.some((r) => r.soort === "dienst" && r.bewering === "Hybride warmtepomp" && !r.vervangen_door && !r.afgewezen_door), JSON.stringify(rijen));
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

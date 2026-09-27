@@ -55,7 +55,7 @@ export function nieuweTelling(): GesprekTelling {
   return { vastgelegd: 0, vervangen: 0, afgewezen: 0, bevestigd: 0, ongewijzigd: 0, geweigerd: 0 };
 }
 
-export function alsNieuw(profileId: string, item: PlanItem): NieuwKennisItem {
+export function alsNieuw(profileId: string, item: PlanItem, geldtVoor: string[] = []): NieuwKennisItem {
   return {
     profileId,
     domein: item.domein,
@@ -69,8 +69,9 @@ export function alsNieuw(profileId: string, item: PlanItem): NieuwKennisItem {
     citaat: item.citaat,
     gebruik: item.gebruik,
     // Een antwoord of veld van een mens verwijst nooit naar andere items: de
-    // reikwijdte zit in `analysis_id` en `content_piece_id` (besluit V13).
-    geldtVoor: [],
+    // reikwijdte zit in `analysis_id` en `content_piece_id` (besluit V13). Een
+    // aanbodknoop wel: naar zijn ouder (K8 deel 4, `uit-aanbod.ts`).
+    geldtVoor,
     analysisId: item.analysisId,
     contentPieceId: item.contentPieceId,
     herkomst: item.herkomst,
@@ -90,8 +91,13 @@ async function bestaand(admin: SupabaseClient, profileId: string, item: PlanItem
  * een mens het eerder afgewezen, dan is wat de mens nu zegt de nieuwe versie:
  * `legVast()` zou het bestaande item teruggeven en de uitspraak verdwijnen.
  */
-async function zeg(admin: SupabaseClient, profileId: string, item: PlanItem, door: Mens, telling: GesprekTelling, redenen: string[]): Promise<void> {
-  const uitkomst = await legVast(admin, alsNieuw(profileId, item), door);
+/** Waar een item naar verwijst (`geldt_voor`), uit zijn verwijzingen naar de bron. Standaard nergens naar. */
+export type GeldtVoorVan = (item: PlanItem) => Promise<string[]>;
+const nergens: GeldtVoorVan = async () => [];
+
+async function zeg(admin: SupabaseClient, profileId: string, item: PlanItem, door: Mens, telling: GesprekTelling, redenen: string[], geldtVoorVan: GeldtVoorVan = nergens): Promise<void> {
+  const geldtVoor = await geldtVoorVan(item);
+  const uitkomst = await legVast(admin, alsNieuw(profileId, item, geldtVoor), door);
   switch (uitkomst.soort) {
     case "vastgelegd":
       telling.vastgelegd++;
@@ -109,7 +115,7 @@ async function zeg(admin: SupabaseClient, profileId: string, item: PlanItem, doo
     case "eerder_afgewezen":
       break;
   }
-  const nieuw = await vervang(admin, { profileId, oudId: uitkomst.item.id, nieuw: alsNieuw(profileId, item) }, door);
+  const nieuw = await vervang(admin, { profileId, oudId: uitkomst.item.id, nieuw: alsNieuw(profileId, item, geldtVoor) }, door);
   if (nieuw.ok) telling.vervangen++;
   else {
     telling.geweigerd++;
@@ -117,7 +123,7 @@ async function zeg(admin: SupabaseClient, profileId: string, item: PlanItem, doo
   }
 }
 
-async function verwerk(admin: SupabaseClient, profileId: string, w: Wijzigingen, door: Mens, wat: string): Promise<GesprekTelling> {
+export async function verwerk(admin: SupabaseClient, profileId: string, w: Wijzigingen, door: Mens, wat: string, geldtVoorVan: GeldtVoorVan = nergens): Promise<GesprekTelling> {
   const telling = nieuweTelling();
   const redenen: string[] = [];
   try {
@@ -126,17 +132,17 @@ async function verwerk(admin: SupabaseClient, profileId: string, w: Wijzigingen,
       // De vorige versie staat niet (meer) in de kennislaag, of een mens wees
       // hem al af: dan is dit gewoon iets nieuws.
       if (!vorige || isAfgewezen(vorige)) {
-        await zeg(admin, profileId, nieuw, door, telling, redenen);
+        await zeg(admin, profileId, nieuw, door, telling, redenen, geldtVoorVan);
         continue;
       }
-      const uitkomst = await vervang(admin, { profileId, oudId: vorige.id, nieuw: alsNieuw(profileId, nieuw) }, door);
+      const uitkomst = await vervang(admin, { profileId, oudId: vorige.id, nieuw: alsNieuw(profileId, nieuw, await geldtVoorVan(nieuw)) }, door);
       if (uitkomst.ok) telling.vervangen++;
       else {
         telling.geweigerd++;
         redenen.push(`${nieuw.ref}: ${uitkomst.fout}`);
       }
     }
-    for (const item of w.erbij) await zeg(admin, profileId, item, door, telling, redenen);
+    for (const item of w.erbij) await zeg(admin, profileId, item, door, telling, redenen, geldtVoorVan);
     for (const item of w.weg) {
       const vorige = await bestaand(admin, profileId, item);
       if (!vorige || isAfgewezen(vorige)) continue;

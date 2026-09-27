@@ -13,6 +13,7 @@ import {
   wouldCreateCycle,
 } from "@/lib/offerings-validate";
 import type { ProfileOffering } from "@/lib/types/database";
+import { haalKnopenWeg, voegKnoopToe, werkKnoopBij, zetKnoopTerug } from "@/lib/kennis/uit-aanbod";
 
 /**
  * De aanbodboom bewerken (onboarding Ronde C, §16.3, migratie 0079).
@@ -30,6 +31,13 @@ import type { ProfileOffering } from "@/lib/types/database";
  * Service-role client, ownership-check, en de validatie hier in de route, niet
  * in het scherm: naam, soort en de lus-controle op `parentId` staan in
  * `lib/offerings-validate.ts` en worden hier afgedwongen, niet aangenomen.
+ *
+ * ── DE KENNISLAAG (K8 deel 4) ────────────────────────────────────────────────
+ *
+ * Schrijven gaat via `lib/kennis/uit-aanbod.ts`: die werkt de tabel bij (de
+ * kopie die de onderwerpen en clusters lezen) en legt de wijziging vast als
+ * kennis. Wat een mens toevoegt of aanpast, is verklaard; wat hij weghaalt,
+ * wijst hij af.
  */
 
 async function loadForCycleCheck(
@@ -85,10 +93,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const actief = await activeOfferings(admin, id);
   const sortOrder = nextSortOrder(actief);
 
-  const { data: inserted, error } = await admin
-    .from("profile_offerings")
-    .insert({
-      profile_id: id,
+  const door = { actor: "mens" as const, gebruikerId: user.id };
+  const { id: nieuwId, error } = await voegKnoopToe(admin, {
+    profileId: id,
+    rij: {
       parent_id: parentId,
       kind: body.kind,
       name,
@@ -99,15 +107,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       source: bron.source,
       sort_order: sortOrder,
       updated_by: user.id,
-    })
-    .select("id")
-    .single();
+    },
+  }, door);
 
-  if (error || !inserted) {
+  if (error || !nieuwId) {
     return NextResponse.json({ error: "Toevoegen is niet gelukt." }, { status: 500 });
   }
 
-  return NextResponse.json({ id: inserted.id as string });
+  return NextResponse.json({ id: nieuwId });
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -174,7 +181,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     update.parent_id = parentId;
   }
 
-  const { error } = await admin.from("profile_offerings").update(update).eq("id", offeringId);
+  const { error } = await werkKnoopBij(admin, { profileId: id, knoopId: offeringId, wijziging: update }, { actor: "mens", gebruikerId: user.id });
   if (error) return NextResponse.json({ error: "Opslaan is niet gelukt." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
@@ -195,12 +202,9 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
   // Herzetten: dezelfde route, met `restore: true`. Geen tweede endpoint voor
   // "3 verwijderd, tonen" met een terugzet-knop (§16.7).
+  const door = { actor: "mens" as const, gebruikerId: user.id };
   if (body.restore === true) {
-    const { error } = await admin
-      .from("profile_offerings")
-      .update({ removed_at: null, removed_by: null })
-      .eq("id", offeringId)
-      .eq("profile_id", id);
+    const { error } = await zetKnoopTerug(admin, { profileId: id, knoopId: offeringId }, door);
     if (error) return NextResponse.json({ error: "Terugzetten is niet gelukt." }, { status: 500 });
     return NextResponse.json({ ok: true });
   }
@@ -221,12 +225,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   }
 
   const alleIds = [offeringId, ...nakomelingen];
-  const nu = new Date().toISOString();
-  const { error } = await admin
-    .from("profile_offerings")
-    .update({ removed_at: nu, removed_by: user.id })
-    .in("id", alleIds)
-    .is("removed_at", null);
+  const { error } = await haalKnopenWeg(admin, { profileId: id, knoopIds: alleIds }, door);
 
   if (error) return NextResponse.json({ error: "Verwijderen is niet gelukt." }, { status: 500 });
 

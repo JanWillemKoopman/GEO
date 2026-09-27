@@ -21750,6 +21750,9 @@ const MENSELIJKE_STATUS_TOEGESTAAN = [
   "app/api/profiles/[id]/fact-conflicts/route.ts",
   "app/api/profiles/[id]/kennis/",
   "scripts/kennis-terugvullen.ts",
+  // K8 deel 4: wat een mens aan de aanbodboom toevoegt of aanpast, is verklaard
+  // (zoals het terugvullen van K3 een aangepaste knoop vastlegde).
+  "app/api/profiles/[id]/offerings/route.ts",
 ];
 
 function magMenselijkeStatus(pad: string): boolean {
@@ -21775,6 +21778,18 @@ function omwegenNaarMenselijkeStatus(bestanden: readonly string[], lees: (p: str
     .filter((p) => p.startsWith("lib/kennis/") && p !== "lib/kennis/vastleggen.ts")
     .filter((p) => zetMenselijkeStatus(lees(p)))
     .map((p) => p.replace(/\.tsx?$/, ""));
+  // K8 deel 4: ook een module in lib/kennis/ die zo'n module aanroept, zet via
+  // hem verklaard (`uit-aanbod.ts` via `verwerk()` in `uit-gesprek.ts`).
+  for (let groei = true; groei; ) {
+    groei = false;
+    for (const p of zonderTest.filter((q) => q.startsWith("lib/kennis/") && q !== "lib/kennis/vastleggen.ts")) {
+      const m = p.replace(/\.tsx?$/, "");
+      if (!keten.includes(m) && importeertModule(lees(p), keten)) {
+        keten.push(m);
+        groei = true;
+      }
+    }
+  }
   const overtreders = new Set<string>();
   for (let i = 0; i < keten.length; i++) {
     for (const p of zonderTest) {
@@ -21834,6 +21849,7 @@ group("de kennislaag: verklaard en bevestigd alleen van een mens (K2, §4 regel 
   eq("zelftest: een omweg via lib/ naar een route wordt gevonden", zelftest.overtreders.sort().join(", "), "app/api/iets/route.ts, lib/tussen.ts");
   const echt = omwegenNaarMenselijkeStatus(codebestanden(), leesBestand);
   ok("de gespreksmodule zet verklaard en bevestigd, en de bewaking ziet dat", echt.keten.includes("lib/kennis/uit-gesprek"), echt.keten.join(", "));
+  ok("ook de aanbodmodule, die via de gespreksmodule schrijft (K8 deel 4)", echt.keten.includes("lib/kennis/uit-aanbod"), echt.keten.join(", "));
   eq("en alleen de toegestane routes roepen hem aan, ook via een omweg", echt.overtreders.join(", "), "");
   const bron = leesBestand("lib/kennis/vastleggen.ts");
   ok("bevestig() weigert iets anders dan een mens", /export async function bevestig[\s\S]{0,400}door\.actor !== "mens"/.test(bron));
@@ -22935,4 +22951,19 @@ group("K8 deel 3: alleen lib/kennis/ schrijft een kennisveld op het merkprofiel"
   eq("een antwoord op een vraag raakt het profiel niet", String(kopieNaHandeling(profiel, { ...alias, herkomst_tabel: "fact_requests" }, null)), "null");
   const overzicht = leesBestand("lib/kennis/uit-overzicht.ts");
   ok("afwijzen en aanpassen op het kennisoverzicht werken de kopie bij", (overzicht.match(/await werkKopieBij\(/g) ?? []).length === 3);
+});
+
+group("K8 deel 4: alleen lib/kennis/ schrijft de aanbodboom", () => {
+  const schrijftAanbod = (code: string) =>
+    /from\(\s*["'`]profile_offerings["'`]\s*\)\s*\.\s*(insert|update|upsert|delete)\s*\(/.test(code) ||
+    /\b(insert\s+into|update|delete\s+from)\s+(public\.)?profile_offerings\b/i.test(code);
+  ok("zelftest: een update wordt herkend", schrijftAanbod('admin.from("profile_offerings").update({ name })'));
+  ok("zelftest: lezen niet", !schrijftAanbod('admin.from("profile_offerings").select("id")'));
+  const schrijvers = codebestanden()
+    .filter((p) => !p.startsWith("scripts/test-") && !p.startsWith("scripts/chain/"))
+    .filter((p) => schrijftAanbod(codeZonderCommentaar(leesBestand(p))));
+  eq("alleen lib/kennis/ schrijft profile_offerings", schrijvers.join(", "), "lib/kennis/aanbodkopie.ts, lib/kennis/uit-aanbod.ts");
+  const route = leesBestand("app/api/profiles/[id]/offerings/route.ts");
+  ok("het bewerkscherm voegt toe, past aan, haalt weg en zet terug via de kennislaag", ["voegKnoopToe(", "werkKnoopBij(", "haalKnopenWeg(", "zetKnoopTerug("].every((f) => route.includes(`await ${f}`)));
+  ok("het onderzoek bewaart de boom via de kennislaag", leesBestand("lib/pipeline/offering.ts").includes("await bewaarAanbodboom("));
 });

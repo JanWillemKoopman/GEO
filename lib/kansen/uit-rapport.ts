@@ -25,6 +25,7 @@ import "server-only";
  * `lib/kennis/uit-onderzoek.ts`. De voorraad probeert het bij de volgende
  * schermopening opnieuw.
  */
+import { naarActueleVersies } from "@/lib/kennis/versies";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { alleRijen } from "@/lib/supabase/pagineer";
 import { uitlegVan } from "@/lib/kansen/prioriteit";
@@ -394,7 +395,8 @@ export async function werkKennisgatBij(admin: SupabaseClient, profileId: string)
       const gat = kennisgatVan(
         {
           analysisId: k.analysis_id,
-          geldtVoor: k.geldt_voor ?? [],
+          // Via de actuele versie van de dienst (K8 deel 4).
+          geldtVoor: await naarActueleVersies(admin, profileId, k.geldt_voor ?? []),
           paginaIds: paginasVan(k.id),
           paginaSoort: typeof k.ruw?.type === "string" ? k.ruw.type : null,
         },
