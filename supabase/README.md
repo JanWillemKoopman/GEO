@@ -789,3 +789,12 @@ is bewust nog niet gevuld. Interne infrastructuur zoals `jobs`: RLS aan, geen po
 kansen en pagina's zijn met een eenmalige, idempotente backfill uit hun `geldt_voor` en
 `gebruikte_kennis` nagevuld. Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` G2. Additief en
 idempotent. Op productie toegepast op 27 september 2026.
+
+## 0126 — Melding bij een pagina waarvan de kennis veranderde
+
+Voegt `content_pieces.kennis_gewijzigd_op` toe (timestamptz, `null` = niets te melden): wanneer een
+kennisitem uit `gebruikte_kennis` van deze versie voor het laatst veranderde. Gezet door de eerste
+echte abonnee op "kennis gewijzigd" (`kennis_wijziging_impact`), die ook `kansen.status` op
+`vervallen` of `te_herzien` zet (die waarden bestaan al sinds migratie 0118). Zie
+`docs/tasks/van-pijplijn-naar-kennissysteem.md` G3. Additief en idempotent. Op productie toegepast op
+27 september 2026.

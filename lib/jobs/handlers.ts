@@ -71,6 +71,8 @@ import type { Kandidaat } from "@/lib/sales/discovery";
 import { refreshInventory } from "@/lib/pipeline/refresh-inventory";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { verwerkGebeurtenis } from "@/lib/gebeurtenissen/verwerken";
+// Registreert zichzelf bij het register (G3); alleen om die bijwerking geïmporteerd.
+import "@/lib/gebeurtenissen/abonnees/kennis-wijziging-impact";
 import {
   voerBriefUit,
   briefGafOp,

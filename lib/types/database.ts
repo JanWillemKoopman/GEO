@@ -1174,6 +1174,12 @@ export interface ContentPiece {
    * `kiesVoorBlokA()` koos, nooit door de schrijver zelf (B9 blijft staan).
    */
   gebruikte_kennis: string[];
+  /**
+   * Wanneer een kennisitem uit `gebruikte_kennis` van DEZE versie voor het
+   * laatst veranderde (migratie 0126, G3). `null` = niets te melden. Gezet
+   * door de abonnee `kennis_wijziging_impact`, nooit door de schrijver.
+   */
+  kennis_gewijzigd_op: string | null;
 }
 
 /**

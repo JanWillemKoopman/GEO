@@ -573,7 +573,7 @@ import {
   sameBrand,
 } from "@/lib/audit/entity-consistency";
 import { dedupe } from "@/lib/jobs/dedupe";
-import { abonneesVoor } from "@/lib/gebeurtenissen/register";
+import { abonneesVoor, registreer } from "@/lib/gebeurtenissen/register";
 import type { Abonnee } from "@/lib/gebeurtenissen/types";
 import {
   buildVerdict,
@@ -19480,8 +19480,16 @@ group("G1: de gebeurtenissenlaag, het register van abonnees", () => {
   );
   ok("een lege lijst levert geen abonnees op", abonneesVoor("kennis_gewijzigd", []).length === 0);
   ok(
-    "het register begint leeg (G1 bouwt nog geen echte abonnee, dat is G3 en G4)",
+    "dit bestand zelf registreert niemand (server-only abonnees registreren zichzelf via een importbijwerking elders, zie lib/gebeurtenissen/abonnees/)",
     abonneesVoor("kennis_gewijzigd").length === 0,
+  );
+  registreer(kennis);
+  ok("registreer() voegt toe", abonneesVoor("kennis_gewijzigd").some((a) => a.naam === "test_kennis"));
+  registreer(kennis);
+  eq(
+    "registreer() is idempotent op de naam",
+    String(abonneesVoor("kennis_gewijzigd").filter((a) => a.naam === "test_kennis").length),
+    "1",
   );
 
   // Dedupe-sleutel: per gebeurtenis én per abonnee (lib/jobs/dedupe.ts).

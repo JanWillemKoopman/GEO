@@ -12799,5 +12799,23 @@ open in plaats van geraden. Bestaande kansen en pagina's van vóór deze migrati
 eenmalige, idempotente SQL-backfill (via de databaseverbinding van de beheertool, V15) nagevuld uit
 hun bestaande `geldt_voor` en `gebruikte_kennis`; een tweede run vindt niets nieuws. Ketenscenario 37.
 
+G3 (27 september 2026, migratie 0126): de eerste echte abonnee. "Wij doen geen warmtepompen meer"
+(een dienst afwijzen) zet de kansen die erop leunden nu op `vervallen`, een gewone wijziging (een
+nieuwe prijs) op `te_herzien`; een pagina die dezelfde kennis gebruikte krijgt een melding
+(`content_pieces.kennis_gewijzigd_op`). Niets draait vanzelf opnieuw: alleen een status en een
+melding veranderen, er wordt niets herschreven of opnieuw gemeten. `lib/gebeurtenissen/register.ts`
+werd een mutable lijst met een `registreer()`-functie: de echte abonnee (`lib/gebeurtenissen/
+abonnees/kennis-wijziging-impact.ts`) heeft `server-only` nodig (hij doet database-aanroepen), en
+zou dat via een gewone import naar het register slepen; dat register moet puur blijven, want
+`scripts/test-unit.ts` importeert het rechtstreeks. Nu registreert de abonnee zichzelf bij het
+laden, en dat bestand wordt alleen om die bijwerking geïmporteerd vanuit `lib/jobs/handlers.ts`
+(waar de werker toch al vandaan draait). Onderweg een echte fout gevonden: `vervang()` (een nieuwe
+versie van een kennisitem) publiceerde de gebeurtenis met het NIEUWE item-id, terwijl een bestaande
+kans of pagina nog naar het OUDE id verwijst (dat is waar `legAfhankelijkhedenVast()` destijds op
+schreef). Zonder reparatie zou een aanpassing via het kennisoverzicht (K7) nooit een kans of pagina
+raken. `meldWijziging()` publiceert nu met het oude id als de handeling een vervanging is.
+Ketenscenario 38. Open: het scherm voor de consultant (wat is er geraakt, wat zou opnieuw draaien
+kosten) is niet gebouwd; de status en de melding staan klaar in de database voor wie dat bouwt.
+
 N5 (27 september 2026, besluit V2): de consultant kan nu een kans toevoegen die de meting niet vond. `content_pieces.analysis_id` staat overal `not null`, dus zonder een analyse erachter kan zo'n kans nooit een pagina worden; `voegHandmatigeKansToe()` (`lib/kansen/handmatig.ts`) maakt daarom een minimale analyse aan (dezelfde `user_id`/`buildAnalysisName()` als bij een gewoon onderwerp) en archiveert hem meteen, zodat hij niet tussen de echte clusters verschijnt. `kansen.analysis_id` blijft zelf NULL: dat is het "Niet gemeten"-label op het bord. De opgegeven doelvragen worden als `prompts` vastgelegd, klaar voor een latere meting. Bewust nog niet gebouwd: die meting zelf ("een eigen nulmeting", besluit V2 letterlijk). De bestaande wachtrij (`enqueueMeasurement()`) eindigt in `generateReport()` zodra de laatste vraag binnen is, en dat zou voor één handmatige kans een tweede, overbodige aanbeveling en een dubbele kans proberen te maken; een eigen aftakking van die aggregatie is nodig en is met opzet buiten dit werkpakket gelaten. Formulier op het contentplan (`handmatige-kans-formulier.tsx`, staff-only), route `/api/profiles/[id]/kansen/handmatig`. Ketenscenario 34 dekt kans tot en met de aangemaakte pagina (status `briefing`) onder de schaduwanalyse, via dezelfde `bereidVoor()`-ketting als elke andere kans (geen wijziging nodig aan `clusterVan()`: die leest toch al `source_analysis_id` eerst).
 
