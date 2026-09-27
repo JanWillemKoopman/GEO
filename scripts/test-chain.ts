@@ -10063,6 +10063,98 @@ async function main(): Promise<void> {
       );
     }
 
+    // ── Scenario 35: G1, de gebeurtenissenlaag ───────────────────────────────
+    //
+    // Een wijziging in de kennislaag publiceert een gebeurtenis (`meldWijziging()`
+    // in `lib/kennis/vastleggen.ts`), en een abonnee verwerkt diezelfde
+    // gebeurtenis precies één keer, ook als de werker de taak twee keer
+    // probeert (`verwerkGebeurtenis()` in `lib/gebeurtenissen/verwerken.ts`
+    // controleert `gebeurtenis_verwerkingen` vóór het werk, conventie 9). Het
+    // register (`lib/gebeurtenissen/register.ts`) bevat in G1 nog geen echte
+    // abonnee (dat is G3 en G4), dus de tweede helft van dit scenario geeft een
+    // eigen testabonnee mee in plaats van uit het echte register te lezen.
+    console.log("\nScenario 35: G1, de gebeurtenissenlaag");
+    {
+      const { legVast } = await import("@/lib/kennis/vastleggen");
+      const { publiceer } = await import("@/lib/gebeurtenissen/publiceer");
+      const { verwerkGebeurtenis } = await import("@/lib/gebeurtenissen/verwerken");
+      const merk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Dakdekkersbedrijf Odijk', 'https://dakdekkers-odijk.nl', 'Dakdekkersbedrijf Odijk', 'klaar')`,
+        [merk, userId],
+      );
+
+      const uit = await legVast(
+        admin as never,
+        {
+          profileId: merk,
+          domein: "aanbod",
+          soort: "termijn",
+          bewering: "Een plat dak vervangen duurt gemiddeld twee dagen.",
+          status: "waargenomen",
+          bron: "website",
+          bronUrl: "https://dakdekkers-odijk.nl/plat-dak",
+          citaat: "Reken op twee dagen voor een compleet nieuw dak.",
+          gebruik: "content",
+          herkomst: { tabel: "brand_facts", id: randomUUID() },
+        } as never,
+        { actor: "code", taak: "kennis_terugvullen" } as never,
+      );
+      if (uit.soort !== "vastgelegd") throw new Error(`Testkennis geweigerd: ${JSON.stringify(uit)}`);
+      const itemId = uit.item.id;
+
+      const { rows: gebRows } = await db.client.query(
+        "select profile_id, soort, object_tabel, object_id from public.gebeurtenissen where object_id = $1",
+        [itemId],
+      );
+      ok(
+        "scenario 35: legVast() publiceert 'kennis gewijzigd'",
+        gebRows.length === 1 && gebRows[0].profile_id === merk && gebRows[0].soort === "kennis_gewijzigd" && gebRows[0].object_tabel === "klantkennis",
+        JSON.stringify(gebRows),
+      );
+
+      // Nog geen abonnee geregistreerd (G1), dus geen taak ingepland.
+      const { rows: taakRows } = await db.client.query(
+        "select id from public.jobs where type = 'gebeurtenis_verwerken' and profile_id = $1",
+        [merk],
+      );
+      ok("scenario 35: zonder abonnee plant publiceer() geen taak in", taakRows.length === 0, JSON.stringify(taakRows));
+
+      // Precies één keer verwerkt, ook bij een tweede poging van de werker.
+      let teller = 0;
+      const testAbonnee = {
+        naam: "test_scenario35",
+        soorten: ["kennis_gewijzigd"] as const,
+        verwerk: async () => {
+          teller++;
+        },
+      };
+      const gebeurtenisId = await publiceer(
+        admin as never,
+        { profileId: merk, soort: "kennis_gewijzigd", objectTabel: "klantkennis", objectId: itemId },
+        [testAbonnee],
+      );
+      const { rows: taakRows2 } = await db.client.query(
+        "select dedupe_key from public.jobs where type = 'gebeurtenis_verwerken' and profile_id = $1",
+        [merk],
+      );
+      ok(
+        "scenario 35: mét abonnee plant publiceer() precies één taak in, met de juiste sleutel",
+        taakRows2.length === 1 && taakRows2[0].dedupe_key === `gebeurtenis:test_scenario35:${gebeurtenisId}`,
+        JSON.stringify(taakRows2),
+      );
+
+      await verwerkGebeurtenis(admin as never, gebeurtenisId, "test_scenario35", [testAbonnee]);
+      await verwerkGebeurtenis(admin as never, gebeurtenisId, "test_scenario35", [testAbonnee]);
+      ok("scenario 35: de abonnee draait precies één keer, ook bij een tweede poging", teller === 1, `teller=${teller}`);
+
+      const { rows: verwerkRows } = await db.client.query(
+        "select abonnee from public.gebeurtenis_verwerkingen where gebeurtenis_id = $1",
+        [gebeurtenisId],
+      );
+      ok("scenario 35: precies één verwerkingsrij, geen dubbele", verwerkRows.length === 1, JSON.stringify(verwerkRows));
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

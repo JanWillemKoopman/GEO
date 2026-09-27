@@ -1421,6 +1421,29 @@ export interface KansBewijsRij {
 }
 
 /**
+ * Eén rij van het gebeurtenissenlogboek (migratie 0123, G1 van
+ * `van-pijplijn-naar-kennissysteem.md`). Deny-all in RLS: alleen
+ * `lib/gebeurtenissen/` en de werker lezen en schrijven, met de service-role key.
+ */
+export interface GebeurtenisRij {
+  id: string;
+  profile_id: string;
+  soort: "kennis_gewijzigd";
+  object_tabel: string;
+  object_id: string;
+  payload: unknown | null;
+  aangemaakt_op: string;
+}
+
+/** Eén verwerking door één abonnee (migratie 0123). Bewaakt "precies één keer" (G1). */
+export interface GebeurtenisVerwerkingRij {
+  id: string;
+  gebeurtenis_id: string;
+  abonnee: string;
+  verwerkt_op: string;
+}
+
+/**
  * Kostenregistratie per AI-aanroep (optimalisatie.md 0.6, migratie 0012).
  * Deny-all in RLS: uitsluitend te lezen via een service-role route.
  */

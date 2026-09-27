@@ -135,6 +135,10 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   // pagina's; dit is de schatting voor "normaal" op het standaardaantal.
   // Conservatief, net als profile_discover hierboven.
   crawl_inventory: 90,
+
+  // Eén abonnee aanroepen, geen AI. Kort, en toont sowieso nooit een
+  // voortgangsscherm (interne infrastructuur, geen klantactie).
+  gebeurtenis_verwerken: 3,
 };
 
 /**
