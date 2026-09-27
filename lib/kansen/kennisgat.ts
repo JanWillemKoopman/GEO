@@ -111,7 +111,24 @@ export function hoortBijKans(item: KennisVoorGat, kans: KansVoorGat): boolean {
   return true;
 }
 
+/**
+ * Behoeften die alleen door kennis over déze dienst, dit cluster of deze pagina
+ * vervuld worden, niet door iets wat voor het hele merk geldt.
+ *
+ * ⚠️ Gevonden op productie op 27 september 2026: bij Verstraaten ontbrak bij
+ * geen enkele kans iets, omdat "een offerte aanvragen is gratis" (merkbreed,
+ * soort prijs) als prijsindicatie telde en "offertes binnen vier uur" als
+ * termijn. Een prijs of termijn van het hele bedrijf is zelden die van één
+ * dienst; hetzelfde risico als bij besluit V16.
+ */
+const ALLEEN_SPECIFIEK: readonly Behoefte[] = ["prijs", "termijn"];
+
+function isSpecifiek(item: KennisVoorGat): boolean {
+  return item.geldt_voor.length > 0 || item.analysis_id !== null || item.content_piece_id !== null;
+}
+
 function vervult(item: KennisVoorGat, behoefte: Behoefte): boolean {
+  if (ALLEEN_SPECIFIEK.includes(behoefte) && !isSpecifiek(item)) return false;
   const regel = VERVULD_DOOR[behoefte];
   if (regel.domein) return item.domein === regel.domein;
   return item.soort !== null && (regel.soorten ?? []).includes(item.soort);
