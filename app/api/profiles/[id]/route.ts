@@ -12,7 +12,7 @@ import { schoneAdressen } from "@/lib/pagina/stemvoorbeelden-regels";
 import { haalStemvoorbeeldenOp } from "@/lib/pagina/stemvoorbeelden";
 import { sluitVragenUitGesprek } from "@/lib/vraag-sluiten";
 import { legProfielVast } from "@/lib/kennis/uit-gesprek";
-import { GESPREKSVELDEN } from "@/lib/kennis/gesprek";
+import { GESPREKSVELDEN, nietVanToepassingVelden, zonderNietVanToepassing } from "@/lib/kennis/gesprek";
 import type { BronProfiel } from "@/lib/kennis/terugvullen";
 
 /**
@@ -331,7 +331,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // bleef, verandert niet van status: laten staan is geen uitspraak
   // (`lib/kennis/gesprek.ts`). Na het opslaan, en het gooit nooit een fout: de
   // oude tabel is tot K8 nog de bron die de rest leest.
-  const kennisVelden = bewerkteVelden.filter((f) => (GESPREKSVELDEN as readonly string[]).includes(f));
+  //
+  // "Niet van toepassing" (K7, gevonden in K5) zegt dat het veld voor dit merk
+  // niet bestaat: voor de kennislaag is het veld dan leeg, en wat er stond wordt
+  // afgewezen door wie het aanvinkte. Terugzetten doet niets: pas een nieuwe
+  // waarde is weer een uitspraak.
+  const nvtVelden = nietVanToepassingVelden(nvt);
+  const kennisVelden = [...new Set([...bewerkteVelden.filter((f) => (GESPREKSVELDEN as readonly string[]).includes(f)), ...nvtVelden])];
   if (kennisVelden.length > 0) {
     const [{ data: aanbod }, { data: vragen }] = await Promise.all([
       kennisVelden.includes("products")
@@ -348,7 +354,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         url: profile.url,
         velden: kennisVelden,
         oud: profile as unknown as Partial<BronProfiel>,
-        nieuw: { ...(profile as unknown as Partial<BronProfiel>), ...(update as Partial<BronProfiel>) },
+        nieuw: zonderNietVanToepassing({ ...(profile as unknown as Partial<BronProfiel>), ...(update as Partial<BronProfiel>) }, nvtVelden),
         bron: bron.source,
         aanbod: (aanbod ?? []) as { name: string; removed_at: string | null }[],
         vragen: (vragen ?? []) as { question: string }[],

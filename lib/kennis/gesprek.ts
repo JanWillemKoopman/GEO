@@ -137,3 +137,20 @@ export function wijzigingen(oud: readonly PlanItem[], nieuw: readonly PlanItem[]
   }
   return { erbij, vervangen, weg };
 }
+
+/**
+ * De velden die een mens net op "niet van toepassing" zette (K7, gevonden in
+ * K5), alleen die van het gesprek. Terugzetten (`false`) telt niet: pas een
+ * nieuwe waarde is weer een uitspraak.
+ */
+export function nietVanToepassingVelden(nvt: unknown): string[] {
+  if (!nvt || typeof nvt !== "object" || Array.isArray(nvt)) return [];
+  return Object.entries(nvt as Record<string, unknown>)
+    .filter(([veld, waarde]) => waarde === true && (GESPREKSVELDEN as readonly string[]).includes(veld))
+    .map(([veld]) => veld);
+}
+
+/** Het profiel zoals de kennislaag het ziet: een veld dat niet van toepassing is, is leeg. */
+export function zonderNietVanToepassing<T extends Partial<BronProfiel>>(profiel: T, velden: readonly string[]): T {
+  return { ...profiel, ...Object.fromEntries(velden.map((v) => [v, null])) };
+}

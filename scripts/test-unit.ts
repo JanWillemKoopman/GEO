@@ -1015,6 +1015,8 @@ import { controleerHardeBeweringen, getallenIn as hardeGetallen, geleZinnen, spl
 import { repareerMechanisch } from "@/lib/pagina/mechanisch";
 import { blokA } from "@/lib/pagina/bedrijfskennis";
 import { kiesVoorBlokA, blokAUitKennis, MAX_KENNIS, type KennisVoorBlokA, type PaginaVoorBlokA } from "@/lib/kennis/blok-a";
+import { blokkadesVan } from "@/lib/kennis/betwist";
+import { nietVanToepassingVelden, zonderNietVanToepassing } from "@/lib/kennis/gesprek";
 import { maakOverzicht, handelingenVoor, herkomstZin, nieuwGebruikBijAanpassen, type OverzichtItem } from "@/lib/kennis/overzicht";
 import { faqMarkdown, volledigeMarkdown, htmlDocument, bestandsnaam } from "@/lib/oplevering";
 import { schrijfpoort, schrijfdatum } from "@/lib/pagina/schrijfpoort";
@@ -21364,6 +21366,43 @@ group("het kennisoverzicht: indeling, knoppen en toegang (K7)", () => {
   ok("de route controleert dat vóór hij iets leest", route.indexOf("isStaff(user.id)") < route.indexOf("await handelOpOverzicht("));
 });
 
+group("tegenstrijdigheden houden kennis bij de schrijver weg (K7)", () => {
+  const k = (id: string, extra: Record<string, unknown> = {}) => ({ id, herkomst_tabel: "brand_facts", herkomst_id: `f-${id}`, ...extra });
+  const kennis = [k("a"), k("b"), k("c"), k("d"), k("e"), k("x", { herkomst_tabel: "fact_requests" }), k("y", { herkomst_tabel: "fact_requests" }), k("z", { herkomst_tabel: "fact_requests", afgewezen_op: "2026-09-27" })];
+  const conflicten = [
+    { status: "open", echt_conflict: true, feit_ids: ["f-a"], kennis_ids: null },
+    { status: "opgelost", echt_conflict: true, feit_ids: ["f-b"], kennis_ids: null },
+    { status: "gevraagd", echt_conflict: true, feit_ids: ["f-c"], kennis_ids: null },
+    { status: "open", echt_conflict: false, feit_ids: ["f-d"], kennis_ids: null },
+    { status: "open", echt_conflict: true, feit_ids: [], kennis_ids: ["x", "y"] },
+    { status: "open", echt_conflict: true, feit_ids: [], kennis_ids: ["x", "z"] },
+  ];
+  const feiten = [{ id: "f-d", stand: "vervangen" }, { id: "f-e", stand: "betwist" }, { id: "f-b", stand: "bevestigd" }];
+  const b = blokkadesVan(kennis, conflicten, feiten);
+  eq("open en gevraagd conflict tegen, opgelost en geen-conflict niet", [..."abcd"].map((i) => b.get(i) ?? "-").join(","), "conflict,-,conflict,vervangen");
+  eq("een betwist feit zonder conflictrij ook tegen (vangnet)", b.get("e") ?? "-", "betwist");
+  eq("een botsing tussen twee actuele kennisitems houdt beide tegen", `${b.get("x")}/${b.get("y")}`, "conflict/conflict");
+  const zonderY = blokkadesVan([k("x", { herkomst_tabel: null }), k("y", { herkomst_tabel: null, afgewezen_op: "2026-09-27" })], [conflicten[4]!], []);
+  eq("wees de consultant er een af, dan houdt de botsing niets meer tegen", String(zonderY.size), "0");
+
+  const nu = new Date("2026-09-27T12:00:00Z");
+  const item = (id: string, bewering: string): KennisVoorBlokA => ({
+    id, domein: "aanbod", soort: null, bewering, status: "verklaard", bron: "klant", gebruik: "content", vastgelegd_door: "u1",
+    geldt_voor: [], analysis_id: null, content_piece_id: null, herkomst_tabel: null, herkomst_id: null,
+  });
+  const keuze = kiesVoorBlokA([item("g1", "Binnen een dag."), item("g2", "Vijf jaar garantie.")], {
+    analysisId: "c", paginaIds: ["p"], titel: "Lekkage", zoekintentie: null, kansGeldtVoor: null, vragenInBlokB: [], geblokkeerd: new Set(["g1"]),
+  }, nu);
+  eq("blok A laat geblokkeerde kennis weg", keuze.beweringen.map((x) => x.id).join(","), "g2");
+
+  eq("niet van toepassing: alleen velden van het gesprek, alleen aangevinkt", nietVanToepassingVelden({ differentiator: true, value_props: false, onzin: true }).join(","), "differentiator");
+  eq("niet van toepassing: geen object is niets", String(nietVanToepassingVelden(null).length + nietVanToepassingVelden(["differentiator"]).length), "0");
+  eq("niet van toepassing: het veld is leeg voor de kennislaag", JSON.stringify(zonderNietVanToepassing({ differentiator: "x", verhalen: "y" }, ["differentiator"])), JSON.stringify({ differentiator: null, verhalen: "y" }));
+
+  const conflictRoute = leesBestand("app/api/profiles/[id]/fact-conflicts/route.ts");
+  ok("een botsing tussen kennisitems oplossen gaat pas na de controle op medewerker", conflictRoute.indexOf("await magHier(id)") > 0 && conflictRoute.lastIndexOf("await magHier(id)") < conflictRoute.indexOf("await losKennisconflictOp("));
+});
+
 group("opleveren: wat de klant meeneemt naar zijn site", () => {
   const faq = [
     { q: "Hoe lang duurt de aanleg?", a: "Meestal twee weken." },
@@ -21858,11 +21897,13 @@ group("de kennislaag: afwijzen (K2, migratie 0117)", () => {
   ok("geen drop table en geen drop column", !/drop\s+(table|column)/i.test(sql));
   for (const [pad, naam] of [
     ["app/(app)/merk/[id]/admin/feiten/page.tsx", "het feitenscherm"],
-    ["app/(app)/merk/[id]/admin/page.tsx", "de teller op het beheerscherm"],
     ["lib/pipeline/feitenregister.ts", "het feitenregister"],
   ] as const) {
     ok(`${naam} ziet alleen conflicten tussen feiten`, leesBestand(pad).includes('.is("kennis_ids", null)'));
   }
+  // Sinds K7 staan de botsingen tussen kennisitems op hetzelfde conflictscherm,
+  // dus de teller op het beheerscherm telt ze mee.
+  ok("de teller op het beheerscherm telt ook de botsingen in de kennis (K7)", !leesBestand("app/(app)/merk/[id]/admin/page.tsx").includes('.is("kennis_ids", null)'));
 });
 
 // ── K3: het terugvullen ─────────────────────────────────────────────────────

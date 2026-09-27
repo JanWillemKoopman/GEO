@@ -15,6 +15,24 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { alleRijen } from "@/lib/supabase/pagineer";
 import { kiesVoorBlokA, type KennisVoorBlokA, type KeuzeVoorBlokA } from "@/lib/kennis/blok-a";
+import { blokkadesVan, type Blokkade, type BlokkadeConflict, type BlokkadeFeit, type BlokkadeKennis } from "@/lib/kennis/betwist";
+
+/**
+ * Welke kennis van dit merk nu niet naar de schrijver mag (`betwist.ts`). Ook
+ * gebruikt door het kennisoverzicht, zodat de consultant ziet wat de schrijver
+ * niet krijgt en waarom.
+ */
+export async function blokkadesVoorMerk(
+  admin: SupabaseClient,
+  profileId: string,
+  kennis: readonly BlokkadeKennis[],
+): Promise<Map<string, Blokkade>> {
+  const [{ data: conflicten }, { data: feiten }] = await Promise.all([
+    admin.from("fact_conflicts").select("status, echt_conflict, feit_ids, kennis_ids").eq("profile_id", profileId).in("status", ["open", "gevraagd"]),
+    admin.from("brand_facts").select("id, stand").eq("profile_id", profileId).in("stand", ["betwist", "vervangen"]),
+  ]);
+  return blokkadesVan(kennis, (conflicten ?? []) as BlokkadeConflict[], (feiten ?? []) as BlokkadeFeit[]);
+}
 
 export interface PaginaSleutel {
   profileId: string;
@@ -69,6 +87,8 @@ export async function kennisVoor(admin: SupabaseClient, pagina: PaginaSleutel, n
     .filter((v) => (v.content_piece_ids ?? []).some((id) => paginaIds.includes(id)))
     .map((v) => v.id);
 
+  const geblokkeerd = new Set((await blokkadesVoorMerk(admin, pagina.profileId, kennis)).keys());
+
   const keuze = kiesVoorBlokA(
     kennis.map((k) => ({ ...k, geldt_voor: k.geldt_voor ?? [] })),
     {
@@ -78,6 +98,7 @@ export async function kennisVoor(admin: SupabaseClient, pagina: PaginaSleutel, n
       zoekintentie: pagina.zoekintentie,
       kansGeldtVoor,
       vragenInBlokB,
+      geblokkeerd,
     },
     nu,
   );

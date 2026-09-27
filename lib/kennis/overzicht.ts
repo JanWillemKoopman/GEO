@@ -32,6 +32,8 @@ export interface OverzichtItem extends KennisRegelItem {
   id: string;
   soort: string | null;
   vastgelegd_op?: string | null;
+  /** Waarom de schrijver dit nu niet krijgt (`BLOKKADE_ZIN` in `betwist.ts`), of niets. */
+  blokkade?: string | null;
 }
 
 export const DOMEIN_KOP: Record<string, string> = {
