@@ -233,6 +233,9 @@ export async function tekstKolommen(
       dateModified: nu,
     }),
     word_count: tekst.tekst_markdown.split(/\s+/).filter(Boolean).length,
+    // C3: welke kennis in DEZE versie ging, uit wat kiesVoorBlokA() koos. De
+    // code legt dit vast, de schrijver wijst niets aan (B9 blijft staan).
+    gebruikte_kennis: basis.bedrijf.kennis.map((k) => k.id),
     // Conventie 8: de volledige uitvoer van het model staat ook in `ai_calls`;
     // hier met het versienummer van de opdracht erbij, zodat een uitslag altijd
     // bij een versie van `schrijfopdracht.ts` hoort.

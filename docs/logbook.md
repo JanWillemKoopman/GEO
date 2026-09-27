@@ -12780,5 +12780,13 @@ teruggevorderd wordt), zonder dat elke toekomstige abonnee daar zelf aan hoeft t
 35 bewijst het met een testabonnee: `verwerkGebeurtenis()` twee keer achter elkaar aangeroepen voor
 dezelfde gebeurtenis geeft precies één aanroep van de abonnee en precies één verwerkingsrij.
 
+C3 (27 september 2026, migratie 0124): `content_pieces.gebruikte_kennis` (uuid-array) legt vast welke
+kennisitems in blok A van díe versie stonden. `tekstKolommen()` vult hem uit dezelfde keuze die de
+schrijver kreeg (`kiesVoorBlokA()`), dus geen extra query en geen oordeel van de schrijver zelf (B9
+blijft staan): de code wijst aan, niet het model. Geldt voor schrijven, een behouden herschrijving en
+een nieuwe versie op verzoek van de klant, want die drie paden lopen alle drie via `tekstKolommen()`.
+Voer voor G2 (afhankelijkheden): straks weet de app niet alleen wélke pagina's er zijn, maar ook welke
+op welk kennisitem leunen.
+
 N5 (27 september 2026, besluit V2): de consultant kan nu een kans toevoegen die de meting niet vond. `content_pieces.analysis_id` staat overal `not null`, dus zonder een analyse erachter kan zo'n kans nooit een pagina worden; `voegHandmatigeKansToe()` (`lib/kansen/handmatig.ts`) maakt daarom een minimale analyse aan (dezelfde `user_id`/`buildAnalysisName()` als bij een gewoon onderwerp) en archiveert hem meteen, zodat hij niet tussen de echte clusters verschijnt. `kansen.analysis_id` blijft zelf NULL: dat is het "Niet gemeten"-label op het bord. De opgegeven doelvragen worden als `prompts` vastgelegd, klaar voor een latere meting. Bewust nog niet gebouwd: die meting zelf ("een eigen nulmeting", besluit V2 letterlijk). De bestaande wachtrij (`enqueueMeasurement()`) eindigt in `generateReport()` zodra de laatste vraag binnen is, en dat zou voor één handmatige kans een tweede, overbodige aanbeveling en een dubbele kans proberen te maken; een eigen aftakking van die aggregatie is nodig en is met opzet buiten dit werkpakket gelaten. Formulier op het contentplan (`handmatige-kans-formulier.tsx`, staff-only), route `/api/profiles/[id]/kansen/handmatig`. Ketenscenario 34 dekt kans tot en met de aangemaakte pagina (status `briefing`) onder de schaduwanalyse, via dezelfde `bereidVoor()`-ketting als elke andere kans (geen wijziging nodig aan `clusterVan()`: die leest toch al `source_analysis_id` eerst).
 

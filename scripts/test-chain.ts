@@ -10155,6 +10155,59 @@ async function main(): Promise<void> {
       ok("scenario 35: precies één verwerkingsrij, geen dubbele", verwerkRows.length === 1, JSON.stringify(verwerkRows));
     }
 
+    // ── Scenario 36: C3, welke kennis in een versie zat ──────────────────────
+    //
+    // `tekstKolommen()` legt vast welke kennisitems in blok A van DEZE versie
+    // stonden, uit dezelfde keuze die de schrijver kreeg (`laadSchrijfbasis()`).
+    // De schrijver wijst zelf niets aan (B9 blijft staan); de kolom is voer voor
+    // G2 (afhankelijkheden).
+    console.log("\nScenario 36: C3, welke kennis in een versie zat");
+    {
+      const { laadSchrijfbasis, tekstKolommen, gerepareerd } = await import("@/lib/pagina/schrijven");
+      const { legVast } = await import("@/lib/kennis/vastleggen");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      const cluster = randomUUID();
+      const stuk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Kennisspoor Test', 'https://kennisspoor.nl', 'Kennisspoor Test', 'klaar')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Kennisspoor', 'https://kennisspoor.nl', 'dakisolatie', 'gereed')`,
+        [cluster, userId, merk],
+      );
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, action, version, is_current) values ($1, $2, 'Dakisolatie laten aanbrengen', 'landing', 'briefing', 'nieuw', 1, true)`,
+        [stuk, cluster],
+      );
+      const uit1 = await legVast(
+        shim,
+        { profileId: merk, domein: "aanbod", soort: "dienst", bewering: "Dakisolatie aanbrengen.", status: "waargenomen", bron: "website", bronUrl: "https://kennisspoor.nl", citaat: "Dakisolatie aanbrengen.", gebruik: "content", herkomst: { tabel: "profile_offerings", id: randomUUID() } } as never,
+        { actor: "code", taak: "kennis_terugvullen" } as never,
+      );
+      const uit2 = await legVast(
+        shim,
+        { profileId: merk, domein: "verhaal", soort: "eigen verhaal", bewering: "Vorige maand isoleerden we een boerderij in één dag.", status: "verklaard", bron: "klant", gebruik: "content" } as never,
+        { actor: "mens", gebruikerId: userId } as never,
+      );
+      if (uit1.soort !== "vastgelegd" || uit2.soort !== "vastgelegd") throw new Error("Testkennis geweigerd voor scenario 36.");
+      const verwachteIds = [uit1.item.id, uit2.item.id].sort();
+
+      const basis = await laadSchrijfbasis(shim, stuk);
+      if (!basis) throw new Error("Geen schrijfbasis voor scenario 36.");
+      eqc("scenario 36: laadSchrijfbasis() kiest beide kennisitems voor blok A", basis.bedrijf.kennis.map((k) => k.id).sort().join(","), verwachteIds.join(","));
+
+      const uitvoer = { titel: "Dakisolatie laten aanbrengen", meta_titel: "Dakisolatie laten aanbrengen", meta_beschrijving: "Alles over dakisolatie.", tekst_markdown: "Wij isoleren daken.", faq: [], notitie_voor_ondernemer: null };
+      const tekst = gerepareerd(uitvoer, "Kennisspoor Test");
+      const kolommen = await tekstKolommen(shim, basis, tekst, { uitvoer, soort: "schrijven" });
+      eqc("scenario 36: tekstKolommen() legt precies die kennisitems vast", ((kolommen.gebruikte_kennis as string[]) ?? []).sort().join(","), verwachteIds.join(","));
+
+      await db.client.query("update public.content_pieces set gebruikte_kennis = $2 where id = $1", [stuk, kolommen.gebruikte_kennis]);
+      const { rows: opgeslagen } = await db.client.query("select gebruikte_kennis from public.content_pieces where id = $1", [stuk]);
+      eqc("scenario 36: en staat na opslaan op de rij", ([...(opgeslagen[0]?.gebruikte_kennis ?? [])] as string[]).sort().join(","), verwachteIds.join(","));
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

@@ -1168,6 +1168,12 @@ export interface ContentPiece {
   created_at: string;
   /** Migratie 0100: wanneer de PATCH-route dit stuk voor het laatst opsloeg (punt 17). */
   updated_at: string;
+  /**
+   * De kennisitems die in blok A van DEZE versie stonden (migratie 0124, C3 van
+   * `van-pijplijn-naar-kennissysteem.md`). Gevuld door `tekstKolommen()` uit wat
+   * `kiesVoorBlokA()` koos, nooit door de schrijver zelf (B9 blijft staan).
+   */
+  gebruikte_kennis: string[];
 }
 
 /**
