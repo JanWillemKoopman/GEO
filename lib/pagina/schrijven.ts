@@ -116,9 +116,17 @@ async function andereTitels(admin: Admin, pagina: PaginaBasis): Promise<string[]
 export async function laadSchrijfbasis(admin: Admin, pieceId: string): Promise<Schrijfbasis | null> {
   const pagina = await laadPagina(admin, pieceId);
   if (!pagina) return null;
-  const merk = await laadMerk(admin, pagina);
-  const [bedrijf, stem, klant, titels, doelvragen] = await Promise.all([
-    laadBedrijf(admin, pagina),
+  const merkProfiel = await laadMerk(admin, pagina);
+  const bedrijf = await laadBedrijf(admin, pagina);
+  // B20: een verbod uit de kennislaag telt mee, naast wat het merkprofiel nog
+  // als kopie draagt (tot K8 schrijven beide), voor de schrijver én de controle
+  // op verboden woorden (B16).
+  const merk: MerkBasis = {
+    ...merkProfiel,
+    verbodenWoorden: [...new Set([...merkProfiel.verbodenWoorden, ...bedrijf.verbodenWoorden])],
+    verbodenOnderwerpen: [...new Set([...merkProfiel.verbodenOnderwerpen, ...bedrijf.verbodenOnderwerpen])],
+  };
+  const [stem, klant, titels, doelvragen] = await Promise.all([
     stemVan(admin, merk, pagina.profileId),
     klantinput(admin, pieceId),
     andereTitels(admin, pagina),

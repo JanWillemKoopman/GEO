@@ -14,8 +14,8 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { redactCompetitors } from "@/lib/pipeline/redact";
-import { schoneWaardeproposities } from "@/lib/pipeline/waardeproposities";
-import { antwoordenVoorBlokA, kiesFeiten, type AntwoordRij, type BedrijfsInvoer, type FeitRij } from "@/lib/pagina/bedrijfskennis";
+import { kennisVoor } from "@/lib/kennis/voor-pagina";
+import type { BedrijfsInvoer } from "@/lib/pagina/bedrijfskennis";
 import type { Doelvraag } from "@/lib/pagina/brief-opdracht";
 import type { ContentAction, ContentType, StemVoorbeeld } from "@/lib/types/database";
 
@@ -150,40 +150,25 @@ export async function laadMerk(admin: Admin, pagina: PaginaBasis): Promise<MerkB
 }
 
 /**
- * Blok A voor deze pagina: de feiten die erbij horen, plus wat de ondernemer
- * over het hele merk en in antwoord op het rapport van dit cluster vertelde
- * (`antwoordenVoorBlokA`, besluit B17). Betwiste en vervangen feiten gaan niet
- * mee (`kiesFeiten`), een feit van een ander cluster ook niet.
+ * Blok A voor deze pagina, uit de kennislaag (besluit B20, K6): wat voor het
+ * hele merk geldt, wat bij de dienst of regio van de kans hoort, wat bij dit
+ * cluster hoort en wat bij een versie van deze pagina hoort. Nooit iets wat
+ * alleen een model denkt; een antwoord dat al in blok B staat, niet nog eens.
  */
 export async function laadBedrijf(admin: Admin, pagina: PaginaBasis): Promise<BedrijfsInvoer> {
   const profiel = await laadProfiel(admin, pagina.profileId);
-  const [{ data: feitRijen }, { data: antwoorden }] = await Promise.all([
-    admin
-      .from("brand_facts")
-      .select("id, text, stand, superseded_by, allowed, geldt_voor, bewijskracht, analysis_id")
-      .eq("profile_id", pagina.profileId),
-    admin
-      .from("fact_requests")
-      .select("question, answer, scope, analysis_id, content_piece_ids, open_vraag")
-      .eq("profile_id", pagina.profileId)
-      .in("scope", ["merk", "analyse"])
-      .eq("status", "beantwoord"),
-  ]);
-  const feiten = ((feitRijen ?? []) as (FeitRij & { analysis_id: string | null })[]).filter(
-    (f) => !f.analysis_id || f.analysis_id === pagina.analysisId,
-  );
+  const keuze = await kennisVoor(admin, {
+    profileId: pagina.profileId,
+    analysisId: pagina.analysisId,
+    pieceId: pagina.pieceId,
+    titel: pagina.titel,
+    zoekintentie: pagina.zoekintentie,
+  });
   return {
     bedrijfsnaam: profiel.brand_name?.trim() || profiel.name,
-    feiten: kiesFeiten(feiten, { titel: pagina.titel, onderwerp: null, zoekintentie: pagina.zoekintentie }),
-    waardeproposities: schoneWaardeproposities(profiel.value_props),
-    verhalen: profiel.verhalen ?? null,
-    bezwaren: (profiel.sales_objections ?? []).filter((b) => b?.trim()),
-    merkAntwoorden: antwoordenVoorBlokA((antwoorden ?? []) as AntwoordRij[], {
-      analysisId: pagina.analysisId,
-      pieceId: pagina.pieceId,
-    }),
-    onderscheid: profiel.differentiator,
-    offlineBewijs: (profiel.offline_proof ?? []).filter((b) => b?.trim()),
+    kennis: keuze.beweringen,
+    verbodenWoorden: keuze.verbodenWoorden,
+    verbodenOnderwerpen: keuze.verbodenOnderwerpen,
   };
 }
 

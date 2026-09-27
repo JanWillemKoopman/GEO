@@ -31,8 +31,14 @@ import { z } from "zod";
  * mag klinken. Daarbij: één gegeven overal hetzelfde, ook in de metabeschrijving,
  * en een verhaal van het hele bedrijf alleen kort en alleen als het bij de
  * pagina past (hetzelfde verhaal stond bijna gelijk op meer pagina's).
+ *
+ * Versie 4 (27 september 2026, K6 en besluit B20): de opdracht zelf is gelijk,
+ * blok A komt nu uit de kennislaag. Geen vermoeden van het model meer ("waar het
+ * bedrijf voor staat" uit het merkonderzoek), de kennis per onderwerp gegroepeerd,
+ * alleen wat bij de dienst van de kans hoort. Opgehoogd omdat een andere invoer
+ * een andere tekst geeft, en een vergelijking moet kunnen zien welke het was.
  */
-export const SCHRIJFOPDRACHT_VERSIE = 3;
+export const SCHRIJFOPDRACHT_VERSIE = 4;
 
 /** Hoogstens zoveel veelgestelde vragen, en alleen als ze iets toevoegen. */
 export const MAX_FAQ = 5;
