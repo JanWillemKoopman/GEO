@@ -24,6 +24,12 @@
  * een veld dat de schrijver niet meer leest hoort de klant niet in te vullen.
  * De kolommen blijven in de database staan (conventie 4).
  *
+ * Op 27 september 2026 volgden er dertien (besluit V10 en K8 van
+ * `docs/tasks/van-pijplijn-naar-kennissysteem.md`): de auteursvelden, missie,
+ * positionering, `usp`, tweede doelgroep, wettelijke beperkingen en
+ * `proof_points`. Niemand las ze; een test in `scripts/test-unit.ts` bewaakt
+ * dat geen code ze nog noemt.
+ *
  * ⚠️ Toevoegen mag, weghalen is een gedragswijziging. Een veld dat hier
  * verdwijnt wordt door de route stilzwijgend genegeerd, en dat is niet te zien
  * aan het scherm dat hem verstuurt.
@@ -45,7 +51,6 @@ export const EDITABLE_PROFILE_FIELDS = [
   "value_props",
   "competitors",
   "personas",
-  "proof_points",
   "intake_description",
   "intake_audience",
   "aliases",
@@ -61,22 +66,10 @@ export const EDITABLE_PROFILE_FIELDS = [
   // Migratie 0045, naar het voorbeeld van InSpace Nova's onboardingstappen
   // "Words & language", "Voice" en "Author".
   "taboo_phrases",
-  "compliance_notes",
-  "author_name",
-  "author_role",
-  "author_bio",
-  "author_linkedin_url",
   // Migratie 0048: de laatste dertien velden uit de veldeninventaris,
-  // de vertaaltabel staat bovenaan die migratie.
-  "brand_mission",
-  "brand_positioning",
-  "usp",
+  // de vertaaltabel staat bovenaan die migratie. Wat er nog van over is.
   "differentiator",
-  "audience_secondary",
   "pronoun_preference",
-  "author_photo_url",
-  "author_facebook_url",
-  "author_other_url",
   // Migratie 0060, de commerciële laag uit onboarding 3.0 deel D1. Twaalf velden
   // die een website niet kan zeggen, ingevuld in het gesprek met de klant.
   "priority_offerings",

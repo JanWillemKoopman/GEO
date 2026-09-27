@@ -60,7 +60,6 @@ export type BrandStep =
   | "klant"
   | "stem"
   | "woorden"
-  | "auteur"
   | "bekend"
   // Onboarding 3.0: de twee stappen die alleen op de sessiepagina staan.
   | "strategie"
@@ -155,9 +154,17 @@ export interface BrandField {
  * De volledige lijst. Volgorde binnen een stap is de leesvolgorde op het scherm.
  *
  * ⚠️ Velden die al een eigenaar hadden staan er bewust NIET in als tweede
- * kolom: `value_props` is Nova's "value pillars", `proof_points` zijn de
- * "proof points", `intake_audience` is de primaire doelgroep. Zie migratie 0048
- * voor de volledige vertaaltabel.
+ * kolom: `value_props` is Nova's "value pillars", `intake_audience` is de
+ * primaire doelgroep. Zie migratie 0048 voor de volledige vertaaltabel.
+ *
+ * Op 27 september 2026 zijn er dertien velden uit gehaald (besluit V10 en K8 van
+ * `docs/tasks/van-pijplijn-naar-kennissysteem.md`): de zeven auteursvelden,
+ * missie, positionering, `usp`, tweede doelgroep en wettelijke beperkingen, die
+ * niemand las en bij geen enkel merk gevuld waren, en `proof_points`, dat sinds
+ * de nieuwe contentketen geen stap meer leest (`kennismodel-inventaris.md` §3
+ * punt 4). Bewijs dat niet op de site staat, gaat in `offline_proof`; een
+ * wettelijke regel legt de consultant vast als grens in het kennisoverzicht.
+ * De kolommen blijven in de database staan (conventie 4).
  */
 export const BRAND_FIELDS: BrandField[] = [
   // ── 1. Je bedrijf ─────────────────────────────────────────────────────────
@@ -317,28 +324,6 @@ export const BRAND_FIELDS: BrandField[] = [
 
   // ── 2. Je merk ────────────────────────────────────────────────────────────
   {
-    key: "brand_mission",
-    step: "merk",
-    label: "Wat je merk wil bereiken",
-    description: "De verandering waar je bedrijf voor bestaat, in één zin.",
-    placeholder: "Wij zorgen dat iedereen in de regio zorgeloos kan rijden",
-    kind: "lange-tekst",
-    derivable: true,
-    usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment niet verder gebruikt in de applicatie.",
-    priority: "optioneel",
-  },
-  {
-    key: "brand_positioning",
-    step: "merk",
-    label: "Hoe je je verhoudt tot de rest",
-    description: "Hoe je gezien wilt worden naast de alternatieven in je markt.",
-    placeholder: "De grootste keuze in de regio, met de service van een familiebedrijf",
-    kind: "lange-tekst",
-    derivable: true,
-    usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment niet verder gebruikt in de applicatie.",
-    priority: "optioneel",
-  },
-  {
     key: "value_props",
     step: "merk",
     label: "Waar je voor staat",
@@ -361,17 +346,6 @@ export const BRAND_FIELDS: BrandField[] = [
     derivable: true,
     usage: "Bepaalt op wie het onderzoek en de teksten worden afgestemd.",
     priority: "verplicht",
-  },
-  {
-    key: "audience_secondary",
-    step: "klant",
-    label: "En wie je er nog meer mee wilt bereiken",
-    description: "Een tweede groep, als die er is. Leeg laten mag.",
-    placeholder: "Zzp'ers die een bestelbus willen leasen",
-    kind: "lange-tekst",
-    derivable: false,
-    usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment niet verder gebruikt.",
-    priority: "optioneel",
   },
   {
     key: "personas",
@@ -454,130 +428,11 @@ export const BRAND_FIELDS: BrandField[] = [
     usage: "Gaat mee in de schrijfprompt: ORBIT ENGINE spreekt de lezer aan zoals je hier kiest.",
     priority: "optioneel",
   },
-  {
-    key: "compliance_notes",
-    step: "woorden",
-    label: "Regels waar je aan moet voldoen",
-    description:
-      "Wettelijke of branche-eisen waar elke tekst rekening mee moet houden (AFM, KOA, medisch). ORBIT ENGINE neemt dit letterlijk mee in de schrijfopdracht.",
-    placeholder: "Geen uitspraken over rendement, altijd de kleine lettertjes vermelden",
-    kind: "lange-tekst",
-    derivable: false,
-    usage: "Gaat letterlijk mee in elke schrijfopdracht.",
-    priority: "aanbevolen",
-  },
-
-  // ── 6. Wie het schrijft ───────────────────────────────────────────────────
-  {
-    key: "author_name",
-    step: "auteur",
-    label: "Naam",
-    description:
-      "Moet een echt persoon zijn die bij je werkt en online te vinden is. Een verzonnen auteur werkt averechts.",
-    kind: "tekst",
-    derivable: false,
-    usage:
-      "Bedoeld voor de naam onder je artikelen. Wordt op dit moment nog niet automatisch onder content gezet.",
-    priority: "optioneel",
-  },
-  {
-    key: "author_role",
-    step: "auteur",
-    label: "Functie",
-    description: "Waarom deze persoon hierover kan schrijven.",
-    placeholder: "Bedrijfsleider werkplaats",
-    kind: "tekst",
-    derivable: false,
-    usage: "Vastgelegd bij dit merk, nog niet gebruikt bij het publiceren.",
-    priority: "optioneel",
-  },
-  {
-    key: "author_bio",
-    step: "auteur",
-    label: "Korte introductie",
-    // "Komt onder de artikelen te staan" beloofde iets dat nog niet gebouwd is,
-    // met de `usage` eronder die het tegenspreekt (CLAUDE.md: schrijf nooit dat
-    // iets al kan wat nog niet gebouwd is).
-    description: "Twee zinnen over waarom deze persoon hier verstand van heeft.",
-    placeholder: "Sanne werkt sinds 2011 in de werkplaats en leidt daar het onderhoudsteam.",
-    kind: "lange-tekst",
-    derivable: false,
-    usage: "Vastgelegd bij dit merk, nog niet gebruikt bij het publiceren.",
-    priority: "optioneel",
-  },
-  {
-    key: "author_photo_url",
-    step: "auteur",
-    label: "Foto",
-    description: "Het adres van een portretfoto. Een gezicht bij een naam telt mee als signaal.",
-    placeholder: "https://voorbeeld.nl/team/sanne.jpg",
-    kind: "tekst",
-    derivable: false,
-    usage: "Vastgelegd bij dit merk, nog niet gebruikt bij het publiceren.",
-    priority: "optioneel",
-  },
-  {
-    key: "author_linkedin_url",
-    step: "auteur",
-    label: "LinkedIn",
-    description: "Een vindbaar profiel maakt de auteur controleerbaar.",
-    placeholder: "https://linkedin.com/in/…",
-    kind: "tekst",
-    derivable: false,
-    usage: "Vastgelegd bij dit merk, nog niet gebruikt bij het publiceren.",
-    priority: "optioneel",
-  },
-  {
-    key: "author_facebook_url",
-    step: "auteur",
-    label: "Facebook",
-    description: "Optioneel. Alleen invullen als het profiel publiek en actueel is.",
-    placeholder: "https://facebook.com/…",
-    kind: "tekst",
-    derivable: false,
-    usage: "Vastgelegd bij dit merk, nog niet gebruikt bij het publiceren.",
-    priority: "optioneel",
-  },
-  {
-    key: "author_other_url",
-    step: "auteur",
-    label: "Nog een profiel",
-    description: "Een eigen pagina op je site, een vakblad, of een ander openbaar profiel.",
-    placeholder: "https://voorbeeld.nl/over-ons/sanne",
-    kind: "tekst",
-    derivable: false,
-    usage: "Vastgelegd bij dit merk, nog niet gebruikt bij het publiceren.",
-    priority: "optioneel",
-  },
 
   // ── 7. Waar je om bekend wilt staan ───────────────────────────────────────
   // De stap die Nova niet heeft, en die hier het zwaarst weegt: dit is wat een
   // AI-assistent over je merk kán zeggen. Zonder harde feiten wordt elke tekst
   // algemeen, en algemeen wordt niet geciteerd.
-  {
-    key: "usp",
-    step: "bekend",
-    label: "Wat je beter doet dan wie dan ook",
-    description: "Het ene ding waarop je wint. Niet drie dingen, één.",
-    placeholder: "Als enige in Brabant een eigen schadeherstelbedrijf én verhuur",
-    kind: "lange-tekst",
-    derivable: true,
-    usage: "Gaat als bedrijfskennis mee naar de schrijver: het ene punt waarop je wint.",
-    priority: "aanbevolen",
-  },
-  {
-    key: "proof_points",
-    step: "bekend",
-    label: "Cijfers die je claims waarmaken",
-    description:
-      "Harde feiten: aantallen, jaartallen, keurmerken. Dit is wat een AI-assistent aanhaalt; algemene beloftes slaat hij over.",
-    placeholder: "400 medewerkers in 9 vestigingen",
-    kind: "lijst",
-    derivable: true,
-    usage:
-      "Vormt de feitenbank: hiermee onderbouwt ORBIT ENGINE claims in je teksten. Zonder feiten wordt elke tekst algemeen.",
-    priority: "verplicht",
-  },
   {
     key: "products",
     step: "bekend",
@@ -858,11 +713,6 @@ export const STEP_META: Record<BrandStep, { title: string; description: string }
     title: "Je woorden",
     description: "Wat er wél in mag, wat er nooit in mag, en hoe je je lezer aanspreekt.",
   },
-  auteur: {
-    title: "Wie het schrijft",
-    description:
-      "Content verschijnt onder een naam. Een vindbaar mens telt mee als betrouwbaarheidssignaal.",
-  },
   bekend: {
     title: "Waar je om bekend wilt staan",
     description:
@@ -885,7 +735,6 @@ export const STEP_ORDER: BrandStep[] = [
   "klant",
   "stem",
   "woorden",
-  "auteur",
   "bekend",
   "strategie",
   "contact",
@@ -912,7 +761,6 @@ export const CLIENT_STEPS: BrandStep[] = [
   "klant",
   "stem",
   "woorden",
-  "auteur",
   "bekend",
 ];
 
@@ -1064,8 +912,7 @@ export interface SessionBlock {
  * `onboarding-session.tsx`. Blok 7 (materiaal en veranderingen) heeft ook geen
  * velden uit de catalogus: dat blok is het documentenvak en het gespreksblok.
  *
- * ⚠️ `SESSION_BLOCKS` plus `SESSION_AUTHOR_FIELDS` dekt samen exact
- * `BRAND_FIELDS`, niets meer en niets minder. Een unittest bewaakt dat: geen
+ * ⚠️ `SESSION_BLOCKS` dekt exact `BRAND_FIELDS`, niets meer en niets minder. Een unittest bewaakt dat: geen
  * enkel veld mag zoekraken in de herindeling.
  */
 export const SESSION_BLOCKS: SessionBlock[] = [
@@ -1109,7 +956,7 @@ export const SESSION_BLOCKS: SessionBlock[] = [
     volgnummer: "4",
     titel: "Je markt en je concurrenten",
     uitleg: "Dit blok bepaalt waarmee je vergeleken wordt, en waarop je wint.",
-    velden: ["competitors", "differentiator", "usp", "sales_objections", "verhalen"],
+    velden: ["competitors", "differentiator", "sales_objections", "verhalen"],
   },
   {
     id: "bewijs",
@@ -1117,12 +964,9 @@ export const SESSION_BLOCKS: SessionBlock[] = [
     titel: "Je bewijs en je boodschap",
     uitleg: "De feiten die een AI-assistent kan aanhalen, en de boodschap eromheen.",
     velden: [
-      "proof_points",
       "offline_proof",
       "summary",
       "value_props",
-      "brand_mission",
-      "brand_positioning",
       "intake_description",
     ],
   },
@@ -1133,11 +977,9 @@ export const SESSION_BLOCKS: SessionBlock[] = [
     uitleg: "Voor wie we schrijven, en hoe het klinkt.",
     velden: [
       "intake_audience",
-      "audience_secondary",
       "personas",
       "stem_voorbeelden",
       "taboo_phrases",
-      "compliance_notes",
       "pronoun_preference",
     ],
   },
@@ -1155,25 +997,6 @@ export const SESSION_BLOCKS: SessionBlock[] = [
     uitleg: "Wie het aanspreekpunt is, en wat we hierna gebruiken.",
     velden: ["contact_name", "contact_email", "contact_phone"],
   },
-];
-
-/**
- * Auteursvelden: een eigen, ingeklapt blok binnen "Afspraken en afronden".
- *
- * Zeven velden die nergens landen (hoofdstuk 4, "niemand") zijn zeven vragen
- * die het gesprek vertragen. Ze blijven in de catalogus staan (geen enkel veld
- * verdwijnt), maar krijgen in de sessie één gezamenlijke uitleg in plaats van
- * zeven losse kaarten in de hoofdstroom (hoofdstuk 6, "Ontwerpkeuze bij de
- * auteursvelden").
- */
-export const SESSION_AUTHOR_FIELDS: (keyof Profile)[] = [
-  "author_name",
-  "author_role",
-  "author_bio",
-  "author_photo_url",
-  "author_linkedin_url",
-  "author_facebook_url",
-  "author_other_url",
 ];
 
 /**

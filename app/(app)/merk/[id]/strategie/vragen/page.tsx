@@ -198,7 +198,7 @@ async function laadVragenPerPagina(
 
   const { data } = await admin
     .from("fact_requests")
-    .select("id, question, reason, kind, answer_type, options, suggested_answer, required, status, answer, content_piece_ids, open_vraag, created_at")
+    .select("id, question, reason, kind, answer_type, options, required, status, answer, content_piece_ids, open_vraag, created_at")
     .eq("status", "open")
     .overlaps("content_piece_ids", pieceIds)
     .order("created_at");
@@ -214,7 +214,6 @@ async function laadVragenPerPagina(
       kind: string | null;
       answer_type: string | null;
       options: string[] | null;
-      suggested_answer: string | null;
       required: boolean | null;
       status: string;
       answer: string | null;
@@ -230,7 +229,6 @@ async function laadVragenPerPagina(
         kind: r.kind,
         answer_type: r.answer_type,
         options: r.options,
-        suggested_answer: r.suggested_answer,
         required: r.required,
         status: r.status,
         answer: r.answer,

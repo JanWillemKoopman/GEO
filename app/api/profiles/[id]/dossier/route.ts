@@ -5,6 +5,8 @@ import { getOwnedProfile } from "@/lib/profiles";
 import { extractDossierFacts, MAX_DOCUMENT_CHARS } from "@/lib/pipeline/dossier";
 import { createHash } from "node:crypto";
 import { describeError, classifyError } from "@/lib/errors";
+import { legDocumentVast } from "@/lib/kennis/uit-gesprek";
+import type { DocumentFeit } from "@/lib/kennis/gesprek";
 
 /**
  * POST /api/profiles/[id]/dossier, de klant levert materiaal aan, de app maakt
@@ -23,8 +25,9 @@ import { describeError, classifyError } from "@/lib/errors";
  * ── WAAROM DE FEITEN ALS `fact_requests` LANDEN ─────────────────────────────
  *
  * Niet als nieuwe tabel en niet als kolom op `profiles`, maar als beantwoorde
- * vragen met `scope: 'merk'`. Drie redenen: `buildFactBase()` pikt ze dan zonder
- * één regel wijziging op via het pad dat er al ligt, de klant kan ze met de
+ * vragen met `scope: 'merk'`. Drie redenen: de klant ziet ze bij zijn andere
+ * antwoorden terug (sinds K8 gaan ze daarnaast als verklaarde klantkennis de
+ * kennislaag in, en zo bereiken ze de schrijver), de klant kan ze met de
  * bestaande facts-route doorstrepen, en ze gelden meteen voor élke analyse van
  * deze klant, wat precies de belofte van de kennisbank is (contentbriefing.md
  * §7).
@@ -138,6 +141,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // dezelfde tarievenpagina twee keer plakken mag niet twee keer hetzelfde
     // feit opleveren.
     const opgeslagen: DossierFactView[] = [];
+    const voorKennis: DocumentFeit[] = [];
     for (const feit of facts) {
       const { data, error } = await admin
         .from("fact_requests")
@@ -156,7 +160,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           kind: "aanvulling",
           answer_type: feit.answerType,
           options: [],
-          suggested_answer: null,
           required: false,
           claim_key: feit.claimKey,
           verify_after: feit.verifyAfter,
@@ -175,6 +178,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         continue;
       }
       if (data) {
+        voorKennis.push({ vraagId: data.id as string, question: feit.question, answer: feit.answer, zin: feit.sourceSentence, verlooptOp: feit.verifyAfter });
         opgeslagen.push({
           id: data.id as string,
           question: feit.question,
@@ -182,6 +186,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           verifyAfter: feit.verifyAfter,
         });
       }
+    }
+
+    // ── De kennislaag (K8) ──────────────────────────────────────────────────
+    //
+    // Elk feit wordt ook verklaarde klantkennis, met het document als bron en
+    // de letterlijke zin als citaat (`legDocumentVast()`). Gooit nooit een fout:
+    // de feiten staan er al als beantwoorde vraag.
+    if (voorKennis.length > 0) {
+      await legDocumentVast(admin, { profileId: id, documentId, feiten: voorKennis }, { actor: "mens", gebruikerId: user.id });
     }
 
     // De uitkomst bij het document zetten. Blijft `facts_rejected` structureel

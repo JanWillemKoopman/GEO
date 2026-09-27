@@ -52,16 +52,23 @@ vraag raakt. Die zeggen niets over het bedrijf en horen niet in `klantkennis`, m
 | Voorstel | Aantal kolommen |
 |---|---|
 | Meenemen | 55 |
-| Alleen herkomst | 36 |
-| Niet meer gebruiken | 37 |
-| Geen klantkennis | 65 |
+| Alleen herkomst | 37 |
+| Niet meer gebruiken | 35 |
+| Geen klantkennis | 66 |
 | **Totaal** | **193** |
 
 Per tabel: `profiles` 94, `brand_facts` 22, `profile_offerings` 19, `profile_facets` 11,
 `profile_strategy` 6, `fact_requests` 23, `brand_documents` 9, `profile_field_sources` 9. Nagerekend
 door de rijen van §4 te tellen.
 
-**Niet meer gebruiken, 37 kolommen**, in vier groepen:
+**Gecorrigeerd in K8 (27 september 2026):** de twee kolommen `confidence` van `profile_offerings` en
+`profile_facets` stonden hier als zelfoordeel van het model. Ze worden door de code gezet (bij een
+aanbodknoop: 1 als het citaat letterlijk op de pagina staat, `quoteConfidence()`), en het onderzoek van
+K4 bepaalt er de status mee. Ze zijn nu "alleen herkomst" en "geen klantkennis", en tellen niet meer mee
+in de bewakingstest. Daardoor 35 in plaats van 37 kolommen met "niet meer gebruiken"; groep 4 hieronder
+heeft er nog vier.
+
+**Niet meer gebruiken, 37 kolommen (sinds K8: 35)**, in vier groepen:
 1. **22 kolommen van `profiles` die niemand leest en die op productie bij alle drie de merken leeg
    zijn:** de zeven auteursvelden, de vijf stemschuiven, `audience_knowledge_level`, `key_messages`,
    `identity_keywords`, `signature_phrases`, `brand_mission`, `brand_positioning`, `usp`,
@@ -311,7 +318,7 @@ bronpagina en een gecontroleerd citaat.
 | `price_indication` | Prijsindicatie | 13 | aanbod | waargenomen | content | aanbodboom, bewerken | onderwerpen, editor | meenemen (soort prijs, met `verloopt_op`) |
 | `evidence_url` | Bronpagina | 85 | | | | aanbodboom | admin, editor | alleen herkomst (`bron_url`) |
 | `evidence_quote` | Letterlijk citaat | 85 | | | | aanbodboom | admin | alleen herkomst (`citaat`) |
-| `confidence` | Zelfoordeel van het model | 85 | | | | aanbodboom | geen | niet meer gebruiken |
+| `confidence` | 1 als de code het citaat op de pagina terugvond (`quoteConfidence()`), anders lager; geen zelfoordeel van het model (gecorrigeerd in K8) | 85 | | | | aanbodboom | onderzoek (K4: waargenomen of afgeleid) | alleen herkomst |
 | `source` | ai, klant, consultant | 85 (alle ai) | | | | aanbodboom, bewerken | editor | alleen herkomst (`bron`; bepaalt de status, §3 punt 9) |
 | `sort_order` | Volgorde op het scherm | 85 | | | | aanbodboom | editor | geen klantkennis |
 | `created_at`, `updated_at` | Tijdstempels (twee kolommen) | 85 | | | | database | editor | geen klantkennis |
@@ -342,7 +349,7 @@ halen:
 | `facet` | Welke stap | 18 | onderzoeksstappen | samenvatting, markt, schermen | alleen herkomst (`bron`, samen met `engine`) |
 | `summary` | Samenvatting van het verslag | 18 | onderzoeksstappen | adminscherm | geen klantkennis |
 | `raw_json` | Ruwe uitvoer | 18 | onderzoeksstappen | samenvatting, markt, organisatie, bibliotheek, 0-meting | alleen herkomst (`ruw` en `citaat`) |
-| `confidence` | Zelfoordeel van het model | 17 | onderzoeksstappen | aanbodboomscherm | niet meer gebruiken |
+| `confidence` | Door de code berekend, bijvoorbeeld het deel van de knopen met gecontroleerd citaat; geen zelfoordeel van het model (gecorrigeerd in K8) | 17 | onderzoeksstappen | aanbodboomscherm, adminscherm | geen klantkennis |
 | `sources` | Bronnen die de stap vond | 7 | onderzoeksstappen | adminscherm | alleen herkomst |
 | `model_used` | Model | 9 | onderzoeksstappen | adminscherm | geen klantkennis |
 | `engine` | Soort stap | 18 | onderzoeksstappen | adminscherm | geen klantkennis |

@@ -172,6 +172,8 @@ export interface PlanItem {
   contentPieceId: string | null;
   herkomst: { tabel: NonNullable<Klantkennis["herkomst_tabel"]>; id: string };
   ruw: unknown | null;
+  /** Voor feiten die verouderen, zoals een prijs uit een aangeleverd document (JJJJ-MM-DD). */
+  verlooptOp?: string | null;
 }
 
 export interface Uitsluiting {

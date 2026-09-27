@@ -30,7 +30,6 @@ export interface Vraag {
   kind: string | null;
   answer_type: string | null;
   options: string[] | null;
-  suggested_answer: string | null;
   required: boolean | null;
   status: "open" | "beantwoord" | "overgeslagen" | string;
   answer: string | null;
@@ -111,7 +110,7 @@ export function Vraagkaart({
 }) {
   const router = useRouter();
   // De open vraag krijgt geen concept-antwoord: het is het verhaal van de ondernemer.
-  const [waarde, setWaarde] = useState(stand.answer ?? (vraag.open_vraag ? "" : vraag.suggested_answer ?? ""));
+  const [waarde, setWaarde] = useState(stand.answer ?? "");
   const [bewerken, setBewerken] = useState(stand.status === "open");
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState<string | null>(null);

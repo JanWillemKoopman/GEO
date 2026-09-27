@@ -44,7 +44,6 @@ const PROFILE_FIELD_LABELS: Record<string, string> = {
   brand_name: "de merknaam",
   industry: "de branche",
   business_model: "het bedrijfsmodel",
-  tone_of_voice: "de tone of voice",
   summary: "de samenvatting",
   products: "de producten en diensten",
   value_props: "de waardeproposities",
@@ -193,7 +192,6 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
         serviceScope: prof.service_scope,
         serviceRegions: prof.service_regions,
         marketLanguage: prof.market_language,
-        toneOfVoice: prof.tone_of_voice,
         audience: prof.intake_audience,
         sources: herkomstPerVeld,
       },
@@ -234,9 +232,6 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
       business_model: filled(prof.business_model)
         ? prof.business_model
         : p.businessModel,
-      tone_of_voice: filled(prof.tone_of_voice)
-        ? prof.tone_of_voice
-        : p.toneOfVoice,
       summary: filled(prof.summary) ? prof.summary : p.summary,
       products: unionList(prof.products, p.products),
       // Geschoond en ontdubbeld (WP1 van contentpijplijn-publicatiewaardig.md):
@@ -257,10 +252,10 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
       market_language: filled(prof.market_language)
         ? prof.market_language
         : p.marketLanguage.trim() || null,
-      // Contentkwaliteit-grondslag (A2/A3): puur uit de site geëxtraheerd, geen
-      // klant-input, dus altijd de AI-waarde.
-      proof_points: p.proofPoints,
-      style_samples: p.styleSamples,
+      // Tot K8 kwamen hier ook de toon (`tone_of_voice`), voorbeeldzinnen
+      // (`style_samples`) en bewijspunten (`proof_points`) bij. Geen stap las ze
+      // nog (`kennismodel-inventaris.md` §2); de bewijspunten gaan hieronder
+      // alleen de kennislaag in, als vermoeden van het model.
     };
 
     // ── Een mens wint van een model ──────────────────────────────────────────
@@ -317,7 +312,7 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
           products: p.products,
           value_props: schoneWaardeproposities(p.valueProps),
           competitors: p.competitors,
-          proof_points: p.proofPoints,
+          bewijspunten: p.proofPoints,
           personas: p.personas,
         },
         geschreven: allowed,

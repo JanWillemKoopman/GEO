@@ -78,7 +78,8 @@ export interface MerkonderzoekVoorstel {
   products?: string[];
   value_props?: string[];
   competitors?: string[];
-  proof_points?: string[];
+  /** De bewijspunten van het model. Sinds K8 alleen nog in de kennislaag, niet meer op het profiel. */
+  bewijspunten?: string[];
   personas?: { name: string; needs: string[] }[];
 }
 
@@ -92,8 +93,8 @@ const MERK_LIJSTEN = ["service_regions", "products", "value_props", "competitors
  * een unie van mens en model; alleen de waarden van het model tellen, anders
  * zou wat de consultant typte hier als "AI denkt" worden vastgelegd.
  *
- * Niet mee: `tone_of_voice` en `style_samples`, die volgens de inventaris
- * (F0.2) niet meer gebruikt worden.
+ * Niet mee: de toon en de voorbeeldzinnen van het model, die volgens de
+ * inventaris (F0.2) niet meer gebruikt worden.
  */
 export function kennisUitMerkonderzoek(args: {
   profileId: string;
@@ -121,13 +122,11 @@ export function kennisUitMerkonderzoek(args: {
     });
   }
 
-  // Bewijspunten: het onderzoek vervangt de lijst, dus alles wat het model gaf staat erop.
-  if ("proof_points" in geschreven) {
-    (model.proof_points ?? []).map(schoon).forEach((w, i) => {
-      if (!w) return;
-      voegToe(m, { ref: `profiles:${profileId}:proof_points:${i}`, domein: "bewijs", soort: "bewijspunt", bewering: w, ...afgeleid });
-    });
-  }
+  // Bewijspunten: sinds K8 niet meer op het profiel (niemand las ze), alleen hier.
+  (model.bewijspunten ?? []).map(schoon).forEach((w, i) => {
+    if (!w) return;
+    voegToe(m, { ref: `merkonderzoek:${profileId}:bewijspunten:${i}`, domein: "bewijs", soort: "bewijspunt", bewering: w, ...afgeleid });
+  });
 
   // Klantgroepen komen alleen van het model als er nog geen stonden.
   if ("personas" in geschreven && geschreven.personas === model.personas) {

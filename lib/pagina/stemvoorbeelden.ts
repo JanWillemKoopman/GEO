@@ -16,8 +16,16 @@ import { MAX_STEMVOORBEELDEN, STEMTEKST_MAX, schoneAdressen, vanafEersteAlinea }
 
 export { MAX_STEMVOORBEELDEN, schoneAdressen };
 
-/** Haalt de tekst van elk adres op en bewaart het resultaat bij het profiel. */
-export async function haalStemvoorbeeldenOp(admin: SupabaseClient, profileId: string, adressen: string[]): Promise<StemVoorbeeld[]> {
+/**
+ * Haalt de tekst van elk adres op en bewaart het resultaat bij het profiel.
+ * `bewaard` is onwaar als de adressen intussen veranderden; dan hoort de uitkomst
+ * ook niet in de kennislaag (`legStemVast()`).
+ */
+export async function haalStemvoorbeeldenOp(
+  admin: SupabaseClient,
+  profileId: string,
+  adressen: string[],
+): Promise<{ voorbeelden: StemVoorbeeld[]; bewaard: boolean }> {
   const uit: StemVoorbeeld[] = [];
   for (const url of adressen.slice(0, MAX_STEMVOORBEELDEN)) {
     try {
@@ -40,7 +48,7 @@ export async function haalStemvoorbeeldenOp(admin: SupabaseClient, profileId: st
   const huidig = (((data as { stem_voorbeelden?: { url: string }[] | null } | null)?.stem_voorbeelden ?? []) as { url: string }[])
     .map((v) => v.url)
     .join("|");
-  if (huidig !== uit.map((v) => v.url).join("|")) return uit;
+  if (huidig !== uit.map((v) => v.url).join("|")) return { voorbeelden: uit, bewaard: false };
   await admin.from("profiles").update({ stem_voorbeelden: uit }).eq("id", profileId);
-  return uit;
+  return { voorbeelden: uit, bewaard: true };
 }

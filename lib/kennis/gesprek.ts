@@ -154,3 +154,97 @@ export function nietVanToepassingVelden(nvt: unknown): string[] {
 export function zonderNietVanToepassing<T extends Partial<BronProfiel>>(profiel: T, velden: readonly string[]): T {
   return { ...profiel, ...Object.fromEntries(velden.map((v) => [v, null])) };
 }
+
+// ── De stemvoorbeelden (K8) ──────────────────────────────────────────────────
+
+/**
+ * De opgehaalde tekst van de stemvoorbeelden als kennisitems: waargenomen, met
+ * het adres als bron en de tekst als citaat, zoals het terugvullen (K3) ze
+ * vastlegde. Een adres zonder tekst (nog niet opgehaald, of niet te lezen)
+ * levert niets.
+ */
+export function kennisUitStemvoorbeelden(
+  profiel: Pick<BronProfiel, "id" | "url">,
+  voorbeelden: readonly { url: string; tekst: string | null }[],
+): PlanItem[] {
+  const m = { items: [] as PlanItem[], uitsluitingen: [] };
+  planProfielveld(m, { profiel: { ...profiel, stem_voorbeelden: [...voorbeelden] }, veldHerkomst: [], aanbod: [], vragen: [] }, "stem_voorbeelden");
+  return m.items;
+}
+
+export interface StemPlan {
+  /** Een adres dat nog geen actueel item had. */
+  nieuw: PlanItem[];
+  /** Hetzelfde adres met een andere tekst: een nieuwere versie. */
+  vervangen: { oudId: string; item: PlanItem }[];
+  /** Een adres dat de mens weghaalde. */
+  afwijzen: string[];
+}
+
+/**
+ * Wat er in de kennislaag moet veranderen na het ophalen. Per adres één actueel
+ * item: dezelfde tekst laat het staan, een andere tekst wordt een nieuwe versie
+ * (een site verandert, en de oude tekst blijft na te gaan). Een item van een
+ * adres dat niet meer gekozen is, wijst de mens af die het weghaalde.
+ *
+ * `gekozen` is de lijst adressen zoals de mens hem opsloeg; een adres dat wel
+ * gekozen is maar niet te lezen was, laat zijn oude item staan.
+ */
+export function stemPlan(
+  bestaand: readonly { id: string; bron_url: string | null; bewering: string }[],
+  opgehaald: readonly PlanItem[],
+  gekozen: readonly string[],
+): StemPlan {
+  const plan: StemPlan = { nieuw: [], vervangen: [], afwijzen: [] };
+  for (const item of opgehaald) {
+    const oud = bestaand.find((b) => b.bron_url === item.bronUrl);
+    if (!oud) plan.nieuw.push(item);
+    else if (oud.bewering.trim() !== item.bewering.trim()) plan.vervangen.push({ oudId: oud.id, item });
+  }
+  const nog = new Set(gekozen);
+  plan.afwijzen = bestaand.filter((b) => !b.bron_url || !nog.has(b.bron_url)).map((b) => b.id);
+  return plan;
+}
+
+// ── Het merkdossier (K8) ─────────────────────────────────────────────────────
+
+export interface DocumentFeit {
+  /** De beantwoorde merkvraag die de route voor dit feit aanmaakte. */
+  vraagId: string;
+  question: string;
+  answer: string;
+  /** De letterlijke zin uit het document; de code controleerde dat hij erin staat (`verifyDossierFacts()`). */
+  zin: string;
+  /** Wanneer het feit opnieuw bevestigd moet worden (JJJJ-MM-DD), of null. */
+  verlooptOp?: string | null;
+}
+
+/**
+ * Een feit uit een aangeleverd document als kennisitem. Dezelfde omzetting als
+ * een antwoord op een merkvraag (zelfde domein, soort en sleutel), zodat een
+ * latere wijziging van dat antwoord een nieuwe versie van dit item wordt. Wat
+ * verschilt: de bron is het document, en de letterlijke zin gaat mee als citaat.
+ *
+ * Verklaard, niet waargenomen: het document is materiaal van de klant zelf, en
+ * waargenomen eist een bronadres dat een geplakte tekst niet heeft (besluit V21).
+ */
+export function kennisUitDocument(feit: DocumentFeit, documentId: string | null): PlanItem[] {
+  return kennisUitAntwoord({
+    id: feit.vraagId,
+    analysis_id: null,
+    question: feit.question,
+    answer: feit.answer,
+    status: "beantwoord",
+    scope: "merk",
+    content_piece_ids: [],
+    open_vraag: false,
+    raw_json: { bron: "merkdossier" },
+  }).map((item) => ({
+    ...item,
+    bron: "document" as const,
+    citaat: feit.zin.trim() || null,
+    herkomst: documentId ? { tabel: "brand_documents" as const, id: documentId } : item.herkomst,
+    verlooptOp: feit.verlooptOp ?? null,
+    ruw: { vraag: feit.question, zin: feit.zin, documentId, vraagId: feit.vraagId },
+  }));
+}

@@ -31,12 +31,14 @@ import {
   kennisUitGesprek,
   kennisUitProfielveld,
   sleutelVan,
+  kennisUitDocument,
+  type DocumentFeit,
   wijzigingen,
   type VeldBron,
   type Wijzigingen,
 } from "@/lib/kennis/gesprek";
 
-type Mens = Extract<Door, { actor: "mens" }>;
+export type Mens = Extract<Door, { actor: "mens" }>;
 
 export interface GesprekTelling {
   vastgelegd: number;
@@ -47,11 +49,11 @@ export interface GesprekTelling {
   geweigerd: number;
 }
 
-function nieuweTelling(): GesprekTelling {
+export function nieuweTelling(): GesprekTelling {
   return { vastgelegd: 0, vervangen: 0, afgewezen: 0, bevestigd: 0, ongewijzigd: 0, geweigerd: 0 };
 }
 
-function alsNieuw(profileId: string, item: PlanItem): NieuwKennisItem {
+export function alsNieuw(profileId: string, item: PlanItem): NieuwKennisItem {
   return {
     profileId,
     domein: item.domein,
@@ -71,6 +73,7 @@ function alsNieuw(profileId: string, item: PlanItem): NieuwKennisItem {
     contentPieceId: item.contentPieceId,
     herkomst: item.herkomst,
     ruw: item.ruw,
+    verlooptOp: item.verlooptOp ?? null,
   };
 }
 
@@ -150,7 +153,7 @@ async function verwerk(admin: SupabaseClient, profileId: string, w: Wijzigingen,
   return telling;
 }
 
-function log(profileId: string, wat: string, t: GesprekTelling, redenen: string[]): void {
+export function log(profileId: string, wat: string, t: GesprekTelling, redenen: string[]): void {
   if (t.vastgelegd + t.vervangen + t.afgewezen + t.bevestigd + t.geweigerd === 0) return;
   console.info(
     `Kennislaag ${wat} voor merk ${profileId}: ${t.vastgelegd} nieuw, ${t.vervangen} vervangen, ${t.afgewezen} afgewezen, ` +
@@ -297,4 +300,23 @@ export async function legConflictkeuzeVast(
   telling.geweigerd += redenen.length;
   log(args.profileId, "keuze bij een tegenstrijdigheid", telling, redenen);
   return telling;
+}
+
+// ── 5. Feiten uit een aangeleverd document (K8) ──────────────────────────────
+
+/**
+ * De feiten uit het merkdossier in de kennislaag: verklaard, met het document
+ * als bron en de letterlijke zin als citaat. Tot K8 kwamen ze alleen als
+ * beantwoorde merkvraag in `fact_requests`, en bereikten ze de kennislaag pas
+ * als iemand het antwoord later aanpaste.
+ *
+ * Wie het document aanleverde, is wie het vastlegt.
+ */
+export async function legDocumentVast(
+  admin: SupabaseClient,
+  args: { profileId: string; documentId: string | null; feiten: readonly DocumentFeit[] },
+  door: Mens,
+): Promise<GesprekTelling> {
+  const erbij = args.feiten.flatMap((f) => kennisUitDocument(f, args.documentId));
+  return verwerk(admin, args.profileId, { erbij, vervangen: [], weg: [] }, door, "merkdossier");
 }
