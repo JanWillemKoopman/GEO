@@ -297,9 +297,13 @@ export async function bevestig(
     return { ok: false, fout: `Van "${item.status}" naar bevestigd kan niet.` };
   }
   const nu = new Date().toISOString();
+  // Een vermoeden staat op intern omdat het een vermoeden is (`controleerItem()`
+  // staat afgeleid met content niet toe), niet omdat iemand het van de site
+  // hield. Bevestigd is het een feit en mag het op een pagina (K7).
+  const gebruik = item.status === "afgeleid" && item.gebruik === "intern" ? "content" : item.gebruik;
   const { data, error } = await admin
     .from("klantkennis")
-    .update({ status: "bevestigd", bevestigd_door: door.gebruikerId, bevestigd_op: nu, laatst_gecontroleerd_op: nu, updated_at: nu })
+    .update({ status: "bevestigd", gebruik, bevestigd_door: door.gebruikerId, bevestigd_op: nu, laatst_gecontroleerd_op: nu, updated_at: nu })
     .eq("id", item.id)
     .select("*")
     .single();
@@ -393,4 +397,34 @@ export async function vervang(
   }
   await zetBotsingen(admin, nieuw);
   return { ok: true, item: nieuw };
+}
+
+/**
+ * Een mens zegt: dit mag niet op de site (K7, §6.1). Het gebruik gaat van
+ * "content" naar "intern" in dezelfde rij, zonder nieuwe versie: de bewering en
+ * de status veranderen niet, alleen waar ze gebruikt mag worden. Een nieuwe
+ * versie zou een bevestiging kwijtraken, want een nieuw item kan niet als
+ * bevestigd beginnen (`magNieuwMetStatus()`). Wie het deed, staat niet in een
+ * eigen kolom; `laatst_gecontroleerd_op` en `updated_at` zeggen wanneer.
+ */
+export async function nietOpSite(
+  admin: Admin,
+  args: { profileId: string; itemId: string },
+  door: Extract<Door, { actor: "mens" }>,
+): Promise<HandelingUitkomst> {
+  if (door.actor !== "mens") return { ok: false, fout: "Alleen een mens kan dit van de site halen." };
+  const item = await laad(admin, args.profileId, args.itemId);
+  if (!item) return { ok: false, fout: "Dit kennisitem bestaat niet bij dit merk." };
+  if (item.vervangen_door) return { ok: false, fout: "Dit item is vervangen; kies de nieuwe versie." };
+  if (isAfgewezen(item)) return { ok: false, fout: "Dit item is afgewezen." };
+  if (item.gebruik !== "content") return { ok: true, item };
+  const nu = new Date().toISOString();
+  const { data, error } = await admin
+    .from("klantkennis")
+    .update({ gebruik: "intern", laatst_gecontroleerd_op: nu, updated_at: nu })
+    .eq("id", item.id)
+    .select("*")
+    .single();
+  if (error || !data) return { ok: false, fout: `Opslaan mislukte: ${error?.message ?? "onbekende fout"}` };
+  return { ok: true, item: data as Klantkennis };
 }

@@ -1015,6 +1015,7 @@ import { controleerHardeBeweringen, getallenIn as hardeGetallen, geleZinnen, spl
 import { repareerMechanisch } from "@/lib/pagina/mechanisch";
 import { blokA } from "@/lib/pagina/bedrijfskennis";
 import { kiesVoorBlokA, blokAUitKennis, MAX_KENNIS, type KennisVoorBlokA, type PaginaVoorBlokA } from "@/lib/kennis/blok-a";
+import { maakOverzicht, handelingenVoor, herkomstZin, nieuwGebruikBijAanpassen, type OverzichtItem } from "@/lib/kennis/overzicht";
 import { faqMarkdown, volledigeMarkdown, htmlDocument, bestandsnaam } from "@/lib/oplevering";
 import { schrijfpoort, schrijfdatum } from "@/lib/pagina/schrijfpoort";
 import { schoneAdressen, vanafEersteAlinea, MAX_STEMVOORBEELDEN } from "@/lib/pagina/stemvoorbeelden-regels";
@@ -21310,6 +21311,57 @@ group("blok A uit de kennislaag: wat mee gaat naar de schrijver (K6, B20)", () =
   const context = leesBestand("lib/pagina/context.ts");
   ok("de keten leest blok A niet meer uit brand_facts of value_props", !/from\("brand_facts"\)|value_props|schoneWaardeproposities/.test(context.slice(context.indexOf("export async function laadBedrijf"))));
   ok("maar via kennisVoor()", context.includes("await kennisVoor(admin,"));
+});
+
+group("het kennisoverzicht: indeling, knoppen en toegang (K7)", () => {
+  let n = 0;
+  const k = (bewering: string, extra: Partial<OverzichtItem> = {}): OverzichtItem => ({
+    id: extra.id ?? `o${++n}`,
+    domein: "aanbod",
+    soort: null,
+    bewering,
+    status: "verklaard",
+    bron: "gesprek",
+    gebruik: "content",
+    vastgelegd_door: "u1",
+    ...extra,
+  });
+  const gezien = k("Twaalf monteurs.", { domein: "identiteit", status: "waargenomen", bron: "website", citaat: "Twaalf monteurs.", bron_url: "https://x.nl" });
+  const zeker = k("Garantie van vijf jaar.", { status: "bevestigd", bevestigd_door: "u1", bevestigd_op: "2026-09-27" });
+  const gezegd = k("Een ketel vervangen duurt een dag.");
+  const denk = k("Sterk in spoed.", { domein: "positionering", status: "afgeleid", bron: "ai", gebruik: "intern", vastgelegd_door: null, vastgelegd_door_taak: "profile_research" });
+  const weg = k("Wij doen ook zonnepanelen.", { afgewezen_op: "2026-09-27" });
+  const oud = k("Oude tekst.", { vervangen_door: "o99" });
+  const verbod = k("goedkoopste", { domein: "grens", soort: "verboden woord", gebruik: "verboden" });
+  const o = maakOverzicht([gezien, zeker, gezegd, denk, weg, oud, verbod]);
+
+  eq("per domein, in de vaste volgorde", o.weten.map((g) => g.domein).join(","), "identiteit,aanbod,grens");
+  eq("binnen een domein bevestigd eerst", o.weten[1]!.items.map((i) => i.id).join(","), `${zeker.id},${gezegd.id}`);
+  eq("een vermoeden staat apart, als wat we denken", o.denken.flatMap((g) => g.items.map((i) => i.id)).join(","), denk.id);
+  eq("afgewezen apart", o.afgewezen.map((i) => i.id).join(","), weg.id);
+  ok("een vervangen versie staat nergens", ![...o.weten, ...o.denken].some((g) => g.items.some((i) => i.id === oud.id)) && !o.afgewezen.some((i) => i.id === oud.id));
+  eq("de aantallen", JSON.stringify(o.aantallen), JSON.stringify({ weten: 4, denken: 1, afgewezen: 1, bevestigd: 1 }));
+
+  eq("gezien op de site: alle vier de knoppen", handelingenVoor(gezien).join(","), "bevestigen,aanpassen,afwijzen,niet_op_site");
+  eq("al bevestigd: geen bevestigen meer", handelingenVoor(zeker).join(","), "aanpassen,afwijzen,niet_op_site");
+  eq("een vermoeden: bevestigen, aanpassen, afwijzen; het staat al niet op de site", handelingenVoor(denk).join(","), "bevestigen,aanpassen,afwijzen");
+  eq("een verbod: geen \"niet op de site\"", handelingenVoor(verbod).join(","), "bevestigen,aanpassen,afwijzen");
+  eq("afgewezen of vervangen: geen knoppen", String(handelingenVoor(weg).length + handelingenVoor(oud).length), "0");
+
+  eq("aanpassen: een verbod blijft een verbod", nieuwGebruikBijAanpassen(verbod), "verboden");
+  eq("aanpassen: wat van de site gehaald was blijft eraf", nieuwGebruikBijAanpassen(k("x", { gebruik: "intern" })), "intern");
+  eq("aanpassen: een vermoeden in woorden van de klant mag op een pagina", nieuwGebruikBijAanpassen(denk), "content");
+
+  eq("herkomst in één zin", herkomstZin({ bron: "gesprek", vastgelegd_op: "2026-09-26T10:00:00Z" }), "Uit het gesprek, 26 sep 2026.");
+  eq("herkomst zonder datum", herkomstZin({ bron: "website" }), "Uit de website.");
+
+  // Besluit V6: de klant ziet het kennisoverzicht niet. Scherm en route geven
+  // een niet-medewerker een 404, en de handelingen gaan alleen via de route.
+  const scherm = leesBestand("app/(app)/merk/[id]/admin/kennis/page.tsx");
+  const route = leesBestand("app/api/profiles/[id]/kennis/[itemId]/route.ts");
+  ok("het scherm is alleen voor medewerkers", scherm.includes("if (!(await isStaff(user.id))) notFound();"));
+  ok("de route ook, met een 404", /if \(!\(await isStaff\(user\.id\)\)\) return NextResponse\.json\(\{ error: "Niet gevonden\." \}, \{ status: 404 \}\)/.test(route));
+  ok("de route controleert dat vóór hij iets leest", route.indexOf("isStaff(user.id)") < route.indexOf("await handelOpOverzicht("));
 });
 
 group("opleveren: wat de klant meeneemt naar zijn site", () => {
