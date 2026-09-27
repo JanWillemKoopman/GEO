@@ -9,6 +9,13 @@ import { maakOverzicht, openPuntenUitOnderzoek, type OverzichtItem } from "@/lib
 import { KennisOverzicht } from "../../_components/kennis-overzicht";
 import { blokkadesVoorMerk } from "@/lib/kennis/voor-pagina";
 import { BLOKKADE_ZIN } from "@/lib/kennis/betwist";
+import { geraaktOverzicht } from "@/lib/kansen/impact";
+import { formatUsd, formatDateShort } from "@/lib/format";
+
+const KANS_STATUS_LABEL: Record<"te_herzien" | "vervallen", string> = {
+  te_herzien: "te herzien",
+  vervallen: "vervallen",
+};
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Wat we over het bedrijf weten" };
@@ -53,6 +60,8 @@ export default async function AdminKennisPage({ params }: { params: Promise<{ id
     const b = blokkades.get(r.id);
     return { ...r, blokkade: b ? BLOKKADE_ZIN[b] : null };
   });
+  // G3: wat een recente kenniswijziging raakte (afgewezen of aangepaste kennis).
+  const geraakt = await geraaktOverzicht(admin, id);
 
   return (
     <div className="flex flex-col gap-6 wil-lezen">
@@ -61,6 +70,39 @@ export default async function AdminKennisPage({ params }: { params: Promise<{ id
         title="Wat we over het bedrijf weten"
         description="Alles wat het onderzoek en het gesprek opleverden, met waar het vandaan komt. Leg hier vast wat de klant in het gesprek bevestigt of verbetert."
       />
+      {(geraakt.kansen.length > 0 || geraakt.paginas.length > 0) && (
+        <section className="card flex flex-col gap-2">
+          <h2 className="text-base font-medium">Wat een wijziging raakte</h2>
+          <p className="text-sm text-secondary">
+            Deze kansen en pagina&apos;s leunden op kennis die net veranderd of afgewezen is. ORBIT ENGINE
+            herschrijft niets vanzelf: bekijk ze en beslis zelf of ze opnieuw moeten.
+          </p>
+          {geraakt.kansen.length > 0 && (
+            <ul className="flex list-disc flex-col gap-1 pl-5 text-sm">
+              {geraakt.kansen.map((k) => (
+                <li key={k.id}>
+                  {k.titel} <span className="text-xs text-muted">({KANS_STATUS_LABEL[k.status]})</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {geraakt.paginas.length > 0 && (
+            <ul className="flex list-disc flex-col gap-1 pl-5 text-sm">
+              {geraakt.paginas.map((p) => (
+                <li key={p.id}>
+                  {p.titel} <span className="text-xs text-muted">(kennis gewijzigd op {formatDateShort(p.kennisGewijzigdOp)})</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {geraakt.geschatteKostenUsd != null && (
+            <p className="text-xs text-muted">
+              Zou je {geraakt.paginas.length === 1 ? "deze pagina" : "al deze pagina's"} laten herschrijven, dan
+              kost dat naar schatting hooguit {formatUsd(geraakt.geschatteKostenUsd)}.
+            </p>
+          )}
+        </section>
+      )}
       {openPunten.length > 0 && (
         <section className="card flex flex-col gap-2">
           <h2 className="text-base font-medium">Wat het onderzoek niet kon vaststellen</h2>

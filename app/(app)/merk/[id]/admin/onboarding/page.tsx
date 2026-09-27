@@ -89,12 +89,10 @@ export default async function OnboardingSessiePagina({
   } | null;
 
   // Wat er sinds de laatste onderzoeksronde door een mens is gezet. Bepaalt
-  // welke stappen het afrondblok aanbiedt om opnieuw te draaien.
-  const gewijzigd = profile.deep_research_at
-    ? ((bronRijen ?? []) as { field: string; source: string; set_at: string }[])
-        .filter((r) => r.source !== "ai" && r.set_at > profile.deep_research_at!)
-        .map((r) => r.field)
-    : [];
+  // welke stappen het afrondblok aanbiedt om opnieuw te draaien. De abonnee
+  // `onderzoek_refresh` houdt dit bij (migratie 0127, G4); geen live
+  // vergelijking meer tegen `profile_field_sources` en `deep_research_at`.
+  const gewijzigd = profile.velden_te_verversen ?? [];
 
   const merknaam = profile.brand_name ?? profile.name;
 

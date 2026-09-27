@@ -10114,17 +10114,23 @@ async function main(): Promise<void> {
       );
       const gebeurtenisId1 = gebRows[0].id as string;
 
-      // Sinds G3 is er in dit gedeelde testproces al een echte abonnee
-      // geregistreerd (`kennis_wijziging_impact`, via de importbijwerking in
-      // `lib/jobs/handlers.ts`); die krijgt voor élke gebeurtenis een taak,
-      // ook als hij er intern niets aan doet (dit item heeft geen enkele
-      // afhankelijke kans of pagina). Precies één taak, met de sleutel van
-      // DEZE gebeurtenis, is dus de juiste verwachting.
+      // Sinds G3 en G4 staan er in dit gedeelde testproces al echte abonnees
+      // geregistreerd (via de importbijwerking in `lib/jobs/handlers.ts`); elk
+      // krijgt voor élke gebeurtenis een taak, ook als hij er intern niets aan
+      // doet (dit item heeft geen enkele afhankelijke kans of pagina, en is
+      // geen profielveld). Het aantal is dus het aantal geregistreerde
+      // abonnees op "kennis gewijzigd", niet een vast getal: een volgende
+      // abonnee (G5 of later) mag deze test niet breken.
+      const { abonneesVoor } = await import("@/lib/gebeurtenissen/register");
       const { rows: taakRows } = await db.client.query(
         "select id, dedupe_key from public.jobs where type = 'gebeurtenis_verwerken' and dedupe_key like $1",
         [`%:${gebeurtenisId1}`],
       );
-      eqc("scenario 35: precies de echte abonnee krijgt een taak voor deze gebeurtenis", String(taakRows.length), "1");
+      eqc(
+        "scenario 35: elke geregistreerde abonnee krijgt een taak voor deze gebeurtenis",
+        String(taakRows.length),
+        String(abonneesVoor("kennis_gewijzigd").length),
+      );
 
       // Precies één keer verwerkt, ook bij een tweede poging van de werker.
       let teller = 0;
@@ -10401,6 +10407,109 @@ async function main(): Promise<void> {
       eqc("scenario 38: een gewone wijziging zet de kans op 'te herzien', niet 'vervallen'", kansNa2[0]?.status, "te_herzien");
       const { rows: pagina2Na } = await db.client.query("select kennis_gewijzigd_op from public.content_pieces where id = $1", [pagina2]);
       ok("scenario 38: en de pagina van de prijs krijgt ook een melding", pagina2Na[0]?.kennis_gewijzigd_op != null, JSON.stringify(pagina2Na));
+
+      // Het kennisoverzicht (G3 klaar-als): de consultant ziet beide kansen en
+      // beide pagina's terug, met een kosteninschatting.
+      const { geraaktOverzicht, HERSCHRIJF_KOSTEN_USD_PER_PAGINA } = await import("@/lib/kansen/impact");
+      const geraakt = await geraaktOverzicht(shim, merk);
+      eqc(
+        "scenario 38: het kennisoverzicht toont beide geraakte kansen",
+        geraakt.kansen.map((k) => `${k.titel}:${k.status}`).sort().join(","),
+        "Cv-ketel vervangen:te_herzien,Warmtepomp laten plaatsen:vervallen",
+      );
+      eqc(
+        "scenario 38: en beide pagina's met een melding",
+        geraakt.paginas.map((p) => p.titel).sort().join(","),
+        "Cv-ketel vervangen,Warmtepomp laten plaatsen",
+      );
+      eqc(
+        "scenario 38: de kosteninschatting is het aantal pagina's keer de bovengrens per pagina",
+        String(geraakt.geschatteKostenUsd),
+        String(2 * HERSCHRIJF_KOSTEN_USD_PER_PAGINA),
+      );
+    }
+
+    // ── Scenario 39: G4, de verversingslogica als abonnee ────────────────────
+    //
+    // `slaProfielOp()` publiceert nu een gebeurtenis met de gezette velden; de
+    // abonnee `onderzoek_refresh` houdt ze bij op `profiles.velden_te_verversen`
+    // (migratie 0127), wat de bijwerkroute vroeger zelf uitrekende met een live
+    // vergelijking tegen `profile_field_sources`. De regels zelf
+    // (`planRefresh()`) veranderen niet: dezelfde velden geven dezelfde taken.
+    // Een nieuwe onderzoeksronde (`legOnderzoeksveldenVast()`, zoals
+    // `prepare-profile.ts` doet) maakt de lijst weer leeg.
+    console.log("\nScenario 39: G4, de verversingslogica als abonnee");
+    {
+      const { runJob } = await import("@/lib/jobs/handlers");
+      const { slaProfielOp } = await import("@/lib/kennis/uit-gesprek");
+      const { legOnderzoeksveldenVast } = await import("@/lib/kennis/uit-onderzoek");
+      const { planRefresh } = await import("@/lib/pipeline/onboarding-refresh");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, deep_research_at) values ($1, $2, 'Refresh Test', 'https://refresh-test.nl', 'Refresh Test', 'klaar', now() - interval '1 day')`,
+        [merk, userId],
+      );
+      const mens = { actor: "mens", gebruikerId: userId } as const;
+
+      const { error } = await slaProfielOp(
+        shim,
+        {
+          profileId: merk,
+          url: "https://refresh-test.nl",
+          kolommen: { competitors: ["Warmte Oost"] },
+          oud: { competitors: [] },
+          velden: ["competitors"],
+          bron: "gesprek",
+        },
+        mens,
+      );
+      ok("scenario 39: het gesprek slaat de concurrent op", error === null, String(error));
+
+      const { rows: gebRows } = await db.client.query(
+        "select id from public.gebeurtenissen where object_tabel = 'profiles' and object_id = $1 order by aangemaakt_op desc limit 1",
+        [merk],
+      );
+      ok("scenario 39: slaProfielOp() publiceert 'kennis gewijzigd' met de gezette velden", gebRows.length === 1, JSON.stringify(gebRows));
+
+      const { rows: taakRows } = await db.client.query(
+        "select * from public.jobs where type = 'gebeurtenis_verwerken' and dedupe_key = $1",
+        [`gebeurtenis:onderzoek_refresh:${gebRows[0].id}`],
+      );
+      eqc("scenario 39: precies één taak voor de onderzoek_refresh-abonnee", String(taakRows.length), "1");
+      await runJob({ admin: shim, job: taakRows[0] as never });
+
+      const { rows: profielNa } = await db.client.query("select velden_te_verversen from public.profiles where id = $1", [merk]);
+      eqc("scenario 39: de abonnee houdt bij dat 'competitors' een mens zette", (profielNa[0]?.velden_te_verversen ?? []).join(","), "competitors");
+
+      // Precies wat de bijwerkroute nu doet: rechtstreeks lezen, geen live query.
+      const veranderd = profielNa[0]?.velden_te_verversen ?? [];
+      const plan = planRefresh(veranderd, { analyses: 0 });
+      ok("scenario 39: dezelfde regels geven dezelfde uitkomst: het marktonderzoek moet opnieuw", plan.tasks.includes("markt"), plan.tasks.join(","));
+
+      // Nog eens dezelfde wijziging opslaan voegt niets dubbels toe.
+      await slaProfielOp(shim, { profileId: merk, url: "https://refresh-test.nl", kolommen: { competitors: ["Warmte Oost"] }, oud: { competitors: ["Warmte Oost"] }, velden: ["competitors"], bron: "gesprek" }, mens);
+      const { rows: gebRows2 } = await db.client.query(
+        "select id from public.gebeurtenissen where object_tabel = 'profiles' and object_id = $1 order by aangemaakt_op desc limit 1",
+        [merk],
+      );
+      const { rows: taakRows2 } = await db.client.query(
+        "select * from public.jobs where type = 'gebeurtenis_verwerken' and dedupe_key = $1",
+        [`gebeurtenis:onderzoek_refresh:${gebRows2[0].id}`],
+      );
+      await runJob({ admin: shim, job: taakRows2[0] as never });
+      const { rows: profielNa2 } = await db.client.query("select velden_te_verversen from public.profiles where id = $1", [merk]);
+      eqc("scenario 39: geen dubbele vermelding van hetzelfde veld", (profielNa2[0]?.velden_te_verversen ?? []).join(","), "competitors");
+
+      // Een nieuwe onderzoeksronde wist de lijst.
+      const { error: onderzoekFout } = await legOnderzoeksveldenVast(shim, merk, {
+        kolommen: { deep_research_at: new Date().toISOString(), status: "klaar", velden_te_verversen: [] },
+        items: [],
+        taak: "profile_research",
+      });
+      ok("scenario 39: een nieuwe onderzoeksronde slaagt", onderzoekFout === null, String(onderzoekFout));
+      const { rows: profielNa3 } = await db.client.query("select velden_te_verversen from public.profiles where id = $1", [merk]);
+      eqc("scenario 39: en maakt de lijst weer leeg", (profielNa3[0]?.velden_te_verversen ?? []).join(","), "");
     }
 
     __setTestAdminClient(null);
