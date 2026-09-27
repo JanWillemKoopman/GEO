@@ -1,10 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { InfoHint } from "@/components/info-hint";
 import { kopieeropties } from "@/lib/kopieervormen";
-import { renderMarkdown } from "@/lib/markdown";
+import { escapeHtml, renderMarkdown } from "@/lib/markdown";
 import { bestandsnaam, faqMarkdown, htmlDocument, volledigeMarkdown, type FaqPaar } from "@/lib/oplevering";
+import { markeerZinnen } from "@/lib/tekst-markering";
 
 /**
  * WAT DE KLANT OP ZIJN SITE ZET: de zoekmachinegegevens, de veelgestelde vragen,
@@ -23,6 +25,14 @@ import { bestandsnaam, faqMarkdown, htmlDocument, volledigeMarkdown, type FaqPaa
  * De kopieervormen en hun uitleg per CMS komen uit `lib/kopieervormen.ts`; de
  * sjabloonexport uit `lib/pipeline/content-export.ts`, als het onderzoek de
  * opbouw van de site herkende.
+ *
+ * ── GELE ZINNEN OOK HIER (besluit B19) ──────────────────────────────────────
+ *
+ * De controle op harde beweringen loopt sinds C1 ook over de metabeschrijving
+ * en de FAQ-antwoorden, dus een ongedekte zin daar wordt hier ook geel, met
+ * dezelfde `markeerZinnen()` als op het goedkeuringsscherm. `geel` bevat alle
+ * gele zinnen, `bevestigd` welke daarvan al bevestigd zijn; alleen wat nog niet
+ * bevestigd is, wordt gemarkeerd.
  */
 export function Opleveren({
   titel,
@@ -33,6 +43,8 @@ export function Opleveren({
   schemaJsonLd,
   templateExport,
   goedgekeurd,
+  geel,
+  bevestigd,
 }: {
   /** De titel van de schrijver, voor de bestandsnamen. */
   titel: string;
@@ -43,7 +55,15 @@ export function Opleveren({
   schemaJsonLd: string | null;
   templateExport: { label: string; filename: string; content: string } | null;
   goedgekeurd: boolean;
+  geel: string[];
+  bevestigd: string[];
 }) {
+  const openGeel = useMemo(() => geel.filter((z) => !bevestigd.includes(z)), [geel, bevestigd]);
+  const metaHtml = useMemo(
+    () => (metaBeschrijving?.trim() ? markeerZinnen(escapeHtml(metaBeschrijving), openGeel).html : null),
+    [metaBeschrijving, openGeel],
+  );
+  const faqHtml = useMemo(() => faq.map((f) => markeerZinnen(escapeHtml(f.a), openGeel).html), [faq, openGeel]);
   function download(filename: string, content: string, mime: string) {
     const blob = new Blob([content], { type: mime });
     const url = URL.createObjectURL(blob);
@@ -81,7 +101,7 @@ export function Opleveren({
           {metaBeschrijving?.trim() && (
             <div className="flex flex-col gap-1">
               <span className="mono-label">Omschrijving</span>
-              <p className="type-body">{metaBeschrijving}</p>
+              <p className="type-body" dangerouslySetInnerHTML={{ __html: metaHtml ?? "" }} />
               {goedgekeurd && (
                 <CopyButton value={metaBeschrijving} label="Kopieer de omschrijving" copiedLabel="Gekopieerd" />
               )}
@@ -97,7 +117,7 @@ export function Opleveren({
             {faq.map((f, i) => (
               <div key={i} className="flex flex-col gap-1">
                 <dt className="type-body font-medium">{f.q}</dt>
-                <dd className="type-body text-secondary">{f.a}</dd>
+                <dd className="type-body text-secondary" dangerouslySetInnerHTML={{ __html: faqHtml[i] ?? "" }} />
               </div>
             ))}
           </dl>

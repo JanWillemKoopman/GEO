@@ -9591,6 +9591,138 @@ async function main(): Promise<void> {
       );
     }
 
+    // ── Scenario 31: de controle leest ook de FAQ en de metabeschrijving (C1, B19) ──
+    //
+    // Een verzonnen prijs die alleen in een FAQ-antwoord staat, en een verzonnen
+    // belofte die alleen in de metabeschrijving staat: allebei worden ze geel,
+    // net als een zin in de hoofdtekst. De eindredacteur krijgt de FAQ en de
+    // metabeschrijving in zijn invoer. Goedkeuren kan pas als ook die gele
+    // zinnen bevestigd zijn.
+    console.log("\nScenario 31: de controle leest ook de FAQ en de metabeschrijving (C1, B19)");
+    {
+      const { runJob } = await import("@/lib/jobs/handlers");
+      const { bevestigZin, keurGoed } = await import("@/lib/pagina/goedkeuren");
+      const merk = randomUUID();
+      const cluster = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Hovenier C1', 'https://hovenier-c1.nl', 'Hovenier C1', 'klaar')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Hovenier C1, tuinen', 'https://hovenier-c1.nl', 'tuinen', 'gereed')`,
+        [cluster, userId, merk],
+      );
+      const { rows: stuk } = await db.client.query(
+        `insert into public.content_pieces
+           (analysis_id, title, type, status, action, version, is_current, body_markdown, meta_description, faq_json, brief_json)
+         values ($1, 'Tuinontwerp laten maken', 'landing', 'draft', 'nieuw', 1, true,
+           'Wij ontwerpen tuinen op maat, passend bij hoe je leeft.',
+           'Tuinontwerp met 10 jaar garantie.',
+           $2::jsonb,
+           '{"onderzoek":null,"bedrijf":{"feiten":[]},"versie":1}')
+         returning id`,
+        [cluster, JSON.stringify([{ q: "Wat kost een tuinontwerp?", a: "Een tuinontwerp kost € 900." }])],
+      );
+      const pieceId = stuk[0].id as string;
+
+      const aanroepen: { schema: string; user: string }[] = [];
+      __setTestTransport((async (opts: { schemaName: string; user: string; schema: { parse: (x: unknown) => unknown } }) => {
+        aanroepen.push({ schema: opts.schemaName, user: opts.user });
+        let antwoord: unknown;
+        if (opts.schemaName === "pagina_controle") {
+          antwoord = { oordeel: "goed", verzonnen: [], punten: [] };
+        } else if (opts.schemaName === "pagina") {
+          // De herschrijving houdt dezelfde onbewezen prijs en belofte vast: de
+          // schrijver corrigeert niet vanzelf, en dat is precies waarom code het
+          // moet vinden.
+          antwoord = {
+            titel: "Tuinontwerp laten maken",
+            meta_titel: "Tuinontwerp laten maken",
+            meta_beschrijving: "Tuinontwerp met 10 jaar garantie.",
+            tekst_markdown: "Wij ontwerpen tuinen op maat, passend bij hoe je leeft.",
+            faq: [{ vraag: "Wat kost een tuinontwerp?", antwoord: "Een tuinontwerp kost € 900." }],
+            notitie_voor_ondernemer: null,
+          };
+        } else throw new Error(`onverwacht schema ${opts.schemaName}`);
+        return { parsed: opts.schema.parse(antwoord), raw: { stub: true } };
+      }) as never);
+
+      async function wachtrij(type: string): Promise<Record<string, unknown>[]> {
+        const { rows } = await db.client.query(
+          "select * from public.jobs where type = $1 and status = 'queued' and analysis_id = $2 order by created_at asc",
+          [type, cluster],
+        );
+        return rows;
+      }
+      async function draai(type: string): Promise<void> {
+        for (let i = 0; i < 20; i++) {
+          const [taak] = await wachtrij(type);
+          if (!taak) break;
+          await db.client.query("update public.jobs set status = 'running' where id = $1", [taak.id]);
+          await runJob({ admin: admin as never, job: { ...taak, status: "running" } as never });
+          await db.client.query("update public.jobs set status = 'done' where id = $1", [taak.id]);
+        }
+      }
+      async function haalStuk(): Promise<Record<string, unknown>> {
+        const { rows } = await db.client.query("select * from public.content_pieces where id = $1", [pieceId]);
+        return rows[0];
+      }
+
+      await db.client.query(
+        "insert into public.jobs (type, payload_json, analysis_id, dedupe_key, status) values ('pagina_controle', $1, $2, 'test-c1-controle', 'queued')",
+        [JSON.stringify({ pieceId }), cluster],
+      );
+      await draai("pagina_controle");
+
+      const controleAanroep = aanroepen.find((a) => a.schema === "pagina_controle");
+      ok(
+        "scenario 31: de eindredacteur krijgt de metabeschrijving en de FAQ mee",
+        Boolean(
+          controleAanroep?.user.includes("DE METABESCHRIJVING VOOR ZOEKMACHINES") &&
+            controleAanroep.user.includes("10 jaar garantie") &&
+            controleAanroep.user.includes("DE VEELGESTELDE VRAGEN") &&
+            controleAanroep.user.includes("Een tuinontwerp kost € 900."),
+        ),
+        controleAanroep?.user,
+      );
+
+      const naControle = await haalStuk();
+      const cj1 = naControle.controle_json as { ongedekt: string[] };
+      ok(
+        "scenario 31: de onbewezen prijs in de FAQ en de belofte in de metabeschrijving zijn ongedekt, de hoofdtekst niet",
+        cj1.ongedekt.some((z) => z.includes("€ 900")) &&
+          cj1.ongedekt.some((z) => z.includes("10 jaar garantie")) &&
+          !cj1.ongedekt.some((z) => z.includes("op maat")),
+        JSON.stringify(cj1),
+      );
+      ok("scenario 31: ongedekt in code (niet de beoordeling) triggert de ene herschrijving", (await wachtrij("pagina_herschrijven")).length === 1);
+
+      await draai("pagina_herschrijven");
+      const naHerschrijven = await haalStuk();
+      ok("scenario 31: klaar om te lezen na de herschrijving", naHerschrijven.status === "ready" && naHerschrijven.needs_review === true);
+      const cj2 = naHerschrijven.controle_json as { gele_zinnen: string[] };
+      ok(
+        "scenario 31: dezelfde twee zinnen blijven geel: de herschrijving loste ze niet op",
+        cj2.gele_zinnen.some((z) => z.includes("€ 900")) && cj2.gele_zinnen.some((z) => z.includes("10 jaar garantie")),
+        JSON.stringify(cj2),
+      );
+
+      const nogGeel1 = await keurGoed(admin as never, { pieceId, analysisId: cluster, userId });
+      ok("scenario 31: goedkeuren kan niet met de FAQ-zin en de metabeschrijving nog geel", !nogGeel1.ok && nogGeel1.status === 409 && nogGeel1.geel === 2, JSON.stringify(nogGeel1));
+
+      const faqZin = cj2.gele_zinnen.find((z) => z.includes("€ 900"))!;
+      const metaZin = cj2.gele_zinnen.find((z) => z.includes("10 jaar garantie"))!;
+      const bevestigdFaq = await bevestigZin(admin as never, { pieceId, analysisId: cluster, zin: faqZin });
+      ok("scenario 31: de FAQ-zin is te bevestigen als elke andere gele zin", bevestigdFaq.ok);
+      const nogEen = await keurGoed(admin as never, { pieceId, analysisId: cluster, userId });
+      ok("scenario 31: met de metabeschrijving nog open kan het nog niet", !nogEen.ok && nogEen.geel === 1);
+      await bevestigZin(admin as never, { pieceId, analysisId: cluster, zin: metaZin });
+      const klaar = await keurGoed(admin as never, { pieceId, analysisId: cluster, userId });
+      ok("scenario 31: na bevestigen van beide kan het goedgekeurd worden", klaar.ok && (await haalStuk()).needs_review === false, JSON.stringify(klaar));
+
+      __setTestTransport(createOpenAiStub(log));
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

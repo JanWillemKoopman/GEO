@@ -18,7 +18,7 @@ import { buildTemplateExport } from "@/lib/pipeline/content-export";
 import type { SiteTemplateProfile } from "@/lib/pipeline/template-detect";
 import type { ContentAction, ContentType } from "@/lib/types/database";
 import { nogGeel } from "@/lib/pagina/goedkeuren";
-import type { ControleJson } from "@/lib/pagina/controle-regels";
+import { faqRijen, type ControleJson } from "@/lib/pagina/controle-regels";
 import type { PublishCheck } from "@/lib/pipeline/publish-check";
 
 export const dynamic = "force-dynamic";
@@ -135,6 +135,8 @@ export default async function PaginaScherm({
             schemaJsonLd={tekst.schemaJsonLd}
             templateExport={templateExport}
             goedgekeurd={!tekst.needsReview}
+            geel={tekst.geel}
+            bevestigd={tekst.bevestigd}
           />
           {!tekst.needsReview && !tekst.publishedAt && (
             <PublishGuide
@@ -271,9 +273,7 @@ async function laadTekst(admin: ReturnType<typeof createAdminClient>, pieceId: s
   } | null;
   if (!r?.body_markdown) return null;
   const controle = r.controle_json;
-  const faq = (Array.isArray(r.faq_json) ? (r.faq_json as { q?: unknown; a?: unknown }[]) : [])
-    .filter((f) => typeof f?.q === "string" && typeof f?.a === "string")
-    .map((f) => ({ q: f.q as string, a: f.a as string }));
+  const faq = faqRijen(r.faq_json);
   return {
     analysisId: r.analysis_id,
     // De titel van de schrijver; `title` zelf is de titel uit het plan.
@@ -288,7 +288,7 @@ async function laadTekst(admin: ReturnType<typeof createAdminClient>, pieceId: s
     sjabloon: ((sjabloon as { raw_json?: unknown } | null)?.raw_json ?? null) as SiteTemplateProfile | null,
     body: r.body_markdown,
     updatedAt: r.updated_at,
-    geel: nogGeel(r.body_markdown, controle),
+    geel: nogGeel(r.body_markdown, controle, r.meta_description, faq),
     bevestigd: controle?.bevestigd ?? [],
     notitie: r.raw_json?.notitie_voor_ondernemer ?? null,
     // Na een herschrijving zijn de punten van de eindredacteur verwerkt; dan

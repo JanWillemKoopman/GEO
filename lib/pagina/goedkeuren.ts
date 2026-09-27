@@ -9,7 +9,7 @@ import "server-only";
  * dan hoeft hij niet meer bevestigd te worden als hij er niet meer staat.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { allesBevestigd, geleZinnenNa, type ControleJson } from "@/lib/pagina/controle-regels";
+import { allesBevestigd, faqRijen, geleZinnenNa, volledigeControletekst, type ControleJson, type FaqRij } from "@/lib/pagina/controle-regels";
 import { normaliseerVraag } from "@/lib/pagina/brief-regels";
 
 type Admin = SupabaseClient;
@@ -22,25 +22,26 @@ async function laad(
   admin: Admin,
   pieceId: string,
   analysisId: string,
-): Promise<{ body: string; controle: ControleJson | null } | null> {
+): Promise<{ body: string; metaBeschrijving: string | null; faq: FaqRij[]; controle: ControleJson | null } | null> {
   const { data } = await admin
     .from("content_pieces")
-    .select("body_markdown, controle_json")
+    .select("body_markdown, meta_description, faq_json, controle_json")
     .eq("id", pieceId)
     .eq("analysis_id", analysisId)
     .maybeSingle();
   if (!data) return null;
-  const r = data as { body_markdown: string | null; controle_json: ControleJson | null };
-  return { body: r.body_markdown ?? "", controle: r.controle_json };
+  const r = data as { body_markdown: string | null; meta_description: string | null; faq_json: unknown; controle_json: ControleJson | null };
+  return { body: r.body_markdown ?? "", metaBeschrijving: r.meta_description, faq: faqRijen(r.faq_json), controle: r.controle_json };
 }
 
 /**
- * De gele zinnen die er nog staan. Een zin die de ondernemer wegschreef of
- * aanpaste, staat niet meer in de tekst en hoeft niet bevestigd te worden.
+ * De gele zinnen die er nog staan, in de tekst, de metabeschrijving of de FAQ
+ * (besluit B19). Een zin die de ondernemer wegschreef of aanpaste, staat er
+ * niet meer en hoeft niet bevestigd te worden.
  */
-export function nogGeel(body: string, controle: ControleJson | null): string[] {
+export function nogGeel(body: string, controle: ControleJson | null, metaBeschrijving: string | null = null, faq: readonly FaqRij[] = []): string[] {
   if (!controle) return [];
-  return geleZinnenNa(body, [], controle.gele_zinnen);
+  return geleZinnenNa(volledigeControletekst(body, metaBeschrijving, faq.map((f) => f.a)), [], controle.gele_zinnen);
 }
 
 /** Eén gele zin bevestigen: "dit klopt". */
@@ -69,7 +70,7 @@ export async function keurGoed(
 ): Promise<Goedkeuruitkomst> {
   const huidig = await laad(admin, args.pieceId, args.analysisId);
   if (!huidig) return { ok: false, status: 404, error: "Pagina niet gevonden." };
-  const open = nogGeel(huidig.body, huidig.controle);
+  const open = nogGeel(huidig.body, huidig.controle, huidig.metaBeschrijving, huidig.faq);
   if (huidig.controle && !allesBevestigd({ gele_zinnen: open, bevestigd: huidig.controle.bevestigd })) {
     const aantal = open.filter(
       (z) => !huidig.controle!.bevestigd.some((b) => normaliseerVraag(b) === normaliseerVraag(z)),
