@@ -383,6 +383,13 @@ export interface JobPayloads {
      * 2026) en een aanroep hier een vijfde kost van een ChatGPT-meting.
      */
     repeatIndex?: number;
+    /**
+     * Alleen bij een hermeting ná publicatie (M3, `van-pijplijn-naar-kennissysteem.md`).
+     * Zonder dit veld is het een gewone periodieke meting. Zelfde vorm als bij
+     * `measure_prompt`, zodat `computeImpact()` (die geen engine-filter kent) de
+     * rijen van beide bronnen samen ziet.
+     */
+    impact?: { purpose: "impact" | "control"; contentPieceId: string; wave: number };
   };
   /**
    * Eén meetvraag via Gemini, opgehaald bij DataForSEO

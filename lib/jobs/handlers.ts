@@ -250,12 +250,17 @@ async function scheduleImpactIfLastRun(
   // ⚠️ Faalt deze telling, dan mag hij géén nul worden: dan zou de
   // effectmeting worden afgerond terwijl er nog metingen lopen, en dat levert
   // een impactcijfer op dat de klant te zien krijgt en dat niet klopt.
+  //
+  // Beide bronnen (M3, `van-pijplijn-naar-kennissysteem.md`): sinds AI Overview
+  // ook een golf meet, telt een openstaande `measure_ai_overview`-taak net zo
+  // goed mee als een openstaande `measure_prompt`-taak. Anders rekent
+  // `computeImpact()` af terwijl de Google-metingen van deze golf nog lopen.
   const remaining = requireCount(
     await admin
       .from("jobs")
       .select("id", { count: "exact", head: true })
       .eq("analysis_id", analysisId)
-      .eq("type", "measure_prompt")
+      .in("type", ["measure_prompt", "measure_ai_overview"])
       .in("status", ["queued", "running"])
       .contains("payload_json", {
         impact: { contentPieceId: impact.contentPieceId, wave: impact.wave },
@@ -546,11 +551,20 @@ const handlers: { [T in JobType]: Handler<T> } = {
       payload.promptId,
       payload.weekNo,
       payload.repeatIndex ?? 0,
+      payload.impact,
     );
     // Een vraag zonder AI-overzicht is geen fout maar wel iets om te kunnen
     // terugzien: bij ongeveer één vraag op de tien gebeurt dit, en als dat
     // aandeel plots oploopt is dat een signaal over Google, niet over het merk.
     if (!uitkomst.gemeten) console.log(uitkomst.melding);
+
+    // Een hermeting ná publicatie (M3) hoort bij een pagina, niet bij een
+    // periode: zelfde tak als bij `measure_prompt`, en om dezelfde reden mag
+    // hij de zichtbaarheidsscore niet raken.
+    if (payload.impact) {
+      await scheduleImpactIfLastRun(admin, job.analysis_id, payload.impact, job.id);
+      return;
+    }
 
     // ⚠️ Ook déze taak kan de laatste van de ronde zijn. Zou alleen
     // `measure_prompt` de aggregatie aansturen, dan blijft een ronde waarvan de
@@ -1568,28 +1582,21 @@ export async function scheduleFollowUpAfterFailure(
   ) {
     return;
   }
-  if ((job.type as JobType) !== "measure_prompt") {
-    const meting = (job.payload_json ?? {}) as JobPayloads["measure_llm_response"];
-    await scheduleAggregateIfLastPrompt(admin, job.analysis_id, meting.weekNo, job.id);
-    return;
-  }
 
-  const payload = (job.payload_json ?? {}) as JobPayloads["measure_prompt"];
-  if (payload.impact) {
-    await scheduleImpactIfLastRun(
-      admin,
-      job.analysis_id,
-      payload.impact,
-      job.id,
-    );
+  // Een hermeting ná publicatie (M3): zelfde tak voor `measure_prompt` en
+  // `measure_ai_overview`, gecontroleerd op de PAYLOAD en niet op het
+  // taaktype. Zonder dit gaf een definitief mislukte Google-meting van een
+  // impactgolf de gewone (periodieke) aggregatie een seintje in plaats van de
+  // effectberekening, en bleef die golf voorgoed op 'meten' staan.
+  const payload = (job.payload_json ?? {}) as
+    | JobPayloads["measure_prompt"]
+    | JobPayloads["measure_ai_overview"]
+    | JobPayloads["measure_llm_response"];
+  if ("impact" in payload && payload.impact) {
+    await scheduleImpactIfLastRun(admin, job.analysis_id, payload.impact, job.id);
     return;
   }
-  await scheduleAggregateIfLastPrompt(
-    admin,
-    job.analysis_id,
-    payload.weekNo,
-    job.id,
-  );
+  await scheduleAggregateIfLastPrompt(admin, job.analysis_id, payload.weekNo, job.id);
 }
 
 /** Voert één taak uit. Gooit bij mislukking, de werker regelt de nieuwe poging. */

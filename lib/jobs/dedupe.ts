@@ -115,6 +115,9 @@ export const dedupe = {
   measureImpact: (contentPieceId: string, wave: number) => `impact:${contentPieceId}:w${wave}`,
   measureImpactPrompt: (contentPieceId: string, wave: number, promptId: string) =>
     `impact_run:${contentPieceId}:w${wave}:${promptId}`,
+  /** Zelfde golf, via AI Overview (M3). Eigen voorvoegsel, zelfde reden als `measureAiOverview`. */
+  measureImpactAiOverview: (contentPieceId: string, wave: number, promptId: string) =>
+    `impact_run_aio:${contentPieceId}:w${wave}:${promptId}`,
   computeImpact: (contentPieceId: string, wave: number) => `impact_calc:${contentPieceId}:w${wave}`,
   // Per DAG: de scan mag opnieuw draaien na een nieuwe meting, maar niet twee
   // keer op dezelfde dag, de aanwezigheidscontrole kost een web-zoekactie.

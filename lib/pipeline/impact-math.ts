@@ -8,6 +8,7 @@
  * Bewust ZONDER `server-only`.
  */
 import { binomialStderr, Z95 } from "@/lib/stats/uncertainty";
+import { isRedirectedElsewhere, normalizeUrl } from "@/lib/url";
 import type { ImpactVerdict } from "@/lib/types/database";
 
 /**
@@ -22,6 +23,23 @@ export const IMPACT_WAVES = [
   { wave: 1, days: 14 },
   { wave: 2, days: 28 },
 ] as const;
+
+/**
+ * Citeert dit een bron dezelfde pagina als het gepubliceerde adres? (M3,
+ * `van-pijplijn-naar-kennissysteem.md`.) Zelfde regels als
+ * `isRedirectedElsewhere()` in `lib/url.ts`: http of https, www, hoofdletters,
+ * een slash aan het eind en een trackingcode achter `?` of `#` maken geen
+ * verschil. `false` als een van beide geen leesbaar adres is (conventie 3):
+ * onbekend is geen citatie.
+ */
+export function citeertEigenPagina(citedUrl: string, publishedUrl: string): boolean {
+  // `isRedirectedElsewhere()` geeft bewust `false` terug bij een onleesbaar
+  // adres ("geen doorverwijzing"), passend bij ZIJN toepassing. Na de
+  // ontkenning hier zou dat "true" worden: een onleesbare bron zou dan als
+  // citatie tellen. Expliciet: onleesbaar is nooit een citatie.
+  if (!normalizeUrl(citedUrl) || !normalizeUrl(publishedUrl)) return false;
+  return !isRedirectedElsewhere(citedUrl, publishedUrl);
+}
 
 export interface Comparison {
   /** Aantal vragen dat in BEIDE metingen beoordeeld is. */
