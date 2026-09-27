@@ -10104,7 +10104,7 @@ async function main(): Promise<void> {
       const itemId = uit.item.id;
 
       const { rows: gebRows } = await db.client.query(
-        "select profile_id, soort, object_tabel, object_id from public.gebeurtenissen where object_id = $1",
+        "select id, profile_id, soort, object_tabel, object_id from public.gebeurtenissen where object_id = $1",
         [itemId],
       );
       ok(
@@ -10112,13 +10112,19 @@ async function main(): Promise<void> {
         gebRows.length === 1 && gebRows[0].profile_id === merk && gebRows[0].soort === "kennis_gewijzigd" && gebRows[0].object_tabel === "klantkennis",
         JSON.stringify(gebRows),
       );
+      const gebeurtenisId1 = gebRows[0].id as string;
 
-      // Nog geen abonnee geregistreerd (G1), dus geen taak ingepland.
+      // Sinds G3 is er in dit gedeelde testproces al een echte abonnee
+      // geregistreerd (`kennis_wijziging_impact`, via de importbijwerking in
+      // `lib/jobs/handlers.ts`); die krijgt voor élke gebeurtenis een taak,
+      // ook als hij er intern niets aan doet (dit item heeft geen enkele
+      // afhankelijke kans of pagina). Precies één taak, met de sleutel van
+      // DEZE gebeurtenis, is dus de juiste verwachting.
       const { rows: taakRows } = await db.client.query(
-        "select id from public.jobs where type = 'gebeurtenis_verwerken' and profile_id = $1",
-        [merk],
+        "select id, dedupe_key from public.jobs where type = 'gebeurtenis_verwerken' and dedupe_key like $1",
+        [`%:${gebeurtenisId1}`],
       );
-      ok("scenario 35: zonder abonnee plant publiceer() geen taak in", taakRows.length === 0, JSON.stringify(taakRows));
+      eqc("scenario 35: precies de echte abonnee krijgt een taak voor deze gebeurtenis", String(taakRows.length), "1");
 
       // Precies één keer verwerkt, ook bij een tweede poging van de werker.
       let teller = 0;
@@ -10135,12 +10141,12 @@ async function main(): Promise<void> {
         [testAbonnee],
       );
       const { rows: taakRows2 } = await db.client.query(
-        "select dedupe_key from public.jobs where type = 'gebeurtenis_verwerken' and profile_id = $1",
-        [merk],
+        "select dedupe_key from public.jobs where type = 'gebeurtenis_verwerken' and dedupe_key = $1",
+        [`gebeurtenis:test_scenario35:${gebeurtenisId}`],
       );
       ok(
         "scenario 35: mét abonnee plant publiceer() precies één taak in, met de juiste sleutel",
-        taakRows2.length === 1 && taakRows2[0].dedupe_key === `gebeurtenis:test_scenario35:${gebeurtenisId}`,
+        taakRows2.length === 1,
         JSON.stringify(taakRows2),
       );
 
@@ -10273,6 +10279,128 @@ async function main(): Promise<void> {
         [stuk, dienstId],
       );
       eqc("scenario 37: nog eens vastleggen geeft geen dubbele rij", String(nogEens[0]?.n), "1");
+    }
+
+    // ── Scenario 38: G3, een wijziging maakt zichtbaar wat er geraakt wordt ──
+    //
+    // Precies het voorbeeld uit het plan: "wij doen geen warmtepompen meer"
+    // (een dienst afwijzen) zet de kans die erop leunt op 'vervallen' en meldt
+    // het bij de pagina die dezelfde kennis gebruikte; een gewone wijziging
+    // (een nieuwe versie van een antwoord) zet 'te_herzien'. Niets wordt
+    // herschreven of opnieuw gemeten (§4 regel 5): alleen de status en de
+    // melding veranderen. De echte weg: legVast/wijsAf/vervang publiceren de
+    // gebeurtenis, die zet een taak klaar, en `runJob()` voert 'm net als de
+    // werker uit.
+    console.log("\nScenario 38: G3, een wijziging maakt zichtbaar wat er geraakt wordt");
+    {
+      const { runJob } = await import("@/lib/jobs/handlers");
+      const { legVast, wijsAf, vervang } = await import("@/lib/kennis/vastleggen");
+      const { legAfhankelijkhedenVast } = await import("@/lib/afhankelijkheden/vastleggen");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      const cluster = randomUUID();
+      const pagina1 = randomUUID();
+      const pagina2 = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Warmtepomp Test', 'https://warmtepomp-test.nl', 'Warmtepomp Test', 'klaar')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Warmtepomp', 'https://warmtepomp-test.nl', 'warmtepomp', 'gereed')`,
+        [cluster, userId, merk],
+      );
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, action, version, is_current) values
+           ($1, $3, 'Warmtepomp laten plaatsen', 'landing', 'ready', 'nieuw', 1, true),
+           ($2, $3, 'Cv-ketel vervangen', 'landing', 'ready', 'nieuw', 1, true)`,
+        [pagina1, pagina2, cluster],
+      );
+
+      // ── Deel 1: een dienst afwijzen ("wij doen geen warmtepompen meer") ────
+      const warmtepomp = await legVast(
+        shim,
+        { profileId: merk, domein: "aanbod", soort: "dienst", bewering: "Warmtepompen installeren.", status: "waargenomen", bron: "website", bronUrl: "https://warmtepomp-test.nl", citaat: "Warmtepompen installeren.", gebruik: "content", herkomst: { tabel: "profile_offerings", id: randomUUID() } } as never,
+        { actor: "code", taak: "kennis_terugvullen" } as never,
+      );
+      if (warmtepomp.soort !== "vastgelegd") throw new Error("Testkennis geweigerd voor scenario 38.");
+      const warmtepompId = warmtepomp.item.id;
+
+      const { rows: kansRows } = await db.client.query(
+        `insert into public.kansen (profile_id, titel, handeling, geldt_voor, vastgelegd_door_taak) values ($1, 'Warmtepomp laten plaatsen', 'nieuwe_pagina', $2, 'test') returning id`,
+        [merk, [warmtepompId]],
+      );
+      const kansId = kansRows[0].id as string;
+      await legAfhankelijkhedenVast(shim, { profileId: merk, vanTabel: "kansen", vanId: kansId, kennisIds: [warmtepompId] });
+      await legAfhankelijkhedenVast(shim, { profileId: merk, vanTabel: "content_pieces", vanId: pagina1, kennisIds: [warmtepompId] });
+
+      const uitkomst = await wijsAf(shim, { profileId: merk, itemId: warmtepompId }, { actor: "mens", gebruikerId: userId });
+      ok("scenario 38: de dienst wordt afgewezen", uitkomst.ok, JSON.stringify(uitkomst));
+
+      // `legVast()` van de dienst zelf publiceerde óók al een gebeurtenis (zonder
+      // afhankelijken, dus zonder effect); de LAATSTE gebeurtenis op dit item is
+      // die van het afwijzen, en zíjn taak is waar dit deel om gaat.
+      const { rows: gebAf } = await db.client.query(
+        "select id from public.gebeurtenissen where object_id = $1 order by aangemaakt_op desc limit 1",
+        [warmtepompId],
+      );
+      const { rows: taakRows } = await db.client.query(
+        "select * from public.jobs where type = 'gebeurtenis_verwerken' and dedupe_key = $1",
+        [`gebeurtenis:kennis_wijziging_impact:${gebAf[0].id}`],
+      );
+      eqc("scenario 38: afwijzen zet precies één taak klaar voor de echte abonnee", String(taakRows.length), "1");
+      await runJob({ admin: shim, job: taakRows[0] as never });
+
+      const { rows: kansNa } = await db.client.query("select status from public.kansen where id = $1", [kansId]);
+      eqc("scenario 38: de kans die op de dienst leunde is vervallen", kansNa[0]?.status, "vervallen");
+      const { rows: paginaNa } = await db.client.query("select kennis_gewijzigd_op from public.content_pieces where id = $1", [pagina1]);
+      ok("scenario 38: de pagina die dezelfde dienst gebruikte krijgt een melding", paginaNa[0]?.kennis_gewijzigd_op != null, JSON.stringify(paginaNa));
+
+      // Nog eens uitvoeren (de werker die het twee keer probeert) verandert er niets aan.
+      await runJob({ admin: shim, job: taakRows[0] as never });
+      const { rows: kansNogEens } = await db.client.query("select status from public.kansen where id = $1", [kansId]);
+      eqc("scenario 38: nog eens uitvoeren verandert de status niet nog eens", kansNogEens[0]?.status, "vervallen");
+
+      // ── Deel 2: een gewone wijziging (geen afwijzing) ──────────────────────
+      const prijs = await legVast(
+        shim,
+        { profileId: merk, domein: "aanbod", soort: "prijs", bewering: "Een cv-ketel kost € 2.000.", status: "waargenomen", bron: "website", bronUrl: "https://warmtepomp-test.nl", citaat: "Een cv-ketel kost € 2.000.", gebruik: "content", herkomst: { tabel: "profile_offerings", id: randomUUID() } } as never,
+        { actor: "code", taak: "kennis_terugvullen" } as never,
+      );
+      if (prijs.soort !== "vastgelegd") throw new Error("Testkennis (prijs) geweigerd voor scenario 38.");
+      const { rows: kansRows2 } = await db.client.query(
+        `insert into public.kansen (profile_id, titel, handeling, geldt_voor, vastgelegd_door_taak) values ($1, 'Cv-ketel vervangen', 'nieuwe_pagina', $2, 'test') returning id`,
+        [merk, [prijs.item.id]],
+      );
+      const kansId2 = kansRows2[0].id as string;
+      await legAfhankelijkhedenVast(shim, { profileId: merk, vanTabel: "kansen", vanId: kansId2, kennisIds: [prijs.item.id] });
+      await legAfhankelijkhedenVast(shim, { profileId: merk, vanTabel: "content_pieces", vanId: pagina2, kennisIds: [prijs.item.id] });
+
+      const vervangen = await vervang(
+        shim,
+        { profileId: merk, oudId: prijs.item.id, nieuw: { profileId: merk, domein: "aanbod", soort: "prijs", bewering: "Een cv-ketel kost € 2.100.", status: "waargenomen", bron: "website", bronUrl: "https://warmtepomp-test.nl", citaat: "Een cv-ketel kost € 2.100.", gebruik: "content", herkomst: { tabel: "profile_offerings", id: randomUUID() } } },
+        { actor: "code", taak: "kennis_terugvullen" },
+      );
+      ok("scenario 38: de prijs krijgt een nieuwe versie", vervangen.ok, JSON.stringify(vervangen));
+
+      // Zelfde verhaal: `legVast()` van de prijs publiceerde al een gebeurtenis
+      // op zijn eigen id; `vervang()` publiceert een TWEEDE op datzelfde
+      // (oude) id, waar de kans en de pagina op leunen. De laatste is die van
+      // de vervanging.
+      const { rows: gebVervang } = await db.client.query(
+        "select id from public.gebeurtenissen where object_id = $1 order by aangemaakt_op desc limit 1",
+        [prijs.item.id],
+      );
+      const { rows: taakRows2 } = await db.client.query(
+        "select * from public.jobs where type = 'gebeurtenis_verwerken' and dedupe_key = $1",
+        [`gebeurtenis:kennis_wijziging_impact:${gebVervang[0].id}`],
+      );
+      ok("scenario 38: de nieuwe versie zet ook een taak klaar, tegen de OUDE id (waar de kans op leunt)", taakRows2.length === 1, JSON.stringify(taakRows2));
+      await runJob({ admin: shim, job: taakRows2[0] as never });
+
+      const { rows: kansNa2 } = await db.client.query("select status from public.kansen where id = $1", [kansId2]);
+      eqc("scenario 38: een gewone wijziging zet de kans op 'te herzien', niet 'vervallen'", kansNa2[0]?.status, "te_herzien");
+      const { rows: pagina2Na } = await db.client.query("select kennis_gewijzigd_op from public.content_pieces where id = $1", [pagina2]);
+      ok("scenario 38: en de pagina van de prijs krijgt ook een melding", pagina2Na[0]?.kennis_gewijzigd_op != null, JSON.stringify(pagina2Na));
     }
 
     __setTestAdminClient(null);

@@ -215,17 +215,17 @@ async function bouwRij(
  * hoort de aanroeper daar niet op te stranden; wel hard loggen, want zonder deze
  * melding merkt niemand ooit iets van wat er nog op deze gebeurtenis wacht.
  */
-async function meldWijziging(admin: Admin, item: Klantkennis): Promise<void> {
+async function meldWijziging(admin: Admin, item: Klantkennis, objectId = item.id): Promise<void> {
   try {
     await publiceer(admin, {
       profileId: item.profile_id,
       soort: "kennis_gewijzigd",
       objectTabel: "klantkennis",
-      objectId: item.id,
+      objectId,
       payload: { domein: item.domein, soort: item.soort },
     });
   } catch (err) {
-    console.warn(`Gebeurtenis "kennis gewijzigd" publiceren mislukt voor item ${item.id}:`, err);
+    console.warn(`Gebeurtenis "kennis gewijzigd" publiceren mislukt voor item ${objectId}:`, err);
   }
 }
 
@@ -419,12 +419,14 @@ export async function vervang(
     // alleen niet de ontdubbelingsrij.
     if (!slFout && metSl) {
       await zetBotsingen(admin, metSl as Klantkennis);
-      await meldWijziging(admin, metSl as Klantkennis);
+      // G3: de afhankelijkheden van vóór deze vervanging staan op het OUDE id
+      // (waar een kans of pagina toen op leunde), niet op het nieuwe.
+      await meldWijziging(admin, metSl as Klantkennis, oud.id);
       return { ok: true, item: metSl as Klantkennis };
     }
   }
   await zetBotsingen(admin, nieuw);
-  await meldWijziging(admin, nieuw);
+  await meldWijziging(admin, nieuw, oud.id);
   return { ok: true, item: nieuw };
 }
 
