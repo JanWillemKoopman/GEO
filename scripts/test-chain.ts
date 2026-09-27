@@ -9100,6 +9100,18 @@ async function main(): Promise<void> {
       );
       eqc("scenario 23: de tarievenkans (een artikel) heeft geen verhaal van een andere pagina", (await gatVan(tarieven?.id)).kennis_ontbreekt?.join(",") ?? "null", "voorbeeld,bewijs");
 
+      // A1: de brief van de pagina krijgt dit gat mee, in woorden.
+      const { kennisgatVoorPagina } = await import("@/lib/kennis/voor-pagina");
+      const { briefInvoer } = await import("@/lib/pagina/brief-opdracht");
+      const gatVoorBrief = await kennisgatVoorPagina(shim, v2);
+      eqc("scenario 23: de brief krijgt het kennisgat van de kans (A1)", (gatVoorBrief ?? ["null"]).join(" | "), "een prijsindicatie | een termijn | voor wie het niet is | bewijs");
+      const invoer = briefInvoer({
+        titel: "Rijles in Best", paginasoort: "dienstpagina", handeling: "nieuw", zoekintentie: null, waarom: null, doelvragen: [],
+        merknaam: "Kansentest", werkgebied: [], bedrijf: "-", huidigeTekst: null, eerdereVragen: [], kennisgat: gatVoorBrief,
+      });
+      ok("scenario 23: en zet het in de invoer van de brief", invoer.includes("Wat we voor deze pagina nog niet weten over het bedrijf:\n- een prijsindicatie"), invoer);
+      eqc("scenario 23: een pagina zonder kans heeft geen kennisgat", String(await kennisgatVoorPagina(shim, v1)), "null");
+
       // Een rapport zonder kansen (van vóór N2): de voorraad maakt ze alsnog.
       const analyse2 = randomUUID();
       const rapport2 = randomUUID();

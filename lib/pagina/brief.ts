@@ -32,6 +32,7 @@ import {
 import { laadBedrijf, laadDoelvragen, laadMerk, laadPagina, type PaginaBasis } from "@/lib/pagina/context";
 import { schrijfpoort, type SchrijfpoortOordeel as Poortuitslag } from "@/lib/pagina/schrijfpoort";
 import { SOORT_LABEL } from "@/lib/pagina/paginasoort";
+import { kennisgatVoorPagina } from "@/lib/kennis/voor-pagina";
 
 type Admin = SupabaseClient;
 
@@ -158,11 +159,12 @@ export async function maakBrief(admin: Admin, pieceId: string): Promise<BriefUit
   }
 
   const merk = await laadMerk(admin, pagina);
-  const [bedrijf, doelvragen, eerdere, tekst] = await Promise.all([
+  const [bedrijf, doelvragen, eerdere, tekst, kennisgat] = await Promise.all([
     laadBedrijf(admin, pagina),
     laadDoelvragen(admin, pagina.sourceRef, merk.concurrenten),
     eerdereVragen(admin, pagina.profileId),
     huidigeTekst(admin, pagina),
+    kennisgatVoorPagina(admin, pieceId),
   ]);
 
   const { parsed } = await callStructured({
@@ -180,6 +182,7 @@ export async function maakBrief(admin: Admin, pieceId: string): Promise<BriefUit
       bedrijf: blokA(bedrijf),
       huidigeTekst: tekst,
       eerdereVragen: eerdere.map((v) => ({ id: v.id, vraag: v.question, stand: v.status })),
+      kennisgat,
     }),
     schema: ContentBriefSchema,
     schemaName: "content_brief",

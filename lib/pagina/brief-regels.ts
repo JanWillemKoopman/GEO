@@ -31,7 +31,14 @@ import { pasSchrijfregelsToe } from "@/lib/schrijfregel-vangnet";
  * die per bedrijf verschilt. Op de negen proefteksten stond zo'n algemene regel
  * een paar keer als werkwijze van het bedrijf, omdat niemand het had gevraagd.
  */
-export const BRIEF_VERSIE = 3;
+/**
+ * Versie 4 (27 september 2026, A1 van `van-pijplijn-naar-kennissysteem.md`,
+ * besluit B21): de invoer krijgt het kennisgat van de kans ("wat we voor deze
+ * pagina nog niet weten"), en de opdracht één zin: vraag eerst daarnaar, en
+ * liever om een voorbeeld uit de praktijk dan om een los feit. Nog steeds
+ * hooguit acht vragen.
+ */
+export const BRIEF_VERSIE = 4;
 
 /** Technische bovengrens, geen doel (§6.1). */
 export const MAX_BRIEFVRAGEN = 8;

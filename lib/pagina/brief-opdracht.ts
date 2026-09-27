@@ -41,6 +41,8 @@ Voorbeelden:
 - Goed: "Welke situatie komt bij jullie het vaakst voor bij leerlingen met faalangst?"
 - Beter: "Kun je een typisch voorbeeld geven van een leerling met faalangst, en hoe jullie daarmee omgingen?"
 
+Staat er een lijst "Wat we voor deze pagina nog niet weten", vraag dan eerst daarnaar, en vraag liever om een voorbeeld uit de praktijk dan om een los feit.
+
 Stel zo weinig vragen als nodig is om de kennis op te halen die alleen deze ondernemer heeft. Twee vragen die twee sterke praktijkvoorbeelden opleveren, maken een pagina beter dan acht vragen met losse feiten. Nul vragen is een goed antwoord als alles al bekend is.
 
 Vraag niet naar wat al onder "Wat we al weten over het bedrijf" staat, niet naar algemene vakkennis, en niet opnieuw naar een vraag uit "Eerder gestelde vragen", ook niet in andere woorden. Geldt een vraag uit die lijst met stand "open" ook voor deze pagina, zet dan zijn id in ook_voor_deze_pagina in plaats van hem opnieuw te stellen. Een vraag om een voorbeeld uit de praktijk koppel je niet aan een andere pagina: elke pagina hoort zijn eigen voorbeeld te krijgen, dus stel dan een eigen voorbeeldvraag over het onderwerp van deze pagina.
@@ -75,6 +77,12 @@ export interface BriefContext {
   /** De huidige tekst van de pagina bij "verbeteren", anders null. */
   huidigeTekst: string | null;
   eerdereVragen: { id: string; vraag: string; stand: string }[];
+  /**
+   * Wat we voor deze pagina nog niet weten (A1): het kennisgat van de kans (N6),
+   * in woorden. `null` zonder kans of zonder uitgerekend gat; dan ontbreekt het
+   * blok, zoals bij versie 3.
+   */
+  kennisgat?: string[] | null;
 }
 
 /** Hoeveel tekens van een winnend antwoord mee gaan. */
@@ -112,6 +120,10 @@ export function briefInvoer(c: BriefContext): string {
   }
 
   delen.push(`Wat we al weten over het bedrijf:\n${c.bedrijf}`);
+
+  if (c.kennisgat && c.kennisgat.length > 0) {
+    delen.push(`Wat we voor deze pagina nog niet weten over het bedrijf:\n${c.kennisgat.map((k) => `- ${k}`).join("\n")}`);
+  }
 
   if (c.huidigeTekst?.trim()) {
     delen.push(`De huidige tekst van de pagina:\n"""${c.huidigeTekst.trim().slice(0, HUIDIGE_TEKST_MAX)}"""`);
