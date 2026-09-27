@@ -20,6 +20,6 @@
 import type { FactRequest } from "@/lib/types/database";
 
 export function publicFactRequest(row: Record<string, unknown>): FactRequest {
-  const { raw_json: _rawJson, section_id: _sectionId, section_refs: _sectionRefs, ...rest } = row;
+  const { raw_json: _rawJson, ...rest } = row;
   return rest as unknown as FactRequest;
 }

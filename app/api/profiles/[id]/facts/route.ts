@@ -15,13 +15,13 @@ import { publicFactRequest } from "@/lib/fact-request-public";
  * gegarandeerd algemene tekst op, en algemeen is precies wat niet geciteerd
  * wordt. In plaats van die spanning te laten bestaan, vragen we het gewoon.
  *
- * Een antwoord gaat naar `profiles.proof_points` en verbetert daarmee ÉLKE
- * volgende pagina, niet alleen degene waarvoor de vraag ontstond. Dat is ook wat
+ * Een antwoord wordt verklaarde klantkennis (K5) en bereikt zo, met de
+ * reikwijdte van de vraag, ook de volgende pagina's. Dat is ook wat
  * het voor de klant de moeite waard maakt: één keer invullen, altijd profijt.
  *
  * ⚠️ Deze route doet alleen nog auth, validatie en de "overslaan"-tak. Wat er
- * met een echt antwoord gebeurt (opslaan, het oordeel over een marktclaim, de
- * promotie naar `proof_points`) staat in `answerFact()` (`lib/facts.ts`),
+ * met een echt antwoord gebeurt (opslaan, de kennislaag, het oordeel over een
+ * marktclaim) staat in `answerFact()` (`lib/facts.ts`),
  * losgetrokken op 31 augustus 2026 zodat die samenhang in
  * `scripts/test-chain.ts` te toetsen is tegen een echte Postgres, zonder een
  * Next.js request te moeten nabootsen (punt 6 van
@@ -95,7 +95,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     profileId: id,
     factId,
     answer,
-    existingProofPoints: profile.proof_points ?? [],
     gebruikerId: user.id,
   });
   if (!resultaat.ok) {

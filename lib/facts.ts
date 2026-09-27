@@ -1,10 +1,12 @@
 import "server-only";
-import { moetNaarProofPoints } from "@/lib/proof-point-regel";
 
 /**
- * Het antwoord op een feitenvraag verwerken: opslaan, beoordelen of het een
- * marktclaim is die eerst onderbouwing nodig heeft, en zo nodig promoveren
- * naar `profiles.proof_points`.
+ * Het antwoord op een feitenvraag verwerken: opslaan, in de kennislaag
+ * vastleggen, en beoordelen of het een marktclaim is die eerst onderbouwing
+ * nodig heeft. Tot K8 ging een antwoord daarnaast als regel naar
+ * `profiles.proof_points`; die kolom leest geen stap meer
+ * (`kennismodel-inventaris.md` §3 punt 4), en het antwoord bereikt de schrijver
+ * via de kennislaag (blok A).
  *
  * ── WAAROM DIT UIT DE ROUTE IS GETROKKEN ─────────────────────────────────────
  *
@@ -23,7 +25,6 @@ import { moetNaarProofPoints } from "@/lib/proof-point-regel";
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { beoordeelClaim, marktclaimUitleg } from "@/lib/pipeline/claim-plausibility";
-import { isGapQuestion } from "@/lib/pipeline/gap-questions";
 import { claimKey, factFromAnswer } from "@/lib/pipeline/factcard";
 import type { FactRequest } from "@/lib/types/database";
 import { legAntwoordVast } from "@/lib/kennis/uit-gesprek";
@@ -46,18 +47,8 @@ export type AnswerFactResult =
 /**
  * Slaat het antwoord op en beslist wat ermee gebeurt.
  *
- * ⚠️ Twee besluiten die niets met elkaar te maken hebben, en die daarom hier
- * los van elkaar staan in plaats van de een de ander te laten afkappen:
- *
- *   - **Ziet de klant een uitleg?** Ja, altijd, ongeacht waar de vraag
- *     vandaan komt: `beoordeelClaim()` draait als EERSTE, vóór enige
- *     vertakking op de herkomst van de vraag.
- *   - **Gaat het antwoord naar `proof_points`?** Nee bij een gapvraag (dat
- *     antwoord bereikt de schrijver toch al via `buildFactBase()`, met de
- *     juiste bron "klant, bevestigd <datum>"; als proof point zou het de bron
- *     "site <url>" krijgen terwijl het nergens op de site staat, en niet elk
- *     open punt is een publiceerbaar feit, zie `isGapQuestion()`), en bij de
- *     rest alleen als de claim wordt aangenomen.
+ * De klant ziet altijd een uitleg als zijn antwoord een marktclaim zonder
+ * onderbouwing is (`beoordeelClaim()`), ongeacht waar de vraag vandaan komt.
  */
 export async function answerFact(
   admin: Admin,
@@ -65,8 +56,6 @@ export async function answerFact(
     profileId: string;
     factId: string;
     answer: string;
-    /** `profiles.proof_points` van dit merk, vóór dit antwoord. */
-    existingProofPoints: string[];
     /** Wie antwoordde: de klant, of de consultant in het gesprek. */
     gebruikerId: string;
   },
@@ -107,7 +96,7 @@ export async function answerFact(
   //
   // Dit antwoord is het verhaal van de ondernemer over déze pagina, tot 3.000
   // tekens. Het gaat letterlijk naar de schrijver als blok B. Het wordt geen
-  // feit, geen proof point en geen marktclaim: een verhaal van tien zinnen in
+  // feit en geen marktclaim: een verhaal van tien zinnen in
   // losse feiten knippen is precies de opsomming die de klant niet wil.
   if (fact.open_vraag) {
     return { ok: true, outcome: { fact: updated, needsEvidence: false, evidenceHint: null } };
@@ -115,8 +104,7 @@ export async function answerFact(
 
   // ── Een bestaand antwoord wijzigen (potloodje op "Openstaande vragen") ────
   //
-  // `buildFactBase()` leest dit antwoord telkens vers uit `fact_requests`, dus
-  // een pas geschreven pagina ziet een wijziging vanzelf. Wat NIET vanzelf
+  // De kennislaag kreeg hierboven al een nieuwe versie van het antwoord. Wat NIET vanzelf
   // meegaat is het oude feit dat al met een IDENTITEIT in `brand_facts` staat
   // (migratie 0036): dat feit is opgeslagen onder de ontdubbelsleutel van het
   // OUDE antwoord (`claimKey()` neemt de antwoordtekst mee), dus een nieuw
@@ -139,8 +127,8 @@ export async function answerFact(
       // Wijst voorlopig naar zichzelf, dezelfde onschuldige truc als
       // `factstore.ts` gebruikt: dat maakt de unieke index (profiel, sleutel)
       // vrij zonder de rij te verwijderen, zodat een al geschreven pagina die
-      // ernaar verwijst na te trekken blijft. `buildFactBase()` legt bij de
-      // eerstvolgende opbouw het NIEUWE feit onder de nieuwe sleutel vast.
+      // ernaar verwijst na te trekken blijft. Tot K8 deel 2 houdt dit de oude
+      // feitentabel gelijk met de kennislaag.
       for (const rij of verouderd ?? []) {
         await admin.from("brand_facts").update({ superseded_by: rij.id as string }).eq("id", rij.id as string);
       }
@@ -149,55 +137,16 @@ export async function answerFact(
 
   // ── Niet alle klantinput is gelijk (werkpakket A §3.4) ───────────────────
   //
-  // Een superlatief of marktclaim zonder cijfer, bron of voorbeeld gaat NIET
-  // naar `proof_points`: die lijst is wat de hele schrijfpijplijn als
-  // vaststaand feit leest, en "wij zijn de beste van de regio" is dat niet.
-  // Het antwoord blijft wel gewoon staan in `fact_requests` (conventie 8,
-  // niets gaat verloren), alleen de automatische promotie slaat over.
+  // Een superlatief of marktclaim zonder cijfer, bron of voorbeeld: de klant
+  // krijgt uitleg wat er nog bij moet. Het antwoord blijft staan (conventie 8,
+  // niets gaat verloren); de controle op harde beweringen houdt zo'n claim van
+  // de pagina.
   const oordeel = beoordeelClaim(input.answer);
   if (!oordeel.aangenomen) {
     return {
       ok: true,
       outcome: { fact: updated, needsEvidence: true, evidenceHint: marktclaimUitleg(input.answer) },
     };
-  }
-
-  // Behalve bij een omgezet open punt uit de synthese, zie de uitleg
-  // hierboven bij de functie.
-  if (isGapQuestion(fact.raw_json)) {
-    return { ok: true, outcome: { fact: updated, needsEvidence: false, evidenceHint: null } };
-  }
-
-  // Ook niet bij een vraag uit de voorbereiding van een pagina (hij draagt een
-  // `claim_key`) of een vraag die aan één pagina hangt. Die antwoorden bereiken
-  // de schrijver al via `buildFactBase()`, met de bron "klant, bevestigd", en
-  // alleen bij de pagina waar ze horen. Als proof point kregen ze de bron "site"
-  // en belandden ze op de kaart van ELKE pagina van het merk
-  // (kwaliteitsdoorlichting, punt 41, 24 september 2026: "Leggen jullie
-  // bestrating ook in de winter aan? Ja" stond als sitefeit in de bank).
-  if (!moetNaarProofPoints(fact)) {
-    return { ok: true, outcome: { fact: updated, needsEvidence: false, evidenceHint: null } };
-  }
-
-  // Het antwoord ook als geverifieerd feit bij het profiel zetten. Dubbelop
-  // met `fact_requests`, maar bewust: `proof_points` is waar de hele
-  // schrijfpijplijn al naar kijkt, en de klant kan het daar zelf bijstellen
-  // of weghalen.
-  //
-  // ⚠️ Bij een WIJZIGING van een al beantwoorde vraag moet het oude antwoord
-  // hier eerst uit, anders staat straks "levert 250 auto's per jaar" naast
-  // "levert 300 auto's per jaar" allebei als vaststaand feit, en heeft het
-  // potloodje op "Openstaande vragen" niets opgelost. Eén vraag hoort hier aan
-  // hoogstens één regel: die met de vraagtekst als voorvoegsel.
-  const line = `${fact.question} ${input.answer}`;
-  const alAanwezig = input.existingProofPoints.some((p) => p.trim().toLowerCase() === line.toLowerCase());
-  if (!alAanwezig) {
-    const voorvoegsel = `${fact.question} `.trim().toLowerCase();
-    const zonderOud = input.existingProofPoints.filter((p) => !p.trim().toLowerCase().startsWith(voorvoegsel));
-    await admin
-      .from("profiles")
-      .update({ proof_points: [...zonderOud, line] })
-      .eq("id", input.profileId);
   }
 
   return { ok: true, outcome: { fact: updated, needsEvidence: false, evidenceHint: null } };

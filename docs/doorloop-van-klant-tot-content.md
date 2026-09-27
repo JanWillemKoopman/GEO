@@ -486,11 +486,11 @@ of wijkt de samenvatting uit naar Luna. De fase wordt afgeleid in `lib/profile-s
 - **De aanbodboom ziet maar een kwart van de site.** Van de 150 gelezen pagina's passen er ongeveer 35 in
   het tekenbudget, en elke pagina is bij het lezen al afgekapt op 1.500 tekens. Alles daarna hangt aan
   deze boom. Is een groter budget, of een tweede ronde over de rest van de site, de moeite waard?
-- **Drie stappen maken elk hun eigen lijst "feiten".** Het merkonderzoek (2.4) schrijft `proof_points`
-  en stijlvoorbeelden, de samenvatting (2.9) schrijft `brand_facts`. De nieuwe schrijver leest alleen
-  `brand_facts` en de stemvoorbeelden uit het gesprek. De `proof_points` en stijlvoorbeelden uit 2.4
-  worden voor het schrijven niet meer gebruikt: kunnen ze uit de opdracht van 2.4, of moeten ze juist
-  naar de schrijver?
+- **Drie stappen maakten elk hun eigen lijst "feiten".** Sinds K8 (27 september 2026) zet het
+  merkonderzoek (2.4) geen `proof_points` en stijlvoorbeelden meer op het profiel: de bewijspunten van
+  het model gaan alleen als vermoeden de kennislaag in, en de schrijver leest zijn feiten uit de
+  kennislaag (K6). De opdracht van 2.4 vraagt er nog wel om; dat verandert pas als die opdracht om een
+  andere reden open gaat.
 - **De kennistest vraagt alleen naar de eerste plaats van het werkgebied** (`service_regions[0]`). Bij
   een bedrijf met drie vestigingen meet hij er één.
 
@@ -1115,7 +1115,8 @@ nu": het laatste antwoord is de handeling.
 
 **Onder de motorkap.** `PATCH /api/profiles/[id]/facts` (eigenaarschap via `getOwnedProfile`): met
 `skip: true` wordt `status = 'overgeslagen'`, anders `answerFact()` in `lib/facts.ts` (de open vraag wordt
-alleen opgeslagen; een ander antwoord kan ook naar `profiles.proof_points`). Daarna, na het antwoord aan
+alleen opgeslagen; elk antwoord wordt verklaarde klantkennis, sinds K8 niet meer ook een regel in
+`profiles.proof_points`). Daarna, na het antwoord aan
 de klant, `after(() => probeerNaAntwoord(...))`. Het vragenscherm is `components/pagina/vragenlijst.tsx`.
 
 **Controleer**
@@ -1451,9 +1452,10 @@ het eerst merkt, staat bovenaan.
    hangen ervan af. Echte zoekdata zit al in "Clusters ontdekken"; kan die hier ook in?
 6. **De aanbodboom ziet maar een kwart van de site** (ongeveer 35 van 150 pagina's, elk afgekapt op 1.500
    tekens). Alles daarna leunt op die boom.
-7. **Oude feitenbronnen die niemand meer leest.** `proof_points` en de stijlvoorbeelden uit het
-   merkonderzoek (2.4) gaan niet meer naar de schrijver, maar worden wel gemaakt, betaald en in het
-   merkprofiel getoond. Opruimen of terug aansluiten?
+7. **Oude feitenbronnen die niemand meer leest.** Opgeruimd in K8 deel 1 (27 september 2026):
+   `proof_points` en de stijlvoorbeelden staan niet meer op het merkprofiel en worden niet meer
+   geschreven. Het model levert de bewijspunten nog wel (de opdracht van 2.4 is niet veranderd), en die
+   gaan als vermoeden de kennislaag in.
 8. **Het gesprek is de grootste hefboom, maar er is geen signaal als het dun is.** Een lege of korte
    "Verhalen", geen stemvoorbeelden of geen verboden woorden: de app schrijft gewoon door.
 9. **Geen herinnering bij openstaande vragen.** Een pagina wacht onbeperkt op de klant, en e-mail staat uit.

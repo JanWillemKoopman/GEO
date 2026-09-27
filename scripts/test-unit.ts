@@ -778,7 +778,6 @@ import {
   CLIENT_STEPS,
   SESSION_STEPS,
   SESSION_BLOCKS,
-  SESSION_AUTHOR_FIELDS,
   STEP_META,
   STEP_ORDER,
   fieldsOfStep,
@@ -874,7 +873,6 @@ import {
   regionsFromDescription,
   discontinuedNames,
 } from "@/lib/pipeline/context-factors";
-import { moetNaarProofPoints } from "@/lib/proof-point-regel";
 import { pasSchrijfregelsToe } from "@/lib/schrijfregel-vangnet";
 import { bronnenDieWelNoemden, bronnenRegel, correctQuestionCount, kortSamengevat, questionCountLine, vulBronnenAan } from "@/lib/pipeline/report-summary";
 import {
@@ -1016,7 +1014,7 @@ import { repareerMechanisch } from "@/lib/pagina/mechanisch";
 import { blokA } from "@/lib/pagina/bedrijfskennis";
 import { kiesVoorBlokA, blokAUitKennis, MAX_KENNIS, type KennisVoorBlokA, type PaginaVoorBlokA } from "@/lib/kennis/blok-a";
 import { blokkadesVan } from "@/lib/kennis/betwist";
-import { nietVanToepassingVelden, zonderNietVanToepassing } from "@/lib/kennis/gesprek";
+import { nietVanToepassingVelden, zonderNietVanToepassing, kennisUitStemvoorbeelden, stemPlan, kennisUitDocument } from "@/lib/kennis/gesprek";
 import { maakOverzicht, handelingenVoor, herkomstZin, nieuwGebruikBijAanpassen, type OverzichtItem } from "@/lib/kennis/overzicht";
 import { faqMarkdown, volledigeMarkdown, htmlDocument, bestandsnaam } from "@/lib/oplevering";
 import { schrijfpoort, schrijfdatum } from "@/lib/pagina/schrijfpoort";
@@ -6262,16 +6260,18 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   // catalogus, alleen op `/merkprofiel/bewerken`.
   // 51 sinds de contentketen opnieuw (25 september 2026, besluit B14): elf
   // stemvelden eruit, `stem_voorbeelden` en `verhalen` erbij.
+  // 38 sinds K8 (27 september 2026, besluit V10): de twaalf lege velden en
+  // `proof_points` eruit.
   ok(
-    `het zijn er 51 aan beide kanten (nu ${BRAND_FIELDS.length} en ${EDITABLE_PROFILE_FIELDS.length})`,
-    BRAND_FIELDS.length === 51 && EDITABLE_PROFILE_FIELDS.length === 51,
+    `het zijn er 38 aan beide kanten (nu ${BRAND_FIELDS.length} en ${EDITABLE_PROFILE_FIELDS.length})`,
+    BRAND_FIELDS.length === 38 && EDITABLE_PROFILE_FIELDS.length === 38,
   );
 
   ok(
     "elk veld hoort bij een bestaande stap",
     BRAND_FIELDS.every((f) => STEP_ORDER.includes(f.step)),
   );
-  ok("negen stappen", STEP_ORDER.length === 9);
+  ok("acht stappen (de auteursstap verviel in K8)", STEP_ORDER.length === 8);
   // De verdeling van 17 augustus 2026 (`docs/logbook.md`). Staat hier voluit zodat
   // een veld dat naar een andere stap verhuist een bewuste wijziging is en geen
   // stille verschuiving.
@@ -6281,10 +6281,12 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   // Contentketen opnieuw (B14): "stem" van 7 naar 1 (alleen de stemvoorbeelden),
   // "woorden" van 5 naar 3, "klant" en "bekend" elk één minder, "strategie"
   // één meer (`verhalen`).
+  // K8 (besluit V10): "merk" van 3 naar 1, "klant" van 5 naar 4, "woorden" van 3
+  // naar 2, "bekend" van 5 naar 3, en de auteursstap met zijn 7 velden weg.
   ok(
-    `de verdeling is 11-3-5-1-3-7-5-13-3 (nu ${perStap})`,
+    `de verdeling is 11-1-4-1-2-3-13-3 (nu ${perStap})`,
     perStap ===
-      "bedrijf:11 merk:3 klant:5 stem:1 woorden:3 auteur:7 bekend:5 strategie:13 contact:3",
+      "bedrijf:11 merk:1 klant:4 stem:1 woorden:2 bekend:3 strategie:13 contact:3",
   );
   ok(
     "elke stap heeft velden",
@@ -6360,11 +6362,12 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   // élk merk eeuwig in "wacht op jouw nakijkwerk".
   const klantVelden = BRAND_FIELDS.filter((f) => CLIENT_STEPS.includes(f.step));
   // 45 sinds stap B8; 35 sinds de contentketen opnieuw (B14): tien stemvelden
-  // uit de klantstappen, `stem_voorbeelden` erbij.
+  // uit de klantstappen, `stem_voorbeelden` erbij. 22 sinds K8: dertien velden
+  // zonder lezer eruit.
   ok(
-    `de noemer is de klantlijst van 35 (nu ${overallProgress(leeg).totaal})`,
+    `de noemer is de klantlijst van 22 (nu ${overallProgress(leeg).totaal})`,
     overallProgress(leeg).totaal === klantVelden.length &&
-      klantVelden.length === 35,
+      klantVelden.length === 22,
   );
   ok(
     "de sessie kan alle negen stappen meetellen",
@@ -6380,7 +6383,7 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   ok("en telt al zijn velden", p.gevuld === p.totaal && p.totaal === 1);
   ok(
     "terwijl een andere stap dan nog leeg is",
-    stepProgress(stem, "auteur").gevuld === 0,
+    stepProgress(stem, "bekend").gevuld === 0,
   );
 
   function allStepsIncompleet(prof: Record<string, unknown>): boolean {
@@ -6422,7 +6425,7 @@ group("drie oppervlakken, één veldenlijst (onboarding 3.0 fase 1)", () => {
   ok("de klant ziet de commerciële laag niet", !CLIENT_STEPS.includes("strategie"));
   ok("en de contactpersoon ook niet", !CLIENT_STEPS.includes("contact"));
   ok("de sessie ziet ze allebei wel", SESSION_STEPS.includes("strategie") && SESSION_STEPS.includes("contact"));
-  ok("de klantwizard houdt zijn zeven stappen", CLIENT_STEPS.length === 7);
+  ok("de klantwizard houdt zijn zes stappen (de auteursstap verviel in K8)", CLIENT_STEPS.length === 6);
 
   // Elke stap heeft een eigen titel en uitleg, ook de twee nieuwe. Nova geeft
   // per blok een `nav.*Subtitle` die zegt waaróm het blok bestaat; zonder dat
@@ -6486,7 +6489,7 @@ group("microcopy, verplichtstelling en de negen blokken (onboarding ronde B)", (
     BRAND_FIELDS.filter((f) => f.priority === "verplicht").map((f) => f.key as string),
   );
   ok(
-    "brand_name, aliases, industry, business_model, service_scope, competitors, products, proof_points, summary, intake_audience en priority_offerings zijn verplicht",
+    "brand_name, aliases, industry, business_model, service_scope, competitors, products, summary, intake_audience en priority_offerings zijn verplicht",
     [
       "brand_name",
       "aliases",
@@ -6495,7 +6498,6 @@ group("microcopy, verplichtstelling en de negen blokken (onboarding ronde B)", (
       "service_scope",
       "competitors",
       "products",
-      "proof_points",
       "summary",
       "intake_audience",
       "priority_offerings",
@@ -6537,12 +6539,12 @@ group("microcopy, verplichtstelling en de negen blokken (onboarding ronde B)", (
 
   // ── B4: de negen blokken dekken samen exact BRAND_FIELDS ────────────────
   const inBlokken = SESSION_BLOCKS.flatMap((b) => b.velden as string[]);
-  const samenB4 = [...inBlokken, ...(SESSION_AUTHOR_FIELDS as string[])];
+  const samenB4 = inBlokken;
   const bestaandeSleutels = BRAND_FIELDS.map((f) => f.key as string);
   ok("geen dubbel veld in de blokindeling", new Set(samenB4).size === samenB4.length);
   const missenB4 = bestaandeSleutels.filter((k) => !samenB4.includes(k));
   ok(
-    `elk veld staat in een blok of bij de auteursvelden${missenB4.length ? " (mist: " + missenB4.join(", ") + ")" : ""}`,
+    `elk veld staat in een blok${missenB4.length ? " (mist: " + missenB4.join(", ") + ")" : ""}`,
     missenB4.length === 0,
   );
   const teveelB4 = samenB4.filter((k) => !bestaandeSleutels.includes(k));
@@ -6551,8 +6553,8 @@ group("microcopy, verplichtstelling en de negen blokken (onboarding ronde B)", (
     teveelB4.length === 0,
   );
   ok(
-    "samen zijn het er 51",
-    samenB4.length === 51 && samenB4.length === BRAND_FIELDS.length,
+    "samen zijn het er 38",
+    samenB4.length === 38 && samenB4.length === BRAND_FIELDS.length,
   );
   ok("zeven blokken met velden", SESSION_BLOCKS.length === 7);
   ok(
@@ -11232,7 +11234,6 @@ console.log("\nOpen punten op het merkprofiel");
 group("findGaps noemt het gevolg, niet het gemis", () => {
   const compleet = {
     aliases: ["Fysi Unique"],
-    proof_points: ["sinds 2009", "12 fysiotherapeuten", "4,8 op Google"],
     service_scope: "lokaal",
     service_regions: ["Amersfoort"],
     business_model: "dienstverlener",
@@ -11243,13 +11244,8 @@ group("findGaps noemt het gevolg, niet het gemis", () => {
     "geen schrijfwijzen is een punt",
     findGaps({ ...compleet, aliases: [] }).some((g) => g.label.includes("schrijfwijzen")),
   );
-  // Onder de drie, niet onder de één: met twee feiten wordt een tekst nog
-  // steeds algemeen, en algemeen wordt niet geciteerd.
-  ok(
-    "twee bewijspunten is te weinig",
-    findGaps({ ...compleet, proof_points: ["a", "b"] }).length === 1,
-  );
-  ok("drie is genoeg", findGaps({ ...compleet, proof_points: ["a", "b", "c"] }).length === 0);
+  // Het punt over bewijspunten verviel in K8: dat veld leest niemand meer.
+  ok("bewijspunten zijn geen open punt meer (K8)", !findGaps(compleet).some((g) => g.field === "proof_points"));
 
   // Alleen bij een lokaal merk. Vier van de negen profielen hadden op
   // 11 augustus 2026 `service_scope = null`, en dan mag deze regel niet slaan.
@@ -11264,7 +11260,7 @@ group("findGaps noemt het gevolg, niet het gemis", () => {
 
   ok(
     "elk punt zegt wát het verbetert",
-    findGaps({ aliases: [], proof_points: [], service_scope: null, service_regions: [], business_model: null })
+    findGaps({ aliases: [], service_scope: null, service_regions: [], business_model: null })
       .every((g) => g.effect.length > 40),
   );
 
@@ -11276,20 +11272,19 @@ group("findGaps noemt het gevolg, niet het gemis", () => {
   // veldenlijst staat.
   const alles = findGaps({
     aliases: [],
-    proof_points: [],
     service_scope: "lokaal",
     service_regions: [],
     business_model: null,
   });
-  ok("alle vier de punten komen eruit", alles.length === 4);
+  ok("alle drie de punten komen eruit", alles.length === 3);
   ok(
     "het bereik staat bovenaan, want die fout kost een nieuwe meetronde",
     alles[0].field === "service_regions",
     alles.map((g) => g.field).join(" > "),
   );
   ok(
-    "en de bewijspunten onderaan, die raken pas de tekst",
-    alles[alles.length - 1].field === "proof_points",
+    "en het bedrijfsmodel onderaan, dat is zonder nieuwe meting te corrigeren",
+    alles[alles.length - 1].field === "business_model",
   );
   ok(
     "de volgorde loopt aflopend op gewicht",
@@ -11308,12 +11303,11 @@ group("findGaps noemt het gevolg, niet het gemis", () => {
   const metNvt = findGaps(
     {
       aliases: [],
-      proof_points: [],
       service_scope: "lokaal",
       service_regions: [],
       business_model: null,
     },
-    ["aliases", "proof_points"],
+    ["aliases"],
   );
   ok("een n.v.t.-veld staat niet meer in de lijst", metNvt.length === 2);
   ok(
@@ -11335,9 +11329,9 @@ group("findGaps noemt het gevolg, niet het gemis", () => {
   );
   ok(
     "de link draagt de stap én het anker, want de wizard toont één stap tegelijk",
-    gapLink("m1", "proof_points") ===
-      "/merk/m1/merkprofiel/bewerken?stap=bekend#veld-anker-proof_points",
-    String(gapLink("m1", "proof_points")),
+    gapLink("m1", "summary") ===
+      "/merk/m1/merkprofiel/bewerken?stap=bekend#veld-anker-summary",
+    String(gapLink("m1", "summary")),
   );
   ok(
     "een veld dat de klant niet ziet levert geen dode knop op",
@@ -11434,7 +11428,7 @@ group("de meter van de sessie: drie getallen, geen percentage", () => {
   const profiel = {
     industry: "fysiotherapie",
     summary: "Een praktijk in Amersfoort.",
-    usp: "De enige met bekkenfysiotherapie",
+    differentiator: "De enige met bekkenfysiotherapie",
     contact_name: "Sanne de Wit",
   } as never;
   const m = sessionMeter(profiel, {
@@ -11444,7 +11438,7 @@ group("de meter van de sessie: drie getallen, geen percentage", () => {
     // door een mens getypt maar door niemand bevestigd. Zou hij als bevestigd
     // tellen, dan ziet een merk waar nog nooit iemand mee gesproken is eruit
     // als een merk dat je al hebt doorgenomen.
-    usp: { source: "consultant" },
+    differentiator: { source: "consultant" },
   });
   ok("wat in het gesprek is gezet telt als bevestigd", m.bevestigd === 1);
   ok("modeluitvoer en een aanname tellen als gevonden", m.gevonden === 2);
@@ -11459,15 +11453,15 @@ group("de meter van de sessie: drie getallen, geen percentage", () => {
 
   // Niet van toepassing is behandeld, en dat is de hele reden dat die stand
   // bestaat: anders haalt de meter nooit 100% en wordt hij genegeerd.
-  const nvt = sessionMeter(leegProfiel, { author_bio: { notApplicable: true } });
+  const nvt = sessionMeter(leegProfiel, { seasonality: { notApplicable: true } });
   ok("een n.v.t.-veld telt als bevestigd", nvt.bevestigd === 1);
   ok("en niet meer als open", nvt.open === leeg.open - 1);
   ok(
     "notApplicableFields noemt precies die velden",
     notApplicableFields({
-      author_bio: { notApplicable: true },
+      seasonality: { notApplicable: true },
       industry: { source: "gesprek" },
-    }).join() === "author_bio",
+    }).join() === "seasonality",
   );
 });
 
@@ -11555,8 +11549,8 @@ group("de sessiepagina wordt gedeeld met de klant (deel B3)", () => {
     !sessie.includes('id="open"') && !sessie.includes("FactRequests"),
   );
   ok(
-    "de auteursvelden staan ingeklapt onder één gezamenlijke uitleg",
-    sessie.includes("Auteur, voor later") && sessie.includes("SESSION_AUTHOR_FIELDS"),
+    "de auteursvelden staan niet meer in de sessie (K8, besluit V10)",
+    !sessie.includes("Auteur, voor later") && !sessie.includes("author_"),
   );
   ok(
     "het afrondblok noemt de openstaande verplichte velden",
@@ -11943,10 +11937,11 @@ group("het formulier praat de taal van de branche", () => {
   ok("automotive bestaat", CATEGORIES.includes("automotive"));
 
   const echteCategorieen = CATEGORIES.filter((c) => c !== "algemeen");
-  // Achttien tot 25 september 2026; twee per branche vielen weg met de stemvelden (besluit B14).
-  const teWeinig = echteCategorieen.filter((c) => exampleCount(c) < 16);
+  // Achttien tot 25 september 2026; twee per branche vielen weg met de stemvelden (besluit B14),
+  // en vijf met de velden zonder lezer (K8: missie, usp, wettelijke regels, functie van de auteur, bewijspunten).
+  const teWeinig = echteCategorieen.filter((c) => exampleCount(c) < 11);
   ok(
-    `elke branche heeft minstens zestien eigen voorbeelden${teWeinig.length ? " (te weinig: " + teWeinig.join(", ") + ")" : ""}`,
+    `elke branche heeft minstens elf eigen voorbeelden${teWeinig.length ? " (te weinig: " + teWeinig.join(", ") + ")" : ""}`,
     teWeinig.length === 0,
   );
   ok("en algemeen heeft er nul, want dat is de terugval", exampleCount("algemeen") === 0);
@@ -12041,8 +12036,8 @@ group("het formulier praat de taal van de branche", () => {
   // volledig, net als bij `name`), twaalf sinds stap B8: `max_inventory_pages`
   // is een getal, en een getalveld heeft aan het label genoeg.
   ok(
-    "twaalf velden hebben bewust geen voorbeeld",
-    zonderVoorbeeld.size === 12,
+    "elf velden hebben bewust geen voorbeeld (de auteursnaam verviel in K8)",
+    zonderVoorbeeld.size === 11,
     `${zonderVoorbeeld.size}`,
   );
   ok(
@@ -17676,7 +17671,6 @@ group("A3: het vangnet van de opslagroute dekt alle lijstvelden", () => {
     "competitors",
     "aliases",
     "service_regions",
-    "proof_points",
   ]) {
     ok(`"${veld}" staat in LIST_FIELDS`, new RegExp(`"${veld}"`).test(lijst));
   }
@@ -18769,8 +18763,9 @@ group("publicFactRequest houdt raw_json buiten de browser (T8.9)", () => {
 
   const veilig = publicFactRequest(rij);
   ok("raw_json is weg", !("raw_json" in veilig));
-  ok("section_id is weg", !("section_id" in veilig));
-  ok("section_refs is weg", !("section_refs" in veilig));
+  // `section_id` en `section_refs` haalde deze functie tot K8 ook weg. Ze zijn
+  // altijd leeg en staan op "niet meer gebruiken" (kennismodel-inventaris.md);
+  // de functie noemt ze niet meer.
   ok("het antwoord blijft staan", veilig.answer === "1998");
   ok("de vraag blijft staan", veilig.question === "In welk jaar opgericht?");
   ok("de status blijft staan", veilig.status === "beantwoord");
@@ -19062,7 +19057,6 @@ group("het ruwe AI-antwoord bereikt de browser niet", () => {
     answer_type: "getal",
   }) as unknown as Record<string, unknown>;
   ok("raw_json gaat eruit", !("raw_json" in schoon));
-  ok("section_id ook", !("section_id" in schoon));
   // En wat het scherm nodig heeft, blijft staan: anders zou de schoonmaak de
   // vraagvorm slopen die hierboven net getest is.
   ok("de vraagsoort blijft", schoon.kind === "bewijs");
@@ -20568,11 +20562,11 @@ group("De potentie van een geplande pagina volgt de regel van het rapport (24 se
 });
 
 group("Antwoorden op paginavragen worden geen sitefeit (24 september 2026)", () => {
-  ok("vraag uit de voorbereiding blijft bij de pagina", !moetNaarProofPoints({ claim_key: "prijsband tuin", scope: "pagina" }));
-  ok("ook zonder sleutel als hij aan een pagina hangt", !moetNaarProofPoints({ claim_key: null, scope: "pagina" }));
-  ok("ook een analysevraag met sleutel", !moetNaarProofPoints({ claim_key: "iets", scope: "analyse" }));
-  ok("een losse merkvraag gaat wel mee", moetNaarProofPoints({ claim_key: null, scope: "merk" }));
-  ok("answerFact gebruikt de regel", leesBestand("lib/facts.ts").includes("if (!moetNaarProofPoints(fact))"));
+  // Sinds K8 gaat geen enkel antwoord nog naar `proof_points`: de reikwijdte van
+  // de vraag gaat mee in de kennislaag (K5), en die bewaakt dit nu.
+  const facts = leesBestand("lib/facts.ts");
+  ok("answerFact schrijft niet meer in profiles", !/from\(\s*"profiles"\s*\)/.test(facts));
+  ok("en legt het antwoord vast in de kennislaag", facts.includes("legAntwoordVast("));
 });
 
 group("De consultant en de accountleden zien de clusters van een merk (24 september 2026)", () => {
@@ -21743,6 +21737,9 @@ function zetMenselijkeStatus(inhoud: string): boolean {
  */
 const MENSELIJKE_STATUS_TOEGESTAAN = [
   "app/api/profiles/[id]/facts/route.ts",
+  // K8: feiten uit een document dat de klant zelf aanlevert, verklaard met de
+  // letterlijke zin als citaat (besluit V21).
+  "app/api/profiles/[id]/dossier/route.ts",
   "lib/facts.ts",
   "app/api/profiles/[id]/route.ts",
   "app/api/profiles/[id]/strategy/route.ts",
@@ -22692,4 +22689,141 @@ group("de open punten van de kennislaag afhandelen (V16)", () => {
     geweigerd = String((e as Error).message);
   }
   ok("een item zonder citaat levert geen SQL op", geweigerd.length > 0);
+});
+
+// ── K8: niemand leest nog wat "niet meer gebruiken" heet ───────────────────
+//
+// De kolommen komen uit de inventaris zelf (`docs/tasks/kennismodel-inventaris.md`
+// §4), niet uit een tweede lijst hier: wie daar een kolom op "niet meer
+// gebruiken" zet, krijgt deze test er vanzelf bij. Commentaar telt niet (een
+// naam in de uitleg is geen lezer), een schrijfactie wel (wie schrijft, houdt
+// de kolom in leven).
+
+interface OudeKolom {
+  tabel: string;
+  kolom: string;
+}
+
+function nietMeerGebruiken(inventaris: string): OudeKolom[] {
+  const uit: OudeKolom[] = [];
+  let tabel = "";
+  for (const regel of inventaris.split("\n")) {
+    const kop = /^### 4\.\d+ `([a-z_]+)`/.exec(regel);
+    if (kop) {
+      tabel = kop[1];
+      continue;
+    }
+    const rij = /^\| `([a-z0-9_]+)` \|/.exec(regel);
+    if (!rij || !tabel) continue;
+    const cellen = regel.split("|").map((c) => c.trim()).filter((c, i, a) => i > 0 && i < a.length - 1);
+    if (cellen[cellen.length - 1]?.startsWith("niet meer gebruiken")) uit.push({ tabel, kolom: rij[1] });
+  }
+  return uit;
+}
+
+/** Commentaar eraf; strings blijven, want een kolomnaam in een `select()` is een lezer. */
+function codeZonderCommentaar(bron: string): string {
+  return bron.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`])\/\/.*$/gm, "$1").replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, "");
+}
+
+/**
+ * Noemt deze code de kolom? Bij een naam die in meer tabellen voorkomt
+ * (`verify_after` staat ook in `fact_requests`, waar hij meegaat), of die ook
+ * een gewone eigenschap is (`citable` in `factcard.ts`), telt het alleen als
+ * dezelfde code ook de tabel noemt.
+ */
+function noemtKolom(code: string, k: OudeKolom, opTabel: boolean): boolean {
+  if (!new RegExp(`\\b${k.kolom}\\b`).test(code)) return false;
+  if (!opTabel) return true;
+  return new RegExp(`["'\`]${k.tabel}["'\`]`).test(code);
+}
+
+/**
+ * Waar een oude kolom nog genoemd mag worden, met de reden. Het terugvullen
+ * (K3) leest per definitie de oude tabellen: dat was zijn werk, en het script
+ * moet herhaalbaar blijven (conventie 9).
+ */
+const OUDE_KOLOM_UITZONDERINGEN: { pad: string; reden: string }[] = [
+  { pad: "lib/types/database.ts", reden: "de typen van de tabel zelf (K8 in het plan)" },
+  { pad: "lib/kennis/terugvullen.ts", reden: "het terugvullen van K3 leest de oude kolommen" },
+  { pad: "scripts/kennis-terugvullen.ts", reden: "idem, de uitvoering" },
+];
+
+group("K8: niemand leest nog een kolom met 'niet meer gebruiken'", () => {
+  const kolommen = nietMeerGebruiken(leesBestand("docs/tasks/kennismodel-inventaris.md"));
+  eq("de inventaris levert de 35 kolommen (37, min de twee gecorrigeerde `confidence`)", String(kolommen.length), "35");
+  ok("waaronder de auteursvelden en de bewijspunten", kolommen.some((k) => k.kolom === "author_bio") && kolommen.some((k) => k.kolom === "proof_points"));
+  ok("en niet de meegenomen `verify_after` van een vraag", !kolommen.some((k) => k.tabel === "fact_requests" && k.kolom === "verify_after"));
+
+  const tellingPerNaam = new Map<string, number>();
+  const inventaris = leesBestand("docs/tasks/kennismodel-inventaris.md");
+  for (const k of kolommen) tellingPerNaam.set(k.kolom, (inventaris.match(new RegExp(`^\\| \`${k.kolom}\` \\|`, "gm")) ?? []).length);
+  const opTabel = (k: OudeKolom) => (tellingPerNaam.get(k.kolom) ?? 0) > 1 || k.kolom === "citable";
+
+  ok("zelftest: een select wordt gevonden", noemtKolom(codeZonderCommentaar('.select("id, usp")'), { tabel: "profiles", kolom: "usp" }, false));
+  ok("zelftest: commentaar niet", !noemtKolom(codeZonderCommentaar("// usp stond hier\n/* en usp hier */"), { tabel: "profiles", kolom: "usp" }, false));
+  ok("zelftest: een adres met // blijft code", codeZonderCommentaar('const u = "https://x.nl"; usp').includes("usp"));
+  ok("zelftest: verify_after zonder brand_facts telt niet", !noemtKolom('from("fact_requests").insert({ verify_after })', { tabel: "brand_facts", kolom: "verify_after" }, true));
+  ok("zelftest: met brand_facts wel", noemtKolom('from("brand_facts").select("verify_after")', { tabel: "brand_facts", kolom: "verify_after" }, true));
+
+  const bestanden = codebestanden()
+    .filter((p) => !p.startsWith("scripts/test-") && !p.startsWith("scripts/chain/"))
+    .filter((p) => !OUDE_KOLOM_UITZONDERINGEN.some((u) => u.pad === p));
+  const treffers: string[] = [];
+  for (const pad of bestanden) {
+    const code = codeZonderCommentaar(leesBestand(pad));
+    for (const k of kolommen) if (noemtKolom(code, k, opTabel(k))) treffers.push(`${pad}: ${k.tabel}.${k.kolom}`);
+  }
+  eq("geen code buiten de uitzonderingen noemt zo'n kolom", treffers.join(" | "), "");
+});
+
+group("K8: de stemvoorbeelden en het merkdossier schrijven in de kennislaag", () => {
+  const profiel = { id: "p1", url: "https://voorbeeld.nl" };
+  const items = kennisUitStemvoorbeelden(profiel, [
+    { url: "https://voorbeeld.nl/over-ons", tekst: "Wij zijn al dertig jaar een familiebedrijf." },
+    { url: "https://voorbeeld.nl/werkwijze", tekst: null },
+  ]);
+  eq("alleen een adres met opgehaalde tekst wordt een item", String(items.length), "1");
+  ok(
+    "waargenomen, met het adres als bron en de tekst als citaat",
+    items[0]?.status === "waargenomen" && items[0]?.bron === "website" && items[0]?.bronUrl === "https://voorbeeld.nl/over-ons" && items[0]?.citaat === items[0]?.bewering,
+  );
+  ok("in het domein stem, voor op de pagina", items[0]?.domein === "stem" && items[0]?.gebruik === "content");
+
+  const bestaand = [
+    { id: "a", bron_url: "https://voorbeeld.nl/over-ons", bewering: "Oude tekst." },
+    { id: "b", bron_url: "https://voorbeeld.nl/weg", bewering: "Weggehaald." },
+    { id: "c", bron_url: "https://voorbeeld.nl/werkwijze", bewering: "Niet te lezen, wel gekozen." },
+  ];
+  const plan = stemPlan(bestaand, items, ["https://voorbeeld.nl/over-ons", "https://voorbeeld.nl/werkwijze"]);
+  eq("een andere tekst op hetzelfde adres wordt een nieuwe versie", plan.vervangen.map((v) => v.oudId).join(","), "a");
+  eq("een weggehaald adres wordt afgewezen", plan.afwijzen.join(","), "b");
+  eq("en niets is nieuw", String(plan.nieuw.length), "0");
+  eq("dezelfde tekst verandert niets", String(stemPlan([{ ...bestaand[0], bewering: items[0]!.bewering }], items, ["https://voorbeeld.nl/over-ons"]).vervangen.length), "0");
+  eq("een adres zonder item is nieuw", String(stemPlan([], items, ["https://voorbeeld.nl/over-ons"]).nieuw.length), "1");
+
+  const feit = { vraagId: "v1", question: "Wat kost een proefles?", answer: "€ 45", zin: "Een proefles kost € 45.", verlooptOp: "2027-03-27" };
+  const doc = kennisUitDocument(feit, "d1");
+  eq("één feit, één item", String(doc.length), "1");
+  ok("verklaard, met het document als bron (V21)", doc[0]?.status === "verklaard" && doc[0]?.bron === "document");
+  ok("met de letterlijke zin als citaat", doc[0]?.citaat === "Een proefles kost € 45.");
+  ok("en het document als herkomst", doc[0]?.herkomst.tabel === "brand_documents" && doc[0]?.herkomst.id === "d1");
+  ok("een prijs verloopt", doc[0]?.verlooptOp === "2027-03-27");
+  const alsAntwoord = kennisUitAntwoord({
+    id: "v1", analysis_id: null, question: feit.question, answer: feit.answer, status: "beantwoord", scope: "merk",
+    content_piece_ids: [], open_vraag: false, raw_json: { bron: "merkdossier" },
+  });
+  ok(
+    "dezelfde sleutel als het antwoord op die vraag: een latere wijziging wordt een nieuwe versie",
+    sleutelVan(doc[0]!) === sleutelVan(alsAntwoord[0]!),
+  );
+  ok("zonder document is de vraag de herkomst", kennisUitDocument(feit, null)[0]?.herkomst.tabel === "fact_requests");
+
+  const stemRoute = leesBestand("app/api/profiles/[id]/route.ts");
+  ok("de profielroute legt de stemvoorbeelden vast na het ophalen", stemRoute.includes("await legStemVast("));
+  ok("maar niet als de adressen intussen veranderden", /if \(!opgehaald\.bewaard\) return;[\s\S]{0,80}legStemVast/.test(stemRoute));
+  ok("het merkdossier legt zijn feiten vast", leesBestand("app/api/profiles/[id]/dossier/route.ts").includes("await legDocumentVast("));
+  const stem = leesBestand("lib/kennis/uit-stem.ts");
+  ok("de stemmodule gooit geen fout", !/\bthrow\b/.test(stem));
+  ok("en zet nooit verklaard of bevestigd", !/["'`](verklaard|bevestigd)["'`]/.test(stem));
 });

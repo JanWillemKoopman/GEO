@@ -313,7 +313,7 @@ probleem dan een dollar.
 
 | Tabel | Wat het is |
 |---|---|
-| `profiles` | Klant/merk op accountniveau. Website, branche, aliassen, concurrenten, persona's, tone-of-voice, `business_model`. Eén keer onderzocht, hergebruikt door alle analyses. Sinds migratie `0045` ook `taboo_phrases` en `compliance_notes` (harde schrijfregels, deterministisch teruggecontroleerd door `checkTabooWords()` in `lib/pipeline/content-gate.ts`), `author_name`/`author_role`/`author_bio`/`author_linkedin_url`, en vier tone-of-voice-schuiven `tone_formality`/`tone_energy`/`tone_complexity`/`tone_humor` (1-3 of `null`, vertaald naar prompttaal door `lib/pipeline/tone-sliders.ts`, nooit het cijfer zelf naar het model). Sinds migratie `0060` ook de commerciële laag (`priority_offerings`, `deprioritised_offerings`, `growth_regions`, `target_segments`, `deal_value_band`, `seasonality`, `sales_objections`, `forbidden_topics`, `offline_proof`, `name_exclusions`, `respect_site_structure`, `goal_12m`) en de contactpersoon (`contact_name`/`contact_email`/`contact_phone`). Die vijftien zijn per definitie niet uit een website af te leiden en komen uit het gesprek met de klant; ze tellen daarom niet mee in `overallProgress()`, dat de 41 klantvelden meet. |
+| `profiles` | Klant/merk op accountniveau: website, crawlinstellingen, de koppelingen, en de kennisvelden die het formulier "merkprofiel bewerken" en het gespreksscherm tonen (naam, aliassen, branche, bereik, werkgebied, concurrenten, de commerciële laag van `0060`, stem, verhalen, grenzen). ⚠️ Sinds K8 (27 september 2026) is de kennislaag hieronder de waarheid over het bedrijf; een kennisveld op `profiles` is daarnaast nog de kopie die de meting en een deel van de pijplijn lezen, tot K8 deel 3 die kopie alleen nog door `lib/kennis/` laat schrijven (besluit V9). 35 kolommen staan op "niet meer gebruiken" (`docs/tasks/kennismodel-inventaris.md`: de auteursvelden, de stemschuiven, `usp`, missie, positionering, `proof_points`, `tone_of_voice` en meer); ze blijven staan (conventie 4), en een test in `scripts/test-unit.ts` faalt als code ze nog noemt. |
 | `profile_field_sources` | Wie zette welk veld, met welke zekerheid en op welk bewijs (`0039`). Vier herkomsten sinds `0060`: `ai`, `klant`, `gesprek` en `consultant`. Alleen `ai` mag door een volgende onderzoeksronde overschreven worden (`lib/pipeline/field-merge.ts`). `not_applicable` (`0060`) zegt dat een veld bewust niet van toepassing is, en telt in de volledigheidsmeter als behandeld. |
 | `profile_pages` | Contentinventaris uit een crawl (sitemap recursief, anders homepage-links). Productpagina's uitgesloten. Geen AI. Alle tekst gaat door `sanitizeForPostgres()` (`lib/pg-text.ts`): één NUL-byte uit één pagina laat Postgres anders de hele batch-insert weigeren, en dan verdwijnt de complete inventaris. |
 | `analyses` | Eén getrackt onderwerp onder een profiel. Status, tracking aan of uit, content-brief. `topic` verplicht en niet wijzigbaar na start. |
@@ -324,9 +324,11 @@ probleem dan een dollar.
 | `competitor_breakdown` | Per concurrent: aandeel + `attributes_json` (`{attribute, evidence}` met letterlijk citaat) + `why_summary`. Alleen ≥2 vermeldingen of top 8. |
 | `entities` | Gededupliceerd merk-/concurrentregister (`lib/entities/`). Voorkomt dat "Coolblue", "coolblue.nl" en "Coolblue B.V." drie partijen worden. |
 | `reports` | Rapport per periode + trend. `stripped_claims_json` = audit-trail van door de claimvalidator verwijderde zinnen. |
-| `brand_facts` | De feitenbank (`0036`). Elk feit heeft een `fact_key` (identiteit, geen positie), een scope (merkbreed / per analyse) en `superseded_by` in plaats van overschrijven. |
-| `brand_documents` | Door de klant geplakte brontekst + sha256-hash, met `facts_extracted`/`facts_rejected`. |
-| `fact_requests` | De briefingvragen aan de klant, max 8 per batch. `scope: 'merk'` slaat op met `analysis_id = null`. Ook de open punten uit de synthese staan hier, herkenbaar aan `raw_json.bron = 'synthese-gap'`; dat merkje bepaalt dat hun antwoord géén tweede regel in `profiles.proof_points` krijgt (het bereikt de schrijver al via `buildFactBase()`, en dan mét de juiste bron). ⚠️ 31 augustus 2026: `answerFact()` (`lib/facts.ts`) beoordeelt élk antwoord op een superlatief of marktclaim (`beoordeelClaim()`) vóórdat het naar `raw_json.bron` kijkt, dus de klant ziet de uitleg altijd, ook bij een gapvraag; alleen de promotie naar `proof_points` blijft bij een gapvraag achterwege. |
+| `brand_facts` | De oude feitenbank (`0036`): sitefeiten uit de samenvatting, met `fact_key`, `superseded_by` en de indeling van het feitenregister (`soort`, `waarde`, `stand`). Blok A leest hem sinds K6 niet meer; de samenvatting schrijft hem nog tot K8 deel 2, waarin de indeling en de conflictlijst naar de kennislaag verhuizen (besluit V18). |
+| `brand_documents` | Door de klant geplakte brontekst + sha256-hash, met `facts_extracted`/`facts_rejected`. Sinds K8 is een document de herkomst van de kennisitems die eruit komen (verklaard, met de letterlijke zin als citaat, besluit V21). |
+| `fact_requests` | De vragen aan de klant: het vraagobject, met zijn antwoord. `scope: 'merk'` slaat op met `analysis_id = null`; de open punten uit de synthese dragen `raw_json.bron = 'synthese-gap'`. Een antwoord wordt sinds K5 verklaarde klantkennis met de reikwijdte van de vraag (`answerFact()` in `lib/facts.ts`), en sinds K8 niet meer ook een regel in `profiles.proof_points`. `answerFact()` beoordeelt elk antwoord op een superlatief of marktclaim (`beoordeelClaim()`), zodat de klant altijd ziet wat er nog bij moet. |
+| `klantkennis` | **De kennislaag** (`0116`, `0117`): één rij per kennisitem, met domein, status, gebruik, herkomst en reikwijdte. Zie hieronder. |
+| `kansen` / `kans_bewijs` | Eén kans per te nemen actie op een klantbehoefte, met het bewijs per bron (`0118`, `0119`). Alleen `lib/kansen/` schrijft ze; de uitleg komt uit het bewijs, niet uit een model. Plan: `docs/tasks/van-pijplijn-naar-kennissysteem.md` §6.2. |
 | `content_pieces` | Gegenereerde pagina's. Versiebeheer per (analyse, titel) via `version`/`is_current`/`supersedes_id`, plus `briefing_snapshot_json`, `claims_json`, `source_coverage`, `quality_score`, `geo_score`, `needs_review`, `reviewed_at`/`reviewed_by`. Sinds `0091` ook het kwaliteitsraamwerk: `quality_json` (dimensiescores, getypeerde bevindingen, blokkades, root cause), `quality_verdict` (`pass`/`repair`/`block`), `quality_confidence`, `weighted_evidence_coverage`, `critical_evidence_coverage` en `quality_profile`. ⚠️ Die zes staan NAAST `needs_review` en vervangen hem niet: zes schermen, `lib/work.ts` en de eindpoort lezen die boolean. `faq_json` is sinds de content-editie (§5, stap 16) ook door de klant bewerkbaar via de PATCH-route, niet alleen door het model. |
 | `content_quality_runs` | Eén kwaliteitsbeoordeling per reparatieronde (`0091`). Ronde 0 is het eerste concept. Draagt de gewogen score, de zekerheid, het oordeel (`pass`/`repair`/`block`), de dimensiescores, de bevindingen, de root cause en of de tekst van díe ronde bewaard is. ⚠️ Dit is wat "versie 2 blijft de beste" opzoekbaar maakt: de vergelijking werd al gemaakt (`content-repair-decision.ts`) maar stond alleen in `critique_raw_json` als ongestructureerde blob. Nul policies, net als `jobs`. |
 | `content_quality_reviews` | De MENSELIJKE beoordeling van een gegenereerde pagina plus een optionele gouden referentie (`0091`). Zes maten van 1 tot 5, de vraag "zou je dit zonder aanpassing versturen", en `reference_markdown`. `benchmark_set` is een LABEL waarmee losse beoordelingen een benchmark vormen: merk is `profiles`, cluster is `analyses`, pagina is `content_pieces`, en een vierde structuur ernaast zou een tweede bron van waarheid zijn. Nul policies: intern materiaal, geen klantdata. |
@@ -344,6 +346,38 @@ probleem dan een dollar.
 | `reputation_sources` | Waar AI zijn beeld vandaan haalt: domein, soort, aantal citaties, en bij reviewplatforms het cijfer met `verified`. ⚠️ `verified` gaat alleen op `true` als de eigen crawler de pagina ophaalde en er JSON-LD met `aggregateRating` op stond; een cijfer uit een AI-antwoord is een gok tot het bewezen is. |
 | `reputation_market` | Eén rij per bedrijf dat AI zélf noemde op de open kopersvraag, per aanbodknoop (`0063`). Betrouwbaarder dan de opgelegde concurrentieset, want een bedrijf dat het model niet kent noemt het gewoon niet, en dat is zelf de uitkomst. ⚠️ Dit is de tabel waarop het scherm sinds 26 augustus 2026 zijn hoofdstuk per product bouwt: staat de klant er niet tussen, dan zeggen de rijen wie ChatGPT in zijn plaats aanraadt. |
 | `reputation_evidence` | Het gedeelde bewijscorpus (`0063`): letterlijke fragmenten met bron, waar de dienstvragen als achtergrond uit putten. Wordt niet op een klantscherm getoond. |
+
+### De kennislaag (`klantkennis`, fase 1 van het kennisplan, 26 en 27 september 2026)
+
+Alles wat ORBIT over een bedrijf weet, staat in één tabel, met hoe het dat weet en waarvoor het
+gebruikt mag worden. Het veldmodel en de statustabel staan in §6.1 van
+[`tasks/van-pijplijn-naar-kennissysteem.md`](tasks/van-pijplijn-naar-kennissysteem.md); hier alleen
+hoe het in de code zit.
+
+- **Vier statussen.** *Waargenomen* (uit een bron, met adres en letterlijk citaat), *verklaard* (de
+  klant zei het: een antwoord, het gesprek, een aangeleverd document), *bevestigd* (een mens staat
+  ervoor in, met wie en wanneer), *afgeleid* (een model denkt het, altijd met gebruik "intern").
+  De regels staan puur in `lib/kennis/regels.ts` en nog eens als check-constraint in de database.
+- **Eén schrijfingang.** `lib/kennis/vastleggen.ts` met `legVast()`, `bevestig()`, `wijsAf()`,
+  `vervang()` en `nietOpSite()`. Ontdubbelen op een sleutel (`lib/kennis/samenvoegen.ts`), nooit
+  verwijderen: een nieuwere versie wijst met `vervangen_door` naar de oude, een afgewezen item blijft
+  bewaard en komt niet stil terug. Een botsing (twee waarden voor hetzelfde) gaat op de bestaande
+  conflictlijst (`fact_conflicts.kennis_ids`); de consultant kiest (besluit V14).
+- **Wie schrijft.** Het onderzoek (`uit-onderzoek.ts`: waargenomen waar de code het citaat
+  terugvond, anders afgeleid), het gesprek, de antwoorden, de conflictkeuze en het merkdossier
+  (`uit-gesprek.ts`, altijd een mens), de tekst van de stemvoorbeelden (`uit-stem.ts`, de code), en
+  het kennisoverzicht (`uit-overzicht.ts`, de consultant). Verklaard en bevestigd komen alleen van de
+  routes in `MENSELIJKE_STATUS_TOEGESTAAN` in `scripts/test-unit.ts` (§4 regel 2 van het plan).
+- **Wie leest.** Blok A van de schrijver (`kennisVoor()` en `kiesVoorBlokA()`: nooit afgeleid,
+  bevestigd eerst, alleen wat voor deze dienst en deze pagina geldt, niets wat op een open conflict
+  staat), het kennisgat van een kans (`lib/kansen/kennisgat.ts`) en het kennisoverzicht onder Admin
+  (`/merk/[id]/admin/kennis`, alleen medewerkers, besluit V6 en V11).
+- **Drie bewakingstests** in `scripts/test-unit.ts`: niemand buiten `lib/kennis/` schrijft in
+  `klantkennis`; verklaard en bevestigd alleen van de toegestane routes, ook via een omweg; en geen code
+  noemt een kolom die de inventaris op "niet meer gebruiken" zette.
+- **Wat nog dubbel is.** De onderzoeksstappen en het gespreksscherm schrijven daarnaast nog de oude
+  tabellen (`profiles`, `brand_facts`, `profile_offerings`), omdat de meting, het rapport, de
+  onderwerpen en de aanbodboom die nog lezen. K8 deel 2 en 3 van het plan halen dat weg.
 
 **De Sales-module (migraties `0068` tot en met `0073`, plus `0081`).** Zestien tabellen die de klantomgeving nergens raken. Ze staan
 bewust apart in deze tabel: een klant mag nooit kunnen zien dat hij ooit als prospect in het systeem

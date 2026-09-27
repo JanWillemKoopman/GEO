@@ -517,22 +517,6 @@ function FactCard({
           if (value) onSend(fact.id, { answer: value });
         }}
       >
-        {fact.suggested_answer && !answer && (
-          <div className="flex flex-col gap-1">
-            <button
-              type="button"
-              className="btn-outline btn-sm w-fit"
-              disabled={busy}
-              onClick={() => setAnswer(fact.suggested_answer!)}
-            >
-              Gok van ORBIT ENGINE: {fact.suggested_answer}. Dit klopt
-            </button>
-            <span className="text-sm text-muted">
-              Een inschatting, geen gecontroleerd feit. Lees hem na voordat je hem bevestigt, want
-              een fout antwoord komt zo in je tekst terecht.
-            </span>
-          </div>
-        )}
 
         <Antwoordveld
           id={`vraag-${fact.id}`}

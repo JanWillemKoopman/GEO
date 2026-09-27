@@ -77,7 +77,6 @@ export interface BrandContext {
   industry: string | null;
   products: string[];
   competitors: string[];
-  toneOfVoice: string | null;
   summary: string | null;
   /** Werkgebied & markt (§12.24), sturen lokale/marktgerichte prompts. */
   serviceScope?: string | null;

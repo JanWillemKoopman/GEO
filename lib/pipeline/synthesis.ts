@@ -310,10 +310,9 @@ async function storeGapQuestions(
       kind: "aanvulling",
       answer_type: vraag.answerType,
       options: [],
-      suggested_answer: null,
       required: false,
-      // Het merkje waaraan de facts-route ziet dat dit antwoord geen tweede
-      // kopie in `proof_points` hoort te krijgen, zie `isGapQuestion()`.
+      // Het merkje dat zegt dat dit een open punt uit het onderzoek was, zie
+      // `isGapQuestion()`.
       raw_json: { bron: GAP_SOURCE } as never,
     });
     if (!error) bewaard++;
@@ -364,7 +363,6 @@ async function storeBrandFacts(
       source: `site ${pathOf(f.sourceUrl)}`,
       source_url: f.sourceUrl,
       kind: "site",
-      citable: true,
       allowed: true,
       fact_key: key,
     }));

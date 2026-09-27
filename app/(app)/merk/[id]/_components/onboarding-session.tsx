@@ -12,7 +12,6 @@ import { ProfileReadinessPanel } from "./profile-readiness-panel";
 import {
   BRAND_FIELDS,
   SESSION_BLOCKS,
-  SESSION_AUTHOR_FIELDS,
   missingRequired,
   isFilled,
 } from "@/lib/pipeline/brand-fields";
@@ -118,7 +117,6 @@ export function OnboardingSession({
       findGaps(
         {
           aliases: (waarden.aliases as string[]) ?? [],
-          proof_points: (waarden.proof_points as string[]) ?? [],
           service_scope: (waarden.service_scope as string | null) ?? null,
           service_regions: (waarden.service_regions as string[]) ?? [],
           business_model: (waarden.business_model as string | null) ?? null,
@@ -564,15 +562,6 @@ export function OnboardingSession({
             </div>
           </div>
 
-          <CollapsibleSection title="Auteur, voor later" defaultOpen={false}>
-            <div className="flex flex-col gap-4">
-              <p className="text-sm text-muted">
-                Zeven velden voor de naam onder je artikelen. Vastgelegd, maar nog niet
-                automatisch onder gepubliceerde content gezet.
-              </p>
-              {SESSION_AUTHOR_FIELDS.map((k) => veld(k as string))}
-            </div>
-          </CollapsibleSection>
 
           <div className="card flex flex-col gap-3">
             <Meter meter={meter} />

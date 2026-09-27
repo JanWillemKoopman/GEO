@@ -32,7 +32,6 @@ export interface ClientIntake {
   serviceScope?: string | null;
   serviceRegions?: string[];
   marketLanguage?: string | null;
-  toneOfVoice?: string | null;
   audience?: string | null;
   /**
    * Per kolomnaam wie de waarde zette, uit `profile_field_sources`. Ontbreekt
@@ -67,7 +66,6 @@ function linesOf(intake: ClientIntake): IntakeLine[] {
     { column: "service_scope", label: "Bereik", value: tekst(intake.serviceScope) },
     { column: "service_regions", label: "Werkgebied", value: lijst(intake.serviceRegions) },
     { column: "market_language", label: "Markt en taal", value: tekst(intake.marketLanguage) },
-    { column: "tone_of_voice", label: "Gewenste tone-of-voice", value: tekst(intake.toneOfVoice) },
     { column: "intake_audience", label: "Doelgroep", value: tekst(intake.audience) },
   ];
 

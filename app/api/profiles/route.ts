@@ -27,7 +27,6 @@ interface ProfileIntakeBody {
   service_scope?: string;
   service_regions?: unknown;
   market_language?: string;
-  tone_of_voice?: string;
   intake_description?: string;
   intake_audience?: string;
   /**
@@ -149,7 +148,6 @@ export async function POST(request: Request) {
     service_scope: bereik.scope,
     service_regions: bereik.regions,
     market_language: toTextOrNull(body.market_language),
-    tone_of_voice: toTextOrNull(body.tone_of_voice),
     intake_description: toTextOrNull(body.intake_description),
     intake_audience: toTextOrNull(body.intake_audience),
   };

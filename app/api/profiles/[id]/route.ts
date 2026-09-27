@@ -3,7 +3,6 @@ import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { MAX_PAGES_HARD_CAP } from "@/lib/crawler";
-import { clampToneSlider, clampEmotional } from "@/lib/pipeline/tone-sliders";
 import { EDITABLE_PROFILE_FIELDS } from "@/lib/profile-editable";
 import { resolveWriteSource } from "@/lib/profile-source";
 import { isStaff } from "@/lib/staff";
@@ -12,6 +11,7 @@ import { schoneAdressen } from "@/lib/pagina/stemvoorbeelden-regels";
 import { haalStemvoorbeeldenOp } from "@/lib/pagina/stemvoorbeelden";
 import { sluitVragenUitGesprek } from "@/lib/vraag-sluiten";
 import { legProfielVast } from "@/lib/kennis/uit-gesprek";
+import { legStemVast } from "@/lib/kennis/uit-stem";
 import { GESPREKSVELDEN, nietVanToepassingVelden, zonderNietVanToepassing } from "@/lib/kennis/gesprek";
 import type { BronProfiel } from "@/lib/kennis/terugvullen";
 
@@ -29,9 +29,6 @@ export const maxDuration = 60;
 /** Lijstvelden: lege en niet-tekstuele items eruit, de rest getrimd. */
 const LIST_FIELDS = [
   "taboo_phrases",
-  "key_messages",
-  "identity_keywords",
-  "signature_phrases",
   // De commerciële laag (migratie 0060).
   "priority_offerings",
   "deprioritised_offerings",
@@ -41,7 +38,7 @@ const LIST_FIELDS = [
   "forbidden_topics",
   "offline_proof",
   "name_exclusions",
-  // A3: deze zes werden vóór 31 augustus 2026 alleen door de invoercomponent
+  // A3: deze (toen zes, sinds K8 zonder `proof_points`) werden vóór 31 augustus 2026 alleen door de invoercomponent
   // getrimd, nooit door de route zelf. Conventie 1 wil de garantie hier, niet
   // alleen in de client: een ander scherm of een aanroep buiten de app om kon
   // een lege string in `aliases` zetten, waar de meting op vergelijkt.
@@ -50,22 +47,11 @@ const LIST_FIELDS = [
   "competitors",
   "aliases",
   "service_regions",
-  "proof_points",
-  // Onboarding ronde B, stap B8.
-  "style_samples",
 ] as const;
 
 /** Vrije tekst: een leeg veld wordt `null`, nooit een lege string. */
 const NULLABLE_TEXT_FIELDS = [
-  "compliance_notes",
-  "brand_mission",
-  "brand_positioning",
-  "usp",
   "differentiator",
-  "audience_secondary",
-  "author_photo_url",
-  "author_facebook_url",
-  "author_other_url",
   // Migratie 0060.
   "seasonality",
   "goal_12m",
@@ -85,9 +71,6 @@ const PRONOUNS = ["je", "u", "wij"] as const;
  * nooit een client-string rechtstreeks doorlaten.
  */
 const DEAL_VALUE_BANDS = ["onbekend", "klein", "midden", "groot"] as const;
-
-/** Velden die als 1-3 geklemd worden in plaats van rechtstreeks opgeslagen. */
-const TONE_SLIDER_FIELDS = ["tone_formality", "tone_energy", "tone_complexity", "tone_humor"] as const;
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -182,24 +165,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if ("stem_voorbeelden" in body) {
     stemAdressen = schoneAdressen(body.stem_voorbeelden);
     update.stem_voorbeelden = stemAdressen.map((url) => ({ url, tekst: null, opgehaald_op: null, fout: null }));
-  }
-  // Tone-sliders: geklemd naar 1-3, of null bij een lege/ontbrekende waarde.
-  // Nooit rechtstreeks een client-getal doorlaten naar de databaseconstraint.
-  for (const field of TONE_SLIDER_FIELDS) {
-    if (field in update) {
-      const raw = update[field];
-      update[field] = raw === null || raw === "" || raw === undefined ? null : clampToneSlider(raw);
-    }
-  }
-  // Het kennisniveau van de doelgroep loopt óók van 1 tot 3, dus dezelfde klem.
-  if ("audience_knowledge_level" in update) {
-    const raw = update.audience_knowledge_level;
-    update.audience_knowledge_level =
-      raw === null || raw === "" || raw === undefined ? null : clampToneSlider(raw);
-  }
-  // De emotionele lading is de enige met vier standen (migratie 0048).
-  if ("tone_emotional" in update) {
-    update.tone_emotional = clampEmotional(update.tone_emotional);
   }
   // Aanspreekvorm: alleen de drie bekende waarden, anders null. Nooit een
   // client-string rechtstreeks naar de databaseconstraint.
@@ -339,14 +304,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const nvtVelden = nietVanToepassingVelden(nvt);
   const kennisVelden = [...new Set([...bewerkteVelden.filter((f) => (GESPREKSVELDEN as readonly string[]).includes(f)), ...nvtVelden])];
   if (kennisVelden.length > 0) {
-    const [{ data: aanbod }, { data: vragen }] = await Promise.all([
-      kennisVelden.includes("products")
-        ? admin.from("profile_offerings").select("name, removed_at").eq("profile_id", id)
-        : Promise.resolve({ data: [] }),
-      kennisVelden.includes("proof_points")
-        ? admin.from("fact_requests").select("question").eq("profile_id", id).eq("status", "beantwoord")
-        : Promise.resolve({ data: [] }),
-    ]);
+    const { data: aanbod } = kennisVelden.includes("products")
+      ? await admin.from("profile_offerings").select("name, removed_at").eq("profile_id", id)
+      : { data: [] };
     await legProfielVast(
       admin,
       {
@@ -357,7 +317,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         nieuw: zonderNietVanToepassing({ ...(profile as unknown as Partial<BronProfiel>), ...(update as Partial<BronProfiel>) }, nvtVelden),
         bron: bron.source,
         aanbod: (aanbod ?? []) as { name: string; removed_at: string | null }[],
-        vragen: (vragen ?? []) as { question: string }[],
       },
       { actor: "mens", gebruikerId: user.id },
     );
@@ -375,9 +334,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
   }
 
-  if (stemAdressen && stemAdressen.length > 0) {
+  // De tekst van de stemvoorbeelden gaat na het ophalen ook de kennislaag in
+  // (K8): waargenomen, met het adres als bron. Een weggehaald adres wijst de
+  // mens af die het weghaalde, ook als er geen adres meer over is.
+  if (stemAdressen) {
     const adressen = stemAdressen;
-    after(() => haalStemvoorbeeldenOp(admin, id, adressen).then(() => undefined));
+    const door = { actor: "mens" as const, gebruikerId: user.id };
+    after(async () => {
+      const opgehaald = adressen.length > 0 ? await haalStemvoorbeeldenOp(admin, id, adressen) : { voorbeelden: [], bewaard: true };
+      // Veranderden de adressen intussen, dan doet de latere opslag dit werk.
+      if (!opgehaald.bewaard) return;
+      await legStemVast(admin, { profileId: id, url: profile.url, voorbeelden: opgehaald.voorbeelden, gekozen: adressen }, door);
+    });
   }
 
   return NextResponse.json({ ok: true });

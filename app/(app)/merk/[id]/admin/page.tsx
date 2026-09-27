@@ -91,7 +91,7 @@ export default async function AdminPage({
       .order("created_at", { ascending: false }),
     admin
       .from("profile_field_sources")
-      .select("field, source, confidence, evidence_url, evidence_quote")
+      .select("field, source, confidence")
       .eq("profile_id", id)
       .order("field"),
     admin.from("analyses").select("id, name").eq("profile_id", id),
@@ -141,8 +141,6 @@ export default async function AdminPage({
     field: string;
     source: string;
     confidence: number | null;
-    evidence_url: string | null;
-    evidence_quote: string | null;
   }[];
 
   // Het onderwerp-onderzoek hangt aan een cluster, niet aan het merk. Zonder
@@ -340,12 +338,6 @@ export default async function AdminPage({
                     <span className="mono-label">zekerheid {b.confidence}</span>
                   )}
                 </span>
-                {b.evidence_quote && (
-                  <span className="text-sm text-secondary">&ldquo;{b.evidence_quote}&rdquo;</span>
-                )}
-                {b.evidence_url && (
-                  <span className="mono-label break-url">{b.evidence_url}</span>
-                )}
               </li>
             ))}
           </ul>

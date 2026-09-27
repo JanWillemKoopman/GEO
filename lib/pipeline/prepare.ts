@@ -266,7 +266,6 @@ export async function generateAnalysisPrompts(
         // Gededupliceerde unie: onderwerp-specifieke concurrenten eerst, aangevuld
         // met de algemene bedrijfsconcurrenten uit het profiel.
         competitors: Array.from(new Set([...topicCompetitors, ...profile.competitors])),
-        toneOfVoice: profile.tone_of_voice,
         summary: profile.summary,
         serviceScope: profile.service_scope,
         serviceRegions: profile.service_regions,

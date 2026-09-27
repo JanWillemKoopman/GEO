@@ -434,8 +434,19 @@ async function main(): Promise<void> {
     // bescherming mag geen slot op het hele profiel worden.
     ok(
       "wat hij leeg liet vult het onderzoek wél",
-      (naOnderzoek[0].summary ?? "").includes("Amersfoort") &&
-        naOnderzoek[0].proof_points.length > 0,
+      (naOnderzoek[0].summary ?? "").includes("Amersfoort"),
+    );
+    // Sinds K8 komen de bewijspunten van het model niet meer op het profiel
+    // (niemand las ze), alleen als vermoeden in de kennislaag.
+    const { rows: bewijspunten } = await db.client.query(
+      "select status, gebruik from public.klantkennis where profile_id = $1 and soort = 'bewijspunt'",
+      [preboardId],
+    );
+    ok("de bewijspunten niet meer op het profiel", (naOnderzoek[0].proof_points ?? []).length === 0);
+    ok(
+      "maar als vermoeden in de kennislaag",
+      bewijspunten.length > 0 && bewijspunten.every((r) => r.status === "afgeleid" && r.gebruik === "intern"),
+      JSON.stringify(bewijspunten),
     );
     ok("en het profiel staat op klaar", naOnderzoek[0].status === "klaar");
 
@@ -5030,7 +5041,7 @@ async function main(): Promise<void> {
         profileId: marktclaimProfileId,
         factId: gapMetClaim,
         answer: "Wij zijn de snelste van de regio en reageren sneller dan elke concurrent.",
-        existingProofPoints: [], gebruikerId: userId,
+        gebruikerId: userId,
       });
       ok(
         "een gapvraag met een superlatief levert needsEvidence op",
@@ -5047,7 +5058,7 @@ async function main(): Promise<void> {
         profileId: marktclaimProfileId,
         factId: gapZonderClaim,
         answer: "1998",
-        existingProofPoints: [], gebruikerId: userId,
+        gebruikerId: userId,
       });
       ok(
         "een gapvraag met een gewoon antwoord levert geen needsEvidence op",
@@ -5064,7 +5075,7 @@ async function main(): Promise<void> {
         profileId: marktclaimProfileId,
         factId: clusterMetClaim,
         answer: "Omdat wij marktleider zijn in de regio.",
-        existingProofPoints: await proofPointsVan(marktclaimProfileId), gebruikerId: userId,
+        gebruikerId: userId,
       });
       ok(
         "een clustervraag met een superlatief levert óók needsEvidence op",
@@ -5086,17 +5097,23 @@ async function main(): Promise<void> {
         profileId: marktclaimProfileId,
         factId: clusterZonderClaim,
         answer: "Al 25 jaar.",
-        existingProofPoints: await proofPointsVan(marktclaimProfileId), gebruikerId: userId,
+        gebruikerId: userId,
       });
       ok(
-        "een clustervraag met een gewoon antwoord komt wél in proof_points",
+        "een clustervraag met een gewoon antwoord levert geen needsEvidence op",
         uitkomst4.ok && uitkomst4.outcome.needsEvidence === false,
       );
-      const puntenNaVier = await proofPointsVan(marktclaimProfileId);
+      // Sinds K8 gaat geen antwoord meer naar proof_points (niemand las ze);
+      // het antwoord staat verklaard in de kennislaag, en zo bereikt het de schrijver.
+      ok("en komt niet meer in proof_points (K8)", (await proofPointsVan(marktclaimProfileId)).length === 0);
+      const { rows: kennisVier } = await db.client.query(
+        "select status, bewering from public.klantkennis where profile_id = $1 and herkomst_tabel = 'fact_requests' and herkomst_id = $2",
+        [marktclaimProfileId, clusterZonderClaim],
+      );
       ok(
-        "het proof point staat er echt, met de vraag en het antwoord erbij",
-        puntenNaVier.length === 1 && puntenNaVier[0].includes("Al 25 jaar."),
-        puntenNaVier.join(" | "),
+        "maar staat verklaard in de kennislaag, met vraag en antwoord",
+        kennisVier.length === 1 && kennisVier[0].status === "verklaard" && String(kennisVier[0].bewering).includes("Al 25 jaar."),
+        JSON.stringify(kennisVier),
       );
 
       async function proofPointsVan(profileId: string): Promise<string[]> {
@@ -5142,7 +5159,7 @@ async function main(): Promise<void> {
         profileId,
         factId: vragen[0].id as string,
         answer: lang,
-        existingProofPoints: (voor[0]?.proof_points as string[] | null) ?? [], gebruikerId: userId,
+        gebruikerId: userId,
       });
       ok("het antwoord wordt opgeslagen", uitkomst.ok);
       const { rows: na } = await db.client.query(
@@ -5561,7 +5578,7 @@ async function main(): Promise<void> {
       ok("de ontwerppagina heeft de open vraag en één gerichte vraag", vragenOntwerp.length === 2);
       const openVraag = vragenOntwerp.find((v) => v.open_vraag).id as string;
       const gericht = vragenOntwerp.find((v) => !v.open_vraag).id as string;
-      await answerFact(admin as never, { profileId: merk, factId: openVraag, answer: "We tekenen altijd met de klant samen aan de keukentafel.", existingProofPoints: [], gebruikerId: userId });
+      await answerFact(admin as never, { profileId: merk, factId: openVraag, answer: "We tekenen altijd met de klant samen aan de keukentafel.", gebruikerId: userId });
       await probeerNaAntwoord(admin as never, openVraag);
       ok("een antwoord met nog één open vraag: geen schrijftaak", await geenSchrijftaak());
 
@@ -8767,7 +8784,7 @@ async function main(): Promise<void> {
       );
       const vraagId = (begin: string) => vragen.find((v: { question: string }) => v.question.startsWith(begin))!.id as string;
       const antwoord = (factId: string, answer: string) =>
-        answerFact(shim, { profileId: merk, factId, answer, existingProofPoints: [], gebruikerId: userId });
+        answerFact(shim, { profileId: merk, factId, answer, gebruikerId: userId });
 
       await antwoord(vraagId("Hoe ziet"), "We rijden eerst op een rustig industrieterrein.");
       await antwoord(vraagId("Wat wil je"), "Onze oudste instructeur geeft al dertig jaar les en kent elke rotonde in Eindhoven.");
@@ -9384,6 +9401,83 @@ async function main(): Promise<void> {
       ok("scenario 26: niet van toepassing wijst af wat er stond, door wie het aanvinkte", t.afgewezen === 1 && onderscheid.length === 1 && onderscheid[0].afgewezen_door === userId, JSON.stringify({ t, onderscheid }));
       a = (await laadSchrijfbasis(shim, stuk))?.blokken.bedrijf ?? "";
       ok("scenario 26: en de schrijver krijgt het niet meer", !a.includes("binnen een uur"), a);
+    }
+
+    // ── Scenario 27: stemvoorbeelden en merkdossier in de kennislaag (K8 deel 1) ──
+    //
+    // Twee plekken schreven klantkennis tot K8 alleen in de oude tabel. De tekst
+    // van een stemvoorbeeld wordt waargenomen, een nieuwe tekst op hetzelfde
+    // adres een nieuwe versie, een weggehaald adres afgewezen door de mens. Een
+    // feit uit een aangeleverd document wordt verklaard met de zin als citaat,
+    // en een latere wijziging van dat antwoord een nieuwe versie van dat item.
+    console.log("\nScenario 27: stemvoorbeelden en merkdossier in de kennislaag (K8)");
+    {
+      const { legStemVast } = await import("@/lib/kennis/uit-stem");
+      const { legDocumentVast } = await import("@/lib/kennis/uit-gesprek");
+      const { answerFact } = await import("@/lib/facts");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Stem Test', 'https://stem.nl', 'Stem Test', 'klaar')`,
+        [merk, userId],
+      );
+      const mens = { actor: "mens", gebruikerId: userId } as const;
+      const stemItems = async () =>
+        (
+          await db.client.query(
+            `select id, bron_url, bewering, status, vastgelegd_door_taak, afgewezen_door, vervangen_door from public.klantkennis where profile_id = $1 and soort = 'stemvoorbeeld' order by vastgelegd_op`,
+            [merk],
+          )
+        ).rows;
+      const a = "https://stem.nl/over-ons";
+      const b = "https://stem.nl/werkwijze";
+      await legStemVast(shim, { profileId: merk, url: "https://stem.nl", voorbeelden: [{ url: a, tekst: "Wij zijn een familiebedrijf." }, { url: b, tekst: "Eerst kijken, dan pas prijzen." }], gekozen: [a, b] }, mens);
+      let rijen = await stemItems();
+      ok(
+        "scenario 27: twee stemvoorbeelden, waargenomen, vastgelegd door de code",
+        rijen.length === 2 && rijen.every((r) => r.status === "waargenomen" && r.vastgelegd_door_taak === "stemvoorbeelden"),
+        JSON.stringify(rijen),
+      );
+      await legStemVast(shim, { profileId: merk, url: "https://stem.nl", voorbeelden: [{ url: a, tekst: "Wij zijn al dertig jaar een familiebedrijf." }], gekozen: [a] }, mens);
+      rijen = await stemItems();
+      const actueel = rijen.filter((r) => !r.vervangen_door && !r.afgewezen_door);
+      ok("scenario 27: een nieuwe tekst op hetzelfde adres wordt een nieuwe versie", rijen.some((r) => r.bron_url === a && r.vervangen_door) && actueel.some((r) => r.bron_url === a && String(r.bewering).includes("dertig")), JSON.stringify(rijen));
+      ok("scenario 27: een weggehaald adres wijst de mens af", rijen.some((r) => r.bron_url === b && r.afgewezen_door === userId), JSON.stringify(rijen));
+      eqc("scenario 27: er is één actueel stemvoorbeeld", String(actueel.length), "1");
+      await legStemVast(shim, { profileId: merk, url: "https://stem.nl", voorbeelden: [{ url: a, tekst: "Wij zijn al dertig jaar een familiebedrijf." }], gekozen: [a] }, mens);
+      eqc("scenario 27: nog eens opslaan verandert niets", String((await stemItems()).length), String(rijen.length));
+
+      const vraag = randomUUID();
+      const documentId = randomUUID();
+      await db.client.query(
+        `insert into public.brand_documents (id, profile_id, body, content_hash, chars) values ($1, $2, 'Een proefles kost € 45.', 'hash-k8', 23)`,
+        [documentId, merk],
+      );
+      await db.client.query(
+        `insert into public.fact_requests (id, profile_id, question, reason, answer, status, scope, raw_json) values ($1, $2, 'Wat kost een proefles?', 'test', '€ 45', 'beantwoord', 'merk', $3::jsonb)`,
+        [vraag, merk, JSON.stringify({ bron: "merkdossier" })],
+      );
+      await legDocumentVast(shim, { profileId: merk, documentId, feiten: [{ vraagId: vraag, question: "Wat kost een proefles?", answer: "€ 45", zin: "Een proefles kost € 45.", verlooptOp: "2027-03-27" }] }, mens);
+      const { rows: doc } = await db.client.query(
+        `select id, status, bron, citaat, herkomst_tabel, herkomst_id, vastgelegd_door, verloopt_op::text as verloopt_op from public.klantkennis where profile_id = $1 and bron = 'document'`,
+        [merk],
+      );
+      ok(
+        "scenario 27: het documentfeit is verklaard, met de zin als citaat en het document als herkomst",
+        doc.length === 1 && doc[0].status === "verklaard" && doc[0].citaat === "Een proefles kost € 45." && doc[0].herkomst_tabel === "brand_documents" && doc[0].herkomst_id === documentId && doc[0].vastgelegd_door === userId,
+        JSON.stringify(doc),
+      );
+      ok("scenario 27: en verloopt zoals het document het zei", String(doc[0]?.verloopt_op).startsWith("2027-03-27"), String(doc[0]?.verloopt_op));
+      await answerFact(shim, { profileId: merk, factId: vraag, answer: "€ 50", gebruikerId: userId });
+      const { rows: na } = await db.client.query(
+        `select bewering, bron, vervangen_door from public.klantkennis where profile_id = $1 and (herkomst_tabel = 'fact_requests' or bron = 'document') order by vastgelegd_op`,
+        [merk],
+      );
+      ok(
+        "scenario 27: een gewijzigd antwoord wordt een nieuwe versie van het documentfeit",
+        na.length === 2 && na[0].bron === "document" && na[0].vervangen_door && na[1].bron === "klant" && String(na[1].bewering).includes("€ 50"),
+        JSON.stringify(na),
+      );
     }
 
     __setTestAdminClient(null);
