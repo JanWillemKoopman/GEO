@@ -52,9 +52,11 @@ import {
   commercieleWaardeVan,
   geldtVoorVan,
   MAX_CONCURRENTEN,
+  isConcurrent,
   type MetingVoorBewijs,
   type KennisVoorKans,
 } from "@/lib/kansen/rapport";
+import { kennisgatVan, kennisgatZin, behoeftenVoor, hoortBijKans, BEHOEFTE_LABEL, type KennisVoorGat, type KansVoorGat } from "@/lib/kansen/kennisgat";
 import {
   maakTerugvulplan,
   dekking,
@@ -22381,6 +22383,14 @@ group("kansen: het rapport maakt kansen (N2)", () => {
   eq("hooguit een handvol concurrenten", String(veel[0]?.concurrenten?.length), String(MAX_CONCURRENTEN));
   eq("zonder doelvragen geen bewijs", String(bewijsUitMetingen([], [m("a", "p1", "openai", false)]).length), "0");
 
+  // ── Wie telt als concurrent ──
+  const v = (rol: string | null, mentioned = true, is_own_brand = false) => isConcurrent({ is_own_brand, mentioned, mention_role: rol });
+  eq(
+    "aanbevolen telt, terloops niet, niet genoemd niet, het eigen merk niet, zonder rol wel",
+    [v("eerste_aanbeveling"), v("een_van_meerdere"), v("zijdelings"), v("een_van_meerdere", false), v("eerste_aanbeveling", true, true), v(null)].join(","),
+    "true,true,false,false,false,true",
+  );
+
   // ── Commerciële waarde ──
   const waarde = (diensten: string[], voorrang: string[], minder: string[]) => String(commercieleWaardeVan({ diensten, voorrang, minder }));
   eq("een dienst met voorrang", waarde(["Rijles automaat"], ["rijles  automaat"], []), "voorrang");
@@ -22438,4 +22448,75 @@ group("kansen: één schrijfingang (N2)", () => {
     .filter((p) => schrijft(leesBestand(p)));
   eq("niemand buiten lib/kansen/ schrijft in kansen of kans_bewijs", buiten.join(", "), "");
   ok("en lib/kansen/uit-rapport.ts wél", schrijft(leesBestand("lib/kansen/uit-rapport.ts")));
+});
+
+group("kansen: het kennisgat per kans (N6)", () => {
+  const nu = new Date("2026-09-26T12:00:00Z");
+  let n = 0;
+  const item = (extra: Partial<KennisVoorGat>): KennisVoorGat => ({
+    id: `k${++n}`,
+    domein: "aanbod",
+    soort: null,
+    bewering: "Iets",
+    status: "verklaard",
+    bron: "klant",
+    gebruik: "content",
+    vastgelegd_door: "u1",
+    geldt_voor: [],
+    analysis_id: null,
+    content_piece_id: null,
+    ...extra,
+  });
+  const kans: KansVoorGat = { analysisId: "a1", geldtVoor: ["dienst-rijles"], paginaIds: ["v1", "v2"], paginaSoort: "landing" };
+
+  // ── Wat een pagina nodig heeft ──
+  eq("een dienstpagina heeft alles nodig", behoeftenVoor("landing").join(","), "werkwijze,prijs,termijn,voorbeeld,voor_wie_niet,bewijs");
+  eq("een artikel geen prijs of termijn", behoeftenVoor("article").join(","), "werkwijze,voorbeeld,bewijs");
+  eq("een onbekend soort telt als dienstpagina, zodat een gat niet stil verdwijnt", behoeftenVoor(null).join(","), behoeftenVoor("landing").join(","));
+  ok("elke behoefte heeft een label", behoeftenVoor("landing").every((b) => BEHOEFTE_LABEL[b].length > 0));
+
+  // ── Wanneer een item bij de kans hoort ──
+  ok("merkbreed hoort altijd", hoortBijKans(item({}), kans));
+  ok("een ander cluster niet", !hoortBijKans(item({ analysis_id: "a2" }), kans));
+  ok("hetzelfde cluster wel", hoortBijKans(item({ analysis_id: "a1" }), kans));
+  ok("een andere dienst niet", !hoortBijKans(item({ geldt_voor: ["dienst-motor"] }), kans));
+  ok("dezelfde dienst wel", hoortBijKans(item({ geldt_voor: ["dienst-rijles"] }), kans));
+  ok("een andere pagina niet (B3)", !hoortBijKans(item({ analysis_id: "a1", content_piece_id: "ander" }), kans));
+  ok("een oudere versie van de pagina wel (gevonden in K5)", hoortBijKans(item({ analysis_id: "a1", content_piece_id: "v1" }), kans));
+
+  // ── De standen ──
+  const leeg = kennisgatVan(kans, [], nu);
+  eq("zonder kennis ontbreekt alles", leeg.ontbreekt.join(","), "werkwijze,prijs,termijn,voorbeeld,voor_wie_niet,bewijs");
+  const kennis = [
+    item({ soort: "werkwijze", bewering: "Eerst een intake." }),
+    item({ soort: "prijs", status: "afgeleid", bron: "ai", gebruik: "intern", vastgelegd_door: null, vastgelegd_door_taak: "profile_offering", geldt_voor: ["dienst-rijles"] }),
+    item({ soort: "prijs", bewering: "€ 60", geldt_voor: ["dienst-motor"] }),
+    item({ domein: "verhaal", soort: "eigen verhaal", analysis_id: "a1", content_piece_id: "v1" }),
+    item({ domein: "bewijs", soort: "cijfer", status: "waargenomen", bron: "website", citaat: "93 procent", bron_url: "https://x.nl", vastgelegd_door: null, vastgelegd_door_taak: "kennis_terugvullen" }),
+    item({ soort: "termijn", afgewezen_op: "2026-09-20T00:00:00Z" }),
+  ];
+  const gat = kennisgatVan(kans, kennis, nu);
+  eq(
+    "per behoefte: bekend, alleen een vermoeden, of niets",
+    gat.perBehoefte.map((b) => `${b.behoefte}:${b.stand}`).join(" "),
+    "werkwijze:bekend prijs:afgeleid termijn:onbekend voorbeeld:bekend voor_wie_niet:onbekend bewijs:bekend",
+  );
+  eq("een vermoeden telt als ontbrekend: het mag niet op de pagina", gat.ontbreekt.join(","), "prijs,termijn,voor_wie_niet");
+  eq("bekend zijn precies de items die op de pagina mogen", gat.bekend.join(","), [kennis[0]!.id, kennis[3]!.id, kennis[4]!.id].join(","));
+  ok("een afgewezen item vult niets", gat.perBehoefte.find((b) => b.behoefte === "termijn")?.ids.length === 0);
+  ok("de prijs van een andere dienst vult deze prijs niet", !gat.perBehoefte.find((b) => b.behoefte === "prijs")?.ids.includes(kennis[2]!.id));
+  const verlopen = kennisgatVan(kans, [item({ soort: "werkwijze", verloopt_op: "2026-01-01" })], nu);
+  eq("een verlopen item is niet meer bekend", verlopen.perBehoefte[0]?.stand ?? "", "onbekend");
+
+  // ── De zin voor de consultant ──
+  eq("de zin", String(kennisgatZin(["prijs", "termijn", "voor_wie_niet"])), "Nog niet bekend: een prijsindicatie, een termijn en voor wie het niet is.");
+  eq("één ding", String(kennisgatZin(["bewijs"])), "Nog niet bekend: bewijs.");
+  eq("niets ontbreekt", String(kennisgatZin([])), "Alles wat deze pagina nodig heeft, weten we al.");
+  eq("niet uitgerekend: geen zin (conventie 3)", String(kennisgatZin(null)), "null");
+
+  // ── Zonder model, en alleen de consultant ziet het ──
+  const bron = leesBestand("lib/kansen/kennisgat.ts");
+  ok("geen model bepaalt wat ontbreekt", !/openai|callStructured|server-only/.test(bron.split("\n").filter((r) => r.startsWith("import")).join("\n")));
+  ok("het plan geeft het kennisgat alleen aan de consultant", leesBestand("app/(app)/merk/[id]/strategie/plan/page.tsx").includes("kennisgat={staff ? bundle.kennisgat : undefined}"));
+  ok("de voorraad werkt het bij bij elke synchronisatie", leesBestand("lib/plan-backlog-data.ts").includes("await werkKennisgatBij(admin, profileId);"));
 });

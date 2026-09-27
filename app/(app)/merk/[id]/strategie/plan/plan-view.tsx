@@ -1,5 +1,6 @@
 "use client";
 
+import { kennisgatZin } from "@/lib/kansen/kennisgat";
 import { STAND_CHIP, streefzin, heeftEigenScherm, type PaginaStandSleutel, type StandToon } from "@/lib/pagina-stand";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -113,7 +114,10 @@ export function PlanView({
   topics,
   staff,
   standen = {},
+  kennisgat,
 }: {
+  /** N6: per kans wat nog ontbreekt. Alleen gevuld voor de consultant. */
+  kennisgat?: Record<string, string[] | null>;
   /**
    * De ene stand per plan-pagina (`lib/pagina-stand.ts`, 23 september 2026).
    * Het plan toonde tot die dag zijn eigen labels ("Tekst klaar voor akkoord"),
@@ -654,6 +658,7 @@ export function PlanView({
                   <BacklogRij
                     key={item.id}
                     item={item}
+                    gat={gatZin(kennisgat, item.kansId ?? null)}
                     maanden={maandKeuzes}
                     busy={busy === item.id}
                     open={uitgeklapt[item.id] ?? false}
@@ -912,6 +917,7 @@ export function PlanView({
                         <PageRij
                           key={page.id}
                           page={page}
+                          gat={page.status === "gepland" ? gatZin(kennisgat, page.kans_id ?? null) : null}
                           profileId={profileId}
                           // Alleen een link als het paginascherm iets toevoegt
                           // (`heeftEigenScherm()`): een voorbereidende pagina
@@ -1335,6 +1341,7 @@ function MenuScheiding() {
 /** Eén kans in de voorraad: titel, herkomst en cijfer, meer niet. */
 function BacklogRij({
   item,
+  gat,
   maanden,
   busy,
   open,
@@ -1345,6 +1352,8 @@ function BacklogRij({
   onVerwijder,
 }: {
   item: BacklogItem;
+  /** N6: "Nog niet bekend: ...", alleen voor de consultant. */
+  gat: string | null;
   maanden: MaandKeuze[];
   busy: boolean;
   open: boolean;
@@ -1405,6 +1414,7 @@ function BacklogRij({
               </span>
             )}
             {uitleg && <p className="text-xs text-secondary" style={{ lineHeight: 1.5 }}>{uitleg}</p>}
+            {gat && <p className="text-xs text-muted" style={{ lineHeight: 1.5 }}>{gat}</p>}
           </div>
         )}
       </div>
@@ -1476,6 +1486,7 @@ function Segment({
  */
 function PageRij({
   page,
+  gat,
   profileId,
   href,
   funnel,
@@ -1501,6 +1512,8 @@ function PageRij({
   /** De ene stand van deze pagina, of null als die (nog) niet bekend is. */
   stand: RijStand | null;
   page: PlannedPage;
+  /** N6: "Nog niet bekend: ...", alleen voor de consultant en zolang de pagina nog gepland is. */
+  gat: string | null;
   profileId: string;
   /** Het paginascherm van deze regel (sinds 23 september 2026 altijd gevuld). */
   href: string | null;
@@ -1593,6 +1606,7 @@ function PageRij({
             {eigenBlokkade.text}
           </span>
         )}
+        {gat && <span className="text-xs text-muted">{gat}</span>}
       </div>
 
       {/* De datum is bij een geplande regel de snelle weg naar het verzetten
@@ -1768,6 +1782,12 @@ export interface RijStand {
  * van de maand worden klaargezet, en geschreven wordt er pas als die gedaan zijn.
  * De dialoog zegt dat vooraf, met de streefdatum voor de antwoorden.
  */
+/** N6: de zin over het kennisgat van een kaart, of null als er niets te tonen is. */
+function gatZin(kennisgat: Record<string, string[] | null> | undefined, kansId: string | null): string | null {
+  if (!kennisgat || !kansId || !(kansId in kennisgat)) return null;
+  return kennisgatZin(kennisgat[kansId] ?? null);
+}
+
 function vrijgeefTekst(paginas: PlannedPage[]): string {
   const n = paginas.length;
   const zonderOnderwerp = paginas.filter((p) => !p.topic_id).length;

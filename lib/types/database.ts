@@ -117,6 +117,8 @@ export interface PlannedPage {
   /** Migratie 0067: de gebruiker koos deze datum zelf, dus herplannen laat hem staan. */
   scheduled_manual: boolean;
   content_piece_id: string | null;
+  /** De kans waar deze kaart uit komt (migratie 0119, N2). */
+  kans_id?: string | null;
   posted_at: string | null;
   posted_url: string | null;
   /** Besluit 8: zowel de eigenaar als de klant mag plaatsen, en we leggen vast wie. */

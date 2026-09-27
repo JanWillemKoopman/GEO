@@ -149,6 +149,9 @@ export default async function PlanPage({
             topics={bundle.topics}
             staff={staff}
             standen={standen}
+            // N6: wat we voor een pagina nog niet weten is werk voor de
+            // consultant (hij stelt de vragen), niet iets om de klant mee te belasten.
+            kennisgat={staff ? bundle.kennisgat : undefined}
           />
         ) : modus === "kalender" ? (
           <PlanCalendarView

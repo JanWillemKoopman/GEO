@@ -586,6 +586,18 @@ Per werkpakket: **doel**, **wat**, **niet**, **klaar als**. De nummers zijn vast
   praktijk, voor wie niet), in code, als uitgangspunt.
 - **Niet:** een model dat bepaalt wat er ontbreekt.
 - **Klaar als:** eenheidstests; op een proefmerk ziet de consultant bij elke kans wat er ontbreekt.
+- **Bijgesteld bij het bouwen (26 september 2026):**
+  - *Bekend is wat op de pagina mag* (`magInBlokA()`, dezelfde regel als blok A in K6); een vermoeden van
+    het model telt als ontbrekend, met de stand "afgeleid", zodat A1 er een bevestigingsvraag van kan maken.
+  - *De lijst per soort pagina:* een dienstpagina heeft werkwijze, prijsindicatie, termijn, een voorbeeld uit
+    de praktijk, voor wie het niet is en bewijs nodig; een vergelijking werkwijze, prijs, voor wie niet en
+    bewijs; een artikel of veelgestelde vragen werkwijze, voorbeeld en bewijs. "Voor wie het niet is" bestaat
+    nog bij geen enkel merk als kennis, en staat dus overal als ontbrekend.
+  - *Alle versies van een pagina* (zelfde cluster en titel) tellen mee voor kennis die voor één pagina
+    geldt. Dat lost voor het kennisgat de notitie "Gevonden in K5" bij K6 op; K6 kan dezelfde koppeling
+    gebruiken (`werkKennisgatBij()` in `lib/kansen/uit-rapport.ts`).
+  - *Waar de consultant het ziet:* op de kaarten van het plan, onder de titel van een geplande pagina en in
+    de uitgeklapte voorraadkaart. Alleen voor de consultant: vragen stellen is zijn werk (V6).
 
 #### N7 Het kansenscherm
 - **Doel:** de voorraad van het plan wordt een lijst kansen met hun onderbouwing.
@@ -852,11 +864,11 @@ per pagina opnieuw.
 | K7 | Het kennisoverzicht | 2 | Open | |
 | K8 | Oude schrijvers en lezers opruimen | 1 | Open | |
 | N1 | Datamodel en prioritering van kansen | 1 | Gedaan: migratie 0118 op productie (`kansen` en `kans_bewijs`, leeg; de regels op productie nagelopen met proefrijen die daarna weer weg zijn: een verbetering zonder adres, een onbekende status of bron, een potentie boven 100, meer keer genoemd dan gemeten en een tweede rij voor dezelfde bron worden geweigerd). `lib/kansen/prioriteit.ts`: de volgorde in vier lagen en de uitleg uit het bewijs, zonder model. Eenheidstests voor de volgorde, voor de uitleg bij alle 64 combinaties van bronnen (steunend en zonder gegevens, bij beide handelingen) en het voorbeeld uit het plan letterlijk. Geen ketenscenario: er schrijft nog niemand in de tabellen (N2) | 26 september 2026 |
-| N2 | Het rapport maakt kansen | 1 | Gedaan: `lib/kansen/rapport.ts` (aanbeveling naar kans, bewijs per bron met de meerderheidsregel van het rapport, commerciële waarde, dienst en regio uit de kennislaag) en `uit-rapport.ts` (de enige schrijver, gooit nooit). `generateReport()` en, als vangnet, `syncBacklog()` maken de kansen; de voorraad leest uit `kansen`, en elke kaart krijgt `kans_id` (migratie 0119 op productie). De opdracht van het rapport spreekt zichzelf niet meer tegen over het aantal. Ketenscenario 23 (meting, kans, voorraad, en een kaart van vóór N2 die zijn kans terugvindt). Op productie vooraf nagelopen: alle 20 kaarten vinden hun aanbeveling terug, met dezelfde titel en handeling. **Nog te doen na de uitrol:** het plan van elk proefmerk één keer openen en nakijken dat er 20 kansen staan en elke kaart er een heeft | 26 september 2026 |
+| N2 | Het rapport maakt kansen | 1 | Gedaan: `lib/kansen/rapport.ts` (aanbeveling naar kans, bewijs per bron met de meerderheidsregel van het rapport, commerciële waarde, dienst en regio uit de kennislaag) en `uit-rapport.ts` (de enige schrijver, gooit nooit). `generateReport()` en, als vangnet, `syncBacklog()` maken de kansen; de voorraad leest uit `kansen`, en elke kaart krijgt `kans_id` (migratie 0119 op productie). De opdracht van het rapport spreekt zichzelf niet meer tegen over het aantal. Ketenscenario 23 (meting, kans, voorraad, en een kaart van vóór N2 die zijn kans terugvindt). Op productie vooraf nagelopen: alle 20 kaarten vinden hun aanbeveling terug, met dezelfde titel en handeling. Na de uitrol (PR #168) op productie nagelopen: het plan van de drie proefmerken geopend, 20 kansen met 38 rijen bewijs, alle 20 kaarten gekoppeld, geen afwijkende titel of sleutel; het bewijs van een kans met de hand nageteld tegen de meting (gelijk). Daarbij gevonden: een terloops genoemde naam (het CBR) telde als concurrent. Gerepareerd met `isConcurrent()` en `BEWIJS_REGEL` 2; bestaand bewijs van een open kans wordt één keer opnieuw geteld | 26 september 2026 |
 | N3 | Search Console als kansbron | 1 | Open, wacht op een merk met Search Console | |
 | N4 | Citaties als bewijs | 1 | Open | |
 | N5 | De handmatige kans | 1 | Open | |
-| N6 | Het kennisgat per kans | 1 | Open | |
+| N6 | Het kennisgat per kans | 1 | Gebouwd: `lib/kansen/kennisgat.ts` (vaste lijst per soort pagina, per behoefte bekend, afgeleid of onbekend, zonder model) en `werkKennisgatBij()` (alle versies van een pagina, bij elke synchronisatie en na het rapport). Het plan toont de consultant per kaart "Nog niet bekend: ...". Eenheidstests en ketenscenario 23 (een antwoord van de klant verkleint het gat, een vermoeden niet, een verhaal bij een oudere versie telt mee). **Nog na te lopen op productie** na de uitrol: het plan van een proefmerk openen en per kaart de zin nakijken | 26 september 2026 |
 | N7 | Het kansenscherm | 2 | Open | |
 | G1 | De gebeurtenissenlaag | 1 | Open | |
 | G2 | Afhankelijkheden vastleggen | 1 | Open | |

@@ -75,6 +75,8 @@ export interface BacklogItem {
    * buffer nergens meer past.
    */
   reden: "uitgehaald" | "buiten_bereik" | null;
+  /** De kans achter deze kaart (N2), voor het kennisgat op het scherm (N6). */
+  kansId?: string | null;
 }
 
 export interface BacklogFilters {
