@@ -14,6 +14,7 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { alleRijen } from "@/lib/supabase/pagineer";
+import { naarActueleVersies } from "@/lib/kennis/versies";
 import { kiesVoorBlokA, type KennisVoorBlokA, type KeuzeVoorBlokA } from "@/lib/kennis/blok-a";
 import { blokkadesVan, type Blokkade, type BlokkadeConflict, type BlokkadeKennis } from "@/lib/kennis/betwist";
 
@@ -80,7 +81,13 @@ export async function kennisVoor(admin: SupabaseClient, pagina: PaginaSleutel, n
   let kansGeldtVoor: string[] | null = null;
   if (kansIds.length > 0) {
     const { data: kansen } = await admin.from("kansen").select("geldt_voor").in("id", kansIds);
-    const lijst = [...new Set(((kansen ?? []) as { geldt_voor: string[] | null }[]).flatMap((k) => k.geldt_voor ?? []))];
+    // Via de actuele versie: kreeg de dienst een nieuwe naam, dan wijst de kans
+    // nog naar de oude (K8 deel 4, `naarActueleVersies()`).
+    const lijst = await naarActueleVersies(
+      admin,
+      pagina.profileId,
+      [...new Set(((kansen ?? []) as { geldt_voor: string[] | null }[]).flatMap((k) => k.geldt_voor ?? []))],
+    );
     // Een kans zonder dienst (een onderwerp zonder aanbodknoop): dan zoals zonder kans.
     kansGeldtVoor = lijst.length > 0 ? lijst : null;
   }

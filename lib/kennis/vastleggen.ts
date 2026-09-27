@@ -380,6 +380,7 @@ export async function vervang(
   if (oudFout) {
     return { ok: false, fout: `De oude versie laten verwijzen mislukte: ${oudFout.message}. De nieuwe rij ${nieuw.id} staat zonder sleutel.` };
   }
+  await verwijzingenNaarNieuw(admin, args.profileId, oud.id, nieuw.id);
 
   if (gebouwd.sleutel) {
     const { data: metSl, error: slFout } = await admin
@@ -398,6 +399,28 @@ export async function vervang(
   }
   await zetBotsingen(admin, nieuw);
   return { ok: true, item: nieuw };
+}
+
+/**
+ * Wat naar de oude versie verwees (`geldt_voor`: een prijs onder een dienst,
+ * een doelgroep onder een knoop), verwijst voortaan naar de nieuwe. Gevonden in
+ * K8 deel 4: zonder dit viel een prijs na het hernoemen van zijn dienst stil
+ * uit blok A, omdat hij naar een versie wees die niet meer meetelt. Alleen
+ * actuele items; een oude versie houdt zijn verwijzing, zodat na te gaan blijft
+ * wat er gold.
+ */
+async function verwijzingenNaarNieuw(admin: Admin, profileId: string, oudId: string, nieuwId: string): Promise<void> {
+  const { data } = await admin
+    .from("klantkennis")
+    .select("id, geldt_voor")
+    .eq("profile_id", profileId)
+    .contains("geldt_voor", [oudId])
+    .is("vervangen_door", null);
+  for (const r of (data ?? []) as { id: string; geldt_voor: string[] }[]) {
+    const geldtVoor = [...new Set(r.geldt_voor.map((g) => (g === oudId ? nieuwId : g)))];
+    const { error } = await admin.from("klantkennis").update({ geldt_voor: geldtVoor, updated_at: new Date().toISOString() }).eq("id", r.id);
+    if (error) console.warn(`Verwijzing naar de nieuwe versie ${nieuwId} bijwerken mislukt voor item ${r.id}: ${error.message}`);
+  }
 }
 
 /**

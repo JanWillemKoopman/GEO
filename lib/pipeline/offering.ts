@@ -38,6 +38,7 @@ import { quoteConfidence } from "@/lib/pipeline/quote-check";
 import { isAdviesCitaat } from "@/lib/pipeline/aanbod-citaat";
 import { kennisUitAanbod, kennisUitMerkonderzoek } from "@/lib/kennis/onderzoek";
 import { legOnderzoekVast, legOnderzoeksveldenVast } from "@/lib/kennis/uit-onderzoek";
+import { bewaarAanbodboom, hangKnoopOnder } from "@/lib/kennis/aanbodkopie";
 import {
   relinkOfferingIds,
   type LinkableNode,
@@ -393,9 +394,11 @@ async function persistTree(
 
   if (geldig.length === 0) return { nodes: [], droppedByCap, droppedByEvidence };
 
-  const { data: inserted, error } = await admin
-    .from("profile_offerings")
-    .insert(
+  // Via de kennislaag (K8 deel 4): alleen `lib/kennis/` schrijft de aanbodboom,
+  // de kopie die de onderwerpen en clusters lezen. De knopen gaan daarna als
+  // kennis in de kennislaag (K4, hieronder in `runOfferingTree()`).
+  const { rijen: inserted, error } = await bewaarAanbodboom(
+    admin,
       geldig.map((n, i) => ({
         profile_id: profileId,
         parent_id: null,
@@ -424,11 +427,10 @@ async function persistTree(
         source: "ai",
         sort_order: i,
       })),
-    )
-    .select("*");
+  );
 
   if (error || !inserted) {
-    console.error(`Aanbodboom opslaan mislukt voor profiel ${profileId}: ${error?.message}`);
+    console.error(`Aanbodboom opslaan mislukt voor profiel ${profileId}: ${error}`);
     return { nodes: [], droppedByCap, droppedByEvidence };
   }
 
@@ -443,7 +445,7 @@ async function persistTree(
       // Niet naar zichzelf wijzen: dat levert een rij op die in elke
       // boomopbouw een oneindige lus wordt.
       if (!parentId || parentId === stored[i].id) return;
-      const { error: ouderFout } = await admin.from("profile_offerings").update({ parent_id: parentId }).eq("id", stored[i].id);
+      const { error: ouderFout } = await hangKnoopOnder(admin, stored[i].id, parentId);
       // Ook in het geheugen: de kennislaag (K4) hangt het kind aan zijn ouder.
       if (!ouderFout) stored[i].parent_id = parentId;
     }),

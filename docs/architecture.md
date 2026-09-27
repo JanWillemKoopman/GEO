@@ -378,13 +378,17 @@ hoe het in de code zit.
   bevestigd eerst, alleen wat voor deze dienst en deze pagina geldt, niets wat op een open conflict
   staat), het kennisgat van een kans (`lib/kansen/kennisgat.ts`) en het kennisoverzicht onder Admin
   (`/merk/[id]/admin/kennis`, alleen medewerkers, besluit V6 en V11).
-- **Vijf bewakingstests** in `scripts/test-unit.ts`: niemand buiten `lib/kennis/` schrijft in
+- **Zes bewakingstests** in `scripts/test-unit.ts`: niemand buiten `lib/kennis/` schrijft in
   `klantkennis`; verklaard en bevestigd alleen van de toegestane routes, ook via een omweg; geen code
   noemt een kolom die de inventaris op "niet meer gebruiken" zette; niemand schrijft of leest nog
   `brand_facts` (behalve het terugvullen); en niemand buiten `lib/kennis/` schrijft een kennisveld op
-  `profiles`.
-- **Wat nog dubbel is.** De aanbodboom (`profile_offerings`): de aanbodstap en het bewerkscherm schrijven
-  de tabel, de onderwerpen en clusters lezen hem. K8 deel 4 van het plan maakt ook die een kopie.
+  `profiles` of een rij in `profile_offerings`.
+- **De aanbodboom** (`profile_offerings`) is dezelfde soort kopie: alleen `lib/kennis/aanbodkopie.ts` (het
+  onderzoek) en `lib/kennis/uit-aanbod.ts` (een mens op het bewerkscherm) schrijven hem, telkens samen met de
+  kennis; de onderwerpen, clusters en de reputatiemodule lezen hem.
+- **Een nieuwe versie** (`vervang()`) neemt de verwijzingen mee: wat in `geldt_voor` naar de oude versie
+  wees, wijst naar de nieuwe. Een kans wijst nog naar de oude; blok A en het kennisgat volgen de keten
+  (`naarActueleVersies()` in `lib/kennis/versies.ts`).
 
 **De Sales-module (migraties `0068` tot en met `0073`, plus `0081`).** Zestien tabellen die de klantomgeving nergens raken. Ze staan
 bewust apart in deze tabel: een klant mag nooit kunnen zien dat hij ooit als prospect in het systeem
