@@ -18,10 +18,34 @@ export interface KennisConflictWeergave {
  * gegeven in de kennis over het bedrijf. De consultant kiest welke klopt, of
  * geen van beide. Schrijven gaat via de API-route (conventie 6).
  */
-export function KennisConflictLijst({ profileId, conflicten }: { profileId: string; conflicten: KennisConflictWeergave[] }) {
+export function KennisConflictLijst({
+  profileId,
+  conflicten,
+  nogIndelen,
+}: {
+  profileId: string;
+  conflicten: KennisConflictWeergave[];
+  /** Sitefeiten die nog geen soort hebben, en dus nog niet op tegenspraak zijn nagelopen. */
+  nogIndelen: number;
+}) {
   const router = useRouter();
   const [bezig, setBezig] = useState<string | null>(null);
   const [probleem, setProbleem] = useState<UserFacingError | null>(null);
+  const [gestart, setGestart] = useState(false);
+
+  async function nalopen() {
+    setProbleem(null);
+    try {
+      const res = await fetch(`/api/profiles/${profileId}/fact-conflicts`, { method: "POST" });
+      if (!res.ok) {
+        setProbleem(problemFromResponse(await res.json().catch(() => null)));
+        return;
+      }
+      setGestart(true);
+    } catch (err) {
+      setProbleem(networkProblem(err));
+    }
+  }
 
   async function kies(conflictId: string, body: Record<string, unknown>) {
     setBezig(conflictId);
@@ -44,15 +68,27 @@ export function KennisConflictLijst({ profileId, conflicten }: { profileId: stri
     }
   }
 
-  if (conflicten.length === 0) return null;
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-base font-medium">In de kennis over het bedrijf</h2>
-      <p className="text-sm text-secondary">
-        Twee versies van hetzelfde gegeven. Zolang je niet kiest, gaat geen van beide naar de schrijver. Wat je kiest, telt als
-        bevestigd door de klant; het andere wordt afgewezen.
-      </p>
       {probleem && <ErrorNotice error={probleem} />}
+      <div className="card flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-secondary">
+          {nogIndelen > 0
+            ? `${nogIndelen} feiten van de site zijn nog niet nagelopen op tegenspraak.`
+            : "Alle feiten van de site zijn nagelopen op tegenspraak."}
+        </p>
+        <button type="button" className="btn-outline btn-sm" onClick={nalopen} disabled={gestart}>
+          {gestart ? "Wordt nagelopen" : "Opnieuw nalopen"}
+        </button>
+      </div>
+      {conflicten.length === 0 ? (
+        <p className="text-sm text-muted">Er staat geen tegenstrijdig gegeven open.</p>
+      ) : (
+        <p className="text-sm text-secondary">
+          Kies welke versie klopt. Zolang je niet kiest, gaat geen van beide naar de schrijver. Wat je kiest, telt als
+          bevestigd door de klant; het andere wordt afgewezen.
+        </p>
+      )}
       <ul className="flex flex-col gap-3">
         {conflicten.map((c) => (
           <li key={c.id} className="card flex flex-col gap-3">

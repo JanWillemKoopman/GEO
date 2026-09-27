@@ -36,7 +36,7 @@ import {
 } from "@/lib/pipeline/measure";
 import { generateReport } from "@/lib/pipeline/report";
 import { profileCompetitors } from "@/lib/pipeline/competitor-intel";
-import { werkRegisterBij } from "@/lib/pipeline/feitenregister";
+import { deelKennisIn } from "@/lib/kennis/indelen";
 import { runAuditForProfile } from "@/lib/audit/store";
 import { planImpactMeasurements, computeImpact } from "@/lib/pipeline/impact";
 import { verifyPublication } from "@/lib/pipeline/publish";
@@ -703,15 +703,11 @@ const handlers: { [T in JobType]: Handler<T> } = {
     await generateReport(job.analysis_id, payload.weekNo);
   },
 
-  // ── Het feitenregister van één merk (WP2) ─────────────────────────────────
+  // ── Sitefeiten indelen in de kennislaag (WP2, sinds K8 deel 2) ────────────
+  // De naam `fact_register` bleef: de wachtrij en de taaklijsten kennen hem.
   fact_register: async ({ admin, job }) => {
     if (!job.profile_id) throw new Error("fact_register zonder profile_id.");
-    const u = await werkRegisterBij(admin, job.profile_id);
-    console.log(
-      `Feitenregister ${job.profile_id}: ${u.ingedeeld} feiten ingedeeld, ${u.kandidaten} kandidaat-paren, ` +
-        `${u.beoordeeld} beoordeeld, ${u.echteConflicten} echte conflicten, ` +
-        `${u.automatischOpgelost} vanzelf opgelost (klant vóór site).`,
-    );
+    await deelKennisIn(admin, job.profile_id);
   },
 
   // ── De contentketen (docs/tasks/contentketen-opnieuw.md §7.4) ────────────

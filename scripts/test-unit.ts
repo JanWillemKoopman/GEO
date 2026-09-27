@@ -79,6 +79,7 @@ import {
   doorVoor,
   ONDERZOEK_TAKEN,
 } from "@/lib/kennis/onderzoek";
+import { moetIngedeeld, indelingVoorKennis } from "@/lib/kennis/indeling";
 import {
   GESPREKSVELDEN,
   kennisUitAntwoord,
@@ -21360,24 +21361,22 @@ group("het kennisoverzicht: indeling, knoppen en toegang (K7)", () => {
   ok("de route controleert dat vóór hij iets leest", route.indexOf("isStaff(user.id)") < route.indexOf("await handelOpOverzicht("));
 });
 
-group("tegenstrijdigheden houden kennis bij de schrijver weg (K7)", () => {
-  const k = (id: string, extra: Record<string, unknown> = {}) => ({ id, herkomst_tabel: "brand_facts", herkomst_id: `f-${id}`, ...extra });
-  const kennis = [k("a"), k("b"), k("c"), k("d"), k("e"), k("x", { herkomst_tabel: "fact_requests" }), k("y", { herkomst_tabel: "fact_requests" }), k("z", { herkomst_tabel: "fact_requests", afgewezen_op: "2026-09-27" })];
+group("tegenstrijdigheden houden kennis bij de schrijver weg (K7, sinds K8 deel 2 alleen botsingen)", () => {
+  const k = (id: string, extra: Record<string, unknown> = {}) => ({ id, ...extra });
+  const kennis = [k("x"), k("y"), k("z", { afgewezen_op: "2026-09-27" }), k("p"), k("q"), k("r"), k("s")];
   const conflicten = [
-    { status: "open", echt_conflict: true, feit_ids: ["f-a"], kennis_ids: null },
-    { status: "opgelost", echt_conflict: true, feit_ids: ["f-b"], kennis_ids: null },
-    { status: "gevraagd", echt_conflict: true, feit_ids: ["f-c"], kennis_ids: null },
-    { status: "open", echt_conflict: false, feit_ids: ["f-d"], kennis_ids: null },
-    { status: "open", echt_conflict: true, feit_ids: [], kennis_ids: ["x", "y"] },
-    { status: "open", echt_conflict: true, feit_ids: [], kennis_ids: ["x", "z"] },
+    { status: "open", echt_conflict: true, kennis_ids: ["x", "y"] },
+    { status: "open", echt_conflict: true, kennis_ids: ["x", "z"] },
+    { status: "opgelost", echt_conflict: true, kennis_ids: ["p", "q"] },
+    { status: "open", echt_conflict: false, kennis_ids: ["r", "s"] },
+    { status: "open", echt_conflict: true, kennis_ids: null },
   ];
-  const feiten = [{ id: "f-d", stand: "vervangen" }, { id: "f-e", stand: "betwist" }, { id: "f-b", stand: "bevestigd" }];
-  const b = blokkadesVan(kennis, conflicten, feiten);
-  eq("open en gevraagd conflict tegen, opgelost en geen-conflict niet", [..."abcd"].map((i) => b.get(i) ?? "-").join(","), "conflict,-,conflict,vervangen");
-  eq("een betwist feit zonder conflictrij ook tegen (vangnet)", b.get("e") ?? "-", "betwist");
+  const b = blokkadesVan(kennis, conflicten);
   eq("een botsing tussen twee actuele kennisitems houdt beide tegen", `${b.get("x")}/${b.get("y")}`, "conflict/conflict");
-  const zonderY = blokkadesVan([k("x", { herkomst_tabel: null }), k("y", { herkomst_tabel: null, afgewezen_op: "2026-09-27" })], [conflicten[4]!], []);
+  eq("een opgeloste botsing en een geen-conflict niet", [..."pqrs"].map((i) => b.get(i) ?? "-").join(","), "-,-,-,-");
+  const zonderY = blokkadesVan([k("x"), k("y", { afgewezen_op: "2026-09-27" })], [conflicten[0]!]);
   eq("wees de consultant er een af, dan houdt de botsing niets meer tegen", String(zonderY.size), "0");
+  ok("de blokkade leest het oude feitenregister niet meer", !/brand_facts/.test(codeZonderCommentaar(leesBestand("lib/kennis/voor-pagina.ts") + leesBestand("lib/kennis/betwist.ts"))));
 
   const nu = new Date("2026-09-27T12:00:00Z");
   const item = (id: string, bewering: string): KennisVoorBlokA => ({
@@ -21892,12 +21891,8 @@ group("de kennislaag: afwijzen (K2, migratie 0117)", () => {
   ok("afwijzen eist een mens", sql.includes("klantkennis_afgewezen_door_mens_check"));
   ok("de conflictlijst kent de kennislaag", sql.includes("add column if not exists kennis_ids uuid[]"));
   ok("geen drop table en geen drop column", !/drop\s+(table|column)/i.test(sql));
-  for (const [pad, naam] of [
-    ["app/(app)/merk/[id]/admin/feiten/page.tsx", "het feitenscherm"],
-    ["lib/pipeline/feitenregister.ts", "het feitenregister"],
-  ] as const) {
-    ok(`${naam} ziet alleen conflicten tussen feiten`, leesBestand(pad).includes('.is("kennis_ids", null)'));
-  }
+  // Sinds K8 deel 2 toont het feitenscherm alleen nog botsingen in de kennislaag.
+  ok("het feitenscherm ziet alleen botsingen in de kennislaag (K8 deel 2)", leesBestand("app/(app)/merk/[id]/admin/feiten/page.tsx").includes('.not("kennis_ids", "is", null)'));
   // Sinds K7 staan de botsingen tussen kennisitems op hetzelfde conflictscherm,
   // dus de teller op het beheerscherm telt ze mee.
   ok("de teller op het beheerscherm telt ook de botsingen in de kennis (K7)", !leesBestand("app/(app)/merk/[id]/admin/page.tsx").includes('.is("kennis_ids", null)'));
@@ -22100,12 +22095,12 @@ group("de aanbodboom als kennis (K4)", () => {
 });
 
 group("de samenvatting, de markt en de kennistest als kennis (K4)", () => {
-  const feiten = kennisUitSynthese([
-    { id: "f1", text: "De praktijk zit in Amersfoort.", sourceUrl: "https://x.nl/over", quote: "Wij zitten in Amersfoort." },
-    { id: "f2", text: "Zonder citaat.", sourceUrl: "https://x.nl", quote: " " },
+  const feiten = kennisUitSynthese("facet-1", [
+    { text: "De praktijk zit in Amersfoort.", sourceUrl: "https://x.nl/over", quote: "Wij zitten in Amersfoort." },
+    { text: "Zonder citaat.", sourceUrl: "https://x.nl", quote: " " },
   ]);
   eq("een sitefeit met gevonden citaat is waargenomen, met citaat", `${feiten[0]?.status}/${feiten[0]?.citaat}/${feiten[0]?.bronUrl}`, "waargenomen/Wij zitten in Amersfoort./https://x.nl/over");
-  eq("en verwijst naar de oude rij", `${feiten[0]?.herkomst.tabel}/${feiten[0]?.herkomst.id}`, "brand_facts/f1");
+  eq("en verwijst naar het verslag van de samenvatting (sinds K8 deel 2)", `${feiten[0]?.herkomst.tabel}/${feiten[0]?.herkomst.id}`, "profile_facets/facet-1");
   eq("zonder citaat geen item", String(feiten.length), "1");
   eq("een sitefeit mag op een pagina", feiten[0]?.gebruik ?? "", "content");
   eq("elk feit haalt de regels van legVast()", onderzoekFouten(feiten, "profile_synthesis").join(" | "), "");
@@ -22257,7 +22252,7 @@ group("het gesprek en de antwoorden schrijven via de schrijfingang (K5)", () => 
   const strategie = leesBestand("app/api/profiles/[id]/strategy/route.ts");
   ok("het gesprek legt zijn aantekeningen vast", strategie.includes("await legGesprekVast("));
   ok("en de namen en plaatsen die het aan het profiel toevoegt", strategie.includes("await legProfielVast("));
-  ok("de keuze bij een tegenstrijdigheid wordt vastgelegd", leesBestand("app/api/profiles/[id]/fact-conflicts/route.ts").includes("await legConflictkeuzeVast("));
+  ok("de keuze bij een tegenstrijdigheid gaat via de kennislaag (K8 deel 2)", leesBestand("app/api/profiles/[id]/fact-conflicts/route.ts").includes("await losKennisconflictOp("));
   const schrijver = leesBestand("lib/kennis/uit-gesprek.ts");
   ok("de schrijver gooit geen fout naar het opslaan", !/\bthrow\b/.test(schrijver));
   ok("en doet geen AI-aanroep (§4 regel 1)", !/lib\/openai|callStructured|responses\.create/.test(schrijver + leesBestand("lib/kennis/gesprek.ts")));
@@ -22827,3 +22822,46 @@ group("K8: de stemvoorbeelden en het merkdossier schrijven in de kennislaag", ()
   ok("de stemmodule gooit geen fout", !/\bthrow\b/.test(stem));
   ok("en zet nooit verklaard of bevestigd", !/["'`](verklaard|bevestigd)["'`]/.test(stem));
 });
+
+group("K8 deel 2: sitefeiten worden ingedeeld in de kennislaag, niemand schrijft nog in brand_facts", () => {
+  const basis = { soort: null, bron: "website", status: "waargenomen", herkomst_tabel: "profile_facets", vervangen_door: null, afgewezen_op: null } as const;
+  ok("een sitefeit zonder soort moet ingedeeld", moetIngedeeld(basis));
+  ok("een feit uit het terugvullen ook", moetIngedeeld({ ...basis, herkomst_tabel: "brand_facts" }));
+  ok("maar niet als het al een soort heeft", !moetIngedeeld({ ...basis, soort: "prijs" }));
+  ok("niet een antwoord van de klant", !moetIngedeeld({ ...basis, bron: "klant", status: "verklaard", herkomst_tabel: "fact_requests" }));
+  ok("niet een vermoeden", !moetIngedeeld({ ...basis, status: "afgeleid" }));
+  ok("niet wat een mens afwees", !moetIngedeeld({ ...basis, afgewezen_op: "2026-09-27" }));
+  ok("niet een oude versie", !moetIngedeeld({ ...basis, vervangen_door: "x" }));
+
+  const aanbod = [{ kennisId: "k1", naam: "Intake op kantoor" }, { kennisId: "k2", naam: "Intake in de auto" }, { kennisId: "k3", naam: "Rijles" }];
+  const prijs = indelingVoorKennis({ soort: "prijs", waarde: { min: 50, max: 50, eenheid: "EUR" }, geldtVoor: "intake op kantoor", bewijskracht: "gewoon" }, aanbod);
+  eq("een prijs voor een product hangt aan dat product", prijs.geldtVoor.join(","), "k1");
+  eq("met het domein uit de soort, zoals het terugvullen", prijs.domein, "aanbod");
+  ok("de uitvoer van het model gaat mee in ruw", JSON.stringify(prijs.ruw).includes("intake op kantoor"));
+  eq("een naam die bij geen product hoort, blijft merkbreed", indelingVoorKennis({ soort: "termijn", waarde: null, geldtVoor: "levertijd", bewijskracht: "gewoon" }, aanbod).geldtVoor.length.toString(), "0");
+  eq("een werkgebied is identiteit", indelingVoorKennis({ soort: "werkgebied", waarde: null, geldtVoor: null, bewijskracht: "geen" }, aanbod).domein, "identiteit");
+  eq("een keurmerk is bewijs", indelingVoorKennis({ soort: "certificering", waarde: null, geldtVoor: null, bewijskracht: "sterk" }, aanbod).domein, "bewijs");
+
+  const vastleggen = leesBestand("lib/kennis/vastleggen.ts");
+  ok("deelIn() deelt alleen een item zonder soort in", /export async function deelIn[\s\S]{0,900}if \(item\.soort\) return/.test(vastleggen));
+  ok("en zoekt daarna naar botsingen", /export async function deelIn[\s\S]*await zetBotsingen\(admin, data as Klantkennis\)/.test(vastleggen));
+  ok("de taak fact_register deelt de kennislaag in", leesBestand("lib/jobs/handlers.ts").includes("await deelKennisIn(admin, job.profile_id)"));
+  ok("het model dat elk paar beoordeelde is weg (V14)", !existsSync("lib/pipeline/conflict-judge.ts") && !existsSync("lib/pipeline/feitenregister.ts"));
+
+  /** Schrijft deze code in `brand_facts`, met de Supabase-client of met SQL? */
+  const schrijftInFeiten = (inhoud: string) =>
+    /from\(\s*["'`]brand_facts["'`]\s*\)\s*\.\s*(insert|update|upsert|delete)\s*\(/.test(inhoud) ||
+    /\b(insert\s+into|update|delete\s+from)\s+(public\.)?brand_facts\b/i.test(inhoud);
+  ok("zelftest: een insert wordt herkend", schrijftInFeiten('admin.from("brand_facts").insert(rijen)'));
+  ok("zelftest: lezen is geen schrijven", !schrijftInFeiten('admin.from("brand_facts").select("*")'));
+  const schrijvers = codebestanden()
+    .filter((p) => !p.startsWith("scripts/test-") && !p.startsWith("scripts/chain/"))
+    .filter((p) => schrijftInFeiten(codeZonderCommentaar(leesBestand(p))));
+  eq("niemand schrijft nog in brand_facts", schrijvers.join(", "), "");
+  const lezers = codebestanden()
+    .filter((p) => !p.startsWith("scripts/test-") && !p.startsWith("scripts/chain/"))
+    .filter((p) => !OUDE_KOLOM_UITZONDERINGEN.some((u) => u.pad === p))
+    .filter((p) => /from\(\s*["'`]brand_facts["'`]\s*\)/.test(codeZonderCommentaar(leesBestand(p))));
+  eq("en alleen het terugvullen leest de tabel nog", lezers.join(", "), "");
+});
+

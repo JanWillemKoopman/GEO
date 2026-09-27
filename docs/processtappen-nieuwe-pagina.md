@@ -185,8 +185,8 @@ Waar het hieronder om bedragen en tijden gaat, zijn die gemeten op de proef van 
     gemeten cluster hangt. Een pagina zonder cluster wordt niet voorbereid, en het plan zegt waarom.
 58. Voor elke pagina zet het systeem meteen één open vraag klaar: "Wat wil je zelf vertellen op de
     pagina ...?", met uitleg en voorbeelden. Die vraag maakt code, geen AI, zodat hij er altijd is.
-59. Het systeem werkt het feitenregister van het merk bij, zodat een feit waarover twee versies bestaan
-    niet naar de schrijver gaat.
+59. Het systeem deelt de nieuwe feiten van de site in, zodat een gegeven waarover twee versies bestaan
+    niet naar de schrijver gaat tot de consultant kiest.
 60. Per pagina volgt de content brief, en de pagina's van één maand na elkaar, zodat elke brief de
     vragen van de vorige ziet. De brief doet onderzoek op het web: wat de bezoeker zoekt, wat hij
     verder wil weten, wat goede pagina's over dit onderwerp doen en laten liggen, vakkennis met bron,

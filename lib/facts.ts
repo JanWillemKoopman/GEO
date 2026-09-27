@@ -25,7 +25,6 @@ import "server-only";
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { beoordeelClaim, marktclaimUitleg } from "@/lib/pipeline/claim-plausibility";
-import { claimKey, factFromAnswer } from "@/lib/pipeline/factcard";
 import type { FactRequest } from "@/lib/types/database";
 import { legAntwoordVast } from "@/lib/kennis/uit-gesprek";
 import type { BronVraag } from "@/lib/kennis/terugvullen";
@@ -104,36 +103,10 @@ export async function answerFact(
 
   // ── Een bestaand antwoord wijzigen (potloodje op "Openstaande vragen") ────
   //
-  // De kennislaag kreeg hierboven al een nieuwe versie van het antwoord. Wat NIET vanzelf
-  // meegaat is het oude feit dat al met een IDENTITEIT in `brand_facts` staat
-  // (migratie 0036): dat feit is opgeslagen onder de ontdubbelsleutel van het
-  // OUDE antwoord (`claimKey()` neemt de antwoordtekst mee), dus een nieuw
-  // antwoord krijgt gewoon een NIEUWE sleutel en het oude feit blijft "actueel"
-  // staan naast het nieuwe. Zonder dit vlaggen ziet de eerstvolgende feitenkaart
-  // dus zowel het oude als het nieuwe antwoord, en mag het model kiezen, precies
-  // de tegenspraak die `fact-merge.ts` juist zichtbaar moet maken in plaats van
-  // stilzwijgend laten voortbestaan.
-  if (fact.status === "beantwoord" && fact.answer !== null && fact.answer !== input.answer) {
-    const oud = factFromAnswer({ ...fact, answer_type: fact.answer_type ?? "tekst" });
-    const oudeSleutel = oud ? claimKey(oud.text) : "";
-    if (oudeSleutel) {
-      const { data: verouderd } = await admin
-        .from("brand_facts")
-        .select("id")
-        .eq("profile_id", input.profileId)
-        .is("analysis_id", null)
-        .eq("fact_key", oudeSleutel)
-        .is("superseded_by", null);
-      // Wijst voorlopig naar zichzelf, dezelfde onschuldige truc als
-      // `factstore.ts` gebruikt: dat maakt de unieke index (profiel, sleutel)
-      // vrij zonder de rij te verwijderen, zodat een al geschreven pagina die
-      // ernaar verwijst na te trekken blijft. Tot K8 deel 2 houdt dit de oude
-      // feitentabel gelijk met de kennislaag.
-      for (const rij of verouderd ?? []) {
-        await admin.from("brand_facts").update({ superseded_by: rij.id as string }).eq("id", rij.id as string);
-      }
-    }
-  }
+  // De kennislaag kreeg hierboven een nieuwe versie van het antwoord, en de
+  // oude blijft bewaard met een verwijzing ernaar. Tot K8 deel 2 moest hier ook
+  // het oude feit in `brand_facts` op "vervangen"; die tabel schrijft niemand
+  // meer.
 
   // ── Niet alle klantinput is gelijk (werkpakket A §3.4) ───────────────────
   //
