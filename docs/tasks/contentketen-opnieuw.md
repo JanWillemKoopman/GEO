@@ -557,6 +557,7 @@ Algemene infrastructuur, geen contentlogica:
 | Verboden tekens, metalengtes | `stripProseDashes` in `lib/pipeline/dash-guard.ts`, `heelMetatitel` en `heelMetabeschrijving` in `lib/pipeline/metatitel.ts` |
 | Gestructureerde gegevens, export naar de site | `lib/pipeline/structured-data.ts`, `lib/pipeline/content-export.ts` |
 | Blok A uit de kennislaag (B20) | `kennisVoor()` in `lib/kennis/voor-pagina.ts`, `blokAUitKennis()` en `kiesVoorBlokA()` in `lib/kennis/blok-a.ts` |
+| Afhankelijkheden vastleggen (G2) | `legAfhankelijkhedenVast()` in `lib/afhankelijkheden/vastleggen.ts` |
 
 Een test in `test-unit.ts` leest alle bestanden in `lib/pagina/` en faalt bij een import die niet op
 deze lijst staat.

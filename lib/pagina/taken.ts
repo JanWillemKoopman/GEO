@@ -36,6 +36,7 @@ import {
 } from "@/lib/pagina/controle-regels";
 import { herschrijfInvoer, schrijfInvoer, type PaginaUitvoer } from "@/lib/pagina/schrijfopdracht";
 import { gerepareerd, laadSchrijfbasis, schrijfOpties, tekstKolommen, type Schrijfbasis } from "@/lib/pagina/schrijven";
+import { legAfhankelijkhedenVast } from "@/lib/afhankelijkheden/vastleggen";
 import { planBriefs, probeerTeSchrijven } from "@/lib/pagina/start";
 
 type Admin = SupabaseClient;
@@ -221,6 +222,13 @@ export async function voerSchrijvenUit(admin: Admin, job: Job, payload: Achtergr
     .update({ ...kolommen, status: "draft" })
     .eq("id", payload.pieceId);
   if (error) throw new Error(`Tekst van ${payload.pieceId} bewaren mislukte: ${error.message}`);
+  // G2: waar deze pagina op leunt, uit dezelfde kennis die de schrijver kreeg (C3).
+  await legAfhankelijkhedenVast(admin, {
+    profileId: basis.pagina.profileId,
+    vanTabel: "content_pieces",
+    vanId: payload.pieceId,
+    kennisIds: kolommen.gebruikte_kennis as string[],
+  });
   await planControle(admin, basis);
 }
 
@@ -355,6 +363,12 @@ export async function voerHerschrijvenUit(admin: Admin, job: Job, payload: Achte
   if (behouden === "nieuw") {
     const { error } = await admin.from("content_pieces").update(kolommen).eq("id", payload.pieceId);
     if (error) throw new Error(`Herschreven tekst van ${payload.pieceId} bewaren mislukte: ${error.message}`);
+    await legAfhankelijkhedenVast(admin, {
+      profileId: basis.pagina.profileId,
+      vanTabel: "content_pieces",
+      vanId: payload.pieceId,
+      kennisIds: kolommen.gebruikte_kennis as string[],
+    });
   }
   const volledigVorige = volledigeControletekst(body, metaBeschrijving, faq.map((f) => f.a));
   const volledigBlijft = behouden === "nieuw" ? volledigNieuw : volledigVorige;
@@ -441,6 +455,12 @@ async function nieuweVersie(
     throw new Error(`Nieuwe versie van ${oudId} bewaren mislukte: ${error?.message}`);
   }
   const nieuwId = (nieuw as { id: string }).id;
+  await legAfhankelijkhedenVast(admin, {
+    profileId: basis.pagina.profileId,
+    vanTabel: "content_pieces",
+    vanId: nieuwId,
+    kennisIds: (kolommen.gebruikte_kennis as string[] | undefined) ?? [],
+  });
   await admin.from("planned_pages").update({ content_piece_id: nieuwId, status: "ter_goedkeuring" }).eq("content_piece_id", oudId);
   const { data: vragen } = await admin.from("fact_requests").select("id, content_piece_ids").contains("content_piece_ids", [oudId]);
   for (const v of (vragen ?? []) as { id: string; content_piece_ids: string[] }[]) {

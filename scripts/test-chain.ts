@@ -10208,6 +10208,73 @@ async function main(): Promise<void> {
       eqc("scenario 36: en staat na opslaan op de rij", ([...(opgeslagen[0]?.gebruikte_kennis ?? [])] as string[]).sort().join(","), verwachteIds.join(","));
     }
 
+    // ── Scenario 37: G2, afhankelijkheden vastleggen ─────────────────────────
+    //
+    // "Wat hangt er aan deze dienst" (G2 klaar-als): een handmatige kans (N5)
+    // die op een dienst geldt, en een pagina die dezelfde dienst in blok A kreeg
+    // (C3), leunen allebei op hetzelfde kennisitem. `afhankelijkVan()` moet
+    // beide terugvinden.
+    console.log("\nScenario 37: G2, afhankelijkheden vastleggen");
+    {
+      const { legVast } = await import("@/lib/kennis/vastleggen");
+      const { voegHandmatigeKansToe } = await import("@/lib/kansen/handmatig");
+      const { legAfhankelijkhedenVast, afhankelijkVan } = await import("@/lib/afhankelijkheden/vastleggen");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      const stuk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Afhankelijkheden Test', 'https://afhankelijkheden-test.nl', 'Afhankelijkheden Test', 'klaar')`,
+        [merk, userId],
+      );
+      const dienst = await legVast(
+        shim,
+        { profileId: merk, domein: "aanbod", soort: "dienst", bewering: "Kozijnen plaatsen.", status: "waargenomen", bron: "website", bronUrl: "https://afhankelijkheden-test.nl", citaat: "Kozijnen plaatsen.", gebruik: "content", herkomst: { tabel: "profile_offerings", id: randomUUID() } } as never,
+        { actor: "code", taak: "kennis_terugvullen" } as never,
+      );
+      if (dienst.soort !== "vastgelegd") throw new Error("Testkennis geweigerd voor scenario 37.");
+      const dienstId = dienst.item.id;
+
+      const kans = await voegHandmatigeKansToe(shim, {
+        profileId: merk,
+        titel: "Kozijnen plaatsen in Bunnik",
+        lezer: "Iemand die nieuwe kozijnen wil",
+        handeling: "nieuwe_pagina",
+        bestaandeUrl: null,
+        geldtVoor: [dienstId],
+        doelvragen: [],
+        gebruikerId: userId,
+      });
+      ok("scenario 37: de handmatige kans wordt aangemaakt", kans.ok, JSON.stringify(kans));
+      const kansId = kans.ok ? kans.kansId : "";
+
+      const { rows: kansAfh } = await db.client.query(
+        "select van_id from public.afhankelijkheden where van_tabel = 'kansen' and kennis_id = $1",
+        [dienstId],
+      );
+      eqc("scenario 37: legKansenVast/handmatig legt de afhankelijkheid van de kans vast", kansAfh.map((r) => r.van_id).join(","), kansId);
+
+      // Een pagina die dezelfde dienst in blok A kreeg (zoals lib/pagina/taken.ts
+      // na tekstKolommen() doet).
+      await legAfhankelijkhedenVast(shim, { profileId: merk, vanTabel: "content_pieces", vanId: stuk, kennisIds: [dienstId] });
+
+      const hangenAan = await afhankelijkVan(shim, dienstId);
+      const gevonden = new Set(hangenAan.map((h) => `${h.vanTabel}:${h.vanId}`));
+      ok(
+        "scenario 37: 'wat hangt er aan deze dienst' vindt zowel de kans als de pagina",
+        gevonden.has(`kansen:${kansId}`) && gevonden.has(`content_pieces:${stuk}`) && hangenAan.length === 2,
+        JSON.stringify(hangenAan),
+      );
+
+      // Nog eens vastleggen (zoals een herschrijving die dezelfde kennis weer
+      // kiest) mag geen tweede rij geven: de unieke index vangt dat op.
+      await legAfhankelijkhedenVast(shim, { profileId: merk, vanTabel: "content_pieces", vanId: stuk, kennisIds: [dienstId] });
+      const { rows: nogEens } = await db.client.query(
+        "select count(*)::int as n from public.afhankelijkheden where van_tabel = 'content_pieces' and van_id = $1 and kennis_id = $2",
+        [stuk, dienstId],
+      );
+      eqc("scenario 37: nog eens vastleggen geeft geen dubbele rij", String(nogEens[0]?.n), "1");
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

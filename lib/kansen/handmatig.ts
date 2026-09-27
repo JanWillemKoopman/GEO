@@ -34,6 +34,7 @@ import { buildAnalysisName } from "@/lib/url";
 import { naarActueleVersies } from "@/lib/kennis/versies";
 import { commercieleWaardeVan } from "@/lib/kansen/rapport";
 import { uitlegVan, type KansHandeling } from "@/lib/kansen/prioriteit";
+import { legAfhankelijkhedenVast } from "@/lib/afhankelijkheden/vastleggen";
 
 type Admin = SupabaseClient;
 
@@ -155,6 +156,8 @@ export async function voegHandmatigeKansToe(
     return { ok: false, probleem: "Aanmaken is niet gelukt (kans)." };
   }
   const kansId = (kansRow as { id: string }).id;
+  // G2: waar deze kans op leunt, voor "wat hangt er aan deze dienst".
+  await legAfhankelijkhedenVast(admin, { profileId: invoer.profileId, vanTabel: "kansen", vanId: kansId, kennisIds: geldtVoor });
 
   const { error: bewijsError } = await admin
     .from("kans_bewijs")
