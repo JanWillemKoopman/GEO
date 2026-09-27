@@ -313,7 +313,7 @@ probleem dan een dollar.
 
 | Tabel | Wat het is |
 |---|---|
-| `profiles` | Klant/merk op accountniveau: website, crawlinstellingen, de koppelingen, en de kennisvelden die het formulier "merkprofiel bewerken" en het gespreksscherm tonen (naam, aliassen, branche, bereik, werkgebied, concurrenten, de commerciële laag van `0060`, stem, verhalen, grenzen). ⚠️ Sinds K8 (27 september 2026) is de kennislaag hieronder de waarheid over het bedrijf; een kennisveld op `profiles` is daarnaast nog de kopie die de meting en een deel van de pijplijn lezen, tot K8 deel 3 die kopie alleen nog door `lib/kennis/` laat schrijven (besluit V9). 35 kolommen staan op "niet meer gebruiken" (`docs/tasks/kennismodel-inventaris.md`: de auteursvelden, de stemschuiven, `usp`, missie, positionering, `proof_points`, `tone_of_voice` en meer); ze blijven staan (conventie 4), en een test in `scripts/test-unit.ts` faalt als code ze nog noemt. |
+| `profiles` | Klant/merk op accountniveau: website, crawlinstellingen, de koppelingen, en de kennisvelden die het formulier "merkprofiel bewerken" en het gespreksscherm tonen (naam, aliassen, branche, bereik, werkgebied, concurrenten, de commerciële laag van `0060`, stem, verhalen, grenzen). ⚠️ Sinds K8 (27 september 2026) is de kennislaag hieronder de waarheid over het bedrijf; een kennisveld op `profiles` is de kopie die de meting en een deel van de pijplijn lezen, en sinds K8 deel 3 schrijft alleen `lib/kennis/` die kopie (besluit V9 en V22). 35 kolommen staan op "niet meer gebruiken" (`docs/tasks/kennismodel-inventaris.md`: de auteursvelden, de stemschuiven, `usp`, missie, positionering, `proof_points`, `tone_of_voice` en meer); ze blijven staan (conventie 4), en een test in `scripts/test-unit.ts` faalt als code ze nog noemt. |
 | `profile_field_sources` | Wie zette welk veld, met welke zekerheid en op welk bewijs (`0039`). Vier herkomsten sinds `0060`: `ai`, `klant`, `gesprek` en `consultant`. Alleen `ai` mag door een volgende onderzoeksronde overschreven worden (`lib/pipeline/field-merge.ts`). `not_applicable` (`0060`) zegt dat een veld bewust niet van toepassing is, en telt in de volledigheidsmeter als behandeld. |
 | `profile_pages` | Contentinventaris uit een crawl (sitemap recursief, anders homepage-links). Productpagina's uitgesloten. Geen AI. Alle tekst gaat door `sanitizeForPostgres()` (`lib/pg-text.ts`): één NUL-byte uit één pagina laat Postgres anders de hele batch-insert weigeren, en dan verdwijnt de complete inventaris. |
 | `analyses` | Eén getrackt onderwerp onder een profiel. Status, tracking aan of uit, content-brief. `topic` verplicht en niet wijzigbaar na start. |
@@ -363,6 +363,11 @@ hoe het in de code zit.
   verwijderen: een nieuwere versie wijst met `vervangen_door` naar de oude, een afgewezen item blijft
   bewaard en komt niet stil terug. Een botsing (twee waarden voor hetzelfde) gaat op de bestaande
   conflictlijst (`fact_conflicts.kennis_ids`); de consultant kiest (besluit V14).
+- **De kopie op het merkprofiel** (besluit V9 en V22). De kennisvelden van `profiles` (`KENNISVELDEN` in
+  `lib/kennis/profielvelden.ts`) schrijft alleen `lib/kennis/profielkopie.ts`, in dezelfde handeling als
+  de kennis zelf: `slaProfielOp()` voor wat een mens invult, `legOnderzoeksveldenVast()` voor het onderzoek.
+  De meting, het rapport en de onderwerpen lezen die kopie. Wijst de consultant op het kennisoverzicht iets
+  af of past hij het aan, dan volgt de kopie (`werkKopieBij()`).
 - **Wie schrijft.** Het onderzoek (`uit-onderzoek.ts`: waargenomen waar de code het citaat
   terugvond, anders afgeleid), de indeling van sitefeiten (`indelen.ts` via `deelIn()`: soort,
   waarde en waarvoor het geldt, één keer per item), het gesprek, de antwoorden, de conflictkeuze en het merkdossier
@@ -373,13 +378,13 @@ hoe het in de code zit.
   bevestigd eerst, alleen wat voor deze dienst en deze pagina geldt, niets wat op een open conflict
   staat), het kennisgat van een kans (`lib/kansen/kennisgat.ts`) en het kennisoverzicht onder Admin
   (`/merk/[id]/admin/kennis`, alleen medewerkers, besluit V6 en V11).
-- **Vier bewakingstests** in `scripts/test-unit.ts`: niemand buiten `lib/kennis/` schrijft in
+- **Vijf bewakingstests** in `scripts/test-unit.ts`: niemand buiten `lib/kennis/` schrijft in
   `klantkennis`; verklaard en bevestigd alleen van de toegestane routes, ook via een omweg; geen code
-  noemt een kolom die de inventaris op "niet meer gebruiken" zette; en niemand schrijft of leest nog
-  `brand_facts` (behalve het terugvullen).
-- **Wat nog dubbel is.** De onderzoeksstappen en het gespreksscherm schrijven daarnaast nog `profiles`
-  en `profile_offerings`, omdat de meting, het rapport, de onderwerpen en de aanbodboom die lezen. K8
-  deel 3 van het plan maakt die kolommen een kopie die alleen `lib/kennis/` schrijft (besluit V22).
+  noemt een kolom die de inventaris op "niet meer gebruiken" zette; niemand schrijft of leest nog
+  `brand_facts` (behalve het terugvullen); en niemand buiten `lib/kennis/` schrijft een kennisveld op
+  `profiles`.
+- **Wat nog dubbel is.** De aanbodboom (`profile_offerings`): de aanbodstap en het bewerkscherm schrijven
+  de tabel, de onderwerpen en clusters lezen hem. K8 deel 4 van het plan maakt ook die een kopie.
 
 **De Sales-module (migraties `0068` tot en met `0073`, plus `0081`).** Zestien tabellen die de klantomgeving nergens raken. Ze staan
 bewust apart in deze tabel: een klant mag nooit kunnen zien dat hij ooit als prospect in het systeem

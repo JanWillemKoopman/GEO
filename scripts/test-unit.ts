@@ -80,6 +80,8 @@ import {
   ONDERZOEK_TAKEN,
 } from "@/lib/kennis/onderzoek";
 import { moetIngedeeld, indelingVoorKennis } from "@/lib/kennis/indeling";
+import { KENNISVELDEN, kopieNaHandeling } from "@/lib/kennis/profielvelden";
+import { PROFIEL_MEENEMEN } from "@/lib/kennis/terugvullen";
 import {
   GESPREKSVELDEN,
   kennisUitAntwoord,
@@ -21739,6 +21741,9 @@ const MENSELIJKE_STATUS_TOEGESTAAN = [
   // K8: feiten uit een document dat de klant zelf aanlevert, verklaard met de
   // letterlijke zin als citaat (besluit V21).
   "app/api/profiles/[id]/dossier/route.ts",
+  // K8 deel 3: wat de consultant bij het aanmaken van een merk typt, legt hij
+  // vast zoals in het gesprek (verklaard); tot K8 kwam het niet in de kennislaag.
+  "app/api/profiles/route.ts",
   "lib/facts.ts",
   "app/api/profiles/[id]/route.ts",
   "app/api/profiles/[id]/strategy/route.ts",
@@ -22128,7 +22133,7 @@ group("de onderzoeksstappen schrijven via de schrijfingang (K4)", () => {
     "lib/pipeline/llm-baseline.ts",
     "lib/pipeline/synthesis.ts",
   ]) {
-    ok(`${pad} legt zijn uitkomst vast in de kennislaag`, /await legOnderzoekVast\(/.test(leesBestand(pad)));
+    ok(`${pad} legt zijn uitkomst vast in de kennislaag`, /await legOnderzoek(sveldenVast|Vast)\(/.test(leesBestand(pad)));
   }
   const omzetting = leesBestand("lib/kennis/onderzoek.ts");
   ok("de omzetting doet geen AI-aanroep (§4 regel 1)", !/lib\/openai|callStructured|responses\.create/.test(omzetting));
@@ -22248,10 +22253,10 @@ group("het gesprek en de antwoorden schrijven via de schrijfingang (K5)", () => 
   );
   ok("met de vraag van vóór het antwoord, voor een gewijzigd antwoord", /vorige: alsBronVraag\(fact\)/.test(facts));
   ok("de route geeft door wie antwoordde", leesBestand("app/api/profiles/[id]/facts/route.ts").includes("gebruikerId: user.id"));
-  ok("het gespreksscherm legt zijn velden vast", leesBestand("app/api/profiles/[id]/route.ts").includes("await legProfielVast("));
+  ok("het gespreksscherm legt zijn velden vast (sinds K8 deel 3 samen met de kopie)", leesBestand("app/api/profiles/[id]/route.ts").includes("await slaProfielOp("));
   const strategie = leesBestand("app/api/profiles/[id]/strategy/route.ts");
   ok("het gesprek legt zijn aantekeningen vast", strategie.includes("await legGesprekVast("));
-  ok("en de namen en plaatsen die het aan het profiel toevoegt", strategie.includes("await legProfielVast("));
+  ok("en de namen en plaatsen die het aan het profiel toevoegt", strategie.includes("await slaProfielOp("));
   ok("de keuze bij een tegenstrijdigheid gaat via de kennislaag (K8 deel 2)", leesBestand("app/api/profiles/[id]/fact-conflicts/route.ts").includes("await losKennisconflictOp("));
   const schrijver = leesBestand("lib/kennis/uit-gesprek.ts");
   ok("de schrijver gooit geen fout naar het opslaan", !/\bthrow\b/.test(schrijver));
@@ -22742,6 +22747,7 @@ const OUDE_KOLOM_UITZONDERINGEN: { pad: string; reden: string }[] = [
   { pad: "lib/types/database.ts", reden: "de typen van de tabel zelf (K8 in het plan)" },
   { pad: "lib/kennis/terugvullen.ts", reden: "het terugvullen van K3 leest de oude kolommen" },
   { pad: "scripts/kennis-terugvullen.ts", reden: "idem, de uitvoering" },
+  { pad: "lib/kennis/profielvelden.ts", reden: "sluit de bewijspunten juist uit de kennisvelden uit" },
 ];
 
 group("K8: niemand leest nog een kolom met 'niet meer gebruiken'", () => {
@@ -22816,7 +22822,7 @@ group("K8: de stemvoorbeelden en het merkdossier schrijven in de kennislaag", ()
 
   const stemRoute = leesBestand("app/api/profiles/[id]/route.ts");
   ok("de profielroute legt de stemvoorbeelden vast na het ophalen", stemRoute.includes("await legStemVast("));
-  ok("maar niet als de adressen intussen veranderden", /if \(!opgehaald\.bewaard\) return;[\s\S]{0,80}legStemVast/.test(stemRoute));
+  ok("maar niet als de adressen intussen veranderden", /if \(huidig !== args\.gekozen\.join\("\|"\)\) return \{ \.\.\.telling, bewaard: false \}/.test(leesBestand("lib/kennis/uit-stem.ts")));
   ok("het merkdossier legt zijn feiten vast", leesBestand("app/api/profiles/[id]/dossier/route.ts").includes("await legDocumentVast("));
   const stem = leesBestand("lib/kennis/uit-stem.ts");
   ok("de stemmodule gooit geen fout", !/\bthrow\b/.test(stem));
@@ -22865,3 +22871,68 @@ group("K8 deel 2: sitefeiten worden ingedeeld in de kennislaag, niemand schrijft
   eq("en alleen het terugvullen leest de tabel nog", lezers.join(", "), "");
 });
 
+
+// ── K8 deel 3: alleen lib/kennis/ schrijft een kennisveld op profiles (V9, V22) ──
+
+/**
+ * De kennisvelden die dit bestand op `profiles` schrijft. Een letterlijk object
+ * wordt op sleutels gelezen; een variabele (`update(update)`) telt als schrijven
+ * van elk kennisveld dat het bestand ergens als sleutel of toewijzing noemt.
+ */
+function kennisveldenGeschreven(code: string, velden: readonly string[]): string[] {
+  const uit = new Set<string>();
+  const re = /from\(\s*["'`]profiles["'`]\s*\)\s*\.\s*(update|insert|upsert)\s*\(\s*/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(code))) {
+    const rest = code.slice(re.lastIndex);
+    if (rest.startsWith("{")) {
+      // Tot de sluitende accolade van het object.
+      let diepte = 0;
+      let eind = 0;
+      for (let i = 0; i < rest.length; i++) {
+        if (rest[i] === "{") diepte++;
+        else if (rest[i] === "}" && --diepte === 0) {
+          eind = i;
+          break;
+        }
+      }
+      const obj = rest.slice(0, eind + 1);
+      for (const v of velden) if (new RegExp(`(^|[\\s,{])${v}\\s*[:,}]`).test(obj)) uit.add(v);
+      if (/\.\.\.\s*[a-zA-Z_]/.test(obj)) uit.add("(spreiding van een variabele)");
+    } else {
+      for (const v of velden) if (new RegExp(`(\\b${v}\\s*:|\\.${v}\\s*=)`).test(code)) uit.add(v);
+    }
+  }
+  return [...uit];
+}
+
+group("K8 deel 3: alleen lib/kennis/ schrijft een kennisveld op het merkprofiel", () => {
+  eq("de kennisvelden zijn wat de inventaris meenam, zonder bewijspunten", String(KENNISVELDEN.length), String(PROFIEL_MEENEMEN.length - 1));
+  ok("met de stuurvelden van de meting (V9)", ["brand_name", "aliases", "name_exclusions", "service_scope", "service_regions", "competitors", "market_language"].every((v) => KENNISVELDEN.includes(v)));
+  ok("zelftest: een letterlijk kennisveld wordt gevonden", kennisveldenGeschreven('admin.from("profiles").update({ competitors: unie }).eq("id", id)', KENNISVELDEN).join() === "competitors");
+  ok("zelftest: een ander veld niet", kennisveldenGeschreven('admin.from("profiles").update({ status: "bezig" }).eq("id", id)', KENNISVELDEN).length === 0);
+  ok("zelftest: een variabele met een kennisveld erin wel", kennisveldenGeschreven('update.aliases = x;\nadmin.from("profiles").update(update)', KENNISVELDEN).join() === "aliases");
+  ok("zelftest: een spreiding telt als verdacht", kennisveldenGeschreven('admin.from("profiles").insert({ url, ...intake })', KENNISVELDEN).length === 1);
+
+  const buiten = codebestanden()
+    .filter((p) => !p.startsWith("lib/kennis/"))
+    .filter((p) => !p.startsWith("scripts/test-") && !p.startsWith("scripts/chain/"))
+    .flatMap((p) => kennisveldenGeschreven(codeZonderCommentaar(leesBestand(p)), KENNISVELDEN).map((v) => `${p}: ${v}`));
+  eq("niemand buiten lib/kennis/ schrijft een kennisveld op profiles", buiten.join(" | "), "");
+  const binnen = codebestanden()
+    .filter((p) => p.startsWith("lib/kennis/"))
+    .filter((p) => /from\(\s*["'`]profiles["'`]\s*\)\s*\.\s*(update|insert|upsert)\s*\(/.test(codeZonderCommentaar(leesBestand(p))));
+  eq("en binnen lib/kennis/ alleen de kopie", binnen.join(", "), "lib/kennis/profielkopie.ts");
+
+  // De kopie volgt het kennisoverzicht.
+  const profiel = { aliases: ["Fysio West", "FWMW"], competitors: ["Fysio Oost"], summary: "Een praktijk.", intake_description: "Een praktijk." };
+  const alias = { domein: "identiteit" as const, soort: "andere naam", bewering: "fysio west", herkomst_tabel: "profiles" as const };
+  eq("een afgewezen naam verdwijnt uit de lijst", JSON.stringify(kopieNaHandeling(profiel, alias, null)), JSON.stringify({ veld: "aliases", waarde: ["FWMW"] }));
+  eq("een aangepaste naam wordt vervangen", JSON.stringify(kopieNaHandeling(profiel, alias, "Fysiotherapie West")), JSON.stringify({ veld: "aliases", waarde: ["Fysiotherapie West", "FWMW"] }));
+  eq("een concurrent uit de markt ook", kopieNaHandeling(profiel, { domein: "positionering", soort: "concurrent", bewering: "Fysio Oost", herkomst_tabel: "profile_facets" }, null)?.veld ?? "-", "competitors");
+  eq("staat de tekst in twee velden, dan niets (liever achter dan verkeerd)", String(kopieNaHandeling(profiel, { domein: "identiteit", soort: "omschrijving", bewering: "Een praktijk.", herkomst_tabel: "profiles" }, null)), "null");
+  eq("staat hij nergens, dan niets", String(kopieNaHandeling(profiel, { ...alias, bewering: "Onbekend" }, null)), "null");
+  eq("een antwoord op een vraag raakt het profiel niet", String(kopieNaHandeling(profiel, { ...alias, herkomst_tabel: "fact_requests" }, null)), "null");
+  const overzicht = leesBestand("lib/kennis/uit-overzicht.ts");
+  ok("afwijzen en aanpassen op het kennisoverzicht werken de kopie bij", (overzicht.match(/await werkKopieBij\(/g) ?? []).length === 3);
+});

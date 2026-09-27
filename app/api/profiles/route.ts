@@ -9,6 +9,8 @@ import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 import { checkBudget } from "@/lib/spend-limit";
 import { resolveScope } from "@/lib/pipeline/field-merge";
 import { consultantFields } from "@/lib/profile-source";
+import { slaProfielOp } from "@/lib/kennis/uit-gesprek";
+import { GESPREKSVELDEN } from "@/lib/kennis/gesprek";
 
 /**
  * POST /api/profiles, nieuw klantprofiel aanmaken vanuit de onboarding-wizard
@@ -152,6 +154,10 @@ export async function POST(request: Request) {
     intake_audience: toTextOrNull(body.intake_audience),
   };
 
+  // Het merk zelf, en daarna wat de consultant over het bedrijf typte via de
+  // kennislaag (K8 deel 3, besluit V22): alleen `lib/kennis/` schrijft een
+  // kennisveld op `profiles`. Tot K8 kwam deze invoer niet in de kennislaag.
+  const { name: _naam, ...kennisIntake } = intake;
   const { data, error } = await admin
     .from("profiles")
     .insert({
@@ -159,7 +165,7 @@ export async function POST(request: Request) {
       account_id: accountId,
       url,
       status: "bezig",
-      ...intake,
+      name,
     })
     .select("id")
     .single();
@@ -167,6 +173,21 @@ export async function POST(request: Request) {
   if (error) {
     return NextResponse.json({ error: "Aanmaken is niet gelukt. Probeer het opnieuw." }, { status: 500 });
   }
+  const { error: intakeFout } = await slaProfielOp(
+    admin,
+    {
+      profileId: data.id as string,
+      url,
+      kolommen: kennisIntake,
+      oud: {},
+      velden: consultantFields(kennisIntake).filter((v) => (GESPREKSVELDEN as readonly string[]).includes(v)),
+      bron: "consultant",
+    },
+    { actor: "mens", gebruikerId: user.id },
+  );
+  // Bewust geen 500: het merk staat er, en een tweede poging zou op het
+  // webadres botsen. Het onderzoek vult de velden dan zelf.
+  if (intakeFout) console.error(`Intake opslaan mislukt bij het aanmaken van profiel ${data.id}: ${intakeFout}`);
 
   // ── Herkomst vastleggen bij het aanmaken (fase 2 van onboarding 3.0) ──────
   //

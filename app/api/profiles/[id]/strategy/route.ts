@@ -10,7 +10,7 @@ import {
   parseContextFactors,
 } from "@/lib/pipeline/context-factors";
 import type { ContextFactor } from "@/lib/types/database";
-import { legGesprekVast, legProfielVast } from "@/lib/kennis/uit-gesprek";
+import { legGesprekVast, slaProfielOp } from "@/lib/kennis/uit-gesprek";
 import type { BronStrategie } from "@/lib/kennis/terugvullen";
 
 /**
@@ -142,27 +142,22 @@ export async function PUT(
   );
 
   if (nieuweAliassen.length > 0 || nieuweRegios.length > 0) {
-    await admin
-      .from("profiles")
-      .update({
-        aliases: [...profile.aliases, ...nieuweAliassen],
-        service_regions: [...profile.service_regions, ...nieuweRegios],
-        // Wat een mens in het gesprek zette, mag een volgende onderzoeksronde
-        // niet overschrijven (blok C, `profile_field_sources`).
-        edited_by_user: true,
-      })
-      .eq("id", id);
-
-    // Dezelfde namen en plaatsen als verklaarde kennis, zoals een veld dat in
-    // het gesprek werd ingevuld.
-    await legProfielVast(
+    // Wat een mens in het gesprek zette, mag een volgende onderzoeksronde niet
+    // overschrijven (blok C, `profile_field_sources`). Dezelfde namen en plaatsen
+    // worden verklaarde kennis, zoals een veld dat in het gesprek werd ingevuld;
+    // de kolommen zijn de kopie die de meting leest (K8 deel 3, V22).
+    await slaProfielOp(
       admin,
       {
         profileId: id,
         url: profile.url,
-        velden: ["aliases", "service_regions"],
+        kolommen: {
+          aliases: [...profile.aliases, ...nieuweAliassen],
+          service_regions: [...profile.service_regions, ...nieuweRegios],
+          edited_by_user: true,
+        },
         oud: { aliases: profile.aliases, service_regions: profile.service_regions },
-        nieuw: { aliases: [...profile.aliases, ...nieuweAliassen], service_regions: [...profile.service_regions, ...nieuweRegios] },
+        velden: ["aliases", "service_regions"],
         bron: "gesprek",
       },
       door,

@@ -24,9 +24,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Klantkennis } from "@/lib/types/database";
 import { bevestig, legVast, metSleutel, vervang, wijsAf, type Door, type NieuwKennisItem } from "@/lib/kennis/vastleggen";
 import { isAfgewezen } from "@/lib/kennis/regels";
+import { schrijfProfiel } from "@/lib/kennis/profielkopie";
 import { type BronAanbod, type BronProfiel, type BronStrategie, type BronVraag, type PlanItem } from "@/lib/kennis/terugvullen";
 import {
   GESPREKSVELDEN,
+  zonderNietVanToepassing,
   kennisUitAntwoord,
   kennisUitGesprek,
   kennisUitProfielveld,
@@ -212,6 +214,54 @@ export async function legProfielVast(
     alle.weg.push(...w.weg);
   }
   return verwerk(admin, args.profileId, alle, door, "gesprek (profiel)");
+}
+
+/**
+ * Het merkprofiel opslaan zoals een mens het invulde (K8 deel 3, besluit V22):
+ * eerst de kolommen op `profiles`, de kopie die de meting leest, en daarna wat er
+ * veranderde als verklaarde kennis (`legProfielVast()`). De enige weg waarlangs
+ * het gespreksscherm, de wizard, de strategieroute en het aanmaken van een merk
+ * een kennisveld zetten.
+ *
+ * `velden` zijn de velden die als kennis tellen (de bewerkte velden en die op
+ * "niet van toepassing"); `kolommen` is alles wat op `profiles` moet, ook de
+ * crawlinstellingen en de boekhouding. Een mislukte kopie geeft een fout terug
+ * en schrijft dan geen kennis: dan is er niets opgeslagen, en zegt het scherm
+ * dat ook.
+ */
+export async function slaProfielOp(
+  admin: SupabaseClient,
+  args: {
+    profileId: string;
+    url: string;
+    kolommen: Record<string, unknown>;
+    oud: Partial<BronProfiel>;
+    velden: readonly string[];
+    nietVanToepassing?: readonly string[];
+    bron: VeldBron;
+    aanbod?: readonly Pick<BronAanbod, "name" | "removed_at">[];
+  },
+  door: Mens,
+): Promise<{ error: string | null }> {
+  const { error } = await schrijfProfiel(admin, args.profileId, args.kolommen);
+  if (error) return { error };
+  if (args.velden.length > 0) {
+    const nvt = args.nietVanToepassing ?? [];
+    await legProfielVast(
+      admin,
+      {
+        profileId: args.profileId,
+        url: args.url,
+        velden: args.velden,
+        oud: args.oud,
+        nieuw: zonderNietVanToepassing({ ...args.oud, ...(args.kolommen as Partial<BronProfiel>) }, nvt),
+        bron: args.bron,
+        aanbod: args.aanbod,
+      },
+      door,
+    );
+  }
+  return { error: null };
 }
 
 // ── 3. De aantekeningen en veranderingen van het gesprek ─────────────────────

@@ -33,8 +33,10 @@ import {
   TEKSTVELDEN,
   domeinVanFeit,
   planAanbod,
+  planProfielveld,
   voegToe,
   type BronAanbod,
+  type BronProfiel,
   type PlanItem,
   type VeldRegel,
 } from "@/lib/kennis/terugvullen";
@@ -46,6 +48,9 @@ export const ONDERZOEK_TAKEN = [
   "profile_market",
   "profile_llm_baseline",
   "profile_synthesis",
+  // K8 deel 3: ook deze zetten een kennisveld op het merkprofiel.
+  "offsite_scan",
+  "sales_convert",
 ] as const;
 export type OnderzoekTaak = (typeof ONDERZOEK_TAKEN)[number];
 
@@ -235,5 +240,35 @@ export function kennisUitKennistest(args: { profileId: string; voorstellen: read
       status: "afgeleid", bron: "ai", gebruik: r.gebruik, herkomst: { tabel: "profiles", id: args.profileId },
     });
   });
+  return m.items;
+}
+
+// ── 6. De scan van Wikidata en Wikipedia (`lib/offsite/scan.ts`, K8 deel 3) ───
+
+/**
+ * Het merk op Wikidata of Wikipedia: waargenomen, met het adres als bron,
+ * dezelfde omzetting als het terugvullen (K3). Tot K8 kwam een nieuwe scan
+ * alleen op het profiel.
+ */
+export function kennisUitEntiteit(profileId: string, entiteit: { wikidataId: string | null; wikipediaUrl: string | null }): PlanItem[] {
+  const m = { items: [] as PlanItem[], uitsluitingen: [] };
+  const profiel = { id: profileId, url: "", wikidata_id: entiteit.wikidataId, wikipedia_url: entiteit.wikipediaUrl };
+  const merk = { profiel, veldHerkomst: [], aanbod: [], vragen: [] };
+  planProfielveld(m, merk, "wikidata_id");
+  planProfielveld(m, merk, "wikipedia_url");
+  return m.items;
+}
+
+// ── 7. Kolommen zonder menselijke herkomst (K8 deel 3) ───────────────────────
+
+/**
+ * Kennisvelden die code zet zonder dat een mens ze zei, zoals de naam en de
+ * andere namen van een bedrijf dat uit de Sales-module een merk wordt. Dezelfde
+ * omzetting als het terugvullen van een veld zonder herkomst: afgeleid, intern.
+ */
+export function kennisUitKolommen(profileId: string, url: string, kolommen: Record<string, unknown>): PlanItem[] {
+  const m = { items: [] as PlanItem[], uitsluitingen: [] };
+  const merk = { profiel: { ...(kolommen as Partial<BronProfiel>), id: profileId, url }, veldHerkomst: [], aanbod: [], vragen: [] };
+  for (const veld of Object.keys(kolommen)) planProfielveld(m, merk, veld as keyof BronProfiel);
   return m.items;
 }

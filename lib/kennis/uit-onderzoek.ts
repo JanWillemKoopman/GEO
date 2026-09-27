@@ -21,6 +21,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { legVast } from "@/lib/kennis/vastleggen";
 import { doorVoor, type OnderzoekTaak } from "@/lib/kennis/onderzoek";
 import type { PlanItem } from "@/lib/kennis/terugvullen";
+import { schrijfProfiel } from "@/lib/kennis/profielkopie";
 
 export interface OnderzoekTelling {
   vastgelegd: number;
@@ -103,4 +104,25 @@ export async function legOnderzoekVast(
   );
   if (redenen.length > 0) console.warn(`Kennislaag ${taak} voor merk ${profileId}, geweigerd: ${redenen.slice(0, 10).join("; ")}`);
   return telling;
+}
+
+/**
+ * Een onderzoeksstap zet kennisvelden op het merkprofiel (K8 deel 3, besluit
+ * V22): eerst de kolommen, de kopie die de meting leest, dan de items in de
+ * kennislaag. De enige weg waarlangs het merkonderzoek, de aanbodboom, de markt,
+ * de kennistest en de scan van Wikidata een kennisveld zetten.
+ *
+ * Een mislukte kopie geeft een fout terug en schrijft geen kennis: de stap
+ * beslist zelf of dat hem laat mislukken (het merkonderzoek wel, de markt niet),
+ * zoals voorheen bij hun eigen schrijfactie. De kennis zelf gooit nooit.
+ */
+export async function legOnderzoeksveldenVast(
+  admin: SupabaseClient,
+  profileId: string,
+  args: { kolommen: Record<string, unknown>; items: readonly PlanItem[]; taak: OnderzoekTaak },
+): Promise<{ error: string | null; telling: OnderzoekTelling | null }> {
+  const { error } = await schrijfProfiel(admin, profileId, args.kolommen);
+  if (error) return { error, telling: null };
+  const telling = args.items.length > 0 ? await legOnderzoekVast(admin, profileId, args.items, args.taak) : null;
+  return { error: null, telling };
 }

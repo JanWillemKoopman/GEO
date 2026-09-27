@@ -11,6 +11,8 @@ import "server-only";
  * als goede bedoeling, "je zou eens naar reviewplatforms moeten kijken" is
  * geen advies, dat is een gevoel. Een taak met een status is iets wat je afvinkt.
  */
+import { legOnderzoeksveldenVast } from "@/lib/kennis/uit-onderzoek";
+import { kennisUitEntiteit } from "@/lib/kennis/onderzoek";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { computeLandscape, saveLandscape } from "@/lib/offsite/landscape";
 import { domainOf } from "@/lib/offsite/domain";
@@ -81,14 +83,17 @@ export async function runOffsiteScan(admin: Admin, analysisId: string): Promise<
     : null;
 
   if (entity && profile) {
-    await admin
-      .from("profiles")
-      .update({
+    // Via de kennislaag (K8 deel 3): de kopie op het profiel, en wat de scan
+    // vond als waarneming met het adres als bron.
+    await legOnderzoeksveldenVast(admin, profile.id, {
+      kolommen: {
         wikidata_id: entity.wikidataId,
         wikipedia_url: entity.wikipediaUrl,
         entity_checked_at: entity.checkedAt,
-      })
-      .eq("id", profile.id);
+      },
+      items: kennisUitEntiteit(profile.id, { wikidataId: entity.wikidataId, wikipediaUrl: entity.wikipediaUrl }),
+      taak: "offsite_scan",
+    });
   }
 
   // ── 7.3/7.6 — er taken van maken ──────────────────────────────────────────

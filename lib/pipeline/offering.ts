@@ -36,8 +36,8 @@ import { buildTaxonomy } from "@/lib/pipeline/inventory-quality";
 import { buildPageBlocks } from "@/lib/pipeline/page-select";
 import { quoteConfidence } from "@/lib/pipeline/quote-check";
 import { isAdviesCitaat } from "@/lib/pipeline/aanbod-citaat";
-import { kennisUitAanbod } from "@/lib/kennis/onderzoek";
-import { legOnderzoekVast } from "@/lib/kennis/uit-onderzoek";
+import { kennisUitAanbod, kennisUitMerkonderzoek } from "@/lib/kennis/onderzoek";
+import { legOnderzoekVast, legOnderzoeksveldenVast } from "@/lib/kennis/uit-onderzoek";
 import {
   relinkOfferingIds,
   type LinkableNode,
@@ -288,11 +288,15 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
   // Het bedrijfsmodel dat na de hele site bekeken te hebben uitkomt, is beter
   // onderbouwd dan het oordeel op alleen de homepage, maar een handmatig
   // gezette waarde wint nog steeds (dezelfde regel als in prepare-profile.ts).
+  //
+  // Via de kennislaag (K8 deel 3): de kopie op het profiel, en het oordeel als
+  // vermoeden van het model.
   if (!profile.business_model) {
-    await admin
-      .from("profiles")
-      .update({ business_model: tree.businessModel })
-      .eq("id", profileId);
+    await legOnderzoeksveldenVast(admin, profileId, {
+      kolommen: { business_model: tree.businessModel },
+      items: kennisUitMerkonderzoek({ profileId, model: { business_model: tree.businessModel }, geschreven: { business_model: tree.businessModel } }),
+      taak: "profile_offering",
+    });
   }
 
   await admin.from("profile_facets").upsert(

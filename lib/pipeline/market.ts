@@ -38,7 +38,7 @@ import { remainingBudgetUsd } from "@/lib/pipeline/onboarding-budget";
 import { domainOf } from "@/lib/offsite/domain";
 import { dedupeCompetitorNames } from "@/lib/pipeline/competitor-dedupe";
 import { kennisUitMarkt } from "@/lib/kennis/onderzoek";
-import { legOnderzoekVast } from "@/lib/kennis/uit-onderzoek";
+import { legOnderzoekVast, legOnderzoeksveldenVast } from "@/lib/kennis/uit-onderzoek";
 import type { Profile, ProfileOffering } from "@/lib/types/database";
 
 export const MarketResearch = z.object({
@@ -251,10 +251,14 @@ export async function researchMarket(profileId: string): Promise<MarketResult> {
   ]);
   let nieuweNamen: string[] = [];
   if (unie.length !== profile.competitors.length) {
-    const { error: namenFout } = await admin
-      .from("profiles")
-      .update({ competitors: unie })
-      .eq("id", profileId);
+    // De namen op het profiel zijn de kopie die de meting leest; alleen
+    // `lib/kennis/` schrijft hem (K8 deel 3). De namen zelf gaan hieronder als
+    // vermoeden de kennislaag in, met het verslag van de markt als herkomst.
+    const { error: namenFout } = await legOnderzoeksveldenVast(admin, profileId, {
+      kolommen: { competitors: unie },
+      items: [],
+      taak: "profile_market",
+    });
     if (!namenFout) nieuweNamen = unie.filter((n) => !profile.competitors.includes(n));
   }
 
