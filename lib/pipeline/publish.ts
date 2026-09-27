@@ -11,6 +11,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { checkPublication, type PublishCheck } from "@/lib/pipeline/publish-check";
 import { planImpactWaves } from "@/lib/pipeline/impact";
+import { koppelAdresAanMeetplan } from "@/lib/pipeline/meetplan";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import type { ContentPiece } from "@/lib/types/database";
 
@@ -68,6 +69,11 @@ export async function markPublished(
     .eq("content_piece_id", args.contentPieceId)
     .neq("status", "geplaatst");
   if (planFout) console.error(`Plan-pagina bij ${args.contentPieceId} bijwerken mislukte:`, planFout.message);
+
+  // M1: "bij publicatie komt het adres erbij" — het meetplan onthoudt daarmee
+  // ook welk adres bij welke meting hoorde, ook als de pagina later een ander
+  // adres krijgt.
+  await koppelAdresAanMeetplan(admin, args.contentPieceId, args.url);
 
   const { planned } = await planImpactWaves(admin, {
     analysisId: args.analysisId,

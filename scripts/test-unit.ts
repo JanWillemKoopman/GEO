@@ -21122,7 +21122,7 @@ group("lib/pagina importeert alleen wat op de lijst van §7.3 staat", () => {
     /^@\/lib\/types\/database$/,
     /^@\/lib\/open-questions$/,
     /^@\/lib\/schrijfregel-vangnet$/,
-    /^@\/lib\/pipeline\/(redact|existing-page-fetch|waardeproposities|dash-guard|metatitel|content-export|structured-data)$/,
+    /^@\/lib\/pipeline\/(redact|existing-page-fetch|waardeproposities|dash-guard|metatitel|content-export|structured-data|meetplan)$/,
     /^@\/lib\/schema-jsonld$/,
     /^@\/lib\/plan-(status|writing)$/,
     /^@\/lib\/kennis\/(voor-pagina|blok-a)$/,

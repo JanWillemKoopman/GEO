@@ -11,6 +11,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { allesBevestigd, faqRijen, geleZinnenNa, volledigeControletekst, type ControleJson, type FaqRij } from "@/lib/pagina/controle-regels";
 import { normaliseerVraag } from "@/lib/pagina/brief-regels";
+import { maakMeetplan } from "@/lib/pipeline/meetplan";
 
 type Admin = SupabaseClient;
 
@@ -104,5 +105,12 @@ export async function keurGoed(
     .update({ status: "goedgekeurd" })
     .eq("content_piece_id", args.pieceId)
     .in("status", ["gepland", "schrijven", "ter_goedkeuring"]);
+
+  // M1: het meetplan bevriest de doelvragen en de controlegroep op het moment
+  // van goedkeuren. Geen doelvragen gevonden is geen fout (een handmatige kans
+  // zonder gemeten cluster, V2) en houdt het goedkeuren niet tegen.
+  const meetplan = await maakMeetplan(admin, args.pieceId);
+  if (!meetplan.ok) console.warn(`Geen meetplan voor ${args.pieceId}: ${meetplan.reden}.`);
+
   return { ok: true, reviewedAt };
 }

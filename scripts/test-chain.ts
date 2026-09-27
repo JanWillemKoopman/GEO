@@ -9761,15 +9761,18 @@ async function main(): Promise<void> {
          values ($1, $2, 'Wat kost een makelaar', 'article', 'ready', 'nieuw', true, now(), 'https://zonnehof-makelaars.nl/wat-kost-een-makelaar')`,
         [stuk, cluster],
       );
+      // Sinds M1 leest planImpactMeasurements() het meetplan (bevroren bij het
+      // goedkeuren), niet meer content_piece_targets. `bronnen` bevriest welke
+      // motoren op dát moment meededen; hieronder simuleren we eerst een
+      // goedkeuring vóórdat AI Overview aanstond, en daarna eentje waarbij het
+      // wél aanstond, zonder de omgevingsvariabele zelf aan te raken.
       await db.client.query(
-        `insert into public.content_piece_targets (content_piece_id, prompt_id, prompt_text) values ($1, $2, 'Wat kost een makelaar bij het verkopen van je huis?')`,
-        [stuk, doelvraag],
+        `insert into public.meetplannen (content_piece_id, analysis_id, doelvragen, bronnen)
+         values ($1, $2, $3::jsonb, '{openai}')`,
+        [stuk, cluster, JSON.stringify([{ promptId: doelvraag, tekst: "Wat kost een makelaar bij het verkopen van je huis?" }])],
       );
 
-      // ── (1) Inplannen: met de schakelaar aan komt AI Overview erbij ───────
-      const oudSchakelaar = process.env.AI_OVERVIEW_ENABLED;
-      delete process.env.AI_OVERVIEW_ENABLED;
-      const zonderAio = await planImpactMeasurements(admin as never, { analysisId: cluster, contentPieceId: stuk, wave: 1 });
+      // ── (1) Inplannen: alleen de bronnen die het meetplan bevroor ─────────
       const taken = async () =>
         (
           await db.client.query(
@@ -9777,13 +9780,14 @@ async function main(): Promise<void> {
             [cluster, stuk],
           )
         ).rows as { type: string; payload_json: { impact?: { purpose: string; wave: number } } }[];
-      eqc("scenario 32: zonder de schakelaar alleen de ChatGPT-taak", String(zonderAio.planned), "1");
+      const zonderAio = await planImpactMeasurements(admin as never, { analysisId: cluster, contentPieceId: stuk, wave: 1 });
+      eqc("scenario 32: bevroren zonder AI Overview: alleen de ChatGPT-taak", String(zonderAio.planned), "1");
       ok("scenario 32: en geen measure_ai_overview", !(await taken()).some((t) => t.type === "measure_ai_overview"));
 
-      process.env.AI_OVERVIEW_ENABLED = "true";
       await db.client.query("delete from public.jobs where analysis_id = $1", [cluster]);
+      await db.client.query("update public.meetplannen set bronnen = '{openai,ai_overview}' where content_piece_id = $1", [stuk]);
       const metAio = await planImpactMeasurements(admin as never, { analysisId: cluster, contentPieceId: stuk, wave: 1 });
-      eqc("scenario 32: met de schakelaar aan ook de Google-taak, dezelfde golf", String(metAio.planned), "2");
+      eqc("scenario 32: bevroren mét AI Overview: ook de Google-taak, dezelfde golf", String(metAio.planned), "2");
       const beide = await taken();
       ok(
         "scenario 32: allebei met dezelfde impact-markering (pagina, golf, soort)",
@@ -9794,9 +9798,6 @@ async function main(): Promise<void> {
       );
       const nogEens = await planImpactMeasurements(admin as never, { analysisId: cluster, contentPieceId: stuk, wave: 1 });
       eqc("scenario 32: nog eens inplannen levert niets extra's op (al ingepland)", String(nogEens.planned), "0");
-
-      if (oudSchakelaar === undefined) delete process.env.AI_OVERVIEW_ENABLED;
-      else process.env.AI_OVERVIEW_ENABLED = oudSchakelaar;
 
       // ── (2) computeImpact(): de citatie over beide bronnen tegelijk ───────
       // Een periodieke meting van vóór publicatie, zodat er een eerlijke "voor"-stand is.
@@ -9866,6 +9867,119 @@ async function main(): Promise<void> {
         [stuk],
       );
       ok("scenario 32: zonder gemeten golf: onbekend (null), geen 'nee'", golf3Uitkomst[0]?.target_cited_own_page === null, JSON.stringify(golf3Uitkomst[0]));
+    }
+
+    // ── Scenario 33: M1, het meetplan vanaf het goedkeuren ───────────────────
+    //
+    // Sinds de contentketen opnieuw gebouwd is (WP1) schreef niemand meer in
+    // `content_piece_targets`: elke pagina uit de nieuwe keten had daardoor
+    // stil geen doelvragen, en de effectmeting is sindsdien nooit meer gestart.
+    // `maakMeetplan()` leest de doelvragen terug uit het rapport (dezelfde bron
+    // als `laadDoelvragen()`), bevriest de controlegroep, en legt vast welke
+    // bronnen meededen. `keurGoed()` roept hem aan; `koppelAdresAanMeetplan()`
+    // (via `markPublished()`) zet het adres erbij.
+    console.log("\nScenario 33: M1, het meetplan vanaf het goedkeuren");
+    {
+      const { maakMeetplan } = await import("@/lib/pipeline/meetplan");
+      const { markPublished } = await import("@/lib/pipeline/publish");
+      const { keurGoed } = await import("@/lib/pagina/goedkeuren");
+      const merk = randomUUID();
+      const cluster = randomUUID();
+      const stuk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Warmtehuis Techniek', 'https://warmtehuis-techniek.nl', 'Warmtehuis Techniek', 'klaar')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Warmtehuis, warmtepompen', 'https://warmtehuis-techniek.nl', 'warmtepompen', 'gereed')`,
+        [cluster, userId, merk],
+      );
+      // Twee actieve vragen: één wordt de doelvraag (via het rapport), de
+      // andere blijft over voor de controlegroep.
+      const { rows: prompts } = await db.client.query(
+        `insert into public.prompts (analysis_id, text, category, active) values
+           ($1, 'Wat kost een warmtepomp inclusief installatie?', 'Oriëntatie', true),
+           ($1, 'Welke subsidie geldt er voor een warmtepomp?', 'Oriëntatie', true)
+         returning id, text`,
+        [cluster],
+      );
+      const doelPrompt = prompts.find((p) => p.text.includes("kost"))!.id as string;
+      const { rows: run } = await db.client.query(
+        `insert into public.tracking_runs (analysis_id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, engine, week_no, purpose, mention_json)
+         values ($1, $2, 'Wat kost een warmtepomp inclusief installatie?', 'Oriëntatie', 'openai', 2, 'periodic', '{}'::jsonb) returning id`,
+        [cluster, doelPrompt],
+      );
+      const { rows: rapport } = await db.client.query(
+        `insert into public.reports (analysis_id, week_no, recommendations_json)
+         values ($1, 2, $2::jsonb) returning id`,
+        [
+          cluster,
+          JSON.stringify([
+            { title: "Maak een pagina over de prijs van een warmtepomp", targets: [{ text: "Wat kost een warmtepomp inclusief installatie?", runId: run[0].id }] },
+          ]),
+        ],
+      );
+      const sourceRef = `${rapport[0].id}#0`;
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, action, is_current, body_markdown, needs_review)
+         values ($1, $2, 'Wat kost een warmtepomp', 'article', 'ready', 'nieuw', true, 'De tekst.', false)`,
+        [stuk, cluster],
+      );
+      await db.client.query(
+        `insert into public.planned_pages (profile_id, title, content_piece_id, source_ref) values ($1, 'Wat kost een warmtepomp', $2, $3)`,
+        [merk, stuk, sourceRef],
+      );
+
+      const oudSchakelaar = process.env.AI_OVERVIEW_ENABLED;
+      delete process.env.AI_OVERVIEW_ENABLED;
+
+      const gemaakt = await maakMeetplan(admin as never, stuk);
+      ok("scenario 33: het meetplan wordt gemaakt", gemaakt.ok && !gemaakt.bestondAl, JSON.stringify(gemaakt));
+      const { rows: plan } = await db.client.query(
+        "select doelvragen, controlegroep, bronnen, adres from public.meetplannen where content_piece_id = $1",
+        [stuk],
+      );
+      ok(
+        "scenario 33: de doelvraag komt uit het rapport, met zijn prompt-id",
+        plan[0].doelvragen.length === 1 && plan[0].doelvragen[0].promptId === doelPrompt && plan[0].doelvragen[0].tekst === "Wat kost een warmtepomp inclusief installatie?",
+        JSON.stringify(plan[0].doelvragen),
+      );
+      ok("scenario 33: de andere actieve vraag wordt de bevroren controlegroep", plan[0].controlegroep.length === 1 && plan[0].controlegroep[0].promptId === prompts.find((p) => p.text.includes("subsidie"))!.id, JSON.stringify(plan[0]));
+      eqc("scenario 33: zonder de schakelaar alleen openai bevroren", plan[0].bronnen.join(","), "openai");
+      ok("scenario 33: nog geen adres vóór publicatie", plan[0].adres === null);
+
+      const nogEens = await maakMeetplan(admin as never, stuk);
+      ok("scenario 33: nog een keer maken doet niets (idempotent)", nogEens.ok && nogEens.bestondAl);
+      const { rows: aantal } = await db.client.query("select count(*)::int as n from public.meetplannen where content_piece_id = $1", [stuk]);
+      eqc("scenario 33: precies één rij", String(aantal[0].n), "1");
+
+      // keurGoed() roept maakMeetplan() zelf aan; op een pagina zonder eigen
+      // gele zinnen (needs_review al false, geen controle_json) mag dat niet
+      // struikelen over het meetplan dat er al staat.
+      const goedgekeurd = await keurGoed(admin as never, { pieceId: stuk, analysisId: cluster, userId });
+      ok("scenario 33: goedkeuren blijft werken met een bestaand meetplan", goedgekeurd.ok, JSON.stringify(goedgekeurd));
+
+      // Publiceren zet het adres op het meetplan.
+      const url = "https://warmtehuis-techniek.nl/wat-kost-een-warmtepomp";
+      await markPublished(admin as never, { analysisId: cluster, contentPieceId: stuk, url });
+      const { rows: naPublicatie } = await db.client.query(
+        "select adres, gepubliceerd_op from public.meetplannen where content_piece_id = $1",
+        [stuk],
+      );
+      ok("scenario 33: het adres staat op het meetplan na publicatie", naPublicatie[0]?.adres === url && naPublicatie[0]?.gepubliceerd_op != null, JSON.stringify(naPublicatie[0]));
+
+      // Een pagina zonder rapport/kans (bijvoorbeeld een handmatige, V2): geen
+      // meetplan, geen fout.
+      const zonderRapport = randomUUID();
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, action, is_current) values ($1, $2, 'Losse pagina', 'article', 'ready', 'nieuw', true)`,
+        [zonderRapport, cluster],
+      );
+      const geenDoelvragen = await maakMeetplan(admin as never, zonderRapport);
+      ok("scenario 33: zonder rapport geen meetplan, geen fout", !geenDoelvragen.ok && geenDoelvragen.reden.includes("geen doelvragen"), JSON.stringify(geenDoelvragen));
+
+      if (oudSchakelaar === undefined) delete process.env.AI_OVERVIEW_ENABLED;
+      else process.env.AI_OVERVIEW_ENABLED = oudSchakelaar;
     }
 
     __setTestAdminClient(null);

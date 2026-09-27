@@ -20,9 +20,7 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
-import { aiOverviewEnabled } from "@/lib/ai-overview/registry";
 import { citeertEigenPagina, compare, deltaOf, IMPACT_WAVES, thresholdOf, verdictOf } from "@/lib/pipeline/impact-math";
-import type { ContentPieceTarget } from "@/lib/types/database";
 
 type Admin = SupabaseClient;
 
@@ -36,8 +34,11 @@ export { IMPACT_WAVES } from "@/lib/pipeline/impact-math";
  * Even veel als er doelvragen zijn, want een controlegroep die veel kleiner is
  * dan de doelgroep heeft zo'n brede band dat de vergelijking niets zegt. En een
  * plafond, want elke controlevraag is een web-zoekactie die de klant betaalt.
+ *
+ * Geëxporteerd: `lib/pipeline/meetplan.ts` gebruikt dezelfde grens bij het
+ * bevriezen van de controlegroep (M1).
  */
-const MAX_CONTROL_PROMPTS = 5;
+export const MAX_CONTROL_PROMPTS = 5;
 
 // ── 5.3 — Hermeting inplannen ───────────────────────────────────────────────
 
@@ -52,11 +53,12 @@ export async function planImpactWaves(
   admin: Admin,
   args: { analysisId: string; contentPieceId: string; publishedAt: Date },
 ): Promise<{ planned: number }> {
-  const targets = await loadTargets(admin, args.contentPieceId);
-  if (targets.length === 0) {
-    // Geen doelvragen (een pagina van vóór fase 4, of het model wees niets aan):
-    // dan valt er niets te meten. Geen fout, wel iets om niet stil te laten.
-    console.warn(`Pagina ${args.contentPieceId} heeft geen doelvragen; geen impactmeting ingepland.`);
+  const meetplan = await loadMeetplan(admin, args.contentPieceId);
+  if (!meetplan || meetplan.doelvragen.length === 0) {
+    // Geen meetplan of geen doelvragen (een pagina zonder kans, of het rapport
+    // wees niets aan): dan valt er niets te meten. Geen fout, wel iets om niet
+    // stil te laten.
+    console.warn(`Pagina ${args.contentPieceId} heeft geen meetplan met doelvragen; geen impactmeting ingepland.`);
     return { planned: 0 };
   }
 
@@ -75,12 +77,28 @@ export async function planImpactWaves(
   return { planned };
 }
 
-async function loadTargets(admin: Admin, contentPieceId: string): Promise<ContentPieceTarget[]> {
+/**
+ * Het meetplan van deze pagina (M1): de doelvragen en de controlegroep zoals
+ * die bevroren zijn bij het goedkeuren (`lib/pipeline/meetplan.ts`), en welke
+ * bronnen toen meededen. `null` zonder meetplan (een pagina van vóór M1, of
+ * zonder doelvragen om te bevriezen).
+ */
+async function loadMeetplan(
+  admin: Admin,
+  contentPieceId: string,
+): Promise<{ doelvragen: string[]; controlegroep: string[]; bronnen: string[] } | null> {
   const { data } = await admin
-    .from("content_piece_targets")
-    .select("*")
-    .eq("content_piece_id", contentPieceId);
-  return ((data ?? []) as ContentPieceTarget[]).filter((t) => t.prompt_id);
+    .from("meetplannen")
+    .select("doelvragen, controlegroep, bronnen")
+    .eq("content_piece_id", contentPieceId)
+    .maybeSingle();
+  if (!data) return null;
+  const r = data as { doelvragen: unknown; controlegroep: unknown; bronnen: string[] | null };
+  const ids = (v: unknown): string[] =>
+    (Array.isArray(v) ? v : [])
+      .map((x) => (x as { promptId?: unknown })?.promptId)
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
+  return { doelvragen: ids(r.doelvragen), controlegroep: ids(r.controlegroep), bronnen: r.bronnen ?? [] };
 }
 
 /**
@@ -91,10 +109,11 @@ async function loadTargets(admin: Admin, contentPieceId: string): Promise<Conten
  * gepubliceerd is in de controlegroep zitten, dan meten we het effect deels
  * tegen zichzelf en verdwijnt precies het verschil dat we willen aantonen.
  *
- * Deterministisch gekozen (op id, niet willekeurig) zodat een herhaalde taak
- * dezelfde vragen pakt en de vergelijking tussen golf 1 en 2 klopt.
+ * Deterministisch gekozen (op id, niet willekeurig) zodat een herhaalde
+ * berekening dezelfde vragen pakt. Geëxporteerd: `lib/pipeline/meetplan.ts`
+ * roept hem één keer aan bij het goedkeuren (M1), en bevriest de uitkomst.
  */
-async function pickControlPrompts(
+export async function pickControlPrompts(
   admin: Admin,
   analysisId: string,
   targetPromptIds: string[],
@@ -114,13 +133,13 @@ async function pickControlPrompts(
 
   if (pieceIds.length > 0) {
     const { data: claimedRows } = await admin
-      .from("content_piece_targets")
-      .select("prompt_id")
+      .from("meetplannen")
+      .select("doelvragen")
       .in("content_piece_id", pieceIds);
-    claimed = new Set([
-      ...targetPromptIds,
-      ...(claimedRows ?? []).map((r) => r.prompt_id as string).filter(Boolean),
-    ]);
+    const geclaimd = ((claimedRows ?? []) as { doelvragen: unknown }[]).flatMap((r) =>
+      (Array.isArray(r.doelvragen) ? r.doelvragen : []).map((d) => (d as { promptId?: unknown })?.promptId),
+    );
+    claimed = new Set([...targetPromptIds, ...geclaimd.filter((id): id is string => typeof id === "string")]);
   }
 
   return (allPrompts ?? [])
@@ -136,31 +155,26 @@ async function pickControlPrompts(
  * taken (met een impact-markering) en daarna de berekening, zelfde patroon als
  * de gewone meting, zodat één vraag per taak binnen de tijdslimiet blijft.
  *
- * M3 (`van-pijplijn-naar-kennissysteem.md`): staat AI Overview aan
- * (`AI_OVERVIEW_ENABLED=true`), dan komt er per vraag ook een
- * `measure_ai_overview`-taak bij, met dezelfde impact-markering. Zonder die
- * bron mat een golf alleen ChatGPT, ook als de klant AI Overview wel aan had
- * staan voor zijn gewone metingen.
+ * M1: de doelvragen, de controlegroep en welke bronnen meedoen komen nu uit
+ * het meetplan (bevroren bij het goedkeuren, `lib/pipeline/meetplan.ts`), niet
+ * meer vers uitgerekend bij elke golf. Dat maakt golf 1 en golf 2 vergelijkbaar
+ * (dezelfde controlegroep), en immuun voor een prompt die tussen de golven
+ * door door een andere pagina geclaimd wordt.
+ *
+ * M3: AI Overview krijgt zijn eigen `measure_ai_overview`-taak als "ai_overview"
+ * bij de bevroren bronnen van dit meetplan zit, met dezelfde impact-markering.
  */
 export async function planImpactMeasurements(
   admin: Admin,
   args: { analysisId: string; contentPieceId: string; wave: number },
 ): Promise<{ planned: number }> {
-  const targets = await loadTargets(admin, args.contentPieceId);
-  const targetPromptIds = targets.map((t) => t.prompt_id!).filter(Boolean);
-  if (targetPromptIds.length === 0) return { planned: 0 };
-
-  const controlPromptIds = await pickControlPrompts(
-    admin,
-    args.analysisId,
-    targetPromptIds,
-    Math.min(targetPromptIds.length, MAX_CONTROL_PROMPTS),
-  );
+  const meetplan = await loadMeetplan(admin, args.contentPieceId);
+  if (!meetplan || meetplan.doelvragen.length === 0) return { planned: 0 };
 
   let planned = 0;
   const plan = [
-    ...targetPromptIds.map((id) => ({ id, purpose: "impact" as const })),
-    ...controlPromptIds.map((id) => ({ id, purpose: "control" as const })),
+    ...meetplan.doelvragen.map((id) => ({ id, purpose: "impact" as const })),
+    ...meetplan.controlegroep.map((id) => ({ id, purpose: "control" as const })),
   ];
 
   for (const { id, purpose } of plan) {
@@ -176,7 +190,7 @@ export async function planImpactMeasurements(
     });
     if (created) planned++;
 
-    if (aiOverviewEnabled()) {
+    if (meetplan.bronnen.includes("ai_overview")) {
       const { created: createdAio } = await enqueue(admin, {
         type: "measure_ai_overview",
         payload: {
@@ -336,8 +350,8 @@ export async function computeImpact(
   }
   const publishedUrl = (pieceRow?.published_url as string | null) ?? null;
 
-  const targets = await loadTargets(admin, args.contentPieceId);
-  const targetPromptIds = targets.map((t) => t.prompt_id!).filter(Boolean);
+  const meetplan = await loadMeetplan(admin, args.contentPieceId);
+  const targetPromptIds = meetplan?.doelvragen ?? [];
 
   const [targetAfter, controlAfter, targetCitedOwnPage] = await Promise.all([
     afterState(admin, args.contentPieceId, args.wave, "impact"),
