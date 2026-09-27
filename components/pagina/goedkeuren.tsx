@@ -71,6 +71,9 @@ export function Goedkeuren({
     setBezig(null);
     if (!r.ok) return toast({ intent: "fout", title: "Bevestigen lukte niet", description: r.error });
     setBevestigd((oud) => [...oud, zin]);
+    // Zodat een gele zin in de FAQ of de metabeschrijving (besluit B19), die
+    // hiernaast in `Opleveren` staat, ook zijn markering kwijtraakt.
+    router.refresh();
   }
 
   async function keurGoed() {

@@ -1017,7 +1017,7 @@ per pagina opnieuw.
 | A3 | Eén bron van vragen | 1 | Gebouwd: rapport en onderzoek stellen geen vragen meer (besluit V3), de open punten van het onderzoek staan op het kennisoverzicht; eenheidstests en de ketentest van de open punten. Open: de telling bij een nieuw proefmerk (§12) | 27 september 2026 |
 | A4 | De kennisronde in het gesprek | 1 | Open | |
 | A5 | Herinnering bij openstaande vragen | 1 | Open | |
-| C1 | De controle leest ook FAQ en metabeschrijving | 1 | Open | |
+| C1 | De controle leest ook FAQ en metabeschrijving | 1 | Gedaan: de harde-beweringencontrole en de verboden-woordencontrole lopen nu over de hoofdtekst, de metabeschrijving en de FAQ-antwoorden samen (`volledigeControletekst()` in `lib/pagina/controle-regels.ts`), zowel na het schrijven als na een herschrijving en bij "nog geel" op het goedkeuringsscherm. De eindredacteur krijgt de metabeschrijving en de FAQ in zijn invoer (`controleInvoer()`) en de opdracht noemt ze expliciet. Op het scherm staan gele zinnen in de FAQ en de metabeschrijving nu ook geel gemarkeerd (`Opleveren`, met dezelfde `markeerZinnen()` als de hoofdtekst); bevestigen ververst de pagina zodat de markering meegaat. Eenheidstests en ketenscenario 31 (een verzonnen prijs alleen in een FAQ-antwoord en een verzonnen belofte alleen in de metabeschrijving worden geel, blijven na de ene herschrijving geel, en goedkeuren kan pas als beide bevestigd zijn) | 27 september 2026 |
 | C2 | Het publicatiepakket compleet | 1 | Open | |
 | C3 | Vastleggen welke kennis in een versie zat | 1 | Open | |
 | M1 | Het meetplan vanaf het goedkeuren | 1 | Open | |

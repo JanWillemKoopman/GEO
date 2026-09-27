@@ -28,24 +28,39 @@ export const ControleSchema = z.object({
 
 export type Beoordeling = z.infer<typeof ControleSchema>;
 
-export const CONTROLE_SYSTEEM = `Je bent een ervaren eindredacteur. Je weet wat deze ondernemer wil: een pagina die klopt, die klinkt als zijn bedrijf, en waar een bezoeker echt iets aan heeft. Je krijgt de tekst en alle informatie die de schrijver had. Je herschrijft niets; je beoordeelt.
+export const CONTROLE_SYSTEEM = `Je bent een ervaren eindredacteur. Je weet wat deze ondernemer wil: een pagina die klopt, die klinkt als zijn bedrijf, en waar een bezoeker echt iets aan heeft. Je krijgt de tekst, de metabeschrijving voor zoekmachines en de veelgestelde vragen (als die er zijn), en alle informatie die de schrijver had. Je herschrijft niets; je beoordeelt.
 
 Twee vragen.
 
-1. Klopt het? Staan er bedrijfsclaims, cijfers, prijzen, garanties, certificeringen of andere concrete beweringen over dit bedrijf in die niet uit de informatie blijken? Zet elke zo'n zin letterlijk in verzonnen, met in één zin waarom. Algemene vakkennis is geen verzonnen claim zolang hij als algemene uitleg staat. Staat hij er als iets wat dit bedrijf doet, biedt, belooft, adviseert of hanteert, en blijkt dat niet uit de informatie over het bedrijf, dan is het wel een verzonnen claim. Je krijgt ook de zinnen die een controle in code niet in de informatie terugvond; beoordeel die zelf, ze zijn niet automatisch fout.
+1. Klopt het? Staan er bedrijfsclaims, cijfers, prijzen, garanties, certificeringen of andere concrete beweringen over dit bedrijf in die niet uit de informatie blijken? Kijk naar de hele pagina: de tekst, de metabeschrijving én de veelgestelde vragen. Een verzonnen bedrag of belofte in een FAQ-antwoord of de metabeschrijving is net zo fout als in de tekst zelf. Zet elke zo'n zin letterlijk in verzonnen, met in één zin waarom. Algemene vakkennis is geen verzonnen claim zolang hij als algemene uitleg staat. Staat hij er als iets wat dit bedrijf doet, biedt, belooft, adviseert of hanteert, en blijkt dat niet uit de informatie over het bedrijf, dan is het wel een verzonnen claim. Je krijgt ook de zinnen die een controle in code niet in de informatie terugvond; beoordeel die zelf, ze zijn niet automatisch fout.
 
 2. Is het goed? Is de hoofdvraag meteen beantwoord; is de zoekintentie afgedekt; is het prettig en natuurlijk geschreven en klinkt het als de stemvoorbeelden; is er genoeg diepgang; is er onnodige herhaling; zijn er zinnen letterlijk uit de stemvoorbeelden overgenomen; voelt het als echte content en niet als AI-content; staat er iets in dat echt van dit bedrijf komt; heeft de lezer er iets aan?
 
 Oordeel "goed" als je deze pagina zo op de site van de ondernemer zou zetten. Anders "niet_goed", met hooguit ${MAX_PUNTEN} punten: waar in de tekst, wat het probleem is, en hoe het beter kan. Concreet, zodat een schrijver er direct mee verder kan. Geen punten over smaak als de tekst verder goed is.`;
 
-export function controleInvoer(input: { informatie: string; tekst: string; ongedekt: string[] }): string {
+export function controleInvoer(input: {
+  informatie: string;
+  tekst: string;
+  /** Besluit B19: de eindredacteur krijgt de metabeschrijving en de FAQ mee. */
+  metaBeschrijving?: string | null;
+  faq?: { vraag: string; antwoord: string }[];
+  ongedekt: string[];
+}): string {
   return [
     `DE INFORMATIE DIE DE SCHRIJVER HAD\n${input.informatie}`,
     `DE TEKST\n"""${input.tekst.trim()}"""`,
+    input.metaBeschrijving?.trim()
+      ? `DE METABESCHRIJVING VOOR ZOEKMACHINES\n"""${input.metaBeschrijving.trim()}"""`
+      : null,
+    input.faq && input.faq.length > 0
+      ? "DE VEELGESTELDE VRAGEN\n" + input.faq.map((f) => `Vraag: ${f.vraag}\nAntwoord: ${f.antwoord}`).join("\n\n")
+      : null,
     input.ongedekt.length > 0
       ? "ZINNEN DIE DE CONTROLE IN CODE NIET IN DE INFORMATIE TERUGVOND\n" + input.ongedekt.map((z) => `- "${z}"`).join("\n")
       : "De controle in code vond geen zinnen met een harde bewering zonder bron.",
-  ].join("\n\n");
+  ]
+    .filter((x): x is string => x !== null)
+    .join("\n\n");
 }
 
 /** Herschrijven als het oordeel niet goed is, of als er verzonnen of ongedekte zinnen zijn (§6.6). */
@@ -95,6 +110,28 @@ export function zinnenMetVerbodenWoord(tekst: string, woorden: readonly string[]
     .map((w) => new RegExp(`(?<![\\p{L}\\d])${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\d])`, "iu"));
   if (patronen.length === 0) return [];
   return splitsZinnen(tekst).filter((zin) => patronen.some((re) => re.test(zin)));
+}
+
+/** Eén rij van `content_pieces.faq_json`. */
+export interface FaqRij {
+  q: string;
+  a: string;
+}
+
+/** `faq_json` is onvertrouwde data uit de database: filtert alles behalve echte {q, a}-paren. */
+export function faqRijen(raw: unknown): FaqRij[] {
+  return (Array.isArray(raw) ? (raw as { q?: unknown; a?: unknown }[]) : [])
+    .filter((f): f is { q: string; a: string } => typeof f?.q === "string" && typeof f?.a === "string")
+    .map((f) => ({ q: f.q, a: f.a }));
+}
+
+/**
+ * Alle tekst waar de controle op harde beweringen en verboden woorden overheen
+ * loopt (besluit B19): de hoofdtekst, de metabeschrijving en de FAQ-antwoorden.
+ * De FAQ-vragen zelf tellen niet mee: die beweren niets over het bedrijf.
+ */
+export function volledigeControletekst(tekst: string, metaBeschrijving: string | null, faqAntwoorden: readonly string[]): string {
+  return [tekst, metaBeschrijving ?? "", ...faqAntwoorden].filter((t) => t.trim()).join("\n\n");
 }
 
 /** Wat er in `content_pieces.controle_json` staat. */

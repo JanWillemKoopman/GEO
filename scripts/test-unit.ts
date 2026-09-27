@@ -1026,7 +1026,17 @@ import { openVraagTekst, OPEN_VRAAG_MAX } from "@/lib/pagina/open-vraag-tekst";
 import { verwerkBrief, normaliseerVraag, kindVoorSoort, MAX_BRIEFVRAGEN, BRIEF_VERSIE, type ContentBrief } from "@/lib/pagina/brief-regels";
 import { briefInvoer, BRIEF_SYSTEEM } from "@/lib/pagina/brief-opdracht";
 import { schrijfSysteem, schrijfInvoer, herschrijfInvoer, type SchrijfBlokken } from "@/lib/pagina/schrijfopdracht";
-import { moetHerschrijven, kiesVersie, geleZinnenNa, allesBevestigd, zinnenMetVerbodenWoord, CONTROLE_SYSTEEM } from "@/lib/pagina/controle-regels";
+import {
+  moetHerschrijven,
+  kiesVersie,
+  geleZinnenNa,
+  allesBevestigd,
+  zinnenMetVerbodenWoord,
+  CONTROLE_SYSTEEM,
+  controleInvoer,
+  volledigeControletekst,
+  faqRijen,
+} from "@/lib/pagina/controle-regels";
 import { zinnenVerschil, antwoordGebruik, kenmerkenVan, meetrapport } from "@/lib/pagina/klantmeting";
 import type {
   ProfileOffering,
@@ -21563,6 +21573,52 @@ group("verboden woorden van het merk worden geel (B16)", () => {
   eq("een uitzondering tussen haakjes telt niet mee: de zin wordt geel", zinnenMetVerbodenWoord(tekst, ["gratis (behalve bij de offerte)"]).join(""), "Het adviesbezoek is gratis.");
   eq("meer woorden in één regel", zinnenMetVerbodenWoord(tekst, ["de goedkoopste"]).join(""), "Wij zijn nooit de goedkoopste.");
   eq("geen lijst, niets geel", String(zinnenMetVerbodenWoord(tekst, []).length), "0");
+});
+
+group("C1: de controle leest ook de FAQ en de metabeschrijving (besluit B19)", () => {
+  eq("faqRijen filtert wat geen {q, a} is", JSON.stringify(faqRijen([{ q: "Kost het iets?", a: "Vanaf € 45." }, { q: "leeg" }, "iets anders", null])), JSON.stringify([{ q: "Kost het iets?", a: "Vanaf € 45." }]));
+  ok("faqRijen op iets anders dan een lijst geeft niets", faqRijen("geen array").length === 0 && faqRijen(null).length === 0);
+
+  const volledig = volledigeControletekst("De tekst zelf.", "Een omschrijving met € 45.", ["Een antwoord met € 60."]);
+  eq("tekst, metabeschrijving en FAQ-antwoorden na elkaar", volledig, "De tekst zelf.\n\nEen omschrijving met € 45.\n\nEen antwoord met € 60.");
+  eq("een lege metabeschrijving en geen FAQ laten niets extra's staan", volledigeControletekst("Alleen de tekst.", null, []), "Alleen de tekst.");
+
+  // De harde-beweringencontrole is al brontekst-onafhankelijk (elke functie werkt
+  // op een string), dus het bewijs zit in het samenvoegen: een verzonnen bedrag in
+  // een FAQ-antwoord of de metabeschrijving wordt nu ook gevonden.
+  const namen = ["Hovenier Groen"];
+  const inFaq = controleerHardeBeweringen(volledigeControletekst("Wij ontwerpen tuinen op maat.", null, ["Een tuinontwerp kost € 900."]), [], namen);
+  eq("een verzonnen bedrag in een FAQ-antwoord wordt geel", geleZinnen(inFaq).join(""), "Een tuinontwerp kost € 900.");
+  const inMeta = controleerHardeBeweringen(volledigeControletekst("Wij ontwerpen tuinen op maat.", "Tuinontwerp met 10 jaar garantie.", []), [], namen);
+  eq("een verzonnen belofte in de metabeschrijving ook", geleZinnen(inMeta).join(""), "Tuinontwerp met 10 jaar garantie.");
+  const gedekt = controleerHardeBeweringen(
+    volledigeControletekst("Wij ontwerpen tuinen op maat.", "Vanaf € 450 per ontwerp.", ["Een tuinontwerp kost vanaf € 450."]),
+    ["Een tuinontwerp kost vanaf € 450."],
+    namen,
+  );
+  eq("dezelfde prijs uit de bron dekt zowel de metabeschrijving als de FAQ", String(geleZinnen(gedekt).length), "0");
+
+  const invoer = controleInvoer({
+    informatie: "Blok A",
+    tekst: "De tekst.",
+    metaBeschrijving: "Een korte omschrijving.",
+    faq: [{ vraag: "Werken jullie ook in het weekend?", antwoord: "Ja, op zaterdag." }],
+    ongedekt: [],
+  });
+  ok("de eindredacteur krijgt de metabeschrijving mee", invoer.includes("DE METABESCHRIJVING VOOR ZOEKMACHINES") && invoer.includes("Een korte omschrijving."));
+  ok("en de FAQ", invoer.includes("DE VEELGESTELDE VRAGEN") && invoer.includes("Werken jullie ook in het weekend?") && invoer.includes("Ja, op zaterdag."));
+  const zonder = controleInvoer({ informatie: "Blok A", tekst: "De tekst.", ongedekt: [] });
+  ok("zonder metabeschrijving of FAQ blijven die blokken weg", !zonder.includes("DE METABESCHRIJVING") && !zonder.includes("DE VEELGESTELDE VRAGEN"));
+  ok("de opdracht noemt dat de metabeschrijving en de FAQ ook meetellen", CONTROLE_SYSTEEM.includes("de metabeschrijving") && CONTROLE_SYSTEEM.includes("veelgestelde vragen"));
+
+  // "Nog geel" (goedkeuren.ts) checkt of een gele zin er nog staat: dat moet ook
+  // werken voor een zin die alleen in de FAQ of de metabeschrijving staat.
+  const nogAanwezig = geleZinnenNa(
+    volledigeControletekst("De tekst.", "Met 10 jaar garantie.", ["Ja, we werken ook 's avonds."]),
+    [],
+    ["Met 10 jaar garantie.", "Ja, we werken ook 's avonds.", "Weggehaalde zin die nergens meer staat."],
+  );
+  eq("een gele zin uit de metabeschrijving en de FAQ blijft geel tot hij weg is", nogAanwezig.join(" | "), "Met 10 jaar garantie. | Ja, we werken ook 's avonds.");
 });
 
 group("de schrijfopdracht, versie 2 (WP9)", () => {

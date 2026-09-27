@@ -25,11 +25,14 @@ import {
   CONTROLE_SYSTEEM,
   ControleSchema,
   controleInvoer,
+  faqRijen,
   geleZinnenNa,
   kiesVersie,
   moetHerschrijven,
+  volledigeControletekst,
   zinnenMetVerbodenWoord,
   type ControleJson,
+  type FaqRij,
 } from "@/lib/pagina/controle-regels";
 import { herschrijfInvoer, schrijfInvoer, type PaginaUitvoer } from "@/lib/pagina/schrijfopdracht";
 import { gerepareerd, laadSchrijfbasis, schrijfOpties, tekstKolommen, type Schrijfbasis } from "@/lib/pagina/schrijven";
@@ -146,14 +149,22 @@ async function achtergrondRonde(
 async function lopendeTekst(
   admin: Admin,
   pieceId: string,
-): Promise<{ body: string | null; controle: ControleJson | null; actueel: boolean }> {
+): Promise<{ body: string | null; metaBeschrijving: string | null; faq: FaqRij[]; controle: ControleJson | null; actueel: boolean }> {
   const { data } = await admin
     .from("content_pieces")
-    .select("body_markdown, controle_json, is_current")
+    .select("body_markdown, meta_description, faq_json, controle_json, is_current")
     .eq("id", pieceId)
     .maybeSingle();
-  const r = data as { body_markdown: string | null; controle_json: ControleJson | null; is_current: boolean | null } | null;
-  return { body: r?.body_markdown ?? null, controle: r?.controle_json ?? null, actueel: r?.is_current !== false };
+  const r = data as
+    | { body_markdown: string | null; meta_description: string | null; faq_json: unknown; controle_json: ControleJson | null; is_current: boolean | null }
+    | null;
+  return {
+    body: r?.body_markdown ?? null,
+    metaBeschrijving: r?.meta_description ?? null,
+    faq: faqRijen(r?.faq_json),
+    controle: r?.controle_json ?? null,
+    actueel: r?.is_current !== false,
+  };
 }
 
 /** Klaar voor de ondernemer: "Lees en keur goed". */
@@ -229,15 +240,24 @@ export async function schrijvenGafOp(admin: Admin, job: Job): Promise<void> {
 export async function voerControleUit(admin: Admin, payload: { pieceId: string }): Promise<void> {
   const basis = await laadSchrijfbasis(admin, payload.pieceId);
   if (!basis) return;
-  const { body, controle } = await lopendeTekst(admin, payload.pieceId);
+  const { body, metaBeschrijving, faq, controle } = await lopendeTekst(admin, payload.pieceId);
   if (!body?.trim() || controle) return;
 
-  const ongedekt = ongedektIn(basis, body);
-  const verboden = verbodenIn(basis, body);
+  // Besluit B19: de controle op harde beweringen en verboden woorden loopt ook
+  // over de metabeschrijving en de FAQ-antwoorden, niet alleen de hoofdtekst.
+  const volledig = volledigeControletekst(body, metaBeschrijving, faq.map((f) => f.a));
+  const ongedekt = ongedektIn(basis, volledig);
+  const verboden = verbodenIn(basis, volledig);
   const { parsed: beoordeling } = await callStructured({
     model: MODELS.content,
     system: CONTROLE_SYSTEEM,
-    user: controleInvoer({ informatie: schrijfInvoer(basis.blokken), tekst: body, ongedekt }),
+    user: controleInvoer({
+      informatie: schrijfInvoer(basis.blokken),
+      tekst: body,
+      metaBeschrijving,
+      faq: faq.map((f) => ({ vraag: f.q, antwoord: f.a })),
+      ongedekt,
+    }),
     schema: ControleSchema,
     schemaName: "pagina_controle",
     work: "judging",
@@ -265,7 +285,7 @@ export async function voerControleUit(admin: Admin, payload: { pieceId: string }
     verboden,
     beoordeling,
     herschreven: false,
-    gele_zinnen: geleZinnenNa(body, [...ongedekt, ...verboden], []),
+    gele_zinnen: geleZinnenNa(volledig, [...ongedekt, ...verboden], []),
     bevestigd: [],
   });
 }
@@ -275,16 +295,17 @@ export async function controleGafOp(admin: Admin, job: Job): Promise<void> {
   const pieceId = (job.payload_json as { pieceId?: string } | null)?.pieceId;
   if (!pieceId) return;
   const basis = await laadSchrijfbasis(admin, pieceId);
-  const { body, controle } = await lopendeTekst(admin, pieceId);
+  const { body, metaBeschrijving, faq, controle } = await lopendeTekst(admin, pieceId);
   if (!basis || !body?.trim() || controle) return;
-  const ongedekt = ongedektIn(basis, body);
-  const verboden = verbodenIn(basis, body);
+  const volledig = volledigeControletekst(body, metaBeschrijving, faq.map((f) => f.a));
+  const ongedekt = ongedektIn(basis, volledig);
+  const verboden = verbodenIn(basis, volledig);
   await zetKlaar(admin, pieceId, {
     ongedekt,
     verboden,
     beoordeling: null,
     herschreven: false,
-    gele_zinnen: geleZinnenNa(body, [...ongedekt, ...verboden], []),
+    gele_zinnen: geleZinnenNa(volledig, [...ongedekt, ...verboden], []),
     bevestigd: [],
   });
 }
@@ -294,7 +315,7 @@ export async function controleGafOp(admin: Admin, job: Job): Promise<void> {
 export async function voerHerschrijvenUit(admin: Admin, job: Job, payload: AchtergrondPayload): Promise<void> {
   const basis = await laadSchrijfbasis(admin, payload.pieceId);
   if (!basis) return;
-  const { body, controle, actueel } = await lopendeTekst(admin, payload.pieceId);
+  const { body, metaBeschrijving, faq, controle, actueel } = await lopendeTekst(admin, payload.pieceId);
   // Een oudere versie herschrijven we niet: dan is er al een nieuwere.
   if (!body?.trim() || !actueel) return;
   const opVerzoek = Boolean(payload.klantNotitie?.trim());
@@ -314,8 +335,9 @@ export async function voerHerschrijvenUit(admin: Admin, job: Job, payload: Achte
 
   const tekst = gerepareerd(uitvoer, basis.merk.naam);
   const kolommen = await tekstKolommen(admin, basis, tekst, { uitvoer, soort: "herschrijven" });
-  const ongedektNieuw = ongedektIn(basis, tekst.tekst_markdown);
-  const verbodenNieuw = verbodenIn(basis, tekst.tekst_markdown);
+  const volledigNieuw = volledigeControletekst(tekst.tekst_markdown, tekst.meta_beschrijving, tekst.faq.map((f) => f.antwoord));
+  const ongedektNieuw = ongedektIn(basis, volledigNieuw);
+  const verbodenNieuw = verbodenIn(basis, volledigNieuw);
 
   if (opVerzoek) {
     await nieuweVersie(admin, basis, kolommen, ongedektNieuw, verbodenNieuw, payload.klantNotitie?.trim() ?? null);
@@ -334,7 +356,8 @@ export async function voerHerschrijvenUit(admin: Admin, job: Job, payload: Achte
     const { error } = await admin.from("content_pieces").update(kolommen).eq("id", payload.pieceId);
     if (error) throw new Error(`Herschreven tekst van ${payload.pieceId} bewaren mislukte: ${error.message}`);
   }
-  const blijft = behouden === "nieuw" ? tekst.tekst_markdown : body;
+  const volledigVorige = volledigeControletekst(body, metaBeschrijving, faq.map((f) => f.a));
+  const volledigBlijft = behouden === "nieuw" ? volledigNieuw : volledigVorige;
   const ongedekt = behouden === "nieuw" ? ongedektNieuw : vorige.ongedekt;
   const verboden = behouden === "nieuw" ? verbodenNieuw : verbodenVorige;
   await zetKlaar(admin, payload.pieceId, {
@@ -347,7 +370,7 @@ export async function voerHerschrijvenUit(admin: Admin, job: Job, payload: Achte
       ongedekt_nieuw: ongedektNieuw.length + verbodenNieuw.length,
       behouden,
     },
-    gele_zinnen: geleZinnenNa(blijft, [...ongedekt, ...verboden], (vorige.beoordeling?.verzonnen ?? []).map((v) => v.zin)),
+    gele_zinnen: geleZinnenNa(volledigBlijft, [...ongedekt, ...verboden], (vorige.beoordeling?.verzonnen ?? []).map((v) => v.zin)),
     bevestigd: [],
   });
 }
@@ -433,12 +456,12 @@ async function nieuweVersie(
 export async function herschrijvenGafOp(admin: Admin, job: Job): Promise<void> {
   const payload = (job.payload_json ?? {}) as AchtergrondPayload;
   if (!payload.pieceId || payload.klantNotitie?.trim()) return;
-  const { body, controle } = await lopendeTekst(admin, payload.pieceId);
+  const { body, metaBeschrijving, faq, controle } = await lopendeTekst(admin, payload.pieceId);
   if (!body?.trim() || !controle || controle.herschreven) return;
   await zetKlaar(admin, payload.pieceId, {
     ...controle,
     gele_zinnen: geleZinnenNa(
-      body,
+      volledigeControletekst(body, metaBeschrijving, faq.map((f) => f.a)),
       [...controle.ongedekt, ...(controle.verboden ?? [])],
       (controle.beoordeling?.verzonnen ?? []).map((v) => v.zin),
     ),
