@@ -190,6 +190,7 @@ Vul de kolom "Besluit" in (met datum) in werkpakket F0.3.
 | V20 | Wordt een veld dat een mens op het gespreksscherm opslaat in zijn geheel verklaard, of alleen wat die mens eraan veranderde? Het terugvullen (K3) nam de herkomst per veld over, dus een veld dat ooit in het gesprek is opgeslagen, heette daar helemaal verklaard | **Alleen wat er veranderde.** Een vermoeden van het model laten staan is geen uitspraak van de klant (P2). Wat erbij komt, wordt verklaard; wat een mens weghaalt, wordt afgewezen (bewaard, telt niet meer mee, komt niet stil terug); een andere tekst op dezelfde plek wordt een nieuwe versie. Bevestigen van wat bleef staan, gebeurt op het kennisoverzicht (K7) | K5, K7 || **Gekozen bij het bouwen van K5, volgens advies** (26 september 2026) |
 | V21 | Welke status krijgt een feit uit een aangeleverd document (het merkdossier) in de kennislaag? De inventaris stelde *waargenomen* voor, met de zin als citaat | **Verklaard, met de letterlijke zin als citaat en het document als herkomst.** Waargenomen eist een bronadres (regel en check-constraint van K1), en een geplakte tekst heeft er geen; een nepadres verzinnen is erger. Het document is materiaal van de klant zelf, dus "de klant zei het" klopt. Wie het plakte, legt het vast. De code controleerde al dat de zin letterlijk in het document staat (`verifyDossierFacts()`). Dezelfde sleutel als het antwoord op die merkvraag, zodat een latere wijziging een nieuwe versie wordt | K8 || **Gekozen bij het bouwen van K8 deel 1, volgens advies** (27 september 2026) |
 | V22 | Waar lezen de meting, het rapport, de onderwerpen en de aanbodboom de klantkennis na K8, nu ze de kolommen van `profiles` (en `profile_offerings`) op honderden plekken lezen? | **Besluit V9 voor alle kennisvelden: de kennislaag is de enige schrijfingang, `lib/kennis/` houdt de kolommen bij als kopie, en de lezers blijven de kopie lezen.** Honderden leesplekken omzetten kost vele sessies en levert geen andere uitkomst op; één schrijver maakt de kopie betrouwbaar. Een test faalt als iets buiten `lib/kennis/` een kennisveld schrijft. Een lezer die iets met de status moet doen (blok A, het kennisgat, het kennisoverzicht) leest de kennislaag zelf | K8 || **Gekozen bij de verdeling van K8, volgens advies** (27 september 2026). De eigenaar kan dit terugdraaien: dan wordt elke lezer omgezet, en dat is per groep lezers een eigen werkpakket |
+| V23 | Voor wie geldt het antwoord op een gerichte vraag van een pagina? Sinds K5 alleen voor die pagina (`content_piece_id`), omdat een vraag geen dienst kende | **Voor de dienst van de kans achter die pagina** (`geldt_voor`), zodat een volgende pagina over dezelfde dienst het niet opnieuw vraagt (A2). Niet voor een praktijkvoorbeeld of de open vraag (B3), en niet als er geen kans met een dienst is | A2 || **Gekozen bij het bouwen van A2, volgens advies** (27 september 2026) |
 
 ---
 
@@ -778,6 +779,15 @@ Per werkpakket: **doel**, **wat**, **niet**, **klaar als**. De nummers zijn vast
   het merkbreed maakte.
 - **Klaar als:** een ketentest met twee pagina's over dezelfde dienst: de tweede krijgt minder vragen en
   het antwoord van de eerste in blok A.
+- **Gebouwd (27 september 2026), besluit V23:** het antwoord op een gerichte vraag van een pagina geldt voor
+  de dienst van de kans achter die pagina (`geldt_voor`), niet meer alleen voor die ene pagina. Zo komt het
+  in blok A van elke pagina over die dienst, en telt het in het kennisgat van elke kans daarover als bekend.
+  Een praktijkvoorbeeld en het antwoord op de open vraag blijven bij hun pagina (B3), een merkvraag blijft
+  merkbreed, en een pagina zonder kans met een dienst werkt zoals in K5. Een antwoord van vóór A2 dat de
+  klant wijzigt, blijft bij zijn pagina: anders stond het daar twee keer. Ketenscenario 30: de tweede
+  pagina krijgt het antwoord in blok A, haar kennisgat en de brief vragen niet meer naar de werkwijze, en het
+  voorbeeld van de eerste pagina komt er niet in. "Minder vragen" is in de ketentest het kleinere gat dat de
+  brief meekrijgt (A1); hoeveel vragen het model dan echt stelt, blijkt bij het opnieuw briefen (§12).
 
 #### A3 Eén bron van vragen
 - **Doel:** de klant krijgt geen dubbele vragenlijsten.
@@ -994,7 +1004,7 @@ per pagina opnieuw.
 | G4 | De verversingslogica wordt een abonnee | 1 | Open | |
 | G5 | Beslismoment: verder of stoppen | 1 | Open | |
 | A1 | De brief krijgt de kennisgaten | 1 | Gebouwd: brief versie 4 met het kennisgat van de kans (besluit B21), eenheidstests en ketenscenario 23. Open: opnieuw briefen op de proefmerken en de keuze van de eigenaar (§12) | 27 september 2026 |
-| A2 | Eén keer vertellen, altijd gebruikt | 1 | Open | |
+| A2 | Eén keer vertellen, altijd gebruikt | 1 | Gedaan: een antwoord op een gerichte paginavraag geldt voor de dienst van de kans (besluit V23), ketenscenario 30 (het "klaar als" van dit werkpakket is een ketentest) | 27 september 2026 |
 | A3 | Eén bron van vragen | 1 | Open | |
 | A4 | De kennisronde in het gesprek | 1 | Open | |
 | A5 | Herinnering bij openstaande vragen | 1 | Open | |

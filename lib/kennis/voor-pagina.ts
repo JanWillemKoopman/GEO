@@ -132,3 +132,25 @@ export async function kennisgatVoorPagina(admin: SupabaseClient, pieceId: string
   const ontbreekt = [...new Set(lijsten.flatMap((l) => l ?? []))];
   return ontbreekt.map((b) => BEHOEFTE_LABEL[b as Behoefte] ?? b);
 }
+
+/**
+ * De diensten van de kansen achter deze pagina's (A2): waar een antwoord op een
+ * gerichte vraag van die pagina's voor geldt. Alle versies van een pagina tellen
+ * mee (zelfde cluster en titel), want een vraag hangt aan de versie waarvoor hij
+ * gesteld is en de kaart van het plan aan de nieuwste. Via de actuele versie van
+ * elke dienst (`naarActueleVersies()`).
+ */
+export async function dienstenVanPaginas(admin: SupabaseClient, profileId: string, pieceIds: readonly string[]): Promise<string[]> {
+  if (pieceIds.length === 0) return [];
+  const { data: stukken } = await admin.from("content_pieces").select("analysis_id, title").in("id", [...pieceIds]);
+  const versies = new Set<string>(pieceIds);
+  for (const s of (stukken ?? []) as { analysis_id: string; title: string }[]) {
+    for (const id of await versiesVan(admin, { profileId, analysisId: s.analysis_id, pieceId: pieceIds[0]!, titel: s.title, zoekintentie: null })) versies.add(id);
+  }
+  const { data: kaarten } = await admin.from("planned_pages").select("kans_id").in("content_piece_id", [...versies]).not("kans_id", "is", null);
+  const kansIds = [...new Set(((kaarten ?? []) as { kans_id: string }[]).map((k) => k.kans_id))];
+  if (kansIds.length === 0) return [];
+  const { data: kansen } = await admin.from("kansen").select("geldt_voor").eq("profile_id", profileId).in("id", kansIds);
+  const ids = [...new Set(((kansen ?? []) as { geldt_voor: string[] | null }[]).flatMap((k) => k.geldt_voor ?? []))];
+  return naarActueleVersies(admin, profileId, ids);
+}

@@ -81,7 +81,7 @@ import {
 } from "@/lib/kennis/onderzoek";
 import { moetIngedeeld, indelingVoorKennis } from "@/lib/kennis/indeling";
 import { KENNISVELDEN, kopieNaHandeling } from "@/lib/kennis/profielvelden";
-import { PROFIEL_MEENEMEN } from "@/lib/kennis/terugvullen";
+import { PROFIEL_MEENEMEN, type BronVraag } from "@/lib/kennis/terugvullen";
 import {
   GESPREKSVELDEN,
   kennisUitAntwoord,
@@ -22983,3 +22983,18 @@ group("A1: de brief krijgt de kennisgaten (besluit B21)", () => {
   ok("de brief haalt het gat op", leesBestand("lib/pagina/brief.ts").includes("kennisgatVoorPagina(admin, pieceId)"));
 });
 
+
+group("A2: een antwoord over een dienst geldt voor de dienst (besluit V23)", () => {
+  const vraag = (extra: Partial<BronVraag> = {}): BronVraag => ({
+    id: "v1", analysis_id: "c1", question: "Hoe verloopt een installatie?", answer: "Eerst een adviesbezoek.", status: "beantwoord",
+    scope: "pagina", content_piece_ids: ["p1"], open_vraag: false, raw_json: { bron: "pagina_brief", soort: "werkwijze" }, ...extra,
+  });
+  const metDienst = kennisUitAntwoord(vraag(), ["d1"]);
+  eq("één item, voor de dienst", `${metDienst.length}/${metDienst[0]?.geldtVoorIds?.join(",")}/${metDienst[0]?.contentPieceId}/${metDienst[0]?.analysisId}`, "1/d1/null/null");
+  eq("zonder dienst zoals het was: voor de pagina", String(kennisUitAntwoord(vraag())[0]?.contentPieceId), "p1");
+  eq("een praktijkvoorbeeld blijft bij de pagina (B3)", String(kennisUitAntwoord(vraag({ raw_json: { bron: "pagina_brief", soort: "praktijk" } }), ["d1"])[0]?.contentPieceId), "p1");
+  eq("de open vraag ook", String(kennisUitAntwoord(vraag({ open_vraag: true }), ["d1"])[0]?.contentPieceId), "p1");
+  eq("een merkvraag blijft merkbreed", String(kennisUitAntwoord(vraag({ scope: "merk", content_piece_ids: [] }), ["d1"])[0]?.geldtVoorIds), "undefined");
+  ok("de antwoordroute zoekt de diensten van de pagina op", leesBestand("lib/facts.ts").includes("dienstenVanPaginas(admin, input.profileId"));
+  ok("een antwoord van vóór A2 blijft bij zijn pagina als het gewijzigd wordt", /if \(!sleutel \|\| !\(await metSleutel\(admin, args\.profileId, sleutel\)\)\) diensten = \[\];/.test(leesBestand("lib/kennis/uit-gesprek.ts")));
+});

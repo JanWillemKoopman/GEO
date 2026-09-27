@@ -174,6 +174,8 @@ export interface PlanItem {
   ruw: unknown | null;
   /** Voor feiten die verouderen, zoals een prijs uit een aangeleverd document (JJJJ-MM-DD). */
   verlooptOp?: string | null;
+  /** Verwijzingen naar bestaande kennisitems (ids), als de bron die al kent; zie A2 in `gesprek.ts`. */
+  geldtVoorIds?: string[];
 }
 
 export interface Uitsluiting {

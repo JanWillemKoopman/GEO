@@ -55,7 +55,7 @@ export function nieuweTelling(): GesprekTelling {
   return { vastgelegd: 0, vervangen: 0, afgewezen: 0, bevestigd: 0, ongewijzigd: 0, geweigerd: 0 };
 }
 
-export function alsNieuw(profileId: string, item: PlanItem, geldtVoor: string[] = []): NieuwKennisItem {
+export function alsNieuw(profileId: string, item: PlanItem, geldtVoor: string[] = item.geldtVoorIds ?? []): NieuwKennisItem {
   return {
     profileId,
     domein: item.domein,
@@ -91,9 +91,9 @@ async function bestaand(admin: SupabaseClient, profileId: string, item: PlanItem
  * een mens het eerder afgewezen, dan is wat de mens nu zegt de nieuwe versie:
  * `legVast()` zou het bestaande item teruggeven en de uitspraak verdwijnen.
  */
-/** Waar een item naar verwijst (`geldt_voor`), uit zijn verwijzingen naar de bron. Standaard nergens naar. */
+/** Waar een item naar verwijst (`geldt_voor`). Standaard wat het plan-item al meegaf (A2), anders nergens naar. */
 export type GeldtVoorVan = (item: PlanItem) => Promise<string[]>;
-const nergens: GeldtVoorVan = async () => [];
+const nergens: GeldtVoorVan = async (item) => item.geldtVoorIds ?? [];
 
 async function zeg(admin: SupabaseClient, profileId: string, item: PlanItem, door: Mens, telling: GesprekTelling, redenen: string[], geldtVoorVan: GeldtVoorVan = nergens): Promise<void> {
   const geldtVoor = await geldtVoorVan(item);
@@ -183,11 +183,20 @@ export function log(profileId: string, wat: string, t: GesprekTelling, redenen: 
  */
 export async function legAntwoordVast(
   admin: SupabaseClient,
-  args: { profileId: string; vorige: BronVraag | null; nu: BronVraag },
+  args: { profileId: string; vorige: BronVraag | null; nu: BronVraag; diensten?: readonly string[] },
   door: Mens,
 ): Promise<GesprekTelling> {
-  const oud = args.vorige ? kennisUitAntwoord(args.vorige) : [];
-  return verwerk(admin, args.profileId, wijzigingen(oud, kennisUitAntwoord(args.nu)), door, "antwoord");
+  let diensten = args.diensten ?? [];
+  // Een antwoord van vóór A2 staat voor één pagina in de kennislaag. Wijzigt de
+  // klant het, dan blijft het daar: anders stond hetzelfde antwoord straks twee
+  // keer bij die pagina, een keer voor de pagina en een keer voor de dienst.
+  if (diensten.length > 0 && args.vorige?.status === "beantwoord" && args.vorige.answer?.trim()) {
+    const alsDienst = kennisUitAntwoord(args.vorige, diensten)[0];
+    const sleutel = alsDienst ? sleutelVan(alsDienst) : null;
+    if (!sleutel || !(await metSleutel(admin, args.profileId, sleutel))) diensten = [];
+  }
+  const oud = args.vorige ? kennisUitAntwoord(args.vorige, diensten) : [];
+  return verwerk(admin, args.profileId, wijzigingen(oud, kennisUitAntwoord(args.nu, diensten)), door, "antwoord");
 }
 
 // ── 2. Een veld op het gespreksscherm of in de wizard ────────────────────────
