@@ -35,6 +35,7 @@ import { canMove } from "@/lib/plan-order";
 import { kiesVoorBulk, OVERSLAAN_TEKST } from "@/lib/plan-bulk";
 import type { ContentPlan, FunnelStage, PlanMonth, PlannedPage } from "@/lib/types/database";
 import { Icon } from "@/components/icon";
+import { HandmatigeKansFormulier, type KennisOptie } from "./handmatige-kans-formulier";
 
 /**
  * Het contentplan: een voorraad links, twaalf maanden rechts.
@@ -117,6 +118,8 @@ export function PlanView({
   kennisgat,
   kansUitleg = {},
   kansBewijs = {},
+  kansNietGemeten = {},
+  kennisOpties,
 }: {
   /** N6: per kans wat nog ontbreekt. Alleen gevuld voor de consultant. */
   kennisgat?: Record<string, string[] | null>;
@@ -124,6 +127,10 @@ export function PlanView({
   kansUitleg?: Record<string, string | null>;
   /** N7: het bewijs per bron, als leesbare zinnen. Uitklapbaar op het scherm. */
   kansBewijs?: Record<string, string[]>;
+  /** N5: een kans zonder gemeten cluster (handmatig, besluit V2). */
+  kansNietGemeten?: Record<string, boolean>;
+  /** N5: kennisitems voor het formulier. Alleen gevuld voor de consultant. */
+  kennisOpties?: KennisOptie[];
   /**
    * De ene stand per plan-pagina (`lib/pagina-stand.ts`, 23 september 2026).
    * Het plan toonde tot die dag zijn eigen labels ("Tekst klaar voor akkoord"),
@@ -593,6 +600,9 @@ export function PlanView({
                     : `${zichtbareVoorraad.length} van ${backlog.length}`}
                 </span>
               </div>
+              {kennisOpties && (
+                <HandmatigeKansFormulier profileId={profileId} kennisOpties={kennisOpties} />
+              )}
 
               {backlog.length > 0 && (
                 <>
@@ -667,6 +677,7 @@ export function PlanView({
                     gat={gatZin(kennisgat, item.kansId ?? null)}
                     kansUitleg={item.kansId ? (kansUitleg[item.kansId] ?? null) : null}
                     bewijs={item.kansId ? (kansBewijs[item.kansId] ?? []) : []}
+                    nietGemeten={item.kansId ? (kansNietGemeten[item.kansId] ?? false) : false}
                     maanden={maandKeuzes}
                     busy={busy === item.id}
                     open={uitgeklapt[item.id] ?? false}
@@ -1352,6 +1363,7 @@ function BacklogRij({
   gat,
   kansUitleg,
   bewijs,
+  nietGemeten,
   maanden,
   busy,
   open,
@@ -1368,6 +1380,8 @@ function BacklogRij({
   kansUitleg: string | null;
   /** N7: het bewijs per bron, als leesbare zinnen. */
   bewijs: string[];
+  /** N5: een handmatige kans zonder gemeten cluster. */
+  nietGemeten: boolean;
   maanden: MaandKeuze[];
   busy: boolean;
   open: boolean;
@@ -1408,6 +1422,11 @@ function BacklogRij({
           {potentie && <span>{potentie}</span>}
           <span>·</span>
           <span>{item.handeling === "verbeteren" ? "verbeteren" : "nieuw"}</span>
+          {nietGemeten && (
+            <span className="chip chip-neutral" style={{ marginLeft: 2 }}>
+              Niet gemeten
+            </span>
+          )}
           {reden && (
             <span className="chip chip-neutral" style={{ marginLeft: 2 }}>
               {reden}

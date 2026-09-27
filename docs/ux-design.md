@@ -616,6 +616,14 @@ in een eigen `<details>`-blokje "Bewijs per bron", één zin per bron waaruit de
 zijn voor klant en consultant gelijk zichtbaar: de klant mag weten waaróm iets voorgesteld wordt, het
 bewijs blijft standaard dicht (§5, alleen wat onderscheidt staat open) en is één klik verderop.
 
+### Een handmatige kans krijgt een eigen label (27 september 2026, N5)
+
+De voorraad op het bord ("Plannen") toont nu ook kansen die de consultant zelf toevoegde via
+"+ Kans toevoegen", voor een behoefte die de meting niet vond. Zo'n kaart krijgt naast de gewone
+meta-regel de chip "Niet gemeten", zodat niemand hem aanziet voor een kans met echt bewijs uit een
+rapport. Het formulier zelf (titel, lezer, nieuwe pagina of verbeteren, kennisitems, doelvragen)
+staat alleen voor de consultant boven de voorraadkolom.
+
 ### De ronde staat bovenaan, en de score staat er weer onder (27 augustus 2026)
 
 Twee wijzigingen aan de startpagina, uit de structuurreview van 27 augustus 2026, en de tweede

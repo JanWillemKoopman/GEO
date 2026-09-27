@@ -67,6 +67,8 @@ export interface PlanBundle {
   kansUitleg: Record<string, string | null>;
   /** N7: het bewijs per bron, als leesbare zinnen, voor het uitklapbare blok op het scherm. */
   kansBewijs: Record<string, string[]>;
+  /** N5: geen gemeten cluster (`kansen.analysis_id is null`), een handmatige kans van de consultant. */
+  kansNietGemeten: Record<string, boolean>;
 }
 
 /**
@@ -189,12 +191,18 @@ export async function loadPlan(
   const declined = await loadDeclinedOpportunities(admin, profileId);
   const { data: gatRows } = await admin
     .from("kansen")
-    .select("id, kennis_ontbreekt, uitleg")
+    .select("id, kennis_ontbreekt, uitleg, analysis_id")
     .eq("profile_id", profileId)
     .neq("status", "vervallen");
-  const kansRijen = (gatRows ?? []) as { id: string; kennis_ontbreekt: string[] | null; uitleg: string | null }[];
+  const kansRijen = (gatRows ?? []) as {
+    id: string;
+    kennis_ontbreekt: string[] | null;
+    uitleg: string | null;
+    analysis_id: string | null;
+  }[];
   const kennisgat = Object.fromEntries(kansRijen.map((k) => [k.id, k.kennis_ontbreekt]));
   const kansUitleg = Object.fromEntries(kansRijen.map((k) => [k.id, k.uitleg]));
+  const kansNietGemeten = Object.fromEntries(kansRijen.map((k) => [k.id, k.analysis_id === null]));
 
   // N7: het bewijs per bron, alleen de kolommen die `bewijsRegel()` nodig heeft
   // (conventie over kleine, gerichte queries: geen ruwe JSON hier).
@@ -247,6 +255,7 @@ export async function loadPlan(
     kennisgat,
     kansUitleg,
     kansBewijs,
+    kansNietGemeten,
     clusterNaam: Object.fromEntries(clusterNaam),
     metKansen: [
       ...new Set(
