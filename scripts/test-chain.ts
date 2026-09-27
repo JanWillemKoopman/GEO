@@ -9397,20 +9397,31 @@ async function main(): Promise<void> {
         ).rows;
       const a = "https://stem.nl/over-ons";
       const b = "https://stem.nl/werkwijze";
-      await legStemVast(shim, { profileId: merk, url: "https://stem.nl", voorbeelden: [{ url: a, tekst: "Wij zijn een familiebedrijf." }, { url: b, tekst: "Eerst kijken, dan pas prijzen." }], gekozen: [a, b] }, mens);
+      const vb = (url: string, tekst: string) => ({ url, tekst, opgehaald_op: new Date().toISOString(), fout: null });
+      // Zoals de profielroute: eerst de adressen op het profiel, dan het ophalen.
+      const kies = (adressen: string[]) =>
+        db.client.query("update public.profiles set stem_voorbeelden = $1::jsonb where id = $2", [JSON.stringify(adressen.map((url) => ({ url, tekst: null, opgehaald_op: null, fout: null }))), merk]);
+      const verkeerd = await legStemVast(shim, { profileId: merk, url: "https://stem.nl", voorbeelden: [vb(a, "Oud.")], gekozen: [a] }, mens);
+      ok("scenario 27: kloppen de adressen niet meer met het profiel, dan wordt niets bewaard", !verkeerd.bewaard && verkeerd.vastgelegd === 0);
+      await kies([a, b]);
+      await legStemVast(shim, { profileId: merk, url: "https://stem.nl", voorbeelden: [vb(a, "Wij zijn een familiebedrijf."), vb(b, "Eerst kijken, dan pas prijzen.")], gekozen: [a, b] }, mens);
+      const { rows: kopie } = await db.client.query("select stem_voorbeelden from public.profiles where id = $1", [merk]);
+      ok("scenario 27: de opgehaalde tekst staat ook op het profiel, de kopie voor de schrijver", (kopie[0].stem_voorbeelden ?? []).every((v: { tekst: string | null }) => v.tekst), JSON.stringify(kopie[0].stem_voorbeelden));
       let rijen = await stemItems();
       ok(
         "scenario 27: twee stemvoorbeelden, waargenomen, vastgelegd door de code",
         rijen.length === 2 && rijen.every((r) => r.status === "waargenomen" && r.vastgelegd_door_taak === "stemvoorbeelden"),
         JSON.stringify(rijen),
       );
-      await legStemVast(shim, { profileId: merk, url: "https://stem.nl", voorbeelden: [{ url: a, tekst: "Wij zijn al dertig jaar een familiebedrijf." }], gekozen: [a] }, mens);
+      await kies([a]);
+      await legStemVast(shim, { profileId: merk, url: "https://stem.nl", voorbeelden: [vb(a, "Wij zijn al dertig jaar een familiebedrijf.")], gekozen: [a] }, mens);
       rijen = await stemItems();
       const actueel = rijen.filter((r) => !r.vervangen_door && !r.afgewezen_door);
       ok("scenario 27: een nieuwe tekst op hetzelfde adres wordt een nieuwe versie", rijen.some((r) => r.bron_url === a && r.vervangen_door) && actueel.some((r) => r.bron_url === a && String(r.bewering).includes("dertig")), JSON.stringify(rijen));
       ok("scenario 27: een weggehaald adres wijst de mens af", rijen.some((r) => r.bron_url === b && r.afgewezen_door === userId), JSON.stringify(rijen));
       eqc("scenario 27: er is één actueel stemvoorbeeld", String(actueel.length), "1");
-      await legStemVast(shim, { profileId: merk, url: "https://stem.nl", voorbeelden: [{ url: a, tekst: "Wij zijn al dertig jaar een familiebedrijf." }], gekozen: [a] }, mens);
+      await kies([a]);
+      await legStemVast(shim, { profileId: merk, url: "https://stem.nl", voorbeelden: [vb(a, "Wij zijn al dertig jaar een familiebedrijf.")], gekozen: [a] }, mens);
       eqc("scenario 27: nog eens opslaan verandert niets", String((await stemItems()).length), String(rijen.length));
 
       const vraag = randomUUID();
@@ -9444,6 +9455,44 @@ async function main(): Promise<void> {
         na.length === 2 && na[0].bron === "document" && na[0].vervangen_door && na[1].bron === "klant" && String(na[1].bewering).includes("€ 50"),
         JSON.stringify(na),
       );
+    }
+
+    // ── Scenario 28: het merkprofiel als kopie van de kennislaag (K8 deel 3) ──
+    //
+    // Alleen lib/kennis/ schrijft een kennisveld op profiles (V22). Het
+    // gespreksscherm slaat de kopie en de kennis in één handeling op; wijst de
+    // consultant op het kennisoverzicht een naam af, of past hij een concurrent
+    // aan, dan volgt de kopie die de meting leest.
+    console.log("\nScenario 28: het merkprofiel als kopie van de kennislaag (K8 deel 3)");
+    {
+      const { slaProfielOp } = await import("@/lib/kennis/uit-gesprek");
+      const { handelOpOverzicht } = await import("@/lib/kennis/uit-overzicht");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Kopie Test', 'https://kopie.nl', 'Kopie Test', 'klaar')`,
+        [merk, userId],
+      );
+      const mens = { actor: "mens", gebruikerId: userId } as const;
+      const { error } = await slaProfielOp(shim, {
+        profileId: merk, url: "https://kopie.nl",
+        kolommen: { aliases: ["Kopie", "KT Installatie"], competitors: ["Warmte Oost"], edited_by_user: true },
+        oud: { aliases: [], competitors: [] }, velden: ["aliases", "competitors"], bron: "gesprek",
+      }, mens);
+      ok("scenario 28: opslaan lukt", error === null, String(error));
+      const profiel = async () => (await db.client.query("select aliases, competitors, edited_by_user from public.profiles where id = $1", [merk])).rows[0];
+      const p1 = await profiel();
+      ok("scenario 28: de kopie staat op het profiel", JSON.stringify(p1.aliases) === JSON.stringify(["Kopie", "KT Installatie"]) && p1.edited_by_user === true, JSON.stringify(p1));
+      const item = async (bewering: string) =>
+        (await db.client.query("select id, status from public.klantkennis where profile_id = $1 and bewering = $2 and vervangen_door is null", [merk, bewering])).rows[0];
+      eqc("scenario 28: en de kennis is verklaard", String((await item("KT Installatie"))?.status), "verklaard");
+
+      const af = await handelOpOverzicht(shim, { profileId: merk, itemId: (await item("KT Installatie")).id, actie: "afwijzen" }, userId);
+      ok("scenario 28: de consultant wijst een naam af", af.ok);
+      eqc("scenario 28: de meting telt er niet meer op", JSON.stringify((await profiel()).aliases), JSON.stringify(["Kopie"]));
+      const aan = await handelOpOverzicht(shim, { profileId: merk, itemId: (await item("Warmte Oost")).id, actie: "aanpassen", bewering: "Warmte Oost BV" }, userId);
+      ok("scenario 28: de consultant past een concurrent aan", aan.ok);
+      eqc("scenario 28: de kopie volgt", JSON.stringify((await profiel()).competitors), JSON.stringify(["Warmte Oost BV"]));
     }
 
     __setTestAdminClient(null);

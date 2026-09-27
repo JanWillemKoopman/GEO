@@ -14,6 +14,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { legVast, vervang, wijsAf, type Door } from "@/lib/kennis/vastleggen";
 import { kennisUitStemvoorbeelden, stemPlan } from "@/lib/kennis/gesprek";
 import { alsNieuw, log, nieuweTelling, type GesprekTelling, type Mens } from "@/lib/kennis/uit-gesprek";
+import { schrijfProfiel } from "@/lib/kennis/profielkopie";
+import type { StemVoorbeeld } from "@/lib/types/database";
 
 /** De taak die de tekst van een stemvoorbeeld ophaalt; de code, geen model. */
 export const STEM_TAAK = "stemvoorbeelden";
@@ -34,15 +36,33 @@ export async function legStemVast(
     profileId: string;
     url: string;
     /** Wat het ophalen opleverde. */
-    voorbeelden: readonly { url: string; tekst: string | null }[];
+    voorbeelden: readonly StemVoorbeeld[];
     /** De adressen zoals de mens ze opsloeg. */
     gekozen: readonly string[];
   },
   door: Mens,
-): Promise<GesprekTelling> {
+): Promise<GesprekTelling & { bewaard: boolean }> {
   const telling = nieuweTelling();
   const redenen: string[] = [];
   const code: Door = { actor: "code", taak: STEM_TAAK };
+
+  // Alleen bewaren als de adressen nog dezelfde zijn. Twee keer kort na elkaar
+  // opslaan (elk adresveld bewaart bij het verlaten) start twee ophaalrondes;
+  // zonder deze controle overschrijft de trage eerste ronde met één adres het
+  // resultaat van de tweede met twee. De latere opslag doet dan dit werk.
+  const { data: profiel } = await admin.from("profiles").select("stem_voorbeelden").eq("id", args.profileId).maybeSingle();
+  const huidig = (((profiel as { stem_voorbeelden?: { url: string }[] | null } | null)?.stem_voorbeelden ?? []) as { url: string }[])
+    .map((v) => v.url)
+    .join("|");
+  if (huidig !== args.gekozen.join("|")) return { ...telling, bewaard: false };
+  // De kopie op het profiel (K8 deel 3): de tekst die de schrijver als stem krijgt.
+  if (args.voorbeelden.length > 0) {
+    const { error } = await schrijfProfiel(admin, args.profileId, { stem_voorbeelden: args.voorbeelden });
+    if (error) {
+      log(args.profileId, "stemvoorbeelden", { ...telling, geweigerd: 1 }, [error]);
+      return { ...telling, geweigerd: 1, bewaard: false };
+    }
+  }
   try {
     const { data } = await admin
       .from("klantkennis")
@@ -93,5 +113,5 @@ export async function legStemVast(
     redenen.push(err instanceof Error ? err.message : String(err));
   }
   log(args.profileId, "stemvoorbeelden", telling, redenen);
-  return telling;
+  return { ...telling, bewaard: true };
 }

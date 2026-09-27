@@ -14,6 +14,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Klantkennis } from "@/lib/types/database";
 import { bevestig, nietOpSite, vervang, wijsAf, type HandelingUitkomst, type NieuwKennisItem } from "@/lib/kennis/vastleggen";
 import { handelingenVoor, nieuwGebruikBijAanpassen, type OverzichtActie } from "@/lib/kennis/overzicht";
+import { werkKopieBij } from "@/lib/kennis/profielkopie";
 
 export const MAX_BEWERING = 2000;
 
@@ -60,8 +61,12 @@ export async function handelOpOverzicht(
   switch (args.actie) {
     case "bevestigen":
       return bevestig(admin, item, mens);
-    case "afwijzen":
-      return wijsAf(admin, item, mens);
+    case "afwijzen": {
+      const uitkomst = await wijsAf(admin, item, mens);
+      // De kopie op het profiel volgt (K8 deel 3): de meting telt er niet meer op.
+      if (uitkomst.ok) await werkKopieBij(admin, oud, null);
+      return uitkomst;
+    }
     case "niet_op_site":
       return nietOpSite(admin, item, mens);
     case "aanpassen": {
@@ -69,7 +74,9 @@ export async function handelOpOverzicht(
       if (!tekst) return { ok: false, fout: "Schrijf de nieuwe tekst." };
       if (tekst.length > MAX_BEWERING) return { ok: false, fout: `De tekst is te lang; hooguit ${MAX_BEWERING} tekens.` };
       if (tekst === oud.bewering.trim()) return { ok: false, fout: "De tekst is niet veranderd." };
-      return vervang(admin, { profileId: args.profileId, oudId: oud.id, nieuw: aangepast(oud, tekst) }, mens);
+      const uitkomst = await vervang(admin, { profileId: args.profileId, oudId: oud.id, nieuw: aangepast(oud, tekst) }, mens);
+      if (uitkomst.ok) await werkKopieBij(admin, oud, tekst);
+      return uitkomst;
     }
   }
 }
@@ -116,6 +123,7 @@ export async function losKennisconflictOp(
           : await bevestig(admin, { profileId: args.profileId, itemId: item.id }, mens)
         : await wijsAf(admin, { profileId: args.profileId, itemId: item.id }, mens);
     if (!uitkomst.ok) return uitkomst.fout;
+    if (item.id !== args.winnaarId) await werkKopieBij(admin, item, null);
   }
   const nu = new Date().toISOString();
   const { error } = await admin

@@ -9,7 +9,6 @@ import "server-only";
  * fout erbij in plaats van een lege tekst: de adviseur moet zien dat dit
  * voorbeeld de schrijver niet bereikt.
  */
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchExistingPage } from "@/lib/pipeline/existing-page-fetch";
 import type { StemVoorbeeld } from "@/lib/types/database";
 import { MAX_STEMVOORBEELDEN, STEMTEKST_MAX, schoneAdressen, vanafEersteAlinea } from "@/lib/pagina/stemvoorbeelden-regels";
@@ -17,15 +16,11 @@ import { MAX_STEMVOORBEELDEN, STEMTEKST_MAX, schoneAdressen, vanafEersteAlinea }
 export { MAX_STEMVOORBEELDEN, schoneAdressen };
 
 /**
- * Haalt de tekst van elk adres op en bewaart het resultaat bij het profiel.
- * `bewaard` is onwaar als de adressen intussen veranderden; dan hoort de uitkomst
- * ook niet in de kennislaag (`legStemVast()`).
+ * Haalt de tekst van elk adres op. Bewaren doet `legStemVast()` in de
+ * kennislaag (K8 deel 3): die zet ook de kopie op het profiel, maar alleen als de
+ * adressen intussen niet veranderden.
  */
-export async function haalStemvoorbeeldenOp(
-  admin: SupabaseClient,
-  profileId: string,
-  adressen: string[],
-): Promise<{ voorbeelden: StemVoorbeeld[]; bewaard: boolean }> {
+export async function haalStemvoorbeeldenOp(adressen: string[]): Promise<StemVoorbeeld[]> {
   const uit: StemVoorbeeld[] = [];
   for (const url of adressen.slice(0, MAX_STEMVOORBEELDEN)) {
     try {
@@ -40,15 +35,5 @@ export async function haalStemvoorbeeldenOp(
       uit.push({ url, tekst: null, opgehaald_op: new Date().toISOString(), fout: "Deze pagina konden we niet lezen." });
     }
   }
-  // Alleen bewaren als de adressen nog dezelfde zijn. Twee keer kort na elkaar
-  // opslaan (elk adresveld bewaart bij het verlaten) start twee ophaalrondes;
-  // zonder deze controle overschrijft de trage eerste ronde met één adres het
-  // resultaat van de tweede met twee.
-  const { data } = await admin.from("profiles").select("stem_voorbeelden").eq("id", profileId).maybeSingle();
-  const huidig = (((data as { stem_voorbeelden?: { url: string }[] | null } | null)?.stem_voorbeelden ?? []) as { url: string }[])
-    .map((v) => v.url)
-    .join("|");
-  if (huidig !== uit.map((v) => v.url).join("|")) return { voorbeelden: uit, bewaard: false };
-  await admin.from("profiles").update({ stem_voorbeelden: uit }).eq("id", profileId);
-  return { voorbeelden: uit, bewaard: true };
+  return uit;
 }

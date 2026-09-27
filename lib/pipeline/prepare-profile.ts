@@ -26,7 +26,7 @@ import { crawlSite } from "@/lib/crawler";
 import { generateProfileResearch } from "@/lib/pipeline/profile-research";
 import { schoneWaardeproposities } from "@/lib/pipeline/waardeproposities";
 import { kennisUitMerkonderzoek } from "@/lib/kennis/onderzoek";
-import { legOnderzoekVast } from "@/lib/kennis/uit-onderzoek";
+import { legOnderzoeksveldenVast } from "@/lib/kennis/uit-onderzoek";
 import {
   filterProtectedFields,
   describeMerge,
@@ -276,30 +276,19 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
       );
     }
 
-    const { error: saveError } = await admin
-      .from("profiles")
-      .update({
+    // K4 en K8 deel 3: wat er op het profiel kwam (de kopie die de meting
+    // leest) en wat het model voorstelde (als vermoeden in de kennislaag), via
+    // één ingang. Alles afgeleid: het merkonderzoek geeft geen citaten.
+    const { error: saveError } = await legOnderzoeksveldenVast(admin, id, {
+      kolommen: {
         ...allowed,
         // Deze twee gaan buiten de bescherming om: het zijn geen inhoudelijke
         // velden maar boekhouding over de ronde zelf.
         raw_json: research.raw as never,
         deep_research_at: new Date().toISOString(),
         status: "klaar",
-      })
-      .eq("id", id);
-
-    if (saveError) {
-      throw new Error(
-        `Profielonderzoek opslaan mislukt voor profiel ${id}: ${saveError.message}`,
-      );
-    }
-
-    // K4: wat het model voorstelde en wat er op het profiel kwam, ook in de
-    // kennislaag. Alles afgeleid: het merkonderzoek geeft geen citaten.
-    await legOnderzoekVast(
-      admin,
-      id,
-      kennisUitMerkonderzoek({
+      },
+      items: kennisUitMerkonderzoek({
         profileId: id,
         model: {
           brand_name: p.brandName,
@@ -317,8 +306,14 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
         },
         geschreven: allowed,
       }),
-      "profile_research",
-    );
+      taak: "profile_research",
+    });
+
+    if (saveError) {
+      throw new Error(
+        `Profielonderzoek opslaan mislukt voor profiel ${id}: ${saveError}`,
+      );
+    }
 
     return "klaar";
   } catch (err) {
