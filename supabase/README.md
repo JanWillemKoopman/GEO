@@ -737,3 +737,23 @@ bekend, niet "nee"): staat het gepubliceerde adres van de pagina, genormaliseerd
 `citeertEigenPagina()` (`lib/pipeline/impact-math.ts`), dezelfde regels als `isRedirectedElsewhere()`
 in `lib/url.ts`. Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` M3. Additief en idempotent. Op
 productie toegepast op 27 september 2026.
+
+## 0121 — De idempotentiesleutel van een impactmeting kent de bron
+
+`tracking_runs_impact_unique_idx` (0020) kende geen `engine`-kolom: een ChatGPT- en een AI
+Overview-meting van dezelfde vraag, pagina en golf zouden op elkaars rij botsen sinds M3 AI Overview ook
+laat meemeten. De index krijgt `engine` erbij, dezelfde soort reparatie als migratie 0066 destijds voor de
+periodieke meting. Alleen een indexdefinitie vervangen, geen rijen weg; strenger dan de oude index, dus
+geen bestaande rij kan ermee in strijd zijn. Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` M3.
+Additief en idempotent. Op productie toegepast op 27 september 2026.
+
+## 0122 — Het meetplan, vastgelegd bij het goedkeuren
+
+Maakt `meetplannen`: één rij per pagina, bevroren op het moment van goedkeuren (`lib/pipeline/meetplan.ts`).
+`doelvragen` en `controlegroep` (jsonb, `{promptId, tekst}[]`) vervangen `content_piece_targets` als bron voor
+de effectmeting: sinds de contentketen opnieuw gebouwd is (WP1) schreef niemand daar meer in, en elke pagina
+uit de nieuwe keten had daardoor stil geen doelvragen. `bronnen` (welke motoren toen meededen) en `adres`
+(gezet bij publicatie) staan er ook naast; `regio` en `zoekopdrachten` horen bij M2 en blijven leeg tot dat
+gebouwd is. Eén meetplan per pagina (unieke index op `content_piece_id`). Nog niemand leest of schrijft
+client-side. Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` M1. Additief en idempotent. Op productie
+toegepast op 27 september 2026.
