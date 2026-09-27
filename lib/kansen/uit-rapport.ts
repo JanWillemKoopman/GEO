@@ -41,6 +41,7 @@ import {
   type MetingVoorBewijs,
   type RuweAanbeveling,
 } from "@/lib/kansen/rapport";
+import { legAfhankelijkhedenVast } from "@/lib/afhankelijkheden/vastleggen";
 
 export interface KansenTelling {
   aangemaakt: number;
@@ -267,6 +268,7 @@ export async function legKansenVast(admin: SupabaseClient, rapportId: string): P
 
     for (const k of nieuw) {
       const bewijs = bewijsUitMetingen(k.doelvragen, metingen, profileUrl);
+      const geldtVoor = geldtVoorVan({ kans: k, dienstIds, kennis });
       const { data: rij, error } = await admin
         .from("kansen")
         .insert({
@@ -276,7 +278,7 @@ export async function legKansenVast(admin: SupabaseClient, rapportId: string): P
           lezer: k.lezer,
           handeling: k.handeling,
           bestaande_url: k.bestaandeUrl,
-          geldt_voor: geldtVoorVan({ kans: k, dienstIds, kennis }),
+          geldt_voor: geldtVoor,
           commerciele_waarde: commercieel,
           status: "open",
           uitleg: uitlegVan({ handeling: k.handeling, bewijs }),
@@ -298,6 +300,8 @@ export async function legKansenVast(admin: SupabaseClient, rapportId: string): P
       }
       telling.aangemaakt++;
       const kansId = (rij as { id: string }).id;
+      // G2: waar deze kans op leunt, voor "wat hangt er aan deze dienst".
+      await legAfhankelijkhedenVast(admin, { profileId, vanTabel: "kansen", vanId: kansId, kennisIds: geldtVoor });
       if (bewijs.length === 0) continue;
       const { error: bewijsFout } = await admin.from("kans_bewijs").insert(bewijsRijen(kansId, k, bewijs));
       if (bewijsFout) console.error(`Bewijs bij kans "${k.titel}" vastleggen mislukt: ${bewijsFout.message}`);

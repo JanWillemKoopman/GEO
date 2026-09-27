@@ -769,3 +769,23 @@ RLS aan, geen policies, dus geen enkele clientrol kan erbij. Nog geen abonnee ge
 G3 en G4); `lib/kennis/vastleggen.ts` publiceert al wel bij elke geslaagde schrijfactie. Zie
 `docs/tasks/van-pijplijn-naar-kennissysteem.md` G1. Additief en idempotent. Op productie toegepast op
 27 september 2026.
+
+## 0124 — Welke kennis in een versie zat
+
+Voegt `content_pieces.gebruikte_kennis` toe (uuid-array, geen foreign key: een array kan er geen
+dragen). `tekstKolommen()` (`lib/pagina/schrijven.ts`) vult hem bij schrijven en herschrijven uit
+dezelfde keuze die `kiesVoorBlokA()` voor de schrijver maakte. Zie
+`docs/tasks/van-pijplijn-naar-kennissysteem.md` C3. Additief en idempotent. Op productie toegepast op
+27 september 2026.
+
+## 0125 — Afhankelijkheden
+
+Maakt `afhankelijkheden`: welk object (`kansen` of `content_pieces`) op welk kennisitem leunt, unieke
+index op het drietal zodat opnieuw vastleggen geen dubbele rij geeft. `lib/afhankelijkheden/
+vastleggen.ts` is de enige schrijfingang; gevuld bij het vastleggen van een kans (uit `geldt_voor`) en
+bij het schrijven of herschrijven van een pagina (uit `gebruikte_kennis`, migratie 0124). De
+meetvragen (`prompts`) dragen nog geen dienst of regio uit de kennislaag, dus dat derde deel van G2
+is bewust nog niet gevuld. Interne infrastructuur zoals `jobs`: RLS aan, geen policies. Bestaande
+kansen en pagina's zijn met een eenmalige, idempotente backfill uit hun `geldt_voor` en
+`gebruikte_kennis` nagevuld. Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` G2. Additief en
+idempotent. Op productie toegepast op 27 september 2026.

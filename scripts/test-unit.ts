@@ -21156,6 +21156,7 @@ group("lib/pagina importeert alleen wat op de lijst van §7.3 staat", () => {
     /^@\/lib\/schema-jsonld$/,
     /^@\/lib\/plan-(status|writing)$/,
     /^@\/lib\/kennis\/(voor-pagina|blok-a)$/,
+    /^@\/lib\/afhankelijkheden\/vastleggen$/,
     /^zod$/,
     /^server-only$/,
     /^@supabase\/supabase-js$/,
@@ -22785,6 +22786,22 @@ group("kansen: één schrijfingang (N2)", () => {
     .filter((p) => schrijft(leesBestand(p)));
   eq("niemand buiten lib/kansen/ schrijft in kansen of kans_bewijs", buiten.join(", "), "");
   ok("en lib/kansen/uit-rapport.ts wél", schrijft(leesBestand("lib/kansen/uit-rapport.ts")));
+});
+
+group("afhankelijkheden: één schrijfingang (G2)", () => {
+  const schrijft = (inhoud: string) =>
+    /from\(\s*["'`]afhankelijkheden["'`]\s*\)\s*\.\s*(insert|update|upsert|delete)\s*\(/.test(inhoud) ||
+    /\b(insert\s+into|update|delete\s+from)\s+(public\.)?afhankelijkheden\b/i.test(inhoud);
+  ok("zelftest: een upsert wordt herkend", schrijft('admin\n  .from("afhankelijkheden")\n  .upsert({})'));
+  ok("zelftest: lezen is geen schrijven", !schrijft('admin.from("afhankelijkheden").select("*")'));
+  const buiten = ["app", "lib", "components", "scripts"]
+    .flatMap((m) => [...tsOnder(m), ...tsxOnder(m)])
+    .map((p) => p.split("\\").join("/"))
+    .filter((p) => !p.startsWith("lib/afhankelijkheden/"))
+    .filter((p) => !p.startsWith("scripts/test-") && !p.startsWith("scripts/chain/"))
+    .filter((p) => schrijft(leesBestand(p)));
+  eq("niemand buiten lib/afhankelijkheden/ schrijft in afhankelijkheden", buiten.join(", "), "");
+  ok("en lib/afhankelijkheden/vastleggen.ts wél", schrijft(leesBestand("lib/afhankelijkheden/vastleggen.ts")));
 });
 
 group("kansen: het kennisgat per kans (N6)", () => {

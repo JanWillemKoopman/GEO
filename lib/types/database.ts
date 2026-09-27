@@ -1450,6 +1450,20 @@ export interface GebeurtenisVerwerkingRij {
 }
 
 /**
+ * "Deze kans of pagina leunt op dit kennisitem" (migratie 0125, G2 van
+ * `van-pijplijn-naar-kennissysteem.md`). Deny-all in RLS: alleen
+ * `lib/afhankelijkheden/` schrijft, gevuld door wie het object maakt.
+ */
+export interface AfhankelijkheidRij {
+  id: string;
+  profile_id: string;
+  van_tabel: "kansen" | "content_pieces";
+  van_id: string;
+  kennis_id: string;
+  aangemaakt_op: string;
+}
+
+/**
  * Kostenregistratie per AI-aanroep (optimalisatie.md 0.6, migratie 0012).
  * Deny-all in RLS: uitsluitend te lezen via een service-role route.
  */
