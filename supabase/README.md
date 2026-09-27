@@ -798,3 +798,16 @@ echte abonnee op "kennis gewijzigd" (`kennis_wijziging_impact`), die ook `kansen
 `vervallen` of `te_herzien` zet (die waarden bestaan al sinds migratie 0118). Zie
 `docs/tasks/van-pijplijn-naar-kennissysteem.md` G3. Additief en idempotent. Op productie toegepast op
 27 september 2026.
+
+## 0127 — De verversingslogica wordt een abonnee
+
+Voegt `profiles.velden_te_verversen` toe (text array, geen foreign key: het zijn kolomnamen van
+`profiles` zelf). De tweede echte abonnee, `onderzoek_refresh`, houdt hierin bij welke profielvelden
+een mens zette sinds de laatste volledige onderzoeksronde; de bijwerkroute
+(`/api/profiles/[id]/refresh`) en het onboardingscherm lazen dat vroeger allebei zelf uit met een
+live vergelijking tegen `profile_field_sources` en `deep_research_at`, en lezen nu deze kolom.
+`profile_field_sources` blijft bestaan en gevuld voor zijn andere rol (`lib/pipeline/field-merge.ts`
+beschermt daarmee een door een mens gezet veld tegen een volgende onderzoeksronde). Een nieuwe
+onderzoeksronde (`lib/pipeline/prepare-profile.ts`) maakt de kolom weer leeg. Zie
+`docs/tasks/van-pijplijn-naar-kennissysteem.md` G4. Additief en idempotent. Op productie toegepast op
+27 september 2026.

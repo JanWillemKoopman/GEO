@@ -429,6 +429,13 @@ export interface Profile {
   onboarding_budget_usd: number;
   /** Wanneer het uitgebreide onderzoek (blok B) voor het laatst draaide. */
   deep_research_at: string | null;
+  /**
+   * Profielvelden die een mens zette sinds die laatste ronde (migratie 0127,
+   * G4). Bijgehouden door de abonnee `onderzoek_refresh`, gewist zodra een
+   * nieuwe ronde start. `lib/pipeline/onboarding-refresh.ts` rekent ermee uit
+   * wat dat betekent voor de meting.
+   */
+  velden_te_verversen: string[];
   /** Welke engines meedoen (migratie 0041). Doorsnede met de beschikbare sleutels. */
   engines_enabled: EngineId[];
   /**

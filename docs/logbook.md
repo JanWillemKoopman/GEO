@@ -12814,8 +12814,35 @@ versie van een kennisitem) publiceerde de gebeurtenis met het NIEUWE item-id, te
 kans of pagina nog naar het OUDE id verwijst (dat is waar `legAfhankelijkhedenVast()` destijds op
 schreef). Zonder reparatie zou een aanpassing via het kennisoverzicht (K7) nooit een kans of pagina
 raken. `meldWijziging()` publiceert nu met het oude id als de handeling een vervanging is.
-Ketenscenario 38. Open: het scherm voor de consultant (wat is er geraakt, wat zou opnieuw draaien
-kosten) is niet gebouwd; de status en de melding staan klaar in de database voor wie dat bouwt.
+Ketenscenario 38.
+
+G3, het scherm (27 september 2026): het kennisoverzicht (`/merk/[id]/admin/kennis`) toont nu, alleen
+als er iets geraakt is, welke kansen op `te herzien` of `vervallen` staan en welke pagina's een
+melding hebben, met een kosteninschatting (`geraaktOverzicht()` in `lib/kansen/impact.ts`, de
+bovengrens van $0,17 per pagina uit de WP8-proef). Geen actieknop: het scherm laat alleen zien wat er
+is, ORBIT ENGINE herschrijft niets vanzelf. Ketenscenario 38 dekt ook `geraaktOverzicht()` zelf.
+Niet gedaan: bekijken met een echte browser en klantlogin, de werkomgeving heeft geen
+Supabase-omgevingsvariabelen om een dev-server tegen productie te draaien.
+
+G4 (27 september 2026, migratie 0127): de verversingslogica na het gesprek wordt een abonnee. Tot nu
+berekenden de bijwerkroute (`/api/profiles/[id]/refresh`) en het onboardingscherm allebei apart, op
+het moment zelf, welke profielvelden een mens zette sinds de laatste onderzoeksronde: een live
+vergelijking tegen `profile_field_sources` en `deep_research_at`. De tweede echte abonnee,
+`onderzoek_refresh`, houdt dat nu bij op `profiles.velden_te_verversen` zodra `slaProfielOp()`
+(`lib/kennis/uit-gesprek.ts`) een gebeurtenis publiceert met de gezette velden; beide plekken lezen
+voortaan die lijst. De regels zelf (`lib/pipeline/onboarding-refresh.ts`, `planRefresh()`, welk veld
+welke stap triggert, de kosteninschatting, de bevestigingsknop) zijn geen letter veranderd: dezelfde
+velden geven dezelfde uitkomst. `profile_field_sources` blijft bestaan en gevuld, want die tabel
+beschermt ook los hiervan een door een mens gezet veld tegen een volgende onderzoeksronde
+(`lib/pipeline/field-merge.ts`); alleen deze twee plekken lezen hem niet meer. Een nieuwe
+onderzoeksronde (`prepare-profile.ts`) maakt de lijst weer leeg, in dezelfde schrijfactie als
+`deep_research_at`. Het bewijs dat er niets veranderde aan het gedrag: de bestaande ketentest "Wat er
+in het gesprek verandert, verandert het onderzoek" (het verificatiecriterium van onboarding 3.0 fase
+4) slaagt ongewijzigd, zonder dat de test ook maar een regel hoefde te veranderen. Ketenscenario 39
+bewijst de nieuwe weg apart. Niet gedaan: bekijken in een echte browser, om dezelfde reden als bij G3.
+
+Met G3 en G4 allebei af, is dat het natuurlijke moment voor G5: verder bouwen aan de
+gebeurtenissenlaag of hier stoppen. Nog open.
 
 N5 (27 september 2026, besluit V2): de consultant kan nu een kans toevoegen die de meting niet vond. `content_pieces.analysis_id` staat overal `not null`, dus zonder een analyse erachter kan zo'n kans nooit een pagina worden; `voegHandmatigeKansToe()` (`lib/kansen/handmatig.ts`) maakt daarom een minimale analyse aan (dezelfde `user_id`/`buildAnalysisName()` als bij een gewoon onderwerp) en archiveert hem meteen, zodat hij niet tussen de echte clusters verschijnt. `kansen.analysis_id` blijft zelf NULL: dat is het "Niet gemeten"-label op het bord. De opgegeven doelvragen worden als `prompts` vastgelegd, klaar voor een latere meting. Bewust nog niet gebouwd: die meting zelf ("een eigen nulmeting", besluit V2 letterlijk). De bestaande wachtrij (`enqueueMeasurement()`) eindigt in `generateReport()` zodra de laatste vraag binnen is, en dat zou voor één handmatige kans een tweede, overbodige aanbeveling en een dubbele kans proberen te maken; een eigen aftakking van die aggregatie is nodig en is met opzet buiten dit werkpakket gelaten. Formulier op het contentplan (`handmatige-kans-formulier.tsx`, staff-only), route `/api/profiles/[id]/kansen/handmatig`. Ketenscenario 34 dekt kans tot en met de aangemaakte pagina (status `briefing`) onder de schaduwanalyse, via dezelfde `bereidVoor()`-ketting als elke andere kans (geen wijziging nodig aan `clusterVan()`: die leest toch al `source_analysis_id` eerst).
 

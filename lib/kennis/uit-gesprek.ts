@@ -25,6 +25,7 @@ import type { Klantkennis } from "@/lib/types/database";
 import { bevestig, legVast, metSleutel, vervang, wijsAf, type Door, type NieuwKennisItem } from "@/lib/kennis/vastleggen";
 import { isAfgewezen } from "@/lib/kennis/regels";
 import { schrijfProfiel } from "@/lib/kennis/profielkopie";
+import { publiceer } from "@/lib/gebeurtenissen/publiceer";
 import { type BronAanbod, type BronProfiel, type BronStrategie, type BronVraag, type PlanItem } from "@/lib/kennis/terugvullen";
 import {
   GESPREKSVELDEN,
@@ -275,6 +276,21 @@ export async function slaProfielOp(
       },
       door,
     );
+    // G4: welke velden een mens net zette, voor de abonnee die bijhoudt wat het
+    // onderzoek moet verversen (`lib/gebeurtenissen/abonnees/onderzoek-refresh.ts`).
+    // Best effort, zoals `meldWijziging()` in `lib/kennis/vastleggen.ts`: dit
+    // mag het opslaan van het gesprek niet laten mislukken.
+    try {
+      await publiceer(admin, {
+        profileId: args.profileId,
+        soort: "kennis_gewijzigd",
+        objectTabel: "profiles",
+        objectId: args.profileId,
+        payload: { velden: [...args.velden] },
+      });
+    } catch (err) {
+      console.warn(`Gebeurtenis "kennis gewijzigd" (profielvelden) publiceren mislukt voor merk ${args.profileId}:`, err);
+    }
   }
   return { error: null };
 }

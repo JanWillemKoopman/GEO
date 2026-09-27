@@ -282,11 +282,14 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
     const { error: saveError } = await legOnderzoeksveldenVast(admin, id, {
       kolommen: {
         ...allowed,
-        // Deze twee gaan buiten de bescherming om: het zijn geen inhoudelijke
-        // velden maar boekhouding over de ronde zelf.
+        // Deze drie gaan buiten de bescherming om: het zijn geen inhoudelijke
+        // velden maar boekhouding over de ronde zelf. Een nieuwe ronde neemt
+        // alles mee wat een mens ondertussen zette, dus de lijst van G4 is
+        // weer leeg (`lib/gebeurtenissen/abonnees/onderzoek-refresh.ts`).
         raw_json: research.raw as never,
         deep_research_at: new Date().toISOString(),
         status: "klaar",
+        velden_te_verversen: [],
       },
       items: kennisUitMerkonderzoek({
         profileId: id,
