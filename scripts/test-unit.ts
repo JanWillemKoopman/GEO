@@ -21243,7 +21243,7 @@ group("blok A uit de kennislaag: wat mee gaat naar de schrijver (K6, B20)", () =
     herkomst_id: null,
     ...extra,
   });
-  const site = { status: "waargenomen", bron: "website", citaat: "letterlijk", bron_url: "https://x.nl", vastgelegd_door: null, vastgelegd_door_taak: "kennis_terugvullen" };
+  const site = { status: "waargenomen", bron: "website", citaat: "letterlijk", bron_url: "https://x.nl", vastgelegd_door: null, vastgelegd_door_taak: "kennis_terugvullen", herkomst_tabel: "profile_offerings" };
   const kennis: KennisVoorBlokA[] = [
     k("Cv-ketels: vervangen en plaatsen.", { id: "cat-cv", soort: "categorie", ...site }),
     k("CV-ketel vervangen: een oude ketel vervangen.", { id: "d-cv", soort: "dienst", geldt_voor: ["cat-cv"], ...site }),
@@ -21282,7 +21282,8 @@ group("blok A uit de kennislaag: wat mee gaat naar de schrijver (K6, B20)", () =
   ok("alleen intern niet, afgewezen niet", !teksten.includes("Alleen intern.") && !teksten.includes("Afgewezen."));
   ok("de dienst van de kans, met wat eronder hangt (de prijs)", teksten.includes("CV-ketel vervangen: een oude ketel vervangen.") && teksten.includes("Een nieuwe cv-ketel kost € 2.200 tot € 3.200."));
   ok("de prijs van een andere dienst niet (V16)", !teksten.includes("Zonnepanelen vanaf € 4.000."));
-  ok("een dienst die nergens onder hangt, staat als overzicht van het aanbod", teksten.includes("Zonnepanelen: leggen op het dak."));
+  ok("een dienst van de aanbodboom die niet bij de kans hoort, ook niet als hij nergens onder hangt (productie, 27 september 2026)", !teksten.includes("Zonnepanelen: leggen op het dak."));
+  ok("maar de categorie van de kans zelf wel", teksten.includes("Cv-ketels: vervangen en plaatsen."));
   ok("een antwoord uit het rapport van dit cluster wel (B17), van een ander cluster niet", teksten.includes("Hoeveel monteurs?\nTwaalf.") && !teksten.includes("Vraag van een ander cluster."));
   ok("wat al in blok B staat, niet nog eens", !teksten.includes("Rapportvraag die al aan deze pagina hangt."));
   ok("het verhaal bij een eerdere versie van de pagina wel (gevonden in K5)", teksten.includes("Het verhaal bij een eerdere versie van deze pagina."));
