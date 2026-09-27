@@ -757,3 +757,15 @@ uit de nieuwe keten had daardoor stil geen doelvragen. `bronnen` (welke motoren 
 gebouwd is. Eén meetplan per pagina (unieke index op `content_piece_id`). Nog niemand leest of schrijft
 client-side. Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` M1. Additief en idempotent. Op productie
 toegepast op 27 september 2026.
+
+## 0123 — De gebeurtenissenlaag
+
+Maakt `gebeurtenissen` (het logboek: merk, soort, welke tabel en rij veranderde, vrije payload; nu
+alleen de soort `kennis_gewijzigd`) en `gebeurtenis_verwerkingen` (één rij per abonnee per
+gebeurtenis, unieke index op het paar). `lib/gebeurtenissen/verwerken.ts` kijkt in die tweede tabel
+vóór het werk van een abonnee, zodat een abonnee een gebeurtenis precies één keer verwerkt, ook als
+de werker dezelfde taak twee keer probeert. Beide tabellen zijn interne infrastructuur zoals `jobs`:
+RLS aan, geen policies, dus geen enkele clientrol kan erbij. Nog geen abonnee geregistreerd (dat is
+G3 en G4); `lib/kennis/vastleggen.ts` publiceert al wel bij elke geslaagde schrijfactie. Zie
+`docs/tasks/van-pijplijn-naar-kennissysteem.md` G1. Additief en idempotent. Op productie toegepast op
+27 september 2026.

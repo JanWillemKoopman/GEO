@@ -573,6 +573,8 @@ import {
   sameBrand,
 } from "@/lib/audit/entity-consistency";
 import { dedupe } from "@/lib/jobs/dedupe";
+import { abonneesVoor } from "@/lib/gebeurtenissen/register";
+import type { Abonnee } from "@/lib/gebeurtenissen/types";
 import {
   buildVerdict,
   checkFacts,
@@ -19466,6 +19468,33 @@ group("punt 25: nieuwe versie beschikbaar", () => {
   ok("eigen versie nog onbekend: geen melding", !isNewerVersionAvailable("", "def456"));
   ok("serverversie nog onbekend: geen melding", !isNewerVersionAvailable("abc123", ""));
   ok("allebei onbekend: geen melding", !isNewerVersionAvailable("", ""));});
+
+group("G1: de gebeurtenissenlaag, het register van abonnees", () => {
+  const kennis: Abonnee = { naam: "test_kennis", soorten: ["kennis_gewijzigd"], verwerk: async () => {} };
+  const andere: Abonnee = { naam: "test_ander", soorten: ["kennis_gewijzigd"], verwerk: async () => {} };
+  const lijst = [kennis, andere];
+
+  ok(
+    "beide abonnees op 'kennis gewijzigd'",
+    abonneesVoor("kennis_gewijzigd", lijst).map((a) => a.naam).join(",") === "test_kennis,test_ander",
+  );
+  ok("een lege lijst levert geen abonnees op", abonneesVoor("kennis_gewijzigd", []).length === 0);
+  ok(
+    "het register begint leeg (G1 bouwt nog geen echte abonnee, dat is G3 en G4)",
+    abonneesVoor("kennis_gewijzigd").length === 0,
+  );
+
+  // Dedupe-sleutel: per gebeurtenis én per abonnee (lib/jobs/dedupe.ts).
+  eq("dedupe-sleutel bevat abonnee en gebeurtenis", dedupe.gebeurtenisVerwerken("g1", "test_kennis"), "gebeurtenis:test_kennis:g1");
+  ok(
+    "twee abonnees op dezelfde gebeurtenis krijgen verschillende sleutels",
+    dedupe.gebeurtenisVerwerken("g1", "a") !== dedupe.gebeurtenisVerwerken("g1", "b"),
+  );
+  ok(
+    "dezelfde abonnee op een andere gebeurtenis krijgt een andere sleutel",
+    dedupe.gebeurtenisVerwerken("g1", "a") !== dedupe.gebeurtenisVerwerken("g2", "a"),
+  );
+});
 
 // ════════════════════════════════════════════════════════════════════════════
 void (async () => {

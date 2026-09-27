@@ -70,6 +70,7 @@ import { availableEngineIds } from "@/lib/engines/registry";
 import type { Kandidaat } from "@/lib/sales/discovery";
 import { refreshInventory } from "@/lib/pipeline/refresh-inventory";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
+import { verwerkGebeurtenis } from "@/lib/gebeurtenissen/verwerken";
 import {
   voerBriefUit,
   briefGafOp,
@@ -1293,6 +1294,11 @@ const handlers: { [T in JobType]: Handler<T> } = {
         dedupeKey: `${dedupe.crawlInventory(job.profile_id)}:aanvul${ronde + 1}`,
       });
     }
+  },
+
+  // ── De gebeurtenissenlaag (van-pijplijn-naar-kennissysteem.md, G1) ────────
+  gebeurtenis_verwerken: async ({ admin }, payload) => {
+    await verwerkGebeurtenis(admin, payload.gebeurtenisId, payload.abonnee);
   },
 };
 

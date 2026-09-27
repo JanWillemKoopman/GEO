@@ -12765,5 +12765,28 @@ N4 en N7 (27 september 2026, in één ronde gebouwd): N4 maakt de kansen zichtba
 
 Op productie nagelopen (27 september 2026): 7 pagina's waren al goedgekeurd vóórdat M1 bestond en hadden dus geen meetplan, allemaal nog niet gepubliceerd. Voor elke pagina de doelvragen uit haar rapport en de actieve vragen van haar analyse opgehaald, met de hand tegen dezelfde regels als `maakMeetplan()` nagerekend (de doelvraag-runId's kwamen overeen met hun prompt-id in `tracking_runs`, ter controle nagerekend), en via de Supabase MCP-tool ingevoegd: 1 tot 5 doelvragen per pagina, evenveel bevroren controlevragen, bronnen `openai` en `ai_overview` (die stond aan op productie, nagekeken via de Vercel-omgevingsvariabelen). Achteraf per pagina het aantal doelvragen en controlevragen gecontroleerd tegen de invoer. `scripts/meetplan-achterstand.ts` doet dit voortaan automatisch, voor de volgende keer dat dit gebeurt (een tweede fase van fase 1, een nieuw profiel dat van vóór M1 stamt).
 
+G1 (27 september 2026, besluit V7, migratie 0123): de eerste, lichte bouwsteen van de
+gebeurtenissenlaag. `gebeurtenissen` is het logboek (merk, soort, welke rij veranderde); nu alleen de
+soort "kennis gewijzigd". `lib/gebeurtenissen/` heeft `publiceer()` (legt de gebeurtenis vast en zet
+per abonnee een taak in de bestaande wachtrij) en een register van abonnees, dat in G1 bewust leeg
+blijft: er valt pas iets te herzien als er kansen zijn die aan kennis hangen, en dat is G3 en G4.
+`lib/kennis/vastleggen.ts` publiceert al wel bij elke geslaagde schrijfactie (`legVast`, `bevestig`,
+`wijsAf`, `vervang`, `nietOpSite`, `deelIn`), best effort: een mislukte melding blokkeert de kennis
+zelf niet, maar wordt hard gelogd. Eén punt kreeg een eigen tabel in plaats van vertrouwen op de code:
+`gebeurtenis_verwerkingen` onthoudt per abonnee welke gebeurtenis al verwerkt is, en
+`verwerkGebeurtenis()` kijkt daar eerst, vóór het werk van de abonnee. Dat vangt af dat de werker
+dezelfde taak twee keer probeert (een mislukte poging die opnieuw start, of een taak die vastliep en
+teruggevorderd wordt), zonder dat elke toekomstige abonnee daar zelf aan hoeft te denken. Ketenscenario
+35 bewijst het met een testabonnee: `verwerkGebeurtenis()` twee keer achter elkaar aangeroepen voor
+dezelfde gebeurtenis geeft precies één aanroep van de abonnee en precies één verwerkingsrij.
+
+C3 (27 september 2026, migratie 0124): `content_pieces.gebruikte_kennis` (uuid-array) legt vast welke
+kennisitems in blok A van díe versie stonden. `tekstKolommen()` vult hem uit dezelfde keuze die de
+schrijver kreeg (`kiesVoorBlokA()`), dus geen extra query en geen oordeel van de schrijver zelf (B9
+blijft staan): de code wijst aan, niet het model. Geldt voor schrijven, een behouden herschrijving en
+een nieuwe versie op verzoek van de klant, want die drie paden lopen alle drie via `tekstKolommen()`.
+Voer voor G2 (afhankelijkheden): straks weet de app niet alleen wélke pagina's er zijn, maar ook welke
+op welk kennisitem leunen.
+
 N5 (27 september 2026, besluit V2): de consultant kan nu een kans toevoegen die de meting niet vond. `content_pieces.analysis_id` staat overal `not null`, dus zonder een analyse erachter kan zo'n kans nooit een pagina worden; `voegHandmatigeKansToe()` (`lib/kansen/handmatig.ts`) maakt daarom een minimale analyse aan (dezelfde `user_id`/`buildAnalysisName()` als bij een gewoon onderwerp) en archiveert hem meteen, zodat hij niet tussen de echte clusters verschijnt. `kansen.analysis_id` blijft zelf NULL: dat is het "Niet gemeten"-label op het bord. De opgegeven doelvragen worden als `prompts` vastgelegd, klaar voor een latere meting. Bewust nog niet gebouwd: die meting zelf ("een eigen nulmeting", besluit V2 letterlijk). De bestaande wachtrij (`enqueueMeasurement()`) eindigt in `generateReport()` zodra de laatste vraag binnen is, en dat zou voor één handmatige kans een tweede, overbodige aanbeveling en een dubbele kans proberen te maken; een eigen aftakking van die aggregatie is nodig en is met opzet buiten dit werkpakket gelaten. Formulier op het contentplan (`handmatige-kans-formulier.tsx`, staff-only), route `/api/profiles/[id]/kansen/handmatig`. Ketenscenario 34 dekt kans tot en met de aangemaakte pagina (status `briefing`) onder de schaduwanalyse, via dezelfde `bereidVoor()`-ketting als elke andere kans (geen wijziging nodig aan `clusterVan()`: die leest toch al `source_analysis_id` eerst).
 

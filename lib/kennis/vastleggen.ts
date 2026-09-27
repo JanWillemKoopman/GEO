@@ -29,6 +29,7 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Klantkennis } from "@/lib/types/database";
+import { publiceer } from "@/lib/gebeurtenissen/publiceer";
 import {
   controleerItem,
   magNieuwMetStatus,
@@ -208,6 +209,27 @@ async function bouwRij(
 }
 
 /**
+ * Meldt dat dit kennisitem gewijzigd is (G1, §6.5). Best effort, zoals
+ * `zetBotsingen()`: een gebeurtenis is een gevolg van de schrijfactie, niet een
+ * voorwaarde ervoor. Mislukt het publiceren, dan is de kennis wél vastgelegd en
+ * hoort de aanroeper daar niet op te stranden; wel hard loggen, want zonder deze
+ * melding merkt niemand ooit iets van wat er nog op deze gebeurtenis wacht.
+ */
+async function meldWijziging(admin: Admin, item: Klantkennis): Promise<void> {
+  try {
+    await publiceer(admin, {
+      profileId: item.profile_id,
+      soort: "kennis_gewijzigd",
+      objectTabel: "klantkennis",
+      objectId: item.id,
+      payload: { domein: item.domein, soort: item.soort },
+    });
+  } catch (err) {
+    console.warn(`Gebeurtenis "kennis gewijzigd" publiceren mislukt voor item ${item.id}:`, err);
+  }
+}
+
+/**
  * Botsingen van dit item met de actuele kennis van het merk op de conflictlijst
  * zetten (besluit V14). Een paar dat er al staat, blijft staan: de unieke index
  * op (merk, paarsleutel) houdt het bij één rij, ook als twee aanroepen tegelijk
@@ -276,6 +298,7 @@ export async function legVast(admin: Admin, item: NieuwKennisItem, door: Door): 
   }
   const nieuw = data as Klantkennis;
   const botsingen = await zetBotsingen(admin, nieuw);
+  await meldWijziging(admin, nieuw);
   return { soort: "vastgelegd", item: nieuw, botsingen };
 }
 
@@ -309,6 +332,7 @@ export async function bevestig(
     .select("*")
     .single();
   if (error || !data) return { ok: false, fout: `Bevestigen mislukte: ${error?.message ?? "onbekende fout"}` };
+  await meldWijziging(admin, data as Klantkennis);
   return { ok: true, item: data as Klantkennis };
 }
 
@@ -333,6 +357,7 @@ export async function wijsAf(
     .select("*")
     .single();
   if (error || !data) return { ok: false, fout: `Afwijzen mislukte: ${error?.message ?? "onbekende fout"}` };
+  await meldWijziging(admin, data as Klantkennis);
   return { ok: true, item: data as Klantkennis };
 }
 
@@ -394,10 +419,12 @@ export async function vervang(
     // alleen niet de ontdubbelingsrij.
     if (!slFout && metSl) {
       await zetBotsingen(admin, metSl as Klantkennis);
+      await meldWijziging(admin, metSl as Klantkennis);
       return { ok: true, item: metSl as Klantkennis };
     }
   }
   await zetBotsingen(admin, nieuw);
+  await meldWijziging(admin, nieuw);
   return { ok: true, item: nieuw };
 }
 
@@ -450,6 +477,7 @@ export async function nietOpSite(
     .select("*")
     .single();
   if (error || !data) return { ok: false, fout: `Opslaan mislukte: ${error?.message ?? "onbekende fout"}` };
+  await meldWijziging(admin, data as Klantkennis);
   return { ok: true, item: data as Klantkennis };
 }
 
@@ -496,5 +524,6 @@ export async function deelIn(
   if (error) return { ok: false, fout: `Opslaan mislukte: ${error.message}` };
   if (!data) return { ok: false, fout: "Dit item is intussen al ingedeeld." };
   await zetBotsingen(admin, data as Klantkennis);
+  await meldWijziging(admin, data as Klantkennis);
   return { ok: true, item: data as Klantkennis };
 }

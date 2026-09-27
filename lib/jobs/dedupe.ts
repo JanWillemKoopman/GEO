@@ -232,4 +232,11 @@ export const dedupe = {
     `${soort}:${pieceId}:${responseId}:p${poging}`,
   paginaControle: (pieceId: string) => `pagina_controle:${pieceId}`,
   paginaHerschrijven: (pieceId: string) => `pagina_herschrijven:${pieceId}`,
+
+  // ── De gebeurtenissenlaag (van-pijplijn-naar-kennissysteem.md, G1) ────────
+  // Per gebeurtenis én per abonnee: twee abonnees op dezelfde gebeurtenis zijn
+  // twee taken, en dezelfde abonnee op een latere, andere gebeurtenis (nieuw
+  // id) is geen duplicaat van de vorige.
+  gebeurtenisVerwerken: (gebeurtenisId: string, abonnee: string) =>
+    `gebeurtenis:${abonnee}:${gebeurtenisId}`,
 };

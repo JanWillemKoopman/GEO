@@ -287,6 +287,15 @@ export const JOB_TYPES = [
    * de klant (§6.7). Zelfde achtergrondmodus als het schrijven.
    */
   "pagina_herschrijven",
+
+  /**
+   * De gebeurtenissenlaag (`docs/tasks/van-pijplijn-naar-kennissysteem.md`, G1).
+   * Eén taak per abonnee per gebeurtenis; `lib/gebeurtenissen/publiceer.ts` zet
+   * ze klaar, `lib/gebeurtenissen/verwerken.ts` zorgt dat een abonnee dezelfde
+   * gebeurtenis maar één keer verwerkt, ook als de werker deze taak twee keer
+   * probeert. Geen AI-aanroep, geen eigen lus: dit is infrastructuur (P5).
+   */
+  "gebeurtenis_verwerken",
 ] as const;
 
 export type JobType = (typeof JOB_TYPES)[number];
@@ -503,6 +512,9 @@ export interface JobPayloads {
   pagina_schrijven: PaginaAchtergrondPayload;
   pagina_controle: { pieceId: string };
   pagina_herschrijven: PaginaAchtergrondPayload;
+
+  /** Welke gebeurtenis, en welke abonnee (naam uit het register) hem verwerkt. */
+  gebeurtenis_verwerken: { gebeurtenisId: string; abonnee: string };
 }
 
 /** Schrijven en herschrijven: starten, of ophalen als `responseId` er is. */
