@@ -728,3 +728,12 @@ Voegt `planned_pages.kans_id` toe (verwijzing naar `kansen`, `on delete set null
 werk eraan nooit verdwijnt). `syncBacklog()` vult hem voor nieuwe en bestaande kaarten; `source_ref`
 blijft staan en is gelijk aan `kansen.sleutel`. Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` N2.
 Additief en idempotent. Op productie toegepast op 26 september 2026.
+
+## 0120 — Is de eigen pagina geciteerd?
+
+Voegt `content_impact.target_cited_own_page` toe (boolean, NULL = nog niet gemeten of geen adres
+bekend, niet "nee"): staat het gepubliceerde adres van de pagina, genormaliseerd, tussen de
+`cited_sources` van een eigen-merk-vermelding in deze golf. `computeImpact()` rekent het uit met
+`citeertEigenPagina()` (`lib/pipeline/impact-math.ts`), dezelfde regels als `isRedirectedElsewhere()`
+in `lib/url.ts`. Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` M3. Additief en idempotent. Op
+productie toegepast op 27 september 2026.

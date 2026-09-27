@@ -9723,6 +9723,151 @@ async function main(): Promise<void> {
       __setTestTransport(createOpenAiStub(log));
     }
 
+    // ── Scenario 32: M3, AI Overview meet ook mee, en de eigen pagina wordt herkend
+    // in citaten (van-pijplijn-naar-kennissysteem.md, migratie 0120) ─────────
+    //
+    // Twee losse dingen, allebei zonder een echte AI-aanroep te doen: (1) staat
+    // AI_OVERVIEW_ENABLED aan, dan plant `planImpactMeasurements()` naast de
+    // ChatGPT-taak ook een `measure_ai_overview`-taak, met dezelfde
+    // impact-markering (pagina, golf, soort); (2) `computeImpact()` rekent uit of
+    // het gepubliceerde adres geciteerd is, over BEIDE bronnen tegelijk (geen
+    // filter op `engine`), met dezelfde normalisatie als `isRedirectedElsewhere()`.
+    console.log("\nScenario 32: M3, AI Overview bij de effectmeting en de citatie van de eigen pagina");
+    {
+      const { planImpactMeasurements, computeImpact } = await import("@/lib/pipeline/impact");
+      const merk = randomUUID();
+      const cluster = randomUUID();
+      const stuk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Zonnehof Makelaars', 'https://zonnehof-makelaars.nl', 'Zonnehof Makelaars', 'klaar')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Zonnehof, huis verkopen', 'https://zonnehof-makelaars.nl', 'huis verkopen', 'gereed')`,
+        [cluster, userId, merk],
+      );
+      // Precies één actieve vraag, en die is meteen de doelvraag: dan kiest
+      // `pickControlPrompts()` niets (er is niets onbeclaimds), en blijft de
+      // telling hieronder simpel: één kandidaat, geen controlegroep.
+      const { rows: prompts } = await db.client.query(
+        `insert into public.prompts (analysis_id, text, category, active) values
+           ($1, 'Wat kost een makelaar bij het verkopen van je huis?', 'Oriëntatie', true)
+         returning id, text`,
+        [cluster],
+      );
+      const doelvraag = prompts[0].id as string;
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, action, is_current, published_at, published_url)
+         values ($1, $2, 'Wat kost een makelaar', 'article', 'ready', 'nieuw', true, now(), 'https://zonnehof-makelaars.nl/wat-kost-een-makelaar')`,
+        [stuk, cluster],
+      );
+      await db.client.query(
+        `insert into public.content_piece_targets (content_piece_id, prompt_id, prompt_text) values ($1, $2, 'Wat kost een makelaar bij het verkopen van je huis?')`,
+        [stuk, doelvraag],
+      );
+
+      // ── (1) Inplannen: met de schakelaar aan komt AI Overview erbij ───────
+      const oudSchakelaar = process.env.AI_OVERVIEW_ENABLED;
+      delete process.env.AI_OVERVIEW_ENABLED;
+      const zonderAio = await planImpactMeasurements(admin as never, { analysisId: cluster, contentPieceId: stuk, wave: 1 });
+      const taken = async () =>
+        (
+          await db.client.query(
+            "select type, payload_json from public.jobs where analysis_id = $1 and (payload_json->'impact'->>'contentPieceId') = $2 order by type",
+            [cluster, stuk],
+          )
+        ).rows as { type: string; payload_json: { impact?: { purpose: string; wave: number } } }[];
+      eqc("scenario 32: zonder de schakelaar alleen de ChatGPT-taak", String(zonderAio.planned), "1");
+      ok("scenario 32: en geen measure_ai_overview", !(await taken()).some((t) => t.type === "measure_ai_overview"));
+
+      process.env.AI_OVERVIEW_ENABLED = "true";
+      await db.client.query("delete from public.jobs where analysis_id = $1", [cluster]);
+      const metAio = await planImpactMeasurements(admin as never, { analysisId: cluster, contentPieceId: stuk, wave: 1 });
+      eqc("scenario 32: met de schakelaar aan ook de Google-taak, dezelfde golf", String(metAio.planned), "2");
+      const beide = await taken();
+      ok(
+        "scenario 32: allebei met dezelfde impact-markering (pagina, golf, soort)",
+        beide.every((t) => t.payload_json.impact?.purpose === "impact" && t.payload_json.impact?.wave === 1) &&
+          beide.some((t) => t.type === "measure_prompt") &&
+          beide.some((t) => t.type === "measure_ai_overview"),
+        JSON.stringify(beide),
+      );
+      const nogEens = await planImpactMeasurements(admin as never, { analysisId: cluster, contentPieceId: stuk, wave: 1 });
+      eqc("scenario 32: nog eens inplannen levert niets extra's op (al ingepland)", String(nogEens.planned), "0");
+
+      if (oudSchakelaar === undefined) delete process.env.AI_OVERVIEW_ENABLED;
+      else process.env.AI_OVERVIEW_ENABLED = oudSchakelaar;
+
+      // ── (2) computeImpact(): de citatie over beide bronnen tegelijk ───────
+      // Een periodieke meting van vóór publicatie, zodat er een eerlijke "voor"-stand is.
+      const { rows: voorRun } = await db.client.query(
+        `insert into public.tracking_runs (analysis_id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, engine, week_no, purpose, ran_at)
+         values ($1, $2, 'Wat kost een makelaar bij het verkopen van je huis?', 'Oriëntatie', 'openai', 3, 'periodic', now() - interval '30 days')
+         returning id`,
+        [cluster, doelvraag],
+      );
+      await db.client.query(
+        `insert into public.tracking_run_mentions (tracking_run_id, entity_name, is_own_brand, mentioned) values ($1, 'Zonnehof Makelaars', true, false)`,
+        [voorRun[0].id],
+      );
+
+      // Golf 1: twee bronnen, allebei genoemd; alleen AI Overview citeert de
+      // eigen pagina, met een trackingcode erachter (moet nog steeds tellen).
+      const { rows: golf1 } = await db.client.query(
+        `insert into public.tracking_runs (analysis_id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, engine, week_no, purpose, content_piece_id, impact_wave)
+         values
+           ($1, $2, 'Wat kost een makelaar bij het verkopen van je huis?', 'Oriëntatie', 'openai', 0, 'impact', $3, 1),
+           ($1, $2, 'Wat kost een makelaar bij het verkopen van je huis?', 'Oriëntatie', 'ai_overview', 0, 'impact', $3, 1)
+         returning id, engine`,
+        [cluster, doelvraag, stuk],
+      );
+      const chatgptRun = golf1.find((r) => r.engine === "openai")!.id as string;
+      const aioRun = golf1.find((r) => r.engine === "ai_overview")!.id as string;
+      await db.client.query(
+        `insert into public.tracking_run_mentions (tracking_run_id, entity_name, is_own_brand, mentioned, cited_sources) values
+           ($1, 'Zonnehof Makelaars', true, true, array['https://funda.nl/koop']),
+           ($2, 'Zonnehof Makelaars', true, true, array['https://Zonnehof-Makelaars.nl/wat-kost-een-makelaar/?utm_source=google'])`,
+        [chatgptRun, aioRun],
+      );
+
+      await computeImpact(admin as never, { analysisId: cluster, contentPieceId: stuk, wave: 1 });
+      const { rows: golf1Uitkomst } = await db.client.query(
+        "select target_cited_own_page, target_after_mentioned, verdict from public.content_impact where content_piece_id = $1 and wave = 1",
+        [stuk],
+      );
+      ok(
+        "scenario 32: de citatie van AI Overview telt mee, ook al citeerde ChatGPT een andere bron (www, hoofdletters, slash en trackingcode maken niets uit)",
+        golf1Uitkomst[0]?.target_cited_own_page === true,
+        JSON.stringify(golf1Uitkomst[0]),
+      );
+
+      // Golf 2: gemeten, maar geen van beide citeert de eigen pagina: false, geen null.
+      const { rows: golf2 } = await db.client.query(
+        `insert into public.tracking_runs (analysis_id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, engine, week_no, purpose, content_piece_id, impact_wave)
+         values ($1, $2, 'Wat kost een makelaar bij het verkopen van je huis?', 'Oriëntatie', 'openai', 0, 'impact', $3, 2)
+         returning id`,
+        [cluster, doelvraag, stuk],
+      );
+      await db.client.query(
+        `insert into public.tracking_run_mentions (tracking_run_id, entity_name, is_own_brand, mentioned, cited_sources) values ($1, 'Zonnehof Makelaars', true, true, array['https://funda.nl/koop'])`,
+        [golf2[0].id],
+      );
+      await computeImpact(admin as never, { analysisId: cluster, contentPieceId: stuk, wave: 2 });
+      const { rows: golf2Uitkomst } = await db.client.query(
+        "select target_cited_own_page from public.content_impact where content_piece_id = $1 and wave = 2",
+        [stuk],
+      );
+      ok("scenario 32: wel gemeten maar geen citatie: false, geen null", golf2Uitkomst[0]?.target_cited_own_page === false, JSON.stringify(golf2Uitkomst[0]));
+
+      // Golf 3: geen enkele impactmeting voor deze golf: onbekend, geen "nee".
+      await computeImpact(admin as never, { analysisId: cluster, contentPieceId: stuk, wave: 3 });
+      const { rows: golf3Uitkomst } = await db.client.query(
+        "select target_cited_own_page from public.content_impact where content_piece_id = $1 and wave = 3",
+        [stuk],
+      );
+      ok("scenario 32: zonder gemeten golf: onbekend (null), geen 'nee'", golf3Uitkomst[0]?.target_cited_own_page === null, JSON.stringify(golf3Uitkomst[0]));
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

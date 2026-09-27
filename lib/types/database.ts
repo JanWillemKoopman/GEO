@@ -860,6 +860,12 @@ export interface ContentImpact {
   control_delta: number | null;
   delta_threshold: number | null;
   verdict: ImpactVerdict;
+  /**
+   * Is het gepubliceerde adres van de pagina geciteerd in minstens één
+   * antwoord op de doelvragen van deze golf (M3, migratie 0120)? `null` =
+   * nog niet gemeten of geen adres bekend, niet "nee" (conventie 3).
+   */
+  target_cited_own_page: boolean | null;
   computed_at: string;
 }
 

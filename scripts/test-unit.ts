@@ -171,7 +171,7 @@ import {
   EXISTING_PAGE_COVERAGE_THRESHOLD,
 } from "@/lib/pipeline/existing-page-match";
 import type { ExistingPageCandidate } from "@/lib/pipeline/existing-page-match";
-import { compare, deltaOf, thresholdOf, verdictOf, minQuestionsForSignal } from "@/lib/pipeline/impact-math";
+import { compare, deltaOf, thresholdOf, verdictOf, minQuestionsForSignal, citeertEigenPagina } from "@/lib/pipeline/impact-math";
 import { impactUitleg, type ImpactCijfers } from "@/lib/impact-uitleg";
 import { faseVoorPagina } from "@/lib/plan-funnel";
 import { buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change-format";
@@ -1809,6 +1809,20 @@ group("minQuestionsForSignal: hoeveel vragen zijn er nodig, echte cijfers", () =
     "wat al significant is (0 naar 20 van de 20), krijgt geen 'meer nodig'-getal",
     verdictOf(duidelijkeStijging) === "gestegen",
   );
+});
+
+group("M3: citeertEigenPagina, zelfde regels als isRedirectedElsewhere (van-pijplijn-naar-kennissysteem.md)", () => {
+  const p = "https://hovenier.nl/tuinontwerp";
+  ok("hetzelfde adres", citeertEigenPagina(p, p));
+  ok("http tegenover https maakt niets uit", citeertEigenPagina("http://hovenier.nl/tuinontwerp", p));
+  ok("www of niet maakt niets uit", citeertEigenPagina("https://www.hovenier.nl/tuinontwerp", p));
+  ok("hoofdletters maken niets uit", citeertEigenPagina("https://Hovenier.NL/Tuinontwerp".toLowerCase(), p));
+  ok("een slash aan het eind maakt niets uit", citeertEigenPagina("https://hovenier.nl/tuinontwerp/", p));
+  ok("een trackingcode achter ? maakt niets uit", citeertEigenPagina("https://hovenier.nl/tuinontwerp?utm_source=chatgpt", p));
+  ok("een fragment achter # maakt niets uit", citeertEigenPagina("https://hovenier.nl/tuinontwerp#prijzen", p));
+  ok("een andere pagina van dezelfde site is geen citatie", !citeertEigenPagina("https://hovenier.nl/onderhoud", p));
+  ok("een ander domein is geen citatie", !citeertEigenPagina("https://concurrent.nl/tuinontwerp", p));
+  ok("een onleesbaar adres is geen citatie, geen crash", !citeertEigenPagina("geen adres", p) && !citeertEigenPagina(p, "geen adres"));
 });
 
 // docs/tasks/funnelfase-nooit-gevuld.md: de fase van een geplande pagina komt
@@ -20460,11 +20474,25 @@ group("Voorgestelde onderwerpen: volgorde uit de positie, en nooit nul na een mi
   ok("en de taak mislukt zichtbaar", opslaan.includes("throw new Error(`Topicvoorstellen opslaan mislukt"));
 });
 
-group("Een definitief mislukte Gemini- of Google-meting laat de analyse niet hangen (24 september 2026)", () => {
+group("Een definitief mislukte Gemini- of Google-meting laat de analyse niet hangen (24 september 2026, uitgebreid M3)", () => {
   const bron = leesBestand("lib/jobs/handlers.ts");
   const tak = bron.slice(bron.indexOf("REPUTATION_STEPS.includes(job.type"), bron.indexOf("export async function runJob("));
   ok("alle drie de meetsoorten plannen de aggregatie na opgeven", tak.includes('"measure_ai_overview", "measure_llm_response"'));
-  ok("en ook voor die twee volgt scheduleAggregateIfLastPrompt", (tak.match(/scheduleAggregateIfLastPrompt\(/g) ?? []).length >= 2);
+  // Sinds M3 route op de PAYLOAD (`impact`), niet op het taaktype: een
+  // definitief mislukte AI Overview-meting van een impactgolf hoort naar
+  // scheduleImpactIfLastRun te gaan, niet naar de gewone aggregatie.
+  ok("route op payload.impact, niet op het taaktype", tak.includes('"impact" in payload && payload.impact'));
+  ok("impact-tak roept scheduleImpactIfLastRun", tak.includes("scheduleImpactIfLastRun(admin, job.analysis_id, payload.impact, job.id)"));
+  ok("anders scheduleAggregateIfLastPrompt, voor alle drie de soorten", tak.includes("scheduleAggregateIfLastPrompt(admin, job.analysis_id, payload.weekNo, job.id)"));
+});
+
+group("M3: AI Overview telt mee bij de effectmeting (van-pijplijn-naar-kennissysteem.md)", () => {
+  const bron = leesBestand("lib/jobs/handlers.ts");
+  const impactTeller = bron.slice(bron.indexOf("async function scheduleImpactIfLastRun"), bron.indexOf("const MAX_AANVULRONDES"));
+  ok("scheduleImpactIfLastRun telt beide taaktypes", impactTeller.includes('.in("type", ["measure_prompt", "measure_ai_overview"])'));
+  const handler = bron.slice(bron.indexOf("measure_ai_overview: async"), bron.indexOf("measure_llm_response: async"));
+  ok("de handler geeft impact door aan measureAiOverviewById", handler.includes("payload.impact"));
+  ok("en volgt bij een impactgolf scheduleImpactIfLastRun in plaats van de aggregatie", handler.includes("scheduleImpactIfLastRun(admin, job.analysis_id, payload.impact, job.id)"));
 });
 
 group("Het bewijs onder een gap wijst naar echte metingen (24 september 2026)", () => {
