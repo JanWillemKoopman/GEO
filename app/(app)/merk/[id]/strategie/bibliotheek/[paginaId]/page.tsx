@@ -20,6 +20,8 @@ import type { ContentAction, ContentType } from "@/lib/types/database";
 import { nogGeel } from "@/lib/pagina/goedkeuren";
 import { faqRijen, type ControleJson } from "@/lib/pagina/controle-regels";
 import type { PublishCheck } from "@/lib/pipeline/publish-check";
+import { resolvedContentUrl, type ResolvedUrl } from "@/lib/pipeline/slug";
+import { siteLinksVoorOnderwerp, zusterPaginas, type LinkVoorstel } from "@/lib/oplevering";
 
 export const dynamic = "force-dynamic";
 
@@ -109,6 +111,17 @@ export default async function PaginaScherm({
         { title: tekst.titel, bodyMarkdown: tekst.body, faq: tekst.faq },
         tekst.sjabloon,
       );
+      const links = await laadInterneLinks(admin, {
+        profileId: profile.id,
+        pieceId: rij.pieceId,
+        plannedPageId: rij.plannedPageId,
+        siteUrl: profile.url,
+        titel: tekst.titel,
+        type: tekst.type,
+        action: tekst.action,
+        existingUrl: tekst.existingUrl,
+        publishedUrl: tekst.publishedUrl,
+      });
       return (
         <div className="flex flex-col gap-6">
           {kop}
@@ -137,6 +150,9 @@ export default async function PaginaScherm({
             goedgekeurd={!tekst.needsReview}
             geel={tekst.geel}
             bevestigd={tekst.bevestigd}
+            adres={links.adres}
+            naarDeze={links.naarDeze}
+            vanDeze={links.vanDeze}
           />
           {!tekst.needsReview && !tekst.publishedAt && (
             <PublishGuide
@@ -301,6 +317,114 @@ async function laadTekst(admin: ReturnType<typeof createAdminClient>, pieceId: s
     check: (r.publish_check_json as PublishCheck | null) ?? null,
     checkedAt: r.publish_checked_at,
   };
+}
+
+/**
+ * Het voorgestelde adres, en een voorstel voor interne links (C2,
+ * `van-pijplijn-naar-kennissysteem.md`): deterministisch uit de pagina's van
+ * de site en de andere goedgekeurde pagina's van het merk over dezelfde
+ * dienst (de kruising van `kansen.geldt_voor`). Geen kans achter deze pagina
+ * (een pagina van vóór N1, of een handmatige zonder dienst): geen voorstel,
+ * alleen het adres.
+ */
+async function laadInterneLinks(
+  admin: ReturnType<typeof createAdminClient>,
+  args: {
+    profileId: string;
+    pieceId: string;
+    plannedPageId: string | null;
+    siteUrl: string;
+    titel: string;
+    type: ContentType;
+    action: ContentAction;
+    existingUrl: string | null;
+    publishedUrl: string | null;
+  },
+): Promise<{ adres: ResolvedUrl; naarDeze: LinkVoorstel[]; vanDeze: LinkVoorstel[] }> {
+  const adres = resolvedContentUrl({
+    publishedUrl: args.publishedUrl,
+    action: args.action,
+    existingUrl: args.existingUrl,
+    siteUrl: args.siteUrl,
+    title: args.titel,
+    type: args.type,
+  });
+  const leeg = { adres, naarDeze: [], vanDeze: [] };
+  if (!args.plannedPageId) return leeg;
+
+  const { data: planRij } = await admin.from("planned_pages").select("kans_id").eq("id", args.plannedPageId).maybeSingle();
+  const kansId = (planRij as { kans_id: string | null } | null)?.kans_id ?? null;
+  if (!kansId) return leeg;
+
+  const { data: kansRij } = await admin.from("kansen").select("geldt_voor").eq("id", kansId).maybeSingle();
+  const geldtVoor = ((kansRij as { geldt_voor: string[] | null } | null)?.geldt_voor ?? []) as string[];
+  if (geldtVoor.length === 0) return leeg;
+
+  const [{ data: dienstRijen }, { data: pagRijen }, { data: kansenRijen }] = await Promise.all([
+    admin.from("klantkennis").select("soort, bewering").in("id", geldtVoor).is("afgewezen_op", null),
+    admin.from("profile_pages").select("url, title").eq("profile_id", args.profileId).limit(500),
+    admin.from("kansen").select("id, geldt_voor").eq("profile_id", args.profileId),
+  ]);
+  const dienstNamen = (dienstRijen ?? []) as { soort: string | null; bewering: string }[];
+  const onderwerp =
+    dienstNamen.find((d) => d.soort === "dienst")?.bewering ??
+    dienstNamen.find((d) => d.soort === "categorie")?.bewering ??
+    dienstNamen[0]?.bewering ??
+    null;
+
+  const zusterKansen = ((kansenRijen ?? []) as { id: string; geldt_voor: string[] | null }[]).filter(
+    (k) => k.id !== kansId && (k.geldt_voor ?? []).some((g) => geldtVoor.includes(g)),
+  );
+  const zusterKansIds = zusterKansen.map((k) => k.id);
+  let kandidaten: { id: string; titel: string; url: string; geldtVoor: string[] }[] = [];
+  if (zusterKansIds.length > 0) {
+    const { data: planRijen2 } = await admin.from("planned_pages").select("content_piece_id, kans_id").in("kans_id", zusterKansIds);
+    const pieceVanKans = new Map<string, string>();
+    for (const p of (planRijen2 ?? []) as { content_piece_id: string | null; kans_id: string }[]) {
+      if (p.content_piece_id) pieceVanKans.set(p.content_piece_id, p.kans_id);
+    }
+    const pieceIds = [...pieceVanKans.keys()].filter((id) => id !== args.pieceId);
+    if (pieceIds.length > 0) {
+      const { data: pieceRijen } = await admin
+        .from("content_pieces")
+        .select("id, title, meta_title, type, action, existing_url, published_url, is_current, needs_review")
+        .in("id", pieceIds);
+      const geldtVoorVanKans = new Map(zusterKansen.map((k) => [k.id, k.geldt_voor ?? []]));
+      kandidaten = ((pieceRijen ?? []) as {
+        id: string;
+        title: string;
+        meta_title: string | null;
+        type: ContentType;
+        action: ContentAction | null;
+        existing_url: string | null;
+        published_url: string | null;
+        is_current: boolean | null;
+        needs_review: boolean | null;
+      }[])
+        .filter((p) => p.is_current !== false && p.needs_review === false)
+        .map((p) => ({
+          id: p.id,
+          titel: p.meta_title?.trim() || p.title,
+          url: resolvedContentUrl({
+            publishedUrl: p.published_url,
+            action: p.action ?? "nieuw",
+            existingUrl: p.existing_url,
+            siteUrl: args.siteUrl,
+            title: p.meta_title?.trim() || p.title,
+            type: p.type,
+          }).url,
+          geldtVoor: geldtVoorVanKans.get(pieceVanKans.get(p.id) ?? "") ?? [],
+        }));
+    }
+  }
+
+  const siblings = zusterPaginas(args.pieceId, geldtVoor, kandidaten);
+  const siteLinks = siteLinksVoorOnderwerp((pagRijen ?? []) as { url: string; title: string | null }[], onderwerp, adres.isReal ? adres.url : null);
+  // Dedup op adres: een pagina die al als zusterpagina meekomt, hoeft niet
+  // nog eens als sitepagina.
+  const gezien = new Set(siblings.map((s) => s.url));
+  const vanDeze = [...siblings, ...siteLinks.filter((s) => !gezien.has(s.url))];
+  return { adres, naarDeze: siblings, vanDeze };
 }
 
 /** Wat het voortraject van een pagina nodig heeft: de vragen en het waarom. */
