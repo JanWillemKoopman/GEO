@@ -12967,3 +12967,15 @@ de grens voor Admin staat terug op acht, en de test controleert nu dat de link n
 De tabellen `content_quality_reviews` en `content_quality_runs` blijven staan (conventie 4). Op
 productie hadden beide 0 rijen: de twaalf oordelen van 3 september staan er niet meer in. Wie de
 nieuwe keten ooit naast een menselijk oordeel wil leggen, begint vanaf `content-reviews/feedback/`.
+
+Aanbodboom: MAX_NODES ook verhoogd (28 september 2026), ronde drie op dezelfde dag. Na de
+budgetverhoging (250.000 tekens) opnieuw gedraaid voor Van den Udenhout op productie: van 11 naar
+59 knopen, alle eerder ontbrekende diensten (financiering, lease, verhuur, schadeherstel,
+onderhoud: 36 diensten in totaal) erbij. Maar het model vond eigenlijk 87 knopen; de vaste grens
+van 60 (`MAX_NODES` in `lib/pipeline/offering.ts`) kapte de rest af, en de zes automerken (Audi,
+CUPRA, SEAT, Škoda, Volkswagen, Volkswagen Bedrijfswagens) vielen daarbij weg. Dezelfde soort fout
+als het tekenbudget: een vaste grens die nooit tegen een echte grote klant was afgezet. Naar 200,
+ruim boven wat Van den Udenhout liet zien. `persistTree()` meldt nog steeds in `gaps` als zelfs
+dat niet genoeg is, dus een grens die opnieuw te krap blijkt blijft zichtbaar. Geen pure geteste
+functie geraakt: `tsc`, `test:unit` (5524) en `test:chain` (985) ongewijzigd groen. Op productie
+nog niet opnieuw gedraaid voor Van den Udenhout.
