@@ -47,3 +47,5 @@ yarn-error.log*
 /scripts/doorlichting/node_modules
 /scripts/doorlichting/package-lock.json
 __pycache__/
+scripts/boek/.bouw/
+scripts/boek/__pycache__/
