@@ -12916,3 +12916,21 @@ met een groen of rood bolletje plus tekst, en het formulier per klant op
 geslaagde leespoging én geen fout sinds die poging (`lib/search-console/koppelstatus.ts`, zeven
 tests): de nachtelijke ronde laat de verificatiedatum staan en zet alleen de fout, dus op de datum
 alleen afgaan hield een koppeling die gisteren brak groen.
+
+N3, Search Console als kansbron (28 september 2026): het schema en de prioritering stonden al
+sinds N1 klaar voor de bron `search_console` (`steunVan()`, `uitlegVan()` in `lib/kansen/
+prioriteit.ts` kenden hem al); dit werkpakket vulde de schrijfkant die daar nog ontbrak. Een
+zoekopdracht hoort bij een kans als zijn tekst een dienst of werkgebied uit `kansen.geldt_voor`
+als heel woord bevat, dezelfde regel als `geldtVoorVan()` al gebruikte voor een werkgebied
+(`bevatPlaats()` is daarom hernoemd naar `bevatHeelWoord()` en geëxporteerd). Bewuste vernauwing:
+alleen bewijs bij een bestaande kans, geen gloednieuwe kans puur uit een zoekterm zonder
+onderliggende kans. Dat laatste vergt een titel afleiden uit kale zoektermen zonder model
+(§4, P4), en `docs/tasks/zoekdata-in-de-keten.md` noemt precies die stap zelf al "de moeilijkste
+stap" voor hetzelfde vraagstuk bij het schrijven. Het "klaar als" van N3 (minstens één kans met
+Search Console-bewijs) vraagt niet meer dan de bestaande helft. `legZoekverkeerBewijsVast()`
+(`lib/kansen/uit-search-console.ts`) draait automatisch na elke geslaagde `gsc_sync`-taak.
+Ketenscenario 40 op een proefprofiel: de juiste kans krijgt bewijs (vertoningen, klikken en een
+op vertoningen gewogen positie, niet het gewone gemiddelde), een kans zonder dienst of werkgebied
+blijft ongemoeid, en een tweede aanroep overschrijft dezelfde rij in plaats van een tweede te
+maken. Op productie nog niet gezien: Van den Udenhout heeft Search Console gekoppeld en
+geverifieerd, maar nog geen kansen (geen cluster gestart).
