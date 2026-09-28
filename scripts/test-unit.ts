@@ -61,6 +61,7 @@ import { BESLUITEN } from "./kennis-open-punten";
 import { openPuntenSql, foutenVan } from "@/lib/kennis/open-punten";
 import { kennisgatVan, kennisgatZin, behoeftenVoor, hoortBijKans, BEHOEFTE_LABEL, type KennisVoorGat, type KansVoorGat } from "@/lib/kansen/kennisgat";
 import { kennisrondeVoorMerk, BEHOEFTE_DOMEIN, type KennisrondeKans } from "@/lib/kansen/kennisronde";
+import { matchendeZoekopdrachten, zoekverkeerBewijsVan } from "@/lib/kansen/zoekverkeer";
 import {
   maakTerugvulplan,
   dekking,
@@ -23001,6 +23002,81 @@ group("kansen: één schrijfingang (N2)", () => {
     .filter((p) => schrijft(leesBestand(p)));
   eq("niemand buiten lib/kansen/ schrijft in kansen of kans_bewijs", buiten.join(", "), "");
   ok("en lib/kansen/uit-rapport.ts wél", schrijft(leesBestand("lib/kansen/uit-rapport.ts")));
+  ok("en lib/kansen/uit-search-console.ts (N3) ook", schrijft(leesBestand("lib/kansen/uit-search-console.ts")));
+});
+
+group("kansen: Search Console als kansbron (N3)", () => {
+  const rij = (query: string, impressions: number, clicks: number, position: number | null) => ({
+    query,
+    impressions,
+    clicks,
+    position,
+  });
+
+  // ── matchendeZoekopdrachten() ──
+  const zoekopdrachten = [
+    rij("auto financieren udenhout", 40, 2, 8.5),
+    rij("financiering audi", 15, 1, 12),
+    rij("auto huren eindhoven", 30, 5, 4),
+    rij("goedkope schoenen", 10, 0, 30),
+  ];
+  eq2(
+    "zonder kennistermen matcht niets",
+    matchendeZoekopdrachten(zoekopdrachten, []).length,
+    0,
+  );
+  eq(
+    "een kennisterm matcht elke zoekopdracht die het hele woord bevat",
+    matchendeZoekopdrachten(zoekopdrachten, ["financieren"]).map((r) => r.query).join(","),
+    "auto financieren udenhout",
+  );
+  eq(
+    "twee kennistermen matchen samen",
+    matchendeZoekopdrachten(zoekopdrachten, ["financiering", "huren"]).map((r) => r.query).sort().join(","),
+    ["auto huren eindhoven", "financiering audi"].sort().join(","),
+  );
+  eq2(
+    "'financier' matcht 'financieren' niet: geen heel woord",
+    matchendeZoekopdrachten(zoekopdrachten, ["financier"]).length,
+    0,
+  );
+
+  // ── zoekverkeerBewijsVan() ──
+  ok("geen matches geeft geen bewijs (null, geen nul)", zoekverkeerBewijsVan([], 28) === null);
+
+  const bewijs = zoekverkeerBewijsVan(
+    [rij("auto financieren udenhout", 40, 2, 8), rij("financiering audi", 15, 1, 12)],
+    28,
+  );
+  ok("de vertoningen zijn de som", bewijs?.vertoningen === 55);
+  ok("de klikken zijn de som", bewijs?.klikken === 3);
+  // Gewogen op vertoningen: (8*40 + 12*15) / 55 = 8,909...
+  ok(
+    "de positie is gewogen op vertoningen, niet het gewone gemiddelde",
+    Math.abs((bewijs?.positie ?? 0) - (8 * 40 + 12 * 15) / 55) < 0.001,
+  );
+  eq2("de periode komt mee zoals meegegeven", bewijs?.periodeDagen, 28);
+  eq(
+    "de zoekopdrachten staan erbij, meeste vertoningen eerst",
+    (bewijs?.zoekopdrachten ?? []).join(","),
+    "auto financieren udenhout,financiering audi",
+  );
+
+  const zonderPositie = zoekverkeerBewijsVan([rij("iets", 10, 0, null)], 28);
+  ok(
+    "een rij zonder positie telt niet mee in de weging, maar wel in vertoningen",
+    zonderPositie?.vertoningen === 10 && zonderPositie?.positie === null,
+  );
+
+  const dubbeleDag = zoekverkeerBewijsVan(
+    [rij("auto huren", 20, 1, 5), rij("auto huren", 10, 0, 7)],
+    28,
+  );
+  eq(
+    "dezelfde zoekopdracht op twee dagen komt maar één keer in de lijst",
+    dubbeleDag?.zoekopdrachten.join(",") ?? "",
+    "auto huren",
+  );
 });
 
 group("afhankelijkheden: één schrijfingang (G2)", () => {
