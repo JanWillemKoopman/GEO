@@ -12876,3 +12876,13 @@ AI-meting. "Conversie" en "omzet" staan altijd op "geen gegevens": er is geen An
 CRM-koppeling (§5 van het plan), en de tekst zegt dat met zoveel woorden in plaats van het te
 verzwijgen. Niet op productie te zien: 0 gepubliceerde pagina's en 0 metingen op dit moment, dus de
 ladder wacht op de eerste live pagina.
+
+Search Console-koppelingen als tabel (28 september 2026): het scherm `/instellingen/koppelingen`
+zette alle merken met hun volledige formulier onder elkaar, en na "Opnieuw controleren" was niet te
+zien of het gelukt was: de melding verdween na een paar seconden en een property zonder geslaagde
+leespoging gaf geen enkel signaal. Nu staat er een tabel (datum toegevoegd, klant, website, status)
+met een groen of rood bolletje plus tekst, en het formulier per klant op
+`/instellingen/koppelingen/[id]`, met hetzelfde bolletje bovenaan. Groen vraagt een property, een
+geslaagde leespoging én geen fout sinds die poging (`lib/search-console/koppelstatus.ts`, zeven
+tests): de nachtelijke ronde laat de verificatiedatum staan en zet alleen de fout, dus op de datum
+alleen afgaan hield een koppeling die gisteren brak groen.
