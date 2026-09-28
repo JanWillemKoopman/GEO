@@ -1491,6 +1491,89 @@ async function main(): Promise<void> {
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    // Toewijzen per e-mailadres, zonder eerst in Supabase een gebruiker aan
+    // te maken (28 september 2026, `lib/profile-assign.ts`)
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nToewijzen per e-mailadres");
+    {
+      const { wijsToeAanGebruiker, wijsToeAanNieuwAccount } = await import("@/lib/profile-assign");
+      const { findUserByEmail } = await import("@/lib/invites");
+
+      const consultantId = randomUUID();
+      const profielNieuwEmail = randomUUID();
+      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+        consultantId,
+        "consultant-email-toewijzen@voorbeeld.nl",
+      ]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status)
+         values ($1, $2, 'Nog geen accountklant', 'https://nog-geen-account.nl', 'Nog geen accountklant', 'klaar')`,
+        [profielNieuwEmail, consultantId],
+      );
+
+      // Een e-mailadres zonder gebruiker: er moet een nieuw account komen, met
+      // een uitnodiging, geen 500 en geen halve toewijzing.
+      ok("dit adres heeft nog geen gebruiker", (await findUserByEmail("nieuwe-klant@voorbeeld.nl")) === null);
+
+      const nieuw = await wijsToeAanNieuwAccount(adminClient, {
+        profileId: profielNieuwEmail,
+        profileName: "Nog geen accountklant",
+        email: "nieuwe-klant@voorbeeld.nl",
+        invitedBy: consultantId,
+      });
+      ok("het nieuwe account wordt aangemaakt", nieuw.ok, nieuw.error ?? "");
+      ok(
+        "er komt een uitnodigingslink terug",
+        typeof nieuw.inviteLink === "string" && nieuw.inviteLink.includes("/uitnodiging/"),
+        nieuw.inviteLink ?? "geen link",
+      );
+
+      const { rows: naNieuwAccount } = await db.client.query(
+        `select account_id, assigned_at from public.profiles where id = $1`,
+        [profielNieuwEmail],
+      );
+      ok("het profiel staat op een account", naNieuwAccount[0]?.account_id != null);
+      ok("de toewijsdatum is gezet", naNieuwAccount[0]?.assigned_at != null);
+
+      const { rows: uitnodigingRijen } = await db.client.query(
+        `select account_id, email, role from public.account_invites where account_id = $1`,
+        [naNieuwAccount[0]?.account_id],
+      );
+      ok("er staat precies één uitnodiging voor dit account", uitnodigingRijen.length === 1);
+      ok(
+        "op het opgegeven adres, als beheerder",
+        uitnodigingRijen[0]?.email === "nieuwe-klant@voorbeeld.nl" && uitnodigingRijen[0]?.role === "admin",
+      );
+
+      // Een adres dat al een gebruiker heeft: geen tweede account, gewoon
+      // dezelfde toewijzing als de keuzelijst zou geven.
+      const bestaandeKlantId = randomUUID();
+      const profielBestaandeEmail = randomUUID();
+      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+        bestaandeKlantId,
+        "bestaande-klant-email@voorbeeld.nl",
+      ]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status)
+         values ($1, $2, 'Al een accountklant', 'https://al-een-account.nl', 'Al een accountklant', 'klaar')`,
+        [profielBestaandeEmail, consultantId],
+      );
+
+      const gevondenUserId = await findUserByEmail("bestaande-klant-email@voorbeeld.nl");
+      ok("dit adres heeft al een gebruiker", gevondenUserId === bestaandeKlantId);
+
+      const bestaand = await wijsToeAanGebruiker(adminClient, profielBestaandeEmail, gevondenUserId as string);
+      ok("de toewijzing aan de bestaande gebruiker lukt", bestaand.ok, bestaand.error ?? "");
+      ok("er komt geen uitnodigingslink bij, die gebruiker kan al inloggen", bestaand.inviteLink === undefined);
+
+      const { rows: naBestaandeGebruiker } = await db.client.query(
+        `select user_id from public.profiles where id = $1`,
+        [profielBestaandeEmail],
+      );
+      ok("het profiel staat op de bestaande gebruiker", naBestaandeGebruiker[0]?.user_id === bestaandeKlantId);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     // Het budgetplafond (F1, migratie 0053; herstelplan na audit T5, migratie
     // 0089: het accountplafond is een dagplafond geworden, `daily_budget_eur`
     // in plaats van `monthly_budget_eur`)
@@ -10510,6 +10593,117 @@ async function main(): Promise<void> {
       ok("scenario 39: een nieuwe onderzoeksronde slaagt", onderzoekFout === null, String(onderzoekFout));
       const { rows: profielNa3 } = await db.client.query("select velden_te_verversen from public.profiles where id = $1", [merk]);
       eqc("scenario 39: en maakt de lijst weer leeg", (profielNa3[0]?.velden_te_verversen ?? []).join(","), "");
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // Scenario 40: N3, Search Console als kansbron
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: `legZoekverkeerBewijsVast()`
+    // raakt drie tabellen (`search_console_queries` lezen, `kans_bewijs`
+    // schrijven, `kansen.uitleg` herschrijven) en moet daarbij de kans met een
+    // andere dienst met rust laten. Geen van die drie is te zien vanuit een
+    // pure eenheidstest op `matchendeZoekopdrachten()`/`zoekverkeerBewijsVan()`
+    // alleen: die weet niets van een kans die al bewijs van een andere bron
+    // had, of van een kans die niets met zoekverkeer te maken heeft.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nScenario 40: N3, Search Console als kansbron");
+    {
+      const { legZoekverkeerBewijsVast } = await import("@/lib/kansen/uit-search-console");
+      const shim = createShimClient(db.client) as never;
+
+      const merk = randomUUID();
+      const gebruiker = randomUUID();
+      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+        gebruiker,
+        "zoekverkeer-kansbron@voorbeeld.nl",
+      ]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, gsc_verified_at)
+         values ($1, $2, 'Zoekverkeer BV', 'https://zoekverkeer-bv.nl', 'Zoekverkeer BV', 'klaar', now())`,
+        [merk, gebruiker],
+      );
+
+      const { rows: kennisRijen } = await db.client.query(
+        `insert into public.klantkennis (profile_id, domein, soort, bewering, status, bron, gebruik, vastgelegd_door_taak, herkomst_tabel, herkomst_id)
+         values ($1, 'aanbod', 'dienst', 'Financiering', 'afgeleid', 'ai', 'intern', 'kennis_terugvullen', 'profile_offerings', gen_random_uuid())
+         returning id`,
+        [merk],
+      );
+      const dienstId = kennisRijen[0].id as string;
+
+      // Twee kansen: één die over financiering gaat (moet bewijs krijgen), één
+      // zonder enige koppeling (moet met rust gelaten worden, want er is niets
+      // om een zoekopdracht aan te herkennen).
+      const { rows: kansRijen } = await db.client.query(
+        `insert into public.kansen (profile_id, titel, handeling, geldt_voor, status, vastgelegd_door_taak, uitleg)
+         values
+           ($1, 'Pagina over financiering', 'nieuwe_pagina', $2, 'open', 'test', 'Uitleg zonder Search Console.'),
+           ($1, 'Kans zonder koppeling', 'nieuwe_pagina', '{}', 'open', 'test', 'Blijft ongemoeid.')
+         returning id, titel`,
+        [merk, [dienstId]],
+      );
+      const kansMetDienst = (kansRijen as { id: string; titel: string }[]).find((k) => k.titel === "Pagina over financiering")!.id;
+      const kansZonderKoppeling = (kansRijen as { id: string; titel: string }[]).find((k) => k.titel === "Kans zonder koppeling")!.id;
+
+      // Alle rijen op dezelfde dag: het venster van `vergelijkingsvenster()`
+      // eindigt op de laatste dag in de data, dus dit garandeert dat alles
+      // binnen de 28 dagen valt zonder een echte kalender na te bootsen.
+      await db.client.query(
+        `insert into public.search_console_queries (profile_id, day, query, page, clicks, impressions, position) values
+           ($1, '2026-09-20', 'auto financiering udenhout', '/diensten/financieringen', 2, 40, 8),
+           ($1, '2026-09-20', 'financiering audi', '/diensten/financieringen/audi-financiering', 1, 15, 12),
+           ($1, '2026-09-20', 'auto huren eindhoven', '/verhuur', 5, 30, 4)`,
+        [merk],
+      );
+
+      const telling = await legZoekverkeerBewijsVast(shim, merk);
+      ok("scenario 40: één kans bijgewerkt, geen mislukking", telling.bijgewerkt === 1 && telling.mislukt === 0, JSON.stringify(telling));
+
+      const { rows: bewijsRijen } = await db.client.query(
+        `select kans_id, bron, vertoningen, klikken, positie, periode_dagen, zoekopdrachten
+           from public.kans_bewijs where kans_id = $1`,
+        [kansMetDienst],
+      );
+      ok("scenario 40: precies één bewijsrij, bron search_console", bewijsRijen.length === 1 && bewijsRijen[0].bron === "search_console");
+      ok("scenario 40: vertoningen en klikken zijn de som van de matchende zoekopdrachten", Number(bewijsRijen[0].vertoningen) === 55 && Number(bewijsRijen[0].klikken) === 3);
+      // Gewogen op vertoningen: (8*40 + 12*15) / 55 ≈ 8,91, niet het gewone gemiddelde (10).
+      ok(
+        "scenario 40: de positie is gewogen op vertoningen",
+        Math.abs(Number(bewijsRijen[0].positie) - (8 * 40 + 12 * 15) / 55) < 0.01,
+        String(bewijsRijen[0].positie),
+      );
+      eqc("scenario 40: 28 dagen, dezelfde periode als de rest van het zoekverkeerscherm", String(bewijsRijen[0].periode_dagen), "28");
+      eqc(
+        "scenario 40: de niet-matchende zoekopdracht ('auto huren') staat er niet bij",
+        (bewijsRijen[0].zoekopdrachten as string[]).sort().join(","),
+        ["auto financiering udenhout", "financiering audi"].sort().join(","),
+      );
+
+      const { rows: kansNa } = await db.client.query("select uitleg from public.kansen where id = $1", [kansMetDienst]);
+      ok(
+        "scenario 40: de uitleg van de kans noemt het zoekverkeer, met het echte aantal vertoningen",
+        typeof kansNa[0].uitleg === "string" && kansNa[0].uitleg.includes("Mensen zoeken hiernaar") && kansNa[0].uitleg.includes("55 vertoningen"),
+        kansNa[0].uitleg,
+      );
+
+      const { rows: bewijsAndereKans } = await db.client.query(
+        "select count(*)::int as n from public.kans_bewijs where kans_id = $1",
+        [kansZonderKoppeling],
+      );
+      ok("scenario 40: de kans zonder dienst of werkgebied krijgt geen bewijs", Number(bewijsAndereKans[0].n) === 0);
+      const { rows: kansZonderKoppelingNa } = await db.client.query("select uitleg from public.kansen where id = $1", [kansZonderKoppeling]);
+      eqc("scenario 40: en zijn uitleg blijft ongemoeid", kansZonderKoppelingNa[0].uitleg, "Blijft ongemoeid.");
+
+      // Nog eens aanroepen (zoals een tweede gsc_sync de volgende nacht) mag
+      // geen tweede bewijsrij maken, alleen de bestaande overschrijven
+      // (conventie 9, dezelfde `onConflict` als `uit-rapport.ts`).
+      const tellingNogEens = await legZoekverkeerBewijsVast(shim, merk);
+      ok("scenario 40: nog eens aanroepen blijft idempotent op de bewijsrij", tellingNogEens.bijgewerkt === 1 && tellingNogEens.mislukt === 0);
+      const { rows: bewijsNogEens } = await db.client.query(
+        "select count(*)::int as n from public.kans_bewijs where kans_id = $1",
+        [kansMetDienst],
+      );
+      eqc("scenario 40: nog steeds precies één bewijsrij, geen dubbele", String(bewijsNogEens[0].n), "1");
     }
 
     __setTestAdminClient(null);

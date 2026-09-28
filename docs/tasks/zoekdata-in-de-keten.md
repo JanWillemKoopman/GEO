@@ -563,7 +563,7 @@ belangrijke: dan was de gok goed genoeg en is de rest van dit blok minder waard 
 Ingreep 3.4, met de rem uit dat hoofdstuk.
 
 **Af als:** tien pagina's met en tien zonder de zoekwoordlaag door het kwaliteitslab
-(`/beheer/kwaliteit`) zijn gegaan, met het oordeel van een mens erbij. ⚠️ Dit is het enige blok dat
+(`/beheer/kwaliteit`, inmiddels verwijderd: dit criterium moet een nieuwe plek krijgen) zijn gegaan, met het oordeel van een mens erbij. ⚠️ Dit is het enige blok dat
 de tekst slechter kan maken, dus hier is een menselijk oordeel geen luxe maar de poort.
 
 ### Blok E. Het bewijs

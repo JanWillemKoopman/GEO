@@ -12876,3 +12876,141 @@ AI-meting. "Conversie" en "omzet" staan altijd op "geen gegevens": er is geen An
 CRM-koppeling (§5 van het plan), en de tekst zegt dat met zoveel woorden in plaats van het te
 verzwijgen. Niet op productie te zien: 0 gepubliceerde pagina's en 0 metingen op dit moment, dus de
 ladder wacht op de eerste live pagina.
+
+Toewijzen per e-mailadres (28 september 2026): `/merk/[id]/admin/toewijzen` kon een profiel alleen aan
+een BESTAANDE gebruiker koppelen, gekozen uit een keuzelijst; een nieuw klantaccount aanmaken kon
+alleen in het Supabase-dashboard, een bewuste keuze uit de tijd dat er nog geen echte klant was
+(comment bij `app/api/profiles/[id]/assign/route.ts`, "Accounts aanmaken hoort hier NIET"). Die
+aanname klopt niet meer zodra er echte klanten door de toewijsstap gaan: de eigenaar wil dit gewoon in
+het scherm kunnen doen. `AssignBox` heeft er daarom een e-mailveld bij gekregen, en de route
+`POST /api/profiles/[id]/assign-by-email` hergebruikt de bestaande uitnodigingsinfrastructuur van
+migratie 0047 (`account_invites`, al in gebruik door `TeamBox` op hetzelfde scherm) in plaats van een
+tweede uitnodigingsmechanisme te bouwen: bestaat het adres al als gebruiker, dan is het resultaat
+identiek aan de keuzelijst (`wijsToeAanGebruiker()`); bestaat het nog niet, dan maakt
+`wijsToeAanNieuwAccount()` een nieuw account, wijst het profiel er meteen aan toe en geeft een
+uitnodigingslink terug om te kopiëren (`lib/profile-assign.ts`). `profiles.user_id` blijft in dat
+tweede geval bewust op de consultant staan tot de klant de uitnodiging accepteert: de accountlaag
+(laag 1) geeft dan al toegang, precies zoals een extra teamlid via `TeamBox` dat ook al deed. Voor
+Van den Udenhout (udenhout.nl, het eerste profiel van de nieuwe kennissysteem-architectuur, F0.1)
+alvast klaargezet als eerste toepassing. Ketenscenario "Toewijzen per e-mailadres" dekt beide paden.
+
+Aanbodboom mist diensten bij een retailer (28 september 2026, gevonden bij Van den Udenhout, F0.1):
+`buildOfferingTree()` (`lib/pipeline/offering.ts`) kiest één instructie op basis van `business_model`,
+en die voor "retailer" vroeg alleen om categorieën, productgroepen en gevoerde merken, nooit om
+diensten. Van den Udenhout kreeg dat label (verkoopt auto's van andere merken) en de aanbodboom bleef
+daardoor steken op 11 knopen: financiering, lease, verhuur en schadeherstel, allemaal met eigen
+paginas op de site (nagekeken met een query op `profile_pages`, tientallen pagina's tot 4000 tekens),
+kwamen nooit in beeld. Geen bug in de crawl of de bewijscontrole, die werkten prima; de opdracht aan
+het model vroeg er simpelweg nooit naar. Veel retailers verdienen naast de verkoop ook aan dat soort
+diensten, dus de instructie voor "retailer" vraagt er nu expliciet ook naar (kind `dienst`), naast wat
+er al gevraagd werd. Geen nieuwe knoopsoort nodig: `dienst` bestond al in `lib/schemas/offering.ts`,
+voor het geval `dienstverlener`. Op productie nog niet opnieuw gedraaid: dat kan de eigenaar zelf met
+de knop "Onderzoek opnieuw" op het aanbodscherm van Van den Udenhout, zodra deze wijziging gemergd is.
+
+Search Console-koppelingen als tabel (28 september 2026): het scherm `/instellingen/koppelingen`
+zette alle merken met hun volledige formulier onder elkaar, en na "Opnieuw controleren" was niet te
+zien of het gelukt was: de melding verdween na een paar seconden en een property zonder geslaagde
+leespoging gaf geen enkel signaal. Nu staat er een tabel (datum toegevoegd, klant, website, status)
+met een groen of rood bolletje plus tekst, en het formulier per klant op
+`/instellingen/koppelingen/[id]`, met hetzelfde bolletje bovenaan. Groen vraagt een property, een
+geslaagde leespoging én geen fout sinds die poging (`lib/search-console/koppelstatus.ts`, zeven
+tests): de nachtelijke ronde laat de verificatiedatum staan en zet alleen de fout, dus op de datum
+alleen afgaan hield een koppeling die gisteren brak groen.
+
+N3, Search Console als kansbron (28 september 2026): het schema en de prioritering stonden al
+sinds N1 klaar voor de bron `search_console` (`steunVan()`, `uitlegVan()` in `lib/kansen/
+prioriteit.ts` kenden hem al); dit werkpakket vulde de schrijfkant die daar nog ontbrak. Een
+zoekopdracht hoort bij een kans als zijn tekst een dienst of werkgebied uit `kansen.geldt_voor`
+als heel woord bevat, dezelfde regel als `geldtVoorVan()` al gebruikte voor een werkgebied
+(`bevatPlaats()` is daarom hernoemd naar `bevatHeelWoord()` en geëxporteerd). Bewuste vernauwing:
+alleen bewijs bij een bestaande kans, geen gloednieuwe kans puur uit een zoekterm zonder
+onderliggende kans. Dat laatste vergt een titel afleiden uit kale zoektermen zonder model
+(§4, P4), en `docs/tasks/zoekdata-in-de-keten.md` noemt precies die stap zelf al "de moeilijkste
+stap" voor hetzelfde vraagstuk bij het schrijven. Het "klaar als" van N3 (minstens één kans met
+Search Console-bewijs) vraagt niet meer dan de bestaande helft. `legZoekverkeerBewijsVast()`
+(`lib/kansen/uit-search-console.ts`) draait automatisch na elke geslaagde `gsc_sync`-taak.
+Ketenscenario 40 op een proefprofiel: de juiste kans krijgt bewijs (vertoningen, klikken en een
+op vertoningen gewogen positie, niet het gewone gemiddelde), een kans zonder dienst of werkgebied
+blijft ongemoeid, en een tweede aanroep overschrijft dezelfde rij in plaats van een tweede te
+maken. Op productie nog niet gezien: Van den Udenhout heeft Search Console gekoppeld en
+geverifieerd, maar nog geen kansen (geen cluster gestart).
+
+Aanbodboom: budget en bedrijfsmodel-branch, ronde twee (28 september 2026). Na de eerste
+reparatie van dezelfde dag (de retailer-instructie vroeg alsnog naar diensten) een kritische
+blik op de hele stap gevraagd: maakt de indeling naar bedrijfsmodel het geheel onnodig complex
+en minder volledig? Antwoord: het bedrijfsmodel zelf is onschuldig op 17 van de 18 plekken waar
+het voorkomt (alleen context in een prompt); op precies één plek, `lib/pipeline/offering.ts`,
+bepaalde het welke knooptypes het model mocht vinden, en dat was de echte fout. Twee wijzigingen,
+allebei simpeler in plaats van complexer: (1) de opdracht vertakt niet meer per bedrijfsmodel,
+elk bedrijf krijgt dezelfde volledige vraag naar dienst, product, categorie, merk en vestiging,
+het bedrijfsmodel is nu alleen nog een hint voor de nadruk (`modelContext()`, verving
+`briefingFor()`); (2) het tekenbudget ging van 55.000 naar 250.000 tekens. Dat laatste bleek de
+grotere hefboom: bij 150 gecrawlde pagina's van elk hoogstens 4.000 tekens paste maar ongeveer
+een kwart van de crawl in het oude budget, ongeacht wat de opdracht vroeg (`docs/doorloop-van-
+klant-tot-content.md` noemde dit al als open punt op 26 september). Kosten verwaarloosbaar: GPT-6
+Luna kost $0,10 per miljoen tokens aan invoer, het verschil is ongeveer een halve dollarcent per
+merk, één keer. Bewust NIET gebouwd: een opsplitsing in meerdere aanroepen per sectie van de site
+(een eigen jobtype met een samenvoegstap erna). Dat lost hetzelfde probleem nog beter op bij een
+hele grote site, maar voegt een nieuw soort taak en een nieuwe samenvoegstap toe zonder dat een
+echte klant heeft aangetoond dat het grotere budget tekortschiet (conventie 10). Geen migratie,
+geen schema-wijziging: `tsc`, `test:unit` (5523) en `test:chain` (985) ongewijzigd groen, want
+geen van beide wijzigingen raakt een pure, geteste functie. Op productie nog niet opnieuw
+gedraaid voor Van den Udenhout; dat kan de eigenaar zelf met "Onderzoek opnieuw".
+
+## 28 september 2026: het Kwaliteitslab ook uit het menu
+
+Het scherm `/beheer/kwaliteit` en zijn API-route verdwenen met de ombouw van de contentketen
+(`docs/tasks/contentketen-opnieuw.md`), maar het menu-item "Kwaliteitslab" onder Admin bleef staan
+en leidde naar een 404. Een test hield het in leven door negen Admin-items te eisen. Het item is weg,
+de grens voor Admin staat terug op acht, en de test controleert nu dat de link niet terugkomt.
+
+De tabellen `content_quality_reviews` en `content_quality_runs` blijven staan (conventie 4). Op
+productie hadden beide 0 rijen: de twaalf oordelen van 3 september staan er niet meer in. Wie de
+nieuwe keten ooit naast een menselijk oordeel wil leggen, begint vanaf `content-reviews/feedback/`.
+
+Aanbodboom: MAX_NODES ook verhoogd (28 september 2026), ronde drie op dezelfde dag. Na de
+budgetverhoging (250.000 tekens) opnieuw gedraaid voor Van den Udenhout op productie: van 11 naar
+59 knopen, alle eerder ontbrekende diensten (financiering, lease, verhuur, schadeherstel,
+onderhoud: 36 diensten in totaal) erbij. Maar het model vond eigenlijk 87 knopen; de vaste grens
+van 60 (`MAX_NODES` in `lib/pipeline/offering.ts`) kapte de rest af, en de zes automerken (Audi,
+CUPRA, SEAT, Škoda, Volkswagen, Volkswagen Bedrijfswagens) vielen daarbij weg. Dezelfde soort fout
+als het tekenbudget: een vaste grens die nooit tegen een echte grote klant was afgezet. Naar 200,
+ruim boven wat Van den Udenhout liet zien. `persistTree()` meldt nog steeds in `gaps` als zelfs
+dat niet genoeg is, dus een grens die opnieuw te krap blijkt blijft zichtbaar. Geen pure geteste
+functie geraakt: `tsc`, `test:unit` (5524) en `test:chain` (985) ongewijzigd groen. Op productie
+nog niet opnieuw gedraaid voor Van den Udenhout.
+
+## 28 september 2026: de tien discussiepunten van de doorloop besloten, en één signaal gebouwd
+
+De eigenaar liep de "tien belangrijkste punten om te bespreken" van `docs/doorloop-van-klant-tot-
+content.md` na. Drie ervan bleken bij het nalopen van de code al opgelost zonder dat deel III van
+dat document was bijgewerkt: punt 1 (FAQ-controle) in C1/besluit B19, punt 2 (twee bronnen van
+vragen) in A3/besluit V3, en punt 9 (geen herinnering bij openstaande vragen) in A5, alle drie op
+27 september 2026 geland. Het document is nu bijgewerkt: die drie staan er doorgestreept met hun
+besluit, in plaats van nog open te lijken.
+
+Punt 6 (de aanbodboom ziet maar een kwart van de site) werd door de eigenaar als "al opgelost in
+een andere sessie" aangedragen. Nagelopen in de code (`lib/pipeline/offering.ts` regel 178,
+`lib/pipeline/page-select.ts` regel 7) op het moment van bespreken: het oude budget stond er nog,
+dus het punt bleef aanvankelijk open in het document, met een kanttekening dat het ten onrechte
+als opgelost gold. Bij het samenvoegen van deze branch met `main` bleek de andere sessie er
+diezelfde dag alsnog wél mee klaar te zijn (zie hierboven en de twee aanbodboom-reparaties
+ervoor): het document is bij het mergen alsnog aangepast om dat te tonen. Les voor volgende keer:
+verificatie tegen de code is alleen zo goed als het moment waarop hij draait, bij twee sessies
+tegelijk kan dat achterhaald raken binnen enkele uren.
+
+Voor de punten "de meting is een nabootsing" (4), "het zoekvolume is een schatting" (5), en "Sol
+beoordeelt Sol" (10) is besloten voorlopig geen actie te ondernemen; ze blijven zo in het document
+staan, met de reden erbij.
+
+Voor punt 8 ("het gesprek is de grootste hefboom, maar er is geen signaal als het dun is") is een
+nieuwe, pure module gebouwd: `lib/schrijf-kwaliteit.ts` (`beoordeelSchrijfKwaliteit()`) signaleert
+of "Verhalen" leeg of korter dan 80 tekens is, of geen enkel stemvoorbeeld een opgehaalde tekst
+heeft, of `taboo_phrases` leeg is. Bewuste keus om dit los te houden van de bestaande
+volledigheidsmeter (`lib/profile-meter.ts`): die telt tientallen velden bij elkaar op, en juist
+deze drie (die rechtstreeks naar blok A van elke pagina gaan, `lib/pagina/schrijfopdracht.ts`)
+verdwenen daarin tussen de rest. De onboardingsessie toont de waarschuwing nu als eigen kaart
+boven de volledigheidsmeter, met een link naar elk zwak veld. Blokkeert niets (conventie 3): het
+maakt alleen zichtbaar wat een pagina eerder zonder enig signaal liet doorschrijven. Eenheidstests
+voor de vier gevallen (leeg, goed gevuld, een te kort verhaal, een stemvoorbeeld dat niet is
+opgehaald).

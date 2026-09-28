@@ -42,6 +42,7 @@ import { planImpactMeasurements, computeImpact } from "@/lib/pipeline/impact";
 import { verifyPublication } from "@/lib/pipeline/publish";
 import { runOffsiteScan } from "@/lib/offsite/scan";
 import { syncSearchConsole } from "@/lib/search-console/sync";
+import { legZoekverkeerBewijsVast } from "@/lib/kansen/uit-search-console";
 import { recalibrateSearchVolume } from "@/lib/pipeline/search-demand";
 import { startReputationRun } from "@/lib/pipeline/reputation-start";
 import { runBrandBlock } from "@/lib/pipeline/reputation-brand";
@@ -807,6 +808,13 @@ const handlers: { [T in JobType]: Handler<T> } = {
           (result.queryRijen === null ? ", zoekopdrachten mislukt." : `, ${result.queryRijen} zoekopdrachten.`)
         : `Search Console ${job.profile_id}: ${result.reason}`,
     );
+    // N3: pas de nieuwe cijfers op de kansen van dit merk toepassen als de
+    // zoekopdrachten ook echt zijn opgehaald. Zonder queryRijen is er niets om
+    // te matchen, en een mislukte bijwerking van het bewijs mag de geslaagde
+    // synchronisatie van de ruwe cijfers niet als mislukt laten gelden.
+    if (result.ok && result.queryRijen !== null) {
+      await legZoekverkeerBewijsVast(admin, job.profile_id);
+    }
   },
 
   // ── Zoekvolume herberekenen over het hele merk (docs/tasks/potentiescore.md) ─

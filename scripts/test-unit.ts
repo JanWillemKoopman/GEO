@@ -61,6 +61,7 @@ import { BESLUITEN } from "./kennis-open-punten";
 import { openPuntenSql, foutenVan } from "@/lib/kennis/open-punten";
 import { kennisgatVan, kennisgatZin, behoeftenVoor, hoortBijKans, BEHOEFTE_LABEL, type KennisVoorGat, type KansVoorGat } from "@/lib/kansen/kennisgat";
 import { kennisrondeVoorMerk, BEHOEFTE_DOMEIN, type KennisrondeKans } from "@/lib/kansen/kennisronde";
+import { matchendeZoekopdrachten, zoekverkeerBewijsVan } from "@/lib/kansen/zoekverkeer";
 import {
   maakTerugvulplan,
   dekking,
@@ -123,6 +124,7 @@ import { stripProseDashes } from "@/lib/pipeline/dash-guard";
 import { publicFactRequest } from "@/lib/fact-request-public";
 import { plattetekst, kopieeropties } from "@/lib/kopieervormen";
 import { legeStaat } from "@/lib/search-console/lege-staat";
+import { koppelStatus } from "@/lib/search-console/koppelstatus";
 import {
   startdatumBijToewijzing,
   afspraakGaten,
@@ -810,6 +812,7 @@ import {
   STAGE_ORDER,
 } from "@/lib/profile-stage";
 import { sessionMeter, notApplicableFields } from "@/lib/profile-meter";
+import { beoordeelSchrijfKwaliteit } from "@/lib/schrijf-kwaliteit";
 import { buildIntakeBlock } from "@/lib/pipeline/intake-block";
 import {
   categoryOf,
@@ -11329,10 +11332,13 @@ group("de zijbalk verraadt niets aan een klant", () => {
   // de app als geheel. "Concurrenten indelen" kwam er op 2 september 2026 bij
   // (plan analytics-herontwerp.md, C1): zie de uitzondering bij
   // `GRENS_PER_HOOFDSTUK` in `lib/nav.ts`.
-  // Negen sinds migratie 0091: het Kwaliteitslab kwam erbij, de vijfde
-  // uitzondering op de grens. Zie `GRENS_PER_HOOFDSTUK` in `lib/nav.ts` voor de
-  // toets die elke uitzondering moet doorstaan.
-  ok("een beheerder heeft negen Admin-bestemmingen", adminItems.length === 9);
+  // Het Kwaliteitslab (0091) stond er tot 28 september 2026 als negende bij;
+  // het scherm was al weg en de link gaf een 404. Zie `GRENS_PER_HOOFDSTUK`.
+  ok("een beheerder heeft acht Admin-bestemmingen", adminItems.length === 8);
+  ok(
+    "en het verdwenen Kwaliteitslab staat er niet meer in",
+    !adminItems.some((i) => i.href === "/beheer/kwaliteit"),
+  );
   ok(
     "en Search Console staat erbij",
     adminItems.some((i) => i.href === "/instellingen/koppelingen" && i.label === "Search Console"),
@@ -11662,6 +11668,37 @@ group("de meter van de sessie: drie getallen, geen percentage", () => {
       seasonality: { notApplicable: true },
       industry: { source: "gesprek" },
     }).join() === "seasonality",
+  );
+});
+
+group("de schrijfkwaliteitswaarschuwing (doorloop-van-klant-tot-content.md, punt 8)", () => {
+  // ⚠️ Een leeg profiel is het slechtste geval: alle drie de signalen slaan aan.
+  const leeg = beoordeelSchrijfKwaliteit({ verhalen: null, stem_voorbeelden: null, taboo_phrases: [] });
+  ok("een leeg profiel geeft alle drie de waarschuwingen", leeg.length === 3);
+
+  const goedGevuld = beoordeelSchrijfKwaliteit({
+    verhalen: "Een klant belde ooit om 23:00 met een lekkage. We stonden binnen 20 minuten voor de deur, ook al was dat geen spoeddienst.",
+    stem_voorbeelden: [{ url: "https://voorbeeld.nl", tekst: "Wij komen langs, ook als het lastig uitkomt.", opgehaald_op: "2026-09-01", fout: null }],
+    taboo_phrases: ["gratis"],
+  });
+  ok("een goed gevuld profiel geeft geen enkele waarschuwing", goedGevuld.length === 0);
+
+  const kortVerhaal = beoordeelSchrijfKwaliteit({
+    verhalen: "Korte tekst.",
+    stem_voorbeelden: [{ url: "https://voorbeeld.nl", tekst: "Genoeg tekst om als stemvoorbeeld te tellen.", opgehaald_op: "2026-09-01", fout: null }],
+    taboo_phrases: ["gratis"],
+  });
+  ok("een te kort 'Verhalen' telt als dun", kortVerhaal.some((w) => w.signaal === "verhalen"));
+  ok("en de andere twee blijven stil", kortVerhaal.length === 1);
+
+  const stemZonderTekst = beoordeelSchrijfKwaliteit({
+    verhalen: "Een klant belde ooit om 23:00 met een lekkage. We stonden binnen 20 minuten voor de deur.",
+    stem_voorbeelden: [{ url: "https://voorbeeld.nl", tekst: null, opgehaald_op: null, fout: "time-out" }],
+    taboo_phrases: ["gratis"],
+  });
+  ok(
+    "een stemvoorbeeld dat niet is opgehaald telt niet mee",
+    stemZonderTekst.some((w) => w.signaal === "stem_voorbeelden"),
   );
 });
 
@@ -19567,6 +19604,42 @@ group("elke staat zegt wie er aan zet is", () => {
   );
 });
 
+// ── Groen of rood op het koppelscherm (28 september 2026) ─────────────────
+console.log("\nSearch Console: werkt de koppeling?");
+
+const kst = (over: Partial<Parameters<typeof koppelStatus>[0]> = {}) =>
+  koppelStatus({
+    property: "https://www.voorbeeld.nl/",
+    verifiedAt: "2026-09-27T02:00:00Z",
+    lastError: null,
+    sleutelIngesteld: true,
+    ...over,
+  });
+
+group("alleen een koppeling die leest is groen", () => {
+  ok("alles in orde is groen", kst().goed && kst().staat === "werkt");
+  ok("geen property is rood", !kst({ property: null }).goed);
+  ok("een lege property is rood", kst({ property: "   " }).staat === "niet_gekoppeld");
+  ok("zonder sleutel is rood", kst({ sleutelIngesteld: false }).staat === "geen_sleutel");
+  ok("nooit gelukt is rood", kst({ verifiedAt: null }).staat === "niet_gelukt");
+  // De nachtelijke ronde laat de verificatiedatum staan en zet alleen de fout:
+  // een koppeling die gisteren brak mag dus niet groen blijven.
+  ok("een fout na een eerdere verificatie is rood", kst({ lastError: "403 van Google" }).staat === "fout");
+  ok("geen property weegt het zwaarst", kst({ property: null, lastError: "x", sleutelIngesteld: false }).staat === "niet_gekoppeld");
+});
+
+group("elke kleur heeft een tekst erbij", () => {
+  const alle = [
+    kst(),
+    kst({ property: null }),
+    kst({ sleutelIngesteld: false }),
+    kst({ lastError: "x" }),
+    kst({ verifiedAt: null }),
+  ];
+  ok("vijf verschillende labels", new Set(alle.map((a) => a.label)).size === 5);
+  ok("precies één is groen", alle.filter((a) => a.goed).length === 1);
+});
+
 // ── De drie kopieervormen (16 september 2026) ───────────────────────────────
 console.log("\nKopiëren naar het CMS van de klant");
 
@@ -22964,6 +23037,81 @@ group("kansen: één schrijfingang (N2)", () => {
     .filter((p) => schrijft(leesBestand(p)));
   eq("niemand buiten lib/kansen/ schrijft in kansen of kans_bewijs", buiten.join(", "), "");
   ok("en lib/kansen/uit-rapport.ts wél", schrijft(leesBestand("lib/kansen/uit-rapport.ts")));
+  ok("en lib/kansen/uit-search-console.ts (N3) ook", schrijft(leesBestand("lib/kansen/uit-search-console.ts")));
+});
+
+group("kansen: Search Console als kansbron (N3)", () => {
+  const rij = (query: string, impressions: number, clicks: number, position: number | null) => ({
+    query,
+    impressions,
+    clicks,
+    position,
+  });
+
+  // ── matchendeZoekopdrachten() ──
+  const zoekopdrachten = [
+    rij("auto financieren udenhout", 40, 2, 8.5),
+    rij("financiering audi", 15, 1, 12),
+    rij("auto huren eindhoven", 30, 5, 4),
+    rij("goedkope schoenen", 10, 0, 30),
+  ];
+  eq2(
+    "zonder kennistermen matcht niets",
+    matchendeZoekopdrachten(zoekopdrachten, []).length,
+    0,
+  );
+  eq(
+    "een kennisterm matcht elke zoekopdracht die het hele woord bevat",
+    matchendeZoekopdrachten(zoekopdrachten, ["financieren"]).map((r) => r.query).join(","),
+    "auto financieren udenhout",
+  );
+  eq(
+    "twee kennistermen matchen samen",
+    matchendeZoekopdrachten(zoekopdrachten, ["financiering", "huren"]).map((r) => r.query).sort().join(","),
+    ["auto huren eindhoven", "financiering audi"].sort().join(","),
+  );
+  eq2(
+    "'financier' matcht 'financieren' niet: geen heel woord",
+    matchendeZoekopdrachten(zoekopdrachten, ["financier"]).length,
+    0,
+  );
+
+  // ── zoekverkeerBewijsVan() ──
+  ok("geen matches geeft geen bewijs (null, geen nul)", zoekverkeerBewijsVan([], 28) === null);
+
+  const bewijs = zoekverkeerBewijsVan(
+    [rij("auto financieren udenhout", 40, 2, 8), rij("financiering audi", 15, 1, 12)],
+    28,
+  );
+  ok("de vertoningen zijn de som", bewijs?.vertoningen === 55);
+  ok("de klikken zijn de som", bewijs?.klikken === 3);
+  // Gewogen op vertoningen: (8*40 + 12*15) / 55 = 8,909...
+  ok(
+    "de positie is gewogen op vertoningen, niet het gewone gemiddelde",
+    Math.abs((bewijs?.positie ?? 0) - (8 * 40 + 12 * 15) / 55) < 0.001,
+  );
+  eq2("de periode komt mee zoals meegegeven", bewijs?.periodeDagen, 28);
+  eq(
+    "de zoekopdrachten staan erbij, meeste vertoningen eerst",
+    (bewijs?.zoekopdrachten ?? []).join(","),
+    "auto financieren udenhout,financiering audi",
+  );
+
+  const zonderPositie = zoekverkeerBewijsVan([rij("iets", 10, 0, null)], 28);
+  ok(
+    "een rij zonder positie telt niet mee in de weging, maar wel in vertoningen",
+    zonderPositie?.vertoningen === 10 && zonderPositie?.positie === null,
+  );
+
+  const dubbeleDag = zoekverkeerBewijsVan(
+    [rij("auto huren", 20, 1, 5), rij("auto huren", 10, 0, 7)],
+    28,
+  );
+  eq(
+    "dezelfde zoekopdracht op twee dagen komt maar één keer in de lijst",
+    dubbeleDag?.zoekopdrachten.join(",") ?? "",
+    "auto huren",
+  );
 });
 
 group("afhankelijkheden: één schrijfingang (G2)", () => {

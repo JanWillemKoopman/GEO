@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { isStaff } from "@/lib/staff";
-import { defaultAccountFor } from "@/lib/accounts";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { startdatumBijToewijzing } from "@/lib/verkoopafspraak";
+import { wijsToeAanGebruiker } from "@/lib/profile-assign";
 
 /**
  * Profiel toewijzen aan een klantaccount (docs/tasks/onboarding-2.0.md, blok A).
@@ -97,97 +96,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const admin = createAdminClient();
+  const result = await wijsToeAanGebruiker(admin, id, targetUserId);
 
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("id, user_id, account_id")
-    .eq("id", id)
-    .maybeSingle();
-  if (!profile) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
-
-  // Bestaat de doelgebruiker écht? Een typefout in een uuid zou anders een
-  // profiel toewijzen aan een account dat niet bestaat, onzichtbaar voor
-  // iedereen, want de RLS-join levert dan gewoon niets op.
-  const { data: target, error: targetError } = await admin.auth.admin.getUserById(targetUserId);
-  if (targetError || !target?.user) {
-    return NextResponse.json({ error: "Deze gebruiker bestaat niet." }, { status: 400 });
+  if (!result.ok) {
+    const status = result.error === "Niet gevonden." ? 404 : result.error === "Deze gebruiker bestaat niet." ? 400 : 500;
+    return NextResponse.json({ error: result.error }, { status });
   }
+  if (result.unchanged) return NextResponse.json({ ok: true, unchanged: true });
 
-  // Het account van de doelgebruiker, aangemaakt als hij er nog geen heeft
-  // (dezelfde regel als een nieuw profiel gebruikt, zie hierboven).
-  const targetAccountId = await defaultAccountFor(targetUserId);
-
-  // ⚠️ Bewust NIET meer gátend op alleen `profile.user_id === targetUserId`.
-  // Een profiel dat al eerder is toegewezen (vóór deze fix) kan `user_id` al
-  // goed hebben staan terwijl `account_id` nog op het account van de
-  // beheerder staat: precies de stille degradatie hierboven. Zo'n profiel
-  // moet de accountlaag alsnog bijgewerkt krijgen, ook als er verder niets
-  // verandert.
-  if (profile.user_id === targetUserId && profile.account_id === targetAccountId) {
-    return NextResponse.json({ ok: true, unchanged: true });
-  }
-
-  const assignedAt = new Date().toISOString();
-
-  const { error: profileError } = await admin
-    .from("profiles")
-    .update({
-      user_id: targetUserId,
-      assigned_at: assignedAt,
-      // `null` alleen als defaultAccountFor() zelf mislukte (faalt zacht,
-      // zie lib/accounts.ts): dan blijft het profiel op zijn huidige account
-      // staan in plaats van de koppeling kwijt te raken.
-      ...(targetAccountId ? { account_id: targetAccountId } : {}),
-    })
-    .eq("id", id);
-  if (profileError) {
-    return NextResponse.json({ error: "Toewijzen is niet gelukt." }, { status: 500 });
-  }
-
-  // Postgres kent hier geen transactie over twee losse PostgREST-verzoeken. Zou
-  // deze tweede update falen, dan staat het profiel op de klant en de analyses
-  // nog op de beheerder, een half overgedragen account. Daarom draaien we het
-  // profiel dan terug, zodat de toestand consistent blijft en de melding klopt.
-  const { error: analysesError } = await admin
-    .from("analyses")
-    .update({ user_id: targetUserId })
-    .eq("profile_id", id);
-  if (analysesError) {
-    await admin
-      .from("profiles")
-      .update({ user_id: profile.user_id, account_id: profile.account_id, assigned_at: null })
-      .eq("id", id);
-    return NextResponse.json(
-      { error: "Toewijzen is bij de analyses misgegaan; het merk is teruggezet." },
-      { status: 500 },
-    );
-  }
-
-  // ── Hier begint het programma, en dus de teller ──────────────────────────
-  //
-  // ⚠️ Nagerekend op 16 september 2026: `accounts.started_at` werd door geen
-  // enkele regel in de app geschreven, alleen gelezen door `monthsSinceStart()`.
-  // "Maand 4 sinds de start" stond daardoor bij elke echte klant leeg, en dat is
-  // het enige cijfer dat zegt hoe lang ORBIT ENGINE al voor hem werkt.
-  //
-  // Toewijzen is het juiste moment: het merk wordt weken eerder klaargezet, soms
-  // voor een prospect die nooit klant wordt. Een bestaande datum blijft staan,
-  // zodat een tweede merk de teller van de klant niet terugzet; die regel staat
-  // in `lib/verkoopafspraak.ts`, met tests.
-  //
-  // Faalt dit, dan is de toewijzing zelf wél gelukt en dat is wat telt. De
-  // consultant kan de datum op het toewijzingsscherm alsnog zetten.
-  if (targetAccountId) {
-    const { data: accountRij } = await admin
-      .from("accounts")
-      .select("started_at")
-      .eq("id", targetAccountId)
-      .maybeSingle();
-    const start = startdatumBijToewijzing((accountRij?.started_at as string | null) ?? null);
-    if (start) {
-      await admin.from("accounts").update({ started_at: start }).eq("id", targetAccountId);
-    }
-  }
-
-  return NextResponse.json({ ok: true, email: target.user.email ?? null, assignedAt });
+  return NextResponse.json({ ok: true, email: result.email ?? null, assignedAt: result.assignedAt });
 }

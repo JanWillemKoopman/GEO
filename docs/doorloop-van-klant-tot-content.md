@@ -485,9 +485,13 @@ of wijkt de samenvatting uit naar Luna. De fase wordt afgeleid in `lib/profile-s
 
 **Om te bespreken**
 
-- **De aanbodboom ziet maar een kwart van de site.** Van de 150 gelezen pagina's passen er ongeveer 35 in
-  het tekenbudget, en elke pagina is bij het lezen al afgekapt op 1.500 tekens. Alles daarna hangt aan
-  deze boom. Is een groter budget, of een tweede ronde over de rest van de site, de moeite waard?
+- ~~**De aanbodboom ziet maar een kwart van de site.**~~ Opgelost (28 september 2026): het tekenbudget
+  ging van 55.000 naar 250.000 tekens, bij 150 pagina's van elk hoogstens 4.000 tekens vrijwel de hele
+  crawl. Gevonden bij Van den Udenhout: 11 knopen in plaats van de tientallen diensten die er echt
+  staan. Daarbij ook gevonden en opgelost: de opdracht vertakte per bedrijfsmodel, en de tak voor
+  "retailer" (Van den Udenhouts label) vroeg nooit naar diensten. Elk bedrijf krijgt nu dezelfde
+  volledige vraag (dienst, product, categorie, merk, vestiging), het bedrijfsmodel is alleen nog een
+  hint voor de nadruk (`lib/pipeline/offering.ts`).
 - **Drie stappen maakten elk hun eigen lijst "feiten".** Sinds K8 (27 september 2026) zet het
   merkonderzoek (2.4) geen `proof_points` en stijlvoorbeelden meer op het profiel: de bewijspunten van
   het model gaan alleen als vermoeden de kennislaag in, en de schrijver leest zijn feiten uit de
@@ -1439,34 +1443,41 @@ Handmatig bewerken via `PATCH /api/analyses/[id]/content/[pieceId]`; de tekst va
 Gevonden bij het nalopen van de code, 26 september 2026. De volgorde is een voorstel: wat een echte klant
 het eerst merkt, staat bovenaan.
 
-1. **De FAQ en de omschrijving voor zoekmachines worden niet gecontroleerd.** De controle op harde
-   beweringen en de beoordeling lezen alleen de tekst. Een verzonnen prijs of garantie in een FAQ-antwoord
-   komt zo zonder gele markering op de site van de klant. De FAQ meenemen in de controle is contentlogica en
-   vraagt een besluit in §2 van `tasks/contentketen-opnieuw.md`. (Het opleveren zelf is op 26 september 2026
-   gerepareerd: de klant ziet nu ook de zoekmachinegegevens en de FAQ, en kan alles kopiëren en downloaden.)
-2. **Twee bronnen van vragen voor dezelfde pagina.** Het rapport (7.3) stelt vragen per cluster, de brief
-   (9.6) per pagina. Sinds 26 september 2026 gaan de antwoorden op rapportvragen mee naar de schrijver
-   (besluit B17; daarvoor kwamen ze meestal nergens aan). Nu de brief gerichter vraagt: moet het rapport nog
-   vragen stellen, of is dat dubbel werk voor de klant?
+1. ~~**De FAQ en de omschrijving voor zoekmachines worden niet gecontroleerd.**~~ Opgelost in C1
+   (27 september 2026, besluit B19): de controle op harde beweringen en verboden woorden loopt nu ook over
+   de metabeschrijving en de FAQ-antwoorden, en een gele zin daarin wordt ook echt geel getoond.
+2. ~~**Twee bronnen van vragen voor dezelfde pagina.**~~ Opgelost in A3 (27 september 2026, besluit V3): het
+   rapport en het merkonderzoek stellen geen vragen meer aan de klant, alleen de voorbereiding van een
+   pagina doet dat nog.
 3. ~~**De opdracht van het rapport spreekt zichzelf tegen** over het aantal aanbevelingen.~~ Opgelost in N2
    (26 september 2026): "ligt niet vast" staat nu op beide plekken.
 4. **De meting is een nabootsing** met Luna via de API, met een opdracht die vraagt om merken te noemen. Hoe
    dicht zit dat bij wat een echte gebruiker in ChatGPT ziet? Alles (score, rapport, effectmeting) hangt
-   eraan.
+   eraan. Besloten (28 september 2026): voorlopig geen actie.
 5. **Het zoekvolume is een schatting van het model.** De weging van de score en de volgorde van de kansen
-   hangen ervan af. Echte zoekdata zit al in "Clusters ontdekken"; kan die hier ook in?
-6. **De aanbodboom ziet maar een kwart van de site** (ongeveer 35 van 150 pagina's, elk afgekapt op 1.500
-   tekens). Alles daarna leunt op die boom.
-7. **Oude feitenbronnen die niemand meer leest.** Opgeruimd in K8 deel 1 (27 september 2026):
+   hangen ervan af. Echte zoekdata zit al in "Clusters ontdekken"; kan die hier ook in? Besloten
+   (28 september 2026): voorlopig geen actie; N3 (Search Console als kansbron) geeft al deels echt bewijs
+   van vraag zonder dit punt zelf aan te pakken.
+6. ~~**De aanbodboom ziet maar een kwart van de site**~~ (ongeveer 35 van 150 pagina's). Bij het bespreken
+   op 28 september 2026 nog niet opgelost gebleken (`lib/pipeline/offering.ts`,
+   `lib/pipeline/page-select.ts` toonden toen nog het oude budget), maar in een andere sessie diezelfde dag
+   alsnog gerepareerd: budget van 55.000 naar 250.000 tekens, `MAX_NODES` van 60 naar 200, en de opdracht
+   vertakt niet meer per bedrijfsmodel.
+7. ~~**Oude feitenbronnen die niemand meer leest.**~~ Opgeruimd in K8 deel 1 (27 september 2026):
    `proof_points` en de stijlvoorbeelden staan niet meer op het merkprofiel en worden niet meer
    geschreven. Het model levert de bewijspunten nog wel (de opdracht van 2.4 is niet veranderd), en die
    gaan als vermoeden de kennislaag in.
-8. **Het gesprek is de grootste hefboom, maar er is geen signaal als het dun is.** Een lege of korte
-   "Verhalen", geen stemvoorbeelden of geen verboden woorden: de app schrijft gewoon door.
-9. **Geen herinnering bij openstaande vragen.** Een pagina wacht onbeperkt op de klant, en e-mail staat uit.
+8. ~~**Het gesprek is de grootste hefboom, maar er is geen signaal als het dun is.**~~ Opgelost
+   (28 september 2026): de onboardingsessie toont nu een aparte melding zodra "Verhalen" leeg of kort is,
+   er geen stemvoorbeelden zijn opgehaald, of er geen verboden woorden staan (`lib/schrijf-kwaliteit.ts`).
+   Dit blokkeert niets, het maakt alleen zichtbaar wat eerder onzichtbaar dun kon blijven.
+9. ~~**Geen herinnering bij openstaande vragen.**~~ Opgelost in A5 (27 september 2026): het startscherm van
+   de klant en het CSM-overzicht van de consultant tonen welke pagina's op antwoorden wachten en sinds
+   wanneer; een e-mail gaat alleen als `EMAILS_ENABLED` aanstaat.
 10. **Sol beoordeelt Sol, en 5 van 9 pagina's werd herschreven.** Is de controle streng genoeg op de goede
     dingen, en niet te streng op de verkeerde? Meet dit bij de eerste echte klant met
     `tasks/meting-eerste-klant.md`, en verander dan de opdracht, niet het aantal stappen (besluit B15).
+    Besloten (28 september 2026): voorlopig geen extra actie, blijft zoals besluit B15 al zegt.
 
 ---
 

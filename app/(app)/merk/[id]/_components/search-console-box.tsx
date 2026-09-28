@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRefresh } from "@/components/use-refresh";
 import { useToast } from "@/components/toast";
 import { Alert } from "@/components/alert";
+import { koppelStatus } from "@/lib/search-console/koppelstatus";
+import { KoppelStatusLabel } from "@/app/(app)/instellingen/koppelingen/_components/koppel-status";
 
 /**
  * Google Search Console koppelen (fase 5, migratie 0052).
@@ -98,9 +100,19 @@ export function SearchConsoleBox({
   }
 
   const gekoppeld = Boolean(property && verifiedAt);
+  // Groen of rood bovenaan: de melding na "Opnieuw controleren" verdwijnt na
+  // een paar seconden, het bolletje blijft staan. Zie `lib/search-console/koppelstatus.ts`.
+  const status = koppelStatus({
+    property,
+    verifiedAt,
+    lastError,
+    sleutelIngesteld: Boolean(serviceAccountEmail),
+  });
 
   return (
     <div className="flex flex-col gap-4">
+      <KoppelStatusLabel status={status} />
+
       {gekoppeld ? (
         <p className="text-secondary">
           ORBIT ENGINE leest {property} en heeft {dagen} {dagen === 1 ? "dag" : "dagen"} aan

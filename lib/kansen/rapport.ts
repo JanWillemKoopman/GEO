@@ -284,8 +284,15 @@ export interface KennisVoorKans {
   herkomstId: string | null;
 }
 
-function bevatPlaats(tekstIn: string, plaats: string): boolean {
-  const p = plaats.trim();
+/**
+ * Staat `woord` als heel woord in `tekstIn`? Geëxporteerd sinds N3
+ * (`lib/kansen/zoekverkeer.ts`): dezelfde regel bepaalt of een zoekopdracht bij
+ * een dienst hoort als hier al bepaalde of een werkgebied bij een kans hoort.
+ * "Eindhovense" bevat niet het hele woord "Eindhoven", "auto financieren"
+ * bevat wel het hele woord "financieren".
+ */
+export function bevatHeelWoord(tekstIn: string, woord: string): boolean {
+  const p = woord.trim();
   if (p.length < 2) return false;
   const escaped = p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}($|[^\\p{L}\\p{N}])`, "iu").test(tekstIn);
@@ -312,7 +319,7 @@ export function geldtVoorVan(args: {
       k.herkomstTabel === "profile_offerings" &&
       k.herkomstId !== null &&
       diensten.has(k.herkomstId);
-    const isRegio = k.soort === "werkgebied" && bevatPlaats(teksten, k.bewering);
+    const isRegio = k.soort === "werkgebied" && bevatHeelWoord(teksten, k.bewering);
     if ((isDienst || isRegio) && !uit.includes(k.id)) uit.push(k.id);
   }
   return uit;
