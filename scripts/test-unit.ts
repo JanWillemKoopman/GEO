@@ -812,6 +812,7 @@ import {
   STAGE_ORDER,
 } from "@/lib/profile-stage";
 import { sessionMeter, notApplicableFields } from "@/lib/profile-meter";
+import { beoordeelSchrijfKwaliteit } from "@/lib/schrijf-kwaliteit";
 import { buildIntakeBlock } from "@/lib/pipeline/intake-block";
 import {
   categoryOf,
@@ -11667,6 +11668,37 @@ group("de meter van de sessie: drie getallen, geen percentage", () => {
       seasonality: { notApplicable: true },
       industry: { source: "gesprek" },
     }).join() === "seasonality",
+  );
+});
+
+group("de schrijfkwaliteitswaarschuwing (doorloop-van-klant-tot-content.md, punt 8)", () => {
+  // ⚠️ Een leeg profiel is het slechtste geval: alle drie de signalen slaan aan.
+  const leeg = beoordeelSchrijfKwaliteit({ verhalen: null, stem_voorbeelden: null, taboo_phrases: [] });
+  ok("een leeg profiel geeft alle drie de waarschuwingen", leeg.length === 3);
+
+  const goedGevuld = beoordeelSchrijfKwaliteit({
+    verhalen: "Een klant belde ooit om 23:00 met een lekkage. We stonden binnen 20 minuten voor de deur, ook al was dat geen spoeddienst.",
+    stem_voorbeelden: [{ url: "https://voorbeeld.nl", tekst: "Wij komen langs, ook als het lastig uitkomt.", opgehaald_op: "2026-09-01", fout: null }],
+    taboo_phrases: ["gratis"],
+  });
+  ok("een goed gevuld profiel geeft geen enkele waarschuwing", goedGevuld.length === 0);
+
+  const kortVerhaal = beoordeelSchrijfKwaliteit({
+    verhalen: "Korte tekst.",
+    stem_voorbeelden: [{ url: "https://voorbeeld.nl", tekst: "Genoeg tekst om als stemvoorbeeld te tellen.", opgehaald_op: "2026-09-01", fout: null }],
+    taboo_phrases: ["gratis"],
+  });
+  ok("een te kort 'Verhalen' telt als dun", kortVerhaal.some((w) => w.signaal === "verhalen"));
+  ok("en de andere twee blijven stil", kortVerhaal.length === 1);
+
+  const stemZonderTekst = beoordeelSchrijfKwaliteit({
+    verhalen: "Een klant belde ooit om 23:00 met een lekkage. We stonden binnen 20 minuten voor de deur.",
+    stem_voorbeelden: [{ url: "https://voorbeeld.nl", tekst: null, opgehaald_op: null, fout: "time-out" }],
+    taboo_phrases: ["gratis"],
+  });
+  ok(
+    "een stemvoorbeeld dat niet is opgehaald telt niet mee",
+    stemZonderTekst.some((w) => w.signaal === "stem_voorbeelden"),
   );
 });
 

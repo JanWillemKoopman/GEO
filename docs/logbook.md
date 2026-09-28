@@ -12945,3 +12945,35 @@ de grens voor Admin staat terug op acht, en de test controleert nu dat de link n
 De tabellen `content_quality_reviews` en `content_quality_runs` blijven staan (conventie 4). Op
 productie hadden beide 0 rijen: de twaalf oordelen van 3 september staan er niet meer in. Wie de
 nieuwe keten ooit naast een menselijk oordeel wil leggen, begint vanaf `content-reviews/feedback/`.
+
+## 28 september 2026: de tien discussiepunten van de doorloop besloten, en één signaal gebouwd
+
+De eigenaar liep de "tien belangrijkste punten om te bespreken" van `docs/doorloop-van-klant-tot-
+content.md` na. Drie ervan bleken bij het nalopen van de code al opgelost zonder dat deel III van
+dat document was bijgewerkt: punt 1 (FAQ-controle) in C1/besluit B19, punt 2 (twee bronnen van
+vragen) in A3/besluit V3, en punt 9 (geen herinnering bij openstaande vragen) in A5, alle drie op
+27 september 2026 geland. Het document is nu bijgewerkt: die drie staan er doorgestreept met hun
+besluit, in plaats van nog open te lijken.
+
+Punt 5 uit de oorspronkelijke telling (nu punt 6: de aanbodboom ziet maar een kwart van de site)
+werd door de eigenaar als "al opgelost in een andere sessie" aangedragen. Nagelopen in de code
+(`lib/pipeline/offering.ts` regel 178, `lib/pipeline/page-select.ts` regel 7): het budget van
+~35 van de 150 gecrawlde pagina's, elk afgekapt op 1.500 tekens, is ongewijzigd. Conventie
+"neem een cijfer nooit zonder verificatie over" gold hier letterlijk; het punt blijft open in het
+document, met een kanttekening dat het bij het bespreken ten onrechte als opgelost gold.
+
+Voor de punten "de meting is een nabootsing" (4), "het zoekvolume is een schatting" (5), en "Sol
+beoordeelt Sol" (10) is besloten voorlopig geen actie te ondernemen; ze blijven zo in het document
+staan, met de reden erbij.
+
+Voor punt 8 ("het gesprek is de grootste hefboom, maar er is geen signaal als het dun is") is een
+nieuwe, pure module gebouwd: `lib/schrijf-kwaliteit.ts` (`beoordeelSchrijfKwaliteit()`) signaleert
+of "Verhalen" leeg of korter dan 80 tekens is, of geen enkel stemvoorbeeld een opgehaalde tekst
+heeft, of `taboo_phrases` leeg is. Bewuste keus om dit los te houden van de bestaande
+volledigheidsmeter (`lib/profile-meter.ts`): die telt tientallen velden bij elkaar op, en juist
+deze drie (die rechtstreeks naar blok A van elke pagina gaan, `lib/pagina/schrijfopdracht.ts`)
+verdwenen daarin tussen de rest. De onboardingsessie toont de waarschuwing nu als eigen kaart
+boven de volledigheidsmeter, met een link naar elk zwak veld. Blokkeert niets (conventie 3): het
+maakt alleen zichtbaar wat een pagina eerder zonder enig signaal liet doorschrijven. Eenheidstests
+voor de vier gevallen (leeg, goed gevuld, een te kort verhaal, een stemvoorbeeld dat niet is
+opgehaald).
