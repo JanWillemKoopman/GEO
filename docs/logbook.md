@@ -12934,3 +12934,14 @@ op vertoningen gewogen positie, niet het gewone gemiddelde), een kans zonder die
 blijft ongemoeid, en een tweede aanroep overschrijft dezelfde rij in plaats van een tweede te
 maken. Op productie nog niet gezien: Van den Udenhout heeft Search Console gekoppeld en
 geverifieerd, maar nog geen kansen (geen cluster gestart).
+
+## 28 september 2026: het Kwaliteitslab ook uit het menu
+
+Het scherm `/beheer/kwaliteit` en zijn API-route verdwenen met de ombouw van de contentketen
+(`docs/tasks/contentketen-opnieuw.md`), maar het menu-item "Kwaliteitslab" onder Admin bleef staan
+en leidde naar een 404. Een test hield het in leven door negen Admin-items te eisen. Het item is weg,
+de grens voor Admin staat terug op acht, en de test controleert nu dat de link niet terugkomt.
+
+De tabellen `content_quality_reviews` en `content_quality_runs` blijven staan (conventie 4). Op
+productie hadden beide 0 rijen: de twaalf oordelen van 3 september staan er niet meer in. Wie de
+nieuwe keten ooit naast een menselijk oordeel wil leggen, begint vanaf `content-reviews/feedback/`.

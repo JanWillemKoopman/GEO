@@ -5,7 +5,8 @@ soort model dat de pagina's zelf heeft geschreven, op verzoek van de eigenaar, o
 
 ## Waarom dat uitmaakt
 
-Het Kwaliteitslab (`content_quality_reviews`, `/beheer/kwaliteit`) is gebouwd om ECHTE menselijke
+Het Kwaliteitslab (`content_quality_reviews`, `/beheer/kwaliteit`, sinds de ombouw van de contentketen
+verwijderd) was gebouwd om ECHTE menselijke
 oordelen te verzamelen, met als expliciete reden dat een AI-evaluator niet de enige definitie van
 kwaliteit mag worden. Het raamwerk moet straks kalibreren op twintig door mensen beoordeelde
 pagina's. Als deze twaalf beoordelingen daarin meegeteld worden, ijkt het raamwerk zichzelf op zijn

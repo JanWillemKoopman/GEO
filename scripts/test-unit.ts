@@ -11331,10 +11331,13 @@ group("de zijbalk verraadt niets aan een klant", () => {
   // de app als geheel. "Concurrenten indelen" kwam er op 2 september 2026 bij
   // (plan analytics-herontwerp.md, C1): zie de uitzondering bij
   // `GRENS_PER_HOOFDSTUK` in `lib/nav.ts`.
-  // Negen sinds migratie 0091: het Kwaliteitslab kwam erbij, de vijfde
-  // uitzondering op de grens. Zie `GRENS_PER_HOOFDSTUK` in `lib/nav.ts` voor de
-  // toets die elke uitzondering moet doorstaan.
-  ok("een beheerder heeft negen Admin-bestemmingen", adminItems.length === 9);
+  // Het Kwaliteitslab (0091) stond er tot 28 september 2026 als negende bij;
+  // het scherm was al weg en de link gaf een 404. Zie `GRENS_PER_HOOFDSTUK`.
+  ok("een beheerder heeft acht Admin-bestemmingen", adminItems.length === 8);
+  ok(
+    "en het verdwenen Kwaliteitslab staat er niet meer in",
+    !adminItems.some((i) => i.href === "/beheer/kwaliteit"),
+  );
   ok(
     "en Search Console staat erbij",
     adminItems.some((i) => i.href === "/instellingen/koppelingen" && i.label === "Search Console"),
