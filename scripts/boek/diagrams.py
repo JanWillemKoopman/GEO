@@ -472,13 +472,13 @@ def fig_gesprek():
 
 def fig_overdracht():
     d = Diagram(110)
-    steps = [("Account van de\nconsultant", "app"), ("Klant\nuitnodigen", "mens"), ("Merk\ntoewijzen", "mens"),
-             ("Pakket kiezen", "mens"), ("Account van\nde klant", "eind")]
+    steps = [("Account van de\nconsultant", "app"), ("Toewijzen aan\ne-mailadres", "mens"),
+             ("Pakket kiezen", "mens"), ("Klant kiest\nwachtwoord", "mens"), ("Account van\nde klant", "eind")]
     for i, (t, k) in enumerate(steps):
         d.node(f"s{i}", 58 + i * 121, 45, t, kind=k, w=104, h=46)
     for i in range(4):
         d.edge(f"s{i}", "r", f"s{i+1}", "l")
-    d.label(300, 96, "5, 10 of 20 pagina's per maand; zonder pakket geen contentplan", bg=False, size=8.8)
+    d.label(300, 96, "heeft de klant al een inlog, dan is er meteen toegang", bg=False, size=8.8)
     return d.svg()
 
 

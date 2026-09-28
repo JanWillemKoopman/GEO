@@ -300,6 +300,9 @@ dus voor een groot deel hoe goed alle latere teksten worden.
   horen is. De app haalt die tekst op. Zonder stemvoorbeelden gebruikt de schrijver de homepage.
 - Optioneel: een tarievenpagina, brochure of offertetekst plakken, of een verandering vastleggen
   die nog niet op de site staat (een nieuwe vestiging, een dienst die stopt).
+- Is "Verhalen" leeg of heel kort, is er geen enkel stemvoorbeeld opgehaald, of staan er geen
+  verboden woorden, dan toont het scherm daar een aparte melding over, met een link naar elk zwak
+  veld. De melding houdt niets tegen, maar laat zien dat de teksten later minder eigen worden.
 - Is er iets veranderd dat het onderzoek raakt, dan kiest de consultant **"Onderzoek bijwerken"**.
   De app toont eerst wat het kost, en herhaalt alleen de stappen die geraakt worden. Een ander
   werkgebied geeft bijvoorbeeld nieuwe meetvragen en een nieuwe kennistest; een nieuwe concurrent
@@ -314,11 +317,13 @@ dus voor een groot deel hoe goed alle latere teksten worden.
 Na de verkoop gaat het merk van de consultant naar de klant. Vanaf dat moment kan de klant
 inloggen, vragen beantwoorden en teksten goedkeuren.
 
-- **Een inlog voor de klant.** De consultant nodigt de klant uit. Omdat de app standaard geen
-  e-mail verstuurt, geeft hij een link terug die de consultant zelf doorstuurt. De klant kiest
-  daarmee een wachtwoord. Zelf registreren kan niet.
-- **Het merk toewijzen** (Admin, Toewijzen). Het merk en alles eronder verhuist naar het account
-  van de klant. De consultant houdt volledige toegang.
+- **Het merk toewijzen** (Admin, Toewijzen). De consultant vult het e-mailadres van de klant in.
+  Het merk en alles eronder verhuist naar het account van de klant. De consultant houdt volledige
+  toegang.
+- **Een inlog voor de klant.** Heeft de klant al een inlog, dan heeft die meteen toegang. Zo niet,
+  dan maakt de app een nieuw account aan en geeft een uitnodigingslink terug. Omdat de app
+  standaard geen e-mail verstuurt, stuurt de consultant die link zelf door. De klant kiest daarmee
+  een wachtwoord. Zelf registreren kan niet.
 - **Het pakket kiezen**: hoeveel pagina's per maand er verkocht zijn (5, 10 of 20). Zonder pakket
   kan de app geen contentplan maken.
 - Het merk springt naar **"Overgedragen"**.
@@ -414,6 +419,9 @@ de kaarten in het contentplan.
   hoeveel vragen een concurrent genoemd werd, en of de eigen site als bron werd aangehaald). Bij
   elke kans houdt de app ook bij wat hij voor die pagina nog niet over het bedrijf weet: het
   **kennisgat**.
+- Heeft het merk een Search Console-koppeling, dan krijgt een kans er ook bewijs uit Google bij:
+  de zoekopdrachten over dezelfde dienst of plaats, met hun vertoningen en klikken. Dat gebeurt
+  vanzelf na elke nieuwe ophaalronde van Search Console.
 - Daarna, op de achtergrond:
   - schat de AI opnieuw hoeveel potentie alle onderwerpen van het merk hebben;
   - start een onderzoek naar externe websites waarop het merk wel of niet staat (hoofdstuk 22).
@@ -787,8 +795,9 @@ gebouwd of staan uit.
 - **E-mail** staat standaard uit. Uitnodigingen en herinneringen gaan dus niet vanzelf de deur uit.
 - **Het zoekvolume per meetvraag** is een schatting van de AI, geen echte zoekdata. Echte
   zoekvolumes gebruikt de app alleen bij "Clusters ontdekken".
-- **Search Console als bron van nieuwe kansen** is gepland, maar nog niet gebouwd. Het wacht op een
-  merk met een koppeling.
+- **Search Console levert alleen bewijs bij een kans die er al is.** Zoekopdrachten uit Google worden
+  aan een bestaande kans gekoppeld, maar de app maakt er zelf nog geen nieuwe kans van. Op een echt
+  merk is dit nog niet in werking gezien.
 - **Conversie en omzet** meet de app niet. Op de bewijsladder staan ze altijd op "geen gegevens".
 - **De meting is een nabootsing** via de koppeling met OpenAI. Hoe dicht die bij de ervaring van een
   echte ChatGPT-gebruiker zit, is niet gemeten.
