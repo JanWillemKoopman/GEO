@@ -22,24 +22,26 @@
 
 ---
 
-## 0. De grens die deze ronde niet overschrijdt
+## 0. Het uitgangspunt, en waar het geen harde regel is
 
 De vorige contentketen is stukgelopen doordat elke verbeterronde er een stap, een controle of een
-beoordelaar bij bouwde. `contentketen-opnieuw.md` §3 trekt daar nu een harde lijn onder, en die lijn
-geldt onverkort voor alles wat uit deze copywriterronde volgt:
+beoordelaar bij bouwde, tot de schrijver vastzat. Daarom is het **uitgangspunt** van deze ronde: kijk
+eerst hoe de bestaande stappen precies zijn ingericht (welke instructie, welke prompt, welke controle)
+en maak die beter, in plaats van er een nieuwe stap naast te zetten. Dat is de standaardaanpak, niet
+alleen bij twijfel.
 
-- Hooguit drie soorten AI-aanroep per pagina plus één herschrijving (brief, schrijven, beoordeling,
-  één herschrijving). Geen vierde soort.
-- Geen cijfer als oordeel over een tekst, geen SEO-score, geen leesbaarheidsscore, geen enkele andere
-  score op de tekst zelf.
-- Code controleert alleen harde beweringen en mechanische regels. Stijl, toon en lengte krijgen geen
-  vangnet in code.
-- Geen extra controlelaag, geen automatische reparatielus, geen tweede beoordeling.
+Dit is bewust geen absoluut verbod. Als een bevinding overtuigend laat zien dat er zonder een nieuwe
+stap, een nieuwe AI-aanroep of iets anders nieuws geen wezenlijke kwaliteitsverbetering te halen is,
+mag dat gebouwd worden. De lat daarvoor ligt hoog: het moet aantoonbaar zijn, met de verificatie uit
+§8 (voor en na dezelfde criteria bij dezelfde copywriter), niet een aanname dat het wel zal helpen.
+Bij twijfel geldt het uitgangspunt: eerst proberen binnen een bestaande stap op te lossen, en alleen
+naar iets nieuws grijpen als dat écht niet werkt.
 
-Elke verbetering die uit deze ronde komt, is dus een wijziging **binnen** een bestaande stap (een
-promptregel scherper maken, een controle preciezer maken), nooit een nieuwe stap. Waar een bevinding
-lijkt te vragen om iets dat hier tegenaan botst, wordt dat expliciet zo gerapporteerd in plaats van
-gebouwd (§7).
+`contentketen-opnieuw.md` §3 blijft daarnaast gelden als de eigen, eerder vastgelegde grens van de
+contentketen (bijvoorbeeld: geen cijfer als oordeel over een tekst, code controleert alleen harde
+beweringen en mechanische regels, niet stijl of toon). Die grens gaat over hoe de contentketen als
+geheel is ontworpen en staat los van dit plan; wijk je daar toch van af, dan is dat een besluit voor
+de eigenaar, net als elke wijziging aan die grens.
 
 ---
 
@@ -50,8 +52,10 @@ op basis van een externe, onafhankelijke beoordeling, en dat omzetten in gericht
 bestaande stappen. Niet: elk los artikel individueel oplappen.
 
 De maatstaf sluit aan bij wat de app zelf al als "goed" hanteert (hoofdstuk 16 van
-`zo-werkt-orbit-engine.md`): klopt het, en is het goed. De copywriter krijgt een iets fijnmaziger
-versie van diezelfde twee vragen (§5).
+`zo-werkt-orbit-engine.md`): klopt het, en is het goed. De copywriter beoordeelt vanuit het
+perspectief van de klant en de bezoeker, niet vanuit de pijplijn: is dit de kwaliteit van een
+vakcopywriter, is de pagina compleet (mist er iets relevants, ook als dat niet direct uit de
+meetvraag komt waarvoor de pagina is voorgesteld), en vindt een bezoeker snel waarvoor hij komt (§4).
 
 ---
 
@@ -197,9 +201,15 @@ Dit document bevat [n] pagina's die automatisch zijn opgesteld voor dit bedrijf,
 achtergrondinformatie waarmee ze zijn geschreven. We willen weten of ze goed genoeg zijn om
 zonder verdere bewerking op de eigen website van het bedrijf te zetten, en waar niet.
 
-**Wat we vragen.** Lees per pagina de tekst en beoordeel hem op de vijf punten onder aan elke
-pagina. Vul een cijfer van 1 (helemaal niet) tot 5 (helemaal wel) in, met een korte reden. Een
-paar zinnen per punt is genoeg; wat je zou aanpassen is waardevoller dan het cijfer zelf.
+**Hoe we willen dat je leest.** Lees elke pagina zoals je dat als vakcopywriter zou doen voor een
+opdrachtgever, niet als een checklist. Vraag je bij elke pagina eerst af: wat is het doel van deze
+pagina, en wie leest hem? Vind je daarna alles wat je zou verwachten, of mis je iets dat er wel op
+had moeten staan, ook als dat niet met zoveel woorden gevraagd werd? En is het geschreven op het
+niveau dat jij als copywriter zou opleveren?
+
+**Wat we vragen.** Beoordeel elke pagina op de punten onder aan die pagina. Vul een cijfer van 1
+(helemaal niet) tot 5 (helemaal wel) in, met een korte reden. Een paar zinnen per punt is genoeg;
+wat je zou aanpassen of toevoegen is waardevoller dan het cijfer zelf.
 
 Onderaan dit document staat ruimte voor een algemene indruk over alle [n] pagina's van dit
 bedrijf samen: valt je iets op dat vaker terugkomt?
@@ -233,10 +243,12 @@ Stuur dit document na het invullen gewoon terug, met je opmerkingen erin.
 ### Jouw beoordeling
 | Punt | Cijfer (1-5) | Toelichting |
 |---|---|---|
+| **Heeft dit de kwaliteit van een copywriter die een pagina schrijft voor een klant?** (de hoofdvraag) | | |
+| Is de pagina compleet? Mis je iets dat op een goede pagina over dit onderwerp had moeten staan, ook als daar niet letterlijk naar gevraagd werd? Wat dan? | | |
+| Vindt een bezoeker met dit doel op deze pagina wat hij zoekt, en snel? | | |
+| Leest het lekker: prettige opbouw, geen rommelige zinnen, geen herhaling? | | |
 | Klopt het, staat er niets wat feitelijk onjuist aanvoelt? | | |
 | Klinkt het als dit specifieke bedrijf, niet als een generieke tekst die op elk bedrijf in de branche past? | | |
-| Beantwoordt de eerste alinea de vraag van de bezoeker meteen? | | |
-| Is er echte diepgang (een concreet voorbeeld, vakkennis), of blijft het oppervlakkig? | | |
 | Zou je deze tekst zo op de site zetten, zonder herschrijven? | | |
 
 *(herhaal dit blok per pagina)*
@@ -274,17 +286,19 @@ Sjabloon:
 # Copywriterronde [datum]: bevindingen en patronen
 
 ## 1. De matrix en de scores
-| Klant | Cluster | Pagina | Klopt | Klinkt eigen | Direct antwoord | Diepgang | Direct plaatsbaar | Gemiddeld |
-|---|---|---|---|---|---|---|---|---|
-| A | ... | ... | | | | | | |
+| Klant | Cluster | Pagina | Copywriter-kwaliteit | Compleet | Vindt doel snel | Leest lekker | Klopt | Klinkt eigen | Direct plaatsbaar | Gemiddeld |
+|---|---|---|---|---|---|---|---|---|---|---|
+| A | ... | ... | | | | | | | | |
 (18 rijen)
 
 ## 2. Patronen (wat op meerdere pagina's terugkomt)
 ### Patroon 1: [korte beschrijving]
 - Komt voor bij: [x van 18 pagina's, welke klanten/clusters]
-- Bewijs: [twee of drie letterlijke citaten uit de copywriterfeedback]
-- Vermoedelijke oorzaak: [welke stap: brief, schrijfopdracht, controle, herschrijving]
-- Soort: feitelijk/mechanisch, of stijl/toon (zie §0 en §7 van dit plan)
+- Bewijs: [twee of drie letterlijke citaten uit de copywriterfeedback, inclusief wat er volgens de
+  copywriter concreet ontbrak als het om een volledigheidspunt gaat]
+- Vermoedelijke oorzaak: [welke stap: brief, schrijfopdracht, controle, herschrijving, of het gesprek
+  zelf (te weinig input verzameld)]
+- Soort: feitelijk/mechanisch, stijl/toon, of ontbrekende inhoud/volledigheid (zie §0 en §7)
 
 (herhaal per patroon, hooguit 5, geprioriteerd op hoeveel pagina's het raakt)
 
@@ -303,16 +317,20 @@ artikel de agenda gaat bepalen.
 Geef Claude Code niet de ruwe copywriterfeedback, maar het patronen-document uit §6. Vraag er
 expliciet bij:
 
-> Kijk per patroon in welke bestaande stap dit ontstaat, en stel een wijziging voor die **binnen**
-> die stap blijft: een scherpere instructie in een bestaande prompt, of een preciezere controle in
-> bestaande code. Geen nieuwe stap, geen nieuwe AI-aanroep, geen score op de tekst, geen extra
-> controlelaag (`contentketen-opnieuw.md` §3). Past een patroon daar niet in, meld dat expliciet in
-> plaats van het toch te bouwen.
+> Kijk per patroon eerst hoe de betrokken stap nu precies is ingericht (welke instructie, welke
+> prompt, welke controle, in welk bestand), en stel daarna een wijziging voor. Uitgangspunt: die
+> wijziging blijft **binnen** de bestaande stap (een scherpere instructie in een bestaande prompt,
+> een preciezere controle in bestaande code), geen nieuwe stap, geen nieuwe AI-aanroep, geen score op
+> de tekst, geen extra controlelaag. Alleen als je met de verificatie uit §8 aantoonbaar kunt maken
+> dat een bestaande stap het probleem niet kan oplossen en iets nieuws wel, mag je iets nieuws
+> voorstellen; leg dat dan expliciet als afwijking voor, met de onderbouwing, in plaats van het
+> stilzwijgend te bouwen. `contentketen-opnieuw.md` §3 blijft de grens van de contentketen zelf: raakt
+> een voorstel daaraan, dan is dat altijd een besluit voor de eigenaar.
 
-Dat laatste is belangrijk: een patroon dat lijkt te vragen om bijvoorbeeld een vierde AI-aanroep of
-een score, is geen instructie om die grens te doorbreken maar een signaal dat het probleem elders moet
-worden opgelost (vaak: betere input verzamelen in het gesprek, in plaats van een nieuwe stap na het
-schrijven).
+Een patroon over ontbrekende inhoud (§4: "compleet") wijst niet automatisch naar een nieuwe stap. Kijk
+eerst of de content brief (hoofdstuk 13) of het gesprek (hoofdstuk 7) die inhoud al had kunnen
+signaleren en gewoon niet meegaf aan de schrijver; dat is dan een bestaande stap die scherper moet,
+niet een nieuwe.
 
 ---
 
