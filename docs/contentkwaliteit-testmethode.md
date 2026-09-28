@@ -1,34 +1,34 @@
-# Copywriterronde: contentkwaliteit extern laten toetsen
+# Contentkwaliteit testen: de standaardmethode
 
-> **Wat dit is.** Uitvoeringsplan voor een grondige kwaliteitstest van de contentketen (fase 5 tot en
-> met 17 uit `zo-werkt-orbit-engine.md`), met een externe copywriter als beoordelaar in plaats van een
-> interne blinde lezer. Status: nog niet uitgevoerd. Verwijder dit document zodra de ronde is
-> gedraaid, de feedback verwerkt is, en de aanvaarde wijzigingen in `docs/logbook.md` staan.
+> **Wat dit is.** De vaste, herhaalbare methode om te testen of de contentketen (hoofdstuk 5 tot en
+> met 17 van `zo-werkt-orbit-engine.md`) goede, klantgerichte pagina's schrijft, met een externe
+> copywriter als beoordelaar. Dit is geen eenmalige actie: elke ronde (een nieuwe klant, een nieuwe
+> versie van de pijplijn, een verificatie na een wijziging) volgt dezelfde stappen, zodat de
+> uitkomsten van verschillende rondes met elkaar te vergelijken zijn. §9 houdt de rondes bij.
 >
 > **Verhouding tot eerder werk.** Er is al een interne kwaliteitsdoorlichting gedraaid met drie merken
 > en Claude als "blinde lezer" (`docs/tasks/kwaliteitsdoorlichting-stappen.md`,
 > `docs/tasks/bevindingen-kwaliteitsdoorlichting.md`). Die test is waardevol maar heeft een blinde
-> vlek: een AI-beoordelaar deelt de aannames van de AI-schrijver. Deze ronde vult dat aan met een
+> vlek: een AI-beoordelaar deelt de aannames van de AI-schrijver. Deze methode vult dat aan met een
 > menselijke vakschrijver die niets van de pijplijn weet en alleen het resultaat beoordeelt zoals een
 > klant of een lezer dat zou doen. Beide toetsen blijven bestaan, dit is geen vervanging.
 >
-> **Wie voert §2 tot en met §4 uit.** Claude Code doorloopt de hele reis zelfstandig: klant aanmaken,
-> gesprek invullen, cluster opzetten, meetvragen goedkeuren, contentplan vrijgeven, brief-vragen
-> beantwoorden, laten schrijven, klantdocumenten opstellen. Geen mens vult ergens tussendoor iets in.
-> Waar de reis normaal een consultant of een klant nodig heeft, speelt Claude Code die rol zelf, met
-> de zorgvuldigheid die in §3.1 staat. §5 tot en met §8 (versturen naar de copywriter, feedback
-> verwerken, naar Claude Code voorleggen) blijven bij de eigenaar, dat is met opzet geen taak die je
-> aan jezelf uitbesteedt.
+> **Wie voert wat uit.** Claude Code doorloopt §2 tot en met §4 zelfstandig: klant zoeken en
+> aanmaken, gesprek invullen, cluster opzetten, meetvragen goedkeuren, contentplan vrijgeven,
+> brief-vragen beantwoorden, laten schrijven, klantdocumenten opstellen. Er is geen echte testklant
+> beschikbaar, dus Claude Code speelt onvermijdelijk ook de rol van de klant, met de zorgvuldigheid
+> uit §3.1. §5 tot en met §8 (versturen naar de copywriter, feedback verwerken, aan Claude Code
+> voorleggen, verifiëren) blijven bij de eigenaar.
 
 ---
 
 ## 0. Het uitgangspunt, en waar het geen harde regel is
 
 De vorige contentketen is stukgelopen doordat elke verbeterronde er een stap, een controle of een
-beoordelaar bij bouwde, tot de schrijver vastzat. Daarom is het **uitgangspunt** van deze ronde: kijk
-eerst hoe de bestaande stappen precies zijn ingericht (welke instructie, welke prompt, welke controle)
-en maak die beter, in plaats van er een nieuwe stap naast te zetten. Dat is de standaardaanpak, niet
-alleen bij twijfel.
+beoordelaar bij bouwde, tot de schrijver vastzat. Daarom is het **uitgangspunt** van deze methode:
+kijk eerst hoe de bestaande stappen precies zijn ingericht (welke instructie, welke prompt, welke
+controle) en maak die beter, in plaats van er een nieuwe stap naast te zetten. Dat is de
+standaardaanpak, niet alleen bij twijfel.
 
 Dit is bewust geen absoluut verbod. Als een bevinding overtuigend laat zien dat er zonder een nieuwe
 stap, een nieuwe AI-aanroep of iets anders nieuws geen wezenlijke kwaliteitsverbetering te halen is,
@@ -37,11 +37,11 @@ mag dat gebouwd worden. De lat daarvoor ligt hoog: het moet aantoonbaar zijn, me
 Bij twijfel geldt het uitgangspunt: eerst proberen binnen een bestaande stap op te lossen, en alleen
 naar iets nieuws grijpen als dat écht niet werkt.
 
-`contentketen-opnieuw.md` §3 blijft daarnaast gelden als de eigen, eerder vastgelegde grens van de
-contentketen (bijvoorbeeld: geen cijfer als oordeel over een tekst, code controleert alleen harde
-beweringen en mechanische regels, niet stijl of toon). Die grens gaat over hoe de contentketen als
-geheel is ontworpen en staat los van dit plan; wijk je daar toch van af, dan is dat een besluit voor
-de eigenaar, net als elke wijziging aan die grens.
+`docs/tasks/contentketen-opnieuw.md` §3 blijft daarnaast gelden als de eigen, eerder vastgelegde
+grens van de contentketen (bijvoorbeeld: geen cijfer als oordeel over een tekst, code controleert
+alleen harde beweringen en mechanische regels, niet stijl of toon). Die grens gaat over hoe de
+contentketen als geheel is ontworpen en staat los van deze methode; wijk je daar toch van af, dan is
+dat een besluit voor de eigenaar, net als elke wijziging aan die grens.
 
 ---
 
@@ -51,33 +51,79 @@ Doel: vaststellen waar de pijplijn structureel kwaliteit laat liggen bij het sch
 op basis van een externe, onafhankelijke beoordeling, en dat omzetten in gerichte verbeteringen aan
 bestaande stappen. Niet: elk los artikel individueel oplappen.
 
-De maatstaf sluit aan bij wat de app zelf al als "goed" hanteert (hoofdstuk 16 van
-`zo-werkt-orbit-engine.md`): klopt het, en is het goed. De copywriter beoordeelt vanuit het
-perspectief van de klant en de bezoeker, niet vanuit de pijplijn: is dit de kwaliteit van een
-vakcopywriter, is de pagina compleet (mist er iets relevants, ook als dat niet direct uit de
-meetvraag komt waarvoor de pagina is voorgesteld), en vindt een bezoeker snel waarvoor hij komt (§4).
+**De maatstaf ligt hoog, met opzet.** De copywriter vergelijkt niet met "is dit oké voor
+automatisch gegenereerde tekst", maar met het niveau van een professionele copywriter die de klant
+zelf zou inhuren om deze pagina te schrijven. De hoofdvraag is telkens: zou je dit publiceren op de
+website van de klant? Zo niet, is het met wat bijschaven en finetuning te redden, of zit het echt
+onder de maat en zou een vakschrijver hier opnieuw beginnen? Dat onderscheid (bijna klaar versus
+fundamenteel niet goed) is minstens zo belangrijk als het cijfer zelf, want het bepaalt of een
+patroon om een kleine bijsturing vraagt of om iets groters.
+
+De copywriter beoordeelt vanuit het perspectief van de klant en de bezoeker, niet vanuit de
+pijplijn: is dit de kwaliteit van een vakcopywriter, is de pagina compleet (mist er iets relevants,
+ook als dat niet direct uit de meetvraag komt waarvoor de pagina is voorgesteld), en vindt een
+bezoeker snel waarvoor hij komt (§4).
 
 ---
 
-## 2. De matrix: 3 klanten, 3 clusters, 2 artikelen per cluster
+## 2. De matrix, in twee fases
 
-18 content-items, bewust gekozen op variatie in plaats van willekeur. Meer clusters of meer artikelen
-per klant voegt vooral herhaling toe; meer *soorten* situaties leggen meer bloot. Waar een cluster
-extra veelbelovend blijkt (zie §3), mag die naar 3 artikelen groeien (27 als bovengrens).
+18 content-items over drie klanten, bewust gekozen op variatie in plaats van willekeur. Meer
+clusters of meer artikelen per klant voegt vooral herhaling toe; meer *soorten* situaties leggen
+meer bloot.
+
+**Waarom in fases.** Dit is de eerste keer dat deze methode draait. Het klantdocument-sjabloon
+(§4), de rubriek en de kosten- en tijdschatting zijn nog niet in de praktijk getoetst. Alles in één
+keer draaien is een gok op de opzet zelf: blijkt de rubriek onduidelijk of het sjabloon onhandig,
+dan is dat pas ontdekt na de volle ronde en het volle budget.
+
+### Fase 1: pilot met klant A
+
+Doorloop §3 en §4 volledig, maar alleen voor klant A (3 clusters, 2 artikelen, 6 content-items).
+Stuur dat ene klantdocument naar de copywriter en beoordeel, vóór je verder gaat met klant B en C:
+- Is het klantdocument-sjabloon zelfstandig genoeg, of moet de copywriter iets terugvragen?
+- Is de rubriek duidelijk, levert ze bruikbare, specifieke feedback op (niet alleen cijfers)?
+- Kloppen de kosten en de doorlooptijd ongeveer met de schatting in §3?
+
+Pas het sjabloon of de rubriek aan waar dat uit blijkt, en leg die aanpassing vast in de
+uitvoeringslog (§9), zodat een latere ronde weet welke versie is gebruikt.
+
+### Fase 2: klant B en C
+
+Zelfde methode, met het (eventueel bijgewerkte) sjabloon uit fase 1.
+
+### Toekomstige rondes
+
+Deze methode is de standaard om een nieuwe klant, een nieuwe pijplijnversie, of een verificatie na
+een wijziging te testen (zie ook `CLAUDE.md`). Herhaal §2 tot en met §8 ongewijzigd; alleen de
+klantprofielen en het aantal klanten per ronde mogen verschillen naar wat er getest moet worden. Een
+verificatieronde (§8) mag kleiner zijn, bijvoorbeeld één klant of één cluster in plaats van de volle
+matrix.
 
 ### 2.1 De drie klantprofielen
 
 **Claude Code zoekt en kiest de drie bedrijven zelf**, zonder dat de eigenaar namen aanlevert. Dat
 moeten wel **echt bestaande** bedrijven zijn: het onderzoek in hoofdstuk 6 leest de echte website
-uit (aanbod, feiten, structuur), en een verzonnen bedrijf zonder site levert daar niets op. De
-creativiteit zit dus niet in het bedrijf zelf, maar in het gesprek en de brief-antwoorden (§3.1),
-precies zoals bij `benchmarkronde-twee-klanten.md` §2 en §7.
+uit (aanbod, feiten, structuur), en een verzonnen bedrijf zonder site levert daar niets op.
+
+**Het gesprek, de brief-antwoorden en dus de klant zelf worden door Claude Code verzonnen.** Dat is
+geen tekortkoming die weggewerkt moet worden, het is de realiteit zolang er geen echte testklant
+beschikbaar is. Wat daarbij hard staat, om te voorkomen dat de uitkomst zichzelf bevestigt:
+
+- **Houd per item bij hoe rijk of specifiek het verzonnen antwoord daadwerkelijk was**, op een
+  simpele schaal (rijk, gemiddeld, summier), los van het profiel-niveau van de klant als geheel. Een
+  klant met het profiel "rijk" kan bij één brief-vraag toch een dun antwoord krijgen, en dat moet
+  apart geregistreerd worden. Dit log is voor intern gebruik, niet voor de copywriter, en is nodig om
+  in §6 een inputprobleem te kunnen onderscheiden van een pijplijnprobleem: klinkt een pagina
+  generiek terwijl de verzonnen input juist rijk en specifiek was, dan is dat een sterke aanwijzing
+  voor een echt probleem in de schrijf- of briefstap. Klinkt een pagina generiek terwijl de input
+  zelf al dun was, dan zegt dat vooral iets over deze test, niet over de pijplijn.
 
 Voor elk van de drie bedrijven controleert Claude Code zelf, vóór het aanmaken:
 - het bestaat echt en de website is bereikbaar (met een korte controle, geen aanname);
 - het overlapt niet met de merken die al in de database staan (installateur, fysiotherapie,
   autodealer, retail, dakdekker, tweede fysiopraktijk, en de eventuele bedrijven van een eerdere
-  copywriterronde);
+  ronde van deze methode);
 - het past bij het profiel in de tabel (sector, lokaal of landelijk, aard van het aanbod).
 
 Elk profiel test een ander deel van de keten:
@@ -111,11 +157,11 @@ tweede artikel niet op het eerste gaat lijken, wat een bekend risico is.
 
 ---
 
-## 3. Hoe de ronde in de app wordt uitgevoerd, volledig door Claude Code
+## 3. Hoe een ronde in de app wordt uitgevoerd, volledig door Claude Code
 
-Via de gewone weg, niet rechtstreeks in de database. Reden: zie `benchmarkronde-twee-klanten.md` §0,
-onverkort van toepassing. Een merk dat via SQL ontstaat heeft geen onderzoek, geen feitenlaag en geen
-van de stappen waar deze test juist over gaat. Dat betekent hier: via de echte routes van de app
+Via de gewone weg, niet rechtstreeks in de database. Reden: zie `docs/tasks/benchmarkronde-twee-klanten.md`
+§0, onverkort van toepassing. Een merk dat via SQL ontstaat heeft geen onderzoek, geen feitenlaag en
+geen van de stappen waar deze test juist over gaat. Dat betekent hier: via de echte routes van de app
 (zoals `scripts/live.ts` dat al doet, ingelogd als een testconsultant-account), niet via een losse
 migratie of een handmatige insert.
 
@@ -146,8 +192,9 @@ Volgorde per klant:
    een geldig resultaat.
 7. Laten schrijven, de eerste versie en (als die er is) de herschreven versie bewaren vóór ze in het
    goedkeuringsscherm verdwijnen (§4 heeft ze allebei nodig).
-8. Elke stap loggen (welk merk, welk cluster, welke keuze, met tijdstip), net als in
-   `benchmarkronde-twee-klanten.md` §7, zodat achteraf te zien is wat er gebeurd is en waarom.
+8. Elke stap loggen (welk merk, welk cluster, welke keuze, met tijdstip, en de inputrijkheid per
+   antwoord uit §2.1), net als in `docs/tasks/benchmarkronde-twee-klanten.md` §7, zodat achteraf te
+   zien is wat er gebeurd is en waarom.
 
 ### 3.1 Hoe Claude Code creatief invult zonder een echte klant
 
@@ -156,10 +203,9 @@ Volgorde per klant:
 - **Het gesprek en de brief-vragen zijn waar de creativiteit nodig is**, want die vragen precies naar
   wat niet op een website staat (bezwaren, doelen, tarieven, verhalen). Verzin daar plausibele
   antwoorden die passen bij de sector en bij het profiel (rijk, gemiddeld, zwak uit §2.1).
-- **Elk verzonnen antwoord wordt als zodanig gelogd** (welk veld, welke waarde, "verzonnen voor de
-  test"), net als de expliciete disclaimer in `benchmarkronde-twee-klanten.md` §7 bij de bedragen en
-  bedrijfsregels van MJB en Fysio Centrum Utrecht. Dat log is voor intern gebruik en gaat niet mee
-  naar de copywriter (§4 vraagt hem als lezer te oordelen, niet als tester van een AI-systeem).
+- **Elk verzonnen antwoord wordt gelogd**, met erbij hoe rijk het antwoord is (§2.1). Dat log is voor
+  intern gebruik en gaat niet mee naar de copywriter (§4 vraagt hem als lezer te oordelen, niet als
+  tester van een AI-systeem).
 - **Nooit publiceren.** De geschreven artikelen zijn testmateriaal over een echt bestaand bedrijf met
   deels verzonnen specifieke feiten (prijzen, garanties, bedrijfsregels). Ze gaan nooit online, worden
   niet als "live" gemarkeerd in de app, en er wordt geen echte e-mail naar het bedrijf of een
@@ -170,10 +216,10 @@ Volgorde per klant:
   wel eens over.
 
 ⚠️ **Kosten en dagplafond.** Drie klanten op één dag onder één account loopt tegen het plafond van
-€20 per klantaccount aan. Spreid over meerdere accounts of meerdere dagen. Ruwe schatting op basis van
-de tarieven in hoofdstuk 25 en de werkelijke uitkomst van de vorige benchmarkronde (die met 12
-pagina's op ongeveer €11 uitkwam, hoger dan de theoretische €0,10 tot €0,17 per pagina door
-reparatierondes):
+€20 per klantaccount aan. Spreid over meerdere accounts of meerdere dagen, en met de fase-opzet uit
+§2 vallen fase 1 en fase 2 vanzelf op verschillende momenten. Ruwe schatting op basis van de tarieven
+in hoofdstuk 25 en de werkelijke uitkomst van de vorige benchmarkronde (die met 12 pagina's op
+ongeveer €11 uitkwam, hoger dan de theoretische €0,10 tot €0,17 per pagina door reparatierondes):
 
 | Post | Ongeveer | Aantal | Totaal |
 |---|---|---|---|
@@ -182,8 +228,8 @@ reparatierondes):
 | Pagina schrijven, controleren, eventueel herschrijven | $0,90 (realistisch, zie boven) | 18 | $16,20 |
 | **Samen** | | | **ongeveer $24, zo'n €22** |
 
-Dat past onder het plafond van €50 over alle accounts samen, maar niet ruim. Bewaar budget voor de
-verificatieronde in §8 door die kleiner te houden dan deze eerste ronde.
+Fase 1 (klant A) is daarvan ongeveer een derde: rond de €7 à €8. Dat past ruim, en geeft budget over
+voor een tweede sjabloonpoging als fase 1 daar aanleiding toe geeft.
 
 ---
 
@@ -201,6 +247,9 @@ Dit document bevat [n] pagina's die automatisch zijn opgesteld voor dit bedrijf,
 achtergrondinformatie waarmee ze zijn geschreven. We willen weten of ze goed genoeg zijn om
 zonder verdere bewerking op de eigen website van het bedrijf te zetten, en waar niet.
 
+**De maatstaf.** Beoordeel elke pagina op het niveau van een professionele copywriter die dit
+bedrijf zelf zou inhuren om deze pagina te schrijven. Dat is een hoge lat, met opzet.
+
 **Hoe we willen dat je leest.** Lees elke pagina zoals je dat als vakcopywriter zou doen voor een
 opdrachtgever, niet als een checklist. Vraag je bij elke pagina eerst af: wat is het doel van deze
 pagina, en wie leest hem? Vind je daarna alles wat je zou verwachten, of mis je iets dat er wel op
@@ -210,6 +259,10 @@ niveau dat jij als copywriter zou opleveren?
 **Wat we vragen.** Beoordeel elke pagina op de punten onder aan die pagina. Vul een cijfer van 1
 (helemaal niet) tot 5 (helemaal wel) in, met een korte reden. Een paar zinnen per punt is genoeg;
 wat je zou aanpassen of toevoegen is waardevoller dan het cijfer zelf.
+
+Bij de laagst scorende pagina's van dit bedrijf vragen we je iets extra's: een paar zinnen over wat
+jij daar zelf anders zou schrijven of toevoegen. Geen volledige herschrijving, alleen een schets
+waar wij mee verder kunnen.
 
 Onderaan dit document staat ruimte voor een algemene indruk over alle [n] pagina's van dit
 bedrijf samen: valt je iets op dat vaker terugkomt?
@@ -249,7 +302,14 @@ Stuur dit document na het invullen gewoon terug, met je opmerkingen erin.
 | Leest het lekker: prettige opbouw, geen rommelige zinnen, geen herhaling? | | |
 | Klopt het, staat er niets wat feitelijk onjuist aanvoelt? | | |
 | Klinkt het als dit specifieke bedrijf, niet als een generieke tekst die op elk bedrijf in de branche past? | | |
-| Zou je deze tekst zo op de site zetten, zonder herschrijven? | | |
+
+**Zou je dit publiceren op de website van dit bedrijf?**
+- [ ] Ja, zo
+- [ ] Nee, maar met wat bijschaven en finetuning kan het wel
+- [ ] Nee, dit zit onder de maat en ik zou opnieuw beginnen
+
+*(bij een pagina die laag scoort: voeg hier je korte schets toe van wat jij zelf zou schrijven of
+toevoegen)*
 
 *(herhaal dit blok per pagina)*
 
@@ -283,17 +343,18 @@ alles samenbrengt. Dit is het document dat naar de pijplijnwijzigingen leidt.
 Sjabloon:
 
 ```markdown
-# Copywriterronde [datum]: bevindingen en patronen
+# Ronde [nummer], [datum]: bevindingen en patronen
 
 ## 1. De matrix en de scores
-| Klant | Cluster | Pagina | Copywriter-kwaliteit | Compleet | Vindt doel snel | Leest lekker | Klopt | Klinkt eigen | Direct plaatsbaar | Gemiddeld |
+| Klant | Cluster | Pagina | Copywriter-kwaliteit | Compleet | Vindt doel snel | Leest lekker | Klopt | Klinkt eigen | Publiceerbaar (ja/bijschaven/onder de maat) | Inputrijkheid (intern) |
 |---|---|---|---|---|---|---|---|---|---|---|
 | A | ... | ... | | | | | | | | |
-(18 rijen)
+(rijen naar aantal items in deze ronde)
 
 ## 2. Patronen (wat op meerdere pagina's terugkomt)
 ### Patroon 1: [korte beschrijving]
-- Komt voor bij: [x van 18 pagina's, welke klanten/clusters]
+- Komt voor bij: [x van y pagina's, welke klanten/clusters]
+- Komt voor ongeacht inputrijkheid: [ja/nee, met welke bewijs]
 - Bewijs: [twee of drie letterlijke citaten uit de copywriterfeedback, inclusief wat er volgens de
   copywriter concreet ontbrak als het om een volledigheidspunt gaat]
 - Vermoedelijke oorzaak: [welke stap: brief, schrijfopdracht, controle, herschrijving, of het gesprek
@@ -303,12 +364,19 @@ Sjabloon:
 (herhaal per patroon, hooguit 5, geprioriteerd op hoeveel pagina's het raakt)
 
 ## 3. Conclusie
-[maximaal vijf voorstellen, elk gekoppeld aan precies één bestaande stap]
+[maximaal vijf voorstellen, elk gekoppeld aan precies één bestaande stap, of expliciet: geen
+overtuigend patroon gevonden in deze ronde]
 ```
 
-Beperk dit tot **hooguit vijf patronen**, geprioriteerd op hoeveel content-items ze raken. Dat is
-dezelfde discipline als de Teamsessie-skill al hanteert, en voorkomt dat een enkel opvallend slecht
-artikel de agenda gaat bepalen.
+**Een patroon telt alleen als het bij minstens twee van de drie klantprofielen voorkomt, ongeacht
+hoe rijk de input daar was.** Dat is de sterkste zeef tegen een verkeerde diagnose: een klacht die
+alleen bij klant C (de bewust zwakke input) opduikt, zegt vaker iets over die zwakke input dan over
+de pijplijn, en hoort dus niet zonder meer als algemeen pijplijnprobleem naar Claude Code.
+
+**"Geen overtuigend patroon" is een geldige uitkomst.** Forceer geen vijf patronen als er met deze
+hoeveelheid items geen vijf te onderbouwen zijn. Een geforceerd patroon uit ruis is precies het
+soort fout die deze methode moet voorkomen, niet herhalen. Beperk tot **hooguit vijf patronen**,
+geprioriteerd op hoeveel content-items ze raken, en niet minder streng als het er minder zijn.
 
 ---
 
@@ -324,8 +392,8 @@ expliciet bij:
 > de tekst, geen extra controlelaag. Alleen als je met de verificatie uit §8 aantoonbaar kunt maken
 > dat een bestaande stap het probleem niet kan oplossen en iets nieuws wel, mag je iets nieuws
 > voorstellen; leg dat dan expliciet als afwijking voor, met de onderbouwing, in plaats van het
-> stilzwijgend te bouwen. `contentketen-opnieuw.md` §3 blijft de grens van de contentketen zelf: raakt
-> een voorstel daaraan, dan is dat altijd een besluit voor de eigenaar.
+> stilzwijgend te bouwen. `docs/tasks/contentketen-opnieuw.md` §3 blijft de grens van de contentketen
+> zelf: raakt een voorstel daaraan, dan is dat altijd een besluit voor de eigenaar.
 
 Een patroon over ontbrekende inhoud (§4: "compleet") wijst niet automatisch naar een nieuwe stap. Kijk
 eerst of de content brief (hoofdstuk 13) of het gesprek (hoofdstuk 7) die inhoud al had kunnen
@@ -342,26 +410,28 @@ Geen enkele wijziging telt als klaar op gevoel. Na een geaccepteerde wijziging:
    iets dat de samenhang tussen stappen raakt), met een van de voorbeelden uit het patronen-document
    als vast geval.
 2. Draai een kleinere herhaling: minstens de clusters waar het patroon het sterkst speelde (niet per
-   se alle 18 opnieuw), met dezelfde copywriter en hetzelfde beoordelingsformulier uit §4.
+   se de hele matrix opnieuw), met dezelfde copywriter en hetzelfde beoordelingsformulier uit §4.
 3. Leg de oude en nieuwe versie naast elkaar, met dezelfde criteria.
 4. Is het patroon weg zonder dat een ander criterium zakt, log de wijziging met datum en het
-   voor/na-cijfer in `docs/logbook.md`. Zo niet, dan is de wijziging niet de oplossing en blijft het
-   patroon open voor de volgende ronde.
+   voor/na-cijfer in `docs/logbook.md`. Zo niet, dan is de wijziging niet de oplossing.
+
+**Stopregel.** Een patroon krijgt in één ronde hooguit **twee** verificatiepogingen. Lukt het dan nog
+niet, dan wordt het patroon expliciet als "nog niet opgelost" naar de uitvoeringslog (§9) geschreven
+en gaat het naar een bewust gepland vervolg, in plaats van in een open lus te blijven proberen. Dat
+is dezelfde discipline die deze methode zelf aan de pijplijn oplegt.
 
 Gebruik `MEASURE_WEB_SEARCH=false` voor deze herhalingsronde als er nieuwe metingen nodig zijn; voor
-de eerste, echte ronde in §3 blijft die aan, anders zijn de aanbevelingen niet realistisch.
+een eerste, echte ronde uit §3 blijft die aan, anders zijn de aanbevelingen niet realistisch.
 
 ---
 
-## 9. Voortgang
+## 9. Uitvoeringslog
 
-| Stap | Wie | Status |
-|---|---|---|
-| Drie klantprofielen gezocht en geverifieerd (§2.1) | Claude Code | Nog te doen |
-| Klanten aangemaakt, gesprekken ingevuld (§3) | Claude Code | Nog te doen |
-| Clusters gemeten, content vrijgegeven en geschreven (§3) | Claude Code | Nog te doen |
-| Drie klantdocumenten opgesteld (§4) | Claude Code | Nog te doen |
-| Verstuurd naar en terug van de copywriter | Eigenaar | Nog te doen |
-| Patronen-document gemaakt (§6) | Eigenaar met Claude Code | Nog te doen |
-| Voorgelegd aan Claude Code (§7) | Eigenaar | Nog te doen |
-| Wijzigingen geverifieerd en gelogd (§8) | Claude Code | Nog te doen |
+Elke ronde krijgt hier een rij, ook toekomstige rondes met nieuwe klanten of een verificatie na een
+wijziging. Zo blijft te zien welke sjabloonversie gebruikt is en of een patroon al eens is
+aangepakt.
+
+| Ronde | Datum | Wat getest werd | Sjabloonversie of -wijziging | Belangrijkste patronen | Uitkomst |
+|---|---|---|---|---|---|
+| 1 (fase 1, pilot) | Nog te doen | Klant A, 3 clusters, 6 pagina's | Eerste versie van §4 | | |
+| 2 (fase 2) | Nog te doen | Klant B en C, 3 clusters elk, 12 pagina's | | | |
