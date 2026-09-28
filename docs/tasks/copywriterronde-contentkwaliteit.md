@@ -11,6 +11,14 @@
 > vlek: een AI-beoordelaar deelt de aannames van de AI-schrijver. Deze ronde vult dat aan met een
 > menselijke vakschrijver die niets van de pijplijn weet en alleen het resultaat beoordeelt zoals een
 > klant of een lezer dat zou doen. Beide toetsen blijven bestaan, dit is geen vervanging.
+>
+> **Wie voert §2 tot en met §4 uit.** Claude Code doorloopt de hele reis zelfstandig: klant aanmaken,
+> gesprek invullen, cluster opzetten, meetvragen goedkeuren, contentplan vrijgeven, brief-vragen
+> beantwoorden, laten schrijven, klantdocumenten opstellen. Geen mens vult ergens tussendoor iets in.
+> Waar de reis normaal een consultant of een klant nodig heeft, speelt Claude Code die rol zelf, met
+> de zorgvuldigheid die in §3.1 staat. §5 tot en met §8 (versturen naar de copywriter, feedback
+> verwerken, naar Claude Code voorleggen) blijven bij de eigenaar, dat is met opzet geen taak die je
+> aan jezelf uitbesteedt.
 
 ---
 
@@ -55,9 +63,20 @@ extra veelbelovend blijkt (zie §3), mag die naar 3 artikelen groeien (27 als bo
 
 ### 2.1 De drie klantprofielen
 
-Kies per profiel een echt bestaand, te verifiëren bedrijf (zoals in `benchmarkronde-twee-klanten.md`
-§2), niet overlappend met de merken die al in de database staan (installateur, fysiotherapie,
-autodealer, retail, dakdekker, tweede fysiopraktijk). Elk profiel test een ander deel van de keten:
+**Claude Code zoekt en kiest de drie bedrijven zelf**, zonder dat de eigenaar namen aanlevert. Dat
+moeten wel **echt bestaande** bedrijven zijn: het onderzoek in hoofdstuk 6 leest de echte website
+uit (aanbod, feiten, structuur), en een verzonnen bedrijf zonder site levert daar niets op. De
+creativiteit zit dus niet in het bedrijf zelf, maar in het gesprek en de brief-antwoorden (§3.1),
+precies zoals bij `benchmarkronde-twee-klanten.md` §2 en §7.
+
+Voor elk van de drie bedrijven controleert Claude Code zelf, vóór het aanmaken:
+- het bestaat echt en de website is bereikbaar (met een korte controle, geen aanname);
+- het overlapt niet met de merken die al in de database staan (installateur, fysiotherapie,
+  autodealer, retail, dakdekker, tweede fysiopraktijk, en de eventuele bedrijven van een eerdere
+  copywriterronde);
+- het past bij het profiel in de tabel (sector, lokaal of landelijk, aard van het aanbod).
+
+Elk profiel test een ander deel van de keten:
 
 | Profiel | Gesprek (hoofdstuk 7) | Werkgebied | Waarom dit profiel |
 |---|---|---|---|
@@ -88,18 +107,32 @@ tweede artikel niet op het eerste gaat lijken, wat een bekend risico is.
 
 ---
 
-## 3. Hoe de ronde in de app wordt uitgevoerd
+## 3. Hoe de ronde in de app wordt uitgevoerd, volledig door Claude Code
 
 Via de gewone weg, niet rechtstreeks in de database. Reden: zie `benchmarkronde-twee-klanten.md` §0,
 onverkort van toepassing. Een merk dat via SQL ontstaat heeft geen onderzoek, geen feitenlaag en geen
-van de stappen waar deze test juist over gaat.
+van de stappen waar deze test juist over gaat. Dat betekent hier: via de echte routes van de app
+(zoals `scripts/live.ts` dat al doet, ingelogd als een testconsultant-account), niet via een losse
+migratie of een handmatige insert.
+
+**Geen mens tussendoor.** Normaal wisselen bij deze reis een consultant en een klant elkaar af.
+Claude Code speelt hier allebei de rollen, per stap:
+
+| Stap | Rol die Claude Code speelt | Zorgvuldigheid die daarbij hoort |
+|---|---|---|
+| Merk aanmaken | consultant | Alleen de drie velden, zie §2.1 voor de bedrijfskeuze |
+| Gesprek invullen | consultant én klant | Antwoorden passen bij het profiel (§2.1), zie §3.1 voor hoe te verzinnen |
+| Meetvragen goedkeuren | consultant | **Eerst kritisch lezen** voordat bevestigd wordt: geen eigen merknaam, geen concurrent bij naam, past het werkgebied? Dit is precies de controle die een consultant hoort te doen, dus overslaan is geen optie |
+| Contentplan vrijgeven | consultant | De twee hoogst geprioriteerde aanbevelingen per cluster, geen handmatige selectie op iets anders |
+| Brief-vragen beantwoorden | klant | Zie §3.1 |
+| Beoordelen of het artikel goed genoeg is om te bewaren | (geen rol, dit doet de app zelf) | Niet ingrijpen: het is juist de bedoeling dat de pijplijn zelf beoordeelt en desnoods herschrijft |
 
 Volgorde per klant:
 
 1. Merk aanmaken (drie velden), onderzoek laten doorlopen (ongeveer 7,5 minuut).
 2. Het gesprek invullen volgens het profiel uit §2.1, met bron `gesprek`.
-3. Drie clusters aanmaken volgens §2.2, meetvragen nalopen en bevestigen (eerste bewuste stop, één
-   per cluster).
+3. Drie clusters aanmaken volgens §2.2, meetvragen kritisch nalezen en bevestigen (eerste bewuste
+   stop, één per cluster).
 4. Wachten op meting en rapport.
 5. Per cluster de twee hoogst geprioriteerde aanbevelingen kiezen, in het contentplan inplannen, de
    maand vrijgeven (tweede bewuste stop).
@@ -109,6 +142,28 @@ Volgorde per klant:
    een geldig resultaat.
 7. Laten schrijven, de eerste versie en (als die er is) de herschreven versie bewaren vóór ze in het
    goedkeuringsscherm verdwijnen (§4 heeft ze allebei nodig).
+8. Elke stap loggen (welk merk, welk cluster, welke keuze, met tijdstip), net als in
+   `benchmarkronde-twee-klanten.md` §7, zodat achteraf te zien is wat er gebeurd is en waarom.
+
+### 3.1 Hoe Claude Code creatief invult zonder een echte klant
+
+- **De website is de enige harde bron.** Alles wat de app zelf uit de site haalt (aanbod, feiten,
+  contactgegevens) blijft ongewijzigd; daar wordt niets aan toegevoegd of verzonnen.
+- **Het gesprek en de brief-vragen zijn waar de creativiteit nodig is**, want die vragen precies naar
+  wat niet op een website staat (bezwaren, doelen, tarieven, verhalen). Verzin daar plausibele
+  antwoorden die passen bij de sector en bij het profiel (rijk, gemiddeld, zwak uit §2.1).
+- **Elk verzonnen antwoord wordt als zodanig gelogd** (welk veld, welke waarde, "verzonnen voor de
+  test"), net als de expliciete disclaimer in `benchmarkronde-twee-klanten.md` §7 bij de bedragen en
+  bedrijfsregels van MJB en Fysio Centrum Utrecht. Dat log is voor intern gebruik en gaat niet mee
+  naar de copywriter (§4 vraagt hem als lezer te oordelen, niet als tester van een AI-systeem).
+- **Nooit publiceren.** De geschreven artikelen zijn testmateriaal over een echt bestaand bedrijf met
+  deels verzonnen specifieke feiten (prijzen, garanties, bedrijfsregels). Ze gaan nooit online, worden
+  niet als "live" gemarkeerd in de app, en er wordt geen echte e-mail naar het bedrijf of een
+  contactpersoon verstuurd (staat toch al standaard uit, `EMAILS_ENABLED`).
+- **Bij twijfel: overslaan, niet gokken.** Een brief-vraag waarvan geen redelijk antwoord te verzinnen
+  is zonder een concreet cijfer te verzinnen dat als echt zou kunnen doorgaan (bijvoorbeeld een exacte
+  prijs), wordt overgeslagen. Dat is bovendien realistischer: een echte klant slaat zulke vragen ook
+  wel eens over.
 
 ⚠️ **Kosten en dagplafond.** Drie klanten op één dag onder één account loopt tegen het plafond van
 €20 per klantaccount aan. Spreid over meerdere accounts of meerdere dagen. Ruwe schatting op basis van
@@ -282,13 +337,13 @@ de eerste, echte ronde in §3 blijft die aan, anders zijn de aanbevelingen niet 
 
 ## 9. Voortgang
 
-| Stap | Status |
-|---|---|
-| Drie klantprofielen gekozen en geverifieerd (§2.1) | Nog te doen |
-| Klanten aangemaakt, gesprekken ingevuld (§3) | Nog te doen |
-| Clusters gemeten, content vrijgegeven en geschreven (§3) | Nog te doen |
-| Drie klantdocumenten opgesteld (§4) | Nog te doen |
-| Terug van de copywriter | Nog te doen |
-| Patronen-document gemaakt (§6) | Nog te doen |
-| Voorgelegd aan Claude Code (§7) | Nog te doen |
-| Wijzigingen geverifieerd en gelogd (§8) | Nog te doen |
+| Stap | Wie | Status |
+|---|---|---|
+| Drie klantprofielen gezocht en geverifieerd (§2.1) | Claude Code | Nog te doen |
+| Klanten aangemaakt, gesprekken ingevuld (§3) | Claude Code | Nog te doen |
+| Clusters gemeten, content vrijgegeven en geschreven (§3) | Claude Code | Nog te doen |
+| Drie klantdocumenten opgesteld (§4) | Claude Code | Nog te doen |
+| Verstuurd naar en terug van de copywriter | Eigenaar | Nog te doen |
+| Patronen-document gemaakt (§6) | Eigenaar met Claude Code | Nog te doen |
+| Voorgelegd aan Claude Code (§7) | Eigenaar | Nog te doen |
+| Wijzigingen geverifieerd en gelogd (§8) | Claude Code | Nog te doen |
