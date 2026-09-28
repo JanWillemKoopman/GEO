@@ -203,8 +203,12 @@ export async function acceptInvite(token: string, password: string): Promise<Acc
  * De admin-API heeft geen directe "zoek op e-mail", dus dit loopt over de
  * ledenlijst. Bij twintig klanten (besluit 11) is dat één pagina; wordt het
  * groter, dan hoort hier een eigen index tegenover te staan.
+ *
+ * Geëxporteerd sinds het toewijzen-per-e-mailadres (`lib/profile-assign.ts`):
+ * die moet hetzelfde onderscheid maken als `acceptInvite()` hierboven, tussen
+ * een adres dat al een gebruiker heeft en een adres dat er nog geen heeft.
  */
-async function findUserByEmail(email: string): Promise<string | null> {
+export async function findUserByEmail(email: string): Promise<string | null> {
   const admin = createAdminClient();
   try {
     const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
