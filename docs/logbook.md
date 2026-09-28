@@ -12893,3 +12893,16 @@ tweede geval bewust op de consultant staan tot de klant de uitnodiging accepteer
 (laag 1) geeft dan al toegang, precies zoals een extra teamlid via `TeamBox` dat ook al deed. Voor
 Van den Udenhout (udenhout.nl, het eerste profiel van de nieuwe kennissysteem-architectuur, F0.1)
 alvast klaargezet als eerste toepassing. Ketenscenario "Toewijzen per e-mailadres" dekt beide paden.
+
+Aanbodboom mist diensten bij een retailer (28 september 2026, gevonden bij Van den Udenhout, F0.1):
+`buildOfferingTree()` (`lib/pipeline/offering.ts`) kiest één instructie op basis van `business_model`,
+en die voor "retailer" vroeg alleen om categorieën, productgroepen en gevoerde merken, nooit om
+diensten. Van den Udenhout kreeg dat label (verkoopt auto's van andere merken) en de aanbodboom bleef
+daardoor steken op 11 knopen: financiering, lease, verhuur en schadeherstel, allemaal met eigen
+paginas op de site (nagekeken met een query op `profile_pages`, tientallen pagina's tot 4000 tekens),
+kwamen nooit in beeld. Geen bug in de crawl of de bewijscontrole, die werkten prima; de opdracht aan
+het model vroeg er simpelweg nooit naar. Veel retailers verdienen naast de verkoop ook aan dat soort
+diensten, dus de instructie voor "retailer" vraagt er nu expliciet ook naar (kind `dienst`), naast wat
+er al gevraagd werd. Geen nieuwe knoopsoort nodig: `dienst` bestond al in `lib/schemas/offering.ts`,
+voor het geval `dienstverlener`. Op productie nog niet opnieuw gedraaid: dat kan de eigenaar zelf met
+de knop "Onderzoek opnieuw" op het aanbodscherm van Van den Udenhout, zodra deze wijziging gemergd is.
