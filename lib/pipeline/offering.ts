@@ -74,6 +74,10 @@ function briefingFor(model: BusinessModel | null): string {
         `- de categoriestructuur als knopen met kind 'categorie', in de vorm die de sitestructuur hieronder laat zien;\n` +
         `- productgroepen (niet losse artikelen!) als kind 'product' onder hun categorie;\n` +
         `- de GEVOERDE MERKEN als kind 'merk'. Dit is belangrijk: die merken zijn géén concurrenten van deze klant.\n` +
+        `- DIENSTEN ERNAAST, als de site ze noemt. Veel retailers verdienen naast de verkoop ook aan financiering, ` +
+        `lease, verhuur, reparatie, onderhoud, installatie of bezorging; dat zijn net zo goed eigen knopen (kind ` +
+        `'dienst', gegroepeerd onder een 'categorie' als de site dat doet) als het assortiment zelf. Sla deze ` +
+        `stap niet over alleen omdat het bedrijfsmodel "retailer" is.\n` +
         `Noem geen individuele artikelnummers: een categorie met 400 artikelen is één knoop.`
       );
     case "fabrikant":
