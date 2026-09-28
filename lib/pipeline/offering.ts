@@ -66,8 +66,22 @@ import { requireCount } from "@/lib/require-count";
  */
 const MAX_SITE_CHARS = 250_000;
 
-/** Hoeveel knopen we bewaren. Meer dan dit is geen boom meer maar een export. */
-const MAX_NODES = 60;
+/**
+ * Hoeveel knopen we bewaren.
+ *
+ * ⚠️ Stond op 60, en dat bleek bij Van den Udenhout (na de budgetverhoging
+ * hierboven) zelf de nieuwe grens: het model vond 87 echte knopen, en de zes
+ * automerken (Audi, CUPRA, SEAT, Škoda, Volkswagen, Volkswagen Bedrijfswagens)
+ * vielen af omdat ze niet meer binnen 60 pasten (28 september 2026,
+ * `docs/logbook.md`). Net als bij `MAX_SITE_CHARS`: dit was een vaste grens
+ * die nooit tegen een echte grote klant was afgezet. 200 geeft ruim armslag
+ * (meer dan het dubbele van wat Van den Udenhout, een van de grotere klanten
+ * qua aanbod, tot nu toe liet zien) zonder de grens helemaal los te laten:
+ * `persistTree()` meldt nog steeds in `gaps` als zelfs dat niet genoeg is
+ * (`droppedByCap`), zodat een grens die opnieuw te krap blijkt weer zichtbaar
+ * wordt in plaats van stil te blijven afkappen.
+ */
+const MAX_NODES = 200;
 
 /**
  * Context over het bedrijfsmodel, ter aanvulling op de vaste opdracht
