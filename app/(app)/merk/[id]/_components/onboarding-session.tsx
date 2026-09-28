@@ -24,6 +24,7 @@ import {
   FIELD_TASKS,
 } from "@/lib/pipeline/onboarding-refresh";
 import { sessionMeter, notApplicableFields, type FieldState } from "@/lib/profile-meter";
+import { beoordeelSchrijfKwaliteit } from "@/lib/schrijf-kwaliteit";
 import { isHumanSet } from "@/lib/pipeline/field-merge";
 import { DOMEIN_KOP } from "@/lib/kennis/overzicht";
 import type { KennisrondeDomein } from "@/lib/kansen/kennisronde";
@@ -115,6 +116,18 @@ export function OnboardingSession({
   const meter = useMemo(
     () => sessionMeter(waarden as Partial<Profile>, states),
     [waarden, states],
+  );
+
+  // Punt 6 (`docs/doorloop-van-klant-tot-content.md`): een dun gesprek geeft
+  // geen fout verderop in de keten, dus dat moet híer al zichtbaar zijn.
+  const schrijfWaarschuwingen = useMemo(
+    () =>
+      beoordeelSchrijfKwaliteit({
+        verhalen: (waarden.verhalen as string | null) ?? null,
+        stem_voorbeelden: (waarden.stem_voorbeelden as Profile["stem_voorbeelden"]) ?? null,
+        taboo_phrases: (waarden.taboo_phrases as string[]) ?? [],
+      }),
+    [waarden],
   );
 
   const gaten = useMemo(
@@ -599,6 +612,29 @@ export function OnboardingSession({
             </div>
           </div>
 
+
+          {schrijfWaarschuwingen.length > 0 && (
+            <div className="card card-warning flex flex-col gap-2">
+              <span className="mono-label">Dit maakt de teksten zwakker</span>
+              <p className="text-sm text-secondary">
+                Deze drie velden gaan rechtstreeks naar de schrijver van elke pagina. Dun ingevuld
+                betekent een tekst die minder van {brandName} klinkt, zonder dat er ergens een
+                waarschuwing komt.
+              </p>
+              <ul className="flex flex-col gap-1">
+                {schrijfWaarschuwingen.map((w) => (
+                  <li key={w.signaal}>
+                    <a
+                      href={`#veld-anker-${w.signaal}`}
+                      className="text-sm underline-offset-2 hover:underline"
+                    >
+                      {w.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div className="card flex flex-col gap-3">
             <Meter meter={meter} />

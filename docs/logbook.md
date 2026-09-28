@@ -12979,3 +12979,38 @@ ruim boven wat Van den Udenhout liet zien. `persistTree()` meldt nog steeds in `
 dat niet genoeg is, dus een grens die opnieuw te krap blijkt blijft zichtbaar. Geen pure geteste
 functie geraakt: `tsc`, `test:unit` (5524) en `test:chain` (985) ongewijzigd groen. Op productie
 nog niet opnieuw gedraaid voor Van den Udenhout.
+
+## 28 september 2026: de tien discussiepunten van de doorloop besloten, en één signaal gebouwd
+
+De eigenaar liep de "tien belangrijkste punten om te bespreken" van `docs/doorloop-van-klant-tot-
+content.md` na. Drie ervan bleken bij het nalopen van de code al opgelost zonder dat deel III van
+dat document was bijgewerkt: punt 1 (FAQ-controle) in C1/besluit B19, punt 2 (twee bronnen van
+vragen) in A3/besluit V3, en punt 9 (geen herinnering bij openstaande vragen) in A5, alle drie op
+27 september 2026 geland. Het document is nu bijgewerkt: die drie staan er doorgestreept met hun
+besluit, in plaats van nog open te lijken.
+
+Punt 6 (de aanbodboom ziet maar een kwart van de site) werd door de eigenaar als "al opgelost in
+een andere sessie" aangedragen. Nagelopen in de code (`lib/pipeline/offering.ts` regel 178,
+`lib/pipeline/page-select.ts` regel 7) op het moment van bespreken: het oude budget stond er nog,
+dus het punt bleef aanvankelijk open in het document, met een kanttekening dat het ten onrechte
+als opgelost gold. Bij het samenvoegen van deze branch met `main` bleek de andere sessie er
+diezelfde dag alsnog wél mee klaar te zijn (zie hierboven en de twee aanbodboom-reparaties
+ervoor): het document is bij het mergen alsnog aangepast om dat te tonen. Les voor volgende keer:
+verificatie tegen de code is alleen zo goed als het moment waarop hij draait, bij twee sessies
+tegelijk kan dat achterhaald raken binnen enkele uren.
+
+Voor de punten "de meting is een nabootsing" (4), "het zoekvolume is een schatting" (5), en "Sol
+beoordeelt Sol" (10) is besloten voorlopig geen actie te ondernemen; ze blijven zo in het document
+staan, met de reden erbij.
+
+Voor punt 8 ("het gesprek is de grootste hefboom, maar er is geen signaal als het dun is") is een
+nieuwe, pure module gebouwd: `lib/schrijf-kwaliteit.ts` (`beoordeelSchrijfKwaliteit()`) signaleert
+of "Verhalen" leeg of korter dan 80 tekens is, of geen enkel stemvoorbeeld een opgehaalde tekst
+heeft, of `taboo_phrases` leeg is. Bewuste keus om dit los te houden van de bestaande
+volledigheidsmeter (`lib/profile-meter.ts`): die telt tientallen velden bij elkaar op, en juist
+deze drie (die rechtstreeks naar blok A van elke pagina gaan, `lib/pagina/schrijfopdracht.ts`)
+verdwenen daarin tussen de rest. De onboardingsessie toont de waarschuwing nu als eigen kaart
+boven de volledigheidsmeter, met een link naar elk zwak veld. Blokkeert niets (conventie 3): het
+maakt alleen zichtbaar wat een pagina eerder zonder enig signaal liet doorschrijven. Eenheidstests
+voor de vier gevallen (leeg, goed gevuld, een te kort verhaal, een stemvoorbeeld dat niet is
+opgehaald).
